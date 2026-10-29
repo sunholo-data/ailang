@@ -89,6 +89,7 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 	// reachable module's functions into a single bytecode image without
 	// bare-name collisions (e.g. two modules that both define `helper`).
 	funcIdx := make(map[string]int, len(prog.FuncDecls))
+	decls := make(map[string]*stmt.FuncDecl, len(prog.FuncDecls))
 	for i := range prog.FuncDecls {
 		fd := &prog.FuncDecls[i]
 		canonical := canonicalFuncName(fd.Module, fd.Name)
@@ -98,7 +99,9 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 		}
 		idx := img.AddPrototype(proto)
 		funcIdx[canonical] = idx
+		decls[canonical] = fd
 	}
+	edges := make(map[int]map[int]bool, len(prog.FuncDecls))
 
 	// Phase 2: compile each function body. Per M-BYTECODE-2D M3, a per-function
 	// compile failure does NOT abort the whole image — instead the prototype is
@@ -129,6 +132,8 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 		fc.recordTypes = recordTypes
 		fc.adtTypes = adtTypes
 		fc.adtOrder = adtOrder
+		fc.decls = decls
+		fc.edges = map[int]bool{}
 		compileErr := fc.compile(fd)
 
 		// After a successful compile, run per-proto structural validation on
@@ -160,8 +165,12 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 		}
 
 		if compileErr != nil {
-			// Roll back any orphan child lambdas the failed compile registered.
+			// Roll back any orphan child lambdas the failed compile registered,
+			// and any funcIdx key that pointed into the dropped range (the
+			// synthetic prelude prototypes, prelude.go): a later function
+			// would otherwise resolve that key to whatever reuses the index.
 			img.Prototypes = img.Prototypes[:protoCheckpoint]
+			dropFuncIdxFrom(funcIdx, protoCheckpoint)
 			// Reset any partial state on the failed prototype itself and tag
 			// it as an evaluator-only stub. Name, NumParams and File stay
 			// intact so the bridge can still resolve and call it.
@@ -173,8 +182,14 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 			proto.NumCaptures = 0
 			proto.EvalOnly = true
 			proto.EvalReason = compileErr.Error()
+		} else {
+			edges[funcIdx[canonicalFuncName(fd.Module, fd.Name)]] = fc.edges
 		}
 	}
+
+	// Phase 2b: a native function must not reach an evaluator-only one with
+	// a value the bridge cannot carry (bridge_safety.go).
+	markBridgeUnsafeCallers(img, prog, funcIdx, edges, adtTypes)
 
 	// Phase 3: pick an entry point. Prefer the first exported function; fall
 	// back to the first function. Tests that don't care can ignore EntryPoint.
@@ -203,6 +218,19 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 	return img, nil
 }
 
+// dropFuncIdxFrom deletes every funcIdx key whose prototype index is at or
+// past checkpoint, after a failed compile rolled those prototypes back. Only
+// the lazily compiled prelude prototypes (prelude.go) are registered in
+// funcIdx during a function's compile, so only their keys can dangle.
+func dropFuncIdxFrom(funcIdx map[string]int, checkpoint int) {
+	for _, name := range bytecode.PreludeNames() {
+		key := preludeKey(name)
+		if idx, ok := funcIdx[key]; ok && idx >= checkpoint {
+			delete(funcIdx, key)
+		}
+	}
+}
+
 // funcCompiler holds per-function state during a single function's lowering.
 type funcCompiler struct {
 	img         *bytecode.BytecodeImage
@@ -226,6 +254,36 @@ type funcCompiler struct {
 	// instruction it appends, so VM runtime errors can report a source
 	// location. Zero means "no line info available".
 	currentLine int
+
+	// recGroup is set when this prototype is a member of a local `letrec`
+	// group: member name → image prototype index. A reference to a member
+	// that no local shadows rebuilds that member's closure from this
+	// frame's own captures (recCapRegs), because every member of a group
+	// shares one capture list. See letrec.go.
+	recGroup   map[string]int
+	recCapRegs []uint8
+
+	// decls maps a funcIdx key to its FuncDecl (shared by the whole
+	// image). edges collects every image prototype this top-level function
+	// references through OpClosure, nested lambdas included; it feeds the
+	// bridge-safety pass (bridge_safety.go).
+	decls map[string]*stmt.FuncDecl
+	edges map[int]bool
+}
+
+// child returns a compiler for a prototype nested inside fc's function (a
+// lambda or a letrec member). It shares the image-wide tables, and edges,
+// so a reference made from a nested body counts for the enclosing function.
+func (fc *funcCompiler) child(proto *bytecode.FuncPrototype) *funcCompiler {
+	inner := newFuncCompiler(fc.img, proto, fc.funcIdx)
+	inner.recordTypes = fc.recordTypes
+	inner.adtTypes = fc.adtTypes
+	inner.adtOrder = fc.adtOrder
+	inner.currentModule = fc.currentModule
+	inner.currentLine = fc.currentLine
+	inner.decls = fc.decls
+	inner.edges = fc.edges
+	return inner
 }
 
 // canonicalFuncName returns the funcIdx key for a function. Single-module
@@ -269,10 +327,8 @@ func (fc *funcCompiler) compile(fd *stmt.FuncDecl) error {
 
 	// Body statements.
 	body, ret := inlineBodyCtorTemps(fd.Body, fd.Return)
-	for _, s := range body {
-		if err := fc.compileStmt(s); err != nil {
-			return err
-		}
+	if err := fc.compileStmts(body); err != nil {
+		return err
 	}
 
 	// Trailing return expression. The Statement IR convention is that every

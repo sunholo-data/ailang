@@ -8,8 +8,10 @@ that, see <https://ailang.sunholo.com/docs/reference/syntax/>.
 
 A statically-typed, effect-typed programming language designed as a
 deterministic execution substrate for AI-generated code. The compiler
-is written in Go and targets a tree-walking evaluator (with a
-bytecode VM tracked in `design_docs/`). The runtime ships with a
+is written in Go and runs programs on a tree-walking evaluator (the
+default and reference engine) or a bytecode VM (`ailang run --bytecode`;
+Core → `internal/gen/lower` → Statement IR → `internal/bytecode` →
+`internal/vm`). The runtime ships with a
 capability-based effect system, a Hindley-Milner type system with
 row-polymorphic records and effects, and a curated standard library.
 

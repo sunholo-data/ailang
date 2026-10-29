@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // InferenceContext maintains state during type inference
@@ -45,6 +46,11 @@ type InferenceContext struct {
 	// also withholds every var free in the bindings pushed ABOVE baseEnv
 	// (M-EQ-DERIVE-CONTAINERS: `func pick[a](x: a, y: a) { [x] == [y] }`).
 	baseEnv *TypeEnv
+	// declRoot is the expression this inference was started on. In module
+	// declaration mode (CoreTypeChecker.SetModuleDeclarationMode) it is a
+	// module-level binding (`func` → LetRec, top-level `let` → Let), which
+	// keeps full generalization; see literalWithhold.
+	declRoot core.CoreExpr
 }
 
 // TypeConstraint represents a constraint to be solved
@@ -79,6 +85,11 @@ type ClassConstraint struct {
 	Type   Type
 	Path   []string
 	NodeID uint64 // NodeID of the Core expression that generated this constraint
+	// IntLiteral marks the Num constraint an integer literal emits. A type
+	// variable carrying one is never let-generalized (see
+	// literalConstrainedVars): the runtime has no fromInt dispatch, so a
+	// polymorphic literal would evaluate to an Int at every instantiation.
+	IntLiteral bool
 }
 
 func (c ClassConstraint) constraint()    {}

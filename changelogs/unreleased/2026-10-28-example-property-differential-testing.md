@@ -1,3 +1,0 @@
-### Added — Example: property-based differential testing (2026-10-28)
-
-`examples/runnable/property_differential_testing.ail` checks Kadane's maximum-slice algorithm against a brute-force reference with a `property` over generated lists, and is listed in the manifest (tags `testing`, `property-testing`, `algorithms`), on the website's Examples page and in the testing guide. It exists because AI agents almost never use AILANG's built-in property tests: 0 of 54 Haiku 4.5 sessions on the competitive-programming pack did ([M-EVAL-AILANG-ADVANTAGE](../../design_docs/planned/v0_55_0/m-eval-ailang-advantage-program.md), H1). It uses the multi-parameter lambda `\st y.` for its `foldl` callback; the curried form `\st. \y.` runs on the evaluator but fails on the bytecode VM.

@@ -147,6 +147,7 @@ To make the buckets meaningful, v0.19.0 introduced 5 typed `ErrorCategory` value
 | `cost_killed` | Eval-side $ budget exceeded (motoko `cost_exhausted`, future executor caps) | ✅ yes — operator could raise budget |
 | `step_exhausted` | Agent ran out of turns / step budget | ✅ yes — operator could raise budget |
 | `api_error` | Catch-all when no more specific cause is detectable | partial — kept excluded during legacy-JSON transition |
+| `external_kill` | The agent CLI was SIGTERMed by something other than the harness (exit 143 / `signal: terminated`, or codex exiting 0 mid-turn); the harness itself only SIGKILLs | ❌ no — banked invalid and retried by `--skip-existing` |
 
 The eval harness assigns these via `CategorizeAgentError(err, finishReason)`, which is also offline-recomputable from `stderr` strings on existing result JSONs.
 
@@ -158,7 +159,7 @@ For each `(model × harness × benchmark)`, the report assigns exactly one bucke
 - **slow_pass** — passes but slower than the threshold
 - **budget_blocked** — failed with `cost_killed` or `step_exhausted`; raising the budget might flip this to a pass
 - **capability_blocked** — `compile_error` / `runtime_error` / `logic_error` / `timeout`; the model genuinely couldn't solve the task within reasonable scope
-- **provider_blocked** — `quota_exhausted` / `rate_limit` / `api_error`; excluded from pass-rate denominators (not the model's fault)
+- **provider_blocked** — `quota_exhausted` / `rate_limit` / `api_error` / `external_kill`; excluded from pass-rate denominators (not the model's fault)
 
 The per-benchmark "Cheapest / Fastest pass" footer names the model with the lowest cost-per-success and the lowest TTS for each benchmark, considering only runs where `stdout_ok == true`.
 

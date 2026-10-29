@@ -44,7 +44,8 @@ Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd
    The issue thread is a COMMUNICATION channel, not loop memory — the loop never re-reads its own
    reports (Gate 0 filters for Mark's comments only); the full record lives in the charter STATUS
    + mission log, which Gate 4 already wrote. Do NOT mirror the STATUS entry into the issue.
-   - `ailang messages send controlplane "<digest>" --title "Mission iteration N: <headline>"
+   Every `ailang messages` command in this step runs with `env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac` inline (as the driver's own sends do); on the local store the inbox guard refuses `controlplane` and the 3(c) read cannot see the message.
+   - `env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac ailang messages send controlplane "<digest>" --title "Mission iteration N: <headline>"
      --from "mission-${MISSION_NAME:-control}"`
      **⚠ THE BODY IS A POSITIONAL ARGUMENT, AND `ailang messages send` HAS NO `--body-file` FLAG —
      IT SILENTLY ACCEPTS THE LITERAL STRING `--body-file /path` AS THE MESSAGE BODY, EXITS 0, AND
@@ -69,9 +70,9 @@ Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd
      **Rules. (a)** Pass the body POSITIONALLY, and pass flags with the single-dash Go form this
      CLI actually parses (`-title`, `-from`); read `ailang messages send --help` rather than
      assuming the `gh` flag vocabulary transfers. **(b)** For a long body, use a quoted command
-     substitution — `ailang messages send controlplane "$(cat /tmp/body.txt)" -title "…" -from "…"`
+     substitution — `env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac ailang messages send controlplane "$(cat /tmp/body.txt)" -title "…" -from "…"`
      — which is safe for markdown: substituted output is not re-scanned, so backticks inside the
-     file stay data. **(c)** ASSERT THE ARTIFACT after sending: `ailang messages read --peek --json <id>` and
+     file stay data. **(c)** ASSERT THE ARTIFACT after sending: `env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac ailang messages read --peek --json <id>` and
      confirm the body is your text, exactly as Gate 0 requires a comment count to grow. `--peek`
      keeps the message unread so Daneel's hourly unread triage still sees it. Every flag must
      come BEFORE the id because the CLI's Go flag parser stops at the first positional argument:

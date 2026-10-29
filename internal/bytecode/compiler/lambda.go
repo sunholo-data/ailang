@@ -23,20 +23,13 @@ import (
 func (fc *funcCompiler) compileLambda(lam stmt.Lambda) (uint8, error) {
 	// 1. Free-variable analysis: which outer names does this lambda use?
 	freeVars := freeVarsLambda(lam)
-	// Filter to those that are actually bound in our outer scope (locals).
-	// Names that are not locals must be top-level functions (handled via
-	// closure-of-name in the body) or unbound (which is a compile error in
-	// the inner pass).
-	var captures []string
-	captureSrc := make(map[string]uint8)
-	for _, name := range freeVars {
-		if r, ok := fc.locals.lookup(name); ok {
-			captures = append(captures, name)
-			captureSrc[name] = r
-		}
-	}
-	if len(captures) > 255 {
-		return 0, fmt.Errorf("lambda has %d captures, exceeds 255", len(captures))
+	// Filter to those that are actually bound in our outer scope (locals,
+	// or members of the letrec group this function belongs to). Names that
+	// are neither must be top-level functions (handled via closure-of-name
+	// in the body) or unbound (which is a compile error in the inner pass).
+	captures, captureSrc, captureTemps, err := fc.resolveCaptures(freeVars)
+	if err != nil {
+		return 0, err
 	}
 
 	// 2. Build & register the inner prototype.
@@ -48,11 +41,7 @@ func (fc *funcCompiler) compileLambda(lam stmt.Lambda) (uint8, error) {
 	innerImageIdx := fc.img.AddPrototype(innerProto)
 
 	// 3. Compile the inner body in a fresh funcCompiler.
-	inner := newFuncCompiler(fc.img, innerProto, fc.funcIdx)
-	inner.recordTypes = fc.recordTypes
-	inner.adtTypes = fc.adtTypes
-	inner.adtOrder = fc.adtOrder
-	inner.currentModule = fc.currentModule
+	inner := fc.child(innerProto)
 	// Pin parameters to r[0..NumParams-1].
 	for _, p := range lam.Params {
 		r, err := inner.regs.allocPinned()
@@ -73,10 +62,8 @@ func (fc *funcCompiler) compileLambda(lam stmt.Lambda) (uint8, error) {
 
 	// Lower body + return.
 	body, ret := inlineBodyCtorTemps(lam.Body, lam.Return)
-	for _, s := range body {
-		if err := inner.compileStmt(s); err != nil {
-			return 0, fmt.Errorf("lambda body: %w", err)
-		}
+	if err := inner.compileStmts(body); err != nil {
+		return 0, fmt.Errorf("lambda body: %w", err)
 	}
 	if ret != nil {
 		if err := inner.compileReturnExpr(ret); err != nil {
@@ -106,6 +93,7 @@ func (fc *funcCompiler) compileLambda(lam stmt.Lambda) (uint8, error) {
 		// Pseudo-MOVE: A is unused, B is the source register in the outer frame.
 		fc.emit(bytecode.EncodeABC(bytecode.OpMove, 0, captureSrc[name], 0))
 	}
+	fc.freeTemps(captureTemps)
 	return dst, nil
 }
 
@@ -151,6 +139,12 @@ func (v *freeVarVisitor) recordFree(name string) {
 func (v *freeVarVisitor) visitStmt(s stmt.Stmt) {
 	switch s := s.(type) {
 	case stmt.VarDecl:
+		// A letrec member's value may name every member of its group, so
+		// the group is bound before the value is visited. Otherwise an
+		// enclosing lambda would capture an outer binding of that name.
+		for _, n := range s.RecGroup {
+			v.bound[n] = true
+		}
 		v.visitExpr(s.Value)
 		v.bound[s.Name] = true
 	case stmt.AssignStmt:

@@ -68,7 +68,7 @@ The visible top level: what `ailang --help` lists.
 | `ailang pkg` | — | Package registry inspection and coordination |
 | `ailang prompt` | — | Display the AILANG teaching prompt (for AI code generation) |
 | `ailang repl` | — | Start the interactive REPL |
-| `ailang run` | — | Run an AILANG program |
+| `ailang run` | — | Run an AILANG program (--bytecode for the VM) |
 | `ailang serve` | `ailang server` | Start the Observatory dashboard server (default port 1957) |
 | `ailang test` | — | Run tests (--package for package mode) |
 | `ailang verify` | — | Verify contracts and proof obligations |
@@ -85,7 +85,7 @@ Reachable as `ailang dev <command>` and, unchanged, as `ailang <command>`.
 | `ailang dev axioms` | `ailang axioms` | Design axiom compliance scorecard |
 | `ailang dev builtins` | `ailang builtins` | Inspect the builtin registry |
 | `ailang dev cache` | `ailang cache`, `ailang brain` | Project brain / semantic cache operations |
-| `ailang dev compile` | `ailang compile` | Compile AILANG to Go (emit-go) |
+| `ailang dev compile` | `ailang compile` | Compile AILANG to Go (emit-go; not a speed path, no tail calls) |
 | `ailang dev debug` | `ailang debug` | Debug AST and type information |
 | `ailang dev devtools-prompt` | `ailang devtools-prompt` | Display the AILANG dev tools reference (for AI agents) |
 | `ailang dev disasm` | `ailang disasm` | Disassemble compiled AILANG |

@@ -403,6 +403,12 @@ const (
 	// The run may have completed; its RECORD is untrustworthy, and a wrong
 	// number is worse than no number. M-PI-HARNESS-UPGRADE D4.
 	FinishWireDrift = "wire_drift"
+	// FinishExternalKill means the CLI was terminated by a signal the harness
+	// did not send. Every harness kill (timeouts, caps, cancellation) is a
+	// SIGKILL through proctree, so a SIGTERM death came from outside — on the
+	// rig, a sibling eval agent's `pkill -f "ailang run"` (2026-10-27/28). The
+	// run measured nothing about the model; it is banked invalid and retried.
+	FinishExternalKill = "external_kill"
 )
 
 // ToolPolicyCLIDefault is the Result.ToolPolicy sentinel for "the caller did

@@ -2046,3 +2046,227 @@ Last 3 code landings: iteration 63, none (a dev red, not a ticket); iteration 64
 1. `pi:unowned-dirty-absolute-vs-relative-paths` (10-02): measure first-party, then park it per D-FLEET-3 with the proposed diff and its expected pi-eval impact as a decision row. A bookkeeping pick, so a second item may follow.
 2. Then the 1-slot tier, oldest first: `gate0:watermark-advanced-by-dying-fire` (#981; its design `m-gate0-watermark-crash-safety.md` is planned and unbuilt), `skills:showcase-feature-discoverability`, `gate5:controlplane-send-refused-local-store`.
 3. Watch dev's govulncheck (GO-2026-6860): it is not the fleet's to fix.
+
+## 66 — 2026-10-28 — `gate5:controlplane-send-refused-local-store` LANDED via #1994 → `d95ead6af`, independent sonnet PASS 91 (round 2); `pi:unowned-dirty-absolute-vs-relative-paths` measured and parked on D-FLEET-33 [HARNESS]
+
+**Pick**: iteration 65's **Next**. The top `slots_lost` tickets are still all gated by OPEN decisions, so the pick took the 1-slot tier, oldest first.
+- (1) **Bookkeeping**: `pi:unowned-dirty-absolute-vs-relative-paths` (interactive, 10-02). This was a D-FLEET-3 park: measure it, then file the diff with its eval impact.
+- (2) **Standing rule 1's second item**: `gate5:controlplane-send-refused-local-store` (world, 10-05).
+- Skipped on measured grounds:
+  - `gate0:watermark-advanced-by-dying-fire` (10-03): open PR #1962 (`p0/gate0-watermark-crash-safety`, created 10-26, `Closes #981`) builds it. The branch is not a fleet branch, so it is not attributable to this loop and was left alone.
+  - `skills:agents-copies-stale-non-mission` (10-03): non-mission skills are outside the guard's scope.
+  - `skills:showcase-feature-discoverability` (10-03): three asks (docs MCP in bootstrap, a mandatory syntax step in sprint-executor, a CI feature-usage gate). The third is a CI workflow (refused by the guard), and together they need a design, so it is a larger item. It is now Next.
+  - The quota, D-FLEET-24, -25, -26 and -18 tickets stay gated by their OPEN rows.
+
+**Orphans**: none. No `fleet/i66*` branch, worktree or PR existed. Self-notices rc 0 (control 852:10). The log and charter on `origin/dev` both ended at 65.
+
+**Preflight / observe**:
+- Armed. gh `sunholo-voight-kampff`. Billing CLEAN. Directives: 0 on #1945 since `2026-10-22T23:29:08Z` (6 comments, none allowlisted).
+- Skill drift: SKILL.md and all 13 resource files are `cmp`-identical to origin/dev in the resolved symlink.
+- Gate-1 base `c0458fdfd4f950eaeceae23e80ab371b6764a415@2026-10-28T14:21:31Z`. Dev CI was in progress; the check set (18) showed 1 completed non-green, the non-required `govulncheck (vuln gate)` (GO-2026-6860, inherited, iteration 64).
+- Ledger: 31 rows, 16 OPEN. 40 tickets open; none filed in the last 48h.
+- Driver note: codex over its daily ration (`probe rc=75`) for both planner and executor, handed to opus and `claude:claude-haiku-5-5`.
+
+**Reality check** (first-party, before routing):
+- unowned-dirty, at `c0458fdfd`: `.pi/extensions/unowned-dirty.ts:42` and `:78` add `${ctx.cwd}/${p}`; `unownedDirty` compares with porcelain's relative paths. A node repro of the HEAD wiring gave `["mine.ts","theirs.go"]` for own `mine.ts`, and `["theirs.go"]` once relativized. The pi eval path: `internal/executor/pi/pi.go:180` and `scripts/mission_pi_run.sh:302` both run `pi --mode json`; pi 0.85.1 `print-mode.js:53` binds extensions with no UI context, so `notify` is `runner.js:92`'s `() => { }`. `cmd/ailang/pi_assets/unowned-dirty.ts` `cmp`-matches the source (a `make pi-assets` copy, outside scope).
+- controlplane: `ailang messages inboxes` reads `TRIAGE controlplane` on the gcp store and `! NOTHING controlplane … accepted and never dispatched` with `AILANG_STORAGE_MESSAGING=local`, so `checkSendInbox` refuses there. `~/.zshenv:38-39` exports the gcp pair, which is the only reason controller sends have worked. The driver scopes its own sends per call (`mission-control.sh:248`, `:307`, `:361`, `:2641`). `ailang mission ticket` is unaffected (it pins `config.MissionMessagePlaneProject`). An audit of `.claude/skills/mission-control` found 4 unscoped prescribed commands and 3 already scoped by `gate-3-triage.md`'s `$MSG`.
+
+**Did** (designer skipped; planner, executor and two evaluator rounds spawned; generator ≠ judge):
+- **Designer**: not spawned. Mechanical fix with no design surface; the rotation pointer was not advanced.
+- **Planner**: the resolver said `agent-tool opus fail-closed:env-pin` and the pin is `opus`, so it ran on the Agent tool, foreground. It wrote [the plan](planned/sprint-plan-controlplane-store-scope.md): M1 (scope the 4 lines with the literal pair, not `$MSG`, because a shell variable does not survive between Bash-tool calls; regenerate the mirror; changelog) and M2 (the guard arm, plus the existing 3(c) arm stripping the prefix; 4 drills). It rejected a global driver export, because that would also move the controller's reads.
+- **Executor**, `claude:claude-haiku-5-5` through `claude-sub` (probe rc 0, keys stripped), in the sprint worktree: built M1 and M2 as one commit (`b3bdd1050`, rebased to `60f60367c`). It ran D1–D4 (all red, each restored with `cp` + `cmp`) and the done-gate. Its first full suite run read rc 2 on three unrelated suites, each green alone and on re-run.
+- **Unowned-dirty park**: the controller wrote the proposed diff against a copy and ran it under node: 4/4, and a prefix-strip mutant was killed. After the judge's objection, the controller added `realOrSelf` (realpath on both sides) and a symlink test: 5/5, with an identity mutant killed. The diff applies to HEAD's files with `patch -p1`.
+- **Evaluator round 1**, Agent tool `sonnet`, in the fresh detached judge worktree `.wt-fleet-iter66-judge` at `60f60367c`: **PASS 84**, 0 blocking. It ran 8 drills. D8, the pair in a trailing comment after an unscoped command, PASSED the arm. D9, `send` at end of line, was caught only by the positive control. Part B (the park): PARTIAL; claims (i)–(iv) CONFIRMED. Its strongest objection was that `--show-toplevel` is physical while cwd may be a symlink, which would silently drop every own file.
+- **Controller fix** `ffde0469a`: the arm strips scoped occurrences and fails on any remaining `ailang messages send|read|ack|unack( |$)`. D8 and an end-of-line D9b each pass the pre-fix arm and fail the new one; D1 and a wrong-project mutant (D13) fail. The failure message no longer prints empty fields.
+- **Round 2**, the same judge resumed by name at `ffde0469a`: **PASS 91**. D8, D9b and its own D14–D17 are all red, with no new false reds. Residual: a double space or tab between `messages` and `send` is not matched. Report: [evaluation.md](fleet-mission-evidence/iteration66/evaluation.md).
+- **Done-gate** ([done-gate.md](fleet-mission-evidence/iteration66/done-gate.md)): `make test-launchd-drivers` rc 0 at `60f60367c` and at `ffde0469a` (49 suites); `sync-agents-skills.sh --check` rc 0. Fleet dry-runs under a synthetic HOME, `AILANG_DRIVER_PINNED=ffde046`: healthy and degraded both read `DRY RUN ok`, `lanes=DEGRADED(2)`; codex is over its ration, and each arm named its fallback. The real pidfile was unchanged.
+- **PR** [#1994](https://github.com/sunholo-data/ailang/pull/1994). The closing-keyword scan over the commits and body found 0 matches (control fired).
+
+**Gate 3b**: PR head `ffde0469a`: 27 checks terminal, 26 green, 1 red: the non-required `govulncheck (vuln gate)`. Its log (24.7 KB) shows `1 unallowlisted finding: GO-2026-6860`; dev's own HEAD `af8d75e37` is red on the same job. MERGEABLE/UNSTABLE; required contexts (`test, lint, build, docs-gate, UI build gate, checks`) green. Merged with `--merge --match-head-commit` → `d95ead6afec0e608b94aeabc29d7c7478f4493f2`. Exact merge `d95ead6af`: Build and Release 40713515460 SUCCESS; CI 40713516083 failed only in `govulncheck (vuln gate)` (job 122905086538, log 23.4 KB): `1 unallowlisted finding: GO-2026-6860`, the advisory that reds the parent. `SonarCloud Code Analysis` is red on the merge and on the parent `af8d75e37`, so it is inherited too. Check set 18, 2 non-green, both inherited and non-required. Verdict: LANDED. (Instrument note: the poller's `red=` field word-split check names containing spaces, so the verdict was read from the check-run API directly.)
+
+**Resolved**: `ailang mission ticket resolve gate5:controlplane-send-refused-local-store --sha d95ead6af…`, replied to world. Open count 40→39, then 40 again: `pin-root:worktree-removed-mid-fire` (stapledon) was filed at 15:27Z during this fire. Turnaround about 23 d (10-05 16:48Z → 10-28). `pi:unowned-dirty-absolute-vs-relative-paths` stays OPEN on D-FLEET-33.
+
+**Progress**: goal unmoved on clause 1 (UNMEASURED). Clause 2 UNMET overall; this closure took about 23 d, so it does not qualify. Clause 3 MET (40 open, one of them filed during this fire). Clause 4: prior evidence only. Clause 5 preserved.
+
+**Routing evidence**: Gate-1 base `c0458fdfd4f950eaeceae23e80ab371b6764a415@2026-10-28T14:21:31Z`; merge `d95ead6af`. Driver note: `lanes degraded: planner and executor codex gpt-6.1-sol unusable (probe rc=75, over daily ration) → opus / claude:claude-haiku-5-5`; `MISSION_OVER_RATION=codex`.
+- Controller `claude:claude-opus-5-5` (tok: not reported).
+- Designer: not spawned (mechanical; no doc); rotation pointer not advanced.
+- Planner `opus`, Agent tool (62,210 subagent tokens / 7 tool uses / 116 s). Resolver `agent-tool opus fail-closed:env-pin`; the pin is the bare alias `opus`, so the hook and the resolver agreed.
+- Executor `claude:claude-haiku-5-5` via `claude-sub -p --permission-mode bypassPermissions` (tok: not reported, text output), about 16 min, rc 0.
+- Evaluator `sonnet`, Agent tool: round 1 72,121 subagent tokens / 16 tool uses / 113 s; round 2 79,166 / 3 / 53 s. Judge independence: different model from planner (opus) and executor (haiku); same vendor, so vendor-level independence is not claimed.
+- Quorum: none (no design doc). Metered spend: $0. No lane recorded dead (codex is over ration, not dead).
+
+**Ruled out**:
+- A global `AILANG_STORAGE_MESSAGING` export from the driver: it would move the controller's reads too, and the operator rule is the prefix on sends only.
+- `$MSG` at the new sites: a shell variable defined in one Bash-tool call is empty in the next, so the command would run unscoped with no error.
+- Reading the ticket as already fixed because sends work today: they work only through a user dotfile, and the local store still refuses `controlplane` at HEAD.
+- Reading "evals load the extension" as eval impact: they do load it (globally installed), but in json mode `notify` goes nowhere.
+
+**Retro lane**: backlog observations only; no skill edit (no gap has two recorded frictions this iteration). Observations, not tickets:
+- (a) Codex was over ration for the whole fire, so both dry-run arms read `DEGRADED(2)` and the "healthy" arm could not be measured healthy. The done-gate's healthy arm needs a lane state the loop cannot set; a healthy reading under a live ration block is not available.
+- (b) A text-output `claude -p` executor reports no token count. The Gate-4 per-role token rule then reads "not reported" for every claude-recipe role unless the recipe uses `--output-format json`.
+
+Last 3 code landings: iteration 64, clause 2 (under 48h); iteration 65, none (old tickets, about 25 d); iteration 66, none (about 23 d). No drift alarm: no routable ticket moves an UNMET clause, because none was filed in the last 48h.
+
+**New ticket during this fire**: `pin-root:worktree-removed-mid-fire` (stapledon iteration 55, filed 15:27Z, `blocking=none`). Stapledon's live pin worktree `~/.ailang-driver-pin/stapledon` disappeared between about 12:00Z and 15:00Z while its fire ran. The ticket notes the pin root's mtime was 15:52 local (14:52Z), which is when this iteration's fleet dry-runs ran, so attribution was checked. The dry-runs ran under a synthetic HOME with `AILANG_DRIVER_PINNED` set; `pin-root.sh:260` derives the pin dir from `$HOME`, and both 17-line dry-run logs show no pin or worktree action. `~/.ailang/state/worktree-sweep.log` has no stapledon entry (its last run, 13:46Z, deleted one unrelated branch). Stapledon's pin is a worktree of a different repo's clone, which this repo's `git worktree prune` cannot touch. Not attributable to this iteration on those instruments; the cause is unmeasured.
+
+**Next**:
+1. `pin-root:worktree-removed-mid-fire` (stapledon, filed 10-28 15:27Z): the only ticket inside the 48h window (it closes 10-30 15:27Z), so it moves clause 2 and outranks the 1-slot tier. Measure first: what removes a live `~/.ailang-driver-pin/<mission>` (pin-root's own re-pin of another mission, a sweep, an attended cleanup), using the dir's entries and the git worktree metadata of stapledon's clone.
+2. `skills:showcase-feature-discoverability` (10-03; #476): measure the three asks at HEAD. The CI-gate ask is outside scope (park it or route it); the mission-bootstrap and sprint-executor asks may need a design doc.
+3. Then the 1-slot tier, oldest first: `pi:openrouter:uncapped-max-tokens-402`, `pi:provider-error:no-retry`, `stall:watchdog:slow-on-hung-tool` (all 10-07). Check whether the pi ones are `.pi/extensions/**` (D-FLEET-3) or quota/billing policy (HD-2a) before routing.
+4. Watch dev's govulncheck (GO-2026-6860): it is not the fleet's to fix.
+
+## 67 — 2026-10-28 — `pin-root:worktree-removed-mid-fire` LANDED via #1999 → `17ec65d68`, independent sonnet PASS 88; root cause was fleet iteration 66's own synthetic-HOME dry-run [HARNESS]
+
+**Pick**: iteration 66's **Next**, `pin-root:worktree-removed-mid-fire` (stapledon iteration 55, filed 10-28 15:27Z, `blocking=none`). It was the oldest ticket inside the 48h window. A second ticket, `ci:distinct-build-test-failures` (triage, 21:18Z), arrived later and is in the window too.
+
+**Orphans**: none. No `fleet/i67*` branch, worktree or PR existed. Self-notices rc 0 (control 852:10). The log and charter on `origin/dev` ended at 66.
+
+**Preflight / observe**:
+- Armed. gh `sunholo-voight-kampff`. Billing CLEAN. Directives: 0 on #1945 since `2026-10-22T23:29:08Z` (7 comments, none allowlisted).
+- Skill drift: SKILL.md and all 13 resource files `cmp`-identical to origin/dev at the resolved symlink target.
+- Gate-1 base `4c3dc018261fd263cba18cce8f001a2bb61c6377@2026-10-28T22:05:03Z`.
+- **Dev CI red on `4c3dc0182`, outside fleet scope**: required `test` failed in `internal/runner` `TestWorkerTerminalPTYLifecycle/strict/sigint` (a Python `int('')` in the PTY harness). It failed on 2 of the last 8 dev CI runs and passed on the other 6, so it is an intermittent flake. V1 owns the repo and is disabled. Triage PR #1926 and `design_docs/planned/v0_54_17/m-worker-pty-pidfile-ack.md` already track it. Also red: the non-required `govulncheck` (GO-2026-6860, inherited since iteration 64).
+- Ledger valid, 32 rows, 17 OPEN. 41 tickets open.
+- Driver: codex was in ration this fire; `MISSION_OVER_RATION` was empty.
+
+**Reality check** (first-party, before routing):
+- `pin-root.sh` never removes a worktree, and `test_pin_root.sh` isolates both `HOME` and `AILANG_DRIVER_PIN_DIR`.
+- The real `~/.ailang/state/worktree-sweep.log` had no stapledon line.
+- A scan of every claude transcript (plus the codex and pi sessions) between 11:30 and 15:30Z found no command that removed a pin by name.
+- The `scripts/worktree_sweep.sh` protect list is `$HOME`-derived. The SessionStart hook `scripts/hooks/git_health.sh` gates the sweep on a `$HOME` stamp and exits early only on `AILANG_MISSION_STAGE`/`AILANG_TASK_ID`, which `env -i` strips.
+- Iteration 66's transcript shows a fleet dry-run under `HOME=/tmp/fleet_i66_home.3S7K` at 14:50:33Z. That directory still existed, and its own `.ailang/state/worktree-sweep.log` reads `removed worktree …/.ailang-driver-pin/stapledon` at 15:52:00 CET (14:52Z), then `triage` (15:52:08) and `world` (15:52:24), plus a landed branch `fix/agent-prompts-off-argv` (`cf73e7d82`).
+- The pin directory's own mtime, 15:52 CET, matches. Stapledon's controller worked in `stapledons-godot`, so `lsof` saw nothing using the pin.
+- **So iteration 66's done-gate caused the ticket it then filed as unattributed.** Its record said "no pin action logged" because it looked at the real log, while the sweep had written to the synthetic HOME.
+- `perl -e 'print((getpwuid($<))[7])'` returns the account home under `HOME=/tmp/x`.
+
+**Did** (designer skipped; planner, executor and one evaluator round spawned; generator ≠ judge):
+- **Designer**: not spawned. Mechanical fix with no design surface; the rotation pointer was not advanced.
+- **Planner**, `codex:gpt-6.1-sol`. The resolver said `agent-tool opus fail-closed:no-doc` against the codex pin, so the planner went straight to the pin, as at iteration 64. Probe rc 0; run rc 0. It wrote [the plan](planned/sprint-plan-sweep-account-home.md):
+  - M1: the hook and three test arms.
+  - M2: both dry-run recipes get `AILANG_WORKTREE_SWEEP=0`, plus a changelog fragment.
+  - Rejected: editing the sweep (outside fleet scope); skipping the sweep under any non-account HOME, and resetting HOME for it (either would make the fake-HOME self-test write the real stamp).
+- **Executor**, `codex:gpt-6.1-sol`, rc 0. It built M1 and M2 with snapshots, ran drills A/B/C on disposable copies (each red), and reported every gate green. The controller re-ran the gates outside the sandbox. It rebuilt one commit per milestone from the snapshots: `6e36e9d5f` (M1) and `d144c85bd` (M2).
+  - Controller slip: a zsh-unsplit `$FILES` made the manifest step fail, and the controller then reset two M2 files in the tree. They were restored from the executor's cumulative `.snap/M2`. The M2 diff stat matched the executor's original, and every gate was re-run on the final tree.
+- **Evaluator**, Agent tool `sonnet`, fresh judge worktree at `d144c85bd`: **PASS 88**, 0 blocking.
+  - A sweep dry-run (no `--apply`) under a synthetic HOME printed REMOVE for real `.wt-fleet-iter66*` worktrees. With the hook's protect string, every one read KEEP protected.
+  - It reproduced the three drills.
+  - Non-blocking findings: (1) `worktree_sweep.sh` still trusts `$HOME` for any other `--apply` caller (none today); (2) it did not verify that the opt-out reaches the lane probes; (3) removals outside the protected prefixes still log to a synthetic HOME; (4) arm A also fails under drill B; (5) a lookup failure skips the sweep silently.
+  - Strongest objection: fix the sweep, not the caller. That file is outside fleet authority, so it is recorded as a residual. Report: [evaluation.md](fleet-mission-evidence/iteration67/evaluation.md).
+- **Done-gate** ([done-gate.md](fleet-mission-evidence/iteration67/done-gate.md)):
+  - `make test-launchd-drivers` rc 0 at base `4c3dc0182` and at head `d144c85bd` (49 suites); hook self-test 9 → 12.
+  - World dry-runs (idle and armed; real HOME; `AILANG_WORKTREE_SWEEP=0`; `AILANG_DRIVER_PINNED=d144c85bd`): healthy `DRY RUN ok`, `lanes=ok`; degraded `lanes=DEGRADED(1)`, executor handed to `claude:claude-haiku-5-5`.
+  - The real sweep log (sha prefix `882378d5df7299e8`, 171 lines), the sweep stamp and the pin listing were unchanged across every gate and dry-run.
+- **PR** [#1999](https://github.com/sunholo-data/ailang/pull/1999). The closing-keyword scan found 0 matches; the control fired.
+
+**Gate 3b**:
+- PR head `d144c85bd`: 27 checks terminal, 26 green. The one red is the non-required `govulncheck (vuln gate)`; its log (23.3 KB) shows `1 unallowlisted finding(s): GO-2026-6860`, inherited.
+- The required contexts (`test, lint, build, docs-gate, UI build gate, checks`) were green and the PR read MERGEABLE/UNSTABLE. Merged with `--merge --match-head-commit` → `17ec65d68d79945ca3a0078275892956e8ef1edc`.
+- Exact merge `17ec65d68`: Build and Release 40781817700 SUCCESS; CI 40781817640 failed only in `govulncheck (vuln gate)` (job 123145248380: `1 unallowlisted finding(s): GO-2026-6860`, inherited). The required `test` passed on the merge. `SonarCloud Code Analysis` is red on the merge with `74.8% Coverage on New Code (required ≥ 80%)`, a branch-level new-code gate that was already red on `07ce4a8dc` and `d95ead6af`; Sonar does not measure shell, so it is not from this change.
+
+**Resolved**: `ailang mission ticket resolve pin-root:worktree-removed-mid-fire --sha 17ec65d68…`, which replied to stapledon. 41 → 40 open. Turnaround about 7.5h (10-28 15:27Z → about 22:45Z).
+
+**Progress**: goal unmoved on clause 1 (UNMEASURED). Clause 2 is UNMET overall; this closure qualifies at under 48h. Clause 3 MET (40 open). Clause 4: prior evidence only. Clause 5 preserved.
+
+**Routing evidence**: Gate-1 base `4c3dc018261fd263cba18cce8f001a2bb61c6377@2026-10-28T22:05:03Z`; merge `17ec65d68`. Routing note: as configured (codex in ration).
+- Controller `claude:claude-opus-5-5` (tok: not reported).
+- Designer: not spawned (mechanical; no doc).
+- Planner `codex:gpt-6.1-sol` (43,741 tok). Resolver `agent-tool opus fail-closed:no-doc`; routed to the codex pin.
+- Executor `codex:gpt-6.1-sol` (84,701 tok), rc 0.
+- Evaluator `sonnet`, Agent tool (62,349 subagent tokens / 8 tool uses / 119 s). Judge independence: cross-vendor (Anthropic vs OpenAI).
+- Quorum: none (no design doc). Metered spend: $0. No lane recorded dead.
+
+**Ruled out**:
+- `pin-root.sh` removing its own pin: it never removes, it refuses.
+- A controller or attended `rm`/`worktree remove` naming the pin: the transcript scan was empty, and the 15:06Z attended cleanup touched `stapledons-godot-*` only.
+- Iteration 66's "the instruments do not attribute it to this iteration's dry-runs": refuted by the synthetic HOME's own log.
+- Skipping the sweep whenever HOME differs from the account home: the self-test could then only exercise a launch by writing the real stamp.
+
+**Retro lane**: process fix (charter). Both dry-run recipes now carry `AILANG_WORKTREE_SWEEP=0`, with the why, so a dry-run starts no side jobs. No skill edit: this is the first recorded friction of its class. Observations, not tickets:
+- (a) An instrument whose log path is `$HOME`-relative is blind under a synthetic HOME. Iteration 66 checked the real log, saw nothing, and wrote "not attributable". Any "no X logged" claim made during or after a synthetic-HOME run must also read the synthetic HOME's `.ailang/state/` before it counts.
+- (b) The triage and world pins were removed too, but no fire was mid-flight in them, so nothing filed a ticket; they were re-created on their next fires. A destructive side effect is ticketed only when it happens to hit a live fire.
+- (c) The `worktree_sweep.sh` residual stays outside fleet authority (`scripts/` beyond `scripts/hooks/**` and `scripts/mission_*`). The hook is its only `--apply` caller today.
+
+Last 3 code landings: iteration 65, none (about 25 d); iteration 66, none (about 23 d); iteration 67, clause 2 (under 48h). No drift alarm.
+
+**Next**: `ci:distinct-build-test-failures` (triage, 10-28 21:18Z; the 48h window closes 10-30 21:18Z). It asks for a diagnosis of `internal/runner` and daemon test failures, so the reality check must first decide whether the fix lies inside fleet scope. Then `skills:showcase-feature-discoverability` and the 1-slot tier.
+
+## 68 — 2026-10-29 — `sprint-planner:template-make-test-changelog-filesize` LANDED via #2001 → `e29a42482`, independent sonnet PASS ~88–90; `quorum:zero-signal-guard-vacuous-with-controller` resolved as a ghost; `ci:distinct-build-test-failures` measured out of scope [HARNESS]
+
+**Pick**: iteration 67's **Next** was `ci:distinct-build-test-failures` (triage, 10-28 21:18Z), the only ticket inside the 48h window. Its scope check failed: all three failing tests live outside fleet authority (`internal/runner/worker_terminal_pty_test.go`, `internal/daemon/daemon_test.go`, `cmd/ailang/run_policy_owned_test.go`), so it is parked on the D-FLEET-17 class (re-measured below). The pick moved to the oldest in-scope, ungated ticket, `sprint-planner:template-make-test-changelog-filesize` (attended, 10-09). The bookkeeping second item was the ghost `quorum:zero-signal-guard-vacuous-with-controller` (attended, 10-08).
+
+**Orphans**: none. No `fleet/i68*` branch, worktree or PR existed. Self-notices rc 0 (control 852:10). The log and charter on `origin/dev` ended at 67.
+
+**Preflight / observe**:
+- Armed. gh `sunholo-voight-kampff`. Billing CLEAN. Directives: 0 on #1945 since `2026-10-22T23:29:08Z` (8 comments, none allowlisted).
+- Skill drift: SKILL.md and all 13 resource files `cmp`-identical to origin/dev at the resolved symlink target.
+- Gate-1 base `4e6ea7b25091e2a50c8de64c68257c024e54a331@2026-10-29T05:14:02Z`.
+- Dev CI on `4e6ea7b25`: Build and Release red in `Build ubuntu-latest`, `internal/runner` `TestWorkerTerminalPTYLifecycle/eval/normal`. The required `test` passed. `govulncheck` (GO-2026-6860, inherited) and SonarCloud are red as on the parents.
+- Ledger valid, 32 rows, 17 OPEN. 40 tickets open. Codex in ration (`MISSION_OVER_RATION` empty).
+
+**Reality check** (first-party, before routing):
+- `ci:distinct-build-test-failures`: the last 10 dev Build and Release runs failed 3 times, each on a different test: `07ce4a8dc` `TestRunPolicy_OwnedCancellation/managed/sigterm`, `6643f7ca2` `TestDaemon_TaskDedupSuppressesRepeats`, and `4e6ea7b25` `TestWorkerTerminalPTYLifecycle/eval/normal`. The third is new since the ticket was filed. The first two are the ticket's own pair. All three files are outside the fleet allowlist, and instrumenting them is the ticket's ask. Triage PR #1926 and `planned/v0_54_17/m-worker-pty-pidfile-ack.md` already cover the PTY test. The ticket stays open.
+- `sprint-planner:template-make-test-changelog-filesize`: asks 1–3 were already landed by attended #1770 (`dbe4b26a3`, 10-12), and ask 6 by `b2d21a070` (jq in `docker/Dockerfile.agent-base`, 10-09).
+  - Ask 4 was still open. The skill had no rule against putting a plan in `design_docs/planned/ailang-core-triage/`. Two plans had landed there before (`17254535d`, `a65e6c12b`), and `internal/coordinator/triage_rubric_test.go:108` checks every file in that directory.
+  - Ask 5 was still open too: the skill had no rule on how a plan may stop for a human decision.
+  - Constraint found at pick time: `scripts/context_docs_baseline.txt:24` caps the planner SKILL.md at 597 lines (596 at base). That file is outside fleet scope.
+- `quorum:zero-signal-guard-vacuous-with-controller`: `quorum.go` at HEAD counts present external reviewers only (`a5f9af982`, #1767). The queue's P1 #8 had resolved the `...-controller-verdict` signature, so this re-filed spelling was left open. #651 is CLOSED.
+
+**Did** (designer skipped; planner, executor and one evaluator round spawned; generator ≠ judge):
+- **Designer**: not spawned. Mechanical skill fix; the rotation pointer was not advanced.
+- **Planner**, `codex:gpt-6.1-sol`. The resolver said `agent-tool opus fail-closed:no-doc` against the codex pin, so the planner went straight to the pin (rule (a), as at iterations 64 and 67). Probe rc 0; run rc 0. It wrote [the plan](planned/sprint-plan-planner-placement-stop-gates.md):
+  - M1: the two rules in one SKILL.md line, in `resources/coordinator.md`, and in `resources/sprint_plan_template.md`.
+  - M2: a guard in `create_sprint_json.sh` plus `test_create_sprint_json.sh`, wired into `test-launchd-drivers`.
+  - M3: a changelog fragment.
+  - Rejected: exempting `*-sprint-plan.md` in the rubric test (`internal/` is out of scope, and an exemption would let a misplaced row escape the rubric); a prose-only fix.
+- **Executor**, `codex:gpt-6.1-sol`, rc 0.
+  - It built M1–M3 with snapshots, and all 10 of its mutants went red.
+  - Inside the sandbox it reported `make test-launchd-drivers` `4 of 50 suites FAILED` (kill-tree, stall, stage-isolation, codex-controller-env). All four pass outside the sandbox, so they were sandbox denials.
+  - The controller rebuilt one commit per milestone from the snapshots (`29b945e55`, `0ea4dd233`, `249ee0d94`), running the new test at each boundary. `shasum -c` matched 11 of 13 files. The 2 that differ are the SKILL.md copies, where the controller moved one blank line so the new bullet sits inside the checklist. Then `298faf903` set M2 `passes: true`.
+- **Evaluator**, Agent tool `sonnet`, fresh judge worktree at `249ee0d94`: **PASS ~88–90**, 0 blocking.
+  - Its own guard drills all behaved as designed. Refused: `./`, `..`, absolute, `../../` from a subdirectory, symlinked dir, `//`. Accepted: the sibling `ailang-core-triage-extra/`, and a triage design doc as the third argument. With python3 missing the script exits 127 before any side effect.
+  - Test mutations: deleting the guard fails 30 of 49 arms; moving it below the import fails 27.
+  - It confirmed C1, C2 and C7. C7 included a mutation of the zero-signal guard, which reddened 4 quorum tests.
+  - Non-blocking: on case-insensitive APFS, `AILANG-core-triage/` passes the guard; python3 is an undocumented prerequisite; "decision-ledger row ID" is not defined in SKILL.md.
+  - Strongest objection: the guard is a case-sensitive backstop, and the prose rule is the real control. Report: [evaluation.md](fleet-mission-evidence/iteration68/evaluation.md).
+- **Done-gate** ([done-gate.md](fleet-mission-evidence/iteration68/done-gate.md)):
+  - `make test-launchd-drivers` rc 0 at base (49 suites) and head (50).
+  - `check-context-docs`, `check-skills`, `check-changelog`, `check-file-sizes` and shellcheck all rc 0.
+  - World dry-runs (idle and armed; real HOME; `AILANG_WORKTREE_SWEEP=0`; `AILANG_DRIVER_PINNED=249ee0d94`): healthy `lanes=ok`; degraded `lanes=DEGRADED(1)`, executor handed to `claude:claude-haiku-5-5`.
+  - The sweep log (`87fe4fc2a0c40067`, 173 lines), the pin listing and the world pidfile were unchanged.
+- **PR** [#2001](https://github.com/sunholo-data/ailang/pull/2001). The closing-keyword scan found 0 matches; the control fired.
+
+**Gate 3b**:
+- PR head `298faf903`: 27 checks terminal, 26 green. The one red is `govulncheck (vuln gate)`, with `1 unallowlisted finding(s): GO-2026-6860` (inherited). MERGEABLE/UNSTABLE.
+- Merged with `--merge --match-head-commit` → `e29a42482a3e39293b64403b1e4c0036334af7cf`.
+- Exact merge: Build and Release 40827874474 SUCCESS. CI 40827874480 failed only in `govulncheck`. SonarCloud `Quality Gate failed`, as on the parent `4e6ea7b25`.
+- The same govulncheck log lists `8 expired allowlist entr(ies)` (GO-2025-3557/3558/3559/3582 …), all dated `expired 2026-10-29`. This is outside fleet scope (`.govulncheck-allow.yml`).
+
+**Resolved**:
+- `sprint-planner:template-make-test-changelog-filesize` `--sha e29a42482…`. Turnaround about 20 d (10-09 06:22Z → 10-29 about 07:35Z).
+- `quorum:zero-signal-guard-vacuous-with-controller` `--sha a5f9af982`, as a ghost. Open for about 21 d; it had been fixed since 10-12.
+- Both replies went to attended. 40 → 38 open.
+
+**Progress**: goal unmoved on clause 1 (UNMEASURED). Clause 2 UNMET: both closures took about 20 d, and the only in-window ticket is outside fleet authority. Clause 3 MET (38 open). Clause 4: prior evidence only. Clause 5 preserved.
+
+**Routing evidence**: Gate-1 base `4e6ea7b25091e2a50c8de64c68257c024e54a331@2026-10-29T05:14:02Z`; merge `e29a42482`. Routing note: as configured (codex in ration).
+- Controller `claude:claude-opus-5-5` (tok: not reported).
+- Designer: not spawned (mechanical; no doc).
+- Planner `codex:gpt-6.1-sol` (60,214 tok). Resolver `agent-tool opus fail-closed:no-doc`; routed to the codex pin.
+- Executor `codex:gpt-6.1-sol` (131,595 tok), rc 0.
+- Evaluator `sonnet`, Agent tool (76,193 subagent tokens / 10 tool uses / 170 s). Judge independence: cross-vendor (Anthropic vs OpenAI).
+- Quorum: none (no design doc). Metered spend: $0. No lane recorded dead.
+
+**Ruled out**:
+- Working `ci:distinct-build-test-failures` in fleet scope: all three test files are outside the allowlist.
+- Editing `scripts/context_docs_baseline.txt` so SKILL.md could grow: outside scope; the detail went to `resources/` instead.
+- Exempting plan files in the triage rubric test: `internal/` is out of scope, and an exemption weakens the rubric.
+
+**Retro lane**: none filed. No skill edit; nothing in this iteration's friction recurs twice. Observations, not tickets:
+- (a) A codex executor's in-sandbox `make test-launchd-drivers` reads 4 suites red that pass outside. This is false-green (3) as documented, and the out-of-sandbox re-run settled it.
+- (b) A ticket that keeps the same defect under two signatures (`...-controller` vs `...-controller-verdict`) stayed open about 16 d after its fix landed. Resolving one spelling does not close the other.
+- (c) The govulncheck allowlist carries 8 entries that expire today. Whether that changes the gate is V1's or Mark's to read.
+
+Last 3 code landings: iteration 66, none (about 23 d); iteration 67, clause 2 (under 48h); iteration 68, none (about 20 d). No drift alarm.
+
+**Next**: no ticket is inside the 48h window except `ci:distinct-build-test-failures` (out of scope; window closes 10-30 21:18Z). Next in-scope ungated candidates, scope check first: `gate0:session-protocol-deadlock:agent-policy-unset` (stapledon, 10-07; does the driver export `AILANG_AGENT_POLICY` for pi controllers?), `pi:provider-error:no-retry` (stapledon, 10-07), then `skills:showcase-feature-discoverability`.

@@ -183,13 +183,20 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	// Note: We do NOT pass --settings here. Claude Code will load project's
 	// .claude/settings.json naturally, which has the telemetry hooks configured.
 	// This ensures coordinator worktree sessions use the same hooks as interactive sessions.
-	args := []string{
-		"-p", task.Directive,
+	//
+	// The prompts never go on argv (prompt_delivery.go): a sibling agent's
+	// `pkill -f "ailang run"` matched every eval agent whose argv carried them.
+	prompt, err := deliverPrompt(task)
+	if err != nil {
+		return nil, err
+	}
+	defer prompt.cleanup()
+	args := append(prompt.args,
 		"--output-format", "stream-json",
 		"--include-partial-messages",
 		"--verbose",
 		"--model", e.getModel(task),
-	}
+	)
 
 	// Permission handling: Cloud environments may have restrictive settings.json files
 	// with permission.allow lists that override --permission-mode. For cloud tasks,
@@ -212,10 +219,6 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 		span.SetAttributes(attribute.Bool("session.resumed", true))
 	} else {
 		args = append(args, "--session-id", sessionID)
-	}
-
-	if task.SystemPrompt != "" {
-		args = append([]string{"--system-prompt", task.SystemPrompt}, args...)
 	}
 
 	if task.Workspace != "" {
@@ -250,12 +253,14 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 
 	cmd := exec.CommandContext(ctx, e.claudePath, args...)
 	proctree.Configure(cmd)
+	cmd.Stdin = prompt.stdin
 	if task.Workspace != "" {
 		cmd.Dir = task.Workspace
 	}
 
 	// Log the full command for debugging (helps diagnose cloud executor issues)
-	fmt.Fprintf(os.Stderr, "claude-executor: %s %s\n", e.claudePath, strings.Join(args, " "))
+	fmt.Fprintf(os.Stderr, "claude-executor: %s %s (directive on stdin: %d bytes; system prompt: %d bytes)\n",
+		e.claudePath, strings.Join(args, " "), len(task.Directive), len(task.SystemPrompt))
 
 	// Set up environment using shared builder (M-UNIFIED-AI-CONTROL-PLANE)
 	// A setup-token is the one credential the claude child must receive in its
@@ -611,6 +616,13 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				attribute.Bool("task.success", false),
 			)
 			errMsg := err.Error()
+			// A SIGTERM death the harness did not send (it only ever SIGKILLs).
+			// The cost/thrash gates below outrank it: they killed the run first.
+			exitReason := executor.FinishError
+			if executor.IsExternalTermination(err) {
+				exitReason = executor.FinishExternalKill
+				errMsg = "external kill: terminated by a signal the harness did not send — " + errMsg
+			}
 			if guard.costKilled {
 				errMsg = fmt.Sprintf("cost budget exceeded ($%.4f) — %s", task.Budget.KilledAt(), errMsg)
 			}
@@ -633,7 +645,7 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				CacheReadInputTokens:     guard.cacheReadTokens(),
 				CostKilledAt:             task.Budget.KilledAt(),
 				ThrashKilledAt:           guard.thrashKilledAt,
-				FinishReason:             killFinishReason(guard.thrashKilled, guard.costKilled, executor.FinishError),
+				FinishReason:             killFinishReason(guard.thrashKilled, guard.costKilled, exitReason),
 				FirstAttemptMs:           firstAttemptMs,
 				SuccessAtMs:              -1,
 			}, nil
@@ -741,60 +753,4 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 				normalizeClaudeFinishReason(finalResult.Subtype)),
 		}, nil
 	}
-}
-
-// normalizeClaudeFinishReason maps the Claude Code headless result subtype onto
-// the executor.Result.FinishReason vocabulary.
-//
-// The subtype was already parsed and used for the success boolean, but the
-// reason for a failure was discarded — so a run that burned through its turn
-// budget banked identically to one that failed on the task itself.
-// "error_max_turns" maps to "max_turns", which CategorizeAgentError already
-// aliases to step_exhausted.
-func normalizeClaudeFinishReason(subtype string) string {
-	switch subtype {
-	case "":
-		return ""
-	case "success":
-		return "stop"
-	case "error_max_turns":
-		return "max_turns"
-	case "error_during_execution":
-		return "error"
-	default:
-		return strings.ToLower(subtype)
-	}
-}
-
-// Capabilities returns the list of features this executor supports
-func (e *ClaudeExecutor) Capabilities() []executor.Capability {
-	return []executor.Capability{
-		executor.CapStreaming,
-		executor.CapToolControl,
-		executor.CapSessionResume,
-		executor.CapLocalWorkspace,
-	}
-}
-
-// HealthCheck verifies the executor is configured and accessible
-func (e *ClaudeExecutor) HealthCheck(ctx context.Context) error {
-	// Check if claude binary exists
-	_, err := exec.LookPath(e.claudePath)
-	if err != nil {
-		// Also try the resolved path directly (LookPath fails for absolute paths on some systems)
-		if _, statErr := os.Stat(e.claudePath); statErr != nil {
-			return fmt.Errorf("claude CLI not found: %w (install from https://claude.ai/code)", err)
-		}
-	}
-	return nil
-}
-
-func Register() {
-	executor.GlobalFactory().Register("claude", func(cfg *executor.Config) (executor.Executor, error) {
-		return New(cfg)
-	})
-}
-
-func init() {
-	Register()
 }

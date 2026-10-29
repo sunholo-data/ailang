@@ -14,7 +14,14 @@ var (
 	envNamePattern = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_]*$`)
 )
 
-func buildCodexArgs(task *executor.Task, model, directive string) ([]string, error) {
+// promptFromStdin is codex exec's PROMPT argument meaning "read the prompt from stdin".
+const promptFromStdin = "-"
+
+// buildCodexArgs ends with "-": codex exec then reads the prompt from stdin, which the
+// caller supplies. The prompt never goes on argv — see the claude executor's
+// prompt_delivery.go for the measured cost (a sibling agent's `pkill -f "ailang run"`
+// SIGTERMed every eval agent whose argv carried the teaching prompt).
+func buildCodexArgs(task *executor.Task, model string) ([]string, error) {
 	args := []string{
 		"exec",
 		"--json",
@@ -48,7 +55,7 @@ func buildCodexArgs(task *executor.Task, model, directive string) ([]string, err
 			}
 		}
 	}
-	return append(args, directive), nil
+	return append(args, promptFromStdin), nil
 }
 
 func tomlStringArray(values []string) string {

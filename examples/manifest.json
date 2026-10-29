@@ -1143,6 +1143,28 @@
       ]
     },
     {
+      "path": "runnable/letrec_local_shadow.ail",
+      "status": "working",
+      "tags": ["recursion", "letrec", "bytecode", "scoping"],
+      "description": "A local letrec shadows a same-named top-level function on every engine (M-VM-COVERAGE G1b regression).",
+      "modules": ["std/io", "std/list"],
+      "expected": {
+        "stdout": "sumTo(4) = 10\ncountUp(1000000) = 3000000\nwalkAll = [100, 101, 103]\nnestedRec(4) = 10\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/local_letrec_loop.ail",
+      "status": "working",
+      "tags": ["letrec", "recursion", "tail-call", "accumulator", "bytecode", "performance"],
+      "description": "A loop as a local letrec with accumulators over 1..1,000,000: a tail call, constant stack, runs natively under --strict-bytecode.",
+      "modules": [],
+      "expected": {
+        "stdout": "multiples of 3 up to 1000000: 166666833333\n1..1000000: 500000 odd numbers, sum 250000000000\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "list_pattern_cons.ail",
       "status": "working",
       "tags": [
@@ -1550,7 +1572,7 @@
       }
     },
     {
-      "path": "regex_basics.ail",
+      "path": "runnable/regex_basics.ail",
       "status": "working",
       "tags": [
         "regex",
@@ -1558,15 +1580,43 @@
         "stdlib",
         "re2"
       ],
-      "description": "std/regex core ops: isMatch, replaceAll, split (linear-time RE2)",
+      "description": "std/regex regular expressions: isMatch, findAll, capture groups, replaceAll ($1), split; the \"\\\\d\" escape and the qualified import.",
       "modules": [
         "std/io",
-        "std/regex",
-        "std/result"
+        "std/list",
+        "std/regex"
       ],
       "requires": [
         "IO"
-      ]
+      ],
+      "expected": {
+        "stdout": "true\nfalse\n[a=1, bb=22]\n[key=42, key, 42]\n1:a 2:b\n[x ,  y]\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/bulk_build_cost_model.ail",
+      "status": "working",
+      "tags": [
+        "performance",
+        "array",
+        "map",
+        "data-structures"
+      ],
+      "description": "Cost model: build an Array or Map once (fromList, updateMany, mapAccumL) instead of a quadratic per-step set/insert (each an O(n) copy).",
+      "modules": [
+        "std/io",
+        "std/list",
+        "std/array",
+        "std/map"
+      ],
+      "requires": [
+        "IO"
+      ],
+      "expected": {
+        "stdout": "true\ntrue\n21\n1\n[1, 3, 6] 6\n",
+        "exit_code": 0
+      }
     },
     {
       "path": "regex_capture.ail",
@@ -2644,6 +2694,23 @@
       }
     },
     {
+      "path": "runnable/float_int_literals.ail",
+      "status": "working",
+      "tags": [
+        "numeric",
+        "arithmetic",
+        "type-inference",
+        "std/array",
+        "pure"
+      ],
+      "description": "Int literals used as floats: f >= 0, 2 * f, a float function returning 0, [1, f, 3] and make(3, 0) for Array[float] are float values; a let-bound numeric literal picks one type, so mixing int and float needs intToFloat",
+      "modules": ["std/array","std/math"],
+      "expected": {
+        "stdout": "isNonNeg(2.5) = true\ndouble(1.5) = 3.0\nzero() = 0.0\naround(2.5) = [1.0, 2.5, 3.0]\nhistogram = #[3.0, 0.0, 5.0]\nbmi(2.0) = 17.5\naverage(10.0) = 2.5\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/stdlib_embedding.ail",
       "status": "working",
       "tags": [
@@ -3555,11 +3622,11 @@
     }
   ],
   "statistics": {
-    "total": 243,
-    "working": 235,
+    "total": 247,
+    "working": 239,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9670781893004116,
+    "coverage": 0.9676113360323887,
     "experimental": 0
   },
   "milestones": {

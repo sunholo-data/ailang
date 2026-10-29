@@ -1,0 +1,137 @@
+{
+  "sprint_id": "M-VM-QUICK-WINS",
+  "status": "completed",
+  "created": "2026-10-28T15:11:01Z",
+  "design_doc": "design_docs/planned/v0_55_0/m-vm-quick-wins.md",
+  "sprint_plan": "design_docs/planned/v0_55_0/m-vm-quick-wins-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1_BASELINE_AND_GATE",
+      "package": null,
+      "action": "none",
+      "reason": "VM-internal runtime work (internal/vm, internal/runner benches, tools/perf_sweep.sh); no package-shaped capability exists or applies"
+    },
+    {
+      "milestone": "M2_W1_W2_ALLOC",
+      "package": null,
+      "action": "none",
+      "reason": "VM-internal runtime work (internal/vm, internal/runner benches, tools/perf_sweep.sh); no package-shaped capability exists or applies"
+    },
+    {
+      "milestone": "M3_W3_INT_FASTPATH",
+      "package": null,
+      "action": "none",
+      "reason": "VM-internal runtime work (internal/vm, internal/runner benches, tools/perf_sweep.sh); no package-shaped capability exists or applies"
+    },
+    {
+      "milestone": "M4_W4_FRAME_RESET",
+      "package": null,
+      "action": "none",
+      "reason": "VM-internal runtime work (internal/vm, internal/runner benches, tools/perf_sweep.sh); no package-shaped capability exists or applies"
+    },
+    {
+      "milestone": "M5_MEASURE_AND_REPORT",
+      "package": null,
+      "action": "none",
+      "reason": "VM-internal runtime work (internal/vm, internal/runner benches, tools/perf_sweep.sh); no package-shaped capability exists or applies"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 270,
+    "estimated_total_loc": 530,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1_BASELINE_AND_GATE",
+      "description": "VM Go benchmarks (fib25, tail loop 1M, map+fold 200K) in internal/runner, six vm_* metrics in tools/perf_sweep.sh, banked perf snapshot, banked strict/bytecode parity baseline + tools/vm_parity_diff.sh",
+      "estimated_loc": 120,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "BenchmarkVMFib25/TailLoop1M/MapFold200K pass, assert results, report allocs",
+        "tools/perf_sweep.sh emits vm_*_ns_op and vm_*_b_op metrics",
+        "perf snapshot banked under .ailang/state/perf/",
+        "parity baseline banked; tools/vm_parity_diff.sh exits 0 against itself and 1 on a positive control"
+      ],
+      "passes": true,
+      "started": "2026-10-28T15:18:26Z",
+      "completed": "2026-10-28T15:18:26Z",
+      "notes": "BenchmarkVMFib25/TailLoop1M/MapFold200K in internal/runner/vm_bench_test.go (compile once, fresh VM per op, results asserted) + TestVMBenchWorkloadsRunNatively; six vm_* metrics in tools/perf_sweep.sh; baseline .ailang/state/perf/2026-10-28-vm-quick-wins-baseline.json (fib25 18.3ms 11.66MB 242,847 allocs; tailloop1m 125ms 176MB 2,000,014 allocs; mapfold200k 16.1ms 20.8MB). verify_bytecode_parity.go gains --bin/--strict; tools/vm_parity_diff.sh banks 442 outcomes (bytecode MATCH=187, strict MATCH=121, VM_COMPILE=68); self-diff rc 0, positive control rc 1. Load avg 8-13/16 cores during measurement: ns/op noisy, B/op is the gate."
+    },
+    {
+      "id": "M2_W1_W2_ALLOC",
+      "description": "W1 shared zero-capture closures in OpClosure; W2 VM-owned scratch slice for TAIL_CALL args",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M1_BASELINE_AND_GATE"
+      ],
+      "acceptance_criteria": [
+        "Zero-capture OpClosure yields one shared ClosureObj; capturing closures stay distinct (test)",
+        "Tail-loop allocations O(1) in step count via testing.AllocsPerRun (1k vs 10k)",
+        "Re-entrant tail call with HOF-sourced args correct (test)",
+        "Mutation check: reverting each fix fails its allocation test",
+        "fib25 and tail-loop B/op drop >= 90%; parity diff empty; make test-changed green"
+      ],
+      "passes": true,
+      "started": "2026-10-28T15:23:23Z",
+      "completed": "2026-10-28T15:23:23Z",
+      "notes": "W1: OpClosure returns a per-VM cached closure when NumCaptures==0 (internal/vm/closure_cache.go); W2: TAIL_CALL stashes args in a per-VM scratch slice, cleared after copy. Tests internal/runner/vm_quickwins_test.go (4); mutation: reverting W1 fails 3 tests, reverting W2 fails the tail-call test. Bench (load ~10/16): fib25 18.3ms->13.3ms (-27%), 11.66MB->12.7KB, 242,847->65 allocs; tailloop1m 125ms->78ms (-37%), 176MB->3.9KB, 2,000,014->9 allocs; mapfold200k unchanged. Parity gate unchanged (442). -race concurrent-VM test green."
+    },
+    {
+      "id": "M3_W3_INT_FASTPATH",
+      "description": "Inline int x int fast path for ADD/SUB/MUL and LT/LE/EQ in the dispatch loop; DIV/MOD keep CheckIntDivisor",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M2_W1_W2_ALLOC"
+      ],
+      "acceptance_criteria": [
+        "Table test: fast path == arith()/comparison helper for every op x tag pair incl. mismatches, minInt, zero divisors (value or error text)",
+        "vm_divzero_test.go unchanged and green",
+        "Parity diff empty",
+        "Keep rule applied: >=5% on a VM benchmark or reverted and recorded as dropped"
+      ],
+      "passes": true,
+      "started": "2026-10-28T15:30:27Z",
+      "completed": "2026-10-28T15:30:27Z",
+      "notes": "Inline int x int fast path in the ADD/SUB/MUL, LT/LE and EQ dispatch cases; DIV/MOD always reach arith (one home for the zero-divisor check). A helper (cost 95) exceeded Go inline budget 80, so the code is inline in vm.go. Test internal/vm/vm_arith_fast_test.go: real dispatch vs arith/compare/runtimeEq over 8 ops x 12 values incl. int64 edges and mixed tags (error text carried); div/mod by zero still fail. Mutation: SUB->ADD and LT->LE each fail it. Bench vs M2 (load ~11/16): fib25 13.3->11.2ms (-16%), tailloop1m 78->57.6ms (-26%), mapfold200k 15.8->13.8ms (-13%). Parity gate unchanged."
+    },
+    {
+      "id": "M4_W4_FRAME_RESET",
+      "description": "Prove no prototype reads a non-param/non-capture register before writing it; if so, reuseFor zeroes only the non-argument registers",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M2_W1_W2_ALLOC"
+      ],
+      "acceptance_criteria": [
+        "Read-before-write invariant test over images compiled from examples/runnable (or W4 recorded as dropped with the counterexample)",
+        "Parity diff empty",
+        "Keep rule applied"
+      ],
+      "passes": true,
+      "started": "2026-10-28T15:36:24Z",
+      "completed": "2026-10-28T15:36:24Z",
+      "notes": "DEVIATION from plan (safer): instead of zeroing only non-argument registers on a read-before-write invariant (needs a def-use pass over 35 opcodes), Frame.resetForTailCall moves the args to the front in place (overlap-safe copy), zeroes the rest and writes captures: the end state is identical to the old zero-all-then-write, so no invariant is needed. It also deletes W2 scratch slice, its VM field and the clear. reuseFor removed (no other caller). Upper bound measured first: reuseFor zeroing = 7.96% of tail-loop CPU. Test frame_tailcall_test.go: 5000 random slabs (shrink/grow/realloc/overlap) compared to the reference over full capacity; it caught its own append-capacity bug. Mutations (no zeroing; reversed args) both fail it. Interleaved A/B, 6 rounds each, M3 vs W4 test binaries: tail loop mean 57.4->54.5ms (-5.1%), min 56.9->54.1 (-4.9%); fib (control, no tail calls) 11.1->11.0ms. Borderline on the 5% keep rule; kept because it also removes code. Parity unchanged; -race green."
+    },
+    {
+      "id": "M5_MEASURE_AND_REPORT",
+      "description": "Final CLI timings + allocations, perf_sweep diff vs M1 snapshot, Phase 3 GC measurement (recommendation only), LIMITATIONS numbers, changelog fragment, design doc implementation report",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M3_W3_INT_FASTPATH",
+        "M4_W4_FRAME_RESET"
+      ],
+      "acceptance_criteria": [
+        "fib(32) <= 0.35s and 10M tail loop <= 0.65s best of 3, or shortfall reported with numbers",
+        "fib(32) < 10 MB and tail loop < 50 MB allocated",
+        "tools/perf_sweep.sh vs M1 snapshot exits 0",
+        "GC recommendation written (no default changed)",
+        "make check-changelog check-file-sizes green"
+      ],
+      "passes": true,
+      "started": "2026-10-28T15:38:44Z",
+      "completed": "2026-10-28T15:38:44Z",
+      "notes": "CLI best of 3 (load ~7/16): fib(32) 0.51->0.33s (-35%, target <=0.35 met); 10M tail loop 1.10->0.55s (-50%, target <=0.65 met); map+fold 2M 0.18->0.16s. Process alloc: fib32 10.05MB total, all compile-time (VM ~13KB per bench), tail loop 16.3MB (<50 met). sweep.sh --against the baseline: rc 0, no regressions (vm_fib25 -40%, vm_tailloop1m -57%, B/op -100%). Phase 3: GC (madvise/mmap) gone from profiles; remaining memclr is releaseFrame clearing whole capacity, so no GC recommendation. LIMITATIONS (both), go-interop numbers, changelog fragment, design-doc implementation report, sprint plan status updated."
+    }
+  ]
+}

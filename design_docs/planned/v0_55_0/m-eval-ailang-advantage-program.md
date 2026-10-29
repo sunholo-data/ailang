@@ -70,7 +70,7 @@ about where AILANG *should* win, and a once-per-release cadence that sends each 
 | **H2** | **Change reliability.** Explicit effects and types mean fewer regressions when an agent changes its own program over several steps | **Owned by the maintenance-eval program** ([taskpack](../m-maintenance-eval-taskpack.md), parent [real-world study](../m-real-world-language-maintenance-study.md)) (V10). This program only consumes its results as a scoreboard row | Their kill criteria | Their pilot is designed, not run |
 | **H3** | **Cost.** A smaller, just-in-time teaching prompt cuts AILANG's cost per verified success without cutting success | Section-by-section prompt ablation (PROGRAM.md §5c already names it as open), measured as $/verified success | Per the [decision rule](#decision-rule-for-ab-arms): a trim whose arm ends **worse** is reverted; one that ends **inconclusive** is kept only if S3 falls and the discordant count is under 10 with no more than 2 lost pairs | Unmeasured |
 | **H4** | **Runtime parity.** Speed and missing collections cause enough of the gap that, once the VM covers model-written code and cheap collections exist, AILANG's hidden fraction rises with no model or prompt change | Re-run the frozen CP cohort on each runtime landing; count failures by `hidden_first_fail` kind (timeout vs wrong output) | Timeouts already under 10% of AILANG hidden failures → runtime work leaves the CP critical path | Partly measured: 10 of the 26 AILANG spike runs that produced code first failed on a timeout, counting inputs of every size (V2) |
-| **H5** | **Model-strength scaling.** The AILANG-vs-Python gap shrinks with model strength, because strong models learn the language from the prompt better | Phase 0's ladder: Haiku 4.5, Sonnet 5.5, Opus 5.5, gpt6-1-sol on the 6-benchmark CP pack, 3 trials | Not a kill; a fork. If the gap does *not* shrink, the limit is the runtime and library, not learnability (routes to H4); if it shrinks, learnability is the lever (routes to H1/H3 and the fine-tuning corpus) | **Running** (Phase 0) |
+| **H5** | **Model-strength scaling.** The AILANG-vs-Python gap shrinks with model strength, because strong models learn the language from the prompt better | Phase 0's ladder: Haiku 4.5, Sonnet 5.5, Opus 5.5, gpt6-1-sol on the 6-benchmark CP pack, 3 trials | Not a kill; a fork. If the gap does *not* shrink, the limit is the runtime and library, not learnability (routes to H4); if it shrinks, learnability is the lever (routes to H1/H3 and the fine-tuning corpus) | **Answered descriptively** (Phase 0, 2026-10-28): it shrinks; see Phase 0 result |
 
 ## Goals
 
@@ -113,6 +113,32 @@ S5 is the only row with no banked field. **D2** decides whether it becomes one.
 144 agent runs: 4 models × 6 CP benchmarks × 2 languages × 3 trials, pinned to binary `57b0b8f20`
 (so the fix PRs in flight cannot contaminate it). Answers H5 and gives every later phase a frozen
 comparison point. Output: the first scoreboard, S1–S7.
+
+**Result (2026-10-28).** Frozen cohort: `eval_results/cp_advantage_phase0_57b0b8f20/` (local; 144 rows).
+The 6 rows killed by the sibling-`pkill` bug were re-run on `57b0b8f20` + #1990 only, with the same
+prompt hash `305406c50bc7`. S2, full pass (visible plus every hidden test):
+
+| Model | Python | AILANG | Median $ Python / AILANG | Median turns Python / AILANG |
+|---|---|---|---|---|
+| Haiku 4.5 | 13/18 | **3/18** | 0.15 / 0.46 | 8 / 24.5 |
+| Sonnet 5.5 | 14/18 | **17/18** | 0.10 / 0.15 | 3 / 4 |
+| Opus 5.5 | 18/18 | 15/18 | 0.19 / 0.67 | 3 / 6 |
+| gpt6-1-sol | 18/18 | 16/18 | 0.20 / 0.92 | 1 / 1 |
+
+- **H5: the gap shrinks with model strength.** The weak model loses heavily in AILANG; the strong
+  models are near parity, and Sonnet passes more in AILANG. Descriptive only: Phase 0 is not a paired A/B.
+- **Strong-model AILANG failures are mostly budget, not wrong code.** Of Opus's and Sol's 5:
+  3 hit the 10-minute agent cap, 1 hit Opus's per-run cost cap, and 1 is a codex harness error. Sonnet's
+  1 failure is a real wrong answer (`cp_60164`, 1/8 hidden). Python's strong-model failures are the same
+  kind: Sonnet hit the 10-minute cap on all 3 `cp_60149` trials. The pack's `timeout: 600` overrides
+  `--agent-timeout`; consider raising it.
+- **What remains is S3/S4.** AILANG costs 1.5× (Sonnet) to 4.6× (Sol) as much, and agents take more turns,
+  which is what pushes them into the caps. So for strong models the levers are H3 (prompt cost) and H4
+  (VM speed); for weak models, learnability (prompt, examples, the Phase 5 corpus).
+- **S7** (`ailang eval-elo`, per-language scales): the hardest benchmarks for AILANG are `cp_60164`
+  (AILANG pass 50% vs Python 100%) and `cp_60159` (73% vs 92%). These are exactly the two that
+  [m-persistent-collections](m-persistent-collections.md) Phase 1 (`accumulate`, `std/set`, merged
+  2026-10-28) targets, so they are the first re-run after it.
 
 ### Phase 1 — Scoreboard and cadence (1.5 days)
 
@@ -242,7 +268,7 @@ The rule is fixed **before** an arm runs, so a result cannot pick its own thresh
 
 ## Success Criteria
 
-- [ ] Phase 0: scoreboard S1–S7 for 4 models, with H5 answered descriptively (the AILANG−Python gap in S1 and S2 per model). Phase 0 is not a paired A/B, so it reports no p-value
+- [x] Phase 0: scoreboard S1–S7 for 4 models, with H5 answered descriptively (the AILANG−Python gap in S1 and S2 per model). Phase 0 is not a paired A/B, so it reports no p-value
 - [ ] Phase 1: one command renders the scoreboard from a results directory; the post-release skill runs it; the Phase 0 cohort is frozen and documented
 - [ ] Phase 2: `tool_aware` measured on two tiers; H1 either confirmed on at least one variant that survives the fairness control, or killed by its criterion
 - [ ] Program: within three releases, either a task class where AILANG's S1 or S8 beats Python's on both tiers, or a written analysis of what blocks it
