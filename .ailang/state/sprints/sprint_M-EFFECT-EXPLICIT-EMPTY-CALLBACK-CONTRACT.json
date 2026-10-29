@@ -1,0 +1,156 @@
+{
+  "sprint_id": "M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT",
+  "status": "in_progress",
+  "created": "2026-10-29T09:21:00.533478+00:00",
+  "design_doc": "design_docs/planned/v0_56_0/m-effect-explicit-empty-callback-contract.md",
+  "sprint_plan": "design_docs/planned/v0_56_0/m-effect-explicit-empty-callback-contract-sprint-plan.md",
+  "github_issues": [
+    1958,
+    1718,
+    1826
+  ],
+  "measured_dev": "61716789ae8f5ebcea534b1a993ca00d1533ec04",
+  "required_row_guard_checkpoint": "74a3716867c72f008d3f94df9fa36360c71d7e25",
+  "velocity": {
+    "target_loc_per_day": 300,
+    "estimated_total_loc": 600,
+    "estimated_days": 2
+  },
+  "design_approved_by": "Mark (attended)",
+  "design_approved_date": "2026-10-29",
+  "design_approval_quote": "Approve option A design",
+  "design_freezes": {
+    "F1": "approved_option_A",
+    "F2": "approved_option_A",
+    "F3": "approved_option_A",
+    "F4": "approved_option_A"
+  },
+  "execution_authorized": true,
+  "prompt_version_loaded": "v0.16.9",
+  "prompt_coordination": {
+    "reserved": "v0.16.10 via PR2007",
+    "new_version": "next unused after .10, intended .11",
+    "preserve_existing": true
+  },
+  "features": [
+    {
+      "id": "M1_CONVERSION",
+      "description": "Preserve closed explicit-empty callback contracts through source conversion",
+      "estimated_loc": 170,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Four-state conversion matrix distinguishes omission/empty/nonempty/row-poly",
+        "Explicit empty is closed concrete; omitted/nonempty/polymorphic behavior unchanged",
+        "IO-to-empty-slot rejects from IO caller; pure control accepts",
+        "Targeted and changed/core gates, lint and size checks pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_PERSISTENCE",
+      "description": "Preserve function-type strings, imported aliases, interfaces and cache ownership",
+      "estimated_loc": 170,
+      "dependencies": [
+        "M1_CONVERSION"
+      ],
+      "acceptance_criteria": [
+        "FuncType string and canonical format preserve explicit empty",
+        "Iface conversion matches source without overriding #1790 metadata",
+        "Cold/warm/imported aliases and nested positions preserve rejection and acceptance",
+        "Focused persistence tests and interfaces/structural gates pass",
+        "AST print/compact JSON and iface normalized text/hash projections preserve explicit empty identity",
+        "Old-compiler populated acceptance cache is rejected by fixed compiler identity",
+        "Same-binary omitted-to-empty and reverse direct/transitive dependency edits invalidate aliases/ctor/export verdicts"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_ENGINES_DOCS",
+      "description": "Pin both-engine rejection and publish runnable example and new teaching version",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M2_PERSISTENCE"
+      ],
+      "acceptance_criteria": [
+        "Evaluator and bytecode reject before output even with IO caps",
+        "Existing #1958/#1963 storage/rowpoly/AI/ceiling regressions stay green",
+        "Runnable example and surgical manifest stats pass; pure answer inline test checks42",
+        "New prompt version after .10 preserves .9/.10 and documents approved distinction",
+        "Changed/core, prompt, examples, lint and interface gates pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_CONSUMER_DELIVERY",
+      "description": "Prove and deliver exact conditional consumer migration then hand off independently",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M3_ENGINES_DOCS"
+      ],
+      "acceptance_criteria": [
+        "AST-aware explicit-empty corpus inventory and no-cache comparisons recorded",
+        "Exact four-line scratch patch passes actual60-core and9-extension gates before delivery",
+        "Only authorized fork-only four-line migration delivered and exact merged SHA pinned",
+        "Original failed/successful width/nested/four-line evidence remains separate",
+        "Final focused/structural/interface/example gates and independent evaluator handoff complete"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_CONVERSION",
+      "package": null,
+      "action": "none",
+      "reason": "Effect registry search returned application packages; compiler function-type ownership, source persistence, engine validation and exact consumer source annotations are not package-like runtime capabilities and cannot be supplied by a registry library."
+    },
+    {
+      "milestone": "M2_PERSISTENCE",
+      "package": null,
+      "action": "none",
+      "reason": "Effect registry search returned application packages; compiler function-type ownership, source persistence, engine validation and exact consumer source annotations are not package-like runtime capabilities and cannot be supplied by a registry library."
+    },
+    {
+      "milestone": "M3_ENGINES_DOCS",
+      "package": null,
+      "action": "none",
+      "reason": "Effect registry search returned application packages; compiler function-type ownership, source persistence, engine validation and exact consumer source annotations are not package-like runtime capabilities and cannot be supplied by a registry library."
+    },
+    {
+      "milestone": "M4_CONSUMER_DELIVERY",
+      "package": null,
+      "action": "none",
+      "reason": "Effect registry search returned application packages; compiler function-type ownership, source persistence, engine validation and exact consumer source annotations are not package-like runtime capabilities and cannot be supplied by a registry library."
+    }
+  ],
+  "consumer_amendment": {
+    "approved_conditionally": true,
+    "base_fork_merge": "af1d56513d3ae314bd831fd149c7b6f2503a361c",
+    "repo": "sunholo-voight-kampff/motoko_agent",
+    "base_branch": "sunholo/main-dst-20261027",
+    "exact_scope": "Append ! {} to describe/prompt/budget/policy callback arrow fields in src/core/test/ext_fixture.ail",
+    "required_before_delivery": "actual final compiler: no-cache60-core plus9-extension boot gates; stop if broader patch required"
+  },
+  "independent_evaluator": "root",
+  "constraints": [
+    "No implementation until explicit execute sprint",
+    "No per-leaf precision redesign or consumer effect widening",
+    "Preserve #1790 outer purity ownership and all frozen prompts",
+    "No live rig/upstream writes, no admin bypass, gh-only GitHub",
+    "No coordinator/inbox mutations; helper importer intentionally skipped"
+  ],
+  "execution_approval_quote": "Execute explicit-empty sprint",
+  "execution_approved_at": "2026-10-29T09:25:09.896975+00:00"
+}
