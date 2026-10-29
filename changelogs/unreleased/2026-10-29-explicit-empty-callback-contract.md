@@ -6,3 +6,6 @@
   declared row-polymorphic contracts retain their existing behavior.
 - This change targets v0.56.0. Use an omitted row for intended implicit callback
   effects, or declare the actual callback effect contract explicitly.
+- Imported aliases, interfaces and warm compilation retain the contract. The
+  `explicit_empty_callback_contracts` example stores a pure probe and IO renderer
+  through a pure helper without invoking the renderer during construction.

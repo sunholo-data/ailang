@@ -84,12 +84,12 @@ The skill's JSON helper implicitly imports GitHub messages; this session require
 
 **Ownership:** companion CLI/pipeline tests; `examples/runnable/explicit_empty_callback_contracts.ail` and its surgical manifest entry/statistics; changelog fragment; effects reference; new teaching prompt version after .10 via prompt-manager.
 
-- [ ] Evaluator and bytecode reject IO-to-explicit-empty-slot before marker output from direct/imported/nested variants, even with IO capability and an IO caller. Positive pure-slot calls execute; named IO callbacks remain storable through fully concrete records.
-- [ ] Preserve original #1958 and #1963 regressions: omitted nested store-only hand-offs reject; literals/length/all-concrete stores, row-poly callbacks, AI streaming wrappers and ceiling authority controls remain green.
-- [ ] Add a runnable example with explicit-empty pure `probe`, explicit-IO stored `render`, pure `build/answer`, and IO main printing 42. The render marker must not run during construction. Keep the manifest entry/modules and aggregate totals coherent.
-- [ ] Changelog opens `### ` and explains the v0.56.0 breaking callback-type change and intended migration. Reference docs distinguish omitted, empty, nonempty and row-polymorphic callback types.
-- [ ] Load prompt-manager; create next unused prompt version after .10, preserving .9/.10 identities and content. Teach the four-state distinction; do not append new semantics to a frozen existing version.
-- [ ] Run targeted engine/prompt tests, `make test-changed`, lint, sizes, examples/manifest, interface gates; commit M3.
+- [x] Evaluator and bytecode reject IO-to-explicit-empty-slot before marker output from direct/imported/nested variants, even with IO capability and an IO caller. Positive pure-slot calls execute; named IO callbacks remain storable through fully concrete records.
+- [x] Preserve original #1958 and #1963 regressions: omitted nested store-only hand-offs reject; literals/length/all-concrete stores, row-poly callbacks, AI streaming wrappers and ceiling authority controls remain green.
+- [x] Add a runnable example with explicit-empty pure `probe`, explicit-IO stored `render`, pure `build/answer`, and IO main printing 42. The render marker must not run during construction. Keep the manifest entry/modules and aggregate totals coherent.
+- [x] Changelog opens `### ` and explains the v0.56.0 breaking callback-type change and intended migration. Reference docs distinguish omitted, empty, nonempty and row-polymorphic callback types.
+- [x] Load prompt-manager; create next unused prompt version after .10, preserving .9/.10 identities and content. Teach the four-state distinction; do not append new semantics to a frozen existing version.
+- [x] Run targeted engine/prompt tests, `make test-changed`, lint, sizes, examples/manifest, interface gates; commit M3.
 
 **Example syntax checklist:**
 

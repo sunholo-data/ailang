@@ -5,6 +5,14 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "runnable/explicit_empty_callback_contracts.ail",
+      "status": "working",
+      "tags": ["effects", "callbacks", "pure", "regression"],
+      "description": "Closed empty callback contracts allow pure storage of mixed callbacks and reject effectful values in pure slots.",
+      "modules": ["std/io"],
+      "expected": {"stdout": "42\n", "exit_code": 0}
+    },
+    {
       "path": "runnable/ai_streaming_effect_rows.ail",
       "status": "working",
       "tags": [
@@ -3700,11 +3708,11 @@
     }
   ],
   "statistics": {
-    "total": 251,
-    "working": 243,
+    "total": 252,
+    "working": 244,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9681274900398407,
+    "coverage": 0.9682539682539683,
     "experimental": 0
   },
   "milestones": {

@@ -1,0 +1,19 @@
+-- Explicit empty callback types are pure; concrete IO callbacks can be stored.
+module examples/runnable/explicit_empty_callback_contracts
+
+import std/io (println)
+
+type Hooks = { probe: (int) -> int ! {}, render: (int) -> int ! {IO} }
+
+pure func inc(x: int) -> int = x + 1
+func render(x: int) -> int ! {IO} = { println("stored callback invoked"); x }
+pure func keep(h: Hooks) -> Hooks = h
+pure func build() -> Hooks = keep({probe: inc, render: render})
+
+-- Contracts skipped: stored function values and field invocation are outside SMT.
+export pure func answer() -> int tests [((), 42)] {
+  let h = build();
+  h.probe(41)
+}
+
+export func main() -> () ! {IO} = println(show(answer()))

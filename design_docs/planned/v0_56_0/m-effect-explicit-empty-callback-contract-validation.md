@@ -38,3 +38,40 @@ The companion cache-proof JSON preserves source-base identity, old main key, art
 - Full changed/core gate: seven branch packages plus core pass. Later milestones are recorded as they complete.
 
 Raw logs under `/tmp/ailang-backlog-20261029/`: `explicit-empty-M1-{red,green,test-changed,lint}.log`, `explicit-empty-M2-{red,green,warm,containers,cross-compiler-cache,actual-fixture,test-changed,lint,freeze,stdlib}.log`. Original premise matrices and failed four-line hypothesis remain unchanged in the design's evidence JSON. No additional consumer patch has been delivered at this checkpoint.
+
+## M3 — engine behavior, example and immutable teaching
+
+The actual old compiler executes `EMPTY_CALLBACK_SIDE_EFFECT` on evaluator and
+bytecode for the IO-in-empty-slot program (explicit-empty-M3-old-engine.log).
+Current CLI fixtures reject direct, record and imported variants before that
+marker even with IO caps and an IO main; a pure factory storing a mixed fully
+concrete callback record executes 42 without invoking the stored IO renderer.
+The imported CLI fixture runs in its real module directory with matching stdlib,
+using the existing bounded subprocess helper; the initial wrong-CWD setup error
+was a test harness issue and was corrected before acceptance.
+
+Runnable example checks, prints 42 and passes its answer() inline test. Contracts
+are deliberately skipped for higher-order storage/field invocation outside SMT;
+pure callback/function and main IO annotations remain explicit.
+
+New prompt v0.16.11 inherits v0.16.10 and adds only the callback contract distinction.
+Frozen source hashes remain byte-identical: .9=6197fe5f4bf1c112737c550e08d557eea5c92db9b85839efaac8d46accd28be1;
+.10=a9435c79d78002c3c0b51e36bff06b5f918f7e3a90198dd2301e493c0ff9e001.
+Prompt source/embedded/docs mirrors and source/embedded registries match. Registry
+freeze and 120 taught command routes pass. Feature code blocks are the actual
+checked/run example; inherited prompt blocks were not rewritten or optimized.
+
+Additional imported alias control requested by root: pinned social_dynamics 0.4.0
+/tasks.ail source SHA256 261faeb15fa083aed19e7f94dbe5af5e9b21273134c41ef2f90147fdaf92797a reproduces the same accept→acceptReady app 1070 argument 1
+missing-callback-row invariant on actual dev 9dc and current fixed M2 compiler,
+using no cache and matching stdlib. It is recorded as a known baseline failure,
+not repaired or counted as a pass (explicit-empty-M2-social-dynamics-control.log).
+
+M3 initial full changed-package run passed every test except the registry's
+one-mutable-version invariant: the version-creation helper left both .10 and .11
+mutable. The existing `ailang prompt freeze --migrate` froze only the superseded
+version, preserving its bytes/hash; no test relaxation. Failed/affected prompt
+tests pass 4.907s and the full core loop that initial failure aborted completed
+successfully. Lint 0, file sizes, all examples/manifest, registry freeze and taught
+command routes pass. The original red log remains; focused repair/core logs are
+`explicit-empty-M3-prompt-recheck.log` / `explicit-empty-M3-core-recheck.log`.

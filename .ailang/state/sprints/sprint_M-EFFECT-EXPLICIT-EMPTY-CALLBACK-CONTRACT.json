@@ -26,10 +26,10 @@
     "F4": "approved_option_A"
   },
   "execution_authorized": true,
-  "prompt_version_loaded": "v0.16.9",
+  "prompt_version_loaded": "v0.16.10 (execution baseline); v0.16.9 (planning)",
   "prompt_coordination": {
     "reserved": "v0.16.10 via PR2007",
-    "new_version": "next unused after .10, intended .11",
+    "new_version": "v0.16.11",
     "preserve_existing": true
   },
   "features": [
@@ -84,10 +84,10 @@
         "New prompt version after .10 preserves .9/.10 and documents approved distinction",
         "Changed/core, prompt, examples, lint and interface gates pass"
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-29T10:07:28.780138+00:00",
+      "notes": "Evaluator/bytecode reject direct/imported/record IO-in-empty slots before marker; pure mixed concrete storage prints42. Old compiler executes marker on both engines (red evidence). Example check/run42/inline test pass. New prompt11 inherits frozen10, .9/.10 bytes+hashes unchanged; former active10 frozen with existing migration command. Initial full changed-package gate had sole one-mutable registry failure; affected prompt tests then pass4.907s and full core loop completed green. Lint0/sizes/examples/prompt routes+freeze/changelog pass."
     },
     {
       "id": "M4_CONSUMER_DELIVERY",
