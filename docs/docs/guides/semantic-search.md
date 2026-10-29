@@ -470,6 +470,19 @@ _sharedindex_delete(ns: string, key: string) -> unit ! {SharedIndex}
 
 Search design docs and markdown files semantically:
 
+Default SimHash search reads a local corpus without embeddings. If local docs are
+unavailable, authenticated GitHub fallback is available to operators. Under
+`AILANG_AGENT_POLICY`, the entire GitHub backend refuses before credentials, cached
+results, network requests or cache writes. A valid GitHub cache entry does not bypass
+this restriction. Provision a local corpus and pass `--path <dir>` (or make it
+discoverable as `design_docs/` or `docs/`); the policy-tool `docs_search` operation
+uses discoverable local docs. Only the operator should perform GitHub fallback
+outside the sandbox.
+
+This restriction is specific to GitHub fallback. It does not redefine explicit
+`--neural`, embedding warmup or cache-management modes such as `--cache-info`,
+`--cleanup` and `--rebuild`.
+
 ```bash
 # Fast SimHash search (instant, no Ollama needed)
 ailang docs search "parser error handling"

@@ -117,6 +117,13 @@ authentication — ` + "`GITHUB_TOKEN`" + ` or ` + "`gh auth login`" + `; unauth
 fallback. GitHub results are cached per query for one hour under
 ` + "`~/.ailang/cache/docsearch/github/`" + `; a cache entry holds results and metadata only, never tokens.
 
+When ` + "`AILANG_AGENT_POLICY`" + ` is set, the whole GitHub backend is operator authority.
+It refuses before credential discovery, cache reads (including valid hits), HTTP or cache
+writes, including when invoked through ` + "`policy-tool`" + `. Provide local docs and use
+` + "`--path <dir>`" + `, or ask the operator to run GitHub search outside the sandbox. Default
+local SimHash search remains available; explicit neural/embedding and cache-management
+modes have separate behavior and are not covered by this GitHub-only restriction.
+
 ## Startup contract
 
 Language commands — the ones you run to work *with* AILANG rather than to operate the fleet —

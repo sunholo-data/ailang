@@ -3,9 +3,7 @@
 **Status: APPROVED — execution authorized; implementation in progress.**
 Design [m-docs-search-fallback-confinement.md](m-docs-search-fallback-confinement.md), exact approved commit `096a808ac76e858143eee4e62854ceb56c0e2b74`; issue **#1965 only**. Target **v0.56.0 unreleased**, not a version/tag request.
 
-The user said “approve the three designs”. Root's binding record is `/tmp/ailang-backlog-20261029/three-design-approvals.json`: receipt observed 2026-10-29T14:48:58Z (assistant-recorded observation, not an independently supplied user send time). Approved stage is **sprint planning only**, including whole GitHub backend refusal under confinement with local SimHash preserved and neural/cache management separate. No implementation, PR/push, provider review, message/card mutation or executor handoff is authorized by this draft or schema validation. Plan and JSON stay uncommitted until approval.
-
-Execution update: user said “exeute all three sprints”, observed2026-10-29T20:17:42Z (assistant receipt observation). Binding record `/tmp/ailang-backlog-20261029/three-sprint-execution-approval.json` approves this exact reviewed plan SHA25636f65d30acc3c4253f2564221a12c7dba44ec7df46a3af656a689c9ce25b35fa and initial JSON3fd34ec5a3da1cd871c90c18a54c6c28fda3d38b6c188ede792fc2f91da4e6c9. Planning-only statements below are historical; all four milestones are now authorized. Independent evaluation and merge remain separate.
+The user first approved the design for planning (receipt observed2026-10-29T14:48:58Z, assistant observation). The later instruction “exeute all three sprints”, observed2026-10-29T20:17:42Z, explicitly approves this reviewed plan and all four implementation milestones. Binding record `/tmp/ailang-backlog-20261029/three-sprint-execution-approval.json` identifies the reviewed plan SHA25636f65d30acc3c4253f2564221a12c7dba44ec7df46a3af656a689c9ce25b35fa and initial JSON3fd34ec5a3da1cd871c90c18a54c6c28fda3d38b6c188ede792fc2f91da4e6c9. No external/provider review, operator-card mutation or unrelated CI bypass is authorized. Independent evaluation and merge remain separate.
 
 ## Summary and scope
 
@@ -23,7 +21,7 @@ All design decisions are ratified, not new freeze gates:
 - Preserve token precedence, repo restriction/defaults, cache TTL/layout, authenticated HTTP behavior, private result schema, optional unconfined cache-write behavior and policy-tool allow-list/output contract.
 - No .ail product/example edits, language/compiler changes, new transport/config/flag/schema, unauthenticated retry, live search/auth store or broader top-level migration.
 
-No human semantic decision remains OPEN inside this approved scope. The present plan/execute approval gate is still pending; once explicitly authorized, execute sequentially without new approval pauses after each milestone. If a genuinely new import/authority/API policy beyond the design is necessary, **STOP: commit current authorized work, report `BLOCKED: <new decision>` citing the design's Deferred decisions/non-goals or Backend boundary, and end the run**. Do not widen scope or silently fall back.
+No human semantic decision remains OPEN inside this approved scope. The plan/execute gate is satisfied by the explicit instruction above; execute sequentially without new approval pauses after each milestone. If a genuinely new import/authority/API policy beyond the design is necessary, **STOP: commit current authorized work, report `BLOCKED: <new decision>` citing the design's Deferred decisions/non-goals or Backend boundary, and end the run**. Do not widen scope or silently fall back.
 
 ## Current implementation and dependencies
 
@@ -126,8 +124,18 @@ Syntax prompt gate is not applicable because no .ail creation/edit is planned; i
 
 ## Schedule, success and current validation
 
-Day 1: M1 then M2; Day 2: M3 then M4, with CI/evaluation waiting explicit. All four have null passes/started/completed/notes in JSON and current status not_started. Estimated totals match 525; feature dependencies are sequential and github_issues is exactly [1965]. Registry decisions are populated none, not placeholders.
+Original schedule: Day1 M1 then M2; Day2 M3 then M4, with CI/evaluation waiting separate. Estimated totals525 and sequential dependencies are unchanged; github_issues is exactly[1965]. Registry decisions are populated none, not placeholders. The JSON now records actual authorized execution and milestone results rather than the initial null planning state.
 
 Success is every approved boundary and real process matrix with live positive instruments, no confined credential/cache/HTTP/write behavior, unchanged local/unconfined behavior, no new policy/scope, green required actual gates and independent review. Do not create a new global coverage threshold; measure named branch/control coverage and actual effects instead.
 
 Planning validation is schema/IDs/LOC sums/dependency DAG/pending state and local documentation links, not product tests. create_sprint_json.sh was inspected by root and is deliberately **not run** because it imports/reads messages. JSON is manual from the documented schema with exact issue linking, validated by the existing sprint-executor validator. Its “ready for execution” text means schema-ready only, never user authorization. No messages, coordinator, provider review, implementation, PR or push occurred during planning.
+
+## Execution checkpoints
+
+- Approved draft bank: a33ee6bf0; actual dev6d0d3a9da normally integrated before source work.
+- M1:9eee44912, typed constructor/Search/per-request/cache-writer guards; direct RED→GREEN and full backend compatibility.
+- M2:3630ec86c, safe local/operator hints and real CLI controls; real auth/unset-hint RED→GREEN.
+- M3:5a1a21267, actual policy-tool→actual child controls and unchanged compatibility contracts; pre-guard overlay RED/current GREEN.
+- M4: scoped user docs and [acceptance/evidence map](m-docs-search-fallback-confinement-validation.md); actual final gate outcomes tracked in JSON/handoff. Independent acceptance and CI stay separate.
+
+The implementation uses more fixture code than the original estimate to prove live portable helpers, never-forward proxy, full private-state snapshots, both token arms, actual process/child distinctions and late transitions. No production policy or scope was expanded to meet the tests. No .ail syntax/examples gate was triggered; no product .ail was edited.

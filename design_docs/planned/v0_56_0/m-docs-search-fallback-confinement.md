@@ -1,6 +1,6 @@
 # M-DOCS-SEARCH-FALLBACK-CONFINEMENT
 
-**Status**: Design approved for sprint planning; draft plan/execute approval pending; no implementation authorization
+**Status**: Design and sprint execution approved; implementation awaiting independent acceptance
 **Target**: v0.56.0 (unreleased; no version/tag change)
 **Priority**: P1
 **Estimated**: 1–2 days, approximately 280–380 changed lines including tests/docs; planner must re-estimate after approval
@@ -19,10 +19,14 @@ GitHub backend refusal under confinement, preserving local SimHash and leaving
 explicit neural/cache-management separate. No third external review, plan/execute,
 implementation, operator-card action or #2013 CI bypass is inferred.
 
-A concrete [draft sprint plan](m-docs-search-fallback-confinement-sprint-plan.md)
-and `.ailang/state/sprints/sprint_M-DOCS-SEARCH-FALLBACK-CONFINEMENT.json` are
-prepared uncommitted for review. Plan acceptance and explicit execution remain
-pending. This record changes approval metadata, not the approved semantics.
+The later user instruction “exeute all three sprints” approved the reviewed
+[sprint plan](m-docs-search-fallback-confinement-sprint-plan.md) and execution,
+bound by `/tmp/ailang-backlog-20261029/three-sprint-execution-approval.json`,
+observed2026-10-29T20:17:42Z (assistant receipt observation). All four milestones
+are authorized; independent evaluation and merge remain separate. The JSON is
+`.ailang/state/sprints/sprint_M-DOCS-SEARCH-FALLBACK-CONFINEMENT.json`; the
+[validation map](m-docs-search-fallback-confinement-validation.md) records proof.
+This update changes stage metadata, not the approved semantics.
 
 ## Problem statement
 
