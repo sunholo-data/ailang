@@ -51,7 +51,7 @@ func TestClient_Speech(t *testing.T) {
 		t.Fatalf("pcm = %v, want %v", got, pcm)
 	}
 	// A text model is not a TTS model: the documented default is used.
-	if !strings.Contains(path, ai.DefaultGeminiTTSModel+":generateContent") {
+	if !strings.Contains(path, "gemini-2.5-flash-preview-tts:generateContent") {
 		t.Errorf("path = %s, want the default TTS model", path)
 	}
 	raw, _ := json.Marshal(seen)
@@ -99,3 +99,33 @@ func TestClient_Speech_RejectsWrongFormat(t *testing.T) {
 
 // The gemini client satisfies the optional speech capability.
 var _ ai.SpeechProvider = (*Client)(nil)
+
+// #1949: defaults name a model served by the selected endpoint, while a caller's
+// explicit TTS choice remains unchanged. No credentials or live API are needed.
+func TestSpeechModelEndpoint(t *testing.T) {
+	for _, tc := range []struct {
+		name       string
+		auth       AuthType
+		model      string
+		wantSuffix string
+	}{
+		{"vertex default", AuthADC, "", "gemini-2.5-flash-tts:generateContent"},
+		{"vertex bound text model", AuthADC, "gemini-2.5-flash", "gemini-2.5-flash-tts:generateContent"},
+		{"studio default", AuthAPIKey, "", "gemini-2.5-flash-preview-tts:generateContent"},
+		{"studio bound text model", AuthAPIKey, "gemini-2.5-flash", "gemini-2.5-flash-preview-tts:generateContent"},
+		{"vertex explicit GA model", AuthADC, "gemini-2.5-pro-tts", "gemini-2.5-pro-tts:generateContent"},
+		{"vertex explicit preview model", AuthADC, "gemini-2.5-pro-preview-tts", "gemini-2.5-pro-preview-tts:generateContent"},
+		{"studio explicit model", AuthAPIKey, "gemini-2.5-pro-preview-tts", "gemini-2.5-pro-preview-tts:generateContent"},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			c := &Client{authType: tc.auth, projectID: "test-project", location: "global"}
+			got, err := c.buildURL(c.speechModel(tc.model))
+			if err != nil {
+				t.Fatal(err)
+			}
+			if !strings.HasSuffix(got, "/models/"+tc.wantSuffix) {
+				t.Errorf("speech URL = %s, want model endpoint %s", got, tc.wantSuffix)
+			}
+		})
+	}
+}

@@ -1,7 +1,7 @@
 ---
 title: Three Camps of AI-Native Languages
 sidebar_label: Three Camps Comparison
-description: A survey of 16 programming languages designed for LLM-generated code, grouped into three camps — and where AILANG fits.
+description: A survey of programming languages designed for LLM-generated code, grouped into three camps — and where AILANG fits.
 reviewBy: 2027-01-11
 ---
 
@@ -19,7 +19,7 @@ Twenty teams arriving at the same three answers in six months is not coincidence
 
 | Camp | Claim | Mechanism | Example languages |
 |------|-------|-----------|-------------------|
-| **Syntactic** | LLMs fail because *tokens are ambiguous* | Restructure syntax to remove token-level ambiguity | X07, NERD, Magpie, Laze |
+| **Syntactic** | LLMs fail because *tokens are ambiguous* | Restructure syntax to remove token-level ambiguity | X07, NERD, Magpie, Laze, Faber Romanus |
 | **Verification** | LLMs fail because *output isn't checked* | Make contracts mechanically verifiable; ship a checker | Vera, Aver, Raskell, Prove, Pact, MoonBit, Zero, **AILANG** |
 | **Orchestration** | LLMs fail because *the loop around them is wrong* | Reframe as agent coordination, not language design | Pel, Marsha, Plumbing, Quasar, Boruna |
 
@@ -37,6 +37,7 @@ Authors in this camp believe the LLM's tokenizer is the bottleneck: ambiguous op
 | **NERD** | Replaces all operators with English keywords (`PLUS`, `EQUALS`) | [nerd-lang.org](https://www.nerd-lang.org/) |
 | **Magpie** | Surfaces Static Single-Assignment (SSA) form as user-facing syntax | [magpie-lang.com](https://magpie-lang.com/) |
 | **Laze** | Minimal indentation-based, no punctuation, compiles to C | [github.com/kerv/laze](https://github.com/kerv/laze) |
+| **Faber Romanus** | Uniform mechanical rules (one glyph, one meaning; type-first bindings) plus sealed human-readable locale packs; designed to be written by models and read by people | [faberlang.dev](https://faberlang.dev) |
 
 ### Verification Camp — fix the contract on what comes out
 

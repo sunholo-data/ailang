@@ -167,7 +167,8 @@ export func callJsonSimpleResult(input: string) -> Result[string, AIError] ! {AI
 --   style   : delivery instruction, e.g. "Say cheerfully"; "" = none
 --   options : JSON, "" for none. Keys: model (a TTS model; default the bound
 --             --ai model if its name contains "tts", else
---             gemini-2.5-flash-preview-tts), language_code (BCP-47).
+--             gemini-2.5-flash-tts on Vertex or
+--             gemini-2.5-flash-preview-tts on AI Studio), language_code (BCP-47).
 --             Any other key is Err(SchemaValidation).
 -- Supported providers: Gemini (AI Studio and Vertex). Others return
 -- Err({code: "CapabilityNotSupported", ...}).
