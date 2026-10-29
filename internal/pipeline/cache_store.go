@@ -189,11 +189,12 @@ type ifaceFullJSON struct {
 }
 
 type ifaceItemJSON struct {
-	Name   string          `json:"name"`
-	Type   json.RawMessage `json:"type"`
-	Purity bool            `json:"purity"`
-	Module string          `json:"ref_module"`
-	Symbol string          `json:"ref_symbol"`
+	IFC    *types.ImportedIFCSig `json:"ifc"`
+	Name   string                `json:"name"`
+	Type   json.RawMessage       `json:"type"`
+	Purity bool                  `json:"purity"`
+	Module string                `json:"ref_module"`
+	Symbol string                `json:"ref_symbol"`
 }
 
 type ctorSchemeJSON struct {
@@ -205,6 +206,9 @@ type ctorSchemeJSON struct {
 }
 
 func marshalIfaceFull(ifc *iface.Iface) ([]byte, error) {
+	if err := ifc.ValidateIFC(); err != nil {
+		return nil, err
+	}
 	result := ifaceFullJSON{
 		Module:       ifc.Module,
 		Schema:       ifc.Schema,
@@ -222,6 +226,7 @@ func marshalIfaceFull(ifc *iface.Iface) ([]byte, error) {
 			return nil, fmt.Errorf("marshal scheme for %s: %w", name, err)
 		}
 		result.Exports[name] = &ifaceItemJSON{
+			IFC:    item.IFC,
 			Name:   item.Name,
 			Type:   schemeBytes,
 			Purity: item.Purity,
@@ -282,6 +287,10 @@ func unmarshalIfaceFull(data []byte) (*iface.Iface, error) {
 		return nil, err
 	}
 
+	if d.Schema != iface.SchemaVersion || d.Exports == nil {
+		return nil, fmt.Errorf("incompatible or missing IFC interface metadata; recompile module from source")
+	}
+
 	ifc := &iface.Iface{
 		Module:       d.Module,
 		Schema:       d.Schema,
@@ -296,11 +305,15 @@ func unmarshalIfaceFull(data []byte) (*iface.Iface, error) {
 
 	// Exports
 	for name, item := range d.Exports {
+		if item == nil {
+			return nil, fmt.Errorf("missing interface export %s", name)
+		}
 		scheme, err := types.UnmarshalScheme(item.Type)
 		if err != nil {
 			return nil, fmt.Errorf("unmarshal scheme for %s: %w", name, err)
 		}
 		ifc.Exports[name] = &iface.IfaceItem{
+			IFC:    item.IFC,
 			Name:   item.Name,
 			Type:   scheme,
 			Purity: item.Purity,
@@ -345,6 +358,9 @@ func unmarshalIfaceFull(data []byte) (*iface.Iface, error) {
 		ifc.AliasParams[name] = params
 	}
 
+	if err := ifc.ValidateIFC(); err != nil {
+		return nil, err
+	}
 	return ifc, nil
 }
 

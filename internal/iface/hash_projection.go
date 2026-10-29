@@ -7,8 +7,19 @@ import (
 	"strings"
 )
 
+// hashProjectionSchema is the schema string every projection hashes, whatever
+// schema the interface JSON itself carries. The identity format is versioned by
+// the "ifacev2:" prefix, not by the iface JSON schema: moving the JSON from
+// ailang.iface/v1 to v2 (M-IFC-CROSS-MODULE) must not change the identity of a
+// package whose exports are unchanged, or every publisher on a different binary
+// from the registry validator is refused with PUB005.
+const hashProjectionSchema = "ailang.iface/v1"
+
 // HashProjection implements M1 of m-registry-interface-hash-blind-to-signatures.md:
 // it returns canonical interface JSON for hashing while excluding type aliases.
+// An export's IFC summary is hashed only when it carries labels (M-IFC-CROSS-MODULE):
+// a label change is a security-interface change and changes the identity, while
+// an unlabelled export hashes exactly as it did before summaries existed.
 func HashProjection(j *InterfaceJSON) ([]byte, error) {
 	if j == nil {
 		return nil, fmt.Errorf("hash projection: nil interface")
@@ -16,7 +27,7 @@ func HashProjection(j *InterfaceJSON) ([]byte, error) {
 
 	projection := InterfaceJSON{
 		Module: j.Module,
-		Schema: j.Schema,
+		Schema: hashProjectionSchema,
 		Types:  make([]TypeJSON, 0, len(j.Types)),
 		Funcs:  make([]FuncJSON, 0, len(j.Funcs)),
 	}
@@ -43,9 +54,17 @@ func HashProjection(j *InterfaceJSON) ([]byte, error) {
 	})
 
 	for _, f := range j.Funcs {
+		if j.Schema == SchemaVersion || f.IFC != nil {
+			if err := f.IFC.Validate(); err != nil {
+				return nil, fmt.Errorf("export %s: %w", f.Name, err)
+			}
+		}
 		out := f
 		out.Effects = append([]string{}, f.Effects...)
 		sort.Strings(out.Effects)
+		if out.IFC.IsUnlabelled() {
+			out.IFC = nil
+		}
 		projection.Funcs = append(projection.Funcs, out)
 	}
 	sort.Slice(projection.Funcs, func(a, b int) bool {

@@ -76,7 +76,9 @@ func TestCompileCacheClear_Artifacts(t *testing.T) {
 		if err := os.WriteFile(filepath.Join(modulesRoot, "orphan", "nested", ".artifacts-dead.tmp"), []byte("partial"), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		manifest := `{"version":"v7","entries":{"seed":{"cache_key":"key","iface_digest":"digest","compile_time_ms":1,"timestamp":"2026-01-01T00:00:00Z"}}}`
+		// The version must equal internal/pipeline cacheKeyVersion: an older manifest is
+		// discarded as stale and the clear reports 0 entries.
+		manifest := `{"version":"v8","entries":{"seed":{"cache_key":"key","iface_digest":"digest","compile_time_ms":1,"timestamp":"2026-01-01T00:00:00Z"}}}`
 		if err := os.WriteFile(filepath.Join(compileRoot, "manifest.json"), []byte(manifest), 0o644); err != nil {
 			t.Fatal(err)
 		}

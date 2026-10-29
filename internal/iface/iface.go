@@ -7,6 +7,8 @@ import (
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
+const SchemaVersion = "ailang.iface/v2"
+
 // Iface represents a module's interface (its typed exports)
 type Iface struct {
 	Module       string                        // Module path, e.g., "math/gcd"
@@ -16,7 +18,7 @@ type Iface struct {
 	TypeAliases  map[string]types.Type         // M-FIX-RECORD-UPDATE: Type alias expansions for record types
 	AliasParams  map[string][]string           // M-XMOD-ALIAS-POLY: param names for parameterized aliases (name -> ["a"]); missing = nullary
 	DerivedEq    []string                      // Types this module declares `deriving (Eq)`, sorted; importers need their Eq instances
-	Schema       string                        // Schema version, e.g., "ailang.iface/v1"
+	Schema       string                        // Schema version, e.g., SchemaVersion
 	Digest       string                        // Deterministic digest of interface
 }
 
@@ -28,10 +30,11 @@ type TypeExport struct {
 
 // IfaceItem represents a single exported symbol
 type IfaceItem struct {
-	Name   string         // Symbol name
-	Type   *types.Scheme  // Generalized type scheme
-	Purity bool           // Whether the function is pure
-	Ref    core.GlobalRef // Global reference to this item
+	IFC    *types.ImportedIFCSig // Explicit IFC metadata
+	Name   string                // Symbol name
+	Type   *types.Scheme         // Generalized type scheme
+	Purity bool                  // Whether the function is pure
+	Ref    core.GlobalRef        // Global reference to this item
 }
 
 // ConstructorScheme represents the type scheme of an ADT constructor
@@ -52,13 +55,14 @@ func NewIface(module string) *Iface {
 		Types:        make(map[string]*TypeExport),
 		TypeAliases:  make(map[string]types.Type),
 		AliasParams:  make(map[string][]string),
-		Schema:       "ailang.iface/v1",
+		Schema:       SchemaVersion,
 	}
 }
 
 // AddExport adds an exported symbol to the interface
 func (i *Iface) AddExport(name string, typ *types.Scheme, purity bool) {
 	i.Exports[name] = &IfaceItem{
+		IFC:    types.IFCSummaryFromScheme(typ),
 		Name:   name,
 		Type:   typ,
 		Purity: purity,
