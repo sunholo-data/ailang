@@ -327,3 +327,14 @@ checkpoint; existing sprint-JSON/link/diff validation is rerun. The STOP above
 now applies; continue already-approved M1–M5 only after root confirms actual
 accepted #2013 integration. Operator action, CI retry, #1926 repair and gate
 bypass remain outside this agent’s authority.
+
+## Execution resumed: legitimate integration satisfied
+
+Root independently accepted #2013 PASS95 with all27CI terminal, then normally
+merged it at96d69f05b6e84bd6666e8fa91ff948f803b67d92 (20:53:24UTC);
+issue1773 closed20:53:25. The conditional execute instruction now permits
+M1–M5 without a new approval question. New native execution checkout
+.claude/worktrees/publish-key-file-1900-exec, branchfix/publish-protected-key-file,
+normally integrated actual dev ata9aa133133f9720898c3d7ebfa12627101549211. No Go/AIL diff
+from accepted source before M1, no merge conflict, new1900 docs remain planned.
+Historical blocked checkpoint remains preserved above.
