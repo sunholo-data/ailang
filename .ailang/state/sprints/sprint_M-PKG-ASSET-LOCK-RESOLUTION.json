@@ -113,10 +113,10 @@
       "notes": "2026-10-29 repair: current dev root/PACKAGE_ROOT/semver behavior preserved; missing-target/budget/source snapshot/engine context residual retained. All changed-package/core, full six-package, lint, architecture, sizes, changelog, fmt, stdlib49 and examples gates pass without exclusions. Fresh independent evaluation pending; old FAIL51 not overwritten."
     }
   ],
-  "last_session": "2026-10-29T07:37:05.876582+00:00",
+  "last_session": "2026-10-29T08:20:03.286824+00:00",
   "implementation_complete": true,
   "validation_status": "pass",
-  "last_checkpoint": "2026-10-29: reconciled current dev; full six-package suites, make test-changed+core, count20 assets, lint, architecture/file-size/changelog/fmt, stdlib49 and examples all pass without exclusions. Fresh independent evaluation pending before push; historical FAIL51 retained.",
+  "last_checkpoint": "2026-10-29: independent review fixes complete; merged dev/#1964 c2944389, combined seven-package covered suites and lint/boundary/size/changelog/git-exec gates pass. Coverage regression repair projects94.6% on previously measured Sonar newlines; exact-head remote CI and fresh independent evaluation pending. Historical FAIL51 retained.",
   "evaluation_report": ".ailang/state/evaluations/eval_M-PKG-ASSET-LOCK-RESOLUTION_round_1.json",
   "verification": {
     "focused_integration": "pass: six packages",
@@ -125,6 +125,17 @@
     "full_lint": "pass:0 issues",
     "test_changed": "pass:8 packages plus full core loop, no exclusions",
     "other_gates": "pass: boundaries, architecture closure, file sizes, changelog, fmt, verify-stdlib49, verify-examples, asset_path demo",
-    "independent_evaluation": "pending fresh review; round1 FAIL51 retained unchanged"
+    "independent_evaluation": "pending fresh review; round1 FAIL51 retained unchanged",
+    "combined_authority_integration": "pass: effects/pkg/pipeline/embed/apiserver/runner/testutil-pkgassets, full suites with coverage, no exclusions; dev c2944389 integrated"
+  },
+  "review_coverage_repair": {
+    "date": "2026-10-29",
+    "failed_head": "2093bb378f192942215fdbab24ea1470055f6856",
+    "measured_new_coverage": "75.7%:111 coverable newlines,27 uncovered;25 in shared fixture helper",
+    "changes": "Relocate existing public CallPreserveFloats cold/warm locked-byte regression into external pkgassets_test; add corrupt registry directory Err regression. No threshold, exclusion, baseline or instrumentation changes.",
+    "measured_line_projection": "21 formerly uncovered newlines now covered;105/111=94.6%, remote Sonar authoritative",
+    "combined_base": "c2944389afefe99b592ffba387aae37903044126",
+    "remote_gate": "pending exact-head CI after push",
+    "independent_evaluation": "pending; no self-score"
   }
 }

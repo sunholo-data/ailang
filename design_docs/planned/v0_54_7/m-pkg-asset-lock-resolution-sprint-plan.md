@@ -196,5 +196,27 @@ All previously incomplete validation gates now pass without exclusions:
   update was merged afterward; it changes no asset implementation or tests.
 
 The historical round-1 FAIL51 report remains unchanged. Code validation is now
-complete; independent review is the remaining pre-push gate for this attended
-repair. No approval, merge or coordinator dispatch has been performed.
+complete; independent review and exact-head CI remain the pre-merge gates for
+this attended repair. Reviewable commits are pushed to the existing PR; no merge
+or coordinator dispatch has been performed.
+
+### Independent-review repairs and authority integration (2026-10-29)
+
+- Corrected the reference's no-lock PACKAGE_ROOT fallback description and the
+  M2 criterion for manifest/no-lock root targets.
+- Added the missing CallPreserveFloats discovery-error guard after the reviewer
+  reproduced malformed-lock fallback to newer cached bytes. Regression was red
+  before the guard, then full embed/API suites passed.
+- Sonar reported 75.7% new coverage: 25 of 27 uncovered newlines were in the shared
+  fixture helper under per-package instrumentation. Relocated the existing
+  public float-preserving Engine locked-byte regression into external
+  pkgassets_test, preserving its cold/warm/context-replacement assertions.
+  Added a corrupt registry directory Err regression for the real uncovered
+  effects branch; no contrived race hook or coverage policy change.
+- Integrated dev/#1964 c2944389 cleanly. All seven covered suites pass:
+  effects 66.343s, pkg 111.791s, pipeline 127.209s, embed 8.367s,
+  apiserver 85.038s, runner 208.542s, testutil/pkgassets 2.205s. No exclusions.
+- Lint 0, file sizes, boundaries, changelog and git-exec AST gate pass.
+- Local coverage now covers 21 formerly uncovered measured newlines, projecting
+  105/111=94.6%. Exact-head remote Sonar remains authoritative and pending.
+  Fresh independent evaluation is still pending; no self-score or merge.
