@@ -170,13 +170,6 @@ func AnalyzeModuleIFC(file *ast.File, imports map[string]*ImportedIFCSig) (out m
 	c.imports = imports
 	c.exportSummaries = true
 	c.convergeExportIntrinsics(file)
-	// Returned producer values need the existing module callable-result fixed
-	// point. Without any source facts the intrinsic is bottom; avoid expensive
-	// symbolic summaries for ordinary unlabelled modules (e.g. std/fs).
-	if c.hasExportProducerFacts(file) {
-		c.summariseModule(file)
-		c.convergeExportIntrinsics(file)
-	}
 
 	for _, fn := range file.Funcs {
 		if fn == nil {
@@ -235,8 +228,8 @@ func (s *ImportedIFCSig) GobDecode(data []byte) error {
 
 // producerCallableResult resolves producer facts at the application of a
 // callable value. The export API additionally follows local fnTop alternatives;
-// ordinary caller checking retains its existing result policy until M3. Bare
-// function storage does not acquire the label of an unapplied producer.
+// ordinary caller checking retains its existing result policy until M3. This
+// preserves precise typed handoff and declared/declassifying return policies.
 func (c *ifcChecker) producerCallableResult(fn *ifcCallable, args, flows []Label, callee Label, at *ast.FuncCall, env ifcEnv) (Label, bool) {
 	if fn == nil {
 		return nil, false
@@ -281,6 +274,12 @@ func (c *ifcChecker) convergeExportIntrinsics(file *ast.File) {
 			if fn == nil {
 				continue
 			}
+			if fn.Body == nil {
+				// Extern/synthetic declarations have no body to infer. Their
+				// declared label facts are added by the output codec below.
+				c.effLabel[fn.Name] = LabelBottom()
+				continue
+			}
 			old := c.effLabel[fn.Name]
 			delete(c.effLabel, fn.Name)
 			next := c.effectiveBodyLabel(fn.Name)
@@ -292,23 +291,4 @@ func (c *ifcChecker) convergeExportIntrinsics(file *ast.File) {
 			break
 		}
 	}
-}
-
-func (c *ifcChecker) hasExportProducerFacts(file *ast.File) bool {
-	for _, fn := range file.Funcs {
-		if fn == nil {
-			continue
-		}
-		if !LabelEqual(c.effLabel[fn.Name], LabelBottom()) ||
-			!LabelEqual(c.sigs[fn.Name].returnLabel, LabelBottom()) ||
-			!LabelEqual(c.types.deepLabel(fn.ReturnType), LabelBottom()) {
-			return true
-		}
-	}
-	for _, imported := range c.imports {
-		if !imported.Intrinsic.isBottom() || !imported.Return.isBottom() {
-			return true
-		}
-	}
-	return false
 }

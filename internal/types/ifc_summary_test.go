@@ -189,6 +189,8 @@ func TestIFCExportLocalProducerValues(t *testing.T) {
  pure func shadow() -> string { let direct = \u. "clean" in direct(()) }
  pure func stored() -> () -> string { direct }
  pure func returned() -> string { let f = stored() in f() }
+ pure func clean() -> string { "clean" }
+ pure func storedClean() -> () -> string { clean }
  pure func take(t: Tagged) -> string { t.safe }
  pure func handoff(t: Tagged) -> string { let f = take in f(t) }
  `)
@@ -198,7 +200,7 @@ func TestIFCExportLocalProducerValues(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, name := range []string{"direct", "alias", "joined", "mixed", "returned"} {
+	for _, name := range []string{"direct", "alias", "joined", "mixed", "returned", "stored"} {
 		if !types.LabelSubsumes(sigs[name].Intrinsic.Decode(), types.LabelConst("secret")) {
 			t.Fatalf("%s lost local producer intrinsic: %+v", name, sigs[name])
 		}
@@ -206,9 +208,152 @@ func TestIFCExportLocalProducerValues(t *testing.T) {
 	if !types.LabelSubsumes(sigs["joined"].Intrinsic.Decode(), types.LabelConst("email")) {
 		t.Fatal("local producer join dropped an alternative")
 	}
-	for _, name := range []string{"shadow", "stored", "take", "handoff"} {
+	for _, name := range []string{"shadow", "storedClean", "take", "handoff"} {
 		if !types.LabelEqual(sigs[name].Intrinsic.Decode(), types.LabelBottom()) {
 			t.Fatalf("%s gained an unrelated intrinsic label: %+v", name, sigs[name])
 		}
+	}
+}
+
+func TestIFCExportProducerEtaParity(t *testing.T) {
+	file := parseIFC(t, `module test/producer_eta
+ type SecretRec = {value: string<secret>}
+ pure func source() -> string<secret> { "secret" }
+ pure func recSource() -> SecretRec { {value: "secret"} }
+ pure func apply(f: () -> string) -> string { f() }
+ pure func ignore(f: () -> string) -> string { "clean" }
+ pure func ref() -> string { apply(source) }
+ pure func eta() -> string { apply(\_. source()) }
+ pure func ignoredRef() -> string { ignore(source) }
+ pure func ignoredEta() -> string { ignore(\_. source()) }
+ pure func storedRef() -> () -> string { source }
+ pure func storedEta() -> () -> string { \_. source() }
+ pure func recordRef() -> () -> SecretRec { recSource }
+ pure func recordEta() -> () -> SecretRec { \_. recSource() }
+ pure func importedRef() -> string { apply(imported) }
+ pure func importedEta() -> string { apply(\_. imported()) }
+ pure func importedStoredRef() -> () -> string { imported }
+ pure func importedStoredEta() -> () -> string { \_. imported() }
+ `)
+	source := types.EmptyIFCSummary()
+	source.Intrinsic = types.EncodeIFCLabel(types.LabelConst("secret"))
+	sigs, err := types.AnalyzeModuleIFC(file, map[string]*types.ImportedIFCSig{"imported": source})
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, pair := range [][2]string{{"ref", "eta"}, {"ignoredRef", "ignoredEta"}, {"storedRef", "storedEta"}, {"recordRef", "recordEta"}, {"importedRef", "importedEta"}, {"importedStoredRef", "importedStoredEta"}} {
+		got, want := sigs[pair[0]].Intrinsic, sigs[pair[1]].Intrinsic
+		if !reflect.DeepEqual(got, want) || !types.LabelSubsumes(got.Decode(), types.LabelConst("secret")) {
+			t.Fatalf("producer eta parity %s/%s: got=%+v want=%+v", pair[0], pair[1], got, want)
+		}
+	}
+}
+
+func TestIFCExportKnownSeedEtaParity(t *testing.T) {
+	const template = `module test/seed_eta
+ pure func apply(f: string -> string) -> string { f("key") }
+ pure func ignore(f: string -> string) -> string { "clean" }
+ pure func ref() -> string { apply(SOURCE) }
+ pure func eta() -> string { apply(\key. SOURCE(key)) }
+ pure func ignoredRef() -> string { ignore(SOURCE) }
+ pure func ignoredEta() -> string { ignore(\key. SOURCE(key)) }
+ pure func storedRef() -> string -> string { SOURCE }
+ pure func storedEta() -> string -> string { \key. SOURCE(key) }
+ `
+	for _, seed := range []string{"secret", "_secret_read"} {
+		t.Run(seed, func(t *testing.T) {
+			for _, local := range []bool{false, true} {
+				src := strings.ReplaceAll(template, "SOURCE", seed)
+				if local {
+					src = strings.Replace(src, "module test/seed_eta", "module test/seed_eta\npure func "+seed+"(key: string) -> string { \"clean\" }", 1)
+				}
+				sigs, err := types.AnalyzeModuleIFC(parseIFC(t, src), nil)
+				if err != nil {
+					t.Fatal(err)
+				}
+				for _, pair := range [][2]string{{"ref", "eta"}, {"ignoredRef", "ignoredEta"}, {"storedRef", "storedEta"}} {
+					got, want := sigs[pair[0]].Intrinsic, sigs[pair[1]].Intrinsic
+					if !reflect.DeepEqual(got, want) || (local && !types.LabelEqual(got.Decode(), types.LabelBottom())) || (!local && !types.LabelSubsumes(got.Decode(), types.LabelConst("secret"))) {
+						t.Fatalf("local=%v seed parity %s/%s: got=%+v want=%+v", local, pair[0], pair[1], got, want)
+					}
+				}
+			}
+			lexical := strings.ReplaceAll(`module test/seed_shadow
+   pure func apply(f: string -> string) -> string { f("key") }
+   pure func ref() -> string { let SOURCE = \key. "clean"; apply(SOURCE) }
+   pure func eta() -> string { let SOURCE = \key. "clean"; apply(\key. SOURCE(key)) }
+   `, "SOURCE", seed)
+			sigs, err := types.AnalyzeModuleIFC(parseIFC(t, lexical), nil)
+			if err != nil {
+				t.Fatal(err)
+			}
+			for _, name := range []string{"ref", "eta"} {
+				if !types.LabelEqual(sigs[name].Intrinsic.Decode(), types.LabelBottom()) {
+					t.Fatalf("lexical %s shadow inherited %s source fact: %+v", name, seed, sigs[name])
+				}
+			}
+		})
+	}
+}
+
+func TestIFCExportBodylessDeclarations(t *testing.T) {
+	file := parseIFC(t, `module test/extern_summary
+ extern func plain(n: int) -> string
+ extern func nativeSource(input: string<email>) -> string<secret>
+ extern func sanitized(input: string{not secret}) -> string<clean> ! {Declassify[label=email]}
+ pure func normal() -> string<secret> { "secret" }
+ `)
+	sigs, err := types.AnalyzeModuleIFC(file, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(sigs) != 4 {
+		t.Fatalf("bodyless declarations omitted: %v", sigs)
+	}
+	for name, s := range sigs {
+		if err := s.Validate(); err != nil {
+			t.Fatalf("%s: %v", name, err)
+		}
+	}
+	if !types.LabelEqual(sigs["plain"].Intrinsic.Decode(), types.LabelBottom()) {
+		t.Fatal("bodyless plain declaration gained a fabricated body label")
+	}
+	s := sigs["nativeSource"]
+	if !s.HasReturnLabel || !types.LabelSubsumes(s.Return.Decode(), types.LabelConst("secret")) || !types.LabelSubsumes(s.Params[0].Label.Decode(), types.LabelConst("email")) {
+		t.Fatalf("bodyless declared facts lost: %+v", s)
+	}
+	if !reflect.DeepEqual(sigs["sanitized"].Params[0].Forbidden, []string{"secret"}) || !reflect.DeepEqual(sigs["sanitized"].Declassify, []string{"email"}) {
+		t.Fatal("bodyless refinement/authority lost")
+	}
+	if !types.LabelSubsumes(sigs["normal"].Intrinsic.Decode(), types.LabelConst("secret")) {
+		t.Fatal("ordinary labelled declaration lost")
+	}
+}
+
+func TestIFCExportProducerResultPolicies(t *testing.T) {
+	file := parseIFC(t, `module test/producer_result_policies
+ pure func secretSource() -> string<secret> { "secret" }
+ pure func emailSource() -> string<email> { "email" }
+ func bare(x: string) -> string<clean> ! {Declassify} { x }
+ func scoped(x: string) -> string<clean> ! {Declassify[label=email]} { x }
+ pure func declared(x: string) -> string<clean> { "fixed" }
+ func callBare() -> string { let f = bare in f(secretSource()) }
+ func callScopedEmail() -> string { let f = scoped in f(emailSource()) }
+ func callScopedSecret() -> string { let f = scoped in f(secretSource()) }
+ func callDeclared() -> string { let f = declared in f(secretSource()) }
+ `)
+	sigs, err := types.AnalyzeModuleIFC(file, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	clean := types.LabelConst("clean")
+	for _, name := range []string{"callBare", "callScopedEmail", "callDeclared"} {
+		if !types.LabelEqual(sigs[name].Intrinsic.Decode(), clean) {
+			t.Fatalf("%s lost declared/authorized result policy: %+v", name, sigs[name])
+		}
+	}
+	want := types.LabelJoin(clean, types.LabelConst("secret"))
+	if !types.LabelEqual(sigs["callScopedSecret"].Intrinsic.Decode(), want) {
+		t.Fatal("scoped authority erased unrelated producer label")
 	}
 }

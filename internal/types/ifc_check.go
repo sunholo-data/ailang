@@ -136,7 +136,7 @@ type ifcVar struct {
 type ifcEnv map[string]ifcVar
 
 type ifcChecker struct {
-	exportSummaries bool // resolve local producer results for the M1 summary API; caller policy stays unchanged
+	exportSummaries bool // M1 producer/closure label facts; ordinary caller policy stays unchanged
 	imports         map[string]*ImportedIFCSig
 	types           *ifcTypes // module-local type declarations (ifc_static_type.go)
 	sigs            map[string]*ifcSig
@@ -332,13 +332,26 @@ func (c *ifcChecker) identVal(name string, env ifcEnv) ifcVal {
 		return ifcVal{label: v.label, fn: v.fn}
 	}
 	if sig, ok := c.sigs[name]; ok {
-		return ifcVal{label: LabelBottom(), fn: fromSig(sig)}
+		label := LabelBottom()
+		if c.exportSummaries {
+			// Match an eta closure's existing conservative result label.
+			label = LabelJoin(c.calleeResultLabel(sig, nil, nil), c.types.deepLabel(sig.decl.ReturnType))
+		}
+		return ifcVal{label: label, fn: fromSig(sig)}
 	}
 	if _, ok := c.types.ctors[name]; ok {
 		return ifcVal{label: LabelBottom(), fn: single(&ifcFn{kind: fnCtor})}
 	}
 	if imported := c.imports[name]; imported != nil {
-		return ifcVal{label: LabelBottom(), fn: single(&ifcFn{kind: fnOpaque, name: name, imported: imported})}
+		return ifcVal{label: importedIFCResult(imported, nil), fn: single(&ifcFn{kind: fnOpaque, name: name, imported: imported})}
+	}
+	if c.exportSummaries {
+		if source, ok := ifcBuiltinSourceLabels[name]; ok {
+			// The same trusted string-source facts used by direct calls. Reuse
+			// synthetic declared-return metadata; no new producer kind or codec.
+			fact := IFCSummaryFromScheme(&Scheme{Type: &TFunc2{Params: []Type{TString}, Return: WithLabel(TString, LabelConst(source))}})
+			return ifcVal{label: fact.Return.Decode(), fn: single(&ifcFn{kind: fnOpaque, name: name, imported: fact})}
+		}
 	}
 	// Imported names have no constructor evidence in this surface-only pass.
 	// Capitalized functions are legal, so every unknown name takes F2 fallback.
@@ -454,8 +467,8 @@ func (c *ifcChecker) joinElems(elems []ast.Expr, env ifcEnv) ifcVal {
 
 // callVal computes a call's result label and callable, and runs Checks A/C
 // against the callable of the callee VALUE — whatever the callee expression is
-// (#1719). The result label is computed exactly as before the fix; checks are
-// only added.
+// (#1719). Ordinary checking keeps its existing result policy; M1 export
+// analysis additionally follows known producer facts.
 func (c *ifcChecker) callVal(call *ast.FuncCall, env ifcEnv) ifcVal {
 	name := calleeName(call.Func)
 	sig, isLocal := c.sigs[name]
@@ -505,7 +518,9 @@ func (c *ifcChecker) callVal(call *ast.FuncCall, env ifcEnv) ifcVal {
 	if label, known := c.producerCallableResult(callee.fn, argLabels, flowLabels, callee.label, call, env); known {
 		return ifcVal{label: label, fn: fn}
 	}
-	if src, ok := ifcBuiltinSourceLabels[name]; ok {
+	_, bound := env[name]
+	_, constructor := c.types.ctors[name]
+	if src, ok := ifcBuiltinSourceLabels[name]; ok && (!c.exportSummaries || (!bound && !constructor)) {
 		return ifcVal{label: LabelConst(src), fn: fn}
 	}
 	// Unknown or imported callee: transparent — propagate the join of the args
