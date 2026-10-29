@@ -102,10 +102,10 @@
         "Scratch-only mutation: remove application checks, applied summaries and wrapper inference separately; each kills its specified R/C subset, then restore clean working tree.",
         "Pinned fixture exit codes hold, including expected-fail leak_attempt and clean secrets/contracts/effect-latent examples; no effect is executed by rejected programs."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-29T08:42:58.233279+00:00",
+      "notes": "All24 named design rows plus X1 and nonredundant written-HOF guard R11b (26total) pass unit and fresh-file/no-cache CLI checks. REPL alias/HOF/lambda rejection and clean control pass. Evaluator and bytecode refuse R1/R2/R13 before printing. Application/applied/inference scratch overlays each kill intended subsets; R11 is redundantly protected by applied-at, so R11b specifically proves written-type inference. Existing fixture CLI exits match base. Record-update/array/ADT/block-letrec regressions pass."
     },
     {
       "id": "M6_CORPUS_DOCS",
@@ -199,7 +199,8 @@
       "N6"
     ],
     "additional_case": "X1 inferred multi-label forbidden wrapper with clean control",
-    "count_correction": "Design prose says 25 files, but enumerates 24 named rows. All are mandatory plus X1; mechanism and recursion tests add further coverage."
+    "count_correction": "Design prose says 25 files, but enumerates 24 named rows. All are mandatory plus X1; mechanism and recursion tests add further coverage.",
+    "additional_mechanism_case": "R11b written guarded HOF parameter receiving an unrestricted actual callback, separating inference from applied-at enforcement."
   },
   "recovery": {
     "branch": "p0/ifc-function-value-sinks",

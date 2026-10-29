@@ -92,3 +92,26 @@ export func main() -> string { wrap(` + arg + `) }
 		}
 	}
 }
+
+func TestIFCFunctionValueRemainingCarrierForms(t *testing.T) {
+	for _, tc := range []struct{ name, decls, body string }{
+		{"record update", fvUpper, `let r = { f: upper } in let s = {r | f: gate} in s.f(fromInbox("hi"))`},
+		{"array", `import std/array as A
+`, `match A.toList(#[gate]) { f :: _ => f(fromInbox("hi")), [] => "" }`},
+		{"ADT", `type Box = BoxFn(string -> string)
+`, `match BoxFn(gate) { BoxFn(f) => f(fromInbox("hi")) }`},
+		{"block letrec", ``, `{ letrec f = \s. gate(s); f(fromInbox("hi")) }`},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			errs := fvCheck(t, "module r/carrier\n"+tc.decls+fvPrelude+`export func main() -> string { `+tc.body+` }`)
+			if len(errs) == 0 {
+				t.Fatal("carrier dropped its sink requirement")
+			}
+			for _, err := range errs {
+				if err.Kind != SinkRefinementError {
+					t.Fatalf("wrong diagnostic: %v", errs)
+				}
+			}
+		})
+	}
+}

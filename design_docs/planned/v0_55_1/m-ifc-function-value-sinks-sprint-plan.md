@@ -65,11 +65,11 @@ Original ruled design estimates five days. This draft budgets six working days i
 
 **ID:** `M5_REGRESSION_MATRIX`. **Dependencies:** M4_WRAPPER_INFERENCE
 
-- [ ] All 24 named design rows R0-R14/C0-C2/N1-N6 plus X1 (at least 25 cases) run as CheckModuleIFC unit and fresh-file CLI checks with exact exit/kind assertions.
-- [ ] Negative R rows report sink_refinement; C rows report param_label_cover. New messages name callee and first via hop; R0/C0 diagnostics retain kind and position.
-- [ ] REPL module-load gate agrees with CheckModuleIFC; existing IFC closure, annotated-let, declared-record-label, scoped authority, positive-label and transparent passthrough tests pass unchanged.
-- [ ] Scratch-only mutation: remove application checks, applied summaries and wrapper inference separately; each kills its specified R/C subset, then restore clean working tree.
-- [ ] Pinned fixture exit codes hold, including expected-fail leak_attempt and clean secrets/contracts/effect-latent examples; no effect is executed by rejected programs.
+- [x] All 24 named design rows R0-R14/C0-C2/N1-N6 plus X1 (at least 25 cases) run as CheckModuleIFC unit and fresh-file CLI checks with exact exit/kind assertions.
+- [x] Negative R rows report sink_refinement; C rows report param_label_cover. New messages name callee and first via hop; R0/C0 diagnostics retain kind and position.
+- [x] REPL module-load gate agrees with CheckModuleIFC; existing IFC closure, annotated-let, declared-record-label, scoped authority, positive-label and transparent passthrough tests pass unchanged.
+- [x] Scratch-only mutation: remove application checks, applied summaries and wrapper inference separately; each kills its specified R/C subset, then restore clean working tree.
+- [x] Pinned fixture exit codes hold, including expected-fail leak_attempt and clean secrets/contracts/effect-latent examples; no effect is executed by rejected programs.
 
 ### M6: Corpus delta, teaching and v2 coordination (~200 LOC)
 
