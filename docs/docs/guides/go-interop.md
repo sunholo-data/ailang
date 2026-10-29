@@ -6,21 +6,46 @@ reviewBy: 2026-11-16
 
 This guide explains how to integrate AILANG code with Go applications.
 
-> **ABI Stability Notice (v0.5.x)**: The Go interop ABI is considered "stable preview".
-> Breaking changes are allowed until v0.6.0 but will be announced in the CHANGELOG.
-> See [ABI Stability](#abi-stability) for details.
+> **Status (2026-10-28)**: Go codegen (`ailang compile --emit-go`) is **not a performance
+> path**. The generated code boxes every value as `interface{}`, and it has **no tail-call
+> elimination**: a tail-recursive loop of 10 million steps overflows the Go stack, where
+> `ailang run` runs it at constant depth. For speed, run on the bytecode VM
+> (`ailang run --bytecode`, or `--strict-bytecode` to fail instead of silently falling back
+> to the interpreter). The future of Go codegen is under review.
+>
+> `internal/embed` is an `internal/` package, so Go only lets code inside the `ailang`
+> module import it. A separate Go project cannot import it today. Use a
+> [child process](#child-process-ailang-run---bytecode) instead.
 
 ## Integration Options
 
-AILANG provides two ways to integrate with Go:
+AILANG offers three ways to integrate with Go:
 
 | Approach | Use Case | Performance | Complexity |
 |----------|----------|-------------|------------|
-| **Runtime Embedding** | Dynamic transforms, config DSL, scripting | Good (cached) | Low |
-| **Compile-time Codegen** | Game engines, hot paths, type-safe ABI | Best | Medium |
+| **Child process** | Simulations, game logic, any host language | Bytecode VM | Low |
+| **Runtime Embedding** | Dynamic transforms, config DSL, scripting (inside the `ailang` module) | Interpreter (cached) | Low |
+| **Compile-time Codegen** | Type-safe Go ABI, extern functions | Fast for simple code; no tail calls | Medium |
 
+- **Child process**: start `ailang run --bytecode` and exchange JSON over stdin/stdout
 - **Runtime Embedding** (v0.6.4+): Embed AILANG interpreter, call functions at runtime
 - **Compile-time Codegen**: Generate Go code with `ailang compile --emit-go`
+
+---
+
+## Child process (`ailang run --bytecode`)
+
+The host starts the AILANG program as a child process and exchanges newline-delimited JSON
+over stdin/stdout, one request and one reply per step. The program runs on the bytecode VM,
+and the host can be written in any language. Stapledon's Voyage runs its simulation this way
+under Godot.
+
+```bash
+ailang run --quiet --bytecode --package-dir sim --caps IO --entry main sim/ship.ail
+```
+
+Use `--strict-bytecode` in CI, so that code which cannot run on the VM fails instead of
+silently falling back to the slower interpreter.
 
 ---
 
@@ -242,9 +267,10 @@ func main() {
 - Dynamic rule engines
 
 **Consider compile-time codegen instead for:**
-- Performance-critical game loops
 - Type-safe ABI requirements
 - Static analysis of generated code
+
+For performance-critical loops, use a [child process](#child-process-ailang-run---bytecode) on the bytecode VM.
 
 ---
 
@@ -254,7 +280,7 @@ func main() {
 
 | Feature | Runtime Embedding | Compile-Time Codegen |
 |---------|-------------------|---------------------|
-| **Performance** | Good (cached modules) | Best (native Go) |
+| **Performance** | Interpreter (cached modules) | Fast for simple code; values boxed as `interface{}`, no tail calls |
 | **Type safety** | Runtime errors | Compile-time errors |
 | **Hot reload** | Restart engine | Recompile binary |
 | **Deployment** | Ship .ail files | Single binary |
@@ -271,11 +297,12 @@ Cached call:  ~0.1-1ms (lookup + eval)
 Memory:       Runtime + cached ASTs
 ```
 
-**Compile-Time Codegen:**
+**Compile-Time Codegen** (measured 2026-10-28, `fib(32)`):
 ```
-First call:   ~0.001ms (native Go function)
-All calls:    ~0.001ms (no interpretation overhead)
-Memory:       Static Go code only
+Generated Go:        0.030s  (every value boxed as interface{})
+Bytecode VM:         0.33s   (ailang run --strict-bytecode)
+Hand-written Go:     0.005s
+Tail-recursive loop: stack overflow at 10M steps (no tail-call elimination)
 ```
 
 ### When to Choose Each
@@ -289,8 +316,8 @@ Memory:       Static Go code only
 - ✅ Minimal integration effort needed
 
 **Choose Compile-Time Codegen when:**
-- ✅ Performance is critical (game loops, hot paths)
 - ✅ Type-safe ABI with Go required
+- ✅ Your code has no deep recursion (there are no tail calls, so deep recursion overflows the stack)
 - ✅ Need full effect handler support
 - ✅ Single-binary deployment preferred
 - ✅ Static analysis of generated code needed
@@ -300,11 +327,10 @@ Memory:       Static Go code only
 You can use both approaches in the same project:
 
 ```go
-// Core game loop: compile-time codegen for performance
+// Typed step function: compile-time codegen for a Go ABI
 import "mygame/gen/game"
 
 func gameLoop() {
-    // Native Go speed
     result := game.Step(world, input)
 }
 
@@ -349,7 +375,8 @@ sum := math.Add(1, 2)  // sum = 3
 
 ## Compile-Time Codegen
 
-For performance-critical use cases, compile AILANG to Go code with `ailang compile --emit-go`.
+To get a typed Go API, compile AILANG to Go code with `ailang compile --emit-go`. This is not
+a speed path: see the status note at the top of this page.
 
 ## Type Mapping
 

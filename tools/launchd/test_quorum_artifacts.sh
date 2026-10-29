@@ -254,7 +254,9 @@ bash32_and_suite_reach() {
   fi
   /bin/bash -n "$ROOT/tools/launchd/lib/quorum-artifacts.sh" || fail syntax
   make -C "$ROOT" -n test-launchd-drivers > "$HOME/recipes"
-  [ "$(grep -cF '/bin/bash tools/launchd/lib/suite-env.sh tools/launchd/test_quorum_artifacts.sh' "$HOME/recipes")" = 1 ] || fail reach
+  # Reached = exactly one argument of the run-suites.sh line (which launches every
+  # suite through suite-env.sh — test_suite_env.sh arm F pins that).
+  [ "$(awk '/\/bin\/bash tools\/launchd\/lib\/run-suites\.sh / { for (i = 1; i <= NF; i++) if ($i == "tools/launchd/test_quorum_artifacts.sh") n++ } END { print n + 0 }' "$HOME/recipes")" = 1 ] || fail reach
 }
 attended_absent_and_errors() {
   local copy

@@ -69,16 +69,19 @@ func TestWithoutEnv_StripsTheAPIKeySoBillingStaysOnTheSubscription(t *testing.T)
 
 func TestClaudeReviewCmd_SubscriptionOnlyAndToolless(t *testing.T) {
 	t.Setenv("ANTHROPIC_API_KEY", "sk-must-not-reach-claude")
-	cmd := claudeReviewCmd(context.Background(), ClaudeReviewerModel, "sys", "user")
+	cmd := claudeReviewCmd(context.Background(), ClaudeReviewerModel, "/tmp/sys.md", "user")
 	for _, kv := range cmd.Env {
 		if strings.HasPrefix(kv, "ANTHROPIC_API_KEY=") {
 			t.Fatal("the fallback's claude process inherits ANTHROPIC_API_KEY — it would bill the API, not the subscription")
 		}
 	}
 	args := strings.Join(cmd.Args, "\x00")
-	for _, want := range []string{"-p", "--tools\x00\x00", "--setting-sources\x00\x00", "--strict-mcp-config", "--model\x00" + ClaudeReviewerModel} {
+	for _, want := range []string{"-p", "--tools\x00\x00", "--setting-sources\x00\x00", "--strict-mcp-config", "--model\x00" + ClaudeReviewerModel, "--system-prompt-file\x00/tmp/sys.md"} {
 		if !strings.Contains(args, want) {
 			t.Errorf("claude args %q missing %q", cmd.Args, want)
 		}
+	}
+	if strings.Contains(args, "--system-prompt\x00") {
+		t.Errorf("claude args %q pass the system prompt inline", cmd.Args)
 	}
 }

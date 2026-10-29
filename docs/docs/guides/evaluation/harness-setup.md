@@ -312,6 +312,30 @@ runs a fixed single `solution.ail`. Such benchmarks are therefore **agent-mode-o
 When authoring a benchmark that needs multi-file grading, plan to run it with
 `eval-suite --agent --benchmarks <id>` (M-EVAL-STANDARD-MODE-INPUT-FILES-GAP).
 
+## Hidden tests and `exec_timeout`
+
+`expected_stdout` is shown to the model: agent mode writes it into the workspace README and
+the task prompt. It is a sample, not an oracle. A benchmark that needs a real oracle declares
+held-out tests:
+
+```yaml
+hidden_tests_dir: hidden_tests/cp_60159   # <name>.in / <name>.ans pairs, relative to the YAML
+exec_timeout: 30                          # seconds, every language, both modes
+```
+
+After the visible test passes, the harness runs the same program on each hidden test, smallest
+input first, and stops at the first failure. Nothing from a hidden test reaches a prompt, the
+workspace, the self-repair prompt, or the banked `stdout`/`stderr`. The row banks
+`hidden_total`, `hidden_passed` (the passing prefix) and `hidden_first_fail`
+(`<test>:wrong_output|timeout|runtime_error`), and `stdout_ok` requires every hidden test. A
+hidden failure banks the same `error_category` a visible one of that kind would.
+
+`exec_timeout` replaces every code-execution limit for the benchmark. Without it, agent mode
+runs AILANG with 10s and Python with 30s, which is a 3× bias on any perf-sensitive task. Do not
+put the directory under `data/` or use `.out` for answers: `.gitignore` drops both, and the
+answers would silently never be committed. See
+[M-EVAL-HIDDEN-TESTS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_55_0/m-eval-hidden-tests.md).
+
 ## Troubleshooting
 
 **"non-agentic result: 0 turns, 0 tool calls"**

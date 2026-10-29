@@ -129,7 +129,11 @@ func TestExamplesCorpus_ConfinedIgnoresHomeExamples(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	writeTestFile(t, filepath.Join(dl, "manifest.json"), plantedManifest)
+	// A download at least as new as the binary: an older one is skipped
+	// regardless of confinement (examples_staleness.go).
+	writeTestFile(t, filepath.Join(dl, "manifest.json"), embeddedManifestVariant(t, func(m *ExampleManifest) {
+		m.Examples = append(m.Examples, ExampleEntry{Path: "planted.ail", Status: "working", Tags: []string{"planted"}, Description: "PLANTED corpus"})
+	}))
 	writeTestFile(t, filepath.Join(dl, "runnable", "planted.ail"), "-- planted\n")
 
 	c, err := openExamplesCorpus()
@@ -163,5 +167,41 @@ func TestExamplesCorpus_EnvBeatsEmbedded(t *testing.T) {
 	res, _, err := searchExamples(c, "planted", 10)
 	if err != nil || len(res) != 1 || res[0].path != "planted.ail" {
 		t.Fatalf("AILANG_EXAMPLES corpus not used: %+v %v", res, err)
+	}
+}
+
+// Manifest entries spelled "runnable/x.ail" (about half the real manifest)
+// must be found by tag and description, not only by file content. Search used
+// to key the manifest by the raw path and look files up by base name, so those
+// entries never matched their metadata.
+func TestExamplesSearch_RunnablePrefixedManifestPaths(t *testing.T) {
+	isolateExamplesResolution(t)
+	dir := t.TempDir()
+	writeTestFile(t, filepath.Join(dir, "manifest.json"), `{"schema":"ailang.manifest/v1","examples":[`+
+		`{"path":"runnable/prefixed.ail","status":"working","tags":["zebratag"],"description":"QUOKKA description"},`+
+		`{"path":"runnable/sub/nested.ail","status":"working","tags":[],"description":"WOMBAT nested"},`+
+		`{"path":"bare.ail","status":"working","tags":[],"description":"PLATYPUS bare"}]}`)
+	writeTestFile(t, filepath.Join(dir, "runnable", "prefixed.ail"), "-- no metadata words here\n")
+	writeTestFile(t, filepath.Join(dir, "runnable", "sub", "nested.ail"), "-- nor here\n")
+	writeTestFile(t, filepath.Join(dir, "runnable", "bare.ail"), "-- nor here\n")
+	t.Setenv(config.EnvExamples, dir)
+	c, err := openExamplesCorpus()
+	if err != nil {
+		t.Fatal(err)
+	}
+	for query, want := range map[string]string{
+		"quokka": "prefixed.ail", "zebratag": "prefixed.ail", "wombat": "sub/nested.ail", "platypus": "bare.ail",
+	} {
+		res, meta, err := searchExamples(c, query, 10)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(res) != 1 || res[0].path != want || res[0].matchSource == "content" {
+			t.Errorf("search %q = %+v, want one metadata hit on %s", query, res, want)
+			continue
+		}
+		if meta[res[0].path].Description == "" {
+			t.Errorf("search %q: no manifest entry for result path %q (rendering would drop description/tags)", query, res[0].path)
+		}
 	}
 }

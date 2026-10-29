@@ -1,0 +1,35 @@
+-- Cycle detection with a visited set of states: Set[(int, int, Dir)] from std/set.
+-- A robot moves until it repeats a (row, col, direction) state, the way Python
+-- does `if state in seen: break; seen.add(state)`. ADT constructors work in set keys.
+module examples/runnable/cycle_detection_visited_set
+import std/io (println)
+import std/set as S
+import std/set (Set)
+
+type Dir = N | E | S | W
+
+func turn(d: Dir) -> Dir = match d {
+  N => E,
+  E => S,
+  S => W,
+  W => N
+}
+
+func ahead(r: int, c: int, d: Dir) -> (int, int) = match d {
+  N => (r - 1, c),
+  E => (r, c + 1),
+  S => (r + 1, c),
+  W => (r, c - 1)
+}
+
+-- On a size x size grid with blocked cells, step forward or turn right; count
+-- moves until the first repeated state.
+func walk(size: int, blocked: Set[(int, int)], r: int, c: int, d: Dir, seen: Set[(int, int, Dir)], moves: int) -> int =
+  if S.member(seen, (r, c, d)) then moves else match ahead(r, c, d) {
+    (r2, c2) => if r2 < 0 || r2 >= size || c2 < 0 || c2 >= size || S.member(blocked, (r2, c2)) then walk(size, blocked, r, c, turn(d), S.insert(seen, (r, c, d)), moves + 1) else walk(size, blocked, r2, c2, d, S.insert(seen, (r, c, d)), moves + 1)
+  }
+
+export func main() -> () ! {IO} {
+  let blocked = S.fromList([(0, 2), (2, 1)])
+  println("moves before a repeated state: ${show(walk(3, blocked, 0, 0, E, S.empty(), 0))}")
+}

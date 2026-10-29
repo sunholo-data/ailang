@@ -1,0 +1,53 @@
+-- letrec_local_shadow.ail
+-- A local `letrec` whose name is also a top-level function. Inside the
+-- letrec, the name means the LOCAL binding: lexical scope, innermost wins.
+--
+-- Before M-VM-COVERAGE G1b, the bytecode VM (`--bytecode` and
+-- `--strict-bytecode`) bound the self-call to the top-level `go` and printed
+-- 1000 where the evaluator printed 10, a silent wrong answer. The expected
+-- output below is pinned in examples/manifest.json and checked on all three
+-- engines by internal/runner/vm_letrec_test.go.
+module examples/runnable/letrec_local_shadow
+import std/io (println)
+import std/list (map)
+
+-- Decoys: a miscompiled letrec name would call these.
+func go(a: int, b: int) -> int = 1000
+
+func walk(n: int) -> int = 1000
+
+-- Self-recursive local letrec, called directly.
+func sumTo(n: int) -> int {
+  letrec go = \i acc. if i > n then acc else go(i + 1, acc + i)
+  go(1, 0)
+}
+
+-- A long tail loop: must run in constant stack on every engine.
+func countUp(n: int) -> int {
+  let step = 3
+  letrec go = \i acc. if i >= n then acc else go(i + 1, acc + step)
+  go(0, 0)
+}
+
+-- The letrec escapes as a value into a higher-order function.
+func walkAll(xs: [int]) -> [int] {
+  let base = 100
+  letrec walk = \k. if k <= 0 then base else walk(k - 1) + 1
+  map(walk, xs)
+}
+
+-- A letrec nested inside another letrec's body, calling the outer one.
+func nestedRec(n: int) -> int {
+  letrec walk = \i. if i <= 0 then 0 else {
+    letrec go = \j acc. if j <= 0 then acc else go(j - 1, acc + walk(i - 1))
+    go(1, i)
+  }
+  walk(n)
+}
+
+export func main() -> () ! {IO} {
+  println("sumTo(4) = ${show(sumTo(4))}")
+  println("countUp(1000000) = ${show(countUp(1000000))}")
+  println("walkAll = ${show(walkAll([0, 1, 3]))}")
+  println("nestedRec(4) = ${show(nestedRec(4))}")
+}

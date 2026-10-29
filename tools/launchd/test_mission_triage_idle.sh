@@ -71,6 +71,7 @@ cat > "$BIN/gh" <<'EOF'
 case "$1 $2" in
   "pr list")    [ -n "${STUB_GH_FAIL:-}" ] && { echo "HTTP 502" >&2; exit 1; }; cat "$STUB_DIR/prs.json" ;;
   "issue list") cat "$STUB_DIR/issues.json" ;;
+  "api --paginate") [ -n "${STUB_COMMENTS_FAIL:-}" ] && { echo "HTTP 502" >&2; exit 1; }; cat "$STUB_DIR/comments.json" ;;
   *) echo "unexpected gh $*" >&2; exit 9 ;;
 esac
 EOF
@@ -87,6 +88,7 @@ reset_stub() {
   echo '[{"number":10,"headRefOid":"aaa"},{"number":11,"headRefOid":"bbb"}]' > "$S/prs.json"
   echo '[{"number":20,"updatedAt":"2026-10-01T00:00:00Z"},{"number":99,"updatedAt":"2026-10-15T00:00:00Z"}]' > "$S/issues.json"
   echo '{"pending":[{"id":"apr-1"},{"id":"apr-2"}],"orphans":[]}' > "$S/cards.json"
+  printf '%s' '[{"id":1,"user":{"login":"sunholo-voight-kampff"},"updated_at":"2026-10-15T00:00:00Z"}]' > "$S/comments.json"
   echo 99 > "$ST/mission-triage-gh-issue"; rm -f "$ST/mission-triage-queue-fingerprint"
 }
 reset_stub
@@ -105,7 +107,22 @@ reset_stub; echo '{"pending":[{"id":"apr-1"},{"id":"apr-3"}]}' > "$S/cards.json"
 [ "$(fp | cut -d' ' -f1)" != "$h0" ] || fail "a new pending card did not change the hash"
 reset_stub; echo '[{"number":20,"updatedAt":"2026-10-02T00:00:00Z"},{"number":99,"updatedAt":"2026-10-15T00:00:00Z"}]' > "$S/issues.json"
 [ "$(fp | cut -d' ' -f1)" != "$h0" ] || fail "an issue update did not change the hash"
-echo 'PASS helper: sorted, bookkeeping thread excluded, PR head / card / issue update each move the hash'
+# Mark's answer on the bookkeeping thread wakes the loop; the loop's own comments do not
+reset_stub; printf '%s%s' '[{"id":1,"user":{"login":"sunholo-voight-kampff"},"updated_at":"2026-10-15T00:00:00Z"}]' \
+  '[{"id":2,"user":{"login":"sunholo-voight-kampff"},"updated_at":"2026-10-16T00:00:00Z"}]' > "$S/comments.json"
+[ "$(fp | cut -d' ' -f1)" = "$h0" ] || fail "the loop's own digest comment (page 2) changed the hash"
+reset_stub; printf '%s%s' '[{"id":1,"user":{"login":"sunholo-voight-kampff"},"updated_at":"2026-10-15T00:00:00Z"}]' \
+  '[{"id":3,"user":{"login":"MarkEdmondson1234"},"updated_at":"2026-10-28T16:00:00Z"}]' > "$S/comments.json"
+hm=$(fp | cut -d' ' -f1); [ -n "$hm" ] && [ "$hm" != "$h0" ] || fail "a directive author's comment on page 2 did not change the hash"
+printf '%s%s' '[{"id":1,"user":{"login":"sunholo-voight-kampff"},"updated_at":"2026-10-15T00:00:00Z"}]' \
+  '[{"id":3,"user":{"login":"MarkEdmondson1234"},"updated_at":"2026-10-28T16:05:00Z"}]' > "$S/comments.json"
+[ "$(fp | cut -d' ' -f1)" != "$hm" ] || fail "an edited answer did not change the hash"
+reset_stub; printf '%s' '[{"id":4,"user":{"login":"stranger"},"updated_at":"2026-10-28T16:00:00Z"}]' > "$S/comments.json"
+[ "$(fp | cut -d' ' -f1)" = "$h0" ] || fail "a non-allowlisted comment changed the hash"
+reset_stub; out=$(STUB_COMMENTS_FAIL=1 fp); rc=$?
+[ "$rc" -ne 0 ] && [ -z "$out" ] || fail "a failed comments read was treated as no directives: rc=$rc out=$out"
+echo 'PASS helper: sorted, bookkeeping thread excluded, PR head / card / issue update / an author'"'"'s comment on the thread each move the hash; the loop'"'"'s own and a stranger'"'"'s do not'
+
 
 reset_stub
 out=$(STUB_GH_FAIL=1 fp); rc=$?

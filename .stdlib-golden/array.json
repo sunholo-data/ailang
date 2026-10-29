@@ -3,6 +3,12 @@
   "types": [],
   "funcs": [
     {
+      "name": "accumulate",
+      "type": "(Array[a],list[(int,a)],(a,a)-\u003ea)-\u003eArray[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "add",
       "type": "(Array[float],Array[float])-\u003eArray[float]",
       "effects": [],

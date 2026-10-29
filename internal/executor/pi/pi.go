@@ -31,7 +31,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/executor/nativesession"
 	"github.com/sunholo-data/ailang/internal/proctree"
 	"github.com/sunholo-data/ailang/internal/riglock"
 	"github.com/sunholo-data/ailang/internal/strutil"
@@ -152,7 +154,13 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 		directive = task.SystemPrompt + "\n\n" + task.Directive
 	}
 
-	args, err := buildPiArgs(e.getModel(task), task, directive)
+	nativeID := uuid.NewString()
+	defer func() {
+		if config.CloudRunExecution() != "" {
+			nativesession.Bank(out, "pi", nativesession.Find(nativesession.PiDir(task.ID), "pi", nativeID, true))
+		}
+	}()
+	args, err := buildPiArgsWithSession(e.getModel(task), task, directive, nativeID)
 	if err != nil {
 		return nil, err
 	}

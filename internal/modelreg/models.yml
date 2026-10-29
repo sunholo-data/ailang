@@ -1652,15 +1652,14 @@ models:
     max_output_tokens: 32768
     model_family: "gemini-4"
     pricing:
-      # ⚠️  INTRODUCTORY PRICING — EXPIRES 2026-11-30; rates DOUBLE on 2026-12-01.
-      input_per_1k: 0.002          # $2.00 per 1M through 2026-11-30 → $4.00 from 2026-12-01
-      output_per_1k: 0.01          # $10.00 per 1M (incl. thinking) → $20.00 from 2026-12-01
-      cache_read_per_1k: 0.0001    # $0.10 per 1M (implicit caching only) → $0.20
-      expires: "2026-11-30"        # enforced by TestModels_PricingScheduleIsHonoured
-      next:
-        input_per_1k: 0.004
-        output_per_1k: 0.02
-        cache_read_per_1k: 0.0002
+      # BILLED rates, not the docs' "introductory $2/$10 through 2026-11-30", which
+      # has never been billed: every Argon SKU line in the billing export since
+      # 2026-10-13 (ailang-dev, ailang-multivac, sunholo-daneel, ailang-gemini-agents;
+      # Vertex and Developer API alike) is exactly $4.00 / $20.00 / $0.20 per 1M
+      # (queried 2026-10-26). The intro schedule halved every Argon cost we banked.
+      input_per_1k: 0.004          # $4.00 per 1M
+      output_per_1k: 0.02          # $20.00 per 1M (incl. thinking)
+      cache_read_per_1k: 0.0002    # $0.20 per 1M (implicit caching only)
     notes: |
       GA 2026-10-13 (previously restricted to the Fairwind cyber-defender program).
       1,048,576-token context window shared by input, thinking and output.
@@ -1670,8 +1669,8 @@ models:
       November 30, 2026 ... $4.00 starting December 1, 2026"; output incl. thinking
       $10.00 → $20.00; cached input $0.10 → $0.20, "Implicit caching only (explicit
       caching is not supported)". Batch/Flex are half; Priority is 1.8x.
-      vs gemini-3-1-pro ($2/$12, $4/$18 >200k): cheaper output during the intro
-      window, 1.67x the output price after it.
+      The intro rates were NEVER billed (see pricing above): vs gemini-3-1-pro
+      ($2/$12, $4/$18 >200k), Argon is 1.67x the output price today.
 
       ⚠️  THINKING — ADAPTIVE, default level MEDIUM (LOW/MEDIUM/HIGH). The docs say
       thinking_budget and thinkingLevel=MINIMAL are rejected with HTTP 400. Our
@@ -1692,7 +1691,7 @@ models:
       49/49 PASS — smoke 23/23 plus every core and frontier benchmark, incl.
       csv_to_json_converter. ZERO thinking on all 49 (total == in + out on every
       row; Vertex's total includes thoughts) — adaptive MEDIUM chose not to think.
-      avg 31.8K in / 0.4K out per run, $0.0676/run, $3.31 total, 1m28s wall at
+      avg 31.8K in / 0.4K out per run, $0.0676/run, $3.31 total (banked at intro rates; ~2x billed), 1m28s wall at
       parallel 4. Implicit cache hits only 82K of ~1.56M input (~5%).
       Anchored ELO 2778.2 (banked) is a FLOOR — a perfect run has no upper bound,
       same as claude-opus-5-5's 29/29 → 2871.9. Not a ranking between the two.
@@ -2095,17 +2094,11 @@ models:
     max_output_tokens: 65536
     model_family: "gemini-4"
     pricing:
-      # Argon list rates (see the gemini-4-argon row), NOT the 3.8 Flash rates the
-      # unpinned agent bills at. To confirm: billing export SKU for
-      # ailang-gemini-agents on the day of the first run.
-      input_per_1k: 0.002          # $2.00 per 1M through 2026-11-30 → $4.00 from 2026-12-01
-      output_per_1k: 0.01          # $10.00 per 1M (incl. thinking) → $20.00 from 2026-12-01
-      cache_read_per_1k: 0.0001    # $0.10 per 1M → $0.20
-      expires: "2026-11-30"
-      next:
-        input_per_1k: 0.004
-        output_per_1k: 0.02
-        cache_read_per_1k: 0.0002
+      # BILLED Argon rates (billing export, ailang-gemini-agents, 2026-10-21): SKU
+      # "gemini 4 argon text" at $4.00 / $20.00 / $0.20 per 1M — see gemini-4-argon.
+      input_per_1k: 0.004          # $4.00 per 1M
+      output_per_1k: 0.02          # $20.00 per 1M (incl. thinking)
+      cache_read_per_1k: 0.0002    # $0.20 per 1M
     budgets:
       max_cost_usd: 4.00
       hard_timeout_secs: 900
@@ -2122,9 +2115,11 @@ models:
       gemini-agents-antigravity row above.
 
       FIRST RUN 2026-10-21 (agent, ailang, adt_option + balanced_parens): 2/2 PASS,
-      17 turns each, 94s/170s, $0.29 total at Argon rates (~355K in, 84% cached,
-      ~700 out per run). The unpinned agent averaged ~83 turns / 280s on smoke.
-      Billing SKU check for 2026-10-21 PENDING.
+      17 turns each, 94s/170s, ~$0.59 billed (banked $0.29 at the old intro rates).
+      The unpinned agent averaged ~83 turns / 280s on smoke.
+      PIN VERIFIED BY BILLING: on 2026-10-21 every pinned token billed under the
+      "gemini 4 argon text" SKUs; the only 3.8 Flash line (4,892 in) is exactly the
+      unpinned no_config probe. Billed input tokens match our parse.
 
       GATE: full smoke tier PENDING. In NO suite, in NO role chain.
 
