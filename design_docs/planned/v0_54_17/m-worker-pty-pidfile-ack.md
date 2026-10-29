@@ -424,3 +424,41 @@ established fix idiom rather than proposing a new one.
 
 **Document created**: 2026-10-21
 **Last updated**: 2026-10-21
+
+### Execution evidence — 2026-10-29
+
+Execution authorized by coordinator handoff; product-test scope retained. Baseline
+`93e4f2586b2b25e7b124cdbd43e8f2ed534239fd`; fix
+`3124e0ff801cd8548299fe639abcdfe5f98b4dc1`, on `coordinator/task-401dce49`.
+Linux 6.9.12 / Python 3.11.2. Local dedup found only this design, its plan and
+progress JSON; `gh pr list --state open --search 'PTY PID' --json number,title,headRefName`
+could not run because GitHub authentication is absent. Remote overlap is unmeasured.
+
+Temporary reproduction harness `/tmp/pty_ack_stress.py` extracts `f.write` using
+`ast.literal_eval` and the reader from the current Go raw string using `textwrap.dedent`.
+Each pair uses an isolated TemporaryDirectory and Python subprocess, compares the
+acknowledged PID to Popen.pid, checks os.kill(pid, 0), then kills/waits that exact child.
+Commands/results (temporary scripts are verification artifacts, not repository additions):
+
+- `python3 /tmp/pty_ack_stress.py baseline`: 200 sequential + 200 eight-way pairs,
+  400 live exact-PID acknowledgements; **zero natural race observations**.
+- `python3 /tmp/pty_ack_stress.py controlled`: **1/1 empty-string ValueError** after
+  splitting the original open/write with a labelled 100ms pause. This demonstrates the
+  current-source interleaving, not a natural race rate.
+- `python3 /tmp/pty_ack_stress.py fixed`: 200 sequential + 200 eight-way pairs,
+  **400 live exact-PID acknowledgements, zero failures** using the exact new strings.
+- `python3 /tmp/pty_ack_timeout.py`: exact reader with absent, empty, malformed files;
+  all three fail with startup-ack diagnostic in 5.009–5.010s (original 5s deadline).
+- `python3 /tmp/pty_ack_compile.py`: all eight Go harness substitutions match;
+  assembled Python harness compiles. Diff review confirms only producer/reader changed;
+  lifecycle assertions, cleanup, and 5s/12s/30s/120s deadlines are unchanged.
+- `make check-file-sizes`, `make check-changelog`, `git diff --check`: pass.
+- `make test-changed`: cannot run tests (`go: not found`). `make lint`: unavailable
+  golangci-lint. `make fmt-check`: unavailable gofmt. No toolchain installed per executor policy.
+- Go lifecycle matrix, eval/sigint count=20 and sibling tests: **UNMEASURED** (no Go).
+  Revision-matched CI, coverage and all 18 downstream steps: **UNMEASURED** (no GitHub
+  authentication/publication). No coverage or product lifecycle conclusion follows.
+
+M1/M2 complete; M3 remains incomplete pending supported-toolchain and revision-matched
+CI validation. The sprint remains in progress. No changelog fragment required by the
+passing gate. Independent govulncheck work remains outside this change.
