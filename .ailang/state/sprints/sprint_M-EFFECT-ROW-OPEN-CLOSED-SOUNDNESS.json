@@ -2,8 +2,8 @@
   "sprint_id": "M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS",
   "status": "completed",
   "created": "2026-10-29T07:17:55.034627+00:00",
-  "design_doc": "design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness.md",
-  "sprint_plan": "design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness.md",
+  "sprint_plan": "design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness-sprint-plan.md",
   "github_issues": [
     1958
   ],
@@ -78,8 +78,9 @@
       "passes": true,
       "started": null,
       "completed": "2026-10-29T10:39:15.106253+00:00",
-      "notes": "M4 implementation complete: matched529file corpus445/445 zero flips,4pinned external sets zero changes with baseline errors/deadlines retained; actual gmake60core+9extensions and freshNO_CACHE60/60(after3serial deadline retries)PASS. ForkPR5 exact4line migration independently reviewed then normally merged083ef437; tested tree equal. FullSHA Docker pin/MOTOKO15 provenance updated; live rig/upstream unchanged. Final7package test-changed+core,lint0/sizes/boundaries/architecture/changelog/prompt/examples,freeze+verify49 zero golden diff PASS. Historical width/nested/failedfourfield evidence preserved. Measured implementation gates and evaluator handoff complete; passes=true records implementation proof only. Independent evaluation remains pending root; no self-score or merge approval.",
-      "implementation_completed_at": "2026-10-29T10:36:17.952211+00:00"
+      "notes": "All M4 implementation and independent acceptance gates completed. Root PASS 97/100 on exact 8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af; merged PR #2005 at 80793dbcf42423027be4bab1a0088da54e2323d8. Actual consumer 083ef43726981099a0bad4fedda18fc72105d6fa passes 60 core and 9 extension checks, with initial no-cache deadlines and serial retries preserved as history. All 49 interfaces stable; actual final Sonar 93.5% above unchanged 80% gate. Target v0.56.0 is unreleased. Deferred width subsumption, operator-held #1790, IFC/cache-v8 and separately owned alias-ownership follow-up remain outside this completion.",
+      "implementation_completed_at": "2026-10-29T10:36:17.952211+00:00",
+      "historical_execution_notes": "M4 implementation complete: matched529file corpus445/445 zero flips,4pinned external sets zero changes with baseline errors/deadlines retained; actual gmake60core+9extensions and freshNO_CACHE60/60(after3serial deadline retries)PASS. ForkPR5 exact4line migration independently reviewed then normally merged083ef437; tested tree equal. FullSHA Docker pin/MOTOKO15 provenance updated; live rig/upstream unchanged. Final7package test-changed+core,lint0/sizes/boundaries/architecture/changelog/prompt/examples,freeze+verify49 zero golden diff PASS. Historical width/nested/failedfourfield evidence preserved. Measured implementation gates and evaluator handoff complete; passes=true records implementation proof only. Independent evaluation remains pending root; no self-score or merge approval."
     }
   ],
   "registry_reuse": [
@@ -118,7 +119,8 @@
     "consumer_commit": "c3f4c85eec681d8d5d4787da4d9e56c22c0a2457",
     "consumer_pr": "https://github.com/sunholo-voight-kampff/motoko_agent/pull/4",
     "consumer_merge_sha": "af1d56513d3ae314bd831fd149c7b6f2503a361c",
-    "docker_source_pin": "af1d56513d3ae314bd831fd149c7b6f2503a361c"
+    "docker_source_pin": "af1d56513d3ae314bd831fd149c7b6f2503a361c",
+    "source_pin_note": "This records the first width migration; the authoritative current source pin is consumer_merge after the separately accepted explicit-empty migration."
   },
   "integration_checkpoint": {
     "standalone_head": "05ce2e4f4d409100c77e60360a4bf1e9df7212ee",
@@ -132,26 +134,71 @@
     "stdlib_interfaces": 49,
     "ai_golden_diff": false
   },
-  "blocked_reason": "Option A design approved by Mark; concrete explicit-empty sprint plan proposed and awaiting explicit execution. Actual combined consumer55/60 remains unresolved until implementation and conditional delivery proof.",
-  "compatibility_amendment_proposal": "design_docs/planned/v0_56_0/m-effect-explicit-empty-callback-contract.md",
+  "blocked_reason": null,
+  "compatibility_amendment_proposal": "design_docs/implemented/v0_56_0/m-effect-explicit-empty-callback-contract.md",
   "actual_integration": {
-    "source_checkpoint": "970a4669470566163cba09892a351e639b6de60c",
-    "dev_base": "87f846980c8b6fc601173be427b1364968559488",
+    "source_checkpoint": "8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af",
+    "production_snapshot": "aa3a34a621a2ad3bfe9f6b14e74594e78a4ddf51",
+    "dev_base": "9dc6890919aa001deebee4361719456ee087440f",
+    "merge_commit": "80793dbcf42423027be4bab1a0088da54e2323d8",
     "focused": "pass",
-    "stdlib": "pass49_no_diff",
-    "examples": "pass_after_aggregate_only_correction",
+    "stdlib": "pass49_no_unintended_diff",
+    "examples": "pass",
     "motoko_core": {
-      "passed": 55,
+      "passed": 60,
       "total": 60,
-      "failure": "fixture_rt nested hand-off",
-      "timed_out": 0
+      "fresh_no_cache": true,
+      "initial_deadlines": 3,
+      "serial_retries_passed": 3
     },
-    "acceptance": "blocked_pending_new_design_approval"
+    "motoko_extensions": {
+      "passed": 9,
+      "total": 9
+    },
+    "consumer_merge": "083ef43726981099a0bad4fedda18fc72105d6fa",
+    "acceptance": "accepted_root_PASS97_with_explicit_empty_PASS98"
   },
   "compatibility_amendment_design_approved": true,
-  "compatibility_amendment_execution_authorized": false,
+  "compatibility_amendment_execution_authorized": true,
   "implementation_complete": true,
-  "independent_evaluation": "pending root",
+  "independent_evaluation": "PASS 97/100 by root, round 1, exact 8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af",
   "consumer_merge": "083ef43726981099a0bad4fedda18fc72105d6fa",
-  "completed": "2026-10-29T10:39:15.106253+00:00"
+  "completed": "2026-10-29T10:39:15.106253+00:00",
+  "target_version": "v0.56.0",
+  "release_status": "unreleased",
+  "evaluation_report": ".ailang/state/evaluations/eval_M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS_round_1.json",
+  "integration": {
+    "pull_request": 2005,
+    "merge_commit": "80793dbcf42423027be4bab1a0088da54e2323d8",
+    "evaluated_commit": "8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af",
+    "release_status": "unreleased",
+    "independent_evaluation": {
+      "result": "pass",
+      "score": 97,
+      "report": ".ailang/state/evaluations/eval_M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS_round_1.json"
+    }
+  },
+  "historical_blockers": [
+    {
+      "blocked_reason": "Option A design approved by Mark; concrete explicit-empty sprint plan proposed and awaiting explicit execution. Actual combined consumer55/60 remains unresolved until implementation and conditional delivery proof.",
+      "compatibility_amendment_execution_authorized": false,
+      "note": "Superseded by explicit attended execution, consumer proof/delivery and independent acceptance; retained as original history."
+    }
+  ],
+  "integration_history": [
+    {
+      "source_checkpoint": "970a4669470566163cba09892a351e639b6de60c",
+      "dev_base": "87f846980c8b6fc601173be427b1364968559488",
+      "focused": "pass",
+      "stdlib": "pass49_no_diff",
+      "examples": "pass_after_aggregate_only_correction",
+      "motoko_core": {
+        "passed": 55,
+        "total": 60,
+        "failure": "fixture_rt nested hand-off",
+        "timed_out": 0
+      },
+      "acceptance": "blocked_pending_new_design_approval"
+    }
+  ]
 }

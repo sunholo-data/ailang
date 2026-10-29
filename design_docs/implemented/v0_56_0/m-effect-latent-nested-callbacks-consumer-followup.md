@@ -1,4 +1,6 @@
-# Post-merge #1963 consumer classification — approved conservative hand-off, compatibility unresolved
+# Post-merge #1963 consumer classification — resolved by accepted explicit-empty contracts
+
+**Current status:** The original classification below is preserved as pre-amendment history. Consumer compatibility is resolved by accepted PR #2005; the separate alias-ownership invariant follow-up remains active.
 
 Independent read-only classification after language agent's pinned four-arm reduction. No compiler or consumer edits. Preserve the original source PASS/gate report and the broader consumer failure evidence; neither claims the original25-file production subset covered the full60-file core selection.
 
@@ -37,3 +39,10 @@ The record mixes four implicit/pure slots and concrete effectful siblings. The b
 The current evidence supports a separately approved consumer adaptation under the existing conservative rule, or a new approved precision/closed-empty-arrow design. It does not authorize either. Keep #1958 M4 and broader consumer enablement pending that concrete decision. Preserve original60→55, play_chunks migration and successful pre-nested60/60 evidence alongside the new nested-only55/60 result.
 
 Evidence:1958-nested-mixed-matrix.json,1958-nested-four-pure-matrix.json,1958-fixture-rt-four-arm.json and sources in1958-nested-mixed-repro/. Reviewer inspected actual source variants, all result JSON, approved freeze/AC4 language and the production mask/publication/elaboration code; no duplicate four-arm tests were run.
+
+
+## Accepted compatibility resolution — 2026-10-29
+
+Mark approved and executed the [explicit-empty callback amendment](m-effect-explicit-empty-callback-contract.md), independently accepted at 98/100 and merged in PR #2005 at `80793dbcf42423027be4bab1a0088da54e2323d8`. This supplies closed concrete pure callback contracts without weakening the conservative parameter-wide charging rule. The exact four pure fields were delivered on the pinned fork at `083ef43726981099a0bad4fedda18fc72105d6fa` after actual **60/60 core and 9/9 extension** proof, including fresh no-cache checks with initial deadlines and passing serial retries retained. See [final compatibility evidence](m-effect-explicit-empty-callback-contract-compatibility.json). The earlier 55/60 outcomes and failed four-field hypothesis above remain historical evidence, not erased failures or current blockers.
+
+This resolves the fixture compatibility follow-up only. The separately owned alias-hidden callback-tail ownership invariant repair remains active and is not completed by this amendment. Target v0.56.0 remains unreleased; no upstream or live rig deployment is implied.

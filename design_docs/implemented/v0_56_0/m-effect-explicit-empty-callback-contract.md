@@ -1,10 +1,10 @@
 # M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT
 
-**Status:** Implementation complete; independent evaluation pending — Mark approved option A and explicitly authorized “Execute explicit-empty sprint” on 2026-10-29. M4 consumer proof/delivery and source pin are recorded in the validation report.
+**Status**: Implemented — unreleased; accepted in PR #2005 after independent root evaluation.
 **Target:** v0.56.0 (breaking minor; no version bump/deployment in this proposal).
-**Priority:** P0 compatibility decision, blocking #1958 M4.
+**Priority:** P0 compatibility fix; the accepted implementation resolves #1958 M4.
 **Estimated:** Recommended option: 1–2 engineering days including corpus, cache, and consumer verification; not a sprint approval.
-**Dependencies:** #1963 nested charging is merged at `87f846980c8b6fc601173be427b1364968559488`. #1958 remains unmerged. Its previously approved one-line motoko migration is already delivered.
+**Dependencies:** #1963 nested charging is merged at `87f846980c8b6fc601173be427b1364968559488`. #1958 and this amendment merged together in PR #2005 at `80793dbcf42423027be4bab1a0088da54e2323d8`. Both approved consumer migrations are delivered.
 **Scope:** A focused follow-up/amendment prompted by real consumer evidence. It does not reclassify #1963's ratified conservative rule as an implementation defect.
 
 The problem and matrices below record the verified pre-amendment baseline. Final implementation, conditional delivery and independent acceptance status are recorded in the companion validation report.
@@ -133,12 +133,12 @@ Actual consumer callbacks use multi-argument arrows, imported types, return ADTs
 
 ## Acceptance criteria
 
-- [ ] A1: omission, explicit empty, concrete nonempty and row-polymorphic arrows remain distinct through conversion, alias expansion, substitution, iface serialization and cold/warm compilation.
-- [ ] A2: both existing feature regression families pass; unannotated nested store hand-offs remain rejected, and direct literals/length/all-concrete controls remain accepted.
-- [ ] A3: IO-to-explicit-empty-slot fails even from an IO caller before output on evaluator and bytecode; matching pure callback passes. Test direct and imported aliases plus nested container positions.
-- [ ] A4: exact four pure-field annotations in the actual pinned consumer restore every previously passing core entry; all 60 core files and 9 extension boots pass. If they do not, stop for classification rather than widen rows silently.
-- [ ] A5: zero unexplained corpus flips; old/new behavior of existing explicit-empty function types is inventoried. Every intentional rejection is reported, not counted as a pass or hidden by a cache.
-- [ ] A6: focused lint, boundaries, sizes, examples/manifest and all interface gates pass; regeneration preserves intervening #1790 metadata if it lands. Final independent evaluator decides acceptance.
+- [x] A1: omission, explicit empty, concrete nonempty and row-polymorphic arrows remain distinct through conversion, alias expansion, substitution, iface serialization and cold/warm compilation.
+- [x] A2: both existing feature regression families pass; unannotated nested store hand-offs remain rejected, and direct literals/length/all-concrete controls remain accepted.
+- [x] A3: IO-to-explicit-empty-slot fails even from an IO caller before output on evaluator and bytecode; matching pure callback passes. Test direct and imported aliases plus nested container positions.
+- [x] A4: exact four pure-field annotations in the actual pinned consumer restore every previously passing core entry; all 60 core files and 9 extension boots pass. If they do not, stop for classification rather than widen rows silently.
+- [x] A5: zero unexplained corpus flips; old/new behavior of existing explicit-empty function types is inventoried. Every intentional rejection is reported, not counted as a pass or hidden by a cache.
+- [x] A6: focused lint, boundaries, sizes, examples/manifest and all interface gates pass; regeneration preserves intervening #1790 metadata if it lands. Final independent evaluator decides acceptance.
 
 ## Axiom compliance
 
@@ -181,8 +181,21 @@ All raw logs are under `/tmp/ailang-backlog-20261029/`; the companion evidence J
 
 ## Related documents and non-duplication
 
-- [Nested callbacks](../../implemented/v0_56_0/m-effect-latent-nested-callbacks.md): owns conservative parameter-wide charging. This follow-up supplies the missing explicit-empty callback contract; it does not reopen that rule implicitly.
-- [#1958 design](../v0_55_0/m-effect-row-open-closed-soundness.md) and its validation: owns label preservation and the delivered play_chunks migration; M4 remains pending this decision.
-- [Pure rows / iface purity](../v0_53_0/m-pure-row-and-iface-purity.md): planned #1790 owns outer pure declarations and derived iface purity. Callback **function-type** empty presence is the distinct topic here; coordinate touched conversion/iface files and regenerate combined goldens.
-- [Formatter round-trip](../../implemented/v0_30_0/m-fmt-properties-printer-roundtrip.md): already preserves nil-versus-empty formatting; reuse it, do not create a competing parser representation.
-- [Effect-row show/interpolation](../../implemented/v0_31_0/m-effect-row-show-interp.md): protects callback-body effect checking; this proposal is about the callback type's contract at hand-off, including a caller that already declares IO.
+- [Nested callbacks](m-effect-latent-nested-callbacks.md): owns conservative parameter-wide charging. This follow-up supplies the missing explicit-empty callback contract; it does not reopen that rule implicitly.
+- [#1958 design](m-effect-row-open-closed-soundness.md) and its validation: owns label preservation and the delivered play_chunks migration; M4 was resolved by this accepted amendment and its proven consumer delivery.
+- [Pure rows / iface purity](../../planned/v0_53_0/m-pure-row-and-iface-purity.md): planned #1790 owns outer pure declarations and derived iface purity. Callback **function-type** empty presence is the distinct topic here; coordinate touched conversion/iface files and regenerate combined goldens.
+- [Formatter round-trip](../v0_30_0/m-fmt-properties-printer-roundtrip.md): already preserves nil-versus-empty formatting; reuse it, do not create a competing parser representation.
+- [Effect-row show/interpolation](../v0_31_0/m-effect-row-show-interp.md): protects callback-body effect checking; this proposal is about the callback type's contract at hand-off, including a caller that already declares IO.
+
+
+## Implementation Report — 2026-10-29
+
+Merged in [PR #2005](https://github.com/sunholo-data/ailang/pull/2005) at `80793dbcf42423027be4bab1a0088da54e2323d8`, evaluated source `8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af`. This is implemented on dev and **unreleased**, targeting v0.56.0; no tag, version bump, image build or deployment is implied.
+
+Written empty callback types now carry closed concrete contracts through conversion, interfaces and caches. Omitted/nonempty/row-polymorphic controls remain pinned. The inherited per-parameter conservative nested hand-off rule is unchanged; alias-ownership follow-up remains separate.
+
+Independent root evaluation: **PASS 98/100**, with regression coverage 10/10 reported separately. The historical score and deductions are unchanged by metadata cleanup. See [review report](m-effect-explicit-empty-callback-contract-evaluation.md), [machine report](../../../.ailang/state/evaluations/eval_M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT_round_1.json), [plan](m-effect-explicit-empty-callback-contract-sprint-plan.md) and [validation](m-effect-explicit-empty-callback-contract-validation.md).
+
+The native full production snapshot at aa3 passed; the final source differs only by an independently exercised interface publication test. Exact-head Linux/Windows, checks and Sonar passed; new-code coverage is 93.5% against the unchanged 80% threshold. One optional Mac job was still running at acceptance, so all remote jobs are not claimed green. All 49 interfaces regenerate and verify stable.
+
+The exact four-field consumer migration merged on the pinned fork at `083ef43726981099a0bad4fedda18fc72105d6fa` after actual **60/60 core and 9/9 extension** proof. Initial fresh no-cache results retain three deadlines; only those three serial retries then passed. Original width 60→55, width-migrated 60→60, combined nested 55/60 and failed four-field-before-compiler measurements remain preserved as history in the companion evidence. Source pin changes do not switch the live rig. Operator-held #1790, IFC/cache-v8 work and the separate alias-ownership repair remain outside this acceptance.

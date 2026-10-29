@@ -2,6 +2,10 @@
 
 ## Implemented, awaiting release
 
+- [Effect-row label preservation and streaming callback rows](implemented/v0_56_0/m-effect-row-open-closed-soundness.md) — merged in #2005, independent PASS 97/100. Approved Phase 0/1 implemented; width-subsumption Phase 2 remains deferred. Target v0.56.0 is unreleased.
+
+- [Explicit-empty callback contracts](implemented/v0_56_0/m-effect-explicit-empty-callback-contract.md) — merged in #2005, independent PASS 98/100; conversion/import/cache/engine proof and exact consumer migration restore 60 core / 9 extension checks. Target v0.56.0 is unreleased.
+
 - [Nested callback effect soundness](implemented/v0_56_0/m-effect-latent-nested-callbacks.md) — merged in #1963; design, sprint plan and independent evaluation are archived together. Target v0.56.0 is unreleased.
 
 - [IFC sink requirements on function values](implemented/v0_56_0/m-ifc-function-value-sinks.md) — merged in #2007; aliases, HOF calls and wrappers are checked within a module. Target v0.56.0 is unreleased; cross-module follow-up remains separate.

@@ -1,6 +1,6 @@
 # M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS — An open row must not lose its labels when it meets a closed row
 
-**Status**: Implementation complete on `fix/effect-row-open-closed-soundness`; M4 compatibility resolved by the approved explicit-empty amendment and exact fork migrations; independent evaluation pending (2026-10-29). See [validation](m-effect-row-open-closed-soundness-validation.md): preserved width/nested failures, delivered exact consumer migrations and final combined evidence.
+**Status**: Implemented — unreleased; accepted in PR #2005 after independent root evaluation.
 **Target**: v0.56.0 (next minor after the v0.55.0 tag). This is a soundness fix that rejects programs which check today, so it takes a minor bump. That is the posture Mark ruled for M-EFFECT-LATENT-FUNCTION-VALUES on 2026-10-08.
 **Priority**: P0 (High). A `pure` function performs IO, `ailang check` reports it clean, and the side effect runs on both engines.
 **Tracks**: #1958
@@ -206,7 +206,7 @@ Record rows reach `RowUnifier` only through `RowEq` constraints (`internal/types
 
 ## Solution Design
 
-### Phase 0: make `std/ai` say what it does (land first; 0 flips on its own)
+### Phase 0: make `std/ai` say what it does (implemented; 0 flips on its own)
 
 1. `internal/builtins/ai_step.go:463,475` and `:607,616`. The callback becomes `T.Func(streamChunkType(T)).Returns(T.Unit()).RowTail("e").Build()`, and the result becomes `….RowTail("e").Effects("AI")`. The type is then `(…, StreamChunk -> () ! {...e}) -> … ! {AI, ...e}`, the same shape as `_terminal_withTerminal`. Fix the `LongDesc`/comment to match.
 2. `std/ai.ail:302` and `:318`:
@@ -218,7 +218,7 @@ Record rows reach `RowUnifier` only through `RowEq` constraints (`internal/types
 3. Regenerate `internal/pipeline/testdata/builtin_types.golden` (rows 23–24) and `.stdlib-golden/ai.{json,sha256}` (`make freeze-stdlib`; the pre-push hook refuses otherwise).
 4. Measured with Phase 0 alone, without the unifier change (variant `pc`, V20): 0/515 flips. R5 is already rejected (`Missing effects: IO`) and a pure callback is accepted. So Phase 0 is a sound improvement on its own and can merge first.
 
-### Phase 1: the unifier rule
+### Phase 1: the unifier rule (implemented)
 
 `internal/types/row_unification.go`:
 
@@ -313,16 +313,16 @@ Base: `incompatible closed rows … [IO]` (a pure callback is refused). Phase 0:
 
 ## Acceptance Criteria
 
-- [ ] **AC1 (repro):** `t/rowleak.ail` is rejected by `ailang check`, and `ailang run` (tree-walker and `--bytecode`) refuses it before printing.
-- [ ] **AC2 (spellings):** R2 (`filter`, `foldl`, `any`), R3 (record field) and R4 (mixed `! {IO, e}`) are rejected, and the message names `IO`.
-- [ ] **AC3 (std/ai soundness):** R5 is rejected with `Missing effects: IO`. A pure callback to `stepWithStream` in a `! {AI}` function is accepted. An `! {IO}` renderer in `! {AI, IO}` is accepted.
-- [ ] **AC4 (unit matrix):** the new `OpenClosedMatrix` rows exist and pass. All existing rows pass unchanged, including `TestRowUnification_StdlibRegressionCase`.
-- [ ] **AC5 (negative controls, must stay as on base):** `ctl2` (`direct`) is still `Missing effects: IO`; `map(\x. println…)` in `pure` is still a type error; `ok_map_pure`, `ok_mapE_lambda` and `ok_mapE_rowpoly` are accepted; `hof_optmap` and `neg_mapE_pure` are still `Missing effects`; `c_any_lambda_io` is accepted.
-- [ ] **AC6 (corpus):** 0 status flips and 0 first-diagnostic changes over `examples/**` + `std/**`, all `ailang-packages` roots and `ailang-parse` (re-measured at the executor's merge base and recorded by SHA). `make verify-examples` and `tools/verify-stdlib.sh` pass.
-- [ ] **AC7 (re-pins, per F2):** the two `EffectCeiling` subtests are rewritten to a strict-compatible spelling and still assert "no authority entry point reaches Process". A comment links Phase 2.
-- [ ] **AC8 (mutation):** with the two guards reverted (keeping Phase 0), AC1, AC2 and the new matrix rows fail. With Phase 0 reverted (keeping the guards), `std/ai.ail` fails at `:303`. Both reverts are recorded in the validation doc, done on a scratch copy and never with `git checkout <file>`.
-- [ ] **AC9 (gates):** focused `go test ./internal/types/... ./internal/pipeline/... ./internal/elaborate/... ./internal/iface/... ./internal/builtins/...`, then `make test-core`, `make lint`, `make check-file-sizes`, `make freeze-stdlib` (golden committed), `make check-changelog` and `make verify-examples`, all run unpiped.
-- [ ] **AC10 (docs):** a changelog fragment marked "Breaking (soundness)". The `std/ai` doc comment and the builtin `LongDesc` are corrected. An `examples/` file shows `stepWithStream` with a pure callback.
+- [x] **AC1 (repro):** `t/rowleak.ail` is rejected by `ailang check`, and `ailang run` (tree-walker and `--bytecode`) refuses it before printing.
+- [x] **AC2 (spellings):** R2 (`filter`, `foldl`, `any`), R3 (record field) and R4 (mixed `! {IO, e}`) are rejected, and the message names `IO`.
+- [x] **AC3 (std/ai soundness):** R5 is rejected with `Missing effects: IO`. A pure callback to `stepWithStream` in a `! {AI}` function is accepted. An `! {IO}` renderer in `! {AI, IO}` is accepted.
+- [x] **AC4 (unit matrix):** the new `OpenClosedMatrix` rows exist and pass. All existing rows pass unchanged, including `TestRowUnification_StdlibRegressionCase`.
+- [x] **AC5 (negative controls, must stay as on base):** `ctl2` (`direct`) is still `Missing effects: IO`; `map(\x. println…)` in `pure` is still a type error; `ok_map_pure`, `ok_mapE_lambda` and `ok_mapE_rowpoly` are accepted; `hof_optmap` and `neg_mapE_pure` are still `Missing effects`; `c_any_lambda_io` is accepted.
+- [x] **AC6 (corpus):** 0 status flips and 0 first-diagnostic changes over `examples/**` + `std/**`, all `ailang-packages` roots and `ailang-parse` (re-measured at the executor's merge base and recorded by SHA). `make verify-examples` and `tools/verify-stdlib.sh` pass.
+- [x] **AC7 (re-pins, per F2):** the two `EffectCeiling` subtests are rewritten to a strict-compatible spelling and still assert "no authority entry point reaches Process". A comment links Phase 2.
+- [x] **AC8 (mutation):** with the two guards reverted (keeping Phase 0), AC1, AC2 and the new matrix rows fail. With Phase 0 reverted (keeping the guards), `std/ai.ail` fails at `:303`. Both reverts are recorded in the validation doc, done on a scratch copy and never with `git checkout <file>`.
+- [x] **AC9 (gates):** focused `go test ./internal/types/... ./internal/pipeline/... ./internal/elaborate/... ./internal/iface/... ./internal/builtins/...`, then `make test-core`, `make lint`, `make check-file-sizes`, `make freeze-stdlib` (golden committed), `make check-changelog` and `make verify-examples`, all run unpiped.
+- [x] **AC10 (docs):** a changelog fragment marked "Breaking (soundness)". The `std/ai` doc comment and the builtin `LongDesc` are corrected. An `examples/` file shows `stepWithStream` with a pure callback.
 
 ## Ordering and non-overlap
 
@@ -393,10 +393,10 @@ All rows were measured at base `7d29031ea` with binaries built from scratch copi
 
 ## Related Documents
 
-- [M-EFFECT-LATENT-FUNCTION-VALUES](../v0_48_0/m-effect-latent-function-values.md): L1-open (the compatibility tail) and L2; the deferred Phase 3 "open on use" is this doc's Phase 2.
-- [M-EFFECT-ROW-VAR-UNIFICATION](../../implemented/v1_0_0/m-effect-row-var-unification.md): declared `! {e}` soundness that Phase 0 relies on.
-- [M-EFFECT-LATENT-NESTED-CALLBACKS](../../implemented/v0_56_0/m-effect-latent-nested-callbacks.md): #1718/#1826; first recorded this defect as U1.
-- [M-TYPE-EFFECT-ROW regression (v0.9.4)](../../implemented/v0_9_4/m-type-effect-row-regression.md): the earlier closed-row regression in this area.
+- [M-EFFECT-LATENT-FUNCTION-VALUES](../../planned/v0_48_0/m-effect-latent-function-values.md): L1-open (the compatibility tail) and L2; the deferred Phase 3 "open on use" is this doc's Phase 2.
+- [M-EFFECT-ROW-VAR-UNIFICATION](../v1_0_0/m-effect-row-var-unification.md): declared `! {e}` soundness that Phase 0 relies on.
+- [M-EFFECT-LATENT-NESTED-CALLBACKS](m-effect-latent-nested-callbacks.md): #1718/#1826; first recorded this defect as U1.
+- [M-TYPE-EFFECT-ROW regression (v0.9.4)](../v0_9_4/m-type-effect-row-regression.md): the earlier closed-row regression in this area.
 - `design_docs/planned/v0_53_0/m-pure-row-and-iface-purity-sprint-plan.md`: PR #1790.
 
 ## References
@@ -410,3 +410,16 @@ All rows were measured at base `7d29031ea` with binaries built from scratch copi
 - Phase 2: width subsumption by open on use (spike, then sprint).
 - Merge or align the two row unifiers (RC5), and fix the `TRecord2` open~open tail handling.
 - Row-polymorphic callback types for the remaining effect-transparent builtins (`std/stream` family).
+
+
+## Implementation Report — 2026-10-29
+
+Merged in [PR #2005](https://github.com/sunholo-data/ailang/pull/2005) at `80793dbcf42423027be4bab1a0088da54e2323d8`, evaluated source `8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af`. This is implemented on dev and **unreleased**, targeting v0.56.0; no tag, version bump, image build or deployment is implied.
+
+Only approved Phase 0 (streaming row propagation) and Phase 1 (open/closed row side condition) are implemented here. **Phase 2 width subsumption remains deferred**; no open-on-use or upper-bound semantics are claimed complete.
+
+Independent root evaluation: **PASS 97/100**, with regression coverage 10/10 reported separately. The historical score and deductions are unchanged by metadata cleanup. See [review report](m-effect-row-open-closed-soundness-evaluation.md), [machine report](../../../.ailang/state/evaluations/eval_M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS_round_1.json), [plan](m-effect-row-open-closed-soundness-sprint-plan.md) and [validation](m-effect-row-open-closed-soundness-validation.md).
+
+The native full production snapshot at aa3 passed; the final source differs only by an independently exercised interface publication test. Exact-head Linux/Windows, checks and Sonar passed; new-code coverage is 93.5% against the unchanged 80% threshold. One optional Mac job was still running at acceptance, so all remote jobs are not claimed green. All 49 interfaces regenerate and verify stable.
+
+The exact four-field consumer migration merged on the pinned fork at `083ef43726981099a0bad4fedda18fc72105d6fa` after actual **60/60 core and 9/9 extension** proof. Initial fresh no-cache results retain three deadlines; only those three serial retries then passed. Original width 60→55, width-migrated 60→60, combined nested 55/60 and failed four-field-before-compiler measurements remain preserved as history in the companion evidence. Source pin changes do not switch the live rig. Operator-held #1790, IFC/cache-v8 work and the separate alias-ownership repair remain outside this acceptance.

@@ -1,0 +1,214 @@
+{
+  "sprint_id": "M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-29T11:19:45.563872+00:00",
+  "reviewer": "root (independent of executor)",
+  "evaluated_commit": "8de735cd9adfd4dcfe879686e1d7ac80d7a6f1af",
+  "design_doc": "design_docs/implemented/v0_56_0/m-effect-explicit-empty-callback-contract.md",
+  "sprint_plan": "design_docs/implemented/v0_56_0/m-effect-explicit-empty-callback-contract-sprint-plan.md",
+  "total_score": 98,
+  "pass_threshold": 70,
+  "result": "pass",
+  "gate_source": "local",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 13,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "conditional_scores": {
+    "regression_surface_coverage": 10,
+    "performance_verification": null
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "tests_pass": true,
+    "lint_clean": true,
+    "file_sizes_ok": true,
+    "coverage_pct": "skipped (set EVAL_COVERAGE=1)",
+    "todo_hack_count": 0,
+    "is_perf_sprint": false,
+    "has_profile_data": false
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1_CONVERSION",
+      "criterion": "Four-state conversion matrix distinguishes omission/empty/nonempty/row-poly",
+      "met": true,
+      "evidence": "Failing-first Core ownership/legacy metadata and pipeline IO-in-empty-slot tests now pass. Closed-empty conversion preserves omitted/nonempty/rowpoly controls. Full make test-changed (5 branch packages plus core), lint0 and size gates pass. No persistence or consumer change yet."
+    },
+    {
+      "feature_id": "M1_CONVERSION",
+      "criterion": "Explicit empty is closed concrete; omitted/nonempty/polymorphic behavior unchanged",
+      "met": true,
+      "evidence": "Failing-first Core ownership/legacy metadata and pipeline IO-in-empty-slot tests now pass. Closed-empty conversion preserves omitted/nonempty/rowpoly controls. Full make test-changed (5 branch packages plus core), lint0 and size gates pass. No persistence or consumer change yet."
+    },
+    {
+      "feature_id": "M1_CONVERSION",
+      "criterion": "IO-to-empty-slot rejects from IO caller; pure control accepts",
+      "met": true,
+      "evidence": "Failing-first Core ownership/legacy metadata and pipeline IO-in-empty-slot tests now pass. Closed-empty conversion preserves omitted/nonempty/rowpoly controls. Full make test-changed (5 branch packages plus core), lint0 and size gates pass. No persistence or consumer change yet."
+    },
+    {
+      "feature_id": "M1_CONVERSION",
+      "criterion": "Targeted and changed/core gates, lint and size checks pass",
+      "met": true,
+      "evidence": "Failing-first Core ownership/legacy metadata and pipeline IO-in-empty-slot tests now pass. Closed-empty conversion preserves omitted/nonempty/rowpoly controls. Full make test-changed (5 branch packages plus core), lint0 and size gates pass. No persistence or consumer change yet."
+    },
+    {
+      "feature_id": "M2_PERSISTENCE",
+      "criterion": "FuncType string and canonical format preserve explicit empty",
+      "met": true,
+      "evidence": "Failing-first AST/iface/string/alias-digest identity checks green; warm direct/transitive alias and export edits invalidate verdicts, ctor pure control changes dep/importer identities and rejects IO. Valid CoreTI-DAG/JSON flags survive. Real old752 compiler acceptance cache populated16files, oldwarm changesonlymanifest; fixedsamecache andnocache both reject. Full changed/core7packages, lint0/sizes/boundaries and49frozen interfaces green, no golden diff. No schema or epoch change; v8 reserved1771. Independent review clarification: isolated alias-only public hash/set remain intentionally equal; ctor-only/export-only differ. Alias rendering/internal digest/cache are separately checked; no identity policy expansion."
+    },
+    {
+      "feature_id": "M2_PERSISTENCE",
+      "criterion": "Iface conversion matches source without overriding #1790 metadata",
+      "met": true,
+      "evidence": "Failing-first AST/iface/string/alias-digest identity checks green; warm direct/transitive alias and export edits invalidate verdicts, ctor pure control changes dep/importer identities and rejects IO. Valid CoreTI-DAG/JSON flags survive. Real old752 compiler acceptance cache populated16files, oldwarm changesonlymanifest; fixedsamecache andnocache both reject. Full changed/core7packages, lint0/sizes/boundaries and49frozen interfaces green, no golden diff. No schema or epoch change; v8 reserved1771. Independent review clarification: isolated alias-only public hash/set remain intentionally equal; ctor-only/export-only differ. Alias rendering/internal digest/cache are separately checked; no identity policy expansion."
+    },
+    {
+      "feature_id": "M2_PERSISTENCE",
+      "criterion": "Cold/warm/imported aliases and nested positions preserve rejection and acceptance",
+      "met": true,
+      "evidence": "Failing-first AST/iface/string/alias-digest identity checks green; warm direct/transitive alias and export edits invalidate verdicts, ctor pure control changes dep/importer identities and rejects IO. Valid CoreTI-DAG/JSON flags survive. Real old752 compiler acceptance cache populated16files, oldwarm changesonlymanifest; fixedsamecache andnocache both reject. Full changed/core7packages, lint0/sizes/boundaries and49frozen interfaces green, no golden diff. No schema or epoch change; v8 reserved1771. Independent review clarification: isolated alias-only public hash/set remain intentionally equal; ctor-only/export-only differ. Alias rendering/internal digest/cache are separately checked; no identity policy expansion."
+    },
+    {
+      "feature_id": "M2_PERSISTENCE",
+      "criterion": "Focused persistence tests and interfaces/structural gates pass",
+      "met": true,
+      "evidence": "Failing-first AST/iface/string/alias-digest identity checks green; warm direct/transitive alias and export edits invalidate verdicts, ctor pure control changes dep/importer identities and rejects IO. Valid CoreTI-DAG/JSON flags survive. Real old752 compiler acceptance cache populated16files, oldwarm changesonlymanifest; fixedsamecache andnocache both reject. Full changed/core7packages, lint0/sizes/boundaries and49frozen interfaces green, no golden diff. No schema or epoch change; v8 reserved1771. Independent review clarification: isolated alias-only public hash/set remain intentionally equal; ctor-only/export-only differ. Alias rendering/internal digest/cache are separately checked; no identity policy expansion."
+    },
+    {
+      "feature_id": "M2_PERSISTENCE",
+      "criterion": "AST JSON and normalized iface text distinguish explicit empty; ctor/export public hash/set distinguish, alias public exclusion remains with separate aliasDigest/warm-edit coverage",
+      "met": true,
+      "evidence": "Failing-first AST/iface/string/alias-digest identity checks green; warm direct/transitive alias and export edits invalidate verdicts, ctor pure control changes dep/importer identities and rejects IO. Valid CoreTI-DAG/JSON flags survive. Real old752 compiler acceptance cache populated16files, oldwarm changesonlymanifest; fixedsamecache andnocache both reject. Full changed/core7packages, lint0/sizes/boundaries and49frozen interfaces green, no golden diff. No schema or epoch change; v8 reserved1771. Independent review clarification: isolated alias-only public hash/set remain intentionally equal; ctor-only/export-only differ. Alias rendering/internal digest/cache are separately checked; no identity policy expansion."
+    },
+    {
+      "feature_id": "M2_PERSISTENCE",
+      "criterion": "Old-compiler populated acceptance cache is rejected by fixed compiler identity",
+      "met": true,
+      "evidence": "Failing-first AST/iface/string/alias-digest identity checks green; warm direct/transitive alias and export edits invalidate verdicts, ctor pure control changes dep/importer identities and rejects IO. Valid CoreTI-DAG/JSON flags survive. Real old752 compiler acceptance cache populated16files, oldwarm changesonlymanifest; fixedsamecache andnocache both reject. Full changed/core7packages, lint0/sizes/boundaries and49frozen interfaces green, no golden diff. No schema or epoch change; v8 reserved1771. Independent review clarification: isolated alias-only public hash/set remain intentionally equal; ctor-only/export-only differ. Alias rendering/internal digest/cache are separately checked; no identity policy expansion."
+    },
+    {
+      "feature_id": "M2_PERSISTENCE",
+      "criterion": "Same-binary omitted-to-empty and reverse direct/transitive dependency edits invalidate aliases/ctor/export verdicts",
+      "met": true,
+      "evidence": "Failing-first AST/iface/string/alias-digest identity checks green; warm direct/transitive alias and export edits invalidate verdicts, ctor pure control changes dep/importer identities and rejects IO. Valid CoreTI-DAG/JSON flags survive. Real old752 compiler acceptance cache populated16files, oldwarm changesonlymanifest; fixedsamecache andnocache both reject. Full changed/core7packages, lint0/sizes/boundaries and49frozen interfaces green, no golden diff. No schema or epoch change; v8 reserved1771. Independent review clarification: isolated alias-only public hash/set remain intentionally equal; ctor-only/export-only differ. Alias rendering/internal digest/cache are separately checked; no identity policy expansion."
+    },
+    {
+      "feature_id": "M3_ENGINES_DOCS",
+      "criterion": "Evaluator and bytecode reject before output even with IO caps",
+      "met": true,
+      "evidence": "Evaluator/bytecode reject direct/imported/record IO-in-empty slots before marker; pure mixed concrete storage prints42. Old compiler executes marker on both engines (red evidence). Example check/run42/inline test pass. New prompt11 inherits frozen10, .9/.10 bytes+hashes unchanged; former active10 frozen with existing migration command. Initial full changed-package gate had sole one-mutable registry failure; affected prompt tests then pass4.907s and full core loop completed green. Lint0/sizes/examples/prompt routes+freeze/changelog pass."
+    },
+    {
+      "feature_id": "M3_ENGINES_DOCS",
+      "criterion": "Existing #1958/#1963 storage/rowpoly/AI/ceiling regressions stay green",
+      "met": true,
+      "evidence": "Evaluator/bytecode reject direct/imported/record IO-in-empty slots before marker; pure mixed concrete storage prints42. Old compiler executes marker on both engines (red evidence). Example check/run42/inline test pass. New prompt11 inherits frozen10, .9/.10 bytes+hashes unchanged; former active10 frozen with existing migration command. Initial full changed-package gate had sole one-mutable registry failure; affected prompt tests then pass4.907s and full core loop completed green. Lint0/sizes/examples/prompt routes+freeze/changelog pass."
+    },
+    {
+      "feature_id": "M3_ENGINES_DOCS",
+      "criterion": "Runnable example and surgical manifest stats pass; pure answer inline test checks42",
+      "met": true,
+      "evidence": "Evaluator/bytecode reject direct/imported/record IO-in-empty slots before marker; pure mixed concrete storage prints42. Old compiler executes marker on both engines (red evidence). Example check/run42/inline test pass. New prompt11 inherits frozen10, .9/.10 bytes+hashes unchanged; former active10 frozen with existing migration command. Initial full changed-package gate had sole one-mutable registry failure; affected prompt tests then pass4.907s and full core loop completed green. Lint0/sizes/examples/prompt routes+freeze/changelog pass."
+    },
+    {
+      "feature_id": "M3_ENGINES_DOCS",
+      "criterion": "New prompt version after .10 preserves .9/.10 and documents approved distinction",
+      "met": true,
+      "evidence": "Evaluator/bytecode reject direct/imported/record IO-in-empty slots before marker; pure mixed concrete storage prints42. Old compiler executes marker on both engines (red evidence). Example check/run42/inline test pass. New prompt11 inherits frozen10, .9/.10 bytes+hashes unchanged; former active10 frozen with existing migration command. Initial full changed-package gate had sole one-mutable registry failure; affected prompt tests then pass4.907s and full core loop completed green. Lint0/sizes/examples/prompt routes+freeze/changelog pass."
+    },
+    {
+      "feature_id": "M3_ENGINES_DOCS",
+      "criterion": "Changed/core, prompt, examples, lint and interface gates pass",
+      "met": true,
+      "evidence": "Evaluator/bytecode reject direct/imported/record IO-in-empty slots before marker; pure mixed concrete storage prints42. Old compiler executes marker on both engines (red evidence). Example check/run42/inline test pass. New prompt11 inherits frozen10, .9/.10 bytes+hashes unchanged; former active10 frozen with existing migration command. Initial full changed-package gate had sole one-mutable registry failure; affected prompt tests then pass4.907s and full core loop completed green. Lint0/sizes/examples/prompt routes+freeze/changelog pass."
+    },
+    {
+      "feature_id": "M4_CONSUMER_DELIVERY",
+      "criterion": "AST-aware explicit-empty corpus inventory and no-cache comparisons recorded",
+      "met": true,
+      "evidence": "M4 implementation complete: matched529file corpus445/445 zero flips,4pinned external sets zero changes with baseline errors/deadlines retained; actual gmake60core+9extensions and freshNO_CACHE60/60(after3serial deadline retries)PASS. ForkPR5 exact4line migration independently reviewed then normally merged083ef437; tested tree equal. FullSHA Docker pin/MOTOKO15 provenance updated; live rig/upstream unchanged. Final7package test-changed+core,lint0/sizes/boundaries/architecture/changelog/prompt/examples,freeze+verify49 zero golden diff PASS. Historical width/nested/failedfourfield evidence preserved. Measured implementation gates and evaluator handoff complete; passes=true records implementation proof only. Independent evaluation remains pending root; no self-score or merge approval."
+    },
+    {
+      "feature_id": "M4_CONSUMER_DELIVERY",
+      "criterion": "Exact four-line scratch patch passes actual60-core and9-extension gates before delivery",
+      "met": true,
+      "evidence": "M4 implementation complete: matched529file corpus445/445 zero flips,4pinned external sets zero changes with baseline errors/deadlines retained; actual gmake60core+9extensions and freshNO_CACHE60/60(after3serial deadline retries)PASS. ForkPR5 exact4line migration independently reviewed then normally merged083ef437; tested tree equal. FullSHA Docker pin/MOTOKO15 provenance updated; live rig/upstream unchanged. Final7package test-changed+core,lint0/sizes/boundaries/architecture/changelog/prompt/examples,freeze+verify49 zero golden diff PASS. Historical width/nested/failedfourfield evidence preserved. Measured implementation gates and evaluator handoff complete; passes=true records implementation proof only. Independent evaluation remains pending root; no self-score or merge approval."
+    },
+    {
+      "feature_id": "M4_CONSUMER_DELIVERY",
+      "criterion": "Only authorized fork-only four-line migration delivered and exact merged SHA pinned",
+      "met": true,
+      "evidence": "M4 implementation complete: matched529file corpus445/445 zero flips,4pinned external sets zero changes with baseline errors/deadlines retained; actual gmake60core+9extensions and freshNO_CACHE60/60(after3serial deadline retries)PASS. ForkPR5 exact4line migration independently reviewed then normally merged083ef437; tested tree equal. FullSHA Docker pin/MOTOKO15 provenance updated; live rig/upstream unchanged. Final7package test-changed+core,lint0/sizes/boundaries/architecture/changelog/prompt/examples,freeze+verify49 zero golden diff PASS. Historical width/nested/failedfourfield evidence preserved. Measured implementation gates and evaluator handoff complete; passes=true records implementation proof only. Independent evaluation remains pending root; no self-score or merge approval."
+    },
+    {
+      "feature_id": "M4_CONSUMER_DELIVERY",
+      "criterion": "Original failed/successful width/nested/four-line evidence remains separate",
+      "met": true,
+      "evidence": "M4 implementation complete: matched529file corpus445/445 zero flips,4pinned external sets zero changes with baseline errors/deadlines retained; actual gmake60core+9extensions and freshNO_CACHE60/60(after3serial deadline retries)PASS. ForkPR5 exact4line migration independently reviewed then normally merged083ef437; tested tree equal. FullSHA Docker pin/MOTOKO15 provenance updated; live rig/upstream unchanged. Final7package test-changed+core,lint0/sizes/boundaries/architecture/changelog/prompt/examples,freeze+verify49 zero golden diff PASS. Historical width/nested/failedfourfield evidence preserved. Measured implementation gates and evaluator handoff complete; passes=true records implementation proof only. Independent evaluation remains pending root; no self-score or merge approval."
+    },
+    {
+      "feature_id": "M4_CONSUMER_DELIVERY",
+      "criterion": "Final focused/structural/interface/example gates and independent evaluator handoff complete",
+      "met": true,
+      "evidence": "M4 implementation complete: matched529file corpus445/445 zero flips,4pinned external sets zero changes with baseline errors/deadlines retained; actual gmake60core+9extensions and freshNO_CACHE60/60(after3serial deadline retries)PASS. ForkPR5 exact4line migration independently reviewed then normally merged083ef437; tested tree equal. FullSHA Docker pin/MOTOKO15 provenance updated; live rig/upstream unchanged. Final7package test-changed+core,lint0/sizes/boundaries/architecture/changelog/prompt/examples,freeze+verify49 zero golden diff PASS. Historical width/nested/failedfourfield evidence preserved. Measured implementation gates and evaluator handoff complete; passes=true records implementation proof only. Independent evaluation remains pending root; no self-score or merge approval."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "Implementation complete; independent evaluation pending accurately reflects pre-evaluation state"
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Ratified Phase0/1 row guard, streaming rows and separately authorized optionA explicit-empty amendment implemented. Deferred width subsumption remains deferred. Public alias hash exclusion retained; separate aliasDigest and actual warm-edit/cache tests establish persistence. Operator-held #1790 and #1771 v8 are not overwritten."
+  },
+  "feedback": [
+    {
+      "category": "code_quality",
+      "severity": "low",
+      "issue": "The moved and modified iface astTypeToInternalType helper remains111lines (>50); deduct2 under the rubric. Its file remains121lines, under800. No function-size suppression or semantic workaround.",
+      "suggestion": "Record the accepted limitation and archive metadata accurately without altering tested production source."
+    }
+  ],
+  "evidence": {
+    "native_gate": "2005-native-gate.json",
+    "native_log": "2005-native-evaluation.log",
+    "native_head": "aa3a34a621a2ad3bfe9f6b14e74594e78a4ddf51",
+    "head_equivalence": "final candidate adds only145-line internal/iface/type_conversion_contract_test.go; all production/std/AIL/prompts/goldens/Docker byte-identical",
+    "supplemental_test": {
+      "test": "TestIfaceCallbackContractsThroughTypeContainers",
+      "actual_ran": true,
+      "result": "pass",
+      "seconds": 0.312,
+      "method": "exact final test via canonical Go overlay on immutable aa3 source",
+      "log": "2005-final-iface-test-independent.log"
+    },
+    "sonar": "2005-8de-sonar-gate.json",
+    "actual_new_coverage_pct": 93.5,
+    "consumer_commit": "083ef43726981099a0bad4fedda18fc72105d6fa",
+    "consumer_core": "60/60 actual gmake and fresh no-cache sweep;3 initial deadlines retained and serial retries passed",
+    "consumer_extensions": "9/9 boots plus runtime guards",
+    "corpus": "529 shared files445pass/84inherited rejects,0status/first-diagnostic changes; four external pinned sets0changes retaining errors/timeouts",
+    "interfaces": "49 regenerated and verified, no unintended golden delta",
+    "feedback_endpoints": "Issue comments, inline comments, reviews all empty at premerge check"
+  },
+  "notes": "The moved and modified iface astTypeToInternalType helper remains111lines (>50); deduct2 under the rubric. Its file remains121lines, under800. No function-size suppression or semantic workaround. One full independent native suite covers both sprints at aa3; exact8de only adds the independently rerun145line iface test. Exact8de remote Linux/Windows tests, lint, checks, CodeQL, docs and Sonar are green; one optional Mac build remains running. No profiling goal, version bump, upstream delivery or live rig deployment. Final documentation archive follows in a separate audit PR.",
+  "archival_metadata": {
+    "release_status": "unreleased",
+    "target_version": "v0.56.0",
+    "merge_commit": "80793dbcf42423027be4bab1a0088da54e2323d8",
+    "original_evaluated_paths": {
+      "design_doc": "design_docs/planned/v0_56_0/m-effect-explicit-empty-callback-contract.md",
+      "sprint_plan": "design_docs/planned/v0_56_0/m-effect-explicit-empty-callback-contract-sprint-plan.md"
+    },
+    "score_unchanged": true,
+    "note": "Independent root report copied after acceptance. Current artifact paths updated; original findings, evidence, timestamp and score are preserved. Metadata findings are corrected by this completion audit without rescoring."
+  }
+}
