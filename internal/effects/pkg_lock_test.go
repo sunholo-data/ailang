@@ -121,3 +121,20 @@ func TestPkgAssetPath_LegacyBudgetContext(t *testing.T) {
 		}
 	}
 }
+
+// A corrupt registry layout must surface an Err rather than look like an empty
+// cache or silently select a different root.
+func TestPkgAssetPath_CorruptRegistryDirectory(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("AILANG_PACKAGE_ROOT", root)
+	if err := os.Mkdir(filepath.Join(root, "test"), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(root, "test", "pkg"), []byte("not a directory"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	tag, message := assetResult(t, nil, "test/pkg", "data")
+	if tag != "Err" || !strings.Contains(message, "cannot list installed versions: test/pkg:") {
+		t.Fatalf("corrupt registry directory: %s %s", tag, message)
+	}
+}

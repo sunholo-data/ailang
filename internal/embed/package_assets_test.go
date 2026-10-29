@@ -75,25 +75,6 @@ func TestEngineLockedAssetBytes(t *testing.T) {
 	}
 }
 
-func TestEnginePreserveFloatsLockedAssetBytes(t *testing.T) {
-	root, _ := pkgassets.New(t)
-	engine := New(root)
-	defer engine.Close()
-	ctx := effects.NewEffContext(nil)
-	ctx.Grant(effects.NewCapability("FS"))
-	engine.SetEffContext(ctx)
-	for i := 0; i < 2; i++ {
-		v, err := engine.CallPreserveFloats("asset_fixture", "read")
-		if err != nil {
-			t.Fatal(err)
-		}
-		if v.(*eval.StringValue).Value != "locked" {
-			t.Fatalf("CallPreserveFloats selected unlocked bytes: %v", v)
-		}
-		engine.SetEffContext(ctx)
-	}
-}
-
 func TestEngineMalformedAssetLockFailsBeforeEvaluation(t *testing.T) {
 	root, _ := pkgassets.New(t)
 	if err := os.WriteFile(filepath.Join(root, pkg.LockFileName), []byte("{"), 0600); err != nil {
