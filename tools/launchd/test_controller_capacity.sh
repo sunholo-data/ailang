@@ -101,7 +101,8 @@ if [ -n "$sid" ]; then
   if [ -f "$1" ]; then sf="$1"; else sf="$sdir/$(date -u +%Y-%m-%dT%H-%M-%S)-000Z_$sid.jsonl"; fi
   printf '{"type":"message","inv":%s}\n' "$inv" >> "$sf"
 fi
-if [ -f "$f.stderr" ]; then sed -n '3,$p' "$f" >&2; else sed -n '3,$p' "$f"; fi
+if [ -f "$f.stderr" ]; then sed -n '3,$p' "$f" >&2; s=stderr; else sed -n '3,$p' "$f"; s=stdout; fi
+printf '%s\n' "$s" >> "$MC_LAB/pi.stream"
 [ "$stamp" != "-" ] && printf '%s\t%s\t%s\t%s\t\n' "$(date +%s)" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$stamp" "1" >> "$MC_HB"
 [ -f "$MC_LAB/landed" ] && printf '## Iteration landed\n' >> "$MC_LAB/mission-log.md"
 exit "$rc"
@@ -339,6 +340,7 @@ state_has "demoted=[]"; expect "no demotion" $?
 has_log "transient API error (rc=1) attempt 1/3"; expect "retry log line" $?
 has_log 'Provider finish_reason: error'; expect "stderr text reached driver.log" $?
 [ "$(/usr/bin/grep -cF 'Provider finish_reason: error' "$LAB/err")" -eq 0 ]; expect "error text did not escape to stderr" $?
+[ "$(sed -n 1p "$LAB/pi.stream")" = stderr ]; expect "attempt 1 emitted the error on stderr, as real pi does" $?
 [ "$(/usr/bin/grep -cxF "cap-session-$$" "$LAB/pi.sid")" -eq 2 ] && [ "$(wc -l < "$LAB/pi.sid" | tr -d ' ')" -eq 2 ]
 expect "both attempts reuse the session id" $?
 [ "$(tail -n 1 "$LAB/pi.p.1")" = "fake prompt" ] && [ "$(tail -n 1 "$LAB/pi.p.2")" = "resume" ]
