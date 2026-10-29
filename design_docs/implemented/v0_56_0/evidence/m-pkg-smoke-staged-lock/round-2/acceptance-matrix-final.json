@@ -1,0 +1,158 @@
+{
+  "source_checkpoint": "37c957b3a742aba8c966c185f39d48d086d5e794",
+  "criteria_count": 21,
+  "criteria": [
+    {
+      "id": "M1_STAGED_PUBLISHED_VIEW.1",
+      "criterion": "Failing-first dependency-aware smoke and JSON tests reproduce actual copied relative-lock failure before implementation",
+      "checkpoint_evidence": "Actual corrected 1773-M1-red.log (distinct from earlier fixture syntax failure); later focused/checkpoint passes",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M1_STAGED_PUBLISHED_VIEW.2",
+      "criterion": "Same-version local and registry module plus asset markers differ; direct real RunSmoke, real quality JSON and publish --dry-run select registry bytes with a regenerated registry-hash lock",
+      "checkpoint_evidence": "TestSmokeStage_PublishedSourceAndAssetBytes, TestSmokeStage_RegeneratesRegistryLock; strict CLI discriminator at37c; 1773-M4-cli-byte-discriminator.log",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M1_STAGED_PUBLISHED_VIEW.3",
+      "criterion": "Staged root assets remain staged; dependency source/assets share target; missing locked target cannot use newer cache fallback",
+      "checkpoint_evidence": "TestSmokeStage_RegeneratesRegistryLock + missing_exact_registry/newer_cached controls; stage/root/registry target source inspection",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M1_STAGED_PUBLISHED_VIEW.4",
+      "criterion": "Author manifest/lock snapshots remain unchanged, rewrite is idempotent for registry manifests and preserves existing whitespace cases; helper is silent and CLI wrapper retains progress output",
+      "checkpoint_evidence": "TestRewritePathDeps_* + author snapshots in newSmokeCLIProof/assertUnchanged; CLI stdout JSON unmarshaled",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M1_STAGED_PUBLISHED_VIEW.5",
+      "criterion": "Validated previous git pin works under confinement and PACKAGE_ROOT with no git/HTTP/HOME writes; missing/changed/tampered/malformed pins retain refusal, no copied path entries carried forward",
+      "checkpoint_evidence": "TestSmokeStage_GitCarryForward both confinement and PACKAGE_ROOT + existing D2 matrix; fail-closed LoadLockFile and canonical ResolveLockFrom source",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M1_STAGED_PUBLISHED_VIEW.6",
+      "criterion": "Unavailable registry/provisioned/authority cases fail before child execution without lock fallback; pass focused tests, lint and boundaries",
+      "checkpoint_evidence": "TestSmokeStage_FailClosedPreparation; M1 focused/checkpoint PASS, final broad gate pending",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M2_BOUNDED_SMOKE_DIAGNOSTICS.1",
+      "criterion": "Stage rErr and nil result retain cause; actual failing process, start failure, empty output and timeout never become silent success or NotRun",
+      "checkpoint_evidence": "Actual staging rErr/start/quiet-exit/timeouts tested; independent D1 RED\u2192GREEN and full-stage owner RED\u2192GREEN",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M2_BOUNDED_SMOKE_DIAGNOSTICS.2",
+      "criterion": "Concrete plan selection prioritizes setup error/timeout then first Error:/panic:/fatal error:/FAIL:/PAR_ line over prefix noise and trace frames, with nonblank fallback and exit cause",
+      "checkpoint_evidence": "firstSmokeDiagnostic/summarizeSmokeOutput source + parser/ANSI/OSC/trace-prefix/signal-with-child-error cases",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M2_BOUNDED_SMOKE_DIAGNOSTICS.3",
+      "criterion": "First diagnostic preceding more than8KiB output survives; long non-ASCII and invalid UTF-8, oversized single line, truncation markers and timeout prefix fit byte caps",
+      "checkpoint_evidence": "TestSmokeOutput_* and Notes byte/UTF8 cases; full output selected before cap; existing shared TruncateBytes used",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M2_BOUNDED_SMOKE_DIAGNOSTICS.4",
+      "criterion": "Human PUB015 and JSON existing smoke.notes agree on first cause; successful short output and no-run behavior unchanged; no new field/code/exit-policy or timeout weakening",
+      "checkpoint_evidence": "RunAttestedChecks + BuildQualityReport use existing Notes/PUB015; M4 actual human/json/no-output-field controls; no-run branch unchanged",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M2_BOUNDED_SMOKE_DIAGNOSTICS.5",
+      "criterion": "Focused diagnostic, quality/no-run and existing smoke fail/pass/timeout/isolation tests plus lint pass",
+      "checkpoint_evidence": "1773-M2-focused.log PASS plus later D1 GREEN; final changed/core/CI pending",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M3_ROOT_PATH_SHADOW_WARNING.1",
+      "criterion": "Actual CLI same-version root path B shadowed by transitive registry B exits0 and warns; resolved source/version/hash/path/order match unchanged resolution",
+      "checkpoint_evidence": "TestPkgLockShadowWarning_RealCLI actual lock/LockDrift; 1773-M3-red.log\u2192green.log",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M3_ROOT_PATH_SHADOW_WARNING.2",
+      "criterion": "Warning names actual registry or git source accurately; direct path-selected and unrelated dependencies do not warn; conflicts still fail unchanged",
+      "checkpoint_evidence": "TestPkgLockShadowWarning_ActualSourcesAndReadOnly names git/registry and suppresses path/version-only/absent",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M3_ROOT_PATH_SHADOW_WARNING.3",
+      "criterion": "Warning does not re-resolve, make network requests or write another lock; lock --check retains existing drift semantics, optional new check warning deferred",
+      "checkpoint_evidence": "Post-Save pure warning helper source; actual conflict/no-warning/no-lock-write test; no --check changes",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M3_ROOT_PATH_SHADOW_WARNING.4",
+      "criterion": "Focused warning/lock/path tests and lint pass; companion keeps pkg_commands.go under800 lines",
+      "checkpoint_evidence": "Source companion25lines; 1773-M3-green.log + structure PASS; final gates pending",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M4_INTEGRATION_DOCS_HANDOFF.1",
+      "criterion": "Portable real built CLI quality JSON/human and publish --dry-run plus direct real smoke use mock/preprovisioned registry; record reads and assert zero publish POST/upload/cascade/message calls and unchanged author inputs",
+      "checkpoint_evidence": "Strict author-local exit23 vs registry quality/dry-run; observed httptest reads/zero writes, no DB, author snapshots; direct RunSmoke markers",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M4_INTEGRATION_DOCS_HANDOFF.2",
+      "criterion": "Current authority boundary, D2/hash and snapshot/malformed/missing-target controls pass with no new HTTP/git/HOME authority path",
+      "checkpoint_evidence": "No resolver/client/asset-policy changes; D2/hash/malformed/missing-target tests inherited, final gate pending",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M4_INTEGRATION_DOCS_HANDOFF.3",
+      "criterion": "make test-changed, lint, boundaries, home-isolation, file-sizes, changelog and fmt checks pass; no full local make test, policy thresholds/timeouts unchanged; exact PR CI supplies broad Linux/Windows gate",
+      "checkpoint_evidence": "Final owner test-changed changed packages+allcore PASS; lint0/boundary/home/sizes/changelog/fmt PASS; same-head main Linux/Windows/docs/Sonar/static CI SUCCESS; Build matrix attempt2 pending after preserved #1926 failure",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M4_INTEGRATION_DOCS_HANDOFF.4",
+      "criterion": "Windows uses portable paths/os.DevNull/bounded Go helpers and shared binary build; no shell-only fixtures or exact OS-error string assertions",
+      "checkpoint_evidence": "Portable source and Go1.26.10 Windows os.Kill uses TerminateProcess(...,1) verified from primary stdlib; exact-head test-windows SUCCESS. Signal-only POSIX regression explicit Windows N/A, common start/empty/timeout/byte cases run.",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M4_INTEGRATION_DOCS_HANDOFF.5",
+      "criterion": "Package-publishing guide and correctly headed unreleased fragment describe behavior and remedies; current file-set divergence documented without broad tarball refactor",
+      "checkpoint_evidence": "Guide at37c covers published registry view, exact-version/authority causes, byte Notes, unchanged precedence and intentional tarball/lock divergence",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    },
+    {
+      "id": "M4_INTEGRATION_DOCS_HANDOFF.6",
+      "criterion": "Evidence and commits handed off to independent sprint-evaluator without executor score; no release/live publication claim",
+      "checkpoint_evidence": "Clean exact0853 head/PR2013 independently verified; final own metadata complete, independent evaluator source/evidence review done; no release/live publish/self-score. Aggregate CI pending.",
+      "final_status": "Verified byte-identical owned source/fixtures and prior scoped proof, with actual final165 terminalCI PASS",
+      "round2_status": "VERIFIED"
+    }
+  ],
+  "method": "Independent full-owned-byte identity, reused21 separately reviewed source/test/log criteria, current artifacts, actual new-head Linux/Windows/Build/static CI; no duplicate product execution.",
+  "final_head": "165f87a12ceb0e20c04216c472004c11685e417b",
+  "source_and_fixture_tree_equal_to_tested": true,
+  "aggregate_ci_status": "PASS:actual165 terminal27checks,20SUCCESS/7SKIPPED/no failed/cancelled/pending",
+  "previous_evaluated_head": "0853c9fc15f3daf5f9e304e6e451e78c21fd899c"
+}

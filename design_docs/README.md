@@ -16,6 +16,8 @@
 
 - [Locked package asset snapshots](implemented/v0_56_0/m-pkg-asset-lock-resolution.md) — merged in #1849; source-context snapshots and fail-closed lock discovery cover runner and embedded/API paths. Target v0.56.0 is unreleased.
 
+- [Published-view package smoke staging](implemented/v0_56_0/m-pkg-smoke-staged-lock.md) — merged in #2013, independent round2 PASS95/100; parent, plan, validation and both evaluation rounds are archived together. Target v0.56.0 is unreleased; original FAIL75 and failed-run identities are preserved.
+
 ## Structure
 
 ```

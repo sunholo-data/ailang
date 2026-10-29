@@ -1,0 +1,9 @@
+{
+  "format": "ailang-frozen-evidence/base64-v1",
+  "logical_filename": "1773-M3-red.log",
+  "logical_path": "owner-local/1773-M3-red.log",
+  "original_bytes": 264,
+  "original_sha256": "4f9f64b41e42089e6b7fa44c6a6aabdfd8d7bda313a8b74dba58f8ccd0e283b7",
+  "encoding": "base64",
+  "payload": "LS0tIEZBSUw6IFRlc3RQa2dMb2NrU2hhZG93V2FybmluZ19SZWFsQ0xJICgxNi41MXMpCiAgICAtLS0gRkFJTDogVGVzdFBrZ0xvY2tTaGFkb3dXYXJuaW5nX1JlYWxDTEkvdHJhbnNpdGl2ZV9yZWdpc3RyeV9zaGFkb3cgKDAuMDJzKQogICAgICAgIHBrZ19sb2NrX3dhcm5pbmdzX3Rlc3QuZ286Njc6IHNoYWRvdz10cnVlIHdyb25nIHN0ZGVycjogCkZBSUwKRkFJTAlnaXRodWIuY29tL3N1bmhvbG8tZGF0YS9haWxhbmcvY21kL2FpbGFuZwkxNy4yODVzCkZBSUwK"
+}

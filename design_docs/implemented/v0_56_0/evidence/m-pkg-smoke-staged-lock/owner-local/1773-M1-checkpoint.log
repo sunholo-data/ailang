@@ -1,0 +1,143 @@
+=== RUN   TestRewritePathDeps_UsesOriginalDirectoryAndIsIdempotent
+--- PASS: TestRewritePathDeps_UsesOriginalDirectoryAndIsIdempotent (0.01s)
+=== RUN   TestRewritePathDeps_ErrorDoesNotWritePartialManifest
+--- PASS: TestRewritePathDeps_ErrorDoesNotWritePartialManifest (0.01s)
+=== RUN   TestSmokeStage_GitCarryForward
+=== RUN   TestSmokeStage_GitCarryForward/confined_home
+Cloning into '/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/TestSmokeStage_GitCarryForwardconfined_home2357893571/002/.ailang/cache/git/1e680409d8b1a75c'...
+warning: --depth is ignored in local clones; use file:// instead.
+done.
+Note: switching to '99ffd27a3558adfb0adfff354dc7b4370789c28a'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
+=== RUN   TestSmokeStage_GitCarryForward/exclusive_root
+Cloning into '/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/TestSmokeStage_GitCarryForwardexclusive_root1028585539/002/.ailang/cache/git/c2823090f90a106f'...
+warning: --depth is ignored in local clones; use file:// instead.
+done.
+Note: switching to 'dd84bd781acfae27da882a7287a6f1124c00ea9c'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
+--- PASS: TestSmokeStage_GitCarryForward (0.66s)
+    --- PASS: TestSmokeStage_GitCarryForward/confined_home (0.29s)
+    --- PASS: TestSmokeStage_GitCarryForward/exclusive_root (0.37s)
+=== RUN   TestSmokeStage_PublishedSourceAndAssetBytes
+--- PASS: TestSmokeStage_PublishedSourceAndAssetBytes (1.53s)
+=== RUN   TestSmokeStage_RegeneratesRegistryLock
+--- PASS: TestSmokeStage_RegeneratesRegistryLock (0.00s)
+=== RUN   TestSmokeStage_FailClosedPreparation
+=== RUN   TestSmokeStage_FailClosedPreparation/malformed_lock
+=== RUN   TestSmokeStage_FailClosedPreparation/invalid_schema
+=== RUN   TestSmokeStage_FailClosedPreparation/missing_exact_registry
+--- PASS: TestSmokeStage_FailClosedPreparation (0.02s)
+    --- PASS: TestSmokeStage_FailClosedPreparation/malformed_lock (0.01s)
+    --- PASS: TestSmokeStage_FailClosedPreparation/invalid_schema (0.00s)
+    --- PASS: TestSmokeStage_FailClosedPreparation/missing_exact_registry (0.01s)
+=== RUN   TestRunSmokeInTempDir_Pass
+--- PASS: TestRunSmokeInTempDir_Pass (0.10s)
+=== RUN   TestRunSmokeInTempDir_Fail
+--- PASS: TestRunSmokeInTempDir_Fail (0.18s)
+=== RUN   TestRunSmokeInTempDir_Timeout
+--- PASS: TestRunSmokeInTempDir_Timeout (1.01s)
+=== RUN   TestRunSmokeInTempDir_Isolation
+--- PASS: TestRunSmokeInTempDir_Isolation (0.31s)
+=== RUN   TestRunSmokeInTempDir_RespectsCustomTimeout
+--- PASS: TestRunSmokeInTempDir_RespectsCustomTimeout (0.50s)
+=== RUN   TestRunSmokeInTempDir_NoSmokeFile
+--- PASS: TestRunSmokeInTempDir_NoSmokeFile (0.00s)
+=== RUN   TestResolveGitConfined_CarryForwardMatrix
+Cloning into '/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/TestResolveGitConfined_CarryForwardMatrix4206914697/002/.ailang/cache/git/552eb445a4576263'...
+warning: --depth is ignored in local clones; use file:// instead.
+done.
+Note: switching to '03bbdc3ad7bcc62eb8d2b55cde7378b8dd54cb6c'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
+--- PASS: TestResolveGitConfined_CarryForwardMatrix (0.49s)
+=== RUN   TestResolveGitConfined_RevPin
+Cloning into '/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/TestResolveGitConfined_RevPin3979156143/002/.ailang/cache/git/f576bbbc2a7e056d'...
+done.
+Note: switching to '03bbdc3ad7bcc62eb8d2b55cde7378b8dd54cb6c'.
+
+You are in 'detached HEAD' state. You can look around, make experimental
+changes and commit them, and you can discard any commits you make in this
+state without impacting any branches by switching back to a branch.
+
+If you want to create a new branch to retain commits you create, you may
+do so (now or later) by using -c with the switch command. Example:
+
+  git switch -c <new-branch-name>
+
+Or undo this operation with:
+
+  git switch -
+
+Turn off this advice by setting config variable advice.detachedHead to false
+
+HEAD is now at 03bbdc3 v1
+--- PASS: TestResolveGitConfined_RevPin (0.52s)
+=== RUN   TestGitPackageRoot
+--- PASS: TestGitPackageRoot (0.00s)
+PASS
+ok  	github.com/sunholo-data/ailang/internal/pkg	31.258s
+=== RUN   TestRewritePathDeps_Whitespace
+=== RUN   TestRewritePathDeps_Whitespace/single-space_(canonical)
+  → Rewrote dep sunholo/myext: path "/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/TestRewritePathDeps_Whitespace3987271918/001" → registry 0.2.0
+=== RUN   TestRewritePathDeps_Whitespace/aligned_padding_around_equals
+  → Rewrote dep sunholo/myext: path "/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/TestRewritePathDeps_Whitespace3987271918/001" → registry 0.2.0
+=== RUN   TestRewritePathDeps_Whitespace/extra_spaces_inside_braces
+  → Rewrote dep sunholo/myext: path "/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/TestRewritePathDeps_Whitespace3987271918/001" → registry 0.2.0
+=== RUN   TestRewritePathDeps_Whitespace/no_path_dep_—_no_rewrite
+--- PASS: TestRewritePathDeps_Whitespace (0.01s)
+    --- PASS: TestRewritePathDeps_Whitespace/single-space_(canonical) (0.00s)
+    --- PASS: TestRewritePathDeps_Whitespace/aligned_padding_around_equals (0.00s)
+    --- PASS: TestRewritePathDeps_Whitespace/extra_spaces_inside_braces (0.00s)
+    --- PASS: TestRewritePathDeps_Whitespace/no_path_dep_—_no_rewrite (0.00s)
+=== RUN   TestPkgSmokeStaging_QualityAndDryRun
+=== RUN   TestPkgSmokeStaging_QualityAndDryRun/quality
+=== RUN   TestPkgSmokeStaging_QualityAndDryRun/dry-run
+--- PASS: TestPkgSmokeStaging_QualityAndDryRun (11.59s)
+    --- PASS: TestPkgSmokeStaging_QualityAndDryRun/quality (0.23s)
+    --- PASS: TestPkgSmokeStaging_QualityAndDryRun/dry-run (0.23s)
+PASS
+ok  	github.com/sunholo-data/ailang/cmd/ailang	12.353s

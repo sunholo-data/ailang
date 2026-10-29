@@ -1,0 +1,20 @@
+{
+  "head": "0853c9fc15f3daf5f9e304e6e451e78c21fd899c",
+  "workflow_run": 40883138509,
+  "job": 123479693310,
+  "failure": "unchanged #1926 PTY pidfile read-before-content race",
+  "failing_test": "TestWorkerTerminalPTYLifecycle/eval/sigterm",
+  "error": "ValueError: invalid literal for int() with base 10: '' at worker_pid=int(open(pidfile).read())",
+  "failed_packages": [
+    "internal/runner"
+  ],
+  "own_changed_packages_passed": [
+    "cmd/ailang",
+    "internal/pkg"
+  ],
+  "runner_diff_from_actual_dev": [],
+  "siblings": "cancelled by Build workflow matrix fail-fast",
+  "raw_log_sha256": "fda09a3970adb9537caf4e2adfd5bfd1782164bb646aa49c1faf974709915e08",
+  "ci_verdict": "FAIL pending root-owned bounded rerun; no gate waiver",
+  "reviewer_actions": "read-only; no rerun or code repair"
+}

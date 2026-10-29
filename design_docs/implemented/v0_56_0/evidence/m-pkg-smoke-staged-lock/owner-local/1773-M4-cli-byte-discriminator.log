@@ -1,0 +1,16 @@
+=== RUN   TestPkgSmokeStaging_QualityAndDryRun
+=== RUN   TestPkgSmokeStaging_QualityAndDryRun/published
+=== RUN   TestPkgSmokeStaging_QualityAndDryRun/published/quality
+=== RUN   TestPkgSmokeStaging_QualityAndDryRun/published/dry-run
+=== RUN   TestPkgSmokeStaging_QualityAndDryRun/missing_exact_version_with_newer_cached
+=== RUN   TestPkgSmokeStaging_QualityAndDryRun/missing_exact_version_with_newer_cached/quality
+=== RUN   TestPkgSmokeStaging_QualityAndDryRun/missing_exact_version_with_newer_cached/dry-run
+--- PASS: TestPkgSmokeStaging_QualityAndDryRun (9.66s)
+    --- PASS: TestPkgSmokeStaging_QualityAndDryRun/published (9.33s)
+        --- PASS: TestPkgSmokeStaging_QualityAndDryRun/published/quality (0.20s)
+        --- PASS: TestPkgSmokeStaging_QualityAndDryRun/published/dry-run (0.20s)
+    --- PASS: TestPkgSmokeStaging_QualityAndDryRun/missing_exact_version_with_newer_cached (0.33s)
+        --- PASS: TestPkgSmokeStaging_QualityAndDryRun/missing_exact_version_with_newer_cached/quality (0.11s)
+        --- PASS: TestPkgSmokeStaging_QualityAndDryRun/missing_exact_version_with_newer_cached/dry-run (0.11s)
+PASS
+ok  	github.com/sunholo-data/ailang/cmd/ailang	10.541s

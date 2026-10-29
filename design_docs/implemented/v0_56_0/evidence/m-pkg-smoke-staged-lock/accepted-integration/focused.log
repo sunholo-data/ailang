@@ -1,0 +1,3 @@
+ok  	github.com/sunholo-data/ailang/internal/pkg	10.222s
+ok  	github.com/sunholo-data/ailang/cmd/ailang	10.820s
+ok  	github.com/sunholo-data/ailang/internal/runner	19.027s

@@ -1,0 +1,16 @@
+--- FAIL: TestSmokeOutput_FirstDiagnosticAndByteLimit (0.00s)
+    publish_output_test.go:13: lost first diagnostic or exceeded byte limit: len=8236 first="[output truncated; showing last 8192 bytes]\ncontext\nTRACE: trailing context\nTRACE: trailing context\n"
+--- FAIL: TestSmokeOutput_UTF8AndSuccessfulShortOutput (0.00s)
+    publish_output_test.go:21: invalid bounded error: bytes=8236 valid=false
+FAIL
+FAIL	github.com/sunholo-data/ailang/internal/pkg	31.536s
+--- FAIL: TestPkgSmokeDiagnostics_StagingErrorIsReported (0.00s)
+    pkg_smoke_diagnostics_test.go:42: staging rErr disappeared: &{Source: AttestedBy: Present:true Passed:false Seconds:0 NotRun:false Notes:}
+--- FAIL: TestPkgSmokeDiagnostics_RealQualityNotes (12.38s)
+    --- FAIL: TestPkgSmokeDiagnostics_RealQualityNotes/long_output (1.18s)
+        pkg_smoke_diagnostics_test.go:77: wrong bounded cause: &{Source:attested AttestedBy: Present:true Passed:false Seconds:0.031228125 NotRun:false Notes:}
+    --- FAIL: TestPkgSmokeDiagnostics_RealQualityNotes/timeout (1.07s)
+        pkg_smoke_diagnostics_test.go:77: wrong bounded cause: &{Source:attested AttestedBy: Present:true Passed:false Seconds:1.002711958 NotRun:false Notes:}
+FAIL
+FAIL	github.com/sunholo-data/ailang/cmd/ailang	14.364s
+FAIL

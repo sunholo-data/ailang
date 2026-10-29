@@ -1,5 +1,15 @@
 # M-PKG-SMOKE-STAGED-LOCK executor validation
 
+**Final disposition: accepted and merged, v0.56.0 UNRELEASED.** Independent
+round2 PASS95/100 evaluated165f87a12ceb0e20c04216c472004c11685e417b.
+Actual final CI27completed:20SUCCESS/7SKIPPED, no failed/cancelled/pending.
+Root normal merge96d69f05b6e84bd6666e8fa91ff948f803b67d92 at20:53:24UTC.
+[Both frozen evaluations and supporting proof](evidence/m-pkg-smoke-staged-lock/README.md)
+are durable; the prior FAIL75/raw failure identities remain unchanged.
+The local/executor and pending-CI statements below record earlier checkpoints;
+they are not the final acceptance verdict. No new test execution is claimed by archival.
+
+
 Implementation complete, unreleased. Independent evaluation and exact PR broad
 Linux/Windows CI remain pending. This document records executor evidence, not a
 score or release approval. Design and plan remain planned until root accepts the

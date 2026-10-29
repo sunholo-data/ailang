@@ -1,0 +1,128 @@
+[
+  {
+    "file": "cmd/ailang/pkg_commands.go",
+    "function": "pkgAddCommand",
+    "start": 15,
+    "end": 67,
+    "lines": 53
+  },
+  {
+    "file": "cmd/ailang/pkg_commands.go",
+    "function": "upsertDependencyLine",
+    "start": 236,
+    "end": 307,
+    "lines": 72
+  },
+  {
+    "file": "cmd/ailang/pkg_commands.go",
+    "function": "pkgLockCommand",
+    "start": 460,
+    "end": 547,
+    "lines": 88
+  },
+  {
+    "file": "cmd/ailang/pkg_commands.go",
+    "function": "warnSilentRatchet",
+    "start": 609,
+    "end": 671,
+    "lines": 63
+  },
+  {
+    "file": "cmd/ailang/pkg_lock_warnings_test.go",
+    "function": "TestPkgLockShadowWarning_RealCLI",
+    "start": 14,
+    "end": 96,
+    "lines": 83
+  },
+  {
+    "file": "cmd/ailang/pkg_publish.go",
+    "function": "pkgPublishCommand",
+    "start": 23,
+    "end": 157,
+    "lines": 135
+  },
+  {
+    "file": "cmd/ailang/pkg_publish.go",
+    "function": "uploadTarball",
+    "start": 189,
+    "end": 260,
+    "lines": 72
+  },
+  {
+    "file": "cmd/ailang/pkg_publish.go",
+    "function": "emitPublishMessages",
+    "start": 264,
+    "end": 324,
+    "lines": 61
+  },
+  {
+    "file": "cmd/ailang/pkg_publish.go",
+    "function": "emitDependentNotifications",
+    "start": 329,
+    "end": 474,
+    "lines": 146
+  },
+  {
+    "file": "cmd/ailang/pkg_quality.go",
+    "function": "measurePackageQuality",
+    "start": 88,
+    "end": 158,
+    "lines": 71
+  },
+  {
+    "file": "cmd/ailang/pkg_quality.go",
+    "function": "runAttestedChecks",
+    "start": 175,
+    "end": 226,
+    "lines": 52
+  },
+  {
+    "file": "cmd/ailang/pkg_quality.go",
+    "function": "printQualityHuman",
+    "start": 228,
+    "end": 282,
+    "lines": 55
+  },
+  {
+    "file": "cmd/ailang/pkg_smoke_diagnostics_test.go",
+    "function": "TestPkgSmokeDiagnostics_RealQualityNotes",
+    "start": 46,
+    "end": 123,
+    "lines": 78
+  },
+  {
+    "file": "cmd/ailang/pkg_smoke_staging_test.go",
+    "function": "newSmokeCLIProof",
+    "start": 46,
+    "end": 105,
+    "lines": 60
+  },
+  {
+    "file": "internal/pkg/publish_rewrite.go",
+    "function": "RewritePathDeps",
+    "start": 20,
+    "end": 76,
+    "lines": 57
+  },
+  {
+    "file": "internal/pkg/publish_stage_git_test.go",
+    "function": "TestSmokeStage_GitCarryForward",
+    "start": 16,
+    "end": 103,
+    "lines": 88
+  },
+  {
+    "file": "internal/pkg/publish_validator.go",
+    "function": "RunSmokeInTempDir",
+    "start": 61,
+    "end": 146,
+    "lines": 86
+  },
+  {
+    "file": "internal/pkg/quality.go",
+    "function": "BuildQualityReport",
+    "start": 248,
+    "end": 426,
+    "lines": 179
+  }
+]
