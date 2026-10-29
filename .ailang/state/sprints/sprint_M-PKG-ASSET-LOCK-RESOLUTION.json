@@ -116,8 +116,8 @@
   "last_session": "2026-10-29T08:20:03.286824+00:00",
   "implementation_complete": true,
   "validation_status": "pass",
-  "last_checkpoint": "2026-10-29: portable configured-root regression banked; current Linux tests pass. Sonar external-only test-package filtering diagnosed and test ownership corrected without policy change. Exact new-head remote Sonar/platform gates and independent evaluation pending.",
-  "evaluation_report": ".ailang/state/evaluations/eval_M-PKG-ASSET-LOCK-RESOLUTION_round_1.json",
+  "last_checkpoint": "Accepted round3 PASS95 at exacta24f2ca1c25e6dc03938515a1bc660815c26e247; full native tests/lint/sizes and required Linux/Windows/Sonar94.9 pass. PR1849 merged9dc6890919aa001deebee4361719456ee087440f. Earlier FAIL51/68 and pending repair checkpoints preserved as history.",
+  "evaluation_report": ".ailang/state/evaluations/eval_M-PKG-ASSET-LOCK-RESOLUTION_round_3.json",
   "verification": {
     "focused_integration": "pass: six packages",
     "effects_regressions_count_20": "pass",
@@ -125,7 +125,7 @@
     "full_lint": "pass:0 issues",
     "test_changed": "pass:8 packages plus full core loop, no exclusions",
     "other_gates": "pass: boundaries, architecture closure, file sizes, changelog, fmt, verify-stdlib49, verify-examples, asset_path demo",
-    "independent_evaluation": "pending fresh review; round1 FAIL51 retained unchanged",
+    "independent_evaluation": "PASS95 round3; historical round1 FAIL51 and round2 FAIL68 retained unchanged.",
     "combined_authority_integration": "pass: effects/pkg/pipeline/embed/apiserver/runner/testutil-pkgassets, full suites with coverage, no exclusions; dev c2944389 integrated"
   },
   "review_coverage_repair": {
@@ -167,5 +167,12 @@
       "report": ".ailang/state/evaluations/eval_M-PKG-ASSET-LOCK-RESOLUTION_round_3.json"
     },
     "release_target_note": "Aligned with the unreleased batch containing approved breaking effect changes; no version/tag operation"
-  }
+  },
+  "historical_completion_fields": {
+    "last_checkpoint": "2026-10-29: portable configured-root regression banked; current Linux tests pass. Sonar external-only test-package filtering diagnosed and test ownership corrected without policy change. Exact new-head remote Sonar/platform gates and independent evaluation pending.",
+    "evaluation_report": ".ailang/state/evaluations/eval_M-PKG-ASSET-LOCK-RESOLUTION_round_1.json",
+    "verification_independent_evaluation": "pending fresh review; round1 FAIL51 retained unchanged"
+  },
+  "review_checkpoint_objects_are_historical": true,
+  "completion_audit_at": "2026-10-29T12:39:27.078192+00:00"
 }

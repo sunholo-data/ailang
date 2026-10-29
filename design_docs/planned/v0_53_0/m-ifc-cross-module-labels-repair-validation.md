@@ -1,5 +1,7 @@
 # #1771 M1–M2 repair validation
 
+**Partial foundation acceptance (2026-10-29):** M1-M2 accepted95/100 and merged in PR1771 at65253e86e68be251eecd796d92327e4d4828c234. M3/M4 remain unstarted; overall planned/in-progress, issues1134/1132 open. Executor checkpoint statements below are historical; the independent M1-M2 report is authoritative for this partial acceptance.
+
 2026-10-29. Implementation evidence only; independent evaluation pending. Original execution was explicitly M1–M2 ONLY. M3 imported caller enforcement/CLI/REPL wiring and M4 completion remain unstarted; Refs #1134 and Refs #1132, no closure.
 
 ## Provenance and retained authority
@@ -29,7 +31,7 @@ F4 failing-first evidence: old decoder rejected the valid forbidden array and ac
 - Official `make test-changed` passes on clean 8f6b11d0f: all six changed packages, including full cmd 238.520s and pipeline 22.815s, then the entire language-core loop. This includes the corrected F4 stdout golden.
 - Current IFC/fresh-CLI regressions and core pass on macOS with GOFLAGS=-p=1. No parser/HM/effect semantics are implemented by this IFC repair; independently owned effect changes are integrated unchanged.
 - `make lint`: zero issues. Size, boundaries and changelog gates pass.
-- `make verify-examples`: 245 modules, zero drift/missing entries, actual manifest: 252 total / 244 working / 4 broken / 4 aspirational valid; all 49 stdlib interfaces stable after intentional F4 regeneration.
+- `make verify-examples`: 247 modules, zero drift/missing entries, actual manifest: 252 total / 244 working / 4 broken / 4 aspirational valid; all 49 stdlib interfaces stable after intentional F4 regeneration.
 - 18 fresh CLI consumer comparisons against a freshly built actual dev `9dc6890919aa001deebee4361719456ee087440f`: zero status flips, zero first-diagnostic changes. Includes local IFC/leak lab controls, original inbox/secret examples and Gmail package check. This is a bounded differential, not a claim that every external corpus is clean.
 - All new assertions are data/diagnostic based, with no native path separator assumptions or unguarded external solvers.
 - No full `make test`, no coordinator dispatch/approval, no self-evaluation or merge.
@@ -80,3 +82,5 @@ The established IFC corpus harness was reused through read-only Go overlays agai
 Two duplicate 27-line extern-only world stubs hit the original intrinsic-convergence work guard because absent bodies were never memoized. Root approved the narrow original M1 extern/synthetic fix: bodyless declarations now converge using only trusted declared facts, without a fabricated body. Existing declared parameter/return/refinement/authority metadata is preserved. The two baseline errors disappear (2→0); all other corpus metadata is unchanged. `TestIFCExportBodylessDeclarations` covers multiple externs alongside a normal labelled function; its old-source RED is `1771-extern-multi-red.log`.
 
 Final integrated compiler/interface/consumer gates are recorded above after the actual effect-row/explicit-empty dev merge. The frozen metadata comparison is a focused M1 analysis comparison, not a claim that every program type-checks or that deferred imported-call enforcement has shipped.
+
+Audit correction: the source40a5 local-gate paragraph said245 example modules; actual final verification log reports247 with manifest252total/244working/4broken/4aspirational. Corrected wording only, no source or CI change. [Independent M1-M2 evaluation](m-ifc-cross-module-labels-evaluation-m1-m2.md).

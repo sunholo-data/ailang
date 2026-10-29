@@ -1,6 +1,6 @@
 # Attended backlog sweep — 2026-10-29
 
-Status at11:55UTC: **16 AILANG PRs merged,6 redundant PRs retired,9 issues closed**. Every issue in the initial66-item inventory was checked against source/history/designs;57 remain open. The initial issue evidence below is a historical snapshot, not a claim that subsequently repaired issues remain broken. All GitHub access used `gh`. The [initial per-issue verification](initial-issue-verification.md) preserves its original source baselines; the [operator ownership review](operator-pending-review.md) records the existing cards and cross-plane holds.
+Status at12:32UTC: **17 AILANG PRs merged,6 redundant PRs retired,9 issues closed**. Every issue in the initial66-item inventory was checked against source/history/designs;57 remain open. The initial issue evidence below is a historical snapshot, not a claim that subsequently repaired issues remain broken. All GitHub access used `gh`. The [initial per-issue verification](initial-issue-verification.md) preserves its original source baselines; the [operator ownership review](operator-pending-review.md) records the existing cards and cross-plane holds.
 
 ## Accepted PRs
 
@@ -22,6 +22,7 @@ Status at11:55UTC: **16 AILANG PRs merged,6 redundant PRs retired,9 issues close
 | [1849](https://github.com/sunholo-data/ailang/pull/1849) | Package asset snapshot residual repair, including real CallPreserveFloats malformed-lock bypass; independent round3 PASS95 after preserved FAIL51/68, full native gate, actual Sonar94.9%. No linked issue auto-closed. |
 | [2005](https://github.com/sunholo-data/ailang/pull/2005) | Approved1958 row soundness plus separately approved explicit-empty callback amendment; independent95/95 (initial97/98 preserved with explicit rubric corrections), full native plus final test-only overlay and exact-head Linux/Windows/required CI, actual Sonar93.5%. Consumer fork083ef437:60core/9extensions, fresh no-cache60 after three recorded serial deadline retries. Closed1958. |
 | [2008](https://github.com/sunholo-data/ailang/pull/2008) | Alias ownership follow-up: independent95/100, all26 checks terminal19green/7skipped, Sonar100%; original social_dynamics failure repaired, actual consumer60core/9extensions/204runtime guards and530file zero-change corpus. Original parentPASS93 and strict-FS limitations preserved. |
+| [1771](https://github.com/sunholo-data/ailang/pull/1771) | M1-M2 IFC metadata/cache foundation only, independent95/100, all26 checks terminal19green/7skipped/SonarPASS. Real143/97-module size/DAG/hash/cold-warm evidence independently verified. Full parent stays planned, M3/M4 unstarted and1134/1132 open. |
 
 The six retired redundant carriers are [1571](https://github.com/sunholo-data/ailang/pull/1571), [1832](https://github.com/sunholo-data/ailang/pull/1832), [1833](https://github.com/sunholo-data/ailang/pull/1833), [1893](https://github.com/sunholo-data/ailang/pull/1893), [1881](https://github.com/sunholo-data/ailang/pull/1881), and [1868](https://github.com/sunholo-data/ailang/pull/1868). Source branches and useful historical evidence were preserved.
 
@@ -29,8 +30,7 @@ Closed issues: [981](https://github.com/sunholo-data/ailang/issues/981), [1711](
 
 ## Active follow-through
 
-- [1771](https://github.com/sunholo-data/ailang/pull/1771): original explicitly approved M1–M2 only. Preserve source history; canonical F4 forbidden lists/reserved applied labels within v2, deterministic producer facts and strict cache validation; cache epoch v8 retains current CoreTI DAG. Root review found and verified producer alias/eta and extern fixes. Actual final integration, artifacts/goldens, CI and independent acceptance remain pending. M3/M4 and1134/1132 closure remain excluded.
-- #1773 design approved after a read-only current-dev refresh: preserve validated Git carry-forward under confinement while regenerating the published registry lock, staged source/assets, bounded PUB015 diagnostics and warning-only shadowing. Sprint planning is active; execution remains separately gated.
+- #1773 design approved after a read-only current-dev refresh: preserve validated Git carry-forward under confinement while regenerating the published registry lock, staged source/assets, bounded PUB015 diagnostics and warning-only shadowing. User explicitly authorized execution after the four-milestone plan; implementation is active on its own branch.
 - Completion-audit branch archives accepted designs AND companion plans/evidence under implemented/v0_56_0 as UNRELEASED. No release, version bump, tag or deployment is part of this sweep.
 
 ## PRs deliberately retained
@@ -57,3 +57,9 @@ The starting inventory contains unresolved semantic/design decisions and existin
 Required gates are distinguished from optional queued/running Mac matrix jobs. The final #2005 follow-up at11:31:16UTC found all27 checks complete,20green/7skipped,0pending; the existing evaluator CI script returned PASS. Full native tests ran on isolated clean review worktrees outside TMPDIR; unrelated startup/deadline failures and passing bounded retries remain preserved. Original failed hypotheses, full fork provenance, corpus inherited errors/timeouts and prior FAIL evaluations remain available. No Sonar threshold/baseline/exclusion/disposition was changed. No generated-Go requirement was dropped when explicitly in approved scope.
 
 The shared checkout's three dirty benchmark JSON files were preserved. No destructive Git operations, live-rig upgrade, upstream Motoko write, coordinator dispatch/approval or inbox acknowledgement occurred. Ambient20 unread messages remain untouched. New development used isolated worktrees and existing agents with distinct ownership.
+
+## Dependency alerts observed during the sweep
+
+Six alerts were open at the security snapshot. User approved exact lockfile-only re2js2.8.6→2.8.7 (including Node>=20; actual UI builder22.23.4) and serialize-javascript7.1.2→7.1.3; implementation and CI are separate from this review-only audit. Current Zod3→first-patched4.6.6 is a major migration outside its parent range; deepmerge4.3.1 has no first-patched version in the advisory. Neither is silently overridden or dismissed.
+
+The two Go/Ollama alerts list ranges below actual source go.modv0.40.13, while GitHub SBOM still reportsv0.13.4. A tolerated dependency-submission action failure prevents fresh submission: duplicate namespace/name assertion, despite its successful job wrapper. The main/dev trigger is already correct. An official upstream fix is merged but unreleased and carries a larger Node24/default/input upgrade; it is future gated work, not part of the two npm patch approval. No action/quality policy or alert disposition was changed, and no statement about a live Ollama server is inferred.

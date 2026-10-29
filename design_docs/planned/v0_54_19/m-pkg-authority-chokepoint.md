@@ -511,7 +511,7 @@ resp, err := http.Get(registryValidatorURL() + "/api/trending")
 **Planned (overlap checked):**
 
 - [M-PKG-REGISTRY-CONFINEMENT](../v0_52_6/m-pkg-registry-confinement.md) (#1607/#1608): the direct predecessor. This doc supersedes its D1 (per-function gates) with per-authority gates. It keeps its D2 (signal), D3 (exclusive root, extended to git here) and D5 (hard-fail hashes, extended to git). It also corrects its false Non-Goal premise about git. Neural similarity 0.41: distinct, because that doc gates the registry transport and this one gates every transport.
-- [m-pkg-asset-lock-resolution](../v0_54_7/m-pkg-asset-lock-resolution-sprint-plan.md): shares `LockedPackageDirs` (`runner/pkg_dirs.go`). It does not overlap, because it changes which dirs are read, not authority.
+- [m-pkg-asset-lock-resolution](../../implemented/v0_56_0/m-pkg-asset-lock-resolution-sprint-plan.md): shares `LockedPackageDirs` (`runner/pkg_dirs.go`). It does not overlap, because it changes which dirs are read, not authority.
 
 ## References
 
