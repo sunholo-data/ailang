@@ -1,0 +1,10 @@
+bef344aadbadce4165c51239ed63d95d33e0f222  /Users/voightkampff/.ailang-driver-pin/fleet-i34/.agents/skills/zz-fleet-spike-1791874261-202b1e511e0d0eb4a5ba4690-k/SKILL.md
+708d673eb3ddd5321899b088bf12a1d9feab9871  /Users/voightkampff/.ailang-driver-pin/fleet-i34/.agents/skills/zz-fleet-spike-1791874261-202b1e511e0d0eb4a5ba4690-k/resources/probe.md
+4a4d69bb4105393102c051a7381ce42c5ca73f17  /Users/voightkampff/.ailang-driver-pin/fleet-i34/.claude/skills/zz-fleet-spike-1791874261-202b1e511e0d0eb4a5ba4690-k-claude/SKILL.md
+e3a6e7b17d63fad6268843420c2b26f2e7e42966  /Users/voightkampff/.ailang-driver-pin/fleet-i34/.claude/skills/zz-fleet-spike-1791874261-202b1e511e0d0eb4a5ba4690-k-claude/resources/probe.md
+6426a4dfcdb4d46f62957c9a791833d594b3805d  /Users/voightkampff/.ailang-driver-pin/fleet-i34/.agents/skills/zz-fleet-spike-1791874261-202b1e511e0d0eb4a5ba4690-k-project/SKILL.md
+aeba1dc4e48219703ca1e930cb663c60208fac42  /Users/voightkampff/.ailang-driver-pin/fleet-i34/.agents/skills/zz-fleet-spike-1791874261-202b1e511e0d0eb4a5ba4690-k-project/resources/probe.md
+7063c8cb2a8a11b02e6ba7547efcde14fa0100d1  /Users/voightkampff/.agents/skills/zz-fleet-spike-1791874261-202b1e511e0d0eb4a5ba4690-k-agents-user/SKILL.md
+50290a33a08118f3172a0d5a0a77bffab53119a7  /Users/voightkampff/.agents/skills/zz-fleet-spike-1791874261-202b1e511e0d0eb4a5ba4690-k-agents-user/resources/probe.md
+f0d86031f7c5d4c8b29ab02f03ffccf7337c7582  /Users/voightkampff/.codex-missions/skills/zz-fleet-spike-1791874261-202b1e511e0d0eb4a5ba4690-k-legacy-user/SKILL.md
+c6cc1775543b457a94e47db17c3bb748c593898e  /Users/voightkampff/.codex-missions/skills/zz-fleet-spike-1791874261-202b1e511e0d0eb4a5ba4690-k-legacy-user/resources/probe.md

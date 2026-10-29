@@ -127,6 +127,12 @@ func prepareRunAIBinding(modelName string) (runAIBinding, error) {
 		return runAIBinding{}, loadErr
 	}
 	if loadErr == nil && modelreg.GlobalModelsConfig != nil {
+		// `ailang run` takes this deferred path, never setupAIHandler, so the
+		// per-model OpenRouter routing options must be installed here too.
+		// Measured 2026-10-13: without this, motoko's runtime sent no
+		// provider.ignore and 118 GLM calls still landed on inference-net.
+		openrouter.SetProviderDefaults(modelreg.GlobalModelsConfig.OpenRouterProviderByAPIName())
+		openrouter.SetReasoningDefaults(modelreg.GlobalModelsConfig.OpenRouterReasoningEffortByAPIName())
 		models = &modelreg.ModelsConfig{Models: make(map[string]modelreg.ModelConfig)}
 		for name, row := range modelreg.GlobalModelsConfig.Models {
 			row.Aliases = append([]string(nil), row.Aliases...)

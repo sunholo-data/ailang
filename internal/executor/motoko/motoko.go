@@ -480,40 +480,8 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	if task.MaxOutputTokens > 0 {
 		motokoEnv = append(motokoEnv, fmt.Sprintf("AILANG_OLLAMA_MAX_TOKENS=%d", task.MaxOutputTokens))
 	}
-	// M-MOTOKO-EVAL-HARNESS-HARDENING M5a (gaps #3, #9): forward cost rates
-	// from Task.Budget (sourced from models.yml by the eval harness) so
-	// motoko's cost_warning + cost_exhausted thresholds fire and run_summary
-	// reports a non-zero cost_usd. Pre-M5a, motoko's profile had no cost_rates
-	// for openrouter/anthropic models, leading to CostUSD=0 across every
-	// motoko-* model. Source-of-truth flow: AILANG models.yml → CostBudget
-	// (per-1K USD) → motoko env vars (per-1M millicents).
-	if task.Budget != nil {
-		if task.Budget.InputPer1K > 0 {
-			// per-1K USD × 1e8 = per-1M millicents
-			//   (×1000 for K→M, ×100 for $→¢, ×1000 for ¢→m¢)
-			inputMillicents := int64(task.Budget.InputPer1K * 1e8)
-			motokoEnv = append(motokoEnv, fmt.Sprintf("MOTOKO_COST_INPUT_PER_1M_MILLICENTS=%d", inputMillicents))
-		}
-		if task.Budget.OutputPer1K > 0 {
-			outputMillicents := int64(task.Budget.OutputPer1K * 1e8)
-			motokoEnv = append(motokoEnv, fmt.Sprintf("MOTOKO_COST_OUTPUT_PER_1M_MILLICENTS=%d", outputMillicents))
-		}
-		// M-EVAL-SWEET-SPOT-FOLLOWUP (v0.19.0): forward the hard cost cap so
-		// motoko's internal budget gate actually fires `finish_reason=
-		// "cost_exhausted"` when the cumulative cost crosses it. Pre-this,
-		// the cap was recorded as metadata only — gemma-4-26b famously ran
-		// to $0.94 against a $0.50 cap on balanced_parens (43 min, 222
-		// turns) because motoko never knew about the cap. Source-of-truth
-		// flow: models.yml budgets.max_cost_usd → CostBudget.MaxUSD →
-		// AI_MAX_COST_USD_CENTS (motoko reads this in src/core/config.ail).
-		// Motoko expects cents; CostBudget.MaxUSD is dollars → ×100.
-		if task.Budget.MaxUSD > 0 {
-			maxUSDCents := int64(task.Budget.MaxUSD * 100)
-			if maxUSDCents > 0 {
-				motokoEnv = append(motokoEnv, fmt.Sprintf("AI_MAX_COST_USD_CENTS=%d", maxUSDCents))
-			}
-		}
-	}
+	motokoEnv = append(motokoEnv, costRateEnv(task.Budget)...)
+	motokoEnv = append(motokoEnv, ollamaStreamEnv(e.getModel(task), os.Stderr)...)
 	env, err := executor.BuildEnvironment(executor.EnvironmentOptions{
 		Task:        task,
 		SessionID:   sessionID,
@@ -563,7 +531,13 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	cmd.Stdout = cmd.Stderr
 
 	startTime := time.Now()
-	stopWatch := startIdleWatch(runCtx, task.IdleTimeout, sessionActivity(task.Workspace, sessionID, e.motokoRepo, stderrLogPath), cancelIdle)
+	var inFlight func() bool
+	var callBound time.Duration
+	if isOllamaModel(e.getModel(task)) {
+		inFlight = sessionCallInFlight(task.Workspace, sessionID, e.motokoRepo)
+		callBound = ollamaCallBound(env)
+	}
+	stopWatch := startIdleWatch(runCtx, task.IdleTimeout, sessionActivity(task.Workspace, sessionID, e.motokoRepo, stderrLogPath), inFlight, callBound, cancelIdle)
 	runErr := runRegisteredCommand(cmd)
 	idleNote := stopWatch()
 	if err := runErr; err != nil {
@@ -672,7 +646,7 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 		}
 		if idleNote != "" {
 			result.Error = idleNote + result.Error
-			result.FinishReason = executor.FinishTimeout
+			result.FinishReason = executor.FinishIdleKilled
 		}
 	}
 
@@ -685,10 +659,9 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 	if result.SessionID == "" {
 		result.SessionID = sessionID
 	}
-	// motoko's run_summary cost comes from whatever provider it routed to.
-	// OpenRouter-routed models bill real credits; local ollama models carry
-	// zero rates in models.yml and resolve to free-local regardless of lane.
-	result.CostProvenance = executor.ResolveCostProvenance(task, motokoAuthLane(task.Model))
+	// Cost of record = registry rates × run_summary tokens, never motoko's own
+	// meter (which ignores cache tokens). See cost.go.
+	applyRegistryCost(result, task, e.getModel(task))
 
 	// Surface metrics for any MetricsHandler observers.
 	if mh, ok := handler.(executor.MetricsHandler); ok {
@@ -697,7 +670,7 @@ func (e *MotokoExecutor) executeStreaming(ctx context.Context, task *executor.Ta
 			InputTokens:    result.InputTokens,
 			OutputTokens:   result.OutputTokens,
 			CostUSD:        result.CostUSD,
-			CostProvenance: executor.ResolveCostProvenance(task, motokoAuthLane(task.Model)),
+			CostProvenance: result.CostProvenance,
 			DurationMS:     result.DurationMS,
 			SessionID:      result.SessionID,
 			Success:        result.Success,
@@ -734,11 +707,9 @@ func (e *MotokoExecutor) Capabilities() []executor.Capability {
 	}
 }
 
-// CostModel returns a generic default cost model for motoko.
-// Actual cost depends on the underlying provider (resolved via OpenRouter for
-// motoko-* models). The CostModel here is used only for pre-flight estimates;
-// the real cost comes from motoko's run_summary.total_cost_usd field, which
-// the parser populates into Result.CostUSD directly.
+// CostModel returns a generic default cost model for motoko, used only for
+// pre-flight estimates. The cost of record is registry rates × run_summary
+// tokens (applyRegistryCost); motoko's own total_cost_usd is diagnostic only.
 func (e *MotokoExecutor) CostModel() *executor.CostModel {
 	return &executor.CostModel{
 		ProviderName:    "motoko",

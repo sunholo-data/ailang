@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strconv"
 	"strings"
@@ -24,12 +25,12 @@ const fakeSolverSleep = 30 * time.Second
 // = 3s; TestZ3Version_HardTimeout gets versionProbeTimeout = 5s outright, since
 // solverKillGrace is only its WaitDelay and not part of its context deadline.
 //
-// Time from spawn to the child pidfile appearing, measured over 500 trials:
-// idle 200/200 at mean 209ms / max 232ms; under a full `go test -count=1 ./...`
-// load, 1 trial in 300 exceeded 3s (at 3.435s) and 0 exceeded 5s. So ~0.3% per
-// spawn against the 3s budget — strictly less against 5s — and three attempts
-// leave a ~3e-8 residue. Retrying is safe because a genuine process-group-kill
-// regression fails assertProcessGoneWithin on every attempt instead.
+// Retrying alone did not fix the race: the delay was the first exec of a
+// freshly written script, and under suite load that delay is correlated, so
+// all three attempts lost together (2026-10-29, 3.0s each). The startup cost
+// is now paid by a warm-up exec in writeSleepingFakeSolver (max 11ms
+// afterwards). The retry stays as a second line. It is safe because a genuine
+// process-group-kill regression fails assertProcessGoneWithin on every attempt.
 const maxRaceAttempts = 3
 
 func TestSolve_HardTimeout_FakeSolverIgnoringT(t *testing.T) {
@@ -101,12 +102,22 @@ func writeSleepingFakeSolver(t *testing.T) (string, string) {
 	childPIDFile := filepath.Join(dir, "child.pid")
 	scriptPath := filepath.Join(dir, "fake-z3")
 	script := fmt.Sprintf(`#!/bin/sh
+[ "$1" = warm ] && exit 0
 sleep %d &
 echo $! > %q
 sleep %d
 `, int(fakeSolverSleep.Seconds()), childPIDFile, int(fakeSolverSleep.Seconds()))
 	if err := os.WriteFile(scriptPath, []byte(script), 0o700); err != nil {
 		t.Fatalf("write fake solver: %v", err)
+	}
+	// Pay the first exec of the freshly written script before the timed run.
+	// On macOS that first exec waits on the system's assessment of a new
+	// executable, which `go test ./...` floods with fresh test binaries.
+	// Measured 2026-10-29, spawn to pidfile during `go test -count=1
+	// ./internal/...`, 60 trials each: fresh p95 2.6s / max 4.46s against a 3s
+	// budget; warmed max 11ms (ailang#602).
+	if out, err := exec.Command(scriptPath, "warm").CombinedOutput(); err != nil {
+		t.Fatalf("warm fake solver: %v (%s)", err, out)
 	}
 	return scriptPath, childPIDFile
 }

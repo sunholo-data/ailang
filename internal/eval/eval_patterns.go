@@ -419,6 +419,10 @@ func (e *CoreEvaluator) evalDictApp(app *core.DictApp) (Value, error) {
 		args = append(args, argVal)
 	}
 
+	if err := checkMixedNumericDictArgs(app.Method, args); err != nil {
+		return nil, err
+	}
+
 	// M-POLY-ARITH: Correct DictRef type based on actual argument types.
 	// This fixes the case where Num defaulting resolves the lambda to int -> int -> int
 	// but the call site provides float arguments.
@@ -460,6 +464,33 @@ func (e *CoreEvaluator) evalDictApp(app *core.DictApp) (Value, error) {
 		// Raw function that slipped through - this should not happen with proper registration
 		return nil, fmt.Errorf("unsupported dictionary method type: %T", methodVal)
 	}
+}
+
+// checkMixedNumericDictArgs fails loudly when a dictionary method receives an
+// int and a float. Type checking gives both operands one type, so the only way
+// they differ at runtime is an integer literal whose type is a GENERIC variable
+// (inside a top-level generic function or a module-level binding) that was
+// instantiated at float: the runtime has no fromInt dispatch, so the literal
+// stayed an int (M-SOUND-NUMERIC-LITERALS). Literals at a concrete float type
+// and inside local lets are elaborated to floats at compile time; this is the
+// residue. Before, the same program died with "expected float arguments" or
+// "missing dictionary method: prelude::Fractional::Int::add".
+func checkMixedNumericDictArgs(method string, args []Value) error {
+	if len(args) != 2 {
+		return nil
+	}
+	_, li := args[0].(*IntValue)
+	_, lf := args[0].(*FloatValue)
+	_, ri := args[1].(*IntValue)
+	_, rf := args[1].(*FloatValue)
+	if (li && rf) || (lf && ri) {
+		return fmt.Errorf("numeric dictionary method %q received an int and a float: an integer literal "+
+			"inside a generic function or a module-level binding was used at type float, and AILANG "+
+			"cannot give such a literal a float value at runtime. Write the literal as a float (1.0), "+
+			"annotate the binding (let n: float = 1), or give the function a concrete numeric "+
+			"parameter type (x: float)", method)
+	}
+	return nil
 }
 
 // valueTypeName returns the AILANG type name for a runtime value.

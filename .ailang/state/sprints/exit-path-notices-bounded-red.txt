@@ -1,0 +1,151 @@
+extracted: notify=      74 pin-decision=     109 pin=      23 pin-drift=      14 pin-age=      11 lane=      30 state-paths=      34 bounded=      33 drain=      62 lines
+== pin notice ==
+  PASS: fires on both channels (ailang)
+  PASS: posts to the bookkeeping issue
+  PASS: titled as UNPINNED
+  PASS: names the tracking issue
+  PASS: positive control: unified medium shows genuine AILANG fire (checkno would FAIL)
+== pin notice: SILENT when healthy (the control) ==
+  PASS: no ailang call
+  PASS: no gh call
+== failed post is LOUD, and never aborts ==
+  PASS: warns on send failure
+  PASS: block still exits 0
+  PASS: retry: attempts recorded across subshells (file counter)
+  PASS: warns on issue failure
+  PASS: block still exits 0
+== unset issue warns rather than silently skipping ==
+  PASS: warns on unset issue
+  PASS: no gh call attempted
+== REGRESSION: lane block still works through the extracted _mc_notify ==
+  PASS: lane fires on ailang
+  PASS: lane does NOT comment on the issue (digest carries it)
+  PASS: lane sets the digest routing note
+  PASS: lane keeps its own title
+  PASS: lane logs its summary
+  PASS: lane SILENT when healthy
+  PASS: no routing note when healthy
+== EPISODE GATING: suppression + recovery reset (#978) ==
+  PASS: lane ep: first fire announces
+  PASS: lane ep: second identical fire suppressed
+  PASS: lane ep: changed reason re-announces
+  PASS: lane ep: heal clears the marker
+  PASS: lane ep: heal announces nothing
+  PASS: lane ep: moving rc (digit strip) does not re-announce
+  PASS: pin ep: first fire announces
+  PASS: pin ep: second identical fire suppressed
+  PASS: pin ep: changed reason re-announces
+  PASS: pin ep: heal clears the marker
+== RC capture: not masked by printf (G2) ==
+  PASS: RC capture: block failure visible, not masked by printf
+  PASS: RC capture: run() itself surfaces a failing block, not printf's status
+== held pin source-clone drift ==
+  PASS: drift-a: first threshold notice reaches both channels with path/count
+  PASS: drift-b: equal state dedupes
+  PASS: drift-c: doubling notifies
+  PASS: drift-d: below threshold is silent and re-arms
+  PASS: drift-e: disabled pin is silent
+  PASS: drift-f: unknown drift is log-only
+  PASS: drift-g: STALE keeps original notice only
+  PASS: drift-h: notice names the source clone, not the pin worktree
+  PASS: drift-i: a non-positive threshold is floored, not obeyed
+  PASS: drift-j: unset PIN_DRIFT is log-only, not a set -u abort
+== age state paths ==
+  PASS: age-paths-v1: v1 resolves mission-control.pin-age
+  PASS: age-paths-v1: age path is distinct from the drift path
+  PASS: age-paths-mission: motoko resolves mission-motoko.pin-age
+  PASS: age-paths-mission: age path is distinct from the drift path
+== age notification arms ==
+  PASS: age-a: first threshold age notice reaches both channels with count
+  PASS: age-a: notice carries pinned ref, target SHA and baseline SHA
+  PASS: age-a: notice carries the executing-old-code wording
+  PASS: age-a: notice carries the not-in-effect and repeat-on-doubling sentences
+  PASS: age-a: age state stores 25
+  PASS: age-b: equal age dedupes, state unchanged, no sends
+  PASS: age-b: dedupe is logged positively with the previous count
+  PASS: age-c: doubling notifies both channels and stores 340
+  PASS: age-c2: one below doubling (339) dedupes
+  PASS: age-d: below threshold re-arms and removes age state
+  PASS: age-d-followup: threshold age emits again after re-arm
+  PASS: age-f: unknown age is log-only and preserves state
+  PASS: age-f2: malformed age is log-only and preserves state
+  PASS: age-i1: zero warn is floored loudly to 25
+  PASS: age-i2: negative warn is floored loudly to 25
+  PASS: age-i3: malformed warn is floored loudly to 25
+  PASS: age-i4: unset warn defaults quietly (no floor log)
+  PASS: age-i5: positive override below 25 stays valid (2 emits at age 3)
+  PASS: age-j: unset PIN_AGE under set -u is log-only, not an abort
+  PASS: age-m1: STALE skips age with no pin-age send, state untouched
+  PASS: age-m2: the original pin-failure notice still works
+  PASS: age-m3: disabled skips age silently with state untouched
+== age-independent (AC-L) ==
+  PASS: age-independent-1: drift 170 + age 30 emits both notices
+  PASS: age-independent-2: age 60 emits age only, drift state stays 170
+  PASS: age-independent-3: drift 340 emits drift only, age state stays 60
+  PASS: age-independent-4: age 3 removes age state only, drift state stays 340
+== age-q: ref binding ==
+  PASS: age-q: notice sends on both channels and names origin/feature, never a hardcoded origin/dev ref
+  PASS: age-q: baseline SHA is printed and age state stores 26
+  PASS: production: hanging direct send is cut off at the bound
+  PASS: production: direct send retries 3x then spools on timeout
+  PASS: synthesised timeout diagnostic
+  PASS: production: hanging drain send is cut off and row retained
+  PASS: drain: whole drain returns within aggregate budget and preserves unattempted rows
+  PASS: drain: deferred-drain diagnostic names deferred row count
+  PASS: drain: a duplicate-title rejection DROPS the row (retry cannot clear it)
+  PASS: drain: the dropped row is reported as recorded, NOT as a failed send
+  PASS: drain: the send title is stamped with the ROW's date, so a retry is idempotent
+  PASS: drain: a NON-duplicate failure is still kept for the next fire
+  PASS: drain: the failure diagnostic shows the TAIL, past the registry banner
+  PASS: production: hanging gh comment is cut off and warns
+  PASS: direct send reaches child with store=gcp
+  PASS: wiring: exactly one preflight drain call
+  PASS: wiring: preflight drain runs BELOW the kill switch (a paused mission sends nothing)
+  PASS: drain: a failed send logs rc and the captured cause
+  PASS: wiring: pi controller spawn closes stdin (< /dev/null)
+  PASS: ration gate: unreadable / stale / over are reported as DIFFERENT states
+  PASS: ration gate: the anthropic lane notice uses the real reason, not a fixed phrase
+  PASS: wiring: pi controller loads controller-bash-cap.ts, and the file exists
+  PASS: wiring: pi retry resumes one session per fire, and only once that session exists
+  PASS: retry: Provider finish_reason: error matches TRANSIENT_SIG
+  PASS: prompt: skill path is resolved to an absolute MC_SKILL_PATH
+== exit-path notices: E0 helper present ==
+  FAIL: E0: _mc_exit_notice is defined in the driver
+        trace: absent (pre-fix)
+== exit-path notices: hang arms (E1-E3) ==
+tools/launchd/test_driver_notify.sh: line 1054: 84662 Killed: 9               ( "$@" > "$out" 2>&1 )
+  FAIL: E1: refusal path returns inside the bound with both channels hung
+        trace: outer watchdog tripped: an exit-path send is UNBOUNDED
+tools/launchd/test_driver_notify.sh: line 1054: 85464 Killed: 9               ( "$@" > "$out" 2>&1 )
+  FAIL: E2: late-kill path returns inside the bound with both channels hung
+        trace: outer watchdog tripped: an exit-path send is UNBOUNDED
+tools/launchd/test_driver_notify.sh: line 1054: 86502 Killed: 9               ( "$@" > "$out" 2>&1 )
+  FAIL: E3: rc-fail path returns inside the bound with both channels hung
+        trace: outer watchdog tripped: an exit-path send is UNBOUNDED
+== exit-path notices: normal arms (E4-E6, preservation) ==
+  PASS: E4: refusal sends title + GH body, exits 1, arms the episode marker
+  PASS: E5: late-kill title + GH body, exit 143, rc-fail episode cleared
+  PASS: E6: rc-fail title + F8 GH body, exit 1, episode recorded
+== exit-path notices: store scoping + reason (E7) ==
+  FAIL: E7a: refusal send is store-scoped to gcp and its failure reason is logged
+        trace: LOG:NO usable controller in Anthropic prefs (/tmp/prefs) or fallback (fallback). Refusing.|AILANG:messages send controlplane mission-control refused to start: no usable controller in Anthropic prefs (/tmp/prefs) or fallback (fallback). Per-model reasons are in the driver log. Zero tokens spent beyond probes. Further refusals in this episode are silent; mission-recovery retries automatically. --title Mission iteration blocked: no usable model --from mission-control|GH:issue comment 635 --repo sunholo-data/ailang --body ⚠️ Mission iteration did not start: **no usable controller** in Anthropic preferences (`/tmp/prefs`) or fallback (`fallback`). Per-model detail is in the driver log. `mission-recovery` retries automatically; further refusals in this episode are silent to avoid comment spam.
+  FAIL: E7b: late-kill send is store-scoped to gcp and its failure reason is logged
+        trace: LOG:iteration exited rc=143 AFTER recording itself — late kill, work landed|AILANG:messages send controlplane mission-control iteration exited rc=143 AFTER its mission-log record landed (late watchdog kill of a lingering child, not a lost iteration). Record: ## 2026-10-12 iteration record. Log: /tmp/x.log --title Mission iteration killed post-record (rc=143) — work landed --from mission-control|GH:issue comment 635 --repo sunholo-data/ailang --body ℹ️ Mission iteration exited **rc=143 after landing its record** at 2026-10-12 23:09 CEST — the mission log gained an entry during this run, so this was a late watchdog kill of a lingering child, not a lost iteration. The queue advanced normally. Log on the rig: `/tmp/x.log`.
+  FAIL: E7c: rc-fail send is store-scoped to gcp and its failure reason is logged
+        trace: LOG:iteration exited rc=1|AILANG:messages send controlplane mission-control iteration exited rc=1 (timeout or crash). Log: /tmp/x.log --title Mission iteration FAILED (rc=1) --from mission-control|GH:issue comment 635 --repo sunholo-data/ailang --body ⚠️ Mission iteration **FAILED to complete** (rc=1 — timeout or crash) at 2026-10-12 23:09 CEST. Log on the rig: `/tmp/x.log`. The queue is untouched; the next interval will retry. Further identical failures are silent until the rc changes or an iteration completes.
+== exit-path notices: episode gates (E8) ==
+  PASS: E8a: second identical refusal is silent, logged, exit 1
+  PASS: E8b: second identical rc-fail is silent, logged, exit 1
+== exit-path notices: duplicate title is not a failure (E9) ==
+  FAIL: E9: same-day duplicate is logged as already in the inbox, not a WARNING
+        trace: LOG:iteration exited rc=1|AILANG:messages send controlplane mission-control iteration exited rc=1 (timeout or crash). Log: /tmp/x.log --title Mission iteration FAILED (rc=1) --from mission-control|GH:issue comment 635 --repo sunholo-data/ailang --body ⚠️ Mission iteration **FAILED to complete** (rc=1 — timeout or crash) at 2026-10-12 23:09 CEST. Log on the rig: `/tmp/x.log`. The queue is untouched; the next interval will retry. Further identical failures are silent until the rc changes or an iteration completes.
+== exit-path notices: source guards (G1-G3) ==
+  FAIL: G1: every ailang-send / gh-comment is bounded (selected 11, need >=6)
+        trace: unbounded at lines: 2039 2042 2532 2535 2553 2556 
+  FAIL: G2: every ailang-send is store-scoped (env AILANG_STORAGE_MESSAGING=gcp)
+        trace: unscoped at lines: 2039 2513 2532 2553 
+  PASS: G3a: F8 literal present exactly once in the driver
+  FAIL: G3b: the F8 literal is the GH body of an _mc_exit_notice call
+        trace: found inside a helper call: 0
+
+==== 104 passed, 11 failed ====

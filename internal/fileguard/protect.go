@@ -42,10 +42,16 @@ type Violation struct {
 	GitDir bool
 	// Pattern: the first fs_deny_write pattern the path matched.
 	Pattern string
+	// HardLink: the file has more than one hard link, so another name for
+	// it may be protected (Root.CheckPath).
+	HardLink bool
+	// Via: the resolved root-relative name that matched, when it differs
+	// from the spelled one (an in-root symlink; Root.CheckPath).
+	Via string
 }
 
 // Protected reports whether v refuses the write.
-func (v Violation) Protected() bool { return v.GitDir || v.Pattern != "" }
+func (v Violation) Protected() bool { return v.GitDir || v.Pattern != "" || v.HardLink }
 
 // Check applies the protection to rel, a path relative to the sandbox root
 // (slash- or OS-separated; it is cleaned here, so `src/../.git/config` is
@@ -72,34 +78,64 @@ func UnderGitDir(rel string) bool {
 	return false
 }
 
-// MatchDenyWrite returns the first pattern rel matches, or "". A pattern
-// ending in "/**" covers the directory and everything beneath it; any other
-// pattern is a path.Match glob against the whole relative path AND against
-// its base name (so "*.yml" protects YAML files at any depth). Pattern and
-// path are both folded (see the file comment) before comparison; the
-// returned pattern is the operator's original spelling.
+// MatchDenyWrite returns the first pattern rel matches, or "". Patterns are
+// globs over slash-separated components: `*`, `?` and `[...]` match within
+// one component (path.Match), and a `**` component matches zero or more
+// whole components, so `**/*.test.ts` protects `a.test.ts`,
+// `src/a.test.ts` and `src/deep/a.test.ts` alike and `docs/**` covers
+// `docs` and everything beneath it. A pattern with a slash is anchored at
+// the sandbox root (`tests/**` is not `cli/tests/x`; write `**/tests/**`
+// for that); a pattern without one is also matched against the base name,
+// so `*.yml` protects YAML files at any depth. Pattern and path are both
+// folded (see the file comment) before comparison; the returned pattern is
+// the operator's original spelling. A malformed glob matches (fails closed).
+//
+// Before 2026-10-17 (AILANG World report) a `**` that was not a trailing `/**` went to path.Match, where
+// it is just `*`: `**/*.test.ts` protected exactly one directory level.
 func MatchDenyWrite(patterns []string, rel string) string {
 	key := foldKey(cleanRel(rel))
-	base := key
-	if i := strings.LastIndexByte(key, '/'); i >= 0 {
-		base = key[i+1:]
-	}
+	parts := strings.Split(key, "/")
+	base := parts[len(parts)-1]
 	for _, orig := range patterns {
-		pat := foldKey(strings.TrimPrefix(filepath.ToSlash(strings.TrimSpace(orig)), "./"))
-		if dir, ok := strings.CutSuffix(pat, "/**"); ok {
-			if key == dir || strings.HasPrefix(key, dir+"/") {
+		pat := normPattern(orig)
+		if matchComponents(strings.Split(pat, "/"), parts) {
+			return orig
+		}
+		if !strings.Contains(pat, "/") {
+			if m, err := path.Match(pat, base); m || err != nil {
 				return orig
 			}
-			continue
-		}
-		if m, _ := path.Match(pat, key); m {
-			return orig
-		}
-		if m, _ := path.Match(pat, base); m {
-			return orig
 		}
 	}
 	return ""
+}
+
+// normPattern is the folded, slash-separated form of an operator pattern.
+func normPattern(orig string) string {
+	return foldKey(strings.TrimPrefix(filepath.ToSlash(strings.TrimSpace(orig)), "./"))
+}
+
+// matchComponents matches pattern components against path components, a
+// `**` component standing for zero or more of them.
+func matchComponents(pats, parts []string) bool {
+	if len(pats) == 0 {
+		return len(parts) == 0
+	}
+	if pats[0] == "**" {
+		for i := 0; i <= len(parts); i++ {
+			if matchComponents(pats[1:], parts[i:]) {
+				return true
+			}
+		}
+		return false
+	}
+	if len(parts) == 0 {
+		return false
+	}
+	if m, err := path.Match(pats[0], parts[0]); !m && err == nil {
+		return false
+	}
+	return matchComponents(pats[1:], parts[1:])
 }
 
 // cleanRel is the slash-separated, cleaned form of a root-relative path with
@@ -150,8 +186,7 @@ func MatchDenyMove(patterns []string, rel string) string {
 	}
 	key := foldKey(cleanRel(rel))
 	for _, orig := range patterns {
-		pat := foldKey(strings.TrimPrefix(filepath.ToSlash(strings.TrimSpace(orig)), "./"))
-		if mayMatchBeneath(pat, key) {
+		if mayMatchBeneath(normPattern(orig), key) {
 			return orig
 		}
 	}

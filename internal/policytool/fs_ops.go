@@ -1,9 +1,12 @@
 package policytool
 
 import (
+	"bufio"
+	"errors"
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 	"sort"
 	"strings"
 
@@ -37,7 +40,11 @@ func (h *Host) read(req Request) Response {
 	if req.Path == "" {
 		return refuse("read: path is required (use \".\" to list the sandbox root)")
 	}
+	ranged := req.Offset != nil || req.Limit != nil
 	if fi, err := h.root.Stat(req.Path); err == nil && fi.IsDir() {
+		if ranged {
+			return refuse("read %s: offset/limit apply to files, not a directory listing", req.Path)
+		}
 		return h.listDir(req.Path)
 	}
 	f, err := h.root.Open(req.Path)
@@ -45,6 +52,9 @@ func (h *Host) read(req Request) Response {
 		return refuse("read %s: %v", req.Path, err)
 	}
 	defer f.Close()
+	if ranged {
+		return h.readLines(req, f)
+	}
 	cap := h.maxTransfer()
 	data, err := io.ReadAll(io.LimitReader(f, cap+1))
 	if err != nil {
@@ -54,6 +64,88 @@ func (h *Host) read(req Request) Response {
 		return refuse("read %s: file exceeds the %d-byte transfer cap", req.Path, cap)
 	}
 	return Response{OK: true, Content: string(data)}
+}
+
+// maxReadLines caps one ranged read's window; a larger limit is served as
+// this many lines, and the response's limit says so.
+const maxReadLines = 2000
+
+// readLines answers a ranged read: lines [offset, offset+limit) of the file,
+// 1-based, each with its own line ending so consecutive windows concatenate
+// to the file. Only the window is held in memory, so a file over the
+// transfer cap can still be paged; the window itself stays under the cap
+// (cut at a whole line, reported in limit). The whole file is scanned for
+// total_lines. Measured 2026-10-16 (#1872): with whole-file reads only, a
+// World docs episode made 73 ailang-run calls, most of them a throwaway
+// line-reader the agent wrote to page large files.
+func (h *Host) readLines(req Request, r io.Reader) Response {
+	offset, limit := 1, maxReadLines
+	if req.Offset != nil {
+		if *req.Offset < 1 {
+			return refuse("read %s: offset is 1-based and must be >= 1 (got %d)", req.Path, *req.Offset)
+		}
+		offset = *req.Offset
+	}
+	if req.Limit != nil {
+		if *req.Limit < 1 {
+			return refuse("read %s: limit must be >= 1 (got %d)", req.Path, *req.Limit)
+		}
+		limit = min(*req.Limit, maxReadLines)
+	}
+	budget := h.maxTransfer()
+	br := bufio.NewReader(r)
+	var b strings.Builder
+	total, served := 0, 0
+	full := false
+	for {
+		keep := int64(-1) // past or before the window: count, do not hold
+		if !full && total+1 >= offset {
+			keep = budget - int64(b.Len())
+		}
+		line, n, over, err := readLine(br, keep)
+		if err != nil && !errors.Is(err, io.EOF) {
+			return refuse("read %s: %v", req.Path, err)
+		}
+		if n == 0 {
+			break // EOF with nothing after the last "\n"
+		}
+		total++
+		switch {
+		case over && served == 0:
+			return refuse("read %s: line %d exceeds the %d-byte transfer cap", req.Path, total, budget)
+		case over:
+			full = true // window cut at a whole line; limit reports it
+		case keep >= 0:
+			b.Write(line)
+			served++
+			full = served == limit
+		}
+		if err != nil {
+			break
+		}
+	}
+	return Response{OK: true, Content: b.String(), TotalLines: &total, Offset: &offset, Limit: &served}
+}
+
+// readLine consumes one line including its "\n" and reports how many bytes
+// it was. With keep >= 0 the line is returned unless it is longer than keep
+// bytes (over); with keep < 0 it is only counted. Either way the line is
+// fully consumed and never held beyond keep bytes.
+func readLine(br *bufio.Reader, keep int64) (line []byte, n int, over bool, err error) {
+	for {
+		chunk, err := br.ReadSlice('\n')
+		n += len(chunk)
+		if keep >= 0 && !over {
+			if int64(len(line)+len(chunk)) > keep {
+				over, line = true, nil
+			} else {
+				line = append(line, chunk...)
+			}
+		}
+		if !errors.Is(err, bufio.ErrBufferFull) {
+			return line, n, over, err
+		}
+	}
 }
 
 // maxListEntries bounds one directory listing.
@@ -101,18 +193,28 @@ func (h *Host) listDir(path string) Response {
 // operator's paths. Both are case- and normalization-folded (#1559).
 // It returns a refusal reason, or "" when the write may proceed.
 func (h *Host) protected(op, p string) string {
-	rel, err := h.root.Rel(p)
-	if err != nil {
-		// An escaping path is refused by the root handle anyway; check the
-		// lexical spelling so the refusal still names a protected component.
-		rel = p
+	return h.protection(op, p, false)
+}
+
+// protection is protected with the rename/remove variant selectable (move:
+// ancestors of protected paths count, and a symlink entry is judged by its
+// own name, not its target's). The check runs through the root, so an
+// in-root symlink or hard link to a protected file is refused like the file.
+func (h *Host) protection(op, p string, move bool) string {
+	v := h.root.CheckPath(fileguard.Protection{GitDir: true, DenyWrite: h.res.DenyWrite}, p, move)
+	via := ""
+	if v.Via != "" {
+		via = fmt.Sprintf(" (resolves to %s)", v.Via)
 	}
-	v := fileguard.Protection{GitDir: true, DenyWrite: h.res.DenyWrite}.Check(rel)
 	switch {
 	case v.GitDir:
-		return fmt.Sprintf("%s %s: .git/ is read-only to the lane's tools", op, p)
+		return fmt.Sprintf("%s %s%s: .git/ is read-only to the lane's tools", op, p, via)
+	case v.HardLink:
+		return fmt.Sprintf("%s %s: the file has more than one hard link, so another of its names may be protected — refused under this policy", op, p)
+	case v.Ancestor:
+		return fmt.Sprintf("%s %s%s: contains paths protected by fs_deny_write %q — read-only under this policy", op, p, via, v.Pattern)
 	case v.Pattern != "":
-		return fmt.Sprintf("%s %s: matches fs_deny_write %q — read-only under this policy", op, p, v.Pattern)
+		return fmt.Sprintf("%s %s%s: matches fs_deny_write %q — read-only under this policy", op, p, via, v.Pattern)
 	}
 	return ""
 }
@@ -129,6 +231,15 @@ func (h *Host) write(req Request) Response {
 	}
 	if int64(len(req.Content)) > h.maxTransfer() {
 		return refuse("write %s: content exceeds the %d-byte transfer cap", req.Path, h.maxTransfer())
+	}
+	// Create missing parents inside the root: the lane has no mkdir, so a
+	// first write to scratch/probe.ail (or the .ailang-scratch/ the lane
+	// prompt steers probes to) otherwise fails with "no such file or
+	// directory" (measured 2026-10-08: three refused writes in one task).
+	if dir := filepath.Dir(req.Path); dir != "." {
+		if err := h.root.MkdirAll(dir, 0o755); err != nil {
+			return refuse("write %s: %v", req.Path, err)
+		}
 	}
 	f, err := h.root.OpenFile(req.Path, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0o644)
 	if err != nil {
@@ -174,6 +285,36 @@ func (h *Host) edit(req Request) Response {
 	next := strings.Replace(cur.Content, req.OldText, req.NewText, 1)
 	if w := h.write(Request{Path: req.Path, Content: next}); !w.OK {
 		return w
+	}
+	return Response{OK: true}
+}
+
+// remove deletes one file (or a symlink entry, never its target) inside the
+// root. Directories are refused: there is no recursive delete. The gate is
+// the rename/remove variant of the write protection, so a protected file,
+// a directory holding protected paths, and anything under .git/ stay put.
+// Without it an agent confined to these tools could not remove a helper it
+// had created (AILANG World tps-c, 2026-10-17: it rewrote a test file to
+// undo one).
+func (h *Host) remove(req Request) Response {
+	if r := h.needRoot(); r != nil {
+		return *r
+	}
+	if req.Path == "" {
+		return refuse("delete: path is required")
+	}
+	if why := h.protection("delete", req.Path, true); why != "" {
+		return refuse("%s", why)
+	}
+	fi, err := h.root.Lstat(req.Path)
+	if err != nil {
+		return refuse("delete %s: %v", req.Path, err)
+	}
+	if fi.IsDir() {
+		return refuse("delete %s: is a directory — delete removes one file at a time", req.Path)
+	}
+	if err := h.root.Remove(req.Path); err != nil {
+		return refuse("delete %s: %v", req.Path, err)
 	}
 	return Response{OK: true}
 }

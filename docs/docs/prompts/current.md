@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.16.7) - auto-synced from source
+description: The active AILANG teaching prompt (v0.16.10) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.7.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.10.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.16.7.md -->
-<!-- Active Version: v0.16.7 -->
+<!-- Source: prompts/v0.16.10.md -->
+<!-- Active Version: v0.16.10 -->
 
-# AILANG v0.16.7 - AI Teaching Prompt (with IFC Labels + Output Discipline)
+# AILANG v0.16.10 - AI Teaching Prompt (with IFC Labels + Output Discipline)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -226,6 +226,8 @@ export func main() -> () ! {IO, AI} = println(call("What is 2+2?"))
 |-----------|----------------|
 | `for`/`while` loops | Recursion |
 | `[x*2 for x in xs]` | `map(\x. x*2, xs)` or recursion |
+| `range(n)` | `range(0, n)`: two args, end exclusive |
+| `acc ++ [x]` / `A.set` / `M.insert` once per loop step | O(n²): build in one pass, see "Cost Model" |
 | `var`/`let mut` | Immutable `let` bindings |
 | `list.map()` | `map(f, list)` |
 | `import "std/io"` | `import std/io (println)` |
@@ -234,7 +236,7 @@ export func main() -> () ! {IO, AI} = println(call("What is 2+2?"))
 | `if x { ... }` | `if x then ... else ...` - NO braces! |
 | mixing `let x = e in` with `;` | Use ONE style consistently |
 | `let (x, y) = tuple` | Use `match tuple { (x, y) => ... }` |
-| `\(a, b). body` or `\a, b. body` | Inline: **curry** — `\a. \b. body`. Named: `func(a: T, b: U) -> R { body }` |
+| `\(a, b). body` or `\a, b. body` | Inline: `\a b. body` (space-separated, called `f(a, b)`). Named: `func(a: T, b: U) -> R { body }` |
 | nested `func f(...) =` | Use `let f = \x. body` for nested functions |
 | `!condition` | Both `!x` and `not x` work — prefer `not` for readability |
 | `concat(a, b)` for strings | `"${a}${b}"` interpolation — `++` is list-only in v0.13.0+ |
@@ -329,9 +331,12 @@ foldl(\acc x. acc + x, 0, xs)
 -- VERBOSE: inline func with explicit types (also works)
 foldl(func(acc: int, x: int) -> int { acc + x }, 0, xs)
 
--- WRONG: curried lambda (arity mismatch error!)
+-- ALSO WORKS: curried lambda (longer; prefer the multi-param form)
 foldl(\acc. \x. acc + x, 0, xs)
 ```
+
+**For callbacks passed to `foldl`, `sortBy`, `zipWith`, `foldlE`, etc., write `\a b. body`**
+(one lambda, several params): it is the simplest form. Curried `\a. \b. body` also works.
 
 **Sorting with sortBy:**
 ```ailang
@@ -371,12 +376,9 @@ export func main() -> () ! {IO} {
 | Recursive lambda inside block | `letrec f = \x. ... f(...)` |
 | Non-recursive lambda | `let f = \x. ...` |
 
-**Mutual recursion also works:**
-```ailang
-letrec isEven = \n. if n == 0 then true else isOdd(n - 1);
-letrec isOdd = \n. if n == 0 then false else isEven(n - 1);
-println(show(isEven(4)))  -- true
-```
+**Mutual recursion: use top-level `func` declarations** (last example below). Two local
+`letrec`s cannot see each other: `letrec isEven = ...isOdd(n - 1)` followed by `letrec isOdd = ...`
+fails with `undefined variable: isOdd`, and `letrec a = ..., b = ...` does not parse.
 
 **Where to put a `letrec`:** it needs a statement sequence, and both a `{...}`
 block body and a `= ...` equation body give it one. Prefer the block — it is what
@@ -446,6 +448,7 @@ func twice(f: int -> int, x: int) -> int = f(f(x))
 Calling a function-valued record field performs its annotated effects. Passing a
 function to a higher-order function with an unannotated or effect-polymorphic
 callback parameter also requires the caller to declare the callback’s effects.
+This includes a function stored in a list, tuple, Option or record argument.
 Constructing a record that stores a callback does not perform those effects.
 
 ```ailang
@@ -675,7 +678,12 @@ import std/env (getArgs, getEnv, getEnvOr)
 import std/net (httpGet, httpPost, httpRequest)
 import std/json (encode, decode, get, getString, getNumber, getInt, getBool, getArray, getObject, asString, asNumber, asArray)
 import std/json (filterStrings, filterNumbers, allStrings, allNumbers, getStringArrayOrEmpty, decodeFloatArray)
-import std/list (map, filter, foldl, length, concat, sortBy, take, drop, range, nth, last, any, findIndex, flatMap, zipWith, mapE, filterE, foldlE, flatMapE, forEachE)
+import std/list (map, filter, foldl, length, concat, sortBy, take, drop, range, nth, last, any, findIndex, flatMap, zipWith, mapAccumL, mapE, filterE, foldlE, flatMapE, forEachE)
+-- range(start, end): TWO args, end exclusive. range(n) is an arity error.
+import std/map as M    -- O(1) lookup, O(n) insert: see "Cost Model"
+import std/set as S    -- Set[a], e.g. a visited Set[(int, int)]: empty, fromList, insert, remove, member, size, toList, union, intersect, difference
+import std/set (Set)   -- needed to WRITE the type Set[a] in a signature (`S.Set[...]` does not parse)
+import std/regex as R  -- compile, isMatch, findFirst, findAll, replaceAll, split (qualified: split clashes with std/string)
 -- [float] vector math, native loops (never foldl(zipWith(...)) for a dot product):
 import std/embedding (dot, cosine, magnitude, normalize, scale, add_vectors, axpy, euclidean_distance)
 -- Array[float] when memory or bulk updates matter: unboxed (8 B/element), strict-length kernels, one-copy batched writes.
@@ -714,6 +722,8 @@ import std/xml (_xml_parse, _xml_findAll, _xml_findFirst, _xml_getText, _xml_get
 - `findIndex(p, xs) -> Option[int]` - Find index of first matching element
 - `flatMap(f, xs)` - Apply f to each element, flatten results (pure)
 - `zipWith(f, xs, ys)` - Combine two lists element-wise with function f
+- `range(start, end) -> [int]` - `[start, ..., end-1]`; `range(0, 3) == [0, 1, 2]`
+- `mapAccumL(f, s0, xs) -> ([b], s)` - Map with running state, `f(s, x) -> (out, s2)`, one O(n) pass. Use it instead of a foldl that appends to a list
 - `dedup(xs)` - Remove consecutive duplicates (preserves first occurrence)
 - `union(xs, ys)`, `intersect(xs, ys)`, `difference(xs, ys)` - Set ops on lists
 - `maximumInt(xs) -> Option[int]`, `minimumInt(xs) -> Option[int]` - Typed min/max (None on empty)
@@ -744,7 +754,7 @@ let checked = filterE(\x. { println("checking ${show(x)}"); x > 2 }, [1, 2, 3, 4
 let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("fold"); acc + x }, 0, [10, 20]);
 ```
 
-**Note on foldlE:** The callback must use `func(acc: T, x: U) -> T ! {Effect} { ... }` syntax (not curried `\acc. \x.`).
+**Note on foldlE:** Write the callback as `\acc x. ...` (or `func(acc: T, x: U) -> T ! {Effect} { ... }` when it needs annotations).
 
 **String functions** (std/string) — run `ailang docs std/string` for full list:
 - `length(s) -> int` - String length
@@ -792,7 +802,6 @@ let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("fold"); acc +
 - `toInts(b) -> [int]` - All byte values as a list, the inverse of `fromInts`. Use this (not `byteAt` in a loop) to walk bytes with `map`/`filter`/`foldl`. NOTE: to inspect the raw bytes behind a string, go through `fromString` — `toInts(fromString(s))`. `charCode`/string indexing give codepoints and return U+FFFD for bytes that are not valid UTF-8 on their own; `toInts` is the only way to reach those bytes (needed for charset transcoding, e.g. Latin-1 -> UTF-8)
 - `concat(a, b) -> bytes` - Concatenate two byte slices
 - `concatList(xs: [bytes]) -> bytes` - Concatenate a list of byte slices (single allocation)
-- `fromBase64URL(s) -> Option[bytes]` - Base64url decode (JWT-style, no padding)
 
 **Streaming functions** (std/stream) — requires `--caps Stream`:
 
@@ -1083,7 +1092,7 @@ let mac = hmacSha256("payload", "secret-key");        -- HMAC hex
 
 ## Arrays — Construction Primitives (std/array)
 
-In addition to `get`/`set`/`length` already covered above:
+Costs are in "Cost Model" below. `import std/array as A`; `#[10, 20, 30]` is an array literal.
 - `empty() -> Array[a]` - Empty array
 - `make(size: int, default: a) -> Array[a]` - Fixed-size array initialized to `default`
 - `append(arr, val) -> Array[a]` - Return new array with `val` appended
@@ -1092,9 +1101,8 @@ In addition to `get`/`set`/`length` already covered above:
 
 **Float arrays.** An `Array[float]` is stored unboxed (8 bytes per element; a 10M-element array is ~130 MB,
 the same data as `[float]` is ~2.5 GB). Native kernels: `dot`, `axpy`, `scale`, `add`, `sub`, `mul`, `sum`,
-`argmax`; two-array kernels require equal lengths. `set` copies the whole array, so never update weights
-one `set` at a time in a loop: use `axpy` for a whole-vector update, `updateMany(arr, [(i, x), ...])` or
-`scatterAdd(arr, idx, xs)` for many writes with one copy.
+`argmax`; two-array kernels require equal lengths. Never update weights one `set` at a time (see Cost
+Model): `axpy` updates a whole vector, `scatterAdd(arr, idx, xs)` adds many values with one copy.
 Ingest without a `Json` tree: `std/json.decodeFloatArray(s)` for a flat JSON number array, and
 `decodeF64LE(bytes)` (exact) / `decodeF32LE(bytes)` (**lossy**: float32 precision) from `std/array`,
 all returning `Result[Array[float], string]`.
@@ -1152,6 +1160,36 @@ let upper = mapSlicesJoin(csv, ",", \field. toUpper(field))
 
 `substring`/`find` have an ASCII fast-path: 24× faster on pure-ASCII input
 (common for headers, JSON, XML).
+
+## Regular Expressions (std/regex)
+
+Use a regex instead of hand-rolled `split`/`find`/`chars` parsing for tokens, validation and
+extraction. RE2 engine: linear time, no backreferences or lookaround. `compile` is the only
+fallible call; matching is total. A `RegexMatch` is `{start, end, text, groups}` (rune indices;
+`groups` includes the whole match first). Escape backslashes in string literals: `"\\d+"`
+(`"\d"` is a parse error). In `replaceAll`, refer to groups as `$1`.
+
+```ailang
+module benchmark/solution
+import std/regex as R
+import std/list (map)
+
+export func main() -> () ! {IO} {
+  match R.compile("([a-z]+)=(\\d+)") {
+    Err(e) => println("bad pattern: ${e}"),
+    Ok(re) => {
+      println(show(R.isMatch(re, "x=1")));  -- true
+      println(show(map(\m. m.text, R.findAll(re, "a=1, bb=22"))));  -- [a=1, bb=22]
+      match R.findFirst(re, "key=42") {
+        Some(m) => println(show(map(\g. g.text, m.groups))),  -- [key=42, key, 42]
+        None => println("no match")
+      };
+      println(R.replaceAll(re, "a=1 b=2", "$2:$1"));  -- 1:a 2:b
+      println(show(R.split(re, "x a=1 y")))  -- [x ,  y]
+    }
+  }
+}
+```
 
 ## Polymorphic Comparison Lambdas (v0.11.4)
 
@@ -1999,7 +2037,10 @@ the document is much larger than what you need.
 
 ## Maps (std/map, v0.10.1)
 
-`Map[k, v]` — immutable hash map, O(1) lookup, copy-on-write inserts:
+`Map[k, v]` — immutable hash map: O(1) `lookup`/`member`, but `insert`/`remove` copy the whole map (O(n)).
+Build with `M.fromList` (O(n); a duplicate key keeps the LAST value). Keys: int, string, bool, float,
+unit, and tuples, records and ADT constructors of those, so `M.lookup(m, (r, c))` works (a function or
+list key is a runtime error). Example: `ailang examples show map_tuple_record_keys`.
 
 ```ailang
 import std/map as M
@@ -2022,8 +2063,8 @@ let m3 = M.fromList([("c", 1), ("d", 2)])
 ```
 
 Builtins: `empty`, `insert`, `lookup`, `member`, `remove`, `size`,
-`keys`, `values`, `fromList`, `toList`. Keys can be int/string/bool —
-keys use canonical encoding internally.
+`keys`, `values`, `fromList`, `toList`. Iteration order is by encoded key, so int keys
+come out lexically: `M.keys(M.fromList([(9, "a"), (10, "b"), (2, "c")]))` is `[10, 2, 9]`.
 
 ## JWT Verification (std/jwt, v0.10.0)
 
@@ -2095,32 +2136,67 @@ export func main() -> () ! {IO} {
 
 Telemetry/traces are flushed before the process exits.
 
-## Arrays (O(1) indexed access)
+## Cost Model: Lists, Arrays (std/array), Maps (std/map), Sets (std/set)
+
+Values are immutable: an "update" returns a copy. Reads are cheap; growing one element at a time is not.
+
+| Operation | Cost |
+|---|---|
+| `nth(xs, i)`, `length(xs)`, matching `x :: rest` (`rest` shares storage) | O(1) |
+| `x :: xs`, `xs ++ ys` | O(n): copies the list |
+| `map`, `filter`, `flatMap`, `zip`, `range`, `mapAccumL` / `sortBy` | O(n) / O(n log n) |
+| `A.get`, `A.getOpt` (None out of bounds), `A.length` | O(1) |
+| `A.set`, `A.append` | O(n): copies the array |
+| `A.make`, `A.fromList`, `A.updateMany(arr, [(i, v), ...])`, `A.accumulate(arr, [(i, x), ...], combine)` | O(n + k), one copy |
+| `M.lookup`, `M.member`, `M.size`, `S.member`, `S.size` | O(1) |
+| `M.insert`, `M.remove`, `S.insert`, `S.remove` | O(n): copies the map / set |
+| `M.fromList`, `S.fromList` / `M.keys`, `M.toList`, `S.toList`, `S.union`, `S.intersect`, `S.difference` | O(n) / O(n log n) |
+
+**One `acc ++ [x]`, `x :: acc`, `A.set`, `M.insert` or `S.insert` per loop step is O(n²) overall**
+(20,000 `M.insert`s or `S.insert`s take ~5 s, ×4 per doubling): fine for a few thousand steps, too
+slow for 10^5. Instead:
+- Build the whole list in one pass (`map`/`flatMap`/`range`; `mapAccumL` for running state), then
+  convert ONCE: `A.fromList` for indexed access, `M.fromList` for lookup by key.
+- A 2D grid is one flat Array: cell `(r, c)` at `r * w + c`.
+- Many writes: collect `(index, value)` pairs, apply ONE `A.updateMany` (a later write wins) or ONE
+  `A.accumulate(arr, writes, \a b. a + b)` to combine (difference array, histogram, counts).
+- Visited set: `S.member(seen, (r, c))` is O(1). For a few thousand states, `S.insert` per state is
+  fine; for more, add a whole BFS level at once with `S.union(seen, S.fromList(level))` (one copy
+  per level, not per state). A
+  deterministic walk (state → next state) that may loop needs no set: Floyd's tortoise and hare
+  (one cursor steps once, the other twice, until they meet) uses O(1) memory.
+- Worked examples: `ailang examples show visited_set_bfs` (also `cycle_detection_visited_set`,
+  `map_tuple_record_keys`, `difference_array_accumulate`).
 
 ```ailang
+module benchmark/solution
+import std/list (map, flatMap, range, mapAccumL)
 import std/array as A
+import std/map as M
 
-let arr = #[10, 20, 30]           -- Array literal
-let val = A.get(arr, 0)           -- O(1) access: 10
-let safe = A.getOpt(arr, 99)      -- None (out of bounds)
-let arr2 = A.set(arr, 0, 99)      -- O(n) copy: #[99, 20, 30]
+export func main() -> () ! {IO} {
+  let h = 3;
+  let w = 4;
+  let grid = A.fromList(flatMap(\r. map(\c. r * 10 + c, range(0, w)), range(0, h)));
+  println(show(A.get(grid, 2 * w + 1)));  -- 21: cell (2, 1)
+  let g2 = A.updateMany(grid, [(0, 99), (5, 7), (0, 1)]);
+  println(show(A.get(g2, 0)));  -- 1: the later write to index 0 wins
+  let byName = M.fromList(map(\i. ("k${show(i)}", i), range(0, 100)));
+  println(show(M.lookup(byName, "k42")));  -- Some(42)
+  match mapAccumL(\s x. (s + x, s + x), 0, [1, 2, 3]) {
+    (prefix, total) => println("${show(prefix)} ${show(total)}")  -- [1, 3, 6] 6
+  }
+}
 ```
 
 ## List Operations
 
 ```ailang
--- Recursive sum (no loops!)
+-- Recursive sum: matching x :: rest does not copy, so this is O(n)
 func sum(xs: [int]) -> int =
   match xs {
     [] => 0,
     x :: rest => x + sum(rest)
-  }
-
--- Recursive map
-func map(f: int -> int, xs: [int]) -> [int] =
-  match xs {
-    [] => [],
-    x :: rest => f(x) :: map(f, rest)
   }
 ```
 
@@ -2563,7 +2639,7 @@ pure func sneakySanitize(raw: string<email>) -> string<sanitized> ! {}
 
 A function parameter typed `T{not LABEL}` REJECTS any argument carrying
 the `<LABEL>` annotation in its type. This is how you build sinks that
-provably refuse tainted input.
+provably refuse tainted input. Within one module, sink requirements follow function values through aliases, higher-order calls and wrappers.
 
 ```ailang
 -- A network sink that refuses anything carrying <email>

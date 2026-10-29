@@ -14,6 +14,8 @@ const (
 	EnvOpenRouterReferer  = "OPENROUTER_HTTP_REFERER"
 	EnvOpenRouterTitle    = "OPENROUTER_X_TITLE"
 	EnvOpenRouterCategory = "OPENROUTER_CATEGORIES"
+	EnvOpenRouterSession  = "OPENROUTER_SESSION_ID"
+	EnvOpenRouterProvider = "AILANG_OPENROUTER_PROVIDER"
 	EnvAIHTTPLog          = "AILANG_AI_HTTP_LOG"
 	EnvBrowserbaseAPIKey  = "BROWSERBASE_API_KEY"
 	EnvBrowserbaseProject = "BROWSERBASE_PROJECT_ID"
@@ -37,6 +39,8 @@ var aiVars = []Var{
 	{EnvOpenRouterReferer, "", AreaAI, "HTTP-Referer attribution header sent to OpenRouter; unset uses the built-in default, and a per-request Attribution overrides both."},
 	{EnvOpenRouterTitle, "", AreaAI, "X-Title attribution header sent to OpenRouter; same precedence as the referer."},
 	{EnvOpenRouterCategory, "", AreaAI, "X-OpenRouter-Categories header sent to OpenRouter; same precedence as the referer."},
+	{EnvOpenRouterSession, "", AreaAI, "x-session-id sent on every OpenRouter request, so OpenRouter keeps one conversation on one upstream host (warm prompt cache, consistent model behaviour); unset uses one id per process. Executors set it to their session id."},
+	{EnvOpenRouterProvider, "", AreaAI, "JSON object merged into the OpenRouter `provider` routing block of every request, over the model registry's openrouter_provider and any caller routing policy (\"ignore\" lists are unioned). For experiments, e.g. '{\"sort\":\"throughput\"}'; a value that is not a JSON object fails the request."},
 	{EnvAIHTTPLog, "", AreaAI, "Path the OpenAI-compatible clients append their raw HTTP wire log to; unset falls back to the ai-http-log sentinel file under the state dir, and no sentinel means logging off."},
 	{EnvBrowserbaseAPIKey, "", AreaAI, "Browserbase API key for browser eval sessions when the benchmark's browser config does not name another variable (read through Raw, since the name is configurable)."},
 	{EnvBrowserbaseProject, "", AreaAI, "Browserbase project id for browser eval sessions; same rule as the API key."},
@@ -86,3 +90,9 @@ func AINoADC() bool { return strings.TrimSpace(get(EnvAINoADC)) == "1" }
 
 // AIKeyFile returns the trimmed AILANG_AI_KEY_FILE path, "" when unset.
 func AIKeyFile() string { return strings.TrimSpace(get(EnvAIKeyFile)) }
+
+// OpenRouterSessionID returns the trimmed OPENROUTER_SESSION_ID, "" when unset.
+func OpenRouterSessionID() string { return strings.TrimSpace(get(EnvOpenRouterSession)) }
+
+// OpenRouterProviderOverride returns the trimmed AILANG_OPENROUTER_PROVIDER, "" when unset.
+func OpenRouterProviderOverride() string { return strings.TrimSpace(get(EnvOpenRouterProvider)) }

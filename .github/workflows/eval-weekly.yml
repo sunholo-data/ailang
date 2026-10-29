@@ -30,7 +30,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v7
       with:
-        go-version: '1.26.9'
+        go-version: '1.26.10'
         cache: true
 
     # uv pins the Python runtime so baselines are comparable across runs and
@@ -38,7 +38,7 @@ jobs:
     # rather than a system `python3`. Update PinnedPythonVersion in
     # internal/eval_harness/python.go if the target moves.
     - name: Set up uv
-      uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
 
     - name: Install dependencies
       run: make deps

@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/proctree"
 )
 
 // ResolveAllowlist resolves command names to absolute paths via exec.LookPath.
@@ -163,11 +164,21 @@ func processExec(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		cmd.Env = confinedEnvironment
 	}
 
+	// The command leads its own process group and a timeout kills the whole
+	// group, as the streaming and managed process paths already did. Killing
+	// only the direct child left its descendants running: on 2026-10-16 a
+	// motoko BashExec `cd /tmp/qtest && python3 gen.py && …` timed out, bash
+	// died, and python3 — which never wrote, so never got SIGPIPE — was
+	// reparented to launchd and grew until three of them held ~18 GB.
+	// Under a --policy owner it stays in the owner's group (ConfigureContained).
+	proctree.ConfigureContained(cmd)
+
 	// WaitDelay bounds how long cmd.Run() blocks on the I/O pipes after the process exits or the
-	// context fires. Without it, an orphaned grandchild (e.g. `find /` in a `find / | head` pipeline
-	// that outlives the SIGKILLed bash) keeps the stdout pipe open and cmd.Run() hangs FOREVER despite
-	// the timeout — the 2026-06-22 motoko BashExec 7h hang. After WaitDelay, Go force-closes the pipes
-	// (cmd.Run returns Timeout) and the orphan gets SIGPIPE on its next write.
+	// context fires. Without it, a descendant that escaped the group (setsid, a daemon) keeps the
+	// stdout pipe open and cmd.Run() hangs FOREVER despite the timeout — the 2026-06-22 motoko
+	// BashExec 7h hang. After WaitDelay, Go force-closes the pipes (cmd.Run returns Timeout).
+	// Kept at 5 s rather than proctree's default: motoko reports the bound to the model as
+	// "timeout after 35005ms" (30 s process timeout + this).
 	cmd.WaitDelay = 5 * time.Second
 
 	// Set working directory from sandbox if configured

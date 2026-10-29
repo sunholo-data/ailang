@@ -44,10 +44,14 @@ type ttsPrebuiltVoice struct {
 }
 
 // speechModel picks the TTS model: the request's, when it names a TTS model
-// (the bound --ai model usually is a text model), else the documented default.
-func speechModel(model string) string {
+// (the bound --ai model usually is a text model), else the endpoint's documented
+// default. Vertex uses the GA model; AI Studio retains its preview model ID.
+func (c *Client) speechModel(model string) string {
 	if strings.Contains(strings.ToLower(model), "tts") {
 		return model
+	}
+	if c.authType == AuthADC {
+		return "gemini-2.5-flash-tts"
 	}
 	return ai.DefaultGeminiTTSModel
 }
@@ -77,7 +81,7 @@ func (c *Client) Speech(ctx context.Context, req *ai.SpeechRequest) ([]byte, err
 	if err != nil {
 		return nil, ai.NewProviderError("gemini", 0, "failed to marshal speech request", err)
 	}
-	url, err := c.buildURL(speechModel(req.Model))
+	url, err := c.buildURL(c.speechModel(req.Model))
 	if err != nil {
 		return nil, err
 	}

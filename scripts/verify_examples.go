@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"runtime"
 	"sort"
 	"strings"
@@ -176,6 +177,7 @@ var skippedExamples = map[string]string{
 	"examples/runnable/contracts/cross_module_functions_lib.ail": "library module (no main) — imported by cross_module_functions.ail; not a standalone runnable",
 	"examples/runnable/secrets/gated_secret.ail":                 "M-SECRET-EFFECT: needs the Secret capability + 1Password op CLI + a human approval to run; type-checks clean (asserted in TestSecretExamples_IFC)",
 	"examples/runnable/secrets/leak_attempt.ail":                 "M-SECRET-EFFECT: intentionally FAILS `ailang check` to demo IFC leak prevention (asserted in TestSecretExamples_IFC)",
+	"examples/runnable/secrets/sink_function_value.ail":          "M-IFC-FUNCTION-VALUE-SINKS (#1719): intentionally FAILS `ailang check` (alias/HOF/wrapper sink leaks; asserted in TestSecretExamples_IFC)",
 	"examples/runnable/secrets/secret_demo.ail":                  "M-SECRET-EFFECT: runnable demo — needs the Secret capability + 1Password op CLI to run; type-checks clean (asserted in TestSecretExamples_IFC)",
 	"examples/runnable/ai_call.ail":                              "live HTTP POST to api.openai.com with a real API key (not std/ai, so --ai-stub cannot intercept it); CI has no key and gets 401",
 	"examples/runnable/claude_haiku_call.ail":                    "live HTTP POST to api.anthropic.com with a real API key (not std/ai, so --ai-stub cannot intercept it); CI has no key and gets 401",
@@ -206,6 +208,38 @@ func ailangBinary() (cmd string, args []string, usesGoRun bool) {
 }
 
 const tracesDir = "examples/traces"
+
+var (
+	moduleHeader = regexp.MustCompile(`(?m)^module\s`)
+	exportedFunc = regexp.MustCompile(`(?m)^\s*export\s+(pure\s+)?func\s`)
+)
+
+// checkExample type-checks a module that exports no function, instead of
+// running it. A clean check passes; any error output fails the example.
+func checkExample(filename string, start time.Time) reporttypes.ExampleResult {
+	result := reporttypes.ExampleResult{File: filename}
+	binCmd, _, viaGoRun := ailangBinary()
+	args := []string{"check", filename}
+	if viaGoRun {
+		args = append([]string{"run", "./cmd/ailang"}, args...)
+	}
+	var stdout, stderr bytes.Buffer
+	cmd := exec.Command(binCmd, args...)
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	err := cmd.Run()
+	result.Duration = time.Since(start)
+	if err != nil {
+		result.Status = "failed"
+		result.Error = strings.TrimSpace(stderr.String() + "\n" + stdout.String())
+		if result.Error == "" {
+			result.Error = err.Error()
+		}
+		return result
+	}
+	result.Status = "passed"
+	return result
+}
 
 func runExample(filename string) reporttypes.ExampleResult {
 	start := time.Now()
@@ -287,6 +321,13 @@ func runExample(filename string) reporttypes.ExampleResult {
 				needsAIStub = true
 			}
 		}
+	}
+
+	// A module that exports no function has no entrypoint, and `ailang run`
+	// exits 1 on it (#1797). These examples demonstrate types and top-level
+	// lets, so what they can prove is that they type-check.
+	if moduleHeader.MatchString(fileContent) && !exportedFunc.MatchString(fileContent) {
+		return checkExample(filename, start)
 	}
 
 	// Detect entrypoint (look for export func NAME)

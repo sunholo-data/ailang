@@ -91,7 +91,9 @@ crash, never overflow"; everything smart is above it.
 
 The thesis: **can we build a language that AI models prefer and use better than existing ones — and can a
 weak on-device model in AILANG match or beat a frontier cloud model?** Every benchmark run exists to
-answer that, and to feed §3's loop. Three stages, each holding something different constant:
+answer that, and to feed §3's loop. The per-release scoreboard and the falsifiable hypotheses about
+*where* AILANG should beat Python live in [m-eval-ailang-advantage-program](planned/v0_55_0/m-eval-ailang-advantage-program.md)
+(2026-10-28). Three stages, each holding something different constant:
 
 | Stage | Who runs | Langs | Holds constant | Measures |
 |---|---|---|---|---|
@@ -114,10 +116,42 @@ provisional (never a bogus #1), deltas are intersection-only. The standing disci
 [m-eval-validity-discipline.md](planned/m-eval-validity-discipline.md); every run has surfaced a new face
 of the same bug (comparing things measured differently), and that doc is the fix that stops the cycle.
 
-## 8. Where we are now (2026-06-28)
-On the cusp of the extension era. The core floor is being frozen (PR #75 compaction fix verifying via
-docx N=5). Once green: declare the core minimal+frozen, settle #73, and stand up the **first extension**
-(compaction strategy). From there the loop runs on the benchmark ladder and routes by §4.
+## 8. Where we are now (2026-10-19)
+
+**Fleet switch rule (Mark, 2026-10-02):** motoko replaces codex/pi as a fleet executor only once it
+writes *better* AILANG than codex, judged on real tasks over time (design-doc sprints), not benchmarks.
+
+**Evidence so far, all benchmark or bench-of-real-tasks — none from the fleet yet:**
+
+| Date | Set | Model | Result |
+|---|---|---|---|
+| 10-02 | 8 frontier benches × 1 | Sol 6.1 (subscription) | motoko 7/8, codex 7/8: tie, motoko ~1.5× input tokens |
+| 10-12 | 5 valid real AILANG tasks (acceptance-checked) | Haiku 5.5 | pi 5/5, motoko 5/5; $0.26 vs $0.28; motoko ~+100 s cold start |
+| 10-16 | 9 hard benches × 3 | GLM-5.3-Flash | pi 26/27, motoko 20/27 at a 32k cap; lifted cap on motoko's 5 fails: 12/15 vs pi 14/15, ~15× slower |
+
+The October gaps were all harness plumbing, now fixed (system role on direct Anthropic/Gemini,
+repetition guard, cache-token pricing, compaction cache-busting, OpenRouter host pool and output cap).
+The open GLM gap is behavioural: motoko reasons ~9× more per call than pi and verifies in thought
+rather than with tools.
+
+**Real-task evidence is zero.** `ailang-only-executor` and `motoko` are registered on the cloud plane
+but no task has been dispatched to either (listing back to 09-14). The instrument that would produce it,
+[M-AILANG-LANE-EXECUTOR-SHADOW](planned/v0_55_0/m-ailang-lane-executor-shadow.md) (ratified 10-13),
+was built attended on 10-19 after its cloud sprint task `task-60e90d30` was killed at 42 min on 10-13
+and pushed nothing. M1–M6 and M7's code are on `dev`; it stays inert until the capped
+`OPENROUTER_API_KEY_SHADOW` exists, is mounted on the pi and motoko jobs, and two agents are enabled
+on the dev plane (M7). Real-task evidence starts then; the weekly report lands in the `user` inbox.
+
+**Upstream:** Arni merged our #258 (direct-Anthropic docs), #260 (repetition guard) and #262
+(byte-stable compaction summary); #234 (path guard) and #266 (TUI ollama flag) are open, as are issues
+#259 (cost meter ignores cache tokens) and #263 (extension `ai_step` is sent the full tool list).
+Upstream main has moved 93 commits past our pin base, mostly ADR 034 (tool faults disclose whether their
+effect may have happened) and herdr delegation fixes. Our 20 commits were rebased onto it on 10-19
+(pin `907dd78e`, MOTOKO.md §12).
+
+**Prior art:** Harness² (Google Research) automates harness editing per task with an LLM judge. We do
+not adopt it; the verifier-judged offline variant is noted in
+[m-harness-propose-probe-offline.md](planned/m-harness-propose-probe-offline.md), gated on shadow data.
 
 ---
 *This is a draft to react to — the vision is the operator's; this captures it so it can spawn the work.*

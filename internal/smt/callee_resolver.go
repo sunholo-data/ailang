@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // crossModuleInlineDepth is the maximum number of hops through imported-module
@@ -154,7 +155,15 @@ func ResolveCalleesFromRoots(
 		}
 
 		// Encode the callee body
+		var previousTI types.CoreTypeInfo
+		if activeADTContext != nil {
+			previousTI = activeADTContext.ti
+			activeADTContext.ti = activeADTContext.programTI[calleeProg]
+		}
 		bodyExpr, err := EncodeExpr(innerBody)
+		if activeADTContext != nil {
+			activeADTContext.ti = previousTI
+		}
 		if err != nil {
 			// Skip callees we can't encode rather than failing the whole verification
 			continue

@@ -437,6 +437,8 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 
 			// M-EVAL-COST-AND-SPEED-BUDGETS: speed metrics.
 			tokensPerSec := computeTokensPerSec(outputTokens, firstStreamEventAt)
+			// Cost of record: registry rates × tokens, not opencode's own figure (cost.go).
+			costUSD, costProv := opencodeRunCost(task, e.getModel(task), inputTokens, outputTokens, reasonTokens, cacheReadTokens, cacheWriteTokens)
 
 			if err != nil {
 				span.SetStatus(codes.Error, err.Error())
@@ -459,13 +461,13 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 					ReasonTokens:             reasonTokens,
 					CacheReadInputTokens:     cacheReadTokens,
 					CacheCreationInputTokens: cacheWriteTokens,
-					CostUSD:                  totalCostUSD,
-					CostProvenance:           executor.ResolveCostProvenance(task, executor.AuthLaneBilled),
+					CostUSD:                  costUSD,
+					CostProvenance:           costProv,
 					NumTurns:                 numSteps,
 					ToolCallCount:            toolCallCount,
 					ToolCalls:                toolCalls,
 					SessionID:                lastSessionID,
-					ProviderData:             opencodeProviderData(rawEvents),
+					ProviderData:             withSelfReportedCost(opencodeProviderData(rawEvents), totalCostUSD),
 					CostKilledAt:             task.Budget.KilledAt(),
 					ThrashKilledAt:           thrashKilledAtTokens,
 					FirstAttemptMs:           firstAttemptMs,
@@ -491,13 +493,13 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 				ReasonTokens:             reasonTokens,
 				CacheReadInputTokens:     cacheReadTokens,
 				CacheCreationInputTokens: cacheWriteTokens,
-				CostUSD:                  totalCostUSD,
-				CostProvenance:           executor.ResolveCostProvenance(task, executor.AuthLaneBilled),
+				CostUSD:                  costUSD,
+				CostProvenance:           costProv,
 				NumTurns:                 numSteps,
 				ToolCallCount:            toolCallCount,
 				ToolCalls:                toolCalls,
 				SessionID:                lastSessionID,
-				ProviderData:             opencodeProviderData(rawEvents),
+				ProviderData:             withSelfReportedCost(opencodeProviderData(rawEvents), totalCostUSD),
 				CostKilledAt:             task.Budget.KilledAt(),
 				ThrashKilledAt:           thrashKilledAtTokens,
 				FirstAttemptMs:           firstAttemptMs,

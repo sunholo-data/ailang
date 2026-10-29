@@ -10,6 +10,18 @@ import (
 
 // generateApp generates a Go function application.
 func (g *Generator) generateApp(app *core.App) error {
+	if v, ok := app.Func.(*core.Var); ok && g.lexicalVarRefs[v] {
+		return g.generateLocalCall(app)
+	}
+	if v, ok := app.Func.(*core.Var); ok {
+		if _, ownFunction := g.topLevelFuncs[v.Name]; ownFunction {
+			return g.generateRegularApp(app)
+		}
+	}
+	if v, ok := app.Func.(*core.VarGlobal); ok && v.Ref.Module != "" &&
+		!strings.HasPrefix(v.Ref.Module, "std/") && !strings.HasPrefix(v.Ref.Module, "$") {
+		return g.generateRegularApp(app)
+	}
 	// M-DX24.2: Check if this is an arithmetic helper that can be emitted as native operator
 	if g.canEmitNativeOp(app) {
 		return g.generateNativeOp(app)
@@ -202,6 +214,12 @@ func (g *Generator) generateApp(app *core.App) error {
 		return nil
 	}
 
+	return g.generateRegularApp(app)
+}
+
+// generateRegularApp emits lexical/user-defined calls after qualified builtin
+// rewrites have been ruled out. User functions named sin/trim keep their identity.
+func (g *Generator) generateRegularApp(app *core.App) error {
 	// Check if function is a variable that needs type assertion
 	needsAssertion := false
 	if v, ok := app.Func.(*core.Var); ok {

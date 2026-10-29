@@ -3,1109 +3,203 @@
   "types": [],
   "funcs": [
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "i",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "charAt",
       "type": "(string,int)-\u003estring",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "i",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "charAtOpt",
       "type": "(string,int)-\u003eOption[string]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "i",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "default",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "charAt_or",
       "type": "(string,int,string)-\u003estring",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "c",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "charCode",
       "type": "(string)-\u003eint",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "chars",
       "type": "(string)-\u003elist[string]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "a",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "b",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "compare",
       "type": "(string,string)-\u003eint",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "xs",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "concat",
       "type": "(list[string])-\u003estring",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "hay",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "needle",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "contains",
       "type": "(string,string)-\u003ebool",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "decodeQuotedPrintable",
       "type": "(string)-\u003estring",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "suffix",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "endsWith",
       "type": "(string,string)-\u003ebool",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "hay",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "needle",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "find",
       "type": "(string,string)-\u003eint",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "f",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "floatToStr",
       "type": "(float)-\u003estring",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "f",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "acc",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "foldChars",
       "type": "((a,string)-\u003ea,a,string)-\u003ea",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "delim",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "acc",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "f",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "foldSlices",
       "type": "(string,string,a,(a,string)-\u003ea)-\u003ea",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "n",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
+      "name": "formatFixed",
+      "type": "(float,int)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "intToStr",
       "type": "(int)-\u003estring",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "delimiter",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "xs",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "join",
       "type": "(string,list[string])-\u003estring",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "length",
       "type": "(string)-\u003eint",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "delim",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "f",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "mapSlicesJoin",
       "type": "(string,string,(string)-\u003estring)-\u003estring",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "n",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "repeat",
       "type": "(string,int)-\u003estring",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "old",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "new",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "replace",
       "type": "(string,string,string)-\u003estring",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "replacements",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "replaceMany",
       "type": "(string,list[(string,string)])-\u003estring",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "delimiter",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "split",
       "type": "(string,string)-\u003elist[string]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "delimiters",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "splitAny",
       "type": "(string,list[string])-\u003elist[string]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "prefix",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "startsWith",
       "type": "(string,string)-\u003ebool",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "prefix",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "startsWithIgnoreCase",
       "type": "(string,string)-\u003ebool",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "stringToFloat",
       "type": "(string)-\u003eOption[float]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "stringToInt",
       "type": "(string)-\u003eOption[int]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "start",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "end",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "substring",
       "type": "(string,int,int)-\u003estring",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "toLower",
       "type": "(string)-\u003estring",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "toUpper",
       "type": "(string)-\u003estring",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "trim",
       "type": "(string)-\u003estring",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "words",
       "type": "(string)-\u003elist[string]",
       "effects": [],
       "pure": true
     }
   ],
-  "schema": "ailang.iface/v2"
+  "schema": "ailang.iface/v1"
 }

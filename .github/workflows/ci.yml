@@ -87,12 +87,12 @@ jobs:
           echo "-> no rig-shell paths touched (launchd bash 3.2 job skipped)"
         fi
 
-  # NOT gated by the docs-only lane, deliberately. This job carries 19 hygiene
-  # gates — check-no-personal-email, check-referenced-paths, check-context-docs
-  # among them — and those are about DOCUMENTATION as much as code: a design doc
-  # can leak an address or cite a path that does not exist. Putting the job
-  # behind an `if:` skipped all 19 on a docs PR, which TestWiredGatesAreCanonical
-  # exists to catch and did. Only the OS/compiler-specific jobs below skip.
+  # The Go suite and everything that reads its coverage profile (the gate, the
+  # badge numbers, SonarCloud). Every other gate runs in `checks`, beside it:
+  # one job ran both back to back, 1312-1446s on dev (runs 40495946401,
+  # 40497105921, 40498455123) — the go test pass ~390s, Sonar ~200s, the gates
+  # after it ~600s. Each job builds its own binaries. Neither is behind the
+  # docs-only lane (see `checks`).
   test:
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -107,7 +107,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v7
       with:
-        go-version: '1.26.9'
+        go-version: '1.26.10'
         cache: true
 
     # uv pins the Python runtime for eval-harness tests (and the weekly eval
@@ -116,7 +116,213 @@ jobs:
     # Python is installed. Update PinnedPythonVersion in
     # internal/eval_harness/python.go if the target moves.
     - name: Set up uv
-      uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+
+    # Prepare the eval runner's pin before tests poison network access.
+    # Keep this request in sync with PinnedPythonVersion in python.go.
+    - name: Prefetch Python for offline eval-harness tests
+      timeout-minutes: 5
+      run: uv python install 3.12
+
+    - name: Install dependencies
+      run: make deps
+
+    # Prefetch UNPOISONED so the poisoned `go test` step below cannot fail on a
+    # module-cache miss. This MUST run BEFORE the binaries are built: `go mod
+    # download all` writes new entries into the TRACKED go.sum, and the binary
+    # staleness detector (internal/testutil/ailangbin.go) compares binary mtime
+    # against the newest Go source file — so downloading afterwards makes every
+    # ailang binary look stale and silently SKIPS every binary-gated integration
+    # test. Measured on PR #599's first run: binaries built 21:21:03Z, go.sum
+    # touched 21:21:17Z, TestRunSmokeInTempDir_Pass / TestPromptCommand_Piping /
+    # TestZ3VerifyEndToEnd all skipped, and the no-silent-skip gate below
+    # correctly red-lighted the job. build.yml was unaffected precisely because
+    # its download already precedes `go install`.
+    - name: Download all Go modules (including test dependencies)
+      run: go mod download all
+
+    - name: Build binaries
+      run: make install
+
+    # Without z3, every SMT/contract-verification integration test
+    # (internal/smt TestSolve_*_Z3, internal/bestof TestZ3VerifyEndToEnd, …)
+    # t.Skip()s — they had silently never run in CI until 2026-07-10.
+    - name: Install z3 (SMT solver for contract-verification tests)
+      timeout-minutes: 5
+      run: tools/ci/install_z3.sh
+
+    # jq drives scripts/hooks/format_ail.sh, which TestFormatAilHookSinkRoundTrip
+    # executes end-to-end. It ships on the ubuntu-latest image today, but the
+    # no-silent-skip gate below now turns a missing jq into a hard failure
+    # instead of an invisible skip — so pin it explicitly rather than rely on
+    # the image (docusaurus-deploy.yml already installs jq for the same reason).
+    - name: Install jq (drives the .ail format PostToolUse hook under test)
+      timeout-minutes: 5
+      run: sudo apt-get install -y -qq --no-install-recommends jq && jq --version
+
+    - name: Build headroom instrument
+      run: go build -o "$RUNNER_TEMP/headroom" ./tools/ci/headroom
+
+    # -timeout 416s is a DERIVED, PROVISIONAL operational budget (right-censored
+    # input — see design_docs/planned/v0_36_0/m-coordinator-windows-package-timeout-headroom.md):
+    #   budget = worst steady-state package x runner variance x safety factor
+    #          = 172.5s (cmd/ailang, slowest pkg on non-failing dev run e5a325a20)
+    #          x 1.80x  (runner variance: aggregate package-seconds 599.7 -> 1080.3,
+    #                    72f9cfeca vs 8e3927950)
+    #          x 1.34x  (per-package excess variance the aggregate hides; a FLOOR —
+    #                    coordinator was cut off at the old 300s ceiling on 72f9cfeca)
+    #          = 416.1s -> 416s
+    # The old 300s sat INSIDE the measured noise band (172.5 x 1.80 = 310.5s > 300s).
+    # Still catches genuine hangs (M-DX11's intent); DRIFT is caught by the headroom
+    # instrument (tools/ci/headroom), not by this value.
+    # The same pass writes the coverage profile (the gate below reads it, so the
+    # suite runs once). -covermode=set: it gives the same statement-coverage % as
+    # the atomic mode the old second run used, and is the cheapest mode. That run
+    # made internal/format 2-7x slower on these runners (56.6s -> 401s, run
+    # 40345773507), past this budget at worst; atomic was NOT slower on arm64 (59s
+    # vs 68s), so watch internal/format in the headroom report below.
+    - name: Run tests with timeout (M-DX11)
+      env:
+        HTTP_PROXY: http://127.0.0.1:9
+        HTTPS_PROXY: http://127.0.0.1:9
+        NO_PROXY: localhost,127.0.0.1
+        GOPROXY: off
+      run: |
+        [[ "$HTTP_PROXY" == "http://127.0.0.1:9" ]] || { echo "::error::HTTP_PROXY poison is not configured"; exit 1; }
+        [[ "$HTTPS_PROXY" == "http://127.0.0.1:9" ]] || { echo "::error::HTTPS_PROXY poison is not configured"; exit 1; }
+        [[ "$NO_PROXY" == "localhost,127.0.0.1" ]] || { echo "::error::NO_PROXY loopback bypass is not configured"; exit 1; }
+        [[ "$GOPROXY" == "off" ]] || { echo "::error::GOPROXY is not disabled"; exit 1; }
+        go_rc=0
+        hr_rc=0
+        mkdir -p coverage
+        go test -timeout 416s ./... -coverprofile=coverage/raw.out -covermode=set > go_test_headroom.log 2>&1 || go_rc=$?
+        cat go_test_headroom.log                      # panic and FAIL/ok lines stay visible
+        "$RUNNER_TEMP/headroom" go_test_headroom.log 416 || hr_rc=$?
+        if [ $go_rc -ne 0 ]; then exit $go_rc; fi     # a failing suite still fails the job
+        exit $hr_rc
+
+    # `go test ./...` output is non-verbose: a t.Skip is invisible and CI
+    # stays green while integration coverage silently evaporates (e.g. if
+    # the "Build binaries" or "Install z3" steps above are ever removed or
+    # reordered after the test step). Re-run one fast representative test
+    # per external-binary gate (ailang via bin/, ailang via PATH, z3)
+    # verbosely and require an explicit PASS — a skip or rename fails here.
+    - name: Assert binary-gated integration tests ran (no silent skips)
+      run: |
+        go test -count=1 -v -run '^(TestRunSmokeInTempDir_Pass|TestPromptCommand_Piping|TestZ3VerifyEndToEnd|TestFormatAilHookSinkRoundTrip|TestGateLint_SelfTest)$' \
+          ./internal/pkg ./cmd/ailang ./internal/bestof ./internal/eval_harness ./internal/testutil/gatelint 2>&1 | tee gated_integration.log
+        for t in TestRunSmokeInTempDir_Pass TestPromptCommand_Piping TestZ3VerifyEndToEnd TestFormatAilHookSinkRoundTrip TestGateLint_SelfTest; do
+          grep -q -- "--- PASS: $t" gated_integration.log || {
+            echo "::error::$t did not PASS — a binary-gated integration test is being skipped (missing/stale ailang, z3, jq or bash?) or was renamed (then update this step)."
+            exit 1
+          }
+        done
+
+    # Reads the profile the test step above wrote — `make test-coverage-gate`
+    # re-ran the whole suite here (~8.5 min/run, the job's largest step).
+    - name: Derive coverage profile from the test pass (M-P2)
+      run: make coverage-from-profile
+
+    - name: Check coverage gate (M-P2)
+      run: make check-coverage-threshold
+
+    - name: Check golden drift protection (M-P2)
+      run: make check-golden-drift
+      env:
+        ALLOW_GOLDEN_UPDATES: ${{ github.event_name == 'push' && contains(github.event.head_commit.message, '[golden-update]') && '1' || '' }}
+
+    - name: Generate test coverage
+      run: |
+        # Reuses coverage/coverage.out written by the coverage gate above;
+        # running make test-coverage again repeats the whole suite.
+        # Extract coverage percentage for badge
+        COVERAGE=$(go tool cover -func=coverage/coverage.out | grep "^total:" | awk '{print $3}' | sed 's/%//')
+        echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
+        echo "Coverage: $COVERAGE%"
+        
+        # Generate coverage badge color (using awk for POSIX compatibility)
+        if awk "BEGIN {exit !($COVERAGE < 20)}"; then
+          COLOR="red"
+        elif awk "BEGIN {exit !($COVERAGE < 40)}"; then
+          COLOR="orange"
+        elif awk "BEGIN {exit !($COVERAGE < 60)}"; then
+          COLOR="yellow"
+        elif awk "BEGIN {exit !($COVERAGE < 80)}"; then
+          COLOR="green"
+        else
+          COLOR="brightgreen"
+        fi
+        echo "COVERAGE_COLOR=$COLOR" >> $GITHUB_ENV
+
+    # Tie Sonar's "new code" window to GitHub release tags. The PREVIOUS_VERSION
+    # new-code period (set project-side via /api/settings/set) resets its
+    # baseline whenever `sonar.projectVersion` changes. Using `git describe`
+    # means: commits on a tagged release share that projectVersion, and the
+    # first commit that bumps the tag (release-manager adds a new tag) starts
+    # a fresh "new code" window. Falls back to the short SHA for ad-hoc runs.
+    - name: Compute Sonar projectVersion from git tag
+      id: sonar-version
+      run: |
+        VERSION=$(git describe --tags --abbrev=0 2>/dev/null || git rev-parse --short HEAD)
+        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+        echo "Sonar projectVersion: $VERSION"
+
+    # Runs only when the SONAR_TOKEN repo secret is configured. Until then,
+    # SonarCloud's Automatic Analysis handles scans (without coverage data).
+    # continue-on-error keeps CI green if the secret is missing or the scan
+    # service has a hiccup — Sonar is a reporting layer, not a gate.
+    - name: SonarCloud scan
+      uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v7
+      continue-on-error: true
+      env:
+        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+        SONAR_HOST_URL: https://sonarcloud.io
+      with:
+        args: >
+          -Dsonar.projectVersion=${{ steps.sonar-version.outputs.version }}
+
+  # NOT gated by the docs-only lane, deliberately. This job carries 19 hygiene
+  # gates — check-no-personal-email, check-referenced-paths, check-context-docs
+  # among them — and those are about DOCUMENTATION as much as code: a design doc
+  # can leak an address or cite a path that does not exist. Putting the job
+  # behind an `if:` skipped all 19 on a docs PR, which TestWiredGatesAreCanonical
+  # exists to catch and did. Only the OS/compiler-specific jobs below skip.
+  #
+  # Repo and example gates that need the built binaries but not the Go suite's
+  # coverage profile — split from `test` so the two run side by side (see the
+  # `test` comment for the timings). `checks` is a required status check on dev
+  # beside `test`, `lint` and `build` (added 2026-10-27), so `build` no longer
+  # waits on either: a red `checks` blocks a merge on its own.
+  checks:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        # Full history: the autoclose gate scans the pushed commit range and the
+        # prompt-freeze gate diffs against `git merge-base HEAD origin/dev`.
+        fetch-depth: 0
+
+    - name: Set up Go
+      uses: actions/setup-go@v7
+      with:
+        go-version: '1.26.10'
+        cache: true
+
+    # uv pins the Python runtime for eval-harness tests (and the weekly eval
+    # job). The harness invokes `uv run --python <PinnedPythonVersion>` so the
+    # version is guaranteed across every runner regardless of what system
+    # Python is installed. Update PinnedPythonVersion in
+    # internal/eval_harness/python.go if the target moves.
+    - name: Set up uv
+      uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+
+    # Prepare the eval runner's pin before tests poison network access.
+    # Keep this request in sync with PinnedPythonVersion in python.go.
+    - name: Prefetch Python for offline eval-harness tests
+      timeout-minutes: 5
+      run: uv python install 3.12
 
     - name: Install dependencies
       run: make deps
@@ -164,7 +370,7 @@ jobs:
     # t.Skip()s — they had silently never run in CI until 2026-07-10.
     - name: Install z3 (SMT solver for contract-verification tests)
       timeout-minutes: 5
-      run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends z3
+      run: tools/ci/install_z3.sh
 
     # jq drives scripts/hooks/format_ail.sh, which TestFormatAilHookSinkRoundTrip
     # executes end-to-end. It ships on the ubuntu-latest image today, but the
@@ -174,57 +380,6 @@ jobs:
     - name: Install jq (drives the .ail format PostToolUse hook under test)
       timeout-minutes: 5
       run: sudo apt-get install -y -qq --no-install-recommends jq && jq --version
-
-    - name: Build headroom instrument
-      run: go build -o "$RUNNER_TEMP/headroom" ./tools/ci/headroom
-
-    # -timeout 416s is a DERIVED, PROVISIONAL operational budget (right-censored
-    # input — see design_docs/planned/v0_36_0/m-coordinator-windows-package-timeout-headroom.md):
-    #   budget = worst steady-state package x runner variance x safety factor
-    #          = 172.5s (cmd/ailang, slowest pkg on non-failing dev run e5a325a20)
-    #          x 1.80x  (runner variance: aggregate package-seconds 599.7 -> 1080.3,
-    #                    72f9cfeca vs 8e3927950)
-    #          x 1.34x  (per-package excess variance the aggregate hides; a FLOOR —
-    #                    coordinator was cut off at the old 300s ceiling on 72f9cfeca)
-    #          = 416.1s -> 416s
-    # The old 300s sat INSIDE the measured noise band (172.5 x 1.80 = 310.5s > 300s).
-    # Still catches genuine hangs (M-DX11's intent); DRIFT is caught by the headroom
-    # instrument (tools/ci/headroom), not by this value.
-    - name: Run tests with timeout (M-DX11)
-      env:
-        HTTP_PROXY: http://127.0.0.1:9
-        HTTPS_PROXY: http://127.0.0.1:9
-        NO_PROXY: localhost,127.0.0.1
-        GOPROXY: off
-      run: |
-        [[ "$HTTP_PROXY" == "http://127.0.0.1:9" ]] || { echo "::error::HTTP_PROXY poison is not configured"; exit 1; }
-        [[ "$HTTPS_PROXY" == "http://127.0.0.1:9" ]] || { echo "::error::HTTPS_PROXY poison is not configured"; exit 1; }
-        [[ "$NO_PROXY" == "localhost,127.0.0.1" ]] || { echo "::error::NO_PROXY loopback bypass is not configured"; exit 1; }
-        [[ "$GOPROXY" == "off" ]] || { echo "::error::GOPROXY is not disabled"; exit 1; }
-        go_rc=0
-        hr_rc=0
-        go test -timeout 416s ./... > go_test_headroom.log 2>&1 || go_rc=$?
-        cat go_test_headroom.log                      # panic and FAIL/ok lines stay visible
-        "$RUNNER_TEMP/headroom" go_test_headroom.log 416 || hr_rc=$?
-        if [ $go_rc -ne 0 ]; then exit $go_rc; fi     # a failing suite still fails the job
-        exit $hr_rc
-
-    # `go test ./...` output is non-verbose: a t.Skip is invisible and CI
-    # stays green while integration coverage silently evaporates (e.g. if
-    # the "Build binaries" or "Install z3" steps above are ever removed or
-    # reordered after the test step). Re-run one fast representative test
-    # per external-binary gate (ailang via bin/, ailang via PATH, z3)
-    # verbosely and require an explicit PASS — a skip or rename fails here.
-    - name: Assert binary-gated integration tests ran (no silent skips)
-      run: |
-        go test -count=1 -v -run '^(TestRunSmokeInTempDir_Pass|TestPromptCommand_Piping|TestZ3VerifyEndToEnd|TestFormatAilHookSinkRoundTrip|TestGateLint_SelfTest)$' \
-          ./internal/pkg ./cmd/ailang ./internal/bestof ./internal/eval_harness ./internal/testutil/gatelint 2>&1 | tee gated_integration.log
-        for t in TestRunSmokeInTempDir_Pass TestPromptCommand_Piping TestZ3VerifyEndToEnd TestFormatAilHookSinkRoundTrip TestGateLint_SelfTest; do
-          grep -q -- "--- PASS: $t" gated_integration.log || {
-            echo "::error::$t did not PASS — a binary-gated integration test is being skipped (missing/stale ailang, z3, jq or bash?) or was renamed (then update this step)."
-            exit 1
-          }
-        done
 
     - name: Run parser tests
       run: make test-parser
@@ -378,9 +533,6 @@ jobs:
     - name: Check the CLI reference matches the dispatch table
       run: make check-cli-docs
 
-    - name: Check coverage gate (M-P2)
-      run: make test-coverage-gate
-
     - name: Check golden drift protection (M-P2)
       run: make check-golden-drift
       env:
@@ -457,55 +609,6 @@ jobs:
         name: cycle-analysis
         path: cycles.json
 
-    - name: Generate test coverage
-      run: |
-        make test-coverage
-        # Extract coverage percentage for badge
-        COVERAGE=$(go tool cover -func=coverage/coverage.out | grep "^total:" | awk '{print $3}' | sed 's/%//')
-        echo "COVERAGE=$COVERAGE" >> $GITHUB_ENV
-        echo "Coverage: $COVERAGE%"
-        
-        # Generate coverage badge color (using awk for POSIX compatibility)
-        if awk "BEGIN {exit !($COVERAGE < 20)}"; then
-          COLOR="red"
-        elif awk "BEGIN {exit !($COVERAGE < 40)}"; then
-          COLOR="orange"
-        elif awk "BEGIN {exit !($COVERAGE < 60)}"; then
-          COLOR="yellow"
-        elif awk "BEGIN {exit !($COVERAGE < 80)}"; then
-          COLOR="green"
-        else
-          COLOR="brightgreen"
-        fi
-        echo "COVERAGE_COLOR=$COLOR" >> $GITHUB_ENV
-
-    # Tie Sonar's "new code" window to GitHub release tags. The PREVIOUS_VERSION
-    # new-code period (set project-side via /api/settings/set) resets its
-    # baseline whenever `sonar.projectVersion` changes. Using `git describe`
-    # means: commits on a tagged release share that projectVersion, and the
-    # first commit that bumps the tag (release-manager adds a new tag) starts
-    # a fresh "new code" window. Falls back to the short SHA for ad-hoc runs.
-    - name: Compute Sonar projectVersion from git tag
-      id: sonar-version
-      run: |
-        VERSION=$(git describe --tags --abbrev=0 2>/dev/null || git rev-parse --short HEAD)
-        echo "version=$VERSION" >> "$GITHUB_OUTPUT"
-        echo "Sonar projectVersion: $VERSION"
-
-    # Runs only when the SONAR_TOKEN repo secret is configured. Until then,
-    # SonarCloud's Automatic Analysis handles scans (without coverage data).
-    # continue-on-error keeps CI green if the secret is missing or the scan
-    # service has a hiccup — Sonar is a reporting layer, not a gate.
-    - name: SonarCloud scan
-      uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v7
-      continue-on-error: true
-      env:
-        SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-        SONAR_HOST_URL: https://sonarcloud.io
-      with:
-        args: >
-          -Dsonar.projectVersion=${{ steps.sonar-version.outputs.version }}
-
     - name: Verify examples
       id: verify
       run: |
@@ -550,11 +653,17 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v7
       with:
-        go-version: '1.26.9'
+        go-version: '1.26.10'
         cache: true
 
     - name: Set up uv (provides Python for eval-harness Python runner tests)
-      uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+
+    # Prepare the eval runner's pin before tests poison network access.
+    # Keep this request in sync with PinnedPythonVersion in python.go.
+    - name: Prefetch Python for offline eval-harness tests
+      timeout-minutes: 5
+      run: uv python install 3.12
 
     # Same ordering constraint as the Linux leg: prefetch BEFORE the binary is
     # installed, because `go mod download all` touches the tracked go.sum and the
@@ -609,7 +718,11 @@ jobs:
       # no longer fits windows-latest: cmd/ailang measured 331s, 389s, then hit
       # the hang guard at 399s of 416s (2026-10-07/08, right-censored). Windows
       # budget = 399s observed x 1.34x safety factor = 535s, rounded up to 600s
-      # for the censoring. The real fix is a faster cmd/ailang package.
+      # for the censoring. On 2026-10-22, run 39814053800 reached 579s
+      # and refused its last 13 tests at the cleanup reserve. This is another
+      # right-censored sample: 579s x 1.34 = 776s, rounded up to 900s.
+      # Individual operation caps and the WARN-ONLY headroom report stay in place.
+      # The durable fix is a faster cmd/ailang package.
       # (The previous "5min (vs 60s on Linux)" note was stale: Linux has used the
       # same 300s since M-DX11.)
       # If a test is genuinely Windows-incompatible (not just slow), fix it or
@@ -626,10 +739,10 @@ jobs:
         if ($env:GOPROXY -ne 'off') { Write-Error "GOPROXY is not disabled"; exit 1 }
         $ErrorActionPreference = 'Continue'
         $PSNativeCommandUseErrorActionPreference = $false
-        go test -timeout 600s ./... *> go_test_headroom.log
+        go test -timeout 900s ./... *> go_test_headroom.log
         $go_rc = $LASTEXITCODE
         Get-Content go_test_headroom.log
-        & "$env:RUNNER_TEMP/headroom.exe" go_test_headroom.log 600
+        & "$env:RUNNER_TEMP/headroom.exe" go_test_headroom.log 900
         $hr_rc = $LASTEXITCODE
         if ($go_rc -ne 0) { exit $go_rc }
         exit $hr_rc
@@ -652,21 +765,21 @@ jobs:
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [changes, test]
+    needs: [changes]
     if: needs.changes.outputs.code == 'true'
-    
+
     steps:
     - uses: actions/checkout@v7
-    
+
     - name: Set up Go
       uses: actions/setup-go@v7
       with:
-        go-version: '1.26.9'
+        go-version: '1.26.10'
         cache: true
-    
+
     - name: Build binary
       run: make build
-    
+
     - name: Upload binary artifact
       uses: actions/upload-artifact@v7
       with:
@@ -707,7 +820,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v7
       with:
-        go-version: '1.26.9'
+        go-version: '1.26.10'
         cache: true
 
     - name: Check code formatting
@@ -796,7 +909,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v7
       with:
-        go-version: '1.26.9'
+        go-version: '1.26.10'
         cache: true
     - name: Golden-bit and portable-math tests
       run: |
@@ -818,7 +931,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v7
       with:
-        go-version: '1.26.9'
+        go-version: '1.26.10'
 
     - name: Install govulncheck
       # Pinned (was @latest): govulncheck v1.4.0 started crashing on `./...`
@@ -848,7 +961,7 @@ jobs:
     - name: Set up Go
       uses: actions/setup-go@v7
       with:
-        go-version: '1.26.9'
+        go-version: '1.26.10'
 
     - name: Go Dependency Submission
       uses: actions/go-dependency-submission@v2.0.3

@@ -1,9 +1,12 @@
--- std/audio - PCM to WAV, and PCM to Ogg Opus, with no effects
+-- std/audio - checked WAV/PCM boundaries and Ogg Opus, with no effects
 --
 -- Text-to-speech APIs return raw PCM (for Gemini TTS: 16-bit little-endian,
 -- 24 kHz, mono). This module turns that into files a person can play:
 --
---   wavHeader / wavFromPcm  -> a canonical 44-byte RIFF/WAVE header (+ the PCM)
+--   wavHeader / wavFromPcm  -> canonical RIFF/WAVE, with required data padding
+--   wavInfo                 -> validated integer-PCM metadata and data extent
+--   pcm16ToFloats           -> packed interleaved Array[float], s16/32768
+--   floatsToPcm16           -> explicit clipping/rejection and nearest-even s16
 --   durationMs              -> clip length in whole milliseconds
 --   encode                  -> Ogg Opus (RFC 7845), about 15x smaller than WAV
 --
@@ -25,29 +28,154 @@
 --   }
 
 module std/audio
-import std/bytes (fromInts, concat, length)
-import std/result (Result)
+import std/bytes (slice, toInts, length)
+import std/list (foldr)
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err)
 
 -- Compressed output formats; the payload is the target bitrate in bits/s.
 -- OggOpus(24000) is a good default for speech: about 230 KB for 50 s.
 export type Codec = OggOpus(int) deriving (Eq)
 
-pure func le16(n: int) -> [int] = [n % 256, n / 256 % 256]
-
-pure func le32(n: int) -> [int] = [n % 256, n / 256 % 256, n / 65536 % 256, n / 16777216 % 256]
-
--- 44-byte canonical RIFF/WAVE header (format tag 1 = integer PCM) for
--- dataLen bytes of PCM.
-export pure func wavHeader(dataLen: int, rate: int, channels: int, bitsPerSample: int) -> bytes
-requires { dataLen >= 0 && dataLen <= 4294967259 && rate > 0 && channels > 0 && bitsPerSample > 0 && bitsPerSample % 8 == 0 } {
-  let blockAlign = channels * (bitsPerSample / 8)
-  fromInts([82, 73, 70, 70] ++ le32(36 + dataLen) ++ [87, 65, 86, 69] ++ [102, 109, 116, 32] ++ le32(16) ++ le16(1) ++ le16(channels) ++ le32(rate) ++ le32(rate * blockAlign) ++ le16(blockAlign) ++ le16(bitsPerSample) ++ [100, 97, 116, 97] ++ le32(dataLen))
+-- Canonical integer PCM: validated even without --verify-contracts.
+-- The RIFF size includes an odd data pad; dataLen excludes that pad.
+-- A header-only caller must append the pad after writing odd-length PCM.
+export pure func wavHeader(dataLen: int, rate: int, channels: int, bitsPerSample: int) -> bytes {
+  _audio_wav_header(dataLen, rate, channels, bitsPerSample)
 }
 
--- A complete WAV file: wavHeader followed by the PCM unchanged.
-export pure func wavFromPcm(pcm: bytes, rate: int, channels: int, bitsPerSample: int) -> bytes
-requires { rate > 0 && channels > 0 && bitsPerSample > 0 && bitsPerSample % 8 == 0 } {
-  concat(wavHeader(length(pcm), rate, channels, bitsPerSample), pcm)
+export pure func wavHeaderChecked(dataLen: int, rate: int, channels: int, bitsPerSample: int) -> Result[bytes, string] {
+  _audio_wav_header_checked(dataLen, rate, channels, bitsPerSample)
+}
+
+-- Complete WAV, including the zero data pad when needed. PCM is unchanged.
+-- Invalid legacy calls fail loudly; use the checked form to recover.
+export pure func wavFromPcm(pcm: bytes, rate: int, channels: int, bitsPerSample: int) -> bytes {
+  _audio_wav_from_pcm(pcm, rate, channels, bitsPerSample)
+}
+
+export pure func wavFromPcmChecked(pcm: bytes, rate: int, channels: int, bitsPerSample: int) -> Result[bytes, string] {
+  _audio_wav_from_pcm_checked(pcm, rate, channels, bitsPerSample)
+}
+
+export type WavEncoding = | IntegerPcm deriving (Eq)
+export type PcmLayout = | Interleaved deriving (Eq)
+export type Pcm16Quantization = RejectOutOfRange | ClipOutOfRange deriving (Eq)
+
+-- Speaker identities are not inferred from channel count. All accepted WAV
+-- samples are interleaved integer PCM; validBits equals containerBits.
+export type WavInfo = {
+  encoding: WavEncoding, layout: PcmLayout,
+  rate: int, channels: int, containerBits: int, validBits: int,
+  blockAlign: int, byteRate: int, dataOffset: int, dataBytes: int, frames: int
+}
+
+type WavFormat = { rate: int, channels: int, bits: int, blockAlign: int, byteRate: int }
+type WavData = { offset: int, size: int }
+
+-- Only 2/4-byte numeric fields become tiny lists, never audio payloads.
+-- slice failure is propagated as Err rather than replaced by a numeric default.
+pure func readWavLE(wav: bytes, at: int, count: int) -> Result[int, string] {
+  match slice(wav, at, count) {
+    None => Err("audio.wavInfo: truncated numeric field"),
+    Some(field) => Ok(foldr(\byte acc. byte + 256 * acc, 0, toInts(field)))
+  }
+}
+
+pure func parseWavFormat(wav: bytes, at: int, size: int) -> Result[WavFormat, string] {
+  if size < 16 then Err("audio.wavInfo: fmt chunk must contain at least 16 bytes")
+  else match (readWavLE(wav, at, 2), readWavLE(wav, at + 2, 2),
+              readWavLE(wav, at + 4, 4), readWavLE(wav, at + 8, 4),
+              readWavLE(wav, at + 12, 2), readWavLE(wav, at + 14, 2)) {
+    (Ok(tag), Ok(channels), Ok(rate), Ok(byteRate), Ok(blockAlign), Ok(bits)) => {
+      if tag != 1 then Err("audio.wavInfo: unsupported format tag (integer PCM required)")
+      else if size == 17 then Err("audio.wavInfo: fmt extension lacks cbSize")
+      else if size > 16 then match readWavLE(wav, at + 16, 2) {
+        Err(e) => Err(e),
+        Ok(extra) => if extra > size - 18 then Err("audio.wavInfo: fmt cbSize exceeds chunk")
+          else Ok({ rate: rate, channels: channels, bits: bits, blockAlign: blockAlign, byteRate: byteRate })
+      }
+      else Ok({ rate: rate, channels: channels, bits: bits, blockAlign: blockAlign, byteRate: byteRate })
+    },
+    _ => Err("audio.wavInfo: truncated fmt fields")
+  }
+}
+
+pure func finishWavInfo(format: Option[WavFormat], data: Option[WavData]) -> Result[WavInfo, string] {
+  match (format, data) {
+    (Some(f), Some(d)) => match wavHeaderChecked(d.size, f.rate, f.channels, f.bits) {
+      Err(e) => Err("audio.wavInfo: ${e}"),
+      Ok(_) => {
+        let align = f.channels * (f.bits / 8);
+        if f.blockAlign != align then Err("audio.wavInfo: blockAlign disagrees with format")
+        else if f.byteRate != f.rate * align then Err("audio.wavInfo: byteRate disagrees with format")
+        else Ok({ encoding: IntegerPcm, layout: Interleaved,
+          rate: f.rate, channels: f.channels, containerBits: f.bits, validBits: f.bits,
+          blockAlign: align, byteRate: f.byteRate, dataOffset: d.offset,
+          dataBytes: d.size, frames: d.size / align })
+      }
+    },
+    (None, _) => Err("audio.wavInfo: missing fmt chunk"),
+    (_, None) => Err("audio.wavInfo: missing data chunk")
+  }
+}
+
+pure func walkWavChunks(wav: bytes, at: int, end: int, chunks: int, format: Option[WavFormat], data: Option[WavData]) -> Result[WavInfo, string] {
+  if at == end then finishWavInfo(format, data)
+  else if chunks >= 65536 then Err("audio.wavInfo: chunk limit 65536 exceeded")
+  else if end - at < 8 then Err("audio.wavInfo: truncated chunk header inside RIFF extent")
+  else match (readWavLE(wav, at, 4), readWavLE(wav, at + 4, 4)) {
+    (Ok(id), Ok(size)) => {
+      let body = at + 8;
+      if size > end - body then Err("audio.wavInfo: chunk data exceeds RIFF extent")
+      else if size % 2 > end - body - size then Err("audio.wavInfo: missing odd chunk pad inside RIFF extent")
+      else {
+        let next = body + size + size % 2;
+        if id == 0x20746d66 then match format {
+          Some(_) => Err("audio.wavInfo: duplicate fmt chunk"),
+          None => match parseWavFormat(wav, body, size) {
+            Err(e) => Err(e),
+            Ok(f) => walkWavChunks(wav, next, end, chunks + 1, Some(f), data)
+          }
+        }
+        else if id == 0x61746164 then match data {
+          Some(_) => Err("audio.wavInfo: duplicate data chunk"),
+          None => walkWavChunks(wav, next, end, chunks + 1, format, Some({ offset: body, size: size }))
+        }
+        else walkWavChunks(wav, next, end, chunks + 1, format, data)
+      }
+    },
+    _ => Err("audio.wavInfo: truncated chunk header")
+  }
+}
+
+-- Validate exactly the RIFF extent. Bytes after it are ignored and cannot
+-- provide a missing chunk pad. Float/extensible/compressed tags are rejected.
+export pure func wavInfo(wav: bytes) -> Result[WavInfo, string] {
+  if length(wav) < 12 then Err("audio.wavInfo: RIFF/WAVE prefix needs 12 bytes")
+  else match (readWavLE(wav, 0, 4), readWavLE(wav, 4, 4), readWavLE(wav, 8, 4)) {
+    (Ok(riff), Ok(size), Ok(wave)) => {
+      if riff != 0x46464952 || wave != 0x45564157 then Err("audio.wavInfo: expected RIFF/WAVE")
+      else if size < 4 || size > length(wav) - 8 then Err("audio.wavInfo: RIFF size exceeds buffer or omits WAVE prefix")
+      else walkWavChunks(wav, 12, size + 8, 0, None, None)
+    },
+    _ => Err("audio.wavInfo: truncated RIFF/WAVE prefix")
+  }
+}
+
+-- Frames, not samples: every channel is retained in interleaved order.
+-- offset is an even byte index; decoding uses exact s16/32768.
+export pure func pcm16ToFloats(pcm: bytes, offset: int, frames: int, channels: int) -> Result[Array[float], string] {
+  _audio_pcm16_to_floats(pcm, offset, frames, channels)
+}
+
+-- Quantize x*32768 nearest-even, then saturate to s16. Both policies reject
+-- NaN and infinities. This differs from sunholo/audio's legacy x*32767 API.
+export pure func floatsToPcm16(samples: Array[float], channels: int, policy: Pcm16Quantization) -> Result[bytes, string] {
+  match policy {
+    RejectOutOfRange => _audio_floats_to_pcm16(samples, channels, false),
+    ClipOutOfRange => _audio_floats_to_pcm16(samples, channels, true)
+  }
 }
 
 -- Duration in whole milliseconds (rounded down). Integer on purpose: no float

@@ -132,16 +132,6 @@ func validateIFCNames(names []string) error {
 	return nil
 }
 
-func newIFCChecker(file *ast.File) *ifcChecker {
-	c := &ifcChecker{types: newIFCTypes(file), sigs: make(map[string]*ifcSig), effLabel: make(map[string]Label), computing: make(map[string]bool)}
-	for _, fn := range file.Funcs {
-		if fn != nil {
-			c.sigs[fn.Name] = buildIFCSig(fn)
-		}
-	}
-	return c
-}
-
 // AnalyzeModuleIFC computes reusable summaries. Imported names must already be
 // resolved by the caller; lexical/local declarations take precedence. This API
 // does not enable imported call-edge checks (the pipeline wiring is separate).

@@ -15,6 +15,7 @@ import (
 	// Import to trigger init() registration — same as local coordinator (provider_executor.go)
 	_ "github.com/sunholo-data/ailang/internal/executor/claude"
 	_ "github.com/sunholo-data/ailang/internal/executor/managed_agents"
+	"github.com/sunholo-data/ailang/internal/proctree"
 	"github.com/sunholo-data/ailang/internal/pubsub"
 )
 
@@ -69,6 +70,16 @@ func coordinatorExecuteJob(args []string) (returnErr error) {
 			printExecuteJobHelp()
 			return nil
 		}
+	}
+
+	// AILANG_JOB_MODE picks what this job is. A shadow grade runs no agent and
+	// publishes no task completion: it writes its grade to the comparison.
+	switch mode := config.JobMode(); mode {
+	case "":
+	case config.JobModeShadowGrade:
+		return runShadowGradeJob()
+	default:
+		return fmt.Errorf("execute-job: unknown %s %q", config.EnvJobMode, mode)
 	}
 
 	defer releaseJobCreditAttempt()
@@ -170,6 +181,15 @@ func coordinatorExecuteJob(args []string) (returnErr error) {
 		publishCompletion("failed", projErr.Error(), "", nil, gitEvidence{}, "")
 		return projErr
 	}
+	// Audit H-6 P0.2 (M-EXECUTOR-UID-SPLIT): the agent CLI runs as this UID, so
+	// unless this process is non-dumpable the child reads every secret the job
+	// started with from /proc/1/environ. Fatal, before any child exists: running
+	// the agent without it is the exposure this guards.
+	if err := proctree.DisableDump(); err != nil {
+		msg := fmt.Sprintf("parent dump protection (audit H-6): %v", err)
+		publishCompletion("failed", msg, "", nil, gitEvidence{}, "")
+		return fmt.Errorf("%s", msg)
+	}
 	var dirErr error
 	directive, dirErr = resolveJobDirective(ctx, config.DirectiveSource(), taskID, openDirectiveStore(projectID))
 	if dirErr != nil {
@@ -250,7 +270,7 @@ func coordinatorExecuteJob(args []string) (returnErr error) {
 	// Write artifact files to the GCS-mounted directory (/artifacts/tasks/{taskID}/).
 	// The artifact bucket is mounted read-write at /artifacts via Cloud Run volume mount.
 	// Files written here land directly in GCS — no upload client needed.
-	artifactPath := writeTaskArtifacts(taskID, execResult)
+	artifactPath := writeTaskArtifacts(taskID, provider, execResult)
 
 	// Publish completion with executor metrics (success or failure)
 	if execErr != nil {

@@ -53,7 +53,7 @@ func TestAliasBodyClosure_CacheInvalidatedOnce(t *testing.T) {
 	}
 	path := filepath.Join(root, ".ailang", "cache", "compile", "manifest.json")
 	manifest := readCacheManifest(t, path)
-	manifest.Version = "v5"
+	manifest.Version = "v6"
 	writeCacheManifest(t, path, manifest)
 	// Instrument real core encodes to distinguish cold publication from warm hits.
 	var reads, encodes int
@@ -63,7 +63,7 @@ func TestAliasBodyClosure_CacheInvalidatedOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	if encodes != len(manifest.Entries) {
-		t.Fatalf("v5 cache should recompile all %d modules (including implicit imports), got %d", len(manifest.Entries), encodes)
+		t.Fatalf("v6 cache should recompile all %d modules (including implicit imports), got %d", len(manifest.Entries), encodes)
 	}
 	if readCacheManifest(t, path).Version != cacheKeyVersion {
 		t.Fatal("cache did not publish current-version manifest")

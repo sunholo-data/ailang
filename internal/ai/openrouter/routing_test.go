@@ -198,7 +198,9 @@ func TestTranslatePolicy_MaxPriceMalformed(t *testing.T) {
 // TestGenerate_IncludesProviderField wires translatePolicy into the chat
 // request and confirms the on-the-wire body contains the `provider` block.
 func TestGenerate_IncludesProviderField(t *testing.T) {
-	var capturedBody chatRequest
+	var capturedBody struct {
+		Provider *providerField `json:"provider"`
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := json.NewDecoder(r.Body).Decode(&capturedBody); err != nil {
 			t.Fatalf("decode: %v", err)
@@ -247,8 +249,10 @@ func TestGenerate_IncludesProviderField(t *testing.T) {
 
 // TestGenerate_NoProviderFieldWhenNoPolicy confirms the back-compat default:
 // callers that don't set Routing get exactly the same request body as before.
-func TestGenerate_NoProviderFieldWhenNoPolicy(t *testing.T) {
-	var capturedBody chatRequest
+func TestGenerate_FastestHostWhenNoPolicy(t *testing.T) {
+	var capturedBody struct {
+		Provider *providerField `json:"provider"`
+	}
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if err := json.NewDecoder(r.Body).Decode(&capturedBody); err != nil {
 			t.Fatalf("decode: %v", err)
@@ -271,7 +275,7 @@ func TestGenerate_NoProviderFieldWhenNoPolicy(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Generate: %v", err)
 	}
-	if capturedBody.Provider != nil {
-		t.Errorf("Provider should be nil when no policy set, got %+v", capturedBody.Provider)
+	if capturedBody.Provider == nil || capturedBody.Provider.Sort != "throughput" || len(capturedBody.Provider.Order) != 0 {
+		t.Errorf("Provider with no policy = %+v, want only sort=throughput (same routing as Step)", capturedBody.Provider)
 	}
 }

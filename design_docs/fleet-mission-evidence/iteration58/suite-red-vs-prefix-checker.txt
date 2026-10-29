@@ -1,0 +1,71 @@
+PASS a canonical allowed aliases rc=0
+PASS b retired routing rc=1
+PASS b original lines and every token
+PASS c ignore prose outside routing rc=0
+PASS d missing entry is instrument failure rc=2
+PASS e last entry in file order rc=0
+PASS e explicit non-last entry rc=1
+PASS e file order over numeric order rc=0
+PASS missing file rc=2
+PASS missing block rc=2
+PASS missing arguments rc=2
+PASS unknown argument rc=2
+PASS missing file value rc=2
+PASS invalid entry rc=2
+PASS missing entry value rc=2
+PASS duplicate file rc=2
+PASS case and punctuation rc=0
+PASS entry boundary without next field rc=0
+PASS inline token at EOF rc=1
+PASS original token case
+FAIL w world allowed routing: rc=2 want=0
+instrument failure: missing Routing evidence block
+FAIL w clean findings
+instrument failure: missing Routing evidence block
+FAIL w world retired routing: rc=2 want=1
+instrument failure: missing Routing evidence block
+FAIL w original line/token
+instrument failure: missing Routing evidence block
+FAIL s indented retired routing: rc=2 want=1
+instrument failure: missing Routing evidence block
+FAIL s original line/token
+instrument failure: missing Routing evidence block
+FAIL s sibling-only retired token excluded: rc=2 want=0
+instrument failure: missing Routing evidence block
+FAIL s clean sibling findings
+instrument failure: missing Routing evidence block
+FAIL v continuation retired routing: rc=2 want=1
+instrument failure: missing Routing evidence block
+FAIL v original line/token
+instrument failure: missing Routing evidence block
+FAIL p parenthetical heading table routing: rc=2 want=1
+instrument failure: missing Routing evidence block
+FAIL p original line/token
+instrument failure: missing Routing evidence block
+PASS f bold-label bullets retained rc=1
+PASS f original line/token
+FAIL q allowed model in ticket compound: rc=2 want=0
+instrument failure: missing Routing evidence block
+FAIL q clean ticket findings
+instrument failure: missing Routing evidence block
+FAIL q retired model in compound: rc=2 want=1
+instrument failure: missing Routing evidence block
+FAIL q original compound line/token
+instrument failure: missing Routing evidence block
+FAIL q allowed dotted model in compound: rc=2 want=0
+instrument failure: missing Routing evidence block
+FAIL q clean dotted findings
+instrument failure: missing Routing evidence block
+FAIL q reject gpt-6.1-sol-gpt-5: rc=2 want=1
+instrument failure: missing Routing evidence block
+FAIL q original gpt-6.1-sol-gpt-5 line/token
+instrument failure: missing Routing evidence block
+FAIL q reject gpt-6-luna-gpt-5.6-sol: rc=2 want=1
+instrument failure: missing Routing evidence block
+FAIL q original gpt-6-luna-gpt-5.6-sol line/token
+instrument failure: missing Routing evidence block
+FAIL q reject gpt-6-lunatic: rc=2 want=1
+instrument failure: missing Routing evidence block
+FAIL q original gpt-6-lunatic line/token
+instrument failure: missing Routing evidence block
+22 passed, 24 failed

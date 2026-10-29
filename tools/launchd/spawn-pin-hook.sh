@@ -148,6 +148,17 @@ case "$ROLE" in
   *) emit_jq "deny" "fail-closed:role-unknown — role token '$ROLE' is not one of designer, planner, executor, evaluator" "fail-closed:role-unknown" ;;
 esac
 
+# _alias_family VALUE → sonnet|opus|haiku for an Agent-tool alias or a full Claude model id of
+# that family; empty for anything else (fable has no Agent alias).
+_alias_family() {
+  case "$1" in
+    sonnet|claude-sonnet-*) printf 'sonnet' ;;
+    opus|claude-opus-*) printf 'opus' ;;
+    haiku|claude-haiku-*) printf 'haiku' ;;
+    *) printf '' ;;
+  esac
+}
+
 # --- 8. Read the role's model pin (bash-3.2 indirect form) --------------------
 ROLE_UC=$(printf '%s' "$ROLE" | tr 'a-z' 'A-Z')
 _v="MISSION_${ROLE_UC}_MODEL"
@@ -171,6 +182,19 @@ case "$PIN" in
     if [ -n "$MODEL" ] && _fb_verdict=$(declared_fallback_allows "$ROLE_UC" "$PIN" "$MODEL"); then
       emit_jq "allow" "allow:declared-fallback — $ROLE pin '$PIN' and every earlier declared lane are dead or over ration this fire; '$MODEL' is the next declared entry ($_fb_verdict)" "allow:declared-fallback"
     fi
+    # Same model, other spelling (2026-10-15). A `claude:` pin and the Agent-tool alias of
+    # the same family are one model on one subscription, so refusing buys nothing (CLAUDE.md
+    # principle 4). Measured: triage's executor resolved to claude:claude-haiku-5-5, the
+    # controller asked the Agent tool for `haiku`, and four denials in a row left the
+    # iteration with no verifier. Only the three Agent aliases qualify; fable has none.
+    case "$PIN" in
+      claude:*)
+        _pf=$(_alias_family "${PIN#claude:}"); _mf=$(_alias_family "$MODEL")
+        if [ -n "$_pf" ] && [ "$_pf" = "$_mf" ]; then
+          emit_jq "allow" "allow:same-model-alias — $ROLE pin '$PIN' and Agent alias '$MODEL' are the same model ($_pf)" "allow:same-model-alias"
+        fi
+        ;;
+    esac
     emit_jq "deny" "deny:provider-pin — $ROLE is pinned to $PIN; Agent-tool alias spawn refused — use the cross-provider recipe (resolve-role-spawn.sh $ROLE)" "deny:provider-pin"
     ;;
 esac

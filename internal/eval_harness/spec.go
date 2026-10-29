@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"path/filepath"
 
 	"github.com/sunholo-data/ailang/internal/eval_harness/langreg"
 	"github.com/sunholo-data/ailang/internal/executor"
@@ -89,6 +90,19 @@ type BenchmarkSpec struct {
 	// line "PREFIX: <non-empty>". The fixed lines still grade exactly; only the
 	// placeholder line is graded structurally. See GradeStdout.
 	Grading string `yaml:"grading,omitempty"`
+
+	// M-EVAL-HIDDEN-TESTS: held-out tests, graded after the visible test passes and
+	// never rendered into a prompt or workspace (expected_stdout IS rendered, so it
+	// is a sample, not an oracle). HiddenTestsDir is relative to the spec file and
+	// holds <name>.in / <name>.out pairs; LoadSpec fills HiddenTests from it.
+	HiddenTestsDir string       `yaml:"hidden_tests_dir,omitempty"`
+	HiddenTests    []HiddenTest `yaml:"-"`
+
+	// ExecTimeout (seconds) bounds each execution of the candidate in EVERY lane —
+	// standard mode's --timeout and agent mode's per-language validation limits
+	// alike — so a perf-sensitive benchmark has one declared budget for every
+	// language. 0 = each lane's default.
+	ExecTimeout int `yaml:"exec_timeout,omitempty"`
 }
 
 // RequiresAgentWorkspace reports whether this benchmark can only be graded in
@@ -227,6 +241,20 @@ func LoadSpec(path string) (*BenchmarkSpec, error) {
 
 	if spec.Grading != "" && spec.Grading != "quine" && spec.Grading != "prefix_line" {
 		return nil, fmt.Errorf("spec %q: invalid grading %q (must be empty, \"quine\", or \"prefix_line\")", spec.ID, spec.Grading)
+	}
+
+	if spec.ExecTimeout < 0 {
+		return nil, fmt.Errorf("spec %q: exec_timeout must be >= 0, got %d", spec.ID, spec.ExecTimeout)
+	}
+	if spec.HiddenTestsDir != "" {
+		// A quine has no fixed expected output, and the multi-file probe grades a
+		// harness-owned entrypoint: neither has a stdin/stdout pair to hold out.
+		if spec.Grading == "quine" || spec.GradeEntrypoint != "" {
+			return nil, fmt.Errorf("spec %q: hidden_tests_dir cannot be combined with grading: quine or grade_entrypoint", spec.ID)
+		}
+		if err := loadHiddenTests(&spec, filepath.Dir(path)); err != nil {
+			return nil, fmt.Errorf("spec %q: %w", spec.ID, err)
+		}
 	}
 
 	return &spec, nil

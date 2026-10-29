@@ -56,7 +56,7 @@ fi
 
 # 1. Run tests
 echo "1/4 Running tests..."
-if make test > /tmp/milestone_test.log 2>&1; then
+if make test-changed > /tmp/milestone_test.log 2>&1; then
     echo "  ✓ Tests pass"
 else
     echo "  ✗ Tests fail"

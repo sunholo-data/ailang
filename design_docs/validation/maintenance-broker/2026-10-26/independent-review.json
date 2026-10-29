@@ -1,0 +1,22 @@
+{
+  "schema": "maintenance.broker-m1-review/1",
+  "reviewer": "/root/broker_m1_review",
+  "review_type": "independent_static_source_and_artifact_review",
+  "independent_process_rerun": false,
+  "scope": "M1 stopped feasibility gate only",
+  "verdict": "stop_supported",
+  "full_sprint_verdict": "blocked",
+  "score": null,
+  "findings_remaining": [],
+  "findings_addressed": [
+    "Read complete readiness JSON rather than file existence",
+    "Exclude zombies and bind surviving process start-time/command identity",
+    "Record thin reaper helper and actual production proctree source hashes",
+    "Narrow descriptor claim to FDs 0 through 255",
+    "Record emergency fixture cleanup and bystander joins"
+  ],
+  "conclusion": "Three escaped descendants remain live Ss with matching identities after current group kill plus real cwd reap. Workspace-cwd control is gone. Strict lifetime assertion fails; default known-blocker control does not qualify ownership. Socket/pi/full chain unrun. This does not establish macOS ownership impossibility or broker architecture failure.",
+  "downstream_milestones": "M2-M7 unstarted",
+  "live_admission": false,
+  "reviewed_at": "2026-10-26T14:06:36.768490+00:00"
+}

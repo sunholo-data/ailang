@@ -598,3 +598,57 @@ func TestClient_DefaultBaseURL(t *testing.T) {
 		t.Errorf("baseURL = %q, want %q", client.baseURL, defaultBaseURL)
 	}
 }
+
+// Every OpenRouter request carries an x-session-id so OpenRouter keeps a
+// conversation on one upstream host: stable across calls in a process, and
+// OPENROUTER_SESSION_ID wins when an executor sets it.
+func TestAttributionHeaders_SessionAffinity(t *testing.T) {
+	t.Setenv("OPENROUTER_SESSION_ID", "")
+	a := attributionHeaders(nil).Get("X-Session-Id")
+	b := attributionHeaders(nil).Get("X-Session-Id")
+	if a == "" || a != b {
+		t.Fatalf("x-session-id must be set and stable within a process: %q then %q", a, b)
+	}
+	t.Setenv("OPENROUTER_SESSION_ID", "session_task-1-motoko")
+	if got := attributionHeaders(nil).Get("X-Session-Id"); got != "session_task-1-motoko" {
+		t.Fatalf("OPENROUTER_SESSION_ID must override the process id, got %q", got)
+	}
+}
+
+// routeFor layers registry defaults < caller policy < AILANG_OPENROUTER_PROVIDER,
+// unions "ignore", and sends nothing for a model with no layer set.
+func TestRouteFor_Layers(t *testing.T) {
+	SetProviderDefaults(map[string]map[string]any{"z-ai/glm-5.3-flash": {"only": []any{"crusoe", "together"}, "ignore": []any{"inference-net"}, "sort": "price"}})
+	defer SetProviderDefaults(nil)
+	t.Setenv("AILANG_OPENROUTER_PROVIDER", "")
+	pf, err := routeFor(&ai.Request{Model: "openrouter/z-ai/glm-5.3-flash"})
+	if err != nil || pf["sort"] != "price" || pf["only"] == nil {
+		t.Fatalf("registry defaults must reach the wire, got %v %v", pf, err)
+	}
+	pf, _ = routeFor(&ai.Request{Model: "z-ai/glm-5.3-flash", Routing: &ai.AIRoutingPolicy{Order: []string{"friendli"}}})
+	if o, _ := pf["order"].([]any); len(o) != 1 || pf["only"] == nil {
+		t.Fatalf("caller policy must merge over the defaults, got %v", pf)
+	}
+	t.Setenv("AILANG_OPENROUTER_PROVIDER", `{"sort":"throughput","ignore":["morph"]}`)
+	pf, _ = routeFor(&ai.Request{Model: "z-ai/glm-5.3-flash"})
+	if pf["sort"] != "throughput" || len(pf["ignore"].([]string)) != 2 {
+		t.Fatalf("the env override must win and union ignore, got %v", pf)
+	}
+	t.Setenv("AILANG_OPENROUTER_PROVIDER", `not json`)
+	if _, err := routeFor(&ai.Request{Model: "z-ai/glm-5.3-flash"}); err == nil {
+		t.Fatal("a malformed override must fail loudly")
+	}
+	t.Setenv("AILANG_OPENROUTER_PROVIDER", "")
+	if pf, _ := routeFor(&ai.Request{Model: "deepseek/deepseek-v4-flash"}); len(pf) != 1 || pf["sort"] != "throughput" {
+		t.Fatalf("a model with no routing must get only the fastest-host default, got %v", pf)
+	}
+	// A layer that chose a sort or an explicit order keeps it.
+	t.Setenv("AILANG_OPENROUTER_PROVIDER", `{"sort":"price"}`)
+	if pf, _ := routeFor(&ai.Request{Model: "deepseek/deepseek-v4-flash"}); pf["sort"] != "price" {
+		t.Fatalf("an explicit sort must win over the default, got %v", pf)
+	}
+	t.Setenv("AILANG_OPENROUTER_PROVIDER", `{"order":["crusoe"]}`)
+	if pf, _ := routeFor(&ai.Request{Model: "deepseek/deepseek-v4-flash"}); pf["sort"] != nil {
+		t.Fatalf("an explicit host order must not get a sort added, got %v", pf)
+	}
+}

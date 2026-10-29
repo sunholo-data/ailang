@@ -22,9 +22,21 @@ prompt: string                # NOT RECOMMENDED: Replaces teaching prompt entire
 # Metadata fields
 difficulty: string            # "easy", "medium", "hard"
 expected_gain: string         # "low", "medium", "high"
-timeout: int                  # Execution timeout in seconds (default: 30)
+timeout: int                  # AGENT timeout in seconds (agent mode; default 60). NOT code execution
+exec_timeout: int             # Code-execution limit in seconds for EVERY language and mode
+                              # (default: standard --timeout 30s; agent AILANG 10s, others 30s)
 skip_python: bool             # Skip Python baseline (default: false)
+
+# Held-out tests (M-EVAL-HIDDEN-TESTS) — graded after the visible test, never shown to the model
+hidden_tests_dir: string      # Dir (relative to the YAML) of <name>.in / <name>.ans pairs.
+                              # NOT data/ and NOT .out: .gitignore drops both. Use hidden_tests/<id>/
 ```
+
+`expected_stdout` is rendered into the agent's README and task prompt, so it is a sample the
+model can match by special-casing it. Anything that must be an oracle (complexity, edge cases)
+belongs in `hidden_tests_dir`. Rows then bank `hidden_total` / `hidden_passed` /
+`hidden_first_fail`, and `stdout_ok` requires every hidden test. Example:
+`benchmarks/cp_60159.yml`.
 
 ## Capability Reference
 

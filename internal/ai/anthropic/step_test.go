@@ -488,9 +488,9 @@ func TestStep_RequestBody_SystemPromptTopLevel(t *testing.T) {
 		Model:        "claude-sonnet-4-5",
 		SystemPrompt: "You are concise.",
 		Messages: []ai.Message{
-			// Include a system-role message which MUST be skipped from
-			// the messages array (Anthropic forbids it there).
-			{Role: "system", Content: "ignored-extra"},
+			// A system-role message joins the top-level system field;
+			// Anthropic forbids it in the messages array.
+			{Role: "system", Content: "Lane rules."},
 			{Role: "user", Content: "hi"},
 		},
 	})
@@ -502,13 +502,36 @@ func TestStep_RequestBody_SystemPromptTopLevel(t *testing.T) {
 	if err := json.Unmarshal(cap.captured, &sent); err != nil {
 		t.Fatalf("captured body not JSON: %v", err)
 	}
-	if sent.System != "You are concise." {
-		t.Errorf("system = %q, want %q", sent.System, "You are concise.")
+	if want := "You are concise.\n\nLane rules."; sent.System != want {
+		t.Errorf("system = %q, want %q", sent.System, want)
 	}
 	for _, m := range sent.Messages {
 		if m.Role == "system" {
 			t.Errorf("messages contains a system role; must be top-level only: %+v", sent.Messages)
 		}
+	}
+}
+
+// motoko's shape: no SystemPrompt, the whole system prompt in a system-role
+// message. It used to be dropped, so the request carried no system at all.
+func TestStep_RequestBody_SystemRoleOnly(t *testing.T) {
+	cap := &captureHandler{}
+	server := httptest.NewServer(cap)
+	defer server.Close()
+
+	_, err := NewClient("test-key", WithBaseURL(server.URL)).Step(context.Background(), &ai.Request{
+		Model:    "claude-haiku-5-5",
+		Messages: []ai.Message{{Role: "system", Content: "Lane rules."}, {Role: "user", Content: "hi"}},
+	})
+	if err != nil {
+		t.Fatalf("Step() error = %v", err)
+	}
+	var sent stepReqBody
+	if err := json.Unmarshal(cap.captured, &sent); err != nil {
+		t.Fatalf("captured body not JSON: %v", err)
+	}
+	if sent.System != "Lane rules." {
+		t.Errorf("system = %q, want the system-role message", sent.System)
 	}
 }
 
@@ -584,5 +607,40 @@ func TestStep_RequestBody_ToolInputAsObject(t *testing.T) {
 	}
 	if inputAsMap["name"] != "foo" {
 		t.Errorf("tool_use input.name = %v, want foo", inputAsMap["name"])
+	}
+}
+
+// A request with tools carries the request-level automatic cache marker; one
+// without tools stays byte-identical (no cache_control key).
+func TestStep_RequestBody_ToolLoopAutoCache(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		tools []ai.ToolSchema
+		want  bool
+	}{
+		{"tools", []ai.ToolSchema{{Name: "read", Description: "r", Parameters: `{"type":"object","properties":{}}`}}, true},
+		{"no tools", nil, false},
+	} {
+		cap := &captureHandler{}
+		server := httptest.NewServer(cap)
+		_, err := NewClient("test-key", WithBaseURL(server.URL)).Step(context.Background(), &ai.Request{
+			Model: "claude-haiku-5-5", Tools: tc.tools,
+			Messages: []ai.Message{{Role: "user", Content: "hi"}},
+		})
+		server.Close()
+		if err != nil {
+			t.Fatalf("%s: Step() error = %v", tc.name, err)
+		}
+		var sent map[string]json.RawMessage
+		if err := json.Unmarshal(cap.captured, &sent); err != nil {
+			t.Fatalf("%s: captured body not JSON: %v", tc.name, err)
+		}
+		cc, has := sent["cache_control"]
+		if has != tc.want {
+			t.Fatalf("%s: cache_control present = %v, want %v", tc.name, has, tc.want)
+		}
+		if has && string(cc) != `{"type":"ephemeral"}` {
+			t.Fatalf("%s: cache_control = %s", tc.name, cc)
+		}
 	}
 }

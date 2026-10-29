@@ -66,6 +66,7 @@ type calleeKind int
 const (
 	calleeTopLevel calleeKind = iota // emit OpClosure with NestedProtos[idx]
 	calleeValue                      // emit MOVE from a register
+	calleeRec                        // rebuild a letrec member's closure (letrec.go)
 )
 
 // classifyCallee inspects the Call.Func expression and decides whether the
@@ -90,28 +91,38 @@ func (fc *funcCompiler) classifyCallee(e stmt.Expr) (calleeKind, string, error) 
 		if _, ok := fc.locals.lookup(ex.Name); ok {
 			return calleeValue, ex.Name, nil
 		}
+		// A member of the enclosing local letrec group is the next scope
+		// out. It must win over a top-level function of the same name
+		// (M-VM-COVERAGE G1b).
+		if _, ok := fc.recMember(ex.Name); ok {
+			return calleeRec, ex.Name, nil
+		}
 		// Try the current module first so intra-module calls in a
 		// multi-module image hit the right prototype even when another
 		// module has a function of the same bare name.
 		canonical := canonicalFuncName(fc.currentModule, ex.Name)
 		if _, ok := fc.funcIdx[canonical]; ok {
-			return calleeTopLevel, canonical, nil
+			return fc.topLevelCallee(canonical)
 		}
 		// Fall back to the bare name for single-module programs and for
 		// top-level helpers that were registered without a module prefix.
 		if _, ok := fc.funcIdx[ex.Name]; ok {
-			return calleeTopLevel, ex.Name, nil
+			return fc.topLevelCallee(ex.Name)
+		}
+		// Last: the implicit prelude, which every binding above shadows.
+		if key, ok, err := fc.preludeFunc(ex.Name); err != nil || ok {
+			return calleeTopLevel, key, err
 		}
 		return 0, "", fmt.Errorf("compiler: call to unbound name %q", ex.Name)
 	case stmt.GlobalRef:
 		canonical := canonicalFuncName(ex.Module, ex.Name)
 		if _, ok := fc.funcIdx[canonical]; ok {
-			return calleeTopLevel, canonical, nil
+			return fc.topLevelCallee(canonical)
 		}
 		// Some same-package GlobalRefs may have been registered with a
 		// bare name (e.g. when lower pass omits Module). Try that too.
 		if _, ok := fc.funcIdx[ex.Name]; ok {
-			return calleeTopLevel, ex.Name, nil
+			return fc.topLevelCallee(ex.Name)
 		}
 		return 0, "", fmt.Errorf("compiler: call to unknown global %q", canonical)
 	}
@@ -119,9 +130,23 @@ func (fc *funcCompiler) classifyCallee(e stmt.Expr) (calleeKind, string, error) 
 	return calleeValue, "", nil
 }
 
+// topLevelCallee classifies a call to top-level binding key. Calling a value
+// binding (`let f = compose(g, h)`, then `f(x)`) calls the function it holds,
+// so its value is computed first, like any first-class callee.
+func (fc *funcCompiler) topLevelCallee(key string) (calleeKind, string, error) {
+	if fc.isValueDecl(key) {
+		return calleeValue, key, nil
+	}
+	return calleeTopLevel, key, nil
+}
+
 // materializeCallee writes the function value into the callee slot of a
 // pre-allocated call frame.
 func (fc *funcCompiler) materializeCallee(slot uint8, kind calleeKind, name string, raw stmt.Expr) error {
+	if kind == calleeRec {
+		idx, _ := fc.recMember(name)
+		return fc.emitRecClosure(slot, idx)
+	}
 	if kind == calleeTopLevel {
 		// Look up (or register) the prototype index in the current function's
 		// NestedProtos table. The same top-level function may appear multiple
@@ -153,6 +178,9 @@ func (fc *funcCompiler) materializeCallee(slot uint8, kind calleeKind, name stri
 // NestedProtos table, appending if necessary. Returns the local index suitable
 // for an OpClosure Bx field.
 func (fc *funcCompiler) lookupNestedProto(imageProtoIdx int) (uint16, error) {
+	if fc.edges != nil {
+		fc.edges[imageProtoIdx] = true
+	}
 	for i, idx := range fc.proto.NestedProtos {
 		if idx == imageProtoIdx {
 			if i > 0xFFFF {
@@ -234,6 +262,13 @@ func (fc *funcCompiler) compileReturnExpr(e stmt.Expr) error {
 		return err
 	}
 	fc.emit(bytecode.EncodeABC(bytecode.OpReturn, r, 0, 0))
+	// Control never falls through a RETURN, so its value register is free for
+	// the code that follows (the next arm of a tail if/else-if chain). Keeping
+	// it leaked one register per arm and fragmented the frame until a wide
+	// record rebuild could not find a contiguous block (#1736).
+	if !fc.isPinned(r) {
+		fc.regs.freeTemp(r)
+	}
 	return nil
 }
 

@@ -319,11 +319,12 @@ func (g *Generator) coerceReturnExpr(expr, retType string) string {
 		return expr
 	}
 
-	// Slice types — use converter functions
+	// Slice and packed-array types use converters: a float-array literal can
+	// still be boxed, while native PCM decoding returns FloatArrayVal directly.
+	if conv := g.getSliceConversion(retType); conv != "" {
+		return fmt.Sprintf("%s(%s)", conv, expr)
+	}
 	if strings.HasPrefix(retType, "[]") {
-		if conv := g.getSliceConversion(retType); conv != "" {
-			return fmt.Sprintf("%s(%s)", conv, expr)
-		}
 		// Fallback for unknown slice types: direct assertion
 		return fmt.Sprintf("%s.(%s)", expr, retType)
 	}

@@ -387,6 +387,13 @@ func (m *PackageManifest) Validate() error {
 		if dep.Path != "" && dep.Git != "" {
 			return fmt.Errorf("dependency %q cannot have both path and git", name)
 		}
+		// AC10 (#1720): git argv hardening. A value beginning with '-' would be
+		// read by git as an option; no legitimate URL, ref or subdir starts so.
+		for _, f := range [][2]string{{"git", dep.Git}, {"tag", dep.Tag}, {"rev", dep.Rev}, {"subdir", dep.Subdir}} {
+			if strings.HasPrefix(f[1], "-") {
+				return fmt.Errorf("git dependency %q: %s value %q must not begin with '-'", name, f[0], f[1])
+			}
+		}
 		// Reject non-exact version specifiers — only exact semver allowed in ailang.toml
 		if dep.Version != "" && (dep.Version == "latest" || strings.ContainsAny(dep.Version, "^~><=")) {
 			return fmt.Errorf("dependency %q has non-exact version %q — ailang.toml requires exact versions (e.g., \"0.1.0\")\n\nUse: ailang install %s@latest\nThis resolves and writes the exact version automatically.", name, dep.Version, name)

@@ -1,0 +1,84 @@
+--- a/.pi/extensions/unowned-dirty.ts	2026-10-28 15:23:12
++++ b/.pi/extensions/unowned-dirty.ts	2026-10-28 15:58:21
+@@ -5,6 +5,7 @@
+  * warn when the operation may sweep files this session did not write. Never blocks;
+  * output names itself a heuristic. Shared checkouts have multiple agents (observed).
+  */
++import { realpathSync } from "node:fs";
+ import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+ 
+ export interface DirtyFile {
+@@ -25,6 +26,23 @@
+ 	return all.map((f) => f.path).filter((p) => !ownFiles.has(p));
+ }
+ 
++/** Pure: absolute paths under `top` as repo-relative, as porcelain prints them.
++ *  Same contract as tools/claude-mods/unowned-dirty/hooks/register.ts relativeTo(). */
++export function relativeTo(top: string, paths: Iterable<string>): Set<string> {
++	const prefix = top.endsWith("/") ? top : `${top}/`;
++	return new Set([...paths].filter((p) => p.startsWith(prefix)).map((p) => p.slice(prefix.length)));
++}
++
++/** Resolve symlinks so a cwd under a symlink (macOS /var -> /private/var) matches git's
++ *  physical --show-toplevel. A path that no longer exists keeps its spelling. */
++export function realOrSelf(p: string): string {
++	try {
++		return realpathSync(p);
++	} catch {
++		return p;
++	}
++}
++
+ /** Pure: does this bash command perform a sweeping git operation? */
+ export function isSweepingGitOp(command: string | undefined): boolean {
+ 	if (!command) return false;
+@@ -47,9 +65,12 @@
+ 		if (!isSweepingGitOp(command)) return;
+ 
+ 		// Authority is git, not command parsing: what is ACTUALLY dirty right now?
++		const top = await pi.exec("git", ["rev-parse", "--show-toplevel"], { timeout: 10_000 });
++		if (top.code !== 0) return; // not a repo: nothing to sweep, nothing to warn about
+ 		const res = await pi.exec("git", ["status", "--porcelain"], { timeout: 10_000 });
+ 		const all = parsePorcelain(res.stdout ?? "");
+-		const unowned = unownedDirty(all, ownFiles).filter(
++		// ownFiles are absolute; porcelain paths are repo-relative. Compare like with like.
++		const unowned = unownedDirty(all, relativeTo(realOrSelf((top.stdout ?? "").trim()), [...ownFiles].map(realOrSelf))).filter(
+ 			(f) => !/^(internal\/ai\/)?ollama/.test(f), // placeholder-free filter; kept simple
+ 		);
+ 		if (unowned.length > 0) {
+--- a/.pi/extensions/.unowned-dirty.test.ts	2026-10-28 15:23:12
++++ b/.pi/extensions/.unowned-dirty.test.ts	2026-10-28 15:58:21
+@@ -1,6 +1,9 @@
+ import { test } from "node:test";
+ import assert from "node:assert/strict";
+-import { parsePorcelain, unownedDirty, isSweepingGitOp } from "./unowned-dirty.ts";
++import { mkdtempSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
++import { tmpdir } from "node:os";
++import { join } from "node:path";
++import { parsePorcelain, unownedDirty, isSweepingGitOp, relativeTo, realOrSelf } from "./unowned-dirty.ts";
+ 
+ test("parsePorcelain: statuses and paths", () => {
+ 	const files = parsePorcelain(" M a.go\nM  b.txt\n?? new.txt\n");
+@@ -22,3 +25,22 @@
+ 	assert.equal(isSweepingGitOp("git log"), false);
+ 	assert.equal(isSweepingGitOp(undefined), false);
+ });
++
++test("wiring: absolute own paths, relativized against the toplevel, exclude the session's own edits", () => {
++	const all = parsePorcelain(" M mine.ts\n M sub/also-mine.go\n M theirs.go\n");
++	const own = new Set(["/repo/mine.ts", "/repo/sub/also-mine.go", "/elsewhere/x.ts"]);
++	assert.deepEqual(unownedDirty(all, own), ["mine.ts", "sub/also-mine.go", "theirs.go"]); // the HEAD defect
++	assert.deepEqual(unownedDirty(all, relativeTo("/repo", own)), ["theirs.go"]);
++	assert.deepEqual([...relativeTo("/repo/", own)].sort(), ["mine.ts", "sub/also-mine.go"]);
++});
++
++test("wiring: an own path spelled through a symlinked cwd still matches the physical toplevel", () => {
++	const base = realOrSelf(mkdtempSync(join(tmpdir(), "ud-")));
++	const top = join(base, "repo");
++	mkdirSync(top);
++	writeFileSync(join(top, "mine.ts"), "");
++	symlinkSync(top, join(base, "link"));
++	const own = [join(base, "link", "mine.ts")]; // as ctx.cwd under the symlink would spell it
++	assert.deepEqual([...relativeTo(top, own)], []); // without realpath: dropped, reported unowned
++	assert.deepEqual([...relativeTo(realOrSelf(top), own.map(realOrSelf))], ["mine.ts"]);
++});

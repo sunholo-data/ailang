@@ -6,8 +6,6 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/bytecode"
 	"github.com/sunholo-data/ailang/internal/effects"
-	ailerrors "github.com/sunholo-data/ailang/internal/errors"
-	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // DefaultMaxStack is the default live-frame limit, matching the evaluator's
@@ -77,6 +75,14 @@ type VM struct {
 	// framePool is the free list of frames popped by RETURN, reused by every
 	// frame push (acquireFrame/releaseFrame in frame.go, #1501).
 	framePool []*Frame
+
+	// zeroCapClosures caches one closure per image prototype that captures
+	// nothing, indexed by image prototype index. Every call to a known
+	// top-level function loads its closure, and a closure with no captures
+	// is immutable and compared structurally (Value.Equal), so one shared
+	// value per VM replaces an allocation per call (M-VM-QUICK-WINS W1).
+	// Per VM, not per image: an image is shared across goroutines.
+	zeroCapClosures []bytecode.Value
 }
 
 // NewVM constructs a VM bound to an image. The image is not validated here;
@@ -105,54 +111,6 @@ func (vm *VM) Run(proto *bytecode.FuncPrototype, args []bytecode.Value) (bytecod
 	vm.Stack = append(vm.Stack, frame)
 	defer func() { clear(vm.Stack); vm.Stack = vm.Stack[:0] }()
 	return vm.run(frame)
-}
-
-// CallClosure invokes a closure value with the given arguments and returns
-// the result. Used by HOF builtins to call their function arguments.
-// This pushes a new frame onto the VM stack, runs it, and returns.
-func (vm *VM) CallClosure(closure bytecode.Value, args []bytecode.Value) (bytecode.Value, error) {
-	if closure.Tag != bytecode.TagClosure {
-		return bytecode.Value{}, fmt.Errorf("CallClosure: expected closure, got %s", closure.Tag)
-	}
-	c := closure.AsClosure()
-	proto, ok := c.Proto.(*bytecode.FuncPrototype)
-	if !ok {
-		return bytecode.Value{}, fmt.Errorf("CallClosure: non-FuncPrototype")
-	}
-	if int(proto.NumParams) != len(args) {
-		return bytecode.Value{}, fmt.Errorf("CallClosure: %s expects %d args, got %d",
-			proto.Name, proto.NumParams, len(args))
-	}
-	if proto.EvalOnly {
-		if vm.Interop == nil {
-			return bytecode.Value{}, fmt.Errorf("CallClosure: %s is evaluator-only (%s) but no interop bridge",
-				proto.Name, proto.EvalReason)
-		}
-		return vm.Interop.CallEvalFunc(proto.Name, args)
-	}
-	if len(vm.Stack) >= vm.MaxStack {
-		return bytecode.Value{}, ErrStackOverflow
-	}
-	// Push frame with Caller=nil so OpReturn returns the value directly
-	// to vm.run, which returns it to us. The frame comes from the free list
-	// and goes back to it on RETURN: a HOF builtin calls this once per
-	// element, so it must not allocate (#1501).
-	base := len(vm.Stack)
-	frame := vm.acquireFrame(proto, 0, nil)
-	copy(frame.Regs, args)
-	for i, cap := range c.Captures {
-		frame.Regs[int(proto.NumParams)+i] = cap
-	}
-	vm.Stack = append(vm.Stack, frame)
-	result, err := vm.run(frame)
-	if err != nil {
-		// A fault unwinds with its frames still pushed; drop them so the
-		// caller's stack depth is what it was before this call. They are
-		// not recycled (releaseFrame is only for frames RETURN popped).
-		clear(vm.Stack[base:])
-		vm.Stack = vm.Stack[:base]
-	}
-	return result, err
 }
 
 // run is the dispatch loop. It executes from the given frame until a
@@ -198,6 +156,20 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 		case bytecode.OpAdd, bytecode.OpSub, bytecode.OpMul, bytecode.OpDiv, bytecode.OpMod:
 			lhs := frame.Regs[inst.B()]
 			rhs := frame.Regs[inst.C()]
+			// Int fast path (M-VM-QUICK-WINS W3), written inline because a
+			// helper is over Go's inlining budget. DIV and MOD go to arith,
+			// the one home of the zero-divisor check.
+			if lhs.Tag == bytecode.TagInt && rhs.Tag == bytecode.TagInt && op != bytecode.OpDiv && op != bytecode.OpMod {
+				n := lhs.Int * rhs.Int
+				if op == bytecode.OpAdd {
+					n = lhs.Int + rhs.Int
+				} else if op == bytecode.OpSub {
+					n = lhs.Int - rhs.Int
+				}
+				frame.Regs[inst.A()] = bytecode.NewInt(n)
+				frame.IP++
+				continue
+			}
 			res, err := arith(op, lhs, rhs)
 			if err != nil {
 				return bytecode.Value{}, vm.errWrap(frame, "", err, inst)
@@ -224,12 +196,26 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			// Value.Equal which is for dedup.
 			lhs := frame.Regs[inst.B()]
 			rhs := frame.Regs[inst.C()]
+			if lhs.Tag == bytecode.TagInt && rhs.Tag == bytecode.TagInt {
+				frame.Regs[inst.A()] = bytecode.NewBool(lhs.Int == rhs.Int)
+				frame.IP++
+				continue
+			}
 			frame.Regs[inst.A()] = bytecode.NewBool(runtimeEq(lhs, rhs))
 			frame.IP++
 
 		case bytecode.OpLt, bytecode.OpLe:
 			lhs := frame.Regs[inst.B()]
 			rhs := frame.Regs[inst.C()]
+			if lhs.Tag == bytecode.TagInt && rhs.Tag == bytecode.TagInt {
+				b := lhs.Int < rhs.Int
+				if op == bytecode.OpLe {
+					b = lhs.Int <= rhs.Int
+				}
+				frame.Regs[inst.A()] = bytecode.NewBool(b)
+				frame.IP++
+				continue
+			}
 			res, err := compare(op, lhs, rhs)
 			if err != nil {
 				return bytecode.Value{}, vm.errWrap(frame, "", err, inst)
@@ -285,6 +271,15 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 				return bytecode.Value{}, vm.errAt(frame, "CALL on closure with non-FuncPrototype", inst)
 			}
 			argCount := int(inst.B())
+			if argCount > int(calleeProto.NumParams) {
+				result, err := vm.overApply(callee, frameArgs(frame, inst.A(), argCount))
+				if err != nil {
+					return bytecode.Value{}, vm.errWrap(frame, "CALL: ", err, inst)
+				}
+				frame.Regs[inst.A()] = result
+				frame.IP++
+				continue
+			}
 			if int(calleeProto.NumParams) != argCount {
 				return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("CALL: %s expects %d args, got %d", calleeProto.Name, calleeProto.NumParams, argCount), inst)
 			}
@@ -336,6 +331,25 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 				return bytecode.Value{}, vm.errAt(frame, "TAIL_CALL on closure with non-FuncPrototype", inst)
 			}
 			argCount := int(inst.B())
+			if argCount > int(calleeProto.NumParams) {
+				// Not a frame-reusing tail call: run it nested, then return
+				// its result from this frame exactly as OpReturn does.
+				result, err := vm.overApply(callee, frameArgs(frame, inst.A(), argCount))
+				if err != nil {
+					return bytecode.Value{}, vm.errWrap(frame, "TAIL_CALL: ", err, inst)
+				}
+				vm.Stack = vm.Stack[:len(vm.Stack)-1]
+				caller := frame.Caller
+				if caller != nil {
+					caller.Regs[frame.ReturnReg] = result
+				}
+				vm.releaseFrame(frame)
+				if caller == nil {
+					return result, nil
+				}
+				frame = caller
+				continue
+			}
 			if int(calleeProto.NumParams) != argCount {
 				return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("TAIL_CALL: %s expects %d args, got %d", calleeProto.Name, calleeProto.NumParams, argCount), inst)
 			}
@@ -368,18 +382,9 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 				frame = caller
 				continue
 			}
-			// Stash args BEFORE we resize the register slab — they live in
-			// the current frame's registers and will be overwritten by reuseFor.
-			args := make([]bytecode.Value, argCount)
-			for i := 0; i < argCount; i++ {
-				args[i] = frame.Regs[int(inst.A())+1+i]
-			}
-			caps := closure.Captures // captures are heap, no copy needed
-			frame.reuseFor(calleeProto)
-			copy(frame.Regs, args)
-			for i, c := range caps {
-				frame.Regs[int(calleeProto.NumParams)+i] = c
-			}
+			// The arguments live in this frame's registers; resetForTailCall
+			// moves them to the front and zeroes the rest (frame.go).
+			frame.resetForTailCall(calleeProto, int(inst.A())+1, argCount, closure.Captures)
 			// Frame stack depth does NOT grow — that's the whole point.
 
 		case bytecode.OpReturn:
@@ -418,7 +423,11 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 				}
 				caps[i] = frame.Regs[captureInst.B()]
 			}
-			frame.Regs[inst.A()] = bytecode.NewClosure(innerProto, caps)
+			if innerProto.NumCaptures == 0 {
+				frame.Regs[inst.A()] = vm.zeroCapClosure(imageIdx, innerProto)
+			} else {
+				frame.Regs[inst.A()] = bytecode.NewClosure(innerProto, caps)
+			}
 			frame.IP += 1 + int(innerProto.NumCaptures)
 
 		// --- Collections -------------------------------------------------
@@ -634,151 +643,4 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("unknown opcode %d", op), inst)
 		}
 	}
-}
-
-// --- Arithmetic helpers -----------------------------------------------------
-
-// arith dispatches a binary arithmetic operation by tag. Both operands must
-// have the same numeric tag (no implicit int↔float coercion in Phase 2B).
-func arith(op bytecode.OpCode, lhs, rhs bytecode.Value) (bytecode.Value, error) {
-	if lhs.Tag != rhs.Tag {
-		return bytecode.Value{}, fmt.Errorf("arith %s: type mismatch %s vs %s", op, lhs.Tag, rhs.Tag)
-	}
-	switch lhs.Tag {
-	case bytecode.TagInt:
-		l, r := lhs.Int, rhs.Int
-		switch op {
-		case bytecode.OpAdd:
-			return bytecode.NewInt(l + r), nil
-		case bytecode.OpSub:
-			return bytecode.NewInt(l - r), nil
-		case bytecode.OpMul:
-			return bytecode.NewInt(l * r), nil
-		case bytecode.OpDiv:
-			if err := ailerrors.CheckIntDivisor(ailerrors.OpDivision, r); err != nil {
-				return bytecode.Value{}, err
-			}
-			return bytecode.NewInt(l / r), nil
-		case bytecode.OpMod:
-			if err := ailerrors.CheckIntDivisor(ailerrors.OpModulo, r); err != nil {
-				return bytecode.Value{}, err
-			}
-			return bytecode.NewInt(l % r), nil
-		}
-	case bytecode.TagFloat:
-		l, r := lhs.Flt, rhs.Flt
-		switch op {
-		case bytecode.OpAdd:
-			return bytecode.NewFloat(l + r), nil
-		case bytecode.OpSub:
-			return bytecode.NewFloat(l - r), nil
-		case bytecode.OpMul:
-			return bytecode.NewFloat(l * r), nil
-		case bytecode.OpDiv:
-			return bytecode.NewFloat(l / r), nil
-		case bytecode.OpMod:
-			return bytecode.Value{}, fmt.Errorf("MOD on Float not supported")
-		}
-	}
-	return bytecode.Value{}, fmt.Errorf("arith %s on %s not supported", op, lhs.Tag)
-}
-
-// runtimeEq is the equality used by OpEq: types.FloatEq (IEEE, NaN != NaN)
-// for floats wherever they sit, bare or nested in a list, tuple, record or
-// ADT (M-FLOAT-EQ-ONE-SEMANTICS, #1274). It used to fall through to
-// Value.Equal for composites, whose NaN == NaN is for constant-pool dedup,
-// so [nan] == [nan] was true on the VM while nan == nan was false.
-// Cycle-safety: values are finite trees built at runtime.
-func runtimeEq(lhs, rhs bytecode.Value) bool {
-	if lhs.Tag != rhs.Tag {
-		return false
-	}
-	switch lhs.Tag {
-	case bytecode.TagFloat:
-		return types.FloatEq(lhs.Flt, rhs.Flt)
-	case bytecode.TagInt:
-		return lhs.Int == rhs.Int
-	case bytecode.TagBool:
-		return lhs.Bool == rhs.Bool
-	case bytecode.TagUnit:
-		return true
-	case bytecode.TagString:
-		return lhs.AsString() == rhs.AsString()
-	case bytecode.TagList:
-		return runtimeEqAll(lhs.Obj.(*bytecode.ListObj).Elems, rhs.Obj.(*bytecode.ListObj).Elems)
-	case bytecode.TagTuple:
-		return runtimeEqAll(lhs.Obj.(*bytecode.TupleObj).Elems, rhs.Obj.(*bytecode.TupleObj).Elems)
-	case bytecode.TagBytes:
-		return string(lhs.AsBytes().B) == string(rhs.AsBytes().B)
-	case bytecode.TagArray:
-		a, b := lhs.AsArray(), rhs.AsArray()
-		if a.Len() != b.Len() {
-			return false
-		}
-		for i := 0; i < a.Len(); i++ {
-			if !runtimeEq(a.At(i), b.At(i)) {
-				return false
-			}
-		}
-		return true
-	case bytecode.TagRecord:
-		a, b := lhs.Obj.(*bytecode.RecordObj).Fields, rhs.Obj.(*bytecode.RecordObj).Fields
-		if len(a) != len(b) {
-			return false
-		}
-		for i := range a {
-			if a[i].Name != b[i].Name || !runtimeEq(a[i].Value, b[i].Value) {
-				return false
-			}
-		}
-		return true
-	case bytecode.TagADT:
-		a, b := lhs.Obj.(*bytecode.ADTObj), rhs.Obj.(*bytecode.ADTObj)
-		return a.Tag == b.Tag && runtimeEqAll(a.Fields, b.Fields)
-	}
-	// Closures: the type checker rejects Eq on functions; keep the old answer.
-	return lhs.Equal(rhs)
-}
-
-func runtimeEqAll(a, b []bytecode.Value) bool {
-	if len(a) != len(b) {
-		return false
-	}
-	for i := range a {
-		if !runtimeEq(a[i], b[i]) {
-			return false
-		}
-	}
-	return true
-}
-
-// compare implements LT and LE for ordered numeric and string types.
-func compare(op bytecode.OpCode, lhs, rhs bytecode.Value) (bool, error) {
-	if lhs.Tag != rhs.Tag {
-		return false, fmt.Errorf("compare %s: type mismatch %s vs %s", op, lhs.Tag, rhs.Tag)
-	}
-	switch lhs.Tag {
-	case bytecode.TagInt:
-		switch op {
-		case bytecode.OpLt:
-			return lhs.Int < rhs.Int, nil
-		case bytecode.OpLe:
-			return lhs.Int <= rhs.Int, nil
-		}
-	case bytecode.TagFloat:
-		switch op {
-		case bytecode.OpLt:
-			return types.FloatLt(lhs.Flt, rhs.Flt), nil
-		case bytecode.OpLe:
-			return types.FloatLte(lhs.Flt, rhs.Flt), nil
-		}
-	case bytecode.TagString:
-		switch op {
-		case bytecode.OpLt:
-			return lhs.AsString() < rhs.AsString(), nil
-		case bytecode.OpLe:
-			return lhs.AsString() <= rhs.AsString(), nil
-		}
-	}
-	return false, fmt.Errorf("compare %s on %s not supported", op, lhs.Tag)
 }

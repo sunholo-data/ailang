@@ -20,8 +20,8 @@ mc_select_codex_profile() {
 
 mc_codex_command() {
   case "${AILANG_CODEX_RUNTIME:-}" in
-    daemon) MC_CODEX_COMMAND=(ailang mission codex-exec) ;;
-    "") MC_CODEX_COMMAND=(codex exec) ;; # legacy callers outside an initialized mission driver
+    daemon) MC_CODEX_COMMAND=(ailang mission codex-exec -c features.multi_agent_v2.expose_spawn_agent_model_overrides=false) ;;
+    "") MC_CODEX_COMMAND=(codex exec -c features.multi_agent_v2.expose_spawn_agent_model_overrides=false) ;; # legacy callers outside an initialized mission driver
     *) echo 'codex profile: unsupported runtime; no exec fallback' >&2; return 1 ;;
   esac
 }

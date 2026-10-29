@@ -66,17 +66,6 @@ open effect row must propagate that row; omitting it is rejected before executio
 This also applies to repeated callback invocations. Runtime capabilities remain
 required for concrete effects.
 
-### Effectful Callbacks Nested in Data Arguments Are Not Yet Charged
-
-**Status**: Open, tracked in [#1718](https://github.com/sunholo-data/ailang/issues/1718)
-**Verified at**: v0.53.0 implementation, 2026-10-08
-
-Latent effects are charged for a callback passed directly to a HOF or stored in a
-record field, but not for one nested inside a list, tuple or ADT argument. With an
-effectful `logIt`, a pure caller still checks for `applyHead([logIt], x)`,
-`applyFst((logIt, x))` and `applyOpt(Some(logIt), x)`. Declare the callback's effects
-on the caller explicitly until #1718 lands.
-
 
 ### Y-Combinator and Recursive Lambdas (By Design)
 
@@ -305,6 +294,63 @@ Single-expression branches don't need braces.
 
 ## Language Feature Gaps
 
+### VM list views retain backing storage
+
+Since v0.54.10 (#1827), bytecode list tail bindings and builtin-backed `take`/`drop`
+share capacity-capped subslices. A small live suffix or prefix of a large list can
+retain the whole source backing allocation until all views referencing it become
+unreachable. Capacity caps prevent append writes into the source; they do not
+release the backing allocation. Avoid keeping small views of large temporary lists
+alive longer than needed.
+
+This improves list consumption; quadratic `::`/`++` construction remains parked
+on D-19. The checked [tail-walk benchmark](https://github.com/sunholo-data/ailang/tree/dev/bench/vm_tail_walk)
+compares equivalent range inputs and includes a separate construction contrast.
+
+### Go codegen has no tail-call elimination
+
+**Status**: Open
+**Verified at**: v0.54.19 (2026-10-28). `ailang compile --emit-go` on a tail-recursive
+`loop(i, n, acc)` produced Go that hit `fatal error: stack overflow` at 10,000,000 steps.
+`ailang run --strict-bytecode` ran the same function in 0.77–1.07 s at constant depth.
+**Affects**: `--emit-go` and `--emit-go-v2` output only. The evaluator and VM run tail calls at constant depth.
+
+The generated Go emits a self tail call as an ordinary Go call, so every iteration adds a
+Go stack frame. Long tail-recursive loops, which are idiomatic AILANG, overflow the
+goroutine stack. The generated code also boxes every value as `interface{}`. It is a typed
+Go API, not a speed path: `fib(32)` ran in 0.030 s as generated Go against 0.005 s for
+hand-written Go.
+
+**Workaround**: run the program with `ailang run --bytecode`, or use `foldl`/`map` instead of
+explicit recursion in code you compile to Go.
+
+---
+
+### `--bytecode` silently falls back to the evaluator; the VM is slower than CPython
+
+**Status**: Partly fixed. The main fallback causes were closed by
+[M-VM-COVERAGE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_55_0/m-vm-coverage-letrec-prelude-bridge.md)
+(#1989); the rest are open.
+**Verified at**: dev after #1989 (2026-10-28)
+**Affects**: `ailang run --bytecode`
+
+- **Fallback:** when the VM compiler cannot handle a function, `--bytecode` runs it on the
+  evaluator and prints no warning. Of the 205 `examples/runnable` files that pass on the
+  evaluator, 186 run fully on the VM and 18 fall back (before #1989: 142 and 61). Prelude
+  `println` without an import, local `letrec` and module-level value `let`s now run
+  natively. The remaining causes are effectful builtins not yet wired into the VM (file
+  system, clock sleep, archives, game, debug log), ADTs from contract modules, and passing a
+  user ADT or a closure to a function that only the evaluator can run; that last case now
+  falls back before the program prints anything. Use `--strict-bytecode` to fail instead of
+  falling back. The wrong answer a local `letrec` used to give when it shared its name with a
+  top-level function is fixed.
+- **Speed:** the VM is about 40× faster than the evaluator on call-heavy code, but still
+  slower than CPython. Measured best of 3 after M-VM-QUICK-WINS (2026-10-28): `fib(32)` took
+  0.33 s on the VM and 0.14 s in Python (it was 0.50 s before). A 10M-step tail-recursive loop
+  took 0.55 s and 0.32 s (it was 1.07 s).
+
+---
+
 ### Prepending with `::` is quadratic; evaluator recursion is capped at 10,000 frames
 
 **Status**: Known runtime limitations; the list fix is a multi-week representation change now in progress, not yet shipped
@@ -517,7 +563,22 @@ string-function check on the captured group replaces the backreference/lookaroun
 ## Recently Resolved
 
 These limitations existed in earlier versions and are now fully resolved.
-Listed for users following older docs. All re-verified at v0.33.1, 2026-08-17.
+Listed for users following older docs. All re-verified at v0.33.1, 2026-08-17, except
+where an entry gives its own date.
+
+- **Effectful callbacks nested in data arguments** — Fixed for v0.55.0
+  ([#1718](https://github.com/sunholo-data/ailang/issues/1718), design
+  M-EFFECT-LATENT-NESTED-CALLBACKS, verified 2026-10-26). A function value inside a list,
+  tuple, `Option`/ADT payload or record argument is now charged to the caller like a
+  top-level callback: with an effectful `logIt`, a pure caller of `applyHead([logIt], x)`,
+  `applyFst((logIt, x))` or `applyOpt(Some(logIt), x)` is rejected with
+  `Missing effects: IO`; declare `! {IO}` on the caller. The same release closes a
+  concrete annotation's compatibility tail at every read
+  ([#1826](https://github.com/sunholo-data/ailang/issues/1826)), so an `! {IO}` callback
+  passed through `mapE` no longer fails with `Unresolved effect tail`. **Migration:** a
+  concrete `! {IO}` callback mapped with closed-pure `std/list.map`
+  (`map(\d. g(d), xs)`) is now a type error, exactly like `map(\d. println(d), xs)`;
+  use `mapE`.
 
 - **Polymorphic arithmetic in lambdas** — Fixed in v0.7.0
   ([design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-poly-arithmetic-fix.md)).

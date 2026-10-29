@@ -356,6 +356,7 @@ func printHelp() {
 	fmt.Printf("  %s            # Run AI benchmark\n", cyan("ailang eval --benchmark fizzbuzz --mock"))
 	fmt.Printf("  %s  # Run full suite with multiple models\n", cyan("ailang eval-suite --models gpt5,claude-sonnet-4-6"))
 	fmt.Printf("  %s                  # Resume interrupted baseline\n", cyan("ailang eval-suite --full --skip-existing"))
+	fmt.Printf("  %s  # Validate retained-stage inputs without model calls\n", cyan("ailang eval-suite --agent --maintenance-manifest /absolute/path/maintenance.execution.json --dry-run"))
 	fmt.Printf("  %s  # Freeze a cohort for the $/verified-success KPI\n", cyan("ailang eval-suite --agent --verify --baseline v1.0"))
 	fmt.Printf("  %s  # Run a browser-enabled agent eval locally\n", cyan("ailang eval-suite --agent --models gpt5-4 --browser-provider local-playwright --benchmarks browser_session_fixture"))
 	fmt.Printf("  %s  # Publish an authenticated browser profile (the model never sees the password)\n", cyan("ailang browser-profile bootstrap crm-readonly-eu --state-file ./state.json --origins https://crm.example.com --egress-ack"))

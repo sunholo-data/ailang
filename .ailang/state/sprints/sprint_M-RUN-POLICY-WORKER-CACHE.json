@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-RUN-POLICY-WORKER-CACHE",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-10-08T20:13:49.298915+00:00",
   "design_doc": "design_docs/planned/ailang-core-triage/run-policy-worker-cache-dir.md",
   "sprint_plan": "design_docs/planned/v0_52_6/run-policy-worker-cache-dir-sprint-plan.md",
@@ -35,7 +35,10 @@
   "velocity": {
     "target_loc_per_day": 140,
     "estimated_total_loc": 280,
-    "estimated_days": 2
+    "estimated_days": 2,
+    "actual_total_loc": 396,
+    "actual_net_loc": 383,
+    "measurement_scope": "Added code, tests and operator documentation; excludes sprint/design/report/evaluation bookkeeping."
   },
   "features": [
     {
@@ -50,10 +53,11 @@
         "Invalid or in-sandbox temporary base refuses explicitly after cleanup, including symlink aliases.",
         "Operator inside-root paths, including missing leaves below symlinks, warn once and proceed without deleting operator caches."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T10:12:30.562127+00:00",
+      "completed": "2026-10-09T10:12:30.562127+00:00",
+      "notes": "Cache environment, private allocation/placement and worker lifecycle implemented; environment, privacy, ownership and real-directory cleanup regressions pass. Initial cold-environment lint OOM was resolved by isolated resource-bounded final validation.",
+      "actual_loc": 208
     },
     {
       "id": "M2",
@@ -70,10 +74,11 @@
         "Focused go test ./cmd/ailang/... with -run filters plus make test-core and make lint pass (full suite runs in CI); lifecycle and credential regressions covered.",
         "Environment reference, policy guide and changelog fragment changelogs/unreleased/YYYY-MM-DD-run-policy-worker-cache-dir.md document semantics with Refs #1547; cold latency measured."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-09T10:12:31+00:00",
+      "completed": "2026-10-09T10:36:24.150460+00:00",
+      "notes": "Nine new top-level cache regressions and full requested focused suite (76 tests) pass; core, lint, size and home gates pass. Empty sandbox root is not cwd. CGO and a temporary subreaper correct SQLite/zombie environment failures; bounded sequential builds avoid OOM. Generated env metadata, guide and heading-compliant fragment updated. Cold default 131.7ms vs warm external 103.3ms; no full make test, push or merge.",
+      "actual_loc": 189
     }
   ],
   "runs_after": {
@@ -87,5 +92,23 @@
     "No full make test locally (SIGBUS in RAM-backed /tmp): focused go test ./cmd/ailang/... -run ... plus make test-core; full suite runs in CI.",
     "Re-run .claude/skills/sprint-executor/scripts/validate_sprint_json.sh M-RUN-POLICY-WORKER-CACHE before starting and after every JSON update.",
     "Executor cannot push or merge; commit locally with Refs #1547."
-  ]
+  ],
+  "completed": "2026-10-09T10:36:24.150460+00:00",
+  "last_checkpoint": "Both milestones committed; all requested checks passed; independent evaluation PASS 98/100.",
+  "validation": {
+    "focused": "passed: 76 top-level tests, CGO-enabled under temporary child-reaping wrapper",
+    "test_core": "passed",
+    "lint": "passed: zero issues",
+    "file_sizes": "passed",
+    "home_isolation": "passed",
+    "full_make_test": "not run, per user constraint"
+  },
+  "implementation_report": "design_docs/planned/v0_52_6/run-policy-worker-cache-dir-implementation.md",
+  "pr_body_closure": "Closes #1547",
+  "evaluation": {
+    "result": "pass",
+    "score": 98,
+    "round": 1,
+    "report_path": ".ailang/state/evaluations/eval_M-RUN-POLICY-WORKER-CACHE_round_1.json"
+  }
 }

@@ -1,0 +1,253 @@
+{
+  "schema": "maintenance.broker-feasibility/1",
+  "qualified": false,
+  "backendAdmitted": false,
+  "acquisitionComplete": true,
+  "requireLifetimeCleanup": false,
+  "status": "blocked",
+  "blocker": "escaped_descendant_survives_group_kill_and_cwd_reap",
+  "platform": "darwin",
+  "architecture": "arm64",
+  "kernel": "25.6.0",
+  "node": "v26.12.1",
+  "runtimeVersion": "0.0.71",
+  "runtimeLockSHA256": "b9db22624c0b6caf888b16173a9db4c1d48e0d80ec053f7ce6691977ff3bd669",
+  "wrapperSHA256": "f1f3dee69eb4286bac389c8bca737929b403b040c575cc4c86ac81969059bc12",
+  "canarySHA256": "7fc10b877e555a6fe6d2cc569cd9797185e26b00969e0629cb3da209f55716a9",
+  "testSHA256": "9bb3b53c09c8d16bb2009d205b964d5a58e54cae7318db900a025571e707a813",
+  "reapHelperSHA256": "16fe5694887797574028b0f727149b6e5e4b79e22b73920cd92e295b46c1d60c",
+  "ownerSources": {
+    "dumpable.go": "5a99f4463dd2dc4cfd9af752d42d1208a8c93f1fe22df77af38ce3e11e01f167",
+    "dumpable_linux.go": "cd3bd99f55295022e397471d7a9f2b444a6febbad4a3765453851141e878f6d9",
+    "dumpable_other.go": "1a4ad8b548cbed06036139d7cdc944d239d76049ddd2c193c0e0e8a47508a9e6",
+    "procgroup_other.go": "7e037673dd2c47e8513bcc1314df54c03f6ef34b0e71ea9af121111355e95cb1",
+    "procgroup_unix.go": "10ecf20e1cf97eabadb6b3ee76b4574a92cc4a4906d9846dfbba35060209568f",
+    "procgroup_windows.go": "1afe330f4c5ef84bad08d962641a908ca9ecf9170141215296689842b77a43b3",
+    "proctree.go": "3324ae4527f86eaa91832c94787fe950e664757ec8e9a1368e27a32f38a6a8e6",
+    "reap_cwd_other.go": "dc25897f854239e04634f4146dd55063ea223400df0d61ab8ff822a3b8af031b",
+    "reap_cwd_unix.go": "fa051fb34cd3ae65c672c00a46723044acfb9f09cefc0840d9dd32e6efea7911",
+    "self_group_other.go": "af50c825b3b942f9fd6c4eb59ce6ef3f0e8ccd067c8303f44c98e7eea5db0be2"
+  },
+  "controls": {
+    "python": true,
+    "ailangCheck": true,
+    "ailangRun": true,
+    "pythonVersion": "Python 3.13.7",
+    "compilerVersion": "AILANG v0.54.18\nCommit: cd33d05\nFull:   cd33d050b2276633c82624453309ebf7fcea9e2f\nBuilt:  2026-10-23_11:36:25\n\nThe AI-First Programming Language\nCopyright (c) 2025-2026",
+    "compilerSHA256": "9c789da44c2b145d99cff2fbe80a6e80716f240d8be599ca59cd14084c1ea675"
+  },
+  "rows": [
+    {
+      "escape": "stay",
+      "mode": "normal",
+      "ready": {
+        "pid": 88031,
+        "sid": 88031,
+        "cwd": "/private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/maintenance-owner-j4tuBu/app",
+        "closedDescriptorRange": [
+          0,
+          255
+        ],
+        "maxLifetimeSeconds": 30
+      },
+      "before": {
+        "snapshot": "88031 88014 88031 Ss   /Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+        "state": "Ss",
+        "identity": "Mon Oct 26 15:02:22 2026     /Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+        "live": true
+      },
+      "after": null,
+      "reaped": [
+        88031
+      ],
+      "survivesExistingCleanup": false,
+      "bystanderAlive": true,
+      "controller": {
+        "closed": true,
+        "exit": {
+          "code": 0,
+          "signal": null
+        },
+        "output": ""
+      },
+      "policySHA256": "22816d4cc1cda5c944785aa06fb2f19d1ba8aa6749c8928fe6130358dd734308",
+      "policy": {
+        "schema": "maintenance.containment/1",
+        "workspaceRoot": "/private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/maintenance-owner-j4tuBu/app",
+        "protectedRoots": [
+          "/private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/maintenance-owner-j4tuBu/oracle"
+        ],
+        "readOnlyRoots": [],
+        "runtimeModule": "/private/tmp/ailang-maintenance-eval-broker-plan/tools/pi-extensions/sandbox/node_modules/@anthropic-ai/sandbox-runtime/dist/index.js",
+        "runtimeVersion": "0.0.71",
+        "runtimeLock": "/private/tmp/ailang-maintenance-eval-broker-plan/tools/pi-extensions/sandbox/package-lock.json",
+        "runtimeLockDigest": "b9db22624c0b6caf888b16173a9db4c1d48e0d80ec053f7ce6691977ff3bd669",
+        "inferenceDomains": []
+      },
+      "emergencyCleanupVerified": true,
+      "bystanderJoined": true
+    },
+    {
+      "escape": "escape",
+      "mode": "normal",
+      "ready": {
+        "pid": 88057,
+        "sid": 88057,
+        "cwd": "/",
+        "closedDescriptorRange": [
+          0,
+          255
+        ],
+        "maxLifetimeSeconds": 30
+      },
+      "before": {
+        "snapshot": "88057 88056 88057 Ss   /Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+        "state": "Ss",
+        "identity": "Mon Oct 26 15:02:23 2026     /Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+        "live": true
+      },
+      "after": {
+        "snapshot": "88057     1 88057 Ss   /Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+        "state": "Ss",
+        "identity": "Mon Oct 26 15:02:23 2026     /Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+        "live": true
+      },
+      "reaped": [],
+      "survivesExistingCleanup": true,
+      "bystanderAlive": true,
+      "controller": {
+        "closed": true,
+        "exit": {
+          "code": 0,
+          "signal": null
+        },
+        "output": ""
+      },
+      "policySHA256": "b251a1454eba9a61bbb5045c887fb7e44c561057d9e3c063b65fae142931e174",
+      "policy": {
+        "schema": "maintenance.containment/1",
+        "workspaceRoot": "/private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/maintenance-owner-tsJB7y/app",
+        "protectedRoots": [
+          "/private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/maintenance-owner-tsJB7y/oracle"
+        ],
+        "readOnlyRoots": [],
+        "runtimeModule": "/private/tmp/ailang-maintenance-eval-broker-plan/tools/pi-extensions/sandbox/node_modules/@anthropic-ai/sandbox-runtime/dist/index.js",
+        "runtimeVersion": "0.0.71",
+        "runtimeLock": "/private/tmp/ailang-maintenance-eval-broker-plan/tools/pi-extensions/sandbox/package-lock.json",
+        "runtimeLockDigest": "b9db22624c0b6caf888b16173a9db4c1d48e0d80ec053f7ce6691977ff3bd669",
+        "inferenceDomains": []
+      },
+      "emergencyCleanupVerified": true,
+      "bystanderJoined": true
+    },
+    {
+      "escape": "escape",
+      "mode": "timeout",
+      "ready": {
+        "pid": 88127,
+        "sid": 88127,
+        "cwd": "/",
+        "closedDescriptorRange": [
+          0,
+          255
+        ],
+        "maxLifetimeSeconds": 30
+      },
+      "before": {
+        "snapshot": "88127 88124 88127 Ss   /Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+        "state": "Ss",
+        "identity": "Mon Oct 26 15:02:23 2026     /Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+        "live": true
+      },
+      "after": {
+        "snapshot": "88127     1 88127 Ss   /Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+        "state": "Ss",
+        "identity": "Mon Oct 26 15:02:23 2026     /Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+        "live": true
+      },
+      "reaped": [],
+      "survivesExistingCleanup": true,
+      "bystanderAlive": true,
+      "controller": {
+        "closed": true,
+        "exit": {
+          "code": null,
+          "signal": "SIGKILL"
+        },
+        "output": ""
+      },
+      "policySHA256": "cfec1b390afe066dbd2a13797cbd199aff2958643f1763352a755b937507fd39",
+      "policy": {
+        "schema": "maintenance.containment/1",
+        "workspaceRoot": "/private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/maintenance-owner-dUNHeF/app",
+        "protectedRoots": [
+          "/private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/maintenance-owner-dUNHeF/oracle"
+        ],
+        "readOnlyRoots": [],
+        "runtimeModule": "/private/tmp/ailang-maintenance-eval-broker-plan/tools/pi-extensions/sandbox/node_modules/@anthropic-ai/sandbox-runtime/dist/index.js",
+        "runtimeVersion": "0.0.71",
+        "runtimeLock": "/private/tmp/ailang-maintenance-eval-broker-plan/tools/pi-extensions/sandbox/package-lock.json",
+        "runtimeLockDigest": "b9db22624c0b6caf888b16173a9db4c1d48e0d80ec053f7ce6691977ff3bd669",
+        "inferenceDomains": []
+      },
+      "emergencyCleanupVerified": true,
+      "bystanderJoined": true
+    },
+    {
+      "escape": "escape",
+      "mode": "owner_death",
+      "ready": {
+        "pid": 88176,
+        "sid": 88176,
+        "cwd": "/",
+        "closedDescriptorRange": [
+          0,
+          255
+        ],
+        "maxLifetimeSeconds": 30
+      },
+      "before": {
+        "snapshot": "88176 88175 88176 Ss   /Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+        "state": "Ss",
+        "identity": "Mon Oct 26 15:02:24 2026     /Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+        "live": true
+      },
+      "after": {
+        "snapshot": "88176     1 88176 Ss   /Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+        "state": "Ss",
+        "identity": "Mon Oct 26 15:02:24 2026     /Library/Frameworks/Python.framework/Versions/3.13/Resources/Python.app/Contents/MacOS/Python",
+        "live": true
+      },
+      "reaped": [],
+      "survivesExistingCleanup": true,
+      "bystanderAlive": true,
+      "controller": {
+        "closed": true,
+        "exit": {
+          "code": null,
+          "signal": "SIGKILL"
+        },
+        "output": ""
+      },
+      "policySHA256": "0c5defb7b125ade2161b6caee429659d36484abaf84b48760cfa7c1a28c4ccbb",
+      "policy": {
+        "schema": "maintenance.containment/1",
+        "workspaceRoot": "/private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/maintenance-owner-7QB0IS/app",
+        "protectedRoots": [
+          "/private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/maintenance-owner-7QB0IS/oracle"
+        ],
+        "readOnlyRoots": [],
+        "runtimeModule": "/private/tmp/ailang-maintenance-eval-broker-plan/tools/pi-extensions/sandbox/node_modules/@anthropic-ai/sandbox-runtime/dist/index.js",
+        "runtimeVersion": "0.0.71",
+        "runtimeLock": "/private/tmp/ailang-maintenance-eval-broker-plan/tools/pi-extensions/sandbox/package-lock.json",
+        "runtimeLockDigest": "b9db22624c0b6caf888b16173a9db4c1d48e0d80ec053f7ce6691977ff3bd669",
+        "inferenceDomains": []
+      },
+      "emergencyCleanupVerified": true,
+      "bystanderJoined": true
+    }
+  ],
+  "siblingChain": "not_run_after_lifetime_stop_gate",
+  "modelCalls": 0,
+  "cleanup": "Trusted fixture PID used only for emergency cleanup after observation; each child also self-expires at 30 seconds. This is not an admitted owner."
+}

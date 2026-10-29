@@ -56,6 +56,7 @@ func FlattenBlock(e core.CoreExpr, cti types.CoreTypeInfo) ([]stmt.Stmt, stmt.Ex
 		case *core.LetRec:
 			// Flatten recursive bindings.
 			_, line := spanOf(c)
+			group := recGroupNames(c)
 			for _, b := range c.Bindings {
 				varType := resolveBindingType(b, cti)
 				value := lowerExpr(b.Value, cti)
@@ -64,10 +65,11 @@ func FlattenBlock(e core.CoreExpr, cti types.CoreTypeInfo) ([]stmt.Stmt, stmt.Ex
 					bLine = l
 				}
 				stmts = append(stmts, stmt.VarDecl{
-					Name:  b.Name,
-					Type:  varType,
-					Value: value,
-					Line:  bLine,
+					Name:     b.Name,
+					Type:     varType,
+					Value:    value,
+					Line:     bLine,
+					RecGroup: group,
 				})
 			}
 			cur = c.Body
@@ -119,6 +121,18 @@ func FlattenBlock(e core.CoreExpr, cti types.CoreTypeInfo) ([]stmt.Stmt, stmt.Ex
 			return stmts, lowerExpr(cur, cti)
 		}
 	}
+}
+
+// recGroupNames lists the names a local LetRec binds, in source order. Every
+// VarDecl of the group carries it (stmt.VarDecl.RecGroup) so the bytecode
+// compiler resolves a self or mutual reference to the group, never to a
+// top-level function of the same name (M-VM-COVERAGE G1b).
+func recGroupNames(c *core.LetRec) []string {
+	names := make([]string, len(c.Bindings))
+	for i, b := range c.Bindings {
+		names[i] = b.Name
+	}
+	return names
 }
 
 // resolveVarType gets the type of a Let binding from CoreTypeInfo.
@@ -181,6 +195,7 @@ func flattenValue(e core.CoreExpr, cti types.CoreTypeInfo) ([]stmt.Stmt, stmt.Ex
 
 	case *core.LetRec:
 		var stmts []stmt.Stmt
+		group := recGroupNames(c)
 		for _, b := range c.Bindings {
 			varType := resolveBindingType(b, cti)
 			// LetRec binding values are typically lambdas, which lowerExpr
@@ -188,9 +203,10 @@ func flattenValue(e core.CoreExpr, cti types.CoreTypeInfo) ([]stmt.Stmt, stmt.Ex
 			// FlattenBlock internally so bindings are preserved.
 			value := lowerExpr(b.Value, cti)
 			stmts = append(stmts, stmt.VarDecl{
-				Name:  b.Name,
-				Type:  varType,
-				Value: value,
+				Name:     b.Name,
+				Type:     varType,
+				Value:    value,
+				RecGroup: group,
 			})
 		}
 		tailStmts, tailExpr := flattenValue(c.Body, cti)

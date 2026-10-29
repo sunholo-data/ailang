@@ -253,7 +253,8 @@ type AgentConfig struct {
 	// Known values: "", "default", "go", "codex", "codex-go", "pi", "pi-go", "motoko",
 	// "opencode", "eval", "eval-go". Omitting defaults to "default" (agent:latest).
 	// "gemini"/"gemini-go" are retired (see RetiredVariantError).
-	ExecutorVariant string `yaml:"executor_variant" json:"executor_variant,omitempty"`
+	ExecutorVariant string        `yaml:"executor_variant" json:"executor_variant,omitempty"`
+	Shadow          *ShadowConfig `yaml:"shadow" json:"shadow,omitempty"` // shadow_config.go
 
 	// Per-agent git mode (M-GIT-GUARDRAILS, v0.9.2).
 	// Controls how the PreToolUse git_guard.sh hook restricts git operations:
@@ -628,7 +629,8 @@ func DefaultOutputMarkers(agentID string) []string {
 	case "sprint-executor":
 		return []string{"IMPLEMENTATION_COMPLETE:", "BRANCH_NAME:", "FILES_CREATED:", "FILES_MODIFIED:"}
 	case "sprint-evaluator":
-		return []string{"EVALUATION_RESULT:", "EVALUATION_SCORE:", "EVALUATION_ROUND:", "EVALUATION_REPORT_PATH:", "FEEDBACK_SUMMARY:"}
+		// EVALUATION_VERDICT: is the one the coordinator parses (evaluation_verdict.go).
+		return []string{"EVALUATION_SCORE:", "EVALUATION_ROUND:", "EVALUATION_REPORT_PATH:", "FEEDBACK_SUMMARY:", EvaluationVerdictMarker}
 	default:
 		return nil
 	}

@@ -1,6 +1,7 @@
 package coordinator
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
@@ -33,7 +35,9 @@ var coordinatorTracer = telemetry.Tracer("coordinator")
 func (d *Daemon) executeTaskQueue() error {
 	// Cloud mode: dispatch via Pub/Sub (Eventarc triggers Cloud Run Job)
 	if d.pubsubPublisher != nil && d.cloudInboxAdapter != nil {
-		return d.dispatchTasksCloud()
+		err := d.dispatchTasksCloud()
+		d.dispatchShadowGrades()
+		return err
 	}
 
 	// Local mode: execute tasks directly
@@ -83,6 +87,12 @@ func (d *Daemon) executeTaskQueue() error {
 			d.logger.Printf("Skipping task %s: agent %q is not served by this coordinator (left pending for its owner)", task.ID, task.AgentID)
 			continue
 		}
+		// Shadows are cloud-only in v1 and dispatched with their primary; a local
+		// worker running one would run it with full side effects.
+		if task.ShadowOf != "" {
+			d.logger.Printf("Skipping task %s: a shadow of %s is never run locally", task.ID, task.ShadowOf)
+			continue
+		}
 		if err := d.executeTask(task); err != nil {
 			d.logger.Printf("Failed to execute task %s: %v", task.ID, err)
 			// Mark task as failed
@@ -115,6 +125,7 @@ func (d *Daemon) dispatchTasksCloud() error {
 		return nil
 	}
 
+	claimedLanes := map[string]string{}
 	for _, task := range tasks {
 		// CLAIM the task. This is the only thing standing between a task and
 		// two Cloud Run executions of it: the listing above is not exclusive, so
@@ -130,6 +141,15 @@ func (d *Daemon) dispatchTasksCloud() error {
 			} else {
 				d.logger.Printf("Failed to mark task %s as queued: %v", task.ID, err)
 			}
+			continue
+		}
+
+		// A shadow child is dispatched by dispatchShadow in the same tick as its
+		// primary, never from this list. One found pending was orphaned between
+		// its creation and its claim, and dispatching it here would run it as an
+		// ordinary task: push, PR and all.
+		if task.ShadowOf != "" {
+			d.failShadow(task.ID, fmt.Errorf("orphaned shadow of %s: not dispatched alongside its primary", task.ShadowOf))
 			continue
 		}
 
@@ -162,6 +182,23 @@ func (d *Daemon) dispatchTasksCloud() error {
 		// Two of those are the middle stages of the four-stage pipeline, so the
 		// pipeline could not have completed even once, whatever else was fixed.
 		provider := resolveDispatchProvider(d.agentRegistry, task.AgentID, d.coordConfig)
+
+		// One rotating credential, one job at a time (credential_lane.go). A
+		// second codex job would lose the lease and be banked as failed.
+		if lane := credentialLane(inputAgent, provider); lane != "" {
+			holder, err := d.credentialLaneHolder(d.ctx, lane, task.ID, claimedLanes)
+			if err != nil {
+				d.logger.Printf("Task %s: cannot check credential lane %s, leaving it pending: %v", task.ID, lane, err)
+				_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)
+				continue
+			}
+			if holder != "" {
+				d.logger.Printf("Task %s: credential lane %s is held by %s; leaving it pending", task.ID, lane, holder)
+				_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)
+				continue
+			}
+			claimedLanes[lane] = task.ID
+		}
 
 		// Publish task to Pub/Sub for audit trail / event streaming.
 		if err := d.pubsubPublisher.PublishTask(d.ctx, task.ID, task.AgentID, task.Workspace, provider); err != nil {
@@ -384,6 +421,7 @@ func (d *Daemon) dispatchTasksCloud() error {
 				continue
 			}
 			d.logger.Printf("Cloud dispatch: task %s → Cloud Run Job (agent: %s, provider: %s)", task.ID, task.AgentID, provider)
+			d.dispatchShadow(task, agentCfg, params)
 		} else {
 			d.logger.Printf("Cloud dispatch: published task %s to Pub/Sub only (no dispatcher, agent: %s, provider: %s)", task.ID, task.AgentID, provider)
 		}
@@ -404,8 +442,45 @@ func (d *Daemon) handleDispatchError(task *TaskRecord, err error) {
 			d.logger.Printf("Warning: failed to mark task %s failed: %v", task.ID, mErr)
 		}
 		d.postTaskResult(task, nil, err)
+		d.postDispatchFailureCompletion(task, err)
 		return
 	}
 	d.logger.Printf("Failed to dispatch task %s to Cloud Run Job: %v", task.ID, err)
 	_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)
+}
+
+// postDispatchFailureCompletion posts a failed completion to the agent's inbox
+// for a task that never reached an executor. Only the executor job publishes a
+// completion, so a task refused at dispatch used to fail with nothing but a
+// thread post: the five sprint-evaluator tasks the blocked credit budget
+// refused on 2026-10-16 (402 "credit budget blocked") never appeared in the
+// inbox or in `messages activity`, and the evaluator sat dead for 11 days.
+func (d *Daemon) postDispatchFailureCompletion(task *TaskRecord, err error) {
+	if d.msgStore == nil {
+		return
+	}
+	payload, _ := json.Marshal(map[string]string{
+		"task_id":   task.ID,
+		"agent_id":  task.AgentID,
+		"status":    "failed",
+		"error_msg": err.Error(),
+		"source":    "dispatch",
+	})
+	toInbox := task.AgentID
+	if d.agentRegistry != nil {
+		if inbox, ok := d.agentRegistry.InboxForAgent(task.AgentID); ok {
+			toInbox = inbox
+		}
+	}
+	msg := &messaging.InboxMessage{
+		FromAgent:     task.AgentID,
+		ToInbox:       toInbox,
+		MessageType:   "completion",
+		Title:         fmt.Sprintf("Task %s: failed (dispatch refused)", task.ID),
+		Payload:       string(payload),
+		CorrelationID: task.MessageID,
+	}
+	if mErr := d.msgStore.InsertInboxMessage(msg); mErr != nil {
+		d.logger.Printf("Warning: failed to post dispatch-failure completion for task %s: %v", task.ID, mErr)
+	}
 }

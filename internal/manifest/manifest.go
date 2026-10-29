@@ -86,6 +86,7 @@ type Example struct {
 type Statistics struct {
 	Total        int     `json:"total"`
 	Working      int     `json:"working"`
+	Aspirational int     `json:"aspirational"`
 	Broken       int     `json:"broken"`
 	Experimental int     `json:"experimental"`
 	Coverage     float64 `json:"coverage"`
@@ -269,6 +270,8 @@ func (m *Manifest) calculateStatistics() Statistics {
 			stats.Working++
 		case StatusBroken:
 			stats.Broken++
+		case StatusAspirational:
+			stats.Aspirational++
 		case StatusExperimental:
 			stats.Experimental++
 		}

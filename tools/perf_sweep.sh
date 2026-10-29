@@ -110,6 +110,7 @@ cons_deep_ratio="$(awk -v a="$cons_deep_mb" -v b="$cons_mb" 'BEGIN{ if (b>0) pri
 BENCHLOG="$WORK/bench.txt"
 go test ./internal/eval/ -run '^$' -bench 'BenchmarkEval_(ListMapFilter|PatternMatch|StringPipeline)$|BenchmarkMapInsert5K$' -benchmem -count "$BENCH_COUNT" > "$BENCHLOG" 2>&1 || true
 go test ./internal/builtins/ -run '^$' -bench 'Benchmark(ListMap50K|ListFoldl50K|ParseElements_1K)$' -benchmem -count "$BENCH_COUNT" >> "$BENCHLOG" 2>&1 || true
+go test ./internal/runner/ -run '^$' -bench 'BenchmarkVM(Fib25|TailLoop1M|MapFold200K)$' -benchmem -count "$BENCH_COUNT" >> "$BENCHLOG" 2>&1 || true
 bench_min() { # bench_min <name> <field: ns|B>
   case "$2" in
     ns) awk -v n="$1" '$1 ~ "^"n"-" {print $3}' "$BENCHLOG" | sort -n | head -1 ;;
@@ -142,6 +143,11 @@ LATHOW="tools/bench_workloads.sh --runs $RUNS (AILANG_NO_TRACE=1, first run disc
   for b in BenchmarkListMap50K BenchmarkListFoldl50K BenchmarkParseElements_1K; do
     short="$(echo "$b" | sed 's/Benchmark//' | tr 'A-Z' 'a-z')"
     metric "builtin_${short}_b_op" "$(bench_min "$b" B)" B/op le 0.05 "go test ./internal/builtins -bench $b -benchmem -count $BENCH_COUNT, min B/op"
+  done
+  for b in BenchmarkVMFib25 BenchmarkVMTailLoop1M BenchmarkVMMapFold200K; do
+    short="$(echo "$b" | sed 's/BenchmarkVM//' | tr 'A-Z' 'a-z')"
+    metric "vm_${short}_ns_op" "$(bench_min "$b" ns)" ns/op le 0.20 "go test ./internal/runner -bench $b -benchmem -count $BENCH_COUNT, min ns/op (bytecode VM execution only, fresh VM per op; M-VM-QUICK-WINS)"
+    metric "vm_${short}_b_op" "$(bench_min "$b" B)" B/op le 0.05 "same run, min B/op (deterministic: per-call closures and tail-call arg slices show here)"
   done
 } | jq -s 'add' > "$WORK/metrics.json"
 

@@ -367,11 +367,15 @@ func TestExecuteStreaming_FizzbuzzFixture(t *testing.T) {
 		t.Errorf("OutputTokens/ReasonTokens = %d/%d, want 92/0", result.OutputTokens, result.ReasonTokens)
 	}
 
-	// Cost: 0.001505 (single turn, patched into message_end.usage.cost.total).
-	const wantCost = 0.001505
-	const epsilon = 1e-7
+	// Cost of record = registry rates × tokens, NOT pi's patched 0.001505.
+	// pi-claude-haiku-4-5: $1/M input, $5/M output → 801×1e-6 + 92×5e-6.
+	const wantCost = 0.000801 + 0.00046
+	const epsilon = 1e-9
 	if diff := result.CostUSD - wantCost; diff > epsilon || diff < -epsilon {
-		t.Errorf("CostUSD = %.8f, want %.8f", result.CostUSD, wantCost)
+		t.Errorf("CostUSD = %.8f, want %.8f (registry-priced)", result.CostUSD, wantCost)
+	}
+	if got := result.ProviderData["pi_self_reported_cost_usd"]; got != 0.001505 {
+		t.Errorf("pi_self_reported_cost_usd = %v, want 0.001505 kept as diagnostic", got)
 	}
 
 	// Single turn (one turn_start event).
@@ -458,11 +462,16 @@ func TestExecuteStreaming_ToolUseFixture(t *testing.T) {
 		t.Errorf("OutputTokens = %d, want 98", result.OutputTokens)
 	}
 
-	// Cost: 0.00634375 + 0.00631925 + 0.0001 = 0.012763
-	const wantCost = 0.012763
-	const epsilon = 1e-5
+	// Cost of record = registry rates × summed tokens (pi-claude-haiku-4-5:
+	// $1/M input, $5/M output): 2635×1e-6 + 98×5e-6. pi's patched per-turn
+	// figures (sum 0.012763) are diagnostic only.
+	const wantCost = 0.002635 + 0.00049
+	const epsilon = 1e-9
 	if diff := result.CostUSD - wantCost; diff > epsilon || diff < -epsilon {
-		t.Errorf("CostUSD = %.8f, want %.8f", result.CostUSD, wantCost)
+		t.Errorf("CostUSD = %.8f, want %.8f (registry-priced)", result.CostUSD, wantCost)
+	}
+	if got, _ := result.ProviderData["pi_self_reported_cost_usd"].(float64); got < 0.012763-1e-9 || got > 0.012763+1e-9 {
+		t.Errorf("pi_self_reported_cost_usd = %v, want 0.012763 (sum of per-turn pi figures)", got)
 	}
 
 	// Three turns (three turn_start events).

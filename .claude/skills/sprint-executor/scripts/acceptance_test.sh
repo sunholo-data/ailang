@@ -116,7 +116,7 @@ case "$TEST_TYPE" in
         echo "Testing builtin functions..."
 
         # Run unit tests for builtins package
-        if make test | grep -q "internal/builtins"; then
+        if go test ./internal/builtins/... -count=1 >/dev/null 2>&1; then
             echo -e "${GREEN}✓ Builtin unit tests pass${NC}"
         else
             echo -e "${RED}✗ Builtin unit tests failed${NC}"

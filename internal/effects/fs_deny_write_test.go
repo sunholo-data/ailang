@@ -118,6 +118,9 @@ func TestFSCheckMutation_SharedMatcher(t *testing.T) {
 	ctx.Env.Sandbox = sandbox
 	ctx.Env.ProtectGitDir = true
 	ctx.Env.DenyWrite = []string{".github/**"}
+	// The check resolves through the sandbox root, which holds a directory
+	// handle; Windows cannot remove the TempDir while it is open.
+	t.Cleanup(func() { _ = ctx.CloseFSRoot() })
 	for _, p := range []string{".GIT/config", ".GitHub/workflows/ci.yml", filepath.Join(sandbox, ".GITHUB", "x")} {
 		if err := ctx.fsCheckMutation(p); err == nil || !strings.Contains(err.Error(), "E_FS_PROTECTED") {
 			t.Errorf("%s must be protected, got %v", p, err)

@@ -1,0 +1,126 @@
+{
+  "sprint_id": "M-RUN-POLICY-WORKER-CACHE",
+  "evaluation_round": 1,
+  "timestamp": "2026-10-09T10:37:29.668970+00:00",
+  "design_doc": "design_docs/planned/ailang-core-triage/run-policy-worker-cache-dir.md",
+  "sprint_plan": "design_docs/planned/v0_52_6/run-policy-worker-cache-dir-sprint-plan.md",
+  "review_base": "9394761b",
+  "review_head": "3c6a2517",
+  "implementation_commits": [
+    "f14e86c4",
+    "3c6a2517"
+  ],
+  "total_score": 98,
+  "pass_threshold": 70,
+  "result": "pass",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 10,
+    "acceptance_criteria": 30,
+    "code_quality": 13,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "gate_source": "executor-provided local logs, independently inspected focused and lint log tails",
+    "tests_pass": true,
+    "tests_output": "/tmp/ailang-cache-focused-final.log: PASS, 76 top-level tests, 145.760s; /tmp/ailang-cache-core-complete.log: exit0",
+    "lint_clean": true,
+    "lint_output": "/tmp/ailang-cache-lint-verified.log: 0 issues, exit0",
+    "file_sizes_ok": true,
+    "home_isolation_ok": true,
+    "full_make_test": "Not run, explicitly prohibited by user; required focused and test-core substitutes passed.",
+    "environment_notes": "CGO enabled for SQLite tests. Temporary subreaper reaped killed orphan descendants left as zombies by container PID1. Sequential memory-bounded Go builds avoided compiler OOM. No repository changes to bypass these gates.",
+    "todo_hack_count": 0
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "Restricted environment forwards operator cache value; empty/unset selects generated default without duplicate effective entries.",
+      "met": true,
+      "evidence": "TestWorkerCacheEnvironment verifies exactly one effective operator/default value; workerEnv substitutes only empty values."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Trusted-host full environment and provider credential filtering remain compatible.",
+      "met": true,
+      "evidence": "TestWorkerCacheTrustedEnvironment and unchanged provider-scoped credential suites preserve full passthrough/filtering."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Private generated caches remain outside sandbox and are cleaned on normal, start-failure, timeout, output-cap and worker-error paths.",
+      "met": true,
+      "evidence": "startPolicyWorker creates mode-0700 caches after pipe setup; explicit refusal cleanup and supervisor defer cover start failure and all completed worker paths; lifecycle integration regressions pass."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Invalid or in-sandbox temporary base refuses explicitly after cleanup, including symlink aliases.",
+      "met": true,
+      "evidence": "TestPolicyCacheStartFailureCleanup and TestRunPolicy_CacheUnsafeTemporaryDirectory verify invalid, direct inside-root and symlinked bases refuse and leave no generated directory."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Operator inside-root paths, including missing leaves below symlinks, warn once and proceed without deleting operator caches.",
+      "met": true,
+      "evidence": "cacheInsideSandbox resolves nearest existing ancestors; placement and symlink-leaf integration cases warn once via supervisorLine and retain operator caches."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Unset/empty restricted runs leave no sandbox .ailang directory or generated cache remnants.",
+      "met": true,
+      "evidence": "TestRunPolicy_CacheDirectory unset/empty cases verify no sandbox .ailang and no generated cache remnants."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "External overrides populate persistent <dir>/compile without sandbox writes.",
+      "met": true,
+      "evidence": "TestRunPolicy_CacheDirectory outside case verifies persistent compile directory and second successful run without sandbox cache."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Inside-root operator override warns once (via the #1548 supervisorLine helper) and succeeds; trusted_host remains compatible.",
+      "met": true,
+      "evidence": "Inside/symlink-leaf cases verify one warning naming poison and fs_deny_write; trusted case verifies existing local compile default."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Unsafe TMPDIR refuses before program execution and leaves no generated cache.",
+      "met": true,
+      "evidence": "Unsafe temporary directory integration cases verify refusal, no program output, and cleanup."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Focused go test ./cmd/ailang/... with -run filters plus make test-core and make lint pass (full suite runs in CI); lifecycle and credential regressions covered.",
+      "met": true,
+      "evidence": "Requested focused suite passed 76 top-level tests including nine new cache tests; test-core, lint, file-size and home-isolation gates passed, based on executor logs."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Environment reference, policy guide and changelog fragment changelogs/unreleased/YYYY-MM-DD-run-policy-worker-cache-dir.md document semantics with Refs #1547; cold latency measured.",
+      "met": true,
+      "evidence": "Generated env source and reference, policy guide, heading-compliant unreleased fragment and implementation report document semantics; cold default131.7ms versus external second-run103.3ms recorded."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": false,
+    "example_coverage": "Permanent example not required by approved supervisor-only bug-fix plan; runnable existing/new .ail test fixtures provide example coverage.",
+    "design_doc_status": "Implemented 2026-10-09",
+    "sprint_artifacts": "Sprint completed, both milestone passes true, timestamps and summaries populated; plan acceptance checklists complete."
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Matches operator precedence, private outside-sandbox default, entryInsideSandbox checks for generated caches, explicit cleanup before os.Exit refusals, symlink-aware missing-leaf operator warning classification, fresh-line warning: supervisorLine output and empty-root handling. Trusted-host semantics preserved."
+  },
+  "feedback": [],
+  "quality_deductions": [
+    {
+      "points": 2,
+      "file": "cmd/ailang/run_policy_cache_integration_test.go",
+      "function": "TestRunPolicy_CacheDirectory",
+      "reason": "New table-driven integration test exceeds the rubric 50-line function limit; no correctness defect and no functional revision required."
+    }
+  ],
+  "notes": "Independent review identified generated-doc source drift; executor fixed internal/config/paths.go and regenerated only the intended env-reference row. No remaining correctness findings. No shared compiler semantics or performance optimization goals changed, so conditional gates do not apply. No tests rerun by evaluator."
+}

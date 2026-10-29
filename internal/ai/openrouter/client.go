@@ -2,7 +2,12 @@ package openrouter
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
+	"fmt"
 	"net/http"
+	"os"
+	"sync"
 
 	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/config"
@@ -78,7 +83,31 @@ func attributionHeaders(attr *ai.Attribution) http.Header {
 	headers.Set("X-OpenRouter-Title", title)
 	headers.Set("X-Title", title)
 	headers.Set("X-OpenRouter-Categories", categories)
+	headers.Set("X-Session-Id", sessionID())
 	return headers
+}
+
+// processSessionID is the x-session-id used when OPENROUTER_SESSION_ID is
+// unset: one per process, which is one session for an agent run.
+var processSessionID = sync.OnceValue(func() string {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return fmt.Sprintf("ailang-%d", os.Getpid())
+	}
+	return "ailang-" + hex.EncodeToString(b)
+})
+
+// sessionID is the OpenRouter session-affinity id. Without one OpenRouter
+// load-balances every call of a conversation across upstream hosts. Measured
+// 2026-10-12 on GLM-5.3-Flash, same task, same time: pi (which sends
+// x-session-id) stayed on one host for all 81 calls; motoko via std/ai was
+// spread over three, and on one of them the model's tool calls stopped
+// matching its own reasoning ({"op":"tree","module":"x"} for 25+ steps).
+func sessionID() string {
+	if v := config.OpenRouterSessionID(); v != "" {
+		return v
+	}
+	return processSessionID()
 }
 
 // FrozenAttribution resolves environment/default precedence before a deferred
@@ -157,7 +186,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	defer span.End()
 
 	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE marshaling/dispatch.
-	reasoning, rErr := ai.ResolveReasoning(req, "openrouter", req.Model)
+	reasoning, rErr := resolveReasoning(req)
 	if rErr != nil {
 		span.RecordError(rErr)
 		span.SetStatus(codes.Error, rErr.Error())

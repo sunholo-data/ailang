@@ -4,7 +4,7 @@
 **Created:** 2026-10-07
 **Program lane:** split three ways, like OAuth: a **serve-api** protocol feature (`@mcp_file`), a **package** (`sunholo/mcp_files`) and a docparse **adoption**. See "Lanes".
 **Research:** [m-serveapi-directory-ready-file-handoff-research.md](../v0_51_0/m-serveapi-directory-ready-file-handoff-research.md) (primary sources, fetched 2026-10-07)
-**Related:** [m-serveapi-directory-ready.md](../v0_51_0/m-serveapi-directory-ready.md) · [m-mcp-oauth-package.md](../v0_52_0/m-mcp-oauth-package.md)
+**Related:** [m-serveapi-directory-ready.md](../v0_51_0/m-serveapi-directory-ready.md) · [m-mcp-oauth-package.md](../../implemented/v0_52_0/m-mcp-oauth-package.md)
 
 ## Problem
 

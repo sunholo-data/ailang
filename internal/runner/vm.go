@@ -201,7 +201,8 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 	}
 
 	machine := vm.NewVM(img)
-	if effCtx, ok := rt.GetEvaluator().GetEffContext().(*effects.EffContext); ok {
+	effCtx, _ := rt.GetEvaluator().GetEffContext().(*effects.EffContext)
+	if effCtx != nil {
 		machine.Effects = effCtx
 	}
 	if params.MaxRecursionDepth > 0 {
@@ -239,11 +240,14 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 		return true, nil
 	}
 
+	attemptsBefore := effCtx.EffectAttempts()
 	result, err := machine.Run(proto, bcArgs)
 	if err != nil {
-		// Native effects may have consumed input or emitted output before failure.
+		// Native effects, or evaluator-only callees reached through the
+		// bridge, may have consumed input or emitted output before failure.
 		// Report an attempted execution so non-strict mode cannot replay it.
-		return machine.EffectCalls > 0, fmt.Errorf("vm: %w", err)
+		attempted := machine.EffectCalls > 0 || effCtx.EffectAttempts() != attemptsBefore
+		return attempted, fmt.Errorf("vm: %w", err)
 	}
 	printVMResult(result, params)
 	return true, nil

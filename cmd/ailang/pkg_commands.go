@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -494,11 +495,18 @@ func pkgLockCommand(args []string) error {
 		return fmt.Errorf("no ailang.toml found in %s: %w\nRun 'ailang init package' first", cwd, err)
 	}
 
+	// Read before either write path: only a missing lock permits generation.
+	prevLF, err := loadPreviousLock(cwd)
+	if err != nil {
+		return err
+	}
+
 	if len(manifest.Dependencies) == 0 {
 		fmt.Printf("%s No dependencies to resolve\n", yellow("⚠"))
 		// Still create an empty lock file for consistency
 		lf := pkg.NewLockFile(nil, fmt.Sprintf("ailang lock %s", Version))
 		lf.AILANGVersion = Version
+		preserveLockGeneration(prevLF, lf)
 		if err := lf.Save(cwd); err != nil {
 			return fmt.Errorf("failed to write lock file: %w", err)
 		}
@@ -506,16 +514,14 @@ func pkgLockCommand(args []string) error {
 		return nil
 	}
 
-	// Load previous lockfile before overwriting, for ratchet detection.
-	prevLF, _ := pkg.LoadLockFile(cwd)
-
-	resolved, err := pkg.ResolveDependencies(manifest, cwd)
+	resolved, err := pkg.ResolveDependenciesFrom(manifest, cwd, prevLF)
 	if err != nil {
 		return fmt.Errorf("dependency resolution failed: %w", err)
 	}
 
 	lf := pkg.NewLockFile(pkg.LockedFromResolved(resolved), fmt.Sprintf("ailang lock %s", Version))
 	lf.AILANGVersion = Version
+	preserveLockGeneration(prevLF, lf)
 	if err := lf.Save(cwd); err != nil {
 		return fmt.Errorf("failed to write lock file: %w", err)
 	}
@@ -594,6 +600,10 @@ func pkgTreeCommand(args []string) error {
 //
 // Warnings are best-effort: if the messaging store is unavailable the check is
 // skipped silently.  The lock file is always written regardless.
+//
+// The store is opened only when some path dep's version actually changed, and
+// never under confinement: opening it creates ~/.ailang/state/collaboration.db
+// (#1720 row 20). A confined skip is said on stderr, not silent (D7).
 func warnSilentRatchet(resolved []pkg.ResolvedPackage, prevLF *pkg.LockFile) {
 	// Build a version map from the previous lockfile.
 	prevVersions := make(map[string]string, len(prevLF.Packages))
@@ -601,22 +611,31 @@ func warnSilentRatchet(resolved []pkg.ResolvedPackage, prevLF *pkg.LockFile) {
 		prevVersions[lp.Name] = lp.Version
 	}
 
-	// Open the messaging store read-only; skip silently if unavailable.
-	dbPath := messaging.GetDefaultDatabasePath()
-	store, err := messaging.OpenStore(dbPath)
+	var changed []pkg.ResolvedPackage
+	for _, r := range resolved {
+		if r.Source != "path" {
+			continue // only path deps can silently ratchet
+		}
+		if prev, ok := prevVersions[r.Name]; ok && prev != r.Version {
+			changed = append(changed, r)
+		}
+	}
+	if len(changed) == 0 {
+		return
+	}
+
+	store, err := openPkgMsgStore(msgStoreBestEffort)
+	if errors.Is(err, errSkippedConfined) {
+		fmt.Fprintln(os.Stderr, "note: silent-ratchet check skipped (confined)")
+		return
+	}
 	if err != nil {
 		return
 	}
 	defer store.Close()
 
-	for _, r := range resolved {
-		if r.Source != "path" {
-			continue // only path deps can silently ratchet
-		}
-		prev, ok := prevVersions[r.Name]
-		if !ok || prev == r.Version {
-			continue // new dep or version unchanged
-		}
+	for _, r := range changed {
+		prev := prevVersions[r.Name]
 
 		// Version changed — check for an upgrade-available message.
 		msgs, listErr := store.ListInboxMessages(messaging.InboxListOptions{

@@ -1,0 +1,61 @@
+C-pre-P+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	positive	P U
+C-pre-U+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	positive	P U
+C-	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	negative	P U
+C+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	positive	P U
+C-post-P+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	positive	P U
+C-post-U+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	positive	P U
+C-post-negative	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	negative	P U
+C-project-pre-P+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	positive	P
+C-project-pre-negative	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	negative	P
+C-project	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	subject	P
+C-project-post-P+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	positive	P
+C-project-post-negative	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	negative	P
+C-user-pre-U+	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.claude	positive	U
+C-user-pre-negative	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.claude	negative	U
+C-user	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.claude	subject	U
+C-user-post-U+	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.claude	positive	U
+C-user-post-negative	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.claude	negative	U
+C-collision-1-pre-P+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	positive	P U
+C-collision-1-pre-U+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	positive	P U
+C-collision-1-pre-negative	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	negative	P U
+C-collision-1	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	subject	P U
+C-collision-1-post-P+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	positive	P U
+C-collision-1-post-U+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	positive	P U
+C-collision-1-post-negative	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	negative	P U
+C-world-1-pre-U+	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.claude	positive	U X
+C-world-1-pre-X+	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.claude	positive	U X
+C-world-1-pre-negative	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.claude	negative	U X
+C-world-1	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.claude	subject	U X
+C-world-1-post-U+	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.claude	positive	U X
+C-world-1-post-X+	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.claude	positive	U X
+C-world-1-post-negative	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.claude	negative	U X
+C-v1-1-pre-P+	C	/Users/voightkampff/dev/sunholo-data/ailang	/Users/voightkampff/.claude	positive	P U V
+C-v1-1-pre-U+	C	/Users/voightkampff/dev/sunholo-data/ailang	/Users/voightkampff/.claude	positive	P U V
+C-v1-1-pre-V+	C	/Users/voightkampff/dev/sunholo-data/ailang	/Users/voightkampff/.claude	positive	P U V
+C-v1-1-pre-negative	C	/Users/voightkampff/dev/sunholo-data/ailang	/Users/voightkampff/.claude	negative	P U V
+C-v1-1	C	/Users/voightkampff/dev/sunholo-data/ailang	/Users/voightkampff/.claude	subject	P U V
+C-v1-1-post-P+	C	/Users/voightkampff/dev/sunholo-data/ailang	/Users/voightkampff/.claude	positive	P U V
+C-v1-1-post-U+	C	/Users/voightkampff/dev/sunholo-data/ailang	/Users/voightkampff/.claude	positive	P U V
+C-v1-1-post-V+	C	/Users/voightkampff/dev/sunholo-data/ailang	/Users/voightkampff/.claude	positive	P U V
+C-v1-1-post-negative	C	/Users/voightkampff/dev/sunholo-data/ailang	/Users/voightkampff/.claude	negative	P U V
+C-add-only-pre-X+	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.claude	positive	X
+C-add-only-pre-negative	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.claude	negative	X
+C-add-only	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.claude	subject	X
+C-add-only-post-X+	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.claude	positive	X
+C-add-only-post-negative	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.claude	negative	X
+C-settings-pre-P+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	positive	P U
+C-settings-pre-U+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	positive	P U
+C-settings-pre-negative	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	negative	P U
+C-settings	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	subject	P U
+C-settings-post-P+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	positive	P U
+C-settings-post-U+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	positive	P U
+C-settings-post-negative	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.claude	negative	P U
+C-auth-base	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.claude	auth	none
+C-auth-isolated	C	/private/tmp/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-world	/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791873918-915d98ad61875192ea911f2b/runtime/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-scratch/CS	auth	none
+C-synthetic-pre-P+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791873918-915d98ad61875192ea911f2b/runtime/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-scratch/CS	positive	P S
+C-synthetic-pre-S+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791873918-915d98ad61875192ea911f2b/runtime/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-scratch/CS	positive	P S
+C-synthetic-pre-negative	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791873918-915d98ad61875192ea911f2b/runtime/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-scratch/CS	negative	P S
+C-synthetic	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791873918-915d98ad61875192ea911f2b/runtime/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-scratch/CS	subject	P S
+C-synthetic-post-P+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791873918-915d98ad61875192ea911f2b/runtime/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-scratch/CS	positive	P S
+C-synthetic-post-S+	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791873918-915d98ad61875192ea911f2b/runtime/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-scratch/CS	positive	P S
+C-synthetic-post-negative	C	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791873918-915d98ad61875192ea911f2b/runtime/zz-fleet-spike-1791873918-915d98ad61875192ea911f2b-scratch/CS	negative	P S

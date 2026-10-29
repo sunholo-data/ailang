@@ -1,0 +1,12 @@
+# Operator policy for the hosted AILANG executor (M-AILANG-EXECUTOR-GE P1).
+# Every ailang_run / ailang_eval call runs `ailang run --policy` under this
+# file: the same supervised boundary as the ailang_only executor lane, but
+# tighter — IO only, so FS, Net, Process, Env and AI are refused by name
+# before the program starts. Callers never choose capabilities.
+allowed_caps     = ["IO"]
+fs_sandbox       = "/tmp/ailang-exec"   # = EXECUTOR_WORK_DIR; one dir per request
+security_mode    = "restricted"
+timeout_ms       = 60000                # supervisor kills the worker group
+max_output_bytes = 65536
+max_source_bytes = 65536
+entry            = "main"

@@ -213,6 +213,6 @@ func warnIfCachePrefixTooSmall(req *ai.Request) {
 			ai.WarnOnceCachePrefixTooSmall(req.Model, position, approxTokens(text), minTokens)
 		}
 	}
-	check("system", req.SystemPrompt)
+	check("system", req.SystemText())
 	check("user_prefix", req.CachedPrefix)
 }

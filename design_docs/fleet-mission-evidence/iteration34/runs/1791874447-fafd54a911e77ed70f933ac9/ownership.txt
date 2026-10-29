@@ -1,0 +1,15 @@
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791874447-fafd54a911e77ed70f933ac9/runtime/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-scratch
+/private/tmp/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-world
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/.agents/skills/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-k
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/.claude/skills/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-k-claude
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/.agents/skills/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-k-project
+/Users/voightkampff/.agents/skills/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-k-agents-user
+/Users/voightkampff/.codex-missions/skills/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-k-legacy-user
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/.agents/skills/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-k-collision
+/Users/voightkampff/.agents/skills/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-k-collision
+/Users/voightkampff/.codex-missions/skills/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-k-collision
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/.agents/skills/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-k-by-path
+/Users/voightkampff/.agents/skills/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-k-by-path
+/Users/voightkampff/.codex-missions/skills/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-k-by-path
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/.agents/skills/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-k-home
+/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791874447-fafd54a911e77ed70f933ac9/runtime/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-scratch/KS/skills/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-k-home

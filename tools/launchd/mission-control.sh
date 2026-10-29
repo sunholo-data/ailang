@@ -121,6 +121,15 @@ fi
 # both provenance lines resolved to macOS /usr/bin/log ("log: Unknown subcommand
 # 'anthropic credential: ...'" in the launchd log) and never reached $LOG.
 log() { echo "[$(date '+%F %H:%M:%S')] $*" | tee -a "$LOG"; }
+# --- QUORUM ARTIFACT INIT START ---
+if ! . "$MC_DRIVER_ROOT/tools/launchd/lib/quorum-artifacts.sh"; then
+  log "ERROR: cannot source quorum artifact helper"; exit 2
+fi
+if ! mc_quorum_init; then
+  log "ERROR: quorum artifact initialization failed"; exit 2
+fi
+log "quorum artifact directory: $MISSION_QUORUM_ARTIFACT_DIR"
+# --- QUORUM ARTIFACT INIT END ---
 # ANTHROPIC CREDENTIAL PROVENANCE — say which path is in play, once per fire.
 #
 # There are two, and they fail differently. CLAUDE_CODE_OAUTH_TOKEN (from
@@ -338,6 +347,42 @@ _mc_notify() {
   fi
 }
 
+# _mc_exit_notice LABEL TITLE MSG_BODY GH_BODY — one-shot, BOUNDED, NON-FATAL exit-path notice.
+# The refusal, late-kill and rc-fail notices used to call `ailang messages send` and
+# `gh issue comment` bare. Both are network calls, and a hang there wedged the exiting
+# process: launchd does not start a second instance of a live job, so the mission's next
+# fire was blocked too, and on the refusal path the blocked mission could not reach its own
+# retry. Each channel gets ONE bounded shot (no retry, no spool): the next fire re-derives
+# these conditions anyway. The send is store-scoped exactly as _mc_notify scopes it, because
+# unscoped it lands in this machine's private SQLite inbox and exits 0 — delivered to nobody.
+# A failure is LOUD in the driver log with its reason, and never aborts the exit.
+_mc_exit_notice() {
+  local label="$1" title="$2" mbody="$3" gbody="$4" _rc _out
+  _mc_bounded "$NOTIFY_TIMEOUT" env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
+    ailang messages send controlplane "$mbody" --title "$title" --from "$MSG_FROM"; _rc=$?
+  if [ "$_rc" -ne 0 ]; then
+    _out="$MC_BOUNDED_OUT"
+    [ "$_rc" -eq 124 ] && _out="timed out after ${NOTIFY_TIMEOUT}s (no output)"
+    [ -z "$_out" ] && _out="no output (rc=$_rc)"
+    # A same-title repeat is refused by the inbox (titles are not date-stamped here, see the
+    # follow-up in the sprint plan). That is the inbox saying it already has the notice, not a
+    # channel failure, so it is logged as such rather than as a WARNING.
+    if _mc_notice_suppressed; then
+      log "${label} notice already in the inbox (duplicate title) — not re-sent"
+    else
+      log "WARNING: ${label} notice FAILED to send via ailang messages (rc=$_rc): $(printf '%s' "$_out" | tail -c 300 | tr '\n' ' ')"
+    fi
+  fi
+  [ -n "${MISSION_GH_ISSUE:-}" ] || return 0   # silent when unset, as these sites always were
+  _mc_bounded "$NOTIFY_TIMEOUT" gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" --body "$gbody"; _rc=$?
+  if [ "$_rc" -ne 0 ]; then
+    _out="$MC_BOUNDED_OUT"; [ "$_rc" -eq 124 ] && _out="timed out after ${NOTIFY_TIMEOUT}s (no output)"
+    [ -z "$_out" ] && _out="no output (rc=$_rc)"
+    log "WARNING: ${label} notice FAILED to post to issue #${MISSION_GH_ISSUE} (rc=$_rc): $(printf '%s' "$_out" | tail -c 300 | tr '\n' ' ')"
+  fi
+  return 0
+}
+
 # --- stall detection (see the stall watchdog below) -------------------------
 # _mc_descendants PID → echoes PID and every descendant PID (one per line).
 _mc_descendants() {
@@ -437,19 +482,29 @@ _mc_pi_session_exists() {
   ls "${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/sessions/--${slug}--/"*_"$1".jsonl >/dev/null 2>&1
 }
 
+# WHY THE TRANSCRIPT ARM KEYS ON THE SESSION ID (fleet iteration 55, ticket
+# stall:watchdog:foreground-agent-and-wrong-transcript). The projects directory is
+# shared by every claude session with the same cwd, so "newest *.jsonl" measured
+# whichever session was touched last: World iter-297 was killed reading
+# prog=318821268, a 318 MB file from another session, while its own was ~1 MB.
+# The driver now launches claude with --session-id, and claude names the file
+# with that id verbatim (case kept) under a slug of the PHYSICAL cwd (/tmp is
+# /private/tmp), so it is found by id across project dirs, not by a $PWD slug.
+# A foreground Agent-tool sub-agent writes <id>/subagents/agent-*.jsonl while
+# the parent transcript stays flat for the whole run (World iters 296 and 297
+# were killed mid-judge), so those count too. pi keys on MC_PI_SESSION_ID.
 _mc_progress_bytes() {
-  local dir newest total=0 got=0 sz
+  local dir f total=0 got=0 sz
   case "${CONTROLLER_PROVIDER:-claude}" in
     claude)
-      # `claude -p` appends to ~/.claude/projects/<cwd, / and . mapped to ->/<uuid>.jsonl
-      dir="$HOME/.claude/projects/$(printf '%s' "$PWD" | tr '/.' '--')"
-      if [ -d "$dir" ]; then
-        newest=$(ls -t "$dir"/*.jsonl 2>/dev/null | head -1)
-        if [ -n "$newest" ] && [ -f "$newest" ]; then
-          sz=$(wc -c < "$newest" 2>/dev/null | tr -d ' ')
-          total=$((total + ${sz:-0})); got=1
-        fi
-      fi
+      # Without an id, even an existing LOG cannot safely arm the early kill.
+      [ -n "${MC_CLAUDE_SESSION_ID:-}" ] || return 1
+      for f in "$HOME"/.claude/projects/*/"$MC_CLAUDE_SESSION_ID".jsonl \
+               "$HOME"/.claude/projects/*/"$MC_CLAUDE_SESSION_ID"/subagents/*.jsonl; do
+        [ -f "$f" ] || continue
+        sz=$(wc -c < "$f" 2>/dev/null | tr -d ' ')
+        total=$((total + ${sz:-0})); got=1
+      done
       ;;
     pi)
       # `pi -p` BUFFERS to the end exactly like `claude -p`, so the driver log below
@@ -460,12 +515,12 @@ _mc_progress_bytes() {
       # (pi's own safePath rule; unlike claude's slug, dots are KEPT).
       local slug="${PWD#/}"; slug=$(printf '%s' "$slug" | tr '/\\:' '---')
       dir="${PI_CODING_AGENT_DIR:-$HOME/.pi/agent}/sessions/--${slug}--"
-      if [ -d "$dir" ]; then
-        newest=$(ls -t "$dir"/*.jsonl 2>/dev/null | head -1)
-        if [ -n "$newest" ] && [ -f "$newest" ]; then
-          sz=$(wc -c < "$newest" 2>/dev/null | tr -d ' ')
+      if [ -n "${MC_PI_SESSION_ID:-}" ]; then
+        for f in "$dir"/*_"$MC_PI_SESSION_ID".jsonl; do
+          [ -f "$f" ] || continue
+          sz=$(wc -c < "$f" 2>/dev/null | tr -d ' ')
           total=$((total + ${sz:-0})); got=1
-        fi
+        done
       fi
       ;;
   esac
@@ -699,6 +754,7 @@ _mc_boot_offset() {
     motoko) echo 1260 ;;
     fleet)  echo 1680 ;;
     stapledon) echo 2100 ;;
+    triage) echo 2520 ;;
     *)      echo 0    ;;
   esac
 }
@@ -943,7 +999,7 @@ select_model() {
   if [ -n "${MISSION_MODEL:-}" ]; then
     # A demoted pin has a SPENT bucket, so honouring it again just reruns the
     # failure. Fall through to probing and let the chain answer.
-    if _mc_is_demoted "$(_mc_canon_id "$MISSION_MODEL")" || _mc_is_over_ration "$MISSION_MODEL"; then
+    if _mc_is_demoted "$(_mc_canon_id "$MISSION_MODEL")" || _mc_ration_refuses "$MISSION_MODEL"; then
       log "env pin $MISSION_MODEL unavailable (runtime limit or quota admission) — falling through to the chain"
     else
       _mc_set_controller "$MISSION_MODEL" "env pin"; return 0
@@ -958,7 +1014,7 @@ select_model() {
       rm -f "$OVERRIDE_FILE"
       log "model override expired — resuming preference probing"
     elif [ -n "${ov_model:-}" ]; then
-      if _mc_is_demoted "$(_mc_canon_id "$ov_model")" || _mc_is_over_ration "$ov_model"; then
+      if _mc_is_demoted "$(_mc_canon_id "$ov_model")" || _mc_ration_refuses "$ov_model"; then
         log "override pin $ov_model DEMOTED this fire (runtime bucket limit) — falling through to the chain"
       else
         _mc_set_controller "$ov_model" "override file"; return 0
@@ -984,7 +1040,7 @@ select_model() {
       log "controller candidate $m DEMOTED this fire (runtime bucket limit) — skipping"
       continue
     fi
-    if _mc_is_over_ration "$m"; then
+    if _mc_ration_refuses "$m"; then
       log "controller candidate $m is OVER RATION (bucket $(_mc_rung_bucket "$m")) — skipping to a cheaper rung"
       continue
     fi
@@ -1022,7 +1078,7 @@ select_model() {
       log "controller fallback rung $fb DEMOTED this fire (runtime bucket limit) — skipping"
       continue
     fi
-    if _mc_is_over_ration "$fb"; then
+    if _mc_ration_refuses "$fb"; then
       log "controller fallback rung $fb is OVER RATION (bucket $(_mc_rung_bucket "$fb")) — skipping to a cheaper rung"
       continue
     fi
@@ -1305,9 +1361,9 @@ fi
 # Unchanged by design: the lane is still Anthropic, so the rotation's provider spread is
 # untouched (astra = ChatGPT subscription, deepseek = flat-rate pi). Quorum independence
 # is enforced by design-quorum itself since 2026-09-25: the skill passes the designer as
-# --author, that vendor sits out, and three seats are drawn from the pool (gpt6-astra,
-# gemini-3-1-pro, oc-glm-5-3, oc-kimi-k3, claude-sonnet-5@claude-p), so on this Anthropic turn
-# Claude does not review the doc.
+# --author, that vendor sits out, and three seats are drawn from the pool (defaultQuorumPool in
+# cmd/ailang/design_quorum.go: gpt6-1-sol, gemini-4-argon, oc-glm-5-3, oc-kimi-k3,
+# claude-sonnet-5@claude-p), so on this Anthropic turn Claude does not review the doc.
 #
 # Worth knowing rather than acting on: the CONTROLLER is also claude-opus-5-5 as of today,
 # so one of the rotation's three entries now shares the controller's model. That is not the
@@ -1649,6 +1705,33 @@ if [ "${MISSION_NAME:-}" = fleet ] && [ -z "${AILANG_MISSION_WORK_ITEM:-}" ]; th
 fi
 # --- FLEET IDLE PRE-CHECK END ---
 
+# --- TRIAGE IDLE PRE-CHECK START ---
+# The triage mission (M-TRIAGE-MISSION Part B) digests the card/PR/issue queue; a fire whose
+# queue is unchanged since the last COMPLETED digest has nothing to do (charter clause 5,
+# "idle is free"). Same placement rules as fleet's: below the kill switch, above every probe
+# and the notice drain. The fingerprint (open PR heads, pending card ids, open issue
+# updatedAt minus the bookkeeping thread) comes from ONE helper that the controller also runs
+# with --record after posting its digest — the only writer of the state file. A fingerprint
+# that cannot be READ is neither unchanged nor changed: yield, loudly.
+if [ "${MISSION_NAME:-}" = triage ] && [ -z "${AILANG_MISSION_WORK_ITEM:-}" ]; then
+  _mc_bounded 120 /bin/bash "$MC_DRIVER_ROOT/tools/launchd/lib/triage-fingerprint.sh"; _tr_rc=$?
+  _tr_now=$(printf '%s\n' "$MC_BOUNDED_OUT" | tail -1)
+  _tr_hash=${_tr_now%% *}
+  if [ "$_tr_rc" -ne 0 ] || ! printf '%s' "$_tr_hash" | grep -Eq '^[0-9a-f]{64}$'; then
+    log "triage: cannot read the queue fingerprint (rc=$_tr_rc: $(printf '%s' "$MC_BOUNDED_OUT" | tail -2 | tr '\n' ' ')) — yielding; a failed read is neither zero nor work"
+    exit 0
+  fi
+  _tr_last=""
+  [ -f "$STATE_DIR/mission-triage-queue-fingerprint" ] \
+    && _tr_last=$(head -1 "$STATE_DIR/mission-triage-queue-fingerprint" 2>/dev/null)
+  if [ "${_tr_last%% *}" = "$_tr_hash" ]; then
+    log "triage: queue unchanged since the last digest (${_tr_now#* }) — idle, nothing spent"
+    exit 0
+  fi
+  log "triage: queue changed since the last digest (${_tr_now#* }; last: ${_tr_last:-none recorded}) — proceeding"
+fi
+# --- TRIAGE IDLE PRE-CHECK END ---
+
 # Deliver anything a previous fire could not. Placed after the pin decision so a drained
 # notice is reported by the same driver the rest of this fire runs, and BELOW the kill
 # switch for the same reason the probes are: this drain makes up to one bounded network
@@ -1946,6 +2029,11 @@ fi
 
 if type mc_skill_sync >/dev/null 2>&1; then mc_skill_sync apply; fi
 log "skill-sync=$SKILL_SYNC_STATUS $SKILL_SYNC_NOTE"
+# The mission's own clone, opt-in (lib/skill-sync.sh mc_workdir_sync for the why).
+if [ "${MISSION_WORKDIR_SYNC:-0}" = 1 ] && type mc_workdir_sync >/dev/null 2>&1; then
+  mc_workdir_sync "$REPO"
+  log "workdir-sync=$SKILL_SYNC_STATUS $SKILL_SYNC_NOTE ($REPO)"
+fi
 
 # 3b. BOOT STAGGER (2026-09-05). See _mc_boot_offset for the measurement. Placed
 #     AFTER the kill switch, the overlap yield and the dry run — a disabled
@@ -2022,6 +2110,7 @@ fi
 
 # 4. Select the model (probe doubles as the subscription-auth check: API keys
 #    are stripped above, so a passing probe proves keychain/token auth too).
+# --- REFUSAL NOTICE START ---
 if ! select_model; then
   log "NO usable controller in Anthropic prefs ($PREFS) or fallback ($CONTROLLER_FALLBACK). Refusing."
   # Announce ONCE per blocked episode, not once per refusal. mission-recovery.sh
@@ -2035,17 +2124,16 @@ if ! select_model; then
     : > "$BLOCKED_FILE"
     _mc_load_ration
     _ref_reserve=$(_mc_reset_hint | sed 's/^/- 💳 /')
-    ailang messages send controlplane \
+    _mc_exit_notice refusal "Mission iteration blocked: no usable model" \
       "mission-control refused to start: no usable controller in Anthropic prefs ($PREFS) or fallback ($CONTROLLER_FALLBACK). Per-model reasons are in the driver log. Zero tokens spent beyond probes. Further refusals in this episode are silent; mission-recovery retries automatically.${_ref_reserve:+ Held in reserve (attended decision): $(printf '%s' "$_ref_reserve" | tr '\n' ' ')}" \
-      --title "Mission iteration blocked: no usable model" --from "$MSG_FROM" 2>/dev/null
-    [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
-      --body "⚠️ Mission iteration did not start: **no usable controller** in Anthropic preferences (\`$PREFS\`) or fallback (\`$CONTROLLER_FALLBACK\`). Per-model detail is in the driver log. \`mission-recovery\` retries automatically; further refusals in this episode are silent to avoid comment spam.${_ref_reserve:+
+      "⚠️ Mission iteration did not start: **no usable controller** in Anthropic preferences (\`$PREFS\`) or fallback (\`$CONTROLLER_FALLBACK\`). Per-model detail is in the driver log. \`mission-recovery\` retries automatically; further refusals in this episode are silent to avoid comment spam.${_ref_reserve:+
 
 **Held in reserve** (an attended decision — the loop never spends these):
-${_ref_reserve}}" 2>/dev/null
+${_ref_reserve}}"
   fi
   exit 1
 fi
+# --- REFUSAL NOTICE END ---
 rm -f "$BLOCKED_FILE"   # a probe succeeded — the blocked episode (if any) is over
 
 # Controller model CHANGES (transitions only) go into MISSION_ROUTING_NOTE, which the
@@ -2211,8 +2299,7 @@ MISSION_DRIVER_ROOT="${MC_DRIVER_ROOT:-}"; export MISSION_DRIVER_ROOT
 _mc_export_mission_registry
 # The over-ration buckets travel with the resolved plan, so resolve-role-spawn.sh can
 # refuse a role recipe the driver itself would have refused (see that script's gate).
-_mc_load_ration
-MISSION_OVER_RATION=$(printf '%s' "$MC_OVER_RATION" | tr -s ' ' | sed 's/^ //; s/ $//'); export MISSION_OVER_RATION
+MISSION_OVER_RATION=$(_mc_spawn_over_ration); export MISSION_OVER_RATION
 for _role in DESIGNER PLANNER EXECUTOR EVALUATOR; do
   _mv="MISSION_${_role}_MODEL"; _rv="${!_mv:-}"
   printf -v "MISSION_${_role}_RESOLVED" '%s' "$_rv"; export "MISSION_${_role}_RESOLVED"
@@ -2249,13 +2336,33 @@ if [ -f "$MC_SKILL_PATH" ]; then
 else
   log "WARNING: mission-control skill not found at \$REPO/.claude/skills or ~/.claude/skills — the controller prompt names a path that does not exist"
 fi
-PROMPT="Run one mission-control iteration: invoke the mission-control skill for \
+# --- PROMPT ROLE SENTENCE START ---
+# The role sentence is per-mission (M-TRIAGE-MISSION Part B). Every mission except triage gets
+# the designer/planner/executor/evaluator sentence BYTE-IDENTICAL to before the split —
+# test_mission_prompt_role.sh pins it against a golden. Triage runs no inner loop: it spawns
+# read-only verifiers and a different-vendor judge (resources/gate-3-triage.md). Both keep
+# generator-not-equal-judge as a requirement, not a preference.
+MC_PROMPT_HEAD="Run one mission-control iteration: invoke the mission-control skill for \
 ${MISSION_DOC} and follow its gates. You are a scheduled run; \
 there is no human present — park anything needing human input and report via \
 ailang messages and the GitHub bookkeeping issue, per the skill. \
 The authoritative runtime instructions are ${MC_SKILL_PATH}; \
-read and follow that file even when the controller provider is Codex. \
-This prompt carries the operator's standing request for this run, written in advance \
+read and follow that file even when the controller provider is Codex. "
+if [ "${MISSION_NAME:-}" = triage ]; then
+MC_PROMPT_ROLES="This prompt carries the operator's standing request for this run, written in advance \
+because the run is unattended: USE THE AGENT TOOL to spawn read-only VERIFIER agents and a \
+JUDGE from a different vendor exactly as the skill's resources/gate-3-triage.md specifies \
+(verifiers on the executor role, the judge on the evaluator role). Do NOT spawn designer, \
+planner or executor roles for code work: this mission runs no inner loop, and it never \
+approves, rejects or merges. Treat that as the user asking for sub-agents, so any standing \
+instruction to avoid the Agent tool unless the user asks is satisfied here and does not apply. \
+The judge in particular is REQUIRED: generator-not-equal-judge is a non-negotiable property \
+of this loop, so no action and no VERIFIED attestation may rest on the verifier's or the \
+controller's own verdict, and the judge must not share a vendor with the verifier. If a role \
+genuinely cannot be spawned, record WHICH role, the error, and the fallback you used in the \
+routing block; do not silently proceed without a judge."
+else
+MC_PROMPT_ROLES="This prompt carries the operator's standing request for this run, written in advance \
 because the run is unattended: USE THE AGENT TOOL to spawn the designer, planner, executor \
 and evaluator roles exactly as the skill's routing table specifies. Treat that as the user \
 asking for sub-agents, so any standing instruction to avoid the Agent tool unless the user \
@@ -2264,6 +2371,9 @@ generator-not-equal-judge is a non-negotiable property of this loop, and an iter
 lands work on the controller's own verdict has no independent review at all. If a role \
 genuinely cannot be spawned, record WHICH role, the error, and the fallback you used in \
 the routing block; do not silently proceed without a judge."
+fi
+PROMPT="${MC_PROMPT_HEAD}${MC_PROMPT_ROLES}"
+# --- PROMPT ROLE SENTENCE END ---
 
 # One pi session per FIRE (not per attempt): see the pi spawn in _mc_run_once.
 MC_PI_SESSION_ID="mission-${MISSION_NAME}-$(date +%s)-$$"
@@ -2277,6 +2387,23 @@ check their output files first. The original instructions are earlier in this se
 # --- HEARTBEAT STATE DIR START ---
 _mc_slot_state="${AILANG_STATE_DIR:-$STATE_DIR}"
 # --- HEARTBEAT STATE DIR END ---
+
+_mc_uuid() {
+  /usr/bin/uuidgen 2>/dev/null ||
+    python3 -c 'import uuid; print(uuid.uuid4())' 2>/dev/null
+}
+
+_mc_claude_session_prepare() {
+  MC_CLAUDE_SESSION_ARGS=()
+  if [ "$CONTROLLER_PROVIDER" = "claude" ]; then
+    # Claude retries start fresh; set the id before launch and watchdog forks.
+    MC_CLAUDE_SESSION_ID=$(_mc_uuid) || MC_CLAUDE_SESSION_ID=""
+    log "Claude session id: ${MC_CLAUDE_SESSION_ID:-unavailable (early stall kill disabled)}"
+    [ -z "$MC_CLAUDE_SESSION_ID" ] || MC_CLAUDE_SESSION_ARGS=(--session-id "$MC_CLAUDE_SESSION_ID")
+  else
+    MC_CLAUDE_SESSION_ID=""
+  fi
+}
 
 # _mc_run_once → runs the selected provider with BOTH watchdogs, waits, sets global RC.
 # Watchdogs are per-attempt (fresh PIDs each retry).
@@ -2292,6 +2419,7 @@ _mc_run_once() {
   rmdir "$_mc_hard_trigger" "$_mc_stall_trigger" 2>/dev/null || true
   printf '%s\t%s\tfired\t%s\t\n' "$(date +%s)" "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "$MISSION_ATTEMPT" > "$_mc_heartbeat"
   # --- ATTEMPT HEARTBEAT END ---
+  _mc_claude_session_prepare
   # --- CODEX CONTROLLER EXEC START ---
   if [ "$CONTROLLER_PROVIDER" = "codex" ]; then
     # codex's shell_environment_policy (inherit=core on the rig) strips the driver's exports from
@@ -2345,6 +2473,7 @@ _mc_run_once() {
     ( cd "$REPO" && pi --model "$MODEL" ${_mc_pi_ext[@]+"${_mc_pi_ext[@]}"} -e "$MC_DRIVER_ROOT/tools/pi-extensions/controller-bash-cap.ts" --session-id "$MC_PI_SESSION_ID" -p "$_mc_pi_prompt" < /dev/null ) >>"$LOG" 2>&1 &
   else
     claude -p "$PROMPT" \
+      ${MC_CLAUDE_SESSION_ARGS[@]+"${MC_CLAUDE_SESSION_ARGS[@]}"} \
       --model "$MODEL" \
       --permission-mode bypassPermissions \
       >>"$LOG" 2>&1 &
@@ -2481,7 +2610,8 @@ if [ -f "$_mc_slot_hb" ]; then
     0:complete) _mc_slot_verdict="COMPLETED" ;;
     0:abort) _mc_slot_verdict="ABORTED" ;;
     0:fired|0:) _mc_slot_verdict="DIED-PRE-GATE-0" ;;
-    0:gate-*) _mc_slot_verdict="REAPED at=$_mc_slot_last" ;;
+    0:gate-0|0:gate-1|0:gate-2|0:gate-3|0:gate-3b|0:gate-4|0:gate-5) _mc_slot_verdict="REAPED at=$_mc_slot_last" ;;
+    0:*) _mc_slot_verdict="UNCLASSIFIED at=$_mc_slot_last" ;;
     143:*|137:*) _mc_slot_verdict="KILLED at=${_mc_slot_last:-fired}" ;;
     *:*) _mc_slot_verdict="CRASHED at=${_mc_slot_last:-fired}" ;;
   esac
@@ -2504,11 +2634,12 @@ rm -f "$PIDFILE"   # this instance owns the run; yield paths above never reach h
 
 # --- SLOT NOTIFY START ---
 case "$_mc_slot_verdict" in
-  REAPED*|DIED-PRE-GATE-0|HEARTBEAT-MISSING)
+  REAPED*|DIED-PRE-GATE-0|HEARTBEAT-MISSING|UNCLASSIFIED*)
     _mc_slot_episode="$_mc_slot_state/mission-${MISSION_NAME}-reaped.episode"
     if [ ! -f "$_mc_slot_episode" ] || [ "$(cat "$_mc_slot_episode" 2>/dev/null)" != "$_mc_slot_verdict" ]; then
       printf '%s' "$_mc_slot_verdict" > "$_mc_slot_episode"
-      _mc_bounded 30 ailang messages send controlplane \
+      _mc_bounded 30 env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT="${AILANG_MESSAGES_PROJECT:-ailang-multivac}" \
+        ailang messages send controlplane \
         "Mission slot verdict: $_mc_slot_verdict (rc=$RC, attempt=${MISSION_ATTEMPT:-1}/$TRANSIENT_RETRIES). Log: $LOG" \
         --title "Mission slot reaped: $_mc_slot_verdict" --from "$MSG_FROM" || true
       [ -n "${MISSION_GH_ISSUE:-}" ] && _mc_bounded 30 gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
@@ -2519,6 +2650,7 @@ case "$_mc_slot_verdict" in
 esac
 # --- SLOT NOTIFY END ---
 
+# --- FINAL RC NOTICE START ---
 if [ "$RC" -ne 0 ]; then
   post_last_record=$(grep '^## ' "$MISSION_LOG_FILE" 2>/dev/null | tail -1)
   if [ -n "$post_last_record" ] && [ "$post_last_record" != "$pre_last_record" ]; then
@@ -2526,11 +2658,9 @@ if [ "$RC" -ne 0 ]; then
     # non-zero exit is a late kill of a lingering child, not a lost iteration.
     log "iteration exited rc=$RC AFTER recording itself — late kill, work landed"
     rm -f "$STATE_DIR/mission-${MISSION_NAME:-control}-rcfail.episode"   # not a crash episode
-    ailang messages send controlplane \
+    _mc_exit_notice late-kill "Mission iteration killed post-record (rc=$RC) — work landed" \
       "mission-control iteration exited rc=$RC AFTER its mission-log record landed (late watchdog kill of a lingering child, not a lost iteration). Record: ${post_last_record:0:160}. Log: $LOG" \
-      --title "Mission iteration killed post-record (rc=$RC) — work landed" --from "$MSG_FROM" 2>/dev/null
-    [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
-      --body "ℹ️ Mission iteration exited **rc=$RC after landing its record** at $(date '+%F %H:%M %Z') — the mission log gained an entry during this run, so this was a late watchdog kill of a lingering child, not a lost iteration. The queue advanced normally. Log on the rig: \`$LOG\`." 2>/dev/null
+      "ℹ️ Mission iteration exited **rc=$RC after landing its record** at $(date '+%F %H:%M %Z') — the mission log gained an entry during this run, so this was a late watchdog kill of a lingering child, not a lost iteration. The queue advanced normally. Log on the rig: \`$LOG\`."
   elif [ "${MC_PAUSED:-0}" -eq 1 ]; then
     # Already announced by the PAUSE branch's _mc_notify. Not a crash: no generic notice,
     # and the rcfail episode is left as-is (only rc change or completion ends it).
@@ -2547,11 +2677,9 @@ if [ "$RC" -ne 0 ]; then
       log "rc=$RC failure unchanged this episode — notice suppressed ($_rc_ep)"
     else
       printf '%s' "$RC" > "$_rc_ep"
-      ailang messages send controlplane \
+      _mc_exit_notice rc-fail "Mission iteration FAILED (rc=$RC)" \
         "mission-control iteration exited rc=$RC (timeout or crash). Log: $LOG" \
-        --title "Mission iteration FAILED (rc=$RC)" --from "$MSG_FROM" 2>/dev/null
-      [ -n "${MISSION_GH_ISSUE:-}" ] && gh issue comment "$MISSION_GH_ISSUE" --repo "$MISSION_REPO" \
-        --body "⚠️ Mission iteration **FAILED to complete** (rc=$RC — timeout or crash) at $(date '+%F %H:%M %Z'). Log on the rig: \`$LOG\`. The queue is untouched; the next interval will retry. Further identical failures are silent until the rc changes or an iteration completes." 2>/dev/null
+        "⚠️ Mission iteration **FAILED to complete** (rc=$RC — timeout or crash) at $(date '+%F %H:%M %Z'). Log on the rig: \`$LOG\`. The queue is untouched; the next interval will retry. Further identical failures are silent until the rc changes or an iteration completes."
     fi
   fi
 else
@@ -2560,3 +2688,4 @@ else
   # The skill itself sends the substantive report (Gate 5, both channels).
 fi
 exit "$RC"
+# --- FINAL RC NOTICE END ---

@@ -108,10 +108,9 @@ opencode emits NDJSON via `--format json`. Four event types:
 
 Each `step_finish` contains the tokens consumed by THAT step only. To get
 conversation totals: **sum** all `step_finish.part.tokens.input` and `.output`.
-Cost is also per-step; sum `step_finish.part.cost` for total.
-
-The executor's `CostUSD` field reflects the summed per-step cost (reported by
-opencode directly, not estimated from token counts × pricing).
+Cost is also per-step (`step_finish.part.cost`), but it comes from opencode's
+own price table and is kept only as `ProviderData["opencode_self_reported_cost_usd"]`.
+`Result.CostUSD` is registry rates × the summed tokens (see Cost Model).
 
 ### Cache counters are EXCLUSIVE of input
 
@@ -144,8 +143,8 @@ iterations (M-TRANSCRIPT pattern): `task.ResumeSessionID` → `--session` flag.
 
 - opencode does not support `--skip-git-repo-check` (Codex-specific flag);
   it handles non-git workspaces natively
-- `CostModel()` returns zeros: actual cost comes from per-step `step_finish.cost`
-  field reported by opencode; pre-flight estimates are provider-dependent
+- `CostModel()` returns zeros (pre-flight only); the cost of record is registry
+  rates × tokens, see Cost Model
 - Session resume (`--session`) depends on opencode's local DB (~/.local/share/opencode/);
   sessions are not portable across machines
 - Non-JSON preamble on stdout (e.g. "Performing one time database migration...")
@@ -154,10 +153,17 @@ iterations (M-TRANSCRIPT pattern): `task.ResumeSessionID` → `--session` flag.
 
 ## Cost Model
 
-Cost is reported directly by opencode in `step_finish.part.cost` (USD). The
-executor sums these per-step costs into `Result.CostUSD` rather than estimating
-from token counts × pricing rates. This gives higher accuracy than the pricing
-table approach used by Claude/Gemini executors.
+`Result.CostUSD` is `internal/modelreg/models.yml` rates × the summed tokens
+(input, output + reasoning, cache read, cache write), via `executor.PriceTokens`:
+`Task.Pricing` first, else the `provider/model` string resolved through the
+registry (`executor.HarnessCostModel`). An unresolvable model banks $0 with
+`cost_provenance: unknown`; a zero-rate row is `free-local`; an Ollama Cloud
+route is `list-price-equivalent`.
+
+opencode's own `step_finish.part.cost` comes from its built-in price table, which
+is not ours and can be stale or wrong for a route we pin (pi had the same bug:
+Haiku 5.5 billed ~56x over list). It survives only as
+`ProviderData["opencode_self_reported_cost_usd"]`.
 
 ## μRAG Plugin (microrag-plugin.ts)
 

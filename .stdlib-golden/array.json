@@ -3,813 +3,155 @@
   "types": [],
   "funcs": [
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "a",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "b",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
+      "name": "accumulate",
+      "type": "(Array[a],list[(int,a)],(a,a)-\u003ea)-\u003eArray[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
       "name": "add",
       "type": "(Array[float],Array[float])-\u003eArray[float]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "arr",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "val",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "append",
       "type": "(Array[a],a)-\u003eArray[a]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "v",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "argmax",
       "type": "(Array[float])-\u003eint",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "a",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "x",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "y",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "axpy",
       "type": "(float,Array[float],Array[float])-\u003eArray[float]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "b",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "decodeF32LE",
       "type": "(bytes)-\u003eResult[Array[float],string]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "b",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "decodeF64LE",
       "type": "(bytes)-\u003eResult[Array[float],string]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "a",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "b",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "dot",
       "type": "(Array[float],Array[float])-\u003efloat",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "_",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "empty",
       "type": "(())-\u003eArray[a]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "v",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "encodeF32LE",
       "type": "(Array[float])-\u003ebytes",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "v",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "encodeF64LE",
       "type": "(Array[float])-\u003ebytes",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "xs",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "fromList",
       "type": "(list[a])-\u003eArray[a]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "arr",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "idx",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "get",
       "type": "(Array[a],int)-\u003ea",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "arr",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "idx",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "getOpt",
       "type": "(Array[a],int)-\u003eOption[a]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "arr",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "length",
       "type": "(Array[a])-\u003eint",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "size",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "default",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "make",
       "type": "(int,a)-\u003eArray[a]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "a",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "b",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "mul",
       "type": "(Array[float],Array[float])-\u003eArray[float]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "s",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "v",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "scale",
       "type": "(float,Array[float])-\u003eArray[float]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "arr",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "idx",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "xs",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "scatterAdd",
       "type": "(Array[float],list[int],list[float])-\u003eArray[float]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "arr",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "idx",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "val",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "set",
       "type": "(Array[a],int,a)-\u003eArray[a]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "a",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "b",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "sub",
       "type": "(Array[float],Array[float])-\u003eArray[float]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "v",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "sum",
       "type": "(Array[float])-\u003efloat",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "arr",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "toList",
       "type": "(Array[a])-\u003elist[a]",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "arr",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "idx",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "unsafeGet",
       "type": "(Array[a],int)-\u003ea",
       "effects": [],
       "pure": true
     },
     {
-      "ifc": {
-        "params": [
-          {
-            "name": "arr",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          },
-          {
-            "name": "writes",
-            "label": {
-              "constants": [],
-              "variables": []
-            },
-            "forbidden": ""
-          }
-        ],
-        "return": {
-          "constants": [],
-          "variables": []
-        },
-        "has_return_label": false,
-        "intrinsic": {
-          "constants": [],
-          "variables": []
-        },
-        "declassify": []
-      },
       "name": "updateMany",
       "type": "(Array[a],list[(int,a)])-\u003eArray[a]",
       "effects": [],
       "pure": true
     }
   ],
-  "schema": "ailang.iface/v2"
+  "schema": "ailang.iface/v1"
 }

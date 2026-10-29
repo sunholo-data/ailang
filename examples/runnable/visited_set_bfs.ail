@@ -1,0 +1,36 @@
+-- Visited set BFS: shortest path on a grid with std/set.
+-- A Set[(int, int)] of visited cells plus a list frontier is the AILANG form of
+-- Python's `visited = set()` + deque BFS. Name the type with `import std/set (Set)`.
+module examples/runnable/visited_set_bfs
+import std/io (println)
+import std/set as S
+import std/set (Set)
+import std/array as A
+import std/string (charAt, length as strLen)
+import std/list (filter, flatMap, foldl, any)
+
+func passable(g: Array[string], p: (int, int)) -> bool = match p {
+  (r, c) => r >= 0 && r < A.length(g) && c >= 0 && c < strLen(A.get(g, 0)) && charAt(A.get(g, r), c) == "."
+}
+
+func neighbours(g: Array[string], p: (int, int)) -> [(int, int)] = match p {
+  (r, c) => filter(\q. passable(g, q), [(r - 1, c), (r + 1, c), (r, c - 1), (r, c + 1)])
+}
+
+-- Add p to the next frontier only if it is not yet visited.
+func visit(st: (Set[(int, int)], [(int, int)]), p: (int, int)) -> (Set[(int, int)], [(int, int)]) = match st {
+  (seen, next) => if S.member(seen, p) then st else (S.insert(seen, p), p :: next)
+}
+
+-- One BFS level per call; -1 when the frontier empties without reaching goal.
+func bfs(g: Array[string], frontier: [(int, int)], seen: Set[(int, int)], goal: (int, int), dist: int) -> int =
+  if any(\p. p == goal, frontier) then dist else match foldl(visit, (seen, []), flatMap(\p. neighbours(g, p), frontier)) {
+    (_, []) => -1,
+    (seen2, next) => bfs(g, next, seen2, goal, dist + 1)
+  }
+
+export func main() -> () ! {IO} {
+  let g = A.fromList(["..#....", ".##.##.", "....#..", "#.#...#", "...#..."])
+  println("shortest path (0,0) -> (4,6): ${show(bfs(g, [(0, 0)], S.fromList([(0, 0)]), (4, 6), 0))}")
+  println("goal is a wall: ${show(bfs(g, [(0, 3)], S.fromList([(0, 3)]), (0, 2), 0))}")
+}

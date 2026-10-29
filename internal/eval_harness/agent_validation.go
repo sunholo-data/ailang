@@ -43,7 +43,40 @@ func seedInputFiles(workspace string, spec *BenchmarkSpec) error {
 	return nil
 }
 
+// validateSolution grades the agent's solution against the visible test and then,
+// when the spec declares them, against every hidden test (M-EVAL-HIDDEN-TESTS).
+// Each hidden test re-runs the same lane under a spec copy, so every language's
+// runner is reused unchanged.
 func validateSolution(result *executor.Result, spec *BenchmarkSpec, workspace, language, solutionPath string) ValidationResult {
+	v := validateOnce(result, spec, workspace, language, solutionPath)
+	if len(spec.HiddenTests) == 0 {
+		return v
+	}
+	v.Hidden = HiddenResult{Total: len(spec.HiddenTests)}
+	if !(v.CompileOk && v.RuntimeOk && v.StdoutOk) {
+		return v
+	}
+	hidden, err := GradeHidden(spec, func(cp *BenchmarkSpec) (HiddenRun, error) {
+		h := validateOnce(result, cp, workspace, language, solutionPath)
+		return HiddenRun{Stdout: h.Stdout, RuntimeOk: h.CompileOk && h.RuntimeOk, TimedOut: h.TimedOut}, nil
+	})
+	if err != nil {
+		v.Stderr += fmt.Sprintf("\n[harness] %v", err)
+		v.StdoutOk = false
+		return v
+	}
+	// Only the verdict is kept: the hidden run's stdout/stderr are discarded so
+	// nothing about a held-out test reaches the banked row's free-text fields.
+	v.Hidden = hidden
+	if !hidden.AllPassed() {
+		v.StdoutOk = false
+		v.RuntimeOk = hiddenFailureCategory(hidden.FirstFail) != ErrorCategoryRuntime
+	}
+	return v
+}
+
+// validateOnce runs the solution once against spec's (visible) stdin/expected output.
+func validateOnce(result *executor.Result, spec *BenchmarkSpec, workspace, language, solutionPath string) ValidationResult {
 	if !result.Success {
 		return ValidationResult{
 			CompileOk: false,
@@ -85,7 +118,7 @@ func validateSolution(result *executor.Result, spec *BenchmarkSpec, workspace, l
 	if runErr != nil {
 		return ValidationResult{Stderr: fmt.Sprintf("no runner for %q: %v", language, runErr)}
 	}
-	runResult, runRunErr := r.Run(string(solutionContent), 30*time.Second)
+	runResult, runRunErr := r.Run(string(solutionContent), spec.ExecTimeoutOr(30*time.Second))
 	if runRunErr != nil {
 		return ValidationResult{Stderr: fmt.Sprintf("validation runner error: %v", runRunErr)}
 	}
@@ -96,6 +129,7 @@ func validateSolution(result *executor.Result, spec *BenchmarkSpec, workspace, l
 		StdoutOk:  stdoutOk,
 		Stdout:    runResult.Stdout,
 		Stderr:    runResult.Stderr,
+		TimedOut:  runResult.TimedOut,
 	}
 }
 
@@ -139,7 +173,7 @@ func runPythonSolution(solutionPath string, spec *BenchmarkSpec) ValidationResul
 	// with NO timeout, NO process group, and NO memory cap — an unbounded
 	// execution of model code (the class of hole behind the 2026-07-20 rig
 	// kernel panic). 30s matches the JS/Go validation lane above.
-	res := runGuarded(cmd, 30*time.Second, "Python validation timed out")
+	res := runGuarded(cmd, spec.ExecTimeoutOr(30*time.Second), "Python validation timed out")
 	if res.ExitCode != 0 {
 		return ValidationResult{
 			CompileOk: true,
@@ -147,6 +181,7 @@ func runPythonSolution(solutionPath string, spec *BenchmarkSpec) ValidationResul
 			StdoutOk:  false,
 			Stdout:    res.Stdout,
 			Stderr:    res.Stderr,
+			TimedOut:  res.TimedOut,
 		}
 	}
 	// Source not needed here: quine grading is AILANG standard-mode only; other
@@ -165,7 +200,7 @@ func runAILANGSolution(solutionCode string, spec *BenchmarkSpec) ValidationResul
 	// Pass spec to runner so input_files, cli_args, and stdin are available
 	// in the validation workspace (not just in the agent workspace).
 	runner := NewAILANGRunnerWithTask(context.Background(), "", spec.Caps, "", spec)
-	runResult, err := runner.Run(solutionCode, 10*time.Second)
+	runResult, err := runner.Run(solutionCode, spec.ExecTimeoutOr(10*time.Second))
 	if err != nil {
 		return ValidationResult{
 			CompileOk: false,
@@ -182,6 +217,7 @@ func runAILANGSolution(solutionCode string, spec *BenchmarkSpec) ValidationResul
 		StdoutOk:  stdoutOk,
 		Stdout:    runResult.Stdout,
 		Stderr:    runResult.Stderr,
+		TimedOut:  runResult.TimedOut,
 	}
 }
 
@@ -252,7 +288,7 @@ func gradeInWorkspace(spec *BenchmarkSpec, workspace string) ValidationResult {
 	// generated-code execution path like any other.
 	cmd := exec.Command(ailangBin, args...)
 	cmd.Dir = workspace
-	res := runGuarded(cmd, 30*time.Second, "grade probe timed out")
+	res := runGuarded(cmd, spec.ExecTimeoutOr(30*time.Second), "grade probe timed out")
 	stdout, stderr := res.Stdout, res.Stderr
 
 	// Classify. The probe is harness-owned and always valid, so a failure here is attributable to

@@ -8,6 +8,7 @@ import (
 
 	"github.com/fatih/color"
 	"github.com/sunholo-data/ailang/internal/loader"
+	"github.com/sunholo-data/ailang/internal/pkg"
 	"github.com/sunholo-data/ailang/internal/prompt"
 	"github.com/sunholo-data/ailang/internal/schema"
 	"github.com/sunholo-data/ailang/internal/version"
@@ -89,6 +90,12 @@ func main() {
 	// Set binary version for stdlib compatibility check
 	// Version is set by ldflags at build time (e.g., "v0.4.8")
 	loader.BinaryVersion = Version
+
+	// The package interface identity (v2) is computed in a subprocess; it must
+	// be THIS binary, never whichever `ailang` is first on PATH.
+	if exe, err := os.Executable(); err == nil {
+		pkg.UseIfaceBinary(exe)
+	}
 
 	// Set compact mode globally if flag is provided
 	if *compactFlag {

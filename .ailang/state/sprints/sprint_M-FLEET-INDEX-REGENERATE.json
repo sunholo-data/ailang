@@ -1,0 +1,61 @@
+{
+  "sprint_id": "M-FLEET-INDEX-REGENERATE",
+  "status": "planned",
+  "created": "2026-10-17",
+  "verified_at": "37d6641b308a3e8ffb4d5a2023ba4faa89a5254a",
+  "design_doc": null,
+  "sprint_plan": "design_docs/planned/sprint-plan-mission-index-regenerate.md",
+  "ticket": "mission:index-regenerate-needs-rotatable-archive; rotate-log:index-regen-drops-orphan-rows",
+  "github_issues": [1306],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": "existing internal/mission rotation parser, indexLine, strayHeadings and writeAtomic; existing mission CLI fixtures",
+      "action": "none",
+      "reason": "Go-internal CLI and file-preservation repair, not a package-like AILANG capability; registry package search is inapplicable. Reuse existing helpers; add no external package or dependency."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 2400,
+    "estimated_total_loc": 450,
+    "estimated_days": 0.1875,
+    "basis": "Task-based 75-90 minute single executor run, normalized to an eight-hour day; not measured throughput. 180 implementation + 240 test + 30 documentation added/changed LOC, excluding mechanical moves. Comparable e7628b05e added 238/deleted 34 lines including 184 CLI test lines; no directly relevant commits in the last seven days."
+  },
+  "features": [
+    {
+      "id": "M1",
+      "title": "Regenerate mission indexes without rotation and preserve historical additions",
+      "description": "Add rotate-log --index-only for both streams, extract one preservation-aware index writer for both modes, retain numbered orphan rows and pre-table blockquotes, print diagnostics, cover temporary fixtures and Motoko snapshot acceptance, update help, mirrored Gate-4 instructions and changelog.",
+      "estimated_loc": 450,
+      "status": "pending",
+      "dependencies": [],
+      "files": [
+        "internal/mission/rotate.go",
+        "internal/mission/index.go",
+        "internal/mission/rotate_index_test.go",
+        "internal/mission/rotate_test.go",
+        "cmd/ailang/mission_cmd.go",
+        "cmd/ailang/mission_rotate.go",
+        "cmd/ailang/mission_rotate_test.go",
+        ".claude/skills/mission-control/resources/gate-4-record.md",
+        ".agents/skills/mission-control/resources/gate-4-record.md",
+        "changelogs/unreleased/2026-10-17-mission-index-regenerate.md"
+      ],
+      "acceptance_criteria": [
+        "Existing rotate-log verb accepts --index-only with default log or --stream status and no keep. Explicit --keep with --index-only, including 20 or 0 in either order, returns a usage error before registry load or writes. Existing registry-origin/external-workdir targeting and stream suffixes remain tested.",
+        "Index-only reads live plus archive and writes only the derived index. Both sources remain byte-identical with unchanged sha256; a missing optional archive remains absent. Zero live entries and preambles work when archive records exist; zero parsed records across both files errors without writes even with old index orphans. Real I/O errors surface.",
+        "Index-only ignores unrecognized structural ## headings in both files, including preamble and interleaved status sections, prints non-entry headings ignored: <count> when nonzero, and never renders their headings or section bodies as index rows. Normal rotation retains its live stray-heading refusal.",
+        "Both modes use one shared index writer and preserve every numbered orphan row verbatim in descending numeric position. CLI prints orphan rows preserved: <numbers> with unique ascending numbers, or no orphan diagnostic when none exist. Source-backed numbered rows regenerate from headings; source notes retain date+title dedupe; orphan em-dash rows are not preserved.",
+        "Both modes preserve every pre-table hand blockquote block verbatim after generated preamble and before table header, including multiple blocks and quoted blank lines. Repeat runs do not duplicate preserved content. Existing rune-safe truncation, escaped-pipe rendering and valid UTF-8 remain covered.",
+        "Table-driven internal/mission tests and existing CLI test extensions cover each plan mutation arm: orphan kept, orphan number printed, hand note kept, index-only source immutability, zero-live success, zero-both error, explicit keep incompatibility, normal full-body archiving and normal structural refusal. Include status stray-heading counts, source-title precedence, note dedupe, idempotence and target-root tests. Every writable fixture is in t.TempDir(); no seeded writes under HOME or real design_docs.",
+        "Motoko acceptance copies the three real inputs read-only into t.TempDir(). Regenerated number set equals hand-index set, Reset block remains exact, live/archive sha256 are unchanged and output is valid UTF-8. At inspected base both measured sets are {0,1,2,3,4,5,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39}; no archive heading 6 exists. Only rendered titles 38 and 39 differ. Whole-index byte reproduction is not required.",
+        "Changes stay within listed files. rotate.go and new index.go stay below 500 lines; extract CLI handler to mission_rotate.go, update mission_cmd.go usage for mutually exclusive keep/index-only. Both Gate-4 resource copies change identically because both already prescribe rotate-log. Add only changelogs/unreleased/2026-10-17-mission-index-regenerate.md with ### Added and ### Fixed. No real mission documents are modified.",
+        "Record actual results for go build ./cmd/ailang ./internal/mission/..., go test ./internal/mission/ -count=1, go test ./cmd/ailang/ -run 'Mission|Rotate' -count=1, gofmt -l internal/mission cmd/ailang (empty output), and go vet ./internal/mission/, plus new focused tests. In-sandbox verdicts do not establish controller acceptance; socket/permission or other sandbox-only failures are UNINFORMATIVE UNDER SANDBOX and leave outside-sandbox evidence pending. Independent controller mutations must fail their named arms and restored implementation must pass. Controller owns commits and evaluation; issue 1306 is referenced for half 2 only."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}

@@ -42,15 +42,22 @@ Invoke this skill when:
 
 ## Coordinator Integration
 
-**When invoked by the AILANG Coordinator**, output these markers at the end of your response:
+**When invoked by the AILANG Coordinator**, output these markers at the end of your response.
+The LAST line must be the `EVALUATION_VERDICT:` line — it is the only one the coordinator
+parses, and it is what lands on the parent's approval card. Without it the approval records
+`UNAVAILABLE` however good the review was (2026-10-27: a full FAIL 84 review ended in
+`EVALUATION_RESULT: fail` and reached no approval).
 
 ```
-EVALUATION_RESULT: pass|fail
 EVALUATION_SCORE: 85/100
 EVALUATION_ROUND: 1
 EVALUATION_REPORT_PATH: .ailang/state/evaluations/eval_<sprint-id>_round_<n>.json
 FEEDBACK_SUMMARY: <one-line summary if failed>
+EVALUATION_VERDICT: PASS score=85
 ```
+
+On fail the last line is `EVALUATION_VERDICT: FAIL score=<n> reasons=<short list>`. Emit it
+once, last.
 
 **Agent config:**
 ```yaml
@@ -188,6 +195,8 @@ Apply scoring rubric (see [resources/scoring_rubric.md](resources/scoring_rubric
 | Performance Verification (conditional) | +10 | Yes if perf sprint with no profile |
 | **Total** | **100** (+20 conditional) | **Pass: 70+** |
 
+**Generated Go is out of scope by default**: do not deduct for missing `GoCodegenSpec`s or emit-go parity unless approved acceptance criteria explicitly scope existing codegen or the live contracts projection (`--verify-contracts`). Evaluate those criteria when scoped. Engine parity otherwise means evaluator + strict VM (emit-go demoted, emit-go-v2 frozen, Mark 2026-07-14).
+
 **Conditional categories**:
 - **Regression Surface Coverage** triggers when the sprint touches `internal/parser/`, `internal/lexer/`, `internal/ast/`, `internal/types/`, `internal/elaborate/`, `internal/iface/`, `internal/codegen/`, `internal/eval/`, `internal/vm/`, `internal/effects/`, or `cmd/ailang/exec.go`. Hard fail if triggered without a Conflict Surface analysis in the design doc and fixture tests for the named "Programs that MUST still work". Catches M-TAINT-TYPES-style silent regressions.
 - **Performance Verification** triggers on perf sprints (design doc keywords). Hard fail without before/after profiling data.
@@ -214,7 +223,7 @@ Report saved to `.ailang/state/evaluations/eval_<sprint-id>_round_<n>.json`
    docs that stay in `planned/` until a later milestone — e.g. an M4b — keep their plans
    beside them until the doc itself moves.)
 2. Update design doc status from "Planned" to "Implemented"
-3. Output markers with `EVALUATION_RESULT: pass`
+3. Output the markers, ending with `EVALUATION_VERDICT: PASS score=<n>`
 4. Post congratulatory summary with score breakdown
 
 **On FAIL (score < 70 or hard fail, round < 3):**
@@ -243,7 +252,7 @@ ailang messages send sprint-executor '{
 }' --title "Evaluation Failed (Round <n>/<max>)" --from "sprint-evaluator"
 ```
 
-3. Output markers with `EVALUATION_RESULT: fail`
+3. Output the markers, ending with `EVALUATION_VERDICT: FAIL score=<n> reasons=<short list>`
 
 **On FAIL (round >= 3):**
 1. Escalate to human review
@@ -297,7 +306,7 @@ When running in a user's local Claude Code session:
 ### Cloud/Coordinator Mode
 When invoked by the coordinator daemon or via agent inbox:
 - **On fail**: Send structured feedback message to `sprint-executor` inbox
-- **On pass**: Output `EVALUATION_RESULT: pass` markers for coordinator to act on
+- **On pass**: Output the markers, ending with `EVALUATION_VERDICT: PASS score=<n>`, for the coordinator to act on
 - **Detection**: Prompt contains coordinator task reference or `implementation_complete` message
 
 ## Feedback Loop Architecture

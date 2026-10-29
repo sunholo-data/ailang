@@ -137,7 +137,7 @@ test("cliRequest: the tool's fields ARE the request; nothing is parsed out of a 
 
 // ---- register(): the exact tool surface, and every call goes through the runner ----
 
-const fakeType = { Object: (p: unknown) => p, String: () => "s", Array: () => "a", Record: () => "r", Optional: (x: unknown) => x };
+const fakeType = { Object: (p: unknown) => p, String: () => "s", Integer: () => "i", Array: () => "a", Record: () => "r", Optional: (x: unknown) => x };
 
 function fakePi() {
 	const hooks: Record<string, unknown[]> = {};
@@ -188,12 +188,14 @@ test("with a policy: the summary comes from the endpoint, the hook names the lan
 		assert.match((await hook({ systemPrompt: "base" })).systemPrompt, /Execution lane: ailang_only/);
 
 		await f.tools["ailang_read"].execute("id", { path: "a.txt" });
+		await f.tools["ailang_read"].execute("id", { path: "a.txt", offset: 40, limit: 20 });
 		await f.tools["ailang_write"].execute("id", { path: "b.txt", content: "hi" });
 		await f.tools["ailang_edit"].execute("id", { path: "b.txt", old_text: "hi", new_text: "ho" });
 		await f.tools["ailang_cli"].execute("id", { op: "iface", module: "std/fs" });
 		const reqs = r.calls.slice(1).map((c) => c.req);
 		assert.deepEqual(reqs, [
 			{ op: "read", path: "a.txt" },
+			{ op: "read", path: "a.txt", offset: 40, limit: 20 },
 			{ op: "write", path: "b.txt", content: "hi" },
 			{ op: "edit", path: "b.txt", old_text: "hi", new_text: "ho" },
 			{ op: "iface", module: "std/fs" },

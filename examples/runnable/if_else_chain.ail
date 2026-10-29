@@ -17,7 +17,7 @@ pure func classifyValue(n: int) -> int {
 }
 
 -- Entry point that uses both functions
-pure func main() -> int {
+export pure func main() -> int {
   let tile = getTileType(10)
   let category = classifyValue(55)
   tile + category

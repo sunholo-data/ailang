@@ -1,0 +1,67 @@
+-- Checked WAV/PCM boundaries preserve interleaved channels and reject bad frames.
+module examples/runnable/audio_checked
+import std/audio (wavFromPcmChecked, wavInfo, pcm16ToFloats, floatsToPcm16, RejectOutOfRange)
+import std/bytes (fromInts, byteAt, length)
+import std/array as A
+import std/result (Result, Ok, Err)
+import std/option (Option, Some, None)
+import std/io (println)
+
+-- Small fixture only: two stereo frames, including both signed-16 endpoints.
+-- Production conversion uses packed arrays, not lists of bytes or samples.
+pure func source() -> bytes = fromInts([0, 128, 0, 0, 255, 127, 0, 32])
+
+pure func sameFixture(a: bytes, b: bytes, at: int) -> bool {
+  if at == 8 then length(a) == 8 && length(b) == 8 else match (byteAt(a, at), byteAt(b, at)) {
+    (Some(x), Some(y)) => x == y && sameFixture(a, b, at + 1),
+    _ => false
+  }
+}
+
+export pure func roundTrip() -> bool
+  tests [
+    ((), true)
+  ] {
+  let pcm = source()
+  match wavFromPcmChecked(pcm, 24000, 2, 16) {
+    Err(_) => false,
+    Ok(wav) => match wavInfo(wav) {
+      Err(_) => false,
+      Ok(info) => match pcm16ToFloats(wav, info.dataOffset, info.frames, info.channels) {
+        Err(_) => false,
+        Ok(samples) => match floatsToPcm16(samples, info.channels, RejectOutOfRange) {
+          Err(_) => false,
+          Ok(encoded) => info.rate == 24000 && info.frames == 2 && A.length(samples) == 4 && sameFixture(encoded, pcm, 0)
+        }
+      }
+    }
+  }
+}
+
+export pure func rejectsPartialFrame() -> bool
+  tests [
+    ((), true)
+  ] {
+  match wavFromPcmChecked(fromInts([0]), 8000, 1, 16) {
+    Err(_) => true,
+    Ok(_) => false
+  }
+}
+
+-- This integer metadata invariant can be checked separately from native DSP.
+-- The byte/array conversion has inline tests; no SMT numeric-equivalence claim.
+export pure func frameBytes(channels: int) -> int
+requires { channels > 0 && channels <= 65535 }
+ensures { result == channels * 2 }
+  tests [
+    (1, 2),
+    (2, 4)
+  ] {
+  channels * 2
+}
+
+export func main() -> () ! {IO} {
+  println(show(roundTrip()))
+  println(show(rejectsPartialFrame()))
+  println(show(frameBytes(2)))
+}

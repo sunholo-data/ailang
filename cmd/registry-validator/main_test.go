@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/pkg"
@@ -235,4 +236,33 @@ func TestHelpers(t *testing.T) {
 // helper to avoid conflict with the package-level containsString
 func containsString2(s, substr string) bool {
 	return bytes.Contains([]byte(s), []byte(substr))
+}
+
+// PUB005 must say which side is behind, and must NOT tell a same-version
+// publisher to upgrade — that advice cost one author five useless rebuilds.
+func TestInterfaceSkewMessage_NamesTheVersionGap(t *testing.T) {
+	validator := "AILANG v0.54.15\nCommit: 0384450\n"
+	cases := []struct {
+		name, publisher string
+		want, notWant   []string
+	}{
+		{"older publisher", "v0.52.0", []string{"Publisher ran ailang v0.52.0, validator runs v0.54.15", "upgrade the publisher to v0.54.15"}, []string{"not a version gap"}},
+		{"same version", "v0.54.15", []string{"Both sides ran ailang v0.54.15", "not a version gap"}, []string{"upgrade"}},
+		{"no header", "", []string{"did not send its version", "which ailang"}, nil},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			msg := interfaceSkewMessage("sha256:ifacev2:aa", "sha256:ifacev2:bb", tc.publisher, validator)
+			for _, w := range append([]string{"PUB005", "publisher computed sha256:ifacev2:aa", "validator computed sha256:ifacev2:bb"}, tc.want...) {
+				if !strings.Contains(msg, w) {
+					t.Errorf("missing %q in:\n%s", w, msg)
+				}
+			}
+			for _, nw := range tc.notWant {
+				if strings.Contains(strings.ToLower(msg), strings.ToLower(nw)) {
+					t.Errorf("must not contain %q:\n%s", nw, msg)
+				}
+			}
+		})
+	}
 }

@@ -39,7 +39,7 @@ function formatModelName(name) {
  *   - Success (green): fast_pass + slow_pass
  *   - Budget (orange): budget_blocked (cost_killed + step_exhausted)
  *   - Capability (red): capability_blocked (compile/runtime/logic/timeout)
- *   - Provider (gray): provider_blocked (quota + rate_limit + api_error)
+ *   - Provider (gray): provider_blocked (quota + rate_limit + api_error + external_kill)
  *
  * Operator question this answers: "Did this model fail because it can't
  * code, because we gave it too little budget, or because the provider
@@ -132,7 +132,7 @@ export default function FailureCategoryBars({ models }) {
           { key: 'budget',     label: 'Budget-blocked (cost_killed, step_exhausted)',          cls: styles.failureBudget },
           { key: 'capability', label: 'Capability-blocked (compile/runtime/logic/timeout)',    cls: styles.failureCapability },
           { key: 'refused',    label: 'Refused (safety-layer decline — not a coding failure)', cls: styles.failureRefused },
-          { key: 'provider',   label: 'Provider-blocked (quota / rate_limit / api_error)',     cls: styles.failureProvider },
+          { key: 'provider',   label: 'Provider-blocked (quota / rate_limit / api_error / external_kill)', cls: styles.failureProvider },
         ].map(item => (
           <div key={item.key} className={styles.failureLegendItem}>
             <span className={`${styles.failureLegendSwatch} ${item.cls}`} />

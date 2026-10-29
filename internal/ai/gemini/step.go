@@ -83,16 +83,16 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 }
 
 // buildStepRequest translates req.Messages + req.Tools into the Gemini
-// generateContent body. It also lifts req.SystemPrompt to the top-level
-// systemInstruction field (system-role messages in req.Messages are skipped).
+// generateContent body. It lifts req.SystemText() (SystemPrompt plus the
+// system-role messages) to the top-level systemInstruction field.
 func buildStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*generateRequest, error) {
 	out := &generateRequest{
 		Contents: make([]content, 0, len(req.Messages)),
 	}
 
-	if req.SystemPrompt != "" {
+	if sys := req.SystemText(); sys != "" {
 		out.SystemInstruction = &content{
-			Parts: []part{{Text: req.SystemPrompt}},
+			Parts: []part{{Text: sys}},
 		}
 	}
 
@@ -115,8 +115,7 @@ func buildStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*generat
 	for _, m := range req.Messages {
 		switch m.Role {
 		case "system":
-			// System messages are surfaced via systemInstruction at the top
-			// level; skip in contents.
+			// Carried in the top-level systemInstruction (req.SystemText).
 			continue
 
 		case "user":

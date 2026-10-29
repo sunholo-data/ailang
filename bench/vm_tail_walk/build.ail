@@ -1,0 +1,6 @@
+module bench/vm_tail_walk/build
+import std/io (println)
+import std/list (range, foldl, length)
+
+-- D-19 contrast: each prepend copies its tail; this remains quadratic.
+export func main(n: int) -> () ! {IO} = println(show(length(foldl(\acc x. x :: acc, [], range(0, n)))))

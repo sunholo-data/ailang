@@ -1,0 +1,5 @@
+module bench/vm_tail_walk/foldl
+import std/io (println)
+import std/list (range, foldl)
+
+export func main(n: int) -> () ! {IO} = println(show(foldl(\acc x. if x > 0 then acc + 1 else acc, 0, range(0, n))))

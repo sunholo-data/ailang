@@ -1,0 +1,389 @@
+{
+  "sprint_id": "M-CROSS-RUN-CONTENT-LIBRARY",
+  "status": "not_started",
+  "created": "2026-10-13T09:54:54.997338+00:00",
+  "design_doc": "design_docs/planned/v0_54_8/m-cross-run-content-library.md",
+  "sprint_plan": "design_docs/planned/v0_54_8/m-cross-run-content-library-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: embeddings, sharedmem, semantic. sunholo/email is DuckDB/Ollama email-domain tooling; world/core is pure graph semantics (no AGENT.md available). Neither implements runtime storage openers or configured AI embeddings. Reuse existing Go seams, SQLite recipe and messaging embedders; no registry dependency needed."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: embeddings, sharedmem, semantic. sunholo/email is DuckDB/Ollama email-domain tooling; world/core is pure graph semantics (no AGENT.md available). Neither implements runtime storage openers or configured AI embeddings. Reuse existing Go seams, SQLite recipe and messaging embedders; no registry dependency needed."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: embeddings, sharedmem, semantic. sunholo/email is DuckDB/Ollama email-domain tooling; world/core is pure graph semantics (no AGENT.md available). Neither implements runtime storage openers or configured AI embeddings. Reuse existing Go seams, SQLite recipe and messaging embedders; no registry dependency needed."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: embeddings, sharedmem, semantic. sunholo/email is DuckDB/Ollama email-domain tooling; world/core is pure graph semantics (no AGENT.md available). Neither implements runtime storage openers or configured AI embeddings. Reuse existing Go seams, SQLite recipe and messaging embedders; no registry dependency needed."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: embeddings, sharedmem, semantic. sunholo/email is DuckDB/Ollama email-domain tooling; world/core is pure graph semantics (no AGENT.md available). Neither implements runtime storage openers or configured AI embeddings. Reuse existing Go seams, SQLite recipe and messaging embedders; no registry dependency needed."
+    },
+    {
+      "milestone": "M6",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: embeddings, sharedmem, semantic. sunholo/email is DuckDB/Ollama email-domain tooling; world/core is pure graph semantics (no AGENT.md available). Neither implements runtime storage openers or configured AI embeddings. Reuse existing Go seams, SQLite recipe and messaging embedders; no registry dependency needed."
+    },
+    {
+      "milestone": "M7",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: embeddings, sharedmem, semantic. sunholo/email is DuckDB/Ollama email-domain tooling; world/core is pure graph semantics (no AGENT.md available). Neither implements runtime storage openers or configured AI embeddings. Reuse existing Go seams, SQLite recipe and messaging embedders; no registry dependency needed."
+    },
+    {
+      "milestone": "M8",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: embeddings, sharedmem, semantic. sunholo/email is DuckDB/Ollama email-domain tooling; world/core is pure graph semantics (no AGENT.md available). Neither implements runtime storage openers or configured AI embeddings. Reuse existing Go seams, SQLite recipe and messaging embedders; no registry dependency needed."
+    },
+    {
+      "milestone": "M9",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: embeddings, sharedmem, semantic. sunholo/email is DuckDB/Ollama email-domain tooling; world/core is pure graph semantics (no AGENT.md available). Neither implements runtime storage openers or configured AI embeddings. Reuse existing Go seams, SQLite recipe and messaging embedders; no registry dependency needed."
+    },
+    {
+      "milestone": "M10",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: embeddings, sharedmem, semantic. sunholo/email is DuckDB/Ollama email-domain tooling; world/core is pure graph semantics (no AGENT.md available). Neither implements runtime storage openers or configured AI embeddings. Reuse existing Go seams, SQLite recipe and messaging embedders; no registry dependency needed."
+    },
+    {
+      "milestone": "M11",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: embeddings, sharedmem, semantic. sunholo/email is DuckDB/Ollama email-domain tooling; world/core is pure graph semantics (no AGENT.md available). Neither implements runtime storage openers or configured AI embeddings. Reuse existing Go seams, SQLite recipe and messaging embedders; no registry dependency needed."
+    },
+    {
+      "milestone": "M12",
+      "package": null,
+      "action": "none",
+      "reason": "Searches: embeddings, sharedmem, semantic. sunholo/email is DuckDB/Ollama email-domain tooling; world/core is pure graph semantics (no AGENT.md available). Neither implements runtime storage openers or configured AI embeddings. Reuse existing Go seams, SQLite recipe and messaging embedders; no registry dependency needed."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 199.0,
+    "estimated_total_loc": 1990,
+    "estimated_days": 10
+  },
+  "estimated_hours": 24,
+  "features": [
+    {
+      "id": "M1",
+      "description": "Persistent SharedMem wiring",
+      "estimated_loc": 180,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Flag overrides AILANG_SHAREDMEM_DB; missing SharedMem capability and failed DB open are fatal.",
+        "No path preserves in-memory behavior; resources close on success, setup failure and runtime failure.",
+        "Sequential subprocess put/get and concurrent CAS tests show durable cross-process state.",
+        "make test-changed passes for touched packages plus test-core."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "estimated_hours": 1.5,
+      "files": [
+        "internal/runner/handlers_shared_storage.go",
+        "internal/runner/run.go",
+        "internal/runner/batch.go",
+        "cmd/ailang/main_run.go",
+        "cmd/ailang/serve_api.go",
+        "internal/runner/handlers_shared_storage_test.go"
+      ]
+    },
+    {
+      "id": "M2",
+      "description": "SharedIndex opener and SQLite writes",
+      "estimated_loc": 210,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Namespaces and files isolate entries; duplicate keys in different namespaces coexist.",
+        "Reopening preserves metadata, signed SimHash bits and float32 encoded embeddings.",
+        "Storage operation failures surface through the effect boundary; no empty-hit or successful-write disguise.",
+        "make test-changed passes for touched packages plus test-core."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "estimated_hours": 1.5,
+      "files": [
+        "internal/effects/sharedindex_backend.go",
+        "internal/platform/sharedmem/sqlite_sharedindex.go",
+        "internal/platform/sharedmem/sqlite_sharedindex_test.go",
+        "cmd/ailang/platform_init.go"
+      ]
+    },
+    {
+      "id": "M3",
+      "description": "SharedIndex retrieval parity",
+      "estimated_loc": 230,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Strict order is score DESC then key ASC, including tied scores and bounded maxScan.",
+        "topK and maxScan match existing contract; no-hit results are empty slices.",
+        "Dimension mismatch, corrupt blobs, delete and embedding replacement have explicit tested behavior.",
+        "make test-changed passes for touched packages plus test-core."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "estimated_hours": 1.5,
+      "files": [
+        "internal/platform/sharedmem/sqlite_sharedindex_search.go",
+        "internal/platform/sharedmem/sqlite_sharedindex_search_test.go"
+      ]
+    },
+    {
+      "id": "M4",
+      "description": "Persistent SharedIndex runner integration",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M1",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Flag overrides AILANG_SHAREDINDEX_DB; missing SharedIndex capability is fatal.",
+        "Separate subprocesses upsert then find by SimHash and embedding across restart.",
+        "SharedMem and SharedIndex coexist in one file; two files and namespaces remain isolated; serve-api SharedMem regression passes.",
+        "make test-changed passes for touched packages plus test-core."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "estimated_hours": 1.5,
+      "files": [
+        "internal/runner/handlers_shared_storage.go",
+        "cmd/ailang/main_run.go",
+        "internal/runner/run.go",
+        "internal/runner/batch.go",
+        "cmd/ailang/serve_api.go",
+        "cmd/ailang/shared_storage_integration_test.go"
+      ]
+    },
+    {
+      "id": "M5",
+      "description": "Typed AI embedding effect",
+      "estimated_loc": 190,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Nil embedder returns ProviderNotFound; provider timeout/rate-limit errors preserve typed retryability.",
+        "Each invocation including cache hits records AI embed accounting and respects existing AI budgets.",
+        "Lazy and eager contexts produce the same embedding Result and malformed input handling.",
+        "make test-changed passes for touched packages plus test-core."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "estimated_hours": 1.5,
+      "files": [
+        "internal/effects/ai_embed.go",
+        "internal/effects/ai_embed_test.go",
+        "internal/effects/ai.go",
+        "internal/effects/ai_lazy.go"
+      ]
+    },
+    {
+      "id": "M6",
+      "description": "Embedding builtin and stdlib surface",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M5"
+      ],
+      "acceptance_criteria": [
+        "Builtin type and metadata agree with std/ai.embed; compiler checks import and AI effect requirement.",
+        "Legacy _ollama_embed IO surface remains runnable with existing fixtures.",
+        "make verify-stdlib passes after intentional golden refresh; follow repository version policy without independent release/tag actions.",
+        "make test-changed passes for touched packages plus test-core."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "estimated_hours": 1.5,
+      "files": [
+        "internal/builtins/ai_embed.go",
+        "internal/builtins/ai_embed_test.go",
+        "std/ai.ail",
+        ".stdlib-golden/",
+        "std/VERSION"
+      ]
+    },
+    {
+      "id": "M7",
+      "description": "Configured provider resolution",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M5"
+      ],
+      "acceptance_criteria": [
+        "Explicit config wins; invalid explicit config surfaces an error and never silently derives.",
+        "Gemini/OpenAI mock transports embed without Ollama; derived provider/model notice appears once.",
+        "OpenRouter/Anthropic/configdriven do not implicitly derive; unconfigured embed returns ProviderNotFound.",
+        "ai-stub yields stable dimensions/vectors and requires no credentials.",
+        "make test-changed passes for touched packages plus test-core."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "estimated_hours": 1.5,
+      "files": [
+        "cmd/ailang/ai_embed_handlers.go",
+        "cmd/ailang/ai_embed_handlers_test.go",
+        "cmd/ailang/ai_handlers.go",
+        "internal/config/embed.go"
+      ]
+    },
+    {
+      "id": "M8",
+      "description": "In-process embedding cache",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M5"
+      ],
+      "acceptance_criteria": [
+        "Repeated model/text invokes provider once; changed model/text misses; failures are not cached.",
+        "Caller mutation cannot corrupt cached vectors; EmbedBatch preserves order and caches individual successes.",
+        "Concurrent access is race-free; returned dimension and model metadata match wrapped embedder.",
+        "make test-changed passes for touched packages plus test-core."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "estimated_hours": 1.5,
+      "files": [
+        "internal/effects/embed_cache.go",
+        "internal/effects/embed_cache_test.go"
+      ]
+    },
+    {
+      "id": "M9",
+      "description": "SQLite embedding cache",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M8"
+      ],
+      "acceptance_criteria": [
+        "Reopened cache returns stored model/text vector with zero provider calls.",
+        "Cache rows never appear in brain_frames or SharedMem keys; all three tables coexist.",
+        "Corrupt/dimension-invalid rows and storage failures are surfaced explicitly; no silent persistent-store fallback.",
+        "make test-changed passes for touched packages plus test-core."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "estimated_hours": 1.5,
+      "files": [
+        "internal/platform/sharedmem/embed_cache.go",
+        "internal/platform/sharedmem/embed_cache_test.go",
+        "internal/effects/embed_cache_backend.go",
+        "cmd/ailang/platform_init.go"
+      ]
+    },
+    {
+      "id": "M10",
+      "description": "Embedding cache CLI integration",
+      "estimated_loc": 130,
+      "dependencies": [
+        "M7",
+        "M9"
+      ],
+      "acceptance_criteria": [
+        "Flag beats env; path without AI capability or unopenable path fails loudly.",
+        "Persistent cache remains opt-in; in-process caching is enabled for configured embedders.",
+        "Restart test with counted mock provider proves persistent hits; effect budget still counts each call.",
+        "make test-changed passes for touched packages plus test-core."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "estimated_hours": 1.5,
+      "files": [
+        "cmd/ailang/main_run.go",
+        "cmd/ailang/ai_embed_handlers.go",
+        "cmd/ailang/ai_embed_cache_integration_test.go",
+        "internal/runner/run.go"
+      ]
+    },
+    {
+      "id": "M11",
+      "description": "Cross-run showcase and regression fixtures",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M4",
+        "M6",
+        "M10"
+      ],
+      "acceptance_criteria": [
+        "ailang check and keyless ai-stub seed/query runs pass using one temporary DB for all flags.",
+        "Process B retrieves process A content; fresh-file control returns no match.",
+        "Manifest module metadata is accurate; existing SharedMem and SharedIndex runnable examples pass.",
+        "make test-changed passes for touched packages plus test-core."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "estimated_hours": 1.5,
+      "files": [
+        "examples/reference/cross_run_library.ail",
+        "examples/manifest.json",
+        "cmd/ailang/cross_run_library_test.go"
+      ]
+    },
+    {
+      "id": "M12",
+      "description": "Operator documentation and final gates",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M11"
+      ],
+      "acceptance_criteria": [
+        "Guide distinguishes in-memory defaults from opt-in durable stores and warns against CLI brain DB key collisions.",
+        "OpenRouter users are told to configure a supported embedding provider separately; ANN and read-only capability remain deferred.",
+        "Focused final validation and file-size, changelog, boundary, CLI-doc, stdlib and example gates pass.",
+        "make test-changed passes for touched packages plus test-core."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "estimated_hours": 1.5,
+      "files": [
+        "docs/docs/guides/semantic-caching-how-to.mdx",
+        "cmd/ailang/help.go",
+        "internal/config/embed.go",
+        "changelogs/unreleased/2026-10-13-cross-run-content-library.md"
+      ]
+    }
+  ]
+}

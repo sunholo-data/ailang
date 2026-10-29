@@ -31,7 +31,9 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/executor/nativesession"
 	"github.com/sunholo-data/ailang/internal/proctree"
 	"github.com/sunholo-data/ailang/internal/riglock"
 	"github.com/sunholo-data/ailang/internal/strutil"
@@ -89,6 +91,9 @@ func (e *PiExecutor) Name() string {
 
 // Execute runs a task and returns the result.
 func (e *PiExecutor) Execute(ctx context.Context, task *executor.Task) (*executor.Result, error) {
+	if task != nil && task.EvalContainment != nil {
+		return nil, executor.ErrEvalContainmentAdmissionClosed
+	}
 	if err := e.requireModel(task); err != nil {
 		return nil, err
 	}
@@ -98,6 +103,9 @@ func (e *PiExecutor) Execute(ctx context.Context, task *executor.Task) (*executo
 // ExecuteStreaming runs a task with real-time event callbacks, parsing the
 // pi NDJSON stream into normalized executor events.
 func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (*executor.Result, error) {
+	if task != nil && task.EvalContainment != nil {
+		return nil, executor.ErrEvalContainmentAdmissionClosed
+	}
 	if err := e.requireModel(task); err != nil {
 		return nil, err
 	}
@@ -115,6 +123,12 @@ func (e *PiExecutor) ExecuteStreaming(ctx context.Context, task *executor.Task, 
 }
 
 func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, handler executor.EventHandler) (out *executor.Result, outErr error) {
+	usageCapture := newPiUsageCapture()
+	defer func() {
+		if out != nil {
+			out.UsageEvidence = usageCapture.snapshot()
+		}
+	}()
 	ctx, span := telemetry.StartSpan(ctx, piTracer, "pi.execute",
 		trace.WithAttributes(
 			attribute.String("executor.name", "pi"),
@@ -140,13 +154,23 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 		directive = task.SystemPrompt + "\n\n" + task.Directive
 	}
 
-	args, err := buildPiArgs(e.getModel(task), task, directive)
+	nativeID := uuid.NewString()
+	defer func() {
+		if config.CloudRunExecution() != "" {
+			nativesession.Bank(out, "pi", nativesession.Find(nativesession.PiDir(task.ID), "pi", nativeID, true))
+		}
+	}()
+	args, err := buildPiArgsWithSession(e.getModel(task), task, directive, nativeID)
 	if err != nil {
 		return nil, err
 	}
 	piPath := e.piPath
 
-	cmd := exec.CommandContext(ctx, piPath, args...)
+	command, containmentEnv, err := evalContainmentCommand(task, piPath, args)
+	if err != nil {
+		return nil, err
+	}
+	cmd := exec.CommandContext(ctx, command[0], command[1:]...)
 	proctree.Configure(cmd)
 	if task.Workspace != "" {
 		cmd.Dir = task.Workspace
@@ -159,6 +183,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 
 	env, err := executor.BuildEnvironment(executor.EnvironmentOptions{
 		Task:        task,
+		ExecutorEnv: containmentEnv,
 		SessionID:   ourTaskID,
 		Executor:    "pi",
 		Model:       e.getModel(task),
@@ -167,6 +192,9 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 		GCPLocation: task.GCPLocation,
 	})
 	if err != nil {
+		return nil, err
+	}
+	if err := checkInstalledModelConfig(e.getModel(task), task, piModelsPath(env)); err != nil {
 		return nil, err
 	}
 	// D6: bank the child env's NAME set on every result shape.
@@ -230,7 +258,9 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 	// pi emits per-turn deltas in message_end (role=assistant); sum across turns.
 	var inputTokens, outputTokens, cacheReadTokens, cacheWriteTokens, reasonTokens int
 	var thrashKilledAt int
-	var totalCostUSD float64
+	// pi's own dollar figure, from pi's built-in price table — DIAGNOSTIC ONLY.
+	// The cost of record is registry rates × tokens (piRunCost, cost.go).
+	var selfReportedCostUSD float64
 	var sessionID string
 	var turnSpan trace.Span
 	var stderrBuf strings.Builder
@@ -283,6 +313,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 			}
 
 			ev, err := parsePiEvent(line)
+			usageCapture.observe(line, ev)
 			if err != nil {
 				// Non-JSON preamble (a provider warning, a deprecation notice) is
 				// tolerated but COUNTED — banked as pi_unparsed_lines so a stream
@@ -392,7 +423,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 					reasonTokens += u.Reasoning
 					cacheReadTokens += u.CacheRead
 					cacheWriteTokens += u.CacheWrite
-					totalCostUSD += u.Cost.Total
+					selfReportedCostUSD += u.Cost.Total
 					if tp, over := capExceeded(task.MaxTokensPerBench, inputTokens, cacheWriteTokens, outputTokens); over && thrashKilledAt == 0 {
 						thrashKilledAt = tp
 						proctree.Kill(cmd)
@@ -421,7 +452,7 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 						turnSpan.SetAttributes(
 							attribute.Int("pi.input_tokens", u.Input),
 							attribute.Int("pi.output_tokens", u.Output),
-							attribute.Float64("pi.cost_usd", u.Cost.Total),
+							attribute.Float64("pi.self_reported_cost_usd", u.Cost.Total),
 						)
 					}
 					turnSpan.End()
@@ -445,12 +476,15 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 		select {
 		case err := <-done:
 			duration := time.Since(startTime)
+			costUSD, costProvenance := piRunCost(task, e.getModel(task), inputTokens, outputTokens, reasonTokens, cacheReadTokens, cacheWriteTokens)
 			span.SetAttributes(
 				attribute.Int("pi.turns", numTurns),
 				attribute.Int("pi.tool_calls", toolCallCount),
 				attribute.Int("pi.input_tokens", inputTokens),
 				attribute.Int("pi.output_tokens", outputTokens),
-				attribute.Float64("pi.cost_usd", totalCostUSD),
+				attribute.Float64("pi.cost_usd", costUSD),
+				attribute.String("pi.cost_provenance", string(costProvenance)),
+				attribute.Float64("pi.self_reported_cost_usd", selfReportedCostUSD),
 			)
 
 			// M-EVAL-COST-AND-SPEED-BUDGETS: speed metric.
@@ -488,13 +522,13 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 					ReasonTokens:             reasonTokens,
 					CacheReadInputTokens:     cacheReadTokens,
 					CacheCreationInputTokens: cacheWriteTokens,
-					CostUSD:                  totalCostUSD,
-					CostProvenance:           executor.ResolveCostProvenance(task, executor.AuthLaneForModel(task.Model)),
+					CostUSD:                  costUSD,
+					CostProvenance:           costProvenance,
 					NumTurns:                 numTurns,
 					ToolCallCount:            toolCallCount,
 					ToolCalls:                toolCalls,
 					SessionID:                sessionID,
-					ProviderData:             piProviderData(rawEvents, unknownEvents, unparsedLines, &retries, lastRawStopReason),
+					ProviderData:             withSelfReportedCost(piProviderData(rawEvents, unknownEvents, unparsedLines, &retries, lastRawStopReason), selfReportedCostUSD),
 					CostKilledAt:             task.Budget.KilledAt(),
 					FirstAttemptMs:           firstAttemptMs,
 					SuccessAtMs:              -1,
@@ -548,13 +582,13 @@ func (e *PiExecutor) executeStreaming(ctx context.Context, task *executor.Task, 
 				ReasonTokens:             reasonTokens,
 				CacheReadInputTokens:     cacheReadTokens,
 				CacheCreationInputTokens: cacheWriteTokens,
-				CostUSD:                  totalCostUSD,
-				CostProvenance:           executor.ResolveCostProvenance(task, executor.AuthLaneForModel(task.Model)),
+				CostUSD:                  costUSD,
+				CostProvenance:           costProvenance,
 				NumTurns:                 numTurns,
 				ToolCallCount:            toolCallCount,
 				ToolCalls:                toolCalls,
 				SessionID:                sessionID,
-				ProviderData:             piProviderData(rawEvents, unknownEvents, unparsedLines, &retries, lastRawStopReason),
+				ProviderData:             withSelfReportedCost(piProviderData(rawEvents, unknownEvents, unparsedLines, &retries, lastRawStopReason), selfReportedCostUSD),
 				CostKilledAt:             task.Budget.KilledAt(),
 				FirstAttemptMs:           firstAttemptMs,
 				SuccessAtMs:              -1,
@@ -630,16 +664,12 @@ func (e *PiExecutor) Capabilities() []executor.Capability {
 	}
 }
 
-// CostModel returns a placeholder cost model. Pi reports cost directly in
-// message_end.usage.cost.total per turn; the executor sums those values into
-// Result.CostUSD rather than recomputing from token counts.
+// CostModel returns the registry rate card for the executor's configured model,
+// or an explicit Unpriced card when the registry cannot resolve it. Result.CostUSD
+// prefers Task.Pricing and falls back to the TASK's model (see piRunCost); pi's
+// self-reported dollar figure is never used as the cost (cost.go).
 func (e *PiExecutor) CostModel() *executor.CostModel {
-	return &executor.CostModel{
-		ProviderName:    "pi",
-		InputTokenCost:  0.0,
-		OutputTokenCost: 0.0,
-		CacheReadCost:   0.0,
-	}
+	return piCostModel(e.model)
 }
 
 // Close releases any resources held by the executor.

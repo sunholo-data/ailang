@@ -23,6 +23,7 @@ _ai_step_with_cache : (string, list[{content: string, images: list[{mime: string
 _ai_step_with_stream : (string, list[{content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}], list[{description: string, name: string, parameters: string}], list[{position: string, ttl: string}], StreamChunk -> ()) -> Result[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]}, {code: string, message: string, retryable: bool}] ! {AI}
 _ai_step_with_stream_recorded : (string, list[{content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}], list[{description: string, name: string, parameters: string}], list[{position: string, ttl: string}], StreamChunk -> ()) -> {chunks: list[StreamChunk], outcome: Result[{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: {content: string, images: list[{mime: string, source: string}], role: string, tool_call_id: string, tool_calls: list[{arguments: string, id: string, name: string}]}, output_tokens: int, tool_calls: list[{arguments: string, id: string, name: string}]}, {code: string, message: string, retryable: bool}]} ! {AI}
 _ai_stream_call : (string, string, string) -> Result[StreamConn, StreamErrorKind] ! {AI, Net, Stream}
+_array_accumulate : (Array[a], list[(int, a)], (a, a) -> a) -> Array[a]
 _array_append : (Array[a], a) -> Array[a]
 _array_decode_f32le : bytes -> Result[Array[float], string]
 _array_decode_f64le : bytes -> Result[Array[float], string]
@@ -47,6 +48,12 @@ _array_to_list : Array[a] -> list[a]
 _array_unsafe_get : (Array[a], int) -> a
 _array_update_many : (Array[a], list[(int, a)]) -> Array[a]
 _audio_encode_ogg_opus : (bytes, int, int, int) -> Result[bytes, string]
+_audio_floats_to_pcm16 : (Array[float], int, bool) -> Result[bytes, string]
+_audio_pcm16_to_floats : (bytes, int, int, int) -> Result[Array[float], string]
+_audio_wav_from_pcm : (bytes, int, int, int) -> bytes
+_audio_wav_from_pcm_checked : (bytes, int, int, int) -> Result[bytes, string]
+_audio_wav_header : (int, int, int, int) -> bytes
+_audio_wav_header_checked : (int, int, int, int) -> Result[bytes, string]
 _bytes_byte_at : (bytes, int) -> Option[int]
 _bytes_concat : (bytes, bytes) -> bytes
 _bytes_concat_list : list[bytes] -> bytes
@@ -221,6 +228,7 @@ _process_cancel : ProcessHandle -> Result[(), WorkerCancelError] ! {Process}
 _process_close_stdin : ProcessHandle -> () ! {Process}
 _process_exec : (string, list[string]) -> Result[{exitCode: int, resolvedPath: string, stderr: bytes, stdout: bytes, truncated: bool}, ProcessError] ! {Process}
 _process_spawn_process : (string, list[string]) -> ProcessHandle ! {Process}
+_process_spawn_result : (string, list[string]) -> Result[ProcessHandle, ProcessError] ! {Process}
 _process_write_stdin : (ProcessHandle, bytes) -> Result[(), string] ! {Process}
 _rand_bool : () -> bool ! {Rand}
 _rand_float : (float, float) -> float ! {Rand}
@@ -256,6 +264,7 @@ _str_eq : (string, string) -> bool
 _str_find : (string, string) -> int
 _str_foldChars : ((a, string) -> a, a, string) -> a
 _str_foldSlices : (string, string, a, (a, string) -> a) -> a
+_str_formatFixed : (float, int) -> string
 _str_join : (list[string], string) -> string
 _str_len : string -> int
 _str_lower : string -> string

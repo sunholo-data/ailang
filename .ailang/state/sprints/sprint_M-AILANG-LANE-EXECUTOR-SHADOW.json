@@ -1,0 +1,192 @@
+{
+  "sprint_id": "M-AILANG-LANE-EXECUTOR-SHADOW",
+  "status": "in_progress",
+  "created": "2026-10-13T12:10:48Z",
+  "design_doc": "design_docs/planned/v0_55_0/m-ailang-lane-executor-shadow.md",
+  "sprint_plan": "design_docs/planned/v0_55_0/m-ailang-lane-executor-shadow-sprint-plan.md",
+  "github_issues": [
+    135,
+    1772,
+    1773,
+    1778,
+    1783,
+    1784,
+    1795,
+    1796,
+    1797,
+    1798,
+    1811
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_SHADOW_CONFIG_IDENTITY",
+      "package": "none",
+      "action": "none",
+      "reason": "Go coordinator code (internal/coordinator, cmd/ailang); pkg search shadow/executor-comparison/coordinator/grading found only unrelated packages"
+    },
+    {
+      "milestone": "M2_SHADOW_DISPATCH",
+      "package": "none",
+      "action": "none",
+      "reason": "Go coordinator code (internal/coordinator, cmd/ailang); pkg search shadow/executor-comparison/coordinator/grading found only unrelated packages"
+    },
+    {
+      "milestone": "M3_JOB_NO_SIDE_EFFECTS",
+      "package": "none",
+      "action": "none",
+      "reason": "Go coordinator code (internal/coordinator, cmd/ailang); pkg search shadow/executor-comparison/coordinator/grading found only unrelated packages"
+    },
+    {
+      "milestone": "M4_FINALIZE_STORAGE",
+      "package": "none",
+      "action": "none",
+      "reason": "Go coordinator code (internal/coordinator, cmd/ailang); pkg search shadow/executor-comparison/coordinator/grading found only unrelated packages"
+    },
+    {
+      "milestone": "M5_GRADE_JOB_MECHANICAL",
+      "package": "none",
+      "action": "none",
+      "reason": "Go coordinator code (internal/coordinator, cmd/ailang); pkg search shadow/executor-comparison/coordinator/grading found only unrelated packages"
+    },
+    {
+      "milestone": "M6_MERGED_FIX_REVIEWER",
+      "package": "none",
+      "action": "none",
+      "reason": "Go coordinator code (internal/coordinator, cmd/ailang); pkg search shadow/executor-comparison/coordinator/grading found only unrelated packages"
+    },
+    {
+      "milestone": "M7_REPORT_DEV_ENABLE",
+      "package": "none",
+      "action": "none",
+      "reason": "Go coordinator code (internal/coordinator, cmd/ailang); pkg search shadow/executor-comparison/coordinator/grading found only unrelated packages"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 260,
+    "estimated_total_loc": 1620,
+    "estimated_days": 6
+  },
+  "features": [
+    {
+      "id": "M1_SHADOW_CONFIG_IDENTITY",
+      "description": "ShadowConfig in new shadow_config.go + validation in ValidateAgentProviders; ShadowOf on Task/TaskRecord/SQLite/Firestore",
+      "estimated_loc": 220,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Table test: wrong lane / same provider / variant mismatch / bad sample_rate rejected",
+        "ShadowOf round-trips SQLite and Firestore",
+        "make test-changed and make check-file-sizes pass (agent_registry.go stays <800)"
+      ],
+      "passes": true,
+      "started": "2026-10-19T08:16:53+00:00",
+      "completed": "2026-10-19T08:16:53+00:00",
+      "notes": "Attended run (cloud task-60e90d30 was killed 10-13 with nothing pushed). shadow_config.go + validation in ValidateAgentProviders; ShadowOf on TaskRecord, SQLite (shadow_of column, both scanners, insert) and Firestore converter. Task (provider.go) NOT extended: finalization reads TaskRecord, so a field there would be dead until M2 needs it. 8 mutants, all killed."
+    },
+    {
+      "id": "M2_SHADOW_DISPATCH",
+      "description": "Cloud dispatch hook: deterministic sampling, child <id>-shadow with ShadowOf and no StageID/ChainID, DispatchParams.Shadow; AILANG_TASK_SHADOW registry var + docs-env",
+      "estimated_loc": 240,
+      "dependencies": [
+        "M1_SHADOW_CONFIG_IDENTITY"
+      ],
+      "acceptance_criteria": [
+        "Eligible task -> 2 dispatches; ineligible/sample-miss -> 1",
+        "Non-shadow dispatch params byte-identical to before",
+        "Sampling stable per task ID"
+      ],
+      "passes": true,
+      "started": "2026-10-19T08:24:37+00:00",
+      "completed": "2026-10-19T08:24:37+00:00",
+      "notes": "shadow_dispatch.go: dispatchShadow runs AFTER the primary's Dispatch succeeds (plan said after MarkTaskQueued; after-success avoids a shadow for a primary that goes back to pending). Child created then claimed; orphan guard in dispatchTasksCloud fails any pending ShadowOf task. Push/PR fields and user API key cleared at dispatch. Sampling = FNV-64a(task ID) < rate, recomputable, not stored. Explicit existence check (Firestore CreateTask is Set). Credential-lane providers skipped. 11 mutants killed (one first survived under SQLite PK; test now models Firestore upsert). Not tested end-to-end through dispatchTasksCloud's publish step: the Pub/Sub publisher is a concrete type."
+    },
+    {
+      "id": "M3_JOB_NO_SIDE_EFFECTS",
+      "description": "executeCloudTask skips write preflight, push, PR when shadow; keeps evidence+artifacts; childGitCredential withheld",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M2_SHADOW_DISPATCH"
+      ],
+      "acceptance_criteria": [
+        "Shadow run: evidence produced, no push/PR call",
+        "Negative: agent git push with write key present reaches no remote",
+        "Non-shadow run still pushes + opens PR",
+        "Each guard mutation-tested"
+      ],
+      "passes": true,
+      "started": "2026-10-19T08:31:17+00:00",
+      "completed": "2026-10-19T08:31:17+00:00",
+      "notes": "Three gates, not two: added origin push-URL disable after clone (covers the SSH deploy-key path, whose alias sits in the job HOME and is not governed by childGitCredential). Job returns before push/PR after evidence; childGitCredential returns none; deploy-key write preflight skipped (predicate needsDeployKeyWriteCheck). End-to-end tests against a local bare remote: shadow keeps diff + pushes nothing incl. the agent's own push attempt; non-shadow still pushes + opens PR. 6 mutants killed (one first survived: deploy-key skip untestable inline, extracted to a predicate)."
+    },
+    {
+      "id": "M4_FINALIZE_STORAGE",
+      "description": "wantsApproval/wantsHandoff false for ShadowOf; shadow result on child; ShadowComparison record (verdict enum, base_drift)",
+      "estimated_loc": 230,
+      "dependencies": [
+        "M1_SHADOW_CONFIG_IDENTITY"
+      ],
+      "acceptance_criteria": [
+        "Shadow completion: no card, no handoff, RecomputeChainAggregates not called",
+        "Non-shadow completion unchanged",
+        "ShadowComparison CRUD round-trip",
+        "base_drift set on differing BaseCommit"
+      ],
+      "passes": true,
+      "started": "2026-10-19T08:40:48+00:00",
+      "completed": "2026-10-19T08:40:48+00:00",
+      "notes": "Design premise V12 was wrong: nextTaskStatus set PendingApproval regardless of wantsApproval, which would have queued shadows for approval and the landed-card sweep; fixed (shadow -> Completed). Cloud path keeps run metrics only on observatory stages, so the shadow result is stored in a new ShadowComparison doc (JSON, SQLite table + Firestore collection, transactional merge) written by a ledgered finalizer effect shadow_record from BOTH sides (primary records when a <id>-shadow child with ShadowOf exists). Completion inbox notice skipped for shadows; local worker skips shadows. Firestore twin verified LIVE against ailang-multivac-dev. 10 mutants killed; one test was first vacuous (empty task status -> completion rejected) and was fixed with an explicit processed-check."
+    },
+    {
+      "id": "M5_GRADE_JOB_MECHANICAL",
+      "description": "Grade Cloud Run Job: clone at BaseCommit, apply diffs, policy-confined ailang check/test with 300s per-gate and 900s job bounds; daemon only dispatches",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M3_JOB_NO_SIDE_EFFECTS",
+        "M4_FINALIZE_STORAGE"
+      ],
+      "acceptance_criteria": [
+        "Fixture pass/fail diffs graded correctly",
+        "Hanging test -> ungraded(timeout) within bound",
+        "Unappliable diff -> ungraded(apply_failed)",
+        "No grading code runs in the daemon; no make targets invoked"
+      ],
+      "passes": true,
+      "started": "2026-10-19T08:58:35+00:00",
+      "completed": "2026-10-19T08:58:35+00:00",
+      "notes": "Mark approved 10-19: grade = mode of the existing agent executor job (AILANG_JOB_MODE=shadow_grade), not a new Cloud Run job. Coordinator sweep dispatchShadowGrades (claim CAS, stale -> grade_timeout, dispatch failure -> ungraded). Job: fetch base SHA, git apply, policy-tool check+test per module with sandbox = package dir; test --package . only where *_test.ail exist. Live smoke found two things the fake runner hid: (1) modules inside a package only resolve with the package dir as root -> per-package sandbox; (2) test --package runs only *_test.ail and exits 0 otherwise -> inline tests run per file. Also found+fixed: write-back used the expired job ctx after a timeout. Per-gate bound is policytool's 120s (tighter than the design's 300s). Deploy-key (SSH) clones not supported in grade mode yet: such repos grade as clone_failed. 19 mutants killed. Firestore list/claim verified live on dev; real-binary end-to-end opt-in test passes."
+    },
+    {
+      "id": "M6_MERGED_FIX_REVIEWER",
+      "description": "On parent PR settle: merged diff by PR number, overlap + merged-test replay; circular flag; off-Anthropic reviewer only on disagree/tie",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M5_GRADE_JOB_MECHANICAL"
+      ],
+      "acceptance_criteria": [
+        "Settled-PR fixture updates comparison",
+        "Circular case flagged",
+        "Reviewer only on disagree/tie; unreachable -> ungraded(reviewer_unavailable)"
+      ],
+      "passes": true,
+      "started": "2026-10-19T09:12:46+00:00",
+      "completed": "2026-10-19T09:12:46+00:00",
+      "notes": "One stage field (grade_state) drives mechanical -> graded(wait PR) -> merged_tests -> review -> done; every job phase is a mode of the executor job (AILANG_SHADOW_PHASE). Merged-fix layer = GitHub reads in the coordinator (settledPRLookup + pulls/{n} + files), circular = merged head == primary HeadCommit, file-level Jaccard overlap (function-level overlap NOT done: AILANG hunks carry no function context). merged_tests overlays only *_test.ail from the merge commit. Reviewer reuses quorum.ResolveCaller (openai/google/ollama only; a cloud job may lack those credentials -> reviewer_unavailable, surfaces in the M7 smoke), A/B order hashed per comparison, cost via token counts x registry pricing, pre-flight cap. Verified live: gemini-4-argon picked the correct fix ($0.0019). 21 mutants killed (3 first survived and got tests: circular case, decisive-with-reviewer, settle guard)."
+    },
+    {
+      "id": "M7_REPORT_DEV_ENABLE",
+      "description": "ailang coordinator shadow report [--since][--json] + weekly post to user inbox + docs + changelog; enable on 2 agents on the dev plane with the shadow key",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M6_MERGED_FIX_REVIEWER"
+      ],
+      "acceptance_criteria": [
+        "Golden report test incl. a disagreement row with links",
+        "Dev-plane smoke: primary PR + completed shadow, no -shadow PR/branch, ShadowComparison written",
+        "Shadow spend only on the shadow key"
+      ],
+      "passes": null,
+      "started": "2026-10-19T09:23:42+00:00",
+      "completed": null,
+      "notes": "CODE DONE 10-19: report (golden), CLI shadow report (--since/--json/--post/--remote; ran read-only against prod: empty, query OK), weekly post in the cloud tick (Monday>=09:00 UTC, PutMessageIfAbsent by ISO-week ID; found+fixed message_type 'report' rejected by the SQLite CHECK that Firestore would have accepted), D7 shadow-key swap with refusal, docs. 7 mutants killed. BLOCKED on Mark: OPENROUTER_API_KEY_SHADOW (capped) in Secret Manager -> terraform env on the pi + motoko executor jobs -> config.cloud.yaml dev-branch enable (ailang-only-executor: motoko primary/pi shadow; pkg-sunholo-ailang-parse: pi primary/motoko shadow) -> release so the job image carries M3-M7 -> dev smoke (one task each: primary PR + completed -shadow child, no -shadow branch/PR, a ShadowComparison, spend on the shadow key)."
+    }
+  ]
+}

@@ -13,12 +13,9 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"github.com/sunholo-data/ailang/internal/messaging"
-	otelplatform "github.com/sunholo-data/ailang/internal/platform/otel"
 	"github.com/sunholo-data/ailang/internal/riglock"
-	"github.com/sunholo-data/ailang/internal/telemetry"
 	"github.com/sunholo-data/ailang/internal/version"
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/attribute"
@@ -43,53 +40,6 @@ func releaseTag(v string) string {
 }
 
 func runEvalSuite() {
-	ctx := context.Background()
-
-	// Check if we already have a task ID from coordinator/parent process
-	taskID, sessionID := telemetry.ExtractCorrelationIDs()
-
-	// If no task ID provided, generate one for this eval run
-	// This enables eval runs to appear in the Observatory task hierarchy
-	// Generate assignment ID as well - needed for span grouping in UI
-	var assignmentID string
-	if taskID == "" {
-		taskID = fmt.Sprintf("eval-%d", time.Now().UnixNano())
-		assignmentID = fmt.Sprintf("aa_%d", time.Now().UnixNano())
-		// Set in environment so it gets picked up by otelplatform.NewResource()
-		// Both task_id and assignment_id are needed for full hierarchy visibility
-		existingAttrs := config.OTELResourceAttributes()
-		newAttrs := fmt.Sprintf("ailang.task_id=%s,ailang.assignment_id=%s", taskID, assignmentID)
-		if existingAttrs != "" {
-			os.Setenv(config.EnvOTELResourceAttrs, existingAttrs+","+newAttrs)
-		} else {
-			os.Setenv(config.EnvOTELResourceAttrs, newAttrs)
-		}
-	}
-
-	// Initialize telemetry (traces exported if GOOGLE_CLOUD_PROJECT or OTEL_EXPORTER_OTLP_ENDPOINT set)
-	shutdownTelemetry, err := otelplatform.Init(ctx, "ailang-eval")
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: telemetry init failed: %v\n", err)
-	} else {
-		defer shutdownTelemetry(ctx)
-	}
-
-	// Extract trace context from environment (enables cross-process trace linking)
-	// If TRACEPARENT is set (e.g., by coordinator or CI), this eval suite will be
-	// a child span in the parent trace
-	ctx = telemetry.ExtractTraceContext(ctx)
-
-	// Start parent span for the entire eval suite
-	ctx, suiteSpan := evalTracer.Start(ctx, "eval.suite")
-	defer suiteSpan.End()
-
-	// Record correlation IDs as span attributes for fallback trace linking
-	if taskID != "" {
-		suiteSpan.SetAttributes(attribute.String("ailang.task_id", taskID))
-	}
-	if sessionID != "" {
-		suiteSpan.SetAttributes(attribute.String("ailang.session_id", sessionID))
-	}
 
 	// Parse eval-suite subcommand flags
 	fs := flag.NewFlagSet("eval-suite", flag.ExitOnError)
@@ -115,6 +65,7 @@ func runEvalSuite() {
 	promptVersion := fs.String("prompt-version", "", "Prompt version ID for all benchmarks")
 	skipExisting := fs.Bool("skip-existing", false, "Skip benchmarks that already have result files (resume interrupted run)")
 	bankByVersion := fs.Bool("bank-by-version", false, "Namespace the output dir by the AILANG build version (eval_results/.../<version>/). A new build re-evals from scratch and history accumulates per release; with --skip-existing the rotation banks per-version (M-EVAL-VERSION-BANKING)")
+	maintenanceManifest := fs.String("maintenance-manifest", "", "Frozen maintenance.execution/1 manifest; requires --agent, supports --dry-run without model calls; ordinary suite flags cannot be combined")
 	dryRun := fs.Bool("dry-run", false, "Print the planned (model, harness, benchmark) runs and exit without executing")
 	noRigLock := fs.Bool("no-rig-lock", false, "Skip the shared rig lock. The rig is a single GPU; by default eval-suite refuses to start if another rig job (nightly/lang-eval/rotation) holds the lock, to prevent thrash/model-reload hangs. Use only on an isolated box.")
 	maxWallClock := fs.Duration("max-wall-clock", 0, "Wall-clock ceiling for the whole suite (0 = no cap, default). On breach: in-flight trials finish, no new trial is dispatched, a wallclock_stopped.json sentinel is written to --output, and the suite finalizes normally. Bounds a RUN; --max-tokens-per-bench and --timeout only bound a single benchmark, so a suite could still run away in aggregate and hold the single-GPU rig lock all day (M-RIG-LOCK-YIELD).")
@@ -185,6 +136,16 @@ func runEvalSuite() {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		os.Exit(1)
 	}
+
+	if handled, err := handleMaintenanceEvalMode(fs, *maintenanceManifest, *agent, *dryRun, os.Stdout); handled {
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+			os.Exit(1)
+		}
+		return
+	}
+	ctx, suiteSpan, taskID, assignmentID, finishTelemetry := startEvalSuiteTelemetry()
+	defer finishTelemetry()
 
 	// Cohort-freeze pre-flight (M-COST-PER-SUCCESS-KPI M4a) — see
 	// validateCohortFreeze in eval_suite_cohort.go. Deliberately the FIRST thing

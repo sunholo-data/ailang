@@ -1,6 +1,12 @@
 # M-PERF4: Bytecode Interpreter (Stretch Goal)
 
-**Status**: Planned (Uncertain)
+**Status**: SUPERSEDED (2026-10-28). The bytecode VM shipped through M-BYTECODE-VM
+([implemented/v0_11_0/m-bytecode-vm.md](../../implemented/v0_11_0/m-bytecode-vm.md)) and is
+`ailang run --bytecode` today. The live plans are
+[M-VM-COVERAGE](../v0_55_0/m-vm-coverage-letrec-prelude-bridge.md) (parity with the evaluator)
+and [M-VM-QUICK-WINS](../v0_55_0/m-vm-quick-wins.md) (performance). The claim below that
+"`ailang compile --emit-go` already provides native speed" is false: generated Go is boxed and
+has no tail calls. This doc is kept for history only.
 **Target**: v0.9.0+ (stretch goal - may be deferred to v2.0)
 **Priority**: P3 (Exploratory)
 **Estimated**: 4-6 weeks (major rewrite)

@@ -1,0 +1,146 @@
+{
+  "sprint_id": "M-EFFECT-LATENT-NESTED-CALLBACKS",
+  "title": "Charge effectful callbacks nested in data args; close concrete-annotation tails",
+  "design_doc": "design_docs/planned/v0_55_0/m-effect-latent-nested-callbacks.md",
+  "sprint_plan": "design_docs/planned/v0_55_0/m-effect-latent-nested-callbacks-sprint-plan.md",
+  "target_version": "v0.55.0",
+  "status": "completed",
+  "risk_level": "medium",
+  "github_issues": [
+    1718,
+    1826
+  ],
+  "created": "2026-10-26",
+  "velocity": {
+    "target_loc_per_day": 320,
+    "estimated_total_loc": 640,
+    "estimated_days": 2
+  },
+  "registry_reuse": [
+    {
+      "milestone": "M1_WALKER_CONCRETE_TAILS",
+      "package": "none",
+      "action": "none",
+      "reason": "Compiler-internal type checker change; no package-shaped capability"
+    },
+    {
+      "milestone": "M2_NESTED_HANDOFF",
+      "package": "none",
+      "action": "none",
+      "reason": "Compiler-internal type checker change"
+    },
+    {
+      "milestone": "M3_ERASE_SUBSET_CHARGE",
+      "package": "none",
+      "action": "none",
+      "reason": "Test-only invariant over checker internals"
+    },
+    {
+      "milestone": "M4_CORPUS_DOCS",
+      "package": "none",
+      "action": "none",
+      "reason": "Docs, example, changelog for a compiler fix"
+    }
+  ],
+  "features": [
+    {
+      "id": "M1_WALKER_CONCRETE_TAILS",
+      "description": "New internal/types/typechecker_latent_data.go: dataArrows (data positions only, alias heads per level, depth-capped), latentRow (close ConcreteEffectContract tail), nestedLatentRow. Site (d) inferApp contributes callRow for a concrete callee; site (b) top-level branch publishes latentRow (publish + re-zonk).",
+      "estimated_loc": 200,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Walker unit tests: each data position, arrow params/returns NOT traversed, alias expanded per level, recursive alias terminates",
+        "S1 viaField and S2 viaParam (mapE) check clean; S3 local myMapE checks clean",
+        "S4 viaParamValue ! {IO} = applyTo(g, x) checks clean; its pure variant is rejected with Missing effects: IO and no Unresolved effect tail line",
+        "mcp_oauth revokeFamily reduced fixture checks clean"
+      ],
+      "passes": true,
+      "started": "2026-10-26",
+      "completed": "2026-10-26",
+      "notes": "DONE. internal/types/typechecker_latent_data.go: dataArrowsWith/dataArrows (data positions, alias per level, depth cap 16, sorted record fields), latentRow, nestedLatentRow (CheckedUnionEffectRows; implicit-owned tails dropped per arrow; distinct remaining tails -> nil = explicit validator invariant). Site (d) inferApp calleeRow=callRow for ConcreteEffectContract; site (b) top-level latentRow. Unit tests typechecker_latent_data_test.go. S1-S5 green. Mutation: revert (d) -> S1/S2/S3/S5 + map flip red; revert (b top) -> S4 both red."
+    },
+    {
+      "id": "M2_NESTED_HANDOFF",
+      "description": "Site (a) resolvedCallbackMask charges params that nest an open non-concrete arrow in data positions; site (b) nested callback rows published and recomputed after substitution (implicit-owned tails dropped per arrow, distinct remaining tails = #616 conflict, no first-wins); site (c) implicitRowsAbove structural via the same walker.",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M1_WALKER_CONCRETE_TAILS"
+      ],
+      "acceptance_criteria": [
+        "AC1: R1-R9 rejected on sneaky with Missing effects: IO (R5 cross-module)",
+        "AC2: R10/R11 definitions accepted; pure callers with Some(logIt)/Hold(logIt) rejected; ok_declared accepted",
+        "AC4: ok_pure_cb, ok_storage, ok_rowpoly, fwd_two, x/main_ok, alias_two_callers accepted",
+        "AC5: control_direct, neg_rowpoly, neg_concrete_nested, fwd_two_neg, leak_adt, ret_closure, leak_lambda_in_list, x/main rejected; mixed_rows names FS",
+        "Two-engine run rejects R1/R2 before printing side effect"
+      ],
+      "passes": true,
+      "started": "2026-10-26",
+      "completed": "2026-10-26",
+      "notes": "DONE. Site (a) resolvedCallbackMask via nestedLatentMask; site (b) nested branch publish + recompute after substitution; site (c) implicitRowsAbove walks dataArrowsWith(binding, nil). internal/pipeline/effect_latent_nested_test.go: R1-R11, AC2, AC4/AC5 controls incl mixed_rows both directions, intended flips, map->type error, distinct declared tails fail loud, two-engine run test. Mutation: revert (a) -> R1-R9 + R10/R11 pure use red; revert (b nested) -> 27 red incl invariant; revert (c) -> R10/R11 definitions red, R1-R9 stay green."
+    },
+    {
+      "id": "M3_ERASE_SUBSET_CHARGE",
+      "description": "Test-only erase-subset-of-charge assertion: every implicit tail erased inside a callee body is reachable via dataArrows of a parameter type that resolvedCallbackMask charges.",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M2_NESTED_HANDOFF"
+      ],
+      "acceptance_criteria": [
+        "Assertion green over the R/C fixtures",
+        "Mutation: reverting site (a) while keeping (c) makes it fail"
+      ],
+      "passes": true,
+      "started": "2026-10-26",
+      "completed": "2026-10-26",
+      "notes": "DONE. internal/types/typechecker_latent_invariant_test.go: exhaustive over implicit/concrete/rowpoly arrows x 8 containers x depth 2 x alias wrapping; every tail erasable through any binder destructured from a param is charged by resolvedCallbackMask. Reverting (a) keeping (c) turns it red (verified in scratch copy)."
+    },
+    {
+      "id": "M4_CORPUS_DOCS",
+      "description": "Base-vs-fixed corpus sweep (examples+std, mcp_oauth 0.1.0/0.1.1 copies); LIMITATIONS entries removed; map->mapE migration note; runnable example + manifest; teaching-prompt sentence; changelog fragment (Breaking - soundness).",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M2_NESTED_HANDOFF"
+      ],
+      "acceptance_criteria": [
+        "Zero unexplained flips over examples/** + std/**; every flip listed in the changelog fragment",
+        "mcp_oauth 0.1.0 and 0.1.1 check --package all passed; grep -c internal invariant over sweep = 0",
+        "docs/LIMITATIONS.md and docs/docs/reference/limitations.md #1718 entries removed",
+        "examples/runnable/effect_latent_nested_callbacks.ail runs and is in the manifest",
+        "make test-changed, make lint, make verify-examples, make test-imports, make check-file-sizes, make check-changelog green"
+      ],
+      "passes": true,
+      "started": "2026-10-26",
+      "completed": "2026-10-26",
+      "notes": "DONE. Sweep examples+std 515 files base 432/83 vs fix 432/83, 0 flips, identical diagnostics, 0 internal invariant. ailang-packages 45 roots + ailang-parse: 44/2 both (pre-existing: motoko-ext-a2a deps, motoko-ext-typefix-agent manifest), 0 flips. mcp_oauth 0.1.0/0.1.1: invariant -> all passed. LIMITATIONS entries moved to Resolved; prompt v0.16.7 sentence + hash + mirrors; examples/runnable/effect_latent_nested_callbacks.ail + manifest; changelog fragment. Gates green: test-changed, lint, verify-examples, test-imports, check-file-sizes, check-changelog, check-boundaries."
+    }
+  ],
+  "review_repair": {
+    "date": "2026-10-29",
+    "request": "Attended backlog review: repair existing PR #1963 without duplicating coordinator work",
+    "base": "c04a44780f32b6af98905a46191c104b1d5b32ce",
+    "scope": "AC6 cycle-safe complete latent traversal, AC7 erase-subset-charge at depth >16, fail-closed traversal limit as ordinary type error, AC10 new teaching prompt version",
+    "regression_depths": [
+      16,
+      17,
+      32,
+      256
+    ],
+    "defensive_depth_limit": 1000,
+    "prompt_version": "v0.16.9",
+    "frozen_prompts_unchanged": [
+      "v0.16.7",
+      "v0.16.8"
+    ],
+    "parked_local_work": "Existing local .claude/worktrees/agent-a14bab19ab8542b6b at65f0c1a9a with uncommitted conflict diagnostics left untouched; repair starts from actual remote0860b0781",
+    "validation": {
+      "focused_compiler_packages": "passed",
+      "test_changed_and_core": "passed",
+      "lint": "passed, 0 issues",
+      "verify_examples": "passed",
+      "file_sizes_boundaries_changelog_fmt": "passed",
+      "prompt_freeze_registry_tests": "passed",
+      "final_build": "passed; embedded CLI serves v0.16.9"
+    },
+    "independent_evaluation": "pending"
+  }
+}

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
@@ -163,7 +164,7 @@ func pkgNotifyUpgradeCommand(args []string) error {
 	}
 
 	// Send to each recipient
-	store, err := openPkgMsgStore()
+	store, err := openPkgMsgStore(msgStoreWrite)
 	if err != nil {
 		return err
 	}
@@ -262,8 +263,28 @@ func findAffectedWorkspaces(pkgName string) []string {
 	return nil
 }
 
-// openPkgMsgStore opens the messaging store for package commands.
-func openPkgMsgStore() (*messaging.Store, error) {
-	dbPath := messaging.GetDefaultDatabasePath()
-	return messaging.OpenStore(dbPath)
+// msgStoreMode says what a package command does when confinement forbids the
+// store: a write (publish, notify-upgrade) refuses; a best-effort read
+// (lock's silent-ratchet check) is skipped, and the caller says so (D7).
+type msgStoreMode int
+
+const (
+	msgStoreWrite msgStoreMode = iota
+	msgStoreBestEffort
+)
+
+// errSkippedConfined is a best-effort open declined under confinement.
+var errSkippedConfined = errors.New("messaging store skipped (confined)")
+
+// openPkgMsgStore is the ONLY opener of the messaging store for package
+// commands (authority_boundary_test enforces it). Opening creates
+// ~/.ailang/state/collaboration.db, so it is home-write authority (#1720).
+func openPkgMsgStore(mode msgStoreMode) (*messaging.Store, error) {
+	if err := pkg.Require(pkg.AuthHomeWrite, "writing the package messaging store", pkg.OperatorRemedy); err != nil {
+		if mode == msgStoreBestEffort {
+			return nil, errSkippedConfined
+		}
+		return nil, err
+	}
+	return messaging.OpenStore(messaging.GetDefaultDatabasePath())
 }

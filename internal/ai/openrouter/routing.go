@@ -1,7 +1,14 @@
 package openrouter
 
 import (
+	"encoding/json"
+	"fmt"
+	"slices"
+	"strings"
+	"sync"
+
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/config"
 )
 
 // providerField is the JSON shape OpenRouter accepts on the chat-completions
@@ -108,4 +115,115 @@ func translatePolicy(p *ai.AIRoutingPolicy) (*providerField, error) {
 	}
 
 	return pf, nil
+}
+
+// providerDefaults maps an OpenRouter wire model ("z-ai/glm-5.3-flash") to
+// the `provider` routing options sent with every request for it. Registered
+// once by the command layer from the model registry (modelreg
+// openrouter_provider), so this core package never reads models.yml itself.
+var (
+	providerDefaultsMu sync.RWMutex
+	providerDefaults   map[string]map[string]any
+)
+
+// SetProviderDefaults installs the per-model OpenRouter provider options.
+// Keys are wire model names without the "openrouter/" prefix.
+func SetProviderDefaults(m map[string]map[string]any) {
+	providerDefaultsMu.Lock()
+	defer providerDefaultsMu.Unlock()
+	providerDefaults = m
+}
+
+// ProviderDefaultsFor reports the installed options for a model (diagnostics, tests).
+func ProviderDefaultsFor(model string) map[string]any {
+	providerDefaultsMu.RLock()
+	defer providerDefaultsMu.RUnlock()
+	return providerDefaults[strings.TrimPrefix(model, "openrouter/")]
+}
+
+// routeFor is the request's `provider` block, built in three layers:
+//
+//  1. the registry's openrouter_provider for this model (defaults);
+//  2. the caller's AIRoutingPolicy (req.Routing), which overrides them;
+//  3. AILANG_OPENROUTER_PROVIDER (a JSON object), which overrides both, so a
+//     test run can change routing for every caller without editing models.yml.
+//
+// "ignore" lists are unioned across layers; every other key is replaced.
+// When no layer sets "sort" or "order", sort is "throughput".
+//
+// Why per-model routing exists: OpenRouter's default load-balances across all
+// hosts of a model weighted toward the cheapest, and hosts differ by an order
+// of magnitude. Measured 2026-10-13, GLM-5.3-Flash: open-inference/fp4
+// ($0.026/M) ran at 10 output tok/s and 26 s per call, Crusoe ($0.15/M) at 115
+// tok/s and 1.2 s; inference-net/fp4 cached 19% of input and returned tool
+// calls that contradicted the model's own reasoning.
+func routeFor(req *ai.Request) (map[string]any, error) {
+	out := map[string]any{}
+	merge := func(layer map[string]any) {
+		for k, v := range layer {
+			if k == "ignore" {
+				out[k] = unionStrings(out[k], v)
+				continue
+			}
+			out[k] = v
+		}
+	}
+	merge(ProviderDefaultsFor(req.Model))
+	pf, err := translatePolicy(req.Routing)
+	if err != nil {
+		return nil, err
+	}
+	if pf != nil {
+		b, err := json.Marshal(pf)
+		if err != nil {
+			return nil, err
+		}
+		var m map[string]any
+		if err := json.Unmarshal(b, &m); err != nil {
+			return nil, err
+		}
+		merge(m)
+	}
+	if raw := config.OpenRouterProviderOverride(); raw != "" {
+		var m map[string]any
+		if err := json.Unmarshal([]byte(raw), &m); err != nil {
+			return nil, fmt.Errorf("AILANG_OPENROUTER_PROVIDER is not a JSON object: %w", err)
+		}
+		merge(m)
+	}
+	// Fastest host by default. OpenRouter's own default balances toward the
+	// cheapest host, and the cheapest hosts are the slow ones: in the
+	// 2026-10-16 GLM-5.3-Flash A/B it sent motoko to open-inference/morph, then
+	// (with those excluded) to Near AI at 12-20 tok/s, where one 8k-token
+	// reasoning call took ~700 s against ~38 s on CoreWeave. Any layer that
+	// chose a sort or an explicit host order keeps it.
+	if _, ok := out["sort"]; !ok {
+		if _, ok := out["order"]; !ok {
+			out["sort"] = "throughput"
+		}
+	}
+	return out, nil
+}
+
+func unionStrings(a, b any) []string {
+	var out []string
+	add := func(v any) {
+		switch xs := v.(type) {
+		case []string:
+			for _, x := range xs {
+				if !slices.Contains(out, x) {
+					out = append(out, x)
+				}
+			}
+		case []any:
+			for _, x := range xs {
+				if s, ok := x.(string); ok && !slices.Contains(out, s) {
+					out = append(out, s)
+				}
+			}
+		}
+	}
+	add(a)
+	add(b)
+	return out
 }

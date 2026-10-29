@@ -1,0 +1,97 @@
+{
+  "sprint_id": "M-CORETI-SHARED-ENCODING",
+  "created": "2026-10-12T20:00:00Z",
+  "design_doc": "design_docs/implemented/v0_54_7/m-coreti-shared-encoding.md",
+  "sprint_plan": "design_docs/implemented/v0_54_7/m-coreti-shared-encoding-sprint-plan.md",
+  "github_issues": [
+    1778
+  ],
+  "status": "completed",
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-internal cache codec; no package capability involved"
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-internal cache codec; no package capability involved"
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Measurement only"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 450,
+    "estimated_total_loc": 690,
+    "estimated_days": 1.5
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Hash-consed DAG codec for CoreTypeInfo",
+      "estimated_loc": 500,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Every concrete types.Type variant round-trips to a value reflect.DeepEqual to today's gob round trip",
+        "Source enumeration of Substitute implementors and a per-variant field-count pin fail on uncovered variants or fields",
+        "A 10k-entry CoreTypeInfo over one nested record encodes to under 64 KB; two encodes are byte-identical",
+        "Malformed blobs (forward or out-of-range refs, unknown tags, truncation) return errors and never panic"
+      ],
+      "passes": true,
+      "started": "2026-10-12T20:19:08Z",
+      "completed": "2026-10-12T20:19:08Z",
+      "notes": "DAG codec + per-variant gob equivalence, source/field enumeration, typed-nil, determinism, malformed-input tests. Real motoko blob: 188 MB -> 276 KB, decode 2.0 s -> 1.5 ms, round trip DeepEqual."
+    },
+    {
+      "id": "M2",
+      "description": "Wire the codec into the cache, bump cacheKeyVersion to v7, equivalence corpus, size guard",
+      "estimated_loc": 190,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "productionCacheArtifactCodec encodes and decodes CoreTypeInfo with the DAG codec; cacheKeyVersion v7 and every v6 seed updated",
+        "The std-module corpus round-trips through the DAG codec to values equal to the gob round trip",
+        "The nested-record-alias fixture's written coretypeinfo.gob is under budget and at least 10x smaller than plain gob",
+        "make test-changed, lint, check-file-sizes, check-boundaries and check-changelog pass; changelog fragment added"
+      ],
+      "passes": true,
+      "started": "2026-10-12T20:19:08Z",
+      "completed": "2026-10-12T20:19:08Z",
+      "notes": "Codec wired, cacheKeyVersion v7, seeds updated. Std corpus: 18 modules / 2962 entries equal to gob. Guard fixture: 16.3 MB plain gob vs 8.1 KB written (budget 32 KiB). make test-changed, lint, check-file-sizes, check-boundaries, check-changelog green."
+    },
+    {
+      "id": "M3",
+      "description": "Real-world verification on motoko session.ail and follow-up for the fresh-compile slowdown",
+      "estimated_loc": 0,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "motoko session.ail caches (no CACHE_WRITE_FAILED); blob size and cold and warm check times recorded",
+        "Follow-up issue filed for the 34 s to 83 s fresh-compile regression, with a CPU profile"
+      ],
+      "passes": true,
+      "started": "2026-10-12T20:19:08Z",
+      "completed": "2026-10-12T20:19:08Z",
+      "notes": "session.ail caches: coretypeinfo.gob 275 KB; cold check 79.3 s, warm 0.91 s (was 71-126 s every run). Cold-compile regression bisected to the same commit (34.4 s -> 76.7 s) and profiled; filed #1787."
+    }
+  ],
+  "implementation_report": {
+    "measurements": {
+      "blob_bytes_before": 188188505,
+      "blob_bytes_after": 275411,
+      "warm_check_s_before": "71-126",
+      "warm_check_s_after": 0.91,
+      "cold_check_s": 79.3
+    },
+    "follow_up": 1787
+  }
+}

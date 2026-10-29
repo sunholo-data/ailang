@@ -191,7 +191,7 @@ _mc_load_ration() {
   # HTTP reads; it runs once per fire.
   _mc_bounded "${MISSION_QUOTA_TIMEOUT:-60}" ailang mission quota --over; _rc=$?
   _raw="$MC_BOUNDED_OUT"
-  MC_OVER_RATION=$(printf '%s\n' "$_raw" | awk '/^(codex|ollama|anthropic|openrouter|opencode)$/' | tr '\n' ' ')
+  MC_OVER_RATION=$(printf '%s\n' "$_raw" | awk '/^(codex|ollama|anthropic|openrouter)$/' | tr '\n' ' ')
   # Keep the REASONS, not just the verdict. `--over` emits a bare bucket name as the
   # machine-readable block list and a `quota: <bucket> <state>: …` line as the human
   # one, and the driver used to read the first and discard the second — so a bucket
@@ -283,4 +283,36 @@ _mc_is_over_ration() {
   [ -z "$b" ] && return 1
   case " $MC_OVER_RATION " in *" $b "*) return 0 ;; esac
   return 1
+}
+
+# _mc_ration_refuses ENTRY → true when controller selection must SKIP this rung without
+# probing it. Same verdict as _mc_is_over_ration except for one case: an Anthropic rung
+# whose quota is UNREADABLE goes on to _mc_probe, which probes it (see the note there).
+#
+# Measured 2026-10-15, triage's first armed fire: the usage endpoint returned 429, so
+# `quota --over` listed anthropic as `unknown`. The executor's haiku rung went through
+# _mc_probe and probed, but select_model checked _mc_is_over_ration first and refused
+# sonnet unprobed — "NO usable controller" on a healthy subscription. One concept, two
+# verdicts: the controller never got the unreadable≠exhausted rule the probe has had
+# since September.
+_mc_ration_refuses() {
+  _mc_is_over_ration "$1" || return 1
+  [ "$(_mc_rung_bucket "$1")" = anthropic ] && _mc_ration_unreadable anthropic && return 1
+  return 0
+}
+
+# _mc_spawn_over_ration → the bucket list exported as MISSION_OVER_RATION for in-iteration
+# spawns (resolve-role-spawn.sh, spawn-pin-hook.sh). Same verdict as _mc_ration_refuses:
+# an UNREADABLE Anthropic quota is left out, because the driver probed and admitted that
+# lane. Measured 2026-10-15 (triage, the fire after the controller fix): the haiku
+# executor passed the driver's probe, then resolve-role-spawn refused its recipe as
+# `over-ration:anthropic` and the hook denied the Agent spawn — zero verdicts.
+_mc_spawn_over_ration() {
+  local b out=""
+  _mc_load_ration
+  for b in $MC_OVER_RATION; do
+    [ "$b" = anthropic ] && _mc_ration_unreadable anthropic && continue
+    out="${out:+$out }$b"
+  done
+  printf '%s' "$out"
 }

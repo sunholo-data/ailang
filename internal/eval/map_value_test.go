@@ -1,6 +1,7 @@
 package eval
 
 import (
+	"math"
 	"testing"
 )
 
@@ -103,12 +104,12 @@ func TestMapKey_NoCollisions(t *testing.T) {
 	}
 }
 
-// TestMapKey_UnsupportedTypes tests that unsupported types return error
+// TestMapKey_UnsupportedTypes: functions, lists and NaN cannot be keys.
 func TestMapKey_UnsupportedTypes(t *testing.T) {
 	unsupported := []Value{
-		&UnitValue{},
+		&FunctionValue{},
 		&ListValue{Elements: []Value{}},
-		&FloatValue{Value: 3.14},
+		&FloatValue{Value: math.NaN()},
 	}
 	for _, v := range unsupported {
 		_, err := MapKey(v)
@@ -128,7 +129,7 @@ func TestMapValue_EmptyMap(t *testing.T) {
 	if m.String() != "Map{}" {
 		t.Errorf("empty map String() = %q, want %q", m.String(), "Map{}")
 	}
-	if _, found := m.Lookup(&StringValue{Value: "x"}); found {
+	if _, found, _ := m.Lookup(&StringValue{Value: "x"}); found {
 		t.Error("Lookup on empty map should return false")
 	}
 }
@@ -145,7 +146,7 @@ func TestMapValue_InsertAndLookup(t *testing.T) {
 		t.Errorf("after insert, Size() = %d, want 1", m2.Size())
 	}
 
-	val, found := m2.Lookup(&StringValue{Value: "a"})
+	val, found, _ := m2.Lookup(&StringValue{Value: "a"})
 	if !found {
 		t.Fatal("Lookup('a') not found after insert")
 	}
@@ -165,7 +166,7 @@ func TestMapValue_InsertOverwrite(t *testing.T) {
 	m, _ = m.Insert(&StringValue{Value: "x"}, &IntValue{Value: 1})
 	m2, _ := m.Insert(&StringValue{Value: "x"}, &IntValue{Value: 99})
 
-	val, found := m2.Lookup(&StringValue{Value: "x"})
+	val, found, _ := m2.Lookup(&StringValue{Value: "x"})
 	if !found {
 		t.Fatal("key 'x' not found after overwrite")
 	}
@@ -183,14 +184,14 @@ func TestMapValue_Remove(t *testing.T) {
 	m, _ = m.Insert(&StringValue{Value: "a"}, &IntValue{Value: 1})
 	m, _ = m.Insert(&StringValue{Value: "b"}, &IntValue{Value: 2})
 
-	m2 := m.Remove(&StringValue{Value: "a"})
+	m2, _ := m.Remove(&StringValue{Value: "a"})
 	if m2.Size() != 1 {
 		t.Errorf("after remove, Size() = %d, want 1", m2.Size())
 	}
-	if _, found := m2.Lookup(&StringValue{Value: "a"}); found {
+	if _, found, _ := m2.Lookup(&StringValue{Value: "a"}); found {
 		t.Error("removed key 'a' still found")
 	}
-	if _, found := m2.Lookup(&StringValue{Value: "b"}); !found {
+	if _, found, _ := m2.Lookup(&StringValue{Value: "b"}); !found {
 		t.Error("key 'b' should still exist after removing 'a'")
 	}
 
@@ -205,7 +206,7 @@ func TestMapValue_RemoveNonexistent(t *testing.T) {
 	m := &MapValue{Entries: make(map[string]*MapEntry)}
 	m, _ = m.Insert(&StringValue{Value: "a"}, &IntValue{Value: 1})
 
-	m2 := m.Remove(&StringValue{Value: "z"})
+	m2, _ := m.Remove(&StringValue{Value: "z"})
 	if m2.Size() != 1 {
 		t.Errorf("removing nonexistent key changed size: %d", m2.Size())
 	}

@@ -97,6 +97,12 @@ func platformCommands() []Command {
 			Run:     rigGateCommand,
 		},
 		{
+			Name:    "access-approvals",
+			Group:   groupOps,
+			Summary: "Durable local access approvals: JSON request, decide, claim and execute (dummy only)",
+			Run:     accessApprovalsCommand,
+		},
+		{
 			Name:    "access-control",
 			Group:   groupOps,
 			Summary: "Access control management",

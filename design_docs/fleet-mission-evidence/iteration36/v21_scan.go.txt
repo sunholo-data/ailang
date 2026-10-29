@@ -1,0 +1,98 @@
+package main
+
+import (
+	"bufio"
+	"encoding/json"
+	"fmt"
+	"os"
+	"strconv"
+	"strings"
+)
+
+type row struct{ F, M, E string }
+
+func scan(s string) (verdict string, brk string) {
+	d := json.NewDecoder(strings.NewReader(s))
+	depth := 0
+	expectKey := false
+	var key string
+	first := true
+	for {
+		t, err := d.Token()
+		if err != nil {
+			return verdict, err.Error()
+		}
+		if first {
+			first = false
+			if dl, ok := t.(json.Delim); !ok || dl != '{' {
+				return "", "not-object-start"
+			}
+			depth = 1
+			expectKey = true
+			continue
+		}
+		if dl, ok := t.(json.Delim); ok {
+			switch dl {
+			case '{', '[':
+				depth++
+			case '}', ']':
+				depth--
+				if depth == 1 {
+					expectKey = true
+				}
+				if depth == 0 {
+					return verdict, "complete"
+				}
+			}
+			continue
+		}
+		if depth != 1 {
+			continue
+		}
+		if expectKey {
+			key, _ = t.(string)
+			expectKey = false
+			continue
+		}
+		if key == "verdict" {
+			if v, ok := t.(string); ok && (v == "pass" || v == "reject") {
+				if verdict != "reject" {
+					verdict = v
+				}
+			}
+		}
+		expectKey = true
+	}
+}
+
+func main() {
+	sc := bufio.NewScanner(os.Stdin)
+	sc.Buffer(make([]byte, 1<<20), 1<<20)
+	for sc.Scan() {
+		var r row
+		var m map[string]string
+		json.Unmarshal(sc.Bytes(), &m)
+		r.F, r.M, r.E = m["f"], m["m"], m["e"]
+		i := strings.Index(r.E, "(raw: ")
+		if i < 0 {
+			fmt.Printf("%s|%s|NO-RAW-WINDOW|%.80s\n", r.F, r.M, r.E)
+			continue
+		}
+		q := strings.TrimSuffix(r.E[i+6:], ")")
+		raw, err := strconv.Unquote(q)
+		if err != nil {
+			fmt.Printf("%s|%s|UNQUOTE-FAIL %v\n", r.F, r.M, err)
+			continue
+		}
+		cls := r.E[:i]
+		if j := strings.Index(cls, ": "); j >= 0 {
+			cls = cls[j+2:]
+		}
+		v, brk := scan(raw)
+		lead := "?"
+		if len(raw) > 0 {
+			lead = string(raw[0])
+		}
+		fmt.Printf("%s|%s|lead=%q|winlen=%d|class=%s|scan_verdict=%q|scan_stop=%s\n", r.F, r.M, lead, len(raw), strings.TrimSpace(cls), v, brk)
+	}
+}

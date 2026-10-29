@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/smt"
+	"github.com/sunholo-data/ailang/internal/verification"
 )
 
 // printVerifyHuman prints human-readable verification results.
@@ -24,6 +25,7 @@ func printVerifyHuman(results []smt.VerifyResult, filename string, verified, cou
 	if z3ver := smt.Z3Version(); z3ver != "" {
 		fmt.Printf("  Solver: %s\n", z3ver)
 	}
+	fmt.Printf("  Scope: verifier reported verified under the encoded model; %s\n", verification.EncodedEvidence().Summary())
 	fmt.Println()
 
 	hasBounded := false
@@ -47,7 +49,11 @@ func printVerifyHuman(results []smt.VerifyResult, filename string, verified, cou
 		case "skipped":
 			fmt.Printf("  %s %s\n", yellow("⚠ SKIPPED"), bold(r.Function))
 			if r.Reason != "" {
-				fmt.Printf("    Reason: %s\n", r.Reason)
+				fmt.Printf("    Reason: %s", r.Reason)
+				if r.ReasonCode != "" {
+					fmt.Printf(" [%s]", r.ReasonCode)
+				}
+				fmt.Println()
 			}
 			if len(r.Rejections) > 0 {
 				for _, rej := range r.Rejections {
@@ -117,7 +123,7 @@ func printVerifyHuman(results []smt.VerifyResult, filename string, verified, cou
 
 	if hasBounded {
 		fmt.Printf("\n  %s \"bounded: depth N\" means the property was verified assuming at most N\n", dim("Note:"))
-		fmt.Printf("  %s levels of recursion. This is sound but not a full inductive proof.\n", dim("      "))
+		fmt.Printf("  %s levels of recursion under the encoded model; this is not an inductive proof.\n", dim("      "))
 	}
 	fmt.Println()
 }
@@ -125,6 +131,7 @@ func printVerifyHuman(results []smt.VerifyResult, filename string, verified, cou
 // printVerifyJSON outputs verification results as JSON.
 func printVerifyJSON(results []smt.VerifyResult, filename string, verified, counterexample, skipped, errCount, uncontracted int) {
 	output := struct {
+		verification.Evidence
 		File           string             `json:"file"`
 		Verified       int                `json:"verified"`
 		Counterexample int                `json:"counterexample"`
@@ -134,6 +141,7 @@ func printVerifyJSON(results []smt.VerifyResult, filename string, verified, coun
 		TotalExported  int                `json:"total_exported"`
 		Results        []smt.VerifyResult `json:"results"`
 	}{
+		Evidence:       verification.EncodedEvidence(),
 		File:           filename,
 		Verified:       verified,
 		Counterexample: counterexample,

@@ -145,31 +145,9 @@ func (pl *PackageLoader) packageDir(locked *LockedPackage) (string, error) {
 		}
 		return dir, nil
 	case "git":
-		// Compute cache path at runtime (portable — no absolute paths in lock file)
-		var dir string
-		if locked.GitURL != "" {
-			cache, err := NewGitCache()
-			if err != nil {
-				return "", fmt.Errorf("failed to init git cache for %s: %w", locked.Name, err)
-			}
-			dir = cache.CacheDir(locked.GitURL)
-			if locked.GitSubdir != "" {
-				dir = filepath.Join(dir, locked.GitSubdir)
-			}
-		}
-		// Fallback to stored Path for old lock files or if computed dir doesn't exist
-		if dir == "" || func() bool { _, e := os.Stat(dir); return e != nil }() {
-			if locked.Path != "" {
-				dir = locked.Path
-			}
-		}
-		if dir == "" {
-			return "", fmt.Errorf("git package %s has no cached path; run 'ailang lock' to resolve", locked.Name)
-		}
-		if _, err := os.Stat(dir); err != nil {
-			return "", fmt.Errorf("git package %s cache not found at %s; run 'ailang lock' to re-fetch", locked.Name, dir)
-		}
-		return dir, nil
+		// Shared with the content-hash check (lockedGitDir), so the directory
+		// that is verified is the directory that is compiled (#1720 D4).
+		return lockedGitDir(locked)
 	case "registry":
 		// Compute cache path at runtime (portable — no absolute paths in lock file)
 		dir, err := PackageDir(locked.Name, locked.Version)
@@ -326,4 +304,20 @@ func CheckEffectCeiling(pkgName string, functionEffects []string, maxEffects []s
 			pkgName, violations, maxEffects)
 	}
 	return nil
+}
+
+// LockedPackageDirs maps every package in the lock file to the directory its
+// modules load from, using the same resolution as ResolveImport. Runtime
+// lookups that must agree with the compiled program (std/package.assetPath,
+// #1772) read it instead of guessing a version from the registry cache.
+// Packages whose directory cannot be resolved are left out.
+func (pl *PackageLoader) LockedPackageDirs() map[string]string {
+	dirs := make(map[string]string, len(pl.lockFile.Packages))
+	for i := range pl.lockFile.Packages {
+		locked := &pl.lockFile.Packages[i]
+		if dir, err := pl.packageDir(locked); err == nil {
+			dirs[locked.Name] = dir
+		}
+	}
+	return dirs
 }

@@ -1,0 +1,10 @@
+module bench/vm_tail_walk/walk
+import std/io (println)
+import std/list (range)
+
+pure func countGt(xs: [int], thr: int, acc: int) -> int = match xs {
+  [] => acc,
+  x :: r => countGt(r, thr, if x > thr then acc + 1 else acc)
+}
+
+export func main(n: int) -> () ! {IO} = println(show(countGt(range(0, n), 0, 0)))

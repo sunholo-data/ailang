@@ -130,3 +130,26 @@ func assertStackLimitFixtureChecks(t *testing.T, bin, src string) {
 		t.Fatalf("fixture check: exit=%d stdout=%s stderr=%s", code, out, stderr)
 	}
 }
+
+// An evaluator-only callee (here: an @limit budget frame) performs its IO
+// through the bridge, where the VM's own effect counter cannot see it. A later
+// VM failure must surface, not re-run the entry and print START twice (#1576 B4).
+func TestBridgedEffectIsNotReplayed(t *testing.T) {
+	bin := buildAilang(t)
+	src := filepath.Join(t.TempDir(), "bridged.ail")
+	writeFile(t, src, `module bridged
+`+stackLimitListSource+`
+func logIt(s: string) -> () ! {IO @limit=5} = println(s)
+export func main() -> () ! {IO} {
+ logIt("START");
+ let xs = rep(12000, "x");
+ println("DONE len=${show(length(xs))}")
+}
+`)
+	assertStackLimitFixtureChecks(t, bin, src)
+	out, stderr, code := runWithStdin(t, bin, "", "run", "--relax-modules", "--verbose", "--caps", "IO", "--entry", "main", "--bytecode", src)
+	out = strings.ReplaceAll(out, "\r\n", "\n")
+	if code == 0 || out != "START\n" || !strings.Contains(stderr, "stack overflow") || strings.Contains(stderr, "falling back to evaluator") {
+		t.Errorf("exit=%d stdout=%q stderr=%s; want START once and a loud stack overflow", code, out, stderr)
+	}
+}

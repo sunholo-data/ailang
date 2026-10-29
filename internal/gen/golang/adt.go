@@ -380,6 +380,9 @@ func (g *ADTGenerator) mapASTType(t ast.Type) string {
 		return fmt.Sprintf("[]%s", elemType)
 
 	case *ast.ArrayType:
+		if element, ok := typ.Element.(*ast.SimpleType); ok && element.Name == "float" {
+			return "FloatArrayVal"
+		}
 		return "ArrayVal"
 
 	case *ast.TupleType:
@@ -431,7 +434,7 @@ func IsUserDefinedType(goType string) bool {
 	// Primitives that don't need interface{} wrapping
 	switch goType {
 	case "int64", "float64", "bool", "string", "interface{}", "struct{}",
-		"map[string]interface{}", "map[string]any", "[]interface{}", "ArrayVal":
+		"map[string]interface{}", "map[string]any", "[]interface{}", "ArrayVal", "FloatArrayVal":
 		return false
 	default:
 		// M-CODEGEN-MULTIMOD: Slice types like []string, []int64, [][]string are NOT
@@ -457,6 +460,8 @@ func (g *ADTGenerator) mapNamedType(name string) string {
 		return "bool"
 	case "string":
 		return "string"
+	case "bytes":
+		return "[]byte"
 	case "unit", "()":
 		return "struct{}"
 	default:

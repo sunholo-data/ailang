@@ -98,6 +98,9 @@ func (fc *funcCompiler) compileListLit(e stmt.ListLit) (uint8, error) {
 		fc.emit(bytecode.EncodeABC(bytecode.OpMakeList, dst, 0, 0))
 		return dst, nil
 	}
+	if n > listLitChunk {
+		return fc.compileChunkedListLit(e)
+	}
 	base, err := fc.regs.allocContig(n)
 	if err != nil {
 		return 0, err
@@ -115,6 +118,53 @@ func (fc *funcCompiler) compileListLit(e stmt.ListLit) (uint8, error) {
 	}
 	fc.emit(bytecode.EncodeABC(bytecode.OpMakeList, dst, base, uint8(n)))
 	return dst, nil
+}
+
+// listLitChunk bounds the contiguous register block one MAKE_LIST needs. A
+// literal of n elements used to need n contiguous registers, so anything near
+// 256 (or smaller, with live registers around it) made its whole function
+// evaluator-only, which --strict-bytecode reports only at run time (#1736,
+// M-BYTECODE-STRICT-256-REG-CEILING Phase B1).
+const listLitChunk = 64
+
+// compileChunkedListLit builds a long list literal as listLitChunk-element
+// MAKE_LISTs joined left to right with _concat_List. Element evaluation order
+// is unchanged (left to right), so effects in elements still run in order.
+func (fc *funcCompiler) compileChunkedListLit(e stmt.ListLit) (uint8, error) {
+	concatIdx, ok := builtinIndex["_concat_List"]
+	if !ok {
+		return 0, fmt.Errorf("compiler: _concat_List builtin missing from BuiltinTable")
+	}
+	chunk := func(lo int) stmt.ListLit {
+		hi := lo + listLitChunk
+		if hi > len(e.Elems) {
+			hi = len(e.Elems)
+		}
+		return stmt.ListLit{ElemType: e.ElemType, Elems: e.Elems[lo:hi]}
+	}
+	acc, err := fc.compileListLit(chunk(0))
+	if err != nil {
+		return 0, err
+	}
+	for lo := listLitChunk; lo < len(e.Elems); lo += listLitChunk {
+		part, err := fc.compileListLit(chunk(lo))
+		if err != nil {
+			return 0, err
+		}
+		// BUILTIN_CALL reads args from R[block+1..block+2].
+		block, err := fc.regs.allocContig(3)
+		if err != nil {
+			return 0, err
+		}
+		fc.emit(bytecode.EncodeABC(bytecode.OpMove, block+1, acc, 0))
+		fc.emit(bytecode.EncodeABC(bytecode.OpMove, block+2, part, 0))
+		fc.regs.freeTemp(acc)
+		fc.regs.freeTemp(part)
+		fc.emit(bytecode.EncodeABC(bytecode.OpBuiltinCall, block, concatIdx, 2))
+		fc.regs.freeContig(block+1, 2)
+		acc = block
+	}
+	return acc, nil
 }
 
 func (fc *funcCompiler) compileTupleLit(e stmt.TupleLit) (uint8, error) {

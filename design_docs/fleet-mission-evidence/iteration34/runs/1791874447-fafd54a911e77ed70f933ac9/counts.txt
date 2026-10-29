@@ -1,0 +1,7 @@
+K-project status=MATCH origin=A/A 1
+K-claude status=ABSENT origin=- 1
+K-by-path status=INSTRUMENT_FAILURE origin=A/A 1
+K-home status=INSTRUMENT_FAILURE origin=- 1
+K-legacy-user status=MATCH origin=H/H 1
+K-collision status=MATCH origin=H/H 1
+K-agents-user status=INSTRUMENT_FAILURE origin=B/B 1

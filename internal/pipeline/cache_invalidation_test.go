@@ -349,8 +349,8 @@ func TestCacheArtifacts_Migration(t *testing.T) {
 }
 
 // previousManifestForcesColdPublication seeds a v7 cache, rewrites the
-// manifest to v6 (whose interfaces lacked IFC summaries), and asserts the next
-// run recompiles and re-publishes as a fresh v7 manifest and stamp (the
+// manifest to v6 (whose coretypeinfo.gob was a plain gob map), and asserts the
+// next run recompiles and re-publishes as a fresh v7 manifest and stamp (the
 // migration boundary).
 func previousManifestForcesColdPublication(t *testing.T) {
 	root := t.TempDir()

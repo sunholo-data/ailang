@@ -331,6 +331,9 @@ The `create_sprint_json.sh` script generates placeholder content. **Before handi
    ```
 
 **Validation checklist before handoff:**
+
+- **PLAN LOCATION / HUMAN-DECISION GATES:** Store plans in `design_docs/planned/<version dir>/` or the planned root as `sprint-plan-<slug>.md`, never in `ailang-core-triage/`; gate only cited, still-OPEN decisions, copy ruled decisions as rulings, and require terminal STOP behavior — see [template rules](resources/sprint_plan_template.md#placement-and-human-decision-rules).
+- **Executor gates are focused, never the full suite (2026-10-12).** Milestone acceptance and the Validation section use `make test-changed` (touched packages + `make test-core`) plus the targeted gates the change needs (`make check-file-sizes`, `make check-changelog`, `make verify-stdlib`, `make verify-examples`). Never require `make test`: CI runs it; on the cloud executor it times out or SIGBUSes. Changelog entries are fragments in `changelogs/unreleased/YYYY-MM-DD-<slug>.md` opening with `### `. Name companion files for any touched file near the 800-line limit. Size each milestone to fit well inside one executor run (~60–90 min); split larger ones.
 - [ ] No milestone has `"id": "MILESTONE_ID"` (placeholder)
 - [ ] Each milestone has real acceptance criteria (not "Criterion 1")
 - [ ] `estimated_total_loc` matches sum of milestone LOC

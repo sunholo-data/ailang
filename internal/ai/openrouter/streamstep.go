@@ -55,7 +55,7 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	// M-AI-REASONING-EFFORT: resolve reasoning controls BEFORE building/marshaling.
 	// OpenRouter routes reasoning through its own reasoning{} block, so pass
 	// ReasoningNone to the shared builder and splice the reasoning fragment below.
-	reasoning, rErr := ai.ResolveReasoning(req, "openrouter", req.Model)
+	reasoning, rErr := resolveReasoning(req)
 	if rErr != nil {
 		ai.RecordSpanError(span, rErr)
 		return nil, rErr
@@ -87,7 +87,7 @@ func (c *Client) StreamStep(ctx context.Context, req *ai.Request, onChunk func(a
 	//      openrouter.ai/api/v1: without this flag OR drops reasoning
 	//      silently regardless of underlying provider's native field name)
 	extras := [][]byte{[]byte(`"include_reasoning":true`)}
-	pf, rerr := translatePolicy(req.Routing)
+	pf, rerr := routeFor(req)
 	if rerr != nil {
 		e := ai.NewAIError(ai.CodeSchemaValidation,
 			fmt.Sprintf("openrouter: invalid routing policy: %v", rerr), false)

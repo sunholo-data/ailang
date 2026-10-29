@@ -268,8 +268,8 @@ func TestMapType_TApp_WithTCon(t *testing.T) {
 	if err != nil {
 		t.Errorf("MapType(TApp(Option, int)) unexpected error: %v", err)
 	}
-	if got != "Option" {
-		t.Errorf("MapType(TApp(Option, int)) = %q, want %q", got, "Option")
+	if got != "(Option Int)" {
+		t.Errorf("MapType(TApp(Option, int)) = %q, want %q", got, "(Option Int)")
 	}
 }
 

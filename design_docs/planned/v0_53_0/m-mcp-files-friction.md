@@ -176,7 +176,7 @@ lookahead for `--`/`//`/`"""` boundaries) so the stripper stops duplicating lexi
 time. **Not** AST spans: `ast.TestDecl`/`ast.PropertyDecl` carry only `Pos`, no `End` span
 (`internal/ast/ast_decl.go:145-149, 156-160`), so the span route means a parser/AST surface change for
 a stripper-local defect. Extends (and closes) the triage row
-`design_docs/planned/ailang-core-triage/source-strip-string-brace-skip-ranges.md`, whose three options
+`design_docs/implemented/v0_54_13/source-strip-string-brace-skip-ranges.md`, whose three options
 this decides between.
 
 **Estimate:** ~20–40 LOC in `internal/testing/source_strip.go` + tests (same as the triage row).
@@ -542,7 +542,7 @@ ailang serve-api --port 8080 --cors-origin-suffix claudemcpcontent.com --cors-or
 
 **Planned (check for overlap):**
 - `design_docs/planned/ailang-core-triage/mcp-files-0.1.0-friction-batch.md` — the triage that recommended this doc (routing source)
-- `design_docs/planned/ailang-core-triage/source-strip-string-brace-skip-ranges.md` — item 1's triage row (mechanism + options; this doc decides D1)
+- `design_docs/implemented/v0_54_13/source-strip-string-brace-skip-ranges.md` — item 1's triage row (mechanism + options; this doc decides D1)
 - `design_docs/planned/ailang-core-triage/show-in-ensures-clause-unencodable.md` — item 5A's triage row (fully scoped fix)
 - `design_docs/planned/ailang-core-triage/datetime-clock-ms-vs-seconds-docs.md` — item 3's triage row (superseded by the direct fix here)
 - `design_docs/planned/v0_53_0/m-mcp-file-handoff.md` — the source feature and its iteration loop

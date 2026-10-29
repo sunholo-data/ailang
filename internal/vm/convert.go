@@ -85,6 +85,8 @@ func bytecodeToEval(v bytecode.Value, display bool) (eval.Value, error) {
 			dst[i] = ev
 		}
 		return eval.NewArray(dst), nil
+	case bytecode.TagMap:
+		return mapToEval(v.AsMap(), display)
 	case bytecode.TagBytes:
 		b := v.AsBytes()
 		return &eval.BytesValue{Value: b.B, Filename: b.Filename, MimeType: b.MimeType}, nil
@@ -176,13 +178,16 @@ func EvalToBytecode(v eval.Value) (bytecode.Value, error) {
 		// NewRecord sorts alphabetically — record-iteration order from
 		// map[string]Value is non-deterministic, but the constructor handles it.
 		return bytecode.NewRecord(fields), nil
+	case *eval.MapValue:
+		return mapFromEval(ev)
 	case *eval.BytesValue:
 		return bytecode.NewBytes(&bytecode.BytesObj{B: ev.Value, Filename: ev.Filename, MimeType: ev.MimeType}), nil
 	case *eval.TaggedValue:
-		// Option and Result from an evaluator call (e.g. a codec returning
-		// Result[Array[float], string]) map to the VM's fixed ordinals. Other
+		// A std ADT from an evaluator call (e.g. a codec returning
+		// Result[Array[float], string], or getEnv's Err(NotFound(name)))
+		// maps to the declaration-order ordinal the compiler also uses. User
 		// ADTs need the compiler's type table (M-BYTECODE-2E scope).
-		tag, ok := bytecode.StdADTTag(ev.ModulePath, ev.TypeName, ev.CtorName)
+		tag, ok := stdADTTag(ev.ModulePath, ev.TypeName, ev.CtorName)
 		if !ok {
 			return bytecode.Value{}, fmt.Errorf("bridge: TaggedValue (%s.%s) not yet supported (M-BYTECODE-2E scope)", ev.TypeName, ev.CtorName)
 		}

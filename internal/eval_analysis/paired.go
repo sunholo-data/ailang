@@ -68,6 +68,10 @@ type PairedResult struct {
 	// Headroom flags a control arm with too little room to move for the
 	// comparison to resolve anything. Advisory; never blocks.
 	Headroom Headroom `json:"headroom"`
+
+	// WireParity compares the requests the two arms actually sent, from the
+	// provider's own traces. Nil when the check was not run (--wire=false).
+	WireParity *WireParity `json:"wire_parity,omitempty"`
 }
 
 // McNemarResult reports the test over the discordant pairs.

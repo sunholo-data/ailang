@@ -9,6 +9,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/ai/openrouter"
 	"github.com/sunholo-data/ailang/internal/modelreg"
 	"os"
 	"strings"
@@ -86,6 +87,11 @@ func setupAIHandler(effCtx *effects.EffContext, cfg aiSetup, routingPolicy *ai.A
 		// Config not found - try to use model name directly with guessed provider
 		return setupAIHandlerDirect(effCtx, aiModel, routingPolicy, attr, 0, auth)
 	}
+
+	// Per-model OpenRouter routing options apply to every call this process
+	// makes, including models a program picks per call (std/ai step(model, …)).
+	openrouter.SetProviderDefaults(modelreg.GlobalModelsConfig.OpenRouterProviderByAPIName())
+	openrouter.SetReasoningDefaults(modelreg.GlobalModelsConfig.OpenRouterReasoningEffortByAPIName())
 
 	// Look up model in config
 	model, err := modelreg.GlobalModelsConfig.GetModel(aiModel)

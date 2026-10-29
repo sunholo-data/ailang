@@ -19,13 +19,14 @@ import (
 // no case for it). Keeping IFC as a separate post-typecheck analysis therefore
 // adds the enforcement with no regression surface in the HM core or the backend.
 //
-// Scope (v1): intraprocedural sink enforcement with source-label propagation
+// Scope: per-module sink enforcement with source-label propagation
 // through let/match/record/call within a module. A value's label is tracked
 // from its source (an explicit <label> annotation, or the secret() builtin) to
-// any {not ℓ} sink it reaches in the same call graph. Cross-module sink
-// enforcement and context-sensitive interprocedural flow through unannotated
-// parameters require label-polymorphic inference, deferred to M-TAINT-TYPES
-// Phase 2 (see design_docs .../m-secret-effect-remote-approval.md).
+// any {not ℓ} sink it reaches in the same call graph. Since #1719
+// (M-IFC-FUNCTION-VALUE-SINKS) a sink's requirements also travel with the
+// function VALUE, and flow through unannotated parameters into a sink is
+// inferred per module function (ρ-seeded summaries, ifc_summary_local.go).
+// Cross-module sink enforcement is still open (#1134, M-IFC-CROSS-MODULE).
 
 // ifcBuiltinSourceLabels maps builtin/stdlib functions that introduce an IFC
 // source label to that label. The canonical source is secret() (M-SECRET-EFFECT):
@@ -58,11 +59,44 @@ var ifcBuiltinSourceLabels = map[string]string{
 // label is the join of their body's intrinsic label and their actual argument
 // labels (APP-PURE), so ordinary forwarding code needs no annotations and raises
 // no violations.
+//
+// Checks A and C run at EVERY application, against the callable the callee
+// VALUE carries — however that value was reached (M-IFC-FUNCTION-VALUE-SINKS,
+// #1719; ifc_callable.go, ifc_summary_local.go).
 func CheckModuleIFC(file *ast.File) []*TypeCheckError {
 	if file == nil {
 		return nil
 	}
-	c := newIFCChecker(file)
+	return guardIFCAnalysis(func() []*TypeCheckError { return newIFCChecker(file).run(file) })
+}
+
+func newIFCChecker(file *ast.File) *ifcChecker {
+	c := &ifcChecker{
+		types:             newIFCTypes(file),
+		sigs:              make(map[string]*ifcSig, len(file.Funcs)),
+		effLabel:          make(map[string]Label),
+		computing:         make(map[string]bool),
+		summaries:         make(map[string]*ifcSummary, len(file.Funcs)),
+		rhos:              make(map[string]rhoRef),
+		lamIDs:            make(map[ast.Expr]string),
+		errSeen:           make(map[string]bool),
+		replaying:         make(map[string]bool),
+		analysisRemaining: ifcAnalysisWork,
+	}
+	for _, fn := range file.Funcs {
+		if fn != nil {
+			c.sigs[fn.Name] = buildIFCSig(fn)
+		}
+	}
+	return c
+}
+
+func (c *ifcChecker) run(file *ast.File) []*TypeCheckError {
+	// Summaries first (silent), so every application below sees what each
+	// module function does with the function values and labels it receives.
+	if moduleHasIFCRequirements(file) {
+		c.summariseModule(file)
+	}
 	// Walk function bodies in source order for deterministic diagnostics.
 	for _, fn := range file.Funcs {
 		if fn != nil && fn.Body != nil {
@@ -95,9 +129,10 @@ type ifcParam struct {
 type ifcVar struct {
 	label Label
 	typ   ast.Type
+	fn    *ifcCallable // what applying this value requires (ifc_callable.go)
 }
 
-// ifcEnv maps a bound name to its flow label and static type.
+// ifcEnv maps a bound name to its flow label, static type and callable.
 type ifcEnv map[string]ifcVar
 
 type ifcChecker struct {
@@ -105,9 +140,17 @@ type ifcChecker struct {
 	types     *ifcTypes // module-local type declarations (ifc_static_type.go)
 	sigs      map[string]*ifcSig
 	errs      []*TypeCheckError
+	errSeen   map[string]bool  // position+message, so a replay cannot repeat a diagnostic
 	effLabel  map[string]Label // memoised effective body label per local func
 	computing map[string]bool  // cycle guard for the effLabel fixpoint
-	silent    bool             // suppress sink diagnostics during effLabel walks
+	silent    bool             // suppress sink diagnostics during effLabel and summary walks
+
+	summaries         map[string]*ifcSummary // module fixed point (ifc_summary_local.go)
+	owners            []*ifcSummary          // active summaries, innermost last
+	rhos              map[string]rhoRef      // label variable name -> owner and param index
+	lamIDs            map[ast.Expr]string    // stable summary key per lambda / function literal
+	replaying         map[string]bool        // active application states, for cycle-safe replay
+	analysisRemaining int                    // fail closed if defensive analysis budget is exhausted
 }
 
 func buildIFCSig(fn *ast.FuncDecl) *ifcSig {
@@ -144,9 +187,11 @@ func buildIFCSig(fn *ast.FuncDecl) *ifcSig {
 
 // checkFunc runs Checks A/C (via the body walk) and Check B over one function.
 func (c *ifcChecker) checkFunc(sig *ifcSig) {
+	// Keep the existing concrete diagnostic walk: summary variables belong only
+	// to silent analysis, never to an ordinary function's environment.
 	env := make(ifcEnv, len(sig.params))
 	for _, p := range sig.params {
-		env[p.name] = ifcVar{label: p.label, typ: p.typ}
+		env[p.name] = ifcVar{label: p.label, typ: p.typ, fn: c.types.fromFuncType(p.typ, p.name)}
 	}
 	bodyLabel := c.labelOf(sig.decl.Body, env)
 
@@ -154,7 +199,7 @@ func (c *ifcChecker) checkFunc(sig *ifcSig) {
 	// Declassifiers with unlabelled returns lower to bottom too; check them.
 	if sig.hasReturnLabel || len(sig.authorizedLabels) > 0 {
 		if leaked := unauthorizedLabel(bodyLabel, sig.returnLabel, sig.authorizedLabels); leaked != "" {
-			c.errs = append(c.errs, newDeclassError(sig.decl, bodyLabel, sig.returnLabel, leaked, sig.authorizedLabels))
+			c.addErrs([]*TypeCheckError{newDeclassError(sig.decl, bodyLabel, sig.returnLabel, leaked, sig.authorizedLabels)})
 		}
 	}
 }
@@ -164,75 +209,87 @@ func (c *ifcChecker) checkFunc(sig *ifcSig) {
 // (M-IFC-DECLARED-RECORD-LABELS, #1523). As a side effect it performs Check A on
 // every call it encounters (unless silent). Each sub-expression is walked once.
 func (c *ifcChecker) labelOf(expr ast.Expr, env ifcEnv) Label {
-	return LabelJoin(c.flowOf(expr, env), c.types.deepLabel(c.staticType(expr, env)))
+	return c.valueOf(expr, env).label
 }
 
-// flowOf computes the label carried in by the VALUE of expr — the pre-#1523
-// walk. labelOf adds the declared part; keeping the two apart is what makes
-// field projection precise: s.user does not inherit s.code's declared label.
-func (c *ifcChecker) flowOf(expr ast.Expr, env ifcEnv) Label {
+// valueOf is labelOf together with the callable of expr's value.
+func (c *ifcChecker) valueOf(expr ast.Expr, env ifcEnv) ifcVal {
+	v := c.flowVal(expr, env)
+	v.label = LabelJoin(v.label, c.types.deepLabel(c.staticType(expr, env)))
+	return v
+}
+
+// flowVal computes the label carried in by the VALUE of expr (the flow label —
+// the pre-#1523 walk) together with the value's callable. valueOf adds the
+// declared part; keeping the two apart is what makes field projection precise:
+// s.user does not inherit s.code's declared label. The callable travels
+// through every form the label travels through.
+func (c *ifcChecker) flowVal(expr ast.Expr, env ifcEnv) ifcVal {
+	bottom := ifcVal{label: LabelBottom()}
 	switch e := expr.(type) {
 	case nil:
-		return LabelBottom()
+		return bottom
 	case *ast.Identifier:
-		if v, ok := env[e.Name]; ok {
-			return v.label
-		}
-		return LabelBottom()
+		return c.identVal(e.Name, env)
 	case *ast.Literal:
-		return LabelBottom()
+		return bottom
 	case *ast.BinaryOp:
-		return LabelJoin(c.labelOf(e.Left, env), c.labelOf(e.Right, env))
+		return ifcVal{label: LabelJoin(c.labelOf(e.Left, env), c.labelOf(e.Right, env))}
 	case *ast.UnaryOp:
-		return c.labelOf(e.Expr, env)
+		return ifcVal{label: c.labelOf(e.Expr, env)}
 	case *ast.FuncCall:
-		return c.labelOfCall(e, env)
+		return c.callVal(e, env)
 	case *ast.Let:
-		return c.labelOf(e.Body, extendEnv(env, e.Name, c.bindValue(e.Value, e.Type, env)))
+		return c.valueOf(e.Body, extendEnv(env, e.Name, c.bindValue(e.Value, e.Type, env)))
 	case *ast.LetRec:
-		return c.labelOf(e.Body, extendEnv(env, e.Name, c.bindValue(e.Value, e.Type, env)))
+		return c.valueOf(e.Body, extendEnv(env, e.Name, c.bindValue(e.Value, e.Type, env)))
 	case *ast.Block:
-		return c.walkBlock(e, env, c.labelOf)
+		return c.walkBlock(e, env, c.valueOf)
 	case *ast.If:
 		c.labelOf(e.Condition, env)
-		return LabelJoin(c.labelOf(e.Then, env), c.labelOf(e.Else, env))
+		return joinVals(c.valueOf(e.Then, env), c.valueOf(e.Else, env))
 	case *ast.Match:
 		// Every pattern variable gets the scrutinee's FULL label (flow and
-		// declared): destructuring is conservative, not field-precise.
-		scrut := c.labelOf(e.Expr, env)
-		result := LabelBottom()
+		// declared) and its callable: destructuring is conservative, not
+		// field-precise.
+		scrut := c.valueOf(e.Expr, env)
+		result := bottom
 		for _, cs := range e.Cases {
 			armEnv := env
 			for _, name := range patternVars(cs.Pattern) {
-				armEnv = extendEnv(armEnv, name, ifcVar{label: scrut})
+				armEnv = extendEnv(armEnv, name, ifcVar{label: scrut.label, fn: scrut.fn})
 			}
 			if cs.Guard != nil {
 				c.labelOf(cs.Guard, armEnv)
 			}
-			result = LabelJoin(result, c.labelOf(cs.Body, armEnv))
+			result = joinVals(result, c.valueOf(cs.Body, armEnv))
 		}
 		return result
 	case *ast.Record:
-		result := LabelBottom()
+		result := bottom
 		for _, f := range e.Fields {
-			result = LabelJoin(result, c.labelOf(f.Value, env))
+			result = joinVals(result, c.valueOf(f.Value, env))
 		}
 		return result
 	case *ast.RecordUpdate:
-		result := c.labelOf(e.Base, env)
+		result := c.valueOf(e.Base, env)
 		for _, f := range e.Fields {
-			result = LabelJoin(result, c.labelOf(f.Value, env))
+			result = joinVals(result, c.valueOf(f.Value, env))
 		}
 		return result
 	case *ast.RecordAccess:
 		// Field-precise when the field's declared type is known: the field gets
 		// the record's FLOW label here, and labelOf adds deepLabel(field type)
 		// — not the declared labels of the record's other fields. Otherwise a
-		// field inherits the record's full join label (conservative).
-		if c.staticType(e, env) != nil {
-			return c.flowOf(e.Record, env)
+		// field inherits the record's full join label (conservative). The
+		// callable is the whole record's (conservative): any function stored in
+		// the record may be the one projected.
+		if ft := c.staticType(e, env); ft != nil {
+			v := c.flowVal(e.Record, env)
+			v.fn = joinCallable(v.fn, c.types.fromFuncType(ft, e.Field))
+			return v
 		}
-		return c.labelOf(e.Record, env)
+		return c.valueOf(e.Record, env)
 	case *ast.List:
 		return c.joinElems(e.Elements, env)
 	case *ast.Array:
@@ -254,33 +311,55 @@ func (c *ifcChecker) flowOf(expr ast.Expr, env ifcEnv) Label {
 		// than strictly necessary. For a security control that is the correct
 		// direction to err — over-approximating rejects safe programs, while
 		// under-approximating admits leaks silently.
-		return c.labelOf(e.Body, typedParams(env, e.Params))
+		//
+		// The same single walk also yields the closure's callable (#1719): the
+		// demands of its typed params and those it infers from its body.
+		return c.lambdaVal(e, e.Params, e.Body, env)
 	case *ast.FuncLit:
-		return c.labelOf(e.Body, typedParams(env, e.Params))
+		return c.lambdaVal(e, e.Params, e.Body, env)
 	default:
-		return LabelBottom()
+		return bottom
 	}
+}
+
+// identVal resolves a name in value position: a lexical binding first (it
+// shadows a module declaration), then a module function referenced as a value
+// (it carries that function's requirements, #1719), then a constructor, and
+// otherwise an imported or unknown function (opaque).
+func (c *ifcChecker) identVal(name string, env ifcEnv) ifcVal {
+	if v, ok := env[name]; ok {
+		return ifcVal{label: v.label, fn: v.fn}
+	}
+	if sig, ok := c.sigs[name]; ok {
+		return ifcVal{label: LabelBottom(), fn: fromSig(sig)}
+	}
+	if _, ok := c.types.ctors[name]; ok {
+		return ifcVal{label: LabelBottom(), fn: single(&ifcFn{kind: fnCtor})}
+	}
+	// Imported names have no constructor evidence in this surface-only pass.
+	// Capitalized functions are legal, so every unknown name takes F2 fallback.
+	return ifcVal{label: LabelBottom(), fn: single(&ifcFn{kind: fnOpaque, name: name})}
 }
 
 // walkBlock threads block-statement lets through a block { s1; s2; ...; result }
 // and returns `last` applied to the result expression. A Let or LetRec parsed
 // without `in` (Body == nil) scopes over the remainder of the block, because
 // elaboration turns it into nested Core lets.
-func (c *ifcChecker) walkBlock(b *ast.Block, env ifcEnv, last func(ast.Expr, ifcEnv) Label) Label {
-	result := LabelBottom()
+func (c *ifcChecker) walkBlock(b *ast.Block, env ifcEnv, last func(ast.Expr, ifcEnv) ifcVal) ifcVal {
+	result := ifcVal{label: LabelBottom()}
 	cur := env
 	for _, sub := range b.Exprs {
 		switch s := sub.(type) {
 		case *ast.Let:
 			if s.Body == nil {
 				cur = extendEnv(cur, s.Name, c.bindValue(s.Value, s.Type, cur))
-				result = LabelBottom()
+				result = ifcVal{label: LabelBottom()}
 				continue
 			}
 		case *ast.LetRec:
 			if s.Body == nil {
 				cur = extendEnv(cur, s.Name, c.bindValue(s.Value, s.Type, cur))
-				result = LabelBottom()
+				result = ifcVal{label: LabelBottom()}
 				continue
 			}
 		}
@@ -289,33 +368,34 @@ func (c *ifcChecker) walkBlock(b *ast.Block, env ifcEnv, last func(ast.Expr, ifc
 	return result
 }
 
-// typedParams binds the ANNOTATED parameters of a lambda / function literal to
-// their declared type, keeping whatever flow label an outer binding of the same
-// name had (unannotated parameters are not rebound — today's over-approximation).
-func typedParams(env ifcEnv, params []*ast.Param) ifcEnv {
-	out := env
-	for _, p := range params {
-		if p == nil || p.Type == nil {
-			continue
-		}
-		prev := LabelBottom()
-		if v, ok := env[p.Name]; ok {
-			prev = v.label
-		}
-		out = extendEnv(out, p.Name, ifcVar{label: prev, typ: p.Type})
-	}
-	return out
-}
-
 // bindValue computes what a let binding records: the annotation (or, when
-// unannotated, the value's own static type) and the hand-off label of the value
-// into that type.
+// unannotated, the value's own static type), the hand-off label of the value
+// into that type, and its callable — the value's own, joined with whatever a
+// written function type promises (`let g: string{not email} -> string = …`).
 func (c *ifcChecker) bindValue(value ast.Expr, annot ast.Type, env ifcEnv) ifcVar {
 	t := annot
 	if t == nil {
 		t = c.staticType(value, env)
 	}
-	return ifcVar{label: c.handOff(value, t, env), typ: t}
+	v := c.handOffVal(value, t, env)
+	return ifcVar{label: v.label, typ: t, fn: joinCallable(v.fn, c.types.fromFuncType(t, describeExpr(value)))}
+}
+
+// describeExpr names an expression for a diagnostic's via trail.
+func describeExpr(e ast.Expr) string {
+	switch x := e.(type) {
+	case nil:
+		return "value"
+	case *ast.Identifier:
+		return x.Name
+	case *ast.Lambda, *ast.FuncLit:
+		return "lambda"
+	}
+	s := e.String()
+	if len(s) > 40 {
+		s = s[:37] + "..."
+	}
+	return s
 }
 
 // handOff is the label a value keeps when it moves into a position declared as
@@ -327,51 +407,59 @@ func (c *ifcChecker) bindValue(value ast.Expr, annot ast.Type, env ifcEnv) ifcVa
 // strips labels, so that type-checks) — the value keeps its FULL label, so an
 // annotation can never lower a label.
 func (c *ifcChecker) handOff(e ast.Expr, t ast.Type, env ifcEnv) Label {
+	return c.handOffVal(e, t, env).label
+}
+
+// handOffVal is handOff together with the value's callable.
+func (c *ifcChecker) handOffVal(e ast.Expr, t ast.Type, env ifcEnv) ifcVal {
 	if t == nil {
-		return c.labelOf(e, env)
+		return c.valueOf(e, env)
 	}
 	switch x := e.(type) {
 	case *ast.Record:
 		if c.types.recordTypeOf(t) != nil {
-			result := LabelBottom()
+			result := ifcVal{label: LabelBottom()}
 			for _, f := range x.Fields {
-				result = LabelJoin(result, c.handOff(f.Value, c.types.fieldType(t, f.Name), env))
+				result = joinVals(result, c.handOffVal(f.Value, c.types.fieldType(t, f.Name), env))
 			}
 			return result
 		}
 	case *ast.Block:
-		return c.walkBlock(x, env, func(sub ast.Expr, cur ifcEnv) Label { return c.handOff(sub, t, cur) })
+		return c.walkBlock(x, env, func(sub ast.Expr, cur ifcEnv) ifcVal { return c.handOffVal(sub, t, cur) })
 	case *ast.Let:
 		if x.Body != nil {
-			return c.handOff(x.Body, t, extendEnv(env, x.Name, c.bindValue(x.Value, x.Type, env)))
+			return c.handOffVal(x.Body, t, extendEnv(env, x.Name, c.bindValue(x.Value, x.Type, env)))
 		}
 	case *ast.If:
 		c.labelOf(x.Condition, env)
-		return LabelJoin(c.handOff(x.Then, t, env), c.handOff(x.Else, t, env))
+		return joinVals(c.handOffVal(x.Then, t, env), c.handOffVal(x.Else, t, env))
 	}
 	if sameType(c.staticType(e, env), t) {
-		return c.flowOf(e, env)
+		return c.flowVal(e, env)
 	}
-	return c.labelOf(e, env)
+	return c.valueOf(e, env)
 }
 
-func (c *ifcChecker) joinElems(elems []ast.Expr, env ifcEnv) Label {
-	result := LabelBottom()
+func (c *ifcChecker) joinElems(elems []ast.Expr, env ifcEnv) ifcVal {
+	result := ifcVal{label: LabelBottom()}
 	for _, el := range elems {
-		result = LabelJoin(result, c.labelOf(el, env))
+		result = joinVals(result, c.valueOf(el, env))
 	}
 	return result
 }
 
-// labelOfCall computes a call's result label and runs Checks A/C on the callee's
-// sink refinements and positive parameter labels.
-func (c *ifcChecker) labelOfCall(call *ast.FuncCall, env ifcEnv) Label {
+// callVal computes a call's result label and callable, and runs Checks A/C
+// against the callable of the callee VALUE — whatever the callee expression is
+// (#1719). The result label is computed exactly as before the fix; checks are
+// only added.
+func (c *ifcChecker) callVal(call *ast.FuncCall, env ifcEnv) ifcVal {
 	name := calleeName(call.Func)
 	sig, isLocal := c.sigs[name]
 	// A lexical binding shadows a module declaration; use the closure fallback.
 	if _, bound := env[name]; bound {
 		isLocal = false
 	}
+	callee := c.valueOf(call.Func, env)
 
 	// Each argument is walked ONCE. argLabels are full labels (used by Check A
 	// and by unknown callees); passed are the hand-off labels into a local
@@ -380,39 +468,36 @@ func (c *ifcChecker) labelOfCall(call *ast.FuncCall, env ifcEnv) Label {
 	// flow label — see handOff).
 	argLabels := make([]Label, len(call.Args))
 	passed := make([]Label, len(call.Args))
+	args := make([]ifcVal, len(call.Args))
 	for i, a := range call.Args {
-		flow := c.flowOf(a, env)
+		v := c.flowVal(a, env)
 		st := c.staticType(a, env)
-		argLabels[i] = LabelJoin(flow, c.types.deepLabel(st))
+		argLabels[i] = LabelJoin(v.label, c.types.deepLabel(st))
 		passed[i] = argLabels[i]
 		if isLocal && i < len(sig.params) && sameType(st, sig.params[i].typ) {
-			passed[i] = flow
+			passed[i] = v.label
 		}
+		args[i] = ifcVal{label: argLabels[i], fn: v.fn}
 	}
 
+	// Checks A/C on every application. A direct call to a module function
+	// keeps the pre-#1719 wording; any other route names the path taken.
+	var via []string
+	if !isLocal {
+		via = []string{describeExpr(call.Func)}
+	}
+	fn := c.applyCallable(callee.fn, args, call, callee.label, via, 0)
+
 	if isLocal {
-		// Checks A/C: negative refinements and positive labels on local parameters.
-		if !c.silent {
-			for i, p := range sig.params {
-				if i < len(argLabels) && !LabelEqual(p.label, LabelBottom()) && labelNotCoveredBy(argLabels[i], p.label) != "" {
-					c.errs = append(c.errs, newParamLabelCoverError(call, p, argLabels[i]))
-				}
-				if p.hasNot && i < len(argLabels) {
-					if CheckSinkLabel(argLabels[i], p.notLabel) != nil {
-						c.errs = append(c.errs, newSinkError(call, p.name, p.notLabel, argLabels[i]))
-					}
-				}
-			}
-		}
-		return c.calleeResultLabel(sig, passed, argLabels)
+		return ifcVal{label: c.calleeResultLabel(sig, passed, argLabels), fn: fn}
 	}
 	if _, bound := env[name]; !bound {
 		if imported := c.imports[name]; imported != nil {
-			return importedIFCResult(imported, argLabels)
+			return ifcVal{label: importedIFCResult(imported, argLabels), fn: fn}
 		}
 	}
 	if src, ok := ifcBuiltinSourceLabels[name]; ok {
-		return LabelConst(src)
+		return ifcVal{label: LabelConst(src), fn: fn}
 	}
 	// Unknown or imported callee: transparent — propagate the join of the args
 	// AND of the callee expression itself.
@@ -421,9 +506,9 @@ func (c *ifcChecker) labelOfCall(call *ast.FuncCall, env ifcEnv) Label {
 	// `let f = \u. s in f(0)` has no entry in c.sigs (it is a binding, not a
 	// declaration), so this fallback is the path it takes; joining only the
 	// argument labels discarded the captured <secret> entirely and made the
-	// guarantee bypassable in three tokens. c.labelOf on the callee reads the
-	// binding out of env, where the Let case put it.
-	return LabelJoin(c.labelOf(call.Func, env), joinLabels(argLabels))
+	// guarantee bypassable in three tokens. The callee's label was read out of
+	// env, where the Let case put it.
+	return ifcVal{label: LabelJoin(callee.label, joinLabels(argLabels)), fn: fn}
 }
 
 // calleeResultLabel computes the label produced by calling a known local function.
@@ -472,11 +557,16 @@ func (c *ifcChecker) effectiveBodyLabel(name string) Label {
 	c.computing[name] = true
 	prevSilent := c.silent
 	c.silent = true // label-only walk; sinks are checked when this func is checkFunc'd
+	// No enclosing summary may record from this walk: its parameters are ⊥,
+	// not the caller's ρ, so anything it recorded would be about the wrong body.
+	prevOwners := c.owners
+	c.owners = nil
 	env := make(ifcEnv, len(sig.params))
 	for _, p := range sig.params {
 		env[p.name] = ifcVar{label: LabelBottom(), typ: p.typ}
 	}
 	l := c.handOff(sig.decl.Body, sig.decl.ReturnType, env)
+	c.owners = prevOwners
 	c.silent = prevSilent
 	c.computing[name] = false
 	c.effLabel[name] = l

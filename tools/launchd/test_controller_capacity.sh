@@ -32,6 +32,10 @@ X="$ROOT/x"
 awk '/^_mc_notify\(\) \{/,/^\}$/'            "$DRV" >  "$X/fns.sh"
 awk '/^_mc_notice_title\(\) \{/,/^\}$/'      "$DRV" >> "$X/fns.sh"
 awk '/^_mc_notice_suppressed\(\) \{/,/^\}$/' "$DRV" >> "$X/fns.sh"
+# The rc-fail / late-kill notices in final.sh call _mc_exit_notice. Without it the FAILED and
+# killed-post-record counts below go to 0 for the wrong reason (undefined function), so the guard
+# below names the missing extraction instead.
+awk '/^_mc_exit_notice\(\) \{/,/^\}$/' "$DRV" >> "$X/fns.sh"
 awk '/^_mc_canon_id\(\) \{/,/^\}$/'          "$DRV" >> "$X/fns.sh"
 awk '/^_mc_demote\(\) /'                     "$DRV" >> "$X/fns.sh"
 awk '/^_mc_is_demoted\(\) \{/,/^\}$/'        "$DRV" >> "$X/fns.sh"
@@ -54,6 +58,8 @@ for f in fns vars loop verdict slotnotify final; do
 done
 /usr/bin/grep -q RUNTIME_QUOTA_SIG "$X/loop.sh" && /usr/bin/grep -q TRANSIENT_SIG "$X/loop.sh" \
   || { echo "FAIL extraction: retry loop cut short (missing RUNTIME_QUOTA_SIG/TRANSIENT_SIG)"; exit 1; }
+/usr/bin/grep -q '^_mc_exit_notice()' "$X/fns.sh" \
+  || { echo "FAIL extraction: _mc_exit_notice not found in $DRV"; exit 1; }
 /usr/bin/grep -q '^_mc_run_once()' "$X/fns.sh" && /usr/bin/grep -q '^select_model()' "$X/fns.sh" \
   && /usr/bin/grep -q '^_mc_is_over_ration()' "$X/fns.sh" \
   || { echo "FAIL extraction: function boundaries not found"; exit 1; }

@@ -1,0 +1,7 @@
+K-by-path status=NOT_RUN origin=- 1
+K-collision status=NOT_RUN origin=- 1
+K-home status=NOT_RUN origin=- 1
+K-project status=NOT_RUN origin=- 1
+K-agents-user status=NOT_RUN origin=- 1
+K-claude status=NOT_RUN origin=- 1
+K-legacy-user status=NOT_RUN origin=- 1

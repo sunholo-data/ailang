@@ -54,7 +54,7 @@ run_verdict() {
   (
     set -u
     AILANG_STATE_DIR="$inline_state"; STATE_DIR="$fallback_state"; _mc_slot_state="$state"; MISSION_NAME=v1; MISSION_ATTEMPT="$run_attempt"
-    MC_PAUSED=0; TRANSIENT_RETRIES=3; RC="$rc"; START_EPOCH=$(date +%s); CONTROLLER_ID=test:test; LOG="$state/driver.log"
+    MC_PAUSED="${6:-0}"; TRANSIENT_RETRIES=3; RC="$rc"; START_EPOCH=$(date +%s); CONTROLLER_ID=test:test; LOG="$state/driver.log"
     log() { echo "$*" >> "$LOG"; }
     . "$verdict_block"
     grep 'slot-verdict:' "$LOG" | tail -1
@@ -97,6 +97,40 @@ t=$(tmpdir); MISSION_NAME=v1 AILANG_STATE_DIR="$t" "$HELPER" stamp gate-2 >/dev/
 check "rc=1 last=gate-2 => CRASHED" "printf '%s' \"$out\" | grep -q 'slot-verdict: CRASHED at=gate-2 rc=1'"
 rm -rf "$t"
 
+# Invalid labels bypass the writer only to model a corrupted heartbeat artifact.
+t=$(tmpdir); printf '0\tnow\t\t1\t\n' > "$t/mission-v1-heartbeat"; out=$(run_verdict "$t" 0)
+check "rc=0 empty last label => DIED-PRE-GATE-0" "printf '%s' \"$out\" | grep -Fq 'slot-verdict: DIED-PRE-GATE-0 rc=0'"
+rm -rf "$t"
+t=$(tmpdir); printf '0\tnow\tbogus\t1\t\n' > "$t/mission-v1-heartbeat"; out=$(run_verdict "$t" 0)
+check "rc=0 last=bogus => UNCLASSIFIED at=bogus" "printf '%s' \"$out\" | grep -Fq 'slot-verdict: UNCLASSIFIED at=bogus rc=0'"
+out=$(run_verdict "$t" 1)
+check "rc=1 last=bogus => CRASHED at=bogus" "printf '%s' \"$out\" | grep -Fq 'slot-verdict: CRASHED at=bogus rc=1'"
+kill_controls_ok=1
+for kill_rc in 143 137; do
+  out=$(run_verdict "$t" "$kill_rc")
+  printf '%s' "$out" | grep -Fq "slot-verdict: KILLED at=bogus rc=$kill_rc" || kill_controls_ok=0
+done
+check "rc=143 and rc=137 last=bogus => KILLED at=bogus" "[ '$kill_controls_ok' -eq 1 ]"
+out=$(run_verdict "$t" 0 1 "$t" "$t" 1)
+check "paused rc=0 last=bogus => PAUSED-NO-CAPACITY at=bogus" "printf '%s' \"$out\" | grep -Fq 'slot-verdict: PAUSED-NO-CAPACITY at=bogus rc=0'"
+rm -rf "$t"
+
+t=$(tmpdir); MISSION_NAME=v1 AILANG_STATE_DIR="$t" "$HELPER" stamp gate-3 >/dev/null; out=$(run_verdict "$t" 0)
+check "rc=0 last=gate-3 => REAPED at=gate-3" "printf '%s' \"$out\" | grep -Fq 'slot-verdict: REAPED at=gate-3 rc=0'"
+rm -rf "$t"
+
+t=$(tmpdir); printf '0\tnow\tgate-bogus\t1\t\n' > "$t/mission-v1-heartbeat"; out=$(run_verdict "$t" 0)
+check "rc=0 last=gate-bogus => UNCLASSIFIED at=gate-bogus" "printf '%s' \"$out\" | grep -Fq 'slot-verdict: UNCLASSIFIED at=gate-bogus rc=0'"
+rm -rf "$t"
+
+t=$(tmpdir); MISSION_NAME=v1 AILANG_STATE_DIR="$t" "$HELPER" stamp gate-3b >/dev/null; out=$(run_verdict "$t" 0)
+check "rc=0 last=gate-3b => REAPED at=gate-3b" "printf '%s' \"$out\" | grep -Fq 'slot-verdict: REAPED at=gate-3b rc=0'"
+rm -rf "$t"
+
+t=$(tmpdir); printf '0\tnow\tbogus label\t1\t\n' > "$t/mission-v1-heartbeat"; out=$(run_verdict "$t" 0)
+check "UNCLASSIFIED history verdict stays one whitespace-free token" "printf '%s' \"$out\" | grep -Fq 'slot-verdict: UNCLASSIFIED at=bogus label rc=0' && tail -1 '$t/mission-v1-slot-verdicts.log' | awk 'NF==7 && \$2==\"verdict=UNCLASSIFIED_at=bogus_label\" && \$3==\"rc=0\" { found=1 } END { exit !found }' && ! tail -1 '$t/mission-v1-slot-verdicts.log' | grep -q ' at='"
+rm -rf "$t"
+
 t=$(tmpdir); i=1; while [ "$i" -le 250 ]; do MISSION_NAME=v1 AILANG_STATE_DIR="$t" "$HELPER" stamp complete >/dev/null; run_verdict "$t" 0 >/dev/null; i=$((i + 1)); done
 check "250 appends leave exactly 200 lines" "[ \"\$(wc -l < '$t/mission-v1-slot-verdicts.log' | tr -d ' ')\" -eq 200 ]"
 rm -rf "$t"
@@ -136,11 +170,30 @@ _mc_slot_verdict='REAPED at=gate-2'; . "$notify_block"; . "$notify_block"
 _mc_slot_verdict='REAPED at=gate-3'; . "$notify_block"
 _mc_slot_verdict=COMPLETED; . "$notify_block"
 _mc_slot_verdict='REAPED at=gate-3'; . "$notify_block"
-check "phase-2 notices use _mc_bounded and dedupe verdict episodes" "[ \"\$(wc -l < '$calls' | tr -d ' ')\" -eq 3 ] && [ \"\$(grep -c '^30 ailang messages send' '$calls')\" -eq 3 ] && [ -f '$t/mission-v1-reaped.episode' ]"
+check "phase-2 notices use _mc_bounded and dedupe verdict episodes" "[ \"\$(wc -l < '$calls' | tr -d ' ')\" -eq 3 ] && [ \"\$(grep -c '^30 env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=[^ ]* ailang messages send' '$calls')\" -eq 3 ] && [ -f '$t/mission-v1-reaped.episode' ]"
 calls_before=$(wc -l < "$calls" | tr -d ' '); _mc_slot_verdict=DIED-PRE-GATE-0; . "$notify_block"
 check "phase-2 notifies DIED-PRE-GATE-0 through _mc_bounded" "[ \"\$(wc -l < '$calls' | tr -d ' ')\" -eq $((calls_before + 1)) ] && tail -1 '$calls' | grep -q 'DIED-PRE-GATE-0'"
 calls_before=$(wc -l < "$calls" | tr -d ' '); _mc_slot_verdict=HEARTBEAT-MISSING; . "$notify_block"
 check "phase-2 notifies HEARTBEAT-MISSING through _mc_bounded" "[ \"\$(wc -l < '$calls' | tr -d ' ')\" -eq $((calls_before + 1)) ] && tail -1 '$calls' | grep -q 'HEARTBEAT-MISSING'"
+rm -rf "$t"
+
+# Reuse the recording-only _mc_bounded stub; all episode/log/call paths are fresh temp files.
+t=$(tmpdir); _mc_slot_state="$t"; LOG="$t/driver.log"; MISSION_GH_ISSUE=; calls="$t/calls"; : > "$calls"
+_mc_slot_verdict='UNCLASSIFIED at=bogus'
+# shellcheck source=/dev/null
+. "$notify_block"
+check "phase-2 notifies UNCLASSIFIED once through _mc_bounded" "[ \"\$(wc -l < '$calls' | tr -d ' ')\" -eq 1 ] && grep -q '^30 env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=[^ ]* ailang messages send controlplane Mission slot verdict: UNCLASSIFIED at=bogus (rc=0,' '$calls' && [ -f '$t/mission-v1-reaped.episode' ] && [ \"\$(cat '$t/mission-v1-reaped.episode')\" = 'UNCLASSIFIED at=bogus' ] && [ \"\$(wc -c < '$t/mission-v1-reaped.episode' | tr -d ' ')\" -eq 21 ]"
+# shellcheck source=/dev/null
+. "$notify_block"
+check "phase-2 dedupes repeated UNCLASSIFIED verdict" "[ \"\$(wc -l < '$calls' | tr -d ' ')\" -eq 1 ] && [ -f '$t/mission-v1-reaped.episode' ] && [ \"\$(cat '$t/mission-v1-reaped.episode')\" = 'UNCLASSIFIED at=bogus' ] && [ \"\$(wc -c < '$t/mission-v1-reaped.episode' | tr -d ' ')\" -eq 21 ]"
+_mc_slot_verdict=COMPLETED
+# shellcheck source=/dev/null
+. "$notify_block"
+episode_reset=0; [ ! -e "$t/mission-v1-reaped.episode" ] && episode_reset=1
+_mc_slot_verdict='UNCLASSIFIED at=bogus'
+# shellcheck source=/dev/null
+. "$notify_block"
+check "phase-2 COMPLETED resets UNCLASSIFIED episode" "[ '$episode_reset' -eq 1 ] && [ \"\$(wc -l < '$calls' | tr -d ' ')\" -eq 2 ] && [ \"\$(grep -c '^30 env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=[^ ]* ailang messages send controlplane Mission slot verdict: UNCLASSIFIED at=bogus (rc=0,' '$calls')\" -eq 2 ] && [ -f '$t/mission-v1-reaped.episode' ] && [ \"\$(cat '$t/mission-v1-reaped.episode')\" = 'UNCLASSIFIED at=bogus' ]"
 rm -rf "$t"
 
 skill="$ROOT/.claude/skills/mission-control/SKILL.md"

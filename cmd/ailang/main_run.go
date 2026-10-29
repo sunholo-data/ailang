@@ -138,8 +138,8 @@ func runCommand() {
 	memprofileFlag := fs.String("memprofile", "", "Write memory allocation profile to file (Go pprof format)")
 
 	// M-BYTECODE-VM Phase 2D: bytecode VM execution path
-	bytecodeFlag := fs.Bool("bytecode", false, "Run via the bytecode VM instead of the evaluator (Phase 2D)")
-	strictBytecodeFlag := fs.Bool("strict-bytecode", false, "With --bytecode: fail instead of falling back to the evaluator")
+	bytecodeFlag := fs.Bool("bytecode", false, "Run on the bytecode VM; code the VM cannot compile silently falls back to the evaluator")
+	strictBytecodeFlag := fs.Bool("strict-bytecode", false, "Fail instead of falling back to the evaluator; implies --bytecode")
 
 	// OpenRouter app-attribution flags
 	orRefererFlag := fs.String("openrouter-referer", "", "Override HTTP-Referer for OpenRouter app attribution")

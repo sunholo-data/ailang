@@ -1,0 +1,365 @@
+module executor_oauth/oauth
+
+-- OAuth 2.1 sign-in for the hosted AILANG executor's PUBLIC service
+-- (M-AILANG-EXECUTOR-GE P1b, design_docs/planned/v0_55_0/
+-- m-ailang-executor-gemini-enterprise.md). serve-api runs it with
+-- --mcp-connect-only, so the executor tools exist only on /mcp/connect/ and
+-- every call there passes verifyMcpToken below first.
+--
+-- sunholo/mcp_oauth owns the protocol and every secret (PKCE S256, CIMD
+-- clients, single-use digest-stored codes, refresh rotation). This module
+-- fills its Hooks and mounts the routes, following AILANG Parse's adopter
+-- (docparse_api/services/mcp_oauth.ail) with its own token instead of an API
+-- key:
+--   authenticate = Firebase ID token -> uid, behind an email-domain allowlist
+--   mint         = an opaque "ax_" token, stored only as its sha256 digest
+--   put/get/del  = Firestore collection executor_oauth_records, with expiry
+--   revoke       = delete the access-token record with that digest
+--
+-- Operating rules (sunholo/mcp_oauth AGENT.md checklist):
+--   * serve-api runs with AILANG_TRACE_VALUES=off (Dockerfile);
+--   * nothing here logs a request body, a query string, a token, or a value a
+--     flow function returns; the one log line names the account (a uid) only;
+--   * client_id URLs are fetched ONLY through cimd.fetchClient (Net[scope=public]).
+import std/clock (now)
+import std/crypto (sha256Hex)
+import std/datetime (formatRFC3339)
+import std/debug (log)
+import std/env (getEnvOr)
+import std/fs (readFile, writeFile, fileExists, removeFileResult, mkdirAllResult)
+import std/json (Json, encode, decode, jo, kv, js, get, getString, getBool)
+import std/jwt (decodeJWT)
+import std/list (nth, filter, map, any, length as listLength)
+import std/option (Option, Some, None)
+import std/rand (uuid4)
+import std/result (Result, Ok, Err)
+import std/string (length, replace, find, substring, split, stringToInt, endsWith, startsWith, toLower, trim)
+import pkg/sunholo/firestore/client (getDoc, setDoc, deleteDoc)
+import pkg/sunholo/firestore/fields (stringVal, intVal, timestampVal)
+import pkg/sunholo/firebase_auth/firebase_jwt (verifyFirebaseJWTFull)
+import pkg/sunholo/mcp_oauth/core (asMetadata, formGet)
+import pkg/sunholo/mcp_oauth/flow (Hooks, beginAuthorize, describeRequest, completeLogin, exchangeCode, refreshTokens, oauthError)
+import pkg/sunholo/mcp_oauth/cimd (fetchClient)
+
+-- ============================================================
+-- Configuration
+-- ============================================================
+
+-- The service's own public base URL; must equal serve-api's --oauth-issuer.
+-- No default: a wrong issuer would send clients elsewhere.
+func oauthIssuer() -> string ! {Env} = getEnvOr("OAUTH_ISSUER", "")
+
+-- The sign-in page is this server's own static/oauth-login.html (serve-api
+-- --static), so the page and the endpoints that trust it share an origin.
+pure func loginUrlFor(issuer: string) -> string =
+  if endsWith(issuer, "/") then "${issuer}oauth-login.html" else "${issuer}/oauth-login.html"
+
+func nowSec() -> int ! {Clock} = now() / 1000
+
+-- Access-token lifetime, sent as expires_in. Short because refresh rotation
+-- renews it; a leaked access token is good for an hour at most.
+export pure func accessTtlSec() -> int
+ensures { result > 0 && result <= 3600 } = 3600
+
+-- ============================================================
+-- Who may sign in
+-- ============================================================
+
+-- EXECUTOR_ALLOWED_EMAIL_DOMAINS: comma-separated domains (dev: sunholo.com).
+-- Empty or unset admits every verified Google account (prod).
+export pure func domainAllowed(email: string, allowList: string) -> bool {
+  let allowed = filter(\d. length(d) > 0, map(\d. toLower(trim(d)), split(allowList, ",")))
+  if listLength(allowed) == 0 then true else {
+    let parts = split(toLower(trim(email)), "@")
+    let n = listLength(parts)
+    if n < 2 then false else match nth(parts, n - 1) {
+      Some(domain) => any(\d. d == domain, allowed),
+      None => false
+    }
+  }
+}
+
+-- email_verified from a token whose signature verifyFirebaseJWTFull has
+-- already checked. An unverified address proves nothing about its domain.
+pure func emailVerified(verifiedIdToken: string) -> bool = match decodeJWT(verifiedIdToken) {
+  Ok(parts) => match getBool(parts.payload, "email_verified") {
+    Some(b) => b,
+    None => false
+  },
+  Err(_) => false
+}
+
+pure func gate(uid: string, email: string, verified: bool, allowList: string) -> Result[string, string] =
+  if length(uid) == 0 then Err("token has no subject") else if verified == false then Err("this account's email address is not verified") else if domainAllowed(email, allowList) == false then Err("this account is not allowed to sign in on this environment") else Ok(uid)
+
+-- ============================================================
+-- Storage: Firestore, or files under /tmp for the local test
+-- ============================================================
+
+-- FIRESTORE_STUB=true keeps records in local files (executor_oauth/test_oauth.sh).
+-- Never set on Cloud Run; if it were, records would only live per instance.
+func isStub() -> bool ! {Env} = getEnvOr("FIRESTORE_STUB", "false") == "true"
+
+pure func collection() -> string = "executor_oauth_records"
+
+-- Keys arrive as "<kind>:<sha256 hex>"; values hold digests only.
+pure func docId(key: string) -> string = replace(key, ":", "_")
+
+pure func stubPath(key: string) -> string = "/tmp/executor_oauth/${docId(key)}.json"
+
+-- expiresAt is enforced on every read; expire_at (a Timestamp) is only for the
+-- Firestore TTL policy that sweeps old records.
+func hPut(key: string, value: string, expiresAtSec: int) -> bool ! {IO, FS, Env, Net, Clock, SharedMem} {
+  let fields = jo([kv("value", stringVal(value)), kv("expiresAt", intVal(expiresAtSec)), kv("expire_at", timestampVal(formatRFC3339(expiresAtSec * 1000)))])
+  if isStub() then {
+    let _ = mkdirAllResult("/tmp/executor_oauth")
+    writeFile(stubPath(key), encode(jo([kv("fields", fields)])));
+    true
+  } else match setDoc(collection(), docId(key), fields) {
+    Ok(_) => true,
+    Err(_) => false
+  }
+}
+
+pure func fieldStr(fields: Json, name: string) -> string = match get(fields, name) {
+  Some(f) => match getString(f, "stringValue") {
+    Some(s) => s,
+    None => ""
+  },
+  None => ""
+}
+
+-- Firestore REST returns integerValue as a string. Missing reads as 0: expired.
+pure func fieldInt(fields: Json, name: string) -> int = match get(fields, name) {
+  Some(f) => match getString(f, "integerValue") {
+    Some(s) => match stringToInt(s) {
+      Some(n) => n,
+      None => 0
+    },
+    None => 0
+  },
+  None => 0
+}
+
+-- A record is live strictly before its expiry second.
+export pure func recordLive(expiresAt: int, nowS: int) -> bool
+ensures { result == nowS < expiresAt } = nowS < expiresAt
+
+func readFields(key: string) -> Option[Json] ! {FS, Env, Net} {
+  if isStub() then {
+    let path = stubPath(key)
+    if fileExists(path) == false then None else match decode(readFile(path)) {
+      Ok(j) => get(j, "fields"),
+      Err(_) => None
+    }
+  } else match getDoc(collection(), docId(key)) {
+    Ok(f) => Some(f),
+    Err(_) => None
+  }
+}
+
+func hGet(key: string) -> Option[string] ! {IO, FS, Env, Net, Clock, SharedMem} = match readFields(key) {
+  None => None,
+  Some(fields) => if recordLive(fieldInt(fields, "expiresAt"), nowSec()) then Some(fieldStr(fields, "value")) else {
+    let _ = hDel(key)
+    None
+  }
+}
+
+func hDel(key: string) -> bool ! {IO, FS, Env, Net, Clock, SharedMem} =
+  if isStub() then match removeFileResult(stubPath(key)) {
+    Ok(_) => true,
+    Err(_) => false
+  } else match deleteDoc(collection(), docId(key)) {
+    Ok(_) => true,
+    Err(_) => false
+  }
+
+-- ============================================================
+-- Hooks
+-- ============================================================
+
+-- The local seam's stand-in for Firebase: with stub storage and NOT on Cloud
+-- Run (K_SERVICE unset), an id_token equal to EXECUTOR_OAUTH_TEST_ID_TOKEN
+-- (>= 32 chars) signs in as EXECUTOR_OAUTH_TEST_EMAIL, still subject to the
+-- domain allowlist. test_oauth.sh proves it is shut when K_SERVICE is set.
+func testSignIn(idToken: string) -> Option[string] ! {Env} {
+  let testToken = getEnvOr("EXECUTOR_OAUTH_TEST_ID_TOKEN", "")
+  if isStub() && getEnvOr("K_SERVICE", "") == "" && length(testToken) >= 32 && idToken == testToken then Some(getEnvOr("EXECUTOR_OAUTH_TEST_EMAIL", "")) else None
+}
+
+func hAuthenticate(idToken: string) -> Result[string, string] ! {IO, FS, Env, Net, Clock, SharedMem} {
+  let allowList = getEnvOr("EXECUTOR_ALLOWED_EMAIL_DOMAINS", "")
+  let projectId = getEnvOr("GOOGLE_CLOUD_PROJECT", "")
+  match testSignIn(idToken) {
+    Some(email) => gate("test:${email}", email, true, allowList),
+    None => if length(idToken) == 0 then Err("missing ID token") else if length(projectId) == 0 then Err("sign-in is not configured") else match verifyFirebaseJWTFull(idToken, projectId, nowSec()) {
+      -- The verifier's message names the failed check; it never echoes the token.
+      Err(e) => Err(e),
+      Ok(user) => gate(user.uid, user.email, emailVerified(idToken), allowList)
+    }
+  }
+}
+
+-- 244 bits from two crypto UUIDv4s. flow calls mint from a Rand[mode=crypto]
+-- function, and this row names that mode, so the draws are crypto.
+func newToken() -> string ! {Rand[mode=crypto]} = "ax_${replace(uuid4(), "-", "")}${replace(uuid4(), "-", "")}"
+
+pure func tokenKey(digest: string) -> string = "at:${digest}"
+
+-- An access token: stored only as its digest, with the account and client it
+-- was issued to. The raw token leaves only as the Ok value.
+func hMint(account: string, clientId: string) -> Result[string, string] ! {IO, FS, Env, Net, Clock, SharedMem, Rand[mode=crypto], Declassify} {
+  let token = newToken()
+  let rec = encode(jo([kv("account", js(account)), kv("client_id", js(clientId))]))
+  if hPut(tokenKey(sha256Hex(token)), rec, nowSec() + accessTtlSec()) then Ok(token) else Err("could not store the access token")
+}
+
+func hRevoke(digest: string) -> bool ! {IO, FS, Env, Net, Clock, SharedMem} =
+  if length(digest) != 64 then false else hDel(tokenKey(digest))
+
+func hooks() -> Hooks ! {Env} =
+  { authenticate: hAuthenticate, mint: hMint, put: hPut, get: hGet, del: hDel, revoke: hRevoke, accessTtlSec: accessTtlSec(), issuer: oauthIssuer() }
+
+-- ============================================================
+-- Resource-server side: the /mcp/connect/ Bearer gate
+-- ============================================================
+
+-- "ax_" + 64 hex.
+export pure func tokenShapeOk(token: string) -> bool = length(token) == 67 && startsWith(token, "ax_")
+
+pure func hostOf(url: string) -> string {
+  let at = find(url, "://")
+  let rest = if at >= 0 then substring(url, at + 3, length(url)) else url
+  match nth(split(rest, "/"), 0) {
+    Some(h) => h,
+    None => rest
+  }
+}
+
+-- serve-api calls this before every tool call on /mcp/connect/
+-- (--mcp-connect-only gates them all). One executor_auth log line per call
+-- names the account and client host, never the token, so usage.sh can count
+-- calls per user.
+@mcp_token_verifier
+export func verifyMcpToken(token: string) -> bool ! {IO, FS, Net, Env, Clock, SharedMem, Debug} =
+  if tokenShapeOk(token) == false then false else match hGet(tokenKey(sha256Hex(token))) {
+    None => {
+      log(encode(jo([kv("event", js("executor_auth")), kv("outcome", js("unknown_token"))])));
+      false
+    },
+    Some(raw) => match decode(raw) {
+      Err(_) => false,
+      Ok(rec) => {
+        let account = match getString(rec, "account") {
+          Some(a) => a,
+          None => ""
+        }
+        let client = match getString(rec, "client_id") {
+          Some(c) => hostOf(c),
+          None => ""
+        }
+        log(encode(jo([kv("event", js("executor_auth")), kv("outcome", js("ok")), kv("account", js(account)), kv("client", js(client))])))
+        length(account) > 0
+      }
+    }
+  }
+
+-- ============================================================
+-- Authorization-server routes (HTTP only: @nomcp)
+-- ============================================================
+
+pure func q(j: Json, k: string) -> string = match getString(j, k) {
+  Some(s) => s,
+  None => ""
+}
+
+pure func redirect(loc: string) -> { _body: string, _status: int, _headers: { location: string } } =
+  { _body: "", _status: 302, _headers: { location: loc } }
+
+pure func bad(body: string) -> { _body: string, _status: int, _headers: { location: string } } =
+  { _body: body, _status: 400, _headers: { location: "" } }
+
+pure func errJson(e: string) -> Json = match decode(e) {
+  Ok(j) => j,
+  Err(_) => js(e)
+}
+
+-- RFC 8414 metadata: issuer, endpoints, S256 only, CIMD, no client secret.
+@route("GET", "/.well-known/oauth-authorization-server")
+@nowrap
+@nomcp
+export func oauthMetadata() -> Result[string, Json] ! {Env} {
+  let iss = oauthIssuer()
+  if length(iss) == 0 then Err(errJson(oauthError("server_error", "OAUTH_ISSUER is not configured"))) else Ok(asMetadata(iss))
+}
+
+-- Which Firebase project the sign-in page signs in to. The page holds each
+-- project's public browser config and refuses an id it does not know.
+@route("GET", "/oauth/login-config")
+@nowrap
+@nomcp
+export func oauthLoginConfig() -> Result[string, Json] ! {Env} {
+  let project = getEnvOr("GOOGLE_CLOUD_PROJECT", "")
+  if length(project) == 0 then Err(errJson(oauthError("server_error", "GOOGLE_CLOUD_PROJECT is not configured"))) else Ok(encode(jo([kv("project_id", js(project))])))
+}
+
+-- Authorization endpoint. client_id is a CIMD URL whose document (fetched
+-- under Net[scope=public]) lists the only redirect_uris accepted.
+@route("GET", "/oauth/authorize")
+@raw
+@nomcp
+export func oauthAuthorize(req: { body: string, headers: Json, method: string, path: string, query: Json }) -> { _body: string, _status: int, _headers: { location: string } } ! {IO, FS, Env, Net, Clock, SharedMem, Rand[mode=crypto], Declassify} {
+  let iss = oauthIssuer()
+  if length(iss) == 0 then bad(oauthError("server_error", "OAUTH_ISSUER is not configured")) else match fetchClient(q(req.query, "client_id")) {
+    Err(e) => bad(oauthError("invalid_client", e)),
+    Ok(registered) => match beginAuthorize(hooks(), loginUrlFor(iss), q(req.query, "client_id"), registered, q(req.query, "redirect_uri"), q(req.query, "response_type"), q(req.query, "code_challenge"), q(req.query, "code_challenge_method"), q(req.query, "state"), nowSec()) {
+      Ok(loc) => redirect(loc),
+      Err(e) => bad(e)
+    }
+  }
+}
+
+-- Consent details for the sign-in page: which client is asking and where the
+-- code will go. Never echoes the handle, challenge or state.
+@route("GET", "/oauth/request")
+@raw
+@nowrap
+@nomcp
+export func oauthRequestInfo(req: { body: string, headers: Json, method: string, path: string, query: Json }) -> Result[string, Json] ! {IO, FS, Env, Net, Clock, SharedMem, Declassify} {
+  let handle = q(req.query, "handle")
+  if length(handle) == 0 then Err(errJson(oauthError("invalid_request", "handle is required"))) else match describeRequest(hooks(), handle) {
+    Err(e) => Err(errJson(e)),
+    Ok(raw) => match decode(raw) {
+      Err(_) => Err(errJson(oauthError("server_error", "corrupt sign-in request"))),
+      Ok(rec) => Ok(encode(jo([kv("client_id", js(q(rec, "client_id"))), kv("client_host", js(hostOf(q(rec, "client_id")))), kv("redirect_host", js(hostOf(q(rec, "redirect_uri"))))])))
+    }
+  }
+}
+
+-- The sign-in page posts handle + Firebase ID token here (form-encoded,
+-- top-level navigation). Success: 302 to the client's redirect_uri with a code.
+@route("POST", "/oauth/login/complete")
+@raw
+@nomcp
+export func oauthLoginComplete(req: { body: string, headers: Json, method: string, path: string, query: Json }) -> { _body: string, _status: int, _headers: { location: string } } ! {IO, FS, Env, Net, Clock, SharedMem, Rand[mode=crypto], Declassify} =
+  match completeLogin(hooks(), formGet(req.body, "handle"), formGet(req.body, "id_token"), nowSec()) {
+    Ok(loc) => redirect(loc),
+    Err(e) => bad(e)
+  }
+
+-- Token endpoint (form-encoded; public clients, PKCE). Errors are RFC 6749
+-- section 5.2 JSON with HTTP 400.
+@route("POST", "/oauth/token")
+@raw
+@nowrap
+@nomcp
+export func oauthToken(req: { body: string, headers: Json, method: string, path: string, query: Json }) -> Result[string, Json] ! {IO, FS, Env, Net, Clock, SharedMem, Rand[mode=crypto], Declassify} {
+  let b = req.body
+  let grant = formGet(b, "grant_type")
+  let res = if grant == "authorization_code" then exchangeCode(hooks(), formGet(b, "code"), formGet(b, "code_verifier"), formGet(b, "client_id"), formGet(b, "redirect_uri"), nowSec()) else if grant == "refresh_token" then refreshTokens(hooks(), formGet(b, "refresh_token"), formGet(b, "client_id"), nowSec()) else Err(oauthError("unsupported_grant_type", "grant_type must be authorization_code or refresh_token"))
+  match res {
+    Ok(body) => Ok(body),
+    Err(e) => Err(errJson(e))
+  }
+}

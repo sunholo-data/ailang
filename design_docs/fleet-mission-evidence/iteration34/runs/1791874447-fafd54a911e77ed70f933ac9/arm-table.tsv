@@ -1,0 +1,50 @@
+K-pre-A+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	A
+K-	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	negative	A
+K+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	A
+K-post-A+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	A
+K-post-negative	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	negative	A
+K-claude-pre-L+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	L
+K-claude-pre-negative	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	negative	L
+K-claude	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	subject	L
+K-claude-post-L+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	L
+K-claude-post-negative	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	negative	L
+K-project-pre-A+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	A
+K-project-pre-negative	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	negative	A
+K-project	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	subject	A
+K-project-post-A+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	A
+K-project-post-negative	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	negative	A
+K-agents-user-pre-B+	K	/private/tmp/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-world	/Users/voightkampff/.codex-missions	positive	B
+K-agents-user-pre-negative	K	/private/tmp/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-world	/Users/voightkampff/.codex-missions	negative	B
+K-agents-user	K	/private/tmp/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-world	/Users/voightkampff/.codex-missions	subject	B
+K-agents-user-post-B+	K	/private/tmp/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-world	/Users/voightkampff/.codex-missions	positive	B
+K-agents-user-post-negative	K	/private/tmp/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-world	/Users/voightkampff/.codex-missions	negative	B
+K-legacy-user-pre-H+	K	/private/tmp/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-world	/Users/voightkampff/.codex-missions	positive	H
+K-legacy-user-pre-negative	K	/private/tmp/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-world	/Users/voightkampff/.codex-missions	negative	H
+K-legacy-user	K	/private/tmp/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-world	/Users/voightkampff/.codex-missions	subject	H
+K-legacy-user-post-H+	K	/private/tmp/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-world	/Users/voightkampff/.codex-missions	positive	H
+K-legacy-user-post-negative	K	/private/tmp/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-world	/Users/voightkampff/.codex-missions	negative	H
+K-collision-pre-A+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	A B H
+K-collision-pre-B+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	A B H
+K-collision-pre-H+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	A B H
+K-collision-pre-negative	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	negative	A B H
+K-collision	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	subject	A B H
+K-collision-post-A+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	A B H
+K-collision-post-B+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	A B H
+K-collision-post-H+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	A B H
+K-collision-post-negative	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	negative	A B H
+K-by-path-pre-A+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	A B H
+K-by-path-pre-B+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	A B H
+K-by-path-pre-H+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	A B H
+K-by-path-pre-negative	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	negative	A B H
+K-by-path	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	subject	A B H
+K-by-path-post-A+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	A B H
+K-by-path-post-B+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	A B H
+K-by-path-post-H+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	positive	A B H
+K-by-path-post-negative	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.codex-missions	negative	A B H
+K-home-pre-A+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791874447-fafd54a911e77ed70f933ac9/runtime/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-scratch/KS	positive	A T
+K-home-pre-T+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791874447-fafd54a911e77ed70f933ac9/runtime/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-scratch/KS	positive	A T
+K-home-pre-negative	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791874447-fafd54a911e77ed70f933ac9/runtime/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-scratch/KS	negative	A T
+K-home	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791874447-fafd54a911e77ed70f933ac9/runtime/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-scratch/KS	subject	A T
+K-home-post-A+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791874447-fafd54a911e77ed70f933ac9/runtime/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-scratch/KS	positive	A T
+K-home-post-T+	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791874447-fafd54a911e77ed70f933ac9/runtime/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-scratch/KS	positive	A T
+K-home-post-negative	K	/Users/voightkampff/.ailang-driver-pin/fleet-i34	/Users/voightkampff/.ailang-driver-pin/fleet-i34/design_docs/fleet-mission-evidence/iteration34/runs/1791874447-fafd54a911e77ed70f933ac9/runtime/zz-fleet-spike-1791874447-fafd54a911e77ed70f933ac9-scratch/KS	negative	A T

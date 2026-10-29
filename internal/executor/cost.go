@@ -1,9 +1,11 @@
 package executor
 
 import (
-	"github.com/sunholo-data/ailang/internal/modelreg"
 	"math"
+	"strings"
 	"sync/atomic"
+
+	"github.com/sunholo-data/ailang/internal/modelreg"
 )
 
 // CostBudget enforces a hard USD ceiling on a single Task execution.
@@ -227,6 +229,58 @@ func ResolveCostModel(task *Task, fallback *CostModel) *CostModel {
 		return task.Pricing
 	}
 	return fallback
+}
+
+// PriceTokens is the cost of record for an executor that has token counts:
+// registry rates (via ResolveCostModel) applied to the usage, plus the
+// provenance that labels the figure.
+//
+// An Unpriced (or nil) rate card returns $0 with CostProvenanceUnknown — never a
+// guessed rate, and never a metered $0, which would read as a free run. This is
+// the convention codex and managed_agents already follow inline; it exists as
+// one function so a harness that also self-reports a dollar figure (pi, from
+// its own built-in price table) has a single place to get the registry's
+// answer instead (2026-10-12: pi billed Haiku 5.5 ~56x over list price).
+//
+// usage.OutputTokens must include any hidden reasoning tokens — they bill at
+// the output rate — and usage.InputTokens must be FRESH input (disjoint from
+// cache reads/writes), as CalculateCost requires.
+func PriceTokens(task *Task, fallback *CostModel, lane AuthLane, usage TokenUsage) (float64, CostProvenance) {
+	cm := ResolveCostModel(task, fallback)
+	if cm == nil || cm.Unpriced {
+		return 0, CostProvenanceUnknown
+	}
+	// Same zero-rate rule as ResolveCostProvenance, applied to the card that was
+	// actually used: a fallback that resolved to a local (zero-priced) row is
+	// free-local, not a metered $0.
+	if cm.InputTokenCost == 0 && cm.OutputTokenCost == 0 {
+		return 0, CostFreeLocal
+	}
+	return cm.CalculateCost(usage), ResolveCostProvenance(task, lane)
+}
+
+// HarnessCostModel resolves the registry rate card for a "<provider>/<model-id>"
+// string — the model grammar pi, motoko and opencode all share.
+//
+// The full string is tried first (harness rows declare it as agent_model_name).
+// If nothing matches, the bare model id is tried, but accepted ONLY when the row
+// it resolves to belongs to that same provider: "anthropic/claude-haiku-5-5"
+// prices as the direct Anthropic row, while "ollama/<x>" can never borrow a
+// cloud row's price and "openrouter/z-ai/glm-5.3-flash" can never pick up the
+// Lyceum row that also answers to "z-ai/glm-5.3-flash". Anything else is an
+// explicit Unpriced card ($0 with provenance "unknown"), never a guess.
+//
+// Callers use it only when Task.Pricing is absent; Task.Pricing wins.
+func HarnessCostModel(harness, model string) *CostModel {
+	if cm, err := CostModelFor(model); err == nil {
+		return cm
+	}
+	if provider, id, ok := strings.Cut(model, "/"); ok && id != "" {
+		if cm, err := CostModelFor(id); err == nil && cm.ProviderName == provider {
+			return cm
+		}
+	}
+	return UnpricedCostModel(harness, model)
 }
 
 // DefaultMaxCostUSD computes the fallback budget used when models.yml

@@ -77,14 +77,20 @@ exit 0
 	if !res.Success {
 		t.Fatalf("Success = false; want true. Error: %s", res.Error)
 	}
-	if res.InputTokens != 579 {
-		t.Errorf("InputTokens = %d, want 579 (from fixture run_summary)", res.InputTokens)
+	// The ollama route is OpenAI-shaped: run_summary's 579 input tokens INCLUDE
+	// the 128 cache reads, so the Result carries 451 fresh (executor contract).
+	if res.InputTokens != 451 {
+		t.Errorf("InputTokens = %d, want 451 (579 reported − 128 cache reads)", res.InputTokens)
 	}
 	if res.OutputTokens != 101 {
 		t.Errorf("OutputTokens = %d, want 101", res.OutputTokens)
 	}
-	if res.CostUSD != 0.000813 {
-		t.Errorf("CostUSD = %v, want 0.000813", res.CostUSD)
+	// A local model is free: motoko's own $0.000813 is diagnostic, not the cost.
+	if res.CostUSD != 0 || res.CostProvenance != executor.CostFreeLocal {
+		t.Errorf("cost = $%v (%q), want $0 free-local", res.CostUSD, res.CostProvenance)
+	}
+	if got := res.ProviderData["motoko_self_reported_cost_usd"]; got != 0.000813 {
+		t.Errorf("motoko_self_reported_cost_usd = %v, want 0.000813", got)
 	}
 	if res.CacheReadInputTokens != 128 || res.CacheCreationInputTokens != 128 {
 		t.Errorf("cache fields = (%d, %d), want (128, 128)", res.CacheReadInputTokens, res.CacheCreationInputTokens)

@@ -489,6 +489,9 @@ chmod +x .git/hooks/pre-commit
 
 ## Examples
 
+For a runnable end-to-end example, a fast algorithm checked against a brute-force reference by a property, see
+[`examples/runnable/property_differential_testing.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/property_differential_testing.ail).
+
 ### Example 1: List Properties
 
 ```ailang

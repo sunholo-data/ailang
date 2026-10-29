@@ -1,0 +1,167 @@
+[
+  {
+    "id": 39861258501,
+    "run_attempt": 1,
+    "name": "CI",
+    "head_sha": "2debbb0278cc08e018be2d0a1e75befcbda55454",
+    "head_branch": "dev",
+    "event": "push",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/sunholo-data/ailang/actions/runs/39861258501",
+    "created_at": "2026-10-22T21:56:58Z",
+    "updated_at": "2026-10-22T22:25:33Z",
+    "jobs": [
+      {
+        "id": 120112248037,
+        "name": "test",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-22T21:57:02Z",
+        "completed_at": "2026-10-22T22:23:13Z",
+        "html_url": "https://github.com/sunholo-data/ailang/actions/runs/39861258501/job/120112248037"
+      },
+      {
+        "id": 120112248354,
+        "name": "dependency-submission",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-22T21:57:02Z",
+        "completed_at": "2026-10-22T21:57:27Z",
+        "html_url": "https://github.com/sunholo-data/ailang/actions/runs/39861258501/job/120112248354"
+      },
+      {
+        "id": 120112248357,
+        "name": "changes",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-22T21:57:02Z",
+        "completed_at": "2026-10-22T21:57:16Z",
+        "html_url": "https://github.com/sunholo-data/ailang/actions/runs/39861258501/job/120112248357"
+      },
+      {
+        "id": 120112248462,
+        "name": "lint",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-22T21:57:02Z",
+        "completed_at": "2026-10-22T22:00:11Z",
+        "html_url": "https://github.com/sunholo-data/ailang/actions/runs/39861258501/job/120112248462"
+      },
+      {
+        "id": 120112248478,
+        "name": "docs",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-22T21:57:02Z",
+        "completed_at": "2026-10-22T21:57:13Z",
+        "html_url": "https://github.com/sunholo-data/ailang/actions/runs/39861258501/job/120112248478"
+      },
+      {
+        "id": 120112374257,
+        "name": "float determinism (arm64)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-22T21:57:21Z",
+        "completed_at": "2026-10-22T21:57:44Z",
+        "html_url": "https://github.com/sunholo-data/ailang/actions/runs/39861258501/job/120112374257"
+      },
+      {
+        "id": 120112374354,
+        "name": "launchd drivers (bash 3.2)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-22T21:57:20Z",
+        "completed_at": "2026-10-22T22:10:15Z",
+        "html_url": "https://github.com/sunholo-data/ailang/actions/runs/39861258501/job/120112374354"
+      },
+      {
+        "id": 120112374360,
+        "name": "govulncheck (vuln gate)",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-22T21:57:19Z",
+        "completed_at": "2026-10-22T21:58:52Z",
+        "html_url": "https://github.com/sunholo-data/ailang/actions/runs/39861258501/job/120112374360"
+      },
+      {
+        "id": 120112374390,
+        "name": "test-windows",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-22T21:57:19Z",
+        "completed_at": "2026-10-22T22:06:30Z",
+        "html_url": "https://github.com/sunholo-data/ailang/actions/runs/39861258501/job/120112374390"
+      },
+      {
+        "id": 120123400800,
+        "name": "build",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-22T22:23:16Z",
+        "completed_at": "2026-10-22T22:25:32Z",
+        "html_url": "https://github.com/sunholo-data/ailang/actions/runs/39861258501/job/120123400800"
+      }
+    ]
+  },
+  {
+    "id": 39861258599,
+    "run_attempt": 1,
+    "name": "Build and Release",
+    "head_sha": "2debbb0278cc08e018be2d0a1e75befcbda55454",
+    "head_branch": "dev",
+    "event": "push",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/sunholo-data/ailang/actions/runs/39861258599",
+    "created_at": "2026-10-22T21:56:58Z",
+    "updated_at": "2026-10-22T22:09:28Z",
+    "jobs": [
+      {
+        "id": 120112248606,
+        "name": "Build macos-latest",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-22T21:57:01Z",
+        "completed_at": "2026-10-22T22:07:02Z",
+        "html_url": "https://github.com/sunholo-data/ailang/actions/runs/39861258599/job/120112248606"
+      },
+      {
+        "id": 120112248801,
+        "name": "Build ubuntu-latest",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-22T21:57:01Z",
+        "completed_at": "2026-10-22T22:04:23Z",
+        "html_url": "https://github.com/sunholo-data/ailang/actions/runs/39861258599/job/120112248801"
+      },
+      {
+        "id": 120112248809,
+        "name": "Build macos-latest",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-22T21:57:02Z",
+        "completed_at": "2026-10-22T22:08:07Z",
+        "html_url": "https://github.com/sunholo-data/ailang/actions/runs/39861258599/job/120112248809"
+      },
+      {
+        "id": 120112248948,
+        "name": "Build windows-latest",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-22T21:57:01Z",
+        "completed_at": "2026-10-22T22:09:07Z",
+        "html_url": "https://github.com/sunholo-data/ailang/actions/runs/39861258599/job/120112248948"
+      },
+      {
+        "id": 120117435658,
+        "name": "Create Release Bundle",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-10-22T22:09:10Z",
+        "completed_at": "2026-10-22T22:09:27Z",
+        "html_url": "https://github.com/sunholo-data/ailang/actions/runs/39861258599/job/120117435658"
+      }
+    ]
+  }
+]

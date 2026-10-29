@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/observatory"
+	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 // Command is one route through the CLI. The table below is the ONLY place a
@@ -59,6 +60,13 @@ type Command struct {
 	Hidden  bool
 	Summary string
 	Run     func(args []string) error
+
+	// Authority is what the command needs from the host beyond the package
+	// it runs in (#1720 D5). A command that declares any is operator-only:
+	// under AILANG_AGENT_POLICY it is refused at dispatch, before partial
+	// work. This is a usability layer; the I/O gates in internal/pkg
+	// (authority.go) are the boundary. Only the pkg group declares it today.
+	Authority []pkg.Authority
 }
 
 // The groups. A group is a hidden drawer, not a rename: `ailang ops messages`
@@ -112,9 +120,10 @@ var (
 // returns the stale-binary probe for main to run at its own point in the
 // sequence (after the --version and --help short circuits, where it has always
 // been). args is the positional tail: an empty one, or a language command,
-// gets neither probe.
+// gets neither probe. The access-approvals machine protocol is also quiet to
+// keep its JSON/error contract independent of unrelated local services.
 func platformStartup(args []string) (runStaleProbe func()) {
-	if len(args) == 0 || invocationIsLanguage(args) {
+	if len(args) == 0 || invocationIsLanguage(args) || isAccessApprovalsInvocation(args) {
 		return func() {}
 	}
 	probeObservatoryHealth()

@@ -375,7 +375,7 @@ func (s *Server) findRouteByPath(urlPath string) *RouteEntry {
 
 	for _, mod := range s.modules {
 		for _, exp := range mod.Exports {
-			if exp.RoutePath == urlPath {
+			if exp.RoutePath == urlPath && !s.connectOnlyHidden(exp) {
 				return &RouteEntry{
 					Method:     exp.RouteMethod,
 					Path:       exp.RoutePath,
@@ -401,7 +401,7 @@ func (s *Server) getCustomRoutes() []RouteEntry {
 	var routes []RouteEntry
 	for _, mod := range s.modules {
 		for _, exp := range mod.Exports {
-			if exp.RoutePath != "" {
+			if exp.RoutePath != "" && !s.connectOnlyHidden(exp) {
 				routes = append(routes, RouteEntry{
 					Method:     exp.RouteMethod,
 					Path:       exp.RoutePath,

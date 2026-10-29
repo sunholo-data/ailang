@@ -1,0 +1,37 @@
+{
+  "quota": {
+    "designer": 146186,
+    "planner": 116064,
+    "executor": 154785
+  },
+  "quota_bucket": "codex",
+  "controller_and_carrier_tokens": "not reported",
+  "metered": {
+    "review": {
+      "input": 123503,
+      "output": 52878,
+      "cacheRead": 2479652,
+      "reasoning": 33417,
+      "totalTokens": 2656033,
+      "cost_usd": 0.24928361999999998
+    },
+    "confirmation": {
+      "input": 81940,
+      "output": 8775,
+      "cacheRead": 1160320,
+      "reasoning": 3712,
+      "totalTokens": 1251035,
+      "cost_usd": 0.1047312
+    },
+    "review_probe": {
+      "cost_usd": 0.00060018
+    },
+    "confirmation_probe": {
+      "cost_usd": 0.00062274
+    }
+  },
+  "original_metered_usd": 1.27709784,
+  "recovery_metered_usd": 0.35523773999999997,
+  "known_iteration_metered_usd": 1.63233558,
+  "quota_total_reported": 417035
+}
