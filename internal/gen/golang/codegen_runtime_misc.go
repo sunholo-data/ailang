@@ -37,6 +37,14 @@ func (g *Generator) writeRuntimeMiscHelpers() {
 	g.indent--
 	g.writef("}\n")
 	g.indent--
+	g.writef("case func(interface{}, interface{}, interface{}, interface{}) interface{}:\n")
+	g.indent++
+	g.writef("if len(args) >= 4 {\n")
+	g.indent++
+	g.writef("return fn(args[0], args[1], args[2], args[3])\n")
+	g.indent--
+	g.writef("}\n")
+	g.indent--
 	g.writef("case func(...interface{}) interface{}:\n")
 	g.indent++
 	g.writef("return fn(args...)\n")
@@ -97,7 +105,7 @@ func (g *Generator) writeRuntimeMiscHelpers() {
 	g.indent++
 	g.writef("return \"()\"\n")
 	g.indent--
-	g.writef("case ArrayVal:\n")
+	g.writef("case ArrayVal, FloatArrayVal:\n")
 	g.indent++
 	g.writef("return showSequence(reflect.ValueOf(x), depth, \"#[\", \"]\")\n")
 	g.indent--

@@ -1,0 +1,46 @@
+{
+  "sprint_id": "M-FLEET-GATE3B-POLL-BACKGROUND",
+  "status": "planned",
+  "created": "2026-10-16T11:51:30Z",
+  "verified_at": "c4fab92c29ab7e208dc96325a925f053cf0417a9",
+  "design_doc": null,
+  "sprint_plan": "design_docs/planned/sprint-plan-gate3b-ci-poll-background.md",
+  "ticket": "skill:gate3b-ci-poll-exceeds-foreground-bash",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": "existing mission-control gate-3-route.md codex recipe step 2 and SKILL.md standing rule 7",
+      "action": "none",
+      "reason": "Documentation-only repair; no package-like capability. Registry search and package inspection are inapplicable. Reuse existing timeout, active-wait and artifact discipline by reference; no package or helper script introduced."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 440,
+    "estimated_total_loc": 55,
+    "estimated_days": 0.125,
+    "basis": "55 documentation LOC: about 25 additions per mirrored resource plus a 5-line fragment; zero unit-test LOC. Comparable mirrored doc repair c55ca4398 added 34 and deleted 20 lines across 14 resources. Duration is a conservative 60-minute task estimate, not measured historical throughput."
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Document how to run the existing SHA-pinned thirty-minute CI poll via an explicitly timed background Bash call, use unique SHA-bearing terminal artifacts and active bounded reads, document cumulative-cap foreground alternative, mirror both copies and add the single changelog fragment.",
+      "estimated_loc": 55,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Only the two gate-3b-ci-green.md resource copies and changelogs/unreleased/2026-10-16-gate3b-ci-poll-background.md change during execution; about 15-30 added lines per copy, copies remain byte-identical, fragment begins ### Fixed — . No routing, lane order, quota/ration thresholds, billing guards, workflows, SKILL.md or other resource changes.",
+        "Text specifies Bash tool run_in_background: true and timeout: 2000000 ms (minimum 2000000); poll runs foreground inside that call without extra shell &, citing gate-3-route.md codex recipe step 2 and SKILL.md standing rule 7 by reference. Explain the 600 s foreground cap and iteration 13 four-hour unbounded wedge.",
+        "Preserve full-SHA pin, mission-base record/drift check and abort behaviour, SHA-filtered run selection, 30-second cadence, cumulative 1800 s cap and PARK on timeout. Both terminal echo verdicts name the full target SHA and write only terminal results to a unique per-invocation artifact whose path identifies iteration and subject; kill superseded pollers per rule 7.",
+        "Controller instructions chain bounded foreground reads of the recorded verdict path, each finishing below 600 s, keep the turn active until background completion, reject missing evidence and mismatched SHA. Alternative foreground form uses per-call deadline <=540 s and tool timeout 600000 ms, re-polling in-turn with original absolute 30-minute deadline, target, run and artifact carried across calls; no cumulative clock reset.",
+        "make check-skills, make check-context-docs, make check-referenced-paths, make check-changelog, make check-file-sizes, make check-doc-review, make check-no-personal-email and make check-tmpfile-hygiene return rc 0 on edited tree; cmp of both resource copies returns 0. Base-red gates are findings to report, never work around.",
+        "Evaluator executes all four plan mutation drills on disposable text: dropped operative run_in_background, timeout 1700000 below cap, inner shell &, SHA removed from either verdict. Record pristine and mutant grep output/rc or exact count; pristine must be distinguished from every mutant.",
+        "CONTROLLER ONLY outside sandbox: env -i HOME=$HOME PATH=$PATH USER=$USER TMPDIR=$TMPDIR make test-launchd-drivers returns rc 0 with actual evidence. Any sandbox check requiring network, sockets or gh is UNINFORMATIVE UNDER SANDBOX and never reported as pass or fail.",
+        "Controller runs edited snippet for real, backgrounded exactly as prescribed against a real dev CI run; records full SHA, run ID, launch arguments, unique verdict path and terminal contents naming SHA, bounded active reads, completion notification and CI conclusion/PARK disposition. Missing controller evidence remains pending; independent sprint-evaluator reviews before acceptance."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}

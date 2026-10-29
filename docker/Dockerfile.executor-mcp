@@ -13,7 +13,7 @@
 #   * Public OAuth (P1b): terraform replaces the CMD with --mcp-connect-only,
 #     --oauth-issuer, --static /srv/executor_oauth/static, --caps adding IO,Net,
 #     and the extra executor_oauth/ dir (sunholo/mcp_oauth sign-in server).
-FROM golang:1.26-bookworm AS builder
+FROM golang:1.26.10-bookworm AS builder
 WORKDIR /build
 COPY go.mod go.sum ./
 RUN GOPROXY='https://proxy.golang.org|direct' sh -c 'for i in 1 2 3 4; do go mod download && exit 0; echo "go mod download failed (attempt $i/4); retrying" >&2; sleep $((i * 15)); done; exit 1'

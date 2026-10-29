@@ -24,8 +24,14 @@ type TaskRecord struct {
 	AttemptCount   int `json:"attempt_count,omitempty"`
 	ChainLinkIndex int `json:"chain_link_index,omitempty"`
 
-	Kind         string     `json:"kind,omitempty"`   // "directive" or "question" or message_type (e.g. "feedback") - affects template selection
-	Source       string     `json:"source,omitempty"` // Pub/Sub topic the message arrived on: "cascade" = authoritative bump (M-PKG-AUTONOMOUS-CASCADE-SAFE M1)
+	Kind   string `json:"kind,omitempty"`   // "directive" or "question" or message_type (e.g. "feedback") - affects template selection
+	Source string `json:"source,omitempty"` // Pub/Sub topic the message arrived on: "cascade" = authoritative bump (M-PKG-AUTONOMOUS-CASCADE-SAFE M1)
+	// ShadowOf is the primary task ID this task shadows (M-AILANG-LANE-EXECUTOR-SHADOW).
+	// Empty for every ordinary task. A shadow runs the primary's directive on the other
+	// lane harness and may write nothing outside its run directory: no push, PR,
+	// approval card or handoff. Not Kind (it changes execution mode) and not
+	// ParentTaskID (it links handoff chains in the observatory).
+	ShadowOf     string     `json:"shadow_of,omitempty"`
 	Priority     int        `json:"priority"`
 	Status       TaskStatus `json:"status"`
 	Provider     string     `json:"provider,omitempty"`

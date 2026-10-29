@@ -1,0 +1,139 @@
+{
+  "sprint_id": "M-EXAMPLES-MANIFEST-STAT-SYNC",
+  "status": "in_progress",
+  "created": "2026-10-15T23:39:55.578171+00:00",
+  "design_doc": "design_docs/planned/v0_54_12/examples-manifest-stat-sync.md",
+  "sprint_plan": "design_docs/planned/v0_54_12/examples-manifest-stat-sync-sprint-plan.md",
+  "github_issues": [
+    1835
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search manifest returned sunholo/registry_validator; pkg info/docs show an AILANG package-publication validator, not the Go examples JSON pipeline. Reuse existing internal/manifest and scripts/internal/importextract; no new package dependency."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search manifest returned sunholo/registry_validator; pkg info/docs show an AILANG package-publication validator, not the Go examples JSON pipeline. Reuse existing internal/manifest and scripts/internal/importextract; no new package dependency."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search manifest returned sunholo/registry_validator; pkg info/docs show an AILANG package-publication validator, not the Go examples JSON pipeline. Reuse existing internal/manifest and scripts/internal/importextract; no new package dependency."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search manifest returned sunholo/registry_validator; pkg info/docs show an AILANG package-publication validator, not the Go examples JSON pipeline. Reuse existing internal/manifest and scripts/internal/importextract; no new package dependency."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 320,
+    "estimated_total_loc": 320,
+    "estimated_days": 1,
+    "actual_total_loc": 383
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Complete statistics validation",
+      "estimated_loc": 45,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Add Aspirational to internal/manifest.Statistics and count StatusAspirational without changing schema v1.",
+        "Unit tests prove all status counters, empty-manifest coverage, and rejection of a mismatched aspirational count; go test ./internal/manifest passes."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-16T09:54:58.900336+00:00",
+      "notes": "go test ./internal/manifest passed; all four statuses and empty coverage covered."
+    },
+    {
+      "id": "M2",
+      "description": "Sync all derived manifest fields",
+      "estimated_loc": 85,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Extend the existing mirror-doc writer to recompute all six statistics fields, including zero-total coverage; preserve authored fields, timestamps, generator, and key order.",
+        "Add make sync-examples-manifest and retain backfill-manifest-modules as an alias; --check detects modules or statistics drift without writing.",
+        "On a clean valid manifest sync produces byte-identical output; repeated sync is idempotent. A stale temporary manifest is repaired, then passes --check."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-16T09:55:31+00:00",
+      "notes": "Baseline byte-identical sync and temporary stale-stat repair passed. Existing jsonparser dependency patches only derived values, preserving authored fields and key order; preservation negative control failed before the patch."
+    },
+    {
+      "id": "M3",
+      "description": "Gate unlisted runnable examples",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Append make sync-examples-manifest remediation to load errors and use the same command for modules drift.",
+        "Walk only examples/runnable recursively, normalize resolved paths through importextract.ResolvePath, skip underscore-prefixed scratch files, and fail --ci for files absent from both manifest and explicit allowlist.",
+        "Seed an embedded reason-bearing allowlist with the measured existing omissions (design baseline 47); remeasure before editing and explain any discrepancy rather than silently admitting new files.",
+        "Temporary-fixture checks prove an unlisted file fails with its path, an allowlisted file passes, and the underscore scratch convention preserves the existing gate self-test.",
+        "Update verify-examples comments and diagnostics for statistics/modules drift and missing entries; retain report generation and exit propagation."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-16T09:56:06+00:00",
+      "notes": "Measured 257 runnable paths: 209 listed, 48 unlisted; 235 resolved manifest paths include 26 non-runnable (design recorded 25, accounting for its 47 baseline). All 48 explicitly seeded; shallow history cannot identify changed classification. Isolated coverage controls passed."
+    },
+    {
+      "id": "M4",
+      "description": "Prove gates and document contribution workflow",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Extend validate-manifest-selftest using isolated temporary manifests and example directories with trap cleanup; remove its current real-manifest rewrite.",
+        "Keep the existing modules-drift negative control; add stale-statistics and unlisted-runnable controls that assert the expected diagnostic as well as failure, plus a valid positive control.",
+        "Document add file + authored entry + make sync-examples-manifest + commit in docs/docs/guides/development-workflow.md and the sprint-executor example checklist.",
+        "Add changelogs/unreleased/2026-10-15-examples-manifest-stat-sync.md opening with ###; record the allowlist disposition backlog in the existing #1835 digest for follow-up without closing that umbrella issue.",
+        "make test-changed, make validate-manifest-selftest, make verify-examples-gate-selftest, make verify-examples, make check-file-sizes, and make check-changelog pass; restore generated report artifacts unrelated to the change without discarding other work."
+      ],
+      "passes": false,
+      "started": "2026-10-16T09:59:31.004434+00:00",
+      "completed": null,
+      "notes": "Implementation and all manifest/example gates complete; lint passes. Broad test-changed remains red due to unchanged effects nested-stop test, confirmed in isolation. Pipeline passes alone with 1GiB memory limit. #1835 publication/evaluator handoff unavailable; see validation."
+    }
+  ],
+  "validation": {
+    "passed": [
+      "go test ./internal/manifest ./scripts/internal/importextract",
+      "make validate-manifest-selftest",
+      "make verify-examples-gate-selftest",
+      "make verify-examples",
+      "make fmt-check",
+      "make check-file-sizes",
+      "make check-changelog",
+      "baseline sync byte comparison",
+      "git diff --check",
+      "make lint: 0 issues",
+      "GOMEMLIMIT=1GiB go test ./internal/pipeline -count=1: passed in 69.061s"
+    ],
+    "failed": [
+      "make test-changed: unchanged internal/effects TestRuntimeNestedStopUsesRemainingDeadline fails bounded stop; internal/pipeline killed; repeated with GOFLAGS=-p=2 and explicit base 482a9a4e",
+      "Isolated go test ./internal/effects -run ^TestRuntimeNestedStopUsesRemainingDeadline$ -count=1: same bounded-stop failure in 2.646s, without competing gates"
+    ],
+    "pending": [],
+    "external_constraints": [
+      "gh unauthenticated: disposition backlog recorded in plan, publication to #1835 pending",
+      "evaluator handoff refused: no agent serves sprint-evaluator; coordinator must arrange evaluation"
+    ]
+  },
+  "last_checkpoint": "Implementation committed and validation recorded; M4 acceptance remains incomplete for inherited effects failure and external follow-ups",
+  "last_session": "2026-10-16T10:07:19.637077+00:00"
+}

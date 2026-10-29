@@ -1,0 +1,21 @@
+{
+  "actual_models": [
+    [
+      "openrouter",
+      "minimax/minimax-m3"
+    ]
+  ],
+  "session_ack_true": true,
+  "assistant_messages": 43,
+  "usage": {
+    "input": 76876,
+    "output": 31405,
+    "cacheRead": 1987683,
+    "cacheWrite": 0,
+    "reasoning": 12414,
+    "totalTokens": 2095964
+  },
+  "provider_cost_usd": 0.18000978,
+  "probe_cost_usd": 0.0001821,
+  "total_with_probe_usd": 0.18019188
+}

@@ -1,0 +1,26 @@
+iso_ts	present	tokens_out	tokens_in	error	artifact
+2026-10-02T18:45:18Z	true	13637	9869		mission-quorum/w-software-engineering-domain-2026-10-02T18-45-18Z.json
+2026-10-02T18:50:06Z	true	11198	11306		mission-quorum/w-software-engineering-domain-2026-10-02T18-50-06Z.json
+2026-10-02T18:54:41Z	true	9157	12515		mission-quorum/w-software-engineering-domain-2026-10-02T18-54-41Z.json
+2026-10-02T18:58:18Z	true	14681	13594		mission-quorum/w-software-engineering-domain-2026-10-02T18-58-18Z.json
+2026-10-02T19:04:54Z	true	16121	14669		mission-quorum/w-software-engineering-domain-2026-10-02T19-04-54Z.json
+2026-10-02T19:09:00Z	false	13928	15583	reviewer returned non-JSON or malformed response: unexpected end of JSON input (raw: "")	mission-quorum/w-software-engineering-domain-2026-10-02T19-09-00Z.json
+2026-10-02T19:12:58Z	true	15632	16408		mission-quorum/w-software-engineering-domain-2026-10-02T19-12-58Z.json
+2026-10-02T19:19:16Z	true	8902	17617		mission-quorum/w-software-engineering-domain-2026-10-02T19-19-16Z.json
+2026-10-02T19:24:48Z	true	13178	19062		mission-quorum/w-software-engineering-domain-2026-10-02T19-24-48Z.json
+2026-10-02T19:31:34Z	true	13250	19902		mission-quorum/w-software-engineering-domain-2026-10-02T19-31-34Z.json
+2026-10-14T12:45:33Z	true	9586	5706		mission-quorum/m-quorum-artifact-dir-stable-2026-10-14T12-45-33Z.json
+2026-10-14T12:54:25Z	true	17021	7439		mission-quorum/m-quorum-artifact-dir-stable-2026-10-14T12-54-25Z.json
+2026-10-16T19:54:27Z	false	0	0	ollama error: 429 Too Many Requests: You reached your Pro weekly limit. Max is $100/month 	mission-quorum-repos/sunholo-data/stapledons-godot/m4-6rr3-ship-renders-bench-2026-10-16T19-54-27Z.json
+2026-10-17T05:33:41Z	false	0	0	ollama error: 429 Too Many Requests: You reached your Pro weekly limit. Max is $100/month 	mission-quorum-repos/sunholo-data/stapledons-godot/m4-6pr3-live-transit-frame-cost-2026-10-17T05-33-41Z.json
+2026-10-19T07:47:14Z	true	10973	6011		mission-quorum-repos/sunholo-data/stapledons-godot/semantic-memory-s0-2026-10-19T07-47-14Z.json
+2026-10-19T07:57:31Z	true	11624	8202		mission-quorum-repos/sunholo-data/stapledons-godot/semantic-memory-s0-2026-10-19T07-57-31Z.json
+2026-10-20T00:16:36Z	true	13867	6796		mission-quorum-repos/sunholo-data/stapledons-godot/m4-7p-ac4-verdict-2026-10-20T00-16-36Z.json
+2026-10-20T00:24:08Z	true	28051	11112		mission-quorum-repos/sunholo-data/stapledons-godot/m4-7p-ac4-verdict-2026-10-20T00-24-08Z.json
+2026-10-21T04:39:59Z	false	65536	17563	reviewer returned non-JSON or malformed response: unexpected end of JSON input at byte 0 o	mission-quorum-repos/sunholo-data/stapledons-godot/kerr-black-holes-2026-10-21T04-39-59Z.json
+2026-10-21T04:45:36Z	false	65536	18137	reviewer returned non-JSON or malformed response: unexpected end of JSON input at byte 0 o	mission-quorum-repos/sunholo-data/stapledons-godot/kerr-black-holes-2026-10-21T04-45-36Z.json
+2026-10-21T12:17:08Z	false	0	0	ollama error: context deadline exceeded	mission-quorum-repos/sunholo-data/stapledons-godot/m4-7s-7o-followups-2026-10-21T12-17-08Z.json
+2026-10-21T12:27:18Z	true	27065	13616		mission-quorum-repos/sunholo-data/stapledons-godot/m4-7s-7o-followups-2026-10-21T12-27-18Z.json
+2026-10-21T22:46:13Z	true	56487	26231		mission-quorum-repos/sunholo-data/stapledons-godot/kerr-black-holes-2026-10-21T22-46-13Z.json
+2026-10-27T08:12:52Z	true	8836	2898		mission-quorum/m-quorum-reviewer-cap-hit-loud-2026-10-27T08-12-52Z.json
+2026-10-27T08:18:19Z	true	16037	6057		mission-quorum/m-quorum-reviewer-cap-hit-loud-2026-10-27T08-18-19Z.json

@@ -5,8 +5,10 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/eval"
 )
 
@@ -19,9 +21,10 @@ func init() {
 //
 // Resolves to the absolute filesystem path of an asset shipped inside an
 // installed AILANG package's assets/ subdirectory. The package must be
-// vendor/name format. Locked dependency targets take precedence, including
-// path and git sources. Without a lock entry, the compatibility-semver maximum
-// installed under ~/.ailang/cache/registry/ is selected.
+// vendor/name format. When the program runs under an ailang.lock, the locked
+// directory is used (the same one its modules were compiled from, #1772);
+// otherwise the highest semver installed under the registry cache
+// (~/.ailang/cache/registry, or AILANG_PACKAGE_ROOT) is used.
 //
 // Returns:
 //   - Ok(absolutePath) when the asset exists
@@ -67,51 +70,19 @@ func pkgAssetPath(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 		// filepath.IsAbs would say false.
 		return fsMakeErr(fmt.Sprintf("invalid relative path: %q must be relative to assets/", relPath)), nil
 	}
-	clean := filepath.Clean(relPath)
+	clean := filepath.Clean(filepath.FromSlash(strings.ReplaceAll(relPath, `\`, "/")))
 	if strings.HasPrefix(clean, "..") || strings.Contains(clean, "../") {
 		return fsMakeErr(fmt.Sprintf("invalid relative path: %q must not escape assets/", relPath)), nil
 	}
 
-	var target PkgAssetTarget
-	locked := false
-	if ctx != nil {
-		target, locked = ctx.PkgAssets[pkgName]
+	base, label, errVal, err := resolvePkgAssetBase(ctx, pkgName, parts)
+	if err != nil || errVal != nil {
+		return errVal, err
 	}
-	if locked {
-		info, err := os.Stat(target.Dir)
-		if target.Dir == "" || err != nil || !info.IsDir() {
-			return fsMakeErr(fmt.Sprintf("package not installed: %s@%s (locked by ailang.lock); run 'ailang install %s@%s'", pkgName, target.Version, pkgName, target.Version)), nil
-		}
-	} else {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return nil, fmt.Errorf("pkgAssetPath: cannot resolve user home dir: %w", err)
-		}
-		pkgDir := filepath.Join(home, ".ailang", "cache", "registry", parts[0], parts[1])
-		versions, err := listInstalledVersions(pkgDir)
-		if err != nil {
-			return fsMakeErr(fmt.Sprintf("cannot list installed versions: %s: %v", pkgName, err)), nil
-		}
-		if len(versions) == 0 {
-			return fsMakeErr(fmt.Sprintf("package not installed: %s", pkgName)), nil
-		}
-		valid := versions[:0]
-		for _, v := range versions {
-			if _, err := assetVersion(v); err == nil {
-				valid = append(valid, v)
-			}
-		}
-		if len(valid) == 0 {
-			return fsMakeErr(fmt.Sprintf("no valid installed versions: %s", pkgName)), nil
-		}
-		sort.Slice(valid, func(i, j int) bool { return compareAssetVersions(valid[i], valid[j]) < 0 })
-		target.Version = valid[len(valid)-1]
-		target.Dir = filepath.Join(pkgDir, target.Version)
-	}
-	chosen := target.Version
-	full := filepath.Join(target.Dir, AssetsDir, clean)
+
+	full := filepath.Join(base, AssetsDir, clean)
 	if info, err := os.Stat(full); err != nil || info.IsDir() {
-		return fsMakeErr(fmt.Sprintf("asset not found: %s in %s@%s", relPath, pkgName, chosen)), nil
+		return fsMakeErr(fmt.Sprintf("asset not found: %s in %s@%s", relPath, pkgName, label)), nil
 	}
 	return fsMakeOk(&eval.StringValue{Value: full}), nil
 }
@@ -120,7 +91,50 @@ func pkgAssetPath(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 // not depend on the package loader). Keep in sync with pkg.AssetsDir.
 const AssetsDir = "assets"
 
-// listInstalledVersions returns subdirectory names under pkgDir, sorted ascending.
+// resolvePkgAssetBase picks the package directory whose assets/ to read, and a
+// label for messages. The lock wins: two machines with different versions
+// cached must read the same data (A1). Without a lock it falls back to the
+// highest installed version by semver, not by string (0.10.0 > 0.9.0).
+func resolvePkgAssetBase(ctx *EffContext, pkgName string, parts []string) (string, string, eval.Value, error) {
+	if target, ok := ctx.lockedPkgAsset(pkgName); ok {
+		label := target.Version
+		installName := pkgName
+		if label != "" {
+			installName += "@" + label
+		} else {
+			label = "locked"
+		}
+		info, err := os.Stat(target.Dir)
+		if target.Dir == "" || err != nil || !info.IsDir() {
+			return "", "", fsMakeErr(fmt.Sprintf("package not installed: %s (locked by ailang.lock); run 'ailang install %s'", installName, installName)), nil
+		}
+		return target.Dir, label, nil, nil
+	}
+	root := config.PackageRoot()
+	if root == "" {
+		home, err := os.UserHomeDir()
+		if err != nil {
+			return "", "", nil, fmt.Errorf("pkgAssetPath: cannot resolve user home dir: %w", err)
+		}
+		root = filepath.Join(home, ".ailang", "cache", "registry")
+	}
+	pkgDir := filepath.Join(root, parts[0], parts[1])
+	versions, err := listInstalledVersions(pkgDir)
+	if err != nil {
+		return "", "", fsMakeErr(fmt.Sprintf("cannot list installed versions: %s: %v", pkgName, err)), nil
+	}
+	if len(versions) == 0 {
+		return "", "", fsMakeErr(fmt.Sprintf("package not installed: %s", pkgName)), nil
+	}
+	chosen := versions[len(versions)-1]
+	if _, valid := parseSemverParts(chosen); !valid {
+		return "", "", fsMakeErr(fmt.Sprintf("no valid installed versions: %s", pkgName)), nil
+	}
+	return filepath.Join(pkgDir, chosen), chosen, nil, nil
+}
+
+// listInstalledVersions returns subdirectory names under pkgDir, sorted by
+// semver ascending (non-semver names sort first, by string).
 // Returns an empty slice (not an error) if pkgDir does not exist.
 func listInstalledVersions(pkgDir string) ([]string, error) {
 	entries, err := os.ReadDir(pkgDir)
@@ -136,11 +150,74 @@ func listInstalledVersions(pkgDir string) ([]string, error) {
 			out = append(out, e.Name())
 		}
 	}
-	sort.Strings(out)
+	sort.Slice(out, func(i, j int) bool { return semverLess(out[i], out[j]) })
 	return out, nil
 }
 
-// validAssetPackagePart keeps package names inside the cache namespace.
+// semverLess orders MAJOR.MINOR.PATCH numerically; a pre-release sorts before
+// its release, and names that do not parse sort before any that do.
+func semverLess(a, b string) bool {
+	av, aok := parseSemverParts(a)
+	bv, bok := parseSemverParts(b)
+	if aok != bok {
+		return !aok
+	}
+	if !aok {
+		return a < b
+	}
+	for i := 0; i < 3; i++ {
+		if av.nums[i] != bv.nums[i] {
+			return av.nums[i] < bv.nums[i]
+		}
+	}
+	if (av.pre == "") != (bv.pre == "") {
+		return av.pre != ""
+	}
+	return av.pre < bv.pre
+}
+
+type semverParts struct {
+	nums [3]int
+	pre  string
+}
+
+func parseSemverParts(v string) (semverParts, bool) {
+	var p semverParts
+	v = strings.TrimPrefix(v, "v")
+	if i := strings.IndexAny(v, "-+"); i >= 0 {
+		if v[i] == '-' {
+			p.pre = v[i+1:]
+		}
+		v = v[:i]
+	}
+	fields := strings.Split(v, ".")
+	if len(fields) != 3 {
+		return p, false
+	}
+	for i, f := range fields {
+		n, err := strconv.Atoi(f)
+		if err != nil || n < 0 {
+			return p, false
+		}
+		p.nums[i] = n
+	}
+	return p, true
+}
+
+// lockedPkgAsset is nil-safe. Versioned snapshots take precedence; PkgDirs
+// remains supported for existing embedders that supply directory-only targets.
+func (ctx *EffContext) lockedPkgAsset(pkgName string) (PkgAssetTarget, bool) {
+	if ctx == nil {
+		return PkgAssetTarget{}, false
+	}
+	if target, ok := ctx.PkgAssets[pkgName]; ok {
+		return target, true
+	}
+	dir, ok := ctx.PkgDirs[pkgName]
+	return PkgAssetTarget{Dir: dir}, ok
+}
+
+// validAssetPackagePart keeps package identities inside the cache namespace.
 func validAssetPackagePart(part string) bool {
 	return part != "" && part != "." && part != ".." && !strings.ContainsAny(part, `\:`)
 }

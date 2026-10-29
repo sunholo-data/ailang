@@ -68,14 +68,22 @@ type RunMetrics struct {
 	// time-to-first-token, only measurable on streaming transports (ollama);
 	// 0/absent means UNMEASURED, not instant. OpenRouter's server-side TTFT
 	// lives in the broadcast observatory instead.
-	LLMWallMs      int64     `json:"llm_wall_ms,omitempty"`
-	TTFTMs         int64     `json:"ttft_ms,omitempty"`
-	ErrorCategory  string    `json:"error_category"` // compile_error | runtime_error | logic_error | none
-	Stdout         string    `json:"stdout,omitempty"`
-	Stderr         string    `json:"stderr,omitempty"`
-	ExpectedStdout string    `json:"expected_stdout,omitempty"`
-	Timestamp      time.Time `json:"timestamp"`
-	Code           string    `json:"code,omitempty"` // Generated code (optional, for debugging)
+	LLMWallMs     int64  `json:"llm_wall_ms,omitempty"`
+	TTFTMs        int64  `json:"ttft_ms,omitempty"`
+	ErrorCategory string `json:"error_category"` // compile_error | runtime_error | logic_error | none
+
+	// M-EVAL-HIDDEN-TESTS: held-out test outcome, banked only for benchmarks that
+	// declare hidden_tests_dir (absent = the benchmark has none). hidden_passed is
+	// the passing prefix in input-size order, 0 when the visible test failed;
+	// hidden_first_fail is "<test>:wrong_output|timeout|runtime_error".
+	HiddenTotal     int       `json:"hidden_total,omitempty"`
+	HiddenPassed    int       `json:"hidden_passed,omitempty"`
+	HiddenFirstFail string    `json:"hidden_first_fail,omitempty"`
+	Stdout          string    `json:"stdout,omitempty"`
+	Stderr          string    `json:"stderr,omitempty"`
+	ExpectedStdout  string    `json:"expected_stdout,omitempty"`
+	Timestamp       time.Time `json:"timestamp"`
+	Code            string    `json:"code,omitempty"` // Generated code (optional, for debugging)
 
 	// ResolvedProfile / ResolvedExtensions record what the SUBJECT reports it
 	// actually loaded, from its own step-0 broadcast — not what we asked for.
@@ -560,4 +568,9 @@ func (m *RunMetrics) FreshTokens() (tokens int, ok bool) {
 		return 0, false
 	}
 	return fresh + m.OutputTokens + m.ReasonTokens, true
+}
+
+// SetHidden copies a hidden-test verdict onto the row (M-EVAL-HIDDEN-TESTS).
+func (m *RunMetrics) SetHidden(h HiddenResult) {
+	m.HiddenTotal, m.HiddenPassed, m.HiddenFirstFail = h.Total, h.Passed, h.FirstFail
 }

@@ -29,7 +29,7 @@ func getErr() -> Result[int] = Err("something went wrong")
 func divide(a: int, b: int) -> Result[int] = if b == 0 then Err("division by zero") else Ok(a / b)
 
 -- Main function demonstrating Result usage
-func main() -> unit ! {IO} =
+export func main() -> unit ! {IO} =
   let _ = println("Testing polymorphic ADT Result type:") in
   let _ = println("") in
   let ok_result = getOk() in

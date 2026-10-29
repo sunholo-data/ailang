@@ -1652,15 +1652,14 @@ models:
     max_output_tokens: 32768
     model_family: "gemini-4"
     pricing:
-      # ⚠️  INTRODUCTORY PRICING — EXPIRES 2026-11-30; rates DOUBLE on 2026-12-01.
-      input_per_1k: 0.002          # $2.00 per 1M through 2026-11-30 → $4.00 from 2026-12-01
-      output_per_1k: 0.01          # $10.00 per 1M (incl. thinking) → $20.00 from 2026-12-01
-      cache_read_per_1k: 0.0001    # $0.10 per 1M (implicit caching only) → $0.20
-      expires: "2026-11-30"        # enforced by TestModels_PricingScheduleIsHonoured
-      next:
-        input_per_1k: 0.004
-        output_per_1k: 0.02
-        cache_read_per_1k: 0.0002
+      # BILLED rates, not the docs' "introductory $2/$10 through 2026-11-30", which
+      # has never been billed: every Argon SKU line in the billing export since
+      # 2026-10-13 (ailang-dev, ailang-multivac, sunholo-daneel, ailang-gemini-agents;
+      # Vertex and Developer API alike) is exactly $4.00 / $20.00 / $0.20 per 1M
+      # (queried 2026-10-26). The intro schedule halved every Argon cost we banked.
+      input_per_1k: 0.004          # $4.00 per 1M
+      output_per_1k: 0.02          # $20.00 per 1M (incl. thinking)
+      cache_read_per_1k: 0.0002    # $0.20 per 1M (implicit caching only)
     notes: |
       GA 2026-10-13 (previously restricted to the Fairwind cyber-defender program).
       1,048,576-token context window shared by input, thinking and output.
@@ -1670,8 +1669,8 @@ models:
       November 30, 2026 ... $4.00 starting December 1, 2026"; output incl. thinking
       $10.00 → $20.00; cached input $0.10 → $0.20, "Implicit caching only (explicit
       caching is not supported)". Batch/Flex are half; Priority is 1.8x.
-      vs gemini-3-1-pro ($2/$12, $4/$18 >200k): cheaper output during the intro
-      window, 1.67x the output price after it.
+      The intro rates were NEVER billed (see pricing above): vs gemini-3-1-pro
+      ($2/$12, $4/$18 >200k), Argon is 1.67x the output price today.
 
       ⚠️  THINKING — ADAPTIVE, default level MEDIUM (LOW/MEDIUM/HIGH). The docs say
       thinking_budget and thinkingLevel=MINIMAL are rejected with HTTP 400. Our
@@ -1692,12 +1691,13 @@ models:
       49/49 PASS — smoke 23/23 plus every core and frontier benchmark, incl.
       csv_to_json_converter. ZERO thinking on all 49 (total == in + out on every
       row; Vertex's total includes thoughts) — adaptive MEDIUM chose not to think.
-      avg 31.8K in / 0.4K out per run, $0.0676/run, $3.31 total, 1m28s wall at
+      avg 31.8K in / 0.4K out per run, $0.0676/run, $3.31 total (banked at intro rates; ~2x billed), 1m28s wall at
       parallel 4. Implicit cache hits only 82K of ~1.56M input (~5%).
       Anchored ELO 2778.2 (banked) is a FLOOR — a perfect run has no upper bound,
       same as claude-opus-5-5's 29/29 → 2871.9. Not a ranking between the two.
       Still opt-in, in NO suite: promotion is a separate call.
-      Agent mode: ❌ NOT wired (no agent_cli declared).
+      Agent mode: via the gemini-agents-argon row (gemini_agents executor, pinned
+      through agent_config on the Developer API; Vertex cannot pin, 2026-10-21).
 
   # Google Gemini 3.5 Flash (released May 19, 2026 at Google I/O 2026)
   # ⚠️  EXCLUDED FROM STANDARD EVAL ROTATION (v0.22.0, 2026-05-20).
@@ -2081,6 +2081,47 @@ models:
       the CLI lanes, cheap per token because of the cache. The eval-suite dry-run
       estimated $0.45 for the whole tier (no history) — 34x low; quote ~$0.70 x N.
       Core/frontier placement not yet run. In NO suite, in NO role chain.
+
+  # Same gemini_agents executor, pinned to Gemini 4 Argon via agent_config (2026-10-21)
+  gemini-agents-argon:
+    api_name: "antigravity-preview-09-2026"
+    provider: "google"
+    default_thinking: "on"
+    description: "Gemini Developer API Managed Agents (antigravity 09-2026) pinned to gemini-4-argon — edits the local workspace via repo mount + patch export"
+    env_var: "GEMINI_AGENTS_API_KEY"  # SA-bound, generativelanguage-only key; scripts/security/setup_gemini_agents_project.sh
+    agent_cli: "gemini_agents"
+    agent_model_name: "antigravity-preview-09-2026/gemini-4-argon"
+    max_output_tokens: 65536
+    model_family: "gemini-4"
+    pricing:
+      # BILLED Argon rates (billing export, ailang-gemini-agents, 2026-10-21): SKU
+      # "gemini 4 argon text" at $4.00 / $20.00 / $0.20 per 1M — see gemini-4-argon.
+      input_per_1k: 0.004          # $4.00 per 1M
+      output_per_1k: 0.02          # $20.00 per 1M (incl. thinking)
+      cache_read_per_1k: 0.0002    # $0.20 per 1M
+    budgets:
+      max_cost_usd: 4.00
+      hard_timeout_secs: 900
+    notes: |
+      WHY: the only route that pins Argon inside a managed agent. TestLiveArgonPin
+      (2026-10-21) found:
+        Vertex: agent 09-2026 -> 404; on 05-2026, argon AND a bogus model both
+          run to completion -> Vertex ignores agent_config.model.
+        Developer API: argon accepted and echoed; bogus model -> 404 "Requested
+          entity was not found" (on 10-13 it was accepted). So the pin is now
+          validated on this surface.
+      Acceptance is not billing: the first run's SKU in the billing export is the
+      proof that Argon served it. Executor, auth and spend cap: see the
+      gemini-agents-antigravity row above.
+
+      FIRST RUN 2026-10-21 (agent, ailang, adt_option + balanced_parens): 2/2 PASS,
+      17 turns each, 94s/170s, ~$0.59 billed (banked $0.29 at the old intro rates).
+      The unpinned agent averaged ~83 turns / 280s on smoke.
+      PIN VERIFIED BY BILLING: on 2026-10-21 every pinned token billed under the
+      "gemini 4 argon text" SKUs; the only 3.8 Flash line (4,892 in) is exactly the
+      unpinned no_config probe. Billed input tokens match our parse.
+
+      GATE: full smoke tier PENDING. In NO suite, in NO role chain.
 
   gemini-3-8-flash:
     api_name: "gemini-3.8-flash"
@@ -2565,9 +2606,8 @@ models:
     motoko_profile: "cloud"                            # .motoko/config/cloud — matches the other cloud-routed motoko rows
     agent_model_name: "openrouter/z-ai/glm-5.3-flash"
     model_family: "glm-5"
-    max_output_tokens: 32000 # = pi's wire budget (2026-10-08). At 65536 GLM-Flash reasoned to the cap on hard benchmarks (gauntlet_10: 3 of 4 steps, 197k output tokens) and each runaway step cost twice pi's; the 10-02 lane A/B tied 55/69 but motoko cost $6.86 vs pi $4.20
-                              # (at 32768 its thinking phase hit OUR cap: 6 finish=length, 3 with
-                              # ZERO content). Within every provider's declared ceiling (131072+).
+    max_output_tokens: 131072  # ONE wire config for this api_name across every harness (Mark, 2026-10-16: option A). Rows sharing an api_name must agree (TestModels_SameAPINameSameWireBudget). The hosts' declared ceiling; on 10-16 motoko hit 32000 27x on the hard set (finish=length) while pi, whose installed config never carried the model, sent ~943k — every glm-flash pi-vs-motoko A/B before then compared two different requests.
+    reasoning_effort: "high"   # = what pi sent on 10-16 (pi 26/27 vs motoko-at-32k 20/27); unset left motoko at the vendor default. Reaches motoko through the OpenRouter client's per-api_name default, pi through --thinking.
     pricing:
       input_per_1k: 0.00015   # $0.15 per 1M (OpenRouter /api/v1/models, verified 2026-10-08; was $0.075)
       output_per_1k: 0.0005   # $0.50 per 1M (same source; was $0.25)
@@ -2596,7 +2636,8 @@ models:
     motoko_profile: "ailang_only"                      # .motoko/config/ailang_only — ailang_policy first, strict, hybrid off
     agent_model_name: "openrouter/z-ai/glm-5.3-flash"
     model_family: "glm-5"
-    max_output_tokens: 32000 # = pi's wire budget (2026-10-08). At 65536 GLM-Flash reasoned to the cap on hard benchmarks (gauntlet_10: 3 of 4 steps, 197k output tokens) and each runaway step cost twice pi's; the 10-02 lane A/B tied 55/69 but motoko cost $6.86 vs pi $4.20
+    max_output_tokens: 131072  # ONE wire config for this api_name across every harness (Mark, 2026-10-16: option A). Rows sharing an api_name must agree (TestModels_SameAPINameSameWireBudget). The hosts' declared ceiling; on 10-16 motoko hit 32000 27x on the hard set (finish=length) while pi, whose installed config never carried the model, sent ~943k — every glm-flash pi-vs-motoko A/B before then compared two different requests.
+    reasoning_effort: "high"   # = what pi sent on 10-16 (pi 26/27 vs motoko-at-32k 20/27); unset left motoko at the vendor default. Reaches motoko through the OpenRouter client's per-api_name default, pi through --thinking.
     pricing:
       input_per_1k: 0.00015   # $0.15 per 1M (OpenRouter /api/v1/models, verified 2026-10-08; was $0.075)
       output_per_1k: 0.0005   # $0.50 per 1M (same source; was $0.25)
@@ -2621,7 +2662,8 @@ models:
     agent_cli: "pi"
     agent_model_name: "openrouter/z-ai/glm-5.3-flash"
     model_family: "glm-5"
-    max_output_tokens: 32000  # pi's wire budget (tools/pi-extensions/models.mission.json maxTokens); the motoko arm declares 65536 — a known A/B asymmetry, check finish_reason=length on pi rows
+    max_output_tokens: 131072  # ONE wire config for this api_name across every harness (Mark, 2026-10-16: option A). Rows sharing an api_name must agree (TestModels_SameAPINameSameWireBudget). The hosts' declared ceiling; on 10-16 motoko hit 32000 27x on the hard set (finish=length) while pi, whose installed config never carried the model, sent ~943k — every glm-flash pi-vs-motoko A/B before then compared two different requests.
+    reasoning_effort: "high"   # = what pi sent on 10-16 (pi 26/27 vs motoko-at-32k 20/27); unset left motoko at the vendor default. Reaches motoko through the OpenRouter client's per-api_name default, pi through --thinking.
     pricing:
       input_per_1k: 0.00015   # $0.15 per 1M (OpenRouter /api/v1/models, verified 2026-10-08; was $0.075)
       output_per_1k: 0.0005   # $0.50 per 1M (same source; was $0.25)
@@ -2917,7 +2959,8 @@ models:
     agent_cli: "opencode"
     agent_model_name: "openrouter/z-ai/glm-5.3-flash"
     model_family: "glm-5"
-    max_output_tokens: 65536  # always-thinking model — headroom, per the GLM-5.2 truncation lesson
+    max_output_tokens: 131072  # ONE wire config for this api_name across every harness (Mark, 2026-10-16: option A). Rows sharing an api_name must agree (TestModels_SameAPINameSameWireBudget). The hosts' declared ceiling; on 10-16 motoko hit 32000 27x on the hard set (finish=length) while pi, whose installed config never carried the model, sent ~943k — every glm-flash pi-vs-motoko A/B before then compared two different requests.
+    reasoning_effort: "high"   # = what pi sent on 10-16 (pi 26/27 vs motoko-at-32k 20/27); unset left motoko at the vendor default. Reaches motoko through the OpenRouter client's per-api_name default, pi through --thinking.
     pricing:
       input_per_1k: 0.00015   # $0.15 per 1M (OpenRouter /api/v1/models, verified 2026-10-08; was $0.075)
       output_per_1k: 0.0005   # $0.50 per 1M (same source; was $0.25)
@@ -4331,10 +4374,10 @@ models:
     model_family: "deepseek-v4-flash"
     max_output_tokens: 32000  # PI_WIRE_CLAMP — pi sends min(declared, 32000) on every provider
     pricing:
-      # PROVISIONAL, imputed from the OpenRouter twin (or-deepseek-v4-1-flash). Ollama Cloud
-      # is flat-rate; not 0/0, which maps to the false `free-local` provenance.
-      input_per_1k: 0.0003
-      output_per_1k: 0.0012
+      # PROVISIONAL, imputed from the OpenRouter twin (or-deepseek-v4-1-flash; re-imputed
+      # 2026-10-19). Ollama Cloud is flat-rate; not 0/0, which maps to the false `free-local` provenance.
+      input_per_1k: 0.0000328
+      output_per_1k: 0.00008
     budgets:
       max_cost_usd: 1.00
       hard_timeout_secs: 3600
@@ -4357,14 +4400,42 @@ models:
     model_family: "deepseek-v4"
     max_output_tokens: 32000  # PI_WIRE_CLAMP
     pricing:
-      input_per_1k: 0.0003    # $0.30 per 1M (OpenRouter API, read 2026-09-25) — must match or-deepseek-v4-1-flash
-      output_per_1k: 0.0012   # $1.20 per 1M
+      input_per_1k: 0.0000328   # $0.0328 per 1M (OpenRouter API, read 2026-10-19) — must match or-deepseek-v4-1-flash
+      output_per_1k: 0.00008    # $0.08 per 1M
+      cache_read_per_1k: 0.0000016  # $0.0016 per 1M
     budgets:
       max_cost_usd: 0.50
       hard_timeout_secs: 3600
     notes: |
       Replaces pi-or-deepseek-v4-flash (0731) in MISSION_EXECUTOR_FALLBACK; gate record on
       pi-cloud-deepseek-v4-1-flash.
+
+  pi-or-deepseek-v4-1-flash-1017:
+    api_name: "deepseek/deepseek-v4.1-flash-1017"
+    provider: "openrouter"
+    default_thinking: "on"  # VERIFIED 2026-10-19 on or-deepseek-v4-1-flash-1017 (same slug)
+    description: "DeepSeek V4.1 Flash 1017 snapshot via pi on OpenRouter — agent-mode placement vs the 0910 executor lane"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "openrouter/deepseek/deepseek-v4.1-flash-1017"  # BARE, like pi-or-deepseek-v4-1-flash
+    model_family: "deepseek-v4"
+    max_output_tokens: 65536  # = or-deepseek-v4-1-flash-1017 (one model, one wire budget; pi 0.85.1 no longer clamps to 32000)
+    pricing:
+      input_per_1k: 0.00015      # must match or-deepseek-v4-1-flash-1017
+      output_per_1k: 0.0006
+      cache_read_per_1k: 0.000003
+    budgets:
+      max_cost_usd: 0.50
+      hard_timeout_secs: 3600
+    notes: |
+      Registered 2026-10-19 for an agent-mode comparison against pi-or-deepseek-v4-1-flash
+      (0910, the live MISSION_EXECUTOR_FALLBACK OpenRouter rung) and pi-or-deepseek-v4-flash
+      (0731). Standard-mode verdict on or-deepseek-v4-1-flash-1017.
+
+      AGENT 2026-10-19, contract_rle_roundtrip x3 (standard: 1017 0/3, 0731 1/3):
+        1017 3/3, ~8.3 turns, billed $0.016 (Relace) | 0910 3/3, ~17 turns, billed $0.045
+        (InferenceNet) | 0731 0/3 — NOT capability: twice pi replied "What would you like me
+        to work on?" (task lost), once signal: killed. ONE benchmark; not yet a lane verdict.
 
   pi-cloud-deepseek-v4-flash:
     api_name: "deepseek-v4-flash:0731-cloud"           # tagged model -> `-cloud` on the TAG
@@ -4632,8 +4703,11 @@ models:
     model_family: "deepseek-v4"
     max_output_tokens: 65536  # same headroom as 0731 (reasoning-stall class); provider ceiling 393216
     pricing:
-      input_per_1k: 0.0003    # $0.30 per 1M (OpenRouter API, read 2026-09-25)
-      output_per_1k: 0.0012   # $1.20 per 1M (OpenRouter API, read 2026-09-25)
+      input_per_1k: 0.0000328   # $0.0328 per 1M (OpenRouter API, read 2026-10-19; was $0.30 on 09-25)
+      output_per_1k: 0.00008    # $0.08 per 1M (OpenRouter API, read 2026-10-19; was $1.20 on 09-25)
+      cache_read_per_1k: 0.0000016  # $0.0016 per 1M (OpenRouter API, read 2026-10-19)
+      # Cross-check 2026-10-19: an agent run billed $0.045 on InferenceNet where the old
+      # $0.30/$1.20 rates banked $0.73 for the same tokens.
     budgets:
       max_cost_usd: 0.30
       hard_timeout_secs: 600
@@ -4644,6 +4718,47 @@ models:
       family deepseek_v41). ~4x 0731's registered input rate and ~7x its output rate on
       OpenRouter; the Ollama route is flat-rate. Lanes move only after this row passes
       the smoke gate.
+
+  or-deepseek-v4-1-flash-1017:
+    api_name: "deepseek/deepseek-v4.1-flash-1017"
+    provider: "openrouter"
+    default_thinking: "on"  # VERIFIED 2026-10-19: bare probe returned reasoning_tokens=173 of 338 completion
+    description: "DeepSeek V4.1 Flash 1017 snapshot (2026-10-17) via OpenRouter (standard)"
+    env_var: "OPENROUTER_API_KEY"
+    model_family: "deepseek-v4"
+    max_output_tokens: 65536  # fleet thinking-model headroom; first-party DeepSeek endpoint declares 393216
+    pricing:
+      input_per_1k: 0.00015      # $0.15 per 1M (OpenRouter API, read 2026-10-19)
+      output_per_1k: 0.0006      # $0.60 per 1M (OpenRouter API, read 2026-10-19)
+      cache_read_per_1k: 0.000003  # $0.003 per 1M (OpenRouter API, read 2026-10-19)
+    budgets:
+      max_cost_usd: 0.30
+      hard_timeout_secs: 600
+    notes: |
+      Registered 2026-10-19 (Mark, attended). A distinct dated snapshot
+      (canonical deepseek/deepseek-v4.1-flash-20261017), NOT what the unpinned
+      deepseek/deepseek-v4.1-flash slug resolves to (that is still 20260910), so it
+      gets its own row rather than repointing or-deepseek-v4-1-flash.
+      Also on Ollama Cloud as deepseek-v4.1-flash:1017.
+
+      PLACEMENT 2026-10-19 (standard, co-run with or-deepseek-v4-flash 0731 because
+      0731's banked rating predated the anchor):
+        smoke+frontier, N=1:  1017 25/26 ELO 2225 | 0731 25/26 ELO 2228 — saturated, no signal
+        long-frontier+stretch+frontier, 31 benchmarks x N=3:
+                              1017 80/93 ELO 2042 $0.87 | 0731 84/93 ELO 2128 $0.55
+      ($ = BANKED list price. OpenRouter BILLED per call: 1017 $0.0077 on Together vs 0731
+      $0.0082 on Wafer, 94% cached input both — real cost is a TIE.)
+      Verdict: does NOT replace 0731 in standard mode — lower on the hard set at equal cost. 0 finish=length
+      failures either side (1017 thinks ~3x less: 6.7k vs 20.4k avg reasoning tokens).
+      1017 loses on the contract_* family (matrix_determinant 1/3, sorted_merge 1/3,
+      rle_roundtrip 0/3) and wins commonmark_emphasis, glob_match_spec, legal_obligation_engine.
+      HOBBLING CHECK (2026-10-19, the GLM-5.2 lesson): no reasoning param is sent (not in
+      reasoningCapabilities), sort=throughput routed 1017→Together, 0731→Wafer (nvfp4). Replayed
+      the contract_matrix_determinant prompt 14x: Together vs DeepSeek first-party x
+      default/high/xhigh effort — reasoning tokens 0.5k-4.7k in every arm (effort does not move
+      it; 0731 on Wafer 4.6k-10.6k), and 1017 failed 7/8 non-xhigh + 1/2 xhigh the SAME way:
+      declares the contract's `-> bool` proof functions as `-> int` and prints the determinant.
+      0731 passed 2/2. Spec-following, not host, effort or budget.
 
   or-deepseek-v4-pro:
     api_name: "deepseek/deepseek-v4-pro-0813"
@@ -5408,10 +5523,8 @@ models:
                                    # finish=stop (provider GMICloud).
     description: "GLM-5.3-Flash via OpenRouter (standard mode) — z.ai 320B-A18B MIT release 2026-08-26 (previewed as Ox Alpha), natively multimodal, 1M ctx. Smoke + core PASSED 2026-08-27 (core ties or-glm-5-2 after N=3 de-flake, at ~1/13 cost); suite promotion awaits ratification."
     env_var: "OPENROUTER_API_KEY"
-    max_output_tokens: 65536  # always-thinking model — headroom, per the GLM-5.2 truncation
-                              # lesson. Declared ceilings 2026-08-27 (/endpoints): Z.AI
-                              # first-party max_completion=131072, others 131072–1179648.
-                              # 65536 is the fleet target, within every provider's ceiling.
+    max_output_tokens: 131072  # ONE wire config for this api_name across every harness (Mark, 2026-10-16: option A). Rows sharing an api_name must agree (TestModels_SameAPINameSameWireBudget). The hosts' declared ceiling; on 10-16 motoko hit 32000 27x on the hard set (finish=length) while pi, whose installed config never carried the model, sent ~943k — every glm-flash pi-vs-motoko A/B before then compared two different requests.
+    reasoning_effort: "high"   # = what pi sent on 10-16 (pi 26/27 vs motoko-at-32k 20/27); unset left motoko at the vendor default. Reaches motoko through the OpenRouter client's per-api_name default, pi through --thinking.
     model_family: "glm-5"
     # OpenRouter routing for every AILANG caller of this api_name (motoko, std/ai).
     # VALUE = pi's effective pool, so motoko and pi compare on equal hosts: pi sends
@@ -5426,8 +5539,24 @@ models:
     # Experiments: AILANG_OPENROUTER_PROVIDER='{"sort":"throughput"}' layers on
     # top (measured host speeds 2026-10-13: crusoe 1.2 s/115 tok/s, parasail 1.7 s,
     # together 2.4 s, friendli 2.7 s; open-inference 25.7 s/10 tok/s; morph 5 tok/s).
+    # open-inference and morph are OUT (2026-10-16): they are the two cheapest of
+    # the 13, so price weighting inside `only` sent motoko 62 of 72 calls to
+    # open-inference (16.4 s median) and 10 to morph, while pi — in the same A/B,
+    # same prompts — reached neither in 100 calls (Together, CoreWeave, Decart,
+    # Parasail; 2.0 s median). Per call the two harnesses produced the same
+    # ~155 output tokens; motoko's 9-minute median run against pi's 30 s was the
+    # host, not the harness (OpenRouter Broadcast spans, glm-5.3-flash A/B).
+    # Excluding them only moved the price weighting to near-ai (12-20 tok/s,
+    # ~700 s for an 8k-token reasoning call vs ~38 s on coreweave), so every
+    # OpenRouter request now defaults to provider.sort "throughput"
+    # (internal/ai/openrouter/routing.go). This list still applies on top.
+    # pi never received any of this until 2026-10-16: it calls OpenRouter with its
+    # own client, so it sent no provider block at all. It now gets the same block
+    # (plus sort "throughput") as compat.openRouterRouting in
+    # tools/pi-extensions/models.mission.json, held equal by
+    # TestPiModelsConfigMatchesRegistry.
     openrouter_provider:
-      only: ["open-inference", "morph", "inceptron", "gmicloud", "decart", "near-ai", "modal", "crusoe", "coreweave", "fireworks", "friendli", "together", "parasail"]
+      only: ["inceptron", "gmicloud", "decart", "near-ai", "modal", "crusoe", "coreweave", "fireworks", "friendli", "together", "parasail"]
     pricing:
       input_per_1k: 0.00015   # $0.15 per 1M (OpenRouter /api/v1/models, verified 2026-10-08; was $0.075)
       output_per_1k: 0.0005   # $0.50 per 1M (same source; was $0.25)

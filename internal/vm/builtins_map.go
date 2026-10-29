@@ -37,7 +37,11 @@ func builtinMapLookup(args []bytecode.Value) (bytecode.Value, error) {
 	if err != nil {
 		return bytecode.Value{}, err
 	}
-	if v, ok := m.Lookup(args[1]); ok {
+	v, ok, err := m.Lookup(args[1])
+	if err != nil {
+		return bytecode.Value{}, fmt.Errorf("map_lookup: %w", err)
+	}
+	if ok {
 		return bytecode.NewADT(0, "Some", []bytecode.Value{v}), nil
 	}
 	return bytecode.NewADT(1, "None", nil), nil
@@ -51,7 +55,10 @@ func builtinMapMember(args []bytecode.Value) (bytecode.Value, error) {
 	if err != nil {
 		return bytecode.Value{}, err
 	}
-	_, ok := m.Lookup(args[1])
+	_, ok, err := m.Lookup(args[1])
+	if err != nil {
+		return bytecode.Value{}, fmt.Errorf("map_member: %w", err)
+	}
 	return bytecode.NewBool(ok), nil
 }
 
@@ -63,7 +70,11 @@ func builtinMapRemove(args []bytecode.Value) (bytecode.Value, error) {
 	if err != nil {
 		return bytecode.Value{}, err
 	}
-	return m.Remove(args[1]), nil
+	v, err := m.Remove(args[1])
+	if err != nil {
+		return bytecode.Value{}, fmt.Errorf("map_remove: %w", err)
+	}
+	return v, nil
 }
 
 func builtinMapSize(args []bytecode.Value) (bytecode.Value, error) {

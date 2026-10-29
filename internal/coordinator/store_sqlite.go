@@ -25,6 +25,10 @@ type SQLiteStore struct {
 
 // NewSQLiteStore creates a new SQLite store
 func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
+	return newSQLiteStoreWithOptions(dbPath, coordinatorDBOptions)
+}
+
+func newSQLiteStoreWithOptions(dbPath string, options sqliteopen.Options) (*SQLiteStore, error) {
 	if dbPath == "" {
 		p, err := statedir.Path("coordinator.db")
 		if err != nil {
@@ -40,7 +44,7 @@ func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 	// that violate them exist (approvals are filed for task ids the store
 	// does not hold — TestStoreBackedApprovalCheckpoint does exactly that).
 	// Turning enforcement on is a data migration, not an opener setting.
-	db, err := sqliteopen.Open(dbPath, coordinatorDBOptions)
+	db, err := sqliteopen.Open(dbPath, options)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}
@@ -188,6 +192,8 @@ func (s *SQLiteStore) migrate() error {
 		// template.
 		"ALTER TABLE tasks ADD COLUMN kind TEXT",
 		"ALTER TABLE tasks ADD COLUMN source TEXT",
+		// M-AILANG-LANE-EXECUTOR-SHADOW M1: the primary a shadow child mirrors.
+		"ALTER TABLE tasks ADD COLUMN shadow_of TEXT",
 		// Handoff tracking - to detect missed handoffs on daemon startup
 		"ALTER TABLE approval_requests ADD COLUMN handoffs_triggered INTEGER DEFAULT 0",
 		// M-TASK-STATUS-TRUTH D3: why handoffs_triggered was set without firing.
@@ -229,6 +235,9 @@ func (s *SQLiteStore) migrate() error {
 	if err := s.migrateMissionWorkItems(); err != nil {
 		return err
 	}
+	if err := s.migrateShadowComparisons(); err != nil {
+		return err
+	}
 	return s.migrateData(time.Now())
 }
 
@@ -259,18 +268,18 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 	}
 
 	query := `
-		INSERT INTO tasks (id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, workspace,
+		INSERT INTO tasks (id, message_id, thread_id, parent_task_id, title, content, type, kind, source, shadow_of, priority, status, workspace,
 		                   agent_id, capabilities_json, impact_level, estimated_cost, github_issue, github_repo,
 		                   chain_id, stage_id, created_at,
 		                   root_package, root_change_class, from_version, to_version,
 		                   from_interface_hash, to_interface_hash, from_content_hash, to_content_hash,
 		                   effects_widened, prev_effect_ceiling, new_effect_ceiling, inputs)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
 		        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	_, err = s.db.ExecContext(ctx, query,
 		task.ID, task.MessageID, task.ThreadID, task.ParentTaskID, task.Title, task.Content,
-		task.Type, task.Kind, task.Source, task.Priority, task.Status, task.Workspace,
+		task.Type, task.Kind, task.Source, task.ShadowOf, task.Priority, task.Status, task.Workspace,
 		task.AgentID, string(capsJSON), task.ImpactLevel, task.EstimatedCost,
 		task.GithubIssue, task.GithubRepo,
 		task.ChainID, task.StageID, task.CreatedAt,
@@ -284,7 +293,7 @@ func (s *SQLiteStore) CreateTask(ctx context.Context, task *TaskRecord) error {
 // GetTask retrieves a task by ID
 func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, error) {
 	query := `
-		SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, provider, agent_id,
+		SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, shadow_of, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration, chain_id, stage_id,
 		       created_at, started_at, completed_at, queued_at, duration_ns,
@@ -345,7 +354,7 @@ func (s *SQLiteStore) DeleteTask(ctx context.Context, id string) error {
 func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*TaskRecord, error) {
 	query := strings.Builder{}
 	query.WriteString(`
-		SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, provider, agent_id,
+		SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, shadow_of, priority, status, provider, agent_id,
 		       worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		       session_id, iteration, chain_id, stage_id,
 		       created_at, started_at, completed_at, queued_at, duration_ns,
@@ -615,7 +624,7 @@ func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64,
 	// so the cloud coordinator suppressed against cancelled tasks and this one
 	// did not.
 	rows, err := s.db.QueryContext(ctx,
-		`SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, priority, status, provider, agent_id,
+		`SELECT id, message_id, thread_id, parent_task_id, title, content, type, kind, source, shadow_of, priority, status, provider, agent_id,
 		        worktree_id, worktree_path, base_branch, base_commit, workspace, github_issue, github_repo, stage, design_doc_path, sprint_plan_path,
 		        session_id, iteration, chain_id, stage_id,
 		        created_at, started_at, completed_at, queued_at, duration_ns,

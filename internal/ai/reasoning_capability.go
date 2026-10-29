@@ -3,8 +3,8 @@ package ai
 // M-AI-REASONING-EFFORT capability table.
 //
 // This table records the (provider, model) -> supported reasoning-effort set
-// that has been LIVE-VERIFIED. It starts EMPTY on purpose: every model in the
-// design's Verification Log is NEEDS-LIVE-SMOKE, and per the no-silent-fallback
+// that has been LIVE-VERIFIED. It started EMPTY on purpose: every model in the
+// design's Verification Log was NEEDS-LIVE-SMOKE, and per the no-silent-fallback
 // axiom an unregistered/unknown model + an explicit reasoning control MUST be
 // rejected (fail-loud), never optimistically passed through on the guess that
 // the server might ignore the field.
@@ -22,8 +22,19 @@ package ai
 // of effort values it honors. Empty set of efforts for a registered model would
 // mean "registered but honors nothing" (not currently used).
 //
-// INVARIANT: no entries until live-smoke verified. Keep this literal empty.
+// INVARIANT: no entry without a live verification, recorded beside it.
 var reasoningCapabilities = map[string]map[string]map[string]bool{
+	// VERIFIED LIVE 2026-10-16 (OpenRouter Broadcast, prod observatory): over
+	// 1,000 glm-5.3-flash calls carried reasoning:{"effort":"high"} across 7
+	// hosts (CoreWeave, Together, Parasail, Friendli, Modal, Crusoe, Decart);
+	// every one was accepted and returned reasoning tokens. Only "high" is
+	// registered — the one value observed. The model cannot disable reasoning
+	// ("Reasoning is mandatory for this endpoint", probed 2026-08-27), so "off"
+	// must stay unregistered. This is the registry's declared effort for the
+	// model (models.yml reasoning_effort), sent by every harness.
+	reasoningProviderOpenRouter: {
+		"z-ai/glm-5.3-flash": {ReasoningEffortHigh: true},
+	},
 	// Example shape once verified (DO NOT add without live smoke):
 	//   reasoningProviderGemini: {
 	//       "gemini-3-pro": {ReasoningEffortOff: true, ReasoningEffortLow: true, ...},

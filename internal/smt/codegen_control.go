@@ -14,7 +14,7 @@ func encodeLet(let *core.Let) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("let value: %w", err)
 	}
-	body, err := EncodeExpr(let.Body)
+	body, err := encodeLetScoped(let.Body, let.Name)
 	if err != nil {
 		return "", fmt.Errorf("let body: %w", err)
 	}
@@ -34,6 +34,11 @@ func encodeMatch(m *core.Match) (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("match scrutinee: %w", err)
 	}
+	for _, arm := range m.Arms {
+		if hasNestedConstructorPattern(arm.Pattern) {
+			return encodeNestedMatch(m, scrutinee)
+		}
+	}
 	if needsIteMatch(m) {
 		return encodeMatchAsIte(scrutinee, m.Arms)
 	}
@@ -44,7 +49,7 @@ func encodeMatch(m *core.Match) (string, error) {
 		if err != nil {
 			return "", fmt.Errorf("match pattern: %w", err)
 		}
-		body, err := EncodeExpr(arm.Body)
+		body, err := encodePatternScoped(arm.Body, arm.Pattern)
 		if err != nil {
 			return "", fmt.Errorf("match body: %w", err)
 		}
@@ -84,7 +89,7 @@ func encodeMatchAsIte(scrutinee string, arms []core.MatchArm) (string, error) {
 	for _, arm := range arms {
 		if lp, ok := arm.Pattern.(*core.LitPattern); ok && arm.Guard == nil {
 			if b, isBool := lp.Value.(bool); isBool && seenBool[!b] {
-				body, err := EncodeExpr(arm.Body)
+				body, err := encodePatternScoped(arm.Body, arm.Pattern)
 				if err != nil {
 					return "", fmt.Errorf("match body: %w", err)
 				}
@@ -98,12 +103,12 @@ func encodeMatchAsIte(scrutinee string, arms []core.MatchArm) (string, error) {
 		if err != nil {
 			return "", err
 		}
-		body, err := EncodeExpr(arm.Body)
+		body, err := encodePatternScoped(arm.Body, arm.Pattern)
 		if err != nil {
 			return "", fmt.Errorf("match body: %w", err)
 		}
 		if arm.Guard != nil {
-			guard, err := EncodeExpr(arm.Guard)
+			guard, err := encodePatternScoped(arm.Guard, arm.Pattern)
 			if err != nil {
 				return "", fmt.Errorf("match guard: %w", err)
 			}

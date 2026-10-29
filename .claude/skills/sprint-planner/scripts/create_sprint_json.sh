@@ -35,6 +35,29 @@ SPRINT_ID="$1"
 SPRINT_PLAN="$2"
 DESIGN_DOC="${3:-}"
 
+# Refuse misplaced plans before creating state, importing messages, or writing files.
+guard_plan_location() {
+    python3 - "$1" "${BASH_SOURCE[0]}" <<'PY'
+import sys
+from pathlib import Path
+
+plan = Path(sys.argv[1])
+repo = Path(sys.argv[2]).resolve().parents[4]
+triage = Path('design_docs/planned/ailang-core-triage')
+
+def inside(path, directory):
+    return path == directory or directory in path.parents
+
+# Check the given components as well as CWD-relative symlink/.. resolution.
+raw_forbidden = inside(plan, triage) or inside(plan, repo / triage)
+canonical_forbidden = inside(plan.resolve(), (repo / triage).resolve())
+if raw_forbidden or canonical_forbidden:
+    print('PLAN LOCATION: sprint plans must not be in design_docs/planned/ailang-core-triage/', file=sys.stderr)
+    sys.exit(2)
+PY
+}
+guard_plan_location "$SPRINT_PLAN"
+
 # Output file
 PROGRESS_DIR=".ailang/state/sprints"
 PROGRESS_FILE="${PROGRESS_DIR}/sprint_${SPRINT_ID}.json"
@@ -56,7 +79,6 @@ fi
 
 # Colors for output
 GREEN='\033[0;32m'
-BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 echo "═══════════════════════════════════════════════════════════════"

@@ -1,0 +1,51 @@
+{
+  "schema": "maintenance.adapter-verification/1",
+  "created": "2026-10-23T16:27:45.365843+00:00",
+  "role": "instrument_control",
+  "fullSprintComplete": false,
+  "protectedBackendAdmitted": false,
+  "inferenceCalls": 0,
+  "goGate": {
+    "command": "make test-changed",
+    "result": "pass",
+    "productionRevision": "2bfa97a41500d17da44c36d18c7245f342d2e81a",
+    "packages": [
+      "cmd/ailang",
+      "internal/eval_harness",
+      "internal/executor",
+      "internal/executor/pi"
+    ],
+    "includes": "make test-core"
+  },
+  "lint": "0 issues",
+  "nativeInstrument": {
+    "command": "make maintenance-adapter-check",
+    "result": "pass",
+    "trajectories": 8,
+    "stages": 24,
+    "successfulTrajectories": 6,
+    "knownFailedTrajectories": 2,
+    "visibleGreenRegressions": 1,
+    "syntheticLeaves": 24,
+    "uncheckedSummaries": 24,
+    "modelEconomics": "unavailable"
+  },
+  "nativeToolAndOSTests": {
+    "passed": 14,
+    "skipped": 0,
+    "includesExpectedClosedAdmission": true
+  },
+  "ciPortability": {
+    "revision": "b40527689",
+    "test": "different locally built CLI, fresh observed cohort metadata, historical evidence unchanged",
+    "result": "pass; protected4+4, retained24 and freeze regression"
+  },
+  "packageSource": "https://github.com/sunholo-data/ailang-packages/pull/162",
+  "currentContainmentRecord": "../../maintenance-containment/2026-10-23-macos-r2.json",
+  "blockedOn": [
+    "nested macOS sandbox launch",
+    "escaped descendant cleanup ownership",
+    "candidate/controller byte bounds"
+  ],
+  "followupDesign": "../../../planned/m-maintenance-eval-broker.md"
+}

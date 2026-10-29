@@ -12,6 +12,7 @@ package proctree
 
 import (
 	"os/exec"
+	"sync/atomic"
 	"time"
 )
 
@@ -45,6 +46,33 @@ func Kill(cmd *exec.Cmd) {
 // SetGroup makes the command its own process-group leader (Setpgid) without
 // installing a Cancel func. Use Configure unless the caller owns cancellation.
 func SetGroup(cmd *exec.Cmd) { setProcessGroup(cmd) }
+
+var ownerGroup atomic.Bool
+
+// StayInOwnerGroup marks this process's group as owned by a supervisor (a
+// --policy run's lifetime owner), which contains the run by killing that
+// group on timeout and when the owner dies. Only ConfigureContained reads it.
+func StayInOwnerGroup() { ownerGroup.Store(true) }
+
+// ConfigureContained is Configure for a plain program subprocess (std/process
+// exec). Normally the child leads its own group so a cancel kills its
+// descendants. Under an owned group it stays in that group instead: a child
+// with a group of its own escapes the owner's kill (bd30497a0 let a policy
+// run's sh grandchild outlive the policy timeout), and cancel kills only the
+// child, leaving its descendants to the owner.
+func ConfigureContained(cmd *exec.Cmd) {
+	if !ownerGroup.Load() {
+		Configure(cmd)
+		return
+	}
+	cmd.Cancel = func() error {
+		if cmd.Process != nil {
+			_ = KillProcess(cmd.Process.Pid)
+		}
+		return nil
+	}
+	cmd.WaitDelay = DefaultWaitDelay
+}
 
 // KillGroup SIGKILLs the whole process group led by pid (Setpgid makes
 // pgid == pid). A group that is already gone is not an error.

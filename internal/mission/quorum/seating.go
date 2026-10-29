@@ -62,6 +62,7 @@ type Selection struct {
 	Primary []string // seated first
 	Reserve []string // replace absent seats, in order
 	Benched []string // the author's vendor; recalled only if nothing else answers
+	Refused []string // disallowed mission-role models; never run or recalled
 }
 
 // SelectReviewers seats `seats` reviewers from the pool for one doc. The eligible
@@ -73,6 +74,10 @@ func SelectReviewers(pool []string, author, docKey string, seats int) Selection 
 	av := VendorOf(author)
 	var eligible []string
 	for _, m := range pool {
+		if !ModelAllowed(m) {
+			sel.Refused = append(sel.Refused, m)
+			continue
+		}
 		if av != "" && VendorOf(m) == av {
 			sel.Benched = append(sel.Benched, m)
 		} else {
@@ -124,6 +129,9 @@ func RunSeatedQuorum(docPath, docBody, isoTS string, sel Selection, seats int, m
 			o.Tier = TierAuthorVendor
 			q.Reviewers = append(q.Reviewers, o)
 		}
+	}
+	for _, m := range sel.Refused {
+		q.Reviewers = append(q.Reviewers, &ReviewerOutcome{Model: m, AbsentReason: ReasonNotAllowlisted})
 	}
 	q.Synthesis = synthesize(q.Reviewers, controller)
 	return q

@@ -162,3 +162,4 @@ design_docs/research/*.pdf
 # Build/scratch outputs at the root (M-V1-SIMPLIFY-S1 M5)
 /gen/
 /.eval_workspace/
+_namedtest_body_*.ail

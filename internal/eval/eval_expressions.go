@@ -433,16 +433,26 @@ func (e *CoreEvaluator) evalCoreLetRec(letrec *core.LetRec, tail bool) (Value, e
 		cells[binding.Name].Init = true
 	}
 
-	// Phase 2.5: Propagate bindings to parent environment
+	// Phase 2.5: Propagate bindings to parent environment, for a top-level
+	// declaration only (evalDecl marks it).
 	// This ensures module-level LetRec bindings are available to subsequent declarations.
 	// Without this, functions like 'get' that reference 'findInList' (defined in a separate
 	// LetRec) would fail because findInList isn't in the environment when get is evaluated.
 	// The closures still capture recEnv (with IndirectValue) for proper self-recursion,
 	// but the parent env also gets the values for cross-declaration references.
-	for _, binding := range letrec.Bindings {
-		cell := cells[binding.Name]
-		if cell.Init {
-			oldEnv.Set(binding.Name, cell.Val)
+	//
+	// A local `letrec` must NOT do this: the parent environment is the one
+	// closures made earlier in the same block captured, so writing into it
+	// rebinds their free names to a letrec defined after them. With a
+	// top-level `func isOdd`, a block `letrec isEven = ... isOdd(k - 1) ...;
+	// letrec isOdd = ...` made isEven call the later local isOdd, where the
+	// type checker and the bytecode VM both resolve the top-level one.
+	if letrec == e.declLetRec {
+		for _, binding := range letrec.Bindings {
+			cell := cells[binding.Name]
+			if cell.Init {
+				oldEnv.Set(binding.Name, cell.Val)
+			}
 		}
 	}
 

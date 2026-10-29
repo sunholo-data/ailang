@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/pcoll"
 )
 
 // MapEntry retains the original key alongside its canonical index.
@@ -24,17 +26,54 @@ func (v Value) AsMap() *MapObj {
 	return v.Obj.(*MapObj)
 }
 
-// MapKey matches eval.MapKey, including lexical integer iteration order.
+// MapKey returns the canonical key of v: the VM's walker over internal/pcoll's
+// key grammar, twin of eval.MapKey. The cross-engine golden test in
+// internal/vm asserts the two produce byte-identical keys, which matters
+// because maps cross the engine bridge with their canonical keys intact.
 func MapKey(v Value) (string, error) {
+	var w pcoll.KeyWriter
+	writeMapKey(&w, v)
+	return w.Key()
+}
+
+func writeMapKey(w *pcoll.KeyWriter, v Value) {
 	switch v.Tag {
 	case TagInt:
-		return fmt.Sprintf("i:%d", v.Int), nil
+		w.Int(v.Int)
 	case TagString:
-		return "s:" + v.AsString(), nil
+		w.Str(v.AsString())
 	case TagBool:
-		return fmt.Sprintf("b:%t", v.Bool), nil
+		w.Bool(v.Bool)
+	case TagFloat:
+		w.Float(v.Flt)
+	case TagUnit:
+		w.Unit()
+	case TagTuple:
+		w.BeginTuple()
+		for _, e := range v.AsTuple() {
+			writeMapKey(w, e)
+		}
+		w.End()
+	case TagRecord:
+		// RecordObj keeps fields sorted by name (NewRecord's invariant), the
+		// order the grammar requires; Field rejects any other order loudly.
+		w.BeginRecord()
+		for _, f := range v.AsRecord() {
+			w.Field(f.Name)
+			writeMapKey(w, f.Value)
+		}
+		w.End()
+	case TagADT:
+		a := v.AsADT()
+		w.BeginCtor(a.Ctor)
+		for _, f := range a.Fields {
+			writeMapKey(w, f)
+		}
+		w.End()
+	case TagClosure:
+		w.Unsupported("function")
 	default:
-		return "", fmt.Errorf("unsupported map key type: %s (only int, string, bool supported)", v.Tag)
+		w.Unsupported(strings.ToLower(v.Tag.String()))
 	}
 }
 
@@ -47,13 +86,15 @@ func (m *MapObj) SortedKeys() []string {
 	return keys
 }
 
-func (m *MapObj) Lookup(key Value) (Value, bool) {
+// Lookup returns the value for key. An unencodable key is an error, never a
+// silent miss (CLAUDE.md §2).
+func (m *MapObj) Lookup(key Value) (Value, bool, error) {
 	k, err := MapKey(key)
 	if err != nil {
-		return Value{}, false
+		return Value{}, false, err
 	}
 	entry, ok := m.Entries[k]
-	return entry.Value, ok
+	return entry.Value, ok, nil
 }
 
 func (m *MapObj) Insert(key, val Value) (Value, error) {
@@ -69,10 +110,13 @@ func (m *MapObj) Insert(key, val Value) (Value, error) {
 	return NewMap(entries), nil
 }
 
-func (m *MapObj) Remove(key Value) Value {
+func (m *MapObj) Remove(key Value) (Value, error) {
 	k, err := MapKey(key)
-	if _, ok := m.Entries[k]; err != nil || !ok {
-		return Value{Tag: TagMap, Obj: m}
+	if err != nil {
+		return Value{}, err
+	}
+	if _, ok := m.Entries[k]; !ok {
+		return Value{Tag: TagMap, Obj: m}, nil
 	}
 	entries := make(map[string]MapEntry, len(m.Entries)-1)
 	for old, v := range m.Entries {
@@ -80,7 +124,7 @@ func (m *MapObj) Remove(key Value) Value {
 			entries[old] = v
 		}
 	}
-	return NewMap(entries)
+	return NewMap(entries), nil
 }
 
 func (m *MapObj) Equal(other *MapObj, equal func(Value, Value) bool) bool {

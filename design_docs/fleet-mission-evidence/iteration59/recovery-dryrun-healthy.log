@@ -1,0 +1,7 @@
+[2026-10-23 20:42:00] quorum artifact directory: /Users/voightkampff/.ailang/state/mission-quorum-repos/sunholo-data/stapledons-godot
+[2026-10-23 20:42:00] anthropic credential: CLAUDE_CODE_OAUTH_TOKEN (the loops' own token) for inference; the quota reader reads usage with the login credential first
+[2026-10-23 20:42:00] driver pin: running committed origin/dev @ 13092528c8ae406c78054f58846b00572edceeae with mission work repository /Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter59-recovery (source clone ? was ? behind); pinned target ? behind origin/dev (baseline ?)
+[2026-10-23 20:42:00] driver pin drift: unknown (?); notice suppressed
+[2026-10-23 20:42:00] driver pin age: unknown (?); notice suppressed
+[2026-10-23 20:42:06] ration gate: blocked buckets (over ration or unknown quota):codex anthropic 
+[2026-10-23 20:42:32] DRY RUN ok: mission=stapledon repo-slug=sunholo-data/stapledons-godot doc=design_docs/stapledon-mission.md workdir=/Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter59-recovery pidfile=/Users/voightkampff/.ailang/state/mission-stapledon.pid prefs=pi:ollama/glm-5.3:cloud timeout=21600s | roles: designer=pi:ollama/glm-5.3:cloud planner=pi:ollama/kimi-k3:cloud executor=pi:ollama/deepseek-v4.1-flash:cloud evaluator=pi:ollama/minimax-m3:cloud | lanes=ok | pin=pinned(? behind) | skill-sync=current

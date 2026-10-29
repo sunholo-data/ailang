@@ -16,10 +16,11 @@ func (tc *CoreTypeChecker) inferLit(ctx *InferenceContext, lit *core.Lit) (*type
 		// This allows defaulting to kick in later
 		tv := ctx.freshType(Star)
 		ctx.addConstraint(ClassConstraint{
-			Class:  "Num",
-			Type:   tv,
-			Path:   []string{fmt.Sprintf("literal at %v", lit.Span())},
-			NodeID: lit.ID(),
+			Class:      "Num",
+			Type:       tv,
+			Path:       []string{fmt.Sprintf("literal at %v", lit.Span())},
+			NodeID:     lit.ID(),
+			IntLiteral: true,
 		})
 		typ = tv
 	case core.FloatLit:

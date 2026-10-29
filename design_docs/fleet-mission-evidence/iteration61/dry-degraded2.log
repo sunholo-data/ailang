@@ -1,0 +1,9 @@
+[2026-10-26 10:22:59] quorum artifact directory: /Users/voightkampff/.ailang/state/mission-quorum-repos/sunholo-data/stapledons-godot
+[2026-10-26 10:22:59] anthropic credential: CLAUDE_CODE_OAUTH_TOKEN (the loops' own token) for inference; the quota reader reads usage with the login credential first
+[2026-10-26 10:22:59] driver pin: running committed origin/dev @ b2c9ff5b03ffaf805e7e8f40e46f04bde8e303c3 with mission work repository /Users/voightkampff/dev/sunholo-data/stapledons-godot (source clone ? was ? behind); pinned target ? behind origin/dev (baseline ?)
+[2026-10-26 10:22:59] driver pin drift: unknown (?); notice suppressed
+[2026-10-26 10:22:59] driver pin age: unknown (?); notice suppressed
+[2026-10-26 10:23:05] ration gate: blocked buckets (over ration or unknown quota):codex anthropic 
+[2026-10-26 10:23:05] anthropic:claude-opus-5-5 quota is UNREADABLE (not measured) — probing the lane instead of refusing it; an unreadable quota is not an exhausted one
+[2026-10-26 10:23:13] anthropic:sonnet quota is UNREADABLE (not measured) — probing the lane instead of refusing it; an unreadable quota is not an exhausted one
+[2026-10-26 10:23:34] DRY RUN ok: mission=stapledon repo-slug=sunholo-data/stapledons-godot doc=design_docs/stapledon-mission.md workdir=/Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter61-zsh-land pidfile=/Users/voightkampff/.ailang/state/mission-stapledon.pid prefs=claude-opus-5-5,codex:gpt-6.1-sol timeout=21600s | roles: designer=claude:claude-opus-5-5 planner=pi:ollama/kimi-k3:cloud executor=pi:ollama/bogus-nonexistent-model:cloud evaluator=sonnet | lanes=ok | pin=pinned(? behind) | skill-sync=skip:ahead

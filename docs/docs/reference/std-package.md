@@ -63,11 +63,11 @@ func bridge_path() -> Result[string, string] ! {FS} =
 - `Err("no valid installed versions: ...")` — fallback found only unparseable version directories.
 - `Err("asset not found: ...")` — the package is installed but the asset is absent (file was renamed, deleted, or never bundled).
 
-**Version selection**: a dependency entry in the running program's `ailang.lock` selects its resolved directory, including path and git dependencies. A pinned `0.3.0` wins even when `0.4.0` is also cached. Missing locked targets return `Err` without fallback or network fetch; existing import validation may reject a missing registry dependency before evaluation.
+**Version selection**: the running program's resolved package graph selects the same directory its modules were compiled from (registry, git or path dependency, and the root package itself). A pinned `0.3.0` wins even when `0.4.0` is also cached. Missing locked targets return `Err` naming the pinned version and install command, without fallback or network fetch; existing import validation may reject a missing dependency before evaluation.
 
-For packages absent from the lock, or when there is no lock context (bare programs and the REPL), lookup uses `~/.ailang/cache/registry` and chooses the compatibility-semver maximum: `0.10.0` beats `0.9.0` and `0.2.0`. Unparseable directory names are skipped. Ordering follows AILANG package compatibility rules: an optional `v` prefix, optional patch component, stripped patch prerelease suffix, and `dev`/`unknown` treated as `999.999.999`. Equal numeric versions use directory-name order as a deterministic tie-break. This is not strict SemVer prerelease ordering.
+For packages absent from the lock, or when there is no lock context (bare programs and the REPL), lookup chooses the highest installed semantic version (`0.10.0` beats `0.9.0` and `0.2.0`) under `~/.ailang/cache/registry`, or `AILANG_PACKAGE_ROOT` when set. Prereleases sort before their release. Unparseable directory names are skipped; a cache containing only invalid versions returns `Err`.
 
-The fallback ignores `AILANG_PACKAGE_ROOT`; locked registry targets follow the package loader's configured root. The root package itself is not a dependency lock entry: reading its own assets still requires a cache install. Engine targets are scoped to that engine and retained across calls and context replacements.
+Engine targets are scoped to that engine and retained across calls and context replacements. The root package's own assets resolve directly from its source directory, including during authoring before a lockfile exists.
 
 **Security**:
 - Requires the `FS` effect — invocations need `--caps FS` at the CLI.

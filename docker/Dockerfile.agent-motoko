@@ -10,7 +10,7 @@
 # subscription OAuth from anything but Claude Code (429, measured 2026-10-02).
 
 ARG PROJECT
-ARG MOTOKO_COMMIT=d5aa3e31b7e939a8fb7e73f0deb0f3e3a42e4508
+ARG MOTOKO_COMMIT=835c738b8ca50ed38f36c117058847c816db32b8
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
 # motoko_agent setup (NOT a single binary like pi/opencode — it's a bun TUI
@@ -34,9 +34,11 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" \
     && mv /root/.bun/bin/bun /usr/local/bin/bun \
     && chmod +x /usr/local/bin/bun
 
-# Check out motoko_agent at the pinned commit: branch sunholo/main-dst-20261015
-# of sunholo-voight-kampff/motoko_agent = Arni's upstream main 340fae14
-# (2026-10-14) with our commits rebased on top (2026-10-15; MOTOKO.md §11).
+# Check out motoko_agent at the pinned commit: branch sunholo/main-dst-20261019
+# of sunholo-voight-kampff/motoko_agent = Arni's upstream main a94204aa
+# (2026-10-18: ADR 034 tool-fault effect disclosure, herdr delegation fixes)
+# with our 20 commits rebased on top (2026-10-19; MOTOKO.md §12), including
+# the ollama streaming env forwarding (upstream #266).
 # Upstream now carries the tool-schema dedupe (#220), repetition_guard's
 # tool_call_id fix (#260) and the byte-stable compaction summary (#262), so
 # those are upstream's. The rest are ours, as on the previous branch
@@ -54,7 +56,7 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" \
 # that prices prompt-cache tokens (d668e630; its env forwarding 84fde7b7), and
 # the session identity passed as OPENROUTER_SESSION_ID (aa23bbd1), and a
 # byte-stable compaction summary that keeps the prompt cache warm (b1ffa339).
-# MOTOKO.md §10. Previous pins: b1ffa339 (sunholo/main-dst-20261002), aa23bbd1, 84fde7b7, d668e630, 6de44ada, a1ece42e, b3347a96, e3fa68ec, de68fddf, 4d4917cd (sunholo/main-dst). Fetch-by-SHA pins the exact commit whatever the
+# MOTOKO.md §10. Previous pins: 965f2ec5 (sunholo/main-dst-20261015, 2026-10-16), d5aa3e31 (sunholo/main-dst-20261015), b1ffa339 (sunholo/main-dst-20261002), aa23bbd1, 84fde7b7, d668e630, 6de44ada, a1ece42e, b3347a96, e3fa68ec, de68fddf, 4d4917cd (sunholo/main-dst). Fetch-by-SHA pins the exact commit whatever the
 # branch does next.
 #
 # The fetch authenticates when the build passes a `github_token` secret
@@ -88,7 +90,18 @@ RUN cd /opt/motoko_agent/src/tui && bun install --frozen-lockfile || bun install
 # ones. No `|| true`: a lock that fails here is a motoko that cannot start. The
 # old line also ran a bare `ailang install`, which prints usage and exits 0, so
 # it never installed anything.
-RUN cd /opt/motoko_agent && ailang lock
+#
+# `ailang lock` runs as root, so the registry packages it fetches land in
+# /root/.ailang/cache/registry. The runtime user is `ailang`, and since v0.53.1
+# (M-PKG-REGISTRY-CONFINEMENT) package setup hashes every registry dependency
+# from $HOME/.ailang/cache/registry and stops when one is missing. So hand the
+# runtime user its own copy; without it every ailang_only motoko task failed at
+# the lane check with "failed to hash registry dependency sunholo/logging"
+# (measured on the dev plane 2026-10-19).
+RUN cd /opt/motoko_agent && ailang lock \
+    && mkdir -p /home/ailang/.ailang/cache \
+    && cp -a /root/.ailang/cache/registry /home/ailang/.ailang/cache/ \
+    && chown -R ailang:ailang /home/ailang/.ailang
 
 # Warm the AILANG compile cache for the runtime's entry module, so a Cloud Run
 # Job (always a cold start) does not recompile motoko on every task. Measured
@@ -110,6 +123,30 @@ RUN cd /opt/motoko_agent \
     && test -s src/core/.ailang/cache/compile/modules/src__core__session/coretypeinfo.gob \
     && rm -f /tmp/motoko-warm.log \
     && chmod -R a+rX /opt/motoko_agent
+
+# motoko keeps run state under its own repo, not the task workspace: the session
+# journal (upstream ADR-003, src/tui/src/session-journal.ts) at
+# .motoko/sessions/<id>/ and logs at .motoko/logfile/. The repo is root-owned,
+# so the runtime user gets that one directory. Without it every motoko task died
+# at startup with `mkdir ... EACCES` in SessionJournal (dev plane, 2026-10-19,
+# first image on the a94204aa base).
+RUN mkdir -p /opt/motoko_agent/.motoko/sessions /opt/motoko_agent/.motoko/logfile \
+    && chown -R ailang:ailang /opt/motoko_agent/.motoko \
+    && su ailang -s /bin/sh -c 'mkdir -p /opt/motoko_agent/.motoko/sessions/build-probe \
+         && rmdir /opt/motoko_agent/.motoko/sessions/build-probe \
+         && touch /opt/motoko_agent/.motoko/logfile/.probe && rm /opt/motoko_agent/.motoko/logfile/.probe' \
+    || { echo "the runtime user cannot write motoko's run state"; exit 1; }
+
+# Prove the runtime user can do what the ailang_only lane check does at task
+# start (internal/executor/motoko/lane.go checkLaneProfile): resolve the lane
+# profile through motoko's own resolver. Root passing the warm-up above says
+# nothing about the `ailang` user, which is how the missing registry cache
+# shipped.
+RUN su ailang -s /bin/sh -c 'cd /opt/motoko_agent \
+      && AILANG_RELAX_MODULES=1 MOTOKO_REPO=/opt/motoko_agent ailang run --quiet --caps IO,FS,Env \
+         --entry print_config_json src/core/config.ail -- --workdir /tmp --profile ailang_only' \
+    | grep -q '"order":\["ailang_policy"' \
+    || { echo "the runtime user cannot resolve the ailang_only profile"; exit 1; }
 
 # Put `motoko` on PATH so the executor adapter's `exec.LookPath("motoko")`
 # resolves cleanly. run-agent.sh accepts the directive as a positional arg and

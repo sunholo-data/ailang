@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-NAMEDTEST-STRIP-STRING-BLIND-BRACES",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-10-09T10:57:48.677010+00:00",
-  "design_doc": "design_docs/planned/v0_53_1/m-namedtest-strip-string-blind-braces.md",
-  "sprint_plan": "design_docs/planned/v0_53_1/m-namedtest-strip-string-blind-braces-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_54_13/m-namedtest-strip-string-blind-braces.md",
+  "sprint_plan": "design_docs/implemented/v0_54_13/m-namedtest-strip-string-blind-braces-sprint-plan.md",
   "github_issues": [],
   "registry_reuse": [
     {
@@ -88,5 +88,6 @@
       "completed": null,
       "notes": null
     }
-  ]
+  ],
+  "superseded": "Not executed: fixed directly in v0.54.13 by b6c9f592e (#1821)."
 }

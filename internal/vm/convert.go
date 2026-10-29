@@ -183,10 +183,11 @@ func EvalToBytecode(v eval.Value) (bytecode.Value, error) {
 	case *eval.BytesValue:
 		return bytecode.NewBytes(&bytecode.BytesObj{B: ev.Value, Filename: ev.Filename, MimeType: ev.MimeType}), nil
 	case *eval.TaggedValue:
-		// Option and Result from an evaluator call (e.g. a codec returning
-		// Result[Array[float], string]) map to the VM's fixed ordinals. Other
+		// A std ADT from an evaluator call (e.g. a codec returning
+		// Result[Array[float], string], or getEnv's Err(NotFound(name)))
+		// maps to the declaration-order ordinal the compiler also uses. User
 		// ADTs need the compiler's type table (M-BYTECODE-2E scope).
-		tag, ok := bytecode.StdADTTag(ev.ModulePath, ev.TypeName, ev.CtorName)
+		tag, ok := stdADTTag(ev.ModulePath, ev.TypeName, ev.CtorName)
 		if !ok {
 			return bytecode.Value{}, fmt.Errorf("bridge: TaggedValue (%s.%s) not yet supported (M-BYTECODE-2E scope)", ev.TypeName, ev.CtorName)
 		}

@@ -1,0 +1,42 @@
+-- Typed error payloads remain distinct from successful integer values in Z3.
+module examples/runnable/contracts/result_error_guard
+import std/result (Result, Ok, Err)
+import std/io (println)
+
+export type AudioError = ResourceLimit(string) | InvalidFormat(string)
+
+export pure func checkSize(n: int) -> Result[int, AudioError]
+ensures { match result {
+  Ok(size) => size >= 0,
+  Err(_) => true
+} } {
+  if n < 0 then Err(ResourceLimit("negative size")) else Ok(n)
+}
+
+-- Primitive expected values also work with the inline-test runner.
+export pure func sizeAccepted(n: int) -> bool
+  tests [
+    (-1, false),
+    (0, true),
+    (12, true)
+  ] {
+  match checkSize(n) {
+    Ok(size) => size >= 0,
+    Err(_) => false
+  }
+}
+
+export func main() -> () ! {IO} {
+  println(match checkSize(-1) {
+    Ok(_) => "unexpected success",
+    Err(_) => "negative: rejected"
+  })
+  println(match checkSize(0) {
+    Ok(_) => "zero: accepted",
+    Err(_) => "unexpected error"
+  })
+  println(match checkSize(12) {
+    Ok(_) => "positive: accepted",
+    Err(_) => "unexpected error"
+  })
+}

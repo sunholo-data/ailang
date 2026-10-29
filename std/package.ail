@@ -13,9 +13,9 @@
 --
 -- Resolution: locked dependency directory first (registry, path, or git).
 -- Missing locked targets return Err; they never select another cached version.
--- Without a lock entry, use compatibility-semver max in the HOME registry cache.
--- The REPL has no lock context; fallback ignores AILANG_PACKAGE_ROOT.
--- Root-package assets still require a cache install.
+-- Without a lock entry, use the highest semantic version in the registry cache
+-- (HOME or AILANG_PACKAGE_ROOT). The REPL has no lock context.
+-- Root-package assets resolve from the source directory, even without a lock.
 -- Requires: FS capability (--caps FS)
 
 module std/package
@@ -25,6 +25,8 @@ import std/result (Result, Ok, Err)
 -- pkg_name must be the canonical vendor/name (e.g. "sunholo/motoko_ext_mcp").
 -- rel_path is relative to the package's assets/ subdirectory.
 -- Returns Ok(absolute path) when the asset exists, Err(message) otherwise.
+-- Under an ailang.lock the locked version is used; otherwise the highest
+-- installed version by semver.
 --
 -- @requires FS capability
 -- @example

@@ -77,7 +77,7 @@ func TestPkgAssetPath_LocalTargetAndValidation(t *testing.T) {
 	if tag != "Ok" || path != filepath.Join(dir, AssetsDir, "data") {
 		t.Fatalf("%s %s", tag, path)
 	}
-	for _, rel := range []string{"../data", "/data", `C:\data`, ""} {
+	for _, rel := range []string{"../data", "/data", `C:\data`, `nested\..\..\escape`, ""} {
 		tag, msg := assetResult(t, ctx, "test/pkg", rel)
 		if tag != "Err" || !strings.HasPrefix(msg, "invalid relative path:") {
 			t.Fatalf("%s %s", tag, msg)
@@ -100,5 +100,24 @@ func TestPkgAssetPath_InvalidVersions(t *testing.T) {
 	tag, msg := assetResult(t, nil, "test/pkg", "data")
 	if tag != "Err" || !strings.Contains(msg, "no valid installed versions") {
 		t.Fatalf("%s %s", tag, msg)
+	}
+}
+
+// Existing embedders using PkgDirs must keep lock authority in budget scopes.
+func TestPkgAssetPath_LegacyBudgetContext(t *testing.T) {
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, AssetsDir), 0755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, AssetsDir, "data"), []byte("locked"), 0600); err != nil {
+		t.Fatal(err)
+	}
+	ctx := NewEffContext(nil)
+	ctx.PkgDirs = map[string]string{"test/pkg": dir}
+	for _, derived := range []*EffContext{ctx, ctx.WithBudget(nil), ctx.Clone().(*EffContext)} {
+		tag, got := assetResult(t, derived, "test/pkg", "data")
+		if tag != "Ok" || got != filepath.Join(dir, AssetsDir, "data") {
+			t.Fatalf("lost legacy locked target: %s %s", tag, got)
+		}
 	}
 }

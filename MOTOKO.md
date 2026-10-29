@@ -1,9 +1,10 @@
 # motoko_agent on this machine — the map
 
-**One-line answer (since 2026-10-15):** evals run `/Users/voightkampff/dev/mk-20261015`, branch
-`sunholo/main-dst-20261015` @ `d5aa3e31` (§11) — upstream `main` 340fae14 + our commits, the
-commit the cloud image pins. 2026-10-08..10-15: `mk-20261002` / `sunholo/main-dst-20261002` (§10),
-now the rollback. Before that (2026-09-28..10-07):
+**One-line answer (since 2026-10-27):** evals run `/Users/voightkampff/dev/mk-20261027`, branch
+`sunholo/main-dst-20261027` @ `835c738b` (§13) — upstream `main` 97244396 + our commits, the commit the
+cloud image pins. 2026-10-19..10-27: `mk-20261019` / `sunholo/main-dst-20261019` @ `907dd78e` (§12), now
+the rollback. 2026-10-15..10-19: `mk-20261015` / `sunholo/main-dst-20261015` @
+`965f2ec5` (§11). 2026-10-08..10-15: `mk-20261002` (§10). Before that (2026-09-28..10-07):
 `/Users/voightkampff/dev/mk-main`, branch `sunholo/main-dst` = Arni's `main` (DST core, extension ABI 8.0) plus our local commits
 (`cloud` and `ollama_microrag` profiles, `motoko_ext_ailang_tools`, rig-lease forwarding).
 Its extensions are the in-repo `packages/` copies. The ABI 2.2 fork (`sunholo/eval-canonical`)
@@ -231,7 +232,7 @@ the rollback — repoint the shim's exec line to go back). The cloud image (`doc
 branch since 2026-10-02: the dev plane builds it from `dev`; test/prod get it only via a release +
 promote. Until the rig switches, rig and cloud run different motoko commits.
 
-## 11. Canonical since 2026-10-15: `sunholo/main-dst-20261015` (rig and cloud on `d5aa3e31`)
+## 11. Canonical since 2026-10-15: `sunholo/main-dst-20261015` (rig and cloud on `965f2ec5`)
 
 Worktree `~/dev/mk-20261015`, fork branch `sunholo/main-dst-20261015`: §10's branch rebased onto
 upstream `main` `340fae14` (2026-10-14), 346 upstream commits newer than `4023bf08` (about 300
@@ -255,6 +256,73 @@ bite our profiles — `cloud`, `ollama`, `ollama_microrag` and `ailang_only` all
 Verified: `make check_core` passes in full on macOS (59/59 core files, 192 `OK` checks, no FAIL).
 Not yet verified at switch time: a live eval trial on the new commit (local or cloud).
 
+2026-10-16: fast-forwarded to `965f2ec5` — the TUI's child-env allowlist now forwards
+`AILANG_OLLAMA_V1_STREAM`, `AILANG_OLLAMA_IDLE_TIMEOUT_SEC` and `AILANG_OLLAMA_TTFT_TIMEOUT_SEC`
+to the runtime (upstream as arniwesth/motoko_agent#266). Before it, the executor's streaming flag
+for `ollama/*` models never reached the runtime, every local turn ran buffered, and the idle
+watchdog killed long generations (9 of 39 v0.54.9 qwen3.8 rows). Only the env differs; requests
+without the flag are byte-identical. Smokes on `d5aa3e31` (the same tree minus this commit):
+local qwen3.8 fizzbuzz / json_parse / glob_match_spec, cloud Sol 6.1 and OpenRouter deepseek-v4-flash
+fizzbuzz / json_parse, all passed (2026-10-15/16).
+
 **Rollback:** repoint `~/go/bin/motoko`'s exec line to `~/dev/mk-20261002` and the Dockerfile's
 `MOTOKO_COMMIT` to `b1ffa339`. Results banked before 2026-10-15 13:00 (including the v0.54.9 OS
 rotation) ran `b1ffa339`; do not pool them with later motoko rows as one build.
+
+## 12. Canonical since 2026-10-19: `sunholo/main-dst-20261019` (rig and cloud on `907dd78e`)
+
+Worktree `~/dev/mk-20261019`, fork branch `sunholo/main-dst-20261019`: §11's 20 commits rebased onto
+upstream `main` `a94204aa` (2026-10-18), 93 upstream commits newer than `340fae14`. Most of them are
+ADR 034 Phase 0 (#277: a tool fault carries a `ToolFault` saying whether its effect may have
+happened; `Search` is read-only), the Phase 0b deadline-wrapper probe and its withdrawal (#279),
+herdr `DelegateCheck` fixes (#275, #278: park instead of polling, bounded waits) and
+`progress_contract_guard` taking its contract from the operator, not a tool result (#270).
+
+The only conflict was `ailang.lock`; it was taken from upstream and relocked (`a241b15d`, whose
+message still says "340fae14": it is the same relock step, re-run on the new base). No absolute paths.
+
+Verified 2026-10-19: `make check_core` exit 0 (60/60 core files, 9/9 extensions boot); eval smoke
+through a scratch shim, Sol 6.1 on the ChatGPT subscription, fizzbuzz and json_parse both pass, with
+the sessions in `mk-20261019/.motoko/logfile/`. Not yet verified: a cloud image build on this commit,
+and a local ollama or OpenRouter run.
+
+**Rollback:** repoint `~/go/bin/motoko`'s exec line to `~/dev/mk-20261015` and the Dockerfile's
+`MOTOKO_COMMIT` to `965f2ec5`. Results banked before 2026-10-19 ran `965f2ec5` or earlier; do not pool
+them with later motoko rows as one build.
+
+## 13. Canonical since 2026-10-27: `sunholo/main-dst-20261027` (rig and cloud on `835c738b`)
+
+Worktree `~/dev/mk-20261027`: §12's commits rebased onto upstream `main` `97244396` (2026-10-25),
+31 upstream commits newer than `a94204aa`. Most are ADR 034 Phases 1–3 (DST world/fault catalogue,
+properties, run report: test infrastructure). The one that changes runs is **#286** (closes #263, raised
+from our 2026-10-13 measurement): extension `ai_step` calls go out with no `tools`, so the compaction
+summariser can no longer answer with a tool call and fall into its 75 s retry.
+
+Two carried commits were replaced by their reviewed upstream-PR versions:
+
+- **Path guard** → #234 as revised 2026-10-27 (`b127204a` + `60fedfde`). The old carried guard
+  (`7349b452`) walked with `$(dirname …)`, which drops trailing newlines: a symlink named `nl\n` was
+  walked past and `WriteFile nl\n/x` landed outside the workdir. **That hole was live in `907dd78e`
+  and every build before it that carried the guard.** The walk now uses parameter expansion; the guard
+  lives in `tool_runtime` and `ailang_tools` (ABI stays 8.0), kept equal by `verify_native_path_guard`.
+- **Ollama stream env** → #266 as revised (comment only: deltas reach the session log on AILANG ≥ v0.54.13).
+
+Conflicts: `ailang.lock` (relocked, no absolute paths) and the #266 hunk. 21 carried commits.
+
+Verified 2026-10-27: `make check_core` exit 0 (60/60 core files, 9/9 extensions boot, path guard 13
+OK incl. the newline link, each new check mutation-tested); `tsc` clean; TUI jest failures identical
+to pristine upstream `main` (20 suites / 1 test, environmental); `ailang_only` resolves through
+motoko's resolver and passes every `checkLaneProfile` property; eval smoke via a scratch shim, Sol 6.1
+on the ChatGPT subscription, fizzbuzz + json_parse pass (sessions in `mk-20261027/.motoko/logfile/`).
+Local ollama smoke 2026-10-27 12:39 (`motoko-local-qwen3-8-27b-microrag`, fizzbuzz) passes in 6 turns,
+230 s, with 272 reasoning and 421 thinking deltas journalled during the calls. The rig shim was switched to
+`mk-20261027` at 12:43 (atomic `mv`). **Not yet verified:** a cloud run on the rebuilt image.
+
+The rig lock was orphaned 09:18–12:38 that day (`rig.lock.d` holding only a stale `children` file, no
+`holder`): `holderAlive` treats a missing holder as alive, so nothing could take it until the 6 h
+staleness window, and the rotation yielded every slot. Cleared by hand; cause not found.
+
+**Rollback (rig):** repoint `~/go/bin/motoko`'s exec line to `~/dev/mk-20261019`. Results banked before
+2026-10-27 12:43 ran `907dd78e` or earlier; do not pool them with later motoko rows as one build.
+**Rollback (cloud):** `MOTOKO_COMMIT` back to `907dd78e`.
+

@@ -30,12 +30,16 @@ import (
 
 // entryHeadingRe matches a log entry heading.
 //
-// THE FLEET USES THREE FORMATS, and a parser that knows only one silently rotates nothing
+// THE FLEET USES MULTIPLE FORMATS, and a parser that knows only one silently rotates nothing
 // (or, worse, mis-parses). Measured 2026-09-06 across the four live logs:
 //
 //	v1      ## 337 — 2026-09-06 — Title [TAG]
 //	docs    ## ITERATION 11 — 2026-09-06T06:00Z (optional note)
 //	world   ## Iteration 0 — 2026-07-23 — title
+//	stapledon ## 2026-09-27 (night): iteration 0, title
+//	stapledon ## 2026-09-27: pre-iteration 0 (attended bootstrap)
+//
+// Date-first legacy records use the separate numbered/note patterns below.
 //
 // Plus the awkward real cases a strict pattern dropped from v1's index: a date RANGE
 // ("2026-07-10/11") and a combined entry ("321 & 322"). Deliberately tolerant, because
@@ -45,12 +49,13 @@ var entryHeadingRe = regexp.MustCompile(
 	`^## (?i:iteration\s+)?(\d+)(?:\s*&\s*\d+)?\s+—\s+(\d{4}-\d{2}-\d{2})(?:T[0-9:]+Z?)?(?:/\d{1,2})?\s*(?:—\s*)?(.*)$`)
 
 // statusHeadingRe matches a STATUS-stamp archive entry. These put the DATE first and the
-// iteration number second, and the fleet writes FOUR variants of them:
+// iteration number second, and the fleet writes FIVE variants of them:
 //
 //	## STATUS 2026-09-06 — ITERATION 333: **headline**            (v1, current)
 //	## STATUS 2026-09-02 — ITERATION 33 COMPLETE: **headline**    (motoko)
 //	## STATUS 2026-07-14 (midday) — ITERATION 29: headline        (v1, early — 23 of these)
 //	## STATUS 2026-07-12 (morning) — v1.0 SCOPE SET ...           (no iteration number)
+//	## STATUS 2026-09-03 (iteration 152) — **headline**           (world; statusParenIterRe)
 //
 // Given its own patterns rather than contorted into entryHeadingRe: the field ORDER is
 // inverted, and a regex trying to accept both orders accepts nonsense in between.
@@ -59,12 +64,29 @@ var statusHeadingRe = regexp.MustCompile(
 
 // statusNoteRe is the fallback for a STATUS stamp carrying no iteration number — a scope
 // decision, a controller-model change. They are real records and belong in the index; they
-// sort by date, like any other note.
+// stay with their preceding numbered neighbour during rotation.
 var statusNoteRe = regexp.MustCompile(`^## STATUS\s+(\d{4}-\d{2}-\d{2})(?:\s*\([^)]*\))?\s+—\s+(.*)$`)
 
 // noteHeadingRe matches a non-iteration record that still belongs in the index, e.g. an
-// attended note. These carry no iteration number, so they sort by date.
+// attended note. These carry no iteration number and retain their preceding neighbour.
 var noteHeadingRe = regexp.MustCompile(`^## ([A-Z][A-Z ]+)\s+—\s+(\d{4}-\d{2}-\d{2})\s*(.*)$`)
+
+// Date-first legacy headings include both numbered iterations and attended notes.
+// Test the numbered pattern first: pre-iteration 0 deliberately falls through to a note.
+var legacyEntryRe = regexp.MustCompile(`^## (\d{4}-\d{2}-\d{2})(?:\s*\(([^)]*)\))?:\s+(?i:iteration)\s+(\d+)\b[,:]?\s*(.*)$`)
+var legacyNoteRe = regexp.MustCompile(`^## (\d{4}-\d{2}-\d{2})(?:\s*\(([^)]*)\))?:\s+(.+)$`)
+
+// An unparsed record before the first entry must not silently become preamble.
+// Require a known record skeleton: a full date, a numbered em-dash entry, or
+// a STATUS date prefix. Prose mentioning iterations and numbered sections is safe.
+var preambleRecordRe = regexp.MustCompile(`^## (?:\d{4}-\d{2}-\d{2}|(?i:iteration\s+)?\d+(?:\s*&\s*\d+)?\s+—|STATUS\s+\d{4}-)`)
+
+func legacyTitle(qualifier, title string) string {
+	if qualifier != "" {
+		return "(" + qualifier + ") " + strings.TrimSpace(title)
+	}
+	return strings.TrimSpace(title)
+}
 
 // LogEntry is one iteration record.
 type LogEntry struct {
@@ -105,7 +127,27 @@ func parseLog(body string) (preamble string, entries []LogEntry) {
 			buf = []string{l}
 			continue
 		}
+		if m := legacyEntryRe.FindStringSubmatch(l); m != nil {
+			flush()
+			n, _ := strconv.Atoi(m[3])
+			cur = &LogEntry{Num: n, Date: m[1], Title: legacyTitle(m[2], m[4])}
+			buf = []string{l}
+			continue
+		}
+		if m := legacyNoteRe.FindStringSubmatch(l); m != nil {
+			flush()
+			cur = &LogEntry{Num: -1, Date: m[1], Title: legacyTitle(m[2], m[3])}
+			buf = []string{l}
+			continue
+		}
 		if m := statusHeadingRe.FindStringSubmatch(l); m != nil {
+			flush()
+			n, _ := strconv.Atoi(m[2])
+			cur = &LogEntry{Num: n, Date: m[1], Title: strings.TrimSpace(m[3])}
+			buf = []string{l}
+			continue
+		}
+		if m := statusParenIterRe.FindStringSubmatch(l); m != nil {
 			flush()
 			n, _ := strconv.Atoi(m[2])
 			cur = &LogEntry{Num: n, Date: m[1], Title: strings.TrimSpace(m[3])}
@@ -141,27 +183,9 @@ type RotateResult struct {
 	LogPath, ArchivePath  string
 	IndexPath             string
 	IndexEntries          int
+	OrphanNumbers         []int // unique preserved iteration numbers, ascending
+	IgnoredHeadings       int   // index-only structural headings across both sources
 	LogBefore, LogAfter   int
-}
-
-// indexLine renders one iteration as a single index row. Deliberately fixed-shape and
-// short: the index only earns its place if the whole thing can be read at once.
-func indexLine(e LogEntry) string {
-	t := e.Title
-	// Titles carry a trailing [TAG]; keep it, it is the cheapest filter the index has.
-	//
-	// TRUNCATE BY RUNES, NOT BYTES. `t[:147]` slices bytes, and these titles are full of
-	// em-dashes (0xe2 0x80 0x94) — the first real run produced an index that was not valid
-	// UTF-8 because a dash was cut in half. Every reader of the index then fails on it,
-	// which is a worse outcome than a long line.
-	if r := []rune(t); len(r) > 150 {
-		t = string(r[:147]) + "..."
-	}
-	num := strconv.Itoa(e.Num)
-	if e.Num < 0 {
-		num = "—"
-	}
-	return fmt.Sprintf("| %s | %s | %s |", num, e.Date, strings.ReplaceAll(t, "|", "\\|"))
 }
 
 // RotateLog trims the live log to the newest keep entries, appends the rest to the
@@ -180,6 +204,11 @@ func RotateLog(logPath string, keep int) (*RotateResult, error) {
 		return nil, fmt.Errorf("failed to read %s: %w", logPath, err)
 	}
 	pre, entries := parseLog(string(raw))
+	for _, line := range strings.Split(pre, "\n") {
+		if strings.HasPrefix(line, "## ") && preambleRecordRe.MatchString(line) {
+			return nil, fmt.Errorf("%s: unparsed record-like preamble heading %q — refusing rotation", logPath, line)
+		}
+	}
 	if len(entries) == 0 {
 		return nil, fmt.Errorf("%s: no iteration entries found (expected headings like '## 337 — 2026-09-06 — ...')", logPath)
 	}
@@ -201,27 +230,36 @@ func RotateLog(logPath string, keep int) (*RotateResult, error) {
 			"holds records only", logPath, len(stray), stray[0])
 	}
 
-	dir, base := filepath.Dir(logPath), filepath.Base(logPath)
-	stem := strings.TrimSuffix(base, ".md")
-	archivePath := filepath.Join(dir, stem+"-archive.md")
-	// Index name drops a trailing "-log" or "-status-archive", so v1-mission-log.md and
-	// v1-mission-status-archive.md produce v1-mission-index.md and
-	// v1-mission-status-index.md rather than colliding or growing silly suffixes.
-	base2 := strings.TrimSuffix(stem, "-log")
-	if strings.HasSuffix(stem, "-status-archive") {
-		base2 = strings.TrimSuffix(stem, "-archive") // -> "<name>-mission-status"
-		archivePath = filepath.Join(dir, stem+"-old.md")
+	stem, archivePath, indexPath := indexPaths(logPath)
+	archiveRaw, err := readOptionalIndexInput(archivePath)
+	if err != nil {
+		return nil, err
 	}
-	indexPath := filepath.Join(dir, base2+"-index.md")
-
-	// Entries already archived stay in the index — the index is the COMPLETE history or
-	// it does not do its job.
-	var archived []LogEntry
-	if ab, aerr := os.ReadFile(archivePath); aerr == nil { //nolint:gosec // derived path
-		_, archived = parseLog(string(ab))
+	_, archived := parseLog(string(archiveRaw))
+	// Prepare preservation data before either source can be mutated.
+	prepared, err := prepareIndex(stem, indexPath, append(append([]LogEntry{}, archived...), entries...))
+	if err != nil {
+		return nil, err
 	}
 
-	sort.Slice(entries, func(i, j int) bool { return entries[i].Num < entries[j].Num })
+	// Decorate in file order, so notes stay with their preceding numbered entry.
+	// Comparator indices are transient; deriving note keys there would reorder history.
+	type keyedEntry struct {
+		entry LogEntry
+		key   int
+	}
+	ordered := make([]keyedEntry, len(entries))
+	key := -1
+	for i, e := range entries {
+		if e.Num >= 0 {
+			key = e.Num
+		}
+		ordered[i] = keyedEntry{entry: e, key: key}
+	}
+	sort.SliceStable(ordered, func(i, j int) bool { return ordered[i].key < ordered[j].key })
+	for i, e := range ordered {
+		entries[i] = e.entry
+	}
 	cut := len(entries) - keep
 	if cut < 0 {
 		cut = 0
@@ -231,7 +269,7 @@ func RotateLog(logPath string, keep int) (*RotateResult, error) {
 	res := &RotateResult{
 		Total: len(entries), Kept: len(toKeep), Archived: len(toArchive),
 		LogPath: logPath, ArchivePath: archivePath, IndexPath: indexPath,
-		LogBefore: len(raw),
+		LogBefore: len(raw), LogAfter: len(raw),
 	}
 
 	if len(toArchive) > 0 {
@@ -242,8 +280,7 @@ func RotateLog(logPath string, keep int) (*RotateResult, error) {
 				"loop; it exists so a rotated entry can still be read in full when something needs it.\n" +
 				"The one-line history of EVERY iteration, including these, is in the index beside it.\n")
 		} else {
-			ab, _ := os.ReadFile(archivePath) //nolint:gosec // derived path
-			b.WriteString(strings.TrimRight(string(ab), "\n"))
+			b.WriteString(strings.TrimRight(string(archiveRaw), "\n"))
 		}
 		for _, e := range toArchive {
 			b.WriteString("\n\n" + strings.TrimRight(e.Body, "\n"))
@@ -254,60 +291,27 @@ func RotateLog(logPath string, keep int) (*RotateResult, error) {
 		}
 	}
 
-	// The live log: preamble + the newest entries.
-	var lb strings.Builder
-	lb.WriteString(strings.TrimRight(pre, "\n"))
-	lb.WriteString("\n\n> **Older entries are ARCHIVED.** This file holds the newest " +
-		strconv.Itoa(keep) + ". The full record of every\n" +
-		"> iteration is in `" + filepath.Base(archivePath) + "`, and a one-line index of ALL of them —\n" +
-		"> the thing to grep before picking work, so the loop never repeats itself — is in\n" +
-		"> `" + filepath.Base(indexPath) + "`.\n")
-	for _, e := range toKeep {
-		lb.WriteString("\n" + strings.TrimRight(e.Body, "\n") + "\n")
+	if cut > 0 {
+		// The live log: preamble + the newest entries.
+		var lb strings.Builder
+		lb.WriteString(strings.TrimRight(stripArchiveNotices(pre), "\n"))
+		prefixes := archiveNoticePrefixes()
+		lb.WriteString("\n\n" + prefixes[0] +
+			strconv.Itoa(keep) + ". The full record of every\n" +
+			prefixes[1] + filepath.Base(archivePath) + "`, and a one-line index of ALL of them —\n" +
+			prefixes[2] + "\n" +
+			prefixes[3] + filepath.Base(indexPath) + "`.\n")
+		for _, e := range toKeep {
+			lb.WriteString("\n" + strings.TrimRight(e.Body, "\n") + "\n")
+		}
+		if werr := writeAtomic(logPath, []byte(lb.String()), 0o644); werr != nil { //nolint:gosec // a doc
+			return nil, werr
+		}
+		res.LogAfter = lb.Len()
 	}
-	if werr := writeAtomic(logPath, []byte(lb.String()), 0o644); werr != nil { //nolint:gosec // a doc
-		return nil, werr
-	}
-	res.LogAfter = lb.Len()
 
-	// The index: EVERY entry, archived and live, regenerated from scratch.
-	all := append(append([]LogEntry{}, archived...), entries...)
-	seen := map[string]bool{}
-	var uniq []LogEntry
-	sort.Slice(all, func(i, j int) bool {
-		if all[i].Num != all[j].Num {
-			return all[i].Num > all[j].Num
-		}
-		return all[i].Date > all[j].Date
-	})
-	for _, e := range all {
-		// Numbered entries dedupe by number; notes (Num -1) by date+title, since several
-		// can share the sentinel.
-		k := strconv.Itoa(e.Num)
-		if e.Num < 0 {
-			k = e.Date + "|" + e.Title
-		}
-		if !seen[k] {
-			seen[k] = true
-			uniq = append(uniq, e)
-		}
-	}
-	var ib strings.Builder
-	ib.WriteString("# " + strings.TrimSuffix(stem, "-log") + " — ITERATION INDEX\n\n" +
-		"One line per iteration, newest first, covering the live log AND the archive.\n\n" +
-		"**GREP THIS BEFORE PICKING WORK.** It is the cheapest way to find out whether\n" +
-		"something has already been tried, and it is small enough to read in full — which the\n" +
-		"log (2.8 MB, ~715k tokens) has not been for a long time.\n\n" +
-		"Regenerated wholesale by `ailang mission rotate-log`, never appended to: an\n" +
-		"append-only index drifts the moment an entry is edited, and an index that answers\n" +
-		"confidently and wrongly is worse than none.\n\n" +
-		"| # | date | what happened |\n|---|---|---|\n")
-	for _, e := range uniq {
-		ib.WriteString(indexLine(e) + "\n")
-	}
-	res.IndexEntries = len(uniq)
-	if werr := writeAtomic(indexPath, []byte(ib.String()), 0o644); werr != nil { //nolint:gosec // a doc
-		return nil, werr
+	if err := writeIndex(indexPath, prepared, res); err != nil {
+		return nil, err
 	}
 	return res, nil
 }
@@ -330,10 +334,40 @@ func strayHeadings(body string, entries []LogEntry) []string {
 			continue
 		}
 		if entryHeadingRe.MatchString(l) || statusHeadingRe.MatchString(l) ||
-			statusNoteRe.MatchString(l) || noteHeadingRe.MatchString(l) {
+			statusParenIterRe.MatchString(l) ||
+			statusNoteRe.MatchString(l) || noteHeadingRe.MatchString(l) ||
+			legacyEntryRe.MatchString(l) || legacyNoteRe.MatchString(l) {
 			continue
 		}
 		out = append(out, strings.TrimSpace(l))
 	}
 	return out
+}
+
+// archiveNoticePrefixes is shared by the writer and stripper so their format agrees.
+func archiveNoticePrefixes() [4]string {
+	return [4]string{
+		"> **Older entries are ARCHIVED.** This file holds the newest ",
+		"> iteration is in `",
+		"> the thing to grep before picking work, so the loop never repeats itself — is in",
+		"> `",
+	}
+}
+
+// stripArchiveNotices removes only complete generated four-line blockquotes.
+// SplitAfter retains every surrounding byte, including handwritten quoted prose.
+func stripArchiveNotices(pre string) string {
+	lines := strings.SplitAfter(pre, "\n")
+	prefixes := archiveNoticePrefixes()
+	var out strings.Builder
+	for i := 0; i < len(lines); {
+		if strings.HasPrefix(lines[i], prefixes[0]) && i+3 < len(lines) &&
+			strings.HasPrefix(lines[i+1], prefixes[1]) && strings.HasPrefix(lines[i+2], prefixes[2]) && strings.HasPrefix(lines[i+3], prefixes[3]) {
+			i += 4
+			continue
+		}
+		out.WriteString(lines[i])
+		i++
+	}
+	return out.String()
 }

@@ -1,0 +1,52 @@
+ok - a session under the CPU floor whose transcript GROWS is live
+ok - long child + flat transcript + flat heartbeat + idle CPU is stalled
+ok - a gate heartbeat stamp counts as progress
+ok - CPU above the floor is live even with flat progress
+ok - no descendant past STALL_CHILD_AGE is never stalled
+ok - the first sample seeds the baseline and reports live
+ok - no progress instrument → never killed
+ok - no progress instrument → warns loudly
+ok - _mc_progress_bytes finds the own-session transcript and sees it grow
+ok - _mc_progress_bytes tracks the driver log for a streaming provider
+ok - the heartbeat path is derived from MISSION_NAME when unset
+ok - a child streaming into a file it holds open for write is live
+ok - an open-for-write file that stays flat is still stalled
+ok - pi slug keeps dots (--var-folders-kr-h0wr2sj94vd6ljtmsxv8jkt00000gn-T-mc-stall-15021-work-.pin-v1--)
+ok - a pi controller whose session transcript grows is live
+ok - a pi controller with a flat transcript and nothing else moving is stalled
+ok - a1 wrong-transcript: newer unrelated parent cannot keep own session live
+ok - a2 subagent progress: own parent flat but own subagent grows
+ok - a2b exact sum: parent + own subagent bytes with empty/unset LOG
+ok - a3 other subagent: unrelated session and metadata cannot count
+ok - a4 physical-path slug: exact case session id across project slugs
+ok - a5 unset Claude id: existing LOG cannot arm kill; warns once
+ok - a5 empty Claude id: existing LOG cannot arm kill; warns once
+ok - a6 pi wrong-transcript: newer unrelated file adds no bytes
+ok - a6 unset pi id: only LOG bytes count with existing rc semantics
+ok - a6 empty pi id: only LOG bytes count with existing rc semantics
+ok - a7a fresh attempts: distinct Claude ids and exact session args
+ok - a7b provider re-walk: pi and codex clear Claude id and args
+ok - a7c unavailable generators: empty id/args expand to zero words under set -u
+ok - a7c launch wiring: prepare precedes Claude launch with guarded args
+ok - a7d session log: emitted exactly once per Claude call
+ok - 04:45 positive: measured drill descendant CPU keeps flat signals live
+ok - W1 negative: short failed polls below 10 CPU-s are stalled
+ok - W2 negative: blocked read with zero descendant CPU is stalled
+ok - root-own exclusion: busy controller alone leaves wedge stalled
+ok - root-reaped inclusion: vanished direct child keeps drill live
+ok - unavailable rusage fails open instead of fabricating zero CPU
+ok - unavailable rusage identifies the instrument failure
+ok - vanished non-root rusage row still permits a stalled verdict
+ok - vanished non-root birth time still permits a stalled verdict
+ok - unavailable root birth time still fails open
+ok - PID identity change invalidates the sample pair
+ok - vanished non-root child: reaped CPU keeps drill live
+ok - mutation: disabling rusage turns 04:45 positive red
+ok - mutation: any CPU growth turns W1 negative red
+ok - mutation: dropping reaped CPU turns vanished-child positive red
+ok - mutation: adding root-own CPU turns root-own exclusion red
+ok - mutation: dropping root-reaped CPU turns root-reaped inclusion red
+ok - live rusage sees a reaped busy child after a trivial child
+ok - live extracted snapshot sees reaped descendant CPU grow
+---
+stall watchdog: 50 passed, 0 failed

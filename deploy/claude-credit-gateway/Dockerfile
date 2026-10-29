@@ -1,7 +1,7 @@
 # Optional minimal service image. Preferred production route reuses the verified
 # coordinator buildpack image and passes credit-gateway serve as Cloud Run args.
 # Build context MUST be the ailang repository root.
-FROM golang:1.26.9 AS build
+FROM golang:1.26.10 AS build
 WORKDIR /src
 COPY go.mod go.sum ./
 RUN go mod download

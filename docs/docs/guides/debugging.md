@@ -575,11 +575,13 @@ v1.0.0). `ailang doctor memory` prints what a run on this host would resolve.
   so live memory is O(n²). Depth 9,000 measured 772 MB on the rig; `--max-memory 64MB` spent 11 s
   in GC and changed nothing. The structural fix is M-LIST-CONS-QUADRATIC; until then build with
   `foldl`/`map`, which run iteratively in Go.
-- **Per-item work inside a recursive loop**: there is no tail-call optimisation in the tree-walking
-  evaluator, so a `let s = readFile(...)` in each frame of a recursive loop stays reachable until
-  the whole loop returns — 40 reads of a 20 MB file peaked at 870 MB. Put the per-item work in a
+- **Per-item work inside a *non-tail* recursive loop**: a `let s = readFile(...)` in each frame
+  stays reachable until the whole loop returns when the recursive call is not in tail position.
+  Before tail calls shipped (v0.52.0), 40 reads of a 20 MB file peaked at 870 MB. A *tail*-recursive
+  loop now frees each iteration's bindings. Measured 2026-10-28, the same 40 × 20 MB loop with the
+  recursive call in tail position peaked at 329 MB on the evaluator and 53 MB under
+  `--strict-bytecode`. If the loop cannot be made tail-recursive, put the per-item work in a
   function the loop *calls* (`foldlE(step, ...)`, `mapE`): the binding dies with the callee's frame.
-  Same program, 212 MB.
 
 **Measuring.** Peak RSS is the number: `/usr/bin/time -l ailang run …` (macOS, bytes) or
 `/usr/bin/time -v` (Linux, KB). Compare against the same program with the suspect feature off;

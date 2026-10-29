@@ -149,3 +149,24 @@ func TestLaneProfileFor(t *testing.T) {
 		t.Fatalf("explicit motoko_profile must win, got %q", got)
 	}
 }
+
+// No session: the run fails, and its own error (motoko's stderr tail) survives.
+// A session with a breach: the lane verdict replaces a success.
+func TestApplyLaneVerdict(t *testing.T) {
+	cause := "motoko exited 1 — stderr tail: bun: command not found"
+	res := &executor.Result{Success: false, Error: cause}
+	applyLaneVerdict(res, "")
+	if res.Success || res.Error != cause {
+		t.Fatalf("no session: success=%v error=%q; want the run's own cause kept", res.Success, res.Error)
+	}
+	silent := &executor.Result{Success: true}
+	applyLaneVerdict(silent, "")
+	if silent.Success || !strings.Contains(silent.Error, "no session") {
+		t.Fatalf("a run with no session must never pass: %+v", silent)
+	}
+	breach := &executor.Result{Success: true}
+	applyLaneVerdict(breach, writeSession(t, `{"type":"session_start","mode":"v2","run_id":"r0"}`))
+	if breach.Success || !strings.HasPrefix(breach.Error, "policy_violation:") {
+		t.Fatalf("breach: %+v", breach)
+	}
+}

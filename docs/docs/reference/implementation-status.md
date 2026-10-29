@@ -27,7 +27,8 @@ All implemented features are documented in [Design Documents](/docs/design-docs)
 | **REPL** | Complete | History, completion, type checking |
 | **Effects** | Complete | IO, FS, Net, Clock, Rand, DB, AI, Process |
 | **Modules** | Complete | Imports, exports, cross-module calls |
-| **Go Codegen** | Complete | Full compilation to Go |
+| **Bytecode VM** | Partial | `run --bytecode`, ~40× faster than the evaluator; 142 of 205 runnable examples run fully on the VM, the rest fall back to the evaluator (`--strict-bytecode` fails instead) |
+| **Go Codegen** | Partial | `compile --emit-go`: values boxed as `interface{}`, no tail-call elimination; `--emit-go-v2` is frozen |
 
 ### AI-First Features (Complete)
 

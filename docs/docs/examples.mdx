@@ -13,14 +13,23 @@ import ListSumExample from '!!raw-loader!@site/../examples/runnable/list_sum.ail
 import ADTTreeExample from '!!raw-loader!@site/../examples/runnable/adt_tree.ail';
 import TypeInferenceExample from '!!raw-loader!@site/../examples/runnable/type_inference.ail';
 import RecordsExample from '!!raw-loader!@site/../examples/runnable/records.ail';
+import FloatIntLiteralsExample from '!!raw-loader!@site/../examples/runnable/float_int_literals.ail';
 import LambdasHigherOrderExample from '!!raw-loader!@site/../examples/runnable/lambdas_higher_order.ail';
 import PatternsExample from '!!raw-loader!@site/../examples/runnable/patterns.ail';
 import EffectsFsIoExample from '!!raw-loader!@site/../examples/runnable/effects_fs_io.ail';
 import JsonParsingExample from '!!raw-loader!@site/../examples/runnable/json_parsing.ail';
 import HttpSimpleExample from '!!raw-loader!@site/../examples/runnable/http_simple.ail';
 import MutualRecursionExample from '!!raw-loader!@site/../examples/runnable/recursion_mutual.ail';
+import LocalLetrecLoopExample from '!!raw-loader!@site/../examples/runnable/local_letrec_loop.ail';
 import ZipReaderExample from '!!raw-loader!@site/../examples/runnable/zip_reader.ail';
 import XmlParserExample from '!!raw-loader!@site/../examples/runnable/xml_parser.ail';
+import PropertyDifferentialExample from '!!raw-loader!@site/../examples/runnable/property_differential_testing.ail';
+import VisitedSetBfsExample from '!!raw-loader!@site/../examples/runnable/visited_set_bfs.ail';
+import CycleDetectionExample from '!!raw-loader!@site/../examples/runnable/cycle_detection_visited_set.ail';
+import MapTupleRecordKeysExample from '!!raw-loader!@site/../examples/runnable/map_tuple_record_keys.ail';
+import DifferenceArrayExample from '!!raw-loader!@site/../examples/runnable/difference_array_accumulate.ail';
+import RegexBasicsExample from '!!raw-loader!@site/../examples/runnable/regex_basics.ail';
+import BulkBuildCostModelExample from '!!raw-loader!@site/../examples/runnable/bulk_build_cost_model.ail';
 
 # AILANG Examples
 
@@ -220,6 +229,30 @@ ailang run examples/runnable/records.ail
 
 ---
 
+### Int Literals at Float Type
+
+A numeric literal such as `0` or `2` takes the type it is used at. So `f >= 0`, `2 * f`,
+a float function that returns `0`, and `make(3, 0)` for an `Array[float]` all produce floats:
+
+<CodeBlock language="typescript" title="examples/runnable/float_int_literals.ail">
+  {FloatIntLiteralsExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/float_int_literals.ail)</small>
+
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/float_int_literals.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> An int literal used at type `float` is a float value (`0` → `0.0`)
+- <CheckIcon inline /> A `let`-bound numeric literal picks ONE type from its uses
+- <CheckIcon inline /> Mixing int and float for the same binding is a type error: annotate the binding (`let n: int = 4`) and convert with `intToFloat`
+- <CheckIcon inline /> Literal syntax: [Language Syntax reference](/docs/reference/language-syntax)
+
+---
+
 ## <Icon name="box" /> JSON & HTTP
 
 ### JSON Parsing
@@ -314,6 +347,160 @@ ailang run examples/runnable/xml_parser.ail
 
 ---
 
+### Regular Expressions
+
+Match, find, capture, replace and split with `std/regex`, which uses the linear-time RE2 engine. See the [standard library reference](/docs/reference/stdlib):
+
+<CodeBlock language="typescript" title="examples/runnable/regex_basics.ail">
+  {RegexBasicsExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/regex_basics.ail)</small>
+
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/regex_basics.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `R.compile(pattern)` returns a `Result`. It is the only call that can fail; matching cannot
+- <CheckIcon inline /> Double the backslash in AILANG strings: `"\\d+"`. Writing `"\d"` is a parse error
+- <CheckIcon inline /> Import `std/regex as R`, because its `split` clashes with `std/string`'s
+- <CheckIcon inline /> `findFirst` returns `groups`: the whole match first, then each capture group. `replaceAll` refers to them as `$1`, `$2`
+
+---
+
+## <Icon name="target" /> Testing & Verification
+
+### Property-Based Differential Testing
+
+Check a fast algorithm against a slow, obviously-correct reference on generated inputs. `ailang test` runs each `property` on 100 generated cases and prints the failing input as a counterexample:
+
+<CodeBlock language="typescript" title="examples/runnable/property_differential_testing.ail">
+  {PropertyDifferentialExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/property_differential_testing.ail)</small>
+
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/property_differential_testing.ail
+ailang test examples/runnable/property_differential_testing.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `forall(xs: [int]) => ...` generates lists, ints and other inputs for you
+- <CheckIcon inline /> A failing property prints its counterexample, replayable with `ailang test --seed N`
+- <CheckIcon inline /> Write the brute-force reference first, then let the property check the fast version before you trust it
+
+---
+
+## <Icon name="box" /> Collections: Sets, Structured Keys, Batch Updates
+
+The competitive-programming toolkit in pure AILANG: a visited set, tuple and record map keys, and a difference array. See the [Stdlib Index](/docs/reference/stdlib) for `std/set`, `std/map` and `std/array`.
+
+### Visited Set BFS
+
+Shortest path on a grid with a visited `Set[(int, int)]` and a list frontier:
+
+<CodeBlock language="typescript" title="examples/runnable/visited_set_bfs.ail">
+  {VisitedSetBfsExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/visited_set_bfs.ail)</small>
+
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/visited_set_bfs.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `import std/set as S` for the functions, `import std/set (Set)` to write the type (`S.Set[...]` does not parse)
+- <CheckIcon inline /> Set elements can be tuples, records and ADT constructors
+- <CheckIcon inline /> `S.member` is O(1); `S.insert` copies the set (O(n)) until persistent maps land
+
+### Cycle Detection with a Visited Set
+
+Count moves until a `(row, col, Dir)` state repeats:
+
+<CodeBlock language="typescript" title="examples/runnable/cycle_detection_visited_set.ail">
+  {CycleDetectionExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/cycle_detection_visited_set.ail)</small>
+
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/cycle_detection_visited_set.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `Set[(int, int, Dir)]`: an ADT constructor inside a tuple element
+- <CheckIcon inline /> The AILANG form of Python's `if state in seen: break`
+
+### Tuple and Record Map Keys
+
+Tuples, records and ADT constructors as `std/map` keys:
+
+<CodeBlock language="typescript" title="examples/runnable/map_tuple_record_keys.ail">
+  {MapTupleRecordKeysExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/map_tuple_record_keys.ail)</small>
+
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/map_tuple_record_keys.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> Record keys ignore field order: `{team: 1, name: "alice"}` finds `{name: "alice", team: 1}`
+- <CheckIcon inline /> Keys iterate in a deterministic canonical order
+- <CheckIcon inline /> Function or list keys are a runtime error on every operation, never a silent `false`
+
+### Difference Array with accumulate
+
+Interval coverage, a histogram and a per-bucket max, each with one array copy:
+
+<CodeBlock language="typescript" title="examples/runnable/difference_array_accumulate.ail">
+  {DifferenceArrayExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/difference_array_accumulate.ail)</small>
+
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/difference_array_accumulate.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `accumulate(arr, [(i, x)], combine)` sets `out[i] = combine(out[i], x)` in list order, O(n + k)
+- <CheckIcon inline /> Works for any element type; out-of-bounds indexes are errors
+
+---
+
+### Building Arrays and Maps (Cost Model)
+
+Values are immutable, so `A.set`, `A.append`, `M.insert` and `acc ++ [x]` each copy the whole structure. Doing one per loop step is quadratic. Build the structure once instead. See [Arrays](/docs/reference/arrays):
+
+<CodeBlock language="typescript" title="examples/runnable/bulk_build_cost_model.ail">
+  {BulkBuildCostModelExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/bulk_build_cost_model.ail)</small>
+
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/bulk_build_cost_model.ail
+```
+
+**Key concepts:**
+- <CheckIcon inline /> Lookups cost O(1): `A.get`, `M.lookup`, `M.member`, list `nth`
+- <CheckIcon inline /> Building in one pass costs O(n): `A.fromList`, `M.fromList`, `A.updateMany`, `mapAccumL`
+- <CheckIcon inline /> A 2D grid is one flat Array, with cell `(r, c)` at index `r * w + c`
+
+---
+
 ## <Icon name="rocket" /> Advanced Examples
 
 ### Higher-Order Functions
@@ -358,6 +545,29 @@ ailang run --caps IO examples/runnable/recursion_mutual.ail
 - <CheckIcon inline /> `pure func` declares functions without side effects
 - <CheckIcon inline /> Functions can reference each other (mutual recursion)
 - <CheckIcon inline /> Built-in tests verify correctness: `tests [(0, true), (1, false), ...]`
+
+---
+
+### Loops with a Local `letrec`
+
+A loop is a local recursive lambda with accumulator parameters. The recursive call is a tail call, so a million iterations run in constant stack:
+
+<CodeBlock language="typescript" title="examples/runnable/local_letrec_loop.ail">
+  {LocalLetrecLoopExample}
+</CodeBlock>
+
+<small>[View source on GitHub](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/local_letrec_loop.ail)</small>
+
+**Run it:**
+```bash
+ailang run --caps IO examples/runnable/local_letrec_loop.ail
+ailang run --caps IO --strict-bytecode examples/runnable/local_letrec_loop.ail   # same output, on the bytecode VM
+```
+
+**Key concepts:**
+- <CheckIcon inline /> `letrec loop = \i acc. ...` names a lambda that can call itself
+- <CheckIcon inline /> A call in tail position (the whole result of a branch) reuses the frame
+- <CheckIcon inline /> Local `letrec` and prelude `println` without an import both run natively under `--bytecode` / `--strict-bytecode`
 
 ---
 

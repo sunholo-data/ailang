@@ -21,10 +21,10 @@ import "github.com/sunholo-data/ailang/internal/ai/openai"
 // providers, so only MaxTokens is set (never MaxCompletionTokens).
 type chatRequest struct {
 	openai.ChatRequest
-	// Provider carries OpenRouter's dynamic routing config. Translated from
-	// ai.AIRoutingPolicy by translatePolicy; nil when the caller did not
-	// supply a routing policy.
-	Provider *providerField `json:"provider,omitempty"`
+	// Provider carries OpenRouter's dynamic routing config, built by routeFor
+	// exactly as Step and StreamStep build it (registry defaults, the caller's
+	// policy, AILANG_OPENROUTER_PROVIDER, the fastest-host default).
+	Provider map[string]any `json:"provider,omitempty"`
 	// Reasoning caps hidden thinking tokens for reasoning models
 	// (https://openrouter.ai/docs/use-cases/reasoning-tokens). Nil = provider
 	// default. Set from ai.Request.Options["reasoning_max_tokens"] so

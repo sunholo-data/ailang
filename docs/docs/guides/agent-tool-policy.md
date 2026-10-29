@@ -17,7 +17,7 @@ edit. There is no shell. This page is the operator's view; the designs are
 | Piece | What it is | Where |
 |---|---|---|
 | **Gate** | `ailang run --policy <agent-policy.toml> prog.ail` — a **supervised** run: the parent resolves the policy, arms `timeout_ms` before the worker exists, starts this binary as a worker in its own process group with a control pipe for the admission decision, an allowlisted environment (restricted mode) and an output cap; the worker typechecks → entry → the program's declared effect row must be a subset of `allowed_caps`; every widening flag (`--caps`, `--entry`, `--env*`, `--net-*`, `--stream-*`, `--stdlib-path`, `--package-dir`, `--ai*`, `--routing-*`, `--fs-max-bytes`, …) is refused **by name**; denial prints the decision JSON and exits 2 without running; a timeout or output cap exits 3 with a `policy-result:` envelope | `cmd/ailang/run_policy.go`, `run_policy_supervise.go` |
-| **Tools** | `ailang_run({path, args_json?})` calls the gate. `ailang_read/ailang_write/ailang_edit` and `ailang_cli({op, …})` are served by **`ailang policy-tool`**, a typed endpoint in the Go binary backed by the same resolved policy: file paths are root-anchored (a path outside the sandbox, or a symlink that leads outside, fails inside the syscall), and each CLI op has a schema — the argv is built in Go from validated fields, never composed by the model or the extension. With no policy attached every tool **refuses with a named reason** (default-deny) | `internal/policytool`, `.pi/extensions/ailang-exec.ts` |
+| **Tools** | `ailang_run({path, args_json?})` calls the gate. `ailang_read/ailang_write/ailang_edit` and `ailang_cli({op, …})` are served by **`ailang policy-tool`**, a typed endpoint in the Go binary backed by the same resolved policy: file paths are root-anchored (a path outside the sandbox, or a symlink that leads outside, fails inside the syscall), and each CLI op has a schema — the argv is built in Go from validated fields, never composed by the model or the extension. policy-tool also has a `delete` op (`{op: "delete", path}`): it removes one file or symlink entry (never the link's target), refuses directories, and is gated like a rename/remove, so protected paths, directories holding them, and `.git/` stay put. The pi `ailang_only` lane does not expose it. `ailang_read({path, offset?, limit?})` pages a large file: `offset` is the 1-based first line, `limit` the line count (capped at 2000), and the answer adds `total_lines` plus the window actually served; with neither it returns the whole file as before. A ranged read is confined exactly like a whole one, and a window is cut at a whole line under `max_fs_transfer_bytes`, so a file too big to read whole can still be paged. With no policy attached every tool **refuses with a named reason** (default-deny) | `internal/policytool`, `.pi/extensions/ailang-exec.ts` |
 | **Profile** | `tool_policy: ailang_only` ⇒ `--no-builtin-tools --tools ailang_read,ailang_edit,ailang_write,ailang_check,ailang_run,builtins_search,examples_search,ailang_cli` (`ailang pi tool-profile ailang_only` prints it). pi's native `read`/`write`/`edit` — which see the whole host filesystem — are **not** in the lane | `internal/executor/toolpolicy.go`, `internal/executor/pi/toolnames.go` |
 
 When an owned managed process or async source starts `run --policy` using the same runtime executable, cancellation waits for the supervisor's acknowledgement that its separately grouped worker and owned tasks have stopped. A private worker lifeline also triggers cleanup if the supervisor disappears. Admission reporting remains separate; a missing cleanup acknowledgement produces a cancellation failure even if the worker later exits. Policy timeout and output limits retain their immediate execution-stop boundary.
@@ -120,8 +120,17 @@ authorizer (the host is not program-controlled).
 **`fs_deny_write`.** Paths inside the sandbox the program and the lane's tools may read but not
 write — the artifact's own supply chain, which would otherwise run with CI's or the next
 session's authority once committed: `".github/**"`, `".pi/**"`, `"Makefile"`, `"*.yml"`. A
-pattern is a glob for one path (matched against the whole relative path and its base name) or
-`<dir>/**` for a subtree. `.git/**` is always implied in restricted mode. Matching is
+pattern is a glob over path components: `*`, `?` and `[...]` match within one component, and a
+`**` component matches zero or more directories (`**/*.test.ts` covers `a.test.ts` and
+`src/deep/a.test.ts`; `docs/**` covers `docs` and everything beneath it). A pattern containing a
+slash is anchored at the sandbox root (`tests/**` does not cover `cli/tests/`, so write
+`**/tests/**` for that). A pattern without one is also matched against the base name, so `*.yml`
+protects YAML files at any depth. A malformed glob protects everything it could match (fails
+closed). Patterns are matched against the path **as spelled and as it resolves**: an in-root
+symlink to a protected file or directory is refused like the target, and the refusal names the
+resolved path. A write to a regular file with more than one hard link is refused whenever
+protection applies, because no path walk can find its other names (Unix; not detected on
+Windows). `.git/**` is always implied in restricted mode. Matching is
 **case- and Unicode-normalization-insensitive on every platform**: on a case-insensitive volume
 (macOS APFS by default, Windows NTFS) `.CLAUDE/settings.json` is the same file as
 `.claude/settings.json`, so `".claude/**"` refuses both — on a case-sensitive Linux volume this

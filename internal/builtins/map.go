@@ -11,7 +11,8 @@ import (
 
 // Map builtin functions for AILANG
 // These provide O(1) lookup operations on immutable hash maps.
-// Keys must be int, string, or bool. Updates are copy-on-write (O(n)).
+// Keys are any value internal/pcoll can encode (int, string, bool, float,
+// unit, and tuples/records/constructors of those); updates are copy-on-write (O(n)).
 
 func init() {
 	registerMapEmpty()
@@ -198,7 +199,10 @@ func mapLookupImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error)
 	if !ok {
 		return nil, fmt.Errorf("map_lookup: expected Map, got %T", args[0])
 	}
-	val, found := m.Lookup(args[1])
+	val, found, err := m.Lookup(args[1])
+	if err != nil {
+		return nil, fmt.Errorf("map_lookup: %w", err)
+	}
 	if found {
 		return mapMakeSome(val), nil
 	}
@@ -250,7 +254,10 @@ func mapMemberImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error)
 	if !ok {
 		return nil, fmt.Errorf("map_member: expected Map, got %T", args[0])
 	}
-	_, found := m.Lookup(args[1])
+	_, found, err := m.Lookup(args[1])
+	if err != nil {
+		return nil, fmt.Errorf("map_member: %w", err)
+	}
 	return &eval.BoolValue{Value: found}, nil
 }
 
@@ -299,7 +306,11 @@ func mapRemoveImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error)
 	if !ok {
 		return nil, fmt.Errorf("map_remove: expected Map, got %T", args[0])
 	}
-	return m.Remove(args[1]), nil
+	result, err := m.Remove(args[1])
+	if err != nil {
+		return nil, fmt.Errorf("map_remove: %w", err)
+	}
+	return result, nil
 }
 
 // ============================================================================

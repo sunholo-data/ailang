@@ -1,0 +1,18 @@
+[2026-10-26 10:21:28] quorum artifact directory: /Users/voightkampff/.ailang/state/mission-quorum-repos/sunholo-data/stapledons-godot
+[2026-10-26 10:21:28] anthropic credential: CLAUDE_CODE_OAUTH_TOKEN (the loops' own token) for inference; the quota reader reads usage with the login credential first
+[2026-10-26 10:21:28] driver pin: running committed origin/dev @ b2c9ff5b03ffaf805e7e8f40e46f04bde8e303c3 with mission work repository /Users/voightkampff/dev/sunholo-data/stapledons-godot (source clone ? was ? behind); pinned target ? behind origin/dev (baseline ?)
+[2026-10-26 10:21:28] driver pin drift: unknown (?); notice suppressed
+[2026-10-26 10:21:28] driver pin age: unknown (?); notice suppressed
+[2026-10-26 10:21:34] ration gate: blocked buckets (over ration or unknown quota):codex anthropic 
+[2026-10-26 10:21:34] anthropic:claude-opus-5-5 quota is UNREADABLE (not measured) — probing the lane instead of refusing it; an unreadable quota is not an exhausted one
+[2026-10-26 10:21:40] anthropic:sonnet quota is UNREADABLE (not measured) — probing the lane instead of refusing it; an unreadable quota is not an exhausted one
+[2026-10-26 10:21:49] codex:gpt-6.1-sol quota admission blocked; skipping inference probe
+[2026-10-26 10:21:49] codex model 'gpt-6.1-sol' unusable: quota-limited
+[2026-10-26 10:21:49] codex probe output: Codex quota admission blocked (over ration or observation unavailable)
+[2026-10-26 10:21:49] codex planner lane -> falling back to 'pi:ollama/kimi-k3:cloud' for this fire (model 'gpt-6.1-sol')
+[2026-10-26 10:21:49] codex:bogus quota admission blocked; skipping inference probe
+[2026-10-26 10:21:49] codex model 'bogus' unusable: quota-limited
+[2026-10-26 10:21:49] codex probe output: Codex quota admission blocked (over ration or observation unavailable)
+[2026-10-26 10:21:49] anthropic:claude-haiku-5-5 quota is UNREADABLE (not measured) — probing the lane instead of refusing it; an unreadable quota is not an exhausted one
+[2026-10-26 10:21:56] codex executor lane -> falling back to 'claude:claude-haiku-5-5' for this fire (model 'bogus')
+[2026-10-26 10:22:06] DRY RUN ok: mission=stapledon repo-slug=sunholo-data/stapledons-godot doc=design_docs/stapledon-mission.md workdir=/Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter61-zsh-land pidfile=/Users/voightkampff/.ailang/state/mission-stapledon.pid prefs=claude-opus-5-5,codex:gpt-6.1-sol timeout=21600s | roles: designer=claude:claude-opus-5-5 planner=pi:ollama/kimi-k3:cloud executor=claude:claude-haiku-5-5 evaluator=sonnet | lanes=DEGRADED(2) - `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — over daily ration) → handed to `pi:ollama/kimi-k3:cloud` - `executor`: **codex** lane `bogus` unusable (probe rc=`75` — over daily ration) → handed to `claude:claude-haiku-5-5` | pin=pinned(? behind) | skill-sync=skip:ahead

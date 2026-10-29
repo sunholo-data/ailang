@@ -8,7 +8,7 @@
 // launcher-owned path, not from the request) and dispatches on an explicit
 // table:
 //
-//   - read / write / edit are root-anchored through internal/fileguard: an
+//   - read / write / edit / delete are root-anchored through internal/fileguard: an
 //     outside path, a symlink out, or a traversal fails inside the syscall.
 //   - the CLI operations (check, fmt, iface, test, …) have a per-command
 //     schema: which positional kinds and which flags are legal. The argv is
@@ -34,8 +34,12 @@ import (
 // that handler's typed inputs — unknown or missing fields are refusals.
 type Request struct {
 	Op string `json:"op"`
-	// read / write / edit / check / fmt / tree / policy_check / design_quorum
+	// read / write / edit / delete / check / fmt / tree / policy_check / design_quorum
 	Path string `json:"path,omitempty"`
+	// read: an optional 1-based line window. Both absent reads the whole
+	// file (same bytes as before); either present makes a ranged read.
+	Offset *int `json:"offset,omitempty"`
+	Limit  *int `json:"limit,omitempty"`
 	// write
 	Content string `json:"content,omitempty"`
 	// edit: OldText must occur exactly once
@@ -58,6 +62,11 @@ type Response struct {
 	Refused string `json:"refused,omitempty"`
 	// read
 	Content string `json:"content,omitempty"`
+	// ranged read only: the file's line count and the window actually
+	// served (Limit is the number of lines returned, 0 past the end).
+	TotalLines *int `json:"total_lines,omitempty"`
+	Offset     *int `json:"offset,omitempty"`
+	Limit      *int `json:"limit,omitempty"`
 	// CLI ops
 	Argv     []string `json:"argv,omitempty"`
 	ExitCode int      `json:"exit_code,omitempty"`
@@ -147,6 +156,8 @@ func (h *Host) Dispatch(req Request) Response {
 		return h.write(req)
 	case "edit":
 		return h.edit(req)
+	case "delete":
+		return h.remove(req)
 	}
 	if _, ok := cliSchemas[req.Op]; ok {
 		return h.cli(req)
@@ -160,7 +171,7 @@ func refuse(format string, a ...any) Response {
 
 // ops is every op the host answers.
 func (h *Host) ops() []string {
-	out := []string{"summary", "read", "write", "edit"}
+	out := []string{"summary", "read", "write", "edit", "delete"}
 	for op := range cliSchemas {
 		if h.cliAllowed(op) {
 			out = append(out, op)

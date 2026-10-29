@@ -153,3 +153,24 @@ Repeated verification: `go test ./internal/effects -run 'TestPkgAssetPath|TestAs
 - Focused golangci-lint over all eight touched packages exits zero with `0 issues.` Full `make lint` reports `0 issues.` but times out (exit 4), so its gate remains incomplete.
 - Independent evaluation report: `.ailang/state/evaluations/eval_M-PKG-ASSET-LOCK-RESOLUTION_round_1.json`. Review found no remaining runtime defect but withheld approval because broad validation is incomplete.
 - All implementation is committed. Sprint JSON retains `in_progress`, M4 `passes: false`, and `implementation_complete: true` to distinguish finished code from unmet validation criteria. Remaining unchecked acceptance boxes refer to those broad gates. No merge or publication performed.
+
+## Attended CI/residual repair (2026-10-29)
+
+Reconciled with current dev without dropping its package-root fallback,
+root-package asset support, no-exports entry diagnostics, or release/prerelease
+ordering. The basic CLI fix was already released; this PR retains the remaining
+missing-target, budget-context, compile-source snapshot and per-engine behavior.
+
+AILANG prompt version loaded: v0.16.7 (current `ailang prompt` output).
+Regression-first run confirmed missing locked-target authority, local target
+resolution, invalid-only-cache errors, legacy budget propagation and root assets
+without a lock. The six-package focused asset suite now passes (effects, pkg,
+pipeline, embed, apiserver, runner); runner/batch additionally prove that an
+on-disk lock change after compilation cannot change selected asset bytes.
+
+- [x] Resolve stale code/doc conflicts while preserving current deployed behavior.
+- [x] Focused asset regressions pass across all six runtime/compiler consumers.
+- [ ] Complete package-wide gates, stdlib/example verification and fresh independent evaluation.
+
+Historical failures and unchecked original gates above remain recorded until the
+fresh checks complete. This note does not turn the original FAIL51 into a pass.

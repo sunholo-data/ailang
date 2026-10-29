@@ -125,7 +125,7 @@ func runFile(filename string, programArgs []string, trace bool, seed int, virtua
 		Batch:               batch,
 		Caps:                caps,
 		MaxRecursionDepth:   maxRecursionDepth,
-		BytecodeMode:        bytecodeMode,
+		BytecodeMode:        bytecodeMode || strictBytecode,
 		StrictBytecode:      strictBytecode,
 		Env: runner.EnvFlags{
 			AllowEnv:         allowEnv,

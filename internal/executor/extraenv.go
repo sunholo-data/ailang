@@ -67,6 +67,7 @@ var extraEnvDeniedExact = map[string]string{
 
 // extraEnvDeniedPrefixes are refused by (case-insensitive) prefix.
 var extraEnvDeniedPrefixes = []struct{ prefix, rule string }{
+	{"AILANG_MAINTENANCE_", "trusted eval containment (use Task.EvalContainment)"},
 	{"LD_", "dynamic loader (LD_PRELOAD and friends)"},
 	{"DYLD_", "dynamic loader (macOS)"},
 	{"GIT_", "git configuration and transport (GIT_CONFIG*, GIT_SSH_COMMAND, GIT_ASKPASS)"},

@@ -294,6 +294,9 @@ func Run(ctx context.Context, opts Options) int {
 		} else if code := runSingle(ctx, result, opts, programArgs, caps); code >= 0 {
 			return code
 		}
+	} else if isModuleFile && result.Interface != nil {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", red("Error"), noExportsEntryError(&result, entry))
+		return 1
 	} else {
 		// Non-module mode - print result if evaluated by pipeline (ModeEval)
 		PrintNonModuleResult(result.Value, opts.Print, opts.NoPrint)

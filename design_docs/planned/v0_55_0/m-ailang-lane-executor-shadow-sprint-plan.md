@@ -31,7 +31,7 @@ Every sampled real `ailang_only`-lane coordinator task also runs on the other ha
 
 ## Proposed Milestones
 
-### M1: Shadow config and task identity (~220 LOC: 140 implementation + 80 tests)
+### M1: Shadow config and task identity ✅ (~220 LOC: 140 implementation + 80 tests)
 - **New file** `internal/coordinator/shadow_config.go`: `ShadowConfig{Enabled, Provider, ExecutorVariant, Model, SampleRate, MaxCostUSD, OfferAlternative}`, plus the YAML field on `AgentConfig`. **Companion file required:** `agent_registry.go` is at 771/800 lines, so only the one-line field goes there.
 - Validation in `ValidateAgentProviders` (`dispatch_provider.go:123`), as the design specifies:
   - `ailang_only` only;
@@ -40,75 +40,75 @@ Every sampled real `ailang_only`-lane coordinator task also runs on the other ha
   - `sample_rate` in [0, 1].
 - Add `ShadowOf string` to `Task` (`provider.go`), `TaskRecord` (`store.go`), and the SQLite and Firestore task stores (`internal/storage/firestore/coordinator_tasks.go`), with a SQLite migration.
 - **Acceptance:**
-  - [ ] a table test of valid and invalid configs (wrong lane, same provider, mismatched variant, out-of-range rate) returns the expected errors;
-  - [ ] `ShadowOf` round-trips through SQLite and Firestore (Firestore via the existing fake or emulator test pattern);
-  - [ ] `make test-changed` and `make check-file-sizes` pass.
+  - [x] a table test of valid and invalid configs (wrong lane, same provider, mismatched variant, out-of-range rate) returns the expected errors;
+  - [x] `ShadowOf` round-trips through SQLite and Firestore (Firestore via the existing fake or emulator test pattern);
+  - [x] `make test-changed` and `make check-file-sizes` pass.
 
-### M2: Cloud dispatch of the shadow child (~240 LOC: 150 + 90)
+### M2: Cloud dispatch of the shadow child ✅ (~240 LOC: 150 + 90)
 - New `internal/coordinator/shadow_dispatch.go`. After the primary's `MarkTaskQueued` in `dispatchTasksCloud`:
   1. make a deterministic sampling decision, a hash of the task ID against `sample_rate`, recorded on the child (A1 replayability);
   2. create the child `<id>-shadow` with `ShadowOf`, **no `StageID`/`ChainID`**, the same directive, tool policy and policy path;
   3. dispatch with the shadow provider, variant and model, plus `DispatchParams.Shadow=true`.
 - Register `AILANG_TASK_SHADOW` in the `internal/config` registry (`job.go`, next to `AcknowledgeOnly`, V6), plus `make docs-env`.
 - **Acceptance:**
-  - [ ] with a fake dispatcher, an eligible task gives two dispatches (primary unchanged; shadow with `Shadow=true` and the shadow provider);
-  - [ ] an ineligible agent, or a sample miss, gives exactly one dispatch;
-  - [ ] **regression:** a non-shadow agent's dispatch parameters are byte-identical to before;
-  - [ ] the sampling decision is stable for a given task ID.
+  - [x] with a fake dispatcher, an eligible task gives two dispatches (primary unchanged; shadow with `Shadow=true` and the shadow provider);
+  - [x] an ineligible agent, or a sample miss, gives exactly one dispatch;
+  - [x] **regression:** a non-shadow agent's dispatch parameters are byte-identical to before;
+  - [x] the sampling decision is stable for a given task ID.
 
-### M3: The job enforces no side effects (~180 LOC: 90 + 90)
+### M3: The job enforces no side effects ✅ (~180 LOC: 90 + 90)
 - In `executeCloudTask` (`cmd/ailang/coordinator_cloud_task.go`), when `config.TaskShadow()` is set:
   - skip `verifyDeployKeyWrite`, the push step and `openCascadePullRequest`;
   - keep `collectGitEvidence` and `writeTaskArtifacts`.
 - In `coordinator_cloud_executor.go`, `childGitCredential` returns no credential for shadow tasks.
 - **Acceptance:**
-  - [ ] a unit or integration test with a fake git remote shows a shadow run produces evidence (diff, artifacts) and **no** push or PR call;
-  - [ ] **negative test:** with a write key present and the agent attempting `git push`, nothing reaches the remote;
-  - [ ] **regression:** a non-shadow run still pushes and opens a PR;
-  - [ ] each guard is mutation-tested (revert it and watch its test fail).
+  - [x] a unit or integration test with a fake git remote shows a shadow run produces evidence (diff, artifacts) and **no** push or PR call;
+  - [x] **negative test:** with a write key present and the agent attempting `git push`, nothing reaches the remote;
+  - [x] **regression:** a non-shadow run still pushes and opens a PR;
+  - [x] each guard is mutation-tested (revert it and watch its test fail).
 
-### M4: Finalization and storage (~230 LOC: 140 + 90)
+### M4: Finalization and storage ✅ (~230 LOC: 140 + 90)
 - `wantsApproval` and `wantsHandoff` return false when `ShadowOf != ""`. `applyMetrics` needs no change, because shadows have no `StageID`/`ChainID` (V18); a test pins that.
 - Persist the shadow result (diff, cost, tokens, turns, finish reason, session ID, artifact path, `BaseCommit`) on the child record.
 - New `ShadowComparison` record keyed by the parent ID: verdict enum (`primary_better | shadow_better | equivalent | both_failed | ungraded(reason)`), `base_drift`, and per-layer grades. Stored in SQLite and Firestore.
 - **Acceptance:**
-  - [ ] a shadow completion creates no approval card or handoff, and leaves chain aggregates unchanged (test asserts `RecomputeChainAggregates` isn't called);
-  - [ ] a non-shadow completion behaves exactly as before (card and handoff);
-  - [ ] the `ShadowComparison` CRUD round-trip works;
-  - [ ] `base_drift` is set when the primary's and shadow's `BaseCommit` differ.
+  - [x] a shadow completion creates no approval card or handoff, and leaves chain aggregates unchanged (test asserts `RecomputeChainAggregates` isn't called);
+  - [x] a non-shadow completion behaves exactly as before (card and handoff);
+  - [x] the `ShadowComparison` CRUD round-trip works;
+  - [x] `base_drift` is set when the primary's and shadow's `BaseCommit` differ.
 
-### M5: The grade job, mechanical layer (~300 LOC: 200 + 100)
-- New `cmd/ailang/coordinator_shadow_grade_job.go`, a Cloud Run Job entry on the agent executor image, with no git credential. It:
+### M5: The grade job, mechanical layer ✅ (~300 LOC: 200 + 100)
+- New `cmd/ailang/coordinator_shadow_grade_job.go`, a Cloud Run Job entry on the agent executor image (**as built: a mode of the existing executor job, `AILANG_JOB_MODE=shadow_grade`; Mark 2026-10-19**), with no git credential. It:
   1. clones at each run's `BaseCommit` (`git fetch --depth 1 origin <sha>`);
   2. applies each diff;
   3. runs `ailang check` on changed modules and `ailang test --package` on changed packages **through `ailang policy-tool` under the agent's restricted policy**, each with a hard timeout (300 s default), within a 900 s job bound;
   4. reports per-diff pass/fail, or `ungraded(timeout|apply_failed)`.
 - New `internal/coordinator/shadow_grade.go` dispatches the grade job when the shadow child completes and its parent has a completion, and writes the mechanical layer to `ShadowComparison`.
 - **Acceptance:**
-  - [ ] fixture repos where diff A passes and diff B fails `ailang check` grade correctly;
-  - [ ] a hanging test gives `ungraded(timeout)` within the bound;
-  - [ ] an unappliable diff gives `ungraded(apply_failed)`;
-  - [ ] **no grading code runs in the daemon process** (test asserts the daemon only dispatches);
-  - [ ] `make` targets are never invoked.
+  - [x] fixture repos where diff A passes and diff B fails `ailang check` grade correctly;
+  - [x] a hanging test gives `ungraded(timeout)` within the bound;
+  - [x] an unappliable diff gives `ungraded(apply_failed)`;
+  - [x] **no grading code runs in the daemon process** (test asserts the daemon only dispatches);
+  - [x] `make` targets are never invoked.
 
-### M6: Merged-fix comparison and reviewer (~250 LOC: 170 + 80)
+### M6: Merged-fix comparison and reviewer ✅ (~250 LOC: 170 + 80)
 - When the parent's PR settles (`settledPRLookup` on `BranchForTask(parent)`), fetch the merged diff by PR number (`pulls/{n}/files`, because `LandedPR` has no SHA, V21). Record:
-  - file and function overlap for each candidate;
+  - file and function overlap for each candidate (**as built: file overlap only**; AILANG diff hunks carry no function context);
   - whether the merged PR's new or changed `.ail` tests pass on each candidate (grade job, M5 path).
 
   Mark the comparison `circular` when the merged PR is the primary's own.
 - Reviewer: only when the layers disagree or tie. An off-Anthropic reviewer via the existing design-review machinery (reject-by-default; must name a winner, its strongest objection and a confidence), cost-capped and counted against the shadow budget.
 - **Acceptance:**
-  - [ ] a settled-PR fixture updates the comparison;
-  - [ ] the circular case is flagged;
-  - [ ] the reviewer is invoked only on disagree or tie, and an unreachable reviewer gives `ungraded(reviewer_unavailable)`, never a silent verdict.
+  - [x] a settled-PR fixture updates the comparison;
+  - [x] the circular case is flagged;
+  - [x] the reviewer is invoked only on disagree or tie, and an unreachable reviewer gives `ungraded(reviewer_unavailable)`, never a silent verdict.
 
-### M7: The report and the dev-plane enable (~200 LOC: 140 + 60, plus config)
+### M7: The report and the dev-plane enable (code ✅ 2026-10-19; enable + smoke blocked on the shadow key) (~200 LOC: 140 + 60, plus config)
 - `ailang coordinator shadow report [--since 7d] [--json]` gives per-agent and per-harness pass rates, cost, wall time and turns; **every disagreement** with `ailang chains chat` links and both diffs; and running totals.
 - A weekly scheduled run posts to the `user` inbox. Docs: `docs/docs/guides/coordinator.md` section. Changelog fragment.
 - ailang-multivac `config/config.cloud.yaml` (**dev branch only**): enable on `ailang-only-executor` (motoko primary, pi shadow) and `pkg-sunholo-ailang-parse` (pi primary, motoko shadow), `sample_rate: 1.0`; the shadow key wired from Secret Manager.
 - **Acceptance:**
-  - [ ] the report is golden-tested on fixture comparisons, including a disagreement row with links;
+  - [x] the report is golden-tested on fixture comparisons, including a disagreement row with links;
   - [ ] dev-plane smoke: one real task on each enabled agent gives a primary PR plus a completed shadow child, **no** PR or branch for `-shadow`, and a `ShadowComparison` record;
   - [ ] shadow spend appears only on the shadow key.
 

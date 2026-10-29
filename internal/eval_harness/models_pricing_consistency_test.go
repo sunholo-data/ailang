@@ -3,6 +3,7 @@ package eval_harness
 import (
 	"fmt"
 	"sort"
+	"strings"
 	"testing"
 	"time"
 )
@@ -22,7 +23,7 @@ var billedProviders = map[string]bool{
 
 // TestModels_PricingIsSlugConsistent (M-EVAL-PRICING-DRIFT) pins the
 // half of the pricing gate that needs NO network: two rows that name the same
-// `api_name` must record the same rate.
+// billed model must record the same rate (including managed-agent model pins).
 //
 // WIDENED 2026-08-13 from openrouter-only to every billed provider. The
 // openrouter-only scope was not a considered choice, and it cost us: the
@@ -81,7 +82,7 @@ func TestModels_PricingIsSlugConsistent(t *testing.T) {
 		// via openrouter) legitimately carries two different prices, because
 		// the reseller sets its own. Only rows billed by the SAME party must
 		// agree.
-		key := m.Provider + "|" + m.APIName
+		key := pricingConsistencyKey(m)
 		bySlug[key] = append(bySlug[key], row{
 			name:    name,
 			in:      m.Pricing.InputPer1K,
@@ -130,6 +131,41 @@ func TestModels_PricingIsSlugConsistent(t *testing.T) {
 		}
 		msg += "\n  Fix: run `make verify-model-pricing` and set every row for this slug to the live rate."
 		t.Error(msg)
+	}
+}
+
+// A managed agent's API name identifies its harness. An explicit model pin
+// identifies the model whose rates must agree with the native model row.
+func pricingConsistencyKey(m ModelConfig) string {
+	slug := m.APIName
+	if m.AgentCLI != nil && *m.AgentCLI == "gemini_agents" && m.AgentModelName != nil {
+		if _, pin, ok := strings.Cut(*m.AgentModelName, "/"); ok && pin != "" {
+			slug = pin
+		}
+	}
+	return m.Provider + "|" + slug
+}
+
+func TestPricingConsistencyKey_ManagedAgentPin(t *testing.T) {
+	cli := "gemini_agents"
+	pin := "antigravity-preview-09-2026/gemini-4-argon"
+	native := ModelConfig{Provider: "google", APIName: "gemini-4-argon"}
+	agent := ModelConfig{
+		Provider: "google", APIName: "antigravity-preview-09-2026",
+		AgentCLI: &cli, AgentModelName: &pin,
+	}
+	if pricingConsistencyKey(agent) != pricingConsistencyKey(native) {
+		t.Fatal("pinned agent and native model must be checked against each other's prices")
+	}
+	unpinned := agent
+	unpinned.AgentModelName = &unpinned.APIName
+	if pricingConsistencyKey(unpinned) == pricingConsistencyKey(agent) {
+		t.Fatal("unpinned agent must not inherit the pinned model's pricing identity")
+	}
+	reseller := native
+	reseller.Provider = "openrouter"
+	if pricingConsistencyKey(reseller) == pricingConsistencyKey(native) {
+		t.Fatal("different billing providers must retain independent prices")
 	}
 }
 

@@ -129,6 +129,9 @@ type AgentBenchmarkResult struct {
 	Stdout    string `json:"stdout,omitempty"`
 	Stderr    string `json:"stderr,omitempty"`
 
+	// Hidden is the M-EVAL-HIDDEN-TESTS verdict (Total == 0: the benchmark has none).
+	Hidden HiddenResult `json:"-"`
+
 	// Timing breakdown
 	TTFTSeconds float64 `json:"ttft_seconds,omitempty"` // Time to first token in seconds
 
@@ -261,4 +264,6 @@ type ValidationResult struct {
 	StdoutOk  bool
 	Stdout    string
 	Stderr    string
+	TimedOut  bool         // the run hit its exec timeout (M-EVAL-HIDDEN-TESTS fail-fast)
+	Hidden    HiddenResult // hidden-test outcome; Total == 0 when the spec declares none
 }

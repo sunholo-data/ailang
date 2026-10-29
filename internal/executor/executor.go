@@ -111,6 +111,10 @@ type Task struct {
 	// workspace on exit.
 	EvalShellGuard bool
 
+	// EvalContainment requests a mandatory trusted OS/native-tool boundary.
+	// Nil preserves the existing executor payload.
+	EvalContainment *EvalContainment
+
 	Model    string            // Model to use (provider-specific)
 	Metadata map[string]string // Provider-specific options
 
@@ -213,6 +217,13 @@ type Task struct {
 	// not reach the wire.
 	ReasoningEffort string
 
+	// OpenRouterProvider is the provider routing block every AILANG caller of
+	// this model sends (registry openrouter_provider plus the client's default
+	// sort), for executors whose harness calls OpenRouter with its own client
+	// and so must carry the same block in its own config (pi). Nil = none
+	// declared.
+	OpenRouterProvider map[string]any
+
 	// RequiresEgress (M-GEMINI-REPO-MOUNT Phase 2) opts the task into an
 	// egress-enabled sandbox so the hosted agent can reach the public network
 	// (e.g. `git clone` the public AILANG repo at a target revision, then run
@@ -244,9 +255,11 @@ type PluginsConfig struct {
 
 // Result is the normalized execution result
 type Result struct {
-	Success bool   // Overall success
-	Output  string // Final text output from agent
-	Error   string // Error message if failed
+	// UsageEvidence is source-preserving parser evidence; nil means unavailable.
+	UsageEvidence *UsageEvidence
+	Success       bool   // Overall success
+	Output        string // Final text output from agent
+	Error         string // Error message if failed
 
 	// Metrics
 	DurationMS    int // Total execution time in milliseconds
@@ -390,6 +403,12 @@ const (
 	// The run may have completed; its RECORD is untrustworthy, and a wrong
 	// number is worse than no number. M-PI-HARNESS-UPGRADE D4.
 	FinishWireDrift = "wire_drift"
+	// FinishExternalKill means the CLI was terminated by a signal the harness
+	// did not send. Every harness kill (timeouts, caps, cancellation) is a
+	// SIGKILL through proctree, so a SIGTERM death came from outside — on the
+	// rig, a sibling eval agent's `pkill -f "ailang run"` (2026-10-27/28). The
+	// run measured nothing about the model; it is banked invalid and retried.
+	FinishExternalKill = "external_kill"
 )
 
 // ToolPolicyCLIDefault is the Result.ToolPolicy sentinel for "the caller did
@@ -456,6 +475,9 @@ const (
 func ValidateTaskCapabilities(task *Task, exec Executor) error {
 	if task == nil || exec == nil {
 		return nil
+	}
+	if task.EvalContainment != nil && exec.Name() != "pi" {
+		return fmt.Errorf("executor %q cannot honor mandatory eval containment", exec.Name())
 	}
 	if task.RequiresEgress && !hasCapability(exec.Capabilities(), CapNetworkEgress) {
 		return fmt.Errorf(

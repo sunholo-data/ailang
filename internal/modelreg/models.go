@@ -575,6 +575,47 @@ func (c *ModelsConfig) GetExecutorForModel(name string) (executorName string, mo
 	return executorName, modelName, nil
 }
 
+// EffectiveOpenRouterProvider is the provider block AILANG's OpenRouter client
+// sends for apiName when no caller policy or env override applies: the
+// registry's openrouter_provider plus sort "throughput" when it sets neither
+// sort nor order (internal/ai/openrouter routeFor's default; pinned equal by
+// TestEffectiveProviderMatchesClient there). Nil when none is declared. A
+// harness that calls OpenRouter with its own client (pi) must send this block
+// for its requests to match.
+func (c *ModelsConfig) EffectiveOpenRouterProvider(apiName string) map[string]any {
+	block := c.OpenRouterProviderByAPIName()[apiName]
+	if len(block) == 0 {
+		return nil
+	}
+	out := make(map[string]any, len(block)+1)
+	for k, v := range block {
+		out[k] = v
+	}
+	_, hasSort := out["sort"]
+	_, hasOrder := out["order"]
+	if !hasSort && !hasOrder {
+		out["sort"] = "throughput"
+	}
+	return out
+}
+
+// OpenRouterReasoningEffortByAPIName is every openrouter row's
+// reasoning_effort, keyed by api_name: the effort the OpenRouter client sends
+// when a caller sets none. Rows sharing an api_name must agree
+// (TestModels_SameAPINameSameWireBudget), so the first non-empty one stands.
+func (c *ModelsConfig) OpenRouterReasoningEffortByAPIName() map[string]string {
+	out := map[string]string{}
+	if c == nil {
+		return out
+	}
+	for _, m := range c.Models {
+		if m.Provider == "openrouter" && m.ReasoningEffort != "" && out[m.APIName] == "" {
+			out[m.APIName] = m.ReasoningEffort
+		}
+	}
+	return out
+}
+
 // OpenRouterProviderByAPIName is every openrouter row's openrouter_provider,
 // keyed by api_name. A host or policy choice is about the model, not one
 // harness, so one block applies to every row sharing the api_name; Validate

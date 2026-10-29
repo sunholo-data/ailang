@@ -22,7 +22,8 @@ func lockedAssetTargets(pl *pkg.PackageLoader) map[string]effects.PkgAssetTarget
 }
 
 // AssetTargetsFor resolves the package context rooted at dir, without fetching
-// dependencies. No manifest or no lock means no context; malformed files fail.
+// dependencies. No manifest means no context; a manifest without a lock retains
+// the root package for authoring. Malformed existing files fail explicitly.
 func AssetTargetsFor(dir string) (map[string]effects.PkgAssetTarget, error) {
 	root := pkg.FindManifest(dir)
 	if root == "" {
@@ -34,7 +35,11 @@ func AssetTargetsFor(dir string) (map[string]effects.PkgAssetTarget, error) {
 	lf, err := pkg.LoadLockFile(root)
 	if err != nil {
 		if errors.Is(err, os.ErrNotExist) {
-			return nil, nil
+			self, selfErr := pkg.NewSelfOnlyPackageLoader(root)
+			if selfErr != nil {
+				return nil, selfErr
+			}
+			return lockedAssetTargets(self), nil
 		}
 		return nil, fmt.Errorf("cannot load package lock file %s: %w", filepath.Join(root, pkg.LockFileName), err)
 	}

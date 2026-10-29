@@ -1,0 +1,7 @@
+Checking for files >800 lines...
+[0;32m✓ All files within 800 line limit[0m
+Checking architecture boundaries (logical layers over internal/)...
+
+OK: no architecture boundary violations.
+[0;32m✓ 1 changelog fragment(s) valid; changelogs/v0.32-current.md has '## [Unreleased]'[0m
+[0;32m✓ CHANGELOG.md is index-only and links changelogs/v0.32-current.md[0m

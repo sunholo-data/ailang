@@ -157,21 +157,33 @@ func (ctx *EffContext) fsCheckProtection(path string, move bool) error {
 		return nil
 	}
 	prot := fileguard.Protection{GitDir: ctx.Env.ProtectGitDir, DenyWrite: ctx.Env.DenyWrite}
-	rel := fsRelToRoot(ctx.Env.Sandbox, path)
 	var v fileguard.Violation
-	if move {
-		v = prot.CheckMove(rel)
-	} else {
-		v = prot.Check(rel)
+	// An unopenable root is reported by the operation itself
+	// (E_FS_SANDBOX_UNAVAILABLE); the check still applies by spelling.
+	root, _ := ctx.sandboxRoot()
+	switch {
+	case root != nil:
+		// Through the root: an in-root symlink or hard link to a protected
+		// file is that file (AILANG World, 2026-10-17).
+		v = root.CheckPath(prot, path, move)
+	case move:
+		v = prot.CheckMove(fsRelToRoot(ctx.Env.Sandbox, path))
+	default:
+		v = prot.Check(fsRelToRoot(ctx.Env.Sandbox, path))
 	}
-	if v.GitDir {
-		return fmt.Errorf("E_FS_PROTECTED: %s is under .git, which is read-only in restricted mode", path)
+	via := ""
+	if v.Via != "" {
+		via = fmt.Sprintf(" (resolves to %s)", v.Via)
 	}
-	if v.Ancestor {
-		return fmt.Errorf("E_FS_PROTECTED: %s is an ancestor of paths protected by fs_deny_write %q — read-only under this policy", path, v.Pattern)
-	}
-	if v.Pattern != "" {
-		return fmt.Errorf("E_FS_PROTECTED: %s matches fs_deny_write %q — read-only under this policy", path, v.Pattern)
+	switch {
+	case v.GitDir:
+		return fmt.Errorf("E_FS_PROTECTED: %s%s is under .git, which is read-only in restricted mode", path, via)
+	case v.HardLink:
+		return fmt.Errorf("E_FS_PROTECTED: %s has more than one hard link, so another of its names may be protected — read-only under this policy", path)
+	case v.Ancestor:
+		return fmt.Errorf("E_FS_PROTECTED: %s%s is an ancestor of paths protected by fs_deny_write %q — read-only under this policy", path, via, v.Pattern)
+	case v.Pattern != "":
+		return fmt.Errorf("E_FS_PROTECTED: %s%s matches fs_deny_write %q — read-only under this policy", path, via, v.Pattern)
 	}
 	return nil
 }

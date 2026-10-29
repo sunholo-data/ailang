@@ -421,14 +421,17 @@ func TestAllBenchmarksHaveTierAndTags(t *testing.T) {
 	// legal_obligation_engine (frontier) and commonmark_emphasis (stretch) moved
 	// to long-frontier — 38-83% of their local agent runs hit the 1h timeout.
 	// stretch 25 -> 24, frontier 8 -> 5, long-frontier 0 -> 4.
+	// 2026-10-28 (M-EVAL-HIDDEN-TESTS): +2 stretch (cp_60166, cp_60159, graded by
+	// hidden tests) and +2 experimental (cp_60164, cp_60153). Same day, +2 more
+	// stretch (cp_60149, cp_60197): re-centered stretch 24 -> 28.
 	if smoke := tierCounts["smoke"]; smoke < 20 || smoke > 26 {
 		t.Errorf("smoke count = %d, want 23±3", smoke)
 	}
 	if core := tierCounts["core"]; core < 20 || core > 26 {
 		t.Errorf("core count = %d, want 23±3", core)
 	}
-	if stretch := tierCounts["stretch"]; stretch < 21 || stretch > 27 {
-		t.Errorf("stretch count = %d, want 24±3", stretch)
+	if stretch := tierCounts["stretch"]; stretch < 25 || stretch > 31 {
+		t.Errorf("stretch count = %d, want 28±3", stretch)
 	}
 	if frontier := tierCounts["frontier"]; frontier < 2 || frontier > 8 {
 		t.Errorf("frontier count = %d, want 5±3", frontier)

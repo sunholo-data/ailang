@@ -21,8 +21,13 @@ func TestAssetTargetsForDiscovery(t *testing.T) {
 		t.Fatal(err)
 	}
 	targets, err = AssetTargetsFor(dir)
-	if err != nil || targets != nil {
-		t.Fatalf("no lock: %v %v", targets, err)
+	if err != nil || len(targets) != 1 {
+		t.Fatalf("no lock should retain root assets: %v %v", targets, err)
+	}
+	for _, target := range targets {
+		if target.Dir != dir {
+			t.Fatalf("root target directory = %q, want %q", target.Dir, dir)
+		}
 	}
 	lf := pkg.NewLockFile([]pkg.LockedPackage{{Name: "test/transitive", Version: "0.3.0", Source: "path", Path: "missing", ContentHash: "test"}}, "test")
 	if err := lf.Save(dir); err != nil {

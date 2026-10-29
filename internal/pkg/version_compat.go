@@ -11,7 +11,6 @@ type semverTuple struct {
 	Major, Minor, Patch int
 }
 
-// Keep compatibility parsing in sync with effects.assetVersion.
 // ParseSemver parses a version string like "0.9.5" or "v0.9.5" into components.
 // Returns an error if the format is invalid.
 func ParseSemver(version string) (semverTuple, error) {

@@ -279,6 +279,7 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	// Type check each declaration and collect types
 	// Handle both Let and LetRec declarations
 	declTypes := make(map[string]*types.Scheme)
+	typeChecker.SetModuleDeclarationMode(true) // M-SOUND-NUMERIC-LITERALS: see types.literalWithhold
 	for _, decl := range coreProg.Decls {
 		var declName string
 		var names []string

@@ -56,12 +56,12 @@ var flagSetCoordinatorSubcommands = map[string]bool{
 	"agents": true, "pipeline": true, "prs": true, "agent-set": true, "agent-check": true, "lint": true,
 	"approvals": true, "approve": true, "reject": true, "cancel": true,
 	"watcher-status": true, "sync-threads": true, "execute-job": true,
-	"credits": true, "workers": true, "help": true, "--help": true, "-h": true,
+	"credits": true, "workers": true, "shadow": true, "help": true, "--help": true, "-h": true,
 }
 
 // remoteAwareSubcommands actually read the plane named by --remote. Everything
 // else only knows the flag well enough to refuse it honestly.
-var remoteAwareSubcommands = []string{"approve", "approvals", "cancel", "list", "prs", "reject", "reopen"}
+var remoteAwareSubcommands = []string{"approve", "approvals", "cancel", "list", "prs", "reject", "reopen", "shadow"}
 
 func rejectUnknownCoordinatorFlags(sub string, args []string) error {
 	known, ok := handParsedCoordinatorFlags[sub]

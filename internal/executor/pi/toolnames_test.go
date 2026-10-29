@@ -54,11 +54,11 @@ func TestToolArgs_FullIsCLIDefault(t *testing.T) {
 }
 
 func TestToolArgs_UnmappedNameErrorsByName(t *testing.T) {
-	// The coordinator's question-kind list: pi has none of Grep/Glob/WebFetch/
+	// The coordinator's question-kind list: pi has none of Glob/WebFetch/
 	// WebSearch, and used to run with ZERO tools, silently (V4).
 	_, err := ToolArgs([]string{"Read", "Grep", "Glob", "WebFetch", "WebSearch"})
-	if err == nil || !strings.Contains(err.Error(), `"Grep"`) {
-		t.Fatalf("want an error naming Grep, got %v", err)
+	if err == nil || !strings.Contains(err.Error(), `"Glob"`) {
+		t.Fatalf("want an error naming Glob, got %v", err)
 	}
 }
 

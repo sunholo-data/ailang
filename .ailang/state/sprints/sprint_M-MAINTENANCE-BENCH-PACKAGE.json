@@ -1,0 +1,247 @@
+{
+  "sprint_id": "M-MAINTENANCE-BENCH-PACKAGE",
+  "status": "completed",
+  "created": "2026-10-23T07:55:30.713723+00:00",
+  "design_doc": "design_docs/planned/m-real-world-language-maintenance-study.md",
+  "sprint_plan": "design_docs/planned/m-maintenance-bench-package-sprint-plan.md",
+  "github_issues": [],
+  "execution_authorized": true,
+  "execution_gate": "Explicit user execute sprint instruction required by AGENTS.md. Do not dispatch automatically.",
+  "target_repository": "sunholo-data/ailang-packages",
+  "package": "sunholo/maintenance_bench",
+  "package_version": "0.1.0",
+  "target_directory": "packages/maintenance-bench",
+  "prompt_version_loaded": "v0.16.7",
+  "registry_reuse": [
+    {
+      "milestone": "M1_SCHEMA",
+      "package": null,
+      "action": "none",
+      "reason": "Originally inspected testing_utils 0.1.1, then reproduced published assertions.ail string ++ incompatibility on clean v0.54.17. Native test declarations/assertions already cover this package; no duplicate assertion library or silent dependency fallback."
+    },
+    {
+      "milestone": "M2_GIT",
+      "package": null,
+      "action": "none",
+      "reason": "github/benchmark searches returned no relevant package; narrow read-only Git snapshot adapter is study-specific."
+    },
+    {
+      "milestone": "M3_GITHUB",
+      "package": null,
+      "action": "none",
+      "reason": "github search returned no match; use requested gh GET acquisition without a connector or analysis subprocess."
+    },
+    {
+      "milestone": "M4_COHORT",
+      "package": null,
+      "action": "none",
+      "reason": "statistics/stats/dataframe searches returned no match; annotation, lineage and exposure rules are study-specific; use stdlib primitives."
+    },
+    {
+      "milestone": "M5_METRICS",
+      "package": null,
+      "action": "none",
+      "reason": "statistics/stats/dataframe searches returned no match; inspected audio analysis match is DSP-specific, unsuitable for cohort metrics."
+    },
+    {
+      "milestone": "M6_REPORT",
+      "package": null,
+      "action": "none",
+      "reason": "benchmark search returned no match; deterministic study reports use std/json and std/list rather than a new report framework."
+    },
+    {
+      "milestone": "M7_REPEATABILITY",
+      "package": null,
+      "action": "none",
+      "reason": "Originally inspected testing_utils 0.1.1, then reproduced published assertions.ail string ++ incompatibility on clean v0.54.17. Native test declarations/assertions already cover this package; no duplicate assertion library or silent dependency fallback."
+    },
+    {
+      "milestone": "M8_SOURCE_RELEASE",
+      "package": null,
+      "action": "none",
+      "reason": "Existing package quality, bin, Git/gh and targeted repository CI suffice; no new release package."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 432,
+    "estimated_total_loc": 2160,
+    "estimated_days": 5,
+    "basis": "Planning estimate, not measured package velocity; 4-6 day range with buffer.",
+    "actual_total_loc": 1544,
+    "actual_production_example_loc": 1204,
+    "actual_test_loc": 340,
+    "actual_days": null,
+    "actual_loc_per_day": null,
+    "elapsed_session_seconds": 5249,
+    "measurement_note": "Physical AILANG lines only; docs/JSON/shell excluded. Elapsed attended-agent session is not productive human-days or a measured engineering velocity. Cross-milestone review fixes prevent defensible final LOC allocation per milestone."
+  },
+  "features": [
+    {
+      "id": "M1_SCHEMA",
+      "description": "Schema and strict codecs",
+      "estimated_loc": 300,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Snapshot/annotation/manifest/report schema versions, provenance and explicit unavailable states are documented and decoded strictly.",
+        "IDs/hashes stay strings; fractional/out-of-range counts, wrong types, duplicate episode IDs and unknown schema versions fail with field context.",
+        "Missing, false, zero and empty are distinguishable; decoder never repairs malformed research input silently.",
+        "Native valid/invalid/boundary tests and a codec round-trip property execute with recorded totals; no test_* naming substitute for native declarations."
+      ],
+      "passes": true,
+      "started": "2026-10-23T07:57:58.421074+00:00",
+      "completed": "2026-10-23T08:03:16.453159+00:00",
+      "notes": "Strict typed codecs, exact count validation, explicit nullable fields and manifest/annotation schema checks. 16 native tests/properties pass (100 generated cases). Registry lock pins testing_utils 0.1.1.",
+      "actual_loc": null
+    },
+    {
+      "id": "M2_GIT",
+      "description": "Bounded Git acquisition",
+      "estimated_loc": 260,
+      "dependencies": [
+        "M1_SCHEMA"
+      ],
+      "acceptance_criteria": [
+        "Capture source repo/ref identities and canonical file changes, including additions, modifications, renames and derived-path classification.",
+        "Merge/squash/cherry-pick policy is explicit; a rename or mirrored copy does not become a second defect by itself.",
+        "Non-zero process exit, truncated output, missing executable and incomplete history are errors/incomplete observations even if exec returned Ok.",
+        "Git output parsing handles spaces/unicode and record delimiters; a bounded test fixture verifies no mutation of the source repo."
+      ],
+      "passes": true,
+      "started": "2026-10-23T08:03:16.453159+00:00",
+      "completed": "2026-10-23T08:05:50.951394+00:00",
+      "notes": "20 native tests pass plus bounded real repository acquisition: 2 rows, pinned source ref, completeness false. NUL status parser covers rename and malformed input; derived source has separate canonical role. Legitimate empty recursion tails explicitly annotated.",
+      "actual_loc": null
+    },
+    {
+      "id": "M3_GITHUB",
+      "description": "Bounded GitHub acquisition through gh",
+      "estimated_loc": 300,
+      "dependencies": [
+        "M1_SCHEMA",
+        "M2_GIT"
+      ],
+      "acceptance_criteria": [
+        "Acquire PR/issue/change/review evidence with page/row/output limits and preserve endpoint/ref/page provenance; include review submissions and inline comments, not just issue comments.",
+        "Pagination exhaustion and limit/rate/auth failures cannot yield a complete empty cohort; snapshot completeness is explicit.",
+        "Offline replay of captured responses covers multi-page, missing-data, rejected/unmerged PR and non-zero exit cases without a network dependency.",
+        "Acquisition outputs immutable snapshot identity; repeated collection never overwrites an earlier source snapshot in place."
+      ],
+      "passes": true,
+      "started": "2026-10-23T08:05:50.951394+00:00",
+      "completed": "2026-10-23T08:10:30.233706+00:00",
+      "notes": "29 focused native tests pass; one real gh GET smoke acquired 1 merged PR and 5 hashed frames (PR/files/reviews/inline/discussion). Capped pagination is explicitly incomplete; response bodies and hashes retained. Added explicit root-cause/detection/evidence/artifact-role fields before schema release.",
+      "actual_loc": null
+    },
+    {
+      "id": "M4_COHORT",
+      "description": "Reviewed annotations, lineage and cohorts",
+      "estimated_loc": 320,
+      "dependencies": [
+        "M1_SCHEMA",
+        "M2_GIT",
+        "M3_GITHUB"
+      ],
+      "acceptance_criteria": [
+        "Features, confirmed repairs, mixed/uncertain work, migrations, compiler repairs and mirror updates remain separate; titles/keywords do not create verified labels.",
+        "One defect/five files counts one defect with breadth five; five visible attempts count five rounds. Public committed-only observations carry unknown local-attempt coverage.",
+        "30/90-day cutoff boundaries, unknown introductions, unlabelled rows and censored episodes are explicit and account for every eligible episode.",
+        "Unknown authorship is not human/AI; copied code and package consumers retain lineage/cluster identity.",
+        "Partition-accounting and row-order-invariance properties plus adversarial duplicate/missing-link fixtures execute."
+      ],
+      "passes": true,
+      "started": "2026-10-23T08:10:30.233706+00:00",
+      "completed": "2026-10-23T08:13:48.115972+00:00",
+      "notes": "40 native tests pass; exact UTC maturity boundary, censoring, unknown authorship, duplicate labels, absent repair introductions, future rows and cohort row-order accounting checked. Reviewed labels are separate input. Links require same-project chronology and positive unique repair rounds.",
+      "actual_loc": null
+    },
+    {
+      "id": "M5_METRICS",
+      "description": "Descriptive metrics and explicit deltas",
+      "estimated_loc": 340,
+      "dependencies": [
+        "M4_COHORT"
+      ],
+      "acceptance_criteria": [
+        "Compute observed linked-repair incidence, repair burden/rounds, touched-file breadth, missingness, censoring and declared-rule medians with explicit denominators.",
+        "AILANG-minus-comparator percentage-point deltas and ratios preserve sign/direction; zero denominators and unknown values are named states, not NaN/zero.",
+        "Semantic paired keys preserve language/model/harness/repeat identity, reject duplicates and surface unmatched arms. Do not pass cross-language rows into the existing Lang-keyed PairArms join.",
+        "Per-project/domain/agent strata remain visible; tiny related cohorts cannot emit population-significance or unsupported confidence claims. Inferential results say not_computed with reason in v0.1.",
+        "Independent fixtures cover equal rates, negative deltas, both-zero denominators, mixed known/unknown usage, costly failed attempts and zero successes."
+      ],
+      "passes": true,
+      "started": "2026-10-23T08:13:48.115972+00:00",
+      "completed": "2026-10-23T08:17:07.539163+00:00",
+      "notes": "58 native tests/properties pass, including independent count/median/negative-delta fixtures, explicit semantic pairing, duplicates and unmatched contexts, unknown outcomes, zero-success/missing-cost handling, exact aggregation overflow, compiler interception versus escaped application defects. No inferential claims emitted.",
+      "actual_loc": null
+    },
+    {
+      "id": "M6_REPORT",
+      "description": "Stable reports and installable CLI",
+      "estimated_loc": 280,
+      "dependencies": [
+        "M5_METRICS"
+      ],
+      "acceptance_criteria": [
+        "Offline commands run with no network/LLM/subprocess requirement; live collection requires an explicit subcommand and Process authority.",
+        "Canonical JSON and Markdown have stable ordering and include snapshot, annotations, manifest, metric and package/compiler identities; timing goes to a separate record.",
+        "The same frozen inputs yield byte-identical reports; changed annotations yield a different report identity.",
+        "Non-zero CLI exit and typed diagnostics distinguish invalid schema, incomplete acquisition and unsupported analysis; a successful empty result never hides a failure.",
+        "The installed [bin] command reproduces an example without requiring the original source checkout's working directory."
+      ],
+      "passes": true,
+      "started": "2026-10-23T08:17:07.539163+00:00",
+      "completed": "2026-10-23T08:27:25.019659+00:00",
+      "notes": "63 native tests passed before scale additions; installed offline CLI verified from outside checkout. Independent fixture gives eligible=9,mature=8,censored=1,excluded=1 and descriptive delta -25pp as hand specified. Repeated bytes and changed-annotation identity checked. Split offline, acquisition and timing bins to keep Process out of offline commands; compiler identity explicitly declared pending external runtime attestation.",
+      "actual_loc": null
+    },
+    {
+      "id": "M7_REPEATABILITY",
+      "description": "Repeatability fixtures and data-science gap ledger",
+      "estimated_loc": 240,
+      "dependencies": [
+        "M6_REPORT"
+      ],
+      "acceptance_criteria": [
+        "Ship a small source-attributed real-case metadata/annotation fixture and independently calculated analytical expectations; synthetic mutation/scale data has a visibly different role.",
+        "verify-snapshot rejects planted semantic errors, dropped rows, duplicate repair links and weakened checks; it does not merely compare the program with its own first output.",
+        "Bounded 1k/10k-row deterministic scale cases emit identical semantic summaries where expected and separate timing/environment records. Measure behaviour, not a promised performance threshold.",
+        "Gap entries include exact toolchain, reproducible operation/dataset size, observed behaviour, workaround and cost, proposed package/stdlib/compiler ownership, and follow-up status. No speculative language limitation or automatic core change.",
+        "Smoke and normal tests remain offline and bounded; [bin] benchmark mode requests Clock explicitly. No paid/model runs or full study campaign."
+      ],
+      "passes": true,
+      "started": "2026-10-23T08:27:25.019659+00:00",
+      "completed": "2026-10-23T09:08:42.389014+00:00",
+      "notes": "84 native tests + 200 generated cases, offline/installed integration and real source-smoke evidence pass. Shipped independent analytical expectations, real-case metadata with verified merge times, raw exact-count/key controls, transactional observed artifact/touch history, scale benchmark and reproducible gap ledger. Four formatter-only valid-test AST exceptions are explicit; tests remain active. Strict PUB011 contract coverage limitation recorded, no vacuous contracts.",
+      "actual_loc": null
+    },
+    {
+      "id": "M8_SOURCE_RELEASE",
+      "description": "Package quality and repository source release",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M7_REPEATABILITY"
+      ],
+      "acceptance_criteria": [
+        "Clean isolated clone/worktree resolves the portable lock, installs/runs [bin], and reproduces the independent offline report and smoke result.",
+        "Record actual compile, named/inline test, property and SMT verified/unknown/skipped totals; run pkg quality --strict and publish --dry-run, reporting gates honestly.",
+        "Repository metadata points to the package's actual GitHub tree path; changelog/release kind/docs/exports/effects are complete; no credentials or private transcripts in fixtures.",
+        "Verify gh account before push, push only scoped changes to the requested repository, and create a reviewable PR using gh with exact validation evidence. Do not claim main-branch availability while only a PR exists.",
+        "Registry upload is not performed without separate release authorisation; dry-run is not registry acceptance. Independent sprint evaluation reviews design and evidence before completion."
+      ],
+      "passes": true,
+      "started": "2026-10-23T09:08:42.389014+00:00",
+      "completed": "2026-10-23T09:22:59.497992+00:00",
+      "notes": "Source PR #156 pushed with gh; implementation CI run 39930266136 succeeded at d9699d5; independent review passed (report in evaluations). Regular quality passes; strict PUB011/75 uncontracted exports remains explicit. Dry-run only, no registry upload or main merge. Research survey/model campaign remains unrun.",
+      "actual_loc": null
+    }
+  ],
+  "execution_authorized_by": "Mark: great yes - sprint plan, then execute",
+  "implementation_checkout": "/private/tmp/ailang-maintenance-bench",
+  "completed": "2026-10-23T09:22:59.497992+00:00",
+  "last_session": "2026-10-23T09:22:59.497992+00:00",
+  "last_checkpoint": "M8_SOURCE_RELEASE",
+  "source_pr": "https://github.com/sunholo-data/ailang-packages/pull/156",
+  "evaluation_report": ".ailang/state/evaluations/eval_M-MAINTENANCE-BENCH-PACKAGE_round_1.json",
+  "reviewed_implementation_commit": "d9699d5acbb437cc2c4476c570d68ab0c6f7baf5",
+  "implementation_ci": "https://github.com/sunholo-data/ailang-packages/actions/runs/39930266136"
+}

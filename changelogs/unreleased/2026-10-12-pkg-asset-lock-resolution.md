@@ -1,4 +1,5 @@
-### Fixed
+### Fixed — Locked package assets survive embedded execution and budget scopes
 
-- `std/package.assetPath` now uses the running program's locked dependency directory, including registry, path, and git sources. Runner, batch, embed, and served API calls retain the selected targets. Missing locked installs return an actionable error without reading another version's data.
-- No-lock/per-package fallback now selects the compatibility-semver maximum (`0.10.0` over `0.9.0`), skips invalid version directories, and breaks numeric ties deterministically. This intentionally changes the previous lexical-order expectation. REPL and root-package asset lookup retain cache fallback; fallback still ignores `AILANG_PACKAGE_ROOT`.
+- `std/package.assetPath` retains the compiled package snapshot in runner and batch execution, and an engine-scoped snapshot in embed and served API calls. Missing locked targets return an actionable error naming the pinned version, without reading another cached version's data.
+- Budget scopes preserve both versioned asset targets and existing directory-only embedding contexts. Package identities and relative paths reject cross-platform traversal.
+- No-lock fallback retains the existing semantic-version ordering and `AILANG_PACKAGE_ROOT` support; a cache containing only invalid version names now returns an explicit error. The root package still resolves assets directly from its source directory, including before a lockfile exists. The basic CLI lock-first fix shipped earlier in v0.54.13; this change completes its runtime propagation.

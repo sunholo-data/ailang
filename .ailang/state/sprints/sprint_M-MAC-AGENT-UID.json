@@ -1,0 +1,361 @@
+{
+  "sprint_id": "M-MAC-AGENT-UID",
+  "status": "not_started",
+  "created": "2026-10-16T17:48:15.652784+00:00",
+  "design_doc": "design_docs/planned/v0_54_13/m-mac-agent-uid.md",
+  "sprint_plan": "design_docs/planned/v0_54_13/m-mac-agent-uid-sprint-plan.md",
+  "github_issues": [
+    1856
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process, git, macos; inspected sunholo/external_backend info/docs: AILANG JSON subprocess wrapper cannot implement Go host UID/process-group or trusted Git boundaries. Reuse existing Go envpolicy, proctree and gitexec instead."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process, git, macos; inspected sunholo/external_backend info/docs: AILANG JSON subprocess wrapper cannot implement Go host UID/process-group or trusted Git boundaries. Reuse existing Go envpolicy, proctree and gitexec instead."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process, git, macos; inspected sunholo/external_backend info/docs: AILANG JSON subprocess wrapper cannot implement Go host UID/process-group or trusted Git boundaries. Reuse existing Go envpolicy, proctree and gitexec instead."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process, git, macos; inspected sunholo/external_backend info/docs: AILANG JSON subprocess wrapper cannot implement Go host UID/process-group or trusted Git boundaries. Reuse existing Go envpolicy, proctree and gitexec instead."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process, git, macos; inspected sunholo/external_backend info/docs: AILANG JSON subprocess wrapper cannot implement Go host UID/process-group or trusted Git boundaries. Reuse existing Go envpolicy, proctree and gitexec instead."
+    },
+    {
+      "milestone": "M6",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process, git, macos; inspected sunholo/external_backend info/docs: AILANG JSON subprocess wrapper cannot implement Go host UID/process-group or trusted Git boundaries. Reuse existing Go envpolicy, proctree and gitexec instead."
+    },
+    {
+      "milestone": "M7",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process, git, macos; inspected sunholo/external_backend info/docs: AILANG JSON subprocess wrapper cannot implement Go host UID/process-group or trusted Git boundaries. Reuse existing Go envpolicy, proctree and gitexec instead."
+    },
+    {
+      "milestone": "M8",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process, git, macos; inspected sunholo/external_backend info/docs: AILANG JSON subprocess wrapper cannot implement Go host UID/process-group or trusted Git boundaries. Reuse existing Go envpolicy, proctree and gitexec instead."
+    },
+    {
+      "milestone": "M9",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process, git, macos; inspected sunholo/external_backend info/docs: AILANG JSON subprocess wrapper cannot implement Go host UID/process-group or trusted Git boundaries. Reuse existing Go envpolicy, proctree and gitexec instead."
+    },
+    {
+      "milestone": "M10",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process, git, macos; inspected sunholo/external_backend info/docs: AILANG JSON subprocess wrapper cannot implement Go host UID/process-group or trusted Git boundaries. Reuse existing Go envpolicy, proctree and gitexec instead."
+    },
+    {
+      "milestone": "M11",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process, git, macos; inspected sunholo/external_backend info/docs: AILANG JSON subprocess wrapper cannot implement Go host UID/process-group or trusted Git boundaries. Reuse existing Go envpolicy, proctree and gitexec instead."
+    },
+    {
+      "milestone": "M12",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process, git, macos; inspected sunholo/external_backend info/docs: AILANG JSON subprocess wrapper cannot implement Go host UID/process-group or trusted Git boundaries. Reuse existing Go envpolicy, proctree and gitexec instead."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 145,
+    "estimated_total_loc": 1750,
+    "estimated_days": 12
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Host provisioning and positive-control probes",
+      "estimated_loc": 180,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Record same-UID sentinel visibility and cross-UID denial on the Mac; missing positive control or cross-UID leak stops all later milestones.",
+        "Record home-deny choice, UID/GID and file/keychain/write probe results without logging secrets; never reuse daneel.",
+        "Resolve staging group membership explicitly: agent needs read/traverse on parent staging; operator needs read on agent output; agent cannot write parent staging."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "files": [
+        "tools/launchd/install_agent_user.sh",
+        "tools/launchd/agent_uid_probe.sh"
+      ],
+      "estimated_minutes": 90
+    },
+    {
+      "id": "M2",
+      "description": "Launcher protocol and validation",
+      "estimated_loc": 190,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Malformed/oversized specs, wrong UID, escaping workspace and disallowed commands return named errors.",
+        "Protocol preserves CLI stdin separately from spec framing and keeps stdout/stderr compatible with executor parsers.",
+        "Restrict cleanup and signal requests to tracked task resources; no arbitrary path deletion."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "files": [
+        "cmd/ailang-agent-launcher/main.go",
+        "internal/agentlaunch/spec.go",
+        "internal/agentlaunch/spec_test.go"
+      ],
+      "estimated_minutes": 90
+    },
+    {
+      "id": "M3",
+      "description": "Launcher lifecycle and cancellation",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Hung child and grandchild terminate within configured deadline plus a documented bounded grace period.",
+        "Cancellation, parent pipe loss, stuck sudo and stale/reused process IDs have explicit tested outcomes.",
+        "D7 operational contract recorded before rig activation; no direct cross-UID kill assumption."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "files": [
+        "internal/agentlaunch/lifecycle.go",
+        "internal/agentlaunch/lifecycle_test.go"
+      ],
+      "estimated_minutes": 90
+    },
+    {
+      "id": "M4",
+      "description": "Shared spawn seam and audit metadata",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Child env equals BuildEnvironment output plus documented HOME/USER/LOGNAME/PATH overrides; no operator-home PATH entries.",
+        "Missing launcher, sudo failure and wrong UID fail before CLI execution with no same-UID fallback.",
+        "Flag-off path retains current behavior; task content cannot enable or disable host identity policy."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "files": [
+        "internal/executor/agentlaunch_darwin.go",
+        "internal/executor/agentlaunch_other.go",
+        "internal/executor/agentlaunch_test.go",
+        "internal/executor/executor.go"
+      ],
+      "estimated_minutes": 90
+    },
+    {
+      "id": "M5",
+      "description": "Wire all executor launch paths",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Each lane uses the shared seam for model-facing children, including daemon reuse; reject any existing same-UID daemon in split mode.",
+        "Deadline/cancellation and JSON output parsing pass targeted executor tests.",
+        "Extract helpers from claude.go (798 lines), codex.go (782), opencode.go (768), motoko.go (770) and pi.go (682) into companion files before exceeding 800; add new test companions rather than growing near-limit tests."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "files": [
+        "internal/executor/{pi,claude,codex,opencode,motoko}/agentlaunch.go",
+        "internal/executor/*/agentlaunch_test.go"
+      ],
+      "estimated_minutes": 90
+    },
+    {
+      "id": "M6",
+      "description": "Parent-owned staging and agent workspace",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M1",
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Agent can fetch staging and write its workspace; cannot mutate staging; operator can collect permitted output.",
+        "Coordinator never treats agent workspace as its Git repository, including status, diff, commit and cleanup paths.",
+        "Missing permissions, unsafe task paths and unreadable output fail loudly."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "files": [
+        "internal/coordinator/daemon_tasks_staging.go",
+        "internal/coordinator/daemon_tasks_staging_test.go"
+      ],
+      "estimated_minutes": 90
+    },
+    {
+      "id": "M7",
+      "description": "Hardened committed-output ingestion",
+      "estimated_loc": 190,
+      "dependencies": [
+        "M6"
+      ],
+      "acceptance_criteria": [
+        "T1 hooks, T2 fsmonitor, T3 filter and T4 include.path fixtures never execute an operator sentinel.",
+        "Parent receives expected committed diff; poisoned config/env and external Git helpers cannot redirect ingestion.",
+        "Reuse internal/gitexec and H-6 D4; do not assume cloud ingestion implementation already exists."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "files": [
+        "internal/coordinator/daemon_tasks_ingest.go",
+        "internal/coordinator/daemon_tasks_ingest_test.go",
+        "internal/gitexec/"
+      ],
+      "estimated_minutes": 90
+    },
+    {
+      "id": "M8",
+      "description": "Uncommitted output and workspace lifecycle",
+      "estimated_loc": 170,
+      "dependencies": [
+        "M7"
+      ],
+      "acceptance_criteria": [
+        "T5 symlink traversal and replacement races, special files and out-of-root paths are rejected; no operator content reaches PR diff.",
+        "Dirty files and deletions round-trip with explicit limits; failed collection does not silently lose output.",
+        "Terminal-task cleanup only removes task-owned resources; parent does not execute agent Git config."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "files": [
+        "internal/coordinator/daemon_tasks_collect.go",
+        "internal/coordinator/daemon_tasks_collect_test.go",
+        "internal/coordinator/daemon_tasks_worktrees.go"
+      ],
+      "estimated_minutes": 90
+    },
+    {
+      "id": "M9",
+      "description": "Credential and executable cutover inventory",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M5",
+        "M8"
+      ],
+      "acceptance_criteria": [
+        "Claude uses agent-only setup-token; codex uses separately authorized auth.json or API-key mode; never copy operator/cloud refresh token.",
+        "Pi/opencode/motoko provider grants, per-task cache, JSONL collection and ollama lease work under agent UID.",
+        "Inventory contains holder identifiers and permissions only; no credential values; executable symlinks into operator home rejected."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "files": [
+        "docs/docs/guides/mac-agent-uid.md",
+        "tools/launchd/agent_uid_probe.sh"
+      ],
+      "estimated_minutes": 90
+    },
+    {
+      "id": "M10",
+      "description": "Coordinator lane canaries",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M9"
+      ],
+      "acceptance_criteria": [
+        "Each lane proves UID, secret denial, bounded cancellation, expected PR diff, parent push and JSONL import.",
+        "Flag remains off for lanes without green evidence; record mechanism for lane-scoped activation despite host-side flag.",
+        "Rollback disables dispatch first and documents return to exposed same-UID mode; never silently roll back on spawn error."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "files": [
+        "docs/docs/guides/mac-agent-uid.md",
+        "design_docs/planned/v0_54_13/m-mac-agent-uid.md"
+      ],
+      "estimated_minutes": 90
+    },
+    {
+      "id": "M11",
+      "description": "Mission and nightly integration",
+      "estimated_loc": 70,
+      "dependencies": [
+        "M10"
+      ],
+      "acceptance_criteria": [
+        "Direct agent invocations cross the seam; post-run Git inspections use trusted ingestion context, including read-only status/diff.",
+        "Coordinator/watchdog/ollama remain operator LaunchAgents; gateway admission and lease rejection work.",
+        "All new shell glue runs on rig bash 3.2; observation transcript and stop conditions recorded."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "files": [
+        "docs/docs/guides/mac-agent-uid.md",
+        "tools/launchd/agent_uid_probe.sh"
+      ],
+      "estimated_minutes": 90
+    },
+    {
+      "id": "M12",
+      "description": "Documentation and focused release checks",
+      "estimated_loc": 70,
+      "dependencies": [
+        "M11"
+      ],
+      "acceptance_criteria": [
+        "make test-changed, make lint, make check-boundaries, make check-file-sizes and make check-changelog pass for final implementation.",
+        "Shell bash -n and native bash 3.2 checks pass; sudoers validated with visudo before installation.",
+        "Design AC1\u2013AC6 evidence linked; AC7 uses focused executor tests in place of make test, which remains CI responsibility."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null,
+      "files": [
+        "docs/docs/reference/env-vars.md",
+        "docs/docs/guides/mac-agent-uid.md",
+        "changelogs/unreleased/2026-10-16-m-mac-agent-uid.md"
+      ],
+      "estimated_minutes": 90
+    }
+  ]
+}

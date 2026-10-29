@@ -73,6 +73,47 @@ want "codex planner lane keeps its model (luna)" "$out" "codex:gpt-5.6-luna decl
 out=$(MISSION_PLANNER_MODEL='codex:gpt-5.6-sol' "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/c-clean-infra.md")
 want "codex planner lane keeps its model (sol)" "$out" "codex:gpt-5.6-sol declared:codex-ok"
 
+# Both Files scans must ignore fenced examples, headings, and shell comments.
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/q-fenced-example.md" 2>/dev/null)
+want "q: fenced example ignored" "$out" "codex:gpt-6.1-sol declared:codex-ok"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/r-fenced-comment-before-core.md" 2>/dev/null)
+want "r: fenced comment cannot hide core path" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/s-fenced-files-heading.md" 2>/dev/null)
+want "s: fenced Files heading not counted" "$out" "codex:gpt-6.1-sol declared:codex-ok"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/t-tilde-fence.md" 2>/dev/null)
+want "t: tilde fence ignores backtick closer" "$out" "codex:gpt-6.1-sol declared:codex-ok"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/u-long-backtick-fence.md" 2>/dev/null)
+want "u: shorter backtick fence cannot close" "$out" "codex:gpt-6.1-sol declared:codex-ok"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/v-unterminated-after-bullet.md" 2>/dev/null)
+want "v: fence left open in Files fails closed" "$out" "opus fail-closed:unparsable-path-entry"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/w-unterminated-before-bullet.md" 2>/dev/null)
+want "w: unterminated fence hides all bullets" "$out" "opus fail-closed:unparsable-path-entry"
+# Round 2 (judge findings): CRLF closers, the unterminated direction, and one arm per
+# fence rule so each rule has a sole killer.
+# x and y are stored LF (`* text=auto` in .gitattributes normalises CRLF on commit),
+# so a committed CRLF fixture would test nothing on a fresh checkout. Build the CRLF
+# copies at run time and prove the CR bytes exist before trusting either verdict.
+crlf_lab=$(mktemp -d "${TMPDIR:-/tmp}/mission-crlf.XXXXXX") || exit 1
+for f in x-crlf-fence-then-core.md y-crlf-fenced-example.md; do
+  awk '{ sub(/\r$/, ""); printf "%s\r\n", $0 }' "$ROOT/tools/launchd/testdata/planner-lane/$f" > "$crlf_lab/$f"
+done
+crlf_x=$(tr -cd '\r' < "$crlf_lab/x-crlf-fence-then-core.md" | wc -c | tr -d ' ')
+crlf_y=$(tr -cd '\r' < "$crlf_lab/y-crlf-fenced-example.md" | wc -c | tr -d ' ')
+[ "$crlf_x" -gt 0 ] && [ "$crlf_y" -gt 0 ] && ok "x/y CRLF copies carry CR bytes" || bad "x/y CRLF copies carry CR bytes" "x=$crlf_x y=$crlf_y"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$crlf_lab/x-crlf-fence-then-core.md" 2>/dev/null)
+want "x: CRLF closer closes, later core path checked" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$crlf_lab/y-crlf-fenced-example.md" 2>/dev/null)
+want "y: CRLF fenced example ignored" "$out" "codex:gpt-6.1-sol declared:codex-ok"
+rm -rf "$crlf_lab"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/z-closer-trailing-text.md" 2>/dev/null)
+want "z: closer with trailing text does not close" "$out" "codex:gpt-6.1-sol declared:codex-ok"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/za-indent-four-not-fence.md" 2>/dev/null)
+want "za: four-space indent is not a fence" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/zb-backtick-info-string.md" 2>/dev/null)
+want "zb: backtick info string with a backtick is not a fence" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+out=$(env -u MISSION_PLANNER_ALLOWLIST MISSION_PLANNER_MODEL=codex:gpt-6.1-sol MISSION_ANTHROPIC_AVAILABLE=1 "$DERIVE" "$ROOT/tools/launchd/testdata/planner-lane/zc-two-backticks-not-fence.md" 2>/dev/null)
+want "zc: two backticks are not a fence" "$out" "opus fail-closed:path-not-in-codex-allowlist"
+
 # --- DELIVERY MECHANISM, NOT JUST THE CONSUMER (docs iteration 1, 2026-08-28) ------
 # THE MISS THIS GUARDS, stated plainly because it defeated 34 passing tests: every
 # assertion above invokes the script as `MISSION_PLANNER_ALLOWLIST=... "$DERIVE" ...`,

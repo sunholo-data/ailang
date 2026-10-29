@@ -1,272 +1,80 @@
-# Cloud Setup Troubleshooting Guide
+# Cloud Setup Troubleshooting
 
-This guide covers common issues when setting up AILANG in cloud/mobile Claude Code environments.
+Symptoms seen in Anthropic-hosted Claude Code cloud sessions, with the fix. Run
+`scripts/verify.sh` first — it names most of these directly.
 
-## DNS Issues
+## `ailang: command not found`
 
-### Symptom
-```
-dial tcp: lookup storage.googleapis.com on [::1]:53: read udp ... connection refused
-```
-
-### Cause
-Cloud environment has no DNS configured or broken DNS resolution.
-
-### Solution
-```bash
-# Add Google DNS servers
-echo "nameserver 8.8.8.8" > /etc/resolv.conf
-echo "nameserver 8.8.4.4" >> /etc/resolv.conf
-```
-
----
-
-## Go Toolchain Auto-Download
-
-### Symptom
-```
-go: downloading go1.24.11 (linux/amd64)
-go: download go1.24.11: ... connection refused
-```
-
-### Cause
-The `go.mod` file specifies a `toolchain` directive, and Go tries to download that exact version.
-
-### Solution
-```bash
-# Tell Go to use the installed version
-export GOTOOLCHAIN=local
-```
-
-This prevents Go from trying to download a newer toolchain.
-
----
-
-## Go Module Proxy Blocked
-
-### Symptom
-```
-Get "https://proxy.golang.org/...": i/o timeout
-```
-or
-```
-Get "https://storage.googleapis.com/...": context deadline exceeded
-```
-
-### Cause
-The Go module proxy (proxy.golang.org) or its backend (storage.googleapis.com) is blocked or slow.
-
-### Solution
-```bash
-# Bypass proxy, download directly from sources
-export GOPROXY=direct
-go mod download
-```
-
----
-
-## SSL/TLS Handshake Failures
-
-### Symptom
-```
-curl: (35) OpenSSL/3.0.13: error:0A000410:SSL routines::sslv3 alert handshake failure
-```
-
-### Cause
-Some cloud environments have SSL/TLS issues with certain endpoints.
-
-### Solution
-Use `wget` with certificate checking disabled:
-```bash
-# Instead of curl:
-wget --no-check-certificate https://go.dev/dl/go1.24.4.linux-amd64.tar.gz -O /tmp/go.tar.gz
-```
-
----
-
-## Missing Basic Commands
-
-### Symptom
-```
-/bin/bash: line 1: head: command not found
-/bin/bash: line 1: tail: command not found
-/bin/bash: line 1: grep: command not found
-```
-
-### Cause
-Minimal container image without coreutils.
-
-### Solutions
-
-**Option 1**: Install coreutils
-```bash
-apt-get update && apt-get install -y coreutils grep
-```
-
-**Option 2**: Avoid piping, run commands directly
-```bash
-# Instead of: go test ./... 2>&1 | tail -20
-# Just run: go test ./...
-# And manually scan output
-```
-
----
-
-## apt-get Issues
-
-### Symptom
-```
-E: Malformed entry in list file
-E: The list of sources could not be read
-```
-
-### Cause
-Corrupted apt sources list.
-
-### Solution
-```bash
-# Remove problematic source
-rm -f /etc/apt/sources.list.d/problematic-file.list
-apt-get update
-```
-
----
-
-## Go Version Mismatch
-
-### Symptom
-```
-go: go.mod requires go >= 1.24
-```
-
-### Cause
-apt-get installed older Go version (e.g., 1.22).
-
-### Solution
-Install Go directly from golang.org:
-```bash
-wget --no-check-certificate https://go.dev/dl/go1.24.4.linux-amd64.tar.gz -O /tmp/go.tar.gz
-rm -rf /usr/local/go
-tar -C /usr/local -xzf /tmp/go.tar.gz
-export PATH=/usr/local/go/bin:$PATH
-```
-
----
-
-## Tests Hanging
-
-### Symptom
-Tests start running but hang indefinitely on certain packages.
-
-### Cause
-Some test packages (eval harness, AI clients) may require network access that's blocked or slow.
-
-### Solution
-Run targeted tests instead of full suite:
-```bash
-# Core packages (no network needed)
-go test ./internal/lexer/... ./internal/parser/... ./internal/types/... ./internal/eval/... -count=1
-
-# Skip problematic packages
-go test $(go list ./... | grep -v eval_harness | grep -v /ai/) -count=1
-```
-
----
-
-## GitHub CLI Authentication
-
-### Symptom
-```
-gh: To use GitHub CLI, run 'gh auth login' first.
-```
-
-### Cause
-gh CLI is installed but not authenticated.
-
-### Solution
-```bash
-# Interactive login
-gh auth login
-
-# Or use token
-gh auth login --with-token < token.txt
-
-# Check status
-gh auth status
-```
-
----
-
-## Build Failures
-
-### Symptom
-```
-make: *** [Makefile:40: build] Error 1
-```
-
-### Cause
-Various - check the actual error message above this line.
-
-### Common Fixes
-
-**Missing dependencies:**
-```bash
-go mod download
-```
-
-**Wrong Go version:**
-```bash
-export PATH=/usr/local/go/bin:$PATH
-export GOTOOLCHAIN=local
-```
-
-**Network issues:**
-```bash
-export GOPROXY=direct
-```
-
----
-
-## Quick Diagnostic Commands
+`make quick-install` installs to `$(go env GOPATH)/bin` and links `~/.local/bin`; neither is
+on the container's PATH. `setup.sh` links `/usr/local/bin/ailang`. Rerun it, or:
 
 ```bash
-# Check all tools
-which go make gh git
-
-# Check Go setup
-go version
-go env GOPATH GOROOT GOTOOLCHAIN GOPROXY
-
-# Check network
-curl -s --connect-timeout 5 https://api.github.com | head -1
-
-# Check DNS
-cat /etc/resolv.conf
-host google.com
-
-# Check disk space
-df -h .
-
-# Check memory
-free -h
+make quick-install && ln -sf "$(go env GOPATH)/bin/ailang" /usr/local/bin/ailang
 ```
 
----
+## `ailang --version` says `AILANG dev`
 
-## Environment Variables Checklist
+The binary was built without the version ldflags (`go build ./cmd/ailang`). Use
+`make quick-install` or `make build`, which pass `LDFLAGS` from the Makefile.
 
-Set these at the start of every session:
+## GCP: `CREDENTIALS_MISSING` / `No credentialed accounts`
+
+The container has no GCP identity of its own. Add `GCP_SA_KEY_JSON` (full service-account key
+JSON) to the environment's secrets and rerun `setup.sh`. It writes the key to
+`~/.config/gcloud/application_default_credentials.json` — the ADC well-known path, which the
+Go client libraries read with no further config — and activates it for gcloud/bq/gsutil.
+
+The harness sets a `CLOUDSDK_AUTH_ACCESS_TOKEN` placeholder with no GCP identity behind it:
+`gcloud auth print-access-token` succeeds, every API call fails `CREDENTIALS_MISSING`
+(measured 2026-10-16). gcloud prefers that variable over an activated account, so if gcloud
+still fails after activation, test with `env -u CLOUDSDK_AUTH_ACCESS_TOKEN gcloud ...`. The Go
+clients (and so `ailang messages`) read ADC, not that variable. (Not yet confirmed with a real
+key — record the result here once it is.)
+
+## `ailang messages list` shows nothing / no `store: gcp (...)` header
+
+You are reading the container's empty local SQLite. Set `AILANG_STORAGE_MESSAGING=gcp` and
+`AILANG_MESSAGES_PROJECT=ailang-multivac` in the environment, and make sure the GCP credential
+above works. `AILANG_MESSAGES_STORE` and friends are retired and hard-error by design.
+
+## `go: downloading go1.x ... toolchain not available` / `requires go >= 1.x`
+
+Something set `GOTOOLCHAIN=local` (the old version of this skill did). Unset it; Go's default
+fetches the toolchain `go.mod` asks for through proxy.golang.org.
+
+## `go mod download` stalls or `stream error ... INTERNAL_ERROR`
+
+proxy.golang.org resets HTTP/2 streams under load (seen from Cloud Build 2026-09-29). Use
+`GOPROXY='https://proxy.golang.org|direct'` — the `|` falls back on any error, a `,` only on
+404/410 — and retry. `GOPROXY=direct` alone runs into GitHub's anonymous clone throttle.
+
+## TLS errors, 403/407 from the proxy, transfers cut off
+
+All egress goes through the agent proxy. Read `/root/.ccr/README.md` and
+`curl -sS "$HTTPS_PROXY/__agentproxy/status"`. Never disable TLS verification or unset
+`HTTPS_PROXY`. A host denied outright means the environment's network level is too narrow —
+set it to Full.
+
+## `ailang ai-check` passes but verified nothing
+
+z3 is missing, and contract verification is skipped silently. `apt-get install -y z3`
+(`setup.sh` does this).
+
+## The Stop hook pushed / rebased `dev`
+
+`scripts/hooks/push_dev_on_stop.sh` runs in cloud sessions too. Set `AILANG_AUTOPUSH=0` and
+`AILANG_AUTOREBASE=0` in the environment and push a branch deliberately.
+
+## Disk full (`no space left on device`)
+
+The writable disk is a fixed per-session allowance, so `df` is misleading. Delete build
+artifacts and caches (`go clean -cache`, `bin/`, `node_modules/`), then retry.
+
+## Quick diagnostics
 
 ```bash
-export PATH=/usr/local/go/bin:$PATH
-export GOTOOLCHAIN=local
-export GOPROXY=direct
-```
-
-Or add to `~/.bashrc` for persistence:
-
-```bash
-echo 'export PATH=/usr/local/go/bin:$PATH' >> ~/.bashrc
-echo 'export GOTOOLCHAIN=local' >> ~/.bashrc
-echo 'export GOPROXY=direct' >> ~/.bashrc
+.claude/skills/cloud-setup/scripts/verify.sh
+go env GOVERSION GOTOOLCHAIN GOPROXY GOPATH
+gcloud auth list && gcloud config list
+ailang storage status
 ```

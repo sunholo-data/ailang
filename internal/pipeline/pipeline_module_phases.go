@@ -168,11 +168,11 @@ func (st *modulePipelineState) loadModules() error {
 		st.pipelineSpan.RecordError(loadErr)
 		return loadErr
 	}
-	if pl, ok := pkgResolver.(*pkg.PackageLoader); ok {
-		st.result.PkgAssets = lockedAssetTargets(pl)
-	}
 	if pkgResolver == nil {
 		pkgResolver = tryLoadSelfOnlyPackageResolver(pkgSearchDir)
+	}
+	if pl, ok := pkgResolver.(*pkg.PackageLoader); ok {
+		st.result.PkgAssets = lockedAssetTargets(pl)
 	}
 	if pkgResolver == nil {
 		modLoader.SetPackageResolverAbsentReason(packageResolverAbsentReason(pkgSearchDir))

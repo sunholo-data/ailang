@@ -262,7 +262,9 @@ otherwise the fragments have no heading to land under. The fold is part of the r
 ```
 
 **Also update these files manually:**
-- **changelogs/v0.32-current.md**: Change `## [Unreleased]` to `## [vX.X.X] - YYYY-MM-DD`
+- **changelogs/v0.32-current.md**: Insert `## [vX.X.X] - YYYY-MM-DD` directly BELOW `## [Unreleased]`,
+  keeping the (now empty) `## [Unreleased]` heading. `make check-changelog` (CI) fails without it —
+  the next fold has nowhere to land (v0.54.16 renamed it and went red).
 - **Note:** Root `CHANGELOG.md` is now an index file linking to themed archives in `changelogs/`
 - **std/VERSION**: Change to `vX.X.X` (used by stdlib resolver for version checking)
 

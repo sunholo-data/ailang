@@ -4,6 +4,14 @@ First action: `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT
 abort, run `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp abort <reason> ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac` with a short reason token.
 Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd)" before the first stamp; the stamp refuses an unset, empty or relative root.
 
+**Read the environment by NAME, never by value** (fleet iterations 51 and 52 each printed
+`CLAUDE_CODE_OAUTH_TOKEN` into the transcript, via `env | grep -v -i key` and then
+`env | grep -E '^(MISSION|AILANG|CLAUDE_CODE)' | grep -v -i key`; a key-only filter misses
+`*_TOKEN`, `*_SECRET` and `*_AUTH*`). To see what the driver exported, list names:
+`env | cut -d= -f1 | grep -E '^(MISSION_|AILANG_)' | sort`, then print the specific
+non-secret values you need, e.g. `echo "$MISSION_PLANNER_MODEL"`. To test a secret, use
+`[ -n "$VAR" ] && echo SET || echo UNSET`, never `${VAR:-...}`.
+
 1. Kill switch set → STOP (no message needed; this is the intended off state).
 2. `gh auth status` must show `sunholo-voight-kampff` before any push. Wrong account → fix with
    `gh auth switch --user sunholo-voight-kampff` or park all push steps.

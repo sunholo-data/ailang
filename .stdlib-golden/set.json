@@ -1,0 +1,77 @@
+{
+  "module": "std/set",
+  "types": [
+    {
+      "name": "Set",
+      "params": [
+        "a"
+      ],
+      "ctors": [
+        "Set(Map[a,()])"
+      ]
+    }
+  ],
+  "funcs": [
+    {
+      "name": "difference",
+      "type": "(Set[a],Set[a])-\u003eSet[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "empty",
+      "type": "(())-\u003eSet[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "fromList",
+      "type": "(list[a])-\u003eSet[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "insert",
+      "type": "(Set[a],a)-\u003eSet[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "intersect",
+      "type": "(Set[a],Set[a])-\u003eSet[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "member",
+      "type": "(Set[a],a)-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "remove",
+      "type": "(Set[a],a)-\u003eSet[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "size",
+      "type": "(Set[a])-\u003eint",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "toList",
+      "type": "(Set[a])-\u003elist[a]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "name": "union",
+      "type": "(Set[a],Set[a])-\u003eSet[a]",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v1"
+}

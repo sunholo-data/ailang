@@ -25,6 +25,7 @@ type crossModuleCodegenExemption struct {
 // std/string is implemented by the _str_ family.
 var stdlibBuiltinFamilyPrefix = map[string]string{
 	"std/ai":      "_ai_",
+	"std/audio":   "_audio_",
 	"std/bytes":   "_bytes_",
 	"std/clock":   "_clock_",
 	"std/debug":   "_debug_",
@@ -48,8 +49,6 @@ var stdlibBuiltinFamilyPrefix = map[string]string{
 // differs from the exporting module. The qualified claim remains the exporting
 // module; this table pins the exceptional implementation identity and rationale.
 var crossModuleCodegenExemptions = map[StdlibKey]crossModuleCodegenExemption{
-	{"std/bytes", "fromString"}:           {"_str_fromString", "bytes conversion is implemented by the shared string/bytes bridge"},
-	{"std/bytes", "toString"}:             {"_str_toString", "bytes conversion is implemented by the shared string/bytes bridge"},
 	{"std/fs", "listDir"}:                 {"_io_listDir", "directory listing uses the shared IO effect helper"},
 	{"std/list", "concat"}:                {"concat_List", "list concatenation uses the polymorphic core concatenation helper"},
 	{"std/list", "maximumFloat"}:          {"_math_maximumFloat", "list reduction delegates pairwise comparison to the math helper"},

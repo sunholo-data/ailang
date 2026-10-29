@@ -6,10 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"os"
 	"os/exec"
 	"path/filepath"
-	"strings"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/iface"
@@ -44,33 +42,35 @@ func (e *ModuleIfaceTimeoutError) Error() string {
 
 func (e *ModuleIfaceTimeoutError) Unwrap() error { return context.DeadlineExceeded }
 
-// isAilangBinaryPath reports whether path names the ailang compiler itself.
+// pinnedIfaceBinary is the binary the ailang CLI registered as itself (see
+// UseIfaceBinary). Empty in every other process.
+var pinnedIfaceBinary string
+
+// UseIfaceBinary pins the binary BuildModuleIface execs. The ailang CLI pins
+// its own executable at startup, so the identity it prints and sends is
+// computed by the version that is running — whatever the file is called.
 //
-// Extracted from resolveIfaceBinary so it can be pinned directly: every test
-// that drives BuildModuleIface overrides resolveIfaceBinary wholesale, so
-// replacing that function's entire body with an always-failing stub left the
-// whole suite green (measured, iteration 313 — the sprint evaluator's finding,
-// reproduced first-party). This predicate decides WHICH binary gets exec'd, so
-// it is the half worth pinning.
-func isAilangBinaryPath(path string) bool {
-	if path == "" {
-		return false
-	}
-	base := filepath.Base(path)
-	return strings.TrimSuffix(base, filepath.Ext(base)) == "ailang"
+// This used to be decided by the file NAME: only an executable called exactly
+// `ailang` counted as itself, and anything else fell back to the first
+// `ailang` on PATH without saying so. Measured 2026-10-19: a v0.54.15 build
+// run under another name hashed sunholo/email 0.10.0 with the installed
+// v0.52.0, and the registry refused it (PUB005) against every "upgraded"
+// publisher the author tried.
+func UseIfaceBinary(path string) {
+	pinnedIfaceBinary = path
 }
 
 // realResolveIfaceBinary is the production implementation. It is a named
 // function so tests can reach it even while the resolveIfaceBinary var is
 // overridden (TestMain replaces the var for every BuildModuleIface arm).
+// Without a pin (the registry validator, tests) it is the `ailang` on PATH.
 func realResolveIfaceBinary() (string, error) {
-	executablePath, executableErr := os.Executable()
-	if executableErr == nil && isAilangBinaryPath(executablePath) {
-		return executablePath, nil
+	if pinnedIfaceBinary != "" {
+		return pinnedIfaceBinary, nil
 	}
 	path, lookupErr := exec.LookPath("ailang")
 	if lookupErr != nil {
-		return "", fmt.Errorf("resolve ailang binary (current executable %q is not the publisher): %w", executablePath, lookupErr)
+		return "", fmt.Errorf("resolve ailang binary (none pinned, none on PATH): %w", lookupErr)
 	}
 	return path, nil
 }

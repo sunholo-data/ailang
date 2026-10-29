@@ -22,6 +22,19 @@ import (
 // another agent's in-flight work.
 const ErrorCategoryNonAgentic = "non_agentic"
 
+// ErrorCategoryExternalKill: the agent CLI was terminated by a signal the
+// harness did not send — SIGTERM ("exit status 143" from a CLI that traps it,
+// "signal: terminated" from one that does not), or codex's clean mid-turn exit,
+// which is all a SIGTERM leaves of it. The harness's own kills are SIGKILL, so
+// this is never a timeout or a cap. It measured nothing about the model: the
+// row is banked invalid (applyValidityBackstop) and retried by --skip-existing.
+//
+// On 2026-10-27/28 seven such clusters hit the rig — each one a sibling eval
+// agent's `pkill -f "ailang run"` matching every agent CLI whose argv carried
+// the teaching prompt — and they were banked as api_error (claude) or graded as
+// compile_error (codex).
+const ErrorCategoryExternalKill = "external_kill"
+
 // CategorizeAgentError classifies an agent-mode failure into one of the typed
 // ErrorCategory* values defined in metrics.go (M-EVAL-SWEET-SPOT, v0.19.0).
 //
@@ -64,6 +77,8 @@ func CategorizeAgentError(err error, finishReason string) string {
 		return ErrorCategoryThrashAborted // M-EVAL-OS-LONGITUDINAL Phase 1
 	case "wire_drift":
 		return ErrorCategoryWireDrift // M-PI-HARNESS-UPGRADE D4: the record is wrong, not the model
+	case "external_kill":
+		return ErrorCategoryExternalKill
 	}
 
 	// Fallback: detect by error-message substring when finish_reason wasn't
@@ -122,6 +137,16 @@ func CategorizeAgentError(err error, finishReason string) string {
 	// constrained-construction eval prompts in short contexts (wave-2 probe).
 	if containsAny(msg, "stop_reason=refusal") {
 		return ErrorCategoryRefused
+	}
+
+	// A SIGTERM the harness did not send, for executors that report the exit
+	// only as a string (opencode "exited with error: signal: terminated", or a
+	// claude row whose FinishReason was not carried through). The harness's own
+	// kills are SIGKILL ("signal: killed", exit 137), so neither form here can be
+	// one of ours. Checked before the timeout rule: an opencode stderr tail can
+	// mention "timeout" in passing, and the exit signal is the structural fact.
+	if containsAny(msg, "exit status 143", "signal: terminated", "external kill:") {
+		return ErrorCategoryExternalKill
 	}
 
 	// Quota exhaustion — provider account/key cap. Distinct from a transient
