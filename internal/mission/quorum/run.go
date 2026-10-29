@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/sunholo-data/ailang/internal/ai"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
@@ -163,15 +164,15 @@ func runReviewerWith(caller JSONCaller, mc *eval_harness.ModelConfig, out *Revie
 	result, perr := ParseReviewResult(raw)
 	if perr != nil {
 		recordInvalid(out, raw)
-		// Fail LOUDLY on a max_tokens truncation: a reasoning model whose
-		// thinking exhausted the output cap returns a valid-but-cut-off body
-		// that ParseReviewResult rejects as malformed JSON. Surfacing the
-		// finish reason turns an opaque "non-JSON" into an actionable
-		// "output truncated at N tokens" (Principle 2). The budget is the
-		// model's own declared ceiling, so a truncation here means the registry
-		// entry understates the model — fix models.yml, not a cap in this package.
-		if resp.FinishReason == "length" {
-			out.Err = fmt.Sprintf("reviewer output truncated at %d tokens (finish_reason=length) — reasoning exhausted the model's declared max_output_tokens (%d); raise it in models.yml. Parse error: %v", resp.OutputTokens, mc.MaxOutputTokens, perr)
+		// Explain failed parsing with reported truncation, or infer a cap hit
+		// only when the provider omits its finish reason. A reported limit can
+		// be below the declared budget; valid votes at the cap stay present.
+		if hit, inferred := capHit(resp, mc.MaxOutputTokens); hit {
+			how := "finish_reason=length, reported by provider"
+			if inferred {
+				how = fmt.Sprintf("finish_reason not reported; inferred from tokens_out %d >= max_output_tokens %d", resp.OutputTokens, mc.MaxOutputTokens)
+			}
+			out.Err = fmt.Sprintf("reviewer output truncated at %d tokens (%s) — %s. Parse error: %v", resp.OutputTokens, how, capLimitClause(resp.OutputTokens, mc.MaxOutputTokens, out.Model), perr)
 		} else {
 			out.Err = perr.Error()
 		}
@@ -181,6 +182,24 @@ func runReviewerWith(caller JSONCaller, mc *eval_harness.ModelConfig, out *Revie
 	out.Present = true
 	out.Result = result
 	return out
+}
+
+func capHit(resp *ai.Response, budget int) (hit, inferred bool) {
+	if resp.FinishReason == "length" {
+		return true, false
+	}
+	hit = resp.FinishReason == "" && budget > 0 && resp.OutputTokens >= budget
+	return hit, hit
+}
+
+func capLimitClause(n, budget int, model string) string {
+	if budget > 0 && n >= budget {
+		return fmt.Sprintf("the response consumed the declared max_output_tokens (%d) of models.yml entry %q", budget, model)
+	}
+	if budget > 0 {
+		return fmt.Sprintf("provider reported finish_reason=length at %d tokens, below the declared max_output_tokens (%d) of models.yml entry %q — a provider-side or context-window limit", n, budget, model)
+	}
+	return fmt.Sprintf("provider reported finish_reason=length at %d tokens; models.yml entry %q declares no max_output_tokens — a provider-side or context-window limit", n, model)
 }
 
 // estimateCost computes USD cost from token counts and the model's registry

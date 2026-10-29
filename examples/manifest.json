@@ -1143,6 +1143,28 @@
       ]
     },
     {
+      "path": "runnable/letrec_local_shadow.ail",
+      "status": "working",
+      "tags": ["recursion", "letrec", "bytecode", "scoping"],
+      "description": "A local letrec shadows a same-named top-level function on every engine (M-VM-COVERAGE G1b regression).",
+      "modules": ["std/io", "std/list"],
+      "expected": {
+        "stdout": "sumTo(4) = 10\ncountUp(1000000) = 3000000\nwalkAll = [100, 101, 103]\nnestedRec(4) = 10\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/local_letrec_loop.ail",
+      "status": "working",
+      "tags": ["letrec", "recursion", "tail-call", "accumulator", "bytecode", "performance"],
+      "description": "A loop as a local letrec with accumulators over 1..1,000,000: a tail call, constant stack, runs natively under --strict-bytecode.",
+      "modules": [],
+      "expected": {
+        "stdout": "multiples of 3 up to 1000000: 166666833333\n1..1000000: 500000 odd numbers, sum 250000000000\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "list_pattern_cons.ail",
       "status": "working",
       "tags": [
@@ -1550,7 +1572,7 @@
       }
     },
     {
-      "path": "regex_basics.ail",
+      "path": "runnable/regex_basics.ail",
       "status": "working",
       "tags": [
         "regex",
@@ -1558,15 +1580,43 @@
         "stdlib",
         "re2"
       ],
-      "description": "std/regex core ops: isMatch, replaceAll, split (linear-time RE2)",
+      "description": "std/regex regular expressions: isMatch, findAll, capture groups, replaceAll ($1), split; the \"\\\\d\" escape and the qualified import.",
       "modules": [
         "std/io",
-        "std/regex",
-        "std/result"
+        "std/list",
+        "std/regex"
       ],
       "requires": [
         "IO"
-      ]
+      ],
+      "expected": {
+        "stdout": "true\nfalse\n[a=1, bb=22]\n[key=42, key, 42]\n1:a 2:b\n[x ,  y]\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/bulk_build_cost_model.ail",
+      "status": "working",
+      "tags": [
+        "performance",
+        "array",
+        "map",
+        "data-structures"
+      ],
+      "description": "Cost model: build an Array or Map once (fromList, updateMany, mapAccumL) instead of a quadratic per-step set/insert (each an O(n) copy).",
+      "modules": [
+        "std/io",
+        "std/list",
+        "std/array",
+        "std/map"
+      ],
+      "requires": [
+        "IO"
+      ],
+      "expected": {
+        "stdout": "true\ntrue\n21\n1\n[1, 3, 6] 6\n",
+        "exit_code": 0
+      }
     },
     {
       "path": "regex_capture.ail",
@@ -2366,6 +2416,50 @@
       ]
     },
     {
+      "path": "runnable/visited_set_bfs.ail",
+      "status": "working",
+      "tags": ["set", "std/set", "search", "algorithms", "data-structures", "tuples"],
+      "description": "Grid BFS shortest path with a visited Set[(int, int)] and a list frontier (Python's visited = set()).",
+      "modules": ["std/array", "std/io", "std/list", "std/set", "std/string"],
+      "expected": {
+        "stdout": "shortest path (0,0) -> (4,6): 10\ngoal is a wall: -1\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/cycle_detection_visited_set.ail",
+      "status": "working",
+      "tags": ["set", "std/set", "algorithms", "data-structures", "adt", "tuples"],
+      "description": "Cycle detection: count moves until a (row, col, Dir) state repeats, using Set[(int, int, Dir)].",
+      "modules": ["std/io", "std/set"],
+      "expected": {
+        "stdout": "moves before a repeated state: 8\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/map_tuple_record_keys.ail",
+      "status": "working",
+      "tags": ["map", "tuples", "records", "adt", "data-structures"],
+      "description": "Structured Map keys: tuple, record and ADT-constructor keys with lookup, member and canonical key order.",
+      "modules": ["std/io", "std/map"],
+      "expected": {
+        "stdout": "tuple key (1, 1): Some(2)\nmissing (5, 5): false\nkeys: [(0, 0), (0, 1), (1, 1)]\nrecord key: Some(lead)\nADT keys: [(Blue, 3), (Green, 2), (Red, 1)]\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/difference_array_accumulate.ail",
+      "status": "working",
+      "tags": ["array", "std/array", "algorithms", "data-structures"],
+      "description": "Difference array, histogram and per-bucket max with std/array.accumulate (one copy, O(n + k)).",
+      "modules": ["std/array", "std/io", "std/list", "std/string"],
+      "expected": {
+        "stdout": "coverage: [1, 1, 2, 1, 2, 1, 0]\nhistogram a/b/c: #[3, 2, 1]\nmax per bucket: #[abcd, x]\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/mcp_tools.ail",
       "status": "broken",
       "tags": [
@@ -2596,6 +2690,23 @@
       ],
       "expected": {
         "stdout": "prediction: 2.9999999999999996\nhistogram: #[1.0, 0.0, 2.0, 5.0], argmax = 3\nupdated: #[1.5, 0.0, 2.5]\njson: #[0.5, 1.5, 2.5]\nf64: #[1.0, 2.0, 0.5]\nbad json: error: decodeFloatArray: expected a number at offset 4\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/float_int_literals.ail",
+      "status": "working",
+      "tags": [
+        "numeric",
+        "arithmetic",
+        "type-inference",
+        "std/array",
+        "pure"
+      ],
+      "description": "Int literals used as floats: f >= 0, 2 * f, a float function returning 0, [1, f, 3] and make(3, 0) for Array[float] are float values; a let-bound numeric literal picks one type, so mixing int and float needs intToFloat",
+      "modules": ["std/array","std/math"],
+      "expected": {
+        "stdout": "isNonNeg(2.5) = true\ndouble(1.5) = 3.0\nzero() = 0.0\naround(2.5) = [1.0, 2.5, 3.0]\nhistogram = #[3.0, 0.0, 5.0]\nbmi(2.0) = 17.5\naverage(10.0) = 2.5\n",
         "exit_code": 0
       }
     },
@@ -3437,25 +3548,6 @@
       }
     },
     {
-      "path": "runnable/effect_latent_nested_callbacks.ail",
-      "status": "working",
-      "tags": [
-        "effects",
-        "higher-order",
-        "regression"
-      ],
-      "description": "Effects of callbacks nested in tuple/list/Option arguments are declared on the caller; concrete ! {IO} callback through mapE (#1718, #1826)",
-      "modules": [
-        "std/io",
-        "std/list",
-        "std/option"
-      ],
-      "expected": {
-        "stdout": "logged 1\nlogged 2\nlogged 3\ntotal 6\nitem a\nitem b\nmapped [true, true]\n",
-        "exit_code": 0
-      }
-    },
-    {
       "path": "runnable/secrets/scoped_declassify.ail",
       "status": "working",
       "tags": [
@@ -3516,14 +3608,44 @@
       "modules": [
         "std/io"
       ]
+    },
+    {
+      "path": "runnable/property_differential_testing.ail",
+      "status": "working",
+      "tags": ["testing", "property-testing", "algorithms"],
+      "description": "Property-based differential testing: a fast algorithm (Kadane) checked against a brute-force reference on generated lists; run `ailang test` for 100 cases and a replayable counterexample.",
+      "modules": ["std/io","std/list"],
+      "expected": {
+        "stdout": "maxSlice = 6\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/effect_latent_nested_callbacks.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "higher-order",
+        "regression"
+      ],
+      "description": "Effects of callbacks nested in tuple/list/Option arguments are declared on the caller; concrete ! {IO} callback through mapE (#1718, #1826)",
+      "modules": [
+        "std/io",
+        "std/list",
+        "std/option"
+      ],
+      "expected": {
+        "stdout": "logged 1\nlogged 2\nlogged 3\ntotal 6\nitem a\nitem b\nmapped [true, true]\n",
+        "exit_code": 0
+      }
     }
   ],
   "statistics": {
-    "total": 239,
-    "working": 231,
+    "total": 248,
+    "working": 240,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9665271966527197,
+    "coverage": 0.967741935483871,
     "experimental": 0
   },
   "milestones": {

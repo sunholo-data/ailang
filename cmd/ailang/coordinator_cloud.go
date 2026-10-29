@@ -270,7 +270,7 @@ func coordinatorExecuteJob(args []string) (returnErr error) {
 	// Write artifact files to the GCS-mounted directory (/artifacts/tasks/{taskID}/).
 	// The artifact bucket is mounted read-write at /artifacts via Cloud Run volume mount.
 	// Files written here land directly in GCS — no upload client needed.
-	artifactPath := writeTaskArtifacts(taskID, execResult)
+	artifactPath := writeTaskArtifacts(taskID, provider, execResult)
 
 	// Publish completion with executor metrics (success or failure)
 	if execErr != nil {

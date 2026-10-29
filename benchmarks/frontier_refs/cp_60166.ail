@@ -1,0 +1,85 @@
+module benchmark/solution
+
+import std/io (println, readLine)
+import std/string (split, stringToInt, trim)
+import std/list (length, reverse)
+import std/option (getOrElse)
+
+-- Ones are worth 1 each as singleton segments. Let P be the product of the
+-- non-one elements. If P >= 2n + 4, merging everything from the first to the
+-- last non-one beats any split by more than the ones it gives up, so the
+-- answer is leading + trailing ones + P mod M. Otherwise there are at most
+-- ~20 non-ones and an exact O(k^2) DP over them fits in int.
+func md() -> int = 1000000007
+
+func toInt(s: string) -> int = getOrElse(stringToInt(s), 0)
+
+func nums(line: string) -> [int] =
+  match split(trim(line), " ") {
+    [] => [],
+    xs => toInts(xs, [])
+  }
+
+func toInts(xs: [string], acc: [int]) -> [int] =
+  match xs {
+    [] => reverse(acc),
+    x :: rest => if x == "" then toInts(rest, acc) else toInts(rest, toInt(x) :: acc)
+  }
+
+-- One pass: (non-one values reversed, gaps reversed, leading ones, ones since last non-one,
+-- saturated product, product mod M).
+type Scan = {vals: [int], gaps: [int], lead: int, run: int, sat: int, pm: int, seen: bool}
+
+func scan(xs: [int], cap: int, s: Scan) -> Scan =
+  match xs {
+    [] => s,
+    x :: rest =>
+      if x == 1 then scan(rest, cap, {s | run: s.run + 1})
+      else if s.seen then
+        scan(rest, cap, {s | vals: x :: s.vals, gaps: s.run :: s.gaps, run: 0,
+                             sat: if s.sat >= cap then cap else s.sat * x,
+                             pm: (s.pm * (x % md())) % md()})
+      else
+        scan(rest, cap, {s | vals: [x], gaps: [], lead: s.run, run: 0, seen: true,
+                             sat: if x >= cap then cap else x, pm: x % md()})
+  }
+
+func nthOr(xs: [int], i: int) -> int =
+  match xs { [] => 0, x :: rest => if i == 0 then x else nthOr(rest, i - 1) }
+
+-- best(j) = max over i < j of dp(i) + ones cut at boundary i + prod(vals[i..j-1]).
+-- dps holds dp(0..j-1) in order; gaps[t] = ones between vals[t-1] and vals[t].
+func bestFrom(vals: [int], gaps: [int], dps: [int], i: int, j: int, prod: int, best: int) -> int =
+  if i < 0 then best
+  else {
+    let p = prod * nthOr(vals, i);
+    let cut = if i == 0 then 0 else nthOr(gaps, i);
+    let cand = nthOr(dps, i) + cut + p;
+    bestFrom(vals, gaps, dps, i - 1, j, p, if cand > best then cand else best)
+  }
+
+func dpLoop(vals: [int], gaps: [int], k: int, j: int, dps: [int]) -> int =
+  if j > k then nthOr(dps, k)
+  else dpLoop(vals, gaps, k, j + 1, dps ++ [bestFrom(vals, gaps, dps, j - 1, j, 1, 0)])
+
+func solve(xs: [int]) -> int {
+  let n = length(xs);
+  let s = scan(xs, 2 * n + 4, {vals: [], gaps: [], lead: 0, run: 0, sat: 1, pm: 1, seen: false});
+  if !s.seen then n % md()
+  else if s.sat >= 2 * n + 4 then (s.lead + s.run + s.pm) % md()
+  else {
+    let vals = reverse(s.vals);
+    let gaps = 0 :: reverse(s.gaps);
+    (s.lead + s.run + dpLoop(vals, gaps, length(vals), 1, [0])) % md()
+  }
+}
+
+func cases(t: int) -> () ! {IO} =
+  if t == 0 then ()
+  else {
+    let _ = readLine();
+    println(show(solve(nums(readLine()))));
+    cases(t - 1)
+  }
+
+export func main() -> () ! {IO} = cases(toInt(trim(readLine())))

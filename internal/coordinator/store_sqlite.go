@@ -25,6 +25,10 @@ type SQLiteStore struct {
 
 // NewSQLiteStore creates a new SQLite store
 func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
+	return newSQLiteStoreWithOptions(dbPath, coordinatorDBOptions)
+}
+
+func newSQLiteStoreWithOptions(dbPath string, options sqliteopen.Options) (*SQLiteStore, error) {
 	if dbPath == "" {
 		p, err := statedir.Path("coordinator.db")
 		if err != nil {
@@ -40,7 +44,7 @@ func NewSQLiteStore(dbPath string) (*SQLiteStore, error) {
 	// that violate them exist (approvals are filed for task ids the store
 	// does not hold — TestStoreBackedApprovalCheckpoint does exactly that).
 	// Turning enforcement on is a data migration, not an opener setting.
-	db, err := sqliteopen.Open(dbPath, coordinatorDBOptions)
+	db, err := sqliteopen.Open(dbPath, options)
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database: %w", err)
 	}

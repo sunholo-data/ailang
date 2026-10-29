@@ -10,7 +10,7 @@
 # subscription OAuth from anything but Claude Code (429, measured 2026-10-02).
 
 ARG PROJECT
-ARG MOTOKO_COMMIT=907dd78e2ff4ef32c9c01a07749596d3711c33fd
+ARG MOTOKO_COMMIT=835c738b8ca50ed38f36c117058847c816db32b8
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
 # motoko_agent setup (NOT a single binary like pi/opencode — it's a bun TUI

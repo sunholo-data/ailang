@@ -2,6 +2,12 @@
 
 **Status**: Planned (v1.1 arc spine — approved direction, Mark 2026-07-14; full design via
 design-doc-creator post-1.0)
+**Reality check (2026-10-28)**: the revival has already happened, a different way. The game now lives in
+`sunholo-data/stapledons-godot`, where Godot owns rendering and input. The AILANG simulation runs
+as a child process (`ailang run --bytecode`, NDJSON over stdin/stdout), and its Makefile gates
+modules under `--strict-bytecode`. The Go version (`stapledons_voyage`) has had no commits since
+2026-03-16. Re-scope this doc against that architecture before planning from it. Its dependency
+`m-perf4-bytecode-interpreter` is superseded: the VM ships, and the live plans are M-VM-COVERAGE and M-VM-QUICK-WINS.
 **Target**: v1.1.0
 **Priority**: P1 (v1.1 headline: "the bytecode VM grows up, proven by a game")
 **Estimated**: TBD at full design (engine-effects host ~1wk; game port ~1wk; VM flagship wiring ongoing)

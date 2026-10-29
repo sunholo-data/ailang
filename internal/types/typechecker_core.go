@@ -124,6 +124,7 @@ type CoreTypeChecker struct {
 	// syntactic position — the interim truth-telling diagnostic for #327
 	// (record-update-local-resolution). Retired when the real fix ships.
 	moduleFuncNames map[string]bool
+	moduleDeclMode  bool // see SetModuleDeclarationMode
 }
 
 // deferredFieldAccess records a single `expr.field` site for post-
@@ -314,14 +315,6 @@ func (tc *CoreTypeChecker) SetGlobalType(key string, scheme *Scheme) {
 	tc.globalTypes[key] = scheme
 }
 
-// SetModuleFuncNames records the module-level function names of the current
-// module. Consumed ONLY by inferVar's undefined-variable diagnostic to detect
-// the #327 shape (a local function that resolves as "undefined variable" in a
-// record-update field). Interim; retired when the real resolution fix ships.
-func (tc *CoreTypeChecker) SetModuleFuncNames(names map[string]bool) {
-	tc.moduleFuncNames = names
-}
-
 // SetConstructorTypes sets the constructor → ADT type mappings.
 // M-DX25.4: Used to infer correct types for pattern matching on ADTs.
 func (tc *CoreTypeChecker) SetConstructorTypes(ctors map[string]string) {
@@ -466,6 +459,7 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		// withholds only vars bound inside this decl (see InferenceContext).
 		baseEnvFreeVars: env.FreeTypeVars(),
 		baseEnv:         env,
+		declRoot:        expr,
 	}
 	// M-DX11-PHASE2: Wire debugSink to Unifier for OnSubstitute events
 	unifier.SetDebugSink(tc.DebugSink)

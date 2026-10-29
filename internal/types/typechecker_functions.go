@@ -235,7 +235,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		// which binding form a function happens to elaborate into.
 		defaultedType = tc.closeDeclaredEffectRowForBinding(let.Value.ID(), defaultedType)
 
-		binding = tc.generalizeWithConstraints(defaultedType, valueEffects, nonGroundConstraints, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv)
+		binding = tc.generalizeWithConstraints(defaultedType, valueEffects, nonGroundConstraints, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints))
 	} else {
 		binding = defaultedType
 	}
@@ -392,7 +392,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		// the recursive bindings' own fresh vars live only in newEnv, so they
 		// remain generalizable, while any enclosing lambda params (free in
 		// oldEnv but not in the decl's base env) are correctly withheld.
-		scheme := tc.generalizeWithConstraints(valueType, getEffectRow(valueNode), nonGroundConstraints, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv)
+		scheme := tc.generalizeWithConstraints(valueType, getEffectRow(valueNode), nonGroundConstraints, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, letrec, nonGroundConstraints))
 
 		typedBindings[i] = typedast.TypedRecBinding{
 			Name:   binding.Name,
@@ -464,7 +464,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 // in a binding pushed above baseEnv by this declaration. Without it a parameter
 // typed with the declaration's own `a` was generalized whenever a leaked `a`
 // also sat in the base env, re-opening exactly the ANF `[b]` hole above.
-func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, constraints []ClassConstraint, currentEnv *TypeEnv, baseEnvFreeVars map[string]bool, baseEnv *TypeEnv) *Scheme {
+func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, constraints []ClassConstraint, currentEnv *TypeEnv, baseEnvFreeVars map[string]bool, baseEnv *TypeEnv, literalWithhold map[string]bool) *Scheme {
 	// Find free type variables in the type being generalized.
 	typeFreeVars := make(map[string]bool)
 	collectFreeVars(typ, typeFreeVars)
@@ -486,6 +486,11 @@ func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, con
 
 	generalizedTypeVars := []string{}
 	for v := range typeFreeVars {
+		if literalWithhold[v] {
+			// Constrained by an integer literal (see literalWithhold) —
+			// stays monomorphic so its use sites decide the literal's type.
+			continue
+		}
 		if withhold[v] {
 			// Bound by an enclosing binder in this decl — not generalizable.
 			continue

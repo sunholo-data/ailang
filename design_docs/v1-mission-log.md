@@ -2669,3 +2669,27 @@ first live reading of the instrument this iteration shipped.
 - `gemini-3-1-pro` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
 - `gpt5-6-sol` → **ABSENT** (auth) — degraded to N-1, not a silent pass
 - controller (in-session, not an API call) → **pass** — Root cause traced to verified code paths (flat aliasEnv at unification_core.go:17/172, guard-less symbol-import assignment at pipeline_module_imports.go:244, first-wins bulk at :277); three triggers reproduced live on v0.52.3; fix is the parent doc's parked M2 extended to export schemes on T3 evidence; all negative-existence claims carry grep/read rows in the Verification Log
+
+#### Design-quorum review — `design_docs/planned/v0_55_0/m-import-alias-collision.md` (2026-10-28T08:47:44Z)
+
+- **Synthesis: BLOCKED** (total $0.0000, 0 in / 0 out tok)
+- `oc-glm-5-3` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
+- `oc-kimi-k3` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
+- `gpt6-1-sol` → **ABSENT** (auth) — degraded to N-1, not a silent pass
+- `gemini-4-argon` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
+- `claude-sonnet-5@claude-p` (SAME VENDOR AS THE AUTHOR — recalled because every independent seat was absent) → **ABSENT** (quota) — degraded to N-1, not a silent pass
+- controller (in-session, not an API call) → **pass** — Controller in-session verdict: all load-bearing premises verified live this session (repro 4-cell truth table on binary a6b4c2c at HEAD 51b00832, MOD016 allocation grepped free, no-qualified-type-form probe PAR015, front-door call sites read); policy follows the recorded #1467 point-5 deferral and m-type-name-shadow audit item 3; Conflict Surface present; deferral of S2-S5 to Phase 2 is deliberate and precedented.
+- Blocking objections (return to author before planning):
+  - no reviewer produced a verdict (all absent) — refusing to proceed on zero signal
+
+#### Design-quorum review — `design_docs/planned/v0_55_0/m-import-alias-collision.md` (2026-10-28T08:47:49Z)
+
+- **Synthesis: BLOCKED** (total $0.0000, 0 in / 0 out tok)
+- `oc-glm-5-3` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
+- `oc-kimi-k3` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
+- `gpt6-1-sol` → **ABSENT** (auth) — degraded to N-1, not a silent pass
+- `gemini-4-argon` → **ABSENT** (unreachable) — degraded to N-1, not a silent pass
+- `claude-sonnet-5@claude-p` (SAME VENDOR AS THE AUTHOR — recalled because every independent seat was absent) → **ABSENT** (quota) — degraded to N-1, not a silent pass
+- controller (in-session, not an API call) → **pass** — Retry of 08:47 run (all seats absent, zero signal). Same controller verdict: premises verified live in-session; Conflict Surface present; S2-S5 deferral precedented.
+- Blocking objections (return to author before planning):
+  - no reviewer produced a verdict (all absent) — refusing to proceed on zero signal

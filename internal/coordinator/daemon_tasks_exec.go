@@ -1,6 +1,7 @@
 package coordinator
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -8,6 +9,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
+	"github.com/sunholo-data/ailang/internal/messaging"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
 
@@ -440,8 +442,45 @@ func (d *Daemon) handleDispatchError(task *TaskRecord, err error) {
 			d.logger.Printf("Warning: failed to mark task %s failed: %v", task.ID, mErr)
 		}
 		d.postTaskResult(task, nil, err)
+		d.postDispatchFailureCompletion(task, err)
 		return
 	}
 	d.logger.Printf("Failed to dispatch task %s to Cloud Run Job: %v", task.ID, err)
 	_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)
+}
+
+// postDispatchFailureCompletion posts a failed completion to the agent's inbox
+// for a task that never reached an executor. Only the executor job publishes a
+// completion, so a task refused at dispatch used to fail with nothing but a
+// thread post: the five sprint-evaluator tasks the blocked credit budget
+// refused on 2026-10-16 (402 "credit budget blocked") never appeared in the
+// inbox or in `messages activity`, and the evaluator sat dead for 11 days.
+func (d *Daemon) postDispatchFailureCompletion(task *TaskRecord, err error) {
+	if d.msgStore == nil {
+		return
+	}
+	payload, _ := json.Marshal(map[string]string{
+		"task_id":   task.ID,
+		"agent_id":  task.AgentID,
+		"status":    "failed",
+		"error_msg": err.Error(),
+		"source":    "dispatch",
+	})
+	toInbox := task.AgentID
+	if d.agentRegistry != nil {
+		if inbox, ok := d.agentRegistry.InboxForAgent(task.AgentID); ok {
+			toInbox = inbox
+		}
+	}
+	msg := &messaging.InboxMessage{
+		FromAgent:     task.AgentID,
+		ToInbox:       toInbox,
+		MessageType:   "completion",
+		Title:         fmt.Sprintf("Task %s: failed (dispatch refused)", task.ID),
+		Payload:       string(payload),
+		CorrelationID: task.MessageID,
+	}
+	if mErr := d.msgStore.InsertInboxMessage(msg); mErr != nil {
+		d.logger.Printf("Warning: failed to post dispatch-failure completion for task %s: %v", task.ID, mErr)
+	}
 }

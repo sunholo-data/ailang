@@ -457,6 +457,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		StdoutOk:      validation.StdoutOk,
 		Stdout:        validation.Stdout,
 		Stderr:        validation.Stderr,
+		Hidden:        validation.Hidden,
 		Browser:       browserManifest,
 
 		// M-EVAL-COST-AND-SPEED-BUDGETS (v0.15.1): propagate speed/cost metrics

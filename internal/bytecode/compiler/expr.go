@@ -60,27 +60,16 @@ func (fc *funcCompiler) compileExpr(e stmt.Expr) (uint8, error) {
 	case stmt.GlobalRef:
 		// A bare GlobalRef is a first-class function reference. Materialize
 		// it as a closure value in a fresh register.
-		canonical := canonicalFuncName(e.Module, e.Name)
-		idx, ok := fc.funcIdx[canonical]
-		if !ok {
+		key := canonicalFuncName(e.Module, e.Name)
+		if _, ok := fc.funcIdx[key]; !ok {
 			// Fall back to bare name for compatibility with programs that
 			// registered prototypes without module prefixes.
-			if barIdx, barOk := fc.funcIdx[e.Name]; barOk {
-				idx = barIdx
-			} else {
-				return 0, fmt.Errorf("compiler: unknown global %q", canonical)
+			if _, barOk := fc.funcIdx[e.Name]; !barOk {
+				return 0, fmt.Errorf("compiler: unknown global %q", key)
 			}
+			key = e.Name
 		}
-		dst, err := fc.regs.allocTemp()
-		if err != nil {
-			return 0, err
-		}
-		nestedIdx, err := fc.lookupNestedProto(idx)
-		if err != nil {
-			return 0, err
-		}
-		fc.emit(bytecode.EncodeABx(bytecode.OpClosure, dst, nestedIdx))
-		return dst, nil
+		return fc.compileTopLevelRef(key)
 	}
 	return 0, fmt.Errorf("compiler: unsupported expression %T", e)
 }
@@ -92,7 +81,10 @@ func (fc *funcCompiler) compileExprToFresh(e stmt.Expr) (uint8, error) {
 	if vr, ok := e.(stmt.VarRef); ok {
 		src, ok := fc.locals.lookup(vr.Name)
 		if !ok {
-			return 0, fmt.Errorf("compiler: unbound variable %q", vr.Name)
+			// Not a local: a letrec member, a top-level function or a
+			// prelude function. compileVarRef materialises each of those
+			// into a fresh temp already, and errors on an unbound name.
+			return fc.compileVarRef(vr)
 		}
 		dst, err := fc.regs.allocTemp()
 		if err != nil {
@@ -186,27 +178,69 @@ func (fc *funcCompiler) compileVarRef(e stmt.VarRef) (uint8, error) {
 	if r, ok := fc.locals.lookup(e.Name); ok {
 		return r, nil
 	}
-	// Fall back to a top-level function reference: materialize the closure.
-	// Try the current module first (multi-module image), then the bare
-	// name (single-module or cross-module helper registered bare).
-	canonical := canonicalFuncName(fc.currentModule, e.Name)
-	idx, ok := fc.funcIdx[canonical]
-	if !ok {
-		idx, ok = fc.funcIdx[e.Name]
-	}
-	if ok {
+	// A letrec group member used as a value (letrec.go); it shadows any
+	// top-level function of the same name.
+	if idx, ok := fc.recMember(e.Name); ok {
 		dst, err := fc.regs.allocTemp()
 		if err != nil {
 			return 0, err
 		}
-		nestedIdx, err := fc.lookupNestedProto(idx)
-		if err != nil {
-			return 0, err
-		}
-		fc.emit(bytecode.EncodeABx(bytecode.OpClosure, dst, nestedIdx))
-		return dst, nil
+		return dst, fc.emitRecClosure(dst, idx)
+	}
+	// Fall back to a top-level function reference: materialize the closure.
+	// Try the current module first (multi-module image), then the bare
+	// name (single-module or cross-module helper registered bare).
+	if key := canonicalFuncName(fc.currentModule, e.Name); fc.hasFunc(key) {
+		return fc.compileTopLevelRef(key)
+	}
+	if fc.hasFunc(e.Name) {
+		return fc.compileTopLevelRef(e.Name)
+	}
+	// The implicit prelude (prelude.go), shadowed by everything above.
+	key, found, err := fc.preludeFunc(e.Name)
+	if err != nil {
+		return 0, err
+	}
+	if found {
+		return fc.compileTopLevelRef(key)
 	}
 	return 0, fmt.Errorf("compiler: unbound variable %q", e.Name)
+}
+
+func (fc *funcCompiler) hasFunc(key string) bool {
+	_, ok := fc.funcIdx[key]
+	return ok
+}
+
+// isValueDecl reports whether funcIdx key names a top-level value binding
+// (stmt.FuncDecl.Value), lowered as a nullary function.
+func (fc *funcCompiler) isValueDecl(key string) bool {
+	fd := fc.decls[key]
+	return fd != nil && fd.Value
+}
+
+// compileTopLevelRef materialises a reference to a top-level binding, used
+// as a value, into a fresh register. A function becomes a closure. A value
+// binding (`let base = 40 + 1`) is CALLED, so the reference yields its value
+// and not the nullary function that computes it: reading it as a closure was
+// G3 (`arith ADD: type mismatch Closure vs Int`). Module-level bindings carry
+// no effects, so evaluating the initialiser per reference gives the
+// evaluator's value, at the cost of recomputing it.
+func (fc *funcCompiler) compileTopLevelRef(key string) (uint8, error) {
+	dst, err := fc.regs.allocTemp()
+	if err != nil {
+		return 0, err
+	}
+	nestedIdx, err := fc.lookupNestedProto(fc.funcIdx[key])
+	if err != nil {
+		return 0, err
+	}
+	fc.emit(bytecode.EncodeABx(bytecode.OpClosure, dst, nestedIdx))
+	if fc.isValueDecl(key) {
+		// CALL A=dst, B=0 args, C=1 result: the result replaces the callee.
+		fc.emit(bytecode.EncodeABC(bytecode.OpCall, dst, 0, 1))
+	}
+	return dst, nil
 }
 
 // --- BinOp / UnOp (M1: arithmetic only) -------------------------------------

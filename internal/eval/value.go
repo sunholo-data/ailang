@@ -268,36 +268,18 @@ func (m *MapValue) String() string {
 	return b.String()
 }
 
-// MapKey returns a canonical, collision-free string key for Go map lookup.
-// Distinct from String() which is for display only.
-// Supported key types: int, string, bool. Returns error for unsupported types.
-func MapKey(v Value) (string, error) {
-	switch k := v.(type) {
-	case *IntValue:
-		return fmt.Sprintf("i:%d", k.Value), nil
-	case *StringValue:
-		return "s:" + k.Value, nil
-	case *BoolValue:
-		if k.Value {
-			return "b:true", nil
-		}
-		return "b:false", nil
-	default:
-		return "", fmt.Errorf("unsupported map key type: %T (only int, string, bool supported)", v)
-	}
-}
-
-// Lookup returns the value for a key, or (nil, false) if not found. O(1).
-func (m *MapValue) Lookup(key Value) (Value, bool) {
+// Lookup returns the value for a key. O(1). A key that cannot be encoded (a
+// function, say) is an error, never a silent miss (CLAUDE.md §2).
+func (m *MapValue) Lookup(key Value) (Value, bool, error) {
 	k, err := MapKey(key)
 	if err != nil {
-		return nil, false
+		return nil, false, err
 	}
 	entry, ok := m.Entries[k]
 	if !ok {
-		return nil, false
+		return nil, false, nil
 	}
-	return entry.Value, true
+	return entry.Value, true, nil
 }
 
 // Insert returns a new map with the key-value pair added/updated. O(n) copy-on-write.
@@ -315,13 +297,13 @@ func (m *MapValue) Insert(key, val Value) (*MapValue, error) {
 }
 
 // Remove returns a new map without the given key. O(n) copy-on-write.
-func (m *MapValue) Remove(key Value) *MapValue {
+func (m *MapValue) Remove(key Value) (*MapValue, error) {
 	k, err := MapKey(key)
 	if err != nil {
-		return m
+		return nil, err
 	}
 	if _, ok := m.Entries[k]; !ok {
-		return m // key not present, return unchanged
+		return m, nil // key not present, return unchanged
 	}
 	newEntries := make(map[string]*MapEntry, len(m.Entries))
 	for ek, ev := range m.Entries {
@@ -329,7 +311,7 @@ func (m *MapValue) Remove(key Value) *MapValue {
 			newEntries[ek] = ev
 		}
 	}
-	return &MapValue{Entries: newEntries}
+	return &MapValue{Entries: newEntries}, nil
 }
 
 // Size returns the number of entries. O(1).
