@@ -70,6 +70,9 @@ func (f *FuncType) String() string {
 		params = append(params, p.String())
 	}
 	effectStr := FormatEffects(f.Effects)
+	if f.Effects != nil && len(f.Effects) == 0 {
+		effectStr = "! {}"
+	}
 	if effectStr != "" {
 		effectStr = " " + effectStr
 	}

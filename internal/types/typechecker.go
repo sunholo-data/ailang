@@ -241,9 +241,10 @@ func (tc *TypeChecker) astTypeToType(t ast.Type) Type {
 		}
 
 		return &TFunc2{
-			Params:    paramTypes,
-			EffectRow: effectRow,
-			Return:    tc.astTypeToType(typ.Return),
+			Params:                 paramTypes,
+			EffectRow:              effectRow,
+			Return:                 tc.astTypeToType(typ.Return),
+			ConcreteEffectContract: typ.Effects != nil && len(typ.Effects) == 0,
 		}
 
 	case *ast.ListType:

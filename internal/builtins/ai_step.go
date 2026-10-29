@@ -460,7 +460,7 @@ func streamUsageRecordType(T *types.Builder) types.Type {
 
 func makeAIStepWithStreamRecordedType() types.Type {
 	T := types.NewBuilder()
-	onChunkType := T.Func(streamChunkType(T)).Returns(T.Unit()).Build()
+	onChunkType := T.Func(streamChunkType(T)).Returns(T.Unit()).RowTail("e").Build()
 	return T.Func(
 		T.String(),
 		T.List(messageRecordType(T)),
@@ -472,7 +472,7 @@ func makeAIStepWithStreamRecordedType() types.Type {
 			types.Field("chunks", T.List(streamChunkType(T))),
 			types.Field("outcome", T.App("Result", stepResultRecordType(T), aiErrorRecordType(T))),
 		)).
-		Effects("AI")
+		RowTail("e").Effects("AI")
 }
 
 func aiStepWithStreamRecordedImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
@@ -517,7 +517,7 @@ fully encodable streams, which includes every stream constructible today.`,
 				{Name: "messages", Description: "Conversation as list[Message]"},
 				{Name: "tools", Description: "Tool catalog as list[ToolSchema]"},
 				{Name: "cache_breakpoints", Description: "Opt-in cache hints as list[CacheBreakpoint]"},
-				{Name: "on_chunk", Description: "Callback (StreamChunk) -> () invoked per chunk"},
+				{Name: "on_chunk", Description: "Callback (StreamChunk) -> () ! {e}; its effects propagate to the caller"},
 			},
 			Returns:   "{ chunks: [StreamChunk], outcome: Result[StepResult, AIError] }",
 			SeeAlso:   []string{"_ai_step_with_stream", "std/ai.stepWithStreamRecorded"},
@@ -574,7 +574,7 @@ identical StepResult to stepWithCache.`,
 				{Name: "messages", Description: "Conversation as list[Message]"},
 				{Name: "tools", Description: "Tool catalog as list[ToolSchema]"},
 				{Name: "cache_breakpoints", Description: "Opt-in cache hints as list[CacheBreakpoint]"},
-				{Name: "on_chunk", Description: "Callback (StreamChunk) -> () invoked per chunk"},
+				{Name: "on_chunk", Description: "Callback (StreamChunk) -> () ! {e}; its effects propagate to the caller"},
 			},
 			Returns: "Result[StepResult, AIError]",
 			SeeAlso: []string{
@@ -597,14 +597,11 @@ func makeAIStepWithStreamType() types.Type {
 	T := types.NewBuilder()
 	// (model: string, messages: list[Message], tools: list[ToolSchema],
 	//  cache_breakpoints: list[CacheBreakpoint],
-	//  on_chunk: (StreamChunk) -> ())
-	//   -> Result[StepResult, AIError] ! {AI}
-	//
-	// Note on callback effects: the callback's effect row is intentionally
-	// left open in the Go-side type so AILANG's row polymorphism can flow
-	// the user's effects through (typically {IO}). The std/ai.stepWithStream
-	// wrapper in std/ai.ail surfaces this as `(StreamChunk) -> () \! {IO}`.
-	onChunkType := T.Func(streamChunkType(T)).Returns(T.Unit()).Build()
+	//  on_chunk: (StreamChunk) -> () ! {e})
+	//   -> Result[StepResult, AIError] ! {AI, e}
+	// The same row variable on callback and result charges every callback
+	// effect to the caller, while permitting a pure renderer.
+	onChunkType := T.Func(streamChunkType(T)).Returns(T.Unit()).RowTail("e").Build()
 	return T.Func(
 		T.String(),
 		T.List(messageRecordType(T)),
@@ -613,7 +610,7 @@ func makeAIStepWithStreamType() types.Type {
 		onChunkType,
 	).
 		Returns(T.App("Result", stepResultRecordType(T), aiErrorRecordType(T))).
-		Effects("AI")
+		RowTail("e").Effects("AI")
 }
 
 func aiStepWithStreamImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {

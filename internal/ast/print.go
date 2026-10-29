@@ -351,7 +351,7 @@ func simplify(node interface{}) interface{} {
 		if n.Return != nil {
 			m["return"] = simplify(n.Return)
 		}
-		if len(n.Effects) > 0 {
+		if n.Effects != nil {
 			m["effects"] = n.Effects
 		}
 		return m

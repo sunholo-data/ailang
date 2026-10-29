@@ -1,8 +1,8 @@
 # motoko_agent on this machine — the map
 
-**One-line answer (since 2026-10-27):** evals run `/Users/voightkampff/dev/mk-20261027`, branch
-`sunholo/main-dst-20261027` @ `835c738b` (§13) — upstream `main` 97244396 + our commits, the commit the
-cloud image pins. 2026-10-19..10-27: `mk-20261019` / `sunholo/main-dst-20261019` @ `907dd78e` (§12), now
+**Rig answer (since 2026-10-27):** evals run `/Users/voightkampff/dev/mk-20261027`, branch
+`sunholo/main-dst-20261027` @ `835c738b` (§13) — upstream `main` 97244396 + our commits. The Docker source pin
+is now `af1d5651` with the approved #1958 callback migration (§14); the live rig was not switched. 2026-10-19..10-27: `mk-20261019` / `sunholo/main-dst-20261019` @ `907dd78e` (§12), now
 the rollback. 2026-10-15..10-19: `mk-20261015` / `sunholo/main-dst-20261015` @
 `965f2ec5` (§11). 2026-10-08..10-15: `mk-20261002` (§10). Before that (2026-09-28..10-07):
 `/Users/voightkampff/dev/mk-main`, branch `sunholo/main-dst` = Arni's `main` (DST core, extension ABI 8.0) plus our local commits
@@ -290,7 +290,7 @@ and a local ollama or OpenRouter run.
 `MOTOKO_COMMIT` to `965f2ec5`. Results banked before 2026-10-19 ran `965f2ec5` or earlier; do not pool
 them with later motoko rows as one build.
 
-## 13. Canonical since 2026-10-27: `sunholo/main-dst-20261027` (rig and cloud on `835c738b`)
+## 13. Canonical since 2026-10-27: `sunholo/main-dst-20261027` (rig on `835c738b`; cloud source update in §14)
 
 Worktree `~/dev/mk-20261027`: §12's commits rebased onto upstream `main` `97244396` (2026-10-25),
 31 upstream commits newer than `a94204aa`. Most are ADR 034 Phases 1–3 (DST world/fault catalogue,
@@ -326,3 +326,66 @@ staleness window, and the rotation yielded every slot. Cleared by hand; cause no
 2026-10-27 12:43 ran `907dd78e` or earlier; do not pool them with later motoko rows as one build.
 **Rollback (cloud):** `MOTOKO_COMMIT` back to `907dd78e`.
 
+
+## 14. Approved #1958 compiler compatibility migration (2026-10-29)
+
+The first #1958 source-pin migration selected **`af1d56513d3ae314bd831fd149c7b6f2503a361c`** from
+our fork `sunholo-voight-kampff/motoko_agent`, PR [#4](https://github.com/sunholo-voight-kampff/motoko_agent/pull/4).
+It is exactly one annotation line after `835c738b8ca50ed38f36c117058847c816db32b8`,
+targeting our `sunholo/main-dst-20261027` branch. `src/core/test/stub_step.ail`'s
+`play_chunks` callback slot narrows `IO, Trace` to `IO`, matching the Ports callback.
+The helper's outer `IO, Trace` row and Ports ABI stay unchanged. The stricter compiler
+correctly rejects implicit callback widening until width subsumption is implemented.
+
+Before migration, the same 60-file core selection passed **60/60** with the base
+compiler and **55/60** with #1958. After migration it passed **60/60 on both arms**.
+The real delivery worktree also passed fresh no-cache checks with #1958 compiler
+`9eb1ebaed78a0ecf6b232b5b329633ed11438358` and its matching stdlib: **60/60**.
+Full `gmake check_core` passed **60 core files, 9 extension boots**, and all runtime
+prerequisites. Seven supplemental checks initially hit a 90-second deadline, then
+passed at lower concurrency with a 180-second deadline (25–122 seconds); timeouts
+remain recorded in the validation artifact. Use GNU make on this Mac.
+
+This updates the cloud **source pin**, not a built/deployed image. The live rig
+checkout and shim remain on §13's `835c738b`; neither they nor upstream
+`arniwesth/motoko_agent` were modified. Do not infer cloud deployment or rig migration
+from this pin. #1958's breaking row guard targets **AILANG v0.56.0**, not a v0.55.x patch.
+
+Fork PR #4 merged normally on 2026-10-29, without an admin override. Its merged
+source tree is byte-identical to tested migration head `c3f4c85eec681d8d5d4787da4d9e56c22c0a2457`.
+CI's core/extensions gate passed, then its skills fixture failed on an inherited
+v0.52.5 pricing-record mismatch. The same error reproduces unchanged on the pinned
+base and migrated head; [the PR records the evidence](https://github.com/sunholo-voight-kampff/motoko_agent/pull/4#issuecomment-6491761805).
+The broader CI is not claimed green. #1958's final integrated independent gate remains pending. See `design_docs/planned/v0_55_0/m-effect-row-open-closed-soundness-validation.md`
+for preserved original failures and final delivery/integration status.
+
+
+## 15. Approved explicit-empty callback source migration (2026-10-29)
+
+The current Docker source pin is **`083ef43726981099a0bad4fedda18fc72105d6fa`**,
+normal merge of fork PR [#5](https://github.com/sunholo-voight-kampff/motoko_agent/pull/5)
+onto `sunholo/main-dst-20261027` after §14's `af1d5651`. It changes exactly four
+annotation lines in `src/core/test/ext_fixture.ail`: `describe`, `prompt`, `budget`
+and `policy` callback fields gain `! {}`. Effectful siblings, outer factory rows,
+runtime behavior, lockfile and Ports ABI are unchanged. The merged source tree is
+identical to tested head `8dc0ad84f9a9dc029d624468278def981f807e07`.
+
+With #1958 plus merged #1963, the original fixture hand-off fails 55/60 core checks.
+The four annotations also fail before the separately approved explicit-empty
+compiler amendment. Actual amended compiler `9ab45c98e071c9c90f1c365ff82cca00d74ef151`
+and matching stdlib restore **fresh no-cache 60/60** and actual **`gmake check_core`
+60 core files / 9 extension boots**, with all runtime prerequisites. Three initial
+180-second no-cache deadlines under two workers pass on serial retries in
+127.07s, 79.44s and 67.97s; the initial results remain recorded. This preserves the
+original width 60→55, width-migrated 60→60 and combined nested 55/60 measurements.
+
+The fork's old v0.52.5 CI compiler reproduces the same inherited skills pricing
+record 2-versus-4-field failure on both `af1d5651` and the four-field candidate.
+Relevant actual-compiler gates and root's independent exact-diff review passed;
+normal merge used no admin override. Pending/baseline fork CI is not claimed green.
+See `design_docs/planned/v0_56_0/m-effect-explicit-empty-callback-contract-validation.md`
+and its compatibility JSON for exact pins, corpus/control results and final gates.
+
+This is the v0.56.0 compiler-compatible **source pin**, not a built/deployed image.
+The live rig/shim remain at §13's `835c738b`; upstream `arniwesth/motoko_agent` was
+not modified. Final AILANG independent evaluation and exact-head CI remain pending.
