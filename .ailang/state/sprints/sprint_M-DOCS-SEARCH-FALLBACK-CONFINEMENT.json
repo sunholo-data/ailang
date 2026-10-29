@@ -141,10 +141,10 @@
         "Unconfined authentication hints and existing TestDocsSearch_StillDesignDocSimHash remain valid; no production transport/config/flag/error-envelope change or explicit neural/cache-management claim",
         "Portable Go helper executables use filepath/.exe and existing bounded build/CLI utilities; all new authority assertions run on Windows with no POSIX-only blanket skip; focused CLI tests and lint pass"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-29T20:24:00Z",
+      "completed": "2026-10-29T20:27:41.188197+00:00",
+      "notes": "Real CLI RED1965-M2-red.log captured unsafe auth/unset hints. GREEN1965-M2M3-green.log11.128s includes actual CLI, explicit/auto local SimHash, disabled fallback and existing design-doc guard. Proxy/helper positives active, token arms refused with no counter/state changes; canonical real-path comparison preserves existing /var spelling difference."
     },
     {
       "id": "M3_REAL_POLICY_TOOL_CHILD",
@@ -167,7 +167,7 @@
         "Use minimal TOML policy and ordinary directories without symlinks; do not call Windows-skipping writePolicyFixture or policytool.newFixture. Real local success/refusal and complete private HOME/XDG/corpus snapshots execute on Linux/macOS/Windows; focused tool/CLI tests pass"
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-29T20:27:41.188197+00:00",
       "completed": null,
       "notes": null
     },
