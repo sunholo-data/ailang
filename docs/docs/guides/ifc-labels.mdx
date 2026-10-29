@@ -9,6 +9,8 @@ import CodeBlock from '@theme/CodeBlock';
 import InboxV2 from '!!raw-loader!@site/../examples/runnable/contracts/inbox_injection_v2.ail';
 import InboxV2Lib from '!!raw-loader!@site/../examples/runnable/contracts/inbox_v2_lib.ail';
 import InboxV2App from '!!raw-loader!@site/../examples/runnable/contracts/inbox_v2_app.ail';
+import SinkFnValue from '!!raw-loader!@site/../examples/runnable/secrets/sink_function_value.ail';
+import SinkFnValueOk from '!!raw-loader!@site/../examples/runnable/secrets/sink_function_value_ok.ail';
 
 # Information-Flow Control (IFC) Labels
 
@@ -180,7 +182,13 @@ pure func attemptLaunder(rawBody: string<email>, recipient: string)
 
 There is no clever construction — wrapping in a record, routing through
 a let, calling an identity helper — that strips a label. Only an
-explicit `! {Declassify}` function can lower it.
+explicit `! {Declassify}` function can lower it. The sink side holds the same
+way: renaming a sink, passing it to a higher-order function or wrapping it in
+a lambda does not drop its `{not ℓ}` requirement (see
+[Sinks as values](#sinks-as-values)).
+
+Scope: this guarantee is checked **within one module**. A sink imported from
+another module is not yet enforced by the static check (#1134).
 
 ## Worked Example: Inbox Injection
 
@@ -419,14 +427,57 @@ where `v`'s type puts `<x>` on `user`, type-checks (labels do not take part in
 unification) but `s.user` keeps `<x>`. Only a `! {Declassify}` function lowers
 a label.
 
-## Limitations (v0.26.0)
+## Sinks as values
 
-- **Sink enforcement is intraprocedural.** A labelled value reaching a
-  `{not ℓ}` sink in the same module's call graph is caught; context-sensitive
-  flow through *unannotated* parameters and **cross-module** sinks still rely
-  on Z3 contracts and are deferred to M-TAINT-TYPES Phase 2. Annotate a
-  forwarding function's parameter (`x: T<ℓ>` / `x: T{not ℓ}`) to propagate the
-  constraint across the boundary.
+A sink's requirement belongs to the **function value**, not to the spelling of
+the call. Before the #1719 repair the `{not ℓ}` and positive `<ℓ>` parameter
+checks fired only when the callee was written as the sink's own name, so one
+`let` was enough to get `<email>` data past a `{not email}` sink. Every route
+below is now checked:
+
+| Route to the sink | Example that is now rejected |
+|---|---|
+| an alias | `let g = gate in g(fromInbox("hi"))` |
+| a higher-order parameter | `apply1(gate, fromInbox("hi"))` with `apply1(f, x) = f(x)` |
+| a HOF that applies it to its own data | `h(gate, "clean")` with `h(f, x) = { let _ = f(fromInbox("x")); x }` |
+| a function-type annotation | `apply2(gate, x)` with `apply2(f: string{not email} -> string, x: string)` |
+| a record field, list or tuple element, `if` branch | `r.f(…)`, `match [gate] { f :: _ => f(…) }` |
+| a returned or composed function | `getGate()(…)`, `compose(gate, ident)(…)` |
+| a wrapper | `wrap(y) = gate(y)`, `\y. gate(y)`, `func(y: string{not email}) -> string { y }` |
+
+Wrappers get their requirement **inferred**: `wrap(y) = gate(y)` forbids `<email>`
+on `y` exactly as `gate` does, so `wrap(fromInbox("hi"))` is rejected at the call
+that supplies the label. The diagnostic names the path the value took:
+
+```
+information-flow violation: value labelled <email> reaches parameter "body"
+of gate (via apply1 → f) which forbids it (string{not email})
+```
+
+<CodeBlock language="ailang" title="examples/runnable/secrets/sink_function_value.ail (rejected)">{SinkFnValue}</CodeBlock>
+
+Sinks stay first-class: aliasing one, storing it in a record, or passing it to
+`map` is fine as long as the data that reaches it is clean or declassified.
+
+<CodeBlock language="ailang" title="examples/runnable/secrets/sink_function_value_ok.ail (accepted)">{SinkFnValueOk}</CodeBlock>
+
+**Imported higher-order functions are conservative.** A function from another
+module (`std/list`'s `map`, say) has no summary of what it does with its
+arguments yet, so a sink passed to it is checked against the join of the
+*other* arguments' labels: `map(gate, cleanList)` is accepted and
+`map(gate, inboxList)` is rejected even though `map` is not written in your
+module. This over-approximates; it never under-approximates. Precise
+cross-module summaries remain tracked by #1134. If the checker reaches a
+defensive analysis limit, it reports `ifc_analysis_limit` and refuses to
+compile; it never drops a requirement to finish checking.
+
+## Limitations
+
+- **Sink enforcement is per module.** A labelled value reaching a `{not ℓ}`
+  sink anywhere in the same module is caught — directly, through aliases,
+  higher-order functions and wrappers, and through flow into *unannotated*
+  parameters (#1719). **Cross-module** sinks still rely on Z3 contracts
+  (#1134): a sink imported from another module is not checked statically.
 - **Labels inside types are enforced within the declaring module only.** Since
   v0.52.0 the static check reads labels in declared records, aliases
   (`type EmailBody = string<email>`), ADTs, lists and tuples — but only for types

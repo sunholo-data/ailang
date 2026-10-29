@@ -1067,10 +1067,27 @@
         "production",
         "latest"
       ],
-      "notes": "Cut from v0.16.8 without modifying either frozen v0.16.7/v0.16.8. M-EFFECT-LATENT-NESTED-CALLBACKS (#1718, #1826): latent callback effects are caller-charged when the callback is nested in a list, tuple, Option or record argument. Header and this teaching sentence are the only content changes; all cost-model, std/set, structured-key and accumulate teaching is preserved. Verified by compiler controls and both-engine rejection before IO at seventeen container levels."
+      "notes": "Cut from v0.16.8 without modifying either frozen v0.16.7/v0.16.8. M-EFFECT-LATENT-NESTED-CALLBACKS (#1718, #1826): latent callback effects are caller-charged when the callback is nested in a list, tuple, Option or record argument. Header and this teaching sentence are the only content changes; all cost-model, std/set, structured-key and accumulate teaching is preserved. Verified by compiler controls and both-engine rejection before IO at seventeen container levels.",
+      "frozen": {
+        "at": "2026-10-29",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
+    },
+    "v0.16.10": {
+      "file": "prompts/v0.16.10.md",
+      "hash": "a9435c79d78002c3c0b51e36bff06b5f918f7e3a90198dd2301e493c0ff9e001",
+      "description": "IFC sink requirements follow function values through aliases, higher-order calls and wrappers within one module",
+      "created": "2026-10-29",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "IFC sink requirements follow function values through aliases, higher-order calls and wrappers within one module"
     }
   },
-  "active": "v0.16.9",
+  "active": "v0.16.10",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

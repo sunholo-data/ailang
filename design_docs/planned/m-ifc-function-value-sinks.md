@@ -1,7 +1,7 @@
 # M-IFC-FUNCTION-VALUE-SINKS — Sink requirements travel with the function value
 
-**Status**: Planned
-**Target**: v0.54.19 (next patch; P0 soundness)
+**Status**: Implemented on fix/ifc-function-value-sinks; independent evaluation pending (2026-10-29)
+**Target**: Next release after v0.55.0 (P0 soundness; sprint placement v0_55_1, no release operation)
 **Priority**: P0 (High — a security control is bypassable in one `let`)
 **Tracks**: #1719
 **Estimated**: 5 days (M1 2d, M2 2d, M3 1d)

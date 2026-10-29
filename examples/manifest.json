@@ -5,6 +5,50 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "runnable/secrets/sink_function_value_ok.ail",
+      "status": "working",
+      "tags": [
+        "ifc",
+        "labels",
+        "higher-order",
+        "m-ifc-function-value-sinks"
+      ],
+      "description": "A {not email} sink used as a value: alias, HOF, map and record field, with clean or declassified data",
+      "modules": [
+        "std/io",
+        "std/list",
+        "std/string"
+      ],
+      "run_flags": [
+        "--caps",
+        "IO,Declassify",
+        "--entry",
+        "main"
+      ],
+      "expected": {
+        "stdout": "sent:hello\nsent:status ok\nsent:a,sent:b\nsent:[redacted]\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/secrets/sink_function_value.ail",
+      "status": "working",
+      "tags": [
+        "ifc",
+        "labels",
+        "higher-order",
+        "expected-fail",
+        "m-ifc-function-value-sinks"
+      ],
+      "description": "EXPECTED TO FAIL ailang check: <email> reaching a {not email} sink through an alias, a HOF and a wrapper lambda (#1719)",
+      "modules": [],
+      "expected": {
+        "exit_code": 1,
+        "error_pattern": "information-flow violation"
+      },
+      "skip_reason": "intentionally fails `ailang check`; asserted in TestSecretExamples_IFC"
+    },
+    {
       "path": "runnable/contracts/result_error_guard.ail",
       "status": "working",
       "tags": ["contracts", "smt-verification", "result", "parametric-adts"],
@@ -3641,11 +3685,11 @@
     }
   ],
   "statistics": {
-    "total": 248,
-    "working": 240,
+    "total": 250,
+    "working": 242,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.967741935483871,
+    "coverage": 0.968,
     "experimental": 0
   },
   "milestones": {

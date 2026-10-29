@@ -1,0 +1,229 @@
+{
+  "sprint_id": "M-IFC-FUNCTION-VALUE-SINKS",
+  "status": "completed",
+  "created": "2026-10-29T07:47:16.043855+00:00",
+  "design_doc": "design_docs/planned/m-ifc-function-value-sinks.md",
+  "sprint_plan": "design_docs/planned/v0_55_1/m-ifc-function-value-sinks-sprint-plan.md",
+  "github_issues": [
+    1719
+  ],
+  "base_commit": "1b70d59f16b1c1ddde93aaaa9dec7e2d9c8a1b14",
+  "approval_status": "approved_for_execution",
+  "approved_by": "Mark (attended)",
+  "approved_at": "2026-10-29T08:07:53.732641+00:00",
+  "velocity": {
+    "target_loc_per_day": 233,
+    "estimated_total_loc": 1400,
+    "estimated_days": 6,
+    "evidence": "Original ruled design: 5 days. Bottom-up six checkpoints: 1400 authored LOC including tests/docs; 20% schedule buffer. Historical analyzer returned 141 after a head pipe and no usable recent LOC metric; no measured daily velocity is claimed."
+  },
+  "release_constraint": "M1-M4 and required M5/M6 gates ship together; wrapper inference is mandatory in the first release.",
+  "features": [
+    {
+      "id": "M1_CALLABLE_DOMAIN",
+      "description": "Callable demands and strict joins",
+      "estimated_loc": 180,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Callable demand projection stays in the IFC abstract domain; no HM, CoreTI, parser, codegen or iface change.",
+        "Forbidden labels are sorted/deduplicated sets; callable join unions forbids and meets positive covers, with hasCover preserving absence versus bottom.",
+        "Algebra tests prove deterministic, commutative, associative, idempotent joins and non-weakening requirements; written function types and function literals seed demands without changing walkType."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-29T08:38:19.858602+00:00",
+      "notes": "Callable alternatives preserve every forbidden-label set and meet positive covers as a conjunction (nil=absent, explicit bottom retained). Canonical forbidden labels, algebra/order tests x20 and finite alias40 regression pass. No HM/CoreTI/iface change."
+    },
+    {
+      "id": "M2_VALUE_APPLICATION",
+      "description": "Propagate callable values and check every application",
+      "estimated_loc": 240,
+      "dependencies": [
+        "M1_CALLABLE_DOMAIN"
+      ],
+      "acceptance_criteria": [
+        "Lexical env resolves before local declarations; N4 shadowing remains clean. References alone never discharge demands (N6).",
+        "Carry callable values through let/letrec/block, if/match joins, record/update/access, list/array/tuple/ADT and pattern bindings; include local resultCallable and unknown-call argument-callable joins.",
+        "Checks A/C use the callee expression callable at every application while preserving existing local return-label, declared label hand-off, closure-capture and declassification behavior.",
+        "R0-R1, R3-R9, R14, C0-C1, N1 and N4-N6 focused cases pass at this checkpoint (R2 is completed with applied summaries in M3); R0/C0 kind and source position unchanged."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-29T08:38:19.858602+00:00",
+      "notes": "Value lookup/propagation recovered from committed 3dd7b89fd and audited against current dev; lexical shadow/no-application controls, every named matrix case and unchanged direct message/positions pass. Concrete diagnostic seeding restored to approved pre-summary behavior."
+    },
+    {
+      "id": "M3_APPLIED_SUMMARIES",
+      "description": "Applied-at summaries with actual-label substitution",
+      "estimated_loc": 220,
+      "dependencies": [
+        "M2_VALUE_APPLICATION"
+      ],
+      "acceptance_criteria": [
+        "Silent local summary pass seeds formal label variables and accumulates per-parameter applied labels transitively; call sites substitute actual labels.",
+        "Summarized HOF calls distinguish clean and tainted actuals, including intrinsic tainted data produced inside HOF bodies.",
+        "Only unsummarized callees use the ruled conservative argument-label join fallback; R2/R10/C2 reject and N2/N3 remain accepted."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-29T08:38:19.858602+00:00",
+      "notes": "Applied-at deferred applications substitute actual labels and callback values, retain HOF intrinsic taint, and preserve clean HOF controls. Probe result cutoff3 removed; depths4/12/40 reject leaks and accept clean controls. Applied-at scratch mutation kills R2/R10/C2."
+    },
+    {
+      "id": "M4_WRAPPER_INFERENCE",
+      "description": "Infer wrapper demands and converge recursively",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M3_APPLIED_SUMMARIES"
+      ],
+      "acceptance_criteria": [
+        "Infer demands for declarations, lambdas and function literals, including written guarded HOF parameters; R11-R13 reject.",
+        "Fixed point over the finite written-label lattice handles mutual recursion, declaration order and cycles without silently dropping demands.",
+        "Erase summary-only label variables before effectiveBodyLabel, emitted diagnostics or any outward result; explicit tests assert no labelVar escape.",
+        "X1 inferred wrapper forbidding both email and secret rejects either tainted argument, keeps a clean argument accepted, and retains both sorted forbids.",
+        "M1-M4 are one indivisible release unit; no partial shipping or closure of #1719 before wrapper cases pass."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-29T08:38:19.858602+00:00",
+      "notes": "Named/lambda/function-literal wrapper inference, mutual recursion and multi-forbid X1 pass. Replay cutoff32 and bounded summary rounds removed; equality fixed point and repeated-state cycle handling retain reachable demands. Typed defensive limits yield ordinary ifc_analysis_limit, unrelated panics propagate. Inference mutation kills R12/R13 plus nonredundant R11b."
+    },
+    {
+      "id": "M5_REGRESSION_MATRIX",
+      "description": "Pin CLI, REPL and mutation regression evidence",
+      "estimated_loc": 310,
+      "dependencies": [
+        "M4_WRAPPER_INFERENCE"
+      ],
+      "acceptance_criteria": [
+        "All 24 named design rows R0-R14/C0-C2/N1-N6 plus X1 (at least 25 cases) run as CheckModuleIFC unit and fresh-file CLI checks with exact exit/kind assertions.",
+        "Negative R rows report sink_refinement; C rows report param_label_cover. New messages name callee and first via hop; R0/C0 diagnostics retain kind and position.",
+        "REPL module-load gate agrees with CheckModuleIFC; existing IFC closure, annotated-let, declared-record-label, scoped authority, positive-label and transparent passthrough tests pass unchanged.",
+        "Scratch-only mutation: remove application checks, applied summaries and wrapper inference separately; each kills its specified R/C subset, then restore clean working tree.",
+        "Pinned fixture exit codes hold, including expected-fail leak_attempt and clean secrets/contracts/effect-latent examples; no effect is executed by rejected programs."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-29T08:42:58.233279+00:00",
+      "notes": "All24 named design rows plus X1 and nonredundant written-HOF guard R11b (26total) pass unit and fresh-file/no-cache CLI checks. REPL alias/HOF/lambda rejection and clean control pass. Evaluator and bytecode refuse R1/R2/R13 before printing. Application/applied/inference scratch overlays each kill intended subsets; R11 is redundantly protected by applied-at, so R11b specifically proves written-type inference. Existing fixture CLI exits match base. Record-update/array/ADT/block-letrec regressions pass."
+    },
+    {
+      "id": "M6_CORPUS_DOCS",
+      "description": "Corpus delta, teaching and v2 coordination",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M5_REGRESSION_MATRIX"
+      ],
+      "acceptance_criteria": [
+        "Old/new CheckModuleIFC corpus test compares exact same source bytes in examples/std/benchmarks and present sibling repos; any env gate is registered in internal/config.",
+        "Attach every new diagnostic, zero new diagnostics for unannotated modules, source SHAs/counts and classified deltas; explicitly run leak_lab examples and gmail or record unavailable corpus as an unresolved gate.",
+        "Any over-approximation requires a human ruling before merge; do not silently weaken demands or migrate consumers outside approved scope.",
+        "Expected-fail sink-function-value example, passing controls, truthful manifest entries, IFC guide, new immutable teaching-prompt version and ### Fixed changelog are complete.",
+        "#1771 remains subsequent work: rebase after this sprint, use sorted []string Forbidden and reserved applied IFCLabel in v2, fold imported name lookup into value lookup; no v3 or cross-module completion claim.",
+        "make test-core, focused types/repl/pipeline checks, make lint, make check-file-sizes, make check-boundaries and make verify-examples pass; independent sprint-evaluator reviews the exact final head before parent merges."
+      ],
+      "passes": true,
+      "started": null,
+      "completed": "2026-10-29T09:07:35.298995+00:00",
+      "notes": "Combined dev87f846980 integrated; final2628-source raw corpus has only3intended new fixture violations and zero unexpected deltas.18CLI consumer comparisons unchanged. Prompt10 SHAa9435c... inherits9 unchanged,63entryfreeze and mirrors verified. All local changed/core, prompt, lint, sizes, example/manifest, boundaries/changelog gates pass. Root independently reviewing; exact-head CI/score and post-PASS archival remain pending parent actions."
+    }
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_CALLABLE_DOMAIN",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-owned surface AST IFC abstract interpretation and compiler gate tests. Registry packages cannot replace or enforce this compiler security invariant; no package-like capability is being added."
+    },
+    {
+      "milestone": "M2_VALUE_APPLICATION",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-owned surface AST IFC abstract interpretation and compiler gate tests. Registry packages cannot replace or enforce this compiler security invariant; no package-like capability is being added."
+    },
+    {
+      "milestone": "M3_APPLIED_SUMMARIES",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-owned surface AST IFC abstract interpretation and compiler gate tests. Registry packages cannot replace or enforce this compiler security invariant; no package-like capability is being added."
+    },
+    {
+      "milestone": "M4_WRAPPER_INFERENCE",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-owned surface AST IFC abstract interpretation and compiler gate tests. Registry packages cannot replace or enforce this compiler security invariant; no package-like capability is being added."
+    },
+    {
+      "milestone": "M5_REGRESSION_MATRIX",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-owned surface AST IFC abstract interpretation and compiler gate tests. Registry packages cannot replace or enforce this compiler security invariant; no package-like capability is being added."
+    },
+    {
+      "milestone": "M6_CORPUS_DOCS",
+      "package": null,
+      "action": "none",
+      "reason": "Compiler-owned surface AST IFC abstract interpretation and compiler gate tests. Registry packages cannot replace or enforce this compiler security invariant; no package-like capability is being added."
+    }
+  ],
+  "coordination": {
+    "pr1771": "Must follow #1719 and preserve requested v2 []string Forbidden and reserved applied IFCLabel; no v3.",
+    "pr1790": "Operator-only pending; do not touch or depend on its unapproved files. Re-run scoped declassification fixtures if it independently lands.",
+    "pr1963": "Rebase on current dev and retain latent callback soundness fixtures. Do not edit its active owner branch."
+  },
+  "test_matrix": {
+    "design_rows": [
+      "R0",
+      "R1",
+      "R2",
+      "R3",
+      "R4",
+      "R5",
+      "R6",
+      "R7",
+      "R8",
+      "R9",
+      "R10",
+      "R11",
+      "R12",
+      "R13",
+      "R14",
+      "C0",
+      "C1",
+      "C2",
+      "N1",
+      "N2",
+      "N3",
+      "N4",
+      "N5",
+      "N6"
+    ],
+    "additional_case": "X1 inferred multi-label forbidden wrapper with clean control",
+    "count_correction": "Design prose says 25 files, but enumerates 24 named rows. All are mandatory plus X1; mechanism and recursion tests add further coverage.",
+    "additional_mechanism_case": "R11b written guarded HOF parameter receiving an unrestricted actual callback, separating inference from applied-at enforcement."
+  },
+  "recovery": {
+    "branch": "p0/ifc-function-value-sinks",
+    "head": "37a8e8f4f",
+    "dirty_work_imported": false,
+    "authorization": "Parent confirmed reuse of committed source under approved #1719 design/sprint."
+  },
+  "implementation_notes": {
+    "recovered_source": "3dd7b89fd (committed source only)",
+    "domain_representation": "Callable alternative union implements requirement join. Positive cover conjunction is the meet, preserving absence versus explicit bottom; no semantic change from ruled design.",
+    "defensive_limits": "Depth1000/work1000000 fail closed with ordinary diagnostic, never accept partial analysis.",
+    "unannotated_analysis": "Skip symbolic demand summaries only after conservative AST requirement scan; retain original concrete label/Check B walk. Fixed raw corpus2625files/0deltas."
+  },
+  "completed_at": "2026-10-29T09:07:35.299752+00:00",
+  "independent_evaluation": "pending root; no self-score",
+  "integrated_dev": "87f846980c8b6fc601173be427b1364968559488",
+  "prompt_version": "v0.16.10",
+  "review_repairs": [
+    {
+      "commit": "d81430352",
+      "finding": "unknown capitalized functions skipped F2",
+      "repair": "only actual local constructor evidence; opaque fallback for unknown imports",
+      "validation": "raw RED; full CLI/eval/VM uppercase/lowercase rejection; imported ADT storage control; combined corpus zero unexpected changes"
+    }
+  ]
+}
