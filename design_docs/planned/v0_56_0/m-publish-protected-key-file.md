@@ -1,6 +1,6 @@
 # M-PUBLISH-PROTECTED-KEY-FILE
 
-**Status**: Proposed — attended design approval pending; no implementation authorization
+**Status**: Design approved; sprint-planning drafts in progress; no implementation authorization
 **Target**: v0.56.0, unreleased
 **Priority**: P1
 **Estimated**: 2–3 days, approximately 450–650 changed lines including portable tests/docs; re-estimate during approved planning
@@ -75,19 +75,21 @@ Existing conventions were read before proposing policy:
 5. Retain legacy per-call environment publishing with a non-secret inheritance
    warning, and replace shell-startup-export advice with explicit invocation.
 
-## High-impact decisions requiring approval
+## Approved high-impact decisions
 
-All rows are proposals, not an attended ruling.
+D1–D7 below were explicitly approved by the attended user on 2026-10-29;
+see the immutable approval record below. They are rulings for planning, not
+new human-decision gates.
 
-| ID | Proposed choice | Why it matters | Decider | Change cost |
+| ID | Approved choice | Why it matters | Decider | Change cost |
 |---|---|---|---|---|
-| D1 selection | Explicit `--key-file` only; no automatic default file and no new file-path env variable | Default discovery would grant ambient publish authority again; a path must be deliberately named per invocation | Human approval pending | Medium |
-| D2 ambiguity/absence | Real publish rejects file+nonempty registry-key env together; file failure never falls back; no file+no env fails before upload | Defines authority/compatibility; callers must remove the inherited env key to choose the file lane | Human approval pending | Medium |
-| D3 Unix protection | Initially macOS/Linux: same effective UID, regular non-symlink file, mode 0400 or0600 only; read through one validated no-follow handle | Prevents misleading mode-only/symlink/TOCTOU checks while allowing read-only secrets | Human approval pending | Medium |
-| D4 other platforms | New file lane refuses on Windows/other unsupported platforms; do not treat os.FileMode as Windows ACL evidence | Avoids an unverified security claim. Native Windows DACL support would be a separately approved expansion; legacy env lane remains available | Human approval pending | High |
-| D5 timing | Real publish resolves/validates once before package checks can spawn children; help/dry-run never open a key file | Controls secret lifetime, failure timing and offline behavior | Human approval pending | Medium |
-| D6 existing env | Preserve env-only real publishing, with one stderr warning about inheritance; do not silently scrub process-global environment | Retains automation compatibility while explaining the existing exposure | Human approval pending | Medium |
-| D7 scope | Publish only; no key-file lane for unpublish/key mint/revoke in this change | Keeps destructive/admin credentials outside the requested authoring change | Human approval pending | Medium |
+| D1 selection | Explicit `--key-file` only; no automatic default file and no new file-path env variable | Default discovery would grant ambient publish authority again; a path must be deliberately named per invocation | Attended user approved 2026-10-29 | Medium |
+| D2 ambiguity/absence | Real publish rejects file+nonempty registry-key env together; file failure never falls back; no file+no env fails before upload | Defines authority/compatibility; callers must remove the inherited env key to choose the file lane | Attended user approved 2026-10-29 | Medium |
+| D3 Unix protection | Initially macOS/Linux: same effective UID, regular non-symlink file, mode 0400 or0600 only; read through one validated no-follow handle | Prevents misleading mode-only/symlink/TOCTOU checks while allowing read-only secrets | Attended user approved 2026-10-29 | Medium |
+| D4 other platforms | New file lane refuses on Windows/other unsupported platforms; do not treat os.FileMode as Windows ACL evidence | Avoids an unverified security claim. Native Windows DACL support would be a separately approved expansion; legacy env lane remains available | Attended user approved 2026-10-29 | High |
+| D5 timing | Real publish resolves/validates once before package checks can spawn children; help/dry-run never open a key file | Controls secret lifetime, failure timing and offline behavior | Attended user approved 2026-10-29 | Medium |
+| D6 existing env | Preserve env-only real publishing, with one stderr warning about inheritance; do not silently scrub process-global environment | Retains automation compatibility while explaining the existing exposure | Attended user approved 2026-10-29 | Medium |
+| D7 scope | Publish only; no key-file lane for unpublish/key mint/revoke in this change | Keeps destructive/admin credentials outside the requested authoring change | Attended user approved 2026-10-29 | Medium |
 
 D2 intentionally changes a real publish with no credentials from a remote
 unauthenticated attempt to a local configuration error. D4 is an explicit
@@ -97,7 +99,9 @@ ACL acceptance matrix before planning; do not improvise a permissions bypass.
 
 ### Design freeze
 
-- [ ] Attended user approves D1–D7, including the Windows limitation.
+- [x] Attended user approved D1–D7, including the Windows limitation, by
+  "approve the three designs", bound to design 7d000322b by root at observed
+  2026-10-29 14:48:58UTC (observation timestamp, not independent send time).
 - [ ] #2013 integration condition is met or root explicitly reviews a combined scope.
 - [ ] Sprint-planner creates the approved plan; user separately says execute sprint.
 
@@ -362,3 +366,13 @@ and test layout. No fallback, chmod repair, default secret file, native Windows
 ACL implementation, key-management scope extension, global credential framework,
 AI reader semantics change, UID deployment, registry protocol/transport change,
 runner #1926 repair or #2013 gate bypass is authorized by this design.
+
+## Approval record (2026-10-29)
+
+The attended user explicitly approved this design at immutable commit
+`7d000322b5b3b5d81fb88ae70213012a1f79a29e`, D1–D7. Root recorded the
+message "approve the three designs" in session three-design-approvals.json.
+Already-ruled choices above are frozen rulings, not new approval questions.
+[Draft sprint plan](m-publish-protected-key-file-sprint-plan.md) and pending JSON
+are authorized planning artifacts only; user plan approval/execute instruction
+and legitimate #2013 integration remain required before product edits.
