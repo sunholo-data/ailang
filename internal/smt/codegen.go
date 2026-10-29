@@ -204,6 +204,18 @@ func EncodeFunction(
 		}
 	}
 
+	// Finite facts are collected for evaluated expressions only.
+	previousSpecs, previousFacts := activeContractSpecs, activeCallFacts
+	activeContractSpecs = make(map[string]*ContractSpec)
+	var callFacts []string
+	activeCallFacts = &callFacts
+	defer func() { activeContractSpecs = previousSpecs; activeCallFacts = previousFacts }()
+	for _, def := range calleeDefs {
+		if def.Contract != nil {
+			activeContractSpecs[def.Name] = def.Contract
+		}
+	}
+
 	// Populate contract callee substitutions
 	activeContractCallees = make(map[string]string)
 	defer func() { activeContractCallees = nil }()
@@ -515,6 +527,10 @@ func EncodeFunction(
 	default:
 		conj := fmt.Sprintf("(and %s)", strings.Join(ensuresExprs, " "))
 		result.Assertions = append(result.Assertions, AssertNot(conj))
+	}
+
+	for _, fact := range callFacts {
+		result.Assertions = append(result.Assertions, Assert(fact))
 	}
 
 	// Step 5.5: Validate declarations — check for forward references to undeclared sorts.

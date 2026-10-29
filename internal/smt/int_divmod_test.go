@@ -136,3 +136,30 @@ func TestIntDivModEncoding_NestedOperands(t *testing.T) {
 		}
 	}
 }
+
+func TestIntDivModEncoding_InternalBinderCollision(t *testing.T) {
+	if !Z3Available() {
+		t.Skip("Z3 not installed")
+	}
+	// Both operands name the encoder's internal binders. Parallel-let RHSs
+	// must resolve to the OUTER values, including inside a nested expansion.
+	a, b := &core.Var{Name: "$ail_d"}, &core.Var{Name: "$ail_n"}
+	for name, em := range intDivModEmitters {
+		value, err := EncodeExpr(em.build(a, b))
+		if err != nil {
+			t.Fatal(err)
+		}
+		want := int64(-3)
+		if em.isMod {
+			want = -1
+		}
+		script := fmt.Sprintf("(set-logic ALL)\n(assert (not (let (($ail_d (- 7)) ($ail_n 2)) (= %s %s))))\n(check-sat)\n", value, smtIntLit(want))
+		r, err := Solve(script, DefaultSolverConfig())
+		if err != nil {
+			t.Fatal(err)
+		}
+		if r.Status != StatusVerified {
+			t.Fatalf("%s binder capture: %s", name, script)
+		}
+	}
+}

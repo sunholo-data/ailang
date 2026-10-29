@@ -65,10 +65,10 @@
         "Unselected if or &&/|| RHS contributes no contradictory facts",
         "Selected positive and false goal controls pass without new classification policy"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-29T20:28:19.018204+00:00",
+      "completed": "2026-10-29T20:28:19.018204+00:00",
+      "notes": "Finite facts captured for argument evaluation; let facts rebound within lexical scope and If facts selected by condition, including sort-hinted If. Lexical/shadow controls RED\u2192GREEN, unselected contradictory contract remains SAT; full SMT suite PASS. Added explicit outer $ail_n/$ail_d collision control for all nine Int emitters, PASS. Match/contract/helper propagation remains M4/M5."
     },
     {
       "id": "M4_GUARDS_CONTRACT_PATHS",
