@@ -338,3 +338,13 @@ M1–M5 without a new approval question. New native execution checkout
 normally integrated actual dev ata9aa133133f9720898c3d7ebfa12627101549211. No Go/AIL diff
 from accepted source before M1, no merge conflict, new1900 docs remain planned.
 Historical blocked checkpoint remains preserved above.
+
+### M1 checkpoint
+
+Protected same-handle reader implemented; synthetic focused tests PASS25.555s,
+targeted lint0, boundaries/home isolation PASS. API-missing compile RED and
+FIFO harness setup failure retained separately; the original child entered
+existing CLI-build TestMain before reaching its3s bound, so the corrected
+control measures the reader directly with bounded unblock teardown. No
+production timer changed. Logs in session1900-execution/M1-*.log; no real
+key file or external registry was used. M2 follows under existing approval.

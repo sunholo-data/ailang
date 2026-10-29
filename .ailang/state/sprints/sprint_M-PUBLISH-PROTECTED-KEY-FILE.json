@@ -22,7 +22,7 @@
   },
   "plan_approved": true,
   "execution_authorized": true,
-  "implementation_started": false,
+  "implementation_started": true,
   "implementation_complete": false,
   "started": "2026-10-29T20:57:24.510013+00:00",
   "completed": null,
@@ -118,11 +118,11 @@
         "Direct reader under confinement has zero opener calls; unsupported OS has zero opener calls and named refusal. No key values in any local read error.",
         "Focused affected tests, lint and home isolation pass; preserve red evidence."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-29T20:57:24.510013+00:00",
-      "completed": null,
-      "notes": null,
-      "status": "in_progress"
+      "completed": "2026-10-29T21:05:17.218273+00:00",
+      "notes": "M1 API-missing compile RED retained; secure reader focused GREEN25.555s after correcting new FIFO harness (old TestMain child rebuiltCLI under3s cap, not production deadlock). Actual0400/0600/read-only handle, unsafe mode/symlink/nonregular/owner metadata, pathname replacement, bounded endless-stream and FIFO refusal controls pass. Targeted lint0 after external lint lock released; boundaries/home PASS. Only synthetic temp files; no production timeout or authority semantics changed.",
+      "status": "completed"
     },
     {
       "id": "M2_CREDENTIAL_SELECTION_AND_FORMAT",
@@ -142,10 +142,10 @@
         "Authority/unsupported refusal precedes file opener; focused tests and lint pass."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-29T21:05:17.218273+00:00",
       "completed": null,
       "notes": null,
-      "status": "not_started"
+      "status": "in_progress"
     },
     {
       "id": "M3_PUBLISH_COMMAND_WIRING",
@@ -281,7 +281,7 @@
     "approved_artifact_commit": "c9698d88e390d21139507a81f6ff7f64fc4a519a",
     "scope": "Execute #1900 M0-M5 only with approved #2013 dependency sequencing; no new D1-D7 approval needed after legitimate dependency release"
   },
-  "last_checkpoint": "M0 actual accepted source integration passed; M1 TDD begins",
+  "last_checkpoint": "M1 protected reader passes focused/lint/structure; M2 selection/format begins",
   "execution_worktree": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/publish-key-file-1900-exec",
   "execution_branch": "fix/publish-protected-key-file"
 }
