@@ -25,7 +25,7 @@ codegen or the iface schema. **Programs that compile today can be rejected**:
 each such program passes labelled data to a sink through an alias, a HOF or a
 wrapper, i.e. it leaked. Cross-module sinks remain out of scope (#1134).
 
-Design: `design_docs/planned/m-ifc-function-value-sinks.md`. Examples:
+Design: `design_docs/implemented/v0_55_1/m-ifc-function-value-sinks.md`. Examples:
 `examples/runnable/secrets/sink_function_value.ail` (rejected) and
 `sink_function_value_ok.ail` (accepted). Guide: "Sinks as values" in
 `docs/docs/guides/ifc-labels.mdx`.

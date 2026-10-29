@@ -1,10 +1,12 @@
-# M-IFC-FUNCTION-VALUE-SINKS — concrete sprint draft
+# M-IFC-FUNCTION-VALUE-SINKS — completed sprint
 
-Status: APPROVED for execution by Mark, 2026-10-29: “Execute sprint #1719”. Prepared 2026-10-29 for P0 #1719. No implementation, repository state, coordinator state or GitHub messages changed.
+**Status**: Completed and independently accepted90/100; merged in #2007 on2026-10-29.
 
-Design: `design_docs/planned/m-ifc-function-value-sinks.md`. F1-F4 were explicitly RULED by Mark on 2026-10-26; quorum was skipped at the requester's instruction. These decisions are closed, not additional approval questions. Mark explicitly approved this concrete sprint for execution on 2026-10-29. A genuinely new semantic choice is a terminal STOP for the affected work, with a concrete question; existing ruled choices are implemented as written.
+**Original planning snapshot**: approved for execution by Mark on2026-10-29 (“Execute sprint #1719”). The baseline/evidence sections below describe the preimplementation planning state.
 
-Intended plan location after approval: `design_docs/planned/v0_55_1/m-ifc-function-value-sinks-sprint-plan.md`; machine state: `.ailang/state/sprints/sprint_M-IFC-FUNCTION-VALUE-SINKS.json`. Version folder is provisional next-release placement after current v0.55.0, not a release request. Do not place the sprint in `ailang-core-triage/`.
+Design: `design_docs/implemented/v0_55_1/m-ifc-function-value-sinks.md`. F1-F4 were explicitly RULED by Mark on 2026-10-26; quorum was skipped at the requester's instruction. These decisions are closed, not additional approval questions. Mark explicitly approved this concrete sprint for execution on 2026-10-29. A genuinely new semantic choice is a terminal STOP for the affected work, with a concrete question; existing ruled choices are implemented as written.
+
+Intended plan location after approval: `design_docs/implemented/v0_55_1/m-ifc-function-value-sinks-sprint-plan.md`; machine state: `.ailang/state/sprints/sprint_M-IFC-FUNCTION-VALUE-SINKS.json`. Version folder is provisional next-release placement after current v0.55.0, not a release request. Do not place the sprint in `ailang-core-triage/`.
 
 ## Evidence and non-duplication
 
@@ -107,3 +109,8 @@ Review artifacts: exact head/base, failing-first results, complete R/C/N/X matri
 Start audit found historical local branch `p0/ifc-function-value-sinks`, HEAD `37a8e8f4f`, with committed plan/code/tests/examples/docs (cc720f304, 3dd7b89fd, 110093640, 96d32ff1a, 37a8e8f4f). Its dirty tracked changes and untracked ifc_demand_scan.go are parked unchanged and banked separately in /tmp. Parent explicitly authorized recovering only committed source which fits this approved design; no dirty work is imported. This branch uses the current six-milestone plan, audits old depth/summary caps and completes missing tests/corpus/prompt work. Historical partial checkpoints are not claimed independently evaluated.
 
 Execution complete with local gates; exact-head independent evaluation/CI and archival are parent-owned. Validation companion records integration, review repair, mutation/corpus evidence and prompt hash.
+
+
+## Independent acceptance and integration
+
+Root accepted exact8771ceae5 at90/100 with10/10 regression coverage reported separately. Native full tests/lint/sizes passed; required CI retry passed before normal merge2bfd61bf4. Source and original failed preflight/CI evidence are preserved in the adjacent independent report. Design, sprint plan, validation and corpus moved together after PASS; status is implemented/unreleased.

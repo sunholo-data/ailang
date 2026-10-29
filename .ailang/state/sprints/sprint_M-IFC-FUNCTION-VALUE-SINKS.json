@@ -2,8 +2,8 @@
   "sprint_id": "M-IFC-FUNCTION-VALUE-SINKS",
   "status": "completed",
   "created": "2026-10-29T07:47:16.043855+00:00",
-  "design_doc": "design_docs/planned/m-ifc-function-value-sinks.md",
-  "sprint_plan": "design_docs/planned/v0_55_1/m-ifc-function-value-sinks-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_55_1/m-ifc-function-value-sinks.md",
+  "sprint_plan": "design_docs/implemented/v0_55_1/m-ifc-function-value-sinks-sprint-plan.md",
   "github_issues": [
     1719
   ],
@@ -215,7 +215,7 @@
     "unannotated_analysis": "Skip symbolic demand summaries only after conservative AST requirement scan; retain original concrete label/Check B walk. Fixed raw corpus2625files/0deltas."
   },
   "completed_at": "2026-10-29T09:07:35.299752+00:00",
-  "independent_evaluation": "pending root; no self-score",
+  "independent_evaluation": "PASS90/100 by root, round1, exact8771ceae5; report .ailang/state/evaluations/eval_M-IFC-FUNCTION-VALUE-SINKS_round_1.json",
   "integrated_dev": "87f846980c8b6fc601173be427b1364968559488",
   "prompt_version": "v0.16.10",
   "review_repairs": [
@@ -225,5 +225,16 @@
       "repair": "only actual local constructor evidence; opaque fallback for unknown imports",
       "validation": "raw RED; full CLI/eval/VM uppercase/lowercase rejection; imported ADT storage control; combined corpus zero unexpected changes"
     }
-  ]
+  ],
+  "target_version": "v0.55.1",
+  "integration": {
+    "pull_request": 2007,
+    "merge_commit": "2bfd61bf4446c7e7e7dcc925d34af4bdc793f4fc",
+    "release_status": "unreleased",
+    "independent_evaluation": {
+      "result": "pass",
+      "score": 90,
+      "report": ".ailang/state/evaluations/eval_M-IFC-FUNCTION-VALUE-SINKS_round_1.json"
+    }
+  }
 }
