@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-PUBLISH-PROTECTED-KEY-FILE",
   "title": "Explicit protected publisher key file with preserved authority and no inherited file-key environment",
-  "status": "not_started",
+  "status": "blocked",
   "created": "2026-10-29",
   "design_doc": "design_docs/planned/v0_56_0/m-publish-protected-key-file.md",
   "sprint_plan": "design_docs/planned/v0_56_0/m-publish-protected-key-file-sprint-plan.md",
@@ -20,8 +20,8 @@
     "timestamp_qualification": "Assistant observation after receiving user message, not an independently supplied send time",
     "session_evidence": "/tmp/ailang-backlog-20261029/three-design-approvals.json"
   },
-  "plan_approved": false,
-  "execution_authorized": false,
+  "plan_approved": true,
+  "execution_authorized": true,
   "implementation_started": false,
   "implementation_complete": false,
   "started": null,
@@ -95,10 +95,10 @@
         "Baseline retains #1773 shared rewrite/staging/D2/Notes/author restoration and #1964 authority-before-work; no runner/card/CI policy edits."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-10-29T20:20:37.463547+00:00",
       "completed": null,
-      "notes": null,
-      "status": "not_started"
+      "notes": "Read-only gh checks confirm #2013 OPEN0853c9fc1 and operator-owned #2016 OPEN2ce4b2f7d, neither merged. Existing #1773 branch clean at0853. Dependency unmet; no protected-key product work, runner repair, retry/card/merge action. Resume already-authorized execution only when root confirms legitimate accepted #2013 integration.",
+      "status": "blocked"
     },
     {
       "id": "M1_PROTECTED_HANDLE_READER",
@@ -221,12 +221,32 @@
   ],
   "integration_gate": {
     "required": "Legitimate accepted #2013 source merge or explicitly root-reviewed combined integration scope",
-    "status": "unmet at last root confirmation",
+    "status": "unmet; execution stops at M0",
     "pr": 2013,
     "known_unmerged_head": "0853c9fc15f3daf5f9e304e6e451e78c21fd899c",
     "1926_plan_only_merge": "93e4f2586b2b25e7b124cdbd43e8f2ed534239fd",
     "qualification": "Plan-only merge is not runner fix or #2013 acceptance; no combined implementation scope currently approved",
-    "stop": "STOP before product edits; bank only approved work, report BLOCKED: #2013 publishing integration dependency is not legitimately met, end run"
+    "stop": "STOP before product edits; bank only approved work, report BLOCKED: #2013 publishing integration dependency is not legitimately met, end run",
+    "checked_at_utc": "2026-10-29T20:20:37.463547+00:00",
+    "actual_prs": [
+      {
+        "headRefOid": "0853c9fc15f3daf5f9e304e6e451e78c21fd899c",
+        "mergeCommit": null,
+        "mergedAt": null,
+        "number": 2013,
+        "state": "OPEN",
+        "url": "https://github.com/sunholo-data/ailang/pull/2013"
+      },
+      {
+        "headRefOid": "2ce4b2f7db93c353bca743ef0c8d2d5dd11d04cf",
+        "mergeCommit": null,
+        "mergedAt": null,
+        "number": 2016,
+        "state": "OPEN",
+        "url": "https://github.com/sunholo-data/ailang/pull/2016"
+      }
+    ],
+    "product_changes_permitted": false
   },
   "prompt": {
     "loaded_version": "v0.16.11",
@@ -234,7 +254,7 @@
     "executor_must_reload": true
   },
   "constraints": [
-    "Planning drafts remain uncommitted pending plan approval; no implementation before explicit execute",
+    "Approved plan/JSON banked at c9698d88e; explicit execute instruction received, but M0 external integration STOP remains binding",
     "No credential access or external calls/message/coordinator mutation during planning",
     "D1-D7 are approved rulings, not new semantic decisions",
     "No default file, selected-error fallback or file+env ambiguity",
@@ -246,5 +266,16 @@
     "No #1926 repair, #2013 gate bypass or overlapping source overwrite",
     "No full local make test; exact PR CI broad gates and independent evaluator required",
     "Hermetic tests clear ambient GOOGLE_CLOUD_PROJECT/OTLP_GOOGLE_CLOUD_PROJECT/AILANG_CLOUD_PROJECT/ADC/OTEL_* and trace env via existing isolation helpers; AILANG_TRACE=off alone is insufficient; no #2009 production change"
-  ]
+  ],
+  "execution_approval": {
+    "user_message": "exeute all three sprints",
+    "observed_at_utc": "2026-10-29T20:17:42Z",
+    "timestamp_qualification": "Assistant observation after receiving user message, not an independently supplied message send time.",
+    "source": "Attended user instruction relayed by root; session three-sprint-execution-approval.json",
+    "approved_plan_sha256": "1190cc269d0865e069cce1ba802928f0275381c752432b56078d41bbaaee1145",
+    "approved_json_sha256": "3f06bbf28d2236c6e583da4b1a139b4e626dbd0c0dad1f0dd52aa4748b9eed9e",
+    "approved_artifact_commit": "c9698d88e390d21139507a81f6ff7f64fc4a519a",
+    "scope": "Execute #1900 M0-M5 only with approved #2013 dependency sequencing; no new D1-D7 approval needed after legitimate dependency release"
+  },
+  "last_checkpoint": "M0 dependency checked and unmet; approved artifacts banked, no implementation started"
 }

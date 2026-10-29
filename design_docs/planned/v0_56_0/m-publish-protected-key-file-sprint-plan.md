@@ -11,9 +11,11 @@ no secret access for help/dry-run, and unchanged #1964 authority ordering.
   design commit `7d000322b5b3b5d81fb88ae70213012a1f79a29e`, D1–D7, in session
   `three-design-approvals.json`, observed 2026-10-29 14:48:58UTC. This is the
   assistant's observation time, not an independently supplied send timestamp.
-- **Planning only.** This plan, JSON and design approval metadata are uncommitted
-  drafts awaiting plan approval and a separate explicit execute instruction.
-  No implementation, secret access, push/PR or coordinator/message action.
+- **Execution authorized, M0 dependency unmet.** The user said "exeute all three
+  sprints", observed2026-10-29 20:17:42UTC, with presented sequencing. Exact
+  approved plan/JSON drafts were banked at c9698d88e before metadata updates.
+  Product edits remain forbidden until legitimate accepted #2013 integration;
+  no further D1–D7 or execute approval is needed once that condition is met.
 - Target v0.56.0, unreleased. Duration 3 working days, five bounded implementation
   sessions plus an initial dependency check and final independent/CI handoff.
 - Estimate 650 changed product/test/user-doc lines (160 production  + 410 tests  + 80
@@ -302,3 +304,24 @@ plus private synthetic package is the example. All test secrets are disposable
 sentinels; never open actual ~/.config/ailang/registry.key or external auth stores.
 The M4 test must distinguish raw absence from policy-redacted access and must not
 turn its Go probe into a credential printer or a generic command adapter.
+
+## Execution checkpoint: M0 dependency unmet
+
+Explicit execution was authorized by the attended user at observed
+2026-10-29 20:17:42UTC, recorded in session three-sprint-execution-approval.json.
+This binds the original approved plan SHA256
+`1190cc269d0865e069cce1ba802928f0275381c752432b56078d41bbaaee1145`
+and JSON SHA256
+`3f06bbf28d2236c6e583da4b1a139b4e626dbd0c0dad1f0dd52aa4748b9eed9e`,
+both preserved at commit c9698d88e. Observation timestamp qualification remains
+as in the approval record; no independent send-time claim.
+
+At 2026-10-29T20:20:37.463547+00:00, actual read-only gh PR checks show #2013
+OPEN at0853c9fc15f3daf5f9e304e6e451e78c21fd899c and #2016 OPEN
+at2ce4b2f7db93c353bca743ef0c8d2d5dd11d04cf, no merge timestamp/commit.
+Existing #1773 source remains clean at0853. M0 remains incomplete and product
+implementation has not started. No code tests are warranted for this metadata
+checkpoint; existing sprint-JSON/link/diff validation is rerun. The STOP above
+now applies; continue already-approved M1–M5 only after root confirms actual
+accepted #2013 integration. Operator action, CI retry, #1926 repair and gate
+bypass remain outside this agent’s authority.

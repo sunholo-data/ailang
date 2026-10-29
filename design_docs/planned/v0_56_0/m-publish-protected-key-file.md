@@ -1,6 +1,6 @@
 # M-PUBLISH-PROTECTED-KEY-FILE
 
-**Status**: Design approved; sprint-planning drafts in progress; no implementation authorization
+**Status**: Design/plan execution approved; M0 integration dependency unmet, implementation not started
 **Target**: v0.56.0, unreleased
 **Priority**: P1
 **Estimated**: 2–3 days, approximately 450–650 changed lines including portable tests/docs; re-estimate during approved planning
@@ -103,7 +103,8 @@ ACL acceptance matrix before planning; do not improvise a permissions bypass.
   "approve the three designs", bound to design 7d000322b by root at observed
   2026-10-29 14:48:58UTC (observation timestamp, not independent send time).
 - [ ] #2013 integration condition is met or root explicitly reviews a combined scope.
-- [ ] Sprint-planner creates the approved plan; user separately says execute sprint.
+- [x] Approved plan/JSON banked at c9698d88e; attended user explicitly authorized
+  sequenced execution (observed2026-10-29 20:17:42UTC). #2013 dependency remains.
 
 ## Solution design
 
@@ -376,3 +377,8 @@ Already-ruled choices above are frozen rulings, not new approval questions.
 [Draft sprint plan](m-publish-protected-key-file-sprint-plan.md) and pending JSON
 are authorized planning artifacts only; user plan approval/execute instruction
 and legitimate #2013 integration remain required before product edits.
+
+Execution authorization was later received for the exact reviewed plan/JSON.
+M0 checked actual PR state and stopped with #2013/#2016 still open; see the
+companion plan execution checkpoint. No product implementation or secret access
+has begun. The approved source/authority/platform decisions remain unchanged.
