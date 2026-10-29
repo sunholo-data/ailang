@@ -164,7 +164,7 @@ caller keeps working; new code should use the canonical spelling.
 | `ailang lock` | `ailang pkg lock` | Resolve dependencies and write the lockfile |
 | `ailang observatory` | `ailang chains observatory` | Observatory analytics |
 | `ailang pkg-docs` | `ailang pkg docs` | Display a package's AGENT.md (AI usage guide) |
-| `ailang publish` | `ailang pkg publish` | Publish the current package to the registry |
+| `ailang publish` | `ailang pkg publish` | Publish the current package (--key-file PATH or legacy env key) |
 | `ailang search` | `ailang pkg search` | Search the registry by keyword or tag |
 | `ailang trace` | `ailang chains trace` | Distributed trace management |
 | `ailang tree` | `ailang pkg tree` | Show the dependency tree |

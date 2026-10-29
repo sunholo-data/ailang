@@ -1,0 +1,310 @@
+{
+  "sprint_id": "M-PUBLISH-PROTECTED-KEY-FILE",
+  "title": "Explicit protected publisher key file with preserved authority and no inherited file-key environment",
+  "status": "completed",
+  "created": "2026-10-29",
+  "design_doc": "design_docs/planned/v0_56_0/m-publish-protected-key-file.md",
+  "sprint_plan": "design_docs/planned/v0_56_0/m-publish-protected-key-file-sprint-plan.md",
+  "github_issues": [
+    1900
+  ],
+  "target_version": "v0.56.0",
+  "risk_level": "medium-high",
+  "base_commit": "dba1c499ca6f76b40992fd521e3dd440d9277f49",
+  "design_approved": true,
+  "design_approval": {
+    "user_message": "approve the three designs",
+    "design_commit": "7d000322b5b3b5d81fb88ae70213012a1f79a29e",
+    "scope": "D1-D7 including Unix protected file, unsupported Windows file lane, explicit/no default/no fallback and #2013 integration dependency",
+    "observed_at_utc": "2026-10-29T14:48:58Z",
+    "timestamp_qualification": "Assistant observation after receiving user message, not an independently supplied send time",
+    "session_evidence": "/tmp/ailang-backlog-20261029/three-design-approvals.json"
+  },
+  "plan_approved": true,
+  "execution_authorized": true,
+  "implementation_started": true,
+  "implementation_complete": true,
+  "started": "2026-10-29T20:57:24.510013+00:00",
+  "completed": "2026-10-29T21:29:15.794142+00:00",
+  "independent_evaluation": "Pending root independent evaluation and actual exact-head CI; executor has not scored or approved implementation",
+  "velocity": {
+    "target_loc_per_day": 220,
+    "estimated_total_loc": 650,
+    "estimated_days": 3,
+    "estimated_active_hours": [
+      6.5,
+      8.5
+    ],
+    "production_loc": 160,
+    "test_loc": 410,
+    "user_doc_loc": 80,
+    "estimate_excludes": "planning/state/approval artifact lines; CI/review waiting is additional headroom",
+    "basis": "7 scoped nonmerge commits,1443 insertions/171 deletions over24 file rows; parallel work is context not measured single-agent throughput; conservative220/day assumption",
+    "script_qualification": "velocity script exited141 at pipefail git-log/head; scoped read-only statistics used, no script repair",
+    "actual_changed_loc": {
+      "production": 240,
+      "test": 717,
+      "user_doc": 60,
+      "total": 1017
+    },
+    "variance_note": "650 estimated vs 1017 changed product/test/user-doc lines. Additional bounded owner/mode/FIFO/path-replacement/platform and actual raw-child/zero-upload/reflection controls account for test growth; no credential/semantics scope expansion. Metadata/evidence artifacts excluded."
+  },
+  "registry_reuse": [
+    {
+      "milestone": "M0_INTEGRATION_PREFLIGHT",
+      "package": "none",
+      "action": "none",
+      "reason": "Read-only integration/owner/authority provenance, no package capability or registry dependency. Reuse existing gh/git workflows after execution authorization; no external calls during planning."
+    },
+    {
+      "milestone": "M1_PROTECTED_HANDLE_READER",
+      "package": "none",
+      "action": "none",
+      "reason": "Host protected credential file and platform syscall authority cannot be implemented by an AILANG registry package. Reuse pkg.Require and existing platform conventions; no secret provider fallback."
+    },
+    {
+      "milestone": "M2_CREDENTIAL_SELECTION_AND_FORMAT",
+      "package": "none",
+      "action": "none",
+      "reason": "Host command credential selection/format policy, not a package runtime capability. Reuse existing bounded Go I/O/string conventions while preserving AI reader semantics."
+    },
+    {
+      "milestone": "M3_PUBLISH_COMMAND_WIRING",
+      "package": "none",
+      "action": "none",
+      "reason": "Host publish flag/request header/error boundary. Reuse existing publisher and pkg.HTTPClient; no registry package or schema dependency."
+    },
+    {
+      "milestone": "M4_REAL_CHILD_AND_LOOPBACK_PROOF",
+      "package": "none",
+      "action": "none",
+      "reason": "Private Go/AIL process and loopback acceptance harness, not a publishable capability. Reuse shared bounded builders and #1773 offline fixtures; all keys synthetic."
+    },
+    {
+      "milestone": "M5_DOCS_GATES_AND_HANDOFF",
+      "package": "none",
+      "action": "none",
+      "reason": "Repository docs/gates/evaluator evidence, no runtime package dependency. Reuse existing make checks and independent evaluation workflow."
+    }
+  ],
+  "features": [
+    {
+      "id": "M0_INTEGRATION_PREFLIGHT",
+      "description": "Verify legitimate accepted #2013 integration before product edits",
+      "estimated_loc": 0,
+      "dependencies": [],
+      "estimated_minutes": [
+        15,
+        30
+      ],
+      "acceptance_criteria": [
+        "Actual accepted dependency source and owner recorded; no competing overwrite.",
+        "Baseline retains #1773 shared rewrite/staging/D2/Notes/author restoration and #1964 authority-before-work; no runner/card/CI policy edits."
+      ],
+      "passes": true,
+      "started": "2026-10-29T20:20:37.463547+00:00",
+      "completed": "2026-10-29T20:57:24.510013+00:00",
+      "notes": "Root confirmed legitimate #2013 acceptance/merge96d69f05 at20:53:24UTC; actual fetched source normally integrated ata9aa133133f9720898c3d7ebfa12627101549211. No Go/AIL diff vs accepted baseline, no conflict and new1900 artifacts retained planned. Fresh openPR inventory has no competing protected-publish key owner; root explicitly assigns this lane.",
+      "status": "completed"
+    },
+    {
+      "id": "M1_PROTECTED_HANDLE_READER",
+      "description": "Read protected macOS/Linux key through one authority-gated validated nonblocking no-follow handle",
+      "estimated_loc": 210,
+      "dependencies": [
+        "M0_INTEGRATION_PREFLIGHT"
+      ],
+      "estimated_minutes": [
+        60,
+        90
+      ],
+      "acceptance_criteria": [
+        "Real disposable0400/0600 files pass;0644/0640/0700/special modes fail.",
+        "Symlink/nonregular/missing paths fail; FIFO refusal is bounded; actual handle metadata positive plus synthetic foreign-owner negative validate owner policy without requiring root/chown. These synthetic checks are classified.",
+        "Same opened-handle identity survives pathname replacement; bounded reader rejects growth beyond16KiB without an unbounded allocation or hang.",
+        "Direct reader under confinement has zero opener calls; unsupported OS has zero opener calls and named refusal. No key values in any local read error.",
+        "Focused affected tests, lint and home isolation pass; preserve red evidence."
+      ],
+      "passes": true,
+      "started": "2026-10-29T20:57:24.510013+00:00",
+      "completed": "2026-10-29T21:05:17.218273+00:00",
+      "notes": "M1 API-missing compile RED retained; secure reader focused GREEN25.555s after correcting new FIFO harness (old TestMain child rebuiltCLI under3s cap, not production deadlock). Actual0400/0600/read-only handle, unsafe mode/symlink/nonregular/owner metadata, pathname replacement, bounded endless-stream and FIFO refusal controls pass. Targeted lint0 after external lint lock released; boundaries/home PASS. Only synthetic temp files; no production timeout or authority semantics changed.",
+      "status": "completed"
+    },
+    {
+      "id": "M2_CREDENTIAL_SELECTION_AND_FORMAT",
+      "description": "Select and freeze exactly one credential source with bounded single-line format and no fallback",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M1_PROTECTED_HANDLE_READER"
+      ],
+      "estimated_minutes": [
+        45,
+        60
+      ],
+      "acceptance_criteria": [
+        "Complete approved selection table passes, including file error+valid env counterfactual, explicit empty flag, no-source and no implicit default probe.",
+        "Empty/whitespace/multiline/control/oversize synthetic contents fail; trimmed single-line dummy key accepted. No fallback on any read/parse failure.",
+        "Frozen result survives path/env mutation after selection; parent env remains unchanged; nil/default key is never treated as successful credential selection.",
+        "Authority/unsupported refusal precedes file opener; focused tests and lint pass."
+      ],
+      "passes": true,
+      "started": "2026-10-29T21:05:17.218273+00:00",
+      "completed": "2026-10-29T21:09:35.634899+00:00",
+      "notes": "M2 missing-API compile RED retained; isolated affected reader/format/selection GREEN pkg17.804s/cmd0.768s, targeted lint0. Complete source table covers ambiguity/explicit-empty/missing/default refusal, private relative file/unsupported platform, frozen env/file value and authority-first. Empty/multiline/header controls/size/trim tested. Outer package TestMain now receives private HOME+allowlisted build env with offline module/toolchain settings, not only in-test isolation. No file key exported or fallback lane.",
+      "status": "completed"
+    },
+    {
+      "id": "M3_PUBLISH_COMMAND_WIRING",
+      "description": "Wire publish-only key flag and explicit header value, preserve authority/help/dry-run and safe errors",
+      "estimated_loc": 130,
+      "dependencies": [
+        "M2_CREDENTIAL_SELECTION_AND_FORMAT"
+      ],
+      "estimated_minutes": [
+        60,
+        75
+      ],
+      "acceptance_criteria": [
+        "Actual built CLI both publish spellings recognize the option; help and dry-run with missing/unreadable/unsupported file do not open/read it or upload.",
+        "Confined bare/pkg real/dry-run refuse before read; help remains available.",
+        "Real credential errors precede package subprocess/upload; env-only warns exactly once, file-only does not create env warning or key variable.",
+        "Loopback header/status unit controls retain X-API-Key/validation behavior, reject missing key before request and redact exact dummy-key response echoes.",
+        "Existing #1773 and authority-focused tests plus lint remain green."
+      ],
+      "passes": true,
+      "started": "2026-10-29T21:09:35.634899+00:00",
+      "completed": "2026-10-29T21:15:26.121737+00:00",
+      "notes": "Real CLI functional RED retained (missing flag and warning); M3 native GREEN27.296s covers both spellings, no-read help/dry-run, credential-first/refusal/warning, frozen header and exact reflected-key redaction, accepted #1773 staging regression. First green attempt was sandbox-denied cache/loopback only, retained; same native permission run passed. Targeted lint0. Upload receives explicit invocation-local key and refuses empty or confined requests before HTTP.",
+      "status": "completed"
+    },
+    {
+      "id": "M4_REAL_CHILD_AND_LOOPBACK_PROOF",
+      "description": "Prove raw child absence versus legacy-env presence and exact counted loopback header with immutable selection",
+      "estimated_loc": 130,
+      "dependencies": [
+        "M3_PUBLISH_COMMAND_WIRING"
+      ],
+      "estimated_minutes": [
+        60,
+        90
+      ],
+      "acceptance_criteria": [
+        "File-only actual child sentinel absent vs legacy env sentinel present; counted loopback sees the correct distinct dummy header for both arms.",
+        "Read-once/path replacement control uses original value; parent env and author manifest/lock/content unchanged, no secret in captured artifacts.",
+        "Missing/conflicting/unsafe file yields zero upload; help/dry-run zero file open and zero upload; loopback controlled failure emits no package messages.",
+        "Portable helper uses bounded Go subprocess support; Windows actually tests file-lane unsupported and existing env/help/dry-run, not a blanket skip.",
+        "Focused real CLI/authority/#1773 regressions and lint pass, raw reds retained."
+      ],
+      "passes": true,
+      "started": "2026-10-29T21:15:26.121737+00:00",
+      "completed": "2026-10-29T21:18:01.557450+00:00",
+      "notes": "Actual built publisher smoke executes compiled Go raw os.LookupEnv probe: env lane PRESENT vs file lane literal ABSENT; positive active control and immutable-selected header pass counted loopback. Helper replaces dummy path before upload, original header remains; multipart/output excludes selected key, controlled400 is reflected/redacted and prevents messages/cascade. Missing/conflicting/unsafe source yields zero HTTP; dry-run ignores missing file and unused env and preserves author content. File unsupported arm executes refusal on Windows; legacy arm remains active. M4-green.log PASS12.179s, lint0. One new assertion expected wrong generic read-error wording; corrected to actual publish flag prefix, no production change. Synthetic .ail generated only after full promptv0.16.11; process error/nonzero paths explicit. No showcase/example added; contract/showcase manifest checklist not applicable to temporary negative harness.",
+      "status": "completed"
+    },
+    {
+      "id": "M5_DOCS_GATES_AND_HANDOFF",
+      "description": "Document approved behavior and complete focused/core/structure/exact-CI independent handoff",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M4_REAL_CHILD_AND_LOOPBACK_PROOF"
+      ],
+      "estimated_minutes": [
+        60,
+        90
+      ],
+      "acceptance_criteria": [
+        "User docs/help and unreleased fragment accurately describe approved D1\u2013D7.",
+        "Focused/changed/core/structural gates pass with unchanged thresholds/timeouts; no retry/waiver hides unrelated gate failures. Pending CI remains explicit.",
+        "Design AC1\u2013AC8 mapped to committed tests and actual logs; exact integrated source provenance, red/green and platform qualifications retained.",
+        "Independent evaluation handoff uses terminal real gates; no self-approval, live publish, issue closure, coordinator action or release during execution."
+      ],
+      "passes": true,
+      "started": "2026-10-29T21:18:01.557450+00:00",
+      "completed": "2026-10-29T21:29:15.794142+00:00",
+      "notes": "All local final gates terminalPASS: isolated make test-changed exactly cmd/ailang478.983s+internal/pkg26.049s then full configured core set; build; lint0; boundaries/home/sizes/changelog/generated CLI/fmt. No full make test, deadline increase or hidden retry. M5 help/guide/dispatch/reference and fragment describe D1-D7. Validation companion maps AC1-AC8, raw failures and platform/source qualifications; Windows/broad exact-head CI and independent evaluation remain pending at handoff.",
+      "status": "completed"
+    }
+  ],
+  "integration_gate": {
+    "required": "Legitimate accepted #2013 source merge or explicitly root-reviewed combined integration scope",
+    "status": "satisfied",
+    "pr": 2013,
+    "1926_plan_only_merge": "93e4f2586b2b25e7b124cdbd43e8f2ed534239fd",
+    "qualification": "Satisfied by actual accepted #2013 normal merge96d69f05; plan-only #1926 was not used as acceptance. Prior unmet state retained separately.",
+    "stop": "Historical precondition: STOP product edits while dependency is unmet. Actual accepted dependency is now satisfied and normal integration is recorded.",
+    "checked_at_utc": "2026-10-29T20:57:24.510013+00:00",
+    "product_changes_permitted": true,
+    "accepted_pr2013_merge": "96d69f05b6e84bd6666e8fa91ff948f803b67d92",
+    "accepted_pr2013_head": "165f87a12ceb0e20c04216c472004c11685e417b",
+    "root_acceptance": "Independent PASS95/all27CI; issue1773 closed after normal merge; issuecomment6508070944",
+    "normal_integration_head": "a9aa133133f9720898c3d7ebfa12627101549211",
+    "previous_unmet_snapshot": [
+      {
+        "headRefOid": "0853c9fc15f3daf5f9e304e6e451e78c21fd899c",
+        "mergeCommit": null,
+        "mergedAt": null,
+        "number": 2013,
+        "state": "OPEN",
+        "url": "https://github.com/sunholo-data/ailang/pull/2013"
+      },
+      {
+        "headRefOid": "2ce4b2f7db93c353bca743ef0c8d2d5dd11d04cf",
+        "mergeCommit": null,
+        "mergedAt": null,
+        "number": 2016,
+        "state": "OPEN",
+        "url": "https://github.com/sunholo-data/ailang/pull/2016"
+      }
+    ],
+    "historical_unmerged_head": "0853c9fc15f3daf5f9e304e6e451e78c21fd899c"
+  },
+  "prompt": {
+    "loaded_version": "v0.16.11",
+    "source": "Full current execution-source go run prompt loaded in isolated environment before synthetic .ail fixture; prompt.log",
+    "executor_must_reload": false
+  },
+  "constraints": [
+    "Approved plan/JSON banked at c9698d88e and execution explicitly authorized; actual accepted #2013 merge96d satisfied M0 before any product edit",
+    "No credential access or external calls/message/coordinator mutation during planning",
+    "D1-D7 are approved rulings, not new semantic decisions",
+    "No default file, selected-error fallback or file+env ambiguity",
+    "Authority-before-read; same handle regular/effective-owner0400/0600/no-follow/nonblock/close-on-exec bounded16KiB; no repair",
+    "Windows/other file lane fails closed; no ACL pretense",
+    "Help/dry-run do not read file; legacy env warns once and is not scrubbed",
+    "File key never placed in environment/argv/package artifacts; exact reflected key redacted",
+    "Publish-only; preserve other credential consumers/transport/AI semantics",
+    "No #1926 repair, #2013 gate bypass or overlapping source overwrite",
+    "No full local make test; exact PR CI broad gates and independent evaluator required",
+    "Hermetic tests clear ambient GOOGLE_CLOUD_PROJECT/OTLP_GOOGLE_CLOUD_PROJECT/AILANG_CLOUD_PROJECT/ADC/OTEL_* and trace env via existing isolation helpers; AILANG_TRACE=off alone is insufficient; no #2009 production change"
+  ],
+  "execution_approval": {
+    "user_message": "exeute all three sprints",
+    "observed_at_utc": "2026-10-29T20:17:42Z",
+    "timestamp_qualification": "Assistant observation after receiving user message, not an independently supplied message send time.",
+    "source": "Attended user instruction relayed by root; session three-sprint-execution-approval.json",
+    "approved_plan_sha256": "1190cc269d0865e069cce1ba802928f0275381c752432b56078d41bbaaee1145",
+    "approved_json_sha256": "3f06bbf28d2236c6e583da4b1a139b4e626dbd0c0dad1f0dd52aa4748b9eed9e",
+    "approved_artifact_commit": "c9698d88e390d21139507a81f6ff7f64fc4a519a",
+    "scope": "Execute #1900 M0-M5 only with approved #2013 dependency sequencing; no new D1-D7 approval needed after legitimate dependency release"
+  },
+  "last_checkpoint": "M0-M5 implementation/local acceptance complete; all required local gates pass; handoff to root independent evaluator and exact-head CI pending",
+  "execution_worktree": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/publish-key-file-1900-exec",
+  "execution_branch": "fix/publish-protected-key-file",
+  "local_gates": {
+    "source_checkpoint": "f9539a6025c1b6aa7381149d2d66d1ba2ddbe948 plus tested M5 help/dispatch/reference/guide/fragment; final-only metadata does not alter tested Go/AIL bytes",
+    "environment": "Darwin arm64 Go1.26.10; outer private HOME and allowlisted env, offline toolchain/modules, GOFLAGS=-p=1",
+    "logs": "/tmp/ailang-backlog-20261029/1900-execution",
+    "test_changed": true,
+    "build": true,
+    "lint": true,
+    "boundaries": true,
+    "home_isolation": true,
+    "file_sizes": true,
+    "changelog": true,
+    "cli_reference": true,
+    "fmt": true,
+    "full_local_suite_run": false,
+    "windows": "CI pending; fail-closed platform arm and legacy/env/help/dry-run run there"
+  }
+}

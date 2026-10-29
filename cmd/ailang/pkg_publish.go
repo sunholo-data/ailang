@@ -23,6 +23,7 @@ import (
 func pkgPublishCommand(args []string) error {
 	flagSet := flag.NewFlagSet("publish", flag.ExitOnError)
 	helpFlag := flagSet.Bool("help", false, "Show help")
+	keyFileFlag := flagSet.String("key-file", "", "Read publisher key from an explicit protected file (macOS/Linux)")
 	dryRunFlag := flagSet.Bool("dry-run", false, "Create tarball but don't upload")
 	allowDottedToolNames := flagSet.Bool("allow-dotted-tool-names", false,
 		"Migration grace: downgrade the M-EXT-AUTHOR-DX naming gate from error to warning. Removed in v0.21.0.")
@@ -32,18 +33,33 @@ func pkgPublishCommand(args []string) error {
 	}
 
 	if *helpFlag {
-		fmt.Println("Usage: ailang publish [--dry-run] [--allow-dotted-tool-names]")
+		fmt.Println("Usage: ailang publish [--key-file PATH] [--dry-run] [--allow-dotted-tool-names]")
 		fmt.Println()
 		fmt.Println("Publish the current package to the AILANG registry.")
 		fmt.Println("Reads ailang.toml, creates a tarball, and uploads to the validation service.")
 		fmt.Println()
 		fmt.Println("Flags:")
+		fmt.Println("  --key-file PATH              Protected publisher key file (macOS/Linux, owner-only 0400/0600)")
 		fmt.Println("  --dry-run                    Create tarball and show what would be published, without uploading")
 		fmt.Println("  --allow-dotted-tool-names    Downgrade naming-gate errors to warnings (Bedrock-incompatible names")
 		fmt.Println("                               like 'ctx.execute' rejected by default; one-cycle migration grace, removed in v0.21.0)")
 		fmt.Println()
 		fmt.Println("Registry: $AILANG_REGISTRY (default: https://storage.googleapis.com/ailang-registry)")
 		return nil
+	}
+
+	fileSelected := false
+	flagSet.Visit(func(f *flag.Flag) {
+		if f.Name == "key-file" {
+			fileSelected = true
+		}
+	})
+	credential, err := resolvePublishCredential(*keyFileFlag, fileSelected, *dryRunFlag)
+	if err != nil {
+		return err
+	}
+	if credential.fromEnv {
+		fmt.Fprintln(os.Stderr, "Warning: AILANG_REGISTRY_API_KEY is inherited by publishing subprocesses. Prefer --key-file and avoid shell startup exports.")
 	}
 
 	cwd, err := os.Getwd()
@@ -135,7 +151,7 @@ func pkgPublishCommand(args []string) error {
 	fmt.Printf("  Effects: %v\n", manifest.Effects.Max)
 
 	if *dryRunFlag {
-		fmt.Printf("\n%s Dry run complete. Tarball ready but not uploaded.\n", yellow("⚠"))
+		fmt.Printf("\n%s Dry run complete. Tarball ready but not uploaded. Publishing credentials were not loaded or verified.\n", yellow("⚠"))
 		return nil
 	}
 
@@ -144,7 +160,7 @@ func pkgPublishCommand(args []string) error {
 
 	fmt.Printf("  Uploading to %s...\n", validatorURL)
 
-	if err := uploadTarball(validatorURL+"/publish", tarballData, *allowDottedToolNames, v2Hash, inputs.Attested); err != nil {
+	if err := uploadTarball(validatorURL+"/publish", tarballData, *allowDottedToolNames, v2Hash, inputs.Attested, credential.key); err != nil {
 		return err
 	}
 
@@ -186,7 +202,14 @@ func rewritePathDepsForPublish(dir string, _ *pkg.PackageManifest) (bool, error)
 	return len(rewrites) != 0, nil
 }
 
-func uploadTarball(url string, tarballData []byte, allowDottedToolNames bool, interfaceHashV2 string, attested *pkg.AttestedBlock) error {
+func uploadTarball(url string, tarballData []byte, allowDottedToolNames bool, interfaceHashV2 string, attested *pkg.AttestedBlock, apiKey string) (resultErr error) {
+	defer func() { resultErr = redactPublishError(resultErr, apiKey) }()
+	if err := pkg.Require(pkg.AuthNetwork, "uploading to the registry", pkg.OperatorRemedy); err != nil {
+		return err
+	}
+	if apiKey == "" {
+		return fmt.Errorf("publish upload requires a selected credential")
+	}
 	var buf bytes.Buffer
 	writer := multipart.NewWriter(&buf)
 
@@ -215,10 +238,8 @@ func uploadTarball(url string, tarballData []byte, allowDottedToolNames bool, in
 	}
 	req.Header.Set("Content-Type", writer.FormDataContentType())
 
-	// API key auth (from AILANG_REGISTRY_API_KEY env var)
-	if apiKey := config.RegistryAPIKey(); apiKey != "" {
-		req.Header.Set("X-API-Key", apiKey)
-	}
+	// The invocation selected and froze this value before package subprocesses.
+	req.Header.Set("X-API-Key", apiKey)
 
 	// M-EXT-AUTHOR-DX M3 (v0.20.1): downgrade naming-gate errors to warnings
 	// during the v0.20.x migration window for packages that still advertise

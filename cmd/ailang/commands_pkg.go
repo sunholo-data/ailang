@@ -66,7 +66,7 @@ func pkgSubcommands() []Command {
 		{
 			Name:      "publish",
 			Authority: []pkg.Authority{pkg.AuthNetwork, pkg.AuthHomeWrite},
-			Summary:   "Publish the current package to the registry",
+			Summary:   "Publish the current package (--key-file PATH or legacy env key)",
 			Run:       pkgPublishCommand,
 		},
 		{
