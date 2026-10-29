@@ -212,9 +212,13 @@ func runAttestedChecks(absDir string, manifest *pkg.PackageManifest) *pkg.Attest
 		if manifest.Smoke.TimeoutSeconds > 0 {
 			timeout = time.Duration(manifest.Smoke.TimeoutSeconds) * time.Second
 		}
-		if res, rErr := pkg.RunSmokeInTempDir(absDir, bin, timeout); rErr == nil {
-			smoke.Passed = res.Passed
+		res, rErr := pkg.RunSmokeInTempDir(absDir, bin, timeout)
+		if res != nil {
+			smoke.Passed = res.Passed && rErr == nil
 			smoke.Seconds = res.Duration.Seconds()
+		}
+		if rErr != nil || res == nil || !res.Passed {
+			smoke.Notes = pkg.SmokeFailureNotes(res, rErr, timeout)
 		}
 	}
 	block.Smoke = smoke

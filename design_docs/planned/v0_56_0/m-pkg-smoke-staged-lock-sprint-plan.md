@@ -187,19 +187,25 @@ lossy truncation; shared by 8KiB result and 2KiB Notes summarization):
 
 Acceptance:
 
-- [ ] Stage copy/rewrite/lock `rErr`, refused resolution, actual failing child,
+- [x] Stage copy/rewrite/lock `rErr`, refused resolution, actual failing child,
   child-start failure, signal/timeout and empty output each retain a useful cause.
-- [ ] Leading progress/warnings and following trace frames do not displace Error;
+- [x] Leading progress/warnings and following trace frames do not displace Error;
   a real diagnostic before >8KiB trailing output is retained. Long non-ASCII,
   malformed UTF-8 and a >2048-byte single error line respect exact byte caps and
   parseable JSON. Timeout marker fits inside cap, too.
-- [ ] Human and JSON PUB015 agree on first cause; no new report field/code and
+- [x] Human and JSON PUB015 agree on first cause; no new report field/code and
   no lost failure through `rErr != nil`. No-run still badges rather than fails.
-- [ ] Existing fail/pass/timeout/isolation controls stay valid; no CI timeout,
+- [x] Existing fail/pass/timeout/isolation controls stay valid; no CI timeout,
   output-gate or authority policy is relaxed.
 
 Checkpoint: targeted pkg/CLI diagnostic and quality/no-run tests, `gofmt`/lint.
 No repeated full packages already green without an affected change/failure.
+
+M2 checkpoint: PASS. Red/green cause retention, exact byte bounds and UTF-8,
+setup/start/parser/noise/trace/timeout cases and actual quality/no-run controls
+pass; lint0/boundaries/sizes/fmt pass. Actual merged #1771 dev652 was normally
+integrated before this milestone; its cache/IFC source was not edited. Raw
+`1773-M2-*` evidence retains the original failures.
 
 ## M3_ROOT_PATH_SHADOW_WARNING — 105 lines, 45–60 minutes
 

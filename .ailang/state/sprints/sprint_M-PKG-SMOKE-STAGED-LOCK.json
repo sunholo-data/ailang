@@ -97,10 +97,10 @@
         60,
         75
       ],
-      "passes": false,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-29T12:45:00Z",
+      "completed": "2026-10-29T12:53:39.433631+00:00",
+      "notes": "M2 red captured lost first diagnostic,8236-byte overflow/invalidUTF8 and discarded staging rErr/real child/timeout Notes. Green selects explicit diagnostics before noise/trace, preserves canonical setup/start errors, parser errors and timeout context; uses existing TruncateBytes with valid UTF8 and reserved prefixes/markers for8192-byte result/2048-byte Notes. Actual quality JSON/finding and no-run pass; targeted pkg38.114s/CLI34.741s, lint0/boundaries/sizes/fmt PASS. Existing timer/proctree/schema/authority behavior unchanged. Raw1773-M2-* logs retained."
     },
     {
       "id": "M3_ROOT_PATH_SHADOW_WARNING",
@@ -182,5 +182,6 @@
     "at": "2026-10-29T12:23:00Z",
     "accepted_plan_commit": "0c3e8f406a8a1476efb4e921c0738f269dbb3e38",
     "scope": "All four approved milestones, sequential checkpoint commits; no live publication, coordinator actions or unapproved semantics"
-  }
+  },
+  "execution_dev_merge": "65253e86e68be251eecd796d92327e4d4828c234"
 }

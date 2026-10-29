@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"time"
+	"unicode/utf8"
 
 	"github.com/sunholo-data/ailang/internal/proctree"
 )
@@ -104,7 +105,12 @@ func RunSmokeInTempDir(packageDir, ailangBin string, timeout time.Duration) (*Sm
 	runErr := cmd.Run()
 	elapsed := time.Since(start)
 
-	out := truncateOutput(combined.String(), 8*1024)
+	output := combined.String()
+	var exitErr *exec.ExitError
+	if runErr != nil && !errors.As(runErr, &exitErr) && !errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		output = runErr.Error() + "\n" + output
+	}
+	out := truncateOutput(output, 8*1024)
 
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
 		// Belt-and-braces: CommandContext already kills the leader, but the
@@ -221,11 +227,10 @@ func copyFile(src, dest string) error {
 }
 
 func truncateOutput(s string, maxBytes int) string {
-	if len(s) <= maxBytes {
+	if len(s) <= maxBytes && utf8.ValidString(s) {
 		return s
 	}
-	keep := s[len(s)-maxBytes:]
-	return "[output truncated; showing last " + fmt.Sprintf("%d", maxBytes) + " bytes]\n" + keep
+	return summarizeSmokeOutput(s, maxBytes, "")
 }
 
 // HasExtensionBlock reports whether the manifest declares an [extension] section.
