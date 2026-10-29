@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-PKG-SMOKE-STAGED-LOCK",
   "title": "Stage published smoke manifest and registry lock while preserving D2 and bounded diagnostics",
-  "status": "in_progress",
+  "status": "completed",
   "design_doc": "design_docs/planned/v0_54_7/m-pkg-smoke-staged-lock.md",
   "sprint_plan": "design_docs/planned/v0_56_0/m-pkg-smoke-staged-lock-sprint-plan.md",
   "target_version": "v0.56.0",
@@ -22,7 +22,7 @@
   "plan_approval": "Approved explicitly with execute sprint instruction relayed by root at2026-10-29T12:23Z",
   "execution_authorized": true,
   "implementation_started": true,
-  "independent_evaluation": "not started; required after executor, no self-score",
+  "independent_evaluation": "pending independent sprint-evaluator; exact PR CI pending, no executor score",
   "velocity": {
     "target_loc_per_day": 340,
     "estimated_total_loc": 680,
@@ -145,10 +145,10 @@
         60,
         90
       ],
-      "passes": false,
+      "passes": true,
       "started": "2026-10-29T13:13:30.988876+00:00",
-      "completed": null,
-      "notes": "M4 real offline CLI proof passes: strict registry source+asset discriminator rejects actual local run with exit23, quality/dry-run pass only for registry bytes; missing exact version/newer cached fails canonically; no Z3 needed, reads instrument live, zero registry writes/uploads/message or coordinator DB opens, author input snapshots unchanged; actual human/JSON diagnostics agree. Final changed/core and structural gates pending. Security npm/docs ancestor aca5 normally integrated without Go-runtime edits."
+      "completed": "2026-10-29T13:32:27.103774+00:00",
+      "notes": "M4 real offline CLI proof passes: strict registry source+asset discriminator rejects actual local run with exit23, quality/dry-run pass only for registry bytes; missing exact version/newer cached fails canonically; no Z3 needed, reads instrument live, zero registry writes/uploads/message or coordinator DB opens, author input snapshots unchanged; actual human/JSON diagnostics agree. Final changed/core PASS (cmd172.825s, pkg19.353s plus all core); lint0/boundaries/home/sizes/changelog/fmt PASS. Actual PR broad Linux/Windows checks and independent evaluator remain pending, no executor score. Security npm/docs ancestor aca5 normally integrated without Go-runtime edits."
     }
   ],
   "prompt": {
@@ -175,7 +175,7 @@
     "original_design_task": "task-98f9f628 (current status failed)",
     "original_design_pr": "https://github.com/sunholo-data/ailang/pull/1775 (merged design artifact)",
     "owner_search": "Current open PRs and16 active prod tasks no staging owner at review snapshot; historical page limited1000 rows; attended planner now assigned manually",
-    "pending_root_audit": "da3e5d54c not integrated; asset design link update after actual audit merge"
+    "integrated_root_audit": "dba1c499ca6f76b40992fd521e3dd440d9277f49; docs-only merge336605f05; kept own companion planned pending independent acceptance"
   },
   "execution_approval": {
     "source": "Attended user explicitly execute sprint #1773, relayed by root",
@@ -184,5 +184,15 @@
     "scope": "All four approved milestones, sequential checkpoint commits; no live publication, coordinator actions or unapproved semantics"
   },
   "execution_dev_merge": "65253e86e68be251eecd796d92327e4d4828c234",
-  "execution_security_merge": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239"
+  "execution_security_merge": "aca5a6eadeedb5b7b59feab6f2e0137ccf3dc239",
+  "implementation_complete": true,
+  "completed": "2026-10-29T13:32:27.103774+00:00",
+  "validation": {
+    "tested_source_commit": "37c957b3a742aba8c966c185f39d48d086d5e794",
+    "source_equivalence": "normal docs-only audit integration adds zero Go/AIL diff against tested source",
+    "evidence": "design_docs/planned/v0_56_0/m-pkg-smoke-staged-lock-validation.md",
+    "test_changed": "PASS: cmd/ailang172.825s, internal/pkg19.353s and all core packages",
+    "structure": "PASS: lint0, boundaries, home isolation, sizes, changelog, fmt",
+    "windows": "portable controls reviewed; actual PR Windows execution pending; signal regression skips only Windows TerminateProcess-specific semantics"
+  }
 }

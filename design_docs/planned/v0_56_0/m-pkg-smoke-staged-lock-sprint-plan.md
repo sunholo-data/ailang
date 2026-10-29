@@ -25,8 +25,8 @@ and warning-only root-path shadowing. Surface bounded, useful PUB015 diagnostics
 
 ## Current status and planning basis
 
-Execution started under the recorded approval; milestone acceptance remains
-unpassed until verified. The initial baseline `RunSmokeInTempDir` copies the
+Execution completed all four milestones under the recorded approval; local
+verification passed and independent evaluation/PR CI remain pending. The initial baseline `RunSmokeInTempDir` copies the
 relative author lock; quality discards process output and staging `rErr`. Root
 path B can be shadowed by transitive registry B without a warning. Existing host
 APIs already supply D2 carry-forward and per-compilation asset targets.
@@ -254,31 +254,31 @@ shared-predicate/tarball refactor. Preserve unrelated metadata and code.
 
 Acceptance/gates:
 
-- [ ] One portable Go harness uses a preprovisioned PACKAGE_ROOT and/or httptest
+- [x] One portable Go harness uses a preprovisioned PACKAGE_ROOT and/or httptest
   mirror with distinct same-version local/registry code+asset markers. Invoke
   actual built CLI quality(JSON/human) and publish **--dry-run** plus direct real
   RunSmoke. Handlers count reads and reject/count every publish POST; assert no
   upload/cascade/message path occurred. No live registry endpoint or user HOME
   state is used. Quality's registry-overlap metadata uses mock index, not a
   hidden external request. Author inputs remain unchanged.
-- [ ] Authority boundary and existing D2/hash/snapshot controls pass; no privileged
+- [x] Authority boundary and existing D2/hash/snapshot controls pass; no privileged
   client/git constructor is added. Missing locked target and malformed-lock
   failures are retained. Evidence maps every acceptance item to a test/log.
-- [ ] `make test-changed` (changed packages + core), `make lint`,
+- [x] `make test-changed` (changed packages + core), `make lint`,
   `make check-boundaries`, `make check-home-isolation`,
   `make check-file-sizes`, `make check-changelog` and `make fmt-check` pass. `make build`
   precedes binary-discovery cases. **Do not run full make test locally**; exact PR
   CI supplies full Linux/Windows/broad gates. Keep existing timeouts, quality
   thresholds/baselines and failure evidence; no force/admin bypass.
-- [ ] Windows portability: use filepath helpers, forward-slash persisted lock
+- [x] Windows portability: use filepath helpers, forward-slash persisted lock
   paths, os.DevNull and existing bounded Go subprocess helpers, no POSIX-only
   fixture executable or exact OS-error wording. Reuse shared buildAilang once;
   existing 120s binary build and 60s per-CLI subprocess bounds remain. Smoke's
   default 30s/manifest 1–300s and short existing timeout test remain unchanged.
-- [ ] Documentation describes published-view behavior, exact-version unavailable
+- [x] Documentation describes published-view behavior, exact-version unavailable
   and canonical authority remedies, bounded PUB015 Notes and warning-only shadow.
   No release, live consumer source edit or publication is claimed.
-- [ ] Implementation executor supplies source/commit/CI/evidence to an independent
+- [x] Implementation executor supplies source/commit/CI/evidence to an independent
   sprint-evaluator. No executor self-score; failed/queued checks remain explicit.
 
 After explicit execute, preserve bot-auth/account rules before any separately
@@ -312,11 +312,11 @@ stage. Reuse the banked read-only fixture as a starting point, not as proof of
 new implementation. Inventory ownership again before execution; no coordinator
 import/ack/send is needed.
 
-Before execution, normally integrate actual dev when clean; preserve planning
-commits first. Root's separate completion audit `da3e5d54c` is not in this
-baseline and is root-owned. Current design links to the landed asset design at
-planned/v0_54_7 remain valid; after the actual audit merge, update only these own
-links to implemented/v0_56_0. Do not edit or cherry-pick the audit branch.
+Execution normally integrated actual dev65253e86 (IFC/cachev8), aca5a6ead
+(security npm/docs), and dba1c499 (completion audit). The audit merge resolved
+Git's inferred directory rename by retaining this still-unreviewed plan in
+planned/v0_56_0. Only owned links were updated to the archived asset design;
+no audit content or other sprint was edited. Tested Go/AIL source is unchanged.
 
 Main risks: accidental raw path-lock reuse; dropping D2 provenance; helper stdout
 corrupting JSON; first diagnostic lost before summarizing; timeout/UTF-8 bounds;
@@ -324,7 +324,7 @@ flaky shell fixtures on Windows. The explicit tests above instrument each risk.
 No parser/type/effect semantics, new registry service, tarball file policy,
 resolver precedence or broad cleanup is part of this sprint.
 
-### M4 implementation candidate (final gates pending)
+### M4 executor completion (independent evaluation pending)
 
 Strict actual CLI fixture rejects the author-local same-version source+asset pair
 with exit23, then passes quality and dry-run only with registry markers. Mock
@@ -334,4 +334,9 @@ The fixture also passes with explicitly absent Z3, and unavailable exact version
 with newer cached bytes fails with the canonical provisioning remedy. Actual
 human/JSON failure causes agree; D1 signal cause is repaired with preserved red
 and actual process regression. No tarball predicate or runtime policy changed.
-One final changed/core/structural gate and independent evaluation remain.
+Final changed/core PASS: cmd/ailang172.825s, internal/pkg19.353s and all core
+packages. Lint0, boundaries, home isolation, sizes, changelog and fmt PASS.
+[Validation and acceptance map](m-pkg-smoke-staged-lock-validation.md) preserves
+logs and limitations. Exact PR broad Linux/Windows CI and independent evaluation
+remain pending; no executor score or release claim. Checkboxes record local
+acceptance and portability review, not a Windows run before CI.
