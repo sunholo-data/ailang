@@ -61,14 +61,14 @@
         "Iface conversion matches source without overriding #1790 metadata",
         "Cold/warm/imported aliases and nested positions preserve rejection and acceptance",
         "Focused persistence tests and interfaces/structural gates pass",
-        "AST print/compact JSON and iface normalized text/hash projections preserve explicit empty identity",
+        "AST JSON and normalized iface text distinguish explicit empty; ctor/export public hash/set distinguish, alias public exclusion remains with separate aliasDigest/warm-edit coverage",
         "Old-compiler populated acceptance cache is rejected by fixed compiler identity",
         "Same-binary omitted-to-empty and reverse direct/transitive dependency edits invalidate aliases/ctor/export verdicts"
       ],
       "passes": true,
       "started": null,
       "completed": "2026-10-29T09:48:52.668223+00:00",
-      "notes": "Failing-first AST/iface/string/alias-digest identity checks green; warm direct/transitive alias and export edits invalidate verdicts, ctor pure control changes dep/importer identities and rejects IO. Valid CoreTI-DAG/JSON flags survive. Real old752 compiler acceptance cache populated16files, oldwarm changesonlymanifest; fixedsamecache andnocache both reject. Full changed/core7packages, lint0/sizes/boundaries and49frozen interfaces green, no golden diff. No schema or epoch change; v8 reserved1771."
+      "notes": "Failing-first AST/iface/string/alias-digest identity checks green; warm direct/transitive alias and export edits invalidate verdicts, ctor pure control changes dep/importer identities and rejects IO. Valid CoreTI-DAG/JSON flags survive. Real old752 compiler acceptance cache populated16files, oldwarm changesonlymanifest; fixedsamecache andnocache both reject. Full changed/core7packages, lint0/sizes/boundaries and49frozen interfaces green, no golden diff. No schema or epoch change; v8 reserved1771. Independent review clarification: isolated alias-only public hash/set remain intentionally equal; ctor-only/export-only differ. Alias rendering/internal digest/cache are separately checked; no identity policy expansion."
     },
     {
       "id": "M3_ENGINES_DOCS",
