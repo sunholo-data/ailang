@@ -116,7 +116,7 @@ jobs:
     # Python is installed. Update PinnedPythonVersion in
     # internal/eval_harness/python.go if the target moves.
     - name: Set up uv
-      uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
 
     # Prepare the eval runner's pin before tests poison network access.
     # Keep this request in sync with PinnedPythonVersion in python.go.
@@ -316,7 +316,7 @@ jobs:
     # Python is installed. Update PinnedPythonVersion in
     # internal/eval_harness/python.go if the target moves.
     - name: Set up uv
-      uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
 
     # Prepare the eval runner's pin before tests poison network access.
     # Keep this request in sync with PinnedPythonVersion in python.go.
@@ -657,7 +657,7 @@ jobs:
         cache: true
 
     - name: Set up uv (provides Python for eval-harness Python runner tests)
-      uses: astral-sh/setup-uv@1c37ad07a6a961277cf70c0d37d6f313000f5884 # v10.3.0
+      uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
 
     # Prepare the eval runner's pin before tests poison network access.
     # Keep this request in sync with PinnedPythonVersion in python.go.
