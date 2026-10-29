@@ -115,3 +115,17 @@ func TestIFCFunctionValueRemainingCarrierForms(t *testing.T) {
 		})
 	}
 }
+
+func TestIFCImportedCapitalizedFunctionIsOpaque(t *testing.T) {
+	for _, name := range []string{"Apply", "apply"} {
+		src := "module r/imported\nimport lib (" + name + ")\n" + fvPrelude + `export func main() -> string { ` + name + `(gate, fromInbox("TAINT")) }`
+		errs := fvCheck(t, src)
+		if len(errs) == 0 || errs[0].Kind != SinkRefinementError {
+			t.Fatalf("imported function %s bypassed F2: %v", name, errs)
+		}
+	}
+	src := "module r/stored\nimport std/option (Some)\n" + fvPrelude + `export func main() -> string { let stored = Some(gate) in "ok" }`
+	if errs := fvCheck(t, src); len(errs) != 0 {
+		t.Fatalf("storing an imported ADT with a sink must remain accepted: %v", errs)
+	}
+}

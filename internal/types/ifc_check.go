@@ -332,16 +332,12 @@ func (c *ifcChecker) identVal(name string, env ifcEnv) ifcVal {
 	if sig, ok := c.sigs[name]; ok {
 		return ifcVal{label: LabelBottom(), fn: fromSig(sig)}
 	}
-	if _, ok := c.types.ctors[name]; ok || isCtorName(name) {
+	if _, ok := c.types.ctors[name]; ok {
 		return ifcVal{label: LabelBottom(), fn: single(&ifcFn{kind: fnCtor})}
 	}
+	// Imported names have no constructor evidence in this surface-only pass.
+	// Capitalized functions are legal, so every unknown name takes F2 fallback.
 	return ifcVal{label: LabelBottom(), fn: single(&ifcFn{kind: fnOpaque, name: name})}
-}
-
-// isCtorName: AILANG constructors are capitalised (Some, Ok, Cons, ...), so an
-// imported capitalised name stores its arguments rather than applying them.
-func isCtorName(name string) bool {
-	return name != "" && name[0] >= 'A' && name[0] <= 'Z'
 }
 
 // walkBlock threads block-statement lets through a block { s1; s2; ...; result }
