@@ -97,7 +97,7 @@ func assertEraseWithinCharge(t *testing.T, tc *CoreTypeChecker, name string, par
 	}
 	base := NewTypeEnv()
 	for _, binder := range dataSubterms(param, tc.effectAliasHead) {
-		for tail := range base.Extend("b", binder).implicitRowsAbove(base) {
+		for tail := range base.Extend("b", binder).implicitRowsAbove(base, tc.effectAliasHead) {
 			if !charged[tail] {
 				t.Errorf("%s: callee body erases tail %s (binder %s) that no call site charges (mask=%v)", name, tail, binder, mask)
 			}
