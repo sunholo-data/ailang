@@ -100,7 +100,7 @@ func encodeApp(app *core.App) (string, error) {
 		// Contract-based callee: substitute result constant (call site collapses to the constant)
 		if activeContractCallees != nil {
 			if resultConst, ok := activeContractCallees[vg.Ref.Name]; ok {
-				return resultConst, nil
+				return encodeUserFunctionCall(resultConst, app.Args)
 			}
 		}
 		// Leak guard: an unresolved call to a KNOWN user function (as opposed to an
@@ -123,7 +123,7 @@ func encodeApp(app *core.App) (string, error) {
 		}
 		if activeContractCallees != nil {
 			if resultConst, ok := activeContractCallees[v.Name]; ok {
-				return resultConst, nil
+				return encodeUserFunctionCall(resultConst, app.Args)
 			}
 		}
 		// Leak guard (see VarGlobal branch above): unresolved call to a known user

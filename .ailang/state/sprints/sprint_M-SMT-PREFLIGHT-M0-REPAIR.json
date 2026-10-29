@@ -47,10 +47,10 @@
         "No global universal contract assertion; unencodable/recursive predicates terminate via existing unsupported/fail-weak classifications",
         "Requires is a guard, not assumed truth or newly discharged obligation; raw partial-callee discriminator retained"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-10-29T20:26:45.411982+00:00",
+      "completed": "2026-10-29T20:26:45.411982+00:00",
+      "notes": "Finite UF declaration/template replaces shared constant. Public call instantiation preserves functional identity, exact arity, requires guarding and fail-weak unknown requires. New tests RED on prior code, all SMT package GREEN. Scoped propagation into caller expressions remains M3\u2013M5, no integrated CLI acceptance claimed yet."
     },
     {
       "id": "M3_LEXICAL_SELECTED_FACTS",
