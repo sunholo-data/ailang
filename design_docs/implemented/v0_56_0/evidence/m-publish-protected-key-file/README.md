@@ -19,7 +19,8 @@ unchanged 80% threshold.
 - [Actual Sonar response](independent/sonar-gate-1f6.json),
   [terminal CI](independent/pr-1f6-terminal.json),
   [root acceptance](independent/root-acceptance-comment.md) and
-  [actual merge](independent/pr-root-merge.json).
+  [root pre-merge snapshot](independent/pr-root-merge.json) and
+  [verified actual merge](independent/pr-actual-merge.json).
 
 The [parent](../../m-publish-protected-key-file.md),
 [plan](../../m-publish-protected-key-file-sprint-plan.md) and
@@ -31,7 +32,7 @@ was unchanged by its final coverage-test repair. Unix protected-file acceptance,
 Windows fail-closed unsupported behavior and same-UID limitations are retained;
 there is no Windows ACL or same-UID isolation claim.
 
-This namespace contains **61 logical artifacts: 58 verbatim and 3 losslessly
+This namespace contains **62 logical artifacts: 59 verbatim and 3 losslessly
 encoded**. Final and historical report pairs are verbatim. One encoded payload is
 the original execution harness, retained as data rather than an installed tool.
 

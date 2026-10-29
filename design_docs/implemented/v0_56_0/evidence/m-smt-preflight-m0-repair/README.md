@@ -15,7 +15,8 @@ Issues #1960/#1961 closed at 22:19:33/22:19:34 UTC. Actual final-head CI has
   [round 1 Sonar corrigendum](independent/round1-sonar-corrigendum.md) remain intact.
 - [Actual Sonar response](independent/sonar-qualitygate-final.json),
   [final CI monitor](monitor/final-monitor-report.json),
-  [job identities](monitor/jobs-final.json) and [one-retry ledger](monitor/retry-ledger.json).
+  [job identities](monitor/jobs-final.json), [one-retry ledger](monitor/retry-ledger.json)
+  and [verified actual merge](independent/pr-actual-merge.json).
 
 The [multiphase parent](../../../../planned/m-smt-well-sorted-preflight.md),
 [repair plan](../../../../planned/v0_56_0/sprint-plan-m-smt-preflight-m0-repair.md)
@@ -38,7 +39,7 @@ captured binary identity. The accepted 4fb checkpoint preserves production Go an
 all AIL bytes while adding the 69-line SMT behavior test/validation repair;
 actual final-head CI supplies the current broad-gate proof.
 
-This namespace contains **74 logical artifacts: 68 verbatim and 6 losslessly
+This namespace contains **75 logical artifacts: 69 verbatim and 6 losslessly
 encoded**. Final and historical report pairs are verbatim.
 
 ## Identities, history and representation

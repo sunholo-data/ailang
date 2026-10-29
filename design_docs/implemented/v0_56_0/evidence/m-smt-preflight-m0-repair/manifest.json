@@ -808,12 +808,22 @@
       "original_sha256": "b3920b1c7789bce1676837727e738191956983f884c86ddcdb99002c86666db5",
       "staged_bytes": 550,
       "staged_sha256": "b3920b1c7789bce1676837727e738191956983f884c86ddcdb99002c86666db5"
+    },
+    {
+      "logical_name": "m0/independent/pr-actual-merge.json",
+      "source_path": "/tmp/ailang-backlog-20261029/m0-independent-final/pr-actual-merge.json",
+      "path": "independent/pr-actual-merge.json",
+      "encoding": "verbatim",
+      "original_bytes": 245,
+      "original_sha256": "3a9267b6b3a2364a0631d83dd3e1656c1c5d552a1b0a86f79e2b8630216ce580",
+      "staged_bytes": 245,
+      "staged_sha256": "3a9267b6b3a2364a0631d83dd3e1656c1c5d552a1b0a86f79e2b8630216ce580"
     }
   ],
   "staging_original_entries": 53,
-  "logical_artifacts": 74,
+  "logical_artifacts": 75,
   "encoding_counts": {
-    "verbatim": 68,
+    "verbatim": 69,
     "gzip+base64": 6
   },
   "qualification": "Payload bytes and original hashes preserved. Canonical path maps original staged prefixes into this namespace; frozen staging README/manifest remain historical preparation records, not current acceptance or paths. No standalone verifier/preparer/execution Python tool copied; original harness is lossless data."
