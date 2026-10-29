@@ -9,6 +9,7 @@
 - First adopter: ailang-parse `design_docs/planned/v0_49_0/v0_49_0_vendor_directory_listing.md`. It holds the Parse-specific decisions; this doc holds the generic ones.
 
 **Sources**: the vendor quotes, with URLs and fetch date, are in `m-serveapi-directory-ready-sources.md` next to this doc.
+**Additional distribution channel (proposed 2026-10-29)**: [M-GOOGLE-CONNECTED-APPS](../m-google-connected-apps-distribution.md) extends this foundation to the consumer Gemini app and Search, reusing the Parse connector, hosted executor and existing Claude/OpenAI plugin assets. Google compatibility and publication remain unverified; Gemini Enterprise and A2A stay in their existing design.
 **Quorum triggers fired**:
 - #1: there are design-freeze items.
 - #4: the load-bearing premises are vendor policies we do not control.
