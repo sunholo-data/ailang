@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strings"
 	"time"
 
@@ -176,64 +175,15 @@ func printPublishDigests(w io.Writer, tarballBytes int, tarballHash, contentHash
 // since consumers won't have the local filesystem layout.
 //
 // Returns true if any deps were rewritten.
-func rewritePathDepsForPublish(dir string, manifest *pkg.PackageManifest) (bool, error) {
-	hasPathDeps := false
-	for _, dep := range manifest.Dependencies {
-		if dep.Path != "" {
-			hasPathDeps = true
-			break
-		}
-	}
-	if !hasPathDeps {
-		return false, nil
-	}
-
-	tomlPath := dir + "/" + pkg.ManifestFile
-	data, err := os.ReadFile(tomlPath)
+func rewritePathDepsForPublish(dir string, _ *pkg.PackageManifest) (bool, error) {
+	rewrites, err := pkg.RewritePathDeps(dir, dir)
 	if err != nil {
 		return false, err
 	}
-	content := string(data)
-	rewritten := false
-
-	for depName, dep := range manifest.Dependencies {
-		if dep.Path == "" {
-			continue
-		}
-		// Look up the dep's version from its own ailang.toml (local path)
-		depManifestPath := dep.Path
-		if !filepath.IsAbs(depManifestPath) {
-			depManifestPath = filepath.Join(dir, dep.Path)
-		}
-		depManifest, err := pkg.LoadManifest(depManifestPath)
-		if err != nil {
-			return false, fmt.Errorf("cannot read dependency %s at %s: %w\nPath deps must be resolvable at publish time", depName, dep.Path, err)
-		}
-		version := depManifest.Package.Version
-
-		// Replace path dep with version dep.
-		// Use a regex to tolerate any whitespace variant the author may have
-		// used (single-space, column-aligned, extra inner-brace spaces, etc.).
-		replacement := fmt.Sprintf(`"%s" = "%s"`, depName, version)
-		pattern := fmt.Sprintf(`"%s"\s*=\s*\{\s*path\s*=\s*"%s"\s*\}`,
-			regexp.QuoteMeta(depName), regexp.QuoteMeta(dep.Path))
-		re, err := regexp.Compile(pattern)
-		if err != nil {
-			return false, fmt.Errorf("internal: bad rewrite pattern for %s: %w", depName, err)
-		}
-		if re.MatchString(content) {
-			content = re.ReplaceAllLiteralString(content, replacement)
-			fmt.Printf("  %s Rewrote dep %s: path %q → registry %s\n", cyan("→"), depName, dep.Path, version)
-			rewritten = true
-		}
+	for _, rewrite := range rewrites {
+		fmt.Printf("  %s Rewrote dep %s: path %q → registry %s\n", cyan("→"), rewrite.Name, rewrite.Path, rewrite.Version)
 	}
-
-	if rewritten {
-		if err := os.WriteFile(tomlPath, []byte(content), 0644); err != nil {
-			return false, err
-		}
-	}
-	return rewritten, nil
+	return len(rewrites) != 0, nil
 }
 
 func uploadTarball(url string, tarballData []byte, allowDottedToolNames bool, interfaceHashV2 string, attested *pkg.AttestedBlock) error {

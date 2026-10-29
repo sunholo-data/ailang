@@ -526,6 +526,8 @@ func pkgLockCommand(args []string) error {
 		return fmt.Errorf("failed to write lock file: %w", err)
 	}
 
+	warnShadowedPathDeps(os.Stderr, manifest, resolved)
+
 	// Warn when a path dep's version changed without a corresponding
 	// upgrade-available message — this is the "silent ratchet" failure mode.
 	if prevLF != nil {

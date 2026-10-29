@@ -1,0 +1,17 @@
+module test/a/_smoke
+-- Explicit effects; external Go tests own layout/lock/source/asset assertions.
+import pkg/test/b/model (marker)
+import std/io (println, exit)
+import std/package (assetPath)
+import std/fs (readFile)
+import std/result (Ok, Err)
+func asset(name: string, rel: string) -> string ! {FS} =
+ match assetPath(name, rel) { Ok(p) => readFile(p), Err(e) => e }
+export func main() -> () ! {IO, FS} {
+ let source = marker();
+ let data = asset("test/b", "marker.txt");
+ let own = asset("test/a", "self.txt");
+ if data == "${source}_ASSET" && own == "STAGED_ROOT"
+ then { println(source); println(data); println(own) }
+ else exit(23)
+}
