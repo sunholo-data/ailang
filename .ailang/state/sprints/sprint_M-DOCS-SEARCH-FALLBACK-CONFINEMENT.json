@@ -25,7 +25,7 @@
   "plan_approved": true,
   "execution_authorized": true,
   "implementation_started": true,
-  "independent_evaluation": "required after implementation; not started",
+  "independent_evaluation": "required; executor handoff ready, no self-score or acceptance verdict",
   "velocity": {
     "target_loc_per_day": 300,
     "estimated_total_loc": 525,
@@ -33,7 +33,9 @@
     "base_estimate_loc": 420,
     "uncertainty_buffer_percent": 25,
     "basis": "Conservative planning assumption, not measured single-agent throughput. Recent host-package/tooling checkpoints M1/M2/M3 (#1773) add1083/delete63 lines across scoped cmd/ailang+internal/pkg; fixture-heavy attended/multi-agent work and incomplete broad gate are not a daily-rate benchmark. Raw counts in1965-planner-velocity.json. Existing analyze_velocity exits141 in its head pipeline and samples old changelog metrics, so no valid daily rate was inferred.",
-    "session_budget": "Four bounded60-90minute milestones across two attended days; CI/independent review waiting separate"
+    "session_budget": "Four bounded60-90minute milestones across two attended days; CI/independent review waiting separate",
+    "actual_total_loc": 671,
+    "actual_scope": "47 production-file lines incl7 docs prose,589 test/helper,35 user docs/changelog; plan/design/state/validation metadata excluded. Sequential attended session, no daily-velocity inference."
   },
   "registry_reuse": [
     {
@@ -117,7 +119,8 @@
       "passes": true,
       "started": "2026-10-29T20:17:42Z",
       "completed": "2026-10-29T20:23:11.492069+00:00",
-      "notes": "RED1965-M1-red.log: constructor/helper, cache-hit, pagination and late write accepted before guards. GREEN full github package; canonical pkg.Require unchanged. Full positive unconfined pagination and optional cache failure preserved."
+      "notes": "RED1965-M1-red.log: constructor/helper, cache-hit, pagination and late write accepted before guards. GREEN full github package; canonical pkg.Require unchanged. Full positive unconfined pagination and optional cache failure preserved.",
+      "actual_loc": 295
     },
     {
       "id": "M2_ACTUAL_CLI_AND_SAFE_HINTS",
@@ -144,7 +147,8 @@
       "passes": true,
       "started": "2026-10-29T20:24:00Z",
       "completed": "2026-10-29T20:27:41.188197+00:00",
-      "notes": "Real CLI RED1965-M2-red.log captured unsafe auth/unset hints. GREEN1965-M2M3-green.log11.128s includes actual CLI, explicit/auto local SimHash, disabled fallback and existing design-doc guard. Proxy/helper positives active, token arms refused with no counter/state changes; canonical real-path comparison preserves existing /var spelling difference."
+      "notes": "Real CLI RED1965-M2-red.log captured unsafe auth/unset hints. GREEN1965-M2M3-green.log11.128s includes actual CLI, explicit/auto local SimHash, disabled fallback and existing design-doc guard. Proxy/helper positives active, token arms refused with no counter/state changes; canonical real-path comparison preserves existing /var spelling difference.",
+      "actual_loc": 255
     },
     {
       "id": "M3_REAL_POLICY_TOOL_CHILD",
@@ -169,7 +173,8 @@
       "passes": true,
       "started": "2026-10-29T20:27:41.188197+00:00",
       "completed": "2026-10-29T20:28:11.627870+00:00",
-      "notes": "Actual policy-tool\u2192actual child with parent policy marker absent refuses both token arms, valid existing JSON process0/childnonzero; local child succeeds. Strict neural/path flags refused unchanged. Counterfactual pre-guard overlay fails canonical refusal1965-M3-red.log; current combined11.128sGREEN plus focused existing policytool contracts PASS. No policytool production edits or Windows blanket skip."
+      "notes": "Actual policy-tool\u2192actual child with parent policy marker absent refuses both token arms, valid existing JSON process0/childnonzero; local child succeeds. Strict neural/path flags refused unchanged. Counterfactual pre-guard overlay fails canonical refusal1965-M3-red.log; current combined11.128sGREEN plus focused existing policytool contracts PASS. No policytool production edits or Windows blanket skip.",
+      "actual_loc": 78
     },
     {
       "id": "M4_DOCS_GATES_AND_HANDOFF",
@@ -192,10 +197,11 @@
         "Final clean immutable source/local gate logs handed to an independent evaluator; separately authorized exact-head PR CI supplies broad Linux/Windows gates; no executor self-score or claim that unexecuted/queued/failed checks passed",
         "Any unchanged external #1926/#2013 CI blocker is reported with actual evidence, not repaired, retried or bypassed by this scope; preserve operator ownership and root issue/merge disposition"
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-10-29T20:28:11.627870+00:00",
-      "completed": null,
-      "notes": null
+      "completed": "2026-10-29T20:40:39.335207+00:00",
+      "notes": "Final make build PASS; corrected affected/core gate PASS(cmd203.543s/github3.890s/all20core packages); lint0/boundaries/home/sizes/changelog/fmt PASS. Initial own generated-reference drift preserved1965-M4-test-changed.log, fixed authoritative prose+make docs-cli, focused reference0.652sGREEN. Final test-only atomic counters verified backend3.373s; no production delta. Accepted runner owner dev565 normally integrated; independent acceptance and exact-head CI remain pending, not claimed passed.",
+      "actual_loc": 43
     }
   ],
   "accepted_rulings": {
@@ -284,5 +290,20 @@
       "bypass of2013 failed gate",
       "out-of-scope semantics or deferred roadmap work"
     ]
+  },
+  "implementation_complete": true,
+  "implementation_completed_at": "2026-10-29T20:40:39.335207+00:00",
+  "execution_validation": {
+    "local_result": "PASS",
+    "required_pr_ci": "pending",
+    "independent_acceptance": "pending",
+    "tested_behavior_source": "5a1a21267b0dda4e0695a4a8290a07002c4181d5",
+    "corrected_reference_source": "804502687",
+    "final_build_source": "e9889a284ac4955768ccbcfaea01eea52edcb36b",
+    "normally_integrated_dev": "565fc1b04",
+    "late_delta": "Test-only atomic counter synchronization, focused backend test/lint/fmt after full affected/core; final metadata only otherwise",
+    "logs_prefix": "/tmp/ailang-backlog-20261029/1965-",
+    "full_local_make_test_run": false,
+    "source_preflight": "Independent platform M1-M3 no blocker, no final score/PASS; final acceptance remains root/CI"
   }
 }

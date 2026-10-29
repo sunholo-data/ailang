@@ -8,11 +8,18 @@ This is an implementation handoff, not an independent score or acceptance verdic
 Source checkpoint `5a1a21267` contains all guard/CLI behavior and test changes. Its parents
 bank M1 `9eee44912` and M2 `3630ec86c`; M3 is test-only. Actual dev
 `6d0d3a9da2af2eadc504f7cb050aacde72cc3cca` was normally integrated before implementation.
+Integrated source checkpoint `e9889a284ac4955768ccbcfaea01eea52edcb36b` normally
+integrates accepted dev565fc1b04. That integration adds only the separately owned
+runner test repair and its design/state; every cmd/ailang and docs backend byte is
+identical to804502687, the corrected source used by the successful affected-package
+run. No standalone runner gate is attributed to this sprint.
+
 Final documentation/state changes include the approved CLI-reference wording in
 its authoritative `cmd/ailang/cli_reference.go` constant and regenerated page.
 The initial direct page edit was rejected by `TestCLIReferenceMatchesTable`;
-that real failure is preserved before the generator correction. No guard, search
-algorithm, dispatch or test-control behavior changed after5a1.
+that real failure is preserved before the generator correction. A final test-only cleanup synchronizes HTTP-handler counters with atomic reads;
+its backend package rerun passes3.373s with focused lint/format checks. No guard,
+search algorithm, dispatch or assertion policy changed after5a1.
 
 Production changes are limited to the GitHub backend's narrow authority helper,
 constructor, Search, direct cache writer, CLI refusal hints and generated CLI
@@ -85,8 +92,14 @@ because the edited mirror did not yet match its generator; all other tests ran.
 and `1965-M4-reference-green.log`; the repeated final affected/core gate is
 `1965-M4-test-changed-final.log`. No thresholds or assertions were changed.
 
-Final changed/core, build and structural gate outcomes are recorded in the sprint
-JSON and executor handoff after they finish. No full local make test is run.
+Final local gates pass: make build (`1965-M4-build-final.log`, stamped e9889a284),
+changed packages (`cmd/ailang`203.543s, github3.890s) plus all20 core packages
+(`1965-M4-test-changed-final.log`), unchanged policy-tool compatibility0.425s,
+lint0/boundaries/home isolation/sizes/changelog/fmt (`1965-M4-structure.log`).
+The generated prose correction has refreshed lint/fmt/sizes proof
+(`1965-M4-generator-structure.log`); test-only counter synchronization has
+backend3.373s proof (`1965-M4-counter-sync.log`) and focused lint/final fmt.
+No full local make test is run.
 Independent review, actual PR CI and root's final merge/issue decision remain
 separate from this executor report. No thresholds, timeouts, policy, authority,
 runner source, held coordinator cards or failure evidence are weakened here.

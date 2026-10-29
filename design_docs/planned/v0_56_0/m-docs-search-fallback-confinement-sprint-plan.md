@@ -139,3 +139,23 @@ Planning validation is schema/IDs/LOC sums/dependency DAG/pending state and loca
 - M4: scoped user docs and [acceptance/evidence map](m-docs-search-fallback-confinement-validation.md); actual final gate outcomes tracked in JSON/handoff. Independent acceptance and CI stay separate.
 
 The implementation uses more fixture code than the original estimate to prove live portable helpers, never-forward proxy, full private-state snapshots, both token arms, actual process/child distinctions and late transitions. No production policy or scope was expanded to meet the tests. No .ail syntax/examples gate was triggered; no product .ail was edited.
+
+## Execution sizing and friction
+
+Scoped source/test/user-doc churn versus accepted dev565fc1b04 is671 lines:
+47 in production Go files (including7 lines of CLI-reference prose),589 tests/portable
+helper and35 user docs/changelog. Milestone totals are295/255/78/43; plan/design/state
+and this validation report are recorded separately. Original estimate was525.
+The difference is portable positive instrumentation and complete actual process/private-state
+controls, not additional product semantics. The execution was sequential in one attended
+session, with independent read-only preflight; no parallel-speedup/daily-velocity claim.
+
+The actual final affected-package gate caught CLI reference drift after a direct mirror
+edit. The same approved prose was moved to the existing authoritative generator and
+`make docs-cli` regenerated its mirror. Original failure remains preserved; the corrected
+focused gate passes. No gate/threshold/deadline changed. A preliminary local-result test
+also exposed existing macOS /var versus /private/var spelling; compare canonical real
+files while preserving production path rendering. Both are workflow/test corrections,
+not changes to the approved confinement semantics.
+
+Final local build and affected/core/structure gates pass. Final backend counters use atomic handler/test synchronization, verified by a focused package rerun; production behavior is unchanged. All four implementation milestones are complete. JSON stays in_progress pending independent acceptance and exact-head PR CI; no self-score or merge is performed.

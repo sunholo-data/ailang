@@ -13,6 +13,7 @@ import (
 	"reflect"
 	"runtime"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -126,20 +127,20 @@ func TestDocsConfinementConstructorBeforeHelpers(t *testing.T) {
 
 func TestDocsConfinementSearchAndCache(t *testing.T) {
 	home := privateDocsHome(t)
-	calls := 0
+	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls++
+		calls.Add(1)
 		fmt.Fprint(w, `{"total_count":1,"items":[{"path":"guide.md","html_url":"https://example.invalid/guide"}]}`)
 	}))
 	defer srv.Close()
 	b := NewBackendForTest(srv.URL, "acme/docs", "dummy", srv.Client())
 	opts := docOptions("cached", "")
 	got, _, err := b.Search(context.Background(), opts)
-	if err != nil || len(got) != 1 || calls != 1 {
-		t.Fatalf("HTTP positive: %v %v calls%d", got, err, calls)
+	if err != nil || len(got) != 1 || calls.Load() != 1 {
+		t.Fatalf("HTTP positive: %v %v calls%d", got, err, calls.Load())
 	}
-	if _, _, err := b.Search(context.Background(), opts); err != nil || calls != 1 {
-		t.Fatalf("cache positive: %v calls%d", err, calls)
+	if _, _, err := b.Search(context.Background(), opts); err != nil || calls.Load() != 1 {
+		t.Fatalf("cache positive: %v calls%d", err, calls.Load())
 	}
 	before := homeSnapshot(t, home)
 	t.Setenv("AILANG_AGENT_POLICY", "private-policy")
@@ -149,7 +150,7 @@ func TestDocsConfinementSearchAndCache(t *testing.T) {
 	}
 	err = writeCache("acme/docs", "new", "", 10, nil, docsearch.SearchStats{}, time.Now())
 	requireConfinement(t, err, pkg.AuthHomeWrite)
-	if calls != 1 || !reflect.DeepEqual(before, homeSnapshot(t, home)) {
+	if calls.Load() != 1 || !reflect.DeepEqual(before, homeSnapshot(t, home)) {
 		t.Fatal("confined request or state mutation")
 	}
 	testutil.SetHomeDir(t, "")
@@ -161,9 +162,9 @@ func TestDocsConfinementHTTPAndWriteTransitions(t *testing.T) {
 	for _, phase := range []string{"pagination", "cache-write", "ordinary-write-error"} {
 		t.Run(phase, func(t *testing.T) {
 			home := privateDocsHome(t)
-			calls := 0
+			var calls atomic.Int32
 			srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-				calls++
+				calls.Add(1)
 				if phase != "ordinary-write-error" {
 					os.Setenv("AILANG_AGENT_POLICY", "late-policy")
 				}
@@ -204,8 +205,8 @@ func TestDocsConfinementHTTPAndWriteTransitions(t *testing.T) {
 					t.Fatalf("optional cache failure: %v", err)
 				}
 			}
-			if calls != 1 || !reflect.DeepEqual(before, homeSnapshot(t, home)) {
-				t.Fatalf("requests=%d or state changed", calls)
+			if calls.Load() != 1 || !reflect.DeepEqual(before, homeSnapshot(t, home)) {
+				t.Fatalf("requests=%d or state changed", calls.Load())
 			}
 		})
 	}
@@ -213,12 +214,12 @@ func TestDocsConfinementHTTPAndWriteTransitions(t *testing.T) {
 
 func TestDocsUnconfinedPagination(t *testing.T) {
 	privateDocsHome(t)
-	calls := 0
+	var calls atomic.Int32
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		calls++
+		calls.Add(1)
 		fmt.Fprint(w, `{"total_count":101,"items":[`)
 		count := 100
-		if calls == 2 {
+		if calls.Load() == 2 {
 			count = 1
 		}
 		for i := 0; i < count; i++ {
@@ -234,7 +235,7 @@ func TestDocsUnconfinedPagination(t *testing.T) {
 	opts := docOptions("pages", "")
 	opts.Limit = 101
 	got, _, err := b.Search(context.Background(), opts)
-	if err != nil || len(got) != 101 || calls != 2 {
-		t.Fatalf("pagination positive: results%d calls%d err%v", len(got), calls, err)
+	if err != nil || len(got) != 101 || calls.Load() != 2 {
+		t.Fatalf("pagination positive: results%d calls%d err%v", len(got), calls.Load(), err)
 	}
 }
