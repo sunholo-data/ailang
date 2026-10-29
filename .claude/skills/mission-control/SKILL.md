@@ -293,7 +293,8 @@ act on. Skipping the read is how a gate's rules silently stop applying.
 
 ## Gate 5 — RETRO + REPORT
 
-Retro, report on both channels, update the watermark.
+Retro, report on both channels. The directive watermark moves only via `mission_directives.sh
+--mark`, after routing (Gate 0 step 8) — never by hand.
 
 **⚠ THE FULL RULES FOR THIS GATE ARE NOT IN THIS FILE.** Read
 `.claude/skills/mission-control/resources/gate-5-retro.md` **NOW**, before doing anything in

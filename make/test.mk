@@ -90,6 +90,7 @@ LAUNCHD_SUITES := \
 	tools/launchd/test_mission_pi_run_sandbox.sh \
 	tools/launchd/test_mission_pi_run_provider_quota.sh \
 	scripts/test_mission_gate0_self_notices.sh \
+	scripts/test_mission_directives.sh \
 	scripts/test_mission_routing_models_check.sh \
 	scripts/test_mission_ledger_provenance.sh \
 	tools/launchd/test_pi_ext_args.sh \
