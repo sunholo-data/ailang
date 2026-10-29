@@ -8,9 +8,10 @@ import "sort"
 // row all read a function value's latent row through these helpers, so a tail
 // erased inside a callee body is charged at every call site.
 
-// maxDataArrowDepth bounds the walk. Recursive aliases (`type T = [T]`) and
-// infinite expansions terminate here; real data nesting is far shallower.
-const maxDataArrowDepth = 16
+// maxDataArrowDepth matches the defensive limit in types/traverse. Repeated
+// type nodes stop cycles; an expanding alias that never repeats a node must fail
+// compilation rather than return incomplete callback effects.
+const maxDataArrowDepth = 1000
 
 // dataArrowsWith returns the arrows reachable from t through DATA positions
 // only: list/array elements, map key and value, tuple elements, type-application
@@ -19,18 +20,36 @@ const maxDataArrowDepth = 16
 // what costs its row; its parameters are the callee's business.
 //
 // expand, when non-nil, resolves an alias head at each level (effectAliasHead).
-// Cycle-safety: depth-capped at maxDataArrowDepth, so recursive aliases and
-// self-referential expansions terminate. Record fields are visited in sorted
-// order so the result is deterministic.
+// Cycle-safety: track active source and expanded nodes, matching types/traverse.
+// Finite data nesting is fully visited up to the defensive traversal limit;
+// exceeding that limit raises a typed failure returned by inference as an error.
+// Record fields are visited in sorted order so the result is deterministic.
 func dataArrowsWith(t Type, expand func(Type) Type) []*TFunc2 {
 	var out []*TFunc2
+	active := make(map[Type]bool)
 	var walk func(Type, int)
 	walk = func(t Type, depth int) {
-		if t == nil || depth > maxDataArrowDepth {
+		if t == nil || active[t] {
 			return
 		}
+		if depth > maxDataArrowDepth {
+			panic(latentDataDepthExceeded{})
+		}
+		active[t] = true
+		defer delete(active, t)
 		if expand != nil {
+			original := t
 			t = expand(t)
+			if t == nil {
+				return
+			}
+			if t != original {
+				if active[t] {
+					return
+				}
+				active[t] = true
+				defer delete(active, t)
+			}
 		}
 		switch x := t.(type) {
 		case *TFunc2:

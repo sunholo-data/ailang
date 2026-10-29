@@ -4,7 +4,7 @@ AILANG is a deterministic, effect-typed programming language designed as a safe 
 
 This file bundles the AILANG documentation, README, language reference, and active teaching prompt for LLM consumption.
 
-Last updated: 2026-10-28T16:13:31Z
+Last updated: 2026-10-29T07:32:20Z
 
 ---
 
@@ -1402,9 +1402,9 @@ current teaching prompt and `ailang check file.ail` for diagnostics.
 
 ---
 
-# AI Teaching Prompt (Latest: v0.16.8)
+# AI Teaching Prompt (Latest: v0.16.9)
 
-# AILANG v0.16.8 - AI Teaching Prompt (with IFC Labels + Output Discipline)
+# AILANG v0.16.9 - AI Teaching Prompt (with IFC Labels + Output Discipline)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -1843,6 +1843,7 @@ func twice(f: int -> int, x: int) -> int = f(f(x))
 Calling a function-valued record field performs its annotated effects. Passing a
 function to a higher-order function with an unannotated or effect-polymorphic
 callback parameter also requires the caller to declare the callback’s effects.
+This includes a function stored in a list, tuple, Option or record argument.
 Constructing a record that stores a callback does not perform those effects.
 
 ```ailang

@@ -77,13 +77,6 @@ func TestDataArrows_AliasExpansionAndCycles(t *testing.T) {
 	if got := tc.dataArrows(&TCon{Name: "Loop"}); len(got) != 0 {
 		t.Fatalf("recursive alias: %v", got)
 	}
-	deep := Type(latentArrow("deep"))
-	for i := 0; i <= maxDataArrowDepth+1; i++ {
-		deep = &TList{Element: deep}
-	}
-	if got := dataArrowsWith(deep, nil); len(got) != 0 {
-		t.Fatalf("depth cap not applied: %v", got)
-	}
 }
 
 func TestLatentRow_ClosesOnlyConcreteTails(t *testing.T) {

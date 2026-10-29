@@ -112,3 +112,32 @@ Showcase module `examples/runnable/effect_latent_nested_callbacks.ail`:
 
 Per design table: revert (a) → AC1 red; (b-nested) → AC1 red with invariant; (c) → AC2 red;
 (d) → AC3 red; (b top-level `latentRow`) → S4 tail line. Done in a scratch copy, never `git checkout <file>`.
+
+
+## Review repair (2026-10-29)
+
+The initial walker silently returned at depth >16. This violates AC7: a callback
+destructured from a deeper container can have its tail erased without caller
+charging. Regressions first reproduced missing callbacks at 17/32/256 levels,
+cycle duplication, and accepted traversal-limit cases.
+
+The repair tracks active source and expanded nodes, fully traverses finite data
+nesting, and retains a defensive 1000-level limit consistent with types/traverse.
+Only that typed limit failure is converted to an ordinary type error at the two
+public inference entry points; unrelated compiler panics remain unchanged.
+Recursive aliases with reachable callbacks retain them, and expanding generic
+aliases fail closed. No #1790/#1958-owned semantics or files were changed.
+
+Focused type/pipeline controls, both-engine run rejection before IO, compiler
+packages and lint pass. Full changed/core and example gate results are recorded
+in the PR repair report. typechecker_core.go remains794 lines: its two inference
+implementations are now private behind small wrappers in
+`typechecker_latent_limits.go`.
+
+Prompt correction: the original in-place v0.16.7 teaching edit was removed.
+AC10 now ships in new v0.16.9, copied from current v0.16.8 with only its version
+header and one nested-callback teaching sentence changed. Prior .7/.8 content and hashes
+remain unchanged; the previous active .8 is marked frozen by the existing
+`prompt freeze --migrate` command (the registry requires one mutable head); embedded/docs/llms mirrors
+are regenerated with existing scripts. No completed independent evaluator
+verdict is claimed by this repair.

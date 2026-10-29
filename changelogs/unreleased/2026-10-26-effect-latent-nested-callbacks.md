@@ -28,7 +28,7 @@ error.
 call-site mask, the per-argument callback rows, the callee-body implicit-ownership set and the
 App constraint row, so every tail a callee erases is charged at every call site (pinned by an
 exhaustive erase ⊆ charge test). A concrete contract's tail is closed at every read of a
-function value's row. No syntax, no new diagnostics. Design:
+function value's row. No syntax changes. Design:
 `design_docs/planned/v0_55_0/m-effect-latent-nested-callbacks.md`.
 
 **Intended rejections (migration).** Corpus sweep: 0 status flips over the 515
@@ -51,3 +51,15 @@ those corpora can hit:
   (`applyBoth((f, g), x)` with `f: … ! {e1}`, `g: … ! {e2}`) checked clean on base while the
   second row's effects ran unpaid; it now fails loudly with the explicit callback-row
   invariant instead of picking one row.
+
+**Review repair (2026-10-29).** Callback discovery now tracks active type nodes,
+so cyclic data/aliases terminate without dropping a reachable callback, and
+finite nesting beyond sixteen containers is fully charged. Pathological nesting
+or an indefinitely expanding generic alias beyond the defensive traversal limit
+returns a normal type error instead of publishing incomplete effects. Regression
+controls cover depths 16, 17, 32 and 256, recursive aliases, an expanding alias,
+and rejection before IO on both execution engines.
+
+Teaching prompt v0.16.9 adds the nested-callback sentence on top of v0.16.8.
+Both prior prompt versions remain byte-for-byte unchanged; embedded, docs and
+llms mirrors use the new version.
