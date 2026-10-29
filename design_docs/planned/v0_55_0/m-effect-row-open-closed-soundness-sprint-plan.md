@@ -126,3 +126,9 @@ R1–R5 fail before printing on both engines; positive controls still work. No u
 ## Draft-generation notes
 
 The standard JSON generator imports/reads agent messages as a side effect; this read-only subtask was explicitly forbidden to send/ack messages. Therefore this review-only scratch JSON was populated directly using its documented schema, with real milestones and registry decisions. No repository plan/JSON, progress checkpoint, coordinator message or execution was created. Move/recreate these artifacts in an isolated approved branch only after the parent obtains the session gate.
+
+## Execution amendment proposed 2026-10-29: motoko width-class migration
+
+M1–M3 are implemented and pass local gates. The original M4 external compatibility requirement caught five previously accepted motoko core entries (60/60 base, 55/60 fixed), all the same already-approved F2 width class through `play_chunks`'s IO+Trace callback slot. The exact one-line migration in the companion patch narrows only that slot to IO and preserves the helper's outer IO+Trace row and Ports ABI. Fresh migrated checks restore 60/60 on both arms, zero flips. See the companion validation report for the original failure evidence, pinned SHA, delivery branch, and duplicate-work check.
+
+**Amendment pending operator approval:** deliver the exact consumer annotation migration before #1958 is merged/enabled for the pinned motoko checkout. Do not mark M4 complete until this approval/delivery is coordinated. Do not weaken the compiler guard, implement width subsumption, or discard the original 60→55 measurement.

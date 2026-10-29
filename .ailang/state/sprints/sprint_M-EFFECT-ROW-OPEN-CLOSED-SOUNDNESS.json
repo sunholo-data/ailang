@@ -78,7 +78,7 @@
       "passes": null,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": "Local compiler gates pass. Dedicated motoko core gate found F2 width-class 60 base / 55 fixed; exact scratch one-line play_chunks callback migration restores 60/60 on both arms, zero flips. Plan amendment/consumer delivery pending operator approval; M4 intentionally not marked passed."
     }
   ],
   "registry_reuse": [

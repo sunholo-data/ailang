@@ -1,6 +1,6 @@
 # M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS — An open row must not lose its labels when it meets a closed row
 
-**Status**: Planned
+**Status**: M1–M3 implemented on `fix/effect-row-open-closed-soundness`; M4 compatibility amendment and independent evaluation pending (2026-10-29). See [validation](m-effect-row-open-closed-soundness-validation.md): the newly measured motoko width class needs its exact consumer migration before enablement.
 **Target**: v0.55.0 (next minor). This is a soundness fix that rejects programs which check today, so it takes a minor bump. That is the posture Mark ruled for M-EFFECT-LATENT-FUNCTION-VALUES on 2026-10-08.
 **Priority**: P0 (High). A `pure` function performs IO, `ailang check` reports it clean, and the side effect runs on both engines.
 **Tracks**: #1958

@@ -44,6 +44,13 @@ func TestRowUnification_OpenClosedOwnLabels(t *testing.T) {
 						if err == nil || !strings.Contains(err.Error(), "IO") || !strings.Contains(err.Error(), "closed row") {
 							t.Fatalf("must reject dropped IO: sub=%v error=%v", got, err)
 						}
+						word := "effect"
+						if kind.Equals(RecordRow) {
+							word = "fields"
+						}
+						if !strings.Contains(err.Error(), word) {
+							t.Fatalf("diagnostic must name %s: %v", word, err)
+						}
 						if _, bound := sub["e"]; bound {
 							t.Fatal("rejected tail must not be bound")
 						}
