@@ -5,6 +5,7 @@
 **Priority**: P1 (a smoke importing a dependency through a portable relative path lock fails isolated staging, blocking the documented monorepo publishing workflow)
 **Estimated**: Historical ~1.5–2 days (~450 LOC incl. tests); re-estimate only during approved sprint planning
 **Dependencies**: Preserve landed package-authority D2 (#1720/#1964) and locked asset snapshots (#1849)
+**Companion plan**: [proposed v0.56.0 sprint plan](../v0_56_0/m-pkg-smoke-staged-lock-sprint-plan.md) — execution not authorized
 **Author**: design-doc-creator session (task-98f9f628), from the v0.54.5 user report (macOS arm64, commit 296231d)
 
 ---
@@ -13,7 +14,7 @@
 
 Reviewed against actual dev `80793dbcf42423027be4bab1a0088da54e2323d8`.
 The attended user explicitly approved this refreshed design, relayed by root on
-2026-10-29 (approval recorded at11:57:17UTC). The approval covers existing D2
+2026-10-29 (approval recorded at 11:57:17 UTC). The approval covers existing D2
 compatibility, staged asset consistency and diagnostic propagation as preservation
 of approved policies; no new authority or precedence choice was introduced.
 Companion sprint planning is authorized. Implementation, publication, coordinator
@@ -249,13 +250,17 @@ created precisely because smoke-in-authors-workdir hid consumer breakage).
 
 **Components:**
 
-1. **`internal/pkg/publish_rewrite.go` (new)** — `RewritePathDeps(targetDir, resolveFromDir string) (bool, error)`:
-   reads `<targetDir>/ailang.toml`, and for each `[dependencies]` entry with `path`,
+1. **`internal/pkg/publish_rewrite.go` (new)** — a silent
+   `RewritePathDeps(targetDir, resolveFromDir string) ([]PathDepRewrite, error)`
+   helper (structured Go rewrite facts; empty slice when unchanged): reads `<targetDir>/ailang.toml`, and for each `[dependencies]` entry with `path`,
    loads the dep manifest at `resolveFromDir/<path>`, rewrites the entry to
    `"<name>" = "<depVersion>"` (the existing whitespace-tolerant regex from
    `rewritePathDepsForPublish`), writes the staged manifest back. `cmd/ailang/pkg_publish.go`
-   keeps calling the same logic for its cwd rewrite (tarball creation still needs the
-   rewritten manifest on disk in cwd — unchanged).
+   keeps calling the same logic for its cwd rewrite, converting the result to its
+   existing bool and rendering publish progress there. The shared helper must not
+   print: quality staging calls it while producing JSON. This return-shape
+   refinement preserves existing output/schema rather than adding a policy.
+   Tarball creation still needs the rewritten manifest on disk in cwd — unchanged.
 
 2. **`RunSmokeInTempDir`** — after `copyPackageContents`, assemble one published
    staging view. Call `RewritePathDeps(tmpDir, packageDir)`, validate the copied
@@ -290,8 +295,10 @@ created precisely because smoke-in-authors-workdir hid consumer breakage).
    diagnostic in the PUB015 finding, e.g.
    `"_smoke.ail failed: " + firstDiagnostic(s.Notes)`, so human and JSON reports
    agree. `SmokeSection.NotRun`, absent-smoke behavior and `--no-run` remain
-   unchanged. Staging resolution remains outside the existing smoke subprocess
-   timeout; timeout semantics are not silently broadened.
+   unchanged. The companion plan M2 fixes concrete first-diagnostic selection,
+   prefix/trace filtering and byte-budget tests before execution approval.
+   Staging resolution remains outside the existing smoke subprocess timeout;
+   timeout semantics are not silently broadened.
 
 4. **Lock shadowing warning** — `pkgLockCommand` (`cmd/ailang/pkg_commands.go`), after
    `ResolveDependenciesFrom`: for each root manifest dep with `Path != ""`, if the resolved
@@ -337,8 +344,9 @@ keep working:
 
 ### Implementation Plan
 
-These are retained design phases, not a new or approved sprint plan. Planning
-and execution remain gated separately after explicit approval of this refresh.
+These are retained design phases, not execution authorization. Design approval
+now authorizes companion planning; implementation still requires a separate
+explicit execute instruction after plan review.
 
 **Phase 1: staged published view** (~0.5 day)
 - [ ] Extract `RewritePathDeps` to `internal/pkg/publish_rewrite.go` (generalized over

@@ -1,0 +1,180 @@
+{
+  "sprint_id": "M-PKG-SMOKE-STAGED-LOCK",
+  "title": "Stage published smoke manifest and registry lock while preserving D2 and bounded diagnostics",
+  "status": "planned",
+  "design_doc": "design_docs/planned/v0_54_7/m-pkg-smoke-staged-lock.md",
+  "sprint_plan": "design_docs/planned/v0_56_0/m-pkg-smoke-staged-lock-sprint-plan.md",
+  "target_version": "v0.56.0",
+  "original_design_target": "v0.54.7 (historical)",
+  "created": "2026-10-29",
+  "github_issues": [
+    1773
+  ],
+  "risk_level": "medium",
+  "base_commit": "749045717c484299b3103008023bf27a826df844",
+  "planning_integration": "82d04388e3a2160f180619aa1031b21d325af3c5",
+  "design_approved": true,
+  "design_approval": {
+    "source": "Attended explicit user approval relayed by root",
+    "recorded_at": "2026-10-29T11:57:17Z",
+    "scope": "Refreshed existing design; preserves already-approved D2/assets/diagnostics policy, no new authority or precedence choice"
+  },
+  "plan_approval": "pending root/user review",
+  "execution_authorized": false,
+  "implementation_started": false,
+  "independent_evaluation": "not started; required after executor, no self-score",
+  "velocity": {
+    "target_loc_per_day": 340,
+    "estimated_total_loc": 680,
+    "estimated_days": 2,
+    "basis": "Conservative capacity assumption; recent scoped9commit/2184insert/198delete multi-agent history is context only, not single-agent velocity",
+    "verification_headroom": "4 bounded sessions plus review/CI; no full local make test"
+  },
+  "registry_reuse": [
+    {
+      "milestone": "M1_STAGED_PUBLISHED_VIEW",
+      "package": "none",
+      "action": "none",
+      "reason": "Host Go staging/lock/authority internals, not package-like runtime capability; reuse existing ResolveLockFrom, lock validation, PackageLoader and authority wrappers. External registry search not applicable/authorized."
+    },
+    {
+      "milestone": "M2_BOUNDED_SMOKE_DIAGNOSTICS",
+      "package": "none",
+      "action": "none",
+      "reason": "Host captured-process/quality diagnostics using existing SmokeSection.Notes/PUB015; no AILANG registry package can change this private CLI path or schema propagation. Reuse verified strutil.TruncateBytes for byte caps after UTF-8 normalization; do not change its policy."
+    },
+    {
+      "milestone": "M3_ROOT_PATH_SHADOW_WARNING",
+      "package": "none",
+      "action": "none",
+      "reason": "Additive host CLI stderr observation after existing resolver/save; reuse existing resolved entries and warning conventions, no runtime package capability."
+    },
+    {
+      "milestone": "M4_INTEGRATION_DOCS_HANDOFF",
+      "package": "none",
+      "action": "none",
+      "reason": "Tests/docs/evaluator evidence reuse existing local fixtures, Go test/build, bounded process helpers and repository gates; no package dependency introduced."
+    }
+  ],
+  "features": [
+    {
+      "id": "M1_STAGED_PUBLISHED_VIEW",
+      "description": "Assemble silent rewritten published manifest plus regenerated registry lock using validated previous metadata solely for existing D2 git carry-forward; prove exact module/asset bytes with real offline CLI",
+      "estimated_loc": 260,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Failing-first dependency-aware smoke and JSON tests reproduce actual copied relative-lock failure before implementation",
+        "Same-version local and registry module plus asset markers differ; direct real RunSmoke, real quality JSON and publish --dry-run select registry bytes with a regenerated registry-hash lock",
+        "Staged root assets remain staged; dependency source/assets share target; missing locked target cannot use newer cache fallback",
+        "Author manifest/lock snapshots remain unchanged, rewrite is idempotent for registry manifests and preserves existing whitespace cases; helper is silent and CLI wrapper retains progress output",
+        "Validated previous git pin works under confinement and PACKAGE_ROOT with no git/HTTP/HOME writes; missing/changed/tampered/malformed pins retain refusal, no copied path entries carried forward",
+        "Unavailable registry/provisioned/authority cases fail before child execution without lock fallback; pass focused tests, lint and boundaries"
+      ],
+      "estimated_minutes": [
+        75,
+        90
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_BOUNDED_SMOKE_DIAGNOSTICS",
+      "description": "Preserve rErr and actual process/start/timeout causes before lossy truncation, selecting first meaningful diagnostic with UTF-8-safe8192-byte result and2048-byte failed Notes limits; keep PUB015/schema/NotRun semantics",
+      "estimated_loc": 205,
+      "dependencies": [
+        "M1_STAGED_PUBLISHED_VIEW"
+      ],
+      "acceptance_criteria": [
+        "Stage rErr and nil result retain cause; actual failing process, start failure, empty output and timeout never become silent success or NotRun",
+        "Concrete plan selection prioritizes setup error/timeout then first Error:/panic:/fatal error:/FAIL:/PAR_ line over prefix noise and trace frames, with nonblank fallback and exit cause",
+        "First diagnostic preceding more than8KiB output survives; long non-ASCII and invalid UTF-8, oversized single line, truncation markers and timeout prefix fit byte caps",
+        "Human PUB015 and JSON existing smoke.notes agree on first cause; successful short output and no-run behavior unchanged; no new field/code/exit-policy or timeout weakening",
+        "Focused diagnostic, quality/no-run and existing smoke fail/pass/timeout/isolation tests plus lint pass"
+      ],
+      "estimated_minutes": [
+        60,
+        75
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_ROOT_PATH_SHADOW_WARNING",
+      "description": "Warn on stderr after successful lock when root path intent was shadowed by actual non-path source; preserve exact resolver/lock/exit semantics",
+      "estimated_loc": 105,
+      "dependencies": [
+        "M1_STAGED_PUBLISHED_VIEW"
+      ],
+      "acceptance_criteria": [
+        "Actual CLI same-version root path B shadowed by transitive registry B exits0 and warns; resolved source/version/hash/path/order match unchanged resolution",
+        "Warning names actual registry or git source accurately; direct path-selected and unrelated dependencies do not warn; conflicts still fail unchanged",
+        "Warning does not re-resolve, make network requests or write another lock; lock --check retains existing drift semantics, optional new check warning deferred",
+        "Focused warning/lock/path tests and lint pass; companion keeps pkg_commands.go under800 lines"
+      ],
+      "estimated_minutes": [
+        45,
+        60
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_INTEGRATION_DOCS_HANDOFF",
+      "description": "Bank portable real offline CLI and authority/snapshot proof, focused/core/structure gates and user docs; document file-set divergence without tarball refactor and hand evidence to independent evaluator",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M1_STAGED_PUBLISHED_VIEW",
+        "M2_BOUNDED_SMOKE_DIAGNOSTICS",
+        "M3_ROOT_PATH_SHADOW_WARNING"
+      ],
+      "acceptance_criteria": [
+        "Portable real built CLI quality JSON/human and publish --dry-run plus direct real smoke use mock/preprovisioned registry; record reads and assert zero publish POST/upload/cascade/message calls and unchanged author inputs",
+        "Current authority boundary, D2/hash and snapshot/malformed/missing-target controls pass with no new HTTP/git/HOME authority path",
+        "make test-changed, lint, boundaries, home-isolation, file-sizes, changelog and fmt checks pass; no full local make test, policy thresholds/timeouts unchanged; exact PR CI supplies broad Linux/Windows gate",
+        "Windows uses portable paths/os.DevNull/bounded Go helpers and shared binary build; no shell-only fixtures or exact OS-error string assertions",
+        "Package-publishing guide and correctly headed unreleased fragment describe behavior and remedies; current file-set divergence documented without broad tarball refactor",
+        "Evidence and commits handed off to independent sprint-evaluator without executor score; no release/live publication claim"
+      ],
+      "estimated_minutes": [
+        60,
+        90
+      ],
+      "passes": false,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "prompt": {
+    "loaded_version": "v0.16.11",
+    "source": "full embedded prompt loaded; active version confirmed",
+    "executor_must_reload": true
+  },
+  "constraints": [
+    "No implementation before attended explicit execute instruction",
+    "No coordinator tasks/messages/imports/acks/approvals or automated executor handoff",
+    "No external registry/live publication; mocks/provisioned bytes and actual CLI --dry-run only",
+    "Preserve D2 validated previous git carry-forward, authority chokepoint and PACKAGE_ROOT exclusivity; no raw path-lock fallback",
+    "No resolution precedence/visitation/exit-policy change or new JSON field",
+    "Shared rewrite helper silent, publish CLI retains progress rendering",
+    "Concrete diagnostic selection before lossy truncation; UTF-8-safe2048-byte Notes including markers/timeout prefix",
+    "Default document staging/tarball file divergence; no broad tarball predicate refactor",
+    "Preserve other worktrees/root completion audit; normal integrate actual audit only after it lands and fix own links",
+    "No full make test locally, no CI timeout/quality policy weakening, no executor self-evaluation"
+  ],
+  "provenance": {
+    "read_only_proof_dev": "80793dbcf42423027be4bab1a0088da54e2323d8",
+    "read_only_report": "/tmp/ailang-backlog-20261029/1773-design-current-dev-fit-review.md",
+    "offline_fixture": "/tmp/ailang-backlog-20261029/1773-readonly-repro",
+    "original_design_task": "task-98f9f628 (current status failed)",
+    "original_design_pr": "https://github.com/sunholo-data/ailang/pull/1775 (merged design artifact)",
+    "owner_search": "Current open PRs and16 active prod tasks no staging owner at review snapshot; historical page limited1000 rows; attended planner now assigned manually",
+    "pending_root_audit": "da3e5d54c not integrated; asset design link update after actual audit merge"
+  }
+}
