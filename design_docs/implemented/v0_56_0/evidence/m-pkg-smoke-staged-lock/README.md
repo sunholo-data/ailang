@@ -15,7 +15,9 @@ is implied. [Parent](../../m-pkg-smoke-staged-lock.md),
 |1|0853c9fc15f3daf5f9e304e6e451e78c21fd899c|**FAIL75/100**, aggregate CI hard failure|[JSON](round-1/eval_M-PKG-SMOKE-STAGED-LOCK_round_1.json), [Markdown](round-1/eval_M-PKG-SMOKE-STAGED-LOCK_round_1.md)|
 |2|165f87a12ceb0e20c04216c472004c11685e417b|**PASS95/100**, all27actual contexts completed20SUCCESS/7SKIPPED|[JSON](round-2/eval_M-PKG-SMOKE-STAGED-LOCK_round_2.json), [Markdown](round-2/eval_M-PKG-SMOKE-STAGED-LOCK_round_2.md)|
 
-Both report pairs and all copied companions are **verbatim frozen bytes**.
+Both report pairs remain **verbatim frozen bytes**. The47logical evidence
+artifacts are stored as44verbatim files and3transparent lossless base64 JSON
+wrappers; no original evidence data is normalized or rewritten.
 [Manifest](manifest.json) records original local paths, byte counts and SHA256s.
 Then-current pending/planned paths, absolute `/tmp` paths and recommendations in
 the frozen reports remain historical, not assertions about current repository
@@ -41,12 +43,13 @@ no compiler/IR/performance bonus. No new archival-time tests were run.
   independent control README+RED/GREEN logs. The extracted control deliberately
   stubbed staging; its README does not claim M1 proof. Actual full-stage owner
   signal RED/GREEN is separately retained below.
-- `owner-local/` contains all15small original owner logs identified by the frozen
+- `owner-local/` preserves all15small original owner logs identified by the frozen
   round1 local-evidence manifest: corrected M1 RED/checkpoint, the earlier fixture
   syntax failure, M2 diagnostic/signal RED/GREEN, M3 warning RED/GREEN, strict
   registry-byte CLI discriminator, human/JSON and final scoped/core/structure proof.
-  The manifest's original bare basenames map to this directory; copied bytes and
-  original hashes are unchanged.
+  The manifest's original bare basenames map to this directory;12are verbatim
+  and3are losslessly encoded as described below. All decoded bytes/hashes remain
+  identical to the originals.
 - `accepted-integration/` contains original cc2build/focused/identity proof after
   normal integration of accepted565. Its actual selective package/CLI/runner run
   is distinct from the earlier37cfull changed/core proof and new165broadCI.
@@ -60,6 +63,40 @@ above and in the manifest; original source revisions/URLs remain available in
 Git/GitHub. Historical issue-triage snapshots elsewhere in the repo may retain
 then-current `planned/` paths and owner/status observations; those snapshots were
 not rewritten into claims about the final state.
+
+## Lossless wrappers for three original RED logs
+
+Only `1773-M1-fixture-red.log`, `1773-M1-red.log` and `1773-M3-red.log`
+retain original trailing whitespace in their frozen data. Their stored filenames
+are the logical name plus `.base64.json`; the plain `.log` files are not also
+committed. Each wrapper declares the original logical filename/path, original
+byte count and SHA256, encoding `base64`, and its payload. The manifest records
+logical identities plus the stored wrapper identities. This keeps full
+`git diff --check` clean without normalizing evidence or changing any policy.
+
+The following **Python3 standard-library** code is portable across operating
+systems. Run it from this evidence directory in a Python3 interpreter, choosing
+the wrapper and output paths; no repository product/tool script is added:
+
+```python
+import base64
+import hashlib
+import json
+from pathlib import Path
+
+wrapper = json.loads(
+    Path("owner-local/1773-M1-red.log.base64.json").read_text()
+)
+assert wrapper["encoding"] == "base64"
+data = base64.b64decode(wrapper["payload"], validate=True)
+assert len(data) == wrapper["original_bytes"]
+assert hashlib.sha256(data).hexdigest() == wrapper["original_sha256"]
+Path("recovered-1773-M1-red.log").write_bytes(data)
+```
+
+All47logical identities, including the three decoded wrappers, were checked
+against the original local evidence bytes and hashes during archival. Both
+frozen evaluation report pairs remain byte-identical to the originals.
 
 ## Two actual failed runs, retained as failures
 
