@@ -1,22 +1,18 @@
-# Triage mission — iteration 3 (2026-10-16)
+# Triage mission — iteration 17, 2026-10-28
 
-Release: repository v0.54.11; local fleet CLI v0.54.10-dirty (read-only remote APIs only).
-Level 1: no approve, reject or merge. No code work or inner loop.
-Current dev: 793957a93f6aad30d5b9188f611d223b392fde8f; CI still queued/running.
-Evidence: https://github.com/sunholo-data/ailang/issues/1835#issuecomment-6211326086
-Coverage: 24 selected (2 changed, 7 held, 15 never verified); 22 issue verdicts + 2 merged outcomes.
-Results: KEEP 14; NEEDS-DECISION 5; CLOSE-FIXED 3 held by T2; merged OUTCOME 2.
-Judge: 20 concur / 4 dissent. No closes or attestations. Added only priority:P1 on #1845.
-Shadow settled score: 5/5 agreed; pending outcomes do not count as success.
-Parked on Mark: D-TRIAGE-12 (four disagreements); D-TRIAGE-13 (shadow collection); D-TRIAGE-14 (three stalled cards).
-Stalled green cards: #1750 (164h), #1818 (64h), #1819 (62h); old verdict NEEDS-DECISION, no approval signal.
-Orphans: 3 cards without PRs; 5 coordinator PRs without pending cards.
-Landed-card dry run: 0/17; no apply and no handoffs.
-Next: re-verify held/changed items; preserve #1436 docs live bookkeeping channel.
-Cadence: 12h, idle fingerprint pre-check; $1 metered ceiling.
-Routing: OpenAI gpt-6-luna verifiers through Agent tool; Anthropic Sonnet 5.5 judge through subscription CLI.
-Agent-tool judge failed: unsupported sonnet model. CLI fallback completed independent review.
-Quota: subscription buckets only; per-role token detail in iteration log.
-Main checkout has unrelated uncommitted work; left untouched.
-Reporting: user Pub/Sub recovered; Daneel normal+urgent use polled controlplane; registry gap filed to fleet.
-Historical gap: iterations 1/2 exist in issue/ledger, but their repo logs/index were never committed.
+- Level 1: verify/tidy/attest; never approve, reject, merge or implement.
+- Reviewed dev: 07ce4a8dc; operational CLI v0.54.19-dirty, not compiler evidence.
+- RED dev: GO-2026-6860 inherited/D35; coverage 74.8%<80%; two distinct Build test failures, causes UNKNOWN.
+- Queue: 14 cards / 37 PRs / 66 issues. Six independently judged verdicts, all CONCUR.
+- Fresh verdict coverage: 94/94 under seven days, counted against actual ledger; each source tied to its review SHA.
+- Actions: four comments (#1984/#1985/#1992/#1997) and three needs-decision labels; no attestation, close or handoff.
+- Holds: 21 inherited OPEN decisions plus new D36, environment-output credential incident, rotation needed.
+- D34: both designs #1981/#1982 merged externally; competing executor plans #1984/#1985 held.
+- Orphans: ten uncarded coordinator PRs and one unidentified missing approval record; nine cards exceed 48h.
+- Routes: fleet ticket ci:distinct-build-test-failures; Sonar coverage DESIGN-ONLY request 9843bd9f; no fixes.
+- Shadow: 450 append-only rows; 14/14 settled, 16 unmeasured. Terminal state only; no Part A promotion.
+- Roles: two native OpenAI verifiers; actual Anthropic Sonnet judgment through guarded Agent transport.
+- Spend: metered $0; evaluator 601,827 subscription tokens; other role counts unreported.
+- Cadence: 12 hours, queue fingerprint last; no code inner loop or capacity park.
+- Record: continuing unmerged PR #1904. Evidence: https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6480894865
+- Next: operator incident/rulings, owner repairs and consolidation, next changed/held/stale refresh.
