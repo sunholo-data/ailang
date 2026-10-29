@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-DOCS-SEARCH-FALLBACK-CONFINEMENT",
   "title": "Confine the whole GitHub docs backend before credentials, cache, HTTP and writes; preserve local SimHash",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-10-29",
   "target_version": "v0.56.0",
   "design_doc": "design_docs/planned/v0_56_0/m-docs-search-fallback-confinement.md",
@@ -305,5 +305,17 @@
     "logs_prefix": "/tmp/ailang-backlog-20261029/1965-",
     "full_local_make_test_run": false,
     "source_preflight": "Independent platform M1-M3 no blocker, no final score/PASS; final acceptance remains root/CI"
-  }
+  },
+  "completed": "2026-10-29T20:40:39.335207+00:00",
+  "independent_acceptance": "pending",
+  "ci_status": "pending",
+  "status_history": [
+    {
+      "from": "in_progress",
+      "to": "completed",
+      "recorded_at": "2026-10-29T20:43:59.695035+00:00",
+      "implementation_completed_at": "2026-10-29T20:40:39.335207+00:00",
+      "reason": "Metadata correction: completed denotes all implementation milestones passed. Independent acceptance and exact-head CI are separate pending fields; no score or merge."
+    }
+  ]
 }
