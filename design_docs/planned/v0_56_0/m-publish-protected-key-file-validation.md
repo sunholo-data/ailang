@@ -92,3 +92,32 @@ ran. CI waiting and independent review are separate from implementation work.
 
 No executor score, archive, release, merge or issue closure is claimed. Root owns
 independent evaluation and normal merge once actual exact-head CI is terminal.
+
+## Test-only public API coverage follow-up
+
+Actual Sonar at796b93365 failed only new-code coverage78.3% (47/60 lines) under
+unchanged80% policy. Its seven missed public wrapper lines were not covered by
+existing in-process inner-reader/parser tests; built CLI children are not part
+of the Go library coverage profile. The independent evaluator retained the
+actual per-line API response and found no product defect.
+
+The new external-package `publish_keyfile_public_test.go` calls the public API
+with private synthetic files:0400/0600 trim success; empty, multiline, NUL,
+oversized and unsafe-mode refusal without key content/fallback; preserved
+missing-file cause and typed authority-before-path refusal. Unsupported platforms
+actually assert the named refusal in these controls instead of skipping them.
+
+Focused reader/public-API tests PASS11.729s. The instrumented profile hits all
+seven prior missed wrapper lines11/12/13/15/16/17/19, projecting90% new-code
+coverage (54/60); the actual new-head Sonar gate remains authoritative and pending.
+The focused whole-package percentage2.7% measures only this narrow test selection,
+not an overall package/feature claim. Evidence is under session
+`1900-coverage-repair/{focused-coverage.log,coverage.out,coverage-projection.json,lint.log,structure.log}`.
+
+Only the test companion and this note change. Production Go and all .ail bytes
+remain identical to796b93365; prior CLI/core/corpus and source acceptance evidence
+is reusable. No broad/full/core/CLI rerun, production/semantic change, policy
+threshold/exclusion/workflow edit, live credential or publication occurred.
+The original implementation LOC/timing record above is historical; this bounded
+test-only follow-up adds its separate API-level acceptance evidence. Actual
+exact-head CI/Windows and independent final verdict remain required.
