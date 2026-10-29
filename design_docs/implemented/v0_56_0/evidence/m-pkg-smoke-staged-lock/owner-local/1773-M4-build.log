@@ -1,0 +1,3 @@
+Building ailang...
+go build -ldflags "-X github.com/sunholo-data/ailang/internal/version.Version=v0.55.0-153-g37c957b3a7 -X github.com/sunholo-data/ailang/internal/version.Commit=37c957b3a742aba8c966c185f39d48d086d5e794 -X github.com/sunholo-data/ailang/internal/version.BuildTime=2026-10-29_13:22:56" -o bin/ailang ./cmd/ailang
+Build complete: bin/ailang

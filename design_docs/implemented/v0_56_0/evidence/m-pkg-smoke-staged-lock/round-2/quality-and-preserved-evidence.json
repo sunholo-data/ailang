@@ -1,0 +1,126 @@
+{
+  "literal_funcdecl_physical_inclusive": true,
+  "count_over50": 18,
+  "same_ast_inventory_as_round1": true,
+  "function_deduction": 5,
+  "deduction_cap": 5,
+  "includes_tests": true,
+  "examples": [
+    {
+      "file": "cmd/ailang/pkg_smoke_staging_test.go",
+      "function": "newSmokeCLIProof",
+      "start": 46,
+      "end": 105,
+      "lines": 60
+    },
+    {
+      "file": "internal/pkg/publish_rewrite.go",
+      "function": "RewritePathDeps",
+      "start": 20,
+      "end": 76,
+      "lines": 57
+    },
+    {
+      "file": "internal/pkg/publish_stage_git_test.go",
+      "function": "TestSmokeStage_GitCarryForward",
+      "start": 16,
+      "end": 103,
+      "lines": 88
+    }
+  ],
+  "owned_go_files_over800": [],
+  "new_go_todo_hack_fixme": [],
+  "round1_fail75_and_raw_failures_preserved": true,
+  "original_failed_logs": [
+    {
+      "path": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/ci-build-ubuntu-failure.log",
+      "bytes": 4590430,
+      "sha256": "fda09a3970adb9537caf4e2adfd5bfd1782164bb646aa49c1faf974709915e08",
+      "original_round1_identity_matches": true
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/ci-build-ubuntu-attempt2-failure.log",
+      "bytes": 4594234,
+      "sha256": "5e5bd48a695725c52577d83463752c9de79563adc8388f855760844b443f9f60",
+      "original_round1_identity_matches": true
+    }
+  ],
+  "reused_local_logs_hash_verified": [
+    {
+      "name": "1773-M1-red.log",
+      "bytes": 7870,
+      "sha256": "4a0af483f26f73f186db1e369f819423e2f4fc5c5205e95c8bee038bbb706885"
+    },
+    {
+      "name": "1773-M1-fixture-red.log",
+      "bytes": 8389,
+      "sha256": "5ee4861bb4916cf8d8826dfe554ad52c3a24284a5faf2e2a84e4f2e591676366"
+    },
+    {
+      "name": "1773-M1-checkpoint.log",
+      "bytes": 6987,
+      "sha256": "412266af806770807f7add51e1bac92fb6b5a7c4ac95f7bec0ec4b3a4c74a61d"
+    },
+    {
+      "name": "1773-M2-red.log",
+      "bytes": 1262,
+      "sha256": "b1e06bb37a53bef5a4a23d2fdc580fe0a274d92467d4511ef384e5495d44cd62"
+    },
+    {
+      "name": "1773-M2-focused.log",
+      "bytes": 112,
+      "sha256": "0357ace50b7df5d5e242ea6c7702778d72ce3b7acda40d563d15c3c9c1c1091e"
+    },
+    {
+      "name": "1773-M2-signal-red.log",
+      "bytes": 289,
+      "sha256": "f654fddce215b1784bd24d0ff8a4c3ccbb663294eb9492e06d9be60488d316ba"
+    },
+    {
+      "name": "1773-M2-signal-green.log",
+      "bytes": 57,
+      "sha256": "85d5d09d953752314d616fa7b028811e360eb9ed91ca7637cc1ffd22c9c53aac"
+    },
+    {
+      "name": "1773-M3-red.log",
+      "bytes": 264,
+      "sha256": "4f9f64b41e42089e6b7fa44c6a6aabdfd8d7bda313a8b74dba58f8ccd0e283b7"
+    },
+    {
+      "name": "1773-M3-green.log",
+      "bytes": 55,
+      "sha256": "a58784de323b73cda0fe75f7a1e34678108f456aa3e9bbaebb106aa30e186287"
+    },
+    {
+      "name": "1773-M4-cli-byte-discriminator.log",
+      "bytes": 1178,
+      "sha256": "b9b3c6c209467bbff26c3d5a4181095be1d467d0218ef46a1cdd04eb254d80c8"
+    },
+    {
+      "name": "1773-M4-offline-cli-final.log",
+      "bytes": 55,
+      "sha256": "53e1ffc311f6c7db7b7e3c74d3c9b7d7c4bbbc34c184a997b053511895295382"
+    },
+    {
+      "name": "1773-M4-build.log",
+      "bytes": 356,
+      "sha256": "9b944e330cfd7c82b7c92292de3689350bb1c6e565ffd5fd438aedbc5397b359"
+    },
+    {
+      "name": "1773-M4-test-changed.log",
+      "bytes": 1392,
+      "sha256": "d733a630470329c5536fffdeb0a23c926211362dd0d8ed5cb564bd7175bfc8fe"
+    },
+    {
+      "name": "1773-M4-structure.log",
+      "bytes": 924,
+      "sha256": "8c005f49e04e7a283fce2ed2de8ac697a945e26c57602ed0de72797a6ab7ac27"
+    },
+    {
+      "name": "1773-M4-state-validation.log",
+      "bytes": 1295,
+      "sha256": "0022d7b1402efe39d37dca155ecd706eae9db0882cdf96dd3344d54bcd4ed113"
+    }
+  ],
+  "qualification": "Static equivalence permits reuse of scoped owner tests and independent D1 controls. Original failure remains a failure at0853; only new165 CI may establish broad acceptance."
+}

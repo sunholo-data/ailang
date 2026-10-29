@@ -2,8 +2,8 @@
   "sprint_id": "M-PKG-SMOKE-STAGED-LOCK",
   "title": "Stage published smoke manifest and registry lock while preserving D2 and bounded diagnostics",
   "status": "completed",
-  "design_doc": "design_docs/planned/v0_54_7/m-pkg-smoke-staged-lock.md",
-  "sprint_plan": "design_docs/planned/v0_56_0/m-pkg-smoke-staged-lock-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_56_0/m-pkg-smoke-staged-lock.md",
+  "sprint_plan": "design_docs/implemented/v0_56_0/m-pkg-smoke-staged-lock-sprint-plan.md",
   "target_version": "v0.56.0",
   "original_design_target": "v0.54.7 (historical)",
   "created": "2026-10-29",
@@ -22,7 +22,7 @@
   "plan_approval": "Approved explicitly with execute sprint instruction relayed by root at2026-10-29T12:23Z",
   "execution_authorized": true,
   "implementation_started": true,
-  "independent_evaluation": "Prior exact0853 independent FAIL75 preserved (unchanged #1926 empty-PID race); new integrated source requires fresh exact-head CI and independent evaluation, no executor score",
+  "independent_evaluation": "Accepted independent round2 PASS95/100 at165f87a12ceb0e20c04216c472004c11685e417b; actual CI27completed20SUCCESS/7SKIPPED; prior round1FAIL75 and raw failure identities preserved",
   "velocity": {
     "target_loc_per_day": 340,
     "estimated_total_loc": 680,
@@ -190,10 +190,10 @@
   "validation": {
     "tested_source_commit": "37c957b3a742aba8c966c185f39d48d086d5e794",
     "source_equivalence": "All21 own Go/AIL files byte-equal prior0853. Incoming actual dev changes only accepted runner fixture/fleet driver+docs; no #1773 rewrite. Earlier docs-only audit equivalence remains historical.",
-    "evidence": "design_docs/planned/v0_56_0/m-pkg-smoke-staged-lock-validation.md",
+    "evidence": "design_docs/implemented/v0_56_0/m-pkg-smoke-staged-lock-validation.md",
     "test_changed": "PASS: cmd/ailang172.825s, internal/pkg19.353s and all core packages",
     "structure": "PASS: lint0, boundaries, home isolation, sizes, changelog, fmt",
-    "windows": "portable controls reviewed; actual PR Windows execution pending; signal regression skips only Windows TerminateProcess-specific semantics",
+    "windows": "Actual final165 Windows CI SUCCESS; signal-specific TerminateProcess case remains explicitly qualified, common portable controls execute",
     "integration_tested_source_commit": "cc2c09ca808f43d5eabbb8206c83775590fc9e60"
   },
   "previous_evaluation": {
@@ -214,7 +214,35 @@
     "own_delta_pathset_equal": true,
     "focused_gate": "PASS internal/pkg10.222s, cmd/ailang10.820s, internal/runner19.027s; selective staging/diagnostics/warnings/worker11cellmatrix count1 only",
     "evidence": "/tmp/ailang-backlog-20261029/1773-normal-integration-2016/identity.json",
-    "broad_gate": "new exact-head PR CI pending; no old workflow retry",
+    "broad_gate": "Actual new-head165 aggregate CI PASS:27completed,20SUCCESS/7SKIPPED, zero failed/cancelled/pending; prior0853 failure remains historical",
     "native_accepted_fixture_proof": "Separate immutable2ce native11cells/count20/47siblings PASS retained; not repeated here"
+  },
+  "release_status": "unreleased",
+  "implementation_accepted": true,
+  "acceptance": {
+    "status": "accepted",
+    "evaluation_round": 2,
+    "score": 95,
+    "max_score": 100,
+    "verdict": "PASS",
+    "evaluated_head": "165f87a12ceb0e20c04216c472004c11685e417b",
+    "accepted_merge": "96d69f05b6e84bd6666e8fa91ff948f803b67d92",
+    "merged_at_utc": "2026-10-29T20:53:24Z",
+    "issue_closed_at_utc": "2026-10-29T20:53:25Z",
+    "release_status": "unreleased",
+    "report_json": "design_docs/implemented/v0_56_0/evidence/m-pkg-smoke-staged-lock/round-2/eval_M-PKG-SMOKE-STAGED-LOCK_round_2.json",
+    "report_markdown": "design_docs/implemented/v0_56_0/evidence/m-pkg-smoke-staged-lock/round-2/eval_M-PKG-SMOKE-STAGED-LOCK_round_2.md",
+    "previous_fail_report": "design_docs/implemented/v0_56_0/evidence/m-pkg-smoke-staged-lock/round-1/eval_M-PKG-SMOKE-STAGED-LOCK_round_1.json",
+    "evidence_manifest": "design_docs/implemented/v0_56_0/evidence/m-pkg-smoke-staged-lock/manifest.json",
+    "ci": {
+      "status": "PASS",
+      "head": "165f87a12ceb0e20c04216c472004c11685e417b",
+      "completed": 27,
+      "success": 20,
+      "skipped": 7,
+      "failed": 0,
+      "cancelled": 0,
+      "pending": 0
+    }
   }
 }

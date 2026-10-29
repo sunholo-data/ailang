@@ -1,0 +1,6 @@
+=== RUN   TestIndependentSignalCause
+    signal_review_test.go:11: actual result=&{Passed:false Output:signal: killed
+         TimedOut:false ExitCode:-1 Duration:6.738042ms} notes="signal: killed"
+--- PASS: TestIndependentSignalCause (0.01s)
+PASS
+ok  	github.com/sunholo-data/ailang/internal/pkg	0.259s

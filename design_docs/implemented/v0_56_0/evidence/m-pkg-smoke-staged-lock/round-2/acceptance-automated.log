@@ -1,0 +1,114 @@
+═══════════════════════════════════════════════════════════════
+ Acceptance Criteria Check: M-PKG-SMOKE-STAGED-LOCK  (independent verification)
+═══════════════════════════════════════════════════════════════
+
+Mode: evaluator does NOT trust sprint JSON 'passes' field
+
+Features in sprint: 4
+
+── Feature: M1_STAGED_PUBLISHED_VIEW ─────────────────────────────────────
+   Description: Assemble silent rewritten published manifest plus regenerated registry lock usin
+   Criteria: 6   (JSON claims passes=true — ignored)
+
+     ⚠️  Failing-first dependency-aware smoke and JSON tests reproduce actual copied relative-lock failure before implementation
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Same-version local and registry module plus asset markers differ; direct real RunSmoke, real quality JSON and publish --dry-run select registry bytes with a regenerated registry-hash lock
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Staged root assets remain staged; dependency source/assets share target; missing locked target cannot use newer cache fallback
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Author manifest/lock snapshots remain unchanged, rewrite is idempotent for registry manifests and preserves existing whitespace cases; helper is silent and CLI wrapper retains progress output
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Validated previous git pin works under confinement and PACKAGE_ROOT with no git/HTTP/HOME writes; missing/changed/tampered/malformed pins retain refusal, no copied path entries carried forward
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Unavailable registry/provisioned/authority cases fail before child execution without lock fallback; pass focused tests, lint and boundaries
+        └─ no recognizable pattern (prose criterion)
+
+   Feature tally: ✅ 0  ❌ 0  ⚠️  6
+   Status: ⚠️  Partially verified — 6 prose criterion(s) need human review
+
+── Feature: M2_BOUNDED_SMOKE_DIAGNOSTICS ─────────────────────────────────────
+   Description: Preserve rErr and actual process/start/timeout causes before lossy truncation, s
+   Criteria: 5   (JSON claims passes=true — ignored)
+
+     ⚠️  Stage rErr and nil result retain cause; actual failing process, start failure, empty output and timeout never become silent success or NotRun
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Concrete plan selection prioritizes setup error/timeout then first Error:/panic:/fatal error:/FAIL:/PAR_ line over prefix noise and trace frames, with nonblank fallback and exit cause
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  First diagnostic preceding more than8KiB output survives; long non-ASCII and invalid UTF-8, oversized single line, truncation markers and timeout prefix fit byte caps
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Human PUB015 and JSON existing smoke.notes agree on first cause; successful short output and no-run behavior unchanged; no new field/code/exit-policy or timeout weakening
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Focused diagnostic, quality/no-run and existing smoke fail/pass/timeout/isolation tests plus lint pass
+        └─ no recognizable pattern (prose criterion)
+
+   Feature tally: ✅ 0  ❌ 0  ⚠️  5
+   Status: ⚠️  Partially verified — 5 prose criterion(s) need human review
+
+── Feature: M3_ROOT_PATH_SHADOW_WARNING ─────────────────────────────────────
+   Description: Warn on stderr after successful lock when root path intent was shadowed by actua
+   Criteria: 4   (JSON claims passes=true — ignored)
+
+     ⚠️  Actual CLI same-version root path B shadowed by transitive registry B exits0 and warns; resolved source/version/hash/path/order match unchanged resolution
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Warning names actual registry or git source accurately; direct path-selected and unrelated dependencies do not warn; conflicts still fail unchanged
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Warning does not re-resolve, make network requests or write another lock; lock --check retains existing drift semantics, optional new check warning deferred
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Focused warning/lock/path tests and lint pass; companion keeps pkg_commands.go under800 lines
+        └─ no recognizable pattern (prose criterion)
+
+   Feature tally: ✅ 0  ❌ 0  ⚠️  4
+   Status: ⚠️  Partially verified — 4 prose criterion(s) need human review
+
+── Feature: M4_INTEGRATION_DOCS_HANDOFF ─────────────────────────────────────
+   Description: Bank portable real offline CLI and authority/snapshot proof, focused/core/struct
+   Criteria: 6   (JSON claims passes=true — ignored)
+
+     ⚠️  Portable real built CLI quality JSON/human and publish --dry-run plus direct real smoke use mock/preprovisioned registry; record reads and assert zero publish POST/upload/cascade/message calls and unchanged author inputs
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Current authority boundary, D2/hash and snapshot/malformed/missing-target controls pass with no new HTTP/git/HOME authority path
+        └─ no recognizable pattern (prose criterion)
+     ✅ make test-changed, lint, boundaries, home-isolation, file-sizes, changelog and fmt checks pass; no full local make test, policy thresholds/timeouts unchanged; exact PR CI supplies broad Linux/Windows gate
+        └─ automated_checks.tests_pass=true
+     ⚠️  Windows uses portable paths/os.DevNull/bounded Go helpers and shared binary build; no shell-only fixtures or exact OS-error string assertions
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Package-publishing guide and correctly headed unreleased fragment describe behavior and remedies; current file-set divergence documented without broad tarball refactor
+        └─ no recognizable pattern (prose criterion)
+     ⚠️  Evidence and commits handed off to independent sprint-evaluator without executor score; no release/live publication claim
+        └─ no recognizable pattern (prose criterion)
+
+   Feature tally: ✅ 1  ❌ 0  ⚠️  5
+   Status: ⚠️  Partially verified — 5 prose criterion(s) need human review
+
+═══════════════════════════════════════════════════════════════
+ Acceptance Criteria Summary  (independent verification)
+═══════════════════════════════════════════════════════════════
+
+  Features fully verified:  0 / 4
+  Criteria verified met:    1 / 21 (4%)
+  Criteria verified missing: 0
+  Criteria unverifiable:    20  (prose — need human judgment)
+  Score:                    1 / 30
+  Hard fail:                ❌ YES (<50% verified met)
+
+  Note: ⚠️  criteria count as NOT met — they require either:
+    1. Reworded to include a machine-checkable anchor, OR
+    2. Human review to mark them verified
+
+--- CRITERIA_JSON_START ---
+{
+  "sprint_id": "M-PKG-SMOKE-STAGED-LOCK",
+  "timestamp": "2026-10-29T20:51:52Z",
+  "mode": "independent_verification",
+  "features_total": 4,
+  "features_fully_verified": 0,
+  "criteria_total": 21,
+  "criteria_verified_met": 1,
+  "criteria_verified_missing": 0,
+  "criteria_unverifiable": 20,
+  "criteria_pct": 4,
+  "criteria_score": 1,
+  "hard_fail": true,
+  "features": [{"id": "M1_STAGED_PUBLISHED_VIEW", "criteria_total": 6, "verified_met": 0, "verified_missing": 0, "unverifiable": 6, "criteria": [{"criterion": "Failing-first dependency-aware smoke and JSON tests reproduce actual copied relative-lock failure before implementation", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Same-version local and registry module plus asset markers differ; direct real RunSmoke, real quality JSON and publish --dry-run select registry bytes with a regenerated registry-hash lock", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Staged root assets remain staged; dependency source/assets share target; missing locked target cannot use newer cache fallback", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Author manifest/lock snapshots remain unchanged, rewrite is idempotent for registry manifests and preserves existing whitespace cases; helper is silent and CLI wrapper retains progress output", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Validated previous git pin works under confinement and PACKAGE_ROOT with no git/HTTP/HOME writes; missing/changed/tampered/malformed pins retain refusal, no copied path entries carried forward", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Unavailable registry/provisioned/authority cases fail before child execution without lock fallback; pass focused tests, lint and boundaries", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"}]},{"id": "M2_BOUNDED_SMOKE_DIAGNOSTICS", "criteria_total": 5, "verified_met": 0, "verified_missing": 0, "unverifiable": 5, "criteria": [{"criterion": "Stage rErr and nil result retain cause; actual failing process, start failure, empty output and timeout never become silent success or NotRun", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Concrete plan selection prioritizes setup error/timeout then first Error:/panic:/fatal error:/FAIL:/PAR_ line over prefix noise and trace frames, with nonblank fallback and exit cause", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "First diagnostic preceding more than8KiB output survives; long non-ASCII and invalid UTF-8, oversized single line, truncation markers and timeout prefix fit byte caps", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Human PUB015 and JSON existing smoke.notes agree on first cause; successful short output and no-run behavior unchanged; no new field/code/exit-policy or timeout weakening", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Focused diagnostic, quality/no-run and existing smoke fail/pass/timeout/isolation tests plus lint pass", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"}]},{"id": "M3_ROOT_PATH_SHADOW_WARNING", "criteria_total": 4, "verified_met": 0, "verified_missing": 0, "unverifiable": 4, "criteria": [{"criterion": "Actual CLI same-version root path B shadowed by transitive registry B exits0 and warns; resolved source/version/hash/path/order match unchanged resolution", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Warning names actual registry or git source accurately; direct path-selected and unrelated dependencies do not warn; conflicts still fail unchanged", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Warning does not re-resolve, make network requests or write another lock; lock --check retains existing drift semantics, optional new check warning deferred", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Focused warning/lock/path tests and lint pass; companion keeps pkg_commands.go under800 lines", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"}]},{"id": "M4_INTEGRATION_DOCS_HANDOFF", "criteria_total": 6, "verified_met": 1, "verified_missing": 0, "unverifiable": 5, "criteria": [{"criterion": "Portable real built CLI quality JSON/human and publish --dry-run plus direct real smoke use mock/preprovisioned registry; record reads and assert zero publish POST/upload/cascade/message calls and unchanged author inputs", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Current authority boundary, D2/hash and snapshot/malformed/missing-target controls pass with no new HTTP/git/HOME authority path", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "make test-changed, lint, boundaries, home-isolation, file-sizes, changelog and fmt checks pass; no full local make test, policy thresholds/timeouts unchanged; exact PR CI supplies broad Linux/Windows gate", "status": "met", "evidence": "automated_checks.tests_pass=true"},{"criterion": "Windows uses portable paths/os.DevNull/bounded Go helpers and shared binary build; no shell-only fixtures or exact OS-error string assertions", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Package-publishing guide and correctly headed unreleased fragment describe behavior and remedies; current file-set divergence documented without broad tarball refactor", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"},{"criterion": "Evidence and commits handed off to independent sprint-evaluator without executor score; no release/live publication claim", "status": "unverifiable", "evidence": "no recognizable pattern (prose criterion)"}]}]
+}
+--- CRITERIA_JSON_END ---

@@ -1,12 +1,29 @@
 # M-PKG-SMOKE-STAGED-LOCK: stage the *published* view (manifest + lock) for the temp-dir smoke
 
-**Status**: Implementation complete; independent evaluation and PR CI pending (unreleased)
+**Status**: Implemented and accepted — independent round2 PASS95/100; merged #2013; v0.56.0 UNRELEASED
 **Target**: v0.56.0 (unreleased); original target v0.54.7 retained as history
 **Priority**: P1 (a smoke importing a dependency through a portable relative path lock fails isolated staging, blocking the documented monorepo publishing workflow)
 **Estimated**: Historical ~1.5–2 days (~450 LOC incl. tests); re-estimate only during approved sprint planning
 **Dependencies**: Preserve landed package-authority D2 (#1720/#1964) and locked asset snapshots (#1849)
-**Companion plan**: [approved v0.56.0 sprint plan](../v0_56_0/m-pkg-smoke-staged-lock-sprint-plan.md) — execution approved at2026-10-29 12:23UTC
+**Companion plan**: [approved v0.56.0 sprint plan](m-pkg-smoke-staged-lock-sprint-plan.md) — execution approved at2026-10-29 12:23UTC
 **Author**: design-doc-creator session (task-98f9f628), from the v0.54.5 user report (macOS arm64, commit 296231d)
+
+## Accepted implementation (2026-10-29)
+
+Independent round2 **PASS95/100** evaluated exact
+`165f87a12ceb0e20c04216c472004c11685e417b`; actual final CI completed
+27checks (20SUCCESS/7SKIPPED, no failed/cancelled/pending). Root accepted and
+normally merged [PR2013](https://github.com/sunholo-data/ailang/pull/2013) as
+`96d69f05b6e84bd6666e8fa91ff948f803b67d92` at20:53:24UTC; issue1773
+closed20:53:25UTC. This is implemented, accepted and **unreleased**, without a tag
+or version bump. The [plan](m-pkg-smoke-staged-lock-sprint-plan.md),
+[validation map](m-pkg-smoke-staged-lock-validation.md) and
+[evaluation evidence](evidence/m-pkg-smoke-staged-lock/README.md) are archived together.
+
+Round1 **FAIL75** at0853 and both actual failed-run identities remain preserved.
+The later accepted dependency/new-head CI does not turn those failures into passes.
+The design's earlier approval/execute and pending-gate text below is historical
+to its recorded checkpoint; this section states the final disposition.
 
 ---
 
@@ -583,8 +600,8 @@ The following are intentionally left open for the implementer:
 - [m-pkg-transitive-lock-fix](../../implemented/v0_10_0/m-pkg-transitive-lock-fix.md) — resolver/lock history context
 
 **Current compatibility references (landed code):**
-- [m-pkg-authority-chokepoint](../v0_54_19/m-pkg-authority-chokepoint.md) — #1964 landed the single authority boundary; preserve D2 previous-pin carry-forward, exclusive package root and canonical refusal. This design adds staging, not authority.
-- [m-pkg-asset-lock-resolution](../../implemented/v0_56_0/m-pkg-asset-lock-resolution.md) — #1849 landed per-compilation/root/locked dependency asset targets and missing-target tombstones. Staging supplies a valid new lock to that existing mechanism.
+- [m-pkg-authority-chokepoint](../../planned/v0_54_19/m-pkg-authority-chokepoint.md) — #1964 landed the single authority boundary; preserve D2 previous-pin carry-forward, exclusive package root and canonical refusal. This design adds staging, not authority.
+- [m-pkg-asset-lock-resolution](m-pkg-asset-lock-resolution.md) — #1849 landed per-compilation/root/locked dependency asset targets and missing-target tombstones. Staging supplies a valid new lock to that existing mechanism.
 
 **Overlap search:** the original V10 "None" was historical. The current ownership
 search is bounded in Current-dev Refresh above; no competing staging implementation
@@ -613,7 +630,7 @@ was found. Preserve this same document rather than create another design carrier
 
 All four approved milestones are implemented. Changed package/core and structural
 gates passed on immutable source `37c957b3a`; subsequent actual audit integration
-changed no Go/AIL source. [Validation and acceptance map](../v0_56_0/m-pkg-smoke-staged-lock-validation.md)
+changed no Go/AIL source. [Validation and acceptance map](m-pkg-smoke-staged-lock-validation.md)
 records red/green evidence, the strict registry-byte CLI discriminator, the
 independent signal-cause correction, and pending exact PR Linux/Windows and
 independent evaluation gates. Checkboxes record executor verification, not an

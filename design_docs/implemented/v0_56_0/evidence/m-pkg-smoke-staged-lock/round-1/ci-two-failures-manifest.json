@@ -1,0 +1,42 @@
+{
+  "head": "0853c9fc15f3daf5f9e304e6e451e78c21fd899c",
+  "failures": [
+    {
+      "attempt": 1,
+      "workflow_run": 40883138509,
+      "job": 123479693310,
+      "job_url": "https://github.com/sunholo-data/ailang/actions/runs/40883138509/job/123479693310",
+      "raw_log": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/ci-build-ubuntu-failure.log",
+      "raw_bytes": 4590430,
+      "raw_sha256": "fda09a3970adb9537caf4e2adfd5bfd1782164bb646aa49c1faf974709915e08",
+      "sole_failed_test": "TestWorkerTerminalPTYLifecycle/eval/sigterm",
+      "failed_package": "internal/runner",
+      "failed_package_duration": "103.952s",
+      "error": "ValueError: invalid literal for int() with base 10: '' from worker_pid = int(open(pidfile).read())",
+      "changed_package_success": {
+        "cmd/ailang": "346.613s",
+        "internal/pkg": "18.030s"
+      }
+    },
+    {
+      "attempt": 2,
+      "workflow_run": 40883138509,
+      "job": 123488317858,
+      "job_url": "https://github.com/sunholo-data/ailang/actions/runs/40883138509/job/123488317858",
+      "raw_log": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/ci-build-ubuntu-attempt2-failure.log",
+      "raw_bytes": 4594234,
+      "raw_sha256": "5e5bd48a695725c52577d83463752c9de79563adc8388f855760844b443f9f60",
+      "sole_failed_test": "TestWorkerTerminalPTYLifecycle/eval/sigterm",
+      "failed_package": "internal/runner",
+      "failed_package_duration": "105.560s",
+      "error": "ValueError: invalid literal for int() with base 10: '' from worker_pid = int(open(pidfile).read())",
+      "changed_package_success": {
+        "cmd/ailang": "352.579s",
+        "internal/pkg": "18.427s"
+      }
+    }
+  ],
+  "root_authorized_retries": 1,
+  "retry_request": "2026-10-29 13:49 UTC, root",
+  "no_more_retries": true
+}

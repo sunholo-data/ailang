@@ -1,0 +1,28 @@
+Go version: go version go1.26.10 darwin/arm64
+/Users/voightkampff/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.10.darwin-arm64/src/os/exec_windows.go
+65: 	if sig == Kill {
+66: 		var terminationHandle syscall.Handle
+67: 		e := syscall.DuplicateHandle(^syscall.Handle(0), syscall.Handle(handle), ^syscall.Handle(0), &terminationHandle, syscall.PROCESS_TERMINATE, false, 0)
+68: 		if e != nil {
+69: 			return NewSyscallError("DuplicateHandle", e)
+70: 		}
+71: 		runtime.KeepAlive(p)
+72: 		defer syscall.CloseHandle(terminationHandle)
+73: 		e = syscall.TerminateProcess(syscall.Handle(terminationHandle), 1)
+74: 		return NewSyscallError("TerminateProcess", e)
+75: 	}
+76: 	// TODO(rsc): Handle Interrupt too?
+77: 	return syscall.Errno(syscall.EWINDOWS)
+66: 		var terminationHandle syscall.Handle
+67: 		e := syscall.DuplicateHandle(^syscall.Handle(0), syscall.Handle(handle), ^syscall.Handle(0), &terminationHandle, syscall.PROCESS_TERMINATE, false, 0)
+68: 		if e != nil {
+69: 			return NewSyscallError("DuplicateHandle", e)
+70: 		}
+71: 		runtime.KeepAlive(p)
+72: 		defer syscall.CloseHandle(terminationHandle)
+73: 		e = syscall.TerminateProcess(syscall.Handle(terminationHandle), 1)
+74: 		return NewSyscallError("TerminateProcess", e)
+75: 	}
+76: 	// TODO(rsc): Handle Interrupt too?
+77: 	return syscall.Errno(syscall.EWINDOWS)
+78: }

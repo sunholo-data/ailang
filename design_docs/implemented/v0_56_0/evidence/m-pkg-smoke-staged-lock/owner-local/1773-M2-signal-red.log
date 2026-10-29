@@ -1,0 +1,5 @@
+--- FAIL: TestSmokeFailureNotes_ActualSignalCause (0.57s)
+    publish_output_test.go:97: actual signal cause lost: &{Passed:false Output: TimedOut:false ExitCode:-1 Duration:439.222208ms} Notes="smoke exited with code -1"
+FAIL
+FAIL	github.com/sunholo-data/ailang/internal/pkg	12.210s
+FAIL

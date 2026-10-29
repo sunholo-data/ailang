@@ -1,0 +1,932 @@
+{
+  "sprint_id": "M-PKG-SMOKE-STAGED-LOCK",
+  "round": 2,
+  "verdict": "PASS",
+  "score": 95,
+  "max_score": 100,
+  "hard_fail": false,
+  "evaluated_head": "165f87a12ceb0e20c04216c472004c11685e417b",
+  "pr": "https://github.com/sunholo-data/ailang/pull/2013",
+  "reviewer_independent": true,
+  "implementation_authored_by_reviewer": false,
+  "evaluated_at_utc": "2026-10-29T20:51:52.881392+00:00",
+  "gate_source": "exact-head PR CI, reused independently verified scoped local proofs; no duplicate local product suite",
+  "source_identity": {
+    "evaluated_head": "165f87a12ceb0e20c04216c472004c11685e417b",
+    "previous_head": "0853c9fc15f3daf5f9e304e6e451e78c21fd899c",
+    "actual_base": "565fc1b0461f1408d930df3029a72beef60f7ff1",
+    "workingtree_equal_to_immutable": true,
+    "owned_file_count": 33,
+    "owned_equal_count": 30,
+    "owned_go_ail_equal_count": 21,
+    "own_metadata_delta": [
+      ".ailang/state/sprints/sprint_M-PKG-SMOKE-STAGED-LOCK.json",
+      "design_docs/planned/v0_56_0/m-pkg-smoke-staged-lock-sprint-plan.md",
+      "design_docs/planned/v0_56_0/m-pkg-smoke-staged-lock-validation.md"
+    ],
+    "owned_rows": [
+      {
+        "path": ".ailang/state/sprints/sprint_M-PKG-SMOKE-STAGED-LOCK.json",
+        "bytes": 16319,
+        "sha256": "92b940e08b31a7baeeabbad1b1b71b890700a8ffd9464377bd6ebad9652d6903",
+        "old_sha256": "633dfacd35ed34a54e193f40b7962475627e89f6d0ddec8a17b97eb1f8c0c4bb",
+        "byte_equal": false
+      },
+      {
+        "path": "changelogs/unreleased/2026-10-29-pkg-smoke-staged-lock.md",
+        "bytes": 689,
+        "sha256": "7e826cf0a274ceb869faaa4c83091b32320f9ae7cb35d12f3e98ef56d98b8c11",
+        "old_sha256": "7e826cf0a274ceb869faaa4c83091b32320f9ae7cb35d12f3e98ef56d98b8c11",
+        "byte_equal": true
+      },
+      {
+        "path": "cmd/ailang/pkg_commands.go",
+        "bytes": 21145,
+        "sha256": "fde1f40ef0c56574b38231085142c013c180c7d8f022ea42ed7ff0e9387fc598",
+        "old_sha256": "fde1f40ef0c56574b38231085142c013c180c7d8f022ea42ed7ff0e9387fc598",
+        "byte_equal": true
+      },
+      {
+        "path": "cmd/ailang/pkg_lock_warnings.go",
+        "bytes": 936,
+        "sha256": "0e98d28d2bf05f5828b150f9d04662cf057183b4ababe577062939dc5c8095dc",
+        "old_sha256": "0e98d28d2bf05f5828b150f9d04662cf057183b4ababe577062939dc5c8095dc",
+        "byte_equal": true
+      },
+      {
+        "path": "cmd/ailang/pkg_lock_warnings_test.go",
+        "bytes": 4524,
+        "sha256": "1131df3e1ee5123bf39133ba29c996f310de453c9eebc3a36c454dc14ee16e9f",
+        "old_sha256": "1131df3e1ee5123bf39133ba29c996f310de453c9eebc3a36c454dc14ee16e9f",
+        "byte_equal": true
+      },
+      {
+        "path": "cmd/ailang/pkg_publish.go",
+        "bytes": 22364,
+        "sha256": "260430adf067304ed279ac53a07dd26c4ba4569c7d49f55aaec553c00a2d2c85",
+        "old_sha256": "260430adf067304ed279ac53a07dd26c4ba4569c7d49f55aaec553c00a2d2c85",
+        "byte_equal": true
+      },
+      {
+        "path": "cmd/ailang/pkg_quality.go",
+        "bytes": 11347,
+        "sha256": "8aff921d1386cc4edad0ae50d963ffe0fd7dae13360bfffea26a0f058cc1b63f",
+        "old_sha256": "8aff921d1386cc4edad0ae50d963ffe0fd7dae13360bfffea26a0f058cc1b63f",
+        "byte_equal": true
+      },
+      {
+        "path": "cmd/ailang/pkg_smoke_diagnostics_test.go",
+        "bytes": 4242,
+        "sha256": "3c28d802a23551b8d8e44f55b45b9bdb551aec988ef4fe0e2832a8d2db316107",
+        "old_sha256": "3c28d802a23551b8d8e44f55b45b9bdb551aec988ef4fe0e2832a8d2db316107",
+        "byte_equal": true
+      },
+      {
+        "path": "cmd/ailang/pkg_smoke_staging_test.go",
+        "bytes": 6061,
+        "sha256": "59329420f886ef1786c1c0b60c123dd52b7faf8b7aef13a09df6b08891ff0fcd",
+        "old_sha256": "59329420f886ef1786c1c0b60c123dd52b7faf8b7aef13a09df6b08891ff0fcd",
+        "byte_equal": true
+      },
+      {
+        "path": "design_docs/planned/v0_54_7/m-pkg-smoke-staged-lock.md",
+        "bytes": 43544,
+        "sha256": "8bf548b0a7e5242c2773223e3d9318a538033acb00a0372f039c96a0b0fbfd16",
+        "old_sha256": "8bf548b0a7e5242c2773223e3d9318a538033acb00a0372f039c96a0b0fbfd16",
+        "byte_equal": true
+      },
+      {
+        "path": "design_docs/planned/v0_56_0/m-pkg-smoke-staged-lock-sprint-plan.md",
+        "bytes": 22487,
+        "sha256": "c9dc4586489264241a3d455a39f63924835796405f201d80281203f1fbe4aae2",
+        "old_sha256": "22a2b42fe7a9e525aaa2aa63f9691f2ef22a0f720523e025a6b2800c1e0b7a4a",
+        "byte_equal": false
+      },
+      {
+        "path": "design_docs/planned/v0_56_0/m-pkg-smoke-staged-lock-validation.md",
+        "bytes": 8428,
+        "sha256": "a6e9a90e9ea12308caf4689f2e7167831cf829a25a8be8faca9629438c9ff8d6",
+        "old_sha256": "e5ca5f1f9caa0b126687fe35d513eb29bfb4a609a47fe73cfa54cd5f115c0a35",
+        "byte_equal": false
+      },
+      {
+        "path": "docs/docs/guides/package-publishing.md",
+        "bytes": 18340,
+        "sha256": "43930c5046e9633b65c751399a85f53c1dd4e8f3f7d6c93016e589391a1697eb",
+        "old_sha256": "43930c5046e9633b65c751399a85f53c1dd4e8f3f7d6c93016e589391a1697eb",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/publish_output.go",
+        "bytes": 3414,
+        "sha256": "c4045deef70ce1926f162494b817dfb9d6ad7dc5ff57073b85db61b44abddba6",
+        "old_sha256": "c4045deef70ce1926f162494b817dfb9d6ad7dc5ff57073b85db61b44abddba6",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/publish_output_test.go",
+        "bytes": 4667,
+        "sha256": "2859736de357b3f533757a3a69b0dc82d3882ccd175ebd202d81721cb88a60bf",
+        "old_sha256": "2859736de357b3f533757a3a69b0dc82d3882ccd175ebd202d81721cb88a60bf",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/publish_rewrite.go",
+        "bytes": 2652,
+        "sha256": "b30697a60decc001623275625e3182ce345cb94f1bc7e370c1e1308ff2bbaf8c",
+        "old_sha256": "b30697a60decc001623275625e3182ce345cb94f1bc7e370c1e1308ff2bbaf8c",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/publish_rewrite_test.go",
+        "bytes": 1832,
+        "sha256": "707e892167a9946689888544a0bd8c058ec7c54565873f628577b12a0b38cc90",
+        "old_sha256": "707e892167a9946689888544a0bd8c058ec7c54565873f628577b12a0b38cc90",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/publish_stage.go",
+        "bytes": 1300,
+        "sha256": "beecde0841d767ea3e4e9b45762bbfe0ca1078b8f4acd971e93fa5a6e6023960",
+        "old_sha256": "beecde0841d767ea3e4e9b45762bbfe0ca1078b8f4acd971e93fa5a6e6023960",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/publish_stage_git_test.go",
+        "bytes": 3428,
+        "sha256": "42bdd61f328c3412c9eac1928ce7b542831c7375f95fb3eb18ef711726c9cafd",
+        "old_sha256": "42bdd61f328c3412c9eac1928ce7b542831c7375f95fb3eb18ef711726c9cafd",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/publish_stage_test.go",
+        "bytes": 4504,
+        "sha256": "a658f62ce93edcfd9f26611cbdd704b3e6cc17e4e016c6b9939fcecc3258504e",
+        "old_sha256": "a658f62ce93edcfd9f26611cbdd704b3e6cc17e4e016c6b9939fcecc3258504e",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/publish_validator.go",
+        "bytes": 7317,
+        "sha256": "efdccc64bcc6fcfe38fdc0bb9d9ecc9135cb7623c78a6b71acb08e002b76b6da",
+        "old_sha256": "efdccc64bcc6fcfe38fdc0bb9d9ecc9135cb7623c78a6b71acb08e002b76b6da",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/quality.go",
+        "bytes": 18797,
+        "sha256": "2045991e98198584d57b925bb93d44732963ecff1140520f1db5427afe537647",
+        "old_sha256": "2045991e98198584d57b925bb93d44732963ecff1140520f1db5427afe537647",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/testdata/smoke_signal/main.go",
+        "bytes": 320,
+        "sha256": "62e5862d6f98f639cb940f977a31333f2e17daaa573b415a2f7dd428887ce9d0",
+        "old_sha256": "62e5862d6f98f639cb940f977a31333f2e17daaa573b415a2f7dd428887ce9d0",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/testdata/smoke_staged_lock/a/_smoke.ail",
+        "bytes": 642,
+        "sha256": "dbf3636f851267f0c3e1d7cc1a9dbc88ad7d6f38788ceccb82213852028e2ccf",
+        "old_sha256": "dbf3636f851267f0c3e1d7cc1a9dbc88ad7d6f38788ceccb82213852028e2ccf",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/testdata/smoke_staged_lock/a/ailang.toml",
+        "bytes": 196,
+        "sha256": "cede0b287ebbab7f436a98d6fb198947107f497b665b873da5fe0433274509a1",
+        "old_sha256": "cede0b287ebbab7f436a98d6fb198947107f497b665b873da5fe0433274509a1",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/testdata/smoke_staged_lock/a/assets/self.txt",
+        "bytes": 11,
+        "sha256": "95c5c106f56bfba16fc1262303446c3a94a6acb981e4eefe754203ed73dd2170",
+        "old_sha256": "95c5c106f56bfba16fc1262303446c3a94a6acb981e4eefe754203ed73dd2170",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/testdata/smoke_staged_lock/a/model.ail",
+        "bytes": 128,
+        "sha256": "7dad75e7c91c92125e7a506c0c36fee84f286d42d7fab4d94f66a2b13a81408a",
+        "old_sha256": "7dad75e7c91c92125e7a506c0c36fee84f286d42d7fab4d94f66a2b13a81408a",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/testdata/smoke_staged_lock/b/ailang.toml",
+        "bytes": 127,
+        "sha256": "675ac50540ea655ff7b71ee2bc63530fa98566c08aba5f0d09f51b879f038745",
+        "old_sha256": "675ac50540ea655ff7b71ee2bc63530fa98566c08aba5f0d09f51b879f038745",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/testdata/smoke_staged_lock/b/assets/marker.txt",
+        "bytes": 18,
+        "sha256": "effa0c6c6fac5fc9a2be5bb8ad69a487bd04a52c1c2944d57297dc7fda204580",
+        "old_sha256": "effa0c6c6fac5fc9a2be5bb8ad69a487bd04a52c1c2944d57297dc7fda204580",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/testdata/smoke_staged_lock/b/model.ail",
+        "bytes": 156,
+        "sha256": "5cdd7128a643d430f3af03a6cb95c0176dfd8fa0183051798c80aff5c88572b6",
+        "old_sha256": "5cdd7128a643d430f3af03a6cb95c0176dfd8fa0183051798c80aff5c88572b6",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/testdata/smoke_staged_lock/registry/test/b/0.1.0/ailang.toml",
+        "bytes": 127,
+        "sha256": "675ac50540ea655ff7b71ee2bc63530fa98566c08aba5f0d09f51b879f038745",
+        "old_sha256": "675ac50540ea655ff7b71ee2bc63530fa98566c08aba5f0d09f51b879f038745",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/testdata/smoke_staged_lock/registry/test/b/0.1.0/assets/marker.txt",
+        "bytes": 21,
+        "sha256": "e55f3caab3136192ac85592ab0a3c3b17bfcdc7e2133d01378e57b7f9d0b170a",
+        "old_sha256": "e55f3caab3136192ac85592ab0a3c3b17bfcdc7e2133d01378e57b7f9d0b170a",
+        "byte_equal": true
+      },
+      {
+        "path": "internal/pkg/testdata/smoke_staged_lock/registry/test/b/0.1.0/model.ail",
+        "bytes": 159,
+        "sha256": "0fcf7dad3e2603904bac5a3b3e97a0c4fdcfdffcf11b046981f6ba5040f7e58e",
+        "old_sha256": "0fcf7dad3e2603904bac5a3b3e97a0c4fdcfdffcf11b046981f6ba5040f7e58e",
+        "byte_equal": true
+      }
+    ],
+    "own_delta_pathset_equal": true,
+    "global_go_ail_delta": [
+      "internal/runner/worker_terminal_pty_test.go"
+    ],
+    "accepted_incoming_equal_base_paths": [
+      ".ailang/state/sprints/sprint_M-WORKER-PTY-PIDFILE-ACK.json",
+      "changelogs/unreleased/2026-10-29-pi-controller-protocol-note.md",
+      "design_docs/fleet-mission-dashboard.md",
+      "design_docs/fleet-mission-evidence/iteration69/done-gate.md",
+      "design_docs/fleet-mission-evidence/iteration69/evaluation.md",
+      "design_docs/fleet-mission-index.md",
+      "design_docs/fleet-mission-log.md",
+      "design_docs/fleet-mission-status-archive.md",
+      "design_docs/fleet-mission-status-index.md",
+      "design_docs/fleet-mission.md",
+      "design_docs/planned/sprint-plan-pi-controller-protocol-note.md",
+      "design_docs/planned/v0_54_17/m-worker-pty-pidfile-ack-sprint-plan.md",
+      "design_docs/planned/v0_54_17/m-worker-pty-pidfile-ack.md",
+      "internal/runner/worker_terminal_pty_test.go",
+      "make/test.mk",
+      "tools/launchd/lib/pi-controller-note.sh",
+      "tools/launchd/mission-control.sh",
+      "tools/launchd/test_pi_controller_note.sh"
+    ],
+    "old_fail_and_d1_preserved": [
+      {
+        "path": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/eval_M-PKG-SMOKE-STAGED-LOCK_round_1.json",
+        "bytes": 9871,
+        "sha256": "9e42709e6137fd15f4f5d8832bd72fd36c31cd05f9aca847d3d07525ae0528ae"
+      },
+      {
+        "path": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/eval_M-PKG-SMOKE-STAGED-LOCK_round_1.md",
+        "bytes": 7954,
+        "sha256": "0a46b73052e7506b98df94658a6ced99abb96781243d84a3f11da700b7724f70"
+      },
+      {
+        "path": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/ci-build-ubuntu-failure.log",
+        "bytes": 4590430,
+        "sha256": "fda09a3970adb9537caf4e2adfd5bfd1782164bb646aa49c1faf974709915e08"
+      },
+      {
+        "path": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/ci-build-ubuntu-attempt2-failure.log",
+        "bytes": 4594234,
+        "sha256": "5e5bd48a695725c52577d83463752c9de79563adc8388f855760844b443f9f60"
+      },
+      {
+        "path": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/ci-two-failures-manifest.json",
+        "bytes": 1794,
+        "sha256": "e77620f7517a2b7b6eda55a811cef9d4f7ba41700c29016a92694893ddc000b4"
+      },
+      {
+        "path": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/signal-control.log",
+        "bytes": 381,
+        "sha256": "2dd8c8bb8ff8b5a53fa031a54b2d5360619eb5b679ecd363eb36518d37ca648e"
+      },
+      {
+        "path": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/signal-control-fixed.log",
+        "bytes": 304,
+        "sha256": "ddf1aefea35d61c542e52034f30d8877dbbe8becc9601ac721ed695b393bd65a"
+      }
+    ],
+    "qualification": "No whole compiler execution equivalence claimed: own byte-equal source/control evidence reused; accepted incoming runner fixture/fleet source is independent dependency, terminal new-head CI required."
+  },
+  "scores": {
+    "tests": {
+      "score": 20,
+      "max": 20,
+      "hard_fail": false,
+      "reason": "Existing evaluator consumes actual final165 aggregate CI PASS; final snapshot27completed checks20SUCCESS/7SKIPPED, zero failures/cancellations/pending. All Build siblings and primary Linux/Windows tests green."
+    },
+    "lint": {
+      "score": 10,
+      "max": 10,
+      "reason": "Actual final165 CI lint SUCCESS; existing evaluator CI-backed lint_clean=true"
+    },
+    "acceptance": {
+      "score": 30,
+      "max": 30,
+      "verified": 21,
+      "total": 21,
+      "reason": "All21 independently reviewed unchanged-source/scoped-runtime criteria + actual final165 terminal Linux/Windows/Build/static CI; no generator-passes-only evidence",
+      "matrix": "acceptance-matrix-final.json"
+    },
+    "code_quality": {
+      "score": 10,
+      "max": 15,
+      "deductions": [
+        {
+          "points": 5,
+          "reason": "Physical inclusive FuncDecl span >50lines, -2/function capped -5 including tests",
+          "examples": {
+            "RewritePathDeps": 57,
+            "newSmokeCLIProof": 60,
+            "TestSmokeStage_GitCarryForward": 88
+          },
+          "inventory": "functions-over50.json"
+        }
+      ],
+      "other_deductions": 0,
+      "all_files_under800": true,
+      "new_todo_hack_fixme": 0,
+      "all_milestones_have_passes_timestamps_notes": true,
+      "plan_pending_milestones": 0
+    },
+    "documentation": {
+      "score": 15,
+      "max": 15,
+      "changelog": 5,
+      "scoped_examples": 5,
+      "design_status": 5,
+      "standalone_runnable_example": "N/A by approved plan: controlled two-package registry/layout AIL fixtures+guide supply the actual executable example proof; no additional examples/runnable required",
+      "design_status_reason": "Implementation complete/pending independent acceptance remains accurate before root final disposition/archival"
+    },
+    "design_fidelity": {
+      "score": 10,
+      "max": 10,
+      "reason": "Published registry staging/D2/assets, bounded diagnostic/quality schema, warning-only precedence and unchanged authority/timer/tarball scope preserved"
+    }
+  },
+  "conditional_categories": {
+    "compiler_regression": {
+      "triggered": false,
+      "points": 0,
+      "reason": "Own diff is host internal/pkg + package CLI tooling; compiler/exec infrastructure untouched. Core tests still passed."
+    },
+    "performance": {
+      "triggered": false,
+      "points": 0,
+      "reason": "No performance goal; safety timeouts unchanged"
+    }
+  },
+  "ci": {
+    "aggregate_verdict": "PASS",
+    "existing_gate_log": "ci-gate-poll.log",
+    "existing_gate_time_utc": "2026-10-29T20:50:25Z",
+    "gate_detail": "26checks0pending,19green; later final snapshot adds one SUCCESS context",
+    "existing_automated_evaluation": "automated-evaluation.log",
+    "final_snapshot": "pr2013-final.json",
+    "final_context_count": 27,
+    "success": 20,
+    "skipped": 7,
+    "failed": 0,
+    "cancelled": 0,
+    "pending": 0,
+    "checks": [
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:34:49Z",
+        "conclusion": "SKIPPED",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950286296/job/123716289430",
+        "name": "automerge",
+        "startedAt": "2026-10-29T20:34:49Z",
+        "status": "COMPLETED",
+        "workflowName": "Dependabot auto-merge"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:41:22Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950291051/job/123716300101",
+        "name": "Build ubuntu-latest",
+        "startedAt": "2026-10-29T20:34:53Z",
+        "status": "COMPLETED",
+        "workflowName": "Build and Release"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:35:10Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950290995/job/123716300086",
+        "name": "changes",
+        "startedAt": "2026-10-29T20:34:53Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:40:31Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950290970/job/123716300043",
+        "name": "Analyze Go (go, autobuild)",
+        "startedAt": "2026-10-29T20:34:53Z",
+        "status": "COMPLETED",
+        "workflowName": "CodeQL"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:35:10Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950290998/job/123716312801",
+        "name": "Detect UI changes",
+        "startedAt": "2026-10-29T20:34:55Z",
+        "status": "COMPLETED",
+        "workflowName": "Dashboard UI Build"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:35:12Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950291075/job/123716300029",
+        "name": "docs-changes",
+        "startedAt": "2026-10-29T20:34:54Z",
+        "status": "COMPLETED",
+        "workflowName": "Deploy Documentation to GitHub Pages"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:48:46Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950291051/job/123716300198",
+        "name": "Build macos-latest",
+        "startedAt": "2026-10-29T20:34:55Z",
+        "status": "COMPLETED",
+        "workflowName": "Build and Release"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:43:27Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950291051/job/123716300316",
+        "name": "Build macos-latest",
+        "startedAt": "2026-10-29T20:34:54Z",
+        "status": "COMPLETED",
+        "workflowName": "Build and Release"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:47:41Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950291051/job/123716299852",
+        "name": "Build windows-latest",
+        "startedAt": "2026-10-29T20:34:53Z",
+        "status": "COMPLETED",
+        "workflowName": "Build and Release"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:48:46Z",
+        "conclusion": "SKIPPED",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950291051/job/123723420766",
+        "name": "Create Release Bundle",
+        "startedAt": "2026-10-29T20:48:47Z",
+        "status": "COMPLETED",
+        "workflowName": "Build and Release"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:35:11Z",
+        "conclusion": "SKIPPED",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950290998/job/123716479545",
+        "name": "UI build stage",
+        "startedAt": "2026-10-29T20:35:11Z",
+        "status": "COMPLETED",
+        "workflowName": "Dashboard UI Build"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:46:46Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950290995/job/123716299713",
+        "name": "test",
+        "startedAt": "2026-10-29T20:34:53Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:47:55Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950291075/job/123716488124",
+        "name": "docs-build",
+        "startedAt": "2026-10-29T20:35:15Z",
+        "status": "COMPLETED",
+        "workflowName": "Deploy Documentation to GitHub Pages"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:49:45Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950290995/job/123716300188",
+        "name": "checks",
+        "startedAt": "2026-10-29T20:34:53Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:35:18Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950290998/job/123716478001",
+        "name": "UI build gate",
+        "startedAt": "2026-10-29T20:35:14Z",
+        "status": "COMPLETED",
+        "workflowName": "Dashboard UI Build"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:48:01Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950291075/job/123722991609",
+        "name": "docs-gate",
+        "startedAt": "2026-10-29T20:47:58Z",
+        "status": "COMPLETED",
+        "workflowName": "Deploy Documentation to GitHub Pages"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:34:50Z",
+        "conclusion": "SKIPPED",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950290995/job/123716302030",
+        "name": "docs",
+        "startedAt": "2026-10-29T20:34:51Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:47:55Z",
+        "conclusion": "SKIPPED",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950291075/job/123722994415",
+        "name": "deploy",
+        "startedAt": "2026-10-29T20:47:55Z",
+        "status": "COMPLETED",
+        "workflowName": "Deploy Documentation to GitHub Pages"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:40:14Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950290995/job/123716300284",
+        "name": "lint",
+        "startedAt": "2026-10-29T20:34:54Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:34:50Z",
+        "conclusion": "SKIPPED",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950290995/job/123716302551",
+        "name": "dependency-submission",
+        "startedAt": "2026-10-29T20:34:51Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:47:58Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950290995/job/123716473572",
+        "name": "test-windows",
+        "startedAt": "2026-10-29T20:35:13Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:36:58Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950290995/job/123716473559",
+        "name": "build",
+        "startedAt": "2026-10-29T20:35:13Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:35:10Z",
+        "conclusion": "SKIPPED",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950290995/job/123716477131",
+        "name": "launchd drivers (bash 3.2)",
+        "startedAt": "2026-10-29T20:35:11Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:35:41Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950290995/job/123716473520",
+        "name": "float determinism (arm64)",
+        "startedAt": "2026-10-29T20:35:15Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:36:38Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/actions/runs/40950290995/job/123716473604",
+        "name": "govulncheck (vuln gate)",
+        "startedAt": "2026-10-29T20:35:13Z",
+        "status": "COMPLETED",
+        "workflowName": "CI"
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:40:25Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://github.com/sunholo-data/ailang/runs/123719164174",
+        "name": "CodeQL",
+        "startedAt": "2026-10-29T20:40:22Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      },
+      {
+        "__typename": "CheckRun",
+        "completedAt": "2026-10-29T20:46:45Z",
+        "conclusion": "SUCCESS",
+        "detailsUrl": "https://sonarcloud.io/dashboard?id=sunholo-data_ailang&pullRequest=2013",
+        "name": "SonarCloud Code Analysis",
+        "startedAt": "2026-10-29T20:45:21Z",
+        "status": "COMPLETED",
+        "workflowName": ""
+      }
+    ],
+    "workflow_retries_by_reviewer": 0
+  },
+  "artifacts": {
+    "status": "completed",
+    "completed": "2026-10-29T13:32:27.103774+00:00",
+    "milestones": [
+      {
+        "id": "M1_STAGED_PUBLISHED_VIEW",
+        "passes": true,
+        "started": "2026-10-29T12:23:00Z",
+        "completed": "2026-10-29T12:42:43.686681+00:00",
+        "notes": "M1 red reproduced relative copied-lock/PUB015-only failure after correcting fixture string interpolation; real smoke selects distinct registry module+asset bytes, self asset copied. Registry lock hashes and author manifest/lock/content snapshots verified. Valid confined/root git pins carry forward with no git in PATH and unchanged HOME; missing/changed/tampered/malformed pins and missing exact registry version refuse. Published quality JSON and dry-run pass with zero POST; existing smoke/whitespace/D2 controls pass, no skips. Lint0, boundaries, sizes, fmt PASS. Raw 1773-M1-* logs retained."
+      },
+      {
+        "id": "M2_BOUNDED_SMOKE_DIAGNOSTICS",
+        "passes": true,
+        "started": "2026-10-29T12:45:14.340495+00:00",
+        "completed": "2026-10-29T12:53:39.433631+00:00",
+        "notes": "M2 red captured lost first diagnostic,8236-byte overflow/invalidUTF8 and discarded staging rErr/real child/timeout Notes. Green selects explicit diagnostics before noise/trace, preserves canonical setup/start errors, parser errors and timeout context; uses existing TruncateBytes with valid UTF8 and reserved prefixes/markers for8192-byte result/2048-byte Notes. Actual quality JSON/finding and no-run pass; targeted pkg38.114s/CLI34.741s, lint0/boundaries/sizes/fmt PASS. Existing timer/proctree/schema/authority behavior unchanged. Raw1773-M2-* logs retained. Independent preflight D1 found empty-output signal death lost actual ExitError text. Real self-killed Go child RED confirmed; repair retains negative-exit signal text (not timeout), treats signal: as a diagnostic, and passes actual process plus competing long-output tests. Windows explicitly qualifies TerminateProcess as ordinary exit semantics. Raw independent and1773-M2-signal RED/GREEN preserved."
+      },
+      {
+        "id": "M3_ROOT_PATH_SHADOW_WARNING",
+        "passes": true,
+        "started": "2026-10-29T12:56:19.486724+00:00",
+        "completed": "2026-10-29T13:00:58.883693+00:00",
+        "notes": "Real CLI red showed silent same-version root path shadow. Green warns on stderr after successful save, preserves exact LockDrift/source/version/hash/path and conflict/no-write/nonzero behavior; direct path stays quiet. Unit actual registry/git sources and unchanged input arrays verified. No re-resolution, new network request, --check change or precedence/exit change. Focused CLI22.586s, lint0/boundaries/sizes/fmt PASS. Raw1773-M3-* logs retained."
+      },
+      {
+        "id": "M4_INTEGRATION_DOCS_HANDOFF",
+        "passes": true,
+        "started": "2026-10-29T13:13:30.988876+00:00",
+        "completed": "2026-10-29T13:32:27.103774+00:00",
+        "notes": "M4 real offline CLI proof passes: strict registry source+asset discriminator rejects actual local run with exit23, quality/dry-run pass only for registry bytes; missing exact version/newer cached fails canonically; no Z3 needed, reads instrument live, zero registry writes/uploads/message or coordinator DB opens, author input snapshots unchanged; actual human/JSON diagnostics agree. Final changed/core PASS (cmd172.825s, pkg19.353s plus all core); lint0/boundaries/home/sizes/changelog/fmt PASS. Actual PR broad Linux/Windows checks and independent evaluator remain pending, no executor score. Security npm/docs ancestor aca5 normally integrated without Go-runtime edits."
+      }
+    ],
+    "criteria": 21,
+    "plan_pending_checkboxes": 0,
+    "velocity": {
+      "target_loc_per_day": 340,
+      "estimated_total_loc": 680,
+      "estimated_days": 2,
+      "basis": "Conservative capacity assumption; recent scoped9commit/2184insert/198delete multi-agent history is context only, not single-agent velocity",
+      "verification_headroom": "4 bounded sessions plus review/CI; no full local make test"
+    },
+    "plan_and_design_exist": true
+  },
+  "quality": {
+    "literal_funcdecl_physical_inclusive": true,
+    "count_over50": 18,
+    "same_ast_inventory_as_round1": true,
+    "function_deduction": 5,
+    "deduction_cap": 5,
+    "includes_tests": true,
+    "examples": [
+      {
+        "file": "cmd/ailang/pkg_smoke_staging_test.go",
+        "function": "newSmokeCLIProof",
+        "start": 46,
+        "end": 105,
+        "lines": 60
+      },
+      {
+        "file": "internal/pkg/publish_rewrite.go",
+        "function": "RewritePathDeps",
+        "start": 20,
+        "end": 76,
+        "lines": 57
+      },
+      {
+        "file": "internal/pkg/publish_stage_git_test.go",
+        "function": "TestSmokeStage_GitCarryForward",
+        "start": 16,
+        "end": 103,
+        "lines": 88
+      }
+    ],
+    "owned_go_files_over800": [],
+    "new_go_todo_hack_fixme": [],
+    "round1_fail75_and_raw_failures_preserved": true,
+    "original_failed_logs": [
+      {
+        "path": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/ci-build-ubuntu-failure.log",
+        "bytes": 4590430,
+        "sha256": "fda09a3970adb9537caf4e2adfd5bfd1782164bb646aa49c1faf974709915e08",
+        "original_round1_identity_matches": true
+      },
+      {
+        "path": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/ci-build-ubuntu-attempt2-failure.log",
+        "bytes": 4594234,
+        "sha256": "5e5bd48a695725c52577d83463752c9de79563adc8388f855760844b443f9f60",
+        "original_round1_identity_matches": true
+      }
+    ],
+    "reused_local_logs_hash_verified": [
+      {
+        "name": "1773-M1-red.log",
+        "bytes": 7870,
+        "sha256": "4a0af483f26f73f186db1e369f819423e2f4fc5c5205e95c8bee038bbb706885"
+      },
+      {
+        "name": "1773-M1-fixture-red.log",
+        "bytes": 8389,
+        "sha256": "5ee4861bb4916cf8d8826dfe554ad52c3a24284a5faf2e2a84e4f2e591676366"
+      },
+      {
+        "name": "1773-M1-checkpoint.log",
+        "bytes": 6987,
+        "sha256": "412266af806770807f7add51e1bac92fb6b5a7c4ac95f7bec0ec4b3a4c74a61d"
+      },
+      {
+        "name": "1773-M2-red.log",
+        "bytes": 1262,
+        "sha256": "b1e06bb37a53bef5a4a23d2fdc580fe0a274d92467d4511ef384e5495d44cd62"
+      },
+      {
+        "name": "1773-M2-focused.log",
+        "bytes": 112,
+        "sha256": "0357ace50b7df5d5e242ea6c7702778d72ce3b7acda40d563d15c3c9c1c1091e"
+      },
+      {
+        "name": "1773-M2-signal-red.log",
+        "bytes": 289,
+        "sha256": "f654fddce215b1784bd24d0ff8a4c3ccbb663294eb9492e06d9be60488d316ba"
+      },
+      {
+        "name": "1773-M2-signal-green.log",
+        "bytes": 57,
+        "sha256": "85d5d09d953752314d616fa7b028811e360eb9ed91ca7637cc1ffd22c9c53aac"
+      },
+      {
+        "name": "1773-M3-red.log",
+        "bytes": 264,
+        "sha256": "4f9f64b41e42089e6b7fa44c6a6aabdfd8d7bda313a8b74dba58f8ccd0e283b7"
+      },
+      {
+        "name": "1773-M3-green.log",
+        "bytes": 55,
+        "sha256": "a58784de323b73cda0fe75f7a1e34678108f456aa3e9bbaebb106aa30e186287"
+      },
+      {
+        "name": "1773-M4-cli-byte-discriminator.log",
+        "bytes": 1178,
+        "sha256": "b9b3c6c209467bbff26c3d5a4181095be1d467d0218ef46a1cdd04eb254d80c8"
+      },
+      {
+        "name": "1773-M4-offline-cli-final.log",
+        "bytes": 55,
+        "sha256": "53e1ffc311f6c7db7b7e3c74d3c9b7d7c4bbbc34c184a997b053511895295382"
+      },
+      {
+        "name": "1773-M4-build.log",
+        "bytes": 356,
+        "sha256": "9b944e330cfd7c82b7c92292de3689350bb1c6e565ffd5fd438aedbc5397b359"
+      },
+      {
+        "name": "1773-M4-test-changed.log",
+        "bytes": 1392,
+        "sha256": "d733a630470329c5536fffdeb0a23c926211362dd0d8ed5cb564bd7175bfc8fe"
+      },
+      {
+        "name": "1773-M4-structure.log",
+        "bytes": 924,
+        "sha256": "8c005f49e04e7a283fce2ed2de8ac697a945e26c57602ed0de72797a6ab7ac27"
+      },
+      {
+        "name": "1773-M4-state-validation.log",
+        "bytes": 1295,
+        "sha256": "0022d7b1402efe39d37dca155ecd706eae9db0882cdf96dd3344d54bcd4ed113"
+      }
+    ],
+    "qualification": "Static equivalence permits reuse of scoped owner tests and independent D1 controls. Original failure remains a failure at0853; only new165 CI may establish broad acceptance."
+  },
+  "findings": [
+    {
+      "id": "D1",
+      "status": "repaired before final source",
+      "fixed_commit": "dade1527b6edf7790dcdb2d047ebfe923a32f682",
+      "description": "Empty-output signal death previously lost actual ExitError cause; independent actual RED\u2192GREEN and full-stage owner regression verified",
+      "red": "signal-control.log",
+      "green": "signal-control-fixed.log",
+      "windows": "Signal-only POSIX case explicitly N/A; Go1.26.10 Windows Kill uses TerminateProcess(...,1), common exit/start/timeout controls and actual test-windows succeed"
+    },
+    {
+      "id": "M4-proof-strength",
+      "status": "addressed",
+      "fixed_commit": "37c957b3a742aba8c966c185f39d48d086d5e794",
+      "description": "Strict CLI smoke first rejects matching author-local pair(exit23), then quality/dry-run require registry module+asset pair; actual mock reads and zero writes/DB/author mutations proved"
+    }
+  ],
+  "previous_evaluation": {
+    "round": 1,
+    "verdict": "FAIL",
+    "score": 75,
+    "head": "0853c9fc15f3daf5f9e304e6e451e78c21fd899c",
+    "report": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/eval_M-PKG-SMOKE-STAGED-LOCK_round_1.json",
+    "ci_failures": [
+      {
+        "attempt": 1,
+        "workflow_run": 40883138509,
+        "job": 123479693310,
+        "job_url": "https://github.com/sunholo-data/ailang/actions/runs/40883138509/job/123479693310",
+        "raw_log": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/ci-build-ubuntu-failure.log",
+        "raw_bytes": 4590430,
+        "raw_sha256": "fda09a3970adb9537caf4e2adfd5bfd1782164bb646aa49c1faf974709915e08",
+        "sole_failed_test": "TestWorkerTerminalPTYLifecycle/eval/sigterm",
+        "failed_package": "internal/runner",
+        "failed_package_duration": "103.952s",
+        "error": "ValueError: invalid literal for int() with base 10: '' from worker_pid = int(open(pidfile).read())",
+        "changed_package_success": {
+          "cmd/ailang": "346.613s",
+          "internal/pkg": "18.030s"
+        }
+      },
+      {
+        "attempt": 2,
+        "workflow_run": 40883138509,
+        "job": 123488317858,
+        "job_url": "https://github.com/sunholo-data/ailang/actions/runs/40883138509/job/123488317858",
+        "raw_log": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/ci-build-ubuntu-attempt2-failure.log",
+        "raw_bytes": 4594234,
+        "raw_sha256": "5e5bd48a695725c52577d83463752c9de79563adc8388f855760844b443f9f60",
+        "sole_failed_test": "TestWorkerTerminalPTYLifecycle/eval/sigterm",
+        "failed_package": "internal/runner",
+        "failed_package_duration": "105.560s",
+        "error": "ValueError: invalid literal for int() with base 10: '' from worker_pid = int(open(pidfile).read())",
+        "changed_package_success": {
+          "cmd/ailang": "352.579s",
+          "internal/pkg": "18.427s"
+        }
+      }
+    ],
+    "preserved_unmodified": true,
+    "qualification": "Both old failures remain failures at0853. This PASS applies only actual165 with independently verified accepted565 integration and terminal new-head CI; no retroactive waiver."
+  },
+  "dependency_qualification": {
+    "accepted_dev": "565fc1b0461f1408d930df3029a72beef60f7ff1",
+    "operator_merge_pr": 2016,
+    "normal_merge": "cc2c09ca808f43d5eabbb8206c83775590fc9e60",
+    "source_review_scope": "Incoming worker fixture equality/provenance only; no new review/approval/card mutation of the separate owner implementation",
+    "owner_selective_proof": "1773-normal-integration-2016/focused.log:pkg10.222s,cmd10.820s,runner19.027s atcc2, not newly executed by evaluator"
+  },
+  "discussion": {
+    "top_level_comments": 1,
+    "inline_comments": 0,
+    "formal_reviews": 0,
+    "top_level_content": "Prior root-posted FAIL75 preserved; no additional source request in current snapshot"
+  },
+  "mutation_statement": "Reviewer wrote only/tmp reports/source-analysis artifacts. No source/sprint/audit/card/task/approval/GitHub comment/status/merge changes, no product CLI/tests or workflow reruns. Existing evaluator ran CI reads and static file-size analysis only.",
+  "recommendation": "Independent PASS95 at exact165. Root owns formal acceptance/normal merge and later design+companion archival; #1900 product execution remains blocked until root confirms actual accepted2013 merge.",
+  "acceptance_automation": {
+    "report": "acceptance-automated.json",
+    "verified_met": 1,
+    "verified_missing": 0,
+    "prose_unverifiable": 20,
+    "manual_resolution": "All21criteria independently mapped to exact unchanged source/tests/previous runtime logs/current terminalCI in acceptance-matrix-final.json. Prose anchors are explicitly reviewed; generator passes fields are not proof."
+  }
+}

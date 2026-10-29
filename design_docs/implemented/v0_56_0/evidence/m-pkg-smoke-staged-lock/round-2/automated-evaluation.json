@@ -1,0 +1,20 @@
+{
+  "sprint_id": "M-PKG-SMOKE-STAGED-LOCK",
+  "branch": "fix/pkg-smoke-staged-lock",
+  "timestamp": "2026-10-29T20:51:10Z",
+  "gate_source": "ci",
+  "ci_result": "CI_GATE=pass PR #2013: 19 checks green",
+  "automated_checks": {
+    "tests_pass": true,
+    "lint_clean": true,
+    "file_sizes_ok": true,
+    "coverage_pct": "skipped (set EVAL_COVERAGE=1)",
+    "todo_hack_count": 0,
+    "is_perf_sprint": false,
+    "has_profile_data": false
+  },
+  "hard_fails": {
+    "tests_broken": false,
+    "perf_no_profile": false
+  }
+}

@@ -1,0 +1,309 @@
+{
+  "evaluated_head": "165f87a12ceb0e20c04216c472004c11685e417b",
+  "previous_head": "0853c9fc15f3daf5f9e304e6e451e78c21fd899c",
+  "actual_base": "565fc1b0461f1408d930df3029a72beef60f7ff1",
+  "workingtree_equal_to_immutable": true,
+  "owned_file_count": 33,
+  "owned_equal_count": 30,
+  "owned_go_ail_equal_count": 21,
+  "own_metadata_delta": [
+    ".ailang/state/sprints/sprint_M-PKG-SMOKE-STAGED-LOCK.json",
+    "design_docs/planned/v0_56_0/m-pkg-smoke-staged-lock-sprint-plan.md",
+    "design_docs/planned/v0_56_0/m-pkg-smoke-staged-lock-validation.md"
+  ],
+  "owned_rows": [
+    {
+      "path": ".ailang/state/sprints/sprint_M-PKG-SMOKE-STAGED-LOCK.json",
+      "bytes": 16319,
+      "sha256": "92b940e08b31a7baeeabbad1b1b71b890700a8ffd9464377bd6ebad9652d6903",
+      "old_sha256": "633dfacd35ed34a54e193f40b7962475627e89f6d0ddec8a17b97eb1f8c0c4bb",
+      "byte_equal": false
+    },
+    {
+      "path": "changelogs/unreleased/2026-10-29-pkg-smoke-staged-lock.md",
+      "bytes": 689,
+      "sha256": "7e826cf0a274ceb869faaa4c83091b32320f9ae7cb35d12f3e98ef56d98b8c11",
+      "old_sha256": "7e826cf0a274ceb869faaa4c83091b32320f9ae7cb35d12f3e98ef56d98b8c11",
+      "byte_equal": true
+    },
+    {
+      "path": "cmd/ailang/pkg_commands.go",
+      "bytes": 21145,
+      "sha256": "fde1f40ef0c56574b38231085142c013c180c7d8f022ea42ed7ff0e9387fc598",
+      "old_sha256": "fde1f40ef0c56574b38231085142c013c180c7d8f022ea42ed7ff0e9387fc598",
+      "byte_equal": true
+    },
+    {
+      "path": "cmd/ailang/pkg_lock_warnings.go",
+      "bytes": 936,
+      "sha256": "0e98d28d2bf05f5828b150f9d04662cf057183b4ababe577062939dc5c8095dc",
+      "old_sha256": "0e98d28d2bf05f5828b150f9d04662cf057183b4ababe577062939dc5c8095dc",
+      "byte_equal": true
+    },
+    {
+      "path": "cmd/ailang/pkg_lock_warnings_test.go",
+      "bytes": 4524,
+      "sha256": "1131df3e1ee5123bf39133ba29c996f310de453c9eebc3a36c454dc14ee16e9f",
+      "old_sha256": "1131df3e1ee5123bf39133ba29c996f310de453c9eebc3a36c454dc14ee16e9f",
+      "byte_equal": true
+    },
+    {
+      "path": "cmd/ailang/pkg_publish.go",
+      "bytes": 22364,
+      "sha256": "260430adf067304ed279ac53a07dd26c4ba4569c7d49f55aaec553c00a2d2c85",
+      "old_sha256": "260430adf067304ed279ac53a07dd26c4ba4569c7d49f55aaec553c00a2d2c85",
+      "byte_equal": true
+    },
+    {
+      "path": "cmd/ailang/pkg_quality.go",
+      "bytes": 11347,
+      "sha256": "8aff921d1386cc4edad0ae50d963ffe0fd7dae13360bfffea26a0f058cc1b63f",
+      "old_sha256": "8aff921d1386cc4edad0ae50d963ffe0fd7dae13360bfffea26a0f058cc1b63f",
+      "byte_equal": true
+    },
+    {
+      "path": "cmd/ailang/pkg_smoke_diagnostics_test.go",
+      "bytes": 4242,
+      "sha256": "3c28d802a23551b8d8e44f55b45b9bdb551aec988ef4fe0e2832a8d2db316107",
+      "old_sha256": "3c28d802a23551b8d8e44f55b45b9bdb551aec988ef4fe0e2832a8d2db316107",
+      "byte_equal": true
+    },
+    {
+      "path": "cmd/ailang/pkg_smoke_staging_test.go",
+      "bytes": 6061,
+      "sha256": "59329420f886ef1786c1c0b60c123dd52b7faf8b7aef13a09df6b08891ff0fcd",
+      "old_sha256": "59329420f886ef1786c1c0b60c123dd52b7faf8b7aef13a09df6b08891ff0fcd",
+      "byte_equal": true
+    },
+    {
+      "path": "design_docs/planned/v0_54_7/m-pkg-smoke-staged-lock.md",
+      "bytes": 43544,
+      "sha256": "8bf548b0a7e5242c2773223e3d9318a538033acb00a0372f039c96a0b0fbfd16",
+      "old_sha256": "8bf548b0a7e5242c2773223e3d9318a538033acb00a0372f039c96a0b0fbfd16",
+      "byte_equal": true
+    },
+    {
+      "path": "design_docs/planned/v0_56_0/m-pkg-smoke-staged-lock-sprint-plan.md",
+      "bytes": 22487,
+      "sha256": "c9dc4586489264241a3d455a39f63924835796405f201d80281203f1fbe4aae2",
+      "old_sha256": "22a2b42fe7a9e525aaa2aa63f9691f2ef22a0f720523e025a6b2800c1e0b7a4a",
+      "byte_equal": false
+    },
+    {
+      "path": "design_docs/planned/v0_56_0/m-pkg-smoke-staged-lock-validation.md",
+      "bytes": 8428,
+      "sha256": "a6e9a90e9ea12308caf4689f2e7167831cf829a25a8be8faca9629438c9ff8d6",
+      "old_sha256": "e5ca5f1f9caa0b126687fe35d513eb29bfb4a609a47fe73cfa54cd5f115c0a35",
+      "byte_equal": false
+    },
+    {
+      "path": "docs/docs/guides/package-publishing.md",
+      "bytes": 18340,
+      "sha256": "43930c5046e9633b65c751399a85f53c1dd4e8f3f7d6c93016e589391a1697eb",
+      "old_sha256": "43930c5046e9633b65c751399a85f53c1dd4e8f3f7d6c93016e589391a1697eb",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/publish_output.go",
+      "bytes": 3414,
+      "sha256": "c4045deef70ce1926f162494b817dfb9d6ad7dc5ff57073b85db61b44abddba6",
+      "old_sha256": "c4045deef70ce1926f162494b817dfb9d6ad7dc5ff57073b85db61b44abddba6",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/publish_output_test.go",
+      "bytes": 4667,
+      "sha256": "2859736de357b3f533757a3a69b0dc82d3882ccd175ebd202d81721cb88a60bf",
+      "old_sha256": "2859736de357b3f533757a3a69b0dc82d3882ccd175ebd202d81721cb88a60bf",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/publish_rewrite.go",
+      "bytes": 2652,
+      "sha256": "b30697a60decc001623275625e3182ce345cb94f1bc7e370c1e1308ff2bbaf8c",
+      "old_sha256": "b30697a60decc001623275625e3182ce345cb94f1bc7e370c1e1308ff2bbaf8c",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/publish_rewrite_test.go",
+      "bytes": 1832,
+      "sha256": "707e892167a9946689888544a0bd8c058ec7c54565873f628577b12a0b38cc90",
+      "old_sha256": "707e892167a9946689888544a0bd8c058ec7c54565873f628577b12a0b38cc90",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/publish_stage.go",
+      "bytes": 1300,
+      "sha256": "beecde0841d767ea3e4e9b45762bbfe0ca1078b8f4acd971e93fa5a6e6023960",
+      "old_sha256": "beecde0841d767ea3e4e9b45762bbfe0ca1078b8f4acd971e93fa5a6e6023960",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/publish_stage_git_test.go",
+      "bytes": 3428,
+      "sha256": "42bdd61f328c3412c9eac1928ce7b542831c7375f95fb3eb18ef711726c9cafd",
+      "old_sha256": "42bdd61f328c3412c9eac1928ce7b542831c7375f95fb3eb18ef711726c9cafd",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/publish_stage_test.go",
+      "bytes": 4504,
+      "sha256": "a658f62ce93edcfd9f26611cbdd704b3e6cc17e4e016c6b9939fcecc3258504e",
+      "old_sha256": "a658f62ce93edcfd9f26611cbdd704b3e6cc17e4e016c6b9939fcecc3258504e",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/publish_validator.go",
+      "bytes": 7317,
+      "sha256": "efdccc64bcc6fcfe38fdc0bb9d9ecc9135cb7623c78a6b71acb08e002b76b6da",
+      "old_sha256": "efdccc64bcc6fcfe38fdc0bb9d9ecc9135cb7623c78a6b71acb08e002b76b6da",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/quality.go",
+      "bytes": 18797,
+      "sha256": "2045991e98198584d57b925bb93d44732963ecff1140520f1db5427afe537647",
+      "old_sha256": "2045991e98198584d57b925bb93d44732963ecff1140520f1db5427afe537647",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/testdata/smoke_signal/main.go",
+      "bytes": 320,
+      "sha256": "62e5862d6f98f639cb940f977a31333f2e17daaa573b415a2f7dd428887ce9d0",
+      "old_sha256": "62e5862d6f98f639cb940f977a31333f2e17daaa573b415a2f7dd428887ce9d0",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/testdata/smoke_staged_lock/a/_smoke.ail",
+      "bytes": 642,
+      "sha256": "dbf3636f851267f0c3e1d7cc1a9dbc88ad7d6f38788ceccb82213852028e2ccf",
+      "old_sha256": "dbf3636f851267f0c3e1d7cc1a9dbc88ad7d6f38788ceccb82213852028e2ccf",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/testdata/smoke_staged_lock/a/ailang.toml",
+      "bytes": 196,
+      "sha256": "cede0b287ebbab7f436a98d6fb198947107f497b665b873da5fe0433274509a1",
+      "old_sha256": "cede0b287ebbab7f436a98d6fb198947107f497b665b873da5fe0433274509a1",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/testdata/smoke_staged_lock/a/assets/self.txt",
+      "bytes": 11,
+      "sha256": "95c5c106f56bfba16fc1262303446c3a94a6acb981e4eefe754203ed73dd2170",
+      "old_sha256": "95c5c106f56bfba16fc1262303446c3a94a6acb981e4eefe754203ed73dd2170",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/testdata/smoke_staged_lock/a/model.ail",
+      "bytes": 128,
+      "sha256": "7dad75e7c91c92125e7a506c0c36fee84f286d42d7fab4d94f66a2b13a81408a",
+      "old_sha256": "7dad75e7c91c92125e7a506c0c36fee84f286d42d7fab4d94f66a2b13a81408a",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/testdata/smoke_staged_lock/b/ailang.toml",
+      "bytes": 127,
+      "sha256": "675ac50540ea655ff7b71ee2bc63530fa98566c08aba5f0d09f51b879f038745",
+      "old_sha256": "675ac50540ea655ff7b71ee2bc63530fa98566c08aba5f0d09f51b879f038745",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/testdata/smoke_staged_lock/b/assets/marker.txt",
+      "bytes": 18,
+      "sha256": "effa0c6c6fac5fc9a2be5bb8ad69a487bd04a52c1c2944d57297dc7fda204580",
+      "old_sha256": "effa0c6c6fac5fc9a2be5bb8ad69a487bd04a52c1c2944d57297dc7fda204580",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/testdata/smoke_staged_lock/b/model.ail",
+      "bytes": 156,
+      "sha256": "5cdd7128a643d430f3af03a6cb95c0176dfd8fa0183051798c80aff5c88572b6",
+      "old_sha256": "5cdd7128a643d430f3af03a6cb95c0176dfd8fa0183051798c80aff5c88572b6",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/testdata/smoke_staged_lock/registry/test/b/0.1.0/ailang.toml",
+      "bytes": 127,
+      "sha256": "675ac50540ea655ff7b71ee2bc63530fa98566c08aba5f0d09f51b879f038745",
+      "old_sha256": "675ac50540ea655ff7b71ee2bc63530fa98566c08aba5f0d09f51b879f038745",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/testdata/smoke_staged_lock/registry/test/b/0.1.0/assets/marker.txt",
+      "bytes": 21,
+      "sha256": "e55f3caab3136192ac85592ab0a3c3b17bfcdc7e2133d01378e57b7f9d0b170a",
+      "old_sha256": "e55f3caab3136192ac85592ab0a3c3b17bfcdc7e2133d01378e57b7f9d0b170a",
+      "byte_equal": true
+    },
+    {
+      "path": "internal/pkg/testdata/smoke_staged_lock/registry/test/b/0.1.0/model.ail",
+      "bytes": 159,
+      "sha256": "0fcf7dad3e2603904bac5a3b3e97a0c4fdcfdffcf11b046981f6ba5040f7e58e",
+      "old_sha256": "0fcf7dad3e2603904bac5a3b3e97a0c4fdcfdffcf11b046981f6ba5040f7e58e",
+      "byte_equal": true
+    }
+  ],
+  "own_delta_pathset_equal": true,
+  "global_go_ail_delta": [
+    "internal/runner/worker_terminal_pty_test.go"
+  ],
+  "accepted_incoming_equal_base_paths": [
+    ".ailang/state/sprints/sprint_M-WORKER-PTY-PIDFILE-ACK.json",
+    "changelogs/unreleased/2026-10-29-pi-controller-protocol-note.md",
+    "design_docs/fleet-mission-dashboard.md",
+    "design_docs/fleet-mission-evidence/iteration69/done-gate.md",
+    "design_docs/fleet-mission-evidence/iteration69/evaluation.md",
+    "design_docs/fleet-mission-index.md",
+    "design_docs/fleet-mission-log.md",
+    "design_docs/fleet-mission-status-archive.md",
+    "design_docs/fleet-mission-status-index.md",
+    "design_docs/fleet-mission.md",
+    "design_docs/planned/sprint-plan-pi-controller-protocol-note.md",
+    "design_docs/planned/v0_54_17/m-worker-pty-pidfile-ack-sprint-plan.md",
+    "design_docs/planned/v0_54_17/m-worker-pty-pidfile-ack.md",
+    "internal/runner/worker_terminal_pty_test.go",
+    "make/test.mk",
+    "tools/launchd/lib/pi-controller-note.sh",
+    "tools/launchd/mission-control.sh",
+    "tools/launchd/test_pi_controller_note.sh"
+  ],
+  "old_fail_and_d1_preserved": [
+    {
+      "path": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/eval_M-PKG-SMOKE-STAGED-LOCK_round_1.json",
+      "bytes": 9871,
+      "sha256": "9e42709e6137fd15f4f5d8832bd72fd36c31cd05f9aca847d3d07525ae0528ae"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/eval_M-PKG-SMOKE-STAGED-LOCK_round_1.md",
+      "bytes": 7954,
+      "sha256": "0a46b73052e7506b98df94658a6ced99abb96781243d84a3f11da700b7724f70"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/ci-build-ubuntu-failure.log",
+      "bytes": 4590430,
+      "sha256": "fda09a3970adb9537caf4e2adfd5bfd1782164bb646aa49c1faf974709915e08"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/ci-build-ubuntu-attempt2-failure.log",
+      "bytes": 4594234,
+      "sha256": "5e5bd48a695725c52577d83463752c9de79563adc8388f855760844b443f9f60"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/ci-two-failures-manifest.json",
+      "bytes": 1794,
+      "sha256": "e77620f7517a2b7b6eda55a811cef9d4f7ba41700c29016a92694893ddc000b4"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/signal-control.log",
+      "bytes": 381,
+      "sha256": "2dd8c8bb8ff8b5a53fa031a54b2d5360619eb5b679ecd363eb36518d37ca648e"
+    },
+    {
+      "path": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/signal-control-fixed.log",
+      "bytes": 304,
+      "sha256": "ddf1aefea35d61c542e52034f30d8877dbbe8becc9601ac721ed695b393bd65a"
+    }
+  ],
+  "qualification": "No whole compiler execution equivalence claimed: own byte-equal source/control evidence reused; accepted incoming runner fixture/fleet source is independent dependency, terminal new-head CI required."
+}

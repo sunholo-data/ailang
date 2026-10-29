@@ -1,0 +1,7 @@
+=== RUN   TestIndependentSignalCause
+    signal_review_test.go:11: actual result=&{Passed:false Output: TimedOut:false ExitCode:-1 Duration:6.469583ms} notes="smoke exited with code -1"
+    signal_review_test.go:13: actual signal cause lost: "smoke exited with code -1"
+--- FAIL: TestIndependentSignalCause (0.01s)
+FAIL
+FAIL	github.com/sunholo-data/ailang/internal/pkg	3.869s
+FAIL

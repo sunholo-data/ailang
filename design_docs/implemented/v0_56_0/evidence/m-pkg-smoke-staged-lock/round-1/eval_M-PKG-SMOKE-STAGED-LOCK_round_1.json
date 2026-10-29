@@ -1,0 +1,234 @@
+{
+  "sprint_id": "M-PKG-SMOKE-STAGED-LOCK",
+  "round": 1,
+  "verdict": "FAIL",
+  "score": 75,
+  "max_score": 100,
+  "hard_fail": true,
+  "hard_fail_reason": "Existing aggregate ci_gate reports FAIL at exact head after the sole authorized retry; no waiver",
+  "provisional_source_score": 95,
+  "provisional_source_score_is_pass": false,
+  "pr": "https://github.com/sunholo-data/ailang/pull/2013",
+  "evaluated_head": "0853c9fc15f3daf5f9e304e6e451e78c21fd899c",
+  "locally_tested_source": "37c957b3a742aba8c966c185f39d48d086d5e794",
+  "actual_dev_integration": "dba1c499ca6f76b40992fd521e3dd440d9277f49",
+  "source_identity": "All Go/AIL and complete cmd/internal/std/go.mod/go.sum identical to tested37c; final delta only docs/state",
+  "reviewer_independent": true,
+  "implementation_authored_by_reviewer": false,
+  "gate_source": "exact PR CI plus owner local scoped/core/structure evidence, not duplicate local whole-suite runs",
+  "scores": {
+    "tests": {
+      "score": 0,
+      "max": 20,
+      "hard_fail": true,
+      "reason": "Aggregate CI hard gate failed; primary Linux/Windows tests succeeded but Build matrix failed unchanged external #1926 twice"
+    },
+    "lint": {
+      "score": 10,
+      "max": 10,
+      "reason": "Local lint0 and exact-head CI lint SUCCESS"
+    },
+    "acceptance": {
+      "score": 30,
+      "max": 30,
+      "verified": 21,
+      "total": 21,
+      "reason": "Independent source/tests/log map plus actual main Linux/Windows CI verify scoped criteria; aggregate CI hard gate is counted independently in Tests and verdict",
+      "matrix": "acceptance-matrix-final.json"
+    },
+    "code_quality": {
+      "score": 10,
+      "max": 15,
+      "deductions": [
+        {
+          "points": 5,
+          "reason": "Physical inclusive FuncDecl span >50lines, -2/function capped -5 including tests",
+          "examples": {
+            "RewritePathDeps": 57,
+            "newSmokeCLIProof": 60,
+            "TestSmokeStage_GitCarryForward": 88
+          },
+          "inventory": "functions-over50-final.json"
+        }
+      ],
+      "other_deductions": 0,
+      "all_files_under800": true,
+      "new_todo_hack_fixme": 0,
+      "all_milestones_have_passes_timestamps_notes": true,
+      "plan_pending_milestones": 0
+    },
+    "documentation": {
+      "score": 15,
+      "max": 15,
+      "changelog": 5,
+      "scoped_examples": 5,
+      "design_status": 5,
+      "standalone_runnable_example": "N/A by approved plan: controlled two-package registry/layout AIL fixtures+guide supply the actual executable example proof; no additional examples/runnable required",
+      "design_status_reason": "Implementation-complete/pending independent review is accurate; root owns later archival"
+    },
+    "design_fidelity": {
+      "score": 10,
+      "max": 10,
+      "reason": "Published registry staging/D2/assets, bounded diagnostic/quality schema, warning-only precedence and unchanged authority/timer/tarball scope preserved"
+    }
+  },
+  "conditional_categories": {
+    "compiler_regression": {
+      "triggered": false,
+      "points": 0,
+      "reason": "Own diff is host internal/pkg + package CLI tooling; compiler/exec infrastructure untouched. Core tests still passed."
+    },
+    "performance": {
+      "triggered": false,
+      "points": 0,
+      "reason": "No performance goal; safety timeouts unchanged"
+    }
+  },
+  "findings": [
+    {
+      "id": "D1",
+      "status": "repaired before final source",
+      "fixed_commit": "dade1527b6edf7790dcdb2d047ebfe923a32f682",
+      "description": "Empty-output signal death previously lost actual ExitError cause; independent actual RED\u2192GREEN and full-stage owner regression verified",
+      "red": "signal-control.log",
+      "green": "signal-control-fixed.log",
+      "windows": "Signal-only POSIX case explicitly N/A; Go1.26.10 Windows Kill uses TerminateProcess(...,1), common exit/start/timeout controls and actual test-windows succeed"
+    },
+    {
+      "id": "M4-proof-strength",
+      "status": "addressed",
+      "fixed_commit": "37c957b3a742aba8c966c185f39d48d086d5e794",
+      "description": "Strict CLI smoke first rejects matching author-local pair(exit23), then quality/dry-run require registry module+asset pair; actual mock reads and zero writes/DB/author mutations proved"
+    }
+  ],
+  "external_blocker": {
+    "pr": "https://github.com/sunholo-data/ailang/pull/1926",
+    "task": "task-5755c3e3",
+    "card": "apr-5755c3e3",
+    "plane": "prod ailang-multivac",
+    "type": "merge_handoff",
+    "agent_actionable": false,
+    "execution_authorized": false,
+    "reference": "Existing docs/internal/backlog/2026-10-29/operator-pending-review.md row14 at dba1c499; prior collected approvals metadata only",
+    "reviewed_or_modified_in_this_evaluation": false,
+    "disposition": "Operator authorization/reconciliation owns the separate PID-readiness plan; do not merge/dispatch/bypass its gate to unblock2013"
+  },
+  "ci": {
+    "aggregate_verdict": "FAIL",
+    "final_gate_log": "ci-gate-latest.log",
+    "final_gate_time": "2026-10-29 14:01:21 UTC",
+    "retry_run": 40883138509,
+    "actual_attempt": 2,
+    "retry_terminal": "failure",
+    "failures": [
+      {
+        "attempt": 1,
+        "workflow_run": 40883138509,
+        "job": 123479693310,
+        "job_url": "https://github.com/sunholo-data/ailang/actions/runs/40883138509/job/123479693310",
+        "raw_log": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/ci-build-ubuntu-failure.log",
+        "raw_bytes": 4590430,
+        "raw_sha256": "fda09a3970adb9537caf4e2adfd5bfd1782164bb646aa49c1faf974709915e08",
+        "sole_failed_test": "TestWorkerTerminalPTYLifecycle/eval/sigterm",
+        "failed_package": "internal/runner",
+        "failed_package_duration": "103.952s",
+        "error": "ValueError: invalid literal for int() with base 10: '' from worker_pid = int(open(pidfile).read())",
+        "changed_package_success": {
+          "cmd/ailang": "346.613s",
+          "internal/pkg": "18.030s"
+        }
+      },
+      {
+        "attempt": 2,
+        "workflow_run": 40883138509,
+        "job": 123488317858,
+        "job_url": "https://github.com/sunholo-data/ailang/actions/runs/40883138509/job/123488317858",
+        "raw_log": "/tmp/ailang-backlog-20261029/1773-independent-m1m2/ci-build-ubuntu-attempt2-failure.log",
+        "raw_bytes": 4594234,
+        "raw_sha256": "5e5bd48a695725c52577d83463752c9de79563adc8388f855760844b443f9f60",
+        "sole_failed_test": "TestWorkerTerminalPTYLifecycle/eval/sigterm",
+        "failed_package": "internal/runner",
+        "failed_package_duration": "105.560s",
+        "error": "ValueError: invalid literal for int() with base 10: '' from worker_pid = int(open(pidfile).read())",
+        "changed_package_success": {
+          "cmd/ailang": "352.579s",
+          "internal/pkg": "18.427s"
+        }
+      }
+    ],
+    "successful_main_checks": [
+      {
+        "name": "test",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/sunholo-data/ailang/actions/runs/40883138953/job/123479695145"
+      },
+      {
+        "name": "docs-build",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/sunholo-data/ailang/actions/runs/40883138302/job/123479847654"
+      },
+      {
+        "name": "checks",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/sunholo-data/ailang/actions/runs/40883138953/job/123479694860"
+      },
+      {
+        "name": "docs-gate",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/sunholo-data/ailang/actions/runs/40883138302/job/123486288226"
+      },
+      {
+        "name": "lint",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/sunholo-data/ailang/actions/runs/40883138953/job/123479694413"
+      },
+      {
+        "name": "test-windows",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/sunholo-data/ailang/actions/runs/40883138953/job/123479865041"
+      },
+      {
+        "name": "build",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/sunholo-data/ailang/actions/runs/40883138953/job/123479865309"
+      },
+      {
+        "name": "float determinism (arm64)",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/sunholo-data/ailang/actions/runs/40883138953/job/123479865011"
+      },
+      {
+        "name": "govulncheck (vuln gate)",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/sunholo-data/ailang/actions/runs/40883138953/job/123479865349"
+      },
+      {
+        "name": "CodeQL",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://github.com/sunholo-data/ailang/runs/123482622284"
+      },
+      {
+        "name": "SonarCloud Code Analysis",
+        "status": "COMPLETED",
+        "conclusion": "SUCCESS",
+        "url": "https://sonarcloud.io/dashboard?id=sunholo-data_ailang&pullRequest=2013"
+      }
+    ],
+    "final_snapshot": "pr2013-final-failed.json",
+    "actual_attempt2_jobs": "ci-build-attempt2-jobs-latest.json",
+    "matrix_siblings": "Windows and one macOS cancelled by fail-fast; other macOS succeeded; no assertion that cancelled jobs passed"
+  },
+  "local_evidence": "local-evidence-manifest.json",
+  "mutation_statement": "Evaluator wrote reports and tiny independent controls only under /tmp; no product/audit/source/PR/card/task/approval/message mutations or workflow reruns",
+  "recommendation": "Keep2013 OPEN/unmerged. No further retries. Root must route separate operator-held1926 blocker, then reevaluate actual qualified source/head and terminal green CI before any PASS/merge."
+}

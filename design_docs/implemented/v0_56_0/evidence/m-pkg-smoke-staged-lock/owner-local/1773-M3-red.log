@@ -1,0 +1,6 @@
+--- FAIL: TestPkgLockShadowWarning_RealCLI (16.51s)
+    --- FAIL: TestPkgLockShadowWarning_RealCLI/transitive_registry_shadow (0.02s)
+        pkg_lock_warnings_test.go:67: shadow=true wrong stderr: 
+FAIL
+FAIL	github.com/sunholo-data/ailang/cmd/ailang	17.285s
+FAIL

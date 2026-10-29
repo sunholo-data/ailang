@@ -1,0 +1,130 @@
+{
+  "checked_at": "2026-10-29T20:32:10.478593+00:00",
+  "previous_pr_head": "0853c9fc15f3daf5f9e304e6e451e78c21fd899c",
+  "accepted_dev": "565fc1b0461f1408d930df3029a72beef60f7ff1",
+  "normal_merge_head": "cc2c09ca808f43d5eabbb8206c83775590fc9e60",
+  "clean_after_merge": true,
+  "all_previous_owned_files_byte_equal": 33,
+  "product_go_ail_files_byte_equal": 21,
+  "owned_paths": [
+    ".ailang/state/sprints/sprint_M-PKG-SMOKE-STAGED-LOCK.json",
+    "changelogs/unreleased/2026-10-29-pkg-smoke-staged-lock.md",
+    "cmd/ailang/pkg_commands.go",
+    "cmd/ailang/pkg_lock_warnings.go",
+    "cmd/ailang/pkg_lock_warnings_test.go",
+    "cmd/ailang/pkg_publish.go",
+    "cmd/ailang/pkg_quality.go",
+    "cmd/ailang/pkg_smoke_diagnostics_test.go",
+    "cmd/ailang/pkg_smoke_staging_test.go",
+    "design_docs/planned/v0_54_7/m-pkg-smoke-staged-lock.md",
+    "design_docs/planned/v0_56_0/m-pkg-smoke-staged-lock-sprint-plan.md",
+    "design_docs/planned/v0_56_0/m-pkg-smoke-staged-lock-validation.md",
+    "docs/docs/guides/package-publishing.md",
+    "internal/pkg/publish_output.go",
+    "internal/pkg/publish_output_test.go",
+    "internal/pkg/publish_rewrite.go",
+    "internal/pkg/publish_rewrite_test.go",
+    "internal/pkg/publish_stage.go",
+    "internal/pkg/publish_stage_git_test.go",
+    "internal/pkg/publish_stage_test.go",
+    "internal/pkg/publish_validator.go",
+    "internal/pkg/quality.go",
+    "internal/pkg/testdata/smoke_signal/main.go",
+    "internal/pkg/testdata/smoke_staged_lock/a/_smoke.ail",
+    "internal/pkg/testdata/smoke_staged_lock/a/ailang.toml",
+    "internal/pkg/testdata/smoke_staged_lock/a/assets/self.txt",
+    "internal/pkg/testdata/smoke_staged_lock/a/model.ail",
+    "internal/pkg/testdata/smoke_staged_lock/b/ailang.toml",
+    "internal/pkg/testdata/smoke_staged_lock/b/assets/marker.txt",
+    "internal/pkg/testdata/smoke_staged_lock/b/model.ail",
+    "internal/pkg/testdata/smoke_staged_lock/registry/test/b/0.1.0/ailang.toml",
+    "internal/pkg/testdata/smoke_staged_lock/registry/test/b/0.1.0/assets/marker.txt",
+    "internal/pkg/testdata/smoke_staged_lock/registry/test/b/0.1.0/model.ail"
+  ],
+  "incoming_separate_go_delta": [
+    "internal/runner/worker_terminal_pty_test.go"
+  ],
+  "own_delta_pathset_equal_after_merge": true,
+  "scope": "No #1773 rewrite or own source change; incoming accepted worker fixture/fleet docs+drivers only",
+  "pushed_head": "165f87a12ceb0e20c04216c472004c11685e417b",
+  "final_clean": true,
+  "final_own_product_equal": true,
+  "metadata_only_after_merge": [
+    ".ailang/state/sprints/sprint_M-PKG-SMOKE-STAGED-LOCK.json",
+    "design_docs/planned/v0_56_0/m-pkg-smoke-staged-lock-sprint-plan.md",
+    "design_docs/planned/v0_56_0/m-pkg-smoke-staged-lock-validation.md"
+  ],
+  "final_product_hashes": {
+    "cmd/ailang/pkg_commands.go": "fde1f40ef0c56574b38231085142c013c180c7d8f022ea42ed7ff0e9387fc598",
+    "cmd/ailang/pkg_lock_warnings.go": "0e98d28d2bf05f5828b150f9d04662cf057183b4ababe577062939dc5c8095dc",
+    "cmd/ailang/pkg_lock_warnings_test.go": "1131df3e1ee5123bf39133ba29c996f310de453c9eebc3a36c454dc14ee16e9f",
+    "cmd/ailang/pkg_publish.go": "260430adf067304ed279ac53a07dd26c4ba4569c7d49f55aaec553c00a2d2c85",
+    "cmd/ailang/pkg_quality.go": "8aff921d1386cc4edad0ae50d963ffe0fd7dae13360bfffea26a0f058cc1b63f",
+    "cmd/ailang/pkg_smoke_diagnostics_test.go": "3c28d802a23551b8d8e44f55b45b9bdb551aec988ef4fe0e2832a8d2db316107",
+    "cmd/ailang/pkg_smoke_staging_test.go": "59329420f886ef1786c1c0b60c123dd52b7faf8b7aef13a09df6b08891ff0fcd",
+    "internal/pkg/publish_output.go": "c4045deef70ce1926f162494b817dfb9d6ad7dc5ff57073b85db61b44abddba6",
+    "internal/pkg/publish_output_test.go": "2859736de357b3f533757a3a69b0dc82d3882ccd175ebd202d81721cb88a60bf",
+    "internal/pkg/publish_rewrite.go": "b30697a60decc001623275625e3182ce345cb94f1bc7e370c1e1308ff2bbaf8c",
+    "internal/pkg/publish_rewrite_test.go": "707e892167a9946689888544a0bd8c058ec7c54565873f628577b12a0b38cc90",
+    "internal/pkg/publish_stage.go": "beecde0841d767ea3e4e9b45762bbfe0ca1078b8f4acd971e93fa5a6e6023960",
+    "internal/pkg/publish_stage_git_test.go": "42bdd61f328c3412c9eac1928ce7b542831c7375f95fb3eb18ef711726c9cafd",
+    "internal/pkg/publish_stage_test.go": "a658f62ce93edcfd9f26611cbdd704b3e6cc17e4e016c6b9939fcecc3258504e",
+    "internal/pkg/publish_validator.go": "efdccc64bcc6fcfe38fdc0bb9d9ecc9135cb7623c78a6b71acb08e002b76b6da",
+    "internal/pkg/quality.go": "2045991e98198584d57b925bb93d44732963ecff1140520f1db5427afe537647",
+    "internal/pkg/testdata/smoke_signal/main.go": "62e5862d6f98f639cb940f977a31333f2e17daaa573b415a2f7dd428887ce9d0",
+    "internal/pkg/testdata/smoke_staged_lock/a/_smoke.ail": "dbf3636f851267f0c3e1d7cc1a9dbc88ad7d6f38788ceccb82213852028e2ccf",
+    "internal/pkg/testdata/smoke_staged_lock/a/model.ail": "7dad75e7c91c92125e7a506c0c36fee84f286d42d7fab4d94f66a2b13a81408a",
+    "internal/pkg/testdata/smoke_staged_lock/b/model.ail": "5cdd7128a643d430f3af03a6cb95c0176dfd8fa0183051798c80aff5c88572b6",
+    "internal/pkg/testdata/smoke_staged_lock/registry/test/b/0.1.0/model.ail": "0fcf7dad3e2603904bac5a3b3e97a0c4fdcfdffcf11b046981f6ba5040f7e58e"
+  },
+  "ci_runs": [
+    {
+      "conclusion": "",
+      "databaseId": 40950290998,
+      "headSha": "165f87a12ceb0e20c04216c472004c11685e417b",
+      "status": "in_progress",
+      "url": "https://github.com/sunholo-data/ailang/actions/runs/40950290998",
+      "workflowName": "Dashboard UI Build"
+    },
+    {
+      "conclusion": "",
+      "databaseId": 40950291051,
+      "headSha": "165f87a12ceb0e20c04216c472004c11685e417b",
+      "status": "in_progress",
+      "url": "https://github.com/sunholo-data/ailang/actions/runs/40950291051",
+      "workflowName": "Build and Release"
+    },
+    {
+      "conclusion": "",
+      "databaseId": 40950291075,
+      "headSha": "165f87a12ceb0e20c04216c472004c11685e417b",
+      "status": "in_progress",
+      "url": "https://github.com/sunholo-data/ailang/actions/runs/40950291075",
+      "workflowName": "Deploy Documentation to GitHub Pages"
+    },
+    {
+      "conclusion": "",
+      "databaseId": 40950290995,
+      "headSha": "165f87a12ceb0e20c04216c472004c11685e417b",
+      "status": "in_progress",
+      "url": "https://github.com/sunholo-data/ailang/actions/runs/40950290995",
+      "workflowName": "CI"
+    },
+    {
+      "conclusion": "",
+      "databaseId": 40950290970,
+      "headSha": "165f87a12ceb0e20c04216c472004c11685e417b",
+      "status": "in_progress",
+      "url": "https://github.com/sunholo-data/ailang/actions/runs/40950290970",
+      "workflowName": "CodeQL"
+    },
+    {
+      "conclusion": "skipped",
+      "databaseId": 40950286296,
+      "headSha": "165f87a12ceb0e20c04216c472004c11685e417b",
+      "status": "completed",
+      "url": "https://github.com/sunholo-data/ailang/actions/runs/40950286296",
+      "workflowName": "Dependabot auto-merge"
+    }
+  ]
+}

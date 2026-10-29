@@ -1,12 +1,21 @@
 # Sprint Plan: M-PKG-SMOKE-STAGED-LOCK
 
+**Status: COMPLETED AND ACCEPTED — all four milestones; v0.56.0 UNRELEASED.**
+
+Independent round2 PASS95/100 at165f87a12ceb0e20c04216c472004c11685e417b;
+actual final CI27completed (20SUCCESS/7SKIPPED). Root normally merged PR2013
+at96d69f05b6e84bd6666e8fa91ff948f803b67d92,20:53:24UTC.
+[Durable evaluations](evidence/m-pkg-smoke-staged-lock/README.md) preserve
+round1FAIL75 and round2PASS95 unchanged. Earlier checkpoint/pending-gate wording
+is historical, not the current acceptance state.
+
 ## Summary and authorization
 
 Make isolated package smoke test the published manifest and a regenerated registry
 lock, preserving existing confined git-pin carry-forward, locked asset snapshots,
 and warning-only root-path shadowing. Surface bounded, useful PUB015 diagnostics.
 
-- Design: [existing approved design](../v0_54_7/m-pkg-smoke-staged-lock.md).
+- Design: [existing approved design](m-pkg-smoke-staged-lock.md).
 - Design approval: attended user explicitly approved the refreshed design on
   2026-10-29, relayed by root; approval was recorded at 11:57:17 UTC.
 - This exact plan at `0c3e8f406` was **explicitly accepted for execution** by the
@@ -324,7 +333,7 @@ flaky shell fixtures on Windows. The explicit tests above instrument each risk.
 No parser/type/effect semantics, new registry service, tarball file policy,
 resolver precedence or broad cleanup is part of this sprint.
 
-### M4 executor completion (independent evaluation pending)
+### Historical M4 executor completion (before independent acceptance)
 
 Strict actual CLI fixture rejects the author-local same-version source+asset pair
 with exit23, then passes quality and dry-run only with registry markers. Mock
