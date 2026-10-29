@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/pkg"
 )
@@ -86,7 +87,7 @@ func pkgHistoryCommand(args []string) error {
 	client := pkg.NewRegistryClient()
 	historyURL := fmt.Sprintf("%s/packages/%s/%s/history.json", client.BaseURL, name, version)
 
-	resp, err := http.Get(historyURL) //nolint:gosec // URL is derived from trusted registry
+	resp, err := pkg.HTTPClient("fetching package history from the registry", 30*time.Second).Get(historyURL) //nolint:gosec // URL is derived from trusted registry
 	if err != nil {
 		return fmt.Errorf("failed to fetch history for %s@%s: %w", name, version, err)
 	}

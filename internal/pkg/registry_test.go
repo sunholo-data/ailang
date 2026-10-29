@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 )
@@ -157,10 +158,10 @@ func TestCachedPackagePath(t *testing.T) {
 	if err != nil {
 		t.Fatalf("CachedPackagePath: %v", err)
 	}
-	if !strings.Contains(path, "sunholo/auth/0.1.0") {
+	if !strings.Contains(filepath.ToSlash(path), "sunholo/auth/0.1.0") {
 		t.Errorf("path should contain vendor/name/version, got %s", path)
 	}
-	if !strings.Contains(path, ".ailang/cache/registry") {
+	if !strings.Contains(filepath.ToSlash(path), ".ailang/cache/registry") {
 		t.Errorf("path should be under cache/registry, got %s", path)
 	}
 }

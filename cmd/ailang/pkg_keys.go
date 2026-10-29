@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 // M-PKG-MULTI-NAMESPACE-AUTH — `ailang pkg key` mints, lists and revokes
@@ -146,7 +147,7 @@ func registryAdminRequest(method, path string, body []byte) ([]byte, error) {
 	if body != nil {
 		req.Header.Set("Content-Type", "application/json")
 	}
-	client := &http.Client{Timeout: 30 * time.Second}
+	client := pkg.HTTPClient("managing registry publish keys", 30*time.Second)
 	resp, err := client.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("registry unavailable: %w", err)

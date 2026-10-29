@@ -5,6 +5,8 @@ import (
 	"io"
 	"os"
 	"sort"
+
+	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 // pkgSubcommands is the `ailang pkg` group. It is a Command table for the same
@@ -26,9 +28,10 @@ func pkgSubcommands() []Command {
 			Run:     pkgDocsCommand,
 		},
 		{
-			Name:    "add",
-			Summary: "Add a dependency (--path, --git or --registry)",
-			Run:     pkgAddCommand,
+			Name:      "add",
+			Authority: []pkg.Authority{pkg.AuthNetwork, pkg.AuthHomeWrite},
+			Summary:   "Add a dependency (--path, --git or --registry)",
+			Run:       pkgAddCommand,
 		},
 		{
 			Name:    "lock",
@@ -41,17 +44,19 @@ func pkgSubcommands() []Command {
 			Run:     pkgTreeCommand,
 		},
 		{
-			Name:    "install",
-			Summary: "Install a package (omit the version for latest); [bin] commands go on PATH",
-			Run:     pkgInstallCommand,
+			Name:      "install",
+			Authority: []pkg.Authority{pkg.AuthNetwork, pkg.AuthHomeWrite},
+			Summary:   "Install a package (omit the version for latest); [bin] commands go on PATH",
+			Run:       pkgInstallCommand,
 		},
 		{
 			// M-PKG-BIN-ENTRYPOINTS: the shims `install` wrote. Also bare
 			// `ailang bin`, the spelling the package docs and the shims'
 			// own regenerate hints use (pkgLegacyTopLevel).
-			Name:    "bin",
-			Summary: "List or uninstall the [bin] command shims (list, uninstall <name>)",
-			Run:     binCommand,
+			Name:      "bin",
+			Authority: []pkg.Authority{pkg.AuthHomeWrite},
+			Summary:   "List or uninstall the [bin] command shims (list, uninstall <name>)",
+			Run:       binCommand,
 		},
 		{
 			Name:    "search",
@@ -59,14 +64,16 @@ func pkgSubcommands() []Command {
 			Run:     pkgSearchCommand,
 		},
 		{
-			Name:    "publish",
-			Summary: "Publish the current package to the registry",
-			Run:     pkgPublishCommand,
+			Name:      "publish",
+			Authority: []pkg.Authority{pkg.AuthNetwork, pkg.AuthHomeWrite},
+			Summary:   "Publish the current package to the registry",
+			Run:       pkgPublishCommand,
 		},
 		{
-			Name:    "unpublish",
-			Summary: "Remove a package version from the registry",
-			Run:     pkgUnpublishCommand,
+			Name:      "unpublish",
+			Authority: []pkg.Authority{pkg.AuthNetwork},
+			Summary:   "Remove a package version from the registry",
+			Run:       pkgUnpublishCommand,
 		},
 		{
 			Name:    "quality",
@@ -99,9 +106,10 @@ func pkgSubcommands() []Command {
 			Run:     pkgHistoryCommand,
 		},
 		{
-			Name:    "notify-upgrade",
-			Summary: "Emit an upgrade-available message, manual fallback (<pkg>@<ver>)",
-			Run:     pkgNotifyUpgradeCommand,
+			Name:      "notify-upgrade",
+			Authority: []pkg.Authority{pkg.AuthHomeWrite},
+			Summary:   "Emit an upgrade-available message, manual fallback (<pkg>@<ver>)",
+			Run:       pkgNotifyUpgradeCommand,
 		},
 		{
 			Name:    "affected-by",
@@ -109,14 +117,16 @@ func pkgSubcommands() []Command {
 			Run:     pkgAffectedByCommand,
 		},
 		{
-			Name:    "cascade",
-			Summary: "Drive the autonomous upgrade cascade",
-			Run:     pkgCascadeCommand,
+			Name:      "cascade",
+			Authority: []pkg.Authority{pkg.AuthNetwork},
+			Summary:   "Drive the autonomous upgrade cascade",
+			Run:       pkgCascadeCommand,
 		},
 		{
-			Name:    "key",
-			Summary: "Manage scoped publish keys, superuser only (create|list|revoke)",
-			Run:     pkgKeyCommand,
+			Name:      "key",
+			Authority: []pkg.Authority{pkg.AuthNetwork},
+			Summary:   "Manage scoped publish keys, superuser only (create|list|revoke)",
+			Run:       pkgKeyCommand,
 		},
 	}
 }
@@ -154,7 +164,7 @@ func pkgGroupCommand(args []string) error {
 			fmt.Printf("  ailang pkg %s [arguments]\n", sub.Name)
 			return nil
 		}
-		if err := sub.Run(rest); err != nil {
+		if err := gatedRun(*sub)(rest); err != nil {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 			os.Exit(1)
 		}
@@ -163,6 +173,46 @@ func pkgGroupCommand(args []string) error {
 	fmt.Fprintf(os.Stderr, "%s: unknown pkg command '%s'\n", red("Error"), args[0])
 	os.Exit(1)
 	return nil
+}
+
+// authorityOnlyFor narrows a verb's declared Authority to the subcommands
+// that use it: `bin list` only reads the shim directory, `bin uninstall`
+// deletes from it.
+var authorityOnlyFor = map[string][]string{
+	"bin": {"uninstall", "remove", "rm"},
+}
+
+// gatedRun is the dispatch-time refusal of #1720 D5: a verb that declares
+// Authority is refused under AILANG_AGENT_POLICY before it does any work.
+// Help is never refused. Both routes — `ailang pkg <verb>` and the bare
+// legacy spelling — run through it.
+func gatedRun(c Command) func(args []string) error {
+	if len(c.Authority) == 0 {
+		return c.Run
+	}
+	return func(args []string) error {
+		if !wantsHelp(args) && authorityApplies(c.Name, args) {
+			if err := pkg.Require(c.Authority[0], fmt.Sprintf("'ailang pkg %s'", c.Name), pkg.OperatorRemedy); err != nil {
+				return err
+			}
+		}
+		return c.Run(args)
+	}
+}
+
+func authorityApplies(verb string, args []string) bool {
+	subs, narrowed := authorityOnlyFor[verb]
+	if !narrowed {
+		return true
+	}
+	for _, a := range args {
+		for _, s := range subs {
+			if a == s {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func printPkgHelp(w io.Writer) {

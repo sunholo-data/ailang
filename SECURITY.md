@@ -170,7 +170,7 @@ If you believe the AI-authored nature of the codebase has introduced a security
 issue (e.g. a backdoor, unsafe default, credential leak), please report it via
 the same channels above.
 
-## Registry confinement
+## Registry and package confinement
 
 When `AILANG_AGENT_POLICY` is set, registry network fetches and registry-cache
 creation are refused, including through policy-tool's `pkg_docs` and `lock`.
@@ -180,8 +180,38 @@ only this root; a missing package never falls back to the writable HOME cache.
 Package reads do not create registry directories. Provision packages with
 `ailang install` outside confinement, then copy the registry tree into the root.
 
-Registry dependencies are checked against the lock file's `content_hash` before
-compilation. A mismatch or unreadable registry directory makes `ailang check`
+Registry and git dependencies are checked against the lock file's `content_hash`
+before compilation. A mismatch or unreadable package directory makes `ailang check`
 exit non-zero immediately. Operators must protect the root and lock file from
 agent writes; content verification does not authenticate an agent-modified lock.
 Path dependency drift retains its existing warning behavior.
+
+### One authority gate for the package surface (#1720)
+
+Confinement covers every transport the package commands use, not only the
+registry client. Under `AILANG_AGENT_POLICY`, nothing reachable from an
+`ailang pkg` verb or the package loader may open a network connection or write
+under `~/.ailang`:
+
+- **Network**: every package HTTP client (registry, registry API, history,
+  publish, unpublish, publish keys) refuses at the transport; `git clone` /
+  `fetch` / `ls-remote` refuse; the cascade Pub/Sub publisher refuses.
+- **HOME writes**: the git cache, the registry cache, `[bin]` shims and the
+  messaging store (`~/.ailang/state/collaboration.db`) are not created or
+  modified. `ailang check` over a project with a git dependency no longer
+  creates `~/.ailang/cache/git`.
+- **Git dependencies**: a confined `ailang lock` (and `lock --check`) never runs
+  git. A git dependency is carried forward only when the existing `ailang.lock`
+  already pins it (same `git_url`, `git_tag`/`git_rev` and `git_subdir`) and the
+  provisioned copy still hashes to the locked `content_hash`; otherwise it is
+  refused with "run 'ailang lock' outside the sandbox or provision
+  AILANG_PACKAGE_ROOT". With `AILANG_PACKAGE_ROOT` set, git dependencies resolve
+  only from `<root>/<vendor>/<name>/<version>`, like registry packages.
+- **Operator verbs** (`publish`, `unpublish`, `pkg key`, `install`, `add`,
+  `notify-upgrade`, `bin uninstall`, `pkg cascade`) are refused at dispatch.
+
+Every refusal reads `confined by AILANG_AGENT_POLICY: <operation> is operator
+authority — <remedy>`. The gate lives in `internal/pkg/authority.go`; a Go AST
+test fails CI if package code reaches the network, git, the home directory, the
+messaging store or Pub/Sub any other way, and an end-to-end matrix runs every
+`ailang pkg` verb confined and fails when a verb has no row.

@@ -22,9 +22,15 @@ func LockedFromResolved(resolved []ResolvedPackage) []LockedPackage {
 // relative to dir with forward slashes (ailang#1498), so the result does not
 // depend on where the checkout lives.
 func ResolveLock(manifest *PackageManifest, dir, generator string) (*LockFile, error) {
+	return ResolveLockFrom(manifest, dir, generator, nil)
+}
+
+// ResolveLockFrom is ResolveLock given the previous lock (nil when none), so a
+// confined resolution can carry provisioned git entries forward (#1720 D2).
+func ResolveLockFrom(manifest *PackageManifest, dir, generator string, prev *LockFile) (*LockFile, error) {
 	var packages []LockedPackage
 	if len(manifest.Dependencies) > 0 {
-		resolved, err := ResolveDependencies(manifest, dir)
+		resolved, err := ResolveDependenciesFrom(manifest, dir, prev)
 		if err != nil {
 			return nil, err
 		}
@@ -52,7 +58,7 @@ func CheckLock(dir string) ([]string, error) {
 	if err != nil {
 		return nil, err
 	}
-	expected, err := ResolveLock(manifest, dir, "")
+	expected, err := ResolveLockFrom(manifest, dir, "", current)
 	if err != nil {
 		return nil, fmt.Errorf("dependency resolution failed: %w", err)
 	}

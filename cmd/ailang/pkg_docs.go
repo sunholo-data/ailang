@@ -64,9 +64,8 @@ func pkgDocsCommand(args []string) error {
 	}
 
 	// Not in registry cache — check git cache
-	home, _ := os.UserHomeDir()
-	gitCacheBase := filepath.Join(home, ".ailang", "cache", "git")
-	if entries, err := os.ReadDir(gitCacheBase); err == nil {
+	gitCacheBase, _ := pkg.UserDir("cache/git") // pure: computes, never creates
+	if entries, err := os.ReadDir(gitCacheBase); gitCacheBase != "" && err == nil {
 		for _, entry := range entries {
 			// Check each git cache dir for this package
 			candidate := filepath.Join(gitCacheBase, entry.Name(), "packages", nameParts[1], "AGENT.md")
