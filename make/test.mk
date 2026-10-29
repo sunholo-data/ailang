@@ -80,6 +80,7 @@ LAUNCHD_SUITES := \
 	tools/launchd/test_mission_worktree.sh \
 	tools/launchd/test_skill_sync.sh \
 	.claude/skills/sprint-executor/scripts/test_cloud_branch_sync.sh \
+	.claude/skills/sprint-planner/scripts/test_create_sprint_json.sh \
 	tools/launchd/test_quorum_artifacts.sh \
 	tools/launchd/test_codex_auth_profiles.sh \
 	tools/launchd/test_codex_spawn_override.sh \
@@ -129,6 +130,8 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@/bin/bash -n scripts/test_mission_ledger_provenance.sh
 	@/bin/bash -n .claude/skills/sprint-executor/scripts/cloud_branch_sync.sh
 	@/bin/bash -n .claude/skills/sprint-executor/scripts/test_cloud_branch_sync.sh
+	@/bin/bash -n .claude/skills/sprint-planner/scripts/create_sprint_json.sh
+	@/bin/bash -n .claude/skills/sprint-planner/scripts/test_create_sprint_json.sh
 	@/bin/bash -n scripts/worktree_sweep.sh
 	@/bin/bash -n scripts/hooks/git_health.sh
 	@for f in tools/launchd/*.sh tools/launchd/lib/*.sh; do /bin/bash -n "$$f" || exit 1; done

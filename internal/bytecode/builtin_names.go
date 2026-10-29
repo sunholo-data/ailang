@@ -156,4 +156,5 @@ var HOFBuiltinNames = []string{
 	"__list_findIndex",
 	"__list_foldr",
 	"__list_mapAccumL",
+	"__array_accumulate", // M-PERSISTENT-COLLECTIONS 1c
 }

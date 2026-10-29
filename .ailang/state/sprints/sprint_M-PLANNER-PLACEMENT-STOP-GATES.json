@@ -1,0 +1,46 @@
+{
+  "sprint_id": "M-PLANNER-PLACEMENT-STOP-GATES",
+  "design_doc": "design_docs/planned/sprint-plan-planner-placement-stop-gates.md",
+  "ticket": "sprint-planner:template-make-test-changelog-filesize",
+  "status": "planned",
+  "features": [
+    {
+      "id": "M1_SKILL_RULES",
+      "description": "Add plan-placement and OPEN-only terminal human-decision STOP rules within the 597-line skill cap; expand resources and regenerate .agents mirrors.",
+      "acceptance_criteria": [
+        "wc -l .claude/skills/sprint-planner/SKILL.md reports at most 597 (at most one line net growth from 596); baseline remains untouched.",
+        "rg -n 'PLAN LOCATION|HUMAN-DECISION GATES' .claude/skills/sprint-planner/SKILL.md .claude/skills/sprint-planner/resources/coordinator.md shows both rules, combined into one new checklist line and one coordinator line per rule.",
+        "rg -n 'OPEN|BLOCKED:|STOP|ruled|decision-ledger' .claude/skills/sprint-planner/resources/sprint_plan_template.md shows OPEN decision citation, resolved rulings as rulings, and commit/report BLOCKED/end-run behavior.",
+        "rg -n 'SPRINT_PLAN_PATH|plan_path' .claude/skills/sprint-planner/SKILL.md .claude/skills/sprint-planner/resources/coordinator.md shows only permitted plan examples; existing 2026-10-12 focused-test, fragment and companion-file rules remain verbatim.",
+        "/bin/bash tools/launchd/sync-agents-skills.sh --check exits 0 with agents skills in sync; /bin/bash tools/launchd/test_agents_skills_sync.sh exits 0 with 0 failed.",
+        "bash scripts/check_context_docs.sh and make check-skills exit 0; .agents is generated exclusively by the mirror sync script."
+      ],
+      "passes": true
+    },
+    {
+      "id": "M2_CREATE_JSON_GUARD",
+      "description": "Reject raw and canonical triage-directory sprint-plan paths with exit 2 before side effects; add isolated Bash 3.2 regression and mutation coverage and wire test-launchd-drivers.",
+      "acceptance_criteria": [
+        "/bin/bash -n and shellcheck -S warning on create_sprint_json.sh and test_create_sprint_json.sh in both .claude and .agents exit 0 without diagnostics.",
+        "/bin/bash .claude/skills/sprint-planner/scripts/test_create_sprint_json.sh exits 0 with named PASS arms and zero failures: raw, dotted, foreign-CWD, canonical symlink/.., before-mkdir, before-import, diagnostic contract, valid, directory boundary and triage-design control.",
+        "Forbidden cases return exactly 2 and one line naming PLAN LOCATION and design_docs/planned/ailang-core-triage/; fixture stub log stays empty and fixture output directory/JSON remain absent.",
+        "Legal versioned/root/sibling plans and a legal plan with a triage design argument succeed using a fixture-only ailang stub; valid JSON lands only in the throwaway repo, with throwaway HOME and TMPDIR.",
+        "/bin/bash .claude/skills/sprint-planner/scripts/test_create_sprint_json.sh <temporary-mutant-path> exits nonzero with the expected named FAIL for each mutation drill documented in the plan.",
+        "OBSERVATION: read-only real-HOME state manifests before/after show no test-caused changes; absence is recorded, never seeded. Fixture PATH/stub assertions show the real ailang/prod message store was not invoked.",
+        "make test-launchd-drivers includes both new syntax checks and the new test run; expected rc=0 ends with launchd drivers: tests + bash 3.2 syntax OK. Compare failures explicitly against the controller-supplied base result.",
+        "After regenerating mirrors, /bin/bash tools/launchd/sync-agents-skills.sh --check and /bin/bash tools/launchd/test_agents_skills_sync.sh exit 0; touched scripts/resources remain below 800 lines."
+      ],
+      "passes": true
+    },
+    {
+      "id": "M3_CHANGELOG",
+      "description": "Record the plan-location refusal and cited OPEN-decision terminal STOP behavior in the dated unreleased changelog fragment.",
+      "acceptance_criteria": [
+        "head -1 changelogs/unreleased/2026-10-29-planner-plan-location-stop-gates.md starts with ### Fixed \u2014; fragment describes both fixes and links the sprint plan.",
+        "make check-changelog exits 0; no entry is added to a v*-current.md file.",
+        "Final bash scripts/check_context_docs.sh, make check-skills and /bin/bash tools/launchd/sync-agents-skills.sh --check exit 0; report source/mirror diff, prior gate results, mutant failures and read-only isolation observations."
+      ],
+      "passes": true
+    }
+  ]
+}

@@ -17,6 +17,9 @@ type RepairRunner struct {
 	promptVersion string        // Optional prompt version ID for A/B testing
 	verify        bool          // M-CONTRACT-EVAL: run Z3 verification
 	verifyTimeout time.Duration // M-CONTRACT-EVAL: per-function Z3 timeout
+	// newRunner builds the runner for each hidden test's spec copy
+	// (M-EVAL-HIDDEN-TESTS); GetRunnerWithContext outside tests.
+	newRunner func(ctx context.Context, lang string, spec *BenchmarkSpec, taskID string) (LanguageRunner, error)
 }
 
 // NewRepairRunner creates a new repair runner
@@ -28,6 +31,7 @@ func NewRepairRunner(agent *AIAgent, runner LanguageRunner, spec *BenchmarkSpec,
 		timeout:       timeout,
 		selfRepair:    selfRepair,
 		verifyTimeout: 5 * time.Second, // default
+		newRunner:     GetRunnerWithContext,
 	}
 }
 
@@ -140,6 +144,7 @@ func (r *RepairRunner) Run(ctx context.Context, prompt string) (*RunMetrics, err
 		metrics.CompileOk = true
 		metrics.RuntimeOk = true
 		metrics.StdoutOk = true
+		metrics.SetHidden(repairResult.Hidden)
 		// Store the repaired attempt's actual output + clear the error so the
 		// PERSISTED stdout matches the graded result. Without this, the first
 		// (failed) attempt's stdout was stored alongside a passing stdout_ok — a
@@ -184,9 +189,10 @@ type attemptResult struct {
 	CompileOk            bool
 	RuntimeOk            bool
 	StdoutOk             bool
-	ConstraintViolations []string // non-empty: source rejected before execution
-	WallMS               int64    // client-observed wall time of this attempt's generation call (0 = unmeasured)
-	TTFTMS               int64    // time-to-first-token of this attempt's generation call (streaming transports only; 0 = unmeasured)
+	ConstraintViolations []string     // non-empty: source rejected before execution
+	Hidden               HiddenResult // M-EVAL-HIDDEN-TESTS verdict; Total == 0 when the spec has none
+	WallMS               int64        // client-observed wall time of this attempt's generation call (0 = unmeasured)
+	TTFTMS               int64        // time-to-first-token of this attempt's generation call (streaming transports only; 0 = unmeasured)
 }
 
 // splitCacheablePrefix separates the stable teaching prompt from the volatile
@@ -250,7 +256,8 @@ func (r *RepairRunner) runSingleAttempt(ctx context.Context, prompt string) (*at
 	}
 
 	// Execute generated code
-	runResult, err := r.runner.Run(genResult.Code, r.timeout)
+	timeout := r.spec.ExecTimeoutOr(r.timeout)
+	runResult, err := r.runner.Run(genResult.Code, timeout)
 	if err != nil {
 		return nil, fmt.Errorf("code execution failed: %w", err)
 	}
@@ -266,6 +273,35 @@ func (r *RepairRunner) runSingleAttempt(ctx context.Context, prompt string) (*at
 	// rates do not move — this makes the STORED flag mean the same thing in
 	// both modes. TestD9StandardModeStdoutOkGatedOnRuntime pins it.
 	stdoutOk := runResult.RuntimeOk && GradeStdout(r.spec, runResult.Stdout, genResult.Code)
+	runtimeOk := runResult.RuntimeOk
+
+	// M-EVAL-HIDDEN-TESTS: held-out tests, only once the visible test passed. The
+	// verdict lives beside runResult, never in it: the repair prompt is built from
+	// runResult.Stderr, and a hidden run's output must not reach the model.
+	var hidden HiddenResult
+	if len(r.spec.HiddenTests) > 0 {
+		hidden.Total = len(r.spec.HiddenTests)
+		if stdoutOk {
+			hidden, err = GradeHidden(r.spec, func(cp *BenchmarkSpec) (HiddenRun, error) {
+				hr, err := r.newRunner(ctx, r.runner.Language(), cp, "")
+				if err != nil {
+					return HiddenRun{}, err
+				}
+				res, err := hr.Run(genResult.Code, timeout)
+				if err != nil {
+					return HiddenRun{}, err
+				}
+				return HiddenRun{Stdout: res.Stdout, RuntimeOk: res.CompileOk && res.RuntimeOk, TimedOut: res.TimedOut}, nil
+			})
+			if err != nil {
+				return nil, fmt.Errorf("code execution failed: %w", err)
+			}
+			if !hidden.AllPassed() {
+				stdoutOk = false
+				runtimeOk = hiddenFailureCategory(hidden.FirstFail) != ErrorCategoryRuntime
+			}
+		}
+	}
 
 	return &attemptResult{
 		Code:                genResult.Code,
@@ -277,8 +313,9 @@ func (r *RepairRunner) runSingleAttempt(ctx context.Context, prompt string) (*at
 		FinishReason:        genResult.FinishReason,
 		RunResult:           runResult,
 		CompileOk:           runResult.CompileOk,
-		RuntimeOk:           runResult.RuntimeOk,
+		RuntimeOk:           runtimeOk,
 		StdoutOk:            stdoutOk,
+		Hidden:              hidden,
 		WallMS:              genResult.WallMS,
 		TTFTMS:              genResult.TTFTMS,
 	}, nil
@@ -313,6 +350,7 @@ func (r *RepairRunner) populateMetrics(metrics *RunMetrics, result *attemptResul
 	metrics.CompileOk = result.CompileOk
 	metrics.RuntimeOk = result.RuntimeOk
 	metrics.StdoutOk = result.StdoutOk
+	metrics.SetHidden(result.Hidden)
 
 	metrics.DurationMs = result.RunResult.Duration.Milliseconds()
 	metrics.CompileMs = result.RunResult.CompileTime.Milliseconds()

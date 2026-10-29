@@ -1,0 +1,47 @@
+# M-EVAL-HIDDEN-TESTS pack (design_docs/planned/v0_55_0/m-eval-hidden-tests.md).
+# Generated from AetherCode v1_2024; regenerate rather than hand-edit the prompt.
+id: cp_60164
+description: 'AetherCode v1_2024 problem 60164 (CCPC Final 2024, Medium; CC-BY-4.0, see benchmarks/hidden_tests/AETHERCODE.md). Tracks: cheap int accumulate: the fast path is a mutable 2D difference array.'
+languages:
+- python
+- ailang
+entrypoint: main
+caps:
+- IO
+difficulty: hard
+expected_gain: diagnostic
+timeout: 600
+exec_timeout: 30
+tier: experimental
+tags:
+- algorithmic
+task_prompt: "Solve the following competitive programming problem in <LANG>.\nWrite a complete program that reads the input from standard input and writes the answer to standard output.\nBesides the example below, it is judged against 8 hidden tests (inputs up to 64KB), each with a 30 second time limit, so the algorithm must be efficient enough. Ignore the time limit stated in the problem.\n\n--- PROBLEM ---\nInput file: standard input \nOutput file: standard output \nTime limit: 8 seconds \nMemory limit: 1024 megabytes\nIn addition to “adding one,” there were many other experiences during the premiere of Little Cyan Fish. Various data structure problems appeared at the premiere. From “return” to \"WBLT,\" these problems were simply filled with dark humor —— or rather, their appearance merely reduced the number of problems in this scene by 1.\nAt that time, Little Cyan Fish's collaborator wanted to become an omniscient artist of data structures. On many nights, he found Little Cyan Fish by the stove to talk, sharing many stories and making many wishes. Regardless of what happened at that time, Little Cyan Fish only remembers arguing with him about whether data structure problems should appear in this competition.\nIn the blink of an eye, three years have passed, and Little Cyan Fish has gradually forgotten the content of both sides' arguments. Whether this collaborator is omniscient, Little Cyan Fish cannot know, but he indeed believes that he is not an artist. Perhaps different things have different kinds of romance, and not all humans can appreciate it.\nThat being said, this time, Little Cyan Fish wants you to experience the beauty of data structures. Now, Little Cyan Fish has given you $n$ axis - parallel rectangular regions, with the $i$-th rectangle represented by four integers $x_{1,i}, x_{2,i}, y_{1,i}, y_{2,i}$.\nIn Little Cyan Fish's mind, there is a fixed positive integer $m$ ($m \\geq \\sqrt{n}$). For each integer $c$ such that $1 \\leq m \\cdot c \\leq n$, Little Cyan Fish needs you to calculate the area of the region that is exactly contained by $m \\cdot c$ rectangles.\nFormally, the area of the region that is exactly contained by $i$ rectangles is the number of integer points $(x,y)$ that satisfy $\\sum_{j = 1}^n [x_{1,j} \\leq x < x_{2,j}] [y_{1,j} \\leq y < y_{2,j}] = i$.\n\nInput\nThe first line of input contains two integers $n, m$ ($2 \\leq n \\leq 3 \\times 10^5$, $\\sqrt{n} \\leq m \\leq n$).\nThe next $n$ lines each contain four integers, $x_{1,i}, x_{2,i}, y_{1,i}, y_{2,i}$ ($1 \\leq x_{1,i} < x_{2,i} \\leq n$, $1 \\leq y_{1,i} < y_{2,i} \\leq n$).\nOutput\nOutput a total of $\\lfloor \\frac{n}{m} \\rfloor$ lines, each representing the area of the region that is exactly contained by $m, 2m, 3m, \\ldots, \\lfloor \\frac{n}{m} \\rfloor \\cdot m$ rectangles.\n\nExamples \nstandard input \n9 3 \n6 8 4 5 \n6 9 1 3 \n1 5 1 9 \n6 8 7 9 \n5 6 2 9 \n2 8 1 2 \n1 8 5 9 \n2 4 5 7 \n7 9 2 6 \nstandard output \n4 \n0 \n0 \nstandard input \n10 4 \n1 2 1 6 \n3 9 8 9 \n2 3 1 9 \n2 8 8 10 \n3 7 2 10 \n1 7 2 7 \n5 6 2 6 \n5 8 3 7 \n6 7 4 7 \n1 4 7 10 \nstandard output \n7 \n0\n--- END PROBLEM ---\n\nOutput only the code, no explanations.\n"
+stdin: '9 3
+
+  6 8 4 5
+
+  6 9 1 3
+
+  1 5 1 9
+
+  6 8 7 9
+
+  5 6 2 9
+
+  2 8 1 2
+
+  1 8 5 9
+
+  2 4 5 7
+
+  7 9 2 6
+
+  '
+expected_stdout: '4
+
+  0
+
+  0
+
+  '
+hidden_tests_dir: hidden_tests/cp_60164

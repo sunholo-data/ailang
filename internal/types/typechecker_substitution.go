@@ -226,10 +226,11 @@ func (tc *CoreTypeChecker) applySubstitutionToConstraints(sub Substitution, cons
 	result := make([]ClassConstraint, len(constraints))
 	for i, c := range constraints {
 		result[i] = ClassConstraint{
-			Class:  c.Class,
-			Type:   ApplySubstitution(sub, c.Type), // Use cycle-safe substitution
-			Path:   c.Path,
-			NodeID: c.NodeID,
+			Class:      c.Class,
+			Type:       ApplySubstitution(sub, c.Type), // Use cycle-safe substitution
+			Path:       c.Path,
+			NodeID:     c.NodeID,
+			IntLiteral: c.IntLiteral,
 		}
 	}
 	return result

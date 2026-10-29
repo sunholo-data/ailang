@@ -91,7 +91,9 @@ crash, never overflow"; everything smart is above it.
 
 The thesis: **can we build a language that AI models prefer and use better than existing ones — and can a
 weak on-device model in AILANG match or beat a frontier cloud model?** Every benchmark run exists to
-answer that, and to feed §3's loop. Three stages, each holding something different constant:
+answer that, and to feed §3's loop. The per-release scoreboard and the falsifiable hypotheses about
+*where* AILANG should beat Python live in [m-eval-ailang-advantage-program](planned/v0_55_0/m-eval-ailang-advantage-program.md)
+(2026-10-28). Three stages, each holding something different constant:
 
 | Stage | Who runs | Langs | Holds constant | Measures |
 |---|---|---|---|---|

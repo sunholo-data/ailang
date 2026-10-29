@@ -1,0 +1,51 @@
+{
+  "sprint_id": "M-SWEEP-ACCOUNT-HOME",
+  "design_doc": "design_docs/planned/sprint-plan-sweep-account-home.md",
+  "ticket": "pin-root:worktree-removed-mid-fire",
+  "status": "planned",
+  "features": [
+    {
+      "id": "M1_HOOK_ACCOUNT_HOME",
+      "description": "Protect account-home worktree prefixes via the existing AILANG_SWEEP_PROTECT input, fail closed on unavailable account home, and add three isolated regression arms.",
+      "acceptance_criteria": [
+        "Only scripts/hooks/git_health.sh and scripts/hooks/test_git_health.sh change for M1; no new environment variable, real sweep invocation, or real-HOME writes.",
+        "Resolve ACCT with perl -e 'print((getpwuid($<))[7])'; require success and an existing directory before stamp touch and sweep launch; otherwise skip sweeping and exit 0.",
+        "Sweep receives all four account-home prefixes (.ailang-driver-pin/, .ailang-ab/, .ailang-nightly/, .ailang/state/worktrees/) followed by any caller-supplied AILANG_SWEEP_PROTECT unchanged; retain HOME-relative stamp/log, bash 3.2, asynchronous launch, 5s hook budget, and incident header.",
+        "/bin/bash scripts/hooks/test_git_health.sh => rc 0 and 12 passed, 0 failed, including all original nine arms plus fake-HOME account-prefix, preserved-caller-prefix, and failing-perl/no-launch arms; the stub records both runs and received protection.",
+        "/bin/bash -n scripts/hooks/git_health.sh => rc 0, no output.",
+        "shellcheck -S warning scripts/hooks/git_health.sh scripts/hooks/test_git_health.sh => rc 0, no warnings.",
+        "Disposable-copy mutation drills HOME_PREFIXES, DROP_CALLER_PROTECT, and LOOKUP_FAIL_OPEN each make their corresponding A/B/C arm FAIL with nonzero test rc; unmutated rerun returns 12 passed, 0 failed.",
+        "OBSERVATIONS only, before and after isolated gates: account-home worktree-sweep.log SHA256/line-count and .ailang-driver-pin listing unchanged; report absent paths or concurrent activity without seeding or rewriting real state."
+      ],
+      "passes": true
+    },
+    {
+      "id": "M2_RECIPE_CHANGELOG",
+      "description": "Disable worktree sweeping explicitly in both fleet Guardrails dry-run commands and document the incident/fix in an unreleased changelog fragment.",
+      "acceptance_criteria": [
+        "After M1, edit only design_docs/fleet-mission.md and changelogs/unreleased/2026-10-28-sweep-account-home.md for M2.",
+        "Both idle-sibling and explicit synthetic-HOME env -i commands carry AILANG_WORKTREE_SWEEP=0; retain existing pin/dry-run/profile/configuration isolation and explain that dry-runs must start no side jobs because the 2026-10-28 synthetic-HOME dry-run deleted three live pins.",
+        "rg -c 'AILANG_WORKTREE_SWEEP=0' design_docs/fleet-mission.md => rc 0, output 2; rg -n -A 4 'env -i' design_docs/fleet-mission.md shows the opt-out inside both recipe commands.",
+        "head -n 1 changelogs/unreleased/2026-10-28-sweep-account-home.md => ### Fixed — Synthetic-HOME sessions could delete live mission pins (2026-10-28); fragment describes protection, lookup failure behavior, dry-run opt-out, and links the plan.",
+        "make check-changelog => rc 0.",
+        "make test-launchd-drivers => rc 0, final launchd drivers: tests + bash 3.2 syntax OK; hook suite reports 12 passes; rerun all three M1 acceptance commands successfully.",
+        "Retain the stated residual: any OTHER sweep removal under synthetic HOME still logs there; do not change scripts/worktree_sweep.sh or scripts/test_worktree_sweep.sh. Real-state acceptance remains read-only OBSERVATIONS."
+      ],
+      "passes": true
+    }
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_HOOK_ACCOUNT_HOME",
+      "package": null,
+      "action": "none",
+      "reason": "Existing repository hook and shell self-test; no package-like capability, so registry search is inapplicable."
+    },
+    {
+      "milestone": "M2_RECIPE_CHANGELOG",
+      "package": null,
+      "action": "none",
+      "reason": "Charter recipe and changelog documentation only; no package-like capability, so registry search is inapplicable."
+    }
+  ]
+}

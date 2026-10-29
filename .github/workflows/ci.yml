@@ -149,7 +149,7 @@ jobs:
     # t.Skip()s — they had silently never run in CI until 2026-07-10.
     - name: Install z3 (SMT solver for contract-verification tests)
       timeout-minutes: 5
-      run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends z3
+      run: tools/ci/install_z3.sh
 
     # jq drives scripts/hooks/format_ail.sh, which TestFormatAilHookSinkRoundTrip
     # executes end-to-end. It ships on the ubuntu-latest image today, but the
@@ -290,9 +290,9 @@ jobs:
   #
   # Repo and example gates that need the built binaries but not the Go suite's
   # coverage profile — split from `test` so the two run side by side (see the
-  # `test` comment for the timings). Branch protection requires `test`, `lint`
-  # and `build`, not `checks`: `build` waits for this job and refuses to go
-  # green unless it passed, so a red `checks` still blocks a merge.
+  # `test` comment for the timings). `checks` is a required status check on dev
+  # beside `test`, `lint` and `build` (added 2026-10-27), so `build` no longer
+  # waits on either: a red `checks` blocks a merge on its own.
   checks:
     runs-on: ubuntu-latest
     timeout-minutes: 45
@@ -370,7 +370,7 @@ jobs:
     # t.Skip()s — they had silently never run in CI until 2026-07-10.
     - name: Install z3 (SMT solver for contract-verification tests)
       timeout-minutes: 5
-      run: sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends z3
+      run: tools/ci/install_z3.sh
 
     # jq drives scripts/hooks/format_ail.sh, which TestFormatAilHookSinkRoundTrip
     # executes end-to-end. It ships on the ubuntu-latest image today, but the
@@ -762,42 +762,25 @@ jobs:
           }
         }
 
-  # Required, and the only required job that waits on `checks` — so it always
-  # runs (`if: always()`), even on the docs-only lane, where it skips the compile
-  # but still refuses a red `checks`. A skipped required job counts as passed,
-  # and docs PRs are exactly what the personal-email and referenced-path gates
-  # in `checks` exist for.
   build:
     runs-on: ubuntu-latest
     timeout-minutes: 15
-    needs: [changes, checks]
-    if: always()
+    needs: [changes]
+    if: needs.changes.outputs.code == 'true'
 
     steps:
-    - name: Require the changes and checks jobs to have passed
-      run: |
-        echo "changes: ${{ needs.changes.result }}, checks: ${{ needs.checks.result }}"
-        [ "${{ needs.changes.result }}" = success ] && [ "${{ needs.checks.result }}" = success ] || {
-          echo "::error::build refuses: changes=${{ needs.changes.result }} checks=${{ needs.checks.result }} (both must be success)"
-          exit 1
-        }
-
     - uses: actions/checkout@v7
-      if: needs.changes.outputs.code == 'true'
 
     - name: Set up Go
-      if: needs.changes.outputs.code == 'true'
       uses: actions/setup-go@v7
       with:
         go-version: '1.26.10'
         cache: true
 
     - name: Build binary
-      if: needs.changes.outputs.code == 'true'
       run: make build
 
     - name: Upload binary artifact
-      if: needs.changes.outputs.code == 'true'
       uses: actions/upload-artifact@v7
       with:
         name: ailang-binary

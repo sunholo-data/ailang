@@ -12,6 +12,12 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 65 | 2026-10-28 | planner-lane fence parsing LANDED — #1977 → `7c5cc5d33`, judged PASS 90 (round 2) by an independent sonnet evaluator; two duplicate tickets resolve... |
+| 64 | 2026-10-28 | `gate5:controlplane-assert-marks-read` LANDED — #1975 → `8f8294c4e`, judged PASS 91 (round 2) by an independent sonnet evaluator; ticket resolved i... |
+| 63 | 2026-10-27 | dev's required-check red repaired — the sprint-evaluator `.agents` mirror re-synced, #1972 → `6094d2b33`, judged PASS 94 by an independent sonnet e... |
+| 62 | 2026-10-27 | `quorum:oc-glm-5-3-output-cap-invalid` diagnosis half LANDED — #1966 → `0802749cb`, judged PASS 93 by an independent sonnet evaluator; policy half ... |
+| 61 | 2026-10-26 | `quorum-reader:zsh-nomatch` LANDED — #1944 → `b7dd07599`, judged CODE ACCEPT 94 by an independent sonnet evaluator; ticket resolved; orphan iterati... |
+| 59 | 2026-10-23 | watchdog fix #1937 recovered and ticket resolved; independent MiniMax RECOVERY_ACCEPT94/100;43 open [HARNESS] |
 | 58 | 2026-10-22 | `routing-models-check:bold-colon-heading` LANDED — #1935 → `2debbb027`, independently judged PASS 93 by MiniMax; ticket resolved [HARNESS] |
 | 57 | 2026-10-22 | `quorum-reader:zsh-nomatch` BUILT, merge PARKED on dev's inherited required red (D-FLEET-17) — #1932 head `6268fb0b8`, judged PASS 94 by sonnet; ti... |
 | 56 | 2026-10-22 | `rotate-log:heading-parse-stapledon` RESOLVED as a ghost of #1912 (the rig binary is stale), judged CONFIRMED by sonnet; `quorum:claude-p-ration-us... |
