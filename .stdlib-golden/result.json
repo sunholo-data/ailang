@@ -15,41 +15,233 @@
   ],
   "funcs": [
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "f",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "r",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "flatMap",
       "type": "((a)-\u003eResult[b,c],Result[a,c])-\u003eResult[b,c]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "r",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "isErr",
       "type": "(Result[a,b])-\u003ebool",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "r",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "isOk",
       "type": "(Result[a,b])-\u003ebool",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "f",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "r",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "map",
       "type": "((a)-\u003eb,Result[a,c])-\u003eResult[b,c]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "f",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "r",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "mapErr",
       "type": "((a)-\u003eb,Result[c,a])-\u003eResult[c,b]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "r",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "unwrap",
       "type": "(Result[a,b])-\u003ea",
       "effects": [],
       "pure": true
     }
   ],
-  "schema": "ailang.iface/v1"
+  "schema": "ailang.iface/v2"
 }

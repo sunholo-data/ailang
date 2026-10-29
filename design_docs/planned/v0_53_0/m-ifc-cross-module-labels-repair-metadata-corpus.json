@@ -1,0 +1,169 @@
+{
+  "baseline": "5d4fa361ea4446dabce8c5f4eee52c486877bfbf",
+  "files": 2628,
+  "parse_failures": 23,
+  "baseline_analysis_errors": 2,
+  "final_analysis_errors": 0,
+  "analysis_error_changes": [
+    {
+      "path": "root0/sim_stub/world.ail",
+      "before": "information-flow analysis limit exceeded (summary work budget); callable requirements could not be verified: \n  Suggestion: simplify the nested function-value expression before checking again",
+      "after": ""
+    },
+    {
+      "path": "root4/examples/sim_stub/world.ail",
+      "before": "information-flow analysis limit exceeded (summary work budget); callable requirements could not be verified: \n  Suggestion: simplify the nested function-value expression before checking again",
+      "after": ""
+    }
+  ],
+  "baseline_summary_functions": 29165,
+  "all_unlabelled_modules_unchanged": 2568,
+  "successful_baseline_metadata_changes": [],
+  "changed_modules": 2,
+  "changes": [
+    {
+      "path": "root0/sim_stub/world.ail",
+      "source_sha256": "6de5693f1a6393bb6ffdd091f8e3bb043adeb46623187ab7ff0289f4e9fdfb93",
+      "before_error": "information-flow analysis limit exceeded (summary work budget); callable requirements could not be verified: \n  Suggestion: simplify the nested function-value expression before checking again",
+      "after": {
+        "init_world": {
+          "params": [
+            {
+              "name": "seed",
+              "label": {
+                "constants": [],
+                "variables": []
+              },
+              "forbidden": [],
+              "applied": {
+                "constants": [],
+                "variables": []
+              }
+            }
+          ],
+          "return": {
+            "constants": [],
+            "variables": []
+          },
+          "has_return_label": false,
+          "intrinsic": {
+            "constants": [],
+            "variables": []
+          },
+          "declassify": []
+        },
+        "step": {
+          "params": [
+            {
+              "name": "world",
+              "label": {
+                "constants": [],
+                "variables": []
+              },
+              "forbidden": [],
+              "applied": {
+                "constants": [],
+                "variables": []
+              }
+            },
+            {
+              "name": "input",
+              "label": {
+                "constants": [],
+                "variables": []
+              },
+              "forbidden": [],
+              "applied": {
+                "constants": [],
+                "variables": []
+              }
+            }
+          ],
+          "return": {
+            "constants": [],
+            "variables": []
+          },
+          "has_return_label": false,
+          "intrinsic": {
+            "constants": [],
+            "variables": []
+          },
+          "declassify": []
+        }
+      }
+    },
+    {
+      "path": "root4/examples/sim_stub/world.ail",
+      "source_sha256": "6de5693f1a6393bb6ffdd091f8e3bb043adeb46623187ab7ff0289f4e9fdfb93",
+      "before_error": "information-flow analysis limit exceeded (summary work budget); callable requirements could not be verified: \n  Suggestion: simplify the nested function-value expression before checking again",
+      "after": {
+        "init_world": {
+          "params": [
+            {
+              "name": "seed",
+              "label": {
+                "constants": [],
+                "variables": []
+              },
+              "forbidden": [],
+              "applied": {
+                "constants": [],
+                "variables": []
+              }
+            }
+          ],
+          "return": {
+            "constants": [],
+            "variables": []
+          },
+          "has_return_label": false,
+          "intrinsic": {
+            "constants": [],
+            "variables": []
+          },
+          "declassify": []
+        },
+        "step": {
+          "params": [
+            {
+              "name": "world",
+              "label": {
+                "constants": [],
+                "variables": []
+              },
+              "forbidden": [],
+              "applied": {
+                "constants": [],
+                "variables": []
+              }
+            },
+            {
+              "name": "input",
+              "label": {
+                "constants": [],
+                "variables": []
+              },
+              "forbidden": [],
+              "applied": {
+                "constants": [],
+                "variables": []
+              }
+            }
+          ],
+          "return": {
+            "constants": [],
+            "variables": []
+          },
+          "has_return_label": false,
+          "intrinsic": {
+            "constants": [],
+            "variables": []
+          },
+          "declassify": []
+        }
+      }
+    }
+  ],
+  "private_rho_leaks": [],
+  "source_index_sha256": "d2e14731f559d4c7cb90b7e16e33a99252687f3c15138a38f80f477b10b69e85"
+}

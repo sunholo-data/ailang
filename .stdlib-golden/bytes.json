@@ -3,83 +3,469 @@
   "types": [],
   "funcs": [
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "i",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "byteAt",
       "type": "(bytes,int)-\u003eOption[int]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "a",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "concat",
       "type": "(bytes,bytes)-\u003ebytes",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "xs",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "concatList",
       "type": "(list[bytes])-\u003ebytes",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "s",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "fromBase64",
       "type": "(string)-\u003eOption[bytes]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "s",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "fromBase64URL",
       "type": "(string)-\u003eOption[bytes]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "xs",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "fromInts",
       "type": "(list[int])-\u003ebytes",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "s",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "fromString",
       "type": "(string)-\u003ebytes",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "length",
       "type": "(bytes)-\u003eint",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "start",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "len",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "slice",
       "type": "(bytes,int,int)-\u003eOption[bytes]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "toBase64",
       "type": "(bytes)-\u003estring",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "toBase64URL",
       "type": "(bytes)-\u003estring",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "toInts",
       "type": "(bytes)-\u003elist[int]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "toString",
       "type": "(bytes)-\u003estring",
       "effects": [],
       "pure": true
     }
   ],
-  "schema": "ailang.iface/v1"
+  "schema": "ailang.iface/v2"
 }

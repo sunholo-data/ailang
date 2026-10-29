@@ -3,83 +3,517 @@
   "types": [],
   "funcs": [
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "a",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "add_vectors",
       "type": "(list[float],list[float])-\u003elist[float]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "a",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "x",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "y",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "axpy",
       "type": "(float,list[float],list[float])-\u003elist[float]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "a",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "cosine",
       "type": "(list[float],list[float])-\u003efloat",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "a",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "cosine_encoded",
       "type": "(bytes,bytes)-\u003efloat",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "decodeF32LE",
       "type": "(bytes)-\u003eResult[list[float],string]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "decodeF64LE",
       "type": "(bytes)-\u003eResult[list[float],string]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "a",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "dot",
       "type": "(list[float],list[float])-\u003efloat",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "v",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "encodeF32LE",
       "type": "(list[float])-\u003ebytes",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "v",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "encodeF64LE",
       "type": "(list[float])-\u003ebytes",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "a",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "euclidean_distance",
       "type": "(list[float],list[float])-\u003efloat",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "v",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "magnitude",
       "type": "(list[float])-\u003efloat",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "v",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "normalize",
       "type": "(list[float])-\u003elist[float]",
       "effects": [],
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "s",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "v",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "scale",
       "type": "(float,list[float])-\u003elist[float]",
       "effects": [],
       "pure": true
     }
   ],
-  "schema": "ailang.iface/v1"
+  "schema": "ailang.iface/v2"
 }

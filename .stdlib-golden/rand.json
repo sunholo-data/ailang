@@ -3,6 +3,32 @@
   "types": [],
   "funcs": [
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "_",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "rand_bool",
       "type": "(())-\u003ebool!{Rand}",
       "effects": [
@@ -11,6 +37,44 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "min",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "max",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "rand_float",
       "type": "(float,float)-\u003efloat!{Rand}",
       "effects": [
@@ -19,6 +83,44 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "min",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "max",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "rand_int",
       "type": "(int,int)-\u003eint!{Rand}",
       "effects": [
@@ -27,6 +129,32 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "seed",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "rand_seed",
       "type": "(int)-\u003e()!{Rand}",
       "effects": [
@@ -35,6 +163,32 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "_",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "uuid4",
       "type": "(())-\u003estring!{Rand}",
       "effects": [
@@ -43,5 +197,5 @@
       "pure": true
     }
   ],
-  "schema": "ailang.iface/v1"
+  "schema": "ailang.iface/v2"
 }

@@ -1,7 +1,8 @@
 # M-IFC-CROSS-MODULE — IFC Label Refinements Surviving Module Boundaries
 
 **Status**: Planned
-**Target**: v0.39.0
+**Current target**: v0.56.0 (unreleased M1–M2 foundation; no version bump)
+**Original target**: v0.39.0, historical; the 2026-10-08 plan targeted v0.53.x
 **Priority**: P0 (High — security-sensitive semantics change to `internal/types`)
 **Estimated**: 4 days
 **Dependencies**: M-SECRET-EFFECT / M-TAINT-TYPES label lattice (shipped); `TLabelled` gob cache codec (0bc1a7b57); closure-laundering fix (1af9f5f30)
@@ -66,17 +67,24 @@ exactly like local ones. Three coordinated pieces:
 
 ### 1. Iface IFC summary (internal/iface, schema v2)
 
-Extend `IfaceItem` with an optional IFC projection built at export time:
+Extend `IfaceItem` with a mandatory explicit IFC projection built at export time:
 
 ```
 ifc: {
-  params:    [{ label: "secret" | "", notLabel: "email" | "" }, ...]  // per param, source label + sink refinement
-  return:    "secret" | ""        // declared return label (⊥ = none)
-  intrinsic: "secret" | ""       // body's effective label, params at ⊥ (see §2)
-  declassify: ["email"] | ["*"] | []  // authorized relabel labels: [] none, ["*"] bare ! {Declassify}, else sorted unique labels
+  params: [{name: "input", label: {constants: [], variables: []}, forbidden: ["email"], applied: {constants: [], variables: []}}]
+  return: {constants: ["secret"], variables: []}
+  has_return_label: true
+  intrinsic: {constants: [], variables: []}  // params' flow labels at bottom
+  declassify: ["email"] | ["*"] | []
 }
 ```
 
+> **F4 schema ruling (Mark, 2026-10-26; repaired 2026-10-29):** `forbidden` is a sorted unique label array (clean `[]`), and every parameter reserves an `applied` IFCLabel (currently explicit bottom). Both fields are mandatory inside schema v2; there is no v3. This M1–M2 repair does not publish inferred/applied cross-module enforcement.
+>
+> **Implementation schema note (2026-10-12):** Every export carries metadata,
+> including explicit empty arrays for clean exports. Labels preserve constant and
+> variable constituents separately, including joins; display strings are not the codec.
+>
 > **Revision (2026-10-08, sprint planning; maintainer ruling by Mark the same day):**
 > `declassify` is a **label list from day one**, not a bool, so the summary never
 > ships a bool-shaped schema that M-IFC-AUTHORITY-SCOPING would immediately
@@ -229,3 +237,19 @@ declared return label so the fix is unambiguous about which side must change.
   contract precedent (interfaces carrying per-export check obligations).
 - `design_docs/planned/v0_36_0/m-cache-module-id-encoding.md` — digest/cache
   invalidation machinery the schema bump rides on.
+
+## Conflict Surface — approved M1–M2 foundation only (2026-10-29 repair)
+
+The approved sprint plan's compatibility table remains the source for its later M3/M4 imported-call behavior. This partial execution preserves current caller verdicts; it publishes and validates metadata only.
+
+| Existing surface | Required M1–M2 behavior and proof |
+|---|---|
+| Same-module IFC function values, aliases, wrappers and REPL | Keep #1719 verdicts and ordinary analysis-limit diagnostics; current IFC/fresh-CLI/REPL regression suites |
+| Imported sink calls | Caller/CLI/REPL enforcement remains deferred to M3; do not close #1134 or #1132 |
+| Explicit unlabelled and synthetic exports | Emit complete canonical v2 metadata; missing/malformed metadata is rejected |
+| Constant/variable labels, forbidden lists, reserved applied labels and scoped authority | Lossless JSON/gob, canonical ordering, each security field affects identity/digest |
+| Unlabelled package identity | Preserve attended dba22e04e's pinned hash-projection schema and valid-clean summary omission; byte-identical pre-summary projection control |
+| Current stdlib public type/effect signatures | Re-freeze all49 interfaces for F4 shape only; removing IFC fields/schema from the comparison must leave no signature differences |
+| Compile caches | Pre-IFC v7 misses under v8; keep v7 CoreTI DAG; valid warm modules hit; dependency metadata edits invalidate callers |
+
+No parser/AST shape or language syntax changes are part of this partial execution. The 18-case external/current CLI differential and example gate verify no unintended caller verdict changes. The known Motoko mixed-record compatibility blocker and independent Stapledon dependency invariant are retained explicitly in the repair validation; neither is repaired by changing IFC metadata.

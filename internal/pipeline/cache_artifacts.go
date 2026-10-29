@@ -336,6 +336,12 @@ func (cs *CacheStore) loadArtifacts(moduleID, expectedCacheKey string) (*CachedM
 	if err != nil {
 		return nil, artifactFailure("decoding", filepath.Join(modDir, artifactIfaceName), err)
 	}
+	if ifc == nil || ifc.Module != moduleID {
+		return nil, artifactFailure("decoding", filepath.Join(modDir, artifactIfaceName), fmt.Errorf("interface module identity mismatch"))
+	}
+	if err := ifc.ValidateIFC(); err != nil {
+		return nil, artifactFailure("decoding", filepath.Join(modDir, artifactIfaceName), err)
+	}
 	constructors, err := cs.artifactCodec.decodeConstructors(artifacts[artifactConstructorsName])
 	if err != nil {
 		return nil, artifactFailure("decoding", filepath.Join(modDir, artifactConstructorsName), err)

@@ -64,6 +64,32 @@
   ],
   "funcs": [
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "_",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "info",
       "type": "(())-\u003eResult[TerminalInfo,TerminalError]!{IO}",
       "effects": [
@@ -72,6 +98,44 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "session",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "timeout_ms",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "readEvent",
       "type": "(TerminalSession,int)-\u003eResult[TerminalEvent,TerminalError]!{IO}",
       "effects": [
@@ -80,6 +144,44 @@
       "pure": true
     },
     {
+      "ifc": {
+        "params": [
+          {
+            "name": "options",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "body",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "withTerminal",
       "type": "(TerminalOptions,(TerminalSession)-\u003ea)-\u003eResult[a,TerminalError]!{IO}",
       "effects": [
@@ -88,5 +190,5 @@
       "pure": true
     }
   ],
-  "schema": "ailang.iface/v1"
+  "schema": "ailang.iface/v2"
 }

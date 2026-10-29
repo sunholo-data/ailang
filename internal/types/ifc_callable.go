@@ -64,6 +64,7 @@ const (
 )
 
 type ifcFn struct {
+	imported *ImportedIFCSig // supplied facts for summary analysis only; no imported demands yet (M3)
 	kind     fnKind
 	name     string      // display name for diagnostics
 	params   []ifcDemand // positional demands (fnTop, fnLambda, fnDeclared)
@@ -180,7 +181,11 @@ func fnKey(f *ifcFn) string {
 	case fnProbe:
 		k = fmt.Sprintf("P:%s#%d^%d", f.owner, f.idx, f.res)
 	case fnOpaque:
-		k = "O"
+		if f.imported != nil {
+			k = "I:" + f.name
+		} else {
+			k = "O"
+		}
 	case fnCtor:
 		k = "C"
 	case fnDeclared:
