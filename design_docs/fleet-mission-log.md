@@ -2452,7 +2452,7 @@ Last 3 code landings: iteration 68, none (about 20 d); iteration 69, none (about
 - **Filed** D-FLEET-34 (OPEN, recommendation B). Queue rows 47 and 48.
 - **Done-gate** (resolution of a fix this fleet did not write; no driver change): the fix's own suite is 33/0 at HEAD, and `make test-launchd-drivers` passed all 52 suites at `d45cf4e6b` (rc 0). There were no dry-runs, since no driver surface changed.
 
-**Gate 3b**: GATE3B_RESULT
+**Gate 3b** (record only; no code landed this iteration): record PR [#2025](https://github.com/sunholo-data/ailang/pull/2025), head `9c9585bfd`. 27 checks terminal: 15 success, 12 skipped, 0 failures (SHA-pinned poll on the full head; MERGEABLE/CLEAN). Merged with `--merge --match-head-commit` → `0aff46c5a18f2032bd64f78f43efdc8c1d11db74`. Exact merge: `CI [push]` success and `Build and Release [push]` success (`actions/runs?head_sha=`, 2 runs, both success). The check set has 18 checks; the only red is `ailang-core-dev (ailang-multivac-deploy)` (Cloud Build, outside fleet scope), which is also red on the parents `d45cf4e6b` and `2b6dcfded`. The first committed copy of this entry carried a literal `GATE3B_RESULT` placeholder here; this line replaces it in a follow-up commit.
 
 **Progress**: goal unmoved on clause 1 (UNMEASURED). Clause 2 UNMET: these closures took about 27 d and 21 d, filed to resolved. Clause 3 MET (34 open). Clause 4: prior evidence only. Clause 5 preserved.
 
