@@ -2532,3 +2532,55 @@ Last 3 code landings: iteration 69, none (about 22 d); iteration 70, none (about
 Last 3 code landings: iteration 70, none (about 22 d); iteration 71, no code; iteration 72, no code. No drift alarm: no routable UNMET-clause row exists, because no in-scope ticket was filed in the 48h window.
 
 **Next**: `skill:design-doc-creator-grep-portability` (attended, 10-03). It is real at HEAD: `create_planned_doc.sh:128/137/154/163` still use `grep -E "^\d+\."`. But `.claude/skills/design-doc-creator/**` is outside the scope guard (`pre-push:17-18`), so it likely needs a scope row. Then `sprint-evaluator:worktree-cap-and-exit1` (attended, 10-09; scope check: coordinator worktree cap, outside, versus executor commit-per-milestone, in sprint-* skills).
+
+## 73 — 2026-10-30 — `skill:design-doc-creator-grep-portability` parks on D-FLEET-36 and `sprint-evaluator:worktree-cap-and-exit1` parks on D-FLEET-37 (ask 3 a ghost of #1688); iteration 72's record PR #2028 merged; independent sonnet FAIL 66 → PASS-WITH-EDITS 88 / 84 [HARNESS]
+
+**Pick**: iteration 72's **Next**, `skill:design-doc-creator-grep-portability` (attended, 10-03). It measured as a decision row: real at HEAD, but the fix path is outside the scope guard. That made it a bookkeeping-only pick, so a second item was taken (standing rule 1): iteration 72's second **Next**, `sprint-evaluator:worktree-cap-and-exit1` (attended, 10-09). It measured as a partial ghost plus a decision row.
+
+**Orphans / prior record**: Gate 1's open-PR rule found iteration 72's record PR #2028 (`fleet/i72-record`) open, the log on `origin/dev` ending at 71. At this fire it was `MERGEABLE`/`UNSTABLE`: the required `test` had gone green on head `975145d34`, and the only red was the non-required `Build windows-latest`, whose log shows `panic: test timed out after 10m0s` in `cmd/ailang` (600.5 s), the same budget pressure on a docs-only PR. This fire merged it (`gh pr merge --merge`) → `dd183217458b5e897e8669262bf51dc1f82249d1`; all claims below were measured there. Self-notices rc 0 (control 852:10). Gate-2 died-mid-flight traces: no `fleet/i73*` branch or worktree before this fire.
+
+**Preflight / observe**:
+- Armed. gh `sunholo-voight-kampff`. Billing CLEAN. Directives: 0 on #1945 since `2026-10-22T23:29:08Z` (15 comments, none allowlisted; the watermark file is still LEGACY).
+- Skill drift: SKILL.md and all 13 resource files `cmp`-identical to `origin/dev` at the resolved symlink target.
+- Gate-1 base `490fb730b2f809f846c2c9b437b2aefcdfc12933@2026-10-30T18:53:58Z`; local == origin/dev.
+- Dev CI at `490fb730b`: 22 checks, the only red `ailang-core-dev (ailang-multivac-deploy)` (Cloud Build, inherited, outside fleet scope). `CI` and `Build and Release` success.
+- Ledger valid, 34 rows, 19 OPEN at start. 33 tickets open. Codex over its daily ration (`MISSION_OVER_RATION=codex`, probe rc 75); the driver handed the planner to `opus` and the executor to `claude:claude-haiku-5-5`; neither was needed.
+
+**Reality check** (first-party, before routing):
+- **Grep ticket, ask (a) real at HEAD.** `grep -E "^\d+\."` sits at `.claude/skills/design-doc-creator/scripts/create_planned_doc.sh:128/137/154/163` and the `.agents` copy `:125/134/153/162`, each followed by `|| echo ""` (an empty search, not an abort).
+- **Grep ticket, BSD half refuted.** `/usr/bin/grep` is `BSD grep, GNU compatible 2.6.0-FreeBSD`; on `1. design_docs/x.md (0.85)` plus `d. foo`, `^\d+\.` matched only line 1, the same as the `^[0-9]+\.` control (the judge added `^d+\.` → only the `d.` line). `/bin/bash` resolves `grep` to `/usr/bin/grep`. No GNU grep or docker on the rig, so the GNU half is documented, unmeasured.
+- **Grep ticket, ask (b) built.** `.claude`: #1542 `b51353bcd` (2026-10-03T07:16Z, two minutes after the ticket) moved the `merge_results` filter into awk. `.agents`: `|| true` at the `merge_results` calls (`:144`, `:170`).
+- **Grep ticket, out of scope.** `tools/launchd/githooks/pre-push` `_scope_is_harness` allows only `mission-*`/`sprint-*` skills; `_scope_is_fleet_support` has none. Adding the path to `_scope_is_harness` would refuse it for product loops (`_scope_verdict`), so the recommendation names `_scope_is_fleet_support`.
+- **Evaluator ticket, ask 3 ghost.** `face88a3f` (#1688, merged 2026-10-09T07:27:27Z, about 70 min after the ticket) added `sprint-executor/resources/unattended_runs.md:6` "Commit after each milestone"; #1905 `3f9a0c092` added push-every-milestone for cloud tasks.
+- **Evaluator ticket, asks 1 and 2 out of scope.** `MaxWorktrees: 3` (`internal/coordinator/daemon.go:47,54`); `coordinator start --max-worktrees` exists (`coordinator_lifecycle.go:43-49`). Overlaps open ticket `coordinator:cloud-lane-capped-by-local-worktree-limit` (no charter row; 0 hits, positive control `agents-copies-stale-non-mission` 1).
+
+**Did** (no code; designer, planner and executor not spawned; evaluator spawned; generator ≠ judge):
+- **Designer, planner, executor**: not spawned. Nothing to build: both items are decision rows (one with a ghost half). Rotation pointer not advanced. Driver exports: designer `recipe claude:claude-opus-5-5`, planner `agent-tool opus`, executor `recipe claude:claude-haiku-5-5`.
+- **Evaluator**: `sonnet`, Agent tool, foreground, read-only on the pin; resolver `agent-tool sonnet declared:alias-pin`. Given both draft records ([as judged](fleet-mission-evidence/iteration73/draft-records-as-judged.md)) with instructions to refute them ([report](fleet-mission-evidence/iteration73/evaluation.md)).
+  - Round 1: record 1 **PASS-WITH-EDITS 82** (C2 PARTLY: BSD half refuted the ticket, GNU half unmeasurable). Record 2 **FAIL 66**: C7 missed `internal/coordinator/daemon_tasks_exec_run.go:163-170`, which already resets a task that hits `ErrWorktreeLimitReached` to pending for retry, so "queueing is a coordinator code change" was unverified and the fold recommendation unsupported. The controller confirmed the finding (`git log -S` → `debf5b66e`, 2026-01-01) and applied all five edits ([as revised](fleet-mission-evidence/iteration73/records-as-revised.md)).
+  - Round 2 (same judge, resumed): **88** and **84**, PASS-WITH-EDITS. Remaining edits were wording (headline and default no stronger than "GNU documented, unmeasured"; judge attribution), plus one substantive: record 2's option A would have resolved the ticket while ask 2 (exit-1 root cause) had no home. All applied; the rows say the fleet resolves only once ask 2 has a home.
+- **Filed** D-FLEET-36 and D-FLEET-37 (OPEN, recommendation A each). Queue rows 51 and 52. No ticket resolved; 33 open.
+- **Done-gate**: not applicable (no harness change).
+
+**Progress**: goal unmoved on clause 1 (UNMEASURED). Clause 2 UNMET (no in-scope ticket filed in the last 48h; neither pick was in scope). Clause 3 MET (33 open). Clause 4: prior evidence only. Clause 5 preserved.
+
+**Routing evidence**: Gate-1 base `490fb730b2f809f846c2c9b437b2aefcdfc12933@2026-10-30T18:53:58Z`. Routing note: `lanes degraded: planner and executor codex gpt-6.1-sol unusable (probe rc=75, over daily ration) → opus / claude:claude-haiku-5-5`.
+- Controller `claude:claude-opus-5-5` (tok: not reported).
+- Designer: not spawned (nothing to design); rotation pointer not advanced.
+- Planner: not spawned (nothing to plan).
+- Executor: not spawned (no code).
+- Evaluator `sonnet`, Agent tool: round 1 70,513 subagent tokens / 10 tool uses / 252 s; round 2 (resumed via SendMessage) 77,122 subagent tokens / 3 tool uses / 37 s. Judge independence: a different model from the controller (opus); same vendor, so vendor-level independence is not claimed.
+- Quorum: none (no design doc). Metered spend: $0. No lane recorded dead.
+
+**Ruled out**:
+- Fixing the 8 grep sites in-iteration: the guard refuses `.claude/skills/design-doc-creator/**` for the fleet; widening it is a ruling (D-FLEET-5/6 precedent).
+- Resolving `sprint-evaluator:worktree-cap-and-exit1` as ghost + duplicate: ask 2 has no other home (judge round 2).
+- Treating ask 1 as "add queueing": reset-to-pending exists since January; the open question is why the 10-08 handoffs surfaced as failed.
+
+**Retro lane**: none filed; no skill edit. Observations, not tickets:
+- (a) Fourth consecutive fire whose picks were ghosts or out-of-scope decision rows (iterations 70 partly, 71, 72, 73). The ordered open tickets in fleet scope are thinning; most remaining tickets sit in coordinator, CI, pi-extensions or other skills. D-FLEET-36's option A is the first scope ask in a while that would turn a parked ticket into a landable one.
+- (b) The judge caught a missed in-scope fact (existing retry code) that the controller's grep did not look for: the controller searched for the cap and the flag, not for what happens when the cap is hit. Draft records that say "X is unbuilt" should grep the error's handler, not just its definition.
+
+Last 3 code landings: iteration 70 (`52e8958f0`), then none at 71, 72, 73. No drift alarm: no routable in-scope UNMET-clause row exists.
+
+**Next**: `skills:agents-copies-stale-non-mission` (attended): scope check first. It names design-doc-creator and model-manager, which are outside the guard, so it may fold into D-FLEET-36's ruling. Then the coordinator tickets (`coordinator:cloud-lane-capped-by-local-worktree-limit`, `coordinator:job-retry-success-dropped-after-failed-completion`), which likely route to D-FLEET-37's owner.
