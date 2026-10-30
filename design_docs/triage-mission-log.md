@@ -414,3 +414,19 @@ Canonical-heading tests, ledger37rows/22OPEN, unchanged36inheritedrows, full pri
 **Delivery**: evidence and digest on #1974 (comments 6520004916, 6520008349); controlplane inbox_1793354378129_3001ca28 `[fyi]`. `daneel-reports` direct send refused again (existing [HARNESS] ticket row 6); no urgent was warranted.
 **Ledger**: 4 rows appended (478 total). **Progress**: goal unmoved.
 **Ruled out**: the three `UPD` PRs did not change head; they only received this loop's own earlier comments.
+
+## 21 — 2026-10-30 — quiet fire: new design PR #2030 and issue #2029 held for decision, cross-vendor judge dissents [ADMIN]
+
+**Picked**: Two changed components (new PR #2030 / card task-806bedd8 and new issue #2029) plus report-only #1945; no held actionable predictions, no stale items. Snapshot: 16 pending cards, 24 open PRs, 53 open issues, none near the 1,000 limit. Excluded Dependabot #1898, own record PR #2027, V1 draft #1726, bookkeeping #1974. Dev 3ca6d7e87acaf613f8c8f6659ebfe54944288d67.
+
+**Reality check**: Skill and all resources matched origin/dev. No allowlisted directive on #1974. 22 OPEN decision rows unchanged.
+
+**Shipped**: Label needs-decision on #2030 and #2029, one evidence comment (https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6534508109), controlplane digest inbox_1793398006991_40419a4b. daneel-reports refused again (undeclared inbox); controlplane carries the pointer. No approval, close, merge, attestation or handoff.
+
+**Routing evidence**: Verifier: Agent-tool haiku (executor resolver recipe claude:claude-haiku-5-5). Judge: codex exec read-only (OpenAI), a different vendor, run because the Agent tool offers only Anthropic models. The judge had no network, so it could not re-read job logs or issue bodies and dissented on #2030 and #2029; both downgraded to NEEDS-DECISION. It concurred on #1945.
+
+**Ruled out**: The red test job on #2030 is the cmd/ailang hang-guard budget, not the one-file doc diff; judge could not confirm independently. #2029 CLOSE-DUPLICATE of #1947 is unproven and T2 blocks closing it anyway.
+
+**Shadow**: 478→481 append-only rows (iteration 21).
+
+**Next**: Operator decides whether to rerun #2030's test job and review the design or retire it; #2029 vs #1947 duplicate call.
