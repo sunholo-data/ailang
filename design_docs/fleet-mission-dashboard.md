@@ -1,17 +1,13 @@
-# Fleet mission — iteration 70, 2026-10-29
+# Fleet mission — iteration 71, 2026-10-30
 
-- Latest release: v0.55.0 (2026-10-29). Landed on dev since then, not released: the pi controller note (`9ac96e78b`) and this iteration's provider-error retry seam test (`52e8958f0`).
-- LANDED: `pi:provider-error:no-retry` (stapledon, 10-07) via #2022 → `52e8958f0`, about 22 d after filing.
-  - The retry already existed: #1391 (`7eaf9bece`) put `Provider finish_reason: error` in `TRANSIENT_SIG` 8 days before the ticket was filed. Same rung, 3 attempts, 45 s/90 s, resuming the same pi session.
-  - What shipped is test-only. `test_controller_capacity.sh` now runs the seam end to end: pi's stderr → `2>&1` → retry → same `--session-id` with the RESUME prompt → COMPLETED.
-  - Not covered, policy class: `network_error`/`content_filter` finish reasons do not match the literal.
-- Independent sonnet judge: PASS 88 → controller pinned the fake's stderr stream → PASS 91.
-- Roles: designer not spawned (mechanical). Codex over its daily ration, so the planner ran on opus (Agent tool) and the executor on `claude:claude-haiku-5-5` (claude-sub). Evaluator sonnet (Agent tool).
-- Done-gate: launchd suite 52/52 on head. World dry-runs rc 0, healthy and degraded. Mutants M1–M5 red; the stderr-selector mutants are red after the fix.
-- **Dev, not the fleet's**: the Gate-1 base's `Build ubuntu-latest` red was a `sum.golang.org` stream error (network), not a test. `ailang-core-dev` Cloud Build red as before.
-- NEXT: `stall:watchdog:slow-on-hung-tool` (stapledon, 10-07). Ask 1 is a ghost of #1391 (the 540 s controller bash cap). Ask 2, a shorter threshold, conflicts with D-FLEET-4/-7, so it needs a decision row.
-- Decisions: 32 rows, 17 OPEN (D-FLEET-16 to -29, -31, -32, -33). No new ask this iteration.
-- Cadence: 6h while tickets are open; 36 open. Bookkeeping thread #1945.
-- Quota: codex over its daily ration this fire; metered $0.
-- Bar: clause 1 UNMEASURED (goal unmoved); clause 2 UNMET (this closure took about 22 d); clause 3 MET; clause 4 prior evidence; clause 5 preserved.
-- Evidence: `fleet-mission-evidence/iteration70/`.
+- Latest release: v0.55.0 (2026-10-29). Landed on dev since then, not released: the pi controller note (`9ac96e78b`) and the provider-error retry seam test (`52e8958f0`). Iteration 71 shipped no code.
+- RESOLVED (ghost): `gate0:watermark-advanced-by-dying-fire` (10-03) and `gate0:watermark-advanced-before-processing` (10-08). Both are the defect reported at #981, which #1962 (`5ad75cad9`, 10-29) fixed: inclusive window, and the watermark moves only via `--mark` after routing.
+- PARKED: `stall:watchdog:slow-on-hung-tool` on **D-FLEET-34**. Ask 1 (the bash cap reaches pi controllers) is built by #1391. Ask 2 (shorter pi thresholds) re-opens D-FLEET-4/-7. Recommendation B: waive it and resolve.
+- Independent sonnet judge: PASS-WITH-EDITS 88 (ghosts) and 78 (decision row); overall 83. Mutants failed 12 and 2 directives tests.
+- Roles: no build, so the designer, planner and executor were not spawned. Evaluator sonnet (Agent tool). Codex is over its daily ration this fire.
+- NEXT: `skills:showcase-feature-discoverability` (needs a design), then `pi:openrouter:uncapped-max-tokens-402`. The repo's pi models file lacks the three named models and sits outside fleet scope, so it will likely park.
+- Decisions: 33 rows, 18 OPEN (D-FLEET-16 to -29, -31 to -34). New: D-FLEET-34.
+- Cadence: 6h while tickets are open; 34 open. Bookkeeping thread #1945.
+- Quota: codex over its daily ration; metered $0.
+- Bar: clause 1 UNMEASURED (goal unmoved); clause 2 UNMET (these closures took about 27 d and 21 d); clause 3 MET; clause 4 prior evidence; clause 5 preserved.
+- Evidence: `fleet-mission-evidence/iteration71/`.

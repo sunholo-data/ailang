@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 71 | 2026-10-30 | two `gate0:watermark-*` tickets RESOLVED as ghosts of #1962 (`5ad75cad9`), independent sonnet PASS 88; `stall:watchdog:slow-on-hung-tool` parks on ... |
 | 70 | 2026-10-29 | `pi:provider-error:no-retry` LANDED via #2022 → `52e8958f0`, independent sonnet PASS 91 (round 2); the retry was a ghost of #1391, and the seam it ... |
 | 69 | 2026-10-29 | `gate0:session-protocol-deadlock:agent-policy-unset` LANDED via #2014 → `9ac96e78b`, independent sonnet PASS 93 (round 2); pi controllers now get a... |
 | 68 | 2026-10-29 | `sprint-planner:template-make-test-changelog-filesize` LANDED via #2001 → `e29a42482`, independent sonnet PASS ~88–90; `quorum:zero-signal-guard-va... |
