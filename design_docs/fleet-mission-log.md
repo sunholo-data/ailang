@@ -2420,3 +2420,60 @@ Last 3 code landings: iteration 67, clause 2 (under 48h); iteration 68, none (ab
 Last 3 code landings: iteration 68, none (about 20 d); iteration 69, none (about 22 d); iteration 70, none (about 22 d). No drift alarm: no routable UNMET-clause row exists, because the only in-window ticket is out of scope.
 
 **Next**: no in-scope ticket is inside the 48h window. `stall:watchdog:slow-on-hung-tool` (stapledon, 10-07): ask 1 is a ghost of #1391; ask 2 (shorter threshold) conflicts with D-FLEET-4/-7 and needs a decision row with a recommendation. Then `skills:showcase-feature-discoverability` (needs a design) and `pi:openrouter:uncapped-max-tokens-402` (scope check: provisioning is outside `cmd/ailang/mission*`).
+
+## 71 — 2026-10-30 — two `gate0:watermark-*` tickets RESOLVED as ghosts of #1962 (`5ad75cad9`), independent sonnet PASS 88; `stall:watchdog:slow-on-hung-tool` parks on D-FLEET-34 (ask 1 is a ghost of #1391) [HARNESS]
+
+**Pick**: iteration 70's **Next**, `stall:watchdog:slow-on-hung-tool` (stapledon, 10-07). It measured as a decision row, not a build, which made it a bookkeeping-only pick, so a second item was taken (standing rule 1). That second item was `gate0:watermark-advanced-by-dying-fire` (attended, 10-03) plus `gate0:watermark-advanced-before-processing` (attended, 10-08). Neither had a queue row. Both describe the defect reported at #981, which #1962 merged on 10-29. `skills:showcase-feature-discoverability` needs a design, and `pi:openrouter:uncapped-max-tokens-402` looked out of scope at first look (see **Next**).
+
+**Orphans**: none. No `fleet/i71*` branch, worktree or PR existed; `gh pr list --author @me` showed 21 open PRs, none on a `fleet/` branch. Self-notices rc 0 (control 852:10). The log and charter on `origin/dev` ended at 70.
+
+**Preflight / observe**:
+- Armed. gh `sunholo-voight-kampff`. Billing CLEAN. Directives: 0 on #1945 since `2026-10-22T23:29:08Z` (13 comments, none allowlisted; the watermark file is still LEGACY).
+- Skill drift: SKILL.md and all 13 resource files `cmp`-identical to origin/dev, at the resolved symlink target and at the CWD copy (gate-1 loop (d), both bases).
+- Gate-1 base `d45cf4e6b135070199a976d3f6bbe7cc2a2ed5b0@2026-10-30T04:47:22Z`. Local == origin/dev.
+- Ledger valid, 32 rows, 17 OPEN. 36 tickets open. Codex is over its daily ration (`MISSION_OVER_RATION=codex`, probe rc 75). The driver handed the planner to `opus` and the executor to `claude:claude-haiku-5-5`; neither was needed.
+
+**Reality check** (first-party, before routing):
+- **Watermark tickets, ghost.** `git log origin/dev --grep=981` lists 351c415de, e06e372a0, 24c77c15b, 40a52cf22 and 034bda1bb, then the merge `5ad75cad9` (#1962, an ancestor of HEAD). `gh issue view 981` gives CLOSED 2026-10-29T07:43:12Z.
+  - `scripts/mission_directives.sh:192-243`: the `--watermark-file` window is inclusive (`createdAt >= $since`), only `--mark <id>` writes the file (under a lock), and processed ids dedupe the boundary. The deprecated `--since` mode (`:132`, `:140`) stays exclusive by design (`24c77c15b`).
+  - Gate 0 step 8 is PROCESS-THEN-MARK in both `.claude` and `.agents` `gate-0-preflight.md` (`:279`).
+  - `/bin/bash scripts/test_mission_directives.sh` gave rc 0, 33 passed / 0 failed. It is listed in `make/test.mk:93`.
+- **Stall ticket, ask 1 built.** `mission-control.sh:2480` loads `tools/pi-extensions/controller-bash-cap.ts` (default 540 s, `MISSION_PI_BASH_CAP_S`) with `-e`; `test_driver_notify.sh:1003` pins it. The thresholds sit at `:1121-1127` (grace 2400 s, child age 2400 s, 5 × 120 s).
+- **Stall ticket, ask 2 measured.** Slot-verdict ledgers, all 7 missions, since `2026-09-29T07:24Z` with `controller=pi:`: 133 slots, 103 `PAUSED-NO-CAPACITY_at=fired`, and 1 KILLED. That kill is the ticket's own 10-04 event (`KILLED_at=gate-5`, elapsed 5217 s). The other 4 KILLED rows since #1391 are claude controllers. Retained driver logs begin 10-27. An anchored `^[<date>] STALL:` grep found 0 real kill lines, while the unanchored pattern matched 39 echoed code lines (the positive control). So the 10-04 log lines are rotated out, and the slot-verdict ledger is the instrument.
+- **`pi:openrouter:uncapped-max-tokens-402`, first look only.** `tools/pi-extensions/models.mission.json` has no `z-ai/glm-5.3`, `moonshotai/kimi-k3` or `minimax/minimax-m3` entry. The installed `~/.pi/agent/models.json` carries the attended 10-07 caps. The repo copy is drift-tested against `internal/modelreg/models.yml`, and both that file and `tools/pi-extensions/**` outside `sandbox/` are outside fleet scope. The 402 reclassification ask would change D-FLEET-11's ruled `^402:` capacity class. Not judged; recorded for the next fire.
+
+**Did** (no code; designer, planner and executor not spawned; evaluator spawned; generator ≠ judge):
+- **Designer, planner, executor**: not spawned. There was nothing to build: one item is a ghost resolution, the other a decision row. The rotation pointer was not advanced. The resolver read `designer recipe claude:claude-opus-5-5`, `planner agent-tool opus`, `executor recipe claude:claude-haiku-5-5`, `evaluator agent-tool sonnet`.
+- **Evaluator**: `sonnet`, Agent tool, foreground, read-only on the pin. It got both draft records ([as judged](fleet-mission-evidence/iteration71/draft-records-as-judged.md)) with instructions to refute them first-party.
+  - Record 1 (ghost resolution): **PASS-WITH-EDITS 88**. It listed every ask in both tickets, found each built, and re-ran the suite (33/0). Mutation drill via `MD_SCRIPT_UT` on scratch copies: exclusive window gave 21 pass / 12 fail; `--mark` to the newest boundary gave 31 / 2. The tracked file was unchanged. Edits: name the `planned/` doc as a hygiene residual. "Closed 07:43Z" was not verified by the judge; the controller's own `gh issue view` reading supports it, so it stays.
+  - Record 2 (D-FLEET-34): **PASS-WITH-EDITS 78**. It reproduced 133 / 103 / 30 / 1 and confirmed there is one pi spawn path. Edits, all applied: D-FLEET-4/-7 rule the sample count and 600-s budget but not the grace; quantify "fewer samples" (240–360 s); add the 1-in-30 caveat; name `STALL_CHILD_AGE`.
+  - Overall **83**.
+- **Resolved** `gate0:watermark-advanced-by-dying-fire` and `gate0:watermark-advanced-before-processing` with `--sha 5ad75cad97c66fb279618b03c092198e2c516703`. Both replied to `attended`. 36 → 34 open.
+- **Filed** D-FLEET-34 (OPEN, recommendation B). Queue rows 47 and 48.
+- **Done-gate** (resolution of a fix this fleet did not write; no driver change): the fix's own suite is 33/0 at HEAD, and `make test-launchd-drivers` passed all 52 suites at `d45cf4e6b` (rc 0). There were no dry-runs, since no driver surface changed.
+
+**Gate 3b**: GATE3B_RESULT
+
+**Progress**: goal unmoved on clause 1 (UNMEASURED). Clause 2 UNMET: these closures took about 27 d and 21 d, filed to resolved. Clause 3 MET (34 open). Clause 4: prior evidence only. Clause 5 preserved.
+
+**Routing evidence**: Gate-1 base `d45cf4e6b135070199a976d3f6bbe7cc2a2ed5b0@2026-10-30T04:47:22Z`; Gate-4 base=d45cf4e6b135070199a976d3f6bbe7cc2a2ed5b0@2026-10-30T04:54:17Z (no drift). Routing note: `lanes degraded: planner and executor codex gpt-6.1-sol unusable (probe rc=75, over daily ration) → opus / claude:claude-haiku-5-5`.
+- Controller `claude:claude-opus-5-5` (tok: not reported).
+- Designer: not spawned (nothing to design); rotation pointer not advanced.
+- Planner: not spawned (nothing to plan). Resolver `agent-tool opus fail-closed:env-pin`.
+- Executor: not spawned (no code). Resolver `recipe claude:claude-haiku-5-5 declared:provider-pin`.
+- Evaluator `sonnet`, Agent tool (66,858 subagent tokens / 11 tool uses / 99 s). Resolver `agent-tool sonnet declared:alias-pin`. Judge independence: a different model from the controller (opus). Same vendor, so vendor-level independence is not claimed.
+- Quorum: none (no design doc). Metered spend: $0. No lane recorded dead.
+
+**Ruled out**:
+- Building ask 2 of `stall:watchdog:slow-on-hung-tool` without a ruling: it re-opens D-FLEET-4/-7.
+- Resolving `stall:watchdog:slow-on-hung-tool` now on the strength of ask 1: declining ask 2 is itself the policy call (same pattern as D-FLEET-32).
+- `make test-launchd-drivers` under `timeout 1500`: rc 127, because macOS has no `timeout`. That was an instrument failure, not a verdict. It was re-run under a perl `alarm`.
+- Taking `pi:openrouter:uncapped-max-tokens-402` as a third item: the bookkeeping carve-out allows two, and it needs its own scope ruling.
+
+**Retro lane**: none filed; no skill edit. Observations, not tickets:
+- (a) Tickets with no queue row hide behind the "Next" chain. The two watermark tickets were filed 10-03 and 10-08, sat below the iteration-to-iteration **Next** pointer, and had gone ghost the day before this fire. A ghost sweep of open tickets against the last week's merges (`git log --grep` for each ticket's issue number) is cheap. First instance; one friction does not meet the ≥2 rule.
+- (b) The judge's "not verified" on a claim the controller had measured, the #981 close time, is the right posture (gate-2 rule (d)). The record says which instrument backs it.
+
+Last 3 code landings: iteration 69, none (about 22 d); iteration 70, none (about 22 d); iteration 71, no code. No drift alarm: no routable UNMET-clause row exists, because the only in-window ticket is out of scope.
+
+**Next**: `skills:showcase-feature-discoverability` (attended, 10-03; reported at #476). It needs a design: the sprint skills still have no mandatory syntax step, and asks 1 and 3 (docs MCP in bootstrap, a CI feature gate) need a scope check first. Then `pi:openrouter:uncapped-max-tokens-402` (stapledon, 10-07), which will likely park as an out-of-scope plus policy row per the first look above.
