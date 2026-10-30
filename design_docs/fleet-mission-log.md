@@ -2477,3 +2477,58 @@ Last 3 code landings: iteration 68, none (about 20 d); iteration 69, none (about
 Last 3 code landings: iteration 69, none (about 22 d); iteration 70, none (about 22 d); iteration 71, no code. No drift alarm: no routable UNMET-clause row exists, because the only in-window ticket is out of scope.
 
 **Next**: `skills:showcase-feature-discoverability` (attended, 10-03; reported at #476). It needs a design: the sprint skills still have no mandatory syntax step, and asks 1 and 3 (docs MCP in bootstrap, a CI feature gate) need a scope check first. Then `pi:openrouter:uncapped-max-tokens-402` (stapledon, 10-07), which will likely park as an out-of-scope plus policy row per the first look above.
+
+## 72 — 2026-10-30 — `skills:showcase-feature-discoverability` RESOLVED as a ghost of #1691 (`03263525c`) plus the attended #476 closure; `pi:openrouter:uncapped-max-tokens-402` parks on D-FLEET-35; independent sonnet PASS-WITH-EDITS 73 [HARNESS]
+
+**Pick**: iteration 71's **Next**, `skills:showcase-feature-discoverability` (attended, 10-03; restates #476). It measured as a ghost resolution, not a design, which made it a bookkeeping-only pick, so a second item was taken (standing rule 1): iteration 71's second **Next**, `pi:openrouter:uncapped-max-tokens-402` (stapledon, 10-07). It measured as a decision row.
+
+**Orphans**: none for this iteration. No `fleet/i72*` branch or PR existed before this fire, and `gh pr list --author @me` showed no open `fleet/` PR. Self-notices rc 0 (control 852:10). The log and charter on `origin/dev` ended at 71. `git worktree list` still holds about 60 old fleet worktrees (iterations 12–71, all landed or superseded); noted, not swept (the sweep is `worktree_sweep.sh`'s job).
+
+**Preflight / observe**:
+- Armed. gh `sunholo-voight-kampff`. Billing CLEAN. Directives: 0 on #1945 since `2026-10-22T23:29:08Z` (14 comments, none allowlisted; the watermark file is still LEGACY).
+- Skill drift: SKILL.md and all 13 resource files `cmp`-identical to origin/dev, at the resolved symlink target and at the CWD copy (gate-1 loop (d), both bases).
+- Gate-1 base `490fb730b2f809f846c2c9b437b2aefcdfc12933@2026-10-30T12:04:58Z`. Local == origin/dev.
+- Dev CI at `490fb730b`: `CI` success, `Build and Release` success. The check set has 20 checks; the only red is `ailang-core-dev (ailang-multivac-deploy)` (Cloud Build, inherited, outside fleet scope), and `docs-build` was still pending.
+- Ledger valid, 33 rows, 18 OPEN. 34 tickets open. Codex is over its daily ration (`MISSION_OVER_RATION=codex`, probe rc 75). The driver handed the planner to `opus` and the executor to `claude:claude-haiku-5-5`; neither was needed.
+
+**Reality check** (first-party, before routing):
+- **Showcase ticket, ask 2 built.** `git log -S 'Load AILANG syntax before writing'` gives `03263525c` (#1691, 2026-10-09), an ancestor of `origin/dev`. `.claude/skills/sprint-executor/SKILL.md:104` is Core Principle 11 ("Load AILANG syntax before writing `.ail` — no exceptions"). `.claude/skills/sprint-planner/SKILL.md:248-254` is the AILANG Syntax Gate, and `milestone_checklist.md:122-133` gives the details. Both `.agents` mirrors `cmp` identical. The ticket's "Checked 790169359: … no mandatory syntax step" predates the landing.
+- **Showcase ticket, asks 1 and 3 unbuilt.** The approved design `design_docs/implemented/v0_53_1/m-skill-feature-discoverability-gate.md` § Non-Goals (`:281-291`) assigns ask 1 to "the mission charter/bootstrap template" and defers ask 3 "to be picked up if the advisory measurement misses target". The judge confirmed that nothing in `missions/`, `tools/launchd` or the mission-control skill registers an MCP, and there is no `.mcp.json`. `gh issue view 476`: CLOSED 2026-10-26T13:48:43Z, with an attended triage comment: "The design ruled MCP wiring and a CI gate as non-goals."
+- **402 ticket, ask (a) real at repo level.** `tools/pi-extensions/models.mission.json` (openrouter: gemma-4-26b, glm-5.3-flash, the deepseek v4/v4.1-flash spellings) has no `z-ai/glm-5.3`, `moonshotai/kimi-k3` or `minimax/minimax-m3`. The installed `~/.pi/agent/models.json` has all three at 32000, and the backup `models.json.bak-20261007-orcaps` exists. This fire's env still routes all three as role fallbacks (designer, planner, evaluator), and `~/.config/ailang/mission-*.env` names two of them. The OpenRouter GLM controller rung was retired 10-07 (`mission-control.sh:929`).
+- **402 ticket, out of scope + policy.** The guard (`tools/launchd/githooks/pre-push`) refuses `tools/pi-extensions/` outside `sandbox/` and `internal/modelreg/`. `TestPiModelsConfigMatchesRegistry` holds the two equal. `RUNTIME_QUOTA_SIG` (`:1152`) carries `^402:` under D-FLEET-11/13. `grep -c 'can only afford'` = 0 in all 15 `/tmp/ailang-mission-*.log` (retained since 10-27; positive control `quorum artifact` = 48 in the world log). The one `^402:` hit, `ailang-mission-triage.log:16093`, is a line-number prefix in quoted skill text.
+
+**Did** (no code; designer, planner and executor not spawned; evaluator spawned; generator ≠ judge):
+- **Designer, planner, executor**: not spawned. There was nothing to build: one item is a ghost resolution, the other a decision row. The rotation pointer was not advanced. Resolver: `evaluator agent-tool sonnet declared:alias-pin`; the driver exported designer `recipe claude:claude-opus-5-5`, planner `agent-tool opus`, executor `recipe claude:claude-haiku-5-5`.
+- **Evaluator**: `sonnet`, Agent tool, foreground, read-only on the pin. It got both draft records ([as judged](fleet-mission-evidence/iteration72/draft-records-as-judged.md)) with instructions to refute them first-party ([report](fleet-mission-evidence/iteration72/evaluation.md)).
+  - Record 1 (ghost): **PASS-WITH-EDITS 66**. C1 and C3 were verified. C2 was only partly verified: the Non-Goals assign ask 1 elsewhere and defer ask 3; they do not decline either. Its strongest objection: the ghost rests on the attended #476 closure, not on the design. Edits applied: the resolution says asks 1 and 3 are unbuilt and closed as non-goals by attended triage; the planner citation is now 248-254; the unverified "ailang-world applied it locally" was dropped.
+  - Record 2 (D-FLEET-35): **PASS-WITH-EDITS 80**. All claims were verified. It added the root cause: `internal/executor/pi/config_preflight.go` checks only models whose task carries registry settings, and these three have no registry rows. It found no in-fleet mechanical piece: a warn-only probe duplicates the preflight, and skip/demote changes lane order. Edits applied: the rows must carry `max_output_tokens`; confirm the non-GLM caps with `scripts/check_pi_wire_budget.sh`; "cannot be formed" became "is not formed while the cap is installed"; the rejected probe is named.
+  - Overall **73**.
+- **Resolved** `skills:showcase-feature-discoverability` with `--sha 03263525c483311f725c6d2db0fda0782b1e74f9`, replied to `attended`. 34 → 33 open.
+- **Filed** D-FLEET-35 (OPEN, recommendation A). Queue rows 49 and 50.
+- **Done-gate**: not applicable (no harness change; the resolved fix is a skill-text change that this fleet did not write, verified present and mirrored at HEAD).
+
+**Gate 3b** (record only; no code): record PR [#2028](https://github.com/sunholo-data/ailang/pull/2028), head `d1424cbfe`, is **BLOCKED**. Required `test` failed 3 of 3 attempts (run 41053659833, 12:24Z, 12:38Z, 12:50Z), every time in `cmd/ailang` on `internal/testutil/gate.go:102`'s hang guard ("this PACKAGE has outgrown its go test -timeout budget"), and on different tests each time (`TestStdNumeric*`, `TestTailCallTrace*`, then `TestVerifyM0_*`). The package took 409 s and 395 s against `go test -timeout 416s` (`.github/workflows/ci.yml:198`). Dev's own green `test` at the same base `490fb730b` took 383 s, and triage's `triage/i20-record` PR hit the same guard at 10:10Z. The PR changes only `design_docs/`, so the red is inherited budget pressure, not this change. The CI workflow is outside fleet scope (D-FLEET-17 class), so the PR is left open for the next fire. Gate 1's open-PR rule makes it the next fire's record input. All other checks were terminal-green (26 total, 1 bad).
+
+**Progress**: goal unmoved on clause 1 (UNMEASURED). Clause 2 UNMET: this closure took about 27 d, filed to resolved, and no in-scope ticket was filed in the last 48h. Clause 3 MET (33 open). Clause 4: prior evidence only. Clause 5 preserved.
+
+**Routing evidence**: Gate-1 base `490fb730b2f809f846c2c9b437b2aefcdfc12933@2026-10-30T12:04:58Z`. Routing note: `lanes degraded: planner and executor codex gpt-6.1-sol unusable (probe rc=75, over daily ration) → opus / claude:claude-haiku-5-5`.
+- Controller `claude:claude-opus-5-5` (tok: not reported).
+- Designer: not spawned (nothing to design); rotation pointer not advanced.
+- Planner: not spawned (nothing to plan).
+- Executor: not spawned (no code).
+- Evaluator `sonnet`, Agent tool (69,313 subagent tokens / 13 tool uses / 109 s). Resolver `agent-tool sonnet declared:alias-pin`. Judge independence: a different model from the controller (opus). Same vendor, so vendor-level independence is not claimed.
+- Quorum: none (no design doc). Metered spend: $0. No lane recorded dead.
+
+**Ruled out**:
+- Designing a new doc for the showcase ticket: the approved design already exists in `implemented/v0_53_1/`, and its in-scope ask is built.
+- Building ask 1 (an MCP in mission bootstrap) without a ruling: it would change every controller's tool surface, and attended triage closed it as a non-goal.
+- A fleet-side warn or skip probe for uncapped pi OpenRouter models: see the D-FLEET-35 row.
+- Reclassifying the 402 in `RUNTIME_QUOTA_SIG`: D-FLEET-11/13 policy.
+
+**Retro lane**: none filed; no skill edit. Observations, not tickets:
+- (a) Iteration 71's observation (a) recurs: a ticket that restates a GitHub issue went ghost when the issue's own fix landed (#1691, 10-09), and nothing linked the two for 21 days. Instance 2 (after the #981 watermark tickets). The cheap check is `gh issue view <n>` for each open ticket whose evidence cites an issue number. Two frictions now meet the ≥2 bar for a retro candidate. It is a loop-side habit, not a harness defect, and this loop is ticket-driven, so it stays an observation for Mark rather than a self-sourced fix.
+- (b) The judge's strongest objection was a wording one: "declined by the design" versus "unbuilt, closed by attended triage". Wording carries the provenance of a resolution, so it matters.
+
+Last 3 code landings: iteration 70, none (about 22 d); iteration 71, no code; iteration 72, no code. No drift alarm: no routable UNMET-clause row exists, because no in-scope ticket was filed in the 48h window.
+
+**Next**: `skill:design-doc-creator-grep-portability` (attended, 10-03). It is real at HEAD: `create_planned_doc.sh:128/137/154/163` still use `grep -E "^\d+\."`. But `.claude/skills/design-doc-creator/**` is outside the scope guard (`pre-push:17-18`), so it likely needs a scope row. Then `sprint-evaluator:worktree-cap-and-exit1` (attended, 10-09; scope check: coordinator worktree cap, outside, versus executor commit-per-milestone, in sprint-* skills).
