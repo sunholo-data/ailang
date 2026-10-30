@@ -1,14 +1,15 @@
-# Fleet mission — iteration 72, 2026-10-30
+# Fleet mission — iteration 73, 2026-10-30
 
-- Latest release: v0.55.0 (2026-10-29). Landed on dev since then, not released: the pi controller note (`9ac96e78b`) and the provider-error retry seam test (`52e8958f0`). Iterations 71 and 72 shipped no code.
-- RESOLVED (ghost): `skills:showcase-feature-discoverability` (10-03, restates #476). Ask 2, a mandatory `ailang prompt` step before any `.ail` write, was built by #1691 (`03263525c`, 10-09). Asks 1 (docs MCP in bootstrap) and 3 (a CI feature gate) are unbuilt; attended triage closed #476 on 10-26 with both ruled non-goals. Refile if either is wanted.
-- PARKED: `pi:openrouter:uncapped-max-tokens-402` on **D-FLEET-35**. The caps for `z-ai/glm-5.3`, `moonshotai/kimi-k3` and `minimax/minimax-m3` exist only in the rig's installed pi config, and the repo fix is outside fleet scope. Recommendation A: the owner adds registry rows and `models.mission.json` entries; keep `^402:` as capacity.
-- Independent sonnet judge: PASS-WITH-EDITS 66 (ghost) and 80 (decision row); overall 73. Edits applied.
-- Record PR #2028 is BLOCKED: required `test` failed 3/3 on the `cmd/ailang` hang guard (395–409 s against the 416 s budget in `ci.yml:198`; dev passed at 383 s). Outside fleet scope (D-FLEET-17 class); left open for the next fire.
+- Latest release: v0.55.0 (2026-10-29). Landed on dev since then, not released: the pi controller note (`9ac96e78b`) and the provider-error retry seam test (`52e8958f0`). Iterations 71, 72 and 73 shipped no code.
+- Iteration 72's record PR #2028 merged this fire (`dd1832174`): its required `test` had gone green; the only red was the non-required `Build windows-latest` (`cmd/ailang` 10-minute timeout, inherited).
+- PARKED: `skill:design-doc-creator-grep-portability` on **D-FLEET-36**. 8 `grep -E "^\d+\."` sites in both copies of `create_planned_doc.sh`. The rig's BSD grep reads `\d` as a digit, so it fails only under GNU grep (documented, unmeasured). The skill is outside the scope guard. Recommendation A: add design-doc-creator to `_scope_is_fleet_support`, and the fleet fixes it.
+- PARKED: `sprint-evaluator:worktree-cap-and-exit1` on **D-FLEET-37**. Ask 3 (commit per milestone) is a ghost of #1688. Asks 1 and 2 are coordinator code or prod config; reset-to-pending on the worktree cap already exists, so why the 10-08 handoffs failed is the open question. Recommendation A: V1/attended owns them.
+- Independent sonnet judge: round 1 PASS-WITH-EDITS 82 and FAIL 66 (missed the existing retry code); round 2 88 and 84. Edits applied.
 - Roles: no build, so the designer, planner and executor were not spawned. Evaluator sonnet (Agent tool). Codex is over its daily ration this fire.
-- NEXT: `skill:design-doc-creator-grep-portability` (real at HEAD; the skill is outside the scope guard, so it likely needs a scope row), then `sprint-evaluator:worktree-cap-and-exit1`.
-- Decisions: 34 rows, 19 OPEN (D-FLEET-16 to -29, -31 to -35). New: D-FLEET-35.
+- NEXT: `skills:agents-copies-stale-non-mission` (scope check; may fold into D-FLEET-36), then the coordinator tickets (likely D-FLEET-37's owner).
+- Decisions: 36 rows, 21 OPEN (D-FLEET-16 to -29, -31 to -37). New: D-FLEET-36, D-FLEET-37.
 - Cadence: 6h while tickets are open; 33 open. Bookkeeping thread #1945.
 - Quota: codex over its daily ration; metered $0.
-- Bar: clause 1 UNMEASURED (goal unmoved); clause 2 UNMET (this closure took about 27 d); clause 3 MET; clause 4 prior evidence; clause 5 preserved.
-- Evidence: `fleet-mission-evidence/iteration72/`.
+- Bar: clause 1 UNMEASURED (goal unmoved); clause 2 UNMET (no in-scope ticket filed in 48h); clause 3 MET; clause 4 prior evidence; clause 5 preserved.
+- Observation: four fires in a row ended as ghosts or out-of-scope decision rows. Most remaining tickets sit outside fleet scope, so D-FLEET-36/-37 are where rulings unblock work.
+- Evidence: `fleet-mission-evidence/iteration73/`.
