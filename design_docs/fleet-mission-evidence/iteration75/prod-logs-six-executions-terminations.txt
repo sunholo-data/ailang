@@ -1,0 +1,20 @@
+2026-10-07T18:55:42.721377Z	ailang-agent-executor-codex-go-ksjks	0		claude-stream: Formatting and file-size checks pass. Concurrent build tooling exceeded the container’s memory limit and killed the docs install and one build. I’ll rerun those checks with lower concurrency; the ...
+2026-10-07T19:00:55.413136Z	ailang-agent-executor-codex-go-ksjks	0	WARNING	Container terminated on signal 7.
+2026-10-07T19:11:36.442367Z	ailang-agent-executor-codex-go-ksjks	1	WARNING	Container terminated on signal 7.
+2026-10-07T19:11:39.072843Z	ailang-agent-executor-codex-go-ksjks		ERROR	
+2026-10-07T19:16:34.880653Z	ailang-agent-executor-codex-go-4jvxw	0	WARNING	Container terminated on signal 7.
+2026-10-07T19:29:27.592929Z	ailang-agent-executor-codex-go-4jvxw	1		claude-stream: The concurrent checks exceeded the environment’s memory limit and killed a CLI compilation. I’ve stopped those runs and am restarting validation sequentially with lower-memory Go settings. Those i...
+2026-10-07T19:42:45.134478Z	ailang-agent-executor-codex-go-4jvxw	1	WARNING	Container terminated on signal 7.
+2026-10-07T19:42:56.384484Z	ailang-agent-executor-codex-go-4jvxw		ERROR	
+2026-10-08T19:21:04.118851Z	ailang-agent-executor-codex-go-8dhwp	0	WARNING	Container terminated on signal 7.
+2026-10-08T19:24:35.900475Z	ailang-agent-executor-codex-go-6gbsz	0	WARNING	Container terminated on signal 7.
+2026-10-08T19:32:36.474621Z	ailang-agent-executor-codex-go-8dhwp	1	WARNING	Container terminated on signal 7.
+2026-10-08T19:32:40.105287Z	ailang-agent-executor-codex-go-8dhwp		ERROR	
+2026-10-08T19:42:30.315108Z	ailang-agent-executor-codex-go-6gbsz	1	WARNING	Container terminated on signal 7.
+2026-10-08T19:42:34.984557Z	ailang-agent-executor-codex-go-6gbsz		ERROR	
+2026-10-09T07:42:31.939867Z	ailang-agent-executor-codex-go-k7jjc	0	WARNING	Container terminated on signal 7.
+2026-10-09T08:03:09.688835Z	ailang-agent-executor-codex-go-k7jjc	1	WARNING	Container terminated on signal 7.
+2026-10-09T08:03:12.683794Z	ailang-agent-executor-codex-go-k7jjc		ERROR	
+2026-10-09T08:59:55.686260Z	ailang-agent-executor-codex-go-9685t	0	WARNING	Container terminated on signal 7.
+2026-10-09T09:17:53.926740Z	ailang-agent-executor-codex-go-9685t	1	WARNING	Container terminated on signal 7.
+2026-10-09T09:18:04.557058Z	ailang-agent-executor-codex-go-9685t		ERROR	
