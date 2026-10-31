@@ -1,0 +1,39 @@
+2026-10-16T08:32:43.997488Z		ailang-coordinator	  ⚠ ANTHROPIC_API_KEY not set: feedback-gate classifier fail-closed (heuristic-flagged submissions filed, never dispatched)
+2026-10-16T08:32:43.997492Z		ailang-coordinator	  ✓ Cloud Run Jobs dispatcher (region: europe-west1)
+2026-10-16T08:32:44.214281Z		ailang-coordinator	[coordinator] 2026/10/16 08:32:44 daemon_tasks_init.go:191: Cloud Run Jobs dispatcher ready for task dispatch
+2026-10-16T08:32:44.214294Z		ailang-coordinator	[coordinator] 2026/10/16 08:32:44 daemon_tasks_init.go:289: Task executor initialized with providers: [pi-cli claude-cli codex-cli managed_agents-cli gemini_agents-cli motoko-cli opencode-cli gemini-api]
+2026-10-16T08:32:44.582133Z		ailang-coordinator	[coordinator] 2026/10/16 08:32:44 backstop_sweep.go:90: backstop sweep: started (interval=10m0s, mode=dispatch)
+2026-10-16T08:32:44.800948Z		ailang-coordinator	[coordinator] 2026/10/16 08:32:44 backstop_sweep.go:168: backstop sweep: found 4 unread message(s) with a registered agent that push did not deliver (mode=dispatch)
+2026-10-16T08:32:46.944792Z		ailang-coordinator	[coordinator] 2026/10/16 08:32:46 feedback_gate_wiring.go:262: [feedback-gate] DRY-RUN message task-27b33e1d:handoff:sprint-executor:29d90cace085276c would be file (reason=not_authorized_for_dispatch) — dispatching anyway
+2026-10-16T08:32:47.556274Z		ailang-coordinator	[coordinator] 2026/10/16 08:32:47 feedback_gate_wiring.go:262: [feedback-gate] DRY-RUN message task-a54ac096:handoff:sprint-executor:e8c05df6c5881e65 would be file (reason=not_authorized_for_dispatch) — dispatching anyway
+2026-10-16T08:32:47.802763Z		ailang-coordinator	[coordinator] 2026/10/16 08:32:47 feedback_gate_wiring.go:262: [feedback-gate] DRY-RUN message task-a4f0a81c:handoff:sprint-executor:9f5bda8125f5b393 would be file (reason=not_authorized_for_dispatch) — dispatching anyway
+2026-10-16T08:32:48.045263Z		ailang-coordinator	[coordinator] 2026/10/16 08:32:48 feedback_gate_wiring.go:262: [feedback-gate] DRY-RUN message inbox_1792137930066_e8ae18c6 would be file (reason=not_authorized_for_dispatch) — dispatching anyway
+2026-10-16T08:32:48.910566Z		ailang-coordinator	[coordinator] 2026/10/16 08:32:48 daemon_tasks_exec.go:404: Cloud dispatch: task task-e8ae18c6 → Cloud Run Job (agent: design-doc-creator, provider: pi)
+2026-10-16T08:32:49.408114Z		ailang-coordinator	[coordinator] 2026/10/16 08:32:49 daemon_tasks_exec.go:404: Cloud dispatch: task task-d61964fa → Cloud Run Job (agent: sprint-executor, provider: codex)
+2026-10-16T08:32:49.458307Z		ailang-coordinator	[coordinator] 2026/10/16 08:32:49 daemon_tasks_exec.go:177: Task task-6dac947e: credential lane codex-subscription is held by task-d61964fa; leaving it pending
+2026-10-16T08:32:49.546386Z		ailang-coordinator	[coordinator] 2026/10/16 08:32:49 daemon_tasks_exec.go:177: Task task-65c96a92: credential lane codex-subscription is held by task-d61964fa; leaving it pending
+2026-10-16T08:33:21.459455Z	ailang-agent-executor-codex-go		execute-job: codex auth = ChatGPT subscription (secret ailang-codex-auth-json)
+2026-10-16T08:33:26.046126Z		ailang-coordinator	[coordinator] 2026/10/16 08:33:26 daemon_tasks_exec.go:177: Task task-6dac947e: credential lane codex-subscription is held by task-d61964fa; leaving it pending
+2026-10-16T08:33:26.135811Z		ailang-coordinator	[coordinator] 2026/10/16 08:33:26 daemon_tasks_exec.go:177: Task task-65c96a92: credential lane codex-subscription is held by task-d61964fa; leaving it pending
+2026-10-16T08:33:27.336809Z		ailang-coordinator	[coordinator] 2026/10/16 08:33:27 daemon_tasks_exec.go:177: Task task-6dac947e: credential lane codex-subscription is held by task-d61964fa; leaving it pending
+2026-10-16T08:33:27.431351Z		ailang-coordinator	[coordinator] 2026/10/16 08:33:27 daemon_tasks_exec.go:177: Task task-65c96a92: credential lane codex-subscription is held by task-d61964fa; leaving it pending
+2026-10-16T08:33:33.845067Z	ailang-agent-executor-codex-go		execute-job: running codex executor (unified path)
+2026-10-16T08:33:33.846540Z	ailang-agent-executor-codex-go		executor-env: withheld from the codex child: AILANG_CODEX_AUTH_SECRET, AILANG_REGISTRY_API_KEY, GITHUB_TOKEN, OPENROUTER_API_KEY (grant with AILANG_EXECUTOR_ENV_INHERIT)
+2026-10-16T08:35:52.902868Z	ailang-agent-executor-pi		claude-stream: command dispatch for
+2026-10-16T08:37:44.197421Z		ailang-coordinator	[coordinator] 2026/10/16 08:37:44 daemon_tasks_exec.go:177: Task task-6dac947e: credential lane codex-subscription is held by task-d61964fa; leaving it pending
+2026-10-16T08:37:44.808871Z		ailang-coordinator	[coordinator] 2026/10/16 08:37:44 daemon_tasks_exec.go:177: Task task-65c96a92: credential lane codex-subscription is held by task-d61964fa; leaving it pending
+2026-10-16T08:42:44.297944Z		ailang-coordinator	[coordinator] 2026/10/16 08:42:44 daemon_tasks_exec.go:177: Task task-6dac947e: credential lane codex-subscription is held by task-d61964fa; leaving it pending
+2026-10-16T08:42:45.498909Z		ailang-coordinator	[coordinator] 2026/10/16 08:42:45 daemon_tasks_exec.go:177: Task task-65c96a92: credential lane codex-subscription is held by task-d61964fa; leaving it pending
+2026-10-16T08:44:00.789238Z	ailang-agent-executor-codex-go		execute-job: Codex credential ownership unverified; cancelling process tree: context deadline exceeded
+2026-10-16T08:44:03.993299Z	ailang-agent-executor-codex-go		execute-job: task task-d61964fa failed: executor failed: codex task failed: signal: killed
+2026-10-16T08:44:10.794807Z	ailang-agent-executor-codex-go		Error: executor failed: codex task failed: signal: killed
+2026-10-16T08:44:53.495143Z	ailang-agent-executor-codex-go		execute-job: codex auth = ChatGPT subscription (secret ailang-codex-auth-json)
+2026-10-16T08:45:03.451762Z	ailang-agent-executor-codex-go		execute-job: running codex executor (unified path)
+2026-10-16T08:45:03.456435Z	ailang-agent-executor-codex-go		executor-env: withheld from the codex child: AILANG_CODEX_AUTH_SECRET, AILANG_REGISTRY_API_KEY, GITHUB_TOKEN, OPENROUTER_API_KEY (grant with AILANG_EXECUTOR_ENV_INHERIT)
+2026-10-16T08:47:47.224083Z		ailang-coordinator	[coordinator] 2026/10/16 08:47:47 daemon_tasks_exec.go:404: Cloud dispatch: task task-6dac947e → Cloud Run Job (agent: sprint-executor, provider: codex)
+2026-10-16T08:47:47.496901Z		ailang-coordinator	[coordinator] 2026/10/16 08:47:47 daemon_tasks_exec.go:177: Task task-65c96a92: credential lane codex-subscription is held by task-6dac947e; leaving it pending
+2026-10-16T08:48:20.459928Z	ailang-agent-executor-codex-go		Error: acquire exclusive Codex credential: credential already owned: attended recovery required if owner has terminated
+2026-10-16T08:48:52.494988Z	ailang-agent-executor-codex-go		Error: acquire exclusive Codex credential: credential already owned: attended recovery required if owner has terminated
+2026-10-16T08:52:49.899161Z		ailang-coordinator	[coordinator] 2026/10/16 08:52:49 daemon_tasks_exec.go:404: Cloud dispatch: task task-65c96a92 → Cloud Run Job (agent: sprint-executor, provider: codex)
+2026-10-16T08:53:24.257508Z	ailang-agent-executor-codex-go		Error: acquire exclusive Codex credential: credential already owned: attended recovery required if owner has terminated
+2026-10-16T08:53:51.657551Z	ailang-agent-executor-codex-go		Error: acquire exclusive Codex credential: credential already owned: attended recovery required if owner has terminated

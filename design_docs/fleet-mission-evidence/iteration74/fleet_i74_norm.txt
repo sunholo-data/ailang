@@ -1,0 +1,28 @@
+CONTENT agent-inbox residual=4
+CONTENT ailang-packages residual=43
+CONTENT benchmark-manager residual=20
+RENAME-ONLY benchmark-runner
+RENAME-ONLY builtin-developer
+CONTENT cli-doc-maintainer residual=206
+RENAME-ONLY cloud-cascade-debug
+RENAME-ONLY collaboration-hub
+RENAME-ONLY coordinator-helper
+CONTENT design-doc-creator residual=109
+CONTENT docs-sync residual=22
+RENAME-ONLY eval-analyzer
+RENAME-ONLY eval-gap-finder
+RENAME-ONLY gemini-cli-helper
+RENAME-ONLY github-issue-triage
+CONTENT headless-runner residual=2
+RENAME-ONLY local-model-onboarding
+RENAME-ONLY local-ollama-eval
+CONTENT model-manager residual=32
+CONTENT motoko-analyzer residual=2
+RENAME-ONLY parser-developer
+CONTENT post-release residual=387
+RENAME-ONLY pr-monitor
+RENAME-ONLY prompt-manager
+CONTENT release-manager residual=43
+RENAME-ONLY trace-debugger
+RENAME-ONLY use-ailang
+rename-only=16 content=11
