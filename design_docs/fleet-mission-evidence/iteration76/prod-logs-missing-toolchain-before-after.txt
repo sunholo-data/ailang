@@ -1,0 +1,57 @@
+# filter: resource.type=cloud_run_job AND (textPayload:"make: not found" OR textPayload:"make: command not found" OR textPayload:"C compiler" OR textPayload:"cgo: C compiler" OR textPayload:"gcc\": executable file not found" OR textPayload:"requires cgo")
+## after #1753 (>= 2026-10-09T18:00Z)
+2026-10-27T13:23:20.499702Z	ailang-agent-executor-go	claude-stream: box has no C compiler
+2026-10-16T08:38:01.644089Z	ailang-agent-executor-pi	/bin/bash: line 1: make: command not found
+2026-10-16T08:35:05.053511Z	ailang-agent-executor-pi	claude-stream: [tool] bash: {"command":"grep -rn \"func compilerIdentity\\|func currentCompilerIdentity\\|func ModuleCacheKey\" internal/pipeline/*.go; echo \"===\"; grep -rn \"compilerIdentity\" i
+2026-10-13T19:10:38.366397Z	ailang-agent-executor-pi	claude-stream: [tool-result] bash: /bin/bash: line 9: make: command not found
+## control: 2026-10-01 .. 2026-10-09T18:00Z
+2026-10-09T11:52:14.926260Z	ailang-agent-executor-codex-go	  whose existing SQLite brain tests fail because CGO is disabled and no C compiler is installed.
+2026-10-09T11:25:40.106971Z	ailang-agent-executor-pi-go	cgo: C compiler "gcc" not found: exec: "gcc": executable file not found in $PATH
+2026-10-09T11:25:19.907125Z	ailang-agent-executor-pi-go	claude-stream: [tool-result] bash: /bin/bash: line 1: make: command not found
+2026-10-09T11:10:01.671021Z	ailang-agent-executor-pi-go	cgo: C compiler "gcc" not found: exec: "gcc": executable file not found in $PATH
+2026-10-09T11:06:37.203773Z	ailang-agent-executor-pi-go	claude-stream: [tool-result] bash: /bin/bash: line 1: make: command not found
+2026-10-09T10:59:45.721625Z	ailang-agent-executor-pi-go	claude-stream: [tool-result] bash: /bin/bash: line 1: make: command not found
+2026-10-09T10:44:27.247938Z	ailang-agent-executor-codex-go	claude-stream: The core run hit the known SQLite limitation: this workspace has no C compiler, so Go used the cgo-disabled SQLite stub. I’m restoring a temporary compiler to rerun the suite
+2026-10-09T10:43:10.266866Z	ailang-agent-executor-codex-go	Core tests use CGO with a Zig C compiler for sqlite; other checks use bounded Go
+2026-10-09T10:43:08.205643Z	ailang-agent-executor-codex-go	claude-stream: [tool] /bin/bash -lc "ailang messages send sprint-evaluator --payload '{\"type\":\"implementation_complete\",\"correlation_id\":\"eval_M-RUN-POLICY-RESULT-UNFORGEABLE_round_3\"
+2026-10-09T10:42:58.009508Z	ailang-agent-executor-codex-go	s['last_checkpoint']='Round-2 feedback addressed: saved alias result preserves memoization assertion without identical operands (S1764); split stderr guard chunk-split, bytewise and near-miss
+2026-10-09T10:42:48.307693Z	ailang-agent-executor-codex-go	claude-stream: The focused tests, Go vet, formatting, and diff checks pass. The broader core run has failed in existing brain-store tests because this container has no C compiler and SQLite r
+2026-10-09T10:29:14.304322Z	ailang-agent-executor-codex-go	No full `make test` was run. Go, make, jq and a rootless C compiler were made
+2026-10-09T10:18:13.891632Z	ailang-agent-executor-pi-go	/bin/bash: line 1: make: command not found
+2026-10-09T10:18:13.891617Z	ailang-agent-executor-pi-go	claude-stream: [tool-result] bash: /bin/bash: line 1: make: command not found
+2026-10-09T10:18:01.612559Z	ailang-agent-executor-codex-go	claude-stream: [tool] /bin/bash -lc "rg -n -C 2 'FAIL|stub|requires cgo' /tmp/ailang-cache-focused.log | head -75; sed -n '140,200p' cmd/ailang/mission_role_state_test.go; tail -8 /tmp/ailang
+2026-10-09T10:06:50.538340Z	ailang-agent-executor-codex-go	claude-stream: `make test-core` hit an environment failure: without a C compiler, Go built SQLite in stub mode. The compiler is now available, so I’ll rerun with CGO enabled. The file-size 
+2026-10-09T10:02:45.737018Z	ailang-agent-executor-pi-go	claude-stream: [tool-result] bash: /bin/bash: line 1: make: command not found
+2026-10-09T10:01:18.634969Z	ailang-agent-executor-codex-go	claude-stream: The sprint JSON is valid. The environment also lacks `make` and a C compiler, so I’m checking how to install them without root access while Go downloads dependencies. The tea
+2026-10-09T09:25:20.360623Z	ailang-agent-executor-codex-go	claude-stream: The core suite now passes with the temporary C compiler. I’m finishing the full focused policy run under `tini`, then the race check and lint with limited compiler concurrenc
+2026-10-09T09:18:23.231546Z	ailang-agent-executor-codex-go	claude-stream: The build, embedded-asset checks, formatting, file-size check, and architecture-boundary check pass. The core suite reached SQLite tests and failed because the image lacks a C 
+2026-10-09T09:15:50.820389Z	ailang-agent-executor-codex-go	claude-stream: The touched-package suite passes, and the new example checks and runs successfully. `make test-core` exposed an environment problem: without a C compiler, Go disabled CGO and t
+2026-10-09T08:52:52.281635Z	ailang-agent-executor-pi-go	claude-stream: [tool-result] bash: /bin/bash: line 1: make: command not found
+2026-10-09T08:46:05.293950Z	ailang-agent-executor-pi-go	/bin/bash: line 1: make: command not found
+2026-10-09T08:38:37.229952Z	ailang-agent-executor-pi-go	claude-stream: [tool-result] bash: /bin/bash: line 1: make: command not found
+2026-10-09T08:32:39.772015Z	ailang-agent-executor-codex-go	process inspection and a Zig C compiler for CGO SQLite checks. No environment
+2026-10-09T08:32:39.772009Z	ailang-agent-executor-codex-go	The cloud environment initially omitted Go from PATH, make, jq, a C compiler,
+2026-10-09T08:22:21.752105Z	ailang-agent-executor-pi-go	claude-stream: [tool-result] bash: /bin/bash: line 1: make: command not found
+2026-10-09T08:15:43.470914Z	ailang-agent-executor-pi-go	claude-stream: [tool-result] bash: /bin/bash: line 1: make: command not found
+2026-10-09T07:59:48.021853Z	ailang-agent-executor-codex-go	claude-stream: The C compiler is working, and the SQLite-backed hub test is running. The independent reviewer found another IFC bypass through a `match` result holding a function field; that 
+2026-10-09T07:42:13.212611Z	ailang-agent-executor-codex-go	  only existing SQLite tests; installing a C compiler fixed the environment.
+2026-10-09T07:41:19.951850Z	ailang-agent-executor-codex-go	p=Path('design_docs/planned/v1_0_0/m-vm-stack-limit-parity-sprint-plan.md'); s=p.read_text().replace('**Status:** Planned; approved design handoff, implementation awaits coordinator sprint ap
+2026-10-09T07:36:02.597973Z	ailang-agent-executor-codex-go	claude-stream: [tool] /bin/bash -lc "tail -12 /tmp/ailang-tools/cli-after.log; rg -n '"'^--- FAIL|CGO_ENABLED|requires cgo'"' /tmp/ailang-tools/cli-after.log /tmp/ailang-tools/core-after.log"
+2026-10-09T07:33:36.386429Z	ailang-agent-executor-codex-go	claude-stream: The VM and runner package tests pass. The core suite hit an environment limitation: this container lacks a C compiler, so Go disabled CGO and the existing SQLite tests fail. I�
+2026-10-09T07:33:30.475393Z	ailang-agent-executor-codex-go	d['features'][1]['notes']='Node --experimental-strip-types --test .pi/extensions/.ailang-exec.test.ts: 21/21 pass. Embedded assets synchronized with make pi-assets and verified. Build, format
+2026-10-09T07:25:28.169560Z	ailang-agent-executor-codex-go	claude-stream: The sprint JSON passed validation. I found Go outside the default PATH, but this image lacks `make` and a C compiler, and system package installation is denied. I’m trying a 
+2026-10-09T06:37:18.615081Z	ailang-agent-executor-codex-go	 if not any(x in detail for x in ['CGO_ENABLED=0','go-sqlite3 requires cgo','sqliteopen:']): print('\\n'.join(lines[:12]))
+2026-10-09T06:37:04.032819Z	ailang-agent-executor-codex-go	  packages pass. No C compiler was installed, per dispatch constraints.
+2026-10-09T06:37:04.032812Z	ailang-agent-executor-codex-go	  because the binary uses `CGO_ENABLED=0` and sqlite requires CGO. Other core
+2026-10-09T06:27:09.832180Z	ailang-agent-executor-codex-go	`CGO_ENABLED=0` and no C compiler is available. No compiler was installed.
+2026-10-09T06:27:09.832143Z	ailang-agent-executor-codex-go	f=d['features'][2]; f['started']=f['completed']=now; f['passes']=True; f['notes']='Guide and executable facade fixture document hook, wrapping, guard, SSE/batches and fallback. User dispatch 
+2026-10-09T06:25:16.963541Z	ailang-agent-executor-codex-go	  No C compiler was installed. This is an environment limitation separate from
+2026-10-09T06:25:16.963531Z	ailang-agent-executor-codex-go	  `CGO_ENABLED=0`, `go-sqlite3 requires cgo to work`. All other core packages pass.
+2026-10-09T06:20:42.208608Z	ailang-agent-executor-codex-go	claude-stream: The first test run is still downloading dependencies. `make` and `golangci-lint` are also missing; I’m using the cloud-setup guidance to restore those tools without installin
+2026-10-08T21:07:34.834327Z	ailang-agent-executor-codex-go	p=Path('.ailang/state/sprints/M-INLINE-TEST-EXPECTED-VALUES-implementation.json');d=json.loads(p.read_text());d['status']='completed';d['completed']=now;d['design_doc']=str(new/design.name);d
+2026-10-08T21:07:34.834295Z	ailang-agent-executor-codex-go	s+='''\\n### Final validation and actuals\\n\\n- "'`make test`: exit 0, 306 passing Go package reports plus pi extension tests.'"\\n  Ran with CGO enabled, GOFLAGS=-p=1, GOMAXPROCS=2, GOGC=50
+2026-10-08T20:59:42.222352Z	ailang-agent-executor-codex-go	The environment initially lacked PATH entries for Go, jq/make and a C compiler.
+2026-10-08T20:39:40.126211Z	ailang-agent-executor-codex-go	s['execution_notes']=['CheckDeclassify and its unused bool-only tests removed; scoped return coverage has one implementation in ifc_check.go.','Validation requirement collector audited and up
+2026-10-08T20:38:51.825474Z	ailang-agent-executor-codex-go	requires cgo to work. This is a stub"'`. This executor has no C compiler; the approved
+2026-10-08T20:38:09.968005Z	ailang-agent-executor-codex-go	container lacked a C compiler. A local Zig C toolchain enables the corrected run.
+2026-10-08T20:35:03.368634Z	ailang-agent-executor-codex-go	- Initial test-core run exposed missing C compiler/CGO-disabled SQLite tests; a local
