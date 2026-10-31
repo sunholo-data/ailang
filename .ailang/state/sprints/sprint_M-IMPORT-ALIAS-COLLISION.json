@@ -1,0 +1,111 @@
+{
+  "sprint_id": "M-IMPORT-ALIAS-COLLISION",
+  "status": "not_started",
+  "created": "2026-10-28T09:08:51.710766+00:00",
+  "design_doc": "design_docs/planned/v0_55_0/m-import-alias-collision.md",
+  "sprint_plan": "design_docs/planned/v0_55_0/m-import-alias-collision-sprint-plan.md",
+  "github_issues": [
+    1980
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Search 'import collision' returned no packages; compiler-internal diagnostic, using existing Go infrastructure."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Search 'import collision' returned no packages; compiler-internal diagnostic, using existing Go infrastructure."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Search 'import collision' returned no packages; compiler-internal diagnostic, using existing Go infrastructure."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Search 'import collision' returned no packages; compiler-internal diagnostic, using existing Go infrastructure."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 137,
+    "estimated_total_loc": 410,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Register MOD016 and preserve MOD015 namespaces",
+      "estimated_loc": 80,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "MOD016 constant, registry entry and code-list test agree; MOD015 text describes import-versus-local only.",
+        "Adding importType cannot make MOD015 reject type/value sharing or change existing MOD015 reports.",
+        "Focused internal/errors and internal/elaborate tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Reject ambiguous selective type bindings",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Both orders of each alias-shape truth-table case produce MOD016 before return-type unification, including unused bindings.",
+        "Report names all colliding imports in source order, carries name/imports data, and spans the first import declaration.",
+        "Same-path duplicates, explicit symbol aliases, type/value sharing and qualified value imports remain legal; dual-export precedence remains unchanged.",
+        "Suggested symbol alias compiles; module alias alone does not exempt a selective type collision."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Verify package CLI and LSP diagnostics",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Package repro rejects both orders with MOD016 using a binary and stdlib from this checkout.",
+        "check --json preserves code MOD016, phase elaborate, first-import span, name/imports data and fix.",
+        "LSP emits a positioned MOD016 diagnostic at the first import; existing MOD015 tests still pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Document policy and verify compatibility corpus",
+      "estimated_loc": 70,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "MOD016 reference, error index, modules guide and dated unreleased changelog fragment document Phase 1 and deferred surfaces.",
+        "Before/after corpus verdict comparison over std/, examples/ and cmd/ailang/testdata/ has zero changes outside new fixtures.",
+        "Motoko selective-import scan is recorded; unavailable sibling checkout is an explicit unresolved release check, never a claimed pass.",
+        "make test-changed, make check-file-sizes and make check-changelog pass; affected Go files are formatted and targeted lint passes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
