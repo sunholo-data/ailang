@@ -404,3 +404,29 @@ Build 40726994998, Ubuntu job 122952822593, fails TestRunPolicy_OwnedCancellatio
 **Delivery and validation**: Full evidence https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6480894865 and compact digest https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6481013434 were exact-public-body verified; both permalinks updated with the late sixth review. First record push944cc26c0 continues unmerged PR1904. Canonical normal controlplane inbox_1793222612904_98e5592d, one urgent incident notice inbox_1793222615361_20b2ccbf, and private user notice inbox_1793222617202_f8ad8f2d were Pub/Sub-published and exact title/body peek-verified. Direct daneel-reports normal/urgent both refused rc1; first-party Daneel config/report-inboxes.tsv polls controlplane, so the existing declared fallback delivered both. No second urgent or duplicate private user post for the late count correction; its original permalink resolves to the final digest. Nonblocking reporting recurrence inbox_1793222654607_204e0ee3 exact-payload verified. No forced delivery, registry/config/IAM edit or inbox drain. Final nonurgent controlplane correction inbox_1793222988181_882e9b8d was exact-title/payload peek-verified.
 
 Canonical-heading tests, ledger37rows/22OPEN, unchanged36inheritedrows, full priorlog prefix, three STATUS stamps, archived13with12control, queue preservation, five tracked documentation paths, routing model check, closing-keyword control and whitespace check passed. Pin stays clean; main's three dirty benchmark files untouched. Newest origin/dev remains reviewed07ce4a8d; no new allowlisted directive. All verifier/provider work completed. The last step records fingerprint after final delivery and push, then stamp complete.
+
+## 20 — 2026-10-30 — quiet fire: changed PRs and one new orphan card re-verified, no new asks [ADMIN]
+
+**Pick**: item list from Gate 2 (22 PRs, 52 issues, 16 cards read; changed since last digest = PRs #1939/#1934/#1759 by bot-comment `updatedAt` only, new card task-c03f48df; 0 held verdicts; the rest verified inside 7 days).
+**Verify**: claude haiku-5-5 read-only Agent (executor role). Resolver named a nested `claude` recipe; the Agent tool was used per the operator's standing request. **Judge**: pi minimax-m3 (non-Anthropic vendor), 4/4 CONCUR. Note: pi reported model "not found for provider ollama, using custom model id" yet answered.
+**Verdicts** (origin/dev 490fb730b2f809f846c2c9b437b2aefcdfc12933): #1939 NEEDS-DECISION, #1934 SUPERSEDED (PR comment), #1759 NEEDS-DECISION, card task-c03f48df NEEDS-DECISION orphan. No attestations, labels or closes; no approve/reject/merge/handoff.
+**Dev**: CI green (run 41010342415). **Directives**: none new (#1974, 0 of 19 comments).
+**Delivery**: evidence and digest on #1974 (comments 6520004916, 6520008349); controlplane inbox_1793354378129_3001ca28 `[fyi]`. `daneel-reports` direct send refused again (existing [HARNESS] ticket row 6); no urgent was warranted.
+**Ledger**: 4 rows appended (478 total). **Progress**: goal unmoved.
+**Ruled out**: the three `UPD` PRs did not change head; they only received this loop's own earlier comments.
+
+## 21 — 2026-10-30 — quiet fire: new design PR #2030 and issue #2029 held for decision, cross-vendor judge dissents [ADMIN]
+
+**Picked**: Two changed components (new PR #2030 / card task-806bedd8 and new issue #2029) plus report-only #1945; no held actionable predictions, no stale items. Snapshot: 16 pending cards, 24 open PRs, 53 open issues, none near the 1,000 limit. Excluded Dependabot #1898, own record PR #2027, V1 draft #1726, bookkeeping #1974. Dev 3ca6d7e87acaf613f8c8f6659ebfe54944288d67.
+
+**Reality check**: Skill and all resources matched origin/dev. No allowlisted directive on #1974. 22 OPEN decision rows unchanged.
+
+**Shipped**: Label needs-decision on #2030 and #2029, one evidence comment (https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6534508109), controlplane digest inbox_1793398006991_40419a4b. daneel-reports refused again (undeclared inbox); controlplane carries the pointer. No approval, close, merge, attestation or handoff.
+
+**Routing evidence**: Verifier: Agent-tool haiku (executor resolver recipe claude:claude-haiku-5-5). Judge: codex exec read-only (OpenAI), a different vendor, run because the Agent tool offers only Anthropic models. The judge had no network, so it could not re-read job logs or issue bodies and dissented on #2030 and #2029; both downgraded to NEEDS-DECISION. It concurred on #1945.
+
+**Ruled out**: The red test job on #2030 is the cmd/ailang hang-guard budget, not the one-file doc diff; judge could not confirm independently. #2029 CLOSE-DUPLICATE of #1947 is unproven and T2 blocks closing it anyway.
+
+**Shadow**: 478→481 append-only rows (iteration 21).
+
+**Next**: Operator decides whether to rerun #2030's test job and review the design or retire it; #2029 vs #1947 duplicate call.
