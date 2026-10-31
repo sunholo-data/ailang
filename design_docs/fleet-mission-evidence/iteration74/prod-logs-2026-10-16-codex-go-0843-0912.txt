@@ -1,0 +1,400 @@
+2026-10-16T08:44:00.789238Z	ailang-agent-executor-codex-go-dgcmd	0	execute-job: Codex credential ownership unverified; cancelling process tree: context deadline exceeded
+2026-10-16T08:44:01.390909Z	ailang-agent-executor-codex-go-dgcmd	0	claude-stream: [error] signal: killed
+2026-10-16T08:44:03.278553Z	ailang-agent-executor-codex-go-dgcmd	0	execute-job: artifacts written to /artifacts/tasks/task-d61964fa
+2026-10-16T08:44:03.991263Z	ailang-agent-executor-codex-go-dgcmd	0	execute-job: completion published for task task-d61964fa (status=failed, turns=1, tokens=0+0, cost=$0.0000)
+2026-10-16T08:44:03.993299Z	ailang-agent-executor-codex-go-dgcmd	0	execute-job: task task-d61964fa failed: executor failed: codex task failed: signal: killed
+2026-10-16T08:44:03.993311Z	ailang-agent-executor-codex-go-dgcmd	0	stderr: Reading additional input from stdin...
+2026-10-16T08:44:10.794807Z	ailang-agent-executor-codex-go-dgcmd	0	Error: executor failed: codex task failed: signal: killed
+2026-10-16T08:44:10.794818Z	ailang-agent-executor-codex-go-dgcmd	0	stderr: Reading additional input from stdin...
+2026-10-16T08:44:11.039573Z	ailang-agent-executor-codex-go-dgcmd	0	Container called exit(1).
+2026-10-16T08:44:51.967651Z	ailang-agent-executor-codex-go-dgcmd	1	GCSFuse is mounted with bucket ailang-multivac-ailang-artifacts. Enable GCSFuse logging with mount options for more logs
+2026-10-16T08:44:52.024928Z	ailang-agent-executor-codex-go-dgcmd	1	time="16/10/2026 08:44:52.024133" severity=INFO message="GCSFuse Config" mount-id=ailang-multivac-ailang-artifacts-7fe7c19a "CLI Flags"="map[app-name:serverless dir-mode:777 file-mode:666 foreground:true gid:1000 ignore-interrupts:true implicit-dirs:true log-format:text o:[allow_other] uid:1000]"
+2026-10-16T08:44:52.025515Z	ailang-agent-executor-codex-go-dgcmd	1	time="16/10/2026 08:44:52.024232" severity=INFO message="GCSFuse Config" mount-id=ailang-multivac-ailang-artifacts-7fe7c19a "Full Config"="&{AppName:serverless CacheDir: CloudProfiler:{AllocatedHeap:true Cpu:true Enabled:false Goroutines:false Heap:true Label:gcsfuse-0.0.0 Mutex:false ServiceName:gcsfuse} Debug:{ExitOnInvariantViolation:false Fuse:false Gcs:false LogMutex:false} DisableAutoconfig:false DummyIo:{Enable:false PerMbLatency:0s ReaderLatency:0s} EnableAtomicRenameObject:true EnableGoogleLibAuth:true EnableHns:true EnableNewReader:true EnableStandardSymlinks:true EnableTypeCacheDeprecation:true EnableUnsupportedPathSupport:true FileCache:{CacheFileForRangeRead:false DownloadChunkSizeMb:200 EnableCrc:false EnableExperimentalSharedChunkCache:false EnableODirect:false EnableParallelDownloads:false ExcludeRegex: ExperimentalDisableSizeCalculationFix:false ExperimentalEnableChunkCache:false ExperimentalParallelDownloadsDefaultOn:true IncludeRegex: MaxParallelDownloads:16 MaxSizeMb:-1 ParallelDownloadsPerFile:16 SharedCacheChunkSizeMb:8 WriteBufferSize:4194304} FileSystem:{CongestionThreshold:0 DirMode:511 DisableParallelDirops:false EnableKernelReader:false ExperimentalEnableDentryCache:false ExperimentalEnablePirlo:false ExperimentalEnableReaddirplus:false ExperimentalODirect:false FileMode:438 FuseMaxRequestSizeKb:1024 FuseMaxWriteSizeKb:1024 FuseOptions:[allow_other] Gid:1000 IgnoreInterrupts:true InactiveMrdCacheSize:1000 KernelListCacheTtlSecs:0 KernelParamsFile: MaxBackground:0 MaxReadAheadKb:0 RenameDirLimit:0 StrongConsistencyOnOpen:false TempDir: Uid:1000} Foreground:true GcsAuth:{AnonymousAccess:false KeyFile: ReuseTokenFromUrl:true TokenUrl:} GcsConnection:{BillingProject: ClientProtocol:http1 CustomEndpoint: EnableHttpDnsCache:true ExperimentalEnableJsonRead:false ExperimentalLocalSocketAddress: GrpcConnPoolSize:1 GrpcPathStrategy:direct-path-with-fallback HttpClientTimeout:0s LimitBytesPerSec:-1 LimitOpsPerSec:-1 MaxConnsPerHost:0 MaxIdleConnsPerHost:100 SequentialReadSizeMb:200} GcsRetries:{ChunkRetryDeadlineSecs:120 ChunkTransferTimeoutSecs:10 EnableMountRetries:false MaxRetryAttempts:9223372036854775807 MaxRetrySleep:30s Multiplier:2 ReadStall:{Enable:true InitialReqTimeout:20s MaxReqTimeout:20m0s MinReqTimeout:1.5s ReqIncreaseRate:15 ReqTargetPercentile:0.99}} ImplicitDirs:true List:{EnableEmptyManagedFolders:false} Logging:{ExperimentalEnableOtelLogging:false ExperimentalOtelLoggingEndpoint:telemetry.googleapis.com ExperimentalOtelLoggingProjectId: FilePath: Format:text LogRotate:{BackupFileCount:10 Compress:true MaxFileSizeMb:512} Severity:INFO WireLog:} MachineType: MetadataCache:{DeprecatedStatCacheCapacity:20460 DeprecatedStatCacheTtl:1m0s DeprecatedTypeCacheTtl:1m0s EnableMetadataPrefetch:true EnableNonexistentTypeCache:false ExperimentalEnableOptimizedMetadataCache:false ExperimentalMetadataPrefetchOnMount:disabled MetadataPrefetchEntriesLimit:5000 MetadataPrefetchMaxWorkers:10 NegativeTtlSecs:5 StatCacheMaxSizeMb:34 TtlSecs:60 TypeCacheMaxSizeMb:4} Metrics:{BufferSize:256 CloudMetricsExportIntervalSecs:0 ExperimentalEnableGrpcMetrics:true ExperimentalEnableOtelMetrics:false ExperimentalOtelMetricsEndpoint: ExperimentalOtelMetricsProjectId: PrometheusPort:0 StackdriverExportInterval:0s UseNewNames:false Workers:3} MountId: Mrd:{PoolSize:4} OnlyDir: Profile: Read:{BlockSizeMb:16 EnableBufferedRead:false EnableGrpcReadChecksums:false GlobalMaxBlocks:40 InactiveStreamTimeout:10s MaxBlocksPerHandle:20 MinBlocksPerHandle:4 RandomSeekThreshold:3 StartBlocksPerHandle:1} Trace:{Exporters:[gcpexporter] ProjectId: SamplingRatio:0} WorkloadInsight:{ForwardMergeThresholdMb:0 OutputFile: Visualize:false} Write:{BlockSizeMb:32 CreateEmptyFile:false EnableRapidAppends:true EnableRapidWrites:false EnableStreamingWrites:true FinalizeFileForRapid:false GlobalMaxBlocks:4 MaxBlocksPerFile:1}}"
+2026-10-16T08:44:52.028270Z	ailang-agent-executor-codex-go-dgcmd	1	time="16/10/2026 08:44:52.027821" severity=INFO message="Creating Storage handle..." mount-id=ailang-multivac-ailang-artifacts-7fe7c19a
+2026-10-16T08:44:52.028654Z	ailang-agent-executor-codex-go-dgcmd	1	time="16/10/2026 08:44:52.027862" severity=INFO message="UserAgent = gcsfuse/3.12.0 (Go version go1.27.0) (GPN:gcsfuse-serverless) (Cfg:0:0:0:1:0:0) (mount-id:ailang-multivac-ailang-artifacts-7fe7c19a)\n" mount-id=ailang-multivac-ailang-artifacts-7fe7c19a
+2026-10-16T08:44:52.029399Z	ailang-agent-executor-codex-go-dgcmd	1	time="16/10/2026 08:44:52.027915" severity=INFO message="Bypassing UniverseDomain metadata server lookup on standard commercial GCP setup" mount-id=ailang-multivac-ailang-artifacts-7fe7c19a
+2026-10-16T08:44:52.030138Z	ailang-agent-executor-codex-go-dgcmd	1	time="16/10/2026 08:44:52.028790" severity=INFO message="Creating a new server...\n" mount-id=ailang-multivac-ailang-artifacts-7fe7c19a
+2026-10-16T08:44:52.030614Z	ailang-agent-executor-codex-go-dgcmd	1	time="16/10/2026 08:44:52.028834" severity=INFO message="MRD cache (LRU-based) enabled with maxSize=1000 (pools closed-file MRDs)" mount-id=ailang-multivac-ailang-artifacts-7fe7c19a
+2026-10-16T08:44:52.031385Z	ailang-agent-executor-codex-go-dgcmd	1	time="16/10/2026 08:44:52.028843" severity=INFO message="Set up root directory for bucket ailang-multivac-ailang-artifacts" mount-id=ailang-multivac-ailang-artifacts-7fe7c19a
+2026-10-16T08:44:52.031686Z	ailang-agent-executor-codex-go-dgcmd	1	time="16/10/2026 08:44:52.028860" severity=INFO message="GetStorageLayout <- (ailang-multivac-ailang-artifacts, prefix: \"\")" mount-id=ailang-multivac-ailang-artifacts-7fe7c19a
+2026-10-16T08:44:52.032010Z	ailang-agent-executor-codex-go-dgcmd	1	time="16/10/2026 08:44:52.028903" severity=INFO message="Calling GetStorageLayout for \"projects/_/buckets/ailang-multivac-ailang-artifacts/storageLayout\": InvocationID: ab4f3286-b8c5-45a5-9f8d-9e32a3a06956, Attempt: 1, with deadline=30s" mount-id=ailang-multivac-ailang-artifacts-7fe7c19a
+2026-10-16T08:44:52.113410Z	ailang-agent-executor-codex-go-dgcmd	1	time="16/10/2026 08:44:52.112653" severity=INFO message="GetStorageLayout -> (ailang-multivac-ailang-artifacts, prefix: \"\") 83 msec" mount-id=ailang-multivac-ailang-artifacts-7fe7c19a
+2026-10-16T08:44:52.113799Z	ailang-agent-executor-codex-go-dgcmd	1	time="16/10/2026 08:44:52.112715" severity=INFO message="Bypassing UniverseDomain metadata server lookup on standard commercial GCP setup" mount-id=ailang-multivac-ailang-artifacts-7fe7c19a
+2026-10-16T08:44:52.114571Z	ailang-agent-executor-codex-go-dgcmd	1	time="16/10/2026 08:44:52.114118" severity=INFO message="GCSFuse Config" mount-id=ailang-multivac-ailang-artifacts-7fe7c19a "Applied optimizations for bucket-type: "=flat "Full Config"="map[file-system.congestion-threshold:{FinalValue:9 OptimizationReason:bucket-type \"flat\" Optimized:true} file-system.fuse-max-request-size-kb:{FinalValue:16384 OptimizationReason:bucket-type \"flat\" Optimized:true} file-system.max-background:{FinalValue:12 OptimizationReason:bucket-type \"flat\" Optimized:true} file-system.max-read-ahead-kb:{FinalValue:131072 OptimizationReason:bucket-type \"flat\" Optimized:true}]"
+2026-10-16T08:44:52.114827Z	ailang-agent-executor-codex-go-dgcmd	1	time="16/10/2026 08:44:52.114402" severity=INFO message="Mounting file system \"ailang-multivac-ailang-artifacts\"..." mount-id=ailang-multivac-ailang-artifacts-7fe7c19a
+2026-10-16T08:44:52.115643Z	ailang-agent-executor-codex-go-dgcmd	1	time="16/10/2026 08:44:52.115276" severity=INFO message="File system has been successfully mounted." mount-id=ailang-multivac-ailang-artifacts-7fe7c19a
+2026-10-16T08:44:53.495143Z	ailang-agent-executor-codex-go-dgcmd	1	execute-job: codex auth = ChatGPT subscription (secret ailang-codex-auth-json)
+2026-10-16T08:44:54.973509Z	ailang-agent-executor-codex-go-dgcmd	1	execute-job: starting task task-d61964fa (agent=sprint-executor, workspace=sunholo-data/ailang, model=gpt-6.1-sol, timeout=2h, idle_timeout=5m)
+2026-10-16T08:44:55.003495Z	ailang-agent-executor-codex-go-dgcmd	1	execute-job: using pre-baked plugin at /plugins/ailang_bootstrap
+2026-10-16T08:44:55.003509Z	ailang-agent-executor-codex-go-dgcmd	1	execute-job: cloning https://github.com/sunholo-data/ailang.git (branch=dev)
+2026-10-16T08:44:55.005180Z	ailang-agent-executor-codex-go-dgcmd	1	Cloning into '/workspace/task-d61964fa'...
+2026-10-16T08:45:02.031110Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  44% (12736/28639)
+2026-10-16T08:45:02.037013Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  45% (12888/28639)
+2026-10-16T08:45:02.052462Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  46% (13174/28639)
+2026-10-16T08:45:02.064594Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  47% (13461/28639)
+2026-10-16T08:45:02.085248Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  48% (13747/28639)
+2026-10-16T08:45:02.100393Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  49% (14034/28639)
+2026-10-16T08:45:02.120765Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  50% (14320/28639)
+2026-10-16T08:45:02.134048Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  51% (14606/28639)
+2026-10-16T08:45:02.147570Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  52% (14893/28639)
+2026-10-16T08:45:02.158900Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  53% (15179/28639)
+2026-10-16T08:45:02.175751Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  54% (15466/28639)
+2026-10-16T08:45:02.188370Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  55% (15752/28639)
+2026-10-16T08:45:02.322745Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  56% (16038/28639)
+2026-10-16T08:45:02.333956Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  57% (16325/28639)
+2026-10-16T08:45:02.351476Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  58% (16611/28639)
+2026-10-16T08:45:02.363092Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  59% (16898/28639)
+2026-10-16T08:45:02.377738Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  60% (17184/28639)
+2026-10-16T08:45:02.533657Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  61% (17470/28639)
+2026-10-16T08:45:02.565922Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  62% (17757/28639)
+2026-10-16T08:45:02.582360Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  63% (18043/28639)
+2026-10-16T08:45:02.601251Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  64% (18329/28639)
+2026-10-16T08:45:02.621393Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  65% (18616/28639)
+2026-10-16T08:45:02.634822Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  66% (18902/28639)
+2026-10-16T08:45:02.656674Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  67% (19189/28639)
+2026-10-16T08:45:02.673509Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  68% (19475/28639)
+2026-10-16T08:45:02.687678Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  69% (19761/28639)
+2026-10-16T08:45:02.700882Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  70% (20048/28639)
+2026-10-16T08:45:02.723946Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  71% (20334/28639)
+2026-10-16T08:45:02.737010Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  72% (20621/28639)
+2026-10-16T08:45:02.762560Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  73% (20907/28639)
+2026-10-16T08:45:02.798135Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  74% (21193/28639)
+2026-10-16T08:45:02.813416Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  75% (21480/28639)
+2026-10-16T08:45:02.833047Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  76% (21766/28639)
+2026-10-16T08:45:02.849842Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  77% (22053/28639)
+2026-10-16T08:45:02.863788Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  78% (22339/28639)
+2026-10-16T08:45:02.875879Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  79% (22625/28639)
+2026-10-16T08:45:02.891295Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  80% (22912/28639)
+2026-10-16T08:45:02.903457Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  81% (23198/28639)
+2026-10-16T08:45:02.915289Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  82% (23484/28639)
+2026-10-16T08:45:02.930856Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  83% (23771/28639)
+2026-10-16T08:45:02.942457Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  84% (24057/28639)
+2026-10-16T08:45:02.964652Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  85% (24344/28639)
+2026-10-16T08:45:02.982375Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  86% (24630/28639)
+2026-10-16T08:45:03.001006Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  87% (24916/28639)
+2026-10-16T08:45:03.019215Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  88% (25203/28639)
+2026-10-16T08:45:03.031089Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  88% (25390/28639)
+2026-10-16T08:45:03.037019Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  89% (25489/28639)
+2026-10-16T08:45:03.060561Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  90% (25776/28639)
+2026-10-16T08:45:03.075782Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  91% (26062/28639)
+2026-10-16T08:45:03.095011Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  92% (26348/28639)
+2026-10-16T08:45:03.113733Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  93% (26635/28639)
+2026-10-16T08:45:03.129823Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  94% (26921/28639)
+2026-10-16T08:45:03.154643Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  95% (27208/28639)
+2026-10-16T08:45:03.172691Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  96% (27494/28639)
+2026-10-16T08:45:03.193057Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  97% (27780/28639)
+2026-10-16T08:45:03.210670Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  98% (28067/28639)
+2026-10-16T08:45:03.232614Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files:  99% (28353/28639)
+2026-10-16T08:45:03.256049Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files: 100% (28639/28639)
+2026-10-16T08:45:03.256061Z	ailang-agent-executor-codex-go-dgcmd	1	Updating files: 100% (28639/28639), done.
+2026-10-16T08:45:03.301870Z	ailang-agent-executor-codex-go-dgcmd	1	execute-job: AGENTS.md already exists in repo, skipping injection
+2026-10-16T08:45:03.301886Z	ailang-agent-executor-codex-go-dgcmd	1	execute-job: creating branch coordinator/task-d61964fa
+2026-10-16T08:45:03.304276Z	ailang-agent-executor-codex-go-dgcmd	1	Switched to a new branch 'coordinator/task-d61964fa'
+2026-10-16T08:45:03.451386Z	ailang-agent-executor-codex-go-dgcmd	1	execute-job: CLAUDE_CONFIG_DIR=/home/ailang/.claude-tasks/task-d61964fa (local; projects/ → GCS)
+2026-10-16T08:45:03.451762Z	ailang-agent-executor-codex-go-dgcmd	1	execute-job: running codex executor (unified path)
+2026-10-16T08:45:03.456435Z	ailang-agent-executor-codex-go-dgcmd	1	executor-env: withheld from the codex child: AILANG_CODEX_AUTH_SECRET, AILANG_REGISTRY_API_KEY, GITHUB_TOKEN, OPENROUTER_API_KEY (grant with AILANG_EXECUTOR_ENV_INHERIT)
+2026-10-16T08:45:06.857190Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [turn 1] started
+2026-10-16T08:45:10.804600Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: I’ll read the repository guidance and sprint-executor skill, then check the approved plan and branch before implementing.
+2026-10-16T08:45:12.522639Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc 'cat CLAUDE.md': (no input)
+2026-10-16T08:45:12.557009Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc 'cat .agents/skills/sprint-executor/SKILL.md': (no input)
+2026-10-16T08:45:16.030550Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc 'git status --short; git branch --show-current; cat .ailang/state/sprints/sprint_M-PKG-ASSET-LOCK-RESOLUTION.json; cat design_docs/planned/v0_54_7/m-pkg-asset-lock-resolution-sprint-plan.md': (no input)
+2026-10-16T08:45:21.486851Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc 'cat .agents/skills/sprint-executor/resources/unattended_runs.md; cat .agents/skills/sprint-executor/scripts/session_start.sh; cat internal/effects/pkg.go; cat internal/pkg/version_compat.go': (no input)
+2026-10-16T08:45:21.602750Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc "rg -n 'Pkg|Clone|WithBudget' internal/effects/context.go; cat internal/pipeline/package_resolver.go; rg -n 'packageDir|lockfile|LockFile' internal/pkg/loader.go; rg -n 'EffContext|effCtx|PkgResolver|PackageResolver|pkgResolver' internal/{pipeline,runner,embed}/*.go": (no input)
+2026-10-16T08:45:27.385427Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc "cat internal/pipeline/package_resolver.go; sed -n '1,230p' internal/pkg/loader.go; cat design_docs/planned/v0_54_7/m-pkg-asset-lock-resolution.md": (no input)
+2026-10-16T08:45:27.933755Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc 'bash .agents/skills/sprint-executor/scripts/validate_sprint_json.sh M-PKG-ASSET-LOCK-RESOLUTION; bash .agents/skills/sprint-executor/scripts/session_start.sh M-PKG-ASSET-LOCK-RESOLUTION': (no input)
+2026-10-16T08:45:31.775572Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: The checkout is clean on `coordinator/task-d61964fa`, and the sprint JSON is valid. I’m using the sprint-executor skill for this approved semantics fix. The key rule is that a lock entry is final: i...
+2026-10-16T08:45:36.887436Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc "sed -n '1,180p' internal/effects/pkg_test.go; rg -n 'func .*Clone|func .*WithBudget|EnvSnapshot:' internal/effects/context.go; sed -n '20,45p' internal/effects/context.go; sed -n '300,450p' internal/effects/context.go; rg --files -g AGENTS.md internal; sed -n '130,190p' internal/pipeline/pipeline_module_phases.go; sed -n '130,170p' internal/pipeline/pipeline.go": (no input)
+2026-10-16T08:45:36.939845Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc "sed -n '35,220p' internal/embed/embed.go; sed -n '425,452p' internal/embed/embed.go; sed -n '1,45p' internal/runner/batch.go; rg -n 'result\\.|func runSingle' internal/runner/run.go | head -25; cat internal/pkg/lockfile.go | head -100; cat .agents/skills/sprint-executor/scripts/validate_prerequisites.sh | tail -60": (no input)
+2026-10-16T08:45:44.804674Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc "python3 - <<'PY'
+2026-10-16T08:45:44.804688Z	ailang-agent-executor-codex-go-dgcmd	1	p='internal/effects/pkg_test.go'
+2026-10-16T08:45:44.804695Z	ailang-agent-executor-codex-go-dgcmd	1	s=open(p).read().replace('the lexically-highest version','the semver-highest version').replace('TestPkgAssetPath_PicksLatestVersion','TestPkgAssetPath_PicksSemverMax').replace('\"0.1.0\", \"0.2.0\", \"0.10.0\"','\"0.1.0\", \"0.2.0\", \"0.9.0\", \"0.10.0\"')
+2026-10-16T08:45:44.804701Z	ailang-agent-executor-codex-go-dgcmd	1	a=s.index('\\t// Lexical sort:'); b=s.index('\\n\\tif gotPath',a)
+2026-10-16T08:45:44.804708Z	ailang-agent-executor-codex-go-dgcmd	1	s=s[:a]+'\\twant := filepath.Join(base, \"0.10.0\", AssetsDir, \"v.txt\")'+s[b:];open(p,'w').write(s)
+2026-10-16T08:45:44.804713Z	ailang-agent-executor-codex-go-dgcmd	1	PY
+2026-10-16T08:45:44.804719Z	ailang-agent-executor-codex-go-dgcmd	1	go test ./internal/effects -run TestPkgAssetPath_PicksSemverMax -count=1": (no input)
+2026-10-16T08:45:44.860420Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc "sed -n '477,525p' internal/effects/context.go; sed -n '722,752p' internal/effects/context.go; head -40 internal/pipeline/pipeline.go; rg -n 'effects' internal/embed/embed.go; command -v ailang; printenv AILANG_TASK_ID": (no input)
+2026-10-16T08:45:49.032983Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc 'cat .agents/skills/cloud-setup/SKILL.md': (no input)
+2026-10-16T08:45:49.140513Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc 'ls /usr/local/go/bin /opt/go/bin /usr/lib/go*/bin 2>/dev/null; cat go.mod | head -15; /usr/local/bin/ailang version': (no input)
+2026-10-16T08:45:56.674938Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: The startup script reported a pass even though Go was missing from `PATH`. Go is installed, so I’ve located it using the cloud-setup guidance and will run the checks directly. I’m starting with a ...
+2026-10-16T08:46:16.635549Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc 'ln -s /usr/local/go/bin/go /usr/local/bin/go; ln -s /usr/local/go/bin/gofmt /usr/local/bin/gofmt; make test-core > /tmp/pkg-assets-baseline.log 2>&1': (no input)
+2026-10-16T08:46:16.823720Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc "cat > internal/effects/pkg_lock_test.go <<'EOF'
+2026-10-16T08:46:16.823733Z	ailang-agent-executor-codex-go-dgcmd	1	package effects
+2026-10-16T08:46:16.823741Z	ailang-agent-executor-codex-go-dgcmd	1	import (
+2026-10-16T08:46:16.823746Z	ailang-agent-executor-codex-go-dgcmd	1	 \"os\"
+2026-10-16T08:46:16.823751Z	ailang-agent-executor-codex-go-dgcmd	1	 \"path/filepath\"
+2026-10-16T08:46:16.823759Z	ailang-agent-executor-codex-go-dgcmd	1	 \"strings\"
+2026-10-16T08:46:16.823763Z	ailang-agent-executor-codex-go-dgcmd	1	 \"testing\"
+2026-10-16T08:46:16.823768Z	ailang-agent-executor-codex-go-dgcmd	1	 \"github.com/sunholo-data/ailang/internal/eval\"
+2026-10-16T08:46:16.823773Z	ailang-agent-executor-codex-go-dgcmd	1	 \"github.com/sunholo-data/ailang/internal/testutil\"
+2026-10-16T08:46:16.823776Z	ailang-agent-executor-codex-go-dgcmd	1	)
+2026-10-16T08:46:16.823781Z	ailang-agent-executor-codex-go-dgcmd	1	func assetResult(t *testing.T, ctx *EffContext, name, rel string) (string, string) {
+2026-10-16T08:46:16.823786Z	ailang-agent-executor-codex-go-dgcmd	1	 t.Helper()
+2026-10-16T08:46:16.823792Z	ailang-agent-executor-codex-go-dgcmd	1	 v, err := pkgAssetPath(ctx, []eval.Value{&eval.StringValue{Value:name}, &eval.StringValue{Value:rel}})
+2026-10-16T08:46:16.823798Z	ailang-agent-executor-codex-go-dgcmd	1	 if err "'!= nil { t.Fatal(err) }
+2026-10-16T08:46:16.823804Z	ailang-agent-executor-codex-go-dgcmd	1	 tagged := v.(*eval.TaggedValue)
+2026-10-16T08:46:16.823809Z	ailang-agent-executor-codex-go-dgcmd	1	 return tagged.CtorName, tagged.Fields[0].(*eval.StringValue).Value
+2026-10-16T08:46:16.823812Z	ailang-agent-executor-codex-go-dgcmd	1	}
+2026-10-16T08:46:16.823816Z	ailang-agent-executor-codex-go-dgcmd	1	func TestPkgAssetPath_LockedTargets(t *testing.T) {
+2026-10-16T08:46:16.823819Z	ailang-agent-executor-codex-go-dgcmd	1	 home := t.TempDir()
+2026-10-16T08:46:16.823822Z	ailang-agent-executor-codex-go-dgcmd	1	 testutil.SetHomeDir(t, home)
+2026-10-16T08:46:16.823825Z	ailang-agent-executor-codex-go-dgcmd	1	 base := filepath.Join(home,".ailang","cache","registry","test","pkg")
+2026-10-16T08:46:16.823828Z	ailang-agent-executor-codex-go-dgcmd	1	 for _, version := range []string{"0.3.0","0.4.0"} {
+2026-10-16T08:46:16.823831Z	ailang-agent-executor-codex-go-dgcmd	1	  dir := filepath.Join(base,version,AssetsDir)
+2026-10-16T08:46:16.823834Z	ailang-agent-executor-codex-go-dgcmd	1	  if err := os.MkdirAll(dir,0755); err != nil { t.Fatal(err) }
+2026-10-16T08:46:16.823837Z	ailang-agent-executor-codex-go-dgcmd	1	  if err := os.WriteFile(filepath.Join(dir,"data"),[]byte(version),0600); err != nil { t.Fatal(err) }
+2026-10-16T08:46:16.823841Z	ailang-agent-executor-codex-go-dgcmd	1	 }
+2026-10-16T08:46:16.823844Z	ailang-agent-executor-codex-go-dgcmd	1	 locked := filepath.Join(base,"0.3.0")
+2026-10-16T08:46:16.823847Z	ailang-agent-executor-codex-go-dgcmd	1	 ctx := NewEffContext(nil)
+2026-10-16T08:46:16.823849Z	ailang-agent-executor-codex-go-dgcmd	1	 ctx.PkgAssets = map[string]PkgAssetTarget{"test/pkg":{Dir:locked,Version:"0.3.0"}}
+2026-10-16T08:46:16.823852Z	ailang-agent-executor-codex-go-dgcmd	1	 for _, clone := range []*EffContext{ctx,ctx.WithBudget(nil),ctx.Clone().(*EffContext)} {
+2026-10-16T08:46:16.823856Z	ailang-agent-executor-codex-go-dgcmd	1	  tag, path := assetResult(t,clone,"test/pkg","data")
+2026-10-16T08:46:16.823861Z	ailang-agent-executor-codex-go-dgcmd	1	  if tag != "Ok" || path != filepath.Join(locked,AssetsDir,"data") { t.Fatalf("%s %s",tag,path) }
+2026-10-16T08:46:16.823864Z	ailang-agent-executor-codex-go-dgcmd	1	 }
+2026-10-16T08:46:16.823869Z	ailang-agent-executor-codex-go-dgcmd	1	 if err := os.RemoveAll(locked); err != nil { t.Fatal(err) }
+2026-10-16T08:46:16.823872Z	ailang-agent-executor-codex-go-dgcmd	1	 tag, msg := assetResult(t,ctx,"test/pkg","data")
+2026-10-16T08:46:16.823877Z	ailang-agent-executor-codex-go-dgcmd	1	 if tag != "Err" || !strings.Contains(msg,"test/pkg@0.3.0") || !strings.Contains(msg,"ailang install") { t.Fatalf("%s %s",tag,msg) }
+2026-10-16T08:46:16.823879Z	ailang-agent-executor-codex-go-dgcmd	1	 // A present unresolved target must also block fallback.
+2026-10-16T08:46:16.823882Z	ailang-agent-executor-codex-go-dgcmd	1	 ctx.PkgAssets = map[string]PkgAssetTarget{"test/pkg":{Version:"0.3.0"}}
+2026-10-16T08:46:16.823885Z	ailang-agent-executor-codex-go-dgcmd	1	 tag,msg = assetResult(t,ctx,"test/pkg","data")
+2026-10-16T08:46:16.823888Z	ailang-agent-executor-codex-go-dgcmd	1	 if tag != "Err" { t.Fatalf("unresolved target fell back: %s",msg) }
+2026-10-16T08:46:16.823890Z	ailang-agent-executor-codex-go-dgcmd	1	 // A dependency absent from the map may use compatibility fallback.
+2026-10-16T08:46:16.823893Z	ailang-agent-executor-codex-go-dgcmd	1	 ctx.PkgAssets = map[string]PkgAssetTarget{}
+2026-10-16T08:46:16.823897Z	ailang-agent-executor-codex-go-dgcmd	1	 tag,path := assetResult(t,ctx,"test/pkg","data")
+2026-10-16T08:46:16.823900Z	ailang-agent-executor-codex-go-dgcmd	1	 if tag != "Ok" || path != filepath.Join(base,"0.4.0",AssetsDir,"data") { t.Fatalf("%s %s",tag,path) }
+2026-10-16T08:46:16.823902Z	ailang-agent-executor-codex-go-dgcmd	1	}
+2026-10-16T08:46:16.823906Z	ailang-agent-executor-codex-go-dgcmd	1	func TestPkgAssetPath_LocalTargetAndValidation(t *testing.T) {
+2026-10-16T08:46:16.823909Z	ailang-agent-executor-codex-go-dgcmd	1	 dir := t.TempDir()
+2026-10-16T08:46:16.823911Z	ailang-agent-executor-codex-go-dgcmd	1	 if err := os.Mkdir(filepath.Join(dir,AssetsDir),0755); err != nil { t.Fatal(err) }
+2026-10-16T08:46:16.823915Z	ailang-agent-executor-codex-go-dgcmd	1	 if err := os.WriteFile(filepath.Join(dir,AssetsDir,"data"),[]byte("local"),0600); err != nil { t.Fatal(err) }
+2026-10-16T08:46:16.823918Z	ailang-agent-executor-codex-go-dgcmd	1	 ctx := NewEffContext(nil)
+2026-10-16T08:46:16.823921Z	ailang-agent-executor-codex-go-dgcmd	1	 ctx.PkgAssets = map[string]PkgAssetTarget{"test/pkg":{Dir:dir,Version:"git-or-path"}}
+2026-10-16T08:46:16.823923Z	ailang-agent-executor-codex-go-dgcmd	1	 tag,path := assetResult(t,ctx,"test/pkg","data")
+2026-10-16T08:46:16.823927Z	ailang-agent-executor-codex-go-dgcmd	1	 if tag != "Ok" || path != filepath.Join(dir,AssetsDir,"data") { t.Fatalf("%s %s",tag,path) }
+2026-10-16T08:46:16.823930Z	ailang-agent-executor-codex-go-dgcmd	1	 for _, rel := range []string{"../data","/data",`C:'"\\data"'`,""} {
+2026-10-16T08:46:16.823933Z	ailang-agent-executor-codex-go-dgcmd	1	  tag,msg := assetResult(t,ctx,"test/pkg",rel)
+2026-10-16T08:46:16.823935Z	ailang-agent-executor-codex-go-dgcmd	1	  if tag != "Err" || !strings.HasPrefix(msg,"invalid relative path:") { t.Fatalf("%s %s",tag,msg) }
+2026-10-16T08:46:16.823938Z	ailang-agent-executor-codex-go-dgcmd	1	 }
+2026-10-16T08:46:16.823940Z	ailang-agent-executor-codex-go-dgcmd	1	 ctx.Env.Sandbox = dir
+2026-10-16T08:46:16.823943Z	ailang-agent-executor-codex-go-dgcmd	1	 tag,msg := assetResult(t,ctx,"bad","../data")
+2026-10-16T08:46:16.823946Z	ailang-agent-executor-codex-go-dgcmd	1	 if tag != "Err" || !strings.Contains(msg,"outside the FS sandbox") { t.Fatalf("%s %s",tag,msg) }
+2026-10-16T08:46:16.823949Z	ailang-agent-executor-codex-go-dgcmd	1	}
+2026-10-16T08:46:16.823952Z	ailang-agent-executor-codex-go-dgcmd	1	func TestPkgAssetPath_InvalidVersions(t *testing.T) {
+2026-10-16T08:46:16.823955Z	ailang-agent-executor-codex-go-dgcmd	1	 home:=t.TempDir(); testutil.SetHomeDir(t,home)
+2026-10-16T08:46:16.823958Z	ailang-agent-executor-codex-go-dgcmd	1	 base:=filepath.Join(home,".ailang","cache","registry","test","pkg")
+2026-10-16T08:46:16.823961Z	ailang-agent-executor-codex-go-dgcmd	1	 if err:=os.MkdirAll(filepath.Join(base,"garbage"),0755);err!=nil { t.Fatal(err) }
+2026-10-16T08:46:16.823964Z	ailang-agent-executor-codex-go-dgcmd	1	 tag,msg:=assetResult(t,nil,"test/pkg","data")
+2026-10-16T08:46:16.823967Z	ailang-agent-executor-codex-go-dgcmd	1	 if tag!="Err" || !strings.Contains(msg,"no valid installed versions") {t.Fatalf("%s %s",tag,msg)}
+2026-10-16T08:46:16.823970Z	ailang-agent-executor-codex-go-dgcmd	1	}
+2026-10-16T08:46:16.823972Z	ailang-agent-executor-codex-go-dgcmd	1	EOF
+2026-10-16T08:46:16.823975Z	ailang-agent-executor-codex-go-dgcmd	1	go test ./internal/effects -run '"'TestPkgAssetPath_(Locked|Local|Invalid)' -count=1": (no input)
+2026-10-16T08:46:33.834504Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc "rg -n 'test-changed|check-file-sizes|check-architecture-closure|check-boundaries|"'^lint:'"' Makefile; cat internal/effects/abspath.go | head -25; sed -n '105,140p' internal/pkg/lockfile.go; cat internal/pipeline/package_resolver_test.go | head -100; sed -n '210,250p' internal/embed/embed.go": (no input)
+2026-10-16T08:46:34.521335Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc 'export PATH=/usr/local/go/bin:$PATH
+2026-10-16T08:46:34.521354Z	ailang-agent-executor-codex-go-dgcmd	1	make lint > /tmp/pkg-assets-baseline-lint.log 2>&1': (no input)
+2026-10-16T08:46:49.720832Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc "tail -15 /tmp/pkg-assets-baseline.log; tail -15 /tmp/pkg-assets-baseline-lint.log; rg -n 'test-changed|"'^lint:|check-file-sizes'"' Makefile* make* -g '*.mk' -g Makefile": (no input)
+2026-10-16T08:46:53.723871Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc "ps -eo pid,etime,args | rg 'compile|go test' | head -10; df -h /tmp; sed -n '95,120p' make/code-health.mk; sed -n '428,437p' make/test.mk": (no input)
+2026-10-16T08:47:09.238657Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc 'export PATH=/usr/local/go/bin:$PATH
+2026-10-16T08:47:09.238675Z	ailang-agent-executor-codex-go-dgcmd	1	ailang prompt > /tmp/pkg-assets-teaching-prompt.txt
+2026-10-16T08:47:09.238680Z	ailang-agent-executor-codex-go-dgcmd	1	head -12 /tmp/pkg-assets-teaching-prompt.txt
+2026-10-16T08:47:09.238683Z	ailang-agent-executor-codex-go-dgcmd	1	wc -l /tmp/pkg-assets-teaching-prompt.txt': (no input)
+2026-10-16T08:48:04.220176Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc 'tail -5 /tmp/pkg-assets-baseline.log; git diff --stat; cat .golangci.yml | head -45; rg GOLANGCI_LINT_VERSION make/*.mk': (no input)
+2026-10-16T08:48:08.835187Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc 'ls -l internal/effects/pkg*; export PATH=/usr/local/go/bin:$PATH
+2026-10-16T08:48:08.835201Z	ailang-agent-executor-codex-go-dgcmd	1	go env GOOS GOARCH GOPATH; tail -10 /tmp/pkg-assets-effects.log; wc -l internal/effects/context.go; git diff internal/effects/context.go | head -40': (no input)
+2026-10-16T08:48:15.124555Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc 'cat /tmp/pkg-assets-teaching-prompt.txt': (no input)
+2026-10-16T08:48:19.279686Z	ailang-agent-executor-codex-go-ttn8s	0	GCSFuse is mounted with bucket ailang-multivac-ailang-artifacts. Enable GCSFuse logging with mount options for more logs
+2026-10-16T08:48:19.339394Z	ailang-agent-executor-codex-go-ttn8s	0	time="16/10/2026 08:48:19.338698" severity=INFO message="GCSFuse Config" mount-id=ailang-multivac-ailang-artifacts-60081326 "CLI Flags"="map[app-name:serverless dir-mode:777 file-mode:666 foreground:true gid:1000 ignore-interrupts:true implicit-dirs:true log-format:text o:[allow_other] uid:1000]"
+2026-10-16T08:48:19.339971Z	ailang-agent-executor-codex-go-ttn8s	0	time="16/10/2026 08:48:19.338740" severity=INFO message="GCSFuse Config" mount-id=ailang-multivac-ailang-artifacts-60081326 "Full Config"="&{AppName:serverless CacheDir: CloudProfiler:{AllocatedHeap:true Cpu:true Enabled:false Goroutines:false Heap:true Label:gcsfuse-0.0.0 Mutex:false ServiceName:gcsfuse} Debug:{ExitOnInvariantViolation:false Fuse:false Gcs:false LogMutex:false} DisableAutoconfig:false DummyIo:{Enable:false PerMbLatency:0s ReaderLatency:0s} EnableAtomicRenameObject:true EnableGoogleLibAuth:true EnableHns:true EnableNewReader:true EnableStandardSymlinks:true EnableTypeCacheDeprecation:true EnableUnsupportedPathSupport:true FileCache:{CacheFileForRangeRead:false DownloadChunkSizeMb:200 EnableCrc:false EnableExperimentalSharedChunkCache:false EnableODirect:false EnableParallelDownloads:false ExcludeRegex: ExperimentalDisableSizeCalculationFix:false ExperimentalEnableChunkCache:false ExperimentalParallelDownloadsDefaultOn:true IncludeRegex: MaxParallelDownloads:16 MaxSizeMb:-1 ParallelDownloadsPerFile:16 SharedCacheChunkSizeMb:8 WriteBufferSize:4194304} FileSystem:{CongestionThreshold:0 DirMode:511 DisableParallelDirops:false EnableKernelReader:false ExperimentalEnableDentryCache:false ExperimentalEnablePirlo:false ExperimentalEnableReaddirplus:false ExperimentalODirect:false FileMode:438 FuseMaxRequestSizeKb:1024 FuseMaxWriteSizeKb:1024 FuseOptions:[allow_other] Gid:1000 IgnoreInterrupts:true InactiveMrdCacheSize:1000 KernelListCacheTtlSecs:0 KernelParamsFile: MaxBackground:0 MaxReadAheadKb:0 RenameDirLimit:0 StrongConsistencyOnOpen:false TempDir: Uid:1000} Foreground:true GcsAuth:{AnonymousAccess:false KeyFile: ReuseTokenFromUrl:true TokenUrl:} GcsConnection:{BillingProject: ClientProtocol:http1 CustomEndpoint: EnableHttpDnsCache:true ExperimentalEnableJsonRead:false ExperimentalLocalSocketAddress: GrpcConnPoolSize:1 GrpcPathStrategy:direct-path-with-fallback HttpClientTimeout:0s LimitBytesPerSec:-1 LimitOpsPerSec:-1 MaxConnsPerHost:0 MaxIdleConnsPerHost:100 SequentialReadSizeMb:200} GcsRetries:{ChunkRetryDeadlineSecs:120 ChunkTransferTimeoutSecs:10 EnableMountRetries:false MaxRetryAttempts:9223372036854775807 MaxRetrySleep:30s Multiplier:2 ReadStall:{Enable:true InitialReqTimeout:20s MaxReqTimeout:20m0s MinReqTimeout:1.5s ReqIncreaseRate:15 ReqTargetPercentile:0.99}} ImplicitDirs:true List:{EnableEmptyManagedFolders:false} Logging:{ExperimentalEnableOtelLogging:false ExperimentalOtelLoggingEndpoint:telemetry.googleapis.com ExperimentalOtelLoggingProjectId: FilePath: Format:text LogRotate:{BackupFileCount:10 Compress:true MaxFileSizeMb:512} Severity:INFO WireLog:} MachineType: MetadataCache:{DeprecatedStatCacheCapacity:20460 DeprecatedStatCacheTtl:1m0s DeprecatedTypeCacheTtl:1m0s EnableMetadataPrefetch:true EnableNonexistentTypeCache:false ExperimentalEnableOptimizedMetadataCache:false ExperimentalMetadataPrefetchOnMount:disabled MetadataPrefetchEntriesLimit:5000 MetadataPrefetchMaxWorkers:10 NegativeTtlSecs:5 StatCacheMaxSizeMb:34 TtlSecs:60 TypeCacheMaxSizeMb:4} Metrics:{BufferSize:256 CloudMetricsExportIntervalSecs:0 ExperimentalEnableGrpcMetrics:true ExperimentalEnableOtelMetrics:false ExperimentalOtelMetricsEndpoint: ExperimentalOtelMetricsProjectId: PrometheusPort:0 StackdriverExportInterval:0s UseNewNames:false Workers:3} MountId: Mrd:{PoolSize:4} OnlyDir: Profile: Read:{BlockSizeMb:16 EnableBufferedRead:false EnableGrpcReadChecksums:false GlobalMaxBlocks:40 InactiveStreamTimeout:10s MaxBlocksPerHandle:20 MinBlocksPerHandle:4 RandomSeekThreshold:3 StartBlocksPerHandle:1} Trace:{Exporters:[gcpexporter] ProjectId: SamplingRatio:0} WorkloadInsight:{ForwardMergeThresholdMb:0 OutputFile: Visualize:false} Write:{BlockSizeMb:32 CreateEmptyFile:false EnableRapidAppends:true EnableRapidWrites:false EnableStreamingWrites:true FinalizeFileForRapid:false GlobalMaxBlocks:4 MaxBlocksPerFile:1}}"
+2026-10-16T08:48:19.342590Z	ailang-agent-executor-codex-go-ttn8s	0	time="16/10/2026 08:48:19.342163" severity=INFO message="Creating Storage handle..." mount-id=ailang-multivac-ailang-artifacts-60081326
+2026-10-16T08:48:19.342957Z	ailang-agent-executor-codex-go-ttn8s	0	time="16/10/2026 08:48:19.342187" severity=INFO message="UserAgent = gcsfuse/3.12.0 (Go version go1.27.0) (GPN:gcsfuse-serverless) (Cfg:0:0:0:1:0:0) (mount-id:ailang-multivac-ailang-artifacts-60081326)\n" mount-id=ailang-multivac-ailang-artifacts-60081326
+2026-10-16T08:48:19.343231Z	ailang-agent-executor-codex-go-ttn8s	0	time="16/10/2026 08:48:19.342229" severity=INFO message="Bypassing UniverseDomain metadata server lookup on standard commercial GCP setup" mount-id=ailang-multivac-ailang-artifacts-60081326
+2026-10-16T08:48:19.343236Z	ailang-agent-executor-codex-go-ttn8s	0	time="16/10/2026 08:48:19.342538" severity=INFO message="Creating a new server...\n" mount-id=ailang-multivac-ailang-artifacts-60081326
+2026-10-16T08:48:19.343506Z	ailang-agent-executor-codex-go-ttn8s	0	time="16/10/2026 08:48:19.342562" severity=INFO message="MRD cache (LRU-based) enabled with maxSize=1000 (pools closed-file MRDs)" mount-id=ailang-multivac-ailang-artifacts-60081326
+2026-10-16T08:48:19.343824Z	ailang-agent-executor-codex-go-ttn8s	0	time="16/10/2026 08:48:19.342567" severity=INFO message="Set up root directory for bucket ailang-multivac-ailang-artifacts" mount-id=ailang-multivac-ailang-artifacts-60081326
+2026-10-16T08:48:19.344128Z	ailang-agent-executor-codex-go-ttn8s	0	time="16/10/2026 08:48:19.342578" severity=INFO message="GetStorageLayout <- (ailang-multivac-ailang-artifacts, prefix: \"\")" mount-id=ailang-multivac-ailang-artifacts-60081326
+2026-10-16T08:48:19.344414Z	ailang-agent-executor-codex-go-ttn8s	0	time="16/10/2026 08:48:19.342606" severity=INFO message="Calling GetStorageLayout for \"projects/_/buckets/ailang-multivac-ailang-artifacts/storageLayout\": InvocationID: ddaaccea-f1ac-4731-a8c3-184cd7994857, Attempt: 1, with deadline=30s" mount-id=ailang-multivac-ailang-artifacts-60081326
+2026-10-16T08:48:19.442897Z	ailang-agent-executor-codex-go-ttn8s	0	time="16/10/2026 08:48:19.442151" severity=INFO message="GetStorageLayout -> (ailang-multivac-ailang-artifacts, prefix: \"\") 99 msec" mount-id=ailang-multivac-ailang-artifacts-60081326
+2026-10-16T08:48:19.443345Z	ailang-agent-executor-codex-go-ttn8s	0	time="16/10/2026 08:48:19.442288" severity=INFO message="Bypassing UniverseDomain metadata server lookup on standard commercial GCP setup" mount-id=ailang-multivac-ailang-artifacts-60081326
+2026-10-16T08:48:19.443986Z	ailang-agent-executor-codex-go-ttn8s	0	time="16/10/2026 08:48:19.443573" severity=INFO message="GCSFuse Config" mount-id=ailang-multivac-ailang-artifacts-60081326 "Applied optimizations for bucket-type: "=flat "Full Config"="map[file-system.congestion-threshold:{FinalValue:9 OptimizationReason:bucket-type \"flat\" Optimized:true} file-system.fuse-max-request-size-kb:{FinalValue:16384 OptimizationReason:bucket-type \"flat\" Optimized:true} file-system.max-background:{FinalValue:12 OptimizationReason:bucket-type \"flat\" Optimized:true} file-system.max-read-ahead-kb:{FinalValue:131072 OptimizationReason:bucket-type \"flat\" Optimized:true}]"
+2026-10-16T08:48:19.444260Z	ailang-agent-executor-codex-go-ttn8s	0	time="16/10/2026 08:48:19.443801" severity=INFO message="Mounting file system \"ailang-multivac-ailang-artifacts\"..." mount-id=ailang-multivac-ailang-artifacts-60081326
+2026-10-16T08:48:19.444909Z	ailang-agent-executor-codex-go-ttn8s	0	time="16/10/2026 08:48:19.444561" severity=INFO message="File system has been successfully mounted." mount-id=ailang-multivac-ailang-artifacts-60081326
+2026-10-16T08:48:20.392704Z	ailang-agent-executor-codex-go-ttn8s	0	execute-job: completion published for task task-6dac947e (status=failed, turns=0, tokens=0+0, cost=$0.0000)
+2026-10-16T08:48:20.459805Z	ailang-agent-executor-codex-go-ttn8s	0	Container called exit(1).
+2026-10-16T08:48:20.459928Z	ailang-agent-executor-codex-go-ttn8s	0	Error: acquire exclusive Codex credential: credential already owned: attended recovery required if owner has terminated
+2026-10-16T08:48:29.429650Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc 'tail -10 /tmp/pkg-assets-effects.log; tail -5 /tmp/pkg-assets-install-lint.log': (no input)
+2026-10-16T08:48:51.270505Z	ailang-agent-executor-codex-go-ttn8s	1	GCSFuse is mounted with bucket ailang-multivac-ailang-artifacts. Enable GCSFuse logging with mount options for more logs
+2026-10-16T08:48:51.334204Z	ailang-agent-executor-codex-go-ttn8s	1	time="16/10/2026 08:48:51.333497" severity=INFO message="GCSFuse Config" mount-id=ailang-multivac-ailang-artifacts-83732816 "CLI Flags"="map[app-name:serverless dir-mode:777 file-mode:666 foreground:true gid:1000 ignore-interrupts:true implicit-dirs:true log-format:text o:[allow_other] uid:1000]"
+2026-10-16T08:48:51.334599Z	ailang-agent-executor-codex-go-ttn8s	1	time="16/10/2026 08:48:51.333527" severity=INFO message="GCSFuse Config" mount-id=ailang-multivac-ailang-artifacts-83732816 "Full Config"="&{AppName:serverless CacheDir: CloudProfiler:{AllocatedHeap:true Cpu:true Enabled:false Goroutines:false Heap:true Label:gcsfuse-0.0.0 Mutex:false ServiceName:gcsfuse} Debug:{ExitOnInvariantViolation:false Fuse:false Gcs:false LogMutex:false} DisableAutoconfig:false DummyIo:{Enable:false PerMbLatency:0s ReaderLatency:0s} EnableAtomicRenameObject:true EnableGoogleLibAuth:true EnableHns:true EnableNewReader:true EnableStandardSymlinks:true EnableTypeCacheDeprecation:true EnableUnsupportedPathSupport:true FileCache:{CacheFileForRangeRead:false DownloadChunkSizeMb:200 EnableCrc:false EnableExperimentalSharedChunkCache:false EnableODirect:false EnableParallelDownloads:false ExcludeRegex: ExperimentalDisableSizeCalculationFix:false ExperimentalEnableChunkCache:false ExperimentalParallelDownloadsDefaultOn:true IncludeRegex: MaxParallelDownloads:16 MaxSizeMb:-1 ParallelDownloadsPerFile:16 SharedCacheChunkSizeMb:8 WriteBufferSize:4194304} FileSystem:{CongestionThreshold:0 DirMode:511 DisableParallelDirops:false EnableKernelReader:false ExperimentalEnableDentryCache:false ExperimentalEnablePirlo:false ExperimentalEnableReaddirplus:false ExperimentalODirect:false FileMode:438 FuseMaxRequestSizeKb:1024 FuseMaxWriteSizeKb:1024 FuseOptions:[allow_other] Gid:1000 IgnoreInterrupts:true InactiveMrdCacheSize:1000 KernelListCacheTtlSecs:0 KernelParamsFile: MaxBackground:0 MaxReadAheadKb:0 RenameDirLimit:0 StrongConsistencyOnOpen:false TempDir: Uid:1000} Foreground:true GcsAuth:{AnonymousAccess:false KeyFile: ReuseTokenFromUrl:true TokenUrl:} GcsConnection:{BillingProject: ClientProtocol:http1 CustomEndpoint: EnableHttpDnsCache:true ExperimentalEnableJsonRead:false ExperimentalLocalSocketAddress: GrpcConnPoolSize:1 GrpcPathStrategy:direct-path-with-fallback HttpClientTimeout:0s LimitBytesPerSec:-1 LimitOpsPerSec:-1 MaxConnsPerHost:0 MaxIdleConnsPerHost:100 SequentialReadSizeMb:200} GcsRetries:{ChunkRetryDeadlineSecs:120 ChunkTransferTimeoutSecs:10 EnableMountRetries:false MaxRetryAttempts:9223372036854775807 MaxRetrySleep:30s Multiplier:2 ReadStall:{Enable:true InitialReqTimeout:20s MaxReqTimeout:20m0s MinReqTimeout:1.5s ReqIncreaseRate:15 ReqTargetPercentile:0.99}} ImplicitDirs:true List:{EnableEmptyManagedFolders:false} Logging:{ExperimentalEnableOtelLogging:false ExperimentalOtelLoggingEndpoint:telemetry.googleapis.com ExperimentalOtelLoggingProjectId: FilePath: Format:text LogRotate:{BackupFileCount:10 Compress:true MaxFileSizeMb:512} Severity:INFO WireLog:} MachineType: MetadataCache:{DeprecatedStatCacheCapacity:20460 DeprecatedStatCacheTtl:1m0s DeprecatedTypeCacheTtl:1m0s EnableMetadataPrefetch:true EnableNonexistentTypeCache:false ExperimentalEnableOptimizedMetadataCache:false ExperimentalMetadataPrefetchOnMount:disabled MetadataPrefetchEntriesLimit:5000 MetadataPrefetchMaxWorkers:10 NegativeTtlSecs:5 StatCacheMaxSizeMb:34 TtlSecs:60 TypeCacheMaxSizeMb:4} Metrics:{BufferSize:256 CloudMetricsExportIntervalSecs:0 ExperimentalEnableGrpcMetrics:true ExperimentalEnableOtelMetrics:false ExperimentalOtelMetricsEndpoint: ExperimentalOtelMetricsProjectId: PrometheusPort:0 StackdriverExportInterval:0s UseNewNames:false Workers:3} MountId: Mrd:{PoolSize:4} OnlyDir: Profile: Read:{BlockSizeMb:16 EnableBufferedRead:false EnableGrpcReadChecksums:false GlobalMaxBlocks:40 InactiveStreamTimeout:10s MaxBlocksPerHandle:20 MinBlocksPerHandle:4 RandomSeekThreshold:3 StartBlocksPerHandle:1} Trace:{Exporters:[gcpexporter] ProjectId: SamplingRatio:0} WorkloadInsight:{ForwardMergeThresholdMb:0 OutputFile: Visualize:false} Write:{BlockSizeMb:32 CreateEmptyFile:false EnableRapidAppends:true EnableRapidWrites:false EnableStreamingWrites:true FinalizeFileForRapid:false GlobalMaxBlocks:4 MaxBlocksPerFile:1}}"
+2026-10-16T08:48:51.337114Z	ailang-agent-executor-codex-go-ttn8s	1	time="16/10/2026 08:48:51.336693" severity=INFO message="Creating Storage handle..." mount-id=ailang-multivac-ailang-artifacts-83732816
+2026-10-16T08:48:51.337419Z	ailang-agent-executor-codex-go-ttn8s	1	time="16/10/2026 08:48:51.336725" severity=INFO message="UserAgent = gcsfuse/3.12.0 (Go version go1.27.0) (GPN:gcsfuse-serverless) (Cfg:0:0:0:1:0:0) (mount-id:ailang-multivac-ailang-artifacts-83732816)\n" mount-id=ailang-multivac-ailang-artifacts-83732816
+2026-10-16T08:48:51.337750Z	ailang-agent-executor-codex-go-ttn8s	1	time="16/10/2026 08:48:51.336783" severity=INFO message="Bypassing UniverseDomain metadata server lookup on standard commercial GCP setup" mount-id=ailang-multivac-ailang-artifacts-83732816
+2026-10-16T08:48:51.338279Z	ailang-agent-executor-codex-go-ttn8s	1	time="16/10/2026 08:48:51.337127" severity=INFO message="Creating a new server...\n" mount-id=ailang-multivac-ailang-artifacts-83732816
+2026-10-16T08:48:51.338535Z	ailang-agent-executor-codex-go-ttn8s	1	time="16/10/2026 08:48:51.337163" severity=INFO message="MRD cache (LRU-based) enabled with maxSize=1000 (pools closed-file MRDs)" mount-id=ailang-multivac-ailang-artifacts-83732816
+2026-10-16T08:48:51.338541Z	ailang-agent-executor-codex-go-ttn8s	1	time="16/10/2026 08:48:51.337168" severity=INFO message="Set up root directory for bucket ailang-multivac-ailang-artifacts" mount-id=ailang-multivac-ailang-artifacts-83732816
+2026-10-16T08:48:51.338545Z	ailang-agent-executor-codex-go-ttn8s	1	time="16/10/2026 08:48:51.337181" severity=INFO message="GetStorageLayout <- (ailang-multivac-ailang-artifacts, prefix: \"\")" mount-id=ailang-multivac-ailang-artifacts-83732816
+2026-10-16T08:48:51.338775Z	ailang-agent-executor-codex-go-ttn8s	1	time="16/10/2026 08:48:51.337215" severity=INFO message="Calling GetStorageLayout for \"projects/_/buckets/ailang-multivac-ailang-artifacts/storageLayout\": InvocationID: 860ec156-b96b-4b9d-b75e-1a385f2202fa, Attempt: 1, with deadline=30s" mount-id=ailang-multivac-ailang-artifacts-83732816
+2026-10-16T08:48:51.415726Z	ailang-agent-executor-codex-go-ttn8s	1	time="16/10/2026 08:48:51.414984" severity=INFO message="GetStorageLayout -> (ailang-multivac-ailang-artifacts, prefix: \"\") 77 msec" mount-id=ailang-multivac-ailang-artifacts-83732816
+2026-10-16T08:48:51.416100Z	ailang-agent-executor-codex-go-ttn8s	1	time="16/10/2026 08:48:51.415046" severity=INFO message="Bypassing UniverseDomain metadata server lookup on standard commercial GCP setup" mount-id=ailang-multivac-ailang-artifacts-83732816
+2026-10-16T08:48:51.416676Z	ailang-agent-executor-codex-go-ttn8s	1	time="16/10/2026 08:48:51.416273" severity=INFO message="GCSFuse Config" mount-id=ailang-multivac-ailang-artifacts-83732816 "Applied optimizations for bucket-type: "=flat "Full Config"="map[file-system.congestion-threshold:{FinalValue:9 OptimizationReason:bucket-type \"flat\" Optimized:true} file-system.fuse-max-request-size-kb:{FinalValue:16384 OptimizationReason:bucket-type \"flat\" Optimized:true} file-system.max-background:{FinalValue:12 OptimizationReason:bucket-type \"flat\" Optimized:true} file-system.max-read-ahead-kb:{FinalValue:131072 OptimizationReason:bucket-type \"flat\" Optimized:true}]"
+2026-10-16T08:48:51.416971Z	ailang-agent-executor-codex-go-ttn8s	1	time="16/10/2026 08:48:51.416516" severity=INFO message="Mounting file system \"ailang-multivac-ailang-artifacts\"..." mount-id=ailang-multivac-ailang-artifacts-83732816
+2026-10-16T08:48:51.417205Z	ailang-agent-executor-codex-go-ttn8s	1	time="16/10/2026 08:48:51.416801" severity=INFO message="File system has been successfully mounted." mount-id=ailang-multivac-ailang-artifacts-83732816
+2026-10-16T08:48:52.465219Z	ailang-agent-executor-codex-go-ttn8s	1	execute-job: completion published for task task-6dac947e (status=failed, turns=0, tokens=0+0, cost=$0.0000)
+2026-10-16T08:48:52.494874Z	ailang-agent-executor-codex-go-ttn8s	1	Container called exit(1).
+2026-10-16T08:48:52.494988Z	ailang-agent-executor-codex-go-ttn8s	1	Error: acquire exclusive Codex credential: credential already owned: attended recovery required if owner has terminated
+2026-10-16T08:48:58.153779Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: The runtime changes now carry locked targets through context clones and budget scopes. The tests cover older locked versions, missing targets, local directories, validation order, and semver fallback....
+2026-10-16T08:48:58.251701Z	ailang-agent-executor-codex-go-ttn8s		
+2026-10-16T08:49:00.725597Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc 'tail -10 /tmp/pkg-assets-m2-red.log; tail -10 /tmp/pkg-assets-effects.log; df -h /tmp; cat /tmp/pkg-assets-install-lint.log | tail -4': (no input)
+2026-10-16T08:49:34.530285Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc "cat > internal/pkg/loader_assets_test.go <<'EOF'
+2026-10-16T08:49:34.530304Z	ailang-agent-executor-codex-go-dgcmd	1	package pkg
+2026-10-16T08:49:34.530311Z	ailang-agent-executor-codex-go-dgcmd	1	import (
+2026-10-16T08:49:34.530316Z	ailang-agent-executor-codex-go-dgcmd	1	 \"os\"
+2026-10-16T08:49:34.530320Z	ailang-agent-executor-codex-go-dgcmd	1	 \"path/filepath\"
+2026-10-16T08:49:34.530325Z	ailang-agent-executor-codex-go-dgcmd	1	 \"reflect\"
+2026-10-16T08:49:34.530330Z	ailang-agent-executor-codex-go-dgcmd	1	 \"testing\"
+2026-10-16T08:49:34.530336Z	ailang-agent-executor-codex-go-dgcmd	1	 \"github.com/sunholo-data/ailang/internal/testutil\"
+2026-10-16T08:49:34.530348Z	ailang-agent-executor-codex-go-dgcmd	1	)
+2026-10-16T08:49:34.530355Z	ailang-agent-executor-codex-go-dgcmd	1	func TestPackageLoaderAssetTargets(t *testing.T) {
+2026-10-16T08:49:34.530360Z	ailang-agent-executor-codex-go-dgcmd	1	 home:=t.TempDir();testutil.SetHomeDir(t,home)
+2026-10-16T08:49:34.530364Z	ailang-agent-executor-codex-go-dgcmd	1	 root:=t.TempDir()
+2026-10-16T08:49:34.530374Z	ailang-agent-executor-codex-go-dgcmd	1	 registry,err:=PackageDir(\"test/registry\",\"0.3.0\");if err"'!=nil {t.Fatal(err)}
+2026-10-16T08:49:34.530380Z	ailang-agent-executor-codex-go-dgcmd	1	 local:=filepath.Join(root,"local");git:=filepath.Join(root,"git")
+2026-10-16T08:49:34.530385Z	ailang-agent-executor-codex-go-dgcmd	1	 for _,dir:=range []string{registry,local,git} {if err:=os.MkdirAll(dir,0755);err!=nil {t.Fatal(err)}}
+2026-10-16T08:49:34.530391Z	ailang-agent-executor-codex-go-dgcmd	1	 lf:=NewLockFile([]LockedPackage{
+2026-10-16T08:49:34.530400Z	ailang-agent-executor-codex-go-dgcmd	1	  {Name:"test/registry",Source:"registry",Version:"0.3.0"},
+2026-10-16T08:49:34.530405Z	ailang-agent-executor-codex-go-dgcmd	1	  {Name:"test/local",Source:"path",Path:"local",Version:"0.1.0"},
+2026-10-16T08:49:34.530409Z	ailang-agent-executor-codex-go-dgcmd	1	  {Name:"test/git",Source:"git",Path:git,Version:"0.2.0"},
+2026-10-16T08:49:34.530414Z	ailang-agent-executor-codex-go-dgcmd	1	  {Name:"test/missing",Source:"path",Path:"missing",Version:"0.5.0"},
+2026-10-16T08:49:34.530418Z	ailang-agent-executor-codex-go-dgcmd	1	 },"test")
+2026-10-16T08:49:34.530422Z	ailang-agent-executor-codex-go-dgcmd	1	 pl:=NewPackageLoader(lf,root)
+2026-10-16T08:49:34.530426Z	ailang-agent-executor-codex-go-dgcmd	1	 for name,want:=range map[string]string{"test/registry":registry,"test/local":local,"test/git":git} {
+2026-10-16T08:49:34.530431Z	ailang-agent-executor-codex-go-dgcmd	1	  dir,version,found:=pl.AssetTarget(name)
+2026-10-16T08:49:34.530449Z	ailang-agent-executor-codex-go-dgcmd	1	  if !found || dir!=want || version=="" {t.Errorf("%s: %q %q %v",name,dir,version,found)}
+2026-10-16T08:49:34.530454Z	ailang-agent-executor-codex-go-dgcmd	1	 }
+2026-10-16T08:49:34.530458Z	ailang-agent-executor-codex-go-dgcmd	1	 dir,version,found:=pl.AssetTarget("test/missing")
+2026-10-16T08:49:34.530462Z	ailang-agent-executor-codex-go-dgcmd	1	 if !found || dir!="" || version!="0.5.0" {t.Fatalf("missing target: %q %q %v",dir,version,found)}
+2026-10-16T08:49:34.530466Z	ailang-agent-executor-codex-go-dgcmd	1	 if _,_,found:=pl.AssetTarget("test/absent");found {t.Fatal("absent package reported locked")}
+2026-10-16T08:49:34.530470Z	ailang-agent-executor-codex-go-dgcmd	1	 want:=[]string{"test/git","test/local","test/missing","test/registry"}
+2026-10-16T08:49:34.530475Z	ailang-agent-executor-codex-go-dgcmd	1	 if !reflect.DeepEqual(pl.LockedPackageNames(),want) {t.Fatal(pl.LockedPackageNames())}
+2026-10-16T08:49:34.530479Z	ailang-agent-executor-codex-go-dgcmd	1	}
+2026-10-16T08:49:34.530483Z	ailang-agent-executor-codex-go-dgcmd	1	EOF
+2026-10-16T08:49:34.530488Z	ailang-agent-executor-codex-go-dgcmd	1	cat > internal/pipeline/package_assets_test.go <<'"'EOF'
+2026-10-16T08:49:34.530492Z	ailang-agent-executor-codex-go-dgcmd	1	package pipeline
+2026-10-16T08:49:34.530496Z	ailang-agent-executor-codex-go-dgcmd	1	import (
+2026-10-16T08:49:34.530518Z	ailang-agent-executor-codex-go-dgcmd	1	 \"os\"
+2026-10-16T08:49:34.530523Z	ailang-agent-executor-codex-go-dgcmd	1	 \"path/filepath\"
+2026-10-16T08:49:34.530527Z	ailang-agent-executor-codex-go-dgcmd	1	 \"strings\"
+2026-10-16T08:49:34.530531Z	ailang-agent-executor-codex-go-dgcmd	1	 \"testing\"
+2026-10-16T08:49:34.530536Z	ailang-agent-executor-codex-go-dgcmd	1	 \"github.com/sunholo-data/ailang/internal/pkg\"
+2026-10-16T08:49:34.530540Z	ailang-agent-executor-codex-go-dgcmd	1	)
+2026-10-16T08:49:34.530546Z	ailang-agent-executor-codex-go-dgcmd	1	func TestAssetTargetsForDiscovery(t *testing.T) {
+2026-10-16T08:49:34.530550Z	ailang-agent-executor-codex-go-dgcmd	1	 dir:=t.TempDir()
+2026-10-16T08:49:34.530554Z	ailang-agent-executor-codex-go-dgcmd	1	 targets,err:=AssetTargetsFor(dir)
+2026-10-16T08:49:34.530559Z	ailang-agent-executor-codex-go-dgcmd	1	 if err"'!=nil || targets!=nil {t.Fatalf("bare: %v %v",targets,err)}
+2026-10-16T08:49:34.530563Z	ailang-agent-executor-codex-go-dgcmd	1	 manifest:=filepath.Join(dir,pkg.ManifestFile)
+2026-10-16T08:49:34.530569Z	ailang-agent-executor-codex-go-dgcmd	1	 if err:=os.WriteFile(manifest,[]byte(validPackageManifest),0600);err!=nil {t.Fatal(err)}
+2026-10-16T08:49:34.530574Z	ailang-agent-executor-codex-go-dgcmd	1	 targets,err=AssetTargetsFor(dir)
+2026-10-16T08:49:34.530578Z	ailang-agent-executor-codex-go-dgcmd	1	 if err!=nil || targets!=nil {t.Fatalf("no lock: %v %v",targets,err)}
+2026-10-16T08:49:34.530583Z	ailang-agent-executor-codex-go-dgcmd	1	 lf:=pkg.NewLockFile([]pkg.LockedPackage{{Name:"test/transitive",Version:"0.3.0",Source:"path",Path:"missing",ContentHash:"test"}},"test")
+2026-10-16T08:49:34.530588Z	ailang-agent-executor-codex-go-dgcmd	1	 if err:=lf.Save(dir);err!=nil {t.Fatal(err)}
+2026-10-16T08:49:34.530594Z	ailang-agent-executor-codex-go-dgcmd	1	 targets,err=AssetTargetsFor(dir)
+2026-10-16T08:49:34.530599Z	ailang-agent-executor-codex-go-dgcmd	1	 if err!=nil {t.Fatal(err)}
+2026-10-16T08:49:34.530603Z	ailang-agent-executor-codex-go-dgcmd	1	 if v,ok:=targets["test/transitive"];!ok || v.Version!="0.3.0" || v.Dir!="" {t.Fatalf("lost unresolved target: %v",targets)}
+2026-10-16T08:49:34.530606Z	ailang-agent-executor-codex-go-dgcmd	1	 if err:=os.WriteFile(filepath.Join(dir,pkg.LockFileName),[]byte("{"),0600);err!=nil {t.Fatal(err)}
+2026-10-16T08:49:34.530618Z	ailang-agent-executor-codex-go-dgcmd	1	 if _,err=AssetTargetsFor(dir);err==nil || !strings.Contains(err.Error(),pkg.LockFileName) {t.Fatalf("malformed lock: %v",err)}
+2026-10-16T08:49:34.530623Z	ailang-agent-executor-codex-go-dgcmd	1	 if err:=os.WriteFile(manifest,[]byte("[package"),0600);err!=nil {t.Fatal(err)}
+2026-10-16T08:49:34.530631Z	ailang-agent-executor-codex-go-dgcmd	1	 if _,err=AssetTargetsFor(dir);err==nil || !strings.Contains(err.Error(),pkg.ManifestFile) {t.Fatalf("malformed manifest: %v",err)}
+2026-10-16T08:49:34.530635Z	ailang-agent-executor-codex-go-dgcmd	1	}
+2026-10-16T08:49:34.530639Z	ailang-agent-executor-codex-go-dgcmd	1	EOF
+2026-10-16T08:49:34.530644Z	ailang-agent-executor-codex-go-dgcmd	1	export PATH=/usr/local/go/bin:$PATH
+2026-10-16T08:49:34.530649Z	ailang-agent-executor-codex-go-dgcmd	1	go test ./internal/pkg ./internal/pipeline -run '"'TestPackageLoaderAssetTargets|TestAssetTargetsForDiscovery' -count=1 > /tmp/pkg-assets-m2-red.log 2>&1": (no input)
+2026-10-16T08:49:36.938610Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc "tail -8 /tmp/pkg-assets-effects.log; tail -8 /tmp/pkg-assets-m2.log; ls /home/ailang/go/bin; rg -n 'PreloadModule|SetEffContext|Load\\(' internal/apiserver/server.go | head -20; sed -n '1,130p' internal/runner/worker_lifecycle_test.go; sed -n '1,110p' internal/embed/worker_lifecycle_test.go": (no input)
+2026-10-16T08:49:47.035339Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc 'cat /sys/fs/cgroup/cpu.max; cat /sys/fs/cgroup/memory.max; tail -3 /tmp/pkg-assets-install-lint.log; ls /tmp/go-build* | head -10; cat /proc/loadavg': (no input)
+2026-10-16T08:49:56.628347Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc "sed -n '170,245p' internal/apiserver/server.go; head -80 internal/apiserver/server_test.go; sed -n '1,130p' internal/effects/pkg_lock_test.go": (no input)
+2026-10-16T08:50:02.541524Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc "ls internal/testutil; rg -n 'Hash|Content' internal/pkg/content_hash.go internal/pkg/lockfile_validation.go; rg -n 'ValidateContentHashesFrom' internal/pkg/*; rg -n 'ailang|Return|api/.*greet' internal/apiserver/server_test.go | head -20; tail -4 /tmp/pkg-assets-m2.log; cat /tmp/pkg-assets-semver.log": (no input)
+2026-10-16T08:50:09.050054Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc "sed -n '158,235p' internal/pkg/lockfile.go; cat internal/pkg/registry_hash_test.go | head -65; sed -n '235,270p' internal/apiserver/server_test.go; rg -n 'func .*Hash' internal/pkg/*.go | head -15; tail -4 /tmp/pkg-assets-effects.log; tail -4 /tmp/pkg-assets-install-lint.log": (no input)
+2026-10-16T08:50:52.949320Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc 'export PATH=/usr/local/go/bin:$PATH
+2026-10-16T08:50:52.949348Z	ailang-agent-executor-codex-go-dgcmd	1	go test ./internal/effects -run '"'TestPkgAssetPath_(Locked|Local|Invalid)' -count=1": (no input)
+2026-10-16T08:50:55.918293Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc "tail -10 /tmp/pkg-assets-effects.log; tail -12 /tmp/pkg-assets-m2.log; tail -12 /tmp/pkg-assets-m3-red.log; tail -5 /tmp/pkg-assets-install-lint.log; cat /tmp/pkg-assets-semver.log; rg -n 'func readFile|_panic' std/fs.ail examples/asset_path.ail internal/runner/*test.go | head -15; git status --short": (no input)
+2026-10-16T08:51:08.423562Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: The package and pipeline plumbing now exports locked dependency targets, including transitive entries, through a map. The integration fixtures cache distinct data in 0.3.0 and 0.4.0 and pin 0.3.0, so ...
+2026-10-16T08:51:10.829928Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc "python3 - <<'PY'
+2026-10-16T08:51:10.829939Z	ailang-agent-executor-codex-go-dgcmd	1	import glob,os
+2026-10-16T08:51:10.829943Z	ailang-agent-executor-codex-go-dgcmd	1	for p in glob.glob('/proc/[0-9]*/cmdline'):
+2026-10-16T08:51:10.829947Z	ailang-agent-executor-codex-go-dgcmd	1	 try:
+2026-10-16T08:51:10.829951Z	ailang-agent-executor-codex-go-dgcmd	1	  s=open(p,'rb').read().replace(b'\\0',b' ').decode()
+2026-10-16T08:51:10.829955Z	ailang-agent-executor-codex-go-dgcmd	1	  if ('/compile ' in s or '/go ' in s or 'effects.test' in s) and not 'python3' in s:print(p.split('/')[2],s[:220])
+2026-10-16T08:51:10.829959Z	ailang-agent-executor-codex-go-dgcmd	1	 except:pass
+2026-10-16T08:51:10.829962Z	ailang-agent-executor-codex-go-dgcmd	1	PY": (no input)
+2026-10-16T08:51:15.022744Z	ailang-agent-executor-codex-go-dgcmd	1	claude-stream: [tool] /bin/bash -lc "mkdir -p internal/testutil/pkgassets
+2026-10-16T08:51:15.022757Z	ailang-agent-executor-codex-go-dgcmd	1	cat > internal/testutil/pkgassets/fixture.go <<'EOF'
+2026-10-16T08:51:15.022763Z	ailang-agent-executor-codex-go-dgcmd	1	// Package pkgassets provides an offline, two-version asset fixture for runtime
+2026-10-16T08:51:15.022767Z	ailang-agent-executor-codex-go-dgcmd	1	// integration tests. The lock pins older bytes while newer bytes are cached.
+2026-10-16T08:51:15.022771Z	ailang-agent-executor-codex-go-dgcmd	1	package pkgassets
+2026-10-16T08:51:15.022775Z	ailang-agent-executor-codex-go-dgcmd	1	import (
+2026-10-16T08:51:15.022779Z	ailang-agent-executor-codex-go-dgcmd	1	 \"fmt\"
+2026-10-16T08:51:15.022782Z	ailang-agent-executor-codex-go-dgcmd	1	 \"os\"
+2026-10-16T08:51:15.022786Z	ailang-agent-executor-codex-go-dgcmd	1	 \"path/filepath\"
+2026-10-16T08:51:15.022791Z	ailang-agent-executor-codex-go-dgcmd	1	 \"testing\"
+2026-10-16T08:51:15.022795Z	ailang-agent-executor-codex-go-dgcmd	1	 \"github.com/sunholo-data/ailang/internal/pkg\"
+2026-10-16T08:51:15.022799Z	ailang-agent-executor-codex-go-dgcmd	1	 \"github.com/sunholo-data/ailang/internal/testutil\"
+2026-10-16T08:51:15.022802Z	ailang-agent-executor-codex-go-dgcmd	1	)
+2026-10-16T08:51:15.022806Z	ailang-agent-executor-codex-go-dgcmd	1	// Source performs actual asset reads; external state is asserted by the Go
+2026-10-16T08:51:15.022810Z	ailang-agent-executor-codex-go-dgcmd	1	// harness instead of contracts or inline tests. All effects remain explicit.
+2026-10-16T08:51:15.022814Z	ailang-agent-executor-codex-go-dgcmd	1	const Source = "'`module asset_fixture
+2026-10-16T08:51:15.022818Z	ailang-agent-executor-codex-go-dgcmd	1	import std/package (assetPath)
+2026-10-16T08:51:15.022822Z	ailang-agent-executor-codex-go-dgcmd	1	import std/fs (readFile)
+2026-10-16T08:51:15.022826Z	ailang-agent-executor-codex-go-dgcmd	1	import std/result (Ok, Err)
+2026-10-16T08:51:15.022829Z	ailang-agent-executor-codex-go-dgcmd	1	export func read() -> string ! {FS} =
+2026-10-16T08:51:15.022840Z	ailang-agent-executor-codex-go-dgcmd	1	 match assetPath("test/data", "data.txt") {
+2026-10-16T08:51:15.022843Z	ailang-agent-executor-codex-go-dgcmd	1	  Ok(p) => readFile(p),
+2026-10-16T08:51:15.022847Z	ailang-agent-executor-codex-go-dgcmd	1	  Err(e) => e
+2026-10-16T08:51:15.022850Z	ailang-agent-executor-codex-go-dgcmd	1	 }
+2026-10-16T08:51:15.022854Z	ailang-agent-executor-codex-go-dgcmd	1	export func main() -> () ! {FS} =
+2026-10-16T08:51:15.022871Z	ailang-agent-executor-codex-go-dgcmd	1	 if read() == "locked" then () else _panic("wrong asset version")
+2026-10-16T08:51:15.022875Z	ailang-agent-executor-codex-go-dgcmd	1	`
+2026-10-16T08:51:15.022879Z	ailang-agent-executor-codex-go-dgcmd	1	// New returns the consuming project directory and locked dependency directory.
+2026-10-16T08:51:15.022883Z	ailang-agent-executor-codex-go-dgcmd	1	func New(t *testing.T) (root, locked string) {
+2026-10-16T08:51:15.022886Z	ailang-agent-executor-codex-go-dgcmd	1	 t.Helper()
+2026-10-16T08:51:15.022890Z	ailang-agent-executor-codex-go-dgcmd	1	 testutil.SetHomeDir(t,t.TempDir())
+2026-10-16T08:51:15.022893Z	ailang-agent-executor-codex-go-dgcmd	1	 t.Setenv("AILANG_PACKAGE_ROOT","")
+2026-10-16T08:51:15.022897Z	ailang-agent-executor-codex-go-dgcmd	1	 root=t.TempDir()
+2026-10-16T08:51:15.022901Z	ailang-agent-executor-codex-go-dgcmd	1	 write:=func(path,content string) {
+2026-10-16T08:51:15.022905Z	ailang-agent-executor-codex-go-dgcmd	1	  t.Helper()
+2026-10-16T08:51:15.022909Z	ailang-agent-executor-codex-go-dgcmd	1	  if err:=os.MkdirAll(filepath.Dir(path),0755);err!=nil {t.Fatal(err)}
+2026-10-16T08:51:15.022913Z	ailang-agent-executor-codex-go-dgcmd	1	  if err:=os.WriteFile(path,[]byte(content),0600);err!=nil {t.Fatal(err)}
+2026-10-16T08:51:15.022918Z	ailang-agent-executor-codex-go-dgcmd	1	 }
+2026-10-16T08:51:15.022923Z	ailang-agent-executor-codex-go-dgcmd	1	 for _,v:=range []string{"0.3.0","0.4.0"} {
+2026-10-16T08:51:15.022928Z	ailang-agent-executor-codex-go-dgcmd	1	  dir,err:=pkg.PackageDir("test/data",v);if err!=nil {t.Fatal(err)}
+2026-10-16T08:51:15.022934Z	ailang-agent-executor-codex-go-dgcmd	1	  content:="newer";if v=="0.3.0" {content="locked";locked=dir}
+2026-10-16T08:51:15.022938Z	ailang-agent-executor-codex-go-dgcmd	1	  write(filepath.Join(dir,"assets","data.txt"),content)
+2026-10-16T08:51:15.022943Z	ailang-agent-executor-codex-go-dgcmd	1	  write(filepath.Join(dir,pkg.ManifestFile),fmt.Sprintf("[package]'"\\nname = \\\"test/data\\\"\\nversion = %q\\nedition = \\\"1\\\"\\n\",v))
+2026-10-16T08:51:15.022948Z	ailang-agent-executor-codex-go-dgcmd	1	 }
+2026-10-16T08:51:15.022954Z	ailang-agent-executor-codex-go-dgcmd	1	 write(filepath.Join(root,pkg.ManifestFile),\"[package]\\nname = \\\"test/consumer\\\"\\nversion = \\\"0.1.0\\\"\\nedition = \\\"1\\\"\\n[dependencies]\\n\\\"test/data\\\" = \\\"0.3.0\\\"\\n\")
+2026-10-16T08:51:15.022960Z	ailang-agent-executor-codex-go-dgcmd	1	 hash,err:=pkg.ContentHash(locked);if err"'!=nil {t.Fatal(err)}
+2026-10-16T08:51:15.022965Z	ailang-agent-executor-codex-go-dgcmd	1	 lf:=pkg.NewLockFile([]pkg.LockedPackage{{Name:"test/data",Source:"registry",Version:"0.3.0",ContentHash:hash}},"asset-test")
+2026-10-16T08:51:15.022969Z	ailang-agent-executor-codex-go-dgcmd	1	 if err:=lf.Save(root);err!=nil {t.Fatal(err)}
+2026-10-16T08:51:15.022972Z	ailang-agent-executor-codex-go-dgcmd	1	 write(filepath.Join(root,"asset_fixture.ail"),Source)
+2026-10-16T08:51:15.022976Z	ailang-agent-executor-codex-go-dgcmd	1	 return root,locked
+2026-10-16T08:51:15.022979Z	ailang-agent-executor-codex-go-dgcmd	1	}
+2026-10-16T08:51:15.022982Z	ailang-agent-executor-codex-go-dgcmd	1	EOF
+2026-10-16T08:51:15.022986Z	ailang-agent-executor-codex-go-dgcmd	1	cat >> internal/pipeline/package_assets_test.go <<'"'EOF'
+2026-10-16T08:51:15.022991Z	ailang-agent-executor-codex-go-dgcmd	1	func TestPipelineLockedAssetTargets(t *testing.T) {
+2026-10-16T08:51:15.022994Z	ailang-agent-executor-codex-go-dgcmd	1	 root,locked:=pkgassets.New(t)
+2026-10-16T08:51:15.022997Z	ailang-agent-executor-codex-go-dgcmd	1	 result,err:=Run(Config{Mode:ModeCheck,RelaxModules:true},Source{Filename:filepath.Join(root,\"asset_fixture.ail\")})
+2026-10-16T08:51:15.023005Z	ailang-agent-executor-codex-go-dgcmd	1	 if err"'!=nil || len(result.Errors)>0 {t.Fatalf("compile: %v %v",err,result.Errors)}
+2026-10-16T08:51:15.023009Z	ailang-agent-executor-codex-go-dgcmd	1	 target,ok:=result.PkgAssets["test/data"]
+2026-10-16T08:51:15.023012Z	ailang-agent-executor-codex-go-dgcmd	1	 if !ok || target.Dir!=locked || target.Version!="0.3.0" {t.Fatalf("lost locked target: %v",result.PkgAssets)}
+2026-10-16T08:51:15.023015Z	ailang-agent-executor-codex-go-dgcmd	1	}
+2026-10-16T08:51:15.023019Z	ailang-agent-executor-codex-go-dgcmd	1	EOF
+2026-10-16T08:51:15.023022Z	ailang-agent-executor-codex-go-dgcmd	1	python3 - <<'"'PY'
+2026-10-16T08:51:15.023026Z	ailang-agent-executor-codex-go-dgcmd	1	p='internal/pipeline/package_assets_test.go';s=open(p).read().replace('\"github.com/sunholo-data/ailang/internal/pkg\"','\"github.com/sunholo-data/ailang/internal/pkg\"\\n \"github.com/sunholo-data/ailang/internal/testutil/pkgassets\"');open(p,'w').write(s)
+2026-10-16T08:51:15.023029Z	ailang-agent-executor-codex-go-dgcmd	1	PY
+2026-10-16T08:51:15.023032Z	ailang-agent-executor-codex-go-dgcmd	1	cat > internal/runner/package_assets_test.go <<'EOF'
+2026-10-16T08:51:15.023037Z	ailang-agent-executor-codex-go-dgcmd	1	package runner
+2026-10-16T08:51:15.023040Z	ailang-agent-executor-codex-go-dgcmd	1	import (
+2026-10-16T08:51:15.023043Z	ailang-agent-executor-codex-go-dgcmd	1	 \"path/filepath\"
+2026-10-16T08:51:15.023046Z	ailang-agent-executor-codex-go-dgcmd	1	 \"testing\"
+2026-10-16T08:51:15.023050Z	ailang-agent-executor-codex-go-dgcmd	1	 \"github.com/sunholo-data/ailang/internal/pipeline\"
+2026-10-16T08:51:15.023053Z	ailang-agent-executor-codex-go-dgcmd	1	 \"github.com/sunholo-data/ailang/internal/testutil/pkgassets\"
+2026-10-16T08:51:15.023056Z	ailang-agent-executor-codex-go-dgcmd	1	)
+2026-10-16T08:51:15.023060Z	ailang-agent-executor-codex-go-dgcmd	1	func TestRunnerLockedAssetBytes(t *testing.T) {
+2026-10-16T08:51:15.023063Z	ailang-agent-executor-codex-go-dgcmd	1	 root,_:=pkgassets.New(t)
+2026-10-16T08:51:15.023066Z	ailang-agent-executor-codex-go-dgcmd	1	 filename:=filepath.Join(root,\"asset_fixture.ail\")
+2026-10-16T08:51:15.023070Z	ailang-agent-executor-codex-go-dgcmd	1	 result,err:=pipeline.Run(pipeline.Config{Mode:pipeline.ModeCheck,RelaxModules:true},pipeline.Source{Filename:filename})
