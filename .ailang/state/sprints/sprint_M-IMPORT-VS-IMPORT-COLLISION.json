@@ -1,0 +1,122 @@
+{
+  "sprint_id": "M-IMPORT-VS-IMPORT-COLLISION",
+  "status": "not_started",
+  "created": "2026-10-28T08:59:07Z",
+  "design_doc": "design_docs/planned/v0_54_20/m-import-vs-import-collision.md",
+  "sprint_plan": "design_docs/planned/v0_54_20/m-import-vs-import-collision-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1_CLASSIFY_BINDS_AND_REJECT_TYPE",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search import returned no packages; compiler elaboration diagnostics, regression fixtures, and documentation cannot be supplied by a language package. Reuse existing MOD015 helpers and test harnesses."
+    },
+    {
+      "milestone": "M2_REJECT_AMBIGUOUS_BARE_VALUE_US",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search import returned no packages; compiler elaboration diagnostics, regression fixtures, and documentation cannot be supplied by a language package. Reuse existing MOD015 helpers and test harnesses."
+    },
+    {
+      "milestone": "M3_VERIFY_BOTH_PIPELINES_DIAGNOST",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search import returned no packages; compiler elaboration diagnostics, regression fixtures, and documentation cannot be supplied by a language package. Reuse existing MOD015 helpers and test harnesses."
+    },
+    {
+      "milestone": "M4_CORPUS_COMPARISON_DOCUMENTATIO",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search import returned no packages; compiler elaboration diagnostics, regression fixtures, and documentation cannot be supplied by a language package. Reuse existing MOD015 helpers and test harnesses."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 600,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1_CLASSIFY_BINDS_AND_REJECT_TYPE",
+      "description": "Classify binds and reject type/constructor collisions",
+      "estimated_loc": 180,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Both Leg import orders and explicit constructor collisions report MOD015 with both source imports and positions.",
+        "Repeated identical exports are benign, including a module alias; different exports aliased to one name collide even within one module.",
+        "Local type shadowing suppresses type ambiguity; type/value namespace independence and multi-namespace symbols are tested.",
+        "MOD007 precedes import-vs-local MOD015, which precedes import-vs-import MOD015; three imports produce a stable first conflicting pair.",
+        "Alias fix text is parsed/checked as a legal import, and targeted elaborate tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_REJECT_AMBIGUOUS_BARE_VALUE_US",
+      "description": "Reject ambiguous bare value uses",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M1_CLASSIFY_BINDS_AND_REJECT_TYPE"
+      ],
+      "acceptance_criteria": [
+        "A bare duplicated value reports MOD015 at the identifier and names both import sites.",
+        "Qualified references, unused duplicate binds, identical-export duplicates, and local parameter/let/match binders remain legal.",
+        "Lambda, record-field, match-body, and module-let bare uses reach the shared check.",
+        "Reused elaborator state cannot produce a false ambiguity in a subsequent file.",
+        "Existing MOD015 fix and lexical-resolution tests plus targeted elaborate tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_VERIFY_BOTH_PIPELINES_DIAGNOST",
+      "description": "Verify both pipelines, diagnostic spans, and examples",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M1_CLASSIFY_BINDS_AND_REJECT_TYPE",
+        "M2_REJECT_AMBIGUOUS_BARE_VALUE_US"
+      ],
+      "acceptance_criteria": [
+        "Package and single-file repros both report MOD015 rather than a downstream field-count mismatch.",
+        "Structured diagnostics/LSP locate type/constructor errors at the second import and value errors at the bare identifier.",
+        "Existing `internal/diag` MOD007/MOD015 fixtures and old LSP import-vs-local tests remain green.",
+        "`examples/alias_body_closure/main.ail`, qualified-only imports, and r8-style unused duplicates retain their previous verdicts.",
+        "Positive alias example checks and produces the expected distinct values using the checkout binary."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_CORPUS_COMPARISON_DOCUMENTATIO",
+      "description": "Corpus comparison, documentation, and focused gates",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M1_CLASSIFY_BINDS_AND_REJECT_TYPE",
+        "M2_REJECT_AMBIGUOUS_BARE_VALUE_US",
+        "M3_VERIFY_BOTH_PIPELINES_DIAGNOST"
+      ],
+      "acceptance_criteria": [
+        "Existing tracked corpus has zero changed check verdicts; any mismatch is investigated and resolved or explicitly blocks completion.",
+        "Documentation describes types/constructors at import sites and values at bare uses, with valid alias examples.",
+        "Changelog fragment and targeted package tests pass; `make test-changed`, `make check-file-sizes`, and `make check-changelog` pass.",
+        "Changed positive examples pass focused checks and the applicable `make verify-examples` gate; use `make verify-stdlib` only if stdlib files change.",
+        "Plan/JSON acceptance criteria are updated with observed evidence; no release operation is performed."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "handoff": {
+    "approval_required": true,
+    "mechanism": "Coordinator plan review/merge triggers sprint-executor; do not launch implementation during planning."
+  }
+}
