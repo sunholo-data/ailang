@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 75 | 2026-10-31 | `coordinator:job-retry-success-dropped-after-failed-completion` folds into D-FLEET-39 (9 dropped retry successes, 7 on pi) and the two executor-tim... |
 | 74 | 2026-10-31 | `skills:agents-copies-stale-non-mission` parks on D-FLEET-38 and the two codex-credential tickets park on D-FLEET-39 (`79ede6ee9` live, lane frees ... |
 | 73 | 2026-10-30 | `skill:design-doc-creator-grep-portability` parks on D-FLEET-36 and `sprint-evaluator:worktree-cap-and-exit1` parks on D-FLEET-37 (ask 3 a ghost of... |
 | 72 | 2026-10-30 | `skills:showcase-feature-discoverability` RESOLVED as a ghost of #1691 (`03263525c`) plus the attended #476 closure; `pi:openrouter:uncapped-max-to... |

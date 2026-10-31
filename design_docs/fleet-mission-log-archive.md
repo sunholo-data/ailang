@@ -2195,3 +2195,95 @@ The driver sets the flag to 0 for every codex or pi controller (`mission-control
 - (4) **Skill edit (Gate 5, the one allowed): the banked names-only environment rule.** It is now in both copies of `resources/gate-0-preflight.md`: read the environment by name (`env | cut -d= -f1 | grep -E '^(MISSION_|AILANG_)'`), print only the specific non-secret values, and test a secret with `[ -n "$VAR" ]`. The frictions were iteration 51 retro (3) and iteration 52 retro (2); each printed `CLAUDE_CODE_OAUTH_TOKEN`. This iteration's own Gate-0 read was prefix-restricted (`^(MISSION_|AILANG_|CLAUDE_CODE_PRINT)`) and printed no token.
 
 **Next**: reality-check `quota:admission-has-no-headroom-margin-and-flaps` (attended, 10-02). It is probably a ghost, already fixed attended by #1524 `71eec62b6` ("admit a quota bucket only with headroom for one run"): verify and resolve. Then `pi:unowned-dirty-absolute-vs-relative-paths`. D-FLEET-16 and D-FLEET-18 through -27 are with Mark.
+
+## 54 — 2026-10-21 — `routing-models-check:bold-colon-heading` BUILT: #1927 head `ec9e54a1e`; judge PASS 80 then PASS 88 (sonnet); merge PARKED on dev's inherited required red (D-FLEET-17); ticket open [HARNESS]
+
+**Pick**: iteration 53's **Next** was the 19-day-old `quota:admission-has-no-headroom-margin-and-flaps` ghost-check. Gate 2's clause map ranks a fresh mechanical ticket above it. Clause 2 (turnaround, median ≤ 48 h) is UNMET, and only a ticket filed today can still resolve inside 48 h; the 19-day ticket counts above the median whenever it closes. Two fresh fleet-scope tickets were filed today, and both are defects in fleet-landed code (clause 5): `routing-models-check:bold-colon-heading` (world, 12:29Z; the iteration 53 script) and `rotate-log:heading-parse-stapledon` (stapledon, 15:24Z; the iteration 51 parser). I took the first. It is smaller, and it is the Gate-4 instrument every mission now runs.
+
+**Orphans credited**: none new. Gate 0 step 6a returned rc 1 for the 2026-10-17T12:48:13Z crash notice on #1768, already credited at iteration 47 (`issuecomment-6234067020`, 5 mentions in this log). No open `fleet/*` PR at pick; the leftover fleet worktrees belong to landed iterations.
+
+**Preflight**: armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; messaging store gcp. Directives: 0 on #1891 (11 comments) and 0 on #1768 (26) since `2026-10-15T02:46:27Z`. Environment read by name only. No rotation or sweep due (#1891 created 2026-10-19).
+
+**Observe**: origin/dev == pin == `d25d9b8d0`. `SKILL.md` and all 13 resources are `cmp`-identical to origin at both the resolved symlink target and the pin. **Dev CI is RED on `d25d9b8d0`, from an attended commit outside fleet scope.** The required `test` and `test-windows` fail only on `TestModels_PricingIsSlugConsistent`: `google|antigravity-preview-09-2026` carries two prices, on `gemini-agents-antigravity` and on the new `gemini-agents-argon` row (`internal/modelreg/models.yml`, commit `d25d9b8d0`, "gemini-agents-argon"). macOS fails the same test, and `govulncheck` is still GO-2026-6809. V1 owns the repo and is disabled; D-FLEET-17 is the standing question.
+
+**Reality check**: real at HEAD. World `--entry 295` and `--entry 294` both rc 2; fleet `--entry 53` rc 0 (control). Heading survey across all 7 logs (world and stapledon from their own clones, stapledon at `origin/main`):
+
+| Log | Heading shape | Count |
+|---|---|---|
+| world | `**Routing evidence:**` | 20 |
+| stapledon | `- **Routing evidence:**` (bullet; indented sub-bullets; sibling `- **Ruled out:**`) | 41 |
+| v1 | `**Routing evidence.**` | 20 |
+| docs | `**Routing evidence**:` | 9 |
+| docs | parenthetical form | 1 |
+| fleet, motoko, triage | `**Routing evidence**:` | — |
+
+The ticket's own suggestion (accept both colon placements) would have missed Stapledon and V1. Fleet's in-block lines are column-0 `- **Controller**:` bullets, while Stapledon's sibling field is a column-0 `- **Ruled out:**`, so the block end has to depend on whether the header itself is a bullet.
+
+**Did**:
+- **Designer**: not spawned. The fix is mechanical, and the controller's measurements C1–C7 and design D1–D7 went into the planner directive (precedent: iterations 45 and 49–53).
+- **Planner** (codex `gpt-6.1-sol`, recipe, `.planner-wt-iter54`): `sprint-plan-routing-check-heading-shapes.md` + sprint JSON, one milestone, five real-shape arms each with a named mutation. Committed `7e19702c2`. The planner post-step `ailang messages import-github` was **skipped**: it writes to the prod store and is unrelated to a fleet ticket.
+- **Executor round 1** (codex): header regex, the bulleted-sibling end, arms w s v p f. TDD red (w/s/v/p rc 2); all 6 named mutations killed.
+- **Controller corpus gate** (HEAD vs new, every `## N — ` entry of 7 real logs, out of sandbox). It found one unexplained class: Stapledon 43/44 newly flagged `gpt6-1-sol-openai-api-credits-exhausted`, a ticket signature that the greedy `gpt[-0-9a-z.]*` token swallowed.
+- **Executor round 2**: a hyphen-bounded allowlisted prefix makes the token a quoted compound; arm q added. The corpus changed in Stapledon 43/44 only (rc 1 → 0). Committed `579f927b4`.
+- **Judge round 1** (sonnet, Agent tool, foreground, `.wt-fleet-iter54-judge`): **PASS 80**, 0 blocking. 11 mutations: 7 killed, 4 survived, 1 of them equivalent. Two findings reproduced by the controller: `gpt-6.1-sol-gpt-5` and `gpt-6-luna-gpt-5.6-sol` were hidden, and the hyphen-boundary mutant survived (`gpt-6-lunatic` hidden).
+- **Executor round 3**: a compound counts only if the remainder names no further `gpt`; the assertions are pinned. Both mutations are killed. Corpus unchanged vs round 2. Committed `ec9e54a1e`.
+- **Judge round 2** (sonnet, fresh): **PASS 88**, 0 blocking. 5/5 targeted mutations killed. The survivors (`[^*]*` → `.*`, the dropped `!seenBlock` guard, the equivalent `bulleted = 0` reset) were judged harmless. Its corpus TSV is byte-identical to the controller's.
+- **Corpus result** (final checker vs HEAD), every change rc 2 → 0/1:
+
+  | Log | Entries | Change |
+  |---|---|---|
+  | world | 20 | rc 2 → 0 |
+  | stapledon | 8 | rc 2 → 0 |
+  | v1 | 20 | rc 2 → 0 (5) or rc 2 → 1 (15, historical retired ids: 25× `gpt-5.6-sol`, 16× astra, plus terra/luna/5.5) |
+  | docs entry 2 | 1 | rc 2 → 1 (`gpt-5.6-luna` in the parenthetical table) |
+  | fleet, triage | — | unchanged |
+
+  Remaining rc 2: docs 4, 5, 7, 8, 11, 12, 13 and triage 0. They carry no "Routing evidence" label at all (`**Routing / outcome**`, `**Routing — sprint-planner.**`), so rc 2 is correct there.
+- **PR #1927** (no closing keyword; the scan was paired with a control): 25 checks. Not green, all inherited from dev, each failing job's FAIL list read from its raw log:
+  - `test` / `test-windows`: the single `TestModels_PricingIsSlugConsistent`.
+  - `Build macos-latest`: the same test.
+  - `govulncheck`.
+  - ubuntu/windows builds: cancelled by fail-fast.
+
+  `launchd drivers (bash 3.2)`, `lint`, `docs-gate` and `UI build gate` are green. `mergeable=MERGEABLE`, `mergeStateStatus=BLOCKED`.
+
+**Gate 3b**: not reached; nothing merged. The PR poll I wrote myself never wrote its verdict: `set -- $out` does not word-split under the Bash tool's zsh, so every count read non-numeric. I stopped it via TaskStop (confirmed by the tool) and read the checks directly. This iteration's record is stacked on `fleet/i54-routing-check-headings` (Gate 1 rule for a blocked landing PR).
+
+**Done-gate**:
+- Surface: `scripts/mission_routing_models_check.sh`, which Gate 4 runs from `$MISSION_DRIVER_ROOT`, i.e. the pin.
+- Reach: pushed, not merged. It reaches every mission's next pinned fire once #1927 merges.
+- `make test-launchd-drivers` under `env -i`: rc 0 at `579f927b4` (298 PASS) and at `ec9e54a1e` (304 PASS, routing suite 46/0). Each run waited for the worktree to be quiet, so neither is a contaminated reading (iteration 53 retro 1).
+- Dry-runs under **stapledon** (armed, idle, no pidfile; `AILANG_DRIVER_PINNED=ec9e54a1e`): healthy rc 0 `lanes=ok`; degraded (`MISSION_EXECUTOR_MODEL=pi:bogus/no-such-model`) rc 0 `DEGRADED(1)` → opus. No pidfile written; nothing reloaded.
+- After the skill edit: `test_codex_spawn_override.sh` (0 failures), `test_pi_ext_args.sh` (14/0), `test_mission_heartbeat.sh` (37 arms) and `check_context_docs.sh` are all green.
+
+**Progress**: 0 tickets resolved (1 built, merge blocked); 43 open. Goal unmoved on clause 1.
+- Clause 1 UNMEASURED.
+- Clause 2 UNMET. This ticket counts toward the median only if it lands before 2026-10-23 12:29Z.
+- Clause 3 MET.
+- Clause 4 prior evidence only.
+- Clause 5 preserved (nothing merged).
+
+**Routing evidence**: base=d25d9b8d0dde10ee7c14986fe21b94fd2cb500cd@2026-10-21T18:26:43Z; base-gate1=d25d9b8d0dde10ee7c14986fe21b94fd2cb500cd@2026-10-21T17:09:37Z (no drift); sprint worktree base `d25d9b8d0`. `MISSION_ROUTING_NOTE` empty; `MISSION_OVER_RATION` empty.
+- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
+- **Designer**: not spawned. Resolver `recipe claude:claude-opus-5-5 declared:provider-pin`; rotation not advanced.
+- **Planner**: resolver `agent-tool opus fail-closed:no-doc` against the pin `codex:gpt-6.1-sol`, so routed to the pin under the codex recipe (role-spawn-routing §2(a)). Probe rc 0; run rc 0 (51,943 tok).
+- **Executor**: `codex:gpt-6.1-sol` via the recipe (`declared:provider-pin`), 3 runs, all rc 0: 50,878, 54,285 and 53,805 tok.
+- **Evaluator**: `sonnet` via the Agent tool (`declared:alias-pin`), foreground, 2 fresh spawns (50,089 + 46,802 tok). Judge independence: cross-vendor (Anthropic sonnet vs the OpenAI generator).
+- The Agent tool was used where the resolver names it (the evaluator), per the operator's standing request. Planner and executor resolve to recipes. No role failed to spawn.
+- Every codex run carried the spawn-override flag.
+- **Metered**: $0.
+
+**Ruled out**:
+- The ticket's colon-only fix: it misses Stapledon's bullet header and V1's period header.
+- Ending a block at any column-0 `- **`: that drops fleet's own `- **Executor**:` lines (arm f).
+- Treating the Stapledon 43/44 flags as real: they quote a ticket signature, and the only model named is allowed.
+- Fixing `TestModels_PricingIsSlugConsistent` from the fleet: `internal/modelreg` is outside the Authority allowlist. It needs an attended ruling on which Argon price is live.
+- Bypassing the required check. Never.
+
+**Retro lane**:
+- (1) **Skill edit (Gate 5, the one allowed): hand-written polls run under `/bin/bash`.** It is now in both copies of `resources/gate-3b-ci-green.md` (`c2e8547bc`, byte-identical). Frictions: iterations 49 (2), 50 (2), 52, 53 and this one (`set -- $out`), seven in total. It had been banked since iteration 50.
+- (2) **A judge's summary of an artifact is a claim.** Round 2's prose said "v1 13 → 1, 7 → 0" while its own TSV, byte-identical to mine, reads 15 and 5. Banked, one instance: when a judge quotes numbers, diff the artifact rather than the sentence.
+- (3) **The corpus gate earned its place a second time** (iteration 51 was the first). The plan's five real-shape arms were all green, and only running the new checker over real logs found the compound false positive. Recommended as a standing controller step for any instrument the fleet changes. That step is already prescribed in the planner directive pattern, so no skill edit.
+- (4) **D-FLEET-17 recurs**: an attended commit reddened dev's required `test` while the fleet was mid-iteration, and a judged PASS cannot land. This is the third iteration it has blocked (37, 38, 54).
+
+**Next**: when dev's `test` is green, re-run #1927's checks (rebase only if needed: `git diff --stat d25d9b8d0 origin/dev -- scripts/mission_routing_models_check.sh scripts/test_mission_routing_models_check.sh` empty means no conflict), then merge with `--match-head-commit`, resolve `routing-models-check:bold-colon-heading` with the merge SHA, and reply to world. Then `rotate-log:heading-parse-stapledon` (stapledon, 10-21; fresh; a defect in iteration 51's parser), then `quota:admission-has-no-headroom-margin-and-flaps` (ghost-check against #1524 `71eec62b6`).
