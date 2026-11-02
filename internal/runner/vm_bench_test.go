@@ -65,7 +65,7 @@ func compileVMBench(tb testing.TB, entry string, arg int64, want int64) vmBenchW
 	if err != nil {
 		tb.Fatal(err)
 	}
-	proto := FindEntryProto(img, entry)
+	proto := FindEntryProto(img, EntryModuleID(res), entry)
 	if proto == nil {
 		tb.Fatalf("entry %q not in image", entry)
 	}

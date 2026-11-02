@@ -152,6 +152,25 @@ func EncodeFunction(
 	}
 	result := &EncodeResult{}
 
+	// Record every user-defined function name visible to this encoding so encodeApp
+	// can tell a real ADT constructor from a call to a user function that wasn't
+	// resolved (which would otherwise leak a raw "unknown constant" symbol into Z3).
+	// It must be set BEFORE callee resolution: helper bodies are encoded there,
+	// and with the guard off a helper calling std/math.sqrt emitted a raw
+	// `(sqrt s)` and Z3 hard-errored (stapledons report, 2026-11-02).
+	activeUserFunctions = make(map[string]bool)
+	defer func() { activeUserFunctions = nil }()
+	if len(opts) > 0 && opts[0].Program != nil {
+		for _, name := range collectFunctionNames(opts[0].Program) {
+			activeUserFunctions[name] = true
+		}
+		for _, imp := range opts[0].ImportedPrograms {
+			for _, name := range collectFunctionNames(imp) {
+				activeUserFunctions[name] = true
+			}
+		}
+	}
+
 	// Resolve cross-function call dependencies
 	var calleeDefs []CalleeDef
 	if len(opts) > 0 && opts[0].Program != nil {
@@ -184,22 +203,6 @@ func EncodeFunction(
 	// Set active resolved callees for encodeApp to use
 	activeResolvedCallees = ctx.ResolvedCallees
 	defer func() { activeResolvedCallees = nil }()
-
-	// Record every user-defined function name visible to this encoding so encodeApp
-	// can tell a real ADT constructor from a call to a user function that wasn't
-	// resolved (which would otherwise leak a raw "unknown constant" symbol into Z3).
-	activeUserFunctions = make(map[string]bool)
-	defer func() { activeUserFunctions = nil }()
-	if len(opts) > 0 && opts[0].Program != nil {
-		for _, name := range collectFunctionNames(opts[0].Program) {
-			activeUserFunctions[name] = true
-		}
-		for _, imp := range opts[0].ImportedPrograms {
-			for _, name := range collectFunctionNames(imp) {
-				activeUserFunctions[name] = true
-			}
-		}
-	}
 
 	// Finite facts are collected for evaluated expressions only.
 	previousSpecs, previousFacts, previousConditions := activeContractSpecs, activeCallFacts, activeHelperConditions

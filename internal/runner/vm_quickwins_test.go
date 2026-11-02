@@ -74,7 +74,7 @@ func compileQuickWins(t testing.TB) *bytecode.BytecodeImage {
 
 func runQuickWins(t testing.TB, img *bytecode.BytecodeImage, entry string, arg int64) bytecode.Value {
 	t.Helper()
-	proto := FindEntryProto(img, entry)
+	proto := FindEntryProto(img, "bench/quickwins", entry)
 	if proto == nil || proto.EvalOnly {
 		t.Fatalf("entry %q missing or evaluator-only", entry)
 	}

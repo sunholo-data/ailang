@@ -2,6 +2,8 @@ package smt
 
 import (
 	"fmt"
+	"math"
+	"strconv"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/core"
@@ -124,6 +126,26 @@ func EncodeExpr(expr core.CoreExpr) (string, error) {
 	}
 }
 
+// encodeFloatLit writes a float as an SMT-LIB numeral. SMT-LIB has no
+// exponent syntax, so Go's %g ("1e+09") reached Z3 as the unknown constant
+// "e+09" (stapledons report, 2026-11-02). 'f' with precision -1 is the
+// shortest decimal that round-trips, written positionally. A whole number
+// gets ".0": a bare "1" is an Int numeral, and `(define-const result Real 1)`
+// is a Z3 sort mismatch.
+func encodeFloatLit(v float64) (string, error) {
+	if math.IsNaN(v) || math.IsInf(v, 0) {
+		return "", fmt.Errorf("float literal %v has no SMT-LIB Real encoding", v)
+	}
+	mag := strconv.FormatFloat(math.Abs(v), 'f', -1, 64)
+	if !strings.Contains(mag, ".") {
+		mag += ".0"
+	}
+	if v < 0 {
+		return "(- " + mag + ")", nil
+	}
+	return mag, nil
+}
+
 // encodeLit encodes a literal value.
 func encodeLit(lit *core.Lit) (string, error) {
 	switch lit.Kind {
@@ -143,10 +165,7 @@ func encodeLit(lit *core.Lit) (string, error) {
 		if !ok {
 			return "", fmt.Errorf("FloatLit with non-float64 value: %T", lit.Value)
 		}
-		if v < 0 {
-			return fmt.Sprintf("(- %g)", -v), nil
-		}
-		return fmt.Sprintf("%g", v), nil
+		return encodeFloatLit(v)
 	case core.BoolLit:
 		v, ok := lit.Value.(bool)
 		if !ok {

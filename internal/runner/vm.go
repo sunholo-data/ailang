@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"sort"
-	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/bytecode"
@@ -19,20 +18,42 @@ import (
 	"github.com/sunholo-data/ailang/internal/vm"
 )
 
-// FindEntryProto resolves an entry name (e.g. "main") to a prototype in the
-// image. The lower pass prefixes function names with the module package, so
-// we accept several spellings.
-func FindEntryProto(img *bytecode.BytecodeImage, name string) *bytecode.FuncPrototype {
+// FindEntryProto resolves an entry name (e.g. "main") to the prototype the
+// ENTRY module defines under that name. entryModule is the entry's key in
+// pipeline.Result.Modules (see EntryModuleID); "" means a single-module image,
+// whose prototypes carry bare names.
+//
+// The match is exact. It used to accept any prototype ending in "."+name or
+// "_"+name, and returned the first in image order — so an imported module's
+// `main` that sorted ahead of the entry module, or a local `run_main` declared
+// before `main`, ran in place of the requested entry (ailang#2052).
+func FindEntryProto(img *bytecode.BytecodeImage, entryModule, name string) *bytecode.FuncPrototype {
+	want := name
+	if entryModule != "" {
+		want = entryModule + "." + name
+	}
 	for _, p := range img.Prototypes {
-		if p.Name == name {
-			return p
-		}
-		// Tolerate "<pkg>.<name>" and "<pkg>_<name>" qualifications.
-		if strings.HasSuffix(p.Name, "."+name) || strings.HasSuffix(p.Name, "_"+name) {
+		if p.Name == want {
 			return p
 		}
 	}
 	return nil
+}
+
+// EntryModuleID returns the key of the entry module in res.Modules — the
+// module prefix CompileBytecodeFromResult stamps on its prototypes — or ""
+// when res is single-module. The entry is identified by its Core program,
+// which the pipeline shares between Artifacts and the module map.
+func EntryModuleID(res pipeline.Result) string {
+	if res.Artifacts.Core == nil {
+		return ""
+	}
+	for id, mod := range res.Modules {
+		if mod != nil && mod.Core == res.Artifacts.Core {
+			return id
+		}
+	}
+	return ""
 }
 
 // CompileBytecodeFromResult lowers an already-typechecked pipeline result and
@@ -172,7 +193,11 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 		return false, fmt.Errorf("validate: %w", err)
 	}
 
-	proto := FindEntryProto(img, entry)
+	entryModule := EntryModuleID(*params.PipelineResult)
+	if entryModule == "" && len(params.PipelineResult.Modules) > 0 {
+		return false, fmt.Errorf("internal: entry module not found among %d compiled modules", len(params.PipelineResult.Modules))
+	}
+	proto := FindEntryProto(img, entryModule, entry)
 	if proto == nil {
 		return false, fmt.Errorf("entry function %q not found in bytecode image", entry)
 	}

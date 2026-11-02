@@ -33,6 +33,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/bytecode"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/loader"
+	"github.com/sunholo-data/ailang/internal/runner"
 )
 
 // namedBatchPrefix names the batched entries; namedTestEntry (the per-body
@@ -255,7 +256,7 @@ func (e *Executor) mapPositions(msg string, ent namedEntry, lineMap []int) strin
 
 func (e *Executor) runBatchedEntry(ent namedEntry) (eval.Value, error) {
 	if e.bytecode {
-		val, vmErr := e.runVMEntry(e.batch.img, findBatchedProto(e.batch.img, ent.name))
+		val, vmErr := e.runVMEntry(e.batch.img, runner.FindEntryProto(e.batch.img, runner.EntryModuleID(e.batchResult), ent.name))
 		switch {
 		case vmErr == nil:
 			e.engine.VMBodies++
@@ -301,18 +302,6 @@ func (e *Executor) sharedImage() error {
 		}
 	}
 	return b.imgErr
-}
-
-// findBatchedProto matches an entry exactly or as "<module>.<entry>".
-// runner.FindEntryProto also accepts a "_<entry>" suffix, which is ambiguous
-// among numbered entries.
-func findBatchedProto(img *bytecode.BytecodeImage, name string) *bytecode.FuncPrototype {
-	for _, p := range img.Prototypes {
-		if p.Name == name || strings.HasSuffix(p.Name, "."+name) {
-			return p
-		}
-	}
-	return nil
 }
 
 // entrySource builds a batched source: the stripped module, then one entry

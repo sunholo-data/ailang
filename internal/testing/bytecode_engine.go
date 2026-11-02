@@ -125,7 +125,7 @@ func (e *Executor) evalNamedTestBodyOnVM(baseSource string, hasModule bool, fold
 	if err != nil {
 		return nil, err
 	}
-	return e.runVMEntry(img, runner.FindEntryProto(img, namedTestEntry))
+	return e.runVMEntry(img, runner.FindEntryProto(img, runner.EntryModuleID(res), namedTestEntry))
 }
 
 // compileTestImage lowers a named-test compile to a validated bytecode image.

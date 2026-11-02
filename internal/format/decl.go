@@ -535,12 +535,18 @@ func (p *printer) testDecl(d *ast.TestDecl) error {
 	p.w.hardline()
 	var err error
 	p.w.indented(func() {
-		for _, e := range d.Body {
+		// A test body is a statement sequence: `let p = {...}` arrives as a
+		// nil-Body Let, which only blockStatement prints (p.expr reported it as
+		// "nil expression node"). The `;` rule matches blockBraced.
+		for i, e := range d.Body {
 			if err != nil {
 				return
 			}
-			if err = p.expr(e, precLowest); err != nil {
+			if err = p.blockStatement(e); err != nil {
 				return
+			}
+			if i < len(d.Body)-1 && !startsWithStatementStarter(d.Body[i+1]) {
+				p.w.write(";")
 			}
 			p.w.hardline()
 		}

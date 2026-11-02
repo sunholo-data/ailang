@@ -337,3 +337,19 @@ func TestFmtOutputMatchesTaughtDialect(t *testing.T) {
 		t.Errorf("fmt not idempotent:\nfirst:\n%s\nsecond:\n%s", got, again)
 	}
 }
+
+// A top-level test body is a statement sequence. A `let` statement in it used
+// to fail with "nil expression node" although `ailang check` accepted the file
+// (stapledons report, 2026-11-02). The second test checks the `;` rule: a
+// statement starting with `[` must stay separated on re-parse.
+func TestTestDeclLetStatements(t *testing.T) {
+	src := "module repro\ntest \"record binding\" { let p={life:1.0}; p.life==1.0 }\ntest \"list\" { let xs=[1]; [1] == xs }\n"
+	want := "module repro\n\ntest \"record binding\" {\n  let p = { life: 1.0 }\n  p.life == 1.0\n}\n\ntest \"list\" {\n  let xs = [1];\n  [1] == xs\n}\n"
+	got := formatSrc(t, src)
+	if got != want {
+		t.Fatalf("got:\n%s\nwant:\n%s", got, want)
+	}
+	if again := formatSrc(t, got); again != got {
+		t.Fatalf("not idempotent:\n%s", again)
+	}
+}
