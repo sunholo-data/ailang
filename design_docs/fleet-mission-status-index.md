@@ -12,6 +12,12 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 74 | 2026-10-31 | `skills:agents-copies-stale-non-mission` parks on D-FLEET-38 (16 of 27 copies rename-only, with broken `.Codex` paths) and the two codex-credential... |
+| 73 | 2026-10-30 | `skill:design-doc-creator-grep-portability` parks on D-FLEET-36 (outside fleet scope; real at HEAD, fails only on GNU grep) and `sprint-evaluator:w... |
+| 72 | 2026-10-30 | `skills:showcase-feature-discoverability` RESOLVED as a ghost of #1691 (`03263525c`) plus the attended #476 closure; `pi:openrouter:uncapped-max-to... |
+| 71 | 2026-10-30 | two `gate0:watermark-*` tickets RESOLVED as ghosts of #1962 (`5ad75cad9`), judged PASS 88 by an independent sonnet evaluator; `stall:watchdog:slow-... |
+| 70 | 2026-10-29 | `pi:provider-error:no-retry` LANDED — #2022 → `52e8958f0`, judged PASS 91 (round 2) by an independent sonnet evaluator; the retry was a ghost of #1... |
+| 69 | 2026-10-29 | `gate0:session-protocol-deadlock:agent-policy-unset` LANDED — #2014 → `9ac96e78b`, judged PASS 93 (round 2) by an independent sonnet evaluator; pi ... |
 | 68 | 2026-10-29 | `sprint-planner:template-make-test-changelog-filesize` LANDED — #2001 → `e29a42482`, judged PASS ~88–90 by an independent sonnet evaluator; a ghost... |
 | 67 | 2026-10-28 | `pin-root:worktree-removed-mid-fire` LANDED — #1999 → `17ec65d68`, judged PASS 88 by an independent sonnet evaluator; the cause was fleet iteration... |
 | 66 | 2026-10-28 | `gate5:controlplane-send-refused-local-store` LANDED — #1994 → `d95ead6af`, judged PASS 91 (round 2) by an independent sonnet evaluator; `pi:unowne... |

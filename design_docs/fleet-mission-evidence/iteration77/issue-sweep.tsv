@@ -1,0 +1,58 @@
+issue	fleet_mentions	created	author	title
+#2037	0	2026-10-31	motoko-agent	[motoko_agent] std/process: containment for descendants that leave the process group (non-
+#2036	0	2026-10-31	motoko-agent	[motoko_agent] std/process: expose the process limit that applied to a call
+#2035	0	2026-10-31	motoko-agent	[motoko_agent] std/process: per-call timeout for exec
+#2034	0	2026-10-31	motoko-agent	[motoko_agent] std/process.exec: a killed runtime leaves the command running with no deadl
+#2029	0	2026-10-30	sunholo-voight-kampff	[stapledons_godot] v0.54.18: foldl that conses onto its accumulator is quadratic (VM and i
+#1980	0	2026-10-28	sunholo-voight-kampff	[stapledons_godot] Duplicate type import from two modules silently shadows (last wins)
+#1974	0	2026-10-27	sunholo-voight-kampff	Triage mission bookkeeping — week of 2026-10-26
+#1956	0	2026-10-26	sunholo-voight-kampff	[ailang-explainers] run --bytecode --verify-contracts silently checks no contracts
+#1955	0	2026-10-26	sunholo-voight-kampff	[ailang-explainers] runtime contracts: a bounded forall in ensures is verified by Z3 but c
+#1954	0	2026-10-26	sunholo-voight-kampff	[ailang-explainers] runtime contracts: derived Eq on a record in ensures fails (expected T
+#1953	0	2026-10-26	sunholo-voight-kampff	[ailang-explainers] verify: string <= / >= in a body is encoded as an Int comparison (Z3 s
+#1950	0	2026-10-26	sunholo-voight-kampff	[ailang-explainers] verify: a contract over a sha256Hex call is a Z3 ERROR (unknown consta
+#1947	0	2026-10-26	sunholo-voight-kampff	[ailang-explainers] Consing onto an accumulator is still O(n²) on v0.54.18 (VM and evaluat
+#1945	19	2026-10-26	sunholo-voight-kampff	Fleet mission bookkeeping — week of 2026-10-26
+#1921	0	2026-10-21	sunholo-voight-kampff	[stapledons_godot] ailang test: out-of-contract property skips after 1 input read as succe
+#1914	0	2026-10-20	sunholo-voight-kampff	[stapledons_godot] Parser: cons operator :: fails to parse inside a named test body (ailan
+#1888	0	2026-10-19	sunholo-voight-kampff	[cli] DX: std/jsonschema — validate a Json against a JSON Schema (2020-12)
+#1885	0	2026-10-19	sunholo-voight-kampff	[cli] DX: effectful lambda passed to std/list map — diagnostic blames the import, not the 
+#1880	0	2026-10-17	motoko-agent	[motoko_agent] std/process: state (and enforce) which ProcessError arms mean the program n
+#1879	0	2026-10-17	motoko-agent	[motoko_agent] std/process.exec returns SpawnFailed for a command that exited 0 while a ba
+#1878	0	2026-10-17	motoko-agent	[motoko_agent] std/process.exec: Timeout and OutputLimitExceeded drop the captured output 
+#1798	0	2026-10-13	sunholo-voight-kampff	[stapledons_godot] DX (v0.54.5): _ollama_embed has no Result varia...
+#1796	0	2026-10-13	sunholo-voight-kampff	[stapledons_godot] Persistent SharedMem/SharedIndex backend + std-level embed via the conf
+#1714	0	2026-10-09	sunholo-voight-kampff	Inline tests: rows using an imported constructor pass check but fail at test time (undefin
+#1631	0	2026-10-07	sunholo-voight-kampff	[cli] serve-api MCP: int params fail with 'expected float arguments' (REST works) — unify 
+#1618	0	2026-10-07	sunholo-voight-kampff	[cli] AILANG friction from sunholo/mcp_files: test extraction on braces in strings, fmt fl
+#1536	0	2026-10-02	sunholo-voight-kampff	[stapledons_godot] std/ai: one process cannot route text to OpenRouter while generating Ge
+#1485	0	2026-10-02	sunholo-voight-kampff	Type checker accepts undeclared type names in signatures (f(r: Nope) checks clean)
+#1443	0	2026-10-01	sunholo-voight-kampff	Type checker accepts `pure func` with a declared effect row; iface purity is a stub
+#1436	0	2026-10-01	sunholo-voight-kampff	Docs mission bookkeeping — week of 2026-09-28
+#1375	0	2026-09-28	sunholo-voight-kampff	verify: examples/runnable/contracts/hof_verify.ail no longer verifies — the callee-sort ga
+#1307	0	2026-09-25	sunholo-voight-kampff	[daneel] Feature: task attachments + image-returning read so a plane agent can see images 
+#1278	0	2026-09-23	sunholo-voight-kampff	[ailang-parse] Duplicate top-level function names in a module are accepted silently; error
+#1276	0	2026-09-23	sunholo-voight-kampff	[ailang-parse] messages send: unknown --body-file flag silently becomes the message body (
+#1267	0	2026-09-21	sunholo-voight-kampff	[daneel] Feature: the executor holds sunholo/gemini_agents (Deep Research) as a tool — Dan
+#1262	0	2026-09-18	sunholo-voight-kampff	[user] Feedback gate -> sunholo/decisions (shadow first, with fallback)
+#1259	0	2026-09-18	sunholo-voight-kampff	[sprint-executor] std/ai has no HTTP deadline: provider calls use http.DefaultClient, no -
+#1134	0	2026-09-10	sunholo-voight-kampff	[daneel] IFC label refinements are lost across module boundaries — a library cannot enforc
+#1132	0	2026-09-10	sunholo-voight-kampff	[daneel] Daneel's concrete asks on IFC Phase 2 and label-aware tracing
+#1130	0	2026-09-10	sunholo-voight-kampff	[daneel] std/cognition Msg effect has no CLI handler — messaging cannot be capability-gate
+#959	0	2026-08-28	sunholo-voight-kampff	[dx] test --package should also run inline test blocks (two test conventions)
+#934	0	2026-08-27	sunholo-voight-kampff	[model-manager-session] Parser: one bad token emits a 342-error cascade, drowning the real
+#905	0	2026-08-26	sunholo-voight-kampff	[motoko_agent] Optional / defaultable record fields, so an extension ABI can grow additive
+#903	0	2026-08-26	sunholo-voight-kampff	AI effect cannot bill an OpenAI ChatGPT subscription — and the `codex` model prefix silent
+#800	0	2026-08-20	motoko-agent	generate-extension-registry emits [effects] max as the dispatch row, over-declaring and br
+#715	0	2026-08-14	sunholo-voight-kampff	[world] v0.30.0 inline tests: a multi-argument row does not parse, and a tuple-valued inpu
+#713	0	2026-08-14	sunholo-voight-kampff	[world] ADT equality rejected inside a conjunction but accepted as a top-level postconditi
+#662	0	2026-08-12	sunholo-voight-kampff	[ailang-parse] WASM type-checker budget is wall-clock, making module loading hardware-depe
+#614	0	2026-08-07	sunholo-voight-kampff	ailang test: nested blocks discard all but the last expression — the #604 vacuous pass one
+#612	0	2026-08-06	sunholo-voight-kampff	Replace the textual proxy-boundary completeness gate with a go/packages AST analyzer (D-6 
+#604	0	2026-08-06	sunholo-voight-kampff	ailang test: named test blocks check only the LAST expression — earlier failing checks are
+#584	0	2026-08-04	sunholo-voight-kampff	Repo size + boundary gates are blind to first-party Go dirs outside internal/ and cmd/
+#581	7	2026-08-04	sunholo-voight-kampff	planner-lane derivation: fenced code blocks in a Files section silently degrade routing to
+#578	0	2026-08-03	sunholo-voight-kampff	Cancellable provider context across the AI surface (AIHandler v2)
+#539	0	2026-07-30	sunholo-voight-kampff	Wrong-dialect keywords (case/switch/return/data/enum/struct) produce misleading parse casc
+#534	0	2026-07-29	sunholo-voight-kampff	CLI: flags after the positional path are silently ignored (--allow-skips, --format) — syst
+#231	0	2026-05-10	sunholo-voight-kampff	[motoko_explore] std/ai.step should support cancellation via stdin or signal
