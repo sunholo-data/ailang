@@ -68,10 +68,10 @@
         "Full sweep: 0 status changes vs M1",
         "make test-changed green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-02T19:54:36Z",
+      "completed": "2026-11-02T19:54:36Z",
+      "notes": "F-B in typechecker_lambda_open.go: per-ctx openedLambdaTails, closing pass before both applyApplicationSubstitution sites; missing-instance errors close free effect tails for display (instances.go withoutFreeEffectTails). DEVIATION: F-B without the guard reopens the leak (an opened IO lambda {IO|rho} meets map's closed {} through the permissive branch: 5 shapes accepted), so the M3 guard restore landed in the same commit. Spike's order-dependent reds (DistinctDeclaredTailsFailLoud, PkgConfinementMatrix) gone with per-ctx state."
     },
     {
       "id": "M3_RESTORE_GUARD",
@@ -87,10 +87,10 @@
         "executor_tools/executor.ail checks clean",
         "go test ./internal/... ./cmd/... green except named environmental tests"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-02T19:54:36Z",
+      "completed": "2026-11-02T19:54:36Z",
+      "notes": "Landed with M2 (see M2 notes). 830934d23 guards + unit matrix restored; TestEffectRowOpenClosedM2 + CLI TestEffectRowGuardRejectsBeforeExecutionM2 unskipped; EffectCeiling back to \\c. 1; Phase 2b named/eta pinned as must-reject. Positive control: M2-only flips executor.ail; this build: executor.ail clean, 0/810 + 0/256 flips. Go internal/... + cmd/ailang 148 ok, 0 fail. verify-stdlib: 49 stable. Mutations: no guards -> M2 + D-R2 + 5 union-shape cases + Phase 2b pins red; no F-A1 -> 5 union-shape + D-R2 + recursive callback-row red (the 3 cause-A must-accepts stay green because F-B opens their emptied rows; F-A1 is guarded by the leak tests instead); no F-B -> both EffectCeiling originals + 'pure lambda into wider slot' red."
     },
     {
       "id": "M4_DOCS_PERF",

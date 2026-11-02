@@ -103,6 +103,7 @@ func (env *InstanceEnv) synthesizeEq(typ Type, depth int) (inst *ClassInstance, 
 func wrapPartError(typ Type, err error) error {
 	var missing *MissingInstanceError
 	if errors.As(err, &missing) {
+		typ = withoutFreeEffectTails(typ)
 		leaf, leafHint := missing.Type, missing.Hint
 		if missing.leaf != nil {
 			leaf, leafHint = missing.leaf, missing.leafHint
@@ -253,6 +254,7 @@ func (env *InstanceEnv) reduceEq(typ Type, depth int) ([]Type, error) {
 	}
 	parts, ok := eqParts(typ)
 	if !ok {
+		typ = withoutFreeEffectTails(typ)
 		return nil, &MissingInstanceError{Class: "Eq", Type: typ, Hint: actionableInstanceHint("Eq", typ)}
 	}
 	if depth >= eqSynthDepthCap {

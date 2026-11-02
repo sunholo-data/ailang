@@ -179,7 +179,7 @@ func TestLatentNested_IntendedFlips(t *testing.T) {
 	// error as `map(\d. println(d), xs)`. Migration: mapE.
 	t.Run("map_concrete_callback_is_type_error", func(t *testing.T) {
 		err := checkModules(t, map[string]string{"main.ail": nestedSource("main", "import std/list (map)\nfunc viaMap(g: (string) -> bool ! {IO}, xs: [string]) -> [bool] ! {IO} = map(\\d. g(d), xs)\n")})
-		if err == nil || !strings.Contains(err.Error(), "incompatible closed rows") {
+		if err == nil || !strings.Contains(err.Error(), "which the closed row {} does not permit") {
 			t.Fatalf("want closed-row type error: %v", err)
 		}
 	})

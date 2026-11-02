@@ -5,12 +5,10 @@ import (
 	"testing"
 )
 
-// The rejections in TestEffectRowOpenClosedM2Deferred came from #1958 M2
-// (830934d23), reverted for v0.56.1: with M2's open-vs-closed check, a lambda
-// whose body unions two effectful calls was rejected by a concrete callback
-// slot, because inference closes that lambda's row to {} (combineTails drops
-// distinct tails). M2 can return once inference keeps those rows open; the
-// must-accept cases below are the regression guard for that.
+// #1958: M2's open-vs-closed check (re-landed with F-A1/F-A2/F-B) must not
+// reject valid callbacks. v0.56.0's M2 rejected the must-accept cases below
+// because inference closed multi-effect lambda rows to {} (the union drop) and
+// a pure lambda's closed row could not fit a wider slot (width).
 func TestEffectRowOpenClosedAnnotatedCallbacks(t *testing.T) {
 	for _, tt := range []struct {
 		name, src string
@@ -56,10 +54,8 @@ func via() -> int ! {IO} = withDir(\d. 1)`, false},
 	}
 }
 
-// #1958 M2 (reverted for v0.56.1, see the comment on the test above): an
-// annotated IO callback must not fit a closed pure slot. Re-enable with M2.
-func TestEffectRowOpenClosedM2Deferred(t *testing.T) {
-	t.Skip("#1958 M2 reverted for v0.56.1: needs inference to keep multi-effect lambda rows open first")
+// #1958 M2: an annotated IO callback must not fit a closed pure slot.
+func TestEffectRowOpenClosedM2(t *testing.T) {
 	for _, src := range []string{
 		`pure func via(g: (int) -> int ! {IO}, xs: [int]) -> [int] = map(g, xs)`,
 		`pure func via(g: (int) -> bool ! {IO}, xs: [int]) -> [int] = filter(g, xs)`,
@@ -73,5 +69,26 @@ pure func via(h: Hook, xs: [int]) -> [int] = map(h.run, xs)`,
 		if err := checkModuleSource(t, "row_guard", full); err == nil || !strings.Contains(err.Error(), "IO") {
 			t.Fatalf("must reject hidden IO: %v\n%s", err, src)
 		}
+	}
+}
+
+// #1958 Phase 2b (deferred, F2 still stands for these): a NAMED or eta-expanded
+// function value whose row is closed does not fit a wider slot. #1826 closes a
+// binding's compatibility tail when it is read as a value, and an eta body's row
+// only closes after solving, so F-B (which opens lambda rows at inference) does
+// not reach them. Declare the value with the slot's row, or make the slot
+// row-polymorphic. When Phase 2b lands, flip these to must-accept.
+func TestEffectRowOpenClosedPhase2bDeferred(t *testing.T) {
+	head := "func loud(s: string) -> () ! {IO} = println(s)\nfunc runWide(f: (string) -> () ! {IO, FS}, s: string) -> () ! {IO, FS} = f(s)\n"
+	for name, src := range map[string]string{
+		"named": `func via() -> () ! {IO, FS} = runWide(loud, "x")`,
+		"eta":   `func via() -> () ! {IO, FS} = runWide(\s. loud(s), "x")`,
+	} {
+		t.Run(name, func(t *testing.T) {
+			full := "module row_guard\nimport std/io (println)\n" + head + src + "\n"
+			if err := checkModuleSource(t, "row_guard", full); err == nil || !strings.Contains(err.Error(), "FS") {
+				t.Fatalf("Phase 2b is deferred: a closed {IO} value must not yet fit {IO, FS}: %v", err)
+			}
+		})
 	}
 }

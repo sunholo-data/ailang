@@ -70,11 +70,30 @@ func (env *InstanceEnv) lookup(class string, typ Type, depth int) (*ClassInstanc
 		}
 	}
 
+	typ = withoutFreeEffectTails(typ)
 	return nil, &MissingInstanceError{
 		Class: class,
 		Type:  typ,
 		Hint:  actionableInstanceHint(class, typ),
 	}
+}
+
+// withoutFreeEffectTails closes every free effect-row tail in t, for display in
+// a missing-instance error. Effects never decide an instance, and a lambda's row
+// is opened with a solver tail (#1958 F-B) that means nothing to the reader:
+// `Eq[[int -> int ! {...ρ6}]]` reads as `Eq[[int -> int]]`. Labels are kept.
+// Cycle-safe: freeEffectRowVarsInType tracks visited types, and the
+// substitution only replaces row tails.
+func withoutFreeEffectTails(t Type) Type {
+	free := freeEffectRowVarsInType(t)
+	if len(free) == 0 {
+		return t
+	}
+	sub := make(Substitution, len(free))
+	for name := range free {
+		sub[name] = &Row{Kind: EffectRow, Labels: map[string]Type{}}
+	}
+	return ApplySubstitution(sub, t)
 }
 
 // actionableInstanceHint returns an AILANG-specific, fix-oriented hint for a missing

@@ -12,11 +12,10 @@ func TestEffectRowGuardRejectsBeforeExecution(t *testing.T) {
 	runRowGuardCases(t, rowGuardCurrentCases())
 }
 
-// #1958 M2 (830934d23) was reverted for v0.56.1: it rejected valid callbacks
-// because inference closes multi-effect lambda rows to {}. These cases come
-// back with M2; see design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness.md.
-func TestEffectRowGuardRejectsBeforeExecutionM2Deferred(t *testing.T) {
-	t.Skip("#1958 M2 reverted for v0.56.1: needs inference to keep multi-effect lambda rows open first")
+// #1958 M2: an annotated IO callback must not fit a closed pure slot, so these
+// are rejected before anything prints. Reverted in v0.56.1 and re-landed with
+// the inference fixes F-A1/F-A2/F-B (m-effect-row-open-closed-soundness.md).
+func TestEffectRowGuardRejectsBeforeExecutionM2(t *testing.T) {
 	runRowGuardCases(t, map[string]string{
 		"map": `func loud(x: int) -> int ! {IO} { println("ROW1958_SIDE_EFFECT"); x }
 pure func hidden(g: (int) -> int ! {IO}) -> [int] = map(g, [1])

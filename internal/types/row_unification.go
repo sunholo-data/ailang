@@ -95,6 +95,11 @@ func (ru *RowUnifier) UnifyRows(r1, r2 *Row, sub Substitution) (Substitution, er
 		}
 
 	case r1.Tail != nil && r2.Tail == nil:
+		// A closed row cannot absorb the open side's own labels. Binding only
+		// the tail would otherwise erase those requirements (#1958).
+		if len(only1) > 0 {
+			return nil, fmt.Errorf("row %s carries labels %v which the closed row %s does not permit", r1, ru.labelNames(only1), r2)
+		}
 		// r1 open, r2 closed - r1's tail gets r2's unique labels
 		// CRITICAL FIX: Assign only2 (r2's unique labels) to r1.Tail, not only1!
 		// This allows open row r1 to unify with closed row r2 by accepting r2's labels.
@@ -108,6 +113,10 @@ func (ru *RowUnifier) UnifyRows(r1, r2 *Row, sub Substitution) (Substitution, er
 		ru.emitOnSubstitute(r1.Tail, resolvedRow)
 
 	case r1.Tail == nil && r2.Tail != nil:
+		// Symmetric side condition: r1 has no tail to accept r2's extras.
+		if len(only2) > 0 {
+			return nil, fmt.Errorf("row %s carries labels %v which the closed row %s does not permit", r2, ru.labelNames(only2), r1)
+		}
 		// r1 closed, r2 open - r2's tail gets r1's unique labels
 		// CRITICAL FIX: Assign only1 (r1's unique labels) to r2.Tail, not only2!
 		// This allows open row r2 to unify with closed row r1 by accepting r1's labels.

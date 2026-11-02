@@ -18,3 +18,23 @@ Programs that now fail to check (all were accepted before):
   form was already rejected. Declare the row: `-> () ! {e}`.
 
 Design: `design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness.md` (re-land brief).
+
+### Fixed — Breaking (soundness): an annotated effectful callback can no longer pass through a pure slot (#1958 M2 re-landed, 2026-11-02)
+
+Row unification bound an open row's tail against a closed row without checking the open row's own
+labels, so `{IO | ε} ~ {}` succeeded and `IO` disappeared. A `pure func` could then run IO through
+`std/list.map`/`filter`/`foldl`/`any` with an annotated callback parameter (`g: (string) -> bool ! {IO}`),
+a record field, or a mixed row `! {IO, e}`, and both engines executed it. The guard (Rémy's side
+condition) is restored in both open/closed branches of `RowUnifier.UnifyRows`. The error names the
+labels: `row {IO, ...ε} carries labels [IO] which the closed row {} does not permit`. Migrate to
+`mapE` with a row-polymorphic parameter: `func viaE[e](g: (int) -> int ! {e}, xs: [int]) -> [int] ! {e} = mapE(g, xs)`.
+
+v0.56.0 carried this guard and was withdrawn before publishing: it rejected valid callbacks. Two
+inference fixes now ship with it: the union fix above, and **lambda open-on-use**. An unannotated
+lambda whose row is closed gets a fresh row tail, so `withDir(\d. 1)` fits `f: string -> int ! {IO}`
+and a hook `\c. 1` fits a wider declared row. An unconstrained tail is closed to `{}` before the
+declaration is published.
+
+Still rejected (deferred, Phase 2b): a *named* or eta-expanded function value whose row is closed
+and narrower than the slot, e.g. `runWide(loud, "x")` with `loud ! {IO}` into `! {IO, FS}`. Declare
+the value with the slot's row, or make the slot row-polymorphic.

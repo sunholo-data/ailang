@@ -141,6 +141,9 @@ func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) 
 		}
 		tc.declaredLambdaEffects[lam.ID()] = funcEffectRow
 	}
+	if !lambdaHasEffectAnnotation(tc, lam) {
+		funcEffectRow = ctx.openLambdaRow(funcEffectRow) // #1958 F-B: open on use
+	}
 
 	funcType := &TFunc2{
 		ImplicitEffectContract: !lambdaHasEffectAnnotation(tc, lam),

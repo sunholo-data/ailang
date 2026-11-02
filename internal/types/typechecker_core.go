@@ -515,6 +515,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	// M-DX4 FIX: Apply FULL substitution (unification + defaulting) to CoreTypeInfo
 	// This ensures CoreTI has concrete types (Int, Float, etc.) instead of type variables.
 	// Must apply the composed substitution to resolve chains (e.g., α37 → α38 → Float).
+	sub = ctx.closeOpenedLambdaTails(sub) // #1958 F-B
 	tc.applyApplicationSubstitution(sub)
 
 	// Apply final substitution to typed node
@@ -658,6 +659,7 @@ func (tc *CoreTypeChecker) checkCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 
 	// M-DX4 FIX V2: Apply FULL substitution (unification + defaulting) to CoreTypeInfo
 	// Must be AFTER composition so we have the complete substitution with chains resolved
+	sub = ctx.closeOpenedLambdaTails(sub) // #1958 F-B
 	tc.applyApplicationSubstitution(sub)
 
 	// Apply the complete substitution (unification + defaulting) to the typed node
