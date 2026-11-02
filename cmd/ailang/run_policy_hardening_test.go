@@ -127,7 +127,7 @@ func TestRunPolicy_RefusesEveryWideningFlag(t *testing.T) {
 		{"--net-allow-localhost"}, {"--net-allow-metadata"}, {"--stream-allow-http"},
 		{"--stream-allow-domains", "x"}, {"--stream-allow-localhost"}, {"--stream-max-message", "8MB"},
 		{"--process-allowlist", "git"},
-		{"--stdlib-path", dir}, {"--package-dir", dir}, {"--fs-max-bytes", "1GB"},
+		{"--stdlib-path", dir}, {"--package-dir", dir}, {"--fs-max-bytes", "1GB"}, {"--net-max-bytes", "1GB"},
 	}
 	for _, extra := range cases {
 		args := append([]string{"run", "--policy", pol}, extra...)

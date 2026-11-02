@@ -57,6 +57,9 @@ func ExecuteBatchItem(ctx context.Context, result pipeline.Result, input string,
 	if err := SetupNetHandler(effCtx, opts.Net.AllowHTTP, opts.Net.AllowDomains, opts.Net.AllowLocalhost, opts.Net.AllowMetadata, opts.Net.Timeout); err != nil {
 		return err
 	}
+	if err := SetupNetLimit(effCtx, opts.Net.MaxBytes); err != nil {
+		return err
+	}
 	if err := SetupStreamHandler(effCtx, opts.Stream); err != nil {
 		return err
 	}

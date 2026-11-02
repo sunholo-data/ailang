@@ -46,6 +46,7 @@ func serveAPICommand(args []string) error {
 	logLevelFlag := fs.String("log-level", "", "Minimum log level for Debug output (debug, info, warn, error, none)")
 	processTimeoutFlag := fs.String("process-timeout", "", "Process exec timeout (e.g. 90s); default 30s. Needs --caps Process")
 	processAllowlistFlag := fs.String("process-allowlist", "", "Commands Process may exec (comma-separated, cmd or cmd:sub); default any on PATH. Needs --caps Process")
+	netMaxBytesFlag := fs.String("net-max-bytes", "", "Cap on each Net HTTP response body (e.g. 50MB); unset = AILANG_NET_MAX_BYTES, else 5MB. Buffered in memory. Needs --caps Net")
 	ws := registerServeAPIWSFlags(fs)
 
 	if err := fs.Parse(args); err != nil {
@@ -161,6 +162,13 @@ func serveAPICommand(args []string) error {
 		return err
 	}
 
+	// --net-max-bytes / AILANG_NET_MAX_BYTES: the Net body cap was a fixed
+	// 5 MB, so a service fetching user files by signed URL could not serve
+	// one larger than that whatever its upload limit (docparse, 2026-11).
+	if err := runner.SetupNetLimit(effCtx, *netMaxBytesFlag); err != nil {
+		return err
+	}
+
 	if err := ws.apply(effCtx); err != nil {
 		return err
 	}
@@ -271,6 +279,8 @@ func printServeAPIHelp() {
 	fmt.Println("  --mcp-connect-only   Tools only on /mcp/connect/, all behind the Bearer gate (no /mcp/; HTTP serves @nomcp routes only)")
 	fmt.Println("  --process-timeout D  Process exec timeout (default 30s; needs --caps Process)")
 	fmt.Println("  --process-allowlist L  Commands Process may exec: cmd or cmd:sub, comma-separated (default: any on PATH)")
+	fmt.Println("  --net-max-bytes N    Cap on each Net response body, e.g. 50MB (default 5MB, or AILANG_NET_MAX_BYTES;")
+	fmt.Println("                       needs --caps Net). Bodies are buffered whole: budget >= 2x N per in-flight fetch")
 	printServeAPIWSHelp()
 	fmt.Println("  --help               Show this help message")
 	fmt.Println()

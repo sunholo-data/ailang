@@ -736,6 +736,8 @@ Flags:
   --mcp-connect-only   Tools only on /mcp/connect/, all behind the Bearer gate (no /mcp/; HTTP serves @nomcp routes only)
   --process-timeout D  Process exec timeout (default 30s; needs --caps Process)
   --process-allowlist L  Commands Process may exec: cmd or cmd:sub, comma-separated (default: any on PATH)
+  --net-max-bytes N    Cap on each Net response body, e.g. 50MB (default 5MB, or AILANG_NET_MAX_BYTES;
+                       needs --caps Net). Bodies are buffered whole: budget >= 2x N per in-flight fetch
 
 Arguments:
   <path...>            One or more .ail files or directories

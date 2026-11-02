@@ -114,6 +114,7 @@ type NetOptions struct {
 	AllowLocalhost bool
 	AllowMetadata  bool
 	Timeout        string
+	MaxBytes       string // --net-max-bytes; "" = AILANG_NET_MAX_BYTES, else the 5 MB default
 }
 
 // StreamOptions are the `--stream-*` flags.
@@ -157,6 +158,44 @@ func SetupFSLimit(effCtx *effects.EffContext, flag string) error {
 	}
 	effCtx.Env.FSMaxBytes = n
 	return nil
+}
+
+// SetupNetLimit resolves the Net response-body cap: the --net-max-bytes flag
+// text, else AILANG_NET_MAX_BYTES, else NewNetContext's 5 MB default. It caps
+// each std/net and std/web response, which is buffered whole in memory; over
+// the cap is BodyTooLarge(<cap>). Zero, negative or malformed is an error — a
+// safety cap never falls back — and so is the flag without --caps Net, since a
+// cap that silently does nothing is a false guarantee.
+func SetupNetLimit(effCtx *effects.EffContext, flag string) error {
+	if flag != "" {
+		if !effCtx.HasCap("Net") {
+			return fmt.Errorf("--net-max-bytes needs --caps Net")
+		}
+		n, err := config.ParseByteSize(flag)
+		if err != nil {
+			return fmt.Errorf("--net-max-bytes: %w", err)
+		}
+		if n < 1 {
+			return fmt.Errorf("--net-max-bytes must be a positive size, got %q", flag)
+		}
+		setNetMaxBytes(effCtx, n)
+		return nil
+	}
+	n, set, err := config.NetMaxBytes()
+	if err != nil {
+		return err
+	}
+	if set {
+		setNetMaxBytes(effCtx, n)
+	}
+	return nil
+}
+
+func setNetMaxBytes(effCtx *effects.EffContext, n int64) {
+	if effCtx.Net == nil {
+		effCtx.Net = effects.NewNetContext()
+	}
+	effCtx.Net.MaxBytes = n
 }
 
 // ProcessOptions are the `--process-*` flags.
