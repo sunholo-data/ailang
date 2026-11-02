@@ -61,7 +61,13 @@ force-pass a doc whose reviewers gave you a concrete fix, and the only reason is
 `Agent(subagent_type="general-purpose", model="<alias>", …)`. `recipe <provider:model>` → the
 Agent tool is NOT a valid path for that role; use the cross-provider recipe below.
 `reroute <alias> generator-equals-judge` → spawn the named re-route target and say so in the
-Gate-4 row. `refuse …` → that role is a routing **FAILURE**, not a FLAG: record the reason token
+Gate-4 row.
+`reroute <provider:model> anthropic-unavailable` (D-FLEET-24 A; only when the driver set
+`MISSION_ANTHROPIC_AVAILABLE=0`, i.e. a codex or pi controller, and the role is a bare alias) → the
+first entry of `$MISSION_<ROLE>_FALLBACK` that is provider-pinned, not `claude:`, in ration, and
+(evaluator only) not the executor's model family; run it under its own lane recipe, not the Agent
+tool, and name the reroute in the Gate-4 row. `refuse fail-closed:anthropic-unavailable-no-fallback`
+is an ordinary `refuse`. `refuse …` → that role is a routing **FAILURE**, not a FLAG: record the reason token
 VERBATIM and continue the iteration without the role rather than spending un-budgeted opus.
 `recipe <provider:model> over-ration-reroute:<bucket>` → the lane the table names is over its daily
 ration, so the resolver handed the role the driver's own resolved lane; use it, and name the reroute in

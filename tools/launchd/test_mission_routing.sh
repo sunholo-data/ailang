@@ -509,6 +509,121 @@ grep -q '^MISSION_OVER_RATION=.*export MISSION_OVER_RATION' "$ROOT/tools/launchd
   && ok "R14 driver exports MISSION_OVER_RATION with the resolved plan" \
   || bad "R14 driver exports MISSION_OVER_RATION with the resolved plan" "export missing"
 
+# R15-R38: D-FLEET-24 option A. Only an exact Anthropic-unavailable signal
+# reroutes bare aliases; walk the role's declared chain without using Claude.
+out=$(env -u MISSION_EXECUTOR_RESOLVED MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION= \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=codex:gpt-6.1-sol \
+  MISSION_EVALUATOR_FALLBACK=pi:openrouter/minimax/minimax-m3,claude:claude-sonnet-4-6,opus "$RESOLVE" evaluator)
+want "R15 unavailable evaluator reroutes to a provider pin" "$out" "reroute pi:openrouter/minimax/minimax-m3 anthropic-unavailable"
+
+out=$(env -u MISSION_EXECUTOR_RESOLVED MISSION_ANTHROPIC_AVAILABLE=1 MISSION_OVER_RATION= \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=codex:gpt-6.1-sol \
+  MISSION_EVALUATOR_FALLBACK=pi:openrouter/minimax/minimax-m3,claude:claude-sonnet-4-6,opus "$RESOLVE" evaluator)
+want "R16 available evaluator keeps its alias" "$out" "agent-tool sonnet declared:alias-pin"
+
+out=$(env -u MISSION_ANTHROPIC_AVAILABLE -u MISSION_EXECUTOR_RESOLVED MISSION_OVER_RATION= \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=codex:gpt-6.1-sol \
+  MISSION_EVALUATOR_FALLBACK=pi:openrouter/minimax/minimax-m3,claude:claude-sonnet-4-6,opus "$RESOLVE" evaluator)
+want "R17 unset availability keeps the evaluator alias" "$out" "agent-tool sonnet declared:alias-pin"
+
+out=$(env -u MISSION_EXECUTOR_RESOLVED MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION= \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=codex:gpt-6.1-sol \
+  MISSION_EVALUATOR_FALLBACK=opus,claude:claude-sonnet-5-5,pi:ollama/minimax-m3:cloud "$RESOLVE" evaluator)
+want "R18 aliases and Claude provider entries are skipped" "$out" "reroute pi:ollama/minimax-m3:cloud anthropic-unavailable"
+
+out=$(env -u MISSION_EXECUTOR_RESOLVED MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION=openrouter \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=codex:gpt-6.1-sol \
+  MISSION_EVALUATOR_FALLBACK=pi:openrouter/x/y,pi:ollama/z:cloud "$RESOLVE" evaluator)
+want "R19 over-ration fallback is skipped" "$out" "reroute pi:ollama/z:cloud anthropic-unavailable"
+
+out=$(env -u MISSION_EXECUTOR_RESOLVED MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION= \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=codex:gpt-6.1-sol \
+  MISSION_EVALUATOR_FALLBACK=opus,claude:claude-sonnet-5-5,haiku "$RESOLVE" evaluator)
+want "R20 no usable provider fallback fails closed" "$out" "refuse fail-closed:anthropic-unavailable-no-fallback"
+
+out=$(env -u MISSION_EVALUATOR_FALLBACK -u MISSION_EXECUTOR_RESOLVED MISSION_OVER_RATION= \
+  MISSION_ANTHROPIC_AVAILABLE=0 MISSION_EVALUATOR_MODEL=sonnet \
+  MISSION_EXECUTOR_MODEL=codex:gpt-6.1-sol "$RESOLVE" evaluator)
+want "R21 unset fallback fails closed" "$out" "refuse fail-closed:anthropic-unavailable-no-fallback"
+
+out=$(MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION= MISSION_EXECUTOR_MODEL=opus \
+  MISSION_EXECUTOR_FALLBACK=pi:ollama/deepseek-v4.1-flash:cloud,pi:openrouter/deepseek/deepseek-v4.1-flash "$RESOLVE" executor)
+want "R22 unavailable executor uses its own fallback" "$out" "reroute pi:ollama/deepseek-v4.1-flash:cloud anthropic-unavailable"
+
+out=$(MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION= MISSION_DESIGNER_MODEL=fable \
+  MISSION_DESIGNER_FALLBACK=codex:gpt-6.1-sol "$RESOLVE" designer)
+want "R23 unavailable designer uses its own fallback" "$out" "reroute codex:gpt-6.1-sol anthropic-unavailable"
+
+out=$(MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION= MISSION_EVALUATOR_MODEL=sonnet \
+  MISSION_EXECUTOR_RESOLVED=pi:ollama/a:cloud MISSION_EXECUTOR_MODEL=pi:openrouter/b/c \
+  MISSION_EVALUATOR_FALLBACK=pi:ollama/a:cloud,pi:openrouter/b/c "$RESOLVE" evaluator)
+want "R24 resolved generator is skipped ahead of raw model" "$out" "reroute pi:openrouter/b/c anthropic-unavailable"
+
+out=$(env -u MISSION_EXECUTOR_RESOLVED MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION= \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=codex:gpt-6.1-sol \
+  MISSION_EVALUATOR_FALLBACK=" pi:ollama/a:cloud , pi:openrouter/b/c" "$RESOLVE" evaluator)
+want "R25 fallback entries have surrounding whitespace trimmed" "$out" "reroute pi:ollama/a:cloud anthropic-unavailable"
+
+out=$(MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION= MISSION_EXECUTOR_MODEL=codex:gpt-6.1-sol \
+  MISSION_EXECUTOR_FALLBACK=pi:ollama/z:cloud "$RESOLVE" executor)
+want "R26 provider-pinned executor remains a recipe" "$out" "recipe codex:gpt-6.1-sol declared:provider-pin"
+
+out=$(env -u MISSION_EXECUTOR_RESOLVED MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION= \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=pi:ollama/a:cloud \
+  MISSION_EVALUATOR_FALLBACK=pi:ollama/a:cloud,pi:openrouter/b/c "$RESOLVE" evaluator)
+want "R27 raw generator model is skipped when resolved is unset" "$out" "reroute pi:openrouter/b/c anthropic-unavailable"
+
+out=$(env -u MISSION_EXECUTOR_RESOLVED MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION= \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=claude:claude-sonnet-5-5 \
+  MISSION_EVALUATOR_FALLBACK=opus,claude:claude-haiku-4-5,pi:ollama/z:cloud "$RESOLVE" evaluator)
+want "R28 unavailable alias takes precedence over alias collision" "$out" "reroute pi:ollama/z:cloud anthropic-unavailable"
+
+out=$(MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION= MISSION_DESIGNER_MODEL=haiku \
+  MISSION_DESIGNER_FALLBACK= "$RESOLVE" designer)
+want "R29 empty fallback fails closed for haiku designer" "$out" "refuse fail-closed:anthropic-unavailable-no-fallback"
+
+out=$(MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION="openrouter ollama" MISSION_EXECUTOR_MODEL=opus \
+  MISSION_EXECUTOR_FALLBACK=pi:openrouter/x/y,pi:ollama/z:cloud "$RESOLVE" executor)
+want "R30 all provider fallbacks over ration fail closed" "$out" "refuse fail-closed:anthropic-unavailable-no-fallback"
+
+out=$(env -u MISSION_EXECUTOR_RESOLVED MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION= \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=pi:ollama/a:cloud \
+  MISSION_EVALUATOR_FALLBACK=pi:ollama/a:cloud,pi:ollama/a:cloud "$RESOLVE" evaluator)
+want "R31 all provider fallbacks colliding with generator fail closed" "$out" "refuse fail-closed:anthropic-unavailable-no-fallback"
+
+out=$(MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION= MISSION_DESIGNER_MODEL=fable \
+  MISSION_DESIGNER_FALLBACK=", ,opus,, claude:claude-sonnet-5-5 , ,pi:ollama/z:cloud,," "$RESOLVE" designer)
+want "R32 empty and whitespace-only entries are ignored" "$out" "reroute pi:ollama/z:cloud anthropic-unavailable"
+
+out=$(env -u MISSION_EXECUTOR_RESOLVED MISSION_ANTHROPIC_AVAILABLE= MISSION_OVER_RATION= \
+  MISSION_EVALUATOR_MODEL=sonnet MISSION_EXECUTOR_MODEL=codex:gpt-6.1-sol \
+  MISSION_EVALUATOR_FALLBACK=pi:ollama/z:cloud "$RESOLVE" evaluator)
+want "R33 empty availability keeps the evaluator alias" "$out" "agent-tool sonnet declared:alias-pin"
+
+out=$(MISSION_ANTHROPIC_AVAILABLE=00 MISSION_OVER_RATION= MISSION_EXECUTOR_MODEL=opus \
+  MISSION_EXECUTOR_FALLBACK=pi:ollama/z:cloud "$RESOLVE" executor)
+want "R34 nonzero-string availability keeps the executor alias" "$out" "agent-tool opus declared:alias-pin"
+
+# The resolver accepts arbitrary pin text. Exercise family() independently of
+# string equality with a prefixed executor spelling that family() normalizes.
+out=$(MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION= MISSION_EVALUATOR_MODEL=sonnet \
+  MISSION_EXECUTOR_RESOLVED=claude:pi:ollama/a:cloud MISSION_EXECUTOR_MODEL=codex:gpt-6.1-sol \
+  MISSION_EVALUATOR_FALLBACK=pi:ollama/a:cloud,pi:openrouter/b/c "$RESOLVE" evaluator)
+want "R35 family-equivalent generator spelling is skipped" "$out" "reroute pi:openrouter/b/c anthropic-unavailable"
+
+out=$(MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION= MISSION_EXECUTOR_MODEL=claude:claude-opus-5-5 \
+  MISSION_EXECUTOR_FALLBACK=pi:ollama/z:cloud "$RESOLVE" executor)
+want "R36 Claude provider pin keeps existing recipe handling" "$out" "recipe claude:claude-opus-5-5 declared:provider-pin"
+
+out=$(MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION=ollama MISSION_DESIGNER_MODEL=fable \
+  MISSION_DESIGNER_FALLBACK=pi:ollama/z:cloud,pi:ollama/local:27b "$RESOLVE" designer)
+want "R37 local fallback has no ration bucket" "$out" "reroute pi:ollama/local:27b anthropic-unavailable"
+
+out=$(MISSION_ANTHROPIC_AVAILABLE=0 MISSION_OVER_RATION= MISSION_EXECUTOR_MODEL=opus \
+  MISSION_EXECUTOR_RESOLVED=pi:ollama/a:cloud \
+  MISSION_EXECUTOR_FALLBACK=pi:ollama/a:cloud,pi:openrouter/b/c "$RESOLVE" executor)
+want "R38 generator collision filtering only applies to evaluator" "$out" "reroute pi:ollama/a:cloud anthropic-unavailable"
+
 # --- M2 SPAWN-PIN HOOK WIRING (M-SPAWN-PIN-ENFORCEMENT, 2026-09-03) -----------
 # Arm W: the spawn-pin hook suite must be wired into make/test.mk, or a suite
 # that exists but is never invoked is green forever while enforcing nothing —
