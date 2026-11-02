@@ -207,6 +207,95 @@ is the long-run answer to AILANG having no pretraining corpus.
 - **Attribution:** every benchmark's description says which gap it tracks, or says "unattributed".
   Two of six are unattributed today (`cp_60149`, `cp_60197`), and attributing them is triage work.
 
+### Ongoing — Hill-climb loop (weak tier, started 2026-11-02)
+
+Phase 0 leaves one climbable gradient: Haiku on AILANG, 3/18 against 13/18 in Python, with 13 of its 15
+failures `logic_error` or `runtime_error`. Those are the kinds of failure that prompt, stdlib and diagnostic
+fixes reach. The strong models fail mostly on budget caps, so for them the CP pack is a guard against
+regressions, not a gradient.
+
+The climb is **exploratory**, and the decision rule below stays **confirmatory**. They are deliberately different instruments:
+
+| | Climb step | Gate |
+|---|---|---|
+| Benchmarks | The 6 CP benchmarks (the *train* set; transcripts may be read) | 12 held-out AetherCode problems. Never studied, never solved by hand |
+| Arm | Haiku, AILANG only, 3 trials (18 runs) | Haiku + Sonnet, both languages, 3 trials, `eval-paired` |
+| Score | Mean hidden-test fraction (S1), then full passes | The decision rule below, unchanged |
+| Accept | A step must beat the noise band measured by an A/A pair on one binary, **and its mechanism must move** (the behaviour the change targets, e.g. the share of solutions using `std/array`) | Win under the rule; Null or Worse reverts the steps since the last gate |
+| Cadence | One change per step: one prompt edit, one stdlib function, one diagnostic | Every 3 accepted steps, or before a change ships in a release prompt |
+
+- **Why S1 may steer the climb but not decide.** A climb step is cheap and reversible, and S1 moves before
+  `Passed()` does. The decision rule's position that S1 is descriptive only still holds for the gate.
+- **Where candidates come from.** Read the failed train-set transcripts (`ailang chains chat`), route each
+  loss through the loss-routing table, and take the most frequent fixable cause. A cause that needs a
+  language change gets its own doc. The climb only measures it.
+- **Python runs only at the gate.** Climb steps change nothing on the Python side.
+- **Overfitting guard.** A change that wins on the train set and is Null at the gate is reverted, however
+  good it looked. A held-out problem whose solution someone has studied moves to the train set and is replaced.
+- **Low-information train benchmarks.** Haiku also fails `cp_60153` in Python (0/3), and `cp_60197` scores 0
+  hidden in AILANG. Both are kept for comparability, but the step score is also reported without them.
+- **Step 0** (`eval_results/cp_climb/step0_4c2566568/`, local) measures the merges since Phase 0 (#1986–#1993
+  and later dev, prompt v0.16.11) as one bundle. **Step 0b** re-runs the same binary for the A/A noise band.
+
+  **Result (2026-11-02).** Haiku, AILANG; passes and mean hidden-test fraction:
+
+  | Benchmark | Phase 0 | Step 0 | Step 0b |
+  |---|---|---|---|
+  | `cp_60149` | 2/3 · 0.67 | 0/3 · 0.20 | 0/3 · 0.10 |
+  | `cp_60153` | 0/3 · 0.21 | 0/3 · 0.12 | 0/3 · 0.06 |
+  | `cp_60159` | 1/3 · 0.57 | 3/3 · 1.00 | 2/3 · 0.67 |
+  | `cp_60164` | 0/3 · 0.50 | 0/3 · 0.50 | 0/3 · 0.50 |
+  | `cp_60166` | 0/3 · 0.33 | 0/3 · 0.31 | 0/3 · 0.31 |
+  | `cp_60197` | 0/3 · 0.00 | 2/3 · 0.67 | 2/3 · 0.67 |
+  | **Total** | **3/18 · 0.38** | **5/18 · 0.47** | **4/18 · 0.38** |
+
+  - **Noise band:** one binary, run twice, moved by 1 pass and 0.08 in mean S1. A climb step has to clear that.
+  - **Repeated gains:** `cp_60197` (0 → 2/3 twice) and `cp_60159` (`std/set` is now used in 4/18 Haiku
+    solutions, against 0/18 in Phase 0).
+  - **`cp_60149` dropped** (2/3 → 0/6), but this is not a language regression. All 51 Phase 0 AILANG solutions
+    that passed, from every model, still pass every hidden test on the new binary. Today's runs share one model
+    bug: a leading zero when the top digit computes to 0. That is an H1 (verification) loss.
+  - **Harness bug found by the climb:** trials that started in the same second shared a workspace and SIGKILLed
+    each other (3 of 18 step-0 rows, fixed in `f001a108e`; the table uses re-runs). The Phase 0 Claude rows were
+    unaffected: each of their workspaces held one session.
+  - **What step 0 says to try first:** Haiku used `std/array` in 0 of 36 AILANG solutions across both cohorts,
+    against 10–11 of 18 for each strong model. On `cp_60164` it writes a 2D difference array in Python and
+    brute force in AILANG, in all 3 trials. The "runtime errors" there are hidden-test timeouts, and the VM
+    passes only one more test (5/8). The prompt's import table introduced `std/array` as a float-vector
+    library and did not list `accumulate`. **Step 1** reframes it (`Array[a]` as Python's list-by-index, for DP
+    tables, grids and counts) and adds a Python-idiom row to "What AILANG Does NOT Have".
+
+- **Steps 1–2 (2026-11-02, candidate prompts in a scratch worktree, not committed).** Haiku, AILANG, 18 runs each,
+  against the pooled step 0 + 0b baseline (36 runs):
+
+  | | Baseline | Step 1: array framing | Step 2: + "keep the Python algorithm" |
+  |---|---|---|---|
+  | Passes | 9/36 | 5/18 | 5/18 |
+  | Mean S1 | 0.42 | 0.54 | 0.47 |
+  | Solutions using `std/array` | 0/36 | 0/18 | **5/18** |
+  | `cp_60164` S1 | 0.50 | 0.50 | 0.33 |
+
+  - **Step 1 is rejected on mechanism.** S1 rose past the noise band, but `std/array` use stayed at 0, so the
+    gain is not the edit's. Rule added: **a step is accepted only if its mechanism moved too.** Haiku picks the
+    algorithm before the library: on `cp_60164` it plans brute force in AILANG and a difference array in Python,
+    given the same problem text. The prompt's opening "⚠️ AILANG is NOT Python!" plausibly reads as "not the
+    Python *approach*" as well as "not the Python *syntax*".
+  - **Step 2 moved the mechanism but not the score.** A counterweight under that warning ("keep the algorithm
+    you would write in Python, then translate each structure") took `std/array` use from 0 to 5/18, and on
+    `cp_60164` one trial wrote the right algorithm. It then timed out anyway, because its prefix-sum passes
+    were recursion doing `A.set` per cell (O(n) copy each, so quadratic overall).
+  - **The climb has reached two language walls, which belong to the AILANG-fix lane:**
+    1. **No linear-time "array by recurrence".** `std/array` has no `scan`, `generate`/`tabulate` or `map`.
+       The only per-cell writes are `A.set` (copies the array) or a batch whose values are already known. So
+       Python's `dp[i] = dp[i-1] + x` shape (prefix sums, DP tables, 2D prefix sums) has no O(n) translation
+       over an array. The list workaround (`mapAccumL` per row, `zipWith` down columns) exists, but Haiku did not find it.
+    2. **No BigInt** (`cp_60166`): all three step-2 runs said the products overflow 64-bit ints, then fell back
+       to logarithms or modular arithmetic and answered wrong. This waits on F1–F3 in
+       [m-int-overflow-trap-and-bigint](m-int-overflow-trap-and-bigint.md).
+  - **Not gated.** Neither step beat the baseline by enough, under the mechanism rule, to spend a held-out run.
+    The held-out set is built (12 AetherCode problems, Python references written and verified against every
+    hidden test, since the dataset ships none) and waits for the first accepted step.
+
 ## Decision rule for A/B arms
 
 `ailang eval-paired <on> <off>` (V20) pairs runs by benchmark, language and trial. It reports
