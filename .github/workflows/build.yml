@@ -54,7 +54,7 @@ jobs:
     # `uv run --python <PinnedPythonVersion>` and fails loudly if uv is missing
     # (see internal/eval_harness/python.go). Must match ci.yml.
     - name: Set up uv
-      uses: astral-sh/setup-uv@07a047e608db84b3d8c06cd9a7c7dcc9c355c18e # v10.3.2
+      uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
 
     # Prepare the eval runner's pin before tests poison network access.
     # Keep this request in sync with PinnedPythonVersion in python.go.
