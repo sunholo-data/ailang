@@ -134,6 +134,10 @@ Go reds with F-B still to resolve, none of them wrong-accepts:
 
 ### Decisions for this re-land
 
+**D-R1 and D-R2 ruled 2026-11-02 (Mark, attended): accepted as recommended** ("ok can you sprint
+plan and execute", in reply to both recommendations). Plan:
+`design_docs/planned/v0_57_0/m-effect-row-open-closed-reland-sprint-plan.md`.
+
 - **D-R1 (human):** reopen F2 for **lambdas** and adopt F-B, which restores the original
   `\c. 1` spelling. Recommended: the shape broke production, and F2's "0 corpus files" premise
   was measured on the narrow scope.

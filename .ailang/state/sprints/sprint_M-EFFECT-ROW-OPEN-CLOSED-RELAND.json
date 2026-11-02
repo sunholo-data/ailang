@@ -1,0 +1,112 @@
+{
+  "sprint_id": "M-EFFECT-ROW-OPEN-CLOSED-RELAND",
+  "status": "not_started",
+  "created": "2026-11-02T19:24:05Z",
+  "design_doc": "design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness.md",
+  "sprint_plan": "design_docs/planned/v0_57_0/m-effect-row-open-closed-reland-sprint-plan.md",
+  "github_issues": [
+    1958
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_UNION_RESOLVE",
+      "package": null,
+      "action": "none",
+      "reason": "compiler-internal type inference change (internal/types); no package capability"
+    },
+    {
+      "milestone": "M2_LAMBDA_OPEN_ON_USE",
+      "package": null,
+      "action": "none",
+      "reason": "compiler-internal type inference change (internal/types); no package capability"
+    },
+    {
+      "milestone": "M3_RESTORE_GUARD",
+      "package": null,
+      "action": "none",
+      "reason": "compiler-internal type inference change (internal/types); no package capability"
+    },
+    {
+      "milestone": "M4_DOCS_PERF",
+      "package": null,
+      "action": "none",
+      "reason": "compiler-internal type inference change (internal/types); no package capability"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 335,
+    "estimated_total_loc": 670,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1_UNION_RESOLVE",
+      "description": "F-A1+F-A2: ctx-aware combineEffects resolves distinct-tail operands against the lambda-local solve (outer vars filtered, closeIfResolved); let-rec self tails absorbed (labels only). No package globals.",
+      "estimated_loc": 260,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Lambda rows of the 3 cause-A shapes contain IO (unit tests)",
+        "D-R2 matrix: 7 pure-slot probes all rejected in a ! {IO} caller",
+        "debug_effect.ail, debug_concurrent.ail, TestRecursiveConditionalStillRejectsRealEffect pass; recursive fn calling ! {e} callback still charges e",
+        "Full sweep vs 90f31bbe0: only D-R2-class flips (spike: 0)",
+        "make test-changed + make check-file-sizes green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_LAMBDA_OPEN_ON_USE",
+      "description": "F-B: unannotated closed lambda rows opened with a per-ctx fresh tail; unbound opened tails closed to {} before applyApplicationSubstitution via ApplicationEffects ownership; opened tails hidden from diagnostics.",
+      "estimated_loc": 170,
+      "dependencies": [
+        "M1_UNION_RESOLVE"
+      ],
+      "acceptance_criteria": [
+        "TestEqContainersNegatives, TestLatentNested_DistinctDeclaredTailsFailLoud, TestPkgConfinementMatrix green in full package runs",
+        "Full sweep: 0 status changes vs M1",
+        "make test-changed green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_RESTORE_GUARD",
+      "description": "Re-apply 830934d23 guards + unit matrix, unskip deferred pipeline/CLI tests, any-IO-lambda -> must-reject (D-R2), EffectCeiling back to \\c. 1 (D-R1), pin named/eta width as Phase 2b deferral.",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M2_LAMBDA_OPEN_ON_USE"
+      ],
+      "acceptance_criteria": [
+        "All guard cases + M2 rejections green; positive control (M2-only rejects executor.ail) reproduced",
+        "Sweep of all git ls-files *.ail + ailang-packages + ailang-parse (perl alarm, positive control): 0 unexplained flips",
+        "Mutation on scratch copy: no guards -> R1-R5 accepted; no F-A1 -> 3 cause-A cases red; no F-B -> wider-slot case red",
+        "executor_tools/executor.ail checks clean",
+        "go test ./internal/... ./cmd/... green except named environmental tests"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_DOCS_PERF",
+      "description": "Changelog fragment (Breaking soundness), perf before/after, design doc implementation report + status.",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M3_RESTORE_GUARD"
+      ],
+      "acceptance_criteria": [
+        "make check-changelog, lint, check-file-sizes, verify-examples, test-core green (unpiped)",
+        "Perf numbers recorded in design doc; >10% flagged"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
