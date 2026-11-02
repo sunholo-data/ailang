@@ -1,0 +1,114 @@
+{
+  "sprint_id": "M-VALIDATOR-CHECK-BUDGET-PARITY",
+  "status": "not_started",
+  "created": "2026-11-02T17:48:49.660932+00:00",
+  "design_doc": "design_docs/planned/v0_56_1/m-validator-check-budget-parity.md",
+  "sprint_plan": "design_docs/planned/v0_56_1/m-validator-check-budget-parity-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Searched validator; inspected sunholo/registry_validator@0.1.2 info/docs. Its AILANG manifest/hash API cannot supply Go subprocess controls or production metadata plumbing; extend existing infrastructure."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Searched validator; inspected sunholo/registry_validator@0.1.2 info/docs. Its AILANG manifest/hash API cannot supply Go subprocess controls or production metadata plumbing; extend existing infrastructure."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Searched validator; inspected sunholo/registry_validator@0.1.2 info/docs. Its AILANG manifest/hash API cannot supply Go subprocess controls or production metadata plumbing; extend existing infrastructure."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Searched validator; inspected sunholo/registry_validator@0.1.2 info/docs. Its AILANG manifest/hash API cannot supply Go subprocess controls or production metadata plumbing; extend existing infrastructure."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 175,
+    "estimated_total_loc": 520,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Check pacing and sampled statistics",
+      "estimated_loc": 160,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "896 MiB RSS cap produces GOMEMLIMIT=832MiB; inherited duplicate GOMEMLIMIT is replaced, other environment values preserved.",
+        "Tiny caps cannot underflow into an enormous limit; unusable pacing budgets return an explicit error.",
+        "Child env-echo proves injection; deterministic RSS harness proves success/failure peak and elapsed stats.",
+        "Existing over-memory, timeout, child-failure, cap-derivation and Linux procRSS tests pass; wall cap stays 200 s."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Environment-complete refusals",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Refusal includes cap/source, known instance limit or explicit unavailable marker, GOOS/GOARCH, effective child GOMAXPROCS, GOMEMLIMIT, 100 ms cadence, sampled peak and wall.",
+        "Existing resource/limit/observed semantics remain, including the 600 MiB observed assertion; budget refusal is HTTP 422 and ordinary compile failure is distinct.",
+        "Docker command uses the actual image tag or explicit missing-identity diagnostic, --platform linux/amd64, --cpus 2, --memory 1g and explicit GOMEMLIMIT/AILANG_NO_CACHE.",
+        "Command uses disposable writable package staging, cold cache and dependency resolution matching validator preparation; document that Docker does not reproduce gVisor. Do not label unknown runtime details as measured."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Persist check cost in publish metadata",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "JSON names are check_peak_rss (bytes) and check_wall_ms (milliseconds), both omitempty; legacy metadata decodes and populated metadata round-trips.",
+        "Successful publish path persists sampled child RSS and check-only wall time, without counting dependency downloads as child time.",
+        "A deterministic handler test proves stats reach stored metadata; unavailable or unsampled RSS stays zero/omitted, never fabricated.",
+        "Existing metadata schema and quality fields remain compatible; verification child is unchanged."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Troubleshooting and release evidence",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Guide explains every refusal field, sampled-RSS limitations, host/runtime differences, cold dependencies, wide records and deep let chains; no invented module/signature ceilings.",
+        "Existing package tarball or existing fixture serves as the command example; no new .ail files or syntax are required.",
+        "Run focused final gates and record outcomes; Docker/staging evidence records image identity, cap source, peak and wall when infrastructure is available.",
+        "Record paced versus unpaced check measurements for an existing GC-heavy package without raising 200 s cap; report unavailable performance evidence explicitly.",
+        "Production rollout remains subject to the cited open deploy-route decision; do not claim celestial publish or worlds unblock without registry evidence."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
