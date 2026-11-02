@@ -1,3 +1,0 @@
-### Changed
-
-- Mission routing (D-FLEET-24 option A): under a codex or pi controller (`MISSION_ANTHROPIC_AVAILABLE=0`), `tools/launchd/resolve-role-spawn.sh` no longer hands a bare Claude alias (`sonnet`, `opus`, `fable`, `haiku`) to the Agent tool, which a non-Claude host cannot spawn. It emits `reroute <provider:model> anthropic-unavailable` for the first entry of the role's fallback chain that is provider-pinned, not `claude:`, in ration and (for the evaluator) not the executor's model family, or `refuse fail-closed:anthropic-unavailable-no-fallback` when none is left. Claude controllers are unchanged.
