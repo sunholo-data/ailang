@@ -12,6 +12,6 @@
 - Cadence: 6h while tickets are open; 32 open. Bookkeeping thread rotated to #2039 (from #1945).
 - Quota: codex over its daily ration; metered $0.
 - Bar: clause 1 UNMEASURED (goal unmoved); clause 2 UNMET (no ticket filed since 10-28); clause 3 MET; clause 4 prior evidence; clause 5 preserved.
-- Dev CI at `ffabe3278`: `CI` and `Build and Release` green. The inherited Cloud Build `ailang-core-dev` red remains (not required; V1's domain).
+- Dev CI: the record merge `4da85a61d` first failed the required `test`, because `cmd/ailang` hit its 416s budget at 395s; a single re-run passed at 237s. The package was already at 82–93% on the previous pushes. Logged on D-FLEET-17 (`ci.yml` is outside fleet scope). The inherited Cloud Build `ailang-core-dev` red remains.
 - Observation: eighth fire in a row without a landable pick. The whole queue now waits on rulings. A census over agent transcripts counted ticket quotes as events (27 files matched, 2 sessions held the event); with iteration 76's wording gap, that is a candidate Gate-2 rule, flagged rather than edited.
 - Evidence: `fleet-mission-evidence/iteration77/`.
