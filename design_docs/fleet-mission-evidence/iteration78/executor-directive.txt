@@ -1,0 +1,58 @@
+You are the sprint-executor for fleet mission iteration 78 in the ailang repo. Your working directory is an isolated git worktree. Make the code change below, run the gates, and report. This is a PROPOSED DIFF for a policy decision (D-FLEET-24, option A); it will be reviewed by an independent judge and will not be merged until the human confirms the ruling, so correctness and test strength matter more than speed.
+
+## Hard rules
+- Do NOT run any git write operation (no add, commit, stash, checkout, reset, branch). The controller commits. Leave your changes uncommitted in the worktree.
+- Only edit these files: `tools/launchd/resolve-role-spawn.sh`, `tools/launchd/test_mission_routing.sh`, `.claude/skills/mission-control/resources/gate-3-route.md` (one short paragraph only, see step 4), and create `changelogs/unreleased/2026-11-02-dfleet24-option-a-resolver.md`. Touch nothing else.
+- Write nothing outside the worktree (no $HOME, no ~/.ailang/state, no /usr/local). Scratch files go under the worktree's `.tmp-i78/` directory, which you delete before finishing.
+- All shell code must run on macOS bash 3.2 (no `declare -A`, no `${v,,}`, no `${v^^}`, no `mapfile`). Use BSD-compatible tools.
+- A gate that is red on the untouched base is a FINDING to report, not something to work around.
+- Do not end your turn while anything you started is still running; poll its output inside a bounded loop. Nothing will re-invoke you.
+
+## The defect (reproduced by the controller at HEAD 02e1429d3)
+Under a non-Claude controller the driver sets `MISSION_ANTHROPIC_AVAILABLE=0` (tools/launchd/mission-control.sh:988-989). The planner arm of `tools/launchd/resolve-role-spawn.sh` already honours it (via derive-planner-lane.sh, emitting `recipe codex:gpt-6.1-sol anthropic-fallback:...`). But for the designer, executor and evaluator, a BARE ALIAS pin (no `:` — e.g. `sonnet`, `opus`, `fable`, `haiku`) still resolves to `agent-tool <alias> declared:alias-pin`, byte-identical to the Claude-controller reading:
+
+    MISSION_ANTHROPIC_AVAILABLE=0 MISSION_EVALUATOR_MODEL=sonnet bash tools/launchd/resolve-role-spawn.sh evaluator
+    -> agent-tool sonnet declared:alias-pin      (same as with =1)
+
+A codex controller's native spawn cannot run a Claude alias (`Unknown model sonnet for spawn_agent`), so 7 tickets / 25 lost slots come from this.
+
+## The change (option A, as worded in the ruling)
+"When a codex or pi controller executes a role pinned to a Claude alias (`sonnet`, `opus`), the resolver skips to the role's next provider-pinned fallback (no Claude)."
+
+In `resolve-role-spawn.sh`, in the non-planner bare-alias branch, when and ONLY when `MISSION_ANTHROPIC_AVAILABLE` equals exactly `0`:
+1. Walk `MISSION_<ROLE>_FALLBACK` (comma-separated, left to right; trim surrounding whitespace on each entry; ignore empty entries).
+2. Skip an entry if ANY of: it has no `:` (a bare alias); it starts with `claude:` (no Claude); `_rs_over` says its bucket is over ration (reuse the existing function, do not duplicate the bucket logic); for the evaluator role only, it equals the executor's resolved value (`MISSION_EXECUTOR_RESOLVED`, else `MISSION_EXECUTOR_MODEL`) or has the same `family` as it (generator != judge; reuse the existing `family` function).
+3. Emit `reroute <first surviving entry> anthropic-unavailable` (exactly that reason token).
+4. If no entry survives (or the variable is unset/empty), emit `refuse fail-closed:anthropic-unavailable-no-fallback`.
+This check runs BEFORE the existing evaluator generator-equals-judge collision check (the alias cannot be spawned at all, so the collision is moot). When `MISSION_ANTHROPIC_AVAILABLE` is unset, empty, `1` or anything other than `0`, behaviour must be byte-identical to today for every role and input. Do not change the planner arm, `emit_recipe`, provider-pin handling, or `_rs_bucket`. Keep the script's contract: always exit 0, exactly one stdout line. Add a short comment above the new block citing D-FLEET-24 option A.
+
+## Tests (tools/launchd/test_mission_routing.sh)
+A. HERMETIC PREAMBLE (required — this is a real defect in the done-gate, measured by the controller): on the untouched base, `env -i HOME=$HOME PATH=$PATH /bin/bash tools/launchd/test_mission_routing.sh` reports 122 passed / 0 failed, but the same with `MISSION_ANTHROPIC_AVAILABLE=0` added reports 9 failures, and running it inside a live fleet driver environment (many MISSION_* vars exported) reports 1 failure ("planner falls back to Codex Sol when Anthropic is unavailable"). The arms are meant to set their own env. Near the top of the file (after ROOT is set and before any arm), unset every inherited `MISSION_*` variable the arms might read, in a bash-3.2-safe way, so the suite's result cannot depend on the caller's environment. Check that no arm relies on an inherited MISSION_* value; if one does, give that arm its value explicitly.
+B. New arms next to the existing R1-R12 resolver arms (use the file's existing `want` helper and naming style, e.g. R13, R14...). Each arm sets its env explicitly. At minimum:
+  1. evaluator `sonnet`, ANTH=0, executor `codex:gpt-6.1-sol`, fallback `pi:openrouter/minimax/minimax-m3,claude:claude-sonnet-4-6,opus` -> `reroute pi:openrouter/minimax/minimax-m3 anthropic-unavailable`.
+  2. the same with ANTH=1 -> `agent-tool sonnet declared:alias-pin` (control), and with ANTH unset -> the same (control).
+  3. leading `claude:` and bare-alias entries are skipped: fallback `opus,claude:claude-sonnet-5-5,pi:ollama/minimax-m3:cloud` -> reroute to the pi entry.
+  4. over-ration skip: `MISSION_OVER_RATION=openrouter`, fallback `pi:openrouter/x/y,pi:ollama/z:cloud` -> reroute `pi:ollama/z:cloud`.
+  5. nothing survives (only aliases/claude entries, and separately an unset fallback) -> `refuse fail-closed:anthropic-unavailable-no-fallback`.
+  6. executor role: `MISSION_EXECUTOR_MODEL=opus`, ANTH=0, executor fallback `pi:ollama/deepseek-v4.1-flash:cloud,pi:openrouter/deepseek/deepseek-v4.1-flash` -> reroute the ollama entry.
+  7. designer role: `MISSION_DESIGNER_MODEL=fable`, ANTH=0, with a provider-pinned designer fallback -> reroute it.
+  8. evaluator generator!=judge under ANTH=0: executor resolved equals the fallback head -> skip to the next entry.
+  9. whitespace in the list (`" pi:ollama/a:cloud , pi:openrouter/b/c"`) is trimmed.
+  10. a provider-pinned role under ANTH=0 is unchanged (`MISSION_EXECUTOR_MODEL=codex:gpt-6.1-sol` -> `recipe codex:gpt-6.1-sol declared:provider-pin`).
+C. Mutation-test your own arms (scratch copies only, under .tmp-i78/, never edit-and-revert the real file): for each of these mutants of resolve-role-spawn.sh, run the suite against the mutant (copy the script, point RESOLVE at it via a scratch copy of the test or a temporary sed on a COPY of the test) and record which arm(s) go red: (m1) delete the whole new block; (m2) drop the `claude:` skip; (m3) drop the over-ration skip; (m4) drop the evaluator generator!=judge skip; (m5) change the ANTH test from `= 0` to `!= 1` (must break an "ANTH unset" control); (m6) drop the whitespace trim. Every mutant must be killed by at least one arm; if one survives, add an arm that kills it. Report the mutant -> killing-arm table.
+
+## Docs
+4. In `.claude/skills/mission-control/resources/gate-3-route.md`, in the "Spawn pattern (heavy roles)" paragraph that lists the resolver outputs (it contains "`reroute <alias> generator-equals-judge` → spawn the named re-route target"), add ONE sentence documenting `reroute <provider:model> anthropic-unavailable` (non-Claude controller, bare-alias role: run the named provider pin under its own lane recipe, not the Agent tool, and name the reroute in the Gate-4 row) and `refuse fail-closed:anthropic-unavailable-no-fallback` (treat like any refuse). Do not rewrite anything else in that file.
+5. Changelog fragment `changelogs/unreleased/2026-11-02-dfleet24-option-a-resolver.md` with a `### Changed` section, two or three plain sentences, following the format in `changelogs/unreleased/README.md`.
+
+## Gates (run each outside any assumption; report the exact command, rc and summary line)
+G1. `/bin/bash -n tools/launchd/resolve-role-spawn.sh && /bin/bash -n tools/launchd/test_mission_routing.sh`
+G2. `env -i HOME=$HOME PATH=$PATH /bin/bash tools/launchd/test_mission_routing.sh` (tail -1)
+G3. `env -i HOME=$HOME PATH=$PATH MISSION_ANTHROPIC_AVAILABLE=0 /bin/bash tools/launchd/test_mission_routing.sh` (tail -1) — must equal G2's counts.
+G4. `/bin/bash tools/launchd/test_mission_routing.sh` in your inherited environment (tail -1) — must equal G2's counts.
+G5. The ten new-arm behaviours spot-checked by hand with direct resolver calls (print each command and its output).
+G6. The mutation table from step C.
+Note: some gates may be uninformative inside your sandbox; say so where it applies. The controller re-runs everything outside the sandbox.
+
+## Report (your final message)
+The full `git diff --stat`, then G1-G6 results, then the mutation table, then anything you found red at base or could not do. Keep it factual.
