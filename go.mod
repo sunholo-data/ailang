@@ -3,13 +3,13 @@ module github.com/sunholo-data/ailang
 go 1.26.10
 
 require (
-	cloud.google.com/go/firestore v1.29.0
-	cloud.google.com/go/kms v1.36.0
+	cloud.google.com/go/firestore v1.29.2
+	cloud.google.com/go/kms v1.36.1
 	cloud.google.com/go/pubsub v1.51.1
-	cloud.google.com/go/run v1.24.0
-	cloud.google.com/go/secretmanager v1.23.0
+	cloud.google.com/go/run v1.24.1
+	cloud.google.com/go/secretmanager v1.23.1
 	cloud.google.com/go/storage v1.70.0
-	cloud.google.com/go/trace v1.18.0
+	cloud.google.com/go/trace v1.18.1
 	firebase.google.com/go/v4 v4.22.0
 	github.com/BurntSushi/toml v1.6.0
 	github.com/GoogleCloudPlatform/opentelemetry-operations-go/exporter/trace v1.38.0
@@ -45,7 +45,7 @@ require (
 	golang.org/x/sys v0.49.0
 	golang.org/x/term v0.47.0
 	golang.org/x/text v0.43.0
-	google.golang.org/api v0.307.0
+	google.golang.org/api v0.310.0
 	google.golang.org/grpc v1.85.0
 	google.golang.org/protobuf v1.36.12
 	gopkg.in/yaml.v3 v3.0.1
@@ -80,7 +80,7 @@ require (
 	github.com/golang-jwt/jwt/v4 v4.5.2 // indirect
 	github.com/golang/protobuf v1.5.4 // indirect
 	github.com/google/s2a-go v0.1.11 // indirect
-	github.com/googleapis/enterprise-certificate-proxy v0.3.23 // indirect
+	github.com/googleapis/enterprise-certificate-proxy v0.3.24 // indirect
 	github.com/grpc-ecosystem/grpc-gateway/v2 v2.31.0 // indirect
 	github.com/mailru/easyjson v0.7.7 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
