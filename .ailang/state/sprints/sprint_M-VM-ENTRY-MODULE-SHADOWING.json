@@ -1,0 +1,114 @@
+{
+  "sprint_id": "M-VM-ENTRY-MODULE-SHADOWING",
+  "status": "not_started",
+  "created": "2026-11-02T16:55:42Z",
+  "design_doc": "design_docs/planned/v0_55_1/m-vm-entry-module-shadowing.md",
+  "sprint_plan": "design_docs/planned/v0_55_1/m-vm-entry-module-shadowing-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1_ROOT_RESOLVER",
+      "package": null,
+      "action": "none",
+      "reason": "Searched bytecode and entry resolution; inspected sunholo/explainer info/docs (audio processing only). Internal Go dispatch, regression tests and docs require repository changes; no reusable registry capability."
+    },
+    {
+      "milestone": "M2_DISPATCH_CALLERS",
+      "package": null,
+      "action": "none",
+      "reason": "Searched bytecode and entry resolution; inspected sunholo/explainer info/docs (audio processing only). Internal Go dispatch, regression tests and docs require repository changes; no reusable registry capability."
+    },
+    {
+      "milestone": "M3_INCIDENT_BATCH",
+      "package": null,
+      "action": "none",
+      "reason": "Searched bytecode and entry resolution; inspected sunholo/explainer info/docs (audio processing only). Internal Go dispatch, regression tests and docs require repository changes; no reusable registry capability."
+    },
+    {
+      "milestone": "M4_DOCS_PARITY",
+      "package": null,
+      "action": "none",
+      "reason": "Searched bytecode and entry resolution; inspected sunholo/explainer info/docs (audio processing only). Internal Go dispatch, regression tests and docs require repository changes; no reusable registry capability."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 134,
+    "estimated_total_loc": 400,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1_ROOT_RESOLVER",
+      "description": "Root identity and resolver policy",
+      "estimated_loc": 160,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Tests pin RootModuleID to the actual entry key in Result.Modules, including a package/relative-import root; non-module results remain empty.",
+        "Resolver tests cover root precedence with dependency first, exact bare and fully qualified names, unique suffix, empty root, not found, underscore rejection and ambiguity candidate order.",
+        "Reorder prototypes and assert successful root resolution is unchanged; exact bare matches beat earlier suffix matches.",
+        "Focused pipeline/runner tests pass and milestone is committed."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_DISPATCH_CALLERS",
+      "description": "Migrate dispatch callers",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M1_ROOT_RESOLVER"
+      ],
+      "acceptance_criteria": [
+        "All repository FindEntryProto callers are migrated; remove the function unless an evidenced compatibility caller requires a deprecated wrapper that uses the new error-safe policy.",
+        "Runner ambiguity returns an error before invoking any candidate; direct resolver/harness tests cover both zero and multiple matches.",
+        "Named-test synthesized entries and empty-root unique-suffix compatibility pass focused tests.",
+        "`make test-changed` passes; commit milestone."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_INCIDENT_BATCH",
+      "description": "Incident and batch regression",
+      "estimated_loc": 130,
+      "dependencies": [
+        "M2_DISPATCH_CALLERS"
+      ],
+      "acceptance_criteria": [
+        "The regression fails against the old resolver and passes after migration; record the dependency/root prototype names used to establish order.",
+        "Interpreter, `--bytecode`, and `--strict-bytecode` produce identical verifier output with JSON record arguments, with no generator marker.",
+        "Batch dispatch of the same entry produces the expected verifier result for multiple inputs.",
+        "Ambiguity is tested at a reachable dispatch boundary per the scope note; no CLI-export behavior changes are introduced to manufacture coverage.",
+        "Focused CLI regression tests and `make test-changed` pass; commit milestone."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_DOCS_PARITY",
+      "description": "Documentation and focused parity",
+      "estimated_loc": 30,
+      "dependencies": [
+        "M3_INCIDENT_BATCH"
+      ],
+      "acceptance_criteria": [
+        "Reference text states root/exact/unique-suffix order and removal of underscore matching without promising CLI imported-export support beyond existing validation.",
+        "Run focused compiler multimodule tests, named-test tests, and the existing strict-VM parity tests relevant to runner changes.",
+        "Run the design's multi_module/main, intra_package_imports/service (entry greet with package-dir), and imports symbol_alias/module_alias/combined_alias examples under strict VM using their existing documented arguments/capabilities; compare expected output.",
+        "`make test-changed`, `make lint`, `make check-file-sizes`, and `make check-changelog` pass; run `make verify-examples` only if tracked examples change. Commit milestone.",
+        "Record actual commands/results and remaining downstream verification; no full-suite requirement on the executor."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "notes": "Plan awaits coordinator approval/merge; no implementation started. Velocity is provisional: shallow history has no empirical LOC/day. Downstream game acceptance pending. PR371 belongs to the external game repository and is not linked as an AILANG issue."
+}
