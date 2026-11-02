@@ -120,6 +120,36 @@ case "$PIN" in
     emit_recipe "$PIN" "declared:provider-pin"
     ;;
   *)
+    # D-FLEET-24 option A: unavailable Claude aliases use the next provider pin.
+    if [ "${MISSION_ANTHROPIC_AVAILABLE:-}" = "0" ]; then
+      _fb="MISSION_${ROLE_UC}_FALLBACK"
+      remaining="${!_fb:-}"
+      while [ -n "$remaining" ]; do
+        candidate=${remaining%%,*}
+        case "$remaining" in
+          *,*) remaining=${remaining#*,} ;;
+          *) remaining= ;;
+        esac
+        candidate=$(printf '%s' "$candidate" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')
+        case "$candidate" in
+          claude:*) continue ;;
+          *:*) ;;
+          *) continue ;;
+        esac
+        if _rs_over "$candidate"; then
+          continue
+        fi
+        if [ "$ROLE" = "evaluator" ]; then
+          EXEC_RESOLVED="${MISSION_EXECUTOR_RESOLVED:-${MISSION_EXECUTOR_MODEL:-}}"
+          if [ "$candidate" = "$EXEC_RESOLVED" ] || \
+             [ "$(family "$candidate")" = "$(family "$EXEC_RESOLVED")" ]; then
+            continue
+          fi
+        fi
+        emit "reroute $candidate anthropic-unavailable"
+      done
+      emit "refuse fail-closed:anthropic-unavailable-no-fallback"
+    fi
     # Bare alias. Evaluator collision check: generator != judge.
     if [ "$ROLE" = "evaluator" ]; then
       EXEC_RESOLVED="${MISSION_EXECUTOR_RESOLVED:-${MISSION_EXECUTOR_MODEL:-}}"
