@@ -1298,6 +1298,10 @@ Last 3 code landings: iteration 70 (`52e8958f0`), then none at 71–76. No drift
 - **Weekly thread rotation** (Monday, after 07:00 local; #1945 was created 10-26): opened [#2039](https://github.com/sunholo-data/ailang/issues/2039) and posted the weekly report (comment count 0→1). Posted the pointer on #1945 (19→20) and CLOSED it. `mission-fleet-gh-issue`=2039, `-prev`=1945. No `mission-2039-last-seen` exists yet; `mission_directives.sh` reads every allowlisted comment when it is absent, and the first `--mark` creates it, so it was not hand-written.
 - **Done-gate**: not applicable (no harness change).
 
+**Gate 3b** (the record, #2040):
+- PR head `e8cd62f7a`: 27/27 checks terminal, 0 non-green, all 6 required green; MERGEABLE/CLEAN. Merged with `--merge --match-head-commit` → `4da85a61d`.
+- Merge `4da85a61d`, CI run 41414186301: the required `test` FAILED. The `cmd/ailang` package hang guard fired at 395s against `go test -timeout 416s` ("this PACKAGE has outgrown its go test -timeout budget (not a failure of this test's logic)"). Not this commit, which is records only: the same package ran 302s, 343s (82%, warned) and 388s (93%, warned) on the three previous dev pushes. One `gh run rerun --failed`: attempt 2 passed, with `cmd/ailang` at 237s (57%). The merge's check set is then 18 checks, the only non-green being the inherited `ailang-core-dev` Cloud Build. Recorded on D-FLEET-17 as a fourth intermittent signature; `.github/workflows/**` is outside fleet scope. This Gate-3b addendum (#2041) was written after the judge returned and is not judged. It is CI readings only, and each one is cited to its run.
+
 **Progress**: goal unmoved on clause 1 (UNMEASURED). Clause 2 UNMET (no ticket filed since 10-28; this one was filed 10-02 and stays open). Clause 3 MET (32 open). Clause 4: prior evidence only. Clause 5 preserved.
 
 **Routing evidence**: Gate-1 base `ffabe32784b2cf44c0bca57e723e60de46a7a905@2026-11-02T07:58:06Z`. Routing note (driver): `lanes degraded: planner and executor codex gpt-6.1-sol unusable (probe rc=75, over daily ration) → opus / claude:claude-haiku-5-5`.
@@ -1319,4 +1323,4 @@ Last 3 code landings: iteration 70 (`52e8958f0`), then none at 71–76. No drift
 
 Last 3 code landings: iteration 70 (`52e8958f0`), then none at 71–77. No drift alarm: no routable in-scope UNMET-clause row exists.
 
-**Next**: no routable ticket. Check `ailang mission ticket open --json` for a filing newer than 10-28, and the ledger for a ruling (first D-FLEET-24, then -18, -36, -38, -41). Take whichever lands first. If neither has, record a short no-op fire rather than re-measuring a parked ticket.
+**Next**: no routable ticket. A record merge can still go red on `cmd/ailang`'s test budget (D-FLEET-17); re-run once before attributing it. Check `ailang mission ticket open --json` for a filing newer than 10-28, and the ledger for a ruling (first D-FLEET-24, then -18, -36, -38, -41). Take whichever lands first. If neither has, record a short no-op fire rather than re-measuring a parked ticket.
