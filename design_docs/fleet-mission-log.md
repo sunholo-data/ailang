@@ -7,72 +7,6 @@ Append-only, one entry per iteration, newest at the bottom. Charter: [fleet-miss
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `fleet-mission-index.md`.
 
-## 56 — 2026-10-22 — `rotate-log:heading-parse-stapledon` RESOLVED as a ghost of #1912 (stale rig binary), judge CONFIRMED (sonnet); `quorum:claude-p-ration-usage-429` PARKED as D-FLEET-28; D-FLEET-29 filed [HARNESS]
-
-**Pick**: iteration 55's **Next** was to land #1927 and #1929 once dev's `test` is green, then `rotate-log:heading-parse-stapledon`, then `quorum:claude-p-ration-usage-429`. Dev is still red on the same SHA, `d25d9b8d0`, so neither PR can land. No new ticket has arrived since 10-21 23:27Z. Of the two fresh Stapledon tickets, the quorum one is `blocking=item` and costs product work (Stapledon's Kerr re-quorum), so it was measured first; the rotate-log one was reality-checked second.
-
-**Orphans credited**: none new. Gate 0 step 6a returned rc 1 for the 2026-10-17T12:48:13Z crash notice on #1768, already credited at iteration 47 (`issuecomment-6234067020`). The iteration 55 worktree (`.wt-fleet-iter55`) is clean. The open `fleet/*` PRs are #1927 (iteration 54, which now also carries the iteration 55 record) and #1929 (iteration 55); this record is stacked on #1927's branch.
-
-**Preflight**: armed (`mission-fleet.disabled` absent); gh `sunholo-voight-kampff`; billing CLEAN; messaging store gcp. Directives: 0 on #1891 (13 comments) since `2026-10-15T02:46:27Z`. No rotation or sweep is due (#1891 was created Monday 2026-10-19).
-
-**Observe**: origin/dev == pin == `d25d9b8d0`; base recorded `2026-10-22T07:55:33Z`. `SKILL.md` and all 13 resources are `cmp`-identical to origin at the resolved symlink target. Dev CI on `d25d9b8d0` is unchanged from iteration 55: of 20 checks, `test`, `test-windows`, `Build macos-latest` and `govulncheck` fail, and three builds were cancelled by fail-fast.
-
-**Reality check, `quorum:claude-p-ration-usage-429`** (real at HEAD; out of fleet scope):
-- Q1. `ailang mission quota --bucket anthropic` prints `anthropic provider usage: unknown [ENFORCED] — Anthropic usage endpoint returned HTTP 429; CLI fallback also failed (no "Current session" line in `claude -p /usage` output)`.
-- Q2. On Claude Code 2.1.308, `claude -p /usage < /dev/null` returns rc 0 and 212 bytes: `Total cost`, `Total duration`, `Total code changes` and `Usage` lines only. The parser's `Current session:` and `Current week (all models):` lines are gone. `claude -p /status` prints "isn't available in this environment". Stream-json output for `/usage` has no rate-limit fields. No non-inference route to the windows remains.
-- Q3. The seat gate is `cmd/ailang/design_quorum.go:192`, `if a := mission.ObserveAnthropicQuota(time.Now()); a.Blocked()`. `Blocked()` (`internal/mission/anthropic_quota.go:58`) is `Enforced && State != "ok"`, so it is true for `unknown`.
-- Q4. The driver's rule is the opposite. `lib/lane-probe.sh` reads `quota --over` and treats `unknown` as UNREADABLE, so the lane is probed, not refused (`test_anthropic_quota_admission.sh`, "the September 2026 defect"). This fire's own driver log shows it: `anthropic:claude-opus-5-5 quota is UNREADABLE (not measured) — probing the lane instead of refusing it`.
-- Q5. Scope: `design_quorum.go` is not in the Authority allowlist (`cmd/ailang/mission*` does not match it). `Blocked()` also feeds `admission.go` and `quota --over`, so changing it is HD-2a. A fix confined to `internal/mission` could only add a method that nothing calls.
-- Verdict: parked as **D-FLEET-28**, with a recommendation.
-
-**Reality check, `rotate-log:heading-parse-stapledon`** (GHOST at HEAD):
-- R1. A pin build (`go build -o /tmp/fleet_i56_ailang ./cmd/ailang`, rc 0) on a scratch copy of Stapledon's `origin/main` log, through a scratch registry. The log has 45 headings, 342,209 bytes. Output: `20 of 45 entries kept`, `25 entries rotated out`, `orphan rows preserved: 10, 13, 15, 25`, rc 0. The sorted heading lists before and after (live plus archive) are identical (45). The live log keeps iterations 26–45, and the notice is true.
-- R2. Every loop runs `~/go/bin/ailang`, because `mission-control.sh:68` puts `$HOME/go/bin` first on PATH. `go version -m` shows `vcs.revision=128371fb8…`, `vcs.time=2026-10-19T17:56:43Z`, `vcs.modified=true`. `3b4d11759` (#1912, 10-20) is not an ancestor of it.
-- R3. The judge ran that old binary on its own scratch copy and got `9 of 9 entries kept`, `0 entries rotated out`, `orphan rows preserved: 0 … 36`. That is the ticket's failure; the ticket saw 8 of 8 on a 44-entry log.
-- R4. The fleet log has recorded "picks up the Go change on its next rebuild or release" since iteration 32 (entries 32, 52 and 53). This is the first ticket that caveat produced.
-
-**Did**:
-- **Designer, planner, executor**: not spawned. Nothing was built: one ticket is a ghost and the other is out of scope. This is not a spawn failure.
-- **Evaluator** (sonnet, Agent tool, foreground, fresh): asked to refute both verdicts first-party, with its own binary and scratch copies. Verdict 1 CONFIRMED: R1 was reproduced (45/45 headings, newest 20 live, 50 index rows before and after, orphan text kept), and R3 found that the old binary reproduces the failure. Verdict 2 CONFIRMED on Q1–Q5. The 429's cause is UNVERIFIED, because the judge found no token to make a raw call. **Overall PASS.** Its objections, both taken:
-  - (a) The resolution must name the rebuild, or the ghost returns at the next Stapledon rotation. The resolution text does; D-FLEET-29 asks for it.
-  - (b) `AILANG_ANTHROPIC_RATION=0` already unblocks the seat. It is a policy call, so it is option B of D-FLEET-28.
-  - Minor residual at HEAD, not in the ticket: the regenerated index drops Stapledon's `Class` column, and the `pre-0`/`pre-0b`/`att-M2` labels become `—`. It is a one-time format change and is named in the resolution.
-- **Resolved** `rotate-log:heading-parse-stapledon` with `--sha 3b4d1175919eccfda8c034b49d0b6633c415817a`, which is on origin/dev. The reply went to stapledon, with the evidence and the workaround (a binary built from origin/dev). 44 tickets are open after the resolve (`ticket open --count`; no pre-resolve count was taken, and iteration 55 recorded 44).
-- **Filed** D-FLEET-28 (quorum seat; HD-2a, outside scope) and D-FLEET-29 (who rebuilds the rig binary). Updated D-FLEET-17's evidence; it is unchanged.
-
-**Done-gate**: not applicable. No harness file changed: the resolution cites a fix that already passed its done-gate at iteration 51. Nothing was reloaded or installed; `~/go/bin/ailang` was not touched.
-
-**Progress**: 1 ticket resolved; 44 open. 2 built fixes are still blocked.
-- Clause 1 UNMEASURED. D-FLEET-28 is a direct product cost (Stapledon's Kerr plan).
-- Clause 2 UNMET. This ticket counts: filed 10-21 15:24Z, resolved about 19 h later.
-- Clause 3 MET.
-- Clause 4 prior evidence only.
-- Clause 5 preserved (nothing merged).
-
-**Routing evidence**: base=d25d9b8d0dde10ee7c14986fe21b94fd2cb500cd@2026-10-22T07:55:33Z (gate 1). `MISSION_ROUTING_NOTE` empty; `MISSION_OVER_RATION` empty.
-- **Controller**: `claude:claude-opus-5-5` (tok: not reported).
-- **Designer**: not spawned (nothing to design). Resolver env `claude:claude-opus-5-5`; rotation not advanced.
-- **Planner**: not spawned (nothing to plan). Pin `codex:gpt-6.1-sol`.
-- **Executor**: not spawned (nothing to build). Pin `codex:gpt-6.1-sol`.
-- **Evaluator**: `sonnet` via the Agent tool (`agent-tool sonnet declared:alias-pin`), foreground, 1 fresh spawn (78,786 tok). Judge independence: a different model from the controller (sonnet vs opus), same vendor. Both verdicts were the controller's, so the judge's job was to refute them, and it reproduced them with its own binary.
-- The Agent tool was used for the role the resolver names (the evaluator), per the operator's standing request. No role failed to spawn.
-- **Metered**: $0.
-
-**Ruled out**:
-- Fixing the quorum seat from `internal/mission` alone. A new "over only" method has no caller until `design_quorum.go` changes, and changing `Blocked()` moves admission and `quota --over` (HD-2a).
-- Repairing the CLI fallback. Claude Code 2.1.308 no longer prints the windows in `-p` mode, and no non-inference source was found.
-- Caching the last good Anthropic reading. Every reading since 10-21 is a 429, so there is nothing to serve, and serving a stale reading is a ration policy.
-- Rebuilding `~/go/bin/ailang` from the loop. Evals share it live, and the reach question is D-FLEET-29.
-- Building any part of D-FLEET-29's option B before a ruling.
-
-**Retro lane**:
-- (1) **No skill edit.** No friction reached two recorded instances on a gap the fleet should close.
-- (2) **Banked, 1 instance: a fleet Go fix carries a reach caveat that nothing discharges.** The done-gate's "reach confirmed (pushed)" is true for driver and skill changes and false for Go code: loops run the PATH binary, not the pin. The rule is now D-FLEET-29's question; if Mark rules A or B, the done-gate line needs a binary clause.
-- (3) **Banked, carried: the planner recipe's `import-github` step** (iterations 54 and 55) did not recur, because no planner ran.
-- (4) **D-FLEET-17 holds two judged fixes.** #1927's clause-2 window closes 2026-10-23 12:29Z.
-
-**Next**: when dev's `test` is green, re-run #1927's and #1929's checks (rebase only if `git diff --stat d25d9b8d0 origin/dev -- <each PR's files>` is non-empty), merge each with `--match-head-commit`, resolve both tickets with the merge SHAs, and reply to world. Then reality-check `quorum:oc-glm-5-3-output-cap-invalid` (stapledon, 10-21).
-
 ## 57 — 2026-10-22 — `quorum-reader:zsh-nomatch` BUILT: #1932 head `6268fb0b8`; judge PASS 94 (sonnet); merge PARKED on dev's inherited required red (D-FLEET-17); ticket open; Gate-5 skill edit [HARNESS]
 
 **Pick**: iteration 56's **Next** was to land #1927 and #1929 once dev's `test` is green, then reality-check `quorum:oc-glm-5-3-output-cap-invalid`. Dev is still red on the same SHA, `d25d9b8d0`, so neither PR can land. One ticket was filed after iteration 56: `quorum-reader:zsh-nomatch` (stapledon iteration 46, 10-22 11:50Z). Gate 2's clause map ranks it first:
@@ -1334,3 +1268,55 @@ Last 3 code landings: iteration 70 (`52e8958f0`), then none at 71–75. No drift
 Last 3 code landings: iteration 70 (`52e8958f0`), then none at 71–76. No drift alarm: no routable in-scope UNMET-clause row exists.
 
 **Next**: `agent-tool:workspace-routing-discovery-timeout` (stapledon, 10-02), the one open ticket with neither a queue row nor a decision row (30 of 33 have a queue row; `quorum:oc-glm-5-3-output-cap-invalid` and `quorum:claude-p-ration-usage-429` have D-FLEET-31 and D-FLEET-28). Scope check first: it names a codex-native Agent transport error and no harness surface (log entry 65 noted the same).
+
+## 77 — 2026-11-02 — `agent-tool:workspace-routing-discovery-timeout` folds into D-FLEET-24 (one codex-internal transport error, recovered by `followup_task`; none in 652 later sessions); the fold gives option B's premise one reading; no other ticket routable; weekly sweep 0 items; independent sonnet PASS-WITH-EDITS 84 [HARNESS]
+
+**Pick**: iteration 76's **Next**, `agent-tool:workspace-routing-discovery-timeout` (stapledon iteration 9, 10-02, 1 slot, `blocking=none`). It was the one open ticket with neither a queue row nor a decision row. It measured as a symptom of D-FLEET-24, so it was a bookkeeping pick. No second item was taken (standing rule 1 allows one): all 32 open tickets now have a queue row or an OPEN decision row, and row 16's trigger (`quorum:tier2-salvage-fold`, "its first non-test caller") has not fired. `git grep RunQuorumWithEscalation -- '*.go'` outside tests finds only its definition (`internal/mission/quorum/quorum.go:100,112`); the control, the same grep including tests, finds 9.
+
+**Orphans / prior record**: no open `fleet/*` PR (iteration 76's #2038 merged → `ffabe3278`). No `fleet/i77*` branch or worktree before this fire. Self-notices rc 0 (control 852:10).
+
+**Preflight / observe**:
+- Armed (`mission-fleet.disabled` absent). gh `sunholo-voight-kampff`. Billing CLEAN.
+- Directives: 0 on #1945 since `2026-10-22T23:29:08Z` (19 comments, none allowlisted; the watermark is still LEGACY).
+- Skill drift: SKILL.md and all 13 resource files are `cmp`-identical to `origin/dev` in both the resolved symlink target and the pin copy. The pin is at `origin/dev` (`AILANG_DRIVER_AGE=0`).
+- Gate-1 base `ffabe32784b2cf44c0bca57e723e60de46a7a905@2026-11-02T07:58:06Z`.
+- Dev CI at `ffabe3278`: `CI` and `Build and Release` success. 22 checks, one not green: the inherited `ailang-core-dev (ailang-multivac-deploy)` Cloud Build red. Not required, outside fleet scope, V1-owned; recorded, not picked.
+- Ledger valid, 40 rows, 25 OPEN. 32 tickets open. The newest filing is 10-28.
+- Codex is over its daily ration (`MISSION_OVER_RATION=codex`). The driver handed the planner to `opus` and the executor to `claude:claude-haiku-5-5`; neither was needed.
+
+**Reality check** (first-party, before routing; [census](fleet-mission-evidence/iteration77/census.md)):
+- **Harness surface**: `git grep -i 'workspace routing\|routing discovery'` at `ffabe3278` finds no harness file (2 unrelated v0.9.0 design docs). 0 hits in the 14 `/tmp/ailang-mission-*.log` driver logs.
+- **Census**: codex session store `~/.codex/sessions/2026/10`, 1,049 files (10-01..10-30; no `2026/11` directory). Three wording variants match the same 27 files. Most of the 65 matching records quote the ticket. The occurrences are: (1) 10-02, stapledon iteration 9: the `evaluator_transport` sub-agent's turn ended `workspace routing discovery timed out` (`codex_error_info: other`, `codex_exec` 0.159.2), and the parent received it as a FINAL_ANSWER. (2) 10-09: a `workspace routing discovery unauthorized (401)` variant in 3 attended `codex-tui` 0.162.0 stapledon sessions, which is not a mission fire and not ticketed. After 10-09 there are 652 files, 39 of which made 107 `spawn_agent` calls, and none has an occurrence.
+- **The chain**: the controller's `spawn_agent(model: "sonnet")` returned ``Unknown model `sonnet` for spawn_agent`` (08:18:16Z; paired by `call_id`). The controller then spawned `evaluator_transport` (`gpt-6.1-sol`), which ran `claude-sub --model claude-sonnet-5-5 … --print` at 08:49:56Z. The codex turn errored at 09:03:15Z, `followup_task` followed at 09:04:32Z, and the turn completed at 09:19:56Z with "PASS, 91/100".
+- **Option B's premise**: both sessions' `turn_context` reads `sandbox_policy: danger-full-access`, `approval_policy: never`, which is the driver's launch (`tools/launchd/mission-control.sh:2431`, `--dangerously-bypass-approvals-and-sandbox`). D-FLEET-24 B said `claude-sub` inside the codex sandbox was unmeasured. There is now one reading, in a session with the policy the driver's launch sets. That this fire came from the driver is inferred (the ticket calls it an "API scheduled invocation"); under a restricted sandbox it is still unmeasured.
+
+**Did** (no code; designer, planner and executor not spawned; evaluator spawned; generator ≠ judge):
+- **Designer, planner, executor**: not spawned, because nothing in fleet scope needed building. This is not a spawn failure. Resolver output: designer `recipe claude:claude-opus-5-5 declared:provider-pin`, planner `agent-tool opus fail-closed:env-pin`, executor `recipe claude:claude-haiku-5-5 declared:provider-pin`. Rotation pointer not advanced.
+- **Evaluator**: `sonnet`, Agent tool, foreground, read-only; resolver `agent-tool sonnet declared:alias-pin`. It was given the draft records ([log](fleet-mission-evidence/iteration77/draft-log-entry-as-judged.md), [charter diff](fleet-mission-evidence/iteration77/draft-charter-diff-as-judged.patch)) and told to refute them ([report](fleet-mission-evidence/iteration77/evaluation.md)). **PASS-WITH-EDITS 84**. One BLOCKING-IF-LEFT finding: F1, the sweep's "7 new" is 14. Three non-blocking: F2, "A and B remove the transport" overreaches, because B may still be wrapped in a sub-agent under the skill's "never inline" invariant and the error can hit any codex sub-agent. F3, the option-B reading's driver origin is inferred, not proven. F4, D-FLEET-24's title, default and slot count were stale. The controller re-derived F1 (`comm` over the two tables) and checked F2's citation before applying. All edits applied, with no round 2: every edit was a correction to wording or a count, and the disposition did not change. The judge re-derived the census, the chain (including real Claude output in the transport's judge JSON), the sandbox policy, the ticket and slot sums and the row-16 predicate.
+- **Recorded**: queue row 59 (`[PARKED · D-FLEET-24]`); row 31 points to it; D-FLEET-24 gains an iteration-77 re-measure (7 tickets, 25 of 63 lost slots; B's premise measured once; recommendation A unchanged). Ticket stays open. 32 tickets open.
+- **Weekly external-issue sweep** (first fire after the Monday rotation; the last was iteration 61, 10-26): 57 open issues enumerated, matching the search total of 57. 55 have zero mentions across the charter, log, log archive, status archive and dashboard. The positive control `#1306` hit 13 times, and the negative control (a fresh, unpublished literal) fired. The 14 opened since the iteration-61 table (committed 10-26 10:13Z) are 6 `ailang-explainers` language and verify reports (#1947, #1950, #1953–#1956), 4 `motoko_agent` `std/process` reports (#2034–#2037), 2 `stapledons_godot` language reports (#1980, #2029) and the two bookkeeping issues (#1945 fleet, #1974 triage). All are outside Authority, so 0 queue items. The controller's first draft said 7: its filter, `createdAt > 2026-10-26`, dropped the 7 filed on 10-26 after that sweep. The judge caught it by diffing the two tables, and the controller re-derived it with `comm`. Table: [issue-sweep.tsv](fleet-mission-evidence/iteration77/issue-sweep.tsv).
+- **Weekly thread rotation** (Monday, after 07:00 local; #1945 was created 10-26): opened [#2039](https://github.com/sunholo-data/ailang/issues/2039) and posted the weekly report (comment count 0→1). Posted the pointer on #1945 (19→20) and CLOSED it. `mission-fleet-gh-issue`=2039, `-prev`=1945. No `mission-2039-last-seen` exists yet; `mission_directives.sh` reads every allowlisted comment when it is absent, and the first `--mark` creates it, so it was not hand-written.
+- **Done-gate**: not applicable (no harness change).
+
+**Progress**: goal unmoved on clause 1 (UNMEASURED). Clause 2 UNMET (no ticket filed since 10-28; this one was filed 10-02 and stays open). Clause 3 MET (32 open). Clause 4: prior evidence only. Clause 5 preserved.
+
+**Routing evidence**: Gate-1 base `ffabe32784b2cf44c0bca57e723e60de46a7a905@2026-11-02T07:58:06Z`. Routing note (driver): `lanes degraded: planner and executor codex gpt-6.1-sol unusable (probe rc=75, over daily ration) → opus / claude:claude-haiku-5-5`.
+- Controller `claude:claude-opus-5-5` (tok: not reported). Heartbeat stamps: gate-0, -1, -2, -4 and -5; the gate-3 stamp was missed (no role was built, and the evaluator ran inside Gate 4's drafting).
+- Designer: not spawned (nothing to design); rotation pointer not advanced.
+- Planner: not spawned (nothing to plan).
+- Executor: not spawned (no code).
+- Evaluator `sonnet`, Agent tool: 124,936 subagent tokens / 31 tool uses / 272 s. Judge independence: a different model from the controller (opus); same vendor, so vendor-level independence is not claimed.
+- Quorum: none (no design doc). Metered spend: $0. No lane recorded dead.
+
+**Ruled out**:
+- A separate decision row: the transport exists only because of D-FLEET-24's bare-alias spawn. Option A removes it; B removes the need for it, though the "heavy roles never inline" invariant may still produce one (unmeasured). The error is codex-internal and not ours to fix.
+- Resolving the ticket as "native, not ours": resolve needs a `--sha` on `origin/dev`, and the fix that removes the exposure is D-FLEET-24's ruling, which has not been made.
+- Ticketing the 10-09 `401` variant: attended `codex-tui` sessions, not a mission fire, and no product loop filed it.
+
+**Retro lane**: no skill edit.
+- (a) Iteration 76 named "a log census is only as wide as its wording" as a candidate Gate-2 rule. This fire ran three wording variants and they agreed (27 files each). The census's real hazard here was the opposite one: **a census over agent transcripts counts quotes of the ticket as occurrences** (27 files matched, 2 sessions held the event). The two share a root: a match is not an event until the record type says so. Still not edited, because a rule edit is live for every mission; it is flagged in the report alongside (a) from iteration 76.
+- (b) Eighth consecutive fire (70 was the last code landing) without a landable pick. This is the first fire where no open ticket lacks a disposition: all 32 have a queue row or an OPEN decision row, and none can be built until a ruling lands. D-FLEET-24 alone gates 7 tickets and 25 of 63 lost slots. Until rulings land, each fire can only re-measure. The report asks Mark to rank the rulings rather than adding a new decision row.
+
+Last 3 code landings: iteration 70 (`52e8958f0`), then none at 71–77. No drift alarm: no routable in-scope UNMET-clause row exists.
+
+**Next**: no routable ticket. Check `ailang mission ticket open --json` for a filing newer than 10-28, and the ledger for a ruling (first D-FLEET-24, then -18, -36, -38, -41). Take whichever lands first. If neither has, record a short no-op fire rather than re-measuring a parked ticket.
