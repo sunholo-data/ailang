@@ -10,6 +10,8 @@ Run ONE iteration of the mission defined in [`design_docs/v1-mission.md`](../../
 gates are cheap and prevent expensive mistakes. This is the outer loop around the four honed
 inner-loop skills — it does not duplicate them.
 
+**Read the environment by NAME, never by value — before anything else in this file** (fleet iterations 51 and 52 printed `CLAUDE_CODE_OAUTH_TOKEN`; World iteration 332 did it again while reading the sections below, before Gate 0's copy of this rule was in view; fleet iteration 78's first command read values too). List names with `env | cut -d= -f1 | grep -E '^(MISSION_|AILANG_)' | sort`, then `echo` only the specific non-secret variables you need. A `CLAUDE_CODE_` prefix matches `CLAUDE_CODE_OAUTH_TOKEN`, and a key-only filter misses `*_TOKEN`, `*_SECRET` and `*_AUTH*`.
+
 ## Repo Profile (M-MISSION-PORTABILITY M2)
 
 **One skill runs EVERY mission — never fork it per mission** (a fork undoes the Gate-5 self-
