@@ -1,6 +1,6 @@
 # M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS — An open row must not lose its labels when it meets a closed row
 
-**Status**: M2 (`830934d23`, the open-vs-closed check in `RowUnifier.UnifyRows`) **REVERTED in v0.56.1** — never shipped; v0.56.0 was tagged but not published. See "Revert note (2026-11-02)" below. The explicit-empty-callback contract (`8fd84a200`) is unaffected and still ships.
+**Status**: M2 (`830934d23`, the open-vs-closed check in `RowUnifier.UnifyRows`) **REVERTED in v0.56.1** — never shipped; v0.56.0 was tagged but not published. See "Revert note and re-land brief (2026-11-02)" below: the researched fix (F-A1, F-A2, F-B) and two decisions (D-R1, D-R2) need ruling before an executor starts. The explicit-empty-callback contract (`8fd84a200`) is unaffected and still ships.
 **Target**: v0.56.0 (next minor after the v0.55.0 tag). This is a soundness fix that rejects programs which check today, so it takes a minor bump. That is the posture Mark ruled for M-EFFECT-LATENT-FUNCTION-VALUES on 2026-10-08.
 **Priority**: P0 (High). A `pure` function performs IO, `ailang check` reports it clean, and the side effect runs on both engines.
 **Tracks**: #1958
@@ -11,35 +11,168 @@
 **Quorum trigger**: #1 fires (there are design-freeze items). The requester is handling review, so no quorum was run in this session.
 
 
-## Revert note (2026-11-02)
+## Revert note and re-land brief (2026-11-02)
 
-M2 rejected valid programs. Inference closes a lambda's effect row to `{}` when its body unions
-two effectful sub-expressions with distinct unresolved tails (`combineTails` in
-`internal/types/typechecker_data.go` returns nil for distinct tails). Before M2, unifying that
-`{}` with an open callback slot silently erased the slot's labels, so nobody saw it; with M2 it is
-an error. Failing shapes, all accepted by v0.55.0:
+M2 (`830934d23`) broke the executor MCP (`executor_tools/executor.ail:191`), so every dev-plane
+deploy failed from 2026-10-29. v0.56.0 was tagged with it and never published; v0.56.1 reverted it
+(`511cb476e`, `05c860aaf`). M2's guard is correct. What it exposed are **two separate inference
+defects that it depended on**, plus a test-scope gap that let it ship. This brief was researched
+by spike at `05c860aaf` (M2 restored on top). Every number below was measured there. Nothing in it
+is implemented.
+
+### Why M2 failed: two causes, not one
+
+Failing shapes, all accepted by v0.55.0 and rejected with M2 (`row {IO, ...ε6} carries labels [IO]
+which the closed row {} does not permit`):
 
 ```ailang
 func withDir(f: string -> int ! {IO}) -> int ! {IO} = f("d")
-withDir(\d. ex(p(), 1))                         -- effectful argument (ANF let)
-withDir(\d. if d == "x" then q(1) else q(2))    -- branches
-each(\x. { println(x); println(x) }, xs)        -- sequence, slot `string -> () ! {IO}`
-withDir(\d. 1)                                  -- pure lambda into a wider slot
+withDir(\d. ex(p(), 1))                         -- A: effectful argument (ANF let)
+withDir(\d. if d == "x" then q(1) else q(2))    -- A: branches
+each(\x. { println(x); println(x) }, xs)        -- A: sequence, slot `string -> () ! {IO}`
+withDir(\d. 1)                                  -- B: pure lambda into a wider slot
 ```
 
-It broke the executor MCP (`executor_tools/executor.ail:191`), so every dev-plane deploy failed
-from 2026-10-29. The `effect_ceiling_reachable_test.go` edit in M2 ("implicit width subsumption is
-deferred to #1958 Phase 2") was this same bug, recognised and deferred.
+**Cause A, the union drop.** When an effect union is built, a single call's row is still a bare
+tail, because `inferApp` deliberately leaves the callee row unsubstituted
+(`typechecker_functions.go`, the "intentionally NOT eagerly substituted" note). Two of those meet
+in a sequence, let, or branch as `{...ε9} ∪ {...ε11}` (instrumented). `combineTails`
+(`typechecker_data.go`) returns nil for distinct tails, so the lambda's row becomes **closed `{}`
+with no labels**. The `combineEffects` doc comment says this case is "a loud invariant failure";
+the code silently closes it.
 
-Tried and rejected during the release: substituting resolved callee rows in `inferApp` (closes
-implicit lambda rows, breaks the designed `any(\x. { println(…); true })` acceptance); keeping
-one open tail in `combineTails` (keeps the wrong one: a pure `show` tail closes to `{}`);
-exempting by unification direction (M2's unit tests require rejection in both orientations).
+**Cause B, width.** `\d. 1` has no union. Its row is legitimately closed `{}`, and the slot is
+`{IO | ε_annot}`. This is the RC4 width class that F2 ruled to *reject*, with "0 corpus files"
+as the premise. That premise was wrong, and the revert's must-accept test contradicts F2. The
+recommendation below reopens F2 for lambdas. "Keep multi-effect rows open" cannot fix cause B.
 
-To re-land: keep multi-effect lambda rows open (resolve operand rows before combining, as #386
-did for `inferApp`, at the let/block/if/match/list/tuple/binop sites), then restore M2. The
-must-accept cases in `internal/pipeline/effect_row_open_closed_test.go` are the guard; the
-M2 rejections wait in the skipped `TestEffectRowOpenClosedM2Deferred`.
+**The test-scope gap.** AC6 swept only `examples/**` and `std/**` (515 files). `executor_tools/`
+is outside that scope. Over all 810 tracked `.ail` files, M2 on its own flips exactly **one**:
+`executor.ail:191`.
+
+**What cause A already gets wrong without M2.** On `05c860aaf`, an IO lambda passed to a
+**pure** `map`/`any` slot is rejected when the body makes one call, but accepted when it makes
+two:
+
+| probe (all in a `! {IO}` caller) | HEAD | after fix |
+|---|---|---|
+| `map(\x. ex(x), xs)` · `map(ex, xs)` · `any(\x. ex(x) > 0, xs)` | rejected | rejected |
+| `map(\x. { println(show(x)); x }, xs)` · `map(\x. { ex(x); ex(x) }, xs)` · `map(\x. if … then ex(x) else ex(0), xs)` · `any(\x. { println(show(x)); true }, xs)` | **accepted** | rejected |
+
+The "designed `any(\x. { println(…); true })` acceptance" cited during the release is not a
+design rule. AC5 pinned it only as "must stay as on base". The language rule is that `map` and
+`any` are pure, and `mapE` and its siblings are the effectful forms (V8, V25, `ailang prompt`).
+The post-check validator still reports `Missing effects: IO` in a `pure` caller, so this is not a
+live leak. It is an inconsistency that the fix removes.
+
+### The fix: three inference changes, then restore M2
+
+**F-A1: resolve union operands before combining.** In the distinct-tail branch of
+`combineEffects`, solve the equality constraints added since the enclosing lambda began
+(`solveLocalEqualities(checkpoint)`, already used by #386), and substitute each operand. Two
+rules, both copied from `inferApp`, are load-bearing:
+- drop bindings for the enclosing scope's variables (`ctx.env` free type, row and effect-row
+  vars at lambda entry);
+- use `closeIfResolved` semantics: only substitute an operand that resolves fully closed.
+
+`{...ε9} ∪ {...ε11}` then becomes `{IO} ∪ {IO}`. In production, `combineEffects` becomes a method
+that receives `ctx` plus a lambda checkpoint stack. The spike used a package-level hook, which
+must not ship. Cost: one local solve per distinct-tail union, over that lambda's constraints only.
+Measure it with `make test-core` timing and the `perf-sweep` skill.
+
+**F-A2: fixpoint absorption for recursive self-calls.** F-A1 on its own regresses 2 corpus files
+(`examples/runnable/debug_effect.ail` and `internal/embed/testdata/debug_concurrent.ail`, `same
+row variable with different extensions`) and misdiagnoses `TestRecursiveConditionalStillRejectsRealEffect`.
+Once `Debug.log`'s operand resolves, the union keeps the self-call tail, and the let-rec
+constraint becomes `ρ ~ {Debug | ρ}`. HEAD avoided this only because the drop closed the row.
+
+The rule: during F-A1, an operand whose resolved tail is the effect row of a let-rec binding
+currently being inferred contributes **only its labels**, because `ρ = L ∪ ρ` has the least
+solution `ρ = L`. Absorbing only at the let-rec boundary is not enough: six self-calls in nested
+branches meet in unions first. The spike keeps a stack of the active let-rec binding types (the
+`bindingTypes` built in `inferLetRec`). Absorb only the self row. A callback parameter's `! {e}`
+is also an outer variable, and dropping it would be unsound.
+
+**F-B: lambda open-on-use (Phase 2a).** If an unannotated lambda's latent row is closed after
+inference, give it a fresh tail: `{L}` becomes `{L | ρ}`. Before both
+`applyApplicationSubstitution(sub)` calls (`typechecker_core.go`), bind the terminal tail of every
+still-unbound lambda-opened row to closed `{}`. V16's naive lambda opening regressed 16 files on
+the `ApplicationEffects` invariant; the closing pass is the difference. In production, the opened
+set is per declaration (on `ctx`), not the spike's process-global map, and it is registered
+through the ownership model (`closingRows`, `owned` in `typechecker_app_effects.go`). Opened tails
+must not appear in diagnostics: the spike printed `Eq[[int -> int ! {...ρ6}]]`.
+
+**Then restore M2:**
+- re-apply `830934d23`'s two guards;
+- recover the unit matrix `internal/types/row_unification_open_closed_test.go` from `830934d23`
+  (the revert deleted it; it was not skipped);
+- unskip `TestEffectRowOpenClosedM2Deferred` and the deferred cases in
+  `cmd/ailang/effect_row_soundness_test.go`;
+- restore the two `EffectCeiling` subtests to their original `\c. 1` spelling (F-B makes the F2
+  re-pin unnecessary).
+
+### Measured on the spike (base `05c860aaf`)
+
+| arm | must-accept guard (11 cases) | 810 tracked `.ail` | 256 external (`ailang-packages` `e998928`, `ailang-parse` `bf12238`) | Go `./internal/... ./cmd/...` |
+|---|---|---|---|---|
+| M2 only | 4 red (A×3, B) | 1 flip (`executor.ail`) | — | — |
+| M2 + F-A1 + F-A2 | 2 red: B, and the intended `any` flip | **0 flips** | — | 146 ok; only `internal/pipeline` red, on exactly those 2 |
+| M2 + F-A1 + F-A2 + F-B | 1 red: the intended `any` flip | **0 flips** | **0 flips** | 148 ok; see below |
+
+All R1–R5 leak probes are still rejected. The `\c. 1` `EffectCeiling` originals pass. On HEAD,
+595 of 810 tracked files pass `check` (the rest fail on both arms), and 249 of 256 external files.
+
+Go reds with F-B still to resolve, none of them wrong-accepts:
+- `TestLatentNested_IntendedFlips/map_concrete_callback_is_type_error`: same rejection, M2's
+  wording. Update the assertion.
+- `TestEqContainersNegatives/fn_elements`: the opened tail is printed in the message. Fix by
+  hiding implicit tails.
+- `TestLatentNested_DistinctDeclaredTailsFailLoud` and `TestPkgConfinementMatrix/pkg_tree`: pass
+  alone and fail in the full run. This fits the spike's process-global tail set; re-check once it
+  is per declaration.
+- `TestGitProbes*`: environmental. A scratch copy is not a git checkout, and S2 fails the same way.
+
+### Decisions for this re-land
+
+- **D-R1 (human):** reopen F2 for **lambdas** and adopt F-B, which restores the original
+  `\c. 1` spelling. Recommended: the shape broke production, and F2's "0 corpus files" premise
+  was measured on the narrow scope.
+- **D-R2 (human):** the "any IO lambda in IO caller" case moves from must-accept to must-reject,
+  with migration to `mapE`/`filterE`/`foldlE`/`forEachE`. There is no `anyE` today, so the
+  executor should either add one or document `foldlE` as the migration. Recommended: this is the
+  existing language rule, and 0 of 1,066 measured files depend on the old behaviour.
+- **Still deferred: Phase 2b, width for *named* and *eta* function values.** `runWide(loud, "x")`
+  and `runWide(\s. loud(s), "x")` into an `{IO, FS}` slot stay rejected. #1826 closes compatibility
+  tails when a binding is read as a value, and an eta body's row closes only after the solve.
+  Fixing either means open-on-use at instantiation, which conflicts with #1826 and needs its own
+  design. 0 of 1,066 files are in this class. F2 stands for it.
+
+### Tried and rejected (do not repeat)
+
+- Substituting the resolved **callee** row in `inferApp`. #386 already recorded that this
+  regresses recursive multi-arm std functions (std/sem), and it was rejected again in the release.
+  F-A1 resolves union *operands* inside the lambda instead.
+- Keeping one open tail in `combineTails`: it keeps the wrong one (a pure `show` tail closes to
+  `{}`). No single surviving tail is correct while the operands are still bare tails.
+- Exempting by unification direction: M2's unit tests require rejection in both orientations,
+  and it is alternative G's second code path.
+- F-A1 without enclosing-variable filtering or without F-A2: 2 corpus flips and a misdiagnosis.
+- Unifying sequential effects Koka-style: a closed pure callee row (`{}`) then meets `{IO | ρ}`.
+  That only works if *every* function instantiation is opened, which is Phase 2b.
+
+### Re-land gates
+
+- The sweep covers **all** `git ls-files '*.ail'` plus `ailang-packages` and `ailang-parse` from
+  their package roots, and includes a known-flip positive control (`executor.ail` with M2 alone).
+  macOS has no `timeout` binary: a sweep that uses it reports 0 flips because every check exits
+  127. Use `perl -e 'alarm 90; exec @ARGV'`.
+- Go: all of `./internal/... ./cmd/...` green, except reds named with their reason. Run the
+  mutation checks from AC8 again.
+- Perf: compare F-A1's local solves against `make test-core` time and a `perf-sweep` snapshot.
+- Spike code (session scratch, may not persist):
+  `/private/tmp/claude-501/-Users-voightkampff-dev-sunholo-data-ailang/ffdb5277-e2fb-47b1-b7bb-6f45be70771e/scratchpad/spike-s3.patch`
+  (diff against `05c860aaf`). The sweep scripts `cmp.sh` and `extcmp.sh` are in the same
+  directory. The spike is evidence, not a starting point: it uses package globals.
 
 ## Summary
 
@@ -232,7 +365,7 @@ Record rows reach `RowUnifier` only through `RowEq` constraints (`internal/types
 ### Design Freeze
 
 - [x] **F1 (human) — Ruled 2026-10-26 (Mark, attended): accepted as recommended.** accept D2, the row-polymorphic `std/ai` signature, over the concrete `! {AI, IO}` (alternative D). Recommendation: accept. The concrete form over-charges pure callers, contradicts the documented "not required", and **cannot land before #1826**: in the prototype it fails in `std/ai` itself with `Unresolved effect tail: ε_annot1` (V18).
-- [x] **F2 (human) — Ruled 2026-10-26 (Mark, attended): accepted as recommended.** accept D3. Ship the P0 with the width class (RC4) rejected, and re-pin the two subtests to spellings that pass under the strict rule: a named hook declaring the slot's rows (`func one(c: string) -> int ! {Stream, Process} = 1`), or an annotated lambda (`func(c: string) -> int ! {Stream, Process} { 1 }`). Both are verified (V19). The subtests still guard what they exist for, the ceiling not charging own types. Phase 2 restores the original spelling. Recommendation: accept, since 0 corpus files are in the class.
+- [x] **F2 (human) — Ruled 2026-10-26 (Mark, attended): accepted as recommended. Proposed to REOPEN for lambdas, 2026-11-02 (D-R1 in the re-land brief): the "0 corpus files" premise was measured on `examples/**` + `std/**` only, and the shape broke `executor_tools/`.** accept D3. Ship the P0 with the width class (RC4) rejected, and re-pin the two subtests to spellings that pass under the strict rule: a named hook declaring the slot's rows (`func one(c: string) -> int ! {Stream, Process} = 1`), or an annotated lambda (`func(c: string) -> int ! {Stream, Process} { 1 }`). Both are verified (V19). The subtests still guard what they exist for, the ceiling not charging own types. Phase 2 restores the original spelling. Recommendation: accept, since 0 corpus files are in the class.
 - [x] **F3 (human) — Ruled 2026-10-26 (Mark, attended): accepted as recommended.** confirm D4.
 
 ## Solution Design
