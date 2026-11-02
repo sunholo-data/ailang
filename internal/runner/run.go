@@ -485,6 +485,10 @@ func runSingle(ctx context.Context, result pipeline.Result, opts Options, progra
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		return 1
 	}
+	if err := SetupNetLimit(effCtx, opts.Net.MaxBytes); err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		return 1
+	}
 	if err := SetupStreamHandler(effCtx, opts.Stream); err != nil { // Stream for WebSocket connections (M-STREAM-BIDI)
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		return 1

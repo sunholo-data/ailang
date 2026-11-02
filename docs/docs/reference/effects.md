@@ -270,6 +270,7 @@ func fetchJson(url: string) -> Result[Json, string] ! {Net} =
 | `--net-allow-localhost` | Permit loopback (`127.0.0.1`, `localhost`) — with `--net-allow-http`, this is how a program talks to a local model server such as ollama. |
 | `--net-allow-metadata` | Permit the cloud metadata address (169.254.169.254). |
 | `--net-timeout <duration>` | Per-request timeout for every Net call (`httpGet`, `httpPost`, `httpRequest*`). Default **30s**. A local 27B model answering in 45s needs e.g. `--net-timeout 5m`; on timeout the call returns `Err(Transport("... context deadline exceeded"))`. Mirrors `--process-timeout`. |
+| `--net-max-bytes <size>` | Cap on each response body (`httpGet`, `httpPost`, `httpRequest*`, std/web). Default **5MB**; `AILANG_NET_MAX_BYTES` sets it when the flag is absent (`run` and `serve-api`). Sizes take K/M/G suffixes (`50MB`); zero or malformed is an error. Over the cap, `httpRequest*` returns `Err(BodyTooLarge(<cap>))` and `httpGet`/`httpPost` fail with `E_NET_BODY_TOO_LARGE`. The body is read whole into memory (once as bytes, once as the `body` string), so budget at least twice the cap per in-flight response. Needs `--caps Net`; refused with `--policy`. |
 
 ### Env Effect
 

@@ -21,6 +21,7 @@ const (
 	EnvFSSandbox         = "AILANG_FS_SANDBOX"
 	EnvFSSandboxDebug    = "AILANG_FS_SANDBOX_DEBUG"
 	EnvFSMaxBytes        = "AILANG_FS_MAX_BYTES"
+	EnvNetMaxBytes       = "AILANG_NET_MAX_BYTES"
 	EnvRedactEnv         = "AILANG_REDACT_ENV"
 	EnvMetrics           = "AILANG_METRICS"
 	EnvMetricsDebug      = "AILANG_METRICS_DEBUG"
@@ -47,6 +48,7 @@ var compilerVars = []Var{
 	{EnvFSSandbox, "", AreaCompiler, "Directory the FS effect is confined to; empty means no sandbox."},
 	{EnvFSSandboxDebug, "0", AreaCompiler, "1 logs every sandbox rejection to stderr."},
 	{EnvFSMaxBytes, "", AreaCompiler, "Cap on every FS read (a byte count or K/M/G/T-suffixed size); unset or 0 is unbounded, --fs-max-bytes overrides it, and a malformed value is an error. serve-api uses its upload cap instead."},
+	{EnvNetMaxBytes, "", AreaCompiler, "Cap on each Net (std/net, std/web) HTTP response body, for run and serve-api (a positive byte count or K/M/G/T-suffixed size); unset keeps the 5 MB default, --net-max-bytes overrides it, and zero or a malformed value is an error. Over the cap fails with BodyTooLarge(<cap>) (httpRequest*) or E_NET_BODY_TOO_LARGE (httpGet/httpPost). The body is buffered whole in memory, so budget at least twice the cap per in-flight response."},
 	{EnvRedactEnv, "on", AreaCompiler, "off disables redaction of sensitive environment values in traces and errors."},
 	{EnvMetrics, "0", AreaCompiler, "1 collects pipeline phase timings and memory for each compile."},
 	{EnvMetricsDebug, "0", AreaCompiler, "1 prints the raw phase-timing map to stderr."},
@@ -115,6 +117,24 @@ func FSMaxBytes() (int64, bool, error) {
 	n, err := ParseByteSize(raw)
 	if err != nil {
 		return 0, true, fmt.Errorf("%s: %w", EnvFSMaxBytes, err)
+	}
+	return n, true, nil
+}
+
+// NetMaxBytes returns the AILANG_NET_MAX_BYTES cap in bytes and whether it
+// was set. Zero, negative or malformed is an error: a cap of 0 would refuse
+// every response, and a safety cap never falls back to a default.
+func NetMaxBytes() (int64, bool, error) {
+	raw := strings.TrimSpace(get(EnvNetMaxBytes))
+	if raw == "" {
+		return 0, false, nil
+	}
+	n, err := ParseByteSize(raw)
+	if err != nil {
+		return 0, true, fmt.Errorf("%s: %w", EnvNetMaxBytes, err)
+	}
+	if n < 1 {
+		return 0, true, fmt.Errorf("%s must be a positive size, got %q", EnvNetMaxBytes, raw)
 	}
 	return n, true, nil
 }

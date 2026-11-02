@@ -43,7 +43,8 @@ func runDoctorMemory() {
 		fmt.Printf("  cgroup:       not linux (%s); --max-memory cgroup applies nothing here\n", runtime.GOOS)
 	}
 	fmt.Println()
-	fmt.Println("Other caps: --fs-max-bytes / AILANG_FS_MAX_BYTES (FS reads), Net 5 MB body cap,")
+	fmt.Println("Other caps: --fs-max-bytes / AILANG_FS_MAX_BYTES (FS reads), --net-max-bytes /")
+	fmt.Println("  AILANG_NET_MAX_BYTES (each Net response body, default 5 MB, buffered whole),")
 	fmt.Println("  trace values 1 KB each / 32 MB retained, AILANG_EVAL_MAX_RSS (eval harness only).")
 	fmt.Println("Probe: /usr/bin/time -l ailang run ... (macOS) or -v (Linux) — see docs/docs/guides/debugging.md#memory")
 }

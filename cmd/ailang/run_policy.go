@@ -75,6 +75,7 @@ var refusedWithPolicy = []struct{ name, why string }{
 	{"stdlib-path", "module roots are not the caller's to choose"},
 	{"package-dir", "module roots are not the caller's to choose"},
 	{"fs-max-bytes", "comes from the policy's max_fs_transfer_bytes"},
+	{"net-max-bytes", "restricted mode keeps the default Net body cap"},
 }
 
 // runPolicyResolved is what the policy DECIDES for the run, in the shape the
