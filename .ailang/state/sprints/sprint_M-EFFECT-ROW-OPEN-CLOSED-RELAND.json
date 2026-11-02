@@ -1,9 +1,9 @@
 {
   "sprint_id": "M-EFFECT-ROW-OPEN-CLOSED-RELAND",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-11-02T19:24:05Z",
   "design_doc": "design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness.md",
-  "sprint_plan": "design_docs/planned/v0_57_0/m-effect-row-open-closed-reland-sprint-plan.md",
+  "sprint_plan": "design_docs/implemented/v0_57_0/m-effect-row-open-closed-reland-sprint-plan.md",
   "github_issues": [
     1958
   ],
@@ -36,7 +36,8 @@
   "velocity": {
     "target_loc_per_day": 335,
     "estimated_total_loc": 670,
-    "estimated_days": 2
+    "estimated_days": 2,
+    "actual_loc": 511
   },
   "features": [
     {
@@ -103,10 +104,10 @@
         "make check-changelog, lint, check-file-sizes, verify-examples, test-core green (unpiped)",
         "Perf numbers recorded in design doc; >10% flagged"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-02T20:02:46Z",
+      "completed": "2026-11-02T20:02:46Z",
+      "notes": "Perf: first M2+M3 build +15.7% (1698->1964 ms, 10 largest passing modules). Fixed by caching each lambda frame's local solve (incremental fold) and deferring the entry-env walk (FreeEffectRowVars was 15.7% of the oauth.ail profile) to the frame's first distinct-tail union: 1717 -> 1657 ms (noise). Re-gated after perf: 0/810 + 0/256 flips, Go 148 ok, lint/sizes/changelog/verify-examples green. Changelog fragment carries two Breaking (soundness) sections. Design doc implementation report + status; plan moved to implemented/v0_57_0. Doc drift found: debugging.md documents -cpuprofile, binary rejects it."
     }
   ]
 }

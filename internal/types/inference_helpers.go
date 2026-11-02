@@ -182,11 +182,17 @@ func (ctx *InferenceContext) generalize(typ Type, effects *Row) *Scheme {
 // join representation is ever created and RowUnifier.UnifyRows only sees
 // ordinary *Row values.
 func (ctx *InferenceContext) solveLocalEqualities(from int) (Substitution, error) {
-	sub := make(Substitution)
 	if from < 0 {
 		from = 0
 	}
-	for _, c := range ctx.constraints[from:] {
+	return ctx.solveEqualitiesInto(make(Substitution), ctx.constraints[from:])
+}
+
+// solveEqualitiesInto folds the equality constraints of cs, in order, into sub.
+// Folding a suffix into the result of its prefix equals folding the whole, so
+// callers may extend a cached solve incrementally (#1958 unionEffects).
+func (ctx *InferenceContext) solveEqualitiesInto(sub Substitution, cs []TypeConstraint) (Substitution, error) {
+	for _, c := range cs {
 		switch constraint := c.(type) {
 		case TypeEq:
 			var err error

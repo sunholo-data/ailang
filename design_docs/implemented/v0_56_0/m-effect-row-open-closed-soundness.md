@@ -1,6 +1,6 @@
 # M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS — An open row must not lose its labels when it meets a closed row
 
-**Status**: M2 (`830934d23`, the open-vs-closed check in `RowUnifier.UnifyRows`) **REVERTED in v0.56.1** — never shipped; v0.56.0 was tagged but not published. See "Revert note and re-land brief (2026-11-02)" below: the researched fix (F-A1, F-A2, F-B) and two decisions (D-R1, D-R2) need ruling before an executor starts. The explicit-empty-callback contract (`8fd84a200`) is unaffected and still ships.
+**Status**: M2 (`830934d23`, the open-vs-closed check in `RowUnifier.UnifyRows`) was **reverted in v0.56.1** (v0.56.0 was tagged but never published), then **RE-LANDED on dev 2026-11-02** with the inference fixes F-A1, F-A2 and F-B (`ad9aabc57`, `ef01e499f`, plus the perf follow-up). It is unreleased and targets v0.57.0. See "Re-land implementation report (2026-11-02)" at the end. The explicit-empty-callback contract (`8fd84a200`) is unaffected and still ships.
 **Target**: v0.56.0 (next minor after the v0.55.0 tag). This is a soundness fix that rejects programs which check today, so it takes a minor bump. That is the posture Mark ruled for M-EFFECT-LATENT-FUNCTION-VALUES on 2026-10-08.
 **Priority**: P0 (High). A `pure` function performs IO, `ailang check` reports it clean, and the side effect runs on both engines.
 **Tracks**: #1958
@@ -136,7 +136,7 @@ Go reds with F-B still to resolve, none of them wrong-accepts:
 
 **D-R1 and D-R2 ruled 2026-11-02 (Mark, attended): accepted as recommended** ("ok can you sprint
 plan and execute", in reply to both recommendations). Plan:
-`design_docs/planned/v0_57_0/m-effect-row-open-closed-reland-sprint-plan.md`.
+`design_docs/implemented/v0_57_0/m-effect-row-open-closed-reland-sprint-plan.md`.
 
 - **D-R1 (human):** reopen F2 for **lambdas** and adopt F-B, which restores the original
   `\c. 1` spelling. Recommended: the shape broke production, and F2's "0 corpus files" premise
@@ -591,3 +591,59 @@ Independent root evaluation: **PASS 95/100**, with regression coverage 10/10 rep
 The native full production snapshot at aa3 passed; the final source differs only by an independently exercised interface publication test. Exact-head Linux/Windows, checks and Sonar passed; new-code coverage is 93.5% against the unchanged 80% threshold. One optional Mac job was still running at acceptance, so all remote jobs are not claimed green. All 49 interfaces regenerate and verify stable.
 
 The exact four-field consumer migration merged on the pinned fork at `083ef43726981099a0bad4fedda18fc72105d6fa` after actual **60/60 core and 9/9 extension** proof. Initial fresh no-cache results retain three deadlines; only those three serial retries then passed. Original width 60→55, width-migrated 60→60, combined nested 55/60 and failed four-field-before-compiler measurements remain preserved as history in the companion evidence. Source pin changes do not switch the live rig. Operator-held #1790, IFC/cache-v8 work and the separate alias-ownership repair remain outside this acceptance.
+
+## Re-land implementation report (2026-11-02)
+
+Sprint `M-EFFECT-ROW-OPEN-CLOSED-RELAND` (attended). Plan:
+`design_docs/implemented/v0_57_0/m-effect-row-open-closed-reland-sprint-plan.md`. Commits on `dev`:
+`ad9aabc57` (M1: F-A1 + F-A2), `ef01e499f` (M2 + M3: F-B with the guard restored), and the M4 commit
+(perf and docs). The work is implemented on dev and **unreleased**, targeting v0.57.0.
+
+**What shipped:**
+- `typechecker_effect_union.go`: `InferenceContext.unionEffects` / `unionEffectList` replace all 11
+  `combineEffects` / `combineEffectList` inference sites. Each lambda gets a union frame
+  (constraint checkpoint and entry env), and let-rec groups push their binding types for fixpoint
+  absorption. There are no package globals.
+- `typechecker_lambda_open.go`: unannotated closed lambda rows are opened with a per-context tail,
+  and `closeOpenedLambdaTails` runs before both `applyApplicationSubstitution` sites.
+- `row_unification.go`: `830934d23`'s guards are restored, along with the unit matrix
+  `row_unification_open_closed_test.go`.
+- `instances.go`: missing-instance errors close free effect tails for display.
+
+**Deviations from the plan:**
+- M2 and M3 landed as one commit. F-B **without** the guard reopens the leak: an opened IO lambda
+  `{IO | ρ}` meets `map`'s closed `{}` through the permissive branch, which accepted 5 shapes when
+  measured. F-B is only sound together with the guard.
+- The mutation check "no F-A1 → the three cause-A must-accept cases go red" does not hold as
+  written. With F-B present, those rows are opened and fit their slots. Without F-A1, the leak tests
+  go red instead: 5 union shapes, the D-R2 case, and the recursive callback row. F-A1 is guarded
+  either way.
+- A new finding, consistent with D-R2's rule: base accepted a recursive function whose declared row
+  omits the row of a callback it calls (`func bad[e](f: … ! {e}, n) -> () = … { f(n); bad(f, n - 1) }`),
+  while rejecting the non-recursive `f(1)`. The union drop had erased `e`. It is now rejected
+  consistently. 0 corpus files use this shape. It is pinned in
+  `TestEffectUnionResolve_RecursionAbsorbsOnlyTheSelfRow`, and it is also the guard against
+  over-absorption: a mutant that absorbs every tail accepts it.
+
+**Measurements** (base = `05c860aaf`):
+
+| gate | result |
+|---|---|
+| positive control | M2 alone flips `executor_tools/executor.ail`; this build checks it clean |
+| sweep, 810 tracked `.ail` | 0 status flips (595 pass on both) |
+| sweep, external (`ailang-packages` `e998928`, `ailang-parse` `bf12238`), 256 files | 0 status flips (249 pass on both) |
+| Go `./internal/... ./cmd/ailang/` | 148 packages ok, 0 fail (after M2+M3 and again after the perf change) |
+| `make lint`, `check-file-sizes`, `check-changelog`, `verify-examples`, `verify-stdlib` | green (49 stdlib interfaces stable) |
+| mutations (scratch copies) | no guards → M2 rejections, D-R2, 5 union shapes and Phase 2b pins red; no F-A1 → as above; no F-B → both `EffectCeiling` originals and "pure lambda into wider slot" red; no absorption → ghost-effect recursion and `TestRecursiveConditional…` red; absorb-all → recursive callback-row case red |
+| `check` time, 10 largest passing modules (best of 3) | base 1,717 ms → re-land 1,657 ms (within noise) |
+
+**Perf note.** The first M2+M3 build measured +15.7% (1,698 → 1,964 ms). Two changes removed it:
+(1) each lambda frame caches its local solve and extends it only with new constraints, since
+folding a suffix into the prefix's result equals folding the whole; and (2) the frame snapshots its
+environment pointer and walks it for owned variables only on its first distinct-tail union. That
+walk (`FreeEffectRowVars`) was 15.7% of the `oauth.ail` profile. The `-cpuprofile` flag in
+`docs/docs/guides/debugging.md` is not accepted by the current `ailang` binary, so the profile was
+taken through `go test -cpuprofile` on the pipeline.
+
+**Still deferred:** Phase 2b (named and eta function values into wider slots), pinned in
+`TestEffectRowOpenClosedPhase2bDeferred`.

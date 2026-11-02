@@ -18,25 +18,53 @@ package types
 // call, and contributes only its labels (rho = L ∪ rho has least solution
 // rho = L). A callback parameter's row is not a self row and is never absorbed.
 
-// unionFrame is the resolution scope of one lambda body.
+// unionFrame is the resolution scope of one lambda body. Its local solve is
+// cached and extended with only the constraints added since the last union,
+// so a body with n unions costs one pass over its constraints, not n.
 type unionFrame struct {
 	checkpoint int             // first constraint added inside the lambda
-	outer      map[string]bool // type/row vars owned by the enclosing scope
+	env        *TypeEnv        // the lambda's environment at entry (persistent)
+	outer      map[string]bool // its type/row vars, computed on first use
+	solvedTo   int             // constraints [checkpoint, solvedTo) are folded into sub
+	sub        Substitution    // equalities solved so far (nil until first use)
+	local      Substitution    // sub without the outer bindings
+	failed     bool            // a local equality failed; SolveConstraints reports it
+}
+
+// solve extends the frame's cached solve to the current constraints.
+func (f *unionFrame) solve(ctx *InferenceContext) bool {
+	if f.failed {
+		return false
+	}
+	if f.outer == nil {
+		f.outer = envOwnedVars(f.env)
+	}
+	if f.sub == nil || f.solvedTo > len(ctx.constraints) {
+		f.sub, f.solvedTo = make(Substitution), f.checkpoint
+	}
+	if f.solvedTo == len(ctx.constraints) && f.local != nil {
+		return true
+	}
+	sub, err := ctx.solveEqualitiesInto(f.sub, ctx.constraints[f.solvedTo:])
+	if err != nil {
+		f.failed = true
+		return false
+	}
+	f.sub, f.solvedTo = sub, len(ctx.constraints)
+	f.local = make(Substitution, len(sub))
+	for v, t := range sub {
+		if !f.outer[v] {
+			f.local[v] = t
+		}
+	}
+	return true
 }
 
 // pushUnionFrame opens a lambda's resolution scope; call the result to close it.
+// Walking the environment is deferred to the frame's first distinct-tail union:
+// most lambdas never have one, and the walk dominated the type-check profile.
 func (ctx *InferenceContext) pushUnionFrame() func() {
-	outer := make(map[string]bool)
-	for v := range ctx.env.FreeTypeVars() {
-		outer[v] = true
-	}
-	for v := range ctx.env.FreeRowVars() {
-		outer[v] = true
-	}
-	for v := range ctx.env.FreeEffectRowVars() {
-		outer[v] = true
-	}
-	ctx.unionFrames = append(ctx.unionFrames, unionFrame{checkpoint: len(ctx.constraints), outer: outer})
+	ctx.unionFrames = append(ctx.unionFrames, &unionFrame{checkpoint: len(ctx.constraints), env: ctx.env})
 	depth := len(ctx.unionFrames) - 1
 	return func() { ctx.unionFrames = ctx.unionFrames[:depth] }
 }
@@ -63,18 +91,11 @@ func (ctx *InferenceContext) unionEffects(e1, e2 *Row) *Row {
 		return combineEffects(e1, e2)
 	}
 	frame := ctx.unionFrames[len(ctx.unionFrames)-1]
-	sub, err := ctx.solveLocalEqualities(frame.checkpoint)
-	if err != nil {
+	if !frame.solve(ctx) {
 		// The enclosing SolveConstraints reports the error with its full path.
 		return combineEffects(e1, e2)
 	}
-	local := make(Substitution, len(sub))
-	for v, t := range sub {
-		if !frame.outer[v] {
-			local[v] = t
-		}
-	}
-	return combineEffects(ctx.resolveUnionOperand(sub, local, e1), ctx.resolveUnionOperand(sub, local, e2))
+	return combineEffects(ctx.resolveUnionOperand(frame.sub, frame.local, e1), ctx.resolveUnionOperand(frame.sub, frame.local, e2))
 }
 
 func hasDistinctEffectTails(e1, e2 *Row) bool {
@@ -113,4 +134,19 @@ func (ctx *InferenceContext) isSelfEffectTail(sub Substitution, tail string) boo
 		}
 	}
 	return false
+}
+
+// envOwnedVars returns the type, row and effect-row variables free in env.
+func envOwnedVars(env *TypeEnv) map[string]bool {
+	outer := make(map[string]bool)
+	for v := range env.FreeTypeVars() {
+		outer[v] = true
+	}
+	for v := range env.FreeRowVars() {
+		outer[v] = true
+	}
+	for v := range env.FreeEffectRowVars() {
+		outer[v] = true
+	}
+	return outer
 }

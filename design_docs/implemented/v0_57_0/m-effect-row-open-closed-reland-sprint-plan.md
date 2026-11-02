@@ -1,5 +1,7 @@
 # Sprint Plan: M-EFFECT-ROW-OPEN-CLOSED-RELAND (#1958 M2 re-land)
 
+**Status: ✅ COMPLETE 2026-11-02.** M2 and M3 landed as one commit, because F-B is unsound without the guard. Results are in the design doc's "Re-land implementation report".
+
 ## Placement and Human-Decision Rules
 
 There are **no human-decision gates**. Every decision this sprint depends on is ruled:
@@ -77,15 +79,15 @@ tails.
   `typechecker_functions.go` is near the size limit.
 
 **Acceptance criteria:**
-- [ ] Unit tests: the published lambda row of `\x. { println(x); println(x) }`,
+- [x] Unit tests: the published lambda row of `\x. { println(x); println(x) }`,
   `\d. ex(p(), 1)` and `\d. if … then q(1) else q(2)` contains `IO`.
-- [ ] D-R2 matrix: all 7 pure-slot probes from the brief (single, block, block2, if, any-block,
+- [x] D-R2 matrix: all 7 pure-slot probes from the brief (single, block, block2, if, any-block,
   any-single, named) are rejected in a `! {IO}` caller.
-- [ ] `debug_effect.ail`, `debug_concurrent.ail` and `TestRecursiveConditionalStillRejectsRealEffect`
+- [x] `debug_effect.ail`, `debug_concurrent.ail` and `TestRecursiveConditionalStillRejectsRealEffect`
   pass. A recursive function that calls a `! {e}` callback still charges `e`.
-- [ ] A full sweep against `90f31bbe0` changes the status of only D-R2-class files, and the spike
-  measured 0.
-- [ ] `make test-changed` and `make check-file-sizes` pass.
+- [x] A full sweep against `90f31bbe0` changes the status of only D-R2-class files, and the spike
+  measured 0. *(Measured against `05c860aaf`, which has identical code: 0 flips.)*
+- [x] `make test-changed` and `make check-file-sizes` pass.
 
 ### M2_LAMBDA_OPEN_ON_USE: F-B (Phase 2a)
 
@@ -102,10 +104,10 @@ tails.
   `No instance for Eq[[int -> int]]` (`TestEqContainersNegatives/fn_elements`).
 
 **Acceptance criteria:**
-- [ ] `TestEqContainersNegatives`, `TestLatentNested_DistinctDeclaredTailsFailLoud` and
+- [x] `TestEqContainersNegatives`, `TestLatentNested_DistinctDeclaredTailsFailLoud` and
   `TestPkgConfinementMatrix` pass in a **full** package run, not only in isolation.
-- [ ] A full sweep shows 0 status changes compared with M1.
-- [ ] `make test-changed` passes.
+- [x] A full sweep shows 0 status changes compared with M1.
+- [x] `make test-changed` passes.
 
 ### M3_RESTORE_GUARD: put M2 back, flip the guards
 
@@ -122,15 +124,15 @@ tails.
   Phase 2b deferral with a comment.
 
 **Acceptance criteria:**
-- [ ] All 11 guard cases and the M2 rejections pass. The M2-only arm reproduces as `executor.ail`
+- [x] All 11 guard cases and the M2 rejections pass. The M2-only arm reproduces as `executor.ail`
   rejected (positive control).
-- [ ] Sweep over all `git ls-files '*.ail'` plus `ailang-packages` and `ailang-parse` from their
+- [x] Sweep over all `git ls-files '*.ail'` plus `ailang-packages` and `ailang-parse` from their
   package roots, using `perl -e 'alarm 90; exec @ARGV'` and the positive control: 0 unexplained
   flips.
-- [ ] Mutation, on a scratch copy: removing the guards turns R1–R5 green-accepted; removing F-A1
-  turns the three cause-A guard cases red; removing F-B turns `pure lambda into wider slot` red.
-- [ ] `executor_tools/executor.ail` checks clean.
-- [ ] `go test ./internal/... ./cmd/...` is green, except environmental tests named with their
+- [x] Mutation, on a scratch copy: removing the guards turns R1–R5 green-accepted; removing F-A1
+  turns the three cause-A guard cases red; *(with F-B present they stay green; the leak tests go red instead, see the report)* removing F-B turns `pure lambda into wider slot` red.
+- [x] `executor_tools/executor.ail` checks clean.
+- [x] `go test ./internal/... ./cmd/...` is green, except environmental tests named with their
   reason.
 
 ### M4_DOCS_PERF: changelog, docs, perf
@@ -145,9 +147,9 @@ tails.
 - Add an implementation report to the design doc and update its status line.
 
 **Acceptance criteria:**
-- [ ] `make check-changelog`, `make lint`, `make check-file-sizes`, `make verify-examples` and
+- [x] `make check-changelog`, `make lint`, `make check-file-sizes`, `make verify-examples` and
   `make test-core` pass, run unpiped.
-- [ ] Perf numbers are recorded in the design doc.
+- [x] Perf numbers are recorded in the design doc.
 
 ## Success Metrics
 
