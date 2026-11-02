@@ -9,9 +9,15 @@ import (
 )
 
 func TestEffectRowGuardRejectsBeforeExecution(t *testing.T) {
-	t.Setenv("AILANG_NO_CACHE", "1")
-	bin := buildAilang(t)
-	cases := map[string]string{
+	runRowGuardCases(t, rowGuardCurrentCases())
+}
+
+// #1958 M2 (830934d23) was reverted for v0.56.1: it rejected valid callbacks
+// because inference closes multi-effect lambda rows to {}. These cases come
+// back with M2; see design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness.md.
+func TestEffectRowGuardRejectsBeforeExecutionM2Deferred(t *testing.T) {
+	t.Skip("#1958 M2 reverted for v0.56.1: needs inference to keep multi-effect lambda rows open first")
+	runRowGuardCases(t, map[string]string{
 		"map": `func loud(x: int) -> int ! {IO} { println("ROW1958_SIDE_EFFECT"); x }
 pure func hidden(g: (int) -> int ! {IO}) -> [int] = map(g, [1])
 export func main() -> () ! {IO} { let _ = hidden(loud); () }`,
@@ -28,12 +34,23 @@ export func main() -> () ! {IO} { let _ = hidden({ run: loud }); () }`,
 		"mixed": `func loud(x: int) -> int ! {IO} { println("ROW1958_SIDE_EFFECT"); x }
 pure func hidden[e](g: (int) -> int ! {IO, e}) -> [int] = map(g, [1])
 export func main() -> () ! {IO} { let _ = hidden(loud); () }`,
-	}
+	})
+}
+
+func rowGuardCurrentCases() map[string]string {
+	cases := map[string]string{}
 	for _, api := range []string{"stepWithStream", "stepWithStreamRecorded"} {
 		cases[api] = fmt.Sprintf(`func loud(c: StreamChunk) -> () ! {IO} = println("ROW1958_SIDE_EFFECT")
 func hidden() -> () ! {AI} { let _ = %s("", [], [], [], loud); () }
 export func main() -> () ! {AI, IO} = hidden()`, api)
 	}
+	return cases
+}
+
+func runRowGuardCases(t *testing.T, cases map[string]string) {
+	t.Helper()
+	t.Setenv("AILANG_NO_CACHE", "1")
+	bin := buildAilang(t)
 	for name, body := range cases {
 		t.Run(name, func(t *testing.T) {
 			file := filepath.Join(t.TempDir(), "row_soundness.ail")
