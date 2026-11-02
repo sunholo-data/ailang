@@ -46,12 +46,13 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 		}
 	}
 
-	// Create unique workspace for this benchmark session
-	// Format: /tmp/ailang_eval/<benchmarkID>_<model>_<timestamp>_<pid>
-	timestamp := time.Now().Format("20060102_150405")
-	workspaceID := fmt.Sprintf("%s_%s_%s_%d", benchmarkID, model, timestamp, os.Getpid())
+	// One directory per run, never shared (see newAgentSessionWorkspace).
+	sessionDir, err := newAgentSessionWorkspace(benchmarkID, model, condition, trial)
+	if err != nil {
+		return false, err
+	}
 	sessionConfig := *agentConfig // Copy base config
-	sessionConfig.WorkspaceDir = filepath.Join(os.TempDir(), "ailang_eval", workspaceID)
+	sessionConfig.WorkspaceDir = sessionDir
 	sessionConfig.Condition = cond // Set experimental condition for prompt assembly
 
 	// Use per-benchmark timeout from YAML if specified, otherwise use default from flag
@@ -96,7 +97,7 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 		Browser:              sessionConfig.Browser,
 	}
 	if multiConfig.Browser.ArtifactDir != "" {
-		multiConfig.Browser.ArtifactDir = filepath.Join(multiConfig.Browser.ArtifactDir, workspaceID)
+		multiConfig.Browser.ArtifactDir = filepath.Join(multiConfig.Browser.ArtifactDir, filepath.Base(sessionDir))
 	}
 
 	// M-EVAL-LOCAL-OBSERVABILITY-FOLLOWUP: thread chain_id/stage_id through
