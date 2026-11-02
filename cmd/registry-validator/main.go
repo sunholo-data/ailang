@@ -41,6 +41,10 @@ func main() {
 		port = "8080"
 	}
 
+	var capSource string
+	checkRSSCap, capSource = instanceRSSCap(os.ReadFile)
+	log.Printf("check memory cap %s (%s)", mib(checkRSSCap), capSource)
+
 	bucket := config.RegistryBucket()
 	if bucket == "" {
 		log.Fatal("REGISTRY_BUCKET environment variable is required")

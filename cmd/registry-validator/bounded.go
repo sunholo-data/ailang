@@ -19,14 +19,23 @@ import (
 // HTTP 503 with no reason (#1811: crew_core and crew_lab, seven kills in three
 // days). These caps stop the child first so the request can say why.
 const (
-	// checkRSSCap leaves room under the 512 MiB service limit for the server
-	// and the tarball held in memory.
-	checkRSSCap uint64 = 384 << 20
+	// checkRSSHeadroom is what the check leaves under the instance's memory
+	// limit for the server and the tarball held in memory. The cap itself is
+	// derived from the limit at startup (instanceRSSCap) so it follows the
+	// terraform setting: a hardcoded 384 MiB outlived the move to 1 GiB
+	// (2026-11-02, sunholo/celestial@0.6.0 refused at 384 MiB on a 1 GiB box).
+	checkRSSHeadroom uint64 = 128 << 20
+	// fallbackRSSCap applies only when no memory limit is readable (a dev
+	// machine); it is the cap for the original 512 MiB instance.
+	fallbackRSSCap uint64 = 384 << 20
 	// checkWallCap stays under the 300 s request timeout so the refusal is
 	// delivered before Cloud Run abandons the request.
 	checkWallCap = 200 * time.Second
 	rssPollEvery = 100 * time.Millisecond
 )
+
+// checkRSSCap is set once in main from instanceRSSCap, before serving.
+var checkRSSCap = fallbackRSSCap
 
 // budgetError reports a child stopped for exceeding the validator's budget.
 type budgetError struct {
@@ -115,6 +124,67 @@ func runBounded(dir string, rssCap uint64, wall time.Duration, readRSS rssReader
 			}
 		}
 	}
+}
+
+// memLimitSources are tried in order; the first that yields a finite limit wins.
+// cgroup v2, cgroup v1, then MemTotal (Cloud Run gen1 runs under gVisor, which
+// reports the instance limit as MemTotal and may expose no cgroup files).
+var memLimitSources = []struct {
+	path  string
+	parse func([]byte) (uint64, bool)
+}{
+	{"/sys/fs/cgroup/memory.max", parseCgroupBytes},
+	{"/sys/fs/cgroup/memory/memory.limit_in_bytes", parseCgroupBytes},
+	{"/proc/meminfo", parseMemTotal},
+}
+
+// cgroupUnlimited: cgroup v1 reports "no limit" as a page-rounded max int64.
+const cgroupUnlimited uint64 = 1 << 62
+
+func parseCgroupBytes(b []byte) (uint64, bool) {
+	v, err := strconv.ParseUint(strings.TrimSpace(string(b)), 10, 64) // "max" fails here
+	if err != nil || v == 0 || v >= cgroupUnlimited {
+		return 0, false
+	}
+	return v, true
+}
+
+func parseMemTotal(b []byte) (uint64, bool) {
+	sc := bufio.NewScanner(bytes.NewReader(b))
+	for sc.Scan() {
+		f := strings.Fields(sc.Text())
+		if len(f) >= 2 && f[0] == "MemTotal:" {
+			kb, err := strconv.ParseUint(f[1], 10, 64)
+			if err != nil || kb == 0 {
+				return 0, false
+			}
+			return kb << 10, true
+		}
+	}
+	return 0, false
+}
+
+// instanceRSSCap returns the check's memory cap and where the limit came from.
+func instanceRSSCap(readFile func(string) ([]byte, error)) (uint64, string) {
+	for _, src := range memLimitSources {
+		b, err := readFile(src.path)
+		if err != nil {
+			continue
+		}
+		if limit, ok := src.parse(b); ok {
+			return rssCapForLimit(limit), fmt.Sprintf("%s limit %s", src.path, mib(limit))
+		}
+	}
+	return fallbackRSSCap, "no readable memory limit; fallback"
+}
+
+// rssCapForLimit leaves checkRSSHeadroom under limit, or a quarter of it on an
+// instance too small for the fixed headroom.
+func rssCapForLimit(limit uint64) uint64 {
+	if limit <= 2*checkRSSHeadroom {
+		return limit / 4 * 3
+	}
+	return limit - checkRSSHeadroom
 }
 
 func mib(b uint64) string { return fmt.Sprintf("%d MiB", b>>20) }

@@ -77,3 +77,46 @@ func TestProcRSS_ReadsSelfOnLinux(t *testing.T) {
 		t.Fatalf("procRSS(self) = %d, %v", rss, ok)
 	}
 }
+
+func fakeFS(files map[string]string) func(string) ([]byte, error) {
+	return func(p string) ([]byte, error) {
+		if v, ok := files[p]; ok {
+			return []byte(v), nil
+		}
+		return nil, os.ErrNotExist
+	}
+}
+
+// The cap follows the instance limit: a hardcoded 384 MiB outlived the move to
+// a 1 GiB instance and refused sunholo/celestial@0.6.0 (2026-11-02).
+func TestInstanceRSSCap_FollowsLimit(t *testing.T) {
+	cases := []struct {
+		name  string
+		files map[string]string
+		want  uint64
+		src   string
+	}{
+		{"cgroup v2 1GiB", map[string]string{"/sys/fs/cgroup/memory.max": "1073741824\n"}, 896 << 20, "memory.max"},
+		{"cgroup v2 512MiB keeps the old cap", map[string]string{"/sys/fs/cgroup/memory.max": "536870912\n"}, 384 << 20, "memory.max"},
+		{"v2 unlimited falls to v1", map[string]string{
+			"/sys/fs/cgroup/memory.max":                   "max\n",
+			"/sys/fs/cgroup/memory/memory.limit_in_bytes": "2147483648\n",
+		}, 1920 << 20, "limit_in_bytes"},
+		{"v1 unlimited falls to meminfo", map[string]string{
+			"/sys/fs/cgroup/memory/memory.limit_in_bytes": "9223372036854771712\n",
+			"/proc/meminfo": "MemTotal:        1048576 kB\nMemFree: 1 kB\n",
+		}, 896 << 20, "meminfo"},
+		{"gvisor meminfo only", map[string]string{"/proc/meminfo": "MemTotal:        1048576 kB\n"}, 896 << 20, "meminfo"},
+		{"nothing readable", map[string]string{}, fallbackRSSCap, "fallback"},
+		{"tiny instance keeps a quarter", map[string]string{"/sys/fs/cgroup/memory.max": "268435456"}, 192 << 20, "memory.max"},
+	}
+	for _, c := range cases {
+		got, src := instanceRSSCap(fakeFS(c.files))
+		if got != c.want {
+			t.Errorf("%s: cap = %s, want %s", c.name, mib(got), mib(c.want))
+		}
+		if !strings.Contains(src, c.src) {
+			t.Errorf("%s: source %q does not name %q", c.name, src, c.src)
+		}
+	}
+}
