@@ -1,6 +1,6 @@
 # M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS — An open row must not lose its labels when it meets a closed row
 
-**Status**: Implemented — unreleased; accepted in PR #2005 after independent root evaluation.
+**Status**: M2 (`830934d23`, the open-vs-closed check in `RowUnifier.UnifyRows`) **REVERTED in v0.56.1** — never shipped; v0.56.0 was tagged but not published. See "Revert note (2026-11-02)" below. The explicit-empty-callback contract (`8fd84a200`) is unaffected and still ships.
 **Target**: v0.56.0 (next minor after the v0.55.0 tag). This is a soundness fix that rejects programs which check today, so it takes a minor bump. That is the posture Mark ruled for M-EFFECT-LATENT-FUNCTION-VALUES on 2026-10-08.
 **Priority**: P0 (High). A `pure` function performs IO, `ailang check` reports it clean, and the side effect runs on both engines.
 **Tracks**: #1958
@@ -9,6 +9,37 @@
 **Dependencies**: None blocking. Inside this doc, Phase 0 must land before Phase 1 or in the same commit. It does not depend on the #1718/#1826 work.
 **Base measured**: `origin/dev` `7d29031ea`. Every binary was built from a `git archive 7d29031ea` copy in scratch (`go build ./cmd/ailang`) and checked by behaviour, not by its version stamp. All checks ran with `AILANG_NO_CACHE=1`, with `AILANG_STDLIB_PATH` pointed at the matching copy's `std/`.
 **Quorum trigger**: #1 fires (there are design-freeze items). The requester is handling review, so no quorum was run in this session.
+
+
+## Revert note (2026-11-02)
+
+M2 rejected valid programs. Inference closes a lambda's effect row to `{}` when its body unions
+two effectful sub-expressions with distinct unresolved tails (`combineTails` in
+`internal/types/typechecker_data.go` returns nil for distinct tails). Before M2, unifying that
+`{}` with an open callback slot silently erased the slot's labels, so nobody saw it; with M2 it is
+an error. Failing shapes, all accepted by v0.55.0:
+
+```ailang
+func withDir(f: string -> int ! {IO}) -> int ! {IO} = f("d")
+withDir(\d. ex(p(), 1))                         -- effectful argument (ANF let)
+withDir(\d. if d == "x" then q(1) else q(2))    -- branches
+each(\x. { println(x); println(x) }, xs)        -- sequence, slot `string -> () ! {IO}`
+withDir(\d. 1)                                  -- pure lambda into a wider slot
+```
+
+It broke the executor MCP (`executor_tools/executor.ail:191`), so every dev-plane deploy failed
+from 2026-10-29. The `effect_ceiling_reachable_test.go` edit in M2 ("implicit width subsumption is
+deferred to #1958 Phase 2") was this same bug, recognised and deferred.
+
+Tried and rejected during the release: substituting resolved callee rows in `inferApp` (closes
+implicit lambda rows, breaks the designed `any(\x. { println(…); true })` acceptance); keeping
+one open tail in `combineTails` (keeps the wrong one: a pure `show` tail closes to `{}`);
+exempting by unification direction (M2's unit tests require rejection in both orientations).
+
+To re-land: keep multi-effect lambda rows open (resolve operand rows before combining, as #386
+did for `inferApp`, at the let/block/if/match/list/tuple/binop sites), then restore M2. The
+must-accept cases in `internal/pipeline/effect_row_open_closed_test.go` are the guard; the
+M2 rejections wait in the skipped `TestEffectRowOpenClosedM2Deferred`.
 
 ## Summary
 
