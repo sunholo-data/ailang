@@ -51,6 +51,10 @@ type InferenceContext struct {
 	// module-level binding (`func` → LetRec, top-level `let` → Let), which
 	// keeps full generalization; see literalWithhold.
 	declRoot core.CoreExpr
+	// unionFrames and selfTypes resolve effect-union operands inside a lambda
+	// (#1958 F-A1/F-A2); see typechecker_effect_union.go.
+	unionFrames []unionFrame
+	selfTypes   []Type
 }
 
 // TypeConstraint represents a constraint to be solved

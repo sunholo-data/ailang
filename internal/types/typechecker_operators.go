@@ -203,7 +203,7 @@ func (tc *CoreTypeChecker) inferBinOp(ctx *InferenceContext, binop *core.BinOp) 
 	}
 
 	// Combine effects
-	effects := combineEffects(getEffectRow(leftNode), getEffectRow(rightNode))
+	effects := ctx.unionEffects(getEffectRow(leftNode), getEffectRow(rightNode))
 
 	return &typedast.TypedBinOp{
 		TypedExpr: typedast.TypedExpr{

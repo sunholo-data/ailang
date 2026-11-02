@@ -21,7 +21,7 @@ func TestEffectRowOpenClosedAnnotatedCallbacks(t *testing.T) {
 pure func via(xs: [int]) -> [int] = map(loud, xs)`, true},
 		{"option map", `pure func via(g: (int) -> int ! {IO}, x: Option[int]) -> Option[int] = O.map(g, x)`, true},
 		{"pure mapE rejected", `pure func via(xs: [int]) -> [int] = mapE(\x. { println(show(x)); x }, xs)`, true},
-		{"any IO lambda in IO caller", `func via(xs: [int]) -> bool ! {IO} = any(\x. { println(show(x)); true }, xs)`, false},
+		{"any IO lambda in IO caller (D-R2: pure slot)", `func via(xs: [int]) -> bool ! {IO} = any(\x. { println(show(x)); true }, xs)`, true},
 		{"pure map", `pure func via(xs: [int]) -> [int] = map(\x. x * 2, xs)`, false},
 		{"two-effect lambda into concrete slot", `func each(f: string -> () ! {IO}, xs: [string]) -> () ! {IO} = match xs { [] => (), x :: rest => { f(x); each(f, rest) } }
 func via(xs: [string]) -> () ! {IO} = each(\x. { println(x); println(x) }, xs)`, false},

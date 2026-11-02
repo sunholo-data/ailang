@@ -63,8 +63,10 @@ func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) 
 	}
 	ctx.env = newEnv
 
-	// Infer body type
+	// Infer body type; effect unions in it resolve against this lambda (#1958).
+	popUnionFrame := ctx.pushUnionFrame()
 	bodyNode, _, err := tc.inferCore(ctx, lam.Body)
+	popUnionFrame()
 	if err != nil {
 		return nil, oldEnv, err
 	}
@@ -266,7 +268,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 			NodeID:    let.ID(),
 			Span:      let.Span(),
 			Type:      bodyNode.GetType(),
-			EffectRow: combineEffects(valueEffects, getEffectRow(bodyNode)),
+			EffectRow: ctx.unionEffects(valueEffects, getEffectRow(bodyNode)),
 			Core:      let,
 		},
 		Name:   let.Name,
@@ -294,7 +296,14 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 	oldEnv := ctx.env
 	ctx.env = newEnv
 
-	// Infer types of all values and collect constraints
+	// Infer types of all values and collect constraints. Self-calls inside them
+	// are absorbed by effect unions (#1958 F-A2).
+	selfTypes := make([]Type, 0, len(letrec.Bindings))
+	for _, binding := range letrec.Bindings {
+		selfTypes = append(selfTypes, bindingTypes[binding.Name])
+	}
+	popSelfTypes := ctx.pushSelfTypes(selfTypes)
+	defer popSelfTypes()
 	var allValueNodes []typedast.TypedNode
 	var allValueTypes []Type
 	for _, binding := range letrec.Bindings {
@@ -428,7 +437,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 			NodeID:    letrec.ID(),
 			Span:      letrec.Span(),
 			Type:      bodyNode.GetType(),
-			EffectRow: combineEffectList(allEffects),
+			EffectRow: ctx.unionEffectList(allEffects),
 			Core:      letrec,
 		},
 		Bindings: typedBindings,
@@ -673,7 +682,7 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 	// than let combineEffects silently pick one or invent an implicit join.
 	assertSingleTailAfterAppSolve(appEffects, app)
 
-	appEffectRow := combineEffectList(appEffects)
+	appEffectRow := ctx.unionEffectList(appEffects)
 
 	tc.publishApplicationWithCallee(app.ID(), latentMask, callRow, ctx, argNodes)
 	return &typedast.TypedApp{
@@ -723,7 +732,7 @@ func (tc *CoreTypeChecker) inferIf(ctx *InferenceContext, ifExpr *core.If) (*typ
 	})
 
 	// Combine effects from all parts
-	effects := combineEffectList([]*Row{
+	effects := ctx.unionEffectList([]*Row{
 		getEffectRow(condNode),
 		getEffectRow(thenNode),
 		getEffectRow(elseNode),

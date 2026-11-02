@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-EFFECT-ROW-OPEN-CLOSED-RELAND",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-11-02T19:24:05Z",
   "design_doc": "design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness.md",
   "sprint_plan": "design_docs/planned/v0_57_0/m-effect-row-open-closed-reland-sprint-plan.md",
@@ -51,10 +51,10 @@
         "Full sweep vs 90f31bbe0: only D-R2-class flips (spike: 0)",
         "make test-changed + make check-file-sizes green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-02T19:34:26Z",
+      "completed": "2026-11-02T19:34:26Z",
+      "notes": "ctx.unionEffects/unionEffectList replace all 11 combine sites (typechecker_effect_union.go); lambda union frames + let-rec self stack on InferenceContext, no globals. Sweep vs 05c860aaf: 0/810 tracked + 0/256 external flips. Go internal/... + cmd/ailang 148 ok. Mutations: no-resolution -> 5 shape cases red; no-absorption -> ghost-effect recursion + TestRecursiveConditional red; absorb-all -> recursive callback-row case red. New finding: base accepted a recursive fn omitting its callback row (non-recursive form rejected) \u2014 now consistent; 0 corpus files."
     },
     {
       "id": "M2_LAMBDA_OPEN_ON_USE",

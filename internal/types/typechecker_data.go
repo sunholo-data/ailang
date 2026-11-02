@@ -50,7 +50,7 @@ func (tc *CoreTypeChecker) inferRecord(ctx *InferenceContext, rec *core.Record) 
 			NodeID:    rec.ID(),
 			Span:      rec.Span(),
 			Type:      recordType,
-			EffectRow: combineEffectList(allEffects),
+			EffectRow: ctx.unionEffectList(allEffects),
 			Core:      rec,
 		},
 		Fields: fields,
@@ -249,7 +249,7 @@ func (tc *CoreTypeChecker) inferList(ctx *InferenceContext, list *core.List) (*t
 			NodeID:    list.ID(),
 			Span:      list.Span(),
 			Type:      &TList{Element: elemType},
-			EffectRow: combineEffectList(allEffects),
+			EffectRow: ctx.unionEffectList(allEffects),
 			Core:      list,
 		},
 		Elements: elements,
@@ -306,7 +306,7 @@ func (tc *CoreTypeChecker) inferArray(ctx *InferenceContext, arr *core.Array) (*
 			NodeID:    arr.ID(),
 			Span:      arr.Span(),
 			Type:      &TArray{Element: elemType},
-			EffectRow: combineEffectList(allEffects),
+			EffectRow: ctx.unionEffectList(allEffects),
 			Core:      arr,
 		},
 		Elements: elements,
@@ -335,7 +335,7 @@ func (tc *CoreTypeChecker) inferTuple(ctx *InferenceContext, tuple *core.Tuple) 
 			NodeID:    tuple.ID(),
 			Span:      tuple.Span(),
 			Type:      &TTuple{Elements: elemTypes},
-			EffectRow: combineEffectList(allEffects),
+			EffectRow: ctx.unionEffectList(allEffects),
 			Core:      tuple,
 		},
 		Elements: elements,
@@ -381,14 +381,15 @@ func isCoreValue(expr core.CoreExpr) bool {
 // `println(show(x))` that materialized closed {} even though the pending
 // `println` constraint separately resolved to {IO}, erasing IO.
 //
-// The fix: callers (notably inferApp) now solve and substitute the operand rows
-// LOCALLY before combining, so the inputs here are already resolved. This
-// function therefore:
+// Inference callers go through InferenceContext.unionEffects, which resolves
+// distinct-tail operands before calling this (#1958, typechecker_effect_union.go).
+// This function itself:
 //   - unions labels of both rows;
 //   - preserves ONE shared tail when the operands agree on a tail (or only one
 //     carries a tail) — an open row stays open;
-//   - treats two DISTINCT unresolved tails as a loud invariant failure (fail
-//     closed) rather than silently choosing one, dropping one, or joining them.
+//   - closes the row when two DISTINCT tails remain (see combineTails). It does
+//     not fail: only operands that are still unresolved after unionEffects get
+//     here, such as two genuinely distinct callback rows.
 func combineEffects(e1, e2 *Row) *Row {
 	if e1 == nil || (len(e1.Labels) == 0 && e1.Tail == nil) {
 		return e2
@@ -529,15 +530,6 @@ func mergeEffectParams(p1, p2 map[string]map[string]string) map[string]map[strin
 		}
 	}
 	return out
-}
-
-// combineEffectList combines multiple effect rows
-func combineEffectList(effects []*Row) *Row {
-	result := EmptyEffectRow()
-	for _, e := range effects {
-		result = combineEffects(result, e)
-	}
-	return result
 }
 
 // toInterfaceSlice converts []Type to []interface{}

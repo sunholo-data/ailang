@@ -98,7 +98,7 @@ func (tc *CoreTypeChecker) inferMatch(ctx *InferenceContext, match *core.Match) 
 			NodeID:    match.ID(),
 			Span:      match.Span(),
 			Type:      resultType,
-			EffectRow: combineEffectList(allEffects),
+			EffectRow: ctx.unionEffectList(allEffects),
 			Core:      match,
 		},
 		Scrutinee:  scrutineeNode,
