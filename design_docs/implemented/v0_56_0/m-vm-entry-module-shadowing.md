@@ -1,7 +1,7 @@
 # M-VM-ENTRY-MODULE-SHADOWING: `ailang run --bytecode --entry main` resolves an imported module's `main`, not the entry module's
 
-**Status**: Planned
-**Target**: v0.55.1
+**Status**: Implemented (`88bf23f89`, attended, 2026-11-02) — see "Implementation Note" below
+**Target**: v0.56.0
 **Priority**: P0 (High)
 **Estimated**: 3 days (1.5 honest × 2 convention)
 **Dependencies**: None (extends the M-BYTECODE-MULTIMODULE image layout shipped in v0.11.0)
@@ -296,6 +296,22 @@ Policy order (root → exact → unique-suffix → error) is total: at most one 
 | `RootModuleID` empty on a path where VM dispatch happens (e.g. a new single-file-with-imports route) | Medium | Resolver falls through to exact/unique-suffix — old behavior, loud only on true ambiguity; unit test pins the empty-root fallthrough |
 | Testing engine migration breaks named-test dispatch | Medium | `__namedtest_entry` is unique by construction (synthesized per run); Phase 2 sweep runs the engine's own suite |
 | Fix lands in v0.55.1 but the game clone stays on v0.54.18 | Low | Downstream bump is tracked as an explicit acceptance step (Success Criteria), not assumed |
+
+## Implementation Note (2026-11-02)
+
+Shipped in `88bf23f89` (`fix: VM entry resolution, fmt test-block lets, verify float/sqrt leaks`),
+written in an attended session in parallel with this doc. It meets the primary goal and the first
+three Success Criteria; it differs from the design in three places, each deliberate:
+
+| Design | Shipped | Why |
+|---|---|---|
+| New `pipeline.Result.RootModuleID` field | `runner.EntryModuleID(res)`: the `res.Modules` key whose `Core` is `res.Artifacts.Core` (the pipeline shares the pointer) | The doc's row-4 alternative ("re-derive in the runner … provided a test pins the equivalence"). `TestVMEntryIgnoresImportedMain` pins it; `tryRunEntryViaVM` errors loudly if no module matches |
+| `ResolveEntryProto` 4-step policy with unique-suffix fallback and an ambiguity error | `FindEntryProto(img, entryModule, name)`: exact `<entryModule>.<name>` (bare `name` for single-module images), else not found | `ailang run` checks `--entry` against the entry module's exports before reaching the VM ("Available exports: [main]" on both engines), so a dep-named entry never reaches the resolver. The named-test engine's entries live in the entry module. With exact lookup, ambiguity cannot arise |
+| Verification Log row 17: the `_<name>` form "is never a prototype name the compiler produces" | Wrong. A user function `run_main` compiles to `<mod>.run_main`, which the old `_main` suffix matched | `TestVMEntryIgnoresUnderscoreSuffix`: before the fix, `--bytecode` ran `run_main` instead of `main` in a single file with no imports |
+
+Not done from this doc: the VM reference note on multi-`main` packages (Phase 3). The changelog
+fragment is `changelogs/unreleased/2026-11-02-stapledons-vm-entry-fmt-verify.md`. Downstream
+re-run: the stapledons verifier passes under `--bytecode` with the fixed binary (exit 0).
 
 ## Verification Log
 
