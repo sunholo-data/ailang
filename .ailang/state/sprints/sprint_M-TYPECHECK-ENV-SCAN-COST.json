@@ -5,12 +5,7 @@
   "design_doc": "design_docs/planned/v0_56_2/m-typecheck-env-scan-cost.md",
   "sprint_plan": "design_docs/planned/v0_56_2/sprint-plan-m-typecheck-env-scan-cost.md",
   "github_issues": [
-    1134,
-    1811,
-    1958,
-    2052,
-    2057,
-    2061
+    1958
   ],
   "registry_reuse": [
     {
