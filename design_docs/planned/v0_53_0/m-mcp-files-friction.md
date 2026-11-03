@@ -1,7 +1,7 @@
 # M-MCP-FILES-FRICTION — routing and decisions for the sunholo/mcp_files 0.1.0 friction grab-bag (Refs #1618)
 
-**Status**: Planned
-**Target**: v0.53.0
+**Status**: Planned (slices 0+1 shipped: prompt units #1665, stripper v0.54.13 `b6c9f592e` #1821; slices 2–5 re-verified live at HEAD v0.57.0 on 2026-11-03 — see the status amendment in Problem Statement)
+**Target**: v0.53.0 (released 2026-10-09 without slices 2–5; open slices need a fresh version target from the sprint-planner)
 **Priority**: P2 (issue label `priority:P2`)
 **Estimated**: 0.5–1 day per slice, ≈4–5 days total across five independently shippable slices (item 3 shipped directly with this doc — see below)
 **Dependencies**: none blocking; items 4 and 5 extend implemented docs (M-IFC-DECLARED-RECORD-LABELS v0.52.0, M-SMT-INTERP-SHOW v0.36.0)
@@ -51,7 +51,33 @@ directive: *"Re-verify each item and give each live one a decision or a pointer 
   that non-repro is **contradicted** here with a 9-line reproducer (see item 1; the boundary between
   balanced and unbalanced braces explains the divergent result)
 
-**Current State (live verification summary):**
+**Current State (re-verified at HEAD v0.57.0, 2026-11-03 — status amendment):**
+
+Re-verification environment: repo HEAD `b23cadce` (v0.57.0, 2026-11-03); prebuilt `ailang` reports
+`AILANG v0.57.0, Commit: b23cadce` — no drift between binary and source. Every repro below was re-run
+live with that binary (rows in this amendment's Verification Log addendum).
+
+| # | Item | Status at HEAD v0.57.0 | Live evidence (2026-11-03) |
+|---|---|---|---|
+| 1 | stripper vs braces in string literals | **FIXED** — shipped v0.54.13 (`b6c9f592e`, #1821) | 9-line unbalanced-`{` reproducer: `2 tests: 2 passed, 0 failed` (was `0 passed, 2 failed` at v0.52.5) |
+| 2 | fmt flattens multi-line string literals | **STILL REPRODUCES** | `ailang fmt --write` on the `<html>` example rewrites it to one `\n`-escaped line; `fmt --help` offers only `--write`/`--check`, no literal-layout mode |
+| 3 | prompt taught Unix seconds | **FIXED** — shipped with this doc (#1665) | `ailang prompt` (active v0.16.11): "(milliseconds since epoch)" / "(int milliseconds)"; live `makeDateTime(2026,5,21,12,0,0)` → `1779364800000` (13 digits = ms) |
+| 4 | `{not ℓ}` refinements inside record field types silently dropped | **STILL REPRODUCES** — all three shapes | combined fixture (domain fn-field, plain field, codomain fn-field + secret call-through/write): `ailang check` → `✓ No errors found!`; contrast: same refinement on a top-level parameter fails `information-flow violation` |
+| 5 | `"${x}"` in `ensures` unencodable; `std/string.concat` unencodable | **STILL REPRODUCES** — both halves | Half A: `encoding error: cannot encode ensures clause: unsupported application: $builtin.show([x])`; Half B: `… unsupported application: std/string.concat([$tmp1])`; control (same interpolation in body, `ensures { true }`) → `✓ VERIFIED` (283 ms) |
+| 6 | CORS global + exact-origin only; no suffix/per-route form | **GAP UNCHANGED** | `cmd/ailang/serve_api.go` still exposes only `--cors` + repeatable exact `--cors-origin`; `originpolicy` is an exact-match map (`Listed` → `allowed[origin]`), `Validate` demands `scheme://host[:port]` with "nothing after the host" — no suffix, wildcard, or route-keyed form anywhere |
+
+Note on item 5 half B: at v0.52.5 this shape reported as **SKIPPED** with the unencodable-builtin
+hint; at HEAD it is a hard **encode error** (`std/string.concat([$tmp1])`, a `$tmp1` temp binding) —
+the honest-SKIPPED path does not fire when the unencodable call sits directly inside the clause.
+Same D4 decision, different failure surface; M4's slice criteria should test the current behavior.
+
+This amendment changes no decision: D2/D3/D4 remain RULED (2026-10-08, Mark, as recommended), D1's
+chosen shape (the lexer token stream) is exactly what shipped as #1821, D5 remains to implement.
+The sprint plan (`m-mcp-files-friction-sprint-plan.md`) starts every milestone unpassed; its own
+executor rule — "if a defect is already fixed, bank the reproduction result and adjust that slice
+rather than patching blindly" — now applies to **M1**: bank this row, do not re-implement the stripper.
+
+**Current State (live verification summary, 2026-10-08 — historical):**
 
 | # | Item (from #1618) | Live at HEAD? | Evidence | Routing |
 |---|---|---|---|---|
@@ -358,9 +384,9 @@ suffix form benefits both listeners.
 **Phase 0: shipped with this doc** (~0.5 hours, done)
 - [x] Item 3 prompt text fix across source, embedded, docs-sync and llms.txt surfaces + registry hash/note (D6)
 
-**Phase 1: stripper (item 1)** (~0.5 day)
-- [ ] Reuse the lexer literal-skip scan in `testAndPropertySkipRanges`; keep behavior for balanced cases identical
-- [ ] Regression test: the 9-line reproducer above (unbalanced `{` and `}` variants; comment-bearing bodies)
+**Phase 1: stripper (item 1)** (~0.5 day) — **SHIPPED at v0.54.13 (`b6c9f592e`, #1821)** via the lexer token stream (D1's chosen shape); re-verified live at HEAD v0.57.0: the 9-line reproducer passes 2/2
+- [x] Reuse the lexer literal-skip scan in `testAndPropertySkipRanges`; keep behavior for balanced cases identical
+- [x] Regression test: the 9-line reproducer above (unbalanced `{` and `}` variants; comment-bearing bodies)
 
 **Phase 2: fmt as-written multi-line strings (item 2)** (~1 day, after D2 ratification)
 - [ ] Envelope-anchored preservation for literals whose original bytes contain a raw newline, with re-lex validation and fail-closed refusal
@@ -495,6 +521,22 @@ ailang serve-api --port 8080 --cors-origin-suffix claudemcpcontent.com --cors-or
 | Prebuilt binary vs HEAD: no code drift | `ailang version` → v0.52.5 `7200786d` (2026-10-07); workspace HEAD `1dfd5615` = PR #1619 (docs only, verified via `git show --stat` file list: 1 design-doc file) | behavior reads valid for HEAD |
 | create_planned_doc.sh aborts on empty search results (session friction, once) | `bash -x` run: `merge_results` → `grep` exit 1 under `set -e -o pipefail` | scaffold created manually from the script's template; fix not attempted (not twice yet) |
 
+### Verification Log — HEAD re-check (2026-11-03, v0.57.0 `b23cadce`)
+
+| Claim | Verification | Result |
+|---|---|---|
+| Item 1 fixed at HEAD | `ailang test` on the 9-line unbalanced-`{` module (v0.57.0 binary) | `✓ has unbalanced brace in string`, `✓ sibling passes`, `2 tests: 2 passed, 0 failed` |
+| Item 1 mechanism (what shipped) | read `internal/testing/source_strip.go:89-94` | "a literal, an interpolation or a comment is not counted (#1821 …)" — lexer token stream, matching D1 |
+| Item 2 still flattens | `ailang fmt --write` on the multi-line `<html>` fixture; `--help` read | file rewritten to `"<html>\n  <body>\n    <p>hello</p>\n  </body>\n</html>"`; no layout-preservation mode exists |
+| Item 3 fixed at HEAD | `ailang prompt` (active v0.16.11) + live run | "(milliseconds since epoch)" (clock), "(int milliseconds)" (datetime); `makeDateTime(2026,5,21,12,0,0)` → `1779364800000`; `year()` round-trips 2026 on that scale |
+| Item 4 all three shapes silent | `ailang check` on the combined fixture (domain fn-field + plain field + codomain fn-field, secret call-through and writes, `! {IO, Secret}`) | `✓ No errors found!` |
+| Item 4 contrast enforced | `ailang check` on `logLine(s: string{not secret})` + secret call | `information-flow violation: value labelled <secret> reaches parameter "s" …` + declassify suggestion |
+| Item 5 half A unencodable | `ailang verify` on `ensures { result == "id:${x}" }` | `cannot encode ensures clause: unsupported application: $builtin.show([x])` (1 error) |
+| Item 5 half B unencodable | `ailang verify` on `ensures { result == concat(["id:", x]) }` | `cannot encode ensures clause: unsupported application: std/string.concat([$tmp1])` (1 error) — was SKIPPED-with-hint at v0.52.5 |
+| Item 5 control verifies | `ailang verify` on body interpolation + `ensures { true }` | `✓ VERIFIED tagged` (283 ms) — encodable path intact |
+| Item 6 unchanged surface | read `cmd/ailang/serve_api.go:19-21` + `internal/platform/originpolicy/originpolicy.go:44-71` | only `--cors`/`--cors-origin` (exact, repeatable); `New` builds a `map[string]bool`, `Listed` is an exact lookup, `Validate` rejects anything after the host — no suffix/wildcard/per-route form |
+| Active prompt version | `ailang prompt --version-active` | `v0.16.11` (registered in `prompts/versions.json`, created 2026-10-29) |
+
 ## Deferred Decisions
 
 - **Per-route CORS scoping** (`--route-origin METHOD /path=origin`): coherent follow-up to D5; needs `ServerConfig` + per-route wrap plumbing. Deferred because the suffix form alone covers the reported widget case on the declared route.
@@ -564,4 +606,4 @@ ailang serve-api --port 8080 --cors-origin-suffix claudemcpcontent.com --cors-or
 
 ---
 
-**Last updated**: 2026-10-08
+**Last updated**: 2026-11-03 (HEAD v0.57.0 re-verification amendment: slices 0+1 confirmed shipped, items 2/4/5/6 confirmed still live; original doc 2026-10-08)
