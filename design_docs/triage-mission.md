@@ -19,7 +19,7 @@ unforked skill, with a triage branch at Gate 2 and Gate 3 (`resources/gate-3-tri
 **Scheduling**: launchd `dev.ailang.mission-triage`, registry entry `missions/triage.toml`
 (interval 12h, boot offset 2520s). Billing guard as for every mission.
 **Log**: [triage-mission-log.md](triage-mission-log.md), append-only, one entry per iteration.
-**Human-facing reporting**: the GitHub bookkeeping issue ([#1892](https://github.com/sunholo-data/ailang/issues/1892)), **Discord** via
+**Human-facing reporting**: the GitHub bookkeeping issue ([#2069](https://github.com/sunholo-data/ailang/issues/2069)), **Discord** via
 the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 ## Repo Profile
@@ -30,7 +30,7 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 - **Checkout**: the pin worktree `~/.ailang-driver-pin/triage`. The clone
   `~/dev/sunholo-data/ailang-triage` is only launchd's working directory. The mission writes
   nothing to the repo except its own charter, log and dashboard, through a PR.
-- **Bookkeeping issue**: `#1892` (week of 2026-10-19; predecessor #1835), rotates weekly; live number in `~/.ailang/state/mission-triage-gh-issue`
+- **Bookkeeping issue**: [#2069](https://github.com/sunholo-data/ailang/issues/2069) (week of 2026-11-02; predecessor #1974); live number in `~/.ailang/state/mission-triage-gh-issue`
 - **CI workflows Gate 1 polls**: `CI` (reported at the top of every digest; no loop action depends on it)
 - **Verify profile**: none of its own. It verifies other agents' work with the
   `github-issue-triage` recipe and `gh` reads.
@@ -41,11 +41,11 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
+## STATUS 2026-11-03 — ITERATION 25: 13 verdicts independently judged; one issue closed; two comments; exec-lifetime design routed; three inherited asks restored; attestation held; shadow509/score1of3. [ADMIN]
+
 ## STATUS 2026-10-28 — ITERATION 17: six independently judged items; four comments/three labels; two red-dev routes; D36 OPEN; 22 holds; shadow450/score14of14; no approvals or merges. [ADMIN]
 
 ## STATUS 2026-10-28 — ITERATION 16: 25 independently judged verdicts; red dev routed; D34/D35 OPEN; 21 holds; shadow14/14; external1981merge stopped late actions. [ADMIN]
-
-## STATUS 2026-10-27 — ITERATION 15: 63components/56groups;62CONCUR/1DISSENT;15comments/8labels;D27–33parked;devGREEN;coverage69/83,14stale deferred;shadow14/14. [ADMIN]
 
 ## CURRENT LEVEL: **1 — Tidy, with attestations** (Mark, attended 2026-10-15; D-TRIAGE-7)
 
@@ -166,6 +166,9 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 | D-TRIAGE-34 | OPEN | Import-collision scope after external merge #1981, with competing draft #1982 still open: choose A, obtain a recorded human scope/freeze ruling, consolidate MOD015/MOD016, namespace/phase/span/export-identity choices through the owner, and require seated independent review before further planning; or B, request a targeted revision to the landed design. Recommend A. Default HOLD on this loop and on any new approval request; neither draft is selected, cancelled, rejected or merged by triage. #1981 was merged externally while reporting; its card previously named sprint-planner, but actual handoff delivery is unmeasured. The original request and triage follow-up overlapped before either draft was visible. | Iteration16 independent OpenAI / Anthropic Sonnet CONCUR; https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6464855193 |
 | D-TRIAGE-35 | OPEN | Dependency-remediation design #1983: choose A, review the x/net 0.62.0 upgrade approach after correcting the allowlist census (9 total entries, 8 function-reaching), recording D1-D4 human freeze, independent review and green current-head checks; or B, request a specific remediation revision. Recommend A; no blind advisory allowlist exception. Default HOLD: no planner dispatch, dependency/allowlist patch or deployment by this loop. | Iteration16 independent OpenAI / Anthropic Sonnet CONCUR; https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6464855193 |
 | D-TRIAGE-36 | OPEN | Environment-output credential incident, rotation needed. A (recommended): operator revokes/rotates the exposed credential; B: defer pending incident review. Default: OPEN; no unattended credential or configuration change. | Iteration17 independent judge CONCUR; https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6480894865 |
+| D-TRIAGE-37 | OPEN | PR #2056/card task-bed67d5d: A, retire the original plan attended as superseded; B, request a justified residual scope such as the multi-main documentation note. Prior iteration24 recommended A; preserve that recommendation pending operator review, with its verifier/judge dissent retained. Default HOLD; no retirement, approval, rejection, merge or executor dispatch by this loop. | Iteration25 restoration, inherited iteration24, previously absent from ledger. Independent OpenAI verifier / MiniMax judge CONCUR; https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6599231990 |
+| D-TRIAGE-38 | OPEN | Issue #2036: A, Scope a read-only native-precision std/process configured-timeout query, available before spawn; decide duration representation and relationship to #2035 per-call override in design.; B, Defer public query; motoko carries its own launch limit only, documenting that direct ailang --process-timeout is still unavailable to programs. Recommendation: A: only a runtime query addresses direct-run configuration and prelaunch checks; exact public type/API needs design approval and stdlib freeze review. Default: HOLD: issue open; no export, stdlib freeze change or implementation without ruling. | Iteration25 restoration, inherited iteration23, previously absent from ledger. Independent OpenAI verifier / MiniMax judge CONCUR; https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6599231990 |
+| D-TRIAGE-39 | OPEN | Issue #2037: A, Document setsid/daemon escape as out of scope for current process-group containment.; B, Commission a separate Linux stronger-containment design (cgroup/subreaper), with portability and ownership guarantees reviewed. Recommendation: A: reporter says nonblocking and current behavior can be disclosed precisely; B requires separate approved scope. Default: HOLD: current behavior and issue stay open; no docs/code/design dispatch before ruling. | Iteration25 restoration, inherited iteration23, previously absent from ledger. Independent OpenAI verifier / MiniMax judge CONCUR; https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6599231990 |
 <!-- decision-ledger:end -->
 
 ## Queue
@@ -175,7 +178,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 2. Sprint A, the coordinator auto-approval policy: its own design doc via design-doc-creator, scored
    against ≥2 weeks of this loop's shadow ledger before it auto-approves anything.
 3. [RECORDED iterations 1–3] Level 1 queue verification; iteration 3 records independent review and the prior record gap. Clauses 1–3.
-4. [NEXT] Refresh changed/held/stale items; preserve 21 inherited OPEN holds plus D36 incident rotation. D34 still holds consolidation after both competing designs1981/1982 externally merged; executor plans1984/1985 are held. D35 dependency freeze remains OPEN. Red-dev coverage design request and ticket ci:distinct-build-test-failures are routed, causes not presumed. Never approve, reject, merge, implement or fire handoffs in this loop.
+4. [NEXT] Refresh changed/held/stale items. Preserve 25 OPEN holds, including restored D-TRIAGE-37/38/39 from earlier reports. #2064 substantive plan is verified, with attestation PARKED-ON-LANE until an actual verifier model identity is available; resume only when that metadata is reported, never by inventing it. #2059 merged externally after an explicit recorded attended freeze ruling; no new D40 ask. #2034 design-only request inbox_1793695672948_58f33f0d is routed. Never approve, reject, merge, implement or fire handoffs in this loop.
 5. [RECORDED iteration 6] 10 independently judged items, 7 orphan PRs, one current-dev/cross-vendor unsigned attestation; #1878/#1879 P1 and #1880 P2 process-result defects remain open. Iteration 5 has digest/ledger evidence but no committed log; iteration 6 credits that recording gap.
 
 6. [HARNESS] [NONBLOCKING] ticket:reporting:daneel-reports-not-declared-triage — recurrence filed to fleet in iteration 6 (inbox_1792270873468_18cd5712). Existing controlplane fallback delivered both reports; iteration8 recurrence inbox_1792446067114_a8de6085; iteration10 recurrence inbox_1792533879605_18a7bcf5. Iteration11 recurrence inbox_1792578499678_b8495de1; direct send refused rc1, existing controlplane consumer retained. Iteration12 recurrence inbox_1792622923766_6056562b: direct send rc1; existing normal+one urgent controlplane consumer delivered. Iteration13 recurrence inbox_1792666977791_d8a8d14b: direct send rc1; existing controlplane normal/one urgent fallback delivered. No triage harness repair. Iteration16 recurrence inbox_1793178174531_2005f28f: direct send rc1; normal/one urgent controlplane pointers and user message peek-verified.
