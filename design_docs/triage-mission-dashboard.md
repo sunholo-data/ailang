@@ -1,18 +1,18 @@
-# Triage mission — iteration 17, 2026-10-28
+# Triage mission — iteration25, 2026-11-03
 
-- Level 1: verify/tidy/attest; never approve, reject, merge or implement.
-- Reviewed dev: 07ce4a8dc; operational CLI v0.54.19-dirty, not compiler evidence.
-- RED dev: GO-2026-6860 inherited/D35; coverage 74.8%<80%; two distinct Build test failures, causes UNKNOWN.
-- Queue: 14 cards / 37 PRs / 66 issues. Six independently judged verdicts, all CONCUR.
-- Fresh verdict coverage: 94/94 under seven days, counted against actual ledger; each source tied to its review SHA.
-- Actions: four comments (#1984/#1985/#1992/#1997) and three needs-decision labels; no attestation, close or handoff.
-- Holds: 21 inherited OPEN decisions plus new D36, environment-output credential incident, rotation needed.
-- D34: both designs #1981/#1982 merged externally; competing executor plans #1984/#1985 held.
-- Orphans: ten uncarded coordinator PRs and one unidentified missing approval record; nine cards exceed 48h.
-- Routes: fleet ticket ci:distinct-build-test-failures; Sonar coverage DESIGN-ONLY request 9843bd9f; no fixes.
-- Shadow: 450 append-only rows; 14/14 settled, 16 unmeasured. Terminal state only; no Part A promotion.
-- Roles: two native OpenAI verifiers; actual Anthropic Sonnet judgment through guarded Agent transport.
-- Spend: metered $0; evaluator 601,827 subscription tokens; other role counts unreported.
-- Cadence: 12 hours, queue fingerprint last; no code inner loop or capacity park.
-- Record: continuing unmerged PR #1904. Evidence: https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6480894865
-- Next: operator incident/rulings, owner repairs and consolidation, next changed/held/stale refresh.
+Level1; no approvals/rejections/merges. Released artifact bannerv0.56.1; operational PATH CLIv0.55.0-dirty is not compiler proof.
+Evidence: https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6599231990
+Bookkeeping: https://github.com/sunholo-data/ailang/issues/2069
+14 independently judged rows: 13 in-scope plus one excluded card; 13 CONCUR / 1 DISSENT.
+Actions: issue1950closed,2PRcomments,2034design-only request;0labels/attestations.
+2064plan substantiveVERIFIED; attestationPARKED-ON-LANE until actual verifier model identity reported.
+2059externally merged after explicit attended freeze ruling; no D40ask or triage handoff.
+25OPEN holds (40rows); restoredD37/38/39 are inherited, not newly urgent.
+Shadow509rows; prior-bank14day settled agreement1/3, disagreements1926/1997.
+4uncarded coordinator PRs1939/1934/1894/1759; missing approval record untouched.
+Dev head not established green; current health refreshed at delivery.
+Next: changed/held/stale queue; operator holds;2034design owner;2009/2010corrections.
+Metered$0.11007918/$1; all role/provider work finished; unknown native token/model identities explicit.
+Two actual OpenAI Agent verifiers; independent MiniMax evaluator via declared fallback.
+No harness/skill/routing/config/secret/code repair.
+Log22-24gap retained honestly; new record continues unmergedPR2027memory.
