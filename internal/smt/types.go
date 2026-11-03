@@ -269,7 +269,7 @@ var BuiltinToSMTOp = map[string]string{
 	"div_Int":   smtIntDivTrunc,
 	"div_Float": "/",
 	"mod_Int":   smtIntModTrunc,
-	"mod_Float": "mod",
+	"mod_Float": smtRealModTrunc,
 
 	// Comparison
 	"eq_Int":   "=",

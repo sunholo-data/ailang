@@ -11,7 +11,7 @@ import (
 func encodeIntrinsic(intr *core.Intrinsic) (string, error) {
 	opMap := map[core.IntrinsicOp]string{
 		core.OpAdd: "+", core.OpSub: "-", core.OpMul: "*",
-		core.OpDiv: smtIntDivTrunc, core.OpMod: smtIntModTrunc,
+		core.OpDiv: "/", core.OpMod: "%",
 		core.OpEq: "=", core.OpNe: "distinct",
 		core.OpLt: "<", core.OpLe: "<=", core.OpGt: ">", core.OpGe: ">=",
 		core.OpAnd: "and", core.OpOr: "or", core.OpNot: "not",
@@ -21,36 +21,78 @@ func encodeIntrinsic(intr *core.Intrinsic) (string, error) {
 		core.OpBitwiseNot: "bvnot",
 		core.OpShiftLeft:  "bvshl", core.OpShiftRight: "bvashr",
 	}
-	smtOp, ok := opMap[intr.Op]
+	op, ok := opMap[intr.Op]
 	if !ok {
 		return "", fmt.Errorf("unsupported intrinsic op: %v", intr.Op)
 	}
-	return encodeBuiltinOp(smtOp, intr.Args)
+	if len(intr.Args) == 2 {
+		smtOp, flip, err := resolvePreLoweredOp(op, intr.Args[0], intr.Args[1])
+		if err != nil {
+			return "", err
+		}
+		return encodeBinaryArgs(smtOp, flip, intr.Args[0], intr.Args[1])
+	}
+	return encodeBuiltinOp(op, intr.Args)
 }
 
 // encodeBinOp handles pre-lowered BinOp nodes.
 func encodeBinOp(bop *core.BinOp) (string, error) {
 	opMap := map[string]string{
-		"+": "+", "-": "-", "*": "*", "/": smtIntDivTrunc, "%": smtIntModTrunc,
+		"+": "+", "-": "-", "*": "*", "/": "/", "%": "%",
 		"==": "=", "!=": "distinct",
 		"<": "<", "<=": "<=", ">": ">", ">=": ">=",
 		"&&": "and", "||": "or",
 		"&": "bvand", "^": "bvxor",
 		"<<": "bvshl", ">>": "bvashr",
 	}
-	smtOp, ok := opMap[bop.Op]
+	op, ok := opMap[bop.Op]
 	if !ok {
 		return "", fmt.Errorf("unsupported binary op: %s", bop.Op)
 	}
-	left, err := EncodeExpr(bop.Left)
+	smtOp, flip, err := resolvePreLoweredOp(op, bop.Left, bop.Right)
 	if err != nil {
 		return "", err
 	}
-	right, err := EncodeExpr(bop.Right)
+	return encodeBinaryArgs(smtOp, flip, bop.Left, bop.Right)
+}
+
+// resolvePreLoweredOp picks the sort-directed encoding of `/`, `%` and the
+// ordering operators on pre-lowered Intrinsic/BinOp nodes. These shapes do not
+// reach the encoder after op_lowering (pinned by the contract pipeline test);
+// when neither operand carries a sort they keep the historical Int reading,
+// which int_divmod_test.go pins. Any Float or String evidence wins.
+func resolvePreLoweredOp(op string, left, right core.CoreExpr) (string, bool, error) {
+	sort := operandsSort(left, right)
+	switch op {
+	case "/", "%":
+		if sort == "" {
+			sort = sortInt
+		}
+		smtOp, err := divModOp(op == "%", sort)
+		return smtOp, false, err
+	case "<", "<=", ">", ">=":
+		if sort == sortString {
+			return orderOp(op, sort)
+		}
+	}
+	return op, false, nil
+}
+
+// encodeBinaryArgs encodes both operands once and applies smtOp, swapping the
+// operands when flip is set.
+func encodeBinaryArgs(smtOp string, flip bool, left, right core.CoreExpr) (string, error) {
+	l, err := EncodeExpr(left)
 	if err != nil {
 		return "", err
 	}
-	return applyBinaryOp(smtOp, left, right), nil
+	r, err := EncodeExpr(right)
+	if err != nil {
+		return "", err
+	}
+	if flip {
+		l, r = r, l
+	}
+	return applyBinaryOp(smtOp, l, r), nil
 }
 
 // smtIntDivTrunc and smtIntModTrunc stand for AILANG's Int `/` and `%`. They are
@@ -64,10 +106,13 @@ const (
 )
 
 // applyBinaryOp renders `(op left right)`, expanding the truncating Int
-// division and remainder sentinels.
+// division and remainder sentinels and the Float remainder sentinel.
 func applyBinaryOp(smtOp, left, right string) string {
 	if smtOp == smtIntDivTrunc || smtOp == smtIntModTrunc {
 		return encodeTruncDivMod(smtOp == smtIntModTrunc, left, right)
+	}
+	if smtOp == smtRealModTrunc {
+		return encodeRealMod(left, right)
 	}
 	return fmt.Sprintf("(%s %s %s)", smtOp, left, right)
 }
@@ -108,26 +153,44 @@ func encodeUnOp(uop *core.UnOp) (string, error) {
 }
 
 // encodeDictApp handles DictApp nodes — type class method applications.
-// DictApp appears when dictionary passing is used instead of op_lowering.
-// It maps type class method names (e.g., "ge", "add") to SMT-LIB operators.
+// DictApp is the normal post-pipeline shape for an operator with a resolved
+// class constraint (e.g. float `/` is DictApp{Fractional Float, "div"}). Methods
+// whose meaning depends on the instance type — division, remainder, ordering —
+// dispatch on the dictionary's TypeName; an unknown instance skips (#2062).
 func encodeDictApp(da *core.DictApp) (string, error) {
-	// Map type class method names to SMT-LIB operators
-	methodToSMT := map[string]string{
-		// Num class
-		"add": "+", "sub": "-", "mul": "*", "div": smtIntDivTrunc, "neg": "-",
+	sortAgnostic := map[string]string{
+		// Num class (+, -, * and negation share one spelling on Int and Real)
+		"add": "+", "sub": "-", "mul": "*", "neg": "-",
 		// Eq class
 		"eq": "=", "neq": "distinct", "ne": "distinct",
-		// Ord class
-		"lt": "<", "lte": "<=", "le": "<=",
-		"gt": ">", "gte": ">=", "ge": ">=",
 		// Bool (if accessed via type class)
 		"and": "and", "or": "or", "not": "not",
 	}
-
-	smtOp, ok := methodToSMT[da.Method]
-	if !ok {
-		return "", fmt.Errorf("unsupported type class method %q in SMT encoding", da.Method)
+	ordering := map[string]string{
+		"lt": "<", "lte": "<=", "le": "<=",
+		"gt": ">", "gte": ">=", "ge": ">=",
 	}
 
-	return encodeBuiltinOp(smtOp, da.Args)
+	if smtOp, ok := sortAgnostic[da.Method]; ok {
+		return encodeBuiltinOp(smtOp, da.Args)
+	}
+	sort := dictSort(da)
+	switch {
+	case da.Method == "div" || da.Method == "mod":
+		smtOp, err := divModOp(da.Method == "mod", sort)
+		if err != nil {
+			return "", err
+		}
+		return encodeBuiltinOp(smtOp, da.Args)
+	case ordering[da.Method] != "":
+		smtOp, flip, err := orderOp(ordering[da.Method], sort)
+		if err != nil {
+			return "", err
+		}
+		if len(da.Args) != 2 {
+			return "", fmt.Errorf("type class method %q with unexpected arity %d", da.Method, len(da.Args))
+		}
+		return encodeBinaryArgs(smtOp, flip, da.Args[0], da.Args[1])
+	}
+	return "", fmt.Errorf("unsupported type class method %q in SMT encoding", da.Method)
 }

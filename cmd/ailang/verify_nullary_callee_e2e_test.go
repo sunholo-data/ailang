@@ -23,7 +23,7 @@ type verifyResultRow struct {
 func verifyStatuses(t *testing.T, bin string, args ...string) map[string]verifyResultRow {
 	t.Helper()
 	stdout, stderr, _ := runAilangBin(t, bin, append([]string{"verify", "--json"}, args...)...)
-	for _, bad := range []string{"unknown constant", "unknown sort", "Sort mismatch", "unit literals cannot"} {
+	for _, bad := range []string{"unknown constant", "unknown sort", "Sort mismatch", "sort mismatch", "unit literals cannot"} {
 		if strings.Contains(stdout+stderr, bad) {
 			t.Fatalf("verify leaked %q; output:\n%s\n%s", bad, stdout, stderr)
 		}

@@ -283,7 +283,10 @@ func TestEncodeDictApp(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			// The pipeline always attaches a concrete instance; ordering
+			// dispatches on it (#2062), so these Int cases carry one.
 			da := &core.DictApp{
+				Dict:   &core.DictRef{ClassName: "Ord", TypeName: "Int"},
 				Method: tt.method,
 				Args:   tt.args,
 			}

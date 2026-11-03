@@ -1,13 +1,44 @@
 # M-SMT-FLOAT-DIV-MOD-SORT-DISPATCH: encode Float `/` and `%` by operand sort in the SMT verifier, not as truncating Int division
 
-**Status**: Planned
-**Target**: v0.56.2
+**Status**: Implemented (2026-11-03, attended; ships in the release after v0.57.0)
+**Target**: v0.57.1 (originally v0.56.2)
 **Priority**: P0 (High) — blocks publishing `sunholo/relativity` (R2-KERR, ailang-packages PR #173) via PUB006
 **Estimated**: 3 days (1 day dispatch core, 1 day mod/string slice + unit tests, 1 day e2e/regression/changelog)
 **Dependencies**: none new; reuses M-SMT-WELL-SORTED-PREFLIGHT M0 plumbing (S1 truncating Int encoding, `EncodeFunctionOpts.CoreTI`, `verifyStatuses` e2e helper)
 **Created**: 2026-11-02. Audit base: workspace commit `d555a52a` (std/VERSION v0.56.1), `ailang` v0.56.1 binary, Z3 4.8.12.
 
-**Parent roadmap**: this doc executes the live-defect slice (rows A1 + A2) of M1 "Type-directed operator and literal resolution" in [m-smt-well-sorted-preflight.md](../m-smt-well-sorted-preflight.md) (planned, M0 merged in v0.56.0 as PR #2019). The parent's M2–M4 and F2/F5 stay deferred there; this doc does not duplicate them. Parent M1's `resolveOperator(method, operandType)` shape is adopted as specified, scoped here to the arithmetic-div/mod family plus the `DictApp` comparison methods that share the same sort-blind map.
+**Parent roadmap**: this doc executes the live-defect slice (rows A1 + A2) of M1 "Type-directed operator and literal resolution" in [m-smt-well-sorted-preflight.md](../../planned/m-smt-well-sorted-preflight.md) (planned, M0 merged in v0.56.0 as PR #2019). The parent's M2–M4 and F2/F5 stay deferred there; this doc does not duplicate them. Parent M1's `resolveOperator(method, operandType)` shape is adopted as specified, scoped here to the arithmetic-div/mod family plus the `DictApp` comparison methods that share the same sort-blind map.
+
+## Implementation Notes (2026-11-03)
+
+Landed encoder-local as designed (D5): `internal/smt/resolve_sort.go` (sort resolution, `divModOp`,
+`orderOp`, `encodeRealMod`), dispatch in `codegen_operators.go`, `mod_Float` rerouted in `types.go`.
+Tests: `internal/smt/float_divmod_test.go`, `cmd/ailang/verify_float_div_e2e_test.go`. Three
+deviations from the text above, each measured:
+
+1. **The D2 expansion as written was itself ill-sorted.** `(* $ail_d (ite … (to_int q) …))`
+   multiplies a Real by an Int: the same bug class. The shipped form wraps the truncation in
+   `to_real`.
+2. **The single parallel `let` binding `$ail_q` read the OUTER `$ail_n`/`$ail_d`**, because SMT-LIB
+   parallel-let right-hand sides cannot see their siblings. The shipped form binds `q` in an inner
+   `let`. `TestFloatModEncoding_InternalBinderCollision` pins it with operands named after all
+   three binders.
+3. **D3 holds for `DictApp` (the production shape) but not for pre-lowered `Intrinsic`/`BinOp`.**
+   When neither operand carries a sort, those keep the historical Int reading, which is what
+   `int_divmod_test.go` pins with untyped operands. That test had to stay unchanged, so this
+   deviation was needed to satisfy both requirements. Those nodes do not reach the encoder after
+   op_lowering (`internal/pipeline/contract_pipeline_test.go`). Any Float or String evidence
+   (literal kind or CoreTI) still wins.
+
+`TestEncodeDictApp` built `DictApp`s with a nil dictionary, a shape elaboration never produces;
+its Int cases now carry `DictRef{Ord, Int}`. `verifyStatuses` now also rejects lowercase
+`sort mismatch`, the Z3 wording the `tidalTransverse` error used, which the e2e guard missed.
+
+**Measured:** the reporter's file goes from 1 VIOLATION + 1 ERROR to 2 VERIFIED (Z3 4.16.0, which
+reproduced the reporter's r = 7/4 counterexample). Float `%`, string `<`/`>=` and Int `/` all verify
+too, and three false float/string contracts are still refuted. Across all 72 tracked contract
+files (333 verdicts), the old and new binaries give byte-identical verdicts. Mutation check: all 7
+new tests fail against the pre-fix encoder.
 
 ## Problem Statement
 
@@ -280,7 +311,7 @@ The dispatch key is the **operand sort**, read per node: `DictRef.TypeName` (alr
 
 ## Non-Goals
 
-- **Parent M2** (one name resolver / callee leak guards), **M3** (well-formedness pre-flight), **M4** (CI gate) — remain deferred in [m-smt-well-sorted-preflight.md](../m-smt-well-sorted-preflight.md)
+- **Parent M2** (one name resolver / callee leak guards), **M3** (well-formedness pre-flight), **M4** (CI gate) — remain deferred in [m-smt-well-sorted-preflight.md](../../planned/m-smt-well-sorted-preflight.md)
 - The `d ≠ 0` obligation hoist for division by zero (D1) — Future Work; needs script-level assertion hoisting
 - IEEE-754 float modeling (Inf/NaN/rounding) — the encoded model stays `float=Real` (mathematical, exact); the scope line already disclaims runtime equivalence
 - BitVec (`<<`/`>>`/`&`/`^`) sort dispatch — not reachable for Float (type checker rejects); no change
@@ -356,7 +387,7 @@ Every load-bearing claim above, checked live on this workspace (v0.56.1, `d555a5
 | V15 | `EncodeFunctionOpts.CoreTI` is already available in the encoder context | `codegen.go:86`; `verify.go:205` passes `opts.CoreTI`; `parametric_context.go:25-30` precedent for consuming it |
 | V16 | `DictRef.TypeName` carries `"Float"`/`"Int"`/`"String"` | `elaborate/dictionaries.go:105` `types.NormalizeTypeName(rc.Type)`; parent doc M1 §probe states the same |
 | V17 | PUB006 gates publish on refuted contracts | `internal/pkg/quality.go:294` `r.gate("PUB006", … Counterexample > 0)` |
-| V18 | Parent doc covers this as A2/RC1/M1 (deferred) — not silently re-invented | [m-smt-well-sorted-preflight.md](../m-smt-well-sorted-preflight.md) lines 584 (A2, names `tidalRadialOrbit`), 608 (RC1), 828 (M1 `resolveOperator`, "never a default to Int") |
+| V18 | Parent doc covers this as A2/RC1/M1 (deferred) — not silently re-invented | [m-smt-well-sorted-preflight.md](../../planned/m-smt-well-sorted-preflight.md) lines 584 (A2, names `tidalRadialOrbit`), 608 (RC1), 828 (M1 `resolveOperator`, "never a default to Int") |
 | V19 | `make verify-examples` exists as a CI gate on examples | `make/examples.mk:18` |
 | V20 | Existing e2e helpers assert on verify statuses and fail on `unknown constant` | `cmd/ailang/verify_float_sqrt_e2e_test.go` (`buildAilang`, `writeTempAil`, `verifyStatuses`) |
 | V21 | All repro `.ail` sources in this doc compile under the current binary | each was run through `ailang verify` (which compiles first); `modf.ail` also `ailang check`-clean |
@@ -364,7 +395,7 @@ Every load-bearing claim above, checked live on this workspace (v0.56.1, `d555a5
 
 ## References
 
-- **Parent roadmap (umbrella)**: [m-smt-well-sorted-preflight.md](../m-smt-well-sorted-preflight.md) — RC1/A1/A2, M1 `resolveOperator`, M0 merged v0.56.0 (PR #2019, issues #1960/#1961); M2–M4 deferred there
+- **Parent roadmap (umbrella)**: [m-smt-well-sorted-preflight.md](../../planned/m-smt-well-sorted-preflight.md) — RC1/A1/A2, M1 `resolveOperator`, M0 merged v0.56.0 (PR #2019, issues #1960/#1961); M2–M4 deferred there
 - **M0 implementation pinned by**: `internal/smt/int_divmod_test.go` (`#1960 (M-SMT-WELL-SORTED-PREFLIGHT M0, S1)`)
 - **Prior sibling fix in the same layer**: `internal/smt/codegen_expr.go` `encodeFloatLit` (float literal rendering, stapledons report 2026-11-02), pinned by `cmd/ailang/verify_float_sqrt_e2e_test.go`
 - **Reported by**: coordinator task (inbox_1793649570012_28ca24e0 + this report with repro and SMT), blocking sunholo/relativity R2-KERR, ailang-packages PR #173, PUB006
