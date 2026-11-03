@@ -1,0 +1,33 @@
+MISSION-ROLE: planner
+
+You are the PLANNER for fleet mission iteration 81 of the AILANG repo. Your working directory is a git worktree on branch fleet/i81-dfleet25-world-fork-comment at b23cadced. You are READ-ONLY: do not edit any file and do not run any git write operation. Your final message IS the plan; write it in full there. Do not run `ailang messages`. Any gate you try that needs a socket, or a write outside this tree, is UNINFORMATIVE UNDER SANDBOX. Label it that way and never report it as pass or fail.
+
+## Item
+
+Decision row D-FLEET-25 in design_docs/fleet-mission.md (ticket `policy:fleet-rulings-not-propagated-to-charters-and-skill`) has three options:
+- A (recommended): a rulings-ledger design doc, plus a doctor check, plus correcting the World fork claim.
+- B: correct ONLY the World fork claim ("mechanical").
+- C: no change.
+Mark has not ruled. This iteration builds ONLY the sub-item that A and B share, as a proposed diff on a DRAFT PR that will not be merged before the ruling.
+
+The row text: "`missions/world.toml:3` says 'WORLD IS A FORK' and `internal/mission/registry.go:70` reports World as a fork, but `~/Library/LaunchAgents/dev.ailang.mission-world.plist` runs `~/dev/sunholo-data/ailang/tools/launchd/mission-control.sh`. ... The fleet also corrects the World fork claim in `world.toml` and the doctor note."
+
+Pre-measured by the controller and an independent judge at b23cadced:
+- missions/world.toml:3-8 still says "WORLD IS A FORK. Its driver lives in a SEPARATE GitHub repo (sunholo-data/ailang-world) with its own copy of mission-control.sh and no lib/pin-root.sh ... De-forking is Phase 3 of M-MISSION-LOOP-WORKBENCH and is gated on HD-2, which is deliberately unratified."
+- internal/mission/golden_live_test.go:367 says "WORLD IS DE-FORKED (2026-09-06)".
+- internal/mission/doctor.go:281 sets `row.Fork = m.Driver != ""`, and world.toml has no `driver` key.
+- internal/mission/registry.go ~66-77 is the `Driver` field's doc comment.
+
+## Plan the following
+
+1. Enumerate EVERY site that still states, as a CURRENT fact, that World is a fork or that its driver lives in the ailang-world repo. Limit this to paths inside the fleet Authority allowlist (see the charter's "Authority" section): missions/**, internal/mission/**, cmd/ailang/mission*, tools/launchd/**, .claude/skills/mission-*/**, .agents/skills/mission-*/**, scripts/mission_*, docs/**, design_docs/** (charters only, not logs).
+   - Exclude dated history, which keeps its literals: mission logs, archived STATUS stamps, dated war stories in skills, and implemented design docs.
+   - Pair every zero-result grep with a known-positive control.
+2. Doctor half. Read internal/mission/doctor.go around lines 260-310 and its tests. Does `ailang mission doctor` still emit a fork note for world at HEAD? Say whether doctor.go or registry.go need ANY change, or only the toml comment does.
+3. Check whether any test, golden file or `make check-*` gate parses those toml comment lines. Name each file.
+4. Give the EXACT before/after text for each site. Keep it short, true at HEAD, and dated, and cite the evidence (golden_live_test.go:367, doctor.go:281, no `driver` key). Match the header style of missions/stapledon.toml and missions/motoko.toml. Change no TOML keys.
+5. Give the changelog fragment: a path `changelogs/unreleased/2026-11-03-<slug>.md` and its exact text, under a `### Fixed — ...` heading. Read changelogs/unreleased/README.md for the format.
+6. Give the gate list to run at base AND at head, narrowest first. For example: `go test ./internal/mission/...`, `make check-changelog`, `git diff --check`, a residual grep proving no current-tense fork claim remains, and a positive grep proving the new text is present.
+7. Is this diff purely mechanical? Confirm it changes no routing, lane order, quota, ration threshold or billing guard. Name any risk.
+
+Output: a numbered plan with exact file:line sites, exact before/after text, the gate commands, and the risks. Keep it under 150 lines.

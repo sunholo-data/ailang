@@ -1,0 +1,67 @@
+MISSION-ROLE: executor
+
+You are the EXECUTOR for fleet mission iteration 81 of the AILANG repo. Your working directory is a git worktree on branch fleet/i81-dfleet25-world-fork-comment at b23cadced.
+
+RULES
+- Edit files only. Run NO git write operation (no add, commit, stash, checkout or reset). The controller commits after you.
+- Do NOT touch anything under `.agents/`: your sandbox cannot write there. The controller syncs that mirror with tools/launchd/sync-agents-skills.sh.
+- Do NOT edit design_docs/fleet-mission*.md.
+- Do NOT change any TOML key, any test assertion, or any script logic. Every edit is to comments, prose, or the one skill shell snippet named in Task 2.
+- A gate result that needs sockets, or writes outside this tree, is UNINFORMATIVE UNDER SANDBOX. Label it that way; never report it as pass or fail.
+- If a gate is red, report it as a finding. Do not work around it.
+- Do not run `ailang messages`. Do not background anything.
+- Your final message is your report: a list of every file:line changed, the gate results, and anything you declined to change and why.
+
+CONTEXT
+Decision row D-FLEET-25 (ticket `policy:fleet-rulings-not-propagated-to-charters-and-skill`): both options A and B include correcting the stale "World is a fork" claim. This diff is ONLY that mechanical sub-item, proposed on a draft PR pending Mark's ruling.
+
+Facts measured first-party by the controller on 2026-11-03:
+- ~/Library/LaunchAgents/dev.ailang.mission-world.plist ProgramArguments = /bin/bash /Users/voightkampff/dev/sunholo-data/ailang/tools/launchd/mission-control.sh. That is the SHARED driver, the same one used by v1, fleet, stapledon and triage.
+- ~/dev/sunholo-data/ailang-world/tools/launchd/mission-control.sh does not exist.
+- internal/mission/golden_live_test.go:367 says "WORLD IS DE-FORKED (2026-09-06)".
+- internal/mission/doctor.go:281 is `row.Fork = m.Driver != ""`, and missions/world.toml declares no `driver` key, so doctor reports no fork.
+- The driver now sources the pin as `  . "$MC_DRIVER_ROOT/tools/launchd/lib/pin-root.sh"`: indented, inside an `if [ -f ... ]` block (tools/launchd/mission-control.sh ~1224-1225). So the reach-check grep in .claude/skills/mission-loop-change/SKILL.md, which looks for `^\s*\. "\$REPO/tools/launchd/lib/pin-root.sh"`, now matches NOTHING for ANY mission (v1 included), and its table reads NO everywhere. The instrument is broken, not only its World line.
+
+TASKS
+
+1. missions/world.toml lines 3-8. Replace the "⚠ WORLD IS A FORK ..." comment block with a short, true, dated comment. Match the style of the headers in missions/stapledon.toml and missions/motoko.toml. Suggested text:
+   # Works in sunholo-data/ailang-world but runs the SHARED driver from
+   # sunholo-data/ailang (plist ProgramArguments), re-executed from the origin/dev pin
+   # like every other mission. De-forked 2026-09-06 (internal/mission/golden_live_test.go);
+   # no `driver` key, so `ailang mission doctor` reports no fork. Rechecked 2026-11-03.
+   Keep line 1 and the blank comment line 2. Change NO key below.
+
+2. .claude/skills/mission-loop-change/SKILL.md (edit the .claude copy ONLY).
+   a. Line 3 (description): replace "porting a fix to the world fork" with "checking which driver a mission's plist runs". Keep the rest of the description byte-identical.
+   b. Line ~27 (a table row about driver changes for world): make it say that World runs the shared driver in the ailang repo via the driver pin (de-forked 2026-09-06, rechecked 2026-11-03), so there is no separate port.
+   c. Gate 1 (~lines 43-58). Replace the prose "Three of four re-exec from the driver pin ...; world does not." and the broken snippet with a WORKING instrument that reads each installed plist rather than a hand-kept clone map. For example:
+      for p in ~/Library/LaunchAgents/dev.ailang.mission-*.plist; do
+        P=$(plutil -extract ProgramArguments.1 raw "$p" 2>/dev/null) || continue
+        case "$P" in */mission-control.sh) ;; *) continue ;; esac
+        printf "%-34s %s re-execs-from-pin=%s\n" "$(basename "$p" .plist)" "$P" \
+          "$(grep -cE '^[[:space:]]*\. "\$(MC_DRIVER_ROOT|REPO)/tools/launchd/lib/pin-root\.sh"' "$P" 2>/dev/null | sed 's/^0$/NO/;s/^[1-9].*/YES/')"
+      done
+      Keep the YES/NO bullets that follow. Rewrite the NO bullet generically ("a driver that does not source pin-root.sh runs its working tree directly ...") without naming world. Keep the existing pointer to `ailang mission list` / `ailang mission doctor` if present, or add one line pointing at them. Test the snippet's grep pattern against tools/launchd/mission-control.sh in your tree (`grep -cE '<pattern>' tools/launchd/mission-control.sh` must be >= 1), and against a file that does not source it (e.g. tools/launchd/mission-heartbeat.sh, which must give 0). Report both counts.
+   d. "## Gate 2 — World is a fork" (~lines 60-77). Replace the heading and body with a short section headed "## Gate 2 — World runs the shared driver (de-forked 2026-09-06)": World works in sunholo-data/ailang-world but its plist runs the ailang repo's shared driver through the pin, so a driver change ships to World like any other mission and needs no port. Cite golden_live_test.go:367 and doctor.go:281 (no `driver` key, so no fork). Remove the "made twice" instruction and the two-repo diff snippet: that comparison target no longer exists.
+   e. ~Lines 81-82 ("World executes its driver straight from the working tree ..."): keep the bash-reads-incrementally hazard, but state it for any driver that runs from a working tree rather than the pin, without claiming World does.
+   f. ~Lines 148-149 ("... that is how world gets coverage today"): state that World is covered by the upstream suites because it runs the shared driver.
+   g. ~Line 236 ("ported to world if fleet-wide (Gate 2)"): replace with wording that World gets it through the shared driver (Gate 2).
+   Afterwards the file must stay under 500 lines (it is 239 now). Find any other CURRENT-tense fork claim in that file and fix it the same way. Leave dated war stories alone.
+
+3. Comment-only fixes, each a CURRENT-tense claim that is false at HEAD:
+   - scripts/mission_directives.sh ~line 34 "(the world fork still uses it)" and ~line 115 "(the world fork's Gate 0 runs this script by absolute path with --since)". Reword them to say the deprecated --since raw mode is kept for any caller that hand-writes its own watermark. Do not name a world fork. Change no code.
+   - internal/mission/driver_agreement_test.go ~line 177 "while world's fork is still on disk (measured: it is)". Reword it truthfully; ailang-world has no driver copy as of 2026-11-03. READ the surrounding test first. If the comment explains why an assertion exists and the reword would misdescribe the assertion, report that and leave the comment alone.
+   - internal/mission/doctor_test.go ~line 191 "unpinned, exactly like the real world mission". Reword it as a deliberately unpinned fixture.
+
+4. Changelog fragment: changelogs/unreleased/2026-11-03-world-shared-driver-comments.md. Read changelogs/unreleased/README.md for the format. Use one section, "### Fixed — stale "World is a fork" claims in the World registry entry, the mission-loop-change skill and comments". In 2-4 sentences, say that World was de-forked 2026-09-06 and that the skill's reach-check grep matched no mission (the pin is now sourced via $MC_DRIVER_ROOT) and now reads installed plists. Say no behaviour, key or assertion changes. Say it is the mechanical sub-item of D-FLEET-25, proposed pending a ruling.
+
+GATES (run them after editing; all were rc 0 at base):
+  git diff --check
+  /bin/bash -n scripts/mission_directives.sh
+  go test ./internal/mission/...
+  make check-context-docs
+  make check-changelog
+  make check-skills
+  grep -rnE 'WORLD IS A FORK|World is a fork|world fork|porting a fix to the world|world.s fork is still|that is how world gets coverage|ported to world if fleet-wide|world does not\.' missions internal/mission scripts/mission_directives.sh .claude/skills/mission-loop-change   -> must print nothing
+  grep -c 'De-forked 2026-09-06' missions/world.toml   -> must be >= 1 (the positive control)
+Do NOT run tools/launchd/sync-agents-skills.sh. The .agents mirror is expected to read STALE until the controller syncs it; report that, but do not "fix" it.
