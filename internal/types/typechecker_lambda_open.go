@@ -36,7 +36,7 @@ func (ctx *InferenceContext) resolveLambdaRow(row *Row) *Row {
 	if !frame.solve(ctx) {
 		return row
 	}
-	return closeIfResolved(row, applySubToEffectRow(frame.local, row))
+	return closeIfResolved(row, resolveEffectRow(frame.local, row))
 }
 
 // openLambdaRow returns row opened with a fresh tail when it is closed.
@@ -78,6 +78,49 @@ func (ctx *InferenceContext) closeOpenedLambdaTails(sub Substitution) Substituti
 		}
 	}
 	return sub
+}
+
+// closeOpenedTailsForGeneralization closes, before a binding is generalized,
+// every opened lambda tail that is still unresolved in typ and not owned by
+// the enclosing scope. Left open, generalization would quantify it: `pipe`'s
+// returned `\x. g(f(x))` unifies its opened tail with the return annotation's
+// tail, the scheme becomes `… -> int -> int ! {...ρ}`, and every use site
+// instantiates a fresh tail that no scope owns, which fails the
+// ApplicationEffects publication invariant. Nothing demanded more of the tail,
+// so {} is what closeOpenedLambdaTails would bind at the end anyway. The
+// closure is also recorded as a constraint so later solves agree with it.
+// sub maps opened tails to their current terminals.
+func (ctx *InferenceContext) closeOpenedTailsForGeneralization(sub Substitution, typ Type, env, base *TypeEnv) Type {
+	if len(ctx.openedLambdaTails) == 0 {
+		return typ
+	}
+	free := freeEffectRowVarsInType(typ)
+	if len(free) == 0 {
+		return typ
+	}
+	owned := env.effectRowsAbove(base)
+	closing := make(Substitution)
+	for _, name := range sortedKeys(ctx.openedLambdaTails) {
+		terminal := zonkApplicationRow(sub, &Row{Kind: EffectRow, Labels: map[string]Type{}, Tail: &RowVar{Name: name, Kind: EffectRow}})
+		if terminal == nil || terminal.Tail == nil {
+			continue
+		}
+		tail := terminal.Tail.Name
+		if !free[tail] || owned[tail] || closing[tail] != nil {
+			continue
+		}
+		empty := &Row{Kind: EffectRow, Labels: map[string]Type{}}
+		closing[tail] = empty
+		ctx.addConstraint(TypeEq{
+			Left:  &Row{Kind: EffectRow, Labels: map[string]Type{}, Tail: &RowVar{Name: tail, Kind: EffectRow}},
+			Right: empty,
+			Path:  []string{"#1958 opened lambda tail closed before generalization"},
+		})
+	}
+	if len(closing) == 0 {
+		return typ
+	}
+	return ApplySubstitution(closing, typ)
 }
 
 func sortedKeys(set map[string]bool) []string {

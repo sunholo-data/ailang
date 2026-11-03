@@ -124,7 +124,7 @@ func (ctx *InferenceContext) absorbSelfOperand(full Substitution, row *Row) *Row
 	if row == nil || row.Tail == nil {
 		return row
 	}
-	resolved := applySubToEffectRow(full, row)
+	resolved := resolveEffectRow(full, row)
 	if resolved == nil || resolved.Tail == nil || !ctx.isSelfEffectTail(full, resolved.Tail.Name) {
 		return row
 	}
@@ -158,13 +158,13 @@ func (ctx *InferenceContext) resolveUnionOperand(full, local Substitution, row *
 	if row == nil || row.Tail == nil {
 		return row
 	}
-	resolved := applySubToEffectRow(full, row)
+	resolved := resolveEffectRow(full, row)
 	if resolved != nil && resolved.Tail != nil && ctx.isSelfEffectTail(full, resolved.Tail.Name) {
 		absorbed := *resolved
 		absorbed.Tail = nil
 		return &absorbed
 	}
-	return closeIfResolved(row, applySubToEffectRow(local, row))
+	return closeIfResolved(row, resolveEffectRow(local, row))
 }
 
 // isSelfEffectTail reports whether tail is the (resolved) effect-row tail of a
@@ -183,7 +183,7 @@ func (ctx *InferenceContext) isSelfEffectTail(sub Substitution, tail string) boo
 				break
 			}
 			if fn.EffectRow != nil {
-				if row := applySubToEffectRow(sub, fn.EffectRow); row != nil && row.Tail != nil && row.Tail.Name == tail {
+				if row := resolveEffectRow(sub, fn.EffectRow); row != nil && row.Tail != nil && row.Tail.Name == tail {
 					return true
 				}
 			}
@@ -200,4 +200,20 @@ const maxSelfArrowDepth = 16
 // The result is shared and must not be modified.
 func envOwnedVars(env *TypeEnv) map[string]bool {
 	return env.ownedVars().all()
+}
+
+// resolveEffectRow resolves row's tail through every link of sub, not just one.
+// The row unifier does not keep its substitution idempotent: once ρ1 ↦ {...ρ3}
+// is recorded, a later ρ3 ↦ {...ρ6} leaves ρ1's entry pointing at ρ3. Each
+// recursive call of a let-rec unifies its row with the previous representative,
+// so the self row sits one link further away per call, and a one-step
+// substitution stopped recognising it from the third call on ("same row
+// variable with different extensions" on three nested branches, found in the
+// v0.57.0 pre-release eval-code sweep). zonkApplicationRow follows the chain
+// and is cycle-safe.
+func resolveEffectRow(sub Substitution, row *Row) *Row {
+	if row == nil || len(sub) == 0 {
+		return row
+	}
+	return zonkApplicationRow(sub, row)
 }

@@ -240,6 +240,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		// normally a no-op; it is applied here too so the rule does not depend on
 		// which binding form a function happens to elaborate into.
 		defaultedType = tc.closeDeclaredEffectRowForBinding(let.Value.ID(), defaultedType)
+		defaultedType = ctx.closeOpenedTailsForGeneralization(sub, defaultedType, ctx.env, ctx.baseEnv) // #1958
 
 		binding = tc.generalizeWithConstraints(defaultedType, valueEffects, nonGroundConstraints, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints))
 	} else {
@@ -400,6 +401,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		// shares the enclosing row variable without binding it, so a `pure` function
 		// has nothing to close against and would otherwise export `! {...ρN}`.
 		valueType = tc.closeDeclaredEffectRowForBinding(binding.Value.ID(), valueType)
+		valueType = ctx.closeOpenedTailsForGeneralization(reSub, valueType, oldEnv, ctx.baseEnv) // #1958
 
 		// Generalize for recursion. Use the *outer* env (oldEnv) as currentEnv:
 		// the recursive bindings' own fresh vars live only in newEnv, so they
