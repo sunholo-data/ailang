@@ -1,0 +1,119 @@
+{
+  "sprint_id": "M-TYPECHECK-ENV-SCAN-COST",
+  "status": "not_started",
+  "created": "2026-11-03T08:46:21Z",
+  "design_doc": "design_docs/planned/v0_56_2/m-typecheck-env-scan-cost.md",
+  "sprint_plan": "design_docs/planned/v0_56_2/sprint-plan-m-typecheck-env-scan-cost.md",
+  "github_issues": [
+    1134,
+    1811,
+    1958,
+    2052,
+    2057,
+    2061
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_WORK_COUNTER_BASELINE",
+      "package": null,
+      "action": "none",
+      "reason": "Internal compiler work in internal/types; no package capability"
+    },
+    {
+      "milestone": "M2_FRAME_CACHE",
+      "package": null,
+      "action": "none",
+      "reason": "Internal compiler work in internal/types; no package capability"
+    },
+    {
+      "milestone": "M3_CALL_SITES_LINEAR",
+      "package": null,
+      "action": "none",
+      "reason": "Internal compiler work in internal/types; no package capability"
+    },
+    {
+      "milestone": "M4_EQUIVALENCE_MEASURE_RECORD",
+      "package": null,
+      "action": "none",
+      "reason": "Internal compiler work in internal/types; no package capability"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 680,
+    "estimated_days": 4
+  },
+  "features": [
+    {
+      "id": "M1_WORK_COUNTER_BASELINE",
+      "description": "envScanBindings work counter + synthetic-module generator (N top-level, M imports, K applications) logging bindings-visited; ailang_parse + crew_core 0.6.0 baseline (instructions retired, peak RSS) recorded; base binary built to a scratch path",
+      "estimated_loc": 150,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Counter increments exactly once per binding visited (3-frame unit test)",
+        "Linearity test logs bindings-visited for (10,10,10),(40,10,10),(10,40,10),(10,10,40) and shows growth in N and M",
+        "Baseline rows for ailang_parse (c3b4fc6) and crew_core 0.6.0 added to the design doc Verification Log",
+        "make test-changed and make check-file-sizes green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_FRAME_CACHE",
+      "description": "Per-frame own/chain free-variable caches on TypeEnv with gen invalidation on BindScheme/BindType; read-only ownedVars(); public Free*Vars() return copies; test-only debugCrossCheckEnvVars shadow cross-check in internal/types + internal/pipeline TestMain",
+      "estimated_loc": 260,
+      "dependencies": [
+        "M1_WORK_COUNTER_BASELINE"
+      ],
+      "acceptance_criteria": [
+        "env_cache_test.go: hit after Extend, invalidation on frame and ancestor, quantified vars excluded, cycle terminates, returned map mutation isolated",
+        "Invalidation and copy-on-return tests fail under mutation (scratchpad copy, never git checkout)",
+        "Cross-check on across internal/types and internal/pipeline; make test-changed green",
+        "go test -race ./internal/types/ ./internal/pipeline/ green; call sites untouched"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_CALL_SITES_LINEAR",
+      "description": "inferApp outerVars, envOwnedVars, generalize, baseEnvFreeVars and the windowed walks (effectRowsAbove, FreeTypeVarsAbove, implicitRowsAbove) use cached sets; linearity test asserts bounded bindings-visited per application; typechecker_core.go/typechecker_functions.go net <= 0 lines",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M2_FRAME_CACHE"
+      ],
+      "acceptance_criteria": [
+        "Linearity assertion green, and red when inferApp's full walk is restored (mutation)",
+        "#1958 regression files green: effect_union_resolve_test.go, effect_ceiling_reachable_test.go, effect_row_open_closed_test.go",
+        "go test ./internal/repl/ green",
+        "make test-changed, make verify-examples, make check-file-sizes, make lint green"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_EQUIVALENCE_MEASURE_RECORD",
+      "description": "Byte-identical compile artifacts (diff -r of compile/ trees from base vs new binary) on examples/, std/, ailang_parse, crew_core; re-measure + re-profile; changelog fragment; crew-core doc Phase 1 marked absorbed",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M3_CALL_SITES_LINEAR"
+      ],
+      "acceptance_criteria": [
+        "diff -r empty on all four corpora",
+        "ailang_parse cold check <= 0.80e12 instructions retired; TypeEnv.collectFree* < 10% inclusive in re-profile",
+        "Peak RSS <= +10% vs M1 baseline on both packages",
+        "Changelog fragment present; make check-changelog green",
+        "If the target is missed: record numbers + top three hot paths and STOP (no substitution work)"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
