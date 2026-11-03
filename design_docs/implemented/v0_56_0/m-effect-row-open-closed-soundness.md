@@ -692,3 +692,33 @@ IO to a recursive row-polymorphic function written as `{ f(h); each(f, t) }` whe
 with a single-call IO lambda ("Missing effects: IO" on `each`). v0.56.1 rejects the same program
 for `\x. println("x")`. The std combinators are written differently and are unaffected, and 0
 corpus files hit it.
+
+### Generated-code sweep (2026-11-03, before tagging)
+
+The hand-written corpora above missed two more regressions; generated code found them. The checked
+population was the `code` of every `eval_results/**/*.json` with `lang=ailang` and `compile_ok`,
+deduplicated: 15,447 programs, run with `AILANG_RELAX_MODULES=1` because they all declare
+`module benchmark/solution`. A first run without it failed every program on both arms (MOD010), a
+false "0 flips"; the reruns carried a known-flip control.
+
+- **#2074** (found by another session, fixed in `81649aa8e`): a local recursive IO `letrec` failed with
+  "same row variable with different extensions". Bisected to M1.
+- **16 more valid programs rejected**, bisected per program across the series: 1 to M1 (`ad9aabc57`),
+  15 to M2+M3 (`ef01e499f`); none to M4, the single-call fix, env-scan or `81649aa8e`. There were
+  two causes:
+  1. An opened lambda tail unified with a return annotation's tail (`pipe … -> int -> int = \x.
+     g(f(x))`) was quantified by `let`/`letrec` generalization before `closeOpenedLambdaTails` ran.
+     Uses instantiated unowned tails, which surfaced as "missing or malformed ApplicationEffects" (7),
+     "distinct unresolved effect tails" (2) and a spurious validator "Missing effects" (6).
+     `closeOpenedTailsForGeneralization` now closes such a tail at both generalization sites.
+  2. The row unifier's substitution is not idempotent (ρ1 ↦ {...ρ3}, ρ3 ↦ {...ρ6}), and the union
+     resolver followed one link, so a self row was missed from the third recursive call on.
+     `resolveEffectRow` follows the chain.
+
+Final gate on `802670c5b` against v0.56.1, over 20,046 files (repos and eval code): **0 newly
+accepted. 98 repo files are newly rejected (the 21 reviewed pure-slot sites) and 8 eval programs
+are newly rejected (all of them effectful lambdas in pure `std/list` slots). Nothing else is newly
+rejected.** Regression tests are in `effect_row_reland_eval_regressions_test.go`. Each fix was
+mutation-tested.
+
+**Still open (pre-existing):** the recursive `{ f(h); each(f, t) }` validator case described above.
