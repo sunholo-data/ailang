@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-VALIDATOR-CHECK-BUDGET-PARITY",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-11-02T17:48:49.660932+00:00",
   "design_doc": "design_docs/planned/v0_56_1/m-validator-check-budget-parity.md",
   "sprint_plan": "design_docs/planned/v0_56_1/m-validator-check-budget-parity-sprint-plan.md",
@@ -48,10 +48,10 @@
         "Child env-echo proves injection; deterministic RSS harness proves success/failure peak and elapsed stats.",
         "Existing over-memory, timeout, child-failure, cap-derivation and Linux procRSS tests pass; wall cap stays 200 s."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-11-03T08:24:46.819779+00:00",
+      "notes": "Standalone bounded tests pass (0.912s), including existing watchdog/cap tests and new env/stats cases. Package gates pending module download. Design Freeze records Mark release-tag ruling 2026-11-02; Phase 0 complete."
     },
     {
       "id": "M2",

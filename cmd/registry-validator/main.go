@@ -265,7 +265,7 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Step 6: Compile check
-	compileOk, compileErr, budgetErr := runAilangCheck(tempDir)
+	compileOk, compileErr, _, budgetErr := runAilangCheck(tempDir)
 	if budgetErr != nil {
 		log.Printf("check over budget for %s@%s: %v", name, version, budgetErr)
 		jsonError(w, http.StatusUnprocessableEntity, "%v", budgetErr)

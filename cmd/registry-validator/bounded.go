@@ -80,20 +80,49 @@ func procRSS(pid int) (uint64, bool) {
 	return 0, false
 }
 
+// checkStats records only the check child, excluding dependency preparation.
+type checkStats struct {
+	PeakRSS uint64
+	Wall    time.Duration
+}
+
+// checkEnv replaces all inherited pacing values, preserving other settings.
+func checkEnv(inherited []string, cap uint64) ([]string, error) {
+	const margin = 64 << 20
+	if cap < margin+(1<<20) {
+		return nil, fmt.Errorf("check RSS cap %d leaves no usable GOMEMLIMIT after 64 MiB margin", cap)
+	}
+	env := make([]string, 0, len(inherited)+1)
+	for _, value := range inherited {
+		if !strings.HasPrefix(value, "GOMEMLIMIT=") {
+			env = append(env, value)
+		}
+	}
+	return append(env, fmt.Sprintf("GOMEMLIMIT=%dMiB", (cap-margin)>>20)), nil
+}
+
+func runBounded(dir string, cap uint64, wall time.Duration, readRSS rssReader, name string, args ...string) ([]byte, error) {
+	out, _, err := runBoundedEnv(dir, cap, wall, readRSS, nil, name, args...)
+	return out, err
+}
+
 // runBounded runs name+args in dir and returns its combined output. A child that
 // passes rssCap or wall is killed and reported as a *budgetError; any other
 // failure is returned as the plain run error.
-func runBounded(dir string, rssCap uint64, wall time.Duration, readRSS rssReader, name string, args ...string) ([]byte, error) {
+func runBoundedEnv(dir string, rssCap uint64, wall time.Duration, readRSS rssReader, env []string, name string, args ...string) (output []byte, stats checkStats, runErr error) {
+	start := time.Now()
+	defer func() { stats.Wall = time.Since(start) }()
 	ctx, cancel := context.WithTimeout(context.Background(), wall)
 	defer cancel()
 
 	var out bytes.Buffer
 	cmd := exec.CommandContext(ctx, name, args...)
 	cmd.Dir = dir
+	cmd.Env = env
 	cmd.Stdout = &out
 	cmd.Stderr = &out
 	if err := cmd.Start(); err != nil {
-		return nil, err
+		return nil, stats, err
 	}
 
 	done := make(chan error, 1)
@@ -101,26 +130,26 @@ func runBounded(dir string, rssCap uint64, wall time.Duration, readRSS rssReader
 
 	ticker := time.NewTicker(rssPollEvery)
 	defer ticker.Stop()
-	var peak uint64
+
 	for {
 		select {
 		case err := <-done:
 			if ctx.Err() == context.DeadlineExceeded {
-				return out.Bytes(), &budgetError{resource: "time", limit: wall.String(), observed: "still running at the cap"}
+				return out.Bytes(), stats, &budgetError{resource: "time", limit: wall.String(), observed: "still running at the cap"}
 			}
-			return out.Bytes(), err
+			return out.Bytes(), stats, err
 		case <-ticker.C:
 			rss, ok := readRSS(cmd.Process.Pid)
 			if !ok {
 				continue
 			}
-			if rss > peak {
-				peak = rss
+			if rss > stats.PeakRSS {
+				stats.PeakRSS = rss
 			}
 			if rss > rssCap {
 				_ = cmd.Process.Kill()
 				<-done
-				return out.Bytes(), &budgetError{resource: "memory", limit: mib(rssCap), observed: mib(peak)}
+				return out.Bytes(), stats, &budgetError{resource: "memory", limit: mib(rssCap), observed: mib(stats.PeakRSS)}
 			}
 		}
 	}
