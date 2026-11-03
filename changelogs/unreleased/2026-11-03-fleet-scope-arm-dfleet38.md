@@ -1,0 +1,3 @@
+### Changed — Fleet scope guard: 16 rename-only `.agents` skill mirrors as support paths (PROPOSED, D-FLEET-38 A)
+
+PROPOSED, pending Mark's ruling on D-FLEET-38. `tools/launchd/githooks/pre-push` lets the fleet mission push exactly 16 enumerated `.agents/skills/<name>/**` trees (the copies that differ from `.claude/skills` only by tool-name renames) as support paths; product loops are unaffected, and no `.claude/skills` path or other `.agents` skill is admitted. Guard arm only; extending `tools/launchd/sync-agents-skills.sh` to these skills is a later fleet fire, after this lands (iteration-16 rule). `tools/launchd/test_mission_scope_guard.sh` exercises all 16 arms plus over-widening traps.
