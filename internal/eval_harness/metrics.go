@@ -76,14 +76,18 @@ type RunMetrics struct {
 	// declare hidden_tests_dir (absent = the benchmark has none). hidden_passed is
 	// the passing prefix in input-size order, 0 when the visible test failed;
 	// hidden_first_fail is "<test>:wrong_output|timeout|runtime_error".
-	HiddenTotal     int       `json:"hidden_total,omitempty"`
-	HiddenPassed    int       `json:"hidden_passed,omitempty"`
-	HiddenFirstFail string    `json:"hidden_first_fail,omitempty"`
-	Stdout          string    `json:"stdout,omitempty"`
-	Stderr          string    `json:"stderr,omitempty"`
-	ExpectedStdout  string    `json:"expected_stdout,omitempty"`
-	Timestamp       time.Time `json:"timestamp"`
-	Code            string    `json:"code,omitempty"` // Generated code (optional, for debugging)
+	HiddenTotal     int    `json:"hidden_total,omitempty"`
+	HiddenPassed    int    `json:"hidden_passed,omitempty"`
+	HiddenFirstFail string `json:"hidden_first_fail,omitempty"`
+	// AgentTimeoutSecs is the agent wall clock this run had (EffectiveAgentTimeoutSecs).
+	// Absent => unmeasured (rows before 2026-11-03). Compare pass rates across
+	// rows only when both carry it: a 3h probe is not a 1h trial.
+	AgentTimeoutSecs int       `json:"agent_timeout_secs,omitempty"`
+	Stdout           string    `json:"stdout,omitempty"`
+	Stderr           string    `json:"stderr,omitempty"`
+	ExpectedStdout   string    `json:"expected_stdout,omitempty"`
+	Timestamp        time.Time `json:"timestamp"`
+	Code             string    `json:"code,omitempty"` // Generated code (optional, for debugging)
 
 	// ResolvedProfile / ResolvedExtensions record what the SUBJECT reports it
 	// actually loaded, from its own step-0 broadcast — not what we asked for.

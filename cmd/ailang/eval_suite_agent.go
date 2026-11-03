@@ -8,6 +8,7 @@ package main
 // condition-triggered prompt loads.
 
 import (
+	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -26,6 +27,7 @@ type agentSuiteConfigParams struct {
 	requestsPerSecond  int
 	timeoutSeconds     int
 	maxTokensPerBench  int
+	minTimeoutSeconds  int // explicit --agent-timeout only (floor); 0 = not passed
 	toolPolicy         string
 	policyFile         string
 	verify             bool
@@ -79,6 +81,7 @@ func buildAgentSuiteConfig(agent bool, p agentSuiteConfigParams) *eval_harness.A
 		PolicyPath:         p.policyFile,
 		RequestsPerSecond:  p.requestsPerSecond,
 		TimeoutSeconds:     p.timeoutSeconds,
+		MinTimeoutSeconds:  p.minTimeoutSeconds,
 		WorkspaceDir:       filepath.Join(os.TempDir(), "ailang_eval"),
 		AllowedTools:       []string{"Bash", "Read", "Write", "Edit", "Grep"},
 		ClaudePath:         "claude",             // Use PATH
@@ -136,4 +139,17 @@ func loadAgentCodingPrompt(conditions []string) string {
 		return content
 	}
 	return ""
+}
+
+// explicitAgentTimeout returns --agent-timeout when the caller passed it, else 0.
+// Passed explicitly it floors every run's wall clock (EffectiveAgentTimeoutSecs);
+// its default (60) only ever applied to benchmarks without a `timeout:`.
+func explicitAgentTimeout(fs *flag.FlagSet, v int) int {
+	set := 0
+	fs.Visit(func(f *flag.Flag) {
+		if f.Name == "agent-timeout" {
+			set = v
+		}
+	})
+	return set
 }

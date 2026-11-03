@@ -196,6 +196,8 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 			EvalMode:       eval_harness.EvalModeAgent,
 			Condition:      condition,
 			Trial:          trial, // M-EVAL-OS-LONGITUDINAL Phase 3
+			// The budget the failed run had — a timeout row is unreadable without it.
+			AgentTimeoutSecs: eval_harness.EffectiveAgentTimeoutSecs(spec, &sessionConfig, model),
 		}
 		// Record what the failed run actually spent, and charge an idle-watchdog
 		// kill to the harness (invalid, retried by --skip-existing).
@@ -312,6 +314,8 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 		HiddenTotal:     len(spec.HiddenTests),
 		HiddenPassed:    result.Hidden.Passed,
 		HiddenFirstFail: result.Hidden.FirstFail,
+		// The agent wall clock this run had (same resolution as the task).
+		AgentTimeoutSecs: eval_harness.EffectiveAgentTimeoutSecs(spec, &sessionConfig, model),
 		// Contract verification (M4a-3): the banked RESULT JSON now carries the
 		// same 5 verify_* fields the chain assessment does. Standard mode has
 		// always recorded these (via PopulateVerifyMetrics); agent mode dropped

@@ -89,7 +89,7 @@ func runEvalSuite() {
 	// expecting serial execution and got 10x oversubscription instead). Removed
 	// here; the AgentBenchmarkConfig.MaxConcurrent field is likewise removed.
 	agentRequestsPerSecond := fs.Int("agent-rate", 1, "API requests per second (agent mode only)")
-	agentTimeout := fs.Int("agent-timeout", 60, "Timeout per benchmark in seconds (agent mode only)")
+	agentTimeout := fs.Int("agent-timeout", 60, "Agent wall clock per run in seconds (agent mode only). Unset: the benchmark's timeout, raised to the model's hard_timeout_secs (60 only when a benchmark has no timeout). Passed explicitly: a FLOOR on that, never a ceiling. Banked as agent_timeout_secs.")
 	toolPolicy := fs.String("tool-policy", "", "Agent-mode tool policy LANE: full | ailang_only | Canonical,List (M-AGENT-AILANG-ONLY-EXECUTION). ailang_only = read/edit/write + ailang_check/ailang_run, NO bash. Banked as tool_policy on every row; empty = the executor's defaults (the historical lane).")
 	policyFile := fs.String("policy-file", "", "agent-policy.toml gating ailang_run for the ailang_only lane (forwarded as AILANG_AGENT_POLICY; its sha256 is banked as policy_digest)")
 	maxTokensPerBench := fs.Int("max-tokens-per-bench", 0, "Hard token-budget ceiling per benchmark; aborts mid-run if exceeded (0 = unlimited). M-EVAL-OS-LONGITUDINAL Phase 1: thrash detection for free local models.")
@@ -644,6 +644,7 @@ func runEvalSuite() {
 		agentModelOverride: *agentModel, maxConcurrent: *maxConcurrent,
 		requestsPerSecond: *agentRequestsPerSecond, timeoutSeconds: *agentTimeout,
 		maxTokensPerBench: *maxTokensPerBench,
+		minTimeoutSeconds: explicitAgentTimeout(fs, *agentTimeout),
 		toolPolicy:        *toolPolicy,
 		policyFile:        *policyFile,
 		verify:            *verify, verifyTimeout: *verifyTimeout,

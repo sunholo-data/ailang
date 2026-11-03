@@ -14,10 +14,7 @@ import (
 // stage callers. It does not create, reset or clean a workspace, dispatch a
 // model, discover benchmarks or alter the supplied frozen prompt.
 func BuildEvalExecutorTask(spec *BenchmarkSpec, config *MultiExecutorConfig, modelName, workspace, systemPrompt, taskPrompt string) (*executor.Task, error) {
-	timeoutSeconds := config.TimeoutSeconds
-	if spec.Timeout > 0 {
-		timeoutSeconds = spec.Timeout
-	}
+	timeoutSeconds := EffectiveAgentTimeoutSecs(spec, &config.AgentBenchmarkConfig, evalModelLookupKey(config))
 	task := &executor.Task{
 		ID:           fmt.Sprintf("%s_%s", spec.ID, uuid.New().String()[:8]),
 		Directive:    taskPrompt,
@@ -142,26 +139,46 @@ func BuildEvalExecutorTask(spec *BenchmarkSpec, config *MultiExecutorConfig, mod
 			// agent suite comparable, because the dollar gate above buys work
 			// in inverse proportion to price (see Budgets doc).
 			task.MaxTokensPerBench = cfg.ResolvedMaxTokensPerBench(config.MaxTokensPerBench)
-			// M-EVAL-LOCAL-OLLAMA (v0.22.0): take the MAX of spec.Timeout and
-			// model.HardTimeoutSecs rather than letting spec.Timeout veto. The
-			// benchmark spec timeout is cloud-tuned (Sonnet 4.6 speeds); local
-			// Ollama models need their own slower budget to apply. For cloud
-			// models with cost budgets, the wall-clock bump is a no-op because
-			// cost trips first; for local models (pricing=0, no cost gate) this
-			// is the only gate, so it must reflect the model's actual speed.
-			specT := spec.Timeout
-			hardSecs := cfg.ResolvedHardTimeoutSecs()
-			effective := specT
-			if hardSecs > effective {
-				effective = hardSecs
-			}
-			if effective > 0 {
-				task.Timeout = time.Duration(effective) * time.Second
-			}
+			// The wall clock (spec timeout, model hard_timeout_secs, explicit
+			// --agent-timeout floor) is resolved once, above, by
+			// EffectiveAgentTimeoutSecs — the same function the banked row's
+			// agent_timeout_secs reads.
 		}
 	}
 
 	return task, nil
+}
+
+// EffectiveAgentTimeoutSecs is the agent wall clock one run gets, in seconds.
+// It is the ONE resolution both the executor task and the banked row
+// (agent_timeout_secs) read, so a row always says what budget it ran under.
+//
+//  1. The benchmark's own `timeout:`, else the --agent-timeout default.
+//  2. Raised to the model's hard_timeout_secs (M-EVAL-LOCAL-OLLAMA, v0.22.0):
+//     spec timeouts are cloud-tuned, and for a local model (pricing=0, no
+//     cost gate) the wall clock is the only gate, so it must reflect the
+//     model's speed. Cloud models with cost budgets trip on cost first.
+//  3. Raised to MinTimeoutSeconds, set only when --agent-timeout is passed
+//     EXPLICITLY. Before 2026-11-03 an explicit --agent-timeout was silently
+//     replaced by any spec timeout, so callers passing 2400 for slow local
+//     models got the spec's 600 (then the model's 3600) without knowing.
+//     It is a floor, never a ceiling: it can only lengthen a run.
+func EffectiveAgentTimeoutSecs(spec *BenchmarkSpec, config *AgentBenchmarkConfig, registryKey string) int {
+	secs := config.TimeoutSeconds
+	if spec != nil && spec.Timeout > 0 {
+		secs = spec.Timeout
+	}
+	if modelreg.GlobalModelsConfig != nil {
+		if cfg, ok := modelreg.GlobalModelsConfig.Models[registryKey]; ok {
+			if hard := cfg.ResolvedHardTimeoutSecs(); hard > secs {
+				secs = hard
+			}
+		}
+	}
+	if config.MinTimeoutSeconds > secs {
+		secs = config.MinTimeoutSeconds
+	}
+	return secs
 }
 
 func evalModelLookupKey(config *MultiExecutorConfig) string {

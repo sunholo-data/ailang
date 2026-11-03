@@ -13,8 +13,11 @@ type AgentBenchmarkConfig struct {
 	// semaphore is the -parallel flag handled in cmd/ailang/eval_parallel.go.
 	// Keeping the field caused recurring user confusion (passing -agent-parallel 1
 	// expecting serial execution and getting -parallel=10 oversubscription).
-	RequestsPerSecond int      // API rate limit
-	TimeoutSeconds    int      // Timeout per benchmark
+	RequestsPerSecond int // API rate limit
+	TimeoutSeconds    int // Timeout per benchmark
+	// MinTimeoutSeconds floors the per-run agent wall clock. Set ONLY from an
+	// explicitly passed --agent-timeout (0 = no floor); see EffectiveAgentTimeoutSecs.
+	MinTimeoutSeconds int
 	WorkspaceDir      string   // Base workspace directory
 	AllowedTools      []string // Tools agent can use
 	ClaudePath        string   // Path to claude CLI

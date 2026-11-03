@@ -193,6 +193,12 @@ RATINGS_JSON="docs/static/benchmarks/latest.json"
 # $PROBE_MODEL per release; a passing probe un-parks them. 0 = old behaviour.
 PARK="${OS_FILLER_PARK:-1}"
 PROBE_MODEL="${OS_FILLER_PROBE_MODEL:-pi-qwen3-8-27b}"
+# The probe's agent wall clock. The parked CP benchmarks all died at the 1h local
+# hard timeout, and pi SOLVED cp_60149 in 53 min (34/34 hidden tests): the 1h wall,
+# not the model, may be the limit. One 3h probe per release answers that for ~3
+# GPU-hours instead of 9 one-hour failures. Banked as agent_timeout_secs, so a
+# probe row is never confused with a 1h trial.
+PROBE_TIMEOUT="${OS_FILLER_PROBE_TIMEOUT:-10800}"
 case ",$MODELS," in (*",$PROBE_MODEL,"*) ;; (*) PROBE_MODEL="${MODELS%%,*}";; esac
 
 # sat_set [lang] — echo the saturated ids as a ,-wrapped membership set (",a,b,")
@@ -241,15 +247,22 @@ split_pick() {
   IFS="$_SOIFS"
 }
 
-# run_chunk LABEL PICKS LANGS TRIALS [MODELS] — one eval-suite invocation for a
-# comma pick-list; no-op on an empty list. Preserves the reimplement special case
+# run_chunk LABEL PICKS LANGS TRIALS [MODELS] [AGENT_TIMEOUT_SECS] — one eval-suite
+# invocation for a comma pick-list; no-op on an empty list. AGENT_TIMEOUT_SECS is
+# passed as an explicit --agent-timeout, which FLOORS the per-run agent wall clock
+# (EffectiveAgentTimeoutSecs); without it a run gets max(spec timeout, model
+# hard_timeout_secs) — 1h for the rig's local models. NOTE: CHUNK_TIMEOUT
+# (--timeout) is the CODE-EXECUTION timeout, not an agent budget. Preserves the reimplement special case
 # (single trial + long timeout) per group, exactly as the old whole-chunk logic.
 run_chunk() {
   rc_label="$1"; rc_picks="$2"; rc_langs="$3"; rc_trials="$4"; rc_tmo="$CHUNK_TIMEOUT"
   rc_models="${5:-$MODELS}"
+  rc_agent_tmo=()
+  [ -n "${6:-}" ] && rc_agent_tmo=(--agent-timeout "$6")
   [ -n "$rc_picks" ] || return 0
   case "$rc_picks" in *reimplement*) rc_trials=1; rc_tmo="5400s";; esac
   ailang eval-suite --agent --models "$rc_models" --benchmarks "$rc_picks" --langs "$rc_langs" \
+    ${rc_agent_tmo[@]+"${rc_agent_tmo[@]}"} \
     --parallel 1 --microrag on --trials "$rc_trials" --skip-existing --bank-by-version --timeout "$rc_tmo" \
     --output "$ROLL" >>"$LOG" 2>&1 || log "$rc_label chunk had failures (continuing)"
 }
@@ -290,6 +303,19 @@ if ! rig_lock_acquire nowait; then
   log "rig busy — yielding"; exit 0
 fi
 log "rig lock acquired (filler)"
+# 3a. LOCK HEARTBEAT. rig-lock.sh treats a lock dir whose mtime is older than
+# RIG_LOCK_STALE_MIN (6h) as a crashed holder and steals it, and nothing refreshed
+# that mtime — so any cycle over 6h was stealable mid-run (11-02 20:03 -> 11-03
+# 03:43 ran 7.7h; parked probes are 3h each). Touch it every 10 min, but ONLY
+# while this filler is alive AND is still the recorded holder: a dead filler stops
+# refreshing within one tick, so crash recovery still works. No trap — it would
+# replace rig-lock.sh's EXIT trap that releases the lock.
+FILLER_PID=$$
+( while sleep 600; do
+    kill -0 "$FILLER_PID" 2>/dev/null || exit 0
+    [ "$(cut -d' ' -f1 "$RIG_LOCK_DIR/holder" 2>/dev/null)" = "$FILLER_PID" ] || exit 0
+    touch "$RIG_LOCK_DIR" 2>/dev/null || exit 0
+  done ) >/dev/null 2>&1 &
 mkdir -p "$ROLL"   # ensure the rolling dir exists for both passes (was previously only created inside the 4-lang block)
 
 # 3b. RELEASE PICKUP (auto): a release bumps std/VERSION on origin/dev. When the
@@ -494,7 +520,7 @@ PYEOF
       run_chunk "ailang-full" "$PICK_SIG" ailang 3
       run_chunk "ailang-full(saturated)" "$PICK_SAT" ailang "$SAT_TRIALS"
       # Parked: one probe trial on one model. --skip-existing keeps it once per release.
-      run_chunk "ailang-full(parked-probe)" "$PICK_PARK" ailang 1 "$PROBE_MODEL"
+      run_chunk "ailang-full(parked-probe)" "$PICK_PARK" ailang 1 "$PROBE_MODEL" "$PROBE_TIMEOUT"
     fi
   fi
 fi
