@@ -5,6 +5,21 @@
 **Priority**: P1 (order-dependent silent miscompile of imported type aliases; live downstream workaround in stapledons-godot)
 **Estimated**: Phase 1: 2–3 days incl. corpus sweep. Phase 2 (policy sketched, deferred): 1 week, own doc.
 **Dependencies**: None blocking. Lands on the shipped M-TYPE-NAME-SHADOW (M1/M3), M-ALIAS-BODY-CLOSURE and M-ELABORATOR-LEXICAL-SCOPE foundations; see "Neighboring designs" for how each bounds this one.
+
+> **⚠️ Sibling design doc — reconcile before sprint-planning (duplicate-gate note, 2026-11-03).**
+> Issue #1980 was triaged in parallel on 2026-10-28 and produced TWO planned docs: this one and
+> [m-import-vs-import-collision](../v0_54_20/m-import-vs-import-collision.md) (full class: types+ctors
+> at the import site, values at the use site, **reuses MOD015**). Both sessions' auto-searches
+> predated each other's doc. Unresolved conflict for the human approval gate: this doc allocates
+> **MOD016** and corrects MOD015's registry text; the sibling reuses **MOD015**, which the registry
+> (`internal/errors/codes.go:295`) has already promised for "another import" since v0.52.0.
+> Duplicate-gate recommendation: treat the sibling as canonical (full-class scope, 25-row
+> verification log, corpus sweeps) and fold this doc's S1–S6 policy table into its Future Work —
+> unless the human gate rules for a separate MOD016 code, in which case this doc's Phase-1 scope
+> is the one to implement. Re-dispatch `task-4027bf38` re-verified the live repro on **v0.57.0**
+> (commit `b23cadce`, 2026-11-03): reported import order still fails with the distant field-count
+> mismatch, flipped order still passes — both docs' target folders are stale; retarget at
+> sprint-planner.
 **Reporter**: stapledons_godot via ailang messages (issue #1980, v0.54.18 darwin arm64, reproduced by triage on origin/dev `51b00832`, binary `a6b4c2c` v0.54.19, stdlib from the same SHA).
 
 ## Problem Statement
@@ -417,7 +432,7 @@ Hard-gate premise checks (skill: design-doc-creator), all run 2026-10-28 on repo
 
 **Planned (check for overlap):**
 - [m-type-name-shadow-and-cache](../v0_44_0/m-type-name-shadow-and-cache.md) — its audit item 3 is this defect; M1/M3 shipped; M4 is this doc's Non-Goal.
-- Auto-search (SimHash + neural) found no overlapping implemented/planned doc for import-vs-import collisions; the manual lineage above is complete (verified by reading each).
+- Auto-search (SimHash + neural) found no overlapping implemented/planned doc for import-vs-import collisions at the time of writing (2026-10-28); that result was raced — [m-import-vs-import-collision](../v0_54_20/m-import-vs-import-collision.md) was created the same day by a parallel session for the same issue (see the duplicate-gate note above).
 
 ## References
 
@@ -436,4 +451,4 @@ Hard-gate premise checks (skill: design-doc-creator), all run 2026-10-28 on repo
 ---
 
 **Document created**: 2026-10-28
-**Last updated**: 2026-10-28
+**Last updated**: 2026-11-03 (duplicate-gate reconciliation note, task-4027bf38)

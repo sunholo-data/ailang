@@ -6,6 +6,22 @@
 **Estimated**: 6 days (3 honest × 2 convention)
 **Dependencies**: None (extends the MOD015 checker shipped in v0.52.0, #1467)
 
+> **⚠️ Sibling design doc — reconcile before sprint-planning (duplicate-gate note, 2026-11-03).**
+> Issue #1980 was triaged in parallel on 2026-10-28 and produced TWO planned docs: this one and
+> [m-import-alias-collision](../v0_55_0/m-import-alias-collision.md) (types-only Phase 1, allocates a
+> new **MOD016**). Both sessions' auto-searches predated each other's doc. Unresolved conflict for
+> the human approval gate: **reuse MOD015** (this doc — the registry description at
+> `internal/errors/codes.go:295` has promised "or another import" since v0.52.0) vs **allocate
+> MOD016** (sibling — would correct that registry text instead). Scope: this doc covers the full
+> class (types+ctors at the import site, values at the use site); the sibling covers types only,
+> deferring values/ctors and auto-import channels to a Phase 2 doc. Duplicate-gate recommendation:
+> **treat this doc as canonical** (full-class scope, 25-row verification log, corpus sweeps,
+> quorum attempted), fold the sibling's S1–S6 policy table into this doc's Future Work, and take
+> the MOD015-vs-MOD016 ruling to the human gate. Re-dispatch `task-4027bf38` re-verified the live
+> repro on **v0.57.0** (commit `b23cadce`, 2026-11-03): reported import order still fails with the
+> distant field-count mismatch, flipped order still passes — both docs' target folders are stale;
+> retarget at sprint-planner.
+
 ## Problem Statement
 
 **Reported (v0.54.18, darwin arm64, task `task-e8942a7d` / stapledons-godot `sim/core.ail`):**
@@ -488,7 +504,7 @@ chores.
 - [MOD015 user doc](../../../docs/docs/reference/errors/mod015.md) — updated by this design (its "What is not an error" list already states the benign rules M1 enforces).
 
 **Planned (check for overlap):**
-- (none — `ailang docs search` (SimHash + neural) over "import vs import collision" returned no matches; the grep-based survey above is the complete related set)
+- [m-import-alias-collision](../v0_55_0/m-import-alias-collision.md) — **sibling duplicate** of this doc (same issue #1980, created the same day by a parallel session; see the duplicate-gate note above). Types-only Phase 1, allocates MOD016; reconcile before sprint-planning.
 
 ## References
 
@@ -510,4 +526,4 @@ chores.
 ---
 
 **Document created**: 2026-10-28
-**Last updated**: 2026-10-28
+**Last updated**: 2026-11-03 (duplicate-gate reconciliation note, task-4027bf38)
