@@ -1484,3 +1484,59 @@ Last 3 code landings: iteration 78 (`3d9112bb9`), iteration 70 (`52e8958f0`), th
 - Quorum: none (no design doc). Metered spend $0. No lane recorded dead.
 
 **Next**: if Mark rules D-FLEET-21 or D-FLEET-26, rebase that draft (#2067 or #2065), run its owed gates (#2065 also needs driver dry-runs), wait for CI, merge, and resolve. For #2065, also run `ailang mission ticket resolve codex:server-capacity-error-crashes-finished-iteration --sha <merge>`. D-FLEET-21 has no ticket to resolve. Otherwise take any ruling (D-FLEET-18, -36, -38, -41) or a filing newer than 10-28. No in-scope code recommendation is left without a diff.
+
+## 81 — 2026-11-03 — D-FLEET-25's shared mechanical sub-item built as a proposed diff (draft PR #2082, `399cf799b`), unmerged pending a ruling; the "World is a fork" claims are corrected and the mission-loop-change reach check (which read NO for every mission) is repaired; an independent sonnet judge refuted the controller's idle verdict, then PASS-WITH-EDITS 90 and PASS 94 [HARNESS]
+
+**Pick**: D-FLEET-25's mechanical sub-item, the one that options A and B share. Iteration 80's **Next** expected an idle fire, and the controller's Gate-2 map agreed: 25 tickets open, the newest filed 10-28, every ticket mapped to an OPEN row, and no ruling. The independent idle-verdict judge refuted that. D-FLEET-25 A and B both include "correct the World fork claim", that sub-item is inside `missions/**`, and no diff for it existed. The controller verified it first-party. Under the *Ticket-driven only* ruling-gated clause, that made it the pick: build it as a draft PR and do not merge.
+
+**Orphans / prior record**: drafts #2065 and #2067 are expected and untouched (no comments or reviews). Iteration 80's record merged as #2068 → `99ef89c26`. No other `fleet/*` PR.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN.
+- #2039: 0 directives. The `mission-2039-last-seen` file is still absent; 5 comments, none allowlisted. Self-notices rc 0: 0 crash notices on #2039 and #1945, control 852:10.
+- Skill drift: `SKILL.md` and all 13 resource files are `cmp`-identical to `origin/dev` at the resolved symlink target (`AILANG_DRIVER_DRIFT=0`).
+- Gate-1 base `b23cadced75c7bbf1328eebcc5ab011453fba672@2026-11-03T14:25:28Z`.
+- Dev CI at `b23cadced` (v0.57.0 release) success. 40 check-runs; the only red is `SonarCloud Code Analysis` (non-required, inherited, V1-owned).
+- Ledger valid (40 rows, 24 OPEN). `MISSION_OVER_RATION` empty; routing note empty.
+- `reporting:daneel-reports-not-declared-triage` recurred at 08:56Z (12 lost slots). Its row, D-FLEET-22, is unchanged.
+
+**Reality check** (first-party, at `b23cadced`):
+- `dev.ailang.mission-world.plist` `ProgramArguments.1` = `~/dev/sunholo-data/ailang/tools/launchd/mission-control.sh`, the shared driver, as for v1, fleet, stapledon and triage. `ailang-world/tools/launchd/mission-control.sh` does not exist. `golden_live_test.go:367` says "WORLD IS DE-FORKED (2026-09-06)". `doctor.go:281` is `Fork = m.Driver != ""`, and world.toml has no `driver` key, so **the doctor half of the row was already fixed**. Only text was stale.
+- **New finding:** the `mission-loop-change` skill's Gate-1 reach check reads **NO for every mission**, v1 included. Its grep wants `. "$REPO/tools/launchd/lib/pin-root.sh"`, while the driver now sources `"$MC_DRIVER_ROOT/…"` indented inside an `if` (`mission-control.sh:1224`). The same skill's Gate 2 still told every driver change to be "made twice" against a World driver that no longer exists.
+
+**Did** (generator ≠ judge):
+- **Designer**: not spawned; the row is the spec.
+- **Planner**: the resolver gave `agent-tool opus fail-closed:no-doc`, and the opus Agent spawn was **denied** by the spawn-pin hook (`deny:provider-pin`), the fifth instance of the Step 1b ⚠ case. Routed to `codex:gpt-6.1-sol`: probe rc 0, `--sandbox read-only` in the clean build worktree, rc 0, 97,389 tok ([plan](fleet-mission-evidence/iteration81/plan.md)). It found the skill, test and script sites. The controller narrowed its scope: no charter-row edits in the code PR, and the snippet repaired rather than deleted.
+- **Gate list at base first** (false-green 4): `sync-agents-skills --check`, `bash -n`, `go test ./internal/mission/...`, the agents-sync suite, `check-context-docs`, `check-changelog` and `check-skills` all rc 0.
+- **Executor**: `codex:gpt-6.1-sol`, `workspace-write`, rc 0, 68,119 tok ([directive](fleet-mission-evidence/iteration81/executor-directive.txt), [report](fleet-mission-evidence/iteration81/executor-report.md)). It edited `.claude` only. The new snippet reads each installed plist; its grep counts 1 on the driver and 0 on `mission-heartbeat.sh`.
+- **Controller**: synced `.agents` (pre rc 1, sync rc 0, post rc 0). Ran the new snippet under `/bin/bash`: 7 of 7 mission-control plists read YES. Gates at head, outside the sandbox: all of the above rc 0, `make test-launchd-drivers` **52/52**, `test_mission_directives.sh` 33/33, residual grep clean. Committed `a58e08e68` crediting codex.
+- **Evaluator** ([evaluation](fleet-mission-evidence/iteration81/evaluation.md)): sonnet, Agent tool, foreground, cross-vendor from the generator.
+  - Idle-verdict judge: REFUTED (narrow), which is what produced the pick.
+  - Diff round 1: **PASS-WITH-EDITS 90**. M1 (mirror revert) and M2 (old pattern, all NO) were killed; M3 was not applicable. Required edit: `test_mission_directives.sh:104` "(world fork depends on it)". Applied as `399cf799b`.
+  - Diff round 2: **PASS 94**.
+  - Strongest objection: nothing tests the skill snippet's regex against the real driver.
+- **Landing (proposed only)**: pushed `fleet/i81-dfleet25-world-fork-comment` and opened **draft PR #2082**. Its body says not to merge before the ruling. D-FLEET-25 stays OPEN with an iteration-81 note. Its default if unanswered is C.
+
+**Ruled out**:
+- Editing `doctor.go` or `registry.go`: the doctor already reports no fork for World (`doctor.go:281`). The remaining mentions (`doctor.go:140`, `driver_agreement_test.go:114,184`, `mission-control.sh:1217,1417`) are past-tense history, and the judge agreed.
+- Editing the D-FLEET-25 row text or the charter queue in the code PR, as the planner proposed: ledger text is the record's job, and the ask is unchanged.
+- Deleting the reach-check snippet (the planner's proposal): it is the skill's only instrument for reach, so repair beats removal.
+- Adding a test that guards the snippet's regex (the judge's objection): it is a new mechanism and widens scope past the row. It is a candidate only.
+- Merging: D-FLEET-25 is OPEN and its default is C.
+
+**Retro lane**: no skill edit; process fix in the guardrail text deferred. Flagged:
+- (a) **The controller's idle verdict was wrong, and only the independent judge caught it.** Iteration 80's **Next** ("no in-scope code recommendation is left without a diff") and this fire's own map both read D-FLEET-25 as wholly ruling-gated, because its A bundles a design doc. Lesson: a row whose options SHARE a mechanical sub-item has a routable diff, even when the row as a whole is policy. One recorded instance, so no guardrail edit yet. If a second arrives, add one clause to the *Ticket-driven only* guardrail: "including the mechanical sub-item shared by all non-C options".
+- (b) codex `workspace-write` cannot write `.agents/`: third instance (iterations 63, 80, 81). The controller's sync costs one command. A recipe line ("for a skill-mirror diff, codex edits `.claude` only; the controller syncs") now meets the two-friction bar. Not taken here, because the open draft #2067 touches the same skill tree (`gate-3b-ci-green.md`); the next fire that edits the skill can take it.
+- (c) Spawn-pin hook denied the resolver-prescribed opus planner again (fifth instance). The fix is in the resolver (`role-spawn-routing.md` §2), as before.
+
+**Progress**: goal unmoved. Clause 1 UNMEASURED. Clause 2 UNMET (nothing resolved). Clause 3 MET (25 open). Clause 4: prior evidence only. Clause 5 preserved (nothing merged to code).
+
+**Routing evidence**: base=b23cadced75c7bbf1328eebcc5ab011453fba672@2026-11-03T14:53:39Z (Gate 4); Gate-1 base `b23cadced75c7bbf1328eebcc5ab011453fba672@2026-11-03T14:25:28Z`. Driver routing note: empty (as configured). Details: [routing](fleet-mission-evidence/iteration81/routing.md).
+- Controller `claude:claude-opus-5-5` (tok: not reported). `MISSION_ANTHROPIC_AVAILABLE=1`.
+- Designer: not spawned; rotation pointer not advanced. Resolver `recipe claude:claude-opus-5-5 declared:provider-pin`.
+- Planner `codex:gpt-6.1-sol` (97,389 tok), recipe (read-only sandbox, build worktree). Resolver `agent-tool opus fail-closed:no-doc`, hook `deny:provider-pin`, routed to the pin.
+- Executor `codex:gpt-6.1-sol` (68,119 tok), recipe. Resolver `recipe codex:gpt-6.1-sol declared:provider-pin`.
+- Evaluator `sonnet`, Agent tool, two spawns: idle judge 64,455 subagent tok; diff judge 63,800 tok (round 1), 68,540 cumulative (round 2). Resolver `agent-tool sonnet declared:alias-pin`. Judge independence: cross-vendor from the codex generator.
+- Quorum: none (no design doc). Metered spend $0. No lane recorded dead.
+
+**Next**: if Mark rules D-FLEET-25 A or B, rebase #2082, re-run its gates, wait for CI and merge. Under A, the design-doc half then follows as its own pick. If he rules D-FLEET-21 or -26, do the same for #2067 or #2065 (#2065 also needs driver dry-runs and `ailang mission ticket resolve codex:server-capacity-error-crashes-finished-iteration`). Otherwise, before declaring idle, re-check every OPEN row for a mechanical sub-item shared by its non-C options (retro a). Take any ruling (D-FLEET-18, -36, -38, -41) or a filing newer than 10-28.
