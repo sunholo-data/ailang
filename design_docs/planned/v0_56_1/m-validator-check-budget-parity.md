@@ -1,6 +1,6 @@
 # M-VALIDATOR-CHECK-BUDGET-PARITY: check budgets follow the box, and refusals a publisher can reproduce
 
-**Status**: Planned (DOC-READY)
+**Status**: Implementation complete; verification blocked (unchanged core cleanup tests and unavailable lint); operational acceptance pending
 **Target**: v0.56.1
 **Priority**: P1 (fleet-wide publish gate trust; blocks R3-WORLDS via sunholo/celestial@0.6.0)
 **Estimated**: 3–4 days
@@ -133,19 +133,19 @@ Three code changes inside `cmd/registry-validator` plus one metadata/doc change,
 - [ ] R3-WORLDS proceeds (`sunholo/worlds@0.1.0` dependency satisfied).
 
 **Phase 1: refusal parity (~1 day)**
-- [ ] `budgetError` environment block + wording; docker reproduction command referencing the published image (`${_REGION}-docker.pkg.dev/ailang-registry/ailang-registry/validator:<tag>` with `--memory 1g --cpus 2`).
-- [ ] Tests: message contains cap, source, arch, GOMAXPROCS, GOMEMLIMIT, peak; `TestRunBounded_OverMemoryIsKilledAndNamed` updated for the new fields (it currently asserts `observed == "600 MiB"` — keep that assertion true).
-- [ ] `pkg_publish.go` untouched (already prints 422 bodies verbatim, `StatusUnprocessableEntity` case).
+- [x] `budgetError` environment block + wording; docker reproduction command referencing the published image (`${_REGION}-docker.pkg.dev/ailang-registry/ailang-registry/validator:<tag>` with `--memory 1g --cpus 2`).
+- [x] Tests: message contains cap, source, arch, GOMAXPROCS, GOMEMLIMIT, peak; `TestRunBounded_OverMemoryIsKilledAndNamed` updated for the new fields (it currently asserts `observed == "600 MiB"` — keep that assertion true).
+- [x] `pkg_publish.go` untouched (already prints 422 bodies verbatim, `StatusUnprocessableEntity` case).
 
 **Phase 2: GOMEMLIMIT pacing (~1 day)**
-- [ ] `checkEnv(rssCap)` helper + injection in `runAilangCheck`; margin 64 MiB.
-- [ ] Tests: helper math (1 GiB → `GOMEMLIMIT=832MiB`); a `runBounded` test asserting the child *saw* the env (portable child: `sh -c 'echo $GOMEMLIMIT'`-shaped, or assert on the helper + an env-echo integration case).
-- [ ] Watchdog unchanged: kill still fires on sampled `VmRSS > checkRSSCap` (GOMEMLIMIT excludes some non-Go-RSS, so the backstop stays authoritative).
+- [x] `checkEnv(rssCap)` helper + injection in `runAilangCheck`; margin 64 MiB.
+- [x] Tests: helper math (1 GiB → `GOMEMLIMIT=832MiB`); a `runBounded` test asserting the child *saw* the env (portable child: `sh -c 'echo $GOMEMLIMIT'`-shaped, or assert on the helper + an env-echo integration case).
+- [x] Watchdog unchanged: kill still fires on sampled `VmRSS > checkRSSCap` (GOMEMLIMIT excludes some non-Go-RSS, so the backstop stays authoritative).
 
 **Phase 3: telemetry + docs (~1 day)**
-- [ ] `runBounded` returns stats; plumb to `ValidationResult.CheckPeakRSS/CheckWallMS`; v1-decode test in `internal/pkg` following the `registry_types` test pattern.
-- [ ] `package-publishing.md` budget troubleshooting section (fields, reproduction, trim guidance).
-- [ ] Read-side: nothing required (fields are informational; a registry query/`ailang pkg` report can render them later — Non-Goal).
+- [x] `runBounded` returns stats; plumb to `ValidationResult.CheckPeakRSS/CheckWallMS`; v1-decode test in `internal/pkg` following the `registry_types` test pattern.
+- [x] `package-publishing.md` budget troubleshooting section (fields, reproduction, trim guidance).
+- [x] Read-side: nothing required (fields are informational; a registry query/`ailang pkg` report can render them later — Non-Goal).
 
 ### Files to Modify/Create
 
@@ -314,3 +314,7 @@ Every load-bearing claim above was checked against the code in this checkout (HE
 
 **Document created**: 2026-11-02
 **Last updated**: 2026-11-02
+
+## Executor verification — 2026-11-03
+
+Implementation is committed on `coordinator/task-76187768`. Independent review found no concrete implementation defect and awarded acceptance 30/30, but returned **FAIL, 65/100** because the required core gate is red and lint tooling is unavailable (also deducted for this previously stale status). Both touched Go packages, go vet, formatting, boundaries, file sizes and changelog checks pass. See [execution evidence](evidence/m-validator-check-budget-parity/execution.md). Docker/staging, GC-heavy measurements and new production rollout remain pending; no performance benefit or new production success is claimed.

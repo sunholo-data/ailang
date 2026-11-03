@@ -82,3 +82,18 @@ passed to the upload path without contacting GCS, and distinguishes 422 from 400
 - Full-package tests started before edits finished are not treated as pristine
   baseline evidence. Redundant overlapping test invocations were stopped; the
   completed touched-package runs above are from the retained make gate.
+
+## Independent evaluation
+
+The skill-directed message handoff was refused because no sprint-evaluator agent
+is registered on this environment's messaging plane. A local independent sub-agent
+reviewed the implementation with the sprint-evaluator skill instead. It found no
+concrete implementation defect and awarded acceptance 30/30, but returned FAIL,
+65/100: tests 0/20 (required gate red), lint 0/10 (unavailable), acceptance 30/30,
+code quality 15/15, docs 10/15 (stale design status), fidelity 10/10. The stale
+design status has now been corrected. No revised score is claimed.
+
+The required make test-changed run finished with exit 2: the two internal/effects
+failures above remained; pipeline, format, stdlib and other reported core packages
+passed. Clear these verification blockers in an equipped environment before merge.
+No unrelated process-runtime implementation was changed to bypass the gate.

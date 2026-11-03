@@ -3,7 +3,7 @@
 **Design:** [approved design](m-validator-check-budget-parity.md)  
 **Sprint ID:** M-VALIDATOR-CHECK-BUDGET-PARITY  
 **Target:** v0.56.1  
-**Status:** Implementation complete; independent evaluation pending.
+**Status:** Implementation complete; independent evaluation failed required verification gates (65/100).
 **Duration:** 3 engineering days, including contingency; production acceptance depends on deployment.  
 **Risk:** Medium (GC wall-time tradeoff and environment reproduction).
 

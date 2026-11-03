@@ -118,5 +118,11 @@
     "make test-changed: unchanged internal/effects TestRuntimeNestedStopUsesRemainingDeadline and TestProcessExec_TimeoutKillsGrandchildren fail, including isolated rerun",
     "Docker/staging/heavy-package evidence unavailable; no new deployment/publish",
     "Cloud branch sync skipped:no-task-id; work committed locally"
-  ]
+  ],
+  "evaluation": {
+    "round": 1,
+    "score": 65,
+    "verdict": "FAIL",
+    "reason": "Required core gate fails in unchanged process cleanup tests; lint unavailable. Independent review found no implementation defect. Stale design status corrected after review."
+  }
 }
