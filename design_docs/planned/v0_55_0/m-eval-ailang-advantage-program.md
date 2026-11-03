@@ -95,7 +95,7 @@ Sol-class). No new run is needed beyond the release eval.
 
 | Row | Definition | Source instrument |
 |---|---|---|
-| S1 Hidden-test fraction | Σ`hidden_passed` / Σ`hidden_total` over the CP pack | banked rows (M-EVAL-HIDDEN-TESTS) |
+| S1 Hidden-test fraction | Σ`hidden_passed` / Σ`hidden_total` over the CP pack (`hidden_passed` is the passing prefix: grading stops at the first failure) | banked rows (M-EVAL-HIDDEN-TESTS) |
 | S2 Full-pass rate | runs with `stdout_ok` (visible plus every hidden test) / runs | banked rows |
 | S3 Cost per verified success | the existing KPI, by language | `ailang chains stats --cost-per-verified-success` (V11) |
 | S4 Turns and tokens per success | median `agent_turns`, `total_tokens` over successful runs | banked rows |
@@ -295,6 +295,44 @@ The climb is **exploratory**, and the decision rule below stays **confirmatory**
   - **Not gated.** Neither step beat the baseline by enough, under the mechanism rule, to spend a held-out run.
     The held-out set is built (12 AetherCode problems, Python references written and verified against every
     hidden test, since the dataset ships none) and waits for the first accepted step.
+
+- **Step 3 investigation (2026-11-03, replays of banked code only, no model runs).** Before designing the
+  "array by recurrence" primitive, the step-2 `cp_60164` trial 2 was rewritten by hand, one cost at a time,
+  and replayed on its 8 hidden tests:
+
+  | Variant | Hidden tests | Test 05 user CPU |
+  |---|---|---|
+  | As written (prefix passes and difference updates by `A.set`) | 4/8 | — |
+  | Prefix passes made O(n) (`mapAccumL` rows, `zipWith` columns) | 4/8 | — |
+  | + coordinate lookups by `A.get`, not `nth` | 4/8 | — |
+  | + difference updates by one `A.accumulate` | (test 05 correct) | 58.1s |
+  | + evaluator dictionary fix (`b46b49b4a`) | (test 05 correct) | 21.3s |
+
+  - **Wall 1 is corrected.** Fixing the prefix passes alone moved nothing: the four `A.set` writes per
+    rectangle into the difference array cost as much. Both are the same cost, a single-cell `A.set` in a loop,
+    and [M-PERSISTENT-COLLECTIONS](m-persistent-collections.md) Phase 3 (persistent boxed `Array`, O(log n)
+    `set`) is the planned fix. That doc deferred a builder primitive (its option C) because models do not
+    discover new idioms, and this trial agrees: Haiku writes the Python-shaped `A.set` loop, and Phase 3 makes
+    exactly that loop fast. **No separate design doc.** The climb evidence goes to Phase 3's priority instead.
+  - **Evaluator fix found on the way (`b46b49b4a`).** The CPU profile showed `evalDictRef` rebuilding the whole
+    type-class dictionary (6–10 `Sprintf` keys, lookups, fresh wrappers) on every overloaded operator call:
+    47% of CPU. It is now built once per evaluator (2.7× on that test). Under one CPU-time judge (30s CPU per
+    test, same machine and load for both binaries), it adds **3 hidden tests across the 10 affected climb rows
+    and flips no run to a full pass**: `cp_60166` timeouts now finish with wrong answers (the BigInt wall), and
+    the `cp_60153` timeouts are algorithmic. The 70 banked passing solutions still pass, except one that
+    #1958 now rejects (next bullet).
+  - **The climb is paused: dev regressed (#2074).** Since `ad9aabc57` (#1958 M1, unreleased), a local `letrec`
+    lambda that is both recursive and effectful fails with "same row variable with different extensions".
+    That is the standard read/print loop. 4 of 95 banked Haiku solutions that compiled on `4c2566568` are now
+    rejected this way, and 3 more by the documented #1958 tightening (IO lambda into a pure `map`/`foldl`; the
+    prompt already teaches `mapE`). A climb step run on dev now would measure the regression, not the prompt.
+    Resume after #2074 lands, and re-run the baseline on that binary.
+  - **S1 is a passing prefix, not a fraction.** `GradeHidden` stops at the first failing test
+    ([M-EVAL-HIDDEN-TESTS](m-eval-hidden-tests.md) D3, smallest input first), so `hidden_passed` counts the
+    tests before the first failure. Two climb rows banked 1/22 pass 9/22 when every test is run. The prefix is
+    still monotone, but one small edge-case failure hides the rest, which inflates the noise band. **For
+    steering, re-score each step offline by replaying the banked code on every hidden test** (CPU only, no
+    model calls). The gate keeps the banked `stdout_ok`.
 
 ## Decision rule for A/B arms
 
