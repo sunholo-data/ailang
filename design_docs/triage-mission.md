@@ -41,7 +41,7 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
-## STATUS 2026-11-03 — ITERATION 25: 13 verdicts independently judged; one issue closed; two comments; exec-lifetime design routed; three inherited asks restored; attestation held; shadow509/score1of3. [ADMIN]
+## STATUS 2026-11-03 — ITERATION 25: 13 verdicts independently judged; one issue closed; two comments; exec-lifetime design routed; three inherited asks restored; attestation held; shadow509/score1of3. [HARNESS] [ADMIN]
 
 ## STATUS 2026-10-28 — ITERATION 17: six independently judged items; four comments/three labels; two red-dev routes; D36 OPEN; 22 holds; shadow450/score14of14; no approvals or merges. [ADMIN]
 
@@ -188,6 +188,8 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 8. [HARNESS] [NONBLOCKING] ticket:agent-tool:sonnet-unavailable — iteration10 native evaluator Agent spawn rejected; declared MiniMax fallback returned independent judgment. Occurrence inbox_1792533445478_38a2bbe1; iteration11 occurrence inbox_1792578234571_689cc027, existing fleet D-FLEET-24 owns policy; iteration12 native schema lacks model/provider override, declared independent MiniMax fallback completed; occurrence inbox_1792622658313_00dd135d. Iteration13 native schema still lacks model selection; same configured Anthropic Sonnet reached through subscription-only CLI transport, with8/8CONCUR; no new native-capability ticket. No routing/harness repair.
 
 9. [OBSERVED iteration12] Design PRs #1923/#1924 merged externally, recorded as unscored outcomes without approval/authorization inference. New PTY planner PR1926/card apr-5755c3e3 targets sprint-executor and remains HOLD(D26). New pricing design-only request inbox_1792622656896_0027a408. Snapshot7cards/28PRs/60issues; subsequent arrivals are re-selected next fire.
+
+10. [HARNESS] [NONBLOCKING] reporting:daneel-reports-not-declared-triage recurrence iteration25 inbox_1793696181298_78094169: direct normal report refused rc1; existing controlplane consumer delivered and exact body peek-verified. Fleet owns repair; no harness/config/registry/IAM change by triage.
 
 ---
 **Document created**: 2026-10-15. Iteration 0 ratifies it with Mark before the loop is armed.

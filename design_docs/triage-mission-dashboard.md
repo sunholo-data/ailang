@@ -16,3 +16,5 @@ Metered$0.11007918/$1; all role/provider work finished; unknown native token/mod
 Two actual OpenAI Agent verifiers; independent MiniMax evaluator via declared fallback.
 No harness/skill/routing/config/secret/code repair.
 Log22-24gap retained honestly; new record continues unmergedPR2027memory.
+Reporting: direct Daneel refused; declared controlplane fallback delivered. Fleet recurrence inbox_1793696181298_78094169.
+Record PR: https://github.com/sunholo-data/ailang/pull/2071 (draft, unmerged).

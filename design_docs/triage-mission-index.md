@@ -12,7 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
-| 25 | 2026-11-03 | independent review corrects readiness, closes helper verification issue and restores missing holds [ADMIN] |
+| 25 | 2026-11-03 | independent review corrects readiness, closes helper verification issue and restores missing holds [HARNESS] [ADMIN] |
 | 21 | 2026-10-30 | quiet fire: new design PR #2030 and issue #2029 held for decision, cross-vendor judge dissents [ADMIN] |
 | 20 | 2026-10-30 | quiet fire: changed PRs and one new orphan card re-verified, no new asks [ADMIN] |
 | 17 | 2026-10-28 | independent review holds competing executor plans and routes distinct dev reds [HARNESS] [ADMIN] |
