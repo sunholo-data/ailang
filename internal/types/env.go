@@ -2,7 +2,22 @@ package types
 
 import (
 	"fmt"
+	"sync/atomic"
 )
+
+// envScanBindings counts bindings visited by the environment free-variable
+// walks (collectFreeTypeVars, collectFreeRowVars, collectFreeEffectRowVars and
+// implicitRowsAbove). It is a deterministic measure of type-checker work used
+// by the env-scan linearity test (M-TYPECHECK-ENV-SCAN-COST); wall clock and
+// RSS are machine-dependent, this is not.
+var envScanBindings atomic.Uint64
+
+// EnvScanWork returns the bindings visited by environment free-variable walks
+// since the last ResetEnvScanWork.
+func EnvScanWork() uint64 { return envScanBindings.Load() }
+
+// ResetEnvScanWork zeroes the counter read by EnvScanWork.
+func ResetEnvScanWork() { envScanBindings.Store(0) }
 
 // TypeEnv represents a type environment mapping names to types or schemes
 type TypeEnv struct {
@@ -115,6 +130,7 @@ func (env *TypeEnv) FreeTypeVarsAbove(base *TypeEnv) map[string]bool {
 
 func (env *TypeEnv) collectFreeTypeVars(free map[string]bool) {
 	for _, binding := range env.bindings {
+		envScanBindings.Add(1)
 		switch b := binding.(type) {
 		case Type:
 			collectFreeTypeVars(b, free)
@@ -146,6 +162,7 @@ func (env *TypeEnv) FreeRowVars() map[string]bool {
 
 func (env *TypeEnv) collectFreeRowVars(free map[string]bool) {
 	for _, binding := range env.bindings {
+		envScanBindings.Add(1)
 		switch b := binding.(type) {
 		case Type:
 			// Check for row variables in types
@@ -195,6 +212,7 @@ func (env *TypeEnv) FreeEffectRowVars() map[string]bool {
 func (env *TypeEnv) collectFreeEffectRowVars(free map[string]bool) {
 	visited := make(map[Type]bool)
 	for _, binding := range env.bindings {
+		envScanBindings.Add(1)
 		switch b := binding.(type) {
 		case Type:
 			collectFreeEffectRowVarsInType(b, free, visited)

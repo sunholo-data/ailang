@@ -234,6 +234,7 @@ func (env *TypeEnv) implicitRowsAbove(base *TypeEnv, expand func(Type) Type) map
 	rows := make(map[string]bool)
 	for e := env; e != nil && e != base; e = e.parent {
 		for _, binding := range e.bindings {
+			envScanBindings.Add(1)
 			typ, ok := binding.(Type)
 			if !ok {
 				continue

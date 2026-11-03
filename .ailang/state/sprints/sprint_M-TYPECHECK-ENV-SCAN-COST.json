@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-TYPECHECK-ENV-SCAN-COST",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-11-03T08:46:21Z",
   "design_doc": "design_docs/planned/v0_56_2/m-typecheck-env-scan-cost.md",
   "sprint_plan": "design_docs/planned/v0_56_2/sprint-plan-m-typecheck-env-scan-cost.md",
@@ -50,10 +50,10 @@
         "Baseline rows for ailang_parse (c3b4fc6) and crew_core 0.6.0 added to the design doc Verification Log",
         "make test-changed and make check-file-sizes green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-03T08:59:17+00:00",
+      "completed": "2026-11-03T08:59:17+00:00",
+      "notes": "Counter types.EnvScanWork (atomic; +1 per binding in collectFree{Type,Row,EffectRow}Vars and implicitRowsAbove); TestEnvScanWork_CountsEachBindingVisited exact 4/1; TestEnvScan_WorkPerApplication logs 2810 (n10,m10) / 3710 (n160) / 2810 (m160): builtins dominate, imports not in chain. Baselines V14/V15 in design doc (ailang_parse 1.594e12, crew_core 1.344e12). Moved to worktree sprint/typecheck-env-scan: concurrent session editing internal/types in the shared checkout."
     },
     {
       "id": "M2_FRAME_CACHE",
