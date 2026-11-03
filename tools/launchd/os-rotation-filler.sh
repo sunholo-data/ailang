@@ -186,6 +186,14 @@ BENCH_GIT_COMMIT="${BENCH_GIT_COMMIT:-0}"
 ELO_PRIORITY="${OS_FILLER_ELO_PRIORITY:-1}"   # 0 = legacy ls-order round-robin
 SAT_TRIALS="${OS_FILLER_SAT_TRIALS:-1}"       # trials for saturated re-confirmation runs
 RATINGS_JSON="docs/static/benchmarks/latest.json"
+# PARKING (2026-11-03): a benchmark NO harness passes (tools/eval-park-set.sh: zero
+# passes in >=4 rows from >=2 models over the last 3 version banks) separates nothing
+# and was the rig's biggest GPU sink — cp_60166/cp_60159 timed out for hours per
+# release. Parked benchmarks leave the coverage gate and run as ONE probe trial on
+# $PROBE_MODEL per release; a passing probe un-parks them. 0 = old behaviour.
+PARK="${OS_FILLER_PARK:-1}"
+PROBE_MODEL="${OS_FILLER_PROBE_MODEL:-pi-qwen3-8-27b}"
+case ",$MODELS," in (*",$PROBE_MODEL,"*) ;; (*) PROBE_MODEL="${MODELS%%,*}";; esac
 
 # sat_set [lang] — echo the saturated ids as a ,-wrapped membership set (",a,b,")
 # for `case` matching; "," (empty set) when priority is off or ratings unreadable.
@@ -216,12 +224,15 @@ prioritize_benches() {
   printf '%s%s' "$sig" "$sat"
 }
 
-# split_pick CSV — split a comma pick-list into PICK_SIG / PICK_SAT globals by
-# $SAT_SET membership, so trial count follows the benchmark, not the chunk.
+# split_pick CSV — split a comma pick-list into PICK_PARK / PICK_SIG / PICK_SAT
+# globals by $PARK_SET then $SAT_SET membership, so trial count follows the
+# benchmark, not the chunk. Parking wins: a parked benchmark is never "saturated".
+PARK_SET=","
 split_pick() {
-  PICK_SIG=""; PICK_SAT=""
+  PICK_PARK=""; PICK_SIG=""; PICK_SAT=""
   _SOIFS="$IFS"; IFS=','
   for sp in $1; do
+    case "$PARK_SET" in *",$sp,"*) PICK_PARK="${PICK_PARK:+$PICK_PARK,}$sp"; continue;; esac
     case "$SAT_SET" in
       *",$sp,"*) PICK_SAT="${PICK_SAT:+$PICK_SAT,}$sp";;
       *)         PICK_SIG="${PICK_SIG:+$PICK_SIG,}$sp";;
@@ -230,17 +241,30 @@ split_pick() {
   IFS="$_SOIFS"
 }
 
-# run_chunk LABEL PICKS LANGS TRIALS — one eval-suite invocation for a comma
-# pick-list; no-op on an empty list. Preserves the reimplement special case
+# run_chunk LABEL PICKS LANGS TRIALS [MODELS] — one eval-suite invocation for a
+# comma pick-list; no-op on an empty list. Preserves the reimplement special case
 # (single trial + long timeout) per group, exactly as the old whole-chunk logic.
 run_chunk() {
   rc_label="$1"; rc_picks="$2"; rc_langs="$3"; rc_trials="$4"; rc_tmo="$CHUNK_TIMEOUT"
+  rc_models="${5:-$MODELS}"
   [ -n "$rc_picks" ] || return 0
   case "$rc_picks" in *reimplement*) rc_trials=1; rc_tmo="5400s";; esac
-  ailang eval-suite --agent --models "$MODELS" --benchmarks "$rc_picks" --langs "$rc_langs" \
+  ailang eval-suite --agent --models "$rc_models" --benchmarks "$rc_picks" --langs "$rc_langs" \
     --parallel 1 --microrag on --trials "$rc_trials" --skip-existing --bank-by-version --timeout "$rc_tmo" \
     --output "$ROLL" >>"$LOG" 2>&1 || log "$rc_label chunk had failures (continuing)"
 }
+
+# 0. WEEKLY VALUE REPORT (no GPU, no lock) — runs before every guard so a rig that
+#    yields all week still reports that it learned nothing. OS_FILLER_REPORT=0 disables.
+REPORT_STAMP="$HOME/.ailang/state/rig-value-report.last"
+if [ "${OS_FILLER_REPORT:-1}" = "1" ] && \
+   { [ ! -f "$REPORT_STAMP" ] || [ $(( $(date +%s) - $(stat -f %m "$REPORT_STAMP" 2>/dev/null || echo 0) )) -ge 604800 ]; }; then
+  if bash tools/rig-value-report.sh --send >>"$LOG" 2>&1; then
+    : > "$REPORT_STAMP"; log "weekly rig value report sent to the user inbox"
+  else
+    log "weekly rig value report FAILED (see above) — retrying next cycle"
+  fi
+fi
 
 # 1. Pre-nightly guard — do not start a chunk the priority job would queue behind.
 #    Everything AFTER the nightly starts is handled by the rig lock in step 3.
@@ -365,6 +389,19 @@ else
     log "elo-priority(ailang-full): $(( ${#BENCHES_FULL[@]} - nsat )) signal first, $nsat saturated tail (source: $RATINGS_JSON)"
   fi
   FULL_TOTAL=${#BENCHES_FULL[@]}
+  # Parked benchmarks stay in the cursor list (they still get their one probe per
+  # release) but leave the coverage set, so coverage can complete without them.
+  COV_BENCHES=( ${BENCHES_FULL[@]+"${BENCHES_FULL[@]}"} )
+  if [ "$PARK" = "1" ] && [ "$FULL_TOTAL" -gt 0 ]; then
+    _park_ids="$(bash tools/eval-park-set.sh --roll "$ROLL" --models "$MODELS" 2>>"$LOG")" || _park_ids=""
+    if [ -n "$_park_ids" ]; then
+      PARK_SET="$(printf ',%s,\n' "$(printf '%s' "$_park_ids" | tr '\n' ',')" | sed 's/,,/,/g')"
+      COV_BENCHES=()
+      for b in "${BENCHES_FULL[@]}"; do case "$PARK_SET" in *",$b,"*) ;; *) COV_BENCHES+=( "$b" );; esac; done
+      log "parked(ailang-full): $(( FULL_TOTAL - ${#COV_BENCHES[@]} )) benchmark(s) out of coverage, 1 probe trial on $PROBE_MODEL per release: $(printf '%s' "$_park_ids" | tr '\n' ' ')"
+    fi
+  fi
+  COV_TOTAL=${#COV_BENCHES[@]}
   FULL_CURSOR="$ROLL/${VERSION}/.ailang-full-cursor"   # per-version: a wrap == a true full lap for this release
   LAP_MARKER="$ROLL/${VERSION}/.ailang-full-lapped"
   LAP_COUNTER="$ROLL/${VERSION}/.ailang-full-laps"     # laps completed for this release
@@ -391,7 +428,7 @@ else
     # (benchmark, model) tuples that had never actually been measured and could
     # never be retried. Same bug class as the aggregator fix in c8c841e24: a
     # non-measurement being read as a measurement, here in the coverage gate.
-    MIN_COV=$(python3 - "$VDIR" "$(IFS=,; printf '%s' "${BENCHES_FULL[*]}")" "$MODELS" <<'PYEOF'
+    MIN_COV=$(python3 - "$VDIR" "$(IFS=,; printf '%s' "${COV_BENCHES[*]:-}")" "$MODELS" <<'PYEOF'
 import glob, json, os, sys
 vdir, benches, models = sys.argv[1], sys.argv[2], sys.argv[3]
 want = {b for b in benches.split(",") if b}
@@ -416,10 +453,10 @@ PYEOF
 )
     case "$MIN_COV" in (''|*[!0-9]*) MIN_COV=0;; esac
 
-    if [ "$MIN_COV" -ge "$FULL_TOTAL" ]; then
+    if [ "$MIN_COV" -ge "$COV_TOTAL" ]; then
       AILANG_DONE=1
       : > "$LAP_MARKER"   # coverage complete -> mark so future cycles short-circuit to cross-language
-      log "ailang-full: coverage COMPLETE for $VERSION ($MIN_COV/$FULL_TOTAL per model) — handing rig time to cross-language pass"
+      log "ailang-full: coverage COMPLETE for $VERSION ($MIN_COV/$COV_TOTAL per model, $((FULL_TOTAL - COV_TOTAL)) parked) — handing rig time to cross-language pass"
     else
       # Not complete -> spend this cycle advancing AILANG coverage.
       F_OFFSET=$(cat "$FULL_CURSOR" 2>/dev/null || echo 0)
@@ -442,13 +479,13 @@ PYEOF
         echo "$F_LAPS" > "$LAP_COUNTER"
         if [ "$F_LAPS" -ge "$FULL_MAX_LAPS" ]; then
           : > "$LAP_MARKER"
-          log "ailang-full: lap $F_LAPS/$FULL_MAX_LAPS done, coverage $MIN_COV/$FULL_TOTAL — lap budget spent, handing off to cross-language"
+          log "ailang-full: lap $F_LAPS/$FULL_MAX_LAPS done, coverage $MIN_COV/$COV_TOTAL — lap budget spent, handing off to cross-language"
         else
-          log "ailang-full: lap $F_LAPS/$FULL_MAX_LAPS done, coverage $MIN_COV/$FULL_TOTAL — re-lapping to fill $((FULL_TOTAL - MIN_COV)) holes (--skip-existing)"
+          log "ailang-full: lap $F_LAPS/$FULL_MAX_LAPS done, coverage $MIN_COV/$COV_TOTAL — re-lapping to fill $((COV_TOTAL - MIN_COV)) holes (--skip-existing)"
         fi
       fi
       OFFSET="$F_OFFSET"; WRAPPED="$F_WRAPPED"
-      log "ailang-full cycle: $F_PICK (offset $F_OFFSET/$FULL_TOTAL -> $F_NEXT, coverage $MIN_COV/$FULL_TOTAL, wrapped=$F_WRAPPED)"
+      log "ailang-full cycle: $F_PICK (offset $F_OFFSET/$FULL_TOTAL -> $F_NEXT, coverage $MIN_COV/$COV_TOTAL, wrapped=$F_WRAPPED)"
       # --bank-by-version (M-EVAL-VERSION-BANKING): bank under $ROLL/<ailang-version>/ so a new
       # build/release re-evals from scratch and history accumulates per release.
       # Saturated picks (boundary/tail chunks) run at $SAT_TRIALS — one failing
@@ -456,6 +493,8 @@ PYEOF
       split_pick "$F_PICK"
       run_chunk "ailang-full" "$PICK_SIG" ailang 3
       run_chunk "ailang-full(saturated)" "$PICK_SAT" ailang "$SAT_TRIALS"
+      # Parked: one probe trial on one model. --skip-existing keeps it once per release.
+      run_chunk "ailang-full(parked-probe)" "$PICK_PARK" ailang 1 "$PROBE_MODEL"
     fi
   fi
 fi
@@ -508,6 +547,7 @@ elif [ "$AILANG_DONE" = "1" ] || [ "$FORCE_4LANG" = "1" ]; then
     WRAPPED=0; [ "$NEXT" -le "$OFFSET" ] && WRAPPED=1
     mkdir -p "$(dirname "$CURSOR")"; echo "$NEXT" > "$CURSOR"
     log "cross-language cycle: $PICK (offset $OFFSET/$TOTAL -> $NEXT, wrapped=$WRAPPED)"
+    PARK_SET=","   # parking is measured on ailang rows; it never thins the other languages
     split_pick "$PICK"
     run_chunk "cross-language" "$PICK_SIG" "$LANGS" 3
     run_chunk "cross-language(saturated)" "$PICK_SAT" "$LANGS" "$SAT_TRIALS"
