@@ -87,8 +87,11 @@ func (ctx *InferenceContext) unionEffectList(effects []*Row) *Row {
 
 // unionEffects is combineEffects with distinct-tail operands resolved first.
 func (ctx *InferenceContext) unionEffects(e1, e2 *Row) *Row {
-	if !hasDistinctEffectTails(e1, e2) || len(ctx.unionFrames) == 0 {
+	if len(ctx.unionFrames) == 0 {
 		return combineEffects(e1, e2)
+	}
+	if !hasDistinctEffectTails(e1, e2) {
+		return ctx.absorbSingleSelfTail(e1, e2)
 	}
 	frame := ctx.unionFrames[len(ctx.unionFrames)-1]
 	if !frame.solve(ctx) {
@@ -96,6 +99,49 @@ func (ctx *InferenceContext) unionEffects(e1, e2 *Row) *Row {
 		return combineEffects(e1, e2)
 	}
 	return combineEffects(ctx.resolveUnionOperand(frame.sub, frame.local, e1), ctx.resolveUnionOperand(frame.sub, frame.local, e2))
+}
+
+// absorbSingleSelfTail handles a union with at most one open tail, which
+// combineEffects keeps as is. When that tail is a let-rec binding's own row
+// (its recursive call), it is absorbed like a distinct tail would be: otherwise
+// `{ println(x); loop(n - 1) }` publishes {IO | ρ} for the row ρ it is the call
+// of, and the binding's ρ ~ {IO | ρ} fails with "same row variable with
+// different extensions" (#2074). Any other single tail is left alone.
+func (ctx *InferenceContext) absorbSingleSelfTail(e1, e2 *Row) *Row {
+	if len(ctx.selfTypes) == 0 || effectTailName(e1) == effectTailName(e2) {
+		return combineEffects(e1, e2) // no let-rec in scope, or no tail / one shared tail
+	}
+	frame := ctx.unionFrames[len(ctx.unionFrames)-1]
+	if !frame.solve(ctx) {
+		return combineEffects(e1, e2)
+	}
+	return combineEffects(ctx.absorbSelfOperand(frame.sub, e1), ctx.absorbSelfOperand(frame.sub, e2))
+}
+
+// absorbSelfOperand drops row's tail when it resolves to a self row, keeping
+// its labels; any other row is returned unchanged.
+func (ctx *InferenceContext) absorbSelfOperand(full Substitution, row *Row) *Row {
+	if row == nil || row.Tail == nil {
+		return row
+	}
+	resolved := applySubToEffectRow(full, row)
+	if resolved == nil || resolved.Tail == nil || !ctx.isSelfEffectTail(full, resolved.Tail.Name) {
+		return row
+	}
+	absorbed := *resolved
+	absorbed.Tail = nil
+	return &absorbed
+}
+
+// effectTailName is the name of row's effect-row tail, or "" when it has none.
+func effectTailName(r *Row) string {
+	if r == nil {
+		return ""
+	}
+	if tv := effectTailOnly(r.Tail); tv != nil {
+		return tv.Name
+	}
+	return ""
 }
 
 func hasDistinctEffectTails(e1, e2 *Row) bool {
@@ -122,19 +168,33 @@ func (ctx *InferenceContext) resolveUnionOperand(full, local Substitution, row *
 }
 
 // isSelfEffectTail reports whether tail is the (resolved) effect-row tail of a
-// let-rec binding currently being inferred.
+// let-rec binding currently being inferred, or of any arrow it returns: a
+// curried binding `\i. \acc. … loop(i + 1)(acc')` calls its own INNER arrow, so
+// that arrow's row is the self row of the inner lambda (#2074).
+//
+// Cycle-safety: the walk follows Return through at most maxSelfArrowDepth
+// arrows, so a cyclic type cannot loop it.
 func (ctx *InferenceContext) isSelfEffectTail(sub Substitution, tail string) bool {
 	for _, self := range ctx.selfTypes {
-		fn, ok := ApplySubstitution(sub, self).(*TFunc2)
-		if !ok || fn.EffectRow == nil {
-			continue
-		}
-		if row := applySubToEffectRow(sub, fn.EffectRow); row != nil && row.Tail != nil && row.Tail.Name == tail {
-			return true
+		t := ApplySubstitution(sub, self)
+		for depth := 0; depth < maxSelfArrowDepth; depth++ {
+			fn, ok := t.(*TFunc2)
+			if !ok {
+				break
+			}
+			if fn.EffectRow != nil {
+				if row := applySubToEffectRow(sub, fn.EffectRow); row != nil && row.Tail != nil && row.Tail.Name == tail {
+					return true
+				}
+			}
+			t = ApplySubstitution(sub, fn.Return)
 		}
 	}
 	return false
 }
+
+// maxSelfArrowDepth bounds how many curried arrows isSelfEffectTail inspects.
+const maxSelfArrowDepth = 16
 
 // envOwnedVars returns the type, row and effect-row variables free in env.
 // The result is shared and must not be modified.
