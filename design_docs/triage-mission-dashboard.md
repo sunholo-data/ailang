@@ -22,3 +22,5 @@
 - This iteration changed only its five documentation records in the repository.
 - Evidence: https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6615751514
 - Full history: triage-mission-log.md. The record PR remains draft and unmerged.
+- Draft record: https://github.com/sunholo-data/ailang/pull/2106
+- Digest: https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6615854839
