@@ -93,7 +93,7 @@ This is the **third incident of the same class**, each discovered by a publisher
 Before implementation begins, these must be resolved:
 
 - [x] Cap derivation from instance limit (decided and implemented in v0.56.0 — this doc ratifies it)
-- [ ] Mark approves the deploy route for the celestial unblock (tag v0.56.1 release vs `gcloud builds submit` manual rebuild from the v0.56.0 tag, per the emergency-rebuild recipe in `cloudbuild-registry-validator.yaml`)
+- [x] **RULED (Mark, attended 2026-11-02): release tag, not an emergency rebuild.** Done: v0.56.0 and v0.56.1 deployed the derived cap (prod logs `check memory cap 896 MiB (/sys/fs/cgroup/memory/memory.limit_in_bytes limit 1024 MiB)`), and `sunholo/celestial@0.6.0` published 2026-11-02 19:03 UTC (HTTP 200, 17.9 s). Phase 0 is complete; executors start at Phase 1. Original item: Mark approves the deploy route for the celestial unblock (tag v0.56.1 release vs `gcloud builds submit` manual rebuild from the v0.56.0 tag, per the emergency-rebuild recipe in `cloudbuild-registry-validator.yaml`)
 - [x] `GOMEMLIMIT` margin = 64 MiB below the cap (agent-decided; revisitable at runtime scale — see Deferred Decisions)
 
 ## Solution Design
@@ -126,7 +126,7 @@ Three code changes inside `cmd/registry-validator` plus one metadata/doc change,
 
 ### Implementation Plan
 
-**Phase 0: unblock (ops, no code, ~hours)**
+**Phase 0: unblock (ops, no code, ~hours) — DONE 2026-11-02 via the v0.56.0/v0.56.1 release tags (see Design Freeze ruling); skip it.**
 - [ ] Mark picks the deploy route (Design Freeze item); either tag the v0.56.1 release or emergency-rebuild the validator image from the v0.56.0 tag (`gcloud builds submit --config cloudbuild-registry-validator.yaml --substitutions=_REGION=europe-west1,_TARGET_PROJECT=ailang-registry,TAG_NAME=manual-<sha>`).
 - [ ] Verify deployment: `curl https://registry.ailang.sunholo.com/version` reports ≥ v0.56.0 (the skew guard exists for exactly this).
 - [ ] Republish `sunholo/celestial@0.6.0` (publisher side needs no upgrade; the check runs on the validator's bundled binary, `docker/Dockerfile.registry-validator`).
