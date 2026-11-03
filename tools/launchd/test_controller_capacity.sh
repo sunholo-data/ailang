@@ -352,10 +352,10 @@ endcase
 # on the shared $LOG, which codex reaches via `>>"$LOG" 2>&1`.
 begin codex-capacity-is-transient
 CHAIN="$CH3"
-script openrouter/a 1 1 - "codex
-Gate 3: record written
-ERROR: Selected model is at capacity. Please try a different model.
-ERROR: Selected model is at capacity. Please try a different model." stderr
+# The fixture is assembled with $'\n' so this file carries no column-0 copy of the line: a codex
+# controller that reads this test would otherwise echo a real-looking stop into $LOG.
+_cap='Selected model is at capacity. Please try a different model.'
+script openrouter/a 1 1 - "codex"$'\n'"Gate 3: record written"$'\n'"ERROR: $_cap"$'\n'"ERROR: $_cap" stderr
 script openrouter/a 2 0 complete "done"
 runcase
 [ "$CASE_RC" -eq 0 ]; expect "process rc 0 (got $CASE_RC)" $?
@@ -381,6 +381,17 @@ state_has "demoted=[]"; expect "no demotion" $?
 [ "$(/usr/bin/grep -c 'transient API error' "$LAB/driver.log")" -eq 0 ]; expect "no transient retry line" $?
 has_log "slot-verdict: CRASHED at="; expect "verdict CRASHED" $?
 [ "$(count_sends 'Mission iteration FAILED')" -eq 1 ] && [ "$(count_sends 'PAUSED')" -eq 0 ]; expect "1 FAILED, 0 pause" $?
+endcase
+
+# Any OTHER column-0 codex error stays a crash: kills a too-broad `^ERROR:` signature.
+begin codex-other-error-not-transient
+CHAIN="$CH3"
+script openrouter/a default 1 - "codex"$'\n''ERROR: {"type":"error","status":400,"error":{"type":"invalid_request_error","message":"The model does not exist."}}' stderr
+runcase
+has_log 'ERROR: {"type":"error","status":400'; expect "error line reached driver.log (non-vacuous)" $?
+[ "$(pi_count openrouter/a)" -eq 1 ] && [ "$(pi_count openrouter/b)" -eq 0 ]; expect "single attempt, no re-walk" $?
+[ "$(/usr/bin/grep -c 'transient API error' "$LAB/driver.log")" -eq 0 ]; expect "no transient retry line" $?
+has_log "slot-verdict: CRASHED at="; expect "verdict CRASHED" $?
 endcase
 
 begin rc0-old-402-normal

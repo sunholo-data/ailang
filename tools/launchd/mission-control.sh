@@ -1163,9 +1163,10 @@ TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_err
 # rc=1 on the first one: stapledon 2026-09-29 00:52Z lost an iteration on turn 76 to a
 # single occurrence. A pi controller retry RESUMES the same session (see MC_PI_SESSION_ID),
 # so it continues from that turn rather than re-running the gates.
-# `^ERROR: Selected model is at capacity` is codex exec's capacity stop (codex-cli 0.164.0 prints it
-# twice at column 0, then rc=1): World iteration 219 (2026-10-02) finished, hit it, read CRASHED at
-# gate-3. Line-anchored: ledger and ticket quote it mid-line, and codex echoes what it reads into this
+# `^ERROR: Selected model is at capacity` is codex exec's capacity stop. Per the ticket
+# (codex:server-capacity-error-crashes-finished-iteration) codex printed it twice, then rc=1; codex
+# writes server errors as `ERROR: ` at column 0 (codex-cli 0.164.0, measured on a rejected model).
+# World iteration 219 (2026-10-02) finished, hit it, and read CRASHED at gate-3. Line-anchored: ledger and ticket quote it mid-line, and codex echoes what it reads into this
 # log. D-FLEET-26 = A, D-FLEET-11's narrow scope.
 
 # PER-ROLE MODEL ROUTING (2026-07-15, m-mission-agentic-provider-routing M1): the charter's routing
