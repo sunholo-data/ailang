@@ -2,12 +2,33 @@ package types
 
 import (
 	"fmt"
+	"sync/atomic"
 )
+
+// envScanBindings counts bindings visited by the environment free-variable
+// walks (collectFreeTypeVars, collectFreeRowVars, collectFreeEffectRowVars and
+// implicitRowsAbove). It is a deterministic measure of type-checker work used
+// by the env-scan linearity test (M-TYPECHECK-ENV-SCAN-COST); wall clock and
+// RSS are machine-dependent, this is not.
+var envScanBindings atomic.Uint64
+
+// EnvScanWork returns the bindings visited by environment free-variable walks
+// since the last ResetEnvScanWork.
+func EnvScanWork() uint64 { return envScanBindings.Load() }
+
+// ResetEnvScanWork zeroes the counter read by EnvScanWork.
+func ResetEnvScanWork() { envScanBindings.Store(0) }
 
 // TypeEnv represents a type environment mapping names to types or schemes
 type TypeEnv struct {
-	bindings map[string]interface{} // Can be Type or *Scheme
+	bindings map[string]interface{} // Can be Type or *Scheme; written in place ONLY by BindScheme/BindType, which invalidate the caches below
 	parent   *TypeEnv
+
+	// Memoised free-variable sets (env_cache.go).
+	own         *envVarSets // this frame's bindings only
+	chain       *envVarSets // this frame and all ancestors
+	chainParent uint64      // stamp of the parent chain this chain was built from
+	chainEpoch  uint64      // envEpoch when chain was last validated
 }
 
 // NewTypeEnv creates a new empty type environment
@@ -75,6 +96,7 @@ func (env *TypeEnv) Lookup(name string) (interface{}, error) {
 // Use this only when you need top-level bindings to persist (e.g., REPL).
 func (env *TypeEnv) BindScheme(name string, scheme *Scheme) {
 	env.bindings[name] = scheme
+	env.invalidateVarCaches()
 }
 
 // BindType adds a type binding to the environment (for REPL persistence)
@@ -82,13 +104,13 @@ func (env *TypeEnv) BindScheme(name string, scheme *Scheme) {
 // Use this only when you need top-level bindings to persist (e.g., REPL).
 func (env *TypeEnv) BindType(name string, typ Type) {
 	env.bindings[name] = typ
+	env.invalidateVarCaches()
 }
 
 // FreeTypeVars returns all free type variables in the environment
+// The result is the caller's to modify.
 func (env *TypeEnv) FreeTypeVars() map[string]bool {
-	free := make(map[string]bool)
-	env.collectFreeTypeVars(free)
-	return free
+	return copyVarSet(env.ownedVars().types)
 }
 
 // FreeTypeVarsAbove returns the vars free in the bindings of the frames
@@ -100,21 +122,21 @@ func (env *TypeEnv) FreeTypeVarsAbove(base *TypeEnv) map[string]bool {
 	if base == nil {
 		return free
 	}
-	frames := []*TypeEnv{}
-	for e := env; e != base; e = e.parent {
-		if e == nil {
-			return make(map[string]bool) // base is not an ancestor
-		}
-		frames = append(frames, e)
+	frames, ok := env.framesAbove(base)
+	if !ok {
+		return free // base is not an ancestor
 	}
 	for _, f := range frames {
-		(&TypeEnv{bindings: f.bindings}).collectFreeTypeVars(free)
+		for v := range f.ownSets().types {
+			free[v] = true
+		}
 	}
 	return free
 }
 
 func (env *TypeEnv) collectFreeTypeVars(free map[string]bool) {
 	for _, binding := range env.bindings {
+		envScanBindings.Add(1)
 		switch b := binding.(type) {
 		case Type:
 			collectFreeTypeVars(b, free)
@@ -138,14 +160,14 @@ func (env *TypeEnv) collectFreeTypeVars(free map[string]bool) {
 }
 
 // FreeRowVars returns all free row variables in the environment
+// The result is the caller's to modify.
 func (env *TypeEnv) FreeRowVars() map[string]bool {
-	free := make(map[string]bool)
-	env.collectFreeRowVars(free)
-	return free
+	return copyVarSet(env.ownedVars().rows)
 }
 
 func (env *TypeEnv) collectFreeRowVars(free map[string]bool) {
 	for _, binding := range env.bindings {
+		envScanBindings.Add(1)
 		switch b := binding.(type) {
 		case Type:
 			// Check for row variables in types
@@ -186,15 +208,15 @@ func (env *TypeEnv) collectFreeRowVars(free map[string]bool) {
 // as the HM side condition for rows — a row variable free in the environment
 // (owned by an enclosing binder) must NOT be generalized, mirroring the existing
 // type-variable withhold logic.
+// The result is the caller's to modify.
 func (env *TypeEnv) FreeEffectRowVars() map[string]bool {
-	free := make(map[string]bool)
-	env.collectFreeEffectRowVars(free)
-	return free
+	return copyVarSet(env.ownedVars().effectRows)
 }
 
 func (env *TypeEnv) collectFreeEffectRowVars(free map[string]bool) {
 	visited := make(map[Type]bool)
 	for _, binding := range env.bindings {
+		envScanBindings.Add(1)
 		switch b := binding.(type) {
 		case Type:
 			collectFreeEffectRowVarsInType(b, free, visited)

@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-TYPECHECK-ENV-SCAN-COST",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-11-03T08:46:21Z",
   "design_doc": "design_docs/planned/v0_56_2/m-typecheck-env-scan-cost.md",
   "sprint_plan": "design_docs/planned/v0_56_2/sprint-plan-m-typecheck-env-scan-cost.md",
@@ -50,10 +50,10 @@
         "Baseline rows for ailang_parse (c3b4fc6) and crew_core 0.6.0 added to the design doc Verification Log",
         "make test-changed and make check-file-sizes green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-03T08:59:17+00:00",
+      "completed": "2026-11-03T08:59:17+00:00",
+      "notes": "Counter types.EnvScanWork (atomic; +1 per binding in collectFree{Type,Row,EffectRow}Vars and implicitRowsAbove); TestEnvScanWork_CountsEachBindingVisited exact 4/1; TestEnvScan_WorkPerApplication logs 2810 (n10,m10) / 3710 (n160) / 2810 (m160): builtins dominate, imports not in chain. Baselines V14/V15 in design doc (ailang_parse 1.594e12, crew_core 1.344e12). Moved to worktree sprint/typecheck-env-scan: concurrent session editing internal/types in the shared checkout."
     },
     {
       "id": "M2_FRAME_CACHE",
@@ -68,10 +68,10 @@
         "Cross-check on across internal/types and internal/pipeline; make test-changed green",
         "go test -race ./internal/types/ ./internal/pipeline/ green; call sites untouched"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-03T09:14:49+00:00",
+      "completed": "2026-11-03T09:14:49+00:00",
+      "notes": "env_cache.go: per-frame own/chain envVarSets, stamp+epoch invalidation (BindScheme/BindType), closed frames share parent sets; Free*Vars return copies; FreeTypeVarsAbove/effectRowsAbove union cached own sets (temp-wrapper walks gone). SetEnvVarCrossCheck on in TestMain for internal/types + internal/pipeline: full pipeline suite (~150 s) green with every query cross-checked. 6 cache unit tests; mutants (no BindType invalidation, no copy) both caught. -race green. all() deferred to M3 (unused until callers move)."
     },
     {
       "id": "M3_CALL_SITES_LINEAR",
@@ -86,10 +86,10 @@
         "go test ./internal/repl/ green",
         "make test-changed, make verify-examples, make check-file-sizes, make lint green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-03T09:21:29+00:00",
+      "completed": "2026-11-03T09:21:29+00:00",
+      "notes": "inferApp outerVars, envOwnedVars, generalize, generalizeWithConstraints, baseEnvFreeVars read shared memoised sets (all read-only, audited). Bindings visited per extra application 2810 -> 70, flat in n and m. Linearity test asserts ceiling 500 and <=1.25x growth; mutant restoring inferApp's full walk fails both (2752 / 3652). test-changed (cross-check on) green incl. #1958 files; repl, lint, file sizes (core 796, functions 770), verify-examples (247 modules) green. implicitRowsAbove left uncached (deferred decision; windowed, measure in M4)."
     },
     {
       "id": "M4_EQUIVALENCE_MEASURE_RECORD",
@@ -105,10 +105,10 @@
         "Changelog fragment present; make check-changelog green",
         "If the target is missed: record numbers + top three hot paths and STOP (no substitution work)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-03T09:39:56+00:00",
+      "completed": "2026-11-03T09:39:56+00:00",
+      "notes": "ailang_parse 1.594e12 -> 0.524e12 instr (-67%), RSS 234->204 MB; crew_core 1.344e12 -> 0.696e12 (-48%), 228->178 MB. Re-profile: env walks ~3%, substitution now dominant (crew-core doc Phase 2 baseline updated). Equivalence: diff -r criterion unmeasurable (same-binary control differs equally, V18); iface.json identical ailang_parse 93/93, crew_core 62/62, std+examples 448/449 (std/sem nondeterministic on base alone, V19); cross-check over full check of both packages clean (V20). Changelog fragment added."
     }
   ]
 }

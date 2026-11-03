@@ -137,16 +137,7 @@ func (ctx *InferenceContext) isSelfEffectTail(sub Substitution, tail string) boo
 }
 
 // envOwnedVars returns the type, row and effect-row variables free in env.
+// The result is shared and must not be modified.
 func envOwnedVars(env *TypeEnv) map[string]bool {
-	outer := make(map[string]bool)
-	for v := range env.FreeTypeVars() {
-		outer[v] = true
-	}
-	for v := range env.FreeRowVars() {
-		outer[v] = true
-	}
-	for v := range env.FreeEffectRowVars() {
-		outer[v] = true
-	}
-	return outer
+	return env.ownedVars().all()
 }

@@ -176,15 +176,18 @@ func (ctx *InferenceContext) defaultReturnOnlyRow(fn *TFunc2) {
 }
 
 func (env *TypeEnv) effectRowsAbove(base *TypeEnv) map[string]bool {
-	free := make(map[string]bool)
 	if base == nil {
 		return env.FreeEffectRowVars()
 	}
-	for e := env; e != base; e = e.parent {
-		if e == nil {
-			return make(map[string]bool)
+	free := make(map[string]bool)
+	frames, ok := env.framesAbove(base)
+	if !ok {
+		return free
+	}
+	for _, f := range frames {
+		for v := range f.ownSets().effectRows {
+			free[v] = true
 		}
-		(&TypeEnv{bindings: e.bindings}).collectFreeEffectRowVars(free)
 	}
 	return free
 }
@@ -234,6 +237,7 @@ func (env *TypeEnv) implicitRowsAbove(base *TypeEnv, expand func(Type) Type) map
 	rows := make(map[string]bool)
 	for e := env; e != nil && e != base; e = e.parent {
 		for _, binding := range e.bindings {
+			envScanBindings.Add(1)
 			typ, ok := binding.(Type)
 			if !ok {
 				continue

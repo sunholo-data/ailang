@@ -457,7 +457,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		debugSink:            tc.DebugSink, // M-DX11: Wire provenance tracking
 		// M-TYPE-LIST-SOUND round 3 + M-EQ-DERIVE-CONTAINERS: generalization
 		// withholds only vars bound inside this decl (see InferenceContext).
-		baseEnvFreeVars: env.FreeTypeVars(),
+		baseEnvFreeVars: env.ownedVars().types, // memoised, never modified
 		baseEnv:         env,
 		declRoot:        expr,
 	}
@@ -592,7 +592,7 @@ func (tc *CoreTypeChecker) checkCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 	ctx.freshCounter = tc.inferFreshCounter // M-TVAR-COLLISION-FIX: Use persistent counter
 	ctx.SetDebugSink(tc.DebugSink)          // M-DX11: Wire provenance tracking
 	// M-TYPE-LIST-SOUND round 3: see InferWithConstraints for rationale.
-	ctx.baseEnvFreeVars = env.FreeTypeVars()
+	ctx.baseEnvFreeVars = env.ownedVars().types // memoised, never modified
 	ctx.baseEnv = env
 
 	// Infer type and effects

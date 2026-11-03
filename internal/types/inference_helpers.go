@@ -129,7 +129,7 @@ func isValue(expr ast.Expr) bool {
 func (ctx *InferenceContext) generalize(typ Type, effects *Row) *Scheme {
 	// Find free type variables in type but not in environment
 	typeFreeVars := freeTypeVars(typ)
-	envFreeVars := ctx.env.FreeTypeVars()
+	envFreeVars := ctx.env.ownedVars().types // read-only
 
 	generalizedTypeVars := []string{}
 	for v := range typeFreeVars {
@@ -140,7 +140,7 @@ func (ctx *InferenceContext) generalize(typ Type, effects *Row) *Scheme {
 
 	// Find free row variables in effects but not in environment
 	effectFreeVars := freeRowVars(effects)
-	envFreeRowVars := ctx.env.FreeRowVars()
+	envFreeRowVars := ctx.env.ownedVars().rows // read-only
 
 	generalizedRowVars := []string{}
 	for v := range effectFreeVars {
