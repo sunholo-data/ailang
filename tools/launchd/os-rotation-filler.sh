@@ -357,7 +357,9 @@ fi
 # BINARY's version, the coverage gate below counts by std/VERSION — so 220 runs
 # landed under v0.55.0, coverage read 0/56 forever, and no release after v0.55.0
 # was measured at all. Reinstall on mismatch; if it still disagrees, bank nothing.
-bin_version() { ailang --version 2>/dev/null | head -1 | sed -E 's/^AILANG[[:space:]]+//; s/-.*$//' | tr -d '[:space:]'; }
+# Same reduction as eval_harness.ReleaseTag (what --bank-by-version buckets by):
+# drop git-describe "-N-g<sha>" and "-dirty", KEEP a pre-release tag like -rc1.
+bin_version() { ailang --version 2>/dev/null | head -1 | sed -E 's/^AILANG[[:space:]]+//; s/-[0-9]+-g[0-9a-f]+//g; s/-dirty$//' | tr -d '[:space:]'; }
 BIN_VERSION="$(bin_version)"
 if [ -n "$OLD_VERSION" ] && [ "$BIN_VERSION" != "$OLD_VERSION" ]; then
   log "binary pickup: ailang on PATH is '${BIN_VERSION:-<none>}' but std/VERSION is $OLD_VERSION — make quick-install"

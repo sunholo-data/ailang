@@ -62,7 +62,7 @@ p = out.append
 p("## Rig value report — last %d days (%s)" % (days, now.strftime("%Y-%m-%d")))
 p("")
 banked = sorted({r["_ver"] for r in rows}, key=vkey)
-bin_base = re.sub(r"-.*$", "", bin_v.strip())
+bin_base = re.sub(r"-dirty$", "", re.sub(r"-\d+-g[0-9a-f]+", "", bin_v.strip()))  # == eval_harness.ReleaseTag
 p("**Measuring:** std/VERSION `%s` · binary `%s` · rows banked under %s"
   % (std_v, bin_v or "<none>", ", ".join("`%s`" % v for v in banked) or "nothing"))
 if bin_base != std_v or (banked and banked[-1] != std_v):
