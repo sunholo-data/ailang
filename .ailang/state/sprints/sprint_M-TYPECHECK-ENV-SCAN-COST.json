@@ -68,10 +68,10 @@
         "Cross-check on across internal/types and internal/pipeline; make test-changed green",
         "go test -race ./internal/types/ ./internal/pipeline/ green; call sites untouched"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-03T09:14:49+00:00",
+      "completed": "2026-11-03T09:14:49+00:00",
+      "notes": "env_cache.go: per-frame own/chain envVarSets, stamp+epoch invalidation (BindScheme/BindType), closed frames share parent sets; Free*Vars return copies; FreeTypeVarsAbove/effectRowsAbove union cached own sets (temp-wrapper walks gone). SetEnvVarCrossCheck on in TestMain for internal/types + internal/pipeline: full pipeline suite (~150 s) green with every query cross-checked. 6 cache unit tests; mutants (no BindType invalidation, no copy) both caught. -race green. all() deferred to M3 (unused until callers move)."
     },
     {
       "id": "M3_CALL_SITES_LINEAR",

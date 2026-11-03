@@ -45,6 +45,8 @@ func envScanWorkFor(t *testing.T, n, m, k int) uint64 {
 	t.Chdir(t.TempDir())
 	t.Setenv("AILANG_NO_CACHE", "1")
 	envScanModules(t, n, m, k)
+	prev := types.SetEnvVarCrossCheck(false) // the cross-check re-walks everything
+	defer types.SetEnvVarCrossCheck(prev)
 	types.ResetEnvScanWork()
 	if _, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "app.ail"}, productionCacheDependencies()); err != nil {
 		t.Fatalf("check (n=%d m=%d k=%d): %v", n, m, k, err)
