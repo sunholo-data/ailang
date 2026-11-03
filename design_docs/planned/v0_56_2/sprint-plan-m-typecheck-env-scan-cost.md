@@ -6,6 +6,21 @@
 **Estimated:** ~680 LOC (≈ 260 implementation, 340 tests, 80 docs)
 **Risk:** Medium — touches the type checker's shared environment; mitigated by a shadow cross-check and byte-identical artifact gates.
 
+## Status (2026-11-03): ✅ complete
+
+| Milestone | Result |
+|---|---|
+| ✅ M1_WORK_COUNTER_BASELINE | `types.EnvScanWork`; 2,810 bindings per application at base; baselines V14/V15 |
+| ✅ M2_FRAME_CACHE | `env_cache.go`; cross-check on in `types`/`pipeline` tests; 2 mutants caught |
+| ✅ M3_CALL_SITES_LINEAR | 2,810 → 70 bindings per application, flat; linearity assertion + mutant |
+| ✅ M4_EQUIVALENCE_MEASURE_RECORD | ailang_parse −67% instructions, crew_core −48%; RSS down; equivalence V18–V20 |
+
+**Deviation:** M4's "`diff -r` empty on compile trees" was unmeasurable — the same binary's own
+`core.gob`/`coretypeinfo.gob`/`artifacts.json` differ run-to-run (design doc V18). Replaced by
+`iface.json` identity plus the uncached cross-check over both real packages (V19, V20).
+**Process:** executed in worktree `sprint/typecheck-env-scan` (not on dev directly) because a
+concurrent session had uncommitted `internal/types` edits in the shared checkout.
+
 ## Goal
 
 Make the "free variables of the enclosing environment" query cost O(new bindings) amortised instead of O(whole environment) per call, so a cold `ailang check --package .` of `sunholo/ailang_parse` retires ≤ 0.80×10¹² instructions (from 1.61×10¹² at dev HEAD), with byte-identical compile output.

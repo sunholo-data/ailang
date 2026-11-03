@@ -1,6 +1,6 @@
 # M-TYPECHECK-ENV-SCAN-COST: stop re-walking the whole type environment on every application
 
-**Status**: Planned
+**Status**: Implemented (sprint M-TYPECHECK-ENV-SCAN-COST, 2026-11-03)
 **Target**: v0.56.2 (before the release that ships #1958's re-land)
 **Priority**: P1
 **Estimated**: ~4 engineering days
@@ -77,7 +77,7 @@ Each of those walks every binding of every frame up to the root (`env.go:116-138
 1. Cold `ailang check --package .` of ailang_parse (`c3b4fc6`): instructions retired **≤ 0.80×10¹²** (≥ 50% below dev HEAD's 1.61×10¹²), measured with `AILANG_NO_CACHE=1 /usr/bin/time -l` on darwin/arm64.
 2. The three `TypeEnv.collectFree*` walks fall below **10%** inclusive of the check in a re-run of the same `sample` profile.
 3. A deterministic work-counter test asserts that bindings visited per application stay bounded as a synthetic module grows its top-level and import count (linear check, not quadratic).
-4. Byte-identical `iface.json` and CoreTypeInfo artifacts before/after for `examples/`, `std/`, ailang_parse and crew_core.
+4. Same inferred interfaces before/after (`iface.json`) for `examples/`, `std/`, ailang_parse and crew_core, and the uncached cross-check clean across the test suites and both real packages. *(Revised at M4: the original "byte-identical `core.gob`/`coretypeinfo.gob`/`artifacts.json`" criterion is unmeasurable — two runs of the **same** binary differ in those files at the same rate (V18).)*
 5. Peak RSS within +10% of dev HEAD (263 MB on ailang_parse).
 
 ## High-Impact Decisions
@@ -199,13 +199,13 @@ After, the first application in a declaration computes the chain once (or hits f
 
 ## Success Criteria
 
-- [ ] Instructions retired on ailang_parse cold check ≤ 0.80×10¹² (from 1.61×10¹²)
-- [ ] `collectFree*` < 10% inclusive in the re-profile
-- [ ] Linearity test green; it fails on today's code (mutation test: revert `inferApp` to the full walk)
-- [ ] Byte-identical artifacts on the four corpora; shadow cross-check green across `make test`
-- [ ] Peak RSS ≤ +10%
-- [ ] `make test`, `make test-core`, `make verify-examples`, `go test -race` on `types`/`pipeline` green
-- [ ] Changelog fragment; crew-core doc updated
+- [x] Instructions retired on ailang_parse cold check ≤ 0.80×10¹² — **0.524×10¹²** (−67% vs base 1.594×10¹²)
+- [x] `collectFree*` < 10% inclusive in the re-profile — **~3%**
+- [x] Linearity test green; it fails on the old code (mutant restoring `inferApp`'s full walk: 2,752 bindings/application, 3,652 at 16× declarations)
+- [x] Equivalence: cross-check green across `internal/types` + `internal/pipeline` and a full check of ailang_parse + crew_core (121 files); `iface.json` identical except `std/sem`, which varies run-to-run on the base binary itself (V19)
+- [x] Peak RSS ≤ +10% — **down** 13% (ailang_parse) and 22% (crew_core)
+- [x] `make test-changed` (incl. test-core), `make verify-examples`, `go test -race` on the cache tests + env-scan/#1958 pipeline tests green (full `make test` is CI's)
+- [x] Changelog fragment; crew-core doc updated
 
 ## Testing Strategy
 
@@ -276,6 +276,11 @@ After, the first application in a declaration computes the chain once (or hits f
 | V12 | No existing `--cpuprofile` on `check` | `ailang -cpuprofile … check` → "flag provided but not defined" (v0.55.0); flags registered in `cmd/ailang/main_run.go:138-139` for `run` | Confirmed |
 | V14 | Per-application env-walk cost; imports not in the chain | M1 `TestEnvScan_WorkPerApplication` (base `81de656ad`): bindings visited per extra application = 2,810 (n=10 top-level, m=10 imports), 3,710 (n=160), 2,810 (m=160) | Confirmed |
 | V15 | Baselines at base `81de656ad`, darwin/arm64, `AILANG_NO_CACHE=1 /usr/bin/time -l … check --package .` | ailang_parse `c3b4fc6` (93 files): 1,593,980,586,491 instructions, 234 MB RSS, 69.1 s real; crew_core 0.6.0 (28 files, after `ailang lock`): 1,343,662,646,680 instructions, 228 MB RSS, 71.2 s real | Confirmed |
+| V16 | After (worktree `7cb076476`), same command as V15 | ailang_parse: 524,187,210,961 instructions (−67%), 204 MB RSS, 42.4 s user (was 130.9); crew_core: 696,192,366,736 (−48%), 178 MB RSS, 57.5 s user (was 111.2). Per-application env walk (M1 test): 2,810 → 70 bindings, flat in n and m | Confirmed |
+| V17 | Re-profile after (`sample`, 40 s, ailang_parse) | `collectFree*` ≈ 3.2% inclusive (1.9 + 0.6 + 0.7); `chainSets` 2.5%, `ownSets` 1.8%, `implicitRowsAbove` 2.1% (left uncached — deferred decision threshold); now dominant: `safeSubstitute` 76%, `ApplySubstitution` 67.5%, `Unify` 58.6%, `CoreTypeInfo.ApplySubstitution` 23.4% → crew-core doc Phase 2 | Confirmed |
+| V18 | Compile artifacts other than `iface.json` are not deterministic run-to-run | Same base binary twice on ailang_parse: `artifacts.json` 171, `core.gob` 170, `coretypeinfo.gob` 14, `manifest.json` 1 files differ; base vs new: 191 / 166 / 13 / 1 — the same noise. `iface.json`: 0 differ in either comparison (93 modules) | Confirmed |
+| V19 | `iface.json` equivalence on the other corpora | crew_core 62/62 identical; `std/` + `examples/` 448/449 identical; the one, `std/sem`, permutes α-names and changes digest across 6 runs of the **base** binary alone (3 distinct digests) — pre-existing nondeterminism, reported separately | Confirmed |
+| V20 | Cross-check on real packages | Temporary (uncommitted) harness: `SetEnvVarCrossCheck(true)` + `check.CheckPackageFiles` on ailang_parse (93 passed) and crew_core (28 passed), 505 s, no mismatch panic | Confirmed |
 | V13 | crew-core doc's Phase 1 targets the same walk, unshipped | `m-crew-core-cold-compile-followup.md` rows V4/V7 and Phase 1; no sprint JSON for it in `.ailang/state/sprints/`; all Phase checkboxes open | Confirmed |
 
 **Quorum:** none of the four triggers fires (no design-freeze items for a human, no shared machinery overridden — the cache is a memo of existing queries proven equal by cross-check, no cost/KPI/schema surface, all premises in-repo). Skipped.

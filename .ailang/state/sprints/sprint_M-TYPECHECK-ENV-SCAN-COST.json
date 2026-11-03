@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-TYPECHECK-ENV-SCAN-COST",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-11-03T08:46:21Z",
   "design_doc": "design_docs/planned/v0_56_2/m-typecheck-env-scan-cost.md",
   "sprint_plan": "design_docs/planned/v0_56_2/sprint-plan-m-typecheck-env-scan-cost.md",
@@ -105,10 +105,10 @@
         "Changelog fragment present; make check-changelog green",
         "If the target is missed: record numbers + top three hot paths and STOP (no substitution work)"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-03T09:39:56+00:00",
+      "completed": "2026-11-03T09:39:56+00:00",
+      "notes": "ailang_parse 1.594e12 -> 0.524e12 instr (-67%), RSS 234->204 MB; crew_core 1.344e12 -> 0.696e12 (-48%), 228->178 MB. Re-profile: env walks ~3%, substitution now dominant (crew-core doc Phase 2 baseline updated). Equivalence: diff -r criterion unmeasurable (same-binary control differs equally, V18); iface.json identical ailang_parse 93/93, crew_core 62/62, std+examples 448/449 (std/sem nondeterministic on base alone, V19); cross-check over full check of both packages clean (V20). Changelog fragment added."
     }
   ]
 }
