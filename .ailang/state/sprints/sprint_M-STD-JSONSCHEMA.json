@@ -1,0 +1,235 @@
+{
+  "sprint_id": "M-STD-JSONSCHEMA",
+  "status": "not_started",
+  "created": "2026-11-03T15:27:19.900186+00:00",
+  "design_doc": "design_docs/planned/v0_57_1/m-std-jsonschema.md",
+  "sprint_plan": "design_docs/planned/v0_57_1/m-std-jsonschema-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches jsonschema, json and list: no schema validator or general list package. Inspected sunholo/a2ui@0.2.0 via pkg info; pkg docs explicitly reports no AGENT.md. It renders UI JSON, not schema validation. This milestone extends the frozen stdlib/Go engine and its tests or documentation."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches jsonschema, json and list: no schema validator or general list package. Inspected sunholo/a2ui@0.2.0 via pkg info; pkg docs explicitly reports no AGENT.md. It renders UI JSON, not schema validation. This milestone extends the frozen stdlib/Go engine and its tests or documentation."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches jsonschema, json and list: no schema validator or general list package. Inspected sunholo/a2ui@0.2.0 via pkg info; pkg docs explicitly reports no AGENT.md. It renders UI JSON, not schema validation. This milestone extends the frozen stdlib/Go engine and its tests or documentation."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches jsonschema, json and list: no schema validator or general list package. Inspected sunholo/a2ui@0.2.0 via pkg info; pkg docs explicitly reports no AGENT.md. It renders UI JSON, not schema validation. This milestone extends the frozen stdlib/Go engine and its tests or documentation."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches jsonschema, json and list: no schema validator or general list package. Inspected sunholo/a2ui@0.2.0 via pkg info; pkg docs explicitly reports no AGENT.md. It renders UI JSON, not schema validation. This milestone extends the frozen stdlib/Go engine and its tests or documentation."
+    },
+    {
+      "milestone": "M6",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches jsonschema, json and list: no schema validator or general list package. Inspected sunholo/a2ui@0.2.0 via pkg info; pkg docs explicitly reports no AGENT.md. It renders UI JSON, not schema validation. This milestone extends the frozen stdlib/Go engine and its tests or documentation."
+    },
+    {
+      "milestone": "M7",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches jsonschema, json and list: no schema validator or general list package. Inspected sunholo/a2ui@0.2.0 via pkg info; pkg docs explicitly reports no AGENT.md. It renders UI JSON, not schema validation. This milestone extends the frozen stdlib/Go engine and its tests or documentation."
+    },
+    {
+      "milestone": "M8",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches jsonschema, json and list: no schema validator or general list package. Inspected sunholo/a2ui@0.2.0 via pkg info; pkg docs explicitly reports no AGENT.md. It renders UI JSON, not schema validation. This milestone extends the frozen stdlib/Go engine and its tests or documentation."
+    },
+    {
+      "milestone": "M9",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches jsonschema, json and list: no schema validator or general list package. Inspected sunholo/a2ui@0.2.0 via pkg info; pkg docs explicitly reports no AGENT.md. It renders UI JSON, not schema validation. This milestone extends the frozen stdlib/Go engine and its tests or documentation."
+    },
+    {
+      "milestone": "M10",
+      "package": null,
+      "action": "none",
+      "reason": "Registry searches jsonschema, json and list: no schema validator or general list package. Inspected sunholo/a2ui@0.2.0 via pkg info; pkg docs explicitly reports no AGENT.md. It renders UI JSON, not schema validation. This milestone extends the frozen stdlib/Go engine and its tests or documentation."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 460,
+    "estimated_total_loc": 2300,
+    "estimated_days": 5
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Compiled schema model and strict audit",
+      "estimated_loc": 260,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Compile boolean schemas and validate keyword value shapes across the frozen vocabulary; audit every subschema including unused $defs and unselected branches. Ignore annotation payloads as data. Strict errors name unknown keywords; lenient skips only unknown keywords, never malformed supported keywords.",
+        "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Local references and pattern compilation",
+      "estimated_loc": 280,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Resolve root #, escaped RFC 6901 pointers, anchors and dynamic anchors; reject dangling/non-local refs. Compile pattern and patternProperties using RE2; reject lookaround/backreferences with schema errors. Pin dialect, relative $id and vocabulary handling.",
+        "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Scalar assertions and deterministic errors",
+      "estimated_loc": 250,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Validate type including integer-valued floats, enum/const structural equality, numeric limits and multipleOf, Unicode string lengths and patterns. Emit RFC 6901 paths and fixed canonical keyword ordering independent of schema insertion order.",
+        "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Object and array validation",
+      "estimated_loc": 280,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Validate required/properties/patternProperties/additionalProperties/propertyNames/dependentRequired; array prefixItems/items/contains/minContains/maxContains/uniqueItems and cardinalities. items applies after prefixItems per Draft 2020-12. Collect evaluated locations for subsequent annotation propagation.",
+        "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Combinators and reference execution",
+      "estimated_loc": 260,
+      "dependencies": [
+        "M2",
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Implement allOf/anyOf/oneOf/not/if/then/else/dependentSchemas and ref siblings. Track dynamic scope for $dynamicRef; bound cycles at the same instance location to 64 while allowing recursive descent to child instance locations. Failed branch diagnostics do not invalidate a successful anyOf or conditional predicate.",
+        "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6",
+      "description": "Unevaluated annotation semantics",
+      "estimated_loc": 240,
+      "dependencies": [
+        "M5"
+      ],
+      "acceptance_criteria": [
+        "Propagate successful-branch evaluated-property/item annotations through refs and combinators; apply unevaluatedProperties/unevaluatedItems last. Test failed branches, multiple successful anyOf branches, contains matches and conditional annotation isolation.",
+        "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M7",
+      "description": "Public builtin and stdlib surface",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M6"
+      ],
+      "acceptance_criteria": [
+        "Register three pure builtins with Json ADT inputs and record-list outputs; export ValidationError, validate, validateLenient, validateSchema. Schema compilation failures return before instance evaluation. Rebuild binary, check std module and run seventh stdlib suite after suite count 6 to 7.",
+        "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M8",
+      "description": "List all with interpreter and VM parity",
+      "estimated_loc": 130,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Export all(pred,xs); default to _list_all Go twin and VM HOF support discovered beside any. Test true/false/empty lists, short circuit and interpreter/VM agreement. A pure negated-any wrapper is an already-authorized alternative if it preserves parity; test either choice.",
+        "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M9",
+      "description": "Census fixture and performance evidence",
+      "estimated_loc": 220,
+      "dependencies": [
+        "M7"
+      ],
+      "acceptance_criteria": [
+        "Use a synthetic fixture exercising every reported census keyword and counts; label it synthetic and assert the census programmatically. Pin expected errors, 100-run and permuted-key determinism. Benchmark compile plus validate on roughly 460 schema nodes and 1000 document properties; report machine and time against 50 ms target.",
+        "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M10",
+      "description": "Example reference docs goldens and focused gates",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M8",
+        "M9"
+      ],
+      "acceptance_criteria": [
+        "Ship runnable envelope self-check, API/strictness/error-root guidance, RE2 divergences, format annotation-only and float64 limitations. Freeze new jsonschema and changed list interfaces with existing tooling; fragment opens with ###. Run focused integration gates and record results.",
+        "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
