@@ -1,0 +1,69 @@
+MISSION-ROLE: executor
+
+You are the sprint-executor for fleet mission iteration 80 of the AILANG repo. Your working directory is a git worktree on branch `fleet/i80-dfleet21-gate3b-poll-cap`, based on origin/dev 29ddaec78. This is a documentation-only proposed diff for decision row D-FLEET-21 option A; it will become a DRAFT PR that is NOT merged until Mark rules.
+
+## Rules
+- Make NO git write operations at all (no add/commit/stash/checkout/reset/branch). The controller commits your uncommitted diff.
+- Edit ONLY these five files: `.claude/skills/mission-control/resources/gate-3b-ci-green.md`, `.agents/skills/mission-control/resources/gate-3b-ci-green.md`, `.claude/skills/mission-control/SKILL.md`, `.agents/skills/mission-control/SKILL.md`, and create `changelogs/unreleased/2026-11-03-gate-3b-ci-poll-cap.md`. Nothing else. Do not touch `resources/gate-3-route.md` (its `2000000 ms for 1800 s` is the codex executor wrapper's own cap, not Gate 3b).
+- Never write outside this worktree. Do not start background jobs.
+- Any gate you run inside the sandbox that fails for sandbox reasons (socket bind, permission denied outside the worktree) must be reported as UNINFORMATIVE UNDER SANDBOX, never as pass or fail. A gate red for any other reason is a FINDING to report, not something to work around by editing other files.
+
+## The edits (apply IDENTICALLY to both mirrors; the two gate-3b copies must remain byte-identical to each other, and the two SKILL.md copies likewise)
+
+In each `gate-3b-ci-green.md`, replace exactly these seven lines (base line numbers; every other character, including indentation, stays literal):
+
+line 16
+BEFORE: The Bash foreground ceiling is **600 s**; retain the poll's **1800 s** cap (iteration 13's **4 h** wedge).
+AFTER:  The Bash foreground ceiling is **600 s**; retain the poll's **3600 s** cap (iteration 13's **4 h** wedge).
+
+line 19
+BEFORE: Bash poll call: run_in_background: true, timeout: 2000000 (ms).
+AFTER:  Bash poll call: run_in_background: true, timeout: 3800000 (ms).
+
+line 20
+BEFORE: These are **Bash tool arguments**, not shell variables or GNU timeout; keep timeout at least 2000000 ms (cap plus margin).
+AFTER:  These are **Bash tool arguments**, not shell variables or GNU timeout; keep timeout at least 3800000 ms (cap plus margin).
+
+line 47
+BEFORE: deadline=$(( $(date +%s) + 1800 ))    # 30-min cap; CI is ~15-20m — never open-ended
+AFTER:  deadline=$(( $(date +%s) + 3600 ))    # 60-min cap; CI median ~15 min, tail past 30 min — never open-ended
+
+line 52 (it is indented by two spaces; keep that)
+BEFORE:   [ "$(date +%s)" -ge "$deadline" ] && { echo "Gate 3b TIMEOUT for $target after 30m (status=$st) — PARK, do not hang" > "$verdict"; break; }
+AFTER:    [ "$(date +%s)" -ge "$deadline" ] && { echo "Gate 3b TIMEOUT for $target after 60m (status=$st) — PARK, do not hang" > "$verdict"; break; }
+
+line 65
+BEFORE: The poll's 30-minute deadline bounds this chain. Reject a mismatched full SHA; completion without a verdict or tool failure means report/PARK, never green or endless reads.
+AFTER:  The poll's 60-minute deadline bounds this chain. Reject a mismatched full SHA; completion without a verdict or tool failure means report/PARK, never green or endless reads.
+
+line 68
+BEFORE: The poll runs background-only because a foreground call cannot hold the 1800 s cap and re-entering the snippet would restart the cap.
+AFTER:  The poll runs background-only because a foreground call cannot hold the 3600 s cap and re-entering the snippet would restart the cap.
+
+(The "AFTER:  " / "BEFORE: " labels and the single space after them are NOT part of the line text.)
+
+In each `SKILL.md`, replace exactly one line (base line 323, inside standing rule 6 "Every wait is bounded"); do NOT reflow or add lines — the file must stay 628 lines:
+BEFORE:    one unbounded wait burns the entire 6h slot. Default cap ≤30 min; treat expiry as a parkable
+AFTER:     one unbounded wait burns the entire 6h slot. Default cap ≤30 min (exception: Gate 3b CI poll ≤60 min); treat expiry as a parkable
+(the line starts with three spaces in both versions).
+
+Create `changelogs/unreleased/2026-11-03-gate-3b-ci-poll-cap.md` with exactly:
+
+### Changed — Gate 3b allows a bounded 60-minute CI poll (2026-11-03)
+
+Raise the mission-control Gate 3b CI poll deadline to 3600 seconds and its background Bash tool timeout to 3800000 milliseconds in both skill mirrors. CI has a median around 15 minutes, with a tail beyond 30 minutes including queue wait. Standing rule 6 names Gate 3b as an exception to its 30-minute default; expiry still parks the item for review. Proposed for decision D-FLEET-21 option A; not live until that ruling.
+
+Decision: [D-FLEET-21 option A](../../design_docs/fleet-mission.md).
+
+(end of file content; end the file with a single newline)
+
+## Verify (observation only) and report each with its rc
+1. `cmp .claude/skills/mission-control/resources/gate-3b-ci-green.md .agents/skills/mission-control/resources/gate-3b-ci-green.md` rc 0; same for the two SKILL.md files.
+2. For each gate-3b copy: `git grep -n -E '1800|2000000|30-min|after 30m|30-minute' -- <file>` must return rc 1 (no matches).
+3. For each gate-3b copy: `git grep -n -E '3600|3800000' -- <file>` returns rc 0 with matches on lines 16, 19, 20, 47, 68.
+4. `wc -l` of both SKILL.md copies = 628.
+5. `git diff --unified=0 -- .claude/skills/mission-control .agents/skills/mission-control` shows exactly 8 one-line replacement hunks per mirror (7 in gate-3b, 1 in SKILL.md) and nothing else; `git diff --check` rc 0.
+6. `git status --porcelain` lists exactly the 4 modified files and 1 new fragment.
+Do not run make targets; the controller runs them outside the sandbox.
+
+Final message: list the files changed, each verify step with its rc, and anything unexpected.

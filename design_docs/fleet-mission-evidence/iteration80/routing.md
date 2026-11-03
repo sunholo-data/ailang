@@ -1,0 +1,7 @@
+# Iteration 80 — routing notes
+
+- `resolve-role-spawn.sh`: designer `recipe claude:claude-opus-5-5 declared:provider-pin` (not spawned; the ledger row is the spec); planner `agent-tool opus fail-closed:no-doc`; executor `recipe codex:gpt-6.1-sol declared:provider-pin`; evaluator `agent-tool sonnet declared:alias-pin`. `derive-planner-lane.sh` (no doc): `opus fail-closed:no-doc`.
+- The opus planner Agent spawn was DENIED by the spawn-pin hook: `deny:provider-pin — planner is pinned to codex:gpt-6.1-sol; Agent-tool alias spawn refused`. This is the documented `fail-closed:*` + provider pin case (`gate-3-route.md` Step 1b ⚠, iterations 327–329). Routed straight to the pin under the codex planner recipe.
+- codex probe rc 0 (codex-cli 0.164.0). Planner: detached worktree `.planner-wt-iter80`, rc 0, 78,579 tokens, wrote `plan.md` only. Executor: worktree `.exec-wt-iter80` on `fleet/i80-dfleet21-gate3b-poll-cap`, rc 0, 46,469 tokens.
+- codex `workspace-write` denied writes under `<wt>/.agents/` ("`.agents` is mounted read-only"); the executor labelled the mirror checks UNINFORMATIVE UNDER SANDBOX. The controller ran `tools/launchd/sync-agents-skills.sh` outside the sandbox (pre-check rc 1 STALE, sync rc 0, post-check rc 0). Same denial as iteration 63 (whose iteration-64 follow-up passed `--add-dir <wt>/.agents`).
+- Evaluator: sonnet, Agent tool, foreground, 61,738 subagent tokens, 7 tool uses. Same-vendor as the controller; different vendor from the codex generator.
