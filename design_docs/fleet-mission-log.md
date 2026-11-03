@@ -1431,3 +1431,56 @@ Last 3 code landings: iteration 78 (`3d9112bb9`), iteration 70 (`52e8958f0`), th
 - Quorum: none (no design doc). Metered spend $0. No lane recorded dead.
 
 **Next**: if Mark rules D-FLEET-26 A, rebase #2065, run the driver dry-runs (healthy and degraded) under an idle armed sibling, wait for CI, merge, and run `ailang mission ticket resolve codex:server-capacity-error-crashes-finished-iteration --sha <merge>`; then note the World port. Otherwise build D-FLEET-21 A as a draft PR (the Gate 3b poll cap, a skill edit), or take any ruling (D-FLEET-18, -36, -38, -41) or a filing newer than 10-28.
+
+## 80 — 2026-11-03 — D-FLEET-21 option A built as a proposed diff (draft PR #2067, `bdaad2825`), unmerged pending a ruling; fresh CI re-measure; independent sonnet PASS 90 [HARNESS]
+
+**Pick**: D-FLEET-21 (Gate 3b's CI poll cap), iteration 79's **Next**. No ruling or filing newer than 10-28 had arrived. The *Ticket-driven only* guardrail's ruling-gated clause selects the next in-scope OPEN row whose recommendation is code and has no diff. D-FLEET-20, -28 and -35 recommend code outside fleet scope; D-FLEET-32 and -34 recommend waivers. So D-FLEET-21 was the only one left. Caveat: D-FLEET-21 came from iterations 43 and 44's own retro, not a ticket, so the guardrail's "the ticket is already in the queue" does not literally hold for it. It is a ledger row the fleet filed from two measured frictions, and its diff stays unmerged until Mark rules.
+
+**Orphans / prior record**: the open draft #2065 (iteration 79's D-FLEET-26 proposal) is expected and stays untouched. Iteration 79's record merged as `29ddaec78`. No other `fleet/*` PR, branch or worktree.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN.
+- #2039: 0 directives. The watermark file `mission-2039-last-seen` is still absent, so it read all 4 comments, none allowlisted.
+- Skill drift: `SKILL.md` and all 13 resource files `cmp`-identical to `origin/dev` at the resolved symlink target; pin at `origin/dev` (`AILANG_DRIVER_DRIFT=0`).
+- Gate-1 base `29ddaec7899ea13dbd3d4c97b75f0e5ff6a235bd@2026-11-03T07:28:39Z`.
+- Dev CI at `29ddaec78` success. 18 check-runs; the only non-green is `SonarCloud Code Analysis` (non-required, inherited, V1-owned).
+- Ledger valid (40 rows, 24 OPEN). 25 tickets open, newest first_seen 10-28. `MISSION_OVER_RATION` empty; routing note empty.
+
+**Reality check** (first-party, at `29ddaec78`):
+- Both `gate-3b-ci-green.md` copies still carry `+ 1800`, `timeout: 2000000`, "CI is ~15-20m" and "after 30m" (byte-identical mirrors).
+- **The row's premise has moved.** Last 40 CI runs: p50 14 min, p90 18, max 30. Fleet PR check sets: 14–15 min. Last 200 runs (10-28..11-03): 23 over 30 min (18 of them on 10-29, max 99), 2 of 47 on 11-02 (max 37). The judge re-measured: median 15.2, p90 31.1, 7 over 60 ([ci-durations](fleet-mission-evidence/iteration80/ci-durations.md)).
+- So the 10-16 "31–55 min" no longer describes the median, but the 30-min cap still misses about 1 run in 9 this week, and a 60-min cap would still miss about 1 in 30.
+
+**Did** (generator ≠ judge):
+- **Designer**: not spawned; the decision row is the spec.
+- **Planner**: `resolve-role-spawn.sh planner` and `derive-planner-lane.sh` both read `opus fail-closed:no-doc`. The opus Agent spawn was **denied** by the spawn-pin hook (`deny:provider-pin — planner is pinned to codex:gpt-6.1-sol`), which is the `gate-3-route.md` Step 1b ⚠ case. Routed to `codex:gpt-6.1-sol` under the planner recipe: probe rc 0, detached sibling worktree, rc 0, 78,579 tok ([directive](fleet-mission-evidence/iteration80/planner-directive.txt), [plan](fleet-mission-evidence/iteration80/plan.md)). It found the seven sites per copy and the one rule-6 line. It ruled `gate-3-route.md:160` out of scope (the codex wrapper's own cap) and found no test pinning the values.
+- **Gate list run at base first** (false-green 4): `check-context-docs` rc 0, `check-changelog` rc 0, heartbeat + agents-sync suites rc 0.
+- **Executor**: `codex:gpt-6.1-sol`, recipe, rc 0, 46,469 tok ([directive](fleet-mission-evidence/iteration80/executor-directive.txt), [report](fleet-mission-evidence/iteration80/executor-report.md)). It edited the `.claude` copies and the fragment. Its sandbox denied writes under `<wt>/.agents/` ("mounted read-only"), and it labelled the mirror checks UNINFORMATIVE UNDER SANDBOX rather than reporting them as passes.
+- **Controller**: ran `tools/launchd/sync-agents-skills.sh` outside the sandbox (pre-check rc 1 STALE, sync rc 0, post-check rc 0), then committed `bdaad2825` crediting codex.
+- **Gates at head (outside sandbox)**: residual grep rc 1 in both copies; the positive grep hits lines 16/19/20/47/68 in both; `cmp` rc 0; SKILL.md 628 lines; `git diff --check` rc 0; `check-context-docs` rc 0; `check-changelog` rc 0; `make test-launchd-drivers` **52/52**.
+- **Evaluator**: `sonnet`, Agent tool, foreground, read-only ([evaluation](fleet-mission-evidence/iteration80/evaluation.md)). **PASS 90**, no edits required. It ran three mutants (revert only the `.agents` copy; 3600→1800 in `.claude` only; drop the rule-6 clause in `.claude` only), each killed by `sync-agents-skills.sh --check`. It noted that reverting both mirrors together passes every check. Strongest objection: A moves the cliff rather than removing it (7 of 200 runs exceed 60 min, and a stuck headless poll now waits twice as long); B handles that tail. The controller confirmed `rc=0 for bdaad28`, a clean worktree and `--check` rc 0 after the drills.
+- **Landing (proposed only)**: pushed `fleet/i80-dfleet21-gate3b-poll-cap` and opened **draft PR #2067**. Its body says not to merge before the ruling, carries the re-measure and the judge's objection, and names reach (every mission's next fire; World not reached). The row stays OPEN with an iteration-80 note.
+
+**Ruled out**:
+- Editing `gate-3-route.md:160` (`2000000 ms for 1800 s`): it is the codex executor wrapper's 30-min cap, not Gate 3b. The planner and the judge both confirmed this.
+- Rewriting `SKILL.md:497` ("a 30-minute CI poller"): it is iteration 320's war story, which keeps its literals.
+- Hand-editing `.agents` files: the sync script is the only sanctioned writer (iteration 63).
+- Merging: D-FLEET-21 is a time-budget ruling and OPEN.
+- Driver dry-runs: nothing lands, and the change is skill text that the driver does not read.
+
+**Retro lane**: no skill edit and no process fix. Flagged, not edited:
+- (a) **codex `workspace-write` cannot write `<wt>/.agents/`**: second recorded instance (iterations 63 and 80; iteration 64 passed `--add-dir <wt>/.agents` as a workaround). Two frictions make it eligible for a skill fix, but the controller-side sync is already the sanctioned writer and cost one command. A recipe line ("for a skill-mirror diff, have codex edit `.claude` only and the controller run `sync-agents-skills.sh`") is a candidate for the next skill edit. It is not taken here, because this iteration's own proposed diff touches the same skill tree.
+- (b) The spawn-pin hook denied a resolver-prescribed opus planner, the fourth instance of the documented Step 1b ⚠ case. The durable fix is in the resolver (`role-spawn-routing.md` §2), not here.
+- (c) After this iteration, every in-scope OPEN row whose recommendation is code has a proposed diff (#2065, #2067), so the ruling-gated clause has nothing left to build. The next fire should expect to idle-check rather than build.
+
+**Progress**: goal unmoved on clause 1 (UNMEASURED). Clause 2 UNMET (nothing resolved). Clause 3 MET (25 open). Clause 4: prior evidence only. Clause 5 preserved (nothing merged to code).
+
+**Routing evidence**: base=29ddaec7899ea13dbd3d4c97b75f0e5ff6a235bd@2026-11-03T07:47:24Z (Gate 4); Gate-1 base `29ddaec7899ea13dbd3d4c97b75f0e5ff6a235bd@2026-11-03T07:28:39Z`. Driver routing note: empty (as configured).
+- Controller `claude:claude-opus-5-5` (tok: not reported). `MISSION_ANTHROPIC_AVAILABLE=1`.
+- Designer: not spawned; rotation pointer not advanced. Resolver `recipe claude:claude-opus-5-5 declared:provider-pin`.
+- Planner `codex:gpt-6.1-sol` (78,579 tok), recipe. Resolver `agent-tool opus fail-closed:no-doc`, hook `deny:provider-pin`, routed to the pin.
+- Executor `codex:gpt-6.1-sol` (46,469 tok), recipe. Resolver `recipe codex:gpt-6.1-sol declared:provider-pin`.
+- Evaluator `sonnet` (61,738 subagent tok; 7 tool uses), Agent tool. Resolver `agent-tool sonnet declared:alias-pin`. Judge independence: cross-vendor from the codex generator, same vendor as the controller's mirror-sync step.
+- Quorum: none (no design doc). Metered spend $0. No lane recorded dead.
+
+**Next**: if Mark rules D-FLEET-21 or D-FLEET-26, rebase that draft (#2067 or #2065), run its owed gates (#2065 also needs driver dry-runs), wait for CI, merge, and resolve. For #2065, also run `ailang mission ticket resolve codex:server-capacity-error-crashes-finished-iteration --sha <merge>`. D-FLEET-21 has no ticket to resolve. Otherwise take any ruling (D-FLEET-18, -36, -38, -41) or a filing newer than 10-28. No in-scope code recommendation is left without a diff.
