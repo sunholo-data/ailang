@@ -251,16 +251,21 @@ func (c *Client) buildURL(model string) (string, error) {
 	case AuthADC:
 		// Vertex AI: https://{host}/v1/projects/{project}/locations/{location}/publishers/google/models/{model}:generateContent
 		// with the host chosen by location (vertexAIBaseURL).
-		base, err := vertexAIBaseURL(c.location)
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("%s/projects/%s/locations/%s/publishers/google/models/%s:generateContent",
-			base, c.projectID, c.location, model), nil
+		return c.vertexModelURL(model, "generateContent")
 
 	default:
 		return "", ai.NewProviderError("gemini", 0, "unknown auth type", nil)
 	}
+}
+
+// vertexModelURL is a Vertex AI model method URL on the host for c.location.
+func (c *Client) vertexModelURL(model, method string) (string, error) {
+	base, err := vertexAIBaseURL(c.location)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%s/projects/%s/locations/%s/publishers/google/models/%s:%s",
+		base, c.projectID, c.location, model, method), nil
 }
 
 // buildStreamURL constructs the streaming API URL. Same shape as buildURL
@@ -277,12 +282,7 @@ func (c *Client) buildStreamURL(model string) (string, error) {
 	case AuthAPIKey:
 		return fmt.Sprintf("%s/models/%s:streamGenerateContent?alt=sse", aiStudioBaseURL, model), nil
 	case AuthADC:
-		base, err := vertexAIBaseURL(c.location)
-		if err != nil {
-			return "", err
-		}
-		return fmt.Sprintf("%s/projects/%s/locations/%s/publishers/google/models/%s:streamGenerateContent?alt=sse",
-			base, c.projectID, c.location, model), nil
+		return c.vertexModelURL(model, "streamGenerateContent?alt=sse")
 	default:
 		return "", ai.NewProviderError("gemini", 0, "unknown auth type", nil)
 	}

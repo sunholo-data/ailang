@@ -543,20 +543,16 @@ func TestVertexAIBaseURL(t *testing.T) {
 
 func TestClient_BuildURL_VertexEU(t *testing.T) {
 	c := &Client{authType: AuthADC, projectID: "p", location: "eu"}
-	got, err := c.buildURL("gemini-3.5-flash-lite")
-	if err != nil {
-		t.Fatal(err)
-	}
-	want := "https://aiplatform.eu.rep.googleapis.com/v1/projects/p/locations/eu/publishers/google/models/gemini-3.5-flash-lite:generateContent"
-	if got != want {
-		t.Errorf("buildURL() = %q, want %q", got, want)
-	}
-	got, err = c.buildStreamURL("gemini-3.5-flash-lite")
-	if err != nil {
-		t.Fatal(err)
-	}
-	want = "https://aiplatform.eu.rep.googleapis.com/v1/projects/p/locations/eu/publishers/google/models/gemini-3.5-flash-lite:streamGenerateContent?alt=sse"
-	if got != want {
-		t.Errorf("buildStreamURL() = %q, want %q", got, want)
+	const prefix = "https://aiplatform.eu.rep.googleapis.com/v1/projects/p/locations/eu/publishers/google/models/gemini-3.5-flash-lite:"
+	for _, tc := range []struct {
+		build func(string) (string, error)
+		want  string
+	}{
+		{c.buildURL, prefix + "generateContent"},
+		{c.buildStreamURL, prefix + "streamGenerateContent?alt=sse"},
+	} {
+		if got, err := tc.build("gemini-3.5-flash-lite"); err != nil || got != tc.want {
+			t.Errorf("got %q, %v; want %q", got, err, tc.want)
+		}
 	}
 }
