@@ -1,0 +1,98 @@
+MISSION-ROLE: executor
+
+You are the EXECUTOR for fleet mission iteration 82 of the AILANG repo. Your working directory is a git worktree on branch fleet/i82-dfleet36-38-scope-arm at 007809894 (= origin/dev). Do NOT run any git write operation (no add, commit, stash, checkout, reset, rebase). The controller builds the commits. Do not run `ailang messages`. Do not write anywhere outside this worktree except Go caches. Any gate that needs a socket, or a write outside this tree, is UNINFORMATIVE UNDER SANDBOX: label it that way and never report it as pass or fail. A gate you find already red at base is a finding to REPORT, not an obstacle to work around. Do not end your turn announcing a wait; if you background anything, poll its output file in a bounded `date +%s` loop, then finish with your report.
+
+## What to build: a PROPOSED scope-guard widening, as two separable changes
+
+Two OPEN decision rows in design_docs/fleet-mission.md share one first step, a guard arm in `_scope_is_fleet_support` (tools/launchd/githooks/pre-push). Mark has not ruled; this goes on a DRAFT PR that will not merge before his ruling. Mark may approve one row and not the other, so the work is TWO independent changes, C1 and C2. Neither may depend on the other.
+
+Touch ONLY these files: tools/launchd/githooks/pre-push, tools/launchd/test_mission_scope_guard.sh, design_docs/fleet-mission.md (the Authority section only), and two NEW changelog fragments. Do NOT edit any file under .claude/skills/ or .agents/skills/, and do NOT edit tools/launchd/sync-agents-skills.sh or its test.
+
+### C1 — D-FLEET-36 A (design-doc-creator, both trees)
+
+1. In `_scope_is_fleet_support`, add a case arm, as the first arm:
+   `    .claude/skills/design-doc-creator/*|.agents/skills/design-doc-creator/*) return 0 ;;   # support, not harness (D-FLEET-36)`
+2. Do NOT change `_scope_is_harness` or `_scope_verdict`.
+3. In tools/launchd/test_mission_scope_guard.sh, add before the final PASS line of the verdict-table section (use the file's existing `check <mission> <path> <allow|refuse>` helper; read how it is defined first):
+   ```bash
+   # D-FLEET-36: both mirrors, including nested files.
+   for side in .claude .agents; do
+     check fleet "$side/skills/design-doc-creator/scripts/create_planned_doc.sh" allow # kills: delete this side's design-doc-creator pattern
+     check v1 "$side/skills/design-doc-creator/scripts/create_planned_doc.sh" allow # kills: move the pattern into _scope_is_harness
+   done
+   check fleet .claude/skills/design-doc-creator-x/SKILL.md refuse # kills: design-doc-creator/* -> design-doc-creator*
+   check fleet .agents/skills/design-doc-creator-x/SKILL.md refuse # kills: design-doc-creator/* -> design-doc-creator*
+   check fleet .claude/skills/use-ailang/SKILL.md refuse # kills: widen to .claude/skills/*
+   ```
+4. Authority section of design_docs/fleet-mission.md: in the support-paths list, insert a line so it reads `... internal/config/mission.go`, `make/test.mk`,` then
+   `  `.claude/skills/design-doc-creator/**`, `.agents/skills/design-doc-creator/**` (D-FLEET-36),` then the existing `tools/pi-extensions/sandbox/**` (D-FLEET-6)).` line. Keep the rest byte-identical.
+5. New fragment `changelogs/unreleased/2026-11-03-fleet-scope-arm-dfleet36.md`:
+   ```markdown
+   ### Changed — Fleet scope guard: design-doc-creator as a support path (PROPOSED, D-FLEET-36 A)
+
+   PROPOSED, pending Mark's ruling on D-FLEET-36. `tools/launchd/githooks/pre-push` lets the fleet mission push `.claude/skills/design-doc-creator/**` and `.agents/skills/design-doc-creator/**` as support paths, not harness paths, so product loops keep pushing them unchanged. Guard arm only; the skill's eight grep sites change in a later fleet fire, after this lands (iteration-16 rule). `tools/launchd/test_mission_scope_guard.sh` adds allow, product-loop and prefix-trap arms.
+   ```
+
+AFTER C1 is complete, and BEFORE you start C2: snapshot the full post-C1 content of every file you created or modified into `.snap/C1/<same relative path>` (e.g. `.snap/C1/tools/launchd/githooks/pre-push`). This is how the controller builds commit 1.
+
+### C2 — D-FLEET-38 A (exactly 16 rename-only .agents mirrors)
+
+The 16 names (re-measured at 007809894, identical to iteration 74): benchmark-runner builtin-developer cloud-cascade-debug collaboration-hub coordinator-helper eval-analyzer eval-gap-finder gemini-cli-helper github-issue-triage local-model-onboarding local-ollama-eval parser-developer pr-monitor prompt-manager trace-debugger use-ailang
+
+1. In `_scope_is_fleet_support`, after the `tools/pi-extensions/sandbox/*` arm, add a comment line `    # Exactly the 16 rename-only .agents skill mirrors; support, not harness (D-FLEET-38).` and then 16 separate arms, one per name, each `    .agents/skills/<name>/*) return 0 ;;`. No wildcard over `.agents/skills/*`. Bash 3.2.
+2. Test arms, placed after the C1 block:
+   ```bash
+   # D-FLEET-38: every enumerated arm, product loops unaffected, no over-widening.
+   for skill in benchmark-runner builtin-developer cloud-cascade-debug collaboration-hub \
+     coordinator-helper eval-analyzer eval-gap-finder gemini-cli-helper github-issue-triage \
+     local-model-onboarding local-ollama-eval parser-developer pr-monitor prompt-manager \
+     trace-debugger use-ailang; do
+     check fleet ".agents/skills/$skill/SKILL.md" allow # kills: delete this skill's arm
+     check v1 ".agents/skills/$skill/SKILL.md" allow # kills: move this skill's arm into _scope_is_harness
+   done
+   check fleet .agents/skills/model-manager/SKILL.md refuse # kills: replace the arms with .agents/skills/*
+   check fleet .agents/skills/use-ailang-extra/SKILL.md refuse # kills: use-ailang/* -> use-ailang*
+   ```
+   The C1 block's `.claude/skills/use-ailang/SKILL.md refuse` arm also guards C2 (C2 must not admit the .claude side). If C1 were dropped, C2 would need that arm; so ALSO add `check fleet .claude/skills/use-ailang/SKILL.md refuse # kills: also admit .claude/skills/use-ailang/*` to the C2 block. A duplicate assertion is fine.
+3. Authority section: insert, right after the line containing "plus support paths (`design_docs/**`, `changelogs/**`,", these lines (wrapped like the surrounding text):
+   ```
+     `.agents/skills/benchmark-runner/**`, `.agents/skills/builtin-developer/**`,
+     `.agents/skills/cloud-cascade-debug/**`, `.agents/skills/collaboration-hub/**`,
+     `.agents/skills/coordinator-helper/**`, `.agents/skills/eval-analyzer/**`,
+     `.agents/skills/eval-gap-finder/**`, `.agents/skills/gemini-cli-helper/**`,
+     `.agents/skills/github-issue-triage/**`, `.agents/skills/local-model-onboarding/**`,
+     `.agents/skills/local-ollama-eval/**`, `.agents/skills/parser-developer/**`,
+     `.agents/skills/pr-monitor/**`, `.agents/skills/prompt-manager/**`,
+     `.agents/skills/trace-debugger/**`, `.agents/skills/use-ailang/**` (D-FLEET-38),
+   ```
+4. New fragment `changelogs/unreleased/2026-11-03-fleet-scope-arm-dfleet38.md`:
+   ```markdown
+   ### Changed — Fleet scope guard: 16 rename-only `.agents` skill mirrors as support paths (PROPOSED, D-FLEET-38 A)
+
+   PROPOSED, pending Mark's ruling on D-FLEET-38. `tools/launchd/githooks/pre-push` lets the fleet mission push exactly 16 enumerated `.agents/skills/<name>/**` trees (the copies that differ from `.claude/skills` only by tool-name renames) as support paths; product loops are unaffected, and no `.claude/skills` path or other `.agents` skill is admitted. Guard arm only; extending `tools/launchd/sync-agents-skills.sh` to these skills is a later fleet fire, after this lands (iteration-16 rule). `tools/launchd/test_mission_scope_guard.sh` exercises all 16 arms plus over-widening traps.
+   ```
+5. Do NOT change the pre-push header comments beyond what is strictly needed. If you change the "Keep in step with design_docs/fleet-mission.md Authority" comment, keep it accurate for BOTH functions.
+
+## Mutation check (do this, and report it)
+
+For EACH of these mutations, apply it to a scratch COPY of pre-push inside the worktree (e.g. `.snap/mut/pre-push`), point the test at the copy if the test allows it, or otherwise apply it in place and revert it exactly from your snapshot. Run `bash tools/launchd/test_mission_scope_guard.sh` and report which arm fails:
+ (m1) delete the `.agents/skills/use-ailang/*` arm;
+ (m2) replace the 16 arms with `.agents/skills/*) return 0 ;;`;
+ (m3) change `design-doc-creator/*` to `design-doc-creator*` on the .claude side;
+ (m4) move the design-doc-creator arm from `_scope_is_fleet_support` into `_scope_is_harness`.
+Leave pre-push byte-identical to your final version afterwards (verify with `cmp` against `.snap/final/tools/launchd/githooks/pre-push`, which you write after C2).
+
+## Gates (run at your final state; label socket or out-of-tree failures UNINFORMATIVE UNDER SANDBOX)
+
+bash -n tools/launchd/githooks/pre-push
+bash -n tools/launchd/test_mission_scope_guard.sh
+git diff --check
+bash scripts/mission_decisions.sh --check --file design_docs/fleet-mission.md
+bash tools/launchd/test_mission_scope_guard.sh
+make check-changelog
+make check-context-docs
+make check-no-personal-email
+
+The controller ran all of these at base 007809894 outside the sandbox: all rc 0.
+
+Finally, snapshot the final content of every created or modified file to `.snap/final/<path>`. Your final message: the list of files changed per change (C1, C2), each gate's result, the four mutation results, and anything you deviated from, with the reason.

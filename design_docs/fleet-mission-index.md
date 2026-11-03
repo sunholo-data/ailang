@@ -12,6 +12,11 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 82 | 2026-11-03 | D-FLEET-36 A and D-FLEET-38 A's shared first step, the fleet scope-guard arm, built as a proposed diff (draft PR #2108, two independent commits `bc... |
+| 81 | 2026-11-03 | D-FLEET-25's shared mechanical sub-item built as a proposed diff (draft PR #2082, `399cf799b`), unmerged pending a ruling; the "World is a fork" cl... |
+| 80 | 2026-11-03 | D-FLEET-21 option A built as a proposed diff (draft PR #2067, `bdaad2825`), unmerged pending a ruling; fresh CI re-measure; independent sonnet PASS... |
+| 79 | 2026-11-03 | D-FLEET-26 option A built as a proposed diff (draft PR #2065, `edb099371`), unmerged pending a ruling; independent sonnet PASS-WITH-EDITS 88 then P... |
+| 78 | 2026-11-02 | D-FLEET-24 option A LANDED (#2053 → `3d9112bb9`), built as a proposed diff before an attended ruling arrived mid-fire; 7 `agent-tool` tickets resol... |
 | 77 | 2026-11-02 | `agent-tool:workspace-routing-discovery-timeout` folds into D-FLEET-24 (one codex-internal transport error, recovered by `followup_task`; none in 6... |
 | 76 | 2026-10-31 | `executor-image:no-make-no-cc-cgo-tests` RESOLVED as a ghost of #1753 (`939beb6fd`) for the sprint-executor; the cloud sprint-evaluator's image sti... |
 | 75 | 2026-10-31 | `coordinator:job-retry-success-dropped-after-failed-completion` folds into D-FLEET-39 (9 dropped retry successes, 7 on pi) and the two executor-tim... |

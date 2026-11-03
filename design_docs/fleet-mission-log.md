@@ -1540,3 +1540,57 @@ Last 3 code landings: iteration 78 (`3d9112bb9`), iteration 70 (`52e8958f0`), th
 - Quorum: none (no design doc). Metered spend $0. No lane recorded dead.
 
 **Next**: if Mark rules D-FLEET-25 A or B, rebase #2082, re-run its gates, wait for CI and merge. Under A, the design-doc half then follows as its own pick. If he rules D-FLEET-21 or -26, do the same for #2067 or #2065 (#2065 also needs driver dry-runs and `ailang mission ticket resolve codex:server-capacity-error-crashes-finished-iteration`). Otherwise, before declaring idle, re-check every OPEN row for a mechanical sub-item shared by its non-C options (retro a). Take any ruling (D-FLEET-18, -36, -38, -41) or a filing newer than 10-28.
+
+## 82 — 2026-11-03 — D-FLEET-36 A and D-FLEET-38 A's shared first step, the fleet scope-guard arm, built as a proposed diff (draft PR #2108, two independent commits `bcf7f97ac` and `261fb3b64`), unmerged pending rulings; independent sonnet judge PASS-WITH-EDITS 84 then PASS 92 [HARNESS]
+
+**Pick**: the guard arm that D-FLEET-36 A and D-FLEET-38 A both begin with. Iteration 81's **Next** said: before declaring idle, re-check every OPEN row for a sub-item shared by its non-C options. The controller read options A–C of all 24 OPEN rows. Eighteen are outside fleet scope or have no common step (16–20, 22, 23, 27–29, 31, 32, 34, 35, 37, 39–41; 33 already carries its diff, and 21, 25 and 26 carry drafts). D-FLEET-36 A and D-FLEET-38 A are in-scope code. Both start with one `_scope_is_fleet_support` change, which must ship alone under the iteration-16 rule (iteration 74's judge: "D-FLEET-36 and -38 are one allowlist change"). No diff for it existed. Under the *Ticket-driven only* ruling-gated clause, the pick was to build it as a draft and not merge.
+
+**Orphans / prior record**: drafts #2082, #2067 and #2065 are expected and untouched. Iteration 81's record merged as #2085 → `37e5b48da`. No `iter82` worktree or branch existed before this fire. `origin/dev`'s log ended at 81, and no open fleet PR carried a later record.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN.
+- #2039: 0 directives (6 comments, none allowlisted). `mission-2039-last-seen` is still absent. Self-notices rc 0: 0 crash notices on #2039 and #1945, control 852:10.
+- Skill drift: `SKILL.md` and all 13 resource files are `cmp`-identical to `origin/dev` at both the resolved symlink target and the pin copy.
+- Gate-1 base `007809894c76aaeb904707262b8471e3643c4464@2026-11-03T21:55:08Z`.
+- Dev at `007809894`: 17 check-runs. The only non-green were `test-windows`, `Build macos-latest` and `Build windows-latest`, all pending (Build and Release in flight). `CI` last success was `37e5b48da`.
+- Ledger valid (40 rows, 24 OPEN). `MISSION_OVER_RATION` empty; routing note empty.
+- `reporting:daneel-reports-not-declared-triage` recurred at 21:28Z (13 lost slots). D-FLEET-22 is unchanged.
+
+**Reality check** (first-party, at `007809894`): iteration 74's normaliser re-run gives a byte-identical result (16 rename-only, 11 content; [re-measure](fleet-mission-evidence/iteration82/rename-only-remeasure-007809894.txt)). The control is that the six synced mission/sprint skills `cmp` same. `_scope_is_fleet_support` and `_scope_is_harness` are as the rows describe. `git log origin/dev --grep 'D-FLEET-3[68]'` returns only the two record commits (iterations 73, 74), so no diff existed.
+
+**Did** (generator ≠ judge):
+- **Designer**: not spawned; the two rows are the spec.
+- **Planner**: `codex:gpt-6.1-sol` (resolver `recipe … declared:planner-lane-default-pin`; no hook denial this time), probe rc 0, `--sandbox read-only`, rc 0, 83,547 tok ([plan](fleet-mission-evidence/iteration82/plan.md)). It proposed two separable commits, an explicit 16-name list with no wildcard, per-arm mutation labels, and a mirror audit (no other allowlist copy). The controller changed one thing: one changelog fragment per row.
+- **Gate list at base first** (false-green 4): `bash -n` on both, the scope suite, `mission_decisions.sh --check`, `check-changelog`, `check-context-docs` and `check-no-personal-email` all rc 0. `make test-launchd-drivers` 52/52.
+- **Executor**: `codex:gpt-6.1-sol`, `workspace-write`, rc 0, 62,751 tok ([directive](fleet-mission-evidence/iteration82/executor-directive.txt), [report](fleet-mission-evidence/iteration82/executor-report.md)). It wrote `.snap/C1` and `.snap/final`, and its four mutation drills were all killed.
+- **Controller**: rebuilt C1 from the snapshot (scope suite rc 0) → `bcf7f97ac`. Restored the final snapshot (`cmp` same, 5 of 5) → C2. A C2-only build on base: `git apply` conflicts only in the test file; resolved by hand it passes, and the `.agents/skills/*` mutant is caught by the model-manager arm.
+- **Evaluator** ([evaluation](fleet-mission-evidence/iteration82/evaluation.md)): sonnet, Agent tool, foreground, cross-vendor from the generator.
+  - Round 1 **PASS-WITH-EDITS 84**: a `/`-boundary drop on 15 of the 16 arms survived. The controller reproduced it (pr-monitor, rc 0), added a `<name>-x` refuse trap in the loop, and saw 16 of 16 killed. Amended into C2 → `261fb3b64`.
+  - Edit 2 (drop the duplicate `.claude/skills/use-ailang` refuse line) was declined: each commit keeps its own over-widening guard. Edit 3 went into the PR body.
+  - Round 2 **PASS 92**. Strongest objection: the merge-separately rule is process, not code.
+- **Gates at head `261fb3b64`**, outside the sandbox: all of the above rc 0, `git diff --check` clean, `make test-launchd-drivers` **52/52**.
+- **Landing (proposed only)**: pushed `fleet/i82-dfleet36-38-scope-arm` (the pinned guard admitted it) and opened **draft PR #2108**. Its body says to merge each commit on its own ruling and never squash both on one. Both rows stay OPEN with iteration-82 notes; queue rows 51 and 53 are annotated.
+
+**Ruled out**:
+- Extending `sync-agents-skills.sh`, or editing any design-doc-creator or `.agents` skill file, in this PR: the pinned guard would refuse the push (iteration-16 rule). That is the follow-on fire after a ruling.
+- One combined changelog fragment (the planner's proposal): two files keep the commits independent.
+- A wildcard `.agents/skills/*` arm: it would admit the 11 content-drift skills, which D-FLEET-38 A routes to an attended reconcile.
+- Deleting the duplicate `.claude/skills/use-ailang` refuse line (judge edit 2): see above.
+- Merging: both rows are OPEN, with default C.
+
+**Retro lane**: no skill edit. Flagged:
+- (a) Iteration 81's lesson (a row's options can share a buildable sub-item) now has a second instance: here the shared step is the guard arm that two rows' A options both begin with. Recorded instances: 81 and 82. That meets the bar for the guardrail clause iteration 81 proposed. It was not added here, because a charter Guardrails edit changes the loop's own pick rule and should be visible to Mark; it is proposed in the report as a one-line process fix.
+- (b) Instrument slip: a controller file-list loop ran under zsh (no word-split), so the pre-overwrite sha manifest was never written. The executor's snapshot stood in as the reference. This is a known rig trap (Bash tool = zsh); file-list loops go under `/bin/bash -c`.
+- (c) The judge's round-1 drills overlapped the controller's suite run in the same worktree. It was harmless (the suite passed, then was re-run with no overlap), but a judge directive should say "drill in a `mktemp -d` copy". The round-2 directive did.
+
+**Progress**: goal unmoved. Clause 1 UNMEASURED. Clause 2 UNMET (nothing resolved). Clause 3 MET (25 open). Clause 4: prior evidence only. Clause 5 preserved (nothing merged to code).
+
+**Routing evidence**: base=007809894c76aaeb904707262b8471e3643c4464@2026-11-03T22:23:59Z (Gate 4); Gate-1 base `007809894c76aaeb904707262b8471e3643c4464@2026-11-03T21:55:08Z`. Driver routing note: empty (as configured). Details: [routing](fleet-mission-evidence/iteration82/routing.md).
+- Controller `claude:claude-opus-5-5` (tok: not reported). `MISSION_ANTHROPIC_AVAILABLE=1`.
+- Designer: not spawned; rotation pointer not advanced.
+- Planner `codex:gpt-6.1-sol` (83,547 tok), recipe (read-only sandbox, build worktree). Resolver `recipe codex:gpt-6.1-sol declared:planner-lane-default-pin`.
+- Executor `codex:gpt-6.1-sol` (62,751 tok), recipe. Resolver `recipe codex:gpt-6.1-sol declared:provider-pin`.
+- Evaluator `sonnet`, Agent tool, one spawn, two rounds: 58,650 subagent tok (round 1), 61,899 cumulative (round 2). Resolver `agent-tool sonnet declared:alias-pin`. Judge independence: cross-vendor from the codex generator.
+- Quorum: none (no design doc). Metered spend $0. No lane recorded dead.
+
+**Next**: if Mark rules D-FLEET-36 A and/or D-FLEET-38 A, rebase #2108 keeping only the ruled commit(s), wait for CI and merge. The following fire then does the dependent edit: the 8 design-doc-creator grep sites, and/or `sync-agents-skills.sh` extended to the 16 plus their sync, then resolves the ticket(s). The same applies to #2082 (-25), #2067 (-21) and #2065 (-26). Otherwise no OPEN row has an in-scope code step without a diff, so take a ruling or a filing newer than 10-28.
