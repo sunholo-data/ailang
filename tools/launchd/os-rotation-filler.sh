@@ -299,6 +299,36 @@ if [ -n "$OLD_VERSION" ] && [ -n "$REMOTE_VERSION" ] && [ "$REMOTE_VERSION" != "
   exit 0
 fi
 
+# 3c. BINARY PICKUP — the binary on PATH must BE the checkout's release.
+# 3b only fires when origin/dev is ahead of the checkout. A release cut IN this
+# checkout (the attended norm) moves std/VERSION locally, so 3b never sees a
+# difference and nothing reinstalls: 2026-10-29..11-03 the rig ran a v0.55.0-dirty
+# binary while std/VERSION said v0.56.1 then v0.57.0. eval-suite banks by the
+# BINARY's version, the coverage gate below counts by std/VERSION — so 220 runs
+# landed under v0.55.0, coverage read 0/56 forever, and no release after v0.55.0
+# was measured at all. Reinstall on mismatch; if it still disagrees, bank nothing.
+bin_version() { ailang --version 2>/dev/null | head -1 | sed -E 's/^AILANG[[:space:]]+//; s/-.*$//' | tr -d '[:space:]'; }
+BIN_VERSION="$(bin_version)"
+if [ -n "$OLD_VERSION" ] && [ "$BIN_VERSION" != "$OLD_VERSION" ]; then
+  log "binary pickup: ailang on PATH is '${BIN_VERSION:-<none>}' but std/VERSION is $OLD_VERSION — make quick-install"
+  # eval-suite is not running (we hold the rig lock and have not started a chunk),
+  # and `go install` writes a fresh inode, so live serve-api processes are untouched.
+  make quick-install >>"$LOG" 2>&1 || log "binary pickup: quick-install FAILED"
+  NEW_BIN="$(bin_version)"
+  if [ "$NEW_BIN" != "$OLD_VERSION" ]; then
+    log "binary pickup: STILL '${NEW_BIN:-<none>}' != $OLD_VERSION — REFUSING to bank mislabeled runs this cycle (fix the install)"
+    exit 1
+  fi
+  # Attribute what the old binary banked to ITS version and reset the accumulator,
+  # exactly as 3b does for a pulled release.
+  if [ -n "$BIN_VERSION" ]; then
+    bash tools/os-release-snapshot.sh "$BIN_VERSION" --reset >>"$LOG" 2>&1 \
+      || log "binary pickup: snapshot/reset for $BIN_VERSION failed — run post-release step manually"
+  fi
+  log "binary pickup complete: $BIN_VERSION -> $NEW_BIN — next cycle banks under $OLD_VERSION"
+  exit 0
+fi
+
 # The rig is AILANG-FIRST: fill EVERY core+stretch+frontier AILANG benchmark for
 # the current version FIRST; only once that coverage is "in" does it hand rig time
 # to the cross-language (python/javascript/go) pass. A new release banks under a
