@@ -516,3 +516,43 @@ func TestGenerate_RejectsPriceCapOnlyPolicy(t *testing.T) {
 		t.Errorf("error %v is not ai.ErrRoutingNotSupported", err)
 	}
 }
+
+// The Vertex host follows the location: Google's residency guarantee rests on
+// the host, and the global host gives none whatever the path says.
+func TestVertexAIBaseURL(t *testing.T) {
+	for _, tc := range []struct{ location, want string }{
+		{"global", "https://aiplatform.googleapis.com/v1"},
+		{"eu", "https://aiplatform.eu.rep.googleapis.com/v1"},
+		{"us", "https://aiplatform.us.rep.googleapis.com/v1"},
+		{"europe-west4", "https://europe-west4-aiplatform.googleapis.com/v1"},
+		{"us-central1", "https://us-central1-aiplatform.googleapis.com/v1"},
+		{"northamerica-northeast1", "https://northamerica-northeast1-aiplatform.googleapis.com/v1"},
+	} {
+		got, err := vertexAIBaseURL(tc.location)
+		if err != nil || got != tc.want {
+			t.Errorf("vertexAIBaseURL(%q) = %q, %v; want %q", tc.location, got, err, tc.want)
+		}
+	}
+	// Never spliced into a hostname: anything that is not a plain region name.
+	for _, bad := range []string{"", "EU", "evil.com/x", "europe-west4.evil.com", "a@b", "eu-", "-eu1", "europe west4"} {
+		if got, err := vertexAIBaseURL(bad); err == nil {
+			t.Errorf("vertexAIBaseURL(%q) = %q, want an error", bad, got)
+		}
+	}
+}
+
+func TestClient_BuildURL_VertexEU(t *testing.T) {
+	c := &Client{authType: AuthADC, projectID: "p", location: "eu"}
+	const prefix = "https://aiplatform.eu.rep.googleapis.com/v1/projects/p/locations/eu/publishers/google/models/gemini-3.5-flash-lite:"
+	for _, tc := range []struct {
+		build func(string) (string, error)
+		want  string
+	}{
+		{c.buildURL, prefix + "generateContent"},
+		{c.buildStreamURL, prefix + "streamGenerateContent?alt=sse"},
+	} {
+		if got, err := tc.build("gemini-3.5-flash-lite"); err != nil || got != tc.want {
+			t.Errorf("got %q, %v; want %q", got, err, tc.want)
+		}
+	}
+}

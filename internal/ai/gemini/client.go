@@ -2,8 +2,10 @@ package gemini
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"os/exec"
+	"regexp"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ai"
@@ -21,10 +23,38 @@ var geminiAITracer = telemetry.Tracer("ai.gemini")
 const (
 	// AI Studio base URL (uses API key)
 	aiStudioBaseURL = "https://generativelanguage.googleapis.com/v1beta"
-
-	// Vertex AI base URL (uses ADC)
-	vertexAIBaseURL = "https://aiplatform.googleapis.com/v1"
 )
+
+// vertexAIBaseURL is the Vertex AI endpoint for a location. The host is what
+// Google's data-residency guarantee rests on, not the locations/{location}
+// path segment: the global host aiplatform.googleapis.com accepts any location
+// in the path, but Google documents global endpoints as giving no regional
+// isolation or residency guarantee. So the host follows the location:
+//
+//	"global"              -> https://aiplatform.googleapis.com/v1
+//	"eu", "us" (multi)    -> https://aiplatform.{eu,us}.rep.googleapis.com/v1
+//	a region, e.g. "europe-west4" -> https://europe-west4-aiplatform.googleapis.com/v1
+//
+// Until v0.56.x every location went to the global host (docparse found its
+// GOOGLE_CLOUD_LOCATION=eu traffic on aiplatform.googleapis.com, 2026-11-03).
+// A location that is not a plain lowercase name is refused rather than spliced
+// into a hostname.
+func vertexAIBaseURL(location string) (string, error) {
+	switch location {
+	case "global":
+		return "https://aiplatform.googleapis.com/v1", nil
+	case "eu", "us":
+		return "https://aiplatform." + location + ".rep.googleapis.com/v1", nil
+	}
+	if !vertexLocationPattern.MatchString(location) {
+		return "", ai.NewProviderError("gemini", 0,
+			fmt.Sprintf("invalid Vertex AI location %q (want global, eu, us or a region such as europe-west4)", location), nil)
+	}
+	return "https://" + location + "-aiplatform.googleapis.com/v1", nil
+}
+
+// vertexLocationPattern: a Google Cloud region name (europe-west4, us-central1).
+var vertexLocationPattern = regexp.MustCompile(`^[a-z]+(-[a-z]+)*[0-9]+$`)
 
 // Client implements ai.Provider for Google's Gemini API.
 // It supports both AI Studio and Vertex AI endpoints.
