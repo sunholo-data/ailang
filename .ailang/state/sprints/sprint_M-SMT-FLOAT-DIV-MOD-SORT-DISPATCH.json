@@ -1,0 +1,137 @@
+{
+  "sprint_id": "M-SMT-FLOAT-DIV-MOD-SORT-DISPATCH",
+  "status": "not_started",
+  "created": "2026-11-03T00:00:00Z",
+  "design_doc": "design_docs/planned/v0_56_2/m-smt-float-div-mod-sort-dispatch.md",
+  "sprint_plan": "design_docs/planned/v0_56_2/m-smt-float-div-mod-sort-dispatch-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search smt returned no packages; compiler-internal Go encoder/regression work reuses existing local SMT infrastructure."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search smt returned no packages; compiler-internal Go encoder/regression work reuses existing local SMT infrastructure."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search smt returned no packages; compiler-internal Go encoder/regression work reuses existing local SMT infrastructure."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search smt returned no packages; compiler-internal Go encoder/regression work reuses existing local SMT infrastructure."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "ailang pkg search smt returned no packages; compiler-internal Go encoder/regression work reuses existing local SMT infrastructure."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 600,
+    "estimated_days": 3
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Sort resolution and Real division",
+      "estimated_loc": 180,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Float division uses Real / in DictApp, Intrinsic, BinOp and builtin App forms; numeric Int encodings remain byte-identical.",
+        "CoreTI-based variable types and literal fallback resolve correctly; unknown or unsupported operand sorts return ErrUnencodableTypes.",
+        "Encoder type context restores after success and error; missing CoreTI does not inherit a prior function context.",
+        "Z3-backed dyadic division cases cover positive and negative operands; shape tests reject Int div/abs in Real division."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Exact Real remainder",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "mod_Float leaves the generic Int mod table and reaches the Real remainder expansion through direct and curried App paths.",
+        "Real remainder matches math.Mod on finite nonzero dyadic sign pairs, including negative quotient fractions and zero numerator.",
+        "Nested lets bind numerator and denominator before quotient; operands encode once and nested divisions cannot capture binder names.",
+        "Intrinsic, BinOp, dictionary mod when supported, and builtin forms share dispatch; existing Int div/mod tests pass unchanged."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "String comparison dispatch",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "DictApp String lt/le/lte/gt/ge/gte use str.< or str.<= with correct operand flipping.",
+        "Int and Float comparisons and Bool/String equality retain their existing supported semantics.",
+        "Unknown dictionary types and unsupported operator/type pairs skip honestly instead of selecting numeric ordering.",
+        "Z3-backed ASCII string ordering cases cover equal, prefix, less-than and greater-than inputs."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Verifier end-to-end regressions",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M2",
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "TestVerify_FloatDivSortDispatch verifies both tidalRadialOrbit and tidalTransverse from the report.",
+        "TestVerify_FloatModSortDispatch and TestVerify_StringOrderSortDispatch verify the remainder and String-order contracts.",
+        "verifyStatuses rejects sort mismatch and unknown constant output; false float contracts still produce counterexamples.",
+        "All new embedded AILANG fixtures pass ailang check using the freshly built repository binary."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Focused validation and release documentation",
+      "estimated_loc": 40,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "make test-changed passes with an available TEST_CHANGED_BASE, and touched SMT/CLI tests execute with Z3 rather than all solver tests skipping.",
+        "make check-file-sizes, make check-changelog, make verify-stdlib and make verify-examples pass; unrelated baseline failures are recorded explicitly.",
+        "basic.ail and insurance.ail retain baseline verification statuses, including the known applyDiscount violation; std and runnable contract JSON output contains no sort mismatch or unknown constant.",
+        "An unreleased changelog fragment documents Float division/remainder and String ordering repairs, unknown-sort skips, and the existing mathematical-Real model limitations.",
+        "Design moves to implemented/v0_56_2 only after acceptance evidence is recorded; std/VERSION and publish gating stay unchanged."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
