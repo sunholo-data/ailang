@@ -54,10 +54,10 @@ func envScanWorkFor(t *testing.T, n, m, k int) uint64 {
 	return types.EnvScanWork()
 }
 
-// TestEnvScan_WorkPerApplication measures what one more application costs in
-// environment walks, as top-level declarations (n) and imports (m) grow. Each
-// application used to walk the whole environment, so that marginal cost grew
-// with n + m (M-TYPECHECK-ENV-SCAN-COST). Not parallel: the counter is global.
+// TestEnvScan_WorkPerApplication guards what one more application costs in
+// environment walks as top-level declarations (n) and imports (m) grow. Each
+// application used to walk the whole environment (M-TYPECHECK-ENV-SCAN-COST);
+// it must stay small and flat in n and m. Not parallel: the counter is global.
 func TestEnvScan_WorkPerApplication(t *testing.T) {
 	const k = 20
 	marginal := func(n, m int) uint64 {
@@ -70,4 +70,15 @@ func TestEnvScan_WorkPerApplication(t *testing.T) {
 	wideImports := marginal(10, 160)
 	t.Logf("bindings visited per extra application: n=10,m=10: %d; n=160,m=10: %d; n=10,m=160: %d",
 		small, wideTop, wideImports)
+
+	// Before memoisation one application walked the whole chain three times:
+	// ~2,810 bindings here, ~930 of them the builtin frame alone, +6 per
+	// top-level declaration. Now it touches only frames it created.
+	const ceiling = 500
+	if small > ceiling {
+		t.Errorf("one application visits %d environment bindings (ceiling %d): whole-environment walks are back", small, ceiling)
+	}
+	if wideTop*4 > small*5 || wideImports*4 > small*5 {
+		t.Errorf("per-application environment work grows with module size: %d → %d (n×16), %d (m×16)", small, wideTop, wideImports)
+	}
 }

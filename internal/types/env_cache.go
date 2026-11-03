@@ -30,11 +30,26 @@ type envVarSets struct {
 	types      map[string]bool
 	rows       map[string]bool
 	effectRows map[string]bool
-	stamp      uint64 // unique per built set; children record the parent's
+	stamp      uint64          // unique per built set; children record the parent's
+	merged     map[string]bool // types ∪ rows ∪ effectRows, built on first all()
 }
 
 func (s *envVarSets) empty() bool {
 	return len(s.types) == 0 && len(s.rows) == 0 && len(s.effectRows) == 0
+}
+
+// all returns types ∪ rows ∪ effectRows. Read-only.
+func (s *envVarSets) all() map[string]bool {
+	if s.merged == nil {
+		m := make(map[string]bool, len(s.types)+len(s.rows)+len(s.effectRows))
+		for _, set := range []map[string]bool{s.types, s.rows, s.effectRows} {
+			for v := range set {
+				m[v] = true
+			}
+		}
+		s.merged = m
+	}
+	return s.merged
 }
 
 var (

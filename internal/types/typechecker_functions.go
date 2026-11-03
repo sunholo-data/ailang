@@ -486,7 +486,7 @@ func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, con
 	var withhold map[string]bool
 	if baseEnvFreeVars != nil && currentEnv != nil {
 		withhold = make(map[string]bool)
-		for v := range currentEnv.FreeTypeVars() {
+		for v := range currentEnv.ownedVars().types {
 			if !baseEnvFreeVars[v] {
 				withhold[v] = true
 			}
@@ -558,16 +558,7 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 	// variable, and binding it here leaks a premature/partial resolution into the
 	// enclosing inference ("same row variable with different extensions"). The
 	// local solve is restricted to variables fresh to this application subtree.
-	outerVars := make(map[string]bool)
-	for v := range ctx.env.FreeTypeVars() {
-		outerVars[v] = true
-	}
-	for v := range ctx.env.FreeRowVars() {
-		outerVars[v] = true
-	}
-	for v := range ctx.env.FreeEffectRowVars() {
-		outerVars[v] = true
-	}
+	outerVars := ctx.env.ownedVars().all() // memoised per frame; read-only
 
 	// Infer function type
 	funcNode, _, err := tc.inferCore(ctx, app.Func)

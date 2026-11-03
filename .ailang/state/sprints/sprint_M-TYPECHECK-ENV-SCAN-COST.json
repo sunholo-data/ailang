@@ -86,10 +86,10 @@
         "go test ./internal/repl/ green",
         "make test-changed, make verify-examples, make check-file-sizes, make lint green"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-03T09:21:29+00:00",
+      "completed": "2026-11-03T09:21:29+00:00",
+      "notes": "inferApp outerVars, envOwnedVars, generalize, generalizeWithConstraints, baseEnvFreeVars read shared memoised sets (all read-only, audited). Bindings visited per extra application 2810 -> 70, flat in n and m. Linearity test asserts ceiling 500 and <=1.25x growth; mutant restoring inferApp's full walk fails both (2752 / 3652). test-changed (cross-check on) green incl. #1958 files; repl, lint, file sizes (core 796, functions 770), verify-examples (247 modules) green. implicitRowsAbove left uncached (deferred decision; windowed, measure in M4)."
     },
     {
       "id": "M4_EQUIVALENCE_MEASURE_RECORD",
