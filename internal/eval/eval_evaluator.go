@@ -142,6 +142,7 @@ type CoreEvaluator struct {
 	stackHopHook          StackHopHook       // Runs on each continuation goroutine (see SetStackHopHook)
 	coreTypeInfo          types.CoreTypeInfo // Type info for looking up effect budgets on closures
 	declLetRec            *core.LetRec       // the top-level declaration Eval/EvalCoreProgram is evaluating, if a LetRec (see evalCoreLetRec)
+	dictCache             dictRefCache       // class dictionaries already built from registry (see evalDictRef)
 }
 
 // Env returns the current environment (for module evaluation)
@@ -283,6 +284,7 @@ func (e *CoreEvaluator) SetCoreTypeInfo(cti types.CoreTypeInfo) {
 // M-DX19: Used to inject derived type class instances from the pipeline.
 func (e *CoreEvaluator) SetDictionaryRegistry(reg *types.DictionaryRegistry) {
 	e.registry = reg
+	e.dictCache = dictRefCache{}
 }
 
 // GetEnvironmentBindings returns all bindings in the current environment

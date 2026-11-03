@@ -27,6 +27,10 @@ type DerivedStructuralEquality struct{}
 // Example: "prelude::Num::Int::add"
 type DictionaryRegistry struct {
 	dictionaries map[string]DictionaryEntry
+	// generation counts writes. Readers that cache what they built from the
+	// registry (the evaluator's per-class dictionaries) compare it to know
+	// when that cache is stale.
+	generation uint64
 }
 
 // DictionaryEntry represents a method implementation in a dictionary
@@ -49,12 +53,19 @@ func NewDictionaryRegistry() *DictionaryRegistry {
 // Register adds a dictionary entry to the registry
 func (r *DictionaryRegistry) Register(namespace, className, typeName, method string, impl interface{}) {
 	key := MakeDictionaryKey(namespace, className, &TCon{Name: typeName}, method)
+	r.generation++
 	r.dictionaries[key] = DictionaryEntry{
 		ClassName: className,
 		TypeName:  NormalizeTypeName(&TCon{Name: typeName}),
 		Method:    method,
 		Impl:      impl,
 	}
+}
+
+// Generation returns a counter that changes on every Register. Anything
+// cached from Lookup results is valid only while it is unchanged.
+func (r *DictionaryRegistry) Generation() uint64 {
+	return r.generation
 }
 
 // RegisterInstance registers a complete type class instance

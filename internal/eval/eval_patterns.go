@@ -297,8 +297,23 @@ func matchPattern(pattern core.CorePattern, value Value) (map[string]Value, bool
 	}
 }
 
-// evalDictRef evaluates a dictionary reference
+// evalDictRef evaluates a dictionary reference. The result depends only on
+// (class, type) and the registry, so it is built once per evaluator and reused
+// until the registry changes (see dictRefCache).
 func (e *CoreEvaluator) evalDictRef(ref *core.DictRef) (Value, error) {
+	if dict, ok := e.dictCache.get(e.registry, ref.ClassName, ref.TypeName); ok {
+		return dict, nil
+	}
+	dict, err := e.buildDictRef(ref)
+	if err != nil {
+		return nil, err
+	}
+	e.dictCache.put(e.registry, ref.ClassName, ref.TypeName, dict)
+	return dict, nil
+}
+
+// buildDictRef builds the record of methods for one class/type pair.
+func (e *CoreEvaluator) buildDictRef(ref *core.DictRef) (*RecordValue, error) {
 	// Create a dictionary value that contains the methods
 	// The dictionary is a record with method implementations
 
