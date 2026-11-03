@@ -1166,8 +1166,9 @@ TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_err
 # `^ERROR: Selected model is at capacity` is codex exec's capacity stop. Per the ticket
 # (codex:server-capacity-error-crashes-finished-iteration) codex printed it twice, then rc=1; codex
 # writes server errors as `ERROR: ` at column 0 (codex-cli 0.164.0, measured on a rejected model).
-# World iteration 219 (2026-10-02) finished, hit it, and read CRASHED at gate-3. Line-anchored: ledger and ticket quote it mid-line, and codex echoes what it reads into this
-# log. D-FLEET-26 = A, D-FLEET-11's narrow scope.
+# World iteration 219 (2026-10-02) finished, hit it, and read CRASHED at gate-3. Line-anchored:
+# ledger and ticket quote it mid-line, and codex echoes what it reads into this log.
+# D-FLEET-26 = A, D-FLEET-11's narrow scope.
 
 # PER-ROLE MODEL ROUTING (2026-07-15, m-mission-agentic-provider-routing M1): the charter's routing
 # table was never enforced — every inner role ran on the controller's single session --model, so with
