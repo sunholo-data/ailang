@@ -1374,3 +1374,60 @@ Last 3 code landings: iteration 70 (`52e8958f0`), then none at 71–77. No drift
 Last 3 code landings: iteration 78 (`3d9112bb9`), iteration 70 (`52e8958f0`), then earlier. This fire breaks the 71–77 run.
 
 **Next**: the open tickets are all ruling-gated. Take a ruling if one lands: check the ledger first for D-FLEET-18, -36, -38 and -41, the in-scope or near-scope rows. Otherwise take a filing newer than 10-28. Both iteration 78's controller (`claude-opus-5-5`) and the sibling missions will exercise the new resolver arm the first time a codex or pi controller fires. Read that fire's routing row for an `anthropic-unavailable` reroute before claiming the class is gone.
+
+## 79 — 2026-11-03 — D-FLEET-26 option A built as a proposed diff (draft PR #2065, `edb099371`), unmerged pending a ruling; independent sonnet PASS-WITH-EDITS 88 then PASS 94 [HARNESS]
+
+**Pick**: D-FLEET-26 (`codex:server-capacity-error-crashes-finished-iteration`, attended, 10-02, 1 slot). Iteration 78's **Next** asked for a ruling or a filing newer than 10-28, and neither had arrived. The ledger has had no change since `409970ce4`. 25 tickets are open, the newest filed 10-28, and each maps to an OPEN row. The Authority section says a policy ticket "parks with the proposed diff". So the pick was the in-scope OPEN row whose recommendation is code and which had no diff. That is the pattern iteration 78's retro (b) named. D-FLEET-34 and D-FLEET-32 recommend waivers (no diff needed); D-FLEET-21 is next.
+
+**Orphans / prior record**: there was no open `fleet/*` PR, `fleet/i79*` branch or worktree before this fire. Iteration 78's record merged as `409970ce4`. Self-notices rc 0 (control 852:10, single watermark: `mission-2039-last-seen` is absent).
+
+**Preflight / observe**:
+- Armed. gh `sunholo-voight-kampff`. Billing CLEAN. 0 directives on #2039 (watermark absent) or #1945.
+- Skill drift: `SKILL.md` and all 13 resource files are `cmp`-identical to `origin/dev` at the resolved symlink target. The pin is at `origin/dev` (`AILANG_DRIVER_AGE=0`).
+- Gate-1 base `6a527f7f672c55b9950c193ce481d767b9c8b7ff@2026-11-03T00:10:24Z`.
+- Dev CI at `6a527f7f6`: `CI` success, `Build and Release` success, docs deploy success at `d555a52ac`. 18 check-runs; the only non-green is `SonarCloud Code Analysis` (non-required, inherited, V1-owned).
+- Unread prod inbox: 20 messages, none addressed to the fleet. The language reports are V1's. The two "lane degraded" notices are the drivers' own.
+- `MISSION_OVER_RATION=codex` (headroom 1.3pp, under the 2pp margin). The Anthropic quota read is `unknown` (HTTP 429, the D-FLEET-28 state).
+
+**Reality check** (first-party, at `6a527f7f6`):
+- `TRANSIENT_SIG` (`mission-control.sh:1160`) and `RUNTIME_QUOTA_SIG` (`:1152`) still carry no codex capacity emitter.
+- `_mc_run_once` writes codex output `>>"$LOG" 2>&1`, and the retry loop greps the tail written by this attempt with `-qiE`.
+- codex-cli 0.164.0's binary contains the literal `Selected model is at capacity. Please try a different model.`
+- The rotated driver logs no longer hold the 10-02 occurrence (0 hits in `/tmp/ailang-mission-*.log`).
+
+**Did** (generator ≠ judge):
+- **Designer**: not spawned. The decision row is the spec, and no design doc was warranted. The resolver read `recipe claude:claude-opus-5-5 declared:provider-pin`.
+- **Planner** `opus`, Agent tool, foreground, read-only ([summary](fleet-mission-evidence/iteration79/planner-directive.md)). It measured codex's error format: a rejected-model `codex exec` writes `ERROR: ` at column 0, twice, then exits rc=1. It chose the line anchor because the string is quoted mid-line in at least five repo files, and wrote the arms and the M1/M2 drills.
+- **Executor** `claude:claude-haiku-5-5`, run by recipe (`claude-sub`, `bypassPermissions`, 30-min cap). Probe rc 0; finished rc 0 in about 10 min ([directive](fleet-mission-evidence/iteration79/executor-directive.txt), [report](fleet-mission-evidence/iteration79/executor-report.md)). It committed `9ba6889e0`: capacity suite 18/0, M1 and M2 each killed, `check-changelog` rc 0, `test-launchd-drivers` 52/52. It flagged that `-i` makes the anchor case-insensitive (harmless).
+- **Evaluator** `sonnet`, Agent tool, foreground, read-only ([evaluation](fleet-mission-evidence/iteration79/evaluation.md)). Round 1 scored **PASS-WITH-EDITS 88**. It found that a too-broad `^ERROR:` mutant survived, and that the new fixture was the repo's only column-0 copy of the line, in a file a codex controller might read.
+- **Controller delta** `72fc66375`:
+  - arm `codex-other-error-not-transient` (a column-0 400 error stays a crash);
+  - the fixture is assembled with `$'\n'`, so `git ls-files` has no column-0 hit;
+  - the comment cites the ticket for "printed twice";
+  - the changelog names the third case.
+- Resumed with `SendMessage`, the judge scored **PASS 94**. It re-ran `test-launchd-drivers` itself (52/52), and each mutant (no anchor, too narrow, `|^ERROR:`) has exactly one killer ([drills](fleet-mission-evidence/iteration79/mutation-drills.txt)). Its one remaining nit was a 173-character comment line, re-wrapped in `edb099371` (comment-only; capacity suite 19/0).
+- **Landing (proposed only)**: pushed `fleet/i79-dfleet26-capacity-transient` and opened **draft PR #2065**. Its body says not to merge until the ruling and gives reach and limits: the World fork is not reached; total backoff is about 2 minutes 15 seconds; a codex retry is a fresh run. It names what is owed at landing (driver dry-runs, healthy and degraded, and CI on the rebased head). The ticket stays open.
+- **Recorded**: the D-FLEET-26 row has an iteration-79 note and stays OPEN. Queue row 34 is tagged `proposed diff #2065`. A process-fix sentence was added under the *Ticket-driven only* guardrail.
+
+**Ruled out**:
+- An unanchored literal: it would make every rc≠0 crash of an iteration that reads the ledger or the log retry twice. Killed by `prose-codex-capacity-not-transient`.
+- Classifying any column-0 `ERROR:` as transient: a 400 or auth error would retry pointlessly. Killed by `codex-other-error-not-transient`.
+- A third signature-only copy in `test_driver_notify.sh`: the house pattern is the end-to-end capacity arm.
+- Merging: D-FLEET-26 is HD-2a and OPEN.
+- Driver dry-runs this fire: nothing lands, and a synthetic-HOME dry-run deleted three live pins on 10-28. They are owed at landing.
+
+**Retro lane**: one process fix, in the charter: "when every open ticket is ruling-gated, build the next in-scope proposed diff as a draft PR". Two instances, iterations 78 and 79. No skill edit. Flagged, not edited:
+- (a) **A test fixture for a log signature can itself plant the signature.** The first fixture put the exact column-0 line in a tracked file that a codex controller may `cat` into `$LOG`. The judge caught it by measuring `git ls-files` rather than reasoning about the anchor. One instance.
+- (b) The planner sub-agent used `TaskStop` once on a task of its own. The controller's background suite was unaffected. If a sub-agent can stop a task, it can stop the controller's; one instance and no harm, so this is noted only.
+
+**Progress**: goal unmoved on clause 1 (UNMEASURED). Clause 2 UNMET (nothing resolved). Clause 3 MET (25 open). Clause 4: prior evidence only. Clause 5 preserved (nothing merged to code).
+
+**Routing evidence**: Gate-4 base `6a527f7f672c55b9950c193ce481d767b9c8b7ff@2026-11-03T00:46:41Z`; Gate-1 base `6a527f7f672c55b9950c193ce481d767b9c8b7ff@2026-11-03T00:10:24Z`. Driver routing note: "lanes degraded: planner: codex lane gpt-6.1-sol unusable (probe rc=75, over daily ration) → handed to opus; executor: codex lane gpt-6.1-sol unusable (probe rc=75, over daily ration) → handed to claude:claude-haiku-5-5".
+- Controller `claude:claude-opus-5-5` (tok: not reported). `MISSION_ANTHROPIC_AVAILABLE=1`, so D-FLEET-24's reroute arm was not exercised this fire.
+- Designer: not spawned (no doc warranted); rotation pointer not advanced. Resolver `recipe claude:claude-opus-5-5 declared:provider-pin`.
+- Planner `opus`, Agent tool (92,712 subagent tok; 25 tool uses). Resolver `agent-tool opus fail-closed:env-pin`.
+- Executor `claude:claude-haiku-5-5`, recipe via `claude-sub` (tok: not reported; text output). Resolver `recipe claude:claude-haiku-5-5 declared:provider-pin`.
+- Evaluator `sonnet`, Agent tool (54,552 + 60,578 = 115,130 subagent tok; 13 tool uses). Resolver `agent-tool sonnet declared:alias-pin`. Judge independence is same-vendor, cross-model: sonnet judged a haiku executor and an opus controller delta.
+- Quorum: none (no design doc). Metered spend $0. No lane recorded dead.
+
+**Next**: if Mark rules D-FLEET-26 A, rebase #2065, run the driver dry-runs (healthy and degraded) under an idle armed sibling, wait for CI, merge, and run `ailang mission ticket resolve codex:server-capacity-error-crashes-finished-iteration --sha <merge>`; then note the World port. Otherwise build D-FLEET-21 A as a draft PR (the Gate 3b poll cap, a skill edit), or take any ruling (D-FLEET-18, -36, -38, -41) or a filing newer than 10-28.
