@@ -50,6 +50,14 @@ check v1 scripts/test_mission_pi_run.sh refuse
 check fleet tools/pi-extensions/sandbox/index.ts allow
 check fleet tools/pi-extensions/ailang-exec/index.ts refuse
 check v1 tools/pi-extensions/sandbox/index.ts allow
+# D-FLEET-36: both mirrors, including nested files.
+for side in .claude .agents; do
+  check fleet "$side/skills/design-doc-creator/scripts/create_planned_doc.sh" allow # kills: delete this side's design-doc-creator pattern
+  check v1 "$side/skills/design-doc-creator/scripts/create_planned_doc.sh" allow # kills: move the pattern into _scope_is_harness
+done
+check fleet .claude/skills/design-doc-creator-x/SKILL.md refuse # kills: design-doc-creator/* -> design-doc-creator*
+check fleet .agents/skills/design-doc-creator-x/SKILL.md refuse # kills: design-doc-creator/* -> design-doc-creator*
+check fleet .claude/skills/use-ailang/SKILL.md refuse # kills: widen to .claude/skills/*
 echo 'PASS scope verdicts: product loops refused on harness paths (incl. the fleet charter), fleet held to its allowlist, attended unaffected'
 
 # End to end: git must actually run the hook when core.hooksPath comes ONLY from env.
