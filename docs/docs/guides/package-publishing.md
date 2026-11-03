@@ -437,3 +437,77 @@ These are real today. Known and tracked.
 - [Build Your First motoko Extension](./build-a-motoko-extension.md) — covers the Tier 1 (local path) workflow end-to-end
 - [Extension Packages reference](./extension-packages.md) — manifest schema + generator
 - [Path vs registry checklist](./extension-packages.md#path-vs-registry-checklist) — the pre-PR audit you should run on every extension-host project
+
+## Budgets
+
+The registry checks packages in a child process with a 200-second wall cap and
+an RSS cap derived from the instance memory limit. On a confirmed 1 GiB instance,
+128 MiB is reserved for the server, leaving an 896 MiB child cap. If no instance
+limit is readable, the fallback cap is 384 MiB. The check child receives
+`GOMEMLIMIT` at 64 MiB below its RSS cap (832 MiB for that 1 GiB instance).
+This is a soft Go runtime memory target; it excludes some RSS and does not
+prove that every refusal is caused by an oversized package.
+
+A budget refusal is HTTP 422; an ordinary compilation failure is HTTP 400.
+The refusal reports:
+
+- `cap` and `source`: the enforced RSS cap, the source path and detected instance
+  limit, or an explicit unavailable/fallback marker.
+- `platform`: the validator's GOOS/GOARCH, rather than the publisher's machine.
+- `GOMAXPROCS` and `GOMEMLIMIT`: the effective child settings. If GOMAXPROCS is
+  absent, the validator explicitly passes its current runtime value to the child.
+- `sampling`: the 100 ms RSS polling cadence; `sampled_peak` is bytes read from
+  Linux `/proc/<pid>/status` VmRSS, and `wall` is child execution time.
+- `observed`: the sampled peak for a memory refusal, or a timeout description.
+  MiB display truncates fractional MiB, so observed and limit can print equally
+  even when raw RSS exceeds the cap.
+
+Successful metadata records `validation.check_peak_rss` (bytes) and
+`validation.check_wall_ms` (milliseconds). These describe only the check child,
+excluding dependency downloads and contract verification. RSS is sampled, so
+short spikes can be missed; no readable sample means zero, omitted from JSON.
+Old metadata without these fields remains valid.
+
+Use the image-specific Docker command from the refusal, starting in an extracted
+**published tarball**, rather than a working tree with local dependencies. For
+example, the existing `internal/pkg/testdata/quality/flat_self_import` fixture
+can exercise the same staging steps after setting `VALIDATOR_IMAGE` to the
+operator-confirmed image tag or digest:
+
+```sh
+docker run --rm --platform linux/amd64 --cpus 2 --memory 1g \
+  -e AILANG_NO_CACHE=1 -e GOMAXPROCS=2 -e GOMEMLIMIT=832MiB \
+  -v "$PWD/internal/pkg/testdata/quality/flat_self_import":/input:ro \
+  "$VALIDATOR_IMAGE" sh -ec '
+    stage=$(mktemp -d)
+    export HOME=$(mktemp -d)
+    cp -a /input/. "$stage/"
+    cd "$stage"
+    rm -f ailang.lock
+    ailang lock
+    ailang check --package .
+  '
+```
+
+The disposable writable staging directory permits lock generation without
+changing the input. A fresh HOME starts with cold dependency and compiler caches;
+`AILANG_NO_CACHE=1` additionally disables the compiler cache. Like validator
+preparation, `ailang lock` resolves registry dependencies before the check.
+Current publishers rewrite path dependencies before upload; legacy uploads with
+path dependencies need the validator's registry-version rewrite first.
+Dependency downloads require network access. If the refusal says image identity
+is unavailable, obtain it from the operator; do not assume `latest` is equivalent.
+The release deployment records its actual image as `VALIDATOR_IMAGE`.
+
+Docker does not reproduce gVisor. CPU count, architecture, Go runtime and cold
+dependencies can all change memory and wall cost relative to a darwin/arm64 local
+check. A local `/usr/bin/time` RSS figure is useful evidence, but does not establish
+validator parity. Include the refusal's context, image identity and measured wall
+and RSS when reporting an unexplained difference.
+
+For peak reduction, inspect wide records, deeply nested let chains and the cold
+transitive dependency graph. Split large intermediate expressions and avoid
+carrying unnecessary wide records through deep chains. There is no documented
+module-count or signature-count ceiling: measure the actual package. The existing
+bare-file fallback without `ailang.toml` is outside this package-publish pacing and
+telemetry change. Verification retains its separate existing budget.

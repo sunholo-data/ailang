@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-VALIDATOR-CHECK-BUDGET-PARITY",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-11-02T17:48:49.660932+00:00",
   "design_doc": "design_docs/planned/v0_56_1/m-validator-check-budget-parity.md",
   "sprint_plan": "design_docs/planned/v0_56_1/m-validator-check-budget-parity-sprint-plan.md",
@@ -68,7 +68,7 @@
       ],
       "passes": true,
       "started": null,
-      "completed": null,
+      "completed": "2026-11-03T08:32:42.619298+00:00",
       "notes": "Standalone watchdog/env/context tests pass. Image identity now supplied explicitly by release deployment; absent identity is diagnosed. Full package gates pending."
     },
     {
@@ -105,10 +105,18 @@
         "Record paced versus unpaced check measurements for an existing GC-heavy package without raising 200 s cap; report unavailable performance evidence explicitly.",
         "Production rollout remains subject to the cited open deploy-route decision; do not claim celestial publish or worlds unblock without registry evidence."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-11-03T08:32:42.619298+00:00",
+      "notes": "Guide/changelog/evidence complete. fmt/boundaries/file sizes/changelog/vet pass. golangci-lint, Docker, gcloud unavailable. Heavy-package measurements/production acceptance pending. Core effects descendant-cleanup tests fail in unchanged code, reproduced in isolation."
     }
+  ],
+  "completed": "2026-11-03T08:32:42.619298+00:00",
+  "last_checkpoint": "Implementation complete; touched packages, vet and static checks pass; independent evaluation pending; core process cleanup failures and missing lint/Docker tools recorded.",
+  "verification_limitations": [
+    "make lint unavailable: golangci-lint missing",
+    "make test-changed: unchanged internal/effects TestRuntimeNestedStopUsesRemainingDeadline and TestProcessExec_TimeoutKillsGrandchildren fail, including isolated rerun",
+    "Docker/staging/heavy-package evidence unavailable; no new deployment/publish",
+    "Cloud branch sync skipped:no-task-id; work committed locally"
   ]
 }
