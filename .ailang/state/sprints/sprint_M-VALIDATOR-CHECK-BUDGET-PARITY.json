@@ -51,7 +51,7 @@
       "passes": true,
       "started": null,
       "completed": "2026-11-03T08:24:46.819779+00:00",
-      "notes": "Standalone bounded tests pass (0.912s), including existing watchdog/cap tests and new env/stats cases. Package gates pending module download. Design Freeze records Mark release-tag ruling 2026-11-02; Phase 0 complete."
+      "notes": "Standalone bounded tests pass (0.912s), including existing watchdog/cap tests and new env/stats cases. Package gates pending module download. Design Freeze records Mark release-tag ruling 2026-11-02; Phase 0 complete. Additional unavailable RSS/near-margin cases pass in standalone suite (1.193s)."
     },
     {
       "id": "M2",
@@ -85,10 +85,10 @@
         "A deterministic handler test proves stats reach stored metadata; unavailable or unsampled RSS stays zero/omitted, never fabricated.",
         "Existing metadata schema and quality fields remain compatible; verification child is unchanged."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-11-03T08:30:54.699364+00:00",
+      "notes": "make test-changed included both touched packages: validator passed (196.356s), internal/pkg passed (166.260s). Deterministic handler captures stored metadata bytes and checks 422/400; legacy decode and round-trip pass."
     },
     {
       "id": "M4",

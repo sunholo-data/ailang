@@ -100,11 +100,14 @@ func main() {
 }
 
 type validator struct {
-	bucket     *storage.BucketHandle
-	bucketName string
-	apiKey     string   // superuser key; if set, every write requires a key
-	keys       keyStore // scoped keys; nil → superuser only
-	cache      *registryCache
+	// Optional seams exercise the production check and persistence path in tests.
+	checkPackage func(string) (bool, string, checkStats, error)
+	uploadObject func(context.Context, string, []byte, string) error
+	bucket       *storage.BucketHandle
+	bucketName   string
+	apiKey       string   // superuser key; if set, every write requires a key
+	keys         keyStore // scoped keys; nil → superuser only
+	cache        *registryCache
 
 	// v2Streak counts consecutive publishes whose signature identity built
 	// cleanly — the D6 shadow-mode readout (M-PKG-QUALITY-LADDER). Per
@@ -264,7 +267,11 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Step 6: Compile check
-	compileOk, compileErr, _, budgetErr := runAilangCheck(tempDir)
+	check := v.checkPackage
+	if check == nil {
+		check = runAilangCheck
+	}
+	compileOk, compileErr, stats, budgetErr := check(tempDir)
 	if budgetErr != nil {
 		log.Printf("check over budget for %s@%s: %v", name, version, budgetErr)
 		jsonError(w, http.StatusUnprocessableEntity, "%v", budgetErr)
@@ -280,7 +287,7 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 
 	// Step 8: Contract verification — package-level, decoded from the shared
 	// report; a failed RUN is banked as contracts_error, never as zero.
-	validation := pkg.ValidationResult{Compiles: true, EffectsValid: true, AILANGVersion: getAilangVersion()}
+	validation := pkg.ValidationResult{CheckPeakRSS: stats.PeakRSS, CheckWallMS: stats.Wall.Milliseconds(), Compiles: true, EffectsValid: true, AILANGVersion: getAilangVersion()}
 	verifyReport, verr := runAilangVerify(tempDir)
 	if verr != nil {
 		validation.ContractsError = verr.Error()
@@ -390,7 +397,7 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Step 11: Upload to GCS (skip if no bucket configured — dry-run/test mode)
-	if v.bucket != nil {
+	if v.bucket != nil || v.uploadObject != nil {
 		tarballGCSPath := fmt.Sprintf("packages/%s/%s/%s/package.tar.gz", parts[0], parts[1], version)
 
 		if err := v.uploadToGCS(ctx, tarballGCSPath, tarballData, "application/gzip"); err != nil {
@@ -419,8 +426,10 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 		}
 
 		// Update index.json
-		if err := v.updateIndex(ctx, manifest, &meta); err != nil {
-			log.Printf("WARNING: Failed to update index.json: %v (package uploaded but index stale)", err)
+		if v.bucket != nil {
+			if err := v.updateIndex(ctx, manifest, &meta); err != nil {
+				log.Printf("WARNING: Failed to update index.json: %v (package uploaded but index stale)", err)
+			}
 		}
 	} else {
 		log.Printf("No GCS bucket configured — validation-only mode (no upload)")
@@ -439,6 +448,9 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 
 // uploadToGCS writes data to a GCS object.
 func (v *validator) uploadToGCS(ctx context.Context, path string, data []byte, contentType string) error {
+	if v.uploadObject != nil {
+		return v.uploadObject(ctx, path, data, contentType)
+	}
 	obj := v.bucket.Object(path)
 	writer := obj.NewWriter(ctx)
 	writer.ContentType = contentType
