@@ -16,11 +16,24 @@ import (
 // events is a slice of raw SSE lines (including "data:", "event:", empty lines).
 func newTestSSEServer(t *testing.T, events []string) *httptest.Server {
 	t.Helper()
-	return httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	// Serve on a per-server path, not "/". The SSE tests hold their server open
+	// for the 3s idle timeout, and under `make test` other test processes
+	// release and re-bind loopback ports constantly. A stray request from a
+	// leftover client in another test (or package) that lands on a reused port
+	// arrives with no Accept header and used to fail the test (~1 in 10
+	// `make test` runs). Only requests to our own path are asserted; a stray
+	// gets a 404 and a log line.
+	path := fmt.Sprintf("/sse-%d", time.Now().UnixNano())
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != path {
+			t.Logf("ignoring stray request to the SSE test server: %s %s UA=%q", r.Method, r.URL.Path, r.UserAgent())
+			http.NotFound(w, r)
+			return
+		}
 		// Verify Accept header
 		accept := r.Header.Get("Accept")
 		if accept != "text/event-stream" {
-			t.Errorf("expected Accept: text/event-stream, got %q", accept)
+			t.Errorf("expected Accept: text/event-stream, got %q (%s %s UA=%q)", accept, r.Method, r.URL.Path, r.UserAgent())
 			http.Error(w, "bad accept", http.StatusBadRequest)
 			return
 		}
@@ -31,7 +44,7 @@ func newTestSSEServer(t *testing.T, events []string) *httptest.Server {
 
 		flusher, ok := w.(http.Flusher)
 		if !ok {
-			t.Fatal("server does not support flushing")
+			t.Error("server does not support flushing")
 			return
 		}
 
@@ -40,6 +53,8 @@ func newTestSSEServer(t *testing.T, events []string) *httptest.Server {
 			flusher.Flush()
 		}
 	}))
+	server.URL += path
+	return server
 }
 
 // newTestSSEServerWithHeaders verifies custom headers are received.

@@ -1,0 +1,3 @@
+### Fixed — flaky `TestStreamSSEConnect_StreamEndDetection`
+
+- The SSE test server (`newTestSSEServer`) used to fail on any request without `Accept: text/event-stream`. That included stray requests from other tests or packages that landed on a reused loopback port while the server sat through the 3s idle timeout, so the test failed in about 1 of 10 `make test` runs. It now serves on a unique per-server path. Strays get a 404 and a log line, and the test's own request is still asserted. The failure message now includes the request's method, path and User-Agent, and a `t.Fatal` called from the handler goroutine was changed to `t.Error`.
