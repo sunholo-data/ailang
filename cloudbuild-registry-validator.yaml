@@ -68,6 +68,7 @@ steps:
         gcloud run services update ailang-registry-validator \
           --region ${_REGION} --project ${_TARGET_PROJECT} \
           --image ${_REGION}-docker.pkg.dev/${_TARGET_PROJECT}/ailang-registry/validator:${TAG_NAME} \
+          --update-env-vars VALIDATOR_IMAGE=${_REGION}-docker.pkg.dev/${_TARGET_PROJECT}/ailang-registry/validator:${TAG_NAME} \
           --quiet
         echo "Registry validator deployed at ${TAG_NAME}."
     waitFor: [push-validator]

@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -42,13 +43,11 @@ type budgetError struct {
 	resource string // "memory" or "time"
 	limit    string
 	observed string
+	context  string
 }
 
 func (e *budgetError) Error() string {
-	return fmt.Sprintf("`ailang check --package .` exceeded the registry validator's %s budget (%s; observed %s) and was stopped. "+
-		"The package itself may be valid: measure locally with a cold cache — "+
-		"`AILANG_NO_CACHE=1 /usr/bin/time -l ailang check --package .` — and report the numbers to AILANG core.",
-		e.resource, e.limit, e.observed)
+	return fmt.Sprintf("`ailang check --package .` exceeded the registry validator's %s budget (%s; observed %s) and was stopped.%s", e.resource, e.limit, e.observed, e.context)
 }
 
 // rssReader returns a process's resident set size in bytes, or false when it
@@ -98,6 +97,9 @@ func checkEnv(inherited []string, cap uint64) ([]string, error) {
 			env = append(env, value)
 		}
 	}
+	if envValue(env, "GOMAXPROCS") == "unavailable" {
+		env = append(env, fmt.Sprintf("GOMAXPROCS=%d", runtime.GOMAXPROCS(0)))
+	}
 	return append(env, fmt.Sprintf("GOMEMLIMIT=%dMiB", (cap-margin)>>20)), nil
 }
 
@@ -111,7 +113,12 @@ func runBounded(dir string, cap uint64, wall time.Duration, readRSS rssReader, n
 // failure is returned as the plain run error.
 func runBoundedEnv(dir string, rssCap uint64, wall time.Duration, readRSS rssReader, env []string, name string, args ...string) (output []byte, stats checkStats, runErr error) {
 	start := time.Now()
-	defer func() { stats.Wall = time.Since(start) }()
+	defer func() {
+		stats.Wall = time.Since(start)
+		if be, ok := asBudgetError(runErr); ok {
+			be.context = refusalContext(rssCap, env, stats)
+		}
+	}()
 	ctx, cancel := context.WithTimeout(context.Background(), wall)
 	defer cancel()
 

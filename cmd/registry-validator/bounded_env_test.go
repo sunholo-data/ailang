@@ -8,8 +8,8 @@ import (
 )
 
 func TestCheckEnv(t *testing.T) {
-	env, err := checkEnv([]string{"KEEP=yes", "GOMEMLIMIT=1MiB", "GOMEMLIMIT=2MiB"}, 896<<20)
-	if err != nil || strings.Join(env, ",") != "KEEP=yes,GOMEMLIMIT=832MiB" {
+	env, err := checkEnv([]string{"KEEP=yes", "GOMAXPROCS=2", "GOMEMLIMIT=1MiB", "GOMEMLIMIT=2MiB"}, 896<<20)
+	if err != nil || strings.Join(env, ",") != "KEEP=yes,GOMAXPROCS=2,GOMEMLIMIT=832MiB" {
 		t.Fatalf("env=%v err=%v", env, err)
 	}
 	for _, cap := range []uint64{0, 1, 64 << 20} {

@@ -66,10 +66,10 @@
         "Docker command uses the actual image tag or explicit missing-identity diagnostic, --platform linux/amd64, --cpus 2, --memory 1g and explicit GOMEMLIMIT/AILANG_NO_CACHE.",
         "Command uses disposable writable package staging, cold cache and dependency resolution matching validator preparation; document that Docker does not reproduce gVisor. Do not label unknown runtime details as measured."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
       "completed": null,
-      "notes": null
+      "notes": "Standalone watchdog/env/context tests pass. Image identity now supplied explicitly by release deployment; absent identity is diagnosed. Full package gates pending."
     },
     {
       "id": "M3",

@@ -41,9 +41,8 @@ func main() {
 		port = "8080"
 	}
 
-	var capSource string
-	checkRSSCap, capSource = instanceRSSCap(os.ReadFile)
-	log.Printf("check memory cap %s (%s)", mib(checkRSSCap), capSource)
+	checkRSSCap, checkCapSource = instanceRSSCap(os.ReadFile)
+	log.Printf("check memory cap %s (%s)", mib(checkRSSCap), checkCapSource)
 
 	bucket := config.RegistryBucket()
 	if bucket == "" {
