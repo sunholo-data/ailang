@@ -1,0 +1,103 @@
+MISSION-ROLE: executor
+
+You are the sprint-executor for fleet mission iteration 79. Work ONLY in this worktree:
+/Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter79-dfleet26 (branch fleet/i79-dfleet26-capacity-transient, base origin/dev 6a527f7f6).
+
+Operating rules (binding):
+- Run every command in the FOREGROUND. Do not background anything. Do not end your turn announcing a wait. Nothing will re-invoke you.
+- COMMIT your change on the branch with one commit. Do NOT push. Do NOT open a PR. The controller pushes after independent review.
+- Do NOT edit design_docs/** or any skill file. Touch only the 3 files listed in section 5.
+- Use /bin/bash (bash 3.2) for scripts and /usr/bin/grep in tests (the interactive grep is ugrep).
+- Never use `git checkout <file>`, `git stash`, or `git reset --hard`. For mutation drills use scratch copies under /tmp only.
+- End with a report: the diff stat, the exact suite output lines (controller-capacity totals, M1/M2 drill outputs, check-changelog rc, test-launchd-drivers final lines and rc), and the commit SHA.
+
+EXECUTOR DIRECTIVE — fleet i79 · D-FLEET-26 option A · ticket codex:server-capacity-error-crashes-finished-iteration
+Status: PROPOSED. It lands on a draft PR only and must not merge until Mark rules.
+
+1. PATTERN
+Append exactly this alternative to the END of TRANSIENT_SIG (tools/launchd/mission-control.sh, ~line 1160):
+  |^ERROR: Selected model is at capacity
+Do not add sibling strings. Do not make TRANSIENT_SIG env-overridable. Do not touch the backoff, the retry count, the order, or RUNTIME_QUOTA_SIG.
+
+2. DRIVER COMMENT. Put it directly after the existing `Provider finish_reason` comment block (~line 1165), verbatim:
+# `^ERROR: Selected model is at capacity` is codex exec's capacity stop (codex-cli 0.164.0 prints it
+# twice at column 0, then rc=1): World iteration 219 (2026-10-02) finished, hit it, read CRASHED at
+# gate-3. Line-anchored: ledger and ticket quote it mid-line, and codex echoes what it reads into this
+# log. D-FLEET-26 = A, D-FLEET-11's narrow scope.
+
+3. REGRESSION ARMS. File: tools/launchd/test_controller_capacity.sh only. Insert after the case
+`provider-finish-reason-error-retries-and-resumes`. Use the house helpers (begin/script/runcase/has_log/state_has/pi_count/count_sends/expect/endcase) and /usr/bin/grep.
+(a) begin codex-capacity-is-transient
+    CHAIN="$CH3"
+    script openrouter/a 1 1 - with multi-line text:
+      codex
+      Gate 3: record written
+      ERROR: Selected model is at capacity. Please try a different model.
+      ERROR: Selected model is at capacity. Please try a different model.
+    (6th arg: stderr)
+    script openrouter/a 2 0 complete "done"
+    runcase. Assert:
+      [ "$CASE_RC" -eq 0 ]
+      pi_count openrouter/a == 2 and pi_count openrouter/b == 0  ("same rung retried, no re-walk")
+      state_has "demoted=[]"
+      has_log "transient API error (rc=1) attempt 1/3"
+      has_log "slot-verdict: COMPLETED"
+      count_sends 'FAILED' == 0 and count_sends 'PAUSED' == 0
+    One-line comment above the arm: the fake is pi, not codex; the seam under test is the grep on the shared $LOG, which codex reaches via `>>"$LOG" 2>&1`.
+(b) begin prose-codex-capacity-not-transient  (modelled on prose-402-not-capacity)
+    CHAIN="$CH3"
+    script openrouter/a default 1 - with multi-line text in which the string appears ONLY mid-line or indented, e.g.:
+      the ticket quotes `ERROR: Selected model is at capacity. Please try a different model.` twice
+      | D-FLEET-26 | OPEN | classify codex's `Selected model is at capacity` as transient?
+      design_docs/fleet-mission.md:175:| D-FLEET-26 | Selected model is at capacity
+        ERROR: Selected model is at capacity (indented quote)
+    runcase. Assert:
+      has_log 'Selected model is at capacity'   (keeps the arm non-vacuous)
+      pi_count openrouter/a == 1 and pi_count openrouter/b == 0
+      state_has "demoted=[]"
+      no "transient API error" line in the driver log (/usr/bin/grep -c == 0)
+      has_log "slot-verdict: CRASHED at="
+      count_sends 'Mission iteration FAILED' == 1 and count_sends 'PAUSED' == 0
+    Keep any other TRANSIENT_SIG or RUNTIME_QUOTA_SIG text out of this prose.
+    If an assertion helper or verdict string differs from what is written here, read the neighbouring arms and use what the harness actually emits; report any such adjustment.
+(c) Existing cases stay green. Expected total: "controller-capacity: 18 cases passed, fail=0" (baseline 16/0).
+(d) No change to tools/launchd/test_driver_notify.sh.
+
+MUTATION DRILL (scratch copies; confirm each sed hit with /usr/bin/grep -c before running):
+  M1 (revert): cp tools/launchd/mission-control.sh /tmp/mc-mut1.sh; sed -i '' 's/|^ERROR: Selected model is at capacity//' /tmp/mc-mut1.sh
+     MC_CAPACITY_DRIVER=/tmp/mc-mut1.sh /bin/bash tools/launchd/test_controller_capacity.sh; echo rc=$?
+     Must FAIL codex-capacity-is-transient; all others pass; rc 1.
+  M2 (de-anchor): cp tools/launchd/mission-control.sh /tmp/mc-mut2.sh; sed -i '' 's/|^ERROR: Selected/|Selected/' /tmp/mc-mut2.sh
+     MC_CAPACITY_DRIVER=/tmp/mc-mut2.sh /bin/bash tools/launchd/test_controller_capacity.sh; echo rc=$?
+     Must FAIL prose-codex-capacity-not-transient; codex-capacity-is-transient passes; rc 1.
+  Check how the harness actually reads its driver path (MC_CAPACITY_DRIVER) at the top of the test file before relying on it.
+  rm /tmp/mc-mut*.sh afterwards.
+
+4. CHANGELOG. File: changelogs/unreleased/2026-11-03-codex-capacity-transient-retry.md
+### Fixed — codex "Selected model is at capacity" now retries instead of crashing the iteration (2026-11-03)
+
+When a codex controller exited rc=1 after `ERROR: Selected model is at capacity. Please try a
+different model.`, the mission driver recorded the slot as CRASHED. That happened to World iteration
+219 (2026-10-02), which had already finished its work. `TRANSIENT_SIG` in
+`tools/launchd/mission-control.sh` now carries the line-anchored `^ERROR: Selected model is at
+capacity`, so this gets the same bounded same-model retry with backoff as Anthropic overloads. The
+anchor is there so that prose quoting the string mid-line does not trigger a retry. New cases
+`codex-capacity-is-transient` and `prose-codex-capacity-not-transient` in
+`tools/launchd/test_controller_capacity.sh`. Decision D-FLEET-26 (option A).
+
+(Check changelogs/unreleased/README.md for the required format and follow it if it differs.)
+
+5. FILES YOU MAY TOUCH (nothing else):
+  tools/launchd/mission-control.sh
+  tools/launchd/test_controller_capacity.sh
+  changelogs/unreleased/2026-11-03-codex-capacity-transient-retry.md
+
+6. VERIFICATION (foreground, never pipe a make target):
+  /bin/bash -n tools/launchd/mission-control.sh; echo rc=$?
+  /bin/bash tools/launchd/test_controller_capacity.sh; echo rc=$?   -> 18 cases passed, fail=0, rc=0
+  the M1 and M2 drills
+  make check-changelog; echo rc=$?
+  make test-launchd-drivers > /tmp/fleet_i79_exec_suite.log 2>&1; echo rc=$?   (takes several minutes; use a long tool timeout; then tail the log). Base measured today: "run-suites: all 52 suites passed", rc 0. Do not "fix" environment-sensitive suites.
+  git diff --stat origin/dev  -> exactly the 3 files
+  git commit (one commit, message: "fix(launchd): codex 'Selected model is at capacity' is transient (D-FLEET-26 A, proposed)" plus a body and the line
+  Co-Authored-By: Claude Haiku 5.5 <noreply@anthropic.com>)

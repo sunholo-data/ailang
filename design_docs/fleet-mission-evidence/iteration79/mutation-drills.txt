@@ -1,0 +1,9 @@
+== mutant rev: |Provider finish_reason: error"
+controller-capacity: 18 cases passed, fail=1
+FAIL codex-capacity-is-transient
+== mutant deanchor: |Selected model is at capacity"
+controller-capacity: 18 cases passed, fail=1
+FAIL prose-codex-capacity-not-transient
+== mutant broad: |^ERROR:"
+controller-capacity: 18 cases passed, fail=1
+FAIL codex-other-error-not-transient
