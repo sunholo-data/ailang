@@ -647,3 +647,48 @@ taken through `go test -cpuprofile` on the pipeline.
 
 **Still deferred:** Phase 2b (named and eta function values into wider slots), pinned in
 `TestEffectRowOpenClosedPhase2bDeferred`.
+
+## Pre-release verification (2026-11-03)
+
+The re-land sweep covered this repo plus two external repos (1,066 files). Before tagging v0.57.0
+it was widened to **every git checkout under `~/dev` holding `.ail` files: 4,599 files across 29
+repos** (each checked from its package root, v0.56.1 against the candidate), plus a boot of every
+`serve-api` deployment with its real flags.
+
+**A regression the re-land missed, now fixed.** A single concrete call in an unannotated lambda,
+`w(\c. println("x"))` with `w`'s callback declared `! {IO, FS}`, was rejected:
+`row {FS, IO, ...ε} carries labels [FS] which the closed row {IO} does not permit`. v0.56.1
+accepted it, and it is valid. Cause: with one call, the body row is the application's *unresolved*
+callee tail (`inferApp` deliberately leaves the callee row unsubstituted, and no union resolves a
+single operand), so `openLambdaRow` saw an open row and skipped it. The tail later resolved to the
+closed `{IO}`. The re-land's tests used only `\d. 1` (body row `{}`, closed at inference) and
+multi-call bodies (resolved by the union frame), so neither exercised it. Found in
+`ailang-demos/streaming/test_stream_basic.ail`. Fix: `resolveLambdaRow` resolves the body row
+against the lambda's own frame (local bindings only) before `openLambdaRow`. A tail owned by the
+enclosing scope (a callback's `! {e}`, a recursive self row) stays open and linked. The frame now
+lives until `inferLambda` returns. The eta form `runWide(\s. loud(s), "x")`, previously pinned as
+Phase 2b, is accepted by the same fix. Four must-accept cases were added; with the fix disabled
+(scratch copy), all four fail.
+
+**Phase 2b wording corrected.** The re-land said named function values into wider slots were
+"still rejected". v0.56.1 accepted them (the unguarded unifier dropped the slot's extra labels), so
+`runWide(loud, "x")` and a let-bound lambda passed by name are *newly* rejected valid programs.
+The changelog now says so, with the workaround. 0 of 4,599 files hit it.
+
+**Measurements** (v0.56.1 = `ailang-rel056`, candidate = dev + this fix):
+
+| gate | result |
+|---|---|
+| sweep, 4,599 files / 29 repos | 98 newly rejected, 0 newly accepted. All 98 trace to 21 root sites, every one an effectful lambda (FS, IO, Process, SharedMem, Declassify) passed to a pure `std/list` `map`/`filter`/`foldl`/`any`: D-R2 as ruled. Repos: docparse (1 site), ailang-packages (4), stapledons-godot (4), Daneel (6), email-parse (2), claude-code-workshop (2), ailang-demos (0 after the fix). All of them pin their ailang release, so none breaks until its pin moves. |
+| this repo's 810 tracked files | 0 flips |
+| executor MCP (`Dockerfile.executor-mcp`, IAM and OAuth args) | v0.56.0 fails to boot with the original `executor.ail:191` error (positive control); the candidate boots all 11 module sets, and `executor_tools/smoke.sh` passes 6/6 |
+| docparse `serve-api` | v0.56.1 boots; the candidate refuses `api_keys.ail:1309` (`foldl` with `readFile`, D-R2). Migration: `foldlE`. The pin (`ARG AILANG_VERSION=v0.56.1`) protects the deploy |
+| migration targets | `mapE`/`forEachE`/`foldlE`/`filterE` accept multi-call IO/FS lambdas, including the docparse shape |
+| Go `./internal/... ./cmd/ailang/` | 148 packages ok, 0 fail |
+| `check` CPU time, 10 largest modules (load average ~100) | 2,531 → 2,526 ms (no measurable difference) |
+
+**Known, pre-existing, not introduced here.** The post-check effect validator charges a caller's
+IO to a recursive row-polymorphic function written as `{ f(h); each(f, t) }` when it is called
+with a single-call IO lambda ("Missing effects: IO" on `each`). v0.56.1 rejects the same program
+for `\x. println("x")`. The std combinators are written differently and are unaffected, and 0
+corpus files hit it.

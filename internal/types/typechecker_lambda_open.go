@@ -19,6 +19,26 @@ import "sort"
 // of an opened tail to closed {} before the final substitution is published.
 // Explicitly annotated lambdas keep their declared row.
 
+// resolveLambdaRow closes a lambda's body row when the lambda's own
+// constraints already fix its tail. A single concrete call leaves the body row
+// as the call's unresolved tail (`\c. println(s)` has row ε with ε ~ {IO}),
+// because inferApp does not substitute the callee row and no union resolves a
+// single operand. Without this, openLambdaRow sees an open row, leaves it, and
+// ε later resolves to the closed {IO}, which then cannot fit a wider slot such
+// as `! {IO, FS}`. Only bindings local to the lambda's frame apply, so a tail
+// owned by the enclosing scope (a callback's `! {e}`, a recursive self row)
+// stays open and linked.
+func (ctx *InferenceContext) resolveLambdaRow(row *Row) *Row {
+	if row == nil || row.Tail == nil || len(ctx.unionFrames) == 0 {
+		return row
+	}
+	frame := ctx.unionFrames[len(ctx.unionFrames)-1]
+	if !frame.solve(ctx) {
+		return row
+	}
+	return closeIfResolved(row, applySubToEffectRow(frame.local, row))
+}
+
 // openLambdaRow returns row opened with a fresh tail when it is closed.
 func (ctx *InferenceContext) openLambdaRow(row *Row) *Row {
 	if row != nil && row.Tail != nil {

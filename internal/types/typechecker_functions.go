@@ -64,9 +64,10 @@ func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) 
 	ctx.env = newEnv
 
 	// Infer body type; effect unions in it resolve against this lambda (#1958).
+	// The frame stays until return: resolveLambdaRow below reads it.
 	popUnionFrame := ctx.pushUnionFrame()
+	defer popUnionFrame()
 	bodyNode, _, err := tc.inferCore(ctx, lam.Body)
-	popUnionFrame()
 	if err != nil {
 		return nil, oldEnv, err
 	}
@@ -142,7 +143,7 @@ func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) 
 		tc.declaredLambdaEffects[lam.ID()] = funcEffectRow
 	}
 	if !lambdaHasEffectAnnotation(tc, lam) {
-		funcEffectRow = ctx.openLambdaRow(funcEffectRow) // #1958 F-B: open on use
+		funcEffectRow = ctx.openLambdaRow(ctx.resolveLambdaRow(funcEffectRow)) // #1958 F-B: open on use
 	}
 
 	funcType := &TFunc2{

@@ -31,10 +31,19 @@ labels: `row {IO, ...ε} carries labels [IO] which the closed row {} does not pe
 
 v0.56.0 carried this guard and was withdrawn before publishing: it rejected valid callbacks. Two
 inference fixes now ship with it: the union fix above, and **lambda open-on-use**. An unannotated
-lambda whose row is closed gets a fresh row tail, so `withDir(\d. 1)` fits `f: string -> int ! {IO}`
-and a hook `\c. 1` fits a wider declared row. An unconstrained tail is closed to `{}` before the
-declaration is published.
+inline lambda whose row is (or resolves to) a closed row gets a fresh row tail, so it fits a slot
+that permits more: `withDir(\d. 1)` fits `f: string -> int ! {IO}`, and `w(\c. println("x"))` and
+the eta form `runWide(\s. loud(s), "x")` fit `! {IO, FS}`. An unconstrained tail is closed to `{}`
+before the declaration is published.
 
-Still rejected (deferred, Phase 2b): a *named* or eta-expanded function value whose row is closed
-and narrower than the slot, e.g. `runWide(loud, "x")` with `loud ! {IO}` into `! {IO, FS}`. Declare
-the value with the slot's row, or make the slot row-polymorphic.
+Newly rejected, and valid (deferred to Phase 2b): a function value *read from a binding* whose row is
+closed and narrower than the slot, e.g. `runWide(loud, "x")` with `loud ! {IO}` passed for
+`! {IO, FS}`, or `let f = \s. println(s); runWide(f, "x")`. v0.56.1 accepted these only because the
+unguarded unifier dropped the slot's extra labels. Pass the lambda inline (or eta-expand:
+`\s. loud(s)`), declare the value with the slot's row, or make the slot row-polymorphic. None of the
+4,599 `.ail` files swept for this release (this repo, the package, parse, docparse, demos, game,
+Daneel and email-parse repos) hits this case.
+
+Migration needed before bumping a pinned consumer: every program this release newly rejects in that
+sweep passes an effectful lambda to a pure `std/list` `map`/`filter`/`foldl`/`any` slot (21 sites).
+Each one moves to `mapE`/`filterE`/`foldlE`.
