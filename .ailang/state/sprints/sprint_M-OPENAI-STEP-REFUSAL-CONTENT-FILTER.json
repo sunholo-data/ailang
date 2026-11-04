@@ -1,0 +1,207 @@
+{
+  "sprint_id": "M-OPENAI-STEP-REFUSAL-CONTENT-FILTER",
+  "status": "not_started",
+  "created": "2026-11-04T23:31:26.686793+00:00",
+  "design_doc": "design_docs/planned/v0_57_2/m-openai-step-refusal-content-filter.md",
+  "sprint_plan": "design_docs/planned/v0_57_2/m-openai-step-refusal-content-filter-sprint-plan.md",
+  "github_issues": [
+    2123
+  ],
+  "execution_authorized": false,
+  "approval_basis": "Current user handoff approves previous design work; planning only. D1-D5 carried as rulings.",
+  "execution_dependency": "Obtain and compare Case-A source 2063f4ceb or verified successor before implementation/composition verification; STOP and report BLOCKED if unavailable.",
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "refusal",
+        "openai"
+      ],
+      "inspected": [
+        "sunholo/mcp_files@0.1.4"
+      ],
+      "reason": "Existing host Go provider adapters/error taxonomy and synthetic tests; inspected MCP upload package is unrelated and cannot implement host protocol parsing."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "refusal",
+        "openai"
+      ],
+      "inspected": [
+        "sunholo/mcp_files@0.1.4"
+      ],
+      "reason": "Existing host Go provider adapters/error taxonomy and synthetic tests; inspected MCP upload package is unrelated and cannot implement host protocol parsing."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "refusal",
+        "openai"
+      ],
+      "inspected": [
+        "sunholo/mcp_files@0.1.4"
+      ],
+      "reason": "Existing host Go provider adapters/error taxonomy and synthetic tests; inspected MCP upload package is unrelated and cannot implement host protocol parsing."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "refusal",
+        "openai"
+      ],
+      "inspected": [
+        "sunholo/mcp_files@0.1.4"
+      ],
+      "reason": "Existing host Go provider adapters/error taxonomy and synthetic tests; inspected MCP upload package is unrelated and cannot implement host protocol parsing."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "refusal",
+        "openai"
+      ],
+      "inspected": [
+        "sunholo/mcp_files@0.1.4"
+      ],
+      "reason": "Existing host Go provider adapters/error taxonomy and synthetic tests; inspected MCP upload package is unrelated and cannot implement host protocol parsing."
+    },
+    {
+      "milestone": "M6",
+      "package": null,
+      "action": "none",
+      "search_terms": [
+        "refusal",
+        "openai"
+      ],
+      "inspected": [
+        "sunholo/mcp_files@0.1.4"
+      ],
+      "reason": "Existing host Go provider adapters/error taxonomy and synthetic tests; inspected MCP upload package is unrelated and cannot implement host protocol parsing."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 200,
+    "estimated_total_loc": 600,
+    "estimated_days": 3,
+    "estimated_hours": 11,
+    "measured_loc_per_day": null,
+    "basis": "Shallow history has only design commit; provisional estimate from design effort, includes 2.5 hours buffer."
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Typed failure and retry contract",
+      "estimated_loc": 90,
+      "estimated_hours": 1.5,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "CodeContentFilter is a typed non-retryable error through IsRetryable, ShouldRetry (including wrapped errors), and cmd isAICodeRetryable.",
+        "Ordinary error codes, transient errors, and unknown-error behavior retain existing classification."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Buffered Chat refusal classification",
+      "estimated_loc": 100,
+      "estimated_hours": 1.5,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Refusal-only, content_filter-only, combined signals, and refusal with stop return nil response plus typed error preserving cause.",
+        "Classification precedes Hermes tool recovery; stop, length, tool_calls and usage controls remain unchanged."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Streaming Chat refusal accumulation",
+      "estimated_loc": 130,
+      "estimated_hours": 1.5,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Split refusal deltas and later content_filter finish reasons preserve exact cause; refusal emits no content callback.",
+        "Late usage survives in telemetry before nil response plus typed error; ordinary content, thinking, tools, usage and transport failures retain behavior."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Responses refusal items",
+      "estimated_loc": 65,
+      "estimated_hours": 1.0,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "OpenAI Responses refusal items return CodeContentFilter preserving refusal text, including mixed text/refusal output.",
+        "Ordinary output_text and usage controls pass; incomplete_details and independent chatgpt SSE changes remain deferred."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Direct Anthropic parity",
+      "estimated_loc": 100,
+      "estimated_hours": 1.5,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Generate, Step and StreamStep refusal return the same typed non-retryable failure with existing refused telemetry preserved.",
+        "Synthetic buffered and streamed refusal plus normal end_turn, max_tokens and tool_use controls pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6",
+      "description": "Delegation, composition and documentation",
+      "estimated_loc": 115,
+      "estimated_hours": 1.5,
+      "dependencies": [
+        "M2",
+        "M3",
+        "M4",
+        "M5"
+      ],
+      "acceptance_criteria": [
+        "OpenRouter Step/StreamStep and ollama /v1 streaming fixtures prove inherited classification without duplicated provider logic.",
+        "Explicit error envelope wins over refusal on the reconciled Case-A source; existing envelope classification and retryability are unchanged.",
+        "Focused tests, make test-changed, make check-file-sizes, and make check-changelog pass; compatibility docs and unreleased fragment describe the behavior change."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
