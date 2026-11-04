@@ -155,6 +155,10 @@ export pure func last_or[a](xs: [a], default: a) -> a {
 -- Note: 'exists' is a reserved keyword in AILANG, so we use 'any' instead
 export pure func any[a](p: a -> bool, xs: [a]) -> bool = _list_any(p, xs)
 
+-- all: True when every element satisfies p, including the empty list.
+-- Uses iterative any and stops at the first false result.
+export pure func all[a](p: a -> bool, xs: [a]) -> bool = !any(\x. !p(x), xs)
+
 -- findIndex: Find index of first element matching predicate (short-circuits like any).
 -- Iterative builtin: O(n), no depth limit (#1518).
 export pure func findIndex[a](p: a -> bool, xs: [a]) -> Option[int] = _list_findIndex(p, xs)

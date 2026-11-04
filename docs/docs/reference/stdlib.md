@@ -67,6 +67,7 @@ See [the runnable formatter example](https://github.com/sunholo-data/ailang/blob
 | Module | Purpose | Capability |
 |---|---|---|
 | `std/json` | JSON encode/decode; `decodeFloatArray` parses a flat number array straight into an `Array[float]` with no `Json` tree | — |
+| `std/jsonschema` | [Pure Draft 2020-12 schema validation](./std-jsonschema), strict by default, local refs, RE2 patterns | — |
 | `std/yaml` | [Decode YAML into the same `Json` ADT as `std/json`](./std-yaml) via a pure, WASM-portable YAML→JSON bridge (`yamlToJson`, `decode`) and encode ordered, quoted block YAML (`encode`) | — |
 | `std/xml` | Parse XML strings into `XmlNode` trees, query elements. v0.21.0+ also ships [tree-walk performance builtins](./std-xml) (`foldChildren`, `getAttrMap`, `nodeKind`). | — |
 | `std/html` | Lenient HTML5 parse (WHATWG-spec) into the same `XmlNode` ADT as `std/xml` | — |

@@ -1,0 +1,208 @@
+{
+  "sprint_id": "M-STD-JSONSCHEMA",
+  "evaluation_round": 1,
+  "timestamp": "2026-11-04T09:30:22.638639+00:00",
+  "design_doc": "design_docs/planned/v0_57_1/m-std-jsonschema.md",
+  "sprint_plan": "design_docs/planned/v0_57_1/m-std-jsonschema-sprint-plan.md",
+  "total_score": 85,
+  "pass_threshold": 70,
+  "result": "pass",
+  "score_breakdown": {
+    "tests_pass": 20,
+    "lint_clean": 0,
+    "acceptance_criteria": 30,
+    "code_quality": 10,
+    "documentation": 15,
+    "design_fidelity": 10
+  },
+  "hard_fails": [],
+  "automated_checks": {
+    "gate_source": "local",
+    "tests_pass": true,
+    "tests_scope": "Changed packages, focused regression tests, stdlib/example gates; full make test excluded by approved sprint plan.",
+    "test_changed_exit": "failed before golden update; only remaining failures reproduced unchanged on starting commit",
+    "baseline_failures": [
+      "TestRuntimeNestedStopUsesRemainingDeadline",
+      "TestProcessExec_TimeoutKillsGrandchildren"
+    ],
+    "baseline_commit": "abd4dfd821e919654ddaa0fafd36dd27197126fb",
+    "golden_failure_resolution": "TestBuiltinTypes_GoldenSnapshot initially detected 3 new signatures; intentional 3-line golden update reviewed, focused test passed without update mode; prior 405 signatures unchanged.",
+    "tests_output": "Changed packages builtins/bytecode/vm passed; other core tests passed apart from documented baseline cleanup failures. Schema-focused tests passed -count=20; 7 stdlib suites and 4 run fixtures passed. verify-examples:248 modules,0 drift,0 missing.",
+    "lint_clean": null,
+    "lint_output": "make lint unavailable: golangci-lint absent. Targeted go vet and fmt-check passed; full lint receives no points.",
+    "file_sizes_ok": true,
+    "boundaries_ok": true,
+    "changelog_ok": true,
+    "verify_stdlib": "50 interfaces stable",
+    "performance": {
+      "cpu": "AMD EPYC 7B13",
+      "os_arch": "linux/amd64",
+      "schema_nodes_approx": 460,
+      "document_properties": 1000,
+      "engine_ms": 24.929864,
+      "public_api_ms": 38.650266,
+      "target_ms": 50
+    }
+  },
+  "acceptance_criteria": [
+    {
+      "feature_id": "M1",
+      "criterion": "Compile boolean schemas and validate keyword value shapes across the frozen vocabulary; audit every subschema including unused $defs and unselected branches. Ignore annotation payloads as data. Strict errors name unknown keywords; lenient skips only unknown keywords, never malformed supported keywords.",
+      "met": true,
+      "evidence": "Strict full-schema audit, exact type names and keyword value shapes tested in strict and lenient modes."
+    },
+    {
+      "feature_id": "M1",
+      "criterion": "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines.",
+      "met": true,
+      "evidence": "Strict full-schema audit, exact type names and keyword value shapes tested in strict and lenient modes."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Resolve root #, escaped RFC 6901 pointers, anchors and dynamic anchors; reject dangling/non-local refs. Compile pattern and patternProperties using RE2; reject lookaround/backreferences with schema errors. Pin dialect, relative $id and vocabulary handling.",
+      "met": true,
+      "evidence": "Resource-local root/pointer/anchors, RE2, dialect/vocabulary and relative IDs tested; named dynamic scope and pointer-static regressions reviewed independently."
+    },
+    {
+      "feature_id": "M2",
+      "criterion": "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines.",
+      "met": true,
+      "evidence": "Resource-local root/pointer/anchors, RE2, dialect/vocabulary and relative IDs tested; named dynamic scope and pointer-static regressions reviewed independently."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Validate type including integer-valued floats, enum/const structural equality, numeric limits and multipleOf, Unicode string lengths and patterns. Emit RFC 6901 paths and fixed canonical keyword ordering independent of schema insertion order.",
+      "met": true,
+      "evidence": "Isolated scalar bounds, float64 integral quotient multipleOf, Unicode and canonical error ordering pass."
+    },
+    {
+      "feature_id": "M3",
+      "criterion": "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines.",
+      "met": true,
+      "evidence": "Isolated scalar bounds, float64 integral quotient multipleOf, Unicode and canonical error ordering pass."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Validate required/properties/patternProperties/additionalProperties/propertyNames/dependentRequired; array prefixItems/items/contains/minContains/maxContains/uniqueItems and cardinalities. items applies after prefixItems per Draft 2020-12. Collect evaluated locations for subsequent annotation propagation.",
+      "met": true,
+      "evidence": "Object/array keyword cases including prefixItems tail, contains and evaluated locations pass."
+    },
+    {
+      "feature_id": "M4",
+      "criterion": "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines.",
+      "met": true,
+      "evidence": "Object/array keyword cases including prefixItems tail, contains and evaluated locations pass."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Implement allOf/anyOf/oneOf/not/if/then/else/dependentSchemas and ref siblings. Track dynamic scope for $dynamicRef; bound cycles at the same instance location to 64 while allowing recursive descent to child instance locations. Failed branch diagnostics do not invalidate a successful anyOf or conditional predicate.",
+      "met": true,
+      "evidence": "Reference siblings, combinators and conditional tests pass; cycles are hard evaluation errors and cap only same-location reference hops."
+    },
+    {
+      "feature_id": "M5",
+      "criterion": "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines.",
+      "met": true,
+      "evidence": "Reference siblings, combinators and conditional tests pass; cycles are hard evaluation errors and cap only same-location reference hops."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Propagate successful-branch evaluated-property/item annotations through refs and combinators; apply unevaluatedProperties/unevaluatedItems last. Test failed branches, multiple successful anyOf branches, contains matches and conditional annotation isolation.",
+      "met": true,
+      "evidence": "Successful-branch annotation propagation, failed branch isolation, refs and conditional/contains unevaluated tests pass."
+    },
+    {
+      "feature_id": "M6",
+      "criterion": "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines.",
+      "met": true,
+      "evidence": "Successful-branch annotation propagation, failed branch isolation, refs and conditional/contains unevaluated tests pass."
+    },
+    {
+      "feature_id": "M7",
+      "criterion": "Register three pure builtins with Json ADT inputs and record-list outputs; export ValidationError, validate, validateLenient, validateSchema. Schema compilation failures return before instance evaluation. Rebuild binary, check std module and run seventh stdlib suite after suite count 6 to 7.",
+      "met": true,
+      "evidence": "Three pure APIs and typed error-list module checked with rebuilt CLI; 4 ail API tests pass. Native VM bridges added to satisfy coverage ratchet; engine parity passes."
+    },
+    {
+      "feature_id": "M7",
+      "criterion": "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines.",
+      "met": true,
+      "evidence": "Three pure APIs and typed error-list module checked with rebuilt CLI; 4 ail API tests pass. Native VM bridges added to satisfy coverage ratchet; engine parity passes."
+    },
+    {
+      "feature_id": "M8",
+      "criterion": "Export all(pred,xs); default to _list_all Go twin and VM HOF support discovered beside any. Test true/false/empty lists, short circuit and interpreter/VM agreement. A pure negated-any wrapper is an already-authorized alternative if it preserves parity; test either choice.",
+      "met": true,
+      "evidence": "Approved negated-any wrapper; both-engine empty/true/false/short-circuit/10k-list tests pass."
+    },
+    {
+      "feature_id": "M8",
+      "criterion": "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines.",
+      "met": true,
+      "evidence": "Approved negated-any wrapper; both-engine empty/true/false/short-circuit/10k-list tests pass."
+    },
+    {
+      "feature_id": "M9",
+      "criterion": "Use a synthetic fixture exercising every reported census keyword and counts; label it synthetic and assert the census programmatically. Pin expected errors, 100-run and permuted-key determinism. Benchmark compile plus validate on roughly 460 schema nodes and 1000 document properties; report machine and time against 50 ms target.",
+      "met": true,
+      "evidence": "Synthetic exact census with 100 reversed-key runs. Linux amd64 AMD EPYC 7B13 engine 24.93ms/op (initial8.85), public incl Json conversion38.65ms/op, both <50ms."
+    },
+    {
+      "feature_id": "M9",
+      "criterion": "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines.",
+      "met": true,
+      "evidence": "Synthetic exact census with 100 reversed-key runs. Linux amd64 AMD EPYC 7B13 engine 24.93ms/op (initial8.85), public incl Json conversion38.65ms/op, both <50ms."
+    },
+    {
+      "feature_id": "M10",
+      "criterion": "Ship runnable envelope self-check, API/strictness/error-root guidance, RE2 divergences, format annotation-only and float64 limitations. Freeze new jsonschema and changed list interfaces with existing tooling; fragment opens with ###. Run focused integration gates and record results.",
+      "met": true,
+      "evidence": "All documentation/example/interface/static/vet gates pass. All touched Go packages pass; full core execution completed, with two reproduced baseline effects cleanup failures; builtin signature golden updated intentionally and focused regression passes. golangci-lint missing, left to CI."
+    },
+    {
+      "feature_id": "M10",
+      "criterion": "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines.",
+      "met": true,
+      "evidence": "All documentation/example/interface/static/vet gates pass. All touched Go packages pass; full core execution completed, with two reproduced baseline effects cleanup failures; builtin signature golden updated intentionally and focused regression passes. golangci-lint missing, left to CI."
+    }
+  ],
+  "documentation_check": {
+    "changelog_updated": true,
+    "examples_created": true,
+    "design_doc_status": "Implemented; retained approved planned path at root instruction to preserve artifact references",
+    "sprint_artifacts": "completed,all10 milestones pass with timestamps and notes"
+  },
+  "design_fidelity": {
+    "score": 10,
+    "notes": "Pure strict default and explicit lenient/schema-only APIs; hand-rolled shared engine, local resource-aware references, RE2 and float64 limits documented. Authorized negated-any list.all implementation preserves both-engine behavior. Exact-census synthetic fixture explicitly distinguished from external client report."
+  },
+  "code_quality_deductions": [
+    {
+      "points": 5,
+      "reason": "Runtime containerSchema, applicatorSchema and scalarSchema exceed 50 lines (rubric maximum function-length deduction)."
+    }
+  ],
+  "conditional_categories": {
+    "regression_surface_coverage": {
+      "score": 7,
+      "bonus_not_added_to_base_score": true,
+      "evidence": "VM builtin dispatch extended; conflict surface documented, interpreter/VM parity and existing stdlib/regression examples pass. No AST corpus differential required by this builtin-only change."
+    },
+    "performance_verification": {
+      "applicable_as_optimization": false,
+      "evidence": "New capability has no prior implementation baseline; both new engine and actual public API measured below explicit50ms target."
+    }
+  },
+  "resolved_review_findings": [
+    {
+      "issue": "Dynamic references missed outer resource anchors under unvisited $defs.",
+      "resolution": "Resource anchor registry lookup with failing-first regression test; fixed ef5ca743."
+    },
+    {
+      "issue": "JSON-pointer dynamicRef incorrectly rebound when pointer target carried dynamicAnchor.",
+      "resolution": "Only decoded matching plain-name fragments activate dynamic lookup; failing-first regression test; fixed ef5ca743."
+    }
+  ],
+  "feedback": [],
+  "notes": "Independent evaluator reviewed validator, annotations, refs execution, API, VM adapter and fixtures. Evaluator implemented M1/M2 compiler earlier and explicitly did not self-evaluate that portion; root and list agent independently reviewed it and caught the composite-type-name acceptance bug, fixed with dedicated regression tests in db9fbd73. Local gate exceptions documented in .ailang/state/sprints/M-STD-JSONSCHEMA-verification.md. PASS is a scoped implementation verdict, not a claim of green full CI or full lint. No external messages sent."
+}

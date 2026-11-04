@@ -1,6 +1,6 @@
 # M-STD-JSONSCHEMA: validate a Json against a JSON Schema (Draft 2020-12) in the stdlib
 
-**Status**: Planned (DOC-READY)
+**Status**: Implemented (2026-11-04; evaluation recorded in `.ailang/state/evaluations/`)
 **Target**: v0.57.1
 **Priority**: P1 (client deliverable correctness; the pack build cannot self-check envelopes against their schema today)
 **Estimated**: 5 days (3d Go engine, 0.5d std surface + `std/list.all`, 1.5d tests/docs/gates)

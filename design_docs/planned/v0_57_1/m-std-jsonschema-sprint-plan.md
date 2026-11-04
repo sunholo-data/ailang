@@ -30,8 +30,8 @@ Executed ailang pkg search jsonschema (no packages), json and list (adjacent JSO
 
 **Files:** internal/builtins/jsonschema_compile.go; jsonschema_compile_test.go. **Duration:** 60–90 minutes plus focused verification.
 
-- [ ] Compile boolean schemas and validate keyword value shapes across the frozen vocabulary; audit every subschema including unused $defs and unselected branches. Ignore annotation payloads as data. Strict errors name unknown keywords; lenient skips only unknown keywords, never malformed supported keywords.
-- [ ] Focused tests pass; format Go changes and keep touched files below 800 lines.
+- [x] Compile boolean schemas and validate keyword value shapes across the frozen vocabulary; audit every subschema including unused $defs and unselected branches. Ignore annotation payloads as data. Strict errors name unknown keywords; lenient skips only unknown keywords, never malformed supported keywords.
+- [x] Focused tests pass; format Go changes and keep touched files below 800 lines.
 
 **Example coverage:** M10 supplies examples/runnable/jsonschema_validate.ail for M1–M7/M9; M8 adds an all call to that demo.
 
@@ -41,8 +41,8 @@ Executed ailang pkg search jsonschema (no packages), json and list (adjacent JSO
 
 **Files:** internal/builtins/jsonschema_refs.go; jsonschema_refs_test.go. **Duration:** 60–90 minutes plus focused verification.
 
-- [ ] Resolve root #, escaped RFC 6901 pointers, anchors and dynamic anchors; reject dangling/non-local refs. Compile pattern and patternProperties using RE2; reject lookaround/backreferences with schema errors. Pin dialect, relative $id and vocabulary handling.
-- [ ] Focused tests pass; format Go changes and keep touched files below 800 lines.
+- [x] Resolve root #, escaped RFC 6901 pointers, anchors and dynamic anchors; reject dangling/non-local refs. Compile pattern and patternProperties using RE2; reject lookaround/backreferences with schema errors. Pin dialect, relative $id and vocabulary handling.
+- [x] Focused tests pass; format Go changes and keep touched files below 800 lines.
 
 **Example coverage:** M10 supplies examples/runnable/jsonschema_validate.ail for M1–M7/M9; M8 adds an all call to that demo.
 
@@ -52,8 +52,8 @@ Executed ailang pkg search jsonschema (no packages), json and list (adjacent JSO
 
 **Files:** internal/builtins/jsonschema_validate.go; jsonschema_scalar_test.go. **Duration:** 60–90 minutes plus focused verification.
 
-- [ ] Validate type including integer-valued floats, enum/const structural equality, numeric limits and multipleOf, Unicode string lengths and patterns. Emit RFC 6901 paths and fixed canonical keyword ordering independent of schema insertion order.
-- [ ] Focused tests pass; format Go changes and keep touched files below 800 lines.
+- [x] Validate type including integer-valued floats, enum/const structural equality, numeric limits and multipleOf, Unicode string lengths and patterns. Emit RFC 6901 paths and fixed canonical keyword ordering independent of schema insertion order.
+- [x] Focused tests pass; format Go changes and keep touched files below 800 lines.
 
 **Example coverage:** M10 supplies examples/runnable/jsonschema_validate.ail for M1–M7/M9; M8 adds an all call to that demo.
 
@@ -63,8 +63,8 @@ Executed ailang pkg search jsonschema (no packages), json and list (adjacent JSO
 
 **Files:** internal/builtins/jsonschema_containers.go; jsonschema_containers_test.go. **Duration:** 60–90 minutes plus focused verification.
 
-- [ ] Validate required/properties/patternProperties/additionalProperties/propertyNames/dependentRequired; array prefixItems/items/contains/minContains/maxContains/uniqueItems and cardinalities. items applies after prefixItems per Draft 2020-12. Collect evaluated locations for subsequent annotation propagation.
-- [ ] Focused tests pass; format Go changes and keep touched files below 800 lines.
+- [x] Validate required/properties/patternProperties/additionalProperties/propertyNames/dependentRequired; array prefixItems/items/contains/minContains/maxContains/uniqueItems and cardinalities. items applies after prefixItems per Draft 2020-12. Collect evaluated locations for subsequent annotation propagation.
+- [x] Focused tests pass; format Go changes and keep touched files below 800 lines.
 
 **Example coverage:** M10 supplies examples/runnable/jsonschema_validate.ail for M1–M7/M9; M8 adds an all call to that demo.
 
@@ -74,8 +74,8 @@ Executed ailang pkg search jsonschema (no packages), json and list (adjacent JSO
 
 **Files:** internal/builtins/jsonschema_applicators.go; jsonschema_applicators_test.go. **Duration:** 60–90 minutes plus focused verification.
 
-- [ ] Implement allOf/anyOf/oneOf/not/if/then/else/dependentSchemas and ref siblings. Track dynamic scope for $dynamicRef; bound cycles at the same instance location to 64 while allowing recursive descent to child instance locations. Failed branch diagnostics do not invalidate a successful anyOf or conditional predicate.
-- [ ] Focused tests pass; format Go changes and keep touched files below 800 lines.
+- [x] Implement allOf/anyOf/oneOf/not/if/then/else/dependentSchemas and ref siblings. Track dynamic scope for $dynamicRef; bound cycles at the same instance location to 64 while allowing recursive descent to child instance locations. Failed branch diagnostics do not invalidate a successful anyOf or conditional predicate.
+- [x] Focused tests pass; format Go changes and keep touched files below 800 lines.
 
 **Example coverage:** M10 supplies examples/runnable/jsonschema_validate.ail for M1–M7/M9; M8 adds an all call to that demo.
 
@@ -85,8 +85,8 @@ Executed ailang pkg search jsonschema (no packages), json and list (adjacent JSO
 
 **Files:** internal/builtins/jsonschema_annotations.go; jsonschema_annotations_test.go. **Duration:** 60–90 minutes plus focused verification.
 
-- [ ] Propagate successful-branch evaluated-property/item annotations through refs and combinators; apply unevaluatedProperties/unevaluatedItems last. Test failed branches, multiple successful anyOf branches, contains matches and conditional annotation isolation.
-- [ ] Focused tests pass; format Go changes and keep touched files below 800 lines.
+- [x] Propagate successful-branch evaluated-property/item annotations through refs and combinators; apply unevaluatedProperties/unevaluatedItems last. Test failed branches, multiple successful anyOf branches, contains matches and conditional annotation isolation.
+- [x] Focused tests pass; format Go changes and keep touched files below 800 lines.
 
 **Example coverage:** M10 supplies examples/runnable/jsonschema_validate.ail for M1–M7/M9; M8 adds an all call to that demo.
 
@@ -96,8 +96,8 @@ Executed ailang pkg search jsonschema (no packages), json and list (adjacent JSO
 
 **Files:** internal/builtins/jsonschema.go; std/jsonschema.ail; tests/stdlib/jsonschema_test.ail; make/test.mk. **Duration:** 60–90 minutes plus focused verification.
 
-- [ ] Register three pure builtins with Json ADT inputs and record-list outputs; export ValidationError, validate, validateLenient, validateSchema. Schema compilation failures return before instance evaluation. Rebuild binary, check std module and run seventh stdlib suite after suite count 6 to 7.
-- [ ] Focused tests pass; format Go changes and keep touched files below 800 lines.
+- [x] Register three pure builtins with Json ADT inputs and record-list outputs; export ValidationError, validate, validateLenient, validateSchema. Schema compilation failures return before instance evaluation. Rebuild binary, check std module and run seventh stdlib suite after suite count 6 to 7.
+- [x] Focused tests pass; format Go changes and keep touched files below 800 lines.
 
 **Example coverage:** M10 supplies examples/runnable/jsonschema_validate.ail for M1–M7/M9; M8 adds an all call to that demo.
 
@@ -107,8 +107,8 @@ Executed ailang pkg search jsonschema (no packages), json and list (adjacent JSO
 
 **Files:** std/list.ail; internal/builtins/list_iterative_search.go; registry_codegen_list.go; internal/vm/builtins_hof_list.go; internal/vm/list_hof_parity_test.go; internal/builtins/list_all_test.go. **Duration:** 60–90 minutes plus focused verification.
 
-- [ ] Export all(pred,xs); default to _list_all Go twin and VM HOF support discovered beside any. Test true/false/empty lists, short circuit and interpreter/VM agreement. A pure negated-any wrapper is an already-authorized alternative if it preserves parity; test either choice.
-- [ ] Focused tests pass; format Go changes and keep touched files below 800 lines.
+- [x] Export all(pred,xs); default to _list_all Go twin and VM HOF support discovered beside any. Test true/false/empty lists, short circuit and interpreter/VM agreement. A pure negated-any wrapper is an already-authorized alternative if it preserves parity; test either choice.
+- [x] Focused tests pass; format Go changes and keep touched files below 800 lines.
 
 **Example coverage:** M10 supplies examples/runnable/jsonschema_validate.ail for M1–M7/M9; M8 adds an all call to that demo.
 
@@ -118,8 +118,8 @@ Executed ailang pkg search jsonschema (no packages), json and list (adjacent JSO
 
 **Files:** internal/builtins/jsonschema_census_test.go; jsonschema_bench_test.go; testdata/jsonschema/. **Duration:** 60–90 minutes plus focused verification.
 
-- [ ] Use a synthetic fixture exercising every reported census keyword and counts; label it synthetic and assert the census programmatically. Pin expected errors, 100-run and permuted-key determinism. Benchmark compile plus validate on roughly 460 schema nodes and 1000 document properties; report machine and time against 50 ms target.
-- [ ] Focused tests pass; format Go changes and keep touched files below 800 lines.
+- [x] Use a synthetic fixture exercising every reported census keyword and counts; label it synthetic and assert the census programmatically. Pin expected errors, 100-run and permuted-key determinism. Benchmark compile plus validate on roughly 460 schema nodes and 1000 document properties; report machine and time against 50 ms target.
+- [x] Focused tests pass; format Go changes and keep touched files below 800 lines.
 
 **Example coverage:** M10 supplies examples/runnable/jsonschema_validate.ail for M1–M7/M9; M8 adds an all call to that demo.
 
@@ -129,8 +129,8 @@ Executed ailang pkg search jsonschema (no packages), json and list (adjacent JSO
 
 **Files:** examples/runnable/jsonschema_validate.ail; docs/docs/reference/std-jsonschema.md; docs/docs/reference/stdlib.md; .stdlib-golden/jsonschema.json; .stdlib-golden/jsonschema.sha256; .stdlib-golden/list.json; .stdlib-golden/list.sha256; changelogs/unreleased/2026-11-03-std-jsonschema.md. **Duration:** 60–90 minutes plus focused verification.
 
-- [ ] Ship runnable envelope self-check, API/strictness/error-root guidance, RE2 divergences, format annotation-only and float64 limitations. Freeze new jsonschema and changed list interfaces with existing tooling; fragment opens with ###. Run focused integration gates and record results.
-- [ ] Focused tests pass; format Go changes and keep touched files below 800 lines.
+- [x] Ship runnable envelope self-check, API/strictness/error-root guidance, RE2 divergences, format annotation-only and float64 limitations. Freeze new jsonschema and changed list interfaces with existing tooling; fragment opens with ###. Run focused integration gates and record results.
+- [x] Focused tests pass; format Go changes and keep touched files below 800 lines.
 
 **Example coverage:** M10 supplies examples/runnable/jsonschema_validate.ail for M1–M7/M9; M8 adds an all call to that demo.
 
@@ -171,3 +171,21 @@ Completion requires all supported vocabulary keyword cases, refs/siblings/cycles
 No new Go dependency or external client checkout is required. M8 can proceed independently but the sprint executes the recorded order. Highest risk is annotation flow through successful branches and dynamic reference scope; test those before API publication. Numeric float64 and RE2 differences are documented accepted limitations, not silent fallbacks.
 
 No open human decisions. JSON status remains not_started with null milestone results. Coordinator approval of the plan triggers sprint-executor; return both artifact paths for that handoff and do not manually duplicate the coordinator dispatch. After implementation, run sprint-evaluator against the approved design and this plan. Reporter follow-up is a coordinator deliverable after implementation/release, not a claim that the clients repository has already migrated.
+
+## Execution record (2026-11-04)
+
+Implementation delivered on `coordinator/task-b48daa42` (the current coordinator
+work branch; planner branch was not switched). AILANG prompt version loaded:
+**v0.16.11**. M8 uses the authorized negated-any wrapper. Integration additionally
+ports all three pure APIs to the VM to satisfy the existing coverage ratchet.
+Independent review fixes and regression tests cover resource roots, dynamic
+anchors, static pointer dynamic refs, composite type names, float64 multipleOf,
+and reference-hop-only cycle bounds.
+
+Synthetic exact-census fixture passes 100 reversed-key runs. On Linux amd64 AMD
+EPYC 7B13 the engine measured 8.85 ms initially and 24.93 ms under concurrent load;
+the actual public strict API including Json conversion measured 38.65 ms on the
+same 460-node/1000-property workload, below 50 ms. See
+`docs/sprint-retros/M-STD-JSONSCHEMA-retro.md` and sprint JSON for final gates and
+limitations. `golangci-lint` is absent; targeted Go vet is used and the full lint
+gate remains for CI. Full `make test` was intentionally not run.

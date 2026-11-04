@@ -1,0 +1,32 @@
+module examples/runnable/jsonschema_validate
+
+import std/json (Json, JBool, JNumber, JString, JObject, JArray)
+import std/jsonschema (validate, validateSchema)
+import std/list (all, length)
+import std/io (println)
+
+-- Contracts: schema validation is opaque to SMT; no solver proof is claimed.
+-- Inline tests cover the pure list predicate; main explicitly requires IO.
+pure func allPositive(xs: [int]) -> bool
+  tests [([], true), ([1, 2], true), ([0], false)]
+{ all(\x. x > 0, xs) }
+
+pure func check(schema: Json, doc: Json) -> bool ! {} {
+  length(validateSchema(schema)) == 0 && length(validate(schema, doc)) == 0
+}
+
+export func main() -> () ! {IO} {
+  let schema = JObject([
+    {key: "type", value: JString("object")},
+    {key: "properties", value: JObject([
+      {key: "budget", value: JObject([
+        {key: "type", value: JString("number")},
+        {key: "minimum", value: JNumber(0.0)}
+      ])}
+    ])},
+    {key: "required", value: JArray([JString("budget")])},
+    {key: "additionalProperties", value: JBool(false)}
+  ])
+  let envelope = JObject([{key: "budget", value: JNumber(100.0)}])
+  println(if check(schema, envelope) && allPositive([1, 2]) then "Envelope conforms to its schema" else "Envelope failed schema validation")
+}

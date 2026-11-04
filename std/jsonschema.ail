@@ -1,0 +1,19 @@
+module std/jsonschema
+
+import std/json (Json)
+
+-- Paths are RFC 6901 pointers. Schema errors point into the schema and their
+-- messages begin with "schema:"; instance errors point into the document.
+export type ValidationError = { path: string, keyword: string, message: string }
+
+-- Strict Draft 2020-12 validation. Unknown schema keywords are errors.
+export pure func validate(schema: Json, doc: Json) -> [ValidationError] =
+  _jsonschema_validate(schema, doc)
+
+-- Ignore unknown keywords only; malformed supported keywords remain errors.
+export pure func validateLenient(schema: Json, doc: Json) -> [ValidationError] =
+  _jsonschema_validate_lenient(schema, doc)
+
+-- Audit the whole schema, including unused definitions and branches.
+export pure func validateSchema(schema: Json) -> [ValidationError] =
+  _jsonschema_check_schema(schema)

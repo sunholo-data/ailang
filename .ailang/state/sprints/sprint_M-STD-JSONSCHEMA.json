@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-STD-JSONSCHEMA",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-11-03T15:27:19.900186+00:00",
   "design_doc": "design_docs/planned/v0_57_1/m-std-jsonschema.md",
   "sprint_plan": "design_docs/planned/v0_57_1/m-std-jsonschema-sprint-plan.md",
@@ -70,7 +70,8 @@
   "velocity": {
     "target_loc_per_day": 460,
     "estimated_total_loc": 2300,
-    "estimated_days": 5
+    "estimated_days": 5,
+    "actual_total_loc": 2753
   },
   "features": [
     {
@@ -82,10 +83,10 @@
         "Compile boolean schemas and validate keyword value shapes across the frozen vocabulary; audit every subschema including unused $defs and unselected branches. Ignore annotation payloads as data. Strict errors name unknown keywords; lenient skips only unknown keywords, never malformed supported keywords.",
         "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T09:20:14.291265+00:00",
+      "completed": "2026-11-04T09:26:14.808524+00:00",
+      "notes": "Strict full-schema audit, exact type names and keyword value shapes tested in strict and lenient modes."
     },
     {
       "id": "M2",
@@ -98,10 +99,10 @@
         "Resolve root #, escaped RFC 6901 pointers, anchors and dynamic anchors; reject dangling/non-local refs. Compile pattern and patternProperties using RE2; reject lookaround/backreferences with schema errors. Pin dialect, relative $id and vocabulary handling.",
         "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T09:20:14.291265+00:00",
+      "completed": "2026-11-04T09:26:14.808524+00:00",
+      "notes": "Resource-local root/pointer/anchors, RE2, dialect/vocabulary and relative IDs tested; named dynamic scope and pointer-static regressions reviewed independently."
     },
     {
       "id": "M3",
@@ -114,10 +115,10 @@
         "Validate type including integer-valued floats, enum/const structural equality, numeric limits and multipleOf, Unicode string lengths and patterns. Emit RFC 6901 paths and fixed canonical keyword ordering independent of schema insertion order.",
         "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T09:20:14.291265+00:00",
+      "completed": "2026-11-04T09:26:14.808524+00:00",
+      "notes": "Isolated scalar bounds, float64 integral quotient multipleOf, Unicode and canonical error ordering pass."
     },
     {
       "id": "M4",
@@ -130,10 +131,10 @@
         "Validate required/properties/patternProperties/additionalProperties/propertyNames/dependentRequired; array prefixItems/items/contains/minContains/maxContains/uniqueItems and cardinalities. items applies after prefixItems per Draft 2020-12. Collect evaluated locations for subsequent annotation propagation.",
         "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T09:20:14.291265+00:00",
+      "completed": "2026-11-04T09:26:14.808524+00:00",
+      "notes": "Object/array keyword cases including prefixItems tail, contains and evaluated locations pass."
     },
     {
       "id": "M5",
@@ -147,10 +148,10 @@
         "Implement allOf/anyOf/oneOf/not/if/then/else/dependentSchemas and ref siblings. Track dynamic scope for $dynamicRef; bound cycles at the same instance location to 64 while allowing recursive descent to child instance locations. Failed branch diagnostics do not invalidate a successful anyOf or conditional predicate.",
         "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T09:20:14.291265+00:00",
+      "completed": "2026-11-04T09:26:14.808524+00:00",
+      "notes": "Reference siblings, combinators and conditional tests pass; cycles are hard evaluation errors and cap only same-location reference hops."
     },
     {
       "id": "M6",
@@ -163,10 +164,10 @@
         "Propagate successful-branch evaluated-property/item annotations through refs and combinators; apply unevaluatedProperties/unevaluatedItems last. Test failed branches, multiple successful anyOf branches, contains matches and conditional annotation isolation.",
         "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T09:20:14.291265+00:00",
+      "completed": "2026-11-04T09:26:14.808524+00:00",
+      "notes": "Successful-branch annotation propagation, failed branch isolation, refs and conditional/contains unevaluated tests pass."
     },
     {
       "id": "M7",
@@ -179,10 +180,10 @@
         "Register three pure builtins with Json ADT inputs and record-list outputs; export ValidationError, validate, validateLenient, validateSchema. Schema compilation failures return before instance evaluation. Rebuild binary, check std module and run seventh stdlib suite after suite count 6 to 7.",
         "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T09:20:14.291265+00:00",
+      "completed": "2026-11-04T09:26:14.808524+00:00",
+      "notes": "Three pure APIs and typed error-list module checked with rebuilt CLI; 4 ail API tests pass. Native VM bridges added to satisfy coverage ratchet; engine parity passes."
     },
     {
       "id": "M8",
@@ -193,10 +194,10 @@
         "Export all(pred,xs); default to _list_all Go twin and VM HOF support discovered beside any. Test true/false/empty lists, short circuit and interpreter/VM agreement. A pure negated-any wrapper is an already-authorized alternative if it preserves parity; test either choice.",
         "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T09:20:14.291265+00:00",
+      "completed": "2026-11-04T09:26:14.808524+00:00",
+      "notes": "Approved negated-any wrapper; both-engine empty/true/false/short-circuit/10k-list tests pass."
     },
     {
       "id": "M9",
@@ -209,10 +210,10 @@
         "Use a synthetic fixture exercising every reported census keyword and counts; label it synthetic and assert the census programmatically. Pin expected errors, 100-run and permuted-key determinism. Benchmark compile plus validate on roughly 460 schema nodes and 1000 document properties; report machine and time against 50 ms target.",
         "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T09:20:14.291265+00:00",
+      "completed": "2026-11-04T09:26:14.808524+00:00",
+      "notes": "Synthetic exact census with 100 reversed-key runs. Linux amd64 AMD EPYC 7B13 engine 24.93ms/op (initial8.85), public incl Json conversion38.65ms/op, both <50ms."
     },
     {
       "id": "M10",
@@ -226,10 +227,30 @@
         "Ship runnable envelope self-check, API/strictness/error-root guidance, RE2 divergences, format annotation-only and float64 limitations. Freeze new jsonschema and changed list interfaces with existing tooling; fragment opens with ###. Run focused integration gates and record results.",
         "Focused tests for the milestone pass; touched Go files are formatted and remain below 800 lines."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T09:20:14.291265+00:00",
+      "completed": "2026-11-04T09:29:39.861254+00:00",
+      "notes": "All documentation/example/interface/static/vet gates pass. All touched Go packages pass; full core execution completed, with two reproduced baseline effects cleanup failures; builtin signature golden updated intentionally and focused regression passes. golangci-lint missing, left to CI."
     }
-  ]
+  ],
+  "last_session": "2026-11-04T09:20:14.291265+00:00",
+  "notes": "cloud_branch_sync start skipped:no-task-id; current clean starting branch coordinator/task-b48daa42 retained. Session start script executed; its suppressed test error detection did not detect missing go on PATH, so test-changed rerun with /usr/local/go/bin prepended. make lint unavailable: golangci-lint not installed; focused go vet used. AILANG prompt v0.16.11 loaded.",
+  "last_checkpoint": "M1-M10 complete; lint unavailable and verified baseline effects failures recorded",
+  "verification": {
+    "make test-stdlib-ail": "PASS: 7 suites, 4 fixtures",
+    "make verify-stdlib": "PASS: 50 interfaces",
+    "make fmt-check": "PASS",
+    "make check-file-sizes": "PASS",
+    "make check-boundaries": "PASS",
+    "make check-changelog": "PASS",
+    "make lint": "UNAVAILABLE: golangci-lint missing; no installation attempted",
+    "go vet touched packages": "PASS: builtins, bytecode, VM",
+    "make test-changed": "Touched packages PASS; core completed with two baseline effects failures and intentional builtin golden drift (fixed and focused test rerun PASS)",
+    "make verify-examples": "PASS: 248 modules, 0 drift, 0 missing",
+    "schema focused -count=20": "PASS:6.478s",
+    "baseline effects proof": "Both exact failing tests reproduced at abd4dfd8 in detached worktree, removed afterward",
+    "builtin type golden": "Intentionally adds three jsonschema signatures; focused verify PASS"
+  },
+  "completed": "2026-11-04T09:29:39.861254+00:00",
+  "evaluation_report": ".ailang/state/evaluations/eval_M-STD-JSONSCHEMA_round_1.json"
 }

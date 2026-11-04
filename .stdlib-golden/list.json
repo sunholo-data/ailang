@@ -41,6 +41,50 @@
         },
         "declassify": []
       },
+      "name": "all",
+      "type": "((a)-\u003ebool,list[a])-\u003ebool",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "p",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "xs",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "any",
       "type": "((a)-\u003ebool,list[a])-\u003ebool",
       "effects": [],

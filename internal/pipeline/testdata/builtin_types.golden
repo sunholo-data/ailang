@@ -155,6 +155,9 @@ _json_decode : string -> Result[Json, string]
 _json_decode_float_array : string -> Result[Array[float], string]
 _json_encode : Json -> string
 _json_repair : string -> Result[string, string]
+_jsonschema_check_schema : Json -> list[{keyword: string, message: string, path: string}]
+_jsonschema_validate : (Json, Json) -> list[{keyword: string, message: string, path: string}]
+_jsonschema_validate_lenient : (Json, Json) -> list[{keyword: string, message: string, path: string}]
 _list_any : (a -> bool, list[a]) -> bool
 _list_contains : (list[a], a) -> bool
 _list_dedup : list[a] -> list[a]
