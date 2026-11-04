@@ -1594,3 +1594,54 @@ Last 3 code landings: iteration 78 (`3d9112bb9`), iteration 70 (`52e8958f0`), th
 - Quorum: none (no design doc). Metered spend $0. No lane recorded dead.
 
 **Next**: if Mark rules D-FLEET-36 A and/or D-FLEET-38 A, rebase #2108 keeping only the ruled commit(s), wait for CI and merge. The following fire then does the dependent edit: the 8 design-doc-creator grep sites, and/or `sync-agents-skills.sh` extended to the 16 plus their sync, then resolves the ticket(s). The same applies to #2082 (-25), #2067 (-21) and #2065 (-26). Otherwise no OPEN row has an in-scope code step without a diff, so take a ruling or a filing newer than 10-28.
+
+## 83 — 2026-11-04 — D-FLEET-18 A's guard step, the fleet scope-guard arm for the two motoko probe files, built as a proposed diff (draft PR #2110, `875581f46`), unmerged pending a ruling; an independent sonnet judge refuted the controller's idle verdict, then PASS 93 [HARNESS]
+
+**Pick**: the guard arm that D-FLEET-18 A begins with. Iteration 82's **Next** expected an idle fire, and the controller's Gate-2 verdict agreed: no ruling, no new filing, and every in-scope code recommendation already had a diff. Iteration 81 set the precedent of putting an idle verdict before an independent judge. This fire's judge REFUTED it. D-FLEET-18 option A, the recommendation, starts with a `_scope_is_fleet_support` arm for `tools/eval/motoko_connection_probe.sh` and `tools/eval/test_motoko_connection_probe.sh`. That step is in-scope code, it is not policy-class, and no diff existed for it. Iteration 82's screen had put row 18 under "outside fleet scope", even though it is the same guard-arm-first shape as the 36/38 arms that iteration 82 built. Under the *Ticket-driven only* ruling-gated clause, the pick was to build that arm as a draft and not merge it. The judge also named D-FLEET-41 B (sprint-evaluator skill text) as a weaker candidate. It was not taken, because B is not the recommendation and iteration 76 moved that row's default to C on purpose.
+
+**Orphans / prior record**: drafts #2108, #2082, #2067 and #2065 are expected and untouched; none has a comment or review. Iteration 82's record merged as #2109 → `aebc3dcbb`. No `iter83` worktree or branch existed before this fire. `origin/dev`'s log ended at 82, and no open fleet PR carried a later record.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN.
+- #2039: 0 directives (7 comments, none allowlisted). #1945: 0 since its watermark. `mission-2039-last-seen` is still absent. Self-notices rc 0: 0 crash notices, control 852:10.
+- Skill drift: `SKILL.md` and all 13 resource files are `cmp`-identical to `origin/dev` at the resolved symlink target. The pin copy is at `origin/dev` (drift 0).
+- Gate-1 base `aebc3dcbbe87fb4e38ee322c6359f17f9187c776@2026-11-04T04:56:25Z`.
+- Dev at `aebc3dcbb`: CI and Build and Release success, 18 check-runs, none non-green.
+- Ledger valid (40 rows, 24 OPEN). 25 tickets; the newest `first_seen` is 10-28 and the newest `last_seen` is 11-03T21:28Z (daneel-reports, already recorded at 82). `MISSION_OVER_RATION` empty; routing note empty.
+
+**Reality check** (first-party, at `aebc3dcbb`): the pinned `pre-push:29-36` admits no `tools/eval/*` path. `git log origin/dev --grep D-FLEET-18` returns only record commits plus #1824, and no open PR is for row 18. Both probe files exist. Their only callers are `make/test.mk:128,140-141` and fixture strings at `scripts/test_check_referenced_paths.sh:45-46`.
+
+**Did** (generator ≠ judge):
+- **Designer**: not spawned; the row is the spec.
+- **Idle judge** (sonnet, Agent tool, foreground): REFUTED (narrow). It confirmed C1, C3 and C5 and refuted C4 on D-FLEET-18 A ([evaluation](fleet-mission-evidence/iteration83/evaluation.md)).
+- **Gate list at base first** (false-green 4): `bash -n` on both, the scope suite, `mission_decisions.sh --check`, `check-changelog`, `check-context-docs` and `check-no-personal-email` all rc 0. `make test-launchd-drivers` 52/52.
+- **Planner**: `codex:gpt-6.1-sol`, probe rc 0, `--sandbox read-only`, rc 0, 165,656 tok ([plan](fleet-mission-evidence/iteration83/plan.md)). It proposed one literal two-path arm in *support*, not harness, so motoko, the probe's owner, keeps access. It also proposed 10 arms, each naming the mutation it kills, a separate Authority line to keep the #2108 conflict small, and an eval-exposure check. The check showed that nothing in the eval runtime runs either probe; the probe runs `eval-suite` at `motoko_connection_probe.sh:236`.
+- **Executor**: `codex:gpt-6.1-sol`, `workspace-write`, rc 0, 48,870 tok ([directive](fleet-mission-evidence/iteration83/executor-directive.txt), [report](fleet-mission-evidence/iteration83/executor-report.md)). It touched exactly 4 files. Its six in-tree drills were all killed and reverted; they ran in the sandbox, so they are labelled uninformative.
+- **Gates at head**, outside the sandbox: all of the above rc 0, `git diff --check` clean, `make test-launchd-drivers` **52/52** ([gates](fleet-mission-evidence/iteration83/gates.md)). Controller commit `875581f46`.
+- **Diff judge** (sonnet, Agent tool, foreground): **PASS 93**, no required edits. In a `mktemp -d` copy, 8 of 8 mutants were killed and the positive control passed. Minor findings: the `v1` arms are redundant with the `motoko` arms, and no `tools/eval/test_*` widening trap exists beyond `-x`. Strongest objection: the filenames are hard-coded, so a renamed probe needs another ruling.
+- **Landing (proposed only)**: pushed `fleet/i83-dfleet18-scope-arm` (the pinned guard admitted it) and opened **draft PR #2110**. It is not stacked on #2108, so each row merges on its own ruling; whichever merges second rebases and keeps both arms. D-FLEET-18 stays OPEN with an iteration-83 note, and queue row 13 is annotated.
+
+**Ruled out**:
+- Any `tools/eval/` edit (the two live flake signatures, retiring the pair) in this PR: the pinned guard would refuse the push under the iteration-16 rule. That is the follow-on fire after a ruling.
+- A `tools/eval/*` wildcard: it would hand the fleet the eval harness's runners.
+- Putting the paths in `_scope_is_harness`: that would refuse them for motoko and every product loop.
+- Stacking on #2108: it would make row 18's merge depend on rows 36/38's rulings.
+- D-FLEET-41 B: not the recommendation, and its default was moved to C deliberately (iteration 76).
+- Merging: the row is OPEN, with default C.
+
+**Retro lane**: no skill edit. Flagged:
+- (a) **Third instance of the idle screen missing a buildable step.** At 81 the judge caught a sub-item shared by A and B. At 82 the controller caught a guard arm shared by two rows' A options. Here the judge caught a recommendation whose first step is an in-scope guard arm, in a row the screen had filed as "outside fleet scope". The common error is screening on "is the row's *target* in scope?" when the question should be "does the recommended (or every non-default) option *begin* with an in-scope step?". Iteration 82 proposed a one-line Guardrails clause for this and left it to Mark, because it changes the loop's own pick rule. With 3 instances, it is re-proposed in the report with the sharper wording. Until Mark answers, keep the idle-verdict judge on every idle verdict; it is what found 81 and 83.
+- (b) Instrument slip: the controller ran `resolve-role-spawn.sh planner` with no doc and got `opus fail-closed:no-doc`. It routed to the pin per rule (a) without spawning the alias. With the charter as the doc, the resolver returns `declared:planner-lane-default-pin`. Pass the charter.
+- (c) The controller committed with `-c core.hooksPath=/dev/null`. That skipped nothing (the effective hooks path holds only `pre-push`, and the push ran under the guard), but it is a habit to drop: never neutralise a hooks path, even for a commit.
+
+**Progress**: goal unmoved. Clause 1 UNMEASURED. Clause 2 UNMET (nothing resolved). Clause 3 MET (25 open). Clause 4: prior evidence only. Clause 5 preserved (nothing merged to code).
+
+**Routing evidence**: Gate-1 base `aebc3dcbbe87fb4e38ee322c6359f17f9187c776@2026-11-04T04:56:25Z`. Driver routing note: empty (as configured). Details: [routing](fleet-mission-evidence/iteration83/routing.md).
+- Controller `claude:claude-opus-5-5` (tok: not reported). `MISSION_ANTHROPIC_AVAILABLE=1`.
+- Designer: not spawned; rotation pointer not advanced.
+- Planner `codex:gpt-6.1-sol` (165,656 tok), recipe (read-only sandbox, build worktree). Resolver: `agent-tool opus fail-closed:no-doc` without a doc, so the pin was followed per rule (a); with the charter, `recipe codex:gpt-6.1-sol declared:planner-lane-default-pin`.
+- Executor `codex:gpt-6.1-sol` (48,870 tok), recipe. Resolver `recipe codex:gpt-6.1-sol declared:provider-pin`.
+- Evaluator `sonnet`, Agent tool, two foreground spawns: idle judge 75,574 subagent tok; diff judge 58,590 tok. Resolver `agent-tool sonnet declared:alias-pin`. Judge independence: cross-vendor from the codex generator.
+- Quorum: none (no design doc). Metered spend $0. No lane recorded dead.
+
+**Next**: if Mark rules D-FLEET-18 A, rebase #2110 (onto #2108 if that merged first, keeping both arms), re-run its gates, wait for CI and merge. The following fire then works #13's live signatures in `tools/eval/` and resolves the two tickets. The same applies to #2108 (-36/-38), #2082 (-25), #2067 (-21) and #2065 (-26). Otherwise, before declaring idle, screen every OPEN row for "does the recommended (or every non-default) option begin with an in-scope step that has no diff?". If none does, take a ruling or a filing newer than 10-28.
