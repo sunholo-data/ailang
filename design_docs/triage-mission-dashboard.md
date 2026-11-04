@@ -14,6 +14,6 @@
 - Routing:nativeOpenAI verifiers(model/tokensunreported);actualMiniMaxM3judge viaOllama.
 - Spend:$0metered;943825judge tokensincludingcache;nativequota totalsunreported.
 - Cadence:12h,unchangedfingerprintidlefree;V1paused.
-- Reporting:Daneelnormal+oneevening5itempacket;controlplane fallback ifundeclared.
+- Reporting:normal + morning packet delivered to controlplane fallback; user summary delivered.
 - Harness:14/19escalationrows;0triageauthoredrepairs.
-- Record:iteration27preserved fromdraft2114;iteration28recorddraftpending delivery.
+- Record:iteration27 preserved from draft2114; iteration28 draft:https://github.com/sunholo-data/ailang/pull/2124
