@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-DX-EFFECTFUL-CALLBACK-DIAGNOSTIC",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-11-03T15:32:14Z",
   "design_doc": "design_docs/planned/v0_57_1/m-dx-effectful-callback-diagnostic.md",
   "sprint_plan": "design_docs/planned/v0_57_1/m-dx-effectful-callback-diagnostic-sprint-plan.md",
@@ -40,7 +40,8 @@
   "velocity": {
     "target_loc_per_day": 270,
     "estimated_total_loc": 540,
-    "estimated_days": 2
+    "estimated_days": 2,
+    "actual_total_loc": 524
   },
   "features": [
     {
@@ -130,10 +131,47 @@
         "The new example checks/runs with IO and existing match_hof_lambda, poly_arith_lambda and effect_budget_demo remain accepted.",
         "Focused validation below passes and the changelog describes the behavior change accurately."
       ],
-      "passes": null,
+      "passes": true,
       "started": "2026-11-04T09:48:05.482781+00:00",
-      "completed": null,
-      "notes": "Pipeline regressions and #386 controls pass; example and manifest integrated. Example gate: 266 pass, 10 skip, 0 fail. Final test-changed running; lint unavailable (golangci-lint missing). Prompt v0.16.11 loaded from checkout binary."
+      "completed": "2026-11-04T09:53:35.812947+00:00",
+      "notes": "Implemented and focused acceptance checks passed. Full changed packages: types, pipeline, stdlibindex pass; CLI wiring passes. verify-examples: 266 passed, 10 skipped, 0 failed. test-changed fails on 3 CLI policy tests, all reproduced at starting commit abd4dfd. test-core fails on 2 effects cleanup tests, both reproduced at abd4dfd; its pipeline process was killed (also on isolated fast-loop rerun); earlier full pipeline package passed. Lint unavailable: golangci-lint absent. No toolchains installed. AILANG prompt v0.16.11 loaded; example explicit IO; contracts/inline tests skipped for console traversal, stdout verified."
     }
-  ]
+  ],
+  "validation": {
+    "passed": [
+      "focused diagnostics and index tests, 20 repetitions",
+      "CLI wiring test",
+      "full internal/types, internal/pipeline, internal/stdlibindex packages",
+      "pipeline #386 must-accept/must-reject controls",
+      "new example check/run; three existing example checks",
+      "make verify-examples (266 pass, 10 skip, 0 fail)",
+      "make sync-examples-manifest",
+      "make check-file-sizes check-changelog check-boundaries fmt-check",
+      "go vet ./internal/types ./internal/stdlibindex ./internal/pipeline"
+    ],
+    "baseline_failures": [
+      "TestRunPolicy_DeadlineStopsExecutionWithoutProtocolGrace (missing ps)",
+      "TestRunPolicy_TimeoutKillsDescendants",
+      "TestRunPolicy_SupervisorDeathStopsWorker",
+      "TestRuntimeNestedStopUsesRemainingDeadline",
+      "TestProcessExec_TimeoutKillsGrandchildren"
+    ],
+    "limitations": [
+      "golangci-lint absent",
+      "fast-loop pipeline process killed twice; full pipeline package previously passed",
+      "initial cold-build CLI timeout; subsequent full types tests pass"
+    ],
+    "baseline_commit": "abd4dfd821e919654ddaa0fafd36dd27197126fb"
+  },
+  "handoff": {
+    "inbox": "sprint-evaluator",
+    "message_id": "inbox_1793785968442_04ca119c",
+    "status": "filed_not_dispatched",
+    "notes": "Message stored in prod Firestore; cloud registry read denied and Pub/Sub not enabled locally. Coordinator completion markers provide task handoff. No configuration changes made."
+  },
+  "publication": {
+    "branch": "coordinator/task-8e422620",
+    "sync": "skipped:no-task-id",
+    "notes": "Milestones committed locally for coordinator wrapper publication."
+  }
 }

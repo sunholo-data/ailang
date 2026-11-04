@@ -1,7 +1,7 @@
 # Sprint Plan: M-DX-EFFECTFUL-CALLBACK-DIAGNOSTIC
 
 **Design:** [approved design](m-dx-effectful-callback-diagnostic.md)
-**Status:** Implemented; final validation and independent evaluation pending.
+**Status:** Implementation complete; validation recorded below; independent evaluation pending.
 **Duration:** 2 working days, approximately 7.5 hours including 25% contingency.
 **Scope:** Diagnostic changes only; no change to accepted programs or effect semantics.
 **Risk:** Medium: nested unification context and local/deferred message parity.
@@ -128,3 +128,7 @@ AILANG prompt version loaded: v0.16.11, using the checkout binary. The showcase 
 Validation completed: focused type diagnostics and index tests (20 repetitions), CLI wiring, reporter/filter/named/type-mismatch/remedy pipeline cases, #386 must-accept/must-reject controls, existing `match_hof_lambda`, `poly_arith_lambda`, and `effect_budget_demo` checks; `make verify-examples` (266 passed, 10 skipped, zero failed), manifest sync, file-size/changelog/architecture/format gates, and Go vet for types/index/pipeline.
 
 Environment notes: `make lint` cannot run because golangci-lint is absent. The initial broad type test's CLI subprocess exceeded its 120-second cold-build timeout while downloading dependencies; the checkout binary subsequently built successfully. No toolchains were installed. Cloud branch sync reported `skipped:no-task-id`; work is committed locally for coordinator publication. Design remains in planned pending the independent evaluator, per executor workflow.
+
+Final broad validation: `make test-changed` passed the full types, pipeline, and stdlibindex packages, but failed three CLI policy tests (`TestRunPolicy_DeadlineStopsExecutionWithoutProtocolGrace`, `TestRunPolicy_TimeoutKillsDescendants`, `TestRunPolicy_SupervisorDeathStopsWorker`). All three reproduce on untouched starting commit `abd4dfd`; the first requires missing `ps`. `make test-core` additionally failed `TestRuntimeNestedStopUsesRemainingDeadline` and `TestProcessExec_TimeoutKillsGrandchildren`, both reproduced on that same baseline. The fast-loop pipeline process was killed, including on a subsequent isolated rerun; the earlier full pipeline run passed. These broad gates are not claimed green. All other emitted core-package results passed.
+
+Evaluator handoff: Firestore message `inbox_1793785968442_04ca119c` filed in `sprint-evaluator`; not dispatched because this environment lacks Pub/Sub configuration and cannot read the cloud registry. Coordinator completion markers carry the implementation handoff. No routing configuration was changed.
