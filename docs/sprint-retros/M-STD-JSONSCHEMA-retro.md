@@ -47,3 +47,10 @@ required native bridges for all three new APIs; no ratchet exception was added.
 Retain resource-scope and unevaluated-location tests when extending vocabulary.
 The engine deliberately has no remote-reference support or schema cache. Future
 conformance work may vendor the official suite; that remains outside this sprint.
+
+Final integration: stdlib suites/fixtures, all50 interface goldens, all248 example
+modules, fmt, size, boundaries, changelog and touched-package vet passed. The
+core run completed; its two process cleanup failures reproduced unchanged at
+starting commit abd4dfd8. A separate builtin signature golden caught exactly the
+three new APIs; regenerated intentionally and verified with a focused passing
+check. See `.ailang/state/sprints/M-STD-JSONSCHEMA-verification.md` for evidence.
