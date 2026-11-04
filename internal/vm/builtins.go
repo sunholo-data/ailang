@@ -193,6 +193,9 @@ var BuiltinTable = []BuiltinFunc{
 	builtinMapToList,
 	builtinMapKeys,
 	builtinMapValues,
+	builtinJSONSchemaValidate,
+	builtinJSONSchemaValidateLenient,
+	builtinJSONSchemaCheckSchema,
 }
 
 // builtinRecordGet returns the value of the named field in a record. Used as

@@ -121,7 +121,15 @@ func compileSchema(value any, strict bool) (*schemaProgram, []schemaError) {
 			case "type":
 				valid := func(v any) bool {
 					s, ok := v.(string)
-					return ok && strings.Contains("|null|boolean|object|array|number|string|integer|", "|"+s+"|")
+					if !ok {
+						return false
+					}
+					switch s {
+					case "null", "boolean", "object", "array", "number", "string", "integer":
+						return true
+					default:
+						return false
+					}
 				}
 				if a, ok := val.([]any); ok {
 					seen := map[any]bool{}
