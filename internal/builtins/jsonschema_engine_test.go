@@ -80,6 +80,7 @@ func TestJSONSchemaDynamicAndReferenceAnnotations(t *testing.T) {
 		{"allOfAnnotations", `{"allOf":[{"properties":{"a":true}},{"properties":{"b":true}}],"unevaluatedProperties":false}`, `{"a":1,"b":2}`, `{"c":3}`},
 		{"oneOfAnnotations", `{"oneOf":[{"properties":{"a":true},"required":["a"]},{"properties":{"b":true},"required":["b"]}],"unevaluatedProperties":false}`, `{"a":1}`, `{"a":1,"c":2}`},
 		{"dynamicOverride", `{"$dynamicAnchor":"node","$ref":"#/$defs/tree","required":["tag"],"$defs":{"tree":{"$id":"tree","$dynamicAnchor":"node","type":"object","properties":{"next":{"$dynamicRef":"#node"}}}}}`, `{"tag":true,"next":{"tag":true}}`, `{"tag":true,"next":{}}`},
+		{"dynamicPointerIsStatic", `{"$dynamicAnchor":"node","type":"number","$defs":{"tree":{"$id":"tree","$defs":{"base":{"$dynamicAnchor":"node","type":"number"}},"$dynamicRef":"#/$defs/base"}},"$ref":"#/$defs/tree"}`, `1`, `"x"`},
 		{"bothRefs", `{"$defs":{"number":{"type":"number"},"positive":{"minimum":1}},"$ref":"#/$defs/number","$dynamicRef":"#/$defs/positive"}`, `2`, `0`},
 	}
 	for _, tt := range tests {

@@ -1,6 +1,10 @@
 package builtins
 
-import "strconv"
+import (
+	"net/url"
+	"strconv"
+	"strings"
+)
 
 func applicatorSchema(n *schemaNode, m map[string]any, doc any, path string, scope []*schemaNode, depth map[string]int, r *schemaResult) {
 	apply := func(child *schemaNode) schemaResult {
@@ -16,10 +20,14 @@ func applicatorSchema(n *schemaNode, m map[string]any, doc any, path string, sco
 		if target == nil {
 			continue
 		}
-		if keyword == "$dynamicRef" && target.dynamicAnchor != "" {
+		fragment, _ := url.PathUnescape(strings.TrimPrefix(n.dynamicRef, "#"))
+		if keyword == "$dynamicRef" && fragment != "" && !strings.HasPrefix(fragment, "/") && target.dynamicAnchor == fragment {
 			for _, outer := range scope {
-				if outer.dynamicAnchor == target.dynamicAnchor {
-					target = outer
+				if outer.resource == nil {
+					continue
+				}
+				if candidate := outer.resource.anchors[fragment]; candidate != nil && candidate.dynamicAnchor == fragment {
+					target = candidate
 					break
 				}
 			}

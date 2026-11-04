@@ -19,6 +19,7 @@ type schemaNode struct {
 	dynamicRef    string
 	dynamicAnchor string
 	resource      *schemaNode
+	anchors       map[string]*schemaNode
 }
 type schemaProgram struct {
 	root            *schemaNode
@@ -247,6 +248,9 @@ func compileSchema(value any, strict bool) (*schemaProgram, []schemaError) {
 		return n
 	}
 	p.root = walk(value, "", nil)
+	for resource, anchors := range p.resourceAnchors {
+		resource.anchors = anchors
+	}
 	p.resolveReferences(add)
 	return p, errs
 }
