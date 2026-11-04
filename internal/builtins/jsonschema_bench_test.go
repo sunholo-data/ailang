@@ -5,8 +5,8 @@ import (
 	"testing"
 )
 
-// BenchmarkJSONSchemaCensusScale measures the public API's compile-plus-validate
-// work: 460 schema nodes, 1000 document properties, and no cache across calls.
+// BenchmarkJSONSchemaCensusScale measures engine compile-plus-validate
+// work (excluding Json ADT conversion): 460 schema nodes, 1000 document properties, and no cache across calls.
 func BenchmarkJSONSchemaCensusScale(b *testing.B) {
 	props := map[string]any{}
 	doc := map[string]any{}

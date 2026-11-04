@@ -3705,14 +3705,37 @@
         "stdout": "logged 1\nlogged 2\nlogged 3\ntotal 6\nitem a\nitem b\nmapped [true, true]\n",
         "exit_code": 0
       }
+    },
+    {
+      "path": "runnable/jsonschema_validate.ail",
+      "status": "working",
+      "tags": [
+        "json",
+        "schema",
+        "stdlib"
+      ],
+      "description": "Pure envelope self-check against a strict Draft 2020-12 schema, with std/list.all inline tests.",
+      "modules": [
+        "std/io",
+        "std/json",
+        "std/jsonschema",
+        "std/list"
+      ],
+      "requires": [
+        "IO"
+      ],
+      "expected": {
+        "stdout": "Envelope conforms to its schema\n",
+        "exit_code": 0
+      }
     }
   ],
   "statistics": {
-    "total": 252,
-    "working": 244,
+    "total": 253,
+    "working": 245,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9682539682539683,
+    "coverage": 0.9683794466403162,
     "experimental": 0
   },
   "milestones": {

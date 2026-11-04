@@ -1,0 +1,132 @@
+{
+  "module": "std/jsonschema",
+  "types": [
+    {
+      "name": "ValidationError",
+      "alias": "{keyword: string, message: string, path: string}"
+    }
+  ],
+  "funcs": [
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "schema",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "doc",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "validate",
+      "type": "(Json,Json)-\u003elist[{keyword: string, message: string, path: string}]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "schema",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "doc",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "validateLenient",
+      "type": "(Json,Json)-\u003elist[{keyword: string, message: string, path: string}]",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "schema",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "validateSchema",
+      "type": "(Json)-\u003elist[{keyword: string, message: string, path: string}]",
+      "effects": [],
+      "pure": true
+    }
+  ],
+  "schema": "ailang.iface/v2"
+}
