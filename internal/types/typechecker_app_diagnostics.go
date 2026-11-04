@@ -1,6 +1,9 @@
 package types
 
-import "github.com/sunholo-data/ailang/internal/core"
+import (
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/core"
+)
 
 // applicationDiagnosticPath annotates the application equality itself, so both
 // local and deferred constraint solving preserve callee names without changing
@@ -31,4 +34,32 @@ func coreCalleeName(fn core.CoreExpr) (name, from string) {
 		return v.Ref.Name, v.Ref.Module
 	}
 	return "", ""
+}
+
+// AppConstraintInfo preserves source context independently of diagnostic prose.
+// Core nodes expose a start position rather than a full source range.
+type AppConstraintInfo struct {
+	Callee, FromModule string
+	Span               ast.Pos
+	ArgSpans           []ast.Pos
+	ArgIsLambda        []bool
+}
+
+func applicationConstraintInfo(app *core.App) *AppConstraintInfo {
+	name, from := coreCalleeName(app.Func)
+	info := &AppConstraintInfo{Callee: name, FromModule: from, Span: app.Span()}
+	for _, arg := range app.Args {
+		info.ArgSpans = append(info.ArgSpans, arg.Span())
+		_, lambda := arg.(*core.Lambda)
+		info.ArgIsLambda = append(info.ArgIsLambda, lambda)
+	}
+	return info
+}
+
+func applicationDiagnosticPathNoNote(info *AppConstraintInfo) []string {
+	context := "function application"
+	if info.Callee != "" {
+		context += " of " + info.Callee
+	}
+	return []string{context + " at " + info.Span.String()}
 }

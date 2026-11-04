@@ -603,6 +603,7 @@ func (tc *CoreTypeChecker) inferApp(ctx *InferenceContext, app *core.App) (*type
 		Left:  getType(funcNode),
 		Right: expectedFuncType,
 		Path:  applicationDiagnosticPath(app),
+		App:   applicationConstraintInfo(app),
 	})
 
 	// M-EFFECT-ROW-SHOW-INTERP (#386) Section A: solve the equality constraints

@@ -72,10 +72,10 @@
         "Argument metadata is aligned with the index used by unification; unavailable/out-of-range metadata never panics or invents spans.",
         "Existing application diagnostic and collision-hint tests pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-11-04T09:36:03.909558+00:00",
+      "notes": "App context stores core start positions (ast.Pos), matching available core metadata. Existing application diagnostic tests pass."
     },
     {
       "id": "M3",

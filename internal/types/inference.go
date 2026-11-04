@@ -70,7 +70,8 @@ type TypeConstraint interface {
 type TypeEq struct {
 	Left  Type
 	Right Type
-	Path  []string // Source location path
+	Path  []string           // Source location path
+	App   *AppConstraintInfo // nil for non-application constraints
 }
 
 func (c TypeEq) constraint()    {}
