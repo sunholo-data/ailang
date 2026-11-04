@@ -118,7 +118,7 @@
         "M4"
       ],
       "acceptance_criteria": [
-        "Pre-fix and candidate check results have zero unexpected status flips across examples, std and the design-referenced 1,066-file corpus; positive controls flip as expected.",
+        "Per-file base (v0.57.0) vs candidate `ailang check` over EVERY tracked .ail in this repo (`git ls-files '*.ail'`, ~810 files, each from its package root) has zero unexpected flips; the issue repro and rows 5/6 flip reject→accept as positive controls; rows 10/11 stay rejected. The out-of-repo populations are run attended before release (see Validation).",
         "make test-changed, make check-file-sizes, make check-changelog and make verify-examples pass; formatting and lint checks pass.",
         "Changelog fragment opens with ### and references #2078; evidence records binary commits, corpus manifest, commands and results."
       ],

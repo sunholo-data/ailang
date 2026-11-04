@@ -97,7 +97,7 @@ Check accepted fixtures with the candidate CLI as well as pipeline tests. Preser
 **Files:** changelogs/unreleased/2026-11-04-scc-shadow-aware-callgraph.md.  
 **Registry reuse:** none: compiler-internal AST scope and SCC analysis plus regression coverage; no package-like capability or runtime dependency is introduced. Registry search is not applicable.
 
-- [ ] Pre-fix and candidate check results have zero unexpected status flips across examples, std and the design-referenced 1,066-file corpus; positive controls flip as expected.
+- [ ] Per-file base (v0.57.0) vs candidate `ailang check` over EVERY tracked .ail in this repo (`git ls-files '*.ail'`, ~810 files, each from its package root) has zero unexpected flips; the issue repro and rows 5/6 flip reject→accept as positive controls; rows 10/11 stay rejected. The out-of-repo populations are run attended before release (see Validation).
 - [ ] make test-changed, make check-file-sizes, make check-changelog and make verify-examples pass; formatting and lint checks pass.
 - [ ] Changelog fragment opens with ### and references #2078; evidence records binary commits, corpus manifest, commands and results.
 
@@ -115,7 +115,12 @@ Day 3 (half day): Complete M5, collect differential corpus evidence, run focused
 
 Use make test-changed (touched packages plus test-core), make check-file-sizes, make check-changelog and make verify-examples. Run repository formatting and lint targets. Do not require make test; CI owns the full suite. No touched existing file is near 800 lines; keep new graph tests and external pipeline tests separate, splitting a companion scc_scope_test.go if needed.
 
-Locate the existing #2074/#1958 corpus harness and exact 1,066-file manifest before M5. A tools filename search during planning did not locate it; it may be an external artifact. Capture baseline and candidate results against identical files, working directories, stdlib and flags; compare status per path, preserving pre-existing failures. Never report zero flips from aggregate pass counts or an empty corpus. Save evidence under .ailang/state/sprints/ alongside sprint progress. If the harness/corpus cannot be obtained, run the repository examples/std checks, mark the external sweep unverified, leave M5 incomplete and report the missing artifact; do not substitute a smaller corpus silently.
+Corpus sweep (ruling, attended 2026-11-04). There is no in-repo harness and the "1,066-file corpus" is the narrow scope that missed the v0.56.0 deploy break: do not look for it. This change regroups SCCs, which changes which bindings generalize, so it gets the same three-population sweep as v0.57.0:
+
+1. **Executor (M5):** every tracked `.ail` in this repo (`git ls-files '*.ail'`), checked from its package root, with a v0.57.0 base binary and the candidate built from the branch. Compare exit status per path; keep pre-existing failures as-is. Use `perl -e 'alarm 120; exec @ARGV'` for a timeout (no `timeout` on macOS), run under `nice` with at most 4 parallel jobs, and include the positive controls above, so an empty or broken sweep cannot read as "0 flips". Record the per-path TSV under `.ailang/state/sprints/`.
+2. **Attended, before release (not the executor's job):** every `~/dev` git checkout holding `.ail` (`git archive HEAD`), the deduplicated `code` field of `eval_results/**/*.json` (`AILANG_RELAX_MODULES=1`), and a `serve-api` boot of the executor MCP with its Dockerfile/terraform args plus `executor_tools/smoke.sh`. These need the operator machine.
+
+Any newly ACCEPTED file is expected only where a module-level name is shadowed by a local binder that references it; list each one. Any newly REJECTED file is a regression: stop and report it.
 
 ## Completion and handoff
 
