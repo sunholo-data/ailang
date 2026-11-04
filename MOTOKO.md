@@ -1,8 +1,9 @@
 # motoko_agent on this machine — the map
 
 **Rig answer (since 2026-10-27):** evals run `/Users/voightkampff/dev/mk-20261027`, branch
-`sunholo/main-dst-20261027` @ `835c738b` (§13) — upstream `main` 97244396 + our commits. The Docker source pin
-is now `af1d5651` with the approved #1958 callback migration (§14); the live rig was not switched. 2026-10-19..10-27: `mk-20261019` / `sunholo/main-dst-20261019` @ `907dd78e` (§12), now
+`sunholo/main-dst-20261027` @ `083ef437` (§16, since 2026-11-04 ~14:10) — upstream `main` 97244396 + our commits
++ the #1958 test-fixture annotations of §14/§15, the same commit the Docker source pin names. Before 11-04 the rig ran
+`835c738b` (§13), which the v0.57.0 compiler rejects. 2026-10-19..10-27: `mk-20261019` / `sunholo/main-dst-20261019` @ `907dd78e` (§12), now
 the rollback. 2026-10-15..10-19: `mk-20261015` / `sunholo/main-dst-20261015` @
 `965f2ec5` (§11). 2026-10-08..10-15: `mk-20261002` (§10). Before that (2026-09-28..10-07):
 `/Users/voightkampff/dev/mk-main`, branch `sunholo/main-dst` = Arni's `main` (DST core, extension ABI 8.0) plus our local commits
@@ -389,3 +390,26 @@ and its compatibility JSON for exact pins, corpus/control results and final gate
 This is the v0.56.0 compiler-compatible **source pin**, not a built/deployed image.
 The live rig/shim remain at §13's `835c738b`; upstream `arniwesth/motoko_agent` was
 not modified. AILANG PR #2005 is accepted and merged at `80793dbcf42423027be4bab1a0088da54e2323d8`: root PASS 95/100 for row soundness and 95/100 for explicit-empty contracts. Target v0.56.0 remains unreleased; this does not imply a deployment.
+
+
+## 16. Rig switched to `083ef437` (2026-11-04)
+
+**Why:** the rig binary moved v0.55.0 → v0.57.0 on 2026-11-03 16:47 (the os-rotation filler's
+stale-binary fix). v0.57.0 carries #1958, and the rig checkout was still on §13's `835c738b`, so
+`ailang check` rejected `src/core/test/ext_fixture.ail` (`fixture_rt`: "Missing effects: AI, Clock,
+…") and `stub_step.ail`. motoko's pre-flight canary failed on every eval-suite call and eval-suite
+skipped it: **motoko banked ZERO rows on v0.57.0 from 11-03 16:47 to 11-04 ~14:10** while opencode
+and pi kept running. Nothing outside `/tmp/ailang-os-filler.log` said so; `tools/rig-model-health.sh`
+now alarms on exactly this (filler step 10 + the weekly report).
+
+**What:** `git merge --ff-only 083ef437` in `~/dev/mk-20261027` (branch `sunholo/main-dst-20261027`,
+which `fork/` already carried). Diff vs `835c738b`: 2 files, 5 annotation lines, both test fixtures —
+no runtime file, lockfile or ABI change, so motoko rows before and after are the same agent build.
+The shim's exec line is unchanged (same worktree); only its comment was updated.
+
+**Verified on v0.57.0 (`v0.57.0-7-g4c845b659-dirty`):** both fixture files `ailang check` OK (FAIL on
+`835c738b`, same binary — the control); `gmake check_core` exit 0: 60/60 core files, 9/9 extension
+boots. **Not yet verified:** a live canary + banked motoko row — the next filler cycle is that test.
+
+**Rollback:** `git -C ~/dev/mk-20261027 reset --hard 835c738b` (only useful together with an AILANG
+binary older than v0.56.0).

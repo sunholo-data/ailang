@@ -37,10 +37,15 @@ MODELS="${OS_FILLER_MODELS:-opencode-qwen3-8-27b,pi-qwen3-8-27b,motoko-local-qwe
 STD_VERSION="$(tr -d '[:space:]' < std/VERSION 2>/dev/null)"
 BIN_VERSION="$(ailang --version 2>/dev/null | head -1 | sed -E 's/^AILANG[[:space:]]+//')"
 PARKED="$(bash tools/eval-park-set.sh --roll "$ROLL" --models "$MODELS" 2>/dev/null | tr '\n' ' ')"
+# Dark models on the current release's bank (zero valid rows while peers bank).
+# rc 1/2 = the check itself broke: say so in the report rather than print "none".
+DARK="$(bash tools/rig-model-health.sh --vdir "$ROLL/$STD_VERSION/agent" --models "$MODELS" 2>&1)"
+case $? in 0) DARK="";; 3) DARK="$(printf '%s\n' "$DARK" | sed -n 's/^DARK //p' | tr '\n' ' ')";; *) DARK="CHECK-FAILED";; esac
 
-REPORT="$(python3 - "$ROLL" "$MODELS" "$DAYS" "$STD_VERSION" "$BIN_VERSION" "$PARKED" <<'PYEOF'
+REPORT="$(python3 - "$ROLL" "$MODELS" "$DAYS" "$STD_VERSION" "$BIN_VERSION" "$PARKED" "$DARK" "$MODELS" <<'PYEOF'
 import collections, datetime, glob, json, os, re, sys
 roll, models, days, std_v, bin_v, parked = sys.argv[1], set(sys.argv[2].split(",")), int(sys.argv[3]), sys.argv[4], sys.argv[5], sys.argv[6].split()
+dark, active = sys.argv[7].split(), [m for m in sys.argv[8].split(",") if m]
 now = datetime.datetime.now(datetime.timezone.utc)
 since = now - datetime.timedelta(days=days)
 def vkey(v): return tuple(int(x) for x in re.findall(r"\d+", v))
@@ -68,6 +73,12 @@ p("**Measuring:** std/VERSION `%s` · binary `%s` · rows banked under %s"
 if bin_base != std_v or (banked and banked[-1] != std_v):
     p("")
     p("⚠ **MISMATCH** — the rig is not measuring the current release. Check `ailang --version` vs `std/VERSION` and the filler log.")
+if dark == ["CHECK-FAILED"]:
+    p("")
+    p("⚠ **Model-health check FAILED** — could not tell whether every model is banking. Run `tools/rig-model-health.sh` by hand.")
+elif dark:
+    p("")
+    p("⚠ **DARK MODEL(S)** — %s banked ZERO valid rows on `%s` while the others banked. The rotation is running without them and coverage cannot complete. Check the canary lines in `/tmp/ailang-os-filler.log`." % (", ".join("`%s`" % m for m in dark), std_v))
 p("")
 
 if not rows:
@@ -83,8 +94,11 @@ p("| model | runs | pass | failures |")
 p("|---|---|---|---|")
 bym = collections.defaultdict(list)
 for r in rows: bym[r["model"]].append(r)
-for m in sorted(bym):
-    rs = bym[m]; ok = sum(bool(r.get("stdout_ok")) for r in rs)
+for m in sorted(set(bym) | set(active)):
+    rs = bym.get(m, [])
+    if not rs:
+        p("| %s | 0 | — | **no rows this window** |" % m); continue
+    ok = sum(bool(r.get("stdout_ok")) for r in rs)
     fails = collections.Counter(r.get("error_category") for r in rs if not r.get("stdout_ok"))
     p("| %s | %d | %d%% | %s |" % (m, len(rs), round(100 * ok / len(rs)), ", ".join("%s %d" % kv for kv in fails.most_common()) or "—"))
 p("")
@@ -122,7 +136,9 @@ p("- Regressions `%s` → `%s` (pass rate down ≥50pp, ≥3 rows each): %s" % (
 p("- Saturated (every run passed this window): %d of %d benchmarks run" % (saturated, len(byb)))
 p("- Parked (no harness passes; 1 probe trial per release): %s" % (", ".join("`%s`" % x for x in parked) or "none"))
 p("")
-if not gaps and not regress:
+if dark:
+    p("**Verdict:** fix the dark model(s) first — every other number above is missing a harness.")
+elif not gaps and not regress:
     p("**Verdict:** no new information this week. If this repeats, the rotation is spending GPU on confirmation only — shrink it or point it at a question.")
 else:
     p("**Verdict:** %d harness gap(s), %d regression(s) worth a `chains chat` look." % (len(gaps), len(regress)))

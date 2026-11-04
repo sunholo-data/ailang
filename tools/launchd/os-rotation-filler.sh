@@ -303,6 +303,7 @@ if ! rig_lock_acquire nowait; then
   log "rig busy — yielding"; exit 0
 fi
 log "rig lock acquired (filler)"
+CYCLE_LOG_START=$(wc -l < "$LOG" | tr -d ' ')   # step 10 reads this cycle's canary lines from here
 # 3a. LOCK HEARTBEAT. rig-lock.sh treats a lock dir whose mtime is older than
 # RIG_LOCK_STALE_MIN (6h) as a crashed holder and steals it, and nothing refreshed
 # that mtime — so any cycle over 6h was stealable mid-run (11-02 20:03 -> 11-03
@@ -791,5 +792,41 @@ if [ "$BENCH_SYNC" = "1" ] && command -v gsutil >/dev/null 2>&1; then
 elif [ "$BENCH_SYNC" = "1" ]; then
   log "bucket sync skipped: gsutil not on PATH"
 fi
+
+# 10. DARK-MODEL ALARM — an active model banking ZERO rows for this version must
+#     reach a human, not just this log (tools/rig-model-health.sh has the 11-03
+#     motoko incident). Alerts the prod user inbox once per (version, dark set);
+#     re-alerts when the set changes, and says so when it clears.
+DARK_STATE="$HOME/.ailang/state/rig-model-dark"
+DARK_STAMP="$DARK_STATE/${VERSION:-unknown}"
+HEALTH_OUT="$(bash tools/rig-model-health.sh --vdir "$VDIR" --models "$MODELS" 2>&1)"; HEALTH_RC=$?
+send_user_alert() { # TITLE BODY
+  AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac \
+    ailang messages send user "$2" --title "$1" --from os-rotation-filler --force >>"$LOG" 2>&1 \
+    || log "dark-model alarm: SEND FAILED — the alert below did not reach the user inbox"
+}
+case "$HEALTH_RC" in
+  3)
+    DARK_SET="$(printf '%s\n' "$HEALTH_OUT" | sed -n 's/^DARK //p' | sort | tr '\n' ' ' | sed 's/ $//')"
+    log "MODEL DARK ($VERSION): $DARK_SET — banking zero valid rows while peers bank"
+    if [ "$(cat "$DARK_STAMP" 2>/dev/null)" != "$DARK_SET" ]; then
+      WHY=""
+      for m in $DARK_SET; do
+        r="$(tail -n +"${CYCLE_LOG_START:-1}" "$LOG" | grep -F "$m: " | grep -iE "canary|fail|error" | tail -1 | cut -c1-600)"
+        WHY="${WHY}- \`$m\`: ${r:-no failure line in this cycle log — check /tmp/ailang-os-filler.log}"$'\n'
+      done
+      send_user_alert "Rig: model(s) banking nothing on $VERSION" "$(printf '**The local-rig rotation is running without:** %s\n\nVersion bank `%s`:\n```\n%s\n```\nLast failure seen this cycle:\n%s\nThe coverage gate cannot complete while a model is dark, so the rotation keeps spending GPU on the other models only. Fix the model (usually its pre-flight canary: `$TMPDIR/motoko-stderr-canary-*.log`) or drop it from `OS_FILLER_MODELS`.' "$DARK_SET" "$VDIR" "$HEALTH_OUT" "$WHY")"
+      mkdir -p "$DARK_STATE"; printf '%s' "$DARK_SET" > "$DARK_STAMP"
+    fi
+    ;;
+  0)
+    if [ -f "$DARK_STAMP" ]; then
+      log "dark-model alarm cleared ($VERSION): $(cat "$DARK_STAMP") banking again"
+      send_user_alert "Rig: dark model(s) recovered on $VERSION" "$(printf 'Previously dark: %s. Every active model now banks valid rows on `%s`:\n```\n%s\n```' "$(cat "$DARK_STAMP")" "$VERSION" "$HEALTH_OUT")"
+      rm -f "$DARK_STAMP"
+    fi
+    ;;
+  *) log "dark-model alarm: health check FAILED (rc=$HEALTH_RC): $HEALTH_OUT" ;;
+esac
 
 log "cycle done"
