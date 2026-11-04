@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-DX-EFFECTFUL-CALLBACK-DIAGNOSTIC",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-11-03T15:32:14Z",
   "design_doc": "design_docs/planned/v0_57_1/m-dx-effectful-callback-diagnostic.md",
   "sprint_plan": "design_docs/planned/v0_57_1/m-dx-effectful-callback-diagnostic-sprint-plan.md",
@@ -54,10 +54,10 @@
         "Error text is byte-identical to the original solver chain, including existing wrappers.",
         "Record-row failures contain no sentinel; focused internal/types tests pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-11-04T09:36:03.508583+00:00",
+      "notes": "Typed sentinel preserves solver text; closed row and callback position tests pass."
     },
     {
       "id": "M2",

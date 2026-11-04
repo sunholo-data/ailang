@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 )
 
@@ -50,6 +51,14 @@ func (u *Unifier) unifyFunctions(t1 *TFunc2, t2 Type, sub Substitution) (Substit
 			var err error
 			sub, err = u.Unify(p1[i], p2[i], sub)
 			if err != nil {
+				var mismatch *EffectRowMismatchError
+				if errors.As(err, &mismatch) {
+					mismatch.nested = mismatch.nested || mismatch.ParamIdx >= 0
+					mismatch.ParamIdx = i
+					if _, ok := p1[i].(*TFunc2); !ok {
+						mismatch.nested = true
+					}
+				}
 				return nil, fmt.Errorf("failed to unify parameter %d: %w", i, err)
 			}
 		}
@@ -67,12 +76,17 @@ func (u *Unifier) unifyFunctions(t1 *TFunc2, t2 Type, sub Substitution) (Substit
 			var err error
 			sub, err = u.Unify(eff1, eff2, sub)
 			if err != nil {
-				return nil, fmt.Errorf("failed to unify effect rows: %w", err)
+				return nil, &EffectRowMismatchError{DeclaredRow: eff1, ActualRow: eff2, ParamIdx: -1, cause: err}
 			}
 		}
 
 		// Unify return type
-		return u.Unify(r1, r2, sub)
+		result, err := u.Unify(r1, r2, sub)
+		var mismatch *EffectRowMismatchError
+		if errors.As(err, &mismatch) {
+			mismatch.nested = true
+		}
+		return result, err
 	}
 	if t2Var, ok := t2.(*TVar2); ok {
 		// Swap and retry
