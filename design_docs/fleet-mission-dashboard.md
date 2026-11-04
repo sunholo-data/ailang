@@ -7,7 +7,7 @@
   - **D-FLEET-25 shared sub-item**, draft PR #2082 (`399cf799b`). Judge PASS 94.
   - **D-FLEET-21 A**, draft PR #2067 (`bdaad2825`): Gate 3b CI poll cap 1800 s → 3600 s. Judge PASS 90.
   - **D-FLEET-26 A**, draft PR #2065 (`edb099371`): codex `Selected model is at capacity` → transient. Judge PASS 94.
-- This fire's idle verdict was refuted by the independent judge (as at 81). The idle check now asks whether the recommended option *begins* with an in-scope step.
+- This fire's idle verdict was refuted by the independent judge (as at 81). Guardrail added (iteration 82's ask, default applied as unanswered): screen idle verdicts by step, not row, and always judge them.
 - Dev: `aebc3dcbb`. CI and Build and Release green; 18 check-runs, none red.
 - Roles: designer not spawned. Planner and executor `codex:gpt-6.1-sol`. Evaluator sonnet (Agent tool): idle judge + diff judge.
 - NEXT: a ruling on D-FLEET-18, -36/-38, -25, -21 or -26 → rebase that draft, run its gates and CI, merge, then the dependent edit. Otherwise re-run the idle screen and wait for a ruling or a new filing.
