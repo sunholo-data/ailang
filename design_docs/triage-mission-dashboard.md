@@ -1,18 +1,26 @@
-# Triage mission — iteration 17, 2026-10-28
+# Triage mission — iteration 26, 2026-11-03
 
-- Level 1: verify/tidy/attest; never approve, reject, merge or implement.
-- Reviewed dev: 07ce4a8dc; operational CLI v0.54.19-dirty, not compiler evidence.
-- RED dev: GO-2026-6860 inherited/D35; coverage 74.8%<80%; two distinct Build test failures, causes UNKNOWN.
-- Queue: 14 cards / 37 PRs / 66 issues. Six independently judged verdicts, all CONCUR.
-- Fresh verdict coverage: 94/94 under seven days, counted against actual ledger; each source tied to its review SHA.
-- Actions: four comments (#1984/#1985/#1992/#1997) and three needs-decision labels; no attestation, close or handoff.
-- Holds: 21 inherited OPEN decisions plus new D36, environment-output credential incident, rotation needed.
-- D34: both designs #1981/#1982 merged externally; competing executor plans #1984/#1985 held.
-- Orphans: ten uncarded coordinator PRs and one unidentified missing approval record; nine cards exceed 48h.
-- Routes: fleet ticket ci:distinct-build-test-failures; Sonar coverage DESIGN-ONLY request 9843bd9f; no fixes.
-- Shadow: 450 append-only rows; 14/14 settled, 16 unmeasured. Terminal state only; no Part A promotion.
-- Roles: two native OpenAI verifiers; actual Anthropic Sonnet judgment through guarded Agent transport.
-- Spend: metered $0; evaluator 601,827 subscription tokens; other role counts unreported.
-- Cadence: 12 hours, queue fingerprint last; no code inner loop or capacity park.
-- Record: continuing unmerged PR #1904. Evidence: https://github.com/sunholo-data/ailang/issues/1974#issuecomment-6480894865
-- Next: operator incident/rulings, owner repairs and consolidation, next changed/held/stale refresh.
+- Level 1: tidy with attestations. Approvals remain with the operator.
+- Reviewed release: v0.57.0; base d9be18f1cdc462af5e6baf1bfe34193c1bd51dce.
+- Dev GREEN: CI 41665839278 and all 22 commit checks passed.
+- Snapshot: 38 global cards / 34 core, 47 PRs, 58 issues; 94 joined groups.
+- Reviewed 42: 4 changed, 18 new, 20 oldest stale; independent judge concurred.
+- Fresh coverage: 35/94 → 73/94. Twenty-one overdue issues remain deferred.
+- Posted 10 evidence comments and six needs-decision labels.
+- Routed issue 2076 for design only, preserving the judge's scope conditions.
+- VERIFIED artifacts 2102/2101/2100/2098: attestations wait for actual verifier model metadata.
+- Human ledger: 33 OPEN holds, including eight new D40–47; none resolved.
+- D40: type names. D41: AI billing/API. D42: MCP milestone overlap.
+- D43: semantic-store policies. D44: ordinary exec-lifetime authorization.
+- D45: VM-cons overlap. D46: Ollama overlap. D47: triage routing scope.
+- Uncarded PRs: 1939/1934/1894/1759; one missing approval record remains.
+- Aged green/mergeable 1916 (BLOCKED), 1978 and 2009 retain substantive holds.
+- Shadow: 552 append-only rows; trailing 14-day state agreement 1/4.
+- Verifiers: native OpenAI Agents; actual model and token counts unreported.
+- Judge: MiniMax via Ollama; 80,646 tokens including probe, $0 metered.
+- Cadence: 12 hours, unchanged-queue idle check. Routing note: as configured.
+- This iteration changed only its five documentation records in the repository.
+- Evidence: https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6615751514
+- Full history: triage-mission-log.md. The record PR remains draft and unmerged.
+- Draft record: https://github.com/sunholo-data/ailang/pull/2106
+- Digest: https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6615854839

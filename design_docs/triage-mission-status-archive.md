@@ -16,3 +16,6 @@
 
 ## STATUS 2026-10-21 — ITERATION 12: 3 queue verdicts independently concurred; PTY plan held D26; new pricing red routed for design only; shadow corrected14/14; 5 append-only rows; no attestation/approval/handoff.
 ## STATUS 2026-10-22 — ITERATION 13: 4 queue verdicts independently concurred; 2 evidence comments and priority:P2; 9 cards/31PRs/61issues; dev RED retains existing routes; shadow14/14; no attestation/approval/handoff.
+
+## STATUS 2026-10-27 — ITERATION 15: 63components/56groups;62CONCUR/1DISSENT;15comments/8labels;D27–33parked;devGREEN;coverage69/83,14stale deferred;shadow14/14. [ADMIN]
+## STATUS 2026-10-28 — ITERATION 16: 25 independently judged verdicts; red dev routed; D34/D35 OPEN; 21 holds; shadow14/14; external1981merge stopped late actions. [ADMIN]
