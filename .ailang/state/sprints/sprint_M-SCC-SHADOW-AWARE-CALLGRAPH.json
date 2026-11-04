@@ -71,10 +71,10 @@
         "Let values and forall bounds retain outer references; bodyless module letrec retains its self-edge.",
         "ForallExpr, Send, Recv, AssertStmt and QuasiQuote interpolations retain genuine references; DEBUG_STRICT still panics for an unhandled expression variant."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T14:21:53.687972+00:00",
+      "completed": "2026-11-04T14:21:53.687972+00:00",
+      "notes": "Scope tests first failed in 14 branches on the old walker, now pass; DEBUG_STRICT panic preserved."
     },
     {
       "id": "M3",

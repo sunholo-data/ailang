@@ -216,6 +216,32 @@ func astPatternBinders(pat ast.Pattern) []string {
 // by syntactic position"). When a new *ast.Expr variant is added, add its case
 // here; DEBUG_STRICT surfaces omissions loudly instead of dropping edges.
 func findReferences(expr ast.Expr) []string {
+	return findFreeReferences(expr, nil)
+}
+
+// withBound creates a child scope; sibling expressions keep their parent's set.
+func withBound(bound map[string]bool, names ...string) map[string]bool {
+	child := make(map[string]bool, len(bound)+len(names))
+	for name := range bound {
+		child[name] = true
+	}
+	for _, name := range names {
+		if name != "" && name != "_" {
+			child[name] = true
+		}
+	}
+	return child
+}
+
+func paramNames(params []*ast.Param) []string {
+	names := make([]string, 0, len(params))
+	for _, p := range params {
+		names = append(names, p.Name)
+	}
+	return names
+}
+
+func findFreeReferences(expr ast.Expr, bound map[string]bool) []string {
 	var refs []string
 
 	switch ex := expr.(type) {
@@ -223,7 +249,9 @@ func findReferences(expr ast.Expr) []string {
 		// Optional sub-expressions (e.g. an absent match guard) are nil.
 
 	case *ast.Identifier:
-		refs = append(refs, ex.Name)
+		if !bound[ex.Name] {
+			refs = append(refs, ex.Name)
+		}
 
 	case *ast.Literal:
 		// Leaf: no references.
@@ -232,90 +260,117 @@ func findReferences(expr ast.Expr) []string {
 		// Parse-error placeholder: no references.
 
 	case *ast.BinaryOp:
-		refs = append(refs, findReferences(ex.Left)...)
-		refs = append(refs, findReferences(ex.Right)...)
+		refs = append(refs, findFreeReferences(ex.Left, bound)...)
+		refs = append(refs, findFreeReferences(ex.Right, bound)...)
 
 	case *ast.UnaryOp:
-		refs = append(refs, findReferences(ex.Expr)...)
+		refs = append(refs, findFreeReferences(ex.Expr, bound)...)
 
 	case *ast.If:
-		refs = append(refs, findReferences(ex.Condition)...)
-		refs = append(refs, findReferences(ex.Then)...)
-		refs = append(refs, findReferences(ex.Else)...)
+		refs = append(refs, findFreeReferences(ex.Condition, bound)...)
+		refs = append(refs, findFreeReferences(ex.Then, bound)...)
+		refs = append(refs, findFreeReferences(ex.Else, bound)...)
 
 	case *ast.Let:
-		// Value might reference functions
-		refs = append(refs, findReferences(ex.Value)...)
-		// Body has ex.Name in scope, filter it out later if needed
-		refs = append(refs, findReferences(ex.Body)...)
+		refs = append(refs, findFreeReferences(ex.Value, bound)...)
+		refs = append(refs, findFreeReferences(ex.Body, withBound(bound, ex.Name))...)
 
 	case *ast.LetRec:
-		// Value might reference functions (including itself for recursion)
-		refs = append(refs, findReferences(ex.Value)...)
-		// Body has ex.Name in scope
-		refs = append(refs, findReferences(ex.Body)...)
+		// A bodyless module letrec must retain its self-edge for LetRec emission.
+		scope := bound
+		if ex.Body != nil {
+			scope = withBound(bound, ex.Name)
+		}
+		refs = append(refs, findFreeReferences(ex.Value, scope)...)
+		refs = append(refs, findFreeReferences(ex.Body, scope)...)
 
 	case *ast.Lambda:
-		// Lambda body might reference functions
-		refs = append(refs, findReferences(ex.Body)...)
+		refs = append(refs, findFreeReferences(ex.Body, withBound(bound, paramNames(ex.Params)...))...)
 
 	case *ast.FuncLit:
-		// FuncLit body might reference functions (same as Lambda)
-		refs = append(refs, findReferences(ex.Body)...)
+		refs = append(refs, findFreeReferences(ex.Body, withBound(bound, paramNames(ex.Params)...))...)
 
 	case *ast.FuncCall:
-		refs = append(refs, findReferences(ex.Func)...)
+		refs = append(refs, findFreeReferences(ex.Func, bound)...)
 		for _, arg := range ex.Args {
-			refs = append(refs, findReferences(arg)...)
+			refs = append(refs, findFreeReferences(arg, bound)...)
 		}
 
 	case *ast.List:
 		for _, elem := range ex.Elements {
-			refs = append(refs, findReferences(elem)...)
+			refs = append(refs, findFreeReferences(elem, bound)...)
 		}
 
 	case *ast.Array:
 		for _, elem := range ex.Elements {
-			refs = append(refs, findReferences(elem)...)
+			refs = append(refs, findFreeReferences(elem, bound)...)
 		}
 
 	case *ast.Record:
 		for _, field := range ex.Fields {
-			refs = append(refs, findReferences(field.Value)...)
+			refs = append(refs, findFreeReferences(field.Value, bound)...)
 		}
 
 	case *ast.RecordAccess:
-		refs = append(refs, findReferences(ex.Record)...)
+		refs = append(refs, findFreeReferences(ex.Record, bound)...)
 
 	case *ast.RecordUpdate:
 		// {base | f: e, ...} — the base AND every updated field's value are
 		// expression positions. Omitting these was the #327 root cause: a local
 		// function called only inside `{ s | f: localFn(...) }` produced no
 		// call-graph edge and mis-ordered as "undefined variable".
-		refs = append(refs, findReferences(ex.Base)...)
+		refs = append(refs, findFreeReferences(ex.Base, bound)...)
 		for _, field := range ex.Fields {
-			refs = append(refs, findReferences(field.Value)...)
+			refs = append(refs, findFreeReferences(field.Value, bound)...)
 		}
 
 	case *ast.Match:
-		refs = append(refs, findReferences(ex.Expr)...)
+		refs = append(refs, findFreeReferences(ex.Expr, bound)...)
 		for _, c := range ex.Cases {
 			// Guard expressions are real expression positions too — a local
 			// function called only in a `_ if localFn(...) =>` guard must still
 			// produce an edge (same family as the record-update case).
-			refs = append(refs, findReferences(c.Guard)...)
-			refs = append(refs, findReferences(c.Body)...)
+			scope := withBound(bound, astPatternBinders(c.Pattern)...)
+			refs = append(refs, findFreeReferences(c.Guard, scope)...)
+			refs = append(refs, findFreeReferences(c.Body, scope)...)
 		}
 
 	case *ast.Tuple:
 		for _, elem := range ex.Elements {
-			refs = append(refs, findReferences(elem)...)
+			refs = append(refs, findFreeReferences(elem, bound)...)
 		}
 
 	case *ast.Block:
-		// Blocks can contain function references in any expression
-		for _, expr := range ex.Exprs {
-			refs = append(refs, findReferences(expr)...)
+		scope := bound
+		for _, item := range ex.Exprs {
+			refs = append(refs, findFreeReferences(item, scope)...)
+			// Only statement bindings extend the scope of subsequent block items.
+			switch binding := item.(type) {
+			case *ast.Let:
+				if binding.Body == nil {
+					scope = withBound(scope, binding.Name)
+				}
+			case *ast.LetRec:
+				if binding.Body == nil {
+					scope = withBound(scope, binding.Name)
+				}
+			}
+		}
+
+	case *ast.ForallExpr:
+		refs = append(refs, findFreeReferences(ex.Lo, bound)...)
+		refs = append(refs, findFreeReferences(ex.Hi, bound)...)
+		refs = append(refs, findFreeReferences(ex.Body, withBound(bound, ex.Var))...)
+	case *ast.Send:
+		refs = append(refs, findFreeReferences(ex.Channel, bound)...)
+		refs = append(refs, findFreeReferences(ex.Value, bound)...)
+	case *ast.Recv:
+		refs = append(refs, findFreeReferences(ex.Channel, bound)...)
+	case *ast.AssertStmt:
+		refs = append(refs, findFreeReferences(ex.Condition, bound)...)
+	case *ast.QuasiQuote:
+		for _, interpolation := range ex.Interpolations {
+			refs = append(refs, findFreeReferences(interpolation.Expr, bound)...)
 		}
 
 	default:
