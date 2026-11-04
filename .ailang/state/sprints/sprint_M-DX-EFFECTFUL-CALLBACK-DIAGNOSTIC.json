@@ -131,9 +131,9 @@
         "Focused validation below passes and the changelog describes the behavior change accurately."
       ],
       "passes": null,
-      "started": null,
+      "started": "2026-11-04T09:48:05.482781+00:00",
       "completed": null,
-      "notes": null
+      "notes": "Pipeline regressions and #386 controls pass; example and manifest integrated. Example gate: 266 pass, 10 skip, 0 fail. Final test-changed running; lint unavailable (golangci-lint missing). Prompt v0.16.11 loaded from checkout binary."
     }
   ]
 }

@@ -5,6 +5,14 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "runnable/effectful_callback_map_e.ail",
+      "status": "working",
+      "tags": ["effects", "callbacks"],
+      "description": "Use mapE for a callback that performs IO.",
+      "modules": ["std/list", "std/io"],
+      "expected": {"stdout": "a\nb\n", "exit_code": 0}
+    },
+    {
       "path": "runnable/explicit_empty_callback_contracts.ail",
       "status": "working",
       "tags": ["effects", "callbacks", "pure", "regression"],
@@ -3708,11 +3716,11 @@
     }
   ],
   "statistics": {
-    "total": 252,
-    "working": 244,
+    "total": 253,
+    "working": 245,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9682539682539683,
+    "coverage": 0.9683794466403162,
     "experimental": 0
   },
   "milestones": {
