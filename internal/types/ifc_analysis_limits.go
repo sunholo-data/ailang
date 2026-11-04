@@ -5,8 +5,13 @@ import "fmt"
 // Defensive analysis limits are failures, never permission to omit a demand.
 // Normal convergence is by summary equality and repeated application states.
 const (
-	ifcAnalysisDepth                    = 1000
-	ifcAnalysisWork                     = 1000000
+	ifcAnalysisDepth = 1000
+	ifcAnalysisWork  = 1000000
+	// ifcSummaryBytes bounds one function summary's canonical size. The work
+	// budget counts steps, not memory: a summary that grows every round (the
+	// recursive-lambda chain, M-IFC-RECURSIVE-LAMBDA-FOLD) reached 1.4 GB
+	// before 1e6 steps. Real summaries are a few KiB (specstore's largest: 3.5).
+	ifcSummaryBytes                     = 64 << 10
 	IFCAnalysisLimitError TypeErrorKind = "ifc_analysis_limit"
 )
 

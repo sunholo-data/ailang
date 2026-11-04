@@ -208,13 +208,13 @@ func (c *ifcChecker) applyCallable(fn *ifcCallable, args []ifcVal, at *ast.FuncC
 		case fnTop:
 			c.checkDemands(a, args, at, via)
 			if s := c.summaries[a.name]; s != nil {
-				c.replay(s.key, s.deferred, args, at, append(append([]string(nil), via...), a.name), depth)
+				c.replay(s.key, s.deferred, args, at, append(append([]string(nil), via...), a.name), depth, nil)
 				result = joinCallable(result, c.substCallable(s.result, s.key, args))
 			}
 		case fnLambda:
 			c.checkDemands(a, args, at, via)
-			c.replay(a.owner, a.deferred, args, at, via, depth)
-			result = joinCallable(result, c.substCallable(a.result, a.owner, args))
+			c.replay(a.owner, a.deferred, args, at, via, depth, a)
+			result = joinCallable(result, resolveSelf(c.substCallable(a.result, a.owner, args), a))
 		case fnDeclared:
 			c.checkDemands(a, args, at, via)
 			result = joinCallable(result, a.result)
@@ -229,6 +229,8 @@ func (c *ifcChecker) applyCallable(fn *ifcCallable, args []ifcVal, at *ast.FuncC
 			for _, arg := range args {
 				result = joinCallable(result, arg.fn)
 			}
+		case fnSelf:
+			panic("ifc: unresolved self-reference of " + a.owner + " reached an application")
 		}
 	}
 	return result
@@ -289,15 +291,17 @@ func (c *ifcChecker) applyOpaque(args []ifcVal, at *ast.FuncCall, calleeLabel La
 }
 
 // replay re-applies a summary's deferred applications with the owner's ρ and
-// probes substituted by the actual arguments.
-func (c *ifcChecker) replay(owner string, deferred []ifcDeferred, args []ifcVal, at *ast.FuncCall, via []string, depth int) {
+// probes substituted by the actual arguments. self is the lambda instance the
+// deferred applications were read from (nil for a module function): its
+// self-references are resolved to it.
+func (c *ifcChecker) replay(owner string, deferred []ifcDeferred, args []ifcVal, at *ast.FuncCall, via []string, depth int, self *ifcFn) {
 	key := owner + deferredKey(ifcDeferred{args: args})
 	if c.replaying[key] {
 		return
 	}
 	c.replaying[key] = true
 	defer delete(c.replaying, key)
-	for _, d := range deferred {
+	for _, d := range resolveDeferred(deferred, self) {
 		target := c.substCallable(d.target, owner, args)
 		dargs := make([]ifcVal, len(d.args))
 		for i, a := range d.args {
@@ -336,6 +340,7 @@ func (c *ifcChecker) substCallable(fn *ifcCallable, owner string, args []ifcVal)
 				}
 				n.deferred = append(n.deferred, nd)
 			}
+			foldSelf(n) // substitution can bring an instance of a.owner inside n
 			out = joinCallable(out, single(n))
 		default:
 			out = joinCallable(out, single(a))
@@ -356,7 +361,9 @@ func (c *ifcChecker) resultN(fn *ifcCallable, n int) *ifcCallable {
 			if s := c.summaries[a.name]; s != nil {
 				out = joinCallable(out, s.result)
 			}
-		case fnLambda, fnDeclared:
+		case fnLambda:
+			out = joinCallable(out, resolveSelf(a.result, a))
+		case fnDeclared:
 			out = joinCallable(out, a.result)
 		case fnProbe:
 			out = joinCallable(out, probe(a.owner, a.idx, a.res+1))
@@ -372,7 +379,10 @@ func (c *ifcChecker) resultN(fn *ifcCallable, n int) *ifcCallable {
 // summariseModule iterates the summaries of every module function to a fixed
 // point. Each round re-walks every body (silently) against the previous
 // round's summaries; summaries only grow and are drawn from a finite set
-// (labels and callables written in the module), so the loop terminates. A defensive work budget produces a diagnostic, never a partial summary.
+// (labels and callables written in the module), so the loop terminates. That
+// set is finite only because a lambda reaching itself through recursion is
+// folded to a self-reference (foldSelf, ifc_callable_fold.go). Defensive work
+// and size budgets produce a diagnostic, never a partial summary.
 func (c *ifcChecker) summariseModule(file *ast.File) {
 	for {
 		c.analysisStep()
@@ -382,7 +392,11 @@ func (c *ifcChecker) summariseModule(file *ast.File) {
 				continue
 			}
 			s, _ := c.walkFunc(c.sigs[fn.Name], true)
-			if s.fingerprint() != c.summaries[fn.Name].fingerprint() {
+			fp := s.fingerprint()
+			if len(fp) > ifcSummaryBytes {
+				panic(ifcAnalysisLimit{reason: "summary size"})
+			}
+			if fp != c.summaries[fn.Name].fingerprint() {
 				changed = true
 			}
 			c.summaries[fn.Name] = s
@@ -461,6 +475,7 @@ func (c *ifcChecker) lambdaVal(node ast.Expr, params []*ast.Param, body ast.Expr
 	c.pop()
 	fn.deferred = s.deferred
 	fn.result = v.fn
+	foldSelf(fn)
 	return ifcVal{label: c.eraseOwner(v.label, key), fn: single(fn)}
 }
 
