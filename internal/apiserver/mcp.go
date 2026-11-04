@@ -454,8 +454,12 @@ func (ms *MCPServer) makeToolHandler(modulePath string, export ExportInfo) mcp.T
 			}
 		}
 
-		// Call the AILANG function (preserve floats — JSON has no int/float distinction).
-		result, callErr := ms.server.engine.CallPreserveFloats(modulePath, funcName, args...)
+		// Bind after files, defaults, secrets and headers have been resolved.
+		args, bindErr := bindCallArgs(export, args)
+		if bindErr != nil {
+			return mcpError(fmt.Sprintf("invalid arguments: %v", bindErr)), nil
+		}
+		result, callErr := ms.server.engine.Call(modulePath, funcName, args...)
 		if callErr != nil && !isCleanExit(callErr) {
 			return mcpError(fmt.Sprintf("function call failed: %v", callErr)), nil
 		}

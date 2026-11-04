@@ -141,10 +141,10 @@
         "MCP tools/call succeeds for int 21 and omitted optional int zero, including named and positional argument forms.",
         "Focused tests and make test-changed pass; touched Go files formatted."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T09:03:31.480917+00:00",
+      "completed": "2026-11-04T09:03:31.480917+00:00",
+      "notes": "Focused parity/binder tests pass, including arrays. Full API server suite passed before array correction; final rerun in progress."
     },
     {
       "id": "M5",
@@ -201,7 +201,7 @@
     }
   ],
   "last_session": "2026-11-04T09:03:18.280889+00:00",
-  "last_checkpoint": "M3: typed numeric and array omission zeros",
+  "last_checkpoint": "M4: MCP and UI argument conversion",
   "notes": [
     "Working branch coordinator/task-f9a4781c; planner work branch coordinator/task-96d9529b recovered by object SHA cd75b00c.",
     "Go available at /usr/local/go/bin; startup script false-positive test verdict superseded by explicit checks.",
