@@ -61,6 +61,11 @@ const (
 	// fnCtor is a data constructor: it stores its arguments, it never applies
 	// them, so no fallback check is needed.
 	fnCtor
+	// fnSelf is "lambda owner itself", inside that lambda's own result or
+	// deferred applications: the finite form of a lambda that reaches itself
+	// through recursion (ifc_callable_fold.go). It is resolved to the instance
+	// whenever those are read, so it never reaches an application.
+	fnSelf
 )
 
 type ifcFn struct {
@@ -188,6 +193,8 @@ func fnKey(f *ifcFn) string {
 		}
 	case fnCtor:
 		k = "C"
+	case fnSelf:
+		k = "S:" + f.owner
 	case fnDeclared:
 		k = "D:" + f.name + demandsKey(f.params) + "->" + callableKey(f.result)
 	case fnLambda:
