@@ -1,0 +1,59 @@
+package elaborate
+
+import (
+	"reflect"
+	"sort"
+	"testing"
+
+	"github.com/sunholo-data/ailang/internal/ast"
+)
+
+func TestASTPatternBinders(t *testing.T) {
+	id := func(s string) *ast.Identifier { return &ast.Identifier{Name: s} }
+	cases := []struct {
+		name string
+		pat  ast.Pattern
+		want []string
+	}{
+		{"nil", nil, nil},
+		{"lower", id("x"), []string{"x"}},
+		{"upper", id("None"), nil},
+		{"underscore", id("_"), nil},
+		{"wildcard", &ast.WildcardPattern{}, nil},
+		{"literal", &ast.Literal{Value: 1}, nil},
+		{"constructor", &ast.ConstructorPattern{Name: "Some", Patterns: []ast.Pattern{&ast.ConstructorPattern{Name: "Pair", Patterns: []ast.Pattern{id("x"), id("y")}}}}, []string{"x", "y"}},
+		{"cons", &ast.ConsPattern{Head: id("h"), Tail: id("t")}, []string{"h", "t"}},
+		{"list_rest", &ast.ListPattern{Elements: []ast.Pattern{id("x")}, Rest: id("xs")}, []string{"x", "xs"}},
+		{"tuple", &ast.TuplePattern{Elements: []ast.Pattern{id("x"), id("None")}}, []string{"x"}},
+		{"record", &ast.RecordPattern{Fields: []*ast.FieldPattern{{Name: "field", Pattern: id("x")}}}, []string{"x"}},
+	}
+	for _, tt := range cases {
+		t.Run(tt.name, func(t *testing.T) {
+			got := astPatternBinders(tt.pat)
+			sort.Strings(got)
+			sort.Strings(tt.want)
+			if !reflect.DeepEqual(got, tt.want) {
+				t.Fatalf("binders = %v, want %v", got, tt.want)
+			}
+			if tt.pat == nil {
+				return
+			}
+			e := NewElaborator()
+			pat := tt.pat
+			// The parser represents cons as ConstructorPattern; the legacy
+			// ConsPattern node has no direct elaborator case.
+			if cons, ok := pat.(*ast.ConsPattern); ok {
+				pat = &ast.ConstructorPattern{Name: "::", Patterns: []ast.Pattern{cons.Head, cons.Tail}}
+			}
+			p, err := e.elaboratePattern(pat)
+			if err != nil {
+				t.Fatal(err)
+			}
+			coreNames := corePatternBinders(p)
+			sort.Strings(coreNames)
+			if !reflect.DeepEqual(got, coreNames) {
+				t.Fatalf("surface %v != core %v", got, coreNames)
+			}
+		})
+	}
+}

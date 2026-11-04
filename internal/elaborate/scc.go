@@ -164,6 +164,43 @@ func BuildCallGraph(funcs []*FuncSig, lets []*ModuleLet, symbols map[string]*Fun
 	return graph
 }
 
+// astPatternBinders mirrors elaboratePattern's syntactic binder classification.
+// Constructors and record field labels are not variable bindings.
+func astPatternBinders(pat ast.Pattern) []string {
+	var names []string
+	var walk func(ast.Pattern)
+	walk = func(pat ast.Pattern) {
+		switch p := pat.(type) {
+		case *ast.Identifier:
+			if p.Name != "_" && !isUpperIdent(p.Name) {
+				names = append(names, p.Name)
+			}
+		case *ast.ConstructorPattern:
+			for _, sub := range p.Patterns {
+				walk(sub)
+			}
+		case *ast.ConsPattern:
+			walk(p.Head)
+			walk(p.Tail)
+		case *ast.ListPattern:
+			for _, sub := range p.Elements {
+				walk(sub)
+			}
+			walk(p.Rest)
+		case *ast.TuplePattern:
+			for _, sub := range p.Elements {
+				walk(sub)
+			}
+		case *ast.RecordPattern:
+			for _, field := range p.Fields {
+				walk(field.Pattern)
+			}
+		}
+	}
+	walk(pat)
+	return names
+}
+
 // findReferences finds all identifier references in an expression.
 //
 // This drives intra-module call-graph construction (BuildCallGraph), which

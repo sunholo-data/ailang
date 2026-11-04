@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-SCC-SHADOW-AWARE-CALLGRAPH",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-11-04T13:43:49.606411+00:00",
   "design_doc": "design_docs/planned/v0_57_2/m-scc-shadow-aware-callgraph.md",
   "sprint_plan": "design_docs/planned/v0_57_2/m-scc-shadow-aware-callgraph-sprint-plan.md",
@@ -54,10 +54,10 @@
         "astPatternBinders agrees with corePatternBinders after elaboratePattern for lowercase, uppercase, wildcard, nested constructor, cons, list/rest, tuple and record patterns.",
         "Constructor and record field names never become binders; nil patterns are harmless."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T14:20:49.164450+00:00",
+      "completed": "2026-11-04T14:20:58.813040+00:00",
+      "notes": "Pattern/core equivalence passes; legacy ConsPattern normalized to parser constructor form for comparison."
     },
     {
       "id": "M2",
@@ -118,7 +118,7 @@
         "M4"
       ],
       "acceptance_criteria": [
-        "Per-file base (v0.57.0) vs candidate `ailang check` over EVERY tracked .ail in this repo (`git ls-files '*.ail'`, ~810 files, each from its package root) has zero unexpected flips; the issue repro and rows 5/6 flip reject→accept as positive controls; rows 10/11 stay rejected. The out-of-repo populations are run attended before release (see Validation).",
+        "Per-file base (v0.57.0) vs candidate `ailang check` over EVERY tracked .ail in this repo (`git ls-files '*.ail'`, ~810 files, each from its package root) has zero unexpected flips; the issue repro and rows 5/6 flip reject\u2192accept as positive controls; rows 10/11 stay rejected. The out-of-repo populations are run attended before release (see Validation).",
         "make test-changed, make check-file-sizes, make check-changelog and make verify-examples pass; formatting and lint checks pass.",
         "Changelog fragment opens with ### and references #2078; evidence records binary commits, corpus manifest, commands and results."
       ],
@@ -127,5 +127,8 @@
       "completed": null,
       "notes": null
     }
+  ],
+  "notes": [
+    "Workspace branch coordinator/task-25c55223; clean baseline 17664aba. Cloud sync skipped:no-task-id. Startup helper has jq dependency-expression error and missing bc; direct verification used. Go available at /usr/local/go/bin (not initial PATH)."
   ]
 }
