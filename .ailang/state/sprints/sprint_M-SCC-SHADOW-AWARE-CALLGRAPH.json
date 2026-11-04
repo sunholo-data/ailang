@@ -105,10 +105,10 @@
         "Rows 1 through 9 pass, including original issue and let-discard variants; rows 10 and 11 reject with Missing effects and IO.",
         "Baseline binary rejects positive controls 1, 5 and 6; candidate accepts them; no internal/types or internal/pipeline production changes."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T14:25:01.587511+00:00",
+      "completed": "2026-11-04T14:25:01.587511+00:00",
+      "notes": "12 ModeCheck rows pass (11 design rows plus let-discard). Published b23cadc v0.57.0 rejects 1/5/6/12; candidate accepts. 10/11 reject Missing effects: IO on both. Row 5 uses typed-valid callback \\t. f(t), since \\t. t has incompatible int result. Repository-source prompt v0.16.11 loaded."
     },
     {
       "id": "M5",
