@@ -1,129 +1,135 @@
 # Sprint Plan: M-SCC-SHADOW-AWARE-CALLGRAPH
 
-**Design:** [Approved design](m-scc-shadow-aware-callgraph.md)  
-**Issue:** #2078  
-**Target:** v0.57.2  
-**Status:** Planned; implementation awaits coordinator plan approval.  
-**Duration:** 2.5 working days, approximately 7.5 focused implementation hours plus investigation, corpus execution and review buffer.  
-**Risk:** Medium: dropping genuine ordering edges can reintroduce false undefined-variable errors.
+**Design:** [Approved design](m-scc-shadow-aware-callgraph.md) · **Issue:** #2078 · **Target:** v0.57.2
+**Status:** Planned; implementation starts through the coordinator approval/handoff workflow.
+**Duration:** 2.5 working days, approximately 14 hours including integration/debugging buffer.
+**Risk:** Medium: removing an incorrect edge must not remove genuine declaration-order dependencies.
 
-## Goal and frozen decisions
+## Goal and scope
 
-Remove false SCC edges from locally shadowed identifiers while preserving genuine recursion, module declaration ordering and per-call effect validation. Change production code only in internal/elaborate/scc.go. Keep internal/types and internal/pipeline production behavior untouched. Follow the approved lowercase pattern classification, local versus bodyless module letrec split, and complete the five missing expression cases. Contracts and test expressions outside function bodies remain out of scope.
+Make the elaborator's reference walker respect lexical binders so unrelated callers no longer force a row-polymorphic recursive helper into their SCC. Preserve per-call-site effect charging and genuine mutual recursion. Production edits stay in `internal/elaborate/scc.go`; add direct graph tests and external pipeline regression tests. Do not change type inference, effect validation, ApplicationEffects, or traversal of function contracts/tests.
 
-There are no human-decision gates inside the approved design. Representation and test organization are implementer choices. E2E placement is resolved: internal/elaborate/scc_shadow_effects_test.go uses package elaborate_test, matching module_let_resolution_test.go, avoiding the pipeline-to-elaborate import cycle. Implementation starts only after normal coordinator sprint-plan approval.
+## Current implementation and estimate
 
-## Current status and estimates
+Inspected on 2026-11-04 at `93ac5a91`, current work branch `coordinator/task-07a17e59`, repository version v0.57.1. The working tree was clean. `scc.go` is 303 lines and still scope-blind; it has no direct test file. The existing external `elaborate_test` package in `module_let_resolution_test.go` already imports pipeline and exposes `checkModule`: reuse it in `internal/elaborate/scc_effects_test.go` without creating an import cycle. `patterns.go` is 266 lines; put the new helper beside its only caller in `scc.go`.
 
-Working tree was clean at planning start. Repository version is v0.57.0. scc.go is 303 lines and its current walker is scope-blind. BuildCallGraph and isSelfRecursive share that walker; module lets are already graph nodes. The design has audited related binder forms and genuine effectful recursion, satisfying the systemic analysis requirement.
+The velocity script found only the design re-verification commit in this shallow checkout and no usable recent LOC/day measurements. Historical changelog totals are not current velocity. Budget uses the approved design's 2.5 days / 14 hours, not a claimed measured throughput. Approximately 460 added/changed LOC (120 implementation, 320 tests, 20 documentation); planning capacity 184 LOC/day. Seven bounded executor milestones each target 60–90 minutes of active work, with roughly 4 hours reserved for integration, sweep runtime and debugging. Corpus execution can run longer than active preparation; checkpoint results between runs.
 
-The seven-day velocity script found only the design commit c96b7180, no implementation delta and no usable recent LOC metric. Historical changelog matches are not a measured velocity. The 510 LOC estimate (roughly 100 production, 380 tests, 30 documentation) is a planning assumption, yielding 204 LOC/day over 2.5 days. Each milestone is scoped to about 60–90 minutes of focused editing; corpus runtime and investigation are budgeted separately. If traversal work exceeds that window, checkpoint before continuing in a new executor run.
+Installed CLI reports v0.57.1, commit b91eb27-dirty, and warns it may be stale. Build baseline and candidate from recorded source revisions for validation; do not treat the installed binary as checkout evidence.
 
 ## Registry reuse audit
 
-All five milestones: none. This is compiler-internal scope analysis and regression testing, not a package-like capability; registry searches and candidate inspections are not applicable. Reuse the existing AST, scope classification, checkModule pipeline harness, make targets and corpus harness. Do not add a package dependency or an ad hoc sweep tool.
+Ran `ailang pkg search callgraph`: no packages found. No package-like user capability is being introduced: these are compiler-internal AST/scoping changes and tests, inaccessible to an AILANG dependency. No candidates required `pkg info`/`pkg docs`. Every milestone records `none`, including validation/docs work, with this reason in JSON. No dependency or package publication is planned.
 
-## Syntax and examples
+## Approved rulings and resolved choices
 
-AILANG prompt version loaded: v0.16.11 (reported by the installed CLI; repository std/VERSION is v0.57.0). The full current prompt was loaded during planning. Executor must build/use the repository binary and reload its prompt before writing AILANG fixtures; the installed CLI is not the authoritative baseline for v0.57.0 behavior.
+- Fix call-graph construction; leave validator and ApplicationEffects semantics intact (Design Freeze and High-Impact Decisions).
+- Pattern classification mirrors `elaboratePattern`, including uppercase constructor and underscore handling; pin agreement through tests.
+- Preserve module-level bodyless-letrec self-references; filter local-letrec binders in both value and body.
+- Add all five missing expression variants and retain DEBUG_STRICT failure behavior.
+- E2E location is resolved to `internal/elaborate/scc_effects_test.go`, package `elaborate_test`, following the existing harness. This was an agent-resolvable placement choice, not an outstanding human decision.
+- Adjacent observation: `BuildCallGraph` and `isSelfRecursive` walk raw function bodies without `FuncSig.Params`. Record this boundary for follow-up rather than expanding the approved walker-only production scope into `file.go`; this sprint covers the binder forms enumerated in the design.
 
-No standalone showcase module is added. The original issue module and variants live as temporary .ail sources in the Go regression matrix. Their checklist is:
-
-| Concern | Decision |
-|---|---|
-| contracts | skip: compiler acceptance/rejection fixtures do not need runtime contracts |
-| effects | include: each[e] declares ! {e}; sibling t declares ! {IO}; soundness controls introduce concrete IO at recursive call sites |
-| inline tests | skip: Go pipeline matrix asserts compile outcomes and diagnostics, including intentionally rejected fixtures |
-
-Check accepted fixtures with the candidate CLI as well as pipeline tests. Preserve expected rejection of negative fixtures.
+No human-decision gates remain. The approved design's implementation choices do not require a new ruling. Do not self-approve or start implementation from this planning task; coordinator approval/merge supplies the execution handoff.
 
 ## Milestones
 
-### M1: Pattern binder classification (~100 LOC)
+### M1: Pattern binder classification (~70 LOC)
 
-**Duration:** 60–90 minutes focused work.  
-**Dependencies:** none.  
-**Files:** internal/elaborate/scc.go; internal/elaborate/scc_test.go.  
-**Registry reuse:** none: compiler-internal AST scope and SCC analysis plus regression coverage; no package-like capability or runtime dependency is introduced. Registry search is not applicable.
+**Dependencies:** none
+**Timebox:** 60–90 minutes active work.
+**Files:** `internal/elaborate/scc.go`, new `internal/elaborate/scc_test.go` (same-package helper tests).
 
-- [ ] astPatternBinders agrees with corePatternBinders after elaboratePattern for lowercase, uppercase, wildcard, nested constructor, cons, list/rest, tuple and record patterns.
-- [ ] Constructor and record field names never become binders; nil patterns are harmless.
+- [ ] Surface pattern binder classification agrees with elaboratePattern/corePatternBinders for identifiers, constructors, cons, lists/rest, tuples, records, wildcards and literals.
+- [ ] Underscore and uppercase constructors do not bind; nested lowercase identifiers do.
 
-**Validation:** Run targeted internal/elaborate tests for this milestone; preserve all previously passing controls.
+### M2: Lexical reference traversal (~110 LOC)
 
-### M2: Scope-aware reference traversal (~160 LOC)
+**Dependencies:** M1
+**Timebox:** 60–90 minutes active work.
+**Files:** `internal/elaborate/scc.go`, `internal/elaborate/scc_test.go` (scope isolation and positive/negative graph controls).
 
-**Duration:** 60–90 minutes focused work.  
-**Dependencies:** M1.  
-**Files:** internal/elaborate/scc.go; internal/elaborate/scc_test.go.  
-**Registry reuse:** none: compiler-internal AST scope and SCC analysis plus regression coverage; no package-like capability or runtime dependency is introduced. Registry search is not applicable.
+- [ ] Lambda/FuncLit parameters, nonrecursive let values/bodies, match guards/bodies and sequential blocks obey lexical scope without leaking names across branches.
+- [ ] BuildCallGraph excludes false shadow edges while preserving real module references, use-before-let edges and genuine mutual recursion.
 
-- [ ] Lambda and FuncLit parameters, match guards/bodies, local let/letrec, sequential blocks and forall bodies filter locally bound names without scope leakage.
-- [ ] Let values and forall bounds retain outer references; bodyless module letrec retains its self-edge.
-- [ ] ForallExpr, Send, Recv, AssertStmt and QuasiQuote interpolations retain genuine references; DEBUG_STRICT still panics for an unhandled expression variant.
+### M3: Recursion and emission boundaries (~70 LOC)
 
-**Validation:** Run targeted internal/elaborate tests for this milestone; preserve all previously passing controls.
+**Dependencies:** M2
+**Timebox:** 60–90 minutes active work.
+**Files:** `internal/elaborate/scc.go`, `internal/elaborate/scc_test.go`, `internal/elaborate/scc_effects_test.go` (emission check). Audit `file.go` read-only; use graph entry scopes rather than expanding production scope.
 
-### M3: Call graph and emission controls (~100 LOC)
+- [ ] Local letrec binds in value and body; module-level bodyless letrec retains its self-edge and emits core.LetRec.
+- [ ] isSelfRecursive distinguishes shadowed and genuine self-references; graph and core emission tests preserve module-level recursive bindings.
 
-**Duration:** 60–90 minutes focused work.  
-**Dependencies:** M2.  
-**Files:** internal/elaborate/scc_test.go; internal/elaborate/scc_shadow_effects_test.go.  
-**Registry reuse:** none: compiler-internal AST scope and SCC analysis plus regression coverage; no package-like capability or runtime dependency is introduced. Registry search is not applicable.
+### M4: Complete expression position coverage (~70 LOC)
 
-- [ ] BuildCallGraph has no false each-to-t edge for pattern, lambda and let shadows; non-shadow controls keep genuine edges.
-- [ ] isSelfRecursive ignores shadowed self names; bodyless module letrec still emits core.LetRec; genuine mutual recursion still groups.
-- [ ] TestModuleLetResolutionMatrix and TestLexicalScope_BinderShadowsGlobals pass unchanged.
+**Dependencies:** M3
+**Timebox:** 60–90 minutes active work.
+**Files:** `internal/elaborate/scc.go`, `internal/elaborate/scc_test.go` (AST-level cases for every new expression position).
 
-**Validation:** Run targeted internal/elaborate tests for this milestone; preserve all previously passing controls.
+- [ ] ForallExpr walks bounds outside Var scope and body inside it; Send, Recv, AssertStmt and QuasiQuote interpolations preserve genuine references.
+- [ ] DEBUG_STRICT unknown-variant panic remains; existing expression positions and module-let ordering matrix pass.
 
-### M4: Effect regression matrix (~120 LOC)
+### M5: Pipeline reproduction and soundness matrix (~120 LOC)
 
-**Duration:** 60–90 minutes focused work.  
-**Dependencies:** M3.  
-**Files:** internal/elaborate/scc_shadow_effects_test.go.  
-**Registry reuse:** none: compiler-internal AST scope and SCC analysis plus regression coverage; no package-like capability or runtime dependency is introduced. Registry search is not applicable.
+**Dependencies:** M4
+**Timebox:** 60–90 minutes active work.
+**Files:** New/extend `internal/elaborate/scc_effects_test.go`, external test package; reuse `checkModule`.
 
-- [ ] All eleven design reproduction rows run through pipeline ModeCheck using elaborate_test and existing checkModule helper.
-- [ ] Rows 1 through 9 pass, including original issue and let-discard variants; rows 10 and 11 reject with Missing effects and IO.
-- [ ] Baseline binary rejects positive controls 1, 5 and 6; candidate accepts them; no internal/types or internal/pipeline production changes.
+- [ ] All eleven design reproduction rows run through pipeline.Run ModeCheck: rows 1-9 pass; rows 10-11 fail with Missing effects on the expected function.
+- [ ] Pre-fix rows 1/5/6 fail and post-fix pass; the let-underscore callback variant also passes after the fix.
+- [ ] Existing TestModuleLetResolutionMatrix and TestLexicalScope_BinderShadowsGlobals pass unchanged; no internal/types or internal/pipeline production changes.
 
-**Validation:** Run targeted internal/elaborate tests for this milestone; preserve all previously passing controls.
+### M6: Corpus comparison (~0 LOC)
 
-### M5: Corpus comparison and release evidence (~30 LOC)
+**Dependencies:** M5
+**Timebox:** 60–90 minutes active work.
+**Files:** Verification evidence under `.ailang/state/sprints/`; existing examples and std modules are read-only fixtures. Reuse the historical sweep harness rather than adding a new repository script.
 
-**Duration:** 60–90 minutes focused work.  
-**Dependencies:** M4.  
-**Files:** changelogs/unreleased/2026-11-04-scc-shadow-aware-callgraph.md.  
-**Registry reuse:** none: compiler-internal AST scope and SCC analysis plus regression coverage; no package-like capability or runtime dependency is introduced. Registry search is not applicable.
+- [ ] Identical baseline/candidate manifests and check options cover examples/, std/ and the historical 1066-file corpus; record counts, binary commits, statuses and diffs.
+- [ ] There are zero status flips outside intentionally separate positive-control repro fixtures; rows 1/5/6 flip to success and rows 10/11 remain failures.
+- [ ] Historical corpus and harness are located and run; missing inputs are reported as blocked rather than counted as a successful sweep.
 
-- [ ] Per-file base (v0.57.0) vs candidate `ailang check` over EVERY tracked .ail in this repo (`git ls-files '*.ail'`, ~810 files, each from its package root) has zero unexpected flips; the issue repro and rows 5/6 flip reject→accept as positive controls; rows 10/11 stay rejected. The out-of-repo populations are run attended before release (see Validation).
-- [ ] make test-changed, make check-file-sizes, make check-changelog and make verify-examples pass; formatting and lint checks pass.
-- [ ] Changelog fragment opens with ### and references #2078; evidence records binary commits, corpus manifest, commands and results.
+### M7: Changelog and focused release checks (~20 LOC)
 
-**Validation:** Run targeted internal/elaborate tests for this milestone; preserve all previously passing controls.
+**Dependencies:** M6
+**Timebox:** 60–90 minutes active work.
+**Files:** New `changelogs/unreleased/2026-11-04-scc-shadow-aware-callgraph.md`; sprint verification notes.
 
-## Day-by-day execution
+- [ ] A changelogs/unreleased/2026-11-04-scc-shadow-aware-callgraph.md fragment opens with ### and references #2078.
+- [ ] make test-changed with an explicit available baseline, make check-file-sizes, make check-changelog, make verify-examples, make verify-stdlib and make lint pass; Go edits are gofmt clean.
+- [ ] Verification evidence and sweep artifact paths are recorded; no feature scope expansion or effect-validator changes.
 
-Day 1: Save a base binary and commit identity before any production edit; capture positive and negative baseline results. Complete M1 and M2, prioritizing nonrecursive let values, module letrec self-edges and nested scope isolation.
+## Execution schedule and risks
 
-Day 2: Complete M3 and M4. Exercise all binder and reference positions, not only the issue's cons pattern. Run unchanged scope/module ordering matrices and the new effect matrix.
+Day 1: M1–M3, then establish pre-fix failures for the integration matrix. Day 2: M4–M5, locate the historical sweep inputs and begin M6. Day 3 (half day): finish M6–M7 and use the reserved buffer. Capture a baseline binary before production edits, without switching branches or discarding local changes.
 
-Day 3 (half day): Complete M5, collect differential corpus evidence, run focused gates, and prepare evaluator handoff.
+Wrong binder classification or scope leakage can silently drop a real edge (#327): mitigate with positive controls, nested scopes, use-before-let, sibling branches and the module-let ordering matrix. False self-recursion can change emission: explicitly inspect core Let/LetRec shapes. A missing expression case must still fail loudly under DEBUG_STRICT. Tests should assert graph edges and pipeline behavior rather than brittle node IDs or reference ordering.
 
-## Validation and corpus dependency
+Keep each new test file below 800 lines; if the direct tests approach that limit, use companion `internal/elaborate/scc_scope_test.go` for the scope matrix. The projected production file remains well below 800 lines.
 
-Use make test-changed (touched packages plus test-core), make check-file-sizes, make check-changelog and make verify-examples. Run repository formatting and lint targets. Do not require make test; CI owns the full suite. No touched existing file is near 800 lines; keep new graph tests and external pipeline tests separate, splitting a companion scc_scope_test.go if needed.
+## Examples and AILANG syntax gate
 
-Corpus sweep (ruling, attended 2026-11-04). There is no in-repo harness and the "1,066-file corpus" is the narrow scope that missed the v0.56.0 deploy break: do not look for it. This change regroups SCCs, which changes which bindings generalize, so it gets the same three-population sweep as v0.57.0:
+AILANG prompt version loaded: v0.16.11 (actual `ailang prompt --version-active` output); full teaching prompt requested using `ailang prompt`. This prompt version differs from repository/CLI release numbering and is recorded as returned.
 
-1. **Executor (M5):** every tracked `.ail` in this repo (`git ls-files '*.ail'`), checked from its package root, with a v0.57.0 base binary and the candidate built from the branch. Compare exit status per path; keep pre-existing failures as-is. Use `perl -e 'alarm 120; exec @ARGV'` for a timeout (no `timeout` on macOS), run under `nice` with at most 4 parallel jobs, and include the positive controls above, so an empty or broken sweep cannot read as "0 flips". Record the per-path TSV under `.ailang/state/sprints/`.
-2. **Attended, before release (not the executor's job):** every `~/dev` git checkout holding `.ail` (`git archive HEAD`), the deduplicated `code` field of `eval_results/**/*.json` (`AILANG_RELAX_MODULES=1`), and a `serve-api` boot of the executor MCP with its Dockerfile/terraform args plus `executor_tools/smoke.sh`. These need the operator machine.
+No new standalone .ail example is needed for this correction. The exact reported source and its variants become embedded .ail pipeline fixtures in M5, checked against the source-built compiler. Keep existing examples `inline_tests_recursive.ail`, `record_cons_pattern.ail`, `first_non_repeat.ail` and `std/list.ail` unchanged and verify them. Do not modernize the issue syntax while reproducing the bug.
 
-Any newly ACCEPTED file is expected only where a module-level name is shadowed by a local binder that references it; list each one. Any newly REJECTED file is a regression: stop and report it.
+| Fixture group | Contracts | Effects | Inline tests |
+|---|---|---|---|
+| Accepted repro / controls (rows 1–9, underscore variant) | skip: graph/effect validation is the behavior under test | include: recursive `each[e]` declares `! {e}`, IO caller declares `! {IO}`; pure/mutual controls retain design signatures | skip: Go table assertions drive ModeCheck and inspect diagnostics/grouping |
+| Rejected soundness guards (rows 10–11) | skip: intentionally invalid effect programs | include: declared `! {e}` with a genuinely introduced closed IO callback must fail | skip: invalid modules cannot run inline tests; negative pipeline checks assert expected function and Missing effects |
+| Existing example modules | skip: unchanged existing examples | skip: preserve existing signatures and effect rows | skip: preserve existing inline tests; run existing verification targets |
 
-## Completion and handoff
+## Validation and completion evidence
 
-Success requires every criterion above, 510 estimated LOC total, all binder/reference branches covered by explicit controls, unchanged genuine recursion and validator rejection behavior, and complete differential sweep evidence. No global percentage coverage target is invented; require branch-specific scope and soundness coverage.
+Run focused Go tests for new graph/scope/pipeline matrices while implementing, including existing `TestModuleLetResolutionMatrix` and `TestLexicalScope_BinderShadowsGlobals`. Final executor gate is `make test-changed` (includes `make test-core`), with `TEST_CHANGED_BASE` explicitly set to the recorded pre-sprint commit when origin/dev is absent or unsuitable. Run `make check-file-sizes`, `make check-changelog`, `make verify-examples`, `make verify-stdlib`, and `make lint`; format only edited Go files. CI owns the full test suite.
 
-Use refs #2078 for planning and intermediate commits. Fixes #2078 is permitted only in a final commit that changes code. The plan itself must never close the issue. The coordinator consumes the plan and JSON artifacts for review; merging the sprint-plan PR is the documented executor trigger. No executor is launched by this planning stage. After approval, executor loads the JSON, implements milestones and hands results to sprint-evaluator against the approved design.
+For M6, locate the #2074/#1958 sweep harness and its 1,066-file manifest before claiming this acceptance criterion. Repository search found no checked-in copy. Compare baseline/candidate statuses on identical source manifests/options, including failures that are expected to remain failures; bank paths, counts, commands, revisions and status diffs. Exclude the newly added positive controls from the zero-flip legacy corpus and report their expected flips separately. The historical 20,046-file sweep is background impact evidence, not a newly promised rerun.
+
+Missing corpus/harness is an external validation dependency, not an open design decision. If it cannot be recovered, **STOP: commit current work, report `BLOCKED: historical 1,066-file sweep corpus/harness unavailable`, and end the run**. Do not silently replace it with examples-only coverage or mark M6 passing. This allows useful implementation milestones to complete before reporting the exact validation limitation.
+
+Success requires all seven milestones, the 11-row matrix and graph controls, zero unintended corpus status flips, unchanged soundness rejection, unchanged effect-validator code, and a changelog fragment referencing #2078. Coverage target is all binder forms and five missing expression variants, rather than an unmeasured package percentage. Record DEBUG_EFFECTS evidence showing the recursive call retains an open row while the IO caller has its concrete site row. Do not require stable node IDs.
+
+## Handoff
+
+Plan and JSON are ready for coordinator review. Merge/approval of this planning task triggers sprint-executor per the coordinator workflow; no duplicate direct execution message is needed before that approval. Execution should reference #2078; only the final implementation completion should use Fixes #2078. This plan does not close or implement the issue.
