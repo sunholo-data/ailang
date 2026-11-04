@@ -12,6 +12,12 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 80 | 2026-11-03 | D-FLEET-21 option A built as a proposed diff — draft PR #2067 (`bdaad2825`), unmerged pending your ruling; Gate 3b's CI poll cap would go from 1800... |
+| 79 | 2026-11-03 | D-FLEET-26 option A built as a proposed diff — draft PR #2065 (`edb099371`), unmerged pending your ruling; a codex controller's column-0 `ERROR: Se... |
+| 78 | 2026-11-02 | D-FLEET-24 option A LANDED — #2053 → `3d9112bb9`; an attended ruling arrived mid-fire, while A was already built as a proposed diff; 7 `agent-tool`... |
+| 77 | 2026-11-02 | `agent-tool:workspace-routing-discovery-timeout` folds into D-FLEET-24 (one codex-internal transport error on 10-02, recovered by `followup_task`, ... |
+| 76 | 2026-10-31 | `executor-image:no-make-no-cc-cgo-tests` RESOLVED as a ghost of #1753 (`939beb6fd`) for the sprint-executor; the cloud sprint-evaluator still runs ... |
+| 75 | 2026-10-31 | `coordinator:job-retry-success-dropped-after-failed-completion` folds into D-FLEET-39 (9 dropped retry successes since 10-01, 7 of them pi) and the... |
 | 74 | 2026-10-31 | `skills:agents-copies-stale-non-mission` parks on D-FLEET-38 (16 of 27 copies rename-only, with broken `.Codex` paths) and the two codex-credential... |
 | 73 | 2026-10-30 | `skill:design-doc-creator-grep-portability` parks on D-FLEET-36 (outside fleet scope; real at HEAD, fails only on GNU grep) and `sprint-evaluator:w... |
 | 72 | 2026-10-30 | `skills:showcase-feature-discoverability` RESOLVED as a ghost of #1691 (`03263525c`) plus the attended #476 closure; `pi:openrouter:uncapped-max-to... |
