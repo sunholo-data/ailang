@@ -90,10 +90,10 @@
         "Parameter errors follow declaration order; nested failures identify the parameter and field/index; do not add closed-record validation or string coercion.",
         "Focused tests and make test-changed pass; touched Go files formatted."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T09:03:30.762426+00:00",
+      "completed": "2026-11-04T09:03:30.762426+00:00",
+      "notes": "Focused parity/binder tests pass, including arrays. Full API server suite passed before array correction; final rerun in progress."
     },
     {
       "id": "M3",
@@ -201,7 +201,7 @@
     }
   ],
   "last_session": "2026-11-04T09:03:18.280889+00:00",
-  "last_checkpoint": "M1: schemas extracted and focused tests pass",
+  "last_checkpoint": "M2: shared recursive binding and numeric validation",
   "notes": [
     "Working branch coordinator/task-f9a4781c; planner work branch coordinator/task-96d9529b recovered by object SHA cd75b00c.",
     "Go available at /usr/local/go/bin; startup script false-positive test verdict superseded by explicit checks.",
