@@ -26,6 +26,18 @@ only by a recorded ruling, never by the loop.
   `ailang mission ticket file`, language gaps to the V1 backlog. Red `dev` follows the same rule,
   below.
 
+### 0. Moot sweep (D-TRIAGE-48) — before selecting anything
+
+For every OPEN row in the charter's decision ledger, read the state of each PR/issue it names
+(`gh api repos/sunholo-data/ailang/issues/N --jq '.state, .pull_request.merged_at'`). When
+**every** subject is MERGED or CLOSED, set the row to `RESOLVED` with an answer beginning
+`MOOT (loop, subject terminal):`, naming each subject's state and today's date, and leave the
+original question and evidence intact. A row that names no PR/issue, names one still open, or asks
+a forward-looking question about an open item (e.g. "before further planning of #1984") stays
+OPEN. This is the only row change the loop may make on its own; it decides nothing. Run
+`scripts/mission_decisions.sh --check design_docs/triage-mission.md` after, and list the
+mooted rows in the digest. Measured 2026-11-04: 10 of 33 OPEN rows were already moot.
+
 ### 1. Verify (read-only verifiers, executor role)
 
 Resolve the lane with `tools/launchd/resolve-role-spawn.sh executor` and follow its output
@@ -222,6 +234,43 @@ MSG="env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac"
   ```
   The body is **positional**. `messages send` has no `--body-file` flag and would send the
   literal string (gate-5-retro step 3).
+
+### 7a. The decisions packet (D-TRIAGE-48) — the list Mark answers in the morning
+
+Mark, 2026-11-04: *"I'm overwhelmed and/or never see the decisions to make them."* The digest
+and a link were not enough. Send **the list itself**:
+
+- **When**: from the first iteration that starts at or after 18:00 UTC each day, if any ledger row
+  is OPEN or any card is ready to approve. **This is that day's one `[urgent]`**; it replaces
+  the per-new-decision urgent above (a new red `dev` may still send its own, §6). The morning
+  iteration sends no packet.
+- **What**: at most **5** numbered items, ranked: (1) security/credential incidents, (2) cards
+  ready to approve (unsigned attestations), (3) design freezes blocking a planned sprint,
+  (4) everything else, oldest first. Below the list: "+N more held, in the digest: <link>".
+- **Each item is one line, answerable without opening anything**: what is being decided, the
+  recommended answer, what the other answer costs, and `(reversible)` or `(final)`. Approvals
+  name the card and what approving dispatches.
+- **The last line is the reply grammar**: `Reply e.g. "1 yes, 2 yes, 3 B" or "all yes". No answer = HOLD.`
+  "yes" means the recommended answer.
+
+```text
+Triage decisions for the morning (5 of 14 open):
+1. D-TRIAGE-36 credential incident: rotate the exposed key (rec.) — B defers with it still live. (final)
+2. Approve task-xxxxxxxx / #2100 sprint-planner plan: dispatches sprint-executor (≤$25). Rec. yes. (final)
+3. D-TRIAGE-27 SMT freeze: A (rec.) truncating Int div/rem as designed — B returns it for revision, ~1 wk. (reversible)
+...
++9 more held: https://github.com/sunholo-data/ailang/issues/<N>#issuecomment-<id>
+Reply e.g. "1 yes, 2 yes, 3 B" or "all yes". No answer = HOLD.
+```
+
+```bash
+$MSG ailang messages send daneel-reports "<the packet>" --from mission-triage --title "[urgent] Triage decisions for the morning: <n> of <total>"
+```
+
+If `daneel-reports` refuses (rc1, undeclared — every iteration so far), send the same title and
+body to `controlplane`, the fallback Daneel already triages. Replies come back through Daneel's
+ruling relay once it exists (D-TRIAGE-4); until then Mark answers in an attended session and it is
+recorded with `scripts/mission_answer.sh`. Never treat silence as an answer.
 
 ### 8. Recording the queue fingerprint (the LAST step of the iteration)
 
