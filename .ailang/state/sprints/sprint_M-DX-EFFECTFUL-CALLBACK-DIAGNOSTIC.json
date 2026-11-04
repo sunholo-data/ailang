@@ -111,10 +111,10 @@
         "CLI-wired map diagnostic recommends std/list.mapE; nil hook behavior from M3 remains valid.",
         "Focused stdlibindex/CLI tests and make check-boundaries pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-11-04T09:41:07.150991+00:00",
+      "notes": "Index lookup and CLI hook tests pass; variants restricted to same module. Architecture boundaries pass."
     },
     {
       "id": "M5",

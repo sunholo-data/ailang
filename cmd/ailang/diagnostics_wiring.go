@@ -11,6 +11,7 @@ import (
 func init() {
 	// "undefined variable" type errors -> suggest the missing import.
 	types.ImportSuggester = stdlibindex.Modules
+	types.EffectfulVariantSuggester = stdlibindex.EffectVariants
 	// IMP010 "not exported by" link/loader errors -> auto-import / wrong-module hint
 	// (M-AGENT-STUCK-FIXES M2). importhint is shared by both IMP010 producers.
 	importhint.Locator = stdlibindex.Modules
