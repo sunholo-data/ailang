@@ -32,7 +32,9 @@ func applicatorSchema(n *schemaNode, m map[string]any, doc any, path string, sco
 				}
 			}
 		}
+		depth[path]++
 		s := apply(target)
+		depth[path]--
 		if len(r.hardErrors) > 0 {
 			return
 		}

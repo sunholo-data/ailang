@@ -159,3 +159,29 @@ func TestJSONSchemaAssertionBoundaries(t *testing.T) {
 		})
 	}
 }
+
+func TestJSONSchemaAcyclicApplicatorDepth(t *testing.T) {
+	var schema any = true
+	for i := 0; i < 100; i++ {
+		schema = map[string]any{"allOf": []any{schema}}
+	}
+	p, errs := compileSchema(schema, true)
+	if len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	if errs := validateCompiledSchema(p, nil); len(errs) > 0 {
+		t.Fatalf("acyclic applicators counted as reference hops: %v", errs)
+	}
+	// Instance descent resets the reference-hop budget at each child pointer.
+	p, errs = compileSchema(engineJSON(t, `{"$defs":{"node":{"type":"object","properties":{"next":{"$ref":"#/$defs/node"}}}},"$ref":"#/$defs/node"}`), true)
+	if len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	var doc any = map[string]any{}
+	for i := 0; i < 100; i++ {
+		doc = map[string]any{"next": doc}
+	}
+	if errs := validateCompiledSchema(p, doc); len(errs) > 0 {
+		t.Fatalf("child-instance reference budget did not reset: %v", errs)
+	}
+}

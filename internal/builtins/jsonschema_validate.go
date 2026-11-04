@@ -37,10 +37,8 @@ func evaluateSchema(n *schemaNode, doc any, path string, scope []*schemaNode, de
 	if n == nil {
 		return r
 	}
-	depth[path]++
-	defer func() { depth[path]-- }()
 	if depth[path] > 64 {
-		r.hardErrors = append(r.hardErrors, schemaError{path, "$ref", "schema evaluation exceeded 64 steps at the same instance location"})
+		r.hardErrors = append(r.hardErrors, schemaError{path, "$ref", "schema evaluation exceeded 64 reference hops at the same instance location"})
 		return r
 	}
 	if b, ok := n.value.(bool); ok {
