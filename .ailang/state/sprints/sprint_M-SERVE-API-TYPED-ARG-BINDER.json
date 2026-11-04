@@ -116,10 +116,10 @@
         "Update representation assertions and prove fresh record zeros remain independent across calls; existing optional-record padding and argument precedence tests pass.",
         "Focused tests and make test-changed pass; touched Go files formatted."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T09:03:31.183777+00:00",
+      "completed": "2026-11-04T09:03:31.183777+00:00",
+      "notes": "Focused parity/binder tests pass, including arrays. Full API server suite passed before array correction; final rerun in progress."
     },
     {
       "id": "M4",
@@ -201,7 +201,7 @@
     }
   ],
   "last_session": "2026-11-04T09:03:18.280889+00:00",
-  "last_checkpoint": "M2: shared recursive binding and numeric validation",
+  "last_checkpoint": "M3: typed numeric and array omission zeros",
   "notes": [
     "Working branch coordinator/task-f9a4781c; planner work branch coordinator/task-96d9529b recovered by object SHA cd75b00c.",
     "Go available at /usr/local/go/bin; startup script false-positive test verdict superseded by explicit checks.",

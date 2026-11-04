@@ -1,6 +1,7 @@
 package apiserver
 
 import (
+	"github.com/sunholo-data/ailang/internal/eval"
 	"net/http/httptest"
 	"reflect"
 	"testing"
@@ -172,13 +173,13 @@ func TestArgResolution_AllSources(t *testing.T) {
 
 		// --- Typed zero-pads for non-string types ---
 		{
-			name:       "POST empty body pads int param with float64(0)",
+			name:       "POST empty body pads int param with &eval.IntValue{Value: 0}",
 			method:     "POST",
 			url:        "/api/foo",
 			body:       nil,
 			paramNames: []string{"count"},
 			paramTypes: []string{"int"},
-			wantArgs:   []interface{}{float64(0)},
+			wantArgs:   []interface{}{&eval.IntValue{Value: 0}},
 			wantSource: ArgSourceZeroPadded,
 		},
 		{
@@ -320,8 +321,8 @@ func TestRouteParamOmission_ZeroPadsNotNil(t *testing.T) {
 		want     interface{}
 	}{
 		{"string", ""},
-		{"int", float64(0)},
-		{"float", float64(0)},
+		{"int", &eval.IntValue{Value: 0}},
+		{"float", &eval.FloatValue{Value: 0}},
 		{"bool", false},
 	}
 	for _, tc := range cases {

@@ -3,6 +3,7 @@ package apiserver
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/sunholo-data/ailang/internal/eval"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -79,11 +80,12 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 		if route := s.findRouteByPath(r.URL.Path); route != nil {
 			if r.Method == route.Method || r.Method == "OPTIONS" {
 				s.callFunction(w, r, route.Module, route.Function, callOpts{
-					Raw:        route.IsRaw,
-					Nowrap:     route.IsNowrap,
-					ParamNames: route.ParamNames,
-					ParamTypes: route.ParamTypes,
-					ParamZeros: route.ParamZeros,
+					Raw:          route.IsRaw,
+					Nowrap:       route.IsNowrap,
+					ParamNames:   route.ParamNames,
+					ParamTypes:   route.ParamTypes,
+					ParamZeros:   route.ParamZeros,
+					ParamSchemas: route.ParamSchemas,
 				})
 				return
 			}
@@ -149,7 +151,7 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Delegate to shared function caller with param names for named binding
-	s.callFunction(w, r, modulePath, funcName, callOpts{ParamNames: foundExport.ParamNames, ParamTypes: foundExport.ParamTypes, ParamZeros: foundExport.ParamZeros})
+	s.callFunction(w, r, modulePath, funcName, callOpts{ParamNames: foundExport.ParamNames, ParamTypes: foundExport.ParamTypes, ParamZeros: foundExport.ParamZeros, ParamSchemas: foundExport.ParamSchemas})
 }
 
 // camelToSnake converts a camelCase string to snake_case.
@@ -177,12 +179,14 @@ func zeroValueForType(typeName string) interface{} {
 	case "string":
 		return ""
 	case "int":
-		return float64(0) // JSON numbers are float64
+		return &eval.IntValue{Value: 0}
 	case "float":
-		return float64(0)
+		return &eval.FloatValue{Value: 0}
 	case "bool":
 		return false
-	case "list", "array":
+	case "array":
+		return eval.NewArray(nil)
+	case "list":
 		return []interface{}{}
 	case "record":
 		return map[string]interface{}{}
