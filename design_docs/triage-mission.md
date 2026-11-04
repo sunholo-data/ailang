@@ -41,11 +41,11 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
+## STATUS 2026-11-04 — ITERATION 27: red dev (skill-mirror sync) routed; PR #1978 attested; 30 verdicts judged; no approvals or merges; shadow586. [HARNESS] [ADMIN]
+
 ## STATUS 2026-11-03 — ITERATION 26: 42 independently judged verdicts; 10 comments/six labels; D40–47 OPEN; coverage73/94; shadow552/score1of4; no approvals or merges. [HARNESS] [ADMIN]
 
 ## STATUS 2026-11-03 — ITERATION 25: 13 verdicts independently judged; one issue closed; two comments; exec-lifetime design routed; three inherited asks restored; attestation held; shadow509/score1of3. [HARNESS] [ADMIN]
-
-## STATUS 2026-10-28 — ITERATION 17: six independently judged items; four comments/three labels; two red-dev routes; D36 OPEN; 22 holds; shadow450/score14of14; no approvals or merges. [ADMIN]
 
 ## CURRENT LEVEL: **1 — Tidy, with attestations** (Mark, attended 2026-10-15; D-TRIAGE-7)
 
