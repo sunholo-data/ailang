@@ -1980,3 +1980,17 @@ use `--no-static-security-headers`; explicit `--static-header` values still appl
 These options require `--static` and reject invalid header names, empty values,
 and control characters at startup. Deployments framing static pages must migrate
 with both overrides or opt out explicitly. The defaults affect static files only.
+
+### Declared argument types
+
+REST, MCP tools/call and A2A bind JSON arguments using the function's declared
+parameter types, including nested record fields, list elements and array elements. For example,
+`twice(n: int)` accepts JSON `21` and `half(x: float)` accepts JSON `2`.
+An omitted `@optional` integer parameter binds zero on MCP.
+
+Fractional or out-of-range integers and boolean/string type mismatches are
+rejected before execution. Errors name the parameter and nested field or list
+index. REST returns HTTP 400 (`invalid arguments`), MCP returns an `isError`
+result, and A2A returns JSON-RPC error -32602. Unknown types and extra record
+fields retain the existing conversion behavior. See
+`examples/runnable/serve_api_typed_args.ail` for a minimal service.

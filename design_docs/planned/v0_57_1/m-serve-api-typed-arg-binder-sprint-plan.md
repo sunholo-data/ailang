@@ -37,9 +37,9 @@ Executed `ailang pkg search argument` (no results) and `ailang pkg search json` 
 
 **Tasks and acceptance criteria:**
 
-- [ ] Extract scalar, record, list/array and unknown schemas from AST; reuse recordAliases and maxZeroDepth; store runtime-only ParamSchemas with json:"-".
-- [ ] Test nested and aliased records, list element types, recursion bounds, labelled types and unknown schemas; existing registration behavior remains intact.
-- [ ] Run focused tests for changed behavior plus `make test-changed`; format touched Go files.
+- [x] Extract scalar, record, list/array and unknown schemas from AST; reuse recordAliases and maxZeroDepth; store runtime-only ParamSchemas with json:"-".
+- [x] Test nested and aliased records, list element types, recursion bounds, labelled types and unknown schemas; existing registration behavior remains intact.
+- [x] Run focused tests for changed behavior plus `make test-changed`; format touched Go files.
 
 **Risk and mitigation:** AST aliases can cycle; mirror the existing bounded traversal and test the bound.
 
@@ -51,11 +51,11 @@ Executed `ailang pkg search argument` (no results) and `ailang pkg search json` 
 
 **Tasks and acceptance criteria:**
 
-- [ ] bindCallArgs produces eval.Value arguments: integral numbers bind int; all numeric float inputs including 2 bind FloatValue; bool/string reject mismatches.
-- [ ] Recurse into declared record fields and list/array elements; preserve eval.Value identity, nil/Unit and unknown/open-field FromGo behavior.
-- [ ] Reject fractional, non-finite and out-of-range int inputs before conversion; cover json.Number and Go numeric inputs without overflow or silent truncation.
-- [ ] Parameter errors follow declaration order; nested failures identify the parameter and field/index; do not add closed-record validation or string coercion.
-- [ ] Run focused tests for changed behavior plus `make test-changed`; format touched Go files.
+- [x] bindCallArgs produces eval.Value arguments: integral numbers bind int; all numeric float inputs including 2 bind FloatValue; bool/string reject mismatches.
+- [x] Recurse into declared record fields and list/array elements; preserve eval.Value identity, nil/Unit and unknown/open-field FromGo behavior.
+- [x] Reject fractional, non-finite and out-of-range int inputs before conversion; cover json.Number and Go numeric inputs without overflow or silent truncation.
+- [x] Parameter errors follow declaration order; nested failures identify the parameter and field/index; do not add closed-record validation or string coercion.
+- [x] Run focused tests for changed behavior plus `make test-changed`; format touched Go files.
 
 **Risk and mitigation:** Numeric casts can overflow; check integrality and native int bounds before casting. Preserve compatibility for undeclared fields.
 
@@ -67,9 +67,9 @@ Executed `ailang pkg search argument` (no results) and `ailang pkg search json` 
 
 **Tasks and acceptance criteria:**
 
-- [ ] zeroValueForType and paramZero deliver typed zeros including IntValue(0), FloatValue(0), bool, string, record and list; retain nil for unsupported types.
-- [ ] Update representation assertions and prove fresh record zeros remain independent across calls; existing optional-record padding and argument precedence tests pass.
-- [ ] Run focused tests for changed behavior plus `make test-changed`; format touched Go files.
+- [x] zeroValueForType and paramZero deliver typed zeros including IntValue(0), FloatValue(0), bool, string, record and list; retain nil for unsupported types.
+- [x] Update representation assertions and prove fresh record zeros remain independent across calls; existing optional-record padding and argument precedence tests pass.
+- [x] Run focused tests for changed behavior plus `make test-changed`; format touched Go files.
 
 **Risk and mitigation:** Changing zero representations can break tests or share mutable records; test value classes and independence.
 
@@ -81,10 +81,10 @@ Executed `ailang pkg search argument` (no results) and `ailang pkg search json` 
 
 **Tasks and acceptance criteria:**
 
-- [ ] Bind resolved MCP arguments after presence, secret, file and header handling; call engine.Call with typed values; MCP rejects invalid arguments with IsError.
-- [ ] UI resource calls adopt the same binder and engine.Call; existing resource behavior and missing-parameter validation remain intact.
-- [ ] MCP tools/call succeeds for int 21 and omitted optional int zero, including named and positional argument forms.
-- [ ] Run focused tests for changed behavior plus `make test-changed`; format touched Go files.
+- [x] Bind resolved MCP arguments after presence, secret, file and header handling; call engine.Call with typed values; MCP rejects invalid arguments with IsError.
+- [x] UI resource calls adopt the same binder and engine.Call; existing resource behavior and missing-parameter validation remain intact.
+- [x] MCP tools/call succeeds for int 21 and omitted optional int zero, including named and positional argument forms.
+- [x] Run focused tests for changed behavior plus `make test-changed`; format touched Go files.
 
 **Risk and mitigation:** Injected eval.Value arguments must pass through unchanged; use existing secret/file/header regressions.
 
@@ -96,10 +96,10 @@ Executed `ailang pkg search argument` (no results) and `ailang pkg search json` 
 
 **Tasks and acceptance criteria:**
 
-- [ ] REST binds after resolution/multipart and returns HTTP 400 with invalid arguments prefix for binding failures; integral JSON 2 binds correctly to float.
-- [ ] A2A data/text argument paths share the binder and engine.Call; fractional int is JSON-RPC -32602 and int success is tested.
-- [ ] No CallPreserveFloats invocation remains in internal/apiserver; mcp_auth.go, routes_ws.go and internal/embed public conversion semantics remain unchanged.
-- [ ] Run focused tests for changed behavior plus `make test-changed`; format touched Go files.
+- [x] REST binds after resolution/multipart and returns HTTP 400 with invalid arguments prefix for binding failures; integral JSON 2 binds correctly to float.
+- [x] A2A data/text argument paths share the binder and engine.Call; fractional int is JSON-RPC -32602 and int success is tested.
+- [x] No CallPreserveFloats invocation remains in internal/apiserver; mcp_auth.go, routes_ws.go and internal/embed public conversion semantics remain unchanged.
+- [x] Run focused tests for changed behavior plus `make test-changed`; format touched Go files.
 
 **Risk and mitigation:** Custom REST routes must find the same export schema as standard routes; test both and retain resolution precedence.
 
@@ -111,11 +111,11 @@ Executed `ailang pkg search argument` (no results) and `ailang pkg search json` 
 
 **Tasks and acceptance criteria:**
 
-- [ ] MCP and REST both pass scalar int, integral float, int record field, integral float record field, omitted optional int, and fractional-int rejection cases.
-- [ ] Test bool/string mismatch, nested lists/records, unknown/open fields, optional records, legacy positional args, query fallback, multipart, mcp_file, headers and raw routes using existing fixtures where possible.
-- [ ] Add a runnable typed-argument example and document results and surface-specific errors; changelog fragment opens with ### .
+- [x] MCP and REST both pass scalar int, integral float, int record field, integral float record field, omitted optional int, and fractional-int rejection cases.
+- [x] Test bool/string mismatch, nested lists/records, unknown/open fields, optional records, legacy positional args, query fallback, multipart, mcp_file, headers and raw routes using existing fixtures where possible.
+- [x] Add a runnable typed-argument example and document results and surface-specific errors; changelog fragment opens with ### .
 - [ ] Final make test-changed, make check-boundaries, make check-file-sizes, make check-changelog and make verify-examples pass; run go vet ./internal/apiserver.
-- [ ] Run focused tests for changed behavior plus `make test-changed`; format touched Go files.
+- [x] Run focused tests for changed behavior plus `make test-changed`; format touched Go files.
 
 **Risk and mitigation:** Large transport matrices can duplicate setup; share small test helpers and keep companion files below the size limit.
 
@@ -140,3 +140,12 @@ Planned showcase: `examples/runnable/serve_api_typed_args.ail`, exporting twice(
 ## Completion and handoff
 
 All six milestones start pending. JSON carries matching IDs, dependencies, estimates and registry decisions. No GitHub issue is linked: docparse PR #229 is external context, not an AILANG issue to close. Coordinator consumes the two artifact paths and routes the reviewed plan to sprint-executor; implementation then runs sprint-evaluator against the approved design and these criteria. No source code is changed in this planning stage.
+
+## Execution result (2026-11-04)
+
+Implementation is complete on coordinator/task-f9a4781c. The full API-server
+package, focused parity matrix, embed tests, go vet, example verification,
+architecture, file-size and changelog checks pass. The final gate remains
+unchecked: test-changed fails two unchanged effects process-lifetime tests;
+golangci-lint is absent. These are recorded as verification exceptions rather
+than passes. See m-serve-api-typed-arg-binder-implementation.md for evidence.
