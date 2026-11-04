@@ -41,11 +41,11 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
+## STATUS 2026-11-04 — ITERATION 28: 25 cross-vendor judged verdicts; SCC gap reproduced; refusal design routed; ready1978 withheld; coverage96/96;20 OPEN;shadow611; no approvals or merges. [HARNESS] [ADMIN]
+
 ## STATUS 2026-11-04 — ITERATION 27: red dev (skill-mirror sync) routed; PR #1978 attested; 30 verdicts judged; no approvals or merges; shadow586. [HARNESS] [ADMIN]
 
 ## STATUS 2026-11-03 — ITERATION 26: 42 independently judged verdicts; 10 comments/six labels; D40–47 OPEN; coverage73/94; shadow552/score1of4; no approvals or merges. [HARNESS] [ADMIN]
-
-## STATUS 2026-11-03 — ITERATION 25: 13 verdicts independently judged; one issue closed; two comments; exec-lifetime design routed; three inherited asks restored; attestation held; shadow509/score1of3. [HARNESS] [ADMIN]
 
 ## CURRENT LEVEL: **1 — Tidy, with attestations** (Mark, attended 2026-10-15; D-TRIAGE-7)
 
@@ -191,7 +191,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 2. Sprint A, the coordinator auto-approval policy: its own design doc via design-doc-creator, scored
    against ≥2 weeks of this loop's shadow ledger before it auto-approves anything.
 3. [RECORDED iterations 1–3] Level 1 queue verification; iteration 3 records independent review and the prior record gap. Clauses 1–3.
-4. [NEXT] Refresh changed/held/stale items:73/94 fresh,21 overdue issues deferred by batch cap. Preserve33 OPEN holds including new D40–47, inherited D34 collision scope and D36 rotation. Four substantive VERIFIED artifacts remain parked on actual verifier model metadata. Never approve, reject, merge, implement or fire handoffs in this loop.
+4. [NEXT] Refresh changed/held/stale items; snapshot96/96 fresh after iteration28. Preserve20 OPEN human holds; no new ruling inferred. PR1978 prior ready attestation is contradicted by current source; PR2119 top-level binder gap and PR2121 corpus/params scope drift require owner correction. Issue2123 refusal classification routed for design only. Never approve, reject, merge, implement or fire handoffs in this loop.
 5. [RECORDED iteration 6] 10 independently judged items, 7 orphan PRs, one current-dev/cross-vendor unsigned attestation; #1878/#1879 P1 and #1880 P2 process-result defects remain open. Iteration 5 has digest/ledger evidence but no committed log; iteration 6 credits that recording gap.
 
 6. [HARNESS] [NONBLOCKING] ticket:reporting:daneel-reports-not-declared-triage — recurrence filed to fleet in iteration 6 (inbox_1792270873468_18cd5712). Existing controlplane fallback delivered both reports; iteration8 recurrence inbox_1792446067114_a8de6085; iteration10 recurrence inbox_1792533879605_18a7bcf5. Iteration11 recurrence inbox_1792578499678_b8495de1; direct send refused rc1, existing controlplane consumer retained. Iteration12 recurrence inbox_1792622923766_6056562b: direct send rc1; existing normal+one urgent controlplane consumer delivered. Iteration13 recurrence inbox_1792666977791_d8a8d14b: direct send rc1; existing controlplane normal/one urgent fallback delivered. No triage harness repair. Iteration16 recurrence inbox_1793178174531_2005f28f: direct send rc1; normal/one urgent controlplane pointers and user message peek-verified. Iteration26 recurrence inbox_1793741284696_503247dd: direct send refused rc1; existing normal/one new-decision urgent controlplane fallback and user summary exact-peek verified.

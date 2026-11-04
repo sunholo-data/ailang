@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 28 | 2026-11-04 | independent review reproduces SCC gap, corrects readiness and routes refusal design [HARNESS] [ADMIN] |
 | 27 | 2026-11-04 | red dev routed (skill-mirror sync), one attestation, two orphan-PR dispositions for Mark [HARNESS] [ADMIN] |
 | 26 | 2026-11-03 | independent queue refresh holds human freezes and competing work [HARNESS] [ADMIN] |
 | 25 | 2026-11-03 | independent review corrects readiness, closes helper verification issue and restores missing holds [HARNESS] [ADMIN] |
