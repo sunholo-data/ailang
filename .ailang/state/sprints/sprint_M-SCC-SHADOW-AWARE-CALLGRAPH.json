@@ -1,0 +1,131 @@
+{
+  "sprint_id": "M-SCC-SHADOW-AWARE-CALLGRAPH",
+  "status": "not_started",
+  "created": "2026-11-04T13:43:49.606411+00:00",
+  "design_doc": "design_docs/planned/v0_57_2/m-scc-shadow-aware-callgraph.md",
+  "sprint_plan": "design_docs/planned/v0_57_2/m-scc-shadow-aware-callgraph-sprint-plan.md",
+  "github_issues": [
+    2078
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "none: compiler-internal AST scope and SCC analysis plus regression coverage; no package-like capability or runtime dependency is introduced. Registry search is not applicable."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "none: compiler-internal AST scope and SCC analysis plus regression coverage; no package-like capability or runtime dependency is introduced. Registry search is not applicable."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "none: compiler-internal AST scope and SCC analysis plus regression coverage; no package-like capability or runtime dependency is introduced. Registry search is not applicable."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "none: compiler-internal AST scope and SCC analysis plus regression coverage; no package-like capability or runtime dependency is introduced. Registry search is not applicable."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "none: compiler-internal AST scope and SCC analysis plus regression coverage; no package-like capability or runtime dependency is introduced. Registry search is not applicable."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 204,
+    "estimated_total_loc": 510,
+    "estimated_days": 2.5
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Pattern binder classification",
+      "estimated_loc": 100,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "astPatternBinders agrees with corePatternBinders after elaboratePattern for lowercase, uppercase, wildcard, nested constructor, cons, list/rest, tuple and record patterns.",
+        "Constructor and record field names never become binders; nil patterns are harmless."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Scope-aware reference traversal",
+      "estimated_loc": 160,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Lambda and FuncLit parameters, match guards/bodies, local let/letrec, sequential blocks and forall bodies filter locally bound names without scope leakage.",
+        "Let values and forall bounds retain outer references; bodyless module letrec retains its self-edge.",
+        "ForallExpr, Send, Recv, AssertStmt and QuasiQuote interpolations retain genuine references; DEBUG_STRICT still panics for an unhandled expression variant."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Call graph and emission controls",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "BuildCallGraph has no false each-to-t edge for pattern, lambda and let shadows; non-shadow controls keep genuine edges.",
+        "isSelfRecursive ignores shadowed self names; bodyless module letrec still emits core.LetRec; genuine mutual recursion still groups.",
+        "TestModuleLetResolutionMatrix and TestLexicalScope_BinderShadowsGlobals pass unchanged."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Effect regression matrix",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "All eleven design reproduction rows run through pipeline ModeCheck using elaborate_test and existing checkModule helper.",
+        "Rows 1 through 9 pass, including original issue and let-discard variants; rows 10 and 11 reject with Missing effects and IO.",
+        "Baseline binary rejects positive controls 1, 5 and 6; candidate accepts them; no internal/types or internal/pipeline production changes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Corpus comparison and release evidence",
+      "estimated_loc": 30,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Per-file base (v0.57.0) vs candidate `ailang check` over EVERY tracked .ail in this repo (`git ls-files '*.ail'`, ~810 files, each from its package root) has zero unexpected flips; the issue repro and rows 5/6 flip reject→accept as positive controls; rows 10/11 stay rejected. The out-of-repo populations are run attended before release (see Validation).",
+        "make test-changed, make check-file-sizes, make check-changelog and make verify-examples pass; formatting and lint checks pass.",
+        "Changelog fragment opens with ### and references #2078; evidence records binary commits, corpus manifest, commands and results."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
