@@ -1,0 +1,39 @@
+module tests/stdlib/jsonschema_test
+
+import std/json (Json, JBool, JNumber, JString, JObject, JArray)
+import std/jsonschema (validate, validateLenient, validateSchema)
+import std/list (length)
+
+test "boolean schemas" {
+  assert length(validate(JBool(true), JString("ok"))) == 0
+  assert length(validate(JBool(false), JString("bad"))) == 1
+}
+
+test "typed public error records" {
+  let schema = JObject([{key: "type", value: JString("integer")}])
+  assert length(validate(schema, JNumber(2.0))) == 0
+  assert length(validate(schema, JString("bad"))) == 1
+  assert match validate(schema, JString("bad")) {
+    [e] => e.path == "" && e.keyword == "type",
+    _ => false
+  }
+}
+
+test "strict and explicit lenient validation" {
+  let schema = JObject([{key: "futureKeyword", value: JBool(true)}])
+  assert length(validateSchema(schema)) == 1
+  assert length(validate(schema, JString("x"))) == 1
+  assert length(validateLenient(schema, JString("x"))) == 0
+}
+
+test "properties required and local reference" {
+  let schema = JObject([
+    {key: "$defs", value: JObject([{key: "name", value: JObject([{key: "minLength", value: JNumber(2.0)}])}])},
+    {key: "properties", value: JObject([{key: "name", value: JObject([{key: "$ref", value: JString("#/$defs/name")}])}])},
+    {key: "required", value: JArray([JString("name")])},
+    {key: "additionalProperties", value: JBool(false)}
+  ])
+  assert length(validate(schema, JObject([{key: "name", value: JString("Ada")}])) ) == 0
+  assert length(validate(schema, JObject([]))) == 1
+  assert length(validate(schema, JObject([{key: "name", value: JString("a")}])) ) == 1
+}
