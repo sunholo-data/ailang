@@ -19,6 +19,7 @@ import (
 
 // callOpts controls per-route behavior for callFunction.
 type callOpts struct {
+	ParamSchemas []ParamSchema
 	Raw        bool     // @raw: pass full HttpRequest record instead of parsed args
 	Nowrap     bool     // @nowrap: skip FunctionCallResponse envelope, return raw JSON
 	ParamNames []string // parameter names for named JSON binding

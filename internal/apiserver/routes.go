@@ -22,19 +22,20 @@ func goroutineID() int {
 
 // RouteEntry represents a custom route defined by a @route annotation.
 type RouteEntry struct {
-	Method     string   // "GET", "POST", etc.
-	Path       string   // "/general/v0/general"
-	Module     string   // module path
-	Function   string   // function name
-	IsRaw      bool     // @raw: pass full HttpRequest record instead of parsed args
-	IsNowrap   bool     // @nowrap: skip FunctionCallResponse envelope, return raw JSON
-	ParamNames []string // parameter names for named JSON binding
-	ParamTypes []string // parameter type strings for zero-value padding
-	ParamZeros []any    // declared-record zeros (param_zero.go)
-	IsWS       bool     // @route("WS", ...): WebSocket upgrade route
-	Effects    []string // declared effect row (WS routes)
-	WSReq      []string // WS routes: the req record fields the handler declares
-	WSReqIssue string   // WS routes: why the declared req record is refused
+	Method       string   // "GET", "POST", etc.
+	Path         string   // "/general/v0/general"
+	Module       string   // module path
+	Function     string   // function name
+	IsRaw        bool     // @raw: pass full HttpRequest record instead of parsed args
+	IsNowrap     bool     // @nowrap: skip FunctionCallResponse envelope, return raw JSON
+	ParamNames   []string // parameter names for named JSON binding
+	ParamTypes   []string // parameter type strings for zero-value padding
+	ParamSchemas []ParamSchema
+	ParamZeros   []any    // declared-record zeros (param_zero.go)
+	IsWS         bool     // @route("WS", ...): WebSocket upgrade route
+	Effects      []string // declared effect row (WS routes)
+	WSReq        []string // WS routes: the req record fields the handler declares
+	WSReqIssue   string   // WS routes: why the declared req record is refused
 }
 
 // extractParamInfo populates ExportInfo.ParamNames and ExportInfo.ParamTypes
@@ -56,6 +57,7 @@ func extractParamInfo(modInfo *ModuleInfo, file *ast.File) {
 			if modInfo.Exports[i].Name == fn.Name {
 				modInfo.Exports[i].ParamNames = names
 				modInfo.Exports[i].ParamTypes = types
+				modInfo.Exports[i].ParamSchemas = extractParamSchemas(fn.Params, aliases)
 				modInfo.Exports[i].ParamZeros = extractParamZeros(fn.Params, aliases)
 				break
 			}
@@ -377,15 +379,16 @@ func (s *Server) findRouteByPath(urlPath string) *RouteEntry {
 		for _, exp := range mod.Exports {
 			if exp.RoutePath == urlPath && !s.connectOnlyHidden(exp) {
 				return &RouteEntry{
-					Method:     exp.RouteMethod,
-					Path:       exp.RoutePath,
-					Module:     mod.Path,
-					Function:   exp.Name,
-					IsRaw:      exp.IsRaw,
-					IsNowrap:   exp.IsNowrap,
-					ParamNames: exp.ParamNames,
-					ParamTypes: exp.ParamTypes,
-					ParamZeros: exp.ParamZeros,
+					Method:       exp.RouteMethod,
+					Path:         exp.RoutePath,
+					Module:       mod.Path,
+					Function:     exp.Name,
+					IsRaw:        exp.IsRaw,
+					IsNowrap:     exp.IsNowrap,
+					ParamNames:   exp.ParamNames,
+					ParamTypes:   exp.ParamTypes,
+					ParamZeros:   exp.ParamZeros,
+					ParamSchemas: exp.ParamSchemas,
 				}
 			}
 		}
@@ -403,19 +406,20 @@ func (s *Server) getCustomRoutes() []RouteEntry {
 		for _, exp := range mod.Exports {
 			if exp.RoutePath != "" && !s.connectOnlyHidden(exp) {
 				routes = append(routes, RouteEntry{
-					Method:     exp.RouteMethod,
-					Path:       exp.RoutePath,
-					Module:     mod.Path,
-					Function:   exp.Name,
-					IsRaw:      exp.IsRaw,
-					IsNowrap:   exp.IsNowrap,
-					ParamNames: exp.ParamNames,
-					ParamTypes: exp.ParamTypes,
-					ParamZeros: exp.ParamZeros,
-					IsWS:       exp.IsWS,
-					Effects:    exp.Effects,
-					WSReq:      exp.WSReq,
-					WSReqIssue: exp.WSReqIssue,
+					Method:       exp.RouteMethod,
+					Path:         exp.RoutePath,
+					Module:       mod.Path,
+					Function:     exp.Name,
+					IsRaw:        exp.IsRaw,
+					IsNowrap:     exp.IsNowrap,
+					ParamNames:   exp.ParamNames,
+					ParamTypes:   exp.ParamTypes,
+					ParamZeros:   exp.ParamZeros,
+					ParamSchemas: exp.ParamSchemas,
+					IsWS:         exp.IsWS,
+					Effects:      exp.Effects,
+					WSReq:        exp.WSReq,
+					WSReqIssue:   exp.WSReqIssue,
 				})
 			}
 		}
@@ -460,7 +464,7 @@ func (s *Server) registerCustomRoutes(mux *http.ServeMux, builtinPaths map[strin
 					nil)
 				return
 			}
-			s.callFunction(w, req, r.Module, r.Function, callOpts{Raw: r.IsRaw, Nowrap: r.IsNowrap, ParamNames: r.ParamNames, ParamTypes: r.ParamTypes, ParamZeros: r.ParamZeros})
+			s.callFunction(w, req, r.Module, r.Function, callOpts{Raw: r.IsRaw, Nowrap: r.IsNowrap, ParamNames: r.ParamNames, ParamTypes: r.ParamTypes, ParamZeros: r.ParamZeros, ParamSchemas: r.ParamSchemas})
 		}
 		mux.HandleFunc(r.Path, s.corsWrap(s.authMiddleware(handler)))
 		registered[route.Path] = true

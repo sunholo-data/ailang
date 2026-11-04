@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-SERVE-API-TYPED-ARG-BINDER",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-11-03T15:21:49.134224+00:00",
   "design_doc": "design_docs/planned/v0_57_1/m-serve-api-typed-arg-binder.md",
   "sprint_plan": "design_docs/planned/v0_57_1/m-serve-api-typed-arg-binder-sprint-plan.md",
@@ -66,10 +66,10 @@
         "Test nested and aliased records, list element types, recursion bounds, labelled types and unknown schemas; existing registration behavior remains intact.",
         "Focused tests and make test-changed pass; touched Go files formatted."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T09:03:18.280889+00:00",
+      "completed": "2026-11-04T09:03:18.280889+00:00",
+      "notes": "Scalar/record/list/array/label/alias/bounded unknown schema tests pass. Restored approved planner artifacts from cd75b00c without unrelated branch changes."
     },
     {
       "id": "M2",
@@ -199,5 +199,14 @@
       "completed": null,
       "notes": null
     }
+  ],
+  "last_session": "2026-11-04T09:03:18.280889+00:00",
+  "last_checkpoint": "M1: schemas extracted and focused tests pass",
+  "notes": [
+    "Working branch coordinator/task-f9a4781c; planner work branch coordinator/task-96d9529b recovered by object SHA cd75b00c.",
+    "Go available at /usr/local/go/bin; startup script false-positive test verdict superseded by explicit checks.",
+    "AILANG prompt v0.16.11 loaded; fresh repository binary repeats check/test/verify.",
+    "make lint unavailable: golangci-lint not installed. go vet is an additional check, not a lint pass.",
+    "No task ID environment; cloud_branch_sync start skipped:no-task-id. No push attempted."
   ]
 }
