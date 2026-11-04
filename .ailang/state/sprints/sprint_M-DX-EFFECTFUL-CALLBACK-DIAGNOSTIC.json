@@ -1,0 +1,139 @@
+{
+  "sprint_id": "M-DX-EFFECTFUL-CALLBACK-DIAGNOSTIC",
+  "status": "not_started",
+  "created": "2026-11-03T15:32:14Z",
+  "design_doc": "design_docs/planned/v0_57_1/m-dx-effectful-callback-diagnostic.md",
+  "sprint_plan": "design_docs/planned/v0_57_1/m-dx-effectful-callback-diagnostic-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Searched effect and diagnostic; inspected sunholo/ail_diag@0.1.0 info/docs. It parses emitted CLI output in AILANG and cannot implement Go compiler constraint classification, rendering, index wiring or pipeline regression tests. Reuse repository compiler/index seams."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Searched effect and diagnostic; inspected sunholo/ail_diag@0.1.0 info/docs. It parses emitted CLI output in AILANG and cannot implement Go compiler constraint classification, rendering, index wiring or pipeline regression tests. Reuse repository compiler/index seams."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Searched effect and diagnostic; inspected sunholo/ail_diag@0.1.0 info/docs. It parses emitted CLI output in AILANG and cannot implement Go compiler constraint classification, rendering, index wiring or pipeline regression tests. Reuse repository compiler/index seams."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Searched effect and diagnostic; inspected sunholo/ail_diag@0.1.0 info/docs. It parses emitted CLI output in AILANG and cannot implement Go compiler constraint classification, rendering, index wiring or pipeline regression tests. Reuse repository compiler/index seams."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Searched effect and diagnostic; inspected sunholo/ail_diag@0.1.0 info/docs. It parses emitted CLI output in AILANG and cannot implement Go compiler constraint classification, rendering, index wiring or pipeline regression tests. Reuse repository compiler/index seams."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 270,
+    "estimated_total_loc": 540,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Classify function effect failures",
+      "estimated_loc": 100,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "errors.As finds the sentinel for both open/closed and closed/closed effect failures.",
+        "Parameter position is correct; direct function-row failure retains index -1.",
+        "Error text is byte-identical to the original solver chain, including existing wrappers.",
+        "Record-row failures contain no sentinel; focused internal/types tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Carry typed application context",
+      "estimated_loc": 85,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Named, global, anonymous and aliased callees retain available context.",
+        "Non-application constraints keep App nil and existing diagnostic paths unchanged.",
+        "Argument metadata is aligned with the index used by unification; unavailable/out-of-range metadata never panics or invents spans.",
+        "Existing application diagnostic and collision-hint tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Render effect leads through both solvers",
+      "estimated_loc": 165,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Pure callback rejection leads with callee, parameter, declared row, actual effects and available argument span; use lambda/argument wording correctly.",
+        "Both-extra-label and anonymous cases render deterministically; avoid calling nonempty declared rows pure.",
+        "Callee-own-row mismatch suppresses the note without inventing a callback lead.",
+        "Non-effect/type/record/non-app failures retain byte-for-byte prior messages.",
+        "Local and deferred solving yield exactly equal decorated errors; old solver substrings remain present.",
+        "Nil-hook library usage provides a generic remedy without a stdlib module claim."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Discover and wire honest effectful remedies",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "std/list map/filter/foldl find their E variants; std/option.map and std/io return no false same-module variant.",
+        "Lookup output is sorted and stable; no hardcoded stdlib export table enters internal/types.",
+        "CLI-wired map diagnostic recommends std/list.mapE; nil hook behavior from M3 remains valid.",
+        "Focused stdlibindex/CLI tests and make check-boundaries pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Integration regression coverage and release note",
+      "estimated_loc": 110,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Reporter map lambda, filter lambda and named println argument still fail, lead with effects and omit the collision note.",
+        "Type-mismatch map case preserves the original collision note; complete solver tail is preserved for effect failures.",
+        "mapE remedy succeeds; existing #386 must-accept/must-reject cases and inferred row-polymorphic callback fixture retain their outcomes.",
+        "The new example checks/runs with IO and existing match_hof_lambda, poly_arith_lambda and effect_budget_demo remain accepted.",
+        "Focused validation below passes and the changelog describes the behavior change accurately."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
