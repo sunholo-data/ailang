@@ -1,0 +1,203 @@
+{
+  "sprint_id": "M-SERVE-API-TYPED-ARG-BINDER",
+  "status": "not_started",
+  "created": "2026-11-03T15:21:49.134224+00:00",
+  "design_doc": "design_docs/planned/v0_57_1/m-serve-api-typed-arg-binder.md",
+  "sprint_plan": "design_docs/planned/v0_57_1/m-serve-api-typed-arg-binder-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Searched argument (no results) and json; inspected sunholo/http_helpers@0.1.5 info/docs. Outbound AILANG HTTP helpers cannot implement Go host AST/eval binding; reuse existing apiserver/embed helpers."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Searched argument (no results) and json; inspected sunholo/http_helpers@0.1.5 info/docs. Outbound AILANG HTTP helpers cannot implement Go host AST/eval binding; reuse existing apiserver/embed helpers."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Searched argument (no results) and json; inspected sunholo/http_helpers@0.1.5 info/docs. Outbound AILANG HTTP helpers cannot implement Go host AST/eval binding; reuse existing apiserver/embed helpers."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Searched argument (no results) and json; inspected sunholo/http_helpers@0.1.5 info/docs. Outbound AILANG HTTP helpers cannot implement Go host AST/eval binding; reuse existing apiserver/embed helpers."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Searched argument (no results) and json; inspected sunholo/http_helpers@0.1.5 info/docs. Outbound AILANG HTTP helpers cannot implement Go host AST/eval binding; reuse existing apiserver/embed helpers."
+    },
+    {
+      "milestone": "M6",
+      "package": null,
+      "action": "none",
+      "reason": "Searched argument (no results) and json; inspected sunholo/http_helpers@0.1.5 info/docs. Outbound AILANG HTTP helpers cannot implement Go host AST/eval binding; reuse existing apiserver/embed helpers."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 490,
+    "estimated_total_loc": 980,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Declared parameter schemas",
+      "estimated_loc": 160,
+      "estimated_hours": 1.5,
+      "dependencies": [],
+      "files": [
+        "internal/apiserver/param_schema.go",
+        "internal/apiserver/param_schema_test.go",
+        "internal/apiserver/export_info.go",
+        "internal/apiserver/routes.go"
+      ],
+      "acceptance_criteria": [
+        "Extract scalar, record, list/array and unknown schemas from AST; reuse recordAliases and maxZeroDepth; store runtime-only ParamSchemas with json:\"-\".",
+        "Test nested and aliased records, list element types, recursion bounds, labelled types and unknown schemas; existing registration behavior remains intact.",
+        "Focused tests and make test-changed pass; touched Go files formatted."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Shared typed binder",
+      "estimated_loc": 300,
+      "estimated_hours": 1.5,
+      "dependencies": [
+        "M1"
+      ],
+      "files": [
+        "internal/apiserver/arg_bind.go",
+        "internal/apiserver/arg_bind_test.go"
+      ],
+      "acceptance_criteria": [
+        "bindCallArgs produces eval.Value arguments: integral numbers bind int; all numeric float inputs including 2 bind FloatValue; bool/string reject mismatches.",
+        "Recurse into declared record fields and list/array elements; preserve eval.Value identity, nil/Unit and unknown/open-field FromGo behavior.",
+        "Reject fractional, non-finite and out-of-range int inputs before conversion; cover json.Number and Go numeric inputs without overflow or silent truncation.",
+        "Parameter errors follow declaration order; nested failures identify the parameter and field/index; do not add closed-record validation or string coercion.",
+        "Focused tests and make test-changed pass; touched Go files formatted."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Typed omission zeros",
+      "estimated_loc": 120,
+      "estimated_hours": 1.25,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "files": [
+        "internal/apiserver/handler.go",
+        "internal/apiserver/param_zero.go",
+        "internal/apiserver/param_zero_test.go",
+        "internal/apiserver/named_args_test.go",
+        "internal/apiserver/argresolve_test.go"
+      ],
+      "acceptance_criteria": [
+        "zeroValueForType and paramZero deliver typed zeros including IntValue(0), FloatValue(0), bool, string, record and list; retain nil for unsupported types.",
+        "Update representation assertions and prove fresh record zeros remain independent across calls; existing optional-record padding and argument precedence tests pass.",
+        "Focused tests and make test-changed pass; touched Go files formatted."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "MCP and UI integration",
+      "estimated_loc": 90,
+      "estimated_hours": 1.25,
+      "dependencies": [
+        "M2",
+        "M3"
+      ],
+      "files": [
+        "internal/apiserver/mcp.go",
+        "internal/apiserver/mcp_ui_serve.go",
+        "internal/apiserver/mcp_arg_bind_test.go"
+      ],
+      "acceptance_criteria": [
+        "Bind resolved MCP arguments after presence, secret, file and header handling; call engine.Call with typed values; MCP rejects invalid arguments with IsError.",
+        "UI resource calls adopt the same binder and engine.Call; existing resource behavior and missing-parameter validation remain intact.",
+        "MCP tools/call succeeds for int 21 and omitted optional int zero, including named and positional argument forms.",
+        "Focused tests and make test-changed pass; touched Go files formatted."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "REST and A2A integration",
+      "estimated_loc": 110,
+      "estimated_hours": 1.5,
+      "dependencies": [
+        "M2",
+        "M3"
+      ],
+      "files": [
+        "internal/apiserver/routes_dispatch.go",
+        "internal/apiserver/a2a.go",
+        "internal/apiserver/routes_arg_bind_test.go",
+        "internal/apiserver/a2a_arg_bind_test.go"
+      ],
+      "acceptance_criteria": [
+        "REST binds after resolution/multipart and returns HTTP 400 with invalid arguments prefix for binding failures; integral JSON 2 binds correctly to float.",
+        "A2A data/text argument paths share the binder and engine.Call; fractional int is JSON-RPC -32602 and int success is tested.",
+        "No CallPreserveFloats invocation remains in internal/apiserver; mcp_auth.go, routes_ws.go and internal/embed public conversion semantics remain unchanged.",
+        "Focused tests and make test-changed pass; touched Go files formatted."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6",
+      "description": "Parity matrix and documentation",
+      "estimated_loc": 200,
+      "estimated_hours": 1.5,
+      "dependencies": [
+        "M4",
+        "M5"
+      ],
+      "files": [
+        "internal/apiserver/arg_bind_parity_test.go",
+        "examples/runnable/serve_api_typed_args.ail",
+        "docs/docs/guides/serve-api.md",
+        "changelogs/unreleased/2026-11-03-serve-api-typed-arg-binder.md"
+      ],
+      "acceptance_criteria": [
+        "MCP and REST both pass scalar int, integral float, int record field, integral float record field, omitted optional int, and fractional-int rejection cases.",
+        "Test bool/string mismatch, nested lists/records, unknown/open fields, optional records, legacy positional args, query fallback, multipart, mcp_file, headers and raw routes using existing fixtures where possible.",
+        "Add a runnable typed-argument example and document results and surface-specific errors; changelog fragment opens with ### .",
+        "Final make test-changed, make check-boundaries, make check-file-sizes, make check-changelog and make verify-examples pass; run go vet ./internal/apiserver.",
+        "Focused tests and make test-changed pass; touched Go files formatted."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
