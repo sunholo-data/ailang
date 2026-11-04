@@ -93,10 +93,10 @@
         "Local and deferred solving yield exactly equal decorated errors; old solver substrings remain present.",
         "Nil-hook library usage provides a generic remedy without a stdlib module claim."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-11-04T09:38:35.482417+00:00",
+      "notes": "Shared wrapper verified for named/lambda local-deferred parity, both-label mismatch, anonymous/missing metadata, nested and own-row failures, nil hook and original solver detail."
     },
     {
       "id": "M4",
