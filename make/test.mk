@@ -73,6 +73,7 @@ test-shellcheck-autopush: ## Run mutation controls for the scoped ShellCheck gat
 # suites in list order, so a long one queued late becomes the whole job's tail.
 LAUNCHD_JOBS ?= 4
 LAUNCHD_SUITES := \
+	tools/launchd/test_transcript_secret_scan.sh \
 	tools/launchd/test_driver_notify.sh \
 	tools/launchd/test_mission_workdir_sync.sh \
 	scripts/test_mission_pi_run.sh \

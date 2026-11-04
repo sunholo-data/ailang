@@ -2024,6 +2024,9 @@ if [ "${MISSION_DRY_RUN:-0}" = "1" ]; then
   else
     _dry_lanes="ok"
   fi
+  # --- TRANSCRIPT SCAN DRY RUN START ---
+  log "DRY RUN transcript scan: a real legacy controller fire would create a per-fire marker before spawning and scan afterward with a 120-second limit"
+  # --- TRANSCRIPT SCAN DRY RUN END ---
   log "DRY RUN ok: mission=$MISSION_NAME repo-slug=$MISSION_REPO doc=$MISSION_DOC workdir=$REPO pidfile=$PIDFILE prefs=$PREFS timeout=${HARD_TIMEOUT}s | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL | lanes=$_dry_lanes | pin=$PIN_STATUS($PIN_DRIFT behind) | skill-sync=$SKILL_SYNC_STATUS"; exit 0
 fi
 
@@ -2388,6 +2391,16 @@ check their output files first. The original instructions are earlier in this se
 _mc_slot_state="${AILANG_STATE_DIR:-$STATE_DIR}"
 # --- HEARTBEAT STATE DIR END ---
 
+# --- TRANSCRIPT SCAN MARKER START ---
+_mc_scan_marker="$_mc_slot_state/mission-${MISSION_NAME}-transcript-scan-${MISSION_FIRE_ID}.since"
+_mc_scan_ready=0
+if { mkdir -p "$_mc_slot_state" && : > "$_mc_scan_marker"; } 2>/dev/null; then
+  _mc_scan_ready=1
+else
+  log "transcript scan: INSTRUMENT FAILURE creating per-fire marker"
+fi
+# --- TRANSCRIPT SCAN MARKER END ---
+
 _mc_uuid() {
   /usr/bin/uuidgen 2>/dev/null ||
     python3 -c 'import uuid; print(uuid.uuid4())' 2>/dev/null
@@ -2636,6 +2649,65 @@ printf '%s verdict=%s rc=%s attempt=%s/%s elapsed_s=%s stamps=%s controller=%s\n
   "$_mc_slot_elapsed" "$_mc_slot_stamps" "$CONTROLLER_ID" >> "$_mc_slot_history"
 tail -n 200 "$_mc_slot_history" > "${_mc_slot_history}.tmp.$$" && mv "${_mc_slot_history}.tmp.$$" "$_mc_slot_history"
 # --- SLOT VERDICT END ---
+
+# --- TRANSCRIPT SCAN START ---
+# The slot verdict is durable, and the overlap PID is still held. Never change RC.
+if [ "$_mc_scan_ready" -eq 1 ]; then
+  _mc_bounded 120 /bin/bash \
+    "$MC_DRIVER_ROOT/tools/launchd/transcript-secret-scan.sh" \
+    --since "$_mc_scan_marker"
+  _mc_scan_rc=$?
+  _mc_scan_summary=""; _mc_scan_hits=""; _mc_scan_hit_count=0
+  _mc_scan_valid=1; _mc_scan_summaries=0; _mc_scan_verdict=""
+  _mc_scan_leaks=""; _mc_scan_keys=0
+  while IFS= read -r _mc_scan_line; do
+    # A summary is terminal: any subsequent output makes the result suspect.
+    if [ "$_mc_scan_summaries" -ne 0 ]; then _mc_scan_valid=0; fi
+    if [[ "$_mc_scan_line" =~ ^LEAK\ key=[a-zA-Z_][a-zA-Z0-9_]*\ file=.+$ ]]; then
+      _mc_scan_hits="${_mc_scan_hits}${_mc_scan_line}"$'\n'
+      _mc_scan_hit_count=$((_mc_scan_hit_count + 1))
+    elif [[ "$_mc_scan_line" =~ ^transcript-secret-scan:\ verdict=(clean|LEAK|instrument-failure)\ files=([0-9]+)\ keys=([0-9]+)\ leaks=([0-9]+)\ since=.+$ ]]; then
+      _mc_scan_verdict=${BASH_REMATCH[1]}
+      _mc_scan_keys=${BASH_REMATCH[3]}; _mc_scan_leaks=${BASH_REMATCH[4]}
+      _mc_scan_summary=$_mc_scan_line
+      _mc_scan_summaries=$((_mc_scan_summaries + 1))
+    else
+      case "$_mc_scan_line" in
+        'transcript-secret-scan: skipped missing root: '*|'transcript-secret-scan: INSTRUMENT FAILURE '*) ;;
+        *) _mc_scan_valid=0 ;;
+      esac
+    fi
+  done <<< "$MC_BOUNDED_OUT"
+  [ "$_mc_scan_summaries" -eq 1 ] || _mc_scan_valid=0
+  [ "$_mc_scan_leaks" = "$_mc_scan_hit_count" ] || _mc_scan_valid=0
+  case "$_mc_scan_rc:$_mc_scan_verdict" in
+    0:clean) [ "$_mc_scan_hit_count" -eq 0 ] && [ "$_mc_scan_keys" -gt 0 ] || _mc_scan_valid=0 ;;
+    1:LEAK) [ "$_mc_scan_hit_count" -gt 0 ] && [ "$_mc_scan_keys" -gt 0 ] || _mc_scan_valid=0 ;;
+    2:instrument-failure) ;;
+    *) _mc_scan_valid=0 ;;
+  esac
+  if [ "$_mc_scan_valid" -ne 1 ]; then
+    log "transcript scan: INSTRUMENT FAILURE (rc=$_mc_scan_rc; missing, malformed, or inconsistent terminal summary)"
+  else
+    log "$_mc_scan_summary"
+    case "$_mc_scan_rc" in
+      1)
+        log "${_mc_scan_hits%$'\n'}"
+        # Key names and paths go to the private controlplane inbox only. The bookkeeping
+        # issue is PUBLIC, so it gets a count: naming which credential sits in which local
+        # file, before anyone has rotated it, is a disclosure the detector must not make.
+        _mc_exit_notice transcript-leak "Transcript secret exposure: $MISSION_NAME fire=$MISSION_FIRE_ID" \
+          "${_mc_scan_hits%$'\n'}" \
+          "Transcript secret exposure on fire $MISSION_FIRE_ID: $_mc_scan_hit_count key/file hit(s). Key names and paths are in the controlplane notice and the driver log; no values are printed anywhere."
+        ;;
+      2) log "transcript scan: INSTRUMENT FAILURE" ;;
+    esac
+  fi
+  if ! rm -f "$_mc_scan_marker"; then
+    log "transcript scan: INSTRUMENT FAILURE removing per-fire marker"
+  fi
+fi
+# --- TRANSCRIPT SCAN END ---
 
 rm -f "$PIDFILE"   # this instance owns the run; yield paths above never reach here
 
