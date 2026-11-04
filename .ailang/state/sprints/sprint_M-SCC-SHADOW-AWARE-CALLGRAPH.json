@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-SCC-SHADOW-AWARE-CALLGRAPH",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-11-04T13:43:49.606411+00:00",
   "design_doc": "design_docs/planned/v0_57_2/m-scc-shadow-aware-callgraph.md",
   "sprint_plan": "design_docs/planned/v0_57_2/m-scc-shadow-aware-callgraph-sprint-plan.md",
@@ -122,13 +122,24 @@
         "make test-changed, make check-file-sizes, make check-changelog and make verify-examples pass; formatting and lint checks pass.",
         "Changelog fragment opens with ### and references #2078; evidence records binary commits, corpus manifest, commands and results."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": false,
+      "started": "2026-11-04T14:31:28.899771+00:00",
+      "completed": "2026-11-04T14:37:10.422331+00:00",
+      "notes": "Implementation and corpus evidence complete: 810/810 files, 592 accepted, 218 existing rejections, zero flips/timeouts; positive/soundness controls banked. Examples, fmt, file-size, changelog, vet and repository lint (0 issues) pass. Full-green-gate acceptance NOT met: make test-changed exits 2 only due to two unchanged effects process-lifetime tests, reproduced independently; all other core packages including pipeline pass. See scc-shadow-evidence.md and scc-shadow-checks.log. Operator external sweep remains before release."
     }
   ],
   "notes": [
-    "Workspace branch coordinator/task-25c55223; clean baseline 17664aba. Cloud sync skipped:no-task-id. Startup helper has jq dependency-expression error and missing bc; direct verification used. Go available at /usr/local/go/bin (not initial PATH)."
-  ]
+    "Workspace branch coordinator/task-25c55223; clean baseline 17664aba. Cloud sync skipped:no-task-id. Startup helper has jq dependency-expression error and missing bc; direct verification used. Go available at /usr/local/go/bin (not initial PATH).",
+    "make install-lint with GOTOOLCHAIN=local succeeded; make lint passes zero issues. No push: cloud helper skipped:no-task-id at every milestone."
+  ],
+  "last_checkpoint": "Implementation complete; M1-M4 pass, M5 executed with an explicit unrelated test-gate exception; ready for independent sprint evaluator.",
+  "evidence": [
+    ".ailang/state/sprints/scc-shadow-evidence.md",
+    ".ailang/state/sprints/scc-shadow-corpus.tsv",
+    ".ailang/state/sprints/scc-shadow-controls.tsv",
+    ".ailang/state/sprints/scc-shadow-checks.log"
+  ],
+  "implementation_status": "complete",
+  "verification_status": "failed_unrelated_effects_tests",
+  "completed": "2026-11-04T14:37:10.422331+00:00"
 }

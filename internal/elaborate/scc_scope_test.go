@@ -1,9 +1,10 @@
 package elaborate
 
 import (
-	"github.com/sunholo-data/ailang/internal/ast"
 	"reflect"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/ast"
 )
 
 func TestFindReferencesScopes(t *testing.T) {

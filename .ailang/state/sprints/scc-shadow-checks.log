@@ -1,0 +1,69 @@
+make test-changed (exit 2)
+test-changed: 1 package(s) vs 17664aba396e5a7135d1c4c962320e1e002e9724
+ok  	github.com/sunholo-data/ailang/internal/elaborate	0.782s
+go: downloading github.com/stretchr/testify v1.12.1
+go: downloading go.yaml.in/yaml/v3 v3.0.5
+ok  	github.com/sunholo-data/ailang/internal/lexer	0.004s
+ok  	github.com/sunholo-data/ailang/internal/parser	0.110s
+ok  	github.com/sunholo-data/ailang/internal/ast	0.045s
+ok  	github.com/sunholo-data/ailang/internal/core	0.004s
+ok  	github.com/sunholo-data/ailang/internal/types	76.697s
+ok  	github.com/sunholo-data/ailang/internal/types/traverse	0.013s
+ok  	github.com/sunholo-data/ailang/internal/elaborate	2.488s
+ok  	github.com/sunholo-data/ailang/internal/typedast	0.016s
+ok  	github.com/sunholo-data/ailang/internal/eval	27.687s
+--- FAIL: TestRuntimeNestedStopUsesRemainingDeadline (2.71s)
+    process_runtime_lifetime_test.go:323: nested fixture 20742 survived bounded stop
+--- FAIL: TestProcessExec_TimeoutKillsGrandchildren (2.38s)
+    process_timeout_group_test.go:57: grandchild 21711 is still alive after exec returned Timeout — the timeout killed only the direct child
+terminal cleanup: terminal output unavailable
+terminal cleanup: terminal output unavailable
+FAIL
+FAIL	github.com/sunholo-data/ailang/internal/effects	59.480s
+ok  	github.com/sunholo-data/ailang/internal/effects/testctx	0.082s
+ok  	github.com/sunholo-data/ailang/internal/pipeline	322.951s
+ok  	github.com/sunholo-data/ailang/internal/link	0.101s
+ok  	github.com/sunholo-data/ailang/internal/loader	0.021s
+ok  	github.com/sunholo-data/ailang/internal/runtime	3.809s
+ok  	github.com/sunholo-data/ailang/internal/runtime/argdecode	0.070s
+ok  	github.com/sunholo-data/ailang/internal/iface	0.092s
+ok  	github.com/sunholo-data/ailang/internal/format	16.694s
+ok  	github.com/sunholo-data/ailang/internal/errors	0.009s
+ok  	github.com/sunholo-data/ailang/internal/stdlib	0.104s
+FAIL
+make[1]: *** [make/test.mk:440: test-core] Error 1
+make: *** [make/test.mk:449: test-changed] Error 2
+
+Isolated unchanged effects tests (exit 1)
+--- FAIL: TestRuntimeNestedStopUsesRemainingDeadline (2.70s)
+    process_runtime_lifetime_test.go:323: nested fixture 28039 survived bounded stop
+--- FAIL: TestProcessExec_TimeoutKillsGrandchildren (2.38s)
+    process_timeout_group_test.go:57: grandchild 28200 is still alive after exec returned Timeout — the timeout killed only the direct child
+FAIL
+FAIL	github.com/sunholo-data/ailang/internal/effects	5.101s
+FAIL
+
+go test ./internal/elaborate -count=1 (exit 0)
+ok  	github.com/sunholo-data/ailang/internal/elaborate	2.612s
+
+New regression tests -count=20 (exit 0)
+ok  	github.com/sunholo-data/ailang/internal/elaborate	25.099s
+
+make fmt-check (exit 0)
+Checking code formatting...
+✓ Code formatting check passed
+
+go vet ./internal/elaborate (exit 0)
+
+make check-file-sizes check-changelog (exit 0)
+Checking for files >800 lines...
+✓ All files within 800 line limit
+✓ 1 changelog fragment(s) valid; changelogs/v0.32-current.md has '## [Unreleased]'
+✓ CHANGELOG.md is index-only and links changelogs/v0.32-current.md
+
+make verify-examples (exit 0): 265 passed, 0 failed, 10 skipped; 247 modules checked, 0 drift, 0 missing-on-disk.
+
+make lint (exit 0)
+Running linter...
+0 issues.
+✓ Lint complete (no bugs detected)
