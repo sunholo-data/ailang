@@ -19,12 +19,12 @@ import (
 
 // callOpts controls per-route behavior for callFunction.
 type callOpts struct {
+	Raw          bool     // @raw: pass full HttpRequest record instead of parsed args
+	Nowrap       bool     // @nowrap: skip FunctionCallResponse envelope, return raw JSON
+	ParamNames   []string // parameter names for named JSON binding
+	ParamTypes   []string // parameter type strings for zero-value padding
 	ParamSchemas []ParamSchema
-	Raw        bool     // @raw: pass full HttpRequest record instead of parsed args
-	Nowrap     bool     // @nowrap: skip FunctionCallResponse envelope, return raw JSON
-	ParamNames []string // parameter names for named JSON binding
-	ParamTypes []string // parameter type strings for zero-value padding
-	ParamZeros []any    // declared-record zeros (param_zero.go)
+	ParamZeros   []any // declared-record zeros (param_zero.go)
 }
 
 // callFunction executes an AILANG function and writes the response.
@@ -135,10 +135,12 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 	// Flush Debug ghost effect output after each request
 	defer s.flushDebugOutput()
 
-	// Call AILANG function
-	// Use Call (not CallPreserveFloats) so JSON-decoded whole numbers (float64)
-	// are converted to IntValue when they fit. CallPreserveFloats kept them as
-	// FloatValue, which broke int-typed record fields from cross-package calls.
+	args, bindErr := bindCallArgs(ExportInfo{ParamNames: opt.ParamNames, ParamSchemas: opt.ParamSchemas}, args)
+	if bindErr != nil {
+		httpjson.Write(w, http.StatusBadRequest, FunctionCallResponse{Module: modulePath, Func: funcName, Error: fmt.Sprintf("invalid arguments: %v", bindErr)})
+		return
+	}
+
 	debugConc := os.Getenv("DEBUG_CONCURRENCY") == "1"
 	if debugConc {
 		log.Printf("[CONCURRENCY] calling engine.Call %s/%s (goroutine %d)", modulePath, funcName, goroutineID())

@@ -167,10 +167,10 @@
         "No CallPreserveFloats invocation remains in internal/apiserver; mcp_auth.go, routes_ws.go and internal/embed public conversion semantics remain unchanged.",
         "Focused tests and make test-changed pass; touched Go files formatted."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T09:03:31.793265+00:00",
+      "completed": "2026-11-04T09:03:31.793265+00:00",
+      "notes": "Focused parity/binder tests pass, including arrays. Full API server suite passed before array correction; final rerun in progress."
     },
     {
       "id": "M6",
@@ -201,7 +201,7 @@
     }
   ],
   "last_session": "2026-11-04T09:03:18.280889+00:00",
-  "last_checkpoint": "M4: MCP and UI argument conversion",
+  "last_checkpoint": "M5: REST and A2A typed calls and argument errors",
   "notes": [
     "Working branch coordinator/task-f9a4781c; planner work branch coordinator/task-96d9529b recovered by object SHA cd75b00c.",
     "Go available at /usr/local/go/bin; startup script false-positive test verdict superseded by explicit checks.",

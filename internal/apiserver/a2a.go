@@ -181,9 +181,11 @@ func (s *Server) handleA2ATaskSend(w http.ResponseWriter, req *a2aRequest) {
 	}
 
 	var found bool
+	var target ExportInfo
 	for _, e := range modInfo.Exports {
 		if e.Name == funcName {
 			found = s.isExposed(e)
+			target = e
 			break
 		}
 	}
@@ -222,8 +224,13 @@ func (s *Server) handleA2ATaskSend(w http.ResponseWriter, req *a2aRequest) {
 		}
 	}
 
-	// Call the function (preserve floats — JSON has no int/float distinction).
-	result, callErr := s.engine.CallPreserveFloats(modulePath, funcName, args...)
+	args, bindErr := bindCallArgs(target, args)
+	if bindErr != nil {
+		a2aError(w, req.ID, -32602, fmt.Sprintf("invalid arguments: %v", bindErr))
+		return
+	}
+	// Call with already typed values.
+	result, callErr := s.engine.Call(modulePath, funcName, args...)
 
 	taskID := params.ID
 	if taskID == "" {
