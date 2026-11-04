@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 81 | 2026-11-03 | D-FLEET-25's shared mechanical sub-item built as a proposed diff — draft PR #2082 (`399cf799b`), unmerged pending your ruling; the stale "World is ... |
 | 80 | 2026-11-03 | D-FLEET-21 option A built as a proposed diff — draft PR #2067 (`bdaad2825`), unmerged pending your ruling; Gate 3b's CI poll cap would go from 1800... |
 | 79 | 2026-11-03 | D-FLEET-26 option A built as a proposed diff — draft PR #2065 (`edb099371`), unmerged pending your ruling; a codex controller's column-0 `ERROR: Se... |
 | 78 | 2026-11-02 | D-FLEET-24 option A LANDED — #2053 → `3d9112bb9`; an attended ruling arrived mid-fire, while A was already built as a proposed diff; 7 `agent-tool`... |

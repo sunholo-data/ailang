@@ -1,0 +1,25 @@
+MISSION-ROLE: executor
+
+You are the sprint-executor for fleet mission iteration 84 (AILANG repo). Your working directory is the sprint worktree /Users/voightkampff/.ailang-driver-pin/.wt-fleet-i84 (branch fleet/i84-gate3-triage-mirror-sync, base origin/dev abd4dfd82). Work ONLY inside that directory.
+
+Read and follow the sprint plan: design_docs/planned/sprint-plan-gate3-triage-mirror-sync.md (in the worktree).
+
+Summary of what to do (the plan is authoritative where it is more specific):
+1. Run `/bin/bash tools/launchd/sync-agents-skills.sh` (write mode, no arguments). Never hand-edit any .agents file.
+2. Confirm `git status --porcelain` shows exactly ONE modified tracked file, `.agents/skills/mission-control/resources/gate-3-triage.md` (plus the untracked plan file and your changelog fragment), and that `cmp .claude/skills/mission-control/resources/gate-3-triage.md .agents/skills/mission-control/resources/gate-3-triage.md` returns 0.
+3. Write the changelog fragment `changelogs/unreleased/2026-11-04-gate3-triage-mirror-sync.md` in the format of changelogs/unreleased/README.md, heading `### Fixed — …`, one short paragraph: dev's required checks test / launchd drivers (bash 3.2) / Build ubuntu-latest were red since f22bf1f4b because the `.agents` mission-control mirror of gate-3-triage.md was not regenerated; resynced with tools/launchd/sync-agents-skills.sh; resolves harness ticket ci:skill-mirror-not-synced-after-gate3-triage-edit.
+4. Run each acceptance command and record its exit code exactly (capture rc without a pipe, e.g. `cmd > /tmp/fleet_i84_acc_N.log 2>&1; echo "rc=$?"`):
+   a. /bin/bash tools/launchd/sync-agents-skills.sh --check
+   b. /bin/bash tools/launchd/test_agents_skills_sync.sh
+   c. /bin/bash tools/launchd/test_quorum_artifacts.sh
+   d. go test ./internal/mission/quorum/ -run TestQuorumArtifactShellSuite -count=1
+   e. make check-changelog
+5. Mutation drill (from the plan): copy the synced mirror file to /tmp/fleet_i84_mirror_backup.md; write the base version back with `git show abd4dfd82:.agents/skills/mission-control/resources/gate-3-triage.md > .agents/skills/mission-control/resources/gate-3-triage.md` (do NOT use git checkout/restore/stash); run commands (a) and (d) and record that both are rc != 0; restore from /tmp/fleet_i84_mirror_backup.md; confirm cmp against the canonical file is 0 and (a) is rc 0 again.
+
+Rules:
+- Do NOT run any git write command (no add, commit, push, checkout, restore, stash, reset). The controller commits.
+- Do not edit any file other than the mirror (via the script) and the changelog fragment.
+- Do not background anything. If a command is slow, wait for it in the foreground. Never end your turn announcing that you will wait; nothing will re-invoke you.
+- If anything does not match the plan (a different set of differing files, an unexpected rc), STOP and report it rather than working around it.
+
+Final output: a short report with the git status --porcelain listing, every acceptance command with its rc, the mutation drill rcs (mutated and restored), and any deviation from the plan.

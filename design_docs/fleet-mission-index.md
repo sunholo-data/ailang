@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 84 | 2026-11-04 | dev's required-check red repaired: the `.agents` mission-control mirror of `gate-3-triage.md` re-synced via #2116 → `981028c46`; ticket `ci:skill-m... |
 | 83 | 2026-11-04 | D-FLEET-18 A's guard step, the fleet scope-guard arm for the two motoko probe files, built as a proposed diff (draft PR #2110, `875581f46`), unmerg... |
 | 82 | 2026-11-03 | D-FLEET-36 A and D-FLEET-38 A's shared first step, the fleet scope-guard arm, built as a proposed diff (draft PR #2108, two independent commits `bc... |
 | 81 | 2026-11-03 | D-FLEET-25's shared mechanical sub-item built as a proposed diff (draft PR #2082, `399cf799b`), unmerged pending a ruling; the "World is a fork" cl... |
