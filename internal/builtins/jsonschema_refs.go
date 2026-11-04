@@ -40,7 +40,7 @@ func (p *schemaProgram) resolveReferences(add func(string, string, string)) {
 			if !ok {
 				continue
 			}
-			target, reason := p.resolveReference(raw)
+			target, reason := p.resolveReferenceFrom(raw, n.resource)
 			if reason != "" {
 				add(schemaPointer(path, key), key, reason)
 				continue
@@ -55,6 +55,9 @@ func (p *schemaProgram) resolveReferences(add func(string, string, string)) {
 	}
 }
 func (p *schemaProgram) resolveReference(raw string) (*schemaNode, string) {
+	return p.resolveReferenceFrom(raw, p.root)
+}
+func (p *schemaProgram) resolveReferenceFrom(raw string, resource *schemaNode) (*schemaNode, string) {
 	if !strings.HasPrefix(raw, "#") {
 		return nil, "only local fragment references (#, #/pointer or #anchor) are supported"
 	}
@@ -63,10 +66,10 @@ func (p *schemaProgram) resolveReference(raw string) (*schemaNode, string) {
 		return nil, "invalid reference fragment encoding"
 	}
 	if fragment == "" {
-		return p.root, ""
+		return resource, ""
 	}
 	if !strings.HasPrefix(fragment, "/") {
-		if n := p.anchors[fragment]; n != nil {
+		if n := p.resourceAnchors[resource][fragment]; n != nil {
 			return n, ""
 		}
 		return nil, "dangling local anchor " + raw
@@ -74,7 +77,7 @@ func (p *schemaProgram) resolveReference(raw string) (*schemaNode, string) {
 	// Validate escapes before comparing canonical pointers: malformed ~ escapes are
 	// not literals, while a percent-encoded slash is a pointer delimiter.
 	parts := strings.Split(fragment[1:], "/")
-	canonical := ""
+	canonical := resource.path
 	for _, part := range parts {
 		for i := 0; i < len(part); i++ {
 			if part[i] == '~' {

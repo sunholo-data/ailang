@@ -31,3 +31,19 @@ func TestSchemaDynamicReferenceTarget(t *testing.T) {
 		t.Fatalf("%#v %#v", p, errs)
 	}
 }
+
+func TestSchemaResourceLocalReferences(t *testing.T) {
+	child := map[string]any{"$id": "child", "$anchor": "same", "$dynamicAnchor": "same", "$ref": "#", "properties": map[string]any{"x": map[string]any{"$ref": "#same"}}}
+	p, errs := compileSchema(map[string]any{"$anchor": "same", "$defs": map[string]any{"child": child}}, true)
+	if len(errs) > 0 {
+		t.Fatal(errs)
+	}
+	n := p.nodes["/$defs/child"]
+	if n.ref != n || n.children["properties/x"].ref != n {
+		t.Fatal("local refs escaped resource")
+	}
+	_, errs = compileSchema(map[string]any{"prefixItems": []any{}}, true)
+	if len(errs) == 0 {
+		t.Fatal("accepted empty prefixItems")
+	}
+}

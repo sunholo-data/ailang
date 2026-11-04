@@ -51,3 +51,27 @@ func TestSchemaCompileDeterministic(t *testing.T) {
 		}
 	}
 }
+
+func TestSchemaCompileKeywordShapes(t *testing.T) {
+	groups := []struct {
+		keys    []string
+		invalid any
+	}{
+		{[]string{"$defs", "properties", "patternProperties", "dependentSchemas", "dependentRequired", "$vocabulary"}, []any{}},
+		{[]string{"additionalProperties", "propertyNames", "items", "contains", "not", "if", "then", "else", "unevaluatedItems", "unevaluatedProperties"}, "invalid"},
+		{[]string{"allOf", "anyOf", "oneOf", "prefixItems", "required", "enum", "examples"}, "invalid"},
+		{[]string{"minimum", "maximum", "exclusiveMinimum", "exclusiveMaximum", "multipleOf", "minLength", "maxLength", "minItems", "maxItems", "minContains", "maxContains", "minProperties", "maxProperties"}, "invalid"},
+		{[]string{"uniqueItems", "deprecated", "readOnly", "writeOnly"}, "invalid"},
+		{[]string{"$schema", "$id", "$ref", "$dynamicRef", "$anchor", "$dynamicAnchor", "$comment", "title", "description", "format", "pattern"}, false},
+	}
+	for _, group := range groups {
+		for _, key := range group.keys {
+			t.Run(key, func(t *testing.T) {
+				_, errs := compileSchema(map[string]any{key: group.invalid}, false)
+				if len(errs) == 0 || errs[0].Keyword != key {
+					t.Fatalf("%s: %#v", key, errs)
+				}
+			})
+		}
+	}
+}

@@ -18,11 +18,13 @@ type schemaNode struct {
 	ref           *schemaNode
 	dynamicRef    string
 	dynamicAnchor string
+	resource      *schemaNode
 }
 type schemaProgram struct {
-	root    *schemaNode
-	nodes   map[string]*schemaNode
-	anchors map[string]*schemaNode
+	root            *schemaNode
+	nodes           map[string]*schemaNode
+	anchors         map[string]*schemaNode
+	resourceAnchors map[*schemaNode]map[string]*schemaNode
 }
 
 func schemaPointer(path, key string) string {
@@ -40,13 +42,25 @@ func schemaKeys(m map[string]any) []string {
 // compileSchema audits all schema locations, including branches never evaluated.
 // Annotation values are data and deliberately do not become schema nodes.
 func compileSchema(value any, strict bool) (*schemaProgram, []schemaError) {
-	p := &schemaProgram{nodes: map[string]*schemaNode{}, anchors: map[string]*schemaNode{}}
+	p := &schemaProgram{nodes: map[string]*schemaNode{}, anchors: map[string]*schemaNode{}, resourceAnchors: map[*schemaNode]map[string]*schemaNode{}}
 	errs := []schemaError{}
 	add := func(path, key, msg string) { errs = append(errs, schemaError{path, key, "schema: " + msg}) }
-	var walk func(any, string) *schemaNode
-	walk = func(v any, path string) *schemaNode {
+	var walk func(any, string, *schemaNode) *schemaNode
+	walk = func(v any, path string, resource *schemaNode) *schemaNode {
 		n := &schemaNode{value: v, path: path, children: map[string]*schemaNode{}, patterns: map[string]*regexp.Regexp{}}
 		p.nodes[path] = n
+		if obj, ok := v.(map[string]any); ok {
+			if _, hasID := obj["$id"]; hasID {
+				resource = n
+			}
+		}
+		if resource == nil {
+			resource = n
+		}
+		n.resource = resource
+		if p.resourceAnchors[resource] == nil {
+			p.resourceAnchors[resource] = map[string]*schemaNode{}
+		}
 		if _, ok := v.(bool); ok {
 			return n
 		}
@@ -65,7 +79,7 @@ func compileSchema(value any, strict bool) (*schemaProgram, []schemaError) {
 						return
 					}
 				}
-				n.children[rel] = walk(v, path+"/"+rel)
+				n.children[rel] = walk(v, path+"/"+rel, resource)
 			}
 			switch k {
 			case "$defs", "properties", "patternProperties", "dependentSchemas":
@@ -96,7 +110,7 @@ func compileSchema(value any, strict bool) (*schemaProgram, []schemaError) {
 				child(val, k)
 			case "allOf", "anyOf", "oneOf", "prefixItems":
 				a, ok := val.([]any)
-				if !ok || (len(a) == 0 && k != "prefixItems") {
+				if !ok || len(a) == 0 {
 					add(kp, k, "expected a nonempty array of schemas")
 					continue
 				}
@@ -198,10 +212,13 @@ func compileSchema(value any, strict bool) (*schemaProgram, []schemaError) {
 				if k == "$anchor" || k == "$dynamicAnchor" {
 					if !schemaAnchorPattern.MatchString(s) {
 						add(kp, k, "invalid anchor name")
-					} else if _, exists := p.anchors[s]; exists {
+					} else if _, exists := p.resourceAnchors[resource][s]; exists && p.resourceAnchors[resource][s] != n {
 						add(kp, k, "duplicate anchor "+s)
 					} else {
-						p.anchors[s] = n
+						p.resourceAnchors[resource][s] = n
+						if resource.path == "" {
+							p.anchors[s] = n
+						}
 					}
 					if k == "$dynamicAnchor" {
 						n.dynamicAnchor = s
@@ -229,7 +246,7 @@ func compileSchema(value any, strict bool) (*schemaProgram, []schemaError) {
 		}
 		return n
 	}
-	p.root = walk(value, "")
+	p.root = walk(value, "", nil)
 	p.resolveReferences(add)
 	return p, errs
 }
