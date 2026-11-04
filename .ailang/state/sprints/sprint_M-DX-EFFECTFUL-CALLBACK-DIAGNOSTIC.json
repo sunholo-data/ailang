@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-DX-EFFECTFUL-CALLBACK-DIAGNOSTIC",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-11-03T15:32:14Z",
   "design_doc": "design_docs/planned/v0_57_1/m-dx-effectful-callback-diagnostic.md",
   "sprint_plan": "design_docs/planned/v0_57_1/m-dx-effectful-callback-diagnostic-sprint-plan.md",
@@ -40,7 +40,8 @@
   "velocity": {
     "target_loc_per_day": 270,
     "estimated_total_loc": 540,
-    "estimated_days": 2
+    "estimated_days": 2,
+    "actual_total_loc": 524
   },
   "features": [
     {
@@ -54,10 +55,10 @@
         "Error text is byte-identical to the original solver chain, including existing wrappers.",
         "Record-row failures contain no sentinel; focused internal/types tests pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-11-04T09:36:03.508583+00:00",
+      "notes": "Typed sentinel preserves solver text; closed row and callback position tests pass."
     },
     {
       "id": "M2",
@@ -72,10 +73,10 @@
         "Argument metadata is aligned with the index used by unification; unavailable/out-of-range metadata never panics or invents spans.",
         "Existing application diagnostic and collision-hint tests pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-11-04T09:36:03.909558+00:00",
+      "notes": "App context stores core start positions (ast.Pos), matching available core metadata. Existing application diagnostic tests pass."
     },
     {
       "id": "M3",
@@ -93,10 +94,10 @@
         "Local and deferred solving yield exactly equal decorated errors; old solver substrings remain present.",
         "Nil-hook library usage provides a generic remedy without a stdlib module claim."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-11-04T09:38:35.482417+00:00",
+      "notes": "Shared wrapper verified for named/lambda local-deferred parity, both-label mismatch, anonymous/missing metadata, nested and own-row failures, nil hook and original solver detail."
     },
     {
       "id": "M4",
@@ -111,10 +112,10 @@
         "CLI-wired map diagnostic recommends std/list.mapE; nil hook behavior from M3 remains valid.",
         "Focused stdlibindex/CLI tests and make check-boundaries pass."
       ],
-      "passes": null,
+      "passes": true,
       "started": null,
-      "completed": null,
-      "notes": null
+      "completed": "2026-11-04T09:41:07.150991+00:00",
+      "notes": "Index lookup and CLI hook tests pass; variants restricted to same module. Architecture boundaries pass."
     },
     {
       "id": "M5",
@@ -130,10 +131,47 @@
         "The new example checks/runs with IO and existing match_hof_lambda, poly_arith_lambda and effect_budget_demo remain accepted.",
         "Focused validation below passes and the changelog describes the behavior change accurately."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T09:48:05.482781+00:00",
+      "completed": "2026-11-04T09:53:35.812947+00:00",
+      "notes": "Implemented and focused acceptance checks passed. Full changed packages: types, pipeline, stdlibindex pass; CLI wiring passes. verify-examples: 266 passed, 10 skipped, 0 failed. test-changed fails on 3 CLI policy tests, all reproduced at starting commit abd4dfd. test-core fails on 2 effects cleanup tests, both reproduced at abd4dfd; its pipeline process was killed (also on isolated fast-loop rerun); earlier full pipeline package passed. Lint unavailable: golangci-lint absent. No toolchains installed. AILANG prompt v0.16.11 loaded; example explicit IO; contracts/inline tests skipped for console traversal, stdout verified."
     }
-  ]
+  ],
+  "validation": {
+    "passed": [
+      "focused diagnostics and index tests, 20 repetitions",
+      "CLI wiring test",
+      "full internal/types, internal/pipeline, internal/stdlibindex packages",
+      "pipeline #386 must-accept/must-reject controls",
+      "new example check/run; three existing example checks",
+      "make verify-examples (266 pass, 10 skip, 0 fail)",
+      "make sync-examples-manifest",
+      "make check-file-sizes check-changelog check-boundaries fmt-check",
+      "go vet ./internal/types ./internal/stdlibindex ./internal/pipeline"
+    ],
+    "baseline_failures": [
+      "TestRunPolicy_DeadlineStopsExecutionWithoutProtocolGrace (missing ps)",
+      "TestRunPolicy_TimeoutKillsDescendants",
+      "TestRunPolicy_SupervisorDeathStopsWorker",
+      "TestRuntimeNestedStopUsesRemainingDeadline",
+      "TestProcessExec_TimeoutKillsGrandchildren"
+    ],
+    "limitations": [
+      "golangci-lint absent",
+      "fast-loop pipeline process killed twice; full pipeline package previously passed",
+      "initial cold-build CLI timeout; subsequent full types tests pass"
+    ],
+    "baseline_commit": "abd4dfd821e919654ddaa0fafd36dd27197126fb"
+  },
+  "handoff": {
+    "inbox": "sprint-evaluator",
+    "message_id": "inbox_1793785968442_04ca119c",
+    "status": "filed_not_dispatched",
+    "notes": "Message stored in prod Firestore; cloud registry read denied and Pub/Sub not enabled locally. Coordinator completion markers provide task handoff. No configuration changes made."
+  },
+  "publication": {
+    "branch": "coordinator/task-8e422620",
+    "sync": "skipped:no-task-id",
+    "notes": "Milestones committed locally for coordinator wrapper publication."
+  }
 }

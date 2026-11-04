@@ -1,7 +1,7 @@
 # Sprint Plan: M-DX-EFFECTFUL-CALLBACK-DIAGNOSTIC
 
 **Design:** [approved design](m-dx-effectful-callback-diagnostic.md)
-**Status:** Planned; coordinator review/merge authorizes execution.
+**Status:** Implementation complete; validation recorded below; independent evaluation pending.
 **Duration:** 2 working days, approximately 7.5 hours including 25% contingency.
 **Scope:** Diagnostic changes only; no change to accepted programs or effect semantics.
 **Risk:** Medium: nested unification context and local/deferred message parity.
@@ -30,10 +30,10 @@ Ran `ailang pkg search effect` and `ailang pkg search diagnostic`. Inspected `su
 
 Create `internal/types/effect_row_mismatch.go` and `effect_row_mismatch_test.go`; update `unification_types.go`. Wrap only function effect-row failures, preserving Error/Unwrap behavior and the old text. Carry parameter index through parameter unification; explicitly test nested function arguments so an unrelated nested mismatch cannot be presented as the top-level callback's own effects.
 
-- [ ] errors.As finds the sentinel for both open/closed and closed/closed effect failures.
-- [ ] Parameter position is correct; direct function-row failure retains index -1.
-- [ ] Error text is byte-identical to the original solver chain, including existing wrappers.
-- [ ] Record-row failures contain no sentinel; focused internal/types tests pass.
+- [x] errors.As finds the sentinel for both open/closed and closed/closed effect failures.
+- [x] Parameter position is correct; direct function-row failure retains index -1.
+- [x] Error text is byte-identical to the original solver chain, including existing wrappers.
+- [x] Record-row failures contain no sentinel; focused internal/types tests pass.
 
 Risk: incorrect context after recursive unification. Use fresh errors per failure and tests for nesting.
 
@@ -43,10 +43,10 @@ Risk: incorrect context after recursive unification. Use fresh errors per failur
 
 Update `inference.go`, `typechecker_functions.go`, and `typechecker_app_diagnostics.go`; extend `typechecker_app_diagnostics_test.go` or a new `typechecker_app_effect_context_test.go`. Populate optional TypeEq.App with callee/module, call span, per-argument spans and lambda flags. Add note-free path construction without parsing Path strings.
 
-- [ ] Named, global, anonymous and aliased callees retain available context.
-- [ ] Non-application constraints keep App nil and existing diagnostic paths unchanged.
-- [ ] Argument metadata is aligned with the index used by unification; unavailable/out-of-range metadata never panics or invents spans.
-- [ ] Existing application diagnostic and collision-hint tests pass.
+- [x] Named, global, anonymous and aliased callees retain available context.
+- [x] Non-application constraints keep App nil and existing diagnostic paths unchanged.
+- [x] Argument metadata is aligned with the index used by unification; unavailable/out-of-range metadata never panics or invents spans.
+- [x] Existing application diagnostic and collision-hint tests pass.
 
 Risk: growing typechecker_functions.go; move helper bodies to the companion file.
 
@@ -56,12 +56,12 @@ Risk: growing typechecker_functions.go; move helper bodies to the companion file
 
 Create `internal/types/application_effect_diagnostic.go` and `application_effect_diagnostic_test.go`; update both TypeEq wrap sites in `inference_helpers.go`. Define the injectable EffectfulVariantSuggester with nil-hook generic wording. Sort effect labels and preserve the complete original solver detail after a note-free path.
 
-- [ ] Pure callback rejection leads with callee, parameter, declared row, actual effects and available argument span; use lambda/argument wording correctly.
-- [ ] Both-extra-label and anonymous cases render deterministically; avoid calling nonempty declared rows pure.
-- [ ] Callee-own-row mismatch suppresses the note without inventing a callback lead.
-- [ ] Non-effect/type/record/non-app failures retain byte-for-byte prior messages.
-- [ ] Local and deferred solving yield exactly equal decorated errors; old solver substrings remain present.
-- [ ] Nil-hook library usage provides a generic remedy without a stdlib module claim.
+- [x] Pure callback rejection leads with callee, parameter, declared row, actual effects and available argument span; use lambda/argument wording correctly.
+- [x] Both-extra-label and anonymous cases render deterministically; avoid calling nonempty declared rows pure.
+- [x] Callee-own-row mismatch suppresses the note without inventing a callback lead.
+- [x] Non-effect/type/record/non-app failures retain byte-for-byte prior messages.
+- [x] Local and deferred solving yield exactly equal decorated errors; old solver substrings remain present.
+- [x] Nil-hook library usage provides a generic remedy without a stdlib module claim.
 
 Risk: row orientation and missing metadata. Exercise swapped labels and defensive cases in table tests; do not change Row.String().
 
@@ -71,10 +71,10 @@ Risk: row orientation and missing metadata. Exercise swapped labels and defensiv
 
 Update `internal/stdlibindex/index.go`, `index_test.go`, `cmd/ailang/diagnostics_wiring.go`; add a CLI wiring test in `diagnostics_wiring_test.go` if needed. Use the existing index to find same-module name+E exports; restore any global hooks changed by tests.
 
-- [ ] std/list map/filter/foldl find their E variants; std/option.map and std/io return no false same-module variant.
-- [ ] Lookup output is sorted and stable; no hardcoded stdlib export table enters internal/types.
-- [ ] CLI-wired map diagnostic recommends std/list.mapE; nil hook behavior from M3 remains valid.
-- [ ] Focused stdlibindex/CLI tests and make check-boundaries pass.
+- [x] std/list map/filter/foldl find their E variants; std/option.map and std/io return no false same-module variant.
+- [x] Lookup output is sorted and stable; no hardcoded stdlib export table enters internal/types.
+- [x] CLI-wired map diagnostic recommends std/list.mapE; nil hook behavior from M3 remains valid.
+- [x] Focused stdlibindex/CLI tests and make check-boundaries pass.
 
 Risk: pipeline tests do not load CLI init. Test lookup/wiring at the owning layers; explicitly inject and restore hooks in pipeline tests requiring remedies.
 
@@ -84,11 +84,11 @@ Risk: pipeline tests do not load CLI init. Test lookup/wiring at the owning laye
 
 Create `internal/pipeline/effectful_callback_diagnostic_test.go`; add `examples/runnable/effectful_callback_map_e.ail` after checking local directory conventions; add `changelogs/unreleased/2026-11-03-effectful-callback-diagnostic.md` opening with `### `. Keep intentionally failing repros in Go test fixtures, not runnable examples. Record final validation in the sprint state. Move the design to implemented only upon completion under executor conventions and update artifact references if moved.
 
-- [ ] Reporter map lambda, filter lambda and named println argument still fail, lead with effects and omit the collision note.
-- [ ] Type-mismatch map case preserves the original collision note; complete solver tail is preserved for effect failures.
-- [ ] mapE remedy succeeds; existing #386 must-accept/must-reject cases and inferred row-polymorphic callback fixture retain their outcomes.
-- [ ] The new example checks/runs with IO and existing match_hof_lambda, poly_arith_lambda and effect_budget_demo remain accepted.
-- [ ] Focused validation below passes and the changelog describes the behavior change accurately.
+- [x] Reporter map lambda, filter lambda and named println argument still fail, lead with effects and omit the collision note.
+- [x] Type-mismatch map case preserves the original collision note; complete solver tail is preserved for effect failures.
+- [x] mapE remedy succeeds; existing #386 must-accept/must-reject cases and inferred row-polymorphic callback fixture retain their outcomes.
+- [x] The new example checks/runs with IO and existing match_hof_lambda, poly_arith_lambda and effect_budget_demo remain accepted.
+- [x] Focused validation below passes and the changelog describes the behavior change accurately.
 
 Risk: tests that prove rejection without checking why. Assert lead, effect labels, note absence and solver suffix together, plus successful remedy.
 
@@ -118,3 +118,17 @@ Success means every acceptance criterion above passes, exact local/deferred mess
 
 Progress: `.ailang/state/sprints/sprint_M-DX-EFFECTFUL-CALLBACK-DIAGNOSTIC.json`.
 No implementation has been authorized by this planning stage. The coordinator's plan review/merge triggers sprint-executor as described in the sprint-planner coordinator instructions. Historical #386 is regression context, not a newly linked issue to close. No report-specific GitHub issue was provided.
+
+## Execution record (2026-11-04)
+
+M1–M4 are committed on `coordinator/task-8e422620`; M5 adds pipeline controls, the runnable example, its manifest entry, and a release note. Core nodes expose `ast.Pos`, so application metadata records available start positions rather than inventing `ast.Span` ranges. Nested callback/return mismatches suppress collision hints without attributing inner effects to the outer argument.
+
+AILANG prompt version loaded: v0.16.11, using the checkout binary. The showcase declares `main() -> () ! {IO}`. Contracts: skip, console output has no useful pure postcondition. Inline tests: skip, stdout is checked by example verification and pipeline fixtures. The example checks and runs, printing `a` then `b`.
+
+Validation completed: focused type diagnostics and index tests (20 repetitions), CLI wiring, reporter/filter/named/type-mismatch/remedy pipeline cases, #386 must-accept/must-reject controls, existing `match_hof_lambda`, `poly_arith_lambda`, and `effect_budget_demo` checks; `make verify-examples` (266 passed, 10 skipped, zero failed), manifest sync, file-size/changelog/architecture/format gates, and Go vet for types/index/pipeline.
+
+Environment notes: `make lint` cannot run because golangci-lint is absent. The initial broad type test's CLI subprocess exceeded its 120-second cold-build timeout while downloading dependencies; the checkout binary subsequently built successfully. No toolchains were installed. Cloud branch sync reported `skipped:no-task-id`; work is committed locally for coordinator publication. Design remains in planned pending the independent evaluator, per executor workflow.
+
+Final broad validation: `make test-changed` passed the full types, pipeline, and stdlibindex packages, but failed three CLI policy tests (`TestRunPolicy_DeadlineStopsExecutionWithoutProtocolGrace`, `TestRunPolicy_TimeoutKillsDescendants`, `TestRunPolicy_SupervisorDeathStopsWorker`). All three reproduce on untouched starting commit `abd4dfd`; the first requires missing `ps`. `make test-core` additionally failed `TestRuntimeNestedStopUsesRemainingDeadline` and `TestProcessExec_TimeoutKillsGrandchildren`, both reproduced on that same baseline. The fast-loop pipeline process was killed, including on a subsequent isolated rerun; the earlier full pipeline run passed. These broad gates are not claimed green. All other emitted core-package results passed.
+
+Evaluator handoff: Firestore message `inbox_1793785968442_04ca119c` filed in `sprint-evaluator`; not dispatched because this environment lacks Pub/Sub configuration and cannot read the cloud registry. Coordinator completion markers carry the implementation handoff. No routing configuration was changed.

@@ -202,7 +202,7 @@ func (ctx *InferenceContext) solveEqualitiesInto(sub Substitution, cs []TypeCons
 				sub,
 			)
 			if err != nil {
-				return nil, fmt.Errorf("type unification failed at %v: %w", constraint.Path, err)
+				return nil, wrapTypeEqFailure(constraint, err)
 			}
 		case RowEq:
 			var err error
@@ -234,7 +234,7 @@ func (ctx *InferenceContext) SolveConstraints() (Substitution, []ClassConstraint
 				sub,
 			)
 			if err != nil {
-				return nil, nil, fmt.Errorf("type unification failed at %v: %w", constraint.Path, err)
+				return nil, nil, wrapTypeEqFailure(constraint, err)
 			}
 
 		case RowEq:

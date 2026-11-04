@@ -129,3 +129,14 @@ func SymbolsOf(module string) []string {
 	sort.Strings(out)
 	return out
 }
+
+// EffectVariants finds same-module exports following the effectful E convention.
+// Fully qualified names keep remedies unambiguous even for aliased imports.
+func EffectVariants(module, name string) []string {
+	for _, candidate := range Modules(name + "E") {
+		if candidate == module {
+			return []string{module + "." + name + "E"}
+		}
+	}
+	return nil
+}

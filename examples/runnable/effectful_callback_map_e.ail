@@ -1,0 +1,11 @@
+module examples/runnable/effectful_callback_map_e
+
+import std/list (mapE)
+import std/io (println)
+
+-- map requires a pure callback; mapE carries the callback's effects.
+-- Contracts and inline tests skipped: console output is checked by example validation.
+export func main() -> () ! {IO} {
+  let _ = mapE(\x. println(x), ["a", "b"]);
+  ()
+}
