@@ -88,10 +88,10 @@
         "isSelfRecursive ignores shadowed self names; bodyless module letrec still emits core.LetRec; genuine mutual recursion still groups.",
         "TestModuleLetResolutionMatrix and TestLexicalScope_BinderShadowsGlobals pass unchanged."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T14:23:22.737554+00:00",
+      "completed": "2026-11-04T14:23:22.737554+00:00",
+      "notes": "Graph shadows, non-shadow cycles, self-recursion and explicit core.LetRec emission pass; existing module/scope matrices unchanged and passing."
     },
     {
       "id": "M4",

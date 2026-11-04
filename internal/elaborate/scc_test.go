@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 func TestASTPatternBinders(t *testing.T) {
@@ -55,5 +56,60 @@ func TestASTPatternBinders(t *testing.T) {
 				t.Fatalf("surface %v != core %v", got, coreNames)
 			}
 		})
+	}
+}
+
+func TestCallGraphShadowing(t *testing.T) {
+	id := func(s string) *ast.Identifier { return &ast.Identifier{Name: s} }
+	for _, tt := range []struct {
+		name string
+		body ast.Expr
+		edge bool
+	}{
+		{"pattern", &ast.Match{Expr: id("xs"), Cases: []*ast.Case{{Pattern: id("t"), Body: id("t")}}}, false},
+		{"lambda", &ast.Lambda{Params: []*ast.Param{{Name: "t"}}, Body: id("t")}, false},
+		{"let", &ast.Let{Name: "t", Value: id("xs"), Body: id("t")}, false},
+		{"free", id("t"), true},
+		{"let_value", &ast.Let{Name: "t", Value: id("t"), Body: id("t")}, true},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			each := &FuncSig{Name: "each", Body: tt.body}
+			sibling := &FuncSig{Name: "t", Body: id("each")}
+			graph := BuildCallGraph([]*FuncSig{each, sibling}, nil, map[string]*FuncSig{"each": each, "t": sibling}, nil)
+			if got := len(graph.edges["each"]) > 0; got != tt.edge {
+				t.Fatalf("each edges=%v, want edge=%v", graph.edges["each"], tt.edge)
+			}
+			if len(graph.edges["t"]) != 1 || graph.edges["t"][0] != "each" {
+				t.Fatalf("genuine edge lost: %v", graph.edges)
+			}
+			if got := len(graph.SCCs()) == 1; got != tt.edge {
+				t.Fatalf("incorrect SCCs: %v", graph.SCCs())
+			}
+			if got := isSelfRecursive("t", map[string]*FuncSig{"t": {Name: "t", Body: tt.body}}, nil); got != tt.edge {
+				t.Fatalf("self recursion=%v, want %v", got, tt.edge)
+			}
+		})
+	}
+	// Module letrec values keep a genuine self-reference.
+	value := &ast.LetRec{Name: "x", Value: &ast.Lambda{Body: id("x")}}
+	if !isSelfRecursive("x", nil, map[string]*ModuleLet{"x": {Name: "x", Value: value}}) {
+		t.Fatal("module letrec self-edge lost")
+	}
+}
+
+func TestModuleLetRecEmission(t *testing.T) {
+	id := &ast.Identifier{Name: "x"}
+	prog := &ast.Program{File: &ast.File{Statements: []ast.Node{
+		&ast.LetRec{Name: "x", Value: &ast.Lambda{Params: []*ast.Param{{Name: "n"}}, Body: &ast.FuncCall{Func: id, Args: []ast.Expr{&ast.Identifier{Name: "n"}}}}},
+	}}}
+	out, err := NewElaborator().Elaborate(prog)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(out.Decls) != 1 {
+		t.Fatalf("decls=%v", out.Decls)
+	}
+	if _, ok := out.Decls[0].(*core.LetRec); !ok {
+		t.Fatalf("module recursion emitted as %T", out.Decls[0])
 	}
 }
