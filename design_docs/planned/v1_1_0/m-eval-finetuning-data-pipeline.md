@@ -161,7 +161,17 @@ Script: `~/models/finetune/batchbench.py`; results in `~/models/finetune/batchbe
 1. **Gemma 4 12B dense: primary (speed target).** 54% one-shot. Agent failures are protocol-only. 22 GB, 46 tok/s. The `gemma4_unified` architecture loads in stock mlx-lm **0.32.2** (remapped to `gemma4`), so it needs neither mlx-lm from git main nor `mlx-optiq`.
 2. **Gemma 4 31B dense: quality-ceiling arm.** 58% one-shot, plain `gemma4`, ~20 tok/s.
 3. **Gemma 4 26B-A4B MoE: optional speed arm.** 46%, 4B active, so fastest decode. MLX MoE training is the risk.
-4. **Teacher, not target: qwen3.8-27b.** 94% one-shot, $0 locally. It can generate verified SFT data in bulk with none of the closed-model licensing issues in §R4. That makes the exporter less urgent for a first pilot.
+4. **Training data: frontier-authored data first; the qwen3.8 teacher only fills gaps** (Mark, 2026-11-05: "why create training data with qwen3.8 via the GPU when we have incredible results from opus/astra"). Already on disk, needing no GPU:
+   - **≈ 225k lines of AILANG in ≈ 1,600 files** across our repos, mostly frontier-agent authored: world 100k, ailang-parse 31k, packages 22k, daneel 21k, examples 20k, docparse 13k, email-parse 12k, std 6k. stapledons-godot shows 879k lines but needs a dedupe/generated-code check first.
+   - **Frontier agent trajectories** (Claude Code sessions in AILANG repos, ~1.4k+; motoko/chains runs). These are exactly the "write the file, run it, read the error, fix it" behaviour 12B lacks.
+
+   Conditions:
+   - **(a) Contamination:** frontier *eval* results are solutions to the scored benchmarks. Exclude them, or hold out a benchmark set.
+   - **(b) Licence:** provider terms restrict training *competing* models on outputs. Whether an internal AILANG specialist counts is **ruling D-FT-1, pending Mark**; until then only open-weight-generated and human-written data is used.
+   - **(c) Re-grade:** everything gets re-checked with today's `ailang check`; keep only what compiles.
+   - **(d) Tool mapping:** Claude Code's tool names (Edit/Write/Bash) are mapped onto pi's schema.
+
+   qwen3.8-27b (94% one-shot, $0 locally) is kept for gap-filling, e.g. native pi-format trajectories or licence-clean extra data.
 5. Ruled out: E4B, qwen3.5-9b, Ministral 8B/14B. Deferred: the Empero Qwen3.8-9B community distill (unverified provenance).
 
 ### Tooling check (2026-11-05): training works; serving through Ollama needs one more fix
