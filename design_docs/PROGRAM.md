@@ -107,9 +107,18 @@ answer that, and to feed §3's loop. The per-release scoreboard and the falsifia
 - *Can on-device match cloud?* → local rig (ailang) vs cloud agent (ailang), coverage-gated until local AILANG coverage matches.
 - *Which harness wins on the same model?* → local rig, opencode vs Pi vs motoko on one qwen — the north-star signal, controlled by construction.
 
-**Rig discipline (AILANG-first).** `tools/launchd/os-rotation-filler.sh` fills *every* core+stretch+frontier
-AILANG benchmark for the current version first; once that coverage is "in" it auto-hands-off to the
-cross-language pass. A new release resets coverage. This is what makes local ELO comparable to cloud.
+**Rig discipline (signal-only, since 2026-11-05 — Mark).** The rig is a **friction engine**, not a
+coverage instrument. `tools/launchd/os-rotation-filler.sh` runs only the AILANG benchmarks that still
+separate something on device: it drops the **locally saturated** ones (every local harness passed every
+trial in the benchmark's last 3 banks — `tools/eval-park-set.sh --mode saturated`; the global ELO band
+is not used, it blends cloud models), runs everything else at full trials on all three harnesses, and
+probes **parked** benchmarks (no harness passes) once per release with a 3h budget. Unmeasured
+benchmarks count as signal until measured once. Weekly, `tools/rig-friction-digest.sh --route` hands the
+failures to §4's lanes: recurring AILANG error kinds → `ailang-core` (triage), harness gaps (motoko
+loses, or one harness beats another) → the motoko mission. **Trade-off, accepted:** local AILANG
+coverage is no longer complete per release, so *"can on-device match cloud"* is not answered by the
+rig's ELO any more — answer it with a deliberate run (`OS_FILLER_SIGNAL_ONLY=0` for one release), not
+by reading the rotation. Core regressions on device stay covered by the nightly eval.
 
 **Validity is enforced in the display, not the reader** — coverage is first-class, sparse cohorts are
 provisional (never a bogus #1), deltas are intersection-only. The standing discipline is

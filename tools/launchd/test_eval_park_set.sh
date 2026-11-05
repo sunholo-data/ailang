@@ -34,6 +34,17 @@ got="$(bash "${PARK:-$REPO/tools/eval-park-set.sh}" --roll "$T/roll" --models "$
 want="churn dead old stale "
 if [ "$got" = "$want" ]; then echo "PASS park set = [$got]"; else echo "FAIL park set: got [$got] want [$want]"; fail=1; fi
 
+# --mode saturated: every model >= 3 valid rows in the window, all passing
+for i in 1 2 3; do row v0.2.0 sat a true none; row v0.2.0 sat b true none; done          # saturated
+for i in 1 2 3; do row v0.2.0 satthin a true none; done; row v0.2.0 satthin b true none   # b has 1 row -> not
+for i in 1 2 3; do row v0.2.0 satone a true none; row v0.2.0 satone b true none; done
+row v0.2.0 satone b false logic_error                                                     # one miss -> not
+got="$(bash "${PARK:-$REPO/tools/eval-park-set.sh}" --mode saturated --roll "$T/roll" --models "$M" --versions 2 2>/dev/null | tr '\n' ' ')"
+want="sat "
+if [ "$got" = "$want" ]; then echo "PASS saturated set = [$got]"; else echo "FAIL saturated set: got [$got] want [$want]"; fail=1; fi
+bash "${PARK:-$REPO/tools/eval-park-set.sh}" --mode bogus --roll "$T/roll" --models "$M" >/dev/null 2>&1; rc=$?
+if [ "$rc" = 2 ]; then echo "PASS bad --mode exits 2"; else echo "FAIL bad mode rc=$rc"; fail=1; fi
+
 got="$(bash "${PARK:-$REPO/tools/eval-park-set.sh}" --roll "$T/nope" --models "$M" 2>/dev/null)"; rc=$?
 if [ -z "$got" ] && [ "$rc" = 0 ]; then echo "PASS fail-open on missing dir"; else echo "FAIL fail-open: rc=$rc out=[$got]"; fail=1; fi
 

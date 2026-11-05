@@ -192,6 +192,16 @@ RATINGS_JSON="docs/static/benchmarks/latest.json"
 # release. Parked benchmarks leave the coverage gate and run as ONE probe trial on
 # $PROBE_MODEL per release; a passing probe un-parks them. 0 = old behaviour.
 PARK="${OS_FILLER_PARK:-1}"
+# SIGNAL-ONLY (Mark, 2026-11-05): the rig exists to produce FAILURES that feed the
+# AILANG roadmap and the motoko harness (PROGRAM.md §4/§7). A benchmark every local
+# harness already passes (tools/eval-park-set.sh --mode saturated: every active
+# model >= 3 valid rows in the benchmark's last 3 banks, all passing) is dropped
+# from the AILANG pass entirely, instead of re-confirmed at SAT_TRIALS. Unmeasured
+# benchmarks count as signal until measured once. The global ELO band no longer
+# thins trials here: it blends cloud models, and trivial-for-haiku is not
+# trivial-for-qwen. Core regressions on device stay covered by the nightly eval.
+# 0 = the old full-coverage rotation (every tier benchmark, ELO-thinned tail).
+SIGNAL_ONLY="${OS_FILLER_SIGNAL_ONLY:-1}"
 PROBE_MODEL="${OS_FILLER_PROBE_MODEL:-pi-qwen3-8-27b}"
 # The probe's agent wall clock. The parked CP benchmarks all died at the 1h local
 # hard timeout, and pi SOLVED cp_60149 in 53 min (34/34 hidden tests): the 1h wall,
@@ -276,6 +286,20 @@ if [ "${OS_FILLER_REPORT:-1}" = "1" ] && \
     : > "$REPORT_STAMP"; log "weekly rig value report sent to the user inbox"
   else
     log "weekly rig value report FAILED (see above) — retrying next cycle"
+  fi
+fi
+# 0b. WEEKLY FRICTION ROUTING (no GPU, no lock) — the point of signal-only: NEW
+#     AILANG error kinds -> ailang-core (dispatches triage), NEW harness gaps -> the
+#     motoko mission (the user inbox while it is paused). tools/rig-friction-digest.sh
+#     remembers what it routed, so a week with nothing new sends nothing.
+#     OS_FILLER_FRICTION=0 disables.
+FRICTION_STAMP="$HOME/.ailang/state/rig-friction-digest.last"
+if [ "${OS_FILLER_FRICTION:-1}" = "1" ] && \
+   { [ ! -f "$FRICTION_STAMP" ] || [ $(( $(date +%s) - $(stat -f %m "$FRICTION_STAMP" 2>/dev/null || echo 0) )) -ge 604800 ]; }; then
+  if bash tools/rig-friction-digest.sh --route >>"$LOG" 2>&1; then
+    : > "$FRICTION_STAMP"; log "weekly friction digest routed (new items only)"
+  else
+    log "weekly friction digest routing FAILED (see above) — retrying next cycle"
   fi
 fi
 
@@ -416,6 +440,15 @@ else
     nsat=0
     for b in "${BENCHES_FULL[@]}"; do case "$SAT_SET" in *",$b,"*) nsat=$((nsat + 1));; esac; done
     log "elo-priority(ailang-full): $(( ${#BENCHES_FULL[@]} - nsat )) signal first, $nsat saturated tail (source: $RATINGS_JSON)"
+  fi
+  if [ "$SIGNAL_ONLY" = "1" ] && [ ${#BENCHES_FULL[@]} -gt 0 ]; then
+    _lsat="$(bash tools/eval-park-set.sh --mode saturated --roll "$ROLL" --models "$MODELS" 2>/dev/null)" || _lsat=""
+    _lsat_set=",$(printf '%s' "$_lsat" | tr '\n' ','),"
+    _kept=()
+    for b in "${BENCHES_FULL[@]}"; do case "$_lsat_set" in *",$b,"*) ;; *) _kept+=( "$b" );; esac; done
+    log "signal-only(ailang-full): ${#_kept[@]} of ${#BENCHES_FULL[@]} benchmarks kept, $(( ${#BENCHES_FULL[@]} - ${#_kept[@]} )) locally saturated dropped (OS_FILLER_SIGNAL_ONLY=0 restores full coverage)"
+    BENCHES_FULL=( ${_kept[@]+"${_kept[@]}"} )
+    SAT_SET=","   # every kept benchmark is signal locally: full trials, no ELO thinning
   fi
   FULL_TOTAL=${#BENCHES_FULL[@]}
   # Parked benchmarks stay in the cursor list (they still get their one probe per
