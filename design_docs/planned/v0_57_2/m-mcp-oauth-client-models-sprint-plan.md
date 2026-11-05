@@ -51,7 +51,7 @@ default.
 
 ### Remaining from the design doc
 Everything: M1a–M1e, M2, M3a–M3c. M4 is a dependency tracked in its own plan
-(`design_docs/planned/v0_57_1/m-serve-api-typed-arg-binder-sprint-plan.md`).
+(`design_docs/implemented/v0_57_3/m-serve-api-typed-arg-binder-sprint-plan.md`).
 
 ## Registry reuse audit
 

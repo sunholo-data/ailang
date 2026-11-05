@@ -406,7 +406,7 @@ request validation, redirect-URI rules, rate-limit keys and client-record JSON. 
 
 #1631 (MCP `int` params fail; REST fails on whole-number floats) is **open**. Its fix, PR #2112
 (`internal/apiserver/arg_bind.go`, one binder for MCP, REST, A2A and MCP UI, from
-[m-serve-api-typed-arg-binder](../v0_57_1/m-serve-api-typed-arg-binder.md)), is **OPEN,
+[m-serve-api-typed-arg-binder](../../implemented/v0_57_3/m-serve-api-typed-arg-binder.md)), is **OPEN,
 `CONFLICTING`/`DIRTY`, checks skipped**, and was last updated 2026-11-04 (V25).
 - It edits `mcp.go`, `routes.go`, `export_info.go`, `handler.go`, `routes_dispatch.go`, `a2a.go` and
   `mcp_ui_serve.go`, the same files M2 touches.
@@ -673,7 +673,7 @@ console, so the sprint plan lists them as attended tasks, not code milestones.
 - [M-AILANG-EXECUTOR-GE](../v0_55_0/m-ailang-executor-gemini-enterprise.md): P1b prod blocker (per-user rate limit) → M2; GE OAuth → M1a.
 - [m-google-connected-apps-distribution](../m-google-connected-apps-distribution.md): F2/F3 → M1b/M1c; onboarding stays there.
 - [m-serveapi-directory-ready](../v0_51_0/m-serveapi-directory-ready.md): the listed surface this doc tidies (G13 `serverInfo`).
-- [m-serve-api-typed-arg-binder](../v0_57_1/m-serve-api-typed-arg-binder.md): M4 dependency (#1631, PR #2112).
+- [m-serve-api-typed-arg-binder](../../implemented/v0_57_3/m-serve-api-typed-arg-binder.md): M4 dependency (#1631, PR #2112).
 - [Integrations review, internal](../integrations-review-internal-2026-11-05.md) · [external](../integrations-review-external-2026-11-05.md).
 
 ## Quorum record

@@ -74,6 +74,7 @@ func (s *Server) callFunction(w http.ResponseWriter, r *http.Request, modulePath
 		var cleanup func()
 		var parseErr error
 		args, cleanup, parseErr = parseMultipartArgsWithNames(r, maxSize, opt.ParamNames, opt.ParamTypes, opt.ParamZeros)
+		typeFormTextArgs(r.MultipartForm, opt.ParamNames, opt.ParamSchemas, args)
 		if cleanup != nil {
 			defer cleanup()
 		}

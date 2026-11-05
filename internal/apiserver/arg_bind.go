@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"mime/multipart"
 	"reflect"
 	"strconv"
 
@@ -132,7 +133,30 @@ func bindSequence(s ParamSchema, v any, path string) (eval.Value, error) {
 }
 
 func argumentTypeError(s ParamSchema, v any, path string) error {
-	return fmt.Errorf("%s: expected %s, got %T (%v)", path, s.Kind, v, v)
+	return fmt.Errorf("%s: expected %s, got %s (%v)", path, s.Kind, argKind(v), v)
+}
+
+// argKind names a decoded argument the way the caller wrote it (JSON terms),
+// not the Go type it decoded to: "got number (2.5)", not "got float64".
+func argKind(v any) string {
+	switch v.(type) {
+	case json.Number:
+		return "number"
+	case string:
+		return "string"
+	case bool:
+		return "boolean"
+	case map[string]any:
+		return "object"
+	case []any:
+		return "array"
+	}
+	switch reflect.ValueOf(v).Kind() {
+	case reflect.Float32, reflect.Float64, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+		reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64:
+		return "number"
+	}
+	return fmt.Sprintf("%T", v)
 }
 
 func numericArg(v any) (float64, bool) {
@@ -179,4 +203,53 @@ func integerArg(v any) (int, bool) {
 		return int(f), true
 	}
 	return 0, false
+}
+
+// typeFormTextArgs turns multipart text fields into the JSON shape their
+// declared type takes, so the shared binder sees the same values a JSON body
+// would give it. A form field is always text: without this an int param sent
+// as -F n=21 reached the function as the string "21". Only a declared int,
+// float, bool, record, list or array field is parsed; string and unknown
+// leaves stay text. Text that does not parse is left as it is, so bindCallArgs
+// rejects it naming the parameter (never a silent zero). File fields, padded
+// zeros and injected values are untouched: only an arg that is exactly the
+// field's own text, under the param's own name, is converted.
+func typeFormTextArgs(form *multipart.Form, names []string, schemas []ParamSchema, args []any) {
+	if form == nil {
+		return
+	}
+	for i, name := range names {
+		if i >= len(args) || i >= len(schemas) {
+			return
+		}
+		if _, isFile := form.File[name]; isFile {
+			continue
+		}
+		values, ok := form.Value[name]
+		if !ok || len(values) == 0 {
+			continue
+		}
+		if text, ok := args[i].(string); ok && text == values[0] {
+			args[i] = formTextValue(schemas[i].Kind, text)
+		}
+	}
+}
+
+func formTextValue(kind, text string) any {
+	switch kind {
+	case "int", "float":
+		if looksNumeric(text) {
+			return json.Number(text) // integerArg/numericArg validate it exactly
+		}
+	case "bool":
+		if b, err := strconv.ParseBool(text); err == nil {
+			return b
+		}
+	case "record", "list", "array":
+		var v any
+		if err := json.Unmarshal([]byte(text), &v); err == nil {
+			return v
+		}
+	}
+	return text
 }

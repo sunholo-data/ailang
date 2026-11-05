@@ -113,6 +113,9 @@ func TestParamTypeToString(t *testing.T) {
 		{"list", &ast.ListType{}, "list"},
 		{"array", &ast.ArrayType{}, "array"},
 		{"record", &ast.RecordType{}, "record"},
+		{"[T] list app", &ast.TypeApp{Constructor: "list", Args: []ast.Type{&ast.SimpleType{Name: "int"}}}, "list"},
+		{"Array[T] app", &ast.TypeApp{Constructor: "Array", Args: []ast.Type{&ast.SimpleType{Name: "int"}}}, "array"},
+		{"other type app", &ast.TypeApp{Constructor: "Option", Args: []ast.Type{&ast.SimpleType{Name: "int"}}}, "unknown"},
 		{"func type", &ast.FuncType{}, "unknown"},
 		{"type var", &ast.TypeVar{Name: "a"}, "unknown"},
 	}

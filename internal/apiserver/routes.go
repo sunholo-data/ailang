@@ -80,6 +80,16 @@ func paramTypeToString(t ast.Type) string {
 		return "array"
 	case *ast.RecordType:
 		return "record"
+	case *ast.TypeApp:
+		// [T] parses as list[T]; without this a list param read "unknown":
+		// its MCP schema said "string" and @optional refused its zero.
+		if len(v.Args) == 1 && v.Constructor == "list" {
+			return "list"
+		}
+		if len(v.Args) == 1 && v.Constructor == "Array" {
+			return "array"
+		}
+		return "unknown"
 	case *ast.LabelledType:
 		// IFC label/refinement — delegate to base type for name extraction.
 		return v.Base.String()

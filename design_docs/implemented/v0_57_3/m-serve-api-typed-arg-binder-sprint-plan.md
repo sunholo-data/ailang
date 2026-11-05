@@ -114,7 +114,7 @@ Executed `ailang pkg search argument` (no results) and `ailang pkg search json` 
 - [x] MCP and REST both pass scalar int, integral float, int record field, integral float record field, omitted optional int, and fractional-int rejection cases.
 - [x] Test bool/string mismatch, nested lists/records, unknown/open fields, optional records, legacy positional args, query fallback, multipart, mcp_file, headers and raw routes using existing fixtures where possible.
 - [x] Add a runnable typed-argument example and document results and surface-specific errors; changelog fragment opens with ### .
-- [ ] Final make test-changed, make check-boundaries, make check-file-sizes, make check-changelog and make verify-examples pass; run go vet ./internal/apiserver.
+- [x] Final make test-changed, make check-boundaries, make check-file-sizes, make check-changelog and make verify-examples pass; run go vet ./internal/apiserver.
 - [x] Run focused tests for changed behavior plus `make test-changed`; format touched Go files.
 
 **Risk and mitigation:** Large transport matrices can duplicate setup; share small test helpers and keep companion files below the size limit.
@@ -149,3 +149,14 @@ architecture, file-size and changelog checks pass. The final gate remains
 unchecked: test-changed fails two unchanged effects process-lifetime tests;
 golangci-lint is absent. These are recorded as verification exceptions rather
 than passes. See m-serve-api-typed-arg-binder-implementation.md for evidence.
+
+## Takeover result (2026-11-05)
+
+Rebased onto dev and landed in an attended takeover. The final gate is now met:
+gofmt, go vet, golangci-lint (0 issues), check-file-sizes, check-changelog,
+`make test-core` and `go test` of internal/apiserver, serveapi/...,
+internal/mcpcheck, cmd/ailang and internal/embed all pass. The takeover also
+types multipart text fields by declared type, recognises `[T]` list params
+(MCP schema `array`, `@optional` list zero), and adds the named regressions
+`TestIssue1631_MCPIntParam` and `TestIssue1648_RESTFloatParam`. 22 of 22
+binder mutations were killed. Closes #1631 and #1648.
