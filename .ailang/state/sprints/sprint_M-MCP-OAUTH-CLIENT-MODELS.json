@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-MCP-OAUTH-CLIENT-MODELS",
-  "status": "not_started",
+  "status": "in_progress",
   "created": "2026-11-05T07:48:51Z",
   "design_doc": "design_docs/planned/v0_57_2/m-mcp-oauth-client-models.md",
   "sprint_plan": "design_docs/planned/v0_57_2/m-mcp-oauth-client-models-sprint-plan.md",
@@ -241,5 +241,8 @@
     "D7",
     "D8"
   ],
-  "handoff": "NOT sent: D1-D8 open; send plan_ready to sprint-executor after Mark rules"
+  "handoff": "NOT sent: D1-D8 open; send plan_ready to sprint-executor after Mark rules",
+  "decisions": {
+    "D1-D8": "ratified as recommended by Mark 2026-11-05"
+  }
 }

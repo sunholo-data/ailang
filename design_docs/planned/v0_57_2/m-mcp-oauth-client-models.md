@@ -1,6 +1,6 @@
 # M-MCP-OAUTH-CLIENT-MODELS: the OAuth client models and serve-api identity that open the Google integration paths
 
-**Status**: Planned. Design Freeze items D1–D8 are open for Mark. Nothing is built.
+**Status**: Planned. Design Freeze D1–D8 RATIFIED by Mark on 2026-11-05 (all as recommended). Sprint in progress. Vendor measurements P0-1…P0-5 still gate enabling the features in a deployment.
 **Target**: `sunholo/mcp_oauth` **0.2.0** (ailang-packages) and AILANG **v0.57.2** (serve-api, `ailang mcp check`)
 **Priority**: P1. Gemini Enterprise (GE) cannot sign users in to any AILANG service until M1a ships,
 and the hosted executor cannot go to prod until M2 ships.
@@ -114,34 +114,34 @@ T1–T10 from 0.1.0 stand unchanged. Where a control moves (T8), the change is n
 These must be resolved before sprint-executor starts the matching milestone. A recommendation
 follows each item.
 
-- [ ] **D1 — confidential clients.** Recommended as stated. `private_key_jwt` is deferred: Claude
+- [x] **D1 — confidential clients.** *(Ratified by Mark, 2026-11-05: as recommended.)* Recommended as stated. `private_key_jwt` is deferred: Claude
   and ChatGPT both accept `none` for CIMD (E12, E16), and GE uses a shared secret (E1, E2).
-- [ ] **D2 — DCR off by default.** Recommended. Docparse turns it on only for the Connected Apps
+- [x] **D2 — DCR off by default.** Recommended. Docparse turns it on only for the Connected Apps
   pilot, and only with `dcrRedirectHosts` set (for example `oauth-redirect.googleusercontent.com`,
   `oauth-redirect-test.googleusercontent.com`, `claude.ai`). With an allowlist, an attacker cannot
   register their own redirect host.
-- [ ] **D3 — refresh policy.** Recommended: `rotate` remains the default. `stable` is allowed for
+- [x] **D3 — refresh policy.** Recommended: `rotate` remains the default. `stable` is allowed for
   **confidential clients only**, with a 30-day idle expiry and a 180-day absolute lifetime.
   `stable` for a **public** DCR client stays refused until P0-4 shows how Google registers.
   (Google's persistent linking asks for no rotation, E7; Claude asks for rotation of public
   clients, E13.) This is the "scoped design amendment" that
   [m-google-connected-apps-distribution](../m-google-connected-apps-distribution.md) D5/F3 requires
   before any refresh-policy change.
-- [ ] **D4 — PKCE for confidential clients.** Recommended: required. If P0-1 shows GE cannot send
+- [x] **D4 — PKCE for confidential clients.** Recommended: required. If P0-1 shows GE cannot send
   S256, this comes back to Mark with the evidence. It is not relaxed silently.
-- [ ] **D5 — identity contract.** Recommended: the verifier returns
+- [x] **D5 — identity contract.** Recommended: the verifier returns
   `Option[{ subject: string, client_id: string, scopes: [string] }]` (`None`, or an empty subject,
   = reject). The tool declares `_auth: <that record>`, which makes it identity-required: it is
   served only on the gated listed surface. Bool verifiers keep working.
-- [ ] **D6 — per-subject rate limit.** Recommended: `--mcp-subject-rpm N` (and `--mcp-subject-burst`)
+- [x] **D6 — per-subject rate limit.** Recommended: `--mcp-subject-rpm N` (and `--mcp-subject-burst`)
   in serve-api, reusing `NewIPRateLimiter` keyed on the subject. A refusal is a 429 with
   `Retry-After` before the tool runs.
-- [ ] **D7 — `serverInfo`.** Recommended: one flag,
+- [x] **D7 — `serverInfo`.** Recommended: one flag,
   `--server-info "name=parse,title=AILANG Parse,version=0.43.0"`. With no flag the name stays
   `ailang-api` and the version becomes the AILANG binary version, replacing the stale `0.8.1`.
   The same values fill the A2A card version and OpenAPI `info.version`. Also approve the probe CIMD
   URL for M3c.
-- [ ] **D8 — listed-surface resources.** Recommended as stated. UI resources (`ui://…`) stay on
+- [x] **D8 — listed-surface resources.** Recommended as stated. UI resources (`ui://…`) stay on
   `/mcp/connect/`, because widgets need them.
 
 ## Solution Design
