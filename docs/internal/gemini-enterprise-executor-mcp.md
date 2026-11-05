@@ -135,8 +135,8 @@ be in `executor_mcp_invokers`. claude.ai and Claude Desktop connectors need OAut
     Terraform `args` and the empty-allowlist precondition change once a release with the flag
     is in the image;
   - `EXECUTOR_ALLOWED_EMAIL_DOMAINS` (`executor_oauth/oauth.ail`): a comma-separated domain
-    list, or `*` for any verified Google account. **Unset or empty admits nobody** (from the
-    release after v0.57.2): open sign-in has to be asked for, so an image run without the
+    list, or `*` for any verified Google account. **Unset or empty admits nobody** (from
+    v0.57.4; v0.57.3 and older read empty as open): open sign-in has to be asked for, so an image run without the
     variable, or a terraform default of `""`, fails closed. Prod therefore sets `*`, not `""`;
   - to use OAuth from GE instead, put the sign-in server's authorization and token URLs in the
     connector form, set the redirect to `https://vertexaisearch.cloud.google.com/oauth-redirect`,
