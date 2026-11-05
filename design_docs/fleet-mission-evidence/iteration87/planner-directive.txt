@@ -1,0 +1,121 @@
+You are the SPRINT PLANNER for fleet-mission iteration 87 of the AILANG repo (sunholo-data/ailang).
+Working tree: the current directory (a git worktree at origin/dev f6a95d75d). You are in a READ-ONLY
+sandbox: do not try to edit files. Your FINAL MESSAGE is the plan; it is captured verbatim to a file.
+Do not run git write operations. Do not end your turn announcing a wait; there is nothing to wait for.
+
+SAFETY: never print or read the VALUES in ~/.config/ailang/secrets.env or any real session transcript.
+Never run `env`, `printenv` or `set`. Read repository files only. You MAY read public GitHub issue
+comments only through the repo's own fixtures; do not call `gh` (the sandbox has no network anyway).
+
+## The ticket (fleet queue, filed by the World loop 2026-11-05T04:53Z, blocking=none, 1 slot lost)
+signature: gate0:self-notices-skip-transcript-scan-notice
+Evidence (World iteration 350): Gate 0 reads the bookkeeping issue with two scripts:
+`scripts/mission_directives.sh` (allowlisted human authors only, so it drops the loop's own account)
+and `scripts/mission_gate0_self_notices.sh` (the loop's own account, but it recognises ONLY crash
+notices: body starting `⚠️ Mission iteration **FAILED to complete** (rc=<digits>`). The driver's
+post-fire transcript-secret-scan notice is posted to the same issue under the loop's account and is
+not a crash notice, so neither script reports it. World's controller found two such notices on its
+issue only by comparing comment counts by hand. Since #2127 (9ea8adcf4) a notice means a real
+exposure written during the named fire's window, and the NEXT controller is the one that must see it.
+Suggested shape (fleet's call): have mission_gate0_self_notices.sh count transcript-scan notices next
+to crash notices (count only, no key or path), and/or add a line to Gate 0 step 6a.
+
+## Controller's first-party reproduction (live, read-only, at f6a95d75d)
+- The fleet's own issue #2039 carries one such notice (2026-11-05T03:38:38Z, self-authored):
+  body starts `Transcript secret exposure on fire fleet-1793845378-59113: 1 key/file hit(s). ...`.
+  Running the script on #2039/#1945 printed `issue: 2039 comments=12 self=12 crash=0 other=12` and a
+  rc-0 verdict that never mentions it. World #449 carries two (22:00:52Z and 01:43:10Z), same wording.
+- TWO public wordings exist and both must be recognised:
+  (a) OLD (driver from 74daa5741, #2122): `Transcript secret exposure on fire <fire-id>: <N> key/file hit(s). ...`
+      — this is what is on the issues today.
+  (b) CURRENT (driver since 96882f837, #2127): `Transcript secret scan after fire <fire-id>: <N> key/file hit(s).`
+      — `tools/launchd/mission-control.sh` ~line 2716-2718, the 4th arg of `_mc_exit_notice transcript-leak`
+      (the GitHub body; the 3rd arg is the private controlplane body with key names, never posted).
+  Read `_mc_exit_notice` (~line 360-385) to confirm which arg reaches `gh issue comment`.
+- The script has NO driver caller; its consumers are Gate 0 step 6a in
+  `.claude/skills/mission-control/resources/gate-0-preflight.md` (an LLM controller reads its stdout and
+  rc) and its suite `scripts/test_mission_gate0_self_notices.sh` (108 arms, all pass at base), which is
+  in `make/test.mk` LAUNCHD_SUITES. Fixtures: `scripts/mission_gate0_self_notices_testdata/`.
+- Policy screen: this is detection/reporting only — no routing, lane, quota, ration or billing change —
+  so it is mechanical (lands autonomously).
+
+## Controller's chosen direction (refine it, do not widen it; push back if wrong)
+1. In the python `parse_comments`, recognise a self-authored comment whose body STARTS (offset 0) with
+   either literal prefix `Transcript secret exposure on fire ` or `Transcript secret scan after fire `,
+   followed by a fire id token (non-space run), then `: `, then ASCII digits, then ` key/file hit(s).`.
+   Emit one line per such notice, e.g. `TRANSCRIPT <createdAt> <N> <url>`. Print the fire id? Decide:
+   it is not secret (it is already in the public body), but say why either way. NEVER print any other
+   body text (the header comment's "No comment body is ever printed" invariant must hold).
+   A transcript notice must NOT count as a crash and a crash must NOT count as a transcript notice.
+2. Per-issue table: extend the `issue:` line with `transcript=<k>`, and keep `other=` honest
+   (other = self - crash - transcript). Add a `transcript: issue=<n> at=<ts> hits=<N> in-window=<yes|no> url=<u>`
+   row per notice, mirroring the `crash:` rows, windowed by the same `$SINCE`.
+3. Exit codes: DO NOT change the meaning of rc 1 (A FIRE DIED) or rc 2 (floor). A transcript notice
+   alone is informational, not a death signal: keep rc 0 when there are no in-window crash notices,
+   but the verdict line must then say the in-window transcript count, e.g.
+   `verdict: 0 crash notice(s) since ... ; 1 transcript-scan notice(s) in window — exposure reported:
+   key names are in the private controlplane notice; report the count, never a value or path`.
+   If you think a new rc (e.g. 3) is better, argue it in Risks, but default is no new rc: Gate 0's
+   step 6a prose and every reader of rc 1 would need to change, and the ticket asks for a count.
+   When there are in-window crash notices too, rc 1's verdict must also carry the transcript count.
+4. Signature-source control (F8, `--driver-src`): today it greps the driver for the crash SIG_TEXT.
+   Extend it so that the CURRENT transcript prefix (b) must also be found in the driver source, else
+   floor rc 2 with a distinct message — that is what stops a future rewording of the notice from
+   silently blinding this read. Do NOT require the OLD prefix (a) in the driver (it is gone); keep
+   recognising it in comments because the issues carry it.
+5. Positive control for the transcript class: the existing all-time crash control (`--control auto`,
+   e.g. sunholo-data/ailang 852:10) is on a closed, stable issue. There is no stable issue with a known
+   transcript-notice count yet (the bookkeeping issues still receive notices and rotate weekly), so do
+   NOT add a live transcript control that would drift and floor every fire. Rely on fixture arms plus
+   the F8 driver-source check, and state that residual in Risks. If you see a better stable control,
+   say so.
+6. Docs: update Gate 0 step 6a in `.claude/skills/mission-control/resources/gate-0-preflight.md` with
+   a SHORT disposition (2-4 sentences, no war story): an in-window transcript-scan notice means a
+   secret was written to a local transcript during that fire's window; report the count and the fire
+   id in the iteration report, read key names only from the private controlplane notice, never print
+   a value or path; it grants nothing and unparks nothing, it does not change rc. The `.agents` mirror
+   `.agents/skills/mission-control/resources/gate-0-preflight.md` MUST be regenerated with
+   `tools/launchd/sync-agents-skills.sh` (read it; iteration 84 fixed a dev red caused by a mirror
+   left stale — `TestQuorumArtifactShellSuite` -> `generated_docs_and_mirror: sync` checks it). Also
+   update the script's header comment and usage text.
+7. Changelog fragment: `changelogs/unreleased/2026-11-05-gate0-self-notices-transcript-count.md`
+   (`### Fixed — ...`), read `changelogs/unreleased/README.md` for the format.
+
+## Portability constraints (measured)
+- bash 3.2.57 (`/bin/bash` on the rig AND on CI's `launchd drivers (bash 3.2)` job on macos-latest):
+  no `declare -A`, no `${v,,}`, no `mapfile`, no `{n}` regex intervals in bash. Python 3 is already
+  used for parsing (house pattern); keep new parsing inside the python block.
+- The script's bash loop uses `set -- $line` word-splitting on the emitted lines; any new line format
+  must survive that (no spaces inside fields; url may be `-`).
+
+## Fleet write scope (pre-push guard)
+Allowed: `scripts/mission_*`, `scripts/test_mission_*`, `.claude/skills/mission-*/**`,
+`.agents/skills/mission-*/**`, `changelogs/**`, `design_docs/**`, `make/test.mk`, `tools/launchd/**`.
+Nothing else. Do not touch `tools/launchd/mission-control.sh` unless you argue it is needed (default:
+no driver change; the driver's notice wording is the contract this script reads).
+
+## Gates (the controller ran these on base f6a95d75d, outside any sandbox)
+- `/bin/bash -n scripts/mission_gate0_self_notices.sh` rc 0
+- `/bin/bash scripts/test_mission_gate0_self_notices.sh` rc 0, `108 passed, 0 failed`
+- `shellcheck scripts/mission_gate0_self_notices.sh scripts/test_mission_gate0_self_notices.sh` is
+  ALREADY rc 1 at base (87 findings, mostly SC2015). So the gate is "no NEW finding vs base", not rc 0.
+- `cmp` of the .agents gate-0-preflight.md mirror vs the .claude copy: identical at base.
+- `make test-launchd-drivers` (the done-gate; runs all launchd suites under /bin/bash).
+Mark any gate you cannot run in the read-only sandbox as UNINFORMATIVE UNDER SANDBOX.
+
+## Your deliverable (final message, markdown)
+- Files to create/modify with exact paths and the line ranges / functions you anchor to (cite lines
+  at f6a95d75d).
+- Design decisions for items 1-7 (accept / refine / reject each, with one-line reasons).
+- New/changed fixtures and test arms, each with the ONE-line mutation that kills it. At minimum:
+  an old-wording notice is counted (and is not a crash); a current-wording notice is counted; a
+  notice authored by a NON-self login is ignored; a body that merely CONTAINS the prefix not at offset
+  0 is ignored; out-of-window notice reads in-window=no and does not count in the verdict; verdict
+  rc 0 + transcript count when only transcript notices are in window; rc 1 verdict also carries the
+  count when both are present; `other=` arithmetic; F8 floors when the driver source lacks the
+  current prefix; no body text beyond the allowed fields appears in stdout/stderr (assert a sentinel
+  string placed in a fixture body after the count never appears in output). EVERY arm uses the
+  existing gh stub (`--gh-bin`) and fixtures; no arm may touch the network, the real $HOME, or
+  ~/.ailang/state. Assert on observations, never seed a write into a real path.
+- Exact gate commands for executor and controller.
+- Risks, and anything in this direction you think is wrong (say so; do not silently change it).

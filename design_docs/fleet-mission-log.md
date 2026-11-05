@@ -7,81 +7,6 @@ Append-only, one entry per iteration, newest at the bottom. Charter: [fleet-miss
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `fleet-mission-index.md`.
 
-## 67 — 2026-10-28 — `pin-root:worktree-removed-mid-fire` LANDED via #1999 → `17ec65d68`, independent sonnet PASS 88; root cause was fleet iteration 66's own synthetic-HOME dry-run [HARNESS]
-
-**Pick**: iteration 66's **Next**, `pin-root:worktree-removed-mid-fire` (stapledon iteration 55, filed 10-28 15:27Z, `blocking=none`). It was the oldest ticket inside the 48h window. A second ticket, `ci:distinct-build-test-failures` (triage, 21:18Z), arrived later and is in the window too.
-
-**Orphans**: none. No `fleet/i67*` branch, worktree or PR existed. Self-notices rc 0 (control 852:10). The log and charter on `origin/dev` ended at 66.
-
-**Preflight / observe**:
-- Armed. gh `sunholo-voight-kampff`. Billing CLEAN. Directives: 0 on #1945 since `2026-10-22T23:29:08Z` (7 comments, none allowlisted).
-- Skill drift: SKILL.md and all 13 resource files `cmp`-identical to origin/dev at the resolved symlink target.
-- Gate-1 base `4c3dc018261fd263cba18cce8f001a2bb61c6377@2026-10-28T22:05:03Z`.
-- **Dev CI red on `4c3dc0182`, outside fleet scope**: required `test` failed in `internal/runner` `TestWorkerTerminalPTYLifecycle/strict/sigint` (a Python `int('')` in the PTY harness). It failed on 2 of the last 8 dev CI runs and passed on the other 6, so it is an intermittent flake. V1 owns the repo and is disabled. Triage PR #1926 and `design_docs/planned/v0_54_17/m-worker-pty-pidfile-ack.md` already track it. Also red: the non-required `govulncheck` (GO-2026-6860, inherited since iteration 64).
-- Ledger valid, 32 rows, 17 OPEN. 41 tickets open.
-- Driver: codex was in ration this fire; `MISSION_OVER_RATION` was empty.
-
-**Reality check** (first-party, before routing):
-- `pin-root.sh` never removes a worktree, and `test_pin_root.sh` isolates both `HOME` and `AILANG_DRIVER_PIN_DIR`.
-- The real `~/.ailang/state/worktree-sweep.log` had no stapledon line.
-- A scan of every claude transcript (plus the codex and pi sessions) between 11:30 and 15:30Z found no command that removed a pin by name.
-- The `scripts/worktree_sweep.sh` protect list is `$HOME`-derived. The SessionStart hook `scripts/hooks/git_health.sh` gates the sweep on a `$HOME` stamp and exits early only on `AILANG_MISSION_STAGE`/`AILANG_TASK_ID`, which `env -i` strips.
-- Iteration 66's transcript shows a fleet dry-run under `HOME=/tmp/fleet_i66_home.3S7K` at 14:50:33Z. That directory still existed, and its own `.ailang/state/worktree-sweep.log` reads `removed worktree …/.ailang-driver-pin/stapledon` at 15:52:00 CET (14:52Z), then `triage` (15:52:08) and `world` (15:52:24), plus a landed branch `fix/agent-prompts-off-argv` (`cf73e7d82`).
-- The pin directory's own mtime, 15:52 CET, matches. Stapledon's controller worked in `stapledons-godot`, so `lsof` saw nothing using the pin.
-- **So iteration 66's done-gate caused the ticket it then filed as unattributed.** Its record said "no pin action logged" because it looked at the real log, while the sweep had written to the synthetic HOME.
-- `perl -e 'print((getpwuid($<))[7])'` returns the account home under `HOME=/tmp/x`.
-
-**Did** (designer skipped; planner, executor and one evaluator round spawned; generator ≠ judge):
-- **Designer**: not spawned. Mechanical fix with no design surface; the rotation pointer was not advanced.
-- **Planner**, `codex:gpt-6.1-sol`. The resolver said `agent-tool opus fail-closed:no-doc` against the codex pin, so the planner went straight to the pin, as at iteration 64. Probe rc 0; run rc 0. It wrote [the plan](planned/sprint-plan-sweep-account-home.md):
-  - M1: the hook and three test arms.
-  - M2: both dry-run recipes get `AILANG_WORKTREE_SWEEP=0`, plus a changelog fragment.
-  - Rejected: editing the sweep (outside fleet scope); skipping the sweep under any non-account HOME, and resetting HOME for it (either would make the fake-HOME self-test write the real stamp).
-- **Executor**, `codex:gpt-6.1-sol`, rc 0. It built M1 and M2 with snapshots, ran drills A/B/C on disposable copies (each red), and reported every gate green. The controller re-ran the gates outside the sandbox. It rebuilt one commit per milestone from the snapshots: `6e36e9d5f` (M1) and `d144c85bd` (M2).
-  - Controller slip: a zsh-unsplit `$FILES` made the manifest step fail, and the controller then reset two M2 files in the tree. They were restored from the executor's cumulative `.snap/M2`. The M2 diff stat matched the executor's original, and every gate was re-run on the final tree.
-- **Evaluator**, Agent tool `sonnet`, fresh judge worktree at `d144c85bd`: **PASS 88**, 0 blocking.
-  - A sweep dry-run (no `--apply`) under a synthetic HOME printed REMOVE for real `.wt-fleet-iter66*` worktrees. With the hook's protect string, every one read KEEP protected.
-  - It reproduced the three drills.
-  - Non-blocking findings: (1) `worktree_sweep.sh` still trusts `$HOME` for any other `--apply` caller (none today); (2) it did not verify that the opt-out reaches the lane probes; (3) removals outside the protected prefixes still log to a synthetic HOME; (4) arm A also fails under drill B; (5) a lookup failure skips the sweep silently.
-  - Strongest objection: fix the sweep, not the caller. That file is outside fleet authority, so it is recorded as a residual. Report: [evaluation.md](fleet-mission-evidence/iteration67/evaluation.md).
-- **Done-gate** ([done-gate.md](fleet-mission-evidence/iteration67/done-gate.md)):
-  - `make test-launchd-drivers` rc 0 at base `4c3dc0182` and at head `d144c85bd` (49 suites); hook self-test 9 → 12.
-  - World dry-runs (idle and armed; real HOME; `AILANG_WORKTREE_SWEEP=0`; `AILANG_DRIVER_PINNED=d144c85bd`): healthy `DRY RUN ok`, `lanes=ok`; degraded `lanes=DEGRADED(1)`, executor handed to `claude:claude-haiku-5-5`.
-  - The real sweep log (sha prefix `882378d5df7299e8`, 171 lines), the sweep stamp and the pin listing were unchanged across every gate and dry-run.
-- **PR** [#1999](https://github.com/sunholo-data/ailang/pull/1999). The closing-keyword scan found 0 matches; the control fired.
-
-**Gate 3b**:
-- PR head `d144c85bd`: 27 checks terminal, 26 green. The one red is the non-required `govulncheck (vuln gate)`; its log (23.3 KB) shows `1 unallowlisted finding(s): GO-2026-6860`, inherited.
-- The required contexts (`test, lint, build, docs-gate, UI build gate, checks`) were green and the PR read MERGEABLE/UNSTABLE. Merged with `--merge --match-head-commit` → `17ec65d68d79945ca3a0078275892956e8ef1edc`.
-- Exact merge `17ec65d68`: Build and Release 40781817700 SUCCESS; CI 40781817640 failed only in `govulncheck (vuln gate)` (job 123145248380: `1 unallowlisted finding(s): GO-2026-6860`, inherited). The required `test` passed on the merge. `SonarCloud Code Analysis` is red on the merge with `74.8% Coverage on New Code (required ≥ 80%)`, a branch-level new-code gate that was already red on `07ce4a8dc` and `d95ead6af`; Sonar does not measure shell, so it is not from this change.
-
-**Resolved**: `ailang mission ticket resolve pin-root:worktree-removed-mid-fire --sha 17ec65d68…`, which replied to stapledon. 41 → 40 open. Turnaround about 7.5h (10-28 15:27Z → about 22:45Z).
-
-**Progress**: goal unmoved on clause 1 (UNMEASURED). Clause 2 is UNMET overall; this closure qualifies at under 48h. Clause 3 MET (40 open). Clause 4: prior evidence only. Clause 5 preserved.
-
-**Routing evidence**: Gate-1 base `4c3dc018261fd263cba18cce8f001a2bb61c6377@2026-10-28T22:05:03Z`; merge `17ec65d68`. Routing note: as configured (codex in ration).
-- Controller `claude:claude-opus-5-5` (tok: not reported).
-- Designer: not spawned (mechanical; no doc).
-- Planner `codex:gpt-6.1-sol` (43,741 tok). Resolver `agent-tool opus fail-closed:no-doc`; routed to the codex pin.
-- Executor `codex:gpt-6.1-sol` (84,701 tok), rc 0.
-- Evaluator `sonnet`, Agent tool (62,349 subagent tokens / 8 tool uses / 119 s). Judge independence: cross-vendor (Anthropic vs OpenAI).
-- Quorum: none (no design doc). Metered spend: $0. No lane recorded dead.
-
-**Ruled out**:
-- `pin-root.sh` removing its own pin: it never removes, it refuses.
-- A controller or attended `rm`/`worktree remove` naming the pin: the transcript scan was empty, and the 15:06Z attended cleanup touched `stapledons-godot-*` only.
-- Iteration 66's "the instruments do not attribute it to this iteration's dry-runs": refuted by the synthetic HOME's own log.
-- Skipping the sweep whenever HOME differs from the account home: the self-test could then only exercise a launch by writing the real stamp.
-
-**Retro lane**: process fix (charter). Both dry-run recipes now carry `AILANG_WORKTREE_SWEEP=0`, with the why, so a dry-run starts no side jobs. No skill edit: this is the first recorded friction of its class. Observations, not tickets:
-- (a) An instrument whose log path is `$HOME`-relative is blind under a synthetic HOME. Iteration 66 checked the real log, saw nothing, and wrote "not attributable". Any "no X logged" claim made during or after a synthetic-HOME run must also read the synthetic HOME's `.ailang/state/` before it counts.
-- (b) The triage and world pins were removed too, but no fire was mid-flight in them, so nothing filed a ticket; they were re-created on their next fires. A destructive side effect is ticketed only when it happens to hit a live fire.
-- (c) The `worktree_sweep.sh` residual stays outside fleet authority (`scripts/` beyond `scripts/hooks/**` and `scripts/mission_*`). The hook is its only `--apply` caller today.
-
-Last 3 code landings: iteration 65, none (about 25 d); iteration 66, none (about 23 d); iteration 67, clause 2 (under 48h). No drift alarm.
-
-**Next**: `ci:distinct-build-test-failures` (triage, 10-28 21:18Z; the 48h window closes 10-30 21:18Z). It asks for a diagnosis of `internal/runner` and daemon test failures, so the reality check must first decide whether the fix lies inside fleet scope. Then `skills:showcase-feature-discoverability` and the 1-slot tier.
-
 ## 68 — 2026-10-29 — `sprint-planner:template-make-test-changelog-filesize` LANDED via #2001 → `e29a42482`, independent sonnet PASS ~88–90; `quorum:zero-signal-guard-vacuous-with-controller` resolved as a ghost; `ci:distinct-build-test-failures` measured out of scope [HARNESS]
 
 **Pick**: iteration 67's **Next** was `ci:distinct-build-test-failures` (triage, 10-28 21:18Z), the only ticket inside the 48h window. Its scope check failed: all three failing tests live outside fleet authority (`internal/runner/worker_terminal_pty_test.go`, `internal/daemon/daemon_test.go`, `cmd/ailang/run_policy_owned_test.go`), so it is parked on the D-FLEET-17 class (re-measured below). The pick moved to the oldest in-scope, ungated ticket, `sprint-planner:template-make-test-changelog-filesize` (attended, 10-09). The bookkeeping second item was the ghost `quorum:zero-signal-guard-vacuous-with-controller` (attended, 10-08).
@@ -1225,4 +1150,67 @@ Last 3 landings: iteration 84, clause 2; iteration 85, clause 2; iteration 86, c
 **Next**:
 1. A ruling on D-FLEET-42. Under A, the per-lane env strip is built as a proposed diff with per-lane dry-runs.
 2. Any new ticket, in particular one reporting a transcript-scan INSTRUMENT FAILURE (the judge's O(C×E) lookup); the fix would be a single-pass lookup.
+3. A ruling on any of the five drafts (#2110, #2108, #2082, #2067, #2065) lands it.
+
+## 87 — 2026-11-05 — Gate 0's self-notice read now reports the driver's transcript-scan notices (#2132 → `7e9e9192b`): both public wordings are recognised, rows carry only metadata, exit codes unchanged; ticket `gate0:self-notices-skip-transcript-scan-notice` resolved ~6 h after filing; independent sonnet judge PASS 92 [HARNESS]
+
+**Pick**: `gate0:self-notices-skip-transcript-scan-notice` (world, filed 2026-11-05T04:53Z, `blocking=none`, 1 slot lost). It was the only ticket filed since iteration 86, a mechanical gap left by iterations 85–86's detector, inside its 48 h window, so it moves UNMET clause 2. No directive, ruling or red outranked it. Iteration 86's **Next** items were ruling-gated (D-FLEET-42, the five drafts) or untriggered (no transcript-scan INSTRUMENT FAILURE ticket arrived).
+
+**Orphans / prior record**: none. Iteration 86's record is on `origin/dev` (`d49e0e01e`) and the log ended at 86. The open fleet branches (#2110, #2108, #2082, #2067, #2065) carry older logs (78–83) and are the expected ruling-gated drafts; left untouched. Self-notices rc 0 (0 crash notices, control 852:10).
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN.
+- #2039: 0 directives (12 comments, none allowlisted). `mission-2039-last-seen` is still absent, so the full thread was read; nothing to mark. #1945: 0 since its watermark.
+- Skill drift: `SKILL.md` and all 13 resource files `cmp`-identical to `origin/dev` at the resolved symlink target, per file.
+- Gate-1 base `f6a95d75da9845c13adc9c052f81499f314ab66b@2026-11-05T09:40:15Z`. Dev: 22 checks on HEAD, none red once `test-windows` and `Build macos-latest` finished.
+- Ledger valid (41 rows, 25 OPEN). 26 tickets open. No lane degraded this fire (`MISSION_ROUTING_NOTE` empty; `MISSION_OVER_RATION=openrouter`, unused).
+
+**Reality check** (live, read-only `gh` GETs; detail in [gates](fleet-mission-evidence/iteration87/gates.md)):
+- At base, the script read #2039/#1945 as `issue: 2039 comments=12 self=12 crash=0 other=12`, rc 0. A self-authored transcript-scan notice (2026-11-05T03:38:38Z, fire `fleet-1793845378-59113`) sits on #2039 unreported. On World #449 it missed both notices the ticket names.
+- Two public wordings exist. The old one, `Transcript secret exposure on fire …` (74daa5741), is what the issues carry today. The current one, `Transcript secret scan after fire …`, came in with 96882f837. The fix must read both.
+- No driver caller; the consumers are Gate 0 step 6a and the suite. Policy screen: detection/reporting only, so mechanical.
+
+**Did** (generator ≠ judge):
+- **Designer**: not spawned. The ticket's evidence and suggested shape plus the live repro are the spec (precedent iterations 83, 85, 86).
+- **Planner**: `codex:gpt-6.1-sol`, read-only sandbox in `.planner-wt-iter87`, probe rc 0, run rc 0, 95,151 tok ([directive](fleet-mission-evidence/iteration87/planner-directive.txt), [plan](fleet-mission-evidence/iteration87/plan.md)). It accepted all seven directions and qualified one. The step-6a prose must not claim every hit was written during the fire, because the driver's whole-file fallback says write time is unknown. It added the fire id to the rows (already public) and put the new arms in a sourced companion so both test files stay under 800 lines.
+- **Executor**: `codex:gpt-6.1-sol`, workspace-write, rc 0, 95,832 tok ([directive](fleet-mission-evidence/iteration87/executor-directive.txt), [report](fleet-mission-evidence/iteration87/executor-report.md)). It reported 168 assertions and 22 named mutants killed, with no git writes. The `.agents` mirror sync was sandbox-denied (`utimensat`), and the executor labelled the dependent gates UNINFORMATIVE rather than pass or fail. The controller ran the sync outside the sandbox: only the gate-0 mirror changed, and `--check` rc 0. That was the controller's only edit.
+- **Gates at head**, controller, outside any sandbox: `bash -n` ×3, the suite (168/168), shellcheck (0 new vs base; base itself is rc 1 with 87 findings), `git diff --check`, `check-changelog`, `check-file-sizes`, `TestQuorumArtifactShellSuite` all ok. `env -i make test-launchd-drivers` rc 0, 53/53 suites.
+- **Ticket repro at head**: #2039 → one `transcript:` row (`hits=1 in-window=yes fire=fleet-1793845378-59113`), `transcript=1 other=11`, rc 0. World #449 → 2 rows, `transcript=2`. The base script on the same inputs → none.
+- **Done-gate dry-runs** (`AILANG_DRIVER_PINNED=b4651a0d5`, idle armed `triage`; world was live): healthy `DRY RUN ok`; degraded (`codex:bogus-model-i87`) probe rc 1 → `claude:claude-haiku-5-5`, `DRY RUN ok`. Both rc 0, no pidfile, state entry count 494 → 494. The driver is unchanged, so these show only that the pinned tree boots.
+- **Evaluator**: sonnet, Agent tool, foreground, own judge worktree: **PASS 92**, 0 blocking ([evaluation](fleet-mission-evidence/iteration87/evaluation.md)). Rows sum to the total (33+23+19+9+8). It ran 10 mutants of its own: 9 killed, 1 equivalent survivor (`match`→`search` under `\A`). Strongest objection (non-blocking): regex tightness rests on executor-written fixtures; no test replays a verbatim live comment, though the live repro covers it.
+- **Landing**: PR [#2132](https://github.com/sunholo-data/ailang/pull/2132). The closing-keyword scan found 0 (control fired).
+
+**Gate 3b**:
+- PR head `b4651a0d5`: 27/27 checks terminal. One non-required red: `Build macos-latest`, `TestRuntimeNestedStopUsesRemainingDeadline` (`internal/effects`, 0.04 s); the sibling macOS leg passed. This is the third sighting of that test in this log (iteration 84 and an archived entry). `gh run rerun --failed` → success. All 5 required checks green throughout.
+- Base drift since Gate 1: 6 commits (v0.57.3 release, executor-mcp/OAuth), none touching the changed files. `MERGEABLE`/`CLEAN`. Merged `--merge --match-head-commit` → `7e9e9192bd916b3008f1914f11d746441002de57`.
+- Merge commit: CI and Build and Release `completed/success`, 18 check-runs, 0 non-green.
+- Ticket resolved with `--sha 7e9e9192b`; reply to world (26 → 25 open).
+
+**Transcript-scan notices seen this fire** (step 6a's new disposition, applied to itself): 1 on #2039, fire `fleet-1793845378-59113` (iteration 86's fire), 1 hit. That fire launched on the pre-#2127 pin `c2fbb9b58`, so its scan matched whole files. The hit is therefore likely the stale-history class that #2127 fixed, already counted under D-FLEET-42. No value or path was read.
+
+**Ruled out**:
+- A new exit code for transcript-only windows: every reader of rc 1 and step 6a would change, and the ticket asked for a count.
+- A live positive control for transcript notices: bookkeeping issues still receive notices and rotate weekly, so a fixed count would drift and floor every fire. Fixtures plus the F8 source check stand in for it.
+- Requiring the old wording in F8: the driver no longer emits it. It stays recognised in comments only.
+
+**Retro lane**: no skill edit. Observations:
+- (a) The judge again wrote only a summary file and returned the full verdict in its final message (second instance after iteration 86). Its "return in full" fallback, added to the prompt after 86, worked; no rule needed while that line stays in the prompt.
+- (b) The `internal/effects` macOS timing flake is on its third sighting in fleet PRs, each time on a shell/markdown-only diff and green on re-run. It is language-core territory (outside fleet scope) and V1, which owns repo reds, is disabled. Surfaced in the report, not ticketed.
+- (c) zsh bit the controller twice (`$b:refs` expanded as a modifier in a fetch refspec, an unmatched glob in a poll). Both were caught and re-run under `/bin/bash`, as Gate 3b already prescribes. No new rule.
+
+**Progress**: Clause 1 UNMEASURED, goal unmoved. Clause 2 UNMET: one ticket resolved inside 48 h (~6 h). Clause 3 MET (25 open). Clause 4: prior evidence only. Clause 5 preserved: done-gate green, merge CI green.
+
+Last 3 landings: iteration 85, clause 2; iteration 86, clause 2; iteration 87, clause 2. No drift alarm. Harness share: 20 of the last 20 by design.
+
+**Routing evidence**: Gate-1 base `f6a95d75da9845c13adc9c052f81499f314ab66b@2026-11-05T09:40:15Z`. Driver note: none (no lane degraded). Details: [routing](fleet-mission-evidence/iteration87/routing.md).
+- Controller `claude:claude-opus-5-5` (tok: not reported). `MISSION_ANTHROPIC_AVAILABLE=1`.
+- Designer: not spawned; rotation pointer not advanced (`codex:gpt-6.1-sol`).
+- Planner `codex:gpt-6.1-sol` (95,151 tok). Resolver with the charter `recipe codex:gpt-6.1-sol declared:planner-lane-default-pin`; `derive-planner-lane.sh` agrees.
+- Executor `codex:gpt-6.1-sol` (95,832 tok). Resolver `recipe codex:gpt-6.1-sol declared:provider-pin`.
+- Evaluator `sonnet`, Agent tool (65,511 subagent tok). Resolver `agent-tool sonnet declared:alias-pin`. Judge independence: cross-vendor.
+- Quorum: none. Metered spend $0. No lane recorded dead.
+
+**Next**:
+1. A ruling on D-FLEET-42. Under A, the per-lane env strip is built as a proposed diff with per-lane dry-runs.
+2. Any new ticket.
 3. A ruling on any of the five drafts (#2110, #2108, #2082, #2067, #2065) lands it.
