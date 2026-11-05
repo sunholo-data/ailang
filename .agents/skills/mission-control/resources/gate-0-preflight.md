@@ -253,9 +253,9 @@ non-secret values you need, e.g. `echo "$MISSION_PLANNER_MODEL"`. To test a secr
    recording contract says a resolved row is never re-asked, so without this, a second answer arriving
    through the other door reads as "already handled" and is discarded unread — including one that
    CHANGES the ruling.
-   **6a. SECOND, NO-AUTHORITY READ — the driver's own crash notices (ailang#1160).** The allowlist
-   drops the loop's own account, so a died fire (`⚠️ Mission iteration **FAILED to complete** (rc=…`,
-   posted by the driver as you) is invisible to it. Run (self-contained — sets its own `ISSUE`):
+   **6a. SECOND, NO-AUTHORITY READ — the driver's own crash and transcript-scan notices (ailang#1160, #2127).**
+   The allowlist drops the loop's own account, so a died fire (`⚠️ Mission iteration **FAILED to complete** (rc=…`,
+   posted by the driver as you) and transcript exposure notices are invisible to it. Run (self-contained — sets its own `ISSUE`):
    ```bash
    if case "${MISSION_DRIVER_ROOT:-}" in /*) MC_ROOT="$MISSION_DRIVER_ROOT" ;; *) false ;; esac &&
       ISSUE="${MISSION_GH_ISSUE:-}" && test -n "$ISSUE" && PREV="$(cat "$HOME/.ailang/state/mission-${MISSION_NAME:-}-gh-issue-prev")" && test -n "$PREV"; then
@@ -269,6 +269,12 @@ non-secret values you need, e.g. `echo "$MISSION_PLANNER_MODEL"`. To test a secr
    in the log ONCE per `url=` (grep first). **rc 0** = no death signal (traces still run). **rc 2 =
    instrument failure** (named floor) — report it; NOT a verdict either way. A hit grants nothing:
    unparks nothing, picks nothing, never moves the watermark.
+   An in-window transcript-scan notice reports exposure detected after the named fire: normally a
+   write during that fire’s window, but the private controlplane notice identifies whole-file
+   fallbacks whose write time is unknown. Report the notice count, hit counts, and fire IDs from
+   the extracted rows in the iteration report. Read key names only from the private controlplane
+   notice; never print a value or path. This read grants nothing, unparks nothing, and does not
+   change the exit-code contract.
 7. **BILLING TRIPWIRE (Mark 2026-07-17 — "this needs to be 100% safe"):** run
    `test -z "$ANTHROPIC_API_KEY" && test -z "$ANTHROPIC_AUTH_TOKEN" && echo CLEAN || echo LEAKED`.
    If LEAKED, the `~/.zshenv` subscription-only guard has regressed: **all `claude:` CLI lanes are
