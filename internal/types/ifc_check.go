@@ -100,6 +100,7 @@ func (c *ifcChecker) run(file *ast.File) []*TypeCheckError {
 	// Walk function bodies in source order for deterministic diagnostics.
 	for _, fn := range file.Funcs {
 		if fn != nil && fn.Body != nil {
+			c.where = fn.Name
 			c.checkFunc(c.sigs[fn.Name])
 		}
 	}
@@ -152,6 +153,7 @@ type ifcChecker struct {
 	lamIDs            map[ast.Expr]string    // stable summary key per lambda / function literal
 	replaying         map[string]bool        // active application states, for cycle-safe replay
 	analysisRemaining int                    // fail closed if defensive analysis budget is exhausted
+	where             string                 // module function being analysed, for limit diagnostics
 }
 
 func buildIFCSig(fn *ast.FuncDecl) *ifcSig {
@@ -226,6 +228,14 @@ func (c *ifcChecker) valueOf(expr ast.Expr, env ifcEnv) ifcVal {
 // s.user does not inherit s.code's declared label. The callable travels
 // through every form the label travels through.
 func (c *ifcChecker) flowVal(expr ast.Expr, env ifcEnv) ifcVal {
+	v := c.flowValOf(expr, env)
+	if v.fn != nil && c.types.dataOnly(c.staticType(expr, env)) {
+		v.fn = nil // a value of a function-free type is never applied
+	}
+	return v
+}
+
+func (c *ifcChecker) flowValOf(expr ast.Expr, env ifcEnv) ifcVal {
 	bottom := ifcVal{label: LabelBottom()}
 	switch e := expr.(type) {
 	case nil:

@@ -240,3 +240,99 @@ func (c *ifcChecker) staticType(expr ast.Expr, env ifcEnv) ast.Type {
 func sameType(a, b ast.Type) bool {
 	return a != nil && b != nil && a.String() == b.String()
 }
+
+// ifcPrimitive names the builtin types that hold no function value.
+var ifcPrimitive = map[string]bool{
+	"string": true, "int": true, "float": true, "bool": true, "unit": true,
+	"char": true, "bytes": true, "byte": true,
+}
+
+// dataOnly reports whether every value of t is known to contain no function
+// (M-IFC-DATA-CALLABLE-PRUNE). Such a value can never be applied, so it carries
+// no callable. Unknown means false: nil, an unbound type variable, a function
+// type, and a type name the module does not declare (imported generics such as
+// Option are unknown here: this pass sees one module).
+func (ts *ifcTypes) dataOnly(t ast.Type) bool {
+	return ts.dataOnlyIn(t, nil, map[string]bool{})
+}
+
+// dataOnlyIn decides t with params binding a generic declaration's parameter
+// names to whether their arguments are data-only.
+func (ts *ifcTypes) dataOnlyIn(t ast.Type, params map[string]bool, visiting map[string]bool) bool {
+	switch tt := t.(type) {
+	case nil, *ast.FuncType:
+		return false
+	case *ast.TypeVar:
+		return params[tt.Name]
+	case *ast.LabelledType:
+		return ts.dataOnlyIn(tt.Base, params, visiting)
+	case *ast.ListType:
+		return ts.dataOnlyIn(tt.Element, params, visiting)
+	case *ast.ArrayType:
+		return ts.dataOnlyIn(tt.Element, params, visiting)
+	case *ast.TupleType:
+		return ts.allDataOnly(tt.Elements, params, visiting)
+	case *ast.RecordType:
+		for _, f := range tt.Fields {
+			if f == nil || !ts.dataOnlyIn(f.Type, params, visiting) {
+				return false
+			}
+		}
+		return true
+	case *ast.SimpleType:
+		if bound, ok := params[tt.Name]; ok {
+			return bound
+		}
+		return ts.declDataOnly(tt.Name, nil, visiting)
+	case *ast.TypeApp:
+		if _, local := ts.decls[tt.Constructor]; !local && tt.Constructor == "list" {
+			return ts.allDataOnly(tt.Args, params, visiting)
+		}
+		args := make([]bool, len(tt.Args))
+		for i, a := range tt.Args {
+			args[i] = ts.dataOnlyIn(a, params, visiting)
+		}
+		return ts.declDataOnly(tt.Constructor, args, visiting)
+	default:
+		panic(fmt.Sprintf("ifc dataOnly: unhandled ast.Type %T", t))
+	}
+}
+
+func (ts *ifcTypes) allDataOnly(types []ast.Type, params map[string]bool, visiting map[string]bool) bool {
+	for _, el := range types {
+		if !ts.dataOnlyIn(el, params, visiting) {
+			return false
+		}
+	}
+	return true
+}
+
+// declDataOnly decides a named type applied to arguments whose data-only-ness
+// is args. Builtin primitives are data; other undeclared names are unknown.
+func (ts *ifcTypes) declDataOnly(name string, args []bool, visiting map[string]bool) bool {
+	td, local := ts.decls[name]
+	if !local {
+		return len(args) == 0 && ifcPrimitive[name]
+	}
+	if len(td.TypeParams) != len(args) {
+		return false
+	}
+	key := fmt.Sprint(name, args)
+	if visiting[key] {
+		return true // a recursive occurrence is decided by the other fields
+	}
+	visiting[key] = true
+	defer delete(visiting, key)
+	params := make(map[string]bool, len(args))
+	for i, p := range td.TypeParams {
+		params[p] = args[i]
+	}
+	bodies := declBodyTypes(td)
+	for _, body := range bodies {
+		if !ts.dataOnlyIn(body, params, visiting) {
+			return false
+		}
+	}
+	_, isADT := td.Definition.(*ast.AlgebraicType)
+	return bodies != nil || isADT // an enum has no fields at all
+}
