@@ -78,6 +78,8 @@ milestones run in `ailang` (a worktree off `origin/dev`).
 
 ### M1a — confidential clients (lane: package) · 1.5d · ~520 LOC · gates: D1, D4
 
+**Status: ✅ done 2026-11-05 (ailang-packages PR #179 (`sprint/mcp-oauth-0.2`), cde1a84).** `tests/confidential_check.sh` 16/16 (all nine named cases; run without `--caps Net`), `clientKind` VERIFIED, client-secret IFC fixtures rejected, mutation M01 kills `TestConfidentialWithoutSecret`. The plan asks for the 0.1.2 suites both "unmodified" and "`ifc_leaks.sh` gains a case": the in-tree `ifc_leaks.sh`/`lint.sh` gained cases (original lines untouched), and `tests/compat_012.sh` runs the 0.1.2 originals byte for byte (all green).
+
 - **Tasks:**
   - Add `ClientConfig` and `defaultClientConfig()`.
   - Add `core.clientKind`, with a Z3 `ensures` that no string is both `cimd` and `registered`.
@@ -114,6 +116,8 @@ milestones run in `ailang` (a worktree off `origin/dev`).
 
 ### M1b — DCR + abuse controls (lane: package) · 1.5d · ~420 LOC · gates: D2
 
+**Status: ✅ done 2026-11-05 (ailang-packages PR #179 (`sprint/mcp-oauth-0.2`), cde1a84).** `tests/dcr_check.sh` 14/14 (all seven named cases), `dcrRedirectOk` VERIFIED, mutation M22 (first XFF entry) kills the forged-prefix test.
+
 - **Tasks:**
   - Add `flow.registerClientDcr`.
   - Add the `clients` validators: redirect rules, a `dcrRedirectHosts` allowlist, grant and
@@ -138,6 +142,8 @@ milestones run in `ailang` (a worktree off `origin/dev`).
 
 ### M1c — refresh policy + RFC 7009 revocation (lane: package) · 1d · ~330 LOC · gates: D3
 
+**Status: ✅ done 2026-11-05 (ailang-packages PR #179 (`sprint/mcp-oauth-0.2`), cde1a84).** `tests/refresh_policy_check.sh` 7/7, `tests/revoke_check.sh` 6/6, `flow_check.sh` unmodified and green, mutation M25 (stable marked used) kills `TestStableRefreshNoRotation`.
+
 - **Tasks:**
   - Add the `stable` policy: no rotation, `refresh_token` omitted from the refresh response, idle
     and absolute expiry, client authentication required for confidential clients.
@@ -158,6 +164,8 @@ milestones run in `ailang` (a worktree off `origin/dev`).
 
 ### M1d — auth-method intersection (lane: package) · 0.5d · ~120 LOC · gates: D1
 
+**Status: ✅ done 2026-11-05 (ailang-packages PR #179 (`sprint/mcp-oauth-0.2`), cde1a84).** `cimd accepts chatgpt live doc` (the live document, verbatim) and `cimd refuses plural without none` pass; `authMethodOk` VERIFIED; `tests/cimd_live_check.sh` accepts the live ChatGPT and Claude documents; mutation M36 (singular binding) kills the ChatGPT fixture.
+
 - **Tasks:**
   - `cimd.validateClientDoc` refuses a document whose plural
     `token_endpoint_auth_methods_supported` is present and lacks `none`. The singular field is
@@ -171,6 +179,8 @@ milestones run in `ailang` (a worktree off `origin/dev`).
   - Mutation: treat the singular field as binding, and the ChatGPT fixture test fails.
 
 ### M1e — metadata, example service, docs, publish 0.2.0 (lane: package) · 1d · ~300 LOC
+
+**Status: ✅ built 2026-11-05 (ailang-packages PR #179 (`sprint/mcp-oauth-0.2`), 48c72b2…88b49b0); publish pending review and merge.** Golden passes; `e2e_flow.sh` unmodified 8/8; new `tests/e2e_client_models.sh` 16/16 (17/17 with `authorization-framing PASS` on ailang dev); `pkg quality` 20/20 verified, no gates; executor `test_oauth.sh` 21/21 with only `ailang.lock` bumped to 0.2.0. 38/38 mutants killed (`tests/mutation_check.sh`). Not published (Mark reviews, merges and publishes).
 
 - **Tasks:**
   - Add `core.asMetadataFor(issuer, cfg)`, with a golden test that `asMetadata(issuer)` is
@@ -262,7 +272,7 @@ pins `/mcp/connect/` `resources/list` and the `/mcp/` inventory. Mutation: 15/15
 `TestProbeClientDocument` and `TestFramingProbeNoS256Skips`, the existing framing tests (updated
 deliberately) and the e2e `TestMCPCheck_CimdOnlyFramingPass` (readyModule + a CIMD-only AS →
 `authorization-framing PASS`). Mutation: 14/14 killed. Still open:
-- the package `tests/e2e_flow.sh` step (M1e's suite);
+- ~~the package `tests/e2e_flow.sh` step (M1e's suite)~~: done in ailang-packages PR #179 as `tests/e2e_client_models.sh` (`authorization-framing PASS` with ailang dev against the example service). `e2e_flow.sh` itself stays byte-identical to 0.1.2 (the compat gate);
 - ~~the post-deploy `curl` of the probe document~~: done 2026-11-05. It is served as `application/json`, and a live `mcp check` against the executor's real `mcp_oauth` AS gives `authorization-framing PASS`, where v0.57.1 gave WARN.
 
 - **Tasks:**
