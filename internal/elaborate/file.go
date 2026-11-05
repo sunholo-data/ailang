@@ -464,15 +464,16 @@ func collectImports(file *ast.File) map[string]string {
 // strict-eval cycle detector fires an honest error (a self-referential let, #366).
 func isSelfRecursive(name string, symbols map[string]*FuncSig, lets map[string]*ModuleLet) bool {
 	var body ast.Expr
+	var params []string
 	if f, ok := symbols[name]; ok && f != nil {
-		body = f.Body
+		body, params = f.Body, f.Params
 	} else if ml, ok := lets[name]; ok && ml != nil {
 		body = ml.Value
 	} else {
 		return false
 	}
 
-	for _, ref := range findReferences(body) {
+	for _, ref := range findFreeReferences(body, withBound(nil, params...)) {
 		if ref == name {
 			return true
 		}

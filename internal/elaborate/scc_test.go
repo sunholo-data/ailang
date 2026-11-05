@@ -71,6 +71,7 @@ func TestCallGraphShadowing(t *testing.T) {
 		{"let", &ast.Let{Name: "t", Value: id("xs"), Body: id("t")}, false},
 		{"free", id("t"), true},
 		{"let_value", &ast.Let{Name: "t", Value: id("t"), Body: id("t")}, true},
+		{"block_letrec_self", &ast.Block{Exprs: []ast.Expr{&ast.LetRec{Name: "t", Value: &ast.Lambda{Body: id("t")}}, id("t")}}, false},
 	} {
 		t.Run(tt.name, func(t *testing.T) {
 			each := &FuncSig{Name: "each", Body: tt.body}
@@ -111,5 +112,23 @@ func TestModuleLetRecEmission(t *testing.T) {
 	}
 	if _, ok := out.Decls[0].(*core.LetRec); !ok {
 		t.Fatalf("module recursion emitted as %T", out.Decls[0])
+	}
+}
+
+// A module function's parameters are bound for its whole body (#2078 review).
+func TestCallGraphFuncParamShadowing(t *testing.T) {
+	id := func(s string) *ast.Identifier { return &ast.Identifier{Name: s} }
+	each := &FuncSig{Name: "each", Params: []string{"t"}, Body: id("t")}
+	sibling := &FuncSig{Name: "t", Body: id("each")}
+	graph := BuildCallGraph([]*FuncSig{each, sibling}, nil, map[string]*FuncSig{"each": each, "t": sibling}, nil)
+	if len(graph.edges["each"]) != 0 {
+		t.Fatalf("parameter t created a false edge: %v", graph.edges["each"])
+	}
+	if len(graph.SCCs()) != 2 {
+		t.Fatalf("false SCC: %v", graph.SCCs())
+	}
+	self := &FuncSig{Name: "t", Params: []string{"t"}, Body: id("t")}
+	if isSelfRecursive("t", map[string]*FuncSig{"t": self}, nil) {
+		t.Fatal("parameter named like its function read as self-recursion")
 	}
 }

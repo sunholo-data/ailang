@@ -32,6 +32,15 @@ func odd[e](f: (int) -> () ! {e}, n: int) -> () ! {e} = if n == 0 then () else {
 func b[e](f: (int) -> () ! {e}) -> () ! {e} = { f(1); a(f) }`, true},
 		{"11_self_closed_row", `func d[e](f: (int) -> () ! {e}) -> () ! {e} = { f(1); d(\x. println("boom")) }`, true},
 		{"12_let_discard", strings.Replace(each, "f(h);", "let _ = f(h);", 1) + "\n" + caller, false},
+		// A module function's own parameter shadows a same-named sibling (#2078 review).
+		{"13_func_param_shadow", strings.ReplaceAll(strings.ReplaceAll(each, "h :: t", "h :: rest"), "each(f, t)", "each(f, rest)") + "\n" + `export func f(x: int) -> () ! {IO} = each(\x. println("x"), [1, 2])`, false},
+		{"13_func_param_control", strings.ReplaceAll(strings.ReplaceAll(each, "h :: t", "h :: rest"), "each(f, t)", "each(f, rest)") + "\n" + `export func g(x: int) -> () ! {IO} = each(\x. println("x"), [1, 2])`, false},
+		// A block-statement letrec's self-reference shadows a same-named sibling.
+		{"14_block_letrec_shadow", `func each[e](f: (int) -> () ! {e}, xs: [int]) -> () ! {e} {
+  letrec go = \ys. match ys { [] => (), h :: r => { f(h); go(r) } };
+  go(xs)
+}
+export func go() -> () ! {IO} = each(\x. println("x"), [1, 2])`, false},
 	}
 	for _, tt := range cases {
 		t.Run(tt.name, func(t *testing.T) {

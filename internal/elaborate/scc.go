@@ -133,8 +133,8 @@ func BuildCallGraph(funcs []*FuncSig, lets []*ModuleLet, symbols map[string]*Fun
 		localNames[l.Name] = true
 	}
 
-	addEdges := func(from string, body ast.Expr) {
-		for _, ref := range findReferences(body) {
+	addEdges := func(from string, body ast.Expr, params []string) {
+		for _, ref := range findFreeReferences(body, withBound(nil, params...)) {
 			if !localNames[ref] {
 				continue
 			}
@@ -155,10 +155,10 @@ func BuildCallGraph(funcs []*FuncSig, lets []*ModuleLet, symbols map[string]*Fun
 
 	// Analyze each function body AND each module-let value for local references.
 	for _, f := range funcs {
-		addEdges(f.Name, f.Body)
+		addEdges(f.Name, f.Body, f.Params) // parameters shadow same-named siblings (#2078)
 	}
 	for _, l := range lets {
-		addEdges(l.Name, l.Value)
+		addEdges(l.Name, l.Value, nil)
 	}
 
 	return graph
@@ -343,17 +343,18 @@ func findFreeReferences(expr ast.Expr, bound map[string]bool) []string {
 	case *ast.Block:
 		scope := bound
 		for _, item := range ex.Exprs {
+			// A letrec statement's name is in scope in its own value: `go(r)`
+			// inside `letrec go = ...;` is the local loop, not a module `go`.
+			// (The generic LetRec case keeps a bodyless letrec's self-edge.)
+			if rec, ok := item.(*ast.LetRec); ok && rec.Body == nil {
+				scope = withBound(scope, rec.Name)
+				refs = append(refs, findFreeReferences(rec.Value, scope)...)
+				continue
+			}
 			refs = append(refs, findFreeReferences(item, scope)...)
 			// Only statement bindings extend the scope of subsequent block items.
-			switch binding := item.(type) {
-			case *ast.Let:
-				if binding.Body == nil {
-					scope = withBound(scope, binding.Name)
-				}
-			case *ast.LetRec:
-				if binding.Body == nil {
-					scope = withBound(scope, binding.Name)
-				}
+			if binding, ok := item.(*ast.Let); ok && binding.Body == nil {
+				scope = withBound(scope, binding.Name)
 			}
 		}
 
