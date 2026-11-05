@@ -85,7 +85,7 @@ stage_serve(){
   for lvl in 1 2; do
     strip_config $lvl | tee -a "$LOG"
     printf 'FROM %s\n' "$FUSED" > "$P1/Modelfile"
-    ollama create "$OLLAMA_NAME" -q q8_0 -f "$P1/Modelfile" > "$P1/create.log" 2>&1 \
+    ollama create "$OLLAMA_NAME" -q mxfp8 -f "$P1/Modelfile" > "$P1/create.log" 2>&1 \
       || ollama create "$OLLAMA_NAME" -f "$P1/Modelfile" >> "$P1/create.log" 2>&1 || die "ollama create failed"
     if smoke; then log "serve OK at strip level $lvl: $(python3 -I -c "import json;print(json.load(open('$P1/smoke.out'))['response'][:120])")"; return 0; fi
     log "smoke failed at strip level $lvl: $(head -c 300 "$P1/smoke.out")"

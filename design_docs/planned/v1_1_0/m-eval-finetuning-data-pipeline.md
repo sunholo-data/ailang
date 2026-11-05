@@ -233,7 +233,7 @@ Supersedes §"Data extraction" and §R4 where they conflict. The binding constra
 
 ## Weekend pilot plan (2026-11-06 → 2026-11-08, GPU granted by Mark)
 
-### Friday prep (CPU) — status at 2026-11-05 ~20:30Z: **READY except the untested Ollama load fix**
+### Friday prep (CPU) — status at 2026-11-05 ~21:15Z: **READY** (serving path verified)
 
 - [x] D-FT-1 = YES (Mark, 2026-11-05).
 - [x] Held-out set `tools/finetune/heldout.json`; arm-A agent baseline in `tools/finetune/baseline_armA.json`.
@@ -249,7 +249,7 @@ Supersedes §"Data extraction" and §R4 where they conflict. The binding constra
 - [x] **Agent mode honours `--prompt-version`** (it hard-coded `""`; fixed + tests, `12fadb210`). Frozen non-active prompts `ft-slim-v1` (2.4 KB traps card) and `ft-none`. Private binary `~/models/finetune/bin/ailang-ft` (v0.57.4-17) embeds both.
 - [x] Lanes `ollama-gemma4-12b-ft1` / `pi-gemma4-12b-ft1` and the pi model id; budget-cap fix live.
 - [x] **Runner** `tools/finetune/weekend_pilot.sh` (resumable stages: preflight → train → serve → B_std, C_std, B_agent, C_agent, A_std → summary) and `tools/finetune/summarize_pilot.py` (kill criterion). Every arm is guarded against the prompt loader's silent fallback to the full prompt.
-- [ ] **Ollama load of the fused model**: built into the `serve` stage (strip audio, then vision config; q8 import; smoke generation) but **untested until the GPU window**. If it fails, the fallback is an `mlx_lm.server` lane.
+- [x] **Ollama serving path verified** (2026-11-05, toy adapter). After `mlx_lm.fuse --dequantize`, **dropping `audio_config` (strip level 1) is enough**: `ollama create -q mxfp8` imports it at 12 GB (`q8_0` is unsupported on this path; the supported types are int4/int8/nvfp4/mxfp4/mxfp8), it loads, and it generates AILANG with no teaching prompt. The runner now uses mxfp8, the same quantization as arm A. **Speed confound:** the imported fine-tune has no MTP draft model (the library `gemma4:12b-mxfp8` does), so it decoded at ~34 tok/s against ~46. Compare speed on **output tokens per pass** (draft-independent) and report wall time with this caveat.
 - [ ] Not in pilot 1 (follow-ups): error→fix pairs from the ~1,400 stale `++` programs; 681 stdlib-skew repo rejects; cloud-chain transcripts; Python-oracle task generation (G3).
 
 ### Start procedure (Friday night, attended)
