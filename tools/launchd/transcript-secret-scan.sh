@@ -4,6 +4,8 @@ set +x
 umask 077
 secrets_file="$HOME/.config/ailang/secrets.env"
 marker='' min_len=20 scratch='' active_child=''
+snapshot_out='' snapshot_tmp='' baseline_file='' baseline_given=0 baseline=none
+baseline_paths=() baseline_sizes=()
 files=0 keys=0 leaks=0 failure=0
 roots=() names=() values=() key_names=() key_patterns=() seen=()
 
@@ -29,6 +31,7 @@ cleanup() {
     kill -KILL "$active_child" 2>/dev/null || true
     wait "$active_child" 2>/dev/null || true
   fi
+  if [ -n "$snapshot_tmp" ]; then rm -f "$snapshot_tmp" 2>/dev/null || true; fi
   if [ -n "$scratch" ] && ! rm -rf "$scratch" 2>/dev/null; then
     failure=1
     diag 'INSTRUMENT FAILURE removing scratch directory' "$scratch"
@@ -40,13 +43,17 @@ terminal() {
   trap - EXIT TERM INT
   [ "$status" -le 1 ] || failure=1
   cleanup
+  if [ -n "$snapshot_out" ]; then
+    [ "$status" -eq 0 ] && [ "$failure" -eq 0 ] && exit 0
+    exit 2
+  fi
   if [ "$failure" -ne 0 ]; then verdict=instrument-failure; status=2
   elif [ "$leaks" -gt 0 ]; then verdict=LEAK; status=1
   else verdict=clean
   fi
   escape_path "$marker"
-  printf 'transcript-secret-scan: verdict=%s files=%s keys=%s leaks=%s since=%s\n' \
-    "$verdict" "$files" "$keys" "$leaks" "$escaped"
+  printf 'transcript-secret-scan: verdict=%s files=%s keys=%s leaks=%s baseline=%s since=%s\n' \
+    "$verdict" "$files" "$keys" "$leaks" "$baseline" "$escaped"
   exit "$status"
 }
 trap terminal EXIT
@@ -54,18 +61,105 @@ trap 'failure=1; diag "INSTRUMENT FAILURE interrupted" "$marker"; exit 2' TERM I
 argument_error() { diag 'INSTRUMENT FAILURE invalid arguments' ''; exit 2; }
 while [ "$#" -gt 0 ]; do
   case "$1" in
-    --secrets-file|--since|--root|--min-len)
+    --secrets-file|--since|--root|--min-len|--snapshot-out|--baseline)
       [ "$#" -ge 2 ] || argument_error
       case "$1" in
         --secrets-file) secrets_file=$2 ;;
         --since) marker=$2 ;;
         --root) roots+=("$2") ;;
         --min-len) min_len=$2 ;;
+        --snapshot-out) snapshot_out=$2; [ -n "$snapshot_out" ] || argument_error ;;
+        --baseline) baseline_file=$2; baseline_given=1 ;;
       esac
       shift 2 ;;
     *) argument_error ;;
   esac
 done
+# Both modes use the same inventory roots. Snapshot mode reads metadata only,
+# before marker validation or opening any secrets file.
+if [ "${#roots[@]}" -eq 0 ]; then
+  roots=("$HOME/.codex-missions/sessions" "$HOME/.codex/sessions"
+    "$HOME/.pi/agent/sessions" "$HOME/.claude/projects")
+fi
+if [ -n "$snapshot_out" ]; then
+  snapshot_tmp="${snapshot_out}.tmp"
+  python3 - "$snapshot_tmp" "$snapshot_out" "${roots[@]}" 2>/dev/null <<'SNAPSHOT' &
+import os
+import stat
+import sys
+
+try:
+    pending, destination = sys.argv[1:3]
+    seen = set()
+    def walk_error(error):
+        raise error
+    fd = os.open(pending, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    with os.fdopen(fd, "wb") as output:
+        os.fchmod(output.fileno(), 0o600)
+        for root in map(os.fsencode, sys.argv[3:]):
+            try:
+                mode = os.lstat(root).st_mode
+            except FileNotFoundError:
+                continue
+            if stat.S_ISLNK(mode):
+                continue
+            if not stat.S_ISDIR(mode):
+                raise ValueError("invalid root")
+            for directory, _, files in os.walk(root, followlinks=False, onerror=walk_error):
+                for name in files:
+                    path = os.path.join(directory, name)
+                    if path in seen:
+                        continue
+                    metadata = os.lstat(path)
+                    if stat.S_ISREG(metadata.st_mode):
+                        seen.add(path)
+                        output.write(str(metadata.st_size).encode("ascii") + b"\0" + path + b"\0")
+    os.replace(pending, destination)
+except Exception:
+    sys.exit(2)
+SNAPSHOT
+  active_child=$!
+  wait "$active_child"; snapshot_rc=$?; active_child=''
+  if [ "$snapshot_rc" -ne 0 ]; then
+    diag 'INSTRUMENT FAILURE creating metadata snapshot' "$snapshot_out"; exit 2
+  fi
+  exit 0
+fi
+# Normalize before arithmetic; reserve one byte for tail's one-based offset.
+valid_size() {
+  size=$1
+  case "$size" in ''|*[!0-9]*) return 1 ;; esac
+  while [ "${#size}" -gt 1 ] && [ "${size#0}" != "$size" ]; do size=${size#0}; done
+  [ "${#size}" -lt 19 ] || {
+    # Compare decimal strings before allowing Bash signed arithmetic.
+    # shellcheck disable=SC2071
+    [ "${#size}" -eq 19 ] && [[ "$size" < 9223372036854775807 ]]
+  }
+}
+if [ "$baseline_given" -eq 1 ]; then
+  baseline=failed
+  baseline_valid=1
+  if [ -f "$baseline_file" ] && [ -r "$baseline_file" ] && { exec 6< "$baseline_file"; } 2>/dev/null; then
+    while :; do
+      saved_size=''
+      if ! IFS= read -r -d '' saved_size <&6; then
+        [ -z "$saved_size" ] || baseline_valid=0
+        break
+      fi
+      saved_path=''
+      if ! IFS= read -r -d '' saved_path <&6 || [ -z "$saved_path" ] || ! valid_size "$saved_size"; then
+        baseline_valid=0; break
+      fi
+      baseline_paths+=("$saved_path"); baseline_sizes+=("$size")
+    done
+    exec 6<&-
+    if [ "$baseline_valid" -eq 1 ]; then baseline=${#baseline_paths[@]}; fi
+  fi
+  if [ "$baseline" = failed ]; then
+    baseline_paths=(); baseline_sizes=()
+    diag 'baseline unavailable; using whole-file fallback' "$baseline_file"
+  fi
+fi
 case "$min_len" in ''|*[!0-9]*) argument_error ;; esac
 while [ "${min_len#0}" != "$min_len" ]; do min_len=${min_len#0}; done
 [ -n "$min_len" ] || argument_error
@@ -120,10 +214,6 @@ keys=${#key_names[@]}
 if [ "$keys" -eq 0 ]; then
   diag 'INSTRUMENT FAILURE zero eligible keys' "$secrets_file"; exit 2
 fi
-if [ "${#roots[@]}" -eq 0 ]; then
-  roots=("$HOME/.codex-missions/sessions" "$HOME/.codex/sessions"
-    "$HOME/.pi/agent/sessions" "$HOME/.claude/projects")
-fi
 scratch=$(mktemp -d "${TMPDIR:-/tmp}/transcript-secret-scan.XXXXXX" 2>/dev/null) || {
   diag 'INSTRUMENT FAILURE creating scratch directory' "${TMPDIR:-/tmp}"; exit 2;
 }
@@ -151,9 +241,35 @@ for root in "${roots[@]}"; do
     done
     [ "$duplicate" -eq 0 ] || continue
     seen+=("$file"); files=$((files + 1))
+    match_file=$file
+    offset=0
+    for ((b=0; b<${#baseline_paths[@]}; b++)); do
+      if [ "${baseline_paths[b]}" = "$file" ]; then
+        if ! current_size=$(stat -f '%z' "$file" 2>/dev/null) || ! valid_size "$current_size"; then
+          failure=1; diag 'INSTRUMENT FAILURE reading file size' "$file"; continue 2
+        fi
+        if [ "$size" -ge "${baseline_sizes[b]}" ]; then
+          offset=${baseline_sizes[b]}
+        else
+          diag 'whole-file fallback for truncated file' "$file"
+        fi
+        break
+      fi
+    done
+    # Historical exposures remain parked under D-FLEET-42. Do not overlap the
+    # saved boundary or re-read historical content on a successful baseline.
+    if [ "$offset" -gt 0 ]; then
+      tail -c "+$((offset + 1))" 2>/dev/null < "$file" > "$scratch/suffix" &
+      active_child=$!
+      wait "$active_child"; read_rc=$?; active_child=''
+      if [ "$read_rc" -ne 0 ]; then
+        failure=1; diag 'INSTRUMENT FAILURE reading file suffix' "$file"; continue
+      fi
+      match_file=$scratch/suffix
+    fi
     for ((i=0; i<keys; i++)); do
       patterns=${key_patterns[i]}
-      grep -F -c -f /dev/fd/3 -- "$file" 3<<< "$patterns" >/dev/null 2>/dev/null &
+      grep -F -c -f /dev/fd/3 -- "$match_file" 3<<< "$patterns" >/dev/null 2>/dev/null &
       active_child=$!
       wait "$active_child"; match_rc=$?; active_child=
       case "$match_rc" in
