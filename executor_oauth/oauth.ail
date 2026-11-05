@@ -237,33 +237,52 @@ pure func hostOf(url: string) -> string {
   }
 }
 
+-- Who a verified token belongs to (serve-api's identity contract,
+-- M-MCP-OAUTH-CLIENT-MODELS D5): the account it was issued to, and the
+-- client_id URL. serve-api keys --mcp-subject-rpm on subject and binds this
+-- record to any tool that declares _auth.
+export type McpIdentity = { subject: string, client_id: string, scopes: [string] }
+
+-- The identity a stored access-token record names; None when it names no
+-- account (serve-api would refuse an empty subject anyway).
+export pure func identityOf(account: string, clientId: string) -> Option[McpIdentity] =
+  if length(account) > 0 then Some({ subject: account, client_id: clientId, scopes: [] }) else None
+
 -- serve-api calls this before every tool call on /mcp/connect/
 -- (--mcp-connect-only gates them all). One executor_auth log line per call
 -- names the account and client host, never the token, so usage.sh can count
 -- calls per user.
 @mcp_token_verifier
-export func verifyMcpToken(token: string) -> bool ! {IO, FS, Net, Env, Clock, SharedMem, Debug} =
-  if tokenShapeOk(token) == false then false else match hGet(tokenKey(sha256Hex(token))) {
+export func verifyMcpToken(token: string) -> Option[McpIdentity] ! {IO, FS, Net, Env, Clock, SharedMem, Debug} =
+  if tokenShapeOk(token) == false then None else match hGet(tokenKey(sha256Hex(token))) {
     None => {
       log(encode(jo([kv("event", js("executor_auth")), kv("outcome", js("unknown_token"))])));
-      false
+      None
     },
     Some(raw) => match decode(raw) {
-      Err(_) => false,
+      Err(_) => None,
       Ok(rec) => {
         let account = match getString(rec, "account") {
           Some(a) => a,
           None => ""
         }
-        let client = match getString(rec, "client_id") {
-          Some(c) => hostOf(c),
+        let clientId = match getString(rec, "client_id") {
+          Some(c) => c,
           None => ""
         }
-        log(encode(jo([kv("event", js("executor_auth")), kv("outcome", js("ok")), kv("account", js(account)), kv("client", js(client))])))
-        length(account) > 0
+        log(encode(jo([kv("event", js("executor_auth")), kv("outcome", js("ok")), kv("account", js(account)), kv("client", js(hostOf(clientId)))])))
+        identityOf(account, clientId)
       }
     }
   }
+
+-- The signed-in account, as the gate verified it. Served only on the gated
+-- /mcp/connect/; the client cannot supply or forge _auth.
+@mcp_name("executor_whoami")
+@mcp_title("Signed-in account")
+@mcp_hints("readOnly", "idempotent")
+export pure func whoami(_auth: McpIdentity) -> Json =
+  jo([kv("account", js(_auth.subject)), kv("client", js(hostOf(_auth.client_id)))])
 
 -- ============================================================
 -- Authorization-server routes (HTTP only: @nomcp)

@@ -42,6 +42,8 @@ func serveAPICommand(args []string) error {
 	oauthIssuerFlag := fs.String("oauth-issuer", "", "OAuth authorization server for @mcp_auth(\"oauth2\") tools on /mcp/connect/")
 	serverInfoFlag := fs.String("server-info", "", "Service identity for MCP serverInfo, the A2A card version and OpenAPI info.version: name=N,title=T,version=V (default name ailang-api, version = this binary)")
 	mcpConnectOnlyFlag := fs.Bool("mcp-connect-only", false, "Serve tools only on /mcp/connect/, each behind the OAuth Bearer gate: no /mcp/, and plain HTTP serves @nomcp routes only")
+	mcpSubjectRPMFlag := fs.Int("mcp-subject-rpm", 0, "Gated /mcp/connect/ tool calls allowed per verified subject per minute (429 + Retry-After beyond it; needs an identity @mcp_token_verifier). 0 = off")
+	mcpSubjectBurstFlag := fs.Int("mcp-subject-burst", 0, "Burst for --mcp-subject-rpm (default: the rpm value)")
 	helpFlag := fs.Bool("help", false, "Show help for serve-api command")
 	maxMemoryFlag := fs.String("max-memory", "", "Go soft memory limit: a size (256MB, 1GB) or 'cgroup' (the container limit x 0.9). Unset = AILANG_MEMLIMIT, else none.")
 	logLevelFlag := fs.String("log-level", "", "Minimum log level for Debug output (debug, info, warn, error, none)")
@@ -89,6 +91,9 @@ func serveAPICommand(args []string) error {
 	}
 	if *mcpConnectOnlyFlag && *mcpFlag {
 		return fmt.Errorf("--mcp-connect-only is an HTTP mode; it cannot be combined with --mcp (stdio)")
+	}
+	if (*mcpSubjectRPMFlag != 0 || *mcpSubjectBurstFlag != 0) && *mcpFlag {
+		return fmt.Errorf("--mcp-subject-rpm limits gated /mcp/connect/ calls; it cannot be combined with --mcp (stdio)")
 	}
 
 	if fs.NArg() < 1 {
@@ -205,6 +210,9 @@ func serveAPICommand(args []string) error {
 		ServerInfo:     serverInfo,
 		WS:             wsCfg,
 
+		MCPSubjectRPM:   *mcpSubjectRPMFlag,
+		MCPSubjectBurst: *mcpSubjectBurstFlag,
+
 		NoIntrospection: *noIntrospectionFlag,
 		StaticCache:     staticCache,
 		StaticHeaders:   apiserver.StaticHeaderOptions{Disabled: *noStaticSecurity, Headers: staticHeaders},
@@ -283,6 +291,9 @@ func printServeAPIHelp() {
 	fmt.Println("  --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)")
 	fmt.Println("  --oauth-issuer URL   OAuth authorization server for @mcp_auth(\"oauth2\") tools on /mcp/connect/")
 	fmt.Println("  --mcp-connect-only   Tools only on /mcp/connect/, all behind the Bearer gate (no /mcp/; HTTP serves @nomcp routes only)")
+	fmt.Println("  --mcp-subject-rpm N  Gated /mcp/connect/ calls per verified subject per minute; beyond it 429 + Retry-After")
+	fmt.Println("                       before the tool runs. Needs a verifier returning Option[{subject, client_id, scopes}]")
+	fmt.Println("  --mcp-subject-burst N  Burst for --mcp-subject-rpm (default: the rpm value)")
 	fmt.Println("  --process-timeout D  Process exec timeout (default 30s; needs --caps Process)")
 	fmt.Println("  --process-allowlist L  Commands Process may exec: cmd or cmd:sub, comma-separated (default: any on PATH)")
 	fmt.Println("  --server-info S      Service identity: name=N,title=T,version=V (any subset; values without commas).")

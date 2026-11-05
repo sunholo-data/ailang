@@ -36,26 +36,59 @@ const (
 // token could not be checked, which is distinct from a rejected token.
 type VerifyFunc func(ctx context.Context, token string) (bool, error)
 
+// Identity is who a verified Bearer token belongs to
+// (M-MCP-OAUTH-CLIENT-MODELS D5): the verifier's subject, the OAuth client the
+// token was issued to, and its scopes.
+type Identity struct {
+	Subject  string   `json:"subject"`
+	ClientID string   `json:"client_id"`
+	Scopes   []string `json:"scopes"`
+}
+
+// IdentityVerifyFunc returns the identity a Bearer token carries, or nil for a
+// rejected token. An error means the token could not be checked.
+type IdentityVerifyFunc func(ctx context.Context, token string) (*Identity, error)
+
 // BearerGate admits or refuses a request for a gated tool. It fails closed:
-// only an explicit true from the verifier admits.
+// only an explicit true from a bool verifier, or an identity with a non-empty
+// subject from an identity verifier, admits.
 type BearerGate struct {
-	verify      VerifyFunc
+	verify      IdentityVerifyFunc
+	identity    bool // built by NewIdentityGate: AdmitCallIdentity returns the identity
 	metadataURL func(*http.Request) string
 	timeout     time.Duration
 	slots       chan struct{}
 }
 
-// NewBearerGate builds a gate. metadataURL returns the protected-resource
-// metadata URL named in the challenge. Zero timeout or maxInFlight take the
-// defaults.
+// NewBearerGate builds a gate around a bool verifier. metadataURL returns the
+// protected-resource metadata URL named in the challenge. Zero timeout or
+// maxInFlight take the defaults. Its AdmitCallIdentity admits with a nil
+// identity: a bool verifier names no subject.
 func NewBearerGate(verify VerifyFunc, metadataURL func(*http.Request) string, timeout time.Duration, maxInFlight int) *BearerGate {
+	return newGate(func(ctx context.Context, token string) (*Identity, error) {
+		ok, err := verify(ctx, token)
+		if err != nil || !ok {
+			return nil, err
+		}
+		return &Identity{}, nil
+	}, false, metadataURL, timeout, maxInFlight)
+}
+
+// NewIdentityGate builds a gate around an identity verifier
+// (M-MCP-OAUTH-CLIENT-MODELS D5). A nil identity, or one whose Subject is
+// empty, is a rejected token (401), never an anonymous admit.
+func NewIdentityGate(verify IdentityVerifyFunc, metadataURL func(*http.Request) string, timeout time.Duration, maxInFlight int) *BearerGate {
+	return newGate(verify, true, metadataURL, timeout, maxInFlight)
+}
+
+func newGate(verify IdentityVerifyFunc, identity bool, metadataURL func(*http.Request) string, timeout time.Duration, maxInFlight int) *BearerGate {
 	if timeout <= 0 {
 		timeout = DefaultVerifyTimeout
 	}
 	if maxInFlight <= 0 {
 		maxInFlight = DefaultMaxInFlight
 	}
-	return &BearerGate{verify: verify, metadataURL: metadataURL, timeout: timeout, slots: make(chan struct{}, maxInFlight)}
+	return &BearerGate{verify: verify, identity: identity, metadataURL: metadataURL, timeout: timeout, slots: make(chan struct{}, maxInFlight)}
 }
 
 // Admit returns true when the request may proceed. Otherwise it has written
@@ -76,22 +109,30 @@ func (g *BearerGate) Admit(w http.ResponseWriter, r *http.Request) bool {
 // JSON-RPC tool error ChatGPT reads (see challengeResult). A nil callID
 // writes the plain JSON error body Admit always wrote.
 func (g *BearerGate) AdmitCall(w http.ResponseWriter, r *http.Request, callID json.RawMessage) bool {
+	_, ok := g.AdmitCallIdentity(w, r, callID)
+	return ok
+}
+
+// AdmitCallIdentity is AdmitCall that also returns who was admitted. On a gate
+// built by NewIdentityGate an admit always carries a non-empty Subject; on a
+// NewBearerGate gate the identity is nil. The refusals are AdmitCall's.
+func (g *BearerGate) AdmitCallIdentity(w http.ResponseWriter, r *http.Request, callID json.RawMessage) (*Identity, bool) {
 	token := BearerToken(r.Header.Get("Authorization"))
 	if token == "" {
 		g.challenge(w, r, "", callID)
-		return false
+		return nil, false
 	}
 	select {
 	case g.slots <- struct{}{}:
 	default:
 		writeUnavailable(w, "token verification is saturated")
-		return false
+		return nil, false
 	}
 	ctx, cancel := context.WithTimeout(r.Context(), g.timeout)
 	defer cancel()
 
 	type outcome struct {
-		ok  bool
+		id  *Identity
 		err error
 	}
 	done := make(chan outcome, 1)
@@ -102,8 +143,8 @@ func (g *BearerGate) AdmitCall(w http.ResponseWriter, r *http.Request, callID js
 				done <- outcome{err: fmt.Errorf("token verifier panicked: %v", p)}
 			}
 		}()
-		ok, err := g.verify(ctx, token)
-		done <- outcome{ok: ok, err: err}
+		id, err := g.verify(ctx, token)
+		done <- outcome{id: id, err: err}
 	}()
 
 	select {
@@ -111,16 +152,46 @@ func (g *BearerGate) AdmitCall(w http.ResponseWriter, r *http.Request, callID js
 		switch {
 		case res.err != nil:
 			writeUnavailable(w, "token verification failed")
-			return false
-		case !res.ok:
+			return nil, false
+		case res.id == nil, g.identity && res.id.Subject == "":
 			g.challenge(w, r, "invalid_token", callID)
-			return false
+			return nil, false
 		}
-		return true
+		if !g.identity {
+			return nil, true
+		}
+		return res.id, true
 	case <-ctx.Done():
 		writeUnavailable(w, "token verification timed out")
-		return false
+		return nil, false
 	}
+}
+
+// WriteRateLimited writes a 429 refusal with Retry-After (whole seconds, at
+// least 1). With a callID the body is a JSON-RPC isError tool result, as for
+// a challenge; without one it is the plain JSON error body.
+func WriteRateLimited(w http.ResponseWriter, callID json.RawMessage, retryAfter time.Duration) {
+	secs := int((retryAfter + time.Second - 1) / time.Second)
+	if secs < 1 {
+		secs = 1
+	}
+	w.Header().Set("Retry-After", fmt.Sprint(secs))
+	msg := fmt.Sprintf("Rate limit exceeded for this account: retry after %d s.", secs)
+	if callID == nil {
+		writeJSONError(w, http.StatusTooManyRequests, "rate_limited", msg)
+		return
+	}
+	b, _ := json.Marshal(map[string]any{
+		"jsonrpc": "2.0",
+		"id":      callID,
+		"result": map[string]any{
+			"content": []map[string]any{{"type": "text", "text": msg}},
+			"isError": true,
+		},
+	})
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusTooManyRequests)
+	_, _ = w.Write(b)
 }
 
 func (g *BearerGate) challenge(w http.ResponseWriter, r *http.Request, errCode string, callID json.RawMessage) {

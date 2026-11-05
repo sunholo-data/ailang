@@ -3,6 +3,7 @@ package apiserver
 import (
 	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"io"
@@ -28,11 +29,15 @@ const (
 
 // tokenVerifier locates the server's one @mcp_token_verifier function.
 type tokenVerifier struct {
-	modPath string
-	name    string
+	modPath  string
+	name     string
+	identity bool // returns Option[identity record], not bool (M-MCP-OAUTH-CLIENT-MODELS D5)
 }
 
-// resolveTokenVerifier finds the single (string) -> bool verifier across the
+// verifierShapes names the two accepted @mcp_token_verifier signatures.
+const verifierShapes = "(token: string) -> bool or (token: string) -> Option[" + identityShape + "]"
+
+// resolveTokenVerifier finds the single token verifier across the
 // loaded modules. It returns (nil, nil) when there is none, and an error when
 // there are several or the one found has the wrong signature: either way no
 // @mcp_auth("oauth2") tool can be registered.
@@ -44,7 +49,7 @@ func resolveTokenVerifier(modules map[string]*ModuleInfo) (*tokenVerifier, error
 			if !e.IsTokenVerifier {
 				continue
 			}
-			found = append(found, tokenVerifier{modPath: modPath, name: e.Name})
+			found = append(found, tokenVerifier{modPath: modPath, name: e.Name, identity: e.VerifierIdentity})
 			if !e.VerifierSigOK {
 				badSig = append(badSig, modPath+"/"+e.Name)
 			}
@@ -61,7 +66,7 @@ func resolveTokenVerifier(modules map[string]*ModuleInfo) (*tokenVerifier, error
 		sort.Strings(names)
 		return nil, fmt.Errorf("@mcp_token_verifier: %d verifiers (%s); a server has exactly one", len(found), strings.Join(names, ", "))
 	case len(badSig) > 0:
-		return nil, fmt.Errorf("@mcp_token_verifier %s: signature must be (token: string) -> bool ! {...}", badSig[0])
+		return nil, fmt.Errorf("@mcp_token_verifier %s: signature must be %s, with any effect row", badSig[0], verifierShapes)
 	}
 	return &found[0], nil
 }
@@ -79,7 +84,7 @@ func validateMCPAuth(e ExportInfo, issuer string, verifier *tokenVerifier, verif
 			return fmt.Errorf("@mcp_auth(%q): %v", mcpAuthOAuth2, verifierErr)
 		}
 		if verifier == nil {
-			return fmt.Errorf("@mcp_auth(%q) needs one @mcp_token_verifier function (token: string) -> bool", mcpAuthOAuth2)
+			return fmt.Errorf("@mcp_auth(%q) needs one @mcp_token_verifier function %s", mcpAuthOAuth2, verifierShapes)
 		}
 	default:
 		return fmt.Errorf("@mcp_auth(%q): unknown scheme; supported: %q, %q", e.MCPAuth, mcpAuthOAuth2, mcpAuthNoAuth)
@@ -157,7 +162,7 @@ func isSecretParam(e ExportInfo, name string) bool {
 func hasListedSurface(modules map[string]*ModuleInfo) bool {
 	for _, info := range modules {
 		for _, e := range info.Exports {
-			if e.MCPAuth != "" || len(e.MCPSecret) > 0 || e.IsAgentOnly || e.IsTokenVerifier {
+			if e.MCPAuth != "" || len(e.MCPSecret) > 0 || e.IsAgentOnly || e.IsTokenVerifier || e.NeedsIdentity {
 				return true
 			}
 		}
@@ -189,7 +194,7 @@ func (s *Server) ValidateMCPConnectOnly() error {
 		return fmt.Errorf("--mcp-connect-only: %w", err)
 	}
 	if v == nil {
-		return errors.New("--mcp-connect-only needs one @mcp_token_verifier function (token: string) -> bool")
+		return errors.New("--mcp-connect-only needs one @mcp_token_verifier function " + verifierShapes)
 	}
 	return nil
 }
@@ -201,8 +206,8 @@ func (s *Server) ValidateMCPConnectOnly() error {
 // gate's slot cap bounds that case instead.
 func (ms *MCPServer) verifyToken(ctx context.Context, token string) (bool, error) {
 	v := ms.verifier
-	if v == nil {
-		return false, errors.New("no @mcp_token_verifier")
+	if v == nil || v.identity {
+		return false, errors.New("no bool @mcp_token_verifier")
 	}
 	res, err := ms.server.engine.CallPrepared(func(eff interface{}) {
 		if ec, ok := eff.(*effects.EffContext); ok {
@@ -226,9 +231,19 @@ func (ms *MCPServer) verifyToken(ctx context.Context, token string) (bool, error
 // gatedHandler puts the Bearer gate in front of the listed surface. Only a
 // tools/call naming a gated tool is checked; initialize, tools/list and open
 // tools pass straight through. The body is read once (bounded by the
-// server's upload limit) and restored for the MCP handler.
+// server's upload limit) and restored for the MCP handler. With an identity
+// verifier the gate also stamps identityHeader and applies the per-subject
+// limit (mcp_identity.go).
 func (ms *MCPServer) gatedHandler(next http.Handler, maxBody int64) http.Handler {
-	gate := protocol.NewBearerGate(ms.verifyToken, listedMetadataURL, 0, 0)
+	identity := ms.verifier != nil && ms.verifier.identity
+	var gate *protocol.BearerGate
+	var limit *IPRateLimiter
+	if identity {
+		gate = protocol.NewIdentityGate(ms.verifyIdentity, listedMetadataURL, 0, 0)
+		limit = ms.server.subjectLimit.limiter()
+	} else {
+		gate = protocol.NewBearerGate(ms.verifyToken, listedMetadataURL, 0, 0)
+	}
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || len(ms.gated) == 0 {
 			next.ServeHTTP(w, r)
@@ -240,13 +255,18 @@ func (ms *MCPServer) gatedHandler(next http.Handler, maxBody int64) http.Handler
 			return
 		}
 		r.Body = io.NopCloser(bytes.NewReader(body))
+		var firstID json.RawMessage
+		gatedCalls := 0
 		for _, c := range protocol.ToolCalls(body) {
 			if ms.gated[c.Name] {
-				if !gate.AdmitCall(w, r, c.ID) {
-					return
+				if gatedCalls == 0 {
+					firstID = c.ID
 				}
-				break
+				gatedCalls++
 			}
+		}
+		if gatedCalls > 0 && !admitGated(gate, identity, limit, gatedCalls, w, r, firstID) {
+			return
 		}
 		next.ServeHTTP(w, r)
 	})
@@ -315,7 +335,7 @@ func (s *Server) mountMCP(mux *http.ServeMux) {
 	// public service it would bypass the Bearer gate.
 	if !s.mcpConnectOnly {
 		mcpSrv := NewMCPServer(s)
-		agent := http.StripPrefix("/mcp", mcpSrv.HTTPHandler())
+		agent := withoutIdentityHeader(http.StripPrefix("/mcp", mcpSrv.HTTPHandler()))
 		mux.Handle("/mcp/", agent)
 		mux.Handle("/mcp", bareListed(agent, "/mcp/"))
 	}
@@ -326,6 +346,11 @@ func (s *Server) mountMCP(mux *http.ServeMux) {
 		var h http.Handler = http.StripPrefix(strings.TrimSuffix(listedMCPPath, "/"), listed.HTTPHandler())
 		if len(listed.gated) > 0 {
 			h = listed.gatedHandler(h, s.maxUploadSize)
+		}
+		// Outermost: a client-sent identity header never reaches the gate,
+		// a tool or a _headers binding.
+		h = withoutIdentityHeader(h)
+		if len(listed.gated) > 0 {
 			mux.HandleFunc(protectedResourceRoot, s.handleProtectedResource)
 			mux.HandleFunc(protectedResourcePath, s.handleProtectedResource)
 			mux.HandleFunc(protectedResourcePathBare, s.handleProtectedResource)

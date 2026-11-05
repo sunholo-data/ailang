@@ -254,6 +254,7 @@ func extractMCPNameAnnotations(modInfo *ModuleInfo, file *ast.File) {
 // enforce is that a body stays within its DECLARED row, so an empty row with no
 // row variable is a real proof.
 func extractMCPToolMetaAnnotations(modInfo *ModuleInfo, file *ast.File) {
+	aliases := recordAliases(file)
 	for _, fn := range file.Funcs {
 		title := fn.GetAnnotation("mcp_title")
 		hints := fn.GetAnnotation("mcp_hints")
@@ -289,8 +290,7 @@ func extractMCPToolMetaAnnotations(modInfo *ModuleInfo, file *ast.File) {
 				if e.RoutePath == "" {
 					e.IsNoExpose = true
 				}
-				e.VerifierSigOK = len(fn.Params) == 1 && paramTypeToString(fn.Params[0].Type) == "string" &&
-					fn.ReturnType != nil && paramTypeToString(fn.ReturnType) == "bool"
+				e.VerifierSigOK, e.VerifierIdentity = verifierSignature(fn, aliases)
 			}
 			break
 		}

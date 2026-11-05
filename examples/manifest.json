@@ -12,6 +12,14 @@
       "modules": []
     },
     {
+      "path": "runnable/serve_api_mcp_identity.ail",
+      "status": "working",
+      "tags": ["serve-api", "mcp", "oauth", "identity"],
+      "description": "Identity-returning @mcp_token_verifier and a tool bound to the signed-in subject through _auth (served only on the gated /mcp/connect/)",
+      "modules": ["std/io", "std/option", "std/string"],
+      "expected": {"stdout": "signed in as alice via https://client.example/metadata.json\ntrue\n", "exit_code": 0}
+    },
+    {
       "path": "runnable/explicit_empty_callback_contracts.ail",
       "status": "working",
       "tags": ["effects", "callbacks", "pure", "regression"],
@@ -3715,11 +3723,11 @@
     }
   ],
   "statistics": {
-    "total": 253,
-    "working": 245,
+    "total": 254,
+    "working": 246,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9683794466403162,
+    "coverage": 0.968503937007874,
     "experimental": 0
   },
   "milestones": {

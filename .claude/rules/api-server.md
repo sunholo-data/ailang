@@ -50,6 +50,12 @@ A third narrowing is server-wide and applies to HTTP only: under `--mcp-connect-
 next to the gateway in `authorized_surface.go` (`connectOnlyHidden`). HTTP consumers must call
 `s.isExposed`, not `loadedExportMember`, or they bypass it.
 
+A fourth is per export: a declared `_auth` param (`ExportInfo.NeedsIdentity`,
+`mcp_identity.go`) binds only from the Bearer gate's verified identity, so the export is
+served only as a gated tool on `/mcp/connect/`. `isExposed` drops it from HTTP and
+`registerTools` drops it from `/mcp/` and stdio. `loadedExportMember` admits it under
+`--routes-only` (declaring `_auth` is as explicit as `@route`, which it may not carry).
+
 `@mcp_secret` is not a narrowing: it reshapes the schema (the param is dropped and
 zero-bound) on the listed surface only. Protocol consumers must not add any other
 authority filtering or fold either narrowing into the shared membership gateway.

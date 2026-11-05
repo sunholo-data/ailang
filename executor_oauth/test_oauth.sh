@@ -11,7 +11,9 @@
 #
 # Checks: no ungated way to a tool (/mcp/, the @route, the /api/ catch-all);
 # the 401 challenge and both metadata documents; authorize -> sign-in -> code
-# -> token; the token runs ailang_eval; a refresh rotates it; a domain outside
+# -> token; the token runs ailang_eval; executor_whoami sees the signed-in
+# account through _auth (forged _auth/identity header ignored; serve-api runs
+# with --mcp-subject-rpm); a refresh rotates it; a domain outside
 # the allowlist cannot sign in; the server log names the account and never the
 # token; and the test seam is shut when K_SERVICE is set (as on Cloud Run).
 set -uo pipefail
@@ -37,6 +39,7 @@ start_server() { # extra env as args, e.g. K_SERVICE=x
     EXECUTOR_POLICY="$ROOT/docker/executor-policy.toml" EXECUTOR_AILANG_BIN="$(command -v "$AILANG")" \
     EXECUTOR_WORK_DIR="$(mktemp -d)" AILANG_RELAX_MODULES=1 AILANG_TRACE_VALUES=off AILANG_NO_CACHE=1 \
     "$AILANG" serve-api --port "$P" --mcp-http --routes-only --mcp-connect-only --oauth-issuer "$BASE" \
+      --mcp-subject-rpm "${SUBJECT_RPM:-120}" \
       --caps Clock,FS,Env,IO,Net,Process,Rand --static executor_oauth/static \
       --process-timeout 90s --process-allowlist "$(command -v "$AILANG"):eval,$(command -v "$AILANG"):run,$(command -v "$AILANG"):ai-check,$(command -v "$AILANG"):prompt,$(command -v "$AILANG"):builtins" \
       mcp_tools/ executor_tools/ executor_oauth/ >"$LOG" 2>&1) &
@@ -104,6 +107,17 @@ R=$(mcp "$ACCESS" tools/call "$EVAL")
 [[ "$R" == *HTTP200* && "$R" == *42* ]] && pass "token runs ailang_eval" || fail "token runs ailang_eval" "$R"
 R=$(mcp "ax_0000000000000000000000000000000000000000000000000000000000000000" tools/call "$EVAL")
 [[ "$R" == *HTTP401* ]] && pass "unknown token -> 401" || fail "unknown token -> 401" "$R"
+# The tool sees the signed-in account (_auth, from the verifier), and a
+# forged _auth argument or X-Ailang-Mcp-Identity header changes nothing.
+WHO='{"name":"executor_whoami","arguments":{"_auth":{"subject":"mallory","client_id":"https://evil.example/c","scopes":[]}}}'
+R=$(curl -s -w '\nHTTP%{http_code}' -X POST "$BASE/mcp/connect/" -H 'content-type: application/json' \
+  -H 'accept: application/json, text/event-stream' -H "Authorization: Bearer $ACCESS" \
+  -H 'X-Ailang-Mcp-Identity: {"subject":"mallory","client_id":"x","scopes":[]}' \
+  -d "{\"jsonrpc\":\"2.0\",\"id\":1,\"method\":\"tools/call\",\"params\":$WHO}")
+[[ "$R" == *HTTP200* && "$R" == *'test:dev@sunholo.com'* && "$R" == *claude.ai* && "$R" != *mallory* ]] \
+  && pass "tool sees the signed-in account" || fail "tool sees the signed-in account" "$R"
+R=$(mcp "" tools/call "$WHO")
+[[ "$R" == *HTTP401* ]] && pass "whoami without token -> 401" || fail "whoami without token -> 401" "$R"
 
 # --- Refresh rotates ---
 TOK2=$(curl -s -X POST "$BASE/oauth/token" --data-urlencode grant_type=refresh_token --data-urlencode "refresh_token=$REFRESH" --data-urlencode "client_id=$CLIENT")

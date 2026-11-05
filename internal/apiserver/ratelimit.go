@@ -47,8 +47,16 @@ func NewIPRateLimiter(rpm int, burst int) *IPRateLimiter {
 // Allow consumes a token for ip. Empty ip is bucketed as "unknown" so
 // header-less probes still hit a cap rather than bypassing it.
 func (l *IPRateLimiter) Allow(ip string) bool {
+	ok, _ := l.AllowAfter(ip)
+	return ok
+}
+
+// AllowAfter is Allow that also says, on a refusal, how long until the key's
+// next token: the Retry-After of a 429. The per-subject MCP limit
+// (M-MCP-OAUTH-CLIENT-MODELS D6) keys it on the verified subject.
+func (l *IPRateLimiter) AllowAfter(ip string) (bool, time.Duration) {
 	if l == nil {
-		return true
+		return true, 0
 	}
 	if ip == "" {
 		ip = "unknown"
@@ -80,9 +88,9 @@ func (l *IPRateLimiter) Allow(ip string) bool {
 
 	if b.tokens >= 1.0 {
 		b.tokens -= 1.0
-		return true
+		return true, 0
 	}
-	return false
+	return false, time.Duration((1.0 - b.tokens) / l.rate * float64(time.Second))
 }
 
 // sweepLocked drops idle buckets so a steady stream of unique IPs cannot

@@ -95,6 +95,7 @@ type Server struct {
 	staticHeaders   StaticHeaderOptions
 	staticCache     string         // --static-cache: the Cache-Control value for --static 2xx/304 ("" = none)
 	identity        ServerIdentity // --server-info (empty fields = DefaultServerInfo)
+	subjectLimit    subjectLimit   // --mcp-subject-rpm/--mcp-subject-burst (mcp_identity.go)
 }
 
 // ModuleInfo holds metadata about a loaded AILANG module.
@@ -181,6 +182,11 @@ type Config struct {
 	// both surfaces, the A2A card version and OpenAPI info.version. Empty
 	// fields take DefaultServerInfo. M-MCP-OAUTH-CLIENT-MODELS D7.
 	ServerInfo ServerIdentity
+	// MCPSubjectRPM / MCPSubjectBurst limit gated /mcp/connect/ calls per
+	// verified subject (--mcp-subject-rpm/--mcp-subject-burst; 0 = off).
+	// They need an identity verifier. M-MCP-OAUTH-CLIENT-MODELS D6.
+	MCPSubjectRPM   int
+	MCPSubjectBurst int
 }
 
 // New creates a new API server.
@@ -264,6 +270,7 @@ func New(basePath string, cfg Config) *Server {
 		ws:                 newWSState(cfg.WS),
 		noIntrospection:    cfg.NoIntrospection,
 		identity:           cfg.ServerInfo,
+		subjectLimit:       subjectLimit{rpm: cfg.MCPSubjectRPM, burst: cfg.MCPSubjectBurst},
 		staticCache:        cfg.StaticCache,
 		staticHeaders:      cfg.StaticHeaders,
 	}
@@ -462,6 +469,9 @@ func (s *Server) Start() error {
 		return err
 	}
 	if err := s.ValidateMCPConnectOnly(); err != nil {
+		return err
+	}
+	if err := s.ValidateMCPIdentity(); err != nil {
 		return err
 	}
 	mux := s.buildRoutes()

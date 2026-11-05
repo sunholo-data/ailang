@@ -120,7 +120,7 @@ be in `executor_mcp_invokers`. claude.ai and Claude Desktop connectors need OAut
 
 - **User OAuth: deployed in dev (design phase P1b, D7), sign-in limited to `sunholo.com`.** Our
   own sign-in server is `executor_oauth/`, on `sunholo/mcp_oauth` 0.1.2 (docparse's issuer is not
-  reused: its tokens are docparse API keys). Run `executor_oauth/test_oauth.sh` locally (21 checks).
+  reused: its tokens are docparse API keys). Run `executor_oauth/test_oauth.sh` locally (23 checks).
   - a second Cloud Run service, `ailang-dev-executor-mcp-oauth`, from the same image, publicly
     reachable, run with serve-api `--mcp-connect-only`: no `/mcp/`, every tool on
     `/mcp/connect/` behind the Bearer verifier, HTTP serves only the OAuth routes and sign-in page;
@@ -129,7 +129,11 @@ be in `executor_mcp_invokers`. claude.ai and Claude Desktop connectors need OAut
     (no header: it opens the browser sign-in);
   - this IAM-only service stays as it is for GE's service-agent path;
   - who may sign in: `sunholo.com` only in dev; everyone in prod, with a per-user rate limit
-    shipped before the prod promote;
+    shipped before the prod promote. The limit shipped in serve-api (M-MCP-OAUTH-CLIENT-MODELS
+    M2): `verifyMcpToken` returns the account as the identity, the service runs with
+    `--mcp-subject-rpm`, and `executor_whoami` shows the signed-in account. The multivac
+    Terraform `args` and the empty-allowlist precondition change once a release with the flag
+    is in the image;
   - to use OAuth from GE instead, put the sign-in server's authorization and token URLs in the
     connector form, set the redirect to `https://vertexaisearch.cloud.google.com/oauth-redirect`,
     and add the OAuth service's host to `allowed_egress_fqdns` (multivac `terraform-gemini-enterprise`).

@@ -37,8 +37,13 @@ type ExportInfo struct {
 	// @mcp_token_verifier: the server's one Bearer-token verifier. Never a
 	// tool (IsNoMCP) and, without @route, never an HTTP endpoint (IsNoExpose):
 	// exposed, it would be a token-guessing oracle.
-	IsTokenVerifier      bool     `json:"-"`
-	VerifierSigOK        bool     `json:"-"`                     // declared signature is exactly (string) -> bool
+	IsTokenVerifier  bool `json:"-"`
+	VerifierSigOK    bool `json:"-"` // declared signature is (string) -> bool or (string) -> Option[identity record]
+	VerifierIdentity bool `json:"-"` // the verifier returns Option[{subject, client_id, scopes}] (M-MCP-OAUTH-CLIENT-MODELS D5)
+	// NeedsIdentity: a declared _auth param, bound only from the verified
+	// identity. Such an export is served only on the gated /mcp/connect/
+	// (mcp_identity.go); every other surface omits it.
+	NeedsIdentity        bool     `json:"-"`
 	Optional             []string `json:"optional,omitempty"`    // @optional annotation: params not required on MCP (absent/null → zero value)
 	DocComment           string   `json:"doc_comment,omitempty"` // doc comment (-- lines) preceding the function
 	IsWS                 bool     `json:"is_ws,omitempty"`       // @route("WS", ...): a WebSocket route, off every HTTP/MCP/A2A surface

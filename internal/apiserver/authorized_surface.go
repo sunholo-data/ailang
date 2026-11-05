@@ -8,14 +8,23 @@ func loadedExportMember(routesOnly bool, export ExportInfo) bool {
 	if export.IsNoExpose || export.IsWS {
 		return false
 	}
-	return !routesOnly || export.RoutePath != ""
+	// --routes-only keeps undeclared helpers off every surface; @route and an
+	// _auth param are both explicit declarations. An _auth export cannot take
+	// @route (it is served only on the gated /mcp/connect/), so without this
+	// a --routes-only service could never serve one (the executor runs both).
+	return !routesOnly || export.RoutePath != "" || export.NeedsIdentity
 }
 
 // isExposed is the HTTP projection of the loaded-export gateway: function
 // dispatch, @route registration, OpenAPI, A2A and _meta. It is the gateway
-// narrowed by connectOnlyHidden; the MCP surfaces use loadedExportMember.
+// narrowed by connectOnlyHidden and by NeedsIdentity; the MCP surfaces use
+// loadedExportMember.
+//
+// An export that declares _auth is never on HTTP: _auth binds only from the
+// verified identity of a gated /mcp/connect/ call (mcp_identity.go), and no
+// HTTP path has one. The MCP agent surface omits it in registerTools.
 func (s *Server) isExposed(export ExportInfo) bool {
-	return loadedExportMember(s.routesOnly, export) && !s.connectOnlyHidden(export)
+	return loadedExportMember(s.routesOnly, export) && !s.connectOnlyHidden(export) && !export.NeedsIdentity
 }
 
 // connectOnlyHidden reports whether --mcp-connect-only keeps export off plain

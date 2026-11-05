@@ -159,6 +159,10 @@ func (ms *MCPServer) registerTools() {
 			if ms.listed && export.IsAgentOnly {
 				continue // @mcp_agent_only: on /mcp/, not on the listed surface
 			}
+			if export.NeedsIdentity && !ms.listed {
+				logIdentityOmitted(modPath, export) // _auth: only the gated listed surface
+				continue
+			}
 
 			dedupKey := export.Name + "|" + export.Type
 			candidate := toolCandidate{modPath, export}
@@ -253,6 +257,10 @@ func (ms *MCPServer) registerTools() {
 		}
 
 		if err := validateMCPAuth(export, ms.server.oauthIssuer, verifier, verifierErr); err != nil {
+			log.Printf("  ERROR: skipping MCP tool registration for %s/%s: %v", c.modPath, export.Name, err)
+			continue
+		}
+		if err := authParamIssue(export, ms.server.mcpConnectOnly, verifier, verifierErr); err != nil {
 			log.Printf("  ERROR: skipping MCP tool registration for %s/%s: %v", c.modPath, export.Name, err)
 			continue
 		}
@@ -402,7 +410,7 @@ func (ms *MCPServer) makeToolHandler(modulePath string, export ExportInfo) mcp.T
 			var missing []string
 			args = make([]any, len(paramNames))
 			for i, name := range paramNames {
-				if name == headersParam || isUnitParamType(paramTypeAt(export, i)) {
+				if name == headersParam || name == authParam || isUnitParamType(paramTypeAt(export, i)) {
 					continue // bound below / nil = Unit
 				}
 				v, present := argMap[name]
@@ -449,9 +457,16 @@ func (ms *MCPServer) makeToolHandler(modulePath string, export ExportInfo) mcp.T
 				if extra := req.GetExtra(); extra != nil && extra.Header != nil {
 					h = extra.Header.Clone()
 					h.Del(publicBaseHeader) // serve-api's own, not the client's
+					h.Del(identityHeader)   // the gate's; the tool reads it as _auth
 				}
 				args[i] = stringMapToJObject(h)
 			}
+		}
+
+		// _auth: the gate's verified identity, never the client's value.
+		args, authErr := bindAuthArg(export, args, req)
+		if authErr != nil {
+			return mcpError(authErr.Error()), nil
 		}
 
 		// Bind after files, defaults, secrets and headers have been resolved.
@@ -529,7 +544,7 @@ func buildNamedInputSchema(export ExportInfo) map[string]any {
 			optional[name] = true
 		}
 		for i, name := range export.ParamNames {
-			if name == headersParam || isUnitParamType(paramTypeAt(export, i)) {
+			if name == headersParam || name == authParam || isUnitParamType(paramTypeAt(export, i)) {
 				continue // bound by the server, never supplied by the client
 			}
 			prop := map[string]any{

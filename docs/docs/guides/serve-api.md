@@ -488,7 +488,7 @@ mounts a second MCP endpoint:
 | Annotation | Effect |
 |---|---|
 | `@mcp_auth("oauth2")` | On `/mcp/connect/`, a call without an accepted Bearer token gets **HTTP 401 + `WWW-Authenticate: Bearer resource_metadata="…"`**, which starts the client's sign-in. Needs `--oauth-issuer` and a verifier, or the tool is not registered (ERROR). |
-| `@mcp_token_verifier` | The one `(token: string) -> bool` function `serve-api` calls with the Bearer token. It is never a tool, and without `@route` never an HTTP endpoint. |
+| `@mcp_token_verifier` | The one function `serve-api` calls with the Bearer token: `(token: string) -> bool`, or `(token: string) -> Option[{subject: string, client_id: string, scopes: [string]}]` to name who signed in (`None`, or an empty `subject`, is a 401). The record may be inline or a record type in the same module. It is never a tool, and without `@route` never an HTTP endpoint. |
 | `@mcp_secret("apiKey")` | The param is dropped from `/mcp/connect/` and binds its zero value even if a client sends it. It must also be `@optional`. |
 | `@mcp_agent_only` | The tool is on `/mcp/` only (for example, device-code sign-in tools). |
 
@@ -505,6 +505,27 @@ anonymous caller runs with `--mcp-connect-only`:
 `tools/list` stays open, because directory clients list tools before signing in. Startup fails
 without `--mcp-http`, without `--oauth-issuer`, without an `@mcp_token_verifier`, or with `--a2a`.
 The hosted AILANG executor's public service uses it (`executor_oauth/`).
+
+**The signed-in identity in a tool: `_auth`.** With an identity verifier, a tool that declares
+`_auth: {subject: string, client_id: string, scopes: [string]}` (inline or a same-module record
+type) receives the verified identity. See `examples/runnable/serve_api_mcp_identity.ail`.
+
+- `_auth` is bound only from the gate's verified result. It is never in `inputSchema`, and an
+  `_auth` argument or `X-Ailang-Mcp-Identity` header sent by the client is overwritten or deleted.
+- The tool is served **only** as a gated tool on `/mcp/connect/`. It is not on `/mcp/`, stdio,
+  REST, OpenAPI, A2A or `_meta` (one startup line names each omission), so it never runs without
+  an identity. `--routes-only` still serves it: declaring `_auth` is as explicit as `@route`.
+- Load errors: `_auth` with `@mcp_auth("noauth")`, `@route`, `@nomcp`, `@mcp_agent_only`,
+  `@optional`, `@mcp_secret`, `@mcp_file` or `@mcp_ui_resource`, or a record that is not exactly
+  the three fields. Startup errors: an `_auth` tool that is not gated (no `@mcp_auth("oauth2")`
+  and no `--mcp-connect-only`), or a bool verifier.
+- Scope checks are the tool's job: read `_auth.scopes`.
+
+**Per-subject rate limit: `--mcp-subject-rpm N` (and `--mcp-subject-burst N`, default N).** After a
+successful verify, each gated call spends one token from the verified subject's bucket. Beyond it the
+call gets **HTTP 429 + `Retry-After`** before the tool runs; other subjects are unaffected. It needs
+`--mcp-http` and an identity verifier: with a bool verifier there is no subject, so startup fails.
+The buckets live in the process, so behind N instances the cap is soft by a factor of N.
 
 **Fail-closed verification.** A verifier error, a panic, more than **5 s**, or more than 32
 verifications in flight gives **HTTP 503 + `Retry-After`**, and the tool never runs. The 5 s
@@ -1096,7 +1117,7 @@ Custom routes are registered before the auto-generated catch-all routes, so they
 | `@mcp_title("Title")` | MCP display title (directory listings require one) |
 | `@mcp_hints("readOnly", ...)` | MCP behaviour hints: `readOnly`, `destructive`, `idempotent`, `openWorld` — the complete list (absent = false) |
 | `@mcp_auth("oauth2")` | Gate the tool behind OAuth on the listed surface `/mcp/connect/` (needs `--oauth-issuer` + `@mcp_token_verifier`) |
-| `@mcp_token_verifier` | The `(token: string) -> bool` Bearer-token verifier; never a tool or HTTP endpoint |
+| `@mcp_token_verifier` | The Bearer-token verifier, `(token: string) -> bool` or `-> Option[{subject, client_id, scopes}]`; never a tool or HTTP endpoint |
 | `@mcp_secret("p")` | Drop param `p` from `/mcp/connect/` (must also be `@optional`) |
 | `@mcp_agent_only` | Serve the tool on `/mcp/` only |
 | `@verify(depth: N)` | Runtime contract validation |

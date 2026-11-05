@@ -143,6 +143,9 @@ func (s *Server) registerModule(loaded *loader.LoadedModule) (string, bool, erro
 	if err := extractMCPUIAnnotations(info, loaded.File); err != nil {
 		return "", false, fmt.Errorf("%s: %w", absFile, err)
 	}
+	if err := extractAuthParams(info, loaded.File); err != nil {
+		return "", false, fmt.Errorf("%s: %w", absFile, err)
+	}
 
 	// Write.
 	s.mu.Lock()
