@@ -4030,6 +4030,47 @@ models:
       input_per_1k: 0.0
       output_per_1k: 0.0
 
+  # FINE-TUNE PILOT-1 arms B/C (weekend 2026-11-07/08): the LoRA fine-tune of
+  # gemma-4-12B (adapter fused, imported into ollama as gemma4-12b-ailang-ft1).
+  # Budgets identical to the Phase 0 lanes so only the model differs. Select the
+  # prompt arm with --prompt-version ft-slim-v1 | ft-none (and
+  # AILANG_EVAL_TRAPS_CARD=off). Attended only; NOT for OS_FILLER_MODELS.
+  ollama-gemma4-12b-ft1:
+    api_name: "gemma4-12b-ailang-ft1"
+    provider: "ollama"
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Gemma 4 12B + AILANG LoRA pilot-1 via direct Ollama (standard mode)"
+    env_var: ""
+    model_family: "gemma-4"
+    max_output_tokens: 32000
+    ttft_timeout: 1800
+    generation_timeout: 1800
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+
+  pi-gemma4-12b-ft1:
+    api_name: "gemma4-12b-ailang-ft1"
+    provider: "ollama-rig"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Gemma 4 12B + AILANG LoRA pilot-1 via pi+Ollama (agent mode)"
+    env_var: ""
+    agent_cli: "pi"
+    agent_model_name: "ollama-rig/gemma4-12b-ailang-ft1"
+    model_family: "gemma-4"
+    max_output_tokens: 32000  # PI_WIRE_CLAMP
+    ttft_timeout: 1800
+    generation_timeout: 3600
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+
   # FINE-TUNE PHASE 0 cloud rungs (2026-11-05): open-weight models only (the
   # first-party-via-OpenRouter rule allows gemma). Reference = or-qwen3-8-27b,
   # Gemma 26B MoE = or-gemma-4-26b (both pre-existing).

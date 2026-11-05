@@ -1,0 +1,32 @@
+# Fine-tune pilot-1 LoRA config (m-eval-finetuning-data-pipeline, weekend 2026-11-07/08).
+# Paths (--model, --data, --adapter-path) are passed on the command line by
+# weekend_pilot.sh; mlx-lm fills everything else from this file.
+#
+# Sizing: mix-pilot1 = 2,183 train samples / ~4.8M tokens (1.6M target tokens).
+# 12B 4-bit LoRA measured ~150 tok/s at 16 layers (2026-11-05 tooling check), so
+# one epoch is ~9 h. Top-16-block LoRA on every linear layer (mlx-lm's default
+# keys); rank 16.
+train: true
+fine_tune_type: lora
+mask_prompt: true
+num_layers: 16
+batch_size: 1
+grad_accumulation_steps: 4          # ~546 optimizer updates per epoch
+iters: 2183                         # one epoch at batch 1
+learning_rate: 1.0e-4
+lr_schedule:
+  name: cosine_decay
+  warmup: 25
+  warmup_init: 1.0e-6
+  arguments: [1.0e-4, 546, 1.0e-6]  # [initial, decay steps (optimizer updates), final]
+lora_parameters:
+  rank: 16
+  scale: 20.0
+  dropout: 0.05
+max_seq_length: 8192
+grad_checkpoint: true
+steps_per_report: 20
+steps_per_eval: 250
+val_batches: 52
+save_every: 250
+seed: 7
