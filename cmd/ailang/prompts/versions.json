@@ -1102,6 +1102,40 @@
         "latest"
       ],
       "notes": "Explicit empty callback types are closed pure contracts"
+    },
+    "ft-slim-v1": {
+      "file": "prompts/ft-slim-v1.md",
+      "hash": "e9bab2d687bc5ebf01c1fa5f3777476fa2fced88ae04658dbdd97a21f3f7b172",
+      "description": "Fine-tune arm B: 2.4KB dialect-traps card only (experimental, never active)",
+      "created": "2026-11-05",
+      "tags": [
+        "experimental",
+        "finetune"
+      ],
+      "notes": "m-eval-finetuning-data-pipeline weekend A/B; select with --prompt-version",
+      "frozen": {
+        "at": "2026-11-05",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
+    },
+    "ft-none": {
+      "file": "prompts/ft-none.md",
+      "hash": "e88b1ccf3df5fa696e5e697624c375f980ae96f4a28da0e19619dd31203954a1",
+      "description": "Fine-tune arm C: no teaching prompt, one line (experimental, never active)",
+      "created": "2026-11-05",
+      "tags": [
+        "experimental",
+        "finetune"
+      ],
+      "notes": "m-eval-finetuning-data-pipeline weekend A/B; select with --prompt-version",
+      "frozen": {
+        "at": "2026-11-05",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     }
   },
   "active": "v0.16.11",

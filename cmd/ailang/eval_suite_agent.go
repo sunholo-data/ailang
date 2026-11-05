@@ -38,6 +38,7 @@ type agentSuiteConfigParams struct {
 	browserRegion      string
 	browserMCPVersion  string
 	outputDir          string
+	promptVersion      string // --prompt-version; "" = the active teaching prompt
 }
 
 // buildAgentSuiteConfig assembles the AgentBenchmarkConfig for an agent-mode run
@@ -75,7 +76,11 @@ func buildAgentSuiteConfig(agent bool, p agentSuiteConfigParams) *eval_harness.A
 		browserArtifacts = filepath.Join(p.outputDir, "browser-sessions")
 	}
 
+	if p.promptVersion != "" {
+		fmt.Printf("  - Teaching prompt version: %s (--prompt-version)\n", p.promptVersion)
+	}
 	return &eval_harness.AgentBenchmarkConfig{
+		PromptVersion:      p.promptVersion,
 		MaxTokensPerBench:  p.maxTokensPerBench,
 		ToolPolicy:         p.toolPolicy,
 		PolicyPath:         p.policyFile,

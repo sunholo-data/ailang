@@ -502,3 +502,17 @@ func TestSystemPromptLanguageSeparation(t *testing.T) {
 		t.Error("AILANG system prompt doesn't contain 'AILANG' or 'ailang'")
 	}
 }
+
+// A non-active prompt version requested for an agent run must be the one loaded
+// (and reported), not silently the active prompt.
+func TestGenerateAgentPrompts_UsesRequestedPromptVersion(t *testing.T) {
+	spec := &BenchmarkSpec{ID: "pv", TaskPrompt: "Write a program in <LANG> that prints 1"}
+	cfg := DefaultAgentConfig()
+	_, _, used, err := GenerateAgentPromptsWithSystemPrompt(spec, cfg, "ailang", "v0.16.10", "benchmark/solution.ail")
+	if err != nil {
+		t.Fatalf("generate: %v", err)
+	}
+	if used != "v0.16.10" {
+		t.Fatalf("prompt version used = %q, want v0.16.10", used)
+	}
+}

@@ -191,7 +191,7 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 	}
 
 	// Generate prompts
-	systemPrompt, taskPrompt, promptVersion, err := GenerateAgentPromptsWithSystemPrompt(spec, config.AgentBenchmarkConfig, language, "", solutionPath)
+	systemPrompt, taskPrompt, promptVersion, err := GenerateAgentPromptsWithSystemPrompt(spec, config.AgentBenchmarkConfig, language, config.AgentBenchmarkConfig.PromptVersion, solutionPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate prompts: %w", err)
 	}
