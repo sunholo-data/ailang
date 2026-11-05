@@ -233,21 +233,43 @@ Supersedes §"Data extraction" and §R4 where they conflict. The binding constra
 
 ## Weekend pilot plan (2026-11-06 → 2026-11-08, GPU granted by Mark)
 
-### Friday (CPU only; the GPU stays with the fleet)
+### Friday prep (CPU) — status at 2026-11-05 ~20:30Z: **READY except the untested Ollama load fix**
 
-- [x] **D-FT-1 licence ruling: YES** (Mark, 2026-11-05). Claude and OpenAI trajectories and code are in.
-- [x] **Freeze the held-out set**: `tools/finetune/heldout.json` (12 core + 12 stretch). Phase 0's base-model numbers are re-sliced to it in `tools/finetune/baseline_armA.json`.
-- [ ] **Extractor v0**: a script under `tools/finetune/` (not a new CLI command; respects the simplicity gates). Sources: repo corpus (hash-dedup) · eval passes and repairs (training split) · motoko JSONL · opencode.db · Claude Code sessions (if D-FT-1 = yes). Then re-grade, run the contamination check, map tools to the pi schema, apply loss masks, and emit mlx-lm JSONL with train/valid splits and a per-source count report.
-- [x] **Extractor v0, language half** (`tools/finetune/extract_lang.py`, run 2026-11-05 on v0.57.4-10): **8,241 programs that compile today** in `~/models/finetune/data-v0/`.
-  - **Repo:** 80,411 scanned → 3,684 unique → **1,948 kept (510k lines)**. 681 rejects carry the checker hint "may be stdlib version skew"; re-run with a pinned stdlib to recover them.
-  - **Eval (86 training-split benchmarks):** 8,527 unique passes → **6,293 kept**. ~1,400 fail today because `++` became list-only, plus ~330 parse errors. These **auto-convert into error-to-fix pairs** (old code + current compiler error → fixed code).
-  - **Contamination:** 2 eval + 3 repo programs matching held-out solutions were dropped. Cap per-task samples in the mix (~73 per benchmark on average).
-- [ ] **Count the cloud-executor trajectories** in the prod observatory and chain store, and pull them if they are banked in full.
-- [ ] **G2 back-translation** for repo code (cheap model, < $5, real billed check first).
-- [ ] **G4 prompt variants** `ft-slim-v1` and `ft-none` (standard and agent), as non-active versions. Rebuild into a **private binary**; never `cp` over a live `~/go/bin/ailang`.
-- [x] **Budget-cap fix is live**: `~/go/bin/ailang` is v0.57.4-10-g78104fab65, which contains `c39576ef3` (checked with `git merge-base --is-ancestor`).
-- [ ] **Serving fix on the toy adapter** (~10 min GPU, under the lock): strip the audio/vision sections from the fused `config.json`, then `ollama create` (q8), then one generation through the gateway. If it fails, fall back to an `mlx_lm.server` lane.
-- [ ] **Lanes** for the fine-tune: `ollama-gemma4-12b-ft1` and `pi-gemma4-12b-ft1`, with identical budgets to the Phase 0 lanes. Set `AILANG_OLLAMA_HTTP_TIMEOUT_SEC=1800` for every local run.
+- [x] D-FT-1 = YES (Mark, 2026-11-05).
+- [x] Held-out set `tools/finetune/heldout.json`; arm-A agent baseline in `tools/finetune/baseline_armA.json`.
+- [x] **Language data**: `tools/finetune/extract_lang.py` → 8,241 programs that compile today (repo 1,948 / 510k lines; eval 6,293 from 86 training benchmarks).
+- [x] **Trajectory data**: `tools/finetune/extract_traj.py` → 23,740 samples in pi's tool schema from ~7,860 passing episodes.
+  - By source: Claude Code 616 episodes · motoko 1,300 · opencode 5,907 · pi 41.
+  - 3,303 of the samples are **fix turns** (error → corrected code).
+  - Held-out guard applied; cloud chains (1,115, 397 substantive) **not pulled**: `chains chat --remote` returned no stages for the sampled chain. That is a follow-up.
+- [x] **G2 (task text for repo code)** replaced for pilot 1 by each module's header comment (free; 536 repo samples). Model back-translation is deferred.
+- [x] **Mix** `tools/finetune/build_mix.py` → `~/models/finetune/mix-pilot1`: 2,183 train / 52 valid, **4.79M tokens (1.62M target)**. Contents: 428 fix turns, 610 other trajectory turns, 604 eval programs, 536 repo modules.
+- [x] **Mask bug found and fixed** (`tools/finetune/train.py`). Gemma 4's template adds an empty thinking block to the generation prompt that a finished turn lacks, so stock `--mask-prompt` hid the first 4 target tokens (including `<|tool_call>`) on 1,497 / 2,193 samples. The wrapper trains on exactly the inference-time prompt plus the target. Gate `tools/finetune/check_mix.py` passes with 0 render errors; 5 over-length samples dropped.
+- [x] **Dry run** of `train.py` + `tools/finetune/pilot1.yaml` on the real mix: 4 steps OK, 21.9M trainable params (0.18%), 100–190 tok/s, so **one epoch ≈ 9–11 h**.
+- [x] **Agent mode honours `--prompt-version`** (it hard-coded `""`; fixed + tests, `12fadb210`). Frozen non-active prompts `ft-slim-v1` (2.4 KB traps card) and `ft-none`. Private binary `~/models/finetune/bin/ailang-ft` (v0.57.4-17) embeds both.
+- [x] Lanes `ollama-gemma4-12b-ft1` / `pi-gemma4-12b-ft1` and the pi model id; budget-cap fix live.
+- [x] **Runner** `tools/finetune/weekend_pilot.sh` (resumable stages: preflight → train → serve → B_std, C_std, B_agent, C_agent, A_std → summary) and `tools/finetune/summarize_pilot.py` (kill criterion). Every arm is guarded against the prompt loader's silent fallback to the full prompt.
+- [ ] **Ollama load of the fused model**: built into the `serve` stage (strip audio, then vision config; q8 import; smoke generation) but **untested until the GPU window**. If it fails, the fallback is an `mlx_lm.server` lane.
+- [ ] Not in pilot 1 (follow-ups): error→fix pairs from the ~1,400 stale `++` programs; 681 stdlib-skew repo rejects; cloud-chain transcripts; Python-oracle task generation (G3).
+
+### Start procedure (Friday night, attended)
+
+```bash
+# 1. hold the GPU consumers (hold file + bootout; a bootout alone is undone by rig-watchdog in 60 s)
+mkdir -p ~/.ailang/state/launchd-hold
+for j in dev.ailang.os-rotation-filler dev.ailang.nightly-eval; do
+  echo "finetune pilot-1 weekend (Mark 2026-11-05); release Sunday night" > ~/.ailang/state/launchd-hold/$j
+  launchctl bootout gui/$(id -u)/$j 2>/dev/null || true
+done
+# 2. run (resumable; re-run the same command after any interruption)
+tools/finetune/weekend_pilot.sh            # log: ~/models/finetune/pilot1/weekend.log
+# 3. release (Sunday)
+rm ~/.ailang/state/launchd-hold/dev.ailang.{os-rotation-filler,nightly-eval}
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/dev.ailang.os-rotation-filler.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/dev.ailang.nightly-eval.plist
+```
+
+Daneel's intake defers while the lock is held (training does not yield; mail queues).
 
 ### Friday night → Saturday (GPU)
 
