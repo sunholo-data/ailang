@@ -193,6 +193,82 @@ A real run is a different scale: a pilot on ~2–5k teacher solutions is about 3
 
 **Contamination rule:** never train on the eval benchmarks' own solutions. Teacher data must come from held-out tasks, or the before/after A/B is void. The 2026-11-05 tooling-check adapter (`~/models/finetune/adapters-toolcheck/`) was trained on eval solutions on purpose, as plumbing, and **must never be scored**.
 
+## Data spec (2026-11-05)
+
+Supersedes §"Data extraction" and §R4 where they conflict. The binding constraint is **task diversity, not volume**.
+
+### Inventory (measured on the attended machine, 2026-11-05)
+
+| Source | Size | Use |
+|---|---|---|
+| **AILANG corpus in our repos**: sunholo-data/*, motoko checkouts `~/dev/mk-*`, daneel (worktrees included, de-duplicated by content hash) | 80,415 `.ail` files scanned, **3,684 unique files, ~843k lines**. Largest: motoko 861 files / 409k lines; then packages, demos, ailang-parse, docparse, stapledons (402 / 75k), daneel, email-parse | language knowledge; needs task descriptions (see G2) |
+| **Past eval results** (`eval_results/`) | 40,503 files; 24,813 AILANG (9,628 agent); 17,112 passing; **14,373 distinct passing programs, but only 114 distinct tasks** (the eval set); 95 models; **709 clean error-to-fix repairs**; ~7.7k failing runs with category and stderr; 18k without a version stamp | language and repair data from **training-split benchmarks only** |
+| **Agent trajectories** | motoko session JSONL (~3,200 files); opencode.db (1.7 GB); chains/observatory (3,804 chains); Claude Code sessions in AILANG repos (world alone: 861 sessions / 1.1 GB) | agent protocol (write, run, fix) and error recovery |
+| **Cloud executors** (pi, claude and codex fleet tasks on the cloud plane) | **not yet counted**; in the prod observatory and chain store. pi on the rig kept no transcript for rejected runs (filed), so check whether cloud pi sessions are banked in full | real-task trajectories with outcomes; probably the best trajectory source |
+
+### Rules
+
+1. **Held-out split first.** The eval set is frozen before any extraction: the 24-benchmark agent subset in §Phase 0 (12 core + 12 stretch) is the held-out set for both modes. Base-model numbers on it already exist from Phase 0, so the baseline needs no re-run. Nothing from those 24 tasks enters training. That includes other models' solutions, near-duplicate tasks, and repo code that is a copy of a benchmark solution. Check exact and normalised-code hashes and task-text similarity.
+2. **Re-grade everything with the current `ailang check`** (and `ailang run` against expected stdout where one exists). Keep only what compiles today, which strips stale syntax from 18k unversioned results and old repo code.
+3. **Licence (D-FT-1, pending Mark).** Frontier-generated code and trajectories (Anthropic and OpenAI outputs) are used only if ruled acceptable for an internal model. Otherwise: open-weight-generated output (Qwen, Gemma, GLM, the rotation runs) plus human-written code.
+4. **Negatives: never as targets.**
+   - (a) **Error-to-fix pairs**: input = failing code + the real compiler error; target = the fix.
+   - (b) **Recovery trajectories**: failed attempts kept as context; **loss only on the turns that lead to the verified pass**.
+   - (c) **Preference pairs** (chosen = verified pass, rejected = typical error or chat-answer protocol miss): a stage-2 DPO run. mlx-lm's `lora` has no DPO mode, so this needs another trainer.
+   - (d) **Failure clusters become AILANG fixes** under PROGRAM.md routing (a mistake every model makes is usually a language or error-message fix, not training data).
+   - Training directly on failed outputs is forbidden.
+5. **Tool mapping:** every trajectory is converted to **pi's tool schema** (the harness it will run in). Claude Code Edit/Write/Bash, opencode and motoko tools are mapped to pi equivalents, and unmappable turns are dropped.
+6. **No teaching prompt in training inputs.** The point is a model that does not need it; a slim prompt (G4) may be included as the system turn.
+
+### Generation (only where the inventory has gaps)
+
+- **G1, nothing for protocol or repairs.** Existing trajectories and repairs cover them.
+- **G2, task descriptions for repo code (light).** A cheap model writes a one-paragraph task for each unit of repo code (back-translation), e.g. gemma-4-26b at $0.022/$0.065 per M (cents in total).
+- **G3, new-task variety (optional for pilot 1): the Python oracle.** A model writes task + Python reference; the Python output is the expected stdout; an AILANG solution is kept **only if `ailang run` matches exactly**. Solver options for ~5k verified: gemma-4-31b ≈ $75 (58% yield), qwen3.8-27b ≈ $250 (94% yield, cost driven by reasoning tokens), frontier subscription lanes (quota; D-FT-1), or rig qwen3.8 ($0, GPU-days). **Always start with a ~50-run billed test.**
+- **G4, slim prompt.** A 2–4 KB prompt with version deltas and a stdlib signature index, registered as a **non-active** prompt version (never change `active`). Also a `none` variant for the no-prompt arm.
+
+### Pilot-1 mix (target ≈ 5k examples ≈ 5M tokens ≈ one overnight epoch on 12B)
+
+≈ 1k agent trajectories (pi schema, loss-masked) · ≈ 1k error-to-fix pairs · ≈ 3k language examples (repo code with G2 tasks, plus eval passes from training-split benchmarks). These are estimates; the 1k/5k/20k ablation in open question 3 decides the real number.
+
+## Weekend pilot plan (2026-11-06 → 2026-11-08, GPU granted by Mark)
+
+### Friday (CPU only; the GPU stays with the fleet)
+
+- [ ] **D-FT-1 licence ruling** (Mark). Decides whether Claude/OpenAI trajectories and code are in.
+- [ ] **Freeze the held-out set** (the 24 benchmarks) and re-slice Phase 0's base-model numbers to it. That gives the baseline.
+- [ ] **Extractor v0**: a script under `tools/finetune/` (not a new CLI command; respects the simplicity gates). Sources: repo corpus (hash-dedup) · eval passes and repairs (training split) · motoko JSONL · opencode.db · Claude Code sessions (if D-FT-1 = yes). Then re-grade, run the contamination check, map tools to the pi schema, apply loss masks, and emit mlx-lm JSONL with train/valid splits and a per-source count report.
+- [ ] **Count the cloud-executor trajectories** in the prod observatory and chain store, and pull them if they are banked in full.
+- [ ] **G2 back-translation** for repo code (cheap model, < $5, real billed check first).
+- [ ] **G4 prompt variants** `ft-slim-v1` and `ft-none` (standard and agent), as non-active versions. Rebuild into a **private binary**; never `cp` over a live `~/go/bin/ailang`.
+- [ ] **Install the budget-cap fix** (`74857f3c7`) into `~/go/bin/ailang`, only when no evals are running (`rm` then `cp`, then verify `--version`).
+- [ ] **Serving fix on the toy adapter** (~10 min GPU, under the lock): strip the audio/vision sections from the fused `config.json`, then `ollama create` (q8), then one generation through the gateway. If it fails, fall back to an `mlx_lm.server` lane.
+- [ ] **Lanes** for the fine-tune: `ollama-gemma4-12b-ft1` and `pi-gemma4-12b-ft1`, with identical budgets to the Phase 0 lanes. Set `AILANG_OLLAMA_HTTP_TIMEOUT_SEC=1800` for every local run.
+
+### Friday night → Saturday (GPU)
+
+- [ ] **Take the GPU with the hold protocol** (hold file + bootout for `dev.ailang.os-rotation-filler` and `dev.ailang.nightly-eval`; a bootout alone is undone by rig-watchdog in 60 s). Training does not pass through eval-suite checkpoints, so **Daneel's intake defers while we hold the lock**; mail queues, and nothing is lost.
+- [ ] **12B LoRA pilot**: ~5k examples, 1 epoch first. LoRA on all linear layers in the top 16 blocks, `--mask-prompt`, checkpoint every ~10% of steps. Estimated ~6–13 h. Watch val loss; stop early on divergence.
+- [ ] Fuse, then `ollama import` (q8), then a smoke generation.
+
+### Saturday → Sunday (GPU): the A/B on the held-out 24
+
+| Arm | Model | Prompt | Modes |
+|---|---|---|---|
+| A (exists) | base 12B | full teaching prompt | standard ×3, agent ×1, from Phase 0 |
+| B | ft1 | `ft-slim-v1` | standard ×3, agent ×1 |
+| C | ft1 | `ft-none` | standard ×3, agent ×1 |
+
+Metrics: pass rate, `first_attempt_pass_rate`, **protocol-miss rate** (no tool call / template-only), **output tokens per pass**, **wall time per verified success**; compared with `ailang eval-paired` and placed with `eval-elo`. Run time ≈ 3–5 h standard + 5–8 h agent.
+
+**Kill criterion (unchanged):** arm B must at least match arm A on pass rate. Stretch goal: halve the protocol-miss rate and output tokens per pass.
+
+### Sunday (optional, if time and the result is positive)
+
+- [ ] 31B pilot on the same data (~2.5× the training time).
+- [ ] Batching re-measure at fine-tuned context length (5–15k instead of 33k).
+- [ ] **Release the holds** (remove the hold files, re-bootstrap the jobs), record results here, and route the failure clusters (rule 4d).
+
 ## Serving cost reference (2026-11-05)
 
 The question was how a fine-tuned 12B would be served beyond the rig, and what each option costs. These are list prices from web search on 2026-11-05 (USD). They may be stale (the Cloud Run page metadata was ~15 months old), so verify before budgeting. Per-run figures use today's measured 12B agent profile: ≈ 0.7–2M input tokens (mostly a cacheable prefix) and ≈ 10–35k output tokens per benchmark.
