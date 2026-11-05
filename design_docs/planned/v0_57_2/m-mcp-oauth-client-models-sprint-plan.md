@@ -263,7 +263,7 @@ pins `/mcp/connect/` `resources/list` and the `/mcp/` inventory. Mutation: 15/15
 deliberately) and the e2e `TestMCPCheck_CimdOnlyFramingPass` (readyModule + a CIMD-only AS →
 `authorization-framing PASS`). Mutation: 14/14 killed. Still open:
 - the package `tests/e2e_flow.sh` step (M1e's suite);
-- the post-deploy `curl` of the probe document (see the progress JSON notes).
+- ~~the post-deploy `curl` of the probe document~~: done 2026-11-05. It is served as `application/json`, and a live `mcp check` against the executor's real `mcp_oauth` AS gives `authorization-framing PASS`, where v0.57.1 gave WARN.
 
 - **Tasks:**
   - Add `docs/static/mcp-check/client-metadata.json`, with its `client_id` equal to its own URL.
