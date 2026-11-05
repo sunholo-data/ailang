@@ -68,7 +68,7 @@ Vendor rules change, so re-read the vendor pages before you submit.
 ## 2. Annotations
 
 One module, `notes_svc`, runs through this section. Every tool on it is shown below, and the module
-passes all seven `ailang mcp check --target both` checks when served (section 4).
+gets no FAIL from `ailang mcp check --target both` when served (section 4).
 
 ### Titles and hints
 
@@ -391,6 +391,9 @@ codes: 0 = no FAIL, 1 = at least one FAIL, 2 = could not check (unreachable or n
 | `authorization-server` | the issuer's metadata advertises `S256` and CIMD (or a registration endpoint), within 10 s | A5, A6, O6 |
 | `file-params` (openai) | every `openai/fileParams` field has OpenAI's four-property file schema | O9 |
 | `security-schemes` (openai) | every tool that answers 401 declares `securitySchemes: [{"type":"oauth2"}]` | O5, O10 |
+| `authorization-framing` | the consent page the probe reaches carries `X-Frame-Options` or CSP `frame-ancestors` (see "Checking consent page framing") | RFC 9700 §4.16 |
+| `server-info` (WARN only) | `initialize` names the service: `serverInfo.name` is not the unbranded `ailang-api` (set `serve-api --server-info`) | — |
+| `listed-resources` (WARN only) | `resources/list` on the checked URL has no `ailang://meta/modules` (serve-api up to v0.57.1 listed it on `/mcp/connect/`) | — |
 
 To find gated tools, the check calls tools with `{}` and no token. It does this only for read-only
 tools and tools with required parameters, so it never runs a write tool.
@@ -625,11 +628,33 @@ needs a paid plan, and the Owner role on Team or Enterprise)
 
 ### Checking consent page framing
 
-`ailang mcp check https://your-service.example/mcp/ --target both`
-probes the discovered authorization endpoint with dummy OAuth code-flow and S256
-PKCE parameters, follows redirects, and judges only final 2xx HTML. A valid
-X-Frame-Options or CSP frame-ancestors protection passes. Missing protection
-fails anthropic/both targets and warns for openai. Rejected dummy clients,
-non-HTML responses, unreachable endpoints, and redirect failures warn because
-no consent page could be assessed. Without an authorization endpoint the probe
-is skipped. A warning does not establish that your consent page is protected.
+`ailang mcp check https://your-service.example/mcp/connect/ --target both`
+probes the discovered authorization endpoint with a real code-flow request and
+judges only the final 2xx HTML page. A valid X-Frame-Options or CSP
+frame-ancestors protection passes. Missing protection fails anthropic/both
+targets and warns for openai.
+
+The client the probe presents is chosen from the AS metadata:
+
+1. **CIMD** (`client_id_metadata_document_supported` with `none` auth): the
+   probe client `https://ailang.sunholo.com/mcp-check/client-metadata.json`, a
+   public client document served by this docs site, whose one redirect is
+   `http://127.0.0.1/ailang-mcp-check/callback`. Loopback redirects match on any
+   port, and nothing needs to listen there.
+2. **No CIMD**, for an AS with pre-registered clients (a Gemini Enterprise-style
+   client): pass `--probe-client-id ID --probe-redirect-uri URI`.
+3. **Otherwise** the probe is skipped. It never registers a client through DCR,
+   because that would write to your server.
+
+The request carries `response_type=code`, an unreserved `state`, a fresh S256
+`code_challenge` (43 characters; the verifier never leaves the check) and
+`resource=<the checked URL>`. An AS that does not advertise S256 is skipped (the
+`authorization-server` check already fails it). The probe follows redirects, but
+stops before any hop to its own redirect URI: an AS that bounces straight back
+there is reported as "redirected without a consent page" (WARN). Rejected
+clients, non-HTML responses, unreachable endpoints and redirect loops also warn,
+because no consent page could be assessed. A warning does not establish that
+your consent page is protected.
+
+Side effect: one pending authorization request on the target, which expires
+with the AS's request TTL (10 minutes in `sunholo/mcp_oauth`).

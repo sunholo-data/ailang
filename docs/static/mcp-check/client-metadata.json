@@ -1,0 +1,10 @@
+{
+  "client_id": "https://ailang.sunholo.com/mcp-check/client-metadata.json",
+  "client_name": "ailang mcp check (consent-page framing probe)",
+  "client_uri": "https://ailang.sunholo.com/docs/guides/mcp-connectors",
+  "redirect_uris": ["http://127.0.0.1/ailang-mcp-check/callback"],
+  "grant_types": ["authorization_code"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none",
+  "token_endpoint_auth_methods_supported": ["none"]
+}

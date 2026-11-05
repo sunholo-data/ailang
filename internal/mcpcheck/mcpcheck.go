@@ -40,10 +40,15 @@ type Finding struct {
 }
 
 // Options configures a run. Target is "anthropic", "openai" or "both".
+// ProbeClientID/ProbeRedirectURI name a pre-registered client for the
+// framing probe on an AS without CIMD; with CIMD the probe uses
+// ProbeClientURL.
 type Options struct {
-	URL    string
-	Target string
-	Client *http.Client
+	URL              string
+	Target           string
+	Client           *http.Client
+	ProbeClientID    string
+	ProbeRedirectURI string
 }
 
 // Failed reports whether any finding is a FAIL.
@@ -82,10 +87,11 @@ func Run(ctx context.Context, opts Options) ([]Finding, error) {
 		opts.Target = "anthropic"
 	}
 	s := &session{opts: opts}
-	if st, _, _, err := s.rpc(ctx, "initialize", map[string]any{
+	st, _, initRes, err := s.rpc(ctx, "initialize", map[string]any{
 		"protocolVersion": "2025-06-18", "capabilities": map[string]any{},
 		"clientInfo": map[string]any{"name": "ailang-mcp-check", "version": "1"},
-	}); err != nil {
+	})
+	if err != nil {
 		return nil, err
 	} else if st == http.StatusUnauthorized {
 		return []Finding{{Check: "lazy-auth", Status: Warn, Source: "A3",
@@ -107,6 +113,7 @@ func Run(ctx context.Context, opts Options) ([]Finding, error) {
 	}
 
 	var fs []Finding
+	fs = append(fs, checkServerInfo(initRes), s.checkListedResources(ctx))
 	fs = append(fs, checkAnnotations(list.Tools, opts.Target)...)
 	creds := checkCredentials(list.Tools)
 	fs = append(fs, creds...)
@@ -297,20 +304,14 @@ func (s *session) checkLazyAuth(ctx context.Context, tools []tool, credentialPar
 
 func (s *session) checkAuthorizationServer(ctx context.Context, issuer string) []Finding {
 	if issuer == "" {
-		return []Finding{{"authorization-server", Skip, "", "no authorization server named (no gated tools)", "A6"}, s.checkAuthorizationFraming(ctx, "")}
+		return []Finding{{"authorization-server", Skip, "", "no authorization server named (no gated tools)", "A6"}, s.checkAuthorizationFraming(ctx, authServerMetadata{})}
 	}
 	start := time.Now()
-	var md struct {
-		PKCE                  []string `json:"code_challenge_methods_supported"`
-		AuthorizationEndpoint string   `json:"authorization_endpoint"`
-		CIMD                  bool     `json:"client_id_metadata_document_supported"`
-		AuthMeth              []string `json:"token_endpoint_auth_methods_supported"`
-		Register              string   `json:"registration_endpoint"`
-	}
+	var md authServerMetadata
 	url := wellKnown(issuer, "oauth-authorization-server")
 	if err := s.getJSON(ctx, url, &md); err != nil {
 		if err2 := s.getJSON(ctx, wellKnown(issuer, "openid-configuration"), &md); err2 != nil {
-			return []Finding{{"authorization-server", Fail, "", fmt.Sprintf("no metadata at %s: %v", url, err), "A6"}, s.checkAuthorizationFraming(ctx, "")}
+			return []Finding{{"authorization-server", Fail, "", fmt.Sprintf("no metadata at %s: %v", url, err), "A6"}, s.checkAuthorizationFraming(ctx, authServerMetadata{})}
 		}
 	}
 	var fs []Finding
@@ -326,7 +327,7 @@ func (s *session) checkAuthorizationServer(ctx context.Context, issuer string) [
 	if len(fs) == 0 {
 		fs = append(fs, Finding{"authorization-server", Pass, "", issuer + " advertises S256 and a client registration method", "A6,O6"})
 	}
-	return append(fs, s.checkAuthorizationFraming(ctx, md.AuthorizationEndpoint))
+	return append(fs, s.checkAuthorizationFraming(ctx, md))
 }
 
 // wellKnown builds the RFC 8414 metadata URL: the well-known segment goes

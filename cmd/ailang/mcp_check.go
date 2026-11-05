@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/url"
 	"os"
 
 	"github.com/sunholo-data/ailang/internal/mcpcheck"
@@ -18,10 +19,30 @@ func runMCPCheck(rawArgs []string) {
 	fs := flag.NewFlagSet("mcp check", flag.ExitOnError)
 	target := fs.String("target", "anthropic", "Directory to check against: anthropic, openai or both")
 	asJSON := fs.Bool("json", false, "Emit findings as JSON")
-	_ = fs.Parse(hoistFlagsWith(rawArgs, map[string]bool{"--target": true, "-target": true}))
+	probeID := fs.String("probe-client-id", "", "Pre-registered client_id for the consent-page framing probe, for an AS without CIMD (needs --probe-redirect-uri)")
+	probeRedirect := fs.String("probe-redirect-uri", "", "Registered redirect_uri of --probe-client-id; the probe never follows a redirect to it")
+	_ = fs.Parse(hoistFlagsWith(rawArgs, map[string]bool{
+		"--target": true, "-target": true,
+		"--probe-client-id": true, "-probe-client-id": true,
+		"--probe-redirect-uri": true, "-probe-redirect-uri": true,
+	}))
 	if fs.NArg() != 1 {
 		fmt.Fprintln(os.Stderr, "Usage: ailang mcp check <mcp-url> [--target anthropic|openai|both] [--json]")
+		fmt.Fprintln(os.Stderr, "                        [--probe-client-id ID --probe-redirect-uri URI]")
+		fmt.Fprintln(os.Stderr, "The consent-page framing probe presents "+mcpcheck.ProbeClientURL)
+		fmt.Fprintln(os.Stderr, "to a CIMD authorization server, or the --probe-client-id client otherwise (else it is skipped).")
+		fmt.Fprintln(os.Stderr, "Side effect: one pending authorization request on the target, which expires with the AS's request TTL.")
 		os.Exit(2)
+	}
+	if (*probeID == "") != (*probeRedirect == "") {
+		fmt.Fprintf(os.Stderr, "%s: --probe-client-id and --probe-redirect-uri go together\n", red("Error"))
+		os.Exit(2)
+	}
+	if *probeRedirect != "" {
+		if u, err := url.Parse(*probeRedirect); err != nil || u.Scheme == "" || u.Host == "" {
+			fmt.Fprintf(os.Stderr, "%s: --probe-redirect-uri must be an absolute URL (got %q)\n", red("Error"), *probeRedirect)
+			os.Exit(2)
+		}
 	}
 	switch *target {
 	case "anthropic", "openai", "both":
@@ -30,7 +51,8 @@ func runMCPCheck(rawArgs []string) {
 		os.Exit(2)
 	}
 
-	findings, err := mcpcheck.Run(context.Background(), mcpcheck.Options{URL: fs.Arg(0), Target: *target})
+	findings, err := mcpcheck.Run(context.Background(), mcpcheck.Options{URL: fs.Arg(0), Target: *target,
+		ProbeClientID: *probeID, ProbeRedirectURI: *probeRedirect})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: cannot check %s: %v\n", red("Error"), fs.Arg(0), err)
 		os.Exit(2)

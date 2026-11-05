@@ -67,6 +67,12 @@ func authServer(t *testing.T, s256 bool) *httptest.Server {
 
 func readyServer(t *testing.T, issuer string) *httptest.Server {
 	t.Helper()
+	return readyServerWith(t, Config{OAuthIssuer: issuer})
+}
+
+// readyServerWith serves readyModule with cfg (Port and MCP are forced).
+func readyServerWith(t *testing.T, cfg Config) *httptest.Server {
+	t.Helper()
 	tmpDir := t.TempDir()
 	apiDir := filepath.Join(tmpDir, "test", "api")
 	if err := os.MkdirAll(apiDir, 0o755); err != nil {
@@ -76,7 +82,8 @@ func readyServer(t *testing.T, issuer string) *httptest.Server {
 	if err := os.WriteFile(modPath, []byte(readyModule), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	srv := New(tmpDir, Config{Port: "0", MCP: true, OAuthIssuer: issuer})
+	cfg.Port, cfg.MCP = "0", true
+	srv := New(tmpDir, cfg)
 	t.Cleanup(func() { srv.Close() })
 	if err := srv.LoadModules([]string{modPath}); err != nil {
 		t.Fatalf("LoadModules: %v", err)
