@@ -10,13 +10,14 @@
 # pipeline, which fired on THAT repo's pushes from whatever ailang dev head was
 # current — so an ailang push could not rebuild the image most agents run on.
 # Every image now has one owner: this file for dev, cloudbuild-release.yaml
-# for the `v*` tag that reaches test (same 16 images, additionally tagged
+# for the `v*` tag that reaches test (same 17 images, additionally tagged
 # :vX.Y.Z), and ailang-multivac's promote-to-prod for prod.
 #
-# The 16 images and their build DAG (children FROM the parent's :latest in
+# The 17 images and their build DAG (children FROM the parent's :latest in
 # this project's registry, so they wait on it):
 #
-#   coordinator (buildpacks)   dashboard   mcp   ntfy        — no dependencies
+#   coordinator (buildpacks)   dashboard   mcp   executor-mcp   ntfy
+#                                                           — no dependencies
 #   agent-base ─┬─ agent ───────── agent-go
 #               ├─ agent-pi ────── agent-pi-go
 #               │                └─ resident-pi (BASE build-arg, context docker/resident)
