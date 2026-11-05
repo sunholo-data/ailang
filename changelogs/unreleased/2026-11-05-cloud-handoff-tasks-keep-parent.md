@@ -1,4 +1,0 @@
-### Fixed — cloud handoff tasks keep their parent task, so evaluator verdicts reach the approval
-
-- The cloud coordinator's Pub/Sub adapter built each task from the stored message's content only (title, body, sender, category, inputs) and dropped its links: `parent_task_id`, iteration, chain id and the GitHub issue/repo. Every cloud handoff task ran as an orphan. In prod on 2026-11-04 six `sprint-evaluator` runs, each handed off by a named executor task, finished with `evaluator task … has no parent_task_id — its verdict cannot reach any approval`, so the verdict wiring from v0.55.0 had nothing to attach to.
-- The local and cloud adapters now share one mapping (`hydrateFromInbox` in `internal/coordinator/message_adapter.go`), so a field cannot be carried on one path and lost on the other. Test: `TestPubSubAdapter_HydrationCarriesTaskLinks`.

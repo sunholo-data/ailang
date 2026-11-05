@@ -1,6 +1,6 @@
 # M-SCC-SHADOW-AWARE-CALLGRAPH: binder-shadowed names must not create call-graph edges (#2078)
 
-**Status**: Planned
+**Status**: Implemented (v0.57.2, #2119)
 **Target**: v0.57.2 (release after v0.57.0 / the queued v0.57.1)
 **Priority**: P1 (High) — a sound, documented-language program is rejected with a wrong diagnostic; no data or soundness loss
 **Estimated**: 2.5 days (1 day walker + binder classification, 1 day tests/e2e matrix, 0.5 day corpus sweep + changelog)

@@ -2,8 +2,8 @@
   "sprint_id": "M-SCC-SHADOW-AWARE-CALLGRAPH",
   "status": "completed",
   "created": "2026-11-04T13:43:49.606411+00:00",
-  "design_doc": "design_docs/planned/v0_57_2/m-scc-shadow-aware-callgraph.md",
-  "sprint_plan": "design_docs/planned/v0_57_2/m-scc-shadow-aware-callgraph-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_57_2/m-scc-shadow-aware-callgraph.md",
+  "sprint_plan": "design_docs/implemented/v0_57_2/m-scc-shadow-aware-callgraph-sprint-plan.md",
   "github_issues": [
     2078
   ],
