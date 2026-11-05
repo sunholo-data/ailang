@@ -179,10 +179,11 @@
         "bash executor_oauth/test_oauth.sh passes incl. a new 'tool sees signed-in account' check",
         "mutation: skipping the header strip makes TestIdentityHeaderStripped fail"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-05T09:30:00Z",
+      "completed": "2026-11-05T11:00:00Z",
+      "notes": "3c2a954af. Precondition: #2112 MERGED (e725b9042), so _auth binds in makeToolHandler beside _headers, before bindCallArgs (no parity fallback needed). serveapi/protocol: Identity, IdentityVerifyFunc, NewIdentityGate, AdmitCallIdentity, WriteRateLimited; NewBearerGate wraps the bool func; mcphttp untouched. internal/apiserver/mcp_identity.go: verifierSignature (bool or Option[{subject, client_id, scopes}], inline or same-module record), extractAuthParams (load errors: noauth, @route, @nomcp, @mcp_agent_only, @optional, @mcp_secret, @mcp_file, @mcp_ui_resource, wrong record), authParamIssue + ValidateMCPIdentity at Start (ungated, bool verifier, subject limit without identity verifier or --mcp-http), X-Ailang-Mcp-Identity stripped on entry to both MCP surfaces and from _headers, stamped only after verify. isExposed drops NeedsIdentity exports from HTTP; registerTools drops them from /mcp/ and stdio with a startup line. Deviation, recorded: loadedExportMember admits an _auth export under --routes-only (declaring _auth is as explicit as @route, which it may not carry); without it the executor (--routes-only --mcp-connect-only) could never serve one. --mcp-subject-rpm/--mcp-subject-burst (burst default = rpm): one token per gated call in the body, 429 + Retry-After. Tests: the 9 plan-named (TestAuthParamNotForgeableByArgs, TestIdentityHeaderStripped, TestAuthExportAbsentFromAgentSurface, TestAuthExportNoRESTRoute, TestAuthWithNoauthIsError, TestEmptySubjectRejected, TestBoolVerifierUnchanged, TestSubjectRateLimit429, TestMcphttpGateUnchanged) plus TestAuthBoundOnListedSurface, TestAuthParamLoadErrors, TestAuthStartupRules, TestSubjectRateLimitNeedsIdentity, TestSubjectRateLimitBatch, TestAuthServedUnderRoutesOnly, TestIdentityVerifierSignature, TestIdentityArgFailsClosed, TestDecodeIdentityOption, TestIdentityGate_Outcomes, TestBoolGate_AdmitCallIdentityIsNil, TestWriteRateLimited. The plan regex misses TestEmptySubjectRejected; use -run 'Auth|Identity|Verifier|SubjectRate|Mcphttp|EmptySubject'. Existing mcp_header_auth_test.go, bearer_gate*_test.go and testdata/mcp_ui.golden.json unchanged and green. Mutation 22/22 killed (scratchpad copies), incl. entry strip and _headers strip each killing TestIdentityHeaderStripped. Gates: gofmt, go vet, golangci-lint 0 issues, check-file-sizes, check-changelog, check-context-docs, make test-core, make verify-examples, go test internal/apiserver serveapi/... internal/mcpcheck cmd/ailang. Example examples/runnable/serve_api_mcp_identity.ail + manifest entry; live run of the built binary: forged _auth arg and forged header ignored, alice x2 200 then 429 Retry-After 60, bob 200, /mcp/ unknown tool, REST 404. Executor adoption: executor_oauth verifyMcpToken returns Option[McpIdentity] (account, client_id URL), new executor_whoami tool, test_oauth.sh runs --mcp-subject-rpm and passes 23/23 (new: tool sees the signed-in account; whoami without token 401). Not done here: multivac terraform/cloud_run_executor_mcp.tf args (--mcp-subject-rpm) and lifting the empty-allowlist precondition; both need a released ailang in the executor image first (an unknown flag would stop the service starting).",
+      "actual_loc": 1589
     },
     {
       "id": "M3ab_SERVERINFO_RESOURCES",
@@ -231,16 +232,7 @@
   "related_prs": [
     2112
   ],
-  "human_gates_open": [
-    "D1",
-    "D2",
-    "D3",
-    "D4",
-    "D5",
-    "D6",
-    "D7",
-    "D8"
-  ],
+  "human_gates_open": [],
   "handoff": "NOT sent: D1-D8 open; send plan_ready to sprint-executor after Mark rules",
   "decisions": {
     "D1-D8": "ratified as recommended by Mark 2026-11-05"

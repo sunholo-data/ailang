@@ -202,6 +202,19 @@ milestones run in `ailang` (a worktree off `origin/dev`).
 
 ### M2 — serve-api identity verifier (lane: serve-api) · 2d · ~380 LOC · gates: D5, D6; blocked on #2112
 
+**Status: ✅ done 2026-11-05 (3c2a954af), apart from the multivac step.** #2112 was merged
+(e725b9042), so `_auth` binds in `makeToolHandler` beside `_headers`, before `bindCallArgs`. All nine
+named tests pass, plus 13 more (load and startup rules, batch limit, `--routes-only`, verifier
+signatures, fail-closed binding). The plan regex misses `TestEmptySubjectRejected`; use
+`-run 'Auth|Identity|Verifier|SubjectRate|Mcphttp|EmptySubject'`. The existing header-auth, gate and
+golden tests are unmodified and green. Mutation: 22/22 killed, including the entry strip and the
+`_headers` strip, each caught by `TestIdentityHeaderStripped`. `test_oauth.sh` passes 23/23. One
+deviation, recorded: an `_auth` export counts as declared under `--routes-only`, the way an `@route`
+export does. It cannot carry `@route`, so without this the executor (`--routes-only
+--mcp-connect-only`) could never serve one. Still open: in multivac, add `--mcp-subject-rpm` to the
+executor OAuth service's args and lift the empty-allowlist precondition. Both wait for a release
+that puts the flag in the executor image.
+
 - **Precondition:** run `gh pr view 2112 --json state`. If the PR is not `MERGED`, follow design
   §M4: bind `_auth` in `makeToolHandler` and add `TestAuthBindingParity`. Do not wait.
 - **Tasks:**
