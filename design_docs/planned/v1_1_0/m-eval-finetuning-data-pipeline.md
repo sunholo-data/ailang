@@ -137,24 +137,24 @@ There is only one graded wrong answer. "Finish by writing the file and running i
 
   12B's ~2× decode advantage is mostly spent on ~1.6× longer thinking, with occasional blow-ups (one run produced 218k output tokens; pi does not enforce the lane's 32k cap). Its 48% pass rate then makes it slower per verified success. The fine-tune should therefore be measured on **output tokens per pass** and **wall time per verified success**, not pass rate alone.
 
-### Parallelism (estimate; mlx-lm batch benchmark pending)
+### Parallelism (measured 2026-11-05: mlx-lm `batch_generate`, 12B 4-bit, 512/256 output tokens)
 
-Batched decode reads the weights once per step for all streams. Gemma 4 12B's KV cache is small: 40 of 48 layers use a 1,024-token sliding window, and the 8 global layers have 1 KV head. That is ≈ 0.6 GB per stream at 50k context with 8-bit KV, against ≈ 12 GB of weights.
+| Context | Streams | Total tok/s | Per stream | Gain over 1 stream | Peak memory |
+|---|---|---|---|---|---|
+| short (43 tokens) | 1 | 58.7 | 58.7 | 1.0× | 7.1 GB |
+| short | 2 | 113.9 | 56.9 | 1.94× | 7.4 GB |
+| short | **4** | **162.6** | 40.6 | **2.77×** | 8.1 GB |
+| short | 8 | 177.7 | 22.2 | 3.03× | 9.3 GB |
+| **33k (the AILANG agent prompt)** | 1 | 51.3 | 51.3 | 1.0× | 11.2 GB |
+| **33k** | **4** | **64.4** | **16.1** | **1.26×** | 23.1 GB |
 
-| Streams | Est. total tok/s | Est. per stream |
-|---|---|---|
-| 1 | ~46 | ~46 |
-| 2 | ~85 | ~43 |
-| **4** | **~150** | **~38** |
-| 8 | ~250 | ~31 |
+- **Short context: batching works**, about 2.8× at 4 streams, levelling off past 4 (probably 4-bit dequantization becoming the bottleneck).
+- **At a real agent context it collapses to ~1.26×.** Memory grew ~3 GB per extra stream. So mlx-lm's batched cache does not get the sliding-window benefit that my pre-measurement KV estimate assumed (~0.6 GB per stream), and attention over the long context dominates each step. Each stream also pays its own cold prefill (4 × 33k tokens ≈ 5 min at 428 tok/s).
+- **With today's prompts, parallel 12B agents on the rig give only ~1.3× throughput.** This measures mlx-lm's batching only; Ollama's runner and vLLM on a cloud L4 (paged attention) may differ.
+- **Fine-tuning changes this.** Most of the 33k context is the teaching prompt, which a fine-tuned model drops. At 5–15k-token agent contexts, batching should move back towards the short-context curve. **Dropping the prompt is what makes parallel agents pay off**: a second, independent reason to fine-tune.
+- Rig constraints still apply: `OLLAMA_NUM_PARALLEL=1` is rig-wide; mlx-lm disables batching when a draft model is used; rig evals assume `--parallel 1`, and the cooperative GPU yield only works at 1.
 
-Separate model copies would split bandwidth and give no gain. Caveats:
-- the rig runs `OLLAMA_NUM_PARALLEL=1` (rig-wide; changing it needs an Ollama restart);
-- mlx-lm disables batching when a draft model is in use;
-- each new stream pays its own cold prefill;
-- rig evals assume `--parallel 1`, and the cooperative GPU yield only works at 1.
-
-`~/models/finetune/batchbench.py` measures B = 1, 2, 4, 8 (short context) and B = 1, 4 (~32k context).
+Script: `~/models/finetune/batchbench.py`; results in `~/models/finetune/batchbench-12b.json`.
 
 ### Candidate ranking
 
