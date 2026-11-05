@@ -402,7 +402,25 @@ ailang serve-api --mcp-http ./api/
 # MCP endpoint at POST /mcp/
 ```
 
-Each exported AILANG function becomes an MCP tool. Module metadata is available as an MCP resource at `ailang://meta/modules`.
+Each exported AILANG function becomes an MCP tool. On the agent surface `/mcp/`, module metadata is
+available as the MCP resource `ailang://meta/modules`. It is the same projection as
+`/api/_meta/modules`: no `@noexpose` export, `--routes-only` applied, no `@mcp_token_verifier`, and
+modules named by their relative path. `--no-introspection` turns it off. The listed surface
+`/mcp/connect/` never carries it, because a directory listing has no use for the server's module map.
+The resources capability stays advertised on both surfaces, so `ui://` widgets keep working.
+
+**Service identity (`--server-info`).** `initialize` returns `serverInfo`, which every directory
+shows to reviewers. Set it once:
+
+```bash
+ailang serve-api --mcp-http --server-info "name=parse,title=AILANG Parse,version=0.43.0" ./api/
+```
+
+The keys are `name`, `title` and `version`, in any order and any subset. A value cannot contain a
+comma. The same values set `serverInfo` on `/mcp/` and `/mcp/connect/` (and stdio), the A2A card
+`version` and OpenAPI `info.version`. Without the flag, the name is `ailang-api`, no title is sent, and
+the version is the AILANG binary's (for example `0.57.2`). An unknown key, a repeated key or an empty
+value is a startup error.
 
 **MCP tool quality features:**
 
@@ -733,6 +751,7 @@ Flags:
   --ws-pass-header H   Give @route("WS") handlers this request header in req.headers (repeatable)
   --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)
   --oauth-issuer URL   OAuth authorization server for @mcp_auth("oauth2") tools on /mcp/connect/
+  --server-info S      Service identity name=N,title=T,version=V: MCP serverInfo, A2A card version, OpenAPI info.version
   --mcp-connect-only   Tools only on /mcp/connect/, all behind the Bearer gate (no /mcp/; HTTP serves @nomcp routes only)
   --process-timeout D  Process exec timeout (default 30s; needs --caps Process)
   --process-allowlist L  Commands Process may exec: cmd or cmd:sub, comma-separated (default: any on PATH)

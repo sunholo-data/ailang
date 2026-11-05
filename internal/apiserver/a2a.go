@@ -93,7 +93,7 @@ func (s *Server) buildAgentCard(r *http.Request) map[string]any {
 		"name":        "AILANG Function Server",
 		"description": "AILANG module exports as callable functions via A2A protocol",
 		"url":         serverURL,
-		"version":     "0.8.1",
+		"version":     s.serverIdentity().Version,
 		"capabilities": map[string]any{
 			"streaming":              false,
 			"pushNotifications":      false,

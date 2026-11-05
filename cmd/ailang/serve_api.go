@@ -40,6 +40,7 @@ func serveAPICommand(args []string) error {
 	staticCacheFlag := fs.String("static-cache", "", "Cache-Control for --static files: 'immutable' (public, max-age=31536000, immutable) or a max-age in seconds")
 	noFeedbackToolFlag := fs.Bool("no-feedback-tool", false, "Suppress the built-in submit_feedback MCP tool (exact tool surface)")
 	oauthIssuerFlag := fs.String("oauth-issuer", "", "OAuth authorization server for @mcp_auth(\"oauth2\") tools on /mcp/connect/")
+	serverInfoFlag := fs.String("server-info", "", "Service identity for MCP serverInfo, the A2A card version and OpenAPI info.version: name=N,title=T,version=V (default name ailang-api, version = this binary)")
 	mcpConnectOnlyFlag := fs.Bool("mcp-connect-only", false, "Serve tools only on /mcp/connect/, each behind the OAuth Bearer gate: no /mcp/, and plain HTTP serves @nomcp routes only")
 	helpFlag := fs.Bool("help", false, "Show help for serve-api command")
 	maxMemoryFlag := fs.String("max-memory", "", "Go soft memory limit: a size (256MB, 1GB) or 'cgroup' (the container limit x 0.9). Unset = AILANG_MEMLIMIT, else none.")
@@ -81,6 +82,10 @@ func serveAPICommand(args []string) error {
 	}
 	if staticCache != "" && *staticFlag == "" {
 		return fmt.Errorf("--static-cache needs --static")
+	}
+	serverInfo, err := apiserver.ParseServerInfo(*serverInfoFlag)
+	if err != nil {
+		return err
 	}
 	if *mcpConnectOnlyFlag && *mcpFlag {
 		return fmt.Errorf("--mcp-connect-only is an HTTP mode; it cannot be combined with --mcp (stdio)")
@@ -197,6 +202,7 @@ func serveAPICommand(args []string) error {
 		NoFeedbackTool: *noFeedbackToolFlag,
 		OAuthIssuer:    *oauthIssuerFlag,
 		MCPConnectOnly: *mcpConnectOnlyFlag,
+		ServerInfo:     serverInfo,
 		WS:             wsCfg,
 
 		NoIntrospection: *noIntrospectionFlag,
@@ -279,6 +285,9 @@ func printServeAPIHelp() {
 	fmt.Println("  --mcp-connect-only   Tools only on /mcp/connect/, all behind the Bearer gate (no /mcp/; HTTP serves @nomcp routes only)")
 	fmt.Println("  --process-timeout D  Process exec timeout (default 30s; needs --caps Process)")
 	fmt.Println("  --process-allowlist L  Commands Process may exec: cmd or cmd:sub, comma-separated (default: any on PATH)")
+	fmt.Println("  --server-info S      Service identity: name=N,title=T,version=V (any subset; values without commas).")
+	fmt.Println("                       Sets MCP serverInfo on /mcp/ and /mcp/connect/, the A2A card version and")
+	fmt.Println("                       OpenAPI info.version. Default: name ailang-api, version = this binary")
 	fmt.Println("  --net-max-bytes N    Cap on each Net response body, e.g. 50MB (default 5MB, or AILANG_NET_MAX_BYTES;")
 	fmt.Println("                       needs --caps Net). Bodies are buffered whole: budget >= 2x N per in-flight fetch")
 	printServeAPIWSHelp()

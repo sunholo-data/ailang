@@ -99,10 +99,15 @@ func TestMCPUI_Golden(t *testing.T) {
 	for _, name := range []string{"chooseFile", "uploadViaHost"} {
 		uiTools = append(uiTools, toolNamed(tools, name))
 	}
+	// The listed surface keeps its ui:// widget but not ailang://meta/modules,
+	// and the agent surface's inventory is the exposedView projection
+	// (M-MCP-OAUTH-CLIENT-MODELS D8).
 	doc := map[string]any{
-		"resources/list": rpcResult(t, url, "resources/list", map[string]any{}, nil),
-		"resources/read": rpcResult(t, url, "resources/read", map[string]any{"uri": "ui://test/upload"}, nil),
-		"tools/list":     uiTools,
+		"resources/list":              rpcResult(t, url, "resources/list", map[string]any{}, nil),
+		"resources/read":              rpcResult(t, url, "resources/read", map[string]any{"uri": "ui://test/upload"}, nil),
+		"tools/list":                  uiTools,
+		"connect resources/list":      rpcResult(t, hs.URL+listedMCPPath, "resources/list", map[string]any{}, nil),
+		"resources/read meta/modules": rpcResult(t, url, "resources/read", map[string]any{"uri": metaModulesURI}, nil),
 	}
 	got, err := json.MarshalIndent(doc, "", "  ")
 	if err != nil {

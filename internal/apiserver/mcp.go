@@ -61,9 +61,11 @@ func NewListedMCPServer(srv *Server) *MCPServer {
 }
 
 func newMCPServer(srv *Server, listed bool) *MCPServer {
+	id := srv.serverIdentity()
 	mcpSrv := mcp.NewServer(&mcp.Implementation{
-		Name:    "ailang-api",
-		Version: "0.8.1",
+		Name:    id.Name,
+		Title:   id.Title,
+		Version: id.Version,
 	}, &mcp.ServerOptions{
 		// Tools and resources are fixed at boot (they are the loaded modules'
 		// exports), so never advertise listChanged. Left to the SDK default the
@@ -480,28 +482,6 @@ func (ms *MCPServer) makeToolHandler(modulePath string, export ExportInfo) mcp.T
 			},
 		}, nil
 	}
-}
-
-// registerResources registers MCP resources for module introspection.
-func (ms *MCPServer) registerResources() {
-	ms.mcpServer.AddResource(&mcp.Resource{
-		URI:         "ailang://meta/modules",
-		Name:        "AILANG Modules",
-		Description: "List of all loaded AILANG modules and their exports",
-		MIMEType:    "application/json",
-	}, func(ctx context.Context, req *mcp.ReadResourceRequest) (*mcp.ReadResourceResult, error) {
-		modules := ms.server.GetModules()
-		data, _ := json.MarshalIndent(modules, "", "  ")
-		return &mcp.ReadResourceResult{
-			Contents: []*mcp.ResourceContents{
-				{
-					URI:      "ailang://meta/modules",
-					MIMEType: "application/json",
-					Text:     string(data),
-				},
-			},
-		}, nil
-	})
 }
 
 // RunStdio runs the MCP server on stdio transport (blocking).

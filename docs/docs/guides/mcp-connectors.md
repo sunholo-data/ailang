@@ -546,8 +546,9 @@ What to do now:
 - **For anything that needs the user's identity on Google**, wait for `sunholo/mcp_oauth` 0.2.0.
   Don't hand-roll client secrets or switch rotation off for every client. A rotation change applies
   per client.
-- **`serverInfo`** still says `ailang-api 0.8.1` on every serve-api service, and no flag changes it
-  yet (milestone M3a). Reviewers on every platform see this name.
+- **`serverInfo`** is what reviewers on every platform see. Set it with
+  `serve-api --server-info "name=…,title=…,version=…"`. Without the flag it says `ailang-api` and
+  the AILANG binary version, and `ailang mcp check` WARNs that the listing is unbranded.
 
 ## 7. Submission checklist
 

@@ -1,4 +1,28 @@
 {
+  "connect resources/list": {
+    "cacheScope": "public",
+    "resources": [
+      {
+        "_meta": {
+          "ui": {
+            "csp": {
+              "connectDomains": [
+                "http://SELF",
+                "https://cdn.example.com"
+              ],
+              "resourceDomains": []
+            }
+          }
+        },
+        "description": "The upload widget.",
+        "mimeType": "text/html;profile=mcp-app",
+        "name": "uploadWidget",
+        "title": "Upload a file",
+        "uri": "ui://test/upload"
+      }
+    ],
+    "ttlMs": 0
+  },
   "resources/list": {
     "cacheScope": "public",
     "resources": [
@@ -47,6 +71,17 @@
         "mimeType": "text/html;profile=mcp-app",
         "text": "\u003c!doctype html\u003e\u003cp\u003epick a file\u003c/p\u003e",
         "uri": "ui://test/upload"
+      }
+    ],
+    "ttlMs": 0
+  },
+  "resources/read meta/modules": {
+    "cacheScope": "public",
+    "contents": [
+      {
+        "mimeType": "application/json",
+        "text": "{\n  \"modules\": [\n    {\n      \"path\": \"test/api/widget\",\n      \"exports\": [\n        {\n          \"name\": \"agentOnly\",\n          \"type\": \"string -\\u003e string\",\n          \"pure\": true,\n          \"arity\": 1,\n          \"param_names\": [\n            \"x\"\n          ],\n          \"param_types\": [\n            \"string\"\n          ],\n          \"mcp_title\": \"Agent only\",\n          \"mcp_hints\": [\n            \"readOnly\"\n          ],\n          \"doc_comment\": \"Mounts the listed surface (/mcp/connect/) too.\"\n        },\n        {\n          \"name\": \"chooseFile\",\n          \"type\": \"() -\\u003e string\",\n          \"pure\": true,\n          \"arity\": 1,\n          \"param_names\": [\n            \"_\"\n          ],\n          \"param_types\": [\n            \"()\"\n          ],\n          \"mcp_title\": \"Choose a file\",\n          \"mcp_hints\": [\n            \"readOnly\"\n          ],\n          \"doc_comment\": \"Ask the user for a file.\"\n        },\n        {\n          \"name\": \"headerKeys\",\n          \"type\": \"Json -\\u003e Json\",\n          \"pure\": true,\n          \"arity\": 1,\n          \"param_names\": [\n            \"_headers\"\n          ],\n          \"param_types\": [\n            \"Json\"\n          ],\n          \"mcp_title\": \"Headers\",\n          \"mcp_hints\": [\n            \"readOnly\"\n          ],\n          \"doc_comment\": \"Echo the request headers the tool sees.\"\n        },\n        {\n          \"name\": \"uploadViaHost\",\n          \"type\": \"(string, string) -\\u003e string\",\n          \"pure\": true,\n          \"arity\": 1,\n          \"param_names\": [\n            \"name\",\n            \"data\"\n          ],\n          \"param_types\": [\n            \"string\",\n            \"string\"\n          ],\n          \"mcp_title\": \"Upload via host\",\n          \"mcp_hints\": [\n            \"idempotent\"\n          ],\n          \"doc_comment\": \"Bytes from the widget, relayed by the host.\"\n        }\n      ]\n    }\n  ],\n  \"count\": 1\n}",
+        "uri": "ailang://meta/modules"
       }
     ],
     "ttlMs": 0
