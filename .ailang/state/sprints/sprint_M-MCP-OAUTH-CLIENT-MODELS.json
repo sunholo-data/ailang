@@ -172,7 +172,7 @@
         "D6"
       ],
       "acceptance_criteria": [
-        "precondition: gh pr view 2112 --json state; if not MERGED, bind _auth in makeToolHandler + TestAuthBindingParity (design \u00a7M4)",
+        "precondition: gh pr view 2112 --json state; if not MERGED, bind _auth in makeToolHandler + TestAuthBindingParity (design §M4)",
         "go test ./internal/apiserver/ ./serveapi/... passes TestAuthParamNotForgeableByArgs, TestIdentityHeaderStripped, TestAuthExportAbsentFromAgentSurface, TestAuthExportNoRESTRoute, TestAuthWithNoauthIsError, TestEmptySubjectRejected, TestBoolVerifierUnchanged, TestSubjectRateLimit429, TestMcphttpGateUnchanged",
         "existing mcp_header_auth_test.go and bearer_gate*_test.go pass unmodified",
         "make test-changed, make verify-examples, make check-file-sizes, make check-changelog pass (run unpiped)",
@@ -201,10 +201,10 @@
         "testdata/mcp_ui.golden.json updated deliberately",
         "make test-changed, make check-changelog pass"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-05T09:05:00Z",
+      "completed": "2026-11-05T10:30:00Z",
+      "notes": "bbc38b15e. M3a: --server-info name=,title=,version= -> ServerIdentity (internal/apiserver/server_info.go) feeds MCP serverInfo on /mcp/, /mcp/connect/ and stdio (title included), the A2A card version and OpenAPI info.version; the three 0.8.1/0.8.1.1 constants are gone; default ailang-api + binary version without the v (dev for unstamped builds). M3b: ailang://meta/modules is not registered on /mcp/connect/, is off under --no-introspection, and on /mcp/ serves exposedView minus @mcp_token_verifier, by relative path, sorted (mcp_meta_resource.go). Tests: TestServerInfoFlag, TestServerInfoDefault, TestServerInfoParse, TestListedSurfaceNoMetaModules, TestAgentSurfaceMetaModulesExposedView, TestAgentSurfaceMetaModulesHidesRoutedVerifier, TestNoIntrospectionDropsMetaModules; V18 regression written first and failing on the old code; golden mcp_ui.golden.json updated deliberately (adds connect resources/list + /mcp/ inventory). The plan regex -run ServerInfo|Resources does not match the *MetaModules names; use -run ServerInfo|MetaModules|TestMCPUI_Golden. Live V18 repro on the built binary: v0.57.1 leaks secretHelper/verifyTok/is_no_expose/absolute path on both surfaces, also with --no-introspection; the new binary leaks none, /mcp/connect/ lists [] and resources/read is Resource not found. Mutation 15/15 killed (scratchpad copies). registration_drops.go split from server.go (805 -> 722 lines)."
     },
     {
       "id": "M3c_FRAMING_PROBE",
@@ -222,10 +222,10 @@
         "post-merge: curl -s https://ailang.sunholo.com/mcp-check/client-metadata.json | jq -r .client_id equals the URL",
         "make test-changed, make check-changelog pass"
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-05T09:50:00Z",
+      "completed": "2026-11-05T10:30:00Z",
+      "notes": "d1a53ea4c. Probe client: CIMD -> https://ailang.sunholo.com/mcp-check/client-metadata.json (docs/static/mcp-check/client-metadata.json, served by the docs site via docusaurus-deploy.yml on push to dev; redirect http://127.0.0.1/ailang-mcp-check/callback, auth none, singular and plural), else --probe-client-id/--probe-redirect-uri, else SKIP (never DCR). Fresh 32-byte verifier -> 43-char S256 challenge; state/response_type kept; resource=<URL>; no S256 -> SKIP; CheckRedirect stops at the callback (WARN without a consent page). New WARN-only checks server-info and listed-resources, run for every target. Tests: TestFramingProbeCimdPass, TestFramingProbeFlagsClient, TestFramingProbeNoCimdSkips, TestFramingProbeStopsAtCallback, TestFramingProbeNoS256Skips, TestServerInfoUnbrandedWarn, TestListedMetaModulesWarn, TestProbeClientDocument; existing framing tests updated deliberately (CIMD metadata; without S256 the probe now SKIPs); e2e TestMCPCheck_CimdOnlyFramingPass (readyModule + CIMD-only AS -> authorization-framing PASS) and TestMCPCheck_DefaultServerInfoWarns. The real mcp_oauth 0.1.2 accepts the document (validateClientDoc Ok, cimdUrlOk, port-agnostic redirectOk). Live mcp check against executor_oauth (mcp_oauth 0.1.2): 400 client metadata fetch returned HTTP 404, the expected result until the docs deploy publishes the file. Mutation 14/14 killed. POST-MERGE OPEN: curl https://ailang.sunholo.com/mcp-check/client-metadata.json | jq -r .client_id == the URL; package tests/e2e_flow.sh framing PASS (M1e)."
     }
   ],
   "related_prs": [

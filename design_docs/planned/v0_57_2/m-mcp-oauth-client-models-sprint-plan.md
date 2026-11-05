@@ -230,6 +230,13 @@ milestones run in `ailang` (a worktree off `origin/dev`).
 
 ### M3a + M3b — `serverInfo` and per-surface resources (lane: serve-api) · 1d · ~200 LOC · gates: D7, D8
 
+**Status: ✅ done 2026-11-05 (bbc38b15e).** All four named tests pass, plus `TestServerInfoDefault`,
+`TestServerInfoParse` and `TestAgentSurfaceMetaModulesHidesRoutedVerifier`. The plan's
+`-run 'ServerInfo|Resources'` regex does not match the `*MetaModules` names; use
+`-run 'ServerInfo|MetaModules|TestMCPUI_Golden'`. The V18 repro failed first, on the old code. The
+live V18 repro against the built binary leaks nothing on either surface. `mcp_ui.golden.json` now also
+pins `/mcp/connect/` `resources/list` and the `/mcp/` inventory. Mutation: 15/15 killed.
+
 - **Tasks:**
   - Add `serverIdentity` and the `--server-info` flag. It feeds MCP `serverInfo` on both surfaces,
     the A2A card version and OpenAPI `info.version`. The default is `ailang-api` + the binary
@@ -250,6 +257,13 @@ milestones run in `ailang` (a worktree off `origin/dev`).
   - `make test-changed` and `make check-changelog` pass.
 
 ### M3c — `mcp check` framing probe (lane: mcpcheck) · 1.5d · ~250 LOC · gates: D7 (probe URL)
+
+**Status: ✅ done 2026-11-05, apart from two post-merge steps.** All six named tests pass, plus
+`TestProbeClientDocument` and `TestFramingProbeNoS256Skips`, the existing framing tests (updated
+deliberately) and the e2e `TestMCPCheck_CimdOnlyFramingPass` (readyModule + a CIMD-only AS →
+`authorization-framing PASS`). Mutation: 14/14 killed. Still open:
+- the package `tests/e2e_flow.sh` step (M1e's suite);
+- the post-deploy `curl` of the probe document (see the progress JSON notes).
 
 - **Tasks:**
   - Add `docs/static/mcp-check/client-metadata.json`, with its `client_id` equal to its own URL.
