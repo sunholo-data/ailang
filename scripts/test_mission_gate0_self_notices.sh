@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# test_mission_gate0_self_notices.sh — self-contained 28-arm suite for scripts/mission_gate0_self_notices.sh.
+# test_mission_gate0_self_notices.sh — self-contained crash/transcript suite for scripts/mission_gate0_self_notices.sh.
 #
 # Every arm is SELF-CONTAINED: it builds its own fixture (heredoc only), its own `--gh-bin`
 # stub, and its own scratch. No helper synthesises a comment, an author or a count; the only
@@ -10,7 +10,7 @@
 #
 # Row-90 property: each arm greps only the fields its behaviour owns. Classification arms
 # (1-5) grep `crash:` lines by `at=` + one token; floor arms (7-14, 21, 22, 23, 24) their own
-# message, rc, argv-log emptiness where stated; `report` alone greps `verdict:`; snapshot arms
+# message, rc, argv-log emptiness where stated; report/transcript arms check verdicts; snapshots
 # a full `issue:` line and `control:`; watermark arms (19-22) `watermark:`/`since:` only.
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
@@ -51,6 +51,10 @@ run_instr() {
   local out="$1" err="$2"; shift 2
   /bin/bash "$SCRIPT_UT" "$@" > "$out" 2> "$err"
 }
+
+# The companion reuses only the helpers and scratch/assertion state above.
+# shellcheck disable=SC1091 # stdin paired comparison cannot follow external sources
+source scripts/test_mission_gate0_self_notices_transcript.sh
 
 # ── arm 1: anchored-signature (AC-M1-2) ────────────────────────────────────────
 arm_anchored_signature() {
@@ -372,8 +376,9 @@ EOF
   make_stub_gh "$d/stub" "$d" "$d/argv.log"
   cat > "$d/fileA" <<'EOF'
 --body "⚠️ Mission iteration **FAILED to complete** (rc=$RC — timeout or crash) at ..."
+Transcript secret scan after fire fixture
 EOF
-  printf 'echo "no signature here"\n' > "$d/fileB"
+  printf 'Transcript secret scan after fire \n' > "$d/fileB"
   # run A: driver-src ok, reaches network, control 5:0 ok
   run_instr "$d/outA" "$d/errA" --issue 5 --repo test/test --self sunholo-voight-kampff \
     --since 2000-01-01T00:00:00Z --control 5:0 --driver-src "$d/fileA" --gh-bin "$d/stub"; rc=$?
@@ -416,16 +421,16 @@ EOF
   A="--issue 129 --prev-issue 107 --repo test/test --self sunholo-voight-kampff"
   run_instr "$d/outA" "$d/errA" $A --since 2026-09-03T00:00:00Z --control 107:4 --gh-bin "$d/stub"; rc=$?
   tail -n 1 "$d/outA" > "$d/lastA"
-  if [ "$rc" -eq 0 ] && /usr/bin/grep -E '^verdict: 0 crash notice\(s\) since 2026-09-03T00:00:00Z on #129,#107 — no death signal from the driver; Gate 2.s traces \(a\)-\(c\) still run \[mission_gate0_self_notices\.sh, control 107:4, watermarks literal\]$' "$d/lastA" >/dev/null; then
+  if [ "$rc" -eq 0 ] && /usr/bin/grep -E '^verdict: 0 crash notice\(s\) since 2026-09-03T00:00:00Z on #129,#107 — no death signal from the driver; Gate 2.s traces \(a\)-\(c\) still run \[mission_gate0_self_notices\.sh, control 107:4, watermarks literal\]; transcript notice\(s\) since watermark: 0$' "$d/lastA" >/dev/null; then
     ok "report A rc0 exact"; else notok "report A rc=$rc"; fi
   run_instr "$d/outB" "$d/errB" $A --since 2026-09-02T16:00:00Z --control 107:4 --gh-bin "$d/stub"; rc=$?
   tail -n 1 "$d/outB" > "$d/lastB"
-  if [ "$rc" -eq 1 ] && /usr/bin/grep -E '^verdict: 1 crash notice\(s\) since 2026-09-02T16:00:00Z on #129,#107 — A FIRE DIED \(newest rc=143 at 2026-09-02T19:27:22Z on #107\): run Gate 2.s died-mid-flight traces \(a\) open PRs \(b\) worktrees \(c\) uncommitted state BEFORE picking, and credit the orphan in the log; "the queue is untouched" describes the charter, not the work \[mission_gate0_self_notices\.sh, control 107:4, watermarks literal\]$' "$d/lastB" >/dev/null; then
+  if [ "$rc" -eq 1 ] && /usr/bin/grep -E '^verdict: 1 crash notice\(s\) since 2026-09-02T16:00:00Z on #129,#107 — A FIRE DIED \(newest rc=143 at 2026-09-02T19:27:22Z on #107\): run Gate 2.s died-mid-flight traces \(a\) open PRs \(b\) worktrees \(c\) uncommitted state BEFORE picking, and credit the orphan in the log; "the queue is untouched" describes the charter, not the work \[mission_gate0_self_notices\.sh, control 107:4, watermarks literal\]; transcript notice\(s\) since watermark: 0$' "$d/lastB" >/dev/null; then
     ok "report B rc1 exact"; else notok "report B rc=$rc"; fi
   printf '2026-09-03T00:00:00Z' > "$d/wm1"; printf '2026-09-03T00:00:00Z' > "$d/wm2"
   run_instr "$d/outC" "$d/errC" $A --watermark-file "$d/wm1" --watermark-file "$d/wm2" --control 107:4 --gh-bin "$d/stub"; rc=$?
   tail -n 1 "$d/outC" > "$d/lastC"
-  if [ "$rc" -eq 0 ] && /usr/bin/grep -E ', watermarks 2/2\]$' "$d/lastC" >/dev/null; then ok "report C watermarks 2/2"; else notok "report C rc=$rc"; fi
+  if [ "$rc" -eq 0 ] && /usr/bin/grep -E ', watermarks 2/2\]; transcript notice\(s\) since watermark: 0$' "$d/lastC" >/dev/null; then ok "report C watermarks 2/2"; else notok "report C rc=$rc"; fi
   if /usr/bin/grep -q 'untouched;\|will retry\|nothing happened' "$d/outB"; then notok "report B forbidden word"; else ok "report B no forbidden words"; fi
 }
 
@@ -446,7 +451,7 @@ arm_snapshot_107() {
   /usr/bin/grep -q '^crash: issue=107 at=2026-09-02T19:27:22Z rc=143 in-window=no' "$d/out" && ok "snapshot-107 line 19:27" || notok "snapshot-107 missing 19:27"
   /usr/bin/grep -q '^crash: issue=107 at=2026-09-07T02:47:28Z rc=1 in-window=no' "$d/out" && ok "snapshot-107 line 02:47" || notok "snapshot-107 missing 02:47"
   /usr/bin/grep -q 'at=2026-09-03T10:57:25Z' "$d/out" && notok "snapshot-107 has 09-03 correction" || ok "snapshot-107 no 09-03 correction"
-  /usr/bin/grep -q '^issue: 107 comments=43 self=43 crash=4 other=39' "$d/out" && ok "snapshot-107 issue line" || notok "snapshot-107 issue line missing"
+  /usr/bin/grep -q '^issue: 107 comments=43 self=43 crash=4 transcript=0 other=39' "$d/out" && ok "snapshot-107 issue line" || notok "snapshot-107 issue line missing"
   /usr/bin/grep -q '^control: issue=107 expect=4 got=4 ok' "$d/out" && ok "snapshot-107 control ok" || notok "snapshot-107 control missing"
   wc_lines="$(wc -l < "$d/argv.log")"
   if [ "$wc_lines" -eq 2 ]; then ok "snapshot-107 two stub calls"; else notok "snapshot-107 stub-call lines=$wc_lines"; fi
@@ -466,7 +471,7 @@ arm_snapshot_129() {
   run_instr "$d/out" "$d/err" --issue 129 --prev-issue 107 --repo sunholo-data/ailang-world --self sunholo-voight-kampff \
     --since 2026-09-08T00:00:00Z --control 107:4 --gh-bin "$d/stub"; rc=$?
   if [ "$rc" -eq 0 ]; then ok "snapshot-129 rc0"; else notok "snapshot-129 rc=$rc"; fi
-  /usr/bin/grep -q '^issue: 129 comments=14 self=14 crash=0 other=14' "$d/out" && ok "snapshot-129 issue line" || notok "snapshot-129 issue line missing"
+  /usr/bin/grep -q '^issue: 129 comments=14 self=14 crash=0 transcript=0 other=14' "$d/out" && ok "snapshot-129 issue line" || notok "snapshot-129 issue line missing"
   c="$(/usr/bin/grep -c '^crash: issue=129' "$d/out")"
   if [ "$c" -eq 0 ]; then ok "snapshot-129 no 129 crash"; else notok "snapshot-129 129 crash=$c"; fi
 }
@@ -641,6 +646,9 @@ EOF
   ext="$(/usr/bin/grep -o -F '⚠️ Mission iteration **FAILED to complete** (rc=' "$drv" | head -1)"
   sig="$(sed -n 's/^SIG_TEXT="\(.*\)"$/\1/p' "$SCRIPT_UT")"
   if [ -n "$ext" ] && [ "$ext" = "$sig" ]; then ok "driver-literal driver prefix == SIG_TEXT"; else notok "driver-literal drift: driver='$ext' script='$sig'"; fi
+  ext="$(/usr/bin/grep -o -F 'Transcript secret scan after fire ' "$drv" | head -1)"
+  sig="$(sed -n 's/^TRANSCRIPT_CURRENT="\(.*\)"$/\1/p' "$SCRIPT_UT")"
+  if [ -n "$ext" ] && [ "$ext" = "$sig" ]; then ok "driver-literal current transcript prefix"; else notok "driver-literal current transcript drift"; fi
 }
 
 # ── arm 26: single-literal — python reads the bash SIG_TEXT, not its own copy ──
@@ -711,7 +719,7 @@ arm_snapshot_1380() {
   /usr/bin/grep -q '^crash: issue=1380 at=2026-10-02T02:18:21Z rc=1 in-window=yes' "$d/out" && ok "snapshot-1380 line 10-02 02:18" || notok "snapshot-1380 missing 02:18"
   /usr/bin/grep -q '^crash: issue=1380 at=2026-10-02T21:56:53Z rc=1 in-window=yes' "$d/out" && ok "snapshot-1380 line 10-02 21:56" || notok "snapshot-1380 missing 21:56"
   /usr/bin/grep -q '^crash: issue=1380 at=2026-10-04T04:28:01Z rc=143 in-window=yes' "$d/out" && ok "snapshot-1380 line 10-04 04:28" || notok "snapshot-1380 missing 04:28"
-  /usr/bin/grep -q '^issue: 1380 comments=26 self=26 crash=3 other=23$' "$d/out" && ok "snapshot-1380 issue line" || notok "snapshot-1380 issue line: $(/usr/bin/grep '^issue: 1380 ' "$d/out")"
+  /usr/bin/grep -q '^issue: 1380 comments=26 self=26 crash=3 transcript=0 other=23$' "$d/out" && ok "snapshot-1380 issue line" || notok "snapshot-1380 issue line: $(/usr/bin/grep '^issue: 1380 ' "$d/out")"
   /usr/bin/grep -q '^control: issue=1380 expect=3 got=3 ok' "$d/out" && ok "snapshot-1380 control ok" || notok "snapshot-1380 control missing"
 }
 
@@ -746,7 +754,7 @@ run_arm() {
     single-literal) arm_single_literal ;;
     control-auto) arm_control_auto ;;
     snapshot-1380) arm_snapshot_1380 ;;
-    *) echo "unknown arm: $1" >&2; exit 2 ;;
+    *) run_transcript_arm "$1" || { echo "unknown arm: $1" >&2; exit 2; } ;;
   esac
 }
 
@@ -768,7 +776,7 @@ else
              control-mismatch signature-source report snapshot-107 snapshot-129 \
              watermark-older watermark-degraded watermark-unavailable watermark-invalid \
              watermark-strict watermark-parser-control \
-             driver-literal single-literal control-auto snapshot-1380; do
+             driver-literal single-literal control-auto snapshot-1380 $(transcript_arms); do
     run_arm "$arm"
   done
 fi
