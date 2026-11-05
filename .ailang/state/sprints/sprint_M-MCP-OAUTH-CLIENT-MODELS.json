@@ -1,0 +1,245 @@
+{
+  "sprint_id": "M-MCP-OAUTH-CLIENT-MODELS",
+  "status": "not_started",
+  "created": "2026-11-05T07:48:51Z",
+  "design_doc": "design_docs/planned/v0_57_2/m-mcp-oauth-client-models.md",
+  "sprint_plan": "design_docs/planned/v0_57_2/m-mcp-oauth-client-models-sprint-plan.md",
+  "github_issues": [
+    1631
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1a-M1e",
+      "package": "sunholo/mcp_oauth",
+      "action": "contribute",
+      "reason": "capability belongs in this package; ships as 0.2.0 (ailang pkg search oauth, 2026-11-05)"
+    },
+    {
+      "milestone": "M1a-M1e",
+      "package": "sunholo/oauth",
+      "action": "none",
+      "reason": "client-side installed-app OAuth flow, not an authorization server"
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Go core: internal/apiserver + serveapi/protocol"
+    },
+    {
+      "milestone": "M3ab",
+      "package": null,
+      "action": "none",
+      "reason": "Go core: internal/apiserver"
+    },
+    {
+      "milestone": "M3c",
+      "package": null,
+      "action": "none",
+      "reason": "Go core: internal/mcpcheck + one static docs JSON"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 250,
+    "estimated_total_loc": 2520,
+    "estimated_days": 11
+  },
+  "features": [
+    {
+      "id": "M1a_CONFIDENTIAL_CLIENTS",
+      "description": "sunholo/mcp_oauth: pre-registered confidential clients (mco_ ids, hashed secret shown once, client_secret_basic/post, exact per-client redirect allowlist), ClientConfig, core.clientKind (Z3), internal authenticateClient, beginAuthorizeFor, tokenRequest, legacy-wrapper CIMD guard, clients.ail",
+      "lane": "package",
+      "estimated_days": 1.5,
+      "estimated_loc": 520,
+      "dependencies": [],
+      "human_gates": [
+        "D1",
+        "D4"
+      ],
+      "acceptance_criteria": [
+        "packages/mcp-oauth: tests/flow_check.sh, tests/cimd_check.sh, tests/ifc_leaks.sh, tests/lint.sh pass UNMODIFIED",
+        "bash tests/confidential_check.sh passes TestWrongSecretInvalidClient (401 + WWW-Authenticate: Basic), TestConfidentialWithoutSecret, TestCimdWithSecretRefused, TestLegacyExchangeRefusesRegisteredId, TestLegacyRefreshRefusesRegisteredId, TestKindMismatchRefused, TestSecretNeverStored, TestRegisteredIdNeverFetched, GE-shaped happy path (redirect https://vertexaisearch.cloud.google.com/oauth-redirect)",
+        "ailang verify core.ail: clientKind VERIFIED, 0 VIOLATION",
+        "tests/ifc_leaks.sh: a client-secret log fixture fails to compile",
+        "mutation: removing the record-method check makes TestConfidentialWithoutSecret fail"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M1b_DCR",
+      "description": "sunholo/mcp_oauth: RFC 7591 DCR (off by default) with per-caller (rightmost XFF) and global limits, redirect allowlist, unused-registration TTL, body cap, no display metadata",
+      "lane": "package",
+      "estimated_days": 1.5,
+      "estimated_loc": 420,
+      "dependencies": [
+        "M1a_CONFIDENTIAL_CLIENTS"
+      ],
+      "human_gates": [
+        "D2"
+      ],
+      "acceptance_criteria": [
+        "bash tests/dcr_check.sh passes TestDcrRateLimitPerCaller, TestDcrGlobalCap, TestDcrUnusedExpires, TestDcrBodyCap, TestTrustedCallerIpIgnoresForgedPrefix, TestDescribeRequestOmitsClientName, TestDcrRedirectAllowlist",
+        "ailang verify clients.ail: dcrRedirectOk VERIFIED",
+        "M1a gate suites still green",
+        "mutation: first-hop XFF makes the forged-prefix test fail"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M1c_REFRESH_POLICY_REVOCATION",
+      "description": "sunholo/mcp_oauth: per-client refresh policy (rotate default, stable opt-in with idle+absolute expiry), RFC 7009 revokeRequest, family digest pruning",
+      "lane": "package",
+      "estimated_days": 1.0,
+      "estimated_loc": 330,
+      "dependencies": [
+        "M1a_CONFIDENTIAL_CLIENTS"
+      ],
+      "human_gates": [
+        "D3"
+      ],
+      "acceptance_criteria": [
+        "bash tests/refresh_policy_check.sh passes TestStableRefreshNoRotation, TestStableRefreshNeedsClientAuth, TestStableRefreshAbsoluteExpiry, TestFamilyDigestsPruned, TestStableRefusedForPublicClient (or per D3 ruling)",
+        "bash tests/revoke_check.sh passes TestRevokeEndpointKillsFamily, TestRevokeAlways200",
+        "tests/flow_check.sh rotation + family revocation cases pass unmodified",
+        "mutation: marking a stable token used makes TestStableRefreshNoRotation fail"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M1d_AUTH_METHOD_INTERSECTION",
+      "description": "sunholo/mcp_oauth: CIMD plural token_endpoint_auth_methods_supported must contain none; singular field never binding; core.authMethodOk",
+      "lane": "package",
+      "estimated_days": 0.5,
+      "estimated_loc": 120,
+      "dependencies": [
+        "M1a_CONFIDENTIAL_CLIENTS"
+      ],
+      "human_gates": [
+        "D1"
+      ],
+      "acceptance_criteria": [
+        "ailang test --package . includes 'cimd accepts chatgpt live doc' (design E17 verbatim) and 'cimd refuses plural without none'",
+        "ailang verify core.ail: authMethodOk VERIFIED",
+        "mutation: treating the singular field as binding fails the ChatGPT fixture"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M1e_METADATA_DOCS_PUBLISH",
+      "description": "sunholo/mcp_oauth 0.2.0: asMetadataFor + golden that asMetadata is byte-identical to 0.1.2; example service with registered client, /oauth/register, /oauth/revoke; AGENT.md recipes; CHANGELOG; publish",
+      "lane": "package",
+      "estimated_days": 1.0,
+      "estimated_loc": 300,
+      "dependencies": [
+        "M1b_DCR",
+        "M1c_REFRESH_POLICY_REVOCATION",
+        "M1d_AUTH_METHOD_INTERSECTION"
+      ],
+      "human_gates": [],
+      "acceptance_criteria": [
+        "bash tests/e2e_flow.sh passes",
+        "golden: asMetadata(issuer) byte-identical to 0.1.2",
+        "ailang pkg quality packages/mcp-oauth --json: verified == total for pure security predicates",
+        "ailang repo: executor_oauth/ailang.lock bumped to 0.2.0 only, bash executor_oauth/test_oauth.sh 21/21",
+        "published only after the package PR merges; ailang pkg search mcp_oauth shows 0.2.0"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_IDENTITY_VERIFIER",
+      "description": "serve-api: @mcp_token_verifier may return Option[{subject, client_id, scopes}]; IdentityVerifyFunc/NewIdentityGate in serveapi/protocol (mcphttp unchanged); X-Ailang-Mcp-Identity stamp+strip; _auth identity-required exports (gated listed surface only); --mcp-subject-rpm/--mcp-subject-burst; example; executor_oauth adoption",
+      "lane": "serve-api",
+      "estimated_days": 2.0,
+      "estimated_loc": 380,
+      "dependencies": [],
+      "human_gates": [
+        "D5",
+        "D6"
+      ],
+      "acceptance_criteria": [
+        "precondition: gh pr view 2112 --json state; if not MERGED, bind _auth in makeToolHandler + TestAuthBindingParity (design \u00a7M4)",
+        "go test ./internal/apiserver/ ./serveapi/... passes TestAuthParamNotForgeableByArgs, TestIdentityHeaderStripped, TestAuthExportAbsentFromAgentSurface, TestAuthExportNoRESTRoute, TestAuthWithNoauthIsError, TestEmptySubjectRejected, TestBoolVerifierUnchanged, TestSubjectRateLimit429, TestMcphttpGateUnchanged",
+        "existing mcp_header_auth_test.go and bearer_gate*_test.go pass unmodified",
+        "make test-changed, make verify-examples, make check-file-sizes, make check-changelog pass (run unpiped)",
+        "bash executor_oauth/test_oauth.sh passes incl. a new 'tool sees signed-in account' check",
+        "mutation: skipping the header strip makes TestIdentityHeaderStripped fail"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3ab_SERVERINFO_RESOURCES",
+      "description": "serve-api: --server-info feeds MCP serverInfo (both surfaces), A2A card version and OpenAPI info.version; ailang://meta/modules dropped from /mcp/connect/, exposedView + --no-introspection on /mcp/",
+      "lane": "serve-api",
+      "estimated_days": 1.0,
+      "estimated_loc": 200,
+      "dependencies": [],
+      "human_gates": [
+        "D7",
+        "D8"
+      ],
+      "acceptance_criteria": [
+        "go test ./internal/apiserver/ -run 'ServerInfo|Resources' passes TestServerInfoFlag, TestListedSurfaceNoMetaModules, TestAgentSurfaceMetaModulesExposedView, TestNoIntrospectionDropsMetaModules",
+        "design V18 live repro against the built binary shows no secretHelper/verifyTok on either surface",
+        "testdata/mcp_ui.golden.json updated deliberately",
+        "make test-changed, make check-changelog pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3c_FRAMING_PROBE",
+      "description": "mcpcheck: CIMD probe client https://ailang.sunholo.com/mcp-check/client-metadata.json (docs/static), --probe-client-id/--probe-redirect-uri, Skip otherwise, fresh S256 verifier + resource, CheckRedirect stop at callback, WARN on unbranded serverInfo and listed meta/modules",
+      "lane": "mcpcheck",
+      "estimated_days": 1.5,
+      "estimated_loc": 250,
+      "dependencies": [],
+      "human_gates": [
+        "D7"
+      ],
+      "acceptance_criteria": [
+        "go test ./internal/mcpcheck/ passes TestFramingProbeCimdPass, TestFramingProbeFlagsClient, TestFramingProbeNoCimdSkips, TestFramingProbeStopsAtCallback, TestServerInfoUnbrandedWarn, TestListedMetaModulesWarn (existing framing tests updated deliberately)",
+        "package tests/e2e_flow.sh: ailang mcp check --target both on the example service reports authorization-framing PASS (after M1e + M3c on dev)",
+        "post-merge: curl -s https://ailang.sunholo.com/mcp-check/client-metadata.json | jq -r .client_id equals the URL",
+        "make test-changed, make check-changelog pass"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "related_prs": [
+    2112
+  ],
+  "human_gates_open": [
+    "D1",
+    "D2",
+    "D3",
+    "D4",
+    "D5",
+    "D6",
+    "D7",
+    "D8"
+  ],
+  "handoff": "NOT sent: D1-D8 open; send plan_ready to sprint-executor after Mark rules"
+}
