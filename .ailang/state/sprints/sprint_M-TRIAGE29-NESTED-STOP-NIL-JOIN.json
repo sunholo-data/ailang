@@ -1,0 +1,68 @@
+{
+  "sprint_id": "M-TRIAGE29-NESTED-STOP-NIL-JOIN",
+  "status": "not_started",
+  "created": "2026-11-05T11:07:52.930345+00:00",
+  "design_doc": "design_docs/planned/v0_57_4/m-triage29-nested-stop-nil-join.md",
+  "sprint_plan": "design_docs/planned/v0_57_4/m-triage29-nested-stop-nil-join-sprint-plan.md",
+  "github_issues": [
+    2069
+  ],
+  "issue_link_policy": "Reference bookkeeping issue 2069 only; do not auto-close. Issue 2034 excluded.",
+  "execution_authorized": false,
+  "executor_dispatched": false,
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Existing Go fixture gate and evidence only; no package-like capability. Registry searches not applicable."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Existing Go fixture gate and evidence only; no package-like capability. Registry searches not applicable."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 160,
+    "estimated_total_loc": 80,
+    "estimated_days": 0.5
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Require outer and nested readiness before stop",
+      "estimated_loc": 20,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Both existing marker files gate stop; existing readiness bounds preserved",
+        "Deadline, receipt, teardown assertions and production code unchanged",
+        "Focused smoke outcome and changelog recorded"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Validate deadline chain and reconcile macOS soak evidence",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Focused count=50 and effects package pass on reaping host",
+        "make test-changed and boundary, size, changelog gates pass",
+        "Container zombie failures distinguished and never accepted as passing",
+        "Ten consecutive qualifying macOS Build legs recorded without recurrence",
+        "Validation report and existing design reconciled before completion"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
