@@ -1,0 +1,104 @@
+You are the SPRINT PLANNER for fleet-mission iteration 86 of the AILANG repo (sunholo-data/ailang).
+Working tree: the current directory (a git worktree at origin/dev c2fbb9b58). You are in a READ-ONLY
+sandbox: do not try to edit files. Your FINAL MESSAGE is the plan; it is captured verbatim to a file.
+Do not run git write operations. Do not end your turn announcing a wait; there is nothing to wait for.
+
+HARD SAFETY RULE (this ticket is about a secret detector): NEVER print, cat, grep -o, echo, source or
+otherwise read the VALUES in ~/.config/ailang/secrets.env or any real session transcript. Do not open
+files under ~/.codex-missions, ~/.codex, ~/.pi/agent/sessions or ~/.claude/projects. You may list
+directory NAMES only. Never run `env`, `printenv` or `set`. Read repository files only.
+
+## The ticket (fleet queue, filed by the World loop 2026-11-05T00:54Z, blocking=none)
+signature: transcript-scan:mtime-window-reattributes-old-hits-to-fire
+Evidence (World iteration 349, no value printed): `tools/launchd/transcript-secret-scan.sh` (landed
+yesterday, fleet iteration 85, #2122 -> 26b35b081) selects transcript FILES by mtime
+(`find -newer <per-fire marker>`) and then `grep -F`s the WHOLE file. World fire world-1793825318-10110
+reported verdict=LEAK leaks=1 on a transcript that is NOT that fire's controller: it is a long-lived
+ATTENDED claude session (first record 2026-10-12, 60,495 lines, ~406 MB, still being appended). The key
+sits in 2 lines dated 2026-10-16 and 2026-10-19, both outside the fire's window. Because the attended
+session keeps appending, EVERY World fire re-reports that 17-day-old hit as a fresh exposure on that
+fire (public count comment on the bookkeeping issue + a controlplane notice). The per-fire alarm stops
+meaning "this fire leaked".
+Suggested direction (fleet's call): match only content written after the marker (or scan only the
+fire's own session files), and report pre-existing hits once as a separate class.
+
+## Controller's first-party reproduction (synthetic data, at c2fbb9b58)
+A file whose secret-bearing line was written BEFORE the marker, then appended with a harmless line
+AFTER it -> `LEAK key=FAKE_KEY ...` verdict=LEAK rc=1. Control: the same file left untouched after the
+marker -> verdict=clean files=0 rc=0. So the defect is exactly "file selected by mtime, matched over
+the whole content".
+
+## Controller's chosen direction (refine it, do not widen it; push back if wrong)
+BYTE-OFFSET BASELINE, format-independent. JSONL timestamps were rejected: claude, codex and pi
+transcripts have different record shapes, some records carry no timestamp, and a timestamp filter
+would be a second parser of three formats inside a secret detector.
+1. At marker time the driver ALSO records a size baseline of every regular file under the scan roots:
+   one entry per file = (byte size, path). Single-source the root list: give the scanner a snapshot
+   mode (e.g. `--snapshot-out FILE`, same `--root` defaults) rather than duplicating roots in the
+   driver. Paths may contain spaces/newlines: use a NUL-safe format. Bounded (there is no `timeout`
+   on macOS; reuse the driver's existing `_mc_bounded` helper). Mode 0600 (umask 077 already).
+   The baseline contains PATHS AND SIZES ONLY, never content.
+2. At scan time (`--baseline FILE`): for each candidate file (still selected by `-newer marker`):
+   - in baseline with size S and current size >= S  -> match ONLY bytes after offset S
+     (e.g. `tail -c +$((S+1))` piped/fed to `grep -F`; keep values out of argv exactly as today);
+   - not in baseline (new this fire) -> whole file (today's behaviour);
+   - current size < S (truncated/rewritten) -> whole file (fail toward reporting, never toward
+     silence).
+   Note on the boundary: claude/codex/pi append whole JSONL records, so a value straddling offset S is
+   not a realistic case; state the residual risk in one sentence rather than adding overlap logic
+   (overlap would re-match pre-existing hits, which is the bug).
+3. Pre-existing hits: NOT reported per fire. Do not add a second whole-file pass (cost: a 406 MB file
+   per fire). The whole-tree historical exposure is already measured and parked as D-FLEET-42 (Mark's
+   decision row). If you think "report once as a separate class" needs anything beyond a comment in
+   the scanner and the changelog, say why; default is: no.
+4. Baseline missing/unreadable/timed out: the scan must STILL run (whole-file, today's behaviour) and
+   the summary line must say so, e.g. a new field `baseline=<N files|none|failed>`. A secret detector
+   fails toward false positives, never toward silence. Whatever you choose, the driver's strict
+   summary regex in `mission-control.sh` (the `^transcript-secret-scan:\ verdict=...` match, ~line
+   2669) MUST be updated in lock-step, or every scan will log INSTRUMENT FAILURE. Read that parser
+   and its consistency checks (~lines 2655-2711) before designing the summary change.
+5. Driver: create the baseline right after the marker (TRANSCRIPT SCAN MARKER block, ~line 2393),
+   pass `--baseline` to the scan (~line 2655), and remove the baseline file where the marker is
+   removed (~line 2706). Dry-run mode must still create/start no side jobs and leave nothing behind
+   (find how the dry-run currently prints its scan line and keep that true). No new environment
+   variables (the simplicity audit counts env-var routes).
+6. Notice wording: the leak notice says "exposure on fire <id>". After this fix a hit means "written
+   during this fire's window" — possibly by a CONCURRENT attended session, not the fire itself. Make
+   the private notice say "written during fire <id>'s window" (count-only public body stays count-only).
+   Do NOT add per-session attribution (scanning only the fire's own session files) in this milestone:
+   the controller session id is not known for all lanes; say in Risks whether you agree.
+
+## Portability constraints (measured)
+- bash 3.2.57 (`/bin/bash` on the rig AND on CI): no `declare -A`, no `${v,,}`, no `mapfile`.
+- CI job `launchd drivers (bash 3.2)` runs on `macos-latest` (.github/workflows/ci.yml:861-869), i.e.
+  BSD find/stat/grep. The RIG's interactive `find` is bfs (rejects relative -newermt); scripts get
+  /usr/bin/find. A size snapshot must work with BSD userland: BSD `stat -f '%z'`, not GNU `stat -c`;
+  `find -printf` does NOT exist in BSD find. Choose a method that is correct on BSD and does not fork
+  once per file if you can avoid it (a fire window's roots hold ~8,000 files, 7.2 GB); quote the cost.
+- Baseline lookup for ~50 candidates against ~8,000 entries must stay well inside the 120 s scan cap
+  measured on bash 3.2 loops; choose the data structure and say why.
+
+## Fleet write scope (pre-push guard)
+tools/launchd/**, make/test.mk, changelogs/**, design_docs/**, docs/** are allowed. Nothing else.
+
+## Your deliverable (final message, markdown)
+- Files to create/modify with exact paths and the line ranges / functions you anchor to (read the
+  scanner, its suite `tools/launchd/test_transcript_secret_scan.sh`, and the driver; cite lines at
+  c2fbb9b58).
+- Design decisions: snapshot format + method, lookup, offset read, summary-line change, driver parser
+  change, dry-run behaviour, cleanup.
+- New/changed test arms, each with the ONE-line mutation that kills it. At minimum: the ticket's
+  reproduction (old hit + harmless append -> clean); a hit appended AFTER the marker into a baselined
+  file -> LEAK; a new file not in the baseline with a hit -> LEAK; truncated file -> whole-file scan;
+  baseline absent -> whole-file scan + summary says so; the fake value never appears in any output or
+  in the baseline file; the driver parser accepts the new summary line (a driver-level arm exists in
+  the suite already — find it and extend it). EVERY arm runs under a synthetic HOME (`mktemp -d`) with a
+  FAKE secrets.env; NO arm may read or write the real $HOME, ~/.config/ailang/secrets.env or
+  ~/.ailang/state. Assert on observations, never seed a write into a real path.
+- Exact gate commands for executor and controller (narrowest that can fail), and confirm each is
+  runnable at base: `bash -n`, `shellcheck` (if used), `bash tools/launchd/test_transcript_secret_scan.sh`,
+  `make test-launchd-drivers`. Mark any gate you could not run in the read-only sandbox as
+  UNINFORMATIVE UNDER SANDBOX.
+- A changelog fragment path: `changelogs/unreleased/2026-11-05-transcript-scan-byte-baseline.md`
+  (`### Fixed — ...`).
+- Risks, and anything in this direction you think is wrong (say so; do not silently change it).

@@ -1,0 +1,57 @@
+You are the SPRINT EXECUTOR for fleet-mission iteration 86 of the AILANG repo (sunholo-data/ailang).
+Working tree: the current directory, a git worktree on branch fleet/i86-transcript-scan-baseline at
+origin/dev c2fbb9b58. Sandbox: workspace-write (you may edit files in this worktree only).
+
+RULES
+- NO git write operations at all (no add/commit/stash/checkout/reset). The controller commits.
+- HARD SAFETY RULE (secret detector): NEVER print, cat, source or otherwise read the VALUES in
+  ~/.config/ailang/secrets.env or any real session transcript. Never open files under ~/.codex-missions,
+  ~/.codex, ~/.pi/agent/sessions or ~/.claude/projects. Never run `env`, `printenv` or `set`.
+- Every test arm runs under a synthetic HOME/TMPDIR/AILANG_STATE_DIR (`mktemp -d`) with a FAKE
+  secrets.env. No arm, and none of your own commands, may read or write the real $HOME,
+  ~/.config/ailang/secrets.env or ~/.ailang/state. Assert by OBSERVATION; never seed a write into a
+  real path to "prove" it is untouched.
+- A gate verdict inside this sandbox may be UNINFORMATIVE (e.g. a denied write outside the worktree,
+  a denied socket). Label any such result `UNINFORMATIVE UNDER SANDBOX`, never pass or fail.
+- A gate red AT BASE is a finding to REPORT, not something to work around. The controller measured
+  every gate below at base: all rc 0, suite 30/30 arms.
+- bash 3.2.57 everywhere (`/bin/bash`): no `declare -A`, `${v,,}`, `mapfile`. BSD userland (CI runs
+  the suite on macos-latest): BSD `stat -f '%z'`, no `find -printf`, no GNU `timeout`.
+- Do not end your turn announcing a wait. Poll artifacts in bounded loops if you background anything.
+- Time budget: you have a hard 30-minute wall clock. Work in this priority order and, if you run out,
+  stop at a coherent point and say exactly what is done and what is not:
+  (1) scanner snapshot + baseline + offset matching + summary field; (2) driver lifecycle + parser
+  lock-step + notice wording + cleanup; (3) the test arms, core ones first (Baseline_old_append,
+  Baseline_appended_leak, Baseline_new_file, Baseline_truncated, Baseline_none, Baseline_missing,
+  Baseline_malformed, Driver_old_append, Driver_clean, Driver_snapshot_failure, Driver_leak,
+  Driver_cleanup, Driver_dry_run, the disclosure guard extension); (4) remaining arms; (5) fragment.
+
+THE PLAN (written by the planner, accepted by the controller) is below verbatim. Implement it.
+Controller notes on the plan:
+- python3 is already a driver dependency (stall watchdog rusage arm), so a one-routine python3 snapshot
+  is acceptable; its absence or failure MUST fall back to whole-file scanning with `baseline=failed`
+  visible in the summary, exactly as the plan says.
+- Keep the public GitHub notice body COUNT-ONLY (no key names, no paths). That rule was a controller
+  fix in iteration 85 and Driver_leak / Driver_public_privacy must keep enforcing it.
+- For Driver_snapshot_timeout, do NOT add an environment variable to shorten the deadline (the
+  simplicity audit counts env-var routes); stub or extract `_mc_bounded` in the test harness instead.
+  If you cannot make that arm honest without a new env var, skip it and say so.
+- For every arm, run its named killing mutation on a DISPOSABLE COPY of the scanner/driver (the suite
+  accepts scanner and driver paths as arguments plus an arm selector) and report PASS->FAIL per arm.
+
+GATES you run at the end (report each rc):
+  /bin/bash -n tools/launchd/transcript-secret-scan.sh
+  /bin/bash -n tools/launchd/test_transcript_secret_scan.sh
+  /bin/bash -n tools/launchd/mission-control.sh
+  shellcheck --shell=bash tools/launchd/transcript-secret-scan.sh tools/launchd/test_transcript_secret_scan.sh
+  /bin/bash tools/launchd/test_transcript_secret_scan.sh      (under a synthetic HOME/TMPDIR/AILANG_STATE_DIR)
+  /bin/bash scripts/check_changelog.sh
+  git diff --check
+The controller re-runs all of them plus `make test-launchd-drivers` outside the sandbox.
+
+YOUR FINAL MESSAGE (captured to a file): files changed with line counts; design decisions you took
+where the plan left a choice; the arm list with PASS at head and the mutation result per arm; each
+gate's rc; anything not done; and anything in the plan you found wrong.
+
+================ PLAN (verbatim) ================
+(followed verbatim by plan.md)
