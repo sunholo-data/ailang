@@ -172,7 +172,7 @@
         "D6"
       ],
       "acceptance_criteria": [
-        "precondition: gh pr view 2112 --json state; if not MERGED, bind _auth in makeToolHandler + TestAuthBindingParity (design §M4)",
+        "precondition: gh pr view 2112 --json state; if not MERGED, bind _auth in makeToolHandler + TestAuthBindingParity (design \u00a7M4)",
         "go test ./internal/apiserver/ ./serveapi/... passes TestAuthParamNotForgeableByArgs, TestIdentityHeaderStripped, TestAuthExportAbsentFromAgentSurface, TestAuthExportNoRESTRoute, TestAuthWithNoauthIsError, TestEmptySubjectRejected, TestBoolVerifierUnchanged, TestSubjectRateLimit429, TestMcphttpGateUnchanged",
         "existing mcp_header_auth_test.go and bearer_gate*_test.go pass unmodified",
         "make test-changed, make verify-examples, make check-file-sizes, make check-changelog pass (run unpiped)",
