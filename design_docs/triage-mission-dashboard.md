@@ -1,26 +1,22 @@
-# Triage mission — iteration 26, 2026-11-03
+# Triage mission dashboard — iteration29,2026-11-05
 
-- Level 1: tidy with attestations. Approvals remain with the operator.
-- Reviewed release: v0.57.0; base d9be18f1cdc462af5e6baf1bfe34193c1bd51dce.
-- Dev GREEN: CI 41665839278 and all 22 commit checks passed.
-- Snapshot: 38 global cards / 34 core, 47 PRs, 58 issues; 94 joined groups.
-- Reviewed 42: 4 changed, 18 new, 20 oldest stale; independent judge concurred.
-- Fresh coverage: 35/94 → 73/94. Twenty-one overdue issues remain deferred.
-- Posted 10 evidence comments and six needs-decision labels.
-- Routed issue 2076 for design only, preserving the judge's scope conditions.
-- VERIFIED artifacts 2102/2101/2100/2098: attestations wait for actual verifier model metadata.
-- Human ledger: 33 OPEN holds, including eight new D40–47; none resolved.
-- D40: type names. D41: AI billing/API. D42: MCP milestone overlap.
-- D43: semantic-store policies. D44: ordinary exec-lifetime authorization.
-- D45: VM-cons overlap. D46: Ollama overlap. D47: triage routing scope.
-- Uncarded PRs: 1939/1934/1894/1759; one missing approval record remains.
-- Aged green/mergeable 1916 (BLOCKED), 1978 and 2009 retain substantive holds.
-- Shadow: 552 append-only rows; trailing 14-day state agreement 1/4.
-- Verifiers: native OpenAI Agents; actual model and token counts unreported.
-- Judge: MiniMax via Ollama; 80,646 tokens including probe, $0 metered.
-- Cadence: 12 hours, unchanged-queue idle check. Routing note: as configured.
-- This iteration changed only its five documentation records in the repository.
-- Evidence: https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6615751514
-- Full history: triage-mission-log.md. The record PR remains draft and unmerged.
-- Draft record: https://github.com/sunholo-data/ailang/pull/2106
-- Digest: https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6615854839
+- Level1: no approvals,rejections,merges or handoffs.
+- Latest release:v0.57.4; reviewed ea1486ca,current observeddec3e8756.
+- Health:earlier Buildred recovered on218b94b;release dec3 checks unverified.
+- Failure:macOS nested managed Join nil,line288;bounded investigation only.
+- Evidence:https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6655687218
+- Queue:37globalcards/33core,49PRs,58issues;95eligible groups.
+- Coverage:95/95fresh after6currentverdicts;89recent skipped.
+- Ready:2129/task-f8b3a191unsignedinformationalattestation;operatorapproves.
+- Held:2126unsupported human freezes;1998scope/vulngate;1726draft.
+- Decisions:77rows,40OPEN;27new concretechoicesD50–76.
+- Mechanical decomposition:D34/D35;all attended answers preserved.
+- Orphans:1759/1894/1934/1939,1missingrecord;4crossrepojoins excluded.
+- Shadow:618rows;6/9settled statecorrelations,not correctness.
+- Actualverifier2129:codex:gpt-6-luna;67324quotatokens,$0metered.
+- Actualjudge:OllamaMiniMaxM3;425037tokens,$0metered;3read-onlyruns.
+- NativeAgentAPIhas no provider/model selector;transport fallback documented.
+- Cadence:12h;idlefingerprint recorded last;V1paused.
+- Reporting:normalDaneel + triggeredDiscord;morning eveningpacketnotdue.
+- Harness:15/20escalationrows;0triageauthoredrepairs.
+- Record:prior27/28logcontentpreserved;allrecordPRsremainunmerged.
