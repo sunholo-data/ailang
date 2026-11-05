@@ -19,4 +19,5 @@
 - Cadence: 12h on queue change. Evening packet: five concrete choices, once daily.
 - Harness share: 16/20 escalation records; zero triage-authored repairs.
 - Goal unmoved by product work. No implementation, dispatch, deployment or release.
-- Final delivery receipts will be recorded in the mission log.
+- Digest: https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6671846622
+- Draft record: https://github.com/sunholo-data/ailang/pull/2142; normal/user/evening packet delivered and peek-verified.
