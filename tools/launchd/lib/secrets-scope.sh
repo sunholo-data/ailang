@@ -11,7 +11,7 @@ mc_secrets_scope_lane_valid() {
 mc_secrets_scope_allow() {
   case "${1-}" in
     claude-controller|codex-controller|pi-controller)
-      # C: subscription inference/quorum: tools/launchd/mission-control.sh:154; internal/mission/quorum/claude_reviewer.go:69.
+      # C: subscription inference/quorum: tools/launchd/mission-control.sh:157; internal/mission/quorum/claude_reviewer.go:69.
       printf '%s\n' CLAUDE_CODE_OAUTH_TOKEN
       # O: controller quota gauge: cmd/ailang/mission_quota_cmd.go:58.
       printf '%s\n' OLLAMA_API_KEY
@@ -21,7 +21,7 @@ mc_secrets_scope_allow() {
       printf '%s\n' OPENAI_API_KEY
       ;;
     claude-role)
-      # C: subscription inference: tools/launchd/mission-control.sh:154.
+      # C: subscription inference: tools/launchd/mission-control.sh:157.
       printf '%s\n' CLAUDE_CODE_OAUTH_TOKEN
       ;;
     codex-role) : ;;

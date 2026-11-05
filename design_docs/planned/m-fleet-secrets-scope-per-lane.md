@@ -36,7 +36,7 @@ it appears in the inventory; an allowlist never restores a missing credential.
 
 | Ref | Consumer and repository evidence |
 |---|---|
-| C | Claude subscription inference `tools/launchd/mission-control.sh:154`; quota fallback `internal/mission/anthropic_quota.go:107`; quorum subprocess `internal/mission/quorum/claude_reviewer.go:69` |
+| C | Claude subscription inference `tools/launchd/mission-control.sh:157`; quota fallback `internal/mission/anthropic_quota.go:107`; quorum subprocess `internal/mission/quorum/claude_reviewer.go:69` |
 | O | Controller Ollama quota observation `cmd/ailang/mission_quota_cmd.go:58` |
 | R | Controller OpenRouter quota observation `cmd/ailang/mission_quota_cmd.go:75` |
 | Q | GPT quorum caller `internal/mission/quorum/call.go:89,120-128`; model `internal/modelreg/models.yml:577-582` |
@@ -63,7 +63,9 @@ Evidence: `internal/modelreg/models.yml:577,1633,2849,2869`,
 `internal/mission/quorum/claude_reviewer.go:69-79`.
 The Gemini auth route is controller-verified. `GOOGLE_API_KEY` is not retained;
 `GEMINI_AGENTS_API_KEY` belongs only to the managed-agents executor lane, which
-no fleet chain routes to. Every lane strips those names and `ANTHROPIC_API_KEY`.
+no fleet chain routes to. Every lane strips those names and `ANTHROPIC_API_KEY`
+when `secrets.env` assigns them: apply strips only names the inventory assigns
+(the failure path clears the seven measured names).
 
 The driver's existing billing unset remains in place. `OPENAI_API_KEY` therefore
 stays absent from initial controller environments, including pi's bash path.
@@ -103,7 +105,9 @@ if [ -n "${AILANG_SECRETS_LANE-}" ]; then if [ -n "${MISSION_DRIVER_ROOT-}" ] &&
 ```
 <!-- SECRETS-SCOPE HOST LINE END -->
 
-No marker means no file access by this line. With a marker, successful bridge
+The line sources the bridge with `2>/dev/null`, so its names-only
+`lane= kept= stripped=` audit line is not visible on this path; only the
+FAIL-CLOSED line is. No marker means no file access by this line. With a marker, successful bridge
 application permits the command body. A missing root, bridge, library, or other
 failure triggers emergency clearing of the measured seven and every parsed
 inventory name, prints a FAIL-CLOSED message and exits 78 before the body.
