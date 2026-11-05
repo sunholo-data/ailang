@@ -20,3 +20,6 @@
 - Reporting:normalDaneel + triggeredDiscord;morning eveningpacketnotdue.
 - Harness:15/20escalationrows;0triageauthoredrepairs.
 - Record:prior27/28logcontentpreserved;allrecordPRsremainunmerged.
+
+- Draft record:https://github.com/sunholo-data/ailang/pull/2133
+- Delivered digest:https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6655782122
