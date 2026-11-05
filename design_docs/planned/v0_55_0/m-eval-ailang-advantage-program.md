@@ -306,7 +306,7 @@ The climb is **exploratory**, and the decision rule below stays **confirmatory**
   | Prefix passes made O(n) (`mapAccumL` rows, `zipWith` columns) | 4/8 | — |
   | + coordinate lookups by `A.get`, not `nth` | 4/8 | — |
   | + difference updates by one `A.accumulate` | (test 05 correct) | 58.1s |
-  | + evaluator dictionary fix (`b46b49b4a`) | (test 05 correct) | 21.3s |
+  | + evaluator dictionary fix (`42b96a408`) | (test 05 correct) | 21.3s |
 
   - **Wall 1 is corrected.** Fixing the prefix passes alone moved nothing: the four `A.set` writes per
     rectangle into the difference array cost as much. Both are the same cost, a single-cell `A.set` in a loop,
@@ -314,7 +314,7 @@ The climb is **exploratory**, and the decision rule below stays **confirmatory**
     `set`) is the planned fix. That doc deferred a builder primitive (its option C) because models do not
     discover new idioms, and this trial agrees: Haiku writes the Python-shaped `A.set` loop, and Phase 3 makes
     exactly that loop fast. **No separate design doc.** The climb evidence goes to Phase 3's priority instead.
-  - **Evaluator fix found on the way (`b46b49b4a`).** The CPU profile showed `evalDictRef` rebuilding the whole
+  - **Evaluator fix found on the way (`42b96a408`).** The CPU profile showed `evalDictRef` rebuilding the whole
     type-class dictionary (6–10 `Sprintf` keys, lookups, fresh wrappers) on every overloaded operator call:
     47% of CPU. It is now built once per evaluator (2.7× on that test). Under one CPU-time judge (30s CPU per
     test, same machine and load for both binaries), it adds **3 hidden tests across the 10 affected climb rows
@@ -333,6 +333,32 @@ The climb is **exploratory**, and the decision rule below stays **confirmatory**
     still monotone, but one small edge-case failure hides the rest, which inflates the noise band. **For
     steering, re-score each step offline by replaying the banked code on every hidden test** (CPU only, no
     model calls). The gate keeps the banked `stdout_ok`.
+
+- **Step 3 baseline (2026-11-05, `eval_results/cp_climb/step3_baseline_d49e0e01e/`, local).** The climb
+  resumes on dev `d49e0e01e`, which has the #2074 fix (`81649aa8e`) and the dictionary fix (`42b96a408`).
+  Prompt v0.16.11 is unchanged since step 0. Haiku, AILANG, 3 trials, `--parallel 4`, niced, on a quiet
+  machine. Every row was re-scored by replaying its code on all hidden tests with that one binary, at 30s
+  CPU per test (`exec_timeout`). Step 0 and 0b were replayed the same way, so the three differ only in what
+  Haiku wrote:
+
+  | | Full passes (banked) | S1 banked prefix | S1 full replay | Rows with no code | S1 full, rows with code |
+  |---|---|---|---|---|---|
+  | Step 0 | 3/18 | 0.337 | 0.400 | 4 (3 workspace kills, 1 agent timeout) | 0.514 (14) |
+  | Step 0b (A/A) | 4/18 | 0.383 | 0.498 | 4 (agent timeouts at load ≈ 150) | 0.640 (14) |
+  | **Step 3 baseline** | **4/18** | 0.480 | **0.677** | **0** | 0.677 (18) |
+
+  - **This is the new reference.** Steps 4 onward compare to 4/18 and S1 0.677 (full replay).
+  - **The rise over step 0/0b is infrastructure, not language.** Rows that wrote code score within the
+    step 0 → 0b A/A spread (0.514 → 0.640). Steps 0 and 0b each lost 4 rows to the harness or machine load,
+    and this run lost none. **Use ±0.13 S1 (full replay) and ±2 passes as the noise band** until a second
+    A/A run on a quiet machine narrows it.
+  - Per benchmark (S1 full replay): `cp_60149` 0.84, `cp_60153` 0.44, `cp_60159` 0.75, `cp_60164` 0.50,
+    `cp_60166` 0.61, `cp_60197` 0.92. No solution imports `std/array` (0/18, and 0/36 at step 0/0b).
+  - **`cp_60164` is still Wall 1.** In two trials the same 4 hidden tests time out. Trial 3 instead hits the
+    10,000 recursion-depth limit, on a non-tail recursion.
+  - **Step 0 replayed on this binary.** One banked full pass (`cp_60159` t3) is now rejected by the
+    documented #1958 tightening (an IO lambda passed to the pure `map`). Its diagnostic still offers the
+    misleading `import std/option (map as …)` hint noted in #2074.
 
 ## Decision rule for A/B arms
 
