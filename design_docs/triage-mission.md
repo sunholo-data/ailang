@@ -232,7 +232,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 
 9. [OBSERVED iteration12] Design PRs #1923/#1924 merged externally, recorded as unscored outcomes without approval/authorization inference. New PTY planner PR1926/card apr-5755c3e3 targets sprint-executor and remains HOLD(D26). New pricing design-only request inbox_1792622656896_0027a408. Snapshot7cards/28PRs/60issues; subsequent arrivals are re-selected next fire.
 
-10. [HARNESS] [NONBLOCKING] reporting:daneel-reports-not-declared-triage recurrence iteration25 inbox_1793696181298_78094169: direct normal report refused rc1; existing controlplane consumer delivered and exact body peek-verified. Fleet owns repair; no harness/config/registry/IAM change by triage.
+10. [HARNESS] [NONBLOCKING] reporting:daneel-reports-not-declared-triage recurrence iteration25 inbox_1793696181298_78094169: direct normal report refused rc1; existing controlplane consumer delivered and exact body peek-verified. Fleet owns repair; no harness/config/registry/IAM change by triage. Iteration30 recurrence inbox_1793919988681_18e6d7a0: normal/packet direct rc1; prescribed controlplane fallback exact-peek verified, no forced send or repair.
 
 ---
 **Document created**: 2026-10-15. Iteration 0 ratifies it with Mark before the loop is armed.
