@@ -114,13 +114,13 @@ Gemma 4 is the primary family (Mark's preference). It is dense at E4B / 12B / 31
 | Model | Pass | Failure mix |
 |---|---|---|
 | gemma4-e4b | **0/24** | 13 `non_agentic` (no tool call), 11 runtime errors. **Ruled out as an agent target.** |
-| gemma4-12b | **10/21** (3 not yet banked at time of writing), **all 10 on the first attempt** | 5 `non_agentic`, 6 banked as `runtime_error` but **template-only** |
+| gemma4-12b | **11/24** (core 7/12, stretch 4/12), **all 11 on the first attempt** | 6 `non_agentic`, 6 banked as `runtime_error` but **template-only**, 1 genuine `compile_error` (`emit_exact_bytes`, after 244k output tokens) |
 
-**Every 12B agent failure is a tool-protocol miss, not wrong code.** Two forms:
+**12 of 12B's 13 agent failures are tool-protocol misses, not wrong code.** When it did write a solution, it was correct 11 times out of 12. The protocol misses take two forms:
 1. It answers in chat after one long think, with no tool call (`non_agentic`).
 2. It uses tools but delivers the final code in chat, so the graded `solution.ail` is still the untouched template (`// TODO: Add your solution code below`). The harness banks that as `runtime_error` ("exports no functions").
 
-There are **no graded wrong answers so far.** "Finish by writing the file and running it" is exactly what agent-trajectory SFT teaches, since every training example ends in a write call and a verified run.
+There is only one graded wrong answer. "Finish by writing the file and running it" is exactly what agent-trajectory SFT teaches, since every training example ends in a write call and a verified run.
 
 **Harness gap (separate item):** an unedited template should bank as its own category (e.g. `no_solution_written`), not `runtime_error`.
 
