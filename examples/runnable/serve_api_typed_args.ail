@@ -1,0 +1,33 @@
+module examples/runnable/serve_api_typed_args
+
+-- Serve this module with ailang serve-api --mcp-http.
+-- MCP twice({"n":21}) and REST {"args":[21]} both return 42.
+export func twice(n: int) -> int ! {}
+requires { n >= -1000000 && n <= 1000000 }
+ensures { result == n * 2 }
+tests [(21, 42), (0, 0)] {
+  n * 2
+}
+
+-- Integral JSON numbers also bind correctly to declared floats.
+export func half(x: float) -> float ! {}
+tests [(2.0, 1.0)] {
+  x / 2.0
+}
+
+-- Both record fields and list elements use their declared numeric types.
+export func firstCount(r: {counts: [int], factor: float}) -> int ! {}
+tests [({counts: [5], factor: 2.0}, 6)] {
+  match r.counts { [] => 0, n :: _ => n + 1 }
+}
+
+@optional("n")
+export func optionalCount(n: int) -> int ! {}
+tests [(0, 1)] {
+  n + 1
+}
+
+-- A deterministic entrypoint for standalone example verification.
+@noexpose
+@nomcp
+export func main() -> int ! {} = twice(21)

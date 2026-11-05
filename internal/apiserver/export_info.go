@@ -2,26 +2,27 @@ package apiserver
 
 // ExportInfo describes a single exported function from an AILANG module.
 type ExportInfo struct {
-	Name        string   `json:"name"`
-	Type        string   `json:"type"`                   // human-readable type signature
-	Pure        bool     `json:"pure"`                   // declared effect row is empty (set from the AST at load; see extractMCPToolMetaAnnotations)
-	Arity       int      `json:"arity"`                  // number of parameters (-1 if not a function)
-	ParamNames  []string `json:"param_names,omitempty"`  // parameter names in order (for named JSON binding)
-	ParamTypes  []string `json:"param_types,omitempty"`  // parameter type strings in order (for zero-value padding)
-	ParamZeros  []any    `json:"-"`                      // per param: zero of its declared record type, nil otherwise (param_zero.go)
-	RouteMethod string   `json:"route_method,omitempty"` // custom HTTP method from @route annotation
-	RoutePath   string   `json:"route_path,omitempty"`   // custom URL path from @route annotation
-	IsRaw       bool     `json:"is_raw,omitempty"`       // @raw annotation: pass full HttpRequest record
-	IsNowrap    bool     `json:"is_nowrap,omitempty"`    // @nowrap annotation: skip FunctionCallResponse envelope
-	IsNoExpose  bool     `json:"is_no_expose,omitempty"` // @noexpose annotation: hide from HTTP endpoints
-	IsNoMCP     bool     `json:"is_no_mcp,omitempty"`    // @nomcp annotation: hide from the MCP tool surface only (HTTP/OpenAPI/A2A unaffected)
-	MCPName     string   `json:"mcp_name,omitempty"`     // @mcp_name annotation: explicit MCP tool name override
-	MCPTitle    string   `json:"mcp_title,omitempty"`    // @mcp_title annotation: MCP display title
-	MCPHints    []string `json:"mcp_hints,omitempty"`    // @mcp_hints annotation: MCP behaviour hints (validated at registration)
-	HasMCPHints bool     `json:"-"`                      // @mcp_hints present (an empty list is still a declaration)
-	MCPAuth     string   `json:"mcp_auth,omitempty"`     // @mcp_auth: "oauth2" gates the tool on the listed surface; "" / "noauth" = open
-	MCPSecret   []string `json:"-"`                      // @mcp_secret: params dropped (zero-bound) on the listed surface
-	IsAgentOnly bool     `json:"-"`                      // @mcp_agent_only: absent from the listed surface
+	ParamSchemas []ParamSchema `json:"-"`
+	Name         string        `json:"name"`
+	Type         string        `json:"type"`                   // human-readable type signature
+	Pure         bool          `json:"pure"`                   // declared effect row is empty (set from the AST at load; see extractMCPToolMetaAnnotations)
+	Arity        int           `json:"arity"`                  // number of parameters (-1 if not a function)
+	ParamNames   []string      `json:"param_names,omitempty"`  // parameter names in order (for named JSON binding)
+	ParamTypes   []string      `json:"param_types,omitempty"`  // parameter type strings in order (for zero-value padding)
+	ParamZeros   []any         `json:"-"`                      // per param: zero of its declared record type, nil otherwise (param_zero.go)
+	RouteMethod  string        `json:"route_method,omitempty"` // custom HTTP method from @route annotation
+	RoutePath    string        `json:"route_path,omitempty"`   // custom URL path from @route annotation
+	IsRaw        bool          `json:"is_raw,omitempty"`       // @raw annotation: pass full HttpRequest record
+	IsNowrap     bool          `json:"is_nowrap,omitempty"`    // @nowrap annotation: skip FunctionCallResponse envelope
+	IsNoExpose   bool          `json:"is_no_expose,omitempty"` // @noexpose annotation: hide from HTTP endpoints
+	IsNoMCP      bool          `json:"is_no_mcp,omitempty"`    // @nomcp annotation: hide from the MCP tool surface only (HTTP/OpenAPI/A2A unaffected)
+	MCPName      string        `json:"mcp_name,omitempty"`     // @mcp_name annotation: explicit MCP tool name override
+	MCPTitle     string        `json:"mcp_title,omitempty"`    // @mcp_title annotation: MCP display title
+	MCPHints     []string      `json:"mcp_hints,omitempty"`    // @mcp_hints annotation: MCP behaviour hints (validated at registration)
+	HasMCPHints  bool          `json:"-"`                      // @mcp_hints present (an empty list is still a declaration)
+	MCPAuth      string        `json:"mcp_auth,omitempty"`     // @mcp_auth: "oauth2" gates the tool on the listed surface; "" / "noauth" = open
+	MCPSecret    []string      `json:"-"`                      // @mcp_secret: params dropped (zero-bound) on the listed surface
+	IsAgentOnly  bool          `json:"-"`                      // @mcp_agent_only: absent from the listed surface
 	// @mcp_file: params that take an OpenAI file object (openai/fileParams).
 	// Validated at load (extractMCPFileAnnotations): a declared, non-secret
 	// param typed as the four-string file record.

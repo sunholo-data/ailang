@@ -56,7 +56,7 @@ func isRecordParamType(t ast.Type, aliases map[string]*ast.RecordType) bool {
 
 // zeroFromAST is the zero value of declared type t (ok=false when t has none).
 // Values are typed for the engine: an int field binds an int and a float field
-// a FloatValue, so neither Call nor CallPreserveFloats re-reads 0 as the other.
+// a FloatValue, so conversion cannot re-read 0 as the other numeric type.
 func zeroFromAST(t ast.Type, aliases map[string]*ast.RecordType, depth int) (any, bool) {
 	if depth > maxZeroDepth {
 		return nil, false
@@ -77,7 +77,7 @@ func zeroFromAST(t ast.Type, aliases map[string]*ast.RecordType, depth int) (any
 		case "string":
 			return "", true
 		case "int":
-			return int(0), true
+			return &eval.IntValue{Value: 0}, true
 		case "float":
 			return &eval.FloatValue{Value: 0}, true
 		case "bool":
@@ -86,9 +86,14 @@ func zeroFromAST(t ast.Type, aliases map[string]*ast.RecordType, depth int) (any
 		if rec := aliases[v.Name]; rec != nil {
 			return zeroFromAST(rec, aliases, depth+1)
 		}
-	case *ast.ListType, *ast.ArrayType:
+	case *ast.ArrayType:
+		return eval.NewArray(nil), true
+	case *ast.ListType:
 		return []any{}, true
 	case *ast.TypeApp: // [T] parses as list[T]
+		if v.Constructor == "Array" {
+			return eval.NewArray(nil), true
+		}
 		if v.Constructor == "list" {
 			return []any{}, true
 		}

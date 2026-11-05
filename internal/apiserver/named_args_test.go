@@ -1,7 +1,8 @@
 package apiserver
 
 import (
-	"fmt"
+	"github.com/sunholo-data/ailang/internal/eval"
+	"reflect"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/ast"
@@ -112,6 +113,9 @@ func TestParamTypeToString(t *testing.T) {
 		{"list", &ast.ListType{}, "list"},
 		{"array", &ast.ArrayType{}, "array"},
 		{"record", &ast.RecordType{}, "record"},
+		{"[T] list app", &ast.TypeApp{Constructor: "list", Args: []ast.Type{&ast.SimpleType{Name: "int"}}}, "list"},
+		{"Array[T] app", &ast.TypeApp{Constructor: "Array", Args: []ast.Type{&ast.SimpleType{Name: "int"}}}, "array"},
+		{"other type app", &ast.TypeApp{Constructor: "Option", Args: []ast.Type{&ast.SimpleType{Name: "int"}}}, "unknown"},
 		{"func type", &ast.FuncType{}, "unknown"},
 		{"type var", &ast.TypeVar{Name: "a"}, "unknown"},
 	}
@@ -210,7 +214,7 @@ func TestParseNamedArgs(t *testing.T) {
 		if args[1] != "" {
 			t.Errorf("args[1] = %v, want empty string for missing string param", args[1])
 		}
-		if args[2] != float64(0) {
+		if !reflect.DeepEqual(args[2], &eval.IntValue{Value: 0}) {
 			t.Errorf("args[2] = %v, want 0 for missing int param", args[2])
 		}
 	})
@@ -252,11 +256,11 @@ func TestZeroValueForType(t *testing.T) {
 		want     interface{}
 	}{
 		{"string", ""},
-		{"int", float64(0)},
-		{"float", float64(0)},
+		{"int", &eval.IntValue{Value: 0}},
+		{"float", &eval.FloatValue{Value: 0}},
 		{"bool", false},
 		{"list", []interface{}{}},
-		{"array", []interface{}{}},
+		{"array", eval.NewArray(nil)},
 		{"record", map[string]interface{}{}},
 		{"unknown", nil},
 		{"CustomType", nil},
@@ -264,7 +268,7 @@ func TestZeroValueForType(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.typeName, func(t *testing.T) {
 			got := zeroValueForType(tt.typeName)
-			if fmt.Sprintf("%v", got) != fmt.Sprintf("%v", tt.want) {
+			if !reflect.DeepEqual(got, tt.want) {
 				t.Errorf("zeroValueForType(%q) = %v (%T), want %v (%T)", tt.typeName, got, got, tt.want, tt.want)
 			}
 		})
@@ -300,7 +304,7 @@ func TestParseArgsWithNames(t *testing.T) {
 		if args[0] != "hello" {
 			t.Errorf("args[0] = %v, want 'hello'", args[0])
 		}
-		if args[1] != float64(0) {
+		if !reflect.DeepEqual(args[1], &eval.IntValue{Value: 0}) {
 			t.Errorf("args[1] = %v, want 0 for missing int param", args[1])
 		}
 		if args[2] != false {
@@ -416,7 +420,7 @@ func TestParseArgsWithNames_UnmatchedKeysZeroValuePadding(t *testing.T) {
 		if args[0] != "" {
 			t.Errorf("args[0] = %v, want empty string", args[0])
 		}
-		if args[1] != float64(0) {
+		if !reflect.DeepEqual(args[1], &eval.IntValue{Value: 0}) {
 			t.Errorf("args[1] = %v, want 0", args[1])
 		}
 	})
@@ -459,7 +463,7 @@ func TestParseArgsWithNames_UnmatchedKeysZeroValuePadding(t *testing.T) {
 		if args[0] != "" {
 			t.Errorf("args[0] = %v (%T), want empty string", args[0], args[0])
 		}
-		if args[1] != float64(0) {
+		if !reflect.DeepEqual(args[1], &eval.IntValue{Value: 0}) {
 			t.Errorf("args[1] = %v (%T), want 0", args[1], args[1])
 		}
 		if args[2] != false {

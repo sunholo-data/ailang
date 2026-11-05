@@ -1980,3 +1980,32 @@ use `--no-static-security-headers`; explicit `--static-header` values still appl
 These options require `--static` and reject invalid header names, empty values,
 and control characters at startup. Deployments framing static pages must migrate
 with both overrides or opt out explicitly. The defaults affect static files only.
+
+### Declared argument types
+
+REST, MCP `tools/call`, A2A and MCP UI resource calls bind arguments through one
+shared binder typed by the function's declared parameter types, including
+nested record fields, list elements and array elements. `twice(n: int)` accepts
+JSON `21` and `half(x: float)` accepts JSON `3` (giving `1.5`) on every surface.
+
+| Surface | How arguments arrive | Declared-type binding |
+|---|---|---|
+| MCP `tools/call` | named object, or `{"args": [...]}` | yes |
+| REST JSON | named object, or `{"args": [...]}` | yes |
+| REST `multipart/form-data` | text fields (`-F n=21`), files | yes: text is parsed as the declared `int`, `float`, `bool`, record or list (JSON text); `string` fields stay text |
+| A2A `tasks/send` | `data` part `{"args": [...]}` or JSON `text` part | yes |
+
+An omitted `@optional` parameter binds its declared zero on every surface:
+`0`, `0.0`, `false`, `""`, the empty list or array, and a record at its
+fields' zeros. A list parameter (`xs: [int]`) is advertised to MCP clients as
+`"type": "array"` and may be `@optional`.
+
+Fractional or out-of-range integers, non-finite floats and bool/string/record/list
+mismatches are rejected before the function runs. The error names the parameter
+and the nested field or list index, in JSON terms:
+`invalid arguments: r.items[0].n: expected int, got number (2.5)`. REST returns
+HTTP 400, MCP returns an `isError` result, and A2A returns JSON-RPC error
+-32602. Types the binder cannot see from the module's own declarations (an ADT,
+a type variable, a record type imported from another module) and extra record
+fields keep the previous heuristic conversion. Query-string arguments are not
+re-typed. See `examples/runnable/serve_api_typed_args.ail` for a minimal service.

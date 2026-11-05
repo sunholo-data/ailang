@@ -5,6 +5,13 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "runnable/serve_api_typed_args.ail",
+      "status": "working",
+      "tags": ["http", "mcp", "types"],
+      "description": "Declared integer and float arguments shared by REST and MCP",
+      "modules": []
+    },
+    {
       "path": "runnable/explicit_empty_callback_contracts.ail",
       "status": "working",
       "tags": ["effects", "callbacks", "pure", "regression"],
@@ -3708,11 +3715,11 @@
     }
   ],
   "statistics": {
-    "total": 252,
-    "working": 244,
+    "total": 253,
+    "working": 245,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9682539682539683,
+    "coverage": 0.9683794466403162,
     "experimental": 0
   },
   "milestones": {

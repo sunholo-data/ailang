@@ -100,7 +100,11 @@ func (ms *MCPServer) readUIResource(r uiResource) mcp.ResourceHandler {
 			return nil, err
 		}
 		args := make([]any, len(r.export.ParamNames)) // unit params bind nil
-		res, err := ms.server.engine.CallPreserveFloats(r.modPath, r.export.Name, args...)
+		args, err = bindCallArgs(r.export, args)
+		if err != nil {
+			return nil, err
+		}
+		res, err := ms.server.engine.Call(r.modPath, r.export.Name, args...)
 		if err != nil {
 			return nil, fmt.Errorf("%s: %s failed: %v", r.export.UIResource, r.export.Name, err)
 		}
