@@ -2,8 +2,8 @@
 # eval-park-set.sh — print the PARKED benchmark ids for the local-rig rotation,
 # one id per line (the counterpart of eval-signal-set.sh's SATURATED set).
 #
-# "Parked" = no harness passes it. Across the last N version banks that hold rows
-# for the active models, the benchmark has >= MIN_ROWS ailang rows, from >=
+# "Parked" = no harness passes it. Across the last N version banks that RAN THIS
+# BENCHMARK on the active models, the benchmark has >= MIN_ROWS ailang rows, from >=
 # MIN_MODELS distinct models, and ZERO passes. Such a benchmark separates nothing
 # (every harness fails it), and on the rig it is also the most expensive cell: the
 # 2026-10-20..11-03 window spent most of its signal-first GPU time on cp_60166
@@ -61,23 +61,34 @@ for vdir in sorted(glob.glob(os.path.join(roll, "v[0-9]*")), key=vkey):
         rows.append(d)
     if rows:
         banks.append((os.path.basename(vdir), rows))
-recent = banks[-nver:]
-agg = collections.defaultdict(lambda: {"n": 0, "pass": 0, "models": set(), "fail": collections.Counter()})
-for _, rows in recent:
+# The window is per BENCHMARK: its last N banks that actually ran it. A global
+# "last N banks" window un-parked cp_60166 on 2026-11-04 with no new evidence:
+# two quick releases (v0.57.0, v0.57.1) that had not reached it yet pushed its
+# old rows out, leaving 3 < min_rows, so missing data read as "might pass now".
+by_bench = collections.defaultdict(list)          # id -> [(ver, [rows])] in version order
+for ver, rows in banks:
+    per = collections.defaultdict(list)
     for d in rows:
-        a = agg[d.get("id")]
-        a["n"] += 1
-        a["models"].add(d["model"])
-        if d.get("stdout_ok"):
-            a["pass"] += 1
-        else:
-            a["fail"][d.get("error_category") or "unknown"] += 1
-span = ",".join(v for v, _ in recent)
+        per[d.get("id")].append(d)
+    for bid, brows in per.items():
+        by_bench[bid].append((ver, brows))
+agg = collections.defaultdict(lambda: {"n": 0, "pass": 0, "models": set(), "fail": collections.Counter(), "vers": []})
+for bid, vrows in by_bench.items():
+    a = agg[bid]
+    for ver, brows in vrows[-nver:]:
+        a["vers"].append(ver)
+        for d in brows:
+            a["n"] += 1
+            a["models"].add(d["model"])
+            if d.get("stdout_ok"):
+                a["pass"] += 1
+            else:
+                a["fail"][d.get("error_category") or "unknown"] += 1
 for bid in sorted(agg):
     a = agg[bid]
     if bid and a["pass"] == 0 and a["n"] >= min_rows and len(a["models"]) >= min_models:
         print(bid)
         print("parked %s: 0/%d passes across %d models in %s; failures %s"
-              % (bid, a["n"], len(a["models"]), span, dict(a["fail"])), file=sys.stderr)
+              % (bid, a["n"], len(a["models"]), ",".join(a["vers"]), dict(a["fail"])), file=sys.stderr)
 PYEOF
 exit 0
