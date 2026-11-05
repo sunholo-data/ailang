@@ -3,7 +3,7 @@
 **Design:** [Approved design](m-scc-shadow-aware-callgraph.md)  
 **Issue:** #2078  
 **Target:** v0.57.2  
-**Status:** Planned; implementation awaits coordinator plan approval.  
+**Status:** Implemented; verification has the unrelated process-cleanup exception recorded below.
 **Duration:** 2.5 working days, approximately 7.5 focused implementation hours plus investigation, corpus execution and review buffer.  
 **Risk:** Medium: dropping genuine ordering edges can reintroduce false undefined-variable errors.
 
@@ -46,8 +46,8 @@ Check accepted fixtures with the candidate CLI as well as pipeline tests. Preser
 **Files:** internal/elaborate/scc.go; internal/elaborate/scc_test.go.  
 **Registry reuse:** none: compiler-internal AST scope and SCC analysis plus regression coverage; no package-like capability or runtime dependency is introduced. Registry search is not applicable.
 
-- [ ] astPatternBinders agrees with corePatternBinders after elaboratePattern for lowercase, uppercase, wildcard, nested constructor, cons, list/rest, tuple and record patterns.
-- [ ] Constructor and record field names never become binders; nil patterns are harmless.
+- [x] astPatternBinders agrees with corePatternBinders after elaboratePattern for lowercase, uppercase, wildcard, nested constructor, cons, list/rest, tuple and record patterns.
+- [x] Constructor and record field names never become binders; nil patterns are harmless.
 
 **Validation:** Run targeted internal/elaborate tests for this milestone; preserve all previously passing controls.
 
@@ -58,9 +58,9 @@ Check accepted fixtures with the candidate CLI as well as pipeline tests. Preser
 **Files:** internal/elaborate/scc.go; internal/elaborate/scc_test.go.  
 **Registry reuse:** none: compiler-internal AST scope and SCC analysis plus regression coverage; no package-like capability or runtime dependency is introduced. Registry search is not applicable.
 
-- [ ] Lambda and FuncLit parameters, match guards/bodies, local let/letrec, sequential blocks and forall bodies filter locally bound names without scope leakage.
-- [ ] Let values and forall bounds retain outer references; bodyless module letrec retains its self-edge.
-- [ ] ForallExpr, Send, Recv, AssertStmt and QuasiQuote interpolations retain genuine references; DEBUG_STRICT still panics for an unhandled expression variant.
+- [x] Lambda and FuncLit parameters, match guards/bodies, local let/letrec, sequential blocks and forall bodies filter locally bound names without scope leakage.
+- [x] Let values and forall bounds retain outer references; bodyless module letrec retains its self-edge.
+- [x] ForallExpr, Send, Recv, AssertStmt and QuasiQuote interpolations retain genuine references; DEBUG_STRICT still panics for an unhandled expression variant.
 
 **Validation:** Run targeted internal/elaborate tests for this milestone; preserve all previously passing controls.
 
@@ -71,9 +71,9 @@ Check accepted fixtures with the candidate CLI as well as pipeline tests. Preser
 **Files:** internal/elaborate/scc_test.go; internal/elaborate/scc_shadow_effects_test.go.  
 **Registry reuse:** none: compiler-internal AST scope and SCC analysis plus regression coverage; no package-like capability or runtime dependency is introduced. Registry search is not applicable.
 
-- [ ] BuildCallGraph has no false each-to-t edge for pattern, lambda and let shadows; non-shadow controls keep genuine edges.
-- [ ] isSelfRecursive ignores shadowed self names; bodyless module letrec still emits core.LetRec; genuine mutual recursion still groups.
-- [ ] TestModuleLetResolutionMatrix and TestLexicalScope_BinderShadowsGlobals pass unchanged.
+- [x] BuildCallGraph has no false each-to-t edge for pattern, lambda and let shadows; non-shadow controls keep genuine edges.
+- [x] isSelfRecursive ignores shadowed self names; bodyless module letrec still emits core.LetRec; genuine mutual recursion still groups.
+- [x] TestModuleLetResolutionMatrix and TestLexicalScope_BinderShadowsGlobals pass unchanged.
 
 **Validation:** Run targeted internal/elaborate tests for this milestone; preserve all previously passing controls.
 
@@ -84,9 +84,9 @@ Check accepted fixtures with the candidate CLI as well as pipeline tests. Preser
 **Files:** internal/elaborate/scc_shadow_effects_test.go.  
 **Registry reuse:** none: compiler-internal AST scope and SCC analysis plus regression coverage; no package-like capability or runtime dependency is introduced. Registry search is not applicable.
 
-- [ ] All eleven design reproduction rows run through pipeline ModeCheck using elaborate_test and existing checkModule helper.
-- [ ] Rows 1 through 9 pass, including original issue and let-discard variants; rows 10 and 11 reject with Missing effects and IO.
-- [ ] Baseline binary rejects positive controls 1, 5 and 6; candidate accepts them; no internal/types or internal/pipeline production changes.
+- [x] All eleven design reproduction rows run through pipeline ModeCheck using elaborate_test and existing checkModule helper.
+- [x] Rows 1 through 9 pass, including original issue and let-discard variants; rows 10 and 11 reject with Missing effects and IO.
+- [x] Baseline binary rejects positive controls 1, 5 and 6; candidate accepts them; no internal/types or internal/pipeline production changes.
 
 **Validation:** Run targeted internal/elaborate tests for this milestone; preserve all previously passing controls.
 
@@ -97,9 +97,9 @@ Check accepted fixtures with the candidate CLI as well as pipeline tests. Preser
 **Files:** changelogs/unreleased/2026-11-04-scc-shadow-aware-callgraph.md.  
 **Registry reuse:** none: compiler-internal AST scope and SCC analysis plus regression coverage; no package-like capability or runtime dependency is introduced. Registry search is not applicable.
 
-- [ ] Per-file base (v0.57.0) vs candidate `ailang check` over EVERY tracked .ail in this repo (`git ls-files '*.ail'`, ~810 files, each from its package root) has zero unexpected flips; the issue repro and rows 5/6 flip reject→accept as positive controls; rows 10/11 stay rejected. The out-of-repo populations are run attended before release (see Validation).
-- [ ] make test-changed, make check-file-sizes, make check-changelog and make verify-examples pass; formatting and lint checks pass.
-- [ ] Changelog fragment opens with ### and references #2078; evidence records binary commits, corpus manifest, commands and results.
+- [x] Per-file base (v0.57.0) vs candidate `ailang check` over EVERY tracked .ail in this repo (`git ls-files '*.ail'`, ~810 files, each from its package root) has zero unexpected flips; the issue repro and rows 5/6 flip reject→accept as positive controls; rows 10/11 stay rejected. The out-of-repo populations are run attended before release (see Validation).
+- [ ] make test-changed, make check-file-sizes, make check-changelog and make verify-examples pass; formatting and lint checks pass. `make test-changed` fails only in two unchanged `internal/effects` process-cleanup tests; see execution evidence.
+- [x] Changelog fragment opens with ### and references #2078; evidence records binary commits, corpus manifest, commands and results.
 
 **Validation:** Run targeted internal/elaborate tests for this milestone; preserve all previously passing controls.
 
@@ -127,3 +127,30 @@ Any newly ACCEPTED file is expected only where a module-level name is shadowed b
 Success requires every criterion above, 510 estimated LOC total, all binder/reference branches covered by explicit controls, unchanged genuine recursion and validator rejection behavior, and complete differential sweep evidence. No global percentage coverage target is invented; require branch-specific scope and soundness coverage.
 
 Use refs #2078 for planning and intermediate commits. Fixes #2078 is permitted only in a final commit that changes code. The plan itself must never close the issue. The coordinator consumes the plan and JSON artifacts for review; merging the sprint-plan PR is the documented executor trigger. No executor is launched by this planning stage. After approval, executor loads the JSON, implements milestones and hands results to sprint-evaluator against the approved design.
+
+## Execution evidence (2026-11-04)
+
+Implemented on `coordinator/task-25c55223` (the provided clean workspace branch).
+Milestones M1–M4 pass, including all eleven design rows and the let-discard
+variant. Row 5 uses the type-correct callback `\t. f(t)` instead of the abbreviated
+identity callback returning int. Production changes are confined to `scc.go`.
+
+The 810-file repository sweep has zero flips and zero timeouts: 592 accepted,
+218 existing rejections. Published v0.57.0 rejects positive controls 1/5/6/12;
+the candidate accepts them, while 10/11 retain missing-IO rejection.
+Examples pass (265 passed, 10 skipped), with 247 manifest modules checked and no
+drift. Formatting, file-size, changelog, focused vet and repository lint checks pass.
+
+`make test-changed` completes with every core package passing except two
+process-cleanup tests in unchanged `internal/effects`; they reproduce separately
+and their package does not depend on elaborate or pipeline. M5's full-green-gate
+criterion therefore remains open for CI/operator resolution. The independent
+sprint evaluator must assess this exception; no self-approval is claimed.
+
+Evidence and exact command outcomes:
+[execution report](../../../.ailang/state/sprints/scc-shadow-evidence.md),
+[corpus manifest](../../../.ailang/state/sprints/scc-shadow-corpus.tsv),
+[controls](../../../.ailang/state/sprints/scc-shadow-controls.tsv), and
+[check log](../../../.ailang/state/sprints/scc-shadow-checks.log).
+The operator's out-of-repository populations and MCP boot/smoke remain required
+before release, as scoped above.

@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-SCC-SHADOW-AWARE-CALLGRAPH",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-11-04T13:43:49.606411+00:00",
   "design_doc": "design_docs/planned/v0_57_2/m-scc-shadow-aware-callgraph.md",
   "sprint_plan": "design_docs/planned/v0_57_2/m-scc-shadow-aware-callgraph-sprint-plan.md",
@@ -54,10 +54,10 @@
         "astPatternBinders agrees with corePatternBinders after elaboratePattern for lowercase, uppercase, wildcard, nested constructor, cons, list/rest, tuple and record patterns.",
         "Constructor and record field names never become binders; nil patterns are harmless."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T14:20:49.164450+00:00",
+      "completed": "2026-11-04T14:20:58.813040+00:00",
+      "notes": "Pattern/core equivalence passes; legacy ConsPattern normalized to parser constructor form for comparison."
     },
     {
       "id": "M2",
@@ -71,10 +71,10 @@
         "Let values and forall bounds retain outer references; bodyless module letrec retains its self-edge.",
         "ForallExpr, Send, Recv, AssertStmt and QuasiQuote interpolations retain genuine references; DEBUG_STRICT still panics for an unhandled expression variant."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T14:21:53.687972+00:00",
+      "completed": "2026-11-04T14:21:53.687972+00:00",
+      "notes": "Scope tests first failed in 14 branches on the old walker, now pass; DEBUG_STRICT panic preserved."
     },
     {
       "id": "M3",
@@ -88,10 +88,10 @@
         "isSelfRecursive ignores shadowed self names; bodyless module letrec still emits core.LetRec; genuine mutual recursion still groups.",
         "TestModuleLetResolutionMatrix and TestLexicalScope_BinderShadowsGlobals pass unchanged."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T14:23:22.737554+00:00",
+      "completed": "2026-11-04T14:23:22.737554+00:00",
+      "notes": "Graph shadows, non-shadow cycles, self-recursion and explicit core.LetRec emission pass; existing module/scope matrices unchanged and passing."
     },
     {
       "id": "M4",
@@ -105,10 +105,10 @@
         "Rows 1 through 9 pass, including original issue and let-discard variants; rows 10 and 11 reject with Missing effects and IO.",
         "Baseline binary rejects positive controls 1, 5 and 6; candidate accepts them; no internal/types or internal/pipeline production changes."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": true,
+      "started": "2026-11-04T14:25:01.587511+00:00",
+      "completed": "2026-11-04T14:25:01.587511+00:00",
+      "notes": "12 ModeCheck rows pass (11 design rows plus let-discard). Published b23cadc v0.57.0 rejects 1/5/6/12; candidate accepts. 10/11 reject Missing effects: IO on both. Row 5 uses typed-valid callback \\t. f(t), since \\t. t has incompatible int result. Repository-source prompt v0.16.11 loaded."
     },
     {
       "id": "M5",
@@ -118,14 +118,28 @@
         "M4"
       ],
       "acceptance_criteria": [
-        "Per-file base (v0.57.0) vs candidate `ailang check` over EVERY tracked .ail in this repo (`git ls-files '*.ail'`, ~810 files, each from its package root) has zero unexpected flips; the issue repro and rows 5/6 flip reject→accept as positive controls; rows 10/11 stay rejected. The out-of-repo populations are run attended before release (see Validation).",
+        "Per-file base (v0.57.0) vs candidate `ailang check` over EVERY tracked .ail in this repo (`git ls-files '*.ail'`, ~810 files, each from its package root) has zero unexpected flips; the issue repro and rows 5/6 flip reject\u2192accept as positive controls; rows 10/11 stay rejected. The out-of-repo populations are run attended before release (see Validation).",
         "make test-changed, make check-file-sizes, make check-changelog and make verify-examples pass; formatting and lint checks pass.",
         "Changelog fragment opens with ### and references #2078; evidence records binary commits, corpus manifest, commands and results."
       ],
-      "passes": null,
-      "started": null,
-      "completed": null,
-      "notes": null
+      "passes": false,
+      "started": "2026-11-04T14:31:28.899771+00:00",
+      "completed": "2026-11-04T14:37:10.422331+00:00",
+      "notes": "Implementation and corpus evidence complete: 810/810 files, 592 accepted, 218 existing rejections, zero flips/timeouts; positive/soundness controls banked. Examples, fmt, file-size, changelog, vet and repository lint (0 issues) pass. Full-green-gate acceptance NOT met: make test-changed exits 2 only due to two unchanged effects process-lifetime tests, reproduced independently; all other core packages including pipeline pass. See scc-shadow-evidence.md and scc-shadow-checks.log. Operator external sweep remains before release."
     }
-  ]
+  ],
+  "notes": [
+    "Workspace branch coordinator/task-25c55223; clean baseline 17664aba. Cloud sync skipped:no-task-id. Startup helper has jq dependency-expression error and missing bc; direct verification used. Go available at /usr/local/go/bin (not initial PATH).",
+    "make install-lint with GOTOOLCHAIN=local succeeded; make lint passes zero issues. No push: cloud helper skipped:no-task-id at every milestone."
+  ],
+  "last_checkpoint": "Implementation complete; M1-M4 pass, M5 executed with an explicit unrelated test-gate exception; ready for independent sprint evaluator.",
+  "evidence": [
+    ".ailang/state/sprints/scc-shadow-evidence.md",
+    ".ailang/state/sprints/scc-shadow-corpus.tsv",
+    ".ailang/state/sprints/scc-shadow-controls.tsv",
+    ".ailang/state/sprints/scc-shadow-checks.log"
+  ],
+  "implementation_status": "complete",
+  "verification_status": "failed_unrelated_effects_tests",
+  "completed": "2026-11-04T14:37:10.422331+00:00"
 }
