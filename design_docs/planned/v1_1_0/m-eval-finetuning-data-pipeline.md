@@ -164,7 +164,7 @@ Script: `~/models/finetune/batchbench.py`; results in `~/models/finetune/batchbe
 4. **Teacher, not target: qwen3.8-27b.** 94% one-shot, $0 locally. It can generate verified SFT data in bulk with none of the closed-model licensing issues in §R4. That makes the exporter less urgent for a first pilot.
 5. Ruled out: E4B, qwen3.5-9b, Ministral 8B/14B. Deferred: the Empero Qwen3.8-9B community distill (unverified provenance).
 
-### Tooling check (2026-11-05): the training and serving path works end to end
+### Tooling check (2026-11-05): training works; serving through Ollama needs one more fix
 
 Run with stock **mlx-lm 0.32.2** (PyPI) in an isolated uv env at `~/models/finetune/.venv`, on `mlx-community/gemma-4-12B-it-4bit` and `gemma-4-31b-it-4bit`. Training data: 136 verified qwen3.8 solutions with no teaching prompt (plumbing only; see the contamination rule below). LoRA settings: `--mask-prompt --num-layers 16 --batch-size 1 --iters 40 --lr 1e-4 --grad-checkpoint`. Script: `~/models/finetune/toolcheck.sh`.
 
@@ -177,9 +177,9 @@ Run with stock **mlx-lm 0.32.2** (PyPI) in an isolated uv env at `~/models/finet
 | Base, no teaching prompt | reasons that "AILANG is not a known language" | invalid output |
 | After 40 steps | **skips thinking**, emits a correct `module …` header and `export func main() -> () ! {IO}`, then a repetition loop | a one-line program that **type-checks up to one missing import** (`std/list (range)`), then a loop |
 | `mlx_lm.fuse --dequantize` | ✅ 21 s, 22 GB | not tested |
-| `ollama create` from the fused safetensors | ✅ imported as `gemma4_unified`, 11.9B, **tools capability**; **no GGUF conversion needed** (resolves open question 2) | not tested |
+| `ollama create` from the fused safetensors | ⚠️ **imports** (`gemma4_unified`, 11.9B, tools capability, no GGUF conversion needed) but **fails to load**: `config declares a gemma4_unified_audio embedder but embed_audio weights are missing`. mlx-lm strips the vision/audio weights, and `fuse` keeps the original config. Next fix to try: drop the audio/vision sections from the fused `config.json` before `ollama create`; alternatives are restoring the base model's audio/vision weights or serving via `mlx_lm.server` | not tested (plain `gemma4`, so it may import cleanly) |
 
-A real run is a different scale: a pilot on ~2–5k teacher solutions is about 3–7M tokens per epoch, so **~6–13 h per epoch for 12B** (overnight, with the rotation paused) and about 2.5× that for 31B. The toy output loops are the expected signature of a badly undertrained adapter decoded greedily; they say nothing about quality. Still open: a generation from the *imported* Ollama model, and importing quantized (q8) rather than at 23 GB.
+A real run is a different scale: a pilot on ~2–5k teacher solutions is about 3–7M tokens per epoch, so **~6–13 h per epoch for 12B** (overnight, with the rotation paused) and about 2.5× that for 31B. The toy output loops are the expected signature of a badly undertrained adapter decoded greedily; they say nothing about quality. Still open: the Ollama load failure above (open question 2 is narrowed, not resolved), and importing quantized (q8) rather than at 23 GB.
 
 **Contamination rule:** never train on the eval benchmarks' own solutions. Teacher data must come from held-out tasks, or the before/after A/B is void. The 2026-11-05 tooling-check adapter (`~/models/finetune/adapters-toolcheck/`) was trained on eval solutions on purpose, as plumbing, and **must never be scored**.
 
