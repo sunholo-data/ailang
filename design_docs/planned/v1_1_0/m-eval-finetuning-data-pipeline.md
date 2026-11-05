@@ -238,6 +238,10 @@ Supersedes §"Data extraction" and §R4 where they conflict. The binding constra
 - [x] **D-FT-1 licence ruling: YES** (Mark, 2026-11-05). Claude and OpenAI trajectories and code are in.
 - [x] **Freeze the held-out set**: `tools/finetune/heldout.json` (12 core + 12 stretch). Phase 0's base-model numbers are re-sliced to it in `tools/finetune/baseline_armA.json`.
 - [ ] **Extractor v0**: a script under `tools/finetune/` (not a new CLI command; respects the simplicity gates). Sources: repo corpus (hash-dedup) · eval passes and repairs (training split) · motoko JSONL · opencode.db · Claude Code sessions (if D-FT-1 = yes). Then re-grade, run the contamination check, map tools to the pi schema, apply loss masks, and emit mlx-lm JSONL with train/valid splits and a per-source count report.
+- [x] **Extractor v0, language half** (`tools/finetune/extract_lang.py`, run 2026-11-05 on v0.57.4-10): **8,241 programs that compile today** in `~/models/finetune/data-v0/`.
+  - **Repo:** 80,411 scanned → 3,684 unique → **1,948 kept (510k lines)**. 681 rejects carry the checker hint "may be stdlib version skew"; re-run with a pinned stdlib to recover them.
+  - **Eval (86 training-split benchmarks):** 8,527 unique passes → **6,293 kept**. ~1,400 fail today because `++` became list-only, plus ~330 parse errors. These **auto-convert into error-to-fix pairs** (old code + current compiler error → fixed code).
+  - **Contamination:** 2 eval + 3 repo programs matching held-out solutions were dropped. Cap per-task samples in the mix (~73 per benchmark on average).
 - [ ] **Count the cloud-executor trajectories** in the prod observatory and chain store, and pull them if they are banked in full.
 - [ ] **G2 back-translation** for repo code (cheap model, < $5, real billed check first).
 - [ ] **G4 prompt variants** `ft-slim-v1` and `ft-none` (standard and agent), as non-active versions. Rebuild into a **private binary**; never `cp` over a live `~/go/bin/ailang`.
