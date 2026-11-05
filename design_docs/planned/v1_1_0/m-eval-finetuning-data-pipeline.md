@@ -84,6 +84,109 @@ QLoRA one ~4–8B model on the R4-filtered corpus, then compare three arms of th
 
 The program uses weak models as a **discovery mechanism**: friction they expose gets fixed in AILANG or the harness, and the fix lifts frontier models too. A fine-tune hides friction in its weights instead. So the specialist is its **own lane** (a cheap fleet worker), and it never replaces the prompt-based weak-model evals that feed the routing lanes in `design_docs/PROGRAM.md`. It is also not the "Sonnet-5 level at $0" goal, which stays on motoko + mid-size local.
 
+## 2026-11-05 Phase 0 results (first pass)
+
+Measured attended on 2026-11-05 at AILANG v0.57.1. Lanes: the `FINE-TUNE PHASE 0` block in `internal/modelreg/models.yml` (commit `74857f3c7`). Raw results are in `eval_results/finetune-phase0/` (gitignored, on the rig). Benchmarks: core (23) + stretch (28). The agent subset is 24 benchmarks, alternating core and stretch.
+
+### Model choice
+
+Gemma 4 is the primary family (Mark's preference). It is dense at E4B / 12B / 31B, plus a 26B-A4B MoE, and **Apache 2.0** (Hugging Face licence tag; confirm against the model card before publishing weights). No official Qwen 3.8 exists below 27B; the small Qwen sizes are all 3.5. The local rungs ran MXFP8 on Ollama's MLX runner. The cloud rungs ran on OpenRouter (open-weight models only, which the first-party routing rule allows).
+
+### Standard mode (one-shot, full teaching prompt, self-repair on)
+
+| Model | Where | Pass [95% CI] | Core | Stretch | Benchmarks solved at least once |
+|---|---|---|---|---|---|
+| qwen3.8-27b (reference) | cloud | **94%** [89–97] (153) | 100% | 89% | 50/51 |
+| gemma-4-31b | cloud | 58% [50–66] (153) | 81% | 39% | 34/51 |
+| **gemma4-12b** | local | 48% (66); **54% excluding 7 harness timeouts** | 65% | 31% (40% excl.) | 26/48 |
+| gemma-4-26b-a4b (MoE) | cloud | 46% [39–54] (153) | 61% | 35% | 30/51 |
+| ministral-14b | cloud | 33% (153) | 38% | 30% | 19/51 |
+| ministral-8b | cloud | 30% (153) | 45% | 18% | 20/51 |
+| qwen3.5-9b | cloud | 21% (152) | 30% | 13% | 16/51 |
+| gemma4-e4b | local | 13% (110) | 14% | 11% | 9/51 |
+
+- **The gap is language knowledge.** For every model below 27B, 71–89% of failures are compile errors. That is the branch of the §Phase 0 reading table that SFT addresses.
+- **Harness confound (12B).** The 7 `api_error`s are `context deadline exceeded` from the Ollama client's **300 s per-call default** (`AILANG_OLLAMA_HTTP_TIMEOUT_SEC` unset), not the lane's 1800 s `generation_timeout`. 12B was still thinking (~46 tok/s × 300 s ≈ 13.8k tokens) on hard stretch benchmarks. Set `AILANG_OLLAMA_HTTP_TIMEOUT_SEC=1800` for any local re-run.
+- **Cloud spend: $12.15 metered** for 918 runs, against $5 approved and an $8 `--budget-usd` cap. The cap did not stop dispatch; that is fixed in `74857f3c7`. qwen3.8-27b alone cost $7.20, because OpenRouter bills its hidden reasoning tokens.
+
+### Agent mode (pi harness, local, 1 trial)
+
+| Model | Pass | Failure mix |
+|---|---|---|
+| gemma4-e4b | **0/24** | 13 `non_agentic` (no tool call), 11 runtime errors. **Ruled out as an agent target.** |
+| gemma4-12b | **10/21** (3 not yet banked at time of writing), **all 10 on the first attempt** | 5 `non_agentic`, 6 banked as `runtime_error` but **template-only** |
+
+**Every 12B agent failure is a tool-protocol miss, not wrong code.** Two forms:
+1. It answers in chat after one long think, with no tool call (`non_agentic`).
+2. It uses tools but delivers the final code in chat, so the graded `solution.ail` is still the untouched template (`// TODO: Add your solution code below`). The harness banks that as `runtime_error` ("exports no functions").
+
+There are **no graded wrong answers so far.** "Finish by writing the file and running it" is exactly what agent-trajectory SFT teaches, since every training example ends in a write call and a verified run.
+
+**Harness gap (separate item):** an unedited template should bank as its own category (e.g. `no_solution_written`), not `runtime_error`.
+
+### Speed (measured on the rig)
+
+- **Prefix cache works.** The Ollama log showed 266 hits and 7 misses; every miss was a first load or an attended probe. A cache hit costs about 1 s per request. A cold 33k-token prefill on 12B costs 70 s (467 tok/s).
+- **Decode runs at the bandwidth ceiling.** E4B ≈ 65 tok/s; 12B ≈ 46 tok/s (≈ 12 GB read per token ≈ the M4 Max's ~546 GB/s). Ollama already uses the model's draft (MTP) speculative decode, with ~0.69 acceptance.
+- **Per agent pass (same 21 benchmarks):**
+
+| | Median time per pass | Median output tokens per pass | Wall time per verified success |
+|---|---|---|---|
+| 12B | 5.9 min | 12.7k | ~20 min |
+| qwen3.8-27b | 9.3 min | 7.9k | **~12 min** |
+
+  12B's ~2× decode advantage is mostly spent on ~1.6× longer thinking, with occasional blow-ups (one run produced 218k output tokens; pi does not enforce the lane's 32k cap). Its 48% pass rate then makes it slower per verified success. The fine-tune should therefore be measured on **output tokens per pass** and **wall time per verified success**, not pass rate alone.
+
+### Parallelism (estimate; mlx-lm batch benchmark pending)
+
+Batched decode reads the weights once per step for all streams. Gemma 4 12B's KV cache is small: 40 of 48 layers use a 1,024-token sliding window, and the 8 global layers have 1 KV head. That is ≈ 0.6 GB per stream at 50k context with 8-bit KV, against ≈ 12 GB of weights.
+
+| Streams | Est. total tok/s | Est. per stream |
+|---|---|---|
+| 1 | ~46 | ~46 |
+| 2 | ~85 | ~43 |
+| **4** | **~150** | **~38** |
+| 8 | ~250 | ~31 |
+
+Separate model copies would split bandwidth and give no gain. Caveats:
+- the rig runs `OLLAMA_NUM_PARALLEL=1` (rig-wide; changing it needs an Ollama restart);
+- mlx-lm disables batching when a draft model is in use;
+- each new stream pays its own cold prefill;
+- rig evals assume `--parallel 1`, and the cooperative GPU yield only works at 1.
+
+`~/models/finetune/batchbench.py` measures B = 1, 2, 4, 8 (short context) and B = 1, 4 (~32k context).
+
+### Candidate ranking
+
+1. **Gemma 4 12B dense: primary (speed target).** 54% one-shot. Agent failures are protocol-only. 22 GB, 46 tok/s. The `gemma4_unified` architecture loads in stock mlx-lm **0.32.2** (remapped to `gemma4`), so it needs neither mlx-lm from git main nor `mlx-optiq`.
+2. **Gemma 4 31B dense: quality-ceiling arm.** 58% one-shot, plain `gemma4`, ~20 tok/s.
+3. **Gemma 4 26B-A4B MoE: optional speed arm.** 46%, 4B active, so fastest decode. MLX MoE training is the risk.
+4. **Teacher, not target: qwen3.8-27b.** 94% one-shot, $0 locally. It can generate verified SFT data in bulk with none of the closed-model licensing issues in §R4. That makes the exporter less urgent for a first pilot.
+5. Ruled out: E4B, qwen3.5-9b, Ministral 8B/14B. Deferred: the Empero Qwen3.8-9B community distill (unverified provenance).
+
+**Contamination rule:** never train on the eval benchmarks' own solutions. Teacher data must come from held-out tasks, or the before/after A/B is void. The 2026-11-05 tooling-check adapter (`~/models/finetune/adapters-toolcheck/`) was trained on eval solutions on purpose, as plumbing, and **must never be scored**.
+
+## Serving cost reference (2026-11-05)
+
+The question was how a fine-tuned 12B would be served beyond the rig, and what each option costs. These are list prices from web search on 2026-11-05 (USD). They may be stale (the Cloud Run page metadata was ~15 months old), so verify before budgeting. Per-run figures use today's measured 12B agent profile: ≈ 0.7–2M input tokens (mostly a cacheable prefix) and ≈ 10–35k output tokens per benchmark.
+
+**The agent loop needs only CPU (Cloud Run already runs fleet agents). Only model inference needs a GPU.**
+
+| Option | Billing | Rate found | ≈ per agent run | Fits our fine-tune? |
+|---|---|---|---|---|
+| **Rig (M4 Max)** | electricity; hardware sunk | ~100 W under GPU load ≈ €22/month 24/7 at an assumed ~€0.30/kWh | **≈ €0.005** | yes; **private**; capacity = one box (~4–8 batched streams) |
+| **Cloud Run + NVIDIA L4** | per second while an instance is up; scales to zero; GPU needs instance-based billing; idle min-instances bill at full rate | L4 **$0.0001867/s ≈ $0.67/h** (non-zonal) + required 4 vCPU / 16 GB ≈ **$1/h all-in** (my sum); L4 regions include europe-west1 and europe-west4 | **≈ $0.04** batched ×4; ≈ $0.15–0.30 single-stream | yes (vLLM + adapter). Best cloud overflow option |
+| **Vertex AI dedicated endpoint** (g2-standard-4, 1× L4) | per node-hour, **including idle**, while deployed | **$0.81/h ≈ $585/month** always-on (1-yr CUD $0.73/h; 3-yr $0.65/h) | ≈ $0.04 when busy | yes; only pays at steady load (~15k runs/month to beat Cloud Run) |
+| **Vertex managed Gemma 4 (MaaS)** | per token | Gemma 4 26B: **$0.15/M input, $0.60/M output, $0.015/M cached** | ≈ $0.03–0.05 if the cache hits | **no**: no 12B listed, and no evidence it serves custom LoRA. Useful only as a base-model comparison |
+| **Fireworks serverless multi-LoRA** | per token; adapter on a shared base pool at base-model price | 4–16B tier ≈ **$0.20/M** (third-party figure) | ≈ $0.20 (input-heavy) | maybe: Gemma 4 12B support not confirmed |
+
+Notes:
+- The L4's memory bandwidth (~300 GB/s) is about half the rig's (~546 GB/s), so a single stream is slower in the cloud. **Batching is what makes Cloud Run pay.**
+- Our runs are about 98% input tokens, so **prompt-cache pricing dominates every per-token option**. We have measured OpenRouter billing ≈ 4× traced on cached runs; any per-token option needs a real billed test before we rely on it.
+- Recommended shape: **rig first, cloud overflow.** Batched 12B on the rig handles routine AILANG work at ≈ $0. The same adapter goes to a scale-to-zero Cloud Run L4 service for bursts. Watch the known `minScale`/`cpu_idle` idle-billing trap.
+
+Sources: [Cloud Run pricing](https://cloud.google.com/run/pricing) · [Cloud Run GPU (services)](https://docs.cloud.google.com/run/docs/configuring/services/gpu) · [Cloud Run GPU (jobs)](https://docs.cloud.google.com/run/docs/configuring/jobs/gpu) · [Cloud Run GPUs GA](https://cloud.google.com/blog/products/serverless/cloud-run-gpus-are-now-generally-available) · [Vertex AI pricing](https://cloud.google.com/vertex-ai/pricing) · [Vertex inference compute](https://docs.cloud.google.com/vertex-ai/docs/predictions/configure-compute) · [Model Garden pricing](https://cloud.google.com/model-garden/pricing) · [Gemma 4 pricing (markaicode)](https://markaicode.com/pricing/gemma-4-pricing/) · [Fireworks pricing (Spheron)](https://www.spheron.network/blog/fireworks-ai-pricing-2026-inference-api/) · [Fireworks vs Together (Morph)](https://www.morphllm.com/comparisons/fireworks-vs-together)
+
 ## Problem statement
 
 We've been capturing agentic eval trajectories for months as a side-effect of normal `ailang eval-suite` runs: `~/.local/share/opencode/opencode.db` already has 3,751+ structured "part" rows (every reasoning block, tool call, write, bash command, MCP discovery query, model response) across 176+ sessions. The per-trial result JSONs have the model's final code, the error category, the outcome.
