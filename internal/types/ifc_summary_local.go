@@ -197,7 +197,7 @@ func probe(owner string, idx, res int) *ifcCallable {
 func (c *ifcChecker) applyCallable(fn *ifcCallable, args []ifcVal, at *ast.FuncCall, calleeLabel Label, via []string, depth int) *ifcCallable {
 	c.analysisStep()
 	if depth > ifcAnalysisDepth {
-		panic(ifcAnalysisLimit{reason: "callable summary nesting"})
+		panic(ifcAnalysisLimit{reason: "callable summary nesting", where: c.where})
 	}
 	if fn == nil {
 		return c.applyOpaque(args, at, calleeLabel, via, depth)
@@ -391,10 +391,11 @@ func (c *ifcChecker) summariseModule(file *ast.File) {
 			if fn == nil || fn.Body == nil {
 				continue
 			}
+			c.where = fn.Name
 			s, _ := c.walkFunc(c.sigs[fn.Name], true)
 			fp := s.fingerprint()
 			if len(fp) > ifcSummaryBytes {
-				panic(ifcAnalysisLimit{reason: "summary size"})
+				panic(ifcAnalysisLimit{reason: "summary size", where: fn.Name})
 			}
 			if fp != c.summaries[fn.Name].fingerprint() {
 				changed = true
@@ -430,6 +431,9 @@ func (c *ifcChecker) walkFunc(sig *ifcSig, silent bool) (*ifcSummary, Label) {
 	c.pop()
 	c.silent = prevSilent
 	s.result = v.fn
+	if c.types.dataOnly(sig.decl.ReturnType) {
+		s.result = nil // M-IFC-DATA-CALLABLE-PRUNE: its results are never applied
+	}
 	return s, eraseRho(v.label)
 }
 

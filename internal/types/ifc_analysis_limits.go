@@ -15,16 +15,23 @@ const (
 	IFCAnalysisLimitError TypeErrorKind = "ifc_analysis_limit"
 )
 
-type ifcAnalysisLimit struct{ reason string }
+type ifcAnalysisLimit struct {
+	reason string
+	where  string // the module function being analysed, when known
+}
 
 func (e ifcAnalysisLimit) diagnostic() *TypeCheckError {
-	return &TypeCheckError{Kind: IFCAnalysisLimitError, Message: fmt.Sprintf("information-flow analysis limit exceeded (%s); callable requirements could not be verified", e.reason), Suggestion: "simplify the nested function-value expression before checking again"}
+	msg := fmt.Sprintf("information-flow analysis limit exceeded (%s); callable requirements could not be verified", e.reason)
+	if e.where != "" {
+		msg = fmt.Sprintf("information-flow analysis limit exceeded (%s) while analysing function %s; callable requirements could not be verified", e.reason, e.where)
+	}
+	return &TypeCheckError{Kind: IFCAnalysisLimitError, Message: msg, Suggestion: "simplify the nested function-value expressions in that function (closures passed to list functions inside records or other closures) before checking again"}
 }
 
 func (c *ifcChecker) analysisStep() {
 	c.analysisRemaining--
 	if c.analysisRemaining < 0 {
-		panic(ifcAnalysisLimit{reason: "summary work budget"})
+		panic(ifcAnalysisLimit{reason: "summary work budget", where: c.where})
 	}
 }
 

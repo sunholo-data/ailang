@@ -175,6 +175,7 @@ func AnalyzeModuleIFC(file *ast.File, imports map[string]*ImportedIFCSig) (out m
 		if fn == nil {
 			continue
 		}
+		c.where = fn.Name
 		sig := c.sigs[fn.Name]
 		s := EmptyIFCSummary()
 		for _, p := range sig.params {
@@ -274,6 +275,7 @@ func (c *ifcChecker) convergeExportIntrinsics(file *ast.File) {
 			if fn == nil {
 				continue
 			}
+			c.where = fn.Name
 			if fn.Body == nil {
 				// Extern/synthetic declarations have no body to infer. Their
 				// declared label facts are added by the output codec below.
