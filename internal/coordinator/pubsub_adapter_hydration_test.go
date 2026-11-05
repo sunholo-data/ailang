@@ -121,6 +121,41 @@ func TestPubSubAdapter_RealMessageStillDispatches(t *testing.T) {
 	}
 }
 
+// A cloud handoff task must know whose work it is. The cloud adapter used to
+// hydrate content only, so an evaluator handed off by task-25c55223 ran as an
+// orphan and its verdict could reach no approval (prod, 2026-11-04). The local
+// adapter carried these links all along; both now share hydrateFromInbox.
+func TestPubSubAdapter_HydrationCarriesTaskLinks(t *testing.T) {
+	issue := 2078
+	a := NewPubSubInboxAdapter(nil, "sub", "sprint-evaluator",
+		&failingGetStore{msg: &messaging.InboxMessage{
+			MessageID: "task-25c55223:handoff:sprint-evaluator:c709", ToInbox: "sprint-evaluator", FromAgent: "coordinator",
+			Title: "Handoff: #2078", Payload: "**Handoff from Sprint Executor**\n\nTask: task-25c55223",
+			ParentTaskID: "task-25c55223", ChainID: "chain-4f15", Iteration: 2,
+			GitHubIssue: &issue, GitHubRepo: "sunholo-data/ailang",
+		}}, newSilentLogger())
+
+	if err := a.HandleNotification(validNotification("task-25c55223:handoff:sprint-evaluator:c709"), notifyAttrs()); err != nil {
+		t.Fatalf("dispatch: %v", err)
+	}
+	if len(a.buffered) != 1 {
+		t.Fatalf("buffered %d, want 1", len(a.buffered))
+	}
+	got := a.buffered[0]
+	if got.ParentTaskID != "task-25c55223" {
+		t.Errorf("ParentTaskID = %q: the evaluator's verdict cannot reach the parent's approval", got.ParentTaskID)
+	}
+	if got.ChainID != "chain-4f15" || got.Iteration != 2 {
+		t.Errorf("chain/iteration lost: chain=%q iteration=%d", got.ChainID, got.Iteration)
+	}
+	if got.GithubIssue != 2078 || got.GithubRepo != "sunholo-data/ailang" {
+		t.Errorf("issue link lost: %d %q", got.GithubIssue, got.GithubRepo)
+	}
+	if got.Inbox != "sprint-evaluator" {
+		t.Errorf("inbox = %q", got.Inbox)
+	}
+}
+
 // No store at all is a misconfiguration, not a reason to invent work.
 func TestPubSubAdapter_NoStore_Refuses(t *testing.T) {
 	a := NewPubSubInboxAdapter(nil, "sub", "sprint-planner", nil, newSilentLogger())
