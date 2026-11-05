@@ -65,11 +65,19 @@ ensures { result > 0 && result <= 3600 } = 3600
 -- Who may sign in
 -- ============================================================
 
--- EXECUTOR_ALLOWED_EMAIL_DOMAINS: comma-separated domains (dev: sunholo.com).
--- Empty or unset admits every verified Google account (prod).
+-- EXECUTOR_ALLOWED_EMAIL_DOMAINS: comma-separated domains (dev: sunholo.com),
+-- or "*" for every verified Google account (prod). Empty or unset admits
+-- NOBODY: open sign-in must be asked for, so an image run without the
+-- variable, or a terraform default, fails closed instead of open.
+pure func allowedDomains(allowList: string) -> [string] =
+  filter(\d. length(d) > 0, map(\d. toLower(trim(d)), split(allowList, ",")))
+
+export pure func signInConfigured(allowList: string) -> bool =
+  listLength(allowedDomains(allowList)) > 0
+
 export pure func domainAllowed(email: string, allowList: string) -> bool {
-  let allowed = filter(\d. length(d) > 0, map(\d. toLower(trim(d)), split(allowList, ",")))
-  if listLength(allowed) == 0 then true else {
+  let allowed = allowedDomains(allowList)
+  if listLength(allowed) == 0 then false else if any(\d. d == "*", allowed) then true else {
     let parts = split(toLower(trim(email)), "@")
     let n = listLength(parts)
     if n < 2 then false else match nth(parts, n - 1) {
@@ -90,7 +98,7 @@ pure func emailVerified(verifiedIdToken: string) -> bool = match decodeJWT(verif
 }
 
 pure func gate(uid: string, email: string, verified: bool, allowList: string) -> Result[string, string] =
-  if length(uid) == 0 then Err("token has no subject") else if verified == false then Err("this account's email address is not verified") else if domainAllowed(email, allowList) == false then Err("this account is not allowed to sign in on this environment") else Ok(uid)
+  if signInConfigured(allowList) == false then Err("sign-in is not configured on this environment (no allowed email domains)") else if length(uid) == 0 then Err("token has no subject") else if verified == false then Err("this account's email address is not verified") else if domainAllowed(email, allowList) == false then Err("this account is not allowed to sign in on this environment") else Ok(uid)
 
 -- ============================================================
 -- Storage: Firestore, or files under /tmp for the local test

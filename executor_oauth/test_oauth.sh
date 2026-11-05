@@ -14,8 +14,10 @@
 # -> token; the token runs ailang_eval; executor_whoami sees the signed-in
 # account through _auth (forged _auth/identity header ignored; serve-api runs
 # with --mcp-subject-rpm); a refresh rotates it; a domain outside
-# the allowlist cannot sign in; the server log names the account and never the
-# token; and the test seam is shut when K_SERVICE is set (as on Cloud Run).
+# the allowlist cannot sign in; an unset or empty allowlist admits nobody and
+# only "*" opens sign-in to any account; the server log names the account and
+# never the token; and the test seam is shut when K_SERVICE is set (as on
+# Cloud Run).
 set -uo pipefail
 ROOT="${ROOT:-$(cd "$(dirname "$0")/.." && pwd)}"
 AILANG="${AILANG:-ailang}"
@@ -28,13 +30,17 @@ pass() { echo "PASS $1"; }
 fail() { echo "FAIL $1: $2"; rc=1; }
 
 TEST_ID_TOKEN="test-id-token-0123456789abcdef0123456789"
+# ALLOWED_DOMAINS sets EXECUTOR_ALLOWED_EMAIL_DOMAINS (default sunholo.com);
+# ALLOWED_DOMAINS=-unset- leaves it out of the server's environment entirely.
 start_server() { # extra env as args, e.g. K_SERVICE=x
+  local domains="EXECUTOR_ALLOWED_EMAIL_DOMAINS=${ALLOWED_DOMAINS-sunholo.com}"
+  [ "${ALLOWED_DOMAINS-}" = "-unset-" ] && domains="EXECUTOR_OAUTH_TEST_DOMAINS=unset"
   rm -rf /tmp/executor_oauth
   # A server left on the port would answer instead of this one.
   if curl -s -o /dev/null "$BASE/"; then echo "port $P is already in use"; exit 1; fi
   # exec, so $SRV is serve-api itself and stop_server really stops it.
-  (cd "$ROOT" && exec env "$@" FIRESTORE_STUB=true OAUTH_ISSUER="$BASE" GOOGLE_CLOUD_PROJECT=test-project \
-    EXECUTOR_ALLOWED_EMAIL_DOMAINS=sunholo.com EXECUTOR_OAUTH_TEST_ID_TOKEN="$TEST_ID_TOKEN" \
+  (cd "$ROOT" && exec env -u EXECUTOR_ALLOWED_EMAIL_DOMAINS "$@" FIRESTORE_STUB=true OAUTH_ISSUER="$BASE" GOOGLE_CLOUD_PROJECT=test-project \
+    "$domains" EXECUTOR_OAUTH_TEST_ID_TOKEN="$TEST_ID_TOKEN" \
     EXECUTOR_OAUTH_TEST_EMAIL="${TEST_EMAIL:-dev@sunholo.com}" \
     EXECUTOR_POLICY="$ROOT/docker/executor-policy.toml" EXECUTOR_AILANG_BIN="$(command -v "$AILANG")" \
     EXECUTOR_WORK_DIR="$(mktemp -d)" AILANG_RELAX_MODULES=1 AILANG_TRACE_VALUES=off AILANG_NO_CACHE=1 \
@@ -87,6 +93,11 @@ R=$(curl -s "$BASE/.well-known/oauth-authorization-server")
 
 R=$(curl -s -w ' HTTP%{http_code}' "$BASE/oauth-login.html")
 [[ "$R" == *HTTP200* && "$R" == *"Connect an app"* ]] && pass "sign-in page served same-origin" || fail "sign-in page served same-origin" "$(tail -c 80 <<<"$R")"
+# The page picks its Firebase config by /oauth/login-config's project_id and
+# refuses an unknown one, so each environment with the service needs an entry.
+R=$(curl -s "$BASE/oauth-login.js")
+[[ "$R" == *"'ailang-multivac-dev': {"* && "$R" == *"'ailang-multivac': {"* && "$R" == *"authDomain: 'ailang-multivac.firebaseapp.com'"* ]] \
+  && pass "sign-in page knows dev and prod Firebase" || fail "sign-in page knows dev and prod Firebase" "$(grep -c projectId <<<"$R") projectId lines"
 R=$(curl -s "$BASE/vendor/")
 [[ "$R" != *firebase-app-compat.js* ]] && pass "no directory listing" || fail "no directory listing" "$R"
 
@@ -140,6 +151,22 @@ TEST_EMAIL=someone@gmail.com start_server
 HANDLE=$(qparam "$(authorize)" handle)
 R=$(curl -s -w ' HTTP%{http_code}' -X POST "$BASE/oauth/login/complete" --data-urlencode "handle=$HANDLE" --data-urlencode "id_token=$TEST_ID_TOKEN")
 [[ "$R" == *HTTP400* && "$R" == *"not allowed to sign in"* ]] && pass "gmail.com refused under a sunholo.com allowlist" || fail "domain allowlist" "$R"
+stop_server
+
+# --- Open sign-in only when asked for: unset and empty fail closed, "*" opens ---
+signin_as_gmail() { # -> the /oauth/login/complete response, " HTTP<code>" appended
+  local h; h=$(qparam "$(authorize)" handle)
+  curl -s -w ' HTTP%{http_code}' -X POST "$BASE/oauth/login/complete" --data-urlencode "handle=$h" --data-urlencode "id_token=$TEST_ID_TOKEN"
+}
+for d in -unset- ""; do
+  ALLOWED_DOMAINS="$d" TEST_EMAIL=someone@gmail.com start_server
+  R=$(signin_as_gmail)
+  [[ "$R" == *HTTP400* && "$R" == *"sign-in is not configured"* ]] && pass "allowlist '${d}' admits nobody" || fail "allowlist '${d}' admits nobody" "$R"
+  stop_server
+done
+ALLOWED_DOMAINS="*" TEST_EMAIL=someone@gmail.com start_server
+L=$(loc -X POST "$BASE/oauth/login/complete" --data-urlencode "handle=$(qparam "$(authorize)" handle)" --data-urlencode "id_token=$TEST_ID_TOKEN")
+[[ "$L" == "$CB?"* && -n "$(qparam "$L" code)" ]] && pass "allowlist '*' admits gmail.com" || fail "allowlist '*' admits gmail.com" "location=$L"
 stop_server
 
 # --- The test seam is shut on Cloud Run ---

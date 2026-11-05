@@ -10,7 +10,7 @@ the values used. Design: [m-ailang-executor-gemini-enterprise](../../design_docs
 |---|---|---|
 | Executor tools (`ailang_prompt`, `ailang_check`, `ailang_run`, `ailang_eval`, `ailang_builtins`) | `executor_tools/executor.ail` (ailang) | Code |
 | Run policy (IO only, restricted, 60s, 64KB) | `docker/executor-policy.toml` (ailang) | Code |
-| Image `executor-mcp` | `docker/Dockerfile.executor-mcp`, `cloudbuild-dev.yaml` step `build-executor-mcp` (ailang) | Code; built by `ailang-core-dev` on every dev push |
+| Image `executor-mcp` | `docker/Dockerfile.executor-mcp`, step `build-executor-mcp` in `cloudbuild-dev.yaml` and `cloudbuild-release.yaml` (ailang) | Code; `:latest` in dev on every dev push (`ailang-core-dev`); `:vX.Y.Z` + `:latest` in test on every `v*` tag (`ailang-core-release`, build-only: no test service); prod by `promote core` once `AILANG_IMAGES` (ailang-multivac) lists it |
 | Cloud Run `ailang-dev-executor-mcp` (ailang-multivac-dev, europe-west1), IAM-only | `terraform/cloud_run_executor_mcp.tf`, `enable_executor_mcp` + `executor_mcp_invokers` in `terraform/environments/dev/terraform.tfvars` (ailang-multivac) | Terraform, applied by the `ailang-multivac-config-dev` trigger on push |
 | Roll on each image build | `executor-mcp:executor-mcp` in `CORE_SERVICES`, `scripts/cloudbuild-lib.sh` (ailang-multivac) | Code |
 | GE project org policies + Org Policy API (sunholo-gemini-enterprise) | `terraform-gemini-enterprise/` (ailang-multivac) | Terraform, **laptop apply** as m@sunholo.com: `make ge-plan` / `make ge-apply` |
@@ -134,6 +134,10 @@ be in `executor_mcp_invokers`. claude.ai and Claude Desktop connectors need OAut
     `--mcp-subject-rpm`, and `executor_whoami` shows the signed-in account. The multivac
     Terraform `args` and the empty-allowlist precondition change once a release with the flag
     is in the image;
+  - `EXECUTOR_ALLOWED_EMAIL_DOMAINS` (`executor_oauth/oauth.ail`): a comma-separated domain
+    list, or `*` for any verified Google account. **Unset or empty admits nobody** (from the
+    release after v0.57.2): open sign-in has to be asked for, so an image run without the
+    variable, or a terraform default of `""`, fails closed. Prod therefore sets `*`, not `""`;
   - to use OAuth from GE instead, put the sign-in server's authorization and token URLs in the
     connector form, set the redirect to `https://vertexaisearch.cloud.google.com/oauth-redirect`,
     and add the OAuth service's host to `allowed_egress_fqdns` (multivac `terraform-gemini-enterprise`).

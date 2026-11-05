@@ -18,11 +18,19 @@
   // /oauth/login-config returns; an unknown id is refused. The key's referrer
   // list must admit this service's host (ailang-multivac terraform
   // allowed_referrers) and the host must be a Firebase authorized domain.
+  // Each apiKey is that project's "firebase-browser-docparse" key, the one
+  // AILANG Parse's sign-in page uses too. Test has no executor service, so no
+  // entry.
   var FIREBASE = {
     'ailang-multivac-dev': {
       apiKey: 'AIzaSyDfYyF0UR5OaUGe9DWIx2nzcy625_txN1o',
       authDomain: 'ailang-multivac-dev.firebaseapp.com',
       projectId: 'ailang-multivac-dev'
+    },
+    'ailang-multivac': {
+      apiKey: 'AIzaSyBqHyoveqcGyL7LLnlvQ2FtHxdy6evXbHo',
+      authDomain: 'ailang-multivac.firebaseapp.com',
+      projectId: 'ailang-multivac'
     }
   };
 
