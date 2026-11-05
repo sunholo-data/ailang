@@ -1,0 +1,33 @@
+{
+  "arm": "A",
+  "model": "gemma-4-12b base (MXFP8, ollama)",
+  "prompt": "full teaching prompt (active v0.16.11)",
+  "ailang_version": "v0.57.1",
+  "source": "eval_results/finetune-phase0 (2026-11-05)",
+  "results": {
+    "standard": {
+      "runs": 30,
+      "benchmarks": 22,
+      "pass": 15,
+      "pass_rate": 0.5,
+      "core_pass": "12/17",
+      "stretch_pass": "3/13",
+      "first_attempt": 11,
+      "protocol_miss": 0,
+      "harness_timeouts": 4,
+      "median_output_tokens_per_pass": 4586
+    },
+    "agent": {
+      "runs": 24,
+      "benchmarks": 24,
+      "pass": 11,
+      "pass_rate": 0.458,
+      "core_pass": "7/12",
+      "stretch_pass": "4/12",
+      "first_attempt": 11,
+      "protocol_miss": 12,
+      "harness_timeouts": 0,
+      "median_output_tokens_per_pass": 13191
+    }
+  }
+}

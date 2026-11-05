@@ -86,7 +86,7 @@ The program uses weak models as a **discovery mechanism**: friction they expose 
 
 ## 2026-11-05 Phase 0 results (first pass)
 
-Measured attended on 2026-11-05 at AILANG v0.57.1. Lanes: the `FINE-TUNE PHASE 0` block in `internal/modelreg/models.yml` (commit `74857f3c7`). Raw results are in `eval_results/finetune-phase0/` (gitignored, on the rig). Benchmarks: core (23) + stretch (28). The agent subset is 24 benchmarks, alternating core and stretch.
+Measured attended on 2026-11-05 at AILANG v0.57.1. Lanes: the `FINE-TUNE PHASE 0` block in `internal/modelreg/models.yml` (commit `c39576ef3`). Raw results are in `eval_results/finetune-phase0/` (gitignored, on the rig). Benchmarks: core (23) + stretch (28). The agent subset is 24 benchmarks, alternating core and stretch.
 
 ### Model choice
 
@@ -107,7 +107,7 @@ Gemma 4 is the primary family (Mark's preference). It is dense at E4B / 12B / 31
 
 - **The gap is language knowledge.** For every model below 27B, 71–89% of failures are compile errors. That is the branch of the §Phase 0 reading table that SFT addresses.
 - **Harness confound (12B).** The 7 `api_error`s are `context deadline exceeded` from the Ollama client's **300 s per-call default** (`AILANG_OLLAMA_HTTP_TIMEOUT_SEC` unset), not the lane's 1800 s `generation_timeout`. 12B was still thinking (~46 tok/s × 300 s ≈ 13.8k tokens) on hard stretch benchmarks. Set `AILANG_OLLAMA_HTTP_TIMEOUT_SEC=1800` for any local re-run.
-- **Cloud spend: $12.15 metered** for 918 runs, against $5 approved and an $8 `--budget-usd` cap. The cap did not stop dispatch; that is fixed in `74857f3c7`. qwen3.8-27b alone cost $7.20, because OpenRouter bills its hidden reasoning tokens.
+- **Cloud spend: $12.15 metered** for 918 runs, against $5 approved and an $8 `--budget-usd` cap. The cap did not stop dispatch; that is fixed in `c39576ef3`. qwen3.8-27b alone cost $7.20, because OpenRouter bills its hidden reasoning tokens.
 
 ### Agent mode (pi harness, local, 1 trial)
 
@@ -236,12 +236,12 @@ Supersedes §"Data extraction" and §R4 where they conflict. The binding constra
 ### Friday (CPU only; the GPU stays with the fleet)
 
 - [x] **D-FT-1 licence ruling: YES** (Mark, 2026-11-05). Claude and OpenAI trajectories and code are in.
-- [ ] **Freeze the held-out set** (the 24 benchmarks) and re-slice Phase 0's base-model numbers to it. That gives the baseline.
+- [x] **Freeze the held-out set**: `tools/finetune/heldout.json` (12 core + 12 stretch). Phase 0's base-model numbers are re-sliced to it in `tools/finetune/baseline_armA.json`.
 - [ ] **Extractor v0**: a script under `tools/finetune/` (not a new CLI command; respects the simplicity gates). Sources: repo corpus (hash-dedup) · eval passes and repairs (training split) · motoko JSONL · opencode.db · Claude Code sessions (if D-FT-1 = yes). Then re-grade, run the contamination check, map tools to the pi schema, apply loss masks, and emit mlx-lm JSONL with train/valid splits and a per-source count report.
 - [ ] **Count the cloud-executor trajectories** in the prod observatory and chain store, and pull them if they are banked in full.
 - [ ] **G2 back-translation** for repo code (cheap model, < $5, real billed check first).
 - [ ] **G4 prompt variants** `ft-slim-v1` and `ft-none` (standard and agent), as non-active versions. Rebuild into a **private binary**; never `cp` over a live `~/go/bin/ailang`.
-- [ ] **Install the budget-cap fix** (`74857f3c7`) into `~/go/bin/ailang`, only when no evals are running (`rm` then `cp`, then verify `--version`).
+- [x] **Budget-cap fix is live**: `~/go/bin/ailang` is v0.57.4-10-g78104fab65, which contains `c39576ef3` (checked with `git merge-base --is-ancestor`).
 - [ ] **Serving fix on the toy adapter** (~10 min GPU, under the lock): strip the audio/vision sections from the fused `config.json`, then `ollama create` (q8), then one generation through the gateway. If it fails, fall back to an `mlx_lm.server` lane.
 - [ ] **Lanes** for the fine-tune: `ollama-gemma4-12b-ft1` and `pi-gemma4-12b-ft1`, with identical budgets to the Phase 0 lanes. Set `AILANG_OLLAMA_HTTP_TIMEOUT_SEC=1800` for every local run.
 
@@ -255,7 +255,7 @@ Supersedes §"Data extraction" and §R4 where they conflict. The binding constra
 
 | Arm | Model | Prompt | Modes |
 |---|---|---|---|
-| A (exists) | base 12B | full teaching prompt | standard ×3, agent ×1, from Phase 0 |
+| A | base 12B | full teaching prompt | agent ×1 **exists** (`tools/finetune/baseline_armA.json`: 11/24, 12 protocol misses). **Standard ×3 must be re-run** on the 24: Phase 0 covered only 30 runs on 22 of them, with 4 runs hitting the 300 s client timeout. Same binary and the 1800 s timeout as B/C (~2.5 h GPU) |
 | B | ft1 | `ft-slim-v1` | standard ×3, agent ×1 |
 | C | ft1 | `ft-none` | standard ×3, agent ×1 |
 

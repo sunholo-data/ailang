@@ -1,0 +1,33 @@
+{
+  "frozen": "2026-11-05",
+  "design_doc": "design_docs/planned/v1_1_0/m-eval-finetuning-data-pipeline.md#data-spec-2026-11-05",
+  "rule": "Nothing derived from these tasks may enter fine-tune training data: no solutions from any model, no near-duplicate tasks, no repo code that copies a solution. They are the before/after eval set for every fine-tune arm.",
+  "core": [
+    "api_call_json",
+    "ast_patch_roundtrip",
+    "config_file_parser",
+    "contract_bst_validate",
+    "contract_roman_numeral",
+    "error_handling",
+    "explicit_dataflow_ssa",
+    "higher_order_functions",
+    "merge_sort",
+    "pipeline",
+    "prompt_injection",
+    "tree_transformation_pipeline"
+  ],
+  "stretch": [
+    "binary_strings_1e18",
+    "bytecode_vm_trace",
+    "cp_60149",
+    "cp_60197",
+    "dep_resolver_backtrack",
+    "emit_exact_bytes",
+    "expression_evaluator",
+    "graph_bfs",
+    "log_file_analyzer",
+    "parse_prec_climb",
+    "run_length_encode",
+    "stream_lcg_topk"
+  ]
+}
