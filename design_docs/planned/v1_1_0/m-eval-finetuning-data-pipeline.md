@@ -164,6 +164,23 @@ Separate model copies would split bandwidth and give no gain. Caveats:
 4. **Teacher, not target: qwen3.8-27b.** 94% one-shot, $0 locally. It can generate verified SFT data in bulk with none of the closed-model licensing issues in §R4. That makes the exporter less urgent for a first pilot.
 5. Ruled out: E4B, qwen3.5-9b, Ministral 8B/14B. Deferred: the Empero Qwen3.8-9B community distill (unverified provenance).
 
+### Tooling check (2026-11-05): the training and serving path works end to end
+
+Run with stock **mlx-lm 0.32.2** (PyPI) in an isolated uv env at `~/models/finetune/.venv`, on `mlx-community/gemma-4-12B-it-4bit` and `gemma-4-31b-it-4bit`. Training data: 136 verified qwen3.8 solutions with no teaching prompt (plumbing only; see the contamination rule below). LoRA settings: `--mask-prompt --num-layers 16 --batch-size 1 --iters 40 --lr 1e-4 --grad-checkpoint`. Script: `~/models/finetune/toolcheck.sh`.
+
+| Step | 12B | 31B |
+|---|---|---|
+| Load | ✅ `gemma4_unified` is remapped to `gemma4` in stock mlx-lm, so neither git main nor `mlx-optiq` is needed | ✅ |
+| LoRA, 40 steps | ✅ **177 s**, **13.4 GB** peak, ~150 tok/s training; train loss 1.03 → ~0.65, val 0.759 → 0.750 | ✅ **398 s**, **25.7 GB** peak, val 2.27 |
+| Adapter size | 44 MB | — |
+| Generation (4-bit) | 58.6 tok/s, 7.1 GB | 25.2 tok/s, 18.1 GB |
+| Base, no teaching prompt | reasons that "AILANG is not a known language" | invalid output |
+| After 40 steps | **skips thinking**, emits a correct `module …` header and `export func main() -> () ! {IO}`, then a repetition loop | a one-line program that **type-checks up to one missing import** (`std/list (range)`), then a loop |
+| `mlx_lm.fuse --dequantize` | ✅ 21 s, 22 GB | not tested |
+| `ollama create` from the fused safetensors | ✅ imported as `gemma4_unified`, 11.9B, **tools capability**; **no GGUF conversion needed** (resolves open question 2) | not tested |
+
+A real run is a different scale: a pilot on ~2–5k teacher solutions is about 3–7M tokens per epoch, so **~6–13 h per epoch for 12B** (overnight, with the rotation paused) and about 2.5× that for 31B. The toy output loops are the expected signature of a badly undertrained adapter decoded greedily; they say nothing about quality. Still open: a generation from the *imported* Ollama model, and importing quantized (q8) rather than at 23 GB.
+
 **Contamination rule:** never train on the eval benchmarks' own solutions. Teacher data must come from held-out tasks, or the before/after A/B is void. The 2026-11-05 tooling-check adapter (`~/models/finetune/adapters-toolcheck/`) was trained on eval solutions on purpose, as plumbing, and **must never be scored**.
 
 ## Serving cost reference (2026-11-05)
