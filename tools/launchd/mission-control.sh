@@ -2025,7 +2025,7 @@ if [ "${MISSION_DRY_RUN:-0}" = "1" ]; then
     _dry_lanes="ok"
   fi
   # --- TRANSCRIPT SCAN DRY RUN START ---
-  log "DRY RUN transcript scan: a real legacy controller fire would create a per-fire marker before spawning and scan afterward with a 120-second limit"
+  log "DRY RUN transcript scan: a real legacy controller fire would create a per-fire marker and take a bounded 30-second metadata snapshot before spawning, then scan afterward with a 120-second limit"
   # --- TRANSCRIPT SCAN DRY RUN END ---
   log "DRY RUN ok: mission=$MISSION_NAME repo-slug=$MISSION_REPO doc=$MISSION_DOC workdir=$REPO pidfile=$PIDFILE prefs=$PREFS timeout=${HARD_TIMEOUT}s | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL | lanes=$_dry_lanes | pin=$PIN_STATUS($PIN_DRIFT behind) | skill-sync=$SKILL_SYNC_STATUS"; exit 0
 fi
@@ -2395,7 +2395,16 @@ _mc_slot_state="${AILANG_STATE_DIR:-$STATE_DIR}"
 _mc_scan_marker="$_mc_slot_state/mission-${MISSION_NAME}-transcript-scan-${MISSION_FIRE_ID}.since"
 _mc_scan_ready=0
 if { mkdir -p "$_mc_slot_state" && : > "$_mc_scan_marker"; } 2>/dev/null; then
+  _mc_scan_baseline="${_mc_scan_marker}.baseline"
   _mc_scan_ready=1
+  if _mc_bounded 30 /bin/bash \
+    "$MC_DRIVER_ROOT/tools/launchd/transcript-secret-scan.sh" \
+    --snapshot-out "$_mc_scan_baseline"; then
+    :
+  else
+    rm -f "$_mc_scan_baseline" "${_mc_scan_baseline}.tmp"
+    log "transcript scan: metadata snapshot unavailable; whole-file fallback will run after fire"
+  fi
 else
   log "transcript scan: INSTRUMENT FAILURE creating per-fire marker"
 fi
@@ -2655,24 +2664,27 @@ tail -n 200 "$_mc_slot_history" > "${_mc_slot_history}.tmp.$$" && mv "${_mc_slot
 if [ "$_mc_scan_ready" -eq 1 ]; then
   _mc_bounded 120 /bin/bash \
     "$MC_DRIVER_ROOT/tools/launchd/transcript-secret-scan.sh" \
-    --since "$_mc_scan_marker"
+    --since "$_mc_scan_marker" --baseline "$_mc_scan_baseline"
   _mc_scan_rc=$?
   _mc_scan_summary=""; _mc_scan_hits=""; _mc_scan_hit_count=0
   _mc_scan_valid=1; _mc_scan_summaries=0; _mc_scan_verdict=""
-  _mc_scan_leaks=""; _mc_scan_keys=0
+  _mc_scan_leaks=""; _mc_scan_keys=0; _mc_scan_baseline_status=""; _mc_scan_whole_file=0
   while IFS= read -r _mc_scan_line; do
     # A summary is terminal: any subsequent output makes the result suspect.
     if [ "$_mc_scan_summaries" -ne 0 ]; then _mc_scan_valid=0; fi
     if [[ "$_mc_scan_line" =~ ^LEAK\ key=[a-zA-Z_][a-zA-Z0-9_]*\ file=.+$ ]]; then
       _mc_scan_hits="${_mc_scan_hits}${_mc_scan_line}"$'\n'
       _mc_scan_hit_count=$((_mc_scan_hit_count + 1))
-    elif [[ "$_mc_scan_line" =~ ^transcript-secret-scan:\ verdict=(clean|LEAK|instrument-failure)\ files=([0-9]+)\ keys=([0-9]+)\ leaks=([0-9]+)\ since=.+$ ]]; then
+    elif [[ "$_mc_scan_line" =~ ^transcript-secret-scan:\ verdict=(clean|LEAK|instrument-failure)\ files=([0-9]+)\ keys=([0-9]+)\ leaks=([0-9]+)\ baseline=([0-9]+|none|failed)\ since=.+$ ]]; then
       _mc_scan_verdict=${BASH_REMATCH[1]}
       _mc_scan_keys=${BASH_REMATCH[3]}; _mc_scan_leaks=${BASH_REMATCH[4]}
+      _mc_scan_baseline_status=${BASH_REMATCH[5]}
       _mc_scan_summary=$_mc_scan_line
       _mc_scan_summaries=$((_mc_scan_summaries + 1))
     else
       case "$_mc_scan_line" in
+        'transcript-secret-scan: whole-file fallback for truncated file: '*) _mc_scan_whole_file=1 ;;
+        'transcript-secret-scan: baseline unavailable; using whole-file fallback: '*) ;;
         'transcript-secret-scan: skipped missing root: '*|'transcript-secret-scan: INSTRUMENT FAILURE '*) ;;
         *) _mc_scan_valid=0 ;;
       esac
@@ -2696,15 +2708,20 @@ if [ "$_mc_scan_ready" -eq 1 ]; then
         # Key names and paths go to the private controlplane inbox only. The bookkeeping
         # issue is PUBLIC, so it gets a count: naming which credential sits in which local
         # file, before anyone has rotated it, is a disclosure the detector must not make.
+        case "$_mc_scan_baseline_status:$_mc_scan_whole_file" in
+          none:*|failed:*|*:1)
+            _mc_scan_notice="Exposure detected after fire $MISSION_FIRE_ID using a whole-file fallback; write time is unknown." ;;
+          *) _mc_scan_notice="Exposure written during fire $MISSION_FIRE_ID's window (including concurrent sessions)." ;;
+        esac
         _mc_exit_notice transcript-leak "Transcript secret exposure: $MISSION_NAME fire=$MISSION_FIRE_ID" \
-          "${_mc_scan_hits%$'\n'}" \
-          "Transcript secret exposure on fire $MISSION_FIRE_ID: $_mc_scan_hit_count key/file hit(s). Key names and paths are in the controlplane notice and the driver log; no values are printed anywhere."
+          "$_mc_scan_notice"$'\n'"${_mc_scan_hits%$'\n'}" \
+          "Transcript secret scan after fire $MISSION_FIRE_ID: $_mc_scan_hit_count key/file hit(s)."
         ;;
       2) log "transcript scan: INSTRUMENT FAILURE" ;;
     esac
   fi
-  if ! rm -f "$_mc_scan_marker"; then
-    log "transcript scan: INSTRUMENT FAILURE removing per-fire marker"
+  if ! rm -f "$_mc_scan_marker" "$_mc_scan_baseline" "${_mc_scan_baseline}.tmp"; then
+    log "transcript scan: INSTRUMENT FAILURE removing per-fire scan artifacts"
   fi
 fi
 # --- TRANSCRIPT SCAN END ---
