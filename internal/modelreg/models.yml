@@ -3896,6 +3896,212 @@ models:
       tag in the ~/.pi/agent/models.json ollama provider block. Added 2026-08-17.
 
   # ---------------------------------------------------------------------------
+  # FINE-TUNE PHASE 0 SIZE LADDER (2026-11-05, m-eval-finetuning-data-pipeline §Phase 0).
+  # Primary ladder = Gemma 4 (Mark's default family): E4B -> 12B dense, all MXFP8 on
+  # the mlx runner. Reference = qwen3.8:27b (rotation incumbent). Control = qwen3.5:9b
+  # (cross-family at ~9B; the base OmniCoder-9B was LoRA-tuned from). Two modes:
+  # standard (direct ollama, one-shot = language knowledge) and pi agent (language +
+  # agentic skill). Timeouts and token gates are IDENTICAL across the ladder so size
+  # is the only variable. Attended baseline only — NOT for OS_FILLER_MODELS. pi lanes
+  # need the tags in ~/.pi/agent/models.json ollama-rig. (pi-qwen3-8-27b pre-exists.)
+  # ---------------------------------------------------------------------------
+  ollama-gemma4-e4b:
+    api_name: "gemma4:e4b-mxfp8"
+    provider: "ollama"
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Gemma 4 E4B MXFP8 via direct Ollama — fine-tune Phase 0 size ladder (standard mode)"
+    env_var: ""
+    model_family: "gemma-4"
+    max_output_tokens: 32000
+    ttft_timeout: 1800
+    generation_timeout: 1800
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+
+  ollama-gemma4-12b:
+    api_name: "gemma4:12b-mxfp8"
+    provider: "ollama"
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Gemma 4 12B dense MXFP8 via direct Ollama — fine-tune Phase 0 size ladder (standard mode)"
+    env_var: ""
+    model_family: "gemma-4"
+    max_output_tokens: 32000
+    ttft_timeout: 1800
+    generation_timeout: 1800
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+
+  ollama-qwen3-5-9b:
+    api_name: "qwen3.5:9b-mxfp8"
+    provider: "ollama"
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Qwen 3.5 9B dense MXFP8 via direct Ollama — fine-tune Phase 0 size ladder (standard mode)"
+    env_var: ""
+    model_family: "qwen-3-5"
+    max_output_tokens: 32000
+    ttft_timeout: 1800
+    generation_timeout: 1800
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+
+  ollama-qwen3-8-27b:
+    api_name: "qwen3.8:27b-mxfp8"
+    provider: "ollama"
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Qwen 3.8 27B dense MXFP8 (reference) via direct Ollama — fine-tune Phase 0 size ladder (standard mode)"
+    env_var: ""
+    model_family: "qwen-3-8"
+    max_output_tokens: 32000
+    ttft_timeout: 1800
+    generation_timeout: 1800
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+
+  pi-gemma4-e4b:
+    api_name: "gemma4:e4b-mxfp8"
+    provider: "ollama-rig"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Gemma 4 E4B MXFP8 via pi+Ollama — fine-tune Phase 0 size ladder (agent mode)"
+    env_var: ""
+    agent_cli: "pi"
+    agent_model_name: "ollama-rig/gemma4:e4b-mxfp8"
+    model_family: "gemma-4"
+    max_output_tokens: 32000  # PI_WIRE_CLAMP
+    ttft_timeout: 1800
+    generation_timeout: 3600
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+
+  pi-gemma4-12b:
+    api_name: "gemma4:12b-mxfp8"
+    provider: "ollama-rig"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Gemma 4 12B dense MXFP8 via pi+Ollama — fine-tune Phase 0 size ladder (agent mode)"
+    env_var: ""
+    agent_cli: "pi"
+    agent_model_name: "ollama-rig/gemma4:12b-mxfp8"
+    model_family: "gemma-4"
+    max_output_tokens: 32000  # PI_WIRE_CLAMP
+    ttft_timeout: 1800
+    generation_timeout: 3600
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+
+  pi-qwen3-5-9b:
+    api_name: "qwen3.5:9b-mxfp8"
+    provider: "ollama-rig"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Qwen 3.5 9B dense MXFP8 via pi+Ollama — fine-tune Phase 0 size ladder (agent mode)"
+    env_var: ""
+    agent_cli: "pi"
+    agent_model_name: "ollama-rig/qwen3.5:9b-mxfp8"
+    model_family: "qwen-3-5"
+    max_output_tokens: 32000  # PI_WIRE_CLAMP
+    ttft_timeout: 1800
+    generation_timeout: 3600
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+
+  # FINE-TUNE PHASE 0 cloud rungs (2026-11-05): open-weight models only (the
+  # first-party-via-OpenRouter rule allows gemma). Reference = or-qwen3-8-27b,
+  # Gemma 26B MoE = or-gemma-4-26b (both pre-existing).
+  or-qwen3-5-9b:
+    api_name: "qwen/qwen3.5-9b"
+    provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Qwen 3.5 9B dense via OpenRouter (standard mode) — fine-tune Phase 0 size ladder, cloud rung (no GPU)"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 65536  # matches or-qwen3-8-27b
+    model_family: "qwen-3-5"
+    pricing:
+      input_per_1k: 0.000170   # $0.17 per 1M (OpenRouter API, verified 2026-11-05)
+      output_per_1k: 0.000250  # $0.25 per 1M (OpenRouter API, verified 2026-11-05)
+    budgets:
+      # PRICE-SCALED like or-qwen3-8-27b (~390k output tokens of headroom per bench),
+      # so the cap, not capability, never decides the screen.
+      max_cost_usd: 0.15
+      hard_timeout_secs: 600
+
+  or-gemma-4-31b:
+    api_name: "google/gemma-4-31b-it"
+    provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Gemma 4 31B dense via OpenRouter (standard mode) — fine-tune Phase 0 size ladder, cloud rung (no GPU)"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 65536  # matches or-qwen3-8-27b
+    model_family: "gemma-4"
+    pricing:
+      input_per_1k: 0.000200   # $0.2 per 1M (OpenRouter API, verified 2026-11-05)
+      output_per_1k: 0.000400  # $0.4 per 1M (OpenRouter API, verified 2026-11-05)
+    budgets:
+      # PRICE-SCALED like or-qwen3-8-27b (~390k output tokens of headroom per bench),
+      # so the cap, not capability, never decides the screen.
+      max_cost_usd: 0.2
+      hard_timeout_secs: 600
+
+  or-ministral-8b:
+    api_name: "mistralai/ministral-8b-2512"
+    provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Ministral 3 8B via OpenRouter (standard mode) — fine-tune Phase 0 size ladder, cloud rung (no GPU)"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 65536  # matches or-qwen3-8-27b
+    model_family: "ministral-3"
+    pricing:
+      input_per_1k: 0.000150   # $0.15 per 1M (OpenRouter API, verified 2026-11-05)
+      output_per_1k: 0.000150  # $0.15 per 1M (OpenRouter API, verified 2026-11-05)
+    budgets:
+      # PRICE-SCALED like or-qwen3-8-27b (~390k output tokens of headroom per bench),
+      # so the cap, not capability, never decides the screen.
+      max_cost_usd: 0.1
+      hard_timeout_secs: 600
+
+  or-ministral-14b:
+    api_name: "mistralai/ministral-14b-2512"
+    provider: "openrouter"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Ministral 3 14B via OpenRouter (standard mode) — fine-tune Phase 0 size ladder, cloud rung (no GPU)"
+    env_var: "OPENROUTER_API_KEY"
+    max_output_tokens: 65536  # matches or-qwen3-8-27b
+    model_family: "ministral-3"
+    pricing:
+      input_per_1k: 0.000200   # $0.2 per 1M (OpenRouter API, verified 2026-11-05)
+      output_per_1k: 0.000200  # $0.2 per 1M (OpenRouter API, verified 2026-11-05)
+    budgets:
+      # PRICE-SCALED like or-qwen3-8-27b (~390k output tokens of headroom per bench),
+      # so the cap, not capability, never decides the screen.
+      max_cost_usd: 0.1
+      hard_timeout_secs: 600
+
+  # ---------------------------------------------------------------------------
   # A/B CONTROL ARMS (2026-08-17). Identical to the rotation's qwen3.6 entries
   # EXCEPT hard_timeout_secs is raised 600 -> 3600 to match opencode-/pi-qwen3-8-27b.
   # Why they exist: hard_timeout_secs is resolved ONLY from models.yml — there is

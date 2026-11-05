@@ -1,11 +1,16 @@
 package main
 
 import (
+	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"sync"
 	"testing"
+	"time"
+
+	"github.com/sunholo-data/ailang/internal/eval_harness"
 )
 
 // TestBudgetTracker_StubbedCostStream simulates a run's cost stream crossing
@@ -106,5 +111,51 @@ func TestWriteBudgetStoppedSentinel(t *testing.T) {
 		if !strings.Contains(string(data), want) {
 			t.Errorf("sentinel content missing %q, got:\n%s", want, data)
 		}
+	}
+}
+
+// The budget must stop DISPATCH in a parallel suite, not just print that it did.
+//
+// Regression for 2026-11-05: `--budget-usd 8 --parallel 6` over 918 jobs
+// tripped at run 609 and then started 309 more. The dispatch loop never blocks,
+// so every job passed the pre-semaphore abort check at once and queued on the
+// semaphore; after acquiring it, only the wall-clock deadline was re-checked.
+// Here each trial banks $10 against an $8 cap, so the FIRST completion trips it.
+// At --parallel 2 the second job may already be in flight (allowed: in-flight
+// trials finish); a third must never start.
+func TestRunBenchmarksParallel_BudgetStopsQueuedJobs(t *testing.T) {
+	orig := runSingleBenchmarkFn
+	t.Cleanup(func() { runSingleBenchmarkFn = orig })
+
+	var mu sync.Mutex
+	started := 0
+	runSingleBenchmarkFn = func(_ context.Context, _, _, _, _ string, _ int, _ int64, _ string, _ time.Duration, _ bool, _ string, _ *eval_harness.AgentBenchmarkConfig, _ string, _ *EvalChainContext, onCost func(float64)) (bool, error) {
+		mu.Lock()
+		started++
+		mu.Unlock()
+		// Hold the slot long enough for the (non-blocking) dispatch loop to
+		// spawn every job, so they are all QUEUED on the semaphore when the
+		// budget trips — the shape of the real 918-job run. Without this an
+		// instant stub trips the budget before the loop has spawned the rest,
+		// the loop's own check stops them, and the test passes with the bug
+		// present (verified by reverting the fix).
+		time.Sleep(200 * time.Millisecond)
+		onCost(10)
+		return true, nil
+	}
+
+	const n = 10
+	jobs := make([]Job, n)
+	for i := range jobs {
+		jobs[i] = Job{Benchmark: fmt.Sprintf("b%d", i), Model: "test-model", Language: "ailang", Trial: 1}
+	}
+	dir := t.TempDir()
+	runBenchmarksParallel(context.Background(), jobs, 42, dir, time.Second, 2, false, "", nil, "", nil, 8, 0)
+
+	if started > 2 {
+		t.Errorf("%d of %d trials started after an $8 cap was crossed by the first $10 trial; want <= 2 (the in-flight pair)", started, n)
+	}
+	if _, err := os.Stat(filepath.Join(dir, "budget_stopped.json")); err != nil {
+		t.Errorf("a tripped budget must leave the budget_stopped sentinel: %v", err)
 	}
 }

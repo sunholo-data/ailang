@@ -27,6 +27,11 @@ type EvalBenchmarkJob struct {
 	SuiteTaskID string `json:"suite_task_id"`
 }
 
+// runSingleBenchmarkFn is the per-trial runner runBenchmarksParallel dispatches
+// to. A variable only so tests can prove the stop conditions without running a
+// model; production never reassigns it.
+var runSingleBenchmarkFn = runSingleBenchmark
+
 // runBenchmarksParallel executes benchmarks with concurrency control.
 // budgetUSD is an aggregate cost ceiling (M-EVAL-STANDARD-CONFIDENCE-GATING):
 // 0 = no cap, preserving today's unconstrained behavior. On breach, already
@@ -140,14 +145,18 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 			sem <- struct{}{}
 			defer func() { <-sem }()
 
-			// Re-check the deadline AFTER the semaphore. A job can sit queued
-			// behind a long predecessor for hours, and the dispatch-loop check
-			// it passed is by then stale — starting it anyway is precisely the
-			// overrun the cap exists to stop.
+			// Re-check EVERY stop condition AFTER the semaphore — the deadline,
+			// the budget and the failure-streak abort alike. The dispatch loop
+			// above never blocks (it only spawns goroutines), so all N jobs pass
+			// the pre-semaphore check within milliseconds and then queue here;
+			// a check made before this point is stale for every job but the
+			// first maxConcurrent. Measured 2026-11-05: --budget-usd 8 tripped
+			// at run 609/918 and 309 more runs started anyway ($12+ banked),
+			// because only the deadline was re-checked here.
 			mu.Lock()
-			expired := pastDeadline()
+			stop := aborted || pastDeadline()
 			mu.Unlock()
-			if expired {
+			if stop {
 				return
 			}
 
@@ -185,7 +194,7 @@ func runBenchmarksParallel(ctx context.Context, jobs []Job, seed int64, outputDi
 				cyan(j.Benchmark), green(j.Model), j.Language, condLabel)
 
 			// Run the benchmark
-			success, err := runSingleBenchmark(ctx, j.Model, j.Benchmark, j.Language, j.Condition, j.Trial, seed, outputDir, timeout, selfRepair, promptVersion, agentConfig, taskID, evalChain, onCost)
+			success, err := runSingleBenchmarkFn(ctx, j.Model, j.Benchmark, j.Language, j.Condition, j.Trial, seed, outputDir, timeout, selfRepair, promptVersion, agentConfig, taskID, evalChain, onCost)
 
 			results[idx] = SuiteResult{
 				BenchmarkID: j.Benchmark,
