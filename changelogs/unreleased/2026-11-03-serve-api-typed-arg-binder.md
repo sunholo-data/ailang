@@ -1,6 +1,0 @@
-### Fixed
-
-- serve-api binds call arguments through one shared binder typed by the declared parameter types, on MCP `tools/call`, REST (JSON and multipart), A2A and MCP UI resource calls. An `int` parameter works over MCP (`twice(n: int)` with `{"n":21}` returns 42; it used to fail with "expected float arguments", #1631), and a `float` parameter works over REST with a whole number or an omitted `@optional` (`half` with `{"x":3}` returns 1.5 and `{}` returns 0; #1648). Nested record fields and list or array elements bind by their declared types too.
-- Fractional or out-of-range integers, non-finite floats and scalar, record or list mismatches are refused before evaluation with an error naming the parameter and field or index (`invalid arguments: xs[1]: expected int, got number (2.5)`): HTTP 400 on REST, an `isError` result on MCP, JSON-RPC -32602 on A2A.
-- Multipart text fields are parsed as their declared `int`, `float`, `bool`, record or list (JSON text), so `-F n=21` reaches an `int` parameter as 21 rather than the string "21".
-- A list parameter written `[T]` is now recognised as a list: its MCP input schema says `"type": "array"` (it said `"string"`), and `@optional` on it binds the empty list instead of being refused at tool registration.
