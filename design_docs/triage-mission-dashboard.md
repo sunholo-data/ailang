@@ -1,25 +1,22 @@
-# Triage mission dashboard — iteration29,2026-11-05
+# Triage mission — iteration 30 (2026-11-05)
 
-- Level1: no approvals,rejections,merges or handoffs.
-- Latest release:v0.57.4; reviewed ea1486ca,current observeddec3e8756.
-- Health:earlier Buildred recovered on218b94b;release dec3 checks unverified.
-- Failure:macOS nested managed Join nil,line288;bounded investigation only.
-- Evidence:https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6655687218
-- Queue:37globalcards/33core,49PRs,58issues;95eligible groups.
-- Coverage:95/95fresh after6currentverdicts;89recent skipped.
-- Ready:2129/task-f8b3a191unsignedinformationalattestation;operatorapproves.
-- Held:2126unsupported human freezes;1998scope/vulngate;1726draft.
-- Decisions:77rows,40OPEN;27new concretechoicesD50–76.
-- Mechanical decomposition:D34/D35;all attended answers preserved.
-- Orphans:1759/1894/1934/1939,1missingrecord;4crossrepojoins excluded.
-- Shadow:618rows;6/9settled statecorrelations,not correctness.
-- Actualverifier2129:codex:gpt-6-luna;67324quotatokens,$0metered.
-- Actualjudge:OllamaMiniMaxM3;425037tokens,$0metered;3read-onlyruns.
-- NativeAgentAPIhas no provider/model selector;transport fallback documented.
-- Cadence:12h;idlefingerprint recorded last;V1paused.
-- Reporting:normalDaneel + triggeredDiscord;morning eveningpacketnotdue.
-- Harness:15/20escalationrows;0triageauthoredrepairs.
-- Record:prior27/28logcontentpreserved;allrecordPRsremainunmerged.
-
-- Draft record:https://github.com/sunholo-data/ailang/pull/2133
-- Delivered digest:https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6655782122
+- Release: v0.57.4. Level 1: never approve, reject or merge.
+- Reviewed dev: e4fcc15f62da859e16da4da34a107fe89ec746b7; 22 successful checks.
+- Six new PR/card items; 92 unchanged recent reviews; coverage 98/98.
+- Ready: #2129 plus fresh unsigned attestations #2138/#2136; operator approval only.
+- Eight aged green cards held: #1978, #2009, #2073, #2097, #2099, #2103, #2104, #2105.
+- Bulk UNKNOWN mergeability initially hid them; MiniMax caught it. All 29 aged/diff cards re-read.
+- D77: authorize bounded test-only A1 execution, or retain investigation only; default HOLD.
+- Inherited record: open draft #2133. Now 78 ledger rows, 41 OPEN; attended answers preserved.
+- Four uncarded core PRs: #1759, #1894, #1934, #1939.
+- Orphan task d86f403b: approval already approved, task state stale, no worktree. No clear/cancel.
+- Queue: 45 global cards (39 core, 6 cross-repo), 56 PRs, 58 issues.
+- Shadow agreement: 6/9 state correlation; changed-head merges unscored.
+- Verifiers: Agent OpenAI; named gpt-6-luna supplement. Actual judge: MiniMax.
+- Native Agent cannot select vendor/model; evaluator Agent authors no judgment.
+- Ollama supplement timed out; declared OpenRouter MiniMax fallback judged both named results.
+- Metered cost: $0.00973620; named Codex 104,361 tokens, actual judges 9,289,440 tokens.
+- Cadence: 12h on queue change. Evening packet: five concrete choices, once daily.
+- Harness share: 16/20 escalation records; zero triage-authored repairs.
+- Goal unmoved by product work. No implementation, dispatch, deployment or release.
+- Final delivery receipts will be recorded in the mission log.

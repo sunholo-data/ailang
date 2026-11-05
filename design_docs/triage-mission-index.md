@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 30 | 2026-11-05 | independent review exposes aged green stalls and holds unauthorized handoff [HARNESS] [ADMIN] |
 | 29 | 2026-11-05 | independent verification splits concrete choices and attests one triage artifact [HARNESS] [ADMIN] |
 | 28 | 2026-11-04 | independent review reproduces SCC gap, corrects readiness and routes refusal design [HARNESS] [ADMIN] |
 | 27 | 2026-11-04 | red dev routed (skill-mirror sync), one attestation, two orphan-PR dispositions for Mark [HARNESS] [ADMIN] |
