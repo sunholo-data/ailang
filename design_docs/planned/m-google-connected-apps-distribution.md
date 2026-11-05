@@ -6,6 +6,12 @@
 **Priority**: P1 — reuse existing connector and plugin investment in a new distribution channel.
 **Estimated**: 5–8 engineering days, excluding preview admission, vendor review and any separately scoped protocol changes. Sprint planner must refine after the feasibility results.
 **Dependencies**: Google preview access; existing `serve-api` MCP, `sunholo/mcp_oauth`, Parse connector and hosted executor. File upload depends on the existing MCP file-handoff work, not a second implementation.
+**Auth prerequisites (added 2026-11-05)**: the OAuth work this channel needs is designed in
+[M-MCP-OAUTH-CLIENT-MODELS](v0_57_2/m-mcp-oauth-client-models.md), so it does not live here. That covers DCR with abuse controls
+(its M1b), a per-client stable refresh-token policy plus RFC 7009 revocation (M1c), and
+`registration_endpoint` in the metadata. That doc is the "client-specific package policy" F3 asks
+for. Its D3 keeps rotation as the default. Its PENDING rows P0-4 and P0-5 are this doc's F2 and F3
+measurements.
 **Routing**: Distribution documentation/configuration and service/package adapters. A measured shared protocol defect routes to an AILANG fix; motoko core is outside scope ([PROGRAM](../PROGRAM.md)).
 
 ## Problem Statement
@@ -107,7 +113,7 @@ Include docs lookup in this product rather than publishing a highly similar docs
 |---|---|---|
 | Remote MCP / Streamable HTTP | `serve-api` tool discovery, schemas and invocation [R5] | Negotiate with the actual Google client; capture protocol version, initialization and required metadata. Similar transport does not prove every extension works. |
 | Tool metadata | Existing titles, behaviour hints, schemas and error results | Verify synced tools, confirmation settings and model routing. Google's guidance recommends server instructions and clear domain descriptions [G2]. |
-| OAuth | `sunholo/mcp_oauth`, protected-resource metadata and verifier [R5, R8] | Client registration, exact callbacks, PKCE, refresh and unlink/revoke. Google console documents CIMD/DCR and pre-registration [G3]. |
+| OAuth | `sunholo/mcp_oauth`, protected-resource metadata and verifier [R5, R8]. **0.1.2 has no DCR, no stable-refresh policy and no revocation endpoint; all three are designed in [M-MCP-OAUTH-CLIENT-MODELS](v0_57_2/m-mcp-oauth-client-models.md)** | Client registration, exact callbacks, PKCE, refresh and unlink/revoke. Google console documents CIMD/DCR and pre-registration [G3]. |
 | MCP Apps / files | Existing widget/file-handoff work [R5, R9] | Widget rendering, CSP, host calls, direct upload and downloadable results. Test each claimed path. |
 | A2A | Existing service/GE work retains its own contract [R2] | No A2A integration is established by the Connected Apps guides reviewed here [G1–G2]. Do not register an Agent Card as an MCP endpoint. |
 

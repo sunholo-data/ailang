@@ -1,6 +1,15 @@
 # M-AILANG-EXECUTOR-GE: the ailang_only executors, reachable from Gemini Enterprise over MCP and A2A
 
 **Status**: **P0-a/b answered and P1 built + live 2026-10-14.** `executor_tools/executor.ail` + `docker/Dockerfile.executor-mcp`, deployed to dev as `ailang-dev-executor-mcp` (IAM-only) and connected to the GE app in `sunholo-gemini-enterprise` as connector `ailang-mcp-dev`. GE tool calls were observed succeeding. Each call is logged (`executor_tools/usage.sh`). Setup and rebuild runbook: [docs/internal/gemini-enterprise-executor-mcp.md](../../../docs/internal/gemini-enterprise-executor-mcp.md). **Next: P1b** (OAuth for user-facing clients, decided 2026-10-14: our own sign-in server on `sunholo/mcp_oauth`). Then P0-c..e and P2 (A2A), which are still Planned.
+**Auth prerequisites (added 2026-11-05)**: two pieces are designed in
+[M-MCP-OAUTH-CLIENT-MODELS](../v0_57_2/m-mcp-oauth-client-models.md), so they do not live here.
+- **GE's own OAuth connector** needs a pre-registered confidential client (client ID + secret,
+  redirect `https://vertexaisearch.cloud.google.com/oauth-redirect`). `sunholo/mcp_oauth` 0.1.2
+  cannot serve one. That doc's M1a adds it to 0.2.0.
+- **The per-user rate limit**, which is the prod blocker below, needs the verified identity in the
+  tool. That doc's M2 adds an identity-returning `@mcp_token_verifier`, a bound `_auth` param and
+  `--mcp-subject-rpm`, and adopts them in `executor_oauth/`.
+A2A (P2) stays here.
 **Target**: v0.55.0
 **Priority**: P1. This is the first use of the `ailang_only` lane by callers outside our own fleet, and Gemini Enterprise (GE) is a channel the Aitana platform has already proven.
 **Estimated**: remaining ~5 days. P1b OAuth 1d, P0-c..e spike 0.5d, P2 A2A gateway 2.5d, P3 A2A registration 0.5d. (Done: P0-a/b, P1, MCP registration and runbook.)
@@ -121,7 +130,7 @@ claude.ai, Claude Desktop and other directory clients expect an OAuth sign-in, n
   - multivac `executor-mcp-oauth`: a precondition refuses an empty allowlist until the rate limit exists.
 - **Compiler regression worked around:** `sunholo/mcp_oauth` 0.1.1 does not compile on ailang ≥ 0.53.1 (#1826: `mapE` over an annotated hook field trips a latent-effect invariant). 0.1.2 avoids it (ailang-packages#141) and is published.
 - **Deployed in dev 2026-10-14:** the lock and the Dockerfile are in 2eee31442. The image build rolled the IAM service (smoke 6/6), and multivac 6e2f6ea created `ailang-dev-executor-mcp-oauth`, allowlisted to `sunholo.com`. `ailang mcp check` passes every auth check (lazy-auth, authorization-server, security-schemes). Its remaining FAILs are directory annotations (title, read-only hints) on the `mcp_tools/` docs tools, which matter only for a directory listing.
-- **Open before prod:** the per-user rate limit, and a prod Firebase config on the page (it knows `ailang-multivac-dev` only).
+- **Open before prod:** the per-user rate limit, and a prod Firebase config on the page (it knows `ailang-multivac-dev` only). The rate limit is designed in [M-MCP-OAUTH-CLIENT-MODELS](../v0_57_2/m-mcp-oauth-client-models.md) M2: serve-api passes the verifier's identity to the tool, and `--mcp-subject-rpm` enforces the limit.
 
 ### P2: A2A — the lane's agent, with our harness doing the work
 

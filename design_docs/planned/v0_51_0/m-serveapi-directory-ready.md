@@ -1,6 +1,11 @@
 # M-SERVEAPI-DIRECTORY-READY: any `serve-api` service listable in the Anthropic and OpenAI directories
 
-**Status**: **Phase A IMPLEMENTED on `dev` (2026-10-01)** — L1 `@mcp_auth` gate, L2 `/mcp/connect/`, L3 `ailang mcp check` (sprint `M-SERVEAPI-DIRECTORY-READY-A`: `a784aa7c0`, `7b03f7112`, `6146905f9`, `7d61cc242`, M5). Remaining: L4 `sunholo/mcp_oauth` package (next sprint), L5 template, Phase B (OpenAI) gated on spike S1 (V11). Design Freeze ratified by Mark 2026-10-01.
+**Status** (updated 2026-11-05):
+- **Phase A IMPLEMENTED on `dev` (2026-10-01).** L1 `@mcp_auth` gate, L2 `/mcp/connect/`, L3 `ailang mcp check` (sprint `M-SERVEAPI-DIRECTORY-READY-A`: `a784aa7c0`, `7b03f7112`, `6146905f9`, `7d61cc242`, M5).
+- **L4 SHIPPED.** `sunholo/mcp_oauth` 0.1.0 shipped 2026-10-02 and is now 0.1.2, live in AILANG Parse ([m-mcp-oauth-package](../../implemented/v0_52_0/m-mcp-oauth-package.md)).
+- **Phase B (OpenAI) SHIPPED 2026-10-07** in `163e32e75` (v0.52.4): per-tool `securitySchemes`, `_meta["mcp/www_authenticate"]` on refused calls, and `--target openai`. The live ChatGPT sign-in is still unrecorded.
+- **Remaining:** the L5 packaging template (never built), and G13 `serverInfo` branding plus listed-surface hygiene, now designed in [M-MCP-OAUTH-CLIENT-MODELS](../v0_57_2/m-mcp-oauth-client-models.md) M3.
+- Design Freeze ratified by Mark 2026-10-01.
 **Target**: v0.51.0
 **Priority**: P1. It is the shared path to distribution for every hosted AILANG service. AILANG Parse is the first adopter.
 **Estimated**: 7–9 days across four lanes: L1 3d, L2 1.5d, L3 1.5d, L4 2–3d (package). L5 is docs only.

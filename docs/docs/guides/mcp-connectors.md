@@ -1,6 +1,6 @@
 ---
-reviewed: 2026-10-07
-reviewBy: 2027-01-07
+reviewed: 2026-11-05
+reviewBy: 2027-02-05
 ---
 
 # Publish an AILANG service as a Claude / ChatGPT connector
@@ -445,9 +445,9 @@ this as the first thing to test.
 
 ## 5. File input
 
-> **Status (2026-10-07).** The `serve-api` pieces below are released in **v0.52.4**. The package
-> `sunholo/mcp_files` and its upload widget are **in progress** and not yet in the registry.
-> This section will change. The design is
+> **Status (2026-11-05).** The `serve-api` pieces below are released in **v0.52.4**. The package
+> **`sunholo/mcp_files` is released: 0.1.4 is in the registry** (`ailang pkg search mcp_files`).
+> AILANG Parse runs it in production. The design is
 > [`m-mcp-file-handoff.md`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-mcp-file-handoff.md).
 
 **Why files are hard over MCP.**
@@ -512,7 +512,8 @@ Full example: `examples/runnable/serve_api_mcp_app.ail`. Report a widget's resul
 `ui/update-model-context`, not `ui/message`: the latter drafts a user message under a "Use caution
 before running this prompt" banner.
 
-**In progress: `sunholo/mcp_files`.** It will provide:
+**`sunholo/mcp_files` (0.1.4).** Add it with `ailang install sunholo/mcp_files`. Its usage guide
+is `ailang pkg docs sunholo/mcp_files`. It provides:
 - **policy:** single-use upload tokens (stored as digests, bound to an account and a size cap,
   valid 10 minutes), an upload descriptor shaped like SEP-2631's, `fileRef`s, and a
   `fetchFileParam` that fetches a ChatGPT `download_url` once under `Net[scope=public]`;
@@ -520,11 +521,35 @@ before running this prompt" banner.
 - **storage hooks**, so each service plugs in its own storage;
 - **the code path** for Claude Code and Codex: `createUpload` returns a ready `curl` line.
 
-AILANG Parse is adopting it first. Until it ships, the honest answers for a file the user attached
-are a public URL, or a clear message that says what to do. **Never** let the model fall back to
-parsing the file itself. Parse's tool descriptions now say so explicitly.
+Since 0.1.4, the owner can read a `fileRef` again for `Hooks.reuseTtlSec` (default 30 minutes).
+AILANG Parse uses all three paths. If none of them is available to a client, the honest answers are
+a public URL, or a clear message that says what to do. **Never** let the model fall back to parsing
+the file itself. Parse's tool descriptions say so explicitly.
 
-## 6. Submission checklist
+## 6. Google platforms: what works today
+
+Google has three ways in. As of 2026-11-05, an AILANG service can use **none of them with
+per-user sign-in** yet. The gaps are in `sunholo/mcp_oauth` and `serve-api`, and the fix is
+designed in
+[M-MCP-OAUTH-CLIENT-MODELS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_57_2/m-mcp-oauth-client-models.md).
+
+| Google surface | What it needs | Supported today? |
+|---|---|---|
+| **Gemini Enterprise: custom MCP server data store.** An admin adds your remote MCP URL, and your tools become GE "actions" | Streamable HTTP. For per-user sign-in, an OAuth client that the admin pre-registers at your server: a client ID and secret, plus redirect `https://vertexaisearch.cloud.google.com/oauth-redirect` | **Without sign-in, yes.** With "No authentication" selected and Cloud Run IAM on a default `*.run.app` URL, GE sends a Google-signed ID token for its service agent. The AILANG executor runs this way in dev. **With OAuth, no:** `sunholo/mcp_oauth` 0.1.x accepts only CIMD public clients, with no client secrets. That is milestone M1a of the design |
+| **Google Connected Apps** (the Gemini app and Search AI Mode, preview since 2026-10-28) | Remote MCP. CIMD, then DCR (Google's OAuth guide also asks for a `registration_endpoint`). A **non-rotating** refresh token. A `/revoke` endpoint that Google calls on unlink | **No.** 0.1.x has no `registration_endpoint`, always rotates refresh tokens, and has no revocation endpoint (milestones M1b and M1c). Onboarding steps are in [m-google-connected-apps-distribution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/m-google-connected-apps-distribution.md) |
+| **Gemini Enterprise: A2A agent** | An A2A **v0.3** agent card and task endpoint | **No.** `serve-api --a2a` predates A2A 0.2 (`tasks/send` only), and its A2A path is not behind the Bearer gate. You don't need A2A for the MCP data store above. Connected Apps forbids agent-to-agent use |
+
+What to do now:
+- **For GE with IAM only**, deploy on a default `*.run.app` URL. Grant the GE service agent
+  `roles/run.invoker`, allow the host in the GE org policy, and enable the tools in the GE Actions
+  tab. They start disabled.
+- **For anything that needs the user's identity on Google**, wait for `sunholo/mcp_oauth` 0.2.0.
+  Don't hand-roll client secrets or switch rotation off for every client. A rotation change applies
+  per client.
+- **`serverInfo`** still says `ailang-api 0.8.1` on every serve-api service, and no flag changes it
+  yet (milestone M3a). Reviewers on every platform see this name.
+
+## 7. Submission checklist
 
 `mcp check` covers the wire. Reviewers also look at everything below. The list comes from the
 AILANG Parse submission kit (vendor pages re-read 2026-10-06; they change).
