@@ -461,10 +461,11 @@ commit `b23cadc`, built from this workspace):
 | 19 | `elaboratePattern` classification is `_`/constructor(upper or registered)/lower-case-binder | read internal/elaborate/patterns.go:96–135 | confirmed |
 | 21 | Upper-case module funcs are legal (the classifier must not assume otherwise) | `ailang check` on `func Foo() -> int = 1; export func main() -> int = Foo()` | PASS — classifier reasoning above does not rely on func naming case |
 | 20 | "Not a regression; found verifying #1958" | issue text + changelogs/v0.32-current.md #1958/#2074 sections | consistent (v0.56.1 same behavior per issue; verified #1958 sections exist) |
+| 22 | Independent re-verification of this log (design-doc-creator re-run, 2026-11-04): all 11 matrix rows behave identically on the same published binary | `ailang --version` → v0.57.0 `b23cadc`; full matrix re-run in a scratch dir; `DEBUG_EFFECTS=1` on repro and controls | CONFIRMED: rows 1/5/6 FAIL on `each` with "Missing effects: IO" as logged; rows 2/3/4/7/8/9 PASS; rows 10/11 still correctly FAIL (`odd` / `d`); repro shows `LetRec binding: t` + `LetRec binding: each` (one SCC), sibling-renamed control resolves clean — root cause confirmed one layer below the issue's validator guess (renaming the sibling alone flips the result, so the validator's per-site charge is not the defect) |
 
 ## Related Documents
 
-- [m-effect-row-open-closed-reland-sprint-plan.md](../v0_57_0/m-effect-row-open-closed-reland-sprint-plan.md)
+- [m-effect-row-open-closed-reland-sprint-plan.md](../../implemented/v0_57_0/m-effect-row-open-closed-reland-sprint-plan.md)
   (implemented, v0.57.0) — the #1958 re-land whose verification found this.
 - [m-module-let-func-resolution.md](../../implemented/v0_30_0/m-module-let-func-resolution.md)
   (implemented, v0.30.0) — the unified func+let SCC this walk feeds; its ordering invariant is
@@ -490,4 +491,5 @@ commit `b23cadc`, built from this workspace):
 ---
 
 **Document created**: 2026-11-03
-**Last updated**: 2026-11-03
+**Last updated**: 2026-11-04 (independent re-verification of the full matrix on the same v0.57.0
+binary `b23cadc`; stale re-land link repaired — Verification Log row 22)

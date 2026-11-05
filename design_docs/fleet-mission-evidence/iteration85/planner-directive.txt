@@ -1,0 +1,94 @@
+You are the SPRINT PLANNER for fleet-mission iteration 85 of the AILANG repo (sunholo-data/ailang).
+Working tree: the current directory (a git worktree at origin/dev 93ac5a915). You are in a READ-ONLY
+sandbox: do not try to edit files. Your FINAL MESSAGE is the plan; it is captured verbatim to a file.
+Do not run git write operations. Do not end your turn announcing a wait; there is nothing to wait for.
+
+HARD SAFETY RULE (this ticket is about leaked secrets): NEVER print, cat, grep -o, echo, source or
+otherwise read the VALUES in ~/.config/ailang/secrets.env or any real session transcript. Do not open
+files under ~/.codex-missions, ~/.codex, ~/.pi/agent/sessions or ~/.claude/projects. You may list
+directory NAMES only. Never run `env`, `printenv` or `set`. Read repository files only.
+
+## The ticket (fleet queue, filed by the triage loop 2026-11-04T08:52Z)
+signature: security:loop-env-inspection-prints-secrets-into-transcripts (blocking=none)
+Evidence (attended 2026-11-04, ruling D-TRIAGE-36 = rotate; Mark said the leak is a CLASS and the
+fix should be routed as a harness ticket): the local mission loops' Claude setup-token
+(CLAUDE_CODE_OAUTH_TOKEN, from ~/.config/ailang/secrets.env) was found verbatim, by hash match, in 7
+local agent transcripts across three loops and two harnesses: ~/.codex-missions/sessions (3 files)
+and ~/.pi/agent/sessions (4 files, fleet + stapledon loops). Cause class: an agent inspects its
+environment and the tool result is written to the session JSONL.
+Ask: one systemic guard — (a) strip secrets.env keys from each spawned agent's env except where the
+lane needs them, and/or (b) a post-iteration scanner that checks session files written THIS FIRE
+against the secrets.env values and fails loudly.
+
+## Routing decision already made by the controller
+- Half (a), the spawn-env strip, changes what each lane receives and can break a lane's auth
+  (billing-guard class, HD-2a) -> it PARKS as a decision for Mark. DO NOT plan it.
+- Half (b), the detector, is mechanical -> plan THIS, as ONE milestone, ONE commit.
+- Redacting the 7 already-leaked files is Mark's permission, NOT in scope.
+
+## What to build (spec; refine it, do not widen it)
+1. A new executable `tools/launchd/transcript-secret-scan.sh` (bash 3.2.57 compatible: no
+   `declare -A`, no `${v,,}`, no `mapfile`; BSD userland: macOS `find` here is bfs, which REJECTS
+   relative `-newermt`, so use `-newer <marker-file>`; no GNU `timeout`; BSD grep).
+   - Args: `--secrets-file F` (default $HOME/.config/ailang/secrets.env), `--since FILE` (required:
+     only files with mtime newer than this marker are scanned), `--root DIR` (repeatable; default
+     set = $HOME/.codex-missions/sessions $HOME/.codex/sessions $HOME/.pi/agent/sessions
+     $HOME/.claude/projects; a missing root is skipped and reported by name), `--min-len N`
+     (default 20; shorter values are skipped to avoid false positives on e.g. `true`/`1`).
+   - Parse secrets.env WITHOUT sourcing or executing it: lines `KEY=VALUE` or `export KEY=VALUE`,
+     strip one pair of matching surrounding quotes, skip blanks/comments.
+   - Match fixed strings. Secret values must NEVER appear in any process argv (visible in `ps`) and
+     NEVER in any output, log or temp file left behind: feed patterns to `grep -F` via a file
+     descriptor / here-doc / a mode-0600 temp file removed by trap — planner chooses, state why.
+     Consider whether a JSON-escaped variant of a value (e.g. `/` -> `\/`) is needed; decide and say.
+   - Output: one line per hit `LEAK key=<NAME> file=<path>` (key NAME only), then a single summary
+     `transcript-secret-scan: verdict=<clean|LEAK|instrument-failure> files=<N> keys=<K> leaks=<L> since=<marker>`.
+     rc 0 clean, 1 leak found, 2 instrument failure (secrets file unreadable, zero keys loaded,
+     marker missing). rc 2 must never read as clean.
+2. Driver wiring in `tools/launchd/mission-control.sh` (2698 lines; slot verdict around lines
+   2600-2660, `_mc_exit_notice` defined ~line 359): create a per-fire marker in the namespaced state
+   dir (name carries MISSION_NAME and the fire id) BEFORE the controller session is spawned; after the
+   session returns, run the scanner BOUNDED (background + `date +%s` deadline, e.g. 120 s, since there
+   is no `timeout` on macOS), `log` the summary line, and on rc 1 send ONE `_mc_exit_notice` whose
+   body lists key NAMES and file paths only. It must be NON-FATAL: it must not change RC, the slot
+   verdict, retries or any routing. rc 2 logs `INSTRUMENT FAILURE` (not clean). Remove the marker
+   afterwards. Respect the driver's dry-run mode (say what it would do; no notice). Find and reuse the
+   driver's existing state-dir variable, `log` helper, dry-run flag and notice helper; do not add new
+   environment variables (the repo's simplicity audit counts env-var routes).
+3. Tests: a new `tools/launchd/test_transcript_secret_scan.sh`, wired into whatever
+   `make test-launchd-drivers` runs (find it: make/test.mk and tools/launchd/lib/run-suites.sh).
+   EVERY arm runs under a synthetic HOME (`mktemp -d`) with a FAKE secrets.env and fake transcript
+   files. NO arm may read or write the real $HOME, ~/.config/ailang/secrets.env or ~/.ailang/state
+   (rule: a sandboxed executor cannot see a destructive write outside its worktree, and the
+   controller re-runs the suite outside the sandbox). Arms at least: clean -> rc0; leak in a file
+   newer than the marker -> rc1 and the key NAME and path printed; the fake value appears NOWHERE in
+   stdout/stderr of any arm (assert on every arm); leak only in a file OLDER than the marker -> rc0;
+   value shorter than --min-len ignored; quoted and `export`-prefixed values parsed; missing secrets
+   file -> rc2; missing marker -> rc2; missing root skipped and named; a driver-level arm proving the
+   wiring (e.g. the driver's dry-run or a grep-free functional check) if the existing driver suites
+   offer a harness for it. Each arm must be MUTATION-killable: name, per arm, the one-line mutation
+   that would turn it red.
+4. Changelog fragment `changelogs/unreleased/2026-11-04-transcript-secret-scan.md` (`### Added — ...`).
+
+Fleet write scope (pre-push guard): tools/launchd/**, make/test.mk, changelogs/**, design_docs/**,
+docs/** are allowed. Anything in internal/{parser,...}, std/, CI workflows is refused.
+
+## Your deliverable (final message, markdown)
+- Files to create/modify with exact paths and the line ranges / functions you anchor the driver
+  wiring to (read the driver; cite line numbers at 93ac5a915).
+- The scanner's design decisions (pattern delivery, escaping, find invocation, bounded run).
+- The test arm list with each arm's killing mutation.
+- The exact gate commands the executor and controller should run (narrowest that can fail), and
+  confirm each of them is runnable at base: e.g. `bash -n`, `bash tools/launchd/test_transcript_secret_scan.sh`,
+  `make test-launchd-drivers`, `shellcheck` if the repo uses it. Mark any gate you could not run in
+  the read-only sandbox as UNINFORMATIVE UNDER SANDBOX rather than pass/fail.
+- Risks, and anything in the spec you think is wrong (say so; do not silently change it).
+
+## Controller's first-party reality check (2026-11-04, iteration 85; key NAMES and file COUNTS only)
+A fixed-string scan of every secrets.env value >= 20 chars over the whole trees of
+~/.codex-missions/sessions (650 files, 353M), ~/.pi/agent/sessions (223 files, 76M) and
+~/.claude/projects (6990 files, 6.4G): OPENROUTER_API_KEY 4 files, GOOGLE_API_KEY 4, OLLAMA_API_KEY 4,
+ANTHROPIC_API_KEY 1, CLAUDE_CODE_OAUTH_TOKEN 0 (rotated this morning), OPENAI_API_KEY 0,
+GEMINI_AGENTS_API_KEY 0. So the class is LIVE beyond the ticket's one key. The whole-tree scan took
+about 15 minutes, which is why the scanner MUST be scoped to files newer than the per-fire marker
+(a fire writes a handful of files) and must be bounded in the driver.

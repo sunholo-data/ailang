@@ -37,30 +37,47 @@ func (a *InboxMessageAdapter) ListUnread() ([]*Message, error) {
 	// Convert to coordinator Message type
 	result := make([]*Message, 0, len(msgs))
 	for _, m := range msgs {
-		// Extract GitHub issue number if linked
-		githubIssue := 0
-		if m.GitHubIssue != nil {
-			githubIssue = *m.GitHubIssue
+		msg := &Message{
+			ID:        m.ID,
+			Kind:      m.MessageType, // directive, question
+			CreatedAt: m.CreatedAt,
 		}
-		result = append(result, &Message{
-			ID:           m.ID,
-			Inputs:       m.Inputs,
-			From:         m.FromAgent,
-			Title:        m.Title,
-			Content:      m.Payload,
-			Type:         m.Category,     // bug, feature, general
-			Kind:         m.MessageType,  // directive, question
-			Priority:     "",             // Will be classified by analyzer
-			GithubIssue:  githubIssue,    // M-COORD-GITHUB-AUTO-ROUTING
-			GithubRepo:   m.GitHubRepo,   // M-COORD-GITHUB-CLOSE-ON-MERGE
-			ParentTaskID: m.ParentTaskID, // M-TASK-HIERARCHY: propagate from inbox message
-			ChainID:      m.ChainID,      // M-CHAINS-SIMPLIFY: propagate chain ID from inbox message
-			Iteration:    m.Iteration,    // M-TASK-HIERARCHY: propagate iteration for feedback loops
-			CreatedAt:    m.CreatedAt,
-		})
+		hydrateFromInbox(msg, &m)
+		result = append(result, msg)
 	}
 
 	return result, nil
+}
+
+// hydrateFromInbox copies a stored message's content and its links into the
+// coordinator's Message. It is the ONE place that mapping lives: the local
+// adapter (above) and the cloud Pub/Sub adapter both call it.
+//
+// They used to map it separately, and the cloud copy carried only the content —
+// title, body, sender, category, inputs, inbox. It dropped ParentTaskID,
+// Iteration, ChainID and the GitHub issue link, so every cloud handoff task was
+// an orphan: measured 2026-11-04, six sprint-evaluator tasks in prod, each
+// handed off by a named executor task, each with an empty parent_task_id, so
+// not one verdict could reach the approval it was written for. The local
+// adapter had carried those fields all along.
+//
+// Identity (ID), the message kind and the receipt time are the caller's: the
+// cloud adapter takes them from the Pub/Sub notification.
+func hydrateFromInbox(dst *Message, m *messaging.InboxMessage) {
+	dst.Inputs = m.Inputs
+	dst.Title = m.Title
+	dst.Content = m.Payload
+	dst.From = m.FromAgent
+	dst.Type = m.Category // bug, feature, general
+	dst.Inbox = m.ToInbox
+	dst.GithubIssue = 0
+	if m.GitHubIssue != nil {
+		dst.GithubIssue = *m.GitHubIssue // M-COORD-GITHUB-AUTO-ROUTING
+	}
+	dst.GithubRepo = m.GitHubRepo     // M-COORD-GITHUB-CLOSE-ON-MERGE
+	dst.ParentTaskID = m.ParentTaskID // M-TASK-HIERARCHY
+	dst.ChainID = m.ChainID           // M-CHAINS-SIMPLIFY
+	dst.Iteration = m.Iteration       // M-TASK-HIERARCHY: feedback-loop iteration
 }
 
 // MarkAsRead marks a message as read

@@ -38,6 +38,24 @@ OPEN. This is the only row change the loop may make on its own; it decides nothi
 `scripts/mission_decisions.sh --check design_docs/triage-mission.md` after, and list the
 mooted rows in the digest. Measured 2026-11-04: 10 of 33 OPEN rows were already moot.
 
+### 0b. Decompose sweep (D-TRIAGE-49): one row per decision
+
+A row whose question bundles several design choices ("review D1/D3/D4/D6 before dispatch") cannot
+be answered in one line, so it never gets answered. Split it:
+
+- **Which rows**: (i) any OPEN row asking Mark to *review*, *record rulings on* or *freeze* two
+  or more named choices; (ii) any RESOLVED row whose answer says "Triage opens one ledger row per
+  sub-decision". Skip a row whose children already exist (search the ledger for its ID).
+- **One new OPEN row per sub-decision**: read the design doc on `origin/dev` and quote its
+  options. The question names the plan/PR and the sub-decision, then `A (rec.)`: **the doc's
+  recommended option, stated concretely** (what the code or policy will do), `B`: the strongest
+  alternative and what it costs, and `(reversible)`/`(final)`. Where the doc has no
+  recommendation, triage writes one and says so (`rec. by triage`). The evidence field names the
+  parent row and the doc path with its section anchor.
+- Set an OPEN parent to RESOLVED with `DECOMPOSED (loop): into D-TRIAGE-NN..MM`. Dispatch stays
+  held until **every** child is answered, and the digest says which children are still open.
+- Run `--check` afterwards. Splitting a question decides nothing; it only makes it answerable.
+
 ### 1. Verify (read-only verifiers, executor role)
 
 Resolve the lane with `tools/launchd/resolve-role-spawn.sh executor` and follow its output
@@ -250,6 +268,16 @@ and a link were not enough. Send **the list itself**:
 - **Each item is one line, answerable without opening anything**: what is being decided, the
   recommended answer, what the other answer costs, and `(reversible)` or `(final)`. Approvals
   name the card and what approving dispatches.
+- **"yes" must change something.** Before sending, ask of each item: *if Mark replies "yes",
+  what happens next?* The answer must be a concrete state change: a card is approved and
+  dispatches X, a design choice is frozen as Y, an issue closes, a key is rotated. If the answer
+  is "Mark reviews something" or "it stays held pending rulings", the item is **not allowed**.
+  Decompose it (§0b) and send the children instead. Never phrase A as "review …", "record
+  rulings on …" or "obtain a ruling …". Measured 2026-11-05: 4 of the first packet's 5 items
+  were "A: review X", so "all yes" released nothing.
+- **Items you cannot make one-liners** go under a separate `Needs a read (not counted):` line,
+  at most 2, each with a link and the reason it will not fit on one line. They are not numbered,
+  so "all yes" can never cover them.
 - **The last line is the reply grammar**: `Reply e.g. "1 yes, 2 yes, 3 B" or "all yes". No answer = HOLD.`
   "yes" means the recommended answer.
 
@@ -258,7 +286,9 @@ Triage decisions for the morning (5 of 14 open):
 1. D-TRIAGE-36 credential incident: rotate the exposed key (rec.) — B defers with it still live. (final)
 2. Approve task-xxxxxxxx / #2100 sprint-planner plan: dispatches sprint-executor (≤$25). Rec. yes. (final)
 3. D-TRIAGE-27 SMT freeze: A (rec.) truncating Int div/rem as designed — B returns it for revision, ~1 wk. (reversible)
+4. D-TRIAGE-50 #2105 D1: A (rec.) an unknown constructor is a hard error, not a warning — B warns, so typos reach runtime. (reversible)
 ...
+Needs a read (not counted): #2073 containment model — four interlocking choices, see <link>
 +9 more held: https://github.com/sunholo-data/ailang/issues/<N>#issuecomment-<id>
 Reply e.g. "1 yes, 2 yes, 3 B" or "all yes". No answer = HOLD.
 ```

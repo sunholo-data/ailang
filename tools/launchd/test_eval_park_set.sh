@@ -21,16 +21,33 @@ row v0.2.0 once a true none                                         # one pass -
 row v0.2.0 thin a false timeout; row v0.2.0 thin b false timeout    # only 2 rows -> not parked
 for i in 1 2 3 4; do row v0.2.0 solo a false timeout; done          # 1 model only -> not parked
 for i in 1 2; do row v0.2.0 crashy a false api_error invalid; row v0.2.0 crashy b false api_error invalid; done
-row v0.0.1 old a false timeout; row v0.0.1 old b false timeout      # outside --versions 2 window
+row v0.0.1 old a false timeout; row v0.0.1 old b false timeout      # never re-run since v0.0.1: its own window -> parked (the probe re-tests it)
 row v0.0.1 old a false timeout; row v0.0.1 old b false timeout
+row v0.0.1 churn a false timeout; row v0.0.1 churn b false timeout   # ran on v0.0.1 + v0.1.0 only;
+row v0.1.0 churn a false timeout; row v0.1.0 churn b false timeout   # v0.2.0 has not reached it ->
+                                                                    # still parked (per-bench window)
+row v0.0.1 stale a true none                                        # passed long ago, then 2 fails x2 banks
+row v0.1.0 stale a false timeout; row v0.1.0 stale b false timeout   # -> the old pass is outside its
+row v0.2.0 stale a false timeout; row v0.2.0 stale b false timeout   # 2-bank window -> parked
 
-got="$(bash "$REPO/tools/eval-park-set.sh" --roll "$T/roll" --models "$M" --versions 2 2>/dev/null | tr '\n' ' ')"
-want="dead "
+got="$(bash "${PARK:-$REPO/tools/eval-park-set.sh}" --roll "$T/roll" --models "$M" --versions 2 2>/dev/null | tr '\n' ' ')"
+want="churn dead old stale "
 if [ "$got" = "$want" ]; then echo "PASS park set = [$got]"; else echo "FAIL park set: got [$got] want [$want]"; fail=1; fi
 
-got="$(bash "$REPO/tools/eval-park-set.sh" --roll "$T/nope" --models "$M" 2>/dev/null)"; rc=$?
+# --mode saturated: every model >= 3 valid rows in the window, all passing
+for i in 1 2 3; do row v0.2.0 sat a true none; row v0.2.0 sat b true none; done          # saturated
+for i in 1 2 3; do row v0.2.0 satthin a true none; done; row v0.2.0 satthin b true none   # b has 1 row -> not
+for i in 1 2 3; do row v0.2.0 satone a true none; row v0.2.0 satone b true none; done
+row v0.2.0 satone b false logic_error                                                     # one miss -> not
+got="$(bash "${PARK:-$REPO/tools/eval-park-set.sh}" --mode saturated --roll "$T/roll" --models "$M" --versions 2 2>/dev/null | tr '\n' ' ')"
+want="sat "
+if [ "$got" = "$want" ]; then echo "PASS saturated set = [$got]"; else echo "FAIL saturated set: got [$got] want [$want]"; fail=1; fi
+bash "${PARK:-$REPO/tools/eval-park-set.sh}" --mode bogus --roll "$T/roll" --models "$M" >/dev/null 2>&1; rc=$?
+if [ "$rc" = 2 ]; then echo "PASS bad --mode exits 2"; else echo "FAIL bad mode rc=$rc"; fail=1; fi
+
+got="$(bash "${PARK:-$REPO/tools/eval-park-set.sh}" --roll "$T/nope" --models "$M" 2>/dev/null)"; rc=$?
 if [ -z "$got" ] && [ "$rc" = 0 ]; then echo "PASS fail-open on missing dir"; else echo "FAIL fail-open: rc=$rc out=[$got]"; fail=1; fi
 
-bash "$REPO/tools/eval-park-set.sh" --bogus >/dev/null 2>&1; rc=$?
+bash "${PARK:-$REPO/tools/eval-park-set.sh}" --bogus >/dev/null 2>&1; rc=$?
 if [ "$rc" = 2 ]; then echo "PASS usage error exits 2"; else echo "FAIL usage rc=$rc"; fail=1; fi
 exit $fail

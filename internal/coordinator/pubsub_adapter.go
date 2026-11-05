@@ -246,12 +246,7 @@ func (a *PubSubInboxAdapter) HandleNotification(data []byte, attrs map[string]st
 			notification.MessageID)
 		return nil
 	}
-	msg.Inputs = fullMsg.Inputs
-	msg.Title = fullMsg.Title
-	msg.Content = fullMsg.Payload
-	msg.From = fullMsg.FromAgent
-	msg.Type = fullMsg.Category
-	msg.Inbox = fullMsg.ToInbox
+	hydrateFromInbox(msg, fullMsg) // shared with the local adapter: content AND links (parent task, chain, issue)
 
 	// Belt and braces: hydration succeeded but produced nothing to act on. A
 	// task whose content is empty or is merely its own id is not work, and the
