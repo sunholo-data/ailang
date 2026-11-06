@@ -1,0 +1,9 @@
+module ailcheck/decl
+type Data = { user: Inner }
+type Inner = { email: string, name: string }
+export func main() -> () ! {IO} {
+  let data = Data({ user: Inner({ email: "x@y.z", name: "n" }) })
+  match data {
+    Data({user: {email: e}}) => println(e)
+  }
+}
