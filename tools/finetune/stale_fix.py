@@ -61,15 +61,16 @@ def check(code):
     return in_ws(code, run)
 
 
-def run_ok(code, b):
+def run_ok(code, b, expected=None):
     caps = ",".join(b.get("caps") or ["IO"])
+    want = (expected if expected is not None else (b.get("expected_stdout") or "")).rstrip("\n")
     def run(td):
         try:
             r = subprocess.run([AILANG, "run", "--caps", caps, "--entry", b.get("entrypoint") or "main",
                                 "benchmark/solution.ail"], cwd=td, capture_output=True, text=True, timeout=60)
         except subprocess.TimeoutExpired:
             return False, "timeout"
-        return r.stdout.rstrip("\n") == (b.get("expected_stdout") or "").rstrip("\n"), r.stdout
+        return r.stdout.rstrip("\n") == want, r.stdout
     return in_ws(code, run)
 
 
@@ -95,30 +96,33 @@ def collect(a):
             if h in seen:
                 continue
             seen.add(h)
-            cands.append((d["id"], d.get("ailang_version"), d["code"]))
+            cands.append((d["id"], d.get("ailang_version"), d["code"], d.get("expected_stdout")))
     with cf.ThreadPoolExecutor(8) as ex:
         res = list(ex.map(lambda c: check(c[2]), cands))
     n = 0
     with open(os.path.join(a.out, "stale.jsonl"), "w") as f:
-        for (bid, ver, code), (ok, err) in zip(cands, res):
+        for (bid, ver, code, exp), (ok, err) in zip(cands, res):
             if ok:
                 continue
             err = "\n".join(err.splitlines()[:12])
-            f.write(json.dumps({"benchmark": bid, "banked_version": ver, "code": code, "error": err}) + "\n")
+            # The output the program produced WHEN BANKED: benchmarks change after banking
+            # (fold_reduce's data did), and a staleness fix must preserve behaviour.
+            f.write(json.dumps({"benchmark": bid, "banked_version": ver, "code": code, "error": err,
+                                "expected_stdout": exp}) + "\n")
             n += 1
     print(json.dumps({"passing_candidates": len(cands), "stale_today": n}))
 
 
-PROMPT = """This AILANG program used to work, but the current compiler rejects it.
+PROMPT = """This AILANG program used to work, but it no longer does with the current toolchain.
 
-Compiler output:
+Feedback (compiler error, or the run's output):
 {error}
 
 Program:
 {code}
 
-Fix the program so the current compiler accepts it, following the error message. Change only what
-the error requires; keep the program's behaviour identical. Reply with the complete fixed program
+Fix the program so the current compiler accepts it and it prints exactly what it printed before,
+following the feedback. Change only what the feedback requires; keep the program's behaviour identical. Reply with the complete fixed program
 and nothing else (no markdown fences, no explanation)."""
 
 
@@ -176,19 +180,38 @@ def fix(a):
         done = {json.loads(l)["code_hash"] for l in open(outp)}
 
     def one(it):
+        """Iterative repair: the compiler reports ONE error at a time, so a one-shot fix of the
+        first error usually surfaces the next (measured 2026-11-06: Opus 1/10 one-shot, every
+        failure a NEW error). Feed each new error back, up to --rounds; keep the whole chain."""
         h = norm_hash(it["code"])
         if h in done:
             return None
-        try:
-            fixed, usage = call(PROMPT.format(error=it["error"], code=it["code"]))
-        except Exception as e:  # network / provider error: record, never retry silently
-            return {"code_hash": h, "ok": False, "why": f"api: {type(e).__name__}"}
-        ok, err = check(fixed)
-        if not ok:
-            return {"code_hash": h, "ok": False, "why": "check", "usage": usage}
-        good, _ = run_ok(fixed, spec(it["benchmark"]))
-        return {"code_hash": h, "ok": good, "why": "" if good else "stdout", "usage": usage,
-                **({"benchmark": it["benchmark"], "old": it["code"], "error": it["error"], "fixed": fixed} if good else {})}
+        code, error, chain, usage = it["code"], it["error"], [], {"prompt_tokens": 0, "completion_tokens": 0}
+        for _ in range(a.rounds):
+            try:
+                fixed, u = call(PROMPT.format(error=error, code=code))
+            except Exception as e:  # network / provider error: record, never retry silently
+                return {"code_hash": h, "ok": False, "why": f"api: {type(e).__name__}", "rounds": len(chain)}
+            for k in usage:
+                usage[k] += u.get(k, 0)
+            chain.append({"code": code, "error": error, "fixed": fixed})
+            ok, err = check(fixed)
+            if ok:
+                want = it.get("expected_stdout")
+                good, got = run_ok(fixed, spec(it["benchmark"]), want)
+                if not good:
+                    if len(chain) < a.rounds:  # what an agent sees after running: the output differs
+                        exp = want if want is not None else (spec(it["benchmark"]).get("expected_stdout") or "")
+                        code, error = fixed, ("The program now compiles, but its output changed. It must print exactly:\n"
+                                              f"{exp[:1500]}\n\nIt printed:\n{(got or '')[:1500]}")
+                        continue
+                    return {"code_hash": h, "ok": False, "why": "stdout", "usage": usage, "rounds": len(chain),
+                            "benchmark": it["benchmark"], "fixed": fixed, "got": (got or "")[:2000]}
+                return {"code_hash": h, "ok": True, "why": "", "usage": usage, "rounds": len(chain),
+                        "benchmark": it["benchmark"], "old": it["code"], "error": it["error"], "fixed": fixed,
+                        "chain": chain}
+            code, error = fixed, "\n".join(err.splitlines()[:12])
+        return {"code_hash": h, "ok": False, "why": "check", "usage": usage, "rounds": len(chain)}
 
     stats = {"ok": 0, "check": 0, "stdout": 0, "api": 0, "in": 0, "out": 0, "model": a.model}
     with cf.ThreadPoolExecutor(a.workers) as ex, open(outp, "a") as f:
@@ -212,6 +235,7 @@ def main():
     ap.add_argument("--model", default="google/gemma-4-31b-it")
     ap.add_argument("--limit", type=int, default=50)
     ap.add_argument("--workers", type=int, default=6)
+    ap.add_argument("--rounds", type=int, default=4, help="repair rounds per program (new error fed back each round)")
     a = ap.parse_args()
     a.out = os.path.expanduser(a.out)
     os.makedirs(a.out, exist_ok=True)
