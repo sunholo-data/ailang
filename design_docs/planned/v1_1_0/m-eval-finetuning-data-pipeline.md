@@ -447,6 +447,20 @@ decision gets a row in `docs/docs/finetuning/decisions.md` when it is made.
   - The last ~100 Opus staleness repairs (the pass was stopped by a memory-pressure reaper at
     826 of ~930; 773 fixed).
 
+### Pilot-2 dry run and launch (2026-11-06, weekend handed over by Mark)
+
+- **Dry run** (20 steps, all blocks, rank 32, 12k max sequence):
+  - **37 trained tok/s** (pilot-1: ~70/s at 16 blocks, rank 16), ~28 s per step.
+  - **Peak memory 30.4 GB.**
+  - Measured while other GPU work ran, so the speed is likely pessimistic.
+- **Estimate:** 2 epochs × 1.32M trained tokens ≈ 19.8 h, plus ~2 h of validation. That is within
+  the 20 h rule, so `pilot2.yaml` is unchanged.
+- **Launched 17:48Z,** queued behind pilot-1's C_agent2: train → serve → arms B, C, A, A2 (lean
+  profile, held-out 24).
+- **Fixed:** the pilot runners' prompt-version guard voided A_agent2. `non_agentic` rows bank no
+  `prompt_version`; they are now ignored rather than counted as a fallback (`068fd96e0`).
+  A_agent2 = **17/24** (19 runs on v0.16.11; 5 non_agentic).
+
 ## Serving cost reference (2026-11-05)
 
 The question was how a fine-tuned 12B would be served beyond the rig, and what each option costs. These are list prices from web search on 2026-11-05 (USD). They may be stale (the Cloud Run page metadata was ~15 months old), so verify before budgeting. Per-run figures use today's measured 12B agent profile: ≈ 0.7–2M input tokens (mostly a cacheable prefix) and ≈ 10–35k output tokens per benchmark.
