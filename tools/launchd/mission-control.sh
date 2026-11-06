@@ -1732,6 +1732,60 @@ if [ "${MISSION_NAME:-}" = triage ] && [ -z "${AILANG_MISSION_WORK_ITEM:-}" ]; t
 fi
 # --- TRIAGE IDLE PRE-CHECK END ---
 
+# --- MISSION IDLE PRE-CHECK START ---
+# driver:idle-fire-writes-full-block-report: World 341-358 spent 4031-7234s each
+# re-deriving the same no-pick verdict. A controller records its inputs ONLY after
+# a completed human-gated no-pick fire, with no clock/lane parks. Equal inputs exit
+# below the kill switch, before notices/probes/controller/records. Expire after 24h
+# so inputs outside this fingerprint still get a daily full fire.
+# Unlike triage, a product mission fails OPEN: the record is only an optimisation.
+# Changed/failed reads consume it so "the previous fire was a no-pick" stays true.
+# The record is the snapshot taken at the START of that fire (MISSION IDLE SNAPSHOT,
+# below), so anything that changed while it ran differs here and wakes this fire.
+# A dry run neither consumes nor honours a record: it must stay a pure wiring check.
+if [ -n "${MISSION_NAME:-}" ] && [ "$MISSION_NAME" != fleet ] && [ "$MISSION_NAME" != triage ] \
+   && [ -z "${AILANG_MISSION_WORK_ITEM:-}" ] && [ "${MISSION_DRY_RUN:-0}" != 1 ]; then
+  _mi_file="$STATE_DIR/mission-${MISSION_NAME}-idle-fingerprint"
+  if [ -f "$_mi_file" ]; then
+    _mi_last=$(head -1 "$_mi_file" 2>/dev/null)
+    _mi_at=$(printf '%s\n' "$_mi_last" | sed -n 's/.* at=\([0-9][0-9]*\)$/\1/p')
+    _mi_age=86401
+    # Bound the digits before arithmetic (garbage/overflow must expire too).
+    if [ -n "$_mi_at" ] && [ "${#_mi_at}" -le 10 ]; then
+      _mi_age=$(( $(date +%s) - 10#$_mi_at ))
+      [ "$_mi_age" -ge 0 ] || _mi_age=86401
+    fi
+    if [ "$_mi_age" -gt 86400 ]; then
+      rm -f "$_mi_file"
+      log "$MISSION_NAME: no-pick idle record expired — proceeding with a full fire"
+    else
+      # The helper must read the very state directory used above. stdin EOF is
+      # required: a redirected launchd loop can otherwise leave an inherited socket.
+      IDLE_STATE_DIR="$STATE_DIR" _mc_bounded 180 /bin/bash "$MC_DRIVER_ROOT/tools/launchd/lib/idle-fingerprint.sh" < /dev/null; _mi_rc=$?
+      _mi_now=$(printf '%s\n' "$MC_BOUNDED_OUT" | tail -1)
+      _mi_hash=${_mi_now%% *}
+      if [ "$_mi_rc" -ne 0 ] || ! printf '%s' "$_mi_hash" | grep -Eq '^[0-9a-f]{64}$'; then
+        rm -f "$_mi_file" # failed read consumed
+        log "$MISSION_NAME: cannot read idle fingerprint (rc=$_mi_rc: $(printf '%s\n' "$MC_BOUNDED_OUT" | tail -1)) — proceeding with a full fire"
+      elif [ "${_mi_last%% *}" = "$_mi_hash" ]; then
+        log "$MISSION_NAME: nothing changed since the last no-pick fire ($_mi_now) — idle, nothing spent"
+        _mi_slot_state="${AILANG_STATE_DIR:-$STATE_DIR}"
+        mkdir -p "$_mi_slot_state"
+        printf '%s verdict=IDLE rc=0 attempt=%s/%s elapsed_s=0 stamps=0 controller=none\n' \
+          "$(date -u '+%Y-%m-%dT%H:%M:%SZ')" "${MISSION_ATTEMPT:-1}" "$TRANSIENT_RETRIES" \
+          >> "$_mi_slot_state/mission-${MISSION_NAME}-slot-verdicts.log"
+        _mi_history="$_mi_slot_state/mission-${MISSION_NAME}-slot-verdicts.log"
+        tail -n 200 "$_mi_history" > "${_mi_history}.tmp.$$" && mv "${_mi_history}.tmp.$$" "$_mi_history"
+        exit 0
+      else
+        rm -f "$_mi_file" # changed
+        log "$MISSION_NAME: inputs changed since the last no-pick fire ($_mi_now) — proceeding with a full fire"
+      fi
+    fi
+  fi
+fi
+# --- MISSION IDLE PRE-CHECK END ---
+
 # Deliver anything a previous fire could not. Placed after the pin decision so a drained
 # notice is reported by the same driver the rest of this fire runs, and BELOW the kill
 # switch for the same reason the probes are: this drain makes up to one bounded network
@@ -2299,6 +2353,28 @@ export MISSION_ROUTING_NOTE
 # repo that has none (world, stapledon). NOT AILANG_DRIVER_SRC: that is the source clone,
 # which can be far behind what actually runs.
 MISSION_DRIVER_ROOT="${MC_DRIVER_ROOT:-}"; export MISSION_DRIVER_ROOT
+
+# --- MISSION IDLE SNAPSHOT START ---
+# driver:idle-fire-writes-full-block-report, evaluator finding (fleet iteration 91): the
+# controller's `--record` used to fingerprint the inputs at the END of a 1-2 h fire, so an
+# attended ruling landing at minute 30 — which the controller read at Gate 0 and never acted
+# on — was baked into the record, and the next fires matched it and skipped for up to 24 h.
+# Snapshot the inputs HERE instead: after the overlap guard and the dry-run exit (a yielding
+# fire must not overwrite a running fire's snapshot; a dry run writes no state), after
+# MISSION_FIRE_ID exists, before the controller starts. `--record` only promotes the snapshot
+# whose fire= matches this fire. A failed snapshot leaves none, so the fire cannot record.
+if [ -n "${MISSION_NAME:-}" ] && [ "$MISSION_NAME" != fleet ] && [ "$MISSION_NAME" != triage ] \
+   && [ -z "${AILANG_MISSION_WORK_ITEM:-}" ]; then
+  rm -f "$STATE_DIR/mission-${MISSION_NAME}-idle-fingerprint.pending"
+  IDLE_STATE_DIR="$STATE_DIR" _mc_bounded 180 /bin/bash "$MC_DRIVER_ROOT/tools/launchd/lib/idle-fingerprint.sh" --snapshot < /dev/null; _mi_rc=$?
+  if [ "$_mi_rc" -eq 0 ] && [ -f "$STATE_DIR/mission-${MISSION_NAME}-idle-fingerprint.pending" ]; then
+    log "$MISSION_NAME: idle snapshot taken for $MISSION_FIRE_ID ($(printf '%s\n' "$MC_BOUNDED_OUT" | tail -1))"
+  else
+    rm -f "$STATE_DIR/mission-${MISSION_NAME}-idle-fingerprint.pending"
+    log "$MISSION_NAME: no idle snapshot this fire (rc=$_mi_rc: $(printf '%s\n' "$MC_BOUNDED_OUT" | tail -1)) — a no-pick verdict cannot be recorded"
+  fi
+fi
+# --- MISSION IDLE SNAPSHOT END ---
 _mc_export_mission_registry
 # The over-ration buckets travel with the resolved plan, so resolve-role-spawn.sh can
 # refuse a role recipe the driver itself would have refused (see that script's gate).
