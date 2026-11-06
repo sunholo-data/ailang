@@ -939,6 +939,10 @@ NOTIFY_TIMEOUT="${MISSION_NOTIFY_TIMEOUT:-30}"   # per-notify wall-clock cap, se
 
 # Model probes + ration gate live in lib/lane-probe.sh (shared with mission-lane-check.sh).
 . "$MC_DRIVER_ROOT/tools/launchd/lib/lane-probe.sh"
+# --- SECRETS SCOPE LIBRARY START ---
+# shellcheck source=/dev/null
+. "$MC_DRIVER_ROOT/tools/launchd/lib/secrets-scope.sh"
+# --- SECRETS SCOPE LIBRARY END ---
 . "$MC_DRIVER_ROOT/tools/launchd/lib/codex-env-args.sh"
 . "$MC_DRIVER_ROOT/tools/launchd/lib/codex-auth-profile.sh"
 mc_select_codex_profile || exit 1
@@ -2429,6 +2433,7 @@ _mc_claude_session_prepare() {
 
 # _mc_run_once → runs the selected provider with BOTH watchdogs, waits, sets global RC.
 # Watchdogs are per-attempt (fresh PIDs each retry).
+# shellcheck disable=SC2030,SC2031 # Scope exports intentionally belong only to each child.
 _mc_run_once() {
   # --- ATTEMPT HEARTBEAT START ---
   MISSION_ATTEMPT="$attempt"
@@ -2447,11 +2452,17 @@ _mc_run_once() {
     # codex's shell_environment_policy (inherit=core on the rig) strips the driver's exports from
     # the controller's shells; forward the role env + scope guard per-variable (lib/codex-env-args.sh).
     # ${arr[@]+…} because an empty array under `set -u` aborts in bash 3.2.
+    # --- SECRETS SCOPE CODEX CHILD START ---
+    (
+    export AILANG_SECRETS_LANE=codex-controller MISSION_DRIVER_ROOT="$MC_DRIVER_ROOT"
+    mc_secrets_scope_apply "$AILANG_SECRETS_LANE" 2>>"$LOG" || exit $?
+    # --- SECRETS SCOPE CODEX CHILD END ---
     MC_CODEX_ENV_ARGS=()
-    mc_codex_env_args 2>>"$LOG"
+    mc_codex_env_args 2>>"$LOG" || exit $?
     mc_codex_exec ${MC_CODEX_ENV_ARGS[@]+"${MC_CODEX_ENV_ARGS[@]}"} --skip-git-repo-check \
       --dangerously-bypass-approvals-and-sandbox \
-      --model "$MODEL" -C "$REPO" "$PROMPT" >>"$LOG" 2>&1 &
+      --model "$MODEL" -C "$REPO" "$PROMPT" >>"$LOG" 2>&1
+    ) &
   # --- CODEX CONTROLLER EXEC END ---
   elif [ "$CONTROLLER_PROVIDER" = "pi" ]; then
     # Last-resort rungs (Mark 2026-08-31): a pi-driven GLM controller is weaker than
@@ -2499,13 +2510,27 @@ _mc_run_once() {
     . "$MC_DRIVER_ROOT/tools/launchd/lib/pi-ext-args.sh"
     _mc_pi_ext=(); while IFS= read -r _l; do _mc_pi_ext+=("$_l"); done < <(_mc_pi_ext_args "$REPO")
     # The note's system-prompt copy (same ticket; the -p prefix above is the other copy).
-    ( cd "$REPO" && pi --model "$MODEL" ${_mc_pi_ext[@]+"${_mc_pi_ext[@]}"} -e "$MC_DRIVER_ROOT/tools/pi-extensions/controller-bash-cap.ts" --append-system-prompt "$_mc_pi_note" --session-id "$MC_PI_SESSION_ID" -p "$_mc_pi_prompt" < /dev/null ) >>"$LOG" 2>&1 &
+    # --- SECRETS SCOPE PI CHILD START ---
+    (
+      export AILANG_SECRETS_LANE=pi-controller MISSION_DRIVER_ROOT="$MC_DRIVER_ROOT"
+      unset BASH_ENV
+      mc_secrets_scope_apply "$AILANG_SECRETS_LANE" || exit $?
+    # --- SECRETS SCOPE PI CHILD END ---
+    cd "$REPO" && exec pi --model "$MODEL" ${_mc_pi_ext[@]+"${_mc_pi_ext[@]}"} -e "$MC_DRIVER_ROOT/tools/pi-extensions/controller-bash-cap.ts" --append-system-prompt "$_mc_pi_note" --session-id "$MC_PI_SESSION_ID" -p "$_mc_pi_prompt" < /dev/null ) >>"$LOG" 2>&1 &
   else
-    claude -p "$PROMPT" \
+    # --- SECRETS SCOPE CLAUDE CHILD START ---
+    (
+    export AILANG_SECRETS_LANE=claude-controller MISSION_DRIVER_ROOT="$MC_DRIVER_ROOT"
+    mc_secrets_scope_apply "$AILANG_SECRETS_LANE" 2>>"$LOG" || exit $?
+    # --- SECRETS SCOPE CLAUDE CHILD END ---
+    # exec: $! must stay the controller PID, not this subshell (_mc_stalled skips its root and
+    # counts older descendants as long children; _mc_rusage_snapshot keys on the root).
+    exec claude -p "$PROMPT" \
       ${MC_CLAUDE_SESSION_ARGS[@]+"${MC_CLAUDE_SESSION_ARGS[@]}"} \
       --model "$MODEL" \
       --permission-mode bypassPermissions \
-      >>"$LOG" 2>&1 &
+      >>"$LOG" 2>&1
+    ) &
   fi
   CONTROLLER_PID=$!
   printf '%s\n' "$CONTROLLER_PID" > "$PIDFILE"   # overlap guard reads this (per-attempt: retries refresh it)

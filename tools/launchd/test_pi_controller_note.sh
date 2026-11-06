@@ -30,6 +30,15 @@ ROOT_DIR="${PI_NOTE_ROOT:-$(cd "$HERE/../.." && pwd)}"
 T="${TMPDIR:-/tmp}/pi-controller-note-$$"
 rm -rf "$T"; mkdir -p "$T/x" "$T/bin" "$T/repo" "$T/home"
 trap 'rm -rf "$T"' EXIT
+
+# Scope helper must only inspect a synthetic inventory, including extracted spawns.
+export HOME="$T/scope-home" ZDOTDIR="$T/scope-home/zdot" CODEX_HOME="$T/scope-home/.codex"
+unset BASH_ENV ENV AILANG_SECRETS_LANE
+mkdir -p "$HOME/.config/ailang" "$ZDOTDIR" "$CODEX_HOME"
+: > "$HOME/.config/ailang/secrets.env"
+# shellcheck source=/dev/null
+. "$ROOT_DIR/tools/launchd/lib/secrets-scope.sh"
+
 X="$T/x"
 PROMPT_BODY="PROMPT-BODY"
 RESUME_BODY="RESUME-BODY"
@@ -103,7 +112,7 @@ drive() {
     mkdir -p "$lab/pi/sessions/--${slug}--"
     : > "$lab/pi/sessions/--${slug}--/2026-10-29T00-00-00_${SESSION_ID}.jsonl"
   fi
-  export ARGV_OUT="$lab/argv.bin" PATH="$T/bin:/usr/bin:/bin" HOME="$T/home" \
+  export ARGV_OUT="$lab/argv.bin" PATH="$T/bin:/usr/bin:/bin" HOME="$T/scope-home" \
          CODEX_HOME="$T/nocodex" PI_CODING_AGENT_DIR="$lab/pi"
   (
     set -uo pipefail
