@@ -12,7 +12,9 @@ mutations. Failures return nonzero with a failed summary; absent pins skip the
 preview. Parent environment and existing healthy/degraded summaries are preserved.
 The probe runs with `/dev/null` stdin, because bash 3.2 stops supplying it to
 background jobs after any redirected loop. All six live healthy/degraded dry-runs
-(claude, codex, pi) passed under the `triage` profile. Reused provider probes may
+(claude, codex, pi) passed under the `triage` profile with `/dev/null` stdin. The
+degraded recipe's `MISSION_PROBE_TIMEOUT=10` also caps the preview probe, and an
+opus probe can exceed it. Reused provider probes may
 write auth/cache/session/runtime state. Without Mark's host-line installation, Claude
 and Codex zsh tool shells retain the measured startup exposure. Retained keys,
 credential files and native Agent-tool subagents' inherited controller scope

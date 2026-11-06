@@ -186,10 +186,18 @@ marker and root forwarded, and each inventory read kept 4 / stripped 3 names
 an asynchronous command `/dev/null` stdin. Bash 3.2.57 stops doing that once the
 shell has run any redirected loop (`done < <(…)` or a heredoc; the scope library
 has one). A first set of dry-runs started from a session whose stdin was a socket
-then failed: pi timed out in both arms (rc 124) and Claude's degraded arm
-exhausted its 10-second probe cap (rc 2). The re-run with `< /dev/null`, which is
-launchd's condition, was green. The block now redirects the probe explicitly.
-`_mc_bounded`'s other callers are unchanged. Complete out-of-sandbox gates and independent
+then failed: pi timed out in both arms (rc 124). A re-run with `< /dev/null`,
+which is the expected launchd condition (inferred, not measured on a launchd
+fire), was green. The block now redirects the probe explicitly, and a third set
+from a socket stdin passed pi in both arms. `_mc_bounded`'s other callers are
+unchanged.
+
+**10-second trap (measured).** The preview probe uses `MISSION_PROBE_TIMEOUT`, and
+the documented degraded recipe sets it to 10. The opus controller probe takes
+about 10–13 s, so an opus-pinned degraded dry-run can fail with rc 2 on ordinary
+latency. Claude's degraded arm did so in the first and third sets and passed in
+the second. Use a larger value (the bogus executor still fails fast), or give the
+preview its own floor, before treating that arm as evidence. Complete out-of-sandbox gates and independent
 evaluation also remain controller work. Process inspection and nested sandbox
 checks denied here are UNINFORMATIVE UNDER SANDBOX. Any draft PR remains unmerged
 pending Mark's ruling; local checks establish neither fleet reach nor host
