@@ -110,6 +110,11 @@ mostly network, AI and DOM calls that cannot run deterministically in CI. The ex
 - `ailang fmt` fails its round-trip check on nested interpolation and on a `match` inside `${...}`.
 
 Each of these teaches models a mistake, so they are routed as AILANG fixes, not training data.
+The prompt mistakes were fixed the same day in teaching prompt v0.16.12 and agent prompt v0.9.1.
+That pass also found the prompts claiming `print`, `readLine`, `getArgs`, `int_to_float` and
+`float_to_int` work without imports. None does: the first three need an import, and the last two
+do not exist at all (`intToFloat`/`floatToInt` live in `std/math`). That class of error is what
+pilot-1's invented-function failures looked like. The tooling bugs are filed as issues #2144–#2146.
 
 Filling coverage gaps is a docs improvement in its own right. The fine-tune can only learn what
 `examples/` shows, so the training set doubles as a check on how well the examples cover the

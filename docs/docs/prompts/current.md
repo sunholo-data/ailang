@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.16.11) - auto-synced from source
+description: The active AILANG teaching prompt (v0.16.12) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.11.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.12.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.16.11.md -->
-<!-- Active Version: v0.16.11 -->
+<!-- Source: prompts/v0.16.12.md -->
+<!-- Active Version: v0.16.12 -->
 
-# AILANG v0.16.11 - AI Teaching Prompt (with IFC Labels + Output Discipline)
+# AILANG v0.16.12 - AI Teaching Prompt (with IFC Labels + Output Discipline)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -29,7 +29,7 @@ export func main() -> () ! {IO} {
 1. First line MUST be `module path/name` matching the file path
 2. Use `println(show(value))` for numbers, `println(str)` for strings. **Prefer `show` over `intToStr`/`floatToStr`** — `show` works on ALL types
 3. **Pick ONE function-body style per function and stick to it:**
-   - **Block body** `func f() ! {IO} { let x = a; let y = b; finalExpr }` — semicolons between lets, NO `in`
+   - **Block body** `func f() ! {IO} { ... }` — one `let` per line, NO `in`. Statements are separated by newlines (canonical, what `ailang fmt` writes) or by `;` (also accepted)
    - **Expression body** `func f() ! {IO} = let x = a in let y = b in finalExpr` — `in` keyword, NO semicolons
    - **The `= {` trap**: `func f() = { a; b }` mixes both styles. `=` means expression body (no `;`); for multiple statements DROP the `=` → `func f() { a; b }`. (Error: `PAR017: ';' is only valid inside { } block bodies`.)
 4. No loops — use recursion
@@ -244,14 +244,28 @@ export func main() -> () ! {IO, AI} = println(call("What is 2+2?"))
 
 ## Let Bindings: Block Style vs Expression Style
 
-**Rule: Inside `{ }` blocks, use SEMICOLONS. With `=` bodies, use `in`.**
+**Rule: Inside `{ }` blocks, one `let` per line (no `in`). With `=` bodies, use `in`.**
 
 ```ailang
--- Block style: curly braces + semicolons
+-- Block style: curly braces, one statement per line (canonical `ailang fmt` form)
+export func main() -> () ! {IO} {
+  let x = 1
+  let y = 2
+  println(show(x + y))
+}
+
+-- `;` between block statements is also accepted (fmt removes it)
 export func main() -> () ! {IO} {
   let x = 1;
   let y = 2;
   println(show(x + y))
+}
+
+-- ONE place `;` is required: a block whose final expression starts with `{`
+-- (a record update or literal). Without it the parser reads `{` as continuing the let.
+pure func bump(r: {a: int}) -> {a: int} {
+  let x = 1;
+  {r | a: x}
 }
 
 -- Expression style: equals + in
@@ -268,7 +282,7 @@ export func main() -> () ! {IO} {
 }
 ```
 
-**Simple rule: See `{` -> use `;`. See `=` -> use `in`.**
+**Simple rule: See `{` -> one `let` per line, no `in`. See `=` -> use `in`.**
 
 ## Function Calls: Multi-arg vs Curried (CRITICAL)
 
@@ -450,6 +464,20 @@ function to a higher-order function with an unannotated or effect-polymorphic
 callback parameter also requires the caller to declare the callback’s effects.
 This includes a function stored in a list, tuple, Option or record argument.
 Constructing a record that stores a callback does not perform those effects.
+
+Callback **function types** distinguish these contracts:
+
+| Callback type | Contract |
+|---|---|
+| `T -> U` | Implicit open row; hand-off charges the caller, including nested callback data |
+| `T -> U ! {}` | Closed pure callback; an effectful value is rejected even if its caller declares that effect |
+| `T -> U ! {IO}` | Concrete IO callback contract; the callee declares IO when it invokes it |
+| `T -> U ! {e}` | Explicit row polymorphism; share `e` with the enclosing caller row |
+
+For a store-only helper taking a mixed record of pure and effectful callbacks,
+write `! {}` on pure callback fields and concrete rows on effectful fields.
+Direct record/list/tuple literals still only store callback values.
+
 
 ```ailang
 -- Pure (no effects) - use `pure func` or omit effect annotation
@@ -659,7 +687,7 @@ func handleRequest(path: string) -> Response ! {Net} {
 ## Standard Library
 
 **Auto-imported (no import needed):**
-- `print` (entry modules only)
+- `println` (entry modules only) — `print` (no newline) is NOT auto-imported: `import std/io (print)`
 - `show(x)` - convert to string
 - Comparison operators: `<`, `>`, `<=`, `>=`, `==`, `!=`
 - **`Option`/`Some`/`None` and `Result`/`Ok`/`Err`** (entry modules only, v0.30.0+) —
@@ -698,8 +726,8 @@ import std/result (Result, Ok, Err)
 import std/bytes (fromString, toString, toBase64, fromBase64, toBase64URL, fromBase64URL, length, slice, fromInts, toInts, byteAt)
 import std/stream (connect, transmit, transmitBinary, onEvent, runEventLoop, disconnect, sseConnect, ssePost, withSSE, sourceOfConn, asyncReadStdinLines, asyncExecProcess, selectEvents, StreamConn, StreamSource, StreamEvent, Message, Binary, Opened, Closed, StreamError, Ping, SSEData, SourceText, SourceBytes)
 import std/process (exec, spawnProcess, writeProcessStdin, closeProcessStdin, ProcessHandle)
-import std/zip (_zip_listEntries, _zip_readEntry, _zip_readEntryBytes)
-import std/xml (_xml_parse, _xml_findAll, _xml_findFirst, _xml_getText, _xml_getAttr, _xml_getChildren, _xml_getTag)
+import std/zip (listEntries, readEntry, readEntryBytes)
+import std/xml (parse, findAll, findFirst, getText, getAttr, getChildren, getTag)
 ```
 
 **List functions** (std/list) — all polymorphic, fully stable, **use these instead of hand-rolling recursion**:
@@ -1154,8 +1182,9 @@ let html = replaceMany(raw, [("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">")])
 -- Sum line lengths without materializing the list of lines
 let total = foldSlices(text, "\n", 0, \acc line. acc + length(line))
 
--- Uppercase each CSV field
-let upper = mapSlicesJoin(csv, ",", \field. toUpper(field))
+-- Uppercase each CSV field. The pieces are joined with NO separator:
+-- mapSlicesJoin("a,b,c", ",", toUpper) == "ABC". Re-add the delimiter yourself if needed.
+let upper = mapSlicesJoin(csv, ",", \field. "${toUpper(field)},")
 ```
 
 `substring`/`find` have an ASCII fast-path: 24× faster on pure-ASCII input
@@ -1218,7 +1247,7 @@ each call site.
 
 | Type | Operators |
 |------|-----------|
-| Arithmetic | `+`, `-`, `*`, `/`, `%`, `**` |
+| Arithmetic | `+`, `-`, `*`, `/`, `%` (no `**`: use `pow(x, y)` from `std/math`) |
 | Comparison | `<`, `>`, `<=`, `>=`, `==`, `!=` |
 | Logical | `&&`, `\|\|`, `not` |
 | Bitwise | `&` (AND), `^` (XOR), `~` (NOT), `<<` (shift left), `>>` (shift right) |
@@ -1390,9 +1419,9 @@ match config {
   {host, port: p} => "${host}:${show(p)}"
 }
 
--- Nested record patterns
+-- Nested record patterns (`...` ignores the other fields at each level)
 match data {
-  {user: {email: e}} => e
+  {user: {email: e, ...}, ...} => e
 }
 ```
 
@@ -1402,6 +1431,8 @@ match data {
 - `{name, age}` - multiple fields
 - `{user: {name}}` - nested records
 - `{name, ...}` - rest pattern (matches some fields, ignores others)
+- **A record pattern must name EVERY field of the record or end with `...`.** `{name}` on a
+  record that also has `age` is a type error ("record field mismatch: expected 2 fields, got 1").
 
 ## Deriving Eq for ADT Types
 
@@ -1417,12 +1448,12 @@ type Color = Red | Green | Blue deriving (Eq)
 type Shape = Circle(int) | Rectangle(int, int) deriving (Eq)
 
 export func main() -> () ! {IO} {
-  let sameColor = Red == Red;           -- true
-  let diffColor = Red != Blue;          -- true
-  let sameShape = Circle(5) == Circle(5);     -- true
-  let diffShape = Circle(5) != Rectangle(5, 10);  -- true
-  print("Color test: ${show(sameColor)}");
-  print("Shape test: ${show(sameShape)}")
+  let sameColor = Red == Red           -- true
+  let diffColor = Red != Blue          -- true
+  let sameShape = Circle(5) == Circle(5)     -- true
+  let diffShape = Circle(5) != Rectangle(5, 10)  -- true
+  println("Color test: ${show(sameColor)}")
+  println("Shape test: ${show(sameShape)}")
 }
 ```
 
@@ -1513,15 +1544,15 @@ func mapOption(f: int -> int, opt: Option[int]) -> Option[int] =
   }
 
 export func main() -> () ! {IO} {
-  -- Inside { } block: use semicolons, NOT "in"
+  -- Inside { } block: one let per line, NOT "in"
   -- WRONG: let isEven = \n. n % 2 == 0 in
-  -- RIGHT: let isEven = \n. n % 2 == 0;
-  let isEven = \n. n % 2 == 0;
-  let double = \x. x * 2;
-  let nums = [1, 3, 4, 7, 8];
-  let found = findFirst(isEven, nums);
-  let doubled = mapOption(double, found);
-  print(match doubled { Some(v) => "Found: ${show(v)}", None => "Not found" })
+  -- RIGHT: let isEven = \n. n % 2 == 0
+  let isEven = \n. n % 2 == 0
+  let double = \x. x * 2
+  let nums = [1, 3, 4, 7, 8]
+  let found = findFirst(isEven, nums)
+  let doubled = mapOption(double, found)
+  println(match doubled { Some(v) => "Found: ${show(v)}", None => "Not found" })
 }
 ```
 
@@ -1551,11 +1582,11 @@ func showState(s: State) -> string =
 
 export func main() -> () ! {IO} {
   -- WRONG: let s0 = Green(2) in   (don't use "in" in blocks!)
-  -- RIGHT: let s0 = Green(2);
-  let s0 = Green(2);
-  let s1 = transition(s0, Tick);
-  let s2 = transition(s1, Tick);
-  print(showState(s2))
+  -- RIGHT: let s0 = Green(2)
+  let s0 = Green(2)
+  let s1 = transition(s0, Tick)
+  let s2 = transition(s1, Tick)
+  println(showState(s2))
 }
 ```
 
@@ -1735,9 +1766,9 @@ match decode("{\"tags\": [\"a\", \"b\"]}") {
     -- getStringArrayOrEmpty: returns [] if missing or invalid
     let tags = getStringArrayOrEmpty(obj, "tags");  -- ["a", "b"]
     let missing = getStringArrayOrEmpty(obj, "nope");  -- []
-    print("Got ${show(length(tags))} tags")
+    println("Got ${show(length(tags))} tags")
   },
-  Err(e) => print("Error: ${e}")
+  Err(e) => println("Error: ${e}")
 }
 ```
 
@@ -1865,22 +1896,14 @@ Read ZIP archives (including .docx, .xlsx, .pptx files). Requires `FS` effect:
 
 ```ailang
 module benchmark/solution
-import std/result (Result, Ok, Err)
+import std/zip (listEntries, readEntry, readEntryBytes)
+import std/list (length)
 
--- List entries in a ZIP archive
-func listEntries(path: string) -> Result[[string], string] ! {FS} =
-  _zip_listEntries(path)
-
--- Read text content (UTF-8) from a ZIP entry
-func readText(path: string, entry: string) -> Result[string, string] ! {FS} =
-  _zip_readEntry(path, entry)
-
--- Read binary content as base64
-func readBinary(path: string, entry: string) -> Result[string, string] ! {FS} =
-  _zip_readEntryBytes(path, entry)
-
+-- listEntries(path)            -> Result[[string], string] ! {FS}
+-- readEntry(path, entry)       -> Result[string, string] ! {FS}   (UTF-8 text)
+-- readEntryBytes(path, entry)  -> Result[string, string] ! {FS}   (base64)
 export func main() -> () ! {IO, FS} {
-  match _zip_listEntries("document.docx") {
+  match listEntries("document.docx") {
     Ok(entries) => println("Found ${show(length(entries))} entries"),
     Err(msg) => println("Error: ${msg}")
   }
@@ -2072,10 +2095,13 @@ Pure JWT parsing and RS256 signature verification (e.g., Firebase ID tokens):
 
 ```ailang
 import std/jwt (decodeJWT, verifyRS256, verifyWithKid, isExpired, checkIssuer)
+import std/json (encode, jo, kv, js)
 
--- Decode without verification (for inspection)
+-- Decode without verification (for inspection). The Ok value is a record
+-- {header: Json, payload: Json, signature: bytes, signed: string}; use field access
+-- (or a pattern that names all four fields / ends with `...`).
 match decodeJWT(token) {
-  Ok({header, payload, signature}) => println(payload),
+  Ok(jwt) => println(encode(jwt.payload)),
   Err(msg) => println("decode failed: ${msg}")
 }
 
@@ -2085,8 +2111,10 @@ match verifyRS256(token, pemPublicKey) {
   Err(msg)   => "invalid: ${msg}"
 }
 
--- Firebase/OAuth pattern: select key by 'kid' header
-verifyWithKid(token, \kid. lookupKey(kid, jwks))
+-- Firebase/OAuth pattern: select the key by the token's 'kid' header.
+-- The second argument is a Json OBJECT mapping kid -> PEM string (not a function).
+let keys = jo([kv("key-2026", js(pemPublicKey))])
+verifyWithKid(token, keys)   -- Result[Json, string]; an unknown kid is Err
 ```
 
 Backed by `rsaVerifyPKCS1v15(message, signature, publicKeyPEM)` in
@@ -2543,7 +2571,12 @@ let data = readFile("other.txt")  -- Works!
 | Using reserved keyword as name | See Reserved Keywords section above |
 | Expecting transitive imports | Each module must import what it uses directly |
 | No output from println | Check: `--caps IO` flag present AND before filename, effect sig is `! {IO}` not `IO[Unit]` |
-| `let x = e` then `println(x)` in `{ }` | Use semicolons: `let x = e; println(x)` — or use `let x = e in println(x)` without braces |
+| `let x = e` then `println(x)` in `{ }` | Put each statement on its own line (or separate with `;`) — or use `let x = e in println(x)` without braces |
+| `x = x + 1` inside a block | No assignment: bind a new name, `let x2 = x + 1` (or shadow with `let x = x + 1`) |
+| `2 ** 10` | No `**` operator: `pow(2.0, 10.0)` (`std/math`, floats) |
+| `import std/math (max)` / `min` | No int `max`/`min` exists anywhere: define `pure func maxInt(a: int, b: int) -> int = if a > b then a else b` |
+| A `match` that leaves out a constructor | `ailang check` does NOT catch it; it fails at run time ("no pattern matched"). Cover every constructor or end with `_ =>` |
+| `{user: {email: e}}` on a record with more fields | Record patterns must name every field or end with `...`: `{user: {email: e, ...}, ...}` |
 
 ## Running Programs
 
