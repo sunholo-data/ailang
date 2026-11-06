@@ -16,6 +16,11 @@ import (
 const (
 	ToolProfileFull       = "full"
 	ToolProfileAILANGOnly = "ailang_only"
+	// ToolProfileLean is the minimal-context agent lane (fine-tune pilot-2, 2026-11-06):
+	// the four core file/shell tools, and the harness's ambient context switched off
+	// (Task.MinimalHarnessContext). pi's default prefix measured 7,338 tokens before every
+	// turn — 3,625 of them a discovered skills catalog — against 692 for this profile.
+	ToolProfileLean = "lean"
 )
 
 // CanonicalTools is every tool name a profile or a registry list may use.
@@ -45,6 +50,7 @@ var CanonicalTools = map[string]bool{
 //	                 model can only `read` an example whose path it already knows;
 //	                 AilangCLI is the policy-allowlisted `ailang <subcommand>` surface —
 //	                 iface, fmt, ai-check, docs search … — never run/test/exec)
+//	"lean"         → Read, Bash, Edit, Write (pair with Task.MinimalHarnessContext)
 //	"A,B,C"        → that list, each name validated
 func ProfileTools(profile string) ([]string, error) {
 	switch strings.TrimSpace(profile) {
@@ -52,6 +58,8 @@ func ProfileTools(profile string) ([]string, error) {
 		return nil, nil
 	case ToolProfileAILANGOnly:
 		return []string{"AilangRead", "AilangEdit", "AilangWrite", "AilangCheck", "AilangRun", "BuiltinsSearch", "ExamplesSearch", "AilangCLI"}, nil
+	case ToolProfileLean:
+		return []string{"Read", "Bash", "Edit", "Write"}, nil
 	}
 	var out []string
 	for _, t := range strings.Split(profile, ",") {

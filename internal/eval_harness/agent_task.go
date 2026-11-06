@@ -56,6 +56,7 @@ func BuildEvalExecutorTask(spec *BenchmarkSpec, config *MultiExecutorConfig, mod
 			return nil, fmt.Errorf("tool-policy: %w", err)
 		}
 		task.AllowedTools = tools
+		task.MinimalHarnessContext = config.ToolPolicy == executor.ToolProfileLean
 	}
 	// config.PolicyPath reaches the agent as AILANG_AGENT_POLICY through
 	// task.PolicyPath (set above): BuildEnvironment derives it, and ExtraEnv
