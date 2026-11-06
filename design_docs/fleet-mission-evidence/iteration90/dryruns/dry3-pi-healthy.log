@@ -1,0 +1,12 @@
+[2026-11-06 09:46:54] quorum artifact directory: /Users/voightkampff/.ailang/state/mission-quorum
+[2026-11-06 09:46:54] anthropic credential: CLAUDE_CODE_OAUTH_TOKEN (the loops' own token) for inference; the quota reader reads usage with the login credential first
+[2026-11-06 09:46:54] driver pin: running committed origin/dev @ b216285db7dda7c1f98608afcd2661eff4087b0d with mission work repository /Users/voightkampff/dev/sunholo-data/ailang-triage (source clone ? was ? behind); pinned target ? behind origin/dev (baseline ?)
+[2026-11-06 09:46:54] driver pin drift: unknown (?); notice suppressed
+[2026-11-06 09:46:54] driver pin age: unknown (?); notice suppressed
+[2026-11-06 09:46:59] triage: queue changed since the last digest (prs=62 cards=48 issues=60; last: c5a27027dbffc3b2a9836e7d6d08e67854123606b6ca320ba0d76082469d7406 prs=57 cards=45 issues=57) — proceeding
+[2026-11-06 09:47:07] ration gate: blocked buckets (over ration or unknown quota):anthropic 
+[2026-11-06 09:47:07] anthropic:sonnet quota is UNREADABLE (not measured) — probing the lane instead of refusing it; an unreadable quota is not an exhausted one
+[2026-11-06 09:47:37] DRY RUN transcript scan: a real legacy controller fire would create a per-fire marker and take a bounded 30-second metadata snapshot before spawning, then scan afterward with a 120-second limit
+secrets-scope: lane=pi-controller kept=4[OPENROUTER_API_KEY,OPENAI_API_KEY,OLLAMA_API_KEY,CLAUDE_CODE_OAUTH_TOKEN] stripped=3[ANTHROPIC_API_KEY,GOOGLE_API_KEY,GEMINI_AGENTS_API_KEY]
+[2026-11-06 09:47:39] DRY RUN secrets-scope: lane=pi-controller marker=ok controller-probe=ok
+[2026-11-06 09:47:39] DRY RUN ok: mission=triage repo-slug=sunholo-data/ailang doc=design_docs/triage-mission.md workdir=/Users/voightkampff/.ailang-driver-pin/.wt-fleet-iter90-secrets-m3 pidfile=/Users/voightkampff/.ailang/state/mission-triage.pid prefs=codex:gpt-6.1-sol,claude-sonnet-5-5 timeout=21600s | roles: designer=codex:gpt-6.1-sol planner=codex:gpt-6.1-sol executor=codex:gpt-6-luna evaluator=sonnet | lanes=ok | pin=pinned(? behind) | skill-sync=skip:ahead

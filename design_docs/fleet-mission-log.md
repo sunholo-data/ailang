@@ -1228,3 +1228,84 @@ Last 3 landings: iterations 85, 86 and 87, all clause 2. No drift alarm. Harness
 2. Rotate the Claude OAuth token in `~/.codex/config.toml` (iteration 88's incident).
 3. Any new ticket.
 4. A ruling on any of the seven drafts (#2143, #2141, #2110, #2108, #2082, #2067, #2065) lands it.
+
+## 90 — 2026-11-06 — D-FLEET-42 A's M3 built as a proposed diff (draft #2150, `26b713887`, stacked on #2143), unmerged pending a ruling: a pinned dry-run probes the controller inside its lane scope, and all six live healthy/degraded dry-runs passed; a bash 3.2 background-stdin trap was found and fixed on the way; independent sonnet judge PASS 90, then PASS 93 [HARNESS]
+
+**Pick**: D-FLEET-42 option A, milestone M3, as a draft stacked on #2143.
+- No ruling, directive, crash notice or new ticket arrived after iteration 89. There are 25 open tickets, the same signatures, all ruling-gated. #2039 has 0 allowlisted comments (16 comments).
+- So the idle guardrail applied. The independent idle-screen judge (sonnet) was not told the controller's candidate. It ruled BUILD D-FLEET-42 M3, the only unbuilt in-scope step on a recommended option ([verdict](fleet-mission-evidence/iteration90/idle-judge.md)).
+- Its strongest objection was a third stacked draft on one unanswered row. That is bounded: M3 is the row's last buildable step.
+
+**Orphans / prior record**: none. Iteration 89's record is on `origin/dev` (`a6e112f9c`). Its worktree holds only the executor's `.snap/` scratch. No `fleet/i90` branch or PR existed. Self-notices rc 0: 0 crash notices, control 852:10.
+
+**Preflight / observe**:
+- Kill switch armed; gh account `sunholo-voight-kampff`; billing CLEAN.
+- Directives: #2039 had 0. `mission-2039-last-seen` is still absent, so the full thread was read and there was nothing to mark. #1945 had 0 since its watermark.
+- Skill drift: the resolved symlink target, `SKILL.md` and all 13 resources are `cmp`-identical to `origin/dev`. The pin sits at the same SHA.
+- Gate-1 base `a6e112f9c74bd082f2807242208a3a5ef7ee6dbd@2026-11-06T07:33:30Z`. Dev CI `success`, 18 check-runs, none red.
+- Ledger valid: 41 rows, 25 OPEN. Every open ticket signature appears in the charter (control count 3).
+- No lane degraded (`MISSION_ROUTING_NOTE` and `MISSION_OVER_RATION` empty). Weekly sweep not due.
+
+**Reality check**: base gates on #2143's head `7f1e13d5f`, run before the directive was sent: `make test-launchd-drivers` 54/54, `test_secrets_scope.sh` 58/58, sync/changelog/diff-check rc 0. `select_model` accepts an env pin without probing, so the directive told the executor that the preview must call the probe itself. `triage` was idle and armed: no kill switch, no pidfile.
+
+**Did** (generator ≠ judge):
+- **Designer / planner**: not spawned. The row and iteration 88's plan (arm table plus the "Healthy and degraded dry-runs per controller lane" section) are the spec. The planner resolver printed `agent-tool opus fail-closed:no-doc`, because the doc exists only on the draft branch; recorded, not acted on.
+- **Idle-screen judge**: sonnet, Agent tool, foreground, 77,288 tok. The first spawn was refused by the spawn-pin hook (`fail-closed:role-missing`): line 1 was `MISSION-ROLE: evaluator (idle-screen judge), …`. It was re-sent with the bare token on line 1.
+- **Executor**: `codex:gpt-6.1-sol`, workspace-write, 3000 s wrapper. Probe rc 0; run rc 0, about 25 min, 159,062 tok ([directive](fleet-mission-evidence/iteration90/executor-directive.txt), [report](fleet-mission-evidence/iteration90/executor-report.md)).
+  - It built M3a: a `SECRETS SCOPE DRY RUN` block in the dry-run branch. The block uses a subshell, `_mc_set_controller`, the marker and root, `mc_secrets_scope_apply`, and the codex `mc_codex_env_args` name check. It then runs the provider probe and exits non-zero on failure.
+  - It built M3b: `test_secrets_scope_dry_run.sh`, 5 arms with killing mutants.
+  - In-sandbox, it labelled kill-tree, stall and codex-env UNINFORMATIVE.
+- **Controller, outside the sandbox** ([gates](fleet-mission-evidence/iteration90/gates.md)):
+  - The diff scan found writes only under the suite's own `mktemp`/`TemporaryDirectory`.
+  - Snapshots matched the tree.
+  - `make test-launchd-drivers` 54/54; scope suite 59/59; `--mutations` all killed; shellcheck: new file clean, driver 33 = base 33. Every run was bracketed by the real `secrets.env`'s sha and line count: SAME every time.
+  - Build commit `b216285db`, crediting codex.
+- **Six live dry-runs** under `triage` (`claude:claude-opus-5-5`, `codex:gpt-6.1-sol`, `pi:ollama/glm-5.3:cloud`, each healthy and degraded):
+  - **Set 1, stdin inherited from this session (a socket):** pi rc 124 in both arms; claude-degraded rc 2.
+  - **Diagnosis, four controls plus a minimal repro:**
+    - The scoped pi probe hangs only through `_mc_bounded`. Scoped-direct and unscoped-bounded both answer in 2 s, and the working directory is irrelevant.
+    - An explicit `< /dev/null` fixes it.
+    - On `/bin/bash` 3.2.57, after any redirected loop (`done < <(…)`, a heredoc, a here-string), a background job's fd 0 is the inherited socket rather than `/dev/null`.
+    - The scope library's inventory loop is one such loop.
+  - **Set 2, `< /dev/null` (the expected launchd condition):** all six rc 0. Every lane printed `marker=ok controller-probe=ok`. Degraded runs printed `lanes=DEGRADED(1)`, handed to haiku. Codex printed `codex-marker-forward=ok driver-root-forward=ok`. The inventory read kept 4 / stripped 3, names only. No triage state was written (a `~/.ailang/state` listing diff showed only ambient daemon files).
+- **Diff judge, round 1**: sonnet, Agent tool, foreground, own worktree, **PASS 90**, 0 blocking ([evaluation](fleet-mission-evidence/iteration90/evaluation.md)).
+  - It ran 12 of its own mutants. M2 (drop the marker/root exit) and M5 (drop the forward-rc exit) survived.
+  - Findings: untested forward exits; no explicit probe stdin; docs missing the live evidence.
+- **Controller fix `913c6f9e1`**:
+  - Arms `dry-run-codex-forward-rc`, `dry-run-codex-forward-missing` and `dry-run-probe-stdin` (pipe stdin; asserts the probe sees `/dev/null`).
+  - `esac < /dev/null` on the preview probe.
+  - Docs.
+  - Results: 8/8 arms, 8/8 mutants killed, `make test-launchd-drivers` 54/54.
+  - **Set 3, socket stdin, fixed tree:** pi rc 0 in both arms. claude-degraded rc 2 again.
+- **Judge, round 2** (resumed by SendMessage): **PASS 93**, 0 blocking. All three findings closed, and its own M2, M5 and two redirect mutants were killed.
+  - It attributed claude-degraded to the degraded recipe's `MISSION_PROBE_TIMEOUT=10` against a 10–13 s opus probe (set 3's log has no stdin warning), and argued set 1's is the same cap.
+  - It flagged the docs' stdin attribution for that arm as an over-claim, corrected in `26b713887` (doc-only).
+- **Landing**: draft PR [#2150](https://github.com/sunholo-data/ailang/pull/2150), base `fleet/i89-dfleet42-m2`, head `26b713887`, not merged. Closing-keyword scans on all three commit messages and the PR body found 0 (control fired).
+
+**Gate 3b**: not applicable, because nothing merges (iteration 83 precedent).
+
+**Transcript-scan notices seen this fire** (step 6a): 2 on #2039, the same two iteration 89 reported (fires `fleet-1793845378-59113` and `fleet-1793898974-52315`, 1 hit each). No new ones. Key names are in the private controlplane notice only.
+
+**Ruled out**:
+- Attributing set 1's pi failure to the scope. Unscoped-bounded and scoped-direct probes answer in 2 s; only scoped plus `_mc_bounded` plus a socket stdin hangs.
+- Attributing claude-degraded to stdin. Set 3 has no stdin warning and fits the 10 s cap.
+- Fixing `_mc_bounded` for its other callers: pre-existing, out of M3's scope, and not ticketed.
+- Changing the degraded recipe's timeout or giving the preview its own floor: that changes the done-gate recipe. It is recorded as a trap in the design doc and the PR.
+- Re-spawning the planner: iteration 88's M3 section is the spec.
+
+**Retro lane**: no skill edit; two recorded frictions.
+- (a) **Instance 1 of "a dry-run started from an interactive session is not a launchd dry-run".** The charter's done-gate `env -i … mission-control.sh` line inherits the caller's stdin. On bash 3.2 that reaches every `_mc_bounded` probe once any redirected loop has run. Pre-M3 dry-runs never probed a pi controller, which is likely why it never showed. If it recurs, add `< /dev/null` to the charter's done-gate line.
+- (b) **Instance 1 of "the spawn-pin hook needs the role token alone on line 1".** A descriptive suffix after `MISSION-ROLE: evaluator` was refused. The skill's rule says "begin with the line", so this is consistent; no edit.
+- (c) Both judges returned full verdicts in their final messages, and the resumed round produced the docs finding.
+
+**Progress**: Clause 1 UNMEASURED, goal unmoved. Clause 2 UNMET (nothing resolved). Clause 3 MET (25 open). Clause 4: prior evidence only. Clause 5 preserved (nothing merged to code). Last 3 landings: iterations 85, 86 and 87, all clause 2. No drift alarm. Harness share: 20 of the last 20, by design.
+
+**Next**: a ruling on D-FLEET-42 (A: merge #2141 → #2143 → #2150 and add the host line; B, the default: close the three drafts); any new ticket; otherwise a ruling on any of the eight drafts. An idle fire with no new ticket and no ruling should now find nothing buildable on D-FLEET-42.
+
+**Routing evidence**: base=8a6b7bff5654f7a53f401569fc097ff9ac5b7686@2026-11-06T08:52:15Z (Gate-4 record; Gate-1 base `a6e112f9c`, and the six commits since touch neither the charter nor the log). Details: [routing](fleet-mission-evidence/iteration90/routing.md).
+- Controller `claude:claude-opus-5-5` (tok: not reported). `MISSION_ANTHROPIC_AVAILABLE=1`.
+- Designer: not spawned. Resolver `recipe claude:claude-opus-5-5 declared:provider-pin`; no rotation advance.
+- Planner: not spawned. Resolver `agent-tool opus fail-closed:no-doc`.
+- Executor `codex:gpt-6.1-sol` (159,062 tok). Resolver `recipe codex:gpt-6.1-sol declared:provider-pin`.
+- Evaluators: `sonnet`, Agent tool, ×2. Idle screen 77,288 tok; diff 97,695 tok cumulative over 2 rounds. Resolver `agent-tool sonnet declared:alias-pin`. Judge independence: cross-vendor.
+- Quorum: none. Metered spend /bin/zsh. No lane recorded dead.

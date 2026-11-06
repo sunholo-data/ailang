@@ -1,33 +1,29 @@
-# Fleet mission — iteration 89, 2026-11-06
+# Fleet mission — iteration 90, 2026-11-06
 
 - Latest release: v0.57.4. Fleet work on dev since v0.57.1: #2122 (`26b35b081`), #2127 (`9ea8adcf4`), #2132 (`7e9e9192b`). Nothing new merged this fire.
-- **BUILT, NOT MERGED this fire: D-FLEET-42 A, M2**, draft #2143 (`7f1e13d5f`), stacked on #2141.
-  - Each controller child (codex, pi, claude) applies its lane scope in a subshell, so the parent keeps its credentials.
-  - Adds a codex/claude role entry point, the exact codex marker exception, and pi-role plus a `BASH_ENV` clear.
-  - Judge PASS 92, 0 blocking. `make test-launchd-drivers` 54/54; 68 mutants killed.
-- CAUGHT before commit: wrapping a launch in `( … ) &` made `$!` a bash subshell rather than claude, which would have changed the stall watchdog's meaning for the primary lane. Fixed with `exec`, plus a kill-tree assertion that reddens without it.
-- HOW IT WAS PICKED: every ticket is ruling-gated. The controller leaned idle on a row-level reading; the independent judge ruled the charter's "screen by step" reading and the loop followed it. Say if you want the stricter reading.
-- PENDING ASK: **D-FLEET-42**, with M1 and M2 now built.
-  - A (recommended): the per-lane strip plus your one-line `~/.zshenv` hook.
-  - B (default): detection only.
+- **BUILT, NOT MERGED this fire: D-FLEET-42 A, M3**, draft #2150 (`26b713887`), stacked on #2143 → #2141.
+  - A pinned `MISSION_DRY_RUN=1` now probes the controller inside its lane scope and logs names only.
+  - All six live dry-runs (claude opus, codex gpt-6.1-sol, pi glm-5.3, each healthy and degraded) passed. Each lane: kept 4 names, stripped `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_AGENTS_API_KEY`.
+  - Judge PASS 90, then PASS 93 after fixes. `make test-launchd-drivers` 54/54; 8/8 new mutants killed.
+- FOUND on the way: on the rig's bash 3.2, a background job loses its `/dev/null` stdin after any redirected loop, so a probe started from an interactive session waits on stdin (pi rc 124). The preview now redirects it. Launchd fires are expected to be unaffected (stdin is `/dev/null`; inferred).
+- OPEN TRAP: the done-gate's degraded recipe sets a 10 s probe timeout, and the opus probe takes 10–13 s, so a claude-pinned degraded dry-run can fail on latency.
+- PENDING ASK: **D-FLEET-42**. Every buildable step of A is now a draft (#2141 M1, #2143 M2, #2150 M3).
+  - A (recommended): merge the three drafts in order, plus your one-line `~/.zshenv` hook.
+  - B (default): detection only; close the drafts.
   - C: strip everything and re-add per recipe.
-  - Also yours: rotate the Claude OAuth token in `~/.codex/config.toml`, rotate the four keys exposed earlier, and permission to redact.
-- PROPOSED, NOT MERGED (7 drafts, each waiting on your ruling):
-  - **D-FLEET-42 A M2**, #2143 (judge PASS 92). **M1**, #2141 (PASS 86).
+  - Also yours: rotate the Claude OAuth token in `~/.codex/config.toml` and the four keys exposed earlier, and permission to redact.
+- PROPOSED, NOT MERGED (8 drafts, each waiting on your ruling):
+  - **D-FLEET-42 A**: #2150 M3 (PASS 93), #2143 M2 (PASS 92), #2141 M1 (PASS 86).
   - **D-FLEET-18 A guard step**, #2110 (PASS 93).
   - **D-FLEET-36 A + D-FLEET-38 A guard step**, #2108 (PASS 92).
   - **D-FLEET-25 shared sub-item**, #2082 (PASS 94).
   - **D-FLEET-21 A**, #2067: Gate 3b poll cap 3600 s (PASS 90).
   - **D-FLEET-26 A**, #2065: codex capacity error → transient (PASS 94).
-- SEEN: 2 transcript-scan notices on #2039 (fires `fleet-1793845378-59113` and `fleet-1793898974-52315`, 1 hit each; both already accounted for).
-- Dev: `e4fcc15f6`, CI green (22 check-runs, none red).
-- Roles this fire:
-  - Executor: `codex:gpt-6.1-sol`.
-  - Two sonnet judges (idle screen, then diff), Agent tool, cross-vendor.
-  - Designer and planner not spawned; iteration 88's plan was reused.
-- NEXT: a ruling on D-FLEET-42 (under A, M3 dry-runs on #2143's branch); any new ticket; otherwise a ruling on any draft.
+- Dev: `8a6b7bff5` at record time; CI green at `a6e112f9c` (18 check-runs, none red).
+- Roles: executor `codex:gpt-6.1-sol`; two sonnet judges (idle screen, then diff over two rounds), cross-vendor. Designer and planner not spawned (iteration 88's plan reused).
+- NEXT: a ruling on D-FLEET-42; any new ticket; otherwise a ruling on any draft. Nothing buildable is left on D-FLEET-42, so an idle fire with no new ticket should idle.
 - Decisions: 41 rows, 25 OPEN (D-FLEET-16 to -23, -25 to -29, -31 to -42). None new.
 - Cadence: 6h while tickets are open; 25 open. Bookkeeping thread #2039.
 - Quota: codex served; metered $0.
 - Bar: clause 1 UNMEASURED (goal unmoved); clause 2 UNMET (nothing resolved); clause 3 MET; clause 4 prior evidence; clause 5 preserved.
-- Evidence: `fleet-mission-evidence/iteration89/`.
+- Evidence: `fleet-mission-evidence/iteration90/`.
