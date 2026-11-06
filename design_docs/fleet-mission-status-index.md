@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 86 | 2026-11-05 | the transcript scan now matches only bytes written in the fire window — #2127 → `9ea8adcf4`; a byte-size baseline taken before the controller spawn... |
 | 85 | 2026-11-04 | the transcript secret detector LANDED — #2122 → `26b35b081`; every legacy controller fire now scans the session files it wrote for `secrets.env` va... |
 | 84 | 2026-11-04 | dev's required checks green again — the `.agents` mission-control mirror of `gate-3-triage.md` re-synced via #2116 → `981028c46`; ticket `ci:skill-... |
 | 83 | 2026-11-04 | D-FLEET-18 A's guard step built as a proposed diff — draft PR #2110 (`875581f46`), unmerged pending your ruling; the fleet scope guard would admit ... |

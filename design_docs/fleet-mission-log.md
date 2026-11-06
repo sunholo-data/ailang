@@ -7,88 +7,6 @@ Append-only, one entry per iteration, newest at the bottom. Charter: [fleet-miss
 > the thing to grep before picking work, so the loop never repeats itself — is in
 > `fleet-mission-index.md`.
 
-## 69 — 2026-10-29 — `gate0:session-protocol-deadlock:agent-policy-unset` LANDED via #2014 → `9ac96e78b`, independent sonnet PASS 93 (round 2); pi controllers now get a session-protocol note; ask 1 refuted, the extension half stays under D-FLEET-3 [HARNESS]
-
-**Pick**: iteration 68's **Next**, `gate0:session-protocol-deadlock:agent-policy-unset` (stapledon, 10-07). It was the oldest in-scope, ungated ticket. No in-scope ticket is inside the 48h window; `ci:distinct-build-test-failures` is out of scope (D-FLEET-17 class).
-
-**Orphans**: none. No `fleet/i69*` branch, worktree or PR existed. Self-notices rc 0 (control 852:10). The log and charter on `origin/dev` ended at 68.
-
-**Preflight / observe**:
-- Armed. gh `sunholo-voight-kampff`. Billing CLEAN. Directives: 0 on #1945 since `2026-10-22T23:29:08Z` (9 comments, none allowlisted).
-- Skill drift: SKILL.md and all 13 resource files `cmp`-identical to origin/dev at the resolved symlink target. The pin worktree is at origin/dev (`65253e86e`).
-- Gate-1 base `65253e86e68be251eecd796d92327e4d4828c234@2026-10-29T12:43:54Z`. Dev CI on it was in progress at Gate 1. It later read Build and Release green, with `test`, `launchd drivers` and `govulncheck` green. `ailang-core-dev (ailang-multivac-deploy)` was red (Cloud Build, outside fleet scope).
-- Ledger valid, 32 rows, 17 OPEN. 38 tickets open. Codex over its daily ration (`MISSION_OVER_RATION=codex`, probe rc 75), so the driver handed the planner to `opus` and the executor to `claude:claude-haiku-5-5`.
-
-**Reality check** (first-party, before routing):
-- Session evidence: `~/.pi/agent/sessions/--Users-voightkampff-dev-sunholo-data-stapledons-godot--/` holds 40 sessions. 11 of them call `session_protocol_ack`; the planner's recount corrected the controller's 12. 5 of those 11 were REFUSED at least once.
-  - The 09-29T12-53 session deadlocked. It made 0 bash `ailang messages` calls and 5 `ailang_cli` calls, including `{"argv":["messages","list","--unread","--json"]}`, and every one was refused with `AILANG_AGENT_POLICY is unset`.
-  - Four sessions recovered later through bash: 10-02, 10-09 (two) and 10-19.
-- Mechanism: `.pi/extensions/session-protocol-gate.ts` `prerequisitesMet()` credits the inbox step only to a `bash` call containing `ailang messages`. `BASH_ALLOW` already admits `ailang messages`. The model's first compound bash was refused with a generic reason, and it then reached for `ailang_cli`. `.pi/extensions/ailang-exec.ts` registers that tool with no policy and refuses every call (D4).
-- **Ask 1 refuted.** Exporting a policy would inject the ailang_only "You have NO shell" lane prompt. `ailang-exec.ts` (comment at about line 320, measured 2026-09-19) records that prompt talking sessions out of a shell they had. **Ask 2** and any extension text change are `.pi/extensions/**`, which parks under D-FLEET-3.
-- In-scope route: the pi controller branch of `tools/launchd/mission-control.sh`. `pi --help` lists `--append-system-prompt`. `tools/pi-extensions/controller-bash-cap.ts` is outside scope; only `sandbox/**` is allowed.
-
-**Did** (designer skipped; planner, executor and two evaluator rounds spawned; generator ≠ judge):
-- **Designer**: not spawned. Mechanical driver fix; the rotation pointer was not advanced.
-- **Planner**: `opus`, Agent tool, foreground. Resolver `agent-tool opus fail-closed:env-pin`; the pin is the bare alias `opus`. It wrote [the plan](planned/sprint-plan-pi-controller-protocol-note.md) as one milestone:
-  - `lib/pi-controller-note.sh` holds the note.
-  - The pi branch sends it via `--append-system-prompt` and prefixes it to `-p`, on both the fresh and resume paths. Both copies are needed because a measured glm-5.3-flash route drops the system role.
-  - New suite `test_pi_controller_note.sh` runs the real driver function against fake pi/claude/codex.
-  - Role spawns get no note, because they are stages.
-  - It found the World fork claim out of date: both plists run the main clone's driver.
-- **Executor**: `claude:claude-haiku-5-5` through `claude-sub` (probe rc 0, keys stripped), `--output-format json`. Commits `7de55648d` (fix) and `fc646ca25` (changelog).
-  - Its first drill harness used bash 3.2 `read -d ''` plus `${s//…}` on the 164 KB driver and ran 17 min at about 82% CPU.
-  - The controller killed that one process at 13:23:59Z and extended the executor cap to about 47 min, because the fix was already committed.
-  - The executor rewrote the drills in perl: 10 mutations, all red (M8 is the T6b control).
-  - Base suite 51/51. The head suite's first run was red only in the load-sensitive `tools/eval/test_motoko_connection_probe.sh` (green alone, 59/59); the re-run passed 52/52.
-- **Evaluator round 1**: Agent tool `sonnet`, fresh detached judge worktree `.wt-fleet-iter69-judge` at `fc646ca25`. **PASS 91**, 0 blocking.
-  - Every sentence of the note is true of HEAD's gate and extension.
-  - `--append-system-prompt` takes text unless the value is an existing file path (`resource-loader.js:17-31`), and is rebuilt on each session start (`agent-session.js:672`, `:1944`).
-  - `make test-launchd-drivers` rc 0 (52). Shellcheck 33 vs 33.
-  - Its mutations F ("NOT granted" → "granted"), F2 (inbox step via `ailang_cli`, the exact bug) and H (chain rule inverted) PASSED the suite.
-- **Controller fix 1**, `9a9c95e58`: T6c pins five load-bearing sentences and refuses `(via|with|through|using|use) (the )?ailang_(cli|run)`. It also drops "single" from "bash runs only single read-only commands" (the judge's looseness finding). F, F2, F2b and H go red.
-- **Evaluator round 2** (resumed): **PASS 93**, 0 blocking. N5 ("Prefer to call ailang_cli for the inbox.") and N7 ("every call succeeds") still passed. N1, N2 and N6 (skip the ack, any order, read CLAUDE.md via bash) also pass.
-- **Controller fix 2**, `57add5d09`, which is the judge's named remedy: pin "every call refuses", and fail if either tool is named outside the NOT-granted sentence. F, F2, F2b, H, N3, N5 and N7 are all red, the `cmp` restore is ok, and the suite passes 36/36. Not re-scored by the judge. A first N3 drill read "missed" because perl's non-global `s///` hit the lib's header comment; aimed at the note sentence, it is red.
-- **Real pi probe** (controller, flat-rate): `pi --model ollama/glm-5.3:cloud --no-extensions --no-tools --no-session --append-system-prompt "OVERRIDE … PERSIMMON …" -p "say hello"` → `PERSIMMON`, rc 0. The control without the flag gave a normal greeting. So the system append reaches the model with `-p` on the route that deadlocked. A resumed session was not probed.
-- **Done-gate** ([done-gate.md](fleet-mission-evidence/iteration69/done-gate.md)): world dry-runs (idle and armed; real HOME; `AILANG_WORKTREE_SWEEP=0`; `AILANG_DRIVER_PINNED=fc646ca25`).
-  - Healthy: rc 0, `DRY RUN ok`, `lanes=DEGRADED(2)`, because codex is over ration.
-  - Degraded (`codex:bogus-model-i69`): rc 0, executor → `claude:claude-haiku-5-5`.
-  - The sweep log hash, the pin listing and the world pidfile were unchanged.
-- **PR** [#2014](https://github.com/sunholo-data/ailang/pull/2014). The closing-keyword scan found 0 matches; the control fired.
-
-**Gate 3b**:
-- PR head `57add5d09`, 27 checks terminal. Red only in `Build ubuntu-latest`: `internal/runner` `TestWorkerTerminalPTYLifecycle/eval/sigterm`. Windows and the two macOS builds were fail-fast `cancelled`. The required `test`, `launchd drivers (bash 3.2)`, `test-windows` and `govulncheck` were green. Dev HEAD `65253e86e` had all four Build jobs green.
-- The diff touches no Go code. The same test family failed on dev at `4e6ea7b25` (iteration 68, `/eval/normal`). Re-run of the failed jobs on the same commit (run 40886298585, attempt 2): failure on a DISJOINT set. Ubuntu, Windows and one macOS leg were green. The other macOS leg failed on `cmd/ailang`'s hang guard ("this PACKAGE has outgrown its go test -timeout budget (not a failure of this test's logic)", package 584 s) plus `internal/runner`. Every leg that failed once passed on the other attempt. MERGEABLE/UNSTABLE.
-- Merged with `--merge --match-head-commit` → `9ac96e78ba9203c4070271971d459dffa51b22ed`.
-- Exact merge: required `test`, `lint`, `build` and `checks` green, plus `launchd drivers (bash 3.2)`, `test-windows` and `govulncheck` green (GO-2026-6860 no longer fires). `Build and Release` red in `Build ubuntu-latest` (`TestWorkerTerminalPTYLifecycle`, the same `internal/runner` flake), with the other legs fail-fast cancelled. `ailang-core-dev (ailang-multivac-deploy)` red, as on the parent `65253e86e`.
-
-**Resolved**: `gate0:session-protocol-deadlock:agent-policy-unset` `--sha 9ac96e78ba9203c4070271971d459dffa51b22ed`. Turnaround about 22 d (10-07 18:58Z → 10-29). The resolution text carries the residual: the note is advisory, and the gate/extension hole is unchanged under D-FLEET-3. A recurrence re-files the same signature. The judge recommended keeping the ticket open until a live pi controller fire shows a bash `ailang messages` call; the controller resolved it and records that dissent here. 38 → 37 open.
-
-**Progress**: goal unmoved on clause 1 (UNMEASURED). Clause 2 UNMET: this closure took about 22 d, and no in-scope ticket is inside the 48h window. Clause 3 MET (37 open). Clause 4: prior evidence only. Clause 5 preserved.
-
-**Routing evidence**: Gate-1 base `65253e86e68be251eecd796d92327e4d4828c234@2026-10-29T12:43:54Z`; merge `9ac96e78b`. Routing note: `lanes degraded: planner and executor codex gpt-6.1-sol unusable (probe rc=75, over daily ration) → opus / claude:claude-haiku-5-5`.
-- Controller `claude:claude-opus-5-5` (tok: not reported).
-- Designer: not spawned (mechanical; no doc); rotation pointer not advanced.
-- Planner `opus`, Agent tool (113,268 subagent tokens / 30 tool uses / 369 s). Resolver `agent-tool opus fail-closed:env-pin`; the hook and the resolver agreed.
-- Executor `claude:claude-haiku-5-5` via `claude-sub -p --output-format json`: 116 input + 7,413,811 cache-read + 83,783 output tokens, 58 turns, 2,748 s, rc 0. It reported `total_cost_usd` 0.61 on the subscription, which is not metered spend.
-- Evaluator `sonnet`, Agent tool: round 1 85,950 subagent tokens / 16 tool uses / 368 s; round 2 91,325 / 3 / 90 s. Judge independence: a different model from both the planner (opus) and the executor (haiku). Same vendor, so vendor-level independence is not claimed.
-- Real pi probe: `pi:ollama/glm-5.3:cloud`, 2 calls (flag + control), flat-rate.
-- Quorum: none (no design doc). Metered spend: $0. No lane recorded dead (codex is over ration, not dead).
-
-**Ruled out**:
-- Ask 1, exporting `AILANG_AGENT_POLICY` for pi controllers: it injects the ailang_only lane prompt into a session that needs bash.
-- A stage marker (`AILANG_MISSION_STAGE`) for the controller: the controller triages the inbox at Gate 0 by design.
-- Editing `controller-bash-cap.ts`: outside fleet scope.
-- Editing either `.pi/extensions` file this iteration: D-FLEET-3. A park needs a proposed diff and its eval impact.
-
-**Retro lane**: none filed; no skill edit. Observations, not tickets:
-- (a) A drill harness that rewrites the 164 KB driver with bash 3.2 `${s//…}` or `read -d ''` stalls for 15+ minutes at full CPU. This is the second executor-instrument stall class seen on this lane. Directives that ask for mutation drills should say "perl or sed on scratch copies"; the evaluator directive did, and it ran clean.
-- (b) A non-global perl `s///` aimed at a phrase that also appears in a file's comment mutates the comment, so the drill reads as a test miss. `cmp` only proves something changed, not that the right thing changed.
-- (c) Phrase-pinned prompt tests are an arms race. The judge found 3 misses per round. The deterministic fix lives in the gate (D-FLEET-3), not in more needles.
-
-Last 3 code landings: iteration 67, clause 2 (under 48h); iteration 68, none (about 20 d); iteration 69, none (about 22 d). No drift alarm: no routable UNMET-clause row exists, because the only in-window ticket is out of scope.
-
-**Next**: no in-scope ticket is inside the 48h window (`ci:distinct-build-test-failures` is out of scope, and its window closes 10-30 21:18Z). Next in-scope ungated candidates, scope check first: `pi:provider-error:no-retry` (stapledon, 10-07; is pi's provider retry in the driver or in pi?), `stall:watchdog:slow-on-hung-tool` (stapledon, 10-07), then `skills:showcase-feature-discoverability` (needs a design).
-
 ## 70 — 2026-10-29 — `pi:provider-error:no-retry` LANDED via #2022 → `52e8958f0`, independent sonnet PASS 91 (round 2); the retry was a ghost of #1391, and the seam it never tested is now pinned end to end [HARNESS]
 
 **Pick**: iteration 69's **Next**, `pi:provider-error:no-retry` (stapledon, 10-07). It was the oldest in-scope, ungated ticket. No in-scope ticket is inside the 48h window; `ci:distinct-build-test-failures` is out of scope (D-FLEET-17 class).
@@ -1224,3 +1142,89 @@ Last 3 landings: iterations 85, 86 and 87, all clause 2. No drift alarm. Harness
 2. Rotate the Claude OAuth token exposed in `~/.codex/config.toml`.
 3. Any new ticket.
 4. A ruling on any of the six drafts (#2141, #2110, #2108, #2082, #2067, #2065) lands it.
+
+## 89 — 2026-11-06 — D-FLEET-42 A's M2 wiring built as a proposed diff (draft #2143, `7f1e13d5f`, stacked on #2141), unmerged pending a ruling: controller children, a role entry point, the exact codex marker exception and pi `BASH_ENV` clearing; the controller caught a `$!`-is-a-subshell regression the fixtures could not see; independent sonnet judge PASS 92 [HARNESS]
+
+**Pick**: D-FLEET-42 option A, milestone M2, as a draft stacked on #2141.
+- No ruling, directive, crash notice or new ticket arrived after iteration 88. All 25 open tickets are ruling-gated. The one new occurrence, `reporting:daneel-reports-not-declared-triage` (last seen 11-05 23:06Z, 16 slots lost), is still D-FLEET-22, which is outside fleet scope.
+- So the idle guardrail applied. The controller leaned IDLE: on the row-level reading of "no proposed diff yet", #2141 already counts as a diff for D-FLEET-42, and no other row qualified at iteration 88.
+- The independent idle-screen judge was not told that lean. It ruled the step-level reading instead. "Screen by step" makes M2 a qualifying step: option A asks for the whole strip, wiring and dry-runs included, as a pre-ruling draft, and M1 alone protects nothing.
+- The controller followed the judge, as at iteration 83, and scoped the build to M2. M3 (dry-runs) was deferred.
+
+**Orphans / prior record**: none. Iteration 88's record is on `origin/dev` (`6ca4d4e90`), and the log ended at 88. The open fleet branches (#2141, #2110, #2108, #2082, #2067, #2065) carry the expected ruling-gated drafts. Self-notices rc 0 (0 crash notices; control 852:10).
+
+**Preflight / observe**:
+- Kill switch armed; gh account `sunholo-voight-kampff`; billing CLEAN.
+- #2039: 0 directives (15 comments, none allowlisted). `mission-2039-last-seen` is still absent, so the full thread was read; nothing to mark. #1945: 0 since its watermark.
+- Skill drift: the resolved symlink target and the pin's CWD copy were both checked. `SKILL.md` and all 13 resources are `cmp`-identical to `origin/dev`, per file.
+- Gate-1 base `e4fcc15f62da859e16da4da34a107fe89ec746b7@2026-11-06T00:20:51Z`, with the pin at the same SHA. Dev CI green: `CI` success; 22 check-runs at HEAD, none red.
+- Ledger valid: 41 rows, 25 OPEN. Every open ticket signature appears in the charter.
+- No lane degraded (`MISSION_ROUTING_NOTE` and `MISSION_OVER_RATION` both empty).
+- Weekly external-issue sweep not due; the last ran Monday 11-02 (iteration 77).
+
+**Reality check**:
+- Plan anchors: `git diff 9c7e997e0 origin/dev` over `tools/launchd`, `scripts/mission_pi_run.sh`, the mission-control skill and `make/test.mk` is empty. So iteration 88's plan anchors hold, and its M2 row is the spec.
+- Base gates: the 11 suites the directive would name, plus `sync-agents-skills.sh --check`, were run on #2141's tip `4ea46f05e` before the directive was sent. All rc 0 (false-green 4).
+
+**Did** (generator ≠ judge):
+- **Designer**: not spawned. The decision row plus iteration 88's design record are the spec. Rotation pointer not advanced.
+- **Planner**: not spawned. Iteration 88's planner (`codex:gpt-6.1-sol`) already planned M2, and the anchors are unchanged. The resolver, run without a doc, printed `agent-tool opus fail-closed:no-doc`; this is recorded, not acted on.
+- **Idle-screen judge**: sonnet, Agent tool, foreground, read-only, 69,438 tok ([verdict](fleet-mission-evidence/iteration89/idle-judge.md)). Verdict: BUILD D-FLEET-42 M2; no other row qualifies. Borderlines named: D-FLEET-41 B and D-FLEET-25 A.
+- **Executor**: `codex:gpt-6.1-sol`, workspace-write, 3000 s bounded wrapper. Probe rc 0; run rc 0, about 20 min; 159,523 tok ([directive](fleet-mission-evidence/iteration89/executor-directive.txt), [report](fleet-mission-evidence/iteration89/executor-report.md)).
+  - It built M2a (controller wiring and fixtures), M2b (role wrapper and pi runner) and M2c (recipe prose).
+  - It snapshotted each sub-milestone and made no git writes.
+  - It labelled kill-tree, stall, codex-env and the skill sync UNINFORMATIVE under the sandbox, and did not run the four pi-runner suites.
+- **Controller, outside the sandbox**: [gates](fleet-mission-evidence/iteration89/gates.md).
+  - Before any re-run, a diff scan for writes outside the worktree found 10 `: > "$HOME/.config/ailang/secrets.env"` sites. Each runs after `export HOME=<mktemp/fixture>`, so none could reach the real file. Every gate run was also bracketed by a sha256 and line-count comparison of the real `secrets.env`, which printed only SAME or CHANGED: SAME every time.
+  - The regenerated `.agents` mirror matched the executor's snapshot byte for byte.
+  - **Defect 1: `$!` is not the controller.** On bash 3.2.57, `( export …; f || exit $?; sleep 7 ) &` gives `$!` = the bash subshell, with `sleep` as its child; a bare `sleep 7 &` gives `$!` = sleep. Base launched claude bare. The M2 subshell would therefore have made `_mc_stalled` (which skips its root and counts older descendants as long children) and `_mc_rusage_snapshot` key on a wrapper for the primary lane.
+    - Every fixture passed, because they fake `claude` as a shell function.
+    - Fix: `exec claude …` and `cd … && exec pi …`. The two fixtures move to PATH stubs, and `test_mission_kill_tree.sh` gains "controller pid is the controller process".
+    - Mutation-proven: with `exec` reverted in a scratch copy, rc 1 `not ok`; with it, rc 0. The codex lane was left as is: it was already a backgrounded function.
+  - **Defect 2: `test_pi_ext_args.sh` red at head (base 17/17).** The M2c prose replaced the raw pi sandbox snippet that the test pins, and took the `--mode json` teaching with it.
+    - My first base control was invalid, because the archive omitted the skill dirs. The corrected control is what reads 17/17.
+    - Fix: restore the snippet, and add one line saying the runner is preferred because it applies `pi-role`.
+    - Root cause on my side: the directive's gate list did not name `make test-launchd-drivers`.
+  - **Defect 3: repo-local scratch.** Two suites exported `TMPDIR=<repo>/.snap/test-tmp`. Fixed: one now uses `mktemp -d` with a trap, the other no longer overrides `TMPDIR`.
+  - One `make test-launchd-drivers` run raced my edits and is void. The re-run on the final tree is **54/54**.
+  - Also at the final tree: `test_secrets_scope.sh` 58/58; mutations 68 killed, 0 survivors; new-file shellcheck rc 0; the changed-file comparator (14 files) found no new findings; `sync --check`, `check-changelog`, `check-file-sizes`, `check-context-docs`, `check-no-personal-email` and `git diff --check` all rc 0.
+  - Build commit `7f1e13d5f`, crediting codex.
+- **Diff judge**: sonnet, Agent tool, foreground, its own worktree at `7f1e13d5f`, 89,376 tok: **PASS 92**, 0 blocking ([evaluation](fleet-mission-evidence/iteration89/evaluation.md)). Rows: 20+8+28+13+14+9. Its headline first said 90, and it corrected that to the row sum in the same message.
+  - It confirmed: the parent stays unscoped; the billing unset is untouched; the codex marker exception is exact; a failed apply refuses the child visibly; `exec` keeps the logs and watchdogs; no fixture assertion was lost.
+  - It killed 18 of its own mutants. Four died only in a sibling suite: no `exec` on pi, the ignored `mc_codex_env_args` failure and `include_only`-warns (all `test_quorum_artifacts.sh` only), and no `exec` on claude (kill-tree, stall, quorum_artifacts).
+  - Strongest objection: nothing has been run against a real provider with the scope applied. M3's dry-runs are what would show it.
+- **Landing**: draft PR [#2143](https://github.com/sunholo-data/ailang/pull/2143), base `fleet/i88-dfleet42-secrets-scope`, not merged. The closing-keyword scan found 0 (control fired).
+
+**Gate 3b**: not applicable, because nothing merges (iteration 83 precedent).
+
+**Transcript-scan notices seen this fire** (step 6a): 2 on #2039.
+- Fire `fleet-1793845378-59113`, 1 hit: already reported by iterations 87 and 88.
+- Fire `fleet-1793898974-52315`, 1 hit: iteration 88's own fire, consistent with the config-file incident iteration 88 recorded.
+- Key names are in the private controlplane notice only.
+
+**Ruled out**:
+- Re-running the planner: its M2 plan is current, because the anchors are unchanged.
+- Building M3 in the same fire: its six live dry-runs need an idle armed sibling or a synthetic HOME, and a full slot.
+- Deleting or weakening `test_pi_ext_args.sh` to fit the plan's "replace the raw pi example": that test pins a deliberate contract.
+- `exec` on the codex controller: it is behaviour-neutral against base (it was already a background function), and out of M2's scope.
+
+**Retro lane**: no skill edit; one recorded friction.
+- (a) **Instance 1 of "the directive's gate list omitted the full suite".** The executor could not see `test_pi_ext_args.sh`, which pins skill prose it edited. False-green (4) covers *base-red* gates in the directive. It does not cover *missing* gates, so a directive that edits skill prose should name `make test-launchd-drivers` even if the sandbox makes it uninformative. If this recurs, extend false-green (4).
+- (b) A test-blind-spot shape worth naming: a fixture that fakes an external binary as a shell function cannot see process-shape changes (`exec`, `$!`, subshells). One instance; no rule yet.
+- (c) Both judges returned full verdicts in their final messages.
+
+**Progress**: Clause 1 UNMEASURED, goal unmoved. Clause 2 UNMET (nothing resolved). Clause 3 MET (25 open). Clause 4: prior evidence only. Clause 5 preserved (nothing merged to code). Last 3 landings: iterations 85, 86 and 87, all clause 2. No drift alarm. Harness share: 20 of the last 20, by design.
+
+**Routing evidence**: base=e4fcc15f62da859e16da4da34a107fe89ec746b7@2026-11-06T01:12:15Z (Gate-4 record). Gate-1 and Gate-3 bases are the same SHA. Details: [routing](fleet-mission-evidence/iteration89/routing.md).
+- Controller `claude:claude-opus-5-5` (tok: not reported). `MISSION_ANTHROPIC_AVAILABLE=1`.
+- Designer: not spawned (no rotation advance).
+- Planner: not spawned (iteration 88's plan reused).
+- Executor `codex:gpt-6.1-sol` (159,523 tok). Resolver `recipe codex:gpt-6.1-sol declared:provider-pin`.
+- Evaluators: `sonnet`, Agent tool, ×2 (idle screen 69,438 tok; diff 89,376 tok). Resolver `agent-tool sonnet declared:alias-pin`. Judge independence: cross-vendor.
+- Quorum: none. Metered spend $0. No lane recorded dead.
+
+**Next**:
+1. A ruling on D-FLEET-42. Under A, M3 runs on #2143's branch: the scoped dry-run preview, then six healthy/degraded controller dry-runs. Merging needs your ruling and your `~/.zshenv` line.
+2. Rotate the Claude OAuth token in `~/.codex/config.toml` (iteration 88's incident).
+3. Any new ticket.
+4. A ruling on any of the seven drafts (#2143, #2141, #2110, #2108, #2082, #2067, #2065) lands it.
