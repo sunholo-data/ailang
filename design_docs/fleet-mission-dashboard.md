@@ -1,15 +1,10 @@
-# Fleet mission — iteration 91, 2026-11-06
+# Fleet mission — iteration 92, 2026-11-06
 
-- Latest release: v0.57.4. Fleet work on dev since v0.57.1: #2122 (`26b35b081`), #2127 (`9ea8adcf4`), #2132 (`7e9e9192b`), **#2160 (`d08031597`, this fire)**.
-- **LANDED this fire: `driver:idle-fire-writes-full-block-report`** (World, attended, 11-06). The ticket is resolved and World was told.
-  - **Before.** World ran 18 consecutive full no-pick fires (341–358), 4031–7234 s each on opus.
-  - **Snapshot.** The driver snapshots a product mission's inputs before the controller starts. The inputs are the head outside record paths, ledger statuses, allowlisted directives, unread `mission-<name>` mail and red checks on the tip.
-  - **Record.** After a human-gated no-pick fire, the controller promotes that snapshot (`idle-fingerprint.sh --record`, Gate 5 `IDLE RECORD`).
-  - **Next fire.** It exits before any probe, with slot verdict `IDLE`, until an input changes or 24 h pass.
-  - **Verification.** Judge PASS 81, then PASS 86. Suites 54/54; 12/12 mutants killed. World healthy and degraded dry-runs rc 0. Live parity on World across launchd and zsh environments.
-- FOUND on the way: `AILANG_STORAGE_MESSAGING=gcp` is set only by `~/.zshenv`, so launchd bash and the controller's zsh read different message stores. The helper now pins the store.
-- RESIDUAL: a fire that writes its own inputs (self-mail, a filed ledger row) costs the next fire in full. This fails safe.
-- WATCH: World's slot-verdict log for `verdict=IDLE` after its next no-pick fire.
+- Latest release: v0.57.4. Fleet work on dev since v0.57.1: #2122 (`26b35b081`), #2127 (`9ea8adcf4`), #2132 (`7e9e9192b`), #2160 (`d08031597`).
+- **IDLE this fire.** All 25 open tickets sit behind OPEN rulings, and every buildable first step already has a draft. An independent sonnet idle-screen judge ruled NONE; the controller agreed. Nothing built or merged.
+- **NEW ASK: D-FLEET-43.** Should an unchanged, all-ruling-gated fleet fire skip itself, as product missions now do (iteration 91)?
+  - A (recommended): the fleet records the idle fingerprint after an independent NONE screen; the next unchanged fire exits `IDLE`.
+  - B (default): no change; every 6 h fire with open tickets runs in full.
 - PENDING ASK: **D-FLEET-42** (unchanged). Every buildable step of A is a draft (#2141 M1, #2143 M2, #2150 M3).
   - A (recommended): merge the three drafts in order, plus your one-line `~/.zshenv` hook.
   - B (default): detection only.
@@ -21,11 +16,12 @@
   - **D-FLEET-25 shared sub-item**, #2082 (PASS 94).
   - **D-FLEET-21 A**, #2067 (PASS 90).
   - **D-FLEET-26 A**, #2065 (PASS 94).
-- Dev: `d08031597` at record time. CI and Build and Release green; 18/18 check-runs.
-- Roles: executor `codex:gpt-6.1-sol`; sonnet judge over 2 rounds, cross-vendor. Designer and planner not spawned; the ticket plus the triage precedent was the spec.
-- NEXT: any new ticket; a ruling on D-FLEET-42 or any draft. With 25 open tickets all ruling-gated and nothing buildable left on D-FLEET-42, an idle fire should idle.
-- Decisions: 41 rows, 25 OPEN (D-FLEET-16 to -23, -25 to -29, -31 to -42). None new.
+- WATCH (from 91): World's slot-verdict log for `verdict=IDLE` after its next no-pick fire.
+- Dev: `2d47417d8` at record time. CI and Build and Release green; 18/18 check-runs.
+- Roles: evaluator only (sonnet idle-screen judge, 66,510 tok). Designer, planner and executor not spawned: no pick.
+- NEXT: any ruling or new ticket. Without one, the next fire should reach the same NONE.
+- Decisions: 42 rows, 26 OPEN (D-FLEET-16 to -23, -25 to -29, -31 to -43). D-FLEET-43 new.
 - Cadence: 6h while tickets are open; 25 open. Bookkeeping thread #2039.
-- Quota: codex served; metered $0.
-- Bar: clause 1 UNMEASURED (goal unmoved); clause 2 UNMET (this ticket closed in about 4.5 h, but the median is far over 48 h); clause 3 MET; clause 4 prior evidence; clause 5 preserved.
-- Evidence: `fleet-mission-evidence/iteration91/`.
+- Quota: no codex spend; metered $0.
+- Bar: clause 1 UNMEASURED (goal unmoved); clause 2 UNMET (nothing resolved); clause 3 MET; clause 4 met by its letter (see D-FLEET-43); clause 5 preserved.
+- Evidence: `fleet-mission-evidence/iteration92/`.

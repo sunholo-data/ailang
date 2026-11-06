@@ -1411,3 +1411,49 @@ Last 3 landings: iterations 85, 86 and 87, all clause 2. No drift alarm. Harness
 - Executor `codex:gpt-6.1-sol` (135,542 tok; probe 16 tok). Resolver `recipe codex:gpt-6.1-sol declared:provider-pin`.
 - Evaluator `sonnet`, Agent tool, foreground: round 1 104,727 tok / 30 tool uses / 392 s; round 2 125,419 tok cumulative / 7 tool uses / 241 s. Resolver `agent-tool sonnet declared:alias-pin`. Judge independence: cross-vendor from the codex executor.
 - Quorum: none. Metered spend $0. No lane recorded dead.
+
+## 92 — 2026-11-06 — idle: no buildable step; all 25 open tickets ruling-gated, independent sonnet idle-screen judge ruled NONE; nothing built or merged; new ask D-FLEET-43 (should an unchanged all-gated fleet fire skip itself) [ADMIN]
+
+**Pick**: NONE. Every open ticket is ruling-gated and no OPEN row has an unbuilt in-scope first step, so the idle guardrail found nothing to build. Iteration 90's Next predicted this ("an idle fire with no new ticket and no ruling should now find nothing buildable on D-FLEET-42").
+
+**Orphans / prior record**: none. Iteration 91's record is on `origin/dev` (`da7b66421`, merged `5d7b2efe7` via #2161). No `fleet/i92` branch or PR existed; the only `fleet/i9*` remote head is #2150's. Last three slot verdicts COMPLETED rc 0. Self-notices rc 0.
+
+**Preflight / observe**:
+- Kill switch armed (`mission-fleet.disabled` absent); gh account `sunholo-voight-kampff`; billing CLEAN.
+- Skill drift: the resolved symlink target's `SKILL.md` and all 13 resources are `cmp`-identical to `origin/dev`; the pin sits at `origin/dev` (`2d47417d8`, drift 0).
+- Directives: #2039 had 0 allowlisted (19 comments; `mission-2039-last-seen` still absent, so the whole thread was read and there was nothing to mark).
+- Self-notices (step 6a): 0 crash notices since `2026-10-22T23:29:08Z` on #2039 and #1945, control 852:10. 3 transcript-scan notices on #2039, all three already reported by iteration 91 (fires `fleet-1793845378-59113`, `fleet-1793898974-52315`, `fleet-1793950362-22335`); none new.
+- Dev: CI and Build and Release `success` on `2d47417d8`; 18 check-runs, 0 not green.
+- Tickets: `ailang mission ticket open --count` = 25, the same 25 signatures as iteration 91 (newest filed 10-28; `reporting:daneel-reports-not-declared-triage` last_seen 11-06 11:38Z, a recurrence of a ticket already behind D-FLEET-22).
+- Ledger: `mission_decisions.sh --check` valid (41 rows), 25 OPEN. Every ticket signature appears in the charter beside a D-FLEET row (controller grep, per signature).
+- Open fleet drafts: #2150, #2143, #2141, #2110, #2108 (by `--author @me` filtered to `fleet/`), plus #2082, #2067, #2065 per the judge.
+
+**Did** (generator ≠ judge):
+- Idle-screen judge: sonnet, Agent tool, foreground, read-only, not told the controller's candidate. Verdict **NONE — idle** ([verdict](fleet-mission-evidence/iteration92/idle-judge.md)). It re-verified the premise itself and screened all 25 rows by step: 8 carry diffs, 4 begin out of scope, 9 are attended-only, 4 have nothing to build. Strongest objection: D-FLEET-16 A's pi `--skill` / #544 parity arm could be split, but it depends on the unmade attended symlink-retirement step and is Phase 3b routing design (HD-2a).
+- Controller screen (independent, before the judge returned): NONE. Agreement.
+- Filed **D-FLEET-43** (OPEN, default B): should the fleet record the idle fingerprint after an independent NONE screen, so an unchanged all-gated fire exits `IDLE`? Measured: the FLEET IDLE PRE-CHECK skips only at 0 open tickets, and `tools/launchd/lib/idle-fingerprint.sh:23` refuses `MISSION_NAME=fleet`. Not built: the fleet does not self-source, and no ticket asks for it.
+
+**Ruled out**:
+- Building D-FLEET-16 A's in-scope tail (judge's strongest objection): its first step is an attended ruling, and the row is HD-2a launch/routing design.
+- Building in-scope first steps of non-recommended options (D-FLEET-23 B, -27 B, -41 B): the guardrail admits only the recommended option or a step shared by all non-default options.
+- Building the fleet idle record unasked: no ticket names it, so it would be self-sourced work. It is an ask instead.
+
+**Retro lane**: no skill edit (one friction, instance 1). The friction is the D-FLEET-43 observation itself: a fleet fire with 25 gated tickets still runs every gate. Routed to backlog as a decision row, not a skill fix.
+
+**Progress**:
+- Clause 1 UNMEASURED, goal unmoved.
+- Clause 2 UNMET: nothing resolved; the median is far over 48 h.
+- Clause 3 MET (25 open, unchanged).
+- Clause 4 MET by its letter (this fire had open tickets); D-FLEET-43 asks whether to extend it to all-gated fires.
+- Clause 5 preserved: nothing merged to code.
+- Last 3 landings: iterations 91, 87 and 86, all clause 2. No drift alarm: Gate 2's clause map has no routable UNMET-clause row. Harness share: 20 of the 20 before this one (72–91) tagged `[HARNESS]`, by design (log headings, live + archive); this entry is `[ADMIN]`, so 19 of the last 20 including it.
+
+**Next**: any ruling (D-FLEET-43 is the cheapest: one letter) or new ticket. Otherwise the next fire should reach the same NONE.
+
+**Routing evidence**: base=2d47417d89ddb56f38144268d5e0356cc30eafd8 (Gate-1 base, 2026-11-06T22:24:40Z; the record branch is cut from it).
+- Controller `claude:claude-opus-5-5` (tok: not reported). `MISSION_ANTHROPIC_AVAILABLE=1`.
+- Designer: not spawned (no pick). Resolver `recipe claude:claude-opus-5-5`; no rotation advance.
+- Planner: not spawned (no pick). Pin `codex:gpt-6.1-sol` (`recipe`).
+- Executor: not spawned (no pick). Pin `codex:gpt-6.1-sol` (`recipe`).
+- Evaluator (idle-screen judge) `sonnet`, Agent tool, foreground: 66,510 tok / 8 tool uses / 65 s. Resolver `agent-tool sonnet`. `MISSION-ROLE: evaluator` on line 1, accepted first time. Judge independence: not told the controller's candidate; different model from the opus controller (same vendor; no generator ran this fire).
+- Quorum: none. Metered spend $0. No lane recorded dead.
