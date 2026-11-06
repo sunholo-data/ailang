@@ -14,7 +14,7 @@ func TestBuildEvalExecutorTaskKeepsOrdinaryControls(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if x.Timeout != 17*time.Second || x.Workspace != workspace || x.Model != "fixture-model" || x.MaxTokensPerBench != 345 || !x.EvalShellGuard {
+	if x.Timeout != 17*time.Second || x.Workspace != workspace || x.Model != "fixture-model" || x.MaxTokensPerBench != 345 || !x.EvalShellGuard || !x.EvalRun {
 		t.Fatalf("lost task controls: %+v", x)
 	}
 	if filepath.Clean(x.ExtraEnv["TASK_FIXTURE"]) != filepath.Join(workspace, "input") || x.Metadata["chain_id"] != "chain" || x.Metadata["stage_id"] != "stage" {

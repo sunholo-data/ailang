@@ -111,6 +111,14 @@ type Task struct {
 	// workspace on exit.
 	EvalShellGuard bool
 
+	// EvalRun marks the child as an eval run: BuildEnvironment injects AILANG_EVAL_RUN=1
+	// (harness-owned; a task cannot supply it through ExtraEnv). Attended-session guards
+	// disarm on it — the pi session-protocol gate stops blocking write/edit/bash. Set by
+	// the eval harness only. Measured 2026-11-06: with the gate armed, every pi eval had to
+	// call session_protocol_ack before it could write; a fine-tune that never learned that
+	// ritual scored 0/24 with every write refused.
+	EvalRun bool
+
 	// EvalContainment requests a mandatory trusted OS/native-tool boundary.
 	// Nil preserves the existing executor payload.
 	EvalContainment *EvalContainment

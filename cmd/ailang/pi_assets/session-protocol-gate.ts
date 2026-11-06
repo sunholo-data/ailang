@@ -57,6 +57,7 @@ export function shouldBlock(
 	gate?: GateContext,
 ): string | null {
 	if (acked) return null;
+	if (gate?.evalRun === true) return null;
 
 	// Tier 1 is the FLOOR, not a replacement for the ack: routine work unlocks
 	// once the prerequisites are verifiably met, because requiring a separate
@@ -204,6 +205,26 @@ export function unattendedFromEnv(env?: Record<string, string | undefined>): boo
 export interface GateContext {
 	tier: "tier1" | "tier2";
 	prereqsMet: boolean;
+	/** An eval run (AILANG_EVAL_RUN=1, harness-injected): the gate stands down. */
+	evalRun?: boolean;
+}
+
+/**
+ * Is this an EVAL run? The eval harness sets AILANG_EVAL_RUN=1 on every agent-eval
+ * child (internal/executor: Task.EvalRun, injected by BuildEnvironment; a task's
+ * ExtraEnv may not supply it). The gate exists to put an attended session's
+ * protocol (CLAUDE.md, the inbox) before mutating work; an eval's task is the
+ * benchmark, in a throwaway workspace with no CLAUDE.md and no inbox.
+ *
+ * Measured 2026-11-06: armed in every pi eval on the rig, the gate refused each
+ * write/edit/bash until the model called session_protocol_ack. Models that acked
+ * passed; a fine-tune that never learned the ritual scored 0/24 with every write
+ * refused (m-eval-finetuning-data-pipeline, pilot-1). Exactly "1" disarms;
+ * anything else leaves the gate armed.
+ */
+export function evalRunFromEnv(env?: Record<string, string | undefined>): boolean {
+	const e = env ?? (typeof process !== "undefined" ? process.env : undefined);
+	return e?.AILANG_EVAL_RUN === "1";
 }
 
 /**
@@ -314,6 +335,7 @@ export default async function (pi: ExtensionAPI) {
 				typeof process !== "undefined" ? process.env?.AILANG_WORKSPACE : undefined;
 			gate = {
 				tier: dispatchTierFromEnv(),
+				evalRun: evalRunFromEnv(),
 				prereqsMet: prerequisitesMet(
 					ctx.sessionManager.getBranch() as unknown[],
 					prereqSetForWorkspace(workspace),
