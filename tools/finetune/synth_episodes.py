@@ -108,15 +108,61 @@ def edit_or_write(path, old, new):
     return {"name": "write", "args": {"path": path, "content": new}}, f"Successfully wrote to {path}"
 
 
+COMMON = {"println", "print", "show", "map", "filter", "Some", "None", "Ok", "Err", "length", "foldl"}
+_LOOKUP = {}
+
+
+def lookup(cmd):
+    """Real output of a lookup command (cached): what the agent would see."""
+    if cmd not in _LOOKUP:
+        r = subprocess.run(["/bin/bash", "-c", cmd], cwd=tempfile.gettempdir(), capture_output=True, text=True, timeout=60)
+        out = "\n".join(ln for ln in (r.stdout + r.stderr).splitlines() if not ln.startswith("note: ignoring"))
+        _LOOKUP[cmd] = out.strip() + "\n"
+    return _LOOKUP[cmd]
+
+
+def lookup_steps(rnd, code):
+    """Habit 3 (look up before guessing): targeted signature lookups for functions the solution
+    imports, and sometimes an examples search. Only the less common names; outputs are real."""
+    pairs = []
+    for mod, names in re.findall(r"^import\s+(std/[\w/]+)\s*\(([^)]*)\)", code, re.M):
+        for n in names.split(","):
+            n = n.strip().split(" as ")[0].strip()
+            if n and n[0].islower() and n not in COMMON:
+                pairs.append((mod, n))
+    rnd.shuffle(pairs)
+    steps = []
+    for mod, n in pairs[: rnd.choice([1, 2])]:
+        cmd = f"ailang docs --all-functions {mod}.{n}"
+        out = lookup(cmd)
+        if f"{mod}.{n}" in out:
+            steps.append({"call": {"name": "bash", "args": {"command": cmd}}, "result": out, "habit": "lookup",
+                          "lookup": f"{mod}.{n}"})
+    if pairs and rnd.random() < 0.4:
+        mod, n = pairs[0]
+        cmd = f'ailang examples search "{n}" | head -12'
+        out = lookup(cmd)
+        if "Found" in out:
+            steps.append({"call": {"name": "bash", "args": {"command": cmd}}, "result": out, "habit": "examples",
+                          "lookup": n})
+    return steps
+
+
 def solve_episode(rnd, task, code, stdout):
+    """read -> [habit: targeted lookups] -> write -> [habit: check] -> run -> done."""
     ws = fake_ws(rnd, task["id"])
     path, rel = f"{ws}/benchmark/solution.ail", "benchmark/solution.ail"
     caps = ",".join(task["caps"] or ["IO"])
+    steps = [{"call": {"name": "read", "args": {"path": path}}, "result": TEMPLATE}]
+    if rnd.random() < 0.5:
+        steps += lookup_steps(rnd, code)
+    steps.append({"call": {"name": "write", "args": {"path": path, "content": code}}, "result": f"Successfully wrote to {path}"})
+    if rnd.random() < 0.7:
+        ok, out = check_out(code)
+        steps.append({"call": {"name": "bash", "args": {"command": f"ailang check {rel}"}}, "result": out, "habit": "check"})
+    steps.append({"call": {"name": "bash", "args": {"command": run_cmd(caps)}}, "result": stdout})
     return {"kind": "solve", "benchmark": task["id"], "task_prompt": task["task_prompt"].replace(WS_TOKEN, ws),
-            "steps": [{"call": {"name": "read", "args": {"path": path}}, "result": TEMPLATE},
-                      {"call": {"name": "write", "args": {"path": path, "content": code}}, "result": f"Successfully wrote to {path}"},
-                      {"call": {"name": "bash", "args": {"command": run_cmd(caps)}}, "result": stdout}],
-            "final": rnd.choice(DONE_LINES).format(rel=rel)}
+            "steps": steps, "final": rnd.choice(DONE_LINES).format(rel=rel)}
 
 
 def repair_episode(rnd, task, pair, stdout):
