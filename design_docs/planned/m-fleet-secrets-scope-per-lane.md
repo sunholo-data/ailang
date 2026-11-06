@@ -166,15 +166,30 @@ keeps the existing exit behavior. Normal controller selection is unchanged.
 
 `test_secrets_scope_dry_run.sh`, invoked by the existing secrets-scope suite,
 extracts the real driver dry-run branch and runs fake probes in synthetic homes.
-Its five arms cover scoped preview (all providers and bare Claude pins), auth
+Its eight arms cover scoped preview (all providers and bare Claude pins), auth
 and scope failure, parent environment hash/count preservation, Codex forwarding,
-and absent/empty pins. Every arm has a killing mutation reporting the failing
-assertion. Tests also observe controller-body, pidfile and state-path absence
+a Codex forwarding helper failure, a forwarded list missing the marker, the
+probe's `/dev/null` stdin, and absent/empty pins. Every arm has a killing
+mutation reporting the failing assertion. Tests also observe controller-body, pidfile and state-path absence
 before/after and preserve the existing healthy/degraded summary assertions.
 
-The six live healthy/degraded dry-runs are the controller's evidence step, outside
-the sandbox with real provider authentication, on an idle armed sibling. They
-have not been run by this executor. Complete out-of-sandbox gates and independent
+The six live healthy/degraded dry-runs were run by the fleet controller at
+iteration 90, outside the sandbox, under the idle armed `triage` profile
+(`claude:claude-opus-5-5`, `codex:gpt-6.1-sol`, `pi:ollama/glm-5.3:cloud`).
+All six exited 0 with `marker=ok controller-probe=ok`, the three degraded runs
+kept `lanes=DEGRADED(1)` with the injected executor handed off, Codex reported
+marker and root forwarded, and each inventory read kept 4 / stripped 3 names
+(`fleet-mission-evidence/iteration90/`).
+
+**Stdin caveat (measured).** The probe call is redirected from `/dev/null`.
+`_mc_bounded` launches probes with `( exec "$@" ) &` and relied on bash giving
+an asynchronous command `/dev/null` stdin. Bash 3.2.57 stops doing that once the
+shell has run any redirected loop (`done < <(…)` or a heredoc; the scope library
+has one). A first set of dry-runs started from a session whose stdin was a socket
+then failed: pi timed out in both arms (rc 124) and Claude's degraded arm
+exhausted its 10-second probe cap (rc 2). The re-run with `< /dev/null`, which is
+launchd's condition, was green. The block now redirects the probe explicitly.
+`_mc_bounded`'s other callers are unchanged. Complete out-of-sandbox gates and independent
 evaluation also remain controller work. Process inspection and nested sandbox
 checks denied here are UNINFORMATIVE UNDER SANDBOX. Any draft PR remains unmerged
 pending Mark's ruling; local checks establish neither fleet reach nor host

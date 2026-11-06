@@ -2064,7 +2064,7 @@ if [ "${MISSION_DRY_RUN:-0}" = "1" ]; then
         codex) _mc_probe_codex "$MODEL" ;;
         pi) _mc_probe_pi "$MODEL" ;;
         claude) _mc_probe "$MODEL" ;;
-      esac
+      esac < /dev/null # bash 3.2 drops the async /dev/null stdin default after any redirected loop
       _dry_probe_rc=$?
       if [ "$_dry_probe_rc" -ne 0 ]; then
         log "DRY RUN secrets-scope: lane=$AILANG_SECRETS_LANE marker=ok controller-probe=failed rc=$_dry_probe_rc"

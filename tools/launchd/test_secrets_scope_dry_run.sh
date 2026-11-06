@@ -22,7 +22,8 @@ MODE, SELECT = sys.argv[2:]
 DRIVER = 'tools/launchd/mission-control.sh'
 FILES = [DRIVER, 'tools/launchd/lib/secrets-scope.sh', 'tools/launchd/lib/codex-env-args.sh']
 ARMS = ['dry-run-preview', 'dry-run-failure', 'dry-run-parent-env',
-        'dry-run-codex-forward', 'dry-run-no-pin']
+        'dry-run-codex-forward', 'dry-run-no-pin', 'dry-run-codex-forward-rc',
+        'dry-run-codex-forward-missing', 'dry-run-probe-stdin']
 KEYS = ['ANTHROPIC_API_KEY', 'CLAUDE_CODE_OAUTH_TOKEN', 'GOOGLE_API_KEY',
         'GEMINI_AGENTS_API_KEY', 'OPENAI_API_KEY', 'OPENROUTER_API_KEY',
         'OLLAMA_API_KEY', 'FUTURE_SCOPE_KEY']
@@ -68,6 +69,7 @@ pathlib.Path(os.environ['HOME'], 'probe').write_text(json.dumps(dict(
     marker_ok=os.environ.get('AILANG_SECRETS_LANE') == sys.argv[1]+'-controller',
     root_ok=os.environ.get('MISSION_DRIVER_ROOT') == os.environ['MC_DRIVER_ROOT'],
     model_ok=sys.argv[2] == 'synthetic-model',
+    stdin_null=os.fstat(0).st_rdev == os.stat('/dev/null').st_rdev and os.path.exists('/dev/null'),
     bash_env_present='BASH_ENV' in os.environ)))
 ''')
     (home/'env-hash.py').write_text('''import hashlib, json, os
@@ -78,7 +80,7 @@ print(hashlib.sha256(json.dumps(e, sort_keys=True).encode()).hexdigest(), len(e)
     return env
 
 
-def run_case(root, home, pin, probe_rc=0, parent=False, missing=False, degraded=False):
+def run_case(root, home, pin, probe_rc=0, parent=False, missing=False, degraded=False, forward=None):
     env = fixture(home, root)
     if pin is not None:
         env['MISSION_MODEL'] = pin
@@ -106,6 +108,10 @@ _mc_probe() { fake_probe claude "$1"; }
 _mc_probe_codex() { fake_probe codex "$1"; }
 _mc_probe_pi() { fake_probe pi "$1"; }
 '''
+    if forward == 'fail':
+        prefix += "mc_codex_env_args() { MC_CODEX_ENV_ARGS=(); return 41; }\n"
+    elif forward == 'missing-marker':
+        prefix += "mc_codex_env_args() { MC_CODEX_ENV_ARGS=(-c 'shell_environment_policy.set.MISSION_DRIVER_ROOT=synthetic'); return 0; }\n"
     # Prove state paths are unchanged by observation, without seeding a state file.
     def state():
         paths = [home/'pidfile', home/'.ailang/state', home/'controller-body']
@@ -125,7 +131,8 @@ export BASH_ENV=synthetic-nonexistent
     else:
         body = branch+'\nprintf body > "$HOME/controller-body"\nexit 89\n'
     (home/'run.sh').write_text(prefix+body)
-    result = subprocess.run(['/bin/bash', str(home/'run.sh')], env=env,
+    # A pipe on stdin, never /dev/null, so the probe-stdin arm can see the block's own redirect.
+    result = subprocess.run(['/bin/bash', str(home/'run.sh')], env=env, stdin=subprocess.PIPE,
                             capture_output=True, timeout=15)
     require(state() == before, 'no controller body, pidfile or state writes')
     logs = (home/'log').read_bytes() if (home/'log').exists() else b''
@@ -184,6 +191,22 @@ def run(arm, root, home):
         require('DRY RUN secrets-scope: codex-marker-forward=ok driver-root-forward=ok\n' in log,
                 'codex marker and root forwarded')
         check_probe(h, 'codex')
+    elif arm == 'dry-run-codex-forward-rc':
+        rc, log, h = run_case(root, home, 'codex:synthetic-model', forward='fail')
+        require(rc == 41, 'codex forwarding failure returns its own status')
+        require('DRY RUN failed: secrets-scope rc=41' in log and 'DRY RUN ok:' not in log,
+                'forwarding failure summary replaces success')
+        require(not (h/'probe').exists(), 'forwarding failure never probes')
+    elif arm == 'dry-run-codex-forward-missing':
+        rc, log, h = run_case(root, home, 'codex:synthetic-model', forward='missing-marker')
+        require('codex-marker-forward=failed driver-root-forward=ok\n' in log, 'missing marker reported')
+        require(rc == 78 and 'DRY RUN failed: secrets-scope rc=78' in log, 'missing marker refuses dry-run')
+        require(not (h/'probe').exists() and 'DRY RUN ok:' not in log, 'missing marker never probes or reports ok')
+    elif arm == 'dry-run-probe-stdin':
+        for provider in ['claude', 'codex', 'pi']:
+            rc, log, h = run_case(root, home/provider, provider+':synthetic-model')
+            require(rc == 0, 'probe-stdin preview exit zero')
+            require(json.loads((h/'probe').read_text())['stdin_null'], 'probe stdin is /dev/null')
     elif arm == 'dry-run-no-pin':
         for pin, name in [(None, 'unset'), ('', 'empty')]:
             rc, log, h = run_case(root, home/name, pin)
@@ -209,6 +232,12 @@ def mutate(root, arm):
         target = root/'tools/launchd/lib/codex-env-args.sh'
         original = target.read_text()
         changed = original.replace('AILANG_SECRETS_LANE|CODEX_HOME|', 'CODEX_HOME|', 1)
+    elif arm == 'dry-run-codex-forward-rc':
+        changed = block.replace('[ "$_dry_forward_rc" -eq 0 ] || exit "$_dry_forward_rc"', ':', 1)
+    elif arm == 'dry-run-codex-forward-missing':
+        changed = block.replace('[ "$_dry_marker_forward" = ok ] && [ "$_dry_root_forward" = ok ] || exit 78', ':', 1)
+    elif arm == 'dry-run-probe-stdin':
+        changed = block.replace('esac < /dev/null', 'esac', 1)
     else:
         changed = block.replace('log "DRY RUN secrets-scope: preview=skipped reason=no-env-pin"', ':', 1)
     if arm != 'dry-run-codex-forward':

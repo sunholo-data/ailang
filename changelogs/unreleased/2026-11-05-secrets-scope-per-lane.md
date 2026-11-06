@@ -7,11 +7,12 @@ validation, scoped Codex/Claude role wrappers, and pi-role startup clearing.
 Synthetic actual-spawn arms and killing mutations cover the wiring.
 
 M3 builds pinned-controller scoped dry-run probes/previews, Codex marker/root
-forwarding checks and five synthetic production-block test arms with killing
+forwarding checks and eight synthetic production-block test arms with killing
 mutations. Failures return nonzero with a failed summary; absent pins skip the
 preview. Parent environment and existing healthy/degraded summaries are preserved.
-The six live dry-runs are the controller's evidence step; full out-of-sandbox
-gates and independent evaluation remain outstanding. Reused provider probes may
+The probe runs with `/dev/null` stdin, because bash 3.2 stops supplying it to
+background jobs after any redirected loop. All six live healthy/degraded dry-runs
+(claude, codex, pi) passed under the `triage` profile. Reused provider probes may
 write auth/cache/session/runtime state. Without Mark's host-line installation, Claude
 and Codex zsh tool shells retain the measured startup exposure. Retained keys,
 credential files and native Agent-tool subagents' inherited controller scope
