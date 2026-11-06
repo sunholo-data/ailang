@@ -2031,6 +2031,57 @@ if [ "${MISSION_DRY_RUN:-0}" = "1" ]; then
   # --- TRANSCRIPT SCAN DRY RUN START ---
   log "DRY RUN transcript scan: a real legacy controller fire would create a per-fire marker and take a bounded 30-second metadata snapshot before spawning, then scan afterward with a 120-second limit"
   # --- TRANSCRIPT SCAN DRY RUN END ---
+  # --- SECRETS SCOPE DRY RUN START ---
+  if [ -n "${MISSION_MODEL:-}" ]; then
+    if ( # scoped preview child: never strip the parent driver's environment
+      _mc_set_controller "$MISSION_MODEL" "dry-run env pin"
+      # shellcheck disable=SC2030 # Child-only marker; parent isolation is intentional.
+      export AILANG_SECRETS_LANE="${CONTROLLER_PROVIDER}-controller" MISSION_DRIVER_ROOT="$MC_DRIVER_ROOT"
+      [ "$CONTROLLER_PROVIDER" != pi ] || unset BASH_ENV
+      # Keep the library's names-only stderr visible in the captured dry-run log.
+      mc_secrets_scope_apply "$AILANG_SECRETS_LANE"
+      _dry_scope_rc=$?
+      if [ "$_dry_scope_rc" -ne 0 ]; then
+        log "DRY RUN secrets-scope: lane=$AILANG_SECRETS_LANE marker=failed rc=$_dry_scope_rc"
+        exit "$_dry_scope_rc"
+      fi
+      if [ "$CONTROLLER_PROVIDER" = codex ]; then
+        # Same scoped-child forwarding path as the real Codex spawn. Inspect names only.
+        mc_codex_env_args 2>>"$LOG"
+        _dry_forward_rc=$?
+        _dry_marker_forward=failed; _dry_root_forward=failed
+        for _dry_arg in ${MC_CODEX_ENV_ARGS[@]+"${MC_CODEX_ENV_ARGS[@]}"}; do
+          case "$_dry_arg" in
+            shell_environment_policy.set.AILANG_SECRETS_LANE=*) _dry_marker_forward=ok ;;
+            shell_environment_policy.set.MISSION_DRIVER_ROOT=*) _dry_root_forward=ok ;;
+          esac
+        done
+        log "DRY RUN secrets-scope: codex-marker-forward=$_dry_marker_forward driver-root-forward=$_dry_root_forward"
+        [ "$_dry_forward_rc" -eq 0 ] || exit "$_dry_forward_rc"
+        [ "$_dry_marker_forward" = ok ] && [ "$_dry_root_forward" = ok ] || exit 78
+      fi
+      case "$CONTROLLER_PROVIDER" in
+        codex) _mc_probe_codex "$MODEL" ;;
+        pi) _mc_probe_pi "$MODEL" ;;
+        claude) _mc_probe "$MODEL" ;;
+      esac
+      _dry_probe_rc=$?
+      if [ "$_dry_probe_rc" -ne 0 ]; then
+        log "DRY RUN secrets-scope: lane=$AILANG_SECRETS_LANE marker=ok controller-probe=failed rc=$_dry_probe_rc"
+        exit "$_dry_probe_rc"
+      fi
+      log "DRY RUN secrets-scope: lane=$AILANG_SECRETS_LANE marker=ok controller-probe=ok"
+    ) ; then # scoped preview child
+      :
+    else
+      _dry_scope_rc=$?
+      log "DRY RUN failed: secrets-scope rc=$_dry_scope_rc"
+      exit "$_dry_scope_rc"
+    fi
+  else
+    log "DRY RUN secrets-scope: preview=skipped reason=no-env-pin"
+  fi
+  # --- SECRETS SCOPE DRY RUN END ---
   log "DRY RUN ok: mission=$MISSION_NAME repo-slug=$MISSION_REPO doc=$MISSION_DOC workdir=$REPO pidfile=$PIDFILE prefs=$PREFS timeout=${HARD_TIMEOUT}s | roles: designer=$MISSION_DESIGNER_MODEL planner=$MISSION_PLANNER_MODEL executor=$MISSION_EXECUTOR_MODEL evaluator=$MISSION_EVALUATOR_MODEL | lanes=$_dry_lanes | pin=$PIN_STATUS($PIN_DRIFT behind) | skill-sync=$SKILL_SYNC_STATUS"; exit 0
 fi
 
