@@ -1,29 +1,31 @@
-# Fleet mission — iteration 90, 2026-11-06
+# Fleet mission — iteration 91, 2026-11-06
 
-- Latest release: v0.57.4. Fleet work on dev since v0.57.1: #2122 (`26b35b081`), #2127 (`9ea8adcf4`), #2132 (`7e9e9192b`). Nothing new merged this fire.
-- **BUILT, NOT MERGED this fire: D-FLEET-42 A, M3**, draft #2150 (`26b713887`), stacked on #2143 → #2141.
-  - A pinned `MISSION_DRY_RUN=1` now probes the controller inside its lane scope and logs names only.
-  - All six live dry-runs (claude opus, codex gpt-6.1-sol, pi glm-5.3, each healthy and degraded) passed. Each lane: kept 4 names, stripped `ANTHROPIC_API_KEY`, `GOOGLE_API_KEY`, `GEMINI_AGENTS_API_KEY`.
-  - Judge PASS 90, then PASS 93 after fixes. `make test-launchd-drivers` 54/54; 8/8 new mutants killed.
-- FOUND on the way: on the rig's bash 3.2, a background job loses its `/dev/null` stdin after any redirected loop, so a probe started from an interactive session waits on stdin (pi rc 124). The preview now redirects it. Launchd fires are expected to be unaffected (stdin is `/dev/null`; inferred).
-- OPEN TRAP: the done-gate's degraded recipe sets a 10 s probe timeout, and the opus probe takes 10–13 s, so a claude-pinned degraded dry-run can fail on latency.
-- PENDING ASK: **D-FLEET-42**. Every buildable step of A is now a draft (#2141 M1, #2143 M2, #2150 M3).
+- Latest release: v0.57.4. Fleet work on dev since v0.57.1: #2122 (`26b35b081`), #2127 (`9ea8adcf4`), #2132 (`7e9e9192b`), **#2160 (`d08031597`, this fire)**.
+- **LANDED this fire: `driver:idle-fire-writes-full-block-report`** (World, attended, 11-06). The ticket is resolved and World was told.
+  - **Before.** World ran 18 consecutive full no-pick fires (341–358), 4031–7234 s each on opus.
+  - **Snapshot.** The driver snapshots a product mission's inputs before the controller starts. The inputs are the head outside record paths, ledger statuses, allowlisted directives, unread `mission-<name>` mail and red checks on the tip.
+  - **Record.** After a human-gated no-pick fire, the controller promotes that snapshot (`idle-fingerprint.sh --record`, Gate 5 `IDLE RECORD`).
+  - **Next fire.** It exits before any probe, with slot verdict `IDLE`, until an input changes or 24 h pass.
+  - **Verification.** Judge PASS 81, then PASS 86. Suites 54/54; 12/12 mutants killed. World healthy and degraded dry-runs rc 0. Live parity on World across launchd and zsh environments.
+- FOUND on the way: `AILANG_STORAGE_MESSAGING=gcp` is set only by `~/.zshenv`, so launchd bash and the controller's zsh read different message stores. The helper now pins the store.
+- RESIDUAL: a fire that writes its own inputs (self-mail, a filed ledger row) costs the next fire in full. This fails safe.
+- WATCH: World's slot-verdict log for `verdict=IDLE` after its next no-pick fire.
+- PENDING ASK: **D-FLEET-42** (unchanged). Every buildable step of A is a draft (#2141 M1, #2143 M2, #2150 M3).
   - A (recommended): merge the three drafts in order, plus your one-line `~/.zshenv` hook.
-  - B (default): detection only; close the drafts.
-  - C: strip everything and re-add per recipe.
-  - Also yours: rotate the Claude OAuth token in `~/.codex/config.toml` and the four keys exposed earlier, and permission to redact.
+  - B (default): detection only.
+  - C: strip everything.
 - PROPOSED, NOT MERGED (8 drafts, each waiting on your ruling):
-  - **D-FLEET-42 A**: #2150 M3 (PASS 93), #2143 M2 (PASS 92), #2141 M1 (PASS 86).
+  - **D-FLEET-42 A**: #2150 (PASS 93), #2143 (PASS 92), #2141 (PASS 86).
   - **D-FLEET-18 A guard step**, #2110 (PASS 93).
   - **D-FLEET-36 A + D-FLEET-38 A guard step**, #2108 (PASS 92).
   - **D-FLEET-25 shared sub-item**, #2082 (PASS 94).
-  - **D-FLEET-21 A**, #2067: Gate 3b poll cap 3600 s (PASS 90).
-  - **D-FLEET-26 A**, #2065: codex capacity error → transient (PASS 94).
-- Dev: `8a6b7bff5` at record time; CI green at `a6e112f9c` (18 check-runs, none red).
-- Roles: executor `codex:gpt-6.1-sol`; two sonnet judges (idle screen, then diff over two rounds), cross-vendor. Designer and planner not spawned (iteration 88's plan reused).
-- NEXT: a ruling on D-FLEET-42; any new ticket; otherwise a ruling on any draft. Nothing buildable is left on D-FLEET-42, so an idle fire with no new ticket should idle.
+  - **D-FLEET-21 A**, #2067 (PASS 90).
+  - **D-FLEET-26 A**, #2065 (PASS 94).
+- Dev: `d08031597` at record time. CI and Build and Release green; 18/18 check-runs.
+- Roles: executor `codex:gpt-6.1-sol`; sonnet judge over 2 rounds, cross-vendor. Designer and planner not spawned; the ticket plus the triage precedent was the spec.
+- NEXT: any new ticket; a ruling on D-FLEET-42 or any draft. With 25 open tickets all ruling-gated and nothing buildable left on D-FLEET-42, an idle fire should idle.
 - Decisions: 41 rows, 25 OPEN (D-FLEET-16 to -23, -25 to -29, -31 to -42). None new.
 - Cadence: 6h while tickets are open; 25 open. Bookkeeping thread #2039.
 - Quota: codex served; metered $0.
-- Bar: clause 1 UNMEASURED (goal unmoved); clause 2 UNMET (nothing resolved); clause 3 MET; clause 4 prior evidence; clause 5 preserved.
-- Evidence: `fleet-mission-evidence/iteration90/`.
+- Bar: clause 1 UNMEASURED (goal unmoved); clause 2 UNMET (this ticket closed in about 4.5 h, but the median is far over 48 h); clause 3 MET; clause 4 prior evidence; clause 5 preserved.
+- Evidence: `fleet-mission-evidence/iteration91/`.

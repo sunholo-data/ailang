@@ -1309,3 +1309,105 @@ Last 3 landings: iterations 85, 86 and 87, all clause 2. No drift alarm. Harness
 - Executor `codex:gpt-6.1-sol` (159,062 tok). Resolver `recipe codex:gpt-6.1-sol declared:provider-pin`.
 - Evaluators: `sonnet`, Agent tool, ×2. Idle screen 77,288 tok; diff 97,695 tok cumulative over 2 rounds. Resolver `agent-tool sonnet declared:alias-pin`. Judge independence: cross-vendor.
 - Quorum: none. Metered spend /bin/zsh. No lane recorded dead.
+
+## 91 — 2026-11-06 — `driver:idle-fire-writes-full-block-report` LANDED and resolved (#2160 → `d08031597`, dev CI + Build and Release green): product missions skip an unchanged no-pick fire before any probe; the driver snapshots a fire's inputs before the controller starts and a human-gated no-pick fire promotes that snapshot; the controller caught a messaging-store seam defect; independent sonnet judge PASS 81, then PASS 86 after the controller fixed its strongest objection [HARNESS]
+
+**Pick**: `driver:idle-fire-writes-full-block-report` (world, attended, filed 2026-11-06T13:30Z, 1 slot, `blocking=none`), option (a).
+- It was the only open ticket with no decision row. The other 25 are ruling-gated, so the idle guardrail did not apply.
+- Ticket evidence: World iterations 341–358 were 18 consecutive full no-pick fires, 4031–7234 s each on opus. Mark approved filing it ("yep proceed").
+- Option (b), backing off the cadence, was not taken: it changes schedule, which is closer to policy class. Option (a) generalises a mechanism the fleet already ships for triage.
+
+**Orphans / prior record**: none. Iteration 90's record is on `origin/dev`. No `fleet/i91` branch or PR existed. Self-notices rc 0: 0 crash notices, control 852:10.
+
+**Preflight / observe**:
+- Kill switch armed; gh account `sunholo-voight-kampff`; billing CLEAN.
+- Directives: #2039 had 0. `mission-2039-last-seen` is still absent, so the full thread (18 comments) was read and there was nothing to mark.
+- Skill drift: the resolved symlink target's `SKILL.md` and all 13 resources are `cmp`-identical to `origin/dev`. My first loop omitted the `resources/` prefix and printed DIFF for every file; it was re-run correctly.
+- Gate-1 base `01baf90c206f1cdec7d7bd5ce12733ab0dce9a7f@2026-11-06T14:58:32Z`. The last completed dev CI was success; newer finetune commits were in progress (not fleet's).
+- Ledger valid: 41 rows, 25 OPEN. No lane degraded (`MISSION_ROUTING_NOTE` and `MISSION_OVER_RATION` empty).
+
+**Reality check**:
+- The ticket is real at HEAD: no idle short-circuit exists for any mission except fleet (ticket count) and triage (queue fingerprint, `tools/launchd/lib/triage-fingerprint.sh`).
+- World's plist runs THIS repo's driver (`ProgramArguments` = `~/dev/sunholo-data/ailang/tools/launchd/mission-control.sh`), so the fix reaches World. `missions/world.toml`'s "WORLD IS A FORK" header is stale (noted, not self-sourced).
+- World's own slot-verdict log shows the 11-06 fires at 4186, 5204 and 6428 s, all `COMPLETED`.
+- World's record commits touch `design_docs/world-mission*.md` and `verification/world-iterNNN/`; checked on `8cde156b`.
+- All six charters use only OPEN/RESOLVED ledger statuses, which `mission_decisions.sh` also enforces.
+- Base gate run `make test-launchd-drivers` on `01baf90c2`: 52 of 53 passed. The failure was `test_cloud_branch_sync.sh` arm A20 (`test 5 -le 4`, a deadline check). That run overlapped the executor in the same worktree, and the arm passed on both head runs, so it was load-sensitive and unrelated.
+
+**Did** (generator ≠ judge):
+- **Designer / planner**: not spawned. The ticket's option (a), plus the triage pre-check it generalises, was the spec, written into the executor directive. Resolvers printed `recipe claude:claude-opus-5-5 declared:provider-pin` and `agent-tool opus fail-closed:no-doc` (the planner's pin is `codex:gpt-6.1-sol`).
+- **Executor**: `codex:gpt-6.1-sol`, workspace-write, 3000 s wrapper. Probe rc 0; run rc 0, not capped, 135,542 tok ([directive](fleet-mission-evidence/iteration91/executor-directive.txt), [report](fleet-mission-evidence/iteration91/executor-report.md)). It built:
+  - `tools/launchd/lib/idle-fingerprint.sh`;
+  - the driver block `MISSION IDLE PRE-CHECK`;
+  - Gate 5 `IDLE RECORD`;
+  - `test_mission_idle_fingerprint.sh` with `--mutations` (7 killed);
+  - the changelog fragment and its make registration.
+  - Its slot-verdict reader audit found no parser that misreads `verdict=IDLE`.
+  - It could not write the `.agents` mirror (read-only to it). The controller ran `sync-agents-skills.sh`, and the result matched the executor's proposed copy byte for byte.
+- **Controller, seam defect found before the judge**:
+  - `AILANG_STORAGE_MESSAGING=gcp` is exported only by `~/.zshenv`.
+  - The controller's zsh tool shell runs `--record`; the launchd bash driver runs the pre-check.
+  - So the two would hash different inboxes (gcp vs local SQLite), and the feature could never match. That failure is safe but useless.
+  - Fix: pin the store in the helper, exactly as the driver's own sends do (driver :248). Covered by a test arm with a hostile caller store and a `store-pin` mutant, which was killed. Build commit `635ea94da`, crediting codex.
+- **Diff judge, round 1**: sonnet, Agent tool, foreground, own worktree. **PASS 81**, 0 blocking ([evaluation](fleet-mission-evidence/iteration91/evaluation.md)).
+  - It confirmed reader/writer parity live on World (`c099527d`). Three of its seven mutants survived.
+  - **Strongest objection**: `--record` fingerprinted the inputs at the END of a 1–2 h fire, so an attended ruling landing mid-fire would be absorbed and could suppress fires for up to 24 h.
+  - Other findings: dry runs consumed or honoured a record; an empty author allowlist was silent; three test gaps.
+- **Controller fix `33190af48`**:
+  - The driver `MISSION IDLE SNAPSHOT` block runs `--snapshot` (keyed by `MISSION_FIRE_ID`) after the overlap guard and the dry-run exit, before the controller. `--record` promotes only the matching snapshot and never recomputes.
+  - The pre-check skips dry runs. A set-but-empty `MISSION_DIRECTIVE_AUTHORS` is refused.
+  - New arms: the mid-fire race, the fire-id refusals, the snapshot block and its placement, check-runs read on the tip, inbox id identity, the 200-row trim and the empty allowlist. 12/12 mutants killed.
+  - Gate 5 text: record before `stamp complete`; never on a degraded fire; a charter edit that flips no ledger row is not an input.
+- **Judge, round 2** (resumed by SendMessage): **PASS 86**, 0 blocking.
+  - The race is closed. Retries share one fire id. Codex controllers receive the id through `MISSION_*` forwarding. No overlapping fire can clobber a pending snapshot.
+  - Of its 11 new mutants, 8 were killed. The 3 survivors are redundant defences on promote.
+- **Done-gate** ([gates](fleet-mission-evidence/iteration91/gates.md)):
+  - `make test-launchd-drivers`: 54/54 on both heads. Check targets rc 0; `git diff --check` rc 0. shellcheck: new files 0 findings; driver 30 at base, 30 at head.
+  - World dry-runs (idle and armed; `env -i`; `AILANG_DRIVER_PINNED=33190af48`; stdin `/dev/null`):
+    - Healthy: rc 0, `DRY RUN ok`.
+    - Degraded (`codex:bogus-model-i91`): rc 0; the probe 400s and the executor falls back to `claude:claude-haiku-5-5`.
+    - Unchanged before and after: the pin listing, the world pidfile, the idle files and the sweep-log hash.
+  - Live parity: `--snapshot` under a launchd-like `env -i` bash, `--record`, and a bare read under zsh all gave `c099527d…`, matching the judge's independent round-1 reading.
+  - The real `~/.ailang/state` was observed unchanged (495 entries, 0 idle files).
+- **Landing**: PR [#2160](https://github.com/sunholo-data/ailang/pull/2160). Closing-keyword scan: 0 in the body and 0 in the commits (control fired).
+
+**Gate 3b**:
+- PR head `33190af48`: 27 checks terminal, 20 success and 7 skipped, 0 red; MERGEABLE/CLEAN. The SHA-pinned poll verdict names its subject.
+- Merged with `--merge --match-head-commit` → `d08031597b3f62a03e589aea32e8f9fdac36c11c`.
+- Exact merge: `CI` success, `Build and Release` success, 18/18 check-runs success.
+
+**Resolved**: `driver:idle-fire-writes-full-block-report --sha d08031597b3f62a03e589aea32e8f9fdac36c11c`. The resolve replied to `world`, and the resolution text names the self-mail residual. Turnaround about 4.5 h (13:30Z filing → resolve after the 18/18 merge). Open tickets: 26 → 25.
+
+**Transcript-scan notices seen this fire** (step 6a): 3 on #2039. Two are the ones iteration 90 reported (fires `fleet-1793845378-59113` and `fleet-1793898974-52315`). One is new: fire `fleet-1793950362-22335` (iteration 90's own fire), 1 hit. Key names are in the private controlplane notice only.
+
+**Ruled out**:
+- Option (b), backing off the cadence: a schedule change, closer to policy class. (a) is the established triage mechanism and keeps "next real input picked up within one fire".
+- Failing CLOSED (yield) on an unreadable fingerprint, as triage does. For a product mission the record is only an optimisation, so a failed read gives a normal fire.
+- Including charter text in the fingerprint. The loop rewrites its own charter every fire, so the feature would never idle. Ledger rows are the attended channel; documented in Gate 5.
+- Treating the base A20 red as a regression: it passes on head and ran under concurrent load.
+- Subtracting a fire's own writes from the fingerprint (judge round 2's residual): it fails safe (one extra fire), and World's self-mail stopped after iteration 350. Noted in the resolution for World.
+
+**Retro lane**: no skill edit; three recorded frictions, each instance 1.
+- (a) **The base gate run shared a worktree with a running executor.** The baseline is then a reading of a moving tree. It was harmless here, but one red needed a second run to classify. Next time, baseline in a separate worktree or before the executor starts.
+- (b) **An env var that only `~/.zshenv` sets is visible to the controller and invisible to the launchd driver.** Any helper with one reader in each must pin what it reads. Instance 1 in fleet; the same class as the Bash-tool-is-zsh trap.
+- (c) **A drift-check typo** (a missing `resources/` prefix) printed DIFF for every file. It was caught because all 13 failed identically. This is rule 3a working.
+
+**Progress**:
+- Clause 1 UNMEASURED, goal unmoved.
+- Clause 2 UNMET: this ticket closed in about 4.5 h, inside the 48 h window, but the median is far over.
+- Clause 3 MET (25 open).
+- Clause 4: prior evidence only for fleet. This landing extends idle-is-free to product missions.
+- Clause 5 preserved: the done-gate passed before resolve.
+- Last 3 landings: iterations 91, 87 and 86, all clause 2. No drift alarm. Harness share: 20 of the last 20, by design.
+
+**Next**:
+- The first World no-pick fire after this lands should run `--record`. Watch World's slot-verdict log for `verdict=IDLE` on the fire after a recorded one. If none appears within a day of a no-pick fire, check the driver log line `idle snapshot taken` / `no idle snapshot`.
+- Otherwise: a ruling on D-FLEET-42 or any draft; any new ticket.
+
+**Routing evidence**: base=d08031597b3f62a03e589aea32e8f9fdac36c11c (Gate-4 record; Gate-1 base `01baf90c2`; no record-file drift between them).
+- Controller `claude:claude-opus-5-5` (tok: not reported). `MISSION_ANTHROPIC_AVAILABLE=1`.
+- Designer: not spawned. Resolver `recipe claude:claude-opus-5-5 declared:provider-pin`; no rotation advance.
+- Planner: not spawned. Resolver `agent-tool opus fail-closed:no-doc`; pin `codex:gpt-6.1-sol`.
+- Executor `codex:gpt-6.1-sol` (135,542 tok; probe 16 tok). Resolver `recipe codex:gpt-6.1-sol declared:provider-pin`.
+- Evaluator `sonnet`, Agent tool, foreground: round 1 104,727 tok / 30 tool uses / 392 s; round 2 125,419 tok cumulative / 7 tool uses / 241 s. Resolver `agent-tool sonnet declared:alias-pin`. Judge independence: cross-vendor from the codex executor.
+- Quorum: none. Metered spend $0. No lane recorded dead.
