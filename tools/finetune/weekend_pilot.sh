@@ -111,6 +111,8 @@ for p in glob.glob(d+"/**/*.json",recursive=True):
     if not isinstance(r,dict) or "compile_ok" not in r: continue
     n+=1; ok+=bool(r["compile_ok"] and r["runtime_ok"] and r["stdout_ok"]); c[r.get("prompt_version") or "?"]+=1
 print(f"{d.split('/')[-1]}: {ok}/{n} pass; prompt versions {dict(c)}")
+unl=c.pop("?",0)
+if unl: print(f"  ({unl} rows banked no prompt_version: early failures, not counted against the guard)")
 if want!="ACTIVE" and any(k!=want for k in c): print("PROMPT-VERSION MISMATCH: arm is void"); sys.exit(3)
 EOF
   [ "${PIPESTATUS[0]}" = 0 ] || die "$name: prompt-version guard failed"

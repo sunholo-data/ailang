@@ -56,6 +56,10 @@ for p in glob.glob(d+"/**/*.json",recursive=True):
     n+=1; ok+=bool(r["compile_ok"] and r["runtime_ok"] and r["stdout_ok"]); c[r.get("prompt_version") or "?"]+=1
     ack+="session_protocol_ack" in (r.get("agent_tool_histogram") or {})
 print(f"{d.split('/')[-1]}: {ok}/{n} pass; prompt versions {dict(c)}; runs that called session_protocol_ack: {ack}")
+# Rows a run never reached the prompt for (non_agentic / pre-run failures) bank no
+# prompt_version; they are not evidence of a fallback. Only a DIFFERENT version voids the arm.
+unl=c.pop("?",0)
+if unl: print(f"  ({unl} rows banked no prompt_version: early failures, not counted against the guard)")
 if any(k!=want for k in c): print("PROMPT-VERSION MISMATCH: arm is void"); sys.exit(3)
 EOF
   [ "${PIPESTATUS[0]}" = 0 ] || die "$name: prompt-version guard failed"
