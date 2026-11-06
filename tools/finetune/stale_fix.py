@@ -134,15 +134,44 @@ def ask(model, prompt, key):
     return txt, d.get("usage") or {}
 
 
+def ask_claude(model, prompt):
+    """Claude via the CLI on the subscription (OAuth): no tools, no session, no settings,
+    ANTHROPIC_API_KEY stripped so it can never bill the API (same flags as the quorum's
+    claude reviewer, internal/mission/quorum/claude_reviewer.go)."""
+    env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
+    with tempfile.TemporaryDirectory() as td:  # empty cwd: no project CLAUDE.md
+        r = subprocess.run(["claude", "-p", "--model", model, "--output-format", "json", "--tools", "",
+                            "--no-session-persistence", "--setting-sources", "", "--strict-mcp-config"],
+                           input=prompt, capture_output=True, text=True, timeout=900, cwd=td, env=env)
+    if r.returncode != 0:
+        raise RuntimeError(f"claude rc={r.returncode}")
+    d = json.loads(r.stdout)
+    if d.get("is_error"):
+        raise RuntimeError("claude is_error")
+    txt = re.sub(r"^```\w*\n|\n```\s*$", "", (d.get("result") or "").strip())
+    u = d.get("usage") or {}
+    return txt, {"prompt_tokens": u.get("input_tokens", 0), "completion_tokens": u.get("output_tokens", 0)}
+
+
 def fix(a):
-    key = os.environ.get("OPENROUTER_API_KEY")
-    if not key:
-        sys.exit("OPENROUTER_API_KEY not set")
-    if a.model.split("/")[0] in ("anthropic", "openai", "google") and "gemma" not in a.model:
-        sys.exit("first-party vendors are never routed via OpenRouter")
-    items = [json.loads(l) for l in open(os.path.join(a.out, "stale.jsonl"))][: a.limit]
+    if a.backend == "openrouter":
+        key = os.environ.get("OPENROUTER_API_KEY")
+        if not key:
+            sys.exit("OPENROUTER_API_KEY not set")
+        if a.model.split("/")[0] in ("anthropic", "openai", "google") and "gemma" not in a.model:
+            sys.exit("first-party vendors are never routed via OpenRouter")
+        call = lambda prompt: ask(a.model, prompt, key)
+    else:
+        if not a.model.startswith("claude-"):
+            sys.exit("claude-cli backend needs a full claude model id (never an alias)")
+        call = lambda prompt: ask_claude(a.model, prompt)
+    items = [json.loads(l) for l in open(os.path.join(a.out, "stale.jsonl"))]
+    if a.cmd == "retry":  # only what the first pass could not fix
+        failed = {json.loads(l)["code_hash"] for l in open(os.path.join(a.out, "stale_pairs.jsonl")) if not json.loads(l)["ok"]}
+        items = [it for it in items if norm_hash(it["code"]) in failed]
+    items = items[: a.limit]
     done = set()
-    outp = os.path.join(a.out, "stale_pairs.jsonl")
+    outp = os.path.join(a.out, "stale_pairs.jsonl" if a.cmd == "fix" else f"stale_pairs_{a.tag}.jsonl")
     if os.path.exists(outp):
         done = {json.loads(l)["code_hash"] for l in open(outp)}
 
@@ -151,7 +180,7 @@ def fix(a):
         if h in done:
             return None
         try:
-            fixed, usage = ask(a.model, PROMPT.format(error=it["error"], code=it["code"]), key)
+            fixed, usage = call(PROMPT.format(error=it["error"], code=it["code"]))
         except Exception as e:  # network / provider error: record, never retry silently
             return {"code_hash": h, "ok": False, "why": f"api: {type(e).__name__}"}
         ok, err = check(fixed)
@@ -161,7 +190,7 @@ def fix(a):
         return {"code_hash": h, "ok": good, "why": "" if good else "stdout", "usage": usage,
                 **({"benchmark": it["benchmark"], "old": it["code"], "error": it["error"], "fixed": fixed} if good else {})}
 
-    stats = {"ok": 0, "check": 0, "stdout": 0, "api": 0, "in": 0, "out": 0}
+    stats = {"ok": 0, "check": 0, "stdout": 0, "api": 0, "in": 0, "out": 0, "model": a.model}
     with cf.ThreadPoolExecutor(a.workers) as ex, open(outp, "a") as f:
         for r in ex.map(one, items):
             if r is None:
@@ -176,7 +205,9 @@ def fix(a):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["collect", "fix"])
+    ap.add_argument("cmd", choices=["collect", "fix", "retry"])
+    ap.add_argument("--backend", choices=["openrouter", "claude-cli"], default="openrouter")
+    ap.add_argument("--tag", default="retry", help="retry output: stale_pairs_<tag>.jsonl")
     ap.add_argument("--out", required=True)
     ap.add_argument("--model", default="google/gemma-4-31b-it")
     ap.add_argument("--limit", type=int, default=50)
