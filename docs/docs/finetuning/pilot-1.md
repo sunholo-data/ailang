@@ -49,56 +49,42 @@ checkpoint, with shrinking steps and no sign of overfitting:
 - **Agent mode ignored `--prompt-version`**, and the prompt loader silently falls back to the full
   prompt on a bad version. Both fixed; every arm now checks the prompt version it banked.
 
-## Held-out A/B (in progress)
+## Held-out A/B: result
 
-Arms on the 24 held-out benchmarks:
+Pilot-1 is a **negative result with known causes**. On the 24 held-out benchmarks:
 
-| Arm | Model | Prompt | Standard (one-shot) | Agent (pi) |
+| Arm | Model | Prompt | Mode | Pass |
 |---|---|---|---|---|
-| A | base 12B | full teaching prompt | 48% (Phase 0); re-run pending | 11/24 (Phase 0) |
-| B | pilot-1 | 2.4 KB slim prompt | **0/15** | running |
-| C | pilot-1 | none | **1/26** | pending |
+| A | base 12B | full teaching prompt | standard (one-shot) | 16/31 (52%; core 15/18, stretch 1/13) |
+| B | pilot-1 | 2.4 KB slim prompt | standard | 0/15 |
+| C | pilot-1 | none | standard | 1/26 |
+| **A** | **base 12B** | **full prompt** | **agent (pi)** | **17/24 (71%; core 12/12, stretch 5/12)** |
+| B | pilot-1 | slim prompt | agent | 0/24 |
+| C | pilot-1 | none | agent | 0/24 |
 
-**The first agent arms are void.** Both B_agent and C_agent scored 0/24, but every run stopped
-after about two tool calls with the template untouched. Capturing pi's wire traffic against a
-scripted model showed why:
-- The pi session-protocol gate, a guard for attended dev sessions, was armed in every eval. It
-  refused each `write`, `edit` and mutating `bash` until the model called `session_protocol_ack`.
-- Base 12B had learned to ack; every one of its Phase 0 passes did. The fine-tune never acked, so
-  every write was refused.
-- Fixed in `5dc3ba42b`: evals now disarm the gate ([D-FT-6](./decisions.md)). All three agent arms,
-  base included, re-run under the same condition.
+**The kill criterion (B ≥ A) fails in both modes.** The standard arms ran under 2.5-hour time
+caps; B and C hit theirs after 15 and 26 runs because of repetition loops.
 
-**The re-run with the gate fixed: B_agent2 0/24, and no run called the ack.** A live transcript,
-taken through the cooperative rig handoff, showed the second cause. After a tool result, the
-fine-tune's sensible tool calls (`ailang run …`, `ailang_check …`) came back inside the
-*thinking* channel, so pi saw no tool call and ended the run.
-- Pilot-1 was trained in thinking-off format: the generation prompt pre-fills an empty, closed
-  thought.
-- Ollama serves Gemma 4 with thinking on, and its parser then files the output as reasoning.
-- Replaying one turn with `think: false` did not fix it reliably, so the mismatch is in the
-  training format, not a serving switch.
-- Pilot-2 trains every step as thought → action in the served format
-  ([D-FT-8](./decisions.md)).
+**Why the fine-tune failed**, in the order we found the causes:
 
-The capture also showed two kinds of noise in every eval tool result: an OpenTelemetry
-deprecation warning on each `ailang` command, and an injected "brain context" block on each
-`read`.
+1. **The first agent arms were void.** The pi session-protocol gate, a guard for attended dev
+   sessions, refused every eval `write`, `edit` and mutating `bash` until the model called
+   `session_protocol_ack`.
+   - Base 12B had learned to ack: every one of its earlier passes did.
+   - The fine-tune never acked.
+   - Fixed in `5dc3ba42b` ([D-FT-6](./decisions.md)). Every agent arm, base included, was re-run
+     with the fix; the table shows the re-runs.
+2. **Thinking-format mismatch.** Pilot-1 was trained in thinking-off format, but Ollama serves it
+   thinking-on. A live transcript showed its sensible tool calls (`ailang run …`,
+   `ailang_check …`) landing in the reasoning channel, so pi saw no tool call and ended the run.
+   This alone explains the 0/24 ([D-FT-8](./decisions.md)).
+3. **Context mismatch.** It trained on a one-line system prompt and was served under pi's
+   7,338-token default prefix ([D-FT-9](./decisions.md)).
+4. **Standard mode, which does not depend on tool-call format:** one light epoch on 16 blocks did
+   not teach enough syntax to replace the teaching prompt.
 
-**Standard mode came out clearly worse than the base model with its full prompt.**
-- Both arms hit their 2.5-hour time caps. Six of the 15 B runs used the full 32k output tokens on
-  repetition loops.
-- The runs that finished normally failed on invented stdlib functions, wrong module names and
-  statement-style `x = …` assignments.
+**The fair base-12B agent baseline is 17/24 (71%).** That is far above Phase 0's 11/24, which ran
+with the gate armed: the gate had been suppressing the base model too.
 
-**What we take from it** ([D-FT-3](./decisions.md)):
-- A light single-epoch LoRA on mostly-trajectory data does not teach enough syntax to replace
-  the teaching prompt in one-shot mode.
-- The agent arms are the real test, because they match what the data mostly contained.
-
-Pilot-2 changes the data and the recipe in response: habit-weighted trajectories, canonical
-examples, staleness pairs, 2 epochs, LoRA on all layers, and sampling defaults set at import. It
-also adds a base + slim prompt arm, so that "the fine-tune didn't help" can be told apart from
-"the slim prompt is too thin".
-
-*This page is updated as the arms finish.*
+Pilot-2 addresses each cause. It trains in the served format (thinking on, the lean pi profile,
+whole episodes), on habit-simulated episodes with real tool output, across all transformer blocks.

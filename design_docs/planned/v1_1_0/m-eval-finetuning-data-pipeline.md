@@ -461,6 +461,30 @@ decision gets a row in `docs/docs/finetuning/decisions.md` when it is made.
   `prompt_version`; they are now ignored rather than counted as a fallback (`068fd96e0`).
   A_agent2 = **17/24** (19 runs on v0.16.11; 5 non_agentic).
 
+## Pilot-1 results (2026-11-06)
+
+Held-out 24 (`eval_results/finetune-pilot1/summary.md`):
+
+| arm | runs | pass | rate | core | stretch | protocol miss | median out-tokens/pass |
+|---|---|---|---|---|---|---|---|
+| A_std (base, full prompt) | 31 | 16 | 0.516 | 15/18 | 1/13 | 0 | 4,681 |
+| B_std (ft1, ft-slim-v1) | 15 | 0 | 0.0 | 0/8 | 0/7 | 0 | — |
+| C_std (ft1, ft-none) | 26 | 1 | 0.038 | 0/13 | 1/13 | 0 | 166 |
+| A_agent (base, gate armed) — VOID | 24 | 11 | 0.458 | 7/12 | 4/12 | 12 | 13,191 |
+| B_agent / C_agent (gate armed) — VOID | 24 / 24 | 0 / 0 | — | — | — | 24 / 24 | — |
+| **A_agent2 (base, gate fixed)** | 24 | **17** | **0.708** | **12/12** | 5/12 | 5 | 8,273 |
+| B_agent2 (ft1, ft-slim-v1) | 24 | 0 | 0.0 | 0/12 | 0/12 | 19 | — |
+| C_agent2 (ft1, ft-none) | 24 | 0 | 0.0 | 0/12 | 0/12 | 20 | — |
+
+**Verdict: the kill criterion fails in both modes.** Pilot-1 is negative, with known causes:
+- **Session gate (void arms):** fixed in `5dc3ba42b`.
+- **Thinking-format mismatch** (D-FT-8): explains the agent 0/24.
+- **Context mismatch** with pi's 7.3k default prefix (D-FT-9).
+- **Too-light training** (1 epoch, 16 blocks): explains standard mode.
+
+**A_agent2 (17/24, 71%) is the fair base-12B agent baseline.** The gate also depressed Phase 0's
+11/24. Pilot-2 (all blocks, served format, habit episodes) is the response.
+
 ## Serving cost reference (2026-11-05)
 
 The question was how a fine-tuned 12B would be served beyond the rig, and what each option costs. These are list prices from web search on 2026-11-05 (USD). They may be stale (the Cloud Run page metadata was ~15 months old), so verify before budgeting. Per-run figures use today's measured 12B agent profile: ≈ 0.7–2M input tokens (mostly a cacheable prefix) and ≈ 10–35k output tokens per benchmark.
