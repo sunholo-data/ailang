@@ -1,0 +1,39 @@
+-- Task: deduplicate two mailing lists (case-insensitive), keep the first-seen
+-- order of the merged list, and report who is on both lists, who is only on the
+-- first, and who has unsubscribed. Demonstrates std/set fromList, member,
+-- insert, size, toList, union, intersect and difference.
+module examples/runnable/stdlib/set_dedupe_emails
+import std/set as S
+import std/set (Set)
+import std/list (map, foldl, reverse, length)
+import std/string (join, toLower, trim)
+
+func normalize(e: string) -> string = toLower(trim(e))
+
+-- Order-preserving dedupe: S.member is O(1); the set travels with the output.
+func dedupeKeepOrder(xs: [string]) -> [string] = match foldl(\st x. match st {
+  (seen, out) => if S.member(seen, x) then (seen, out) else (S.insert(seen, x), x :: out)
+}, (S.empty(), []), xs) {
+  (_, out) => reverse(out)
+}
+
+-- toList is deterministic, ordered by encoded key: strings come out sorted
+-- (int keys order lexically, 10 before 2, so sort those yourself).
+func listed(s: Set[string]) -> string = join(", ", S.toList(s))
+
+export func main() -> () ! {IO} {
+  let newsletter = map(normalize, ["ada@x.io", "Bob@x.io ", "cy@x.io", "ada@x.io"])
+  let events = map(normalize, ["dee@x.io", "bob@x.io", "ADA@x.io", "eve@x.io"])
+  let unsubscribed = S.fromList(["eve@x.io", "cy@x.io"])
+  let merged = dedupeKeepOrder(newsletter ++ events)
+  println("merged (first-seen order): ${join(", ", merged)}")
+  println("raw ${show(length(newsletter ++ events))} -> unique ${show(length(merged))}")
+  let a = S.fromList(newsletter)
+  let b = S.fromList(events)
+  println("on both lists: ${listed(S.intersect(a, b))}")
+  println("newsletter only: ${listed(S.difference(a, b))}")
+  let everyone = S.union(a, b)
+  let active = S.difference(everyone, unsubscribed)
+  println("active ${show(S.size(active))} of ${show(S.size(everyone))}: ${listed(active)}")
+  println("eve active? ${show(S.member(active, "eve@x.io"))}")
+}

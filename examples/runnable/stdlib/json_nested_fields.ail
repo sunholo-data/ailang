@@ -1,0 +1,75 @@
+-- Task: decode a JSON order document and safely extract nested fields — the
+-- customer's name and city from a nested object, each line item from an array,
+-- and an optional "coupon" field with a default when it is absent.
+-- Demonstrates std/json decode, getObject, getString, getInt, getArray,
+-- asArray, filterStrings, getOr and has.
+module examples/runnable/stdlib/json_nested_fields
+import std/json (Json, decode, getObject, getString, getInt, getNumber, getArray, asArray, asString, filterStrings, getOr, has, js, ja)
+import std/list (map, length)
+import std/string (join)
+
+-- Turn one line item into "sku x qty"; missing fields fall back to placeholders.
+func describeItem(item: Json) -> string {
+  let sku = match getString(item, "sku") {
+    Some(s) => s,
+    None => "?"
+  }
+  let qty = match getInt(item, "qty") {
+    Some(n) => n,
+    None => 0
+  }
+  "${sku} x${show(qty)}"
+}
+
+export func main() -> () ! {IO} {
+  let doc = "{\"id\": 1042, \"customer\": {\"name\": \"Ada\", \"address\": {\"city\": \"Oslo\"}}, \"items\": [{\"sku\": \"A1\", \"qty\": 2}, {\"sku\": \"B7\", \"qty\": 1}], \"tags\": [\"gift\", \"express\"]}"
+  match decode(doc) {
+    Err(e) => println("parse error: ${e}"),
+    Ok(order) => {
+      match getInt(order, "id") {
+        Some(id) => println("id: ${show(id)}"),
+        None => println("id: <missing>")
+      }
+      -- Nested objects: chain getObject, matching each Option step.
+      match getObject(order, "customer") {
+        Some(c) => {
+          let name = match getString(c, "name") {
+            Some(n) => n,
+            None => "<none>"
+          }
+          let city = match getObject(c, "address") {
+            Some(a) => match getString(a, "city") {
+              Some(t) => t,
+              None => "<none>"
+            },
+            None => "<no address>"
+          }
+          println("customer: ${name} (${city})")
+        },
+        None => println("customer: <missing>")
+      }
+      -- getArray reads an array field; asArray converts any Json value.
+      match getArray(order, "items") {
+        Some(items) => {
+          println("items: ${show(length(items))}")
+          println("lines: ${join(", ", map(describeItem, items))}")
+        },
+        None => println("items: <missing>")
+      }
+      -- getOr with an empty-array default makes a missing "tags" read as [].
+      let tags = match asArray(getOr(order, "tags", ja([]))) {
+        Some(xs) => filterStrings(xs),
+        None => []
+      }
+      println("tags: ${join("|", tags)}")
+      -- getOr supplies a default Json when the key is missing.
+      let coupon = match asString(getOr(order, "coupon", js("NONE"))) {
+        Some(s) => s,
+        None => ""
+      }
+      println("coupon: ${coupon}")
+      println("has total: ${show(has(order, "total"))}")
+      println("total: ${show(getNumber(order, "total"))}")
+    }
+  }
+}

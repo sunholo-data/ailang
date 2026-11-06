@@ -1,0 +1,45 @@
+-- Write generic helpers that work for any element type: a polymorphic pair type,
+-- functions with type parameters [a, b], and one helper reused on ints, strings
+-- and records.
+-- Teaches: type parameters on functions and ADTs, explicit annotations, Option[a].
+module examples/runnable/stdlib/lang_polymorphism
+import std/list (map)
+
+-- Type parameters go in square brackets: Pair[a, b], never Pair(a, b) or Pair<a, b>.
+type Pair[a, b] = Pair(a, b)
+
+pure func first[a, b](p: Pair[a, b]) -> a = match p {
+  Pair(x, _) => x
+}
+
+pure func swap[a, b](p: Pair[a, b]) -> Pair[b, a] = match p {
+  Pair(x, y) => Pair(y, x)
+}
+
+pure func firstOr[a](xs: [a], fallback: a) -> a = match xs {
+  [] => fallback,
+  x :: _ => x
+}
+
+pure func lastOf[a](xs: [a]) -> Option[a] = match xs {
+  [] => None,
+  [x] => Some(x),
+  _ :: rest => lastOf(rest)
+}
+
+pure func pairUp[a, b](xs: [a], ys: [b]) -> [Pair[a, b]] = match (xs, ys) {
+  (x :: xr, y :: yr) => Pair(x, y) :: pairUp(xr, yr),
+  _ => []
+}
+
+export func main() -> () ! {IO} {
+  let p = Pair("id", 7)
+  println("first: ${first(p)}")
+  println("swapped first: ${show(first(swap(p)))}")
+  println("firstOr ints: ${show(firstOr([], 99))} strings: ${firstOr(["x", "y"], "-")}")
+  let people = [{ name: "Ann", age: 31 }, { name: "Bo", age: 25 }]
+  println("firstOr record: ${(firstOr(people, { name: "nobody", age: 0 })).name}")
+  println("lastOf: ${show(lastOf([1, 2, 3]))} ${show(lastOf(["solo"]))}")
+  let pairs = pairUp(["a", "b", "c"], [1, 2])
+  println("pairUp firsts: ${show(map(first, pairs))}")
+}

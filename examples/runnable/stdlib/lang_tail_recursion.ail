@@ -1,0 +1,33 @@
+-- Replace loops with tail-recursive helpers that carry an accumulator: sum a range,
+-- reverse a list, count digits, compute Fibonacci with two accumulators, and
+-- run 100000 iterations without growing the stack.
+-- Teaches: recursion instead of for/while, accumulator parameters, tail calls.
+module examples/runnable/stdlib/lang_tail_recursion
+
+-- There is no for/while: the loop counter and running total become parameters.
+pure func sumRange(i: int, n: int, acc: int) -> int = if i > n then acc else sumRange(i + 1, n, acc + i)
+
+pure func reverseAcc(xs: [int], acc: [int]) -> [int] = match xs {
+  [] => acc,
+  x :: rest => reverseAcc(rest, x :: acc)
+}
+
+pure func countDigits(n: int, acc: int) -> int = if n < 10 then acc + 1 else countDigits(n / 10, acc + 1)
+
+-- Two accumulators hold the previous pair, so each step is O(1).
+pure func fibIter(k: int, a: int, b: int) -> int = if k == 0 then a else fibIter(k - 1, b, a + b)
+
+-- A wrapper hides the accumulator from callers.
+pure func fib(n: int) -> int = fibIter(n, 0, 1)
+
+-- The recursive call is the last thing evaluated, so the frame is reused.
+pure func countdown(n: int, steps: int) -> int = if n == 0 then steps else countdown(n - 1, steps + 1)
+
+export func main() -> () ! {IO} {
+  println("sum 1..100: ${show(sumRange(1, 100, 0))}")
+  println("reverse: ${show(reverseAcc([1, 2, 3, 4], []))}")
+  println("digits in 90210: ${show(countDigits(90210, 0))}")
+  println("fib 0, 1, 10: ${show(fib(0))} ${show(fib(1))} ${show(fib(10))}")
+  println("fib 50: ${show(fib(50))}")
+  println("steps: ${show(countdown(100000, 0))}")
+}

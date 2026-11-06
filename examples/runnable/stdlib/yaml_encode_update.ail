@@ -1,0 +1,47 @@
+-- Task: load a YAML deployment manifest, bump its replica count and add a label,
+-- then write it back out as YAML text. Demonstrates std/yaml decode and encode
+-- with std/json JObject pattern matching, kv, jint, js, has, getObject and getInt.
+module examples/runnable/stdlib/yaml_encode_update
+import std/yaml (decode, encode)
+import std/json (Json, JObject, kv, jint, js, getInt, getObject, has)
+import std/io (print)
+import std/list (map)
+
+-- Replace (or append) one key of a JSON object, keeping the other keys in order.
+func setField(obj: Json, key: string, v: Json) -> Json = match obj {
+  JObject(fields) => {
+    let replaced = map(\f. if f.key == key then kv(key, v) else f, fields)
+    JObject(if has(obj, key) then replaced else replaced ++ [kv(key, v)])
+  },
+  other => other
+}
+
+export func main() -> () ! {IO} {
+  let manifest = "name: web\nreplicas: 2\nlabels:\n  app: web\nimage: nginx:1.27\n"
+  match decode(manifest) {
+    Err(e) => println("bad manifest: ${e}"),
+    Ok(doc) => {
+      let replicas = match getInt(doc, "replicas") {
+        Some(n) => n,
+        None => 1
+      }
+      let labels = match getObject(doc, "labels") {
+        Some(l) => setField(l, "tier", js("frontend")),
+        None => JObject([kv("tier", js("frontend"))])
+      }
+      let updated = setField(setField(doc, "replicas", jint(replicas + 1)), "labels", labels)
+      -- encode returns Result: a Json value YAML cannot represent is an Err.
+      match encode(updated) {
+        Ok(text) => {
+          println("--- updated manifest ---")
+          print(text)  -- encode already ends with a newline
+          match decode(text) {
+            Ok(back) => println("replicas after round trip: ${show(getInt(back, "replicas"))}"),
+            Err(e) => println("round trip failed: ${e}")
+          }
+        },
+        Err(e) => println("encode failed: ${e}")
+      }
+    }
+  }
+}

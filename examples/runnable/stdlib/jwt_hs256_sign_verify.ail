@@ -1,0 +1,69 @@
+-- Task: issue an HS256 session token (JWT signed with a shared secret) and
+-- verify it on the way back in, rejecting a token with an edited payload, a
+-- token signed with another secret, and an "alg":"none" downgrade.
+-- Demonstrates std/jwt decodeJWT with std/crypto hmacSha256 and constantTimeEqual,
+-- and std/bytes toBase64URL, fromString, fromInts.
+module examples/runnable/stdlib/jwt_hs256_sign_verify
+import std/jwt (decodeJWT)
+import std/crypto (hmacSha256, constantTimeEqual)
+import std/bytes (toBase64URL, fromString, fromInts, toInts)
+import std/json (Json, jo, kv, js, jint, encode, getString)
+import std/string (replace)
+
+-- hmacSha256 returns lowercase hex; a JWT carries the raw MAC bytes, base64url-encoded.
+pure func nibble(c: int) -> int = if c >= 97 then c - 87 else c - 48
+
+pure func hexPairs(cs: [int]) -> [int] = match cs {
+  hi :: lo :: rest => nibble(hi) * 16 + nibble(lo) :: hexPairs(rest),
+  _ => []
+}
+
+pure func mac(signingInput: string, secret: string) -> string =
+  toBase64URL(fromInts(hexPairs(toInts(fromString(hmacSha256(signingInput, secret))))))
+
+pure func segment(j: Json) -> string = toBase64URL(fromString(encode(j)))
+
+pure func sign(claims: Json, secret: string) -> string {
+  let header = jo([kv("alg", js("HS256")), kv("typ", js("JWT"))])
+  let input = "${segment(header)}.${segment(claims)}"
+  "${input}.${mac(input, secret)}"
+}
+
+-- The MAC is checked only after the algorithm is pinned: never let the token choose.
+pure func checkMac(jwt: { header: Json, payload: Json, signature: bytes, signed: string }, secret: string) -> Result[Json, string] =
+  if constantTimeEqual(mac(jwt.signed, secret), toBase64URL(jwt.signature)) then Ok(jwt.payload) else Err("bad signature")
+
+pure func verify(token: string, secret: string) -> Result[Json, string] = match decodeJWT(token) {
+  Err(e) => Err(e),
+  Ok(jwt) => match getString(jwt.header, "alg") {
+    Some("HS256") => checkMac(jwt, secret),
+    _ => Err("algorithm not allowed")
+  }
+}
+
+pure func report(r: Result[Json, string]) -> string = match r {
+  Ok(claims) => match getString(claims, "sub") {
+    Some(sub) => "ok, user ${sub}",
+    None => "ok, no subject"
+  },
+  Err(e) => "rejected (${e})"
+}
+
+export func main() -> () ! {IO} {
+  let secret = "s3cr3t-signing-key"
+  let claims = jo([kv("sub", js("alice")), kv("role", js("viewer")), kv("exp", jint(2000000000))])
+  let token = sign(claims, secret)
+  println("token: ${token}")
+  println("genuine: ${report(verify(token, secret))}")
+  -- Re-encode the payload with role=admin but keep the old signature.
+  let adminClaims = jo([kv("sub", js("alice")), kv("role", js("admin")), kv("exp", jint(2000000000))])
+  let forged = replace(token, segment(claims), segment(adminClaims))
+  println("edited payload: ${report(verify(forged, secret))}")
+  let otherSecret = "another-key"
+  println("other secret: ${report(verify(sign(claims, otherSecret), secret))}")
+  let noneHeader = segment(jo([kv("alg", js("none"))]))
+  let unsigned = "${noneHeader}.${segment(adminClaims)}."
+  println("alg none: ${report(verify(unsigned, secret))}")
+  let garbage = "not-a-jwt"
+  println("garbage: ${report(verify(garbage, secret))}")
+}

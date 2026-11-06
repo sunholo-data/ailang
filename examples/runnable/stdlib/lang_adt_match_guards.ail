@@ -1,0 +1,47 @@
+-- Measure shapes and sort them into size classes with an algebraic data type: declare
+-- a sum type, match every constructor, and refine arms with `if` guards.
+-- Teaches: ADT declaration, constructor patterns, guards, wildcard `_`, deriving (Eq).
+module examples/runnable/stdlib/lang_adt_match_guards
+import std/list (map)
+import std/string (join)
+
+type Shape = Circle(int) | Rect(int, int) | Triangle(int, int, int)
+
+type Size = Small | Medium | Large deriving (Eq)
+
+-- One arm per constructor. A missing arm is not caught by `ailang check`;
+-- it fails at run time with "no pattern matched", so cover every case.
+pure func perimeter(s: Shape) -> int = match s {
+  Circle(r) => 6 * r,
+  Rect(w, h) => 2 * (w + h),
+  Triangle(a, b, c) => a + b + c
+}
+
+-- Guards: `pattern if condition => body`. Arms are tried top to bottom.
+pure func describe(s: Shape) -> string = match s {
+  Rect(w, h) if w == h => "square ${show(w)}",
+  Rect(w, h) => "rect ${show(w)}x${show(h)}",
+  Circle(r) if r == 0 => "point",
+  Circle(r) => "circle r=${show(r)}",
+  Triangle(_, _, _) => "triangle"
+}
+
+pure func sizeOf(s: Shape) -> Size = match perimeter(s) {
+  p if p < 10 => Small,
+  p if p < 30 => Medium,
+  _ => Large
+}
+
+pure func sizeName(z: Size) -> string = match z {
+  Small => "S",
+  Medium => "M",
+  Large => "L"
+}
+
+export func main() -> () ! {IO} {
+  let shapes = [Circle(1), Rect(3, 3), Rect(2, 10), Triangle(3, 4, 5), Circle(0)]
+  println("describe: ${join(", ", map(describe, shapes))}")
+  println("perimeters: ${show(map(perimeter, shapes))}")
+  println("sizes: ${join(" ", map(\s. sizeName(sizeOf(s)), shapes))}")
+  println("same size: ${show(sizeOf(Rect(3, 3)) == sizeOf(Triangle(3, 4, 5)))}")
+}

@@ -1,0 +1,33 @@
+-- Manage an employee record: create it, read fields, make updated copies with
+-- {r | field: value}, update a nested record, and destructure it in a match.
+-- Teaches: record literals, field access, immutable update, record type aliases.
+module examples/runnable/stdlib/lang_records
+import std/list (map)
+import std/string (join)
+
+type Address = { city: string, zip: string }
+
+type Employee = { name: string, level: int, address: Address }
+
+-- Records are immutable: an update returns a new record, the original is unchanged.
+pure func promote(e: Employee) -> Employee = { e | level: e.level + 1 }
+
+-- Updating a nested field means rebuilding the inner record too.
+pure func relocate(e: Employee, city: string) -> Employee = { e | address: { e.address | city: city } }
+
+-- A pattern on a declared (closed) record type must list every field or end with `...`.
+pure func describe(e: Employee) -> string = match e {
+  { name, level, address: { city, ... } } => "${name} (L${show(level)}) in ${city}"
+}
+
+export func main() -> () ! {IO} {
+  let ada = { name: "Ada", level: 2, address: { city: "London", zip: "N1" } }
+  let promoted = promote(ada)
+  let moved = relocate(promoted, "Paris")
+  println("original: ${describe(ada)}")
+  println("promoted: ${describe(promoted)}")
+  println("moved: ${describe(moved)}")
+  println("zip kept: ${moved.address.zip}")
+  let team = [ada, { ada | name: "Grace", level: 5 }]
+  println("team: ${join(", ", map(\e. e.name, team))}")
+}

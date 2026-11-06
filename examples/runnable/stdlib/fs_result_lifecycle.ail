@@ -1,0 +1,40 @@
+-- Take a text file through its whole life with the Result-returning std/fs
+-- API: create a scratch directory, write a file, read it back, append a line,
+-- rename it, and remove it, handling Err at every step, including reading a
+-- file that does not exist. Demonstrates mkdirResult, writeFileResult,
+-- readFileResult, appendFileResult, renameFileResult, removeFileResult and
+-- removeDirResult.
+module examples/runnable/stdlib/fs_result_lifecycle
+import std/fs (mkdirResult, writeFileResult, readFileResult, appendFileResult, renameFileResult, removeFileResult, removeDirResult, fileExists)
+import std/string (replace)
+
+func step(label: string, r: Result[(), string]) -> () ! {IO} = match r {
+  Ok(_) => println("${label}: ok"),
+  Err(_) => println("${label}: failed")
+}
+
+-- Print newlines as \n so each read stays on one output line
+func showRead(label: string, r: Result[string, string]) -> () ! {IO} = match r {
+  Ok(text) => println("${label}: ${replace(text, "\n", "\\n")}"),
+  Err(_) => println("${label}: no such file")
+}
+
+export func main() -> () ! {IO, FS} {
+  -- Relative scratch directory: created here, removed at the end
+  let dir = "ailang_example_fs_tmp_lifecycle"
+  step("mkdir", mkdirResult(dir))
+  let draft = "${dir}/draft.txt"
+  let final = "${dir}/notes.txt"
+  step("write", writeFileResult(draft, "first line\n"))
+  showRead("read", readFileResult(draft))
+  step("append", appendFileResult(draft, "second line\n"))
+  showRead("read after append", readFileResult(draft))
+  step("rename", renameFileResult(draft, final))
+  println("draft exists: ${show(fileExists(draft))}, notes exists: ${show(fileExists(final))}")
+  -- The old name is gone, so reading it is an Err rather than a crash
+  showRead("read old name", readFileResult(draft))
+  step("remove", removeFileResult(final))
+  step("remove again", removeFileResult(final))
+  step("rmdir", removeDirResult(dir))
+  println("dir exists: ${show(fileExists(dir))}")
+}

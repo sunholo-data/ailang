@@ -1,0 +1,47 @@
+-- Task: write a WAV file the streaming way — synthesize 16-bit PCM, emit the
+-- 44-byte RIFF header separately with wavHeader, append the samples, and
+-- confirm wavInfo parses the result like wavFromPcm's; then use
+-- wavHeaderChecked to reject invalid formats instead of failing loudly.
+-- Demonstrates std/audio wavHeader, wavHeaderChecked, wavFromPcm, wavInfo,
+-- durationMs and floatsToPcm16.
+module examples/runnable/stdlib/audio_wav_header
+import std/audio (wavHeader, wavHeaderChecked, wavFromPcm, wavInfo, durationMs, floatsToPcm16, RejectOutOfRange)
+import std/bytes (concat, slice, toString, length, toInts)
+import std/array as A
+import std/list (map, range)
+
+-- A 400 Hz square wave at 8 kHz: 10 samples high, 10 samples low, 800 frames.
+pure func square() -> Array[float] = A.fromList(map(\i. if i % 20 < 10 then 0.25 else -0.25, range(0, 800)))
+
+pure func checked(label: string, r: Result[bytes, string]) -> string = match r {
+  Ok(h) => "${label}: ok, ${show(length(h))}-byte header",
+  Err(e) => "${label}: rejected (${e})"
+}
+
+export func main() -> () ! {IO} {
+  match floatsToPcm16(square(), 1, RejectOutOfRange) {
+    Err(e) => println("quantize failed: ${e}"),
+    Ok(pcm) => {
+      let header = wavHeader(length(pcm), 8000, 1, 16)
+      println("pcm bytes: ${show(length(pcm))}, header bytes: ${show(length(header))}")
+      match slice(header, 0, 4) {
+        Some(magic) => println("magic: ${toString(magic)}"),
+        None => println("header too short")
+      }
+      let wav = concat(header, pcm)
+      println("same as wavFromPcm: ${show(toInts(wav) == toInts(wavFromPcm(pcm, 8000, 1, 16)))}")
+      match wavInfo(wav) {
+        Ok(info) => println("rate ${show(info.rate)} Hz, ${show(info.channels)} ch, ${show(info.validBits)}-bit, ${show(info.frames)} frames, data at ${show(info.dataOffset)}"),
+        Err(e) => println("wavInfo failed: ${e}")
+      }
+      println("duration: ${show(durationMs(length(pcm), 8000, 1, 16))} ms")
+    }
+  }
+  -- Header for one minute of CD audio (44.1 kHz stereo 16-bit), and three bad requests.
+  let cdMinute = 44100 * 2 * 2 * 60
+  println(checked("cd minute", wavHeaderChecked(cdMinute, 44100, 2, 16)))
+  println("cd minute duration: ${show(durationMs(cdMinute, 44100, 2, 16))} ms")
+  println(checked("zero channels", wavHeaderChecked(1000, 8000, 0, 16)))
+  println(checked("12-bit samples", wavHeaderChecked(1000, 8000, 1, 12)))
+  println(checked("half a frame", wavHeaderChecked(3, 8000, 1, 16)))
+}

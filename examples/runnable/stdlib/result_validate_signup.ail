@@ -1,0 +1,49 @@
+-- Task: validate sign-up form input (an age string and a username) with
+-- Result — parse, range-check and normalise each field, stop at the first
+-- failure, turn typed errors into user-facing messages, and count failures.
+-- Demonstrates std/result flatMap, map, mapErr, isOk, isErr and unwrap.
+module examples/runnable/stdlib/result_validate_signup
+import std/result (Result, Ok, Err, flatMap, map, mapErr, isOk, isErr, unwrap)
+import std/string (stringToInt, trim, length, toLower)
+import std/list (filter, forEachE)
+import std/list as L
+
+type FormError = NotANumber(string) | OutOfRange(int) | BadName(string)
+
+pure func parseAge(s: string) -> Result[int, FormError] = match stringToInt(trim(s)) {
+  Some(n) => Ok(n),
+  None => Err(NotANumber(s))
+}
+
+pure func checkAge(n: int) -> Result[int, FormError] = if n >= 13 && n <= 120 then Ok(n) else Err(OutOfRange(n))
+
+pure func checkName(name: string) -> Result[string, FormError] =
+  if length(name) >= 3 then Ok(toLower(name)) else Err(BadName(name))
+
+pure func describe(e: FormError) -> string = match e {
+  NotANumber(s) => "age \"${s}\" is not a number",
+  OutOfRange(n) => "age ${show(n)} must be between 13 and 120",
+  BadName(s) => "username \"${s}\" is shorter than 3 characters"
+}
+
+-- flatMap chains steps that can fail; map transforms only a success value.
+pure func validate(ageText: string, name: string) -> Result[string, string] {
+  let age = flatMap(checkAge, parseAge(ageText))
+  let account = flatMap(\a. map(\n. "${n} (age ${show(a)})", checkName(name)), age)
+  mapErr(describe, account)
+}
+
+export func main() -> () ! {IO} {
+  let forms = [(" 34 ", "Grace"), ("abc", "Linus"), ("7", "Ada"), ("40", "Al")]
+  let results = L.map(\f. match f {
+    (a, n) => validate(a, n)
+  }, forms)
+  forEachE(\r. match r {
+    Ok(account) => println("ok: ${account}"),
+    Err(msg) => println("error: ${msg}")
+  }, results)
+  println("accepted: ${show(L.length(filter(isOk, results)))}, rejected: ${show(L.length(filter(isErr, results)))}")
+  -- unwrap is only safe once isOk has been checked.
+  let first = validate("21", "margaret")
+  if isOk(first) then println("first account: ${unwrap(first)}") else println("first account failed")
+}

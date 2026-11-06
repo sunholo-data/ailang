@@ -1,0 +1,42 @@
+-- Task: classify a new point by nearest centroid — average the vectors of two
+-- labelled clusters into centroids, find which centroid is closest to a query
+-- by Euclidean distance, then nudge that centroid toward the query.
+-- Demonstrates std/embedding add_vectors, scale, euclidean_distance, axpy and dot.
+module examples/runnable/stdlib/embedding_vector_ops
+import std/embedding (add_vectors, scale, euclidean_distance, axpy, dot)
+import std/list (foldl, length, map, sortBy)
+import std/string (join)
+
+-- Sum with add_vectors, then divide by the count with scale.
+pure func centroid(vs: [[float]]) -> [float] = match vs {
+  [] => [],
+  first :: rest => scale(1.0 / intToFloat(length(vs)), foldl(\acc v. add_vectors(acc, v), first, rest))
+}
+
+pure func cmpDist(a: { label: string, dist: float }, b: { label: string, dist: float }) -> int =
+  if a.dist < b.dist then -1 else if a.dist > b.dist then 1 else 0
+
+pure func showCentroid(k: { label: string, c: [float] }) -> string = "${k.label}=${show(k.c)}"
+
+pure func showDist(r: { label: string, dist: float }) -> string = "${r.label}=${show(r.dist)}"
+
+export func main() -> () ! {IO} {
+  let small = [[1.0, 1.0], [2.0, 1.0], [1.0, 2.0], [2.0, 2.0]]
+  let large = [[8.0, 9.0], [9.0, 8.0], [10.0, 10.0]]
+  let centroids = [{ label: "small", c: centroid(small) }, { label: "large", c: centroid(large) }]
+  println("centroids: ${join(", ", map(showCentroid, centroids))}")
+  let query = [6.0, 7.0]
+  let ranked = sortBy(cmpDist, map(\k. { label: k.label, dist: euclidean_distance(query, k.c) }, centroids))
+  println("distances: ${join(", ", map(showDist, ranked))}")
+  match ranked {
+    best :: _ => println("query ${show(query)} -> ${best.label}"),
+    [] => println("no centroids")
+  }
+  -- Online update: c := c + lr * (query - c), written as axpy(lr, query - c, c).
+  let c = centroid(large)
+  let toward = add_vectors(query, scale(-1.0, c))
+  let updated = axpy(0.1, toward, c)
+  println("updated large centroid: ${show(updated)}")
+  -- dot of (query - c) with itself is the squared distance.
+  println("squared distance check: ${show(dot(toward, toward))}")
+}

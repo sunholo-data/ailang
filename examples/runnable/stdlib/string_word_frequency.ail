@@ -1,0 +1,35 @@
+-- Task: count word frequencies in a paragraph — lowercase it, strip
+-- punctuation, split on any whitespace, group equal words, and print the top
+-- four words by count (ties in alphabetical order).
+-- Demonstrates std/string words, toLower, replaceMany, compare, join and
+-- std/list sortBy, foldr, take and map.
+module examples/runnable/stdlib/string_word_frequency
+import std/string (words, toLower, replaceMany, compare, join)
+import std/list (sortBy, foldr, take, map, length)
+
+-- Delete punctuation by replacing each mark with "".
+pure func normalise(text: string) -> string =
+  replaceMany(toLower(text), [(".", ""), (",", ""), ("!", ""), ("?", ""), (";", "")])
+
+-- On a SORTED list equal words are adjacent, so a right fold can group them:
+-- bump the head count when it matches, otherwise start a new (word, 1) pair.
+pure func countRuns(sorted: [string]) -> [(string, int)] = foldr(\w acc. match acc {
+  (prev, n) :: rest => if prev == w then (prev, n + 1) :: rest else (w, 1) :: acc,
+  [] => [(w, 1)]
+}, [], sorted)
+
+pure func byCountThenWord(a: (string, int), b: (string, int)) -> int = match (a, b) {
+  ((wa, na), (wb, nb)) => if na != nb then nb - na else compare(wa, wb)
+}
+
+export func main() -> () ! {IO} {
+  let text = "The cat sat on the mat. The dog sat too!\nDid the cat see the dog?\tYes, the cat did."
+  let ws = words(normalise(text))
+  println("words: ${show(length(ws))}")
+  let counts = countRuns(sortBy(compare, ws))
+  println("distinct: ${show(length(counts))}")
+  let top = take(4, sortBy(byCountThenWord, counts))
+  println(join("\n", map(\p. match p {
+    (w, n) => "${w}: ${show(n)}"
+  }, top)))
+}

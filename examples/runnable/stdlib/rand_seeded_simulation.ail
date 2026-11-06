@@ -1,0 +1,25 @@
+-- Task: run a reproducible dice-and-coin simulation — seed the generator so
+-- every run prints the same numbers, roll dice, flip coins, draw jitter values
+-- in a float range, and show that re-seeding replays the exact sequence.
+-- Demonstrates std/rand rand_seed, rand_int, rand_bool and rand_float.
+module examples/runnable/stdlib/rand_seeded_simulation
+import std/rand (rand_seed, rand_int, rand_bool, rand_float)
+import std/list (range, mapE, map, filter, length, foldl)
+import std/string (formatFixed, join)
+
+func rollDice(n: int) -> [int] ! {Rand} = mapE(\_. rand_int(1, 6), range(0, n))
+
+export func main() -> () ! {IO, Rand} {
+  -- Without rand_seed the sequence differs on every run.
+  rand_seed(2026)
+  let rolls = rollDice(10)
+  println("rolls: ${show(rolls)}")
+  println("sixes: ${show(length(filter(\r. r == 6, rolls)))}, total: ${show(foldl(\a r. a + r, 0, rolls))}")
+  let flips = mapE(\_. if rand_bool() then "H" else "T", range(0, 12))
+  println("coins: ${join("", flips)}")
+  -- rand_float draws from [min, max).
+  let jitter = mapE(\_. rand_float(-0.5, 0.5), range(0, 4))
+  println("jitter: ${join(", ", map(\x. formatFixed(x, 3), jitter))}")
+  rand_seed(2026)
+  println("replayed after re-seed: ${show(rollDice(10) == rolls)}")
+}

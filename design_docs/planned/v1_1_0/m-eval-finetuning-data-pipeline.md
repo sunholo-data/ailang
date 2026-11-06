@@ -334,7 +334,7 @@ for syntax, re-reading the full prompt each turn.
 
 | Change | Why | Measured gap |
 |---|---|---|
-| Take `examples/` from the main checkout first, weight ×2–3, drop the ones that fail `check` | Canonical one-feature-per-file syntax; kept current by `verify-examples`; not benchmark solutions | 481 on disk, ~397 pass `check`, **25** reached the repo pool and **1** reached the pilot-1 mix. The duplicate filter kept a worktree copy, and that copy was rejected. |
+| Take `examples/` from the main checkout first, weight ×2–3, drop the ones that fail `check` | Canonical one-feature-per-file syntax; kept current by `verify-examples`; not benchmark solutions | 481 on disk, ~397 pass `check`, **25** reached the repo pool and **1** reached the pilot-1 mix. Cause (corrected 2026-11-06): `extract_lang.py` checked files by **absolute path**, so every path-named module failed MOD010. Fixed (relative paths, main-checkout copy first): 27 → 466 kept on examples alone. The repo corpus as a whole was hit too, so pilot-2 re-extracts. 63 new examples added (D-FT-5), stdlib coverage 400 → 469 of 496 functions. |
 | Up-weight trajectory turns that follow a lookup (`docs`, `examples`, `iface`, `builtins`) or a `check` error | Teaches habits 2–4 | 2,345 of 23,740 trajectory samples contain a lookup call; the mix builder doesn't favour them now |
 | **Staleness pairs:** old code + the current error + the fixed version | Teaches habit 4 directly | Eval rejects are mostly `++` on strings (≈1,400) plus the 681 stdlib-skew repo rejects; the error text already names the fix |
 | All 6,293 eval passes, lower per-benchmark repeat weight | More syntax signal (standard pairs still help agent writes) | Pilot-1 capped them at 10 per benchmark → 585 samples |

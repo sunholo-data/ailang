@@ -1,0 +1,31 @@
+-- Task: render untrusted user comments into an HTML list safely — escape the
+-- HTML special characters in one pass, unescape them again to prove the round
+-- trip, and indent every line of the generated markup.
+-- Demonstrates std/string replaceMany, replace, contains, mapSlicesJoin and join.
+module examples/runnable/stdlib/string_html_escape
+import std/string (replaceMany, replace, contains, mapSlicesJoin, join)
+import std/list (map)
+import std/io (print)
+
+-- replaceMany scans the input once and never rescans replacement text, so the
+-- "&" inside "&lt;" is not escaped a second time. At each position the pairs
+-- are tried in order and the first match wins.
+pure func escapeHtml(s: string) -> string =
+  replaceMany(s, [("&", "&amp;"), ("<", "&lt;"), (">", "&gt;"), ("\"", "&quot;"), ("'", "&#39;")])
+
+pure func unescapeHtml(s: string) -> string =
+  replaceMany(s, [("&lt;", "<"), ("&gt;", ">"), ("&quot;", "\""), ("&#39;", "'"), ("&amp;", "&")])
+
+export func main() -> () ! {IO} {
+  let comments = ["Tom & Jerry", "<script>alert('hi')</script>", "5 > 3 \"obviously\""]
+  let escaped = map(escapeHtml, comments)
+  let items = map(\c. "<li>${c}</li>", escaped)
+  let html = join("\n", ["<ul>"] ++ items ++ ["</ul>"])
+  println(html)
+  println("safe: ${show(not contains(join("", escaped), "<script>"))}")
+  println("round trip: ${show(map(unescapeHtml, escaped) == comments)}")
+  -- mapSlicesJoin concatenates the mapped slices with NO separator, so the
+  -- callback re-adds the newline it split on.
+  print(mapSlicesJoin(html, "\n", \line. "  ${line}\n"))
+  println(replace("a&nbsp;b&nbsp;c", "&nbsp;", " "))
+}

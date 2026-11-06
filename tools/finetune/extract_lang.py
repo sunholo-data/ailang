@@ -56,9 +56,37 @@ def git_top(path: str) -> str:
     return os.path.dirname(path)
 
 
+WORKTREE_MARKERS = ("worktree", "/.wt-", "-wt/", "/.claude/", "/tmp/")
+
+
+def copy_priority(path: str) -> tuple:
+    """Order duplicate copies: this repo's main checkout first, worktrees and scratch copies last.
+
+    Identical files live in many worktrees, and a stale or relocated copy can fail
+    `ailang check` (wrong git top, missing sibling modules) while the canonical one
+    passes. Pilot-1 lost ~370 of ~397 passing examples/ files that way (2026-11-06).
+    """
+    in_repo = path.startswith(REPO + os.sep)
+    return (not in_repo, any(m in path for m in WORKTREE_MARKERS), path)
+
+
+def check_first_passing(paths: list) -> tuple:
+    """Check copies in priority order (at most 3); return (path, ok, why) for the first that passes."""
+    why = "no copy checked"
+    for p in sorted(paths, key=copy_priority)[:3]:
+        ok, why = check_file(p, git_top(p))
+        if ok:
+            return p, True, ""
+    return paths[0], False, why
+
+
 def check_file(path: str, cwd: str) -> tuple[bool, str]:
+    # Pass the path RELATIVE to the git top: ailang derives the expected module name
+    # from the path it is given, so an absolute path makes every path-named module
+    # (`module examples/runnable/x`) fail MOD010 against "Users/<user>/dev/...".
+    rel = os.path.relpath(path, cwd) if path.startswith(cwd + os.sep) else path
     try:
-        r = subprocess.run([AILANG, "check", path], cwd=cwd, capture_output=True, text=True, timeout=60)
+        r = subprocess.run([AILANG, "check", rel], cwd=cwd, capture_output=True, text=True, timeout=60)
     except subprocess.TimeoutExpired:
         return False, "timeout"
     if r.returncode == 0:
@@ -129,7 +157,7 @@ def main():
     ec["candidates"] = len(eval_cands)
 
     # ---- repo corpus
-    repo_cands, rseen = [], set()
+    repo_cands, rseen = [], {}   # rseen: content hash -> index into repo_cands
     rc = Counter()
     for r in a.roots:
         for dp, _, fns in os.walk(os.path.expanduser(r)):
@@ -148,9 +176,10 @@ def main():
                 h = hashlib.sha1(code.encode()).hexdigest()
                 if h in rseen:
                     rc["duplicate"] += 1
+                    repo_cands[rseen[h]][0].append(p)   # keep every copy; the check picks one
                     continue
-                rseen.add(h)
-                repo_cands.append((p, code, norm_hash(code)))
+                rseen[h] = len(repo_cands)
+                repo_cands.append(([p], code, norm_hash(code)))
     rc["candidates"] = len(repo_cands)
 
     # ---- contamination guard (both sources)
@@ -162,7 +191,7 @@ def main():
     # ---- re-grade with the current compiler
     with cf.ThreadPoolExecutor(a.workers) as ex:
         eres = list(ex.map(lambda c: check_eval_program(c[3]), eval_cands))
-        rres = list(ex.map(lambda c: check_file(c[0], git_top(c[0])), repo_cands))
+        rres = list(ex.map(lambda c: check_first_passing(c[0]), repo_cands))
 
     reasons_e, reasons_r = Counter(), Counter()
     with open(os.path.join(a.out, "eval.jsonl"), "w") as f:
@@ -174,7 +203,7 @@ def main():
                                 "task": task_prompt(bid), "code": code}) + "\n")
             ec["kept"] += 1
     with open(os.path.join(a.out, "repo.jsonl"), "w") as f:
-        for (p, code, _), (ok, why) in zip(repo_cands, rres):
+        for (_, code, _), (p, ok, why) in zip(repo_cands, rres):
             if not ok:
                 reasons_r[why] += 1
                 continue

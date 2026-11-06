@@ -1,0 +1,39 @@
+-- Task: fingerprint a file's contents with SHA-256 (from text and from raw
+-- bytes), check a downloaded copy against the published digest, and verify a
+-- webhook's HMAC signature, rejecting a tampered body.
+-- Demonstrates std/crypto sha256Hex, sha256Bytes, hmacSha256 and constantTimeEqual.
+module examples/runnable/stdlib/crypto_digest_compare
+import std/crypto (sha256Hex, sha256Bytes, hmacSha256, constantTimeEqual)
+import std/bytes (fromString, fromInts)
+import std/string (length, substring)
+
+-- Compare digests with constantTimeEqual so the check leaks no timing signal.
+pure func digestMatches(content: string, published: string) -> bool = constantTimeEqual(sha256Hex(content), published)
+
+-- A webhook is genuine only if HMAC(body, secret) equals the header value.
+pure func webhookValid(body: string, header: string, secret: string) -> bool =
+  constantTimeEqual(hmacSha256(body, secret), header)
+
+export func main() -> () ! {IO} {
+  let release = "ailang-1.0.0.tar.gz contents"
+  let digest = sha256Hex(release)
+  println("sha256: ${digest}")
+  println("hex length: ${show(length(digest))}")
+  println("short id: ${substring(digest, 0, 12)}")
+  -- Text and its UTF-8 bytes hash to the same digest.
+  println("bytes digest equal: ${show(sha256Bytes(fromString(release)) == digest)}")
+  -- Raw bytes that are not valid UTF-8 text can still be hashed.
+  println("binary digest: ${sha256Bytes(fromInts([0, 255, 128, 7]))}")
+  println("download ok: ${show(digestMatches(release, digest))}")
+  let corrupt = "${release}!"
+  println("corrupt download ok: ${show(digestMatches(corrupt, digest))}")
+  let secret = "whsec_test_123"
+  let body = "{\"event\":\"payment.succeeded\",\"amount\":4200}"
+  let header = hmacSha256(body, secret)
+  println("signature: ${header}")
+  println("genuine webhook: ${show(webhookValid(body, header, secret))}")
+  let tampered = "{\"event\":\"payment.succeeded\",\"amount\":9900}"
+  println("tampered webhook: ${show(webhookValid(tampered, header, secret))}")
+  let wrongSecret = "whsec_other"
+  println("wrong secret: ${show(webhookValid(body, header, wrongSecret))}")
+}

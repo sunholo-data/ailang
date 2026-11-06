@@ -1,0 +1,47 @@
+-- Task: extract structured fields from web-server log lines with a regular
+-- expression (method, path, status, duration), keep only the error responses,
+-- mask client IP addresses, and split a header list. Demonstrates std/regex
+-- compile, findFirst with capture groups, findAll, isMatch, replaceAll and split.
+module examples/runnable/stdlib/regex_log_extract
+import std/regex as R
+import std/regex (Regex, RegexMatch)  -- type names cannot be written qualified (R.Regex)
+import std/list (map, filter, flatMap, forEachE, nth, length)
+import std/string (join, stringToInt)
+
+type Hit = { method: string, path: string, status: int, ms: int }
+
+-- groups[0] is the whole match; groups[1..] are the capture groups in order.
+func group(m: RegexMatch, i: int) -> string = match nth(m.groups, i) {
+  Some(g) => g.text,
+  None => ""
+}
+
+func toInt(s: string) -> int = match stringToInt(s) {
+  Some(n) => n,
+  None => 0
+}
+
+func parseLine(re: Regex, line: string) -> [Hit] = match R.findFirst(re, line) {
+  Some(m) => [{ method: group(m, 1), path: group(m, 2), status: toInt(group(m, 3)), ms: toInt(group(m, 4)) }],
+  None => []
+}
+
+export func main() -> () ! {IO} {
+  let lines = ["10.0.0.7 GET /api/users 200 12ms", "192.168.1.20 POST /api/login 401 85ms", "garbage line without a request", "10.0.0.9 GET /api/report 500 1240ms"]
+  match (R.compile("(GET|POST|PUT|DELETE) (\\S+) (\\d{3}) (\\d+)ms"), R.compile("\\b\\d{1,3}(\\.\\d{1,3}){3}\\b")) {
+    (Ok(req), Ok(ip)) => {
+      let hits = flatMap(\l. parseLine(req, l), lines)
+      println("parsed ${show(length(hits))} of ${show(length(lines))} lines")
+      forEachE(\h. println("error ${show(h.status)} ${h.method} ${h.path} (${show(h.ms)}ms)"), filter(\h. h.status >= 400, hits))
+      println("lines with an IP: ${show(length(filter(\l. R.isMatch(ip, l), lines)))}")
+      println("masked: ${R.replaceAll(ip, "10.0.0.7 -> 192.168.1.20", "x.x.x.x")}")
+      -- findAll returns every non-overlapping match, left to right.
+      println("all ips: ${join(", ", map(\m. m.text, R.findAll(ip, join(" ", lines))))}")
+    },
+    _ => println("bad pattern")
+  }
+  match R.compile("\\s*;\\s*") {
+    Ok(sep) => println("parts: ${join("|", R.split(sep, "text/html ; charset=utf-8;q=0.9"))}"),
+    Err(e) => println("bad pattern: ${e}")
+  }
+}

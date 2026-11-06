@@ -1,0 +1,53 @@
+-- Task: package a report as a .zip on disk — one archive of text files and one
+-- holding a binary attachment — then reopen each archive, list its entries,
+-- read a text entry and a binary entry back, and delete both archives.
+-- Demonstrates std/zip createArchive, createArchiveWithBytes, listEntries,
+-- readEntry and readEntryBytes.
+module examples/runnable/stdlib/zip_archive_on_disk
+import std/zip (createArchive, createArchiveWithBytes, listEntries, readEntry, readEntryBytes)
+import std/fs (removeFile)
+import std/bytes (fromString, fromInts, toBase64, fromBase64, toInts)
+import std/string (join)
+
+func showEntries(path: string) -> () ! {IO, FS} = match listEntries(path) {
+  Ok(names) => println("${path}: ${join(", ", names)}"),
+  Err(e) => println("list failed: ${e}")
+}
+
+export func main() -> () ! {IO, FS} {
+  let textZip = "zip_archive_on_disk_report.zip"
+  let binZip = "zip_archive_on_disk_assets.zip"
+  -- Text entries: content is plain UTF-8.
+  let files = [{ name: "README.txt", content: "Quarterly report\n" }, { name: "data/sales.csv", content: "region,total\nnorth,120\nsouth,95\n" }]
+  match createArchive(textZip, files) {
+    Err(e) => println("create failed: ${e}"),
+    Ok(_) => {
+      showEntries(textZip)
+      match readEntry(textZip, "data/sales.csv") {
+        Ok(csv) => println("sales.csv:\n${csv}"),
+        Err(e) => println("read failed: ${e}")
+      }
+      match readEntry(textZip, "nope.txt") {
+        Ok(_) => println("nope.txt: found?"),
+        Err(e) => println("nope.txt: ${e}")
+      }
+      removeFile(textZip)
+    }
+  }
+  -- Binary entries: data is base64, so text must be encoded too.
+  let assets = [{ name: "notes.txt", data: toBase64(fromString("see chart")) }, { name: "chart.bin", data: toBase64(fromInts([0, 16, 32, 255])) }]
+  match createArchiveWithBytes(binZip, assets) {
+    Err(e) => println("create failed: ${e}"),
+    Ok(_) => {
+      showEntries(binZip)
+      match readEntryBytes(binZip, "chart.bin") {
+        Ok(b64) => match fromBase64(b64) {
+          Some(b) => println("chart.bin bytes: ${show(toInts(b))}"),
+          None => println("chart.bin: bad base64")
+        },
+        Err(e) => println("read failed: ${e}")
+      }
+      removeFile(binZip)
+    }
+  }
+}

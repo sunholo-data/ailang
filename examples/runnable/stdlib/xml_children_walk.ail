@@ -1,0 +1,46 @@
+-- Task: walk the direct children of an XML <inventory> element: classify each
+-- child node (element, text or comment), list the product names while skipping
+-- non-element nodes, and add up stock until a budget is hit, stopping early.
+-- Demonstrates std/xml parse, nodeKind, mapChildren, flatMapChildren,
+-- foldChildrenStep and getAttr, with std/iter Continue/Stop.
+module examples/runnable/stdlib/xml_children_walk
+import std/xml (XmlNode, NodeKind, KindElement, KindText, KindComment, parse, nodeKind, mapChildren, flatMapChildren, foldChildrenStep, getAttr, getText)
+import std/iter (FoldStep, Continue, Stop)
+import std/string (join, stringToInt)
+
+func kindName(k: NodeKind) -> string = match k {
+  KindElement => "element",
+  KindText => "text",
+  KindComment => "comment"
+}
+
+func qty(n: XmlNode) -> int = match getAttr(n, "qty") {
+  Some(s) => match stringToInt(s) {
+    Some(q) => q,
+    None => 0
+  },
+  None => 0
+}
+
+-- Add one product's qty; Stop once the running total reaches the budget.
+func addUntil(budget: int, acc: int, c: XmlNode) -> FoldStep[int] {
+  let t = acc + qty(c)
+  if nodeKind(c) != KindElement then Continue(acc) else if t >= budget then Stop(t) else Continue(t)
+}
+
+export func main() -> () ! {IO} {
+  let xml = "<inventory><!-- spring stock --><product qty=\"4\">Lamp</product>loose text<product qty=\"10\">Desk</product><product qty=\"7\">Chair</product></inventory>"
+  match parse(xml) {
+    Err(e) => println("parse error: ${e}"),
+    Ok(root) => {
+      -- mapChildren: exactly one output per child.
+      println("kinds: ${join(", ", mapChildren(root, \c. kindName(nodeKind(c))))}")
+      -- flatMapChildren: zero or more outputs per child, here [] for non-elements.
+      let names = flatMapChildren(root, \c. if nodeKind(c) == KindElement then [getText(c)] else [])
+      println("products: ${join(", ", names)}")
+      -- foldChildrenStep: the walk ends at the first Stop, so later children are never read.
+      let total = foldChildrenStep(root, 0, \acc c. addUntil(12, acc, c))
+      println("stock counted until budget: ${show(total)}")
+    }
+  }
+}

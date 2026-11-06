@@ -1,0 +1,44 @@
+-- Task: authenticate an API request's RS256 bearer token — verify it against a
+-- PEM public key, then against a key set selected by the token's "kid" header,
+-- check issuer, audience and expiry, and reject a tampered token and an unknown kid.
+-- Demonstrates std/jwt verifyRS256, verifyWithKid, checkIssuer, checkAudience and isExpired.
+module examples/runnable/stdlib/jwt_rs256_verify
+import std/jwt (verifyRS256, verifyWithKid, checkIssuer, checkAudience, isExpired)
+import std/json (Json, jo, kv, js, getString)
+import std/string (replace)
+
+-- Test-only 1024-bit public key; the matching private key signed the token below.
+pure func publicKey() -> string =
+  "-----BEGIN PUBLIC KEY-----\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDbkgzpQXsv6SQd8A8UiIgLypmC\nVJs5hIanrbhIcu5++ITr9iGs9bUQfnN+jKHM2RL9Y1v/tzBFLzusyW0vf0W6CdGY\nR/X0zFWXeajbb4aOOZbbpvmds8vR+XdkgfAKXEElov7eEjzEWCrqkbZ2hxaIqvvK\n4JP2aQp7yvWEKB7haQIDAQAB\n-----END PUBLIC KEY-----\n"
+
+-- Header {"alg":"RS256","typ":"JWT","kid":"key-2026"}
+-- Payload {"sub":"user-42","iss":"https://auth.example.com","aud":"orders-api","exp":2000000000}
+pure func token() -> string =
+  "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCIsImtpZCI6ImtleS0yMDI2In0.eyJzdWIiOiJ1c2VyLTQyIiwiaXNzIjoiaHR0cHM6Ly9hdXRoLmV4YW1wbGUuY29tIiwiYXVkIjoib3JkZXJzLWFwaSIsImV4cCI6MjAwMDAwMDAwMH0.loRG6eu2E7KvDobp4zQMsnDI-PEYoaLh1oNoKi8xMBQANiNZmkjaVsNToIkW1_lNaSskS6PkyCHCVfLo1ycV35zJVq30Th21b8PeCUgv-TXAM504gg_UACfCXyiGSwaQ1rsbfB5ifJ4XpNDQpwbINjb3RwV-3kYhb6dddxzwI0Y"
+
+-- A valid signature is necessary but not sufficient: the claims must fit this API too.
+pure func authorize(claims: Json, now: int) -> string =
+  if not checkIssuer(claims, "https://auth.example.com") then "wrong issuer" else if not checkAudience(claims, "orders-api") then "wrong audience" else if isExpired(claims, now) then "expired" else match getString(claims, "sub") {
+    Some(sub) => "authorized as ${sub}",
+    None => "no subject"
+  }
+
+pure func report(r: Result[Json, string], now: int) -> string = match r {
+  Ok(claims) => authorize(claims, now),
+  Err(e) => "rejected: ${e}"
+}
+
+export func main() -> () ! {IO} {
+  -- The caller supplies "now" so verification stays pure and reproducible.
+  let now = 1800000000
+  println("pem key: ${report(verifyRS256(token(), publicKey()), now)}")
+  println("pem key, later: ${report(verifyRS256(token(), publicKey()), 2100000000)}")
+  -- Keys published by an identity provider, indexed by key id.
+  let keySet = jo([kv("key-2025", js("retired")), kv("key-2026", js(publicKey()))])
+  println("key set: ${report(verifyWithKid(token(), keySet), now)}")
+  let rotated = jo([kv("key-2027", js(publicKey()))])
+  println("rotated key set: ${report(verifyWithKid(token(), rotated), now)}")
+  -- Swap user-42 for user-43 in the payload without re-signing.
+  let forged = replace(token(), "eyJzdWIiOiJ1c2VyLTQy", "eyJzdWIiOiJ1c2VyLTQz")
+  println("forged token: ${report(verifyRS256(forged, publicKey()), now)}")
+}

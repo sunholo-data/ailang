@@ -1,0 +1,80 @@
+-- Task: unpack a .tar.gz source bundle shipped inline as base64: save it to a
+-- scratch directory, pull a text and a binary file straight out of the .tar.gz,
+-- then gunzip it to a plain .tar and list each entry with its size, cleaning up after.
+-- Demonstrates std/tar readFromGzip, readFromGzipBytes, listEntries, readEntry, std/gzip decompress.
+module examples/runnable/stdlib/tar_gzip_bundle
+import std/tar (TarEntry, readFromGzip, readFromGzipBytes, listEntries, readEntry)
+import std/gzip (decompress)
+import std/fs (mkdirResult, writeFileBytesResult, removeFile, removeDirResult)
+import std/bytes (fromBase64, length, toInts)
+import std/string (join, trim)
+import std/list (map)
+
+-- paper/ (dir), paper/main.tex, paper/refs.bib, paper/logo.bin — gzip of a 10240-byte tar.
+pure func bundleB64() -> string =
+  "H4sIAAAAAAAC/+3TwWrCMBzH8bjd+hR9AKmpa8xpoCc3GOID9JLW/0ogTUsTYVD6AL70tqIMNrcdWxF/n0sCOeTw41urmpoZGxTvSSGOZ+/8/OMuuUhYKNgI9s6rpv+S3ab6uH+ptI08vQ23/yJJ/t0/5vLn/jEXc85Cjv0Hl+6qfF+S9blRzrWq8To31AVpRoW27ddrFzyRMdU0XD2/rDbrKEjJ7r69Mrjm/ht6dVGms8v0zx8W5/0nEv2PYllql7dKG2WLaei1N/TYniLvkPWt9G+qour7txfqP57/7l+i/zEctps1m9zdf7yjBQAAAAAAAAAAAAAAAIBr9wkdlhK+ACgAAA=="
+
+pure func describe(e: TarEntry) -> string = if e.isDir then "  ${e.name} (dir)" else "  ${e.name} ${show(e.size)} bytes"
+
+func writeB64(path: string, b64: string) -> Result[(), string] ! {FS} = match fromBase64(b64) {
+  Some(raw) => writeFileBytesResult(path, raw),
+  None => Err("bad base64 for ${path}")
+}
+
+-- Reads the plain .tar produced by gunzipping the bundle in memory.
+func listTar(tar: string) -> () ! {IO, FS} {
+  match listEntries(tar) {
+    Ok(entries) => println("entries:\n${join("\n", map(describe, entries))}"),
+    Err(e) => println("list failed: ${e}")
+  }
+  match readEntry(tar, "paper/refs.bib") {
+    Ok(bib) => println("refs.bib: ${trim(bib)}"),
+    Err(e) => println("refs.bib: ${e}")
+  }
+}
+
+func inspect(dir: string) -> () ! {IO, FS} {
+  let tgz = "${dir}/paper.tar.gz"
+  let tar = "${dir}/paper.tar"
+  match readFromGzip(tgz, "paper/main.tex") {
+    Ok(tex) => println("main.tex:\n${tex}"),
+    Err(e) => println("main.tex: ${e}")
+  }
+  -- Binary entries come back base64-encoded, like std/zip readEntryBytes.
+  match readFromGzipBytes(tgz, "paper/logo.bin") {
+    Ok(b64) => match fromBase64(b64) {
+      Some(b) => println("logo.bin: ${show(length(b))} bytes ${show(toInts(b))}"),
+      None => println("logo.bin: bad base64")
+    },
+    Err(e) => println("logo.bin: ${e}")
+  }
+  match decompress(bundleB64()) {
+    Err(e) => println("gunzip failed: ${e}"),
+    Ok(tarB64) => match writeB64(tar, tarB64) {
+      Err(e) => println("write failed: ${e}"),
+      Ok(_) => {
+        listTar(tar)
+        removeFile(tar)
+      }
+    }
+  }
+}
+
+export func main() -> () ! {IO, FS} {
+  let dir = "tar_gzip_bundle_scratch"
+  let tgz = "${dir}/paper.tar.gz"
+  match mkdirResult(dir) {
+    Err(e) => println("mkdir failed: ${e}"),
+    Ok(_) => {
+      match writeB64(tgz, bundleB64()) {
+        Ok(_) => inspect(dir),
+        Err(e) => println("write failed: ${e}")
+      }
+      removeFile(tgz)
+      match removeDirResult(dir) {
+        Ok(_) => println("scratch directory removed"),
+        Err(e) => println("cleanup failed: ${e}")
+      }
+    }
+  }
+}

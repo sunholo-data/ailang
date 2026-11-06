@@ -1,0 +1,36 @@
+-- Task: process a batch of records, writing the results to stdout and the
+-- diagnostics (warnings and a summary) to stderr so a caller can pipe the data
+-- cleanly — build one stdout line from pieces, then flush.
+-- Demonstrates std/io println, print, eprintln, printErr and flush.
+module examples/runnable/stdlib/io_stdout_stderr
+import std/io (println, print, eprintln, printErr, flush)
+import std/string (stringToInt)
+import std/list (forEachE, foldlE)
+
+-- Print a valid value to stdout; report a bad one on stderr and count it.
+func processOne(bad: int, raw: string) -> int ! {IO} = match stringToInt(raw) {
+  Some(n) => {
+    println("${raw} squared = ${show(n * n)}")
+    bad
+  },
+  None => {
+    eprintln("warning: skipping \"${raw}\" (not an integer)")
+    bad + 1
+  }
+}
+
+export func main() -> () ! {IO} {
+  let inputs = ["3", "x7", "12", "", "5"]
+  let bad = foldlE(processOne, 0, inputs)
+  -- print adds no newline, so several calls build one line.
+  print("valid:")
+  forEachE(\s. match stringToInt(s) {
+    Some(_) => print(" ${s}"),
+    None => ()
+  }, inputs)
+  print("\n")
+  flush()
+  -- printErr adds no newline either; eprintln does.
+  printErr("summary: ")
+  eprintln("${show(bad)} of 5 inputs rejected")
+}

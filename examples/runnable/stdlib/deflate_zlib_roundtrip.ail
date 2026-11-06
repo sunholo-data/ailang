@@ -1,0 +1,50 @@
+-- Task: compress a repetitive log excerpt with both raw deflate (RFC 1951) and
+-- zlib-wrapped deflate (RFC 1950), print the sizes, inflate each back to the
+-- original text, and show that the two framings are not interchangeable.
+-- Demonstrates std/deflate deflate, inflate, deflateZlib and inflateZlib with std/bytes.
+module examples/runnable/stdlib/deflate_zlib_roundtrip
+import std/deflate (deflate, inflate, deflateZlib, inflateZlib)
+import std/bytes (fromString, toString, toBase64, fromBase64, length)
+import std/string (repeat)
+
+-- std/deflate passes binary data as base64 strings; this gives the decoded byte count.
+pure func byteSize(b64: string) -> int = match fromBase64(b64) {
+  Some(b) => length(b),
+  None => -1
+}
+
+pure func asText(r: Result[string, string]) -> string = match r {
+  Err(e) => "error: ${e}",
+  Ok(b64) => match fromBase64(b64) {
+    Some(b) => toString(b),
+    None => "error: inflate returned bad base64"
+  }
+}
+
+export func main() -> () ! {IO} {
+  let line = "2026-11-06 INFO request served path=/api/orders status=200\n"
+  let text = repeat(line, 40)
+  let input = toBase64(fromString(text))
+  println("original bytes: ${show(length(fromString(text)))}")
+  match (deflate(input, 9), deflateZlib(input, 9)) {
+    (Ok(raw), Ok(zlib)) => {
+      println("raw deflate bytes: ${show(byteSize(raw))}")
+      -- zlib adds a 2-byte header and a 4-byte Adler-32 trailer.
+      println("zlib bytes: ${show(byteSize(zlib))}")
+      println("zlib overhead: ${show(byteSize(zlib) - byteSize(raw))}")
+      println("raw round trip ok: ${show(asText(inflate(raw)) == text)}")
+      println("zlib round trip ok: ${show(asText(inflateZlib(zlib)) == text)}")
+      -- Feeding a zlib stream to the raw decoder fails loudly instead of returning junk.
+      match inflate(zlib) {
+        Ok(_) => println("raw inflate of zlib: unexpectedly decoded"),
+        Err(_) => println("raw inflate of zlib: rejected")
+      }
+    },
+    _ => println("compression failed")
+  }
+  -- Levels outside 0..9 are an error, not silently clamped.
+  match deflate(input, 12) {
+    Ok(_) => println("level 12: accepted"),
+    Err(_) => println("level 12: rejected")
+  }
+}

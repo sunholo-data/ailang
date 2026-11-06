@@ -296,6 +296,7 @@ func runExample(filename string) reporttypes.ExampleResult {
 		{name: "Process", imports: []string{"import std/process"}},
 		{name: "Stream", imports: []string{"import std/stream"}},
 		{name: "SharedIndex", imports: []string{"import std/sharedindex"}},
+		{name: "Trace", imports: []string{"import std/trace"}},
 	}
 
 	for _, spec := range capSpecs {

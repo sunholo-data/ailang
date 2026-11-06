@@ -1,0 +1,31 @@
+-- Build fixed timestamps with makeDateTime, shift them by minutes and hours
+-- (timestamps are Unix milliseconds), and read the clock fields back with
+-- hour, minute and second. Show a meeting end time and an overnight shift
+-- that crosses midnight, formatted with formatRFC3339 and formatISODate.
+module examples/runnable/stdlib/datetime_time_of_day
+import std/datetime (makeDateTime, hour, minute, second, startOfDay, diffDays, formatRFC3339, formatISODate)
+
+-- Milliseconds per unit: datetime timestamps are Unix ms in UTC
+func minutes(n: int) -> int = n * 60 * 1000
+
+func hours(n: int) -> int = n * minutes(60)
+
+func pad2(n: int) -> string = if n < 10 then "0${show(n)}" else show(n)
+
+func clock(ts: int) -> string = "${pad2(hour(ts))}:${pad2(minute(ts))}:${pad2(second(ts))}"
+
+export func main() -> () ! {IO} {
+  let start = makeDateTime(2024, 3, 15, 9, 45, 30)
+  println("meeting start: ${formatRFC3339(start)}")
+  let end = start + minutes(90)
+  println("meeting end:   ${clock(end)} (${show(hour(end))}h ${show(minute(end))}m)")
+  -- An 8-hour night shift from 22:30 ends on the next calendar day
+  let shiftStart = makeDateTime(2024, 3, 15, 22, 30, 0)
+  let shiftEnd = shiftStart + hours(8)
+  println("shift: ${formatRFC3339(shiftStart)} -> ${formatRFC3339(shiftEnd)}")
+  println("ends on ${formatISODate(shiftEnd)} at ${clock(shiftEnd)}")
+  -- diffDays truncates; compare midnights to count calendar days crossed
+  println("diffDays raw: ${show(diffDays(shiftEnd, shiftStart))}")
+  println("calendar days crossed: ${show(diffDays(startOfDay(shiftEnd), startOfDay(shiftStart)))}")
+  println("ms since midnight at start: ${show(shiftStart - startOfDay(shiftStart))}")
+}

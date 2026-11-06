@@ -1,0 +1,40 @@
+-- Task: parse an HTML snippet (no <html>/<body> wrapper) containing a heading,
+-- a results table and a footnote, turn each table row into a record and print
+-- the rows sorted by score with the top scorer. Demonstrates std/html
+-- parseFragment with std/xml getTag, findAll, findAllTexts, getText and nodeKind.
+module examples/runnable/stdlib/html_fragment_table
+import std/html (parseFragment)
+import std/xml (XmlNode, KindElement, getTag, findAll, findAllTexts, getText, nodeKind)
+import std/list (map, flatMap, filter, sortBy, forEachE, head)
+import std/string (join, stringToInt, trim)
+
+type Row = { name: string, score: int }
+
+-- A row with fewer than two <td> cells (e.g. the <th> header row) yields nothing.
+func toRows(tr: XmlNode) -> [Row] = match findAllTexts(tr, "td") {
+  name :: score :: _ => match stringToInt(trim(score)) {
+    Some(n) => [{ name: trim(name), score: n }],
+    None => []
+  },
+  _ => []
+}
+
+export func main() -> () ! {IO} {
+  let snippet = "<h3>Week 12</h3><table><tr><th>Player</th><th>Score</th></tr><tr><td>Mira</td><td> 31 </td></tr><tr><td>Jon</td><td>44</td></tr><tr><td>Ilse</td><td>n/a</td></tr><tr><td>Bea</td><td>38</td></tr></table><p>Scores update weekly.</p>"
+  match parseFragment(snippet) {
+    Err(e) => println("parse error: ${e}"),
+    Ok(nodes) => {
+      -- A fragment parses to a list of top-level nodes, not a single root.
+      let tops = filter(\n. nodeKind(n) == KindElement, nodes)
+      println("top-level: ${join(", ", map(getTag, tops))}")
+      let rows = flatMap(\n. flatMap(toRows, findAll(n, "tr")), tops)
+      let ranked = sortBy(\a b. b.score - a.score, rows)
+      forEachE(\r. println("${r.name}: ${show(r.score)}"), ranked)
+      match head(ranked) {
+        Some(best) => println("top scorer: ${best.name}"),
+        None => println("no valid rows")
+      }
+      println("footnote: ${join("", map(getText, filter(\n. getTag(n) == "p", tops)))}")
+    }
+  }
+}

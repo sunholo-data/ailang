@@ -1,0 +1,32 @@
+-- Task: parse a raw email message — find the Subject and
+-- Content-Transfer-Encoding headers case-insensitively, then decode a
+-- quoted-printable body (=XX hex escapes and "=" soft line breaks) to text.
+-- Demonstrates std/string startsWithIgnoreCase, decodeQuotedPrintable, split,
+-- find, substring, trim, toLower and length.
+module examples/runnable/stdlib/string_email_quoted_printable
+import std/string (startsWithIgnoreCase, decodeQuotedPrintable, split, find, substring, trim, toLower, length)
+import std/list (filter)
+
+-- Value of the first header named `name` (any case), or "" when absent.
+func headerValue(lines: [string], name: string) -> string {
+  let prefix = "${name}:"
+  match filter(\l. startsWithIgnoreCase(l, prefix), lines) {
+    [] => "",
+    l :: _ => trim(substring(l, length(prefix), length(l)))
+  }
+}
+
+export func main() -> () ! {IO} {
+  let raw = "subject: Caf=C3=A9 menu\nCONTENT-TRANSFER-ENCODING: Quoted-Printable\n\nToday: cr=C3=A8me br=C3=BBl=C3=A9e =E2=80=94 =\n2 for =C2=A35"
+  -- Headers end at the first blank line.
+  let split_at = find(raw, "\n\n")
+  let headers = split(substring(raw, 0, split_at), "\n")
+  let body = substring(raw, split_at + 2, length(raw))
+  let encoding = toLower(headerValue(headers, "Content-Transfer-Encoding"))
+  println("subject (raw): ${headerValue(headers, "Subject")}")
+  println("encoding: ${encoding}")
+  println("has Date header: ${show(headerValue(headers, "Date") != "")}")
+  let text = if encoding == "quoted-printable" then decodeQuotedPrintable(body) else body
+  println("body: ${text}")
+  println("subject: ${decodeQuotedPrintable(headerValue(headers, "subject"))}")
+}

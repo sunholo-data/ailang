@@ -1,0 +1,29 @@
+-- Task: combine two parallel lists (unit prices and quantities) element-wise
+-- into line totals, pair labels with values, and show how a right fold differs
+-- from a left fold — rebuilding a list in order and nesting subtraction.
+-- Demonstrates std/list zipWith, zip, foldr, foldl, range, map and drop.
+module examples/runnable/stdlib/list_foldr_zipwith
+import std/list (zipWith, zip, foldr, foldl, range, map, drop)
+import std/string (join)
+
+export func main() -> () ! {IO} {
+  let prices = [250, 1999, 75]
+  let qtys = [4, 1, 12, 99]
+  -- zipWith stops at the shorter list, so the extra quantity 99 is ignored.
+  let totals = zipWith(\p q. p * q, prices, qtys)
+  println("line totals: ${show(totals)}")
+  println("grand total: ${show(foldl(\acc x. acc + x, 0, totals))}")
+  let labelled = zip(["widget", "gadget", "sprocket"], totals)
+  println(join(", ", map(\pair. match pair {
+    (name, t) => "${name}=${show(t)}"
+  }, labelled)))
+  -- foldr walks from the right: f(x1, f(x2, ... f(xn, init))).
+  let rebuilt = foldr(\x acc. x * 10 :: acc, [], range(1, 5))
+  println("foldr cons keeps order: ${show(rebuilt)}")
+  let chain = foldr(\x acc. "(${show(x)} - ${acc})", "0", [1, 2, 3])
+  println("foldr nests right: ${chain} = ${show(foldr(\x acc. x - acc, 0, [1, 2, 3]))}")
+  println("foldl nests left:  ((0 - 1) - 2) - 3 = ${show(foldl(\acc x. acc - x, 0, [1, 2, 3]))}")
+  -- Zip a list with its own tail to get consecutive differences.
+  let readings = [3, 7, 12, 10, 15]
+  println("deltas: ${show(zipWith(\a b. b - a, readings, drop(1, readings)))}")
+}

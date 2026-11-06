@@ -1,0 +1,42 @@
+-- Keep an append-only log and rotate it: append text lines with appendFile
+-- and a raw byte record with appendFileBytes, move the full log aside with
+-- renameFile, start a fresh log, then read both files and clean up.
+-- Demonstrates mkdirAllResult, appendFile, appendFileBytes, renameFile,
+-- readFile, listDir, removeFileResult and removeDirResult.
+module examples/runnable/stdlib/fs_log_rotation
+import std/fs (mkdirAllResult, appendFile, appendFileBytes, renameFile, readFile, listDir, removeFileResult, removeDirResult)
+import std/bytes (fromString)
+import std/list (forEachE, length)
+import std/string (split, trim)
+
+-- Non-empty lines of a file's text
+func linesOf(text: string) -> [string] = split(trim(text), "\n")
+
+func logLine(path: string, msg: string) -> () ! {FS} = appendFile(path, "${msg}\n")
+
+export func main() -> () ! {IO, FS} {
+  let dir = "ailang_example_fs_tmp_logrotate"
+  let made = mkdirAllResult(dir)
+  let log = "${dir}/app.log"
+  let rotated = "${dir}/app.log.1"
+  -- appendFile creates the file on first use
+  logLine(log, "boot")
+  logLine(log, "request /home")
+  -- Bytes append: useful when the record is already encoded
+  appendFileBytes(log, fromString("request /about\n"))
+  println("before rotation: ${show(length(linesOf(readFile(log))))} lines")
+  -- Rotate: move the current log aside, then the next append starts a new file
+  renameFile(log, rotated)
+  logLine(log, "after rotate")
+  println("files: ${show(listDir(dir))}")
+  println("app.log.1:")
+  forEachE(\l. println("  ${l}"), linesOf(readFile(rotated)))
+  println("app.log:")
+  forEachE(\l. println("  ${l}"), linesOf(readFile(log)))
+  let _ = removeFileResult(log)
+  let _ = removeFileResult(rotated)
+  match (made, removeDirResult(dir)) {
+    (Ok(_), Ok(_)) => println("cleaned up"),
+    _ => println("cleanup failed")
+  }
+}

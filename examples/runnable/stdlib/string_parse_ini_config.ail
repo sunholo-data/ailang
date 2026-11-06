@@ -1,0 +1,56 @@
+-- Task: parse an INI-style config text into "section.key = value" entries —
+-- skip blank lines and "#" comments, track [section] headers, split each
+-- "key = value" line at the first "=", and read a port number as an int.
+-- Demonstrates std/string split, trim, startsWith, endsWith, find, substring,
+-- length, toLower and stringToInt.
+module examples/runnable/stdlib/string_parse_ini_config
+import std/string (split, trim, startsWith, endsWith, find, substring, length, toLower, stringToInt)
+import std/list (filter, foldl, reverse, forEachE)
+
+type Entry = { key: string, value: string }
+
+type State = { section: string, entries: [Entry] }
+
+-- Split "key = value" at the FIRST "=", so values may themselves contain "=".
+pure func addEntry(st: State, line: string, eq: int) -> State {
+  let key = "${st.section}.${toLower(trim(substring(line, 0, eq)))}"
+  let value = trim(substring(line, eq + 1, length(line)));
+  { st | entries: { key: key, value: value } :: st.entries }
+}
+
+pure func isSkipped(line: string) -> bool = line == "" || startsWith(line, "#")
+
+pure func isSection(line: string) -> bool = startsWith(line, "[") && endsWith(line, "]")
+
+pure func enterSection(st: State, line: string) -> State =
+  { st | section: toLower(substring(line, 1, length(line) - 1)) }
+
+-- Feed one line into the parser state; entries are collected newest-first.
+pure func step(st: State, raw: string) -> State {
+  let line = trim(raw)
+  let eq = find(line, "=")
+  if isSkipped(line) then st else if isSection(line) then enterSection(st, line) else if eq < 0 then st else addEntry(st, line, eq)
+}
+
+pure func lookup(entries: [Entry], key: string) -> Option[string] = match filter(\e. e.key == key, entries) {
+  [] => None,
+  e :: _ => Some(e.value)
+}
+
+export func main() -> () ! {IO} {
+  let text = "# demo config\n[Server]\nHost = example.org\nPort = 8080\n\n[Auth]\ntoken = abc=def==\n  Debug=true  \nbroken line"
+  let st = foldl(step, { section: "", entries: [] }, split(text, "\n"))
+  let entries = reverse(st.entries)
+  forEachE(\e. println("${e.key} = ${e.value}"), entries)
+  match lookup(entries, "server.port") {
+    Some(p) => match stringToInt(p) {
+      Some(n) => println("port + 1 = ${show(n + 1)}"),
+      None => println("port is not a number: ${p}")
+    },
+    None => println("no port configured")
+  }
+  match lookup(entries, "server.timeout") {
+    Some(t) => println("timeout = ${t}"),
+    None => println("server.timeout not set")
+  }
+}

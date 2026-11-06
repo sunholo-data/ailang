@@ -1,0 +1,33 @@
+-- Task: build a JSON API response from typed AILANG records and encode it to a
+-- compact string, then decode it back and read the keys and values to check
+-- the round trip. Demonstrates std/json jo, kv, js, jint, jnum, jb, jn, ja,
+-- encode, decode, keys and values.
+module examples/runnable/stdlib/json_build_encode
+import std/json (Json, jo, kv, js, jint, jnum, jb, jn, ja, encode, decode, keys, values, getArray)
+import std/list (map, length)
+import std/string (join)
+
+type User = { name: string, age: int, score: float, admin: bool }
+
+-- One record becomes one JSON object; field order is preserved by encode.
+func userToJson(u: User) -> Json =
+  jo([kv("name", js(u.name)), kv("age", jint(u.age)), kv("score", jnum(u.score)), kv("admin", jb(u.admin))])
+
+export func main() -> () ! {IO} {
+  let users = [{ name: "Ada", age: 36, score: 9.5, admin: true }, { name: "Linus", age: 28, score: 7.25, admin: false }]
+  let response = jo([kv("status", js("ok")), kv("count", jint(length(users))), kv("users", ja(map(userToJson, users))), kv("next", jn())])
+  let text = encode(response)
+  println(text)
+  match decode(text) {
+    Err(e) => println("round trip failed: ${e}"),
+    Ok(j) => {
+      println("keys: ${join(", ", keys(j))}")
+      println("value count: ${show(length(values(j)))}")
+      match getArray(j, "users") {
+        Some(u :: _) => println("first user keys: ${join(", ", keys(u))}"),
+        _ => println("no users")
+      }
+      println("same text: ${show(encode(j) == text)}")
+    }
+  }
+}

@@ -1,0 +1,49 @@
+-- Read "name,qty,price" order lines, skip malformed lines, compute each line
+-- total, and print an aligned report followed by a grand total and a skip count.
+-- Teaches: the parse -> transform -> print program shape with split, Option parsing, padding.
+module examples/runnable/stdlib/lang_parse_transform_print
+import std/string (split, trim, stringToInt, length, repeat, join)
+import std/list (map, filter, foldl)
+
+type Order = { name: string, qty: int, price: int }
+
+-- Parsing can fail, so return Option and let the caller decide what to do.
+pure func parseLine(line: string) -> Option[Order] = match map(trim, split(line, ",")) {
+  [name, q, p] => match (stringToInt(q), stringToInt(p)) {
+    (Some(qty), Some(price)) => Some({ name: name, qty: qty, price: price }),
+    _ => None
+  },
+  _ => None
+}
+
+pure func padRight(s: string, width: int) -> string =
+  if length(s) >= width then s else "${s}${repeat(" ", width - length(s))}"
+
+pure func padLeft(s: string, width: int) -> string =
+  if length(s) >= width then s else "${repeat(" ", width - length(s))}${s}"
+
+pure func formatRow(o: Order) -> string =
+  "${padRight(o.name, 8)}${padLeft(show(o.qty), 4)}${padLeft(show(o.qty * o.price), 7)}"
+
+pure func keepSome(xs: [Option[Order]]) -> [Order] = match xs {
+  [] => [],
+  Some(o) :: rest => o :: keepSome(rest),
+  None :: rest => keepSome(rest)
+}
+
+export func main() -> () ! {IO} {
+  let input = "apple, 3, 40\npear,2,55\nbad line\nplum,x,10\nmelon,1,300"
+  let lines = filter(\l. trim(l) != "", split(input, "\n"))
+  let parsed = map(parseLine, lines)
+  let orders = keepSome(parsed)
+  let skipped = foldl(\n o. match o {
+    None => n + 1,
+    Some(_) => n
+  }, 0, parsed)
+  let grand = foldl(\acc o. acc + o.qty * o.price, 0, orders)
+  println("${padRight("item", 8)}${padLeft("qty", 4)}${padLeft("total", 7)}")
+  println(join("\n", map(formatRow, orders)))
+  println(repeat("-", 19))
+  println("${padRight("TOTAL", 12)}${padLeft(show(grand), 7)}")
+  println("skipped: ${show(skipped)}")
+}

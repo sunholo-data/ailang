@@ -1,0 +1,67 @@
+-- Task: parse a service configuration written in YAML, read nested sections
+-- (server host/port, feature flags, a list of upstream hosts) and fall back to
+-- defaults for settings the file leaves out. Demonstrates std/yaml decode with
+-- std/json getObject, getString, getInt, getBool, getStringArrayOrEmpty and getArray.
+module examples/runnable/stdlib/yaml_service_config
+import std/yaml (decode)
+import std/json (Json, getObject, getString, getInt, getBool, getStringArrayOrEmpty, getArray)
+import std/list (map, length)
+import std/string (join)
+
+type Config = { host: string, port: int, debug: bool, upstreams: [string], workers: int }
+
+-- Typed lookups with an explicit default, so a sparse file still yields a full Config.
+func strOr(j: Json, k: string, d: string) -> string = match getString(j, k) {
+  Some(v) => v,
+  None => d
+}
+
+func intOr(j: Json, k: string, d: int) -> int = match getInt(j, k) {
+  Some(v) => v,
+  None => d
+}
+
+func boolOr(j: Json, k: string, d: bool) -> bool = match getBool(j, k) {
+  Some(v) => v,
+  None => d
+}
+
+func toConfig(doc: Json) -> Config {
+  let server = match getObject(doc, "server") {
+    Some(s) => s,
+    None => doc
+  };
+  { host: strOr(server, "host", "127.0.0.1"), port: intOr(server, "port", 8080), debug: boolOr(doc, "debug", false), upstreams: getStringArrayOrEmpty(doc, "upstreams"), workers: intOr(server, "workers", 4) }
+}
+
+export func main() -> () ! {IO} {
+  let yaml = "# service config\nserver:\n  host: 0.0.0.0\n  port: 9000\ndebug: true\nupstreams:\n  - api-1.internal\n  - api-2.internal\nroutes:\n  - path: /health\n    auth: false\n  - path: /admin\n    auth: true\n"
+  match decode(yaml) {
+    Err(e) => println("config error: ${e}"),
+    Ok(doc) => {
+      let cfg = toConfig(doc)
+      println("listen: ${cfg.host}:${show(cfg.port)}")
+      println("debug: ${show(cfg.debug)}")
+      println("workers (default): ${show(cfg.workers)}")
+      println("upstreams: ${join(", ", cfg.upstreams)}")
+      -- A list of mappings decodes to an array of Json objects.
+      match getArray(doc, "routes") {
+        Some(routes) => {
+          let describe = \r. {
+            let path = match getString(r, "path") {
+              Some(p) => p,
+              None => "?"
+            }
+            let auth = match getBool(r, "auth") {
+              Some(true) => "auth",
+              _ => "open"
+            }
+            "${path}(${auth})"
+          }
+          println("routes ${show(length(routes))}: ${join(" ", map(describe, routes))}")
+        },
+        None => println("routes: none")
+      }
+    }
+  }
+}

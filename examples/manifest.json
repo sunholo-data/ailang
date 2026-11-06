@@ -3720,14 +3720,523 @@
         "stdout": "logged 1\nlogged 2\nlogged 3\ntotal 6\nitem a\nitem b\nmapped [true, true]\n",
         "exit_code": 0
       }
+    },
+    {
+      "path": "runnable/stdlib/string_email_quoted_printable.ail",
+      "status": "working",
+      "tags": ["strings", "email", "quoted-printable", "headers", "parsing"],
+      "description": "Case-insensitive email header lookup and quoted-printable body decoding",
+      "modules": ["std/string", "std/list"],
+      "expected": {"stdout": "subject (raw): Caf=C3=A9 menu\nencoding: quoted-printable\nhas Date header: false\nbody: Today: crème brûlée — 2 for £5\nsubject: Café menu\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/string_html_escape.ail",
+      "status": "working",
+      "tags": ["strings", "html", "escaping", "replace"],
+      "description": "Single-pass HTML escape/unescape with replaceMany, plus mapSlicesJoin line indenting",
+      "modules": ["std/string", "std/list", "std/io"],
+      "expected": {"stdout": "<ul>\n<li>Tom &amp; Jerry</li>\n<li>&lt;script&gt;alert(&#39;hi&#39;)&lt;/script&gt;</li>\n<li>5 &gt; 3 &quot;obviously&quot;</li>\n</ul>\nsafe: true\nround trip: true\n  <ul>\n  <li>Tom &amp; Jerry</li>\n  <li>&lt;script&gt;alert(&#39;hi&#39;)&lt;/script&gt;</li>\n  <li>5 &gt; 3 &quot;obviously&quot;</li>\n  </ul>\na b c\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/string_parse_csv_rows.ail",
+      "status": "working",
+      "tags": ["strings", "csv", "parsing", "option"],
+      "description": "Parse CSV rows with split/trim/stringToInt, skip bad rows, format a table and sum with foldSlices",
+      "modules": ["std/string", "std/list", "std/option"],
+      "expected": {"stdout": "parsed 3 of 5 rows\nwidget    4   10.00\nsprocket  12  9.00\ngizmo     1   19.99\ntotal units: 17\nrejected: gadget,x,999 | bolt,3\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/string_parse_ini_config.ail",
+      "status": "working",
+      "tags": ["strings", "parsing", "config", "records", "fold"],
+      "description": "Parse an INI-style config into section.key entries with a foldl state machine",
+      "modules": ["std/string", "std/list"],
+      "expected": {"stdout": "server.host = example.org\nserver.port = 8080\nauth.token = abc=def==\nauth.debug = true\nport + 1 = 8081\nserver.timeout not set\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/string_word_frequency.ail",
+      "status": "working",
+      "tags": ["strings", "words", "sorting", "fold", "tuples"],
+      "description": "Word frequency count: normalise, words, sort, group runs with foldr, top-N",
+      "modules": ["std/string", "std/list"],
+      "expected": {"stdout": "words: 20\ndistinct: 10\nthe: 6\ncat: 3\ndid: 2\ndog: 2\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/list_foldr_zipwith.ail",
+      "status": "working",
+      "tags": ["lists", "fold", "zip", "higher-order"],
+      "description": "zipWith/zip over parallel lists and foldr vs foldl semantics",
+      "modules": ["std/list", "std/string"],
+      "expected": {"stdout": "line totals: [1000, 1999, 900]\ngrand total: 3899\nwidget=1000, gadget=1999, sprocket=900\nfoldr cons keeps order: [10, 20, 30, 40]\nfoldr nests right: (1 - (2 - (3 - 0))) = 2\nfoldl nests left:  ((0 - 1) - 2) - 3 = -6\ndeltas: [4, 5, -2, 5]\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/list_records_pipeline.ail",
+      "status": "working",
+      "tags": ["lists", "records", "sorting", "pipeline"],
+      "description": "Filter, sort (multi-key comparator), take and aggregate a list of records",
+      "modules": ["std/list", "std/string"],
+      "expected": {"stdout": "passed: 4 of 6\n  Ava 91\n  Leo 91\n  Mia 72\naverage: 64\nbest: 91\nperfect score: false\nfirst fail at index 1\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/option_chain_lookup.ail",
+      "status": "working",
+      "tags": ["option", "chaining", "records", "error-handling"],
+      "description": "Chain optional lookups with Option flatMap/map/filter/getOrElse/isSome/isNone",
+      "modules": ["std/option", "std/list", "std/string"],
+      "expected": {"stdout": "bob -> ann@corp.example\ncat -> bob@corp.example\ndan -> <no manager email>\neve -> <no manager email>\nann -> <no manager email>\nnobody -> <no manager email>\nupper: BOB@CORP.EXAMPLE\ndan corp email present: false\nbob corp email present: true\n\"nobody\" not in directory: true\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/result_validate_signup.ail",
+      "status": "working",
+      "tags": ["result", "validation", "error-handling", "adt"],
+      "description": "Form validation with Result flatMap/map/mapErr, typed errors, isOk/isErr/unwrap",
+      "modules": ["std/result", "std/string", "std/list"],
+      "expected": {"stdout": "ok: grace (age 34)\nerror: age \"abc\" is not a number\nerror: age 7 must be between 13 and 120\nerror: username \"Al\" is shorter than 3 characters\naccepted: 1, rejected: 3\nfirst account: margaret (age 21)\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/math_trig_and_logs.ail",
+      "status": "working",
+      "tags": ["math", "trigonometry", "logarithms", "floats"],
+      "description": "Inverse trig (acos/asin/atan/atan2) and log10 for geometry, digit counts and decibels",
+      "modules": ["std/math", "std/string"],
+      "expected": {"stdout": "hypotenuse: 5.0\nangle A (acos): 36.87\nangle B (asin): 53.13\nramp rising 1 in 12 (atan): 4.76\nbearing to (-1, 1): 135.00\natan(1 / -1) instead: -45.00\nlog10(1000) = 3.000\ndigits in 7: 1, 999: 3, 123456: 6\n200W vs 2W: 20.0 dB\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/io_stdout_stderr.ail",
+      "status": "working",
+      "tags": ["io", "stderr", "output"],
+      "description": "Data on stdout, diagnostics on stderr with print/println/eprintln/printErr/flush",
+      "modules": ["std/io", "std/string", "std/list"],
+      "expected": {"stdout": "3 squared = 9\n12 squared = 144\n5 squared = 25\nvalid: 3 12 5\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/rand_seeded_simulation.ail",
+      "status": "working",
+      "tags": ["rand", "random", "determinism", "simulation"],
+      "description": "Reproducible dice/coin/float draws with rand_seed, rand_int, rand_bool, rand_float",
+      "modules": ["std/rand", "std/list", "std/string"],
+      "expected": {"stdout": "rolls: [5, 6, 2, 6, 4, 1, 6, 6, 6, 4]\nsixes: 5, total: 46\ncoins: HTHHHHTHTTHT\njitter: 0.268, 0.073, 0.072, -0.048\nreplayed after re-seed: true\n", "exit_code": 0},
+      "run_flags": ["--caps", "IO,Rand", "--entry", "main"]
+    },
+    {
+      "path": "runnable/stdlib/json_nested_fields.ail",
+      "status": "working",
+      "tags": ["json", "parsing", "nested", "option", "defaults"],
+      "description": "Decode a JSON order and safely extract nested object fields, an array of line items and a defaulted optional field",
+      "modules": ["std/json", "std/list", "std/string"],
+      "expected": {"stdout": "id: 1042\ncustomer: Ada (Oslo)\nitems: 2\nlines: A1 x2, B7 x1\ntags: gift|express\ncoupon: NONE\nhas total: false\ntotal: None\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/json_build_encode.ail",
+      "status": "working",
+      "tags": ["json", "encoding", "records", "roundtrip"],
+      "description": "Build a JSON API response from typed records with jo/kv/ja/js/jint/jb/jn, encode it, and decode it back to inspect keys",
+      "modules": ["std/json", "std/list", "std/string"],
+      "expected": {"stdout": "{\"status\":\"ok\",\"count\":2,\"users\":[{\"name\":\"Ada\",\"age\":36,\"score\":9.5,\"admin\":true},{\"name\":\"Linus\",\"age\":28,\"score\":7.25,\"admin\":false}],\"next\":null}\nkeys: status, count, users, next\nvalue count: 4\nfirst user keys: name, age, score, admin\nsame text: true\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/json_repair_truncated.ail",
+      "status": "working",
+      "tags": ["json", "repair", "parsing", "error-handling", "llm-output"],
+      "description": "Decode JSON strictly and fall back to repair for truncated or trailing-comma input, reporting unrepairable text as an error",
+      "modules": ["std/json", "std/list", "std/string"],
+      "expected": {"stdout": "ok    {\"title\":\"Complete\",\"tags\":[\"a\",\"b\"]} -> title=Complete tags=[a,b]\nok    {\"title\":\"Cut off\",\"tags\":[\"x\",\"y\"]} -> title=Cut off tags=[x,y]\nok    {\"title\":\"Unterminated str\"} -> title=Unterminated str tags=[]\nok    {\"title\":\"Trailing comma\"} -> title=Trailing comma tags=[]\nerror unrepairable: repair incomplete: structural damage too severe\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/json_number_arrays.ail",
+      "status": "working",
+      "tags": ["json", "arrays", "numbers", "strict", "parsing"],
+      "description": "Read numeric series from JSON with strict, permissive and or-empty array extraction and compute means",
+      "modules": ["std/json", "std/list", "std/math", "std/string"],
+      "expected": {"stdout": "strict     temp: mean 21.5 of 3\nstrict     humidity: None\nstrict     pressure: None\npermissive temp: mean 21.5 of 3\npermissive humidity: mean 42.0 of 2\npermissive pressure: None\nor-empty   temp: 21.5\nor-empty   humidity: 42.0\nor-empty   pressure: n/a\nunits: C,C\nlabels strict: None\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/yaml_service_config.ail",
+      "status": "working",
+      "tags": ["yaml", "config", "parsing", "defaults", "json"],
+      "description": "Parse a nested YAML service config into a typed record with defaults, plus a list of route mappings",
+      "modules": ["std/json", "std/list", "std/string", "std/yaml"],
+      "expected": {"stdout": "listen: 0.0.0.0:9000\ndebug: true\nworkers (default): 4\nupstreams: api-1.internal, api-2.internal\nroutes 2: /health(open) /admin(auth)\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/yaml_to_json_convert.ail",
+      "status": "working",
+      "tags": ["yaml", "json", "conversion", "anchors", "error-handling"],
+      "description": "Convert YAML text to JSON text with yamlToJson, including merge keys and a malformed-input error, and compare with yaml decode",
+      "modules": ["std/json", "std/list", "std/string", "std/yaml"],
+      "expected": {"stdout": "json: {\"name\":\"demo\",\"version\":2,\"enabled\":\"yes\",\"owner\":{\"team\":\"infra\"},\"ports\":[80,443]}\njson: {\"base\":{\"retries\":3,\"timeout\":30},\"prod\":{\"retries\":3,\"timeout\":60}}\nerror: yaml: yaml: line 1: did not find expected ',' or ']'\nkeys: region, zones\nsame value: true\nregion: Some(eu-west)\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/yaml_encode_update.ail",
+      "status": "working",
+      "tags": ["yaml", "config", "encoding", "roundtrip", "json"],
+      "description": "Load a YAML manifest, bump a field and add a nested label via JObject edits, then encode it back to YAML",
+      "modules": ["std/io", "std/json", "std/list", "std/yaml"],
+      "expected": {"stdout": "--- updated manifest ---\n\"name\": \"web\"\n\"replicas\": 3\n\"labels\":\n  \"app\": \"web\"\n  \"tier\": \"frontend\"\n\"image\": \"nginx:1.27\"\nreplicas after round trip: Some(3)\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/xml_children_walk.ail",
+      "status": "working",
+      "tags": ["xml", "tree-walk", "fold", "early-exit", "adt"],
+      "description": "Walk an XML element's direct children with nodeKind, mapChildren, flatMapChildren and an early-stopping foldChildrenStep",
+      "modules": ["std/iter", "std/string", "std/xml"],
+      "expected": {"stdout": "kinds: comment, element, text, element, element\nproducts: Lamp, Desk, Chair\nstock counted until budget: 14\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/xml_bulk_query.ail",
+      "status": "working",
+      "tags": ["xml", "query", "attributes", "limits", "parsing"],
+      "description": "Bulk-extract titles and attributes from an XML catalogue with findAllTexts/findAllAttrs and guard input with parseWithLimit",
+      "modules": ["std/list", "std/string", "std/xml"],
+      "expected": {"stdout": "titles: SICP | TAOCP | Learn You a Haskell\nisbns: 978-0262, 978-0201, 978-1593\nprice attrs found: 2 of 3\nprices: 978-0262=45.00, 978-0201=60.50, 978-1593=n/a\nlimit 5: XML parse error: node limit exceeded: 6 nodes (max 5)\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/html_link_extract.ail",
+      "status": "working",
+      "tags": ["html", "scraping", "links", "xml", "map"],
+      "description": "Parse a messy HTML5 page and extract its title, headings, list items and links, keeping external https links",
+      "modules": ["std/html", "std/list", "std/map", "std/string", "std/xml"],
+      "expected": {"stdout": "title: Release notes\nh1: v2.0\nh2: Changes\nitems: Faster parser / New blog post\nlink: docs -> /docs (rel -)\nlink: GitHub -> https://github.com/example/repo (rel noopener)\nlink: blog post -> https://example.com/blog (rel -)\nexternal: https://github.com/example/repo, https://example.com/blog\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/html_fragment_table.ail",
+      "status": "working",
+      "tags": ["html", "fragment", "table", "parsing", "sorting"],
+      "description": "Parse an HTML fragment containing a table into typed rows, skip invalid rows, and rank them by score",
+      "modules": ["std/html", "std/list", "std/string", "std/xml"],
+      "expected": {"stdout": "top-level: h3, table, p\nJon: 44\nBea: 38\nMira: 31\ntop scorer: Jon\nfootnote: Scores update weekly.\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/map_word_count.ail",
+      "status": "working",
+      "tags": ["map", "word-count", "strings", "sorting", "fold"],
+      "description": "Count word frequencies with std/map, remove stop words, and print the top words sorted by count then alphabetically",
+      "modules": ["std/list", "std/map", "std/string"],
+      "expected": {"stdout": "distinct words: 9, after stop words: 5\ntop 3:\n  cat: 2\n  dog: 2\n  mat: 2\ncount(cat) = Some(2)\ncount(bird) = None\n'the' in all counts: true\n'the' in content counts: false\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/set_dedupe_emails.ail",
+      "status": "working",
+      "tags": ["set", "dedupe", "union", "intersection", "difference"],
+      "description": "Deduplicate mailing lists with std/set (order-preserving merge) and report overlap, differences and active subscribers",
+      "modules": ["std/list", "std/set", "std/string"],
+      "expected": {"stdout": "merged (first-seen order): ada@x.io, bob@x.io, cy@x.io, dee@x.io, eve@x.io\nraw 8 -> unique 5\non both lists: ada@x.io, bob@x.io\nnewsletter only: cy@x.io\nactive 3 of 5: ada@x.io, bob@x.io, dee@x.io\neve active? false\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/regex_log_extract.ail",
+      "status": "working",
+      "tags": ["regex", "parsing", "extraction", "logs", "capture-groups"],
+      "description": "Extract method/path/status/duration from log lines with regex capture groups, filter errors, mask IPs and split headers",
+      "modules": ["std/list", "std/regex", "std/string"],
+      "expected": {"stdout": "parsed 3 of 4 lines\nerror 401 POST /api/login (85ms)\nerror 500 GET /api/report (1240ms)\nlines with an IP: 3\nmasked: x.x.x.x -> x.x.x.x\nall ips: 10.0.0.7, 192.168.1.20, 10.0.0.9\nparts: text/html|charset=utf-8|q=0.9\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/iter_early_exit_fold.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/iter", "std/list", "fold", "early-exit", "FoldStep", "adt"],
+      "description": "std/iter FoldStep (Continue/Stop) with isStop and fromFoldStep driving a fold that stops early: budget-limited sum and collect-until-marker",
+      "modules": ["std/iter", "std/list"],
+      "expected": {"stdout": "budget 100: stopped early at 95\nbudget 500: finished with 155\nwords before STOP: [alpha, beta]\nhit marker: true\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/datetime_time_of_day.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/datetime", "time", "makeDateTime", "formatting"],
+      "description": "std/datetime makeDateTime plus hour/minute/second on fixed timestamps; millisecond arithmetic for a meeting end and an overnight shift crossing midnight",
+      "modules": ["std/datetime"],
+      "expected": {"stdout": "meeting start: 2024-03-15T09:45:30Z\nmeeting end:   11:15:30 (11h 15m)\nshift: 2024-03-15T22:30:00Z -> 2024-03-16T06:30:00Z\nends on 2024-03-16 at 06:30:00\ndiffDays raw: 0\ncalendar days crossed: 1\nms since midnight at start: 81000000\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/datetime_parse_rfc3339.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/datetime", "parsing", "option", "rfc3339"],
+      "description": "std/datetime parseRFC3339 over log timestamps (valid and malformed, Option[int]), elapsed minutes between two parses, and parseISODate for date-only strings",
+      "modules": ["std/datetime", "std/list", "std/option"],
+      "expected": {"stdout": "ok   2024-06-01T08:15:00Z -> 2024-06-01 at 08:15\nbad  2024-06-01T25:00:00Z\nbad  June 1st\nok   2024-06-01T11:05:30Z -> 2024-06-01 at 11:05\nelapsed: 170 minutes\nparseRFC3339 date-only: None\nparseISODate: 2024-06-01T00:00:00Z\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/datetime_anniversaries.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/datetime", "date-arithmetic", "addYears", "addMonths", "leap-year"],
+      "description": "std/datetime addMonths/addYears from a fixed date incl. Jan 31 overflow and Feb 29 in non-leap years, diffDays per contract year, weekday/month names",
+      "modules": ["std/datetime"],
+      "expected": {"stdout": "signed: 2023-01-31 (Tuesday, Jan)\n+1 month: 2023-03-03 (Friday, Mar)\n+12 months: 2024-01-31 (Wednesday, Jan)\n+1 year: 2024-01-31 (Wednesday, Jan)\n-1 year: 2022-01-31 (Monday, Jan)\nleap day +1 year: 2025-03-01 (Saturday, Mar)\nleap day +4 years: 2028-02-29 (Tuesday, Feb)\ndays in year 1: 365\ndays in year 2: 366\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/fs_result_lifecycle.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/fs", "std/string", "filesystem", "result", "error-handling", "effects"],
+      "description": "Result-returning std/fs lifecycle in a relative scratch dir: mkdirResult, writeFileResult, readFileResult, appendFileResult, renameFileResult, removeFileResult, removeDirResult, with Err on a missing file",
+      "modules": ["std/fs", "std/string"],
+      "expected": {"stdout": "mkdir: ok\nwrite: ok\nread: first line\\n\nappend: ok\nread after append: first line\\nsecond line\\n\nrename: ok\ndraft exists: false, notes exists: true\nread old name: no such file\nremove: ok\nremove again: failed\nrmdir: ok\ndir exists: false\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/fs_log_rotation.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/fs", "std/bytes", "std/string", "filesystem", "append", "rename", "effects"],
+      "description": "Append-only log rotation in a relative scratch dir: appendFile, appendFileBytes, renameFile, readFile, listDir, then removeFileResult/removeDirResult cleanup",
+      "modules": ["std/bytes", "std/fs", "std/list", "std/string"],
+      "expected": {"stdout": "before rotation: 3 lines\nfiles: [app.log, app.log.1]\napp.log.1:\n  boot\n  request /home\n  request /about\napp.log:\n  after rotate\ncleaned up\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/fs_mkdir_lock.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/fs", "filesystem", "lock", "result", "effects"],
+      "description": "Directory-as-lock with std/fs mkdirResult (Err if it exists) and removeDirResult (never recursive), contrasted with idempotent mkdirAllResult",
+      "modules": ["std/fs"],
+      "expected": {"stdout": "mkdirAll base: Ok\nmkdirAll base again: Ok\nworker A: acquired lock\nworker B: lock busy\nrelease: Ok\nworker B: acquired lock\nrelease: Ok\nmkdir with missing parent: Err\nrmdir non-empty: Err\nremove file: Ok\nrmdir empty: Ok\nbase still a dir: false\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/trace_spans.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/trace", "std/list", "tracing", "spans", "effects"],
+      "description": "std/trace spanStart/spanEnd/event instrumenting an order-pricing pipeline; stdout is unchanged by tracing (needs --caps IO,Trace)",
+      "modules": ["std/list", "std/trace"],
+      "expected": {"stdout": "gross: 2000\nnet after 10%: 1800\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/array_float_bytes_encoding.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/array", "std/bytes", "binary", "encoding", "float", "serialization"],
+      "description": "std/array encodeF32LE/decodeF32LE (lossy) vs encodeF64LE/decodeF64LE (exact) round-trips, wire bytes of 1.5, and Err on a truncated buffer",
+      "modules": ["std/array", "std/bytes", "std/option"],
+      "expected": {"stdout": "f32 size: 12 bytes, f64 size: 24 bytes\n1.5 as f32 LE: [0, 0, 192, 63]\nf32 round-trip: [1.5, -2.25, 0.10000000149011612]\nf64 round-trip: [1.5, -2.25, 0.1]\n6 bytes as f32: rejected\nfirst 8 bytes as f32: [1.5, -2.25]\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/bytes_packet_parse.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/bytes", "binary", "parsing", "option"],
+      "description": "std/bytes build and parse a binary packet (magic tag, version byte, big-endian length, UTF-8 payload) with concatList, slice and byteAt, rejecting truncated or mis-tagged input",
+      "modules": ["std/bytes", "std/option"],
+      "expected": {"stdout": "packet size: 20 bytes\nfull: v2 13 bytes: héllo, world\ntruncated: invalid packet\nwrong magic: invalid packet\nempty: invalid packet\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/crypto_digest_compare.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/crypto", "hashing", "sha256", "hmac", "security"],
+      "description": "Hash content with sha256Hex/sha256Bytes, check a download digest, and verify/reject a webhook HMAC with constantTimeEqual",
+      "expected": {"stdout": "sha256: 6cb45623ebca2a9196839dc4ccd02212753d1b867b34fb4d3665241fc94f6112\nhex length: 64\nshort id: 6cb45623ebca\nbytes digest equal: true\nbinary digest: 04d353a5cbb078041f4220207062906df06238ddd5ff5c6b21b8fac4b43e4679\ndownload ok: true\ncorrupt download ok: false\nsignature: 79f8ea1fc29cbd45b524a57bc559bcf16282dbdd9d14a13578aa1419b64b587e\ngenuine webhook: true\ntampered webhook: false\nwrong secret: false\n", "exit_code": 0},
+      "modules": ["std/bytes","std/crypto","std/string"]
+    },
+    {
+      "path": "runnable/stdlib/crypto_rsa_verify.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/crypto", "rsa", "signature", "bytes", "security"],
+      "description": "Verify a detached RSA-SHA256 (PKCS#1 v1.5) signature with an inline test PEM key; reject edited message, corrupted signature, malformed key",
+      "expected": {"stdout": "manifest digest: 71d67055e974eb4ab892316fcefbe5d5f413e66e5567a0280a04e336fdf023dd\ngenuine manifest: valid\nedited manifest: INVALID signature\ncorrupted signature: INVALID signature\nmalformed key: key error (invalid PEM: no PEM block found)\n", "exit_code": 0},
+      "modules": ["std/bytes","std/crypto"]
+    },
+    {
+      "path": "runnable/stdlib/jwt_rs256_verify.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/jwt", "jwt", "rs256", "json", "auth", "security"],
+      "description": "Verify an RS256 JWT by PEM key and by kid key set, check iss/aud/exp, reject forged token and unknown kid",
+      "expected": {"stdout": "pem key: authorized as user-42\npem key, later: expired\nkey set: authorized as user-42\nrotated key set: rejected: unknown kid: key-2026\nforged token: rejected: invalid signature\n", "exit_code": 0},
+      "modules": ["std/json","std/jwt","std/string"]
+    },
+    {
+      "path": "runnable/stdlib/jwt_hs256_sign_verify.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/jwt", "std/crypto", "jwt", "hs256", "hmac", "base64url", "auth"],
+      "description": "Sign and verify HS256 JWTs with hmacSha256 + base64url; reject edited payload, wrong secret, alg=none",
+      "expected": {"stdout": "token: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhbGljZSIsInJvbGUiOiJ2aWV3ZXIiLCJleHAiOjIwMDAwMDAwMDB9.JnTkV_w3ETpdFUSKtBvS_oPA-dzqKs9npoyZT_xw44M\ngenuine: ok, user alice\nedited payload: rejected (bad signature)\nother secret: rejected (bad signature)\nalg none: rejected (algorithm not allowed)\ngarbage: rejected (invalid JWT: expected 3 dot-separated segments)\n", "exit_code": 0},
+      "modules": ["std/bytes","std/crypto","std/json","std/jwt","std/string"]
+    },
+    {
+      "path": "runnable/stdlib/deflate_zlib_roundtrip.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/deflate", "compression", "zlib", "bytes", "base64"],
+      "description": "Raw deflate vs zlib-wrapped compression: sizes, lossless inflate round trips, framing mismatch and bad level rejected",
+      "expected": {"stdout": "original bytes: 2360\nraw deflate bytes: 84\nzlib bytes: 90\nzlib overhead: 6\nraw round trip ok: true\nzlib round trip ok: true\nraw inflate of zlib: rejected\nlevel 12: rejected\n", "exit_code": 0},
+      "modules": ["std/bytes","std/deflate","std/string"]
+    },
+    {
+      "path": "runnable/stdlib/gzip_levels_file.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/gzip", "std/fs", "compression", "fs", "bytes"],
+      "description": "Compare gzip sizes at levels 0/1/6/9, round-trip in memory and through a self-cleaned .gz file via decompressFile",
+      "expected": {"stdout": "plain: 1225 bytes\nlevel 0: 1253 bytes\nlevel 1: 99 bytes\nlevel 6: 82 bytes\nlevel 9: 82 bytes\nin-memory round trip: true\nfile round trip: true\ncleaned up gzip_levels_file_example.log.gz\n", "exit_code": 0},
+      "run_flags": ["--caps", "IO,FS"],
+      "modules": ["std/bytes","std/fs","std/gzip","std/list","std/string"]
+    },
+    {
+      "path": "runnable/stdlib/tar_gzip_bundle.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/tar", "std/gzip", "std/fs", "archive", "tar", "bytes"],
+      "description": "Unpack an inline .tar.gz: readFromGzip/readFromGzipBytes, gunzip to .tar, listEntries/readEntry, scratch dir cleaned up",
+      "expected": {"stdout": "main.tex:\n\\documentclass{article}\n\\begin{document}\nHello, AILANG.\n\\end{document}\n\nlogo.bin: 10 bytes [137, 80, 78, 71, 0, 1, 2, 3, 255, 254]\nentries:\n  paper/ (dir)\n  paper/main.tex 71 bytes\n  paper/refs.bib 30 bytes\n  paper/logo.bin 10 bytes\nrefs.bib: @misc{ailang, title={AILANG}}\nscratch directory removed\n", "exit_code": 0},
+      "run_flags": ["--caps", "IO,FS"],
+      "modules": ["std/bytes","std/fs","std/gzip","std/list","std/string","std/tar"]
+    },
+    {
+      "path": "runnable/stdlib/zip_archive_on_disk.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/zip", "std/fs", "archive", "zip", "bytes", "base64"],
+      "description": "Create text and binary ZIP archives on disk, list entries, read text and binary entries back, then delete them",
+      "expected": {"stdout": "zip_archive_on_disk_report.zip: README.txt, data/sales.csv\nsales.csv:\nregion,total\nnorth,120\nsouth,95\n\nnope.txt: entry not found: nope.txt\nzip_archive_on_disk_assets.zip: notes.txt, chart.bin\nchart.bin bytes: [0, 16, 32, 255]\n", "exit_code": 0},
+      "run_flags": ["--caps", "IO,FS"],
+      "modules": ["std/bytes","std/fs","std/string","std/zip"]
+    },
+    {
+      "path": "runnable/stdlib/zip_xml_scan_step.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/zip", "std/xml", "std/iter", "streaming", "xml", "early-exit"],
+      "description": "Stream <row> elements from a ZIP XML entry with scanFoldStep: stop after 3 rows or at the first match; compare with full scanFold",
+      "expected": {"stdout": "preview: 1=37, 2=74, 3=10\nfirst value over 95: row 19 (value 97) after 19 rows\nfull scan visited: 200 rows\n", "exit_code": 0},
+      "run_flags": ["--caps", "IO,FS"],
+      "modules": ["std/fs","std/iter","std/list","std/string","std/xml","std/zip"]
+    },
+    {
+      "path": "runnable/stdlib/audio_wav_header.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/audio", "wav", "pcm", "bytes", "validation"],
+      "description": "Build a WAV from a separate wavHeader + 16-bit PCM, check it with wavInfo/durationMs, and reject bad formats with wavHeaderChecked",
+      "expected": {"stdout": "pcm bytes: 1600, header bytes: 44\nmagic: RIFF\nsame as wavFromPcm: true\nrate 8000 Hz, 1 ch, 16-bit, 800 frames, data at 44\nduration: 100 ms\ncd minute: ok, 44-byte header\ncd minute duration: 60000 ms\nzero channels: rejected (audio.wavHeader: channels must be in 1..65535 (got 0))\n12-bit samples: rejected (audio.wavHeader: bitsPerSample must be 8, 16, 24 or 32 integer PCM (got 12))\nhalf a frame: rejected (audio.wavHeader: dataLen 3 is not a whole 2-byte frame)\n", "exit_code": 0},
+      "modules": ["std/array","std/audio","std/bytes","std/list"]
+    },
+    {
+      "path": "runnable/stdlib/embedding_vector_ops.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/embedding", "vectors", "clustering", "nearest-neighbour", "float"],
+      "description": "Nearest-centroid classification with add_vectors/scale centroids, euclidean_distance ranking, axpy update and dot",
+      "expected": {"stdout": "centroids: small=[1.5, 1.5], large=[9.0, 9.0]\ndistances: large=3.605551275463989, small=7.106335201775948\nquery [6.0, 7.0] -> large\nupdated large centroid: [8.7, 8.8]\nsquared distance check: 13.0\n", "exit_code": 0},
+      "modules": ["std/embedding","std/list","std/string"]
+    },
+    {
+      "path": "runnable/stdlib/embedding_packed_f32.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/embedding", "vectors", "bytes", "similarity-search", "float32"],
+      "description": "Store embeddings as packed float32 bytes, rank with cosine_encoded, compare f32 (lossy) and f64 (exact) round trips",
+      "expected": {"stdout": "bytes per 4-d vector: 16\nranking: pasta recipe 0.992, pizza dough 0.965, bike repair 0.029\nf32 round trip: [0.10000000149011612, 0.5, 2.0]\nf64 round trip: [0.1, 0.5, 2.0]\nunpacked score: 0.965\ndecode 6 bytes: error: decodeF32LE: 6 bytes is not a whole number of 4-byte floats\n", "exit_code": 0},
+      "modules": ["std/bytes","std/embedding","std/list","std/string"]
+    },
+    {
+      "path": "runnable/stdlib/simhash_dedupe.ail",
+      "status": "working",
+      "tags": ["stdlib", "std/simhash", "near-duplicate", "hashing", "text", "dedupe"],
+      "description": "De-duplicate headlines: SimHash fingerprints, pairwise Hamming distance, keep the first of each near-duplicate group",
+      "expected": {"stdout": "near-duplicate pairs (distance <= 12):\n  #1 ~ #2 (distance 11)\n  #1 ~ #4 (distance 9)\n  #1 ~ #6 (distance 0)\n  #2 ~ #4 (distance 10)\n  #2 ~ #6 (distance 11)\n  #4 ~ #6 (distance 9)\nkept 3 of 6:\n  #1 Central bank raises interest rates by a quarter point to fight inflation\n  #3 Local team wins the championship after a dramatic overtime victory\n  #5 New study finds coffee drinkers live slightly longer on average\n", "exit_code": 0},
+      "modules": ["std/list","std/simhash","std/string"]
+    },
+    {
+      "path": "runnable/stdlib/lang_let_bindings.ail",
+      "status": "working",
+      "tags": ["let", "blocks", "expressions", "shadowing", "syntax"],
+      "description": "let bindings in block bodies vs expression bodies (let ... in), shadowing, blocks as values",
+      "expected": {"stdout": "block style: 90\nexpression style: 90\nshadowed count: 2\nshipping on 90: 5\nshipping on 120: 0\n", "exit_code": 0},
+      "modules": []
+    },
+    {
+      "path": "runnable/stdlib/lang_string_interpolation.ail",
+      "status": "working",
+      "tags": ["strings", "interpolation", "escaping", "syntax"],
+      "description": "String interpolation with function calls, if-expressions and nested string literals inside ${...}, plus \\${ and \\\" escapes",
+      "expected": {"stdout": "Customer: ALICE\nItem: lamp x3\nTotal: 36\nUnits: 3 units\nTags: fragile, gift\nExpress: yes\nRule: ----------\nPrice: $12\nTemplate: ${name} says \"hi\"\n", "exit_code": 0},
+      "modules": ["std/string"]
+    },
+    {
+      "path": "runnable/stdlib/lang_records.ail",
+      "status": "working",
+      "tags": ["records", "record-update", "patterns", "types"],
+      "description": "Record literals, field access, immutable {r | f: v} updates incl. nested, record patterns with ...",
+      "expected": {"stdout": "original: Ada (L2) in London\npromoted: Ada (L3) in London\nmoved: Ada (L3) in Paris\nzip kept: N1\nteam: Ada, Grace\n", "exit_code": 0},
+      "modules": ["std/list","std/string"]
+    },
+    {
+      "path": "runnable/stdlib/lang_adt_match_guards.ail",
+      "status": "working",
+      "tags": ["adt", "pattern-matching", "guards", "deriving"],
+      "description": "Sum-type ADT matched on every constructor, refined with if guards, enum with deriving (Eq)",
+      "expected": {"stdout": "describe: circle r=1, square 3, rect 2x10, triangle, point\nperimeters: [6, 12, 24, 12, 0]\nsizes: S M M M S\nsame size: true\n", "exit_code": 0},
+      "modules": ["std/list","std/string"]
+    },
+    {
+      "path": "runnable/stdlib/lang_tree_fold.ail",
+      "status": "working",
+      "tags": ["adt", "recursion", "polymorphism", "fold", "trees"],
+      "description": "Polymorphic recursive Tree[a] (BST insert) with a generic foldTree used for sum, size, depth, in-order",
+      "expected": {"stdout": "sum: 37\nsize: 7\ndepth: 3\nin order: [1, 3, 4, 5, 7, 8, 9]\n", "exit_code": 0},
+      "modules": ["std/list"]
+    },
+    {
+      "path": "runnable/stdlib/lang_option_result.ail",
+      "status": "working",
+      "tags": ["option", "result", "error-handling", "pattern-matching"],
+      "description": "Parse with Option, convert to Result[int, string] errors, chain validations with flatMap, getOrElse",
+      "expected": {"stdout": "ok 42\nok 7\nerror not a number: 'abc'\nerror negative: -3\nerror too large: 200\nfallback: 0\n19 is: adult\n", "exit_code": 0},
+      "modules": ["std/list","std/option","std/result","std/string"]
+    },
+    {
+      "path": "runnable/stdlib/lang_higher_order.ail",
+      "status": "working",
+      "tags": ["lambdas", "higher-order", "closures", "currying"],
+      "description": "Lambdas (\\x. and \\a b.), functions as arguments and results, compose, partial application of curried lambdas",
+      "expected": {"stdout": "lengths: [4, 3, 6, 5, 4]\nlong: kiwi banana apple date\ntotal chars: 22\nby length: fig kiwi date apple banana\ntwice addTen 1: 21\ncompose: 30\ncurried: 42 [3, 6, 9]\n", "exit_code": 0},
+      "modules": ["std/list","std/string"]
+    },
+    {
+      "path": "runnable/stdlib/lang_tuples.ail",
+      "status": "working",
+      "tags": ["tuples", "pattern-matching", "fold"],
+      "description": "Tuple types and values, one-pass min/max/sum fold, destructuring tuples with match (no let (a, b) = t)",
+      "expected": {"stdout": "min 1 max 9 mean 5\npairs: [(a, 1), (b, 2), (c, 3)]\nswapped: [(1, a), (2, b), (3, c)]\nlabelled: [a=1, b=2, c=3]\nequal: true\n", "exit_code": 0},
+      "modules": ["std/list"]
+    },
+    {
+      "path": "runnable/stdlib/lang_effects.ail",
+      "status": "working",
+      "tags": ["effects", "pure", "io", "effect-rows"],
+      "description": "pure func vs ! {IO}, effect propagation, effect row variable ! {e} on a callback, forEachE/foldlE",
+      "expected": {"stdout": "pure map: [32, 77, 212, -40]\n0C = 32F\n25C = 77F\n100C = 212F\n-40C = -40F\n  adding 0\n  adding 25\n  adding 100\n  adding -40\ntotal: 85\npure applyTwice: 122\nio applyTwice:\n  inc 1\n  inc 2\nresult: 3\n", "exit_code": 0},
+      "modules": ["std/list"]
+    },
+    {
+      "path": "runnable/stdlib/lang_imports_alias.ail",
+      "status": "working",
+      "tags": ["imports", "modules", "aliasing"],
+      "description": "Selective imports, module aliases (import std/list as L) with qualified calls, avoiding name clashes",
+      "expected": {"stdout": "upper: RED,GREEN,BLUE\ncount: 3\nreversed: blue green red\nfirst word length: Some(3)\nfirst or none: none\n", "exit_code": 0},
+      "modules": ["std/list","std/option","std/string"]
+    },
+    {
+      "path": "runnable/stdlib/lang_numbers.ail",
+      "status": "working",
+      "tags": ["numbers", "int", "float", "conversion", "formatting"],
+      "description": "int vs float division, intToFloat/floatToInt, round/floor, formatFixed, pow instead of **",
+      "expected": {"stdout": "int mean: 77 remainder 3\nfloat mean: 77.75\n2 decimals: 77.75\nrounded: 78 floored: 77\npass rate: 75.0%\ntruncate -2.7: -2\npow: 1024.0 sqrt: 1.4142\nparsed + 0.5: 20.0\n", "exit_code": 0},
+      "modules": ["std/list","std/math","std/option","std/string"]
+    },
+    {
+      "path": "runnable/stdlib/lang_tail_recursion.ail",
+      "status": "working",
+      "tags": ["recursion", "tail-calls", "accumulators"],
+      "description": "Loops as tail-recursive helpers with accumulators: range sum, reverse, digit count, iterative fib, 100000 steps",
+      "expected": {"stdout": "sum 1..100: 5050\nreverse: [4, 3, 2, 1]\ndigits in 90210: 5\nfib 0, 1, 10: 0 1 55\nfib 50: 12586269025\nsteps: 100000\n", "exit_code": 0},
+      "modules": []
+    },
+    {
+      "path": "runnable/stdlib/lang_polymorphism.ail",
+      "status": "working",
+      "tags": ["polymorphism", "generics", "type-parameters", "adt"],
+      "description": "Functions and ADTs with type parameters [a, b] reused across ints, strings and records",
+      "expected": {"stdout": "first: id\nswapped first: 7\nfirstOr ints: 99 strings: x\nfirstOr record: Ann\nlastOf: Some(3) Some(solo)\npairUp firsts: [a, b]\n", "exit_code": 0},
+      "modules": ["std/list"]
+    },
+    {
+      "path": "runnable/stdlib/lang_parse_transform_print.ail",
+      "status": "working",
+      "tags": ["parsing", "strings", "option", "formatting", "program-shape"],
+      "description": "Parse CSV-like order lines, skip malformed ones, compute totals, print an aligned report",
+      "expected": {"stdout": "item     qty  total\napple      3    120\npear       2    110\nmelon      1    300\n-------------------\nTOTAL           530\nskipped: 2\n", "exit_code": 0},
+      "modules": ["std/list","std/string"]
     }
   ],
   "statistics": {
-    "total": 254,
-    "working": 246,
+    "total": 317,
+    "working": 309,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.968503937007874,
+    "coverage": 0.9747634069400631,
     "experimental": 0
   },
   "milestones": {

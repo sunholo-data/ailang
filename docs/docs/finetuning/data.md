@@ -69,13 +69,48 @@ and re-reading the whole teaching prompt every turn.
 Measured 2026-11-06:
 
 - **Examples barely reached the data.** Of ~397 examples that pass `check`, 25 reached the repo pool
-  and 1 reached the pilot-1 mix. The duplicate filter kept a worktree copy of each example, and
-  those copies were rejected. Pilot-2 reads `examples/` from the main checkout first.
-- **Stdlib functions without an example:** 96 of 496 exported functions. The largest gaps are in
+  and 1 reached the pilot-1 mix.
+  - Cause: the extractor called `ailang check` with an **absolute path**. `ailang` derives the
+    expected module name from the path it is given, so every path-named module
+    (`module examples/runnable/x`) failed with MOD010.
+  - Fixed 2026-11-06: paths are now relative to the repository root, and duplicate copies are
+    tried main-checkout first. On the examples alone, kept files went from 27 to 466.
+  - The same bug shrank the rest of the pilot-1 repo corpus, so pilot-2 starts from a re-extraction.
+- **Stdlib functions without an example:** 96 of 496 exported functions. The largest gaps were in
   `fs` (11 of the Result-returning variants), `xml` (7), `sem` (6), `datetime` (5),
-  `embedding` (5) and `json` (5). `std/iter` and `std/trace` have no example at all.
-- **Thin modules:** 23 modules have only one or two examples.
+  `embedding` (5) and `json` (5). `std/iter` and `std/trace` had no example at all.
+- **Thin modules:** 23 modules had only one or two examples.
 
-Filling these gaps is a docs improvement in its own right. The fine-tune can only learn what
+### Examples expansion (D-FT-5, 2026-11-06)
+
+63 new examples in `examples/runnable/stdlib/`. Each one:
+- is checked by `ailang check` and pinned to its exact stdout in the manifest;
+- is run in CI by `make verify-examples`;
+- starts with a `-- Task:` header that doubles as its training instruction.
+
+They split into:
+- **49 stdlib examples:** strings, lists, Option/Result, math, I/O, seeded random, JSON, YAML,
+  XML, HTML, map, set, regex, datetime, fs, arrays, bytes, iter, trace, crypto, JWT, compression,
+  archives, audio, embeddings, simhash.
+- **14 core-language examples (`lang_*`):** these target the syntax pilot-1 got wrong. They cover
+  `let` bindings (there is no `x = …`), interpolation, records, ADTs with guards, tree folds,
+  Option/Result, lambdas, tuples, effects, import aliases, numbers, tail recursion, polymorphism,
+  and a parse-transform-print program.
+
+**Coverage: 469 of 496 exported stdlib functions (95%), up from 400 (81%).** The remaining 27 are
+mostly network, AI and DOM calls that cannot run deterministically in CI. The exceptions are
+`sem`, `sharedmem`, `sharedindex` and `cognition`, which are still open.
+
+**Writing the examples surfaced language and doc issues:**
+- The teaching prompt teaches semicolons in blocks; `ailang fmt` strips them.
+- The prompt lists `**` as an operator, but it does not parse.
+- The prompt's `mapSlicesJoin` and JWT `verifyWithKid` examples are wrong.
+- `ailang check` accepts non-exhaustive matches.
+- There is no integer `max`/`min`, which models invent.
+- `ailang fmt` fails its round-trip check on nested interpolation and on a `match` inside `${...}`.
+
+Each of these teaches models a mistake, so they are routed as AILANG fixes, not training data.
+
+Filling coverage gaps is a docs improvement in its own right. The fine-tune can only learn what
 `examples/` shows, so the training set doubles as a check on how well the examples cover the
 language.

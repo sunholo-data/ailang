@@ -1,0 +1,46 @@
+-- Task: parse a small CSV inventory (header row, then "name, qty, unit price
+-- in cents" rows), trimming whitespace, skipping rows whose numbers do not
+-- parse, and printing a formatted table plus the stock total.
+-- Demonstrates std/string split, trim, stringToInt, join, repeat, length,
+-- foldSlices, std/list map, filter, drop, flatMap and std/option isNone.
+module examples/runnable/stdlib/string_parse_csv_rows
+import std/string (split, trim, stringToInt, join, repeat, length, foldSlices)
+import std/list (map, filter, drop, flatMap, forEachE)
+import std/list as L
+import std/option (getOrElse, isNone)
+
+type Item = { name: string, qty: int, cents: int }
+
+-- A row parses only when it has exactly three fields and both numbers are ints.
+pure func parseRow(line: string) -> Option[Item] = match map(trim, split(line, ",")) {
+  [name, q, c] => match (stringToInt(q), stringToInt(c)) {
+    (Some(qty), Some(cents)) => Some({ name: name, qty: qty, cents: cents }),
+    _ => None
+  },
+  _ => None
+}
+
+pure func padRight(s: string, width: int) -> string =
+  if length(s) >= width then s else "${s}${repeat(" ", width - length(s))}"
+
+pure func money(cents: int) -> string {
+  let rem = cents % 100
+  "${show(cents / 100)}.${if rem < 10 then "0" else ""}${show(rem)}"
+}
+
+export func main() -> () ! {IO} {
+  let csv = "name,qty,cents\n widget , 4, 250\ngadget,x,999\nsprocket, 12 ,75\nbolt,3\ngizmo,1,1999"
+  let rows = drop(1, split(csv, "\n"))
+  -- flatMap keeps the Some rows and drops the None rows in one pass.
+  let items = flatMap(\r. match parseRow(r) {
+    Some(it) => [it],
+    None => []
+  }, rows)
+  println("parsed ${show(L.length(items))} of ${show(L.length(rows))} rows")
+  forEachE(\it. println("${padRight(it.name, 10)}${padRight(show(it.qty), 4)}${money(it.qty * it.cents)}"), items)
+  -- foldSlices folds over the split pieces without materialising the list.
+  let qtyColumn = join(";", map(\it. show(it.qty), items))
+  let totalQty = foldSlices(qtyColumn, ";", 0, \acc s. acc + getOrElse(stringToInt(s), 0))
+  println("total units: ${show(totalQty)}")
+  println("rejected: ${join(" | ", filter(\r. isNone(parseRow(r)), rows))}")
+}

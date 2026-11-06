@@ -1,0 +1,26 @@
+-- Print a small order receipt using "${...}" string interpolation: plain variables,
+-- arithmetic, function calls, record fields, if-expressions, and string literals
+-- nested inside ${...}.
+-- Teaches: string interpolation, nested quotes inside ${...}, escaping \${ and \".
+module examples/runnable/stdlib/lang_string_interpolation
+import std/string (join, toUpper, repeat)
+
+pure func plural(n: int, word: string) -> string = if n == 1 then word else "${word}s"
+
+export func main() -> () ! {IO} {
+  let customer = "alice"
+  let order = { item: "lamp", qty: 3, price: 12 }
+  let tags = ["fragile", "gift"]
+  -- strings splice in directly; numbers go through show(...)
+  println("Customer: ${toUpper(customer)}")
+  println("Item: ${order.item} x${show(order.qty)}")
+  println("Total: ${show(order.qty * order.price)}")
+  println("Units: ${show(order.qty)} ${plural(order.qty, "unit")}")
+  -- a "..." literal inside ${...} needs no escaping: the parser matches the braces
+  println("Tags: ${join(", ", tags)}")
+  println("Express: ${if order.qty > 2 then "yes" else "no"}")
+  println("Rule: ${repeat("-", 10)}")
+  println("Price: ${"$"}${show(order.price)}")
+  -- escape a literal dollar-brace with \${ and a literal quote with \"
+  println("Template: \${name} says \"hi\"")
+}

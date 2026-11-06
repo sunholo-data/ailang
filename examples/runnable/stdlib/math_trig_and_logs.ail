@@ -1,0 +1,36 @@
+-- Task: solve geometry and scale problems with inverse trigonometry and
+-- base-10 logarithms — the angles of a 3-4-5 triangle from its sides, the
+-- angle of a ramp from its slope, a bearing from x/y offsets, the digit count
+-- of an integer, and a power ratio in decibels.
+-- Demonstrates std/math acos, asin, atan, atan2, log10, sqrt, pow, floor, PI,
+-- intToFloat and floatToInt, printed with std/string formatFixed.
+module examples/runnable/stdlib/math_trig_and_logs
+import std/math (acos, asin, atan, atan2, log10, sqrt, pow, floor, PI, intToFloat, floatToInt)
+import std/string (formatFixed)
+
+pure func degrees(rad: float) -> float = rad * 180.0 / PI()
+
+-- Fixed decimals keep the output identical across platforms' last-bit rounding.
+pure func deg(rad: float) -> string = formatFixed(degrees(rad), 2)
+
+-- Number of decimal digits in a positive integer: floor(log10(n)) + 1.
+pure func digitCount(n: int) -> int = floatToInt(floor(log10(intToFloat(n)))) + 1
+
+export func main() -> () ! {IO} {
+  let a = 3.0
+  let b = 4.0
+  let c = sqrt(pow(a, 2.0) + pow(b, 2.0))
+  println("hypotenuse: ${formatFixed(c, 1)}")
+  -- Law of cosines: angle opposite side a.
+  let alpha = acos((b * b + c * c - a * a) / (2.0 * b * c))
+  println("angle A (acos): ${deg(alpha)}")
+  println("angle B (asin): ${deg(asin(b / c))}")
+  println("ramp rising 1 in 12 (atan): ${deg(atan(1.0 / 12.0))}")
+  -- atan2 keeps the quadrant that atan(y / x) would lose.
+  println("bearing to (-1, 1): ${deg(atan2(1.0, -1.0))}")
+  println("atan(1 / -1) instead: ${deg(atan(1.0 / -1.0))}")
+  println("log10(1000) = ${formatFixed(log10(1000.0), 3)}")
+  println("digits in 7: ${show(digitCount(7))}, 999: ${show(digitCount(999))}, 123456: ${show(digitCount(123456))}")
+  let gain = 10.0 * log10(200.0 / 2.0)
+  println("200W vs 2W: ${formatFixed(gain, 1)} dB")
+}
