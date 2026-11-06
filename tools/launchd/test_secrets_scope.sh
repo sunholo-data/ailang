@@ -397,5 +397,10 @@ if /bin/bash "$HERE/test_secrets_scope_spawn.sh" "${1-}" "${2-}"; then
 else
   bad 'M2 actual spawn arms'
 fi
+if /bin/bash "$HERE/test_secrets_scope_dry_run.sh" "${1-}" "${2-}"; then
+  ok 'M3 actual dry-run arms'
+else
+  bad 'M3 actual dry-run arms'
+fi
 printf '%s passed, %s failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
