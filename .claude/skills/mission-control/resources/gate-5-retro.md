@@ -2,7 +2,7 @@
 
 First action: `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp gate-5 ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac`.
 After every Gate-5 report has been sent and this iteration is fully complete, run
-`case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp complete ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac` as the final gate action; eligible product idle recording below follows that stamp.
+`case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp complete ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac` as the final gate action.
 **Triage (`MISSION_NAME=triage`)**: the report also follows `gate-3-triage.md` §7 (digest shape,
 and Discord/Daneel only on its stated triggers). Its §8 fingerprint `--record` runs after every
 report has been sent and before `stamp complete`.
@@ -13,18 +13,22 @@ Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd
 For missions other than fleet/triage, record ONLY when the pick was NONE because nothing
 is loop-routable without a human (all candidates ruling-gated / waiting on an OPEN decision),
 and NO item is PARKED-ON-LANE or otherwise waiting on a clock (standing rule 8).
-Never record if this iteration picked, built or landed anything, or if any lane park exists.
-As the LAST step, after the report and record have landed and `stamp complete` has run,
-with `MISSION_WORKDIR` set to the mission's WORK repo checkout, run:
+Never record if this iteration picked, built or landed anything, any lane park exists, or the
+fire degraded (a failed probe, a controller or role fallback, a gate you could not run).
+After every report has been sent and before `stamp complete`, run:
 
 ```bash
 bash "$MISSION_DRIVER_ROOT/tools/launchd/lib/idle-fingerprint.sh" --record
 ```
 
+It PROMOTES the snapshot the driver took before you started (keyed by `MISSION_FIRE_ID`); it
+never recomputes, so a ruling that lands while you run still wakes the next fire.
 rc≠0: say so in the report; do not retry or hand-write the fingerprint file.
 The next fire exits before any probe while {head outside record paths, ledger statuses,
 allowlisted directives, unread mission inbox, red checks on the branch tip} stays unchanged;
-a record older than 24 h forces a full fire. Ticket: `driver:idle-fire-writes-full-block-report`.
+a record older than 24 h forces a full fire. A charter edit that flips no ledger row is NOT an
+input: an attended change of direction should flip or add a ledger row. Ticket:
+`driver:idle-fire-writes-full-block-report`.
 
 1. Scan this iteration's friction (evaluator feedback, executor corrections, your own dead ends)
    plus unread `docs/sprint-retros/` material. Route each item to exactly ONE lane:

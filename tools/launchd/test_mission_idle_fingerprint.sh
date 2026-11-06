@@ -15,6 +15,7 @@ trap 'rm -rf "$TMP"' EXIT
 export HOME="$TMP/home" TMPDIR="$TMP/tmp" IDLE_STATE_DIR="$TMP/state"
 export AILANG_STATE_DIR="$TMP/slots" STATE_DIR="$IDLE_STATE_DIR"
 mkdir -p "$HOME" "$TMPDIR" "$STATE_DIR" "$AILANG_STATE_DIR"
+unset MISSION_DRY_RUN MISSION_FIRE_ID
 # Ambient scope guards/config must never turn a fixture into a write to the host repo.
 for key in $(env | sed -n 's/^\(GIT_[A-Za-z0-9_]*\)=.*/\1/p'); do unset "$key"; done
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null GIT_CONFIG_NOSYSTEM=1
@@ -24,7 +25,7 @@ export LC_ALL=C
 case "${1:-}" in
   --mutations)
     /bin/bash "$0" >"$TMP/control" 2>&1 || { cat "$TMP/control"; fail 'pristine control'; }
-    for mutant in excludes wrong-record keep-changed fail-closed age limit pending store-pin; do
+    for mutant in excludes wrong-record keep-changed fail-closed age limit pending store-pin dry-run fire-check record-as-snapshot snapshot-keeps-stale; do
       cp "$DRIVER" "$TMP/driver"; cp "$HELPER" "$TMP/helper"
       case "$mutant" in
         excludes) sed '/:(exclude)/d' "$HELPER" >"$TMP/helper" ;;
@@ -36,6 +37,10 @@ case "${1:-}" in
         age) sed 's/"$_mi_age" -gt 86400/"$_mi_age" -gt 999999999/' "$DRIVER" >"$TMP/driver" ;;
         limit) sed 's/\[ "$n_in" -lt "$LIMIT" \]/true/' "$HELPER" >"$TMP/helper" ;;
         store-pin) sed 's/^env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT="[^"]*" \\$/  \\/' "$HELPER" >"$TMP/helper" ;;
+        dry-run) sed 's/ && \[ "${MISSION_DRY_RUN:-0}" != 1 \]; then/; then/' "$DRIVER" >"$TMP/driver" ;;
+        fire-check) sed 's/\*" fire=$fire at="\*) ;;/*) ;;/' "$HELPER" >"$TMP/helper" ;;
+        record-as-snapshot) sed 's/1:--record) mode=record ;;/1:--record) mode=snapshot ;;/' "$HELPER" >"$TMP/helper" ;;
+        snapshot-keeps-stale) awk '/^  rm -f "\$STATE_DIR\/mission-\$\{MISSION_NAME\}-idle-fingerprint.pending"$/ && !done {done=1; next} {print}' "$DRIVER" >"$TMP/driver" ;;
         pending) sed 's/\["failure", "timed_out", "cancelled", "action_required", "startup_failure"\]/["failure", "timed_out", "cancelled", "action_required", "startup_failure", null]/' "$HELPER" >"$TMP/helper" ;;
       esac
       if cmp -s "$DRIVER" "$TMP/driver" && cmp -s "$HELPER" "$TMP/helper"; then fail "mutant $mutant unchanged"; fi
@@ -63,6 +68,10 @@ run() { # mission rc output record [work-item]
     mkdir -p "$STATE_DIR" "$AILANG_STATE_DIR"
     f="$STATE_DIR/mission-${MISSION_NAME}-idle-fingerprint"
     [ -z "$4" ] || printf '%s\n' "$4" >"$f"
+    if [ -n "${SEED_ROWS:-}" ]; then
+      i=0; while [ "$i" -lt "$SEED_ROWS" ]; do echo "old-row $i"; i=$((i+1)); done \
+        >"$AILANG_STATE_DIR/mission-${MISSION_NAME}-slot-verdicts.log"
+    fi
     MC_DRIVER_ROOT=/nonexistent; TRANSIENT_RETRIES=3
     log() { LOGS="$LOGS|$*"; }
     _mc_bounded() {
@@ -87,6 +96,10 @@ out=$(run world 0 "noise
 $H1 head=1234567" "$H1 at=$NOW")
 case "$out" in 'EXIT 0 CALLS=1 kept=yes rows=1 '* ) ;; *) fail "unchanged: $out";; esac
 printf '%s\n' "$out" | grep -Eq '^[0-9TZ:-]+ verdict=IDLE rc=0 attempt=1/3 elapsed_s=0 stamps=0 controller=none$' || fail "IDLE layout: $out"
+out=$(SEED_ROWS=250 run world 0 "$H1" "$H1 at=$NOW")
+case "$out" in 'EXIT 0 CALLS=1 kept=yes rows=200 '*) ;; *) fail "slot history not trimmed to 200: $(printf '%s' "$out" | head -1)";; esac
+out=$(MISSION_DRY_RUN=1 run world 0 "$H1" "$H1 at=$NOW")
+case "$out" in 'FELLTHROUGH CALLS=0 kept=yes rows=0 '*) ;; *) fail "dry run touched the idle record: $out";; esac
 out=$(run world 0 "$H2" "$H1 at=$NOW")
 case "$out" in 'FELLTHROUGH CALLS=1 kept=no rows=0 '*changed*) ;; *) fail "changed: $out";; esac
 out=$(run world 0 "$H1" '')
@@ -121,6 +134,52 @@ ln_drain=$(grep -n '^_mc_drain_notices$' "$DRIVER" | head -1 | cut -d: -f1)
 ln_probe=$(grep -n '^_an_probed=":"' "$DRIVER" | head -1 | cut -d: -f1)
 [ "$ln_kill" -lt "$ln_tr" ] && [ "$ln_idle" -eq "$((ln_tr+2))" ] && [ "$ln_idle" -lt "$ln_drain" ] && [ "$ln_idle" -lt "$ln_probe" ] || fail placement
 echo 'PASS driver arms, slot layout, stdin EOF, state seam and placement'
+
+# Fire-start snapshot (evaluator finding, iteration 91): the record must be the inputs the
+# controller STARTED from, so the snapshot block runs once per fire before the controller.
+sblock=$(awk '/--- MISSION IDLE SNAPSHOT START ---/{on=1} on{print} /--- MISSION IDLE SNAPSHOT END ---/{exit}' "$DRIVER")
+[ -n "$sblock" ] || fail 'snapshot extraction'
+snap() { # mission rc write(yes|no) [work-item]
+  ( export MISSION_NAME="$1" AILANG_MISSION_WORK_ITEM="${4:-}" MISSION_FIRE_ID=fire-9
+    STUB_RC=$2; WRITE=$3; CALLS=0; LOGS=""
+    STATE_DIR="$TMP/snap-$RANDOM"; mkdir -p "$STATE_DIR"
+    pf="$STATE_DIR/mission-${MISSION_NAME}-idle-fingerprint.pending"
+    echo stale >"$pf"
+    MC_DRIVER_ROOT=/nonexistent
+    log() { LOGS="$LOGS|$*"; }
+    _mc_bounded() {
+      [ "$1" = 180 ] && [ "$2" = /bin/bash ] && [ "$3" = /nonexistent/tools/launchd/lib/idle-fingerprint.sh ] \
+        && [ "$4" = --snapshot ] || fail 'snapshot argv'
+      [ ! -t 0 ] && [ -z "$(cat)" ] || fail 'snapshot stdin not EOF'
+      [ "${IDLE_STATE_DIR:-}" = "$STATE_DIR" ] || fail 'snapshot state seam'
+      [ "$(cat "$pf" 2>/dev/null)" != stale ] || fail 'stale pending not cleared before the snapshot'
+      CALLS=$((CALLS+1)); [ "$WRITE" != yes ] || echo "$H1 fire=fire-9 at=1" >"$pf"
+      MC_BOUNDED_OUT="$H1 x"; return "$STUB_RC"
+    }
+    eval "$sblock"
+    has=no; [ ! -f "$pf" ] || has=yes
+    echo "CALLS=$CALLS pending=$has $LOGS" ) < /dev/null
+}
+out=$(snap world 0 yes)
+case "$out" in 'CALLS=1 pending=yes |world: idle snapshot taken for fire-9'*) ;; *) fail "snapshot ok: $out";; esac
+out=$(snap world 1 yes)
+case "$out" in 'CALLS=1 pending=no '*'cannot be recorded'*) ;; *) fail "failed snapshot kept a pending: $out";; esac
+out=$(snap world 0 no)
+case "$out" in 'CALLS=1 pending=no '*'cannot be recorded'*) ;; *) fail "rc0 without a file: $out";; esac
+for m in fleet triage; do
+  out=$(snap "$m" 0 yes)
+  case "$out" in 'CALLS=0 pending=yes '*) ;; *) fail "snapshot ran for $m: $out";; esac
+done
+out=$(snap world 0 yes item-1)
+case "$out" in 'CALLS=0 pending=yes '*) ;; *) fail "snapshot ran for a work item: $out";; esac
+ln_snap=$(grep -n 'MISSION IDLE SNAPSHOT START' "$DRIVER" | cut -d: -f1)
+ln_dry=$(grep -n 'log "DRY RUN ok:' "$DRIVER" | head -1 | cut -d: -f1)
+ln_pid=$(grep -n '> "\$PIDFILE"' "$DRIVER" | head -1 | cut -d: -f1)
+ln_fire=$(grep -n '^MISSION_FIRE_ID=' "$DRIVER" | head -1 | cut -d: -f1)
+ln_ctl=$(grep -n 'CONTROLLER_PID=\$!' "$DRIVER" | head -1 | cut -d: -f1)
+[ -n "$ln_snap" ] && [ "$ln_dry" -lt "$ln_snap" ] && [ "$ln_pid" -lt "$ln_snap" ] && [ "$ln_fire" -lt "$ln_snap" ] \
+  && [ "$ln_snap" -lt "$ln_ctl" ] || fail "snapshot placement dry=$ln_dry pid=$ln_pid fire=$ln_fire snap=$ln_snap ctl=$ln_ctl"
+echo 'PASS fire-start snapshot: argv, stdin EOF, stale cleared, failures leave none, exclusions, placement'
 
 # Real Git fixture. Git mutations below are ONLY inside this disposable repository.
 REAL_GIT=$(command -v git); export REAL_GIT
@@ -157,7 +216,7 @@ cat >"$BIN/gh" <<'STUB'
 [ -z "${STUB_GH_FAIL:-}" ] || { echo 'HTTP 502' >&2; exit 1; }
 case "$*" in
   'api --paginate repos/example/world/issues/99/comments?per_page=100') cat "$STUB_DIR/comments";;
-  'api repos/example/world/commits/'*'/check-runs --paginate') cat "$STUB_DIR/checks";;
+  'api repos/example/world/commits/'*'/check-runs --paginate') echo "$2" >"$STUB_DIR/checks_path"; cat "$STUB_DIR/checks";;
   *) echo "unexpected gh $*" >&2; exit 9;;
 esac
 STUB
@@ -199,6 +258,9 @@ echo log >"$MISSION_WORKDIR/design_docs/world-mission-log.md"; commit
 mkdir -p "$MISSION_WORKDIR/verification/world-iter9"
 echo record >"$MISSION_WORKDIR/verification/world-iter9/x.txt"; commit
 [ "$(hash)" = "$h0" ] || fail 'record-only verification commit moved hash'
+# Red checks are read on the branch TIP (which a record-only merge moves), not on head=.
+tip=$("$REAL_GIT" -C "$MISSION_WORKDIR" rev-parse origin/dev)
+grep -q "/commits/$tip/check-runs" "$S/checks_path" || fail "check-runs not read on the branch tip ($tip): $(cat "$S/checks_path")"
 echo changed >>"$MISSION_WORKDIR/product.txt"; commit
 h1=$(hash); [ -n "$h1" ] && [ "$h1" != "$h0" ] || fail 'non-record head did not move hash'
 # Charter is read from origin, never the working tree; ledger-only record commits still wake.
@@ -215,6 +277,9 @@ sed 's/t1/t2/' "$S/comments" >"$S/edit"; mv "$S/edit" "$S/comments"
 [ "$(hash)" != "$h1" ] || fail 'directive edit did not move hash'
 reset_stub; echo '[{"message_id":"msg-1","id":"internal-1"}]' >"$S/mail"
 [ "$(hash)" != "$h0" ] || fail 'unread mail did not move hash'
+reset_stub; echo '[{"message_id":"msg-1"}]' >"$S/mail"; ha=$(hash)
+echo '[{"message_id":"msg-2"}]' >"$S/mail"
+[ "$(hash)" != "$ha" ] || fail 'inbox id swap (same count) did not move hash'
 reset_stub; echo null >"$S/mail"
 [ "$(hash)" = "$h0" ] || fail 'empty nil slice rejected'
 reset_stub
@@ -234,6 +299,7 @@ for part in comments checks mail; do
   done
 done
 reset_stub; jq -n '[range(1000) | {message_id:(tostring)}]' >"$S/mail"; bad
+reset_stub; MISSION_DIRECTIVE_AUTHORS=' , ' bad
 reset_stub; rm "$STATE_DIR/mission-world-gh-issue"; bad
 reset_stub; echo '99oops' >"$STATE_DIR/mission-world-gh-issue"; bad
 for marker in start end; do
@@ -252,11 +318,33 @@ observe_default() {
   if [ -e "$HOME/.ailang/state" ]; then find "$HOME/.ailang/state" -type f -exec shasum -a 256 {} \; | sort; else echo absent; fi
 }
 before=$(observe_default)
-rec=$(fp --record) || fail record
-file="$STATE_DIR/mission-world-idle-fingerprint"
-grep -Eq ' at=[0-9]+$' "$file" || fail 'record timestamp'
-[ "$(sed 's/ at=[0-9]*$//' "$file")" = "$rec" ] || fail 'record differs from output'
+file="$STATE_DIR/mission-world-idle-fingerprint"; pend="$file.pending"
+fp --record >/dev/null; rc=$?
+[ "$rc" -ne 0 ] && [ ! -f "$file" ] || fail 'record without a fire id'
+MISSION_FIRE_ID=fire-1 fp --record >/dev/null; rc=$?
+[ "$rc" -ne 0 ] && [ ! -f "$file" ] || fail 'record without a snapshot'
+fp --snapshot >/dev/null; rc=$?
+[ "$rc" -ne 0 ] && [ ! -f "$pend" ] || fail 'snapshot without a fire id'
+snapline=$(MISSION_FIRE_ID=fire-1 fp --snapshot) || fail "snapshot: $(cat "$TMP/herr")"
+[ ! -f "$file" ] || fail 'snapshot wrote the record'
+grep -Eq '^[0-9a-f]{64} head=.* fire=fire-1 at=[0-9]+$' "$pend" || fail "pending format: $(cat "$pend")"
+[ "$(sed 's/ fire=fire-1 at=[0-9]*$//' "$pend")" = "$snapline" ] || fail 'pending differs from output'
+MISSION_FIRE_ID=fire-2 fp --record >/dev/null; rc=$?
+[ "$rc" -ne 0 ] && [ ! -f "$file" ] && [ -f "$pend" ] || fail 'another fire recorded this snapshot'
+# The evaluator's race: an input that changes DURING the fire must wake the next one.
+snaph=${snapline%% *}
+echo mid-fire >>"$MISSION_WORKDIR/product.txt"; commit
+# origin/HEAD points at main since the branch-choice arms above.
+"$REAL_GIT" -C "$MISSION_WORKDIR" -c core.hooksPath=/dev/null push -q origin HEAD:main || fail 'fixture push main'
+[ "$(hash)" != "$snaph" ] || fail 'mid-fire change did not move the live hash'
+rec=$(MISSION_FIRE_ID=fire-1 fp --record) || fail "record: $(cat "$TMP/herr")"
+[ "${rec%% *}" = "$snaph" ] && [ "$(cut -d' ' -f1 "$file")" = "$snaph" ] || fail 'record recomputed instead of promoting the snapshot'
+[ ! -f "$pend" ] || fail 'promoted snapshot left pending'
+grep -Eq ' fire=fire-1 at=[0-9]+$' "$file" || fail 'record timestamp'
 [ "$before" = "$(observe_default)" ] || fail 'default HOME state was written'
+# Re-record against the current inputs for the dynamic seam below.
+MISSION_FIRE_ID=fire-3 fp --snapshot >/dev/null || fail 're-snapshot'
+MISSION_FIRE_ID=fire-3 fp --record >/dev/null || fail 're-record'
 # Dynamic seam: the actual helper writes a record, then the extracted driver calls
 # that helper through its real argv and reads the same file. Test both slot dirs.
 mkdir -p "$TMP/driver-root/tools/launchd/lib"
@@ -278,13 +366,13 @@ for slots in consolidated fallback; do
   [ "$slots" != fallback ] || slot_dir=$STATE_DIR
   grep -q 'verdict=IDLE rc=0' "$slot_dir/mission-world-slot-verdicts.log" || fail "$slots slot state path"
 done
-old=$(cat "$file"); STUB_GH_FAIL=1 bad --record
-[ "$(cat "$file")" = "$old" ] || fail 'failed record clobbered good record'
+old=$(cat "$file"); STUB_GH_FAIL=1 MISSION_FIRE_ID=fire-4 bad --snapshot
+[ "$(cat "$file")" = "$old" ] && [ ! -f "$pend" ] || fail 'failed snapshot clobbered the record or left a pending'
 for m in fleet triage ''; do
   out=$(MISSION_NAME="$m" fp); rc=$?
   [ "$rc" -eq 2 ] && [ -z "$out" ] || fail "refusal $m: rc=$rc"
 done
-for args in '--bad' '--record extra'; do
+for args in '--bad' '--record extra' '--snapshot extra'; do
   # Deliberate splitting exercises the two-argument usage refusal.
   # shellcheck disable=SC2086
   fp $args >/dev/null; rc=$?

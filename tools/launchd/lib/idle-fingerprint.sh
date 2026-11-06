@@ -1,14 +1,23 @@
 #!/bin/bash
-# driver:idle-fire-writes-full-block-report — ONE implementation, two callers:
-# driver reads bare; controller --record is the last step of a completed no-pick fire.
+# driver:idle-fire-writes-full-block-report — ONE implementation, three entry points:
+#   bare        the driver's MISSION IDLE PRE-CHECK compares this against the record;
+#   --snapshot  the driver, once per fire, AFTER the overlap guard and BEFORE the controller
+#               starts: the inputs as they stood when the controller began, keyed by
+#               MISSION_FIRE_ID (<state>/mission-<name>-idle-fingerprint.pending);
+#   --record    the controller, last step of a completed human-gated no-pick fire: PROMOTES
+#               this fire's snapshot to the record. It never recomputes — an input that
+#               changed DURING the fire (an attended ruling at minute 30) must wake the next
+#               fire, not be absorbed into a record the controller never acted on.
 # A failed read prints NO fingerprint and exits non-zero. Bash 3.2 + BSD tools.
 set -uo pipefail
-record=0
+mode="read"
 case "$#:${1:-}" in
   0:) ;;
-  1:--record) record=1 ;;
-  *) echo 'usage: idle-fingerprint.sh [--record]' >&2; exit 2 ;;
+  1:--snapshot) mode=snapshot ;;
+  1:--record) mode=record ;;
+  *) echo 'usage: idle-fingerprint.sh [--snapshot|--record]' >&2; exit 2 ;;
 esac
+record=0; [ "$mode" = read ] || record=1
 name="${MISSION_NAME:-}"
 case "$name" in
   ''|fleet|triage) echo 'idle-fingerprint: MISSION_NAME must name a product mission (not fleet/triage)' >&2; exit 2 ;;
@@ -19,10 +28,33 @@ work="${MISSION_WORKDIR:-}"
 doc="${MISSION_DOC:-}"
 state_dir="${IDLE_STATE_DIR:-$HOME/.ailang/state}"
 fp_file="$state_dir/mission-${name}-idle-fingerprint"
+pend_file="$fp_file.pending"
+fire="${MISSION_FIRE_ID:-}"
+if [ "$mode" != read ]; then
+  printf '%s' "$fire" | grep -Eq '^[A-Za-z0-9._-]+$' \
+    || die "MISSION_FIRE_ID unset or malformed: --$mode is keyed to the driver's fire"
+fi
+if [ "$mode" = record ]; then
+  [ -f "$pend_file" ] || die "no snapshot for this fire ($pend_file absent): the driver takes it before the controller starts"
+  snap=$(head -1 "$pend_file") || die "cannot read $pend_file"
+  case "$snap" in
+    *" fire=$fire at="*) ;;
+    *) die "the snapshot is not from this fire ($fire); not recording another fire's inputs" ;;
+  esac
+  printf '%s' "${snap%% *}" | grep -Eq '^[0-9a-f]{64}$' || die "snapshot has no fingerprint"
+  printf '%s' "$snap" | grep -Eq ' at=[0-9]+$' || die "snapshot has no timestamp"
+  mkdir -p "$state_dir" || die "cannot create $state_dir"
+  if ! { printf '%s\n' "$snap" >"$fp_file.tmp.$$" && mv "$fp_file.tmp.$$" "$fp_file"; }; then
+    rm -f "$fp_file.tmp.$$"; die "cannot write $fp_file"
+  fi
+  rm -f "$pend_file"
+  printf '%s\n' "$snap"
+  exit 0
+fi
 [ -n "$repo" ] && [ -n "$work" ] && [ -n "$doc" ] || die 'MISSION_REPO, MISSION_WORKDIR and MISSION_DOC are required'
 for tool in git gh jq ailang; do command -v "$tool" >/dev/null 2>&1 || die "$tool not on PATH"; done
 tmp=$(mktemp -d -t idle-fp) || die 'mktemp failed'
-trap 'rm -rf "$tmp"; if [ "$record" -eq 1 ]; then rm -f "$fp_file.tmp.$$"; fi' EXIT
+trap 'rm -rf "$tmp"; if [ "$record" -eq 1 ]; then rm -f "$fp_file.tmp.$$" "$pend_file.tmp.$$"; fi' EXIT
 
 # A missing origin/HEAD (symbolic-ref rc=1) alone falls back to origin/dev. A bad
 # repository or other read error is not a missing ref and must not silently fall back.
@@ -63,6 +95,11 @@ awk -F '|' '
 [ -f "$state_dir/mission-${name}-gh-issue" ] || die 'bookkeeping gh-issue file absent'
 bk=$(cat "$state_dir/mission-${name}-gh-issue") || die 'cannot read bookkeeping gh-issue file'
 printf '%s' "$bk" | grep -Eq '^[0-9]+$' || die 'bookkeeping gh-issue is non-numeric'
+# Set-but-empty is refused, as scripts/mission_directives.sh refuses it: a loop that has
+# quietly stopped seeing its human must not read as a human who stopped commenting.
+if [ "${MISSION_DIRECTIVE_AUTHORS+set}" = set ] && [ -z "$(printf '%s' "$MISSION_DIRECTIVE_AUTHORS" | tr -d ' ,')" ]; then
+  die 'MISSION_DIRECTIVE_AUTHORS is set but empty'
+fi
 authors="${MISSION_DIRECTIVE_AUTHORS:-MarkEdmondson1234}"
 gh api --paginate "repos/$repo/issues/$bk/comments?per_page=100" \
   >"$tmp/comments.json" 2>"$tmp/err" || die "gh api comments on #$bk failed: $(tail -1 "$tmp/err")"
@@ -113,9 +150,10 @@ n_dir=$(grep -c . "$tmp/directives"); n_red=$(grep -c . "$tmp/red")
 hash=$(LC_ALL=C sort "$tmp/head" "$tmp/ledger" "$tmp/directives" "$tmp/inbox" "$tmp/red" | shasum -a 256 | awk '{print $1}') || die 'hash failed'
 printf '%s' "$hash" | grep -Eq '^[0-9a-f]{64}$' || die 'hash failed'
 line="$hash head=${head_sha:0:7} ledger=$n_ledger open=$n_open directives=$n_dir inbox=$n_in red=$n_red"
-if [ "$record" -eq 1 ]; then
+if [ "$mode" = snapshot ]; then
+  # at= stays LAST: the driver's expiry parse anchors on it.
   mkdir -p "$state_dir" || die "cannot create $state_dir"
-  if ! { printf '%s at=%s\n' "$line" "$(date +%s)" >"$fp_file.tmp.$$" \
-    && mv "$fp_file.tmp.$$" "$fp_file"; }; then die "cannot write $fp_file"; fi
+  if ! { printf '%s fire=%s at=%s\n' "$line" "$fire" "$(date +%s)" >"$pend_file.tmp.$$" \
+    && mv "$pend_file.tmp.$$" "$pend_file"; }; then die "cannot write $pend_file"; fi
 fi
 printf '%s\n' "$line"

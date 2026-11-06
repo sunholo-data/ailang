@@ -1740,8 +1740,11 @@ fi
 # so inputs outside this fingerprint still get a daily full fire.
 # Unlike triage, a product mission fails OPEN: the record is only an optimisation.
 # Changed/failed reads consume it so "the previous fire was a no-pick" stays true.
+# The record is the snapshot taken at the START of that fire (MISSION IDLE SNAPSHOT,
+# below), so anything that changed while it ran differs here and wakes this fire.
+# A dry run neither consumes nor honours a record: it must stay a pure wiring check.
 if [ -n "${MISSION_NAME:-}" ] && [ "$MISSION_NAME" != fleet ] && [ "$MISSION_NAME" != triage ] \
-   && [ -z "${AILANG_MISSION_WORK_ITEM:-}" ]; then
+   && [ -z "${AILANG_MISSION_WORK_ITEM:-}" ] && [ "${MISSION_DRY_RUN:-0}" != 1 ]; then
   _mi_file="$STATE_DIR/mission-${MISSION_NAME}-idle-fingerprint"
   if [ -f "$_mi_file" ]; then
     _mi_last=$(head -1 "$_mi_file" 2>/dev/null)
@@ -2350,6 +2353,28 @@ export MISSION_ROUTING_NOTE
 # repo that has none (world, stapledon). NOT AILANG_DRIVER_SRC: that is the source clone,
 # which can be far behind what actually runs.
 MISSION_DRIVER_ROOT="${MC_DRIVER_ROOT:-}"; export MISSION_DRIVER_ROOT
+
+# --- MISSION IDLE SNAPSHOT START ---
+# driver:idle-fire-writes-full-block-report, evaluator finding (fleet iteration 91): the
+# controller's `--record` used to fingerprint the inputs at the END of a 1-2 h fire, so an
+# attended ruling landing at minute 30 — which the controller read at Gate 0 and never acted
+# on — was baked into the record, and the next fires matched it and skipped for up to 24 h.
+# Snapshot the inputs HERE instead: after the overlap guard and the dry-run exit (a yielding
+# fire must not overwrite a running fire's snapshot; a dry run writes no state), after
+# MISSION_FIRE_ID exists, before the controller starts. `--record` only promotes the snapshot
+# whose fire= matches this fire. A failed snapshot leaves none, so the fire cannot record.
+if [ -n "${MISSION_NAME:-}" ] && [ "$MISSION_NAME" != fleet ] && [ "$MISSION_NAME" != triage ] \
+   && [ -z "${AILANG_MISSION_WORK_ITEM:-}" ]; then
+  rm -f "$STATE_DIR/mission-${MISSION_NAME}-idle-fingerprint.pending"
+  IDLE_STATE_DIR="$STATE_DIR" _mc_bounded 180 /bin/bash "$MC_DRIVER_ROOT/tools/launchd/lib/idle-fingerprint.sh" --snapshot < /dev/null; _mi_rc=$?
+  if [ "$_mi_rc" -eq 0 ] && [ -f "$STATE_DIR/mission-${MISSION_NAME}-idle-fingerprint.pending" ]; then
+    log "$MISSION_NAME: idle snapshot taken for $MISSION_FIRE_ID ($(printf '%s\n' "$MC_BOUNDED_OUT" | tail -1))"
+  else
+    rm -f "$STATE_DIR/mission-${MISSION_NAME}-idle-fingerprint.pending"
+    log "$MISSION_NAME: no idle snapshot this fire (rc=$_mi_rc: $(printf '%s\n' "$MC_BOUNDED_OUT" | tail -1)) — a no-pick verdict cannot be recorded"
+  fi
+fi
+# --- MISSION IDLE SNAPSHOT END ---
 _mc_export_mission_registry
 # The over-ration buckets travel with the resolved plan, so resolve-role-spawn.sh can
 # refuse a role recipe the driver itself would have refused (see that script's gate).
