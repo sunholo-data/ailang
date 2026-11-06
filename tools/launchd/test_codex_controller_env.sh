@@ -32,10 +32,15 @@ run_block() {
   : > "$T/log"; rm -f "$T/argv"
   env -i HOME="$T/home" PATH="$T/bin:/usr/bin:/bin" ARGV_OUT="$T/argv" LOG="$T/log" CODEX_HOME="$T/nocodex" \
     CONTROLLER_PROVIDER=codex MODEL=m REPO=/r PROMPT=PROMPTX RB_HELPER="$helper" RB_BLOCK="$block" "$@" \
-    RB_AUTH="$HERE/lib/codex-auth-profile.sh" /bin/bash -c 'set -u; . "$RB_HELPER"; . "$RB_AUTH"; . "$RB_BLOCK"; wait'
+    RB_SCOPE="$HERE/lib/secrets-scope.sh" MC_DRIVER_ROOT="$(cd "$HERE/../.." && pwd)" \
+    RB_AUTH="$HERE/lib/codex-auth-profile.sh" /bin/bash -c 'set -u; . "$RB_SCOPE"; . "$RB_HELPER"; . "$RB_AUTH"; . "$RB_BLOCK"; wait'
 }
 argv_lines() { tr '\0' '\n' < "$T/argv"; }
-mkdir -p "$T/home"
+export HOME="$T/home" ZDOTDIR="$T/home/zdot" CODEX_HOME="$T/nocodex"
+unset BASH_ENV ENV AILANG_SECRETS_LANE
+mkdir -p "$HOME/.config/ailang" "$ZDOTDIR" "$CODEX_HOME"
+printf '[shell_environment_policy]\ninherit = "core"\n' > "$CODEX_HOME/config.toml"
+: > "$HOME/.config/ailang/secrets.env"
 
 # --- (a) role vars reach argv, before the prompt
 run_block "$HELPER" "$T/block.sh" MISSION_NAME=fleet MISSION_DESIGNER_MODEL=claude:claude-opus-5-5 \

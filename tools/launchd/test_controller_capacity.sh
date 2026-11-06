@@ -29,6 +29,15 @@ ROOT="$(cd "${TMPDIR:-/tmp}" && pwd -P)/ctl-capacity-$$"
 rm -rf "$ROOT"; mkdir -p "$ROOT/x"
 trap 'rm -rf "$ROOT"' EXIT
 
+# Scope helper must only inspect a synthetic inventory, including extracted spawns.
+export HOME="$ROOT/scope-home" ZDOTDIR="$ROOT/scope-home/zdot" CODEX_HOME="$ROOT/scope-home/.codex"
+unset BASH_ENV ENV AILANG_SECRETS_LANE
+mkdir -p "$HOME/.config/ailang" "$ZDOTDIR" "$CODEX_HOME"
+: > "$HOME/.config/ailang/secrets.env"
+# shellcheck source=/dev/null
+. "$REPO_ROOT/tools/launchd/lib/secrets-scope.sh"
+
+
 X="$ROOT/x"
 # --- extraction (guarded: an empty extract would make every case vacuous) ------------------
 awk '/^_mc_notify\(\) \{/,/^\}$/'            "$DRV" >  "$X/fns.sh"

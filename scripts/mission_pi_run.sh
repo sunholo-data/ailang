@@ -145,6 +145,10 @@ preflight_fail() { # rc verdict error
 WORKDIR=$(cd "$WORKDIR" && pwd -P)
 
 RUNNER_ROOT=$(cd "$(dirname "$0")/.." && pwd -P)
+# --- SECRETS SCOPE ROLE LIBRARY START ---
+# shellcheck source=/dev/null
+. "$RUNNER_ROOT/tools/launchd/lib/secrets-scope.sh" || preflight_fail 14 launch_failed "scope helper unavailable"
+# --- SECRETS SCOPE ROLE LIBRARY END ---
 EXT_SRC="$RUNNER_ROOT/tools/pi-extensions/sandbox"
 FENCE_SRC="$RUNNER_ROOT/tools/pi-extensions/worktree-fence.ts"
 POLICY_SRC="${MISSION_PI_SANDBOX_POLICY_SOURCE:-$EXT_SRC/sandbox.mission.json}"
@@ -294,6 +298,11 @@ set -m
   # worse, reads `ok` off a worktree that was dirty for unrelated reasons. Caught live
   # 2026-08-26 when a run reported 4 tool executions and 0 changed files, and the
   # model's own closing message said it could not find the file and created it.
+  # --- SECRETS SCOPE PI ROLE START ---
+  export AILANG_SECRETS_LANE=pi-role MISSION_DRIVER_ROOT="$RUNNER_ROOT"
+  unset BASH_ENV
+  mc_secrets_scope_apply "$AILANG_SECRETS_LANE" || exit $?
+  # --- SECRETS SCOPE PI ROLE END ---
   cd "$WORKDIR" || exit 14
   # AILANG_MISSION_STAGE=1: an unattended stage. The session-protocol gate then does not
   # demand an `ailang messages` call before unlocking — a call that cannot reach the store
