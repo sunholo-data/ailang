@@ -480,6 +480,16 @@ Training started at 18:22Z.
 - **Pace:** ~1.65 steps/min (≈36 s/step). Training ETA is ~Sat 18:00Z, so the arms still fit
   before Sunday night.
 
+**Update 21:47Z: DIVERGED.** Validation at step 200 is **6.762** (start 0.592), and train loss is flat
+at ~6.0 through step 360 of 2,368. The run is spent. Continuing means ~18 h of training plus four
+arms on a broken adapter, the rest of the weekend grant.
+- Not stopped (the weekend rules forbid kill; process kills are also blocked in-session). Mark has
+  been notified.
+- **Ready restart:** `tools/finetune/pilot2b.yaml` keeps the same mix, blocks and rank, with
+  lr 2e-5 (was 1e-4), LoRA scale 10 (was 20) and warmup 100.
+- To restart once the diverged process is stopped:
+  `cp tools/finetune/pilot2b.yaml tools/finetune/pilot2.yaml && nohup tools/finetune/pilot2_run.sh train serve eval_B eval_C eval_A eval_A2 summary > ~/models/finetune/pilot2.nohup 2>&1 &`
+
 ## Pilot-1 results (2026-11-06)
 
 Held-out 24 (`eval_results/finetune-pilot1/summary.md`):
