@@ -295,6 +295,82 @@ Metrics: pass rate, `first_attempt_pass_rate`, **protocol-miss rate** (no tool c
 - [ ] Batching re-measure at fine-tuned context length (5–15k instead of 33k).
 - [ ] **Release the holds** (remove the hold files, re-bootstrap the jobs), record results here, and route the failure clusters (rule 4d).
 
+## Pilot-2 direction (2026-11-06, attended with Mark, pilot-1 still running)
+
+**Reframe (Mark).** The model is for **agent mode**. Standard one-shot is a prompt problem, not
+the target. The language was designed so an AI can *discover* it (`check` errors that name the fix,
+`docs`, `examples`, `iface`). So the fine-tune should mainly instill **habits**, and memorise only the
+core syntax. Habits survive language changes; memorised stdlib names go stale.
+
+**Early pilot-1 signal (partial, standard mode only):** B_std 0/15, C_std 1/26.
+- Both arms hit their wall-clock caps. Six of the 15 B runs used the full 32k output tokens on
+  repetition loops.
+- The runs that ended normally mostly failed on invented stdlib names, wrong module names and
+  statement-style `x = …`.
+- `${expr}` interpolation is valid AILANG (verified with `ailang run`). An earlier read that called
+  it invalid was wrong.
+- The fused model in Ollama has **no sampling defaults**; the base ships temperature 1 / top_k 64 /
+  top_p 0.95. Fix that before reading anything into the loops.
+
+### Habits to instill (agent mode)
+
+1. **Write through the tool, never answer in chat.** This was base 12B's main failure: 12 of its
+   13 agent failures were protocol misses.
+2. **Verify every write.** Write → `ailang check` → read the error → apply the fix it names → run
+   → compare stdout with the spec.
+3. **Look up before guessing.** Unsure of a stdlib name or signature: `ailang docs std/X`,
+   `ailang iface`, `ailang builtins`. Unsure of a feature: `ailang examples search <concept>`.
+   Use targeted lookups, not a dump of the whole teaching prompt; every lookup grows the context,
+   and 12B decode drops to ~51 tok/s at 33k.
+4. **Trust the compiler over memory.** When memorised syntax conflicts with an error message,
+   follow the message. This is the habit that makes an older fine-tune survive a newer language.
+5. **Stop when verified.** Don't re-verify in a loop or keep generating after the program passes
+   (see the pilot-1 runaways).
+
+Anti-habits to keep out of the mix: filesystem search loops (`find /`, `ls -R`), grepping the repo
+for syntax, re-reading the full prompt each turn.
+
+### Data changes for pilot-2
+
+| Change | Why | Measured gap |
+|---|---|---|
+| Take `examples/` from the main checkout first, weight ×2–3, drop the ones that fail `check` | Canonical one-feature-per-file syntax; kept current by `verify-examples`; not benchmark solutions | 481 on disk, ~397 pass `check`, **25** reached the repo pool and **1** reached the pilot-1 mix. The duplicate filter kept a worktree copy, and that copy was rejected. |
+| Up-weight trajectory turns that follow a lookup (`docs`, `examples`, `iface`, `builtins`) or a `check` error | Teaches habits 2–4 | 2,345 of 23,740 trajectory samples contain a lookup call; the mix builder doesn't favour them now |
+| **Staleness pairs:** old code + the current error + the fixed version | Teaches habit 4 directly | Eval rejects are mostly `++` on strings (≈1,400) plus the 681 stdlib-skew repo rejects; the error text already names the fix |
+| All 6,293 eval passes, lower per-benchmark repeat weight | More syntax signal (standard pairs still help agent writes) | Pilot-1 capped them at 10 per benchmark → 585 samples |
+| Give repo programs the `benchmark/solution` module name only where the task requires it | Pilot-1 outputs carried repo-style module names | — |
+
+Recipe: 2 epochs, LoRA on all layers, sampling defaults set at import. Add a **base 12B + slim
+prompt** arm, so "the fine-tune didn't help" can be told apart from "the slim prompt is too thin".
+
+### Examples coverage (feeds back into the language)
+
+The fine-tune only learns what `examples/` shows. Fine-tuning therefore doubles as a check on
+whether the examples cover the language. Measured 2026-11-06:
+- 50 of the 51 `std/` modules are imported by at least one example. `std/trace` has none.
+- 23 modules have only 1–2 examples: `cognition`, `crypto`, `datetime`, `debug`, `deflate`, `dom`,
+  `embedding`, `extension`, `game`, `gzip`, `html`, `iter`, `jwt`, `package`, `sharedindex`,
+  `sharedmem`, `tar`, `web`, `ai/streaming`, `simhash`, `terminal`, `yaml`, `smoke`.
+
+  Treat these as a docs backlog.
+- Coverage is by module import, not by function. A per-function coverage audit
+  (`ailang iface` × example call sites) is the next measurement.
+
+### Cadence: a weekend fine-tune per language release
+
+The pipeline is reproducible end to end: extract → mix → gate → train (~6.5 h for 2,183 samples on
+12B) → serve → held-out A/B. So a fine-tune can be rebuilt each weekend as the language moves.
+
+- **Naming:** `gemma4-12b-ailang-<lang-version>`; the adapter is 87 MB.
+- **Promotion gate:** the new fine-tune must match or beat the previous one on the held-out agent
+  arm, and must beat base + full prompt.
+- **Staleness check:** run the previous fine-tune against the new language. Habits 2–4 should make
+  that decay slow; if it doesn't, the habit mix is wrong.
+
+**D-FT-2 (open, Mark):** publishing outside the rig (Ollama registry or Hugging Face). D-FT-1
+covers training an *internal* model on Claude/OpenAI outputs. Publishing a model trained on those
+outputs is a separate terms-of-use question. Until it's decided, the fine-tunes stay on the rig.
+
 ## Serving cost reference (2026-11-05)
 
 The question was how a fine-tuned 12B would be served beyond the rig, and what each option costs. These are list prices from web search on 2026-11-05 (USD). They may be stale (the Cloud Run page metadata was ~15 months old), so verify before budgeting. Per-run figures use today's measured 12B agent profile: ≈ 0.7–2M input tokens (mostly a cacheable prefix) and ≈ 10–35k output tokens per benchmark.
