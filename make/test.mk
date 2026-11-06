@@ -117,6 +117,7 @@ LAUNCHD_SUITES := \
 	tools/launchd/test_codex_controller_env.sh \
 	tools/launchd/test_mission_fleet_idle.sh \
 	tools/launchd/test_mission_triage_idle.sh \
+	tools/launchd/test_mission_idle_fingerprint.sh \
 	tools/launchd/test_mission_prompt_role.sh \
 	tools/launchd/test_ollama_quota_admission.sh \
 	tools/launchd/test_anthropic_quota_admission.sh \
