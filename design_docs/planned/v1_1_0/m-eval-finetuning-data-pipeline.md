@@ -461,6 +461,25 @@ decision gets a row in `docs/docs/finetuning/decisions.md` when it is made.
   `prompt_version`; they are now ignored rather than counted as a fallback (`068fd96e0`).
   A_agent2 = **17/24** (19 runs on v0.16.11; 5 non_agentic).
 
+### ⚠️ Pilot-2 training: loss spike at step 80 (flagged 2026-11-06 19:47Z)
+
+Training started at 18:22Z.
+
+| Step | 20 | 40 | 60 | 80 | 100 | 120 | 140 |
+|---|---|---|---|---|---|---|---|
+| Train loss | — | 0.361 | 0.309 | **10.177** | 8.286 | 6.981 | 6.260 |
+
+- **The jump came just after warmup reached the peak learning rate** (1e-4 at ~30 optimizer
+  updates ≈ step 120 at grad-accum 4; the spike sits inside the end of warmup). Likely causes:
+  - LR 1e-4 with LoRA scale 20 on ALL blocks at rank 32 (pilot-1: 16 blocks, rank 16) is too hot;
+  - or a single bad, long sample.
+- **Not stopped:** the weekend rules forbid kill.
+- **Next signal:** step-200 validation (dry-run val was 0.592 → 0.386).
+  - If val stays far above 0.39, this run is spent.
+  - The re-run should use LR 2e-5 to 5e-5, or LoRA scale ~8, keeping all blocks.
+- **Pace:** ~1.65 steps/min (≈36 s/step). Training ETA is ~Sat 18:00Z, so the arms still fit
+  before Sunday night.
+
 ## Pilot-1 results (2026-11-06)
 
 Held-out 24 (`eval_results/finetune-pilot1/summary.md`):
