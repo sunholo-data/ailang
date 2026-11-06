@@ -69,6 +69,18 @@ scripted model showed why:
 - Fixed in `5dc3ba42b`: evals now disarm the gate ([D-FT-6](./decisions.md)). All three agent arms,
   base included, re-run under the same condition.
 
+**The re-run with the gate fixed: B_agent2 0/24, and no run called the ack.** A live transcript,
+taken through the cooperative rig handoff, showed the second cause. After a tool result, the
+fine-tune's sensible tool calls (`ailang run …`, `ailang_check …`) came back inside the
+*thinking* channel, so pi saw no tool call and ended the run.
+- Pilot-1 was trained in thinking-off format: the generation prompt pre-fills an empty, closed
+  thought.
+- Ollama serves Gemma 4 with thinking on, and its parser then files the output as reasoning.
+- Replaying one turn with `think: false` did not fix it reliably, so the mismatch is in the
+  training format, not a serving switch.
+- Pilot-2 trains every step as thought → action in the served format
+  ([D-FT-8](./decisions.md)).
+
 The capture also showed two kinds of noise in every eval tool result: an OpenTelemetry
 deprecation warning on each `ailang` command, and an injected "brain context" block on each
 `read`.

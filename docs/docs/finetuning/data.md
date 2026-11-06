@@ -54,6 +54,26 @@ and re-reading the whole teaching prompt every turn.
 - **Staleness pairs** (old code + today's error + the fixed version) come almost free. About 1,400
   past programs use `++` on strings, and the current error message names the fix.
 
+## Simulating the habits (pilot-2)
+
+The habits are taught by **simulated agent episodes built from verified programs**. Every tool
+result in them is real: the program is run with today's `ailang`, and an episode is kept only if
+its output matches the task's expected output.
+- **Format:** the task prompt comes from the eval harness itself, and the layout matches pi's
+  captured traffic (pi's system prompt, the arm's prompt in the user turn, pi's tool-result
+  strings). Each episode gets a fresh workspace path.
+- **Solve episodes:** read the template → *sometimes* a targeted signature lookup
+  (`ailang docs --all-functions std/string.split`, 1–3 lines) or `ailang examples search` →
+  write → `ailang check` → run → stop.
+- **Repair episodes:** write the old program → `ailang check` → the real error → edit → … →
+  run → stop.
+  - Source: staleness pairs, programs that passed when banked but fail today's checker.
+  - Fixes come from gemma-4-31b and, for the harder ones, Opus (D-FT-7).
+  - A fix is kept only if the program prints exactly what it printed when banked.
+- **Thoughts:** every step carries a short thought built from facts in the episode, for example
+  "The checker says: `++` is for lists only… So I'll switch the concatenation to `${...}`
+  interpolation." That makes them correct by construction ([D-FT-8](./decisions.md)).
+
 ## Pilot-1 mix
 
 2,183 training samples, 4.79M tokens (1.62M of them targets):
