@@ -248,6 +248,18 @@ const sidebars = {
     },
     {
       type: 'category',
+      label: 'Fine-tuning Research',
+      link: { type: 'doc', id: 'finetuning/index' },
+      items: [
+        'finetuning/decisions',
+        'finetuning/baseline',
+        'finetuning/data',
+        'finetuning/pilot-1',
+        'finetuning/costs',
+      ],
+    },
+    {
+      type: 'category',
       label: 'Internals & Vision',
       collapsed: true,
       items: [

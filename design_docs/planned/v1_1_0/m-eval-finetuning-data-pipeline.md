@@ -367,9 +367,19 @@ The pipeline is reproducible end to end: extract → mix → gate → train (~6.
 - **Staleness check:** run the previous fine-tune against the new language. Habits 2–4 should make
   that decay slow; if it doesn't, the habit mix is wrong.
 
-**D-FT-2 (open, Mark):** publishing outside the rig (Ollama registry or Hugging Face). D-FT-1
-covers training an *internal* model on Claude/OpenAI outputs. Publishing a model trained on those
-outputs is a separate terms-of-use question. Until it's decided, the fine-tunes stay on the rig.
+**D-FT-2 = YES (Mark, attended, 2026-11-06):** fine-tunes are published outside the rig,
+through an artifact bucket linked from the website. The terms-of-use question was raised before
+the decision. Confirm the base model's licence (Apache 2.0) against the model card at publish time.
+
+**Decisions recorded 2026-11-06 (Mark):**
+- **D-FT-3:** agent mode is the target; standard one-shot is a prompt issue.
+- **D-FT-4:** train habits; memorise only the core.
+- **D-FT-5:** expand `examples/` into a representative training set (also needed for the docs).
+- **D-FT-2:** publish (above).
+
+**Website:** a public research section, `docs/docs/finetuning/`, records measurements and
+decisions as content: overview, decision log, baseline, data, pilot-1, costs. Every future
+decision gets a row in `docs/docs/finetuning/decisions.md` when it is made.
 
 ## Serving cost reference (2026-11-05)
 
