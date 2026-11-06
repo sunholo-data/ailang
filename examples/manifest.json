@@ -4229,14 +4229,62 @@
       "description": "Parse CSV-like order lines, skip malformed ones, compute totals, print an aligned report",
       "expected": {"stdout": "item     qty  total\napple      3    120\npear       2    110\nmelon      1    300\n-------------------\nTOTAL           530\nskipped: 2\n", "exit_code": 0},
       "modules": ["std/list","std/string"]
+    },
+    {
+      "path": "runnable/stdlib/sharedmem_cas_counter.ail",
+      "status": "working",
+      "tags": ["stdlib", "sharedmem", "cas", "concurrency", "cache"],
+      "description": "Page-view counters in SharedMem: seed with put_if_absent, read with get_or, increment via a cas retry loop; a stale cas is rejected.",
+      "modules": ["std/bytes", "std/list", "std/option", "std/sharedmem", "std/string"],
+      "expected": {"stdout": "seed /home: true\nseed /home again: false\nseed /about: true\n/home views: 103\n/about views: 1\n/pricing views: 1\n/missing views (default): 0\nstale cas accepted: false\n/home after stale cas: 103\nkeys: views:/about, views:/home, views:/pricing\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/sem_frame_replicas.ail",
+      "status": "working",
+      "tags": ["stdlib", "sem", "semantic-cache", "versioning", "embedding", "simhash"],
+      "description": "Reconcile two sem_frame replicas: attach an embedding, bump a version, pick the newer, compare SimHash fingerprints.",
+      "modules": ["std/bytes", "std/embedding", "std/sem", "std/simhash"],
+      "expected": {"stdout": "original: id=faq-42 ver=1 embedding=false dim=0\nreplica A: id=faq-42 ver=1 embedding=true dim=4\nreplica B: id=faq-42 ver=2 embedding=false dim=0\nB newer than A: true\nA newer than B: false\nwinner: ver=2 content=How can I reset my password from the login page\nwinner needs re-embedding: true\nA kept the original fingerprint: true\nsimhash distance 5, same document (threshold 10): true\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/sem_namespace_check.ail",
+      "status": "working",
+      "tags": ["stdlib", "sem", "validation", "namespace"],
+      "description": "Validate candidate SharedIndex namespace names with validate_namespace and report why bad ones are rejected.",
+      "modules": ["std/list", "std/option", "std/sem", "std/string"],
+      "expected": {"stdout": "\"beliefs\" -> ok\n\"agent-7.memory\" -> ok\n\"\" -> rejected (empty namespace)\n\"tenant:acme\" -> rejected (invalid character: :)\n\"docs/archive\" -> rejected (invalid character: /)\n\"my notes\" -> rejected (invalid character: space)\n\"tab\\tsep\" -> rejected (invalid character: \\t)\n\"multi\\nline\" -> rejected (invalid character: \\n)\n\"back\\slash\" -> rejected (invalid character: \\)\n\"user_42\" -> ok\naccepted 3 of 10: beliefs, agent-7.memory, user_42\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/sem_frame_upsert.ail",
+      "status": "working",
+      "tags": ["stdlib", "sem", "sharedmem", "cas", "upsert", "semantic-cache"],
+      "description": "Per-user recent-searches note: create_or_update_frame creates then CAS-updates a frame; update_frame reports conflicts.",
+      "modules": ["std/bytes", "std/list", "std/option", "std/sem"],
+      "expected": {"stdout": "record \"rust lifetimes\": ok\nrecord \"borrow checker\": ok\nrecord \"async traits\": ok\nrecord \"sourdough starter\": ok\nrecent:ana v3: rust lifetimes | borrow checker | async traits\nrecent:ben v1: sourdough starter\nupdate missing key: conflict\nupdate with 0 retries: conflict\nrecent:ben v1: sourdough starter\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/sharedindex_embedding_search.ail",
+      "status": "working",
+      "tags": ["stdlib", "sharedindex", "embedding", "semantic-search", "cosine"],
+      "description": "Help-desk semantic index: upsertWithEmbedding articles, re-index one, and answer queries with deterministic findByEmbedding top-k.",
+      "modules": ["std/list", "std/sharedindex", "std/simhash", "std/string"],
+      "expected": {"stdout": "articles indexed: 4\ncard declined: update-card@v1 0.992, request-refund@v1 0.844\nlocked out: reset-password@v1 0.997, update-card@v1 0.607\narticles after re-index: 4\nreturn my order: track-parcel@v2 0.974, request-refund@v1 0.932\n", "exit_code": 0}
+    },
+    {
+      "path": "runnable/stdlib/dom_batch_fallback.ail",
+      "status": "working",
+      "tags": ["stdlib", "dom", "cognitive-os", "result", "fallback"],
+      "description": "Publish a status panel as one applyBatchResult DOM batch, falling back to a text log when no DOM handler exists (CLI).",
+      "modules": ["std/dom", "std/list", "std/result", "std/string"],
+      "expected": {"stdout": "DOM unavailable (NO_HANDLER); text fallback for region agent-indexer:\n  - add panel \"Indexer\": 30/40 documents embedded\n  - add timeline \"Indexer events\"\n  - update progress-bar: 75%\n  - remove spinner\nDOM unavailable (NO_HANDLER); text fallback for region agent-indexer:\n  - update progress-bar: 100%\n  - add panel \"Indexer\": done\n", "exit_code": 0}
     }
   ],
   "statistics": {
-    "total": 317,
-    "working": 309,
+    "total": 323,
+    "working": 315,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9747634069400631,
+    "coverage": 0.9752321981424149,
     "experimental": 0
   },
   "milestones": {

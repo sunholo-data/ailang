@@ -1,0 +1,53 @@
+-- Task: keep page-view counters in a shared in-process cache the way concurrent
+-- workers would — seed each counter once with put_if_absent, read with a
+-- default via get_or, and increment with an optimistic compare-and-swap retry
+-- loop (cas), showing that a stale expected value is rejected.
+-- Demonstrates std/sharedmem put_if_absent, get_or, cas, get and keys.
+module examples/runnable/stdlib/sharedmem_cas_counter
+import std/sharedmem (put_if_absent, get_or, cas, get, keys)
+import std/bytes (fromString, toString)
+import std/string (stringToInt, join, compare)
+import std/option (Some, None, getOrElse)
+import std/list (forEachE, sortBy)
+
+pure func encode(n: int) -> bytes = fromString(show(n))
+
+pure func decode(b: bytes) -> int = getOrElse(stringToInt(toString(b)), 0)
+
+-- Read the current value, then swap only if nobody changed it in between.
+-- A failed swap re-reads and tries again, up to `tries` times.
+func increment(key: string, tries: int) -> bool ! {SharedMem} {
+  if tries <= 0 then false else {
+    let current = get(key)
+    let next = match current {
+      Some(b) => decode(b) + 1,
+      None => 1
+    }
+    if cas(key, current, encode(next)) then true else increment(key, tries - 1)
+  }
+}
+
+func count(key: string) -> int ! {SharedMem} = decode(get_or(key, encode(0)))
+
+export func main() -> () ! {IO, SharedMem} {
+  -- Only the first seed for a key wins; later seeds report false.
+  println("seed /home: ${show(put_if_absent("views:/home", encode(100)))}")
+  println("seed /home again: ${show(put_if_absent("views:/home", encode(0)))}")
+  println("seed /about: ${show(put_if_absent("views:/about", encode(0)))}")
+  forEachE(\_. {
+    let _ = increment("views:/home", 3);
+    ()
+  }, [1, 2, 3])
+  let _ = increment("views:/about", 3)
+  -- A counter nobody has touched yet: cas with None creates it.
+  let _ = increment("views:/pricing", 3)
+  println("/home views: ${show(count("views:/home"))}")
+  println("/about views: ${show(count("views:/about"))}")
+  println("/pricing views: ${show(count("views:/pricing"))}")
+  println("/missing views (default): ${show(count("views:/missing"))}")
+  -- A writer holding a stale snapshot (100) loses the race against the live value (103).
+  let staleWon = cas("views:/home", Some(encode(100)), encode(999))
+  println("stale cas accepted: ${show(staleWon)}")
+  println("/home after stale cas: ${show(count("views:/home"))}")
+  println("keys: ${join(", ", sortBy(compare, keys()))}")
+}

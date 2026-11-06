@@ -1,0 +1,38 @@
+-- Task: build a tiny semantic help-desk index — store each article's
+-- embedding (plus its SimHash) in a namespace, re-index one article at a new
+-- version, then answer queries with the top cosine-similarity matches, using
+-- deterministic ordering so results are reproducible.
+-- Demonstrates std/sharedindex upsertWithEmbedding, findByEmbedding and entryCount.
+module examples/runnable/stdlib/sharedindex_embedding_search
+import std/sharedindex (upsertWithEmbedding, findByEmbedding, entryCount)
+import std/simhash (simhash)
+import std/list (map, forEachE)
+import std/string (join, formatFixed)
+
+type Hit = { key: string, score: float, version: int, timestamp: int }
+
+-- Toy 4-d embeddings: [billing, login, shipping, refunds].
+func index(key: string, text: string, vec: [float], ver: int, ts: int) -> () ! {SharedIndex} =
+  upsertWithEmbedding("helpdesk", key, simhash(text), vec, ver, ts)
+
+-- score is cosine similarity rescaled to [0, 1]: (cos + 1) / 2, so orthogonal = 0.5.
+pure func showHit(h: Hit) -> string = "${h.key}@v${show(h.version)} ${formatFixed(h.score, 3)}"
+
+func ask(label: string, query: [float]) -> () ! {IO, SharedIndex} {
+  let hits = findByEmbedding("helpdesk", query, 2, 0, true)
+  println("${label}: ${join(", ", map(showHit, hits))}")
+}
+
+export func main() -> () ! {IO, SharedIndex} {
+  index("update-card", "Update the card on your invoice", [0.9, 0.1, 0.0, 0.2], 1, 1000)
+  index("reset-password", "Reset a forgotten password", [0.0, 0.95, 0.0, 0.0], 1, 1001)
+  index("track-parcel", "Track where your parcel is", [0.1, 0.0, 0.9, 0.1], 1, 1002)
+  index("request-refund", "Ask for your money back", [0.4, 0.0, 0.2, 0.9], 1, 1003)
+  println("articles indexed: ${show(entryCount("helpdesk"))}")
+  ask("card declined", [0.8, 0.0, 0.0, 0.3])
+  ask("locked out", [0.1, 0.9, 0.0, 0.0])
+  -- Re-indexing the same key replaces its vector instead of adding an entry.
+  index("track-parcel", "Track parcels and returns", [0.1, 0.0, 0.7, 0.6], 2, 2000)
+  println("articles after re-index: ${show(entryCount("helpdesk"))}")
+  ask("return my order", [0.0, 0.0, 0.5, 0.8])
+}
