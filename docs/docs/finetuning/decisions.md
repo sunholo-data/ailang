@@ -24,6 +24,7 @@ on the [Baseline](./baseline.md) or [Pilot-1](./pilot-1.md) page.
 | D-FT-4 | 2026-11-06 | Mark | **Train habits, memorise only the core** | "The whole point of the language has been to help AI self discover." Runtime discovery (check → read error → fix, `docs`, `examples`) also counters staleness |
 | D-FT-5 | 2026-11-06 | Mark | **Expand `examples/` into a representative training set** | Measured: 25 of ~397 passing examples reached pilot-1's data pool, and 1 reached the mix. 96 of 496 exported stdlib functions appear in no example. The examples are needed for the docs anyway |
 | D-FT-2 | 2026-11-06 | Mark | **Publish fine-tunes outside the rig**, through an artifact bucket linked from this site | Weekend fine-tunes per language release, versioned by AILANG version. Base-model licence (Apache 2.0) to be confirmed against the model card at publish time |
+| D-FT-6 | 2026-11-06 | Mark | **Agent evals run without the attended-session gate; re-run pilot-1's three agent arms** | A wire capture against a scripted model showed the pi session-protocol gate refused every eval write until the model called `session_protocol_ack`. Every Phase 0 base-12B pass acked first; the fine-tune never did, so its 0/24 was the harness, not the model. Fixed in `5dc3ba42b`; agent results before it sit on the other side of a baseline boundary |
 
 ## Open
 

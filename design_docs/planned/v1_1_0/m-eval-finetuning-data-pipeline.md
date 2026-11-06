@@ -381,6 +381,39 @@ the decision. Confirm the base model's licence (Apache 2.0) against the model ca
 decisions as content: overview, decision log, baseline, data, pilot-1, costs. Every future
 decision gets a row in `docs/docs/finetuning/decisions.md` when it is made.
 
+### Pilot-1 agent arms void; gate fixed; re-run (2026-11-06, D-FT-6, Mark)
+
+- **Measured:** a wire capture (`tools/finetune/trace_proxy.py` + `fake_upstream.py`, scripted
+  model, no GPU) showed the pi session-protocol gate armed in every eval. It refused
+  write/edit/mutating bash until `session_protocol_ack`.
+- **Effect on base 12B:** every Phase 0 pass acked first.
+- **Effect on the fine-tune:** it never acked, so B_agent and C_agent were 0/24 with every write
+  refused.
+- **Fixed in `5dc3ba42b`:** `Task.EvalRun` → harness-owned `AILANG_EVAL_RUN=1`, which is unset
+  for non-eval children and refused in ExtraEnv. The gate stands down on it.
+- **Re-run:** `tools/finetune/pilot1_rerun.sh` runs A/B/C agent with `~/models/finetune/bin/ailang-ft2`
+  (B first). Arm A pins prompt v0.16.11.
+- **Also found in the capture:**
+  - The teaching prompt rides in the **user** message (pi prepends it to the directive); the
+    system role is pi's own coding-assistant prompt.
+  - Pilot-1's training samples used a custom system prompt instead. Pilot-2 episodes must mirror
+    the captured layout.
+  - Every bash result carries an OpenTelemetry deprecation line; every `read` carries a
+    brain-context block.
+
+**Pilot-2 data progress (CPU, 2026-11-06):**
+- **Re-extraction:** `data-v1` with the relative-path fix. 2,733 repo programs (594k lines,
+  +40%) and 6,299 eval programs.
+- **Trajectory cleaning** (`tools/finetune/ft_clean.py`): 12,991 / 23,740 samples carried a stale
+  absolute workspace; 1,359 had one in the target.
+- **Staleness pairs** (`tools/finetune/stale_fix.py`): 1,828 programs passed when banked but fail
+  `ailang check` today.
+  - Causes: `++` on strings 1,259; `print` without an import 208; MOD010 166; parse errors ~170.
+  - gemma-4-31b fixes are kept only if the output is exact: 23/50 on the billed test, at a
+    median similarity of 0.98 (minimal edits).
+- **Agent-format episodes:** `tools/finetune/agenttask/` renders the exact eval task prompt for
+  synthesized episodes.
+
 ## Serving cost reference (2026-11-05)
 
 The question was how a fine-tuned 12B would be served beyond the rig, and what each option costs. These are list prices from web search on 2026-11-05 (USD). They may be stale (the Cloud Run page metadata was ~15 months old), so verify before budgeting. Per-run figures use today's measured 12B agent profile: ≈ 0.7–2M input tokens (mostly a cacheable prefix) and ≈ 10–35k output tokens per benchmark.

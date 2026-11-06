@@ -59,6 +59,20 @@ Arms on the 24 held-out benchmarks:
 | B | pilot-1 | 2.4 KB slim prompt | **0/15** | running |
 | C | pilot-1 | none | **1/26** | pending |
 
+**The first agent arms are void.** Both B_agent and C_agent scored 0/24, but every run stopped
+after about two tool calls with the template untouched. Capturing pi's wire traffic against a
+scripted model showed why:
+- The pi session-protocol gate, a guard for attended dev sessions, was armed in every eval. It
+  refused each `write`, `edit` and mutating `bash` until the model called `session_protocol_ack`.
+- Base 12B had learned to ack; every one of its Phase 0 passes did. The fine-tune never acked, so
+  every write was refused.
+- Fixed in `5dc3ba42b`: evals now disarm the gate ([D-FT-6](./decisions.md)). All three agent arms,
+  base included, re-run under the same condition.
+
+The capture also showed two kinds of noise in every eval tool result: an OpenTelemetry
+deprecation warning on each `ailang` command, and an injected "brain context" block on each
+`read`.
+
 **Standard mode came out clearly worse than the base model with its full prompt.**
 - Both arms hit their 2.5-hour time caps. Six of the 15 B runs used the full 32k output tokens on
   repetition loops.

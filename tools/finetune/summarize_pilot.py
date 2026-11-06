@@ -53,12 +53,16 @@ def main():
     root = sys.argv[1]
     h = json.load(open(os.path.join(HERE, "heldout.json")))
     core = set(h["core"])
-    arms = {n: arm_stats(os.path.join(root, n), core) for n in ("A_std", "B_std", "C_std", "B_agent", "C_agent")}
+    arms = {n: arm_stats(os.path.join(root, n), core)
+            for n in ("A_std", "B_std", "C_std", "B_agent", "C_agent", "A_agent2", "B_agent2", "C_agent2")}
+    arms = {k: v for k, v in arms.items() if v is not None or not k.endswith("2")}
     base = json.load(open(os.path.join(HERE, "baseline_armA.json")))["results"]["agent"]
     arms["A_agent"] = dict(base, core=base.get("core_pass"), stretch=base.get("stretch_pass"),
                            source="baseline_armA.json (Phase 0)")
     verdict = {}
-    for mode in ("std", "agent"):
+    # agent2 = re-run with the session-protocol gate disarmed (5dc3ba42b); the first
+    # agent arms ran with every write refused until the model acked, so they are VOID.
+    for mode in ("std", "agent", "agent2"):
         a, b = arms.get(f"A_{mode}"), arms.get(f"B_{mode}")
         if a and b:
             verdict[mode] = {"A": a["pass_rate"], "B": b["pass_rate"],
@@ -69,10 +73,13 @@ def main():
     cols = ["runs", "pass", "pass_rate", "core", "stretch", "first_attempt", "protocol_miss",
             "median_output_tokens_per_pass", "minutes_per_verified_success"]
     lines = ["| arm | " + " | ".join(cols) + " |", "|" + "---|" * (len(cols) + 1)]
-    for n in ("A_std", "B_std", "C_std", "A_agent", "B_agent", "C_agent"):
+    for n in ("A_std", "B_std", "C_std", "A_agent", "B_agent", "C_agent", "A_agent2", "B_agent2", "C_agent2"):
+        if n.endswith("2") and n not in arms:
+            continue
         st = arms.get(n)
         lines.append(f"| {n} | " + (" | ".join(str(st.get(k, "")) for k in cols) if st else "not run") + " |")
-    lines += ["", "Kill criterion (B >= A on pass rate): " + json.dumps(verdict)]
+    lines += ["", "Kill criterion (B >= A on pass rate): " + json.dumps(verdict),
+              "Note: A_agent/B_agent/C_agent ran under the session-protocol gate (every write refused until the model acked) - VOID; read the *_agent2 arms."]
     open(os.path.join(root, "summary.md"), "w").write("\n".join(lines) + "\n")
     print("\n".join(lines))
 
