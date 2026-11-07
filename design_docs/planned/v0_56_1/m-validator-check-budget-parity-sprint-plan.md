@@ -3,7 +3,7 @@
 **Design:** [approved design](m-validator-check-budget-parity.md)  
 **Sprint ID:** M-VALIDATOR-CHECK-BUDGET-PARITY  
 **Target:** v0.56.1  
-**Status:** Planned; implementation awaits sprint approval/executor routing.  
+**Status:** Implementation complete; independent evaluation failed required verification gates (65/100).
 **Duration:** 3 engineering days, including contingency; production acceptance depends on deployment.  
 **Risk:** Medium (GC wall-time tradeoff and environment reproduction).
 
@@ -21,7 +21,7 @@ Ran `ailang pkg search validator`, then `ailang pkg info sunholo/registry_valida
 
 Approved rulings: retain instance-derived cap and 128 MiB server headroom; check GOMEMLIMIT is cap minus 64 MiB; retain RSS watchdog and 200 s wall cap; add two optional schema-v2 metadata fields; retain client verbatim 422 behavior. No client or verify changes.
 
-Still OPEN: design **High-Impact Decisions → Deploy path**, **Design Freeze → Mark approves the deploy route**, and **Implementation Plan → Phase 0**. General design approval does not select release-tag versus emergency rebuild. Before implementation begins, check for an explicit recorded route ruling as required by Design Freeze. If absent: **STOP: commit current work, report `BLOCKED: Mark must choose release-tag or emergency validator rebuild route`, and end the run**. Do not self-approve a route. Once recorded, copy the ruling into execution evidence. No additional human-decision gates.
+Resolved: the design's **Design Freeze** records Mark's attended 2026-11-02 ruling: release-tag deployment, not emergency rebuild; Phase 0 is complete. The executor continues at Phase 1. See [execution evidence](evidence/m-validator-check-budget-parity/execution.md) for the ruling and verification limitations. No new deployment or package publish is performed by this sprint.
 
 ## Milestones
 
@@ -34,10 +34,10 @@ Update bounded.go and validate.go with explicit child environment and stats retu
 
 **Acceptance criteria:**
 
-- [ ] 896 MiB RSS cap produces GOMEMLIMIT=832MiB; inherited duplicate GOMEMLIMIT is replaced, other environment values preserved.
-- [ ] Tiny caps cannot underflow into an enormous limit; unusable pacing budgets return an explicit error.
-- [ ] Child env-echo proves injection; deterministic RSS harness proves success/failure peak and elapsed stats.
-- [ ] Existing over-memory, timeout, child-failure, cap-derivation and Linux procRSS tests pass; wall cap stays 200 s.
+- [x] 896 MiB RSS cap produces GOMEMLIMIT=832MiB; inherited duplicate GOMEMLIMIT is replaced, other environment values preserved.
+- [x] Tiny caps cannot underflow into an enormous limit; unusable pacing budgets return an explicit error.
+- [x] Child env-echo proves injection; deterministic RSS harness proves success/failure peak and elapsed stats.
+- [x] Existing over-memory, timeout, child-failure, cap-derivation and Linux procRSS tests pass; wall cap stays 200 s.
 
 **Risk/mitigation:** GC pacing can trade memory for time; preserve timeout and measure wall cost.
 
@@ -50,10 +50,10 @@ Carry startup cap source and actual instance limit into refusal context through 
 
 **Acceptance criteria:**
 
-- [ ] Refusal includes cap/source, known instance limit or explicit unavailable marker, GOOS/GOARCH, effective child GOMAXPROCS, GOMEMLIMIT, 100 ms cadence, sampled peak and wall.
-- [ ] Existing resource/limit/observed semantics remain, including the 600 MiB observed assertion; budget refusal is HTTP 422 and ordinary compile failure is distinct.
-- [ ] Docker command uses the actual image tag or explicit missing-identity diagnostic, --platform linux/amd64, --cpus 2, --memory 1g and explicit GOMEMLIMIT/AILANG_NO_CACHE.
-- [ ] Command uses disposable writable package staging, cold cache and dependency resolution matching validator preparation; document that Docker does not reproduce gVisor. Do not label unknown runtime details as measured.
+- [x] Refusal includes cap/source, known instance limit or explicit unavailable marker, GOOS/GOARCH, effective child GOMAXPROCS, GOMEMLIMIT, 100 ms cadence, sampled peak and wall.
+- [x] Existing resource/limit/observed semantics remain, including the 600 MiB observed assertion; budget refusal is HTTP 422 and ordinary compile failure is distinct.
+- [x] Docker command uses the actual image tag or explicit missing-identity diagnostic, --platform linux/amd64, --cpus 2, --memory 1g and explicit GOMEMLIMIT/AILANG_NO_CACHE.
+- [x] Command uses disposable writable package staging, cold cache and dependency resolution matching validator preparation; document that Docker does not reproduce gVisor. Do not label unknown runtime details as measured.
 
 **Risk/mitigation:** Host parity cannot be guaranteed; label residual differences and test the runnable command.
 
@@ -66,10 +66,10 @@ Add CheckPeakRSS and CheckWallMS to internal/pkg/registry_types.go; plumb throug
 
 **Acceptance criteria:**
 
-- [ ] JSON names are check_peak_rss (bytes) and check_wall_ms (milliseconds), both omitempty; legacy metadata decodes and populated metadata round-trips.
-- [ ] Successful publish path persists sampled child RSS and check-only wall time, without counting dependency downloads as child time.
-- [ ] A deterministic handler test proves stats reach stored metadata; unavailable or unsampled RSS stays zero/omitted, never fabricated.
-- [ ] Existing metadata schema and quality fields remain compatible; verification child is unchanged.
+- [x] JSON names are check_peak_rss (bytes) and check_wall_ms (milliseconds), both omitempty; legacy metadata decodes and populated metadata round-trips.
+- [x] Successful publish path persists sampled child RSS and check-only wall time, without counting dependency downloads as child time.
+- [x] A deterministic handler test proves stats reach stored metadata; unavailable or unsampled RSS stays zero/omitted, never fabricated.
+- [x] Existing metadata schema and quality fields remain compatible; verification child is unchanged.
 
 **Risk/mitigation:** Short checks may escape sampling; retain explicit zero/omitted semantics.
 
@@ -82,11 +82,11 @@ Update docs/docs/guides/package-publishing.md with a budgets anchor and tested c
 
 **Acceptance criteria:**
 
-- [ ] Guide explains every refusal field, sampled-RSS limitations, host/runtime differences, cold dependencies, wide records and deep let chains; no invented module/signature ceilings.
-- [ ] Existing package tarball or existing fixture serves as the command example; no new .ail files or syntax are required.
-- [ ] Run focused final gates and record outcomes; Docker/staging evidence records image identity, cap source, peak and wall when infrastructure is available.
-- [ ] Record paced versus unpaced check measurements for an existing GC-heavy package without raising 200 s cap; report unavailable performance evidence explicitly.
-- [ ] Production rollout remains subject to the cited open deploy-route decision; do not claim celestial publish or worlds unblock without registry evidence.
+- [x] Guide explains every refusal field, sampled-RSS limitations, host/runtime differences, cold dependencies, wide records and deep let chains; no invented module/signature ceilings.
+- [x] Existing package tarball or existing fixture serves as the command example; no new .ail files or syntax are required.
+- [x] Run focused final gates and record outcomes; Docker/staging evidence records image identity, cap source, peak and wall when infrastructure is available.
+- [x] Record paced versus unpaced check measurements for an existing GC-heavy package without raising 200 s cap; report unavailable performance evidence explicitly.
+- [x] Production rollout remains subject to the cited open deploy-route decision; do not claim celestial publish or worlds unblock without registry evidence.
 
 **Risk/mitigation:** Cloud credentials or image access may be unavailable; separate local completion from unverified production acceptance.
 
@@ -109,3 +109,7 @@ After the route ruling, follow cloudbuild-registry-validator.yaml release/emerge
 ## Handoff
 
 The coordinator receives this plan and its populated JSON via the final artifact markers. Plan approval/merge routes to sprint-executor; this planning task does not start implementation or send a duplicate autonomous task. Historical issue #1811 is context, not an issue to auto-close. No current issue number was supplied.
+
+## Executor completion
+
+All four implementation milestones are complete on `coordinator/task-76187768`. See [execution evidence](evidence/m-validator-check-budget-parity/execution.md) for passing focused checks, missing lint tooling and pending Docker/production/performance acceptance. No release or package publish was attempted.

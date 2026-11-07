@@ -23,7 +23,7 @@ import (
 // and cross-module types), falls back to per-file checks for bare packages.
 // A non-nil error means the check was stopped by the validator's budget, not
 // that the package failed to compile.
-func runAilangCheck(dir string) (bool, string, error) {
+func runAilangCheck(dir string) (bool, string, checkStats, error) {
 	// If ailang.toml exists, use package-level check (resolves deps + cross-module types)
 	if strutil.FileExists(filepath.Join(dir, "ailang.toml")) {
 		// Step 1: Rewrite any remaining path deps to registry versions.
@@ -51,13 +51,13 @@ func runAilangCheck(dir string) (bool, string, error) {
 		// with ailang install modifying ailang.toml or ailang lock silently failing.
 		resolveManifest, err := pkg.LoadManifest(dir)
 		if err != nil {
-			return false, fmt.Sprintf("Failed to load manifest for dependency resolution: %v", err), nil
+			return false, fmt.Sprintf("Failed to load manifest for dependency resolution: %v", err), checkStats{}, nil
 		}
 
 		if len(resolveManifest.Dependencies) > 0 {
 			resolved, err := pkg.ResolveDependencies(resolveManifest, dir)
 			if err != nil {
-				return false, fmt.Sprintf("Dependency resolution failed: %v", err), nil
+				return false, fmt.Sprintf("Dependency resolution failed: %v", err), checkStats{}, nil
 			}
 
 			locked := make([]pkg.LockedPackage, len(resolved))
@@ -67,26 +67,30 @@ func runAilangCheck(dir string) (bool, string, error) {
 
 			lf := pkg.NewLockFile(locked, "registry-validator")
 			if err := lf.Save(dir); err != nil {
-				return false, fmt.Sprintf("Failed to write lock file: %v", err), nil
+				return false, fmt.Sprintf("Failed to write lock file: %v", err), checkStats{}, nil
 			}
 			log.Printf("Resolved %d dependencies, lock file written", len(resolved))
 		} else {
 			// No deps — write empty lock file for consistency
 			lf := pkg.NewLockFile(nil, "registry-validator")
 			if err := lf.Save(dir); err != nil {
-				return false, fmt.Sprintf("Failed to write lock file: %v", err), nil
+				return false, fmt.Sprintf("Failed to write lock file: %v", err), checkStats{}, nil
 			}
 		}
 
 		// Step 3: Run package-level type check, bounded (see bounded.go)
-		output, err := runBounded(dir, checkRSSCap, checkWallCap, procRSS, "ailang", "check", "--package", ".")
+		env, err := checkEnv(os.Environ(), checkRSSCap)
+		if err != nil {
+			return false, "", checkStats{}, err
+		}
+		output, stats, err := runBoundedEnv(dir, checkRSSCap, checkWallCap, procRSS, env, "ailang", "check", "--package", ".")
 		if be, ok := asBudgetError(err); ok {
-			return false, "", be
+			return false, "", stats, be
 		}
 		if err != nil {
-			return false, string(output), nil
+			return false, string(output), stats, nil
 		}
-		return true, "", nil
+		return true, "", stats, nil
 	}
 
 	// Fallback: check individual files (for packages without ailang.toml)
@@ -103,10 +107,10 @@ func runAilangCheck(dir string) (bool, string, error) {
 		cmd.Dir = dir
 		output, err := cmd.CombinedOutput()
 		if err != nil {
-			return false, string(output), nil
+			return false, string(output), checkStats{}, nil
 		}
 	}
-	return true, "", nil
+	return true, "", checkStats{}, nil
 }
 
 // verifyWallCap bounds the whole-package Z3 run (M-PKG-QUALITY-LADDER M2).
