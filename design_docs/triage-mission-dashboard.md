@@ -1,20 +1,17 @@
-# Triage mission — iteration31 (2026-11-06)
+# Triage mission dashboard
 
-Releasev0.57.4; reviewed dev463e2d44fec818ff0f99efc27c5258fb57219a55.
-Level1: verify/report/attest only with completed independent judge; operator alone approves.
-PARKED-ON-LANE: MiniMax/Ollama and declared OpenRouter both rc13 after305s; no terminal judgments.
-Eight proposals pending:2144/2145/2146/2147/2148/2149/2151/2152; zero item actions/new attestations.
-Next changed-queue fire explicitly re-selects all8 and uses existing bounded runner default.
-Verifier evidence106/106; independent completed prior review98/106;49globalcards43core.
-31aged/diff cards read;9green-checkstalls(incl1916BLOCKED);4uncardedPRs;6cross-repo cards excluded.
-Inherited unsigned ready reports2129/2136/2138; no fresh renewal or approval.
-78ledgerrows/41OPEN human holds preserved; no new humanask/mootclose/decomposition.
-Shadow665rows;6/9limitedsettledstatecorrelation; no PartApromotion.
-DevCI/BuildSUCCESS;17success+1neutral exactSHA checks. Docs latestsuccessolderhead.
-Controller/nativeAgentmodeltokensunreported; namedLuna65671quota tokens.
-JudgeOllama3504207reportedtokens; OpenRouter407655reportedtokens; unfinishedusageunknown.
-Meteredfloor$0.06150948,finaltotalunknown; no furtherpaidcalls.
-Harnessshare17/20escalationrecords;0triagerepairs.
-Morningfire:noeveningpacket/no urgent; normal/user reports carry lanepark.
-Cadence12h+unchangedqueuefreeidle; no scope/routing/config edits.
-Evidence:https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6683864983
+Iteration32 — 2026-11-07 local / 2026-11-06 UTC
+
+- Level1: read-only verification, safe labels/comments, unsigned informational attestations.
+- Snapshot:52 global cards/46 core;67 PRs;65 issues;114 eligible joined surfaces.
+- 16 verdicts and6 auxiliary groups independently concurred by MiniMax.
+- Verifier freshness107/114→114/114; latest judged80 skipped+16 refreshed=96/114.
+- 18 unchanged fresh verifier reports remain unjudged and unactioned.
+- Dev CI42306847329 SUCCESS; exact head a3bb8629106a4b8459df5aa33f867b4ed4dd84a5.
+- 44 OPEN human holds; new D78 IFC validation, D79 ordinary eval baseline, D80 redundant prompt chain.
+- Four uncarded coordinator PRs1759/1894/1934/1939;10 aged green-check stalls exposed.
+- Shadow agreement6/9 observed outcomes only; no auto-approval promotion.
+- Controller Codex; verifiers native OpenAI + named Luna; judge MiniMax/Ollama.
+- Metered$0; subscription/quota token usage reported in log; no code inner loop.
+- Cadence12h, idle fingerprint after reports; no approvals/rejections/merges/handoffs.
+- Reporting and record publication in progress; final receipts in mission log.
