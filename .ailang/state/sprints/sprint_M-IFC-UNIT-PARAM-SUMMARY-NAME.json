@@ -1,0 +1,66 @@
+{
+  "sprint_id": "M-IFC-UNIT-PARAM-SUMMARY-NAME",
+  "status": "not_started",
+  "created": "2026-11-06T16:29:22Z",
+  "design_doc": "design_docs/planned/v0_57_5/m-ifc-unit-param-summary-name.md",
+  "sprint_plan": "design_docs/planned/v0_57_5/m-ifc-unit-param-summary-name-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Not package-like: compiler-internal Go IFC summary repair and compile-path regression coverage; reuse existing summary convention and test helpers. Registry search not applicable."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Not package-like: compiler-internal Go IFC summary repair and compile-path regression coverage; reuse existing summary convention and test helpers. Registry search not applicable."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 160,
+    "estimated_total_loc": 160,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Canonical names and invariant tests",
+      "estimated_loc": 100,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Private and exported unit params produce non-empty `arg0`; mixed named/unit params produce the correct positional `arg1`.",
+        "Multiple anonymous params, wildcard/unit combinations, typed wildcard, and a named `arg0` adjacent to an anonymous param preserve arity, existing names and positional metadata.",
+        "Repeat analysis gives identical summaries; synthesized names survive gob encode/decode and Validate.",
+        "Existing empty-name corruption rejection, shadowing/local-summary coverage and IFC enforcement tests pass unchanged.",
+        "Synthesis does not modify `buildIFCSig`, environment keys, or fixed-point behavior; diagnostics retain export/private scope accurately."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Compile-path regression and release record",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Original private repro and exported variant compile through the module pipeline; persisted interface export membership is correct.",
+        "Locally built checkout binary passes check and run on original/exported variants; save before/after exit status and diagnostics in the completion report.",
+        "`make test-changed TEST_CHANGED_BASE=5d7b2efe` passes, including touched packages and test-core; run after implementation commits so diff-based selection sees all changes.",
+        "Targeted summary, codec, hash projection and enforcement regressions pass; formatting, `make check-file-sizes`, `make check-changelog` and `make check-boundaries` pass.",
+        "Compare baseline/fixed check output and exit status for existing `examples/` and `std/` modules using the same fixture set, explicitly including the three design-cited secrets fixtures; report actual module count and expected failures without claiming the historical 530 count.",
+        "Release fragment records restored unit-parameter acceptance and accurate diagnostic scope; inspect LIMITATIONS for a conflicting statement and amend only if needed."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
