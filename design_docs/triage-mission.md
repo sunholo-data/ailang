@@ -41,11 +41,11 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
+## STATUS 2026-11-07 — ITERATION 33: five independent verdicts; three unsigned attestations and one correction; 44 human holds; 12 aged stalls; no approvals or merges. [HARNESS] [ADMIN]
+
 ## STATUS 2026-11-07 — ITERATION 32: 16 independently concurred verdicts; one unsigned attestation, six comments,13 labels; D78–80 OPEN/44 holds; shadow683/score6of9. [HARNESS] [ADMIN]
 
 ## STATUS 2026-11-06 — ITERATION 31: required MiniMax judge lanes timed out; eight proposals parked, zero item actions; 41 OPEN holds preserved; shadow665/score6of9. [HARNESS] [ADMIN]
-
-## STATUS 2026-11-05 — ITERATION 30: six independently judged verdicts; eight aged green stalls exposed; D77 OPEN; no approvals, rejections or merges. [HARNESS] [ADMIN]
 
 ## CURRENT LEVEL: **1 — Tidy, with attestations** (Mark, attended 2026-10-15; D-TRIAGE-7)
 
@@ -224,18 +224,22 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 2. Sprint A, the coordinator auto-approval policy: its own design doc via design-doc-creator, scored
    against ≥2 weeks of this loop's shadow ledger before it auto-approves anything.
 3. [RECORDED iterations 1–3] Level 1 queue verification; iteration 3 records independent review and the prior record gap. Clauses 1–3.
-4. [NEXT] Refresh changed/held/stale items at current dev, preserving44OPEN human holds. Iteration32 completed16 independent judgments and the prior31retry;114/114 verifier-fresh,96/114 latest independently judged.18 unchanged fresh unjudged reports remain unactioned. Four report-only cards2129/2136/2138/2155 await the operator; no triage approvals,rejections,merges or handoffs.
+4. [NEXT] Refresh changed/held/stale items at current dev, preserving all44 OPEN human holds. Iteration33 independently judged five items and six auxiliary groups; 114/114 verifier-fresh and96/114 latest independently judged, with18 unchanged fresh unjudged reports unactioned. Three report-only cards2129/2136/2138 await the operator;2155 requires a population-label correction. No triage approvals, rejections, merges or handoffs.
 5. [RECORDED iteration 6] 10 independently judged items, 7 orphan PRs, one current-dev/cross-vendor unsigned attestation; #1878/#1879 P1 and #1880 P2 process-result defects remain open. Iteration 5 has digest/ledger evidence but no committed log; iteration 6 credits that recording gap.
 
 6. [HARNESS] [NONBLOCKING] ticket:reporting:daneel-reports-not-declared-triage — recurrence filed to fleet in iteration 6 (inbox_1792270873468_18cd5712). Existing controlplane fallback delivered both reports; iteration8 recurrence inbox_1792446067114_a8de6085; iteration10 recurrence inbox_1792533879605_18a7bcf5. Iteration11 recurrence inbox_1792578499678_b8495de1; direct send refused rc1, existing controlplane consumer retained. Iteration12 recurrence inbox_1792622923766_6056562b: direct send rc1; existing normal+one urgent controlplane consumer delivered. Iteration13 recurrence inbox_1792666977791_d8a8d14b: direct send rc1; existing controlplane normal/one urgent fallback delivered. No triage harness repair. Iteration16 recurrence inbox_1793178174531_2005f28f: direct send rc1; normal/one urgent controlplane pointers and user message peek-verified. Iteration26 recurrence inbox_1793741284696_503247dd: direct send refused rc1; existing normal/one new-decision urgent controlplane fallback and user summary exact-peek verified.
 
-7. [HARNESS] [NONBLOCKING] ticket:probe:pi-duplicate-extension-discovery — prescribed evaluator probe rc1 in iterations6/8 from duplicate global/repo extension registration; isolated no-extension MiniMax judge completed. Fleet occurrence inbox_1792446067799_00f63bae; no config/code repair by triage.
+7. [HARNESS] [RESOLVED receipt iteration33] ticket:probe:pi-duplicate-extension-discovery — prescribed evaluator probe rc1 in iterations6/8 from duplicate global/repo extension registration; isolated no-extension MiniMax judge completed. Fleet occurrence inbox_1792446067799_00f63bae; no config/code repair by triage.
 
-8. [HARNESS] [NONBLOCKING] ticket:agent-tool:sonnet-unavailable — iteration10 native evaluator Agent spawn rejected; declared MiniMax fallback returned independent judgment. Occurrence inbox_1792533445478_38a2bbe1; iteration11 occurrence inbox_1792578234571_689cc027, existing fleet D-FLEET-24 owns policy; iteration12 native schema lacks model/provider override, declared independent MiniMax fallback completed; occurrence inbox_1792622658313_00dd135d. Iteration13 native schema still lacks model selection; same configured Anthropic Sonnet reached through subscription-only CLI transport, with8/8CONCUR; no new native-capability ticket. No routing/harness repair.
+8. [HARNESS] [RESOLVED receipt iteration33] ticket:agent-tool:sonnet-unavailable — iteration10 native evaluator Agent spawn rejected; declared MiniMax fallback returned independent judgment. Occurrence inbox_1792533445478_38a2bbe1; iteration11 occurrence inbox_1792578234571_689cc027, existing fleet D-FLEET-24 owns policy; iteration12 native schema lacks model/provider override, declared independent MiniMax fallback completed; occurrence inbox_1792622658313_00dd135d. Iteration13 native schema still lacks model selection; same configured Anthropic Sonnet reached through subscription-only CLI transport, with8/8CONCUR; no new native-capability ticket. No routing/harness repair.
 
 9. [OBSERVED iteration12] Design PRs #1923/#1924 merged externally, recorded as unscored outcomes without approval/authorization inference. New PTY planner PR1926/card apr-5755c3e3 targets sprint-executor and remains HOLD(D26). New pricing design-only request inbox_1792622656896_0027a408. Snapshot7cards/28PRs/60issues; subsequent arrivals are re-selected next fire.
 
 10. [HARNESS] [NONBLOCKING] reporting:daneel-reports-not-declared-triage recurrence iteration25 inbox_1793696181298_78094169: direct normal report refused rc1; existing controlplane consumer delivered and exact body peek-verified. Fleet owns repair; no harness/config/registry/IAM change by triage. Iteration30 recurrence inbox_1793919988681_18e6d7a0: normal/packet direct rc1; prescribed controlplane fallback exact-peek verified, no forced send or repair. Iteration32 occurrenceinbox_1794009898024_d8ee4c47: normal+packet directrc1; prescribedcontrolplane fallback exact-peekverified; no repair.
+
+11. [HARNESS] [NONBLOCKING] ticket:tool-hang:triage-judge:home-metadata-search — iteration33 actual MiniMax judge ended tool_hang rc18 after1119s with no report; occurrence inbox_1794054886265_a8c363eb. One skill-authorized same-lane retry, forbidding HOME/session discovery, completed ok rc0 and all5+6CONCUR. No harness/config/routing repair by triage.
+
+12. [RECORDED iteration33] Four fleet fix receipts verified against current dev and independently judged: probe e5ab9f84f; alias routing3d9112bb9; skill mirror981028c46; secret detector26b35b081. Detector HALF only: secret stripping remains D-FLEET-42, and operator rotation/redaction are not implied. Record publication precedes per-message acknowledgements; no source work. Native Agent still cannot select a provider/model, so evaluator Agent is transport to the configured MiniMax lane.
 
 ---
 **Document created**: 2026-10-15. Iteration 0 ratifies it with Mark before the loop is armed.
