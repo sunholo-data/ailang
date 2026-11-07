@@ -348,6 +348,52 @@ expect "attempt 2 gets the RESUME prompt, attempt 1 the fresh one" $?
 has_log "slot-verdict: COMPLETED"; expect "verdict COMPLETED" $?
 endcase
 
+# codex capacity stop (D-FLEET-26 A). The fake is pi, not codex: the seam under test is the grep
+# on the shared $LOG, which codex reaches via `>>"$LOG" 2>&1`.
+begin codex-capacity-is-transient
+CHAIN="$CH3"
+# The fixture is assembled with $'\n' so this file carries no column-0 copy of the line: a codex
+# controller that reads this test would otherwise echo a real-looking stop into $LOG.
+_cap='Selected model is at capacity. Please try a different model.'
+script openrouter/a 1 1 - "codex"$'\n'"Gate 3: record written"$'\n'"ERROR: $_cap"$'\n'"ERROR: $_cap" stderr
+script openrouter/a 2 0 complete "done"
+runcase
+[ "$CASE_RC" -eq 0 ]; expect "process rc 0 (got $CASE_RC)" $?
+[ "$(pi_count openrouter/a)" -eq 2 ] && [ "$(pi_count openrouter/b)" -eq 0 ]; expect "same rung retried, no re-walk" $?
+state_has "demoted=[]"; expect "no demotion" $?
+has_log "transient API error (rc=1) attempt 1/3"; expect "retry log line" $?
+has_log "slot-verdict: COMPLETED"; expect "verdict COMPLETED" $?
+[ "$(count_sends 'FAILED')" -eq 0 ] && [ "$(count_sends 'PAUSED')" -eq 0 ]; expect "no FAILED/PAUSED sends" $?
+endcase
+
+# Prose quoting the capacity string must NOT be classed transient: the anchor is the only thing
+# between a quoted line in a ticket and a silent retry.
+begin prose-codex-capacity-not-transient
+CHAIN="$CH3"
+script openrouter/a default 1 - "the ticket quotes \`ERROR: Selected model is at capacity. Please try a different model.\` twice
+| D-FLEET-26 | OPEN | classify codex's \`Selected model is at capacity\` as transient?
+design_docs/fleet-mission.md:175:| D-FLEET-26 | Selected model is at capacity
+  ERROR: Selected model is at capacity (indented quote)"
+runcase
+has_log 'Selected model is at capacity'; expect "string reached driver.log (non-vacuous)" $?
+[ "$(pi_count openrouter/a)" -eq 1 ] && [ "$(pi_count openrouter/b)" -eq 0 ]; expect "single attempt, no re-walk" $?
+state_has "demoted=[]"; expect "no demotion" $?
+[ "$(/usr/bin/grep -c 'transient API error' "$LAB/driver.log")" -eq 0 ]; expect "no transient retry line" $?
+has_log "slot-verdict: CRASHED at="; expect "verdict CRASHED" $?
+[ "$(count_sends 'Mission iteration FAILED')" -eq 1 ] && [ "$(count_sends 'PAUSED')" -eq 0 ]; expect "1 FAILED, 0 pause" $?
+endcase
+
+# Any OTHER column-0 codex error stays a crash: kills a too-broad `^ERROR:` signature.
+begin codex-other-error-not-transient
+CHAIN="$CH3"
+script openrouter/a default 1 - "codex"$'\n''ERROR: {"type":"error","status":400,"error":{"type":"invalid_request_error","message":"The model does not exist."}}' stderr
+runcase
+has_log 'ERROR: {"type":"error","status":400'; expect "error line reached driver.log (non-vacuous)" $?
+[ "$(pi_count openrouter/a)" -eq 1 ] && [ "$(pi_count openrouter/b)" -eq 0 ]; expect "single attempt, no re-walk" $?
+[ "$(/usr/bin/grep -c 'transient API error' "$LAB/driver.log")" -eq 0 ]; expect "no transient retry line" $?
+has_log "slot-verdict: CRASHED at="; expect "verdict CRASHED" $?
+endcase
+
 begin rc0-old-402-normal
 CHAIN="$CH3"; MARKER_PRE=1
 script openrouter/a default 0 complete "$P402"
