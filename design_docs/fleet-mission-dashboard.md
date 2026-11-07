@@ -1,27 +1,21 @@
-# Fleet mission — iteration 92, 2026-11-06
+# Fleet mission — iteration 93, 2026-11-07
 
-- Latest release: v0.57.4. Fleet work on dev since v0.57.1: #2122 (`26b35b081`), #2127 (`9ea8adcf4`), #2132 (`7e9e9192b`), #2160 (`d08031597`).
-- **IDLE this fire.** All 25 open tickets sit behind OPEN rulings, and every buildable first step already has a draft. An independent sonnet idle-screen judge ruled NONE; the controller agreed. Nothing built or merged.
-- **NEW ASK: D-FLEET-43.** Should an unchanged, all-ruling-gated fleet fire skip itself, as product missions now do (iteration 91)?
-  - A (recommended): the fleet records the idle fingerprint after an independent NONE screen; the next unchanged fire exits `IDLE`.
-  - B (default): no change; every 6 h fire with open tickets runs in full.
-- PENDING ASK: **D-FLEET-42** (unchanged). Every buildable step of A is a draft (#2141 M1, #2143 M2, #2150 M3).
-  - A (recommended): merge the three drafts in order, plus your one-line `~/.zshenv` hook.
-  - B (default): detection only.
-  - C: strip everything.
-- PROPOSED, NOT MERGED (8 drafts, each waiting on your ruling):
-  - **D-FLEET-42 A**: #2150 (PASS 93), #2143 (PASS 92), #2141 (PASS 86).
-  - **D-FLEET-18 A guard step**, #2110 (PASS 93).
-  - **D-FLEET-36 A + D-FLEET-38 A guard step**, #2108 (PASS 92).
-  - **D-FLEET-25 shared sub-item**, #2082 (PASS 94).
-  - **D-FLEET-21 A**, #2067 (PASS 90).
-  - **D-FLEET-26 A**, #2065 (PASS 94).
-- WATCH (from 91): World's slot-verdict log for `verdict=IDLE` after its next no-pick fire.
-- Dev: `2d47417d8` at record time. CI and Build and Release green; 18/18 check-runs.
-- Roles: evaluator only (sonnet idle-screen judge, 66,510 tok). Designer, planner and executor not spawned: no pick.
-- NEXT: any ruling or new ticket. Without one, the next fire should reach the same NONE.
-- Decisions: 42 rows, 26 OPEN (D-FLEET-16 to -23, -25 to -29, -31 to -43). D-FLEET-43 new.
-- Cadence: 6h while tickets are open; 25 open. Bookkeeping thread #2039.
-- Quota: no codex spend; metered $0.
-- Bar: clause 1 UNMEASURED (goal unmoved); clause 2 UNMET (nothing resolved); clause 3 MET; clause 4 met by its letter (see D-FLEET-43); clause 5 preserved.
-- Evidence: `fleet-mission-evidence/iteration92/`.
+- Latest release: v0.57.4. Last code landing: #2160 (`d08031597`, iteration 91).
+- **PARKED: D-FLEET-25 mechanism design**, [draft #2165](https://github.com/sunholo-data/ailang/pull/2165), `985aa0161`; no implementation, plan, activation or ruling resolution.
+- Independent MiniMax pick judge: BUILD the remaining design step; #2082 covers only the factual correction.
+- Quorum R1 BLOCKED → one GLM revision → R2 BLOCKED (all three present reviewers reject; Anthropic absent/quota, OpenAI reserve served).
+- Final independent MiniMax judge: **NEEDS-HUMAN-REVIEW**. The draft must not be treated as approved sprint input.
+- Key blocker: deleting all claims can bypass claim-driven authorization discovery. Also unresolved: provenance strength, supersession/flip rules, byte identity and runtime-root facts.
+- **MARK: D-FLEET-25** — A (recommended): request a corrected literal-only checker/approval-snapshot design, then approve before planning; B: #2082 correction only; C: no change (default now). Later seed activation/execution need separate gates.
+- Existing proposed diffs remain unmerged: #2065, #2067, #2082, #2108, #2110, #2141, #2143, #2150. No new recovery/orphan.
+- D-FLEET-42 A's three drafts remain ready for attended review; D-FLEET-43 unchanged/default B. No fleet idle fingerprint recorded.
+- Dev base: `a3bb8629106a4b8459df5aa33f867b4ed4dd84a5`; CI + Build and Release succeeded, 18/18 checks. Proposal CI recorded separately; proposal unmerged.
+- All four Agent roles spawned, bridging exact pinned CLIs because Agent API lacks provider pins. Designer GLM; planner/executor Codex; judge MiniMax.
+- Revision helper interrupted after formatting churn; frozen 698-line artifact preserved, not a successful role verdict. Unknown inference usage retained explicitly.
+- Decisions: 42 rows, 26 OPEN, all statuses unchanged. Tickets: 25 open; reporting recurrence 18 remains D-FLEET-22.
+- Cadence: 6h while tickets open; bookkeeping #2039. No live driver/config/skill edit or reload.
+- Quota known: Codex 410,569 CLI tokens; Ollama 14,332,616 provider total tokens including cache reads; controller/bridges and interrupted inference usage unreported.
+- Metered: $1.35272926 reported plus one unreported interrupted MiniMax turn; $1 reserved for admission control, budget $5. No further metered call planned.
+- Bar: clause 1 UNMEASURED, clause 2 UNMET, clause 3 MET, clause 4 met by its letter, clause 5 preserved; goal unmoved.
+- Harness share: 19/20, expected for fleet remit. Last three code landings 91/87/86 each moved clause 2; no DRIFT alarm.
+- Full evidence: `fleet-mission-evidence/iteration93/`; full record: log entry 93.
