@@ -1,0 +1,8 @@
+module ailcheck/rectrap2
+type Person = { name: string, age: int }
+export func main() -> () ! {IO} {
+  let p = { name: "a", age: 1 };
+  let q = 1;
+  let r = { p | name: "b" }
+  println(r.name)
+}

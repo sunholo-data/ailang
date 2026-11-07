@@ -1,0 +1,7 @@
+module ailcheck/anon
+export func main() -> () ! {IO} {
+  let data = { user: { email: "x@y.z", name: "n" } }
+  match data {
+    {user: {email: e}} => println(e)
+  }
+}
