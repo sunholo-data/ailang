@@ -125,6 +125,7 @@ LAUNCHD_SUITES := \
 	scripts/hooks/test_pre_push.sh \
 	scripts/hooks/test_git_health.sh \
 	scripts/test_worktree_sweep.sh \
+	tools/launchd/test_secrets_scope.sh \
 	tools/launchd/test_evaluator_skill_lane.sh
 LAUNCHD_SERIAL_SUITES := \
 	tools/eval/test_motoko_connection_probe.sh
