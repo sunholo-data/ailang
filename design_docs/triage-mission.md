@@ -240,6 +240,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 11. [HARNESS] [NONBLOCKING] ticket:tool-hang:triage-judge:home-metadata-search — iteration33 actual MiniMax judge ended tool_hang rc18 after1119s with no report; occurrence inbox_1794054886265_a8c363eb. One skill-authorized same-lane retry, forbidding HOME/session discovery, completed ok rc0 and all5+6CONCUR. No harness/config/routing repair by triage.
 
 12. [RECORDED iteration33] Four fleet fix receipts verified against current dev and independently judged: probe e5ab9f84f; alias routing3d9112bb9; skill mirror981028c46; secret detector26b35b081. Detector HALF only: secret stripping remains D-FLEET-42, and operator rotation/redaction are not implied. Record publication precedes per-message acknowledgements; no source work. Native Agent still cannot select a provider/model, so evaluator Agent is transport to the configured MiniMax lane.
+13. [HARNESS] [NONBLOCKING] reporting:daneel-reports-not-declared-triage iteration33 recurrence inbox_1794055626799_50e8ab56: direct normal refused rc1; prescribed controlplane normal and user summaries exact-peek verified, unread. No forced send or repair.
 
 ---
 **Document created**: 2026-10-15. Iteration 0 ratifies it with Mark before the loop is armed.
