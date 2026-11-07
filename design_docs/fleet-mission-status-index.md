@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 91 | 2026-11-06 | `driver:idle-fire-writes-full-block-report` LANDED and resolved — #2160 → `d08031597`, dev CI + Build and Release green (18/18): product missions n... |
 | 90 | 2026-11-06 | D-FLEET-42 A's M3 built as a proposed diff — draft PR #2150 (`26b713887`), stacked on #2143, unmerged pending your ruling; a pinned dry-run now pro... |
 | 89 | 2026-11-06 | D-FLEET-42 A's M2 wiring built as a proposed diff — draft PR #2143 (`7f1e13d5f`), stacked on #2141, unmerged pending your ruling; controller childr... |
 | 88 | 2026-11-05 | D-FLEET-42 A's first step built as a proposed diff — draft PR #2141 (`4ea46f05e`), unmerged pending your ruling; a per-lane `secrets.env` scope lib... |

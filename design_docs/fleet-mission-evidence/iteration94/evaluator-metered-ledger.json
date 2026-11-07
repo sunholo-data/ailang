@@ -1,0 +1,113 @@
+{
+  "instrument": "sum each assistant message_end usage once; provider cost, cache-inclusive totals, no Codex CLI totals",
+  "calls": [
+    {
+      "round": 1,
+      "call": "probe",
+      "actual_models": [
+        "minimax/minimax-m3"
+      ],
+      "actual_providers": [
+        "openrouter"
+      ],
+      "tokens": {
+        "input": 1985,
+        "output": 40,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "reasoning": 45,
+        "totalTokens": 2025
+      },
+      "provider_cost_usd": 0.0006435,
+      "terminal_rc": 0,
+      "usage_message_end_events": 1,
+      "artifact_prefix": "/tmp/fleet_i94_evaluator_minimax_1794055346"
+    },
+    {
+      "round": 1,
+      "call": "run",
+      "actual_models": [
+        "minimax/minimax-m3"
+      ],
+      "actual_providers": [
+        "openrouter"
+      ],
+      "tokens": {
+        "input": 271259,
+        "output": 34197,
+        "cacheRead": 2972544,
+        "cacheWrite": 0,
+        "reasoning": 18204,
+        "totalTokens": 3278000
+      },
+      "provider_cost_usd": 0.30076674,
+      "terminal_rc": 0,
+      "usage_message_end_events": 58,
+      "artifact_prefix": "/tmp/fleet_i94_evaluator_minimax_1794055346"
+    },
+    {
+      "round": 2,
+      "call": "probe",
+      "actual_models": [
+        "minimax/minimax-m3"
+      ],
+      "actual_providers": [
+        "openrouter"
+      ],
+      "tokens": {
+        "input": 1866,
+        "output": 18,
+        "cacheRead": 128,
+        "cacheWrite": 0,
+        "reasoning": 16,
+        "totalTokens": 2012
+      },
+      "provider_cost_usd": 0.00058908,
+      "terminal_rc": 0,
+      "usage_message_end_events": 1,
+      "artifact_prefix": "/tmp/fleet_i94_evaluator_minimax_r2_1794055704"
+    },
+    {
+      "round": 2,
+      "call": "run",
+      "actual_models": [
+        "minimax/minimax-m3"
+      ],
+      "actual_providers": [
+        "openrouter"
+      ],
+      "tokens": {
+        "input": 422400,
+        "output": 78775,
+        "cacheRead": 5785550,
+        "cacheWrite": 0,
+        "reasoning": 37317,
+        "totalTokens": 6286725
+      },
+      "provider_cost_usd": 0.568383,
+      "terminal_rc": 0,
+      "usage_message_end_events": 76,
+      "artifact_prefix": "/tmp/fleet_i94_evaluator_minimax_r2_1794055704"
+    }
+  ],
+  "metered_total_usd": 0.8703823199999999,
+  "iteration_ceiling_usd": 5,
+  "round1_admission_estimate_usd": 1.5,
+  "round2_admission_estimate_usd": 0.6,
+  "round1_acceptance": "UNACCEPTED report: prerequisite/report-integrity findings",
+  "round2_acceptance": "NONE idle-only, unscored: metadata/denominator errata explicit",
+  "reports": [
+    {
+      "round": 1,
+      "path": "design_docs/fleet-mission-evidence/iteration94/idle-judge.md",
+      "bytes": 31706,
+      "sha256": "01007cd282053b0bcfe24922301d401d6af4d2a894a88bf7d4e9996c7593d28f"
+    },
+    {
+      "round": 2,
+      "path": "design_docs/fleet-mission-evidence/iteration94/idle-judge-r2.md",
+      "bytes": 7987,
+      "sha256": "a8aefc4d58d558ff5ba5fba524569392aa2b02049623c8cd599e142dc7e55a27"
+    }
+  ]
+}

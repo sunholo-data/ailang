@@ -1,21 +1,17 @@
-# Fleet mission — iteration 93, 2026-11-07
+# Fleet mission dashboard — iteration 94
 
-- Latest release: v0.57.4. Last code landing: #2160 (`d08031597`, iteration 91).
-- **PARKED: D-FLEET-25 mechanism design**, [draft #2165](https://github.com/sunholo-data/ailang/pull/2165), `985aa0161`; no implementation, plan, activation or ruling resolution.
-- Independent MiniMax pick judge: BUILD the remaining design step; #2082 covers only the factual correction.
-- Quorum R1 BLOCKED → one GLM revision → R2 BLOCKED (all three present reviewers reject; Anthropic absent/quota, OpenAI reserve served).
-- Final independent MiniMax judge: **NEEDS-HUMAN-REVIEW**. The draft must not be treated as approved sprint input.
-- Key blocker: deleting all claims can bypass claim-driven authorization discovery. Also unresolved: provenance strength, supersession/flip rules, byte identity and runtime-root facts.
-- **MARK: D-FLEET-25** — A (recommended): request a corrected literal-only checker/approval-snapshot design, then approve before planning; B: #2082 correction only; C: no change (default now). Later seed activation/execution need separate gates.
-- Existing proposed diffs remain unmerged: #2065, #2067, #2082, #2108, #2110, #2141, #2143, #2150. No new recovery/orphan.
-- D-FLEET-42 A's three drafts remain ready for attended review; D-FLEET-43 unchanged/default B. No fleet idle fingerprint recorded.
-- Dev base: `a3bb8629106a4b8459df5aa33f867b4ed4dd84a5`; CI + Build and Release succeeded, 18/18 checks. Proposal CI recorded separately; proposal unmerged.
-- All four Agent roles spawned, bridging exact pinned CLIs because Agent API lacks provider pins. Designer GLM; planner/executor Codex; judge MiniMax.
-- Revision helper interrupted after formatting churn; frozen 698-line artifact preserved, not a successful role verdict. Unknown inference usage retained explicitly.
-- Decisions: 42 rows, 26 OPEN, all statuses unchanged. Tickets: 25 open; reporting recurrence 18 remains D-FLEET-22.
-- Cadence: 6h while tickets open; bookkeeping #2039. No live driver/config/skill edit or reload.
-- Quota known: Codex 410,569 CLI tokens; Ollama 14,332,616 provider total tokens including cache reads; controller/bridges and interrupted inference usage unreported.
-- Metered: $1.35272926 reported plus one unreported interrupted MiniMax turn; $1 reserved for admission control, budget $5. No further metered call planned.
-- Bar: clause 1 UNMEASURED, clause 2 UNMET, clause 3 MET, clause 4 met by its letter, clause 5 preserved; goal unmoved.
-- Harness share: 19/20, expected for fleet remit. Last three code landings 91/87/86 each moved clause 2; no DRIFT alarm.
-- Full evidence: `fleet-mission-evidence/iteration93/`; full record: log entry 93.
+Updated 2026-11-07; scheduled unattended fire. Bookkeeping: [#2039](https://github.com/sunholo-data/ailang/issues/2039).
+
+- Outcome: **idle / ADMIN**. Independent MiniMax round 2: **NONE**, idle-only, unscored; no implementation accepted or ticket resolved.
+- Queue: **25 open tickets**; ledger **42 rows / 26 OPEN**, unchanged. Nine fleet drafts remain parked.
+- Next: a new ticket or an attributable ruling; no first in-scope step without a diff was independently established.
+- D-FLEET-25: [draft #2165](https://github.com/sunholo-data/ailang/pull/2165) remains rejected by two quorums and judgment-gated. Final design approval precedes planning; execution/seed activation retain separate gates.
+- D-FLEET-43: default B, no change; do not draft the fleet idle exclusion change or record its idle fingerprint without A.
+- Other drafts: #2065, #2067, #2082, #2108, #2110, #2141 → #2143 → #2150; see their corresponding OPEN rows.
+- Goal: clause 1 UNMEASURED; clause 2 UNMET; clause 3 MET; clause 4 met by its letter; clause 5 preserved. **Goal unmoved.**
+- Cadence: every 6 h; zero-ticket fires skip before probes. All-ruling-gated fleet fires still run (D-FLEET-43).
+- Routing: all four Agent roles spawned as explicit CLI bridges; Codex gpt-6.1-sol designer/planner/executor screens, MiniMax-M3 independent judge. No actual design/plan/execution; author rotation unchanged (GLM last, Kimi next).
+- Quota posture: Anthropic unavailable; configured fallback pins worked. Known Codex CLI role tokens 639,645; controller/bridge usage not reported. Metered MiniMax **$0.87038232** of $5.
+- Review limits: round 1 unaccepted after truncated read/report-integrity findings; fresh round 2 read coverage checked. Raw reports plus factual/score errata preserved; no code quality score claimed.
+- Base: `8fa7e8ab1eddee99a84b447b8eaaa4ee12308051`, 22/22 checks green; final record CI is reported on the bookkeeping thread.
+- Full record: [entry 94](fleet-mission-log.md), [evidence](fleet-mission-evidence/iteration94/observations.md), [operative judge](fleet-mission-evidence/iteration94/idle-judge-r2.md), [complete OPEN asks](fleet-mission-evidence/iteration94/open-decisions.md).
