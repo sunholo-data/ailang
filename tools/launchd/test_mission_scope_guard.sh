@@ -50,6 +50,17 @@ check v1 scripts/test_mission_pi_run.sh refuse
 check fleet tools/pi-extensions/sandbox/index.ts allow
 check fleet tools/pi-extensions/ailang-exec/index.ts refuse
 check v1 tools/pi-extensions/sandbox/index.ts allow
+# D-FLEET-18: exact support paths; product loops retain access.
+check fleet tools/eval/motoko_connection_probe.sh allow # kills: drop path 1
+check fleet tools/eval/test_motoko_connection_probe.sh allow # kills: drop path 2
+check motoko tools/eval/motoko_connection_probe.sh allow # kills: move path 1 to _scope_is_harness
+check motoko tools/eval/test_motoko_connection_probe.sh allow # kills: move path 2 to _scope_is_harness
+check v1 tools/eval/motoko_connection_probe.sh allow # kills: move path 1 to _scope_is_harness
+check v1 tools/eval/test_motoko_connection_probe.sh allow # kills: move path 2 to _scope_is_harness
+check fleet tools/eval/qwen38-motoko-rerun.sh refuse # kills: widen to tools/eval/*
+check fleet tools/eval/motoko_connection_probe.sh.bak refuse # kills: path 1 suffix glob
+check fleet tools/eval/test_motoko_connection_probe.sh-x refuse # kills: path 2 suffix glob
+check fleet tools/eval/xmotoko_connection_probe.sh refuse # kills: path 1 basename-prefix glob
 echo 'PASS scope verdicts: product loops refused on harness paths (incl. the fleet charter), fleet held to its allowlist, attended unaffected'
 
 # End to end: git must actually run the hook when core.hooksPath comes ONLY from env.

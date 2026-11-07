@@ -30,6 +30,7 @@ _scope_is_fleet_support() {
   case "$1" in
     design_docs/*|changelogs/*|CHANGELOG.md|docs/*|.ailang/state/sprints/*) return 0 ;;
     internal/config/mission.go|make/test.mk) return 0 ;;
+    tools/eval/motoko_connection_probe.sh|tools/eval/test_motoko_connection_probe.sh) return 0 ;;   # support, not harness (D-FLEET-18)
     tools/pi-extensions/sandbox/*) return 0 ;;   # the pi sandbox fail-closed fix (D-FLEET-6); the eval harness shares the rest of tools/pi-extensions
   esac
   return 1
