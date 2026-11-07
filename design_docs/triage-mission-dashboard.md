@@ -1,26 +1,20 @@
-# Triage mission — iteration 26, 2026-11-03
+# Triage mission — iteration31 (2026-11-06)
 
-- Level 1: tidy with attestations. Approvals remain with the operator.
-- Reviewed release: v0.57.0; base d9be18f1cdc462af5e6baf1bfe34193c1bd51dce.
-- Dev GREEN: CI 41665839278 and all 22 commit checks passed.
-- Snapshot: 38 global cards / 34 core, 47 PRs, 58 issues; 94 joined groups.
-- Reviewed 42: 4 changed, 18 new, 20 oldest stale; independent judge concurred.
-- Fresh coverage: 35/94 → 73/94. Twenty-one overdue issues remain deferred.
-- Posted 10 evidence comments and six needs-decision labels.
-- Routed issue 2076 for design only, preserving the judge's scope conditions.
-- VERIFIED artifacts 2102/2101/2100/2098: attestations wait for actual verifier model metadata.
-- Human ledger: 33 OPEN holds, including eight new D40–47; none resolved.
-- D40: type names. D41: AI billing/API. D42: MCP milestone overlap.
-- D43: semantic-store policies. D44: ordinary exec-lifetime authorization.
-- D45: VM-cons overlap. D46: Ollama overlap. D47: triage routing scope.
-- Uncarded PRs: 1939/1934/1894/1759; one missing approval record remains.
-- Aged green/mergeable 1916 (BLOCKED), 1978 and 2009 retain substantive holds.
-- Shadow: 552 append-only rows; trailing 14-day state agreement 1/4.
-- Verifiers: native OpenAI Agents; actual model and token counts unreported.
-- Judge: MiniMax via Ollama; 80,646 tokens including probe, $0 metered.
-- Cadence: 12 hours, unchanged-queue idle check. Routing note: as configured.
-- This iteration changed only its five documentation records in the repository.
-- Evidence: https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6615751514
-- Full history: triage-mission-log.md. The record PR remains draft and unmerged.
-- Draft record: https://github.com/sunholo-data/ailang/pull/2106
-- Digest: https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6615854839
+Releasev0.57.4; reviewed dev463e2d44fec818ff0f99efc27c5258fb57219a55.
+Level1: verify/report/attest only with completed independent judge; operator alone approves.
+PARKED-ON-LANE: MiniMax/Ollama and declared OpenRouter both rc13 after305s; no terminal judgments.
+Eight proposals pending:2144/2145/2146/2147/2148/2149/2151/2152; zero item actions/new attestations.
+Next changed-queue fire explicitly re-selects all8 and uses existing bounded runner default.
+Verifier evidence106/106; independent completed prior review98/106;49globalcards43core.
+31aged/diff cards read;9green-checkstalls(incl1916BLOCKED);4uncardedPRs;6cross-repo cards excluded.
+Inherited unsigned ready reports2129/2136/2138; no fresh renewal or approval.
+78ledgerrows/41OPEN human holds preserved; no new humanask/mootclose/decomposition.
+Shadow665rows;6/9limitedsettledstatecorrelation; no PartApromotion.
+DevCI/BuildSUCCESS;17success+1neutral exactSHA checks. Docs latestsuccessolderhead.
+Controller/nativeAgentmodeltokensunreported; namedLuna65671quota tokens.
+JudgeOllama3504207reportedtokens; OpenRouter407655reportedtokens; unfinishedusageunknown.
+Meteredfloor$0.06150948,finaltotalunknown; no furtherpaidcalls.
+Harnessshare17/20escalationrecords;0triagerepairs.
+Morningfire:noeveningpacket/no urgent; normal/user reports carry lanepark.
+Cadence12h+unchangedqueuefreeidle; no scope/routing/config edits.
+Evidence:https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6683864983
