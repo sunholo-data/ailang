@@ -1,0 +1,111 @@
+{
+  "sprint_id": "M-PROCESS-EXEC-PARENT-LIFETIME",
+  "status": "not_started",
+  "created": "2026-11-03T00:00:00Z",
+  "design_doc": "design_docs/planned/v0_56_2/m-process-exec-parent-lifetime.md",
+  "sprint_plan": "design_docs/planned/v0_56_2/m-process-exec-parent-lifetime-sprint-plan.md",
+  "github_issues": [
+    2034
+  ],
+  "features": [
+    {
+      "id": "M1_EXEC_WORKER",
+      "description": "Register synchronous exec with the existing execution owner",
+      "estimated_loc": 140,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "BeginWorker follows authorization and confinement; every pre-start failure aborts admission and prepared lifetime resources.",
+        "One Wait goroutine starts before Complete can synchronously Join; result/output reads occur only after completion.",
+        "RequestStop uses cooperative lifetime OR context cancellation; force kills the group only outside owner-group mode.",
+        "Late admission is stopped and reaped without waiting on the blocked evaluator; existing Result and timeout mapping remains intact."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_LIFETIME_RACES",
+      "description": "Exercise admission, nested lifetime, and receipt failure races",
+      "estimated_loc": 130,
+      "dependencies": [
+        "M1_EXEC_WORKER"
+      ],
+      "acceptance_criteria": [
+        "Deterministic tests cover close-before-admission, close-between-Start-and-Complete, normal release and repeated stop.",
+        "Nested ordinary exec propagates remaining deadline and requires terminal receipt; missing/failed receipts surface as WorkerCleanupFailure.",
+        "Per-call timeout remains hard cancellation; nonzero exit, authorization, output limit and confined behavior regressions pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_SIGNAL_POLICY",
+      "description": "Verify real runtime signals and preserve policy ownership",
+      "estimated_loc": 140,
+      "dependencies": [
+        "M2_LIFETIME_RACES"
+      ],
+      "acceptance_criteria": [
+        "Readiness-synchronized POSIX subprocess tests send SIGTERM/SIGINT only to runtime and assert exits 143/130, no delayed marker and no surviving original group members.",
+        "Isolated policy subprocess fixture verifies unchanged group placement, leader-only runtime force, supervisor survival and outer owner group cleanup.",
+        "Tests own cleanup on all failure paths; platform gates preserve Windows leader-only behavior and build compatibility."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_DOCS_VALIDATION",
+      "description": "Document bounded cleanup and finish focused checks",
+      "estimated_loc": 50,
+      "dependencies": [
+        "M3_SIGNAL_POLICY"
+      ],
+      "acceptance_criteria": [
+        "effects reference and LIMITATIONS describe standalone POSIX group cleanup, policy-owner responsibility and bounded cleanup failures.",
+        "No SIGKILL/crash/power-loss or setsid/daemon containment guarantee; #2037 stays separate.",
+        "Focused validation, file-size and changelog gates pass; unreleased fragment records the behavior."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1_EXEC_WORKER",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process; inspected sunholo/external_backend info/docs. Package wraps exec; host ownership, tests and docs must reuse internal Go WorkerOwner/runlife/proctree."
+    },
+    {
+      "milestone": "M2_LIFETIME_RACES",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process; inspected sunholo/external_backend info/docs. Package wraps exec; host ownership, tests and docs must reuse internal Go WorkerOwner/runlife/proctree."
+    },
+    {
+      "milestone": "M3_SIGNAL_POLICY",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process; inspected sunholo/external_backend info/docs. Package wraps exec; host ownership, tests and docs must reuse internal Go WorkerOwner/runlife/proctree."
+    },
+    {
+      "milestone": "M4_DOCS_VALIDATION",
+      "package": null,
+      "action": "none",
+      "reason": "Searched process; inspected sunholo/external_backend info/docs. Package wraps exec; host ownership, tests and docs must reuse internal Go WorkerOwner/runlife/proctree."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 153,
+    "estimated_total_loc": 460,
+    "estimated_days": 3
+  },
+  "execution_authorized": false
+}
