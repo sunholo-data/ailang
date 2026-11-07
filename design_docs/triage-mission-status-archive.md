@@ -28,3 +28,5 @@
 ## STATUS 2026-11-04 — ITERATION 27: red dev (skill-mirror sync) routed; PR #1978 attested; 30 verdicts judged; no approvals or merges; shadow586. [HARNESS] [ADMIN]
 
 ## STATUS 2026-11-04 — ITERATION 28: 25 cross-vendor judged verdicts; SCC gap reproduced; refusal design routed; ready1978 withheld; coverage96/96;20 OPEN;shadow611; no approvals or merges. [HARNESS] [ADMIN]
+
+## STATUS 2026-11-05 — ITERATION 29: six independent queue verdicts; 27 concrete choices split; current dev checks pending; no approvals, rejections or merges. [HARNESS] [ADMIN]
