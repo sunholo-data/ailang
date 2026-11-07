@@ -1,0 +1,65 @@
+[
+  {
+    "headRefName": "fleet/i93-rulings-ledger",
+    "isDraft": true,
+    "number": 2165,
+    "title": "docs(fleet): propose rulings ledger and bounded doctor check",
+    "updatedAt": "2026-11-07T06:06:12Z"
+  },
+  {
+    "headRefName": "fleet/i90-dfleet42-m3",
+    "isDraft": true,
+    "number": 2150,
+    "title": "feat(fleet): secrets-scope M3 dry-run preview for D-FLEET-42 A (PROPOSED, draft, stacked on #2143, pending ruling)",
+    "updatedAt": "2026-11-06T08:51:47Z"
+  },
+  {
+    "headRefName": "fleet/i89-dfleet42-m2",
+    "isDraft": true,
+    "number": 2143,
+    "title": "feat(fleet): secrets-scope M2 wiring for D-FLEET-42 A (PROPOSED, draft, stacked on #2141, pending ruling)",
+    "updatedAt": "2026-11-06T01:11:40Z"
+  },
+  {
+    "headRefName": "fleet/i88-dfleet42-secrets-scope",
+    "isDraft": true,
+    "number": 2141,
+    "title": "feat(fleet): per-lane secrets scope library + zshenv host line for D-FLEET-42 A (PROPOSED, draft, pending ruling)",
+    "updatedAt": "2026-11-05T18:12:19Z"
+  },
+  {
+    "headRefName": "fleet/i83-dfleet18-scope-arm",
+    "isDraft": true,
+    "number": 2110,
+    "title": "fix(fleet): scope guard arm for D-FLEET-18 A \u2014 two motoko probe files (PROPOSED, draft, pending ruling)",
+    "updatedAt": "2026-11-04T05:16:33Z"
+  },
+  {
+    "headRefName": "fleet/i82-dfleet36-38-scope-arm",
+    "isDraft": true,
+    "number": 2108,
+    "title": "fix(fleet): scope guard arm for D-FLEET-36 A + D-FLEET-38 A (PROPOSED, draft \u2014 two independent commits)",
+    "updatedAt": "2026-11-03T22:18:58Z"
+  },
+  {
+    "headRefName": "fleet/i81-dfleet25-world-fork-comment",
+    "isDraft": true,
+    "number": 2082,
+    "title": "fix(fleet): correct stale \"World is a fork\" claims + repair reach check (D-FLEET-25 shared sub-item, PROPOSED \u2014 awaiting ruling)",
+    "updatedAt": "2026-11-03T14:53:32Z"
+  },
+  {
+    "headRefName": "fleet/i80-dfleet21-gate3b-poll-cap",
+    "isDraft": true,
+    "number": 2067,
+    "title": "skill(mission-control): Gate 3b CI poll cap 1800 s \u2192 3600 s \u2014 D-FLEET-21 A (proposed, draft)",
+    "updatedAt": "2026-11-03T07:49:54Z"
+  },
+  {
+    "headRefName": "fleet/i79-dfleet26-capacity-transient",
+    "isDraft": true,
+    "number": 2065,
+    "title": "fix(launchd): codex capacity stop is transient \u2014 PROPOSED, D-FLEET-26 A (do not merge)",
+    "updatedAt": "2026-11-03T00:46:31Z"
+  }
+]
