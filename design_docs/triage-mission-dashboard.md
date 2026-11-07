@@ -1,26 +1,19 @@
-# Triage mission — iteration 26, 2026-11-03
+# Triage mission dashboard — iteration28,2026-11-04
 
-- Level 1: tidy with attestations. Approvals remain with the operator.
-- Reviewed release: v0.57.0; base d9be18f1cdc462af5e6baf1bfe34193c1bd51dce.
-- Dev GREEN: CI 41665839278 and all 22 commit checks passed.
-- Snapshot: 38 global cards / 34 core, 47 PRs, 58 issues; 94 joined groups.
-- Reviewed 42: 4 changed, 18 new, 20 oldest stale; independent judge concurred.
-- Fresh coverage: 35/94 → 73/94. Twenty-one overdue issues remain deferred.
-- Posted 10 evidence comments and six needs-decision labels.
-- Routed issue 2076 for design only, preserving the judge's scope conditions.
-- VERIFIED artifacts 2102/2101/2100/2098: attestations wait for actual verifier model metadata.
-- Human ledger: 33 OPEN holds, including eight new D40–47; none resolved.
-- D40: type names. D41: AI billing/API. D42: MCP milestone overlap.
-- D43: semantic-store policies. D44: ordinary exec-lifetime authorization.
-- D45: VM-cons overlap. D46: Ollama overlap. D47: triage routing scope.
-- Uncarded PRs: 1939/1934/1894/1759; one missing approval record remains.
-- Aged green/mergeable 1916 (BLOCKED), 1978 and 2009 retain substantive holds.
-- Shadow: 552 append-only rows; trailing 14-day state agreement 1/4.
-- Verifiers: native OpenAI Agents; actual model and token counts unreported.
-- Judge: MiniMax via Ollama; 80,646 tokens including probe, $0 metered.
-- Cadence: 12 hours, unchanged-queue idle check. Routing note: as configured.
-- This iteration changed only its five documentation records in the repository.
-- Evidence: https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6615751514
-- Full history: triage-mission-log.md. The record PR remains draft and unmerged.
-- Draft record: https://github.com/sunholo-data/ailang/pull/2106
-- Digest: https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6615854839
+- Latest release:v0.57.1; source8fc51e764; CI41903543561SUCCESS,18checks,no red/pending.
+- Current level:1. Never approve,reject,merge or firehandoffs.
+- Evidence:https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6643260382
+- Coverage:96/96fresh at snapshot;25cross-vendor judged items;71recent unchanged skipped.
+- Queue:38globalcards/34core,48PRs,58issues;96joined eligible items.
+- New evidence:2119top-level-param SCC gap reproduced;2121reverses attended corpus ruling.
+- Ready:none.1978prior unsigned attestation contradicted at unchangedhead.
+- Routed:2123refusal/content_filter loss,designonly;priority:P1/area:ai.
+- Holds:20OPEN;0new/0moot. Morningpacket:D17/40/41/43/44; noanswer=HOLD.
+- Orphans:1759/1894/1934/1939;1missingapprovalrecord;4crossrepo cardjoins excluded.
+- Shadow:611rows;5/8settled statecorrelation,not correctness;3disagreements.
+- Routing:nativeOpenAI verifiers(model/tokensunreported);actualMiniMaxM3judge viaOllama.
+- Spend:$0metered;943825judge tokensincludingcache;nativequota totalsunreported.
+- Cadence:12h,unchangedfingerprintidlefree;V1paused.
+- Reporting:normal + morning packet delivered to controlplane fallback; user summary delivered.
+- Harness:14/19escalationrows;0triageauthoredrepairs.
+- Record:iteration27 preserved from draft2114; iteration28 draft:https://github.com/sunholo-data/ailang/pull/2124
