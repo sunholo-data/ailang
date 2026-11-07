@@ -14,4 +14,7 @@ Iteration32 — 2026-11-07 local / 2026-11-06 UTC
 - Controller Codex; verifiers native OpenAI + named Luna; judge MiniMax/Ollama.
 - Metered$0; subscription/quota token usage reported in log; no code inner loop.
 - Cadence12h, idle fingerprint after reports; no approvals/rejections/merges/handoffs.
-- Reporting and record publication in progress; final receipts in mission log.
+- Reports delivered:normal+eveningpacket via controlplane; user exact-peek verified.
+- Record PR:https://github.com/sunholo-data/ailang/pull/2164 (DRAFT/unmerged).
+- Digest:https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6699194680
+- New2155unsignedattestation;6PRcomments;13safe labels; no issue closure.
