@@ -349,6 +349,18 @@ The following are intentionally left open for the implementer:
 
 **Total: ~7 hours across 1 day** (2x-buffered estimate)
 
+## Recurrence Log
+
+The dispatch gate (Phase 3) is the piece that would have caught every entry below at
+the coordinator instead of spending an agent run to conclude "nothing to repair".
+Each entry is one additional wasted Cloud Run job; the count is the argument for
+landing the doc, not re-triaging it.
+
+| Date (UTC) | Task | Note |
+|---|---|---|
+| 2026-09-27 | e891c221, ec1494ab, e705df2e, d3f4bd97, caeb36fe, d06768f9, dfa31910 | Independent converging diagnoses (see References) |
+| 2026-10-22 | task-9e0b04f1 (sunholo/docparse) | 10th+ EMPTY dispatch since the doc was filed. Evidence re-verified at `42d93e4b` (2026-10-22): no `hydrateCascadeFields` exists; the backstop sweep's `Enqueue` still drops `Source` + all envelope fields; the local task-creation site still omits them; `AILANG_BACKSTOP_SWEEP` is unset in every deployed config (sweep in `report` mode). Agent again refused correctly per the template guard. |
+
 ## Verification Log
 
 Every negative-existence / mechanism claim this design relies on, verified before
