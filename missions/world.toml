@@ -1,11 +1,9 @@
 # The World mission — ailang-world.
 #
-# ⚠ WORLD IS A FORK. Its driver lives in a SEPARATE GitHub repo
-# (sunholo-data/ailang-world) with its own copy of mission-control.sh and no
-# lib/pin-root.sh, so it never re-execs from the driver pin and has silently missed
-# every routing fix landed in sunholo-data/ailang. `ailang mission doctor` reports this
-# as a note on every run. De-forking is Phase 3 of M-MISSION-LOOP-WORKBENCH and is
-# gated on HD-2, which is deliberately unratified.
+# Works in sunholo-data/ailang-world but runs the SHARED driver from
+# sunholo-data/ailang (plist ProgramArguments), re-executed from the origin/dev pin
+# like every other mission. De-forked 2026-09-06 (internal/mission/golden_live_test.go);
+# no `driver` key, so `ailang mission doctor` reports no fork. Rechecked 2026-11-03.
 name    = "world"
 repo    = "sunholo-data/ailang-world"
 workdir = "/Users/voightkampff/dev/sunholo-data/ailang-world"

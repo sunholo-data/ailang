@@ -174,7 +174,8 @@ func TestDriverCopiesDoNotMultiply(t *testing.T) {
 	// one repo — none of them is, and `distinct` is 1 by construction. Reporting that
 	// as "a fork was removed" would be a fact about the filesystem wearing a finding's
 	// clothes, and lowering the ratchet to match would silently retire the invariant
-	// while world's fork is still on disk (measured: it is).
+	// while a regressed driver copy is unobserved. ailang-world has no driver copy as of
+	// 2026-11-03; the skip preserves the visibility requirement for future regressions.
 	if observed == 0 {
 		t.Skipf("no sibling mission clone beside %s — the fleet is not observable from "+
 			"this checkout, so the ratchet cannot be evaluated here", filepath.Dir(roots[0]))

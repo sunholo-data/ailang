@@ -31,7 +31,7 @@
 #   scripts/mission_directives.sh --issue 635 --watermark-file <path>              # read
 #   scripts/mission_directives.sh --issue 635 --watermark-file <path> --mark <id>  # after routing
 #   scripts/mission_directives.sh --issue 635 [--repo owner/name] [--since ISO8601]  # DEPRECATED raw
-#     read: exclusive (>), no ids, output unchanged since before #981 (the world fork still uses it)
+#     read: exclusive (>), no ids; kept for any caller that hand-writes its own watermark
 # --mark holds <path>.lock (mkdir; a dead holder's lock is broken) across its read-modify-write.
 # A comment edited after it was marked is NOT re-presented (identity is the id, not the text);
 # a comment deleted before --mark makes --mark exit 1 with the file unchanged.
@@ -111,9 +111,9 @@ AUTHORS_JSON=$(printf '%s' "$AUTHORS" | jq -R 'split(",") | map(gsub("^\\s+|\\s+
 [ "$(printf '%s' "$AUTHORS_JSON" | jq 'length')" -gt 0 ] || die "allowlist resolved to zero authors"
 
 # ── RAW MODE (no --watermark-file): UNCHANGED, stdout byte for byte ─────────────────
-# Exclusive `>` and no ids, exactly as before #981. Callers that hand-write their own
-# watermark (the world fork's Gate 0 runs this script by absolute path with --since) rely on
-# the exclusive read: making it inclusive with no processed-id memory would re-present their
+# Exclusive `>` and no ids, exactly as before #981. Deprecated --since raw mode is kept for
+# any caller that hand-writes its own watermark and relies on the exclusive read:
+# making it inclusive with no processed-id memory would re-present their
 # last directive on every fire. Only the --watermark-file path is inclusive and id-aware.
 if [ -z "$WMFILE" ]; then
 	echo -e "${YELLOW}mission_directives: --since mode is deprecated (exclusive read, no crash safety — #981); use --watermark-file <path> to read and --mark <id> after routing${RESET}" >&2
