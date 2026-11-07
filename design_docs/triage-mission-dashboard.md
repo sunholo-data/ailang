@@ -1,20 +1,18 @@
 # Triage mission dashboard
 
-Iteration32 — 2026-11-07 local / 2026-11-06 UTC
+Iteration33 — 2026-11-07
 
-- Level1: read-only verification, safe labels/comments, unsigned informational attestations.
-- Snapshot:52 global cards/46 core;67 PRs;65 issues;114 eligible joined surfaces.
-- 16 verdicts and6 auxiliary groups independently concurred by MiniMax.
-- Verifier freshness107/114→114/114; latest judged80 skipped+16 refreshed=96/114.
-- 18 unchanged fresh verifier reports remain unjudged and unactioned.
-- Dev CI42306847329 SUCCESS; exact head a3bb8629106a4b8459df5aa33f867b4ed4dd84a5.
-- 44 OPEN human holds; new D78 IFC validation, D79 ordinary eval baseline, D80 redundant prompt chain.
-- Four uncarded coordinator PRs1759/1894/1934/1939;10 aged green-check stalls exposed.
-- Shadow agreement6/9 observed outcomes only; no auto-approval promotion.
-- Controller Codex; verifiers native OpenAI + named Luna; judge MiniMax/Ollama.
-- Metered$0; subscription/quota token usage reported in log; no code inner loop.
-- Cadence12h, idle fingerprint after reports; no approvals/rejections/merges/handoffs.
-- Reports delivered:normal+eveningpacket via controlplane; user exact-peek verified.
-- Record PR:https://github.com/sunholo-data/ailang/pull/2164 (DRAFT/unmerged).
-- Digest:https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6699194680
-- New2155unsignedattestation;6PRcomments;13safe labels; no issue closure.
+- Level1; no approvals, rejections, merges, code or handoffs.
+- Dev CI42346205949 SUCCESS at8fa7e8ab1eddee99a84b447b8eaaa4ee12308051;18checks green.
+- Snapshot52globalcards/46core;69PRs/50coordinator;65issues/64eligible.
+- Five current verdicts +six auxiliary groups independently judged by MiniMax.
+- Three unsigned informational attestations2129/2136/2138;2155NEEDS-FIX comment.
+- Verifier freshness114/114;latest independently judged96/114;18fresh unjudged reports unactioned.
+- All44humanholds OPEN;0MOOT/0newdecompositions.
+- Twelve agedgreenstalls,4uncardedPRs1759/1894/1934/1939;all visible in full digest.
+- Shadow688rows;settled-state agreement6/9,disagreements1926/1997/2064;noPartApromotion.
+- Agenttool verifiers/OpenAI;actualnamedLuna;actualjudgeMiniMax/Ollama.
+- Firstjudge tool_hangrc18,one authorizedsame-laneretryokrc0;metered$0.
+- Nonblocking HOME-metadata-hang ticket filed;no harnessrepair.
+- Fourfleet fixreceipts bounded;secret detectorHALFonly,operatorsecuritystepsnotinferred.
+- Cadence12h;no eveningpacket before18UTC;normal/userreports and recordpublication in progress.
