@@ -20,3 +20,4 @@
 - Changed-queue cadence; morning fire before 18 UTC, no packet/urgent.
 - Isolated triage/i34-record preserves prior unmerged history; unrelated main edits parked.
 - Next: Mark answers 44 holds; #2155 author names population provenance; refresh changed/held/stale.
+- Delivery: [compact digest](https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6715507123); [draft record PR2170](https://github.com/sunholo-data/ailang/pull/2170); canonical normal/user receipts verified.
