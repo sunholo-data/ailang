@@ -31,3 +31,5 @@
 
 ## STATUS 2026-11-05 — ITERATION 29: six independent queue verdicts; 27 concrete choices split; current dev checks pending; no approvals, rejections or merges. [HARNESS] [ADMIN]
 ## STATUS 2026-11-05 — ITERATION 30: six independently judged verdicts; eight aged green stalls exposed; D77 OPEN; no approvals, rejections or merges. [HARNESS] [ADMIN]
+
+## STATUS 2026-11-06 — ITERATION 31: required MiniMax judge lanes timed out; eight proposals parked, zero item actions; 41 OPEN holds preserved; shadow665/score6of9. [HARNESS] [ADMIN]

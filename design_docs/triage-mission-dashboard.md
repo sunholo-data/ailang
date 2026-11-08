@@ -1,20 +1,22 @@
-# Triage mission dashboard
+# Triage dashboard — iteration 34 (2026-11-08)
 
-Iteration33 — 2026-11-07
-
-- Level1; no approvals, rejections, merges, code or handoffs.
-- Dev CI42346205949 SUCCESS at8fa7e8ab1eddee99a84b447b8eaaa4ee12308051;18checks green.
-- Snapshot52globalcards/46core;69PRs/50coordinator;65issues/64eligible.
-- Five current verdicts +six auxiliary groups independently judged by MiniMax.
-- Three unsigned informational attestations2129/2136/2138;2155NEEDS-FIX comment.
-- Verifier freshness114/114;latest independently judged96/114;18fresh unjudged reports unactioned.
-- All44humanholds OPEN;0MOOT/0newdecompositions.
-- Twelve agedgreenstalls,4uncardedPRs1759/1894/1934/1939;all visible in full digest.
-- Shadow688rows;settled-state agreement6/9,disagreements1926/1997/2064;noPartApromotion.
-- Agenttool verifiers/OpenAI;actualnamedLuna;actualjudgeMiniMax/Ollama.
-- Firstjudge tool_hangrc18,one authorizedsame-laneretryokrc0;metered$0.
-- Nonblocking HOME-metadata-hang ticket filed;no harnessrepair.
-- Fourfleet fixreceipts bounded;secret detectorHALFonly,operatorsecuritystepsnotinferred.
-- Cadence12h;no eveningpacket before18UTC;normal/user reports exact-peek delivered;draft record PR2167 published.
-- Digest: https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6707126286
-- Record: https://github.com/sunholo-data/ailang/pull/2167 (draft, unmerged).
+- Level 1: unsigned informational attestations; no approvals/rejections/merges/handoffs.
+- Operational CLI v0.57.4; no release or semantic test claim.
+- Dev: 252680e1beb4e6cf1709a010cc1c45838b91b9f8; CI 42376604102 and 18 checks green.
+- Evidence: https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6715423460
+- Snapshot: 52 cards (46 core), 71 PRs, 65 issues; 114 core queue surfaces.
+- Selection: 1 changed + 4 auxiliary; 0 held/stale, 113 fresh skipped.
+- Attested #2129/#2136/#2138; #2155 NEEDS-DECISION after actual judge DISSENT, allowed label only.
+- Ready report-only cards: task-f8b3a191/task-60555d10/task-10d76ed7; no declared handoff.
+- Human holds: 44 OPEN of 81 rows unchanged; 0 MOOT/new decomposition; no answer=HOLD.
+- Freshness 114/114; latest independently judged 96/114; 18 fresh unjudged reports unactioned.
+- 16 aged green metadata stalls; #1916 BLOCKED; design/execution holds retained.
+- Orphans #1759/#1894/#1934/#1939; six joins outside core; stale approved d86f403b untouched.
+- Shadow: 693 rows, 6/9 limited correlation; disagreements #1926/#1997/#2064.
+- Actual Z-AI GLM verifier / MiniMax judge; native OpenAI Agent transports model-unreported.
+- Luna probe 60s/rc124; premature dependent run stopped; declared GLM fallback typed ok.
+- Metered $0; Codex/Ollama quota buckets; native usage not reported.
+- Limits: rig counters unmeasured; GitHub snapshots plus live controller guards; judge omitted exact pipeline path.
+- Changed-queue cadence; morning fire before 18 UTC, no packet/urgent.
+- Isolated triage/i34-record preserves prior unmerged history; unrelated main edits parked.
+- Next: Mark answers 44 holds; #2155 author names population provenance; refresh changed/held/stale.

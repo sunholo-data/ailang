@@ -41,11 +41,11 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
+## STATUS 2026-11-08 — ITERATION 34: Five verdicts cross-vendor judged; three unsigned attestations; one dissent held; 44 OPEN; shadow 693/6of9; no approvals or merges. [HARNESS] [ADMIN]
+
 ## STATUS 2026-11-07 — ITERATION 33: five independent verdicts; three unsigned attestations and one correction; 44 human holds; 12 aged stalls; no approvals or merges. [HARNESS] [ADMIN]
 
 ## STATUS 2026-11-07 — ITERATION 32: 16 independently concurred verdicts; one unsigned attestation, six comments,13 labels; D78–80 OPEN/44 holds; shadow683/score6of9. [HARNESS] [ADMIN]
-
-## STATUS 2026-11-06 — ITERATION 31: required MiniMax judge lanes timed out; eight proposals parked, zero item actions; 41 OPEN holds preserved; shadow665/score6of9. [HARNESS] [ADMIN]
 
 ## CURRENT LEVEL: **1 — Tidy, with attestations** (Mark, attended 2026-10-15; D-TRIAGE-7)
 
@@ -224,7 +224,7 @@ From `~/.config/ailang/mission-triage.env` (versioned copy in `tools/launchd/mis
 2. Sprint A, the coordinator auto-approval policy: its own design doc via design-doc-creator, scored
    against ≥2 weeks of this loop's shadow ledger before it auto-approves anything.
 3. [RECORDED iterations 1–3] Level 1 queue verification; iteration 3 records independent review and the prior record gap. Clauses 1–3.
-4. [NEXT] Refresh changed/held/stale items at current dev, preserving all44 OPEN human holds. Iteration33 independently judged five items and six auxiliary groups; 114/114 verifier-fresh and96/114 latest independently judged, with18 unchanged fresh unjudged reports unactioned. Three report-only cards2129/2136/2138 await the operator;2155 requires a population-label correction. No triage approvals, rejections, merges or handoffs.
+4. [NEXT] Refresh changed, held and stale surfaces; preserve all 44 OPEN human holds. Iteration 34 independently judged five items and six auxiliary groups. Report-only cards #2129/#2136/#2138 are freshly attested; #2155 is NEEDS-DECISION after verifier/judge dissent. Freshness 114/114; latest independently judged 96/114, with 18 fresh unjudged reports unactioned. No triage approvals, rejections, merges or handoffs.
 5. [RECORDED iteration 6] 10 independently judged items, 7 orphan PRs, one current-dev/cross-vendor unsigned attestation; #1878/#1879 P1 and #1880 P2 process-result defects remain open. Iteration 5 has digest/ledger evidence but no committed log; iteration 6 credits that recording gap.
 
 6. [HARNESS] [NONBLOCKING] ticket:reporting:daneel-reports-not-declared-triage — recurrence filed to fleet in iteration 6 (inbox_1792270873468_18cd5712). Existing controlplane fallback delivered both reports; iteration8 recurrence inbox_1792446067114_a8de6085; iteration10 recurrence inbox_1792533879605_18a7bcf5. Iteration11 recurrence inbox_1792578499678_b8495de1; direct send refused rc1, existing controlplane consumer retained. Iteration12 recurrence inbox_1792622923766_6056562b: direct send rc1; existing normal+one urgent controlplane consumer delivered. Iteration13 recurrence inbox_1792666977791_d8a8d14b: direct send rc1; existing controlplane normal/one urgent fallback delivered. No triage harness repair. Iteration16 recurrence inbox_1793178174531_2005f28f: direct send rc1; normal/one urgent controlplane pointers and user message peek-verified. Iteration26 recurrence inbox_1793741284696_503247dd: direct send refused rc1; existing normal/one new-decision urgent controlplane fallback and user summary exact-peek verified.
