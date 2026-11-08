@@ -1,0 +1,274 @@
+{
+  "report": "design-judge",
+  "iteration": 96,
+  "generated_by_role": "evaluator",
+  "classification": {
+    "kind": "report-only independent design proposal evaluation",
+    "not_a_sprint_implementation_evaluation": true,
+    "approved_design_exists": false,
+    "sprint_plan_exists": false,
+    "implementation_commit_exists": false,
+    "acceptance_evidence_exists": false,
+    "implementation_score": null
+  },
+  "session_protocol": {
+    "first_tool_action": "read CLAUDE.md",
+    "claude_md": {
+      "path": "CLAUDE.md",
+      "lines": 152,
+      "read_completely": true
+    },
+    "messages_checked": false,
+    "messages_reason": "unattended mission stage; controller-provided triage is context only",
+    "classification": "report-only independent design proposal evaluation under normal mission approval gates",
+    "session_protocol_ack_arguments": {},
+    "session_protocol_ack_result_observed": "Session protocol acknowledged — mutating tools unlocked for this session. Work routing per AGENTS.md still applies.",
+    "session_protocol_ack_succeeded": true,
+    "structured_ack_note": "The tool rendered text only; no structured details.acked=true value is invented or independently restated here."
+  },
+  "frozen_artifact": {
+    "path": "design_docs/planned/m-fleet-role-artifact-contract.md",
+    "reviewed_head": "2249a1923a02be2e4f3ce2f1dcb96239484a237b",
+    "bytes": 25214,
+    "lines": 199,
+    "sha256_before": "df93fee6c072bbdc19850126963049a50ff7df7cd3db13cc573a08e4fd859998",
+    "sha256_after": "df93fee6c072bbdc19850126963049a50ff7df7cd3db13cc573a08e4fd859998",
+    "unchanged": true,
+    "proposal_uncommitted": true
+  },
+  "required_reads": [
+    {
+      "path": ".claude/skills/sprint-evaluator/SKILL.md",
+      "lines": 357,
+      "read_completely": true,
+      "bounded_chunks": true
+    },
+    {
+      "path": ".claude/skills/sprint-evaluator/resources/scoring_rubric.md",
+      "lines": 178,
+      "read_completely": true,
+      "bounded_chunks": true
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "lines": 879,
+      "read_completely": true,
+      "bounded_chunks": true,
+      "long_line_18_read_separately": true
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/codex-lane-false-greens.md",
+      "lines": 158,
+      "read_completely": true,
+      "bounded_chunks": true
+    },
+    {
+      "path": "design_docs/planned/m-fleet-role-artifact-contract.md",
+      "lines": 199,
+      "read_completely": true,
+      "bounded_chunks": true
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/quorum-r1.json",
+      "lines": 80,
+      "read_completely": true
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/quorum-r1-controller-proofs.json",
+      "lines": 18,
+      "read_completely": true
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/original-directive-excerpts.json",
+      "lines": 23,
+      "read_completely": true
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/original-retry-report-manifest.json",
+      "lines": 16,
+      "read_completely": true
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/production-designer-r1-search-capture.json",
+      "lines": 57,
+      "read_completely": true
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration95/new-ticket-first-attempt.json",
+      "lines": 23,
+      "read_completely": true
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration95/new-ticket-open-tool.json",
+      "lines": 8,
+      "read_completely": true
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration95/new-ticket-retry.json",
+      "lines": 23,
+      "read_completely": true
+    }
+  ],
+  "terminal_quorum_check": {
+    "path": "design_docs/fleet-mission-evidence/iteration96/quorum-r2.json",
+    "checked_once": true,
+    "check_time": "after independent technical review",
+    "present": true,
+    "lines": 63,
+    "bytes": 4447,
+    "synthesis_verdict": "blocked",
+    "present_reviewers": 2,
+    "absent_reviewers": 1,
+    "absent_reason": "quota",
+    "used_as_bootstrap_for_independent_judgment": false
+  },
+  "quorum_r1_objections": [
+    {
+      "reviewer": "gpt6-1-sol",
+      "objection": "Synthetic fixtures did not establish the claimed 100% conformance of real controller-composed directives.",
+      "status": "RESOLVED",
+      "basis": "The frozen revision removes the new suite, synthetic fixtures, population metric, and production-conformance/prevention claims; it explicitly limits verification to recipe text and existing checks."
+    },
+    {
+      "reviewer": "gemini-4-argon",
+      "objection": "A test-local checker against a self-authored synthetic directive was tautological.",
+      "status": "RESOLVED",
+      "basis": "The frozen revision removes that test design and honestly states that real composition remains unmeasured and unlinted."
+    },
+    {
+      "reviewer": "oc-glm-5-3",
+      "objection": "Handshake identity/session-metadata adjacency needed full-content verification.",
+      "status": "RESOLVED",
+      "basis": "R6/R7 record the full handshake content, zero identity/metadata mentions, and placement after the END marker; independent source review confirmed non-overlap."
+    },
+    {
+      "reviewer": "oc-glm-5-3",
+      "objection": "Planner-lane derivation and changed-path allowlist analysis needed an observed derivation.",
+      "status": "RESOLVED",
+      "basis": "The bare opus-required field, recorded observed fallback derivation, and removal of make/test.mk make the revised path claim coherent; widening the allowlist is not proposed."
+    },
+    {
+      "reviewer": "oc-glm-5-3",
+      "objection": "The sibling slot-kill plan overlaps make/test.mk.",
+      "status": "RESOLVED",
+      "basis": "The revision acknowledges the sibling row and removes its own make/test.mk/suite change, eliminating the overlap surface."
+    },
+    {
+      "reviewer": "controller-in-session",
+      "objection": "Correct synthetic-conformance, identity-provenance, human-freeze, named-input, and N=1 causal overclaims.",
+      "status": "RESOLVED",
+      "basis": "All five corrections are explicit in the frozen revision."
+    }
+  ],
+  "quorum_r2_objections": [
+    {
+      "reviewer": "gpt6-1-sol",
+      "objection": "The standing-policy gap and conflict surface were not verified; R10 searched only for identity in one recipe.",
+      "status": "OPEN",
+      "basis": "Independently upheld. Targeted review found no contrary generic read/discovery rule in the inspected surfaces, but the frozen document's universal every-standing-rule claim is not established by its own evidence or by the available original-directive excerpts."
+    },
+    {
+      "reviewer": "gemini-4-argon",
+      "objection": "Pointer placement near line 355 lacks an exact-context verification row.",
+      "status": "OPEN_MINOR_NONBLOCKING",
+      "basis": "Current lines 351-355 are the pi real-run heading and invocation block, so the anchor is plausible; the frozen document still lacks the requested exact verification row."
+    }
+  ],
+  "independent_findings": [
+    {
+      "id": "F1",
+      "severity": "material",
+      "status": "open",
+      "finding": "The proposal overclaims that the original directive conformed with every standing rule. Its R10 negative search is narrower than that universal premise. Narrow the claim to the inspected policy surface, inventory applicable policy sources, and add a conflict-surface/precedence statement."
+    },
+    {
+      "id": "F2",
+      "severity": "positive",
+      "status": "closed",
+      "finding": "P1 scope is proportional: recipe prose only, two mirrored paths, existing sync/parity checks, no runtime mechanism."
+    },
+    {
+      "id": "F3",
+      "severity": "positive",
+      "status": "closed",
+      "finding": "The design distinguishes preventive instruction from proved prevention and explicitly treats the one changed-variable retry as N=1 correlation."
+    },
+    {
+      "id": "F4",
+      "severity": "positive",
+      "status": "closed",
+      "finding": "P2 is excluded; no cap, threshold, environment knob, extension load, runtime wiring, lane, quota, ration, or billing change is selected."
+    },
+    {
+      "id": "F5",
+      "severity": "positive",
+      "status": "closed",
+      "finding": "Identity provenance is explicit: DECLARED/RESOLVED is not OBSERVED, OBSERVED requires transport-captured metadata, and neither is weights attestation; identity research is prohibited."
+    },
+    {
+      "id": "F6",
+      "severity": "positive",
+      "status": "closed",
+      "finding": "Named INPUT, named OUTPUT, expected-absent OUTPUT, and missing-INPUT reporting are distinct and actionable in prose."
+    },
+    {
+      "id": "F7",
+      "severity": "positive",
+      "status": "closed",
+      "finding": "The exact handshake preamble remains adjacent and intact; the proposal appends after the END marker. The settled rc18 one-retry wording is preserved and only MUST sentences are appended."
+    },
+    {
+      "id": "F8",
+      "severity": "positive",
+      "status": "closed",
+      "finding": "Both proposed paths are within fleet Authority; no extension path or outside-allowlist source is changed."
+    },
+    {
+      "id": "F9",
+      "severity": "positive",
+      "status": "closed",
+      "finding": "Quota-interrupted Kimi authorship, GLM fallback completion, configured labels, and controller proof provenance are distinguished."
+    },
+    {
+      "id": "F10",
+      "severity": "gate",
+      "status": "blocked",
+      "finding": "Strict Duplicate/Coverage results 1.00, 0.95, and 0.90 remain unresolved; the author grants no irrelevant-match self-exception."
+    }
+  ],
+  "technical_decision": {
+    "verdict": "FAIL",
+    "disposition": "NEEDS_REVISION",
+    "reason": "One material evidence/accuracy defect remains in the frozen proposal: the universal policy-compliance premise is not established and the applicable-policy conflict surface is incomplete. The P1 instruction-only direction itself remains coherent and proportionate."
+  },
+  "gated_execution": {
+    "status": "BLOCKED",
+    "duplicate_coverage_gate": "UNRESOLVED/BLOCKED",
+    "terminal_quorum": "blocked",
+    "explicit_attended_human_design_approval": "absent",
+    "sprint_plan": "absent",
+    "execute_sprint_authorization": "absent",
+    "implementation": "absent",
+    "technical_pass_would_approve": false,
+    "quorum_pass_would_approve": false
+  },
+  "implementation_score": null,
+  "source_observation_limits": [
+    "No HOME, session-store, session-metadata, credential, or environment-value identity research was performed; no environment dump was printed.",
+    "The complete original directive was not a named input; only the supplied excerpts were available, so the universal every-standing-rule claim could not be independently closed.",
+    "No tests, lint, build, mutation drill, or implementation acceptance command was run.",
+    "The terminal quorum was opened only after the independent technical review and was not used to bootstrap judgment.",
+    "The configured evaluator lane was treated as DECLARED/RESOLVED only; no backend identity or usage attestation is claimed."
+  ],
+  "changes": {
+    "source_changed": false,
+    "tracked_diff_before_report_write": [],
+    "staged_diff_before_report_write": [],
+    "files_written": [
+      "design_docs/fleet-mission-evidence/iteration96/design-judge.md",
+      "design_docs/fleet-mission-evidence/iteration96/design-judge-read-audit.json"
+    ],
+    "other_files_modified": []
+  },
+  "final_marker": "EVALUATION_VERDICT: FAIL reasons=the frozen proposal retains an unsupported universal policy-compliance claim and lacks a complete applicable-policy conflict-surface proof; independently, the strict Duplicate/Coverage gate remains unresolved, the terminal quorum is blocked, and explicit human design approval is absent"
+}

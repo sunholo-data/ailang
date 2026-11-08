@@ -1,0 +1,561 @@
+{
+  "lane": "pi:openrouter/minimax/minimax-m3",
+  "observed_response_metadata": [
+    {
+      "provider": "openrouter",
+      "model": "minimax/minimax-m3"
+    }
+  ],
+  "usage_source": "message_end assistant.usage once per assistant message",
+  "assistant_messages": 36,
+  "input": 84504,
+  "output": 27137,
+  "cacheRead": 2242432,
+  "cacheWrite": 0,
+  "totalTokens": 2354073,
+  "cost_usd": 0.19246152,
+  "probe_cost_usd": 0.0006644999999999999,
+  "metered_total_usd": 0.19312602,
+  "provider_usage": [
+    {
+      "input": 14001,
+      "output": 86,
+      "cacheRead": 128,
+      "cacheWrite": 0,
+      "reasoning": 39,
+      "totalTokens": 14215,
+      "cost": {
+        "input": 0.0042003,
+        "output": 0.0001032,
+        "cacheRead": 7.68e-06,
+        "cacheWrite": 0,
+        "total": 0.00431118
+      }
+    },
+    {
+      "input": 2416,
+      "output": 109,
+      "cacheRead": 14208,
+      "cacheWrite": 0,
+      "reasoning": 90,
+      "totalTokens": 16733,
+      "cost": {
+        "input": 0.0007247999999999999,
+        "output": 0.00013079999999999998,
+        "cacheRead": 0.00085248,
+        "cacheWrite": 0,
+        "total": 0.0017080799999999998
+      }
+    },
+    {
+      "input": 128,
+      "output": 876,
+      "cacheRead": 16640,
+      "cacheWrite": 0,
+      "reasoning": 516,
+      "totalTokens": 17644,
+      "cost": {
+        "input": 3.84e-05,
+        "output": 0.0010512,
+        "cacheRead": 0.0009984,
+        "cacheWrite": 0,
+        "total": 0.002088
+      }
+    },
+    {
+      "input": 551,
+      "output": 191,
+      "cacheRead": 17536,
+      "cacheWrite": 0,
+      "reasoning": 135,
+      "totalTokens": 18278,
+      "cost": {
+        "input": 0.00016529999999999998,
+        "output": 0.0002292,
+        "cacheRead": 0.00105216,
+        "cacheWrite": 0,
+        "total": 0.0014466599999999998
+      }
+    },
+    {
+      "input": 622,
+      "output": 324,
+      "cacheRead": 18176,
+      "cacheWrite": 0,
+      "reasoning": 118,
+      "totalTokens": 19122,
+      "cost": {
+        "input": 0.00018659999999999998,
+        "output": 0.00038879999999999996,
+        "cacheRead": 0.00109056,
+        "cacheWrite": 0,
+        "total": 0.00166596
+      }
+    },
+    {
+      "input": 4307,
+      "output": 131,
+      "cacheRead": 19072,
+      "cacheWrite": 0,
+      "reasoning": 19,
+      "totalTokens": 23510,
+      "cost": {
+        "input": 0.0012921,
+        "output": 0.0001572,
+        "cacheRead": 0.0011443199999999999,
+        "cacheWrite": 0,
+        "total": 0.0025936199999999996
+      }
+    },
+    {
+      "input": 2198,
+      "output": 125,
+      "cacheRead": 23424,
+      "cacheWrite": 0,
+      "reasoning": 11,
+      "totalTokens": 25747,
+      "cost": {
+        "input": 0.0006594,
+        "output": 0.00015,
+        "cacheRead": 0.0014054399999999998,
+        "cacheWrite": 0,
+        "total": 0.0022148399999999996
+      }
+    },
+    {
+      "input": 3406,
+      "output": 286,
+      "cacheRead": 25728,
+      "cacheWrite": 0,
+      "reasoning": 158,
+      "totalTokens": 29420,
+      "cost": {
+        "input": 0.0010218,
+        "output": 0.0003432,
+        "cacheRead": 0.00154368,
+        "cacheWrite": 0,
+        "total": 0.00290868
+      }
+    },
+    {
+      "input": 136,
+      "output": 475,
+      "cacheRead": 29312,
+      "cacheWrite": 0,
+      "reasoning": 316,
+      "totalTokens": 29923,
+      "cost": {
+        "input": 4.0799999999999996e-05,
+        "output": 0.00057,
+        "cacheRead": 0.0017587199999999999,
+        "cacheWrite": 0,
+        "total": 0.00236952
+      }
+    },
+    {
+      "input": 5418,
+      "output": 301,
+      "cacheRead": 29824,
+      "cacheWrite": 0,
+      "reasoning": 91,
+      "totalTokens": 35543,
+      "cost": {
+        "input": 0.0016254,
+        "output": 0.0003612,
+        "cacheRead": 0.0017894399999999998,
+        "cacheWrite": 0,
+        "total": 0.0037760399999999996
+      }
+    },
+    {
+      "input": 6443,
+      "output": 324,
+      "cacheRead": 35456,
+      "cacheWrite": 0,
+      "reasoning": 165,
+      "totalTokens": 42223,
+      "cost": {
+        "input": 0.0019329,
+        "output": 0.00038879999999999996,
+        "cacheRead": 0.00212736,
+        "cacheWrite": 0,
+        "total": 0.0044490599999999995
+      }
+    },
+    {
+      "input": 6823,
+      "output": 183,
+      "cacheRead": 42112,
+      "cacheWrite": 0,
+      "reasoning": 24,
+      "totalTokens": 49118,
+      "cost": {
+        "input": 0.0020469,
+        "output": 0.0002196,
+        "cacheRead": 0.0025267199999999997,
+        "cacheWrite": 0,
+        "total": 0.004793219999999999
+      }
+    },
+    {
+      "input": 6092,
+      "output": 126,
+      "cacheRead": 49024,
+      "cacheWrite": 0,
+      "reasoning": 69,
+      "totalTokens": 55242,
+      "cost": {
+        "input": 0.0018276,
+        "output": 0.0001512,
+        "cacheRead": 0.0029414399999999996,
+        "cacheWrite": 0,
+        "total": 0.004920239999999999
+      }
+    },
+    {
+      "input": 92,
+      "output": 195,
+      "cacheRead": 55168,
+      "cacheWrite": 0,
+      "reasoning": 42,
+      "totalTokens": 55455,
+      "cost": {
+        "input": 2.76e-05,
+        "output": 0.000234,
+        "cacheRead": 0.0033100799999999995,
+        "cacheWrite": 0,
+        "total": 0.0035716799999999994
+      }
+    },
+    {
+      "input": 6262,
+      "output": 64,
+      "cacheRead": 55424,
+      "cacheWrite": 0,
+      "reasoning": 9,
+      "totalTokens": 61750,
+      "cost": {
+        "input": 0.0018786,
+        "output": 7.68e-05,
+        "cacheRead": 0.00332544,
+        "cacheWrite": 0,
+        "total": 0.00528084
+      }
+    },
+    {
+      "input": 72,
+      "output": 225,
+      "cacheRead": 61696,
+      "cacheWrite": 0,
+      "reasoning": 113,
+      "totalTokens": 61993,
+      "cost": {
+        "input": 2.16e-05,
+        "output": 0.00027,
+        "cacheRead": 0.0037017599999999997,
+        "cacheWrite": 0,
+        "total": 0.00399336
+      }
+    },
+    {
+      "input": 2662,
+      "output": 200,
+      "cacheRead": 61952,
+      "cacheWrite": 0,
+      "reasoning": 24,
+      "totalTokens": 64814,
+      "cost": {
+        "input": 0.0007986,
+        "output": 0.00023999999999999998,
+        "cacheRead": 0.0037171199999999995,
+        "cacheWrite": 0,
+        "total": 0.00475572
+      }
+    },
+    {
+      "input": 1899,
+      "output": 298,
+      "cacheRead": 64768,
+      "cacheWrite": 0,
+      "reasoning": 13,
+      "totalTokens": 66965,
+      "cost": {
+        "input": 0.0005697,
+        "output": 0.00035759999999999996,
+        "cacheRead": 0.0038860799999999997,
+        "cacheWrite": 0,
+        "total": 0.00481338
+      }
+    },
+    {
+      "input": 2770,
+      "output": 2748,
+      "cacheRead": 66944,
+      "cacheWrite": 0,
+      "reasoning": 2446,
+      "totalTokens": 72462,
+      "cost": {
+        "input": 0.0008309999999999999,
+        "output": 0.0032976,
+        "cacheRead": 0.004016639999999999,
+        "cacheWrite": 0,
+        "total": 0.008145239999999998
+      }
+    },
+    {
+      "input": 2937,
+      "output": 440,
+      "cacheRead": 72448,
+      "cacheWrite": 0,
+      "reasoning": 387,
+      "totalTokens": 75825,
+      "cost": {
+        "input": 0.0008811,
+        "output": 0.0005279999999999999,
+        "cacheRead": 0.00434688,
+        "cacheWrite": 0,
+        "total": 0.00575598
+      }
+    },
+    {
+      "input": 2926,
+      "output": 1395,
+      "cacheRead": 75776,
+      "cacheWrite": 0,
+      "reasoning": 1312,
+      "totalTokens": 80097,
+      "cost": {
+        "input": 0.0008778,
+        "output": 0.001674,
+        "cacheRead": 0.00454656,
+        "cacheWrite": 0,
+        "total": 0.00709836
+      }
+    },
+    {
+      "input": 138,
+      "output": 81,
+      "cacheRead": 80000,
+      "cacheWrite": 0,
+      "reasoning": 22,
+      "totalTokens": 80219,
+      "cost": {
+        "input": 4.14e-05,
+        "output": 9.719999999999999e-05,
+        "cacheRead": 0.0048,
+        "cacheWrite": 0,
+        "total": 0.0049386
+      }
+    },
+    {
+      "input": 1141,
+      "output": 2113,
+      "cacheRead": 80128,
+      "cacheWrite": 0,
+      "reasoning": 1946,
+      "totalTokens": 83382,
+      "cost": {
+        "input": 0.00034229999999999997,
+        "output": 0.0025356,
+        "cacheRead": 0.00480768,
+        "cacheWrite": 0,
+        "total": 0.007685579999999999
+      }
+    },
+    {
+      "input": 3964,
+      "output": 236,
+      "cacheRead": 83328,
+      "cacheWrite": 0,
+      "reasoning": 179,
+      "totalTokens": 87528,
+      "cost": {
+        "input": 0.0011891999999999998,
+        "output": 0.0002832,
+        "cacheRead": 0.004999679999999999,
+        "cacheWrite": 0,
+        "total": 0.006472079999999999
+      }
+    },
+    {
+      "input": 1094,
+      "output": 2609,
+      "cacheRead": 87424,
+      "cacheWrite": 0,
+      "reasoning": 2413,
+      "totalTokens": 91127,
+      "cost": {
+        "input": 0.0003282,
+        "output": 0.0031308,
+        "cacheRead": 0.00524544,
+        "cacheWrite": 0,
+        "total": 0.008704439999999999
+      }
+    },
+    {
+      "input": 244,
+      "output": 1509,
+      "cacheRead": 91008,
+      "cacheWrite": 0,
+      "reasoning": 1340,
+      "totalTokens": 92761,
+      "cost": {
+        "input": 7.319999999999999e-05,
+        "output": 0.0018108,
+        "cacheRead": 0.005460479999999999,
+        "cacheWrite": 0,
+        "total": 0.00734448
+      }
+    },
+    {
+      "input": 252,
+      "output": 136,
+      "cacheRead": 92672,
+      "cacheWrite": 0,
+      "reasoning": 84,
+      "totalTokens": 93060,
+      "cost": {
+        "input": 7.56e-05,
+        "output": 0.00016319999999999998,
+        "cacheRead": 0.00556032,
+        "cacheWrite": 0,
+        "total": 0.00579912
+      }
+    },
+    {
+      "input": 196,
+      "output": 144,
+      "cacheRead": 93056,
+      "cacheWrite": 0,
+      "reasoning": 56,
+      "totalTokens": 93396,
+      "cost": {
+        "input": 5.88e-05,
+        "output": 0.0001728,
+        "cacheRead": 0.00558336,
+        "cacheWrite": 0,
+        "total": 0.00581496
+      }
+    },
+    {
+      "input": 101,
+      "output": 594,
+      "cacheRead": 93312,
+      "cacheWrite": 0,
+      "reasoning": 537,
+      "totalTokens": 94007,
+      "cost": {
+        "input": 3.0299999999999998e-05,
+        "output": 0.0007128,
+        "cacheRead": 0.00559872,
+        "cacheWrite": 0,
+        "total": 0.00634182
+      }
+    },
+    {
+      "input": 611,
+      "output": 2371,
+      "cacheRead": 93952,
+      "cacheWrite": 0,
+      "reasoning": 2292,
+      "totalTokens": 96934,
+      "cost": {
+        "input": 0.00018329999999999998,
+        "output": 0.0028452,
+        "cacheRead": 0.00563712,
+        "cacheWrite": 0,
+        "total": 0.008665619999999999
+      }
+    },
+    {
+      "input": 694,
+      "output": 151,
+      "cacheRead": 96896,
+      "cacheWrite": 0,
+      "reasoning": 85,
+      "totalTokens": 97741,
+      "cost": {
+        "input": 0.0002082,
+        "output": 0.00018119999999999999,
+        "cacheRead": 0.005813759999999999,
+        "cacheWrite": 0,
+        "total": 0.006203159999999999
+      }
+    },
+    {
+      "input": 652,
+      "output": 58,
+      "cacheRead": 97664,
+      "cacheWrite": 0,
+      "reasoning": 8,
+      "totalTokens": 98374,
+      "cost": {
+        "input": 0.00019559999999999998,
+        "output": 6.96e-05,
+        "cacheRead": 0.00585984,
+        "cacheWrite": 0,
+        "total": 0.00612504
+      }
+    },
+    {
+      "input": 1303,
+      "output": 6382,
+      "cacheRead": 98304,
+      "cacheWrite": 0,
+      "reasoning": 425,
+      "totalTokens": 105989,
+      "cost": {
+        "input": 0.00039089999999999996,
+        "output": 0.007658399999999999,
+        "cacheRead": 0.005898239999999999,
+        "cacheWrite": 0,
+        "total": 0.013947539999999998
+      }
+    },
+    {
+      "input": 65,
+      "output": 487,
+      "cacheRead": 105984,
+      "cacheWrite": 0,
+      "reasoning": 183,
+      "totalTokens": 106536,
+      "cost": {
+        "input": 1.95e-05,
+        "output": 0.0005844,
+        "cacheRead": 0.00635904,
+        "cacheWrite": 0,
+        "total": 0.00696294
+      }
+    },
+    {
+      "input": 296,
+      "output": 721,
+      "cacheRead": 106496,
+      "cacheWrite": 0,
+      "reasoning": 675,
+      "totalTokens": 107513,
+      "cost": {
+        "input": 8.879999999999999e-05,
+        "output": 0.0008652,
+        "cacheRead": 0.0063897599999999995,
+        "cacheWrite": 0,
+        "total": 0.0073437599999999995
+      }
+    },
+    {
+      "input": 1592,
+      "output": 443,
+      "cacheRead": 107392,
+      "cacheWrite": 0,
+      "reasoning": 122,
+      "totalTokens": 109427,
+      "cost": {
+        "input": 0.00047759999999999995,
+        "output": 0.0005316,
+        "cacheRead": 0.0064435199999999995,
+        "cacheWrite": 0,
+        "total": 0.0074527199999999995
+      }
+    }
+  ]
+}

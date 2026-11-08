@@ -1,0 +1,267 @@
+{
+  "audit_version": "1.0",
+  "mission": "fleet",
+  "iteration": 96,
+  "role": "evaluator",
+  "audit_kind": "read-audit",
+  "note": "This audit records ONLY what this session actually read and observed. It contains no invented acked=true token, no reconstructed paths, and no claims about files that were not opened. Where a file was read partially, the exact ranges are listed and labelled partial.",
+  "judge_identity": {
+    "role": "evaluator",
+    "model": "pi:openrouter/minimax/minimax-m3",
+    "model_source": "MISSION_EVALUATOR_MODEL in this session's environment; identical to the lane the controller probed in iteration96/evaluator-probe-usage.json (rc 0)",
+    "pi_version": "0.85.1",
+    "generator_not_judge": "cross-vendor: executor/planner default codex:gpt-6.1-sol (OpenAI) per design_docs/fleet-mission.md Routing policy; judge is OpenRouter/MiniMax. Anthropic lanes unavailable at iteration 95 (HTTP 429, weekly reset 2026-11-09 06:00 Europe/Copenhagen).",
+    "worktree": "/Users/voightkampff/.ailang-worktrees/fleet-i96",
+    "reviewed_head": "2249a1923a02be2e4f3ce2f1dcb96239484a237b",
+    "origin_dev_at_review": "252680e1beb4e6cf1709a010cc1c45838b91b9f8",
+    "toolchain_freshness": "freshness_report: STALE (installed binary built from f20e6de, HEAD 2249a192). No toolchain-dependent claim in the report relies on the installed ailang binary."
+  },
+  "protocol_handshake": {
+    "step_1_claude_md_read": {
+      "done": true,
+      "path": "CLAUDE.md",
+      "lines_read": "1-152 (whole file)",
+      "when": "first tool action of the session, before any judge work and before any write"
+    },
+    "step_2_classification": {
+      "done": true,
+      "value": "independent report-only mission evidence/authorization review; unattended mission stage -> inbox skipped",
+      "basis": "CLAUDE.md 'Session start (attended)': unattended stage skips the inbox; gate-3-route.md PI EVALUATOR SESSION HANDSHAKE: 'The evaluator does NOT check the inbox: inbox triage is the controller's Gate 0'",
+      "ailang_messages_run": false
+    },
+    "step_3_session_protocol_ack": {
+      "done": true,
+      "call": "session_protocol_ack({})",
+      "tool_result_verbatim": "Session protocol acknowledged — mutating tools unlocked for this session. Work routing per AGENTS.md still applies.",
+      "literal_acked_true_token_present_in_result": false,
+      "literal_acked_true_note": "The tool result does not print a literal 'acked=true'. The observable success signals recorded here are (a) the acknowledgement sentence quoted verbatim above and (b) the mutating tools becoming usable afterwards: the first write in this session (design_docs/fleet-mission-evidence/iteration96/evaluator-report.md) succeeded, and `git status --porcelain` before that write showed only the controller's untracked evidence directory '?? design_docs/fleet-mission-evidence/iteration96/'. No claim of a literal acked=true string is made.",
+      "order": "ack completed BEFORE any judge work, any artifact read for the assessment, and before either report file was written"
+    },
+    "step_4_assessment_and_write": {
+      "done": true,
+      "written_files": [
+        "design_docs/fleet-mission-evidence/iteration96/evaluator-report.md",
+        "design_docs/fleet-mission-evidence/iteration96/evaluator-read-audit.json"
+      ]
+    },
+    "transport_failures": "none - no prerequisite was missing and no tool error occurred; this attempt is a judge report, not a fallback-route transport notice"
+  },
+  "full_reads": [
+    {
+      "path": "CLAUDE.md",
+      "lines_total": 152,
+      "ranges_read": ["1-152"],
+      "coverage": "full",
+      "truncation": "none"
+    },
+    {
+      "path": ".claude/skills/sprint-evaluator/SKILL.md",
+      "lines_total": 357,
+      "ranges_read": ["1-70", "71-140", "141-210", "211-280", "281-357"],
+      "coverage": "full",
+      "truncation": "first attempt (unbounded read) was elided by a quality monitor ('17228 bytes -> shown 2080'); re-read in bounded chunks until complete. Each chunk result ended with the standard 'N more lines in file' footer and no elision marker."
+    },
+    {
+      "path": ".claude/skills/sprint-evaluator/resources/scoring_rubric.md",
+      "lines_total": 178,
+      "ranges_read": ["1-90", "91-178"],
+      "coverage": "full",
+      "truncation": "none in the bounded chunks"
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "lines_total": 879,
+      "ranges_read": ["1-8", "9-12", "13-20", "21-28", "29-36", "37-40", "41-80", "81-100", "101-120", "121-140", "141-160", "161-180", "181-200", "201-220", "221-240", "241-260", "261-280", "281-300", "301-320", "321-340", "341-360", "361-380", "381-400", "401-420", "421-440", "441-460", "461-480", "481-500", "501-520", "521-540", "541-560", "561-580", "581-600", "601-620", "621-640", "641-660", "661-680", "681-700", "701-720", "721-740", "741-760", "761-780", "781-800", "801-820", "821-840", "841-860", "861-879"],
+      "coverage": "full (1-879, no gap)",
+      "truncation": "two initial attempts (unbounded, then limit 40) were elided by the quality monitor because lines 18-19 are single very long lines (the designer-rotation table row). Re-read in 4-20 line chunks; every chunk returned its complete line range with no elision marker. Line range 37-40 was re-read explicitly after the chunk plan left it uncovered."
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/codex-lane-false-greens.md",
+      "lines_total": 158,
+      "ranges_read": ["1-85", "86-158"],
+      "coverage": "full",
+      "truncation": "none"
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "lines_total": 408,
+      "ranges_read": ["1-60", "61-120", "121-144", "145-168", "169-172", "173-176", "177-183", "184-186", "187-189", "190-219", "220-249", "250-279", "280-309", "310-339", "340-369", "370-408"],
+      "coverage": "full (1-408; the decision-ledger block 141-188 was read in 3-6 line chunks because single ledger rows are very long)",
+      "truncation": "one unbounded-ish read (121-180) was elided in the middle by the quality monitor; the elided span was re-read in small chunks (141-188). No uncovered range remains.",
+      "measured_content": {
+        "decision_rows": 42,
+        "open_rows": 26,
+        "resolved_rows": 16,
+        "open_ids": ["D-FLEET-16","D-FLEET-17","D-FLEET-18","D-FLEET-19","D-FLEET-20","D-FLEET-21","D-FLEET-22","D-FLEET-23","D-FLEET-25","D-FLEET-26","D-FLEET-27","D-FLEET-28","D-FLEET-29","D-FLEET-31","D-FLEET-32","D-FLEET-33","D-FLEET-34","D-FLEET-35","D-FLEET-36","D-FLEET-37","D-FLEET-38","D-FLEET-39","D-FLEET-40","D-FLEET-41","D-FLEET-42","D-FLEET-43"],
+        "numbering_gaps": ["D-FLEET-30 (does not exist)"],
+        "method": "parsed the <!-- decision-ledger:start --> .. <!-- decision-ledger:end --> block and counted rows by Status cell"
+      }
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-input-tickets.json",
+      "lines_total": 577,
+      "ranges_read": ["1-30", "31-60", "61-120", "121-180", "181-240", "241-300", "301-360", "361-420", "421-480", "481-540", "541-577"],
+      "coverage": "full (all 26 ticket objects)",
+      "truncation": "none"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/input-manifest.json",
+      "coverage": "full",
+      "truncation": "none"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-probe-usage.json",
+      "coverage": "full",
+      "truncation": "none"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/current-external-capture.json",
+      "coverage": "full",
+      "truncation": "none"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration95/new-ticket-first-attempt.json",
+      "coverage": "full",
+      "truncation": "none"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration95/new-ticket-open-tool.json",
+      "coverage": "full",
+      "truncation": "none"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration95/new-ticket-retry.json",
+      "coverage": "full",
+      "truncation": "none"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration95/new-ticket-triage.md",
+      "lines_total": 10,
+      "ranges_read": ["1-10"],
+      "coverage": "full",
+      "truncation": "none",
+      "classification": "controller triage context (iteration 95), read only AFTER the independent disposition was derived; used for corroboration, not as evidence of a verdict"
+    },
+    {
+      "path": "tools/pi-extensions/controller-bash-cap.ts",
+      "lines_total": 70,
+      "ranges_read": ["1-60", "60-70"],
+      "coverage": "full",
+      "truncation": "none"
+    },
+    {
+      "path": "tools/pi-extensions/eval-shell-guard.ts",
+      "lines_total": 82,
+      "ranges_read": ["1-82"],
+      "coverage": "full",
+      "truncation": "none"
+    },
+    {
+      "path": "tools/pi-extensions/sandbox/sandbox.mission.json",
+      "coverage": "full",
+      "truncation": "none"
+    },
+    {
+      "path": "tools/launchd/lib/pi-ext-args.sh",
+      "lines_total": 29,
+      "ranges_read": ["1-29"],
+      "coverage": "full",
+      "truncation": "none"
+    }
+  ],
+  "partial_reads": [
+    {
+      "path": ".claude/skills/mission-control/resources/gate-2-pick.md",
+      "lines_total": 679,
+      "ranges_read": ["49-78"],
+      "coverage": "partial - the THE FLEET MISSION branch (admissibility inverted) only",
+      "why": "the task asked for 'mission-control gate2 fleet branch as needed'; the rest of the file is the triage/product-mission branch and was not needed"
+    },
+    {
+      "path": "scripts/mission_pi_run.sh",
+      "lines_total": 489,
+      "ranges_read": ["1-12", "140-199", "200-274", "395-434", "445-460"],
+      "coverage": "partial - header/rc map, extension staging, pi invocation, progress/stall and tool_hang detection",
+      "why": "report-only review; the sections that carry the cited facts (rc map at :453, tool_hang at :418, extension list at :288/:302, stall default at :89/:104) were read directly"
+    },
+    {
+      "path": "tools/launchd/mission-control.sh",
+      "lines_total": null,
+      "ranges_read": ["2560", "2578 (grep -n hits, surrounding text not read)"],
+      "coverage": "partial - grep only",
+      "why": "single cited fact: the pi controller spawn loads controller-bash-cap.ts"
+    },
+    {
+      "path": "tools/launchd/test_driver_notify.sh",
+      "lines_total": null,
+      "ranges_read": ["1003-1005 (grep -n hits)"],
+      "coverage": "partial - grep only",
+      "why": "positive control pinning the controller-bash-cap wiring"
+    }
+  ],
+  "not_read": {
+    "iteration95_and_iteration96_role_conclusion_artifacts": "not read before deriving the independent disposition; the iteration-95 evaluator-transport.json / evaluator-unavailable.md and any iteration-96 designer/planner/executor conclusion file were not opened. The only iteration-95 files opened are the three original observation JSONs and the controller triage note listed above.",
+    "controller_candidate_or_conclusion": "none was supplied with this task and none was sought"
+  },
+  "observations_with_positive_controls": [
+    {
+      "claim": "the shared role runner loads no per-command bash cap",
+      "method": "read scripts/mission_pi_run.sh:288,302 (extension list) + tools/launchd/lib/pi-ext-args.sh (full) + `ls .pi/extensions/` (15 files, no bash-cap)",
+      "positive_control": "grep for 'controller-bash-cap' across the repo hits tools/launchd/mission-control.sh:2578 and tools/launchd/test_driver_notify.sh:1003-1005, i.e. the control fires where the controller spawn loads it; the same grep returns NO hit inside scripts/mission_pi_run.sh"
+    },
+    {
+      "claim": "the controller and eval lanes do carry a per-command cap",
+      "method": "read controller-bash-cap.ts and eval-shell-guard.ts in full",
+      "positive_control": "both files' own headers describe the control and their tests exist (tools/pi-extensions/controller-bash-cap.test.ts, eval-shell-guard.test.ts)"
+    },
+    {
+      "claim": "the eval guard would NOT have refused this command",
+      "method": "read eval-shell-guard.ts isUnboundedFind: returns `rooted && !/-maxdepth\\s+\\d/.test(cmd)`",
+      "positive_control": "the hung command's literal is quoted in iteration95/new-ticket-first-attempt.json and does contain '-maxdepth 4'"
+    },
+    {
+      "claim": "controller-bash-cap.ts is not a mirrored pi asset, so referencing it creates no make verify-pi-assets drift",
+      "method": "`ls .pi/extensions/` and `ls internal/executor/pi/profile_assets/` and `ls cmd/ailang/pi_assets/` + Makefile:367-391 (pi-assets / verify-pi-assets targets)",
+      "positive_control": "eval-shell-guard.ts IS present in internal/executor/pi/profile_assets/ (and the Makefile drift-check names it), while controller-bash-cap.ts is present in neither - the mirroring rule is therefore shown to fire, and the absence of controller-bash-cap.ts is a real absence rather than a mis-read"
+    },
+    {
+      "claim": "no HOME / session / credential sweep was performed by this review",
+      "method": "no find over $HOME, no session-store listing, no .pi metadata read, no environment dump; the only $HOME occurrences in the report are quoted from the ticket's own sanitized artifact",
+      "positive_control": "the commands actually run are listed in commands_executed below - all are repo-local reads or narrow file reads"
+    }
+  ],
+  "commands_executed": [
+    "wc -l (line counts of every file read)",
+    "grep -n / grep -rn / grep -c over repo-local paths only (HOME, tool_hang, rc 18, hung_tool, controller-bash-cap, eval-shell-guard, pi-assets, 'tool_hang` (rc 18) is NOT a lane failure')",
+    "git rev-parse HEAD / origin/dev; git show <ref>:design_docs/fleet-mission.md | shasum -a 256; git diff --stat HEAD origin/dev -- design_docs/fleet-mission.md; git status --porcelain (read-only; no write operation)",
+    "shasum -a 256 of the iteration-96 and iteration-95 evidence files",
+    "python3 (stdlib only) to parse the decision-ledger block and the ticket JSON: row/OPEN counts, open ID list, numbering gaps, newest-ticket-by-first_seen ordering, and the ticket count",
+    "pi --version"
+  ],
+  "not_done": [
+    "no `ailang messages` of any kind (inbox step skipped as an unattended stage)",
+    "no `gh` mutation (no PR, comment, label or issue write)",
+    "no git write operation (no add/commit/push/branch/stash/checkout)",
+    "no reproduction of the hang; the HOME search was never executed",
+    "no repository-wide test build (a report-only review does not warrant `make test`; freshness_report already reports the installed binary as STALE relative to HEAD)",
+    "no threshold / retry / lane / config / decision-status / ticket-state change",
+    "no reading of iteration-95 or iteration-96 designer/planner/executor conclusion artifacts before deriving the independent findings"
+  ],
+  "ledger_cross_check": {
+    "manifest_ledger_sha256": "f2d75d09ce1b09458ec2ba27132054c39b8624a22b8b7f0ee3c83f52d409a413",
+    "worktree_HEAD_fleet_mission_md_sha256": "1873ffaba95b08d60c61a99a37955bf2f9abe6f92b9e6302133c7e73b325c3dc",
+    "origin_dev_fleet_mission_md_sha256": "e90ae1fc09c64b1df18e4d52917b56fe5f4c6db9ef56f8b17763bd19a107cc00",
+    "result": "the manifest's ledger_sha256 matches neither the worktree copy nor origin/dev's copy, nor any iteration-96 evidence file hashed here (open-decisions.md 7c2b088c…, tickets.json b6da4303…, evaluator-input-tickets.json 7202f651…, current-external-capture.json c391a27e…, input-manifest.json d85fa498…, evaluator-probe-usage.json 68a308e6…). Recorded as a non-load-bearing observation; the ledger screened is the one at the reviewed HEAD, as specified by the task.",
+    "additional_ledger_text_observations": [
+      "D-FLEET-13, D-FLEET-14 and D-FLEET-15 carry Status RESOLVED while their Evidence cell still ends 'OPEN (filed …)'",
+      "D-FLEET-21's Evidence cell still describes draft #2067 as pending"
+    ],
+    "status_changes_made_by_this_review": "none"
+  },
+  "files_written": [
+    "design_docs/fleet-mission-evidence/iteration96/evaluator-report.md",
+    "design_docs/fleet-mission-evidence/iteration96/evaluator-read-audit.json"
+  ],
+  "verdict_marker": "EVALUATION_VERDICT: EVIDENCE-DISPOSITION",
+  "implementation_score": "N/A - no implementation, no approved design and no sprint plan exist for this fire; no rubric score awarded"
+}

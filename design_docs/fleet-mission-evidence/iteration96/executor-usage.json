@@ -1,0 +1,81 @@
+{
+  "role": "executor",
+  "lane": "codex:gpt-6.1-sol",
+  "resolver": "recipe codex:gpt-6.1-sol declared:provider-pin",
+  "metered_usd": 0,
+  "quota_bucket": "codex",
+  "credential": "subscription; OPENAI_API_KEY stripped",
+  "directive_path": "/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/fleet-i96-executor-b0402dox/directive.txt",
+  "final_path": "/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/fleet-i96-executor-b0402dox/final.txt",
+  "runs": [
+    {
+      "phase": "probe",
+      "command": [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-6.1-sol",
+        "-c",
+        "features.multi_agent_v2.expose_spawn_agent_model_overrides=false",
+        "--json",
+        "reply with exactly: ok"
+      ],
+      "stdin": "/dev/null",
+      "rc": 0,
+      "elapsed_seconds": 3.764,
+      "log": "/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/fleet-i96-executor-b0402dox/probe.jsonl",
+      "usage": [
+        {
+          "input_tokens": 23348,
+          "cached_input_tokens": 0,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 5,
+          "reasoning_output_tokens": 0
+        }
+      ]
+    },
+    {
+      "phase": "screen",
+      "command": [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-6.1-sol",
+        "-c",
+        "features.multi_agent_v2.expose_spawn_agent_model_overrides=false",
+        "--json",
+        "--sandbox",
+        "workspace-write",
+        "--add-dir",
+        "/Users/voightkampff/Library/Caches/go-build",
+        "--add-dir",
+        "/Users/voightkampff/go/pkg/mod",
+        "-C",
+        "/Users/voightkampff/.ailang-worktrees/fleet-i96",
+        "-o",
+        "/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/fleet-i96-executor-b0402dox/final.txt",
+        "<directive:/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/fleet-i96-executor-b0402dox/directive.txt>"
+      ],
+      "stdin": "/dev/null",
+      "rc": 0,
+      "elapsed_seconds": 118.367,
+      "log": "/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/fleet-i96-executor-b0402dox/screen.jsonl",
+      "usage": [
+        {
+          "input_tokens": 827517,
+          "cached_input_tokens": 739584,
+          "cache_write_input_tokens": 0,
+          "output_tokens": 4751,
+          "reasoning_output_tokens": 705
+        }
+      ]
+    }
+  ],
+  "tokens_in": 850865,
+  "tokens_out": 4756,
+  "cached_input_tokens": 739584,
+  "quota_tokens": 855621,
+  "status": "completed",
+  "report": "design_docs/fleet-mission-evidence/iteration96/executor-screen.md",
+  "implementation_complete": false
+}

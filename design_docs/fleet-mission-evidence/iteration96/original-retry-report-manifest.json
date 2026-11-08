@@ -1,0 +1,16 @@
+{
+  "source": "/tmp/triage-i33/judge-retry-worktree/JUDGE_REPORT.json",
+  "sha256": "52aa07355fd724ccdcf11ee96f7a6f491f2f633d5ed96037900cb57697746e9c",
+  "bytes": 19800,
+  "keys": [
+    "actual_judge_provider",
+    "actual_judge_model",
+    "dev_sha",
+    "own_session_handshake_proof",
+    "items",
+    "auxiliary",
+    "independent_checks",
+    "limitations"
+  ],
+  "note": "Existence and shape only; no substantive fleet verdict inferred."
+}

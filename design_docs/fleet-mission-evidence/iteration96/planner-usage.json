@@ -1,0 +1,45 @@
+{
+  "role": "planner",
+  "transport": "Agent bridge to exact CLI; inherited bridge model not treated as planner model",
+  "effective_model": "codex:gpt-6.1-sol",
+  "derivation": "codex:gpt-6.1-sol anthropic-fallback:fail-closed:no-doc",
+  "resolver": "recipe codex:gpt-6.1-sol anthropic-fallback:fail-closed:no-doc",
+  "run_kind": "read-only readiness screen; no approved design; no sprint plan/JSON",
+  "workspace": "/Users/voightkampff/.ailang-worktrees/fleet-i96",
+  "probe": {
+    "role": "planner",
+    "model": "gpt-6.1-sol",
+    "command": [
+      "/opt/homebrew/bin/codex",
+      "exec",
+      "--model",
+      "gpt-6.1-sol",
+      "-c",
+      "features.multi_agent_v2.expose_spawn_agent_model_overrides=false",
+      "reply with exactly: ok"
+    ],
+    "rc": 0,
+    "elapsed_seconds": 6.71,
+    "log": "/tmp/fleet-i96-planner-probe.log"
+  },
+  "run": {
+    "role": "planner",
+    "model": "gpt-6.1-sol",
+    "rc": 0,
+    "elapsed_seconds": 310.74,
+    "log": "/tmp/fleet-i96-planner-run.log",
+    "final": "/tmp/fleet-i96-planner-run-final.txt",
+    "directive": "/tmp/codex_planner_directive_iter96_fleet_readiness.txt"
+  },
+  "probe_cli_display_tokens": 17023,
+  "run_cli_display_tokens": 143373,
+  "quota_bucket": "codex",
+  "quota_tokens": 160396,
+  "metered_usd": 0,
+  "usage_limit": "CLI displayed totals, not provider input/output split; transport delegate/controller tokens unreported",
+  "report": "design_docs/fleet-mission-evidence/iteration96/planner-screen.md",
+  "sandbox": "workspace-write",
+  "stdin": "/dev/null",
+  "max_seconds": 1800,
+  "mutations": "Report and usage evidence only; no Git writes or production changes"
+}
