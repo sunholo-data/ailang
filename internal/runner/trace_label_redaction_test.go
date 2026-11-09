@@ -87,7 +87,8 @@ func runTraceFixture(t *testing.T, name, source string, tier trace.Tier, engine 
 	t.Chdir(root)
 	dir := t.TempDir()
 	file := filepath.Join(dir, name+".ail")
-	src := strings.Replace(source, "OUT_PATH", filepath.Join(dir, "out.txt"), 1)
+	// ToSlash: a raw Windows path (C:\Users\...) inside an AILANG string literal is an illegal \U escape.
+	src := strings.Replace(source, "OUT_PATH", filepath.ToSlash(filepath.Join(dir, "out.txt")), 1)
 
 	var out bytes.Buffer
 	rt, res := terminalFixtureRuntime(t, file, src, strings.NewReader(""), &out)
