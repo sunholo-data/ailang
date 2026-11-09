@@ -228,12 +228,17 @@ MSG="env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac"
   ```bash
   $MSG ailang messages send user "<counts · top 3 · link>" --title "Triage: <headline>" --from mission-triage
   ```
-- **Daneel: the digest as `[normal]` every iteration.** Add **at most ONE `[urgent]` per
-  iteration, and only for something Mark has not been mailed before**: a decision row this
-  iteration opened, a NEW red `dev` (§6), or a level change. Inherited OPEN rows, a red already
-  reported, and orphans go in the `[normal]` digest; an orphan needs a card, not a ruling. Mark,
-  28 Oct 2026, after 13 urgent mails in 13 days: *"I dont know how to respond to them"*. An
-  urgent that repeats last iteration's teaches him to ignore the next one.
+- **Daneel: the digest as `[normal]` every iteration. It never carries the decisions**: no
+  "DECISIONS FOR MARK" block and no D-row options. Those go only in the packet (§7a), so there is
+  one place to answer and the digest stays short.
+- **`[urgent]` mails: the daily decisions packet (§7a) and nothing else, except** a NEW red
+  `dev` (§6) or a level change. The packet carries inherited OPEN rows **by design**; the
+  "not mailed before" test applies only to the other two. A red already reported and orphans
+  go in the digest; an orphan needs a card, not a ruling. Mark, 28 Oct 2026, after 13 urgent mails
+  in 13 days: *"I dont know how to respond to them"*. Measured 2026-11-05..08: the older wording
+  ("only for something Mark has not been mailed before") suppressed every packet, because
+  every row in a packet is inherited. The decisions were folded into digests two at a time and
+  no mail reached him.
 - **The `[urgent]` payload is the ask, answerable from the mail.** Daneel mails the payload and
   puts its **first** `https://github.com/sunholo-data/` link at the top as the place to act, so
   that link is the **bookkeeping issue itself** (where the answer is typed), never a commit or
@@ -241,14 +246,12 @@ MSG="env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac"
   copy, and what happens with no answer:
   ```text
   Answer by commenting on https://github.com/sunholo-data/ailang/issues/<N>
-  D-TRIAGE-34: A (recommended) consolidate #1981/#1982 under a recorded scope ruling, or B revise #1981
-  D-TRIAGE-35: A (recommended) review #1983 after the census fix, or B request a revision
-  Reply in one comment, e.g. "D-TRIAGE-34: A. D-TRIAGE-35: A." No answer = HOLD.
-  Also: red dev GO-2026-6860 (new), routed to #1983. Digest: <comment link>
+  Red dev (new): GO-2026-6860 in golang.org/x/net, routed to #1983. Nothing to answer; the fix is
+  D-TRIAGE-55 in tonight's packet. Digest: <comment link>
   ```
   ```bash
   $MSG ailang messages send daneel-reports "<counts · link to the digest comment>" --from mission-triage --title "[normal] Triage digest: <headline>"
-  $MSG ailang messages send daneel-reports "<the ask, as above>" --from mission-triage --title "[urgent] Triage: <ids> need your answer"
+  $MSG ailang messages send daneel-reports "<the red/level change, as above>" --from mission-triage --title "[urgent] Triage: red dev <id>"
   ```
   The body is **positional**. `messages send` has no `--body-file` flag and would send the
   literal string (gate-5-retro step 3).
@@ -258,10 +261,15 @@ MSG="env AILANG_STORAGE_MESSAGING=gcp AILANG_MESSAGES_PROJECT=ailang-multivac"
 Mark, 2026-11-04: *"I'm overwhelmed and/or never see the decisions to make them."* The digest
 and a link were not enough. Send **the list itself**:
 
-- **When**: from the first iteration that starts at or after 18:00 UTC each day, if any ledger row
-  is OPEN or any card is ready to approve. **This is that day's one `[urgent]`**; it replaces
-  the per-new-decision urgent above (a new red `dev` may still send its own, §6). The morning
-  iteration sends no packet.
+- **When — a mechanical test, not a judgement**: the packet is DUE when (i) any ledger row is OPEN
+  or any card is ready to approve, (ii) the iteration starts at or after 18:00 UTC or before
+  05:00 UTC (Daneel's morning brief is mailed at about 05:20 UTC), and (iii) the epoch in
+  `~/.ailang/state/mission-triage-last-packet` is more than 12h old, or the file is missing.
+  When DUE, send it **before** the digest, then write the epoch:
+  `date +%s > ~/.ailang/state/mission-triage-last-packet`. The Gate-5 report states
+  `packet: sent <message id>` or `packet: not due (<which of i–iii failed>)`. A DUE packet is
+  never skipped because the rows are inherited, the list is unchanged, or a lane is degraded.
+  If the judge is down, send it marked `(unjudged)`.
 - **What**: at most **5** numbered items, ranked: (1) security/credential incidents, (2) cards
   ready to approve (unsigned attestations), (3) design freezes blocking a planned sprint,
   (4) everything else, oldest first. Below the list: "+N more held, in the digest: <link>".
@@ -301,6 +309,25 @@ If `daneel-reports` refuses (rc1, undeclared — every iteration so far), send t
 body to `controlplane`, the fallback Daneel already triages. Replies come back through Daneel's
 ruling relay once it exists (D-TRIAGE-4); until then Mark answers in an attended session and it is
 recorded with `scripts/mission_answer.sh`. Never treat silence as an answer.
+
+### 7b. This iteration's own record PR: one at a time, ready, visible
+
+A record left in a draft is invisible: the next iteration reads a stale ledger, and the decisions
+it opened never reach `dev`. Measured 2026-11-04..09: 8 stacked draft record PRs
+(#2114 … #2170). `dev` showed 15 OPEN rows while the digests said 44, and D50–D79 existed only on
+branches. Merging stays outside Level 1. This section only keeps the record in one place where a
+merge can find it.
+
+1. **One open record PR at a time.** At Gate 1, run
+   `gh pr list --state open --search "head:triage/" --json number,headRefName`. If one exists,
+   check out its branch, rebase onto `origin/dev`, add this iteration's commits, and push.
+   Do not open a new one while one is open.
+2. **Open it ready, never draft**, from the `sunholo-voight-kampff` account, with only
+   `design_docs/triage-mission*.md` in the diff and `scripts/mission_decisions.sh --check` passing.
+3. **A red that is not in the record's files** (e.g. a runner cancellation, or a red inherited
+   from the base; read the failing STEP) gets one `gh run rerun <run> --failed`.
+4. **Make it visible**: the digest and the packet's last line both carry
+   `record: #N <green|red: step> (unmerged since <date>)` until it lands.
 
 ### 8. Recording the queue fingerprint (the LAST step of the iteration)
 
