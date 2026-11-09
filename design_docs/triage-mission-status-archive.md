@@ -19,3 +19,17 @@
 
 ## STATUS 2026-10-27 — ITERATION 15: 63components/56groups;62CONCUR/1DISSENT;15comments/8labels;D27–33parked;devGREEN;coverage69/83,14stale deferred;shadow14/14. [ADMIN]
 ## STATUS 2026-10-28 — ITERATION 16: 25 independently judged verdicts; red dev routed; D34/D35 OPEN; 21 holds; shadow14/14; external1981merge stopped late actions. [ADMIN]
+## STATUS 2026-10-28 — ITERATION 17: six independently judged items; four comments/three labels; two red-dev routes; D36 OPEN; 22 holds; shadow450/score14of14; no approvals or merges. [ADMIN]
+
+## STATUS 2026-11-03 — ITERATION 25: 13 verdicts independently judged; one issue closed; two comments; exec-lifetime design routed; three inherited asks restored; attestation held; shadow509/score1of3. [HARNESS] [ADMIN]
+
+## STATUS 2026-11-03 — ITERATION 26: 42 independently judged verdicts; 10 comments/six labels; D40–47 OPEN; coverage73/94; shadow552/score1of4; no approvals or merges. [HARNESS] [ADMIN]
+
+## STATUS 2026-11-04 — ITERATION 27: red dev (skill-mirror sync) routed; PR #1978 attested; 30 verdicts judged; no approvals or merges; shadow586. [HARNESS] [ADMIN]
+
+## STATUS 2026-11-04 — ITERATION 28: 25 cross-vendor judged verdicts; SCC gap reproduced; refusal design routed; ready1978 withheld; coverage96/96;20 OPEN;shadow611; no approvals or merges. [HARNESS] [ADMIN]
+
+## STATUS 2026-11-05 — ITERATION 29: six independent queue verdicts; 27 concrete choices split; current dev checks pending; no approvals, rejections or merges. [HARNESS] [ADMIN]
+## STATUS 2026-11-05 — ITERATION 30: six independently judged verdicts; eight aged green stalls exposed; D77 OPEN; no approvals, rejections or merges. [HARNESS] [ADMIN]
+
+## STATUS 2026-11-06 — ITERATION 31: required MiniMax judge lanes timed out; eight proposals parked, zero item actions; 41 OPEN holds preserved; shadow665/score6of9. [HARNESS] [ADMIN]
