@@ -32,7 +32,7 @@ Published at release, not gated: fleet-tier pass rates, cost-per-verified-succes
 1. ✓ ailang-packages#183 merged `685490732` → publish `sunholo/specstore` 0.3.1
 2. ✓ email-parse#40 merged `d7b0669be` → publish `sunholo/email` 0.10.1 → eparse dep bump → eparse 1.11.2; then daneel#417 out of draft
 3. ✓ docparse#263 merged `7950010ee` (before docparse's `AILANG_VERSION` pin, now v0.57.1, moves past a #2184 release)
-4. motoko fork#6 (106 breaks → 0) → fast-forward `~/dev/mk-20261027` + cloud `MOTOKO_COMMIT` — BEFORE the rig binary moves to a #2184 release
+4. ✓ motoko fork#6 merged `597a6fbf9` (106 breaks → 0; its 2 red CI jobs pre-date it — base red since fork#4/#5: stale `CostRates` in `scripts/verify_skills_startup.ail:133`, hook-scope yield pin at 20 vs 21 extensions, 5 moved session.ail clock anchors) → fast-forward `~/dev/mk-20261027` + cloud `MOTOKO_COMMIT` — BEFORE the rig binary moves to a #2184 release
 5. then #2184 merges and ships. Upstream arniwesth/motoko_agent has the same 36 sites — tell Arni.
 
 **#2185 IFC sites (email-parse, owner decides, not auto-fixed):** `packages/email/api.ail:66` (`<arg> ⊔ <sqlsafe>` into `sqlEscape`), `packages/eparse/attachments.ail:604` (already-escaped value re-escaped). daneel: 0 IFC breaks.
