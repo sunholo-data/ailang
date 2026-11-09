@@ -13,8 +13,10 @@ import (
 	"strings"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // M2 of m-net-effect-proxy-boundary: the HTTP Stream transports (SSE GET, SSE
@@ -113,7 +115,10 @@ func runStreamProxyHelper(t *testing.T, op, proxyURL string, extraEnv ...string)
 	if os.Getenv(streamProxyHelperEnv) != "" {
 		t.Fatal("env-proxy parent test must not run inside the helper subprocess")
 	}
-	cmd := exec.Command(os.Args[0], "-test.run=^TestStreamProxyBoundaryEnvHelper$", "-test.v", "-test.count=1")
+	ctx, cancel := testutil.HangGuardContext(t, 90*time.Second)
+	defer cancel()
+	cmd := exec.CommandContext(ctx, os.Args[0], "-test.run=^TestStreamProxyBoundaryEnvHelper$", "-test.v", "-test.count=1")
+	cmd.WaitDelay = 5 * time.Second
 	cmd.Env = append(stripProxyEnv(os.Environ()),
 		streamProxyHelperEnv+"="+op,
 		"HTTP_PROXY="+proxyURL,

@@ -33,7 +33,12 @@ type streamingOrigin struct {
 	release          chan struct{}
 	releaseOnce      sync.Once
 	releasedByClient chan bool
-	closed           chan struct{}
+	// closed is closed only when the origin observed the CLIENT going away.
+	closed chan struct{}
+	// stop releases a held handler at test end, so a cleanup failure is
+	// reported by the assertion instead of hanging httptest.Server.Close.
+	stop     chan struct{}
+	stopOnce sync.Once
 }
 
 // streamingOriginHandler serves: "one"; wait (≤ releaseWait) for the client's
@@ -44,9 +49,9 @@ func newStreamingOrigin(releaseWait time.Duration, ka int, kaEvery time.Duration
 		release:          make(chan struct{}),
 		releasedByClient: make(chan bool, 1),
 		closed:           make(chan struct{}),
+		stop:             make(chan struct{}),
 	}
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		defer close(o.closed)
 		fl := w.(http.Flusher)
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.WriteHeader(http.StatusOK)
@@ -63,6 +68,9 @@ func newStreamingOrigin(releaseWait time.Duration, ka int, kaEvery time.Duration
 		case <-r.Context().Done():
 			o.releasedByClient <- false
 			return
+		case <-o.stop:
+			o.releasedByClient <- false
+			return
 		}
 		send("two")
 		for i := 0; i < ka; i++ {
@@ -71,16 +79,36 @@ func newStreamingOrigin(releaseWait time.Duration, ka int, kaEvery time.Duration
 				send("ka")
 			case <-r.Context().Done():
 				return
+			case <-o.stop:
+				return
 			}
 		}
 		if holdOpen {
-			<-r.Context().Done()
+			select {
+			case <-r.Context().Done():
+				close(o.closed)
+			case <-o.stop:
+			}
 		}
 	})
 	return o, h
 }
 
 func (o *streamingOrigin) clientSawOne() { o.releaseOnce.Do(func() { close(o.release) }) }
+func (o *streamingOrigin) shutdown()     { o.stopOnce.Do(func() { close(o.stop) }) }
+
+// released reads the origin's release verdict, bounded so a broken path
+// fails rather than hangs.
+func (o *streamingOrigin) released(t *testing.T) bool {
+	t.Helper()
+	select {
+	case v := <-o.releasedByClient:
+		return v
+	case <-time.After(30 * time.Second):
+		t.Fatal("origin never reached its release decision")
+		return false
+	}
+}
 
 // recordingProxy is a forward proxy for both modes. buffer=true makes the
 // absolute-form path read the whole upstream body before answering — the
@@ -112,7 +140,7 @@ func (p *recordingProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	out, _ := http.NewRequestWithContext(r.Context(), r.Method, "http://"+p.upstream+r.URL.RequestURI(), r.Body)
 	out.Header = r.Header.Clone()
-	resp, err := (&http.Transport{}).RoundTrip(out)
+	resp, err := (&http.Transport{DisableKeepAlives: true}).RoundTrip(out)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
 		return
@@ -184,7 +212,7 @@ func runProxiedSSE(t *testing.T, target string, proxyURL *url.URL, origin *strea
 	var run streamRun
 	ctx := newSSETestContext(t)
 	ctx.Stream.IdleTimeout = idle
-	ctx.Stream.MaxDuration = 10 * time.Second
+	ctx.Stream.MaxDuration = 30 * time.Second
 	ctx.Stream.tlsClientConfig = tlsCfg
 	ctx.Stream.proxySelector = func(*http.Request) (*url.URL, error) { return proxyURL, nil }
 	ctx.Stream.lookupIP = func(h string) ([]net.IP, error) {
@@ -234,9 +262,9 @@ func runProxiedSSE(t *testing.T, target string, proxyURL *url.URL, origin *strea
 
 func TestStreamSSEProxyBoundaryStreaming(t *testing.T) {
 	const (
-		idle    = 400 * time.Millisecond
+		idle    = time.Second
 		ka      = 3
-		kaEvery = 150 * time.Millisecond
+		kaEvery = 300 * time.Millisecond
 	)
 	wantData := "one two ka ka ka"
 
@@ -245,7 +273,7 @@ func TestStreamSSEProxyBoundaryStreaming(t *testing.T) {
 		if got := proxy.observed(); len(got) != 1 || got[0] != wantSeen {
 			t.Fatalf("proxy observed %q, want exactly [%q] (direct routing produces zero observations)", got, wantSeen)
 		}
-		if !<-origin.releasedByClient {
+		if !origin.released(t) {
 			t.Fatal("event one was NOT observable before event two was released: the path buffered the stream")
 		}
 		if got := strings.Join(run.data, " "); got != wantData {
@@ -269,19 +297,20 @@ func TestStreamSSEProxyBoundaryStreaming(t *testing.T) {
 	}
 
 	t.Run("absolute_form_unbuffered", func(t *testing.T) {
-		origin, h := newStreamingOrigin(3*time.Second, ka, kaEvery, true)
+		origin, h := newStreamingOrigin(15*time.Second, ka, kaEvery, true)
 		up := httptest.NewServer(h)
 		defer up.Close()
 		proxy := &recordingProxy{upstream: up.Listener.Addr().String()}
 		ps := httptest.NewServer(proxy)
 		defer ps.Close()
+		defer origin.shutdown() // runs first: frees a held origin before the servers close
 		pu, _ := url.Parse(ps.URL)
 		run := runProxiedSSE(t, "http://stream.test/sse", pu, origin, nil, idle)
 		assertStreamed(t, run, origin, proxy, "GET http://stream.test/sse")
 	})
 
 	t.Run("connect_tunnel_unbuffered", func(t *testing.T) {
-		origin, h := newStreamingOrigin(3*time.Second, ka, kaEvery, true)
+		origin, h := newStreamingOrigin(15*time.Second, ka, kaEvery, true)
 		up := httptest.NewTLSServer(h) // certificate covers example.com
 		defer up.Close()
 		pool := x509.NewCertPool()
@@ -289,6 +318,7 @@ func TestStreamSSEProxyBoundaryStreaming(t *testing.T) {
 		proxy := &recordingProxy{upstream: up.Listener.Addr().String()}
 		ps := httptest.NewServer(proxy)
 		defer ps.Close()
+		defer origin.shutdown() // runs first: frees a held origin before the servers close
 		pu, _ := url.Parse(ps.URL)
 		run := runProxiedSSE(t, "https://example.com/sse", pu, origin, &tls.Config{RootCAs: pool}, idle)
 		assertStreamed(t, run, origin, proxy, "CONNECT example.com:443")
@@ -304,9 +334,10 @@ func TestStreamSSEProxyBoundaryStreaming(t *testing.T) {
 		proxy := &recordingProxy{upstream: up.Listener.Addr().String(), buffer: true}
 		ps := httptest.NewServer(proxy)
 		defer ps.Close()
+		defer origin.shutdown() // runs first: frees a held origin before the servers close
 		pu, _ := url.Parse(ps.URL)
 		run := runProxiedSSE(t, "http://stream.test/sse", pu, origin, nil, idle)
-		if <-origin.releasedByClient {
+		if origin.released(t) {
 			t.Fatal("buffering proxy: the client released event two — the instrument cannot see buffering")
 		}
 		if got := strings.Join(run.data, " "); got != "one two" {

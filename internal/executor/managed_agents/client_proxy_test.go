@@ -11,6 +11,8 @@ import (
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // AC-M2.2 of m-net-effect-proxy-boundary: the production Vertex SSE client
@@ -63,7 +65,10 @@ func TestDefaultHTTPClientProxyBoundary(t *testing.T) {
 		}))
 		defer proxy.Close()
 
-		cmd := exec.Command(os.Args[0], "-test.run=^TestDefaultHTTPClientProxyEnvHelper$", "-test.v", "-test.count=1")
+		hctx, cancel := testutil.HangGuardContext(t, 90*time.Second)
+		defer cancel()
+		cmd := exec.CommandContext(hctx, os.Args[0], "-test.run=^TestDefaultHTTPClientProxyEnvHelper$", "-test.v", "-test.count=1")
+		cmd.WaitDelay = 5 * time.Second
 		cmd.Env = append(stripProxyEnvMA(os.Environ()),
 			maProxyHelperEnv+"=1",
 			"HTTP_PROXY="+proxy.URL,
