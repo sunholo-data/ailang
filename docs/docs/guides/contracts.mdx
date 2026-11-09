@@ -629,7 +629,7 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 - **Higher-order functions**: `map`, `filter`, `foldl` with **known lambda arguments** are inlined and verified via bounded unrolling
 - **Bounded quantifiers**: `forall i: lo..hi => P(i)` in `ensures` clauses for element-wise properties
 - Numeric conversions: `intToFloat` → `to_real`, `floatToInt` → `to_int`
-- Must be pure: `! {}` (no effects)
+- Must be pure (`pure func`, or an explicit `! {}`), or declare only `! {Declassify}` (a declassification gate). `pure` itself means `! {}`, so `pure func … ! {Declassify}` is a type error: write `func … ! {Declassify}`
 
 **Currently skipped (with hints):**
 
