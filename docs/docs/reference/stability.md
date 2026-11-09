@@ -8,14 +8,14 @@ reviewBy: 2027-02-09
 
 # AILANG 1.x Stability Promise
 
-> **RATIFICATION: pending (Mark).** Re-drafted 2026-11-09 against v1.0 bar v3 (ledger `D-64`,
-> gates G1, G3 and G4a). The tier *semantics* below are frozen by the
+> **RATIFIED 2026-11-09 (Mark, ledger `D-65`; v1.0 bar v3 gate G1).** Re-drafted the same day
+> against bar v3 (ledger `D-64`, gates G1, G3 and G4a). The tier *semantics* below are frozen by the
 > [M-V1-STABILITY-PROMISE design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-v1-stability-promise.md).
 > The tier *assignments* were re-done against what exists today: the dispatch table behind
 > `ailang --help` after the CLI was cut down to 17 visible commands plus the `dev`, `ops`, `eval`
 > and `pkg` groups, the frozen stdlib interfaces (`make freeze-stdlib`), the package manifest and
-> lockfile code, and the hosted executor's MCP tool list. They need Mark's ratification before the
-> `v1.0.0` tag. Rows marked **⚠ proposed** are the ones most likely to move when that happens.
+> lockfile code, and the hosted executor's MCP tool list. They were ratified as drafted. Rows marked
+> **⚠ close call** were the assignments most open to argument; each note says why it landed where it did.
 
 This page says what a consumer, whether a human developer or an AI coding agent, may rely on
 across AILANG's `1.x` releases. `1.0.0` means a promise about what will not break. It does not
@@ -90,7 +90,7 @@ reference rather than listed again here, so there is one source of truth:
 
   Every one of these was checked with `ailang check` and `ailang run` on a build of this branch on
   2026-11-09.
-- **`pure func` is Stable ⚠ proposed, on the condition that P0 [#1443](https://github.com/sunholo-data/ailang/issues/1443)
+- **`pure func` is Stable ⚠ close call, on the condition that P0 [#1443](https://github.com/sunholo-data/ailang/issues/1443)
   is closed.** Until then the type checker accepts a `pure func` that declares an effect row.
   This is a v1.0 G2 item.
 - **Retired syntax is not Stable and the parser rejects it.** For example, the ML/Haskell form
@@ -99,7 +99,7 @@ reference rather than listed again here, so there is one source of truth:
 - **Experimental syntax:**
   - Parameterised effects and capability refinement, such as `Net[scope=public]` and `@limit=N`
     (see [Parameterised effects](/docs/guides/parameterised-effects)).
-  - IFC labels and `Declassify` (⚠ proposed): P0 [#1134](https://github.com/sunholo-data/ailang/issues/1134)
+  - IFC labels and `Declassify` (⚠ close call): P0 [#1134](https://github.com/sunholo-data/ailang/issues/1134)
     is open, because label refinements are lost across module boundaries.
   - The `serve-api` export annotations (`@route`, `@mcp_name`, `@mcp_title`, `@mcp_hints`,
     `@noexpose`, `@nomcp`, …), which follow the `serve-api` tier below.
@@ -143,7 +143,7 @@ breaking change.
 | `std/rand` | Random number generation | 5 examples |
 | `std/iter` | Iteration control primitives | 4 examples |
 | `std/datetime` | Pure date and time operations | 4 examples |
-| `std/set` | Immutable sets with deterministic order | ⚠ proposed — newer (3 examples, 1 benchmark), but its surface mirrors `std/map` |
+| `std/set` | Immutable sets with deterministic order | ⚠ close call — newer (3 examples, 1 benchmark), but its surface mirrors `std/map` |
 
 ### Experimental stdlib (31)
 
@@ -153,19 +153,19 @@ These may change in a 1.x minor, with a CHANGELOG entry.
 |--------|---------|------------------|
 | `std/ai` | AI as a typed effect (`call`, `callJson`, `step`) | surface still changing along with the agent loop (20 examples) |
 | `std/ai/streaming` | Token streaming for configured AI providers | subdirectory module, outside the freeze gate; narrow usage |
-| `std/net` | HTTP client, plus pure `parseUrl` / `parseQuery` | ⚠ proposed — widely used (17 examples), but security- and format-sensitive; the `Url` record shape may change |
+| `std/net` | HTTP client, plus pure `parseUrl` / `parseQuery` | ⚠ close call — widely used (17 examples), but security- and format-sensitive; the `Url` record shape may change |
 | `std/web` | Web search and page fetch through a fixed backend | new; depends on one vendor's backend endpoint |
 | `std/stream` | Async stream sources / `selectEvents` | close to concurrency; still changing |
 | `std/stream/bridge` | WebSocket frame relay with an AILANG step | subdirectory module, outside the freeze gate; one example |
 | `std/secret` | Gated secret resolution | newer effect |
-| `std/process` | External command execution | ⚠ proposed — host-boundary surface, tiered conservatively; the hosted executor is built on it |
-| `std/crypto` | Cryptographic operations | ⚠ proposed — security-sensitive, tiered conservatively |
-| `std/jwt` | JWT parsing and verification | ⚠ proposed — security-sensitive |
+| `std/process` | External command execution | ⚠ close call — host-boundary surface, tiered conservatively; the hosted executor is built on it |
+| `std/crypto` | Cryptographic operations | ⚠ close call — security-sensitive, tiered conservatively |
+| `std/jwt` | JWT parsing and verification | ⚠ close call — security-sensitive |
 | `std/regex` | Linear-time (RE2) regex | RE2 subset; the `RegexMatch` record shape may change |
-| `std/xml` | XML parsing and querying | ⚠ proposed — the format surface may change |
+| `std/xml` | XML parsing and querying | ⚠ close call — the format surface may change |
 | `std/yaml` | YAML to the `std/json` `Json` ADT | format surface; first-document-only semantics may widen |
 | `std/html` | HTML5 parsing | the format surface may change |
-| `std/zip` | ZIP archive read, write and stream | ⚠ proposed — the format surface may change |
+| `std/zip` | ZIP archive read, write and stream | ⚠ close call — the format surface may change |
 | `std/tar` | tar archive read and extract | the format surface may change |
 | `std/gzip` | gzip compression | the format surface may change |
 | `std/deflate` | Raw deflate (RFC 1951) and zlib (RFC 1950) | low-level and niche |
@@ -181,7 +181,7 @@ These may change in a 1.x minor, with a CHANGELOG entry.
 | `std/sharedindex` | Similarity-based semantic index | marked Experimental in its design doc |
 | `std/embedding` | Vector-embedding utilities | niche |
 | `std/simhash` | Locality-sensitive hashing | niche |
-| `std/debug` | `Debug` ghost-effect logging | ⚠ proposed — was Internal; moved because published packages (`sunholo/logging`) and the hosted executor depend on it |
+| `std/debug` | `Debug` ghost-effect logging | ⚠ close call — was Internal; moved because published packages (`sunholo/logging`) and the hosted executor depend on it |
 
 ### Internal stdlib (3)
 
@@ -207,7 +207,7 @@ Tier rules for spellings:
   and `ailang messages` are one route.
 - **A compatibility spelling** (a route the binary accepts but no longer lists, such as
   `ailang install` for `ailang pkg install`) **has the tier of its canonical command and keeps
-  working through 1.x when that tier is Stable.** ⚠ proposed.
+  working through 1.x when that tier is Stable.** ⚠ close call.
 - A Stable command's documented flags are Stable, apart from the Experimental flags listed under
   the table.
 
@@ -218,7 +218,7 @@ Tier rules for spellings:
 | `check` | top | `ai-check` | Type-check a file or directory; `--verify` adds contract verification |
 | `docs` | top | — | Stdlib module documentation |
 | `help` | top | — | Help for ailang, a group or a command |
-| `init` | top | — | Scaffold a package (`init package`) or web app. ⚠ proposed — it writes the Stable manifest; the web-app template may change |
+| `init` | top | — | Scaffold a package (`init package`) or web app. ⚠ close call — it writes the Stable manifest; the web-app template may change |
 | `prompt` | top | — | Emit the canonical teaching prompt |
 | `repl` | top | — | Interactive REPL |
 | `run` | top | — | Run a program (`--caps`, `--entry`, `--args-json`, `--args-file`) |
@@ -232,14 +232,14 @@ Tier rules for spellings:
 | `pkg info` | pkg | — | Package detail: exports, effects, versions |
 | `pkg versions` | pkg | — | Every version with its hashes |
 | `pkg docs` | pkg | `pkg-docs` | Show a package's `AGENT.md` |
-| `pkg publish` | pkg | `publish` | Publish the current package. ⚠ proposed — the command and its manifest inputs are Stable, but the validator's `PUBnnn` gate set may tighten in a minor |
-| `pkg bin` | pkg | `bin` | List or uninstall `[bin]` command shims. ⚠ proposed — added in v0.40.0 |
+| `pkg publish` | pkg | `publish` | Publish the current package. ⚠ close call — the command and its manifest inputs are Stable, but the validator's `PUBnnn` gate set may tighten in a minor |
+| `pkg bin` | pkg | `bin` | List or uninstall `[bin]` command shims. ⚠ close call — added in v0.40.0 |
 
 **Experimental flags of Stable commands:** `run --bytecode` (the VM path), `run --policy`, `run
 --ai*` and the `--routing-*` / `--allow-routing` family, `run --budget-report`, the resource-cap
 flags (`--max-memory`, `--net-timeout`, `--net-max-bytes`, `--fs-max-bytes`,
 `--process-allowlist`), and `check --format agent`. The `ai-check` alias is Stable as a route, but
-the JSON report it prints is Experimental ⚠ proposed, because its shape is still settling.
+the JSON report it prints is Experimental ⚠ close call, because its shape is still settling.
 
 ### Experimental CLI (23)
 
@@ -248,9 +248,9 @@ These may change in a 1.x minor, with a CHANGELOG entry.
 | Command | Listed in | Also accepted | Why Experimental |
 |---------|-----------|---------------|------------------|
 | `examples` | top | — | tooling convenience |
-| `fmt` | top | — | ⚠ proposed — the flags (`--write`, `--check`) are settled, but the canonical layout can still change, which changes what `--check` reports |
+| `fmt` | top | — | ⚠ close call — the flags (`--write`, `--check`) are settled, but the canonical layout can still change, which changes what `--check` reports |
 | `lsp` | top | — | the editor and agent protocol surface is still changing |
-| `verify` | top | — | ⚠ proposed — verification coverage and known false counterexamples (bounded unrolling) are v1.1 work |
+| `verify` | top | — | ⚠ close call — verification coverage and known false counterexamples (bounded unrolling) are v1.1 work |
 | `pkg quality` | pkg | — | the quality ladder is still growing gates |
 | `pkg unpublish` | pkg | `unpublish` | the policy on immutable versions is still settling |
 | `pkg history` | pkg | — | the provenance timeline is new |
@@ -260,11 +260,11 @@ These may change in a 1.x minor, with a CHANGELOG entry.
 | `pkg notify-upgrade` | pkg | — | package coordination over the message plane |
 | `pkg cascade` | pkg | — | the autonomous upgrade cascade |
 | `messages` | ops | `msg` | **D-64 ruling.** Heavily used, still changing |
-| `serve-api` | ops | — | ⚠ proposed — the Stable MCP tools are served by it, and published packages deploy with it, but the flags and annotations are still growing (v0.51–v0.55) |
+| `serve-api` | ops | — | ⚠ close call — the Stable MCP tools are served by it, and published packages deploy with it, but the flags and annotations are still growing (v0.51–v0.55) |
 | `mcp` | ops | — | `ailang mcp check` connector readiness |
-| `agent-prompt` | dev | — | ⚠ proposed — the agent teaching prompt is versioned separately from `prompt` |
+| `agent-prompt` | dev | — | ⚠ close call — the agent teaching prompt is versioned separately from `prompt` |
 | `axioms` | dev | — | axiom scorecard; still changing |
-| `compile` | dev | — | ⚠ proposed — the emit-go backend is not a speed path and has no tail calls |
+| `compile` | dev | — | ⚠ close call — the emit-go backend is not a speed path and has no tail calls |
 | `editor` | dev | — | tooling convenience |
 | `export-training` | dev | — | depends on the trace format |
 | `replay` | dev | — | depends on the trace format |
@@ -279,7 +279,7 @@ No promise. Diagnostic, harness, and fleet-operations surface.
 |---------|-----------|---------------|---------|
 | `eval` | top | `eval run` | Benchmark runner (**D-64: eval tooling is Internal**) |
 | `eval analyze` · `browser-profile` · `censored-pairs` · `compare` · `elo` · `matrix` · `paired` · `publish` · `report` · `run` · `suite` · `summary` · `sweet-spot` · `trend` | eval | `eval-*` top-level spellings, `browser-profile` | The eval harness family (14 subcommands) |
-| `iface` | top | — | Normalised module-interface JSON. ⚠ proposed — the freeze gate consumes it, but its JSON shape carries no promise; the promise is on the interface it describes |
+| `iface` | top | — | Normalised module-interface JSON. ⚠ close call — the freeze gate consumes it, but its JSON shape carries no promise; the promise is on the interface it describes |
 | `serve` | top | `server` | Observatory dashboard server (**D-64: dashboards are Internal**) |
 | `pkg key` | pkg | — | Scoped publish keys, superuser only |
 | `ast-edit` | dev | — | Structural declaration edits |
@@ -344,11 +344,11 @@ the [Package System guide](/docs/guides/packages) and the
 
 | Surface | Why Experimental |
 |---------|------------------|
-| `[bin]` commands (`module`, `entry`, `caps`, `run_flags`) | ⚠ proposed — shipped in v0.40.0, used by `sunholo/email` / `eparse`; promote once the shim layout is settled |
-| `[release].kind` and the `CHANGELOG.md` `## <version>` requirement | ⚠ proposed — publish has required them since v0.41.0; part of the quality ladder that is still growing |
+| `[bin]` commands (`module`, `entry`, `caps`, `run_flags`) | ⚠ close call — shipped in v0.40.0, used by `sunholo/email` / `eparse`; promote once the shim layout is settled |
+| `[release].kind` and the `CHANGELOG.md` `## <version>` requirement | ⚠ close call — publish has required them since v0.41.0; part of the quality ladder that is still growing |
 | Publish validator gates (`PUBnnn`, `ailang pkg quality`) | gates may tighten in a minor |
-| Interface identity v2 hashing algorithm | ⚠ proposed — the *meaning* of `interface_hash` is Stable, but the algorithm behind it may be re-versioned |
-| Confined-agent authority (`AILANG_AGENT_POLICY`, `AILANG_PACKAGE_ROOT`) | ⚠ proposed — under an agent policy, package verbs refuse network and `~/.ailang` writes with a `confined by AILANG_AGENT_POLICY` error (#1720); landed 2026-10-26 |
+| Interface identity v2 hashing algorithm | ⚠ close call — the *meaning* of `interface_hash` is Stable, but the algorithm behind it may be re-versioned |
+| Confined-agent authority (`AILANG_AGENT_POLICY`, `AILANG_PACKAGE_ROOT`) | ⚠ close call — under an agent policy, package verbs refuse network and `~/.ailang` writes with a `confined by AILANG_AGENT_POLICY` error (#1720); landed 2026-10-26 |
 | `[dependencies_dev]` | undocumented in the package guide |
 | `[ai_provider]`, `[extensions]`, `[assets]`, `[smoke]` | extension and provider wiring, still changing |
 | `[cascade]` and the upgrade cascade (`pkg cascade`, `notify-upgrade`, `affected-by`) | runs over the message plane, which is Experimental (D-64) |
@@ -360,7 +360,7 @@ the [Package System guide](/docs/guides/packages) and the
 |---------|---------|
 | Registry administration (`pkg key`, the `/rebuild-index` endpoint, `AILANG_REGISTRY_API_KEY`) | Operator-only |
 
-### Worked example: `sunholo/mcp_oauth` ⚠ proposed
+### Worked example: `sunholo/mcp_oauth` ⚠ close call
 
 [`sunholo/mcp_oauth`](https://ailang.sunholo.com/docs/packages/sunholo/mcp_oauth)
 ([source](https://github.com/sunholo-data/ailang-packages/tree/main/packages/mcp-oauth)) is an
@@ -431,7 +431,7 @@ from a raw `*.run.app` host, and a stable custom domain is gate G4(b).
 | Tool | Source | What it does |
 |------|--------|--------------|
 | `ailang_prompt` | `executor_tools/` | The teaching prompt; meant to be called first |
-| `ailang_check` | `executor_tools/` | Type-check source and verify contracts. ⚠ proposed — the tool is Stable, but its `stdout` carries the `ai-check` JSON report, which is Experimental (see CLI) |
+| `ailang_check` | `executor_tools/` | Type-check source and verify contracts. ⚠ close call — the tool is Stable, but its `stdout` carries the `ai-check` JSON report, which is Experimental (see CLI) |
 | `ailang_run` | `executor_tools/` | Run source in the sandbox. Only `IO` is granted, and the policy timeout applies |
 | `ailang_eval` | `executor_tools/` | Evaluate one pure expression with `show()` |
 | `ailang_builtins` | `executor_tools/` | Builtins with docs, filtered by `search` |
@@ -449,21 +449,21 @@ from a raw `*.run.app` host, and a stable custom domain is gate G4(b).
 | `docs_search` | `mcp_tools/discovery.ail` | Search the docs |
 | `changelog_for_version` | `mcp_tools/discovery.ail` | Changelog for a version |
 | `install_guide` | `mcp_tools/install.ail` | Install steps for a harness and platform |
-| `onboarding_guide` | `mcp_tools/onboarding.ail` | ⚠ proposed — the `role` vocabulary may change |
-| `design_docs_list` | `mcp_tools/design.ail` | ⚠ proposed — exposes the repo's internal design-doc layout (`state`) |
-| `design_doc` | `mcp_tools/design.ail` | ⚠ proposed — as above |
-| `roadmap` | `mcp_tools/design.ail` | ⚠ proposed — as above |
-| `executor_whoami` | `executor_oauth/oauth.ail` | ⚠ proposed — the signed-in account, served only on `/mcp/connect/`; depends on the G4(b) domain |
+| `onboarding_guide` | `mcp_tools/onboarding.ail` | ⚠ close call — the `role` vocabulary may change |
+| `design_docs_list` | `mcp_tools/design.ail` | ⚠ close call — exposes the repo's internal design-doc layout (`state`) |
+| `design_doc` | `mcp_tools/design.ail` | ⚠ close call — as above |
+| `roadmap` | `mcp_tools/design.ail` | ⚠ close call — as above |
+| `executor_whoami` | `executor_oauth/oauth.ail` | ⚠ close call — the signed-in account, served only on `/mcp/connect/`; depends on the G4(b) domain |
 
 ### Experimental MCP tools (5)
 
 | Tool | Source | Why Experimental |
 |------|--------|------------------|
-| `benchmarks_list` | `mcp_tools/benchmarks.ail` | ⚠ proposed — eval data (D-64 makes eval tooling Internal); the record shape follows the eval schema |
-| `benchmark_run` | `mcp_tools/benchmarks.ail` | ⚠ proposed — as above |
-| `benchmarks_for_model` | `mcp_tools/benchmarks.ail` | ⚠ proposed — as above |
-| `benchmarks_compare` | `mcp_tools/benchmarks.ail` | ⚠ proposed — as above |
-| `submit_feedback` | built-in (`internal/apiserver/feedback_tool.go`) | ⚠ proposed — the only write tool; rate-limited, and egress depends on deployment configuration |
+| `benchmarks_list` | `mcp_tools/benchmarks.ail` | ⚠ close call — eval data (D-64 makes eval tooling Internal); the record shape follows the eval schema |
+| `benchmark_run` | `mcp_tools/benchmarks.ail` | ⚠ close call — as above |
+| `benchmarks_for_model` | `mcp_tools/benchmarks.ail` | ⚠ close call — as above |
+| `benchmarks_compare` | `mcp_tools/benchmarks.ail` | ⚠ close call — as above |
+| `submit_feedback` | built-in (`internal/apiserver/feedback_tool.go`) | ⚠ close call — the only write tool; rate-limited, and egress depends on deployment configuration |
 
 ## Known limitations & version promises
 
@@ -484,5 +484,5 @@ from a raw `*.run.app` host, and a stable custom domain is gate G4(b).
 
 ---
 
-*Ratification status: **pending (Mark)**. First drafted at mission iteration 5 (2026-07-10);
-re-drafted 2026-11-09 against bar v3 (D-64).*
+*Ratification status: **ratified 2026-11-09 (Mark, D-65)**. First drafted at mission iteration 5
+(2026-07-10); re-drafted and ratified 2026-11-09 against bar v3 (D-64).*
