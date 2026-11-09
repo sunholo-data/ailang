@@ -279,7 +279,7 @@ Run 'ailang lock' to update    ← the lock's content_hash no longer matches the
 
 **Planned (check for overlap):**
 - `design_docs/planned/m-motoko-ailang-only-lane.md` — the confined lane this gate protects
-- `design_docs/planned/HANDOVER-package-agent-autoprovision.md` — package-agent provisioning, operator side
+- `design_docs/implemented/v0_40_0/HANDOVER-package-agent-autoprovision.md` — package-agent provisioning, operator side
 - `design_docs/planned/v0_53_0/m-test-runner-compile-once.md` — `ailang test` compile path, shares the pipeline consumer (no overlap: it changes compilation count, not resolution authority)
 
 ## References

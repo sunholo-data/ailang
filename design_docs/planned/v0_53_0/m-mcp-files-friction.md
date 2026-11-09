@@ -580,7 +580,7 @@ ailang serve-api --port 8080 --cors-origin-suffix claudemcpcontent.com --cors-or
 - `design_docs/implemented/v0_30_0/m-ailang-fmt.md` — formatter contract, rule 6 (item 2 amends it)
 - `design_docs/implemented/v0_36_0/m-smt-interp-show.md` (+ sprint plan) — body-side show normalization; item 5A extends it to contract clauses
 - `design_docs/planned/v0_52_0/m-ifc-declared-record-labels.md` (status: implemented on dev 2026-10-02) — source-label fix; item 4 extends its machinery to sink refinements
-- `design_docs/implemented/v0_44_0/m-serveapi-bind-host-cors.md` + `design_docs/planned/v0_44_0/m-server-origin-policy.md` — the CORS modes and the shared origin policy item 6 extends
+- `design_docs/implemented/v0_44_0/m-serveapi-bind-host-cors.md` + `design_docs/implemented/v0_45_0/m-server-origin-policy.md` — the CORS modes and the shared origin policy item 6 extends
 
 **Planned (check for overlap):**
 - `design_docs/planned/ailang-core-triage/mcp-files-0.1.0-friction-batch.md` — the triage that recommended this doc (routing source)

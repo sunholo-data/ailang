@@ -89,7 +89,7 @@ func DerivePackageAgent(template *AgentConfig, entry pkg.IndexEntry) (*AgentConf
 // nothing without a policy_path (dispatch fails closed since 2026-09-17). A
 // generator that forgets policy_path produces an agent that can read and
 // write files and run nothing — measured by the message-plane session; see
-// design_docs/planned/HANDOVER-package-agent-autoprovision.md.
+// design_docs/implemented/v0_40_0/HANDOVER-package-agent-autoprovision.md.
 func templateUsable(t *AgentConfig) error {
 	probe := *t
 	probe.Inbox = messaging.FormatPackageInbox("probe/probe")

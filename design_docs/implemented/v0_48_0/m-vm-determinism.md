@@ -345,9 +345,9 @@ with the wrong field set.
 - [m-bytecode-vm.md](../implemented/v0_11_0/m-bytecode-vm.md) — VM/opcode architecture the new `OpUpdateRecord` extends
 
 **Planned (check for overlap):**
-- [m-bytecode-vm-parity-bugs.md](../v1_0_0/m-bytecode-vm-parity-bugs.md) — different VM parity bugs (effect-replay classification, #505 pattern arity, #506 unsafe replay); no overlap with compile-time determinism, but the companion "strict GET_FIELD wrong-slot" report and this doc share the root cause fixed here
-- [m-perf4-bytecode-interpreter.md](../v1_1_0/m-perf4-bytecode-interpreter.md) — SimHash keyword-adjacent (0.90) but a P3 perf stretch goal, not a determinism fix; no overlap
-- [m-bytecode-pattern-arity-fix.md](../v1_0_0/m-bytecode-pattern-arity-fix.md) — #505 spin-out; distinct soundness bug
+- [m-bytecode-vm-parity-bugs.md](../../planned/v1_0_0/m-bytecode-vm-parity-bugs.md) — different VM parity bugs (effect-replay classification, #505 pattern arity, #506 unsafe replay); no overlap with compile-time determinism, but the companion "strict GET_FIELD wrong-slot" report and this doc share the root cause fixed here
+- [m-perf4-bytecode-interpreter.md](../../planned/v1_1_0/m-perf4-bytecode-interpreter.md) — SimHash keyword-adjacent (0.90) but a P3 perf stretch goal, not a determinism fix; no overlap
+- [m-bytecode-pattern-arity-fix.md](../../planned/v1_0_0/m-bytecode-pattern-arity-fix.md) — #505 spin-out; distinct soundness bug
 
 ## References
 

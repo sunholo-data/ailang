@@ -1,6 +1,6 @@
 # Sprint Plan: M-V1-SIMPLIFY-S1 — Measure, fix, delete, and fence the core
 
-**Design doc**: [m-v1-simplification-program.md](m-v1-simplification-program.md) (Phase 0, Phase 1.1–1.2, plus the weekly audit skill)
+**Design doc**: [m-v1-simplification-program.md](../../planned/m-v1-simplification-program.md) (Phase 0, Phase 1.1–1.2, plus the weekly audit skill)
 **Sprint ID**: M-V1-SIMPLIFY-S1
 **Created**: 2026-09-14
 

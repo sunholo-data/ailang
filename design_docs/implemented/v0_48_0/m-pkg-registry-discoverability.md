@@ -488,8 +488,8 @@ The following are intentionally left open:
 - [M-PKG-AUTONOMOUS-UPDATES](../implemented/v0_10_0/m-pkg-autonomous-updates.md) — made AGENT.md a first-class GCS artifact (the data source D1 consumes)
 
 **Planned (check for overlap):**
-- [m-pkg-quality-ladder](../v0_40_0/m-pkg-quality-ladder.md) — Sprints 2–3 (PUB003/004/013, `effects_measured`): **explicitly distinct** — that doc gates intent/measurement consistency; this doc adds author-feedback badges for discoverability ( PUB008/018/022/023). Neither subsumes the other; codes were cross-checked unallocated (V7, V14)
-- [m-publish-path-dep-smoke](../v0_42_1/m-publish-path-dep-smoke.md) — owns PUB017; its docs PUB-reference update pattern is reused here for the new codes
+- [m-pkg-quality-ladder](../../planned/v0_40_0/m-pkg-quality-ladder.md) — Sprints 2–3 (PUB003/004/013, `effects_measured`): **explicitly distinct** — that doc gates intent/measurement consistency; this doc adds author-feedback badges for discoverability ( PUB008/018/022/023). Neither subsumes the other; codes were cross-checked unallocated (V7, V14)
+- [m-publish-path-dep-smoke](../../planned/v0_42_1/m-publish-path-dep-smoke.md) — owns PUB017; its docs PUB-reference update pattern is reused here for the new codes
 
 *Auto-search (SimHash + neural) on "pkg registry discoverability" returned only
 keyword-noise matches (parser/model-registry docs, ≤0.90 SimHash, no semantic overlap);

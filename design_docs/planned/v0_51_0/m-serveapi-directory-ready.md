@@ -460,7 +460,7 @@ The guardrail (re-quorum once) is spent, so **a human ratifies the Design Freeze
 
 - ailang-parse `design_docs/planned/v0_49_0/v0_49_0_vendor_directory_listing.md`: first adopter; the Parse-specific decisions.
 - `design_docs/planned/v0_31_0/m-mcp-2026-07-28-adoption.md`: lists CIMD/DCR/auth as a non-goal *for the public knowledge MCP*. That endpoint stays unauthenticated; this doc does not change it.
-- `design_docs/planned/v0_48_0/m-serveapi-sdk-free-mcp-dispatch.md`: the stdlib `mcphttp` dispatcher that L1 and L2 must also cover.
+- `design_docs/implemented/v0_47_2/m-serveapi-sdk-free-mcp-dispatch.md`: the stdlib `mcphttp` dispatcher that L1 and L2 must also cover.
 - `design_docs/implemented/v0_33_2/m-serveapi-protocol-only-module.md`: the protocol package's stdlib-only closure. `ToolDescriptor.Auth` must stay stdlib-only (`make check-protocol-closure`).
 - `design_docs/planned/v0_55_0/m-ailang-executor-gemini-enterprise.md`: the code-executor service and the Gemini Enterprise lane (A2A v0.3 upgrade, GE registration, auth spike).
 - ailang#1443: purity stub and `pure` keyword (found while landing M1).

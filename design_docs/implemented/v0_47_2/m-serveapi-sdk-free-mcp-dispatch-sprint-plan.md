@@ -48,7 +48,7 @@ first. The #885 close stays open until then.
 Our own MCP client (`internal/mcp_client`, pinned to protocol `2024-11-05`) requires an `Mcp-Session-Id` header
 that the stateless prod server no longer sends. `ailang mcp status` reports `reachable:false` against prod
 (measured 2026-09-28). This is Phase 1 of the never-executed
-[m-mcp-2026-07-28-adoption.md](../v0_31_0/m-mcp-2026-07-28-adoption.md), to be raised to Mark as its own item.
+[m-mcp-2026-07-28-adoption.md](../../planned/v0_31_0/m-mcp-2026-07-28-adoption.md), to be raised to Mark as its own item.
 
 ## Execution record (2026-09-28, same session)
 

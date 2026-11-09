@@ -9,7 +9,7 @@
 handler contract (#498 Lane A/B).
 **Issue**: [#885](https://github.com/sunholo-data/ailang/issues/885) (`cross-mission`, filed by the
 ailang-world mission). Triage row:
-[ailang-core-triage/serveapi-protocol-mcp-dispatch.md](../ailang-core-triage/serveapi-protocol-mcp-dispatch.md)
+[ailang-core-triage/serveapi-protocol-mcp-dispatch.md](../../planned/ailang-core-triage/serveapi-protocol-mcp-dispatch.md)
 (recommend: design-doc).
 
 ---
@@ -443,10 +443,10 @@ and **not** "host tool registration failed"), `TestEmbeddedMCPFrozenCallbackEnve
 
 ## Related Documents
 
-- [m-serveapi-protocol-only-module.md](../../implemented/v0_33_2/m-serveapi-protocol-only-module.md) — #764. Its MCP Non-Goal is overturned here (§Why the ratified Non-Goal no longer holds); its protocol-executable Non-Goal is kept.
-- [ailang-core-triage/serveapi-protocol-mcp-dispatch.md](../ailang-core-triage/serveapi-protocol-mcp-dispatch.md) — the triage row that routed #885 here.
-- [v0_31_0/m-mcp-2026-07-28-adoption.md](../v0_31_0/m-mcp-2026-07-28-adoption.md) — SDK adoption of the stateless 2026-07-28 spec for `internal/apiserver`. Relevant to D-B.
-- [implemented/v0_30_0/m-serveapi-raw-handler-mcp.md](../../implemented/v0_30_0/m-serveapi-raw-handler-mcp.md), [implemented/v1_0_0/m-mcp-exact-tool-surface-lane-b.md](../../implemented/v1_0_0/m-mcp-exact-tool-surface-lane-b.md) — the embedded MCP surface this rewrites.
+- [m-serveapi-protocol-only-module.md](../v0_33_2/m-serveapi-protocol-only-module.md) — #764. Its MCP Non-Goal is overturned here (§Why the ratified Non-Goal no longer holds); its protocol-executable Non-Goal is kept.
+- [ailang-core-triage/serveapi-protocol-mcp-dispatch.md](../../planned/ailang-core-triage/serveapi-protocol-mcp-dispatch.md) — the triage row that routed #885 here.
+- [v0_31_0/m-mcp-2026-07-28-adoption.md](../../planned/v0_31_0/m-mcp-2026-07-28-adoption.md) — SDK adoption of the stateless 2026-07-28 spec for `internal/apiserver`. Relevant to D-B.
+- [implemented/v0_30_0/m-serveapi-raw-handler-mcp.md](../v0_30_0/m-serveapi-raw-handler-mcp.md), [implemented/v1_0_0/m-mcp-exact-tool-surface-lane-b.md](../v1_0_0/m-mcp-exact-tool-surface-lane-b.md) — the embedded MCP surface this rewrites.
 - ailang-world `design_docs/planned/w-mcp-dispatch-projection.md` — the blocked consumer. Its "What upstream must deliver" section is the requirement this doc answers, and its SSE-framing obligation is W9–W11.
 - `design_docs/v1-mission.md:1011` — the `[NEXT]` row for this issue.
 

@@ -445,7 +445,7 @@ The following are intentionally left open for the implementer:
      unrelated. Related docs below were found by reading the ancestry of the touched code. -->
 
 **Implemented (may inform design):**
-- `design_docs/planned/v0_48_0/m-serveapi-sdk-free-mcp-dispatch.md` — created this handler
+- `design_docs/implemented/v0_47_2/m-serveapi-sdk-free-mcp-dispatch.md` — created this handler
   (#885); its wire-contract, golden-test and closure-gate patterns are followed here
 - `design_docs/planned/v0_51_0/m-serveapi-directory-ready.md` — BearerGate, the other `isError`
   user on this surface, and the pre-dispatch refusal path this design must not touch
