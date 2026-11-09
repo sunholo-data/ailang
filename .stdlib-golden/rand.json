@@ -34,7 +34,7 @@
       "effects": [
         "Rand"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -80,7 +80,7 @@
       "effects": [
         "Rand"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -126,7 +126,7 @@
       "effects": [
         "Rand"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -160,7 +160,7 @@
       "effects": [
         "Rand"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -194,7 +194,7 @@
       "effects": [
         "Rand"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v2"

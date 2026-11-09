@@ -1,0 +1,43 @@
+-- examples/runnable/pure_means_empty_row.ail
+--
+-- M-PURE-ROW-AND-IFACE-PURITY (#1443): `pure` means exactly `! {}`.
+--
+-- A `pure func` may omit its effect row or write `! {}`. A function that
+-- performs or declares an effect (IO, Declassify, a row variable) is a plain
+-- `func` with that row — writing `pure` beside it is a type error, see
+-- examples/expected_fail/pure_with_effect_row.ail.
+--
+-- `ailang iface` reports `"pure"` from the checked row, so `double` and
+-- `clampPct` report true while `redact` and `report` report false.
+-- `ailang verify` still admits `redact` (Declassify-only row) into the SMT
+-- fragment, so its `ensures` is proved without the old `pure` exploit.
+--
+-- Check:  ailang check examples/runnable/pure_means_empty_row.ail
+-- Verify: ailang verify examples/runnable/pure_means_empty_row.ail
+-- Run:    ailang run --caps IO,Declassify --entry main examples/runnable/pure_means_empty_row.ail
+module examples/runnable/pure_means_empty_row
+import std/io (println)
+
+-- pure, no row: accepted.
+export pure func double(x: int) -> int = x * 2
+
+-- pure with an explicit empty row: accepted, and Z3 checks the contract.
+export pure func clampPct(p: int) -> int ! {}
+ensures { result >= 0 && result <= 100 } {
+  if p < 0 then 0 else if p > 100 then 100 else p
+}
+
+-- A declassifier declares its effect and is NOT `pure`.
+export func redact(raw: string<email>) -> string<redacted> ! {Declassify}
+ensures { result == "[redacted]" } {
+  "[redacted]"
+}
+
+-- An IO function declares IO and is NOT `pure`.
+export func report(label: string, n: int) -> () ! {IO} = println("${label}: ${show(n)}")
+
+export func main() -> () ! {IO, Declassify} {
+  report("double", double(21))
+  report("clamp", clampPct(140))
+  println(redact("customer text"))
+}

@@ -34,7 +34,7 @@
       "effects": [
         "Cog"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -68,7 +68,7 @@
       "effects": [
         "Msg"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -102,7 +102,7 @@
       "effects": [
         "Msg"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -148,7 +148,7 @@
       "effects": [
         "Msg"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -194,7 +194,7 @@
       "effects": [
         "Msg"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -241,7 +241,7 @@
         "Cog",
         "Msg"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v2"

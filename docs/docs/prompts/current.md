@@ -480,7 +480,8 @@ Direct record/list/tuple literals still only store callback values.
 
 
 ```ailang
--- Pure (no effects) - use `pure func` or omit effect annotation
+-- Pure (no effects) - use `pure func` or omit effect annotation.
+-- `pure` means `! {}`: `pure func f() -> () ! {IO}` is a type error (drop `pure` or the row).
 pure func add(x: int, y: int) -> int = x + y
 
 -- IO effect - for print/println/readLine
@@ -2353,7 +2354,7 @@ ailang run --verify-contracts --caps IO --entry main file.ail
 - List ops: `length` (from `std/list`), `_list_head`, `_list_nth`, cons (`::`), concat (`++`), literals
 - Records: field access (`r.field`), construction (`{x: 1, y: 2}`), ensures with `result.x`
 - Cross-function calls: Z3 inlines callees to reason about full call chains
-- Must be pure: `! {}` (no effects), non-recursive, non-higher-order
+- Must be pure (`pure func` or `! {}`) or declare only `! {Declassify}`; non-recursive, non-higher-order
 
 **What gets skipped:** Recursive functions, higher-order functions, effectful functions, float parameters.
 
@@ -2633,10 +2634,10 @@ Examples:
 let body: string<email> = fetchMailBody()
 
 -- A function whose body parameter rejects any <email>-tainted input
-pure func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+func sendEmail(to: string, body: string{not email}) -> () ! {Net}
 
 -- A declassifier: input <email>, output <sanitized>, declared via Declassify
-pure func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
+func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
 ensures { result == "[sanitized]" }
 { "[sanitized]" }
 ```
@@ -2660,7 +2661,7 @@ type checker rejects any other transition.
 
 ```ailang
 -- ✅ Allowed: explicit declassifier
-pure func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
+func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
 { "[sanitized]" }
 
 -- ❌ Rejected: function changes label without Declassify
@@ -2676,7 +2677,7 @@ provably refuse tainted input. Within one module, sink requirements follow funct
 
 ```ailang
 -- A network sink that refuses anything carrying <email>
-pure func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+func sendEmail(to: string, body: string{not email}) -> () ! {Net}
 
 -- ✅ Caller passes a declassified value
 sendEmail("alice@company.com", sanitize(rawBody))
@@ -2708,12 +2709,12 @@ import std/string (endsWith)
 type SendAction = { to: string, body: string }
 
 -- Declassify: explicit gate from <email> to <sanitized>
-pure func sanitize(rawBody: string<email>) -> string<sanitized> ! {Declassify}
+func sanitize(rawBody: string<email>) -> string<sanitized> ! {Declassify}
 ensures { result == "[sanitized]" }
 { "[sanitized]" }
 
 -- ✅ Verified: declassifies before sending
-pure func safeForward(rawBody: string<email>, recipient: string) -> SendAction ! {Declassify}
+func safeForward(rawBody: string<email>, recipient: string) -> SendAction ! {Declassify}
 requires { endsWith(recipient, "@company.com") }
 ensures  { result.body == "[sanitized]" }
 { { to: recipient, body: sanitize(rawBody) } }

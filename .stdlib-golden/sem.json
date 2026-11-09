@@ -94,7 +94,7 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -164,7 +164,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -243,7 +243,7 @@
         "SharedIndex",
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -333,7 +333,7 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -415,7 +415,7 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -613,7 +613,7 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -647,7 +647,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -705,7 +705,7 @@
       "effects": [
         "Clock"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -820,7 +820,7 @@
         "SharedIndex",
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -879,7 +879,7 @@
         "SharedIndex",
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -925,7 +925,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -972,7 +972,7 @@
         "SharedIndex",
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -1030,7 +1030,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {

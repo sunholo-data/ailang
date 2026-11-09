@@ -1145,14 +1145,14 @@
     },
     "v0.16.12": {
       "file": "prompts/v0.16.12.md",
-      "hash": "c6fae9f8b67eff90c3aeb36277c7ba6be37153681d52d1d409447e2395d26703",
+      "hash": "e6efa6e9fad8abd0a7e3a974f6d930b82487037bc0421815de0146f876611199",
       "description": "Correct six teaching errors found writing canonical examples (semicolons vs fmt, **, mapSlicesJoin, verifyWithKid, record patterns, no int max/min, non-exhaustive match)",
       "created": "2026-11-06",
       "tags": [
         "production",
         "latest"
       ],
-      "notes": "Correct six teaching errors found writing canonical examples (semicolons vs fmt, **, mapSlicesJoin, verifyWithKid, record patterns, no int max/min, non-exhaustive match)"
+      "notes": "Correct six teaching errors found writing canonical examples (semicolons vs fmt, **, mapSlicesJoin, verifyWithKid, record patterns, no int max/min, non-exhaustive match). Amended in place 2026-11-09 (#1443): IFC examples drop `pure` beside `! {Net}`/`! {Declassify}` rows, which the checker now rejects; `pure` means `! {}`."
     }
   },
   "active": "v0.16.12",

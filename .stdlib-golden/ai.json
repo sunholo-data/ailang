@@ -75,7 +75,7 @@
       "effects": [
         "AI"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -134,7 +134,7 @@
         "AI",
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -180,7 +180,7 @@
       "effects": [
         "AI"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -238,7 +238,7 @@
       "effects": [
         "AI"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -309,7 +309,7 @@
         "AI",
         "FS"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -355,7 +355,7 @@
       "effects": [
         "AI"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -401,7 +401,7 @@
       "effects": [
         "AI"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -435,7 +435,7 @@
       "effects": [
         "AI"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -469,7 +469,7 @@
       "effects": [
         "AI"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -503,7 +503,7 @@
       "effects": [
         "AI"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -573,7 +573,7 @@
       "effects": [
         "AI"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -655,7 +655,7 @@
       "effects": [
         "AI"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -745,7 +745,7 @@
       "effects": [
         "AI"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -815,7 +815,7 @@
       "effects": [
         "AI"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -897,7 +897,7 @@
       "effects": [
         "AI"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -979,7 +979,7 @@
       "effects": [
         "AI"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v2"

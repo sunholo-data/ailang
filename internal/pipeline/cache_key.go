@@ -39,6 +39,10 @@ import (
 // v8 -> v9 (M-TRACE-LABEL-AWARE): core.App gained a gob-encoded TraceRedact
 // label. A v8 blob decodes with none, so a cached module would trace its
 // labelled values verbatim again; v8 entries must miss.
+// Also v9 (M-PURE-ROW-AND-IFACE-PURITY, #1443, same unreleased window): export
+// purity is derived from checked effect rows. v8 interfaces carrying always-true
+// stub metadata must miss; same-version builds across the two changes are already
+// separated by compilerIdentity (the build commit is in the key).
 const cacheKeyVersion = "v9"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
