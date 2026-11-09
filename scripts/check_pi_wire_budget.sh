@@ -55,6 +55,12 @@ command -v jq  >/dev/null 2>&1 || { echo "FAIL: jq not on PATH"; exit 2; }
 [ -n "${OPENROUTER_API_KEY:-}" ] || {
   echo "FAIL: OPENROUTER_API_KEY unset — source ~/.config/ailang/secrets.env"; exit 2; }
 
+case "$OBS" in
+  http://localhost*|http://127.0.0.1*) ;;
+  *) [ -n "${AILANG_DASHBOARD_TOKEN:-}" ] || {
+       echo "FAIL: AILANG_DASHBOARD_TOKEN unset — $OBS requires the dashboard's COORDINATOR_API_KEY"; exit 2; } ;;
+esac
+
 case "$MODEL" in
   openrouter/*) ;;
   *) echo "SKIP: $MODEL is not OpenRouter-routed; Broadcast produces no trace for it."
@@ -114,8 +120,15 @@ EXPECTED="$DECLARED"
 window_start() { date -u -v-15M +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '15 minutes ago' +%Y-%m-%dT%H:%M:%SZ; }
 window_end()   { date -u -v+1d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d 'tomorrow'    +%Y-%m-%dT%H:%M:%SZ; }
 
+# A non-loopback dashboard (prod) refuses /api/ reads without its COORDINATOR_API_KEY
+# as a bearer token (internal/server/read_auth.go); AILANG_DASHBOARD_TOKEN carries it.
 fetch_spans() {
-  curl -s --max-time 45 "$OBS/api/observatory/spans?limit=1000&start_after=$(window_start)&start_before=$(window_end)"
+  if [ -n "${AILANG_DASHBOARD_TOKEN:-}" ]; then
+    curl -s --max-time 45 -H "Authorization: Bearer $AILANG_DASHBOARD_TOKEN" \
+      "$OBS/api/observatory/spans?limit=1000&start_after=$(window_start)&start_before=$(window_end)"
+  else
+    curl -s --max-time 45 "$OBS/api/observatory/spans?limit=1000&start_after=$(window_start)&start_before=$(window_end)"
+  fi
 }
 newest_pi_ts() {
   jq -r '[.[] | select(.name=="LLM Generation")

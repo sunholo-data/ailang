@@ -87,6 +87,11 @@ func serverCommand(args []string) error {
 			fmt.Println("  AILANG_CONFIG            Config file path (overrides ~/.ailang/config.yaml)")
 			fmt.Println("")
 			fmt.Println("Authentication:")
+			fmt.Println("  Bound to loopback (the default), every route is open to local processes.")
+			fmt.Println("  On any other bind (Cloud Run, --bind 0.0.0.0) every /api/ route except machine")
+			fmt.Println("  ingest, and /ws, require Authorization: Bearer $COORDINATOR_API_KEY (or a Firebase")
+			fmt.Println("  Viewer/Approver session); with neither configured they return 503. Clients send")
+			fmt.Println("  the key from AILANG_DASHBOARD_TOKEN.")
 			fmt.Println("  To enable Firebase authentication:")
 			fmt.Println("  1. Run 'gcloud auth application-default login' for ADC")
 			fmt.Println("  2. Use --firebase-project or set firebase.project_id in ~/.ailang/config.yaml")
@@ -175,10 +180,12 @@ func serverCommand(args []string) error {
 		log.Printf("Hook token authentication enabled for /api/hooks/*")
 	}
 
-	// Add WebSocket token auth if configured (reuses COORDINATOR_API_KEY)
-	if wsToken := config.CoordinatorAPIKey(); wsToken != "" {
-		serverOpts = append(serverOpts, server.WithWebSocketToken(wsToken))
-		log.Printf("WebSocket token authentication enabled (external clients require ?token= parameter)")
+	// The dashboard's machine credential (COORDINATOR_API_KEY): on a
+	// non-loopback bind, /api/ reads and the WebSocket require it (or a
+	// Firebase Viewer/Approver session) — internal/server/read_auth.go.
+	if apiKey := config.CoordinatorAPIKey(); apiKey != "" {
+		serverOpts = append(serverOpts, server.WithAPIKey(apiKey))
+		log.Printf("API key authentication enabled (Authorization: Bearer for /api/, ?token= for /ws)")
 	}
 
 	// Add Firebase auth if configured

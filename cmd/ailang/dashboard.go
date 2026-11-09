@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"time"
@@ -17,6 +18,35 @@ const defaultDashboardURL = "http://localhost:1957"
 // HTTP client with timeout for dashboard requests
 var dashboardHTTPClient = &http.Client{
 	Timeout: 10 * time.Second,
+}
+
+// dashboardDo sends req with AILANG_DASHBOARD_TOKEN as its bearer token when
+// one is set. A dashboard bound to anything but loopback (the prod Cloud Run
+// service) refuses /api/ reads without it; a loopback one ignores it.
+func dashboardDo(client *http.Client, req *http.Request) (*http.Response, error) {
+	if tok := config.DashboardToken(); tok != "" {
+		req.Header.Set("Authorization", "Bearer "+tok)
+	}
+	return client.Do(req)
+}
+
+// dashboardGet is http.Get through dashboardDo.
+func dashboardGet(client *http.Client, url string) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodGet, url, nil)
+	if err != nil {
+		return nil, err
+	}
+	return dashboardDo(client, req)
+}
+
+// dashboardPost is http.Post through dashboardDo.
+func dashboardPost(url, contentType string, body io.Reader) (*http.Response, error) {
+	req, err := http.NewRequest(http.MethodPost, url, body)
+	if err != nil {
+		return nil, err
+	}
+	req.Header.Set("Content-Type", contentType)
+	return dashboardDo(http.DefaultClient, req)
 }
 
 // getDashboardURL returns the dashboard server URL from flag, env, or default

@@ -964,8 +964,13 @@ happened — pushed by OpenRouter itself into the prod observatory
 own logs: it is the only instrument that shows the request we actually sent, as opposed
 to the one we believe we configured.
 
+The prod dashboard's `/api/` reads require its `COORDINATOR_API_KEY` as a bearer token
+(anonymous callers get 401). Keep it in `AILANG_DASHBOARD_TOKEN`, which `ailang eval-paired`
+and `ailang chains dashboard` also send — it is the `ailang-coordinator-api-key` secret in
+project `ailang-multivac`.
+
 ```bash
-curl -s "https://dashboard.ailang.sunholo.com/api/observatory/spans?limit=1000&start_after=2026-08-18T00:00:00Z&start_before=2026-08-19T00:00:00Z" > /tmp/spans.json
+curl -s -H "Authorization: Bearer $AILANG_DASHBOARD_TOKEN" "https://dashboard.ailang.sunholo.com/api/observatory/spans?limit=1000&start_after=2026-08-18T00:00:00Z&start_before=2026-08-19T00:00:00Z" > /tmp/spans.json
 
 # One row per generation: model, provider host, finish_reason, token split.
 jq -r '.[] | select(.name=="LLM Generation") | [

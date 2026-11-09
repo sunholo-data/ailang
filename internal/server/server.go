@@ -71,7 +71,6 @@ import (
 	"context"
 	"embed"
 	"fmt"
-	"io/fs"
 	"log"
 	"net/http"
 	"os/exec"
@@ -169,8 +168,10 @@ type Server struct {
 	// Hook authentication (simple bearer token for cloud deployments)
 	hookToken string
 
-	// WebSocket authentication (reuses COORDINATOR_API_KEY for external clients)
-	wsToken string
+	// apiKey is the dashboard's machine credential (COORDINATOR_API_KEY): the
+	// bearer token that authenticates /api/ reads and the ?token= external
+	// WebSocket clients present. read_auth.go.
+	apiKey string
 
 	// Cross-origin policy (origin.go): --cors-origin allowlist, built in NewServer
 	// and shared by the HTTP middleware and the WebSocket hub.
@@ -219,8 +220,8 @@ func NewServer(dbPath string, httpAddr string, opts ...ServerOption) (*Server, e
 
 	s.wsServer = websocket.NewServer(s.store)
 	s.wsServer.SetOriginPolicy(s.origins)
-	if s.wsToken != "" {
-		s.wsServer.SetToken(s.wsToken)
+	if s.apiKey != "" {
+		s.wsServer.SetToken(s.apiKey)
 		log.Printf("WebSocket token authentication enabled for /ws and /ws/observatory")
 	}
 
@@ -274,13 +275,14 @@ func WithHookToken(token string) ServerOption {
 	}
 }
 
-// WithWebSocketToken sets a token for authenticating external WebSocket connections.
-// When set, external clients must connect with ?token=<value> query parameter.
-// Same-origin browser connections (embedded React UI) are exempt.
-// When empty (default), no authentication is required (local mode).
-func WithWebSocketToken(token string) ServerOption {
+// WithAPIKey sets the dashboard's machine credential (COORDINATOR_API_KEY).
+// On a non-loopback bind every /api/ route outside the public allow-list, and
+// the WebSocket, require it as `Authorization: Bearer <key>` (the WebSocket
+// also takes ?token=<key>) unless the caller has a Firebase Viewer/Approver
+// session. With neither configured those routes fail closed (read_auth.go).
+func WithAPIKey(key string) ServerOption {
 	return func(s *Server) {
-		s.wsToken = token
+		s.apiKey = key
 	}
 }
 
@@ -337,7 +339,9 @@ func WithObservatoryDB(dbPath string) ServerOption {
 // The projectID should match your Firebase/GCP project (e.g., "ailang-dev").
 // Requires GOOGLE_APPLICATION_CREDENTIALS environment variable to be set with service account key.
 //
-// If initialization fails, the server will continue without authentication (all routes public).
+// If initialization fails, the server continues without Firebase sessions: on a
+// non-loopback bind the /api/ reads then accept only the COORDINATOR_API_KEY
+// bearer, and fail closed with neither (read_auth.go).
 // Check logs for "Firebase Auth initialized" to confirm successful setup.
 func WithFirebaseAuth(projectID string) ServerOption {
 	return func(s *Server) {
@@ -349,7 +353,7 @@ func WithFirebaseAuth(projectID string) ServerOption {
 		app, err := firebase.NewApp(ctx, config)
 		if err != nil {
 			log.Printf("Warning: Failed to initialize Firebase app: %v", err)
-			log.Printf("Dashboard will run without authentication (all routes public)")
+			log.Printf("Dashboard will run without Firebase sessions")
 			return
 		}
 
@@ -357,7 +361,7 @@ func WithFirebaseAuth(projectID string) ServerOption {
 		authClient, err := app.Auth(ctx)
 		if err != nil {
 			log.Printf("Warning: Failed to get Firebase Auth client: %v", err)
-			log.Printf("Dashboard will run without authentication (all routes public)")
+			log.Printf("Dashboard will run without Firebase sessions")
 			return
 		}
 
@@ -432,164 +436,14 @@ func (s *Server) Start() error {
 		log.Printf("Firebase authentication: ENABLED")
 		log.Printf("  - Approval routes require Approver role")
 	} else {
-		log.Printf("Firebase authentication: DISABLED (all routes public)")
+		log.Printf("Firebase authentication: DISABLED (API reads take the COORDINATOR_API_KEY bearer; see read_auth.go)")
 	}
 
-	// Setup HTTP routes
-	mux := http.NewServeMux()
-
-	// WebSocket endpoint. /ws/observatory is the SAME hub: the observatory
-	// hub it used to name (internal/observatory/websocket.go) had no producer
-	// anywhere in the tree — nothing ever called its Broadcast* methods — so
-	// the control-plane UI's socket only ever carried a heartbeat. One hub,
-	// one origin/token check (M-V1-SIMPLIFY-S3 M5).
-	mux.HandleFunc("/ws", s.wsServer.HandleWebSocket)
-	mux.HandleFunc("/ws/observatory", s.wsServer.HandleWebSocket)
-
-	// Public benchmark data (M-EVAL-DATA-HOSTING-DECOUPLE) — read-through from the
-	// private GCS bucket so the docs site fetches it at runtime, no site rebuild.
-	mux.HandleFunc("/benchmarks/", s.handleBenchmarks)
-
-	// REST API endpoints - Threads
-	mux.HandleFunc("/api/threads", s.handleThreads)
-	mux.HandleFunc("/api/threads/", s.handleThread)
-	// Workspaces endpoint uses OptionalAuth to get user role when authenticated
-	mux.Handle("/api/workspaces", s.OptionalAuthMiddleware(http.HandlerFunc(s.handleWorkspaces)))
-	mux.HandleFunc("/api/statistics", s.handleStatistics)
-
-	// REST API endpoints - Messages
-	// Thread messages. Was /api/messages, which the coordinator daemon ALSO
-	// serves — as inbox messages, with a different body and auth. Two
-	// servers, one path, two meanings; the thread one moves because it has
-	// no external callers (the UI never used it, the coordinator's is a
-	// documented REST contract). M-V1-SIMPLIFY-S3 M5.
-	mux.HandleFunc("/api/thread-messages", s.handleMessages)
-
-	// REST API endpoints - Approvals
-	mux.HandleFunc("/api/approvals", s.handleApprovals)
-	mux.HandleFunc("/api/approvals/", s.handleApproval)
-	mux.HandleFunc("/api/approvals/history", s.handleApprovalHistory)
-
-	// REST API endpoints - Agents
-	mux.HandleFunc("/api/agents", s.handleAgents)
-	mux.HandleFunc("/api/agents/", s.handleAgentStop)
-
-	// REST API endpoints - Monitoring & Metrics
-	mux.HandleFunc("/api/monitor", s.handleMonitor)
-	mux.HandleFunc("/api/telemetry", s.handleTelemetryReport)
-	mux.HandleFunc("/api/hierarchy", s.handleHierarchy)
-	mux.HandleFunc("/api/agent-stats/", s.handleAgentStats)
-	mux.HandleFunc("/api/metrics", s.handleMetrics)
-	mux.HandleFunc("/api/metrics/", s.handleMetricsScope)
-	mux.HandleFunc("/api/instances/history", s.handleInstanceHistory)
-	mux.HandleFunc("/api/coordinator/status", s.handleCoordinatorStatus)
-	mux.HandleFunc("/api/coordinator/pending", s.handleCoordinatorPendingApprovals)
-	// Protected routes - require Approver role when auth is enabled
-	mux.Handle("/api/coordinator/approve/", s.requireApprover(s.handleCoordinatorApproval))
-	mux.Handle("/api/coordinator/reject/", s.requireApprover(s.handleCoordinatorApproval))
-	mux.HandleFunc("/api/coordinator/events", s.handleCoordinatorTaskEvents)
-	mux.HandleFunc("/api/coordinator/tasks/", s.handleCoordinatorTaskEvents_)
-	mux.HandleFunc("/api/coordinator/running", s.handleCoordinatorRunningTasks)
-
-	// REST API endpoints - Tasks (cleaner alias)
-	// GET /api/tasks/{id}/events - same as /api/coordinator/tasks/{id}/events
-	mux.HandleFunc("/api/tasks/", s.handleTasksAlias)
-
-	// REST API endpoints - Exec Sessions (for Claude Code hooks and ailang exec)
-	mux.HandleFunc("/api/exec/sessions", s.handleExecSessions)
-	mux.HandleFunc("/api/exec/sessions/", s.handleExecSessionEvents)
-	mux.HandleFunc("/api/exec/events", s.handleExecEvents)
-
-	// REST API endpoints - Inbox Messages (unified messaging)
-	mux.HandleFunc("/api/inbox", s.handleInbox)
-	mux.HandleFunc("/api/inbox/", s.handleInboxMessage)
-	mux.HandleFunc("/api/inbox/ack-all", s.handleAckAll)
-	mux.HandleFunc("/api/inbox/cleanup", s.handleInboxCleanup)
-
-	// REST API endpoints - Utility
-	mux.HandleFunc("/api/select-folder", s.handleSelectFolder)
-	mux.HandleFunc("/api/telemetry/config", s.handleTelemetryConfig)
-
-	// REST API endpoints - Control Plane
-	// Expensive endpoints wrapped with 5s response cache to prevent CPU burn from dashboard polling
-	mux.HandleFunc("/api/controlplane/heatmap", s.pollingCache.withCache(s.handleControlPlaneHeatmap))
-	mux.HandleFunc("/api/controlplane/topology/observed", s.handleControlPlaneTopologyObserved)
-	mux.HandleFunc("/api/controlplane/topology", s.handleControlPlaneTopology)
-	mux.HandleFunc("/api/controlplane/stats", s.pollingCache.withCache(s.handleControlPlaneStats))
-	mux.HandleFunc("/api/controlplane/stats/breakdown", s.breakdownCache.withCache(s.handleControlPlaneStatsBreakdown))
-	mux.HandleFunc("/api/controlplane/exec-hierarchy", s.pollingCache.withCache(s.handleControlPlaneExecHierarchy))
-	mux.HandleFunc("/api/controlplane/span-hierarchy", s.pollingCache.withCache(s.handleSpanHierarchy))
-	mux.HandleFunc("/api/controlplane/task-hierarchy", s.pollingCache.withCache(s.handleTaskHierarchy))
-
-	// REST API endpoints - Analytics (Phase 2+)
-	mux.HandleFunc("/api/controlplane/task-evolution", s.handleTaskEvolution)
-	mux.HandleFunc("/api/controlplane/usage-timeseries", s.handleUsageTimeSeries)
-	mux.HandleFunc("/api/controlplane/token-distribution", s.handleTokenDistribution)
-	mux.HandleFunc("/api/controlplane/outliers", s.handleOutliersAnalysis)
-
-	// REST API endpoints - Budget (AILANG dogfooding)
-	mux.HandleFunc("/api/budget/status", s.handleBudgetStatus)
-	mux.HandleFunc("/api/budget/check", s.handleBudgetCheck)
-
-	// REST API endpoints - Claude Code Conversation History (JSONL-based)
-	mux.HandleFunc("/api/claude-history/projects", s.handleClaudeHistoryProjects)
-	mux.HandleFunc("/api/claude-history/sessions", s.handleClaudeHistorySessions)
-	mux.HandleFunc("/api/claude-history/session/", s.handleClaudeHistorySession)
-	mux.HandleFunc("/api/claude-history/by-span/", s.handleClaudeHistoryBySpan)
-	mux.HandleFunc("/api/claude-history/search", s.handleClaudeHistorySearch)
-
-	// REST API endpoints - Claude Code Conversation History (DB-backed, M-CHAT-HISTORY-DB)
-	mux.HandleFunc("/api/claude-history/sync", s.handleClaudeHistorySync)
-	mux.HandleFunc("/api/claude-history/sync-status", s.handleClaudeHistorySyncStatus)
-	mux.HandleFunc("/api/claude-history/db/session/", s.handleClaudeHistoryDBSession)
-	mux.HandleFunc("/api/claude-history/db/by-span/", s.handleClaudeHistoryDBBySpan)
-
-	// Observatory API endpoints (if configured)
-	if s.obsAPI != nil {
-		s.obsAPI.RegisterRoutes(mux)
-		log.Printf("Observatory API registered at /api/observatory/*")
-	}
-	// Observatory hooks endpoint for Claude Code telemetry
-	if s.obsBackend != nil {
-		mux.HandleFunc("/api/observatory/hooks", s.handleObservatoryHooks)
-		log.Printf("Observatory hooks endpoint registered at /api/observatory/hooks")
-	}
-	// Claude Code HTTP hooks endpoint (native hook protocol, replaces command hooks)
-	if s.obsBackend != nil {
-		mux.HandleFunc("/api/hooks/claude", s.handleClaudeHooks)
-		log.Printf("Claude hooks endpoint registered at /api/hooks/claude")
-	}
-	// Execution chains API endpoints (M-CHAINS-SIMPLIFY)
-	if s.obsBackend != nil {
-		s.registerChainRoutes(mux)
-		log.Printf("Chains API registered at /api/chains/*")
-	}
-	// OTLP receiver for standard trace/log/metrics ingestion
-	if s.obsBackend != nil {
-		otlpReceiver := observatory.NewOTLPReceiver(s.obsBackend)
-		otlpReceiver.RegisterRoutes(mux)
-		log.Printf("OTLP receiver registered at /v1/traces, /v1/logs, /v1/metrics")
-	}
-
-	// Health check and version
-	mux.HandleFunc("/health", s.handleHealth)
-	mux.HandleFunc("/api/version", s.handleVersion)
-
-	// Auth endpoint (returns user info if authenticated)
-	if s.tokenVerifier != nil {
-		mux.Handle("/api/auth/whoami", s.AuthMiddleware(http.HandlerFunc(WhoAmIHandler)))
-	}
-
-	// Serve static UI files from embedded dist folder
-	distFS, err := fs.Sub(uiAssets, "dist")
+	// Routes behind the read-auth gate (read_auth.go) and the origin policy.
+	handler, _, err := s.httpHandler()
 	if err != nil {
-		return fmt.Errorf("failed to load UI assets: %w", err)
+		return err
 	}
-	fileServer := http.FileServer(http.FS(distFS))
-	mux.Handle("/", fileServer)
-
-	// CORS middleware
-	handler := s.corsMiddleware(mux)
 
 	// OpenTelemetry HTTP instrumentation (if enabled via OTEL_EXPORTER_OTLP_ENDPOINT)
 	if telemetry.IsEnabled() {

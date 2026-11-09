@@ -35,7 +35,7 @@ func dashboardHierarchyCommand() {
 	}
 
 	apiURL := fmt.Sprintf("%s/api/controlplane/exec-hierarchy?%s", baseURL, params.Encode())
-	resp, err := http.Get(apiURL)
+	resp, err := dashboardGet(http.DefaultClient, apiURL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error connecting to dashboard: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Is the server running? Start with: ailang serve\n")
@@ -259,7 +259,7 @@ func dashboardStatsCommand() {
 	}
 
 	apiURL := fmt.Sprintf("%s/api/controlplane/stats/breakdown?%s", baseURL, params.Encode())
-	resp, err := http.Get(apiURL)
+	resp, err := dashboardGet(http.DefaultClient, apiURL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error connecting to dashboard: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Is the server running? Start with: ailang serve\n")
@@ -364,7 +364,7 @@ func dashboardHealthCommand() {
 
 	// Check health endpoint
 	healthURL := fmt.Sprintf("%s/health", baseURL)
-	resp, err := http.Get(healthURL)
+	resp, err := dashboardGet(http.DefaultClient, healthURL)
 	if err != nil {
 		if *jsonOutput {
 			json.NewEncoder(os.Stdout).Encode(map[string]interface{}{
@@ -406,7 +406,7 @@ func dashboardHealthCommand() {
 	fmt.Printf("WebSocket:   %s/ws\n", wsURL)
 
 	// Get recent activity counts from spans API
-	spansResp, err := http.Get(fmt.Sprintf("%s/api/observatory/spans?limit=1000", baseURL))
+	spansResp, err := dashboardGet(http.DefaultClient, fmt.Sprintf("%s/api/observatory/spans?limit=1000", baseURL))
 	if err == nil {
 		defer spansResp.Body.Close()
 		var spans []interface{}
@@ -447,7 +447,7 @@ func dashboardSessionsCommand() {
 	baseURL := getDashboardURL(*server)
 	apiURL := fmt.Sprintf("%s/api/observatory/sessions?limit=%d", baseURL, *limit)
 
-	resp, err := dashboardHTTPClient.Get(apiURL)
+	resp, err := dashboardGet(dashboardHTTPClient, apiURL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error connecting to dashboard: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Is the server running? Start with: ailang serve\n")
@@ -542,7 +542,7 @@ func dashboardToolsCommand() {
 		apiURL += "?workspace=" + url.QueryEscape(*workspace)
 	}
 
-	resp, err := dashboardHTTPClient.Get(apiURL)
+	resp, err := dashboardGet(dashboardHTTPClient, apiURL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error connecting to dashboard: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Is the server running? Start with: ailang serve\n")

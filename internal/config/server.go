@@ -10,6 +10,7 @@ const (
 	EnvApprovalSigningKey = "AILANG_APPROVAL_SIGNING_KEY"
 	EnvBenchmarksBucket   = "BENCHMARKS_BUCKET"
 	EnvDashboardURL       = "AILANG_DASHBOARD_URL"
+	EnvDashboardToken     = "AILANG_DASHBOARD_TOKEN"
 
 	EnvApprovalAllowedCallers = "AILANG_APPROVAL_ALLOWED_CALLERS"
 	EnvApprovalAudience       = "AILANG_APPROVAL_AUDIENCE"
@@ -22,6 +23,7 @@ var serverVars = []Var{
 	{EnvApprovalSigningKey, "", AreaServer, "HMAC key that signs the secret-approval action links, so ntfy buttons can POST without IAM; unset disables those endpoints."},
 	{EnvBenchmarksBucket, "ailang-multivac-dev-benchmarks", AreaServer, "GCS bucket the benchmarks API reads through."},
 	{EnvDashboardURL, "", AreaServer, "Dashboard base URL for commands that print or open links, after the --dashboard flag."},
+	{EnvDashboardToken, "", AreaServer, "Bearer token CLI readers (`ailang chains dashboard`, `eval-paired`'s span fetch, eval observatory posts) send to a dashboard: the server's COORDINATOR_API_KEY. A dashboard on a non-loopback bind refuses /api/ reads without it."},
 	{EnvApprovalAllowedCallers, "", AreaServer, "Comma-separated service-account emails whose Google-signed ID tokens may create and poll secret approvals (`POST /api/approvals`, `GET /api/approvals/<id>`); unset admits no ID token."},
 	{EnvApprovalAudience, "", AreaServer, "Comma-separated audiences an approval caller's ID token may carry; unset uses AILANG_APPROVAL_BASE_URL."},
 	{EnvApprovalIntakeAuth, "enforce", AreaServer, "enforce (default) requires an ID token or AILANG_APPROVAL_TOKEN on secret-approval create/poll; off admits anonymous callers (rollback lever, logged loudly). Any other value enforces."},
@@ -41,6 +43,9 @@ func BenchmarksBucket() string { return getOr(EnvBenchmarksBucket) }
 
 // DashboardURL returns AILANG_DASHBOARD_URL, "" when unset.
 func DashboardURL() string { return get(EnvDashboardURL) }
+
+// DashboardToken returns AILANG_DASHBOARD_TOKEN, "" when unset.
+func DashboardToken() string { return strings.TrimSpace(get(EnvDashboardToken)) }
 
 // ApprovalAllowedCallers returns AILANG_APPROVAL_ALLOWED_CALLERS, "" when unset.
 func ApprovalAllowedCallers() string { return get(EnvApprovalAllowedCallers) }
