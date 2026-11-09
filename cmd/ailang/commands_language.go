@@ -376,6 +376,8 @@ func runCheckCommand(args []string) error {
 	formatCheck := checkFS.String("format", "human", "Output format: human, json, or agent (compact one-line diagnostics for AI agent context)")
 	quietCheck := checkFS.Bool("quiet", false, "Suppress progress lines, only output errors")
 	packageCheck := checkFS.Bool("package", false, "Check entire package (reads ailang.toml for module discovery)")
+	strictBytecodeCheck := checkFS.Bool("strict-bytecode", false,
+		"Also compile to bytecode; fail with BC001 for each function the strict VM would refuse (evaluator-only)")
 
 	// --verify is the `ai-check` absorption (S5 M2, Phase 3 item 2). The two
 	// verification flags are spelled --verify-timeout and
@@ -401,6 +403,14 @@ func runCheckCommand(args []string) error {
 	// formats that reuse the structured-error path; agent is the compact,
 	// token-lean one-line rendering for AI agent loops.
 	checkAgentFormat = (*formatCheck == "agent")
+	checkStrictBytecode = *strictBytecodeCheck
+	// The strict-bytecode gate is single-file only for now: --verify prints
+	// a different report and --package / directory checks have their own
+	// loops. Refuse the combination rather than silently ignore the flag.
+	if checkStrictBytecode && (*verifyCheck || *packageCheck) {
+		fmt.Fprintf(os.Stderr, "%s: --strict-bytecode cannot be combined with --verify or --package (check one file at a time)\n", red("Error"))
+		os.Exit(1)
+	}
 	machineFormat := *jsonCheck || *formatCheck == "json" || *formatCheck == "agent"
 
 	// --verify: the unified check+verify report, which `ailang ai-check` also
@@ -441,6 +451,7 @@ func runCheckCommand(args []string) error {
 		fmt.Println("  --format <fmt>     Output format: human (default), json, or agent (compact one-line diagnostics)")
 		fmt.Println("  --quiet            Suppress progress lines, only output errors")
 		fmt.Println("  --package          Check entire package (reads ailang.toml)")
+		fmt.Println("  --strict-bytecode  Also compile to bytecode; BC001 for each evaluator-only function")
 		fmt.Println()
 		fmt.Println("If a directory is given, all .ail files are checked recursively.")
 		os.Exit(1)

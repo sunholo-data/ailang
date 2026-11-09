@@ -100,6 +100,10 @@ func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout st
 	}
 
 	if info.IsDir() {
+		if checkStrictBytecode {
+			fmt.Fprintf(os.Stderr, "%s: --strict-bytecode checks one file at a time; '%s' is a directory\n", red("Error"), filename)
+			os.Exit(1)
+		}
 		span.SetAttributes(attribute.Bool("is_directory", true))
 		checkDirectoryWithContext(ctx, filename, strictSyntax, relaxModules, timeout, debugCompile, jsonFlag, quietFlag)
 		return
@@ -173,6 +177,9 @@ func runCheckWithContext(ctx context.Context, cfg pipeline.Config, src pipeline.
 	defer resultSpan.End()
 
 	result, err := pipeline.Run(cfg, src)
+	if err == nil {
+		addStrictBytecodeErrors(&result)
+	}
 	if err != nil {
 		resultSpan.SetAttributes(
 			attribute.Bool("passed", false),
@@ -272,6 +279,9 @@ func runCheckWithTimeoutAndContext(ctx context.Context, cfg pipeline.Config, src
 
 	go func() {
 		result, err := pipeline.Run(cfg, src)
+		if err == nil {
+			addStrictBytecodeErrors(&result)
+		}
 		done <- checkResult{result, err}
 	}()
 
