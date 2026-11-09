@@ -22,7 +22,7 @@ Published at release, not gated: fleet-tier pass rates, cost-per-verified-succes
 |---|---|---|
 | G1+G3 | #2182 stability re-draft | **CLOSED** — merged `71ec9bd36`, ratified by Mark (`D-65`) |
 | G2 #1443 | #2184 `pure` ⇒ empty row (BREAKING) | gated on the downstream order below |
-| G2 #1134 | #2185 cross-module IFC (BREAKING) | IFC sites fixed: email-parse#43 merged, ✓ email 0.10.2 published; eparse 1.11.3 relock = email-parse#44 (merge, then publish); follow-up #2187 (inferred rules, P1) |
+| G2 #1134 | #2185 cross-module IFC (BREAKING) | IFC sites fixed: email-parse#43 merged, ✓ email 0.10.2 published; ✓ email-parse#44 merged, ✓ eparse 1.11.3 published — #2185 downstream DONE; follow-up #2187 (inferred rules, P1) |
 | G4 | multivac#12 issuer → `executor.ailang.sunholo.com` | **CLOSED** — promoted dev→test→prod `e752cc2`, metadata names the host, `ailang mcp check` auth/transport PASS. Not gated: 22 docs tools lack `title` + read-only hints (A7, directory readiness) |
 | docs | #2181 runbook, #2183 stale sweep | MERGED (`d79a5d3be`, `5bda6c3eb`); charter links re-pointed after #2186's moves |
 
