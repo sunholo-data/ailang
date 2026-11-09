@@ -152,6 +152,20 @@ affected every agent eval on every model, not only the fine-tune.
 - **The base arm is re-run from scratch.** Pilot-2's base rows saw the notice, so mixing them with
   clean runs would confound the comparison.
 
+### A habit we did not expect: inventing module names
+
+The second most common error was `MOD010`: the model starts its file with a made-up module name (`module rle/decode`, `module fizzbuzz/main`) instead of the one the file path dictates (`module benchmark/solution`). This is a habit carried over from other languages, where a file can be named anything. Each of the 46 items now shows the error, then the one-line fix, which is cheap to learn and was costing whole runs.
+
+### Long samples lose the part you train on
+
+On-policy episodes are longer than pilot-2's: they carry the model's own wrong file, its failed fix, the reference section it looks up, and then the verified fix. Measured with the training tokenizer, 16 of 806 training samples and 1 validation sample were over the 12,288-token limit, the largest at 45,010 tokens. Pilot-2 had none.
+
+Training **truncates from the end**, so an over-long on-policy sample keeps the no-loss context (its own mistakes) and loses the fix, the only part with a loss. The sample would teach nothing, and its length would cost the most compute of any.
+
+- `build_mix2.py --tokenizer --max-tokens` now measures every sample with the same render function `train2.py` uses, one implementation rather than an estimate.
+- Over-long samples are dropped **before** they take a per-kind slot, so another episode of the same benchmark and error kind fills the slot.
+- A character-count estimate had flagged 22 samples, not 16; it would have dropped some good ones.
+
 ## Training and evaluation plan
 
 `tools/finetune/pilot3_run.sh` runs each stage and can resume from any of them:
@@ -190,3 +204,8 @@ would take. The replay sample of pilot-2's data guards against forgetting what i
 | 2026-11-09 | Fixed #2151 part 1: the Cloud Trace notice in every eval tool result | Verified against the old binary as a control |
 | 2026-11-09 | Built `pilot3_run.sh` and `pilot3.yaml`; registered the `pi-gemma4-12b-ft3` lane | Waiting for the collection |
 | 2026-11-09 | Added the `onpolicy` episode kind (`synth_episodes.py`), habit-5 thoughts (`thoughts.py`), no-loss steps (`build_mix2.py`, `train2.py`) | Rendered a test episode; template and mask checks pass. Thoughts now quote the specific error line, not the "module loading error" wrapper above it (this also improves pilot-2's repair thoughts) |
+| 2026-11-09 | Collection finished: 57 benchmarks in 8 h 38 min, 5,059 requests traced | The pilot-2 model passed **30/57** of its own *training* tasks, so it had not mastered even the tasks it trained on. A trial extraction on the first 38 benchmarks found 268 failing file versions, 121 of them failed fixes |
+| 2026-11-09 | Extracted repair items from the full trace (`pilot3_run.sh pairs`) | 752 file versions → **349 items** from 44 benchmarks (132 already passed, 179 duplicates, 92 over the per-kind cap). 163 are failed fixes. Top kinds: unexpected-token parse errors 98, `MOD010` 46, wrong output 32, type mismatch 30, undefined variable 30 |
+| 2026-11-09 | Opus repaired every item (`pilot3_run.sh repair`, 29 min, 4 workers) | **348/349 verified**: each fix compiles and prints exactly the expected output. 285 passed in one round, 55 in two, 9 in three or four; one wrong-output item failed all four rounds and is dropped. About 0.8 M output tokens on the subscription |
+| 2026-11-09 | Built the training mix (`pilot3_run.sh data`, 6 min) | 3,361 episodes → 784 training samples: 297 on-policy (all with no-loss context), 210 solve, 176 repair, 101 canonical examples. 30 validation samples, 8 of them on-policy. 3.54 M tokens. No held-out benchmark appears |
+| 2026-11-09 | Caught and fixed over-long samples before training | 17 samples were over the 12,288-token limit and would have lost their fix to truncation; now measured with the training tokenizer and dropped before the per-kind cap (see above) |

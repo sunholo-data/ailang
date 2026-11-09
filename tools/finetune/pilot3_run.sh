@@ -62,7 +62,8 @@ stage_data(){
   "$PY" -I tools/finetune/thoughts.py --episodes "$EP/episodes.jsonl" --out "$EP/episodes_thought.jsonl" | tee -a "$LOG"
   # Replay: a smaller sample of pilot-2's kinds next to every on-policy episode (cap per kind).
   "$PY" -I tools/finetune/build_mix2.py --episodes "$EP/episodes_thought.jsonl" --out "$MIX" \
-    --solve-per-bench 4 --repair-per-kind 2 --example-repeat 1 --onpolicy-per-kind 8 --max-steps 24 | tee -a "$LOG"
+    --solve-per-bench 4 --repair-per-kind 2 --example-repeat 1 --onpolicy-per-kind 8 --max-steps 24 \
+    --tokenizer "$BASE" --max-tokens 12288 | tee -a "$LOG"
 }
 
 stage_train(){
