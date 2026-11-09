@@ -148,7 +148,7 @@ remain true. No push; coordinator opens the PR.
 ## Files created
 
 - `changelogs/unreleased/2026-10-12-pure-row-iface-purity.md`
-- `design_docs/planned/v0_53_0/m-pure-row-and-iface-purity-m1-m2-validation.md`
+- `design_docs/implemented/v1_0_0/m-pure-row-and-iface-purity-m1-m2-validation.md`
 - `internal/apiserver/iface_purity_test.go`
 - `internal/iface/purity.go`
 - `internal/iface/purity_test.go`
@@ -213,7 +213,7 @@ remain true. No push; coordinator opens the PR.
 - `.stdlib-golden/web.sha256`
 - `.stdlib-golden/zip.json`
 - `.stdlib-golden/zip.sha256`
-- `design_docs/planned/v0_53_0/m-pure-row-and-iface-purity-sprint-plan.md`
+- `design_docs/implemented/v1_0_0/m-pure-row-and-iface-purity-sprint-plan.md`
 - `internal/apiserver/mcp_tool_hints_test.go`
 - `internal/apiserver/routes.go`
 - `internal/iface/builder.go`

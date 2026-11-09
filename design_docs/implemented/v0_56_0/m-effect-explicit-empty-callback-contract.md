@@ -183,7 +183,7 @@ All raw logs are under `/tmp/ailang-backlog-20261029/`; the companion evidence J
 
 - [Nested callbacks](m-effect-latent-nested-callbacks.md): owns conservative parameter-wide charging. This follow-up supplies the missing explicit-empty callback contract; it does not reopen that rule implicitly.
 - [#1958 design](m-effect-row-open-closed-soundness.md) and its validation: owns label preservation and the delivered play_chunks migration; M4 was resolved by this accepted amendment and its proven consumer delivery.
-- [Pure rows / iface purity](../../planned/v0_53_0/m-pure-row-and-iface-purity.md): planned #1790 owns outer pure declarations and derived iface purity. Callback **function-type** empty presence is the distinct topic here; coordinate touched conversion/iface files and regenerate combined goldens.
+- [Pure rows / iface purity](../v1_0_0/m-pure-row-and-iface-purity.md): planned #1790 owns outer pure declarations and derived iface purity. Callback **function-type** empty presence is the distinct topic here; coordinate touched conversion/iface files and regenerate combined goldens.
 - [Formatter round-trip](../v0_30_0/m-fmt-properties-printer-roundtrip.md): already preserves nil-versus-empty formatting; reuse it, do not create a competing parser representation.
 - [Effect-row show/interpolation](../v0_31_0/m-effect-row-show-interp.md): protects callback-body effect checking; this proposal is about the callback type's contract at hand-off, including a caller that already declares IO.
 

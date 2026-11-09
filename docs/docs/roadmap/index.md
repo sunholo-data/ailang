@@ -73,7 +73,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-MCP-FILES-FRICTION — routing and decisions for the sunholo/mcp_files 0.1.0 friction grab-bag (Refs #1618)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-mcp-files-friction.md)
 - [Sprint Plan: M-NAMED-TEST-EFFECTFUL-HELPER](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-named-test-effectful-helper-sprint-plan.md)
 - [Named Test Effectful Helper Honesty (strip policy + truthful diagnostics)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-named-test-effectful-helper.md)
-- [M-PURE-ROW-AND-IFACE-PURITY — `pure` must mean `! {}`: reject the keyword beside a declared effect row, and derive iface purity from the checked row](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-pure-row-and-iface-purity.md)
 - [M-TEST-RUNNER-COMPILE-ONCE: `ailang test` compiles a test file once, not once per named test](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-test-runner-compile-once.md)
 - [M-VM-LIST-TAIL-SHARE: O(1) list-tail binding on the bytecode VM (cons-pattern walks are O(n²))](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-vm-list-tail-share.md)
 

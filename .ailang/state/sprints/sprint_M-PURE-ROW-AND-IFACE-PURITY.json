@@ -2,8 +2,8 @@
   "sprint_id": "M-PURE-ROW-AND-IFACE-PURITY",
   "status": "in_progress",
   "created": "2026-10-09T06:20:31.353468+00:00",
-  "design_doc": "design_docs/planned/v0_53_0/m-pure-row-and-iface-purity.md",
-  "sprint_plan": "design_docs/planned/v0_53_0/m-pure-row-and-iface-purity-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v1_0_0/m-pure-row-and-iface-purity.md",
+  "sprint_plan": "design_docs/implemented/v1_0_0/m-pure-row-and-iface-purity-sprint-plan.md",
   "github_issues": [
     1443,
     574
@@ -110,7 +110,7 @@
       "passes": true,
       "started": "2026-10-12T21:03:48.624166+00:00",
       "completed": "2026-10-12T21:12:32.296745+00:00",
-      "notes": "Shared SMT admission accepts keyword or explicit closed empty/Declassify-only rows (including scoped labels) without changing IsPure. Contract fallback cannot bypass admission. Seven declarations migrated and four files formatted; IFC and MCP fixtures valid. Safe reference: 3 verified/0 violations; injected: 2 verified/1 injectedForward violation; cross-module scoped helper verifies. Focused smt/types/apiserver, test-core (temporary Linux subreaper), lint, file sizes, boundaries, changelog, verify-examples (246 passed/0 failed/9 skipped) and verify-stdlib (48 stable) pass. Admission helpers each have 100% statement coverage. HashProjection purity pin and cache v7 unchanged. Evidence: design_docs/planned/v0_53_0/m-pure-row-and-iface-purity-m3-validation.md. M4 remains unstarted."
+      "notes": "Shared SMT admission accepts keyword or explicit closed empty/Declassify-only rows (including scoped labels) without changing IsPure. Contract fallback cannot bypass admission. Seven declarations migrated and four files formatted; IFC and MCP fixtures valid. Safe reference: 3 verified/0 violations; injected: 2 verified/1 injectedForward violation; cross-module scoped helper verifies. Focused smt/types/apiserver, test-core (temporary Linux subreaper), lint, file sizes, boundaries, changelog, verify-examples (246 passed/0 failed/9 skipped) and verify-stdlib (48 stable) pass. Admission helpers each have 100% statement coverage. HashProjection purity pin and cache v7 unchanged. Evidence: design_docs/implemented/v1_0_0/m-pure-row-and-iface-purity-m3-validation.md. M4 remains unstarted."
     },
     {
       "id": "M4",
@@ -170,7 +170,7 @@
     "rowless_callback_combinators": 27,
     "cache_base": "v6",
     "cache_next": "v7",
-    "evidence": "design_docs/planned/v0_53_0/m-pure-row-and-iface-purity-m1-m2-validation.md"
+    "evidence": "design_docs/implemented/v1_0_0/m-pure-row-and-iface-purity-m1-m2-validation.md"
   },
   "last_checkpoint": "M1\u2013M3 complete; M4 unstarted for a later run",
   "purity_census_after": {

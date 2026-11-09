@@ -23,7 +23,7 @@ The seven-day velocity script was run on 2026-10-09. This shallow checkout expos
 
 ## Execution Gate and Dependencies
 
-Dependency: #1708 (latent effects, M-EFFECT-LATENT-FUNCTION-VALUES; [design](../v0_48_0/m-effect-latent-function-values.md), Refs #1326 and Refs #573) merged at `3d4f49720`; record the merge-base and remeasure the schemes. Ordering: per the HOLD above, M-EFFECT-ROW-VAR-UNIFICATION (#616) must also have merged; it changes how call rows are shared and therefore the flatMap/mapE and ~26 combinator pins and the purity census, which are remeasured on the new base before M2's expectations are fixed.
+Dependency: #1708 (latent effects, M-EFFECT-LATENT-FUNCTION-VALUES; [design](../../planned/v0_48_0/m-effect-latent-function-values.md), Refs #1326 and Refs #573) merged at `3d4f49720`; record the merge-base and remeasure the schemes. Ordering: per the HOLD above, M-EFFECT-ROW-VAR-UNIFICATION (#616) must also have merged; it changes how call rows are shared and therefore the flatMap/mapE and ~26 combinator pins and the purity census, which are remeasured on the new base before M2's expectations are fixed.
 
 If the latent-tail exception or keyword/iface invariant conflicts with that landed implementation, return the discrepancy for design revision; do not broaden this sprint into row unification or change the approved purity contract. #616 and the inferred generalisation mechanism of #1091 remain out of scope. Rule 1 rejects declared open rows, while Rule 2 retains the approved exception for undeclared callback-shared outer tails.
 
