@@ -20,6 +20,7 @@ All AILANG diagnostic errors follow the format `<PREFIX><NUMBER>` (e.g. `MOD013`
 | `LNK` | Linker | Linking and dictionary resolution errors |
 | `EVA` | Evaluator | Runtime evaluation errors |
 | `RT` | Runtime | Low-level runtime errors |
+| `BC` | Bytecode | Strict-VM coverage (`--strict-bytecode`) |
 
 ## Machine-readable registry
 
@@ -104,6 +105,7 @@ TC_MATCH_001: constructor pattern 'Bogus' does not name any constructor in scope
 
 ## Individual error code pages
 
+- [BC001 — Function is evaluator-only under --strict-bytecode](bc001.md)
 - [MOD007 — Duplicate module-scope binding (let/func same name)](mod007.md)
 - [MOD013 — Shared module_prefix](mod013.md)
 - [MOD015 — Imported name collides with a module-level definition](mod015.md)

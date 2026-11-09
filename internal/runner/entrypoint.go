@@ -149,9 +149,9 @@ func ExecuteModuleEntrypoint(rt *runtime.ModuleRuntime, params ModuleExecParams)
 		if params.StrictBytecode {
 			return fmt.Errorf("bytecode execution failed: %w", vmErr)
 		}
-		if !params.Quiet {
-			fmt.Fprintf(os.Stderr, "%s bytecode path unavailable (%v); falling back to evaluator\n", yellow("⚠"), vmErr)
-		}
+		// Not gated on --quiet (run's default): a fallback is a warning, not
+		// a progress line, and a silent one hides lost VM coverage.
+		fmt.Fprintf(os.Stderr, "%s bytecode path unavailable (%v); falling back to evaluator\n", yellow("⚠"), vmErr)
 		// Fall through to evaluator path below.
 	}
 

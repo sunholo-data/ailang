@@ -52,23 +52,32 @@ offline-cli = { module = "cli", caps = "IO,Env,AI", run_flags = ["--ai", "z-ai/g
 	bin := cliTestBin(t)
 	for _, model := range []string{"z-ai/glm-5.3-flash", "gemini-2-5-flash", "ollama:unavailable"} {
 		for _, keyPath := range []string{"", filepath.Join(dir, "missing.key"), dir} {
-			for _, strict := range []bool{false, true} {
+			// The VM arm is non-strict: main reaches std/ai.call, which is
+			// evaluator-only, so --strict-bytecode now rejects the program
+			// before dispatch (BC001, pinned below) instead of only when the
+			// AI branch actually runs.
+			for _, onVM := range []bool{false, true} {
 				for _, mode := range []string{"--offline", "--help"} {
 					args := []string{"run", "--quiet", "--package-dir", dir, "--caps", "IO,Env,AI", "--ai", model, "--ai-no-adc"}
 					if keyPath != "" {
 						args = append(args, "--ai-key-file", keyPath)
 					}
-					if strict {
-						args = append(args, "--bytecode", "--strict-bytecode")
+					if onVM {
+						args = append(args, "--bytecode")
 					}
 					args = append(args, filepath.Join(dir, "cli.ail"), "--", mode)
 					res := runCLIIn(t, bin, t.TempDir(), dir, args...)
 					if res.exitCode != 0 || strings.TrimSpace(res.stdout) != strings.TrimPrefix(mode, "--") {
-						t.Errorf("model=%s key=%s strict=%v mode=%s: exit=%d stdout=%q stderr=%q", model, keyPath, strict, mode, res.exitCode, res.stdout, res.stderr)
+						t.Errorf("model=%s key=%s bytecode=%v mode=%s: exit=%d stdout=%q stderr=%q", model, keyPath, onVM, mode, res.exitCode, res.stdout, res.stderr)
 					}
 				}
 			}
 		}
+	}
+	strictRes := runCLIIn(t, bin, t.TempDir(), dir, "run", "--quiet", "--package-dir", dir, "--caps", "IO,Env,AI", "--ai", "z-ai/glm-5.3-flash",
+		"--bytecode", "--strict-bytecode", filepath.Join(dir, "cli.ail"), "--", "--offline")
+	if strictRes.exitCode == 0 || strictRes.stdout != "" || !strings.Contains(strictRes.stderr, "BC001: function std/ai.call") {
+		t.Errorf("strict run must reject the reachable evaluator-only std/ai.call before main runs: %+v", strictRes)
 	}
 	res := runCLIIn(t, bin, t.TempDir(), dir, "run", "--quiet", "--package-dir", dir, "--caps", "IO,Env,AI", "--ai", "z-ai/glm-5.3-flash", filepath.Join(dir, "cli.ail"))
 	if res.exitCode != 1 || !strings.Contains(res.stdout, "before AI") || !strings.Contains(res.stderr, "OPENROUTER_API_KEY") {

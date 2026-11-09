@@ -117,6 +117,17 @@ const (
 	MOD015 = "MOD015"
 
 	// ============================================================================
+	// Bytecode Errors (BC###)
+	// ============================================================================
+
+	// BC001 indicates a function the bytecode compiler tagged evaluator-only
+	// (EvalOnly) is reachable under --strict-bytecode, where no evaluator
+	// bridge is wired. Reported by `ailang check --strict-bytecode` and by a
+	// strict run or test before dispatch, instead of a mid-run VM CALL trap
+	// (M-BYTECODE-STRICT-256-REG-CEILING Phase A).
+	BC001 = "BC001"
+
+	// ============================================================================
 	// Loader Errors (LDR###)
 	// ============================================================================
 
@@ -293,6 +304,9 @@ var ErrorRegistry = map[string]ErrorInfo{
 	MOD006: {MOD006, "module", "validation", "Export of private (underscore) name"},
 	MOD007: {MOD007, "module", "namespace", "Duplicate module-scope binding (let/func same name)"},
 	MOD015: {MOD015, "module", "namespace", "Imported name collides with a module-level definition or another import"},
+
+	// Bytecode errors
+	BC001: {BC001, "bytecode", "coverage", "Function is evaluator-only under --strict-bytecode"},
 
 	// Loader errors
 	LDR001: {LDR001, "loader", "resolution", "Module not found"},
