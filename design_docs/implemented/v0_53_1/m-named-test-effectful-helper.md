@@ -4,7 +4,7 @@
 **Target**: v0.53.0
 **Priority**: P1 (Medium)
 **Estimated**: 4 days
-**Dependencies**: None (builds on the named-test batch of `m-test-runner-compile-once.md`, same directory, whose D1 fallback it reuses unchanged)
+**Dependencies**: None (builds on the named-test batch of `../v0_52_2/m-test-runner-compile-once.md`, same directory, whose D1 fallback it reuses unchanged)
 
 ## Axiom Compliance
 
@@ -75,7 +75,7 @@ undefined variable: check at .../repro.ail:4:3 — add `import std/debug (check)
 | 4 | direct effectful stdlib call in the body (`test "x" { readFile(...) != "" }`) | legal inside a `! {FS}` func | **fails**: "Effect checking failed for function `'__namedtest_0'`" (batch) / `'$tmp1'` (per-body), with "Suggested fix: func `$tmp1`(...) -> T ! {FS}" — a fix the user cannot apply to a synthetic binder | must fail honestly, naming the contract |
 | 5 | unannotated helper with an effectful body | **illegal** (`ailang check` demands `! {FS}`) | "undefined variable" + import lie — masks the module's real error | must surface the module's real error |
 
-**Root cause (one mechanism, all five rows):** the named-test path does not compile the user's module. `Executor.prepareNamedTests` (`internal/testing/named_batch.go:109`) and the per-body fallback (`internal/testing/executor.go:194`) build the base source with `stripWithLineMap(src, file, nil)` / `stripNonPureFunctions(src, file)`, and `functionSkipRanges` (`internal/testing/source_strip.go:46`) deletes **every** top-level function that is not *syntactically* `pure` or `! {}` (`isEffectivelyPure`, `internal/testing/source_strip.go:71` — `f.IsPure || (f.Effects != nil && len(f.Effects) == 0)`; an unannotated func has `Effects == nil`). The batched entries are then appended as `pure func __namedtest_<k>() { <body> }` (`internal/testing/entrySource.add`, `internal/testing/named_batch.go:307`) and compiled in a private temp dir (D1 of `m-test-runner-compile-once.md` falls back to one compile per body on batch failure). So the helper is *deleted from the compile* before the type checker ever sees the call: the checker's report is true of the temp file and false of the user's file.
+**Root cause (one mechanism, all five rows):** the named-test path does not compile the user's module. `Executor.prepareNamedTests` (`internal/testing/named_batch.go:109`) and the per-body fallback (`internal/testing/executor.go:194`) build the base source with `stripWithLineMap(src, file, nil)` / `stripNonPureFunctions(src, file)`, and `functionSkipRanges` (`internal/testing/source_strip.go:46`) deletes **every** top-level function that is not *syntactically* `pure` or `! {}` (`isEffectivelyPure`, `internal/testing/source_strip.go:71` — `f.IsPure || (f.Effects != nil && len(f.Effects) == 0)`; an unannotated func has `Effects == nil`). The batched entries are then appended as `pure func __namedtest_<k>() { <body> }` (`internal/testing/entrySource.add`, `internal/testing/named_batch.go:307`) and compiled in a private temp dir (D1 of `../v0_52_2/m-test-runner-compile-once.md` falls back to one compile per body on batch failure). So the helper is *deleted from the compile* before the type checker ever sees the call: the checker's report is true of the temp file and false of the user's file.
 
 The misleading hint is a symptom, not a second bug to patch: `importHint` (`internal/types/import_hint.go:16`) fires because `check` happens to be a std/debug export (`std/debug.ail:37`). Once the helper is kept in the base source the name resolves, no "undefined variable" is raised, and the hint — and its wrong advice — cannot occur for this class. (Genuinely undefined names keep the hint; there it is correct.)
 
@@ -341,9 +341,9 @@ Hard-gate claims, each verified live (binary `AILANG v0.52.5`, 2026-10-08, on th
 - [m-dx26-ensures-result-binding-sprint-plan.md](implemented/v0_20_0/m-dx26-ensures-result-binding-sprint-plan.md) (v0.20.0) — the third strip call site's context
 
 **Planned (check for overlap):**
-- [m-test-runner-compile-once.md](v0_53_0/m-test-runner-compile-once.md) (same directory) — the batching this feature extends; its D1 fallback is reused unchanged
-- [m-strip-contract-awareness-sprint-plan.md](../../implemented/v0_32_0/m-strip-contract-awareness-sprint-plan.md) (v0.31.0) — the sprint that explicitly deferred this defect as a filing
-- [ai-deadline-and-named-test-roundtrip.md](../ailang-core-triage/ai-deadline-and-named-test-roundtrip.md), [source-strip-string-brace-skip-ranges.md](../../implemented/v0_54_13/source-strip-string-brace-skip-ranges.md), [named-test-float-dict-resolution.md](../ailang-core-triage/named-test-float-dict-resolution.md) — sibling strip/roundtrip defects, kept out of scope (Non-Goals)
+- [../v0_52_2/m-test-runner-compile-once.md](v0_53_0/m-test-runner-compile-once.md) (same directory) — the batching this feature extends; its D1 fallback is reused unchanged
+- [m-strip-contract-awareness-sprint-plan.md](../v0_32_0/m-strip-contract-awareness-sprint-plan.md) (v0.31.0) — the sprint that explicitly deferred this defect as a filing
+- [ai-deadline-and-named-test-roundtrip.md](../../planned/ailang-core-triage/ai-deadline-and-named-test-roundtrip.md), [source-strip-string-brace-skip-ranges.md](../v0_54_13/source-strip-string-brace-skip-ranges.md), [named-test-float-dict-resolution.md](../../planned/ailang-core-triage/named-test-float-dict-resolution.md) — sibling strip/roundtrip defects, kept out of scope (Non-Goals)
 
 ## References
 

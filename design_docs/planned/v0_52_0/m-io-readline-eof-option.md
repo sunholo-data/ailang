@@ -473,7 +473,7 @@ search performed manually as above.
   synchronously
 
 **Planned (checked for overlap — none):**
-- [m-ifc-declared-record-labels](./m-ifc-declared-record-labels.md) and
+- [m-ifc-declared-record-labels](../../implemented/v0_52_0/m-ifc-declared-record-labels.md) and
   [m-mcp-oauth-package](../../implemented/v0_52_0/m-mcp-oauth-package.md) — the other v0.52.0 docs; unrelated surfaces
 
 ## References

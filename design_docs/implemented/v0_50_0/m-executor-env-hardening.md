@@ -4,7 +4,7 @@
 **Target**: Next security release after v0.49.0; release number assigned during planning
 **Priority**: P0 — operator write credentials (GitHub fleet token, superuser registry key) are reachable by any prompt-injected agent subprocess
 **Estimated**: 8–12 engineering days, including regression coverage and lane migration inventory (planning estimate, not a sprint commitment)
-**Dependencies**: None new. Complements implemented [M-EXECUTOR-POLICY-HARDENING](../../implemented/v0_41_0/m-executor-policy-hardening.md) (v0.41.0), which confined the AILANG *program* runtime and explicitly did not own the agent-harness subprocess boundary.
+**Dependencies**: None new. Complements implemented [M-EXECUTOR-POLICY-HARDENING](../v0_41_0/m-executor-policy-hardening.md) (v0.41.0), which confined the AILANG *program* runtime and explicitly did not own the agent-harness subprocess boundary.
 **Routing**: AILANG fix under [PROGRAM](../../PROGRAM.md); no motoko core change, no language change
 **Created / updated**: 2026-09-30 / 2026-10-01 (approval; findings re-verified on `dev` @ `2aee3ed76`)
 
@@ -131,9 +131,9 @@ process is model-facing: its entire environment is one `printenv` away from the 
 executor package itself, the pinned toolchain.
 
 **Explicitly outside this design's attacker model:** a compromised kernel or host administrator;
-the *AILANG program runtime* confinement, which [M-EXECUTOR-POLICY-HARDENING](../../implemented/v0_41_0/m-executor-policy-hardening.md)
+the *AILANG program runtime* confinement, which [M-EXECUTOR-POLICY-HARDENING](../v0_41_0/m-executor-policy-hardening.md)
 already repaired (root-anchored FS, redirect re-authorization, mediated tools, operator budgets);
-and the future safe-runner execution service ([m-agent-safe-runner](../v1_1_0/m-agent-safe-runner.md)),
+and the future safe-runner execution service ([m-agent-safe-runner](../../planned/v1_1_0/m-agent-safe-runner.md)),
 which owns "subprocess invocation … with fixed env (no inheritance from runner shell)" for its
 own typed channel. This design owns the **existing agent-executor fleet's** subprocess boundary.
 
@@ -421,23 +421,23 @@ migration cutover review.
 <!-- Auto-populated by search on "executor env hardening"; manual coverage analysis below -->
 
 **Implemented (may inform design):**
-- [M-EXECUTOR-POLICY-HARDENING](../../implemented/v0_41_0/m-executor-policy-hardening.md)
+- [M-EXECUTOR-POLICY-HARDENING](../v0_41_0/m-executor-policy-hardening.md)
   (v0.41.0) — the prior executor security hardening. Distinct ownership: it repaired
   enforcement *beneath* the AILANG program runtime (root-anchored FS, redirect authorization,
   mediated tools, operator budgets); its restricted-worker env allowlist governs the
   `ailang_only` lane's program worker, not the agent-executor subprocesses this design covers.
   Its section-4 principle ("keep provider credentials in the model-facing host, not the worker")
   is the same direction, applied there to a different boundary.
-- [M-AGENT-AILANG-ONLY-EXECUTION](../../implemented/v0_39_0/m-agent-ailang-only-execution.md)
+- [M-AGENT-AILANG-ONLY-EXECUTION](../v0_39_0/m-agent-ailang-only-execution.md)
   (v0.39.0) — tool profiles and admission plumbing; this design's `ExtraEnv` deny-list composes
   with its tool lanes.
 
 **Planned (check for overlap):**
-- [m-agent-safe-runner](../v1_1_0/m-agent-safe-runner.md) — the future execution *service* with a
+- [m-agent-safe-runner](../../planned/v1_1_0/m-agent-safe-runner.md) — the future execution *service* with a
   typed message channel and "fixed env (no inheritance from runner shell)". Distinct artifact:
   a new service; this design hardens the executors that run today. Its checkbox 160 states the
   same principle this design brings to the current fleet.
-- [m-exec-multi-executor-support](../../implemented/v0_6_1/m-exec-multi-executor-support.md)
+- [m-exec-multi-executor-support](../v0_6_1/m-exec-multi-executor-support.md)
   (implemented) — created the shared executor layer this seam lives in.
 
 **Coverage search note:** `ailang docs search --neural` reported `fallback-simhash` (0 embeddings)

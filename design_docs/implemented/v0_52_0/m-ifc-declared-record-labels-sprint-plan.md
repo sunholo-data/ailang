@@ -1,6 +1,6 @@
 # Sprint Plan: M-IFC-DECLARED-RECORD-LABELS
 
-**Design doc**: `design_docs/planned/v0_52_0/m-ifc-declared-record-labels.md`
+**Design doc**: `design_docs/implemented/v0_52_0/m-ifc-declared-record-labels.md`
 **Issues**: #1523, #1527 (dup)
 **Duration**: 1 day (single session), 4 milestones
 **Registry reuse**: none — compiler-internal analysis, no package-like capability (all milestones).

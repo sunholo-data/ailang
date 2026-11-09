@@ -1,6 +1,6 @@
 # Sprint plan: controller classifies HTTP 402 as capacity (M-CONTROLLER-CAPACITY-ADMISSION)
 
-**Design doc (frozen, Revision 3):** [m-controller-capacity-admission.md](m-controller-capacity-admission.md)
+**Design doc (frozen, Revision 3):** [m-controller-capacity-admission.md](../../planned/m-controller-capacity-admission.md)
 **Ruling:** D-FLEET-11 = **A** (Mark, attended, 2026-10-02). Narrow scope only.
 **Mission:** fleet iteration 15 · P0 · ticket `driver:controller-fallback-skips-openrouter-ration-and-402-reads-as-crash`
 **Worktree:** `/Users/voightkampff/.ailang-driver-pin/fleet-i15` (branch `fleet/i15-controller-402`).

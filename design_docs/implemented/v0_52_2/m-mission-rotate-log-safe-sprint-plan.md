@@ -1,6 +1,6 @@
 # Sprint plan: M-MISSION-ROTATE-LOG-SAFE
 
-**Design doc**: `design_docs/planned/m-mission-rotate-log-safe.md` (Revision 5, quorum-satisfied via the narrow-refinement carve-out; D-FLEET-9 = A RULED 2026-10-01)
+**Design doc**: `design_docs/implemented/v0_52_2/m-mission-rotate-log-safe.md` (Revision 5, quorum-satisfied via the narrow-refinement carve-out; D-FLEET-9 = A RULED 2026-10-01)
 **Sprint ID**: `M-MISSION-ROTATE-LOG-SAFE` · **Planned**: 2026-10-04 · **Baseline worktree HEAD**: `c2bf5bef020f576d1842bf8d75f9cc5006f07683` (clean; `std/VERSION` v0.52.1)
 **Executor model**: prescriptive directive — exact files, edit shapes, and test layout below. No judgment-heavy steps. **No git operations: the controller commits.**
 

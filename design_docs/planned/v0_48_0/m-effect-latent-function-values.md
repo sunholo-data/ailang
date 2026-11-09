@@ -8,7 +8,7 @@
 **Source**: GitHub issues [#1326](https://github.com/sunholo-data/ailang/issues/1326) (effect leak through any higher-order function) and [#573](https://github.com/sunholo-data/ailang/issues/573) (effect checker not transitive through function-valued record-field calls, incl. the 2026-08-26 addendum on record-update / constructor-payload positions)
 **Base measured**: `origin/dev` = `1fcc479f1`, binary built from this worktree (`go build -o /tmp/ailang-ds ./cmd/ailang`; the version stamp shows the main checkout's HEAD — known worktree stamping quirk — so provenance was verified behaviourally, see V1–V4).
 
-**Scheduling update (2026-10-08)**: Mark approved scheduling from P0 triage; the design was approved and merged in #1378. Triage reverified both leaks on `origin/dev` `658ff76a3`. Implementation executed through the approved planner handoff; see the sprint plan and its execution validation. See [sprint plan](../v0_53_0/m-effect-latent-function-values-sprint-plan.md). Refs #1326, Refs #573; sequencing Refs #616. Historical measurements and prototype results below are retained as evidence, not claims about the current tree.
+**Scheduling update (2026-10-08)**: Mark approved scheduling from P0 triage; the design was approved and merged in #1378. Triage reverified both leaks on `origin/dev` `658ff76a3`. Implementation executed through the approved planner handoff; see the sprint plan and its execution validation. See [sprint plan](../../implemented/v0_53_1/m-effect-latent-function-values-sprint-plan.md). Refs #1326, Refs #573; sequencing Refs #616. Historical measurements and prototype results below are retained as evidence, not claims about the current tree.
 
 ## Summary
 

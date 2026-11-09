@@ -317,7 +317,7 @@ only; this arithmetic is not implementation authorization.
 - [Package authority chokepoint](../../planned/v0_54_19/m-pkg-authority-chokepoint.md): reuse
   its authority/refusal contract; this design closes one explicitly deferred
   non-package path rather than reopening package semantics.
-- [Registry confinement](../../planned/v0_52_6/m-pkg-registry-confinement.md): adjacent package
+- [Registry confinement](../v0_53_0/m-pkg-registry-confinement.md): adjacent package
   cache/network boundary, distinct from GitHub docs-search credentials/cache.
 - [SECURITY.md](../../../SECURITY.md): existing guarantee is package-specific;
   add the scoped docs fallback guarantee only after verified implementation.

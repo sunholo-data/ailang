@@ -4,7 +4,7 @@
 **Target**: Next unreleased patch (v0.52.4 artifact lineage)
 **Priority**: P0 (a silent wrong type rejects valid programs; hit in production code in stapledons-godot-trappist)
 **Estimated**: 3–4 days
-**Dependencies**: M-TYPE-NAME-SHADOW M1+M3 (shipped in v0.44.x). **This doc specifies and schedules M2 of [m-type-name-shadow-and-cache](../v0_44_0/m-type-name-shadow-and-cache.md)**, which that doc deferred as "doc only, unscheduled", and extends its scope with a trigger class that doc did not cover (see Problem Statement, T3).
+**Dependencies**: M-TYPE-NAME-SHADOW M1+M3 (shipped in v0.44.x). **This doc specifies and schedules M2 of [m-type-name-shadow-and-cache](../../planned/v0_44_0/m-type-name-shadow-and-cache.md)**, which that doc deferred as "doc only, unscheduled", and extends its scope with a trigger class that doc did not cover (see Problem Statement, T3).
 
 ## Axiom Compliance
 
@@ -306,12 +306,12 @@ The following are intentionally left open for the implementer:
      duplicate gate was applied manually by grep instead. -->
 
 **Implemented (may inform design):**
-- [m-transitive-alias-env-import](../../implemented/v0_22_0/m-transitive-alias-env-import.md) — introduced the every-loaded-module alias pull that M3 limited and this doc makes scope-independent.
-- [m-xmod-alias-poly](../../implemented/v0_30_0/m-xmod-alias-poly.md) — parameterized aliases; their substitution keys on type variables, which is why closure leaves params intact.
-- [m-compile-cache-dirty-build-key](../../implemented/v0_43_2/m-compile-cache-dirty-build-key.md) — the identity half of the cache key this doc's version bump completes.
+- [m-transitive-alias-env-import](../v0_22_0/m-transitive-alias-env-import.md) — introduced the every-loaded-module alias pull that M3 limited and this doc makes scope-independent.
+- [m-xmod-alias-poly](../v0_30_0/m-xmod-alias-poly.md) — parameterized aliases; their substitution keys on type variables, which is why closure leaves params intact.
+- [m-compile-cache-dirty-build-key](../v0_43_2/m-compile-cache-dirty-build-key.md) — the identity half of the cache key this doc's version bump completes.
 
 **Planned (check for overlap):**
-- [m-type-name-shadow-and-cache](../v0_44_0/m-type-name-shadow-and-cache.md) — **the parent doc.** Its M1/M3 shipped in v0.44.x; its M2 ("close alias bodies over their defining module", audit rows 3/5) was doc-only and unscheduled. This doc is that milestone's implementation spec, NOT a duplicate: it schedules M2, adds the explicit-import and annotation-scheme trigger classes (T1/T3) that the parent's M2 sketch did not cover, and extends closure from `TypeAliases` bodies to export schemes on T3 evidence. M4 (module-qualified nominal identity) remains parked there as a separate human decision.
+- [m-type-name-shadow-and-cache](../../planned/v0_44_0/m-type-name-shadow-and-cache.md) — **the parent doc.** Its M1/M3 shipped in v0.44.x; its M2 ("close alias bodies over their defining module", audit rows 3/5) was doc-only and unscheduled. This doc is that milestone's implementation spec, NOT a duplicate: it schedules M2, adds the explicit-import and annotation-scheme trigger classes (T1/T3) that the parent's M2 sketch did not cover, and extends closure from `TypeAliases` bodies to export schemes on T3 evidence. M4 (module-qualified nominal identity) remains parked there as a separate human decision.
 
 ## References
 

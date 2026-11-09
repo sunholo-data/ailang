@@ -2,7 +2,7 @@
 
 Status: Completed, 2026-10-09. Design and execution approved by Mark. The parent document retains its separate planned provider migration.
 
-Design: [operational addendum](m-codex-subscription-lane.md#operational-addendum-three-oauth-profiles-on-one-account-2026-10-09).
+Design: [operational addendum](../../planned/v0_52_6/m-codex-subscription-lane.md#operational-addendum-three-oauth-profiles-on-one-account-2026-10-09).
 
 Four days estimated, 2500 LOC including tests, medium/high integration risk. Recent executor auth fixes and Phase 1 landed the same day; daemon compatibility and cloud recovery dominate uncertainty, so estimates use a four-day buffer rather than extrapolating merge volume.
 

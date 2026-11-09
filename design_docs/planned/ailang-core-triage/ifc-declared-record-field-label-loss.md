@@ -20,4 +20,4 @@ fix (deep-label the whole value vs. field-precise projection vs. reuse HM types)
 and it changes what the checker rejects (rows 3 and 4). None found in existing
 docs: `m-mcp-oauth-package.md` T7 only designs around it, and
 `m-ifc-cross-module-labels.md` is the separate module-edge hole. Being fixed in
-an attended session: `design_docs/planned/v0_52_0/m-ifc-declared-record-labels.md`.
+an attended session: `design_docs/implemented/v0_52_0/m-ifc-declared-record-labels.md`.

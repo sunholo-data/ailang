@@ -1,6 +1,6 @@
 # Sprint Plan: M-CLAUDE-CODE-MODS (Phases 0–2)
 
-**Design doc**: [m-claude-code-mods.md](m-claude-code-mods.md)
+**Design doc**: [m-claude-code-mods.md](../../planned/m-claude-code-mods.md)
 **Sprint ID**: M-CLAUDE-CODE-MODS
 **Duration**: ~1.5 sessions (one working day)
 **Risk**: Medium — early-access external API; `claude plugin test` availability is server-gated (V11)

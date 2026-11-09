@@ -1,6 +1,6 @@
 # M-CLAUDE-CODE-MODS — AILANG features as Claude Code mods (interactive, local agent, headless)
 
-**Status**: In progress — Phases 0–2 implemented 2026-10-02 ([sprint plan](m-claude-code-mods-sprint-plan.md)); Phases 3–4 open
+**Status**: In progress — Phases 0–2 implemented 2026-10-02 ([sprint plan](../implemented/v0_52_0/m-claude-code-mods-sprint-plan.md)); Phases 3–4 open
 **Target**: v0.52.0 (Phase 0 spike can land on any patch)
 **Priority**: P2 — developer experience and fleet ergonomics; nothing is blocked without it
 **Estimated**: Phase 0 ~0.5 session · Phase 1 ~1 session · Phase 2 ~1–2 sessions · Phase 3 ~1 session · Phase 4 ~1 session

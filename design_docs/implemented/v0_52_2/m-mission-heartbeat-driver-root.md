@@ -212,10 +212,10 @@ Rows written were `<epoch>\t2026-10-03T12:04:…Z\tgate-0\t1\t` (label, attempt 
 
 ## Related documents
 
-[`m-mission-slot-heartbeat`](v1_0_0/m-mission-slot-heartbeat.md) (heartbeat instrument),
-[`m-mission-portability`](../implemented/v0_30_0/m-mission-portability.md) (cross-repo profiles),
-[`m-spawn-pin-enforcement`](../implemented/v0_35_0/m-spawn-pin-enforcement.md) (resolved driver),
-[`fleet-mission.md`](../fleet-mission.md) (Authority, D-FLEET-8). Duplicate gate (R1): 0.42/0.38, below threshold.
+[`m-mission-slot-heartbeat`](../../planned/v1_0_0/m-mission-slot-heartbeat.md) (heartbeat instrument),
+[`m-mission-portability`](../v0_30_0/m-mission-portability.md) (cross-repo profiles),
+[`m-spawn-pin-enforcement`](../v0_35_0/m-spawn-pin-enforcement.md) (resolved driver),
+[`fleet-mission.md`](../../fleet-mission.md) (Authority, D-FLEET-8). Duplicate gate (R1): 0.42/0.38, below threshold.
 
 ## Authority and axioms
 

@@ -437,12 +437,12 @@ as fixtures) — expect the three-step program to fail on step 1.
 ## Related Documents
 
 **Implemented (may inform design):**
-- [design_docs/implemented/v0_41_0/m-executor-policy-hardening.md](../../implemented/v0_41_0/m-executor-policy-hardening.md) — M6 (`.git` guard) and M7 (`fs_deny_write`), the one-matcher doctrine this fix extends; its evidence invariant ("every original counterexample becomes a permanent passing denial test") is adopted here
-- [design_docs/implemented/v0_19_0/m-fs-sandbox-diagnostics.md](../../implemented/v0_19_0/m-fs-sandbox-diagnostics.md) — sandbox refusal diagnostics (`E_FS_*`), the pattern the new refusal follows
+- [design_docs/implemented/v0_41_0/m-executor-policy-hardening.md](../v0_41_0/m-executor-policy-hardening.md) — M6 (`.git` guard) and M7 (`fs_deny_write`), the one-matcher doctrine this fix extends; its evidence invariant ("every original counterexample becomes a permanent passing denial test") is adopted here
+- [design_docs/implemented/v0_19_0/m-fs-sandbox-diagnostics.md](../v0_19_0/m-fs-sandbox-diagnostics.md) — sandbox refusal diagnostics (`E_FS_*`), the pattern the new refusal follows
 - [changelogs/v0.32-current.md](../../../changelogs/v0.32-current.md) — #1559 (one folded matcher, fail-closed over-denial) and #1554 (policy-tool write gate) entries, the immediate lineage
 
 **Planned (check for overlap):**
-- [design_docs/implemented/v0_35_0/m-fs-rename.md](../../implemented/v0_35_0/m-fs-rename.md) — the `FS.renameFile` design (both operands confined); no overlap, its contract is a regression fixture here
+- [design_docs/implemented/v0_35_0/m-fs-rename.md](../v0_35_0/m-fs-rename.md) — the `FS.renameFile` design (both operands confined); no overlap, its contract is a regression fixture here
 
 **Search:** SimHash/neural searches over implemented/ and planned/ found no
 existing or queued doc on deny-pattern ancestor protection (top hits unrelated);

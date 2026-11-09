@@ -2,8 +2,8 @@
   "sprint_id": "M-AUTO-MERGE-CODE-PRS",
   "status": "completed",
   "created": "2026-10-08T19:11:17.716262+00:00",
-  "design_doc": "design_docs/planned/v0_52_6/m-auto-merge-code-prs.md",
-  "sprint_plan": "design_docs/planned/v0_52_6/m-auto-merge-code-prs-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_53_1/m-auto-merge-code-prs.md",
+  "sprint_plan": "design_docs/implemented/v0_53_1/m-auto-merge-code-prs-sprint-plan.md",
   "github_issues": [
     1599
   ],
@@ -122,7 +122,7 @@
   "last_session": "2026-10-08T20:32:13.844665+00:00",
   "last_checkpoint": "M1-M4 repository implementation complete; independent evaluation, CI and deployment pending",
   "completed": "2026-10-08T20:39:37.685388+00:00",
-  "validation_report": "design_docs/planned/v0_52_6/m-auto-merge-code-prs-implementation.md",
+  "validation_report": "design_docs/implemented/v0_53_1/m-auto-merge-code-prs-implementation.md",
   "deployment_status": "pending: Mark protection confirmation, one staging merge, ten clean production merges",
   "evaluation_status": "pending independent coordinator sprint-evaluator"
 }

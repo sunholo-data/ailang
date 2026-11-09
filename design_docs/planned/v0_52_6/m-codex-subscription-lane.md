@@ -400,7 +400,7 @@ All rows verified by code reads / greps in this checkout (`c3bfb1c0`, shallow de
 ## Operational addendum: three OAuth profiles on one account (2026-10-09)
 
 **Status:** Operational addendum implemented and validated in v0.53.1 on 2026-10-09; independent evaluation passed (97/100). The parent provider migration remains planned.
-**Rollout evidence:** [completed operational sprint](m-codex-oauth-profiles-sprint-plan.md#execution-evidence-2026-10-09).
+**Rollout evidence:** [completed operational sprint](../../implemented/v0_53_1/m-codex-oauth-profiles-sprint-plan.md#execution-evidence-2026-10-09).
 **Priority:** P1. **Estimated:** 2–4 days including cloud rollout and fault tests.
 **Scope:** Credential ownership for interactive use, local missions, and cloud
 executions. This closes the fleet-auth follow-up explicitly deferred by Phase 1;

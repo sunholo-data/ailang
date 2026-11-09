@@ -109,7 +109,7 @@ No design decision remains open. Test placement is frozen for this plan as the n
 ## Executor handoff
 
 Sprint ID: `M-MCPHTTP-TYPED-HOST-ERRORS`.
-Plan path: `design_docs/planned/v0_52_6/m-mcphttp-typed-host-errors-sprint-plan.md`.
+Plan path: `design_docs/implemented/v0_53_1/m-mcphttp-typed-host-errors-sprint-plan.md`.
 Progress path: `.ailang/state/sprints/sprint_M-MCPHTTP-TYPED-HOST-ERRORS.json`.
 Execute M1 → M2 → M3 after sprint approval. Expected effort: 6h + 2h buffer; estimated LOC: 270. All milestone passes/start/completion fields remain null at planning completion.
 

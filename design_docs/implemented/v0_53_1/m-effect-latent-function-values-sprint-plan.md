@@ -3,7 +3,7 @@
 **Status**: Completed — final validation passed; independent evaluation round 2 PASS 96/100. Execution authorized by the approved planner handoff on 2026-10-08.
 **Date**: 2026-10-08
 **Target**: v0.53.0; move to v0.54.0 if the v0.53.x train is closed. Do not ship this acceptance-changing fix as a v0.52.x patch.
-**Design**: [approved design](../v0_48_0/m-effect-latent-function-values.md), merged in #1378.
+**Design**: [approved design](../../planned/v0_48_0/m-effect-latent-function-values.md), merged in #1378.
 **Tracking**: Refs #1326, Refs #573. Sequencing: Refs #616.
 **Duration**: 5 working days (approximately 30 hours, including 25% contingency).
 **Estimated LOC**: 750 total: 270 implementation, 430 tests, 50 example/documentation.
@@ -97,7 +97,7 @@ Ran ailang pkg search effects on 2026-10-08: returned sunholo/billing_entitlemen
 
 ## Scope decisions and handoff
 
-**Maintainer rulings (Mark, 2026-10-08):** (1) ship L1-open now — do not hold the release for closed rows (V13 width hole stays Phase 3, behind a spike); (2) accept the breaking-change posture — minor bump, CHANGELOG "Breaking — soundness", no opt-out flag. Both are recorded as ticked Design Freeze items in the [design](../v0_48_0/m-effect-latent-function-values.md). Sprint-plan approval remains the execution gate. Closed rows/open-on-use and V13 width enforcement are excluded from this 750-LOC estimate. Record V13 as a limitation linked to the existing issues; do not create another GitHub issue in this task.
+**Maintainer rulings (Mark, 2026-10-08):** (1) ship L1-open now — do not hold the release for closed rows (V13 width hole stays Phase 3, behind a spike); (2) accept the breaking-change posture — minor bump, CHANGELOG "Breaking — soundness", no opt-out flag. Both are recorded as ticked Design Freeze items in the [design](../../planned/v0_48_0/m-effect-latent-function-values.md). Sprint-plan approval remains the execution gate. Closed rows/open-on-use and V13 width enforcement are excluded from this 750-LOC estimate. Record V13 as a limitation linked to the existing issues; do not create another GitHub issue in this task.
 
 The planning PR body must contain Refs #1326, Refs #573 and Refs #616, with no closing keywords. Only the implementation PR, after AC1–AC12 pass, should contain Closes #1326 and Closes #573; retain Refs #616. Do not close #616 here. No GitHub issue is created. Plan/JSON remain not_started for the coordinator's approval path; merging the approved planning PR is the coordinator handoff, or an attended user says execute sprint. Do not dispatch execution before that gate.
 

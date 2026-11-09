@@ -380,7 +380,7 @@ remain separate; this score does not authorize product changes.
 
 - [Package authority chokepoint](../../planned/v0_54_19/m-pkg-authority-chokepoint.md): landed
   guard ordering, transport and dispatch constraints, not a credential-file lane.
-- [Executor environment hardening](../../planned/v0_49_1/m-executor-env-hardening.md): separates
+- [Executor environment hardening](../v0_50_0/m-executor-env-hardening.md): separates
   child credentials; this proposal changes author CLI input, not fleet identity.
 - [macOS agent UID isolation](../../planned/v0_54_13/m-mac-agent-uid.md): explicit same-UID
   threat limitation; no account/permission deployment is part of this feature.
