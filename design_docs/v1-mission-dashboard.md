@@ -2,14 +2,14 @@
 
 _Snapshot, overwritten every iteration. History: `v1-mission.md` (STATUS) + `v1-mission-log.md`._
 
-**Last update:** 2026-11-09 · ATTENDED re-cut (`D-64`) · **Goal distance:** **N = 2 open bar-v3 gate items** (was 7; G1+G3 closed by `D-65`, G4 closed on the prod domain, #1443 closed by #2184) (unit changed from D-51's "design docs remaining", last N = 12 on 2026-09-14)
+**Last update:** 2026-11-09 · ATTENDED re-cut (`D-64`) · **Goal distance:** **N = 1 open bar-v3 gate item** (was 7; G1+G3 closed by `D-65`, G4 closed on the prod domain, G2 closed by #2184 + #2185) — only G5 remains, at release (unit changed from D-51's "design docs remaining", last N = 12 on 2026-09-14)
 **Latest release:** v0.57.4. The V1 launchd loop has been PAUSED since 2026-09-08 (`~/.ailang/state/mission-control.disabled`) and stays paused; the attended session is the orchestrator and dispatches the work to subagents.
 
 ## The bar (v3, "1.0 = a promise we can keep")
 | Gate | Open | What closes it |
 |---|---|---|
 | G1 Stability promise ratified | 0 ✓ | re-draft `stability.md` against today's surface → Mark ratifies |
-| G2 Zero open P0s | 1 | #1443 (`pure func` + effect row), #1134 (IFC labels across modules) |
+| G2 Zero open P0s | 0 ✓ | #1443 (`pure func` + effect row), #1134 (IFC labels across modules) |
 | G3 Packages in the promise | 0 ✓ | Packages tier section + one published package as the worked example |
 | G4 Cloud exec MCP Stable | 0 ✓ | tool surface listed Stable; prod on a custom domain (docparse precedent) |
 | G5 Simplification Phase 5 | 1 | metrics diff fragment for the v1.0.0 release notes |
@@ -22,7 +22,7 @@ Published at release, not gated: fleet-tier pass rates, cost-per-verified-succes
 |---|---|---|
 | G1+G3 | #2182 stability re-draft | **CLOSED** — merged `71ec9bd36`, ratified by Mark (`D-65`) |
 | G2 #1443 | #2184 `pure` ⇒ empty row (BREAKING) | **CLOSED** — merged `8d582b976`; teaching surfaces verified clean (active prompt v0.16.12) |
-| G2 #1134 | #2185 cross-module IFC (BREAKING) | IFC sites fixed: email-parse#43 merged, ✓ email 0.10.2 published; ✓ email-parse#44 merged, ✓ eparse 1.11.3 published — #2185 downstream DONE; follow-up #2187 (inferred rules, P1) |
+| G2 #1134 | #2185 cross-module IFC (BREAKING) | **CLOSED** — merged `bdbeebfea` (cache key v10; structural list/record/tuple label checks); IFC sites fixed: email-parse#43 merged, ✓ email 0.10.2 published; ✓ email-parse#44 merged, ✓ eparse 1.11.3 published — #2185 downstream DONE; follow-ups #2187, #2196 (P1) |
 | G4 | multivac#12 issuer → `executor.ailang.sunholo.com` | **CLOSED** — promoted dev→test→prod `e752cc2`, metadata names the host, `ailang mcp check` auth/transport PASS. Not gated: 22 docs tools lack `title` + read-only hints (A7, directory readiness) |
 | docs | #2181 runbook, #2183 stale sweep | MERGED (`d79a5d3be`, `5bda6c3eb`); charter links re-pointed after #2186's moves |
 
