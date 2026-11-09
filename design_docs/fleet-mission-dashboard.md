@@ -1,19 +1,18 @@
-# Fleet mission dashboard — iteration96
+# Fleet mission dashboard — iteration 97
 
-Updated 2026-11-08; scheduled unattended. [Bookkeeping2039](https://github.com/sunholo-data/ailang/issues/2039).
+Updated 2026-11-09; scheduled unattended. [Bookkeeping #2172](https://github.com/sunholo-data/ailang/issues/2172) (predecessor #2039, closed and rotated this fire).
 
-- Outcome: **PARKED / HARNESS**, needs human design direction; independent final MiniMax **FAIL**, implementation score N/A.
-- Concrete P1: [role artifact contract](planned/m-fleet-role-artifact-contract.md), instructions only; no live skill/runtime/source edits.
-- Reviews: final quorum BLOCKED (OpenAI reject, Google pass, Anthropic absent/quota); both Kimi+GLM authors excluded.
-- Remaining defect: universal policy-compliance claim exceeds scoped evidence; duplicate gate unresolved; explicit design approval absent.
-- D-FLEET-44: A(recommended) corrected policy-scope/conflict evidence and duplicate reconciliation, then separate approval. B/default immediately: no change.
-- Queue26open, ledger43rows/27OPEN; all prior42rows/defaults preserved. Nine prior proposal drafts and record95 preserved.
-- Routing: all4Agent roles spawned through model-pinned CLI bridges; planner/executor readiness only, no formal plan or execution.
-- Designer Kimi initialsuccess, revisionrc19quota; declared OpenRouterGLM completed same interrupted revision. No third redesign.
-- Independent MiniMax completed both fresh pick and final review with full own-session reads/ack; judge did not author proposal.
-- Goal: clause1UNMEASURED,2UNMET,3MET,4met by its letter,5preserved. **Goal unmoved.** Harness share18/20, expected fleet remit.
-- Cost: metered$1.03984416 reported (<5); quota Codex/Ollama captured byrole; controller/bridge burn unreported.
-- Next: await D44/detailed old decisions. D25/#2165, D42/#2150, D26/#2065 remain banked, not READY implementation.
-- Cadence6h, zero-ticket fires skip; D43defaultB leaves fleet idle fingerprint disabled.
-- Base252680e1b fullSHA in log96:18acceptable checks, CI+BuildAndRelease success. Draft-only record; no merge/remote-green claim.
-- Evidence: [log](fleet-mission-log.md), [final judge](fleet-mission-evidence/iteration96/design-judge.md), [decisions](fleet-mission-evidence/iteration96/open-decisions.md).
+- Outcome: **PARKED / HARNESS** (needs-human-review). The independent sonnet judge ruled **PARK-UPHELD**. Nothing was planned, built or merged.
+- Pick: the new World ticket `skill:idle-record-barred-on-degraded-no-pick-fire`, the only one of 27 with no decision row.
+- Finding: no product mission has ever promoted an idle fingerprint; World 363–370 were all barred by Gate 5's "degraded fire" clause.
+- Design: [m-idle-record-degraded-bar](planned/m-idle-record-degraded-bar.md) (opus designer). Quorum BLOCKED in r1 and r2. r2 found that the proof block fails open on a parser error, and that no evidenced fire would qualify.
+- D-FLEET-45: A = one more bounded revision applying the r2 fixes; B (recommended, default) = no change. World can make the fingerprint engage by recording attended steps as dev-side ledger rulings.
+- Queue: 27 open tickets. Ledger: 44 rows / 28 OPEN (D-FLEET-16..23, 25..29, 31..45).
+- Routing: designer opus (Agent, rotation kimi→claude), evaluator sonnet (Agent). Planner and executor were not spawned, because the quorum gate forbids planning a doc that is still blocked.
+- Goal: clause 1 UNMEASURED, 2 UNMET, 3 MET, 4 met by its letter, 5 preserved. **Goal unmoved.** Harness share 19/20, as expected for the fleet's remit.
+- Cost: metered $0.2941 (two quorum rounds); designer and evaluator ran on the Anthropic subscription; controller tokens not reported.
+- Weekly sweep: 65 open issues, 57 with zero mentions, 0 new fleet items. [Table](fleet-mission-evidence/iteration97/issue-sweep.md).
+- Records 95–97 are on stacked draft PRs (#2169 → #2171 → iteration 97). #2171 shows a red `Build macos-latest` leg on a docs-only diff, not yet triaged.
+- Dev: CI, Build and Release and Docs all success @ `b5b5d149c` (22 checks, 0 not green).
+- Next: a ruling on D-FLEET-45 or any of D-FLEET-16..44, or a new ticket. Otherwise the next fire finds every ticket ruling-gated.
+- Evidence: [log](fleet-mission-log.md), [judge](fleet-mission-evidence/iteration97/park-judge.md), [quorum r2](fleet-mission-evidence/iteration97/quorum-r2.json).

@@ -1,0 +1,63 @@
+{
+  "doc": "design_docs/planned/m-idle-record-degraded-bar.md",
+  "iso_ts": "2026-11-09T09:21:36Z",
+  "reviewers": [
+    {
+      "model": "oc-kimi-k3",
+      "cost_usd": 0.09147899999999999,
+      "tokens_in": 5043,
+      "tokens_out": 5090,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "D1(d) and the replacement bullet assert 'Any PARKED-ON-LANE item or clock wait, as today (standing rule 8)' and mint a new definition — 'a scheduled duty that falls due within 24 h … is a clock wait' — but no verification-log row quotes standing rule 8: no file, no line, no text, and no evidence that any 'scheduled duty' or '24 h' definition exists anywhere in the repo. This is the doc's operative replacement text resting on an unverified premise (Gate 1 failure), and it is self-undermining: the doc's core indictment of 33190af48 is that the old bar was 'a conservative controller choice, not an attended ruling' with 'no stated rationale,' yet the 24 h scheduled-duty clause is exactly that — a brand-new barring condition with no D-row and no observed prior existence, smuggled in under the words 'as today.' If standing rule 8 says something different (or nothing about scheduled duties), the replacement text is wrong on its face, and the proposed test arms (T1–T5) only grep for the new wording, so nothing would ever catch the discrepancy.",
+        "catch": "Two secondary verification gaps: (1) the Problem claim 'Every live World fire since its queue became fully human-gated has fallen back somewhere, so none has recorded' is verified only for iterations 369–370 (V10); V11 shows durations, not that those 8 fires were degraded or would otherwise have recorded, and the doc's own Risks section concedes World's current state still wouldn't record under D2. (2) T1's extraction boundary — `### IDLE RECORD` up to the line `1. Scan` — is asserted without any V-row showing the section's surrounding structure (the log only establishes lines 11–31), so the test harness assumption about where the extract ends is unverified.",
+        "proposed_fix": "Add V-rows before resubmitting: `grep -rn 'standing rule 8\\|PARKED-ON-LANE' .claude/skills/mission-control/ tools/launchd/ design_docs/ | head` to locate the rule, `sed -n` of its actual text, and a search for any existing 'scheduled duty'/'weekly sweep' definition. Then either (a) replace the invented sentence with the rule quoted verbatim and cited — e.g. 'Any PARKED-ON-LANE item or clock wait (standing rule 8, \u003cfile\u003e:\u003cline\u003e: \"\u003cquoted text\u003e\")' — deleting 'A scheduled duty that falls due within 24 h … is a clock wait'; or (b) if the 24 h duty clause is genuinely new, label it a proposed new ruling in the ticket resolution and route it through a fleet ledger row rather than asserting it as existing behavior. Add a T-arm asserting the standing-rule citation is present in the extract. Weaken the Problem sentence to 'the degraded fires verified in iterations 369–370 were not recorded' unless a full-log grep over mission-world-slot-verdicts.log / world reports justifies the generalization, and add a V-row showing the lines around the IDLE RECORD section so T1's `1. Scan` boundary is verified rather than assumed."
+      },
+      "landed": null
+    },
+    {
+      "model": "gpt6-1-sol",
+      "cost_usd": 0.012934000000000001,
+      "tokens_in": 4982,
+      "tokens_out": 297,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "D2 substitutes an OPEN-row citation for proof that the actual unblock event changes the fingerprint. An attended action or external predicate can become satisfied while its cited ledger row remains OPEN, leaving the hash unchanged and causing the driver to skip a now-actionable fire. The proposed remedy of merely giving World candidates 150 and 151 ledger rows therefore does not establish the safety condition D2 claims to enforce.",
+        "catch": "The gate-table command proves only that row IDs are currently OPEN. It does not verify the causal dependency between each candidate's unblock event and a hashed status change. The replacement text consequently permits cases that D2's introductory rule and the Risks section say are barred.",
+        "proposed_fix": "Replace the citation-only qualification with: 'For EVERY candidate, identify its actual unblock event and the fingerprint input that must change before the candidate becomes actionable. An OPEN ledger-row citation qualifies only if resolving that row is itself a necessary prerequisite to actionability; merely tracking an attended action or external predicate in an OPEN row does not qualify. If the external event can make the candidate actionable without a hashed change, do not record.' Add candidate, unblock event, hashed transition, and dependency evidence columns to the report table. Revise the World remedy to require verifying this dependency rather than merely adding rows, and add a negative fixture for an external predicate becoming true while its tracking row remains OPEN."
+      },
+      "landed": null
+    },
+    {
+      "model": "gemini-4-argon",
+      "cost_usd": 0.027604,
+      "tokens_in": 5636,
+      "tokens_out": 253,
+      "present": true,
+      "result": {
+        "verdict": "pass",
+        "strongest_objection": "The replacement snippet in 'Replacement text' hardcodes `origin/dev:$MISSION_DOC` while deferring non-`dev` default branch resolution to the executor via a parenthetical note ('For a mission whose origin/HEAD is not dev, use the branch that idle-fingerprint.sh resolves. The executor should state that in the text in one clause'), rather than writing the exact branch-resolution command or finalized prose directly in the replacement block.",
+        "catch": "Inline the branch resolution or the exact clause into the replacement text block so the executor does not have to inspect `idle-fingerprint.sh` and invent wording for non-`dev` missions.",
+        "proposed_fix": "In the Replacement text section, replace `git -C \"$MISSION_WORKDIR\" show \"origin/dev:$MISSION_DOC\" \u003e\"$t\"` with the exact branch resolution used by `idle-fingerprint.sh` (or include the finalized parenthetical clause inside the fenced replacement text itself) and remove the meta-instruction to the executor."
+      },
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Controller re-checked V5/V7/V9/V10 first-party: --record promotes a pre-controller snapshot whose hash has no lane input, so lane degradation cannot change the fingerprint; the remaining risk is a sloppy NONE, which D2's ledger cross-check makes mechanical. Nit: the gate-table block hardcodes origin/dev while the prose says origin/\u003cbranch\u003e; the executor must resolve the branch the way idle-fingerprint.sh does."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "oc-kimi-k3: D1(d) and the replacement bullet assert 'Any PARKED-ON-LANE item or clock wait, as today (standing rule 8)' and mint a new definition — 'a scheduled duty that falls due within 24 h … is a clock wait' — but no verification-log row quotes standing rule 8: no file, no line, no text, and no evidence that any 'scheduled duty' or '24 h' definition exists anywhere in the repo. This is the doc's operative replacement text resting on an unverified premise (Gate 1 failure), and it is self-undermining: the doc's core indictment of 33190af48 is that the old bar was 'a conservative controller choice, not an attended ruling' with 'no stated rationale,' yet the 24 h scheduled-duty clause is exactly that — a brand-new barring condition with no D-row and no observed prior existence, smuggled in under the words 'as today.' If standing rule 8 says something different (or nothing about scheduled duties), the replacement text is wrong on its face, and the proposed test arms (T1–T5) only grep for the new wording, so nothing would ever catch the discrepancy.",
+      "gpt6-1-sol: D2 substitutes an OPEN-row citation for proof that the actual unblock event changes the fingerprint. An attended action or external predicate can become satisfied while its cited ledger row remains OPEN, leaving the hash unchanged and causing the driver to skip a now-actionable fire. The proposed remedy of merely giving World candidates 150 and 151 ledger rows therefore does not establish the safety condition D2 claims to enforce."
+    ],
+    "absent_reviewers": [],
+    "total_cost_usd": 0.132017,
+    "total_tokens_in": 15661,
+    "total_tokens_out": 5640
+  }
+}
