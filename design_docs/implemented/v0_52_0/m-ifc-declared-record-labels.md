@@ -192,7 +192,7 @@ not field-precise; recorded as a follow-up precision item, not a security gap.
 
 - **Module-local types only.** A type imported from another module is not resolvable by this
   single-module pass (`deep` of an unknown name is ⊥ — today's behaviour). That is the
-  cross-module hole tracked by `design_docs/planned/m-ifc-cross-module-labels.md`, explicitly not
+  cross-module hole tracked by `design_docs/implemented/v0_57_5/m-ifc-cross-module-labels.md`, explicitly not
   fixed here and not regressed (its fixture `inbox_v2_app.ail` must keep its current verdict).
 - **Generic declared types** (`type Box[a] = {v: a}`): `staticType(b.v)` is `nil` (a field typed by
   a type parameter is not resolved), so `b.v` falls back to `labelOf(b)` = flow ⊔ deep(`Box[string<s>]`)
@@ -290,6 +290,6 @@ Net +4, no hard violations.
 ## Related Documents
 
 - `design_docs/implemented/v0_16_0/m-taint-types.md` — label lattice
-- `design_docs/planned/m-ifc-cross-module-labels.md` — the module-edge hole (out of scope)
+- `design_docs/implemented/v0_57_5/m-ifc-cross-module-labels.md` — the module-edge hole (out of scope)
 - `design_docs/implemented/v0_52_0/m-mcp-oauth-package.md` — T7, V13–V16 (consumer of this fix)
 - `docs/docs/guides/ifc-labels.mdx`

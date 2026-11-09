@@ -6,7 +6,7 @@
   "reviewer": "root, independent of executor pr_reconcile",
   "evaluated_commit": "40a5ca9eac5b4175a366fc441c451f4dfb0f12aa",
   "pull_request": 1771,
-  "design_doc": "design_docs/planned/m-ifc-cross-module-labels.md",
+  "design_doc": "design_docs/implemented/v0_57_5/m-ifc-cross-module-labels.md",
   "sprint_plan": "design_docs/planned/v0_53_0/m-ifc-cross-module-labels-sprint-plan.md",
   "total_score": 95,
   "pass_threshold": 70,

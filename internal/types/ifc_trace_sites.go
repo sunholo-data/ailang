@@ -27,13 +27,27 @@ import (
 // CheckModuleIFCWithTraceSites is CheckModuleIFC plus the trace-redaction
 // sites: each labelled call's FuncCall.Pos mapped to its sorted,
 // comma-joined label names ("pii,secret").
-func CheckModuleIFCWithTraceSites(file *ast.File) ([]*TypeCheckError, map[ast.Pos]string) {
+//
+// imports are the module's imported values (ifc_imports.go): a call to one is
+// checked against its exported demands, and its exported result label makes
+// the call — and every call the result flows into — a redaction site, so a
+// labelled value returned by ANOTHER user module is redacted too. An import
+// with missing or malformed metadata is an error, never a clean callee.
+func CheckModuleIFCWithTraceSites(file *ast.File, imports IFCImports) ([]*TypeCheckError, map[ast.Pos]string) {
 	if file == nil {
 		return nil, nil
+	}
+	if err := imports.Validate(); err != nil {
+		return []*TypeCheckError{{
+			Kind:       IFCAnalysisLimitError,
+			Message:    "information-flow metadata missing or malformed for an import: " + err.Error(),
+			Suggestion: "recompile the imported module from source (clear the compile cache) so its interface carries IFC summaries",
+		}}, nil
 	}
 	sites := map[ast.Pos]map[string]bool{}
 	errs := guardIFCAnalysis(func() []*TypeCheckError {
 		c := newIFCChecker(file)
+		c.setImports(imports)
 		c.traceSites = sites
 		return c.run(file)
 	})

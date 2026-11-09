@@ -481,15 +481,16 @@ rendered to strings and retained. Two consequences worth planning around:
   accumulator serialises O(n) data on each of n calls. Measured on a 400-iteration
   `concat(acc, [x])` loop: **2478 MB** at `deep` versus **105 MB** at `standard`.
   Use `standard` (or `off`) for anything data-intensive.
-- **IFC-labelled values are redacted, within a module** (`M-TRACE-LABEL-AWARE`, v0.36.0).
+- **IFC-labelled values are redacted** (`M-TRACE-LABEL-AWARE`, v0.36.0).
   The IFC checker marks every call that receives, captures or returns a labelled value
   (`string<secret>`, a record with a `<pii>` field, the result of `secret()`), and nothing
   in that call's dynamic extent records a value: function args/results and effect
   args/results become `<redacted:secret>`, while names, arity and the span tree are kept.
   This applies at every tier, including effect spans at `standard`. It over-redacts by
   design — an unlabelled value computed *inside* a labelled call is withheld too.
-  **Not covered yet:** a labelled value returned by a function in *another user module*
-  (the single-module IFC gap, `m-ifc-cross-module-labels`). The bytecode VM does not
+  Since M-IFC-CROSS-MODULE this includes a labelled value returned by a function in
+  *another user module*: the importer reads the library's exported IFC summary, so the
+  call and everything its result flows into are marked too. The bytecode VM does not
   carry the marks, so a traced labelled program falls back from `--bytecode` to the
   evaluator, and `--strict-bytecode` refuses it. For a guarantee that does not depend on
   the checker, use `AILANG_TRACE_VALUES=off` (below).

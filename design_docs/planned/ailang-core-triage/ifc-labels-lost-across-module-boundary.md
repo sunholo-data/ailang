@@ -2,12 +2,12 @@
 
 - **Date**: 2026-09-17
 - **Class**: bug
-- **Recommend**: duplicate-of design_docs/planned/m-ifc-cross-module-labels.md
+- **Recommend**: duplicate-of design_docs/implemented/v0_57_5/m-ifc-cross-module-labels.md
 - **Searched**: `rg -il "M-TAINT|taint|label.*enforce|information-flow" design_docs/`; `ls design_docs/planned/`; then read `m-ifc-cross-module-labels.md` and `m-ifc-authority-scoping.md` in full; `grep -n "Record|field" internal/types/ifc_check.go`
 - **Estimate**: n/a (duplicate)
 
 The report is the exact subject of the already-planned M-IFC-CROSS-MODULE doc
-(`design_docs/planned/m-ifc-cross-module-labels.md`, target v0.39.0), which cites
+(`design_docs/implemented/v0_57_5/m-ifc-cross-module-labels.md`, target v0.39.0), which cites
 the same reporter and version ("GitHub issue #1134 (daneel, measured on
 v0.36.0)") and the same repro shape — an exported `gate(input: string{not email})`
 callee whose refinement is never checked by an importing module. The root cause

@@ -224,6 +224,9 @@ func (c *ifcChecker) applyCallable(fn *ifcCallable, args []ifcVal, at *ast.FuncC
 			}
 			result = joinCallable(result, probe(a.owner, a.idx, a.res+1))
 		case fnOpaque:
+			if a.imported != nil {
+				c.checkDemands(a, args, at, via) // the export's declared demands (M-IFC-CROSS-MODULE)
+			}
 			result = joinCallable(result, c.applyOpaque(args, at, calleeLabel, via, depth))
 		case fnCtor:
 			for _, arg := range args {
@@ -245,7 +248,11 @@ func (c *ifcChecker) checkDemands(a *ifcFn, args []ifcVal, at *ast.FuncCall, via
 			continue
 		}
 		if !c.silent {
-			c.addErrs(demandErrors(at, a.name, d, eraseRho(args[i].label), via))
+			if a.kind == fnOpaque && a.imported != nil {
+				c.addErrs(c.importedDemandErrors(at, a.name, d, eraseRho(args[i].label), via))
+			} else {
+				c.addErrs(demandErrors(at, a.name, d, eraseRho(args[i].label), via))
+			}
 		}
 		if !LabelEqual(c.activeRho(args[i].label), LabelBottom()) {
 			symbolic = true

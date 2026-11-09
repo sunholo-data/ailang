@@ -3695,6 +3695,44 @@
       }
     },
     {
+      "path": "runnable/ifc_cross_module/lib.ail",
+      "status": "working",
+      "tags": [
+        "ifc",
+        "labels",
+        "cross-module",
+        "m-ifc-cross-module"
+      ],
+      "description": "Library exporting a {not secret} sink, a <secret> producer and a declassifier; importers are held to all three",
+      "modules": [
+        "std/string"
+      ]
+    },
+    {
+      "path": "runnable/ifc_cross_module/app.ail",
+      "status": "working",
+      "tags": [
+        "ifc",
+        "labels",
+        "cross-module",
+        "m-ifc-cross-module"
+      ],
+      "description": "An imported {not secret} sink and <secret> result are enforced across the module boundary; the declassified call is accepted",
+      "modules": [
+        "std/io"
+      ],
+      "run_flags": [
+        "--caps",
+        "IO,Declassify",
+        "--entry",
+        "main"
+      ],
+      "expected": {
+        "stdout": "audit: fp:FAKE\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/effect_row_var_pure_caller.ail",
       "status": "working",
       "tags": [
@@ -4305,11 +4343,11 @@
     }
   ],
   "statistics": {
-    "total": 324,
-    "working": 316,
+    "total": 326,
+    "working": 318,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9753086419753086,
+    "coverage": 0.9754601226993865,
     "experimental": 0
   },
   "milestones": {

@@ -353,6 +353,11 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 	// M-TYPE-NAME-SHADOW: the module's own type declarations win over any
 	// same-named type from its imports (direct or transitive).
 	shadowLocalTypeNames(imports, mod.File, modID)
+	ifcImports, err := resolveIFCImports(imports, st.modLinker)
+	if err != nil {
+		return fmt.Errorf("IFC import metadata in %s: %w", modID, err)
+	}
+	imports.IFC = ifcImports
 
 	elaborator := elaborate.NewElaboratorWithPath(modID)
 	elaborator.SetGlobalEnv(imports.GlobalRefs)
@@ -362,7 +367,6 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 		elaborator.RegisterImportedConstructorAs(ctorName, info.CanonicalName, info.TypeName, info.Arity, info.TypeParamCount)
 	}
 
-	var err error
 	unit.Core, err = elaborator.ElaborateFile(mod.File)
 	if err != nil {
 		return err
@@ -389,7 +393,7 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 	for name, params := range elaborator.GetTypeAliasParams() {
 		aliasParams[name] = params
 	}
-	if err := buildAndRegisterInterface(unit, modID, compileResult.ModuleTypeEnv, st.modLinker, imports.ImportedTypeAliases, elaborator.GetTypeAliases(), aliasParams, elaborator.GetDerivedEqTypes()); err != nil {
+	if err := buildAndRegisterInterface(unit, modID, compileResult.ModuleTypeEnv, st.modLinker, imports.ImportedTypeAliases, elaborator.GetTypeAliases(), aliasParams, elaborator.GetDerivedEqTypes(), imports.IFC); err != nil {
 		return err
 	}
 

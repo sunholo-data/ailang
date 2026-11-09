@@ -57,6 +57,7 @@ const (
 	fnProbe
 	// fnOpaque is an imported or otherwise unknown function. Passing a
 	// callable to it takes the conservative arg-join fallback (design F2).
+	// An imported one also carries its export's declared demands in params.
 	fnOpaque
 	// fnCtor is a data constructor: it stores its arguments, it never applies
 	// them, so no fallback check is needed.
@@ -69,7 +70,7 @@ const (
 )
 
 type ifcFn struct {
-	imported *ImportedIFCSig // supplied facts for summary analysis only; no imported demands yet (M3)
+	imported *ImportedIFCSig // an imported export's summary: result label + declared demands (ifc_imports.go)
 	kind     fnKind
 	name     string      // display name for diagnostics
 	params   []ifcDemand // positional demands (fnTop, fnLambda, fnDeclared)

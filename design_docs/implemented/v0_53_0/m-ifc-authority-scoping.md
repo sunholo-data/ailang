@@ -315,7 +315,7 @@ cross-module or runtime scope. The companion must reuse this result policy.
 ## Related Documents
 
 **Planned (companion):**
-- [m-ifc-cross-module-labels.md](../../planned/m-ifc-cross-module-labels.md) — iface IFC summary
+- [m-ifc-cross-module-labels.md](../v0_57_5/m-ifc-cross-module-labels.md) — iface IFC summary
   and imported-callee enforcement; owns the module-boundary half. Coordinate the
   `declassify` field shape (label list, not bool).
 

@@ -9,7 +9,7 @@
 **Status:** M1–M2 repaired, independent evaluation pending (2026-10-29); M3–M4 pending
 **Date:** 2026-10-08
 **Issues:** Refs #1134; Refs #1132 (part 1 only)
-**Design:** `design_docs/planned/m-ifc-cross-module-labels.md` (merged df8bc23ca)
+**Design:** `design_docs/implemented/v0_57_5/m-ifc-cross-module-labels.md` (merged df8bc23ca)
 **Scheduling approval:** Mark, 2026-10-08, P0 issue triage
 **Duration:** 5 working days, approximately 31 focused hours
 **Depends on:** M-IFC-AUTHORITY-SCOPING implementation (Refs #752) — merged to dev before this sprint starts; this branch is rebased on it
@@ -89,13 +89,13 @@ Files: `internal/types/ifc_check.go`, `internal/pipeline/pipeline_module_imports
 
 Examples: M4's library/app pair and positive declassification caller; use Go fixtures for negative calls, closure arguments, aliases, and recursive wrappers.
 
-- [ ] #1134 two-module repro fails, naming caller location, canonical imported callee and forbidden parameter.
-- [ ] Declared secret return and unannotated intrinsic-secret return both taint caller sinks.
-- [ ] Imported transparent functions join argument labels, including closure body taint.
-- [ ] Imported Check C: a library function with a positive param label (e.g. `string<sqlsafe>`) called from another module with an uncovered label (e.g. `<arg>` or `<secret>`) fails with ParamLabelCoverError naming caller location and imported callee; ⊥/literal and matching-label arguments pass.
-- [ ] A legal imported Declassify path passes for bare and scoped (`Declassify[label=email]`) library functions; a scoped imported declassifier does not authorize an unrelated label; library return-label violations still fail.
-- [ ] Selective, renamed, qualified, shadowed, and transitive wrapper cases resolve correctly.
-- [ ] CLI and REPL agree for positive and negative fixtures; failed REPL loads publish nothing.
+- [x] #1134 two-module repro fails, naming caller location, canonical imported callee and forbidden parameter.
+- [x] Declared secret return and unannotated intrinsic-secret return both taint caller sinks.
+- [x] Imported transparent functions join argument labels, including closure body taint.
+- [x] Imported Check C: a library function with a positive param label (e.g. `string<sqlsafe>`) called from another module with an uncovered label (e.g. `<arg>` or `<secret>`) fails with ParamLabelCoverError naming caller location and imported callee; ⊥/literal and matching-label arguments pass.
+- [x] A legal imported Declassify path passes for bare and scoped (`Declassify[label=email]`) library functions; a scoped imported declassifier does not authorize an unrelated label; library return-label violations still fail.
+- [x] Selective, renamed, qualified, shadowed, and transitive wrapper cases resolve correctly.
+- [x] CLI and REPL agree for positive and negative fixtures; failed REPL loads publish nothing.
 
 Risk: alias resolution bypasses contracts. Share/import the resolved identity map rather than implementing independent spelling guesses.
 
@@ -108,10 +108,10 @@ Create `examples/runnable/ifc_cross_module/lib.ail`, `app.ail`, and `README.md` 
 
 Update `docs/docs/guides/ifc-labels.mdx`: remove the declaring-module-only limitation and cross-module sink disclaimer only after the regression matrix passes, replace them with enforced imported-contract behavior, and retain the independent Z3 limitation. Add a breaking behavior/cache invalidation release note in the current changelog. If teaching-prompt text needs changing, record it in the sprint JSON notes as a follow-up rather than editing the prompt in this sprint. Run the compatibility audit below and record each actual verdict next to the expected one. Move the design to the implementation release directory on completion and preserve links.
 
-- [ ] Runnable lib/app example checks successfully; deliberately illegal fixtures fail for IFC rather than unrelated errors.
-- [ ] Guide no longer discloses the fixed cross-module limitation and still accurately describes Z3 limitations.
-- [ ] Release notes describe imported sink and Check C errors and one-time cache recompilation (cacheKeyVersion bump).
-- [ ] Compatibility audit verdicts match the table below; any deviation is explained in notes.
+- [x] Runnable lib/app example checks successfully; deliberately illegal fixtures fail for IFC rather than unrelated errors.
+- [x] Guide no longer discloses the fixed cross-module limitation and still accurately describes Z3 limitations.
+- [x] Release notes describe imported sink and Check C errors and one-time cache recompilation (cacheKeyVersion bump).
+- [x] Compatibility audit verdicts match the table below; any deviation is explained in notes.
 - [ ] `go test ./internal/types/... ./internal/iface/... ./internal/pipeline/... ./internal/repl/... ./internal/parser/...` and `make test-core` pass, plus `make lint` and `make check-boundaries`. Do not run the full `make test` locally (it has crashed executors with SIGBUS in RAM-backed /tmp); CI runs the full suite on the PR.
 
 Risk: documentation overclaims #1132 completion. State compile-time label enforcement only; tracing remains separate.
