@@ -423,8 +423,9 @@ For a **Stable** tool, the promise covers:
   `{ok: false, error, message}`.
 
 The *content* inside a response, such as prompt text, docs pages or stdlib listings, changes with
-every release by design. The **hosted URL is not part of the promise yet.** Dev is still served
-from a raw `*.run.app` host, and a stable custom domain is gate G4(b).
+every release by design. The **hosted URL is part of the promise:** the production OAuth endpoint
+is `https://executor.ailang.sunholo.com/mcp/connect/`, and its OAuth issuer and protected-resource
+metadata name that host. Raw `*.run.app` URLs, including the dev deployment's, are not.
 
 ### Stable MCP tools (24)
 
@@ -453,7 +454,7 @@ from a raw `*.run.app` host, and a stable custom domain is gate G4(b).
 | `design_docs_list` | `mcp_tools/design.ail` | ⚠ close call — exposes the repo's internal design-doc layout (`state`) |
 | `design_doc` | `mcp_tools/design.ail` | ⚠ close call — as above |
 | `roadmap` | `mcp_tools/design.ail` | ⚠ close call — as above |
-| `executor_whoami` | `executor_oauth/oauth.ail` | ⚠ close call — the signed-in account, served only on `/mcp/connect/`; depends on the G4(b) domain |
+| `executor_whoami` | `executor_oauth/oauth.ail` | ⚠ close call — the signed-in account, served only on `/mcp/connect/` at `executor.ailang.sunholo.com` |
 
 ### Experimental MCP tools (5)
 
@@ -474,7 +475,6 @@ from a raw `*.run.app` host, and a stable custom domain is gate G4(b).
 
 ## Follow-ups (post-ratification)
 
-- G4(b): serve the executor MCP from a stable custom domain, then add the URL to the promise.
 - G2: close [#1443](https://github.com/sunholo-data/ailang/issues/1443) (`pure func`) and
   [#1134](https://github.com/sunholo-data/ailang/issues/1134) (IFC labels). Both affect rows on
   this page.

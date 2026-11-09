@@ -248,14 +248,14 @@ tax per read, on the scarcest model budget. The append-only history lives in the
 choose AILANG?"*. Bar v2 (below, SUPERSEDED) mixed the two; v3 gates only on the promise.
 
 **Countable unit (replaces D-51's):** the number of **open gate items** below. Report it as
-`N open (was M, ±k, reason)`. Baseline 2026-11-09: **N = 7** (G1 ×1, G2 ×2, G3 ×1, G4 ×2, G5 ×1). Now: **N = 5 (was 7, −2, G1 + G3 closed by `D-65`)**.
+`N open (was M, ±k, reason)`. Baseline 2026-11-09: **N = 7** (G1 ×1, G2 ×2, G3 ×1, G4 ×2, G5 ×1). Now: **N = 3 (was 5, −2, G4(a)+(b) closed 2026-11-09; G1 + G3 closed by `D-65`)** — open: G2 ×2, G5 ×1.
 
 | Gate | Item | Done when | Status 2026-11-09 |
 |---|---|---|---|
 | **G1 — Stability promise ratified** | `docs/docs/reference/stability.md` re-drafted against TODAY's surface (17-command CLI after M-V1-SIMPLIFY-S5, frozen stdlib, package format, exec MCP tools) and ratified by Mark | page says RATIFIED, tier table matches `ailang --help` / `make freeze-stdlib` / the MCP tool list | **CLOSED 2026-11-09** — re-drafted in #2182, ratified by Mark (`D-65`) |
 | **G2 — Zero open P0s** | every open `priority:P0` issue closed or re-labelled with a recorded reason | `gh issue list --label priority:P0 --state open` → 0 | OPEN — 2: [#1443](https://github.com/sunholo-data/ailang/issues/1443) `pure func` with a declared effect row; [#1134](https://github.com/sunholo-data/ailang/issues/1134) IFC labels lost across modules |
 | **G3 — Packages are part of the promise** | manifest, lockfile, authority and registry semantics written down as Stable, with one real published package as the worked example (replaces v2's "orchestration flagship") | stability page carries a Packages tier section; worked example linked | **CLOSED 2026-11-09** — `## Packages` (12 Stable / 9 Experimental / 1 Internal) + `sunholo/mcp_oauth` worked example, ratified with G1 (`D-65`) |
-| **G4 — Cloud executor MCP is Stable** | (a) the exec MCP tool surface is listed Stable; (b) prod is served on a stable custom domain (the `docparse.ailang.sunholo.com` precedent), not a raw `*.run.app` URL | tool list in the stability page; prod domain resolves with a valid cert and the MCP connects | OPEN ×2 — dev is on `ailang-dev-executor-mcp-oauth-…run.app`; no domain mapping |
+| **G4 — Cloud executor MCP is Stable** | (a) the exec MCP tool surface is listed Stable; (b) prod is served on a stable custom domain (the `docparse.ailang.sunholo.com` precedent), not a raw `*.run.app` URL | tool list in the stability page; prod domain resolves with a valid cert and the MCP connects | **CLOSED 2026-11-09** — (a) 24 Stable / 5 Experimental tools on the ratified page (`D-65`); (b) prod `ailang-executor-mcp-oauth` mapped to `executor.ailang.sunholo.com` (cert CN matches), issuer moved by ailang-multivac#12 (dev→test→prod `e752cc2`), both OAuth metadata documents name the host, `ailang mcp check` passes server-info / lazy-auth / authorization-server / framing |
 | **G5 — Simplification Phase 5** | `make simplicity-metrics` diff vs the Phase 0 baseline goes into the v1.0.0 release notes; each Goals-table gate green or waived by Mark | fragment drafted in `changelogs/unreleased/` | OPEN — Phases 0–3 done 2026-09-18; one binary ships (3b → v1.1) |
 
 **Tiering rulings (D-64):** `ailang messages` = **Experimental** (heavily used, may change in a 1.x
