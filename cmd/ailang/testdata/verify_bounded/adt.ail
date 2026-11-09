@@ -1,0 +1,25 @@
+module cmd/ailang/testdata/verify_bounded/adt
+
+-- M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE fixture.
+-- sLength is recursive and its clause is TRUE for every input; under bounded
+-- unrolling Z3 can still answer sat by inventing a value for the frontier
+-- stub sLength_0. That sat must be reported inconclusive, never a violation.
+-- headOr0 is the non-recursive control: verified at every depth.
+
+export type SList = SNil | SCons(int, SList)
+
+export pure func sLength(xs: SList) -> int
+ensures { result >= 0 } {
+  match xs {
+    SNil => 0,
+    SCons(_, rest) => 1 + sLength(rest)
+  }
+}
+
+export pure func headOr0(xs: SList) -> int
+ensures { result >= 0 } {
+  match xs {
+    SNil => 0,
+    SCons(x, _) => if x >= 0 then x else 0
+  }
+}

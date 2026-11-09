@@ -16,7 +16,7 @@ func TestSolverEvidenceReasonsPreserveStatuses(t *testing.T) {
 		{StatusUnknown, verification.SolverUnknown, "unknown"}, {StatusUnknown, verification.SolverTimeout, "unknown"},
 		{StatusError, verification.VerifierError, "error"},
 	} {
-		vr := solverVerifyResult("f", &SolverResult{Status: tc.status, ReasonCode: tc.reason, Error: "detail"})
+		vr := solverVerifyResult("f", &SolverResult{Status: tc.status, ReasonCode: tc.reason, Error: "detail"}, 0, false)
 		if vr.Status != tc.want {
 			t.Fatalf("legacy status changed: %+v", vr)
 		}

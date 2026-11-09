@@ -595,7 +595,7 @@ ailang verify --verify-recursive-depth 0 file.ail
 | 10 | Deep (max) | Slow | Maximum confidence |
 
 :::note Bounded vs Full Proofs
-Bounded verification is **sound but incomplete**: a VERIFIED result is a genuine proof for inputs up to the recursion depth, but it cannot prove properties for arbitrarily deep recursion. This matches the approach used by [Dafny](https://dafny.org/) for assertion checking. Full induction proofs are a future goal.
+Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded-unrolled function is reported **INCONCLUSIVE (bounded: depth N)**, never as a violation: Z3 can satisfy the negated postcondition by inventing a value for `f_0`, which no real run produces. A genuine bug in a recursive function is therefore also reported inconclusive — test it by running it, or gate with `--strict`. A VERIFIED result is a genuine proof for inputs up to the recursion depth, but it cannot prove properties for arbitrarily deep recursion. This matches the approach used by [Dafny](https://dafny.org/) for assertion checking. Full induction proofs are a future goal.
 :::
 
 ### Verification Output States
@@ -604,6 +604,7 @@ Bounded verification is **sound but incomplete**: a VERIFIED result is a genuine
 |--------|--------|---------|
 | Verified | `✓` | Z3 proved the contract holds for ALL valid inputs |
 | Violation | `✗` | Z3 found concrete inputs that break the postcondition |
+| Inconclusive | `?` | Recursive function under bounded unrolling: Z3 found a model, but it may depend on the uninterpreted frontier `f_0`, so it is neither a proof nor a violation. Exit 0; `--strict` exits 1. Raising the depth decides it only if `requires` bounds the recursion of the inputs |
 | Skipped | `⚠` | Function is outside the decidable fragment (with reason) |
 | Error | `!` | Encoding or solver error |
 

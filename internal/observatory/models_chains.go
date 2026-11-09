@@ -186,8 +186,11 @@ type EvalAssessment struct {
 	VerifyOk        bool `json:"verify_ok"`
 	VerifyVerified  int  `json:"verify_verified"`
 	VerifyCounterex int  `json:"verify_counterexample"`
-	VerifySkipped   int  `json:"verify_skipped"`
-	VerifyErrors    int  `json:"verify_errors"`
+	// VerifyInconclusive: obligations attempted but undecided (bounded-unrolling
+	// sat). Never a verified success; counted as a verification failure.
+	VerifyInconclusive int `json:"verify_inconclusive"`
+	VerifySkipped      int `json:"verify_skipped"`
+	VerifyErrors       int `json:"verify_errors"`
 
 	// Reproducibility
 	PromptVersion string `json:"prompt_version,omitempty"`

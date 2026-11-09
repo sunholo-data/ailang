@@ -63,6 +63,12 @@ type CostPerVerifiedSuccessResult struct {
 	VerifiedSuccesses    int `json:"verified_successes"`
 	UnverifiedPasses     int `json:"unverified_passes"`
 	VerificationFailures int `json:"verification_failures"`
+	// VerificationInconclusive is the D-32 named bucket (Mark, 2026-08-26):
+	// of VerificationFailures, the runs carrying at least one inconclusive
+	// obligation (a bounded-unrolling sat). They stay strict — failures, never
+	// verified successes — but are published by name so the encoder-capability
+	// signal is not hidden inside the rejection count.
+	VerificationInconclusive int `json:"verification_inconclusive"`
 
 	// Numerator / cost provenance (reuses CostRollup semantics).
 	ReportedCostUSD  float64 `json:"reported_cost_usd"`
@@ -89,8 +95,11 @@ const (
 // isVerifiedSuccess is the ONE definition of a VERIFIED success. A run counts
 // only when it passes compile/runtime/stdout grading AND carries affirmative
 // verification evidence: verify_ok, at least one proved obligation
-// (verify_verified > 0), and zero counterexamples, skipped obligations, and
-// verifier errors. An absent/all-zero verify block is verification_missing —
+// (verify_verified > 0), and zero counterexamples, inconclusive obligations,
+// skipped obligations, and verifier errors. An inconclusive obligation (a sat
+// under bounded recursion unrolling) is undecided, not proved: it must never
+// count as a verified success, or a new verifier binary under this reader
+// would silently inflate the KPI (M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE). An absent/all-zero verify block is verification_missing —
 // never a success (backward-compat with historical banked rows).
 func isVerifiedSuccess(a *EvalAssessment) bool {
 	if a == nil {
@@ -100,6 +109,7 @@ func isVerifiedSuccess(a *EvalAssessment) bool {
 		a.VerifyOk &&
 		a.VerifyVerified > 0 &&
 		a.VerifyCounterex == 0 &&
+		a.VerifyInconclusive == 0 &&
 		a.VerifySkipped == 0 &&
 		a.VerifyErrors == 0
 }
@@ -114,14 +124,14 @@ func isPass(a *EvalAssessment) bool {
 }
 
 // isVerificationFailure reports an ATTEMPTED-but-failed verification on a passing
-// run: verification produced a counterexample, a skipped obligation, or a
-// verifier error. (A pass with NO verification evidence is verification_missing,
+// run: verification produced a counterexample, an inconclusive obligation, a
+// skipped obligation, or a verifier error. (A pass with NO verification evidence is verification_missing,
 // i.e. an unverified pass — not a failure.)
 func isVerificationFailure(a *EvalAssessment) bool {
 	if a == nil || !isPass(a) {
 		return false
 	}
-	return a.VerifyCounterex > 0 || a.VerifySkipped > 0 || a.VerifyErrors > 0
+	return a.VerifyCounterex > 0 || a.VerifyInconclusive > 0 || a.VerifySkipped > 0 || a.VerifyErrors > 0
 }
 
 // computeCostPerVerifiedSuccess is the observatory-local rollup. It queries the
@@ -175,6 +185,9 @@ func computeCostPerVerifiedSuccess(ctx context.Context, store *Store, opts CostP
 			res.PassedRuns++
 		case isVerificationFailure(a):
 			res.VerificationFailures++
+			if a.VerifyInconclusive > 0 {
+				res.VerificationInconclusive++
+			}
 			res.PassedRuns++
 		case isPass(a):
 			res.UnverifiedPasses++

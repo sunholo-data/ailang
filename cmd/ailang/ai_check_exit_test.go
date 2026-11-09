@@ -57,6 +57,21 @@ func TestAICheckExitCode_Lanes(t *testing.T) {
 			want:  1,
 		},
 		{
+			// M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE: a bounded-unrolling
+			// sat is "not proved", same contract as a skip — exiting 1 here told
+			// every convergence loop that correct recursive code was broken.
+			name:  "inconclusive only",
+			check: aiCheckSection{Passed: true},
+			verif: aiVerifySection{Available: true, Verified: 1, Inconclusive: 2},
+			want:  0,
+		},
+		{
+			name:  "counterexample alongside inconclusive",
+			check: aiCheckSection{Passed: true},
+			verif: aiVerifySection{Available: true, Counterexample: 1, Inconclusive: 1},
+			want:  1,
+		},
+		{
 			// THE regression this sprint closed.
 			name:  "verifier errors",
 			check: aiCheckSection{Passed: true},
@@ -125,15 +140,16 @@ func TestAIVerifySectionFromReport_Projection(t *testing.T) {
 			{Function: "a", Status: "verified"},
 			{Function: "main", Status: "uncontracted"},
 			{Function: "b", Status: "skipped"},
+			{Function: "c", Status: "inconclusive"},
 		},
-		Verified: 1, Skipped: 1, Uncontracted: 1,
+		Verified: 1, Skipped: 1, Uncontracted: 1, Inconclusive: 1,
 	}
 	got := aiVerifySectionFromReport(report)
-	if !got.Available || got.Verified != 1 || got.Skipped != 1 || got.Errors != 0 || got.Counterexample != 0 {
+	if !got.Available || got.Verified != 1 || got.Skipped != 1 || got.Errors != 0 || got.Counterexample != 0 || got.Inconclusive != 1 {
 		t.Fatalf("counters not projected: %+v", got)
 	}
-	if len(got.Results) != 2 {
-		t.Fatalf("want 2 contract-bearing results, got %d: %+v", len(got.Results), got.Results)
+	if len(got.Results) != 3 {
+		t.Fatalf("want 3 contract-bearing results, got %d: %+v", len(got.Results), got.Results)
 	}
 	for _, r := range got.Results {
 		if r.Status == "uncontracted" {

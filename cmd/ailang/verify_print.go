@@ -18,8 +18,11 @@ import (
 )
 
 // printVerifyHuman prints human-readable verification results.
-func printVerifyHuman(results []smt.VerifyResult, filename string, verified, counterexample, skipped, errCount, uncontracted int, verbose bool) {
-	total := verified + counterexample + skipped + errCount + uncontracted
+func printVerifyHuman(report *smt.VerifyReport, filename string, verbose bool) {
+	results := report.Results
+	verified, counterexample, inconclusive := report.Verified, report.Counterexample, report.Inconclusive
+	skipped, errCount, uncontracted := report.Skipped, report.Errors, report.Uncontracted
+	total := verified + counterexample + inconclusive + skipped + errCount + uncontracted
 
 	fmt.Printf("\n%s Verifying contracts in %s\n", cyan("→"), filename)
 	if z3ver := smt.Z3Version(); z3ver != "" {
@@ -42,6 +45,20 @@ func printVerifyHuman(results []smt.VerifyResult, filename string, verified, cou
 			fmt.Printf("  %s %s\n", red("✗ VIOLATION"), bold(r.Function))
 			if len(r.Model) > 0 {
 				fmt.Printf("    Counterexample:\n")
+				for _, b := range r.Model {
+					fmt.Printf("      %s: %s = %s\n", b.Name, b.Sort, b.Value)
+				}
+			}
+		case "inconclusive":
+			// A sat under bounded unrolling: not a violation, not a proof. The
+			// model is withheld by default (it is usually a let-expression over
+			// the frontier stub, not an input); --verbose keeps it.
+			fmt.Printf("  %s %s\n", yellow(fmt.Sprintf("? INCONCLUSIVE (bounded: depth %d)", r.BoundedDepth)), bold(r.Function))
+			if r.Reason != "" {
+				fmt.Printf("    %s\n", r.Reason)
+			}
+			if verbose && len(r.Model) > 0 {
+				fmt.Printf("    Candidate model (may depend on the unrolling frontier):\n")
 				for _, b := range r.Model {
 					fmt.Printf("      %s: %s = %s\n", b.Name, b.Sort, b.Value)
 				}
@@ -107,6 +124,9 @@ func printVerifyHuman(results []smt.VerifyResult, filename string, verified, cou
 	if counterexample > 0 {
 		parts = append(parts, red(fmt.Sprintf("%d violations", counterexample)))
 	}
+	if inconclusive > 0 {
+		parts = append(parts, yellow(fmt.Sprintf("%d inconclusive", inconclusive)))
+	}
 	if skipped > 0 {
 		parts = append(parts, yellow(fmt.Sprintf("%d skipped", skipped)))
 	}
@@ -129,12 +149,16 @@ func printVerifyHuman(results []smt.VerifyResult, filename string, verified, cou
 }
 
 // printVerifyJSON outputs verification results as JSON.
-func printVerifyJSON(results []smt.VerifyResult, filename string, verified, counterexample, skipped, errCount, uncontracted int) {
+func printVerifyJSON(report *smt.VerifyReport, filename string) {
+	results := report.Results
+	verified, counterexample, inconclusive := report.Verified, report.Counterexample, report.Inconclusive
+	skipped, errCount, uncontracted := report.Skipped, report.Errors, report.Uncontracted
 	output := struct {
 		verification.Evidence
 		File           string             `json:"file"`
 		Verified       int                `json:"verified"`
 		Counterexample int                `json:"counterexample"`
+		Inconclusive   int                `json:"inconclusive"`
 		Skipped        int                `json:"skipped"`
 		Errors         int                `json:"errors"`
 		Uncontracted   int                `json:"uncontracted"`
@@ -145,10 +169,11 @@ func printVerifyJSON(results []smt.VerifyResult, filename string, verified, coun
 		File:           filename,
 		Verified:       verified,
 		Counterexample: counterexample,
+		Inconclusive:   inconclusive,
 		Skipped:        skipped,
 		Errors:         errCount,
 		Uncontracted:   uncontracted,
-		TotalExported:  verified + counterexample + skipped + errCount + uncontracted,
+		TotalExported:  verified + counterexample + inconclusive + skipped + errCount + uncontracted,
 		Results:        results,
 	}
 

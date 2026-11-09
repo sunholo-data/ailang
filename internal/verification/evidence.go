@@ -12,13 +12,17 @@ import (
 type ReasonCode string
 
 const (
-	MissingPostcondition  ReasonCode = "missing_postcondition"
-	UnsupportedEncoding   ReasonCode = "unsupported_encoding"
-	MissingBody           ReasonCode = "missing_body"
-	SolverUnknown         ReasonCode = "solver_unknown"
-	SolverTimeout         ReasonCode = "solver_timeout"
-	VerifierError         ReasonCode = "verifier_error"
-	Counterexample        ReasonCode = "counterexample"
+	MissingPostcondition ReasonCode = "missing_postcondition"
+	UnsupportedEncoding  ReasonCode = "unsupported_encoding"
+	MissingBody          ReasonCode = "missing_body"
+	SolverUnknown        ReasonCode = "solver_unknown"
+	SolverTimeout        ReasonCode = "solver_timeout"
+	VerifierError        ReasonCode = "verifier_error"
+	Counterexample       ReasonCode = "counterexample"
+	// BoundedInconclusive marks a sat found under bounded recursion unrolling:
+	// the model may rest on an invented value for the uninterpreted frontier
+	// stub, so the verifier can neither prove nor refute the obligation.
+	BoundedInconclusive   ReasonCode = "bounded_unrolling_inconclusive"
 	Uncontracted          ReasonCode = "uncontracted"
 	ModuleBudgetExhausted ReasonCode = "module_budget_exhausted"
 	MissingSource         ReasonCode = "missing_source"

@@ -2823,7 +2823,7 @@ triage evidence = log entry 10.)*
 
 - **[NEXT — DESIGN DOC LANDED 2026-08-23 (iter-259), quorum &times;2 + a restored absent reviewer, narrow-refinement
   carve-out applied; ROUTABLE TO SPRINT-PLANNER; AILANG fix; ~1–2d, P0 for the clause-5 KPI]**
-  Doc: [planned/v1_1_0/m-verify-bounded-unrolling-false-counterexample.md](planned/v1_1_0/m-verify-bounded-unrolling-false-counterexample.md)
+  Doc: [implemented/v0_57_5/m-verify-bounded-unrolling-false-counterexample.md](implemented/v0_57_5/m-verify-bounded-unrolling-false-counterexample.md)
   (706 lines, 28 verification rows, 13 acceptance criteria). Design: a new first-class `inconclusive` status;
   classifier is the structural predicate `smt.IsRecursiveFunc && recursiveDepth > 0 && sat` — which the two
   ladders **already compute** for `BoundedDepth`, so `internal/smt` needs **zero** code changes; the two
