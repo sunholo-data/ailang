@@ -442,6 +442,13 @@ func add(x: int, y: int) -> int { x + y }
 pure func factorial(n: int) -> int { ... }
 ```
 
+`pure` means exactly `! {}`. A `pure func` may omit the row or write `! {}`; a
+`pure func` that also declares a non-empty or open row (`! {IO}`, `! {Declassify}`,
+`! {e}`) is a type error — drop `pure` to keep the row, or drop the row. `ailang iface`
+derives each export's `"pure"` flag from its checked effect row in the same way: a
+labelled or declared-open outer row reports `false`. A `! {Declassify}` function is
+written as a plain `func`; `ailang verify` still admits it into the SMT fragment.
+
 ### Callback Function Types
 
 In callback types, omission and an explicit empty row have different meanings:

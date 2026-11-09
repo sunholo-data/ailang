@@ -33,6 +33,9 @@ func TestIfacePurity_StdCensus(t *testing.T) {
 	t.Chdir(filepath.Dir(std))
 	modules, functions, labelled, open, keyword, combinators := 0, 0, 0, 0, 0, 0
 	publishedPure, declaredOpen, streaming := 0, 0, 0
+	// Value = whether the export's OUTER row has a tail (always one shared with a
+	// callback, i.e. latent). Re-pinned after M-EFFECT-ROW-VAR-UNIFICATION (#616):
+	// option.map/filter and result.map/mapErr/flatMap now inherit the callback tail.
 	expected := map[string]bool{
 		"std/list.any":             false,
 		"std/list.filter":          false,
@@ -46,12 +49,12 @@ func TestIfacePurity_StdCensus(t *testing.T) {
 		"std/list.takeFlatMap":     false,
 		"std/list.takeMap":         false,
 		"std/list.zipWith":         false,
-		"std/option.filter":        false,
+		"std/option.filter":        true,
 		"std/option.flatMap":       true,
-		"std/option.map":           false,
-		"std/result.flatMap":       false,
-		"std/result.map":           false,
-		"std/result.mapErr":        false,
+		"std/option.map":           true,
+		"std/result.flatMap":       true,
+		"std/result.map":           true,
+		"std/result.mapErr":        true,
 		"std/string.foldChars":     false,
 		"std/string.foldSlices":    false,
 		"std/string.mapSlicesJoin": false,

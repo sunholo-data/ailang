@@ -43,7 +43,7 @@
       "effects": [
         "Net"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -89,7 +89,7 @@
       "effects": [
         "Net"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v2"

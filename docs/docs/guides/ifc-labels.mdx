@@ -55,10 +55,10 @@ a representation.
 let body: string<email> = fetchMailBody()
 
 -- A function whose body parameter rejects any <email>-tainted input
-pure func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+func sendEmail(to: string, body: string{not email}) -> () ! {Net}
 
 -- A declassifier: <email> in, <sanitized> out, must declare ! {Declassify}
-pure func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
+func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
 ```
 
 ## Labels Are Open
@@ -115,7 +115,7 @@ A parameter typed `T{not LABEL}` **rejects** any argument whose type carries
 the `<LABEL>` annotation.
 
 ```ailang
-pure func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+func sendEmail(to: string, body: string{not email}) -> () ! {Net}
 
 -- ✅ Caller passes a declassified value
 sendEmail("alice@company.com", sanitize(rawBody))
@@ -132,7 +132,7 @@ transition needs the effect.
 
 ```ailang
 -- ✅ Allowed: explicit declassifier
-pure func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
+func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
 { "[sanitized]" }
 
 -- ❌ Rejected: function changes label without declaring Declassify
@@ -231,12 +231,12 @@ This is the headline scenario for IFC labels.
 
 ```ailang
 -- Source: any text fetched from external content carries one shared label
-pure func fetchEmailBody() -> string<untrusted> ! {FS}
-pure func fetchWebPage(url: string) -> string<untrusted> ! {Net}
+func fetchEmailBody() -> string<untrusted> ! {FS}
+func fetchWebPage(url: string) -> string<untrusted> ! {Net}
 
 -- Sink: tool calls that act in the world
-pure func sendEmail(to: string, body: string{not untrusted}) -> () ! {Net}
-pure func runShell(cmd: string{not untrusted}) -> () ! {Process}
+func sendEmail(to: string, body: string{not untrusted}) -> () ! {Net}
+func runShell(cmd: string{not untrusted}) -> () ! {Process}
 ```
 
 The `runShell` sink rejects anything fetched from email or the web, so a
@@ -257,13 +257,13 @@ numbers) in the summary body. Categories: GDPR Art. 5(1)(c)
 
 ```ailang
 -- PII source from a customer record
-pure func loadCustomer(id: string) -> Customer<pii> ! {FS}
+func loadCustomer(id: string) -> Customer<pii> ! {FS}
 
 -- A redactor is the only path from <pii> → <redacted>
-pure func redactPII(c: Customer<pii>) -> Summary<redacted> ! {Declassify}
+func redactPII(c: Customer<pii>) -> Summary<redacted> ! {Declassify}
 
 -- Analytics sink refuses raw PII
-pure func logEvent(name: string, payload: string{not pii}) -> () ! {Net}
+func logEvent(name: string, payload: string{not pii}) -> () ! {Net}
 ```
 
 A model that calls `logEvent("customer_seen", customer.name)` is
@@ -282,7 +282,7 @@ to telemetry pipelines for years.
 
 ```ailang
 -- Secrets are tainted at the source
-pure func getEnv(name: string) -> string<api_key> ! {Env}
+func getEnv(name: string) -> string<api_key> ! {Env}
 
 -- Error responses cannot contain api-key-tainted strings
 pure func httpResponse(status: int, body: string{not api_key}) -> Response ! {}
@@ -307,10 +307,10 @@ Python.
 
 ```ailang
 -- Output of any LLM is tainted as <llm>
-pure func askLLM(prompt: string) -> string<llm> ! {AI}
+func askLLM(prompt: string) -> string<llm> ! {AI}
 
 -- The query executor refuses LLM-derived text
-pure func executeSQL(query: string{not llm}) -> [Row] ! {DB}
+func executeSQL(query: string{not llm}) -> [Row] ! {DB}
 ```
 
 The only way to compose them is to run the LLM output through a
@@ -327,10 +327,10 @@ where the prompt context is shared. Categories: SOC 2 CC6.6, ISO
 
 ```ailang
 -- Per-tenant labels - open vocabulary, you make these up
-pure func loadOrders(tenant: TenantId) -> [Order<tenant_a>] ! {DB}
+func loadOrders(tenant: TenantId) -> [Order<tenant_a>] ! {DB}
 
 -- Per-tenant webhook sink
-pure func dispatchToTenantB(payload: string{not tenant_a}) -> () ! {Net}
+func dispatchToTenantB(payload: string{not tenant_a}) -> () ! {Net}
 ```
 
 Routing tenant-A data into a tenant-B webhook produces a type error.

@@ -46,7 +46,7 @@
       "effects": [
         "IO"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -92,7 +92,7 @@
       "effects": [
         "IO"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -126,7 +126,7 @@
       "effects": [
         "IO"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v2"

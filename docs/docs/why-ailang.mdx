@@ -138,13 +138,13 @@ distinction part of the type:
 
 ```ailang
 -- Untrusted source, marked at the type level
-pure func fetchMail() -> string<email> ! {FS}
+func fetchMail() -> string<email> ! {FS}
 
 -- Sink that refuses anything labelled <email>
-pure func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+func sendEmail(to: string, body: string{not email}) -> () ! {Net}
 
 -- Explicit declassifier — the only way to lower a label
-pure func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
+func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
 
 -- ❌ Refused by the type system: <email> ↛ {not email}
 sendEmail(addr, fetchMail())

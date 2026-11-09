@@ -21,12 +21,12 @@ contract_spec: |
   type SendAction = { to: string, body: string }
 
   -- Sanitize is the declassify gate. Input <email> -> output <sanitized>.
-  export pure func sanitizeBody(rawBody: string<email>) -> string<sanitized> ! {Declassify}
+  export func sanitizeBody(rawBody: string<email>) -> string<sanitized> ! {Declassify}
     ensures { result == "[sanitized]" }
 
   -- Forward an email. The body must end up as the constant "[sanitized]"
   -- — the raw email body must NEVER appear in the output.
-  export pure func safeForward(rawBody: string<email>, recipient: string) -> SendAction ! {Declassify}
+  export func safeForward(rawBody: string<email>, recipient: string) -> SendAction ! {Declassify}
     requires { endsWith(recipient, "@company.com") }
     ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
 
@@ -41,9 +41,9 @@ z3_hints: |
 task_prompt: |
   Implement the contract above. Specifically:
 
-  1. Define sanitizeBody as a pure function that takes an <email>-labelled
+  1. Define sanitizeBody as a function that takes an <email>-labelled
      string and returns the constant "[sanitized]" with label <sanitized>.
-  2. Define safeForward as a pure function that takes a raw email body
+  2. Define safeForward as a function that takes a raw email body
      (untrusted) and a recipient address (must end with "@company.com"),
      and returns a SendAction whose body is provably "[sanitized]"
      (NEVER the raw input).
@@ -54,6 +54,7 @@ task_prompt: |
   - The body field of SendAction must be the constant "[sanitized]".
   - The raw email body must NOT flow directly into SendAction.body.
   - Use the {Declassify} effect on functions that change a value's label.
+  - A `pure func` must declare no effects, so a `! {Declassify}` function is a plain `func`.
 
 expected_stdout: |
   1

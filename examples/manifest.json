@@ -3630,6 +3630,31 @@
       }
     },
     {
+      "path": "runnable/pure_means_empty_row.ail",
+      "status": "working",
+      "tags": [
+        "effects",
+        "pure",
+        "ifc",
+        "contracts",
+        "regression"
+      ],
+      "description": "pure means ! {}: pure with no row or ! {}, Declassify and IO functions as plain func (#1443)",
+      "modules": [
+        "std/io"
+      ],
+      "run_flags": [
+        "--caps",
+        "IO,Declassify",
+        "--entry",
+        "main"
+      ],
+      "expected": {
+        "stdout": "double: 42\nclamp: 100\n[redacted]\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/secrets/scoped_declassify.ail",
       "status": "working",
       "tags": [
@@ -4280,11 +4305,11 @@
     }
   ],
   "statistics": {
-    "total": 323,
-    "working": 315,
+    "total": 324,
+    "working": 316,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9752321981424149,
+    "coverage": 0.9753086419753086,
     "experimental": 0
   },
   "milestones": {

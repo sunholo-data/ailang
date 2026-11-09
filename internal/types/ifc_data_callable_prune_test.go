@@ -17,7 +17,7 @@ import (
 const shapeFirstSrc = `module t
 import std/list (mapE, filter, length, nth, range)
 type Cell = { text: string<client> }
-pure func mark(raw: string<client>) -> string<structure> ! {Declassify} { if raw == "" then "" else "x" }
+func mark(raw: string<client>) -> string<structure> ! {Declassify} { if raw == "" then "" else "x" }
 func shapeRow(r: [Cell]) -> [string<structure>] ! {Declassify} = mapE(\c. mark(c.text), r)
 type S = { rows: [[string<structure>]] }
 func shapeAll(rs: [[Cell]]) -> S ! {Declassify} = { rows: mapE(shapeRow, rs) }
