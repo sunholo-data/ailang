@@ -1,8 +1,8 @@
 # Iteration 32 — Implementation report: M-QUORUM-ZERO-SIGNAL
 
 **Sprint**: M-QUORUM-ZERO-SIGNAL (M1_GUARD_EXTERNAL_COUNT)
-**Design doc**: [m-quorum-external-zero-signal-guard.md](../../planned/m-quorum-external-zero-signal-guard.md)
-**Sprint plan**: [sprint-plan-quorum-zero-signal-guard.md](../../planned/sprint-plan-quorum-zero-signal-guard.md)
+**Design doc**: [m-quorum-external-zero-signal-guard.md](../../implemented/v0_54_6/m-quorum-external-zero-signal-guard.md)
+**Sprint plan**: [sprint-plan-quorum-zero-signal-guard.md](../../implemented/v0_54_6/sprint-plan-quorum-zero-signal-guard.md)
 **Fleet ticket**: `quorum:zero-signal-guard-vacuous-with-controller-verdict` (ailang#651)
 **Branch**: `fleet/i32-quorum-zero-signal`
 **Base HEAD at start**: `2d104f404` (tree clean)

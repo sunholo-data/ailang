@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-STRIP-DECL-AWARE",
   "created": "2026-08-01",
-  "plan_path": "design_docs/planned/v0_31_0/m-strip-contract-awareness-sprint-plan.md",
+  "plan_path": "design_docs/implemented/v0_32_0/m-strip-contract-awareness-sprint-plan.md",
   "design_doc": null,
   "design_doc_rationale": "Bug-fix lane. FORUM RULE (charter L158) scopes the full quorum pipeline to FEATURE-shaped work; precedent m-nightly-run-validity-gate/#524. No new syntax, flag, or user-visible semantics. The one policy call (empty effect annotation == pure) has two in-repo precedents: cmd/ailang/verify.go:160-168 and cmd/ailang/ai_check.go:231-232.",
   "github_issues": [

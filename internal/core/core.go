@@ -142,6 +142,11 @@ type App struct {
 	CoreNode
 	Func CoreExpr
 	Args []CoreExpr // All must be atomic in ANF
+	// TraceRedact names the IFC labels ("secret", "pii,secret") a value
+	// entering or leaving this call carries; "" when none. Set by
+	// MarkTraceRedactions after the static IFC pass. The evaluator records no
+	// trace value for the dynamic extent of a marked call (M-TRACE-LABEL-AWARE).
+	TraceRedact string
 }
 
 func (a *App) coreExpr() {}

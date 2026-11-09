@@ -408,7 +408,7 @@ Regression fixtures (all verified to exist, V15):
 
 **Planned (check for overlap):**
 - [m-effect-latent-function-values.md](../../planned/v0_48_0/m-effect-latent-function-values.md) — #1326/#573, the same soundness cluster: latent effects of function values read from silently-empty sources in the same `validate_effects.go` pass. Different mechanism (empty read sites vs unchecked keyword/stub); both must land for the `pure` signal to be honest end-to-end. **Lands first** (sprint plan PR #1675); its L1 (`file_funcs.go:386-403`) and its measurement that `map`/`filter`/`foldl`/`takeMap` have closed-pure callback rows (its V7) are why Rule 2 keys on the outer row and pins combinator values after it. The neural/simhash search surfaced no direct match for this doc's topic (V16 note: the create script's search ran with no results; the related set was assembled from the triage doc's own search, which named exactly these).
-- [m-effect-pure-row-overgeneralization.md](../../planned/v0_35_3/m-effect-pure-row-overgeneralization.md) — #1091, the effect-polymorphic-row half; see Non-Goals for the division of labour.
+- [m-effect-pure-row-overgeneralization.md](../v0_35_3/m-effect-pure-row-overgeneralization.md) — #1091, the effect-polymorphic-row half; see Non-Goals for the division of labour.
 - [m-effect-row-var-unification](m-effect-row-var-unification.md) — #616, parked; unrelated mechanism.
 - [m-serveapi-directory-ready.md](../../planned/v0_51_0/m-serveapi-directory-ready.md) — noted #1443 as out-of-scope while landing M1 (`:362,459`); this doc is the follow-up it pointed at.
 

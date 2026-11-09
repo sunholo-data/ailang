@@ -1,6 +1,6 @@
 # M-TYPE-NAME-SHADOW: a module's own type must win, and the compile cache must see alias edits
 
-**Status**: Planned. M1 and M3 are implemented in the PR that adds this doc; **M2 is implemented by [m-alias-body-closure](../v0_52_4/m-alias-body-closure.md)** (which also extends closure to export schemes, on T3 evidence); M4 remains doc-only.
+**Status**: Planned. M1 and M3 are implemented in the PR that adds this doc; **M2 is implemented by [m-alias-body-closure](../../implemented/v0_53_1/m-alias-body-closure.md)** (which also extends closure to export schemes, on T3 evidence); M4 remains doc-only.
 **Target**: v0.44.x (M1 and M3); M2 is delivered for the next unreleased patch; M4 is unscheduled.
 **Priority**: P0 for M1 and M3 (silent wrong typing, and a stale "No errors"); P1 for M2; P2 for M4.
 **Estimated**: M1+M3 done (about 250 LOC with tests). M2 delivered in the alias-body-closure sprint, pending independent evaluation. M4 takes 1–2 weeks and changes how types are represented.
@@ -141,7 +141,7 @@ silently use the wrong Row.
 
 The interface digest format itself is unchanged; `aliasDigest` is computed on the cache side. The key changes, so every existing entry misses exactly once. There is no on-disk format change, so `cacheKeyVersion` is not bumped.
 
-### M2: close alias bodies over their defining module (implemented via [m-alias-body-closure](../v0_52_4/m-alias-body-closure.md), next unreleased patch)
+### M2: close alias bodies over their defining module (implemented via [m-alias-body-closure](../../implemented/v0_53_1/m-alias-body-closure.md), next unreleased patch)
 
 Build each interface's `TypeAliases` bodies, exported schemes and constructor field/result types **closed**. When the interface is built (`buildAndRegisterInterface`), replace every `TCon` in a body that names a record or transparent alias in the *defining* module's alias environment (local plus imported, after M1) with its expansion. That needs a `TCon`-substituting walker that is cycle-safe (a visited set per the type-traversal rule) and handles all type variants, and it must keep `TRecord.TypeName` so nominal codegen names survive. Recursive references and all applied parameterized alias heads stay opaque; arguments close safely. Residual local capture keeps the M1 error. After M2:
 - the capture case in audit row 5 simply works (`TestTypeNameShadow_CapturedImportedAliasIsLoud` changes into a positive test);

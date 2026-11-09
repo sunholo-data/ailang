@@ -8,7 +8,7 @@
 **Source**: GitHub issues [#1326](https://github.com/sunholo-data/ailang/issues/1326) (effect leak through any higher-order function) and [#573](https://github.com/sunholo-data/ailang/issues/573) (effect checker not transitive through function-valued record-field calls, incl. the 2026-08-26 addendum on record-update / constructor-payload positions)
 **Base measured**: `origin/dev` = `1fcc479f1`, binary built from this worktree (`go build -o /tmp/ailang-ds ./cmd/ailang`; the version stamp shows the main checkout's HEAD — known worktree stamping quirk — so provenance was verified behaviourally, see V1–V4).
 
-**Scheduling update (2026-10-08)**: Mark approved scheduling from P0 triage; the design was approved and merged in #1378. Triage reverified both leaks on `origin/dev` `658ff76a3`. Implementation executed through the approved planner handoff; see the sprint plan and its execution validation. See [sprint plan](../v0_53_0/m-effect-latent-function-values-sprint-plan.md). Refs #1326, Refs #573; sequencing Refs #616. Historical measurements and prototype results below are retained as evidence, not claims about the current tree.
+**Scheduling update (2026-10-08)**: Mark approved scheduling from P0 triage; the design was approved and merged in #1378. Triage reverified both leaks on `origin/dev` `658ff76a3`. Implementation executed through the approved planner handoff; see the sprint plan and its execution validation. See [sprint plan](../../implemented/v0_53_1/m-effect-latent-function-values-sprint-plan.md). Refs #1326, Refs #573; sequencing Refs #616. Historical measurements and prototype results below are retained as evidence, not claims about the current tree.
 
 ## Summary
 
@@ -307,7 +307,7 @@ needs effect *subsumption*, which is the Phase-3 decision below.
 |---|---|
 | [M-EFFECT-ROW-VAR-UNIFICATION](../v1_0_0/m-effect-row-var-unification.md) (#616, **parked**) | Different defect: declared `! {e}` tails are not *discharged* at call sites (its V31–V33: parameter `e` and result `e` are separate instantiated variables). **This design does not require row-variable unification**: both rules charge *concrete labels* that are known without solving any tail. It leaves `UnionEffectRows`/`DiffEffectRows` tail semantics untouched. When #616 lands its A3 interface (`CallEffects[appID]`), rule L2 can be re-expressed as "the instantiated call row", and the `LatentParamMask` proposed here is designed to travel the same channel (one per-App publication, not two). No conflict with its frozen decisions: it freezes the App-case callee-row selection only for tail-bearing declarations; L2 adds argument contributions, it does not change callee selection. |
 | #616 doc's "CORRECTION" (from #1091) | Re-confirmed and sharpened: the `VarGlobal` path is correct for *imported named callbacks* (charged at reference, V5), but std HOF schemes do not link callback rows to their outer rows (V6), so "effect-polymorphic by inferred sharing" is not what makes `flatMap` accept effectful lambdas across modules. |
-| [M-EFFECT-PURE-ROW-OVERGENERALIZATION](../v0_35_3/m-effect-pure-row-overgeneralization.md) (#1091) | Unaffected. `closeDeclaredEffectRow` was disabled in a probe (V10) and the leaks persist, so it is not the cause; the fix does not touch it. |
+| [M-EFFECT-PURE-ROW-OVERGENERALIZATION](../../implemented/v0_35_3/m-effect-pure-row-overgeneralization.md) (#1091) | Unaffected. `closeDeclaredEffectRow` was disabled in a probe (V10) and the leaks persist, so it is not the cause; the fix does not touch it. |
 | M-EFFECT-ROW-SHOW-INTERP (#386) lambda-annotation sub-pass (`validateLambdaAnnotations`) | Unaffected; it still enforces closed inline-lambda annotations. |
 | `design_docs/implemented/v0_29_0/m-effect-row-poly-params.md` | Type-layer unification of lambda closed rows vs. concrete rows; no overlap. |
 | `design_docs/implemented/v0_6_2/m-bug-effect-checker-conflation.md` / commit `71b610d68` | Origin of "prefer declared rows for same-module callees". Kept; D4 fixes its name-keying. |
@@ -650,7 +650,7 @@ unification). `ailang design-quorum` was **not** run in this session; run it bef
 ## Related Documents
 
 - [M-EFFECT-ROW-VAR-UNIFICATION](../v1_0_0/m-effect-row-var-unification.md) — #616, parked; complementary (tails vs labels)
-- [M-EFFECT-PURE-ROW-OVERGENERALIZATION](../v0_35_3/m-effect-pure-row-overgeneralization.md) — #1091
+- [M-EFFECT-PURE-ROW-OVERGENERALIZATION](../../implemented/v0_35_3/m-effect-pure-row-overgeneralization.md) — #1091
 - [m-bug-effect-checker-conflation](../../implemented/v0_6_2/m-bug-effect-checker-conflation.md) — origin of declared-row preference
 - [m-effectful-list-combinators](../../implemented/v0_7_3/m-effectful-list-combinators.md) — `mapE` family
 - [m-effect-row-poly-params](../../implemented/v0_29_0/m-effect-row-poly-params.md) — lambda rows vs concrete rows (distinct)

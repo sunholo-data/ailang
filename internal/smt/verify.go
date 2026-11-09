@@ -23,7 +23,7 @@ import (
 type VerifyResult struct {
 	ReasonCode   verification.ReasonCode `json:"reason_code,omitempty"`
 	Function     string                  `json:"function"`
-	Status       string                  `json:"status"` // verified, counterexample, skipped, error, unknown, uncontracted
+	Status       string                  `json:"status"` // verified, counterexample, inconclusive, skipped, error, unknown, uncontracted
 	Reason       string                  `json:"reason,omitempty"`
 	Model        []ModelBinding          `json:"model,omitempty"`
 	Rejections   []SMTRejectionReason    `json:"rejections,omitempty"`
@@ -68,8 +68,12 @@ type VerifyReport struct {
 	Results        []VerifyResult
 	Verified       int
 	Counterexample int
-	Skipped        int
-	Errors         int
+	// Inconclusive counts obligations attempted but undecided: a sat found
+	// under bounded recursion unrolling (see solverVerifyResult). Not a
+	// violation, not a proof.
+	Inconclusive int
+	Skipped      int
+	Errors       int
 	// Uncontracted counts exported functions that carry no contract at all;
 	// they appear in Results with Status "uncontracted".
 	Uncontracted int
@@ -470,27 +474,17 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			continue
 		}
 
-		vr := solverVerifyResult(funcName, solveResult)
-		// Mark bounded recursion depth if the function is recursive
+		// The obligation is bounded-unrolled when the function recurses and
+		// unrolling is on: its self-calls bottom out in an uninterpreted stub.
+		boundedDepth := 0
 		if effectiveDepth > 0 && IsRecursiveFunc(innerBody, funcName) {
-			vr.BoundedDepth = effectiveDepth
+			boundedDepth = effectiveDepth
 		}
+		vr := solverVerifyResult(funcName, solveResult, boundedDepth, opts.Verbose)
 		if opts.Verbose {
 			vr.SMTLib = encResult.SMTLib
 		}
-
-		switch solveResult.Status {
-		case StatusVerified:
-			report.Verified++
-		case StatusCounterexample:
-			report.Counterexample++
-		case StatusUnknown:
-			report.Errors++
-		case StatusError:
-			report.Errors++
-		}
-
-		report.Results = append(report.Results, vr)
+		report.tally(vr)
 	}
 
 	// Account for exported functions that carry no contract at all.
@@ -521,12 +515,66 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 	return report
 }
 
-// solverVerifyResult preserves legacy status values and attaches solver-owned
-// reasons. It does not classify a timeout from human diagnostic text.
-func solverVerifyResult(name string, result *SolverResult) VerifyResult {
-	r := VerifyResult{Function: name, Status: result.Status.String(), Duration: result.Duration, ReasonCode: result.ReasonCode}
+// tally appends one result and moves exactly the counter its status names, so
+// the counters partition Results (INV-1). An unrecognised status is a
+// programming error in this file — it panics rather than silently dropping out
+// of every counter (TestSolveOutcomeExhaustive pins the mapping).
+func (r *VerifyReport) tally(vr VerifyResult) {
+	switch vr.Status {
+	case "verified":
+		r.Verified++
+	case "counterexample":
+		r.Counterexample++
+	case "inconclusive":
+		r.Inconclusive++
+	case "skipped":
+		r.Skipped++
+	case "error", "unknown":
+		r.Errors++
+	case "uncontracted":
+		r.Uncontracted++
+	default:
+		panic(fmt.Sprintf("smt: verify status %q has no report counter", vr.Status))
+	}
+	r.Results = append(r.Results, vr)
+}
+
+// solverVerifyResult is the ONE place a solver outcome becomes a verify
+// status; `ailang verify` and `ailang ai-check` both reach it through Verify.
+// It attaches solver-owned reasons and does not classify a timeout from human
+// diagnostic text.
+//
+// boundedDepth > 0 means the obligation was bounded-unrolled: the function's
+// self-calls were expanded boundedDepth levels deep and bottom out in an
+// UNINTERPRETED stub <name>_0 (unroll.go). That encoding is asymmetric:
+//
+//   - unsat is sound — the property holds under every interpretation of the
+//     stub, the real function included — so it stays "verified" (with the
+//     bounded caveat carried in BoundedDepth).
+//   - sat is NOT a violation — Z3 may satisfy the negated postcondition by
+//     inventing a value for the stub, an execution no real run can produce.
+//     It is reported "inconclusive". The decision is structural (no model
+//     inspection: a solver may omit interpretations it deems irrelevant, so
+//     "no frontier symbol in the model" proves nothing). The declared cost is
+//     that a GENUINE bug on a recursive function also reads inconclusive
+//     until witness replay exists — "could not decide", never a false
+//     violation. The model is withheld unless verbose: it is usually a
+//     let-expression over the stub, not an input.
+//
+// M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE.
+func solverVerifyResult(name string, result *SolverResult, boundedDepth int, verbose bool) VerifyResult {
+	r := VerifyResult{Function: name, Status: result.Status.String(), Duration: result.Duration, ReasonCode: result.ReasonCode, BoundedDepth: boundedDepth}
 	switch result.Status {
 	case StatusCounterexample:
+		if boundedDepth > 0 {
+			r.Status = "inconclusive"
+			r.ReasonCode = verification.BoundedInconclusive
+			r.Reason = boundedInconclusiveReason(name, boundedDepth)
+			if verbose {
+				r.Model = result.Model
+			}
+			break
+		}
 		r.Model = result.Model
 		r.ReasonCode = verification.Counterexample
 	case StatusUnknown:
@@ -540,6 +588,21 @@ func solverVerifyResult(name string, result *SolverResult) VerifyResult {
 	}
 	return r
 }
+
+// boundedInconclusiveReason explains an inconclusive outcome. The depth advice
+// is deliberately conditional. When inputs are unbounded (any-length lists)
+// raising the depth cannot decide the obligation: the candidate model just
+// grows with it (measured: length 2 at depth 2, length 4 at depth 4), so
+// unconditional depth-tuning advice is a treadmill. When a requires clause
+// bounds the recursion (recursive_verify.ail: n <= 4) a depth past that bound
+// DOES decide it (all three verify at depth 6), so "never" would be false too.
+func boundedInconclusiveReason(name string, depth int) string {
+	return fmt.Sprintf("bounded unrolling exhausted at depth %d: the solver's candidate model may depend on "+
+		"the unrolling frontier (%s_0), so it is neither a proof nor a confirmed violation; "+
+		"raising --verify-recursive-depth can decide this only if a requires clause bounds the recursion depth "+
+		"of the inputs — for unbounded inputs it cannot", depth, name)
+}
+
 func encodingErrorReason(err error) verification.ReasonCode {
 	if errors.Is(err, ErrUnsupportedConstruct) {
 		return verification.UnsupportedEncoding

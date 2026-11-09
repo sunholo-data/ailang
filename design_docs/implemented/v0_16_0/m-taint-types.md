@@ -6,7 +6,7 @@
 **Estimated**: ~70 hours (~3 sprints)
 **Dependencies**:
   - [M-SMT-CROSS-MODULE-TYPES](../v0_13_0/m-smt-cross-module-types.md) — must land first; cross-module label flow depends on cross-module Z3 type resolution
-  - [M-EFFECT-REFINEMENT](../v1_0_0/m-effect-refinement.md) — adjacent design; shares row-parameter machinery, but **labels and effect modes are orthogonal axes** (see §"Effects vs Labels" below)
+  - [M-EFFECT-REFINEMENT](../../planned/v1_1_0/m-effect-refinement.md) — adjacent design; shares row-parameter machinery, but **labels and effect modes are orthogonal axes** (see §"Effects vs Labels" below)
   - Tier 1 demo (already landed): [examples/runnable/contracts/inbox_injection.ail](../../../examples/runnable/contracts/inbox_injection.ail)
 
 **Inspirations:**
@@ -84,7 +84,7 @@ This is load-bearing and worth a section of its own.
 | Axis | What it captures | Example |
 |---|---|---|
 | **Effect names** | Which side-effect categories the function performs | `! {Net, FS}` |
-| **Effect modes** ([M-EFFECT-REFINEMENT](../v1_0_0/m-effect-refinement.md)) | Replay contract / scope of an effect | `! {Rand[mode=crypto], Clock[mode=pinned]}` |
+| **Effect modes** ([M-EFFECT-REFINEMENT](../../planned/v1_1_0/m-effect-refinement.md)) | Replay contract / scope of an effect | `! {Rand[mode=crypto], Clock[mode=pinned]}` |
 | **Value labels** (this doc) | Provenance of data values | `Email<email>`, `string{not external}` |
 
 The reviewer's diagnosis was right: the v1 draft put labels on effects (`! {FS<email>}`), which conflated *what the function does* with *what the data is*. v2 puts labels on the **types of values flowing through the function**, leaving effects to describe operations alone.
@@ -379,7 +379,7 @@ Same machine. The user-input label travels with the value; the template paramete
 - [design_docs/implemented/v0_6_2/m-capability-budgets.md](../../implemented/v0_6_2/m-capability-budgets.md) — capability layer that `Declassify` reuses
 
 **Planned (check for overlap):**
-- [design_docs/planned/v1_0_0/m-effect-refinement.md](../v1_0_0/m-effect-refinement.md) — parameterised effects `!{E[mode=...]}`; orthogonal axis (see §"Effects vs Labels")
+- [design_docs/planned/v1_1_0/m-effect-refinement.md](../../planned/v1_1_0/m-effect-refinement.md) — parameterised effects `!{E[mode=...]}`; orthogonal axis (see §"Effects vs Labels")
 - [design_docs/planned/v0_13_0/m-smt-cross-module-types.md](../v0_13_0/m-smt-cross-module-types.md) — required dependency for Phase 2
 - [design_docs/planned/v0_13_0/20251013_auto_caps_capability_inference.md](../v0_13_0/20251013_auto_caps_capability_inference.md) — capability inference; relevant for `Declassify` UX
 

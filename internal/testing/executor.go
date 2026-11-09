@@ -200,11 +200,11 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 	// which the parser emits as separate ast.Let nodes with Body==nil.  We must
 	// chain them before printing so we produce valid AILANG ("let x = ... in ...").
 	//
-	// FoldTestBody additionally lowers top-level `assert` statements into a
-	// short-circuiting `if` chain over an int sentinel (#590) — `assert` has no
-	// prefix parselet in the general grammar, so it cannot survive the round-trip
-	// verbatim. `checks` is empty for assert-free bodies, which keep the legacy
-	// bool path unchanged.
+	// FoldTestBody additionally lowers top-level checks — `assert` statements
+	// (#590) and bare non-final expressions (#604) — into a short-circuiting
+	// `if` chain over an int sentinel. `checks` is empty for bodies with
+	// neither (one expression, or lets + a final expression), which keep the
+	// legacy bool path unchanged.
 	if ent, ok := e.batchedEntry(bodyExprs); ok {
 		if val, handled, err := e.evaluateBatched(ent); handled {
 			return val, err

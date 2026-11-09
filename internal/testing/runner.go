@@ -215,11 +215,15 @@ func (r *Runner) runTest(testCase TestCase) TestResult {
 //
 // The body runs as an entry of the file's one batched compile
 // (named_batch.go), or alone when the batch is unavailable. The body is a
-// sequence of expressions; the LAST expression must evaluate to bool true for
-// the test to pass. Earlier expressions are evaluated for side-effects only
-// (they are discarded — named test bodies are pure by contract).
+// sequence of `let` bindings, `assert`s and bare expressions, and every
+// top-level assert and bare expression is a check (#604; nested blocks are
+// not covered, #614). A body with an assert or a bare non-final expression is
+// lowered by FoldTestBody to an int sentinel, which the executor decodes into
+// bool true or a "check k failed" / "assertion k failed" error. Any other body
+// (one expression, or lets + a final expression) returns its final value, and
+// the contract below is what checks it.
 //
-// Pass contract: final expression evaluates to *eval.BoolValue{true}.
+// Pass contract: the body evaluates to *eval.BoolValue{true}.
 // false      → StatusFail, error = "expected true, got false"
 // non-bool   → StatusFail, error = "expected bool result, got <T>"
 // eval error → StatusFail, error = <error text>

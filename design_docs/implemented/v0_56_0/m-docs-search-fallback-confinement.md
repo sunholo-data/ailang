@@ -310,14 +310,14 @@ only; this arithmetic is not implementation authorization.
 
 ## Related documents
 
-- [M-DX27 fallback design](../../planned/v0_29_0/m-dx27-docs-search-github-fallback.md) and
+- [M-DX27 fallback design](../v0_35_2/m-dx27-docs-search-github-fallback.md) and
   [plan](../../planned/m-dx27-docs-search-github-fallback-sprint-plan.md): existing implemented
   source despite stale planned metadata; retain authenticated fallback/local
   separation, not duplicate implementation.
-- [Package authority chokepoint](../../planned/v0_54_19/m-pkg-authority-chokepoint.md): reuse
+- [Package authority chokepoint](m-pkg-authority-chokepoint.md): reuse
   its authority/refusal contract; this design closes one explicitly deferred
   non-package path rather than reopening package semantics.
-- [Registry confinement](../../planned/v0_52_6/m-pkg-registry-confinement.md): adjacent package
+- [Registry confinement](../v0_53_0/m-pkg-registry-confinement.md): adjacent package
   cache/network boundary, distinct from GitHub docs-search credentials/cache.
 - [SECURITY.md](../../../SECURITY.md): existing guarantee is package-specific;
   add the scoped docs fallback guarantee only after verified implementation.

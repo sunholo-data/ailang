@@ -2,12 +2,12 @@
 
 ## Summary
 
-Phase 1 of [M-EFFECT-REFINEMENT (v1.0.0)](../v1_0_0/m-effect-refinement.md) — ship the language-feature scaffolding for parameterised effects `!{E[k=v, ...]}`. Parser+AST accept the syntax, row algebra and unification rules accept parameters, and `type CryptoRand = Rand[mode=crypto]` validates zero-diff against existing v0.13.x M-CRYPTORAND programs. Rand is the pilot effect; Clock/Net/FS/AI ports + replay contract registry + capability scoping + M-ENTROPY integration stay deferred to follow-up sprints.
+Phase 1 of [M-EFFECT-REFINEMENT (v1.0.0)](../../planned/v1_1_0/m-effect-refinement.md) — ship the language-feature scaffolding for parameterised effects `!{E[k=v, ...]}`. Parser+AST accept the syntax, row algebra and unification rules accept parameters, and `type CryptoRand = Rand[mode=crypto]` validates zero-diff against existing v0.13.x M-CRYPTORAND programs. Rand is the pilot effect; Clock/Net/FS/AI ports + replay contract registry + capability scoping + M-ENTROPY integration stay deferred to follow-up sprints.
 
 **Sprint ID:** M-EFFECT-REFINEMENT-PHASE1
 **Target Version:** v0.15.0
 **Design Doc:** [m-effect-refinement-phase1.md](m-effect-refinement-phase1.md) — Phase-1 carve-out
-**Parent Design:** [m-effect-refinement.md](../v1_0_0/m-effect-refinement.md) — full 8-phase taxonomy
+**Parent Design:** [m-effect-refinement.md](../../planned/v1_1_0/m-effect-refinement.md) — full 8-phase taxonomy
 **Duration:** 5 working days (~37 hours)
 **Dependencies:** M-CRYPTORAND (v0.13.0, ✅ shipped) — back-compat alias target / load-bearing validation; M-AI-OPENROUTER (v0.16.0, ✅ shipped) — informs the deferred AI port pattern
 **Risk Level:** Medium-High (typechecker change; M2 unification rules are the hardest piece)
@@ -233,7 +233,7 @@ Phase 1 of [M-EFFECT-REFINEMENT (v1.0.0)](../v1_0_0/m-effect-refinement.md) — 
 
 ## Notes
 
-- The parent [M-EFFECT-REFINEMENT (v1.0.0)](../v1_0_0/m-effect-refinement.md) doc retains the full 8-phase picture. This Phase-1 doc + sprint plan are the v0.15.0-deliverable carve-out. Phases 3-6 stay tracked in the parent for follow-up sprints.
+- The parent [M-EFFECT-REFINEMENT (v1.0.0)](../../planned/v1_1_0/m-effect-refinement.md) doc retains the full 8-phase picture. This Phase-1 doc + sprint plan are the v0.15.0-deliverable carve-out. Phases 3-6 stay tracked in the parent for follow-up sprints.
 - The `--allow-routing` runtime gate from M-AI-OPENROUTER (v0.16.0) is the runtime substitute for the type-level `!{AI[mode=routeable]}` marker that lands in Phase 5 of the parent. Phase 1 unblocks that work but does not yet ship the AI port — Phase 5 of parent doc covers it.
 - Pre-/post-sprint typecheck-output diff is the recommended back-compat verification mechanism. It catches subtle elaboration changes the way M-TAINT-TYPES M5's "20 contract examples produce identical pre-/post-sprint outcomes" check did.
 - If M2's unification rules turn out harder than the parent doc's sketch, the explicit pause-and-reassess at end of Day 3 lets us ship M1 only and defer the row algebra to a follow-up sprint without violating the v0.15.0 release window.

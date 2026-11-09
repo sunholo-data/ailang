@@ -170,6 +170,9 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 	if params.PipelineResult == nil {
 		return false, fmt.Errorf("internal: bytecodeMode set but pipelineResult is nil")
 	}
+	if err := vmTraceLabelGuard(rt, params); err != nil {
+		return false, err
+	}
 
 	// Recover from lower/compile panics so they degrade to a normal compile
 	// error and let the caller fall back to the evaluator in non-strict mode.
@@ -202,6 +205,15 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 		return false, fmt.Errorf("entry function %q not found in bytecode image", entry)
 	}
 
+	// Strict-VM coverage report: every evaluator-only function the entry can
+	// reach. Strict mode rejects the image here, before dispatch, instead of
+	// trapping mid-run on the first CALL; non-strict mode says what it bridges
+	// rather than falling back silently.
+	evalOnly := img.EvalOnlyReachable([]int{img.ProtoIndex(proto)})
+	if params.StrictBytecode && len(evalOnly) > 0 {
+		return false, StrictEvalOnlyError(entry, evalOnly)
+	}
+
 	// Convert decoded args from eval.Value to bytecode.Value via the bridge.
 	bcArgs := make([]bytecode.Value, 0, len(args))
 	for i, a := range args {
@@ -223,6 +235,10 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 
 	if !params.Quiet {
 		fmt.Fprintf(os.Stderr, "%s Running %s via bytecode VM\n", green("✓"), params.Filename)
+	}
+
+	if !params.StrictBytecode {
+		WarnEvalOnly(os.Stderr, entry, evalOnly)
 	}
 
 	machine := vm.NewVM(img)
@@ -247,10 +263,7 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 	// here (which was the original fallback) skips those steps and
 	// subtly breaks effects that depend on resolver/fork state — e.g.
 	// Process subprocess stdout ordering.
-	if proto.EvalOnly {
-		if params.StrictBytecode {
-			return false, fmt.Errorf("entry %q is evaluator-only (%s); strict mode disables bridge dispatch", entry, proto.EvalReason)
-		}
+	if proto.EvalOnly { // strict mode already returned: the entry is in evalOnly
 		result, err := runtime.CallEntrypoint(rt, inst, entry, args)
 		if err != nil {
 			// The entry already ran on the evaluator: this IS the evaluator's

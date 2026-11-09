@@ -49,7 +49,9 @@ PARENT=$$
 python3 -I tools/finetune/trace_proxy.py --listen $PORT --upstream http://127.0.0.1:11434 \
   --out "$OP/trace.jsonl" >> "$OP/proxy.log" 2>&1 &
 PROXY=$!
-trap 'kill $PROXY 2>/dev/null' EXIT
+# ADD to rig_lock_acquire's EXIT trap, never replace it: a bare `trap ... EXIT` here dropped the
+# lock release, and the 2026-11-09 collection left rig.lock.d behind for every other GPU user.
+trap "kill $PROXY 2>/dev/null; rm -rf '$RIG_LOCK_DIR'" EXIT
 sleep 1
 kill -0 $PROXY 2>/dev/null || { log "FATAL: trace proxy did not start (port $PORT in use?)"; exit 1; }
 

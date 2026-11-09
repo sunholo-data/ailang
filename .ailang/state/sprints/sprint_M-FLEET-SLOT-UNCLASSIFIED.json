@@ -4,7 +4,7 @@
   "created": "2026-10-14T00:00:00Z",
   "verified_at": "1f5f0d3ac07dfb35d49c46bc9d66e4ec0e097b51",
   "design_doc": "design_docs/planned/v1_0_0/m-mission-slot-heartbeat.md",
-  "sprint_plan": "design_docs/planned/sprint-plan-slot-verdict-unclassified.md",
+  "sprint_plan": "design_docs/implemented/v0_54_12/sprint-plan-slot-verdict-unclassified.md",
   "ticket": "driver:unclassified-state-unreachable",
   "github_issues": [],
   "registry_reuse": [

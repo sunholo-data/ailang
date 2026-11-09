@@ -14,7 +14,7 @@ Controller fold applied 2026-07-24, iter-99 — Mark's option-(b) decision folde
 **Dependencies**:
   - [m-effect-mode-validation](m-effect-mode-validation.md) (sprint 1) — registry keys must be validated modes
   - [M-EFFECT-REFINEMENT-PHASE1](../../implemented/v0_15_x/m-effect-refinement-phase1.md) (v0.15.0, shipped) — the type-level machinery
-**Parent**: [M-EFFECT-REFINEMENT](m-effect-refinement.md) — decomposition sprint 2 of 4 (2026-07-11)
+**Parent**: [M-EFFECT-REFINEMENT](../../planned/v1_1_0/m-effect-refinement.md) — decomposition sprint 2 of 4 (2026-07-11)
 
 ## Framing
 
@@ -284,9 +284,9 @@ sweep + CI.
 
 ## Related Documents
 
-- [M-EFFECT-REFINEMENT](m-effect-refinement.md) — parent (Phase 3); decomposed 2026-07-11
+- [M-EFFECT-REFINEMENT](../../planned/v1_1_0/m-effect-refinement.md) — parent (Phase 3); decomposed 2026-07-11
 - [m-effect-mode-validation](m-effect-mode-validation.md) — sprint 1, prerequisite
-- [m-effect-clock-net-fs-modes](m-effect-clock-net-fs-modes.md) — sprint 3, populates registry rows
+- [m-effect-clock-net-fs-modes](../../planned/v1_1_0/m-effect-clock-net-fs-modes.md) — sprint 3, populates registry rows
 - [m-cryptorand](../../implemented/v0_15_0/m-cryptorand.md) — runtime intent superseded by this sprint (doc header to be corrected here)
 - [m-ai-effect-modes-followups](m-ai-effect-modes-followups.md) — owns AI replay enforcement; boundary kept explicit
 - [m-process-modes](../v1_1_0/m-process-modes.md) — v1.1 consumer of the registry

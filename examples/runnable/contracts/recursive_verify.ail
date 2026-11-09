@@ -3,8 +3,15 @@
 -- Shows Z3 verifying recursive functions via Dafny-style unrolling
 -- Demonstrates: factorial, sumTo, fibonacci with bounded depth
 --
--- Bounded verification proves contracts for inputs up to the recursion depth.
--- Use --verify-recursive-depth N where N > max recursion depth of your inputs.
+-- Bounded unrolling expands each function N levels deep; the level below N is an
+-- uninterpreted stub. If Z3 proves the contract over every value of that stub,
+-- it reports VERIFIED (bounded: depth N). If it only finds a model by choosing a
+-- value for the stub, the verdict is INCONCLUSIVE (bounded: depth N) — neither a
+-- proof nor a violation. All three functions here are inconclusive at the
+-- default depth 2; because `requires` bounds n <= 4, a depth past that bound
+-- decides them: `ailang verify --verify-recursive-depth 6` verifies all three.
+-- For unbounded inputs (any-length lists) no depth decides it.
+-- (M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE)
 
 module examples/runnable/contracts/recursive_verify
 

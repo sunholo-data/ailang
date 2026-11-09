@@ -5,7 +5,7 @@
 **Priority**: P0 (the contract/IFC story's load-bearing case — string construction — cannot be proved today)
 **Estimated**: 2–2.5 days (3 milestones, each independently committable; M1 alone closes the report)
 **Dependencies**: None. Independent of, and complementary to,
-[m-contract-verification-coverage](../../planned/m-contract-verification-coverage.md) (which
+[m-contract-verification-coverage](../../planned/v1_1_0/m-contract-verification-coverage.md) (which
 re-*categorizes* skips; this doc *removes* a class of them).
 **Author**: design-doc-creator role, attended session 2026-09-09, at `dev` = `8e8e8c9bf` (v0.35.4)
 **Revision**: r3 — two quorum rounds, both **blocked**, four objections in total, all four
@@ -671,11 +671,11 @@ Two of the four attended-session triggers fire, so this doc **should** go to
   the rewrite is value-preserving.
 
 **Planned (checked for overlap — all distinct):**
-- [m-contract-verification-coverage](../../planned/m-contract-verification-coverage.md) — *complementary,
+- [m-contract-verification-coverage](../../planned/v1_1_0/m-contract-verification-coverage.md) — *complementary,
   not overlapping.* That doc splits `verify_skipped` into `skipped` vs `not_applicable`; this
   one removes a class of genuine `skipped`. Landing both makes the encoder-coverage figure both
   correctly categorized and smaller.
-- [m-verify-bounded-unrolling-false-counterexample](../../planned/m-verify-bounded-unrolling-false-counterexample.md)
+- [m-verify-bounded-unrolling-false-counterexample](../v0_57_5/m-verify-bounded-unrolling-false-counterexample.md)
   (0.27) — recursion-depth soundness, orthogonal to the builtin-encoding surface.
 
 **Source reports:**

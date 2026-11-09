@@ -333,7 +333,7 @@ provider_executor lane for tool-using agents, or Generate for single-turn work.
 
 **Planned (check for overlap):**
 - `design_docs/planned/m-codex-billing-lane-resolution.md` — **superseded by this doc** (banner added in Phase 1); its fail-loud analysis (D1–D3, D5) is carried forward, its "never build the provider" ruling (D4) is reversed by the maintainer ruling of 2026-10-08
-- `design_docs/planned/m-codex-quota-observation.md` — the quota instrument this design feeds (a codex run refreshes the provider observation); no overlap, complementary
+- `design_docs/implemented/v0_35_2/m-codex-quota-observation.md` — the quota instrument this design feeds (a codex run refreshes the provider observation); no overlap, complementary
 - `design_docs/planned/ailang-core-triage/test-executor-module-env-miswiring.md` — cites #1259; the deadline mechanism this doc defers to
 
 ## References
@@ -374,7 +374,7 @@ All rows verified by code reads / greps in this checkout (`c3bfb1c0`, shallow de
 | V22 | The injected-constructor precedent is `WithConfigDriven` | Read `internal/ai/factory/factory.go` `WithConfigDriven` option + `New`'s config-driven fallback branch |
 | V23 | `("codex","oauth")` selects the `agent-executor-codex` job | Read `internal/dispatch/cloudrun/dispatcher.go:170–186` `jobSuffixForVariant` |
 | V24 | No terraform in this repo (ops ground truth) | `grep -rn --include=*.tf .` → no hits; the dispatcher comments point at "the Terraform-defined job name in cloud_run_jobs.tf" (ops repo) |
-| V25 | Quota observation consumes rollout records / app-server, refreshed by real codex runs | Read `internal/mission/codex_app_server_quota.go` (header: app-server `account/rateLimits/read`, session scan fallback) and `design_docs/planned/m-codex-quota-observation.md` (contract: a fresh ordinary codex call refreshes records) |
+| V25 | Quota observation consumes rollout records / app-server, refreshed by real codex runs | Read `internal/mission/codex_app_server_quota.go` (header: app-server `account/rateLimits/read`, session scan fallback) and `design_docs/implemented/v0_35_2/m-codex-quota-observation.md` (contract: a fresh ordinary codex call refreshes records) |
 | V26 | Motoko's agent loop uses the harness tool loop | Read `std/ai.ail:54–91` (M-AI-TOOL-LOOP: "The host dispatches it… then feeds the result back"); `internal/executor/motoko/parser.go:49–88` (session events carry `tool_calls`) — the D8 consequence is real, not hypothetical |
 | V27 | Quota-bucket folding must keep chatgpt for history | Read `internal/observatory/mission_rollup.go:215–233`: `CanonicalQuotaBucket` folds `chatgpt`/`codex`/`gpt-*` → `"codex"` at READ time over stored agent_ids |
 | V28 | No repo policy/config uses `codex:` as an `ai_provider` value | `grep -rn "codex:" --include=*.yml --include=*.yaml --include=*.toml --include=*.ail internal/ std/ examples/ cmd/` → only `approval_authority.ail` test data (V30) and the `gpt5-2-codex` row name (a registry key, not a policy value) |
@@ -400,7 +400,7 @@ All rows verified by code reads / greps in this checkout (`c3bfb1c0`, shallow de
 ## Operational addendum: three OAuth profiles on one account (2026-10-09)
 
 **Status:** Operational addendum implemented and validated in v0.53.1 on 2026-10-09; independent evaluation passed (97/100). The parent provider migration remains planned.
-**Rollout evidence:** [completed operational sprint](m-codex-oauth-profiles-sprint-plan.md#execution-evidence-2026-10-09).
+**Rollout evidence:** [completed operational sprint](../../implemented/v0_53_1/m-codex-oauth-profiles-sprint-plan.md#execution-evidence-2026-10-09).
 **Priority:** P1. **Estimated:** 2–4 days including cloud rollout and fault tests.
 **Scope:** Credential ownership for interactive use, local missions, and cloud
 executions. This closes the fleet-auth follow-up explicitly deferred by Phase 1;

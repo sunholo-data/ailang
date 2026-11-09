@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-SWEEP-ACCOUNT-HOME",
-  "design_doc": "design_docs/planned/sprint-plan-sweep-account-home.md",
+  "design_doc": "design_docs/implemented/v0_55_0/sprint-plan-sweep-account-home.md",
   "ticket": "pin-root:worktree-removed-mid-fire",
   "status": "planned",
   "features": [

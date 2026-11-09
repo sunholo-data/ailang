@@ -314,7 +314,9 @@ Because they weren't designed for AI-assisted development:
 
 ## Current Status
 
-AILANG is pre-1.0. The core language, effect system, Hindley-Milner type inference, Go codegen, module system, agent messaging, and semantic caching are stable and used in production demos and benchmarks. Minor-version releases may still adjust public APIs.
+AILANG is pre-1.0. The core language, effect system, Hindley-Milner type inference, Go codegen, module system, and semantic caching are stable and used in production demos and benchmarks. Agent messaging (`ailang messages`) is heavily used but Experimental — it may change in a 1.x minor release, with a changelog entry. Minor-version releases may still adjust public APIs.
+
+1.0.0 is a promise, not an adoption milestone: it ships when the [Stability Promise](/docs/reference/stability) is ratified against today's surface, no `priority:P0` issue is open, and packages and the cloud executor MCP tools are written into that promise. Benchmark pass rates and cost-per-verified-success are published with the release, not used to gate it.
 
 See the **[Roadmap](/docs/roadmap)** for planned features and upcoming releases.
 

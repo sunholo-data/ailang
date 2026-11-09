@@ -130,9 +130,9 @@ func verifyCommand() {
 
 	// Output results
 	if *jsonFlag {
-		printVerifyJSON(report.Results, filename, report.Verified, report.Counterexample, report.Skipped, report.Errors, report.Uncontracted)
+		printVerifyJSON(report, filename)
 	} else {
-		printVerifyHuman(report.Results, filename, report.Verified, report.Counterexample, report.Skipped, report.Errors, report.Uncontracted, *verboseFlag)
+		printVerifyHuman(report, filename, *verboseFlag)
 	}
 
 	// Exit code logic
@@ -141,10 +141,12 @@ func verifyCommand() {
 	if report.Counterexample > 0 || report.Errors > 0 {
 		os.Exit(1)
 	}
-	// Strict mode is deliberately unchanged: an uncontracted function is not a
-	// verification failure, it is a function nobody has written a contract for.
-	// Counting it here would turn --strict red on every module with a helper.
-	if *strictFlag && (report.Skipped > 0 || report.Errors > 0) {
+	// Strict mode: an uncontracted function is not a verification failure, it
+	// is a function nobody has written a contract for — counting it would turn
+	// --strict red on every module with a helper. An INCONCLUSIVE obligation
+	// (bounded-unrolling sat) IS counted: it may hide a real bug on a recursive
+	// function, and a strict gate must not pass it silently.
+	if *strictFlag && (report.Skipped > 0 || report.Errors > 0 || report.Inconclusive > 0) {
 		os.Exit(1) // Strict mode: non-verifiable functions are failures
 	}
 }
@@ -189,7 +191,7 @@ func verifyPackageCommand(dir string, opts verifyPackageOptions, jsonOut, strict
 	if report.Counterexample > 0 || report.Errors > 0 {
 		os.Exit(1)
 	}
-	if strict && report.Skipped > 0 {
+	if strict && (report.Skipped > 0 || report.Inconclusive > 0) {
 		os.Exit(1)
 	}
 }

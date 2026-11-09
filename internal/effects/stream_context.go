@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"fmt"
 	"net"
+	"net/http"
 	"net/url"
 	"sync"
 	"time"
@@ -43,6 +44,11 @@ type StreamContext struct {
 	AllowLocalhost  bool     // Default: false
 	BlockPrivateIPs bool     // Default: true (RFC1918 + link-local)
 	AllowedDomains  []string // Domain allowlist (empty = all allowed)
+	// RefuseProxy (restricted policy mode): a proxy selected for an SSE/NDJSON
+	// request is a named refusal, never a direct fallback — the same rule as
+	// NetContext.RefuseProxy, because the destination address cannot be
+	// pinned behind a proxy.
+	RefuseProxy bool
 
 	// Event buffer
 	EventBufferSize int // Default: 1000 (bounded; backpressure when full)
@@ -71,8 +77,11 @@ type StreamContext struct {
 	// Test hooks, nil in production — the same seam NetContext has, so the
 	// shared destination authorizer (net_authorize.go) is falsifiable for
 	// Stream transports with an injected resolver/dialer.
-	lookupIP        func(hostname string) ([]net.IP, error)
-	dialContext     func(ctx context.Context, network, addr string) (net.Conn, error)
+	lookupIP    func(hostname string) ([]net.IP, error)
+	dialContext func(ctx context.Context, network, addr string) (net.Conn, error)
+	// proxySelector chooses the route per request; nil means
+	// http.ProxyFromEnvironment (m-net-effect-proxy-boundary M2).
+	proxySelector   func(req *http.Request) (*url.URL, error)
 	tlsClientConfig *tls.Config
 }
 
@@ -111,6 +120,7 @@ func (sc *StreamContext) Child() *StreamContext {
 		AllowLocalhost:  sc.AllowLocalhost,
 		BlockPrivateIPs: sc.BlockPrivateIPs,
 		AllowedDomains:  append([]string(nil), sc.AllowedDomains...),
+		RefuseProxy:     sc.RefuseProxy,
 		EventBufferSize: sc.EventBufferSize,
 		Credentials:     sc.Credentials,
 		BridgeLog:       sc.BridgeLog,
@@ -118,6 +128,7 @@ func (sc *StreamContext) Child() *StreamContext {
 		nextID:          1,
 		lookupIP:        sc.lookupIP,
 		dialContext:     sc.dialContext,
+		proxySelector:   sc.proxySelector,
 		tlsClientConfig: sc.tlsClientConfig,
 	}
 	return c

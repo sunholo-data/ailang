@@ -1,8 +1,8 @@
 {
   "sprint_id": "M-PI-RUNNER-PROVIDER-QUOTA",
   "status": "planned",
-  "design_doc": "design_docs/planned/sprint-plan-pi-runner-provider-quota.md",
-  "sprint_plan": "design_docs/planned/sprint-plan-pi-runner-provider-quota.md",
+  "design_doc": "design_docs/implemented/v0_50_0/sprint-plan-pi-runner-provider-quota.md",
+  "sprint_plan": "design_docs/implemented/v0_50_0/sprint-plan-pi-runner-provider-quota.md",
   "ticket": "pi-runner:quota-429-reported-as-empty-worktree",
   "mission": "fleet iteration 10 (queue P1 #4, filed by World iter 196)",
   "created": "2026-10-01",

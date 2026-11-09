@@ -252,7 +252,7 @@ Net +7; no hard violations on A1/A3/A4/A7.
 - [Sprint plan](m-benchmark-performance-refresh-sprint-plan.md)
 - [Measured-model visibility](../../planned/m-eval-measured-model-visibility.md)
 - [Dashboard redesign](../v0_26_0/m-eval-dashboard-redesign.md)
-- [Rolling ELO](../../planned/v0_35_0/m-eval-rolling-elo.md)
+- [Rolling ELO](../v0_35_0/m-eval-rolling-elo.md)
 - [Validity discipline](../../planned/m-eval-validity-discipline.md)
 
 ## Implementation Verification

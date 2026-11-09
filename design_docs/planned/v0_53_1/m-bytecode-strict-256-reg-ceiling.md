@@ -1,6 +1,6 @@
 # M-BYTECODE-STRICT-256-REG-CEILING — strict-VM register-pressure failures are silent until RUN time: >256-element list literals and if/else-if chains over wide records become `evaluator-only` with no compile-time, `check`-time, or non-strict-run warning
 
-**Status**: Phases B1 + B2 LANDED 2026-10-16 (Phase A open). B1 as first shipped in v0.54.13 covered only atomic elements: elaboration binds every non-atomic element (call, negation, record) to a pinned `$tmp` local, so computed lists still overflowed (#1865). Fixed by `inlineCtorTemps` (`internal/bytecode/compiler/ctor_temps.go`), which compiles single-use temps straight into constructor slots when evaluation order is unchanged.
+**Status**: Phases B1 + B2 LANDED 2026-10-16; Phase A LANDED 2026-11-09 (`check --strict-bytecode` → `BC001`, strict run/test pre-dispatch rejection, non-strict warning; census in [m-bytecode-strict-256-reg-ceiling-census.md](m-bytecode-strict-256-reg-ceiling-census.md): 0 register-ceiling entries across 538 checked files). Open: Phase C docs page for the K-chunking note, `check --package --strict-bytecode`. Phase A reports evaluator-only functions *reachable* from the file's own declarations, not every prototype in the image (an unreached std helper cannot trap; std/list alone carries two). B1 as first shipped in v0.54.13 covered only atomic elements: elaboration binds every non-atomic element (call, negation, record) to a pinned `$tmp` local, so computed lists still overflowed (#1865). Fixed by `inlineCtorTemps` (`internal/bytecode/compiler/ctor_temps.go`), which compiles single-use temps straight into constructor slots when evaluation order is unchanged.
 **Target**: v0.53.1
 **Priority**: P0 (strict-VM coverage silently degrades for exactly the AI-generated code shapes `--strict-bytecode` exists to cover; reported from the field twice in one mission)
 **Estimated**: 3–4 days (~450 LOC, pure compiler + CLI surface; no VM, no parser, no language semantics change)
@@ -162,12 +162,12 @@ Phases A and B are independent; A lands first (it converts every *unknown* futur
 ### Implementation Plan
 
 **Phase A: Strict-VM compile report (P0)** (~1.5 days)
-- [ ] Plumb FuncDecl `Line` onto `FuncPrototype` (or return the report alongside the image) so diagnostics carry file:line.
-- [ ] `ailang check --strict-bytecode` flag + `BC001` diagnostic (human, `--json`, `--format agent`), exit ≠ 0 on any `EvalOnly` entry; add `BC001` to `internal/errors/codes.go` with phase/category metadata.
-- [ ] `ailang run --bytecode --strict-bytecode`: pre-flight failure with the `BC001` list before dispatch (replaces the mid-run trap for the compile-tag case).
-- [ ] `ailang run --bytecode` non-strict: stderr warning listing `EvalOnly` prototypes (count + names).
-- [ ] `ailang test` strict mode: report helpers too (test body gate already exists at `internal/testing/bytecode_engine.go:157`).
-- [ ] Corpus sweep: run the report over `std/`, `examples/`, `goldens/`; bank the current `EvalOnly` census (per reason) as the baseline the sprint-evaluator diffs against.
+- [x] Plumb FuncDecl `Line` onto `FuncPrototype` (or return the report alongside the image) so diagnostics carry file:line.
+- [x] `ailang check --strict-bytecode` flag + `BC001` diagnostic (human, `--json`, `--format agent`), exit ≠ 0 on any `EvalOnly` entry; add `BC001` to `internal/errors/codes.go` with phase/category metadata.
+- [x] `ailang run --bytecode --strict-bytecode`: pre-flight failure with the `BC001` list before dispatch (replaces the mid-run trap for the compile-tag case).
+- [x] `ailang run --bytecode` non-strict: stderr warning listing `EvalOnly` prototypes (count + names).
+- [x] `ailang test` strict mode: report helpers too (test body gate already exists at `internal/testing/bytecode_engine.go:157`).
+- [x] Corpus sweep: run the report over `std/`, `examples/`, `goldens/`; bank the current `EvalOnly` census (per reason) as the baseline the sprint-evaluator diffs against.
 
 **Phase B1: Chunked list-literal lowering** (~1 day)
 - [x] `compileListLit` chunked path (K=64 constant) with per-chunk register free; source-order element evaluation. Joined with the `_concat_List` builtin: `OpConcat` is string-only on the VM.
@@ -177,7 +177,7 @@ Phases A and B are independent; A lands first (it converts every *unknown* futur
 **Phase B2: If-expr chain result reuse** (~0.5 day)
 - [x] `compileIfExprInto` for else-position `IfExpr`. **But the reported shape never reaches IfExpr**: the lowering turns else-if chains into `IfStmt`s whose else branch is `let $tmpN = cond; if $tmpN …` (tail position) or `let $tmpN = cond; var $valTmpM = (); if …; $valTmpK = $valTmpM` (value position). Those per-level temps are scoped locals whose scope encloses the rest of the chain, so each level pinned registers inside the previous arm's freed 16-block. The fix is `elseIfInline` in `control_flow.go`: it compiles `if cond` directly and aliases the inner result to the enclosing result register, only for compiler temps the inner if never reads. `compileReturnExpr` also now frees its value register after `RETURN`.
 - [x] Tests: 80-arm chains over a 16-field record in tail and value position, strict VM == evaluator (`TestLongElseIfChainRunsOnStrictVM`); 120 arms checked by hand. Mutation-checked.
-- [ ] Re-run the Phase A census: the two reported cause classes should drop to zero across the corpus.
+- [x] Re-run the Phase A census: the two reported cause classes should drop to zero across the corpus. (2026-11-09: 0 register-ceiling entries; see census doc.)
 
 **Phase C: Documentation** (~0.5 day)
 - [ ] `docs/` strict-bytecode reference: `BC001`, the check gate, the K-chunking behavior note (visible in disasm).
@@ -234,8 +234,8 @@ BC001: function m.wide is evaluator-only under --strict-bytecode
 
 - [x] 601- and 1000-element float list literals run under `--bytecode --strict-bytecode` with the evaluator's exact output (acceptance: new `cmd/ailang` test mirroring `run_bytecode_match_test.go`).
 - [x] A 60-arm else-if chain of record updates over a 16-field record runs under `--strict-bytecode` matching the evaluator (measured pre-fix threshold: fails at 16 arms).
-- [ ] `ailang check --strict-bytecode` exits ≠ 0 with one `BC001` per `EvalOnly` proto on a module with an oversized construct, and exits 0 on both fixed repros.
-- [ ] `ailang run --bytecode` (non-strict) emits the `EvalOnly` warning; no silent fallbacks remain.
+- [x] `ailang check --strict-bytecode` exits ≠ 0 with one `BC001` per `EvalOnly` proto on a module with an oversized construct, and exits 0 on both fixed repros.
+- [x] `ailang run --bytecode` (non-strict) emits the `EvalOnly` warning; no silent fallbacks remain.
 - [ ] All existing tests passing: `make test` (incl. `make check-boundaries` — no layer violations, `internal/` only), `control_flow_test.go`, `collections_test.go`, `regalloc_test.go`, engine-parity corpus.
 - [ ] Documentation updated (`docs/` strict-bytecode page, CHANGELOG).
 

@@ -1,7 +1,7 @@
 # Sprint Plan — M-COMPLETION-PATH-PARITY (M1 – M5)
 
 **Design doc**: [m-completion-path-parity.md](m-completion-path-parity.md) (r14, 53 verification rows)
-**Sibling (NOT in this sprint)**: [m-coordinator-execution-trust.md](m-coordinator-execution-trust.md) — owns the tier model (D4)
+**Sibling (NOT in this sprint)**: [../implemented/v0_35_0/m-coordinator-execution-trust.md](../implemented/v0_35_0/m-coordinator-execution-trust.md) — owns the tier model (D4)
 **Created**: 2026-09-03 · attended session, main checkout, commits straight to `dev`
 **Rulings in force**: D2 per-edge · D3 abandon · D5 terminal-nothing-follows (Mark, attended, 2026-09-03)
 **Status**: **M0, M0b, M1 (cloud half), M2, M3, M4, M5 LANDED on `dev`** (`b5dd366cb`, `d4aa5757c`, `092a27413`, `c22bf06b0`, `8e72dc630`). ~3,500 LOC, 60 test arms. **M1b — consolidating the DAEMON call site onto the orchestrator — is deliberately NOT done**; see below.
@@ -173,7 +173,7 @@ trigger** — that empty output is what produced an unplanned production deploy 
 > version → prod. `ailang-multivac/cloudbuild.yaml` and the three
 > `ailang-multivac-{dev,test,prod}` full-pipeline triggers were deleted; a branch push there
 > now carries terraform + config only and builds no image. Design:
-> [`v0_35_0/m-unified-release-model.md`](v0_35_0/m-unified-release-model.md); the model is
+> [`../implemented/v0_35_0/m-unified-release-model.md`](../implemented/v0_35_0/m-unified-release-model.md); the model is
 > written down once, in `ailang-multivac/.claude/skills/release/SKILL.md`.
 
 | Repo | Trigger | Fires on | Builds |

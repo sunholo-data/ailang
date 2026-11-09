@@ -1,6 +1,6 @@
 # Sprint M-DX27: GitHub repository search fallback
 
-Design: `design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md`  
+Design: `design_docs/implemented/v0_35_2/m-dx27-docs-search-github-fallback.md`  
 Target: v0.36.0  
 Plan: 2 working days, approximately 11 hours
 

@@ -20,6 +20,7 @@ import argparse
 import collections
 import json
 import os
+import sys
 import random
 import re
 
@@ -83,7 +84,19 @@ def main():
     ap.add_argument("--example-repeat", type=int, default=2)
     ap.add_argument("--valid-frac", type=float, default=0.05)
     ap.add_argument("--seed", type=int, default=13)
+    ap.add_argument("--tokenizer", default="", help="model dir; with --max-tokens, measure each sample as train2.py renders it")
+    ap.add_argument("--max-tokens", type=int, default=0,
+                    help="drop samples longer than this (the training max_seq_length). Training truncates from the END, "
+                         "so an over-long on-policy sample keeps its no-loss mistakes and loses the fix")
     a = ap.parse_args()
+    ntok = None
+    if a.tokenizer and a.max_tokens:
+        from pathlib import Path
+        from mlx_lm.utils import load_tokenizer
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        from train2 import _render  # the exact render training uses: one implementation, not two
+        _tok = load_tokenizer(Path(os.path.expanduser(a.tokenizer)))
+        ntok = lambda r: len(_render(_tok, r["messages"], r.get("tools")))
     rnd = random.Random(a.seed)
     head, tail, tools = lean_format(a.format)
     arms = [json.load(open(os.path.expanduser(a.arm_slim)))["prefix"], json.load(open(os.path.expanduser(a.arm_none)))["prefix"]]
@@ -109,14 +122,24 @@ def main():
         if per[key] >= cap:
             rep[f"capped:{e['kind']}"] += 1
             continue
-        per[key] += 1
-        picked.append(e)
-        if e["kind"] == "example":  # repeat examples (canonical syntax) with a fresh arm draw
-            for _ in range(a.example_repeat - 1):
-                picked.append(e)
-                per[key] += 1
+        # Render (and length-check) BEFORE taking a cap slot, so a too-long sample frees its slot
+        # for another episode of the same kind. The arm draw is part of the length.
+        reps = []
+        for _ in range(a.example_repeat if e["kind"] == "example" else 1):  # examples repeat, fresh arm each
+            r = render(e, head, tail, tools, rnd.choice(arms))
+            if r is None:
+                rep["no_workspace"] += 1
+            elif ntok and ntok(r) > a.max_tokens:
+                rep[f"over_max_tokens:{e['kind']}"] += 1
+            else:
+                reps.append(r)
+        if not reps:
+            continue
+        for r in reps:
+            per[key] += 1
+            picked.append((e, r))
 
-    benches = sorted({e["benchmark"] for e in picked})
+    benches = sorted({e["benchmark"] for e, _ in picked})
     rnd.shuffle(benches)
     valid_b = set(benches[: max(1, int(len(benches) * a.valid_frac))])
     os.makedirs(os.path.expanduser(a.out), exist_ok=True)
@@ -124,11 +147,7 @@ def main():
     chars = collections.Counter()
     with open(os.path.join(os.path.expanduser(a.out), "train.jsonl"), "w") as ft, \
             open(os.path.join(os.path.expanduser(a.out), "valid.jsonl"), "w") as fv:
-        for e in picked:
-            r = render(e, head, tail, tools, rnd.choice(arms))
-            if r is None:
-                rep["no_workspace"] += 1
-                continue
+        for e, r in picked:
             split = "valid" if e["benchmark"] in valid_b else "train"
             (fv if split == "valid" else ft).write(json.dumps(r) + "\n")
             counts[(split, e["kind"])] += 1

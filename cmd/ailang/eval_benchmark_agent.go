@@ -321,12 +321,13 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 		// always recorded these (via PopulateVerifyMetrics); agent mode dropped
 		// them, so even once verification ran, eval-summary / eval-matrix could
 		// not see it. Same evidence, both surfaces.
-		VerifyOk:        result.VerifyOk,
-		VerifyVerified:  result.VerifyVerified,
-		VerifyCounterex: result.VerifyCounterex,
-		VerifySkipped:   result.VerifySkipped,
-		VerifyErrors:    result.VerifyErrors,
-		VerifyJSON:      result.VerifyJSON,
+		VerifyOk:           result.VerifyOk,
+		VerifyVerified:     result.VerifyVerified,
+		VerifyCounterex:    result.VerifyCounterex,
+		VerifyInconclusive: result.VerifyInconclusive,
+		VerifySkipped:      result.VerifySkipped,
+		VerifyErrors:       result.VerifyErrors,
+		VerifyJSON:         result.VerifyJSON,
 		// M-EVAL-SWEET-SPOT: prefers FinishReason-derived category when available
 		ErrorCategory:  errCategory,
 		Stdout:         result.Stdout,
@@ -428,17 +429,18 @@ func runSingleBenchmarkAgent(ctx context.Context, benchSpan trace.Span, spec *ev
 			// Contract verification (M-COST-PER-SUCCESS-KPI M1): carry the 5
 			// verify_* fields so the banked eval_assessment can distinguish a
 			// golden-output pass from an independently verified program.
-			VerifyOk:        result.VerifyOk,
-			VerifyVerified:  result.VerifyVerified,
-			VerifyCounterex: result.VerifyCounterex,
-			VerifySkipped:   result.VerifySkipped,
-			VerifyErrors:    result.VerifyErrors,
-			PromptVersion:   result.PromptVersion,
-			CodeHash:        telemetry.ShortHash(result.SolutionCode, 8),
-			Code:            strutil.Truncate(result.SolutionCode, 2000),
-			Stdout:          strutil.Truncate(result.Stdout, 500),
-			ExpectedStdout:  strutil.Truncate(spec.ExpectedOut, 500),
-			Stderr:          strutil.Truncate(result.Stderr, 500),
+			VerifyOk:           result.VerifyOk,
+			VerifyVerified:     result.VerifyVerified,
+			VerifyCounterex:    result.VerifyCounterex,
+			VerifyInconclusive: result.VerifyInconclusive,
+			VerifySkipped:      result.VerifySkipped,
+			VerifyErrors:       result.VerifyErrors,
+			PromptVersion:      result.PromptVersion,
+			CodeHash:           telemetry.ShortHash(result.SolutionCode, 8),
+			Code:               strutil.Truncate(result.SolutionCode, 2000),
+			Stdout:             strutil.Truncate(result.Stdout, 500),
+			ExpectedStdout:     strutil.Truncate(spec.ExpectedOut, 500),
+			Stderr:             strutil.Truncate(result.Stderr, 500),
 		}
 		_ = evalChain.Store.UpdateStageEvalAssessment(ctx, stageID, assessment)
 

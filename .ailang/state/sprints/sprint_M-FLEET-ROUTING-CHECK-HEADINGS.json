@@ -3,8 +3,8 @@
   "created": "2026-10-21T00:00:00Z",
   "estimated_duration_days": 0.25,
   "correlation_id": "sprint_M-FLEET-ROUTING-CHECK-HEADINGS_fleet54_20261021",
-  "design_doc": "design_docs/planned/sprint-plan-routing-check-heading-shapes.md",
-  "markdown_plan": "design_docs/planned/sprint-plan-routing-check-heading-shapes.md",
+  "design_doc": "design_docs/implemented/v0_54_18/sprint-plan-routing-check-heading-shapes.md",
+  "markdown_plan": "design_docs/implemented/v0_54_18/sprint-plan-routing-check-heading-shapes.md",
   "github_issues": [],
   "registry_reuse": [
     {

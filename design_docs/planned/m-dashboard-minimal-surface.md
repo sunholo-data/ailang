@@ -588,7 +588,7 @@ amended doc is optional.
 
 - [Dashboard recovery plan (2026-09-08)](../dashboard-recovery-plan-2026-09-08.md) — parent plan; deletion sprint A shipped; this doc is a dependency- and surface-focused continuation, ordered before its deletion sprint B
 - [Dashboard live audit (2026-09-08)](../dashboard-live-audit-2026-09-08.md) — F3/F5 justify removing the empty analytics facets
-- [M-DASHBOARD-DELETE-ANALYTICS sprint](m-dashboard-delete-analytics-sprint-plan.md) — removed recharts/d3; 1,265 kB → 720 kB JS
+- [M-DASHBOARD-DELETE-ANALYTICS sprint](../implemented/v0_35_3/m-dashboard-delete-analytics-sprint-plan.md) — removed recharts/d3; 1,265 kB → 720 kB JS
 - [m-dashboard-simplification (archived)](../archive/v0_29_0/m-dashboard-simplification.md) — earlier attempt
 - [M-COST2 dashboard Firestore optimisation](../implemented/v0_9_8/m-cost2-dashboard-firestore-optimization.md)
 

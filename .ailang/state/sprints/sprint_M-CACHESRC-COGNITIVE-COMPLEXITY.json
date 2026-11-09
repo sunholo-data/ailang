@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-CACHESRC-COGNITIVE-COMPLEXITY",
-  "design_doc": "design_docs/planned/v0_35_2/m-cachesrc-cognitive-complexity.md",
+  "design_doc": "design_docs/implemented/v0_35_2/m-cachesrc-cognitive-complexity.md",
   "target_release": "v0.35.2",
   "status": "planned",
   "risk_level": "medium",

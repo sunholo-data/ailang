@@ -118,7 +118,7 @@ export func fetchClient(u: string) -> string ! {Net[scope=public]} = httpGet(u)
 | V8 | `randMode` shared by `WithBudget`, reset by `Clone` | `internal/effects/context.go:496`, `:703` | Confirmed |
 | V9 | the bytecode VM has no moded-frame hook | `grep -rn 'RandMode\|PushBudgetFrame' internal/vm internal/bytecode` → empty | Confirmed (negative) |
 | V10 | no shipped `.ail`/Go uses `Net[...]` outside a parser test | `grep -rn 'Net\[' --include=*.go --include=*.ail .` → only `internal/parser/parser_effect_params_test.go` | Confirmed (negative) |
-| V11 | `m-effect-scope-params` reads `scope=` as a narrowing | `design_docs/planned/v1_0_0/m-effect-scope-params.md` l.15–16 | Confirmed |
+| V11 | `m-effect-scope-params` reads `scope=` as a narrowing | `design_docs/planned/v1_1_0/m-effect-scope-params.md` l.15–16 | Confirmed |
 
 ## Tests (named in the sprint plan)
 

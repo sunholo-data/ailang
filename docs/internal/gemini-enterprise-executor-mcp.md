@@ -143,4 +143,6 @@ be in `executor_mcp_invokers`. claude.ai and Claude Desktop connectors need OAut
     and add the OAuth service's host to `allowed_egress_fqdns` (multivac `terraform-gemini-enterprise`).
 - A2A (long-running work on the motoko lane): design phase P2.
 - Agent Gateway / Agent Registry route: deliberately deferred. See the design doc.
-- Prod: the service exists in dev only.
+- Prod: only the OAuth service runs in prod (`ailang-executor-mcp-oauth`, since 2026-11-05, multivac
+  PR #10), on its run.app URL. Moving it to `executor.ailang.sunholo.com` (v1.0 gate G4(b)):
+  [executor-mcp-custom-domain.md](executor-mcp-custom-domain.md). The IAM-only GE service stays dev-only.

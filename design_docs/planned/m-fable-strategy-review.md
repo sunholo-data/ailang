@@ -1,13 +1,24 @@
 # M-FABLE-STRATEGY-REVIEW: What AILANG Should Do To Be the Best AI Programming Language
 
-**Status**: ACTIVE — ratified as the v1.0 product thesis (Mark, 2026-07-11). The v1.0 bar v2 in
-[v1-mission.md](../v1-mission.md) is derived from this review; R1–R7 map onto its clauses 3–5.
+**Status**: ACTIVE as product direction. Was ratified as the v1.0 product thesis (Mark, 2026-07-11):
+the v1.0 bar v2 in [v1-mission.md](../v1-mission.md) was derived from this review, with R1–R7 mapped
+onto its clauses 3–5. Bar v2 was **superseded by bar v3 on 2026-11-09 (D-64)**. See the note below.
 Design Freeze: items 1+2 RATIFIED (see below); item 3 deferred post-v1.
 **Target**: Direction for v0.29 – v0.34
 **Priority**: P0 (strategic direction)
 **Estimated**: Review itself: done. Routed work: sized in each follow-up doc.
 **Dependencies**: [PROGRAM.md](../PROGRAM.md) (routing rule + invariants)
 **Author**: Claude Fable 5 (frontier-model perspective audit, requested by Mark, 2026-07-08)
+
+> **SUPERSEDED as the v1.0 bar source — 2026-11-09, ledger `D-64` (Mark, attended).** The v1.0 bar
+> is now **v3, "1.0 = a promise we can keep"** (see "The v1.0 bar — v3" in
+> [v1-mission.md](../v1-mission.md)): it gates only on the stability promise, zero P0s, packages,
+> the cloud executor MCP and simplification Phase 5. The R1–R7 → bar-v2 clause 3–5 mapping
+> no longer applies: fleet-tier pass rate and cost-per-verified-success are **published** at
+> release, not gated; the ≤1,500-line prompt target and the orchestration-flagship example are
+> not release gates (the R1.2 prompt-deletion pass and `m-v1-orchestration-flagship` are re-scored
+> to v1.1). **R1–R8 continue as normal roadmap work**, routed by [PROGRAM.md](../PROGRAM.md) — this
+> review remains the product-direction document; it is just no longer what 1.0 waits on.
 
 ---
 
@@ -135,9 +146,11 @@ program* for AI authors — not the highest zero-shot pass rate.
 ### Design Freeze
 
 - [x] Mark confirms cost-per-success as the headline dashboard KPI (RATIFIED 2026-07-11 —
-  queued as m-cost-per-success-kpi, v1.0-gating; measured baseline gates, ≤3×/≤1.5× targets track)
+  queued as m-cost-per-success-kpi, v1.0-gating; measured baseline gates, ≤3×/≤1.5× targets track.
+  D-64, 2026-11-09: the KPI stays the headline but is PUBLISHED at release, not gated)
 - [x] Mark confirms the orchestration vertical as the marketing/benchmark lead (RATIFIED
-  2026-07-11 — queued as m-v1-orchestration-flagship, v1.0-gating)
+  2026-07-11 — queued as m-v1-orchestration-flagship, v1.0-gating. D-64, 2026-11-09: re-scored
+  to v1.1; the package ecosystem is the worked example under v1.0 gate G3 instead)
 - [ ] Mark decides whether trace-derived datasets may be published externally (licensing/privacy
   call — R8 blocked until then; internal use may proceed. DEFERRED post-v1, 2026-07-11)
 

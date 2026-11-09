@@ -2,8 +2,8 @@
   "sprint_id": "M-FS-DENY-WRITE-DIR-RENAME",
   "status": "in_progress",
   "created": "2026-10-08T18:52:50Z",
-  "design_doc": "design_docs/planned/v0_52_6/m-fs-deny-write-dir-rename.md",
-  "sprint_plan": "design_docs/planned/v0_52_6/m-fs-deny-write-dir-rename-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_53_0/m-fs-deny-write-dir-rename.md",
+  "sprint_plan": "design_docs/implemented/v0_53_0/m-fs-deny-write-dir-rename-sprint-plan.md",
   "github_issues": [
     1569
   ],

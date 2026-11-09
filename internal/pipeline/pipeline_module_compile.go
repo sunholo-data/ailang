@@ -223,7 +223,10 @@ func typeCheckAndLowerModule(
 	// intervening ! {Declassify} step is a compile-time error. This is a
 	// self-contained surface-AST analysis (CheckModuleIFC) that reads only
 	// unit.Surface and never injects TLabelled types into CoreTI/codegen.
-	if ifcErrs := types.CheckModuleIFC(unit.Surface); len(ifcErrs) > 0 {
+	// The same walk reports the labelled call sites the trace must redact
+	// (M-TRACE-LABEL-AWARE); they are stamped on the final Core below.
+	ifcErrs, traceSites := types.CheckModuleIFCWithTraceSites(unit.Surface)
+	if len(ifcErrs) > 0 {
 		return nil, fmt.Errorf("type error in %s: %w", modID, ifcErrs[0])
 	}
 
@@ -289,6 +292,9 @@ func typeCheckAndLowerModule(
 	// Run post-typecheck phases (dict elaboration, mono, var resolution, lowering)
 	if err := runPostTypeCheckPhases(unit, modID, typeChecker, cfg); err != nil {
 		return nil, err
+	}
+	if unmatched := core.MarkTraceRedactions(unit.Core, traceSites); cfg.DebugCompile && len(traceSites) > 0 {
+		fmt.Fprintf(os.Stderr, "[DEBUG] trace redaction for %s: %d labelled call sites, %d with no Core call %v\n", modID, len(traceSites), len(unmatched), unmatched)
 	}
 
 	// Collect exhaustiveness warnings

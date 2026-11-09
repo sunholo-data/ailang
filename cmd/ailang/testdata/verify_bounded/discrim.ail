@@ -1,0 +1,25 @@
+module cmd/ailang/testdata/verify_bounded/discrim
+
+-- Same clause, three shapes: aOk (non-recursive, true) must verify, bBad
+-- (non-recursive, false) must stay a genuine counterexample with a concrete
+-- model, cRec (recursive, true) must be inconclusive under bounded unrolling.
+
+export type SList = SNil | SCons(int, SList)
+
+export pure func aOk(x: int) -> int
+ensures { result >= 0 } {
+  if x >= 0 then x else 0 - x
+}
+
+export pure func bBad(x: int) -> int
+ensures { result >= 0 } {
+  x
+}
+
+export pure func cRec(xs: SList) -> int
+ensures { result >= 0 } {
+  match xs {
+    SNil => 0,
+    SCons(_, rest) => 1 + cRec(rest)
+  }
+}

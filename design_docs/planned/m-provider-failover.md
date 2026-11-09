@@ -205,11 +205,11 @@ The M3 caveat (Lyceum long-horizon instability) stops being a data-loss event.
 
 ## Related Documents
 
-- design_docs/planned/m-lyceum-provider.md + sprint plan (M3 record: route verdicts)
+- design_docs/implemented/v0_35_0/m-lyceum-provider.md + sprint plan (M3 record: route verdicts)
 - design_docs/planned/v0_35_0/m-coordinator-route-authority-recovery.md (retry-storm authority surface — the layer this design deliberately avoids)
 - internal/eval_harness/ai_agent.go `isRetryableError` (classification to reuse; quota carve-out shared with the categorizer)
 
 ## References
 
-- M3 A/B record: m-lyceum-provider-sprint-plan.md (2026-09-03, three-route frontier + smoke)
+- M3 A/B record: ../implemented/v0_35_0/m-lyceum-provider-sprint-plan.md (2026-09-03, three-route frontier + smoke)
 - OR qwen 429 invalidation: or-qwen3-8-flash row notes (2026-08-31, 19/23 invalidated)

@@ -112,7 +112,7 @@ Seed:
 
 ### Unit Tests
 
-A unit test is a named block whose body must evaluate to `true`:
+A unit test is a named block whose checks must all be `true`:
 
 ```text
 test "name" { expression }
@@ -141,6 +141,47 @@ test "Some wraps value" {
 ```
 
 `++` concatenates lists only; for strings use `"${…}"` interpolation, `concat` or `join`.
+
+#### Several checks in one test
+
+A body can hold several checks, one per line (or separated by `;`), plus `let` bindings
+and `assert` statements. **Every top-level expression of the body is a check; `let`
+binds; there is nothing else at top level.** The test passes only if every check is
+`true`. Checks run in order and stop at the first false one, which the failure names
+by its position among the checks, its source and its line:
+
+```ailang
+export pure func add_one(n: int) -> int { n + 1 }
+
+test "add_one" {
+  add_one(1) == 2;
+  let y = add_one(2);
+  y == 3;
+  assert add_one(0) == 1
+}
+```
+
+Bare checks and asserts are numbered together. Change the last line to
+`assert add_one(0) == 9` and the test fails with
+`` assertion 3 failed: `assert (add_one(0) == 9)` (at my_test.ail:7:3) ``; a false bare
+check reads `` check 1 failed: `(add_one(1) == 99)` (at my_test.ail:4:14) ``.
+
+Because each top-level expression is a check, it must be a `bool`. An expression whose
+value you only want to compute, such as `add_one(1);`, is a type error
+(`cannot unify type constructors: int vs bool`): bind it with `let` or delete it. Before
+#604 (fixed in this release) only the LAST expression was checked and every earlier one
+was silently discarded, so `test "x" { add_one(1) == 99; add_one(1) == 2 }` passed.
+
+**Limit: the rule covers the top level only.** Inside a check, ordinary expression rules
+apply, and a block `{ a; b }` evaluates `a` and discards its value. A false check nested
+in a block is therefore still not seen:
+
+```text
+test "still passes" { if true then { add_one(1) == 99; add_one(1) == 2 } else false }
+```
+
+This is tracked as [#614](https://github.com/sunholo-data/ailang/issues/614). Until it
+is fixed, keep every check at the top level of the test body.
 
 ### Inline Tests
 
