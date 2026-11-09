@@ -20,11 +20,11 @@ Published at release, not gated: fleet-tier pass rates, cost-per-verified-succes
 ## In flight (2026-11-09)
 | Gate | PR | State |
 |---|---|---|
-| G1+G3 | #2182 stability re-draft | green, awaiting merge + Mark's ratification |
+| G1+G3 | #2182 stability re-draft | MERGED `71ec9bd36` — awaiting Mark's ratification (G1); G3 closes with it |
 | G2 #1443 | #2184 `pure` ⇒ empty row (BREAKING) | gated on the downstream order below |
 | G2 #1134 | #2185 cross-module IFC (BREAKING) | hold release until email-parse's 2 IFC sites are resolved; follow-up #2187 (inferred rules, P1) |
 | G4(b) | multivac#12 issuer → `executor.ailang.sunholo.com` | domain mapping + cert LIVE (15:40); plan 0/4/0 verified; awaiting merge + promote |
-| docs | #2181 runbook, #2183 stale sweep | green, awaiting merge |
+| docs | #2181 runbook, #2183 stale sweep | MERGED (`d79a5d3be`, `5bda6c3eb`); charter links re-pointed after #2186's moves |
 
 **Cache-key collision:** #2184 and #2185 both bump the compile-cache key v8→v9; the second to merge must go to v10.
 
@@ -38,7 +38,6 @@ Published at release, not gated: fleet-tier pass rates, cost-per-verified-succes
 **#2185 IFC sites (email-parse, owner decides, not auto-fixed):** `packages/email/api.ail:66` (`<arg> ⊔ <sqlsafe>` into `sqlEscape`), `packages/eparse/attachments.ail:604` (already-escaped value re-escaped). daneel: 0 IFC breaks.
 
 ## Parked on Mark
-- Merge #2181/#2182/#2183 (classifier blocks agent merges).
 - G1 ratification of #2182 (four calls listed in-session: ai-check JSON split, serve-api Experimental, benchmark/feedback tools Experimental, serve/trace/observatory → Internal).
 - G4: merge + promote multivac#12.
 - Reject coordinator task-c0bf79fb `--no-retrigger` (PR #1790 already closed as superseded).
