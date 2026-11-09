@@ -38,6 +38,13 @@ func TestIFCPrune_DeclassifiedDataCarriesNoDemand(t *testing.T) {
 // imported length(rows) is assumed to possibly return its function argument,
 // since this pass has no result types for imported functions. See the design
 // doc's residual.)
+//
+// The callable is pruned: mark's <client> demand on `raw` never reaches the
+// indexing. What remains is a LABEL verdict, not a callable one: the imported
+// mapE's result is the join of its arguments, so rows carries rs's <client>,
+// and at's `[[string<structure>]]` parameter bounds its argument structurally
+// (#2185 review, ifc_param_bound.go) — exactly as a top-level
+// `string<structure>` parameter would.
 func TestIFCPrune_ParameterTypePrunes(t *testing.T) {
 	src := shapeFirstSrc + `export func go2(rs: [[Cell]]) -> int ! {Declassify} = {
   let rows: [[string<structure>]] = mapE(shapeRow, rs);
@@ -45,8 +52,13 @@ func TestIFCPrune_ParameterTypePrunes(t *testing.T) {
 }
 `
 	errs, _ := ifcWork(t, src)
-	if len(errs) != 0 {
-		t.Fatalf("an unannotated list of shapes indexed by a <structure> int was refused: %v", errs)
+	for _, e := range errs {
+		if strings.Contains(e.Message, `"raw"`) {
+			t.Fatalf("a pruned list of shapes still carried mark's callable demand: %v", errs)
+		}
+	}
+	if len(errs) != 1 || errs[0].Kind != ParamLabelCoverError || !strings.Contains(errs[0].Message, `parameter "xs" declared list[list[string<structure>]]`) {
+		t.Fatalf("want only at's structural cover verdict on the <client>-carrying rows, got %v", errs)
 	}
 }
 

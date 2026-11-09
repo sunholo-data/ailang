@@ -54,7 +54,11 @@ var ifcBuiltinSourceLabels = map[string]string{
 //	    not return a value carrying a label that its declared output drops, unless
 //	    its Declassify authority covers every hidden label. Checked at every function definition.
 //
-// (C) Positive parameter labels must cover every argument constituent at local calls.
+// (C) Positive parameter labels must cover every argument constituent at every call.
+//
+// A label or refinement written anywhere in a parameter's covariant data
+// positions — a list element, record field, tuple element, constructor
+// argument — is a demand too, not only one at the top (ifc_param_bound.go).
 //
 // Functions without an explicit return label are label-transparent: their result
 // label is the join of their body's intrinsic label and their actual argument
@@ -86,7 +90,7 @@ func newIFCChecker(file *ast.File) *ifcChecker {
 	}
 	for _, fn := range file.Funcs {
 		if fn != nil {
-			c.sigs[fn.Name] = buildIFCSig(fn)
+			c.sigs[fn.Name] = buildIFCSig(fn, c.types)
 		}
 	}
 	return c
@@ -118,11 +122,10 @@ type ifcSig struct {
 }
 
 type ifcParam struct {
-	name     string
-	label    Label    // source label from `x: T<label>` (⊥ if none)
-	notLabel string   // sink refinement label from `x: T{not ℓ}` ("" if none)
-	typ      ast.Type // the declared parameter type (nil if unannotated)
-	hasNot   bool
+	name  string
+	label Label    // source label from a top-level `x: T<label>` (⊥ if none)
+	typ   ast.Type // the declared parameter type (nil if unannotated)
+	bound ifcBound // Checks A/C: what the type demands of the argument, structurally (ifc_param_bound.go)
 }
 
 // ifcVar is what the IFC environment knows about a bound name: its flow label
@@ -161,20 +164,11 @@ type ifcChecker struct {
 	traceSites map[ast.Pos]map[string]bool // labelled call sites, for trace redaction (ifc_trace_sites.go); nil = not collected
 }
 
-func buildIFCSig(fn *ast.FuncDecl) *ifcSig {
+func buildIFCSig(fn *ast.FuncDecl, ts *ifcTypes) *ifcSig {
 	sig := &ifcSig{decl: fn, returnLabel: LabelBottom()}
 	for _, p := range fn.Params {
-		ip := ifcParam{name: p.Name, label: LabelBottom(), typ: p.Type}
-		if lt, ok := p.Type.(*ast.LabelledType); ok {
-			if lt.Label != nil {
-				ip.label = LabelConst(lt.Label.Name)
-			}
-			if lt.Refinement != nil {
-				ip.notLabel = lt.Refinement.NotLabel
-				ip.hasNot = true
-			}
-		}
-		sig.params = append(sig.params, ip)
+		label, _ := topLabel(p.Type)
+		sig.params = append(sig.params, ifcParam{name: p.Name, label: label, typ: p.Type, bound: ts.paramBound(p.Type)})
 	}
 	if lt, ok := fn.ReturnType.(*ast.LabelledType); ok && lt.Label != nil {
 		sig.returnLabel = LabelConst(lt.Label.Name)

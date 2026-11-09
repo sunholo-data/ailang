@@ -15,6 +15,21 @@
   lambdas. Lexical shadowing is respected. The CLI and the browser REPL (`LoadModule`) give the
   same verdicts; a rejected REPL module publishes nothing.
 - An interface whose IFC metadata is missing or malformed is refused, never read as clean.
+- Checks A and C are structural over the parameter type, in every module (a pre-existing hole,
+  found migrating email-parse for this change). `takeList(xs: [string<sqlsafe>])` accepted `[s]`
+  for an `<arg>` value `s` while `takeOne(x: string<sqlsafe>)` rejected `s`. A `<ℓ>` or
+  `{not ℓ}` written in a covariant data position — list/array element, tuple element, record
+  field (inline or a declared record/alias), type-constructor argument (`Option`, `Result`, a
+  local generic), ADT constructor field — is now a demand on the argument, and the exported
+  summary carries it to importers. Values carry one flat label, so the bound is per parameter:
+  each root-to-leaf path admits the label written along it (a path naming two different labels
+  admits only ⊥), and the argument's label must be admitted by some labelled path. Labels inside
+  a function-typed parameter stay contravariant: the callee owes them when it applies the
+  function. Not yet bounded: a function-typed parameter's return label (follow-up).
+- **Breaking (structural Check A/C):** a list, record or tuple argument carrying a label its
+  parameter type does not declare now fails with `param_label_cover`; so does an argument whose
+  label comes from an imported higher-order function's conservative result (`mapE(f, rows)` is
+  labelled with `rows` too).
 - **Breaking:** programs that passed labelled values into imported sinks now fail `ailang check`.
   Route the value through a declassifier, or stop passing it.
 - Compile cache epoch `v9` → `v10`: every cached module recompiles once, because a cache hit skips

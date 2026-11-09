@@ -20,6 +20,13 @@ export func scrub(raw: string) -> string ! {Declassify[label=email]} { raw }
 export func bare(raw: string) -> string ! {Declassify} { raw }
 export pure func ident(x: string) -> string { x }
 export func apply(f: string -> string, x: string) -> string { f(x) }
+export pure func safe(raw: string) -> string<sqlsafe> { raw }
+export type Q = { q: string<sqlsafe>, note: string }
+export pure func qList(xs: [string<sqlsafe>]) -> int { 0 }
+export pure func qRec(r: { q: string<sqlsafe> }) -> int { 0 }
+export pure func qNamed(r: Q) -> int { 0 }
+export pure func qTup(t: (string<sqlsafe>, int)) -> int { 0 }
+export pure func gateList(xs: [string{not email}]) -> int { 0 }
 `
 
 // mid re-exports lib's taint through an unannotated wrapper.
@@ -69,6 +76,18 @@ export func main() -> string { let g = gate in g(fromInbox("evil")) }`, "forbids
 	{"scoped declassifier does not cover other labels", `import lib (scrub, fetch)
 pure func sink(b: string{not secret}) -> string { b }
 export func main() -> string ! {Secret, Declassify[label=email]} { sink(scrub(fetch("op://x"))) }`, "labelled <secret>"},
+	// #2185 review: a label or refinement nested in an imported parameter's
+	// type binds the importer too (ifc_param_bound.go).
+	{"imported list element Check C", `import lib (qList, fromInbox)
+export func main() -> int { qList([fromInbox("evil")]) }`, `parameter "xs" of imported function lib.qList`},
+	{"imported record field Check C", `import lib (qRec, fromInbox)
+export func main() -> int { qRec({ q: fromInbox("evil") }) }`, "does not cover it"},
+	{"imported declared record Check C", `import lib (qNamed, fromInbox)
+export func main() -> int { qNamed({ q: fromInbox("evil"), note: "" }) }`, "does not cover it"},
+	{"imported tuple element Check C", `import lib (qTup, fromInbox)
+export func main() -> int { qTup((fromInbox("evil"), 1)) }`, "does not cover it"},
+	{"imported list element sink", `import lib (gateList, fromInbox)
+export func main() -> int { gateList([fromInbox("evil")]) }`, "forbids it (string{not email})"},
 
 	{"clean literal into imported sink", `import lib (gate)
 export func main() -> string { gate("hello") }`, ""},
@@ -78,6 +97,14 @@ export func main() -> string { q("select 1") }`, ""},
 export func main() -> string ! {Declassify[label=email]} { gate(scrub(fromInbox("evil"))) }`, ""},
 	{"bare imported declassify", `import lib (gate, bare, fromInbox)
 export func main() -> string ! {Declassify} { gate(bare(fromInbox("evil"))) }`, ""},
+	{"covered list into imported list", `import lib (qList, safe)
+export func main() -> int { qList(["select 1", safe("x")]) }`, ""},
+	{"covered record into imported record", `import lib (qRec, qNamed, safe)
+export func main() -> int { qRec({ q: safe("x") }) + qNamed({ q: safe("y"), note: "n" }) }`, ""},
+	{"literal tuple into imported tuple", `import lib (qTup)
+export func main() -> int { qTup(("x", 1)) }`, ""},
+	{"clean list into imported list sink", `import lib (gateList)
+export func main() -> int { gateList(["hi"]) }`, ""},
 	{"lexical shadow of imported sink", `import lib (gate, fromInbox)
 export func main() -> string { let gate = \x. x in gate(fromInbox("evil")) }`, ""},
 	{"unrelated label into imported sink", `import lib (gate, fetch)

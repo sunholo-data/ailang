@@ -163,6 +163,16 @@ and unlabelled (bottom) values pass; `<arg>` and `<secret>` fail with
 the parameter label. This rule constrains lattice coverage; it is not proof of
 sanitization or provenance. Negative sink refinements remain enforced too.
 
+A label or refinement written *inside* a parameter type binds the argument the
+same way: `xs: [string<sqlsafe>]` rejects `[s]` for an `<arg>` value `s`, and
+so do a record field (`{ q: string<sqlsafe> }`, or a declared record type), a
+tuple element, an `Option`/`Result` argument and an ADT constructor field;
+`[string{not email}]` rejects a list holding `<email>` data. A value carries one
+label for all its contents, so the check is per parameter, not per position:
+an unlabelled field beside a labelled one may only hold data the labelled
+positions admit. Labels inside a *function-typed* parameter are not a bound on
+the function you pass — they are what the callee must respect when it calls it.
+
 These checks are static and apply at every call — including calls to a function
 imported from another module, whose parameter labels, refinements, return label
 and Declassify authority travel in its interface (see
