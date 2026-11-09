@@ -5,7 +5,7 @@
 Make future host quorum evidence durable across worktrees by registering an opt-in absolute directory, preserving policy confinement, and teaching both Gate 2 readers the same fixed-order lookup.
 
 **Ticket:** `quorum:artifact-dir-cwd-relative` · **Mission:** fleet-mission iteration 38  
-**Input:** `design_docs/planned/m-quorum-artifact-dir-stable.md`, revision 3, HEAD `58decf4f2f42bfc20eb267fc0b2368462cc32231`  
+**Input:** `design_docs/implemented/v0_54_12/m-quorum-artifact-dir-stable.md`, revision 3, HEAD `58decf4f2f42bfc20eb267fc0b2368462cc32231`  
 **Duration:** 1.5 days / 12 hours, including independent evaluation and buffer  
 **Milestones:** exactly M1 (resolution/confinement, 4h) and M2 (driver/reader/integration, 8h)  
 **Estimate:** M1 300 LOC + M2 500 LOC = 800 LOC; risk medium.

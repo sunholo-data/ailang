@@ -149,7 +149,7 @@ Local probe transcripts: `/private/tmp/worker-followup-offline-probe/results.jso
 - [Policy hardening](../../implemented/v0_41_0/m-executor-policy-hardening.md): confinement, timeout, output and filtered-env invariants retained.
 - [Policy result integrity](../../implemented/v0_53_0/m-run-policy-result-unforgeable.md): admission/result provenance retained; lifecycle channels remain separate.
 - [Provider config](../../implemented/v0_15_0/m-ai-provider-config.md): provider declaration/dispatch reused, not reimplemented.
-- [Policy cache sprint](../../planned/v0_52_6/run-policy-worker-cache-dir-sprint-plan.md): pending neighboring edits in the supervisor; integrate if landed before implementation, do not fold its separate scope into this release.
+- [Policy cache sprint](../v0_54_6/run-policy-worker-cache-dir-sprint-plan.md): pending neighboring edits in the supervisor; integrate if landed before implementation, do not fold its separate scope into this release.
 
 ## Axiom compliance
 

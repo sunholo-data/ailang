@@ -468,13 +468,13 @@ search performed manually as above.
   and nested Option patterns match in bytecode mode (v0.51.1)
 - [v0_4_1_m-s-call0-zero-arg-builtin-bug](../../archive/v0_4_1_m-s-call0-zero-arg-builtin-bug.md)
   — the unit-arg convention for zero-arg builtins this design follows
-- [m-async-io-process-stdin](../../implemented/v0_9_0/m-async-io-process-stdin.md) (M-ASYNC-IO,
+- [m-async-io-process-stdin](../v0_9_0/m-async-io-process-stdin.md) (M-ASYNC-IO,
   v0.9.0) — `asyncReadStdinLines`: the channel-close EOF signal this design mirrors
   synchronously
 
 **Planned (checked for overlap — none):**
-- [m-ifc-declared-record-labels](../../implemented/v0_52_0/m-ifc-declared-record-labels.md) and
-  [m-mcp-oauth-package](../../implemented/v0_52_0/m-mcp-oauth-package.md) — the other v0.52.0 docs; unrelated surfaces
+- [m-ifc-declared-record-labels](../v0_52_0/m-ifc-declared-record-labels.md) and
+  [m-mcp-oauth-package](../v0_52_0/m-mcp-oauth-package.md) — the other v0.52.0 docs; unrelated surfaces
 
 ## References
 

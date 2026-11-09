@@ -76,7 +76,7 @@ Main risk: the conventions conflict at column-0 bold-label bullets; `s` and `f` 
 
 ## Landing record — iteration 58
 
-D1–D7 complete: fresh independent MiniMax CODE ACCEPT 93/100, 46 focused assertions; original mutation controls and baseline red verified. The refreshed 116-entry / seven-log snapshot corpus has no clean-to-finding/error change. PR #1935 and its exact merge CI passed before ticket resolution. Evidence: [independent evaluation](../fleet-mission-evidence/iteration58/evaluation.md), [controller corrections](../fleet-mission-evidence/iteration58/controller-review-notes.md), and [iteration 58](../fleet-mission-log.md). Original #1927 is superseded; records 54–57 are preserved.
+D1–D7 complete: fresh independent MiniMax CODE ACCEPT 93/100, 46 focused assertions; original mutation controls and baseline red verified. The refreshed 116-entry / seven-log snapshot corpus has no clean-to-finding/error change. PR #1935 and its exact merge CI passed before ticket resolution. Evidence: [independent evaluation](../../fleet-mission-evidence/iteration58/evaluation.md), [controller corrections](../../fleet-mission-evidence/iteration58/controller-review-notes.md), and [iteration 58](../../fleet-mission-log.md). Original #1927 is superseded; records 54–57 are preserved.
 
 D6 governs executor implementation scope. The landing also contains separately authorized Gate-5 skill changes from iterations 54 and 57, plus required mission bookkeeping. These are not new implementation work in iteration 58. No new policy or source behaviour was added during landing.
 

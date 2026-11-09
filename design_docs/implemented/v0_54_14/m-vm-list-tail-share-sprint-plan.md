@@ -15,7 +15,7 @@ AC-R4 is a no-redo guard; AC-R5 covers focused validation and the release note.
 No changes to `internal/vm/builtins.go`, `internal/vm/builtins_list_poly.go`,
 `internal/vm/list_tail_share_test.go`, or `std/list.ail`. Re-run existing sharing tests only.
 `::`/`++`, OpCons, list representation and arena work remain parked on D-19 in
-[m-list-cons-quadratic](../m-list-cons-quadratic.md).
+[m-list-cons-quadratic](../../planned/m-list-cons-quadratic.md).
 
 ## Planning measurement (performed before milestone decomposition)
 

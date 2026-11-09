@@ -314,7 +314,7 @@ from marking M3 executor checks complete.
 Controller obtains independent sprint evaluation against the spec and this
 matrix, reviews mutation evidence and the file allowlist, performs required
 mission landing checks, and handles commits. On landing the controller moves
-the spec from `design_docs/planned/m-quorum-salvage-retry.md` to
+the spec from `design_docs/implemented/v0_54_12/m-quorum-salvage-retry.md` to
 `design_docs/implemented/m-quorum-salvage-retry.md` and updates references as
 needed. Neither that move nor the queue edit is a planning-stage action.
 

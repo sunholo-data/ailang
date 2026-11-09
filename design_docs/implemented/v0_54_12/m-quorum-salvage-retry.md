@@ -210,7 +210,7 @@ The remedy lives in `.claude/skills/mission-control/resources/gate-2-pick.md` an
 - `.claude/skills/mission-control/resources/gate-2-pick.md`: D5 remedy split and stale-guard note
 - `.agents/skills/mission-control/resources/gate-2-pick.md`: byte-identical mirror via the sync script
 - `changelogs/unreleased/2026-10-14-quorum-salvage-verdict.md`: `### Fixed` fragment
-- `design_docs/planned/m-quorum-salvage-retry.md`: this doc; moves to `implemented/` on landing
+- `design_docs/implemented/v0_54_12/m-quorum-salvage-retry.md`: this doc; moves to `implemented/` on landing
 
 Nothing outside the allowlist changes. `cmd/ailang/design_quorum.go` and `design_review.go` compile
 unchanged (the fields are additive), and they pick up D3 through `o.Err`. `tier2.go` and
@@ -342,6 +342,6 @@ rendering in artifact.go and T8; gemini the key/value T3 case (M5b).
 
 ## Related Documents
 
-- `design_docs/planned/m-quorum-external-zero-signal-guard.md`: the guard this extends from all-absent to N-1.
+- `design_docs/implemented/v0_54_6/m-quorum-external-zero-signal-guard.md`: the guard this extends from all-absent to N-1.
 - `design_docs/fleet-mission.md` P2 #12: the ticket row.
 - `.claude/skills/mission-control/resources/gate-2-pick.md`: the absent-reviewer rule (D5).

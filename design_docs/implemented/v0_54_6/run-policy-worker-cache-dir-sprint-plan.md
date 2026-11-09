@@ -8,8 +8,8 @@ Refs #1547
 - **Target:** v0.52.6 (checkout v0.52.5)
 - **Duration:** 2 days, approximately 10 hours including 25% contingency.
 - **Risk:** Medium: subprocess cleanup and filesystem trust boundary.
-- **Design:** [run-policy-worker-cache-dir.md](../ailang-core-triage/run-policy-worker-cache-dir.md)
-- **Neighbour:** [run-policy-result-line-forgeable.md](../ailang-core-triage/run-policy-result-line-forgeable.md) (#1548; sprint M-RUN-POLICY-RESULT-UNFORGEABLE).
+- **Design:** [run-policy-worker-cache-dir.md](../../planned/ailang-core-triage/run-policy-worker-cache-dir.md)
+- **Neighbour:** [run-policy-result-line-forgeable.md](../../planned/ailang-core-triage/run-policy-result-line-forgeable.md) (#1548; sprint M-RUN-POLICY-RESULT-UNFORGEABLE).
 
 ## Ordering: runs after M-RUN-POLICY-RESULT-UNFORGEABLE
 

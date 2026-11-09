@@ -69,7 +69,7 @@ Files created:
 - `cmd/ailang/run_policy_cache_test.go`
 - `cmd/ailang/run_policy_cache_integration_test.go`
 - `changelogs/unreleased/2026-10-09-run-policy-worker-cache-dir.md`
-- `design_docs/planned/v0_52_6/run-policy-worker-cache-dir-implementation.md`
+- `design_docs/implemented/v0_54_6/run-policy-worker-cache-dir-implementation.md`
 - `.ailang/state/evaluations/eval_M-RUN-POLICY-WORKER-CACHE_round_1.json` (independent evaluation)
 
 Files modified:
@@ -80,7 +80,7 @@ Files modified:
 - `docs/docs/reference/env-vars.md`
 - `docs/docs/guides/agent-tool-policy.md`
 - `design_docs/planned/ailang-core-triage/run-policy-worker-cache-dir.md`
-- `design_docs/planned/v0_52_6/run-policy-worker-cache-dir-sprint-plan.md`
+- `design_docs/implemented/v0_54_6/run-policy-worker-cache-dir-sprint-plan.md`
 - `.ailang/state/sprints/sprint_M-RUN-POLICY-WORKER-CACHE.json`
 
 ## PR body

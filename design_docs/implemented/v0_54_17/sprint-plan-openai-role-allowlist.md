@@ -1,7 +1,7 @@
 # Sprint: OpenAI mission-role allowlist
 
 Ticket: `routing:retired-codex-models-still-spawnable-natively` (attended 2026-10-02); fleet iteration 53; sprint `M-FLEET-OPENAI-ROLE-ALLOWLIST`.
-Authority: [fleet charter](../fleet-mission.md), D-FLEET-12 item 1: mission roles may spawn only `gpt-6.1-sol` among OpenAI models; `gpt-6-astra` remains registered, dormant; no Terra rung until a GPT-6.x Terra ships. Mechanism pre-authorized; normal controller review/execution/evaluation gates remain.
+Authority: [fleet charter](../../fleet-mission.md), D-FLEET-12 item 1: mission roles may spawn only `gpt-6.1-sol` among OpenAI models; `gpt-6-astra` remains registered, dormant; no Terra rung until a GPT-6.x Terra ships. Mechanism pre-authorized; normal controller review/execution/evaluation gates remain.
 Goal: close native child-model overrides, reject retired OpenAI parent/reviewer models, and flag violations in routing evidence. #1412 changed pins on 2026-09-30; World iterations 217–219 still spawned native astra judges/quorum seats.
 Planning only: controller commits these artifacts; executor runs exactly two separate, independently green milestones. No implementation or git writes in this stage.
 Estimate: one working day, two 60–90 minute execution runs plus controller integration; M1 320 LOC, M2 380 LOC, total 700 including tests/docs. Adjacent fleet52 planned 300 LOC and recorded 371 actual; broader mutation/fixture coverage drives this estimate, not a measured throughput promise.

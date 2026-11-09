@@ -246,9 +246,9 @@ Round 2: gemini-4-argon pass, oc-glm-5-3 pass, oc-kimi-k3 reject (artifact `m-qu
 
 ## Related Documents / Out-of-Scope Follow-ups
 
-- [Driver pin rollout](m-driver-pin-rollout.md): ephemeral roots and separate deployment.
-- [Agentic quorum](../implemented/v0_30_0/m-mission-quorum-agentic-verify.md): review verification unchanged.
-- [Fleet AB sprint](../implemented/v0_30_0/m-mission-fleet-ab-sprint-plan.md): original evidence.
-- [Human-log path triage](ailang-core-triage/design-quorum-mission-log-path.md): markdown destination, separate problem.
+- [Driver pin rollout](../../planned/m-driver-pin-rollout.md): ephemeral roots and separate deployment.
+- [Agentic quorum](../v0_30_0/m-mission-quorum-agentic-verify.md): review verification unchanged.
+- [Fleet AB sprint](../v0_30_0/m-mission-fleet-ab-sprint-plan.md): original evidence.
+- [Human-log path triage](../../planned/ailang-core-triage/design-quorum-mission-log-path.md): markdown destination, separate problem.
 - CLI flag-presence/help and pre-review path validation (`cmd/ailang/design_quorum.go`); design-doc-creator skill changes; any `internal/policytool/**` changes: outside allowlist.
 - Legacy import and deployed binary/World rollout: separate follow-ups, real-path observation only.

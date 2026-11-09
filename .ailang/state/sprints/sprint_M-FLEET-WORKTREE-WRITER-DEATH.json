@@ -4,7 +4,7 @@
   "created": "2026-10-16T00:00:00Z",
   "verified_at": "04496274e36d301b721886fb56ab1146ad4080e7",
   "design_doc": null,
-  "sprint_plan": "design_docs/planned/sprint-plan-mission-worktree-writer-death.md",
+  "sprint_plan": "design_docs/implemented/v0_54_12/sprint-plan-mission-worktree-writer-death.md",
   "ticket": "worktree:native-background-terminal-marker-missing",
   "github_issues": [],
   "registry_reuse": [

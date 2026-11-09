@@ -106,14 +106,14 @@ No mutation was performed during candidate authoring; the drill runs during exec
 - **Intentional behavior change**: controller-only runs flip proceed → blocked. Mitigation: this is the ticketed mandate (charter row #8; gate-2-pick.md: "present EXTERNAL reviewers … zero of them is a park, not a pass"); the single external consumer already maps blocked → exit 3 (V6/V14); resume path is obtaining an admitted present reviewer, not weakening the guard.
 - **Fixture surprise beyond the textual survey**: V10/V15 bound it textually; the pre-fix/post-fix full-suite green pair (Success Criterion 1) is the runtime bounding control.
 - **Incorrect fix shape**: an early return on controller reject before the guard would drop the zero-signal objection. Caught by the two-absent/controller-reject row's dual-objection ordering assertion (V13 construction: one return at :182) and by the seated regression (an early return that bypasses reserve replacement fails "fallback attempted").
-- **Scope creep**: vendor-independence policy, full-seat or 2+-present minimums, and removing the controller from the artifact are explicitly out of scope (no mandate source names them); malformed/nil runner outcomes and salvage retry belong to `m-quorum-salvage-retry.md`, not this sprint.
+- **Scope creep**: vendor-independence policy, full-seat or 2+-present minimums, and removing the controller from the artifact are explicitly out of scope (no mandate source names them); malformed/nil runner outcomes and salvage retry belong to `../v0_54_12/m-quorum-salvage-retry.md`, not this sprint.
 - **Suite speed/flakiness**: none introduced — all runners are table-driven stubs (`fakeRunner`), deterministic, in-process; `-race` run is part of acceptance.
 
 ## Verification (iteration-32 planner re-derivation at worktree HEAD `8d0d3de0e`; every row re-run by this planner, 2026-10-12)
 
 | ID | Claim | Command | Observed output |
 |---|---|---|---|
-| P0 | Re-verification base | `git rev-parse --short HEAD`; `git status --porcelain` | `8d0d3de0e`; status shows only `?? design_docs/planned/sprint-plan-quorum-zero-signal-guard.md` (this plan, untracked before commit) |
+| P0 | Re-verification base | `git rev-parse --short HEAD`; `git status --porcelain` | `8d0d3de0e`; status shows only `?? design_docs/implemented/v0_54_6/sprint-plan-quorum-zero-signal-guard.md` (this plan, untracked before commit) |
 | P1 | `synthesize` counts the controller as present: exactly two `presentCount++` increments | `grep -n "presentCount++" internal/mission/quorum/quorum.go` | Exactly two hits — `156:		presentCount++` (reviewer loop) and `165:		presentCount++` (controller block). P5's body read places both inside `synthesize` (`func` at :141, single `return s` :182). |
 | P2 | Zero-signal guard position | `grep -n "if presentCount == 0" internal/mission/quorum/quorum.go` | `176:	if presentCount == 0 {` |
 | P3 | Exactly one external consumer of the quorum entry points | `grep -rn "RunQuorum\|RunSeatedQuorum\|RunQuorumWithEscalation\|SynthesizeWithTier2" --include="*.go" cmd/ internal/ \| grep -v internal/mission/quorum/` | Exactly one hit: `cmd/ailang/design_quorum.go:89: result := quorum.RunSeatedQuorum(docPath, docBody, isoTS, sel, *seats, *maxCost, controller, quorumSeatRunner)`. Known-positive control in the same row: `grep -n "RunSeatedQuorum" cmd/ailang/design_quorum.go` → `89:	result := quorum.RunSeatedQuorum(...)` — the survey sees the known consumer, so the single hit is real. |
@@ -139,8 +139,8 @@ No mutation was performed during candidate authoring; the drill runs during exec
   "status": "not_started",
   "created": "2026-10-12T00:00:00Z",
   "verified_at": "8d0d3de0e",
-  "design_doc": "design_docs/planned/m-quorum-external-zero-signal-guard.md",
-  "sprint_plan": "design_docs/planned/sprint-plan-quorum-zero-signal-guard.md",
+  "design_doc": "design_docs/implemented/v0_54_6/m-quorum-external-zero-signal-guard.md",
+  "sprint_plan": "design_docs/implemented/v0_54_6/sprint-plan-quorum-zero-signal-guard.md",
   "ticket": "quorum:zero-signal-guard-vacuous-with-controller-verdict",
   "github_issues": [
     651

@@ -135,10 +135,10 @@ The implementer may choose table-driven versus subtest organization and local va
 
 ## Related Documents
 
-- [Fleet charter](../fleet-mission.md) — P1 #8 and iteration 23 capacity park.
-- [Fleet iteration index](../fleet-mission-index.md) — prior work check.
-- [Agentic quorum design](../implemented/v0_30_0/m-mission-quorum-agentic-verify.md) — additive Tier-2 composition.
-- [Quorum salvage retry](m-quorum-salvage-retry.md) — separate parse/absence concern.
+- [Fleet charter](../../fleet-mission.md) — P1 #8 and iteration 23 capacity park.
+- [Fleet iteration index](../../fleet-mission-index.md) — prior work check.
+- [Agentic quorum design](../v0_30_0/m-mission-quorum-agentic-verify.md) — additive Tier-2 composition.
+- [Quorum salvage retry](../v0_54_12/m-quorum-salvage-retry.md) — separate parse/absence concern.
 
 ## Review State
 

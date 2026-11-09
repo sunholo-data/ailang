@@ -2723,7 +2723,7 @@ Last 3 code landings: iteration 58 clause 2 (<48h); iteration 59 clause 2 (<48h)
 - The waste-reduction half (cap, reasoning budget, re-seating) is policy, and the cap lives in `models.yml`, outside fleet scope. It became D-FLEET-31.
 
 **Did** (all four roles spawned; generator ≠ judge):
-- **Designer**, `claude:claude-opus-5-5` via `claude-sub` (resolver `recipe … declared:provider-pin`). Probe rc 0. It wrote [m-quorum-reviewer-cap-hit-loud.md](planned/m-quorum-reviewer-cap-hit-loud.md).
+- **Designer**, `claude:claude-opus-5-5` via `claude-sub` (resolver `recipe … declared:provider-pin`). Probe rc 0. It wrote [m-quorum-reviewer-cap-hit-loud.md](implemented/v0_54_19/m-quorum-reviewer-cap-hit-loud.md).
 - **Quorum round 1** (author's vendor sat out; `gpt6-1-sol` absent, OpenAI 429) was BLOCKED. kimi and glm both rejected: the premise that `FinishReason == ""` reaches the reviewer had not been traced.
   - The controller traced it independently: `call.go:43` → `factory` → `ollama.Client.Generate`, with no `FinishReason`, and `OutputTokens` from `Metrics.EvalCount`.
   - One designer revision added a seven-command premise trace and fixed gemini's note about "consumed" wording.
@@ -2731,7 +2731,7 @@ Last 3 code landings: iteration 58 clause 2 (<48h); iteration 59 clause 2 (<48h)
   - The trace refuted kimi's premise: `out` is the `*ReviewerOutcome` built at `run.go:112` from the models.yml id.
   - The controller made a bounded second revision under the narrow-refinement carve-out. It applied kimi's trace request and glm's two fixes verbatim. It declined kimi's replacement sentence, whose premise the trace refutes. This is recorded in the doc's Quorum verification log.
 - **Planner**, `codex:gpt-6.1-sol`. With no doc, the resolver said `agent-tool opus fail-closed:no-doc`; with the doc it said `recipe codex:gpt-6.1-sol declared:planner-lane-default-pin`, and that pin was followed. Probe rc 0.
-  - It used a detached sibling worktree `.planner-wt-iter62`, since removed. It produced the [sprint plan](planned/sprint-plan-quorum-reviewer-cap-hit-loud.md) and sprint JSON (`jq -e` ok, no placeholders).
+  - It used a detached sibling worktree `.planner-wt-iter62`, since removed. It produced the [sprint plan](implemented/v0_54_19/sprint-plan-quorum-reviewer-cap-hit-loud.md) and sprint JSON (`jq -e` ok, no placeholders).
   - It ran every acceptance command on the base; all green, re-run by the controller outside the sandbox. Skipped `messages import-github` (ticket-queue mission).
 - **Executor**, `codex:gpt-6.1-sol`. It added `capHit` and `capLimitClause` in `run.go`, plus `cap_hit_test.go` (9 rows) and a changelog fragment. It killed 10/10 plan mutants via scratch-copy restore (`cmp` 0) and made no git writes. The controller committed `56e1a2055`.
 - **Evaluator**, Agent tool `sonnet`: **PASS 93/100**, 0 blocking, 9/9 of its own mutants killed (7 not on the plan's list). Report in [evaluation.md](fleet-mission-evidence/iteration62/evaluation.md).

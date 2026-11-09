@@ -39,7 +39,7 @@ The failed run's **required** checks (`test`, ubuntu-latest per `.github/workflo
 - PR #2010: macOS Build job 123447755475 — fails at `process_runtime_lifetime_test.go:288`; no causality assigned to its documentation diff (`design_docs/triage-mission-log.md:444`, and issue #2069 comment 6599231990).
 - `design_docs/fleet-mission-log.md:1069`: same test, `Build macos-latest`, 0.04 s, diff was markdown, job re-run green, "recorded as a timing flake, not filed".
 - `design_docs/fleet-mission-log-archive.md:1562`: same test, 0.03 s, on a PR that touched no Go.
-- **Distinct and not this failure**: Linux/container failures of the same test at line **323** ("nested fixture survived bounded stop") are a container artifact — the fixture becomes a **zombie adopted by PID 1** in containers whose init does not reap (already documented in `design_docs/planned/v0_54_7/spawn-process-result-sprint-plan.md` and `v0_56_0/m-pkg-asset-lock-resolution-sprint-plan.md`; reproduced on this investigation's container: `ps -o pid,ppid,stat -p <pid>` → `PPID 1, STAT Z`). macOS CI line-288 nil-Join (0.03–0.04 s) and container line-323 zombie survival are **different assertion sites with different causes**.
+- **Distinct and not this failure**: Linux/container failures of the same test at line **323** ("nested fixture survived bounded stop") are a container artifact — the fixture becomes a **zombie adopted by PID 1** in containers whose init does not reap (already documented in `design_docs/implemented/v0_54_10/spawn-process-result-sprint-plan.md` and `v0_56_0/m-pkg-asset-lock-resolution-sprint-plan.md`; reproduced on this investigation's container: `ps -o pid,ppid,stat -p <pid>` → `PPID 1, STAT Z`). macOS CI line-288 nil-Join (0.03–0.04 s) and container line-323 zombie survival are **different assertion sites with different causes**.
 
 **Prior state of knowledge**: cross-vendor MiniMax review reached an independent CONCUR on a process-lifecycle hypothesis class, but root cause was unproven and no synthetic reproduction existed (task brief; triage-mission-log iteration 25). This document supplies the first deterministic synthetic reproduction and a complete causal proof. No standalone investigation doc existed (duplicate gate verified — see Verification Log), so recurrence tracking should reconcile here rather than spawn new docs.
 
@@ -391,7 +391,7 @@ that hypothesis to a mechanism-proven diagnosis.
 
 **Planned (check for overlap):**
 - [m-process-exec-parent-lifetime.md](../v0_56_2/m-process-exec-parent-lifetime.md) — ordinary synchronous `Process.exec` parent-lifetime reach (issue #2034). Adjacent, **not** shared-cause; this test remains its receipt AC. Explicitly out of this doc's scope per the task brief and per the layer analysis above.
-- [spawn-process-result-sprint-plan.md](../v0_54_7/spawn-process-result-sprint-plan.md) — documents the container line-323 zombie artifact baseline.
+- [spawn-process-result-sprint-plan.md](../../implemented/v0_54_10/spawn-process-result-sprint-plan.md) — documents the container line-323 zombie artifact baseline.
 
 **Bookkeeping referencing this test (historical baseline/AC, reconciled here):**
 - `design_docs/fleet-mission-evidence/iteration84/gates.md` (job 126565127880, 0.04 s)

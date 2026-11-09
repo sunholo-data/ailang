@@ -12,7 +12,7 @@
 | Plan | Scope | Overlap with this sprint |
 |---|---|---|
 | `../implemented/v0_53_1/sprint-plan-gate0-self-notices.md` (#1160, landed `59c3e6a55`) | step **6a**: a second, no-authority read that surfaces the driver's own crash notices | Partial mitigation only: it tells the next fire *a fire died*; it does not stop the watermark skipping a directive. Its reader takes **line 1** of the watermark file — this sprint keeps line 1 a bare timestamp so 6a is untouched. |
-| `sprint-plan-gate0-ledger-provenance.md` | rule 6(b): who flipped a ledger row (`mission_ledger_provenance.sh`) | None. Different instrument, same step. |
+| `../implemented/v0_54_9/sprint-plan-gate0-ledger-provenance.md` | rule 6(b): who flipped a ledger row (`mission_ledger_provenance.sh`) | None. Different instrument, same step. |
 
 Neither is the plan for this design; this file is.
 

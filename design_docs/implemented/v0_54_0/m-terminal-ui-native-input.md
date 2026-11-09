@@ -290,7 +290,7 @@ and async-source teardown, bounded cancellation and supervised descendants.
 - [M-PKG-BIN-ENTRYPOINTS](../v0_40_1/m-pkg-bin-entrypoints.md) — implemented command distribution; reused, not redesigned.
 - [M-TERMINAL-IO](../v0_27_0/m-terminal-io.md) — implemented escapes/flush; explicitly excluded this input surface.
 - [M-AGENT-STEP-CANCELLATION](../../planned/v0_29_0/m-agent-step-cancellation.md) — separate #231 use case and older exclusion this proposal asks to revise.
-- [M-IO-READLINE-EOF-OPTION](../../planned/v0_52_0/m-io-readline-eof-option.md) — exact line EOF dependency, kept in its existing design.
+- [M-IO-READLINE-EOF-OPTION](m-io-readline-eof-option.md) — exact line EOF dependency, kept in its existing design.
 - [Initial triage](../../planned/ailang-core-triage/native-terminal-tui-input.md) — superseded routing context: existing-package evidence and operator request now warrant this design.
 - [Maintained limitations](../../../docs/docs/reference/limitations.md#interactive-stdin--keyboard-input) and [PROGRAM](../../PROGRAM.md) — public boundary and routing principles.
 

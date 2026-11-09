@@ -1,6 +1,6 @@
 # Sprint report: exit-path notices bounded (fleet iteration 33)
 
-**Plan:** `design_docs/planned/sprint-plan-exit-path-notices-bounded.md` (commit `468604ba4`)
+**Plan:** `design_docs/implemented/v0_54_7/sprint-plan-exit-path-notices-bounded.md` (commit `468604ba4`)
 **Ticket:** `driver:exit-path-notices-unbounded`
 **Branch:** `fleet/i33-exit-notices-bounded` (base `06d524c59`)
 **Fix commit:** `1fe1e3911` (driver, four test files, changelog fragment)

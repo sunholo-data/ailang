@@ -389,7 +389,7 @@ reading the code, history claims on `git show`, and the CI facts on the GitHub A
 | 9 | 47 of 257 runnable `.ail` files are unmanifested; 1 stale entry (`lambda_expressions.ail`) | session measurement: Python walk of `examples/runnable` + `importextract.ResolvePath` semantics (direct then `runnable/`, `scripts/internal/importextract`: `ResolvePath`) over the committed manifest; 236 entries, 235 resolvable, 25 non-runnable |
 | 10 | Second bite: "2026-09-27: … the closure count and manifest statistics each broke dev or a PR after a direct push" | `make/ci.mk:19` (comment above `ci-quick`) |
 | 11 | CI runs on push AND pull_request to main/dev; pre-push hook runs `ci-quick` in a throwaway worktree; GitHub-side squash merges bypass local hooks | `.github/workflows/ci.yml:3-6`; `make/ci.mk:17-21`; `scripts/hooks/pre-push:106-107` |
-| 12 | The #1834 feature doc's checklist says "+1 manifest entry" with no statistics step | `design_docs/planned/v0_54_7/spawn-process-result.md:228,243,299` |
+| 12 | The #1834 feature doc's checklist says "+1 manifest entry" with no statistics step | `design_docs/implemented/v0_54_10/spawn-process-result.md:228,243,299` |
 | 13 | `GenerateREADMESection` has no production caller | grep across repo → only `internal/manifest/manifest_test.go:287,305` |
 | 14 | `cmd/ailang/examples.go` mirror omits statistics entirely (unknown-field-tolerant) | `cmd/ailang/examples.go:17-30` read |
 | 15 | Go float64 division reproduces the committed coverage byte-for-byte | `228/236 = 0.9661016949152542` (session check) = committed value; both sides are IEEE-754 double shortest-round-trip encodings |
