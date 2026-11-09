@@ -2,7 +2,7 @@
 
 **GitHub issue**: [sunholo-data/ailang#524](https://github.com/sunholo-data/ailang/issues/524)
 **Design doc**: none — mission-classified as a bug fix inside `tools/nightly_classify.py`, same shape as
-[m-nightly-flake-guard](../../implemented/v1_0_0/m-nightly-flake-guard.md) which produced the file.
+[m-nightly-flake-guard](../v1_0_0/m-nightly-flake-guard.md) which produced the file.
 **Sprint ID**: `M-NIGHTLY-RUN-VALIDITY-GATE`
 **Branch**: `sprint/m-nightly-run-validity-gate`
 **Worktree**: `/Users/voightkampff/dev/sunholo-data/ailang/.claude/worktrees/sprint-m-nightly-validity`
@@ -534,5 +534,5 @@ controller a re-run to disprove.
 
 ---
 
-**SPRINT_PLAN_PATH**: `design_docs/planned/v1_0_0/m-nightly-run-validity-gate-sprint-plan.md`
+**SPRINT_PLAN_PATH**: `design_docs/implemented/v0_31_0/m-nightly-run-validity-gate-sprint-plan.md`
 **SPRINT_JSON_PATH**: `.ailang/state/sprints/sprint_M-NIGHTLY-RUN-VALIDITY-GATE.json`

@@ -7,7 +7,7 @@
 **Dependencies**:
   - [M-EFFECT-REFINEMENT-PHASE1](../../implemented/v0_15_x/m-effect-refinement-phase1.md) (v0.15.0, shipped) — the `!{E[k=v]}` machinery this validates
   - [M-AI-EFFECT-MODES](../../implemented/v0_15_x/m-ai-effect-modes.md) (v0.15.0, shipped) — AI mode set to register
-**Parent**: [M-EFFECT-REFINEMENT](m-effect-refinement.md) — decomposition sprint 1 of 4 (2026-07-11)
+**Parent**: [M-EFFECT-REFINEMENT](../../planned/v1_1_0/m-effect-refinement.md) — decomposition sprint 1 of 4 (2026-07-11)
 
 ## Framing
 
@@ -207,7 +207,7 @@ export func h() -> int ! {Clock[mode=pinned]} = ...  -- EFF_PARAMS_NOT_SUPPORTED
 
 ## Non-Goals
 
-- No new modes, no new effects with params ([m-effect-clock-net-fs-modes](m-effect-clock-net-fs-modes.md)).
+- No new modes, no new effects with params ([m-effect-clock-net-fs-modes](../../planned/v1_1_0/m-effect-clock-net-fs-modes.md)).
 - No runtime behaviour change ([m-effect-replay-contracts](m-effect-replay-contracts.md)).
 - No user-definable modes (parent doc: v1.0+ research question).
 
@@ -226,11 +226,11 @@ sweep + CI (~1h).
 
 ## Related Documents
 
-- [M-EFFECT-REFINEMENT](m-effect-refinement.md) — parent; decomposed 2026-07-11
+- [M-EFFECT-REFINEMENT](../../planned/v1_1_0/m-effect-refinement.md) — parent; decomposed 2026-07-11
 - [M-EFFECT-REFINEMENT-PHASE1](../../implemented/v0_15_x/m-effect-refinement-phase1.md) — shipped machinery + the closed-set decision record
 - [M-AI-EFFECT-MODES](../../implemented/v0_15_x/m-ai-effect-modes.md) — AI surface to register
 - [m-effect-replay-contracts](m-effect-replay-contracts.md) — consumes validated modes (sprint 2)
-- [m-effect-clock-net-fs-modes](m-effect-clock-net-fs-modes.md) — unlocked by this (sprint 3)
+- [m-effect-clock-net-fs-modes](../../planned/v1_1_0/m-effect-clock-net-fs-modes.md) — unlocked by this (sprint 3)
 
 ## References
 

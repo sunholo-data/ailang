@@ -1,16 +1,17 @@
 # M-BYTECODE-PATTERN-ARITY-FIX — fixed-length list patterns match longer lists under `--bytecode` (silent wrong result)
 
-**Status**: Planned — **QUORUM-RESOLVED 2026-08-12, ready to sprint.** Two blocked rounds, both on
+**Status**: IMPLEMENTED — landed `0625059d3` (#684, 2026-08-12), first released in v0.33.1.
+Was: Planned — **QUORUM-RESOLVED 2026-08-12, ready to sprint.** Two blocked rounds, both on
 premise objections the controller then measured (see the Quorum verification log at the end);
 resolved via the narrow-refinement carve-out with V-H and V-I appended. Spun out of
-[m-bytecode-vm-parity-bugs.md](m-bytecode-vm-parity-bugs.md) (Milestones B1's quicksort half + B2)
+[m-bytecode-vm-parity-bugs.md](../../planned/v1_0_0/m-bytecode-vm-parity-bugs.md) (Milestones B1's quicksort half + B2)
 per Mark's 2026-08-04 decision on that doc's parked A2 question: **option C** — split the doc, land
 this P0 fix immediately since it does not depend on A2's harness-classification redesign at all.
 The parent doc's remaining scope (A1, A2, B3 closure-dispatch family, B4 replay policy) stays
 parked pending a second design round on A2's semantic-effect-extraction question; do not block this
 doc on that round.
 
-**Target**: v1.0.0 (clause-2 soundness residue on the V1 mission queue)
+**Target**: v0.33.1 (shipped; was: v1.0.0, clause-2 soundness residue on the V1 mission queue)
 **Priority**: **P0** — silent wrong result, no error, no fallback. Direct NO-SILENT-FALLBACKS and
 axiom A1 (determinism) violation.
 **Estimated**: ~0.5–1 day (root cause already known — see below; this is fix + regression tests,
@@ -166,7 +167,7 @@ below was restored byte-identically and is not committed.
 
 ## Related Documents
 
-- [m-bytecode-vm-parity-bugs.md](m-bytecode-vm-parity-bugs.md) — parent doc; retains A1/A2 (parked
+- [m-bytecode-vm-parity-bugs.md](../../planned/v1_0_0/m-bytecode-vm-parity-bugs.md) — parent doc; retains A1/A2 (parked
   on A2's semantic-extraction question) and B3/B4 (closure-dispatch family + replay policy)
 - Issue [#505](https://github.com/sunholo-data/ailang/issues/505)
 

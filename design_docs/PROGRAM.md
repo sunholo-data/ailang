@@ -127,6 +127,12 @@ of the same bug (comparing things measured differently), and that doc is the fix
 
 ## 8. Where we are now (2026-10-19)
 
+**v1.0 release bar (re-cut 2026-11-09, ledger D-64):** bar v3, "1.0 = a promise we can keep" —
+stability promise ratified, zero open P0s, packages and the cloud executor MCP in the promise,
+simplification Phase 5. Fleet-tier pass rates and cost-per-verified-success are *published* at
+release, not gated, so nothing in this program's eval strategy (§7) blocks the tag. The gates and
+the live count are in [v1-mission.md](v1-mission.md) and [v1-mission-dashboard.md](v1-mission-dashboard.md).
+
 **Fleet switch rule (Mark, 2026-10-02):** motoko replaces codex/pi as a fleet executor only once it
 writes *better* AILANG than codex, judged on real tasks over time (design-doc sprints), not benchmarks.
 

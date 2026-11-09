@@ -417,5 +417,5 @@ Additional stop conditions from this plan:
   JSONs are conventionally tracked (`git ls-files .ailang/state/sprints/` returns 40+ files).
   The progress JSON therefore needs `git add -f`.
 
-**SPRINT_PLAN_PATH**: `design_docs/planned/v1_0_0/m-effect-replay-subsumption-sprint-plan.md`
+**SPRINT_PLAN_PATH**: `design_docs/implemented/v0_30_0/m-effect-replay-subsumption-sprint-plan.md`
 **SPRINT_JSON_PATH**: `.ailang/state/sprints/sprint_M-EFFECT-REPLAY-SUBSUMPTION.json`

@@ -374,7 +374,7 @@ ailang run --caps IO,Process --process-max-output 5242880 --entry main module.ai
 
 Runnable example: [`examples/runnable/process_subcmd_allowlist.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/process_subcmd_allowlist.ail).
 
-The allowlist is a property of the **invocation**, not of the program's signature — run the `.ail` without the flag and it may exec anything. Signature-level narrowing (`! {Process[scope=...]}`) is tracked under [M-EFFECT-REFINEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md).
+The allowlist is a property of the **invocation**, not of the program's signature — run the `.ail` without the flag and it may exec anything. Signature-level narrowing (`! {Process[scope=...]}`) is tracked under [M-EFFECT-REFINEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-refinement.md).
 
 ### Stream Effect
 

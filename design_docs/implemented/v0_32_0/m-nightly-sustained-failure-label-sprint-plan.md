@@ -4,8 +4,8 @@
 (siblings: #537 closed triage verdict, #540 honest capability-gap filing)
 **Design doc**: none — mission-classified as a bug fix inside `tools/nightly_classify.py` +
 `tools/launchd/nightly-eval.sh`, the same shape and size as
-[m-nightly-run-validity-gate](m-nightly-run-validity-gate-sprint-plan.md) (#524, iteration 119) and
-[m-nightly-flake-guard](../../implemented/v1_0_0/m-nightly-flake-guard.md) (iteration 113), both of
+[m-nightly-run-validity-gate](../v0_31_0/m-nightly-run-validity-gate-sprint-plan.md) (#524, iteration 119) and
+[m-nightly-flake-guard](../v1_0_0/m-nightly-flake-guard.md) (iteration 113), both of
 which shipped doc-less. Confirmed appropriate.
 **Sprint ID**: `M-NIGHTLY-SUSTAINED-FAILURE-LABEL`
 **Branch**: `sprint/m-nightly-sustained-failure-label`

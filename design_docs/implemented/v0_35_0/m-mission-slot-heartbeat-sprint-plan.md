@@ -1,6 +1,6 @@
 # Sprint Plan — M-MISSION-SLOT-HEARTBEAT
 
-**Design doc**: [`design_docs/planned/v1_0_0/m-mission-slot-heartbeat.md`](m-mission-slot-heartbeat.md)
+**Design doc**: [`design_docs/implemented/v0_35_0/m-mission-slot-heartbeat.md`](m-mission-slot-heartbeat.md)
 (564 lines; V1–V28, Round 2 + Round 3 carve-out, residuals R1–R8)
 **Mandate**: ratified ruling **D-52** (Mark Edmondson, attended 2026-09-01) — instrument the mission
 driver so a slot that dies mid-flight *names the gate it died in*, and so the reaped-slot rate is
@@ -474,5 +474,5 @@ a scope expansion.
 
 ---
 
-**SPRINT_PLAN_PATH**: `design_docs/planned/v1_0_0/m-mission-slot-heartbeat-sprint-plan.md`
+**SPRINT_PLAN_PATH**: `design_docs/implemented/v0_35_0/m-mission-slot-heartbeat-sprint-plan.md`
 **SPRINT_JSON_PATH**: `.ailang/state/sprints/sprint_m-mission-slot-heartbeat.json`

@@ -7,7 +7,7 @@
 **Dependencies**:
 - [M-EFFECT-REFINEMENT-PHASE1](m-effect-refinement-phase1.md) (shipping in v0.15.0; commits a90ada21 + 320b2a6c + 72859118 + de7fe9a7) — provides parameterised-effects machinery (parser, AST, `Row.Params`, default-mode table, invariant unification, JSON round-trip with omitempty back-compat)
 - [M-AI-OPENROUTER](../../implemented/v0_16_x/m-ai-openrouter-provider.md) (v0.16.0, shipped) — provides `AIRoutingPolicy`, `AIHandlerWithRouting`, `ResolvedRoute` trace payload, `--allow-routing` runtime gate (becomes back-compat fallback)
-- [M-EFFECT-REFINEMENT (v1.0.0) Example 4: Modal AI](../v1_0_0/m-effect-refinement.md#example-4-modal-ai) — canonical design specification; this sprint implements that Example 4 as the second pilot effect
+- [M-EFFECT-REFINEMENT (v1.0.0) Example 4: Modal AI](../../planned/v1_1_0/m-effect-refinement.md#example-4-modal-ai) — canonical design specification; this sprint implements that Example 4 as the second pilot effect
 
 ## Framing
 
@@ -340,7 +340,7 @@ The following are intentionally left open for the implementer (agent latitude):
 - [M-AI-OPENROUTER](../../implemented/v0_16_x/m-ai-openrouter-provider.md) — provides `AIRoutingPolicy` + runtime `--allow-routing` gate
 
 **Parent design (canonical, multi-phase):**
-- [M-EFFECT-REFINEMENT (v1.0.0)](../v1_0_0/m-effect-refinement.md) — full 8-phase taxonomy; this sprint is the AI-specific subset of Phase 5
+- [M-EFFECT-REFINEMENT (v1.0.0)](../../planned/v1_1_0/m-effect-refinement.md) — full 8-phase taxonomy; this sprint is the AI-specific subset of Phase 5
 
 **Related future work (parent doc):**
 - Replay contract registry (Phase 3) — subsumes the replay-only mode runtime enforcement
@@ -443,11 +443,11 @@ was the second instance of the same pattern.
 | Deferred work | Why | Tracked in |
 |---|---|---|
 | Handler-side defence-in-depth check | CLI gate at runtime is the user-visible enforcement point; handler-side mirror would need extending `AIHandler` interface to carry declared mode through `AIContext.Call`. Lands naturally when value-level `ai.complete(req)` ships. | [m-ai-tool-loop](../../planned/v0_17_0/m-ai-tool-loop.md) (proposed) |
-| `mode=replay-only` runtime enforcement | Parser accepts the value; runtime treats as fixed (no replay-engine integration). The relaxation logic also lets `replay-only` skip the `--allow-routing` gate (replay rows attest intent the same way `routeable` does). Actual replay-only enforcement needs a trace-aware AI handler. | Phase 3 of [parent doc](../../planned/v1_0_0/m-effect-refinement.md) |
-| `scope=byok` runtime enforcement | Parser accepts the value; runtime is identical to ambient-key path. Full BYOK semantics (key rotation, capability flow) need a separate design doc. | Phase 4 of [parent doc](../../planned/v1_0_0/m-effect-refinement.md) |
-| Replay-engine pin-to-resolved + `--reroute` flag | Trace data captured by M-AI-OPENROUTER M3; replay engine itself is trace-naive. Separate replay-engine refactor. | Phase 3 of [parent doc](../../planned/v1_0_0/m-effect-refinement.md) |
-| Clock/Net/FS mode ports | Same one-row pattern as this sprint. Each is its own sprint. | Phase 5 of [parent doc](../../planned/v1_0_0/m-effect-refinement.md) |
-| Subtyping or widening coercion between modes | Invariant unification only in v0.15.0; some users may want `routeable <: fixed`. Research question for v1.0+. | [parent doc](../../planned/v1_0_0/m-effect-refinement.md) Future Work |
+| `mode=replay-only` runtime enforcement | Parser accepts the value; runtime treats as fixed (no replay-engine integration). The relaxation logic also lets `replay-only` skip the `--allow-routing` gate (replay rows attest intent the same way `routeable` does). Actual replay-only enforcement needs a trace-aware AI handler. | Phase 3 of [parent doc](../../planned/v1_1_0/m-effect-refinement.md) |
+| `scope=byok` runtime enforcement | Parser accepts the value; runtime is identical to ambient-key path. Full BYOK semantics (key rotation, capability flow) need a separate design doc. | Phase 4 of [parent doc](../../planned/v1_1_0/m-effect-refinement.md) |
+| Replay-engine pin-to-resolved + `--reroute` flag | Trace data captured by M-AI-OPENROUTER M3; replay engine itself is trace-naive. Separate replay-engine refactor. | Phase 3 of [parent doc](../../planned/v1_1_0/m-effect-refinement.md) |
+| Clock/Net/FS mode ports | Same one-row pattern as this sprint. Each is its own sprint. | Phase 5 of [parent doc](../../planned/v1_1_0/m-effect-refinement.md) |
+| Subtyping or widening coercion between modes | Invariant unification only in v0.15.0; some users may want `routeable <: fixed`. Research question for v1.0+. | [parent doc](../../planned/v1_1_0/m-effect-refinement.md) Future Work |
 
 ### Success-criteria status
 

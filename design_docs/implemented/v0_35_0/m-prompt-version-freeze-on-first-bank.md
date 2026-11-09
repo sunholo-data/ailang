@@ -642,7 +642,7 @@ without a third designer run. No controller-invented resolution; no objection ov
 
 ## Related Documents
 
-- `design_docs/planned/m-contract-verification-coverage.md` — house-style sibling (structure model)
+- `design_docs/planned/v1_1_0/m-contract-verification-coverage.md` — house-style sibling (structure model)
 - `design_docs/PROGRAM.md` — routing: this is harness/data-integrity work, not a core change
 - `.claude/skills/prompt-manager/` — the workflow this mechanism constrains
 - Decision ledger row D-41 (mission log, iteration 291) — the ruling

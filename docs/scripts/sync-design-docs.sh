@@ -115,6 +115,10 @@ This page is automatically generated from the [design_docs/planned](https://gith
 
 For completed features, see [Design Documents](/docs/design-docs).
 
+## What gates v1.0
+
+v1.0.0 is gated on a promise, not on the features below: the [Stability Promise](/docs/reference/stability) ratified against today's surface, zero open `priority:P0` issues, packages and the cloud executor MCP tools written into that promise, and the simplification metrics published in the release notes. Benchmark pass rates and cost-per-verified-success are published at release, not gated. There is no date; the authoritative gate list is the [v1 mission charter](https://github.com/sunholo-data/ailang/blob/dev/design_docs/v1-mission.md) ("The v1.0 bar — v3"). Most of the language and platform work that was once filed under v1.0 now sits under v1.1.
+
 EOF
 
     # Get all planned version directories sorted

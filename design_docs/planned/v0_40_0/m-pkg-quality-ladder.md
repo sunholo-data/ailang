@@ -386,7 +386,7 @@ Parent-doc honesty check: its Sprint 2 was estimated at 5 days including a 2.5-d
 - [m-secret-effect-remote-approval](../../implemented/v0_26_0/m-secret-effect-remote-approval.md) — the `ApprovalCheckpoint` + notify-daemon rail Tier 3 reuses.
 - [m-package-test-discovery](../m-package-test-discovery.md) — test discovery union `pkg quality` reports.
 - [m-ext-registry-effect-row-ruling](../m-ext-registry-effect-row-ruling.md), [m-effect-row-var-unification](../v1_0_0/m-effect-row-var-unification.md) — the ABI over-declaration root cause (non-goal here).
-- [m-effect-clock-net-fs-modes](../v1_0_0/m-effect-clock-net-fs-modes.md), [m-effect-scope-params](../v1_0_0/m-effect-scope-params.md), [m-process-modes](../v1_1_0/m-process-modes.md) — type-level successors to `[effects.scopes]`.
+- [m-effect-clock-net-fs-modes](../v1_1_0/m-effect-clock-net-fs-modes.md), [m-effect-scope-params](../v1_1_0/m-effect-scope-params.md), [m-process-modes](../v1_1_0/m-process-modes.md) — type-level successors to `[effects.scopes]`.
 - [m-ext-portability-gate](../../implemented/v0_18_11/m-ext-portability-gate.md) — the `_smoke.ail` gate `pkg quality` folds in.
 - [m-pkg-ci-publish](../../implemented/v0_10_0/m-pkg-ci-publish.md) — still "Planned" in body; not addressed here.
 - Distinct from the neural-search neighbours: m-dx-package-check / m-dx-package-test (v0.10.0) are the `check --package` / `test --package` commands this doc *calls*; m-dx-quality-monitor (v0.35.0) is eval-quality, not package quality.

@@ -14,7 +14,7 @@ For features that have been implemented, see [Design Documents](/docs/design-doc
 **All entries below were live-verified at AILANG `v0.33.1-72-g4b46bb97e` on 2026-08-17** with
 `ailang check` / `ailang run` transcripts. Each open entry carries a **Verified at** date; fixed
 items are listed under [Recently Resolved](#recently-resolved). This is the entry policy from
-[M-V1-STABILITY-PROMISE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-v1-stability-promise.md):
+[M-V1-STABILITY-PROMISE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-v1-stability-promise.md):
 every remaining limitation is a reproducible artifact, not lore.
 
 ---
@@ -491,7 +491,7 @@ match readFile(path) {
 
 ### Typed Quasiquotes
 
-**Status**: Planned — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-quasi-typed-quasiquotes.md)
+**Status**: Planned — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-quasi-typed-quasiquotes.md)
 **Verified at**: v0.33.1 (2026-08-17 — backtick template syntax lexes as `ILLEGAL`; no quasiquote surface in the parser)
 
 Typed quasiquotes for deterministic AST templates and secure string templating
@@ -502,10 +502,10 @@ v0.12.1+) or `concat([..])` for now.
 
 ### CSP Concurrency
 
-**Status**: Deferred — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-csp-session-types.md)
+**Status**: Deferred — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-csp-session-types.md)
 **Verified at**: v0.33.1 (2026-08-17 — no channel/session-type surface in the parser; `chan` is just an identifier)
 
-CSP-style concurrency with channels and session types is deferred to v1.0.0+.
+CSP-style concurrency with channels and session types is deferred to the v1.1 track or later.
 AILANG currently focuses on deterministic, single-threaded execution. The
 runtime does support effect-level concurrency primitives in some contexts (see
 the `Concurrency` effect), but full CSP with session types remains future work.

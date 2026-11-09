@@ -1,8 +1,8 @@
 # M-CONTRACT-VERIFICATION-COVERAGE: Split `verify_skipped` into `skipped` vs `not_applicable`
 
 **Status**: Planned
-**Target**: v0.33.2
-**Priority**: P0 (bar-gating — feeds the v1.0 headline KPI's data integrity)
+**Target**: v1.1.0 (**RE-SCORED by D-64**, Mark attended 2026-11-09 — serves no bar-v3 gate; was: v0.33.2)
+**Priority**: P0 for KPI data integrity (was "bar-gating" under bar v2; the cost-per-success KPI is published, not gated, under bar v3 / D-64)
 **Estimated**: 1.5–2 days (2 milestones, **reader-before-writer**, each independently committable)
 **Dependencies**: None. Explicitly does NOT depend on `D-29` (see [Out of Scope](#out-of-scope--the-d-29-flip-is-parked-and-stays-parked)).
 **Author**: design-doc-creator role, mission iteration 255 (2026-08-23, at `origin/dev` = `30176187f`)
@@ -140,7 +140,7 @@ known-positive control in the same call, scoped to the same path.
 | V11 | `ailang verify --strict` exits 1 when `skipped > 0 \|\| errCount > 0` — so today a no-ensures function DOES trip `--strict` | `sed -n '440,460p' cmd/ailang/verify.go` | `if *strictFlag && (skipped > 0 \|\| errCount > 0) { os.Exit(1) }` at `verify.go:457`. |
 | V12 | The UI does NOT read `verify_skipped` or the KPI fields (no UI change needed) | `grep -rl "verify_skipped" ui/src` → rc=1; `grep -rn "cost_per_verified" ui/src` → rc=1; `grep -rn "costPerVerifiedSuccess" ui/src` → rc=1; control in same call: `grep -rln "React" ui/src` → fires (`ui/src/App.tsx`, `ui/src/main.tsx`, …), rc=0 | Three controlled negatives. (The "React card" note in `cost_per_verified_success.go`'s header refers to the latest.json headline object consumed elsewhere, not a `ui/src` reader of these fields.) |
 | V13 | The other `"skipped"` string hits in Go are different domains, not this status | `grep -rn '"skipped"' --include='*.go' internal/ cmd/ \| grep -v _test.go \| grep -v 'ai_check.go\|verify.go'` + read of each | `internal/test/reporter.go` (test-runner statuses), `cmd/ailang/eval_suite_finalize.go:149` (job-level "already banked" skip flag in a notification payload — read in context, unrelated to verify), `cmd/registry-validator/validate.go:133` (registry domain), `cmd/ailang/verify_print.go:46,:110` (the verify human printer + JSON summary — these two ARE in scope, see design), `cmd/ailang/verify_filter.go:28` (in scope, V4). |
-| V14 | No existing doc covers this; duplicate gate clears | `ailang docs search --neural "verification skipped not applicable ensures coverage"` | Top match 0.43 (`m-coverage-cross-package-attribution.md`, a `go test -coverpkg` question — unrelated domain). All matches < 0.45 ⇒ proceed per the skill's gate. `ls design_docs/planned/m-contract-verification-coverage.md` → No such file. |
+| V14 | No existing doc covers this; duplicate gate clears | `ailang docs search --neural "verification skipped not applicable ensures coverage"` | Top match 0.43 (`m-coverage-cross-package-attribution.md`, a `go test -coverpkg` question — unrelated domain). All matches < 0.45 ⇒ proceed per the skill's gate. `ls design_docs/planned/v1_1_0/m-contract-verification-coverage.md` → No such file. |
 | V15 | `meta.Contracts` element type for the shared helper | `sed -n '430,460p' internal/core/core.go` | `DeclMeta.Contracts []*Contract`; `EnsuresKind` is a `ContractKind` const at `core.go:445`. |
 | V16 | Named tests that anchor the mutation table exist at HEAD | `grep -n "^func Test" internal/observatory/cost_per_verified_success_test.go internal/eval_harness/agent_verify_test.go internal/eval_harness/verify_nonzero_test.go` | 12 tests incl. `TestCostPerVerifiedSuccess_Table`, `TestEvalAssessment_VerifyFieldsRoundTrip`, `TestEvalAssessment_HistoricalRowIsVerificationMissing`, `TestApplyAgentVerification_PopulatesVerifiedSuccess`, `TestRunAICheckParsesJSONFromNonzeroChild`. Also `cmd/ailang/ai_check_exit_test.go`, `cmd/ailang/chains_stats_cvs_test.go` exist (`ls`). |
 | V17 | The three banking sites carry the 5 verify_* fields as parallel literal blocks | `sed -n '290,310p' cmd/ailang/eval_benchmark_agent.go; sed -n '395,412p' cmd/ailang/eval_benchmark_agent.go; sed -n '272,290p' cmd/ailang/eval_benchmark.go` | All three constructor literals assign `VerifyOk/VerifyVerified/VerifyCounterex/VerifySkipped/VerifyErrors` (agent result-file block additionally `VerifyJSON`). |
@@ -1004,9 +1004,9 @@ wording, skew fixtures and unavailable state are release criteria.
 
 ### Related work
 
-- [Checked WAV writer and release handoff](../implemented/v0_54_18/m-std-audio-wav-write-checked.md).
-- [Callee requires obligations](ailang-core-triage/verify-call-site-precondition-not-checked.md)
-  and [proof/refutation symmetry](ailang-core-triage/verify-ensures-verified-without-encodable-refutation.md):
+- [Checked WAV writer and release handoff](../../implemented/v0_54_18/m-std-audio-wav-write-checked.md).
+- [Callee requires obligations](../ailang-core-triage/verify-call-site-precondition-not-checked.md)
+  and [proof/refutation symmetry](../ailang-core-triage/verify-ensures-verified-without-encodable-refutation.md):
   separate semantic issues, not resolved by reporting.
 - [Bounded counterexample design](m-verify-bounded-unrolling-false-counterexample.md):
   verdict changes remain outside this additive slice.

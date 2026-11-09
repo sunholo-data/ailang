@@ -5,9 +5,9 @@
 **Priority**: P1 — Low within the effect-refinement track
 **Estimated**: ~16 hours (~2.5 days)
 **Dependencies**:
-  - [m-effect-mode-validation](m-effect-mode-validation.md) (sprint 1) — `scope` keys validate through the same schema
+  - [m-effect-mode-validation](../../implemented/v0_30_0/m-effect-mode-validation.md) (sprint 1) — `scope` keys validate through the same schema
   - [M-CAPABILITY-BUDGETS](../../implemented/v0_6_2/m-capability-budgets.md) (v0.6.2, shipped) — the capability surface scopes refine
-  - [m-effect-replay-contracts](m-effect-replay-contracts.md) (sprint 2) — orthogonal, but the dispatch mechanism decision constrains how scopes reach grant checks
+  - [m-effect-replay-contracts](../../implemented/v0_30_0/m-effect-replay-contracts.md) (sprint 2) — orthogonal, but the dispatch mechanism decision constrains how scopes reach grant checks
 **Parent**: [M-EFFECT-REFINEMENT](m-effect-refinement.md) — decomposition sprint 4 of 4 (2026-07-11)
 
 ## Framing
@@ -179,10 +179,10 @@ profile + tests. Half-day 3: docs, prompt, sweep, CI.
 ## Related Documents
 
 - [M-EFFECT-REFINEMENT](m-effect-refinement.md) — parent (Phase 4); decomposed 2026-07-11
-- [m-effect-mode-validation](m-effect-mode-validation.md) — sprint 1 (schema machinery)
+- [m-effect-mode-validation](../../implemented/v0_30_0/m-effect-mode-validation.md) — sprint 1 (schema machinery)
 - [M-CAPABILITY-BUDGETS](../../implemented/v0_6_2/m-capability-budgets.md) — the surface refined
 - [m-ai-effect-modes-followups](m-ai-effect-modes-followups.md) — owns byok runtime semantics
-- [m-agent-orchestration](../v1_1_0/m-agent-orchestration.md) — future consumer (permissions substrate)
+- [m-agent-orchestration](m-agent-orchestration.md) — future consumer (permissions substrate)
 
 ## References
 

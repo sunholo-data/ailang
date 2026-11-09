@@ -88,7 +88,7 @@ While designing [M-AI-STREAMING-HELPER](../v0_17_0/m-ai-streaming-helper.md), an
 
 ### Relationship to M-EFFECT-REFINEMENT (Phase 1 shipped, AI port deferred)
 
-[M-EFFECT-REFINEMENT Phase 1](../../implemented/v0_15_x/m-effect-refinement-phase1.md) (v0.15.0, ✅ shipped) ships parameterised effect syntax (`!{E[mode=X]}`) with Rand as the pilot. AI is **not** ported in Phase 1; bare `!{AI}` keeps working via back-compat aliasing. When the AI port lands (deferred phase, see [m-effect-refinement.md "Modal AI" example](../v1_0_0/m-effect-refinement.md)), the mode taxonomy will be:
+[M-EFFECT-REFINEMENT Phase 1](../../implemented/v0_15_x/m-effect-refinement-phase1.md) (v0.15.0, ✅ shipped) ships parameterised effect syntax (`!{E[mode=X]}`) with Rand as the pilot. AI is **not** ported in Phase 1; bare `!{AI}` keeps working via back-compat aliasing. When the AI port lands (deferred phase, see [m-effect-refinement.md "Modal AI" example](../../planned/v1_1_0/m-effect-refinement.md)), the mode taxonomy will be:
 
 - `!{AI[mode=fixed]}` — static-configured providers (openai/anthropic/gemini/ollama and **all config-driven providers from this milestone**)
 - `!{AI[mode=routeable]}` — OpenRouter-style dynamic routing
@@ -504,7 +504,7 @@ When v0.15.0 ships, send arni a release note pointing at the new milestone and t
 
 ## Future Work
 
-- **Schema v2: `mode` field on `[[ai_provider]]`** — once [M-EFFECT-REFINEMENT](../v1_0_0/m-effect-refinement.md) ports AI to parameterised effects, optional `mode = "fixed" | "routeable" | "replay-only"` declaration. v1 packages auto-inherit `mode=fixed` via the runtime mode dispatcher; v2 lets a routing-aggregator package declare `mode=routeable` explicitly.
+- **Schema v2: `mode` field on `[[ai_provider]]`** — once [M-EFFECT-REFINEMENT](../../planned/v1_1_0/m-effect-refinement.md) ports AI to parameterised effects, optional `mode = "fixed" | "routeable" | "replay-only"` declaration. v1 packages auto-inherit `mode=fixed` via the runtime mode dispatcher; v2 lets a routing-aggregator package declare `mode=routeable` explicitly.
 - **M-AI-PROVIDER-PLUGIN-API (v0.18+)** — If config-driven shapes prove insufficient for a meaningful fraction of providers, design a real plugin extension point (likely WASM-based, not Go plugin). Out of scope here unless evidence demands it.
 - **Schema v2** — tool-use templating, image input templating, batch endpoint templating, response-format templating beyond JSON. Add as `schema_version = 2` extending v1.
 - **Provider marketplace / `ailang search --tag ai-provider`** — once the format is stable, build discovery on top.

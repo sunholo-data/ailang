@@ -1,7 +1,7 @@
 # M-SERVE-API-LIVE-TOOL-REGISTRY: Live Tool Registry for Agentic Sessions
 
 **Status**: Planned  
-**Target**: v0.18.0  
+**Target**: v1.1.0 (**RE-SCORED by D-64**, Mark attended 2026-11-09 — serves no bar-v3 gate; was: v0.18.0)  
 **Priority**: P1  
 **Estimated**: 3–4 days  
 **Dependencies**: v0.17.1 M-AILANG-EXT-REGISTRY-GEN (background context), motoko --resume (motoko-side, independent)
@@ -304,6 +304,6 @@ Both should ship. Neither blocks the other. Priority ordering:
 ## Related Documents
 
 - [M-AILANG-EXT-REGISTRY-GEN](../../implemented/v0_17_1/m-ailang-ext-registry-gen.md) — compile-time extension registry (the "permanent" track)
-- [M-EXTERNAL-CONSUMER-DX](../v0_17_0/m-external-consumer-dx.md) — external developer UX
+- [M-EXTERNAL-CONSUMER-DX](../../implemented/v0_17_0/m-external-consumer-dx.md) — external developer UX
 - [serve-api guide](../../../docs/docs/guides/serve-api.md) — current serve-api documentation
 - motoko msg 67ff70cc — `--resume <session-id>` proposal (session resumption counterpart)

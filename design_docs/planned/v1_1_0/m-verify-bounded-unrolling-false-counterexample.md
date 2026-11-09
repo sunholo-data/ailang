@@ -1,7 +1,7 @@
 # M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE: A bounded-unrolling `sat` is not a violation
 
 **Status**: Planned
-**Target**: v0.33.2
+**Target**: v1.1.0 (**RE-SCORED by D-64**, Mark attended 2026-11-09 — serves no bar-v3 gate; was: v0.33.2)
 **Priority**: P0 (verdict inversion — corrupts BOTH arms of the `D-29` KPI and spends harness repair turns telling models to break correct code)
 **Estimated**: 2–3 days (2 milestones, **reader-before-writer**, each independently committable)
 **Dependencies**: None hard. **Coordinate textually** with

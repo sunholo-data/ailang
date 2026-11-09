@@ -3,7 +3,7 @@
 Ticket: `driver:unclassified-state-unreachable`; fleet iteration 39, harness lane, P2 #15.
 Verified HEAD: `1f5f0d3ac07dfb35d49c46bc9d66e4ec0e097b51` (2026-10-14). Initial worktree clean.
 Scope: planning only. Controller owns approval, execution handoff, git writes and landing.
-Spec: `design_docs/planned/v1_0_0/m-mission-slot-heartbeat.md`, Q4 decision table.
+Spec: `design_docs/implemented/v0_35_0/m-mission-slot-heartbeat.md`, Q4 decision table.
 
 ## Premise checks at HEAD
 
@@ -12,10 +12,10 @@ Evidence below comes from `git show HEAD:<path>` with numbered lines; counts cov
 | Claim | file:line at HEAD | Verified yes/no |
 |---|---|---|
 | Charter lists this ticket as P2 #15 | `design_docs/fleet-mission.md:245` | Yes |
-| R9 was filed from the round-3 evaluation; iteration-315 provenance is recorded | `design_docs/planned/v1_0_0/m-mission-slot-heartbeat.md:540`, `:561` | Yes |
-| The design names UNCLASSIFIED exactly five times | `design_docs/planned/v1_0_0/m-mission-slot-heartbeat.md:236`, `:253`, `:320`, `:321`, `:346`, `:540`, `:541`, `:543`, `:546` | **No: nine matching lines / nine occurrences now.** R9 quotes a historical five-count. |
-| Q4 specifies UNCLASSIFIED for anything else; non-zero rc retains CRASHED/KILLED | `design_docs/planned/v1_0_0/m-mission-slot-heartbeat.md:234`, `:235`, `:236` | Yes |
-| Phase-2 notify list includes UNCLASSIFIED; Q6 uses it in the anti-vacuity argument | `design_docs/planned/v1_0_0/m-mission-slot-heartbeat.md:253`, `:320` | Yes |
+| R9 was filed from the round-3 evaluation; iteration-315 provenance is recorded | `design_docs/implemented/v0_35_0/m-mission-slot-heartbeat.md:540`, `:561` | Yes |
+| The design names UNCLASSIFIED exactly five times | `design_docs/implemented/v0_35_0/m-mission-slot-heartbeat.md:236`, `:253`, `:320`, `:321`, `:346`, `:540`, `:541`, `:543`, `:546` | **No: nine matching lines / nine occurrences now.** R9 quotes a historical five-count. |
+| Q4 specifies UNCLASSIFIED for anything else; non-zero rc retains CRASHED/KILLED | `design_docs/implemented/v0_35_0/m-mission-slot-heartbeat.md:234`, `:235`, `:236` | Yes |
+| Phase-2 notify list includes UNCLASSIFIED; Q6 uses it in the anti-vacuity argument | `design_docs/implemented/v0_35_0/m-mission-slot-heartbeat.md:253`, `:320` | Yes |
 | Slot-verdict block ends with an unconditional `*:*` CRASHED arm | `tools/launchd/mission-control.sh:2512`, `:2525`, `:2531`, `:2546` | Yes: the scrutinee always contains a colon. |
 | rc=0 with last=bogus is CRASHED; driver contains zero UNCLASSIFIED lines | `tools/launchd/mission-control.sh:2526`, `:2531` | Yes: sourced the HEAD classifier in isolation; both rc=0 and rc=1 produced `CRASHED at=bogus`. Whole-blob count = 0. |
 | `0:gate-*` also accepts gate-bogus | `tools/launchd/mission-control.sh:2529` | Yes: wildcard is broader than the writer enum. |
@@ -39,7 +39,7 @@ not a measured LOC/day claim.
 |---|---|---:|
 | `tools/launchd/mission-control.sh` | Exact gate enum, explicit rc=0 unknown arm, phase-2 pattern | 8 |
 | `tools/launchd/test_mission_heartbeat.sh` | Named runtime arms below; reuse extracted blocks and stub | 85 |
-| `design_docs/planned/v1_0_0/m-mission-slot-heartbeat.md` | Replace R9 residual paragraph with one fixed-status line | 1 |
+| `design_docs/implemented/v0_35_0/m-mission-slot-heartbeat.md` | Replace R9 residual paragraph with one fixed-status line | 1 |
 | `changelogs/unreleased/2026-10-14-slot-verdict-unclassified.md` | Fragment opening `### Fixed — mission slot UNCLASSIFIED verdict` | 6 |
 
 Preserve the marked block boundaries. The driver already exceeds 800 lines; make only the local

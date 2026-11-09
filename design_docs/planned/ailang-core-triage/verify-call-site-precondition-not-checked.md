@@ -3,7 +3,7 @@
 - **Date**: 2026-09-29
 - **Class**: bug
 - **Recommend**: design-doc
-- **Searched**: `precondition`, `requires`, `call site`, `inline callee` across `design_docs/`; checked `planned/m-contract-verification-coverage.md`, `planned/m-verify-bounded-unrolling-false-counterexample.md`, `implemented/v0_30_0/m-smt-callee-sort-gate.md`, and the existing triage row `verify-ensures-verified-without-encodable-refutation.md`. No doc rules on call-site precondition obligations (`none found` for terms: requires obligation, call site, precondition discharge).
+- **Searched**: `precondition`, `requires`, `call site`, `inline callee` across `design_docs/`; checked `planned/v1_1_0/m-contract-verification-coverage.md`, `planned/v1_1_0/m-verify-bounded-unrolling-false-counterexample.md`, `implemented/v0_30_0/m-smt-callee-sort-gate.md`, and the existing triage row `verify-ensures-verified-without-encodable-refutation.md`. No doc rules on call-site precondition obligations (`none found` for terms: requires obligation, call site, precondition discharge).
 - **Estimate**: n/a (design-doc)
 
 Reproduced at v0.47.0 (f5bf729): a caller with `requires { n < 0 }` calling `half(n)` where `half` declares `requires { n >= 0 }` reports VERIFIED on both functions. The mechanism is exactly as the report states, and the code itself admits the gap:

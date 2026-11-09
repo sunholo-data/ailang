@@ -9,6 +9,10 @@ This page is automatically generated from the [design_docs/planned](https://gith
 
 For completed features, see [Design Documents](/docs/design-docs).
 
+## What gates v1.0
+
+v1.0.0 is gated on a promise, not on the features below: the [Stability Promise](/docs/reference/stability) ratified against today's surface, zero open `priority:P0` issues, packages and the cloud executor MCP tools written into that promise, and the simplification metrics published in the release notes. Benchmark pass rates and cost-per-verified-success are published at release, not gated. There is no date; the authoritative gate list is the [v1 mission charter](https://github.com/sunholo-data/ailang/blob/dev/design_docs/v1-mission.md) ("The v1.0 bar — v3"). Most of the language and platform work that was once filed under v1.0 now sits under v1.1.
+
 
 ## Planned for v1.1.0
 
@@ -16,11 +20,18 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-AGENT-LOOP-ARCHITECTURE: Where Should the Multi-Turn Agent Loop Live?](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-agent-loop-architecture.md)
 - [M-AGENT: std/agent Module for AI Agent Orchestration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-agent-orchestration.md)
 - [M-AGENT-SAFE-RUNNER: Turnkey Sandboxed Execution for AI-Authored AILANG Programs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-agent-safe-runner.md)
+- [m agent step cancellation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-agent-step-cancellation.md)
 - [M-AI-EFFECT-MODES-FOLLOWUPS: Close the Loose Ends from v0.15.0 AI Modes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-ai-effect-modes-followups.md)
 - [M-CALL-SUGAR: Optional Parenthesized Call Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-call-sugar-optional.md)
+- [M-COHORT-MANIFEST-BUILD-PROVENANCE: Build identity for release evidence, cache identity, and eval banking](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-cohort-manifest-build-provenance.md)
+- [M-CONTRACT-VERIFICATION-COVERAGE: Split `verify_skipped` into `skipped` vs `not_applicable`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-contract-verification-coverage.md)
 - [M-CSP-SESSION-TYPES: CSP Concurrency with Session Types](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-csp-session-types.md)
 - [M-D4: Design-Doc-Driven Development (D4)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-d4-design-doc-driven-development.md)
+- [M-DIALECT-KEYWORD-DIAGNOSTICS: Diagnose the Observed `case` Trap](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-dialect-keyword-diagnostics.md)
+- [M-EFFECT-CLOCK-NET-FS-MODES: Port Clock, Net, FS to Parameterised Modes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-clock-net-fs-modes.md)
 - [M-EFFECT-HANDLERS: User-Definable Effect Handlers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-handlers.md)
+- [M-EFFECT-REFINEMENT: Parameterised Effects and Unified Replay Contracts](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-refinement.md)
+- [M-EFFECT-SCOPE-PARAMS: Capability-Scoping Parameters on Effects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-scope-params.md)
 - [M-ENTROPY: Semantic Entropy Budgets](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-entropy-budgets.md)
 - [M-ERROR-PROP: Error Propagation Operator (`?`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-error-propagation.md)
 - [M-EU-COMPLIANCE-EFFECTS: Regulatory Trigger Effects for Agentic Systems](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-eu-compliance-effects.md)
@@ -36,24 +47,14 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-QUASI: Typed Quasiquotes (String Templates)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-quasi-typed-quasiquotes.md)
 - [Type-Anchored Defaultable Record Fields](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-record-defaultable-fields.md)
 - [M-REFLECT: Structural Reflection & User-Defined Type Classes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-reflect-structural-reflection.md)
+- [M-SERVE-API-LIVE-TOOL-REGISTRY: Live Tool Registry for Agentic Sessions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-serve-api-live-tool-registry.md)
 - [M-TRACE-FEEDBACK: Execution-Trace Feedback Loop for Harness Diagnostics](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-trace-feedback.md)
+- [M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE: A bounded-unrolling `sat` is not a violation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-verify-bounded-unrolling-false-counterexample.md)
 - [M-ZERO-LANGUAGE-LEARNINGS: Borrowed Ideas from Vercel Labs' Zero](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-zero-language-learnings.md)
 
 ## Planned for v1.0.0
 
-- [Sprint Plan: M-BYTECODE-PATTERN-ARITY-FIX](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-bytecode-pattern-arity-fix-sprint-plan.md)
-- [M-BYTECODE-PATTERN-ARITY-FIX — fixed-length list patterns match longer lists under `--bytecode` (silent wrong result)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-bytecode-pattern-arity-fix.md)
 - [M-BYTECODE-VM-PARITY-BUGS — Three VM soundness bugs surfaced as "output divergences" (Lanes A + B, scope FROZEN)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-bytecode-vm-parity-bugs.md)
-- [M-DIALECT-KEYWORD-DIAGNOSTICS: Diagnose the Observed `case` Trap](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-dialect-keyword-diagnostics.md)
-- [M-EFFECT-CLOCK-NET-FS-MODES: Port Clock, Net, FS to Parameterised Modes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-clock-net-fs-modes.md)
-- [M-EFFECT-REFINEMENT: Parameterised Effects and Unified Replay Contracts](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md)
-- [Sprint Plan: M-EFFECT-REPLAY-SUBSUMPTION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-replay-subsumption-sprint-plan.md)
-- [M-EFFECT-SCOPE-PARAMS: Capability-Scoping Parameters on Effects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-scope-params.md)
-- [Sprint Plan — M-MISSION-SLOT-HEARTBEAT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-mission-slot-heartbeat-sprint-plan.md)
-- [M-MISSION-SLOT-HEARTBEAT: Per-Gate Heartbeat for Mission Slot Death Attribution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-mission-slot-heartbeat.md)
-- [Sprint Plan: M-NIGHTLY-RUN-VALIDITY-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-nightly-run-validity-gate-sprint-plan.md)
-- [Sprint Plan: M-NIGHTLY-SUSTAINED-FAILURE-LABEL](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-nightly-sustained-failure-label-sprint-plan.md)
-- [Sprint Plan: M-NIGHTLY-UNMEASURED-CATEGORY-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-nightly-unmeasured-category-gate-sprint-plan.md)
 
 ## Planned for v0.57.5
 
@@ -293,7 +294,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 
 ## Planned for v0.29.0
 
-- [m agent step cancellation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-agent-step-cancellation.md)
 - [M-AILANG-SEMANTIC-CONTEXT: Typed, Semantic Context Minimization for the Agent Loop](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-ailang-semantic-context.md)
 - [M-ANTHROPIC-SANDBOX: Anthropic Self-Hosted Sandbox Executor](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-anthropic-sandbox.md)
 - [M-APPLE-CONTAINER-LOCAL-EVAL-SANDBOX](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-apple-container-local-eval-sandbox.md)
@@ -308,7 +308,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [Sprint Plan: M-MOTOKO-EXT-PER-TASK](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-motoko-ext-per-task-sprint-plan.md)
 - [M-MOTOKO-EXT-PER-TASK: Per-Invocation motoko Extension Configuration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-motoko-ext-per-task.md)
 - [m pure prng](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-pure-prng.md)
-- [M-SERVE-API-LIVE-TOOL-REGISTRY: Live Tool Registry for Agentic Sessions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-serve-api-live-tool-registry.md)
 - [m stdlib html streaming](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_29_0/m-stdlib-html-streaming.md)
 
 ## Planned for docparse-billing
@@ -409,4 +408,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 263 planned features across 41 upcoming versions.*
+*Generated at build time. 258 planned features across 41 upcoming versions.*

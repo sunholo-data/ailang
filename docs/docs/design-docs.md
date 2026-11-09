@@ -532,6 +532,8 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-LYCEUM-PROVIDER: Lyceum as an EU-Hosted Third Route for Open-Weight Models](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-lyceum-provider.md)
 - [Sprint Plan: M-MESSAGE-PLANE-FAIL-LOUD](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-message-plane-fail-loud-sprint-plan.md)
 - [M-MESSAGE-PLANE-FAIL-LOUD: the remaining silent seams](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-message-plane-fail-loud.md)
+- [Sprint Plan — M-MISSION-SLOT-HEARTBEAT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-mission-slot-heartbeat-sprint-plan.md)
+- [M-MISSION-SLOT-HEARTBEAT: Per-Gate Heartbeat for Mission Slot Death Attribution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-mission-slot-heartbeat.md)
 - [Sprint Plan: M-MODEL-REGISTRY-SINGLE-SOURCE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-model-registry-single-source-sprint-plan.md)
 - [M-MODEL-REGISTRY-SINGLE-SOURCE: models.yml becomes the one place models are assigned](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-model-registry-single-source.md)
 - [Sprint plan — M-MOTOKO-CONNECTION-PROBE-RUN-LANE-HARNESS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-motoko-connection-probe-run-lane-harness-sprint-plan.md)
@@ -584,6 +586,8 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.33.1
 
+- [Sprint Plan: M-BYTECODE-PATTERN-ARITY-FIX](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_1/m-bytecode-pattern-arity-fix-sprint-plan.md)
+- [M-BYTECODE-PATTERN-ARITY-FIX — fixed-length list patterns match longer lists under `--bytecode` (silent wrong result)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_1/m-bytecode-pattern-arity-fix.md)
 - [Sprint Plan: M-CI-FLAKE-SYSTEMIC-FIX](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_1/m-ci-flake-systemic-fix-sprint-plan.md)
 - [M-CI-FLAKE-SYSTEMIC-FIX: One Gating Convention, Bounded Waits, a Default-Deny Egress Boundary, and a Known-Offender Lint for the Go Test Suite](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_1/m-ci-flake-systemic-fix.md)
 - [Sprint Plan — `m-named-test-assert-lowering` (make `test "…" { assert … }` execute)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_1/m-named-test-assert-lowering-sprint-plan.md)
@@ -598,6 +602,8 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [Sprint Plan: M-EVAL-STANDARD-CONFIDENCE-GATING](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_32_0/m-eval-standard-confidence-gating-sprint-plan.md)
 - [M-EVAL-STANDARD-CONFIDENCE-GATING: ELO Confidence Gating for the Cloud Standard Release Baseline](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_32_0/m-eval-standard-confidence-gating.md)
 - [M-FMT-DIALECT-ALIGNMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_32_0/m-fmt-dialect-alignment.md)
+- [Sprint Plan: M-NIGHTLY-SUSTAINED-FAILURE-LABEL](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_32_0/m-nightly-sustained-failure-label-sprint-plan.md)
+- [Sprint Plan: M-NIGHTLY-UNMEASURED-CATEGORY-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_32_0/m-nightly-unmeasured-category-gate-sprint-plan.md)
 - [PRE-READ: m-recorded-stream-api (ailang#546) — attended evaluation of the offered implementation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_32_0/m-recorded-stream-api-preread.md)
 - [Sprint Plan — M-RECORDED-STREAM-API (sprint 1 of 2)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_32_0/m-recorded-stream-api-sprint-plan.md)
 - [M-RECORDED-STREAM-API — Productionize the offered recorded `std/ai` stream](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_32_0/m-recorded-stream-api.md)
@@ -622,6 +628,7 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-EVAL-MEASUREMENT-CONTRACT: Distinguish "Measured Badly" from "Failed to Measure"](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_31_0/m-eval-measurement-contract.md)
 - [M-EVAL-TOKEN-HEADROOM: Equal Headroom, Visible Truncation, Labelled Thinking State](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_31_0/m-eval-token-headroom.md)
 - [Sprint Plan: M-MCP-EXACT-TOOL-SURFACE — Lane A](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_31_0/m-mcp-exact-tool-surface-lane-a-sprint-plan.md)
+- [Sprint Plan: M-NIGHTLY-RUN-VALIDITY-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_31_0/m-nightly-run-validity-gate-sprint-plan.md)
 - [Sprint Plan — M-PROPERTY-GENERATOR-COVERAGE **Lane A only**](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_31_0/m-property-generator-coverage-lane-a-sprint-plan.md)
 - [Sprint Plan — M-PROPERTY-GENERATOR-COVERAGE **Lane B1 only**](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_31_0/m-property-generator-coverage-lane-b1-sprint-plan.md)
 - [M-PROPERTY-GENERATOR-COVERAGE: Vacuous-Pass Honesty + Structural Generator Derivation for Contract Property Tests](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_31_0/m-property-generator-coverage.md)
@@ -656,6 +663,7 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-EFFECT-MODE-VALIDATION: Enforce the Closed Mode Set for Parameterised Effects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-effect-mode-validation.md)
 - [Sprint Plan: M-EFFECT-REPLAY-CONTRACTS (Rand pilot)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-effect-replay-contracts-sprint-plan.md)
 - [M-EFFECT-REPLAY-CONTRACTS: Replay Contract Registry + Mode-Aware Runtime Dispatch (Rand pilot)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-effect-replay-contracts.md)
+- [Sprint Plan: M-EFFECT-REPLAY-SUBSUMPTION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-effect-replay-subsumption-sprint-plan.md)
 - [M-EFFECT-REPLAY-SUBSUMPTION: Validate-Path Effect-Mode Subsumption](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-effect-replay-subsumption.md)
 - [M-EVAL-ELO-PRIORITY-ROTATION: ELO-Driven Benchmark Prioritization for the OS Rotation Filler](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-eval-elo-priority-rotation.md)
 - [M-EVAL-LOCAL-CLOUD-UNIFY: local models in the same tables + rolling trends as cloud](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-eval-local-cloud-unify.md)
@@ -1974,4 +1982,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 1424 design documents across 180 versions.*
+*Generated at build time. 1432 design documents across 180 versions.*

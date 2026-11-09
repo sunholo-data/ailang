@@ -1,12 +1,12 @@
 # M-EFFECT-CLOCK-NET-FS-MODES: Port Clock, Net, FS to Parameterised Modes
 
 **Status**: Planned
-**Target**: v1.0.0 (sprint-sized carve-out; ships on the normal v0.29.x road)
+**Target**: v1.1.0 (**RE-SCORED by D-64**, Mark attended 2026-11-09 — serves no bar-v3 gate; was: v1.0.0 (sprint-sized carve-out; ships on the normal v0.29.x road))
 **Priority**: P1 — Medium (completes the mode taxonomy across the core replay-relevant effects)
 **Estimated**: ~20 hours (~3 days)
 **Dependencies**:
-  - [m-effect-mode-validation](m-effect-mode-validation.md) (sprint 1) — schema table this sprint adds rows to
-  - [m-effect-replay-contracts](m-effect-replay-contracts.md) (sprint 2) — registry this sprint populates; dispatch pattern this sprint reuses
+  - [m-effect-mode-validation](../../implemented/v0_30_0/m-effect-mode-validation.md) (sprint 1) — schema table this sprint adds rows to
+  - [m-effect-replay-contracts](../../implemented/v0_30_0/m-effect-replay-contracts.md) (sprint 2) — registry this sprint populates; dispatch pattern this sprint reuses
 **Parent**: [M-EFFECT-REFINEMENT](m-effect-refinement.md) — decomposition sprint 3 of 4 (2026-07-11)
 
 ## Framing
@@ -173,7 +173,7 @@ export func load_fixture(p: string) -> string ! {FS[mode=fixture]} = readFile(p)
 
 - AI modes (shipped v0.15.0) and AI followups ([m-ai-effect-modes-followups](m-ai-effect-modes-followups.md)).
 - Scope parameters (sprint 4) — `FS[scope=...]` capability narrowing is NOT this sprint.
-- Process effect modes ([m-process-modes](../v1_1_0/m-process-modes.md), v1.1).
+- Process effect modes ([m-process-modes](m-process-modes.md), v1.1).
 - Building a Net record/replay engine (if absent, the mode is label-only until that engine exists).
 
 ## Timeline
@@ -193,11 +193,11 @@ Day 1: schemas + defaults + registry rows + bare-form sweep. Day 2: Clock + FS d
 ## Related Documents
 
 - [M-EFFECT-REFINEMENT](m-effect-refinement.md) — parent (Phase 5 minus AI + Phase 8 remainder)
-- [m-effect-mode-validation](m-effect-mode-validation.md) — sprint 1 (schema table)
-- [m-effect-replay-contracts](m-effect-replay-contracts.md) — sprint 2 (registry + dispatch pattern)
+- [m-effect-mode-validation](../../implemented/v0_30_0/m-effect-mode-validation.md) — sprint 1 (schema table)
+- [m-effect-replay-contracts](../../implemented/v0_30_0/m-effect-replay-contracts.md) — sprint 2 (registry + dispatch pattern)
 - [M-AI-EFFECT-MODES](../../implemented/v0_15_x/m-ai-effect-modes.md) — the AI port precedent
 - [M-R6 clock/net effects](../../implemented/v0_3/M-R6_clock_net_effects.md) — original Clock/Net implementation (v0.3)
-- [m-process-modes](../v1_1_0/m-process-modes.md) — v1.1 sibling following this pattern
+- [m-process-modes](m-process-modes.md) — v1.1 sibling following this pattern
 
 ## References
 
