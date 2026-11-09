@@ -72,6 +72,7 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		"claude-opus-5":   64000, "claude-opus-4-8": 64000, "claude-opus-4-7": 64000,
 		"claude-opus-4-6": 64000, "claude-opus-4-5": 64000, "claude-fable-5": 64000,
 		"claude-fable-5-1":  64000,
+		"claude-fable-5-2":  64000,
 		"claude-sonnet-5-5": 64000,
 		"claude-sonnet-5":   64000, "claude-sonnet-4-6": 64000, "claude-sonnet-4-5": 64000,
 		"claude-haiku-5-5": 64000,

@@ -1243,7 +1243,8 @@ models:
       Eval policy: STANDARD eval only, mirroring claude-fable-5 — NOT in agent_suite
       (agent multi-turn loops are cost-prohibitive at $10/$50 per 1M).
       No smoke tier (smoke is the local OS-model iteration loop; cloud rows run core,stretch).
-      SUITE MEMBERSHIP: took claude-fable-5's extended_suite seat 2026-09-02 on Mark's
+      SUITE MEMBERSHIP: RETIRED to opt-in 2026-11-09 — claude-fable-5-2 took the seat
+      ($8/$40, cheaper). History: took claude-fable-5's extended_suite seat 2026-09-02 on Mark's
       attended directive ("lets replace fable 5 with 5.1 in our suite evals executor etc").
       Pricing is IDENTICAL ($10/$50 per 1M), so this is a same-cost generational refresh
       rather than a contested promotion — the usual match-or-beat-the-incumbent bar exists
@@ -1277,6 +1278,48 @@ models:
       output_tokens, and the arithmetic reconciles exactly
       ($5.58699 = 14,979 in x $10/M + 108,744 out x $50/M). A re-run would
       populate the split at a cost of ~$5.59 and would not change pass/fail.
+
+  # Anthropic Claude Fable 5.2 (released November 9, 2026)
+  claude-fable-5-2:
+    api_name: "claude-fable-5-2"
+    provider: "anthropic"
+    default_thinking: "always_on"  # probed 2026-11-09: bare request → content blocks
+      # ["thinking","text"], thinking_tokens=18 of 22 output; {type:"disabled"} → 400
+      # "thinking.type.disabled is not supported for this model".
+    description: "Claude Fable 5.2 - most capable widely released model (Nov 2026)"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "claude"
+    agent_model_name: "claude-fable-5-2"  # explicit id, never the "fable" alias (alias trap,
+      # see claude-opus-5). Verified 2026-11-09: `claude -p --model claude-fable-5-2` (CLI
+      # 2.1.321, ANTHROPIC_API_KEY stripped = subscription lane) → modelUsage keys
+      # ["claude-fable-5-2"]. Negative control claude-fable-9-zzz → "unrecognized_model".
+    model_family: "claude-fable-5-2"
+    max_output_tokens: 64000  # Anthropic family cap for the non-streaming Messages API
+      # (vendor declares 128K) — equal headroom with every sibling Claude row.
+    pricing:
+      input_per_1k: 0.008          # $8 per million — 20% BELOW Fable 5.1's $10
+      output_per_1k: 0.040         # $40 per million — 20% BELOW Fable 5.1's $50
+      cache_read_per_1k: 0.0002    # $0.20/M = 0.025x input (same multiplier as 5.1)
+      cache_write_per_1k: 0.010    # $10/M = 1.25x input — 5-minute cache write rate
+    notes: |
+      Anthropic's most capable widely released model (November 9, 2026). Successor to
+      Claude Fable 5.1 at a LOWER price: $8/$40 per 1M vs $10/$50. Cache hits $0.20/M
+      (0.025x input), 5m writes $10/M, 1h writes $16/M. Batch 50% off.
+      Adaptive thinking ALWAYS ON, default effort "high" (same as 5.1, unlike Opus 5.5's
+      "medium"). Registered {Adaptive:true, CanDisable:false} in reasoning_anthropic.go.
+      1M context, 128K vendor max output (this row caps at 64000, above).
+      Same tokenizer as Fable 5 / 5.1 (Opus 4.7+), so token counts compare directly.
+      Minimum cacheable prefix 512 (prompt-caching docs; cache.go's "claude-fable-5"
+      substring already resolves it). Retirement: not sooner than 2027-11-09.
+      Available on Claude API, Bedrock (anthropic.claude-fable-5-2), Google Cloud,
+      Microsoft Foundry, Claude Platform on AWS.
+      Model id + limits verified 2026-11-09 via the Models API (max_input_tokens
+      1000000, max_tokens 128000; negative control claude-fable-9-zzz → not_found) and
+      a live Messages call (stop=end_turn). Pricing from platform.claude.com pricing
+      page, fetched 2026-11-09.
+      Eval policy: STANDARD eval only, mirroring claude-fable-5-1 — NOT in agent_suite.
+      SUITE MEMBERSHIP: took claude-fable-5-1's extended_suite seat 2026-11-09 (Mark,
+      attended: "add to suite", replace chosen over add-alongside).
 
   # Anthropic Claude Opus 5.5 (launched 2026-09-22)
   claude-opus-5-5:
@@ -6578,19 +6621,11 @@ extended_suite:
     # v0.32.0 rows (frontier 6/8 vs 3/8, a strict superset; core 7/7 vs 6/7 comparable).
     # See the benchmark_suite annotation for the full record.
     # Standard eval only, NEVER agent_suite (cost).
-  - "claude-fable-5-1"  # Anthropic most-capable (Sep 2026) — REPLACED claude-fable-5 2026-09-02
-    # (Mark, attended directive). Same-price generational swap: $10/$50 per 1M is UNCHANGED,
-    # so the usual "does it beat the incumbent on core" bar is not what decided this — a
-    # newer generation at an identical rate is the default-better choice, and 5.1's vendor
-    # gains are concentrated in agentic coding / long-horizon work. ⚠️ The core-tier
-    # head-to-head was NOT run: eval-suite routes anthropic rows to the built-in x-api-key
-    # client and ANTHROPIC_API_KEY is unset here. (Standard-mode OAuth IS possible via a
-    # config-driven [[ai_provider]]; it is simply not wired into eval-suite yet.) Run it
-    # once either a key or that wiring exists:
-    #   ailang eval-suite --models claude-fable-5-1 --tier core,frontier --langs ailang \
-    #     --output /tmp/cf_fable_5_1 --parallel 4
-    # then place it against the banked series (anchored) — do NOT re-run claude-fable-5 as a
-    # comparator (M-EVAL-ROLLING-ELO; see model-manager skill §5.5).
+  - "claude-fable-5-2"  # Anthropic most-capable (Nov 2026) — REPLACED claude-fable-5-1 2026-11-09
+    # (Mark, attended). Newer generation at a LOWER price ($8/$40 vs $10/$50 per 1M), so
+    # the "tie at equal-or-lower cost favours the newer generation" rule decides the seat.
+    # Placement: candidate ALONE, --tier long-frontier,stretch,frontier --trials 3 (anchored
+    # series; 5.1 NOT re-run as a comparator) — result recorded on the claude-fable-5-2 row.
     # Standard eval only, NEVER agent_suite (cost).
   - "claude-opus-5"     # Anthropic flagship (Jul 2026) — REPLACED claude-opus-4-8 2026-07-27 on a
     # core N=3 sweep: 57/57 (100%) vs 4.8's 53/57 (93.0%), at $13.35 vs $13.59. See the
@@ -6756,6 +6791,10 @@ local_models:
 #                               # at equal cost). Kept opt-in for longitudinal comparison; it is the last
 #                               # Anthropic flagship whose omitted `thinking` field meant NO thinking, which
 #                               # makes it a useful thinking-off reference point against Opus 5 / Sonnet 5.
+# - claude-fable-5-1            # RETIRED from extended_suite 2026-11-09 (Mark, attended), displaced by
+#                               # claude-fable-5-2 at a LOWER price ($8/$40 vs $10/$50 per 1M). Kept opt-in
+#                               # as the longitudinal anchor: 29/31 core+frontier, anchored ELO 2554.4
+#                               # (2026-09-02, v0.34.0).
 # - claude-fable-5              # RETIRED from extended_suite 2026-09-02 (Mark, attended), displaced by
 #                               # claude-fable-5-1 at IDENTICAL pricing ($10/$50 per 1M). Kept opt-in as the
 #                               # longitudinal anchor for the Fable generation — it holds the only banked
