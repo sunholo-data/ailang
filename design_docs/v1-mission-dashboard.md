@@ -39,5 +39,4 @@ Published at release, not gated: fleet-tier pass rates, cost-per-verified-succes
 
 ## Parked on Mark
 - G4: promote multivac `dev` → `test` → `prod` (carries only #12).
-- Reject coordinator task-c0bf79fb `--no-retrigger` (PR #1790 already closed as superseded).
 - Publishes: specstore 0.3.1, email 0.10.1, eparse 1.11.2.
