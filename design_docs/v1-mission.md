@@ -248,7 +248,7 @@ tax per read, on the scarcest model budget. The append-only history lives in the
 choose AILANG?"*. Bar v2 (below, SUPERSEDED) mixed the two; v3 gates only on the promise.
 
 **Countable unit (replaces D-51's):** the number of **open gate items** below. Report it as
-`N open (was M, ±k, reason)`. Baseline 2026-11-09: **N = 7** (G1 ×1, G2 ×2, G3 ×1, G4 ×2, G5 ×1). Now: **N = 3 (was 5, −2, G4(a)+(b) closed 2026-11-09; G1 + G3 closed by `D-65`)** — open: G2 ×2, G5 ×1.
+`N open (was M, ±k, reason)`. Baseline 2026-11-09: **N = 7** (G1 ×1, G2 ×2, G3 ×1, G4 ×2, G5 ×1). Now: **N = 3 (was 5, −2, G4(a)+(b) closed 2026-11-09; G1 + G3 closed by `D-65`)** — open: G2 ×2, G5 ×1. Then **N = 2 (was 3, −1, #1443 closed by #2184 `8d582b976`)** — open: G2 ×1 (#1134 → #2185), G5 ×1.
 
 | Gate | Item | Done when | Status 2026-11-09 |
 |---|---|---|---|
