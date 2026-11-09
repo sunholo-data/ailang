@@ -28,12 +28,24 @@ import (
 // sites: each labelled call's FuncCall.Pos mapped to its sorted,
 // comma-joined label names ("pii,secret").
 func CheckModuleIFCWithTraceSites(file *ast.File) ([]*TypeCheckError, map[ast.Pos]string) {
+	return CheckModuleIFCWithImportsAndTraceSites(file, IFCImports{})
+}
+
+// CheckModuleIFCWithImportsAndTraceSites is the production gate (pipeline,
+// REPL): CheckModuleIFCWithImports plus the trace-redaction sites, from ONE
+// walk so the redaction policy sees exactly the flows the gate checked —
+// including labels produced by imported callees (#1134).
+func CheckModuleIFCWithImportsAndTraceSites(file *ast.File, imports IFCImports) ([]*TypeCheckError, map[ast.Pos]string) {
 	if file == nil {
 		return nil, nil
+	}
+	if err := imports.validate(); err != nil {
+		return []*TypeCheckError{err}, nil
 	}
 	sites := map[ast.Pos]map[string]bool{}
 	errs := guardIFCAnalysis(func() []*TypeCheckError {
 		c := newIFCChecker(file)
+		c.useImports(imports)
 		c.traceSites = sites
 		return c.run(file)
 	})

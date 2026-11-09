@@ -11,6 +11,8 @@ import InboxV2Lib from '!!raw-loader!@site/../examples/runnable/contracts/inbox_
 import InboxV2App from '!!raw-loader!@site/../examples/runnable/contracts/inbox_v2_app.ail';
 import SinkFnValue from '!!raw-loader!@site/../examples/runnable/secrets/sink_function_value.ail';
 import SinkFnValueOk from '!!raw-loader!@site/../examples/runnable/secrets/sink_function_value_ok.ail';
+import IfcXmodLib from '!!raw-loader!@site/../examples/runnable/secrets/ifc_xmod_lib.ail';
+import IfcXmodApp from '!!raw-loader!@site/../examples/runnable/secrets/ifc_xmod_app.ail';
 
 # Information-Flow Control (IFC) Labels
 
@@ -161,8 +163,10 @@ and unlabelled (bottom) values pass; `<arg>` and `<secret>` fail with
 the parameter label. This rule constrains lattice coverage; it is not proof of
 sanitization or provenance. Negative sink refinements remain enforced too.
 
-These checks are static and local to the module. Cross-module enforcement is
-tracked separately in #1134; this change adds no runtime IFC.
+These checks are static and apply at every call — including calls to a function
+imported from another module, whose parameter labels, refinements, return label
+and Declassify authority travel in its interface (see
+[Imported sinks and sources](#imported-sinks-and-sources)). There is no runtime IFC.
 
 ## Why Identity Bypass Doesn't Work
 
@@ -187,8 +191,8 @@ way: renaming a sink, passing it to a higher-order function or wrapping it in
 a lambda does not drop its `{not ℓ}` requirement (see
 [Sinks as values](#sinks-as-values)).
 
-Scope: this guarantee is checked **within one module**. A sink imported from
-another module is not yet enforced by the static check (#1134).
+Scope: the guarantee holds across module boundaries too — a sink imported from
+another module is checked at the importer's call site (#1134).
 
 ## Worked Example: Inbox Injection
 
@@ -355,9 +359,41 @@ Run it:
 ailang verify examples/runnable/contracts/inbox_v2_app.ail
 ```
 
-Output: `5 functions: 3 verified, 2 violations` — the `<email>` label
-flows from the lib's record field into the app's parameter type and on
-to the violating sink.
+Output: `6 exported functions: 3 verified, 2 violations, 1 without contracts`
+— the `<email>` label flows from the lib's record field into the app's
+parameter type and on to the violating sink.
+
+### Imported sinks and sources
+
+A library's IFC contract binds its importers exactly as it binds callers in its
+own module (#1134). Each export's interface carries an IFC summary — parameter
+names, positive labels (`<ℓ>`), sink refinements (`{not ℓ}`), the declared
+return label, the body's intrinsic label and its Declassify authority — and the
+importer's static check reads it at every call, however the imported function is
+named (`import lib (deliver)`, `deliver as d`, `import lib as L` then
+`L.deliver`) or passed around (alias, higher-order argument, wrapper lambda):
+
+<CodeBlock language="ailang" title="examples/runnable/secrets/ifc_xmod_lib.ail">{IfcXmodLib}</CodeBlock>
+
+<CodeBlock language="ailang" title="examples/runnable/secrets/ifc_xmod_app.ail (accepted)">{IfcXmodApp}</CodeBlock>
+
+Passing the inbox value straight to the imported sink is rejected in the
+importer, naming the edge:
+
+```
+$ ailang check examples/runnable/secrets/ifc_xmod_leak.ail
+Error: ... information-flow violation: value labelled <email> reaches parameter
+"body" of imported function examples/runnable/secrets/ifc_xmod_lib.deliver
+(via deliver) which forbids it (string{not email})
+```
+
+Sources cross too: an imported function that declares `-> string<email>`, or
+whose body carries taint without saying so (a wrapper around `secret()`, even
+through a second library), taints its result at the importer. A transparent
+imported function joins its intrinsic label with its arguments' labels; one
+declaring `! {Declassify}` or `! {Declassify[label=ℓ]}` relabels exactly as it
+would locally. An interface with missing or malformed IFC metadata is refused,
+never read as clean.
 
 ## Static enforcement (v0.26.0)
 
@@ -462,22 +498,23 @@ Sinks stay first-class: aliasing one, storing it in a record, or passing it to
 <CodeBlock language="ailang" title="examples/runnable/secrets/sink_function_value_ok.ail (accepted)">{SinkFnValueOk}</CodeBlock>
 
 **Imported higher-order functions are conservative.** A function from another
-module (`std/list`'s `map`, say) has no summary of what it does with its
-arguments yet, so a sink passed to it is checked against the join of the
+module (`std/list`'s `map`, say) exports no summary of what it does with its
+function arguments, so a sink passed to it is checked against the join of the
 *other* arguments' labels: `map(gate, cleanList)` is accepted and
 `map(gate, inboxList)` is rejected even though `map` is not written in your
-module. This over-approximates; it never under-approximates. Precise
-cross-module summaries remain tracked by #1134. If the checker reaches a
+module. This over-approximates; it never under-approximates. If the checker reaches a
 defensive analysis limit, it reports `ifc_analysis_limit` and refuses to
 compile; it never drops a requirement to finish checking.
 
 ## Limitations
 
-- **Sink enforcement is per module.** A labelled value reaching a `{not ℓ}`
-  sink anywhere in the same module is caught — directly, through aliases,
-  higher-order functions and wrappers, and through flow into *unannotated*
-  parameters (#1719). **Cross-module** sinks still rely on Z3 contracts
-  (#1134): a sink imported from another module is not checked statically.
+- **Inferred sink requirements stay in their module.** Within a module, flow
+  into an *unannotated* parameter that reaches a `{not ℓ}` sink is inferred and
+  enforced (#1719). An importer sees only what an export **declares**: a
+  library function `relay(x: string) = gate(x)` that forwards its parameter to
+  a sink without writing `x: string{not ℓ}` does not carry `{not ℓ}` to other
+  modules. Annotate the exported parameter to make the sink part of the
+  library's contract.
 - **Labels inside types are enforced within the declaring module only.** Since
   v0.52.0 the static check reads labels in declared records, aliases
   (`type EmailBody = string<email>`), ADTs, lists and tuples — but only for types

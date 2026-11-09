@@ -1,5 +1,7 @@
 # M-IFC-CROSS-MODULE — IFC Label Refinements Surviving Module Boundaries
 
+**M3–M4 implemented (2026-11-09, attended v1.0 G2 dispatch; PR "Fixes #1134", pending independent evaluation):** imported contracts are enforced at the caller in CLI and REPL (`CheckModuleIFCWithImports`, `internal/types/ifc_imports.go`), resolved through the same identity map that binds imported names (selective, renamed, `Alias.name`); export summaries see the module's imports (transitive intrinsic taint); cache epoch v9→v10 (v9 was taken by M-TRACE-LABEL-AWARE). Scope held to this design: Check A/C use **declared** parameter facts only. Inferred requirements (an unannotated exported `relay(x) = gate(x)`) still do not cross a module boundary — publishing them is the reserved-`applied` decision (F4) and is left open. Move to `implemented/` after acceptance.
+
 **Partial foundation acceptance (2026-10-29):** M1-M2 accepted95/100 and merged in PR1771 at65253e86e68be251eecd796d92327e4d4828c234. M3/M4 remain unstarted; overall planned/in-progress, issues1134/1132 open. Executor checkpoint statements below are historical; the independent M1-M2 report is authoritative for this partial acceptance.
 
 **Status**: Planned

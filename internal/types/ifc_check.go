@@ -26,7 +26,8 @@ import (
 // (M-IFC-FUNCTION-VALUE-SINKS) a sink's requirements also travel with the
 // function VALUE, and flow through unannotated parameters into a sink is
 // inferred per module function (ρ-seeded summaries, ifc_summary_local.go).
-// Cross-module sink enforcement is still open (#1134, M-IFC-CROSS-MODULE).
+// Since M-IFC-CROSS-MODULE (#1134) an imported function value carries its
+// library's exported contract too (CheckModuleIFCWithImports, ifc_imports.go).
 
 // ifcBuiltinSourceLabels maps builtin/stdlib functions that introduce an IFC
 // source label to that label. The canonical source is secret() (M-SECRET-EFFECT):
@@ -94,7 +95,7 @@ func newIFCChecker(file *ast.File) *ifcChecker {
 func (c *ifcChecker) run(file *ast.File) []*TypeCheckError {
 	// Summaries first (silent), so every application below sees what each
 	// module function does with the function values and labels it receives.
-	if moduleHasIFCRequirements(file) {
+	if moduleHasIFCRequirements(file) || c.importDemands {
 		c.summariseModule(file)
 	}
 	// Walk function bodies in source order for deterministic diagnostics.
@@ -139,7 +140,9 @@ type ifcEnv map[string]ifcVar
 type ifcChecker struct {
 	exportSummaries bool // M1 producer/closure label facts; ordinary caller policy stays unchanged
 	imports         map[string]*ImportedIFCSig
-	types           *ifcTypes // module-local type declarations (ifc_static_type.go)
+	importNames     map[string]string // local import name -> canonical module.symbol (diagnostics)
+	importDemands   bool              // some import carries IFC facts: build local summaries
+	types           *ifcTypes         // module-local type declarations (ifc_static_type.go)
 	sigs            map[string]*ifcSig
 	errs            []*TypeCheckError
 	errSeen         map[string]bool  // position+message, so a replay cannot repeat a diagnostic
@@ -296,7 +299,11 @@ func (c *ifcChecker) flowValOf(expr ast.Expr, env ifcEnv) ifcVal {
 		// — not the declared labels of the record's other fields. Otherwise a
 		// field inherits the record's full join label (conservative). The
 		// callable is the whole record's (conservative): any function stored in
-		// the record may be the one projected.
+		// the record may be the one projected. `Alias.f` on a module alias is
+		// the imported function value itself (#1134).
+		if name, imported := c.qualifiedImport(e, env); imported != nil {
+			return ifcVal{label: importedIFCResult(imported, nil), fn: single(c.importedFn(name, imported))}
+		}
 		if ft := c.staticType(e, env); ft != nil {
 			v := c.flowVal(e.Record, env)
 			v.fn = joinCallable(v.fn, c.types.fromFuncType(ft, e.Field))
@@ -355,7 +362,7 @@ func (c *ifcChecker) identVal(name string, env ifcEnv) ifcVal {
 		return ifcVal{label: LabelBottom(), fn: single(&ifcFn{kind: fnCtor})}
 	}
 	if imported := c.imports[name]; imported != nil {
-		return ifcVal{label: importedIFCResult(imported, nil), fn: single(&ifcFn{kind: fnOpaque, name: name, imported: imported})}
+		return ifcVal{label: importedIFCResult(imported, nil), fn: single(c.importedFn(name, imported))}
 	}
 	if c.exportSummaries {
 		if source, ok := ifcBuiltinSourceLabels[name]; ok {

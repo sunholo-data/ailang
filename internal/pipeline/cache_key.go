@@ -39,7 +39,11 @@ import (
 // v8 -> v9 (M-TRACE-LABEL-AWARE): core.App gained a gob-encoded TraceRedact
 // label. A v8 blob decodes with none, so a cached module would trace its
 // labelled values verbatim again; v8 entries must miss.
-const cacheKeyVersion = "v9"
+// v9 -> v10 (M-IFC-CROSS-MODULE M3, #1134): callers are checked against their
+// imports' IFC contracts, and export summaries see the module's own imports
+// (transitive intrinsic taint). A cache hit skips the IFC gate, so a v9 caller
+// verdict — reached without imported contracts — must never be served.
+const cacheKeyVersion = "v10"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:

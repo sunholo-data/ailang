@@ -69,7 +69,7 @@ const (
 )
 
 type ifcFn struct {
-	imported *ImportedIFCSig // supplied facts for summary analysis only; no imported demands yet (M3)
+	imported *ImportedIFCSig // an imported function's exported summary; params carry its demands
 	kind     fnKind
 	name     string      // display name for diagnostics
 	params   []ifcDemand // positional demands (fnTop, fnLambda, fnDeclared)

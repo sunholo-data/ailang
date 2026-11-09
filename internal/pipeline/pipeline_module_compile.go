@@ -221,11 +221,13 @@ func typeCheckAndLowerModule(
 	// M-SECRET-EFFECT (M5): static information-flow-control enforcement.
 	// A <secret> (or any <label>) value reaching a {not label} sink without an
 	// intervening ! {Declassify} step is a compile-time error. This is a
-	// self-contained surface-AST analysis (CheckModuleIFC) that reads only
-	// unit.Surface and never injects TLabelled types into CoreTI/codegen.
+	// surface-AST analysis that reads unit.Surface plus the imported exports'
+	// IFC summaries (M-IFC-CROSS-MODULE, #1134: a library's sink refinements,
+	// parameter labels and return labels bind its importers), and never injects
+	// TLabelled types into CoreTI/codegen.
 	// The same walk reports the labelled call sites the trace must redact
 	// (M-TRACE-LABEL-AWARE); they are stamped on the final Core below.
-	ifcErrs, traceSites := types.CheckModuleIFCWithTraceSites(unit.Surface)
+	ifcErrs, traceSites := types.CheckModuleIFCWithImportsAndTraceSites(unit.Surface, imports.IFC)
 	if len(ifcErrs) > 0 {
 		return nil, fmt.Errorf("type error in %s: %w", modID, ifcErrs[0])
 	}
@@ -531,10 +533,13 @@ func buildAndRegisterInterface(
 	localAliases map[string]types.Type,
 	aliasParams map[string][]string,
 	derivedEq []string,
+	ifcImports types.IFCImports,
 ) error {
 	// Convert pipeline constructors to iface constructors
 	ifaceCtors := convertToIfaceConstructors(unit.Constructors)
-	unitIface, err := iface.BuildInterfaceWithTypesAndConstructors(modID, unit.Core, moduleTypeEnv, unit.Surface, ifaceCtors)
+	// The export summaries see this module's imports, so a wrapper over an
+	// imported secret producer exports that taint (transitive libraries, #1134).
+	unitIface, err := iface.NewBuilder(modID, moduleTypeEnv).WithIFCImports(ifcImports.Sigs).Build(unit.Core, ifaceCtors, unit.Surface)
 	if err != nil {
 		return fmt.Errorf("interface build error in %s: %w", modID, err)
 	}

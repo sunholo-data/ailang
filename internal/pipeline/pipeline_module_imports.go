@@ -46,6 +46,10 @@ type moduleImports struct {
 	// CapturedAliases: imported aliases withheld because their body names a type
 	// this module declares itself; value = the loud error message for using one.
 	CapturedAliases map[string]string
+	// IFC maps every name this module binds to an imported value (selective,
+	// renamed, Alias.qualified) to the exporting module's IFC summary — the
+	// same identities GlobalRefs binds (M-IFC-CROSS-MODULE M3, #1134).
+	IFC types.IFCImports
 }
 
 // resolveModuleImports builds the external type environment and global references
@@ -136,6 +140,7 @@ func resolveModuleImports(
 				key := fmt.Sprintf("%s.%s", item.Ref.Module, item.Ref.Name)
 				imports.ExternalTypes[key] = item.Type
 				imports.GlobalRefs[qualifiedName] = item.Ref
+				imports.IFC.Add(qualifiedName, key, item.IFC)
 				if cfg.TraceDefaulting {
 					fmt.Printf("  Module alias %s.%s -> %s\n", imp.ModuleAlias, name, key)
 				}
@@ -223,6 +228,7 @@ func resolveSelectiveImports(
 			key := fmt.Sprintf("%s.%s", item.Ref.Module, item.Ref.Name)
 			imports.ExternalTypes[key] = item.Type
 			imports.GlobalRefs[bindName] = item.Ref // Use alias name for binding
+			imports.IFC.Add(bindName, key, item.IFC)
 			if cfg.TraceDefaulting {
 				fmt.Printf("  Import value %s as %s -> %s (%s)\n", sym, bindName, key, item.Type)
 			}

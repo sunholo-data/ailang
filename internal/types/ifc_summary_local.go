@@ -224,6 +224,12 @@ func (c *ifcChecker) applyCallable(fn *ifcCallable, args []ifcVal, at *ast.FuncC
 			}
 			result = joinCallable(result, probe(a.owner, a.idx, a.res+1))
 		case fnOpaque:
+			if a.imported != nil {
+				// An imported function's exported demands (#1134): Checks A/C
+				// exactly as for a local callee. Its body stays invisible, so
+				// callable arguments still take the conservative fallback.
+				c.checkDemands(a, args, at, via)
+			}
 			result = joinCallable(result, c.applyOpaque(args, at, calleeLabel, via, depth))
 		case fnCtor:
 			for _, arg := range args {

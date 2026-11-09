@@ -166,9 +166,10 @@ type RegisteredModule struct {
 
 // Export represents a single exported function or value from a module.
 type Export struct {
-	Name   string        // Export name
-	Value  interface{}   // Evaluated value (closure, constant, etc.)
-	Scheme *types.Scheme // Type signature for type checking
+	Name   string                // Export name
+	Value  interface{}           // Evaluated value (closure, constant, etc.)
+	Scheme *types.Scheme         // Type signature for type checking
+	IFC    *types.ImportedIFCSig // IFC contract importers are checked against (#1134)
 }
 
 // NewModuleRegistry creates an empty module registry.
