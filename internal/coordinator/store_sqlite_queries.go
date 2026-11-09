@@ -52,7 +52,9 @@ func (s *SQLiteStore) GetTasksByGithubIssue(ctx context.Context, issueNum int) (
 		       session_id, iteration, chain_id, stage_id,
 		       created_at, started_at, completed_at, queued_at, duration_ns,
 		       error, output, cost, tokens_used,
-		       capabilities_json, impact_level, estimated_cost, inputs
+		       capabilities_json, impact_level, estimated_cost, inputs,
+		       root_package, root_change_class, from_version, to_version, from_interface_hash, to_interface_hash,
+		       from_content_hash, to_content_hash, effects_widened, prev_effect_ceiling, new_effect_ceiling
 		FROM tasks WHERE github_issue = ?
 		ORDER BY created_at DESC
 	`
@@ -81,7 +83,9 @@ func (s *SQLiteStore) GetTasksByStage(ctx context.Context, stage TaskStage) ([]*
 		       session_id, iteration, chain_id, stage_id,
 		       created_at, started_at, completed_at, queued_at, duration_ns,
 		       error, output, cost, tokens_used,
-		       capabilities_json, impact_level, estimated_cost, inputs
+		       capabilities_json, impact_level, estimated_cost, inputs,
+		       root_package, root_change_class, from_version, to_version, from_interface_hash, to_interface_hash,
+		       from_content_hash, to_content_hash, effects_widened, prev_effect_ceiling, new_effect_ceiling
 		FROM tasks WHERE stage = ?
 		ORDER BY created_at DESC
 	`
@@ -183,6 +187,7 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 	var estimatedCost sql.NullFloat64
 	var kindCol, sourceCol sql.NullString // M-PKG-AUTONOMOUS-CASCADE-SAFE M1
 	var shadowOfCol sql.NullString        // M-AILANG-LANE-EXECUTOR-SHADOW M1
+	var env sqliteCascadeEnvelope         // M-CASCADE-ENVELOPE-HYDRATION
 
 	err := row.Scan(
 		&task.ID, &messageID, &threadID, &parentTaskID, &task.Title, &task.Content,
@@ -192,6 +197,8 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 		&task.CreatedAt, &startedAt, &completedAt, &queuedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
 		&capsJSON, &impactLevel, &estimatedCost, &inputsJSON,
+		&env.rootPackage, &env.rootChangeClass, &env.fromVersion, &env.toVersion, &env.fromInterfaceHash, &env.toInterfaceHash,
+		&env.fromContentHash, &env.toContentHash, &env.effectsWidened, &env.prevEffectCeiling, &env.newEffectCeiling,
 	)
 	if err != nil {
 		return nil, err
@@ -208,6 +215,9 @@ func (s *SQLiteStore) scanTask(row *sql.Row) (*TaskRecord, error) {
 		task.Source = sourceCol.String
 	}
 	task.ShadowOf = shadowOfCol.String
+	if err := env.apply(task); err != nil {
+		return nil, err
+	}
 	if queuedAt.Valid {
 		task.QueuedAt = &queuedAt.Time
 	}
@@ -236,6 +246,7 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 	var estimatedCost sql.NullFloat64
 	var kindCol, sourceCol sql.NullString // M-PKG-AUTONOMOUS-CASCADE-SAFE M1
 	var shadowOfCol sql.NullString        // M-AILANG-LANE-EXECUTOR-SHADOW M1
+	var env sqliteCascadeEnvelope         // M-CASCADE-ENVELOPE-HYDRATION
 
 	err := rows.Scan(
 		&task.ID, &messageID, &threadID, &parentTaskID, &task.Title, &task.Content,
@@ -245,6 +256,8 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 		&task.CreatedAt, &startedAt, &completedAt, &queuedAt,
 		&durationNs, &errStr, &output, &task.Cost, &task.TokensUsed,
 		&capsJSON, &impactLevel, &estimatedCost, &inputsJSON,
+		&env.rootPackage, &env.rootChangeClass, &env.fromVersion, &env.toVersion, &env.fromInterfaceHash, &env.toInterfaceHash,
+		&env.fromContentHash, &env.toContentHash, &env.effectsWidened, &env.prevEffectCeiling, &env.newEffectCeiling,
 	)
 	if err != nil {
 		return nil, err
@@ -261,6 +274,9 @@ func (s *SQLiteStore) scanTaskFromRows(rows *sql.Rows) (*TaskRecord, error) {
 		task.Source = sourceCol.String
 	}
 	task.ShadowOf = shadowOfCol.String
+	if err := env.apply(task); err != nil {
+		return nil, err
+	}
 	if queuedAt.Valid {
 		task.QueuedAt = &queuedAt.Time
 	}

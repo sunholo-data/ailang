@@ -36,6 +36,10 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-VM-STACK-LIMIT-PARITY implementation verification](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-vm-stack-limit-parity-verification.md)
 - [M-VM-STACK-LIMIT-PARITY — the bytecode VM's 1000-frame cap diverges from the evaluator's 10,000 recursion limit: evaluator-legal deep recursion silently truncates service handlers under `--bytecode`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-vm-stack-limit-parity.md)
 
+## v0.57.5
+
+- [M-CASCADE-ENVELOPE-HYDRATION: close the inbox→task cascade envelope-loss routes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_5/m-cascade-envelope-hydration.md)
+
 ## v0.57.3
 
 - [M-SERVE-API-TYPED-ARG-BINDER implementation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_3/m-serve-api-typed-arg-binder-implementation.md)
@@ -1982,4 +1986,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 1432 design documents across 180 versions.*
+*Generated at build time. 1433 design documents across 181 versions.*

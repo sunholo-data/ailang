@@ -192,7 +192,6 @@ v1.0.0 is gated on a promise, not on the features below: the [Stability Promise]
 
 ## Planned for v0.44.0
 
-- [M-CASCADE-ENVELOPE-HYDRATION: close the inbox→task cascade envelope-loss routes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_44_0/m-cascade-envelope-hydration.md)
 - [M-TYPE-NAME-SHADOW: a module's own type must win, and the compile cache must see alias edits](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_44_0/m-type-name-shadow-and-cache.md)
 
 ## Planned for v0.42.1
@@ -408,4 +407,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 258 planned features across 41 upcoming versions.*
+*Generated at build time. 257 planned features across 41 upcoming versions.*

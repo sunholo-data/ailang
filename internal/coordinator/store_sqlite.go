@@ -298,7 +298,9 @@ func (s *SQLiteStore) GetTask(ctx context.Context, id string) (*TaskRecord, erro
 		       session_id, iteration, chain_id, stage_id,
 		       created_at, started_at, completed_at, queued_at, duration_ns,
 		       error, output, cost, tokens_used,
-		       capabilities_json, impact_level, estimated_cost, inputs
+		       capabilities_json, impact_level, estimated_cost, inputs,
+		       root_package, root_change_class, from_version, to_version, from_interface_hash, to_interface_hash,
+		       from_content_hash, to_content_hash, effects_widened, prev_effect_ceiling, new_effect_ceiling
 		FROM tasks WHERE id = ?
 	`
 	row := s.db.QueryRowContext(ctx, query, id)
@@ -359,7 +361,9 @@ func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*Tas
 		       session_id, iteration, chain_id, stage_id,
 		       created_at, started_at, completed_at, queued_at, duration_ns,
 		       error, output, cost, tokens_used,
-		       capabilities_json, impact_level, estimated_cost, inputs
+		       capabilities_json, impact_level, estimated_cost, inputs,
+		       root_package, root_change_class, from_version, to_version, from_interface_hash, to_interface_hash,
+		       from_content_hash, to_content_hash, effects_widened, prev_effect_ceiling, new_effect_ceiling
 		FROM tasks WHERE 1=1
 	`)
 
@@ -629,7 +633,9 @@ func (s *SQLiteStore) FindDuplicateTask(ctx context.Context, fingerprint uint64,
 		        session_id, iteration, chain_id, stage_id,
 		        created_at, started_at, completed_at, queued_at, duration_ns,
 		        error, output, cost, tokens_used,
-		        capabilities_json, impact_level, estimated_cost, inputs
+		        capabilities_json, impact_level, estimated_cost, inputs,
+		        root_package, root_change_class, from_version, to_version, from_interface_hash, to_interface_hash,
+		        from_content_hash, to_content_hash, effects_widened, prev_effect_ceiling, new_effect_ceiling
 		FROM tasks WHERE fingerprint = ? ORDER BY created_at DESC LIMIT ?`,
 		int64(fingerprint), DedupCandidateLimit, // int64 on BOTH sides — see SetTaskFingerprint
 	)
