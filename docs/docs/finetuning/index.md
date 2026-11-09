@@ -43,8 +43,8 @@ decay. See [Training data](./data.md).
 |---|---|
 | [Baseline](./baseline.md) (size ladder, speed, parallelism) | done 2026-11-05; target picked: **Gemma 4 12B** |
 | [Training data](./data.md) (corpus, rules, mix) | pilot-1 mix built; examples expansion under way |
-| [Pilot-1](./pilot-1.md) (12B LoRA, weekend run on the rig) | trained 2026-11-06; held-out A/B running |
-| Pilot-2 (habit-weighted data, deeper LoRA) | planned |
+| [Pilot-1](./pilot-1.md) (12B LoRA) | negative, causes found (session gate, thinking format, context) |
+| [Pilot-2](./pilot-2.md) (served format, habit episodes) | agent protocol fixed (0 protocol misses), 3× fewer tokens, but 4/24 against base's 6/13 |
 | Published fine-tunes | per release, from an artifact bucket linked here ([D-FT-2](./decisions.md)) |
 
 ## Pages
@@ -53,6 +53,7 @@ decay. See [Training data](./data.md).
 - [Baseline](./baseline.md): which model size knows enough AILANG to be worth tuning.
 - [Training data](./data.md): where the data comes from, the rules, and coverage gaps.
 - [Pilot-1](./pilot-1.md): the recipe, the training curve, the traps, and the A/B result.
+- [Pilot-2](./pilot-2.md): training in the served format, and what it fixed and did not.
 - [Serving costs](./costs.md): rig against Cloud Run, Vertex and per-token hosts.
 
 The working design doc, with the full detail, is
