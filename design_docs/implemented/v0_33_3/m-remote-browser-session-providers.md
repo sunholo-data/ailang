@@ -479,7 +479,7 @@ No AILANG language support/unsupported claims are made by this design, so no `ai
 **Planned:**
 
 - [M-MANAGED-AGENTS-MODEL-EVAL](../../planned/v0_31_0/m-managed-agents-model-eval.md) — product-fidelity Gemini managed-agent vessel; explicitly distinct from neutral ranking.
-- [M-NET-EFFECT-PROXY-BOUNDARY](../../planned/v0_33_1/m-net-effect-proxy-boundary.md) — adjacent HTTP egress boundary whose browser/WebSocket exclusions this design preserves.
+- [M-NET-EFFECT-PROXY-BOUNDARY](../v0_57_5/m-net-effect-proxy-boundary.md) — adjacent HTTP egress boundary whose browser/WebSocket exclusions this design preserves.
 - [M-AGENT-SAFE-RUNNER](../../planned/v1_1_0/m-agent-safe-runner.md) — operator-pinned execution policy precedent; does not supply browser infrastructure.
 - [M-EVAL-EXPERIMENT-REGISTRY](../../planned/v0_31_0/m-eval-experiment-registry.md) — future location for named browser-provider/tool-version comparisons.
 

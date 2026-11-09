@@ -391,7 +391,8 @@ changes; a human habit of `-short` for speed should become package selection.
 - [ ] `gatelint_test.go`: `TestGateLint_SelfTest` (fixtures incl. the non-test R3-token fixture,
       exact-set assertion) + `TestGateLint_Repo` (real tree, zero violations)
 - [ ] `internal/testutil/egress_posture_test.go` (AC10 a/b/c/d), including the deliberately-open
-      `effects_nil_proxy_remains_open` subtest for D5=A
+      AC10(d) nil-Proxy subtest for D5=A (retired 2026-11-09 by m-net-effect-proxy-boundary —
+      see the note under AC10(d))
 - [ ] Run AC10(c) and AC10(d) in the `AILANG_LIVE_NET=1` acceptance leg
 - [ ] Commit (landed as `13c570063`)
 
@@ -581,6 +582,13 @@ false?* Scope note per V19: every grep is scoped to first-party dirs; `.claude/`
   poison — the AC asserts the **documented open route**, not a pretended closure (V27). If a
   future OS-level block closes the route, (c) fails and this doc's residual claim must be
   updated — the hole stays visible either way.
+  > **Historical — retired 2026-11-09.** The residual (d) measured is closed: the follow-up
+  > [m-net-effect-proxy-boundary](../v0_57_5/m-net-effect-proxy-boundary.md) routed Net, the HTTP
+  > Stream operations and the Managed Agents client through `http.ProxyFromEnvironment`, deleted
+  > the (d) subtest, and replaced it with production-constructor proxy tests plus a nil-Proxy source
+  > audit (`TestProxyAudit_Repo`). (d) never observed the production constructors (it built its
+  > own `&http.Transport{}`), so it could not have turned red by itself. Text kept as the record.
+
   (d) **`AILANG_LIVE_NET=1` leg only — the `D5`=A residual, asserted as OPEN rather than
   pretended closed.** Added 2026-08-05 (iteration 145) as the honesty half of Mark's Option A,
   mirroring (c). Build an `http.Client` **the way `internal/effects` does** — a hand-constructed
@@ -704,14 +712,15 @@ The following are intentionally left open for the implementer:
   contain `https://github.com/` innocently). R3's narrow-list+allowlist is the honest bounded
   version; the bound is documented, not silent — and R3 is a legibility lint, NOT the
   enforcement boundary (the poisoned lane is; component 5).
-- **Blocking proxy-bypassing egress (raw TCP, SSH, proxy-ignoring subprocesses, and hand-built
-  `http.Transport` values)** — the poisoned proxy denies HTTP(S) only when the client consults
-  proxy environment variables; raw TCP connects and a nil-`Proxy` transport bypasses it
-  (measured V27/V33). OS-level egress blocking (packet filters, network namespaces) across 6 CI legs
-  including macOS and Windows runners would be its own design and is out of scope this sprint.
-  **These are deliberately open residual routes under D5=Option A**, stated in Goals and kept
-  visible by AC10(c/d). Reviewers must flag any new test that dials raw TCP/SSH or constructs its
-  own `http.Transport`. AC10(d) will turn red when `m-net-effect-proxy-boundary` adopts Option B.
+- **Blocking proxy-bypassing egress (raw TCP, SSH, proxy-ignoring subprocesses)** — the poisoned
+  proxy denies HTTP(S) only when the client consults proxy environment variables; raw TCP connects
+  bypass it (measured V27). OS-level egress blocking (packet filters, network namespaces) across 6
+  CI legs including macOS and Windows runners would be its own design and is out of scope this
+  sprint. Raw TCP/SSH is a deliberately open residual route, stated in Goals and kept visible by
+  AC10(c). Reviewers must flag any new test that dials raw TCP/SSH. *Historical:* the hand-built
+  nil-`Proxy` `http.Transport` residual (V33, D5=Option A) was closed 2026-11-09 by
+  [m-net-effect-proxy-boundary](../v0_57_5/m-net-effect-proxy-boundary.md), which now audits
+  production transports mechanically.
 - **Process-group (grandchild) cleanup on Windows** — #494's observed failure is the direct
   child; `WaitDelay` addresses it. Unix procgroup precedent exists if ever needed.
 - **Unifying `buildAilang` with `testutil.FindAilangBinary`** — real overlap (V14), but

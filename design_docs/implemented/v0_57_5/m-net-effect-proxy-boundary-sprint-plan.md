@@ -11,6 +11,13 @@ which touch no Go package in scope.
 **Risk**: Medium-High (production networking + an SSRF control change in one sprint)
 **Executor lane**: opus-required (design doc `Planner-Lane`)
 
+> **Executed 2026-11-09 (M2–M4; M1 was `e5ee6c5e5`).** Line references below are the August
+> baseline. Since then the SSE/NDJSON `http.Transport` literals were folded into the shared
+> `netProxyRoundTripper` (M-EXECUTOR-POLICY-HARDENING), so M2's Stream task became "honor the
+> environment proxy selector" rather than "add a `Proxy` field", and D-1 (§7, "open ratification
+> ask") was answered by Mark on 2026-08-19. The design doc's Implementation Report records every
+> re-derived point, the before/after escape and the mutation evidence.
+
 ---
 
 ## 0. Reader's summary — what a planner changed and why

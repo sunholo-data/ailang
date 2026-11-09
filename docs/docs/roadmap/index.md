@@ -267,8 +267,6 @@ v1.0.0 is gated on a promise, not on the features below: the [Stability Promise]
 ## Planned for v0.33.1
 
 - [m-named-test-body-check-semantics — every expression in a pure named test body is a check (#604)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_33_1/m-named-test-body-check-semantics.md)
-- [Sprint Plan — M-NET-EFFECT-PROXY-BOUNDARY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_33_1/m-net-effect-proxy-boundary-sprint-plan.md)
-- [m-net-effect-proxy-boundary — bring AILANG's Net effect inside the egress boundary (D5 Option B)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_33_1/m-net-effect-proxy-boundary.md)
 - [M-TYPECLASS-INT-FRACTIONAL-DICTIONARY-GAP: catch missing Fractional[Int] at compile time](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_33_1/m-typeclass-int-fractional-dictionary-gap.md)
 
 ## Planned for v0.31.0

@@ -261,6 +261,25 @@ func fetchJson(url: string) -> Result[Json, string] ! {Net} =
 - Private IP blocking (10.x.x.x, 192.168.x.x, etc.)
 - HTTPS enforcement (configurable)
 
+**Proxies (`HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY`):** Net requests, and the HTTP Stream
+operations (`sseConnect`, `ssePost`, NDJSON POST), follow Go's standard proxy environment, chosen
+per request (redirect hops included). The `Net`/`Stream` capability, the protocol and domain
+allowlist checks, redirect limits, timeouts and the body-size cap apply either way. What changes is
+the IP guarantee:
+
+| Route | Target IP check |
+|-------|-----------------|
+| No proxy, or the host matches `NO_PROXY` | Resolved once, every answer validated, and the socket dials exactly that IP (pinned). |
+| Proxy, literal-IP target (`http://10.0.0.5/`) | Validated with no DNS; a blocked IP is refused before anything is dialed. |
+| Proxy, hostname target | Not resolved locally. The proxy picks the IP, so the pinned-IP guarantee does not hold. |
+
+A configured proxy is an operator trust decision. If a destination needs the pinned-IP guarantee,
+add it to `NO_PROXY` or leave the proxy unset for that process. Restricted policy mode
+(`ailang run --policy`) refuses a proxy outright with `E_NET_PROXY_REFUSED` /
+`E_STREAM_PROXY_REFUSED` instead of sending the request unpinned. WebSocket `connect` never uses a
+proxy. A proxy that buffers responses or cuts idle tunnels can delay or end SSE/NDJSON streams;
+the existing idle timeout and maximum duration still apply.
+
 **CLI Flags:**
 
 | Flag | Meaning |
