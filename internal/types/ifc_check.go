@@ -154,6 +154,8 @@ type ifcChecker struct {
 	replaying         map[string]bool        // active application states, for cycle-safe replay
 	analysisRemaining int                    // fail closed if defensive analysis budget is exhausted
 	where             string                 // module function being analysed, for limit diagnostics
+
+	traceSites map[ast.Pos]map[string]bool // labelled call sites, for trace redaction (ifc_trace_sites.go); nil = not collected
 }
 
 func buildIFCSig(fn *ast.FuncDecl) *ifcSig {
@@ -479,7 +481,7 @@ func (c *ifcChecker) joinElems(elems []ast.Expr, env ifcEnv) ifcVal {
 // against the callable of the callee VALUE — whatever the callee expression is
 // (#1719). Ordinary checking keeps its existing result policy; M1 export
 // analysis additionally follows known producer facts.
-func (c *ifcChecker) callVal(call *ast.FuncCall, env ifcEnv) ifcVal {
+func (c *ifcChecker) callVal(call *ast.FuncCall, env ifcEnv) (out ifcVal) {
 	name := calleeName(call.Func)
 	sig, isLocal := c.sigs[name]
 	// A lexical binding shadows a module declaration; use the closure fallback.
@@ -512,6 +514,18 @@ func (c *ifcChecker) callVal(call *ast.FuncCall, env ifcEnv) ifcVal {
 			passed[i] = v.label
 		}
 		args[i] = ifcVal{label: argLabels[i], fn: v.fn}
+	}
+	if c.traceSites != nil {
+		// M-TRACE-LABEL-AWARE: a call is a redaction site if a label enters
+		// it (an argument, or the callee value itself) or leaves it.
+		in := LabelJoin(callee.label, joinLabels(argLabels))
+		defer func() {
+			// out.label is nil while an analysis-limit panic unwinds; the
+			// module then fails to compile, so there is nothing to record.
+			if out.label != nil {
+				c.noteTraceSite(call.Pos, LabelJoin(in, out.label))
+			}
+		}()
 	}
 
 	// Checks A/C on every application. A direct call to a module function

@@ -162,6 +162,9 @@ func isBoundedAt(s string, max int) bool {
 
 // boundValues applies maxValueBytes to every rendered value on an event.
 func (c *Collector) boundValues(evt *TraceEvent) {
+	if c.redactLabelScope(evt) {
+		return
+	}
 	if c.valueMode == ValuesRedacted {
 		c.redactEventValues(evt)
 		return
