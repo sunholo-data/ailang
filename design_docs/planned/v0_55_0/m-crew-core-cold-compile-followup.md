@@ -142,7 +142,7 @@ errors) — only the cost of getting there changes.
 **Phase 1 — constraint bookkeeping (targets the 8.9% + part of the generalize path; ~1 day)**
 
 > **2026-11-03 — the environment-walk item of this phase is done** by
-> [M-TYPECHECK-ENV-SCAN-COST](../v0_56_2/m-typecheck-env-scan-cost.md) (per-frame memoised
+> [M-TYPECHECK-ENV-SCAN-COST](../../implemented/v0_57_0/m-typecheck-env-scan-cost.md) (per-frame memoised
 > free-variable sets; ailang_parse cold check −67% instructions, crew_core 0.6.0 −48%).
 > Fresh baseline for Phase 2, re-profiled on ailang_parse after that change:
 > `safeSubstitute` 76%, `ApplySubstitution` 67.5%, `Unify` 58.6%,

@@ -4,7 +4,7 @@
 **Target**: v0.56.2 (before the release that ships #1958's re-land)
 **Priority**: P1
 **Estimated**: ~4 engineering days
-**Dependencies**: None. Absorbs Phase 1 of [m-crew-core-cold-compile-followup](../v0_55_0/m-crew-core-cold-compile-followup.md) (the environment-walk item); that doc keeps the substitution-cost work.
+**Dependencies**: None. Absorbs Phase 1 of [m-crew-core-cold-compile-followup](../../planned/v0_55_0/m-crew-core-cold-compile-followup.md) (the environment-walk item); that doc keeps the substitution-cost work.
 
 ## Axiom Compliance
 
@@ -157,7 +157,7 @@ Call-site changes:
 
 **Phase 4: measure + record (~0.5 day)**
 - [ ] Re-run Phase 1's measurements; fill the after-columns; re-profile and record what is now hot (expected: substitution, handed back to the crew-core doc).
-- [ ] Changelog fragment; update [m-crew-core-cold-compile-followup](../v0_55_0/m-crew-core-cold-compile-followup.md) Phase 1 to "absorbed by this doc".
+- [ ] Changelog fragment; update [m-crew-core-cold-compile-followup](../../planned/v0_55_0/m-crew-core-cold-compile-followup.md) Phase 1 to "absorbed by this doc".
 
 ### Files to Modify/Create
 
@@ -223,9 +223,9 @@ After, the first application in a declaration computes the chain once (or hits f
 
 ## Non-Goals
 
-- **Substitution cost** (`safeSubstitute`/`ApplySubstitution`, ~25% today): stays with [m-crew-core-cold-compile-followup](../v0_55_0/m-crew-core-cold-compile-followup.md) Phase 2.
+- **Substitution cost** (`safeSubstitute`/`ApplySubstitution`, ~25% today): stays with [m-crew-core-cold-compile-followup](../../planned/v0_55_0/m-crew-core-cold-compile-followup.md) Phase 2.
 - **Level-based generalisation** (Rémy levels): removes env scans by construction but is a type-checker rewrite; Future Work if memoisation misses the target.
-- **Validator resources, wall cap or async validation**: infra lane; revisit only after this lands and is measured. A `check_wall_ms` metric from [m-validator-check-budget-parity](../v0_56_1/m-validator-check-budget-parity.md) will show the effect in production.
+- **Validator resources, wall cap or async validation**: infra lane; revisit only after this lands and is measured. A `check_wall_ms` metric from [m-validator-check-budget-parity](../../planned/v0_56_1/m-validator-check-budget-parity.md) will show the effect in production.
 - **A `--cpuprofile` flag on `check`**: Go benchmarks with `go test -cpuprofile` cover profiling without new CLI surface.
 - **Parallel module checking.**
 
@@ -248,9 +248,9 @@ After, the first application in a declaration computes the chain once (or hits f
 
 ## Related Documents
 
-- [m-crew-core-cold-compile-followup](../v0_55_0/m-crew-core-cold-compile-followup.md) — cold-compile time on crew_core (v0.54.6 profile: 62% substitution, 8.9% env walk). Its Phase 1 env-walk item moves here; its substitution work stays there. The two profiles differ because ailang_parse is application-heavy with many imports, and because `inferApp`'s outer snapshot post-dates that profile in its current form.
-- [m-validator-check-budget-parity](../v0_56_1/m-validator-check-budget-parity.md) — validator pacing, refusal messages and per-publish `check_wall_ms` telemetry (sprint approved 2026-11-03).
-- [wasm-typecheck-step-ceiling-662](../ailang-core-triage/wasm-typecheck-step-ceiling-662.md) — the browser/WASM typecheck step ceiling; the same cost growth hits it.
+- [m-crew-core-cold-compile-followup](../../planned/v0_55_0/m-crew-core-cold-compile-followup.md) — cold-compile time on crew_core (v0.54.6 profile: 62% substitution, 8.9% env walk). Its Phase 1 env-walk item moves here; its substitution work stays there. The two profiles differ because ailang_parse is application-heavy with many imports, and because `inferApp`'s outer snapshot post-dates that profile in its current form.
+- [m-validator-check-budget-parity](../../planned/v0_56_1/m-validator-check-budget-parity.md) — validator pacing, refusal messages and per-publish `check_wall_ms` telemetry (sprint approved 2026-11-03).
+- [wasm-typecheck-step-ceiling-662](../../planned/ailang-core-triage/wasm-typecheck-step-ceiling-662.md) — the browser/WASM typecheck step ceiling; the same cost growth hits it.
 
 ## References
 

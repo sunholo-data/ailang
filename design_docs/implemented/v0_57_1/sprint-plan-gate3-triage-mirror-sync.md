@@ -2,7 +2,7 @@
 
 Ticket: `ci:skill-mirror-not-synced-after-gate3-triage-edit` (fleet iteration 84).
 Baseline: worktree `.wt-fleet-i84`, HEAD `abd4dfd82` (= origin/dev), clean tree, measured 2026-11-04.
-Precedent: iteration 63 / PR #1972 (`sprint-plan-agents-mirror-sync-red.md`), same failure class.
+Precedent: iteration 63 / PR #1972 (`../v0_55_0/sprint-plan-agents-mirror-sync-red.md`), same failure class.
 Scope: mechanical repair, ~15 min. No new code, no hand edits to any mirrored file.
 
 ## Measured diff set (planner, first-party)

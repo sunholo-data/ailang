@@ -378,7 +378,7 @@ remain separate; this score does not authorize product changes.
 
 ## Related documents
 
-- [Package authority chokepoint](../../planned/v0_54_19/m-pkg-authority-chokepoint.md): landed
+- [Package authority chokepoint](m-pkg-authority-chokepoint.md): landed
   guard ordering, transport and dispatch constraints, not a credential-file lane.
 - [Executor environment hardening](../v0_50_0/m-executor-env-hardening.md): separates
   child credentials; this proposal changes author CLI input, not fleet identity.

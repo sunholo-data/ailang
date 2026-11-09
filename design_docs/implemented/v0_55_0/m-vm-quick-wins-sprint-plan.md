@@ -1,6 +1,6 @@
 # M-VM-QUICK-WINS Sprint Plan: Phases 0–1 (runtime-only)
 
-**Design doc:** [m-vm-quick-wins.md](m-vm-quick-wins.md)
+**Design doc:** [m-vm-quick-wins.md](../../planned/v0_55_0/m-vm-quick-wins.md)
 **Sprint ID:** M-VM-QUICK-WINS
 **Scope:** Phase 0 (baseline and parity gate) and Phase 1 (W1–W4, `internal/vm` only).
 Phase 2 (W5–W7, compiler) is **not in this sprint**. It waits for M-VM-COVERAGE Phase 1

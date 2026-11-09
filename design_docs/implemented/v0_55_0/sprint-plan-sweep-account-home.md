@@ -8,9 +8,9 @@ Estimate: one session, about 3 hours including mutation drills; M1 ~70 changed l
 ## Problem and measured evidence
 
 Accept the controller's first-party root cause; do not repeat the destructive reproduction.
-1. Iteration 66 invoked `env -i HOME=/tmp/fleet_i66_home.3S7K ... MISSION_PROFILE=fleet MISSION_DRY_RUN=1 /bin/bash tools/launchd/mission-control.sh` at 2026-10-28T14:50:33Z. The recipe linked tool configuration but neither real state nor real pins ([Guardrails](../fleet-mission.md#guardrails-on-top-of-the-skills-standing-rules)).
-2. Lane probes started real Claude sessions. `env -i` removed unattended markers, so the [SessionStart hook registration](../../.claude/settings.json) invoked [git_health.sh](../../scripts/hooks/git_health.sh) without its mission/task early exit.
-3. The hook's HOME-relative stamp was absent, triggering a real background sweep. The [sweeper](../../scripts/worktree_sweep.sh) derives both protection defaults and its log from HOME (lines 53 and 42 respectively).
+1. Iteration 66 invoked `env -i HOME=/tmp/fleet_i66_home.3S7K ... MISSION_PROFILE=fleet MISSION_DRY_RUN=1 /bin/bash tools/launchd/mission-control.sh` at 2026-10-28T14:50:33Z. The recipe linked tool configuration but neither real state nor real pins ([Guardrails](../../fleet-mission.md#guardrails-on-top-of-the-skills-standing-rules)).
+2. Lane probes started real Claude sessions. `env -i` removed unattended markers, so the [SessionStart hook registration](../../../.claude/settings.json) invoked [git_health.sh](../../../scripts/hooks/git_health.sh) without its mission/task early exit.
+3. The hook's HOME-relative stamp was absent, triggering a real background sweep. The [sweeper](../../../scripts/worktree_sweep.sh) derives both protection defaults and its log from HOME (lines 53 and 42 respectively).
 4. Clean, detached real pins on origin/dev, idle >2h with no process cwd inside, were consequently eligible for removal. Controller evidence: `/tmp/fleet_i66_home.3S7K/.ailang/state/worktree-sweep.log` records removals of `/Users/voightkampff/.ailang-driver-pin/stapledon` at 15:52:00, `triage` at 15:52:08, and `world` at 15:52:24 local CET (14:52Z). The real account log has no corresponding lines.
 5. The same controller measured `HOME=/tmp/x perl -e 'print((getpwuid($<))[7])'` returning `/Users/voightkampff`. Sources for timestamps and log excerpts: the controller's measured-evidence items 1–6 in this ticket handoff, not a new planner experiment.
 
@@ -62,7 +62,7 @@ Record each named FAIL and rc, not merely a syntax error or a red total caused b
 Dependency: M1. Budget: ~1 hour including final gates, ~20 changed lines.
 1. Add `AILANG_WORKTREE_SWEEP=0` inside BOTH Guardrails `env -i` commands: idle armed sibling and synthetic-HOME fleet. The current synthetic recipe refers to the earlier command; expand it into an explicit second command with synthetic HOME, existing PATH/USER/TMPDIR, pin SHA, fleet profile, and dry-run flag so neither recipe relies on an implicit setting.
 2. Add one sentence: a dry-run must start no side jobs; the 2026-10-28 synthetic-HOME dry-run deleted three live pins. Retain the existing synthetic configuration symlink instructions and state isolation.
-3. Create `changelogs/unreleased/2026-10-28-sweep-account-home.md`, following the [fragment convention](../../changelogs/unreleased/README.md). Open with `### Fixed — Synthetic-HOME sessions could delete live mission pins (2026-10-28)`; explain account-home protection, fail-closed lookup, dry-run opt-out, and link this plan. No new root changelog edit.
+3. Create `changelogs/unreleased/2026-10-28-sweep-account-home.md`, following the [fragment convention](../../../changelogs/unreleased/README.md). Open with `### Fixed — Synthetic-HOME sessions could delete live mission pins (2026-10-28)`; explain account-home protection, fail-closed lookup, dry-run opt-out, and link this plan. No new root changelog edit.
 
 Acceptance commands:
 

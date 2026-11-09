@@ -6,7 +6,7 @@ Make isolated package smoke test the published manifest and a regenerated regist
 lock, preserving existing confined git-pin carry-forward, locked asset snapshots,
 and warning-only root-path shadowing. Surface bounded, useful PUB015 diagnostics.
 
-- Design: [existing approved design](../v0_54_7/m-pkg-smoke-staged-lock.md).
+- Design: [existing approved design](m-pkg-smoke-staged-lock.md).
 - Design approval: attended user explicitly approved the refreshed design on
   2026-10-29, relayed by root; approval was recorded at 11:57:17 UTC.
 - This exact plan at `0c3e8f406` was **explicitly accepted for execution** by the
@@ -336,7 +336,7 @@ human/JSON failure causes agree; D1 signal cause is repaired with preserved red
 and actual process regression. No tarball predicate or runtime policy changed.
 Final changed/core PASS: cmd/ailang172.825s, internal/pkg19.353s and all core
 packages. Lint0, boundaries, home isolation, sizes, changelog and fmt PASS.
-[Validation and acceptance map](m-pkg-smoke-staged-lock-validation.md) preserves
+[Validation and acceptance map](../../planned/v0_56_0/m-pkg-smoke-staged-lock-validation.md) preserves
 logs and limitations. Exact PR broad Linux/Windows CI and independent evaluation
 remain pending; no executor score or release claim. Checkboxes record local
 acceptance and portability review, not a Windows run before CI.

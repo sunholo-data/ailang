@@ -5,7 +5,7 @@
 **Priority**: P1 (a smoke importing a dependency through a portable relative path lock fails isolated staging, blocking the documented monorepo publishing workflow)
 **Estimated**: Historical ~1.5–2 days (~450 LOC incl. tests); re-estimate only during approved sprint planning
 **Dependencies**: Preserve landed package-authority D2 (#1720/#1964) and locked asset snapshots (#1849)
-**Companion plan**: [approved v0.56.0 sprint plan](../v0_56_0/m-pkg-smoke-staged-lock-sprint-plan.md) — execution approved at2026-10-29 12:23UTC
+**Companion plan**: [approved v0.56.0 sprint plan](m-pkg-smoke-staged-lock-sprint-plan.md) — execution approved at2026-10-29 12:23UTC
 **Author**: design-doc-creator session (task-98f9f628), from the v0.54.5 user report (macOS arm64, commit 296231d)
 
 ---
@@ -577,14 +577,14 @@ The following are intentionally left open for the implementer:
 ## Related Documents
 
 **Implemented (may inform design):**
-- [m-ext-portability-gate](../../implemented/v0_18_11/m-ext-portability-gate.md) — created `RunSmokeInTempDir` ("smoke test in temp-dir with no workdir state"); this doc fixes the staging to honor that charter for path deps
-- [m-pkg-lock-portability](../../implemented/v0_10_0/m-pkg-lock-portability.md) — made lock paths relative to the lock's dir; that relative form is exactly what breaks when the lock is copied to a temp dir
-- [m-pkg-quality-ladder](../../implemented/v0_40_0/m-pkg-quality-ladder-sprint-plan.md) — the PUB-report machinery this doc extends (PUB015 output surfacing)
-- [m-pkg-transitive-lock-fix](../../implemented/v0_10_0/m-pkg-transitive-lock-fix.md) — resolver/lock history context
+- [m-ext-portability-gate](../v0_18_11/m-ext-portability-gate.md) — created `RunSmokeInTempDir` ("smoke test in temp-dir with no workdir state"); this doc fixes the staging to honor that charter for path deps
+- [m-pkg-lock-portability](../v0_10_0/m-pkg-lock-portability.md) — made lock paths relative to the lock's dir; that relative form is exactly what breaks when the lock is copied to a temp dir
+- [m-pkg-quality-ladder](../v0_40_0/m-pkg-quality-ladder-sprint-plan.md) — the PUB-report machinery this doc extends (PUB015 output surfacing)
+- [m-pkg-transitive-lock-fix](../v0_10_0/m-pkg-transitive-lock-fix.md) — resolver/lock history context
 
 **Current compatibility references (landed code):**
-- [m-pkg-authority-chokepoint](../v0_54_19/m-pkg-authority-chokepoint.md) — #1964 landed the single authority boundary; preserve D2 previous-pin carry-forward, exclusive package root and canonical refusal. This design adds staging, not authority.
-- [m-pkg-asset-lock-resolution](../../implemented/v0_56_0/m-pkg-asset-lock-resolution.md) — #1849 landed per-compilation/root/locked dependency asset targets and missing-target tombstones. Staging supplies a valid new lock to that existing mechanism.
+- [m-pkg-authority-chokepoint](m-pkg-authority-chokepoint.md) — #1964 landed the single authority boundary; preserve D2 previous-pin carry-forward, exclusive package root and canonical refusal. This design adds staging, not authority.
+- [m-pkg-asset-lock-resolution](m-pkg-asset-lock-resolution.md) — #1849 landed per-compilation/root/locked dependency asset targets and missing-target tombstones. Staging supplies a valid new lock to that existing mechanism.
 
 **Overlap search:** the original V10 "None" was historical. The current ownership
 search is bounded in Current-dev Refresh above; no competing staging implementation
@@ -613,7 +613,7 @@ was found. Preserve this same document rather than create another design carrier
 
 All four approved milestones are implemented. Changed package/core and structural
 gates passed on immutable source `37c957b3a`; subsequent actual audit integration
-changed no Go/AIL source. [Validation and acceptance map](../v0_56_0/m-pkg-smoke-staged-lock-validation.md)
+changed no Go/AIL source. [Validation and acceptance map](../../planned/v0_56_0/m-pkg-smoke-staged-lock-validation.md)
 records red/green evidence, the strict registry-byte CLI discriminator, the
 independent signal-cause correction, and pending exact PR Linux/Windows and
 independent evaluation gates. Checkboxes record executor verification, not an

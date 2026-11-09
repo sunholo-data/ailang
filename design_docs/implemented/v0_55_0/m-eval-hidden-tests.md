@@ -321,11 +321,11 @@ unchanged, and the human ratification asked of this doc is D4 only.
 
 ## Related Documents
 
-- [m-oracle-adequacy](../v1_1_0/m-oracle-adequacy.md) (0.44): the broader programme (convergence
+- [m-oracle-adequacy](../../planned/v1_1_0/m-oracle-adequacy.md) (0.44): the broader programme (convergence
   oracles, evidence bundles). This doc is its minimal held-out-test mechanism; no overlap in scope.
-- [m-eval-standard-mode-input-files-gap-sprint-plan](../../implemented/v0_35_3/m-eval-standard-mode-input-files-gap-sprint-plan.md)
+- [m-eval-standard-mode-input-files-gap-sprint-plan](../v0_35_3/m-eval-standard-mode-input-files-gap-sprint-plan.md)
   (0.43): standard vs agent parity for `input_files`. Same class of lane asymmetry as Problem 3.
-- [m-eval-trust-signals](../v1_1_0/m-eval-trust-signals.md) (0.43).
+- [m-eval-trust-signals](../../planned/v1_1_0/m-eval-trust-signals.md) (0.43).
 - Language-gap docs written from the same spike (v0_55_0): VM coverage for eval workloads,
   incremental collections, integer overflow and BigInt.
 - Implemented test-block docs (0.44–0.47) concern language-level `test` blocks and are unrelated.

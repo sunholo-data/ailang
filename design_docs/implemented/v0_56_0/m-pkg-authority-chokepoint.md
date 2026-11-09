@@ -48,10 +48,10 @@ The CLI child is a **separate, unconfined OS process** (`cli_ops.go:156` comment
 
 Lineage of the model:
 
-- [M-AGENT-AILANG-ONLY-EXECUTION](../../implemented/v0_39_0/m-agent-ailang-only-execution.md) introduced the `ailang_only` lane and the policy-path environment variable.
-- [M-EXECUTOR-POLICY-HARDENING](../../implemented/v0_41_0/m-executor-policy-hardening.md) (implemented, M4 `70393ba17`) made `AILANG_AGENT_POLICY` the materialised policy path and built `policy-tool` and its CLI schema table.
+- [M-AGENT-AILANG-ONLY-EXECUTION](../v0_39_0/m-agent-ailang-only-execution.md) introduced the `ailang_only` lane and the policy-path environment variable.
+- [M-EXECUTOR-POLICY-HARDENING](../v0_41_0/m-executor-policy-hardening.md) (implemented, M4 `70393ba17`) made `AILANG_AGENT_POLICY` the materialised policy path and built `policy-tool` and its CLI schema table.
 - #1552 (examples corpus) and #1554 (the child's compile and prompt caches) applied the variable to two leaks.
-- [M-PKG-REGISTRY-CONFINEMENT](../../implemented/v0_53_0/m-pkg-registry-confinement.md) (#1607/#1608, merged in PR #1704 `be6ca8b43`, released in v0.53.0) added `RefuseIfConfined` and `AILANG_PACKAGE_ROOT`. That doc still sits in `planned/v0_52_6/` with status "Implementation complete; awaiting independent sprint evaluation". It was never moved to `implemented/`.
+- [M-PKG-REGISTRY-CONFINEMENT](../v0_53_0/m-pkg-registry-confinement.md) (#1607/#1608, merged in PR #1704 `be6ca8b43`, released in v0.53.0) added `RefuseIfConfined` and `AILANG_PACKAGE_ROOT`. That doc still sits in `planned/v0_52_6/` with status "Implementation complete; awaiting independent sprint evaluation". It was never moved to `implemented/`.
 
 The v0.53.0 changelog records the gap this doc closes (`changelogs/v0.32-current.md:1561`): *"Known gap: a confined `ailang lock` with a git dependency still clones into `$HOME/.ailang/cache/git`, and `pkg info`/provenance skip the confinement guard; tracked in #1720."*
 
@@ -504,14 +504,14 @@ resp, err := http.Get(registryValidatorURL() + "/api/trending")
 
 **Implemented (inform the design):**
 
-- [M-EXECUTOR-POLICY-HARDENING](../../implemented/v0_41_0/m-executor-policy-hardening.md): origin of `AILANG_AGENT_POLICY` as the materialised policy path and of `policy-tool`. Its single authorising dialer (`internal/effects/net_authorize.go`) is the in-process chokepoint precedent this doc follows.
-- [M-AGENT-AILANG-ONLY-EXECUTION](../../implemented/v0_39_0/m-agent-ailang-only-execution.md): the confined lane.
-- [m-pkg-lock-portability](../../implemented/v0_10_0/m-pkg-lock-portability.md): why git lock entries omit `Path` and resolve at runtime from `GitURL` (the URL-keyed cache in T2).
+- [M-EXECUTOR-POLICY-HARDENING](../v0_41_0/m-executor-policy-hardening.md): origin of `AILANG_AGENT_POLICY` as the materialised policy path and of `policy-tool`. Its single authorising dialer (`internal/effects/net_authorize.go`) is the in-process chokepoint precedent this doc follows.
+- [M-AGENT-AILANG-ONLY-EXECUTION](../v0_39_0/m-agent-ailang-only-execution.md): the confined lane.
+- [m-pkg-lock-portability](../v0_10_0/m-pkg-lock-portability.md): why git lock entries omit `Path` and resolve at runtime from `GitURL` (the URL-keyed cache in T2).
 
 **Planned (overlap checked):**
 
-- [M-PKG-REGISTRY-CONFINEMENT](../../implemented/v0_53_0/m-pkg-registry-confinement.md) (#1607/#1608): the direct predecessor. This doc supersedes its D1 (per-function gates) with per-authority gates. It keeps its D2 (signal), D3 (exclusive root, extended to git here) and D5 (hard-fail hashes, extended to git). It also corrects its false Non-Goal premise about git. Neural similarity 0.41: distinct, because that doc gates the registry transport and this one gates every transport.
-- [m-pkg-asset-lock-resolution](../../implemented/v0_56_0/m-pkg-asset-lock-resolution-sprint-plan.md): shares `LockedPackageDirs` (`runner/pkg_dirs.go`). It does not overlap, because it changes which dirs are read, not authority.
+- [M-PKG-REGISTRY-CONFINEMENT](../v0_53_0/m-pkg-registry-confinement.md) (#1607/#1608): the direct predecessor. This doc supersedes its D1 (per-function gates) with per-authority gates. It keeps its D2 (signal), D3 (exclusive root, extended to git here) and D5 (hard-fail hashes, extended to git). It also corrects its false Non-Goal premise about git. Neural similarity 0.41: distinct, because that doc gates the registry transport and this one gates every transport.
+- [m-pkg-asset-lock-resolution](m-pkg-asset-lock-resolution-sprint-plan.md): shares `LockedPackageDirs` (`runner/pkg_dirs.go`). It does not overlap, because it changes which dirs are read, not authority.
 
 ## References
 

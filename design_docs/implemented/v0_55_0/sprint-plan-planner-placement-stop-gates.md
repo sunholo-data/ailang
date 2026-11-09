@@ -14,15 +14,15 @@ The controller measured `origin/dev` at `4e6ea7b25`; accept that audit without r
 
 | Ask | Measured disposition / source |
 | --- | --- |
-| 1–3: testing, changelog, size | Already landed in attended #1770, `dbe4b26a3` (2026-10-12): [planner checklist](../../.claude/skills/sprint-planner/SKILL.md), mirrored in `.agents`. Defaults are `make test-changed` (focused packages + `make test-core`), fragments in `changelogs/unreleased/`, companion files near 800 lines. Preserve these rules. |
-| 6: jq image | Already landed in `b2d21a070` (2026-10-09): [agent-base Dockerfile](../../docker/Dockerfile.agent-base), apt install includes jq. No image change. |
+| 1–3: testing, changelog, size | Already landed in attended #1770, `dbe4b26a3` (2026-10-12): [planner checklist](../../../.claude/skills/sprint-planner/SKILL.md), mirrored in `.agents`. Defaults are `make test-changed` (focused packages + `make test-core`), fragments in `changelogs/unreleased/`, companion files near 800 lines. Preserve these rules. |
+| 6: jq image | Already landed in `b2d21a070` (2026-10-09): [agent-base Dockerfile](../../../docker/Dockerfile.agent-base), apt install includes jq. No image change. |
 | 4: plan placement | Still open. `17254535d` added `run-policy-worker-cache-dir-sprint-plan.md` inside triage (later moved to `v0_52_6/`); `a65e6c12b` added `m-process-result-semantics-sprint-plan.md` there. |
 | 5: human gates | Still open. No planner rule distinguishes OPEN from ruled decisions or requires terminal STOP behavior. |
 
-[TestTriageRowsInTreeObeyTheRubric](../../internal/coordinator/triage_rubric_test.go) at line 108 checks every `*.md` row in `design_docs/planned/ailang-core-triage/`; misplaced plans redden CI (#1700).
+[TestTriageRowsInTreeObeyTheRubric](../../../internal/coordinator/triage_rubric_test.go) at line 108 checks every `*.md` row in `design_docs/planned/ailang-core-triage/`; misplaced plans redden CI (#1700).
 The existing versioned path examples imply proper placement but did not prevent two violations.
-Good STOP precedent: [subscription-lane plan, lines 6–19](v0_52_6/m-codex-subscription-lane-sprint-plan.md).
-[Context baseline](../../scripts/context_docs_baseline.txt) line 24 allows 597 planner skill lines; the measured current count is 596. The baseline is outside fleet scope.
+Good STOP precedent: [subscription-lane plan, lines 6–19](../../planned/v0_52_6/m-codex-subscription-lane-sprint-plan.md).
+[Context baseline](../../../scripts/context_docs_baseline.txt) line 24 allows 597 planner skill lines; the measured current count is 596. The baseline is outside fleet scope.
 
 ## Direction and boundaries
 
@@ -110,7 +110,7 @@ Make the test accept an optional script-under-test path, still copying that sour
 ### M3: Record — M3_CHANGELOG (~10 LOC; 15 minutes)
 
 Depends on M1–M2. Create `changelogs/unreleased/2026-10-29-planner-plan-location-stop-gates.md`.
-Start with `### Fixed — ...`; explain placement refusal before side effects and OPEN-only terminal STOP gates. Link this plan; follow [fragment format](../../changelogs/unreleased/README.md).
+Start with `### Fixed — ...`; explain placement refusal before side effects and OPEN-only terminal STOP gates. Link this plan; follow [fragment format](../../../changelogs/unreleased/README.md).
 Acceptance: `make check-changelog` → rc=0, fragment/fold checks succeed; `head -1 changelogs/unreleased/2026-10-29-planner-plan-location-stop-gates.md` → `### Fixed — ...`.
 Final `bash scripts/check_context_docs.sh`, `make check-skills`, and mirror `--check` → rc=0. Repeat script/driver gates only if further edits affect them.
 
