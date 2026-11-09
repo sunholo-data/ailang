@@ -133,5 +133,5 @@ fresh-line `supervisorLine`. Empty roots are not classified as cwd.
 The generated env reference is sourced from `internal/config/paths.go`. Both
 milestones and all requested focused/core/lint/size/home-isolation checks passed.
 No full `make test`, push or merge was performed. See the
-[implementation report](../../implemented/v0_54_6/run-policy-worker-cache-dir-implementation.md)
+[implementation report](../v0_52_6/run-policy-worker-cache-dir-implementation.md)
 for test environment details, latency measurements, artifact lists and PR body.

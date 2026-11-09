@@ -4,7 +4,7 @@
 - **Class**: bug
 - **Recommend**: design-doc
 - **Searched**: `numerics-quick`, `STDLIB_PATH`, `stdlib version mismatch`, `docs stdlib`, triage dir listing
-- **Related**: `design_docs/implemented/v0_47_0/m-numerics-vec-array-ingest.md` (the landed M-NUMERICS-QUICK work this report verifies — closed, not duplicated by this triage); `design_docs/implemented/v0_45_0/m-stdlib-root-resolution.md` (one stdlib root per command — root *resolution* is done, the docs *version warning* is not in scope there: it only discusses `checkStdlibVersion` applying to on-disk roots for run/check)
+- **Related**: `design_docs/implemented/v0_47_0/m-numerics-vec-array-ingest.md` (the landed M-NUMERICS-QUICK work this report verifies — closed, not duplicated by this triage); `design_docs/planned/v0_44_0/m-stdlib-root-resolution.md` (one stdlib root per command — root *resolution* is done, the docs *version warning* is not in scope there: it only discusses `checkStdlibVersion` applying to on-disk roots for run/check)
 
 <One paragraph> The reporter's environment had `AILANG_STDLIB_PATH` pointing at a
 checkout 186 commits behind the v0.47.0 binary. `ailang run` correctly warned

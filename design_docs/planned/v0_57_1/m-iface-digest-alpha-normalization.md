@@ -40,7 +40,7 @@ Evidence):**
 - 6 fresh-process compilations of `std/sem` → 4 distinct digests in one 6-run set
   (6 distinct observed across the session; the reporter saw 3 in 6 runs — small-sample
   variation of the same phenomenon, confirmed by the triage doc's V19 row at
-  [m-typecheck-env-scan-cost](../../implemented/v0_57_0/m-typecheck-env-scan-cost.md) which measured
+  [m-typecheck-env-scan-cost](../v0_56_2/m-typecheck-env-scan-cost.md) which measured
   the same thing on its own base binary).
 - Full std corpus scan (49 modules × 3 runs): **only `std/sem` flaps** today.
 - The permuted schemes are α-equivalent in every observed pair: only the cyclic
@@ -536,7 +536,7 @@ Estimates conditional on Q0/Q4; the one certain block is the regressions.
 
 **Implemented (informs design):**
 - [m-registry-interface-hash-blind-to-signatures](../v0_35_0/m-registry-interface-hash-blind-to-signatures.md) — the registry identity hash already canonicalizes; the pattern to reuse for Option B
-- [m-typecheck-env-scan-cost](../../implemented/v0_57_0/m-typecheck-env-scan-cost.md) — V19 row: first in-repo record of the std/sem flap, treated as pre-existing and out of scope there
+- [m-typecheck-env-scan-cost](../v0_56_2/m-typecheck-env-scan-cost.md) — V19 row: first in-repo record of the std/sem flap, treated as pre-existing and out of scope there
 - [m-crew-core-cold-compile-followup](../v0_55_0/m-crew-core-cold-compile-followup.md) — shares the env-walk/inference area Option D would touch
 
 **Planned (check for overlap):** none found by SimHash/neural search at creation time;

@@ -332,7 +332,7 @@ billing_min_instances = 1  # Always-on for webhook reliability
 > **Stale as of 2026-09-03 — `ailang-multivac/cloudbuild.yaml` was deleted.** The branch-push
 > full pipeline was retired when the deployment model was unified (push → dev, `v*` tag → test,
 > promote by version → prod; design
-> [`../../implemented/v0_35_0/m-unified-release-model.md`](../../implemented/v0_35_0/m-unified-release-model.md), model in
+> [`../v0_35_0/m-unified-release-model.md`](../v0_35_0/m-unified-release-model.md), model in
 > `ailang-multivac/.claude/skills/release/SKILL.md`). The docparse and billing images are built
 > by `ailang-multivac/cloudbuild-images.yaml` (steps `build-docparse` / `build-billing`, from a
 > clone of the private docparse repo) and are promoted to prod by **their own** version series
