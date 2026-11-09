@@ -1,7 +1,7 @@
 # M-CASCADE-ENVELOPE-HYDRATION: close the inbox→task cascade envelope-loss routes
 
-**Status**: Planned
-**Target**: v0.44.x (next minor after v0.47.0 tooling — content version follows the planned/ folder convention)
+**Status**: Implemented 2026-11-09 (attended, operator-approved P0) — see [Implementation record](#implementation-record-2026-11-09); several decisions below were stale and were narrowed there
+**Target**: v0.44.x (written); shipped after v0.57.4
 **Priority**: P0 (measured prod flood: 173 duplicate EMPTY-dispatch bug reports in the last 5000 store messages alone; ~180 queued reports behind them)
 **Estimated**: 1 day implementation + 0.5 day tests/review
 **Dependencies**: None (builds on shipped M-PKG-CASCADE-DETERMINISTIC-FIRST and M-PKG-AUTONOMOUS-CASCADE-SAFE M1/M2)
@@ -389,12 +389,12 @@ coordinator plumbing; it asserts no AILANG syntax/semantics support claims.
      the docs below were located by grep of design_docs/ instead) -->
 
 **Implemented (may inform design):**
-- [m-pkg-cascade-deterministic-first](../implemented/v0_16_0/m-pkg-cascade-deterministic-first.md) — the embedded-envelope publish path and dispatcher env vars
-- [m-pkg-autonomous-cascade-safe](../implemented/v0_16_0/m-pkg-autonomous-cascade-safe.md) — `Source` stamping and the cascade-vs-public distinction (M1/M2)
+- [m-pkg-cascade-deterministic-first](../v0_16_0/m-pkg-cascade-deterministic-first.md) — the embedded-envelope publish path and dispatcher env vars
+- [m-pkg-autonomous-cascade-safe](../v0_16_0/m-pkg-autonomous-cascade-safe.md) — `Source` stamping and the cascade-vs-public distinction (M1/M2)
 
 **Planned (check for overlap):**
-- [m-cascade-observability](v0_29_0/m-cascade-observability.md) — cascade span observability; no envelope-loss rules
-- [m-pkg-quality-ladder](v0_40_0/m-pkg-quality-ladder.md) — package agent template derivation (M6), relevant to the routing audit follow-up
+- [m-cascade-observability](../../planned/v0_29_0/m-cascade-observability.md) — cascade span observability; no envelope-loss rules
+- [m-pkg-quality-ladder](../../planned/v0_40_0/m-pkg-quality-ladder.md) — package agent template derivation (M6), relevant to the routing audit follow-up
 
 **Triage row:**
 - `design_docs/planned/ailang-core-triage/cascade-directive-unpopulated.md` (task-e1e2ce90, branch `coordinator/task-e1e2ce90`) — recommends design-doc; this doc is its execution
@@ -413,7 +413,69 @@ coordinator plumbing; it asserts no AILANG syntax/semantics support claims.
 - Automated routing audit: registry-level check that every `pkg:<name>` inbox an actual publish names resolves to a derived or hand-written agent (kills the docparse misroute class)
 - Un-drift `pkg-update.md`: parameterize the hardcoded `sunholo-data/ailang-packages` repo claim (task-d3f4bd97 item 3)
 
+## Implementation record (2026-11-09)
+
+### Was it still live? (measured first, read-only `messages list --json --limit 5000`)
+
+| Store | Window of the last 5000 messages | `[bug] cascade routing` reports filed by agents |
+|---|---|---|
+| prod `ailang-multivac` | 2026-08-31 → 2026-11-09 | **0** |
+| test `ailang-multivac-test` (where the 173 was measured) | 2026-08-31 → 2026-11-05 | **627**, all 2026-08-31..09-02 (60 / 295 / 272), then **none** (one 09-27 root-cause write-up) |
+
+The October rows on the test store that look like new reports (`Approval needed: [bug] cascade
+routing … task-9e0b04f1`, `task-a56a99a7`, `task-b3af211c`, `task-dbc6e559`) are the coordinator
+working through the queued September backlog; each names a task that timed out on 2026-09-01/02.
+Prod cascades since #1730 dispatch with a populated envelope (e.g. `task-edbd81a9`,
+`BUMPED_FROM: 0.9.3 / BUMPED_TO: 0.9.4`).
+
+**The flood stopped because its fuel was removed, not because a route was closed.** The
+2026-08-31..09-02 burst was the backstop sweep in `dispatch` mode re-enqueueing unread docparse rows
+(Route B); it ended when the inbox was drained (`messages ack --all --inbox docparse`, 592 rows) and
+`AILANG_BACKSTOP_SWEEP` went to `report` (`m-message-plane-trust.md`). `m-coordinator-execution-trust.md`
+plans to flip it back to `dispatch`, so Route B was latent, not fixed. All code routes were still
+open on `origin/dev` (`eb5af29be`): no hydration helper, adapter fallback unchanged, sweep Enqueue
+without Source/envelope, local site copying Source only.
+
+### Stale claims found while implementing
+
+- **`InboxMessage` has no `Source` field.** `store.go:27` is `TaskRecord.Source`. The sweep has no
+  cascade evidence at all, only the payload.
+- **The payload cannot stand in for the envelope.** Its `change_class` is `patch`/`minor`/`major`,
+  not the A/B/C taxonomy the wrapper's deterministic bump reads, and any sender can write a
+  package-schema payload into a `pkg:*` inbox. Stamping `Source="cascade"` from it would be exactly
+  the "wrong stamp is worse than an empty one" this doc's own decision row warns about, so Example 1's
+  "After" (sweep rebuilds a full cascade task) was **not** implemented.
+- **Kind is not a reliable cascade signal.** The stored row's `message_type` is `notification`;
+  `upgrade-available` lives only in the payload (V11 holds only on the Pub/Sub path).
+- **A fourth loss route:** the SQLite task store wrote all eleven envelope columns and read none
+  back (`GetTask`/`ListTasks`), so a SQLite-backed dispatcher lost the envelope one hop later.
+- **Item 7 (correlation) is not a correlation bug.** `task-9d0b57b3` was created *from* the dedup
+  completion `inbox_1788179644941_9d0b57b3` (task ids derive from message-id suffixes) — the
+  2026-08-31 notice-recycling loop, closed by `isOutcomeNotice` in the sweep. Not changed.
+
+### What shipped (refuse, never reconstruct)
+
+`internal/coordinator/cascade_guard.go`: `cascadeShaped` (attribute kind **or** payload kind),
+`missingCascadeEnvelope`, `cascadeDispatchRefusal`, `TaskRecord.copyCascadeEnvelope`.
+
+| Route | Change |
+|---|---|
+| A — adapter | cascade-topic delivery with no envelope (no root package / to-version) is acked and logged, never buffered. **Ack, not NACK**: the data and the stored row are durable, so a redelivery cannot differ; same policy as "notification names a message that does not exist". This settles the open Design-Freeze item without DLQ infrastructure. |
+| B — sweep | a cascade-shaped row is `WITHHOLDING`-logged every pass and left unread for triage, in both `report` and `dispatch` mode (the doc's withhold-for-triage policy). |
+| C — local copy | both task-creation sites call `copyCascadeEnvelope`; the local site no longer drops it. |
+| D — SQLite read-back | `GetTask`/`ListTasks`/dedup scans read the envelope columns; a corrupt effect-ceiling column is an error, not an empty ceiling. |
+| Gate | cloud dispatch refuses (`ErrDispatchPermanent` → task failed + "dispatch refused" notice, no job) a cascade-shaped task for a `pkg:*` agent missing `source=cascade`, `root_package` or `to_version`. Ordinary bug/feature work to package agents is untouched. |
+
+Tests: `cascade_guard_test.go` (7 tests); every guard, the copy helper, the cloud-site copy and both
+SQLite scan paths were mutation-tested (each mutation fails a test). The local-site copy call cannot
+be reached through a real adapter today (`InboxMessageAdapter` never carries an envelope) and is
+kept as parity only.
+
+Not done, still separate: dropping the legacy `pkg:*` inbox write in `ailang publish`
+(`design_docs/planned/m-pkg-cascade-legacy-inbox-deprecation.md`, needs its own approval). The
+gate here makes those rows harmless; it does not stop them being written.
+
 ---
 
 **Document created**: 2026-09-27
-**Last updated**: 2026-09-27
+**Last updated**: 2026-11-09

@@ -165,6 +165,12 @@ func (d *Daemon) dispatchTasksCloud() error {
 			d.handleDispatchError(task, err)
 			continue
 		}
+		if inputAgent != nil {
+			if err := cascadeDispatchRefusal(task, inputAgent.Inbox); err != nil {
+				d.handleDispatchError(task, err)
+				continue
+			}
+		}
 		// Determine the provider: the AGENT's own declaration wins over the
 		// coordinator's default.
 		//
