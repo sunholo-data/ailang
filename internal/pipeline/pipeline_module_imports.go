@@ -46,6 +46,11 @@ type moduleImports struct {
 	// CapturedAliases: imported aliases withheld because their body names a type
 	// this module declares itself; value = the loud error message for using one.
 	CapturedAliases map[string]string
+	// IFC is the IFC summary of every imported value under its bound name
+	// (M-IFC-CROSS-MODULE, resolveIFCImports): the checker enforces imported
+	// sinks against it, and the iface builder derives this module's own
+	// intrinsic labels through it.
+	IFC types.IFCImports
 }
 
 // resolveModuleImports builds the external type environment and global references

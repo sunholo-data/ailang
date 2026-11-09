@@ -19,8 +19,11 @@ import (
 //	labelOf(e) = flowVal(e).label ⊔ deepLabel(staticType(e))
 //
 // Only module-local type declarations are resolved. An imported type name has
-// no declaration here, so its deep label is ⊥ — the cross-module hole tracked by
-// design_docs/planned/m-ifc-cross-module-labels.md.
+// no declaration here, so its deep label is ⊥. M-IFC-CROSS-MODULE
+// (design_docs/implemented/v0_57_5/m-ifc-cross-module-labels.md) closes this for
+// values RETURNED by imported functions — their summary's intrinsic label
+// includes the declared labels of the return type — but a parameter or binding
+// annotated with an imported labelled type still reads ⊥ here.
 
 // ifcTypes indexes the module-local type declarations the IFC pass can resolve.
 type ifcTypes struct {

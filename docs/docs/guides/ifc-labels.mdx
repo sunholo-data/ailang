@@ -11,6 +11,8 @@ import InboxV2Lib from '!!raw-loader!@site/../examples/runnable/contracts/inbox_
 import InboxV2App from '!!raw-loader!@site/../examples/runnable/contracts/inbox_v2_app.ail';
 import SinkFnValue from '!!raw-loader!@site/../examples/runnable/secrets/sink_function_value.ail';
 import SinkFnValueOk from '!!raw-loader!@site/../examples/runnable/secrets/sink_function_value_ok.ail';
+import IfcXmodLib from '!!raw-loader!@site/../examples/runnable/ifc_cross_module/lib.ail';
+import IfcXmodApp from '!!raw-loader!@site/../examples/runnable/ifc_cross_module/app.ail';
 
 # Information-Flow Control (IFC) Labels
 
@@ -161,8 +163,10 @@ and unlabelled (bottom) values pass; `<arg>` and `<secret>` fail with
 the parameter label. This rule constrains lattice coverage; it is not proof of
 sanitization or provenance. Negative sink refinements remain enforced too.
 
-These checks are static and local to the module. Cross-module enforcement is
-tracked separately in #1134; this change adds no runtime IFC.
+These checks are static. Since M-IFC-CROSS-MODULE they also hold at a call to
+a function imported from another module: the coverage check runs against the
+library's declared parameter label (see [Imported functions](#imported-functions)).
+This adds no runtime IFC.
 
 ## Why Identity Bypass Doesn't Work
 
@@ -187,8 +191,10 @@ way: renaming a sink, passing it to a higher-order function or wrapping it in
 a lambda does not drop its `{not ℓ}` requirement (see
 [Sinks as values](#sinks-as-values)).
 
-Scope: this guarantee is checked **within one module**. A sink imported from
-another module is not yet enforced by the static check (#1134).
+Scope: the guarantee holds across module boundaries for imported functions —
+a sink imported from another module keeps its `{not ℓ}` requirement, and a
+labelled value an imported function returns keeps its label (see
+[Imported functions](#imported-functions)).
 
 ## Worked Example: Inbox Injection
 
@@ -359,6 +365,47 @@ Output: `5 functions: 3 verified, 2 violations` — the `<email>` label
 flows from the lib's record field into the app's parameter type and on
 to the violating sink.
 
+## Imported functions
+
+A library's `{not ℓ}` sinks, positive parameter labels and labelled results are
+enforced in **every module that imports them** (M-IFC-CROSS-MODULE, #1134). Each
+exported function's interface carries an IFC summary — its parameters' declared
+labels and refinements, its declared return label, its Declassify authority,
+and the *intrinsic* label its body produces — and the importer's checker treats
+a call to it exactly like a call to a local function:
+
+- passing a `<secret>` value to an imported `x: string{not secret}` parameter is
+  a `sink_refinement` error naming the edge — here, the example below with its
+  call changed to `audit(token())`:
+
+  ```
+  information-flow violation: value labelled <secret> reaches parameter "entry" of imported function examples/runnable/ifc_cross_module/lib.audit, which forbids it (string{not secret})
+    Suggestion: edge: examples/runnable/ifc_cross_module/app.ail:20:16 → examples/runnable/ifc_cross_module/lib.audit(entry) — declassify the value through a function declaring ! {Declassify}, or do not pass it across this edge
+  ```
+
+- an argument outside an imported `q: string<sqlsafe>` parameter's label is a
+  `param_label_cover` error, worded the same way;
+- an imported function returning `string<secret>` — or computing one without
+  declaring it, such as a wrapper around `secret()` or around another library's
+  labelled producer — taints the caller's value, so the caller's own sinks
+  reject it and the trace redacts it
+  ([M-TRACE-LABEL-AWARE](debugging.md));
+- an imported `! {Declassify}` function is the legal route across, and a scoped
+  `Declassify[label=email]` declassifier still does not lower `<secret>`.
+
+Selective, renamed (`import lib (gate as check)`) and qualified
+(`import lib as L` … `L.gate(x)`) imports all resolve to the same summary, and a
+local declaration or binding of the same name shadows the import.
+
+<CodeBlock language="ailang" title="examples/runnable/ifc_cross_module/lib.ail">{IfcXmodLib}</CodeBlock>
+
+<CodeBlock language="ailang" title="examples/runnable/ifc_cross_module/app.ail">{IfcXmodApp}</CodeBlock>
+
+A library parameter that forwards to a sink is only enforced across the
+boundary when the library **declares** the refinement on it: a summary exports
+declared demands, not demands inferred from the body (those still hold inside
+the library's own module).
+
 ## Static enforcement (v0.26.0)
 
 As of v0.26.0 (M-SECRET-EFFECT), sink and declassification violations are
@@ -466,24 +513,28 @@ module (`std/list`'s `map`, say) has no summary of what it does with its
 arguments yet, so a sink passed to it is checked against the join of the
 *other* arguments' labels: `map(gate, cleanList)` is accepted and
 `map(gate, inboxList)` is rejected even though `map` is not written in your
-module. This over-approximates; it never under-approximates. Precise
-cross-module summaries remain tracked by #1134. If the checker reaches a
+module. This over-approximates; it never under-approximates: an imported
+function's summary carries its declared parameter labels and result label, not
+what it does with a function argument. If the checker reaches a
 defensive analysis limit, it reports `ifc_analysis_limit` and refuses to
 compile; it never drops a requirement to finish checking.
 
 ## Limitations
 
-- **Sink enforcement is per module.** A labelled value reaching a `{not ℓ}`
-  sink anywhere in the same module is caught — directly, through aliases,
-  higher-order functions and wrappers, and through flow into *unannotated*
-  parameters (#1719). **Cross-module** sinks still rely on Z3 contracts
-  (#1134): a sink imported from another module is not checked statically.
+- **Inferred sink demands stay in their module.** A labelled value reaching a
+  `{not ℓ}` sink is caught directly, through aliases, higher-order functions
+  and wrappers, and through flow into *unannotated* parameters (#1719) — and an
+  imported function's *declared* refinements and labels are enforced at every
+  importer's call sites ([Imported functions](#imported-functions)). A demand
+  the checker *infers* on an unannotated library parameter is not exported:
+  declare `{not ℓ}` on an exported parameter to enforce it across modules.
 - **Labels inside types are enforced within the declaring module only.** Since
   v0.52.0 the static check reads labels in declared records, aliases
   (`type EmailBody = string<email>`), ADTs, lists and tuples — but only for types
   declared in the same module. A type imported from another module carries its
-  labels to Z3 contracts through the iface, not to the static sink check; that
-  hole is tracked in `design_docs/planned/m-ifc-cross-module-labels.md`.
+  labels to Z3 contracts through the iface, not to the static sink check
+  (a value returned by an imported function does carry its declared and
+  intrinsic labels — see [Imported functions](#imported-functions)).
 - **Refinements are sink-side only.** `T{not LABEL}` lives on parameter
   positions; you cannot annotate a return type with a refinement.
 - **Cross-module function calls in Z3.** Imported function calls cannot

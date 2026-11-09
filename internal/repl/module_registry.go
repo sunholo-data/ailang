@@ -169,6 +169,9 @@ type Export struct {
 	Name   string        // Export name
 	Value  interface{}   // Evaluated value (closure, constant, etc.)
 	Scheme *types.Scheme // Type signature for type checking
+	// IFC is the export's information-flow summary (M-IFC-CROSS-MODULE): what
+	// an importer's checker enforces at calls to it. Never nil once loaded.
+	IFC *types.ImportedIFCSig
 }
 
 // NewModuleRegistry creates an empty module registry.

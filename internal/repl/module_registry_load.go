@@ -34,11 +34,23 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	// published its exports in the browser WASM REPL.
 	// The same walk reports the labelled call sites the trace must redact
 	// (M-TRACE-LABEL-AWARE); they are stamped on the lowered Core below.
+	// M-IFC-CROSS-MODULE: imported values carry their exporters' IFC
+	// summaries, so imported sinks and labelled imported results are enforced
+	// here exactly as on the CLI, and this module's own summaries are kept for
+	// its importers. A rejected module publishes nothing.
 	var traceSites map[ast.Pos]string
+	var ifcSummaries map[string]*types.ImportedIFCSig
 	if program.File != nil {
+		ifcImports, err := mr.ifcImports(program.File)
+		if err != nil {
+			return nil, fmt.Errorf("information-flow metadata in %s: %w", name, err)
+		}
 		var ifcErrs []*types.TypeCheckError
-		if ifcErrs, traceSites = types.CheckModuleIFCWithTraceSites(program.File); len(ifcErrs) > 0 {
+		if ifcErrs, traceSites = types.CheckModuleIFCWithTraceSites(program.File, ifcImports); len(ifcErrs) > 0 {
 			return nil, fmt.Errorf("information-flow violation in %s: %w", name, ifcErrs[0])
+		}
+		if ifcSummaries, err = types.AnalyzeModuleIFC(program.File, ifcImports.Sigs()); err != nil {
+			return nil, fmt.Errorf("information-flow summary of %s: %w", name, err)
 		}
 	}
 
@@ -450,6 +462,7 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 					Name:   declName,
 					Value:  bindingVal,
 					Scheme: declTypes[declName],
+					IFC:    exportIFC(ifcSummaries, declName, declTypes[declName]),
 				}
 			}
 		}

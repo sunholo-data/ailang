@@ -2,8 +2,9 @@
 
 **Partial foundation acceptance (2026-10-29):** M1-M2 accepted95/100 and merged in PR1771 at65253e86e68be251eecd796d92327e4d4828c234. M3/M4 remain unstarted; overall planned/in-progress, issues1134/1132 open. Executor checkpoint statements below are historical; the independent M1-M2 report is authoritative for this partial acceptance.
 
-**Status**: Planned
-**Current target**: v0.56.0 (unreleased M1–M2 foundation; no version bump)
+**Status**: Implemented (M1–M2 PR #1771; M3–M4 2026-11-09, branch `fix/ifc-cross-module-labels`)
+**Shipped in**: v0.57.5 (unreleased at the time of writing)
+**Current target**: v0.57.5
 **Original target**: v0.39.0, historical; the 2026-10-08 plan targeted v0.53.x
 **Priority**: P0 (High — security-sensitive semantics change to `internal/types`)
 **Estimated**: 4 days
@@ -14,6 +15,45 @@
 > is (previously-clean programs across module boundaries will now be rejected), and
 > touches the iface schema. It requires the full gate: design approval → sprint plan →
 > execute.
+
+## Implementation note — M3/M4 (2026-11-09)
+
+What shipped, and where it departs from the text below:
+
+- **Enforcement** (`internal/types/ifc_imports.go`). An imported value is a
+  callable carrying its export's declared demands (`forbidden` → Check A,
+  positive `label` → Check C) and its result label (`importedIFCResult`:
+  declared return, Declassify authority, or `join(intrinsic, args)`). It flows
+  through the #1719 callable domain, so aliases, higher-order parameters,
+  local wrappers and lambdas reach the same checks. Names resolve through the
+  elaborator's own identity map (`moduleImports.GlobalRefs`: selective, renamed,
+  `Alias.name`); lexical bindings and module declarations shadow an import.
+  The entry point is `CheckModuleIFCWithTraceSites(file, imports)` rather than a
+  changed `CheckModuleIFC(file)`, which stays the import-free form for tests.
+- **Diagnostics.** A direct imported edge reads `value labelled <secret> reaches
+  parameter "input" of imported function lib.gate, which forbids it (string{not
+  secret})` with suggestion `edge: app.ail:5:38 → lib.gate(input) — …`. An edge
+  reached through a local wrapper is reported by the replayed inferred demand:
+  `… of lib.gate (via w → gate) which forbids it …`.
+- **Trace redaction.** The imported result label flows into the same walk that
+  reports M-TRACE-LABEL-AWARE sites, so a secret returned by another user module
+  is redacted (canary `TestTraceRedactsSecretReturnedByAnotherUserModule`: 1 copy
+  at `standard`, 5 at `deep` before; 0 and 0 after, cold and warm cache).
+- **Transitive taint.** The pipeline hands the importer's summaries to its own
+  iface build (`WithIFCImports`), so `mid.fetch() = lib.token()` exports
+  `<secret>` intrinsically.
+- **REPL** (`internal/repl/module_registry_ifc.go`). Exports keep their summary;
+  `LoadModule` checks against imported summaries before publishing anything.
+- **Cache.** No schema change, but `cacheKeyVersion` v9 → v10: a cached caller is
+  served without re-running the check, so pre-M3 verdicts and Core without the
+  new TraceRedact stamps must miss.
+- **Not exported:** demands the checker *infers* on an unannotated library
+  parameter (the reserved `applied` field stays bottom). A library forwarding
+  an unannotated parameter into a sink protects importers only once it declares
+  `{not ℓ}` on that parameter.
+- **Compatibility:** zero verdict flips across all 891 tracked `.ail` files
+  (`ailang check`, origin/dev vs this branch), including every example in the
+  sprint plan's audit table.
 
 ## Problem Statement
 

@@ -1,0 +1,16 @@
+-- Check: ailang check examples/runnable/ifc_cross_module/lib.ail
+--
+-- M-IFC-CROSS-MODULE (#1134): the library half. Its sink refinement, its
+-- labelled result and its Declassify authority are exported in its interface's
+-- IFC summary, so every module that imports it is held to them.
+module examples/runnable/ifc_cross_module/lib
+import std/string (substring)
+
+-- A sink: no <secret> value may reach `entry`, in this module or any importer.
+export func audit(entry: string{not secret}) -> string ! {} = "audit: ${entry}"
+
+-- A producer: its result is <secret> in every importing module.
+export func token() -> string<secret> ! {} = "FAKE_TOKEN_NOT_A_REAL_SECRET"
+
+-- The legal route from token() to audit(): an explicit declassifier.
+export func fingerprint(t: string<secret>) -> string ! {Declassify} = "fp:${substring(t, 0, 4)}"

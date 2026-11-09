@@ -26,7 +26,9 @@ import (
 // (M-IFC-FUNCTION-VALUE-SINKS) a sink's requirements also travel with the
 // function VALUE, and flow through unannotated parameters into a sink is
 // inferred per module function (ρ-seeded summaries, ifc_summary_local.go).
-// Cross-module sink enforcement is still open (#1134, M-IFC-CROSS-MODULE).
+// Since M-IFC-CROSS-MODULE (#1134) an IMPORTED function carries its exported
+// IFC summary: its {not ℓ} / <ℓ> parameter demands and its result label
+// (ifc_imports.go), so a sink or a labelled result survives a module boundary.
 
 // ifcBuiltinSourceLabels maps builtin/stdlib functions that introduce an IFC
 // source label to that label. The canonical source is secret() (M-SECRET-EFFECT):
@@ -137,9 +139,10 @@ type ifcVar struct {
 type ifcEnv map[string]ifcVar
 
 type ifcChecker struct {
-	exportSummaries bool // M1 producer/closure label facts; ordinary caller policy stays unchanged
-	imports         map[string]*ImportedIFCSig
-	types           *ifcTypes // module-local type declarations (ifc_static_type.go)
+	exportSummaries bool                       // M1 producer/closure label facts; ordinary caller policy stays unchanged
+	imports         map[string]*ImportedIFCSig // imported values by bound name (ifc_imports.go)
+	importNames     map[string]string          // bound name -> canonical module.name, for diagnostics
+	types           *ifcTypes                  // module-local type declarations (ifc_static_type.go)
 	sigs            map[string]*ifcSig
 	errs            []*TypeCheckError
 	errSeen         map[string]bool  // position+message, so a replay cannot repeat a diagnostic
@@ -291,6 +294,10 @@ func (c *ifcChecker) flowValOf(expr ast.Expr, env ifcEnv) ifcVal {
 		}
 		return result
 	case *ast.RecordAccess:
+		// `Alias.name` for a module alias is an imported value, not a field.
+		if qualified, ok := c.qualifiedImport(e, env); ok {
+			return c.identVal(qualified, env)
+		}
 		// Field-precise when the field's declared type is known: the field gets
 		// the record's FLOW label here, and labelOf adds deepLabel(field type)
 		// — not the declared labels of the record's other fields. Otherwise a
@@ -355,7 +362,7 @@ func (c *ifcChecker) identVal(name string, env ifcEnv) ifcVal {
 		return ifcVal{label: LabelBottom(), fn: single(&ifcFn{kind: fnCtor})}
 	}
 	if imported := c.imports[name]; imported != nil {
-		return ifcVal{label: importedIFCResult(imported, nil), fn: single(&ifcFn{kind: fnOpaque, name: name, imported: imported})}
+		return ifcVal{label: importedIFCResult(imported, nil), fn: single(importedFn(c.importedName(name), imported))}
 	}
 	if c.exportSummaries {
 		if source, ok := ifcBuiltinSourceLabels[name]; ok {
@@ -547,7 +554,8 @@ func (c *ifcChecker) callVal(call *ast.FuncCall, env ifcEnv) (out ifcVal) {
 	if src, ok := ifcBuiltinSourceLabels[name]; ok && (!c.exportSummaries || (!bound && !constructor)) {
 		return ifcVal{label: LabelConst(src), fn: fn}
 	}
-	// Unknown or imported callee: transparent — propagate the join of the args
+	// Unknown callee (an imported one resolved above through its summary):
+	// transparent — propagate the join of the args
 	// AND of the callee expression itself.
 	//
 	// The callee's own label is what makes a local closure safe. `f` in

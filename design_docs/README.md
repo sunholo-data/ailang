@@ -12,7 +12,7 @@
 
 - [IFC sink requirements on function values](implemented/v0_56_0/m-ifc-function-value-sinks.md) — merged in #2007; aliases, HOF calls and wrappers are checked within a module. Target v0.56.0 is unreleased; cross-module follow-up remains separate.
 
-- [IFC metadata/cache foundation M1-M2](planned/v0_53_0/m-ifc-cross-module-labels-evaluation-m1-m2.md) — PR1771, independent95/100. Full parent/plan remain planned for unstarted M3/M4;1134/1132 open.
+- [IFC metadata/cache foundation M1-M2](planned/v0_53_0/m-ifc-cross-module-labels-evaluation-m1-m2.md) — PR1771, independent95/100. M3/M4 (imported-call enforcement, docs) implemented 2026-11-09; parent moved to [implemented/v0_57_5](implemented/v0_57_5/m-ifc-cross-module-labels.md). Closes #1134; refs #1132.
 
 - [Locked package asset snapshots](implemented/v0_56_0/m-pkg-asset-lock-resolution.md) — merged in #1849; source-context snapshots and fail-closed lock discovery cover runner and embedded/API paths. Target v0.56.0 is unreleased.
 

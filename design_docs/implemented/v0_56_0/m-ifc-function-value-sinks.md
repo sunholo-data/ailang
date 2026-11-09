@@ -572,7 +572,7 @@ F1–F4) **fires**, so without a quorum a human must ratify F1–F4 before sprin
 
 ## Related Documents
 
-- `design_docs/planned/m-ifc-cross-module-labels.md`: #1134 / PR #1771, the companion. See the relationship section.
+- `design_docs/implemented/v0_57_5/m-ifc-cross-module-labels.md`: #1134 / PR #1771, the companion. See the relationship section.
 - `design_docs/implemented/v0_53_0/m-ifc-authority-scoping.md`: Check C's definition. Its "local callees" scoping is what C1 and C2 bypass.
 - `design_docs/planned/v0_48_0/m-effect-latent-function-values.md`: same defect class for effects (#1326, #573), the precedent followed here.
 - `design_docs/implemented/v0_26_0/m-secret-effect-remote-approval.md`: M5, the original `CheckModuleIFC` and its Phase 2 deferral note.

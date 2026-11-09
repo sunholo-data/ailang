@@ -1,0 +1,21 @@
+-- Check: ailang check examples/runnable/ifc_cross_module/app.ail
+-- Run:   ailang run --caps IO,Declassify --entry main examples/runnable/ifc_cross_module/app.ail
+--
+-- M-IFC-CROSS-MODULE (#1134): the importing half. The library's {not secret}
+-- sink and <secret> result hold here, across the module boundary. The call
+-- below is accepted because the secret goes through the library's
+-- declassifier first. Writing `audit(token())` instead is rejected:
+--
+--   information-flow violation: value labelled <secret> reaches parameter
+--   "entry" of imported function examples/runnable/ifc_cross_module/lib.audit,
+--   which forbids it (string{not secret})
+--
+-- So is passing token() to a {not secret} sink declared in THIS module: the
+-- imported result keeps its label.
+module examples/runnable/ifc_cross_module/app
+import std/io (println)
+import examples/runnable/ifc_cross_module/lib (audit, token, fingerprint)
+
+export func main() -> () ! {IO, Declassify} {
+  println(audit(fingerprint(token())))
+}

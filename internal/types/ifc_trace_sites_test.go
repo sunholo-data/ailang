@@ -21,7 +21,7 @@ func traceSitesFor(t *testing.T, src string) map[string]string {
 	if errs := p.Errors(); len(errs) > 0 {
 		t.Fatalf("parse: %v", errs)
 	}
-	errs, sites := CheckModuleIFCWithTraceSites(prog.File)
+	errs, sites := CheckModuleIFCWithTraceSites(prog.File, nil)
 	if len(errs) > 0 {
 		t.Fatalf("fixture must be IFC-clean: %v", errs[0])
 	}
@@ -165,7 +165,7 @@ export func outer(s: string) -> string ! {} = inner(s)
 `
 	p := parser.New(lexer.New(src, "p.ail"))
 	prog := p.Parse()
-	if _, sites := CheckModuleIFCWithTraceSites(prog.File); len(sites) != 0 {
+	if _, sites := CheckModuleIFCWithTraceSites(prog.File, nil); len(sites) != 0 {
 		t.Fatalf("a module with no labels reported %d sites: %v", len(sites), sites)
 	}
 }
