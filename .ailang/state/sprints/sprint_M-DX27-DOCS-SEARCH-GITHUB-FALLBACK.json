@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-DX27-DOCS-SEARCH-GITHUB-FALLBACK",
   "title": "GitHub repository search fallback for ailang docs search",
-  "design_doc": "design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md",
+  "design_doc": "design_docs/implemented/v0_35_2/m-dx27-docs-search-github-fallback.md",
   "mission": "docs",
   "status": "planned",
   "target_version": "v0.36.0",

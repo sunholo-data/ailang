@@ -352,7 +352,7 @@ Every row re-derived by command on 2026-08-13 against `origin/dev` @ `fd01a37c1`
 
 **Directly coupled:**
 - [m-eval-validity-discipline.md](m-eval-validity-discipline.md) — W8 is the consumer half of this fix; see "Relationship to W8"
-- [v0_33_1/m-eval-standard-mode-input-files-gap.md](v0_33_1/m-eval-standard-mode-input-files-gap.md) — owns the 36-row `docx`/`markdown_reimplement` class; this doc attributes those rows, that doc stops producing them
+- [../implemented/v0_35_3/m-eval-standard-mode-input-files-gap.md](../implemented/v0_35_3/m-eval-standard-mode-input-files-gap.md) — owns the 36-row `docx`/`markdown_reimplement` class; this doc attributes those rows, that doc stops producing them
 - [m-eval-reasoning-model-fairness.md](m-eval-reasoning-model-fairness.md) — same family: a measurement artifact read as model weakness
 
 **Found by neural search (checked for overlap, distinct):**

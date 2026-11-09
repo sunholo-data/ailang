@@ -334,7 +334,7 @@ hidden failure banks the same `error_category` a visible one of that kind would.
 runs AILANG with 10s and Python with 30s, which is a 3× bias on any perf-sensitive task. Do not
 put the directory under `data/` or use `.out` for answers: `.gitignore` drops both, and the
 answers would silently never be committed. See
-[M-EVAL-HIDDEN-TESTS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_55_0/m-eval-hidden-tests.md).
+[M-EVAL-HIDDEN-TESTS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_55_0/m-eval-hidden-tests.md).
 
 ## Troubleshooting
 

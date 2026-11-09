@@ -260,7 +260,7 @@ rather than argued. Re-run quorum after Phase 0 closes them.
 ## Related Documents
 
 - [design_docs/implemented/v0_6_1/m-exec-multi-executor-support.md](../implemented/v0_6_1/m-exec-multi-executor-support.md) — the multi-executor contract this extends
-- [design_docs/planned/v0_49_1/m-executor-env-hardening.md](v0_49_1/m-executor-env-hardening.md) — the credential-grant model `envExecAgy` must join
+- [design_docs/implemented/v0_50_0/m-executor-env-hardening.md](../implemented/v0_50_0/m-executor-env-hardening.md) — the credential-grant model `envExecAgy` must join
 - [design_docs/planned/m-openai-agents-api-executor.md](m-openai-agents-api-executor.md) — a parallel "vendor agent as executor" design
 - `docs/internal/EXECUTOR_SHAPE.md` — Pillar 1 recipe followed here
 - `internal/executor/managed_agents/README.md` — the `gemini_agents` sibling (remote sandbox, patch round trip)

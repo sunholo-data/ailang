@@ -4,7 +4,7 @@
   "created": "2026-10-17",
   "verified_at": "37d6641b308a3e8ffb4d5a2023ba4faa89a5254a",
   "design_doc": null,
-  "sprint_plan": "design_docs/planned/sprint-plan-mission-index-regenerate.md",
+  "sprint_plan": "design_docs/implemented/v0_54_15/sprint-plan-mission-index-regenerate.md",
   "ticket": "mission:index-regenerate-needs-rotatable-archive; rotate-log:index-regen-drops-orphan-rows",
   "github_issues": [1306],
   "registry_reuse": [

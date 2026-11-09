@@ -16,7 +16,7 @@ import (
 //
 // The fix lowers AssertStmt in FoldTestBody (internal/testing/test_body_lowering.go)
 // to a short-circuiting `if` chain over an int sentinel — see the sprint plan
-// design_docs/planned/v0_33_1/m-named-test-assert-lowering-sprint-plan.md §4.
+// design_docs/implemented/v0_33_1/m-named-test-assert-lowering-sprint-plan.md §4.
 
 // assertFixtureSource builds a minimal module with a single named test body.
 func assertFixtureSource(body string) string {

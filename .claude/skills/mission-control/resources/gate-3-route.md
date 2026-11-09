@@ -265,7 +265,7 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      2026-09-30 and kept in the registry, dormant, for a later release. No GPT-6.x Terra exists yet
      (Codex catalog 2026-10-02), so Sol 6.1 is the only OpenAI rung. The `-c features.multi_agent_v2.expose_spawn_agent_model_overrides=false` flag on
      every codex launch removes spawn_agent's model parameter, so a child inherits its allowlisted
-     parent (measured fleet iteration 53: `design_docs/planned/sprint-plan-openai-role-allowlist.md`
+     parent (measured fleet iteration 53: `design_docs/implemented/v0_54_17/sprint-plan-openai-role-allowlist.md`
      M1–M3). **No step blocks a landing.** The same holds for every role and quorum seat: an unavailable preferred or rotation
      lane hands off to the next lane WITH QUOTA, flagged; a missing quorum seat is flagged, not a
      block. Park for lack of a lane only when NO lane has quota at all.

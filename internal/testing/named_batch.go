@@ -1,7 +1,7 @@
 package testing
 
 // Named tests compile ONCE per file (M-TEST-RUNNER-COMPILE-ONCE,
-// design_docs/planned/v0_53_0/m-test-runner-compile-once.md).
+// design_docs/implemented/v0_52_2/m-test-runner-compile-once.md).
 //
 // Each named test used to be its own pipeline compile: the stripped module
 // plus that one body, as a transient root the compile cache never stores. On

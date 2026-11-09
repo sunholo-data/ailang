@@ -363,7 +363,7 @@ deployment, update `.claude/rules/cloud-endpoints.md`)
 **Planned (checked for overlap — none found relevant):**
 - [design_docs/planned/m-list-accessor-api.md](m-list-accessor-api.md) — AILANG-language list
   accessors, unrelated (different "list" — language data structure vs. this HTTP API)
-- [design_docs/planned/m-list-repr-spike.md](m-list-repr-spike.md) — same, unrelated
+- [design_docs/implemented/v0_34_0/m-list-repr-spike.md](../implemented/v0_34_0/m-list-repr-spike.md) — same, unrelated
 - [design_docs/planned/v0_29_0/m-cascade-observability.md](v0_29_0/m-cascade-observability.md) —
   reviewed; covers cascade-level observability concepts, not the span-list read path
 

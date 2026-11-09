@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-EVAL-STANDARD-MODE-INPUT-FILES-GAP",
   "title": "Gate multi-file grading benchmarks out of standard mode",
-  "design_doc": "design_docs/planned/v0_33_1/m-eval-standard-mode-input-files-gap.md",
+  "design_doc": "design_docs/implemented/v0_35_3/m-eval-standard-mode-input-files-gap.md",
   "mission": "docs",
   "status": "planned",
   "target_version": "v0.33.1",

@@ -4,7 +4,7 @@
   "created": "2026-10-16T20:06:50Z",
   "verified_at": "bd30497a0f5bd8a89a54483643cdc55f5ff69991",
   "design_doc": null,
-  "sprint_plan": "design_docs/planned/sprint-plan-gate4-status-stamp-shape.md",
+  "sprint_plan": "design_docs/implemented/v0_54_15/sprint-plan-gate4-status-stamp-shape.md",
   "ticket": "skill:gate4-status-stamp-shape-unprescribed",
   "github_issues": [],
   "registry_reuse": [

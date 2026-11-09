@@ -294,7 +294,7 @@ to obtain a status report.
 
 - [Runtime contract](planned/m-mission-runtime-contract.md)
 - [Recovery sprint plan](planned/m-mission-recovery-sprint-plan.md)
-- [Codex quota observation](planned/m-codex-quota-observation.md)
+- [Codex quota observation](implemented/v0_35_2/m-codex-quota-observation.md)
 - [Ollama quota observation and correction](planned/m-ollama-quota-observation.md)
 - [Ollama provider evidence, especially V50](implemented/v0_34_0/m-ollama-cloud-provider.md)
 - [Deployment/verification directory](verification/mission-recovery-2026-09-07/)

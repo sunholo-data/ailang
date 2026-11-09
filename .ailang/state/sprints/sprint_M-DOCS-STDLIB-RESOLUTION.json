@@ -69,5 +69,5 @@
   },
   "risk_level": "medium",
   "execution_gate": "User must approve this plan and explicitly say execute sprint",
-  "superseded_by": "design_docs/planned/v0_44_0/m-stdlib-root-resolution.md"
+  "superseded_by": "design_docs/implemented/v0_45_0/m-stdlib-root-resolution.md"
 }

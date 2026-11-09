@@ -1,8 +1,8 @@
 {
   "sprint_id": "M-FLEET-STALL-DESCENDANT-PROGRESS",
   "status": "completed",
-  "design_doc": "design_docs/planned/sprint-plan-stall-descendant-progress.md",
-  "sprint_plan": "design_docs/planned/sprint-plan-stall-descendant-progress.md",
+  "design_doc": "design_docs/implemented/v0_49_0/sprint-plan-stall-descendant-progress.md",
+  "sprint_plan": "design_docs/implemented/v0_49_0/sprint-plan-stall-descendant-progress.md",
   "ticket": "stall-watchdog:kills-controller-on-long-drill",
   "ruling": "D-FLEET-7 RULED 2026-09-29: >=10 CPU-s descendant-only rusage growth per 120-s sample is progress; existing sample counts and 600-s budget unchanged",
   "github_issues": [],

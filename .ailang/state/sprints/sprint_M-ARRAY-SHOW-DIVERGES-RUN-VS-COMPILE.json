@@ -1,8 +1,8 @@
 {
   "sprint_id": "M-ARRAY-SHOW-DIVERGES-RUN-VS-COMPILE",
   "created": "2026-08-22",
-  "plan_path": "design_docs/planned/m-array-show-diverges-run-vs-compile-sprint-plan.md",
-  "design_doc": "design_docs/planned/m-array-show-diverges-run-vs-compile.md",
+  "plan_path": "design_docs/implemented/v0_33_2/m-array-show-diverges-run-vs-compile-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_33_2/m-array-show-diverges-run-vs-compile.md",
   "design_doc_rationale": "Quorum-cleared via the narrow-refinement carve-out (R1/R2 rounds recorded in the doc's Quorum verification log). Iteration 248 of the V1 mission; last surviving member of the show-divergence class that iteration 247 (PR #822) closed.",
   "github_issues": [],
   "base_commit": "404226a48",

@@ -12,7 +12,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/executor"
 )
 
-// M-EVAL-HIDDEN-TESTS. See design_docs/planned/v0_55_0/m-eval-hidden-tests.md.
+// M-EVAL-HIDDEN-TESTS. See design_docs/implemented/v0_55_0/m-eval-hidden-tests.md.
 
 func writeHiddenFixture(t *testing.T, files map[string]string, specExtra string) string {
 	t.Helper()

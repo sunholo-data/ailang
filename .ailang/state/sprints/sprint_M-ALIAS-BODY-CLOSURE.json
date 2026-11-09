@@ -2,8 +2,8 @@
   "sprint_id": "M-ALIAS-BODY-CLOSURE",
   "status": "completed",
   "created": "2026-10-08T19:11:12.533728+00:00",
-  "design_doc": "design_docs/planned/v0_52_4/m-alias-body-closure.md",
-  "sprint_plan": "design_docs/planned/v0_52_4/m-alias-body-closure-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_53_1/m-alias-body-closure.md",
+  "sprint_plan": "design_docs/implemented/v0_53_1/m-alias-body-closure-sprint-plan.md",
   "github_issues": [
     1614
   ],
@@ -132,7 +132,7 @@
   ],
   "last_session": "2026-10-08T20:41:52.624520+00:00",
   "last_checkpoint": "M1\u2013M4 complete; all local gates passed; independent evaluation PASS 95/100 (17/17 criteria)",
-  "implementation_report": "design_docs/planned/v0_52_4/m-alias-body-closure-implementation-report.md",
+  "implementation_report": "design_docs/implemented/v0_53_1/m-alias-body-closure-implementation-report.md",
   "validation": {
     "test_core": "passed with CGO enabled",
     "targeted_tests": "passed",

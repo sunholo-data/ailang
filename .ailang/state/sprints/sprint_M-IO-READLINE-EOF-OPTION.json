@@ -2,8 +2,8 @@
   "sprint_id": "M-IO-READLINE-EOF-OPTION",
   "status": "not_started",
   "created": "2026-10-03T07:50:16.293188+00:00",
-  "design_doc": "design_docs/planned/v0_52_0/m-io-readline-eof-option.md",
-  "sprint_plan": "design_docs/planned/v0_52_0/m-io-readline-eof-option-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_54_0/m-io-readline-eof-option.md",
+  "sprint_plan": "design_docs/implemented/v0_54_0/m-io-readline-eof-option-sprint-plan.md",
   "github_issues": [],
   "source_task": "task-98827762",
   "velocity": {

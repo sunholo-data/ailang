@@ -442,11 +442,11 @@ Estimates are already doubled from the audits' per-item figures. Phases 0–3 ar
 
 ## Related Documents
 
-- [M-MODEL-REGISTRY-SINGLE-SOURCE](v0_35_0/m-model-registry-single-source.md) — declared `modelreg` the single pricing source; `observatory/pricing.go` was never migrated (§2.2 finishes it). Still filed under `planned/` although shipped — itself an instance of Phase 4.5
+- [M-MODEL-REGISTRY-SINGLE-SOURCE](../implemented/v0_35_0/m-model-registry-single-source.md) — declared `modelreg` the single pricing source; `observatory/pricing.go` was never migrated (§2.2 finishes it). Still filed under `planned/` although shipped — itself an instance of Phase 4.5
 - [M-MESSAGE-PLANE-FAIL-LOUD](../implemented/v0_35_0/m-message-plane-fail-loud.md) — the same "remaining silent seams" pattern, now applied to config (§2.6)
 - [M-CHECK-STRICT-FALLBACKS](../implemented/v1_0_0/m-check-strict-fallbacks.md) — static detection of default-valued literals; the Go-side counterpart is the `forbidigo` rule (§2.14)
 - [design_docs/archive/README.md](../archive/README.md) — the 2026-07-29 triage criteria reused in Phase 4.5
-- [m-cachesrc-cognitive-complexity-sprint-plan](v0_35_2/m-cachesrc-cognitive-complexity-sprint-plan.md) — precedent for a pure-refactor sprint with measured gates
+- [m-cachesrc-cognitive-complexity-sprint-plan](../implemented/v0_35_2/m-cachesrc-cognitive-complexity-sprint-plan.md) — precedent for a pure-refactor sprint with measured gates
 - [m-eval-validity-discipline](m-eval-validity-discipline.md) — the validity filter that §2.3 makes the only loader honour
 - [PROGRAM.md](../PROGRAM.md) — routing lanes; this program is an AILANG-repo lane and never touches the motoko core
 - Memory: "Handoff never fires: ROOT CAUSE 2026-09-07", "motoko fixed-port-8080 zombie", "Verify the SEAM, not the artifact", "Harness debt is cleared ATTENDED" — all four are instances this program closes structurally

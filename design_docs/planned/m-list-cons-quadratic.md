@@ -782,7 +782,7 @@ Without it, A is "fixed for the shape we measured" and the next consumer redisco
 expensive way.
 
 **One fact that lowers the urgency, and it is measured** (see
-[m-trace-tier-not-enforced](v0_36_0/m-trace-tier-not-enforced.md), V1–V6): the *second* report's
+[m-trace-tier-not-enforced](../implemented/v0_36_0/m-trace-tier-not-enforced.md), V1–V6): the *second* report's
 OOM is ~95% tracing, not list representation — at n=400, peak RSS is 2059 MB with the default
 trace tier and 106 MB with it off. That report is therefore **not** a third independent
 motivation for this doc, and its "`concat` deep-copies the records" inference is refuted.

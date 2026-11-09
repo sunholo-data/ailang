@@ -2,8 +2,8 @@
   "sprint_id": "M-PROMPT-FREEZE-MIRROR-ALL-VERSIONS",
   "status": "planned",
   "created": "2026-08-28",
-  "design_doc": "design_docs/planned/m-prompt-freeze-mirror-all-versions.md",
-  "sprint_plan": "design_docs/planned/m-prompt-freeze-mirror-all-versions-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_35_0/m-prompt-freeze-mirror-all-versions.md",
+  "sprint_plan": "design_docs/implemented/v0_35_0/m-prompt-freeze-mirror-all-versions-sprint-plan.md",
   "risk_level": "low",
   "milestone_count": 1,
   "metadata": {
