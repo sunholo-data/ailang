@@ -25,7 +25,7 @@
     "@mdx-js/react": "^3.0.0",
     "@mermaid-js/layout-elk": "^0.1.9",
     "clsx": "^2.0.0",
-    "lucide-react": "^1.65.0",
+    "lucide-react": "^1.70.0",
     "prism-react-renderer": "^2.3.0",
     "react": "^19.3.1",
     "react-dom": "^19.3.1",
