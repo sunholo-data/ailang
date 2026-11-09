@@ -46,7 +46,7 @@
       "effects": [
         "Trace"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -80,7 +80,7 @@
       "effects": [
         "Trace"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -114,7 +114,7 @@
       "effects": [
         "Trace"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v2"

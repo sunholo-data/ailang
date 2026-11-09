@@ -1,8 +1,8 @@
 # Sprint Plan: M-PURE-ROW-AND-IFACE-PURITY
 
-> **HOLD: approve only after the M-EFFECT-ROW-VAR-UNIFICATION implementation (#616) has merged; then remeasure the flatMap/mapE and ~26 combinator pins and the purity census on the new base.** This sprint runs after M-EFFECT-ROW-VAR-UNIFICATION, never in parallel with it.
+> **HOLD satisfied for this run:** #616 merged via PR #1745 and latent-function-values via PR #1708. Remeasured on current dev `7c43ece3`: 50 std modules, 484 exported functions, 168 labelled outer rows, 17 open outer rows, 271 keyword-pure exports, and 27 combinators (the historical 26 plus `list.mapAccumL`). See [M1–M2 evidence](m-pure-row-and-iface-purity-m1-m2-validation.md).
 
-**Status:** Planned; awaiting sprint approval through the coordinator.
+**Status:** M1–M3 complete (local commits only); M4 unstarted for a later run. M3 evidence: [validation record](m-pure-row-and-iface-purity-m3-validation.md).
 **Target:** next minor (v0.53.0 is already released; ship in whichever minor is open when the implementation merges).
 **Design:** [Approved design](m-pure-row-and-iface-purity.md)
 **Source handoff:** task-5895e449; planning task task-20636394.
@@ -23,7 +23,7 @@ The seven-day velocity script was run on 2026-10-09. This shallow checkout expos
 
 ## Execution Gate and Dependencies
 
-Dependency: #1708 (latent effects, M-EFFECT-LATENT-FUNCTION-VALUES; [design](../v0_48_0/m-effect-latent-function-values.md), Refs #1326 and Refs #573) merged at `3d4f49720`; record the merge-base and remeasure the schemes. Ordering: per the HOLD above, M-EFFECT-ROW-VAR-UNIFICATION (#616) must also have merged; it changes how call rows are shared and therefore the flatMap/mapE and ~26 combinator pins and the purity census, which are remeasured on the new base before M2's expectations are fixed.
+Dependency: #1708 (latent effects, M-EFFECT-LATENT-FUNCTION-VALUES; [design](../../planned/v0_48_0/m-effect-latent-function-values.md), Refs #1326 and Refs #573) merged at `3d4f49720`; record the merge-base and remeasure the schemes. Ordering: per the HOLD above, M-EFFECT-ROW-VAR-UNIFICATION (#616) must also have merged; it changes how call rows are shared and therefore the flatMap/mapE and ~26 combinator pins and the purity census, which are remeasured on the new base before M2's expectations are fixed.
 
 If the latent-tail exception or keyword/iface invariant conflicts with that landed implementation, return the discrepancy for design revision; do not broaden this sprint into row unification or change the approved purity contract. #616 and the inferred generalisation mechanism of #1091 remain out of scope. Rule 1 rejects declared open rows, while Rule 2 retains the approved exception for undeclared callback-shared outer tails.
 
@@ -45,9 +45,9 @@ Every milestone records `none`: reuse the existing compiler, iface, SMT, apiserv
 
 **Acceptance criteria:**
 
-- [ ] pure with a labelled or open declared row fails check; diagnostic names the function, contradiction, and both repairs.
-- [ ] Explicit empty and absent rows on pure declarations remain accepted; non-pure declarations are unchanged.
-- [ ] Pipeline tests cover IO, Debug, Declassify, #1707's scoped `Declassify[label=x]`, var-only and mixed open rows, empty rows, and absent rows; Rule 1 rejects `pure … ! {Declassify[label=x]}`.
+- [x] pure with a labelled or open declared row fails check; diagnostic names the function, contradiction, and both repairs.
+- [x] Explicit empty and absent rows on pure declarations remain accepted; non-pure declarations are unchanged.
+- [x] Pipeline tests cover IO, Debug, Declassify, #1707's scoped `Declassify[label=x]`, var-only and mixed open rows, empty rows, and absent rows; Rule 1 rejects `pure … ! {Declassify[label=x]}`.
 
 **Risk and mitigation:** Checking only AST effect labels misses var-only rows. Inspect the elaborated declared row, including its tail; preserve normal body-effect checking.
 
@@ -55,20 +55,20 @@ Every milestone records `none`: reuse the existing compiler, iface, SMT, apiserv
 
 **Estimate:** 110 implementation + 190 tests. **Dependencies:** M1
 
-**Files and examples:** new `internal/iface/purity.go` (the purity derivation) and its tests, a minimal call-site edit in `internal/iface/builder.go`, builder tests, `internal/apiserver/routes.go`, MCP integration tests, `internal/pipeline/cache_key.go` and cache tests. Regression examples: `std/ai/streaming.ail`, `std/list.ail` (`map`, `mapE`) and `std/option.ail` (`flatMap`); use generated temporary modules for open-tail controls.
+**Files and examples:** new `internal/iface/purity.go` (the purity derivation) and its tests, a minimal call-site edit in `internal/iface/builder.go`, builder tests, `internal/apiserver/routes.go`, MCP integration tests, frozen `.stdlib-golden` JSON/hash snapshots, `internal/pipeline/cache_key.go` and cache tests. Regression examples: `std/ai/streaming.ail`, `std/list.ail` (`map`, `mapE`) and `std/option.ail` (`flatMap`); use generated temporary modules for open-tail controls.
 
 **Acceptance criteria:**
 
-- [ ] Closed empty outer rows report true; labelled and declared-open outer rows report false without reading IsPure.
-- [ ] An undeclared outer tail shared with a callback row is latent and reports true; an unrelated tail or any outer label reports false.
-- [ ] All six std/ai/streaming exports and std/list.mapE report false; std/option.flatMap reports true; std keyword-pure invariant and approximately 26 combinator pins pass after the prerequisite lands.
-- [ ] serve-api uses iface purity without AST overwrite; MCP tags and read-only hints match iface, including open-row cases.
-- [ ] Cache version advances once from the current base version; cache round-trip rejects stale always-true metadata and preserves derived values.
-- [ ] Non-function export type-walk policy is documented and tested, including values containing function types.
+- [x] Closed empty outer rows report true; labelled and declared-open outer rows report false without reading IsPure.
+- [x] An undeclared outer tail shared with a callback row is latent and reports true; an unrelated tail or any outer label reports false.
+- [x] All six std/ai/streaming exports and std/list.mapE report false; std/option.flatMap reports true; std keyword-pure invariant and all 27 measured combinator pins pass (list 12, option 3, result 3, string 3, xml 6).
+- [x] serve-api uses iface purity without AST overwrite; MCP tags and read-only hints match iface, including open-row cases.
+- [x] Cache version advances once from the current base version; cache round-trip rejects stale always-true metadata and preserves derived values.
+- [x] Non-function export type-walk policy is documented and tested, including values containing function types.
 
 **File size:** `internal/iface/builder.go` is 785 lines (CI limit 800) and M2 adds ~110 implementation LOC, so the derivation lives in the companion `internal/iface/purity.go`; `builder.go` only replaces the `determinePurity` stub's call. Watch list for M3: `internal/smt/encodable.go` (729) and `internal/smt/callee_resolver.go` (577); put `smtAdmissible`/`rowAdmissible` in a companion file if either would cross the limit.
 
-**Risk and mitigation:** Callback tails can be mistaken for declared polymorphism. Track declaration context and callback-row sharing, fail closed on unrelated tails, and pin post-prerequisite schemes. Bump the current cache version once (v5 to v6 on this base), avoiding a stale hard-coded version if another change lands first.
+**Risk and mitigation:** Callback tails can be mistaken for declared polymorphism. Track declaration context and callback-row sharing, fail closed on unrelated tails, and pin post-prerequisite schemes. Bump the current cache version once (v6 to v7 on the execution base), avoiding a stale hard-coded version if another change lands first.
 
 ### M3: Preserve SMT verification and migrate source corpus (~330 LOC)
 
@@ -78,12 +78,12 @@ Every milestone records `none`: reuse the existing compiler, iface, SMT, apiserv
 
 **Acceptance criteria:**
 
-- [ ] SMT entry and callee admission use keyword OR an explicit closed row containing only Declassify or no labels; missing-row non-pure functions are refused.
-- [ ] Rule 3 (`rowAdmissible`) accepts #1707's scoped `Declassify[label=x]` atom alongside bare `Declassify` and `! {}`; tests pin `func … ! {Declassify[label=x]}` admitted.
-- [ ] IO, Debug, mixed Declassify/IO (including `Declassify[label=x]` + IO) and all open rows are refused; Declassify functions never gain IsPure metadata.
-- [ ] Migrated safe prompt-injection reference verifies 3 contracts with 0 violations; injected reference reports 1 violation on injectedForward.
-- [ ] Seven known contradictory declarations in four example/benchmark files are migrated and formatted; pipeline-backed and IFC Go fixtures use valid declarations.
-- [ ] Existing no-row pure functions remain SMT-admitted and cross-module Declassify callees remain inlinable.
+- [x] SMT entry and callee admission use keyword OR an explicit closed row containing only Declassify or no labels; missing-row non-pure functions are refused.
+- [x] Rule 3 (`rowAdmissible`) accepts #1707's scoped `Declassify[label=x]` atom alongside bare `Declassify` and `! {}`; tests pin `func … ! {Declassify[label=x]}` admitted.
+- [x] IO, Debug, mixed Declassify/IO (including `Declassify[label=x]` + IO) and all open rows are refused; Declassify functions never gain IsPure metadata.
+- [x] Migrated safe prompt-injection reference verifies 3 contracts with 0 violations; injected reference reports 1 violation on injectedForward.
+- [x] Seven known contradictory declarations in four example/benchmark files are migrated and formatted; pipeline-backed and IFC Go fixtures use valid declarations.
+- [x] Existing no-row pure functions remain SMT-admitted and cross-module Declassify callees remain inlinable.
 
 **Risk and mitigation:** Rule 1 temporarily breaks the IFC corpus until this milestone lands. Keep all milestones in one implementation PR. Use a distinct SMT-admissibility predicate for both top-level and callee paths; never mark Declassify functions pure.
 
@@ -127,7 +127,7 @@ Remeasure all std exported functions before/after on the actual base (the record
 
 Maintainer-run (needs API keys; not an executor gate): `ailang eval-suite --benchmarks prompt_injection` using the configured current model set and amended active prompt/spec. Save compiler commit, prompt hash, model/configuration and result location in the implementation PR; inspect compile failures for the old rejected spelling. Do not claim an eval pass if models still generate rejected code.
 
-The planning PR and milestone commits use `Refs #1443` and `Refs #574`; the implementation PR closes the issue. #574 remains a closed regression reference. Do not open a duplicate issue or close dependency issues from this sprint. The changelog must explain the signature migration and changed iface JSON purity signal, including the known external `sunholo/mcp_oauth` spelling risk without editing that external package here.
+The planning PR and milestone commits use `Refs #1443` and `Refs #574`; the implementation PR uses Refs #1443. #574 remains a closed regression reference. Do not open a duplicate issue or close dependency issues from this sprint. The changelog must explain the signature migration and changed iface JSON purity signal, including the known external `sunholo/mcp_oauth` spelling risk without editing that external package here.
 
 ## Approval and Handoff
 

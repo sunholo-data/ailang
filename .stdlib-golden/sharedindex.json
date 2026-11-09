@@ -46,7 +46,7 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -80,7 +80,7 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -162,7 +162,7 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -244,7 +244,7 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -278,7 +278,7 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -360,7 +360,7 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -454,7 +454,7 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v2"

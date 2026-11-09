@@ -58,7 +58,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -92,7 +92,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -126,7 +126,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -172,7 +172,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -206,7 +206,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -240,7 +240,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -286,7 +286,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -332,7 +332,7 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v2"

@@ -39,6 +39,10 @@ import (
 // v8 -> v9 (M-TRACE-LABEL-AWARE): core.App gained a gob-encoded TraceRedact
 // label. A v8 blob decodes with none, so a cached module would trace its
 // labelled values verbatim again; v8 entries must miss.
+// Also v9 (M-PURE-ROW-AND-IFACE-PURITY, #1443, same unreleased window): export
+// purity is derived from checked effect rows. v8 interfaces carrying always-true
+// stub metadata must miss; same-version builds across the two changes are already
+// separated by compilerIdentity (the build commit is in the key).
 // v9 -> v10 (M-IFC-CROSS-MODULE M3, #1134): callers are checked against their
 // imports' IFC contracts, and export summaries see the module's own imports
 // (transitive intrinsic taint). A cache hit skips the IFC gate, so a v9 caller

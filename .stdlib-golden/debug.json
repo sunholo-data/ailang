@@ -46,7 +46,7 @@
       "effects": [
         "Debug"
       ],
-      "pure": true
+      "pure": false
     },
     {
       "ifc": {
@@ -80,7 +80,7 @@
       "effects": [
         "Debug"
       ],
-      "pure": true
+      "pure": false
     }
   ],
   "schema": "ailang.iface/v2"

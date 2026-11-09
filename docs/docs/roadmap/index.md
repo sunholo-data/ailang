@@ -152,8 +152,6 @@ v1.0.0 is gated on a promise, not on the features below: the [Stability Promise]
 - [M-MCP-FILE-HANDOFF — a user's uploaded file reaches a remote MCP tool](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-mcp-file-handoff.md)
 - [Sprint Plan: M-MCP-FILES-FRICTION (Refs #1618)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-mcp-files-friction-sprint-plan.md)
 - [M-MCP-FILES-FRICTION — routing and decisions for the sunholo/mcp_files 0.1.0 friction grab-bag (Refs #1618)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-mcp-files-friction.md)
-- [Sprint Plan: M-PURE-ROW-AND-IFACE-PURITY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-pure-row-and-iface-purity-sprint-plan.md)
-- [M-PURE-ROW-AND-IFACE-PURITY — `pure` must mean `! {}`: reject the keyword beside a declared effect row, and derive iface purity from the checked row](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-pure-row-and-iface-purity.md)
 
 ## Planned for v0.52.6
 
