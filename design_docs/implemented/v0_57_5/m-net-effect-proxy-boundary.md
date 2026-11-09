@@ -1,7 +1,8 @@
 # m-net-effect-proxy-boundary — bring AILANG's Net effect inside the egress boundary (D5 Option B)
 
-**Status**: Planned
-**Target**: v0.33.1
+**Status**: Implemented — M1 `e5ee6c5e5` (v0.33.2); M2–M4 landed 2026-11-09 (resumed attended,
+decision D-TRIAGE-29 = A, Mark) — see [Implementation Report](#implementation-report-2026-11-09)
+**Target**: v0.33.1 (M1); M2–M4 ship in v0.57.5
 **Priority**: P0 (High) — the default-deny test lane has a measured first-party HTTP(S) escape
 **Estimated**: 3 days (2–4 day range; 4 milestones)
 **Dependencies**: M-CI-FLAKE-SYSTEMIC-FIX (implemented — M1–M5 all landed, `c440a1628`…`c9e1a4f98`,
@@ -12,6 +13,48 @@ for sprint planning, no third round required
 **Planner-Lane**: opus-required — production networking and an SSRF control change together
 
 ---
+
+## Implementation Report (2026-11-09)
+
+The doc was written in August against `945f36727`; M2–M4 resumed ~3 months later. Every reference
+was re-derived against `origin/dev` `eb5af29be` before any change. What had moved:
+
+| Design point | Status at resume | What was done |
+|---|---|---|
+| V2's seven nil-`Proxy` literals in four files | **Stale.** M-EXECUTOR-POLICY-HARDENING M2 (`370d76265`) had already routed SSE GET/POST and NDJSON POST through the shared `netProxyRoundTripper` (`stream_transport.go:streamHTTPClient`), so `stream_sse.go`/`stream_ndjson.go` hold no `http.Transport` literal. The escape survived in a new form: `streamPolicy` hard-coded `proxySelector: func(...) { return nil, nil }`. | M2 for Stream became "use `StreamContext.proxySelector` (nil = `http.ProxyFromEnvironment`)" rather than "add a `Proxy` field". |
+| D-4/M2 premise that Stream "does not pin a resolved target IP" (V6) | **Stale.** Stream now pins exactly like Net. | Stream inherits Net's D-1 split unchanged: direct pinned, proxied literal IP validated with zero DNS, proxied hostname resolved by the proxy. This extends D-1 to Stream; no new trade beyond what D-1 already ratified for Net. |
+| Restricted policy mode (did not exist in August) | `Net.RefuseProxy` refuses a proxy in restricted mode; Stream had no equivalent because it never proxied. | Added `StreamContext.RefuseProxy`, set by `runner.ApplyPolicy` in restricted mode, so restricted Stream traffic is never sent unpinned. One-line change in `internal/runner/handlers.go` (outside the doc's file list; required to keep M-EXECUTOR-POLICY-HARDENING's "proxy fails closed" guarantee). |
+| Managed Agents `client.go:141` | Unchanged — still nil `Proxy`. | `Proxy: http.ProxyFromEnvironment`; timeouts unchanged and asserted. |
+| "Seven sites" completeness | **Incomplete at HEAD.** The M4 audit found an eighth literal: `internal/ai/ollama/idlereader.go` `streamBaseTransport`'s never-taken fallback (`DefaultTransport` is always an `*http.Transport`, so it is dead in practice). | One field added (outside the doc's file list; the systemic definition of done is "zero nil-`Proxy` production transports"). |
+| `changelogs/v0.18-current.md` | Superseded by changelog fragments. | `changelogs/unreleased/2026-11-09-net-effect-proxy-boundary.md`. |
+| M4 source gate | D-6 = Option A stands. | `internal/testutil/gatelint/proxyaudit.go`: per-file `go/parser` scan (sees multi-line literals and aliased imports, no type info), checked-in positive fixture, reasoned exemption table that fails on stale entries. The one exemption is the Net direct route itself. Links #612 for the remaining shapes. |
+
+**Escape, before and after.** New tests run the production constructors in a subprocess whose
+`HTTP(S)_PROXY` points at a fake proxy (Go caches the proxy env per process), with a resolver that
+refuses every name so a direct dial cannot reach the network. On `eb5af29be` all three Stream ops
+failed `E_STREAM_DNS_FAILED` (direct route taken; the fake proxy observed nothing), the poisoned-lane
+arm (`HTTP(S)_PROXY=http://127.0.0.1:9`) also took the direct route, and the Managed Agents client
+had `Transport.Proxy == nil` — 13 `--- FAIL` lines. After the fix the fake proxy observes
+`GET http://stream.test/sse`, `POST http://stream.test/sse-post`, `POST http://stream.test/ndjson`
+and `POST http://vertex.invalid/...`, and the poisoned arm fails `proxyconnect … 127.0.0.1:9 …
+refused`.
+
+**M3 streaming result (D-4).** Through a local proxy in absolute-form and CONNECT-tunnel mode the
+origin's event one is observed by the client before the origin releases event two (causal
+synchronisation, not timing), keepalive events carry the stream past one idle interval, the idle
+timeout ends it, and the origin observes the disconnect after `StreamClose`. A proxy that buffers to
+EOF fails the same check (`buffering_proxy_control`), so the instrument can see buffering.
+
+**Mutation evidence.** Sixteen mutations, each applied to a scratch-backed copy and restored:
+Stream selector forced nil, Stream `RefuseProxy` forced false, `Child()` dropping the selector,
+Managed Agents `Proxy` removed (behaviour test and audit), a global client timeout, `ApplyPolicy`
+Stream line removed, ollama fallback `Proxy` removed, audit blinded, audit alias handling removed,
+stale exemption, exemption removed, the round tripper forced direct, and the proxy dialer
+substituting a target IP. All sixteen turned the named tests red.
+
+**Not done here.** WebSocket `connect` still never uses a proxy (Non-Goal). The design's optional
+eval-harness smoke (D-3 table) was not run; the harness has no Stream-specific mock and inherits the
+process environment like any other caller.
 
 ## Problem Statement
 
@@ -242,19 +285,19 @@ Handling policy:
 
 #### M1 — Proxy-aware Net transport and SSRF regression tests (~1 day)
 
-- [ ] Add the package-private request-aware direct/proxy round trip mechanism.
-- [ ] Route all three `Net` constructors through it without changing public result/error categories.
-- [ ] Add deterministic tests for direct pinning, proxy dialing, `NO_PROXY`, redirects, and
+- [x] Add the package-private request-aware direct/proxy round trip mechanism.
+- [x] Route all three `Net` constructors through it without changing public result/error categories.
+- [x] Add deterministic tests for direct pinning, proxy dialing, `NO_PROXY`, redirects, and
       capability/domain/protocol enforcement in both route modes.
-- [ ] Remove preflight/redirect DNS resolution; preserve legacy and structured public error
+- [x] Remove preflight/redirect DNS resolution; preserve legacy and structured public error
       categories through typed internal validation-error unwrapping.
 
 **Acceptance criteria:**
 
-- [ ] `go test -count=1 ./internal/effects -run 'TestNetProxyBoundary|TestNetProxyDirectPin|TestNetProxyNoProxy|TestNetProxyRedirectControls' -v` passes outside the sandbox. Tests must use a target whose DNS answer/dial endpoint differs from the fake proxy and assert the observed dial/CONNECT destination. **Silent-revert check:** reverting production routing makes the fake proxy observe no request or makes the old pinning closure dial the target, so this gate fails.
-- [ ] A direct/`NO_PROXY` subtest asserts the accepted connection reaches the injected validated IP rather than the request hostname's alternate endpoint. **Silent-revert check:** replacing both paths with ordinary proxy/default dialing fails the endpoint assertion.
-- [ ] Capability denial, initial domain rejection, redirect protocol rejection, and redirect-count rejection run with a proxy selected; an injected resolver counter stays zero for proxy-selected initial and redirect requests. **Silent-revert check:** restoring preflight/redirect resolution increments the counter, while deleting proxy support makes the proxy-positive arm fail.
-- [ ] Direct-route DNS/IP rejection tests assert exactly one resolver call, zero dial calls, and the
+- [x] `go test -count=1 ./internal/effects -run 'TestNetProxyBoundary|TestNetProxyDirectPin|TestNetProxyNoProxy|TestNetProxyRedirectControls' -v` passes outside the sandbox. Tests must use a target whose DNS answer/dial endpoint differs from the fake proxy and assert the observed dial/CONNECT destination. **Silent-revert check:** reverting production routing makes the fake proxy observe no request or makes the old pinning closure dial the target, so this gate fails.
+- [x] A direct/`NO_PROXY` subtest asserts the accepted connection reaches the injected validated IP rather than the request hostname's alternate endpoint. **Silent-revert check:** replacing both paths with ordinary proxy/default dialing fails the endpoint assertion.
+- [x] Capability denial, initial domain rejection, redirect protocol rejection, and redirect-count rejection run with a proxy selected; an injected resolver counter stays zero for proxy-selected initial and redirect requests. **Silent-revert check:** restoring preflight/redirect resolution increments the counter, while deleting proxy support makes the proxy-positive arm fail.
+- [x] Direct-route DNS/IP rejection tests assert exactly one resolver call, zero dial calls, and the
       existing legacy `E_NET_DNS_FAILED`/`E_NET_IP_BLOCKED` or structured `Err(Transport, ...)`
       category as applicable. **Silent-revert check:** double resolution fails the call count;
       ordinary dialing fails the zero-dial/security assertion; losing error unwrapping fails the
@@ -262,55 +305,55 @@ Handling policy:
 
 #### M2 — Stream and Managed Agents constructors (~0.5 day)
 
-- [ ] Add `ProxyFromEnvironment` to the HTTP SSE, SSE POST, NDJSON POST, and Managed Agents
+- [x] Add `ProxyFromEnvironment` to the HTTP SSE, SSE POST, NDJSON POST, and Managed Agents
       production transports without changing their timeout fields.
-- [ ] Add constructor-level fake-proxy tests for all four paths.
+- [x] Add constructor-level fake-proxy tests for all four paths.
 
 **Acceptance criteria:**
 
-- [ ] `go test -count=1 ./internal/effects -run 'TestStream(SSE|NDJSON).*ProxyBoundary' -v` passes outside the sandbox and the fake proxy observes GET, SSE POST, and NDJSON POST. **Silent-revert check:** a reverted constructor bypasses the fake proxy and fails its observation assertion.
-- [ ] `go test -count=1 ./internal/executor/managed_agents -run TestDefaultHTTPClientProxyBoundary -v` passes and proves `defaultHTTPClient()` selects the fake proxy while retaining zero global request timeout and its existing header/idle timeouts. **Silent-revert check:** reverting the `Proxy` field makes selection/observation fail; a generic package pass is insufficient.
+- [x] `go test -count=1 ./internal/effects -run 'TestStream(SSE|NDJSON).*ProxyBoundary' -v` passes outside the sandbox and the fake proxy observes GET, SSE POST, and NDJSON POST. **Silent-revert check:** a reverted constructor bypasses the fake proxy and fails its observation assertion.
+- [x] `go test -count=1 ./internal/executor/managed_agents -run TestDefaultHTTPClientProxyBoundary -v` passes and proves `defaultHTTPClient()` selects the fake proxy while retaining zero global request timeout and its existing header/idle timeouts. **Silent-revert check:** reverting the `Proxy` field makes selection/observation fail; a generic package pass is insufficient.
 
 #### M3 — Streaming behavior and poisoned-lane integration (~0.75 day)
 
-- [ ] Implement the buffering/CONNECT/keep-alive experiment described in D-4.
-- [ ] Run all local-server transport suites under the poisoned environment outside the sandbox.
-- [ ] Confirm both live public Net subtests remain skipped when `AILANG_LIVE_NET` is unset.
+- [x] Implement the buffering/CONNECT/keep-alive experiment described in D-4.
+- [x] Run all local-server transport suites under the poisoned environment outside the sandbox.
+- [x] Confirm both live public Net subtests remain skipped when `AILANG_LIVE_NET` is unset.
 
 **Acceptance criteria:**
 
-- [ ] The streaming fake-proxy test observes event 1 before permitting event 2, then cleanly closes after cancellation/idle timeout. **Silent-revert check:** direct routing produces zero proxy observations; a buffering proxy produces no early event; broken cleanup exceeds the test deadline.
-- [ ] `HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 go test -count=1 ./internal/effects ./internal/executor/managed_agents` passes outside the sandbox. It must run the named proxy-boundary tests and local `httptest` tests, not merely report package success. **Silent-revert check:** the package command alone could pass after a revert, so acceptance additionally requires the named tests' `=== RUN`/`--- PASS` lines and the source audit in M4.
-- [ ] `go test -count=1 -v ./internal/effects -run 'TestNetHttpPost/httpPost_to_httpbin.org|TestNetBodySizeLimit/small_response_under_limit'` with `AILANG_LIVE_NET` unset reports both named subtests as `SKIP`. **Silent-revert check:** this checks gating, not proxy support, and is therefore supporting evidence only; it cannot satisfy M1/M2 by itself.
+- [x] The streaming fake-proxy test observes event 1 before permitting event 2, then cleanly closes after cancellation/idle timeout. **Silent-revert check:** direct routing produces zero proxy observations; a buffering proxy produces no early event; broken cleanup exceeds the test deadline.
+- [x] `HTTP_PROXY=http://127.0.0.1:9 HTTPS_PROXY=http://127.0.0.1:9 go test -count=1 ./internal/effects ./internal/executor/managed_agents` passes outside the sandbox. It must run the named proxy-boundary tests and local `httptest` tests, not merely report package success. **Silent-revert check:** the package command alone could pass after a revert, so acceptance additionally requires the named tests' `=== RUN`/`--- PASS` lines and the source audit in M4.
+- [x] `go test -count=1 -v ./internal/effects -run 'TestNetHttpPost/httpPost_to_httpbin.org|TestNetBodySizeLimit/small_response_under_limit'` with `AILANG_LIVE_NET` unset reports both named subtests as `SKIP`. **Silent-revert check:** this checks gating, not proxy support, and is therefore supporting evidence only; it cannot satisfy M1/M2 by itself.
 
 #### M4 — Retire the Option-A residual and document compatibility (~0.75 day)
 
-- [ ] Delete `effects_nil_proxy_remains_open` and its helper-only residual logic from
+- [x] Delete `effects_nil_proxy_remains_open` and its helper-only residual logic from
       `internal/testutil/egress_posture_test.go`; retain poison-sentinel, loopback, and raw-TCP
       posture coverage.
-- [ ] Remove the matching Option-A residual/Non-Goals text from
+- [x] Remove the matching Option-A residual/Non-Goals text from
       `design_docs/implemented/v0_33_1/m-ci-flake-systemic-fix.md` and replace it with a short
       historical note linking this implemented item after landing.
-- [ ] Replace the development-workflow guide's seven-transport residual paragraph with the new
+- [x] Replace the development-workflow guide's seven-transport residual paragraph with the new
       proxy behavior, `NO_PROXY` direct-pin behavior, and proxy-mode pinning limitation.
-- [ ] Add the v0.33.1 changelog entry and update the effects reference.
+- [x] Add the v0.33.1 changelog entry and update the effects reference.
 - [x] **File the `go/packages` AST/type analyzer as a separate follow-up item** — **DONE: filed as
       [#612](https://github.com/sunholo-data/ailang/issues/612) (iteration 155)**, carrying the five
       shapes a textual gate cannot see, V21's measurement that all five are zero today, and both
       instrument caveats. **This filing is part of D-6 Option A's definition of done** — option A is
       "cheap gate now *and* the durable gate filed", not "cheap gate instead of". Filed at resume
       time rather than during M4 so it cannot be lost if the sprint slips.
-- [ ] Link `#612` from the M4 gate's source comment, so the next reader of the textual scanner finds
+- [x] Link `#612` from the M4 gate's source comment, so the next reader of the textual scanner finds
       the durable replacement rather than re-deriving the objection.
 
 **Acceptance criteria:**
 
-- [ ] A repository audit test/command reports zero production `http.Transport` literals with a nil
+- [x] A repository audit test/command reports zero production `http.Transport` literals with a nil
       `Proxy` in the audited first-party scope and proves the detector on a checked-in positive
       fixture. **Silent-revert check:** reverting any of the seven sites adds a finding; deleting or
       blinding the scanner makes the positive fixture fail.
-- [ ] `grep -rn 'effects_nil_proxy_remains_open' internal/testutil docs design_docs/implemented/v0_33_1/m-ci-flake-systemic-fix.md` returns zero, while `grep -rn 'loopback_bypasses_lane_poison' internal/testutil` returns a known-positive control. **Silent-revert check:** restoring the tripwire creates a hit; the control prevents an empty/mistyped search from passing silently.
-- [ ] `go vet ./internal/effects ./internal/executor/managed_agents ./internal/testutil` and
+- [x] `grep -rn 'effects_nil_proxy_remains_open' internal/testutil docs design_docs/implemented/v0_33_1/m-ci-flake-systemic-fix.md` returns zero, while `grep -rn 'loopback_bypasses_lane_poison' internal/testutil` returns a known-positive control. **Silent-revert check:** restoring the tripwire creates a hit; the control prevents an empty/mistyped search from passing silently.
+- [x] `go vet ./internal/effects ./internal/executor/managed_agents ./internal/testutil` and
       `make check-boundaries` pass. **Silent-revert check:** these quality gates would still pass
       after a behavioral revert, so they are explicitly non-sufficient and must be combined with
       the M1–M4 behavioral/source-audit gates.
@@ -366,14 +409,14 @@ validates, and dials the validated IP.
 
 ## Success Criteria
 
-- [ ] M1–M4 acceptance criteria all pass outside the sandbox.
-- [ ] All seven measured production HTTP transport sites are inside the proxy boundary.
-- [ ] Direct and `NO_PROXY` Net routing retains target-IP pinning.
-- [ ] Proxy-selected Net routing never feeds the proxy address into the target-IP substitution dialer.
-- [ ] Capability grants, protocol/domain policy, redirect validation, budgets, timeouts, and size limits have regression coverage in the affected modes.
-- [ ] Streaming proxy buffering/CONNECT/keep-alive behavior has an explicit experiment and recorded result.
-- [ ] Option-A tripwire and residual documentation are retired and replaced by positive production-constructor assertions.
-- [ ] Changelog and runtime effects documentation describe the compatibility/security change.
+- [x] M1–M4 acceptance criteria all pass outside the sandbox.
+- [x] All seven measured production HTTP transport sites are inside the proxy boundary.
+- [x] Direct and `NO_PROXY` Net routing retains target-IP pinning.
+- [x] Proxy-selected Net routing never feeds the proxy address into the target-IP substitution dialer.
+- [x] Capability grants, protocol/domain policy, redirect validation, budgets, timeouts, and size limits have regression coverage in the affected modes.
+- [x] Streaming proxy buffering/CONNECT/keep-alive behavior has an explicit experiment and recorded result.
+- [x] Option-A tripwire and residual documentation are retired and replaced by positive production-constructor assertions.
+- [x] Changelog and runtime effects documentation describe the compatibility/security change.
 
 ## Testing Strategy
 
@@ -586,7 +629,7 @@ uninformative are not code defects and are not accepted as implementation result
 
 ## Related Documents
 
-- [M-CI-FLAKE-SYSTEMIC-FIX](../../implemented/v0_33_1/m-ci-flake-systemic-fix.md) — implemented
+- [M-CI-FLAKE-SYSTEMIC-FIX](../v0_33_1/m-ci-flake-systemic-fix.md) — implemented
   Option A, created the poisoned lane and self-retiring residual tripwire; this document is its
   deliberately separate production-runtime Option B.
 - [Development workflow](../../../docs/docs/guides/development-workflow.md) — current operational

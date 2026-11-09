@@ -516,7 +516,7 @@ No AILANG language support/unsupported claim is made, and this design does not t
 - [M-SECRET-REMOTE-APPROVAL-WIRING](../v0_26_0/m-secret-remote-approval-wiring.md) — notification/approval operations for 2FA or refresh gates.
 - [M-PERMISSION-MODEL](../../deferred/m-permission-model.md) — future typed authority-tier alignment for credential/profile operations.
 - [M-AGENT-SAFE-RUNNER](../../planned/v1_1_0/m-agent-safe-runner.md) — operator-pinned policy and hostile-caller boundary precedent.
-- [M-NET-EFFECT-PROXY-BOUNDARY](../../planned/v0_33_1/m-net-effect-proxy-boundary.md) — adjacent HTTP policy that explicitly does not yet contain browser/WebSocket traffic.
+- [M-NET-EFFECT-PROXY-BOUNDARY](../v0_57_5/m-net-effect-proxy-boundary.md) — adjacent HTTP policy that explicitly does not yet contain browser/WebSocket traffic.
 - [M-EVAL-EXPERIMENT-REGISTRY](../../planned/v0_31_0/m-eval-experiment-registry.md) — future home for named profile/provider/tool-version comparison experiments.
 
 ## Suggested Follow-Up Design Queue

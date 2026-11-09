@@ -269,8 +269,6 @@ For completed features, see [Design Documents](/docs/design-docs).
 - [M-EVAL-STANDARD-MODE-INPUT-FILES-GAP: gate multi-file grading benchmarks out of standard mode](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_33_1/m-eval-standard-mode-input-files-gap.md)
 - [Sprint Plan — `m-named-test-assert-lowering` (make `test "…" { assert … }` execute)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_33_1/m-named-test-assert-lowering-sprint-plan.md)
 - [m-named-test-body-check-semantics — every expression in a pure named test body is a check (#604)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_33_1/m-named-test-body-check-semantics.md)
-- [Sprint Plan — M-NET-EFFECT-PROXY-BOUNDARY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_33_1/m-net-effect-proxy-boundary-sprint-plan.md)
-- [m-net-effect-proxy-boundary — bring AILANG's Net effect inside the egress boundary (D5 Option B)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_33_1/m-net-effect-proxy-boundary.md)
 - [M-TYPECLASS-INT-FRACTIONAL-DICTIONARY-GAP: catch missing Fractional[Int] at compile time](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_33_1/m-typeclass-int-fractional-dictionary-gap.md)
 
 ## Planned for v0.31.0
