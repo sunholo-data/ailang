@@ -383,7 +383,7 @@ applied to a well-scoped single-function change.)
 
 **Implemented (may inform design):**
 - [m-namedtest-strip-string-blind-braces](../implemented/v0_54_13/m-namedtest-strip-string-blind-braces.md) — #1821, the same round-trip class (strip step), fixed v0.54.13
-- [m-test-runner-compile-once](../planned/v0_53_0/m-test-runner-compile-once.md) — the shared batch compile this bug's failure notice comes from (Phases 1–2 implemented 2026-10-06)
+- [m-test-runner-compile-once](../../implemented/v0_52_2/m-test-runner-compile-once.md) — the shared batch compile this bug's failure notice comes from (Phases 1–2 implemented 2026-10-06)
 
 **Planned (check for overlap):**
 - None found — related-doc search (SimHash + neural) on "named test cons roundtrip" returned no matches in either direction.
