@@ -17,7 +17,13 @@ func TestEgressPosture(t *testing.T) {
 	t.Run("poison_sentinel_denies_HTTP_egress", testPoisonSentinel)
 	t.Run("loopback_bypasses_lane_poison", testLoopbackBypass)
 	t.Run("raw_TCP_remains_open", testRawTCPResidual)
-	t.Run("effects_nil_proxy_remains_open", testEffectsProxyResidual)
+	// The former Option-A HTTP residual (production transports with a nil
+	// Proxy) is closed by m-net-effect-proxy-boundary. Its positive
+	// replacements observe the PRODUCTION constructors, which this package
+	// cannot import (internal/effects tests import testutil):
+	// TestNetProxyBoundary, TestStream{SSE,NDJSON}ProxyBoundary,
+	// TestDefaultHTTPClientProxyBoundary, and the gatelint TestProxyAudit_Repo
+	// source audit that keeps new nil-Proxy transports out.
 }
 
 func testPoisonSentinel(t *testing.T) {
@@ -61,28 +67,6 @@ func testRawTCPResidual(t *testing.T) {
 		t.Fatalf("raw TCP residual unexpectedly closed: %v", err)
 	}
 	connection.Close()
-}
-
-func testEffectsProxyResidual(t *testing.T) {
-	requireLiveEgressPosture(t, "effects_nil_proxy_remains_open")
-	t.Setenv("HTTP_PROXY", egressPoisonProxy)
-	t.Setenv("HTTPS_PROXY", egressPoisonProxy)
-
-	// This first request intentionally trips red when Option B adds
-	// ProxyFromEnvironment to internal/effects. That red means the residual has
-	// closed; retire this tripwire and its Non-Goals text instead of "fixing" it.
-	effectsTransport := &http.Transport{}
-	t.Cleanup(effectsTransport.CloseIdleConnections)
-	response, err := (&http.Client{Transport: effectsTransport, Timeout: 10 * time.Second}).Get("https://example.com")
-	if err != nil {
-		t.Fatalf("nil-Proxy transport should bypass poison while D5 Option A remains: %v", err)
-	}
-	response.Body.Close()
-
-	controlTransport := &http.Transport{Proxy: http.ProxyFromEnvironment}
-	t.Cleanup(controlTransport.CloseIdleConnections)
-	_, err = (&http.Client{Transport: controlTransport, Timeout: 5 * time.Second}).Get("https://example.com")
-	assertPoisonProxyError(t, err)
 }
 
 func requireLiveEgressPosture(t *testing.T, leg string) {

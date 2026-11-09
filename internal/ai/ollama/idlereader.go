@@ -299,7 +299,10 @@ func streamBaseTransport() *http.Transport {
 		if base, ok := http.DefaultTransport.(*http.Transport); ok {
 			streamTransportBase = base.Clone()
 		} else {
-			streamTransportBase = &http.Transport{IdleConnTimeout: 90 * time.Second}
+			// Unreachable while DefaultTransport is an *http.Transport; if it
+			// ever is not, keep the proxy configuration the clone would have
+			// inherited (m-net-effect-proxy-boundary proxy audit).
+			streamTransportBase = &http.Transport{Proxy: http.ProxyFromEnvironment, IdleConnTimeout: 90 * time.Second}
 		}
 		streamTransportBase.ResponseHeaderTimeout = ollamaTTFTTimeout()
 	})
