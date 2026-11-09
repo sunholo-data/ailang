@@ -44,8 +44,6 @@ import (
 	"net/http"
 	"path"
 	"strings"
-
-	"github.com/sunholo-data/ailang/internal/coordinator"
 )
 
 // dashboardAuthRealm is sent in WWW-Authenticate on the gate's 401s. Its realm
@@ -158,7 +156,7 @@ func (s *Server) authorizeDashboardRequest(w http.ResponseWriter, r *http.Reques
 	if s.tokenVerifier != nil {
 		if user, err := s.firebaseUser(r, token); err == nil {
 			if !user.IsViewer() && !user.IsApprover() {
-				log.Printf("dashboard auth: refused %s %s: Firebase user has role %q, needs Viewer or Approver", coordinator.SanitizeLog(r.Method), coordinator.SanitizeLog(r.URL.Path), coordinator.SanitizeLog(user.Role))
+				log.Printf("dashboard auth: refused %s %s: Firebase user has role %q, needs Viewer or Approver", logField(r.Method), logField(r.URL.Path), logField(user.Role))
 				writeErrorResponse(w, http.StatusForbidden, "forbidden", "This dashboard requires the Viewer or Approver role")
 				return nil, false
 			}
@@ -170,7 +168,7 @@ func (s *Server) authorizeDashboardRequest(w http.ResponseWriter, r *http.Reques
 }
 
 func refuseDashboardRequest(w http.ResponseWriter, r *http.Request, code, msg string) {
-	log.Printf("dashboard auth: refused %s %s from %s: %s", coordinator.SanitizeLog(r.Method), coordinator.SanitizeLog(r.URL.Path), coordinator.SanitizeLog(r.RemoteAddr), code)
+	log.Printf("dashboard auth: refused %s %s from %s: %s", logField(r.Method), logField(r.URL.Path), logField(r.RemoteAddr), code)
 	w.Header().Set("WWW-Authenticate", dashboardAuthRealm)
 	writeErrorResponse(w, http.StatusUnauthorized, code, msg)
 }
@@ -200,4 +198,10 @@ func isLoopbackBind(addr string) bool {
 	}
 	ip := net.ParseIP(host)
 	return ip != nil && ip.IsLoopback()
+}
+
+// logField strips line breaks from a caller-controlled value before it is
+// logged, so a crafted path cannot forge log lines.
+func logField(v string) string {
+	return strings.ReplaceAll(strings.ReplaceAll(v, "\n", ""), "\r", "")
 }
