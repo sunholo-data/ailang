@@ -22,7 +22,7 @@ Published at release, not gated: fleet-tier pass rates, cost-per-verified-succes
 |---|---|---|
 | G1+G3 | #2182 stability re-draft | **CLOSED** — merged `71ec9bd36`, ratified by Mark (`D-65`) |
 | G2 #1443 | #2184 `pure` ⇒ empty row (BREAKING) | gated on the downstream order below |
-| G2 #1134 | #2185 cross-module IFC (BREAKING) | IFC sites fixed in email-parse#43 (4 sites; ships as email 0.10.2 → eparse 1.11.3); follow-up #2187 (inferred rules, P1) |
+| G2 #1134 | #2185 cross-module IFC (BREAKING) | IFC sites fixed: email-parse#43 merged, ✓ email 0.10.2 published; eparse 1.11.3 relock = email-parse#44 (merge, then publish); follow-up #2187 (inferred rules, P1) |
 | G4 | multivac#12 issuer → `executor.ailang.sunholo.com` | **CLOSED** — promoted dev→test→prod `e752cc2`, metadata names the host, `ailang mcp check` auth/transport PASS. Not gated: 22 docs tools lack `title` + read-only hints (A7, directory readiness) |
 | docs | #2181 runbook, #2183 stale sweep | MERGED (`d79a5d3be`, `5bda6c3eb`); charter links re-pointed after #2186's moves |
 
@@ -30,7 +30,7 @@ Published at release, not gated: fleet-tier pass rates, cost-per-verified-succes
 
 **#2184 release order** (measured old-vs-new binary across downstream repos; merging is safe, RELEASING is not):
 1. ✓ ailang-packages#183 merged `685490732` → ✓ published `sunholo/specstore` 0.3.1
-2. ✓ email-parse#40 merged `d7b0669be` → ✓ published `sunholo/email` 0.10.1 → ✓ email-parse#41 → ✓ published eparse 1.11.2; ✓ daneel#417 out of draft, check green (awaiting merge)
+2. ✓ email-parse#40 merged `d7b0669be` → ✓ published `sunholo/email` 0.10.1 → ✓ email-parse#41 → ✓ published eparse 1.11.2; ✓ daneel#417 merged `0d6e67025`
 3. ✓ docparse#263 merged `7950010ee` (before docparse's `AILANG_VERSION` pin, now v0.57.1, moves past a #2184 release)
 4. ✓ motoko fork#6 merged `597a6fbf9` (106 breaks → 0; its 2 red CI jobs pre-date it — base red since fork#4/#5: stale `CostRates` in `scripts/verify_skills_startup.ail:133`, hook-scope yield pin at 20 vs 21 extensions, 5 moved session.ail clock anchors) → fast-forward `~/dev/mk-20261027` + cloud `MOTOKO_COMMIT` — BEFORE the rig binary moves to a #2184 release
 5. then #2184 merges and ships. Upstream arniwesth/motoko_agent has the same 36 sites — tell Arni.
