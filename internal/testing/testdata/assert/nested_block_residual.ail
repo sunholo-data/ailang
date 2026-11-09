@@ -1,0 +1,23 @@
+module nested_block_residual
+
+-- KNOWN RESIDUAL VECTOR, NOT FIXED: #614.
+--
+-- #604 makes every TOP-LEVEL bare expression of a named test body a check.
+-- Inside a check, ordinary expression semantics apply, and a nested block
+-- `{ a; b }` evaluates `a` and discards its value. So the false check below is
+-- still swallowed and this test still PASSES VACUOUSLY.
+--
+-- This fixture pins that current (wrong) behaviour on purpose, so the #614 fix
+-- flips a failing pin instead of rediscovering the shape. When #614 lands,
+-- change this file's expectation in named_test_assert_test.go to a failure.
+
+export pure func add_one(n: int) -> int {
+  n + 1
+}
+
+test "nested block swallows a false check (#614)" {
+  if true then {
+    add_one(1) == 99
+    add_one(1) == 2
+  } else false
+}

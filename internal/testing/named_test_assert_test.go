@@ -166,31 +166,46 @@ func TestNamedTest_Assert_FinalBareExprInAssertBody(t *testing.T) {
 	}
 }
 
-// TestNamedTest_AssertFree_LegacyPathUnchanged is the stays-green guard (B3):
-// an assert-free body must keep the byte-identical legacy bool path.
-func TestNamedTest_AssertFree_LegacyPathUnchanged(t *testing.T) {
+// TestNamedTest_LegacyShape_PathUnchanged is the stays-green guard (B3, narrowed
+// by #604): a body with no `assert` and no bare NON-FINAL expression — i.e. a
+// single expression, or lets + a final expression — must keep the
+// byte-identical legacy bool path. (A bare non-final expression is a check
+// since #604 and takes the sentinel path; see named_test_bare_checks_test.go.)
+func TestNamedTest_LegacyShape_PathUnchanged(t *testing.T) {
 	result := runInlineTestsOnSource(t, assertFixtureSource(`  add_one(1) == 2`))
 	if result.PassedTests != 1 || result.FailedTests != 0 {
 		t.Errorf("assert-free control: expected 1 passed/0 failed, got %d/%d; error: %s",
 			result.PassedTests, result.FailedTests, firstFailureError(result))
 	}
 
-	// And the fold must be byte-identical to the legacy FoldBodyExprs output.
-	exprs := []ast.Expr{
-		&ast.Let{Name: "x", Value: &ast.Literal{Kind: ast.IntLit, Value: int64(1)}},
-		&ast.BinaryOp{
-			Op:    "==",
-			Left:  &ast.Identifier{Name: "x"},
-			Right: &ast.Literal{Kind: ast.IntLit, Value: int64(1)},
+	xEq1 := &ast.BinaryOp{
+		Op:    "==",
+		Left:  &ast.Identifier{Name: "x"},
+		Right: &ast.Literal{Kind: ast.IntLit, Value: int64(1)},
+	}
+	bodies := map[string][]ast.Expr{
+		"single final expression": {xEq1},
+		"let + final expression": {
+			&ast.Let{Name: "x", Value: &ast.Literal{Kind: ast.IntLit, Value: int64(1)}},
+			xEq1,
+		},
+		"let + let rec + final expression": {
+			&ast.Let{Name: "x", Value: &ast.Literal{Kind: ast.IntLit, Value: int64(1)}},
+			&ast.LetRec{Name: "f", Value: &ast.Identifier{Name: "x"}},
+			xEq1,
 		},
 	}
-	folded, checks := FoldTestBody(exprs)
-	if len(checks) != 0 {
-		t.Errorf("assert-free body should produce no CheckInfo, got %d", len(checks))
-	}
-	legacy := FoldBodyExprs(exprs)
-	if got, want := PrintAILANGSource(folded), PrintAILANGSource(legacy); got != want {
-		t.Errorf("assert-free fold diverged from legacy path:\n got: %s\nwant: %s", got, want)
+	for name, exprs := range bodies {
+		t.Run(name, func(t *testing.T) {
+			folded, checks := FoldTestBody(exprs)
+			if len(checks) != 0 {
+				t.Errorf("legacy-shape body should produce no CheckInfo, got %d", len(checks))
+			}
+			legacy := FoldBodyExprs(exprs)
+			if got, want := PrintAILANGSource(folded), PrintAILANGSource(legacy); got != want {
+				t.Errorf("legacy-shape fold diverged from legacy path:\n got: %s\nwant: %s", got, want)
+			}
+		})
 	}
 }
 
@@ -208,6 +223,7 @@ func TestNamedTest_AssertFixtures(t *testing.T) {
 		wantPassed int
 		wantFailed int
 		wantErr    string // substring required in the failure text ("" = no failure expected)
+		notErr     string // substring that must NOT appear (fails for the wrong reason)
 	}{
 		{fixture: "single_pass.ail", wantPassed: 1, wantFailed: 0},
 		{fixture: "single_fail.ail", wantPassed: 0, wantFailed: 1,
@@ -219,6 +235,29 @@ func TestNamedTest_AssertFixtures(t *testing.T) {
 		{fixture: "let_then_assert.ail", wantPassed: 1, wantFailed: 0},
 		{fixture: "assert_let_assert.ail", wantPassed: 1, wantFailed: 0},
 		{fixture: "assert_free_control.ail", wantPassed: 1, wantFailed: 0},
+
+		// #604: every top-level bare expression is a check.
+		{fixture: "bare_first_fails.ail", wantPassed: 0, wantFailed: 1,
+			wantErr: "check 1 failed: `(add_one(1) == 99)`"},
+		{fixture: "bare_second_fails.ail", wantPassed: 0, wantFailed: 1,
+			wantErr: "check 2 failed: `(add_one(1) == 99)`"},
+		{fixture: "bare_all_pass.ail", wantPassed: 1, wantFailed: 0},
+		{fixture: "bare_mixed_assert.ail", wantPassed: 0, wantFailed: 1,
+			wantErr: "assertion 2 failed: `assert (add_one(3) == 99)`"},
+		{fixture: "bare_nonbool_nonfinal.ail", wantPassed: 0, wantFailed: 1,
+			wantErr: "cannot unify"},
+		// Assumption A-1: loud failure is the invariant, not the error class
+		// (an effect error before #604, a `() vs bool` type error after it).
+		{fixture: "effectful_nonfinal_stays_error.ail", wantPassed: 0, wantFailed: 1,
+			notErr: "undefined variable"},
+		// Legacy path (no non-final bare expression): unchanged.
+		{fixture: "lets_only_legacy.ail", wantPassed: 1, wantFailed: 0},
+		{fixture: "legacy_nonbool_final.ail", wantPassed: 0, wantFailed: 1,
+			wantErr: "expected bool result, got *eval.IntValue"},
+		// KNOWN RESIDUAL, NOT FIXED (#614): a false check inside a nested block
+		// is still swallowed by ordinary Block semantics. This row pins today's
+		// vacuous pass; the #614 fix flips it to a failure.
+		{fixture: "nested_block_residual.ail", wantPassed: 1, wantFailed: 0},
 	}
 
 	for _, tt := range tests {
@@ -240,6 +279,9 @@ func TestNamedTest_AssertFixtures(t *testing.T) {
 			// No fixture may fail because the round-tripped source did not parse.
 			if strings.Contains(errText, "PAR_NO_PREFIX_PARSE") {
 				t.Errorf("%s: failed with a parse error, not a test outcome: %s", tt.fixture, errText)
+			}
+			if tt.notErr != "" && strings.Contains(errText, tt.notErr) {
+				t.Errorf("%s: failed for the wrong reason (%q): %s", tt.fixture, tt.notErr, errText)
 			}
 			if tt.wantErr != "" && !strings.Contains(errText, tt.wantErr) {
 				t.Errorf("%s: expected failure text to contain %q, got: %s", tt.fixture, tt.wantErr, errText)

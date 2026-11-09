@@ -1,0 +1,14 @@
+module bare_second_fails
+
+-- #604 discriminating control (arm B): the same shape as bare_first_fails.ail
+-- with the order swapped, so the false check is final. It failed before the
+-- fix too; after it, the failure names check 2.
+
+export pure func add_one(n: int) -> int {
+  n + 1
+}
+
+test "final bare check fails" {
+  add_one(1) == 2
+  add_one(1) == 99
+}
