@@ -87,12 +87,12 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 
 	out := &ai.Response{
 		InputTokens:              result.Usage.InputTokens,
-		OutputTokens:             result.Usage.OutputTokens,
+		OutputTokens:             result.Usage.answerTokens(),
 		TotalTokens:              result.Usage.InputTokens + result.Usage.OutputTokens,
 		CacheReadInputTokens:     result.Usage.CacheReadInputTokens,
 		CacheCreationInputTokens: result.Usage.CacheCreationInputTokens,
-		// Thinking/answer split, same source as Generate. Included in
-		// OutputTokens, not additional to it.
+		// Thinking/answer split, same source as Generate. Disjoint from
+		// OutputTokens (answerTokens subtracts it).
 		ReasonTokens: result.Usage.OutputTokensDetails.ThinkingTokens,
 		Model:        result.Model,
 		FinishReason: mapStopReason(result.StopReason),

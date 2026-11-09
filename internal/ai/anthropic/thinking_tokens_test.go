@@ -1,8 +1,13 @@
 package anthropic
 
 import (
+	"context"
 	"encoding/json"
+	"net/http"
+	"net/http/httptest"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/ai"
 )
 
 // TestAnthropicUsage_ParsesThinkingTokens pins the wire shape against a real
@@ -52,5 +57,38 @@ func TestAnthropicUsage_AbsentDetailsIsZero(t *testing.T) {
 	}
 	if u.OutputTokensDetails.ThinkingTokens != 0 {
 		t.Errorf("absent output_tokens_details must yield 0, got %d", u.OutputTokensDetails.ThinkingTokens)
+	}
+}
+
+// TestGenerate_OutputAndReasonAreDisjoint pins the ai.Response contract: the
+// wire's output_tokens INCLUDES thinking, but OutputTokens must not — every cost
+// caller bills OutputTokens+ReasonTokens (the OpenAI/OpenRouter convention).
+// Passing the merged figure through billed each thinking token twice on every
+// Anthropic row from 2026-09-02 (when ReasonTokens started populating) until
+// 2026-11-09.
+func TestGenerate_OutputAndReasonAreDisjoint(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"id":"msg_1","type":"message","role":"assistant",
+			"content":[{"type":"thinking","thinking":""},{"type":"text","text":"ok"}],
+			"model":"claude-fable-5-2","stop_reason":"end_turn",
+			"usage":{"input_tokens":20,"output_tokens":1160,
+			         "output_tokens_details":{"thinking_tokens":298}}}`))
+	}))
+	defer srv.Close()
+
+	c := NewClient("test-key", WithBaseURL(srv.URL))
+	resp, err := c.Generate(context.Background(), &ai.Request{Model: "claude-fable-5-2", UserPrompt: "x", MaxTokens: 2048})
+	if err != nil {
+		t.Fatalf("Generate: %v", err)
+	}
+	if resp.OutputTokens != 862 || resp.ReasonTokens != 298 {
+		t.Errorf("OutputTokens=%d ReasonTokens=%d, want 862 + 298 (disjoint)", resp.OutputTokens, resp.ReasonTokens)
+	}
+	if billed := resp.OutputTokens + resp.ReasonTokens; billed != 1160 {
+		t.Errorf("OutputTokens+ReasonTokens = %d, want the wire's 1160 output tokens", billed)
+	}
+	if resp.TotalTokens != 1180 {
+		t.Errorf("TotalTokens = %d, want 1180 (input + wire output)", resp.TotalTokens)
 	}
 }

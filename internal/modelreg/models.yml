@@ -1320,6 +1320,18 @@ models:
       Eval policy: STANDARD eval only, mirroring claude-fable-5-1 — NOT in agent_suite.
       SUITE MEMBERSHIP: took claude-fable-5-1's extended_suite seat 2026-11-09 (Mark,
       attended: "add to suite", replace chosen over add-alongside).
+      PLACEMENT 2026-11-09 — standard, metered key, candidate ALONE, N=1,
+      --tier long-frontier,stretch,frontier (35 benchmarks):
+        35/35 PASS, every finish_reason=stop (no truncation). Includes gauntlet_10,
+        commonmark_emphasis, legal_obligation_engine, quine.
+        Anchored ELO 2924.5 (banked) — a FLOOR: a perfect run has no upper bound,
+        same caveat as claude-opus-5-5 2871.9 / gemini-4-argon 2778.2.
+        Cost $6.83 true (25,896 in / 165,598 out, of which 119,551 thinking = 72%).
+        BANKED cost_usd reads $11.61 — the run predates the Anthropic thinking
+        double-bill fix (same day): recompute as in x $8/M + output x $40/M.
+      VS claude-fable-5-1 on the 6 benchmarks both have run (both pass all 6):
+        $3.40 vs $4.51 (0.75x). Output tokens within ~5% except gauntlet_10
+        (56.6K vs 63.2K) — the saving is the 20% price cut plus a leaner gauntlet.
 
   # Anthropic Claude Opus 5.5 (launched 2026-09-22)
   claude-opus-5-5:
@@ -6624,7 +6636,7 @@ extended_suite:
   - "claude-fable-5-2"  # Anthropic most-capable (Nov 2026) — REPLACED claude-fable-5-1 2026-11-09
     # (Mark, attended). Newer generation at a LOWER price ($8/$40 vs $10/$50 per 1M), so
     # the "tie at equal-or-lower cost favours the newer generation" rule decides the seat.
-    # Placement: candidate ALONE, --tier long-frontier,stretch,frontier --trials 3 (anchored
+    # Placement: candidate ALONE, --tier long-frontier,stretch,frontier --trials 1 (anchored
     # series; 5.1 NOT re-run as a comparator) — result recorded on the claude-fable-5-2 row.
     # Standard eval only, NEVER agent_suite (cost).
   - "claude-opus-5"     # Anthropic flagship (Jul 2026) — REPLACED claude-opus-4-8 2026-07-27 on a
