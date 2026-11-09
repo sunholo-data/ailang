@@ -1,0 +1,12 @@
+module legacy_nonbool_final
+
+-- #604 legacy-path contract: a single non-bool final expression is not
+-- lowered, so the runner's pass contract rejects it ("expected bool result").
+
+export pure func add_one(n: int) -> int {
+  n + 1
+}
+
+test "non-bool final expression" {
+  add_one(41)
+}

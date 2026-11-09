@@ -20,13 +20,18 @@ import (
 //	[let x = val, let y = ..., finalExpr]
 //	  → let x = val in (let y = ... in finalExpr)
 //
-// Non-let expressions that are not the last item are dropped (they were
-// evaluated for side-effects in the original source, which is meaningless for
-// pure bodies, so stripping them is safe).
+// A non-let expression that is not the last item is bound to a dead
+// `let _seq = <expr> in <rest>`: evaluated, its value DISCARDED. That is NOT
+// safe for a named test body — in a pure body a discarded value is either a
+// swallowed failing check or dead code (#604). FoldTestBody therefore never
+// sends a body with a bare non-final expression here; it lowers those as
+// checks instead.
 //
-// This is the LEGACY path, retained verbatim: it is what FoldTestBody returns
-// for any body that contains no `assert`, so assert-free named tests are
-// byte-for-byte unchanged by #590's fix.
+// This is the LEGACY path: it is what FoldTestBody returns for a body with no
+// `assert` and no bare non-final expression (a single expression, or lets + a
+// final expression), so those named tests fold byte-for-byte as before #590
+// and #604. The `_seq` case below is therefore unreachable from FoldTestBody;
+// it stays so that a direct caller never has an expression silently dropped.
 func FoldBodyExprs(exprs []ast.Expr) ast.Expr {
 	if len(exprs) == 0 {
 		return nil
@@ -68,21 +73,38 @@ func FoldBodyExprs(exprs []ast.Expr) ast.Expr {
 	return result
 }
 
-// CheckInfo describes one check in a named test body that took the assert
-// lowering path.  Checks are numbered left-to-right starting at 1, and the
+// CheckInfo describes one check in a named test body that took the sentinel
+// lowering path (an assert, or a top-level bare expression).  Checks are numbered left-to-right starting at 1, and the
 // ordinal doubles as the failure sentinel the lowered expression evaluates to.
 type CheckInfo struct {
 	Ordinal int     // 1-based position among the body's checks
 	Source  string  // AILANG source text of the condition, for the failure message
 	Pos     ast.Pos // original position of the check in the user's source
-	// IsAssert records whether the user actually wrote `assert`.  A trailing bare
-	// expression in an assert-bearing body is also a check, but quoting it back as
-	// `assert <expr>` would show the user source they never wrote.
+	// IsAssert records whether the user actually wrote `assert`.  A top-level bare
+	// expression is also a check, but quoting it back as `assert <expr>` would
+	// show the user source they never wrote.
 	IsAssert bool
 }
 
-// FoldTestBody folds a named test body into a single expression, lowering any
-// top-level `assert` statements on the way.
+// FoldTestBody folds a named test body into a single expression, lowering its
+// top-level checks — `assert` statements AND bare expressions — on the way.
+//
+// # The rule (#604)
+//
+// A named test body is a sequence of `let`/`let rec` bindings, `assert`
+// statements and bare expressions. Every assert condition and every TOP-LEVEL
+// bare expression, in any position, is a check; the body passes iff every
+// check is true. There is nothing else at top level: an expression whose value
+// would be thrown away is either a swallowed failing check or dead code, so a
+// non-bool bare expression is a type error (the lowered `if` imposes bool), and
+// a value worth keeping must be bound with `let`.
+//
+// Only the top level is covered. Inside a check, ordinary expression semantics
+// apply, and a nested block `{ a; b }` still evaluates `a` and discards it —
+// the known residual vector, #614, pinned by
+// testdata/assert/nested_block_residual.ail. This fold never descends into an
+// expression's children; closing #614 needs a different failure channel (the
+// sentinel is an int VALUE and only fits at the top of the body).
 //
 // # Why the lowering lives here and not in the printer
 //
@@ -102,38 +124,34 @@ type CheckInfo struct {
 // # The lowering
 //
 // A body's CHECKS, left to right, 1-based, are: every top-level
-// `*ast.AssertStmt`, plus the final expression (counted once if it is itself an
-// assert).  The body lowers to an int sentinel:
+// `*ast.AssertStmt` and every top-level expression that is not a binding
+// (`*ast.Let`/`*ast.LetRec`).  The body lowers to an int sentinel:
 //
 //	0     — every check passed
 //	k ≥ 1 — check k was the FIRST to evaluate false; later checks are NOT evaluated
 //
-// Concretely, `{ assert a; assert b }` becomes
+// Concretely, `{ assert a; assert b }` and `{ a; b }` both become
 //
 //	if a then (if b then 0 else 2) else 1
 //
 // All sentinels are ≥ 0 deliberately, so the lowering never needs a unary-minus
-// literal in `else` position.  The caller (EvaluateNamedTestBodyExprs) decodes
-// the resulting *eval.IntValue back into the runner's bool pass/fail contract.
+// literal in `else` position.  The callers (EvaluateNamedTestBodyExprs and the
+// batched path, named_batch.go) decode the resulting *eval.IntValue back into
+// the runner's bool pass/fail contract.
 //
 // # The legacy path is preserved exactly
 //
-// A body containing NO `*ast.AssertStmt` returns exactly what FoldBodyExprs
-// returns, plus a nil []CheckInfo.  Every named test that passes today is
-// necessarily assert-free (assert bodies are 100% broken), so no currently
-// passing test changes code path.
-//
-// Note that non-final NON-assert expressions keep their legacy `let _seq = ...`
-// treatment even on the sentinel path.  Making those short-circuit too would
-// turn a non-bool non-final expression into a type error in bodies that pass
-// today — a semantics change rather than a bug fix, and deliberately out of
-// scope here (tracked separately as #604).  Adding it later is a one-case
-// extension of the switch below.
+// A body with NO `*ast.AssertStmt` and NO bare non-final expression — a single
+// expression, or lets + a final expression — returns exactly what
+// FoldBodyExprs returns, plus a nil []CheckInfo. Its one check is the final
+// expression, enforced by the runner's pass contract (`expected true, got
+// false` / `expected bool result, got %T`, runner.go) rather than by a
+// lowered `if`, and it has no ordinal. Two enforcement paths, both loud.
 func FoldTestBody(exprs []ast.Expr) (ast.Expr, []CheckInfo) {
 	if len(exprs) == 0 {
 		return nil, nil
 	}
-	if !containsAssertStmt(exprs) {
+	if !containsAssertStmt(exprs) && !hasBareNonFinal(exprs) {
 		return FoldBodyExprs(exprs), nil
 	}
 
@@ -144,7 +162,7 @@ func FoldTestBody(exprs []ast.Expr) (ast.Expr, []CheckInfo) {
 	ordinals := make([]int, n)
 	next := 1
 	for i, e := range exprs {
-		if isCheck(e, i == n-1) {
+		if isCheck(e) {
 			ordinals[i] = next
 			next++
 		}
@@ -207,17 +225,34 @@ func FoldTestBody(exprs []ast.Expr) (ast.Expr, []CheckInfo) {
 				Pos:   e.Pos,
 			}
 		default:
-			// Unchanged legacy treatment — see the doc comment above.
-			result = &ast.Let{
-				Name:  "_seq",
-				Value: exprs[i],
-				Body:  result,
-				Pos:   exprs[i].Position(),
+			// A bare non-final expression is a check (#604): the same
+			// short-circuit as an assert. Its CheckInfo has IsAssert false, so a
+			// failure quotes what the user wrote.
+			result = &ast.If{
+				Condition: e,
+				Then:      result,
+				Else:      intLit(ordinals[i], e.Position()),
+				Pos:       e.Position(),
 			}
 		}
 	}
 
 	return result, checks
+}
+
+// hasBareNonFinal reports whether any non-final top-level body expression is a
+// bare expression — not a `let`/`let rec` binding and not an assert. Such a
+// body takes the sentinel path, because that expression is a check (#604).
+func hasBareNonFinal(exprs []ast.Expr) bool {
+	for _, e := range exprs[:len(exprs)-1] {
+		switch e.(type) {
+		case *ast.Let, *ast.LetRec, *ast.AssertStmt:
+			continue
+		default:
+			return true
+		}
+	}
+	return false
 }
 
 // containsAssertStmt reports whether any top-level body expression is an assert.
@@ -235,16 +270,11 @@ func containsAssertStmt(exprs []ast.Expr) bool {
 	return false
 }
 
-// isCheck reports whether a body expression contributes a check. Every assert is
-// a check; so is the final expression, unless it is a binding form (a trailing
-// `let` is a degenerate body that has no value to check).
-func isCheck(e ast.Expr, isFinal bool) bool {
-	if _, ok := e.(*ast.AssertStmt); ok {
-		return true
-	}
-	if !isFinal {
-		return false
-	}
+// isCheck reports whether a top-level body expression contributes a check.
+// Every assert is a check, and so is every bare expression in any position
+// (#604). Binding forms are not: a non-final `let` scopes the rest of the
+// body, and a trailing `let` is a degenerate body with no value to check.
+func isCheck(e ast.Expr) bool {
 	switch e.(type) {
 	case *ast.Let, *ast.LetRec:
 		return false
@@ -254,7 +284,7 @@ func isCheck(e ast.Expr, isFinal bool) bool {
 }
 
 // checkCondition returns the bool-valued expression a check tests: an assert's
-// condition, or the expression itself for a trailing bare expression.
+// condition, or the expression itself for a bare expression.
 func checkCondition(e ast.Expr) ast.Expr {
 	if a, ok := e.(*ast.AssertStmt); ok {
 		return a.Condition
