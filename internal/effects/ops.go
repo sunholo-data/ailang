@@ -102,7 +102,7 @@ func Call(ctx *EffContext, effectName, opName string, args []eval.Value) (eval.V
 	var result eval.Value
 	var err error
 	if ctx.SpanWrapper != nil && ctx.GoCtx != nil {
-		result, err = ctx.SpanWrapper(ctx.GoCtx, effectName, opName, args, func() (eval.Value, error) {
+		result, err = ctx.SpanWrapper(ctx.GoCtx, effectName, opName, ctx.traceSpanArgs(args), func() (eval.Value, error) {
 			return op(ctx, args)
 		})
 	} else {

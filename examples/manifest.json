@@ -3670,6 +3670,31 @@
       }
     },
     {
+      "path": "runnable/secrets/trace_redaction.ail",
+      "status": "working",
+      "tags": [
+        "ifc",
+        "labels",
+        "trace",
+        "m-trace-label-aware"
+      ],
+      "description": "A <secret> value is redacted from execution traces at every tier",
+      "modules": [
+        "std/io",
+        "std/string"
+      ],
+      "run_flags": [
+        "--caps",
+        "IO",
+        "--entry",
+        "main"
+      ],
+      "expected": {
+        "stdout": "token starts: FAKE...\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/effect_row_var_pure_caller.ail",
       "status": "working",
       "tags": [
@@ -4280,11 +4305,11 @@
     }
   ],
   "statistics": {
-    "total": 323,
-    "working": 315,
+    "total": 324,
+    "working": 316,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9752321981424149,
+    "coverage": 0.9753086419753086,
     "experimental": 0
   },
   "milestones": {

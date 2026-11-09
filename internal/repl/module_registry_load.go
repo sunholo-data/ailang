@@ -3,6 +3,7 @@ package repl
 import (
 	"fmt"
 
+	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/elaborate"
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -31,8 +32,12 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	// (pipeline_module_compile.go), but this path historically skipped it, so
 	// a module the CLI rejects with an information-flow violation loaded and
 	// published its exports in the browser WASM REPL.
+	// The same walk reports the labelled call sites the trace must redact
+	// (M-TRACE-LABEL-AWARE); they are stamped on the lowered Core below.
+	var traceSites map[ast.Pos]string
 	if program.File != nil {
-		if ifcErrs := types.CheckModuleIFC(program.File); len(ifcErrs) > 0 {
+		var ifcErrs []*types.TypeCheckError
+		if ifcErrs, traceSites = types.CheckModuleIFCWithTraceSites(program.File); len(ifcErrs) > 0 {
 			return nil, fmt.Errorf("information-flow violation in %s: %w", name, ifcErrs[0])
 		}
 	}
@@ -346,6 +351,7 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	if err != nil {
 		return nil, fmt.Errorf("op lowering error: %w", err)
 	}
+	core.MarkTraceRedactions(loweredProg, traceSites)
 
 	// Step 6: Link dictionaries
 	linker := link.NewLinker()

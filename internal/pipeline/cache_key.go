@@ -36,7 +36,10 @@ import (
 // v7 -> v8 (M-IFC-CROSS-MODULE): iface v2 requires complete IFC summaries,
 // including canonical forbidden arrays and reserved applied labels; pre-IFC
 // verdicts must miss. Preserve the v7 CoreTI shared-DAG codec.
-const cacheKeyVersion = "v8"
+// v8 -> v9 (M-TRACE-LABEL-AWARE): core.App gained a gob-encoded TraceRedact
+// label. A v8 blob decodes with none, so a cached module would trace its
+// labelled values verbatim again; v8 entries must miss.
+const cacheKeyVersion = "v9"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:

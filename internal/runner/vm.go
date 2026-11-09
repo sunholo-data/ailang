@@ -170,6 +170,9 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 	if params.PipelineResult == nil {
 		return false, fmt.Errorf("internal: bytecodeMode set but pipelineResult is nil")
 	}
+	if err := vmTraceLabelGuard(rt, params); err != nil {
+		return false, err
+	}
 
 	// Recover from lower/compile panics so they degrade to a normal compile
 	// error and let the caller fall back to the evaluator in non-strict mode.

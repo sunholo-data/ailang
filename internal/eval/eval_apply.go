@@ -22,9 +22,10 @@ import (
 // argument is true, which only applyFunctionValue requests, and only for a frame
 // that may be replaced. It never escapes this file's loop.
 type tailCall struct {
-	fn   *FunctionValue
-	args []Value
-	name string
+	fn     *FunctionValue
+	args   []Value
+	name   string
+	redact string // core.App.TraceRedact of the call (M-TRACE-LABEL-AWARE)
 }
 
 func (*tailCall) Type() string { return "tailcall" }
@@ -109,6 +110,7 @@ func (e *CoreEvaluator) applyFunctionValue(fn *FunctionValue, args []Value, name
 	}
 
 	frame := first
+	labelScoped := false // a label scope is open for this call's remaining extent
 	for {
 		if frame.trace && tracing {
 			argStrs := make([]string, len(args))
@@ -174,6 +176,15 @@ func (e *CoreEvaluator) applyFunctionValue(fn *FunctionValue, args []Value, name
 		if err == nil {
 			if tc, isTail := result.(*tailCall); isTail {
 				fn, args, name, frame = tc.fn, tc.args, tc.name, appFrame
+				// A labelled tail call's extent is the rest of this loop: the
+				// frame it replaces has nothing left to run. Open the scope
+				// once, so a loop passing a secret stays constant-space.
+				if tc.redact != "" && !labelScoped {
+					if closeScope := e.enterTraceLabelScope(tc.redact); closeScope != nil {
+						labelScoped = true
+						defer closeScope()
+					}
+				}
 				continue
 			}
 			if postErr := e.checkPostconditions(fn, result); postErr != nil {
