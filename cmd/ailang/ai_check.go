@@ -30,12 +30,15 @@ type aiCheckSection struct {
 // aiVerifySection is the contract verification portion of ai-check output
 type aiVerifySection struct {
 	verification.Evidence
-	Available      bool               `json:"available"`
-	Verified       int                `json:"verified"`
-	Counterexample int                `json:"counterexample"`
-	Skipped        int                `json:"skipped"`
-	Errors         int                `json:"errors"`
-	Results        []smt.VerifyResult `json:"results"`
+	Available      bool `json:"available"`
+	Verified       int  `json:"verified"`
+	Counterexample int  `json:"counterexample"`
+	// Inconclusive: obligations attempted but undecided — a sat under bounded
+	// recursion unrolling (M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE).
+	Inconclusive int                `json:"inconclusive"`
+	Skipped      int                `json:"skipped"`
+	Errors       int                `json:"errors"`
+	Results      []smt.VerifyResult `json:"results"`
 }
 
 // The verification defaults of the unified check+verify report. They are named
@@ -203,6 +206,10 @@ func runAICheckReport(filename string, timeout time.Duration, recursiveDepth int
 //	verifier errors > 0 -> 1   (added by M-Z3-ADT-RECORD-SORT; process status must
 //	                            never disagree with the JSON it just printed)
 //	skipped-only        -> 0   (a skip is "not proved", not "disproved")
+//	inconclusive-only   -> 0   (a bounded-unrolling sat is likewise "not proved":
+//	                            the model may rest on an invented frontier value,
+//	                            so it is not a violation — M-VERIFY-BOUNDED-
+//	                            UNROLLING-FALSE-COUNTEREXAMPLE)
 //	verified-only       -> 0
 func aiCheckExitCode(check aiCheckSection, verify aiVerifySection) int {
 	if !check.Passed || verify.Counterexample > 0 || verify.Errors > 0 {
@@ -236,14 +243,17 @@ func aiCheckVerifyOptions(timeout time.Duration, recursiveDepth int) smt.VerifyO
 // "uncontracted" rows (exported functions with no contract, which verify
 // lists for denominator honesty) are left out: ai-check's results have only
 // ever carried contract-bearing functions, its consumers (the eval harness,
-// agent convergence loops) read the four counters, and adding a fifth status
-// value to a machine contract is a change to announce, not to slip in.
+// agent convergence loops) read the counters, and adding a status value to a
+// machine contract is a change to announce, not to slip in. ("inconclusive"
+// was announced: M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE, with the
+// harness readers landed first.)
 func aiVerifySectionFromReport(report *smt.VerifyReport) aiVerifySection {
 	section := aiVerifySection{
 		Evidence:       report.Evidence,
 		Available:      true,
 		Verified:       report.Verified,
 		Counterexample: report.Counterexample,
+		Inconclusive:   report.Inconclusive,
 		Skipped:        report.Skipped,
 		Errors:         report.Errors,
 		Results:        make([]smt.VerifyResult, 0, len(report.Results)),

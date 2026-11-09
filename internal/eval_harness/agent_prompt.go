@@ -595,6 +595,7 @@ func getToolAwareVerificationSteps(caps string) string {
    ` + "```" + `
    - If Z3 reports COUNTEREXAMPLE: fix your logic using the counterexample inputs
    - If Z3 reports VERIFIED: your function is correct for ALL inputs
+   - If Z3 reports INCONCLUSIVE (recursive functions): the verifier could not decide within its unrolling depth — this is NOT a bug report; do not change your logic because of it, and test the function by running it
    - Re-run ai-check after every fix
 
 3. **Run your solution:**
