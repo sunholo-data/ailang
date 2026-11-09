@@ -1618,3 +1618,56 @@ Exactly one re-quorum: rc3BLOCKED,2independent externals (OpenAI reject, Google 
 - Executor `codex:gpt-6.1-sol` (855621providertok), readinessonly/probe+runrc0; implementationfalse.
 - Evaluator `pi:openrouter/minimax/minimax-m3`: freshpick and freshfinal actualsessions, protocolcomplete; generator≠judge cross-vendor, N/Aimplementation score. Pick6187683tok; final2354073providertok,$0.19312602includingprobe. No inherited bridge/controller verdict accepted.
 - Driver routing note verbatim: lanes degraded: ; `designer`: **anthropic** lane `claude-opus-5-5` unusable (probe rc=`1` — quota-limited) → handed to `codex:gpt-6.1-sol`; `evaluator`: **anthropic** lane `sonnet` unusable (probe rc=`1` — quota-limited) → handed to `pi:openrouter/minimax/minimax-m3`
+
+## 97 — 2026-11-09 — World's idle-record degraded-bar ticket: design blocked by quorum twice, independent sonnet judge PARK-UPHELD, D-FLEET-45 parks it; nothing planned, built or merged [HARNESS]
+
+**Pick**: `skill:idle-record-barred-on-degraded-no-pick-fire` (world 370, filed 2026-11-09T08:55Z, 1 slot, blocking none). It is the only one of 27 open tickets with no decision row. The other 26 sit beside OPEN rows D-FLEET-16..44, unchanged since iteration 96: no allowlisted directive on #2039 or #1945 and no ledger flip on origin/dev since `252680e1b`. Clause 2 (turnaround) is the UNMET clause it could move. It is not HD-2a policy class: the fix touches skill text and a launchd test, and no routing, lane order, ration, quota or billing guard. The bar being narrowed was a fleet-controller choice in `33190af48` (iteration 91), not a ruling.
+
+**Orphans / prior record**: newest record is iteration 96 on draft #2171 (`fleet/i96-home-search`, stacked over iteration 95's draft #2169); this record stacks on it. #2171 carries a red `Build macos-latest` leg (run 42440700342) on a docs-only diff, not investigated here. No `fleet/i97*` branch or worktree existed before this fire. Self-notice read rc 0: 0 crash notices, control 852:10. Watermarks: #2039 absent (full-thread read), #1945 legacy. The 3 transcript-scan notices on #2039 (fires fleet-1793845378, -1793898974, -1793950362) are historical and were already reported.
+
+**Preflight / observe**: armed (`mission-fleet.disabled` absent), gh `sunholo-voight-kampff`, billing CLEAN. Gate 1 base `b5b5d149cbd9119d5fecc56b40c9cfde14c7fcd0@2026-11-09T09:12:05Z`, pin == origin/dev (drift 0). The resolved skill SKILL.md and all 13 resources match origin/dev per file. Dev CI, Build and Release and Docs deploy all success @ `b5b5d149c`; check-runs 22, none not-green. Weekly thread rotation is due this fire (past Mon 07:00 local; #2039 opened 11-02). Done at Gate 5.
+
+**Reality check (controller, first-party)**: `ls ~/.ailang/state | grep idle-fingerprint` returns only `mission-stapledon-idle-fingerprint.pending` and `mission-world-idle-fingerprint.pending`, so no mission has ever promoted a record. World's log on `origin/mission/world-iter370-record` lines 1613/1656 read "Idle fingerprint: NOT recorded — this fire degraded". `git log -S 'fire degraded'` shows only `33190af48`. Stapledon's last 8 slot verdicts are mixed picks and capacity pauses, not a clean no-pick run.
+
+**Did**: designer `claude:claude-opus-5-5` (Agent alias `opus`, hook `allow:same-model-alias`; rotation kimi → claude) wrote `planned/m-idle-record-degraded-bar.md` (`69d8200b8`, 198 lines, 19-row verification log). Quorum r1 (`--author` claude benched, cap $0.10) was **BLOCKED**:
+- kimi: an unsourced new "scheduled duty within 24 h" clause; the controller measured `grep -rn 'scheduled duty'` → none, control `PARKED-ON-LANE` → 2.
+- sol: citing an OPEN row is not proof its flip is the unblock.
+- argon passed, with a hardcoded `origin/dev` nit.
+
+All three were measured and handed to the same designer for the one permitted revision (`c1078385e`, 221 lines): clause removed, "row flip is the ONLY remaining unblock event" test added, branch resolved in-block. Quorum r2 was **BLOCKED** again:
+- sol: the proof block pipes `mission_decisions.sh` through `cut`, so a parser failure after printing ids still prints OK.
+- kimi: no recorded World or Stapledon fire is shown to qualify under the new rules (the doc's own Risks admit World 370 would still be barred), and the observation criterion passes on a no-op.
+- argon passed, with a placeholder nit.
+
+The narrow-refinement carve-out was not taken: kimi's fix ends "or do not land", which disputes direction and needs judgement. The independent evaluator (sonnet, Agent tool) was asked to derive each claim itself. It returned **PARK-UPHELD**:
+- It reproduced sol's fail-open with a stub that printed both ids, then exited 3 → `OK` `OK`.
+- It confirmed kimi's premise for World: external predicates, a weekly sweep and a branch-only D-WORLD-113. Stapledon is unknown.
+- It found the carve-out does not hold, the change is not policy class, and a judgment park is correct, not PARKED-ON-LANE or a SPLIT.
+
+Its strongest objection was that a cheaper disposition is B as the default. Adopted: D-FLEET-45 recommends B.
+
+**Outcome**: PARKED / needs-human-review, **D-FLEET-45** (A: one more bounded revision applying every r2 fix, "do not land" acceptable; B, recommended and the default: no change, World makes the fingerprint engage by recording attended steps as dev-side ledger rulings). Design and evidence only. No sprint plan, implementation, skill edit, merge or ticket resolution. 27 tickets stay open. Ledger 44 rows / 28 OPEN.
+
+**Ruled out**:
+- Lane degradation changing the fingerprint. It cannot: `--record` promotes the driver's pre-controller snapshot, and the hash has no lane input (designer V6/V7, controller re-read). The bar is still kept, because the design that removes it failed its gate.
+- The carve-out as a way past r2.
+- A third quorum round, which would overspend the one-doc diet and is not protocol.
+- Resolving the ticket as won't-change without a ruling. That is B, and B is Mark's call.
+
+**Retro lane**: none. One friction, below the ≥2 bar: the designer's first draft added an unsourced rule under the words "as today". No skill edit, process fix or audit.
+
+**Progress**: 27 open tickets (26 + 1 new); clause 1 UNMEASURED, 2 UNMET, 3 MET, 4 met by its letter, 5 preserved. **Goal unmoved**; no ticket resolved. Harness share 19/20 (78–97, all but 92/94), expected for this harness-only mission. Last three landings (91/87/86) each moved clause 2, so no DRIFT alarm.
+
+**Validation**: darwin/arm64. Record checks: `mission_decisions.sh --check` → `decision ledger valid: 44 rows`. The STATUS rotation moved ITERATION 94 to the archive (archive count 1, control ITERATION 93 → 1), and charter line arithmetic 408 → 411 was asserted in the script. Queue row 61 is still present. The stamp regex passed. No code changed, so Gate 3b is N/A for a landing. The record ships as a draft PR stacked on #2171.
+
+**Budget**: metered quorum $0.1320 (r1) + $0.1621 (r2) = **$0.2941**, under the $5 cap. Designer Agent opus 112,657 + 129,228 tok (initial, revision); evaluator Agent sonnet 79,141 tok; controller tok not reported. Planner and executor spent nothing.
+
+**Next**: D-FLEET-45 A → one bounded revision (sol's exit-status capture verbatim, retro-analysis of 10 World/Stapledon no-pick fires, falsifiable criterion, cited gate list), one re-quorum, then plan/build/judge. B or no answer → no change; the ticket stays open beside the row. Otherwise any ruling on D-FLEET-16..44 or a new ticket.
+
+**Routing evidence**: base=b5b5d149cbd9119d5fecc56b40c9cfde14c7fcd0@2026-11-09T09:28:10Z (Gate-4 record).
+- Controller `claude:claude-opus-5-5` (session; driver note: controller pi:ollama/glm-5.3:cloud → claude:claude-opus-5-5, probe ok) (tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5 declared:provider-pin` → Agent tool `model=opus`, `MISSION-ROLE: designer`, foreground (112,657 + 129,228 tok). Rotation pointer `mission-fleet-designer-rotation` kimi → `claude:claude-opus-5-5`. Quorum (designer, outcome): (claude-opus-5-5, BLOCKED ×2).
+- Planner: resolver `agent-tool opus fail-closed:env-pin`. **Not spawned**: Gate 2's QUORUM-AT-PICK sends a doc still rejected after one re-quorum to needs-human-review, so there is nothing to plan. This was a routing outcome, not a spawn failure.
+- Executor: resolver `recipe claude:claude-haiku-5-5 declared:provider-pin` (codex gpt-6.1-sol rc 75 handoff per the driver). **Not spawned**, for the same reason.
+- Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground (79,141 tok). It judged the disposition; there was no implementation to score. judge-independence: cross-model (designer opus, judge sonnet; same vendor).
+- Driver routing note verbatim: controller pi:ollama/glm-5.3:cloud → claude:claude-opus-5-5 (probe ok); lanes degraded: ; `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
