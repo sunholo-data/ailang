@@ -57,16 +57,59 @@ On the 10 benchmarks all three arms reached, A passed 5, B passed 1 and C passed
 - **The agent protocol is fixed.** Pilot-1 failed every agent run on protocol: no file written,
   tool calls lost in the thinking channel. Pilot-2 has **zero protocol misses**. Every failure is
   a real program that does not compile or prints the wrong output.
-- **The fine-tune is much more concise:** about a third of base's output tokens per pass. That is
-  the speed gain the programme was after, if accuracy can be recovered.
-- **What it lacks is language knowledge.** Most failures are compile errors, and the slim prompt
-  and no-prompt arms do equally badly. ~1,200 episodes over 57 training benchmarks taught the
-  habits but not enough AILANG to replace the teaching prompt.
+- **Concise only when it succeeds.** On its passes the fine-tune used about a third of base's
+  output tokens. Per run it is the other way round, because failing runs loop:
+
+  | Arm | Median output tokens per run | Median turns | Runs ≥ 50 turns | Final error is a parse error |
+  |---|---|---|---|---|
+  | A (base) | 9,728 | 4.5 | 0/10 | 1/10 |
+  | B (ft + slim) | 17,168 | 57.5 | 13/24 | 14/24 |
+  | C (ft, no prompt) | 12,055 | 29.5 | 8/18 | 9/18 |
+
+  A's 3 other rows hit pi's 1-hour hard timeout with no output.
+
+## Diagnosis (2026-11-09)
+
+The banked rows (final code, final error, tool histogram, turns) are enough to see what went
+wrong:
+
+- **The fine-tune's syntax is wrong.** Two thirds of its failures end in a **parse** error, and the
+  errors are borrowed syntax:
+  - `as` casts and `->` match arms;
+  - bare assignment without `let`;
+  - `;` in expression-bodied functions, and `?` inside interpolation;
+  - a missing `{`.
+
+  Base's failures are type and effect errors in programs that parse.
+- **It loops instead of looking things up.** Typical failing runs are 40–80 write → check cycles
+  that rewrite the whole file and never converge (merge_sort: 408 turns). It almost never reads
+  docs or examples once an error appears.
+- **The training data did not cover this.** Of 1,671 repair episodes:
+  - 618 fix `undefined variable` and 202 fix exhaustiveness;
+  - **26 fix a parse error**;
+  - no episode shows the "two failed fixes, so look it up" move. The 241 episodes with an
+    `ailang docs` or `ailang examples search` lookup all do it *before* the first write.
+
+  The repair chains came from staleness pairs: programs that once compiled and later broke on
+  checker changes. That source cannot produce the syntax mistakes a model makes on its own.
+
+So the result is not a ceiling. The model learned the shape of the loop, but the data never showed
+it its own kinds of mistakes, or the habit of looking up after a failed fix.
 
 ## Open questions for pilot-3
 
 These are not yet decided.
 
+- **On-policy repair data (best supported by the diagnosis).** Generate episodes from the
+  fine-tune's *own* failures:
+  1. Run pilot-2 on the training benchmarks only, never the held-out 24.
+  2. Keep its real parse and type errors.
+  3. Repair each one with the existing iterative `stale_fix.py` loop, verified against the
+     expected output.
+  4. Render the repairs as episodes. After a second failed fix, the episode does a lookup:
+     `ailang docs`, `ailang examples search`, or `ailang prompt` for the syntax.
+
+  Separately, cap or penalise turn counts over ~20 in the episode mix.
 - **Fine-tune + the full teaching prompt.** A fine-tune that carries the habits, given the prompt
   for language knowledge, might beat base while staying concise. This arm was never run.
 - **More language data.** The 2,733 verified repo programs and the eval passes were unused as agent
