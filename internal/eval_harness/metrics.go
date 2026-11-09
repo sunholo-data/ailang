@@ -148,12 +148,15 @@ type RunMetrics struct {
 	Caps       []string `json:"caps,omitempty"`        // Capabilities granted
 
 	// Contract verification results (M-CONTRACT-EVAL)
-	VerifyOk        bool   `json:"verify_ok"`             // All contracts verified
-	VerifyVerified  int    `json:"verify_verified"`       // Count of verified functions
-	VerifyCounterex int    `json:"verify_counterexample"` // Count of counterexamples
-	VerifySkipped   int    `json:"verify_skipped"`        // Count of skipped functions
-	VerifyErrors    int    `json:"verify_errors"`         // Count of Z3 errors
-	VerifyJSON      string `json:"verify_json,omitempty"` // Full ai-check JSON output
+	VerifyOk        bool `json:"verify_ok"`             // All contracts verified
+	VerifyVerified  int  `json:"verify_verified"`       // Count of verified functions
+	VerifyCounterex int  `json:"verify_counterexample"` // Count of counterexamples
+	// VerifyInconclusive counts bounded-unrolling sats: attempted, undecided —
+	// neither a violation nor a proof.
+	VerifyInconclusive int    `json:"verify_inconclusive"`
+	VerifySkipped      int    `json:"verify_skipped"`        // Count of skipped functions
+	VerifyErrors       int    `json:"verify_errors"`         // Count of Z3 errors
+	VerifyJSON         string `json:"verify_json,omitempty"` // Full ai-check JSON output
 
 	// Agent mode KPIs (M-EVAL-AGENT)
 	AgentTurns     int `json:"agent_turns,omitempty"`      // Number of conversation turns (agent mode only)
