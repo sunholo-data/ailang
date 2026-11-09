@@ -38,11 +38,14 @@ package server
 
 import (
 	"context"
+	"crypto/subtle"
 	"log"
 	"net"
 	"net/http"
 	"path"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/coordinator"
 )
 
 // dashboardAuthRealm is sent in WWW-Authenticate on the gate's 401s. Its realm
@@ -149,13 +152,13 @@ func (s *Server) authorizeDashboardRequest(w http.ResponseWriter, r *http.Reques
 		refuseDashboardRequest(w, r, "missing_token", "Authentication required: send Authorization: Bearer <COORDINATOR_API_KEY> (CLI readers: set AILANG_DASHBOARD_TOKEN)")
 		return nil, false
 	}
-	if s.apiKey != "" && constantTimeEqual(token, s.apiKey) {
+	if s.apiKey != "" && subtle.ConstantTimeCompare([]byte(token), []byte(s.apiKey)) == 1 {
 		return r, true
 	}
 	if s.tokenVerifier != nil {
 		if user, err := s.firebaseUser(r, token); err == nil {
 			if !user.IsViewer() && !user.IsApprover() {
-				log.Printf("dashboard auth: refused %s %s: Firebase user has role %q, needs Viewer or Approver", r.Method, r.URL.Path, user.Role)
+				log.Printf("dashboard auth: refused %s %s: Firebase user has role %q, needs Viewer or Approver", coordinator.SanitizeLog(r.Method), coordinator.SanitizeLog(r.URL.Path), coordinator.SanitizeLog(user.Role))
 				writeErrorResponse(w, http.StatusForbidden, "forbidden", "This dashboard requires the Viewer or Approver role")
 				return nil, false
 			}
@@ -167,7 +170,7 @@ func (s *Server) authorizeDashboardRequest(w http.ResponseWriter, r *http.Reques
 }
 
 func refuseDashboardRequest(w http.ResponseWriter, r *http.Request, code, msg string) {
-	log.Printf("dashboard auth: refused %s %s from %s: %s", r.Method, r.URL.Path, r.RemoteAddr, code)
+	log.Printf("dashboard auth: refused %s %s from %s: %s", coordinator.SanitizeLog(r.Method), coordinator.SanitizeLog(r.URL.Path), coordinator.SanitizeLog(r.RemoteAddr), code)
 	w.Header().Set("WWW-Authenticate", dashboardAuthRealm)
 	writeErrorResponse(w, http.StatusUnauthorized, code, msg)
 }
