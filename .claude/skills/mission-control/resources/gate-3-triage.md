@@ -310,13 +310,13 @@ body to `controlplane`, the fallback Daneel already triages. Replies come back t
 ruling relay once it exists (D-TRIAGE-4); until then Mark answers in an attended session and it is
 recorded with `scripts/mission_answer.sh`. Never treat silence as an answer.
 
-### 7b. This iteration's own record PR: one at a time, ready, visible
+### 7b. This iteration's own record PR: one at a time, ready, and landed (D-TRIAGE-81)
 
 A record left in a draft is invisible: the next iteration reads a stale ledger, and the decisions
 it opened never reach `dev`. Measured 2026-11-04..09: 8 stacked draft record PRs
 (#2114 … #2170). `dev` showed 15 OPEN rows while the digests said 44, and D50–D79 existed only on
-branches. Merging stays outside Level 1. This section only keeps the record in one place where a
-merge can find it.
+branches. The loop merges **this PR and no other** (D-TRIAGE-81). Every other merge stays outside
+Level 1.
 
 1. **One open record PR at a time.** At Gate 1, run
    `gh pr list --state open --search "head:triage/" --json number,headRefName`. If one exists,
@@ -326,8 +326,16 @@ merge can find it.
    `design_docs/triage-mission*.md` in the diff and `scripts/mission_decisions.sh --check` passing.
 3. **A red that is not in the record's files** (e.g. a runner cancellation, or a red inherited
    from the base; read the failing STEP) gets one `gh run rerun <run> --failed`.
-4. **Make it visible**: the digest and the packet's last line both carry
-   `record: #N <green|red: step> (unmerged since <date>)` until it lands.
+4. **Land it** when all of these hold: (a) `gh pr view N --json files --jq '.files[].path'` lists only
+   `design_docs/triage-mission*.md`; (b) `scripts/mission_decisions.sh --check` passes on the head;
+   (c) every required check is green **now**. An armed auto-merge is a prediction, not a landing
+   (gate-3b-ci-green.md). Merge with
+   `gh pr merge N --squash --delete-branch --match-head-commit <head sha>`, then put
+   `record: merged #N <sha>` in the digest. If any other file is in the diff, do not merge;
+   it needs an attended review.
+5. **If it cannot land this iteration**, make it visible: the digest and the packet's last line
+   both carry `record: #N <red: step | pending> (unmerged since <date>)`, and step 1 picks it up
+   next time.
 
 ### 8. Recording the queue fingerprint (the LAST step of the iteration)
 
