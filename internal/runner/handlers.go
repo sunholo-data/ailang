@@ -344,6 +344,11 @@ func ApplyPolicy(effCtx *effects.EffContext, res *policy.Resolved) {
 		if effCtx.Net != nil {
 			effCtx.Net.RefuseProxy = true
 		}
+		// HTTP Stream honors the proxy environment like Net, so restricted
+		// mode refuses it the same way (m-net-effect-proxy-boundary M2).
+		if effCtx.Stream != nil {
+			effCtx.Stream.RefuseProxy = true
+		}
 		// M6: Process runs through the confined adapter (read-only git with
 		// a hardened invocation), and `.git/` is read-only to the program so
 		// the repo config the adapter trusts stays the launcher's.
