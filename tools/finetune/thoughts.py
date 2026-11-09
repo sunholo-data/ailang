@@ -101,13 +101,33 @@ def plan_thought(code, task):
     return lead + body + tail
 
 
+def is_rewrite(steps, i):
+    """A write that keeps under half of the previous file's lines: a rewrite, not a targeted fix."""
+    c = steps[i]["call"]
+    if c["name"] != "write":
+        return False
+    for s in reversed(steps[:i]):
+        if s["call"]["name"] == "write":
+            old, new = s["call"]["args"].get("content", ""), c["args"].get("content", "")
+            return difflib.SequenceMatcher(None, old.splitlines(), new.splitlines(), autojunk=False).ratio() < 0.5
+        if s["call"]["name"] == "edit":
+            return False
+    return False
+
+
+REWRITE = ["The attempt has too many errors to patch one by one; rewrite it cleanly, using only forms the reference shows.",
+           "Too much of this is wrong to fix line by line; rewrite the program in plain, checked AILANG forms."]
+
+
 def add_thoughts(ep, rnd):
     steps, out = ep["steps"], []
     for i, s in enumerate(steps):
         c, a = s["call"], s["call"]["args"]
         prev = steps[i - 1]["result"] if i else ""
         prev_call = steps[i - 1]["call"] if i else {}
-        if c["name"] == "read":
+        if i > 1 and not s.get("no_loss") and is_rewrite(steps, i):
+            t = rnd.choice(REWRITE)
+        elif c["name"] == "read":
             t = rnd.choice(READ)
         elif s.get("habit") == "reference":  # pilot-3, habit 5: look up instead of guessing again
             err = s.get("about") or first_error(prev)

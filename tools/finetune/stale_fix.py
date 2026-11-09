@@ -145,8 +145,10 @@ Feedback (compiler error, or the run's output):
 {error}
 
 Fix the attempt so `ailang check` accepts it and it prints exactly the expected output. Keep the
-attempt's structure and names; change only what is wrong. Reply with the complete fixed program
-and nothing else (no markdown fences, no explanation)."""
+attempt's structure and names; change only what is wrong. You have no tools and cannot run
+anything: do not emit tool calls. The program will be compiled and run for you, and any new
+error sent back. Reply with the complete fixed program and nothing else (no markdown fences,
+no explanation)."""
 
 
 def agent_ref(cache={}):
@@ -174,13 +176,18 @@ def ask(model, prompt, key):
     return txt, d.get("usage") or {}
 
 
+EFFORT = "medium"
+
+
 def ask_claude(model, prompt):
     """Claude via the CLI on the subscription (OAuth): no tools, no session, no settings,
     ANTHROPIC_API_KEY stripped so it can never bill the API (same flags as the quorum's
     claude reviewer, internal/mission/quorum/claude_reviewer.go)."""
     env = {k: v for k, v in os.environ.items() if k != "ANTHROPIC_API_KEY"}
     with tempfile.TemporaryDirectory() as td:  # empty cwd: no project CLAUDE.md
-        r = subprocess.run(["claude", "-p", "--model", model, "--output-format", "json", "--tools", "",
+        # --effort medium: at the default the model reasoned (or emitted fake tool calls) for 15 min
+        # on one item (2026-11-09); our own compile-and-run loop does the checking instead.
+        r = subprocess.run(["claude", "-p", "--model", model, "--effort", EFFORT, "--output-format", "json", "--tools", "",
                             "--no-session-persistence", "--setting-sources", "", "--strict-mcp-config"],
                            input=prompt, capture_output=True, text=True, timeout=900, cwd=td, env=env)
     if r.returncode != 0:

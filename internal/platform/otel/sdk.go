@@ -233,6 +233,7 @@ func cloudExporter(ctx context.Context, cfg initConfig) (sdktrace.SpanExporter, 
 			// the whole process dies. `ailang repl --help` exited 2 with a SIGSEGV
 			// instead of printing help — three cmd/ailang tests fail that way, and
 			// it would hit any command on a machine that cannot reach GCP.
+			silenceCloudTraceDeprecation() // #2151: the notice polluted every eval tool result
 			exp, cerr := cloudtrace.New(
 				cloudtrace.WithProjectID(project),
 				cloudtrace.WithTraceClientOptions(cloudTraceClientOptions()),

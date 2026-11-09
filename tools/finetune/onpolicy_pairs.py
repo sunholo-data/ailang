@@ -80,24 +80,31 @@ def sessions(trace):
 
 
 def file_states(req, resp):
-    """Replay write/edit calls on benchmark/solution.ail; stop at the first edit that does not apply."""
-    calls = []
+    """Replay write/edit calls on benchmark/solution.ail. An edit pi reported as failed ("Could not
+    find the exact text") changed nothing and is skipped; an edit that does not apply to OUR replayed
+    state although pi applied it means the replay is out of sync (e.g. a bash-side write): stop there."""
+    calls, results = [], {}
     for m in req["messages"]:
         if m.get("role") == "assistant":
             calls += m.get("tool_calls") or []
+        elif m.get("role") == "tool":
+            results[m.get("tool_call_id")] = str(m.get("content") or "")
     calls += last_action(resp if isinstance(resp, str) else "")
     cur, states = None, []
     for tc in calls:
         name, a = tc["function"]["name"], args_of(tc)
         if not a or not str(a.get("path", "")).endswith("solution.ail"):
             continue
+        res = results.get(tc.get("id"))
+        if res is not None and not res.startswith("Successfully"):
+            continue  # pi rejected the call: the file did not change
         if name == "write" and "content" in a:
             cur = a["content"]
         elif name == "edit" and cur is not None:
             for e in a.get("edits") or [a]:
                 old, new = e.get("oldText"), e.get("newText")
                 if old is None or new is None or cur.count(old) != 1:
-                    return states  # desync (bash-side writes, or a failed edit): stop here
+                    return states
                 cur = cur.replace(old, new)
         else:
             continue
@@ -134,6 +141,8 @@ def main():
     ap.add_argument("--trace", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--per-kind", type=int, default=10,
+                    help="cap items per (benchmark, error kind), failed-fix items first: bounds the repair spend")
     a = ap.parse_args()
     held = load_heldout()
     sess = sessions(os.path.expanduser(a.trace))
@@ -172,6 +181,14 @@ def main():
                 task = (b.get("task_prompt") or b.get("prompt") or "").replace("<LANG>", "AILANG")
                 items.append({"benchmark": bid, "code": code, "error": err, "expected_stdout": b.get("expected_stdout"),
                               "task": task, "kind": kind_of(err), "prev": prev, "state_index": i})
+    per, kept = collections.Counter(), []
+    for it in sorted(items, key=lambda x: (x["prev"] is None, x["state_index"])):
+        k = (it["benchmark"], it["kind"])
+        if per[k] < a.per_kind:
+            per[k] += 1
+            kept.append(it)
+    rep["capped"] = len(items) - len(kept)
+    items = kept
     with open(os.path.expanduser(a.out), "w") as f:
         for it in items:
             f.write(json.dumps(it) + "\n")
