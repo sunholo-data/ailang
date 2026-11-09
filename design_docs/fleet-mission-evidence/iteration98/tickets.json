@@ -1,0 +1,599 @@
+[
+  {
+    "signature": "reporting:daneel-reports-not-declared-triage",
+    "slots_lost": 20,
+    "blocking": "none",
+    "missions": [
+      "triage"
+    ],
+    "first_seen": "2026-10-16T08:32:42.068653Z",
+    "last_seen": "2026-11-08T01:16:28.29665Z",
+    "message_ids": [
+      "inbox_1794100588296_d09dbdc0",
+      "inbox_1794055626799_50e8ab56",
+      "inbox_1794009898024_d8ee4c47",
+      "inbox_1793965108358_884629df",
+      "inbox_1793919988681_18e6d7a0",
+      "inbox_1793874872498_b0dec432",
+      "inbox_1793829997169_00c8c0d8",
+      "inbox_1793741284696_503247dd",
+      "inbox_1793696181298_78094169",
+      "inbox_1793222654607_204e0ee3",
+      "inbox_1793178174531_2005f28f",
+      "inbox_1793132748924_308cbc16",
+      "inbox_1792666977791_d8a8d14b",
+      "inbox_1792622923766_6056562b",
+      "inbox_1792578499678_b8495de1",
+      "inbox_1792533879605_18a7bcf5",
+      "inbox_1792446067114_a8de6085",
+      "inbox_1792402002630_384676f5",
+      "inbox_1792270873468_18cd5712",
+      "inbox_1792139562068_28a406c1"
+    ],
+    "latest": {
+      "mission": "triage",
+      "iteration": 34,
+      "signature": "reporting:daneel-reports-not-declared-triage",
+      "slot_verdict": "iteration34 reporting: direct endpoint rc1; prescribed fallback exact-peek verified",
+      "blocking": "none",
+      "evidence": "Iteration34 direct daneel-reports normal digest refused rc1: no agent serves the inbox and it is not declared human-triage. Prescribed gate-3 §7a controlplane fallback delivered identical normal title/body; exact peek confirmed unread. User summary also exact-peek verified. Morning fire: no evening packet or urgent. No force, harness/config/registry/IAM change.\n",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "quorum:gpt6-1-sol-openai-api-credits-exhausted",
+    "slots_lost": 3,
+    "blocking": "none",
+    "missions": [
+      "stapledon",
+      "world"
+    ],
+    "first_seen": "2026-10-01T07:00:56.934997Z",
+    "last_seen": "2026-10-21T14:16:50.328824Z",
+    "message_ids": [
+      "inbox_1792592210328_5011c823",
+      "inbox_1792560129742_1875d0cb",
+      "inbox_1790838056934_686cdc79"
+    ],
+    "latest": {
+      "mission": "stapledon",
+      "iteration": 44,
+      "signature": "quorum:gpt6-1-sol-openai-api-credits-exhausted",
+      "slot_verdict": "2026-10-21T05:39:35Z verdict=COMPLETED rc=0 attempt=1/3 elapsed_s=5612 stamps=9 controller=claude:claude-opus-5-5",
+      "blocking": "none",
+      "evidence": "stapledon iteration 44 (2026-10-21): design-quorum on design_docs/planned/r1/m4-7s-7o-followups.md, --author claude:claude-opus-5-5.\nr1 artifact m4-7s-7o-followups-2026-10-21T12-17-08Z.json: gpt6-1-sol ABSENT (unreachable); oc-glm-5-3 ABSENT (unreachable).\nr2 artifact m4-7s-7o-followups-2026-10-21T12-27-18Z.json: gpt6-1-sol ABSENT (unreachable).\nThe OpenAI quorum seat was absent in iterations 41, 43 and 44. The codex CLI lane (gpt-6.1-sol via subscription, OPENAI_API_KEY stripped) worked the same day as planner and executor, rc 0, so the seat failure is specific to the quorum's API path.\n",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "messaging:pubsub-notify-wrong-project",
+    "slots_lost": 2,
+    "blocking": "none",
+    "missions": [
+      "world"
+    ],
+    "first_seen": "2026-10-15T16:55:00.023719Z",
+    "last_seen": "2026-10-16T04:03:15.427625Z",
+    "message_ids": [
+      "inbox_1792123395427_d04c21aa",
+      "inbox_1792083300023_e8bcd239"
+    ],
+    "latest": {
+      "mission": "world",
+      "iteration": 272,
+      "signature": "messaging:pubsub-notify-wrong-project",
+      "slot_verdict": "world iter-272 completed; report filed-not-dispatched",
+      "blocking": "none",
+      "evidence": "World iteration 272 (2026-10-16T04:02Z): `ailang messages send controlplane ... -from mission-world` → \"✓ Message sent (ID: inbox_1792123377481_20837b7c)\", then \"! Pub/Sub notify failed: ... PermissionDenied ... Cloud Pub/Sub API has not been used in project sunholo-gemini-enterprise\" and \"FILED, NOT DISPATCHED\". The message is in Firestore project ailang-multivac (controlplane list shows it), but notify targets sunholo-gemini-enterprise. rc=0. Non-blocking: the digest is readable, and the bookkeeping-issue channel delivered (28 → 29 comments).\n",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "ci:launchd-suite-flakes-openrouter-peer-and-gh-hang",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-09-29T07:45:51.634644Z",
+    "last_seen": "2026-09-29T07:45:51.634644Z",
+    "message_ids": [
+      "inbox_1790667951634_80ecdbbf"
+    ],
+    "latest": {
+      "mission": "attended",
+      "iteration": 0,
+      "signature": "ci:launchd-suite-flakes-openrouter-peer-and-gh-hang",
+      "blocking": "none",
+      "evidence": "launchd drivers (bash 3.2) job, 5 failures 2026-09-26..28 (none since 09-28 13:44Z):\n- INSTRUMENT FAILURE: treatment peer set contains OpenRouter endpoint: 203.0.113.8:443 — dev runs 36418688532, 36430797266 (09-28)\n- FAIL: production: hanging gh comment is cut off and warns — runs 36243623820, 36396645857, 36426509448\nSupersedes ci:launchd-driver-suite-flakes (its process-tree signature: 0 occurrences in 3 days). Verify each reproduces before working it.\n",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "eval:motoko-connection-probe-orphaned",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "motoko"
+    ],
+    "first_seen": "2026-10-01T07:57:29.218227Z",
+    "last_seen": "2026-10-01T07:57:29.218227Z",
+    "message_ids": [
+      "inbox_1790841449218_98abb24d"
+    ],
+    "latest": {
+      "mission": "motoko",
+      "iteration": 40,
+      "signature": "eval:motoko-connection-probe-orphaned",
+      "blocking": "none",
+      "evidence": "Moved from motoko queue row 6s (archived at the 2026-09-30 reset). tools/eval/motoko_connection_probe.sh was the instrument for the fork-era fmt remeasurement, whose premise D-MOTOKO-RESET-2 superseded. Nothing uses it except its own test suite, make/test.mk (test-launchd-drivers, the 'launchd drivers (bash 3.2)' CI job) and scripts/test_check_referenced_paths.sh. Unmerged expected_arms gate work sits on sprint/motoko-iter39-armcount-r3. Decide: retire the probe and its CI target, or keep it with an owner. See also open ticket ci:launchd-suite-flakes-openrouter-peer-and-gh-hang (same suite).",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "policy:fleet-rulings-not-propagated-to-charters-and-skill",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-01T15:52:26.134631Z",
+    "last_seen": "2026-10-01T15:52:26.134631Z",
+    "message_ids": [
+      "inbox_1790869946134_a0064742"
+    ],
+    "latest": {
+      "mission": "attended",
+      "iteration": 0,
+      "signature": "policy:fleet-rulings-not-propagated-to-charters-and-skill",
+      "blocking": "none",
+      "evidence": "Fleet-wide rulings do not reach every loop. Policy lives in 4 layers: Go (internal/mission resolver/admission/quorum), the shell driver, the shared mission-control skill (+ .agents mirror), and each mission charter. A ruling lands in whichever layers someone edits.\nMeasured 2026-10-01 (attended): V1 D-62/D-63 (Mark 2026-09-08: generator!=judge is \"a nice to have, not a blocker\") reached v1-mission.md and the resolver (Candidate.SameVendorAsAuthor) but NOT gate-3-route.md (still \"generator≠judge guard (HARD)\", provider-level) and NOT world-mission.md (\"Evaluator: must differ in provider\"). World iter 216 (draft PR #172) parked row 108 with Codex 57% used / 74% allowed because its rotation designer (GLM/Ollama) was over ration and no cross-vendor evaluator had quota.\nPatched by hand: ailang 349e311b9 (skill, both copies) + ailang-world 54e0fb0 (D-WORLD-48). The class is unfixed.\nAsk (Mark): one fleet-wide decisions ledger that every charter references and cannot override; `ailang mission doctor` (M-MISSION-LIGHT-PROFILE Phase 1, an arming gate under HD-4) flags charter/skill text contradicting a fleet-wide ruling. Also: missions/world.toml still says World is a driver fork, but its plist now runs ailang/tools/launchd/mission-control.sh — verify and correct.\n",
+      "workaround": "hand-patched skill 349e311b9 and World D-WORLD-48 54e0fb0"
+    }
+  },
+  {
+    "signature": "codex:server-capacity-error-crashes-finished-iteration",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-02T05:52:38.677939Z",
+    "last_seen": "2026-10-02T05:52:38.677939Z",
+    "message_ids": [
+      "inbox_1790920358677_c86b03d8"
+    ],
+    "latest": {
+      "mission": "attended",
+      "iteration": 0,
+      "signature": "codex:server-capacity-error-crashes-finished-iteration",
+      "blocking": "none",
+      "evidence": "World iteration 219 (2026-10-02 05:25 local, controller codex:gpt-6.1-sol) completed its work: committed b026d4e on local branch mission/world-iter219-record (independent GPT6 Astra record judge PASS 90/100). Codex then printed \"ERROR: Selected model is at capacity. Please try a different model.\" twice and exited rc=1, so the slot was recorded CRASHED_at=gate-3 after 799 s. The branch was never pushed (git ls-remote shows no mission/world-iter219*), so finished work is stranded locally. Fix: treat an OpenAI server-capacity error as transient (retry/back off, or classify as provider_capacity), and push or bank the finished record branch before exit.\n",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "quota:admission-has-no-headroom-margin-and-flaps",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-02T06:19:08.22126Z",
+    "last_seen": "2026-10-02T06:19:08.22126Z",
+    "message_ids": [
+      "inbox_1790921948221_28b52df0"
+    ],
+    "latest": {
+      "mission": "attended",
+      "iteration": 0,
+      "signature": "quota:admission-has-no-headroom-margin-and-flaps",
+      "blocking": "none",
+      "evidence": "Admission is a bare `used \u003c pace` test (weekday pace, quota_ledger.go WeekdayPacePercent; +0.83pp/weekday-hour), so a run is admitted at 79.5% vs 80% and the loops flap on/off as the pace line creeps. Mark 2026-10-02: \"only start if we have some headroom\".\nMeasured (Codex weekly used_percent, from ~/.codex/sessions rate_limits, 09-26..10-02): a typical mission run costs 1-4pp (stapledon 2-3, fleet 1-2, docs 2-3, world 2-6). Outlier: World iteration 217 (10-01 18:19-23:20Z) spent +24pp in one run, 59-\u003e83, more than a full weekday's 20% pace. After it, codex was over pace; 01:27-03:15 every fire fell through to ollama/openrouter (both then exhausted, see driver:controller-fallback-skips-openrouter-ration-and-402-reads-as-crash); at 05:25 pace had crept back above used and World was re-admitted with ~1pp headroom.\nAsk: (1) admission margin: start only if pace - used \u003e= the mission's expected run cost (rolling p75 per mission+bucket from the same rate_limits data; seed 5pp for codex/anthropic until measured); otherwise yield this fire. (2) hysteresis: once a bucket is blocked, re-admit only after headroom \u003e= that margin, not the first fire under the line. (3) in-run cap: a single run may not spend more than N pp (proposal: 10pp) of a weekly bucket; past it the controller records and exits cleanly (iter 217's 24pp would have stopped at ~69%). (4) fallback rungs are admitted with the same margin rule. Attended sessions stay ungated.\n",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "pi:unowned-dirty-absolute-vs-relative-paths",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "interactive"
+    ],
+    "first_seen": "2026-10-02T07:53:35.045186Z",
+    "last_seen": "2026-10-02T07:53:35.045186Z",
+    "message_ids": [
+      "inbox_1790927615045_609a3459"
+    ],
+    "latest": {
+      "mission": "interactive",
+      "iteration": 0,
+      "signature": "pi:unowned-dirty-absolute-vs-relative-paths",
+      "blocking": "none",
+      "evidence": "pi .pi/extensions/unowned-dirty.ts records the session's own files as ABSOLUTE paths (ownFiles.add(p.startsWith('/') ? p : `${ctx.cwd}/${p}`)) but compares them in unownedDirty() against parsePorcelain(git status --porcelain), whose paths are REPO-RELATIVE. No absolute path ever equals a relative one, so every dirty file is reported as 'did not write', including the session's own edits: the warning fires on every git add/stash/checkout and carries no signal. .pi/extensions/.unowned-dirty.test.ts only tests the pure function with relative paths (new Set(['mine.ts'])), so the wiring bug is untested. Found 2026-10-02 porting it to a Claude Code mod (M-CLAUDE-CODE-MODS V18, PR #1492). Fix: relativize own paths against git rev-parse --show-toplevel before comparing (the mod's relativeTo()), and add a wiring test. Note the mod's hooks/core.ts is generated from the pi file's pure functions (scripts/check_claude_mods_drift.sh --write) — the fix belongs in the extension wiring, so the core stays in sync.",
+      "workaround": "none (Claude Code port in tools/claude-mods/unowned-dirty compares repo-relative paths; pi left as-is)"
+    }
+  },
+  {
+    "signature": "skill:design-doc-creator-grep-portability",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-03T07:14:46.923216Z",
+    "last_seen": "2026-10-03T07:14:46.923216Z",
+    "message_ids": [
+      "inbox_1791011686923_b09ca1db"
+    ],
+    "latest": {
+      "mission": "attended",
+      "iteration": 0,
+      "signature": "skill:design-doc-creator-grep-portability",
+      "blocking": "none",
+      "evidence": "design-doc-creator create_planned_doc.sh (.agents and .claude copies on dev 32d19153a) uses grep -E \"^\\d+\\.\" at lines 125/134/151/160: \\d is not POSIX ERE, so on BSD/GNU grep the duplicate-search results never match and come back empty. Line 117 pipes to head -5 with no || true, so an empty grep under set -euo pipefail aborts the script before the doc is written (agent reported hitting this 2026-10-01 and 2026-10-02). An agent hand-patched its own copy inside ailang#1520 (closed as stale): ^[0-9]+\\. and \"| head -5 || true\". The fix needs to land in the skill source, and in ailang_bootstrap so the daily sync-cloud-skills job does not revert it (same trap as #1542).",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "skills:agents-copies-stale-non-mission",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-03T08:49:53.018719Z",
+    "last_seen": "2026-10-03T08:49:53.018719Z",
+    "message_ids": [
+      "inbox_1791017393018_a8336d69"
+    ],
+    "latest": {
+      "mission": "attended",
+      "iteration": 0,
+      "signature": "skills:agents-copies-stale-non-mission",
+      "blocking": "none",
+      "evidence": "ailang#544 residual: 27 of 40 paired .agents/skills SKILL.md files still differ from .claude/skills at 790169359; only mission-*/sprint-* are synced and checked (tools/launchd/sync-agents-skills.sh, make/test.mk:82 via ticket skills:agents-copies-stale / #1398). model-manager and design-doc-creator reconciliation called V1 scope in the fleet charter.",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "pi:openrouter:uncapped-max-tokens-402",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "stapledon"
+    ],
+    "first_seen": "2026-10-07T18:58:04.944519Z",
+    "last_seen": "2026-10-07T18:58:04.944519Z",
+    "message_ids": [
+      "inbox_1791399484944_a083ef1e"
+    ],
+    "latest": {
+      "mission": "stapledon",
+      "iteration": 0,
+      "signature": "pi:openrouter:uncapped-max-tokens-402",
+      "blocking": "none",
+      "evidence": "6 of 12 failed GLM controller fires 2026-09-28..10-05 (stapledon 10-02 02:13, fleet 10-02 02:18, world 10-05 03:21+07:21, stapledon 10-05 04:41, fleet 10-05 04:28) died on OpenRouter HTTP 402: 'You requested up to 935502 tokens, but can only afford 512480'. openrouter/z-ai/glm-5.3, moonshotai/kimi-k3 and minimax/minimax-m3 (a judge lane) had no entry in ~/.pi/agent/models.json, so pi used built-in maxTokens (262k/131k/512k). Nothing in the repo owns these caps, so a fresh rig or a pi upgrade loses them. Ask: whatever provisions pi models (ai setup / mission install) should write a capped entry for every routed OpenRouter model, and the 402 'fewer max_tokens' text should classify as config, not capacity.",
+      "workaround": "attended 2026-10-07: added maxTokens 32000 entries for the three models (backup models.json.bak-20261007-orcaps)"
+    }
+  },
+  {
+    "signature": "stall:watchdog:slow-on-hung-tool",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "stapledon"
+    ],
+    "first_seen": "2026-10-07T18:58:07.022245Z",
+    "last_seen": "2026-10-07T18:58:07.022245Z",
+    "message_ids": [
+      "inbox_1791399487022_b81cc79a"
+    ],
+    "latest": {
+      "mission": "stapledon",
+      "iteration": 0,
+      "signature": "stall:watchdog:slow-on-hung-tool",
+      "blocking": "none",
+      "evidence": "Two GLM controller fires burned 50 and 87 min on hangs: stapledon 2026-09-28 (an unbounded 'find ~ -maxdepth 6' that never returned; 'STALL: ... descendant alive \u003e=2400s — killing early') and fleet 2026-10-04 04:28 (no model turn for 11.5 min after a tool result; 'STALL: pi 17673 made NO PROGRESS across 5 samples (600s)'). The eval harness got a per-command bash cap in #1532 (eval-shell-guard); controllers only have controller-bash-cap.ts. Ask: check the controller cap applies to pi controllers' find/ailang calls, and shorten the no-progress threshold for pi controllers.",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "crash:sprint-executor:sigbus-ram-tmp-full-make-test",
+    "slots_lost": 1,
+    "blocking": "item",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-08T06:56:01.831306Z",
+    "last_seen": "2026-10-08T06:56:01.831306Z",
+    "message_ids": [
+      "inbox_1791442561831_886f78bd"
+    ],
+    "latest": {
+      "mission": "attended",
+      "iteration": 0,
+      "signature": "crash:sprint-executor:sigbus-ram-tmp-full-make-test",
+      "blocking": "item",
+      "evidence": "Two sprint-executor runs on prod (job ailang-agent-executor-codex-go, 2 CPU / 8Gi, maxRetries=1) died with \"Container terminated on signal 7\" (SIGBUS):\n  execution ksjks: 19:00:55 and 19:11:36 (task-e546fce0, M-WITH-RECV-RESERVED-WORDS)\n  execution 4jvxw: 19:16:34 and 19:42:45 (task-538fd63d, M-STD-YAML-MAPPING-KEY-ORDER)\nThe log just before each crash shows the agent building a C toolchain/sysroot in /tmp (/tmp/reserved-tools/cc, CGO_ENABLED=1) and running full `make test` plus `go test ./cmd/ailang/...`. Cloud Run's /tmp is in-memory, so the test run exhausts the 8Gi and the container gets SIGBUS. Nothing was pushed before the crash, so all work was lost. The sibling sprint (M-STD-YAML-ENCODE, execution 8pldm) succeeded only because that agent abandoned full make test early.\nDefect 2: the coordinator recorded neither failed execution. Both tasks stayed open until stale_task_detector fired at 21:45:35 (\"no completion received within 3h0m0s of being queued\"), 2-2.5h after the crash.\nAsks: (1) the sprint-executor skill/prompt should scope local verification to the touched packages, never install toolchains, leave the full suite to CI, and push after each milestone; (2) the executor jobs need a disk-backed scratch volume or more memory headroom for Go test caches; (3) the coordinator should mark a task failed when its Cloud Run execution fails, not 3h later.\n",
+      "workaround": "re-dispatched both sprints via sprint-executor inbox with an explicit 'no full make test, push per milestone' constraint (inbox_1791442548136_309a2e8d, inbox_1791442549175_b89421cb)"
+    }
+  },
+  {
+    "signature": "sprint-evaluator:worktree-cap-and-exit1",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-09T06:17:36.11053Z",
+    "last_seen": "2026-10-09T06:17:36.11053Z",
+    "message_ids": [
+      "inbox_1791526656110_18821c77"
+    ],
+    "latest": {
+      "mission": "attended",
+      "iteration": 0,
+      "signature": "sprint-evaluator:worktree-cap-and-exit1",
+      "blocking": "none",
+      "evidence": "Prod coordinator (gcp), 2026-10-08 19:11-21:09. Every sprint-evaluator handoff after a sprint-executor PR failed. Six failed with \"max worktrees limit reached (3)\": task-8aa1cc92, f451c030, 89370b9f, 30e41fba, 0f19758e, ebb702ce. Three failed with \"exit status 1\": task-e3436c49, 87be6503, 0346c609. An earlier one, task-95aabde5 on 2026-10-08 07:14, also hit max worktrees. So no executor PR got an automatic evaluation; all 9 implementation PRs (#1691 #1695 #1699 #1704-#1709) were left for attended review. Two sprint-executor tasks also timed out at 3h with no PR (task-06dc18ea, task-85d95401); work was lost because the executor commits only at the end. Asks: (1) the evaluator must not share a 3-worktree cap with concurrent executors, or must queue instead of failing; (2) find the root cause of the exit-1 evaluator failures; (3) executors should commit per milestone so a timeout keeps partial work. Related: crash:sprint-executor:sigbus-ram-tmp-full-make-test, executor-image:no-make-no-cc-cgo-tests.\n",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "executor:3h-timeout-from-queue-and-unsliced-sprints",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-12T09:30:51.997927Z",
+    "last_seen": "2026-10-12T09:30:51.997927Z",
+    "message_ids": [
+      "inbox_1791797451997_b846c90b"
+    ],
+    "latest": {
+      "mission": "attended",
+      "iteration": 0,
+      "signature": "executor:3h-timeout-from-queue-and-unsliced-sprints",
+      "blocking": "none",
+      "evidence": "Prod coordinator (gcp), 2026-10-07..12: 43 sprint-executor tasks, 6 timed out with \"no completion received within 3h0m0s of being queued\", ALL work lost. The tasks were task-50131b05 (M-IFC-CROSS-MODULE, 1040 LOC est), task-4da1bab2 (M-MCP-FILES-FRICTION, 1180), task-06dc18ea (M-MCPHTTP-TYPED-HOST-ERRORS, 270), task-85d95401 (M-NAMED-TEST-EFFECTFUL-HELPER, 420), task-538fd63d (M-STD-YAML-MAPPING-KEY-ORDER, 200) and task-e546fce0 (M-WITH-RECV-RESERVED-WORDS, 400). Meanwhile M-EFFECT-LATENT-FUNCTION-VALUES (750) and M-IFC-AUTHORITY-SCOPING (660) finished, so size is not the main driver.\n\nCauses, from the error text and history:\n(1) The 3h clock starts at QUEUE time. With max 3 worktrees, batch dispatches spend their budget waiting.\n(2) Plans required a full `make test` (slow; SIGBUS on the 8 GiB RAM-/tmp executor: crash:sprint-executor:sigbus-ram-tmp-full-make-test).\n(3) The executor commits only at the end, so a timeout loses everything (also raised in sprint-evaluator:worktree-cap-and-exit1).\n\nAsks, in priority order:\n(a) Start the timeout at dispatch/start, not at queueing; report queue wait separately.\n(b) sprint-planner emits ONE executor task per milestone, with a stated budget (~60-90 min); each task continues on the previous milestone's branch and STOPs at the end. The coordinator chains the next milestone task automatically, still gated by the per-sprint plan approval. The planner splits any milestone it sizes above the budget.\n(c) The executor commits per milestone, and on timeout the coordinator pushes whatever commits exist and records partial progress in the sprint JSON instead of discarding the worktree.\n(d) Bake focused tests (go test on touched packages + make test-core) into the planner template; never a full make test (overlaps sprint-planner:template-make-test-changelog-filesize).\n\nInterim workaround in use: attended re-dispatch with explicit milestone slices (IFC M1-M2 only; mcp_files up to M3) and \"commit after each, then STOP\".\n",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "executor:timeout-loses-work-and-may-never-start",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-12T09:31:43.180406Z",
+    "last_seen": "2026-10-12T09:31:43.180406Z",
+    "message_ids": [
+      "inbox_1791797503180_38f17ff6"
+    ],
+    "latest": {
+      "mission": "attended",
+      "iteration": 0,
+      "signature": "executor:timeout-loses-work-and-may-never-start",
+      "blocking": "none",
+      "evidence": "Addendum to executor:3h-timeout-from-queue-and-unsliced-sprints (2026-10-12):\n\nPartial work is NOT preserved on timeout, and the sprint JSON does not carry progress across attempts:\n- None of the 6 timed-out tasks (task-50131b05, 4da1bab2, 06dc18ea, 85d95401, 538fd63d, e546fce0) has a remote branch or PR.\n- sprint_M-IFC-CROSS-MODULE.json on origin/dev is still status=not_started with M1-M4 null after two attempts. JSON progress only reaches GitHub via the final push.\n- GCS artifacts for task-50131b05 and task-06dc18ea (gs://ailang-multivac-ailang-artifacts/tasks/\u003cid\u003e/) hold only an empty claude/projects/ prefix, 0 bytes, timestamped at dispatch. Completed tasks have transcript.txt + metrics.json. This suggests these \"timeouts\" may be jobs that never started (queued behind the 3-worktree cap until the queue-time clock expired), not long-running work. Please confirm from the Cloud Run job execution logs.\n\nAdditional ask: (e) if a dispatched task has not started executing within N minutes, alert or re-queue it instead of silently timing out at 3h; and expose the queue wait in `coordinator list`.\n",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "coordinator:cloud-lane-capped-by-local-worktree-limit",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-12T09:33:30.775929Z",
+    "last_seen": "2026-10-12T09:33:30.775929Z",
+    "message_ids": [
+      "inbox_1791797610775_0851b103"
+    ],
+    "latest": {
+      "mission": "attended",
+      "iteration": 0,
+      "signature": "coordinator:cloud-lane-capped-by-local-worktree-limit",
+      "blocking": "none",
+      "evidence": "Cloud execution should mean parallel execution bounded by explicit config, not by a local disk cap (Mark, 2026-10-12: \"worktrees make sense on the rig/laptop, but the idea with cloud execution is being able to do more at once\").\n\nEvidence:\n- Parallelism does happen: 7 executors dispatched 2026-10-08 19:08 produced PRs from 19:11 to 21:09, overlapping, and the config comment records 13 tasks dispatched in 26s.\n- But the hard-coded MaxWorktrees: 3 (internal/coordinator/daemon.go:47; enforced in daemon_tasks_exec_run.go:160 via worktreeMgr.CreateWorktree → ErrWorktreeLimitReached → reset to pending) still gates some cloud work. All six sprint-evaluator handoffs on 2026-10-08 19:11-21:09 failed \"max worktrees limit reached (3)\".\n- Two executors from that same batch (task-06dc18ea, task-85d95401) timed out at 3h with 0-byte GCS artifacts while their siblings ran. They were held before their job began, not yet attributed.\n\nAsks:\n(a) Cloud-lane tasks (Cloud Run Job dispatch) must not take a coordinator-local worktree slot; apply MaxWorktrees only to rig/laptop/local lanes.\n(b) Make max_concurrent_tasks actually govern cloud dispatch (today, per the config comment, it does not), so the per-agent throttle is explicit and honest. Raise sprint-executor/sprint-evaluator above 1 deliberately, given cost and subscription quota.\n(c) Find out what held task-06dc18ea / task-85d95401 before start (Cloud Run execution records vs coordinator logs).\nRelated: executor:3h-timeout-from-queue-and-unsliced-sprints, executor:timeout-loses-work-and-may-never-start, sprint-evaluator:worktree-cap-and-exit1.\n",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "executor:codex-credential-lease-collision-fails-concurrent-dispatch",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-12T19:03:48.784419Z",
+    "last_seen": "2026-10-12T19:03:48.784419Z",
+    "message_ids": [
+      "inbox_1791831828784_0005ef03"
+    ],
+    "latest": {
+      "mission": "attended",
+      "iteration": 0,
+      "signature": "executor:codex-credential-lease-collision-fails-concurrent-dispatch",
+      "blocking": "none",
+      "evidence": "Prod, 2026-10-12 09:26Z: three sprint-executor tasks were dispatched to ailang-agent-executor-codex-go within 2 s (task-a87f9332 IFC M1-M2, task-08b28b70 mcp_files slice, task-1f3e6587 #1443 executor). All three first attempts died in ~45 s with\n  \"Error: acquire exclusive Codex credential: credential already owned: attended recovery required if owner has terminated\"\n(executions 7tq59, 2xl6c, xhvlw; turns=0, cost=$0). Only one Codex credential (secret ailang-codex-auth-json) exists and it is exclusive, so concurrent Codex dispatches fail instead of waiting.\nAsk: the coordinator serialises Codex-provider dispatch (or the job waits for the lease with a bounded timeout) rather than failing; a lease-contention failure is retryable, not terminal, and never needs attended recovery when the owner is alive.\nWorkaround: attended re-dispatch, one Codex job at a time.\n",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "coordinator:job-retry-success-dropped-after-failed-completion",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-12T19:03:49.415734Z",
+    "last_seen": "2026-10-12T19:03:49.415734Z",
+    "message_ids": [
+      "inbox_1791831829415_501b9029"
+    ],
+    "latest": {
+      "mission": "attended",
+      "iteration": 0,
+      "signature": "coordinator:job-retry-success-dropped-after-failed-completion",
+      "blocking": "none",
+      "evidence": "Prod, 2026-10-12: task-a87f9332 (M-IFC-CROSS-MODULE M1-M2). Attempt 1 of Cloud Run execution ailang-agent-executor-codex-go-7tq59 failed at 09:27:23Z (Codex lease contention) and published status=failed; the coordinator marked the task failed. Cloud Run's task retry then ran it to completion: 09:58:43Z \"task task-a87f9332 completed (branch=coordinator/task-a87f9332, files=29)\", opened PR #1771. The coordinator logged \"task task-a87f9332 already in terminal state \\\"failed\\\", skipping\", so the successful result got no evaluator, approval or handoff. #1771 sits unevaluated and the card says failed.\nAsk: either disable job-level retries for executor jobs (maxRetries=0) so a failed attempt is final, or let a later completed result from the same task supersede an earlier failed one (attempt-aware completion), then fire the skipped stages.\n",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "executor:codex-credential-collision-drops-automatic-planner-handoffs",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "attended"
+    ],
+    "first_seen": "2026-10-12T20:55:51.937314Z",
+    "last_seen": "2026-10-12T20:55:51.937314Z",
+    "message_ids": [
+      "inbox_1791838551937_00e5125f"
+    ],
+    "latest": {
+      "mission": "attended",
+      "iteration": 0,
+      "signature": "executor:codex-credential-collision-drops-automatic-planner-handoffs",
+      "blocking": "none",
+      "evidence": "Recurrence 2026-10-12 20:18Z, across DIFFERENT Cloud Run jobs: while task-002d8bc0 (sprint-executor, job ailang-agent-executor-codex-go) held the credential, two sprint-planner handoffs on job ailang-agent-executor-codex (task-fbaaf2f8 spawnProcess design; task-e0230f3b v0.54.6 workarounds) both failed with \"acquire exclusive Codex credential: credential already owned\" (turns=0, $0), each attempt plus its retry. Automatic design-doc -\u003e planner handoffs are lost this way with no attended dispatch involved, so serialising only attended dispatch does not fix it.\n",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "ci:motoko-probe-refusing-live-path-unexpected-success",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "triage"
+    ],
+    "first_seen": "2026-10-16T02:18:19.776265Z",
+    "last_seen": "2026-10-16T02:18:19.776265Z",
+    "message_ids": [
+      "inbox_1792117099776_d02f11d8"
+    ],
+    "latest": {
+      "mission": "triage",
+      "iteration": 2,
+      "signature": "ci:motoko-probe-refusing-live-path-unexpected-success",
+      "blocking": "none",
+      "evidence": "CI run 38805887596 on dev 04496274e (docs-only commit #1841, parent 7c10ce00d was green): job \"launchd drivers (bash 3.2)\" fails `make test-launchd-drivers` at tools/eval/test_motoko_connection_probe.sh:595 — \"not ok - refusing live path refuses with the control-void message unexpectedly succeeded\" (after ok 29, ~6s delay). Docs-only head, so likely a timing/environment flake in this case (cf. existing tickets ci:launchd-suite-flakes-openrouter-peer-and-gh-hang, eval:motoko-connection-probe-orphaned). Triage loop owns red dev while V1 is paused; it routes, does not fix. Rerun not attempted.\n",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "quorum:oc-glm-5-3-output-cap-invalid",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "stapledon"
+    ],
+    "first_seen": "2026-10-21T05:22:09.082327Z",
+    "last_seen": "2026-10-21T05:22:09.082327Z",
+    "message_ids": [
+      "inbox_1792560129082_80e47aa4"
+    ],
+    "latest": {
+      "mission": "stapledon",
+      "iteration": 43,
+      "signature": "quorum:oc-glm-5-3-output-cap-invalid",
+      "blocking": "none",
+      "evidence": "stapledon iteration 43, design-quorum on design_docs/planned/r2/kerr-black-holes.md (55 KB doc, author pi:ollama/kimi-k3:cloud), two rounds.\nartifact /Users/voightkampff/.ailang/state/mission-quorum-repos/sunholo-data/stapledons-godot/kerr-black-holes-2026-10-21T04-39-59Z.json\noc-glm-5-3 present=false cost_usd=0.3129466 tokens_in=17563 tokens_out=65536 verdict=none salvaged=none\nartifact /Users/voightkampff/.ailang/state/mission-quorum-repos/sunholo-data/stapledons-godot/kerr-black-holes-2026-10-21T04-45-36Z.json\noc-glm-5-3 present=false cost_usd=0.31375020000000003 tokens_in=18137 tokens_out=65536 verdict=none salvaged=none\nBoth rounds: the reserve seat ran to exactly 65,536 output tokens (the cap), billed about $0.31 each, and produced no verdict, so it is recorded 'invalid'. Metered waste $0.63 for zero signal. Suggest: a lower max-output or a reasoning budget for this seat, or stop re-seating it after one invalid in a fire.\n",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "quorum:claude-p-ration-usage-429",
+    "slots_lost": 1,
+    "blocking": "item",
+    "missions": [
+      "stapledon"
+    ],
+    "first_seen": "2026-10-21T22:57:40.687814Z",
+    "last_seen": "2026-10-21T22:57:40.687814Z",
+    "message_ids": [
+      "inbox_1792623460687_d00d542e"
+    ],
+    "latest": {
+      "mission": "stapledon",
+      "iteration": 45,
+      "signature": "quorum:claude-p-ration-usage-429",
+      "slot_verdict": "stapledon iteration 45: Kerr re-quorum round 3 Anthropic seat absent (ration probe 429)",
+      "blocking": "item",
+      "evidence": "design-quorum seat claude-sonnet-5@claude-p is absent with absent_reason=quota on every stapledon quorum round since iteration 43 (rounds 1-2 on 2026-10-21, rounds 3 and a solo re-probe on 2026-10-22 iteration 45). Error, verbatim from the artifact:\n\"Anthropic bucket blocked by the mission ration: Anthropic usage endpoint returned HTTP 429; CLI fallback also failed (no \\\"Current session\\\" line in `claude -p /usage` output)\"\nArtifacts: ~/.ailang/state/mission-quorum-repos/sunholo-data/stapledons-godot/kerr-black-holes-2026-10-21T22-46-13Z.json (round 3) and kerr-black-holes-2026-10-21T22-57-14Z.json (solo re-probe, --reviewers claude-sonnet-5@claude-p --seats 1, rc=3).\nControl: in the same fire the Claude controller (Opus) runs, and Agent-tool Sonnet evaluators have run in iterations 42-44, so the Anthropic subscription is serving; the ration probe is what refuses. Also: `ailang design-review --reviewer claude-sonnet-5@claude-p` answers unknown-model (the @claude-p seat exists only in design-quorum's pool), so there is no solo re-run path for this seat.\nImpact: Mark's D-107 A requires the Kerr re-quorum to include an Anthropic or OpenAI reviewer; with a codex author the OpenAI seat is benched, so this probe failure is the only thing blocking the R2 Kerr plan from scheduling.\n",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "ci:distinct-build-test-failures",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "triage"
+    ],
+    "first_seen": "2026-10-28T21:18:19.965883Z",
+    "last_seen": "2026-10-28T21:18:19.965883Z",
+    "message_ids": [
+      "inbox_1793222299965_086bc650"
+    ],
+    "latest": {
+      "mission": "triage",
+      "iteration": 17,
+      "signature": "ci:distinct-build-test-failures",
+      "slot_verdict": "iteration17 recording; terminal slot verdict not available yet",
+      "blocking": "none",
+      "evidence": "Triage iteration17; independent OpenAI verifier and actual Anthropic Sonnet judge CONCUR. INVESTIGATION ONLY: two distinct Build and Release test failures, root cause UNKNOWN for both. Current dev07ce4a8dc540e31964e061fe4d0503f00df4ad30 run40726994998 job122952822593 Ubuntu: TestRunPolicy_OwnedCancellation/managed/sigterm fails readiness after10s at run_policy_owned_test.go154 BEFORE SIGTERM delivery166-167. Prior6643f7ca run40722809470 actual failed macOS job122937972940: TestDaemon_TaskDedupSuppressesRepeats, daemon_test.go172 no handler registered for events-laptop; all14OwnedCancellation subtests PASS there including managed/sigterm0.62s. These are DIFFERENT signatures; do not infer flakiness, regression, production defect or latestcommit blame. Previous9335c089 run40722091326 SUCCESS is bounded context only, no first-ever claim. Generic gh run view log selected a cancelled sibling with duplicate name; exact per-job REST logs establish priorfailure. Request bounded diagnosis: capture early host/worker exits and buffered startup outputs; inspect daemon test registration timing. No fix proposal, test weakening, CI rerun or policy change by triage. Current https://github.com/sunholo-data/ailang/actions/runs/40726994998/job/122952822593 ; prior https://github.com/sunholo-data/ailang/actions/runs/40722809470/job/122937972940 .",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "tool-hang:triage-judge:home-metadata-search",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "triage"
+    ],
+    "first_seen": "2026-11-07T12:34:46.265181Z",
+    "last_seen": "2026-11-07T12:34:46.265181Z",
+    "message_ids": [
+      "inbox_1794054886265_a8c363eb"
+    ],
+    "latest": {
+      "mission": "triage",
+      "iteration": 33,
+      "signature": "tool-hang:triage-judge:home-metadata-search",
+      "slot_verdict": "iteration33 evaluator actual typed tool_hang rc18; one skill-authorized same-lane retry; itemactions gated",
+      "blocking": "none",
+      "evidence": "Iteration33 evaluator-role actual MiniMax/Ollama via scripts/mission_pi_run.sh --model ollama/minimax-m3:cloud --max-seconds1800 --stall-seconds600 terminated tool_hang rc18 after1119s. Fenced=true;148completedtools,0providererrors,0commits,worktreechangedfalse,no JUDGE_REPORT. An unnecessary broad HOME/session metadata find stayed open \u003e600s. Literal sanitized command retained in local open-tool-observation.json; no environment values published. No usable judge verdict;0itemactions from firstattempt. Skill permits ONE same-lane retry forbidding named hung command;freshsandboxworktree/paths, exactsessionhandshake, noHOME/session discovery. No paidfallback,repair,config orroutingchange.\n",
+      "workaround": "none"
+    }
+  },
+  {
+    "signature": "skill:idle-record-barred-on-degraded-no-pick-fire",
+    "slots_lost": 1,
+    "blocking": "none",
+    "missions": [
+      "world"
+    ],
+    "first_seen": "2026-11-09T08:55:19.50773Z",
+    "last_seen": "2026-11-09T08:55:19.50773Z",
+    "message_ids": [
+      "inbox_1794214519507_101f1b6e"
+    ],
+    "latest": {
+      "mission": "world",
+      "iteration": 370,
+      "signature": "skill:idle-record-barred-on-degraded-no-pick-fire",
+      "slot_verdict": "2026-11-09T01:48:18Z verdict=COMPLETED rc=0 attempt=1/3 elapsed_s=3605 stamps=9 controller=pi:ollama/glm-5.3:cloud",
+      "blocking": "none",
+      "evidence": "World (product mission) — the idle fingerprint has not been recorded on any fire since the queue went fully human-gated, because the IDLE RECORD rule in gate-5-retro.md also bars recording on a fire that \"degraded (a failed probe, a controller or role fallback ...)\".\nFor World, every live fire in this period has degraded, so every no-pick fire pays for a full block record (design, quorum, judge and CI on a stacked record PR) instead of exiting at the driver's pre-check.\nMeasured:\n- Iterations 362-370 are 9 consecutive ADMIN/no-pick records. Their picks are gated only on OPEN human rows (D-WORLD-111/112/113), so lane quality cannot change the outcome.\n- Log 366: \"No idle fingerprint under this fire's degradation\". Log 369: \"Idle fingerprint: NOT recorded — this fire degraded ... the idle-record rule bars recording a degraded fire\".\n- Fire world-1794214143-88534 (iteration 370): controller pi:ollama/glm-5.3:cloud -\u003e claude:claude-opus-5-5 (probe ok); planner and executor codex gpt-6.1-sol rc 75 handoffs. It is degraded again, so no record is possible.\n- Pending snapshot: ~/.ailang/state/mission-world-idle-fingerprint.pending (fire world-1794214143-88534); it never gets promoted.\n- Slot verdicts 2026-11-08..09: four PAUSED-NO-CAPACITY fires, then one COMPLETED at elapsed 3605 s (iteration 369, a block record only).\nAsk: when the pick is NONE and every candidate is gated on an OPEN ledger row, consider letting the record proceed despite lane degradation, because a lane change cannot unblock a human-gated pick. Alternatively, key the degraded bar to the role(s) the pick would have used. World is not editing the shared skill or the driver.\n",
+      "workaround": "none"
+    }
+  }
+]
