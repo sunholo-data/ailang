@@ -256,6 +256,7 @@ const sidebars = {
         'finetuning/data',
         'finetuning/pilot-1',
         'finetuning/pilot-2',
+        'finetuning/pilot-3',
         'finetuning/costs',
       ],
     },

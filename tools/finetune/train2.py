@@ -38,8 +38,8 @@ def _episode_process(self, d):
     full = _render(self.tokenizer, msgs, tools)
     mask = np.zeros(len(full), np.int8)
     for k, m in enumerate(msgs):
-        if m.get("role") != "assistant":
-            continue
+        if m.get("role") != "assistant" or m.get("weight") == 0:
+            continue  # weight 0: the model's own mistake kept as context (pilot-3), no loss
         prompt = _render(self.tokenizer, msgs[:k], tools, gen=True)
         upto = _render(self.tokenizer, msgs[: k + 1], tools)
         lcp = 0

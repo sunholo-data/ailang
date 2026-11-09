@@ -126,6 +126,42 @@ following the feedback. Change only what the feedback requires; keep the program
 and nothing else (no markdown fences, no explanation)."""
 
 
+# On-policy items (onpolicy_pairs.py): the fine-tune's OWN failing attempt at a training task.
+# The repairer gets the task, the expected output and the AILANG agent reference, because the
+# attempt's mistakes are borrowed syntax the error message alone does not always name.
+PROMPT_ONPOLICY = """AILANG reference:
+{ref}
+
+Task given to the author of the program below:
+{task}
+
+Expected output (exact):
+{expected}
+
+The author's attempt:
+{code}
+
+Feedback (compiler error, or the run's output):
+{error}
+
+Fix the attempt so `ailang check` accepts it and it prints exactly the expected output. Keep the
+attempt's structure and names; change only what is wrong. Reply with the complete fixed program
+and nothing else (no markdown fences, no explanation)."""
+
+
+def agent_ref(cache={}):
+    if "r" not in cache:
+        cache["r"] = subprocess.run([AILANG, "agent-prompt"], capture_output=True, text=True, timeout=60).stdout
+    return cache["r"]
+
+
+def make_prompt(a, it, code, error):
+    if a.prompt == "onpolicy":
+        return PROMPT_ONPOLICY.format(ref=agent_ref(), task=it.get("task", ""), expected=(it.get("expected_stdout") or "")[:3000],
+                                      code=code, error=error)
+    return PROMPT.format(error=error, code=code)
+
+
 def ask(model, prompt, key):
     body = json.dumps({"model": model, "messages": [{"role": "user", "content": prompt}],
                        "temperature": 0.2, "max_tokens": 6000}).encode()
@@ -169,13 +205,13 @@ def fix(a):
         if not a.model.startswith("claude-"):
             sys.exit("claude-cli backend needs a full claude model id (never an alias)")
         call = lambda prompt: ask_claude(a.model, prompt)
-    items = [json.loads(l) for l in open(os.path.join(a.out, "stale.jsonl"))]
+    items = [json.loads(l) for l in open(os.path.expanduser(a.items) if a.items else os.path.join(a.out, "stale.jsonl"))]
     if a.cmd == "retry":  # only what the first pass could not fix
         failed = {json.loads(l)["code_hash"] for l in open(os.path.join(a.out, "stale_pairs.jsonl")) if not json.loads(l)["ok"]}
         items = [it for it in items if norm_hash(it["code"]) in failed]
     items = items[: a.limit]
     done = set()
-    outp = os.path.join(a.out, "stale_pairs.jsonl" if a.cmd == "fix" else f"stale_pairs_{a.tag}.jsonl")
+    outp = os.path.join(a.out, a.pairs_out or ("stale_pairs.jsonl" if a.cmd == "fix" else f"stale_pairs_{a.tag}.jsonl"))
     if os.path.exists(outp):
         done = {json.loads(l)["code_hash"] for l in open(outp)}
 
@@ -189,7 +225,7 @@ def fix(a):
         code, error, chain, usage = it["code"], it["error"], [], {"prompt_tokens": 0, "completion_tokens": 0}
         for _ in range(a.rounds):
             try:
-                fixed, u = call(PROMPT.format(error=error, code=code))
+                fixed, u = call(make_prompt(a, it, code, error))
             except Exception as e:  # network / provider error: record, never retry silently
                 return {"code_hash": h, "ok": False, "why": f"api: {type(e).__name__}", "rounds": len(chain)}
             for k in usage:
@@ -209,7 +245,7 @@ def fix(a):
                             "benchmark": it["benchmark"], "fixed": fixed, "got": (got or "")[:2000]}
                 return {"code_hash": h, "ok": True, "why": "", "usage": usage, "rounds": len(chain),
                         "benchmark": it["benchmark"], "old": it["code"], "error": it["error"], "fixed": fixed,
-                        "chain": chain}
+                        "chain": chain, "prev": it.get("prev"), "kind": it.get("kind")}
             code, error = fixed, "\n".join(err.splitlines()[:12])
         return {"code_hash": h, "ok": False, "why": "check", "usage": usage, "rounds": len(chain)}
 
@@ -235,6 +271,9 @@ def main():
     ap.add_argument("--model", default="google/gemma-4-31b-it")
     ap.add_argument("--limit", type=int, default=50)
     ap.add_argument("--workers", type=int, default=6)
+    ap.add_argument("--items", help="items file (default <out>/stale.jsonl); onpolicy_pairs.py output for --prompt onpolicy")
+    ap.add_argument("--pairs-out", help="output file name in --out (default stale_pairs.jsonl)")
+    ap.add_argument("--prompt", choices=["stale", "onpolicy"], default="stale")
     ap.add_argument("--rounds", type=int, default=4, help="repair rounds per program (new error fed back each round)")
     a = ap.parse_args()
     a.out = os.path.expanduser(a.out)

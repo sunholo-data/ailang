@@ -193,6 +193,87 @@ def repair_episode(rnd, task, pair, stdout):
             "final": rnd.choice(DONE_LINES).format(rel=rel)}
 
 
+# Habit 5 (pilot-3): after an error, and above all after a FIX THAT FAILED, read the reference
+# section the error points to instead of guessing again. Error shape -> teaching-prompt section.
+# The section text is real `ailang prompt` output; a lookup is kept only if it is non-empty.
+SECTIONS = [
+    (r"PAR_MATCH_ARROW|next token to be =>", "Pattern Matching", 45),
+    (r"PAR015|bare assignment|PAR017|only valid inside|next token to be \{|next token to be else|got \} instead|"
+     r"in expression: \}", "Let Bindings: Block Style vs Expression Style", 42),
+    (r"lambda parameter", "Syntax Reference", 22),
+    (r"INTERP_END|interpolation", "String Interpolation", 28),
+    (r"in expression: as\b|Fractional", "Number Conversions", 17),
+    (r"`\+\+`", "String and List Concatenation", 18),
+    (r"\bPAR[_A-Z0-9]+", "What AILANG Does NOT Have", 22),
+]
+
+
+def section_lookup(err):
+    """The first error LINE that a specific section covers (else the first parse error, with the
+    general "does not have" table). Only error lines count: the Hint text mentions other constructs.
+    Returns the lookup step, recording which error line it is about."""
+    lines = [ln.strip() for ln in err.splitlines()
+             if re.search(r"\b(PAR\w*|TC_\w+|IMP\d+|MOD\d+) at |type error|expected next token|unexpected token", ln)]
+    for specific in (True, False):
+        for ln in lines:
+            for pat, sec, n in (SECTIONS[:-1] if specific else SECTIONS[-1:]):
+                if not re.search(pat, ln):
+                    continue
+                cmd = f'ailang prompt | grep -A{n} "^## {sec}"'
+                out = lookup(cmd)
+                if out.strip().startswith("## " + sec):
+                    return {"call": {"name": "bash", "args": {"command": cmd}}, "result": out, "habit": "reference",
+                            "lookup": sec, "about": re.sub(r"\s+", " ", ln)[:200]}
+    return None
+
+
+def onpolicy_episode(rnd, task, pair, stdout, p_first_lookup=0.35):
+    """The fine-tune's OWN failing attempt (no loss) -> the real error -> [its own failed fix
+    (no loss) -> the same kind of error] -> look up the reference section -> the verified fix
+    chain (loss) -> run -> done."""
+    ws = fake_ws(rnd, task["id"])
+    path, rel = f"{ws}/benchmark/solution.ail", "benchmark/solution.ail"
+    caps = ",".join(task["caps"] or ["IO"])
+
+    def observe(code):
+        ok, err = check_out(code)
+        if ok:
+            return {"call": {"name": "bash", "args": {"command": run_cmd(caps)}}, "result": run(code, caps) or ""}, err
+        return {"call": {"name": "bash", "args": {"command": f"ailang check {rel}"}}, "result": err}, err
+
+    steps = [{"call": {"name": "read", "args": {"path": path}}, "result": TEMPLATE}]
+    prev, start = pair.get("prev"), pair["old"]
+    if prev:
+        steps.append({"call": {"name": "write", "args": {"path": path, "content": prev["code"]}},
+                      "result": f"Successfully wrote to {path}", "no_loss": True})
+        obs, _ = observe(prev["code"])
+        steps.append(obs)
+        call, res = edit_or_write(path, prev["code"], start)
+        steps.append({"call": call, "result": res, "no_loss": True, "failed_fix": True})
+    else:
+        steps.append({"call": {"name": "write", "args": {"path": path, "content": start}},
+                      "result": f"Successfully wrote to {path}", "no_loss": True})
+    obs, err = observe(start)
+    steps.append(obs)
+    look = section_lookup(err) if (prev or rnd.random() < p_first_lookup) else None
+    if look:
+        steps.append(look)
+    cur = start
+    for k, link in enumerate(pair["chain"]):
+        if k:
+            obs, _ = observe(cur)
+            steps.append(obs)
+        call, res = edit_or_write(path, cur, link["fixed"])
+        steps.append({"call": call, "result": res})
+        cur = link["fixed"]
+    ok, _ = check_out(cur)
+    if not ok:
+        return None
+    steps.append({"call": {"name": "bash", "args": {"command": run_cmd(caps)}}, "result": stdout})
+    return {"kind": "onpolicy", "benchmark": task["id"], "task_prompt": task["task_prompt"].replace(WS_TOKEN, ws),
+            "steps": steps, "final": rnd.choice(DONE_LINES).format(rel=rel), "error_kind": pair.get("kind")}
+
+
 def example_task(header, expected, caps, ws):
     path = f"{ws}/benchmark/solution.ail"
     return ("You are solving an AILANG benchmark.\n\n## Task\n\n" + header +
@@ -210,6 +291,7 @@ def main():
     ap.add_argument("--lang-data", default="~/models/finetune/data-v1")
     ap.add_argument("--stale", default="~/models/finetune/stale")
     ap.add_argument("--per-bench", type=int, default=25)
+    ap.add_argument("--onpolicy", default="", help="on-policy repair pairs (stale_fix.py --prompt onpolicy output)")
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--seed", type=int, default=11)
     a = ap.parse_args()
@@ -241,7 +323,10 @@ def main():
             return False
         return bool(b) and bid not in held and not any(k in b for k in UNVERIFIABLE)
 
-    bids = sorted({e["benchmark"] for e in evals} | {p["benchmark"] for p in pairs})
+    onp = []
+    if a.onpolicy:
+        onp = [json.loads(l) for l in open(os.path.expanduser(a.onpolicy)) if '"ok": true' in l]
+    bids = sorted({e["benchmark"] for e in evals} | {p["benchmark"] for p in pairs} | {p["benchmark"] for p in onp})
     bids = [b for b in bids if ok_spec(b)]
     tasks = render_tasks(bids)
     rep = {"benchmarks": len(tasks)}
@@ -284,6 +369,15 @@ def main():
         rp = [r for r in ex.map(do_repair, pairs) if r]
     reps = [e for e in (repair_episode(rnd, tasks[p["benchmark"]], p, g) for p, g in rp) if e]
     rep["repair"] = {"candidates": len(pairs), "kept": len(reps)}
+
+    # ---- on-policy repair episodes (pilot-3)
+    with cf.ThreadPoolExecutor(a.workers) as ex:
+        op = [r for r in ex.map(do_repair, onp) if r]
+    oeps = [e for e in (onpolicy_episode(rnd, tasks[p["benchmark"]], p, g) for p, g in op) if e]
+    rep["onpolicy"] = {"candidates": len(onp), "kept": len(oeps),
+                       "with_failed_fix": sum(1 for e in oeps if any(s.get("failed_fix") for s in e["steps"])),
+                       "with_lookup": sum(1 for e in oeps if any(s.get("habit") == "reference" for s in e["steps"]))}
+    reps += oeps
 
     # ---- example episodes (manifest-pinned stdout; retargeted module)
     man = json.load(open(os.path.join(REPO, "examples", "manifest.json")))

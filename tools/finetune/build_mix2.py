@@ -58,9 +58,12 @@ def render(ep, head, tail, tools, arm_prefix):
             {"role": "user", "content": arm_prefix + ep["task_prompt"]}]
     for k, s in enumerate(ep["steps"]):
         cid = f"call_{k + 1}"
-        msgs.append({"role": "assistant", "content": "", "reasoning": s["thought"],
-                     "tool_calls": [{"id": cid, "type": "function",
-                                     "function": {"name": s["call"]["name"], "arguments": s["call"]["args"]}}]})
+        am = {"role": "assistant", "content": "", "reasoning": s["thought"],
+              "tool_calls": [{"id": cid, "type": "function",
+                              "function": {"name": s["call"]["name"], "arguments": s["call"]["args"]}}]}
+        if s.get("no_loss"):  # the fine-tune's own mistake: context only, never a target (train2.py)
+            am["weight"] = 0
+        msgs.append(am)
         msgs.append({"role": "tool", "tool_call_id": cid, "name": s["call"]["name"], "content": s["result"]})
     msgs.append({"role": "assistant", "content": ep["final"], "reasoning": ep["final_thought"]})
     return {"messages": msgs, "tools": tools}
@@ -75,6 +78,8 @@ def main():
     ap.add_argument("--arm-none", default="~/models/finetune/traces/arm_none.json")
     ap.add_argument("--solve-per-bench", type=int, default=12)
     ap.add_argument("--repair-per-kind", type=int, default=6, help="per (benchmark, error kind)")
+    ap.add_argument("--onpolicy-per-kind", type=int, default=8, help="per (benchmark, error kind)")
+    ap.add_argument("--max-steps", type=int, default=24, help="drop longer episodes (pilot-2 looped for 40-400 turns)")
     ap.add_argument("--example-repeat", type=int, default=2)
     ap.add_argument("--valid-frac", type=float, default=0.05)
     ap.add_argument("--seed", type=int, default=13)
@@ -87,9 +92,15 @@ def main():
 
     picked, per, rep = [], collections.Counter(), collections.Counter()
     for e in eps:
+        if len(e["steps"]) > a.max_steps:
+            rep[f"too_long:{e['kind']}"] += 1
+            continue
         if e["kind"] == "solve":
             key = ("solve", e["benchmark"])
             cap = a.solve_per_bench
+        elif e["kind"] == "onpolicy":
+            key = ("onpolicy", e["benchmark"], e.get("error_kind") or error_kind(e))
+            cap = a.onpolicy_per_kind
         elif e["kind"] == "repair":
             key = ("repair", e["benchmark"], error_kind(e))
             cap = a.repair_per_kind

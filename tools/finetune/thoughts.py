@@ -39,6 +39,12 @@ FIXES = [
     (r"undefined variable: (\w+)", "import `{0}` from the module the error names (or use the right name)"),
     (r"MOD010.*module '([^']+)'.*canonical path '([^']+)'", "rename the module to match the file: `module {1}`"),
     (r"PAR015|bare assignment", "bind with `let`, since there is no assignment"),
+    (r"PAR017|only valid inside", "use one style: `let x = e in ...` in an expression body, or a `{{ ...; ... }}` block body"),
+    (r"PAR_MATCH_ARROW|next token to be =>", "write each match arm as `pattern => body`, with commas between arms"),
+    (r"lambda parameter", "write the lambda as `\\x. body` (or `\\a b. body`)"),
+    (r"INTERP_END", "keep only a plain expression inside `${{...}}`"),
+    (r"in expression: as\b", "convert with `intToFloat`/`floatToInt` from `std/math`, since there is no `as` cast"),
+    (r"Fractional\[int\]", "use integer division `/` on ints only, or convert with `intToFloat` first"),
     (r"PAR_UNEXPECTED_TOKEN at [^:]+:(\d+)", "fix the syntax at line {0}"),
     (r"PAR_NO_PREFIX_PARSE at [^:]+:(\d+)", "fix the expression at line {0}"),
     (r"type unification failed", "fix the type mismatch the checker reports"),
@@ -46,7 +52,15 @@ FIXES = [
 ]
 
 
+SPECIFIC = re.compile(r"\b(PAR[_A-Z0-9]*|TC_[A-Z0-9_]+|IMP\d+|MOD\d+)\b at |type error|undefined variable|effect checking failed|"
+                      r"No instance|`\+\+`")
+
+
 def first_error(text):
+    # The specific line, not the "module loading error: failed to load ..." wrapper above it.
+    for ln in text.splitlines():
+        if SPECIFIC.search(ln) and "module loading error" not in ln:
+            return re.sub(r"\s+", " ", ln.strip())[:200]
     for ln in text.splitlines():
         if "Error" in ln or "error" in ln or "PAR" in ln or "MOD0" in ln:
             return re.sub(r"\s+", " ", ln.strip())[:200]
@@ -95,6 +109,17 @@ def add_thoughts(ep, rnd):
         prev_call = steps[i - 1]["call"] if i else {}
         if c["name"] == "read":
             t = rnd.choice(READ)
+        elif s.get("habit") == "reference":  # pilot-3, habit 5: look up instead of guessing again
+            err = s.get("about") or first_error(prev)
+            if any(x.get("failed_fix") for x in steps[:i]):
+                t = (f"Still failing after my fix: {err} Guessing again will not help; read the "
+                     f"\"{s['lookup']}\" section of the AILANG reference first.")
+            else:
+                t = f"The checker says: {err} Check the \"{s['lookup']}\" section of the AILANG reference before fixing it."
+        elif c["name"] in ("write", "edit") and prev_call.get("name") == "bash" and \
+                prev_call["args"].get("command", "").startswith("ailang prompt"):
+            err = steps[i - 1].get("about") or ""
+            t = f"The reference shows the correct form. So I'll {fix_phrase(err)}, following it exactly."
         elif c["name"] in ("write", "edit") and prev_call.get("name") == "bash" and \
                 "ailang check" in prev_call["args"].get("command", "") and re.search(r"Error|PAR\w+|MOD0", prev):
             err = first_error(prev)
