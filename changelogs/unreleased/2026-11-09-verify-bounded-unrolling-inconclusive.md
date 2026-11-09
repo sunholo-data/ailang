@@ -23,7 +23,10 @@ A model found for a bounded-unrolled obligation is now a new status,
   `--package`) now exits 1 on one.
 - Eval harness and observatory: `verify_inconclusive` is banked. `isVerifiedSuccess`
   requires it to be 0, so an undecided run never counts as a verified success, and
-  `isVerificationFailure` counts it. Inconclusive results no longer trigger a
+  `isVerificationFailure` counts it. Following Mark's D-32 ruling (keep strict, but
+  name it), `chains stats --cost-per-verified-success` publishes
+  `verification_inconclusive`, a named subset of `verification_failures`. The KPI
+  number itself does not change. Inconclusive results no longer trigger a
   `VERIFY_COUNTEREXAMPLE` repair turn. The agent prompt says INCONCLUSIVE is not a
   bug report.
 - Known cost: a real bug in a recursive function is also reported `inconclusive`

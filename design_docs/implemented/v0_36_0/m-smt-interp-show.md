@@ -675,7 +675,7 @@ Two of the four attended-session triggers fire, so this doc **should** go to
   not overlapping.* That doc splits `verify_skipped` into `skipped` vs `not_applicable`; this
   one removes a class of genuine `skipped`. Landing both makes the encoder-coverage figure both
   correctly categorized and smaller.
-- [m-verify-bounded-unrolling-false-counterexample](../../planned/v1_1_0/m-verify-bounded-unrolling-false-counterexample.md)
+- [m-verify-bounded-unrolling-false-counterexample](../v0_57_5/m-verify-bounded-unrolling-false-counterexample.md)
   (0.27) — recursion-depth soundness, orthogonal to the builtin-encoding surface.
 
 **Source reports:**

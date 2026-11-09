@@ -574,7 +574,7 @@ The 23 example counterexamples are intended:
 - `broken*` and `*_demo` functions, plus the inbox-injection attack demos.
 - `basic.ail` `safeDivide`/`increment` are genuine contract bugs in the example.
 - Six are the bounded-unrolling false counterexamples already ruled on in
-  `v1_1_0/m-verify-bounded-unrolling-false-counterexample.md`.
+  `implemented/v0_57_5/m-verify-bounded-unrolling-false-counterexample.md`.
 
 ### 2.3 The ERROR bucket table
 
@@ -972,7 +972,7 @@ and run from the repo root. **Every fixture below was written and `ailang check`
 | `pkg_adt_import/probe` · `unitR` (`Result[(), E]`) | n/a | SKIPPED | SKIPPED (pinned; never ERROR) |
 
 The `sumTo`/`total` functions inside `callee_param`/`call_site_collapse` currently report the known bounded-unrolling
-false counterexample (`v1_1_0/m-verify-bounded-unrolling-false-counterexample.md`). The test does not pin them.
+false counterexample (`implemented/v0_57_5/m-verify-bounded-unrolling-false-counterexample.md`). The test does not pin them.
 
 Further criteria:
 
@@ -1057,7 +1057,7 @@ non-negative values; must stay VERIFIED under truncating division). All exist at
   Encoding them belongs to `smt-encode-dt-builtins.md` and future encoding docs.
 - Discharging callee `requires` at call sites (`verify-call-site-precondition-not-checked.md`).
 - Int width / BitVec (`verify-int-width-mismatch-z3-int-vs-int64.md`).
-- The bounded-unrolling false counterexample (`v1_1_0/m-verify-bounded-unrolling-false-counterexample.md`).
+- The bounded-unrolling false counterexample (`implemented/v0_57_5/m-verify-bounded-unrolling-false-counterexample.md`).
 - The skipped vs not_applicable counter split (`v1_1_0/m-contract-verification-coverage.md`).
 
 ## 15. Risks & Mitigations

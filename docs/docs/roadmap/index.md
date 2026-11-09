@@ -49,7 +49,6 @@ v1.0.0 is gated on a promise, not on the features below: the [Stability Promise]
 - [M-REFLECT: Structural Reflection & User-Defined Type Classes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-reflect-structural-reflection.md)
 - [M-SERVE-API-LIVE-TOOL-REGISTRY: Live Tool Registry for Agentic Sessions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-serve-api-live-tool-registry.md)
 - [M-TRACE-FEEDBACK: Execution-Trace Feedback Loop for Harness Diagnostics](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-trace-feedback.md)
-- [M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE: A bounded-unrolling `sat` is not a violation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-verify-bounded-unrolling-false-counterexample.md)
 - [M-ZERO-LANGUAGE-LEARNINGS: Borrowed Ideas from Vercel Labs' Zero](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-zero-language-learnings.md)
 
 ## Planned for v1.0.0
@@ -137,6 +136,7 @@ v1.0.0 is gated on a promise, not on the features below: the [Stability Promise]
 
 ## Planned for v0.53.1
 
+- [Strict-VM coverage census — M-BYTECODE-STRICT-256-REG-CEILING](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_1/m-bytecode-strict-256-reg-ceiling-census.md)
 - [Sprint Plan: M-BYTECODE-STRICT-256-REG-CEILING](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_1/m-bytecode-strict-256-reg-ceiling-sprint-plan.md)
 - [M-BYTECODE-STRICT-256-REG-CEILING — strict-VM register-pressure failures are silent until RUN time: >256-element list literals and if/else-if chains over wide records become `evaluator-only` with no compile-time, `check`-time, or non-strict-run warning](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_1/m-bytecode-strict-256-reg-ceiling.md)
 - [Property Domain Parity: requires-filtered forall properties, named failing inputs, attested-run agreement](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_1/m-property-domain-parity.md)
@@ -405,4 +405,4 @@ For the complete vision, see [Why AILANG](/docs/why-ailang) and [Vision](/docs/v
 
 ---
 
-*Generated at build time. 257 planned features across 41 upcoming versions.*
+*Generated at build time. 255 planned features across 41 upcoming versions.*

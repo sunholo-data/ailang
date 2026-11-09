@@ -1,7 +1,41 @@
 # M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE: A bounded-unrolling `sat` is not a violation
 
-**Status**: Planned
-**Target**: v1.1.0 (**RE-SCORED by D-64**, Mark attended 2026-11-09 — serves no bar-v3 gate; was: v0.33.2)
+**Status**: Implemented (2026-11-09, attended; landed for v0.57.5)
+**Target**: v0.33.2 (as planned; D-64 had re-scored it to v1.1.0 the same day) · landed against `origin/dev` = `eb5af29be` (v0.57.4-75)
+
+> **Implementation record (2026-11-09).** Re-derived against current code; the
+> decisions held, four premises were stale:
+>
+> 1. **The two ladders no longer exist.** M-V1-SIMPLIFY-S2 M3 / S4 M3A moved the one
+>    verification loop into `internal/smt/verify.go` (`smt.Verify`), which both
+>    `verify` and `ai-check` call. So the shared `applySolveOutcome` in a new
+>    `cmd/ailang/verify_status.go` became `solverVerifyResult(name, result,
+>    boundedDepth, verbose)` in `internal/smt/verify.go`, plus `VerifyReport.tally`
+>    (one counter per result, INV-1; panics on an unmapped status). "No
+>    `internal/smt` change" could not hold. The predicate is the one designed:
+>    `IsRecursiveFunc && depth > 0 && sat ⇒ inconclusive`, with no model inspection.
+> 2. **AC-11 baseline moved.** At base, `shapes_verify.ail` measures 3 verified /
+>    1 **skipped**, not 3 verified / 1 error. The sibling surface had already changed.
+>    The test pins the measured base, and the fix does not move it.
+> 3. **"Raising the depth cannot decide this" is false as an unconditional claim.**
+>    `recursive_verify.ail` (`requires n <= 4`) is inconclusive at depth 2 and
+>    **verified** at depth 5 and 6. The reason text is conditional: the depth decides
+>    the obligation only if `requires` bounds the recursion. Q5's "No counterexample
+>    within depth N" was also dropped, because Q3's own `sumNonNeg` sat is a real
+>    witness.
+> 4. **D-32 was ruled** (Mark, 2026-08-26): (b) KEEP STRICT, and publish the
+>    inconclusive runs as a named bucket. Implemented as
+>    `CostPerVerifiedSuccessResult.VerificationInconclusive`
+>    (`verification_inconclusive`), a named subset of `verification_failures`.
+>
+> Additional consumers the doc predates: `verify --package` / `internal/pkg`
+> `PackageVerifyReport` (the counter, `Total`, and `--strict`), and the registry
+> quality gate `PUB006`, which reads `counterexample` and so no longer refutes
+> recursive contracts. AC-12 measured 8/8 banked v1.0 runs flipping
+> `counterexample → inconclusive` (base rc=1 → fixed rc=0). Every mutation in the
+> table, plus MUT-ADD-STATUS, MUT-STRICT-DROP and MUT-D32-BUCKET-DROP, was killed. D-30
+> (PATH-resolved verifier child) remains the named residual: it is detected by AC-13
+> and not prevented.
 **Priority**: P0 (verdict inversion — corrupts BOTH arms of the `D-29` KPI and spends harness repair turns telling models to break correct code)
 **Estimated**: 2–3 days (2 milestones, **reader-before-writer**, each independently committable)
 **Dependencies**: None hard. **Coordinate textually** with

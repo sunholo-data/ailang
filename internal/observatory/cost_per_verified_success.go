@@ -63,6 +63,12 @@ type CostPerVerifiedSuccessResult struct {
 	VerifiedSuccesses    int `json:"verified_successes"`
 	UnverifiedPasses     int `json:"unverified_passes"`
 	VerificationFailures int `json:"verification_failures"`
+	// VerificationInconclusive is the D-32 named bucket (Mark, 2026-08-26):
+	// of VerificationFailures, the runs carrying at least one inconclusive
+	// obligation (a bounded-unrolling sat). They stay strict — failures, never
+	// verified successes — but are published by name so the encoder-capability
+	// signal is not hidden inside the rejection count.
+	VerificationInconclusive int `json:"verification_inconclusive"`
 
 	// Numerator / cost provenance (reuses CostRollup semantics).
 	ReportedCostUSD  float64 `json:"reported_cost_usd"`
@@ -179,6 +185,9 @@ func computeCostPerVerifiedSuccess(ctx context.Context, store *Store, opts CostP
 			res.PassedRuns++
 		case isVerificationFailure(a):
 			res.VerificationFailures++
+			if a.VerifyInconclusive > 0 {
+				res.VerificationInconclusive++
+			}
 			res.PassedRuns++
 		case isPass(a):
 			res.UnverifiedPasses++

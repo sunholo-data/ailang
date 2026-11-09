@@ -39,6 +39,9 @@ This page is automatically generated from the [design_docs/implemented](https://
 ## v0.57.5
 
 - [M-CASCADE-ENVELOPE-HYDRATION: close the inbox→task cascade envelope-loss routes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_5/m-cascade-envelope-hydration.md)
+- [Sprint Plan — M-NET-EFFECT-PROXY-BOUNDARY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_5/m-net-effect-proxy-boundary-sprint-plan.md)
+- [m-net-effect-proxy-boundary — bring AILANG's Net effect inside the egress boundary (D5 Option B)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_5/m-net-effect-proxy-boundary.md)
+- [M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE: A bounded-unrolling `sat` is not a violation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_5/m-verify-bounded-unrolling-false-counterexample.md)
 
 ## v0.57.3
 
@@ -1986,4 +1989,4 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ---
 
-*Generated at build time. 1433 design documents across 181 versions.*
+*Generated at build time. 1436 design documents across 181 versions.*

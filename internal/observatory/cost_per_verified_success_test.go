@@ -484,3 +484,35 @@ func TestEvalAssessment_HistoricalRowIsVerificationMissing(t *testing.T) {
 		t.Errorf("expected 1 unverified pass, got %d", res.UnverifiedPasses)
 	}
 }
+
+// TestCostPerVerifiedSuccess_InconclusiveIsANamedBucket pins Mark's D-32
+// ruling (2026-08-26): inconclusive obligations stay STRICT — in the
+// denominator, out of the numerator — but must be published as their own
+// named bucket, not pooled silently with verification failures, so the
+// encoder-capability signal stays visible.
+func TestCostPerVerifiedSuccess_InconclusiveIsANamedBucket(t *testing.T) {
+	db, store := setupTestDB(t)
+	defer db.Close()
+	pass := func(bench string) cvsStageSpec {
+		return cvsStageSpec{benchmarkID: bench, model: "claude-sonnet-4-5", cost: 0.10,
+			compileOk: true, runtimeOk: true, stdoutOk: true, verifyOk: true}
+	}
+	inc := pass("inc")
+	inc.inconclusive = 1
+	cex := pass("cex")
+	cex.verified, cex.counterex = 1, 1
+	bankCohort(t, store, "v1.0/agent/baseline", []cvsStageSpec{aVerified("ok", 0.10), inc, cex})
+
+	res, err := computeCostPerVerifiedSuccess(context.Background(), store, CostPerVerifiedSuccessOptions{
+		BaselineID: "v1.0", SourceRef: "v1.0/",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.VerifiedSuccesses != 1 || res.VerificationFailures != 2 {
+		t.Fatalf("strict buckets moved: verified=%d failures=%d", res.VerifiedSuccesses, res.VerificationFailures)
+	}
+	if res.VerificationInconclusive != 1 {
+		t.Fatalf("verification_inconclusive = %d, want 1 (the D-32 named bucket)", res.VerificationInconclusive)
+	}
+}

@@ -1008,7 +1008,7 @@ wording, skew fixtures and unavailable state are release criteria.
 - [Callee requires obligations](../ailang-core-triage/verify-call-site-precondition-not-checked.md)
   and [proof/refutation symmetry](../ailang-core-triage/verify-ensures-verified-without-encodable-refutation.md):
   separate semantic issues, not resolved by reporting.
-- [Bounded counterexample design](m-verify-bounded-unrolling-false-counterexample.md):
+- [Bounded counterexample design](../implemented/v0_57_5/m-verify-bounded-unrolling-false-counterexample.md):
   verdict changes remain outside this additive slice.
 
 **Addendum implementation record,2026-10-23:** typed reasons/model scope,
