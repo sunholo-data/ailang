@@ -27,19 +27,24 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 		return nil, fmt.Errorf("parse error: %s", p.Errors()[0])
 	}
 
-	// #1114: enforce the same IFC gate the CLI enforces. CheckModuleIFC is a
-	// self-contained surface-AST analysis — the CLI runs it on every compile
-	// (pipeline_module_compile.go), but this path historically skipped it, so
-	// a module the CLI rejects with an information-flow violation loaded and
-	// published its exports in the browser WASM REPL.
+	// #1114: enforce the same IFC gate the CLI enforces — the CLI runs it on
+	// every compile (pipeline_module_compile.go), but this path historically
+	// skipped it, so a module the CLI rejects with an information-flow
+	// violation loaded and published its exports in the browser WASM REPL.
+	// #1134: imported exports' IFC contracts are in scope, exactly as in the CLI.
 	// The same walk reports the labelled call sites the trace must redact
 	// (M-TRACE-LABEL-AWARE); they are stamped on the lowered Core below.
+	ifcImports := mr.ifcImports(program.File)
 	var traceSites map[ast.Pos]string
 	if program.File != nil {
 		var ifcErrs []*types.TypeCheckError
-		if ifcErrs, traceSites = types.CheckModuleIFCWithTraceSites(program.File); len(ifcErrs) > 0 {
+		if ifcErrs, traceSites = types.CheckModuleIFCWithImportsAndTraceSites(program.File, ifcImports); len(ifcErrs) > 0 {
 			return nil, fmt.Errorf("information-flow violation in %s: %w", name, ifcErrs[0])
 		}
+	}
+	ifcSummaries, err := ifcExportSummaries(program.File, ifcImports)
+	if err != nil {
+		return nil, fmt.Errorf("information-flow analysis in %s: %w", name, err)
 	}
 
 	// Step 2: Elaborate to Core
@@ -130,7 +135,6 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	}
 
 	var coreProg *core.Program
-	var err error
 	if program.File != nil && program.File.Module != nil {
 		// Module with explicit module declaration - use ElaborateFile for Meta population
 		coreProg, err = elaborator.ElaborateFile(program.File)
@@ -450,6 +454,7 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 					Name:   declName,
 					Value:  bindingVal,
 					Scheme: declTypes[declName],
+					IFC:    exportIFC(ifcSummaries, declName, declTypes[declName]),
 				}
 			}
 		}

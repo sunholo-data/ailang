@@ -224,6 +224,12 @@ func (c *ifcChecker) applyCallable(fn *ifcCallable, args []ifcVal, at *ast.FuncC
 			}
 			result = joinCallable(result, probe(a.owner, a.idx, a.res+1))
 		case fnOpaque:
+			if a.imported != nil {
+				// An imported function's exported demands (#1134): Checks A/C
+				// exactly as for a local callee. Its body stays invisible, so
+				// callable arguments still take the conservative fallback.
+				c.checkDemands(a, args, at, via)
+			}
 			result = joinCallable(result, c.applyOpaque(args, at, calleeLabel, via, depth))
 		case fnCtor:
 			for _, arg := range args {
@@ -462,11 +468,12 @@ func (c *ifcChecker) lambdaVal(node ast.Expr, params []*ast.Param, body ast.Expr
 		d := ifcDemand{param: p.Name}
 		if p.Type != nil {
 			// Typed params keep the outer flow label (today's over-approximation)
-			// but take their declared type; a positive declared label bounds the
-			// argument, so it replaces ρ.
+			// but take their declared type; a top-level positive label bounds
+			// the whole argument, so it replaces ρ (a nested one bounds it too,
+			// but not per component, so ρ stays — see topLabel).
 			v.typ = p.Type
-			d = demandOf(p.Name, p.Type)
-			if len(d.covers) > 0 {
+			d = c.types.demandOf(p.Name, p.Type)
+			if _, top := topLabel(p.Type); top {
 				v.label = prev.label
 			}
 			v.fn = joinCallable(v.fn, c.types.fromFuncType(p.Type, p.Name))

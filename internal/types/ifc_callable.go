@@ -69,7 +69,7 @@ const (
 )
 
 type ifcFn struct {
-	imported *ImportedIFCSig // supplied facts for summary analysis only; no imported demands yet (M3)
+	imported *ImportedIFCSig // an imported function's exported summary; params carry its demands
 	kind     fnKind
 	name     string      // display name for diagnostics
 	params   []ifcDemand // positional demands (fnTop, fnLambda, fnDeclared)
@@ -237,30 +237,13 @@ func deferredKey(d ifcDeferred) string {
 	return callableKey(d.target) + "(" + strings.Join(parts, ",") + ")"
 }
 
-// demandOf projects a declared parameter type onto a demand.
-func demandOf(name string, t ast.Type) ifcDemand {
-	d := ifcDemand{param: name, typ: t}
-	if lt, ok := t.(*ast.LabelledType); ok {
-		if lt.Label != nil {
-			d.covers = []Label{LabelConst(lt.Label.Name)}
-		}
-		if lt.Refinement != nil {
-			d.forbid = []string{lt.Refinement.NotLabel}
-		}
-	}
-	return canonicalDemand(d)
-}
-
 // fromSig is the callable of a module function referenced as a value.
 func fromSig(sig *ifcSig) *ifcCallable {
 	f := &ifcFn{kind: fnTop, name: sig.decl.Name}
 	for _, p := range sig.params {
-		d := ifcDemand{param: p.name, typ: p.typ}
-		if !LabelEqual(p.label, LabelBottom()) {
-			d.covers = []Label{p.label}
-		}
-		if p.hasNot {
-			d.forbid = []string{p.notLabel}
+		d := ifcDemand{param: p.name, typ: p.typ, forbid: p.bound.forbidden()}
+		if p.bound.has {
+			d.covers = []Label{p.bound.cover}
 		}
 		f.params = append(f.params, canonicalDemand(d))
 	}
@@ -286,7 +269,7 @@ func (ts *ifcTypes) callableType(t ast.Type, name string, depth int) *ifcCallabl
 	f := &ifcFn{kind: fnDeclared, name: name, result: ts.callableType(ft.Return, name+"(..)", depth+1)}
 	has := f.result != nil
 	for i, p := range ft.Params {
-		d := demandOf(fmt.Sprintf("#%d", i+1), p)
+		d := ts.demandOf(fmt.Sprintf("#%d", i+1), p)
 		has = has || !d.empty()
 		f.params = append(f.params, canonicalDemand(d))
 	}

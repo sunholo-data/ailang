@@ -3720,6 +3720,57 @@
       }
     },
     {
+      "path": "runnable/secrets/ifc_xmod_lib.ail",
+      "status": "working",
+      "tags": [
+        "ifc",
+        "labels",
+        "cross-module",
+        "m-ifc-cross-module"
+      ],
+      "description": "A library whose {not email} sink, <email> source and scoped declassifier bind its importers (#1134)"
+    },
+    {
+      "path": "runnable/secrets/ifc_xmod_app.ail",
+      "status": "working",
+      "tags": [
+        "ifc",
+        "labels",
+        "cross-module",
+        "m-ifc-cross-module"
+      ],
+      "description": "An importer reaching a library's {not email} sink only through the library's declassifier (#1134)",
+      "modules": [],
+      "run_flags": [
+        "--caps",
+        "Declassify",
+        "--entry",
+        "main"
+      ],
+      "expected": {
+        "stdout": "sent: [redacted]\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/secrets/ifc_xmod_leak.ail",
+      "status": "working",
+      "tags": [
+        "ifc",
+        "labels",
+        "cross-module",
+        "expected-fail",
+        "m-ifc-cross-module"
+      ],
+      "description": "EXPECTED TO FAIL ailang check: <email> reaching an imported {not email} sink with no declassify step (#1134)",
+      "modules": [],
+      "expected": {
+        "exit_code": 1,
+        "error_pattern": "information-flow violation"
+      },
+      "skip_reason": "intentionally fails `ailang check`; asserted in TestIFCCrossModuleExamples"
+    },
+    {
       "path": "runnable/effect_row_var_pure_caller.ail",
       "status": "working",
       "tags": [
@@ -4330,11 +4381,11 @@
     }
   ],
   "statistics": {
-    "total": 325,
-    "working": 317,
+    "total": 328,
+    "working": 320,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9753846153846154,
+    "coverage": 0.975609756097561,
     "experimental": 0
   },
   "milestones": {

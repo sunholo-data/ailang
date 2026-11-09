@@ -135,7 +135,7 @@ func TestCacheIFCValidatesInjectedDecoder(t *testing.T) {
 func TestCacheIFCPreviousVersionKeyMisses(t *testing.T) {
 	const source = "module lib\nexport func f() -> int { 42 }\n"
 	current := ModuleCacheKey("test-compiler", source, nil)
-	for version := 1; version <= 7; version++ {
+	for version := 1; version <= 9; version++ {
 		t.Run(fmt.Sprintf("v%d", version), func(t *testing.T) {
 			old := sha256.New()
 			fmt.Fprintf(old, "ailang-cache:v%d:test-compiler\n", version)

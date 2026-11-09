@@ -389,7 +389,7 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 	for name, params := range elaborator.GetTypeAliasParams() {
 		aliasParams[name] = params
 	}
-	if err := buildAndRegisterInterface(unit, modID, compileResult.ModuleTypeEnv, st.modLinker, imports.ImportedTypeAliases, elaborator.GetTypeAliases(), aliasParams, elaborator.GetDerivedEqTypes()); err != nil {
+	if err := buildAndRegisterInterface(unit, modID, compileResult.ModuleTypeEnv, st.modLinker, imports.ImportedTypeAliases, elaborator.GetTypeAliases(), aliasParams, elaborator.GetDerivedEqTypes(), imports.IFC); err != nil {
 		return err
 	}
 

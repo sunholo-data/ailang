@@ -179,6 +179,8 @@ var skippedExamples = map[string]string{
 	"examples/runnable/secrets/leak_attempt.ail":                 "M-SECRET-EFFECT: intentionally FAILS `ailang check` to demo IFC leak prevention (asserted in TestSecretExamples_IFC)",
 	"examples/runnable/secrets/sink_function_value.ail":          "M-IFC-FUNCTION-VALUE-SINKS (#1719): intentionally FAILS `ailang check` (alias/HOF/wrapper sink leaks; asserted in TestSecretExamples_IFC)",
 	"examples/runnable/secrets/secret_demo.ail":                  "M-SECRET-EFFECT: runnable demo — needs the Secret capability + 1Password op CLI to run; type-checks clean (asserted in TestSecretExamples_IFC)",
+	"examples/runnable/secrets/ifc_xmod_lib.ail":                 "library module (no main) — imported by ifc_xmod_app/ifc_xmod_leak; type-checks clean (asserted in TestIFCCrossModuleExamples)",
+	"examples/runnable/secrets/ifc_xmod_leak.ail":                "M-IFC-CROSS-MODULE (#1134): intentionally FAILS `ailang check` (imported sink leak; asserted in TestIFCCrossModuleExamples)",
 	"examples/runnable/ai_call.ail":                              "live HTTP POST to api.openai.com with a real API key (not std/ai, so --ai-stub cannot intercept it); CI has no key and gets 401",
 	"examples/runnable/claude_haiku_call.ail":                    "live HTTP POST to api.anthropic.com with a real API key (not std/ai, so --ai-stub cannot intercept it); CI has no key and gets 401",
 	"examples/runnable/web_search.ail":                           "M-DANEEL-AILANG-EXECUTOR M2: std/web needs OLLAMA_API_KEY + the network; type-checks clean (asserted in TestWebSearchExample_TypeChecks)",
