@@ -8,7 +8,7 @@ the conservative-redaction policy, both stated below.
 **Priority**: P0 — `std/secret` documents a guarantee the runtime does not provide. A user who
 follows the documentation exactly still writes their credential to disk.
 **Estimated**: 3–4 days (M0 is a ~30-minute doc correction that should land immediately)
-**Dependencies**: [m-trace-tier-not-enforced](m-trace-tier-not-enforced.md) — **that doc's M1
+**Dependencies**: [m-trace-tier-not-enforced](../../implemented/v0_36_0/m-trace-tier-not-enforced.md) — **that doc's M1
 closes the DEFAULT case; this one is what makes `deep` usable.** See [Layering](#layering-what-each-doc-fixes).
 **Author**: design-doc-creator role, attended session 2026-09-09, at `dev` = `d7bb689b8`
 **Source**: `fb_5c0baeb1ee5ae1eb` (mcp-public, 2026-09-08), with `fb_b023726953f2ee5a` as the
@@ -106,7 +106,7 @@ that still has both the values and a compile-time identity for the call.
 
 These are two changes at the same seam, and they are not substitutes.
 
-| | [m-trace-tier-not-enforced](m-trace-tier-not-enforced.md) | this doc |
+| | [m-trace-tier-not-enforced](../../implemented/v0_36_0/m-trace-tier-not-enforced.md) | this doc |
 |---|---|---|
 | Fixes | `standard` (the **default**) records per-call values at all | `deep` records **labelled** values |
 | After it ships | Secure by default; per-call observability unavailable at `standard` | Per-call observability available with labelled values redacted |
@@ -305,7 +305,7 @@ submitting with four live unknowns invites a reject that tells us what we alread
 
 ## Related Documents
 
-- [m-trace-tier-not-enforced](m-trace-tier-not-enforced.md) — the paired fix; ship first
+- [m-trace-tier-not-enforced](../../implemented/v0_36_0/m-trace-tier-not-enforced.md) — the paired fix; ship first
 - [m-list-cons-quadratic](../m-list-cons-quadratic.md) — cited only for the cost of touching the
   runtime value representation (Open Question 4)
 - [m-trace-feedback](../v1_1_0/m-trace-feedback.md) (neural 0.46) — **distinct**: a *consumer* of

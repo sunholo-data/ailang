@@ -1,6 +1,6 @@
 # Sprint Plan: M-CACHESRC-COGNITIVE-COMPLEXITY
 
-**Design:** [design_docs/planned/v0_35_2/m-cachesrc-cognitive-complexity.md](m-cachesrc-cognitive-complexity.md) (frozen; committed at HEAD in this worktree)
+**Design:** [design_docs/implemented/v0_35_2/m-cachesrc-cognitive-complexity.md](m-cachesrc-cognitive-complexity.md) (frozen; committed at HEAD in this worktree)
 **Sprint ID:** `M-CACHESRC-COGNITIVE-COMPLEXITY`
 **Target release:** v0.35.2
 **Planned at:** b682888c5fec82a38d6d50f9e955d725f1710412 (branch `docs/v1-iter341-cachesrc`; verified source baseline `d794cac257cf87763f0aafa7360ede0372272cd2`, std/VERSION v0.35.1)
@@ -128,7 +128,7 @@ There is no intentionally-red boundary. If a milestone cannot meet its gate, lea
 
 **Estimated LOC:** 30 (implementation 0 net — mutations are transient and reverted inside the disposable copies; ~30 lines of banked evidence/deviation notes appended to the design doc's implementation-evidence section by the controller at landing, per Files to Modify/Create; test assertions strengthened only if a mutation survives, which fails the milestone until done).
 
-**Files (from the design's Files to Modify/Create):** no tracked Go changes; `.snap/M3/` evidence tree (mutation diffs, oracle outputs, restored-green outputs, race/aggregate logs, final `gocognit.json`); `design_docs/planned/v0_35_2/m-cachesrc-cognitive-complexity.md` evidence section (controller-owned at landing).
+**Files (from the design's Files to Modify/Create):** no tracked Go changes; `.snap/M3/` evidence tree (mutation diffs, oracle outputs, restored-green outputs, race/aggregate logs, final `gocognit.json`); `design_docs/implemented/v0_35_2/m-cachesrc-cognitive-complexity.md` evidence section (controller-owned at landing).
 
 **Dependencies:** M2 green commit (mutations probe the extracted code, not the 103-line original).
 
@@ -191,7 +191,7 @@ MUT-SOURCE-REREAD and MUT-SNAPSHOT-LEAK may temporarily touch their original loa
 
 ## Docs to update
 
-- The design doc itself (`design_docs/planned/v0_35_2/m-cachesrc-cognitive-complexity.md`): controller appends final implementation evidence, old→new function mappings, complexity readings, mutation results, and deviations after the downstream gates (it is the only documentation row in the design's Files to Modify/Create).
+- The design doc itself (`design_docs/implemented/v0_35_2/m-cachesrc-cognitive-complexity.md`): controller appends final implementation evidence, old→new function mappings, complexity readings, mutation results, and deviations after the downstream gates (it is the only documentation row in the design's Files to Modify/Create).
 - `.ailang/state/sprints/sprint_M-CACHESRC-COGNITIVE-COMPLEXITY.json`: controller updates milestone `passes`/`started`/`completed`, `criteria_status`, and (if Sonar is unavailable at landing) `blocked_reason`.
 - CHANGELOG/PR metadata: only if the aggregate `make ci` gates require it at landing; that is controller bookkeeping, not executor scope.
 

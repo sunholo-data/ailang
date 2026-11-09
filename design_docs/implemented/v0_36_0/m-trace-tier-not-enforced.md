@@ -12,7 +12,7 @@ have no non-test consumers, so `NewCollector()` defaulting to deep left all 32 t
 information-exposure surface that two independent field reports have now filed against.
 **Estimated**: 1.5–2 days (3 milestones, M1 alone fixes both consequences)
 **Dependencies**: None. **Independent of** the parked
-[m-list-cons-quadratic](../m-list-cons-quadratic.md) — see [Relationship to #676](#relationship-to-676-and-the-parked-list-doc).
+[m-list-cons-quadratic](../../planned/m-list-cons-quadratic.md) — see [Relationship to #676](#relationship-to-676-and-the-parked-list-doc).
 **Author**: design-doc-creator role, attended session 2026-09-09, at `dev` = `6494a98f4` (v0.35.4+)
 **Sources**: `inbox_1788936332313_c08c55b5` (holosun/decision-budget — the OOM) and
 `fb_b023726953f2ee5a` (mcp-public — the exposure axis)
@@ -292,7 +292,7 @@ Two triggers fire; run `ailang design-quorum` before planning.
 
 ## Relationship to #676 and the parked list doc
 
-[m-list-cons-quadratic](../m-list-cons-quadratic.md) (PARKED, `needs-human-review`) addresses a
+[m-list-cons-quadratic](../../planned/m-list-cons-quadratic.md) (PARKED, `needs-human-review`) addresses a
 **genuinely separate** defect: `::` and `++` copy the whole tail, so list building is Θ(n²) in
 time and allocation independent of tracing. Issue
 [#676](https://github.com/sunholo-data/ailang/issues/676) reproduced that first-party at
@@ -354,8 +354,8 @@ it, a collector that recorded nothing at all would pass.
 
 ## Related Documents
 
-- [m-list-cons-quadratic](../m-list-cons-quadratic.md) — PARKED; separate defect, see above
-- [m-take-flatmap-peak-memory](../../implemented/v1_1_0/m-take-flatmap-peak-memory.md) — prior
+- [m-list-cons-quadratic](../../planned/m-list-cons-quadratic.md) — PARKED; separate defect, see above
+- [m-take-flatmap-peak-memory](../v1_1_0/m-take-flatmap-peak-memory.md) — prior
   art on a memory cap that did not cap ([#617](https://github.com/sunholo-data/ailang/issues/617))
 - `docs/docs/guides/debugging.md` — where the tier table must land
 

@@ -1,6 +1,6 @@
 # M-GATE1-SHARED-CLONE-REF-DRIFT Sprint Plan — post-split recovery
 
-**Design**: `design_docs/planned/v0_36_0/m-gate1-shared-clone-ref-drift.md`
+**Design**: `design_docs/implemented/v0_35_2/m-gate1-shared-clone-ref-drift.md`
 **Status**: COMPLETE — M1 at `8fcc1560d`, M2 at `9f691824f`, and M3 complete in the fresh cumulative executor snapshot awaiting controller commit/evaluation
 **Duration**: 3 days total (3 complete, 0 remaining)
 **Actual size**: 291 LOC total (152 M1 + 110 M2 + 29 M3), versus 302 estimated
@@ -117,5 +117,5 @@ env -i HOME="$HOME" PATH="/usr/bin:/bin:/usr/sbin:/sbin" TERM=dumb make test-lau
 
 Handoff only after the controller has proven the clean base contains the split plus M1 and has neutralized the abandoned monolith diff/snapshot. The executor should implement M2, run its complete gates, emit a fresh M2 snapshot, then implement M3 and run the final mutation re-proof as its last check. The controller builds one commit for M2 and one for M3 from the fresh snapshots; M1 remains the existing commit.
 
-SPRINT_PLAN_PATH: design_docs/planned/v0_36_0/m-gate1-shared-clone-ref-drift-sprint-plan.md
-SPRINT_JSON_PATH: design_docs/planned/v0_36_0/m-gate1-shared-clone-ref-drift-sprint.json
+SPRINT_PLAN_PATH: design_docs/implemented/v0_35_2/m-gate1-shared-clone-ref-drift-sprint-plan.md
+SPRINT_JSON_PATH: design_docs/implemented/v0_35_2/m-gate1-shared-clone-ref-drift-sprint.json

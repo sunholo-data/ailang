@@ -52,7 +52,7 @@ Production deployment exposure and the earlier Fable/Opus refusal transcript wer
 
 - [M-AGENT-AILANG-ONLY-EXECUTION](../v0_39_0/m-agent-ailang-only-execution.md): supplies the tool profile and admission plumbing. This design repairs enforcement beneath that plumbing; it does not recreate the profile rollout. Its historical assertion that FS controls work is superseded by F1/F2 for the audited checkout.
 - [M-AGENT-SAFE-RUNNER](../../planned/v1_1_0/m-agent-safe-runner.md): broader execution service/message protocol, with its admission spike already used. This design owns runtime confinement, operator limits, and tool mediation; it does not build that service.
-- [M-FS-RENAME](../../planned/v0_35_0/m-fs-rename.md): explicitly defers symlink-aware, race-safe confinement across all FS operations. This document supplies that systemic follow-up.
+- [M-FS-RENAME](../v0_35_0/m-fs-rename.md): explicitly defers symlink-aware, race-safe confinement across all FS operations. This document supplies that systemic follow-up.
 - [M-FS-SANDBOX-DIAGNOSTICS](../v0_19_0/m-fs-sandbox-diagnostics.md): preserve boolean-probe contracts and optional rejection diagnostics while replacing enforcement.
 - [M-NET-EFFECT-PROXY-BOUNDARY](../../planned/v0_33_1/m-net-effect-proxy-boundary.md): preserve its explicit proxy route and absence of silent direct fallback; extend per-hop authorization and make proxy trust explicit.
 - [M-PROCESS-SUBCMD-ALLOWLIST](../v0_38_0/m-process-subcmd-allowlist.md): prefix matching remains a useful trusted-host restriction, but is not a filesystem/network sandbox.

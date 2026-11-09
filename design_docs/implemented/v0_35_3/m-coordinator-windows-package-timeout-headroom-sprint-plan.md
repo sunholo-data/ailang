@@ -1,7 +1,7 @@
 # SPRINT PLAN — M-COORDINATOR-WINDOWS-PACKAGE-TIMEOUT-HEADROOM
 
 **Design doc (approved, quorum round 3):**
-`design_docs/planned/v0_36_0/m-coordinator-windows-package-timeout-headroom.md`
+`design_docs/implemented/v0_35_3/m-coordinator-windows-package-timeout-headroom.md`
 **Machine-readable sprint object:** `sprint_m-coordinator-windows-package-timeout-headroom.json`
 **Worktree:** `.planner-wt-v1-iter348` (detached), HEAD `30d11b0bd` — the design doc commit itself
 (its first-party measurements were taken at `1b8e7eab1`; the workflow claims below were
@@ -85,7 +85,7 @@ HIT COUNT, not the line numbers — assert the count and the values, never fixed
 
    ```yaml
        # -timeout 416s is a DERIVED, PROVISIONAL operational budget (right-censored
-       # input — see design_docs/planned/v0_36_0/m-coordinator-windows-package-timeout-headroom.md):
+       # input — see design_docs/implemented/v0_35_3/m-coordinator-windows-package-timeout-headroom.md):
        #   budget = worst steady-state package x runner variance x safety factor
        #          = 172.5s (cmd/ailang, slowest pkg on non-failing dev run e5a325a20)
        #          x 1.80x  (runner variance: aggregate package-seconds 599.7 -> 1080.3,
@@ -107,7 +107,7 @@ HIT COUNT, not the line numbers — assert the count and the values, never fixed
          # -timeout 416s: same DERIVED PROVISIONAL budget as the Linux test job —
          # 172.5s worst steady-state package x 1.80x runner variance x 1.34x safety
          # factor = 416.1s; derivation in the test job's comment and
-         # design_docs/planned/v0_36_0/m-coordinator-windows-package-timeout-headroom.md.
+         # design_docs/implemented/v0_35_3/m-coordinator-windows-package-timeout-headroom.md.
          # (The previous "5min (vs 60s on Linux)" note was stale: Linux has used the
          # same 300s since M-DX11.)
    ```

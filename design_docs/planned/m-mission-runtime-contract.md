@@ -60,7 +60,7 @@ D1–D4 approved by Mark in the attended 2026-09-07 response: “great please gi
 ### Design Freeze
 
 - [x] Approve D1–D4 project direction (Mark, attended 2026-09-07).
-- [x] First slice freezes request, receipt, cancellation and adapter contracts in [the role-dispatch sprint](m-mission-role-dispatch-sprint-plan.md). Coordinator store transactions and verified artifacts remain slice 2; the local journal does not claim those guarantees.
+- [x] First slice freezes request, receipt, cancellation and adapter contracts in [the role-dispatch sprint](../implemented/v0_35_2/m-mission-role-dispatch-sprint-plan.md). Coordinator store transactions and verified artifacts remain slice 2; the local journal does not claim those guarantees.
 - [ ] Approve D5 before provider-backed trial runs; freeze task corpus, route assignments, and evaluator rules.
 
 This is the project-level design. It deliberately leaves future slices at architecture level;

@@ -350,4 +350,4 @@ R1 revision note: rows 10–13 were added/measured during this revision pass wit
 
 Recovery designer audit (2026-09-06): applied the remaining R1 GLM call-site fix in the Gate-3b snippet: retain `drift` diagnostics and explicitly abort on exit 2 (missing Gate-1 record), rather than reporting missing evidence as benign drift. This implements the reviewer's existing `proposed_fix`; R1/R2 receipts remain unchanged.
 
-DESIGN_DOC_PATH: design_docs/planned/v0_36_0/m-gate1-shared-clone-ref-drift.md
+DESIGN_DOC_PATH: design_docs/implemented/v0_35_2/m-gate1-shared-clone-ref-drift.md

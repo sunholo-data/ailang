@@ -807,8 +807,8 @@ disagrees.
 
 ## Related Documents
 
-- [m-mcp-exact-tool-surface-lane-b.md](../implemented/v1_0_0/m-mcp-exact-tool-surface-lane-b.md) — #498 Lane B: the embeddable contract this doc makes dependency-clean (its frozen-envelope tests are this doc's wire oracle)
-- [m-serveapi-surface-drops.md](../implemented/v0_20_0/m-serveapi-surface-drops.md) — earlier serveapi surface discipline
+- [m-mcp-exact-tool-surface-lane-b.md](../v1_0_0/m-mcp-exact-tool-surface-lane-b.md) — #498 Lane B: the embeddable contract this doc makes dependency-clean (its frozen-envelope tests are this doc's wire oracle)
+- [m-serveapi-surface-drops.md](../v0_20_0/m-serveapi-surface-drops.md) — earlier serveapi surface discipline
 - Neural-search near-matches reviewed and confirmed distinct (top score 0.45, below the 0.65
   warn-reject band): `m-dx-route-request-context` (route DX, v0.10.0), `m-serve-api-dx-sprint-plan`
   (v0.9.4), `m-arch-boundaries-eval-exclusion-tighten` (internal layering, different gate).
@@ -817,7 +817,7 @@ disagrees.
 
 - Issue [#764](https://github.com/sunholo-data/ailang/issues/764); prerequisites #498 (shipped), context #586, #603 (envelope labelling), #714 (exit(0) handling, in base)
 - ailang-world `host/daemon/daemon_test.go` (allowlist gate, read at `48ef27518`)
-- [ARCHITECTURE.md](../../ARCHITECTURE.md) — layer boundaries; `scripts/check_boundaries.sh` as the sibling-gate pattern
+- [ARCHITECTURE.md](../../../ARCHITECTURE.md) — layer boundaries; `scripts/check_boundaries.sh` as the sibling-gate pattern
 
 ## Future Work
 
@@ -837,4 +837,4 @@ disagrees.
 **Last updated**: 2026-08-23 (revision pass after iteration-260 quorum BLOCK — see Revision
 history & quorum record)
 
-**DESIGN_DOC_PATH**: `design_docs/planned/m-serveapi-protocol-only-module.md`
+**DESIGN_DOC_PATH**: `design_docs/implemented/v0_33_2/m-serveapi-protocol-only-module.md`

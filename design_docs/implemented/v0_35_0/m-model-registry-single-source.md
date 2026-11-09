@@ -190,6 +190,6 @@ Measured 2026-08-27 at HEAD `fb6084f4b`.
 **Not verified**: that gcsfuse-mounting the registry into agent jobs works — the coordinator mounts its config that way, but no agent job does today. **Phase 0b** must prove it before Phase 2 is built on it; a negative result reopens D1.
 
 ## Related Documents
-- [m-pipeline-reconciliation.md](../../implemented/v0_35_0/m-pipeline-reconciliation.md) — M5 built `model_routing`; this supersedes it with one registry
-- [m-message-plane-fail-loud.md](../../implemented/v0_35_0/m-message-plane-fail-loud.md) — M4's CAS tooling publishes the registry
+- [m-pipeline-reconciliation.md](m-pipeline-reconciliation.md) — M5 built `model_routing`; this supersedes it with one registry
+- [m-message-plane-fail-loud.md](m-message-plane-fail-loud.md) — M4's CAS tooling publishes the registry
 - `reference_cloud_config_source_of_truth` (memory) — the repo-canonical rule the registry must follow

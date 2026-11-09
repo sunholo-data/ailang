@@ -1,6 +1,6 @@
 # Sprint M-EVAL-STANDARD-MODE-INPUT-FILES-GAP: gate multi-file grading benchmarks out of standard mode
 
-Design: `design_docs/planned/v0_33_1/m-eval-standard-mode-input-files-gap.md`
+Design: `design_docs/implemented/v0_35_3/m-eval-standard-mode-input-files-gap.md`
 Target: v0.33.1
 Plan: 2 working days, approximately 8.5 hours
 

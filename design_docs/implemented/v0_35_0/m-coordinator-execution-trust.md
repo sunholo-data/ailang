@@ -1,18 +1,18 @@
 # M-COORDINATOR-EXECUTION-TRUST: make "a job ran" mean "work was attempted, and we know the outcome"
 
 **Status**: **M1a, M2, M3, M4, M5, M6 all LANDED on `dev`** (`79082a16f`, `b1ade7e6e`, `28002af1e`, `934b1f07a`, `5795a3c3f`, `44a5a0b84`). M6 verified running on the dev plane (V33). Shipping to test/prod in progress. Planned — attended, standalone critical-infrastructure work, deliberately off the mission queue (Mark, 2026-09-02).
-**Scope**: **M1a + M2 + M3 (landed 2026-09-02) + M4 (queue visibility) + M5 (send-path misrouting) + M6 (pi extension self-collision) + M7 (startup recovery cancels live cloud work) — M5, M6 and M7 all found by end-to-end testing, not by reading code.** The general per-repo manifest system split to [M-PACKAGE-PROTOCOL-MANIFESTS](m-package-protocol-manifests.md) 2026-09-02 (Mark, attended) — three quorum rounds put every unresolved objection there, while M2/M3's closed and stayed closed.
+**Scope**: **M1a + M2 + M3 (landed 2026-09-02) + M4 (queue visibility) + M5 (send-path misrouting) + M6 (pi extension self-collision) + M7 (startup recovery cancels live cloud work) — M5, M6 and M7 all found by end-to-end testing, not by reading code.** The general per-repo manifest system split to [M-PACKAGE-PROTOCOL-MANIFESTS](../../planned/m-package-protocol-manifests.md) 2026-09-02 (Mark, attended) — three quorum rounds put every unresolved objection there, while M2/M3's closed and stayed closed.
 **Rulings**: **All of D1–D4 ruled by Mark 2026-09-02 (attended)** — see Decisions. D2 REVERSED the author's recommendation and improved the design. Design freeze is CLOSED; sprint may proceed.
 **Target**: v0.35.0
 **Priority**: P0. Every autonomous lane downstream — package agents, cascade, feedback triage, cross-repo handoffs — dispatches through this path and has been producing nothing for six days without saying so.
 **Estimated**: ~3 days for M1a-M3 (**landed** `79082a16f`, `b1ade7e6e`, `28002af1e`) + ~0.5d for M4 + rollout
-**Dependencies**: none blocking. Builds directly on [m-message-plane-trust.md](m-message-plane-trust.md) M1–M3, which landed 2026-08-31 and fixed the layer below (delivery).
+**Dependencies**: none blocking. Builds directly on [m-message-plane-trust.md](../../planned/m-message-plane-trust.md) M1–M3, which landed 2026-08-31 and fixed the layer below (delivery).
 
 ---
 
 ## Problem statement
 
-[M-MESSAGE-PLANE-TRUST](m-message-plane-trust.md) fixed delivery. It worked: measured
+[M-MESSAGE-PLANE-TRUST](../../planned/m-message-plane-trust.md) fixed delivery. It worked: measured
 2026-09-02, **every message addressed to a registered agent inbox produced a Cloud Run job
 within 2–8 seconds**, four for four, including one full external round trip (a `mcp-public`
 bug report → job → agent reply back to the reporter, 4m 32s end to end).
@@ -371,7 +371,7 @@ The tier is therefore **not** read from `classifyTaskType`:
 
 **Generalisation (D2) — scoped to M1a, with the manifest system split out.** After three quorum
 rounds landed every hard objection on repo-published manifests, that half is now
-[M-PACKAGE-PROTOCOL-MANIFESTS](m-package-protocol-manifests.md). **M1a contains no
+[M-PACKAGE-PROTOCOL-MANIFESTS](../../planned/m-package-protocol-manifests.md). **M1a contains no
 repo-controlled content at all**, which removes the entire "a repo declares an empty protocol and
 unlocks itself" surface from this sprint.
 
@@ -702,7 +702,7 @@ though one rebuild reached the plane this doc audits. It does not.
 
 > **SUPERSEDED 2026-09-03 — the asymmetry this section describes was fixed, and the fix is
 > exactly what it asked for.** The deployment model was unified
-> (design: [`v0_35_0/m-unified-release-model.md`](v0_35_0/m-unified-release-model.md); the model
+> (design: [`m-unified-release-model.md`](m-unified-release-model.md); the model
 > itself is written down once, in `ailang-multivac/.claude/skills/release/SKILL.md`). **Both**
 > planes now travel together: `cloudbuild-dev.yaml` in *this* repo builds all 18 images —
 > `agent-pi` included — on every push to `dev`, a `v*` tag builds the same set from the tagged
@@ -801,19 +801,19 @@ than the round it costs. **Round 1 is the re-quorum-ONCE guardrail: if it blocks
 over rather than grinding.**
 
 ```bash
-ailang design-quorum design_docs/planned/m-coordinator-execution-trust.md \
+ailang design-quorum design_docs/implemented/v0_35_0/m-coordinator-execution-trust.md \
   --reviewers gpt5-6-sol,gemini-3-1-pro \
   --controller-verdict pass --controller-note "<in-session judgement>"
 ```
 
 ## Related Documents
 
-- [m-message-plane-trust.md](m-message-plane-trust.md) — **the direct predecessor.** Fixed delivery; this doc fixes what happens after delivery. Its "still owed" list and this doc's Non-Goals are deliberately disjoint.
-- [m-message-plane-fail-loud.md](../implemented/v0_35_0/m-message-plane-fail-loud.md) — the original "seams that report success while doing nothing" thesis.
-- [v0_35_0/m-dx-session-protocol-gate.md](v0_35_0/m-dx-session-protocol-gate.md) — the gate's own design, including the A4 claim M1 must preserve.
-- [v0_35_0/m-dx-pi-harness.md](../implemented/v0_35_0/m-dx-pi-harness.md) — pi extension distribution (V2's `ailang pi install` path).
-- [v0_35_0/m-coordinator-route-authority-recovery.md](v0_35_0/m-coordinator-route-authority-recovery.md) (0.40) — adjacent coordinator work; distinct surface (routing authority, not execution outcome).
-- [implemented/v0_22_0/m-coord-codex-executor.md](../implemented/v0_22_0/m-coord-codex-executor.md) (0.44) — executor-variant prior art for M3's provider/variant coupling.
+- [m-message-plane-trust.md](../../planned/m-message-plane-trust.md) — **the direct predecessor.** Fixed delivery; this doc fixes what happens after delivery. Its "still owed" list and this doc's Non-Goals are deliberately disjoint.
+- [m-message-plane-fail-loud.md](m-message-plane-fail-loud.md) — the original "seams that report success while doing nothing" thesis.
+- [m-dx-session-protocol-gate.md](m-dx-session-protocol-gate.md) — the gate's own design, including the A4 claim M1 must preserve.
+- [v0_35_0/m-dx-pi-harness.md](m-dx-pi-harness.md) — pi extension distribution (V2's `ailang pi install` path).
+- [v0_35_0/m-coordinator-route-authority-recovery.md](../../planned/v0_35_0/m-coordinator-route-authority-recovery.md) (0.40) — adjacent coordinator work; distinct surface (routing authority, not execution outcome).
+- [implemented/v0_22_0/m-coord-codex-executor.md](../v0_22_0/m-coord-codex-executor.md) (0.44) — executor-variant prior art for M3's provider/variant coupling.
 - `docs/internal/message-plane-topology.md` — the map.
 
 ## Future Work

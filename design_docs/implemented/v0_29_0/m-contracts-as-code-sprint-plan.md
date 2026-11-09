@@ -1,7 +1,7 @@
 # Sprint Plan: M-DEONTIC-PKG — sunholo/deontic extension package
 
 **Sprint ID**: M-DEONTIC-PKG
-**Design doc**: [m-contracts-as-code-vertical.md](m-contracts-as-code-vertical.md) (extension-routing variant — user-prioritized: ties into Aitana work)
+**Design doc**: [m-contracts-as-code-vertical.md](../../planned/v0_29_0/m-contracts-as-code-vertical.md) (extension-routing variant — user-prioritized: ties into Aitana work)
 **Repo**: `ailang-packages` (NOT the ailang core repo — routing decision: examples now, package on demand, core never; demand arrived, so package now)
 **Duration**: 1 day (campaign velocity: wave-5 engine was written and cross-verified twice in ~2h)
 **Risk**: low-medium (engine logic proven; risks are package-system conventions and Z3 coverage of generalized functions)

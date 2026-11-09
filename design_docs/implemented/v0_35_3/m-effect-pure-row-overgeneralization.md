@@ -74,7 +74,7 @@ to close. Their exported schemes differ accordingly (V6/V7):
 ### Why it only appears after moving code between modules
 
 `validate_effects.go:344-353` already carries a fix for this symptom class, added by
-[M-BUG-EFFECT-CHECKER-CONFLATION](../../implemented/v0_6_2/m-bug-effect-checker-conflation.md)
+[M-BUG-EFFECT-CHECKER-CONFLATION](../v0_6_2/m-bug-effect-checker-conflation.md)
 (v0.6.2) and commented *"Use declared effects instead of CoreTypeInfo to avoid contamination"*.
 That bypass consults the declared-effects map **only when the callee is a `*core.Var`** — a
 module-local binding. A cross-module callee is a `*core.VarGlobal` and falls through to the
@@ -361,7 +361,7 @@ Latitude granted to the implementer:
 
 ## Related Documents
 
-- [M-BUG-EFFECT-CHECKER-CONFLATION](../../implemented/v0_6_2/m-bug-effect-checker-conflation.md)
+- [M-BUG-EFFECT-CHECKER-CONFLATION](../v0_6_2/m-bug-effect-checker-conflation.md)
   (implemented v0.6.2) — **same symptom, different mechanism.** Spurious `IO` on a pure function,
   fixed by the declared-effects bypass at `validate_effects.go:344-353`. That fix is `*core.Var`-only
   and so does not reach cross-module callees (V10); this doc addresses the type that bypass was
@@ -375,7 +375,7 @@ Latitude granted to the implementer:
   **not** already correct. That doc's V14/V15 arms test *declared* `! {e}` functions, which do work;
   they do not cover an *inferred* row on a `pure` declaration. **Action:** when that doc is
   unparked, its V14/V15 pinned ACs must be re-scoped to "declared row-polymorphic callees only".
-- [M-EFFECT-ROW-SHOW-INTERP](../../implemented/v0_31_0/m-effect-row-show-interp.md) (#386,
+- [M-EFFECT-ROW-SHOW-INTERP](../v0_31_0/m-effect-row-show-interp.md) (#386,
   implemented v0.31.0) — added the row-var generalization in `generalizeWithConstraints` that this
   doc constrains. #386 was right that free row vars must be quantified so separate imported uses do
   not share one identity; it did not exclude rows belonging to a *declared-closed* function.

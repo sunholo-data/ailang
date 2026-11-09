@@ -195,12 +195,12 @@ ailang eval-paired eval_results/<microrag-on-…> eval_results/<microrag-off-…
 
 ## Related Documents
 
-- [M-BRAIN-MICRORAG](../../implemented/v0_15_0/m-brain-microrag.md) — the engine (implemented v0.15.0); this doc adds a frontend, not engine work
-- [M-MICRORAG-HOOK-EXPANSION](../../implemented/v0_15_0/m-microrag-hook-expansion.md) — trigger doctrine (UserPromptSubmit > PreToolUse), names pi as the missing harness (M3). Similarity note: topic-adjacent but distinct — that doc covered Claude/Gemini/Codex mechanics; this doc is the pi surface + error-triggered lane, which no frontend has anywhere.
+- [M-BRAIN-MICRORAG](../v0_15_0/m-brain-microrag.md) — the engine (implemented v0.15.0); this doc adds a frontend, not engine work
+- [M-MICRORAG-HOOK-EXPANSION](../v0_15_0/m-microrag-hook-expansion.md) — trigger doctrine (UserPromptSubmit > PreToolUse), names pi as the missing harness (M3). Similarity note: topic-adjacent but distinct — that doc covered Claude/Gemini/Codex mechanics; this doc is the pi surface + error-triggered lane, which no frontend has anywhere.
 - [ADR-002](../../decisions/ADR-002-pretooluse-microrag-disabled.md) — why file-content injection is excluded
 - [M-DX-PI-HARNESS](m-dx-pi-harness.md) — extension suite, distribution Tiers 0–2, Subprocess Contract this rides
-- [m-eval-prompt-delivery](../../implemented/v0_24_0/m-eval-prompt-delivery.md) — compact-prompt-beats-residency delivery evidence
-- [M-EVAL-SEMANTIC-CONTEXT](../v0_29_0/m-ailang-semantic-context.md) — convergence-efficiency context (compaction/hygiene sibling workstream)
+- [m-eval-prompt-delivery](../v0_24_0/m-eval-prompt-delivery.md) — compact-prompt-beats-residency delivery evidence
+- [M-EVAL-SEMANTIC-CONTEXT](../../planned/v0_29_0/m-ailang-semantic-context.md) — convergence-efficiency context (compaction/hygiene sibling workstream)
 - [M-MODEL-REGISTRY-SINGLE-SOURCE](m-model-registry-single-source.md) — contextWindow registration rider (rig overflow guard) lives there
 - External: little-coder (`skill-inject`, `knowledge-inject`; paper *Honey, I Shrunk the Coding Agent*) — precedent measurement, not a code dependency
 

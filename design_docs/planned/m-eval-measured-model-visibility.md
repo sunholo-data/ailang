@@ -139,7 +139,7 @@ Net +7. No hard violations on A1/A3/A4/A7.
 - [Dashboard redesign](../implemented/v0_26_0/m-eval-dashboard-redesign.md)
 - [Validity discipline](m-eval-validity-discipline.md) — annotation instead of hiding;
   its separately parked exact-set cohort work is not authorized by this proposal.
-- [Rolling ELO](v0_35_0/m-eval-rolling-elo.md)
+- [Rolling ELO](../implemented/v0_35_0/m-eval-rolling-elo.md)
 
 ## Risks
 

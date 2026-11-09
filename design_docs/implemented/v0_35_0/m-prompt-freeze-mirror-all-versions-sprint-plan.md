@@ -1,6 +1,6 @@
 # Sprint Plan — M-PROMPT-FREEZE-MIRROR-ALL-VERSIONS
 
-**Design doc**: [`design_docs/planned/m-prompt-freeze-mirror-all-versions.md`](m-prompt-freeze-mirror-all-versions.md) (r3, 467 lines)
+**Design doc**: [`design_docs/implemented/v0_35_0/m-prompt-freeze-mirror-all-versions.md`](m-prompt-freeze-mirror-all-versions.md) (r3, 467 lines)
 **Sprint ID**: `M-PROMPT-FREEZE-MIRROR-ALL-VERSIONS`
 **Planner**: sprint-planner role, V1 mission iteration 297, lane `opus` (Agent-tool planner)
 **Planned**: 2026-08-28

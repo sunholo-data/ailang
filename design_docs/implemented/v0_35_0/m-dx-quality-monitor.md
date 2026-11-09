@@ -205,7 +205,7 @@ Result JSON gains optional `quality_*` fields (Q1/Q2 signals) — capture-only; 
 
 - [M-DX-PI-HARNESS](m-dx-pi-harness.md) — suite + Subprocess Contract this joins (event-only here: no subprocess)
 - [m-dx-microrag-context](m-dx-microrag-context.md) — sibling extension; interplay covered in Risks
-- [M-EVAL-SEMANTIC-CONTEXT](../v0_29_0/m-ailang-semantic-context.md) — sibling context-hygiene workstream (its Branch B: tool-result truncation is generalized by Q3; cite coordination point)
+- [M-EVAL-SEMANTIC-CONTEXT](../../planned/v0_29_0/m-ailang-semantic-context.md) — sibling context-hygiene workstream (its Branch B: tool-result truncation is generalized by Q3; cite coordination point)
 - CLAUDE.md 2026-08-26 incident log — provider-trace root cause; the two prompt fixes aimed at the wrong layer
 - External: little-coder `quality-monitor` / `thinking-budget` / `ShellStart` excerpt design — precedent measurements (TB2.0 24.6% run), not a code dependency
 

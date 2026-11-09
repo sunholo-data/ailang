@@ -328,7 +328,7 @@ Platform claims that remain unverifiable from this repo (GitHub does not count t
 
 **Implemented (may inform design):**
 - `design_docs/implemented/v0_10_0/m-pkg-autonomous-updates.md` — the always-PR v1 design this extends; "no autonomous merge" was v1, the `.md`-floor was its loosening, this is the per-agent code rung
-- `design_docs/planned/m-coordinator-execution-trust.md` — trusted-registry authority boundary (WorkTier/AcknowledgeOnly): the new fields follow the same "registry, never message content" rule
+- `design_docs/implemented/v0_35_0/m-coordinator-execution-trust.md` — trusted-registry authority boundary (WorkTier/AcknowledgeOnly): the new fields follow the same "registry, never message content" rule
 
 **Planned (check for overlap):**
 - `design_docs/planned/ailang-core-triage/coordinator-design-pr-auto-merge.md` — the 2026-09-15 triage of the docs-ONLY auto-merge; distinct by design (it pinned the docs-only scope; this doc is the maintainer-approved widening to code, per-agent)

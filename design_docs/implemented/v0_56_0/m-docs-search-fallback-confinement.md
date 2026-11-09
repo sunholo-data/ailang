@@ -310,7 +310,7 @@ only; this arithmetic is not implementation authorization.
 
 ## Related documents
 
-- [M-DX27 fallback design](../../planned/v0_29_0/m-dx27-docs-search-github-fallback.md) and
+- [M-DX27 fallback design](../v0_35_2/m-dx27-docs-search-github-fallback.md) and
   [plan](../../planned/m-dx27-docs-search-github-fallback-sprint-plan.md): existing implemented
   source despite stale planned metadata; retain authenticated fallback/local
   separation, not duplicate implementation.

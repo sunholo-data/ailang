@@ -1,6 +1,6 @@
 # Sprint Plan: M-MISSION-LOOP-WORKBENCH — Phase 1
 
-**Design doc**: [m-mission-loop-workbench.md](./m-mission-loop-workbench.md)
+**Design doc**: [m-mission-loop-workbench.md](../../planned/v0_36_0/m-mission-loop-workbench.md)
 **Created**: 2026-09-05
 **Scope**: **Phase 1 ONLY** — registry, renderer, `doctor`. No live path is written.
 **Duration**: 4 milestones, ~1,250 LOC (750 impl / 500 test), 2 days

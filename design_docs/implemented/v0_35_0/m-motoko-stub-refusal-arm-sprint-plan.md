@@ -1,6 +1,6 @@
 # Sprint Plan: M-MOTOKO-STUB-REFUSAL-ARM
 
-**Design doc**: [`design_docs/planned/m-motoko-stub-refusal-arm.md`](m-motoko-stub-refusal-arm.md)
+**Design doc**: [`design_docs/implemented/v0_35_0/m-motoko-stub-refusal-arm.md`](m-motoko-stub-refusal-arm.md)
 **Sprint JSON**: `.ailang/state/sprints/sprint_m-motoko-stub-refusal-arm.json` (`.ailang/` is gitignored — `.gitignore:82` — so the JSON is deliberately NOT part of the commit; same convention as the row 6n plan)
 **Planned**: 2026-09-02 (motoko mission iteration 33)
 **Base commit**: `373a12d17`, worktree `/Users/voightkampff/dev/sunholo-data/.wt-motoko-iter33-sprint`, branch `sprint/motoko-iter33-test-stub-arm`, clean
@@ -30,7 +30,7 @@ Abbreviations used throughout; all worktree-relative paths:
 
 - `P` = `tools/eval/motoko_connection_probe.sh` — **READ-ONLY for this entire sprint.** The design doc's Non-Goal is explicit: no production-semantics change. The only writes to `P` are inside the M2 mutation drill, and they are to `/tmp` **copies**, never to the tree.
 - `T` = `tools/eval/test_motoko_connection_probe.sh` — the **only** file M1 modifies.
-- `DD` = `design_docs/planned/m-motoko-stub-refusal-arm.md` — the only file M2 modifies.
+- `DD` = `design_docs/implemented/v0_35_0/m-motoko-stub-refusal-arm.md` — the only file M2 modifies.
 
 **Where the design doc and this plan disagree: nowhere.** Every claim in the design doc that this plan makes load-bearing was re-measured on this worktree at `373a12d17` and reproduced. Two points the plan *adds* beyond the doc are flagged inline as **NEW MEASUREMENT** (§1, rows B7 and B10-B12).
 
@@ -117,7 +117,7 @@ Byte-exact requirements, all of which the B10 prototype satisfied:
 
 **Blast radius, classified BEFORE choosing criteria.** M1 adds one arm and changes no behaviour of any existing arm. The only observable it can move is the suite's **arm count and final line** (42 → 43). It cannot move the refusal-branch gate's value, the probe's parse, or any other arm's verdict. Therefore the narrowest gate that can actually fail for this diff is *the suite's own arm accounting plus a clean green* — AC1.2 — and everything else in the block is a guard against collateral damage.
 
-**Snapshot.** Before running the acceptance block: `mkdir -p .snap/M1 && cp tools/eval/motoko_connection_probe.sh tools/eval/test_motoko_connection_probe.sh design_docs/planned/m-motoko-stub-refusal-arm.md .snap/M1/`.
+**Snapshot.** Before running the acceptance block: `mkdir -p .snap/M1 && cp tools/eval/motoko_connection_probe.sh tools/eval/test_motoko_connection_probe.sh design_docs/implemented/v0_35_0/m-motoko-stub-refusal-arm.md .snap/M1/`.
 
 **Acceptance block** — run all of these; every one must hold. **No criterion here is a static grep for a string in a file** (that shape is the exact defect this sprint exists to remove); every one reads either a parse result, the suite's own runtime output, or the working tree's cleanliness.
 
@@ -167,7 +167,7 @@ This is the load-bearing milestone. M1 without M2 is a plausible-looking arm wit
 
 **Recording step.** Append a `## Mutation Evidence (executed, motoko iteration 33)` section to `DD` containing, per mutant: the sed expression, the pristine and mutant sha256, the `bash -n` rc, the mode, the 1→0 effect count with its unchanged sibling, the suite rc, and **the verbatim failing line**. Also record the pristine re-run (see A2.1) and the tree-integrity check. Do not restate predictions — record only what was observed.
 
-**Snapshot.** Before running the acceptance block: `mkdir -p .snap/M2 && cp tools/eval/motoko_connection_probe.sh tools/eval/test_motoko_connection_probe.sh design_docs/planned/m-motoko-stub-refusal-arm.md .snap/M2/` (cumulative: `.snap/M2/`'s copy of `T` already contains M1's edit, and `.snap/M1/` is left in place).
+**Snapshot.** Before running the acceptance block: `mkdir -p .snap/M2 && cp tools/eval/motoko_connection_probe.sh tools/eval/test_motoko_connection_probe.sh design_docs/implemented/v0_35_0/m-motoko-stub-refusal-arm.md .snap/M2/` (cumulative: `.snap/M2/`'s copy of `T` already contains M1's edit, and `.snap/M1/` is left in place).
 
 **Acceptance block:**
 
@@ -179,7 +179,7 @@ This is the load-bearing milestone. M1 without M2 is a plausible-looking arm wit
 | A2.4 | D3 control verdict: `grep -cF 'not ok - descendant discovery refuses on the real wall-clock deadline lacked expected message: process-tree discovery deadline expired (wall clock)' /tmp/m2_d3.log` **and** `grep -cE '^ok [0-9]+ - descendant discovery stub refusal carries its own message$' /tmp/m2_d3.log` | 1 and 0 (B8 — at base the second pattern cannot match, the arm does not exist yet) | **1 and 1** — the wall-clock arm is the `not ok`, and the new arm appears in D3's log as a PASS. This is the attribution check: D3 must NOT be killed by the new arm |
 | A2.5 | Mutant hygiene, per mutant: sha256 ≠ pristine; `/bin/bash -n <mutant>` rc=0; `stat -f '%Sp'` = `-rwxr-xr-x`; targeted count 1→0 with the sibling count unchanged at 1 | n/a (drill-internal) | all hold for D1, D2, D3. **Any mutant failing this is discarded and rebuilt — its suite verdict is not evidence** |
 | A2.6 | Tree integrity: `shasum -a 256 tools/eval/motoko_connection_probe.sh` | `f0b5e024…aabc99` | **`f0b5e024…aabc99` — byte-identical.** Restore, if ever needed, came from `/tmp/iter33/probe.pristine.bak`, never from `git checkout` |
-| A2.7 | `git status --porcelain` | 0 lines | **exactly 3 lines**, in any order: ` M tools/eval/test_motoko_connection_probe.sh` (M1), ` M design_docs/planned/m-motoko-stub-refusal-arm.md` (M2's evidence section), and `?? .snap/`. **No `.bak`, no `.log`, no mutant copies in the tree** — the drill writes only to `/tmp` |
+| A2.7 | `git status --porcelain` | 0 lines | **exactly 3 lines**, in any order: ` M tools/eval/test_motoko_connection_probe.sh` (M1), ` M design_docs/implemented/v0_35_0/m-motoko-stub-refusal-arm.md` (M2's evidence section), and `?? .snap/`. **No `.bak`, no `.log`, no mutant copies in the tree** — the drill writes only to `/tmp` |
 
 **Commit (CONTROLLER, not executor)**: `docs(motoko): record the stub-refusal arm's mutation evidence (row 6r)`.
 
@@ -230,5 +230,5 @@ This is the load-bearing milestone. M1 without M2 is a plausible-looking arm wit
 **Executor**: follow §0's five standing rules literally. M1 then M2, in order. Stop and report on the first red acceptance criterion.
 **Controller**: commits, one per milestone, after that milestone's acceptance block is green.
 
-**SPRINT_PLAN_PATH**: `design_docs/planned/m-motoko-stub-refusal-arm-sprint-plan.md`
+**SPRINT_PLAN_PATH**: `design_docs/implemented/v0_35_0/m-motoko-stub-refusal-arm-sprint-plan.md`
 **SPRINT_JSON_PATH**: `.ailang/state/sprints/sprint_m-motoko-stub-refusal-arm.json`

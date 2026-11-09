@@ -536,4 +536,4 @@ session re-derives a blocker that no longer exists.
 
 ---
 
-**SPRINT_PLAN_PATH**: `design_docs/planned/v0_31_0/m-strip-contract-awareness-sprint-plan.md`
+**SPRINT_PLAN_PATH**: `design_docs/implemented/v0_32_0/m-strip-contract-awareness-sprint-plan.md`

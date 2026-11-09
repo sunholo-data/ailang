@@ -1,6 +1,6 @@
 {
   "sprint": "v1-iter347-launchd-notify",
-  "design_doc": "design_docs/planned/v0_35_2/m-launchd-notify-subshell-observation.md",
+  "design_doc": "design_docs/implemented/v0_35_2/m-launchd-notify-subshell-observation.md",
   "base_commit": "027bcb022",
   "branch": "sprint/v1-iter347-launchd-notify-bounded",
   "baseline_measured": {

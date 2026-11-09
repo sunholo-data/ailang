@@ -2,7 +2,7 @@
 
 Status: Implemented on dev; not deployed. Authorized by Mark’s “yes continue” after the deletion sequence in the dashboard recovery plan. Work directly on dev; preserve unrelated changes.
 
-Design: [Recovery plan](../dashboard-recovery-plan-2026-09-08.md), deletion sprint A. Scope: remove optional analytics/heatmap panel and evolution-tree mode, including exclusive dependencies. Keep Work/chain explorer, approvals, message date filters, timeline and chat inspection. No backend changes or deployment.
+Design: [Recovery plan](../../dashboard-recovery-plan-2026-09-08.md), deletion sprint A. Scope: remove optional analytics/heatmap panel and evolution-tree mode, including exclusive dependencies. Keep Work/chain explorer, approvals, message date filters, timeline and chat inspection. No backend changes or deployment.
 
 Estimate: one engineering day; at least 5,860 candidate lines plus exclusive support files. Prior sprint was a backend repair and does not provide meaningful UI deletion velocity.
 

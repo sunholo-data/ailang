@@ -688,5 +688,5 @@ generic methods — `internal/apiserver/callbacks.go:39`).
 
 ---
 
-**SPRINT_PLAN_PATH**: `design_docs/planned/m-serveapi-protocol-only-module-sprint-plan.md`
+**SPRINT_PLAN_PATH**: `design_docs/implemented/v0_33_2/m-serveapi-protocol-only-module-sprint-plan.md`
 **SPRINT_JSON_PATH**: `.ailang/state/sprints/sprint_M-SERVEAPI-PROTOCOL-ONLY.json`

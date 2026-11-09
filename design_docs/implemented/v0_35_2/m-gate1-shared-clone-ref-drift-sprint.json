@@ -1,7 +1,7 @@
 {
   "sprint_id": "m-gate1-shared-clone-ref-drift",
-  "design_doc": "design_docs/planned/v0_36_0/m-gate1-shared-clone-ref-drift.md",
-  "plan_path": "design_docs/planned/v0_36_0/m-gate1-shared-clone-ref-drift-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_35_2/m-gate1-shared-clone-ref-drift.md",
+  "plan_path": "design_docs/implemented/v0_35_2/m-gate1-shared-clone-ref-drift-sprint-plan.md",
   "created": "2026-09-06",
   "updated": "2026-09-06",
   "status": "completed",

@@ -4,7 +4,7 @@
 **Target**: v0.34.x
 **Priority**: P1 (data-integrity — the one entry the gate cannot see is the active prompt every agent reads)
 **Estimated**: 1 day (single milestone)
-**Dependencies**: parent mechanism landed — `design_docs/planned/m-prompt-version-freeze-on-first-bank.md`, shipped via PR #937 (squash `445ccb550`)
+**Dependencies**: parent mechanism landed — `design_docs/implemented/v0_35_0/m-prompt-version-freeze-on-first-bank.md`, shipped via PR #937 (squash `445ccb550`)
 **Author**: design-doc-creator role, mission iteration 297 (2026-08-28), worktree at origin/dev = `0917693792d07c75ae0c4d233d2cc7e592fa9272`, darwin/arm64
 **Scope ruling**: the mission's queue-head decision was answered **EXTEND** — widen the file-level arms to all entries. This doc designs within that ruling; it does not re-open it.
 **Revision**: r2 — round-1 quorum verdict was **blocked** (3/3 reviewers present, two blocking
@@ -460,7 +460,7 @@ measurements, not controller-invented resolutions.
 
 ## Related Documents
 
-- **Parent**: `design_docs/planned/m-prompt-version-freeze-on-first-bank.md` — the freeze
+- **Parent**: `design_docs/implemented/v0_35_0/m-prompt-version-freeze-on-first-bank.md` — the freeze
   mechanism this doc widens; its Q6/V-C define the PLACEHOLDER hatch, its L3 defines the gate.
 - **PR #937** (squash `445ccb550`) — landed the gate and its explicit CI step (V2).
 - `design_docs/PROGRAM.md` — routing: harness/data-integrity lane, not a core change.

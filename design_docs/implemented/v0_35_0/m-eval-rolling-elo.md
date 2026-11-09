@@ -62,7 +62,7 @@ AILANG's benchmark instrument is how we know whether the language is improving, 
 - **No version, no time, no history.** `Trial` is `{Model, Bench, Pass}` — no timestamp, no compiler version. `latest.json.history[]` carries 47 versions of pass-rate stats and **zero rating fields**; the entire `ratings` block is wholesale-overwritten on every export ([export_json.go:506](../../../internal/eval_analysis/export_json.go)). We have 47 versions of pass-rate trend and 0 versions of rating trend.
 - **Two independent fitting paths disagree by construction.** `observatory.db` (via `tools/eval-elo`, feeds benchmark selection) and `latest.json` (via `eval-report`, feeds the site + rotation priority) are fitted from different corpora at different times. Agent-mode DB ratings: 3 models, last updated 2026-07-31 — four weeks stale.
 - **Full-suite runs mostly buy nothing.** 42/56 agent and 39/91 standard benchmarks are saturated (`latest.json` `ratings.*.saturation`); the nightly script's own comment: "over half the night's GPU buying no information." This is exactly why running the full suite feels low-value — it is.
-- **The rolling machinery was designed in v0.26.0 and only the schema shipped.** `trial_history` has `compiler_version` + `prompt_version` columns and **zero writers**; `UpdateTrial` is a tested incremental-update primitive with zero callers outside the batch fit ([m-eval-rating-efficiency](../../implemented/v0_26_0/m-eval-rating-efficiency.md)).
+- **The rolling machinery was designed in v0.26.0 and only the schema shipped.** `trial_history` has `compiler_version` + `prompt_version` columns and **zero writers**; `UpdateTrial` is a tested incremental-update primitive with zero callers outside the batch fit ([m-eval-rating-efficiency](../v0_26_0/m-eval-rating-efficiency.md)).
 - **The site scatters dimensions and hides provenance.** 10 surfaces, no surface combines version × harness except `OSReleaseTrend`, no cost-over-time anywhere, and 5 pages (Leaderboard, ELO, Explorer, Value, Gallery) display no version/date at all. Of 13 component fetch call sites, only `ValueDashboard` uses the source-aware fetch that can render a staleness badge; the other 12 silently degrade to the static fallback (currently v0.32.0) with no indicator (V22).
 
 **Impact:**
@@ -474,13 +474,13 @@ and `…T11-26-28Z.json`; human blocks appended to `design_docs/v1-mission-log.m
 
 ## Related Documents
 
-- [m-eval-elo-persist](../../implemented/v0_26_0/m-eval-elo-persist-sprint-plan.md) (implemented v0.26.0) — created the schema this doc finally writes to
-- [m-eval-rating-efficiency](../../implemented/v0_26_0/m-eval-rating-efficiency.md) (v0.26.0) — planned the rolling updates + version-aware skips; only the schema shipped
-- [m-eval-standard-confidence-gating](../../implemented/v0_32_0/m-eval-standard-confidence-gating-sprint-plan.md) (v0.32.0) — the selection machinery M3 reuses
-- [m-eval-validity-discipline](../m-eval-validity-discipline.md) (planned) — row-validity semantics; this doc consumes them unchanged
-- [m-eval-failure-attribution](../m-eval-failure-attribution.md) (planned) — infra-vs-capability failure split; composes with the fit's input filter later
-- [m-eval-os-version-trend-redesign](../m-eval-os-version-trend-redesign.md) (planned, partially superseded — see V15) — the frontend rules M4 adopts
-- [m-eval-data-hosting-decouple](../m-eval-data-hosting-decouple.md) (planned/live) — the transport M4 rides on
+- [m-eval-elo-persist](../v0_26_0/m-eval-elo-persist-sprint-plan.md) (implemented v0.26.0) — created the schema this doc finally writes to
+- [m-eval-rating-efficiency](../v0_26_0/m-eval-rating-efficiency.md) (v0.26.0) — planned the rolling updates + version-aware skips; only the schema shipped
+- [m-eval-standard-confidence-gating](../v0_32_0/m-eval-standard-confidence-gating-sprint-plan.md) (v0.32.0) — the selection machinery M3 reuses
+- [m-eval-validity-discipline](../../planned/m-eval-validity-discipline.md) (planned) — row-validity semantics; this doc consumes them unchanged
+- [m-eval-failure-attribution](../../planned/m-eval-failure-attribution.md) (planned) — infra-vs-capability failure split; composes with the fit's input filter later
+- [m-eval-os-version-trend-redesign](../../planned/m-eval-os-version-trend-redesign.md) (planned, partially superseded — see V15) — the frontend rules M4 adopts
+- [m-eval-data-hosting-decouple](../../planned/m-eval-data-hosting-decouple.md) (planned/live) — the transport M4 rides on
 
 ## References
 

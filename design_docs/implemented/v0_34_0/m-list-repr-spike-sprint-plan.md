@@ -1,9 +1,9 @@
 # Sprint plan — M-LIST-REPR-SPIKE (LC-1: list-representation benchmark spike)
 
-**Design doc (AUTHORITY):** [`design_docs/planned/m-list-repr-spike.md`](m-list-repr-spike.md) — 495 lines, quorum-resolved, **not modified by this plan**.
+**Design doc (AUTHORITY):** [`design_docs/implemented/v0_34_0/m-list-repr-spike.md`](m-list-repr-spike.md) — 495 lines, quorum-resolved, **not modified by this plan**.
 The design doc WINS wherever it and this plan disagree. This plan adds only *how*, *in what order*, and *under which gates*, plus the first-party measurements taken to choose among the things the doc leaves open. **No threshold, observable, control, or clause of the kill criterion is restated loosely, relaxed, or dropped here** — every numeric literal (1.5, ≥8, 2.0, 2.5, 1.2, five trials, median-of-paired-ratios, five-more rerun) is referenced by pointer to the doc, not paraphrased into a gate.
 
-**Programme position:** LC-1 of [`m-list-cons-cells-decomposition.md`](m-list-cons-cells-decomposition.md). This spike carries the **go/no-go kill criterion** for the remaining ~16 person-days (LC-2…LC-5). A false GO costs 16 days; a false STOP costs the programme. That asymmetry is why every gate below is a *measurement with a firing control*, not an assertion.
+**Programme position:** LC-1 of [`m-list-cons-cells-decomposition.md`](../../planned/m-list-cons-cells-decomposition.md). This spike carries the **go/no-go kill criterion** for the remaining ~16 person-days (LC-2…LC-5). A false GO costs 16 days; a false STOP costs the programme. That asymmetry is why every gate below is a *measurement with a firing control*, not an assertion.
 
 **Created:** 2026-08-20 (V1 mission iteration 236, sprint-planner stage)
 **Branch / worktree:** `sprint/iter236-list-repr-spike` @ `/Users/voightkampff/dev/sunholo-data/.wt-iter236`

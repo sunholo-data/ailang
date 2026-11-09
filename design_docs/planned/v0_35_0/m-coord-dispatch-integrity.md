@@ -233,4 +233,4 @@ commit.
 - [m-coord-cli-shared-store](m-coord-cli-shared-store.md) — sibling, same incident
 - M-MESSAGE-PLANE-FAIL-LOUD (changelog [Unreleased] 2026-08-26) — the fail-loud family and
   alerting conventions this doc extends to the dispatch plane
-- [m-eval-rolling-elo](m-eval-rolling-elo.md) — the sprint whose routing surfaced all of this
+- [m-eval-rolling-elo](../../implemented/v0_35_0/m-eval-rolling-elo.md) — the sprint whose routing surfaced all of this

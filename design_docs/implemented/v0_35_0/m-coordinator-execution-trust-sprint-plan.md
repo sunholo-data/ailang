@@ -1,7 +1,7 @@
 # Sprint Plan — M-COORDINATOR-EXECUTION-TRUST (M1a + M2 + M3)
 
 **Design doc**: [m-coordinator-execution-trust.md](m-coordinator-execution-trust.md)
-**Split-out sibling (NOT in this sprint)**: [m-package-protocol-manifests.md](m-package-protocol-manifests.md)
+**Split-out sibling (NOT in this sprint)**: [m-package-protocol-manifests.md](../../planned/m-package-protocol-manifests.md)
 **Created**: 2026-09-02 · attended session, main checkout, commits straight to `dev`
 **Risk**: medium — three code areas, one of them a permission boundary
 **Estimated**: ~670 LOC across 3 milestones + 1 rollout step

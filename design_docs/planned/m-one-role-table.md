@@ -1,6 +1,6 @@
 # M-ONE-ROLE-TABLE: the mission driver and the registry stop keeping two role tables
 
-**Status**: Planned — **quorum guardrail spent (round 0 + 1 re-quorum, both BLOCKED 3/3; all six objections addressed in-session, see §Quorum History). Awaiting Mark's ratification of the Design Freeze items, not a third review round.** **Un-parks M8 of [M-MODEL-REGISTRY-SINGLE-SOURCE](v0_35_0/m-model-registry-single-source-sprint-plan.md#m8--mission-driver-adoption-d3a--parked-2026-08-27-mark-if-it-aint-broken-wont-fix)**, which Mark parked 2026-08-27. Un-parking is a design-freeze item: see §Design Freeze.
+**Status**: Planned — **quorum guardrail spent (round 0 + 1 re-quorum, both BLOCKED 3/3; all six objections addressed in-session, see §Quorum History). Awaiting Mark's ratification of the Design Freeze items, not a third review round.** **Un-parks M8 of [M-MODEL-REGISTRY-SINGLE-SOURCE](../implemented/v0_35_0/m-model-registry-single-source-sprint-plan.md#m8--mission-driver-adoption-d3a--parked-2026-08-27-mark-if-it-aint-broken-wont-fix)**, which Mark parked 2026-08-27. Un-parking is a design-freeze item: see §Design Freeze.
 **Target**: release assignment at sprint planning (mission infrastructure, same convention as [m-mission-runtime-contract](m-mission-runtime-contract.md))
 **Priority**: P1 — row 4 of the migration ledger, three incidents, and the precondition for retiring ledger row 3 (role dispatch)
 **Estimated**: to be set at sprint planning; the discovery below removes most of what the park note priced
@@ -381,7 +381,7 @@ Agent latitude, no freeze needed:
 
 ## Related Documents
 
-- [M-MODEL-REGISTRY-SINGLE-SOURCE](v0_35_0/m-model-registry-single-source.md) and its [sprint plan](v0_35_0/m-model-registry-single-source-sprint-plan.md) — **this doc un-parks its M8**.
+- [M-MODEL-REGISTRY-SINGLE-SOURCE](../implemented/v0_35_0/m-model-registry-single-source.md) and its [sprint plan](../implemented/v0_35_0/m-model-registry-single-source-sprint-plan.md) — **this doc un-parks its M8**.
 - [m-mission-runtime-contract](m-mission-runtime-contract.md) — the migration ledger; this is **row 4**.
 - [m-secondary-model-fallback](m-secondary-model-fallback.md) — **distinct, and the boundary is worth stating.** That doc fixes the *cloud* plane: 37 coordinator agents, every one a chain of one because each carries an explicit `model:` pin, walked in-container by `ClassifyFailure`. This doc fixes the *mission driver*: four rig loops whose lane comes from shell env pins and a doc-derived allowlist. They share `internal/modelreg` and nothing else. Notably that doc's own §1.2 records the same defect class this one exists to end — *"the declared tails name `opencode` harnesses while the agents run in `pi` containers"* — which is further evidence the two-author problem is systemic rather than local.
 - [m-mission-comms-into-the-binary](v0_36_0/m-mission-comms-into-the-binary.md) — the sibling migration workstream.

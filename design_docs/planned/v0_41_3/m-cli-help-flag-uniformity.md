@@ -8,7 +8,7 @@
 
 **Filed from**: dev-plane report by Mark (attended), 2026-09-23, originally mistitled `--help…` and
 misrouted to inbox `mark-attended-steering` by the companion defect (dash-prefixed flag VALUE,
-[M-coordinator-execution-trust](../m-coordinator-execution-trust.md) V29). Resent with a word-leading
+[M-coordinator-execution-trust](../../implemented/v0_35_0/m-coordinator-execution-trust.md) V29). Resent with a word-leading
 title and routed to design-doc-creator.
 
 ## Axiom Compliance
@@ -350,7 +350,7 @@ string `--help` or `-h` in position 0 **only**.
 chat`), positional file/package/`<pkg>@<ver>` arguments. No legitimate positional in this CLI is
 spelled `--help` or `-h`; interception is positional, so **flag VALUES are untouched** — the
 companion defect (a `--title "--help"` value misrouting `messages send`,
-[M-coordinator-execution-trust](../m-coordinator-execution-trust.md) V29) is a different mechanism
+[M-coordinator-execution-trust](../../implemented/v0_35_0/m-coordinator-execution-trust.md) V29) is a different mechanism
 and is NOT fixed or affected by this doc.
 
 **Disambiguation:** exact match before subcommand dispatch, exactly as `wantsHelp` does today; no
@@ -384,7 +384,7 @@ The following are intentionally left open for the implementer:
 
 **Not attempted in this feature:**
 - The `messages send` dash-prefixed flag-VALUE misrouting (companion report; separate doc,
-  [M-coordinator-execution-trust](../m-coordinator-execution-trust.md) V29)
+  [M-coordinator-execution-trust](../../implemented/v0_35_0/m-coordinator-execution-trust.md) V29)
 - Rewriting help *content* or unifying usage-line grammar beyond exit code and stream (D3)
 - Bare-run exit codes (F4's `budget` question — separate decision, other milestone)
 - REPL `:help` commands; `ailang help` subcommand behaviour beyond the stream it already gets right
@@ -419,7 +419,7 @@ guidance)
   gate named at its Phase 3
 - [HANDOVER-m-v1-simplification-phase3.md](../HANDOVER-m-v1-simplification-phase3.md) — the dispatch-table
   rework this builds on ("`--help` honoured at every level" was its design intent; this doc finishes it)
-- [m-coordinator-execution-trust.md](../m-coordinator-execution-trust.md) — companion report: the
+- [m-coordinator-execution-trust.md](../../implemented/v0_35_0/m-coordinator-execution-trust.md) — companion report: the
   dash-prefixed flag VALUE misroute that silenced this very report's first filing (V29)
 
 **Implemented (may inform design):**

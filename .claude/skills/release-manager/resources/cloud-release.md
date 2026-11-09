@@ -1,7 +1,7 @@
 # Cloud release and promotion — the full picture
 
 On-demand companion to `SKILL.md` §7.6–7.7. Design:
-`design_docs/planned/v0_35_0/m-unified-release-model.md` (supersedes
+`design_docs/implemented/v0_35_0/m-unified-release-model.md` (supersedes
 `design_docs/implemented/v0_24_1/m-release-gate.md` steps 4–5).
 
 ## What a `v*` tag does (`cloudbuild-release.yaml`, trigger `ailang-core-release`)

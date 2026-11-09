@@ -442,7 +442,7 @@ as fixtures) — expect the three-step program to fail on step 1.
 - [changelogs/v0.32-current.md](../../../changelogs/v0.32-current.md) — #1559 (one folded matcher, fail-closed over-denial) and #1554 (policy-tool write gate) entries, the immediate lineage
 
 **Planned (check for overlap):**
-- [design_docs/planned/v0_35_0/m-fs-rename.md](../v0_35_0/m-fs-rename.md) — the `FS.renameFile` design (both operands confined); no overlap, its contract is a regression fixture here
+- [design_docs/implemented/v0_35_0/m-fs-rename.md](../../implemented/v0_35_0/m-fs-rename.md) — the `FS.renameFile` design (both operands confined); no overlap, its contract is a regression fixture here
 
 **Search:** SimHash/neural searches over implemented/ and planned/ found no
 existing or queued doc on deny-pattern ancestor protection (top hits unrelated);

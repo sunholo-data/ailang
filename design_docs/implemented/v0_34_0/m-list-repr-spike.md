@@ -1,7 +1,7 @@
 # M-LIST-REPR-SPIKE: LC-1 — List-Representation Benchmark Spike (Go/No-Go Gate for Cons Cells)
 
 **Status**: Planned — LC-1 of the quorum-cleared
-[m-list-cons-cells-decomposition](m-list-cons-cells-decomposition.md) programme (cleared 2-of-2 at
+[m-list-cons-cells-decomposition](../../planned/m-list-cons-cells-decomposition.md) programme (cleared 2-of-2 at
 mission iteration 234; this piece still gets its own quorum, per the roadmap's own rule).
 **Target**: v0.34.0 (first programme piece; roadmap line 6 allows the first piece to land in v0.34.0)
 **Priority**: P0 — carries the kill criterion for the whole ~16-day remainder of the programme
@@ -476,9 +476,9 @@ unchanged, verified by count before and after each revision.
 
 ## Related Documents
 
-- [m-list-cons-cells-decomposition.md](m-list-cons-cells-decomposition.md) — parent roadmap;
+- [m-list-cons-cells-decomposition.md](../../planned/m-list-cons-cells-decomposition.md) — parent roadmap;
   LC-1 scope at lines 147-176 is authoritative; this doc refines, never widens, it.
-- [m-list-cons-quadratic.md](m-list-cons-quadratic.md) — superseded arena design; source of the
+- [m-list-cons-quadratic.md](../../planned/m-list-cons-quadratic.md) — superseded arena design; source of the
   inherited measurement record (V14) and the B2/B8 size ladder.
 - LC-2 (`m-list-accessor-api`, not yet authored) — consumes D3; owns the real analyzer and the
   production accessor seam. Deliberately NOT designed here (anti-goal).
@@ -487,7 +487,7 @@ unchanged, verified by count before and after each revision.
 
 - [#676](https://github.com/sunholo-data/ailang/issues/676) — the user-reported OOM (email-parse M9)
 - [#745](https://github.com/sunholo-data/ailang/issues/745) — carries `D-19 : B`; destination of a STOP verdict
-- [design_docs/PROGRAM.md](../PROGRAM.md) — routing lane: AILANG fix
+- [design_docs/PROGRAM.md](../../PROGRAM.md) — routing lane: AILANG fix
 
 ---
 

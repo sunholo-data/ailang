@@ -11,7 +11,7 @@ six objections addressed in-doc and unreviewed; Mark ratified with that stated.
 **Scope cut 2026-09-05 (Mark: "is this in addition to the other mission design doc we have?"):**
 the answer was five live mission-machinery docs, not two, and this one had duplicated a ratified
 decision. The `[roles]` block is **removed** — role/model assignment belongs to the ratified
-[M-MODEL-REGISTRY-SINGLE-SOURCE](../v0_35_0/m-model-registry-single-source.md) (V19). What
+[M-MODEL-REGISTRY-SINGLE-SOURCE](../../implemented/v0_35_0/m-model-registry-single-source.md) (V19). What
 remains is the surface nothing else owns: which missions exist, where they run, on what schedule,
 and whether the artifacts on disk match. The doc is smaller and better for it. Both rounds returned
 3/3 reject and **every objection was correct and is now addressed in-doc** (see Quorum History).
@@ -224,7 +224,7 @@ boot_offset       = 1680          # today: a case arm inside the driver
 ```
 
 **⚠ The registry does NOT own model or role assignment, and an earlier draft of this doc wrongly
-gave it a `[roles]` block.** [M-MODEL-REGISTRY-SINGLE-SOURCE](../v0_35_0/m-model-registry-single-source.md)
+gave it a `[roles]` block.** [M-MODEL-REGISTRY-SINGLE-SOURCE](../../implemented/v0_35_0/m-model-registry-single-source.md)
 is **ratified** (D1(a)/D2(a)/D3(a), Mark 2026-08-27) and its problem statement already names
 `tools/launchd/mission-control.sh`'s *"7 role/fallback exports / 3 unattended mission loops"* as
 one of the four places model assignment lives. **D3(a) puts them in `models.yml`, read via
@@ -423,7 +423,7 @@ seeds in the same pass.
 ## Related Documents
 
 - [M-MISSION-COMMS-INTO-THE-BINARY](m-mission-comms-into-the-binary.md) — the comms seam. Complementary in *purpose*: it leaves "the rest of the driver" alone and establishes the extraction pattern; this applies that pattern to configuration and topology. **The first draft claimed "no file overlap". That was false and unverified — `oc-glm-5-2` blocked on it, correctly.** The measured overlap and its ordering are in the Conflict Surface below.
-- [M-MODEL-REGISTRY-SINGLE-SOURCE](../v0_35_0/m-model-registry-single-source.md) — **RATIFIED, and it owns role/model assignment.** Found only after this doc's first draft: the create-script's neural search scored it 0.41, below the 0.45 review threshold, because the two docs share almost no vocabulary while sharing a surface. The `[roles]` block was cut in response (V19). **Ordering CORRECTED 2026-09-05, and it is not what an earlier draft said.** That draft claimed
+- [M-MODEL-REGISTRY-SINGLE-SOURCE](../../implemented/v0_35_0/m-model-registry-single-source.md) — **RATIFIED, and it owns role/model assignment.** Found only after this doc's first draft: the create-script's neural search scored it 0.41, below the 0.45 review threshold, because the two docs share almost no vocabulary while sharing a surface. The `[roles]` block was cut in response (V19). **Ordering CORRECTED 2026-09-05, and it is not what an earlier draft said.** That draft claimed
 "the model registry lands first". False in practice: M1–M7 have **landed** (`internal/modelreg`
 exists, `ailang models role executor` returns a working chain), but **M8 — mission driver
 adoption, the only milestone that would move role config — is PARKED** by Mark 2026-08-27 ("if it

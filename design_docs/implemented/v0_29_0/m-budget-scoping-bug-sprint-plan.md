@@ -190,5 +190,5 @@ frame. Name: `TestBudgetFrame_ErrorUnwind_NoStaleFrame`.
 - [ ] `docs/docs/reference/effects.md` rewritten; CHANGELOG updated
 - [ ] `make test` + `make verify-examples` + `make check-boundaries` green
 
-**SPRINT_PLAN_PATH**: `design_docs/planned/v0_29_0/m-budget-scoping-bug-sprint-plan.md`
+**SPRINT_PLAN_PATH**: `design_docs/implemented/v0_29_0/m-budget-scoping-bug-sprint-plan.md`
 **SPRINT_JSON_PATH**: `.ailang/state/sprints/sprint_M-BUDGET-SCOPING-BUG.json`

@@ -1,7 +1,7 @@
 # M-MISSION-ROLE-DISPATCH — First Runtime Slice
 
 **Status:** Approved under Mark's attended 2026-09-07 instruction to get the project running; execution in an isolated worktree.
-**Contract:** [M-MISSION-RUNTIME-CONTRACT](m-mission-runtime-contract.md), delivery slice 1.
+**Contract:** [M-MISSION-RUNTIME-CONTRACT](../../planned/m-mission-runtime-contract.md), delivery slice 1.
 **Scope:** Opt-in `ailang mission role-run --request FILE --receipt FILE [--dry-run]`.
 **Estimate:** 2–3 development days (~900 implementation/test lines), medium risk. Milestones run sequentially.
 
