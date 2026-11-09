@@ -1,7 +1,7 @@
 # M-EFFECT-REFINEMENT: Parameterised Effects and Unified Replay Contracts
 
 **Status**: Decomposed (2026-07-11) — umbrella doc; execution tracked in the four sprint docs below
-**Target**: v1.0.0
+**Target**: v1.1.0 (moved 2026-11-09: sprints 1–2 shipped in v0.30.0; the remaining sprints 3 and 4 were re-scored to v1.1 by D-64 and D-27; was: v1.0.0)
 **Priority**: P1 — Medium (strategic language feature)
 **Estimated**: ~90 hours original; ~64h remaining after v0.15.0 landings, split into 4 sprint docs
 
@@ -15,22 +15,22 @@ status of the original eight phases:
 |---|---|---|
 | P1 parser + AST | ✅ shipped v0.15.0 | [M-EFFECT-REFINEMENT-PHASE1](../../implemented/v0_15_x/m-effect-refinement-phase1.md) |
 | P2 effect row algebra | ✅ shipped v0.15.0 | same (invariant unification + default-mode table) |
-| P3 replay contract registry | Planned | [m-effect-replay-contracts](m-effect-replay-contracts.md) (sprint 2, ~3d) |
+| P3 replay contract registry | Planned | [m-effect-replay-contracts](../../implemented/v0_30_0/m-effect-replay-contracts.md) (sprint 2, ~3d) |
 | P4 capability scoping | Planned | [m-effect-scope-params](m-effect-scope-params.md) (sprint 4, ~2.5d; release-gate re-score candidate) |
 | P5 Clock/Net/FS port | Planned | [m-effect-clock-net-fs-modes](m-effect-clock-net-fs-modes.md) (sprint 3, ~3d) |
-| P5 Process port | Planned | [m-process-modes](../v1_1_0/m-process-modes.md) (`[mode=live\|mocked]`); scope narrowing via `[scope=...]` is [m-effect-scope-params](m-effect-scope-params.md). **Already shipped at runtime**: `ailang run --caps Process --process-allowlist <bins>` narrows exec to path-pinned binaries (v0.8.1, [M-PROCESS-EXEC](../../implemented/v0_8_1/m-process-exec.md)) — a property of the invocation, not the signature; per-subcommand narrowing is [m-process-subcmd-allowlist](../../implemented/v0_38_0/m-process-subcmd-allowlist.md) (✅ shipped: `git:status` entries) |
+| P5 Process port | Planned | [m-process-modes](m-process-modes.md) (`[mode=live\|mocked]`); scope narrowing via `[scope=...]` is [m-effect-scope-params](m-effect-scope-params.md). **Already shipped at runtime**: `ailang run --caps Process --process-allowlist <bins>` narrows exec to path-pinned binaries (v0.8.1, [M-PROCESS-EXEC](../../implemented/v0_8_1/m-process-exec.md)) — a property of the invocation, not the signature; per-subcommand narrowing is [m-process-subcmd-allowlist](../../implemented/v0_38_0/m-process-subcmd-allowlist.md) (✅ shipped: `git:status` entries) |
 | P5 AI port | ✅ shipped v0.15.0 | [M-AI-EFFECT-MODES](../../implemented/v0_15_x/m-ai-effect-modes.md); loose ends in [m-ai-effect-modes-followups](m-ai-effect-modes-followups.md) (P2) |
 | P6 M-ENTROPY integration | Routed OUT of this track | ships with [M-ENTROPY](m-entropy-budgets.md) itself (not v1.0-required); envelope mode-validation composes with sprint-1 machinery |
 | P7 CryptoRand alias | Scope-reduced away (v0.15.0) | no `CryptoRand` token exists; crypto-strength runtime intent superseded by `Rand[mode=crypto]` dispatch in sprint 2 |
 | P8 docs + examples | Partially shipped v0.15.0 | guide + modal_rand shipped; remainder folded into sprints 2–3 |
-| — NEW: closed-set enforcement | Planned (discovered 2026-07-11: guide's "typechecker rejects unknown values" is false — `Rand[mode=banana]` passes `ailang check`) | [m-effect-mode-validation](m-effect-mode-validation.md) (sprint 1, ~1d, FIRST) |
+| — NEW: closed-set enforcement | Planned (discovered 2026-07-11: guide's "typechecker rejects unknown values" is false — `Rand[mode=banana]` passes `ailang check`) | [m-effect-mode-validation](../../implemented/v0_30_0/m-effect-mode-validation.md) (sprint 1, ~1d, FIRST) |
 
 Sprint order (dependency-driven): **1 validation → 2 replay-contracts → 3 clock-net-fs → 4 scope**.
 **Dependencies**:
-  - [M-CRYPTORAND](../v0_13_0/m-cryptorand.md) (v0.13.0) — pilot milestone; provides the forward-compat constraint
+  - [M-CRYPTORAND](../../implemented/v0_15_0/m-cryptorand.md) (v0.13.0) — pilot milestone; provides the forward-compat constraint
   - [M-CAPABILITY-BUDGETS](../../implemented/v0_6_2/m-capability-budgets.md) (v0.6.2 ✅) — budget plumbing for scoped effects
   - [M-ENTROPY](m-entropy-budgets.md) — integrates as the authoritative policy layer
-**Commissioning memo**: [rand-determinism-sitrep.md](../rand-determinism-sitrep.md)
+**Commissioning memo**: [rand-determinism-sitrep.md](../../archive/rand-determinism-sitrep.md)
 
 ## Axiom Compliance
 
@@ -64,7 +64,7 @@ Sprint order (dependency-driven): **1 validation → 2 replay-contracts → 3 cl
 
 ## Problem Statement
 
-The v0.10.14 `std/rand` incident (see [rand-determinism-sitrep.md §2](../rand-determinism-sitrep.md)) was not a one-off bug. It was the first failure of a structural pattern:
+The v0.10.14 `std/rand` incident (see [rand-determinism-sitrep.md §2](../../archive/rand-determinism-sitrep.md)) was not a one-off bug. It was the first failure of a structural pattern:
 
 > Effects in AILANG currently model *what happens* without modelling *under which contract*.
 
@@ -78,9 +78,9 @@ The same shape — single effect token masking multiple incompatible contracts �
 | `!{FS}` | fixture-sandbox / real-disk |
 | `!{AI}` | direct fixed-model / runtime-routed / replay-only / BYOK |
 
-[M-CRYPTORAND](../v0_13_0/m-cryptorand.md) is a point fix: it splits Rand into `!{Rand}` and `!{CryptoRand}`. But duplicating effect tokens for every contract variation does not scale, and it leaves `Clock`, `Net`, `FS`, `AI` uncorrected.
+[M-CRYPTORAND](../../implemented/v0_15_0/m-cryptorand.md) is a point fix: it splits Rand into `!{Rand}` and `!{CryptoRand}`. But duplicating effect tokens for every contract variation does not scale, and it leaves `Clock`, `Net`, `FS`, `AI` uncorrected.
 
-The AI row was added to the taxonomy by [M-AI-OPENROUTER](../../implemented/v0_16_x/m-ai-openrouter-provider.md) (v0.16.0): the OpenRouter sprint shipped runtime-routed AI calls (`AIRoutingPolicy`) and captured routing decisions in the trace, but had to enforce explicit opt-in via a `--allow-routing` runtime flag rather than the planned `!{AI[mode=routeable]}` type-level marker — because parameterised effects didn't exist yet. M-EFFECT-REFINEMENT is the canonical home for that deferred work; see [Example 4: Modal AI](#example-4-modal-ai) below.
+The AI row was added to the taxonomy by [M-AI-OPENROUTER](../../implemented/v0_16_0/m-ai-openrouter-provider.md) (v0.16.0): the OpenRouter sprint shipped runtime-routed AI calls (`AIRoutingPolicy`) and captured routing decisions in the trace, but had to enforce explicit opt-in via a `--allow-routing` runtime flag rather than the planned `!{AI[mode=routeable]}` type-level marker — because parameterised effects didn't exist yet. M-EFFECT-REFINEMENT is the canonical home for that deferred work; see [Example 4: Modal AI](#example-4-modal-ai) below.
 
 **Current State:**
 - `std/clock` can be seeded (`AILANG_SEED` pins time) or wall-clock, with no type-level distinction.
@@ -191,7 +191,7 @@ Proposed: parameters are **invariant under unification**. `!{Rand[mode=os]}` doe
 
 ### M-ENTROPY integration
 
-Envelope schema (normalised from [rand-determinism-sitrep.md §10](../rand-determinism-sitrep.md)):
+Envelope schema (normalised from [rand-determinism-sitrep.md §10](../../archive/rand-determinism-sitrep.md)):
 
 ```yaml
 entropy:
@@ -351,7 +351,7 @@ export func weak_token() -> string ! {Rand[mode=os]} = random_bytes(16) |> hex_e
 
 ### Example 4: Modal AI
 
-**Context:** [M-AI-OPENROUTER](../../implemented/v0_16_x/m-ai-openrouter-provider.md) (v0.16.0) shipped runtime-routed AI calls — OpenRouter can dynamically pick a provider per call, falling back through a configured order. The original sprint plan called for `!{AI[Routeable]}` as a type-level marker that gates which functions are allowed to use a routing-capable provider. Without parameterised effects, M-AI-OPENROUTER had to fall back to a runtime `--allow-routing` flag and a `ResolvedRoute` trace payload. M-EFFECT-REFINEMENT delivers the missing type-level dimension.
+**Context:** [M-AI-OPENROUTER](../../implemented/v0_16_0/m-ai-openrouter-provider.md) (v0.16.0) shipped runtime-routed AI calls — OpenRouter can dynamically pick a provider per call, falling back through a configured order. The original sprint plan called for `!{AI[Routeable]}` as a type-level marker that gates which functions are allowed to use a routing-capable provider. Without parameterised effects, M-AI-OPENROUTER had to fall back to a runtime `--allow-routing` flag and a `ResolvedRoute` trace payload. M-EFFECT-REFINEMENT delivers the missing type-level dimension.
 
 **Modes for AI:**
 
@@ -480,10 +480,10 @@ export func with_byok_key() -> string ! {AI[mode=routeable, scope=byok]} =
 ## Related Documents
 
 **Commissioning memo:**
-- [design_docs/planned/rand-determinism-sitrep.md](../rand-determinism-sitrep.md) — §8 parameterised-effect insight; this doc generalises that insight
+- [design_docs/planned/rand-determinism-sitrep.md](../../archive/rand-determinism-sitrep.md) — §8 parameterised-effect insight; this doc generalises that insight
 
 **Pilot milestone:**
-- [design_docs/planned/v0_13_0/m-cryptorand.md](../v0_13_0/m-cryptorand.md) — ships `!{CryptoRand}` as standalone; this milestone subsumes it via alias
+- [design_docs/planned/v0_13_0/m-cryptorand.md](../../implemented/v0_15_0/m-cryptorand.md) — ships `!{CryptoRand}` as standalone; this milestone subsumes it via alias
 
 **Integrates with:**
 - [design_docs/planned/v1_0_0/m-entropy-budgets.md](m-entropy-budgets.md) — envelope schema extension; compile-time enforcement

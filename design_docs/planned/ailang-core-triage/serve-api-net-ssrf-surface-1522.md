@@ -17,7 +17,7 @@ bytecode-VM path, and whether Stream hops get the same rule. Rubric rows 3/4/5 (
 schema, a public surface, spans `internal/types` + `internal/effects` + `internal/eval`). An earlier
 coordinator triage (task-500799f0, never merged) said `duplicate-of` the parent; that was correct for
 "is this already decided" but the attended fix needs the child doc to pin the decisions above.
-Related, not conflicting: `design_docs/planned/v1_0_0/m-effect-scope-params.md` (frames `scope=` as a
+Related, not conflicting: `design_docs/planned/v1_1_0/m-effect-scope-params.md` (frames `scope=` as a
 typed narrowing — the same reading this uses).
 
 TRIAGE_FILE: design_docs/planned/ailang-core-triage/serve-api-net-ssrf-surface-1522.md

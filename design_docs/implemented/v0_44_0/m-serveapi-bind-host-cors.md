@@ -225,4 +225,4 @@ Every freeze item and open question was resolved with this doc's recommendation.
 
 - `design_docs/planned/ailang-core-triage/serve-api-port-collision.md`: the wildcard-vs-loopback pair. M1 resolves the default case and makes a collision fail loud.
 - `design_docs/implemented/v0_10_12/m-serveapi-unify.md`, `design_docs/implemented/v0_11_0/m-dx-serve-api-coercion.md`: neural matches at 0.43–0.49. Both are about routing and coercion, not binding, so they are distinct.
-- `design_docs/planned/v0_29_0/m-serve-api-live-tool-registry.md`: 0.47, MCP registry. Distinct.
+- `design_docs/planned/v1_1_0/m-serve-api-live-tool-registry.md`: 0.47, MCP registry. Distinct.

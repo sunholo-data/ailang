@@ -7,7 +7,7 @@ corruption. Direct NO-SILENT-FALLBACKS and axiom A1 (determinism) violation.
 **Estimated**: ~2 days (root cause fully localized and mutation-free-verified below — this is fix
 + regression tests, not investigation; 2× rule applied in Timeline).
 **Dependencies**: none. Independent of [m-bytecode-vm-parity-bugs.md](../../planned/v1_0_0/m-bytecode-vm-parity-bugs.md)
-(parked A2 harness question) and of [m-bytecode-pattern-arity-fix.md](../../planned/v1_0_0/m-bytecode-pattern-arity-fix.md)
+(parked A2 harness question) and of [m-bytecode-pattern-arity-fix.md](../v0_33_1/m-bytecode-pattern-arity-fix.md)
 (#505 list-pattern arity — different lowering path, `match.go` vs `collections.go`/`lower/expr.go`).
 **Filed bug**: ailang#1354 (reported via Stapledon draft PR sunholo-data/stapledons-godot#3;
 mission-stapledon M1.6a is parked on it — controlplane message 2026-09-28, `inbox_1790578890432_a8028692`).
@@ -385,7 +385,7 @@ Each AC names the file that can fail it. "10/10" = ten consecutive process invoc
   is distinct: fix sites are `lower/expr.go` + `compiler/collections.go`, none of that doc's
   lanes. Its fake-MATCH finding (silent `--quiet` fallback) is the same masking this doc's
   repro2 exhibits.
-- [m-bytecode-pattern-arity-fix.md](../../planned/v1_0_0/m-bytecode-pattern-arity-fix.md) — sibling
+- [m-bytecode-pattern-arity-fix.md](../v0_33_1/m-bytecode-pattern-arity-fix.md) — sibling
   soundness fix (#505), same P0 class, different path; read for AC/test conventions.
 - [implemented M-BYTECODE-MULTIMODULE](../v0_11_0/m-bytecode-multimodule-sprint-plan.md) — introduced
   `FieldAccess.KnownFields` + `_record_get` fallback (M3), the machinery this fix completes.

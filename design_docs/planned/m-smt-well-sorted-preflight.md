@@ -574,7 +574,7 @@ The 23 example counterexamples are intended:
 - `broken*` and `*_demo` functions, plus the inbox-injection attack demos.
 - `basic.ail` `safeDivide`/`increment` are genuine contract bugs in the example.
 - Six are the bounded-unrolling false counterexamples already ruled on in
-  `m-verify-bounded-unrolling-false-counterexample.md`.
+  `v1_1_0/m-verify-bounded-unrolling-false-counterexample.md`.
 
 ### 2.3 The ERROR bucket table
 
@@ -767,7 +767,7 @@ The target encodings were checked directly in Z3:
 | `ailang-core-triage/verify-ensures-verified-without-encodable-refutation.md` | **Not subsumed; adjacent.** That is proof-vs-refutation asymmetry when `ensures` calls a user function. S2 here is a different false proof (call-site collapse). Both live in `callee_resolver.go`/`codegen_xmod_contract.go`, so the M0 S2 fix should be reviewed against that doc's option (a) "uninterpreted function + conjoined callee contract". M0 adopts that shape |
 | `ailang-core-triage/verify-call-site-precondition-not-checked.md` | **Not subsumed; shares S2's root.** Both stem from the missing call-site argument tracking ("deferred to M4", `callee_resolver.go:129`). The current M0 packet carries actual-call arguments and guards postcondition facts; discharging `requires` as an obligation remains that doc's decision |
 | `ailang-core-triage/verify-int-width-mismatch-z3-int-vs-int64.md` | **Not subsumed.** That doc is about width/overflow. S1 is the *division operator*, which is wrong even over unbounded ℤ. If that doc chooses BitVec 64, S1's `bvsdiv`/`bvsrem` are truncating by definition, so the two fixes agree |
-| `m-contract-verification-coverage.md` (skipped vs not_applicable) | **Not subsumed; must compose.** That doc splits the *skip counter* by cause and is parked under D-29/D-30. M3 adds a new skip cause, `encoder_gap`, so that it stays separable from `unsupported_encoding` in any future split, and it does **not** change `isVerifiedSuccess` (`internal/observatory/cost_per_verified_success.go`). See Design Freeze F2 |
+| `v1_1_0/m-contract-verification-coverage.md` (skipped vs not_applicable) | **Not subsumed; must compose.** That doc splits the *skip counter* by cause and is parked under D-29/D-30. M3 adds a new skip cause, `encoder_gap`, so that it stays separable from `unsupported_encoding` in any future split, and it does **not** change `isVerifiedSuccess` (`internal/observatory/cost_per_verified_success.go`). See Design Freeze F2 |
 | `v0_38_0/m-smt-string-casefold-charfold.md` | **Not subsumed.** It adds `toUpper`/`toLower`/`foldChars` encodings. This doc makes the existing string-ordering encodings reachable (A1). No overlap in files beyond `types.go` tables |
 | `implemented/v0_54_18/m-smt-parametric-adt-declarations.md` | **#1959's primary symptom is done there.** This doc generalises its point fix (B4) into the M2 resolver and M3 pre-flight, and pins the #1959 package repro as a regression fixture |
 
@@ -972,7 +972,7 @@ and run from the repo root. **Every fixture below was written and `ailang check`
 | `pkg_adt_import/probe` · `unitR` (`Result[(), E]`) | n/a | SKIPPED | SKIPPED (pinned; never ERROR) |
 
 The `sumTo`/`total` functions inside `callee_param`/`call_site_collapse` currently report the known bounded-unrolling
-false counterexample (`m-verify-bounded-unrolling-false-counterexample.md`). The test does not pin them.
+false counterexample (`v1_1_0/m-verify-bounded-unrolling-false-counterexample.md`). The test does not pin them.
 
 Further criteria:
 
@@ -1057,8 +1057,8 @@ non-negative values; must stay VERIFIED under truncating division). All exist at
   Encoding them belongs to `smt-encode-dt-builtins.md` and future encoding docs.
 - Discharging callee `requires` at call sites (`verify-call-site-precondition-not-checked.md`).
 - Int width / BitVec (`verify-int-width-mismatch-z3-int-vs-int64.md`).
-- The bounded-unrolling false counterexample (`m-verify-bounded-unrolling-false-counterexample.md`).
-- The skipped vs not_applicable counter split (`m-contract-verification-coverage.md`).
+- The bounded-unrolling false counterexample (`v1_1_0/m-verify-bounded-unrolling-false-counterexample.md`).
+- The skipped vs not_applicable counter split (`v1_1_0/m-contract-verification-coverage.md`).
 
 ## 15. Risks & Mitigations
 
@@ -1082,7 +1082,7 @@ M0 1d → M1 1d → M2 1.5d → M3 2d → M4 0.5d. That is about 6 days. M0 is i
 - `design_docs/planned/ailang-core-triage/verify-call-site-precondition-not-checked.md`
 - `design_docs/planned/ailang-core-triage/verify-int-width-mismatch-z3-int-vs-int64.md`
 - `design_docs/planned/ailang-core-triage/smt-encode-dt-builtins.md`
-- `design_docs/planned/m-contract-verification-coverage.md`
+- `design_docs/planned/v1_1_0/m-contract-verification-coverage.md`
 - `design_docs/planned/v0_38_0/m-smt-string-casefold-charfold.md`
 - Neural related-doc search on "smt well sorted preflight" returned nothing at or above 0.45. The highest were
   `implemented/v0_4_3/M-SOUNDNESS-COMPLETION-REPORT.md` (0.31) and `planned/v0_38_6/m-smt-datetime-sprint-plan.md`

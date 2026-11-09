@@ -252,7 +252,7 @@ drift are the main risks; explicit legacy rules and engine tests are mandatory.
   not a duplicate of this hardening request.
 - [Revised WAV reader](m-std-audio-wav-read.md).
 - [Revised fixed formatter](m-std-string-format-fixed.md).
-- [Coverage design and audio reporting addendum](../../planned/m-contract-verification-coverage.md#audio-follow-up-2026-10-23-additive-package-evidence).
+- [Coverage design and audio reporting addendum](../../planned/v1_1_0/m-contract-verification-coverage.md#audio-follow-up-2026-10-23-additive-package-evidence).
 - [RIFF format](https://learn.microsoft.com/en-us/windows/win32/xaudio2/resource-interchange-file-format--riff-).
 - [Design axioms](../../../docs/docs/references/axioms.mdx).
 

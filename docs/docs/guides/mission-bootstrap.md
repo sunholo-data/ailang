@@ -27,7 +27,7 @@ reviewBy: 2027-02-22
 AILANG ships with a **mission loop**: a scheduled outer loop that picks the top item off a written
 backlog, routes it through a design → plan → execute → evaluate inner loop of specialised agents,
 records what happened, and reports to a human — then does it again, unattended, on a cadence. The
-loop that builds AILANG itself (the "V1 mission") runs this way. This guide shows how to point a
+loop that built AILANG itself (the "V1 mission", paused since 2026-09-08) ran this way. This guide shows how to point a
 *second* loop at a *different* repository, so one machine can advance several missions concurrently
 without them colliding.
 

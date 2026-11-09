@@ -3,7 +3,7 @@
 - **Date**: 2026-09-15
 - **Class**: bug
 - **Recommend**: design-doc
-- **Searched**: `uninterpreted`, `smt`, `callee sort gate`, `verify skipped`, design doc dirs `implemented/v0_30_0/m-smt-callee-sort-gate.md`, `planned/m-contract-verification-coverage.md`, `planned/m-verify-bounded-unrolling-false-counterexample.md`
+- **Searched**: `uninterpreted`, `smt`, `callee sort gate`, `verify skipped`, design doc dirs `implemented/v0_30_0/m-smt-callee-sort-gate.md`, `planned/v1_1_0/m-contract-verification-coverage.md`, `planned/v1_1_0/m-verify-bounded-unrolling-false-counterexample.md`
 - **Estimate**: n/a (design-doc)
 
 The report is sound and the reproduction is precise: an `ensures` clause referencing a

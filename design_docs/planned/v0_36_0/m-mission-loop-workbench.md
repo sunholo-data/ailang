@@ -437,7 +437,7 @@ copied, not authored, and carries a marker naming M8 as its future owner. Nothin
 the model registry, and nothing here claims ownership of roles.
 - [M-DRIVER-PIN-ROLLOUT](../m-driver-pin-rollout.md) — PARKED at the quorum gate after two blocked rounds. Adjacent to Phase 3, but **not overlapping**: its V18 audit explicitly scopes world OUT — *"`mission-world`: … explicitly not ours (world fork — Non-goals)"*. Phase 3 fills precisely the gap that doc declines. Worth reading before Phase 3 anyway: it is the prior art on pin semantics, and it is parked on a design choice a controller may not invent.
 - [M-MISSION-ELO-ROUTING](../m-mission-elo-routing.md) — PROPOSED. Consumes role assignment to choose lanes by rating; owns no config surface. No overlap.
-- [M-MISSION-SLOT-HEARTBEAT](../v1_0_0/m-mission-slot-heartbeat.md) — slot death attribution. Consumes the slot-verdict log this doc's world port started writing. No overlap.
+- [M-MISSION-SLOT-HEARTBEAT](../../implemented/v0_35_0/m-mission-slot-heartbeat.md) — slot death attribution. Consumes the slot-verdict log this doc's world port started writing. No overlap.
 - [M-MISSION-PORTABILITY](../../implemented/v0_30_0/m-mission-portability.md) — shipped `MISSION_PROFILE` and the env-file convention this builds on. It made a second mission *possible*; it did not make a fifth *easy*.
 - [mission-bootstrap guide](../../../docs/docs/guides/mission-bootstrap.md) — the current 330-line manual procedure this replaces.
 

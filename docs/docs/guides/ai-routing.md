@@ -201,9 +201,9 @@ benchmark a new model.
 The `--allow-routing` runtime flag is a **back-compat fallback** for a
 type-level marker that is planned but not yet shipped. The canonical
 home for that work is
-[M-EFFECT-REFINEMENT (v1.0.0)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md),
+[M-EFFECT-REFINEMENT (v1.1 track)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-refinement.md),
 which generalises `!{E[mode=...]}` across `Rand`, `Clock`, `Net`,
-`FS`, and `AI`. See [Example 4: Modal AI](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md#example-4-modal-ai)
+`FS`, and `AI`. See [Example 4: Modal AI](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-refinement.md#example-4-modal-ai)
 for the design.
 
 When that lands, programs will be able to write:
@@ -234,7 +234,7 @@ you know what to expect.
   flat label-strings today, not parameterised rows. Adding them needs
   parser + AST + elaborator + typechecker work — a multi-day language
   feature scoped to
-  [M-EFFECT-REFINEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md).
+  [M-EFFECT-REFINEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-refinement.md).
 - **Replay-engine pin-to-resolved + `--reroute` flag** — Trace data is
   captured today; the replay engine itself is still trace-naive. The
   pin-to-resolved replay handler is a separate replay-engine refactor.
@@ -333,5 +333,5 @@ for details.
   `std/ai` effect this guide builds on.
 - [M-AI-OPENROUTER design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_16_x/m-ai-openrouter-provider.md)
   — the canonical design, including the implementation report.
-- [M-EFFECT-REFINEMENT design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md)
-  — the v1.0.0 milestone where the type-level mode markers will land.
+- [M-EFFECT-REFINEMENT design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-refinement.md)
+  — the parent effect-refinement design (its remaining sprints are on the v1.1 track).

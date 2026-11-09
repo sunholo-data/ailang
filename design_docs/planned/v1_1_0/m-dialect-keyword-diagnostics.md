@@ -1,7 +1,7 @@
 # M-DIALECT-KEYWORD-DIAGNOSTICS: Diagnose the Observed `case` Trap
 
 **Status**: Planned
-**Target**: v1.0.0
+**Target**: v1.1.0 (moved 2026-11-09 under bar v3 / D-64 — self-declared "not a v1.0 release bar", PARKED at quorum; was: v1.0.0)
 **Priority**: P2 — real DX defect, one measured occurrence; not a v1.0 release bar
 **Estimated**: 1–1.5 days
 **Dependencies**: None

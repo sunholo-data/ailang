@@ -921,7 +921,7 @@ Neural search top matches (all < 0.45 → no duplicate/overlap per the coverage 
 - [m-parser-loop-sprint-plan](../../implemented/v0_7_0/m-parser-loop-sprint-plan.md) (0.39) — unrelated
 
 **Planned (checked for overlap — none duplicates this):**
-- [m-nightly-sustained-failure-label-sprint-plan](../../planned/v1_0_0/m-nightly-sustained-failure-label-sprint-plan.md)
+- [m-nightly-sustained-failure-label-sprint-plan](../v0_32_0/m-nightly-sustained-failure-label-sprint-plan.md)
   (0.42) — labels sustained *eval* failures in the nightly loop; different pipeline (eval bank,
   not Go CI), complementary
 - [m-eval-rig-reliability](../../planned/v0_29_0/m-eval-rig-reliability.md) (0.40) — rig/eval

@@ -11,7 +11,7 @@ reviewBy: 2027-03-08
 > dates.
 
 **All entries below were live-verified at AILANG `v0.33.1-72-g4b46bb97e` on 2026-08-17.** Per the
-[M-V1-STABILITY-PROMISE](design_docs/planned/v1_0_0/m-v1-stability-promise.md) entry policy, every
+[M-V1-STABILITY-PROMISE](design_docs/implemented/v0_29_0/m-v1-stability-promise.md) entry policy, every
 open limitation is a reproducible artifact with a verified-at date, and fixed items move to a
 dated "Resolved" list — this file is no longer allowed to freeze at a past version.
 

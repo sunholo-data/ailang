@@ -103,7 +103,7 @@ Designer may choose fixture organization and report layout. Any change to the pr
 
 Read `internal/eval_analysis/paired.go` to establish the key and success predicate; read the measurement-contract and cohort-provenance designs. The four named seed benchmark paths exist; no claim is made that their bodies already meet this protocol. Scaffold searches attempted; fallback search scores are not neural duplicate evidence. Manual coverage review assigns this child the lifecycle corpus/protocol only.
 
-Related: [cohort provenance](m-cohort-manifest-build-provenance.md), [validity discipline](m-eval-validity-discipline.md), [repair packets](m-semantic-repair-packet.md). Risks: contaminated holdout, asymmetric tooling, task clustering, small-model overhead and optimistic cost accounting; each is controlled above. No code or paid runs accompany this design.
+Related: [cohort provenance](v1_1_0/m-cohort-manifest-build-provenance.md), [validity discipline](m-eval-validity-discipline.md), [repair packets](m-semantic-repair-packet.md). Risks: contaminated holdout, asymmetric tooling, task clustering, small-model overhead and optimistic cost accounting; each is controlled above. No code or paid runs accompany this design.
 
 
 ## Axiom compliance

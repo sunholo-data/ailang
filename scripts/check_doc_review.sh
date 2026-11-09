@@ -54,6 +54,7 @@ cd "$REPO_ROOT" || exit 2
 generated() {
 	case "$1" in
 		docs/docs/design-docs.md) return 0 ;;            # sync-design-docs.sh
+		docs/docs/roadmap/index.md) return 0 ;;          # sync-design-docs.sh (generate_roadmap)
 		docs/docs/reference/env-vars.md) return 0 ;;     # make docs-env
 		docs/docs/reference/cli.md) return 0 ;;          # make docs-cli (byte-compared by check-cli-docs)
 		docs/docs/prompts/index.md) return 1 ;;          # hand-written landing page

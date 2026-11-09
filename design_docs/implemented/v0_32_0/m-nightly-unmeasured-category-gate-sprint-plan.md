@@ -2,7 +2,7 @@
 
 **GitHub issue**: [sunholo-data/ailang#551](https://github.com/sunholo-data/ailang/issues/551)
 **Design doc**: none — bug fix inside `tools/nightly_classify.py`, the same lane as
-[#524](m-nightly-run-validity-gate-sprint-plan.md) (iter-119) and `#548` (iter-127). No quorum.
+[#524](../v0_31_0/m-nightly-run-validity-gate-sprint-plan.md) (iter-119) and `#548` (iter-127). No quorum.
 **Sprint ID**: `M-NIGHTLY-UNMEASURED-CATEGORY-GATE`
 **Branch**: `sprint/m-nightly-unmeasured-category-gate`
 **Base**: `origin/dev` @ `c7fc3b954`
@@ -31,7 +31,7 @@ facts are otherwise confirmed, with one numeric correction to the issue body.
 | C5 | `results/` live in the `agent/` **subdirectory**; the parent yields a misleading `INVALID zero_files 0/0` | Reproduced both |
 | C6 | `non_agentic` 0/336 across 8 prior nights, then 12/12 | Recomputed from `~/.ailang/state/nightly-eval-history.jsonl` (read-only) |
 | C7 | Containment is already applied; do not redo | History shows `2 invalid nights excluded` (07-29 + 08-01) |
-| C8 | **`#524` deliberately rejected the pass-rate disjunct** — the controller flagged this as unverified/inherited. **It is true, and load-bearing.** | `m-nightly-run-validity-gate-sprint-plan.md:204-217`: *"I am implementing the first disjunct only, and rejecting the second… A pass-rate-collapse trigger cannot distinguish 'we failed to measure the subject' from 'the subject genuinely broke catastrophically'."* Registered as risk **R-3** at line 477: *"the pass-rate disjunct gets added back by a reviewer reading #524 literally."* Note issue #524's own text **does** propose it — reading the issue alone would reintroduce the bug |
+| C8 | **`#524` deliberately rejected the pass-rate disjunct** — the controller flagged this as unverified/inherited. **It is true, and load-bearing.** | `../v0_31_0/m-nightly-run-validity-gate-sprint-plan.md:204-217`: *"I am implementing the first disjunct only, and rejecting the second… A pass-rate-collapse trigger cannot distinguish 'we failed to measure the subject' from 'the subject genuinely broke catastrophically'."* Registered as risk **R-3** at line 477: *"the pass-rate disjunct gets added back by a reviewer reading #524 literally."* Note issue #524's own text **does** propose it — reading the issue alone would reintroduce the bug |
 | C9 | `validity_backstop_test.go:201` asserts `non_agentic` must not be quarantined | Read it — **but see R-A: it governs a different mechanism** |
 | C10 | The tests exist and **run in CI** | `make/test.mk:20` → `test-nightly-classifier`; `.github/workflows/ci.yml:136-152` invokes it **plus an anti-vacuity floor** (`--- PASS:` count ≥ 70). Baseline measured: **74 tests, 74 PASS lines, 4.0 s** |
 

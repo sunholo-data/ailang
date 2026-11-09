@@ -2,7 +2,7 @@
 
 **GitHub issue**: [sunholo-data/ailang#498](https://github.com/sunholo-data/ailang/issues/498)
 **Design doc**: none — mission-classified as a small settled bug fix, same shape as
-[m-nightly-run-validity-gate](../v1_0_0/m-nightly-run-validity-gate-sprint-plan.md) (iteration 119),
+[m-nightly-run-validity-gate](m-nightly-run-validity-gate-sprint-plan.md) (iteration 119),
 which also ran doc-less. Lane B (callback-driven embedder API) is design-doc-sized and OUT of scope.
 **Sprint ID**: `M-MCP-EXACT-TOOL-SURFACE-A`
 **Branch**: `sprint/m-mcp-exact-tool-surface`

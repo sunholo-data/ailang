@@ -36,7 +36,7 @@
 --
 -- See:
 --   design_docs/implemented/v0_15_x/m-effect-refinement-phase1.md
---   design_docs/planned/v1_0_0/m-effect-refinement.md (parent, Example 1)
+--   design_docs/planned/v1_1_0/m-effect-refinement.md (parent, Example 1)
 --   design_docs/implemented/v0_30_0/m-effect-replay-contracts.md (Phase 3 dispatch)
 
 module examples/modal_rand

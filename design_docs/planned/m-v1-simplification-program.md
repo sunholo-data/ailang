@@ -1,9 +1,9 @@
 # M-V1-SIMPLIFICATION-PROGRAM: One of Each — Simplify the Codebase for v1.0.0
 
-**Status**: In progress — Sprint 1 (Phase 0 + 1.1–1.2 + weekly audit) landed 2026-09-14; Design Freeze ruled 2026-09-15
+**Status**: In progress — Phases 0–3 DONE (S1–S5, last landed 2026-09-18; v1.0.0 ships one binary, Phase 3b → v1.1). **Phase 5 is v1.0 gate G5** under bar v3 (`design_docs/v1-mission.md`, ledger D-64, 2026-11-09): the `make simplicity-metrics` diff vs the Phase 0 baseline goes into the v1.0.0 release notes, each Goals-table row green or waived by Mark. **Phase 4 (navigation layer) is optional polish — it does not gate v1.0.** History: Sprint 1 (Phase 0 + 1.1–1.2 + weekly audit) landed 2026-09-14; Design Freeze ruled 2026-09-15.
 **Target**: v1.0.0
 **Priority**: P0
-**Estimated**: 6 phases, ~7 weeks elapsed (≈ 22 agent-days of sprint work; phases 0–3 are the release gate, phases 4–5 are the polish)
+**Estimated**: 6 phases, ~7 weeks elapsed (≈ 22 agent-days of sprint work; as written, phases 0–3 were the release gate and 4–5 the polish — superseded by D-64: phases 0–3 are done, Phase 5 is gate G5, Phase 4 is optional)
 **Dependencies**: None. This is an umbrella program; each phase spawns its own sprint plan via sprint-planner.
 **Created**: 2026-09-14
 **Audit basis**: six read-only research passes on dev @ 7c56fd266 (core-vs-platform, duplicates, CLI surface, config sprawl, artefacts/docs, AI navigability). Every number below is from those passes; the Verification Log at the end lists the command behind each load-bearing claim.
