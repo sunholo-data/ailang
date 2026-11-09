@@ -310,22 +310,21 @@ For complete autonomous agent patterns (task claiming, handoffs, error handling)
 
 **Quick example:**
 ```bash
-# Agent checks inbox for tasks
-MESSAGES=$(ailang agent inbox --unread-only my-agent)
-MESSAGE_ID=$(echo "$MESSAGES" | grep "ID:" | head -1 | awk '{print $2}')
+# Agent checks its inbox for tasks
+MESSAGE_ID=$(ailang messages list --unread --inbox my-agent --json | jq -r '.[0].id // empty')
 
 # Claim task
-ailang agent ack $MESSAGE_ID
+ailang messages ack "$MESSAGE_ID"
 
 # Process with headless Claude
 RESULT=$(claude -p "Process task from inbox" --output-format json)
 
 # On success: keep ack, send result
 if [ "$(echo "$RESULT" | jq -r '.status')" = "success" ]; then
-  ailang agent send --to-user --from "my-agent" '{"status": "complete"}'
+  ailang messages send user '{"status": "complete"}' --from my-agent
 else
   # On failure: return to queue
-  ailang agent unack $MESSAGE_ID
+  ailang messages unack "$MESSAGE_ID"
 fi
 ```
 

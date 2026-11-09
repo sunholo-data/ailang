@@ -77,16 +77,40 @@ echo "• packages without a package comment:"
 jq -r '.metrics.packages_without_doc.detail' "$NOW" | tr ' ' '\n' | sed 's/^/    /'
 echo "• platform packages / third-party roots reachable from the language core:"
 jq -r '[.metrics.closure_platform_packages.detail, .metrics.closure_leak_roots.detail] | join(" ")' "$NOW" | tr ' ' '\n' | sed 's/^/    /'
-echo "• skills citing an ailang command the binary does not have:"
-if [ -f cmd/ailang/main.go ]; then
-  # The case labels are the authority (help omits some on purpose); aliases share
-  # a case line, so match the quoted name anywhere on one. Prose words that follow
-  # "ailang" in a sentence ("the ailang repo") are dropped by the stop list.
-  grep -rhoE 'ailang [a-z][a-z0-9-]*[a-z0-9]' .claude/skills/*/SKILL.md 2>/dev/null | sort -u \
-    | while read -r _ c; do
-        case "$c" in repo|repos|commands|command|binary|source|sources|language|project|package|packages|program|programs|code|syntax|file|files|team|core|users|user|ecosystem|world|parse|registry|dev|cli|module|modules|stdlib|std|prompt-version) continue ;; esac
-        grep -E "case .*\"$c\"" cmd/ailang/main.go >/dev/null || echo "    ailang $c"
-      done | sort -u | head -20
+echo "• skills citing an ailang command the binary does not have (count, command):"
+# The dispatch table is the authority (help omits some on purpose): since the S5
+# CLI reshape every command, group member and alias is a `Name: "x"` or an
+# `Aliases: []string{..., "x", ...}` entry in cmd/ailang/commands_*.go. This used
+# to grep `case "x"` in main.go, which has had no case labels since the reshape,
+# so every cited command read as missing (found 2026-11-09).
+# Scope is every *.md under .claude/skills (resources/ included — the skill body
+# links there, and headless-runner's resources held 67 retired `ailang agent`
+# calls the SKILL.md-only scan never saw). Only COMMAND-POSITION citations count:
+# inline code (`ailang x`), line start / `$ ` prompt, `$(`, or after | ; & — so
+# prose ("the ailang repo") no longer needs a stop list. Honest "Planned" rows
+# (docs-sync feature_themes) still show; judge them, do not suppress them.
+cmd_tables=""
+for f in cmd/ailang/commands_*.go; do
+  case "$f" in *_test.go) ;; *) [ -f "$f" ] && cmd_tables="$cmd_tables $f" ;; esac
+done
+if [ -n "$cmd_tables" ]; then
+  # shellcheck disable=SC2086 # word-splitting the file list is intended
+  known=$(grep -hoE '(Name:[[:space:]]*"[^"]+"|Aliases:[[:space:]]*\[\]string\{[^}]*\})' $cmd_tables \
+    | grep -oE '"[^"]+"' | tr -d '"'
+    # Bare package spellings (`ailang pkg-docs`, `ailang publish`) are generated
+    # from the pkgLegacyTopLevel map's VALUES, not written as table rows.
+    sed -n '/^var pkgLegacyTopLevel/,/^}/p' cmd/ailang/commands_groups.go 2>/dev/null \
+      | grep -oE ':[[:space:]]*"[^"]+"' | grep -oE '"[^"]+"' | tr -d '"')
+  known=$(printf '%s\n' "$known" | sort -u)
+  find .claude/skills -name '*.md' -type f -print0 2>/dev/null \
+    | xargs -0 grep -hoE '(^[[:space:]]*(\$ )?|`|\$\(|[|;&][[:space:]]*)ailang [a-z][a-z0-9-]*[a-z0-9]' 2>/dev/null \
+    | grep -oE 'ailang [a-z][a-z0-9-]*[a-z0-9]$' | sort | uniq -c \
+    | while read -r n _ c; do
+        case "$c" in command|commands) continue ;; esac
+        printf '%s\n' "$known" | grep -Fx -- "$c" >/dev/null || printf '    %4d  ailang %s\n' "$n" "$c"
+      done | sort -rn | head -20
+else
+  echo "    (no cmd/ailang/commands_*.go dispatch table found — detector cannot run)"
 fi
 
 # Bank today's snapshot as the new reference.
