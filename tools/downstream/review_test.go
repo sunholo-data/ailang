@@ -272,6 +272,23 @@ func TestSameCodeDifferentErrorIsVisible(t *testing.T) {
 	}
 }
 
+// Finding 4: the scrub works on a real run's paths, which live under
+// ~/.ailang/state rather than a temp dir (the generic temp-dir rule cannot help).
+func TestDiagTextScrubsRunPaths(t *testing.T) {
+	run := "/Users/op/.ailang/state/downstream/runs/20261110-110000"
+	r := &Runner{RunDir: run, PackageRoot: "/Users/op/.ailang/cache/registry"}
+	base, cand := &Arm{Dir: run + "/arms/baseline"}, &Arm{Dir: run + "/arms/candidate"}
+	msg := func(a *Arm, line int) string {
+		return fmt.Sprintf("cannot unify int vs string at %s/corpora/app/m.ail:%d:1 (cache %s/cache/x, pkg /Users/op/.ailang/cache/registry/sunholo/p)", run, line, a.Dir)
+	}
+	if b, c := r.diagText(base, msg(base, 3)), r.diagText(cand, msg(cand, 3)); b != c {
+		t.Errorf("the same error differs after scrubbing:\n%s\n%s", b, c)
+	}
+	if b, c := r.diagText(base, msg(base, 3)), r.diagText(cand, msg(cand, 9)); b == c {
+		t.Errorf("a different line compares equal after scrubbing: %s", b)
+	}
+}
+
 // Finding 5: a corpus whose include globs match nothing is NOT CHECKED, never "0 breaks".
 func TestNoEntriesDiscoveredIsLoud(t *testing.T) {
 	f := newFixture(t, "- name: app\n  repo: owner/app\n  include: [\"nowhere/**/*.ail\"]\n  tier: {ci: off, release: blocking}\n", "")
