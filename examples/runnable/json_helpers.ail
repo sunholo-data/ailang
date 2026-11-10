@@ -12,7 +12,7 @@ func getName(obj: Json) -> string = match getString(obj, "name") {
   None => "unknown"
 }
 
--- Extract age as int (JSON numbers are floats, getInt truncates)
+-- Extract age as int (getInt: JInt exact, a whole JNumber converts, 1.5 -> None)
 func getAge(obj: Json) -> int = match getInt(obj, "age") {
   Some(age) => age,
   None => 0

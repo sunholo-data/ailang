@@ -103,6 +103,14 @@ TC_MATCH_001: constructor pattern 'Bogus' does not name any constructor in scope
   Suggestion: Option's constructors are: None, Some
 ```
 
+**`TC_MATCH_005` — `Json` match with a `JNumber` arm and no `JInt` arm (warning).** Transitional for v0.58.x. `std/json.decode` gives `JInt(n)` for integer literals and `JNumber(x)` for other numbers, so a match written before `JInt` existed, `match j { JNumber(n) => …, _ => … }`, compiles but sends every integer to the catch-all. The warning is keyed on std/json's own `JNumber` (aliased imports included; a module's own `JNumber` constructor is never flagged), looks at every pattern depth (`Some(JNumber(n))` counts), and is reported on a warm compile cache too. It never blocks compilation. Fix: add a `JInt(i) => …` arm (`intToFloat(i)` gives a float), or read numbers with `asNumber`/`getNumber`/`getInt`, which accept both.
+
+```
+TC_MATCH_005 at app.ail:6:45
+  this match over std/json.Json has a JNumber arm but no JInt arm; decode now gives JInt(n) for integer literals such as 42, so integers skip the JNumber arm.
+  Fix: add a `JInt(i) => …` arm (intToFloat(i) gives a float), or read numbers with asNumber/getNumber/getInt, which accept both
+```
+
 ## Individual error code pages
 
 - [BC001 — Function is evaluator-only under --strict-bytecode](bc001.md)

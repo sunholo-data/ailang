@@ -2255,13 +2255,14 @@
         "constructors",
         "m-dx-package-dogfooding"
       ],
-      "description": "std/json jint() convenience constructor for integer JSON numbers (M-DX-PACKAGE-DOGFOODING M2)",
+      "description": "std/json JInt: exact integer JSON numbers, jint(), getInt without truncation, and a match with JInt and JNumber arms (M-V1-STDLIB-SURFACE-POLISH M4)",
       "modules": [
         "std/io",
-        "std/json"
+        "std/json",
+        "std/result"
       ],
       "expected": {
-        "stdout": "encode(jint(42))                 = 42\nencode(jo([kv(\"count\", jint(42))])) = {\"count\":42}\n",
+        "stdout": "{\"count\":42,\"id\":1234567890123456789}\n{\"id\":1234567890123456789,\"price\":1187.5,\"qty\":3}\nSome(1234567890123456789)\nNone\nSome(3.0)\ninteger 7\nfloat 7.0\n",
         "exit_code": 0
       }
     },

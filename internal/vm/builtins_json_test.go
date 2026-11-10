@@ -167,11 +167,13 @@ func TestBuiltinJsonDecode_Bool(t *testing.T) {
 func TestBuiltinJsonDecode_Number(t *testing.T) {
 	for _, tc := range []struct {
 		input string
+		tag   int
 		want  float64
 	}{
-		{"42", 42},
-		{"3.14", 3.14},
-		{"-1", -1},
+		{"42", jsonTagJInt, 42},
+		{"42.0", jsonTagJNumber, 42},
+		{"3.14", jsonTagJNumber, 3.14},
+		{"-1", jsonTagJInt, -1},
 	} {
 		got, err := builtinJsonDecode([]bytecode.Value{bytecode.NewString(tc.input)})
 		if err != nil {
@@ -179,11 +181,10 @@ func TestBuiltinJsonDecode_Number(t *testing.T) {
 		}
 		assertResultOk(t, got)
 		inner := got.AsADT().Fields[0]
-		if inner.AsADT().Tag != jsonTagJNumber {
-			t.Fatalf("expected JNumber for %q", tc.input)
+		if inner.AsADT().Tag != tc.tag {
+			t.Fatalf("for %q: tag %d, want %d", tc.input, inner.AsADT().Tag, tc.tag)
 		}
-		f := inner.AsADT().Fields[0].Flt
-		if f != tc.want {
+		if f := vmJSONNumberValue(t, inner); f != tc.want {
 			t.Fatalf("for %q: expected %v, got %v", tc.input, tc.want, f)
 		}
 	}

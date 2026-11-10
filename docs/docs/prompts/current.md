@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.16.12) - auto-synced from source
+description: The active AILANG teaching prompt (v0.16.13) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.12.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.13.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.16.12.md -->
-<!-- Active Version: v0.16.12 -->
+<!-- Source: prompts/v0.16.13.md -->
+<!-- Active Version: v0.16.13 -->
 
-# AILANG v0.16.12 - AI Teaching Prompt (with IFC Labels + Output Discipline)
+# AILANG v0.16.13 - AI Teaching Prompt (with IFC Labels + Output Discipline)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -577,7 +577,6 @@ export func main() -> () { println("hi") }
 -- CORRECT: declare IO effect
 export func main() -> () ! {IO} { println("hi") }
 ```
-```
 
 | Effect | Functions | Import |
 |--------|-----------|--------|
@@ -600,6 +599,8 @@ runtime currently treats all modes identically (mode-aware dispatch
 lands later).
 
 ```ailang
+import std/rand (rand_int, rand_seed)
+
 -- Bare !{Rand} desugars to !{Rand[mode=os]} via the default-mode table.
 func roll_d6() -> int ! {Rand} = rand_int(1, 6)
 
@@ -1609,7 +1610,7 @@ import std/result (Result, Ok, Err)
 import std/json (encode, jo, ja, kv, js, jnum, jb, jn)
 
 -- JSON constructors: js(string), jnum(float), jint(int), jb(bool), jn() for null
--- jint(n) is the integer convenience for jnum(intToFloat(n))
+-- jint(n) builds JInt(n), exact for every int; jnum(x) builds JNumber(x)
 -- jo([kv(k,v)...]) for objects, ja([...]) for arrays
 
 -- Build JSON object with all types
@@ -1635,6 +1636,22 @@ match result {
   Err(msg) => print("Parse error: ${msg}")
 }
 ```
+`decode` takes exactly ONE JSON value (whitespace around it is fine); text after it is `Err`.
+
+**JSON numbers: `JInt(n)` for integers (`42`), `JNumber(x)` for others (`1.5`, `1e3`).**
+A match on `Json` needs BOTH arms, or integers fall to `_`:
+```ailang
+import std/json (Json, JInt, JNumber)
+import std/math (intToFloat)
+
+func toFloat(j: Json) -> float =
+  match j {
+    JInt(n) => intToFloat(n),
+    JNumber(x) => x,
+    _ => 0.0
+  }
+```
+Or use the accessors, which accept both: `getInt`, `getNumber`, `asNumber`.
 
 **Parse JSON array directly (IMPORTANT - use asArray!):**
 ```ailang
@@ -1705,10 +1722,12 @@ match decode("{\"name\":\"Alice\",\"age\":30}") {
 Use these to reduce nested Option matching from 4 levels to 2:
 
 ```ailang
-import std/json (decode, getString, getNumber, getInt, getBool, getArray, getObject)
+module benchmark/solution
+import std/json (Json, decode, getString, getNumber, getInt, getBool, getArray, getObject)
 import std/string (intToStr)
 import std/option (Option, Some, None)
 import std/result (Result, Ok, Err)
+import std/io (print)
 
 -- Extract string field with single match
 func getName(obj: Json) -> string =
@@ -1717,7 +1736,7 @@ func getName(obj: Json) -> string =
     None => "unknown"
   }
 
--- Extract int field (JSON numbers are floats, getInt truncates)
+-- Extract int field (getInt: 30 -> Some(30), 30.0 -> Some(30), 1.5 -> None; never truncates)
 func getAge(obj: Json) -> int =
   match getInt(obj, "age") {
     Some(age) => age,
@@ -1735,7 +1754,7 @@ export func main() -> () ! {IO} =
 **JSON accessor functions:**
 - `getString(obj, key)` -> `Option[string]` - Get string value directly
 - `getNumber(obj, key)` -> `Option[float]` - Get float value directly
-- `getInt(obj, key)` -> `Option[int]` - Get int value (truncates float)
+- `getInt(obj, key)` -> `Option[int]` - Get int value (`None` for a fractional number)
 - `getBool(obj, key)` -> `Option[bool]` - Get boolean value directly
 - `getArray(obj, key)` -> `Option[[Json]]` - Get array value by key
 - `getObject(obj, key)` -> `Option[Json]` - Get nested object directly

@@ -1,7 +1,7 @@
 module tests/yaml_encode_roundtrip
 
 import std/yaml (encode, decode)
-import std/json (Json, JNull, JBool, JNumber, JString, JArray, JObject)
+import std/json (Json, JNull, JBool, JNumber, JInt, JString, JArray, JObject)
 import std/result (Ok, Err)
 
 pure func roundtrip(j: Json) -> bool {
@@ -15,6 +15,9 @@ test "scalars and empty collections round-trip" {
   assert roundtrip(JNull)
   assert roundtrip(JBool(true))
   assert roundtrip(JNumber(42.5))
+  assert roundtrip(JInt(9007199254740993))
+  assert roundtrip(JNumber(1.0))
+  assert roundtrip(JNumber(1.0e20))
   assert roundtrip(JString("true\n\"quoted\""))
   assert roundtrip(JArray([]))
   assert roundtrip(JObject([]))
@@ -23,7 +26,7 @@ test "scalars and empty collections round-trip" {
 test "nested sorted unique-key objects round-trip exactly" {
   -- Decode currently sorts object keys recursively; encode preserves list order.
   assert roundtrip(JObject([
-    {key: "a", value: JArray([JObject([{key: "x", value: JNumber(1.0)}]), JNull])},
+    {key: "a", value: JArray([JObject([{key: "x", value: JNumber(1.0)}, {key: "i", value: JInt(1)}]), JNull])},
     {key: "b", value: JString("日本")}
   ]))
 }

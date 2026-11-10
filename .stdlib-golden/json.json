@@ -6,6 +6,7 @@
       "ctors": [
         "JArray(list[Json])",
         "JBool(bool)",
+        "JInt(int)",
         "JNull",
         "JNumber(float)",
         "JObject(list[{key: string, value: Json}])",

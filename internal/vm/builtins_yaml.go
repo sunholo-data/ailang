@@ -38,6 +38,7 @@ var jsonCtorNames = [...]string{
 	jsonTagJString: "JString",
 	jsonTagJArray:  "JArray",
 	jsonTagJObject: "JObject",
+	jsonTagJInt:    "JInt",
 }
 
 // vmJsonToEval converts a VM Json ADT into the evaluator's TaggedValue form.
@@ -71,6 +72,11 @@ func vmJsonToEval(v bytecode.Value) (eval.Value, error) {
 		default:
 			return nil, fmt.Errorf("JNumber: expected numeric, got tag %d", f.Tag)
 		}
+	case jsonTagJInt:
+		if f.Tag != bytecode.TagInt {
+			return nil, fmt.Errorf("JInt: expected int, got tag %d", f.Tag)
+		}
+		field = &eval.IntValue{Value: int(f.Int)}
 	case jsonTagJString:
 		field = &eval.StringValue{Value: f.AsString()}
 	case jsonTagJArray:

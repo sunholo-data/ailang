@@ -1152,10 +1152,27 @@
         "production",
         "latest"
       ],
-      "notes": "Correct six teaching errors found writing canonical examples (semicolons vs fmt, **, mapSlicesJoin, verifyWithKid, record patterns, no int max/min, non-exhaustive match). Amended in place 2026-11-09 (#1443): IFC examples drop `pure` beside `! {Net}`/`! {Declassify}` rows, which the checker now rejects; `pure` means `! {}`."
+      "notes": "Correct six teaching errors found writing canonical examples (semicolons vs fmt, **, mapSlicesJoin, verifyWithKid, record patterns, no int max/min, non-exhaustive match). Amended in place 2026-11-09 (#1443): IFC examples drop `pure` beside `! {Net}`/`! {Declassify}` rows, which the checker now rejects; `pure` means `! {}`.",
+      "frozen": {
+        "at": "2026-11-10",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
+    },
+    "v0.16.13": {
+      "file": "prompts/v0.16.13.md",
+      "hash": "8cf251b6b65ba603149cde5ce34a8ba2417aa9f98be56fadfe2c6052732deb8a",
+      "description": "JSON numbers: JInt for integers (exact), match JInt and JNumber or use the accessors, getInt never truncates, decode takes exactly one value",
+      "created": "2026-11-10",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "JSON numbers: JInt for integers (exact), match JInt and JNumber or use the accessors, getInt never truncates, decode takes exactly one value"
     }
   },
-  "active": "v0.16.12",
+  "active": "v0.16.13",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

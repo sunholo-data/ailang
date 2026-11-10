@@ -1,13 +1,38 @@
--- json_jint.ail - Integer JSON numbers via the jint() convenience constructor (v1.1.0)
+-- json_jint.ail - Exact integer JSON numbers: JInt (v0.58.x)
 --
--- JSON numbers are floats internally (JNumber(float)). Building an integer-valued
--- number with jnum() means writing jnum(intToFloat(count)); jint(count) is the
--- one-call convenience that does exactly that: jint(n) == jnum(intToFloat(n)).
+-- Json has two number constructors. decode gives JInt(n) for an integer
+-- literal that fits int64 and JNumber(x) for everything else (1.5, 1e3, -0,
+-- integers outside int64). JInt is exact: ids above 2^53 survive a round trip.
+-- jint(n) builds a JInt; jnum(x) builds a JNumber.
+--
+-- A match over Json needs a JInt arm next to its JNumber arm, or integers fall
+-- to the catch-all (`ailang check` warns: TC_MATCH_005). The accessors
+-- asNumber/getNumber/getInt accept both constructors.
 module examples/runnable/json_jint
-import std/json (jint, jo, kv, encode)
+import std/json (Json, JInt, JNumber, decode, encode, jint, jo, kv, getInt, getNumber)
+import std/result (Result, Ok, Err)
 import std/io (println)
 
+func describe(j: Json) -> string = match j {
+  JInt(n) => "integer ${show(n)}",
+  JNumber(x) => "float ${show(x)}",
+  _ => "not a number"
+}
+
 export func main() -> () ! {IO} = {
-  println("encode(jint(42))                 = ${encode(jint(42))}")
-  println("encode(jo([kv(\"count\", jint(42))])) = ${encode(jo([kv("count", jint(42))]))}")
+  println(encode(jo([kv("count", jint(42)), kv("id", jint(1234567890123456789))])))
+  match decode("{\"id\": 1234567890123456789, \"price\": 1187.50, \"qty\": 3}") {
+    Ok(obj) => {
+      println(encode(obj))
+      println(show(getInt(obj, "id")))
+      println(show(getInt(obj, "price")))
+      println(show(getNumber(obj, "qty")))
+      println(describe(jint(7)))
+      println(describe(match decode("7.0") {
+        Ok(j) => j,
+        Err(_) => jint(0)
+      }))
+    },
+    Err(e) => println("decode failed: ${e}")
+  }
 }

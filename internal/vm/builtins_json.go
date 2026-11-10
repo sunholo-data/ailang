@@ -12,6 +12,7 @@ package vm
 //     | JString(string) → tag 3
 //     | JArray(List[Json])                      → tag 4
 //     | JObject(List[{key: string, value: Json}]) → tag 5
+//     | JInt(int)       → tag 6 (appended, so the older tags did not move)
 //
 // Result ADT (std/result.ail): Ok=0, Err=1.
 
@@ -33,6 +34,7 @@ const (
 	jsonTagJString = 3
 	jsonTagJArray  = 4
 	jsonTagJObject = 5
+	jsonTagJInt    = 6
 )
 
 // Result ADT variant tags (must match std/result.ail declaration order).
@@ -87,6 +89,15 @@ func vmEncodeJson(v bytecode.Value, buf *strings.Builder) error {
 		default:
 			return fmt.Errorf("JNumber: expected numeric, got tag %d", f.Tag)
 		}
+
+	case jsonTagJInt:
+		if len(adt.Fields) != 1 {
+			return fmt.Errorf("JInt: expected 1 field, got %d", len(adt.Fields))
+		}
+		if adt.Fields[0].Tag != bytecode.TagInt {
+			return fmt.Errorf("JInt: expected int, got tag %d", adt.Fields[0].Tag)
+		}
+		buf.WriteString(strconv.FormatInt(adt.Fields[0].Int, 10))
 
 	case jsonTagJString:
 		if len(adt.Fields) != 1 {
@@ -188,148 +199,42 @@ func builtinJsonDecode(args []bytecode.Value) (bytecode.Value, error) {
 	if args[0].Tag != bytecode.TagString {
 		return bytecode.Value{}, fmt.Errorf("__json_decode: expected string, got tag %d", args[0].Tag)
 	}
-	input := args[0].AsString()
-
-	b := vmJSONBuilder{decoder: json.NewDecoder(strings.NewReader(input))}
-	b.decoder.UseNumber()
-
-	jsonVal, err := b.build()
+	jsonVal, err := eval.DecodeJSON[bytecode.Value](args[0].AsString(), vmJSONSink{})
 	if err != nil {
 		return vmResultErr(err.Error()), nil
 	}
 	return vmResultOk(jsonVal), nil
 }
 
-type vmJSONFrameType int
+// vmJSONSink builds bytecode Json values for the shared eval.DecodeJSON walk,
+// so the VM and the evaluator decode with one implementation (B1/B2/B3).
+type vmJSONSink struct{}
 
-const (
-	vmFrameArray vmJSONFrameType = iota
-	vmFrameObject
-)
+var _ eval.JSONSink[bytecode.Value] = vmJSONSink{}
 
-type vmJSONFrame struct {
-	typ     vmJSONFrameType
-	values  []bytecode.Value // arrays
-	kvPairs []bytecode.Value // objects: list of {key, value} records
-	lastKey string
+func (vmJSONSink) Null() bytecode.Value           { return vmMakeJNull() }
+func (vmJSONSink) Bool(b bool) bytecode.Value     { return vmMakeJBool(b) }
+func (vmJSONSink) String(s string) bytecode.Value { return vmMakeJString(s) }
+func (vmJSONSink) Int(n int64) bytecode.Value {
+	return bytecode.NewADT(jsonTagJInt, "JInt", []bytecode.Value{bytecode.NewInt(n)})
+}
+func (vmJSONSink) Float(f float64) bytecode.Value {
+	return bytecode.NewADT(jsonTagJNumber, "JNumber", []bytecode.Value{bytecode.NewFloat(f)})
+}
+func (vmJSONSink) Array(elems []bytecode.Value) bytecode.Value {
+	return bytecode.NewADT(jsonTagJArray, "JArray", []bytecode.Value{bytecode.NewList(elems)})
 }
 
-type vmJSONBuilder struct {
-	decoder *json.Decoder
-	stack   []vmJSONFrame
-	result  *bytecode.Value
-}
-
-func (b *vmJSONBuilder) build() (bytecode.Value, error) {
-	for {
-		tok, err := b.decoder.Token()
-		if err != nil {
-			if err.Error() == "EOF" {
-				break
-			}
-			return bytecode.Value{}, fmt.Errorf("invalid json: %s", err.Error())
-		}
-
-		switch v := tok.(type) {
-		case json.Delim:
-			switch v {
-			case '{':
-				b.pushObject()
-			case '}':
-				obj := b.popObject()
-				b.addValue(obj)
-			case '[':
-				b.pushArray()
-			case ']':
-				arr := b.popArray()
-				b.addValue(arr)
-			}
-		case string:
-			if b.inObject() && b.expectingKey() {
-				b.setKey(v)
-			} else {
-				b.addValue(vmMakeJString(v))
-			}
-		case json.Number:
-			num, err := vmMakeJNumber(v)
-			if err != nil {
-				return bytecode.Value{}, err
-			}
-			b.addValue(num)
-		case bool:
-			b.addValue(vmMakeJBool(v))
-		case nil:
-			b.addValue(vmMakeJNull())
-		}
-
-		if len(b.stack) == 0 && b.result != nil {
-			break
-		}
-	}
-
-	if len(b.stack) != 0 {
-		return bytecode.Value{}, fmt.Errorf("unexpected end of input")
-	}
-	if b.result == nil {
-		return bytecode.Value{}, fmt.Errorf("no JSON value found")
-	}
-	return *b.result, nil
-}
-
-func (b *vmJSONBuilder) pushObject() {
-	b.stack = append(b.stack, vmJSONFrame{typ: vmFrameObject})
-}
-
-func (b *vmJSONBuilder) popObject() bytecode.Value {
-	frame := b.stack[len(b.stack)-1]
-	b.stack = b.stack[:len(b.stack)-1]
-	return bytecode.NewADT(jsonTagJObject, "JObject", []bytecode.Value{bytecode.NewList(frame.kvPairs)})
-}
-
-func (b *vmJSONBuilder) pushArray() {
-	b.stack = append(b.stack, vmJSONFrame{typ: vmFrameArray})
-}
-
-func (b *vmJSONBuilder) popArray() bytecode.Value {
-	frame := b.stack[len(b.stack)-1]
-	b.stack = b.stack[:len(b.stack)-1]
-	return bytecode.NewADT(jsonTagJArray, "JArray", []bytecode.Value{bytecode.NewList(frame.values)})
-}
-
-func (b *vmJSONBuilder) addValue(val bytecode.Value) {
-	if len(b.stack) == 0 {
-		b.result = &val
-		return
-	}
-	frame := &b.stack[len(b.stack)-1]
-	if frame.typ == vmFrameArray {
-		frame.values = append(frame.values, val)
-	} else {
-		kv := bytecode.NewRecord([]bytecode.RecordField{
-			{Name: "key", Value: bytecode.NewString(frame.lastKey)},
-			{Name: "value", Value: val},
+// Object builds JObject([{key, value}]) in source order.
+func (vmJSONSink) Object(keys []string, vals []bytecode.Value) bytecode.Value {
+	pairs := make([]bytecode.Value, len(keys))
+	for i, k := range keys {
+		pairs[i] = bytecode.NewRecord([]bytecode.RecordField{
+			{Name: "key", Value: bytecode.NewString(k)},
+			{Name: "value", Value: vals[i]},
 		})
-		frame.kvPairs = append(frame.kvPairs, kv)
-		frame.lastKey = ""
 	}
-}
-
-func (b *vmJSONBuilder) setKey(key string) {
-	if len(b.stack) > 0 {
-		b.stack[len(b.stack)-1].lastKey = key
-	}
-}
-
-func (b *vmJSONBuilder) inObject() bool {
-	return len(b.stack) > 0 && b.stack[len(b.stack)-1].typ == vmFrameObject
-}
-
-func (b *vmJSONBuilder) expectingKey() bool {
-	if len(b.stack) == 0 {
-		return false
-	}
-	f := &b.stack[len(b.stack)-1]
-	return f.typ == vmFrameObject && f.lastKey == ""
+	return bytecode.NewADT(jsonTagJObject, "JObject", []bytecode.Value{bytecode.NewList(pairs)})
 }
 
 // Json ADT constructors for bytecode values.
@@ -340,16 +245,6 @@ func vmMakeJNull() bytecode.Value {
 
 func vmMakeJBool(b bool) bytecode.Value {
 	return bytecode.NewADT(jsonTagJBool, "JBool", []bytecode.Value{bytecode.NewBool(b)})
-}
-
-// vmMakeJNumber mirrors the registry makeJNumber: canonical
-// eval.ParseJSONNumber, out-of-range literals are errors.
-func vmMakeJNumber(n json.Number) (bytecode.Value, error) {
-	f, err := eval.ParseJSONNumber(n)
-	if err != nil {
-		return bytecode.Value{}, err
-	}
-	return bytecode.NewADT(jsonTagJNumber, "JNumber", []bytecode.Value{bytecode.NewFloat(f)}), nil
 }
 
 func vmMakeJString(s string) bytecode.Value {

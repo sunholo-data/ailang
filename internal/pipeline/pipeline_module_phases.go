@@ -295,6 +295,7 @@ func (st *modulePipelineState) compileAllAndFinalize() error {
 	for _, modID := range argOrderModIDs {
 		st.result.Warnings = append(st.result.Warnings, DetectArgOrderWarnings(st.compiledUnits[modID].Core)...)
 		st.result.Warnings = append(st.result.Warnings, DetectTakeAfterFlatMap(st.compiledUnits[modID].Core)...)
+		st.result.Warnings = append(st.result.Warnings, DetectJSONIntArm(st.compiledUnits[modID])...)
 		st.result.Warnings = append(st.result.Warnings,
 			DetectStrictFallbacks(st.compiledUnits[modID].Surface, st.compiledUnits[modID].Core)...)
 	}
