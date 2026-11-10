@@ -182,6 +182,7 @@ const sidebars = {
             'guides/wasm-ai-step-byo-key',
             'guides/serve-api',
             'guides/mcp-connectors',
+            'guides/hosted-executor',
           ],
         },
         {

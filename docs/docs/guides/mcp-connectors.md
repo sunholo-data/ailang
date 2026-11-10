@@ -3,21 +3,43 @@ reviewed: 2026-11-05
 reviewBy: 2027-02-05
 ---
 
-# Publish an AILANG service as a Claude / ChatGPT connector
+# Publish an AILANG service as an MCP connector
 
 This guide takes an AILANG `serve-api` service and gets it ready for **Anthropic's connector
-directory** (claude.ai) and **OpenAI's ChatGPT plugin directory**: tool titles and hints, sign-in
-with OAuth, file input, a readiness check and a submission checklist.
+directory** (claude.ai), **OpenAI's ChatGPT plugin directory**, **Microsoft Copilot** and
+**Google's Gemini surfaces**: tool titles and hints, sign-in with OAuth, file input, a readiness
+check and a submission checklist.
 
-The worked example is **AILANG Parse**, which is live at
-`https://docparse.ailang.sunholo.com/mcp/connect/` and passes the Anthropic checks today.
+Two AILANG services run this way in production and are the worked examples:
+
+| Service | Listed URL | What it shows |
+|---|---|---|
+| **AILANG Parse** | `https://docparse.ailang.sunholo.com/mcp/connect/` | OAuth with sign-in on demand, file input through `sunholo/mcp_files`, an MCP Apps upload widget |
+| **AILANG executor** | `https://executor.ailang.sunholo.com/mcp/connect/` | Sandboxed code execution, per-user rate limits, sign-in with any Google account. See [Hosted AILANG executor](./hosted-executor.md) |
+
+## Where an AILANG MCP service can appear
+
+All of these hosts speak remote MCP over Streamable HTTP, so one `/mcp/connect/` URL serves them.
+What differs is the OAuth client model each host uses (status on 2026-11-10):
+
+| Host | Client model it uses | AILANG today | Section |
+|---|---|---|---|
+| **Claude** (claude.ai, desktop, mobile) | CIMD | ✅ Works; both demos pass `ailang mcp check` | §4, §8 |
+| **ChatGPT** (developer mode, plugin directory) | CIMD | ✅ Built, CIMD and `iss` in place; a live sign-in is not recorded yet | §4, §8 |
+| **Microsoft 365 Copilot**, **Copilot Studio** | Pre-registered client or DCR | ⚠️ Supported by `sunholo/mcp_oauth` 0.2.0 when switched on; not yet tried | §7 |
+| **Gemini Enterprise**, MCP data store | IAM, or a pre-registered client | ✅ IAM works; ⚠️ OAuth supported by 0.2.0, not yet tried | §6 |
+| **Gemini app and Search** (Connected Apps) | CIMD, then DCR; stable refresh; revocation | ⚠️ Supported by 0.2.0 when switched on; needs Google's preview admission | §6 |
+| **Gemini Enterprise**, A2A agent | A2A v0.3 | ❌ `serve-api --a2a` is pre-0.2 | §6 |
 
 > **Versions.** The listed surface, `@mcp_auth`, `@mcp_secret`, `@mcp_agent_only`,
 > `@mcp_token_verifier`, `--oauth-issuer` and `ailang mcp check`: since **v0.51.0**.
-> `sunholo/mcp_oauth` needs **v0.52.0** or later. The no-trailing-slash fix that claude.ai's connector
-> check needs: **v0.52.3**. `securitySchemes` for ChatGPT, `@mcp_file` and MCP Apps widgets
-> (`@mcp_ui_resource`, `@mcp_ui`, `@mcp_app_only`): **v0.52.4**. Every snippet on this page was
-> checked with `ailang check` on a build of `dev` at the v0.52.4 release commit, on 2026-10-07.
+> `sunholo/mcp_oauth` needs **v0.52.0** or later; its 0.2.0 client models (pre-registered
+> clients, DCR, stable refresh, revocation) were published on 2026-11-05. The no-trailing-slash fix
+> that claude.ai's connector check needs: **v0.52.3**. `securitySchemes` for ChatGPT, `@mcp_file`
+> and MCP Apps widgets (`@mcp_ui_resource`, `@mcp_ui`, `@mcp_app_only`): **v0.52.4**. Typed
+> integer and float parameters on every surface, and no module inventory on `/mcp/connect/`:
+> **v0.57.4**. The snippets in §2–§5 were checked with `ailang check` on 2026-10-07 (v0.52.4), and
+> the §6 snippet on 2026-11-10 against `sunholo/mcp_oauth` 0.2.0.
 
 This page builds on the [Serve API guide](./serve-api.md), which documents each annotation in
 detail. Read its [MCP section](./serve-api.md#mcp-model-context-protocol) first if you have not
@@ -529,31 +551,90 @@ AILANG Parse uses all three paths. If none of them is available to a client, the
 a public URL, or a clear message that says what to do. **Never** let the model fall back to parsing
 the file itself. Parse's tool descriptions say so explicitly.
 
-## 6. Google platforms: what works today
+## 6. Google platforms
 
-Google has three ways in. As of 2026-11-05, an AILANG service can use **none of them with
-per-user sign-in** yet. The gaps are in `sunholo/mcp_oauth` and `serve-api`, and the fix is
-designed in
-[M-MCP-OAUTH-CLIENT-MODELS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_57_2/m-mcp-oauth-client-models.md).
+Google has three ways in. Two of them are remote MCP, so they reuse the `/mcp/connect/` surface
+and differ only in the OAuth client model they need. The third is A2A, which AILANG does not
+serve in a form Google accepts yet.
 
-| Google surface | What it needs | Supported today? |
+| Google surface | What it needs | AILANG today (2026-11-10) |
 |---|---|---|
-| **Gemini Enterprise: custom MCP server data store.** An admin adds your remote MCP URL, and your tools become GE "actions" | Streamable HTTP. For per-user sign-in, an OAuth client that the admin pre-registers at your server: a client ID and secret, plus redirect `https://vertexaisearch.cloud.google.com/oauth-redirect` | **Without sign-in, yes.** With "No authentication" selected and Cloud Run IAM on a default `*.run.app` URL, GE sends a Google-signed ID token for its service agent. The AILANG executor runs this way in dev. **With OAuth, no:** `sunholo/mcp_oauth` 0.1.x accepts only CIMD public clients, with no client secrets. That is milestone M1a of the design |
-| **Google Connected Apps** (the Gemini app and Search AI Mode, preview since 2026-10-28) | Remote MCP. CIMD, then DCR (Google's OAuth guide also asks for a `registration_endpoint`). A **non-rotating** refresh token. A `/revoke` endpoint that Google calls on unlink | **No.** 0.1.x has no `registration_endpoint`, always rotates refresh tokens, and has no revocation endpoint (milestones M1b and M1c). Onboarding steps are in [m-google-connected-apps-distribution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/m-google-connected-apps-distribution.md) |
-| **Gemini Enterprise: A2A agent** | An A2A **v0.3** agent card and task endpoint | **No.** `serve-api --a2a` predates A2A 0.2 (`tasks/send` only), and its A2A path is not behind the Bearer gate. You don't need A2A for the MCP data store above. Connected Apps forbids agent-to-agent use |
+| **Gemini Enterprise: custom MCP server data store.** An admin adds your remote MCP URL, and your tools become GE "actions" | Streamable HTTP. For per-user sign-in, an OAuth client that the admin pre-registers at your server: a client ID and secret, plus redirect `https://vertexaisearch.cloud.google.com/oauth-redirect` | **Without sign-in: works, observed.** With "No authentication" selected and Cloud Run IAM on a default `*.run.app` URL, GE sends a Google-signed ID token for its service agent. The AILANG executor runs this way in dev. **With sign-in: built, not yet tried against GE.** `sunholo/mcp_oauth` 0.2.0 accepts pre-registered confidential clients (`confidential: true`), so you can mint a client for the GE admin. Neither demo service has switched it on yet |
+| **Google Connected Apps** (the Gemini app and Search AI Mode, preview since 2026-10-28) | Remote MCP. CIMD, then DCR (Google's OAuth guide also asks for a `registration_endpoint`). A **non-rotating** refresh token. A revocation endpoint that Google calls when a user unlinks | **Built in `sunholo/mcp_oauth` 0.2.0, off by default:** `dcr: true` serves `POST /oauth/register` and advertises `registration_endpoint`, `revocation: true` serves RFC 7009 `/oauth/revoke`, and a client can be given a `stable` refresh policy. Listing needs Google's preview admission. Onboarding steps are in [m-google-connected-apps-distribution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/m-google-connected-apps-distribution.md) |
+| **Gemini Enterprise: A2A agent** | An A2A **v0.3** agent card (with `protocolVersion`) and the `message/send` / `message/stream` methods | **Not supported.** `serve-api --a2a` predates A2A 0.2: it answers only `tasks/send`, and its A2A path is not behind the Bearer gate. You don't need A2A for the MCP data store above, and Connected Apps forbids agent-to-agent use. The upgrade is planned in [M-AILANG-EXECUTOR-GE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_55_0/m-ailang-executor-gemini-enterprise.md) (P2) |
 
-What to do now:
-- **For GE with IAM only**, deploy on a default `*.run.app` URL. Grant the GE service agent
-  `roles/run.invoker`, allow the host in the GE org policy, and enable the tools in the GE Actions
-  tab. They start disabled.
-- **For anything that needs the user's identity on Google**, wait for `sunholo/mcp_oauth` 0.2.0.
-  Don't hand-roll client secrets or switch rotation off for every client. A rotation change applies
-  per client.
-- **`serverInfo`** is what reviewers on every platform see. Set it with
-  `serve-api --server-info "name=…,title=…,version=…"`. Without the flag it says `ailang-api` and
-  the AILANG binary version, and `ailang mcp check` WARNs that the listing is unbranded.
+**Turning on the 0.2.0 client models.** Each one is a field on a `ClientConfig`, passed to the 0.2
+entry points (`asMetadataFor`, `beginAuthorizeFor`, `tokenRequest`, `revokeRequest`,
+`registerClientDcr`). The 0.1 entry points behave exactly as 0.1.2 did, so upgrading changes nothing
+until you opt in. Build the config as a record update, so a later field keeps its default:
 
-## 7. Submission checklist
+```ailang
+import pkg/sunholo/mcp_oauth/core (ClientConfig, defaultClientConfig)
+
+-- Gemini Enterprise and Copilot (static): admin-registered confidential clients.
+-- Connected Apps and Copilot (dynamic): DCR. Google unlinking: revocation.
+pure func oauthConfig() -> ClientConfig =
+  { defaultClientConfig() | confidential: true, dcr: true, revocation: true }
+```
+
+`ailang pkg docs sunholo/mcp_oauth` has the full table, the DCR abuse limits
+(`dcrPerCallerPerHour`, `dcrGlobalPerDay`, `dcrRedirectHosts`) and one recipe per platform. Two
+rules from it matter here:
+- A `stable` refresh policy is allowed for confidential clients only. Set it per client, not for
+  the whole server.
+- Show a DCR client as **unverified** on your consent page (`describeRequest` returns
+  `"registered": "dcr"`), because anyone can register one.
+
+**For GE with IAM only**, deploy on a default `*.run.app` URL. Grant the GE service agent
+`roles/run.invoker`, allow the host in the GE org policy, and enable the tools in the GE Actions
+tab. They start disabled. GE sends its ID token only to `*.run.app` hosts, so this path does not
+work on a custom domain.
+
+## 7. Microsoft Copilot
+
+Microsoft has two MCP hosts. Both take a remote **Streamable HTTP** server (Copilot Studio dropped
+SSE in August 2025), and both can sign users in with OAuth. Neither documents CIMD, so the
+`/mcp/connect/` surface needs one of the 0.2.0 client models from §6 before Copilot users can sign
+in.
+
+| Microsoft surface | How you add the server | Sign-in options | What AILANG needs |
+|---|---|---|---|
+| **Microsoft 365 Copilot**: a declarative agent with an MCP plugin | VS Code, Microsoft 365 Agents Toolkit **6.12.0 or later**: Create a New Agent → Declarative Agent → Add an Action → **Start with an MCP Server**, then provision and sideload into a tenant with Custom App Upload and Copilot Access enabled | OAuth with static registration (client ID + secret), OAuth with dynamic registration (DCR), Entra SSO, or None (development only) | Static: `confidential: true` and an `mco_` client whose redirect is `https://teams.microsoft.com/api/platform/v1.0/oAuthRedirect` (add `https://vscode.dev/redirect` too, so the toolkit can fetch tools). Dynamic: `dcr: true` |
+| **Copilot Studio**: an agent tool | Tools → Add a tool → New tool → **Model Context Protocol** (the onboarding wizard): server name, description and URL | None, API key (header or query), or OAuth 2.0: *Dynamic discovery* (DCR found through discovery), *Dynamic* (DCR, endpoints entered by hand) or *Manual* (client ID, secret, authorization, token and refresh URLs, then the callback URL Studio shows after **Create**) | Dynamic discovery: `dcr: true`. Manual: an `mco_` confidential client registered with the callback URL Studio shows |
+
+API-key sign-in works on Copilot Studio, but only against the agent surface `/mcp/`. The listed
+surface never accepts a key, by design (§1).
+
+**Widgets (MCP Apps).** Microsoft 365 Copilot renders MCP Apps widgets and OpenAI Apps SDK widgets
+inline. A widget that `serve-api` serves (`@mcp_ui_resource`, `@mcp_ui`) is an MCP Apps widget, so
+the same HTML works in Claude and Copilot. Three things are different in Copilot:
+
+- **CORS for the widget host.** Copilot renders each server's widgets on its own origin,
+  `https://{sha256 of your MCP host}.widget-renderer.usercontent.microsoft.com` (Microsoft publishes
+  a generator at `https://aka.ms/mcpwidgeturlgenerator`). A widget that calls your server directly
+  needs that exact origin allowed: `serve-api --cors-origin https://<hash>.widget-renderer.usercontent.microsoft.com`.
+  Your identity provider must allow it as well.
+- **No host files.** `openai/fileParams` is not supported, and neither is `window.openai.uploadFile`.
+  Files reach an AILANG service in Copilot through the upload widget from `sunholo/mcp_files`, as in
+  claude.ai.
+- **Fewer hints read.** Copilot reads `readOnlyHint` only, not `destructiveHint`, `openWorldHint` or
+  `idempotentHint`. Declare them anyway: the other directories require them.
+
+Microsoft lists every supported widget API and `_meta` field on its MCP Apps page (linked below).
+Copilot also injects `window.openai`, so a widget written for ChatGPT keeps working. Check that each
+`window.openai.*` function exists before calling it, because Copilot leaves some of them undefined.
+
+> **Status.** Copilot rendering MCP Apps widgets was confirmed live on 2026-07-08 with the
+> aitana-labs platform, a Python sibling of `serve-api`. There, Copilot honoured both the MCP Apps
+> postMessage bridge and `window.openai`; only CORS and OAuth needed server changes. No AILANG
+> service has been added to Copilot yet, so treat the steps above as the first thing to test.
+
+Sources (read 2026-11-10):
+[Build a plugin for a declarative agent from an MCP server](https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/build-mcp-plugins),
+[MCP apps in Microsoft 365 Copilot](https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/plugin-mcp-apps),
+[Connect your agent to an existing MCP server (Copilot Studio)](https://learn.microsoft.com/en-us/microsoft-copilot-studio/mcp-add-existing-server-to-agent).
+
+## 8. Submission checklist
 
 `mcp check` covers the wire. Reviewers also look at everything below. The list comes from the
 AILANG Parse submission kit (vendor pages re-read 2026-10-06; they change).
@@ -624,7 +705,8 @@ needs a paid plan, and the Owner role on Team or Enterprise)
   [vendor sources](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_51_0/m-serveapi-directory-ready-sources.md),
   [`sunholo/mcp_oauth`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-mcp-oauth-package.md),
   [file handoff](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_53_0/m-mcp-file-handoff.md).
-- Live example: `https://docparse.ailang.sunholo.com/mcp/connect/` (AILANG Parse).
+- Live examples: `https://docparse.ailang.sunholo.com/mcp/connect/` (AILANG Parse) and
+  `https://executor.ailang.sunholo.com/mcp/connect/` (the [hosted executor](./hosted-executor.md)).
 
 ### Checking consent page framing
 

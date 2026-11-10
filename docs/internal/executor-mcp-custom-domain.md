@@ -1,11 +1,15 @@
 # Executor MCP on a custom domain (v1.0 gate G4(b)): design and cutover runbook
 
-**Status, 2026-11-09:** the Terraform change is written, tested and waiting:
-[ailang-multivac#12](https://github.com/sunholo-data/ailang-multivac/pull/12) (open, mergeable,
-`terraform test` 23/23 on `tests/executor_mcp_oauth.tftest.hcl`, re-run 2026-11-09). Nothing is
-applied. **G4(b) is blocked on three manual steps that only Mark can take**: the GoDaddy CNAME,
-the domain mapping, and the merge and promotion of #12. They are listed under "Decisions and
-actions for Mark" below.
+**Status, 2026-11-10: done.** `https://executor.ailang.sunholo.com` is live. The GoDaddy CNAME
+(`executor.ailang` → `ghs.googlehosted.com.`) and the Cloud Run domain mapping are in place, the
+certificate is issued, and [ailang-multivac#12](https://github.com/sunholo-data/ailang-multivac/pull/12)
+is merged and on `prod` (`e752cc2`). The protected-resource metadata names the custom domain
+(`authorization_servers: ["https://executor.ailang.sunholo.com"]`), `serverInfo` is
+`executor (AILANG Executor) 0.57.4`, and `ailang mcp check` passes every check except tool
+annotations: the 22 `mcp_tools/` docs tools had no title or hint, fixed on `dev` in `4f9dd4835`.
+That fix reaches prod with the next AILANG release, once `executor_mcp_image_tag` in
+`environments/prod/terraform.tfvars` moves to it. The run.app URL keeps working. Sections 1–3 below are
+the record from before the cutover.
 
 Gate text ([v1-mission.md](../../design_docs/v1-mission.md), "The v1.0 bar — v3", G4): *prod is
 served on a stable custom domain (the `docparse.ailang.sunholo.com` precedent), not a raw
