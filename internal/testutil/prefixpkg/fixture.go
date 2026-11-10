@@ -16,8 +16,9 @@ import (
 	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
-// Canonical is the one identity every spelling of the shape module must map
-// to: the published path.
+// Canonical is the one identity every spelling of the shape module maps to in
+// a CONSUMER's build (acme/app): the published path. Checked inside acme/shapes
+// itself, the identity is the package's own spelling, PrefixSpelling.
 const Canonical = "pkg/acme/shapes/types/shape"
 
 // PrefixSpelling is how the shapes package's own files spell the module.

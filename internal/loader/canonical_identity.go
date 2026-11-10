@@ -8,7 +8,7 @@ import (
 
 // One module file, one identity (M1b of m-v1-nominal-type-identity).
 //
-// A package's module can be named three ways: by its published path
+// A package's module can be named several ways: by its published path
 // (`pkg/<vendor>/<name>/<module>`), by the package's `module_prefix`
 // (`<prefix>/<module>`, what the package's own files write), and — inside the
 // root package — by the bare self-import (`<vendor>/<name>/<module>`). The
@@ -16,14 +16,21 @@ import (
 // was parsed, type-checked and evaluated twice under two module IDs: two
 // copies of every type it declares, and its module-level code run twice.
 //
-// canonicalImportPath maps every spelling that the package resolver answers to
-// ONE identity, the published `pkg/<vendor>/<name>/<module>` path:
+// canonicalImportPath maps every spelling the package resolver answers to ONE
+// identity per build:
 //
-//   - it is unique in a build: package names are unique in the lock file, while
-//     a module_prefix may be shared by several packages;
-//   - it is the same whether the package is the root being checked in its own
-//     repository or a dependency installed under ~/.ailang;
-//   - it is already the identity the loader gives relative (`./x`) imports.
+//   - a DEPENDENCY's module is `pkg/<vendor>/<name>/<module>`, the path its
+//     consumers write. It is unique in a build (package names are unique in
+//     the lock; a module_prefix may be shared by several dependencies), and it
+//     is the identity `./x` imports inside a dependency already had.
+//   - the ROOT package's own module keeps the spelling the package itself
+//     writes: `<prefix>/<module>` when it declares a module_prefix, otherwise
+//     `<vendor>/<name>/<module>`. That is the ID those modules always had when
+//     reached by their usual spelling (and the path-derived ID of the same file
+//     checked as an entry), so diagnostics, serve-api dispatch and traces of a
+//     package checked in its own repository do not change; only the other
+//     spellings (`pkg/<root>/…`, the bare form of a prefixed root) fold into it.
+//     MOD013 already forbids a dependency to share the root's prefix.
 //
 // The mapping is logical (package name + module path), never the file's
 // realpath, so two vendored copies of different packages stay distinct even
@@ -37,7 +44,10 @@ func (ml *ModuleLoader) canonicalImportPath(path string) string {
 	if canon, ok := ml.canonicalOf[canonPath]; ok {
 		return canon
 	}
-	canon := ml.resolveCanonicalSpelling(canonPath)
+	canon := canonPath
+	if pkgName, rest, ok := ml.resolvePackageSpelling(canonPath); ok {
+		canon = ml.packageModuleID(pkgName, rest)
+	}
 	if ml.canonicalOf == nil {
 		ml.canonicalOf = make(map[string]string)
 	}
@@ -45,57 +55,101 @@ func (ml *ModuleLoader) canonicalImportPath(path string) string {
 	return canon
 }
 
-// resolveCanonicalSpelling is canonicalImportPath without the memo. It tries
-// the spellings in the order Load's own branches try them, so the file it
-// names is the file Load would have read for the original spelling.
-func (ml *ModuleLoader) resolveCanonicalSpelling(canonPath string) string {
+// resolvePackageSpelling reports which package and module a spelling names,
+// when the package resolver answers it. rest is "" for the package's root
+// module or "/<module path>". It tries the spellings in the order Load's own
+// branches try them, so the file it names is the file Load would read for the
+// original spelling.
+func (ml *ModuleLoader) resolvePackageSpelling(canonPath string) (pkgName, rest string, ok bool) {
 	switch {
-	case strings.HasPrefix(canonPath, "./"), strings.HasPrefix(canonPath, "../"),
-		strings.HasPrefix(canonPath, "pkg/"), strings.HasPrefix(canonPath, "std/"),
+	case strings.HasPrefix(canonPath, "../"), strings.HasPrefix(canonPath, "std/"),
 		strings.HasSuffix(canonPath, ".ail"):
-		return canonPath
+		return "", "", false
+	case strings.HasPrefix(canonPath, "pkg/"):
+		// The published path. ResolveImport takes it without "pkg/".
+		bare := strings.TrimPrefix(canonPath, "pkg/")
+		parts := strings.SplitN(bare, "/", 3)
+		if len(parts) < 2 {
+			return "", "", false
+		}
+		if _, err := ml.pkgLoader.ResolveImport(bare); err != nil {
+			return "", "", false
+		}
+		return parts[0] + "/" + parts[1], strings.TrimPrefix(bare, parts[0]+"/"+parts[1]), true
 	}
 	// Bare self-import: `import sunholo/linkedin/types` inside sunholo/linkedin.
+	// Load does not fall through when this fails, so neither do we.
 	if ml.currentPackageName != "" && pathMatchesPackagePrefix(canonPath, ml.currentPackageName) {
-		if _, err := ml.pkgLoader.ResolveImport(canonPath); err == nil {
-			return "pkg/" + canonPath
+		if _, err := ml.pkgLoader.ResolveImport(canonPath); err != nil {
+			return "", "", false
 		}
-		return canonPath
+		return ml.currentPackageName, strings.TrimPrefix(canonPath, ml.currentPackageName), true
 	}
 	// module_prefix spelling: `import docparse/types/document` where
 	// sunholo/ailang_parse declares module_prefix = "docparse".
-	if ml.modulePrefixMap == nil {
-		return canonPath
-	}
 	firstSeg, rest := canonPath, ""
 	if idx := strings.Index(canonPath, "/"); idx >= 0 {
 		firstSeg, rest = canonPath[:idx], canonPath[idx:]
 	}
-	for _, pkgName := range ml.modulePrefixMap[firstSeg] {
-		if _, err := ml.pkgLoader.ResolveImport(pkgName + rest); err == nil {
-			return "pkg/" + pkgName + rest
+	for _, name := range ml.modulePrefixMap[firstSeg] {
+		if _, err := ml.pkgLoader.ResolveImport(name + rest); err == nil {
+			return name, rest, true
 		}
 	}
-	return canonPath
+	return "", "", false
+}
+
+// packageModuleID is the canonical module ID of module rest of package
+// pkgName in this build (see canonicalImportPath).
+func (ml *ModuleLoader) packageModuleID(pkgName, rest string) string {
+	if pkgName != ml.currentPackageName || ml.currentPackageName == "" {
+		return "pkg/" + pkgName + rest
+	}
+	if prefix := ml.prefixOf(pkgName); prefix != "" {
+		return prefix + rest
+	}
+	return pkgName + rest
+}
+
+// prefixOf returns the module_prefix registered for pkgName, or "".
+func (ml *ModuleLoader) prefixOf(pkgName string) string {
+	for prefix, names := range ml.modulePrefixMap {
+		for _, name := range names {
+			if name == pkgName {
+				return prefix
+			}
+		}
+	}
+	return ""
 }
 
 // canonicalizeImportDecl rewrites one import to its canonical identity,
-// keeping the author's spelling in WrittenPath for diagnostics. Relative
-// imports are normalised by extractImports before this runs.
+// keeping the author's spelling in WrittenPath for diagnostics. A relative
+// import arrives here already turned into `pkg/<declared dir>/<name>` by
+// extractImports; its written form is `./<name>`.
 func (ml *ModuleLoader) canonicalizeImportDecl(imp *ast.ImportDecl) {
-	if imp == nil || imp.IsRelative {
+	if imp == nil {
 		return
 	}
 	canon := ml.canonicalImportPath(imp.Path)
-	if canon == imp.Path || !strings.HasPrefix(canon, "pkg/") {
+	if canon == imp.Path {
 		return
 	}
-	imp.WrittenPath = imp.Path
+	written := imp.Path
+	if imp.IsRelative {
+		written = "./" + imp.RelativePath
+	}
+	if imp.WrittenPath == "" {
+		imp.WrittenPath = written
+	}
 	imp.Path = canon
-	imp.IsPackage = true
-	parts := strings.SplitN(strings.TrimPrefix(canon, "pkg/"), "/", 3)
-	if len(parts) >= 2 {
-		imp.PackageName = parts[0] + "/" + parts[1]
+	imp.IsPackage = strings.HasPrefix(canon, "pkg/")
+	imp.PackageName = ""
+	if imp.IsPackage {
+		parts := strings.SplitN(strings.TrimPrefix(canon, "pkg/"), "/", 3)
+		if len(parts) >= 2 {
+			imp.PackageName = parts[0] + "/" + parts[1]
+		}
 	}
 }
 

@@ -22,31 +22,40 @@ func writeModule(t *testing.T, dir, rel, source string) string {
 	return path
 }
 
-// prefixLoader is a loader inside root package `sunholo/ailang_parse`
-// (module_prefix "docparse") whose types/document module is exported.
-func prefixLoader(t *testing.T) (*ModuleLoader, string) {
+const (
+	parsePkg       = "sunholo/ailang_parse"
+	docPublished   = "pkg/sunholo/ailang_parse/types/document"
+	docPrefix      = "docparse/types/document"
+	docBareSelf    = "sunholo/ailang_parse/types/document"
+	linkedinPkg    = "sunholo/linkedin"
+	postsPublished = "pkg/sunholo/linkedin/posts"
+	postsBare      = "sunholo/linkedin/posts"
+)
+
+// parseLoader is a loader that can see package sunholo/ailang_parse
+// (module_prefix "docparse", types/document exported). root names the package
+// being compiled: "acme/app" makes ailang_parse a dependency, parsePkg makes it
+// the root.
+func parseLoader(t *testing.T, root string) (*ModuleLoader, string) {
 	t.Helper()
 	pkgDir := t.TempDir()
 	doc := writeModule(t, pkgDir, "docparse/types/document.ail",
 		"module docparse/types/document\nexport type Block = Para(string)\nexport func newDoc() -> string = \"doc\"\n")
 	ml := NewModuleLoader(t.TempDir())
-	ml.SetPackageResolver(&mockPkgResolver{files: map[string]string{
-		"sunholo/ailang_parse/types/document": doc,
-	}})
-	ml.SetModulePrefixMap(map[string]string{"sunholo/ailang_parse": "docparse"})
-	ml.SetCurrentPackageName("sunholo/ailang_parse")
+	ml.SetPackageResolver(&mockPkgResolver{files: map[string]string{docBareSelf: doc}})
+	prefixes := map[string]string{parsePkg: "docparse"}
+	if root != parsePkg {
+		prefixes[root] = "app"
+	}
+	ml.SetModulePrefixMap(prefixes)
+	ml.SetCurrentPackageName(root)
 	return ml, doc
 }
 
-func TestCanonicalImportPath_EverySpellingOneIdentity(t *testing.T) {
-	ml, doc := prefixLoader(t)
-	const canonical = "pkg/sunholo/ailang_parse/types/document"
-	spellings := []string{
-		canonical,                             // published path
-		"docparse/types/document",             // module_prefix spelling
-		"sunholo/ailang_parse/types/document", // bare self-import
-		"./" + canonical,                      // a leading ./ is cosmetic
-	}
+// assertOneInstance loads every spelling and checks they all name one module,
+// read once from file, under canonical.
+func assertOneInstance(t *testing.T, ml *ModuleLoader, file, canonical string, spellings []string) {
+	t.Helper()
 	var first *LoadedModule
 	for _, spelling := range spellings {
 		if got := ml.canonicalImportPath(spelling); got != canonical {
@@ -59,8 +68,8 @@ func TestCanonicalImportPath_EverySpellingOneIdentity(t *testing.T) {
 		if loaded.Path != canonical {
 			t.Errorf("Load(%q).Path = %q, want %q", spelling, loaded.Path, canonical)
 		}
-		if loaded.File.Path != doc {
-			t.Errorf("Load(%q) read %s, want %s", spelling, loaded.File.Path, doc)
+		if loaded.File.Path != file {
+			t.Errorf("Load(%q) read %s, want %s", spelling, loaded.File.Path, file)
 		}
 		if first == nil {
 			first = loaded
@@ -77,11 +86,41 @@ func TestCanonicalImportPath_EverySpellingOneIdentity(t *testing.T) {
 	}
 }
 
+func TestCanonicalImportPath_DependencyIsPublishedPath(t *testing.T) {
+	ml, doc := parseLoader(t, "acme/app")
+	// A dependency's own files write the prefix; its consumers write pkg/.
+	assertOneInstance(t, ml, doc, docPublished, []string{docPrefix, docPublished, "./" + docPublished})
+	// The bare vendor/name form is a self-import only inside the root package.
+	if got := ml.canonicalImportPath(docBareSelf); got != docBareSelf {
+		t.Errorf("bare form of a dependency = %q, want it unchanged (not a self-import)", got)
+	}
+}
+
+func TestCanonicalImportPath_RootKeepsItsOwnSpelling(t *testing.T) {
+	ml, doc := parseLoader(t, parsePkg)
+	// Inside the package itself, the prefix spelling is the identity those
+	// modules always had; the other spellings fold into it.
+	assertOneInstance(t, ml, doc, docPrefix, []string{docPublished, docBareSelf, docPrefix})
+}
+
+func TestCanonicalImportPath_RootWithoutPrefixIsBareForm(t *testing.T) {
+	dir := t.TempDir()
+	posts := writeModule(t, dir, "posts.ail", "module sunholo/linkedin/posts\nexport func n() -> int = 1\n")
+	ml := NewModuleLoader(t.TempDir())
+	ml.SetPackageResolver(&mockPkgResolver{files: map[string]string{postsBare: posts}})
+	ml.SetCurrentPackageName(linkedinPkg)
+	// Measured in ailang-packages (packages/linkedin/_smoke.ail): posts was
+	// loaded as both sunholo/linkedin/posts and pkg/sunholo/linkedin/posts.
+	assertOneInstance(t, ml, posts, postsBare, []string{postsPublished, postsBare})
+}
+
 func TestCanonicalImportPath_UnresolvedSpellingUnchanged(t *testing.T) {
-	ml, _ := prefixLoader(t)
+	ml, _ := parseLoader(t, parsePkg)
 	for _, spelling := range []string{
 		"docparse/types/missing",             // prefix matches, resolver rejects
 		"sunholo/ailang_parse/types/missing", // self-import, resolver rejects
+		"pkg/sunholo/ailang_parse/missing",   // published path, resolver rejects
+		"pkg/onesegment",                     // not vendor/name
 		"utils/helpers",                      // no prefix: project-relative
 		"std/io",                             // stdlib is never a package
 		"some/file.ail",                      // explicit file path
@@ -93,8 +132,8 @@ func TestCanonicalImportPath_UnresolvedSpellingUnchanged(t *testing.T) {
 	}
 	// Without a package resolver nothing is a package spelling.
 	bare := NewModuleLoader(t.TempDir())
-	bare.SetModulePrefixMap(map[string]string{"sunholo/ailang_parse": "docparse"})
-	if got := bare.canonicalImportPath("docparse/types/document"); got != "docparse/types/document" {
+	bare.SetModulePrefixMap(map[string]string{parsePkg: "docparse"})
+	if got := bare.canonicalImportPath(docPrefix); got != docPrefix {
 		t.Errorf("without a resolver: got %q, want the spelling unchanged", got)
 	}
 }
@@ -117,29 +156,27 @@ func TestCanonicalImportPath_SharedPrefixIsDeterministic(t *testing.T) {
 }
 
 func TestCanonicalImportPath_MemoClearedWhenInputsChange(t *testing.T) {
-	const prefixSpelling = "docparse/types/document"
-	const selfSpelling = "sunholo/ailang_parse/types/document"
 	// Each setter changes an input of the mapping, so a spelling memoised
 	// before it must be recomputed after it.
 	for _, tc := range []struct {
-		name     string
-		spelling string
-		change   func(*ModuleLoader)
+		name, root, spelling, before, after string
+		change                              func(*ModuleLoader)
 	}{
-		{"SetModulePrefixMap", prefixSpelling, func(ml *ModuleLoader) { ml.SetModulePrefixMap(map[string]string{}) }},
-		{"SetCurrentPackageName", selfSpelling, func(ml *ModuleLoader) { ml.SetCurrentPackageName("") }},
-		{"SetPackageResolver", prefixSpelling, func(ml *ModuleLoader) {
-			ml.SetPackageResolver(&mockPkgResolver{files: map[string]string{}})
-		}},
+		{"SetModulePrefixMap", "acme/app", docPrefix, docPublished, docPrefix,
+			func(ml *ModuleLoader) { ml.SetModulePrefixMap(map[string]string{}) }},
+		{"SetCurrentPackageName", parsePkg, docBareSelf, docPrefix, docBareSelf,
+			func(ml *ModuleLoader) { ml.SetCurrentPackageName("") }},
+		{"SetPackageResolver", "acme/app", docPrefix, docPublished, docPrefix,
+			func(ml *ModuleLoader) { ml.SetPackageResolver(&mockPkgResolver{files: map[string]string{}}) }},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			ml, _ := prefixLoader(t)
-			if got := ml.canonicalImportPath(tc.spelling); !strings.HasPrefix(got, "pkg/") {
-				t.Fatalf("setup: canonicalImportPath(%q) = %q", tc.spelling, got)
+			ml, _ := parseLoader(t, tc.root)
+			if got := ml.canonicalImportPath(tc.spelling); got != tc.before {
+				t.Fatalf("setup: canonicalImportPath(%q) = %q, want %q", tc.spelling, got, tc.before)
 			}
 			tc.change(ml)
-			if got := ml.canonicalImportPath(tc.spelling); got != tc.spelling {
-				t.Errorf("after %s: got %q, want the spelling unchanged (stale memo)", tc.name, got)
+			if got := ml.canonicalImportPath(tc.spelling); got != tc.after {
+				t.Errorf("after %s: got %q, want %q (stale memo)", tc.name, got, tc.after)
 			}
 		})
 	}
@@ -149,15 +186,15 @@ func TestLoad_SpellingFirstStillCachedCanonically(t *testing.T) {
 	// The first Load of a module arrives with a non-canonical spelling: the
 	// instance must still be stored and named under the canonical ID, so a
 	// later canonical Load finds the same instance.
-	ml, _ := prefixLoader(t)
-	first, err := ml.Load("docparse/types/document")
+	ml, _ := parseLoader(t, "acme/app")
+	first, err := ml.Load(docPrefix)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if first.Path != "pkg/sunholo/ailang_parse/types/document" {
-		t.Fatalf("Load(prefix spelling).Path = %q, want the canonical ID", first.Path)
+	if first.Path != docPublished {
+		t.Fatalf("Load(prefix spelling).Path = %q, want %q", first.Path, docPublished)
 	}
-	again, err := ml.Load("pkg/sunholo/ailang_parse/types/document")
+	again, err := ml.Load(docPublished)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -167,31 +204,31 @@ func TestLoad_SpellingFirstStillCachedCanonically(t *testing.T) {
 }
 
 func TestExtractImports_RewritesSpellingKeepsWrittenPath(t *testing.T) {
-	ml, _ := prefixLoader(t)
+	ml, _ := parseLoader(t, "acme/app")
 	file := &ast.File{
 		Module: &ast.ModuleDecl{Path: "docparse/services/x"},
 		Imports: []*ast.ImportDecl{
-			{Path: "docparse/types/document", Symbols: []string{"Block"}},
-			{Path: "pkg/sunholo/ailang_parse/types/document"},
+			{Path: docPrefix, Symbols: []string{"Block"}},
+			{Path: docPublished},
 			{Path: "std/io"},
 		},
 	}
 	got := ml.extractImports(file)
-	want := []string{"pkg/sunholo/ailang_parse/types/document", "pkg/sunholo/ailang_parse/types/document", "std/io"}
+	want := []string{docPublished, docPublished, "std/io"}
 	for i := range want {
 		if got[i] != want[i] {
 			t.Errorf("imports[%d] = %q, want %q", i, got[i], want[i])
 		}
 	}
 	rewritten := file.Imports[0]
-	if rewritten.WrittenPath != "docparse/types/document" || !rewritten.IsPackage || rewritten.PackageName != "sunholo/ailang_parse" {
+	if rewritten.WrittenPath != docPrefix || !rewritten.IsPackage || rewritten.PackageName != parsePkg {
 		t.Errorf("rewritten import = %+v", rewritten)
 	}
 	if file.Imports[1].WrittenPath != "" || file.Imports[2].WrittenPath != "" {
 		t.Errorf("an import already canonical must keep an empty WrittenPath: %q %q",
 			file.Imports[1].WrittenPath, file.Imports[2].WrittenPath)
 	}
-	if got := ImportDisplay(rewritten); got != "pkg/sunholo/ailang_parse/types/document (imported as docparse/types/document)" {
+	if got := ImportDisplay(rewritten); got != docPublished+" (imported as "+docPrefix+")" {
 		t.Errorf("ImportDisplay = %q", got)
 	}
 	if got := ImportDisplay(file.Imports[2]); got != "std/io" {
@@ -202,9 +239,40 @@ func TestExtractImports_RewritesSpellingKeepsWrittenPath(t *testing.T) {
 	}
 }
 
+func TestExtractImports_RootRelativeAndPublishedFoldIntoOwnSpelling(t *testing.T) {
+	// Root package sunholo/linkedin (no prefix): `./posts` becomes
+	// pkg/sunholo/linkedin/posts in extractImports and then the root's own
+	// spelling; so does an explicit pkg/ self-import.
+	dir := t.TempDir()
+	posts := writeModule(t, dir, "posts.ail", "module sunholo/linkedin/posts\nexport func n() -> int = 1\n")
+	ml := NewModuleLoader(t.TempDir())
+	ml.SetPackageResolver(&mockPkgResolver{files: map[string]string{postsBare: posts}})
+	ml.SetCurrentPackageName(linkedinPkg)
+	file := &ast.File{
+		Module: &ast.ModuleDecl{Path: "sunholo/linkedin/feed"},
+		Imports: []*ast.ImportDecl{
+			{Path: "./posts", IsRelative: true, RelativePath: "posts"},
+			{Path: postsPublished, IsPackage: true, PackageName: linkedinPkg},
+			{Path: postsBare},
+		},
+	}
+	got := ml.extractImports(file)
+	for i, imp := range file.Imports {
+		if got[i] != postsBare || imp.Path != postsBare {
+			t.Errorf("import %d = (%q, %q), want %q", i, got[i], imp.Path, postsBare)
+		}
+		if imp.IsPackage || imp.PackageName != "" {
+			t.Errorf("import %d rewritten to the root's own spelling must not be marked a pkg/ import: %+v", i, imp)
+		}
+	}
+	if file.Imports[0].WrittenPath != "./posts" || file.Imports[1].WrittenPath != postsPublished || file.Imports[2].WrittenPath != "" {
+		t.Errorf("WrittenPath = %q, %q, %q", file.Imports[0].WrittenPath, file.Imports[1].WrittenPath, file.Imports[2].WrittenPath)
+	}
+}
+
 func TestGetImportExport_IMP010NamesBoth(t *testing.T) {
-	ml, _ := prefixLoader(t)
-	imp := &ast.ImportDecl{Path: "pkg/sunholo/ailang_parse/types/document", WrittenPath: "docparse/types/document"}
+	ml, _ := parseLoader(t, "acme/app")
+	imp := &ast.ImportDecl{Path: docPublished, WrittenPath: docPrefix}
 	if _, err := ml.GetImportExport(imp, "newDoc"); err != nil {
 		t.Fatalf("exported symbol: %v", err)
 	}
@@ -212,12 +280,12 @@ func TestGetImportExport_IMP010NamesBoth(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected IMP010")
 	}
-	want := "not exported by 'pkg/sunholo/ailang_parse/types/document' (imported as 'docparse/types/document')"
+	want := "not exported by '" + docPublished + "' (imported as '" + docPrefix + "')"
 	if !strings.Contains(err.Error(), want) {
 		t.Fatalf("IMP010 = %q, want substring %q", err.Error(), want)
 	}
 	// An import written canonically names the module once.
-	_, err = ml.GetExport("pkg/sunholo/ailang_parse/types/document", "Missing")
+	_, err = ml.GetExport(docPublished, "Missing")
 	if err == nil || strings.Contains(err.Error(), "imported as") {
 		t.Fatalf("canonical spelling should not add an alias note: %v", err)
 	}

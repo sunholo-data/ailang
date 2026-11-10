@@ -92,18 +92,25 @@ func TestCanonicalModuleIdentity_DependencyReachedByTwoSpellings(t *testing.T) {
 }
 
 func TestCanonicalModuleIdentity_InsideOwnPackageThreeSpellings(t *testing.T) {
+	// Checked in its own repository, the package's modules keep the spelling
+	// the package writes (its module_prefix): the bare self-import and the
+	// published path fold into it.
 	_, shapes := prefixpkg.New(t, nil)
 	result := checkFixture(t, filepath.Join(shapes, "shp", "both.ail"))
 
 	assertOneIdentityPerFile(t, result.Modules)
 	assertImportsResolveToLoaded(t, result.Modules)
-	if _, ok := result.Modules[prefixpkg.Canonical]; !ok {
-		t.Fatalf("canonical module %s not loaded; modules: %v", prefixpkg.Canonical, sortedKeys(result.Modules))
+	if _, ok := result.Modules[prefixpkg.PrefixSpelling]; !ok {
+		t.Fatalf("root module %s not loaded under its own spelling; modules: %v", prefixpkg.PrefixSpelling, sortedKeys(result.Modules))
 	}
-	for _, spelling := range []string{prefixpkg.PrefixSpelling, "acme/shapes/types/shape"} {
+	for _, spelling := range []string{prefixpkg.Canonical, "acme/shapes/types/shape"} {
 		if _, dup := result.Modules[spelling]; dup {
 			t.Errorf("module also loaded under the spelling %s", spelling)
 		}
+	}
+	// The root's own modules are still its own for the effect ceiling.
+	if !isOwnPackageModule(prefixpkg.PrefixSpelling, "acme/shapes") {
+		t.Error("root module under its own spelling must count as own-package")
 	}
 }
 
