@@ -1844,3 +1844,48 @@ No code, policy, skill, ledger status, ticket state or host configuration change
 - Executor: resolver `claude:claude-haiku-5-5` (codex rc 75 handoff; path recipe). **Not spawned**: no pick.
 - Evaluator: resolver `sonnet` (path `agent-tool`) → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, 49,818 tok, 4 tool uses, 36 s. Judge independence: cross-model (controller opus, judge sonnet; same vendor).
 - Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
+
+## 102 — 2026-11-10 — idle: inputs byte-identical to iteration 101; all 27 tickets ruling-gated, independent sonnet judge NONE; nothing designed, planned, built or merged [ADMIN]
+
+**Pick**: NONE. The 27 open tickets and the 28 OPEN decision rows are byte-identical to iteration 101's captures (`cmp` on `tickets.json` and `open-decisions.tsv`; 44 rows, `--check` valid). #2172 has 0 allowlisted comments of 6, and #2039 has none. origin/dev `8dc92cb52..2a7cee7bf` is 64 commits (v0.59.0, release ci-gate, ollama wire types, downstream-check, doc-sample gate, hook installer). None touches a fleet charter, `tools/launchd`, mission skill, `scripts/mission_*` or `internal/mission` file. The step-level screen finds no row that qualifies.
+
+**Orphans / prior record**: the newest record is iteration 101 on draft #2214 (`fleet/i101-record`), stacked on #2200 → #2198 → #2194 → #2173 → #2171 → #2169. origin/dev's log ends at 94. This record stacks on #2214. No `fleet/i102*` branch or worktree existed before this fire.
+
+**Preflight / observe**: armed, gh `sunholo-voight-kampff`, billing CLEAN. The resolved skill (SKILL.md plus 13 resources) matched origin/dev per file, 14/14; pin == origin/dev. Gate 1 base `2a7cee7bf73695c3a1d832241983e8d000a8fa2a@2026-11-10T16:07:40Z`. Dev @ `2a7cee7bf` green: CI, Build and Release and Docs deploy success (27 check runs; one failed Docs deploy run was re-run green on the same SHA). V1 owns any red.
+- **Gate 0 self-notice**: watermark form **rc 2**, the sixth consecutive fleet fire with no watermark file for #2172 or #2039. The `--since 2026-11-10T09:59:57Z` form (iteration 101's Gate 1 base) gave **rc 0**: control 852:10 ok, 0 crash notices, 0 in-window transcript notices.
+- **Inbox (ambient)**: nothing from Mark, no regression. The triage digest again reports the codex judge lane down, matching this fire's codex probe rc 75. Nothing is a `mission-fleet` ticket.
+- [Observations](fleet-mission-evidence/iteration102/observations.md).
+
+**Did** (generator ≠ judge): the controller captured [tickets](fleet-mission-evidence/iteration102/tickets.json) and [OPEN rows](fleet-mission-evidence/iteration102/open-decisions.tsv), plus the dev delta. It then spawned the independent evaluator (sonnet, Agent tool, `MISSION-ROLE: evaluator`, foreground) with the inputs and the fleet admissibility rules, without the controller's conclusion. It made one complete pass and returned [**NONE (idle)**](fleet-mission-evidence/iteration102/idle-judge.md) at 88% confidence:
+- 27/27 tickets are gated behind an OPEN row, each named per ticket in the judge's table. No mechanical-fix ticket exists.
+- None of the 64 dev commits fixes, obsoletes or changes the premise of an open ticket. The release ci-gate's 90-minute poll is a release-workflow gate, not Gate 3b's cap (D-FLEET-21).
+- D-FLEET-43 A stays excluded on iteration 101's ground (no originating ticket, so drafting it would be self-sourcing).
+- The judge flagged D-FLEET-17's "required checks red since 10-13" premise as stale. The controller re-checked: true (the git-exec sites use `gitexec` since `8e9dee07e`; `test`, `docs-gate`, `docs-build` green at `2a7cee7bf`), but already recorded in the row's evidence since iteration 55, so not new. No row edit.
+- Strongest objection (judge's own): a literal reading of the step screen could pick D-FLEET-43 A, and each all-gated fire spends judge tokens. Rebutted by the missing ticket.
+
+No code, policy, skill, ledger status, ticket state or host configuration changed. Unscored: no implementation.
+
+**Ruled out**:
+- Drafting D-FLEET-43 A: no originating ticket (unchanged from iteration 101).
+- Editing D-FLEET-17's row for its stale premise: already recorded since iteration 55; closing it is Mark's ledger edit.
+- Treating the release ci-gate (`5e1484ea1`, `8ca4d6ec3`) as settling D-FLEET-21: a different gate.
+- Merging the 95–101 record stack: #2171 carries iteration 96's design parked for review.
+- Treating the watermark-form rc 2 as "no deaths".
+
+**Retro lane**: no skill edit. The self-notice watermark friction now has five fleet instances (98–102). Not taken, for the earlier reasons: ticket-driven only, and a skill edit on an unmerged record stack reaches no running loop. The `--since <previous Gate 1 base>` workaround held again.
+
+**Progress**: 27 open tickets; clause 1 UNMEASURED, 2 UNMET, 3 MET, 4 met by its letter, 5 preserved. **Goal unmoved.** Harness share 13/20 (log headlines 83–102; 92, 94, 98, 99, 100, 101 and 102 are ADMIN). The last three landings (91/87/86) each moved clause 2, so there is no DRIFT alarm.
+
+**Validation**: darwin/arm64. Record checks in the record commit: `mission_decisions.sh --check`, the STATUS rotation arithmetic plus an archive grep, the canonical heading grep and test, and index regeneration. No code changed, so Gate 3b does not apply. The record ships as a draft PR stacked on #2214.
+
+**Budget**: metered **$0**. Evaluator Agent sonnet 74,042 tok (subscription). Controller tok not reported. Designer, planner and executor spent nothing.
+
+**Next**: any ruling on D-FLEET-16..45, or a new ticket. This is the fifth consecutive idle fire (98–102). Without a ruling, the next fire repeats this screen.
+
+**Routing evidence**: base=2a7cee7bf73695c3a1d832241983e8d000a8fa2a@2026-11-10T16:07:40Z (Gate-1 read; no dev movement before the record).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `claude:claude-opus-5-5` (path recipe). **Not spawned**: no pick. This is a routing outcome, not a spawn failure.
+- Planner: resolver `opus` (codex `gpt-6.1-sol` probe rc 75 → opus, per driver; path agent-tool). **Not spawned**: no pick.
+- Executor: resolver `claude:claude-haiku-5-5` (codex rc 75 handoff; path recipe). **Not spawned**: no pick.
+- Evaluator: resolver `sonnet` (path `agent-tool`) → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, 74,042 tok, 11 tool uses, 62 s. Judge independence: cross-model (controller opus, judge sonnet; same vendor).
+- Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
