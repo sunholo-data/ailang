@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/sunholo-data/ailang/internal/core"
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
@@ -136,7 +137,7 @@ func (g *Generator) generateMatch(match *core.Match) error {
 		if !hasDefault {
 			g.writef("default:\n")
 			g.indent++
-			g.writef("panic(\"non-exhaustive match\")\n")
+			g.writef("panic(%q)\n", noMatchPanicText(match))
 			g.indent--
 		}
 	} else {
@@ -170,7 +171,7 @@ func (g *Generator) generateMatch(match *core.Match) error {
 		if !hasDefault {
 			g.writef("default:\n")
 			g.indent++
-			g.writef("panic(\"non-exhaustive match\")\n")
+			g.writef("panic(%q)\n", noMatchPanicText(match))
 			g.indent--
 		}
 	}
@@ -179,4 +180,20 @@ func (g *Generator) generateMatch(match *core.Match) error {
 	g.indent--
 	g.write("}()")
 	return nil
+}
+
+// noMatchPanicText is the panic message for a generated match with no
+// catch-all: the same RT002 text both interpreters raise, with the match's
+// source position (M-V1-MATCH-EXHAUSTIVENESS M0). The scrutinee's shape is a
+// run-time fact the static text does not carry.
+func noMatchPanicText(match *core.Match) string {
+	mf := &ailerrors.MatchFailureError{}
+	p := match.OriginalSpan()
+	if p.Line == 0 {
+		p = match.Span()
+	}
+	if p.Line > 0 {
+		mf.Pos = p.String()
+	}
+	return mf.Error()
 }

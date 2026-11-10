@@ -22,7 +22,7 @@ import (
 //     arm on failure. See lowerIfChainMatch.
 func LowerMatchStmt(m *core.Match, cti types.CoreTypeInfo) stmt.Stmt {
 	if len(m.Arms) == 0 {
-		return stmt.ExprStmt{Value: stmt.LitUnit{}}
+		return matchFailStmt(m, lowerExpr(m.Scrutinee, cti))
 	}
 	if switchEligible(m.Arms) {
 		return lowerConstructorMatch(m, cti)
@@ -130,8 +130,10 @@ func lowerConstructorMatch(m *core.Match, cti types.CoreTypeInfo) stmt.Stmt {
 		}
 	}
 
-	// The catch-all, if present, is the final arm (switchEligible).
-	var defaultBody []stmt.Stmt
+	// The catch-all, if present, is the final arm (switchEligible). Without
+	// one, Default — and a failed guard, which falls back to Default — is
+	// the RT002 trap: no other arm can match a tag already dispatched.
+	defaultBody := []stmt.Stmt{matchFailStmt(m, scrutinee)}
 	last := m.Arms[len(m.Arms)-1]
 	if _, isCtor := last.Pattern.(*core.ConstructorPattern); !isCtor {
 		defaultBody = append(patternBindings(scrutinee, last.Pattern), armBodyStmts(last, cti)...)
@@ -223,4 +225,16 @@ func lowerLitPatternCond(scrutinee stmt.Expr, p *core.LitPattern) stmt.Expr {
 		Left:  scrutinee,
 		Right: litExpr,
 	}
+}
+
+// matchFailStmt is the RT002 trap that ends a match whose arms are not closed
+// by an unguarded catch-all (M-V1-MATCH-EXHAUSTIVENESS M0). Control reaches it
+// only when no arm matched; without it the match fell off its end and yielded
+// Unit, which failed later at an unrelated site.
+func matchFailStmt(m *core.Match, scrutinee stmt.Expr) stmt.Stmt {
+	p := m.OriginalSpan()
+	if p.Line == 0 {
+		p = m.Span()
+	}
+	return stmt.MatchFail{Scrutinee: scrutinee, File: p.File, Line: p.Line, Col: p.Column}
 }

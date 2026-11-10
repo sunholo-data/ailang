@@ -398,6 +398,17 @@ func (img *BytecodeImage) validateInstruction(p *FuncPrototype, protoIdx, ip int
 			return fmt.Errorf("bytecode: %s: effect args overflow registers", loc())
 		}
 		return nil
+	case OpMatchFail:
+		if err := checkReg(inst.A(), "scrutinee"); err != nil {
+			return err
+		}
+		if err := checkLocalConst(inst.Bx()); err != nil {
+			return err
+		}
+		if pos, _ := p.LookupConstant(int(inst.Bx()), img); pos.Tag != TagString {
+			return fmt.Errorf("bytecode: %s: match position constant is %s, not String", loc(), pos.Tag)
+		}
+		return nil
 	case OpBuiltinCall, OpBuiltinTrap, OpEffectTrap:
 		// Builtin/effect indices live in a runtime-side table; we can't
 		// validate them statically beyond bounds-checking the dest register.

@@ -100,6 +100,11 @@ const (
 	// opcode space. Not a real instruction.
 	OpEffectCall // R[A] = host effect builtin B(R[A+1..A+C]) (ABC)
 
+	// OpMatchFail raises RT002: no arm of a match matched R[A] (the
+	// scrutinee, read for its shape only); Bx is the constant index of the
+	// match's "file:line:col" ("" = unknown). Never falls through.
+	OpMatchFail // RT002 no-match trap on R[A], position constant Bx      (ABx)
+
 	opCount
 )
 
@@ -177,6 +182,8 @@ func (op OpCode) String() string {
 		return "EFFECT_TRAP"
 	case OpEffectCall:
 		return "EFFECT_CALL"
+	case OpMatchFail:
+		return "MATCH_FAIL"
 	}
 	return fmt.Sprintf("UNKNOWN(%d)", uint8(op))
 }
@@ -240,7 +247,7 @@ func (i Instruction) SBx() int { return int(i.Bx()) - sBxBias }
 func (i Instruction) String() string {
 	op := i.Op()
 	switch op {
-	case OpLoadConst, OpLoadGlobal, OpClosure, OpBuiltinCall, OpBuiltinTrap, OpEffectTrap:
+	case OpLoadConst, OpLoadGlobal, OpClosure, OpBuiltinCall, OpBuiltinTrap, OpEffectTrap, OpMatchFail:
 		return fmt.Sprintf("%s r%d, #%d", op, i.A(), i.Bx())
 	case OpJump:
 		return fmt.Sprintf("%s %+d", op, i.SBx())

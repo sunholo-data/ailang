@@ -153,6 +153,8 @@ func (v *freeVarVisitor) visitStmt(s stmt.Stmt) {
 		v.visitExpr(s.Value)
 	case stmt.ExprStmt:
 		v.visitExpr(s.Value)
+	case stmt.MatchFail:
+		v.visitExpr(s.Scrutinee)
 	case stmt.IfStmt:
 		v.visitExpr(s.Cond)
 		for _, ts := range s.Then {
