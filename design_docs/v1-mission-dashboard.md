@@ -9,7 +9,7 @@ _Snapshot, overwritten every iteration. History: `v1-mission.md` (STATUS) + `v1-
 An independent readiness review found work bar v3 does not count: type-soundness holes, a prover/runtime
 mismatch on integer overflow, a lossy `show`, and stdlib names that cannot change after the promise.
 Mark accepted the roadmap: **v0.58.x is the last breaking window → soak ≥ 7 days → rc.1 → v1.0.0.**
-Order, the ten design docs and the open decisions (6–10): [planned/v1_0_0/ROADMAP.md](planned/v1_0_0/ROADMAP.md).
+All ten roadmap decisions are ruled (`D-66`, `D-67`). Order and the ten design docs: [planned/v1_0_0/ROADMAP.md](planned/v1_0_0/ROADMAP.md).
 The N below still counts bar-v3 items only; re-cutting the unit to cover the roadmap is not yet ruled.
 
 ## The bar (v3, "1.0 = a promise we can keep")

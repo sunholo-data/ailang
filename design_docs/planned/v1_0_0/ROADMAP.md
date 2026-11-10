@@ -1,7 +1,7 @@
 # v1.0.0 roadmap — from the readiness review to a tag
 
 **Status:** ACCEPTED — decisions 1–5 ruled by Mark, attended 2026-11-10 (ledger `D-66`: "go with all
-recommendations"). Decisions 6–10 in §6 are still open. Written 2026-11-10.
+recommendations"). Decisions 6–10 ruled the same day (ledger `D-67`: "yes to all", with decision 8 re-scoped — see §6). Written 2026-11-10.
 **Source:** [v1-release-readiness-review-2026-11-09.md](../v1-release-readiness-review-2026-11-09.md).
 Each row in §2 is a design doc written by an independent Opus agent from that review, grounded in
 the code and with its blast radius measured. This file is the index: order, dependencies, what the
@@ -75,8 +75,9 @@ estimate built from ten estimates, not a plan.
 **Close-out**
 
 16. **Remove the stdlib aliases in the last v0.58.x, before the soak** — not at the 1.0 tag.
-17. Fresh paired AILANG/Python baseline on that build, **after** exhaustiveness and `show` have
-    landed, since both move pass rates.
+17. Paired AILANG/Python baseline on that build, **after** exhaustiveness and `show` have landed,
+    since both move pass rates. Scope per `D-67`: one Opus-level model and Haiku on subscription, one
+    cheap open-weight model, and the on-device lanes. No full-suite run without Mark's go.
 18. Soak ≥ 7 days with every downstream pin on the final v0.58.x. A new breaking fragment resets it.
 19. `v1.0.0-rc.1`, then `v1.0.0` = that build plus docs and version strings.
 
@@ -151,7 +152,17 @@ right; each has a "differs from the review" section with the evidence.
 Each doc ends with its own list. These are the ones that gate the most. **Rows 1–5 are RULED as
 recommended (`D-66`)**, including the sub-rulings under row 2 (no escape hatch, `unreachable`,
 literal-only matches follow the same rule, redundant arms warn and warnings reach JSON output) and
-the transitional warning under row 4. Rows 6–10 have not been put to Mark.
+the transitional warning under row 4. **Rows 6–10 are RULED (`D-67`)**, with two changes from the table as first written:
+
+- **Row 8 is re-scoped by Mark.** The paired AILANG/Python baseline is not the full model suite: one
+  Opus-level model (not Fable) and Haiku, both on subscription, plus one cheap open-weight model, with
+  the on-device lanes as the real focus — the aim is AILANG that works for weaker models too. A
+  full-suite run before 1.0 happens only on Mark's explicit go.
+- **Row 10: the motoko fork is blocking**, not advisory (it is what the rig runs). World stays advisory.
+
+Sub-rulings carried by `D-67`: a release candidate is never promotable to prod; the syntax reference
+page is normative; the support window is the latest 1.x minor, plus 90 days of security fixes for
+v0.58.x; `runtime/` and `third_party/goopus` move under `internal/`; `check --json` emits real error codes.
 
 | # | Decision | Recommendation | Unblocks |
 |---|---|---|---|
