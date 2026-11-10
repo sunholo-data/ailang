@@ -10,7 +10,7 @@
 # subscription OAuth from anything but Claude Code (429, measured 2026-10-02).
 
 ARG PROJECT
-ARG MOTOKO_COMMIT=083ef43726981099a0bad4fedda18fc72105d6fa
+ARG MOTOKO_COMMIT=597a6fbf95ee136beb87f4de9bc8d45127ac2fc8
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
 # motoko_agent setup (NOT a single binary like pi/opencode — it's a bun TUI
@@ -34,7 +34,9 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" \
     && mv /root/.bun/bin/bun /usr/local/bin/bun \
     && chmod +x /usr/local/bin/bun
 
-# Check out our pinned fork merge 083ef437 (MOTOKO.md §15):
+# Check out our pinned fork merge 597a6fbf (MOTOKO.md §17): fork PR #6 drops
+# `pure` from 106 functions whose effect row is non-empty (AILANG #1443/#2184,
+# `pure` now means the empty row), on top of fork merge 083ef437 (§15):
 # sunholo/main-dst-20261027 base 835c738b = upstream main 97244396
 # (2026-10-25) plus 21 carried commits, then the approved one-line #1958
 # play_chunks callback migration. The callback slot is IO-only, matching
