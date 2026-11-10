@@ -10,6 +10,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/smt"
 	"github.com/sunholo-data/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/verification"
 )
 
 // verifyCommand implements the `ailang verify` CLI command: parse flags,
@@ -19,7 +20,8 @@ func verifyCommand() {
 	fs := flag.NewFlagSet("verify", flag.ExitOnError)
 	verboseFlag := fs.Bool("verbose", false, "Show generated SMT-LIB for each function")
 	jsonFlag := fs.Bool("json", false, "Output results in JSON format")
-	strictFlag := fs.Bool("strict", false, "Exit with error if any function cannot be verified")
+	strictFlag := fs.Bool("strict", false, strictFlagHelp)
+	allowInconclusiveFlag := fs.Bool("allow-inconclusive", false, allowInconclusiveFlagHelp)
 	timeoutFlag := fs.Duration("timeout", 5*time.Second, "Per-function Z3 timeout (hard backstop adds 2s grace)")
 	recursiveDepthFlag := fs.Int("verify-recursive-depth", 2, "Bounded recursion unrolling depth (1-10, 0 to disable)")
 	relaxModulesFlag := fs.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
@@ -30,6 +32,7 @@ func verifyCommand() {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
 		os.Exit(1)
 	}
+	policy := verification.ExitPolicy{Strict: *strictFlag, AllowInconclusive: *allowInconclusiveFlag}
 
 	if *packageFlag != "" {
 		verifyPackageCommand(*packageFlag, verifyPackageOptions{
@@ -37,7 +40,7 @@ func verifyCommand() {
 			RecursiveDepth: *recursiveDepthFlag,
 			Verbose:        *verboseFlag,
 			WallCap:        *wallCapFlag,
-		}, *jsonFlag, *strictFlag)
+		}, *jsonFlag, policy)
 		return
 	}
 
@@ -48,14 +51,17 @@ func verifyCommand() {
 		fmt.Println("Options:")
 		fmt.Println("  --verbose    Show generated SMT-LIB for each function")
 		fmt.Println("  --json            Output results in JSON format")
-		fmt.Println("  --strict          Exit with error if any function cannot be verified")
+		fmt.Println("  --strict          " + strictFlagHelp)
+		fmt.Println("  --allow-inconclusive  " + allowInconclusiveFlagHelp)
 		fmt.Println("  --timeout         Per-function Z3 timeout; hard backstop adds 2s grace (default: 5s)")
 		fmt.Println("  --relax-modules   Relax MOD010 validation (allow module path mismatches)")
 		fmt.Println("  --package <dir>   Verify every exported module of a package (flat or canonical layout)")
 		fmt.Println("  --wall-cap        With --package: whole-package time cap (default: unbounded)")
 		fmt.Println()
 		fmt.Println("Verifies requires/ensures contracts using Z3 SMT solver.")
-		fmt.Println("Returns exit code 0 if all verifiable contracts are proven.")
+		fmt.Println("Exit 0: every contract proved, or proved + skipped (skips listed on stderr), or no contracts.")
+		fmt.Println("Exit 1: a counterexample, a solver error/timeout, an inconclusive result, or Z3 missing while")
+		fmt.Println("        the file has contracts. The JSON 'outcome' field names which.")
 		fmt.Println()
 		fmt.Println("IFC labels (v0.16.0+):")
 		fmt.Println("  Functions can use T<label> for tainted sources and T{not LABEL}")
@@ -68,15 +74,9 @@ func verifyCommand() {
 
 	filename := fs.Arg(0)
 
-	// Check Z3 availability upfront
-	if !smt.Z3Available() {
-		fmt.Fprintf(os.Stderr, "%s Z3 solver not found\n", red("Error:"))
-		fmt.Fprintf(os.Stderr, "Install with: brew install z3 (macOS), apt install z3 (Linux), or choco install z3 / scoop install z3 (Windows)\n")
-		fmt.Fprintf(os.Stderr, "Or download from https://github.com/Z3Prover/z3/releases and set AILANG_Z3_PATH.\n")
-		os.Exit(1)
-	}
-
-	// Read and compile the file
+	// Read and compile the file. The solver is looked for AFTER compiling:
+	// whether a missing Z3 fails the run depends on whether the file has any
+	// contract to prove (verification.ExitCode, `unavailable` lane).
 	content, err := os.ReadFile(filename)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: cannot read file '%s': %v\n", red("Error"), filename, err)
@@ -116,6 +116,19 @@ func verifyCommand() {
 	coreProg := result.Artifacts.Core
 	surfaceAST := result.Artifacts.AST
 
+	// Solver missing: count what would have been proved. No obligations is a
+	// pass (nothing needed Z3); any obligation is the `unavailable` lane.
+	if !smt.Z3Available() {
+		t := verification.Tally{CheckPassed: true, Obligations: smt.CountObligations(coreProg)}
+		if *jsonFlag {
+			printVerifyJSON(&smt.VerifyReport{Evidence: verification.EncodedEvidence()}, filename, t)
+		} else if t.Obligations == 0 {
+			fmt.Fprintf(os.Stderr, "%s: no functions with contracts found (Z3 not found; nothing needed it)\n", yellow("Warning"))
+		}
+		writeVerificationNotice(os.Stderr, t, policy, nil)
+		os.Exit(verification.ExitCode(t, policy))
+	}
+
 	if coreProg == nil || coreProg.Meta == nil {
 		fmt.Fprintf(os.Stderr, "%s: no functions with contracts found\n", yellow("Warning"))
 		os.Exit(0)
@@ -127,27 +140,22 @@ func verifyCommand() {
 		RecursiveDepth: *recursiveDepthFlag,
 		Verbose:        *verboseFlag,
 	})
+	t := report.Tally()
 
 	// Output results
 	if *jsonFlag {
-		printVerifyJSON(report, filename)
+		printVerifyJSON(report, filename, t)
 	} else {
 		printVerifyHuman(report, filename, *verboseFlag)
 	}
 
-	// Exit code logic
-	// An error is the verifier failing to produce an answer (solver crash,
-	// bad encoding) — never a pass. Same contract as --package and ai-check.
-	if report.Counterexample > 0 || report.Errors > 0 {
-		os.Exit(1)
-	}
-	// Strict mode: an uncontracted function is not a verification failure, it
-	// is a function nobody has written a contract for — counting it would turn
-	// --strict red on every module with a helper. An INCONCLUSIVE obligation
-	// (bounded-unrolling sat) IS counted: it may hide a real bug on a recursive
-	// function, and a strict gate must not pass it silently.
-	if *strictFlag && (report.Skipped > 0 || report.Errors > 0 || report.Inconclusive > 0) {
-		os.Exit(1) // Strict mode: non-verifiable functions are failures
+	// The shared exit contract (verification.ExitCode): the same function
+	// `check --verify` and `ai-check` exit through. An uncontracted function is
+	// never counted — it is a function nobody wrote a contract for, not one
+	// that failed to verify.
+	writeVerificationNotice(os.Stderr, t, policy, report.Results)
+	if code := verification.ExitCode(t, policy); code != 0 {
+		os.Exit(code)
 	}
 }
 
@@ -170,9 +178,15 @@ func verifyModulesFromPipeline(result pipeline.Result) map[string]smt.VerifyModu
 }
 
 // verifyPackageCommand is the --package arm: Z3 check, verify, print, exit.
-func verifyPackageCommand(dir string, opts verifyPackageOptions, jsonOut, strict bool) {
+// A package run is an explicit request to verify a whole package, so a missing
+// solver is refused up front (the `unavailable` lane) without compiling every
+// module to count obligations.
+func verifyPackageCommand(dir string, opts verifyPackageOptions, jsonOut bool, policy verification.ExitPolicy) {
 	if !smt.Z3Available() {
-		fmt.Fprintf(os.Stderr, "%s Z3 solver not found\n", red("Error:"))
+		fmt.Fprintf(os.Stderr, "%s Z3 solver not found (verify.outcome: unavailable)\n", red("Error:"))
+		for _, l := range z3InstallLines {
+			fmt.Fprintln(os.Stderr, l)
+		}
 		os.Exit(1)
 	}
 	if jsonOut {
@@ -188,10 +202,18 @@ func verifyPackageCommand(dir string, opts verifyPackageOptions, jsonOut, strict
 	} else {
 		printPackageVerifyHuman(report)
 	}
-	if report.Counterexample > 0 || report.Errors > 0 {
-		os.Exit(1)
+	t := verification.Tally{
+		CheckPassed:     true,
+		SolverAvailable: true,
+		Obligations:     report.Verified + report.Counterexample + report.Inconclusive + report.Skipped + report.Errors,
+		Verified:        report.Verified,
+		Counterexample:  report.Counterexample,
+		Inconclusive:    report.Inconclusive,
+		Skipped:         report.Skipped,
+		Errors:          report.Errors,
 	}
-	if strict && (report.Skipped > 0 || report.Inconclusive > 0) {
-		os.Exit(1)
+	writeVerificationNotice(os.Stderr, t, policy, nil)
+	if code := verification.ExitCode(t, policy); code != 0 {
+		os.Exit(code)
 	}
 }

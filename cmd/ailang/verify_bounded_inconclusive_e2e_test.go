@@ -114,7 +114,9 @@ func assertInconclusive(t *testing.T, r boundedRow, depth int) {
 
 // TestBounded_ADT_CorrectRecursionIsInconclusive (AC-3): sLength's clause is
 // true for every input. Base: rc=1, counterexample=1 with a "witness" over the
-// stub sLength_0. After: rc=0, inconclusive=1, the control headOr0 verified.
+// stub sLength_0. After: inconclusive=1, the control headOr0 verified. The
+// exit is 1 since M-V1-VERIFICATION-HONESTY M1 (inconclusive is "not proved",
+// and an unproved obligation fails by default; --allow-inconclusive passes it).
 func TestBounded_ADT_CorrectRecursionIsInconclusive(t *testing.T) {
 	requireZ3(t)
 	bin := buildAilang(t)
@@ -122,8 +124,8 @@ func TestBounded_ADT_CorrectRecursionIsInconclusive(t *testing.T) {
 	if c.Counterexample != 0 || c.Inconclusive != 1 || c.Verified != 1 {
 		t.Fatalf("want verified=1 counterexample=0 inconclusive=1, got %+v", c)
 	}
-	if code != 0 {
-		t.Fatalf("ai-check exit = %d, want 0 (inconclusive is \"not proved\", not \"disproved\")", code)
+	if code != 1 {
+		t.Fatalf("ai-check exit = %d, want 1 (inconclusive fails by default)", code)
 	}
 	rows := c.byFunc()
 	assertInconclusive(t, rows["sLength"], 2)
@@ -164,8 +166,9 @@ func TestBounded_Discrim_GenuineNonRecursiveViolationSurvives(t *testing.T) {
 // TestBounded_Q3_RecursiveBugsAreInconclusive (AC-5): three recursive
 // functions with genuinely false clauses. The fix deliberately errs toward
 // inconclusive — the measured "witness" for lenAtLeast1 satisfied its own
-// clause — so none is a counterexample and ai-check exits 0. `verify --strict`
-// (below) is what keeps such a bug from passing a strict gate.
+// clause — so none is a counterexample. Since M-V1-VERIFICATION-HONESTY M1 the
+// inconclusive lane itself fails (exit 1), which is what keeps such a bug from
+// passing any gate, strict or not.
 func TestBounded_Q3_RecursiveBugsAreInconclusive(t *testing.T) {
 	requireZ3(t)
 	bin := buildAilang(t)
@@ -173,8 +176,8 @@ func TestBounded_Q3_RecursiveBugsAreInconclusive(t *testing.T) {
 	if c.Counterexample != 0 || c.Inconclusive != 3 {
 		t.Fatalf("want counterexample=0 inconclusive=3, got %+v", c)
 	}
-	if code != 0 {
-		t.Fatalf("ai-check exit = %d, want 0", code)
+	if code != 1 {
+		t.Fatalf("ai-check exit = %d, want 1", code)
 	}
 	for _, fn := range []string{"lenAtLeast1", "sumNonNeg", "lenAtMost2"} {
 		assertInconclusive(t, c.byFunc()[fn], 2)
@@ -207,17 +210,20 @@ func TestBounded_VerifyAndAICheckAgree(t *testing.T) {
 	}
 }
 
-// TestBounded_VerifyExitCodes (AC-7): inconclusive is not a failure in
-// non-strict mode, and IS one under --strict (no undecided obligation passes
-// a strict gate silently).
+// TestBounded_VerifyExitCodes (AC-7, revised by M-V1-VERIFICATION-HONESTY
+// M1): inconclusive fails by default and under --strict; --allow-inconclusive
+// is the explicit opt-in that passes it.
 func TestBounded_VerifyExitCodes(t *testing.T) {
 	requireZ3(t)
 	bin := buildAilang(t)
-	if _, code := boundedVerifyJSON(t, bin, "adt.ail"); code != 0 {
-		t.Fatalf("verify (non-strict) exit = %d, want 0", code)
+	if _, code := boundedVerifyJSON(t, bin, "adt.ail"); code != 1 {
+		t.Fatalf("verify (default) exit = %d, want 1 on inconclusive > 0", code)
 	}
 	if _, code := boundedVerifyJSON(t, bin, "adt.ail", "--strict"); code != 1 {
 		t.Fatalf("verify --strict exit = %d, want 1 on inconclusive > 0", code)
+	}
+	if _, code := boundedVerifyJSON(t, bin, "adt.ail", "--allow-inconclusive"); code != 0 {
+		t.Fatalf("verify --allow-inconclusive exit = %d, want 0", code)
 	}
 }
 

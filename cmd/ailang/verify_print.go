@@ -148,25 +148,37 @@ func printVerifyHuman(report *smt.VerifyReport, filename string, verbose bool) {
 	fmt.Println()
 }
 
-// printVerifyJSON outputs verification results as JSON.
-func printVerifyJSON(report *smt.VerifyReport, filename string) {
+// printVerifyJSON outputs verification results as JSON. t is the run's tally
+// under the shared exit contract; outcome, obligations and available are
+// additive fields (M-V1-VERIFICATION-HONESTY M1) with the same meaning as in
+// the `check --verify` report.
+func printVerifyJSON(report *smt.VerifyReport, filename string, t verification.Tally) {
 	results := report.Results
+	if results == nil {
+		results = []smt.VerifyResult{}
+	}
 	verified, counterexample, inconclusive := report.Verified, report.Counterexample, report.Inconclusive
 	skipped, errCount, uncontracted := report.Skipped, report.Errors, report.Uncontracted
 	output := struct {
 		verification.Evidence
-		File           string             `json:"file"`
-		Verified       int                `json:"verified"`
-		Counterexample int                `json:"counterexample"`
-		Inconclusive   int                `json:"inconclusive"`
-		Skipped        int                `json:"skipped"`
-		Errors         int                `json:"errors"`
-		Uncontracted   int                `json:"uncontracted"`
-		TotalExported  int                `json:"total_exported"`
-		Results        []smt.VerifyResult `json:"results"`
+		File           string               `json:"file"`
+		Outcome        verification.Outcome `json:"outcome"`
+		Obligations    int                  `json:"obligations"`
+		Available      bool                 `json:"available"`
+		Verified       int                  `json:"verified"`
+		Counterexample int                  `json:"counterexample"`
+		Inconclusive   int                  `json:"inconclusive"`
+		Skipped        int                  `json:"skipped"`
+		Errors         int                  `json:"errors"`
+		Uncontracted   int                  `json:"uncontracted"`
+		TotalExported  int                  `json:"total_exported"`
+		Results        []smt.VerifyResult   `json:"results"`
 	}{
 		Evidence:       verification.EncodedEvidence(),
 		File:           filename,
+		Outcome:        verification.Classify(t),
+		Obligations:    t.Obligations,
+		Available:      t.SolverAvailable,
 		Verified:       verified,
 		Counterexample: counterexample,
 		Inconclusive:   inconclusive,

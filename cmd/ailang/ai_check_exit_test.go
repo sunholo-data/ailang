@@ -2,138 +2,41 @@ package main
 
 import (
 	"encoding/json"
-	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/smt"
+	"github.com/sunholo-data/ailang/internal/verification"
 )
 
-// TestAICheckExitCode_Lanes is the AC3.2 guard.
-//
-// `ai-check` is documented to AI agents as THE convergence signal, so its process
-// exit status must never disagree with the JSON it just printed. Before
-// M-Z3-ADT-RECORD-SORT the verifier-errors lane was missing entirely: a file whose
-// report said `verify.errors: 1` still exited 0.
-//
-// Red mutation: delete `|| verify.Errors > 0` from aiCheckExitCode. It compiles,
-// and the "verifier errors" and "errors dominate a clean check" cases below fail.
-// (Measured end-to-end: with that clause removed, cross_module_functions.ail —
-// check.passed=true, verify.errors=3 — exits 0 instead of 1.)
-func TestAICheckExitCode_Lanes(t *testing.T) {
-	tests := []struct {
-		name  string
-		check aiCheckSection
-		verif aiVerifySection
-		want  int
-	}{
-		{
-			name:  "clean check, nothing verified",
-			check: aiCheckSection{Passed: true},
-			verif: aiVerifySection{Available: true},
-			want:  0,
-		},
-		{
-			name:  "verified only",
-			check: aiCheckSection{Passed: true},
-			verif: aiVerifySection{Available: true, Verified: 3},
-			want:  0,
-		},
-		{
-			// A skip is "not proved", NOT "disproved" — it must stay green, else
-			// every unencodable-but-correct program would fail the gate.
-			name:  "skipped only",
-			check: aiCheckSection{Passed: true},
-			verif: aiVerifySection{Available: true, Verified: 1, Skipped: 2},
-			want:  0,
-		},
-		{
-			name:  "counterexample",
-			check: aiCheckSection{Passed: true},
-			verif: aiVerifySection{Available: true, Counterexample: 1},
-			want:  1,
-		},
-		{
-			// M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE: a bounded-unrolling
-			// sat is "not proved", same contract as a skip — exiting 1 here told
-			// every convergence loop that correct recursive code was broken.
-			name:  "inconclusive only",
-			check: aiCheckSection{Passed: true},
-			verif: aiVerifySection{Available: true, Verified: 1, Inconclusive: 2},
-			want:  0,
-		},
-		{
-			name:  "counterexample alongside inconclusive",
-			check: aiCheckSection{Passed: true},
-			verif: aiVerifySection{Available: true, Counterexample: 1, Inconclusive: 1},
-			want:  1,
-		},
-		{
-			// THE regression this sprint closed.
-			name:  "verifier errors",
-			check: aiCheckSection{Passed: true},
-			verif: aiVerifySection{Available: true, Errors: 1},
-			want:  1,
-		},
-		{
-			name:  "errors dominate an otherwise clean run",
-			check: aiCheckSection{Passed: true},
-			verif: aiVerifySection{Available: true, Verified: 5, Skipped: 1, Errors: 3},
-			want:  1,
-		},
-		{
-			name:  "check failure",
-			check: aiCheckSection{Passed: false},
-			verif: aiVerifySection{Available: false},
-			want:  1,
-		},
-		{
-			name:  "check failure outranks a clean verify section",
-			check: aiCheckSection{Passed: false},
-			verif: aiVerifySection{Available: true, Verified: 2},
-			want:  1,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			if got := aiCheckExitCode(tt.check, tt.verif); got != tt.want {
-				t.Fatalf("aiCheckExitCode() = %d, want %d (check.Passed=%v verify=%+v)",
-					got, tt.want, tt.check.Passed, tt.verif)
-			}
-		})
-	}
-}
-
-// ---------------------------------------------------------------------------
-// M-V1-SIMPLIFY-S4 M3A: ai-check runs THE verification loop (smt.Verify).
-//
-// Until this sprint ai-check carried a private copy of `verify`'s loop that
-// had drifted in three measured ways. The tests below pin each one so the
-// loops cannot silently diverge again. Two behaviours are now SHARED with
-// `ailang verify`; the third is a DELIBERATE ai-check difference behind
-// smt.VerifyOptions.UnsupportedConstructIsError.
-// ---------------------------------------------------------------------------
+// The exit lanes of `ai-check` / `check --verify` are no longer decided here:
+// every verification command exits through verification.ExitCode
+// (internal/verification/outcome_test.go pins the table) and
+// verify_exit_contract_test.go drives each lane end to end on every command
+// spelling with fake solvers. What stays in this file is ai-check's own
+// projection and the behaviours it shares with `verify` through smt.Verify.
 
 // TestAICheckVerifyOptions_Contract pins the option set ai-check hands the
-// shared loop: the flags flow through, and the one deliberate difference is
-// on. Red mutation: drop UnsupportedConstructIsError from aiCheckVerifyOptions
-// — this fails, and so does TestAICheck_UnsupportedConstructIsAnError below.
+// shared loop: the flags flow through and nothing else differs from `verify`.
+// (Until M-V1-VERIFICATION-HONESTY M1 ai-check also set
+// UnsupportedConstructIsError, reporting an unsupported construct as an error
+// where `verify` skipped it — the commands disagreed on exit status for the
+// same file. That lane is gone; see TestVerifyExit_UnsupportedConstructIsASkipEverywhere.)
 func TestAICheckVerifyOptions_Contract(t *testing.T) {
 	got := aiCheckVerifyOptions(7*time.Second, 4)
-	want := smt.VerifyOptions{Timeout: 7 * time.Second, RecursiveDepth: 4, UnsupportedConstructIsError: true}
+	want := smt.VerifyOptions{Timeout: 7 * time.Second, RecursiveDepth: 4}
 	if !reflect.DeepEqual(got, want) {
 		t.Fatalf("aiCheckVerifyOptions() = %+v, want %+v", got, want)
 	}
 }
 
 // TestAIVerifySectionFromReport_Projection pins the report→JSON projection:
-// the four counters copy across, and "uncontracted" rows (which verify lists
-// for denominator honesty) are NOT surfaced — ai-check's results have only
-// ever carried contract-bearing functions, and its consumers read the counters.
+// the counters copy across, obligations counts the contract-bearing rows, and
+// "uncontracted" rows (which verify lists for denominator honesty) are NOT
+// surfaced — ai-check's results have only ever carried contract-bearing
+// functions, and its consumers read the counters.
 func TestAIVerifySectionFromReport_Projection(t *testing.T) {
 	report := &smt.VerifyReport{
 		Results: []smt.VerifyResult{
@@ -148,6 +51,9 @@ func TestAIVerifySectionFromReport_Projection(t *testing.T) {
 	if !got.Available || got.Verified != 1 || got.Skipped != 1 || got.Errors != 0 || got.Counterexample != 0 || got.Inconclusive != 1 {
 		t.Fatalf("counters not projected: %+v", got)
 	}
+	if got.Obligations != 3 {
+		t.Fatalf("obligations = %d, want 3 (uncontracted is not an obligation)", got.Obligations)
+	}
 	if len(got.Results) != 3 {
 		t.Fatalf("want 3 contract-bearing results, got %d: %+v", len(got.Results), got.Results)
 	}
@@ -156,6 +62,9 @@ func TestAIVerifySectionFromReport_Projection(t *testing.T) {
 			t.Fatalf("uncontracted row leaked into ai-check results: %+v", r)
 		}
 	}
+	if tally := got.tally(true); verification.Classify(tally) != verification.OutcomeInconclusive {
+		t.Fatalf("tally %+v classifies as %q, want inconclusive", tally, verification.Classify(tally))
+	}
 }
 
 type aiCheckPayload struct {
@@ -163,10 +72,14 @@ type aiCheckPayload struct {
 		Passed bool `json:"passed"`
 	} `json:"check"`
 	Verify struct {
-		Verified       int `json:"verified"`
-		Counterexample int `json:"counterexample"`
-		Skipped        int `json:"skipped"`
-		Errors         int `json:"errors"`
+		Outcome        string `json:"outcome"`
+		Obligations    int    `json:"obligations"`
+		Available      bool   `json:"available"`
+		Verified       int    `json:"verified"`
+		Counterexample int    `json:"counterexample"`
+		Inconclusive   int    `json:"inconclusive"`
+		Skipped        int    `json:"skipped"`
+		Errors         int    `json:"errors"`
 		Results        []struct {
 			Function     string `json:"function"`
 			Status       string `json:"status"`
@@ -193,8 +106,8 @@ func runAICheckJSON(t *testing.T, args ...string) (aiCheckPayload, string, int) 
 // TestAICheck_CrossModuleCalleesAreShared — SHARED behaviour #1. Before the
 // fold ai-check passed no ImportedPrograms to the encoder, so every cross-
 // module callee was an "unknown constant" Z3 error: on this fixture `verify`
-// reported 3 verified while `ai-check` reported 3 errors and exited 1 (the
-// exact discrepancy the AC3.2 comment above records). One loop, one answer.
+// reported 3 verified while `ai-check` reported 3 errors and exited 1. One
+// loop, one answer.
 func TestAICheck_CrossModuleCalleesAreShared(t *testing.T) {
 	p, combined, code := runAICheckJSON(t, "examples/runnable/contracts/cross_module_functions.ail")
 	if !p.Check.Passed {
@@ -235,47 +148,5 @@ func TestAICheck_PerFunctionDepthOverrideIsShared(t *testing.T) {
 	}
 	if depths["factorial"] != 2 {
 		t.Fatalf("factorial bounded_depth = %d, want 2 from @verify(depth: 2)", depths["factorial"])
-	}
-}
-
-// TestAICheck_UnsupportedConstructIsAnError — DELIBERATE difference #3. A
-// contracted function matching on list patterns is outside the decidable
-// fragment. `ailang verify` reports it as skipped (#757); ai-check has always
-// reported it as a verifier ERROR and exited 1, and the eval harness banks
-// verify_errors from that. This pins today's contract explicitly — changing
-// it is a bank-forward ruling. Both lanes name the construct in plain words;
-// neither may leak a Go type name.
-func TestAICheck_UnsupportedConstructIsAnError(t *testing.T) {
-	src := `module m
-
-export func sumList(ls: [int]) -> int ! {}
-ensures { result >= 0 }
-{
-  match ls {
-    [] => 0,
-    x :: rest => x + sumList(rest)
-  }
-}
-`
-	f := filepath.Join(t.TempDir(), "m.ail")
-	if err := os.WriteFile(f, []byte(src), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	p, combined, code := runAICheckJSON(t, "--relax-modules", f)
-	if !p.Check.Passed {
-		t.Fatalf("instrument failure: fixture no longer type-checks:\n%s", combined)
-	}
-	if strings.Contains(combined, "*core.ListPattern") {
-		t.Fatalf("ai-check leaked the internal pattern type name:\n%s", combined)
-	}
-	if p.Verify.Errors != 1 || p.Verify.Skipped != 0 {
-		t.Fatalf("want errors=1 skipped=0 (ai-check's contract), got %+v", p.Verify)
-	}
-	if code != 1 {
-		t.Fatalf("exit = %d, want 1 (verify.errors > 0)", code)
-	}
-	if len(p.Verify.Results) != 1 || p.Verify.Results[0].Status != "error" ||
-		!strings.Contains(p.Verify.Results[0].Reason, "list patterns") {
-		t.Fatalf("want one error result naming the construct, got %+v", p.Verify.Results)
 	}
 }

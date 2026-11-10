@@ -1,0 +1,11 @@
+module cmd/ailang/testdata/verify_exit/effectful
+import std/io (println)
+
+-- M-V1-VERIFICATION-HONESTY M1 fixture: a contract outside the decidable
+-- fragment (the function has effects). The verifier skips it without calling
+-- the solver: the run is "partial", which passes and is listed on stderr.
+export func g(x: int) -> int ! {IO}
+ensures { result > 1000 } {
+  println("hi")
+  x
+}

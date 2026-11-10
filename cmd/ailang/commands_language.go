@@ -10,6 +10,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	ailangTesting "github.com/sunholo-data/ailang/internal/testing"
+	"github.com/sunholo-data/ailang/internal/verification"
 )
 
 // languageCommands are the commands a user or agent runs to work WITH AILANG.
@@ -395,8 +396,17 @@ func runCheckCommand(args []string) error {
 		"With --verify: per-function Z3 timeout (hard backstop adds 2s grace)")
 	verifyDepthCheck := checkFS.Int("verify-recursive-depth", aiCheckDefaultRecursiveDepth,
 		"With --verify: bounded recursion unrolling depth (1-10, 0 to disable)")
+	// The two lanes of the shared exit contract (verification.ExitCode) that a
+	// caller may move. Spelled as on `ailang verify` and `ailang ai-check`, so
+	// one gate reads the same on every command; refused without --verify.
+	verifyStrictCheck := checkFS.Bool("strict", false, "With --verify: "+strictFlagHelp)
+	allowInconclusiveCheck := checkFS.Bool("allow-inconclusive", false, "With --verify: "+allowInconclusiveFlagHelp)
 
 	_ = checkFS.Parse(args)
+	if (*verifyStrictCheck || *allowInconclusiveCheck) && !*verifyCheck {
+		fmt.Fprintf(os.Stderr, "%s: --strict and --allow-inconclusive apply to contract verification; add --verify\n", red("Error"))
+		os.Exit(1)
+	}
 
 	// Resolve output format (M-AILANG-SEMANTIC-CONTEXT R1). --json is the
 	// back-compat alias for --format=json. Both json and agent are "machine"
@@ -424,7 +434,8 @@ func runCheckCommand(args []string) error {
 			fmt.Println("Usage: ailang check --verify [options] <file.ail>")
 			os.Exit(1)
 		}
-		runAICheckReport(checkFS.Arg(0), *verifyTimeoutCheck, *verifyDepthCheck, *relaxModulesCheck)
+		runAICheckReport(checkFS.Arg(0), *verifyTimeoutCheck, *verifyDepthCheck, *relaxModulesCheck,
+			verification.ExitPolicy{Strict: *verifyStrictCheck, AllowInconclusive: *allowInconclusiveCheck})
 		return nil
 	}
 

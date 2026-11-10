@@ -224,26 +224,26 @@ func TestSMTParametricADT_UnsupportedShapesRemainUnprovedCLI(t *testing.T) {
 	bin := buildAilang(t)
 	cases := []struct {
 		name, source string
-		aiError      bool
 	}{
 		{"unit_result", `export pure func unitResult(n: int) -> Result[(), AudioError]
 ensures { match result { Ok(_) => true, Err(_) => true } }
 { if n < 0 then Err(ResourceLimit("negative")) else Ok(()) }
-`, false},
+`},
 		{"higher_order_parameter", `export pure func higherOrder(f: int -> int) -> Result[int, AudioError]
 ensures { match result { Ok(x) => x >= 0, Err(_) => true } }
 { Ok(f(0)) }
-`, false},
+`},
 		{"open_record_parameter", `export pure func openRecord(x: { value: int | r }) -> Result[int, AudioError]
 ensures { match result { Ok(n) => n >= 0, Err(_) => true } }
 { Ok(x.value) }
-`, false},
-		// This pre-existing special policy is deliberately a separate control:
-		// ai-check treats the encoder's unsupported Core construct as an error.
-		{"existing_list_pattern_policy", `export pure func listPattern(xs: [int]) -> int
+`},
+		// Until M-V1-VERIFICATION-HONESTY M1 ai-check reported the encoder's
+		// unsupported Core construct as an error (exit 1) while verify skipped
+		// it. Both now skip it, like every other shape here.
+		{"list_pattern", `export pure func listPattern(xs: [int]) -> int
 ensures { result >= 0 }
 { match xs { [] => 0, x :: rest => x } }
-`, true},
+`},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -267,9 +267,6 @@ ensures { result >= 0 }
 				t.Fatalf("ai-check JSON: %v\n%s\n%s", err, out, stderr)
 			}
 			wantSkipped, wantErrors, wantExit := 1, 0, 0
-			if c.aiError {
-				wantSkipped, wantErrors, wantExit = 0, 1, 1
-			}
 			if !ai.Check.Passed || ai.Verify.Verified != 0 || ai.Verify.Counterexample != 0 || ai.Verify.Skipped != wantSkipped || ai.Verify.Errors != wantErrors || rc != wantExit {
 				t.Fatalf("ai-check unsupported policy changed: exit=%d expected skipped/errors/exit=%d/%d/%d\n%s\n%s", rc, wantSkipped, wantErrors, wantExit, out, stderr)
 			}

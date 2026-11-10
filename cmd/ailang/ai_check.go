@@ -30,9 +30,15 @@ type aiCheckSection struct {
 // aiVerifySection is the contract verification portion of ai-check output
 type aiVerifySection struct {
 	verification.Evidence
-	Available      bool `json:"available"`
-	Verified       int  `json:"verified"`
-	Counterexample int  `json:"counterexample"`
+	// Outcome is the run's verdict under the shared exit contract
+	// (verification.Classify); Obligations counts the contract-bearing
+	// functions, known even when the solver is not. Both are additive
+	// (M-V1-VERIFICATION-HONESTY M1): Available keeps meaning "solver found".
+	Outcome        verification.Outcome `json:"outcome"`
+	Obligations    int                  `json:"obligations"`
+	Available      bool                 `json:"available"`
+	Verified       int                  `json:"verified"`
+	Counterexample int                  `json:"counterexample"`
 	// Inconclusive: obligations attempted but undecided — a sat under bounded
 	// recursion unrolling (M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE).
 	Inconclusive int                `json:"inconclusive"`
@@ -65,6 +71,8 @@ func aiCheckCommand() {
 	timeoutFlag := fs.Duration("timeout", aiCheckDefaultTimeout, "Per-function Z3 timeout (hard backstop adds 2s grace)")
 	recursiveDepthFlag := fs.Int("verify-recursive-depth", aiCheckDefaultRecursiveDepth, "Bounded recursion unrolling depth (1-10, 0 to disable)")
 	relaxModulesFlag := fs.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
+	strictFlag := fs.Bool("strict", false, strictFlagHelp)
+	allowInconclusiveFlag := fs.Bool("allow-inconclusive", false, allowInconclusiveFlagHelp)
 
 	if err := fs.Parse(os.Args[2:]); err != nil {
 		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
@@ -82,11 +90,21 @@ func aiCheckCommand() {
 		fmt.Println("  --timeout                 Per-function Z3 timeout; hard backstop adds 2s grace (default: 5s)")
 		fmt.Println("  --verify-recursive-depth  Bounded recursion depth (default: 2)")
 		fmt.Println("  --relax-modules           Relax MOD010 validation")
+		fmt.Println("  --strict                  " + strictFlagHelp)
+		fmt.Println("  --allow-inconclusive      " + allowInconclusiveFlagHelp)
 		os.Exit(1)
 	}
 
-	runAICheckReport(fs.Arg(0), *timeoutFlag, *recursiveDepthFlag, *relaxModulesFlag)
+	runAICheckReport(fs.Arg(0), *timeoutFlag, *recursiveDepthFlag, *relaxModulesFlag,
+		verification.ExitPolicy{Strict: *strictFlag, AllowInconclusive: *allowInconclusiveFlag})
 }
+
+// The two flags that move a lane of the shared exit contract
+// (verification.ExitCode). Every verification command offers both.
+const (
+	strictFlagHelp            = "Exit 1 when any contract is skipped or inconclusive (only a full proof passes)"
+	allowInconclusiveFlagHelp = "Exit 0 on inconclusive obligations (bounded-unrolling sat); they are still listed on stderr"
+)
 
 // runAICheckReport is the unified check+verify report: type-check and contract
 // verification in ONE pipeline run, emitted as JSON, with the exit status
@@ -100,9 +118,9 @@ func aiCheckCommand() {
 // verification loops together, and adding a second entry point without
 // extracting it would have re-created exactly that.
 //
-// It never returns: every lane ends in os.Exit or falls off the end after the
-// JSON is printed.
-func runAICheckReport(filename string, timeout time.Duration, recursiveDepth int, relaxModules bool) {
+// It prints the JSON, then the stderr notice, then exits with
+// verification.ExitCode of the numbers it just printed.
+func runAICheckReport(filename string, timeout time.Duration, recursiveDepth int, relaxModules bool, policy verification.ExitPolicy) {
 	// Suppress warnings so they don't pollute JSON output
 	os.Setenv("AILANG_QUIET_WARNINGS", "1")
 
@@ -116,7 +134,7 @@ func runAICheckReport(filename string, timeout time.Duration, recursiveDepth int
 				ErrorCount: 1,
 				Errors:     []checkJSONError{{Code: "IO_ERROR", Message: fmt.Sprintf("cannot read file: %v", err), File: filename}},
 			},
-			Verify: aiVerifySection{Available: false, Results: []smt.VerifyResult{}},
+			Verify: aiVerifySection{Outcome: verification.OutcomeNotRun, Available: smt.Z3Available(), Results: []smt.VerifyResult{}},
 		})
 		os.Exit(1)
 	}
@@ -158,64 +176,58 @@ func runAICheckReport(filename string, timeout time.Duration, recursiveDepth int
 		checkSection.Errors = jsonErrors
 	}
 
-	// Build verify section
-	verifySection := aiVerifySection{
-		Available: false,
-		Results:   []smt.VerifyResult{},
-	}
-
-	// Only attempt verification if check passed and Z3 is available
-	if checkSection.Passed && smt.Z3Available() {
-		verifySection.Available = true
-
-		coreProg := result.Artifacts.Core
-		surfaceAST := result.Artifacts.AST
-
-		if coreProg != nil && coreProg.Meta != nil && surfaceAST != nil {
-			opts := aiCheckVerifyOptions(timeout, recursiveDepth)
-			opts.CoreTI = result.Artifacts.CoreTI
-			report := smt.Verify(coreProg, surfaceAST, verifyModulesFromPipeline(result), opts)
-			verifySection = aiVerifySectionFromReport(report)
-		}
-	}
-
-	output := aiCheckOutput{
-		File:   filename,
-		Check:  checkSection,
-		Verify: verifySection,
-	}
+	verifySection := buildAIVerifySection(checkSection.Passed, result, timeout, recursiveDepth, smt.Z3Available())
+	tally := verifySection.tally(checkSection.Passed)
+	verifySection.Outcome = verification.Classify(tally)
 
 	// The JSON is ALWAYS emitted before the exit decision: `ai-check` is an AI
 	// convergence signal, so a consumer must be able to read the full report even
 	// on the failing exit path.
-	outputAICheck(output)
+	outputAICheck(aiCheckOutput{File: filename, Check: checkSection, Verify: verifySection})
+	writeVerificationNotice(os.Stderr, tally, policy, verifySection.Results)
 
-	if aiCheckExitCode(checkSection, verifySection) != 0 {
-		os.Exit(1)
+	if code := verification.ExitCode(tally, policy); code != 0 {
+		os.Exit(code)
 	}
 }
 
-// aiCheckExitCode decides `ai-check`'s process exit status from its own JSON report.
-//
-// Extracted from aiCheckCommand so the exit lanes are unit-testable without a
-// subprocess (os.Exit is untestable in-process). The contract, which the eval
-// harness and every agent convergence loop depend on:
-//
-//	check failed        -> 1
-//	counterexample > 0  -> 1
-//	verifier errors > 0 -> 1   (added by M-Z3-ADT-RECORD-SORT; process status must
-//	                            never disagree with the JSON it just printed)
-//	skipped-only        -> 0   (a skip is "not proved", not "disproved")
-//	inconclusive-only   -> 0   (a bounded-unrolling sat is likewise "not proved":
-//	                            the model may rest on an invented frontier value,
-//	                            so it is not a violation — M-VERIFY-BOUNDED-
-//	                            UNROLLING-FALSE-COUNTEREXAMPLE)
-//	verified-only       -> 0
-func aiCheckExitCode(check aiCheckSection, verify aiVerifySection) int {
-	if !check.Passed || verify.Counterexample > 0 || verify.Errors > 0 {
-		return 1
+// buildAIVerifySection runs the verifier when the check passed and the solver
+// is available. Without a solver it still counts the obligations it would
+// have proved, from the compiled Core: that count is what turns "Z3 missing"
+// from a silent pass into the `unavailable` lane. Available always means
+// "solver found", on every lane.
+func buildAIVerifySection(checkPassed bool, result pipeline.Result, timeout time.Duration, recursiveDepth int, solverAvailable bool) aiVerifySection {
+	section := aiVerifySection{Available: solverAvailable, Results: []smt.VerifyResult{}}
+	if !checkPassed {
+		return section
 	}
-	return 0
+	coreProg := result.Artifacts.Core
+	surfaceAST := result.Artifacts.AST
+	if !solverAvailable {
+		section.Obligations = smt.CountObligations(coreProg)
+		return section
+	}
+	if coreProg == nil || coreProg.Meta == nil || surfaceAST == nil {
+		return section
+	}
+	opts := aiCheckVerifyOptions(timeout, recursiveDepth)
+	opts.CoreTI = result.Artifacts.CoreTI
+	return aiVerifySectionFromReport(smt.Verify(coreProg, surfaceAST, verifyModulesFromPipeline(result), opts))
+}
+
+// tally projects the JSON section onto the shared exit contract, so the exit
+// status is computed from exactly the numbers the consumer just read.
+func (v aiVerifySection) tally(checkPassed bool) verification.Tally {
+	return verification.Tally{
+		CheckPassed:     checkPassed,
+		SolverAvailable: v.Available,
+		Obligations:     v.Obligations,
+		Verified:        v.Verified,
+		Counterexample:  v.Counterexample,
+		Inconclusive:    v.Inconclusive,
+		Skipped:         v.Skipped,
+		Errors:          v.Errors,
+	}
 }
 
 // aiCheckVerifyOptions is how ai-check drives the ONE verification loop
@@ -225,17 +237,13 @@ func aiCheckExitCode(check aiCheckSection, verify aiVerifySection) int {
 // "unknown constant" Z3 error — cross_module_functions.ail: verify 3 verified
 // / ai-check 3 errors), it ignored a per-function @verify(depth: N) override
 // (fibonacci bounded_depth 2 instead of 5), and it counted an unsupported
-// construct as an error where verify skips it. The first two are now shared.
-// The third is kept as a deliberate ai-check difference behind
-// UnsupportedConstructIsError: the exit-code contract pinned in
-// ai_check_exit_test.go has always surfaced it as a verifier error (exit 1),
-// and the eval harness banks verify_errors from it — changing that is a
-// bank-forward ruling, not a refactor.
+// construct as an error where verify skips it. All three are now shared; the
+// third went with the shared exit contract (M-V1-VERIFICATION-HONESTY M1),
+// under which an unsupported construct is a skip on every command.
 func aiCheckVerifyOptions(timeout time.Duration, recursiveDepth int) smt.VerifyOptions {
 	return smt.VerifyOptions{
-		Timeout:                     timeout,
-		RecursiveDepth:              recursiveDepth,
-		UnsupportedConstructIsError: true,
+		Timeout:        timeout,
+		RecursiveDepth: recursiveDepth,
 	}
 }
 
@@ -250,6 +258,7 @@ func aiCheckVerifyOptions(timeout time.Duration, recursiveDepth int) smt.VerifyO
 func aiVerifySectionFromReport(report *smt.VerifyReport) aiVerifySection {
 	section := aiVerifySection{
 		Evidence:       report.Evidence,
+		Obligations:    report.Obligations(),
 		Available:      true,
 		Verified:       report.Verified,
 		Counterexample: report.Counterexample,
