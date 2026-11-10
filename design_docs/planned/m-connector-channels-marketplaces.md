@@ -153,8 +153,11 @@ taken the screenshot.
 without hosts; operator command `createClientCli`; consent page names registered clients and flags DCR
 ones unverified). `test_oauth.sh` 43/43. Dev switch-on: ailang-multivac #18, merged and **live on the dev executor 2026-11-10** (metadata advertises registration + revocation + client-secret methods; a `teams.microsoft.com` registration → 201, `evil.example` → 400; `mcp check --target both` no failures, all 29 tools annotated) (`terraform test` 50/50;
 prod plan adds the four env vars empty). Finding: the live prod executor service runs
-`executor-mcp:latest`, not the pinned tag; any prod apply re-pins it. **Next:** the same change in
-docparse, plus `--cors-origin` for Copilot's widget host, and `mcp check --target copilot`.
+`executor-mcp:latest`, not the pinned tag; any prod apply re-pins it. Parse: docparse #267 (same switches; operator command in `services/mcp_oauth_operator.ail` so
+`mcp_oauth.ail` stays output-free per its lint; `test_mcp_oauth.sh` 104 PASS, fail-closed guard
+mutation-tested; a client-less token request is now RFC 6749 `401 invalid_client`). Copilot's widget
+origin needs no change: Parse already runs `--cors`. Dev switch-on: ailang-multivac #19
+(`terraform test` 54/54, dev plan 0/1/0). **Next:** `mcp check --target copilot`.
 
 **P1b: release to prod (agent drives, Mark runs the promotes; ~0.5 day of work, ~1 day elapsed).** Nothing
 in prod changes without this, and success metric 4 depends on it.
