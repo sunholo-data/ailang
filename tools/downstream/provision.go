@@ -98,7 +98,7 @@ func newProvisioner(a *Arm, root, runDir string, fetch bool, timeout int, nice b
 		mode = "fetch"
 	}
 	return &Provisioner{Arm: a, Root: root, RunDir: runDir, Fetch: fetch, Timeout: timeout, Nice: nice,
-		Report: &ProvisionReport{Binary: a.Version, Mode: mode}, fetched: map[string]bool{}}
+		Report: &ProvisionReport{Binary: a.Version, Mode: mode, Fetched: []ProvisionedPackage{}}, fetched: map[string]bool{}}
 }
 
 // lockJSON is the part of ailang.lock the gate reads.
@@ -192,7 +192,7 @@ func (p *Provisioner) inRoot(name, version string) bool {
 // Corpus provisions one materialised corpus and returns the tree its entries
 // must be discovered in. An error is an instrument failure (exit 3).
 func (p *Provisioner) Corpus(c Corpus, snap string) (string, error) {
-	cp := CorpusProvision{Corpus: c.Name}
+	cp := CorpusProvision{Corpus: c.Name, Locks: []LockAction{}, Packages: []ProvisionedPackage{}}
 	defer func() { p.Report.Corpora = append(p.Report.Corpora, cp) }()
 	dirs, err := packageDirs(c, snap)
 	if err != nil {
@@ -440,6 +440,7 @@ func (pr *ProvisionReport) render(p func(string, ...interface{})) {
 			locks["committed"], locks["generated"], locks["regenerated"], locks["FAILED"],
 			src["package"], src["registry"], src["path"], src["MISSING"])
 	}
+	p("\n")
 	for _, f := range pr.Fetched {
 		p("- fetched %s@%s from the registry\n", f.Name, f.Version)
 	}
@@ -453,7 +454,7 @@ func (pr *ProvisionReport) render(p func(string, ...interface{})) {
 // inventory lists every package the corpus's locks name, once, with its source.
 func (p *Provisioner) inventory(tree string, dirs []string) []ProvisionedPackage {
 	seen := map[string]bool{}
-	var out []ProvisionedPackage
+	out := []ProvisionedPackage{}
 	for _, rel := range dirs {
 		lk, err := readLock(filepath.Join(tree, rel))
 		if err != nil {
