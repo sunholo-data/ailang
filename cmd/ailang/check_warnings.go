@@ -22,6 +22,14 @@ import (
 type warningCoder interface{ Code() string }
 type warningPositioner interface{ Position() (line, col int) }
 
+// warningFiler names the warning's own source file when it may sit in an
+// imported module rather than the checked file; warningSuggester gives a
+// one-line fix; warningMessager gives the message without the location and
+// fix the structured fields already carry.
+type warningFiler interface{ WarningFile() string }
+type warningSuggester interface{ Suggestion() string }
+type warningMessager interface{ Message() string }
+
 // checkWarningsJSON converts pipeline warnings to check-output entries; nil
 // when there are none, so the field is omitted.
 func checkWarningsJSON(ws []elaborate.Warning, filename string) []checkJSONError {
@@ -47,6 +55,15 @@ func warningToCheckJSON(w elaborate.Warning, filename string) checkJSONError {
 	}
 	if p, ok := w.(warningPositioner); ok {
 		e.Line, e.Column = p.Position()
+	}
+	if f, ok := w.(warningFiler); ok && f.WarningFile() != "" {
+		e.File = f.WarningFile()
+	}
+	if s, ok := w.(warningSuggester); ok {
+		e.Suggestion = s.Suggestion()
+	}
+	if m, ok := w.(warningMessager); ok {
+		e.Message = m.Message()
 	}
 	return e
 }

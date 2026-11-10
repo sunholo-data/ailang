@@ -48,6 +48,14 @@ func TestWarningToCheckJSON(t *testing.T) {
 				Message: "at m.ail:7:3 take(n, flatMap(f, xs)) materializes the entire flatMap result before take runs. Fix: use takeFlatMap(n, f, xs) to stop producing values once the prefix is full."},
 		},
 		{
+			name: "TC_MATCH_005 names its own file, message and suggestion",
+			w:    &pipeline.JSONIntArmWarning{Location: ast.Pos{File: "lib/json_use.ail", Line: 4, Column: 2}, Module: "lib/json_use"},
+			file: "main.ail",
+			want: checkJSONError{Code: "TC_MATCH_005", File: "lib/json_use.ail", Line: 4, Column: 2,
+				Message:    (&pipeline.JSONIntArmWarning{}).Message(),
+				Suggestion: (&pipeline.JSONIntArmWarning{}).Suggestion()},
+		},
+		{
 			name: "uncoded warning keeps the generic code and drops the prefix",
 			w:    &pipeline.ArgOrderWarning{Location: ast.Pos{File: "s.ail", Line: 2, Column: 9}, FuncName: "split", Delimiter: ",", Arg1String: "s"},
 			file: "s.ail",

@@ -1,0 +1,9 @@
+-- TC_MATCH_005 fixture: a pre-JInt match. Integers now decode as JInt and
+-- would fall to the `_` arm; `ailang check` must say so.
+module cmd/ailang/testdata/jsonjint/warn_jnumber_only
+import std/json (Json, JNumber)
+
+export pure func amount(j: Json) -> float = match j {
+  JNumber(n) => n,
+  _ => 0.0
+}
