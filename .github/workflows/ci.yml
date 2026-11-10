@@ -523,6 +523,18 @@ jobs:
     - name: Check frozen prompt immutability and mirror agreement
       run: make check-prompt-freeze
 
+    # Doc-sample gate (M-V1-DOCS-FOR-1-0 §A): every AILANG block on the site, in
+    # README.md, docs/LIMITATIONS.md and the active prompt must pass `ailang check`
+    # with the binary `make install` built above from THIS commit, or be tagged.
+    # It runs on every PR, not only on docs changes: a compiler change can break a
+    # sample, which is the point. -base-ref is the shrink-only ratchet on
+    # scripts/doc_samples_baseline.txt (needs the origin/dev fetch above).
+    - name: Check documentation code samples
+      run: make check-doc-samples DOC_SAMPLES_AILANG="$(go env GOPATH)/bin/ailang" DOC_SAMPLES_ARGS="-github -base-ref origin/dev"
+
+    - name: Doc-sample gate self-test
+      run: make test-check-doc-samples DOC_SAMPLES_AILANG="$(go env GOPATH)/bin/ailang"
+
     # M-V1-SIMPLIFY-S5 M3/M6: the devtools prompt may only teach routes the
     # binary accepts, and the generated CLI reference must match the dispatch
     # table. Both are gate-shaped make targets; cihygiene's
