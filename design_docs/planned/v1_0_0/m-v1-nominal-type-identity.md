@@ -589,6 +589,18 @@ spelling imported it; the file compiles and evaluates once.
 > were loaded twice); its registered surface (`/health`, `/api/_meta`, MCP `tools/list`) is byte-identical. `check` over `examples/` and `std/` (cold, isolated
 > caches, `dev` vs branch): 607 files, 521 pass on both, **0 verdict flips, 0 differences in output text**.
 >
+> *Measured after the review fixes* (baseline = a fresh `dev` build, candidate = this branch rebased on
+> it). Census — a scratch instrument run by the old head (`07b4a4bb0`) and the new one over every
+> downstream corpus copy, recording each import edge's resolved file and ID: **3,780 distinct import
+> edges in 7 corpora, 0 resolved to a different file, 0 changed ID, 0 verdict flips**. The holes the review
+> found (items 2–4) are latent; no current downstream build hits them. `make downstream-check`: **0
+> NEWLY_FAILING, 0 fail_changed, 0 newly_passing in every corpus**; exit 4 only for 4 baseline-unmeasurable
+> entries (email-parse 1, motoko-fork 1, ailang-packages 2); the same 6 intended `fail_diag_changed`
+> renames as before; no write-audit (exit 3) false positive in this run. `internal-dump-iface` over the
+> cached registry: 0 differ of 2,497 modules (2,053 identical, 444 fail identically); `examples/` + `std/`
+> `check`: 607 files, 0 flips, 0 text differences; `verify-stdlib` 49/49; `cacheKeyVersion` still `v10`.
+> Mutation: 24 mutants over the new code, all killed.
+>
 > **What M2 can now assume.** (1) In one build, a package module file has exactly one module ID, and it is
 > `LoadedModule.Path` = `iface.Module` = the `modID` the pipeline compiles it under = `GlobalRef.Module`
 > of its exports; stamping `TCon.Module` from any of them gives one identity per declaration. The ID is
