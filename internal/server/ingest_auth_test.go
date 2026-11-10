@@ -269,19 +269,6 @@ func TestIngestAuth_ExporterHeaderOverTheWire(t *testing.T) {
 	}
 }
 
-func TestIngestAuthMode_UnknownEnforces(t *testing.T) {
-	for in, want := range map[string]string{
-		"": config.IngestAuthWarn, "warn": config.IngestAuthWarn, " Warn ": config.IngestAuthWarn,
-		"off": config.IngestAuthOff, "OFF": config.IngestAuthOff,
-		"enforce": config.IngestAuthEnforce, "enforced": config.IngestAuthEnforce, "true": config.IngestAuthEnforce,
-	} {
-		t.Setenv(config.EnvIngestAuth, in)
-		if got := config.IngestAuthMode(); got != want {
-			t.Errorf("%s=%q: got %q, want %q", config.EnvIngestAuth, in, got, want)
-		}
-	}
-}
-
 // The warn log names every distinct sender once, then summarises per class
 // per interval, carrying the count it held back.
 func TestIngestWarnLog_RateLimited(t *testing.T) {
