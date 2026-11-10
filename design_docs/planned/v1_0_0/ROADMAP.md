@@ -180,6 +180,45 @@ v0.58.x; `runtime/` and `third_party/goopus` move under `internal/`; `check --js
 | 9 | Go API excluded from the 1.x promise in writing | Yes | public surface |
 | 10 | Which downstream repos are blocking in the gate | docparse, email-parse, daneel, ailang-packages blocking; world and motoko advisory at first | downstream gate |
 
+## 7. First implementation wave (2026-11-10)
+
+Six Opus agents, each in its own worktree, each opening a PR it does not merge.
+
+| PR | Scope | State at time of writing |
+|---|---|---|
+| #2203 | Release gates M1+M2: hook installer, `release.yml` ci-gate | Green before the `build.yml` jobs were added (`ccd80d1d9`); CI re-running |
+| #2205 | Nominal type identity M0 spike | Draft, not for merge. **Go**, with a new milestone first (below) |
+| #2206 | Replace the `ollama` Go module | Agent still working |
+| #2207 | Match exhaustiveness core: algorithm package, located RT002, VM silent-Unit fix, warnings in JSON | Green |
+| #2208 | `make downstream-check` | CI re-running after a path-traversal hardening (`c98631ede`) |
+| #2209 | Type-variable hygiene: #2157, #2076 | CI re-running after a coverage fix |
+
+**What the wave changed in the plan** (rulings in ledger `D-68`):
+
+- **New milestone: canonical module identity**, before the main type-identity change. A module inside a
+  package loads twice, under two paths, so one file has two identities; without this the fix falsely
+  rejects 14 of docparse's 44 files. The design doc's regex census had found 0 — only a real binary
+  saw it. Type identity is now estimated at 11.5–17 days (was 9–14).
+- **Exhaustiveness wiring needs less than §3 says:** a four-line constructor stamp keyed by the
+  canonical module, not the whole identity change.
+- **The release gate requires `build.yml`'s per-OS jobs.** Without them it would have passed v0.57.4.
+- **Two soundness holes now have issues:** #2210 (missing record field passes `check`; the cause is
+  the open-vs-closed record unification, not the shared row name the design doc guessed) and #2211
+  (lowercase type names are never enforced).
+- **First downstream-gate run:** v0.57.4 against `dev` at `470b6ea59`, 1,974 files and 125 packages
+  per arm, **0 newly failing**. Caveat: 41 daneel entries were not checked because their dependencies
+  did not resolve, and daneel is a blocking corpus.
+
+**Found by the wave and not yet owned by any doc:**
+
+- A warm compile cache drops warnings in every output format, so exhaustiveness warnings would vanish
+  on a cached run.
+- With plain `--bytecode`, a VM run-time error falls back and re-runs the program on the evaluator
+  (already item B4 in `m-bytecode-vm-parity-bugs.md`).
+- The `()` pattern fails during elaboration.
+- Single-constructor record ADTs still cross module boundaries after the identity fix, because
+  aliases expand by bare name first. Undecided.
+
 ## 7. Suggested next step
 
 Decisions 1–5 are ruled. Send wave 0 and nominal-identity M1 to sprint-planner; the older overflow
