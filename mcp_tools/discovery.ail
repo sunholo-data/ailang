@@ -4,8 +4,8 @@ module mcp_tools/discovery
 import mcp_tools/lib (readOrError, readUnscopedOrError, errorJson, envelope, resolveVersion, readVersionedJson, unknownVersionError)
 import std/json (Json, jo, kv, js, ja, getArray, getString)
 import std/option (getOrElse)
-import std/list (filter, take)
-import std/string (toLower, contains)
+import std/list (filter, take, map)
+import std/string (toLower, contains, find, substring, length, startsWith)
 
 -- Sidebar tree as JSON. Replaces scraping the Docusaurus sidebar.
 -- Version-scoped: snapshot of that release's docs site nav.
@@ -17,7 +17,11 @@ export func docsNav(forVersion: string) -> Json ! {Env, FS} =
   readOrError(forVersion, "docs_nav.json")
 
 -- Full-text search across doc Markdown for the given version.
--- Filters server-side on lowercased body + title; returns top 10 matches.
+-- Filters server-side on lowercased body + title; returns the top 10 matches,
+-- docs pages before archived teaching prompts (prompts/v*.md match almost any
+-- query), each as path, title, its first 10 headings and an excerpt around the
+-- match: the full page is a docs_nav / example_get away. Whole bodies made one
+-- search ~30 KB, too much for a tool result in a listed connector.
 @route("POST", "/api/mcp/docs_search")
 @mcp_name("docs_search")
 @mcp_title("Search AILANG docs")
@@ -39,9 +43,33 @@ export func docsSearch(query: string, forVersion: string) -> Json ! {Env, FS} =
             \p. contains(getOrElse(getString(p, "body"), ""), q) ||
                 contains(toLower(getOrElse(getString(p, "title"), "")), q),
             all) in
-          let top = take(10, matched) in
-          envelope(resolved, jo([kv("pages", ja(top)), kv("query", js(query))]))
+          let docs = filter(\p. isPrompt(p) == false, matched) in
+          let prompts = filter(isPrompt, matched) in
+          let top = take(10, docs ++ prompts) in
+          envelope(resolved, jo([kv("pages", ja(map(\p. searchHit(p, q), top))), kv("query", js(query))]))
       }
+
+pure func isPrompt(p: Json) -> bool = startsWith(getOrElse(getString(p, "path"), ""), "prompts/")
+
+-- Characters of body kept around the first match (before, after).
+pure func excerptBefore() -> int = 200
+pure func excerptAfter() -> int = 600
+
+-- body[i-before .. i+after) around the first occurrence of q, or the opening
+-- of the body when q only matched the title. The index lowercases bodies.
+pure func excerpt(body: string, q: string) -> string {
+  let n = length(body);
+  let i = find(body, q);
+  let from = if i < 0 then 0 else if i > excerptBefore() then i - excerptBefore() else 0;
+  let to = if from + excerptBefore() + excerptAfter() > n then n else from + excerptBefore() + excerptAfter();
+  substring(body, from, to)
+}
+
+pure func searchHit(p: Json, q: string) -> Json =
+  jo([kv("path", js(getOrElse(getString(p, "path"), ""))),
+      kv("title", js(getOrElse(getString(p, "title"), ""))),
+      kv("headings", ja(take(10, getOrElse(getArray(p, "headings"), [])))),
+      kv("excerpt", js(excerpt(getOrElse(getString(p, "body"), ""), q)))])
 
 -- What changed in a given release (added/changed/fixed/breaking).
 @route("POST", "/api/mcp/changelog_for_version")

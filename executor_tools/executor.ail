@@ -59,8 +59,18 @@ pure func processErrorText(e: ProcessError) -> string = match e {
 }
 
 -- The result shape every exec-backed tool returns.
-pure func outputJson(out: ProcessOutput) -> Json =
-  jo([kv("ok", jb(out.exitCode == 0)), kv("exit_code", jnum(intToFloat(out.exitCode))), kv("stdout", js(toString(out.stdout))), kv("stderr", js(toString(out.stderr))), kv("truncated", jb(out.truncated))])
+pure func outputJson(out: ProcessOutput) -> Json = outputJsonIn(out, "")
+
+-- s without the per-request directory, in both spellings tools print it
+-- ("/tmp/ailang-exec/<uuid>/" and, in MOD010's canonical path, without the
+-- leading slash). The directory is an internal identifier: the logs already
+-- strip it, and a listed connector must not return it either. "" = unchanged.
+pure func scrubDir(s: string, dir: string) -> string =
+  if dir == "" then s else replace(replace(s, "${dir}/", ""), "${substring(dir, 1, length(dir))}/", "")
+
+-- outputJson with the request directory scrubbed from stdout and stderr.
+pure func outputJsonIn(out: ProcessOutput, dir: string) -> Json =
+  jo([kv("ok", jb(out.exitCode == 0)), kv("exit_code", jnum(intToFloat(out.exitCode))), kv("stdout", js(scrubDir(toString(out.stdout), dir))), kv("stderr", js(scrubDir(toString(out.stderr), dir))), kv("truncated", jb(out.truncated))])
 
 -- First non-blank line of s, without the request directory and a leading
 -- "Error: ", clipped. Error text names <dir>/main.ail in several spellings.
@@ -70,7 +80,7 @@ pure func firstLine(s: string, dir: string) -> string {
   match lines {
     [] => "",
     [l, ..._] => {
-      let noDir = replace(replace(l, "${dir}/", ""), "${substring(dir, 1, length(dir))}/", "");
+      let noDir = scrubDir(l, dir);
       clip(trim(replace(noDir, "Error: ", "")), maxErrorChars())
     }
   }
@@ -146,8 +156,12 @@ pure func checkOutcome(out: ProcessOutput, dir: string) -> [Field] = match decod
 
 -- Run `ailang <args>`, returning the tool result and its log fields.
 func execAilang(args: [string], classify: ProcessOutput -> [Field]) -> (Json, [Field]) ! {Env, Process} =
+  execAilangIn("", args, classify)
+
+-- execAilang for a per-request directory: the result never names `dir`.
+func execAilangIn(dir: string, args: [string], classify: ProcessOutput -> [Field]) -> (Json, [Field]) ! {Env, Process} =
   match exec(ailangBin(), args) {
-    Ok(out) => (outputJson(out), classify(out) ++ [kv("exit_code", jint(out.exitCode)), kv("truncated", jb(out.truncated))]),
+    Ok(out) => (outputJsonIn(out, dir), classify(out) ++ [kv("exit_code", jint(out.exitCode)), kv("truncated", jb(out.truncated))]),
     Err(e) => (errorJson("exec_failed", processErrorText(e)), outcomeFields("exec_failed", processErrorText(e)))
   }
 
@@ -188,7 +202,7 @@ pure func codeFields(code: string) -> [Field] =
 
 func runCode(tool: string, code: string, source: string) -> Json ! {Clock, Debug, Env, FS, Process, Rand} {
   let t0 = now();
-  logged(tool, t0, codeFields(code), withRequestFile(source, \dir. execAilang(["run", "--policy", policyPath(), "--chdir", dir, "main.ail"], \out. runOutcome(out, dir))))
+  logged(tool, t0, codeFields(code), withRequestFile(source, \dir. execAilangIn(dir, ["run", "--policy", policyPath(), "--chdir", dir, "main.ail"], \out. runOutcome(out, dir))))
 }
 
 -- Call this FIRST: the AILANG teaching prompt (syntax rules, templates,
@@ -203,17 +217,18 @@ export func ailangPrompt() -> Json ! {Clock, Debug, Env, Process} {
   logged("ailang_prompt", t0, [], execAilang(["prompt"], \out. outcomeFields(if out.exitCode == 0 then "ok" else "failed", "")))
 }
 
--- Type-check AILANG source and verify its contracts (requires/ensures) with Z3
--- where available. `code` is a whole module; the module line may be omitted or
--- be `module main`. Returns the ai-check JSON report on stdout: check.passed,
--- check.errors (with locations and fixes), verify.results.
+-- Type-check AILANG source. `code` is a whole module; the module line may be
+-- omitted or be `module main`. Returns the ai-check JSON report on stdout:
+-- check.passed and check.errors (with locations and fixes). Contracts
+-- (requires/ensures) are type-checked but not proved here: this server has no
+-- Z3, so verify.available is false. Prove them locally with `ailang verify`.
 @route("POST", "/api/executor/ailang_check")
 @mcp_name("ailang_check")
 @mcp_title("Check AILANG code")
 @mcp_hints("readOnly", "idempotent")
 export func ailangCheck(code: string) -> Json ! {Clock, Debug, Env, FS, Process, Rand} {
   let t0 = now();
-  logged("ailang_check", t0, codeFields(code), withRequestFile(code, \dir. execAilang(["ai-check", "-relax-modules", "${dir}/main.ail"], \out. checkOutcome(out, dir))))
+  logged("ailang_check", t0, codeFields(code), withRequestFile(code, \dir. execAilangIn(dir, ["ai-check", "-relax-modules", "${dir}/main.ail"], \out. checkOutcome(out, dir))))
 }
 
 -- Run AILANG source in the hosted sandbox. Entry point is `main`, with no
