@@ -85,6 +85,10 @@ as context (no loss), then teaches the step out:
 Round 1's 348 repairs were matched back to their history by code hash, so no repair was bought
 twice: 110 of them end a loop of 3 or 4 failed attempts.
 
+### The compiler's own hint can feed a loop
+
+`MOD010` says: *module 'rle/decode' doesn't match file path 'benchmark/solution'. Fix: use --relax-modules flag or set AILANG_RELAX_MODULES=1*. An agent cannot change how its program is run, so the only fix it can make is the module line, which the hint does not mention. A model that follows error messages faithfully, which is the habit we train, gets pointed the wrong way. The training episodes now read the reference rule instead; the message itself is a candidate AILANG fix.
+
 ### Measuring what the banked row cannot see
 
 - `tools/finetune/trace_dropped.py` counts dropped tool calls in any traced run, and which runs
@@ -102,3 +106,4 @@ twice: 110 of them end a loop of 3 or 4 failed attempts.
 | 2026-11-10 | Started round-2 collection: pilot-3 on the 57 training benchmarks, traced | Same lane budgets as round 1 (25 min, 1.5M tokens per benchmark) |
 | 2026-11-10 | Added attempt history to the extractor; matched it onto round 1's repairs | 348/348 matched; 110 end a loop of 3+ failed attempts |
 | 2026-11-10 | Added build-up and loop-break episodes, the write-length cap, the dropped-call counter, the probe and `pilot4_run.sh` | Counter reproduces the known drop rates |
+| 2026-11-10 | Test-built pilot-4 episodes from round 1 alone | 110 loop-break episodes, but only 60 had a lookup: the error-to-section map covered parse errors only. Added `MOD010` → "Required Program Structure" (its rule 1), Option/Result mix-ups → "Constructing Option Values", and a signature lookup for type mismatches in calls to stdlib functions: **83/110**. Errors with no section that teaches the fix (bool ordering, unclosed braces) get none, rather than a wrong one. 119 build-up episodes verified out of 131 long programs |
