@@ -134,8 +134,20 @@ pure func runtimeOutcome(stderr: string, dir: string) -> [Field] = match policyR
 pure func runtimeOrFailed(stderr: string, dir: string) -> [Field] =
   if contains(stderr, "RT0") then outcomeFields("runtime_error", firstLine(stderr, dir)) else outcomeFields("failed", firstLine(stderr, dir))
 
+-- The `verify.outcome` of an ai-check report on stdout ("" when absent).
+pure func reportVerifyOutcome(stdout: string) -> string = match decode(stdout) {
+  Ok(j) => match get(j, "verify") {
+    Some(v) => match getString(v, "outcome") { Some(o) => o, None => "" },
+    None => ""
+  },
+  Err(_) => ""
+}
+
 -- Classify an ai-check report: check.passed, the error count, the first error,
--- and any Z3 counterexamples.
+-- any Z3 counterexamples, and the verification outcome. A program that
+-- type-checks but whose contracts could not be verified (this host has no
+-- solver) is logged as "ok_unverified", one whose verification failed as
+-- "verify_failed" — never as a plain "ok".
 pure func checkOutcome(out: ProcessOutput, dir: string) -> [Field] = match decode(toString(out.stdout)) {
   Err(_) => outcomeFields("failed", firstLine(toString(out.stderr), dir)),
   Ok(j) => {
@@ -150,8 +162,37 @@ pure func checkOutcome(out: ProcessOutput, dir: string) -> [Field] = match decod
       Some(v) => match getInt(v, "counterexample") { Some(n) => n, None => 0 },
       None => 0
     };
-    outcomeFields(if passed then "ok" else "check_failed", first) ++ [kv("error_count", jint(count)), kv("counterexamples", jint(cex))]
+    let vout = reportVerifyOutcome(toString(out.stdout));
+    let outcome = if !passed then "check_failed" else if vout == "unavailable" then "ok_unverified" else if out.exitCode != 0 then "verify_failed" else "ok";
+    outcomeFields(outcome, first) ++ [kv("error_count", jint(count)), kv("counterexamples", jint(cex)), kv("verify_outcome", js(vout))]
   }
+}
+
+-- What a REMOTE caller is told when this host cannot verify contracts. It
+-- replaces the CLI's local install advice, which names files and commands on
+-- a machine the caller does not control.
+pure func noSolverMessage() -> string = "contract verification is not available on this hosted tool; type checking passed"
+
+-- ailang_check's result. The Stable envelope {ok, exit_code, stdout, stderr,
+-- truncated} plus two ADDITIVE fields:
+--   verification          the report's verify.outcome ("verified", "partial",
+--                         "unproved", "counterexample", "unavailable", ...;
+--                         "unknown" when stdout carries no report)
+--   verification_message  only when verification is "unavailable"
+-- When the solver is unavailable and the program type-checks, the verdict is
+-- the type check's, as it was before ai-check failed that case: ok stays true,
+-- exit_code stays ai-check's real status (1), and stderr carries the remote
+-- message instead of local install advice. Like every exec result, it never
+-- names the per-request directory (scrubDir).
+pure func checkResultJson(out: ProcessOutput, dir: string) -> Json {
+  let stdout = scrubDir(toString(out.stdout), dir);
+  let outcome = reportVerifyOutcome(stdout);
+  let unverified = outcome == "unavailable";
+  let localAdvice = \l. startsWith(l, "Error: Z3 solver not found") || startsWith(l, "Install Z3");
+  let rawErr = scrubDir(toString(out.stderr), dir);
+  let stderr = if unverified then concat([join("\n", filter(\l. !localAdvice(l), split(rawErr, "\n"))), noSolverMessage(), "\n"]) else rawErr;
+  let base = [kv("ok", jb(out.exitCode == 0 || unverified)), kv("exit_code", jnum(intToFloat(out.exitCode))), kv("stdout", js(stdout)), kv("stderr", js(stderr)), kv("truncated", jb(out.truncated)), kv("verification", js(if outcome == "" then "unknown" else outcome))];
+  jo(if unverified then base ++ [kv("verification_message", js(noSolverMessage()))] else base)
 }
 
 -- Run `ailang <args>`, returning the tool result and its log fields.
@@ -160,8 +201,12 @@ func execAilang(args: [string], classify: ProcessOutput -> [Field]) -> (Json, [F
 
 -- execAilang for a per-request directory: the result never names `dir`.
 func execAilangIn(dir: string, args: [string], classify: ProcessOutput -> [Field]) -> (Json, [Field]) ! {Env, Process} =
+  execAilangWith(args, \out. outputJsonIn(out, dir), classify)
+
+-- execAilang with the tool's own result shape.
+func execAilangWith(args: [string], render: ProcessOutput -> Json, classify: ProcessOutput -> [Field]) -> (Json, [Field]) ! {Env, Process} =
   match exec(ailangBin(), args) {
-    Ok(out) => (outputJsonIn(out, dir), classify(out) ++ [kv("exit_code", jint(out.exitCode)), kv("truncated", jb(out.truncated))]),
+    Ok(out) => (render(out), classify(out) ++ [kv("exit_code", jint(out.exitCode)), kv("truncated", jb(out.truncated))]),
     Err(e) => (errorJson("exec_failed", processErrorText(e)), outcomeFields("exec_failed", processErrorText(e)))
   }
 
@@ -223,13 +268,16 @@ export func ailangPrompt() -> Json ! {Clock, Debug, Env, Process} {
 -- function's requires/ensures proved with Z3 (verify.results: verified,
 -- counterexample with a witness, or inconclusive after 5s per function).
 -- Only `pure` functions (or `! {}`) are proved; others report skipped/NOT_PURE.
+-- `verification` names the overall result; "unavailable" means this server
+-- had no solver, so the code was type-checked only and its contracts were not
+-- proved (prove them locally with `ailang verify`).
 @route("POST", "/api/executor/ailang_check")
 @mcp_name("ailang_check")
 @mcp_title("Check AILANG code")
 @mcp_hints("readOnly", "idempotent")
 export func ailangCheck(code: string) -> Json ! {Clock, Debug, Env, FS, Process, Rand} {
   let t0 = now();
-  logged("ailang_check", t0, codeFields(code), withRequestFile(code, \dir. execAilangIn(dir, ["ai-check", "-relax-modules", "${dir}/main.ail"], \out. checkOutcome(out, dir))))
+  logged("ailang_check", t0, codeFields(code), withRequestFile(code, \dir. execAilangWith(["ai-check", "-relax-modules", "${dir}/main.ail"], \out. checkResultJson(out, dir), \out. checkOutcome(out, dir))))
 }
 
 -- Run AILANG source in the hosted sandbox. Entry point is `main`, with no
