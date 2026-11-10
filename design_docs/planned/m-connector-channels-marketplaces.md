@@ -148,6 +148,14 @@ taken the screenshot.
    static-client path, and (when the server has widgets) that the Copilot widget origin passes CORS.
 4. Dev only. Prod waits for D2.
 
+**P1 status (2026-11-10).** Executor done: `f3daa15c2` (env switches `OAUTH_CONFIDENTIAL_CLIENTS`,
+`OAUTH_DCR` + `OAUTH_DCR_REDIRECT_HOSTS`, `OAUTH_REVOCATION`, all off by default; DCR fails closed
+without hosts; operator command `createClientCli`; consent page names registered clients and flags DCR
+ones unverified). `test_oauth.sh` 43/43. Dev switch-on: ailang-multivac #18 (`terraform test` 50/50;
+prod plan adds the four env vars empty). Finding: the live prod executor service runs
+`executor-mcp:latest`, not the pinned tag; any prod apply re-pins it. **Next:** the same change in
+docparse, plus `--cors-origin` for Copilot's widget host, and `mcp check --target copilot`.
+
 **P1b: release to prod (agent drives, Mark runs the promotes; ~0.5 day of work, ~1 day elapsed).** Nothing
 in prod changes without this, and success metric 4 depends on it.
 1. AILANG release carrying the docs-tool annotations (`4f9dd4835`), the 0.2.0 lock (`7af2d7195`) and P1's
