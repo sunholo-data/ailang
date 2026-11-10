@@ -196,7 +196,13 @@ func AnalyzeModuleIFC(file *ast.File, imports map[string]*ImportedIFCSig) (out m
 		s.Declassify = append(s.Declassify, sig.authorizedLabels...)
 		sort.Strings(s.Declassify)
 		if err := s.Validate(); err != nil {
-			return nil, fmt.Errorf("export %s: %w", fn.Name, err)
+			// Every function gets a summary, not only exports; naming a private
+			// function "export f" misdirected #2156.
+			kind := "function"
+			if fn.IsExport {
+				kind = "export"
+			}
+			return nil, fmt.Errorf("%s %s: %w", kind, fn.Name, err)
 		}
 		out[fn.Name] = s
 	}
