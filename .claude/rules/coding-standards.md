@@ -33,4 +33,4 @@ Every change requires:
 2. **README.md** — Update status/capabilities if public-facing
 3. **Design docs** — Before: `design_docs/planned/`, After: `design_docs/implemented/vX_Y/`
 4. **Example files** — Every language feature needs `examples/feature_name.ail`
-5. **Website examples** — Import from `examples/` using raw-loader, never embed code inline
+5. **Website examples** — An inline ```` ```ailang ```` block must pass `make check-doc-samples` or be tagged (see `.claude/rules/docs-review.md`); complete runnable programs prefer a raw-loader import from `examples/`

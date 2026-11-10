@@ -64,7 +64,7 @@ Features are grouped into themes (see [resources/feature_themes.md](resources/fe
 
 1. **Version Constants** - Update `docs/src/constants/version.js`
 2. **Landing Pages** - intro.mdx, vision.mdx, why-ailang.mdx
-3. **Working Examples** - Ensure examples use raw-loader, all pass
+3. **Working Examples** - `make check-doc-samples` green; runnable programs via raw-loader
 4. **Status Banners** - Add "PLANNED" banners to future features
 5. **Feature Docs** - Create missing docs for implemented features
 6. **Roadmap Section** - Move theoretical pages to roadmap
@@ -159,18 +159,16 @@ The `post-release` skill should invoke docs-sync automatically:
    - Be in roadmap section, not current features
 
 2. **Examples Must Work** - Every code example should:
-   - Use raw-loader to import from `examples/`
-   - Be tested with `ailang run` or `ailang test`
-   - Never embed code directly in MDX
+   - **Inline blocks must pass the gate or be tagged** (ROADMAP D-67 ruling 7, replacing
+     "never inline"): `make check-doc-samples` runs `ailang check` on every ```` ```ailang ````
+     block; a fragment, sketch, REPL transcript, anti-example or multi-file part carries a
+     tag (`parse` / `sketch` / `repl` / `error=CODE` / `file=path.ail`). Grammar and the
+     shrink-only baseline: `.claude/rules/docs-review.md`. Never fence AILANG as `typescript`.
+   - Complete runnable programs on tutorial pages: prefer a raw-loader import from
+     `examples/` (also covered by `make verify-examples`), tested with `ailang run`/`ailang test`
    - **CLI commands must be added to `examples/cli_examples.txt`** and verified with `./tools/verify_cli_examples.sh`
    - Default entrypoint is `main` - don't use `--entry main` unless showing non-main entry
    - Test all commands before documenting: `./bin/ailang run --caps IO examples/runnable/hello.ail`
-
-   **Exception for Reference Documentation:**
-   - Reference pages (e.g., `language-syntax.md`, `effects.md`) may use inline syntax snippets
-   - These are small patterns showing language constructs, not complete runnable programs
-   - Tutorial pages (`examples.mdx`, `getting-started.mdx`, `guides/`) must always import from files
-   - Rule: If the code snippet is a complete runnable program, it MUST be imported
 
 3. **Design Docs = Ultimate Source of Truth** - The folder structure tracks complete feature lifecycle:
 
