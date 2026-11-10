@@ -91,7 +91,7 @@ The report lands in `OUT` (default `<state>/runs/<timestamp>/`): `report.md`, `r
 |---|---|---|
 | 0 | PASS | every entry of every blocking corpus was measured, and no unacknowledged break |
 | 2 | FAIL | an unacknowledged or over-`max` bucket in a blocking corpus, **or** an `expected-breaks.yaml` entry that matched nothing (a stale acknowledgement — remove it) |
-| 3 | INSTRUMENT FAILURE | could not measure: a corpus not fetched, a binary that does not start, the built-in canary failed, bad configuration (e.g. an invalid `error_pattern`), an entry with a result from one arm only, a `FETCH_DEPS=1` fetch that failed for any reason but HTTP 404 (or `FETCH_DEPS=1` with `OFFLINE=1`), or a write where nothing may be written (snapshots, read local checkouts, the run's package-root copy and provisioned trees once provisioning is done) |
+| 3 | INSTRUMENT FAILURE | could not measure: a corpus not fetched, a binary that does not start, the built-in canary failed, bad configuration (e.g. an invalid `error_pattern`), an entry with a result from one arm only, a `FETCH_DEPS=1` fetch that failed for any reason but HTTP 404 (or `FETCH_DEPS=1` with `OFFLINE=1`), or a write where nothing may be written (snapshots, the run's package-root copy and provisioned trees once provisioning is done — not the operator's sibling checkouts, which are only reported) |
 | 4 | INCOMPLETE | a blocking corpus has `NOT_MEASURED` entries beyond its `allow_not_measured` (or an allowance that no longer excuses anything) |
 | 64 | usage | a flag that does not parse (`--offline=maybe`) |
 
