@@ -125,6 +125,7 @@ LAUNCHD_SUITES := \
 	scripts/hooks/test_pre_push.sh \
 	scripts/hooks/test_git_health.sh \
 	scripts/hooks/test_install_hooks.sh \
+	tools/ci/test_require_checks.sh \
 	scripts/test_worktree_sweep.sh \
 	tools/launchd/test_evaluator_skill_lane.sh
 LAUNCHD_SERIAL_SUITES := \
@@ -139,6 +140,7 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@/bin/bash -n .claude/skills/sprint-planner/scripts/test_create_sprint_json.sh
 	@/bin/bash -n scripts/worktree_sweep.sh
 	@/bin/bash -n scripts/hooks/git_health.sh
+	@/bin/bash -n tools/ci/require_checks.sh
 	@for f in tools/launchd/*.sh tools/launchd/lib/*.sh; do /bin/bash -n "$$f" || exit 1; done
 	@/bin/bash -n tools/eval/motoko_connection_probe.sh
 	@/bin/bash -n tools/eval/test_motoko_connection_probe.sh
