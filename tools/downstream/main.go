@@ -51,6 +51,7 @@ type Options struct {
 	PackageRoot, SelfRoot                   string
 	Jobs, Timeout                           int
 	Offline, NoNice, FetchDeps              bool
+	KeepWork                                bool          // keep corpus clones, arms and provisioned copies in the run dir
 	provisionBudget                         time.Duration // tests only: 0 = provisionBudget
 }
 
@@ -89,6 +90,7 @@ func main() {
 	fs.IntVar(&o.Timeout, "timeout", o.Timeout, "seconds per check (a timeout is retried once at 2x)")
 	fs.BoolVar(&o.Offline, "offline", false, "no network: reuse the last snapshot per corpus and a cached baseline (--offline=0|1)")
 	fs.BoolVar(&o.NoNice, "no-nice", false, "do not run checks under nice -n 15")
+	fs.BoolVar(&o.KeepWork, "keep-work", false, "keep the run's working trees (corpus clones, arms, provisioned copies) beside the reports; default removes them (--keep-work=0|1)")
 	fs.BoolVar(&o.FetchDeps, "fetch-deps", false, "fetch registry versions missing from the package root (ailang install; network) into the run's copy (--fetch-deps=0|1)")
 	fs.Usage = func() {
 		fmt.Fprintln(fs.Output(), "usage: downstream --candidate <ailang binary> [flags]\n\n"+
@@ -144,6 +146,23 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 	if err := freshDir(o.Out); err != nil {
 		return exitInstrument, err
 	}
+	// The run dir holds a clone of every corpus plus per-arm copies: about 3.4 GB for
+	// the release tier. Only the reports are the result, so everything else goes when
+	// the run ends, on every verdict and on an early error. Deferred, so it runs after
+	// finish has written the reports.
+	defer func() {
+		if o.KeepWork {
+			return
+		}
+		freed, cerr := cleanWork(o.Out)
+		if cerr != nil {
+			fmt.Fprintf(log, "downstream: could not remove working trees in %s: %v\n", o.Out, cerr)
+			return
+		}
+		if freed > 0 {
+			fmt.Fprintf(log, "downstream: removed %d MiB of working trees from %s (KEEP_WORK=1 keeps them)\n", freed>>20, o.Out)
+		}
+	}()
 	if o.SelfRoot == "" {
 		if o.SelfRoot, err = gitOut(".", "rev-parse", "--show-toplevel"); err != nil {
 			return exitInstrument, err
@@ -436,6 +455,51 @@ func freshDir(dir string) error {
 		return fmt.Errorf("report dir %s is not empty", dir)
 	}
 	return nil
+}
+
+// reportFiles are what WriteReports leaves in the run dir: the run's result.
+var reportFiles = map[string]bool{"report.md": true, "report.json": true, "rows.jsonl": true, "pins.md": true}
+
+// cleanWork removes everything in the run dir except the reports and returns the
+// bytes freed. The run dir was required to be new or empty (freshDir), so every
+// other entry was created by this run. Directories are made writable first: a Go
+// module cache or a read-only checkout would otherwise survive RemoveAll. Symbolic
+// links are removed, never followed.
+func cleanWork(out string) (int64, error) {
+	ents, err := os.ReadDir(out)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return 0, nil
+		}
+		return 0, err
+	}
+	var freed int64
+	var firstErr error
+	for _, e := range ents {
+		if reportFiles[e.Name()] {
+			continue
+		}
+		p := filepath.Join(out, e.Name())
+		_ = filepath.WalkDir(p, func(path string, d os.DirEntry, werr error) error {
+			if werr != nil {
+				return nil
+			}
+			info, ierr := d.Info()
+			if ierr != nil {
+				return nil
+			}
+			if d.IsDir() {
+				_ = os.Chmod(path, info.Mode().Perm()|0o700)
+			} else if info.Mode().IsRegular() {
+				freed += info.Size()
+			}
+			return nil
+		})
+		if rerr := os.RemoveAll(p); rerr != nil && firstErr == nil {
+			firstErr = rerr
+		}
+	}
+	return freed, firstErr
 }
 
 // runCanary is the planted positive control run every time (design §6.3: a

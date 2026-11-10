@@ -202,8 +202,11 @@ func newFixture(t *testing.T, manifest, expected string) *fixture {
 	return f
 }
 
+// options keeps the run's working trees: several controls read them (an arm's
+// env, the run's package-root copy). TestWorkTreesAreRemovedByDefault covers the
+// production default.
 func (f *fixture) options(base, cand string) Options {
-	return Options{Candidate: cand, Baseline: base, Tier: "release", Ref: refDefault,
+	return Options{KeepWork: true, Candidate: cand, Baseline: base, Tier: "release", Ref: refDefault,
 		Manifest: f.manifest, Expected: f.expect, Out: filepath.Join(f.dir, "out"), State: filepath.Join(f.dir, "state"),
 		PackageRoot: filepath.Join(f.dir, "pkgroot"), SelfRoot: f.dir, Jobs: 3, Timeout: 30, NoNice: true}
 }

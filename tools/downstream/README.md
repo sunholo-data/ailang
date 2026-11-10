@@ -85,6 +85,13 @@ locks name with its version, content hash and source (`package root copy`, `regi
 The report lands in `OUT` (default `<state>/runs/<timestamp>/`): `report.md`, `report.json`,
 `rows.jsonl` (every entry) and `pins.md`.
 
+**Only those four files are left behind.** During a run `OUT` also holds a clone of every corpus,
+a copy of each arm and of the package root, and the provisioned trees: about 3.4 GB for the release
+tier. They are removed when the run ends, on every verdict and on an early error, and the log says
+how much was freed. `KEEP_WORK=1` (`--keep-work`) keeps them, for reading what an arm actually saw
+when a result needs debugging. The shared cache in `DOWNSTREAM_STATE` (snapshots and baselines,
+about 0.2 GB) is not touched.
+
 ## Exit codes
 
 | code | verdict | meaning |
