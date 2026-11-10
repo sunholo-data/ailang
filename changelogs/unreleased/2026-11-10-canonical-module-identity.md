@@ -8,12 +8,14 @@ interfaces, and evaluated twice — every module-level binding ran twice at run 
 fixture: its init log printed twice). Inside a package, the bare self-import
 (`import sunholo/linkedin/types`) was a third spelling of the same file.
 
-Every spelling the package resolver answers now maps to ONE identity, the published
-`pkg/<vendor>/<name>/<module>` path: the loader keys its cache by it, rewrites the import to it, and
-keeps the author's spelling for diagnostics. An IMP010 now names both: `symbol 'Triangle' not exported
-by 'pkg/acme/shapes/types/shape' (imported as 'shp/types/shape')`. A package's own modules carry the
-same identity whether it is checked in its own repository or installed as a dependency. Spellings the
-resolver rejects (an unexported module, a missing file) are untouched and fail exactly as before.
+Every spelling the package resolver answers now maps to ONE identity per build: a dependency's module
+is named by its published `pkg/<vendor>/<name>/<module>` path, and the root package's own module keeps
+the spelling the package itself writes (`<prefix>/<module>`, or `<vendor>/<name>/<module>` without a
+prefix) — the ID it already had, so diagnostics for a package checked in its own repository do not
+change. The loader keys its cache by that identity, rewrites the import to it, and keeps the author's
+spelling for diagnostics. An IMP010 now names both: `symbol 'Triangle' not exported by
+'pkg/acme/shapes/types/shape' (imported as 'shp/types/shape')`. Spellings the resolver rejects (an
+unexported module, a missing file) are untouched and fail exactly as before.
 
 Side effect: a dependency's module reached through its `module_prefix` spelling is no longer judged
 against the ROOT package's `[effects].max` — that check applies to the root's own modules, and the

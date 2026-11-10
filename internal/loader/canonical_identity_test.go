@@ -27,9 +27,9 @@ const (
 	docPublished   = "pkg/sunholo/ailang_parse/types/document"
 	docPrefix      = "docparse/types/document"
 	docBareSelf    = "sunholo/ailang_parse/types/document"
-	linkedinPkg    = "sunholo/linkedin"
-	postsPublished = "pkg/sunholo/linkedin/posts"
-	postsBare      = "sunholo/linkedin/posts"
+	blogPkg        = "sunholo/blog"
+	postsPublished = "pkg/sunholo/blog/posts"
+	postsBare      = "sunholo/blog/posts"
 )
 
 // parseLoader is a loader that can see package sunholo/ailang_parse
@@ -105,12 +105,12 @@ func TestCanonicalImportPath_RootKeepsItsOwnSpelling(t *testing.T) {
 
 func TestCanonicalImportPath_RootWithoutPrefixIsBareForm(t *testing.T) {
 	dir := t.TempDir()
-	posts := writeModule(t, dir, "posts.ail", "module sunholo/linkedin/posts\nexport func n() -> int = 1\n")
+	posts := writeModule(t, dir, "posts.ail", "module sunholo/blog/posts\nexport func n() -> int = 1\n")
 	ml := NewModuleLoader(t.TempDir())
 	ml.SetPackageResolver(&mockPkgResolver{files: map[string]string{postsBare: posts}})
-	ml.SetCurrentPackageName(linkedinPkg)
-	// Measured in ailang-packages (packages/linkedin/_smoke.ail): posts was
-	// loaded as both sunholo/linkedin/posts and pkg/sunholo/linkedin/posts.
+	ml.SetCurrentPackageName(blogPkg)
+	// Measured in the packages corpus (a package _smoke.ail): its posts module was
+	// loaded under both the bare and the pkg/ self-import spelling.
 	assertOneInstance(t, ml, posts, postsBare, []string{postsPublished, postsBare})
 }
 
@@ -240,19 +240,19 @@ func TestExtractImports_RewritesSpellingKeepsWrittenPath(t *testing.T) {
 }
 
 func TestExtractImports_RootRelativeAndPublishedFoldIntoOwnSpelling(t *testing.T) {
-	// Root package sunholo/linkedin (no prefix): `./posts` becomes
-	// pkg/sunholo/linkedin/posts in extractImports and then the root's own
+	// Root package sunholo/blog (no prefix): `./posts` becomes
+	// pkg/sunholo/blog/posts in extractImports and then the root's own
 	// spelling; so does an explicit pkg/ self-import.
 	dir := t.TempDir()
-	posts := writeModule(t, dir, "posts.ail", "module sunholo/linkedin/posts\nexport func n() -> int = 1\n")
+	posts := writeModule(t, dir, "posts.ail", "module sunholo/blog/posts\nexport func n() -> int = 1\n")
 	ml := NewModuleLoader(t.TempDir())
 	ml.SetPackageResolver(&mockPkgResolver{files: map[string]string{postsBare: posts}})
-	ml.SetCurrentPackageName(linkedinPkg)
+	ml.SetCurrentPackageName(blogPkg)
 	file := &ast.File{
-		Module: &ast.ModuleDecl{Path: "sunholo/linkedin/feed"},
+		Module: &ast.ModuleDecl{Path: "sunholo/blog/feed"},
 		Imports: []*ast.ImportDecl{
 			{Path: "./posts", IsRelative: true, RelativePath: "posts"},
-			{Path: postsPublished, IsPackage: true, PackageName: linkedinPkg},
+			{Path: postsPublished, IsPackage: true, PackageName: blogPkg},
 			{Path: postsBare},
 		},
 	}
