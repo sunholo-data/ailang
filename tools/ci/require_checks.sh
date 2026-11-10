@@ -21,7 +21,8 @@
 # A known flake is handled by re-running the failed job (the API then reports the latest attempt),
 # not by the override.
 #
-# Env: REQUIRE_CHECKS_INTERVAL (s, default 15), REQUIRE_CHECKS_ATTEMPTS (default 180 = 45 min).
+# Env: REQUIRE_CHECKS_INTERVAL (s, default 15), REQUIRE_CHECKS_ATTEMPTS (default 360 = 90 min;
+#      build.yml's per-OS jobs, which the list requires, have taken 45-77 min on a busy queue).
 # Exit: 0 releasable, 1 not releasable / bad marker / timeout, 2 usage.
 # bash 3.2 (runs on the rig for the runbook): no assoc arrays, no ${v,,}.
 set -u
@@ -29,7 +30,7 @@ set -u
 here=$(cd "$(dirname "$0")" && pwd)
 list="$here/release_required_checks.txt"
 tag=""; repo="${GITHUB_REPOSITORY:-sunholo-data/ailang}"
-interval="${REQUIRE_CHECKS_INTERVAL:-15}"; attempts="${REQUIRE_CHECKS_ATTEMPTS:-180}"
+interval="${REQUIRE_CHECKS_INTERVAL:-15}"; attempts="${REQUIRE_CHECKS_ATTEMPTS:-360}"
 usage() { echo "usage: require_checks.sh [--tag TAG] [--repo OWNER/NAME] <sha> [check-name...]" >&2; exit 2; }
 while [ $# -gt 0 ]; do
 	case "$1" in

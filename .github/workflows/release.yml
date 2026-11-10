@@ -24,14 +24,15 @@ jobs:
   # Release test gate (m-v1-release-gates §1). Nothing is built, signed or drafted unless every
   # check-run named in tools/ci/release_required_checks.txt concluded `success` on the tagged SHA
   # (all runs per name). Queries the recorded checks — it does not re-run the suite. Pending or
-  # missing checks are polled for up to 45 min (a tag pushed with its commit waits for CI), then
+  # missing checks are polled for up to 90 min (a tag pushed with its commit waits for CI; build.yml's per-OS jobs have
+  # taken 45–77 min on a busy queue), then
   # fail closed. A known flake: re-run the failed job, then re-run this workflow. Emergency: an
   # annotated tag carrying `release-gate-override: <issue-url> <reason>` waives the red checks and
   # is printed at the top of the release notes.
   ci-gate:
     name: CI gate (required checks green on the tagged SHA)
     runs-on: ubuntu-latest
-    timeout-minutes: 55
+    timeout-minutes: 100
     permissions:
       contents: read
       checks: read

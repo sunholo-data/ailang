@@ -7,7 +7,7 @@
 - The gate reads the commit's recorded check-runs; it does not re-run tests. It pages through all
   of them, and every GitHub Actions run of each required name must conclude `success`, so a matrix
   that emits two runs under one name needs both green. A pending or missing check is polled for up
-  to 45 minutes, then fails closed. Any completed run that is not `success` fails at once, with
+  to 90 minutes, then fails closed. Any completed run that is not `success` fails at once, with
   the job URL.
 - The required names are one data file, `tools/ci/release_required_checks.txt`. It ships with the
   `ci.yml` jobs `test`, `checks`, `lint`, `build`, `test-windows`, `govulncheck (vuln gate)` and
