@@ -1,6 +1,28 @@
 package config
 
-import "testing"
+import (
+	"net/http"
+	"testing"
+)
+
+// A hub-class sender attaches AILANG_HUB_TOKEN as IngestTokenHeader when it is
+// set, and adds no header at all when it is unset (the pre-ingest-auth
+// request, which a loopback or warn-mode dashboard accepts).
+func TestAttachHubToken(t *testing.T) {
+	t.Setenv(EnvHubToken, " hub-secret\n")
+	h := http.Header{}
+	AttachHubToken(h)
+	if got := h.Get(IngestTokenHeader); got != "hub-secret" {
+		t.Errorf("token set: %s = %q, want the trimmed token", IngestTokenHeader, got)
+	}
+
+	t.Setenv(EnvHubToken, "")
+	h = http.Header{}
+	AttachHubToken(h)
+	if len(h) != 0 {
+		t.Errorf("token unset: want no headers, got %v", h)
+	}
+}
 
 // AILANG_INGEST_AUTH is a security gate: unset is the registered default
 // (warn), and anything unrecognised — a typo included — enforces.

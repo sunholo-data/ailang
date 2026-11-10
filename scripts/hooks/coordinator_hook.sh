@@ -11,11 +11,19 @@
 PAYLOAD=$(cat)
 URL="${1:-http://127.0.0.1:1957/api/hooks/claude}"
 
+# /api/hooks/claude is the dashboard's hub ingest class
+# (internal/server/ingest_auth.go). The default URL is loopback (exempt), but
+# $1 can point anywhere: present AILANG_HUB_TOKEN when set, nothing when unset.
+AUTH_HEADER=()
+if [ -n "${AILANG_HUB_TOKEN:-}" ]; then
+  AUTH_HEADER=(-H "X-AILANG-Ingest-Token: ${AILANG_HUB_TOKEN}")
+fi
+
 # --connect-timeout 1: fast-fail when the daemon isn't listening (portable: GNU + BSD curl).
 # --max-time 3: cap total latency when it is listening but slow.
 # || true + redirects: never surface errors to Claude Code.
 curl -sS --connect-timeout 1 --max-time 3 -X POST "$URL" \
-  -H "Content-Type: application/json" \
+  -H "Content-Type: application/json" ${AUTH_HEADER[@]+"${AUTH_HEADER[@]}"} \
   -H "X-Ailang-Task-Id: ${AILANG_TASK_ID:-}" \
   -H "X-Ailang-Chain-Id: ${AILANG_CHAIN_ID:-}" \
   -H "X-Ailang-Stage-Id: ${AILANG_STAGE_ID:-}" \

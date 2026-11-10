@@ -47,9 +47,6 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 )
 
-// IngestTokenHeader carries an ingest shared secret.
-const IngestTokenHeader = "X-AILANG-Ingest-Token"
-
 // ingestAuthRealm is sent in WWW-Authenticate on this gate's 401s, distinct
 // from the dashboard's and the approval intake's realms.
 const ingestAuthRealm = `Bearer realm="ailang-ingest"`
@@ -169,7 +166,7 @@ func (s *Server) checkIngestToken(class ingestClass, r *http.Request) string {
 // presentedIngestToken is the sender's credential: X-AILANG-Ingest-Token,
 // else an Authorization bearer token.
 func presentedIngestToken(r *http.Request) string {
-	if v := strings.TrimSpace(r.Header.Get(IngestTokenHeader)); v != "" {
+	if v := strings.TrimSpace(r.Header.Get(config.IngestTokenHeader)); v != "" {
 		return v
 	}
 	return strings.TrimSpace(extractBearerToken(r))
@@ -185,7 +182,7 @@ func refuseIngest(w http.ResponseWriter, r *http.Request, class ingestClass, rea
 	}
 	w.Header().Set("WWW-Authenticate", ingestAuthRealm)
 	writeErrorResponse(w, http.StatusUnauthorized, reason+"_token",
-		"Ingest requires the shared secret in "+IngestTokenHeader+" or Authorization: Bearer ("+env+")")
+		"Ingest requires the shared secret in "+config.IngestTokenHeader+" or Authorization: Bearer ("+env+")")
 }
 
 // logIngestPosture states, once at startup, what the gate will do.

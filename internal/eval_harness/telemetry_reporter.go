@@ -144,12 +144,15 @@ func (t *TelemetryReporter) sendUpdate() {
 			return // Silent fail - telemetry is best-effort
 		}
 
+		httpReq, err := http.NewRequest(http.MethodPost,
+			fmt.Sprintf("%s/api/telemetry", t.serverURL), bytes.NewReader(body))
+		if err != nil {
+			return // Silent fail
+		}
+		httpReq.Header.Set("Content-Type", "application/json")
+		config.AttachHubToken(httpReq.Header) // hub-class ingest route
 		client := &http.Client{Timeout: 2 * time.Second}
-		resp, err := client.Post(
-			fmt.Sprintf("%s/api/telemetry", t.serverURL),
-			"application/json",
-			bytes.NewReader(body),
-		)
+		resp, err := client.Do(httpReq)
 		if err != nil {
 			return // Silent fail
 		}
