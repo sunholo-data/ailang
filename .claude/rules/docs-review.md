@@ -5,6 +5,7 @@ paths:
   - "docs/TESTING.md"
   - "docs/VISION.md"
   - "README.md"
+  - "docs/src/**"
 ---
 
 # Docs Review Dates
@@ -37,21 +38,30 @@ Add a page there when you add a generator.
 
 ## Code blocks: the doc-sample gate
 
-`make check-doc-samples` (CI) runs `ailang check` on every ```` ```ailang ```` block in
-`docs/docs/**`, README.md, docs/LIMITATIONS.md and the active prompt. Inline blocks are
-fine; a failing untagged one is not. Tag a block with words after the language:
+`make check-doc-samples` (CI, and `ci-quick` in the pre-push hook) runs `ailang check` on
+every ```` ```ailang ```` block in `docs/docs/**`, README.md, docs/LIMITATIONS.md and the
+active prompt; on every `.ail` file the docs import with raw-loader (examples/docs,
+reference, debug as well as runnable — `make verify-examples` covers only runnable); and
+on AILANG embedded as a `{`...`}` literal in docs/src. Tag a block after the language:
 
 | Fence | Use for | Gate |
 |---|---|---|
-| ```` ```ailang ```` | a complete program | must check (a missing `module` line is synthesised) |
-| ```` ```ailang file=pkg/mod.ail ```` | one file of a multi-file example | staged so sibling blocks can import it, then checked |
+| ```` ```ailang ```` | a complete program | must check; a `module` line is synthesised only for a fragment without `main` |
+| ```` ```ailang file=pkg/mod.ail ```` | one file of a multi-file example | staged so siblings can import it, then checked |
 | ```` ```ailang parse ```` | a fragment using names defined elsewhere | must parse (`ailang fmt`) |
-| ```` ```ailang sketch ```` | pseudo-code, elided bodies, notation | not run; counted per page |
-| ```` ```ailang repl ```` | a REPL transcript or REPL input | not run; counted |
-| ```` ```ailang error=PAR015 ```` | a deliberate anti-example | must FAIL with that code; passing is a failure |
+| ```` ```ailang error=PAR015 ```` | a deliberate anti-example | the FIRST error must be exactly that code |
+| ```` ```ailang sketch ```` / ```` repl ```` | pseudo-code, elisions / a REPL session | not run; must be listed in `scripts/doc_samples_unchecked.txt` |
 
-Never fence AILANG as `typescript` or leave it untagged: that is a failure too (fence
-CLI output as `text`). Known failures sit in `scripts/doc_samples_baseline.txt`, keyed
-by page + content hash; it only shrinks. A block that now passes must leave it, and
-editing a listed block re-keys it, so you fix or tag what you touch. Reproduce one block:
+A block that defines `main` must carry its own `module` line (a reader copies it into a
+file: MOD014 otherwise). Render imported files with `<CodeBlock language="ailang">`.
+**Structural defects fail and cannot be listed**: AILANG fenced as `typescript`, `text`
+or untagged (fence output as `text`; `not-ailang` opts a false positive out), an unknown
+tag, a fence that never closes or swallows the next one, an import that does not resolve.
+
+Known failures sit in `scripts/doc_samples_baseline.txt` (page + content hash + code).
+Both lists only shrink, **as sets**, against the PR base / previous tip: any new line
+fails, so fix or tag what you touch. A listed block that passes, vanishes or fails with a
+different code fails too. A new sketch/repl line passes only with `# reviewed: <why>`.
+The mis-fence detector is keyword hints plus a parse probe; it still misses AILANG in
+other languages' fences and keyword-less snippets (`1 + 2`). Reproduce one block:
 `make check-doc-samples DOC_SAMPLES_ARGS='-only <page>:<line> -keep /tmp/ds'`.

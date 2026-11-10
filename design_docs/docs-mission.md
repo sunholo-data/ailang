@@ -98,8 +98,9 @@ Mark selected all seven clauses attended on 2026-08-28; clauses 5-7 are his addi
 - **Clause 2 — Examples compile and run.** Every `.ail` under `examples/` passes
   `make verify-examples`, and every raw-loader import resolves. An inline AILANG block must pass the
   doc-sample gate (`make check-doc-samples`: `ailang check` on every block) or be tagged `parse` /
-  `sketch` / `repl` / `error=CODE` / `file=path.ail`; the gate's shrink-only baseline is the
-  clause-2 burn-down list. (Amended 2026-11-10 by ROADMAP `D-67` ruling 7, which replaced "an
+  `sketch` / `repl` / `error=CODE` / `file=path.ail`; the gate also checks every `.ail` file the
+  site imports with raw-loader (which `make verify-examples` does not, outside `examples/runnable/`),
+  and its shrink-only baseline is the clause-2 burn-down list. (Amended 2026-11-10 by ROADMAP `D-67` ruling 7, which replaced "an
   inline code block is itself a clause-2 defect"; complete runnable programs still prefer a
   raw-loader import from `examples/`.)
 - **Clause 3 — Site build health.** `make docs-build` green, the Pages deploy passing, no broken

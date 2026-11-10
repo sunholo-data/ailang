@@ -165,7 +165,8 @@ The `post-release` skill should invoke docs-sync automatically:
      tag (`parse` / `sketch` / `repl` / `error=CODE` / `file=path.ail`). Grammar and the
      shrink-only baseline: `.claude/rules/docs-review.md`. Never fence AILANG as `typescript`.
    - Complete runnable programs on tutorial pages: prefer a raw-loader import from
-     `examples/` (also covered by `make verify-examples`), tested with `ailang run`/`ailang test`
+     `examples/`, rendered with `<CodeBlock language="ailang">`. The gate checks every
+     imported `.ail` file; `make verify-examples` covers only `examples/runnable/`
    - **CLI commands must be added to `examples/cli_examples.txt`** and verified with `./tools/verify_cli_examples.sh`
    - Default entrypoint is `main` - don't use `--entry main` unless showing non-main entry
    - Test all commands before documenting: `./bin/ailang run --caps IO examples/runnable/hello.ail`
