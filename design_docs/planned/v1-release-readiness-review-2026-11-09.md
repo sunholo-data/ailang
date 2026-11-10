@@ -6,6 +6,11 @@
 (simplicity audit, dead code, Sonar, GitHub alerts, dashboard usage). This document cites its
 numbers rather than re-measuring them, and sorts its workstreams into before-tag and after-tag (§8).
 
+> **Superseded in detail, 2026-11-10.** Ten design docs were written from this review; several of
+> its claims were corrected by that work, and its "two to three weeks" estimate was too low. Read
+> [v1_0_0/ROADMAP.md](v1_0_0/ROADMAP.md) §4 for the corrections before acting on anything below.
+> The verdict stands.
+
 ## 1. Verdict
 
 **Do not tag v1.0.0 as the next release. Ship the current `dev` as v0.58.0, fix a short list of
