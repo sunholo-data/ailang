@@ -11,8 +11,10 @@
   the job URL.
 - The required names are one data file, `tools/ci/release_required_checks.txt`. It ships with the
   `ci.yml` jobs `test`, `checks`, `lint`, `build`, `test-windows`, `govulncheck (vuln gate)` and
-  `float determinism (arm64)`. Requiring `build.yml`'s per-OS jobs is still an open decision, and
-  until it is made the list would not have stopped v0.57.4.
+  `float determinism (arm64)`, plus `build.yml`'s per-OS jobs `Build ubuntu-latest`,
+  `Build windows-latest` and `Build macos-latest` (ruled by Mark, 2026-11-10). With the `ci.yml`
+  names alone the gate would not have stopped v0.57.4, whose tag commit had a red macOS build. A
+  flaky per-OS job now blocks a release until it is re-run.
 - Override: an **annotated** tag whose message has a line
   `release-gate-override: https://github.com/<owner>/<repo>/issues/<n> <reason>` waives the red
   checks; it does not waive missing or pending ones. The override is printed at the top of the

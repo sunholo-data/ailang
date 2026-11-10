@@ -16,9 +16,10 @@ test-windows
 govulncheck (vuln gate)
 float determinism (arm64)
 
-# build.yml — OPEN (m-v1-release-gates Decision 2, not yet ruled). These jobs run the full Go suite
-# per OS; v0.57.4 (dec3e8756) shipped with `Build macos-latest` red, which this list as shipped
-# would NOT have caught. To require them, uncomment:
-# Build ubuntu-latest
-# Build windows-latest
-# Build macos-latest
+# build.yml — required by Mark's ruling, attended 2026-11-10 (m-v1-release-gates Decision 2). These
+# jobs run the full Go suite per OS; v0.57.4 (dec3e8756) shipped with `Build macos-latest` red and
+# `Build windows-latest` cancelled, which the ci.yml names alone would NOT have caught. A flaky leg
+# here blocks a release until it is re-run: that is the intended trade.
+Build ubuntu-latest
+Build windows-latest
+Build macos-latest
