@@ -1,16 +1,16 @@
-# Fleet mission dashboard — iteration 99
+# Fleet mission dashboard — iteration 100
 
-Updated 2026-11-09; scheduled unattended. [Bookkeeping #2172](https://github.com/sunholo-data/ailang/issues/2172) (predecessor #2039, closed).
+Updated 2026-11-10; scheduled unattended. [Bookkeeping #2172](https://github.com/sunholo-data/ailang/issues/2172) (predecessor #2039, closed).
 
-- Outcome: **none / ADMIN**. This was an idle fire: the independent sonnet judge ruled **NONE**, and nothing was designed, planned, built or merged.
-- Why idle: the inputs are byte-identical to iteration 98. `tickets.json` and `open-decisions.tsv` both match, the ledger has 44 rows with 28 OPEN, and #2172 and #2039 carry no directive. All 27 tickets are gated behind an OPEN row.
-- The judge first returned NONE without re-deriving D-FLEET-29, 41 and 43 itself. I resumed it, and its first-party re-derivation kept NONE. D-FLEET-43 A remains the only in-scope step with no diff, and it is built only if you choose A.
+- Outcome: **none / ADMIN**. Idle fire: the independent sonnet judge ruled **NONE**, and nothing was designed, planned, built or merged.
+- Why idle: inputs byte-identical to iteration 99. `tickets.json` and `open-decisions.tsv` both match; ledger 44 rows, 28 OPEN; #2172 and #2039 carry no directive; origin/dev's one new commit touches no harness path. All 27 tickets are gated behind an OPEN row.
+- Judge's strongest objection: D-FLEET-43 A is in scope with no diff, and its exclusion rests only on the row's "built only if you choose A". Kept as your ask, not overridden by the loop.
 - Queue: 27 open tickets. Ledger: 44 rows, 28 OPEN (D-FLEET-16..23, 25..29, 31..45).
-- Routing: the evaluator ran on sonnet (Agent tool). The designer, planner and executor were not spawned because there was no pick. The driver routed the planner and executor off codex `gpt-6.1-sol` (probe rc 75).
-- Goal: clause 1 UNMEASURED, 2 UNMET, 3 MET, 4 met by its letter, 5 preserved. **Goal unmoved.** Harness share 16/20 (iterations 80–99).
-- Cost: metered $0. The evaluator used about 120k sonnet tokens across two passes, on the subscription. Controller tokens were not reported.
-- Records 95–99 sit on stacked draft PRs (#2169 → #2171 → #2173 → #2194 → iteration 99). Each merges cleanly onto origin/dev. origin/dev's log still ends at 94.
-- Dev @ `b4e97cdbf`: CI and Build and Release are green. Iteration 98's docs-deploy red has recovered.
-- Gate 0 self-notice: the watermark form returned rc 2 for the third consecutive fire. The script's own `--since` form returned rc 0, with 0 crash notices.
+- Routing: evaluator sonnet (Agent tool). Designer, planner and executor not spawned (no pick). Driver routed planner and executor off codex `gpt-6.1-sol` (probe rc 75); triage and stapledon separately report codex OAuth expired.
+- Goal: clause 1 UNMEASURED, 2 UNMET, 3 MET, 4 met by its letter, 5 preserved. **Goal unmoved.** Harness share 15/20 (iterations 81–100).
+- Cost: metered $0. Evaluator 72,546 sonnet tokens (subscription). Controller tokens not reported.
+- Records 95–100 sit on stacked draft PRs (#2169 → #2171 → #2173 → #2194 → #2198 → iteration 100). origin/dev's log still ends at 94.
+- Dev @ `6617e7f54`: CI, Build and Release, Docs deploy green (22 checks).
+- Gate 0 self-notice: watermark form rc 2 for the fourth consecutive fire; `--since` form rc 0, 0 crash notices.
 - Next: any ruling on D-FLEET-16..45, or a new ticket. Until then each fire repeats this screen. D-FLEET-43 is the ask that would make these fires free.
-- Evidence: [log](fleet-mission-log.md), [judge](fleet-mission-evidence/iteration99/idle-judge.md), [observations](fleet-mission-evidence/iteration99/observations.md).
+- Evidence: [log](fleet-mission-log.md), [judge](fleet-mission-evidence/iteration100/idle-judge.md), [observations](fleet-mission-evidence/iteration100/observations.md).
