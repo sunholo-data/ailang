@@ -474,14 +474,14 @@ spelling imported it; the file compiles and evaluates once.
 > digests. `detectModulePathCollisions` (`pipeline_module.go:26-135`) already knew: it de-duplicated
 > "the same file loaded under two canonical IDs … routinely with `module_prefix`-aliased packages".
 >
-> *Design (as revised after review, see "Review fixes" below).* `ModuleLoader.canonicalImportPath`
+> *Design (as revised after two reviews; the exact rule is "The import resolution rule, as implemented" below).* `ModuleLoader.canonicalImportPath`
 > (`internal/loader/canonical_identity.go`) resolves every spelling the package resolver answers —
 > `<prefix>/<m>`, bare `<vendor>/<name>/<m>` inside the root package, `pkg/<vendor>/<name>/<m>`, `./x`,
 > and in a package without `[exports]` any other path that names a file — to the **package and the file**,
 > then derives the module path from the FILE (not the spelling): prefix, `src/` or checkout
 > `<vendor>/<name>/` stripped, kept only if the resolver maps it back to the same file. A prefix spelling is
-> read in the **importing package's scope** (its own prefix, then its declared dependencies'; the build-wide
-> table only when neither claims it). It names the result with **one ID per build**: a **dependency's**
+> read in the **importing package's scope** (its own prefix, then its declared dependencies'; nothing
+> outside that scope). It names the result with **one ID per build**: a **dependency's**
 > module is `pkg/<vendor>/<name>/<m>`; the **root package's** own module is the spelling the package itself
 > writes, `<prefix>/<m>` when it declares a `module_prefix`, else `<vendor>/<name>/<m>`. `Load` keys and names the module by it; `extractImports` rewrites `imp.Path` to
 > it and keeps the author's spelling in `ImportDecl.WrittenPath`; every downstream consumer already reads
@@ -504,14 +504,15 @@ spelling imported it; the file compiles and evaluates once.
 >   root) fold into it. Consequence: a package's module has one identity in its own repository and
 >   another when installed — never two in one build.
 > - **Kept as before:** the **entry file** (its path-derived ID — the entry imported back by its own
->   closure is an import cycle under either ID, so it cannot become a second live instance), and
->   **unexported** in-package modules (the resolver refuses them, so the spelling is returned unchanged and
->   Load takes the project-relative path exactly as before — there is only one working spelling). Any
->   spelling the resolver rejects fails with exactly the error it failed with before.
-> - **Logical, not realpath.** The mapping is package name + module path. Two vendored copies of
->   different packages stay two modules even if a symlink makes them share bytes. Not covered: a file
->   reached both by a *file-path* spelling (`import src/x` from a `src/`-layout package) and by its
->   package spelling; no corpus does this (the check below found no remaining same-file pair).
+>   closure is an import cycle under either ID, reported as LDR002), and the ROOT's **unexported** modules
+>   (the resolver refuses them, so the root's project-relative path is used exactly as before — there is only
+>   one working spelling). A ROOT spelling the resolver rejects fails with the error it failed with before; a
+>   DEPENDENCY's fails in the dependency's scope (round 2).
+> - **Logical, not realpath — and checked.** The mapping is package name + module path, so two vendored
+>   copies (distinct files) of different packages stay two modules. A file reached by a path no resolver
+>   governs (a symlink into a package, a file-path import of a package file) would be a second identity;
+>   the pipeline's file↔identity check makes that an error (LDR003), so "one file, one identity" holds in
+>   every build that compiles.
 > - **Two versions of one package in one build: impossible today, by an explicit error at lock time.**
 >   `ailang lock` rejects a diamond with `VersionConflictError` (`pkg/resolver.go`) and the lock holds one
 >   entry per name (`LockFile.FindPackage`), so `pkg/<vendor>/<name>/…` is version-free and still unique.
@@ -601,22 +602,60 @@ spelling imported it; the file compiles and evaluates once.
 > `check`: 607 files, 0 flips, 0 text differences; `verify-stdlib` 49/49; `cacheKeyVersion` still `v10`.
 > Mutation: 24 mutants over the new code, all killed.
 >
-> **What M2 can now assume.** (1) In one build, a package module file has exactly one module ID, and it is
-> `LoadedModule.Path` = `iface.Module` = the `modID` the pipeline compiles it under = `GlobalRef.Module`
-> of its exports; stamping `TCon.Module` from any of them gives one identity per declaration. The ID is
-> `pkg/<vendor>/<name>/<m>` for a dependency and the package's own spelling for the root, so M2 must not
-> parse identity out of the ID string (e.g. "starts with `pkg/`" ≠ "is a dependency" across builds) — it
-> only compares IDs within one build, which is all nominal identity needs. M2's cache-key bump (v11) then
-> covers the qualified digest; nothing in M1b needs a bump. (2) After
-> `Load`, every `ImportDecl.Path` and `LoadedModule.Imports` entry is that ID; the spelling survives only
-> in `WrittenPath` (diagnostics). (3) Every spelling that RESOLVES to one package file — including the
-> extra paths a package without `[exports]` accepts — yields that one ID, and a prefix spelling means the
-> importing package's module; `pipeline.Result.ModuleIdentityConflicts` is empty when this holds over the
-> whole build, so M2 can assert it. (4) The entry file keeps its path-derived ID; nothing else can reach it
-> without a cycle. (5) The REPL/WASM loader has no packages, so it has no second spelling to fold; it
-> still needs the M3 resolver. (6) Not assumed: identity across builds (the root names its own modules by
-> its own spelling), or realpath-level identity of two DIFFERENT packages that share bytes through a
-> symlink — those stay distinct by design, and the loader reports them as a conflict.
+> *Review fixes, round 2 (second independent review, 2026-11-10).* On real code the first round was
+> already clean (the reviewer compared 18,844 import edges over 4,887 files: 0 resolved differently); five
+> constructed holes remained, all present on `dev` too. (1) The file↔identity record was only read by tests;
+> it is now a production check — the pipeline fails the build with **LDR003** after the cycle check — and a
+> root package's project-relative spelling of its own file (`import util` beside `acme/app/util`, fxJ: init
+> ran twice) is canonicalised to that module. (2) `Load` re-resolved a dependency's identity in the ROOT's
+> scope, so a dependency's miss could silently run the root's file (fxC) or another package's (fxA, dev);
+> an identity resolved in an importer's scope is now loaded as resolved, and a dependency's miss fails in its
+> own scope (**LDR001** naming the package, the published path tried and the spelling written). (3) An import
+> could be satisfied by a package the importer does not declare (fxB prefix table, fxB2 `pkg/` path, fxG a
+> dependency importing the root): **LDR006**. Also: two declared dependencies providing one prefix spelling
+> is **LDR005** naming both (fxD; it used to pick one by map order, then alphabetically); the bare
+> self-import is scoped to the importer (fxM: a dependency whose prefix is the root's vendor got the root's
+> `util`); a spelling whose letter case differs from the file on disk is **LDR001** on every host (fxI:
+> `cc/Init` was a second identity of `cc/init.ail` on macOS and "not found" on Linux); LDR002 shows how the
+> first module of a cycle was imported.
+>
+> **The import resolution rule, as implemented** (`internal/loader/canonical_scope.go`). A spelling S written
+> by a module of package P is resolved in P's scope — P, the packages P declares in `[dependencies]`, std:
+> 1. `std/…` and file paths (`…/x.ail`, `../x`) are not package spellings.
+> 2. `pkg/<vendor>/<name>/<m>` names that package; it must be P or one P declares, else **LDR006**.
+> 3. `<vendor>/<name>/<m>` with `<vendor>/<name>` = P is P's bare self-import.
+> 4. `<prefix>/<m>`: P's own module if `<prefix>` is P's `module_prefix` and P has it; else the module of the
+>    ONE declared dependency with that prefix that has it; two such dependencies is **LDR005**.
+> 5. Otherwise, for a DEPENDENCY P: **LDR006** if a package outside P's scope (or the root) would have
+>    provided it, else **LDR001**; never retried in another scope. For the ROOT: a path to a file of the root
+>    package is canonicalised to that module; any other path is loaded by path, as before.
+> The resolved (package, file) is then named — module path derived from the file, so every spelling of one
+> file agrees; a dependency as `pkg/<vendor>/<name>/<path>`, the root by its own spelling — and a spelling
+> whose case differs from the file on disk is **LDR001**. Finally the pipeline checks the whole build's
+> file↔identity record: a file read under two identities, or an identity read from two files, is
+> **LDR003** (only reachable through a path no resolver governs, e.g. a symlink into a package; two
+> DIFFERENT packages that are literally the same files through a symlink are therefore an error, while
+> vendored copies — distinct files — stay distinct packages). Without a resolver that can describe package
+> layouts, or outside any package, the pre-scoping rule applies unchanged.
+>
+> *Measured after round 2* (baseline = `origin/dev`, candidate = this branch): __C2__
+>
+> **What M2 can now assume** — each a property the build enforces, not a convention.
+> (1) **One identity per file per build.** Every file the loader reads has exactly one module ID and every ID
+> names exactly one file, or the build fails with LDR003 before anything is compiled. That ID is
+> `LoadedModule.Path` = `iface.Module` = the `modID` the pipeline compiles it under = `GlobalRef.Module` of
+> its exports, so stamping `TCon.Module` from any of them gives one identity per declaration. The entry file
+> keeps its path-derived ID; another spelling of it is an import cycle, reported as LDR002 first.
+> (2) **The ID is canonical, not a spelling.** After `Load`, every `ImportDecl.Path` and `LoadedModule.Imports`
+> entry is that ID; the author's spelling survives only in `WrittenPath` (diagnostics). The ID is
+> `pkg/<vendor>/<name>/<m>` for a dependency and the package's own spelling for the root — compare IDs
+> within one build only; never read "dependency or not" out of the string, and never compare across builds.
+> (3) **A name means one thing in one importer.** A prefix or self-import spelling resolves only within its
+> importer's declared scope; nothing resolves through a package the importer does not declare (LDR006), and
+> an ambiguous prefix is an error (LDR005), so a type reached through an import is a type of a package the
+> importer chose. (4) Nothing in M1b needs a cache-key bump; `cacheKeyVersion` stays `v10` and M2's v11 covers
+> its qualified digest. (5) The REPL/WASM loader has no packages; it has no second spelling to fold, and it
+> still needs the M3 resolver.
 >
 > **The four-line constructor stamp** the exhaustiveness wiring needs (from the spike, on `dev` lines of
 > `internal/iface/builder.go`): the constructor result type is built from a bare name in four places —
