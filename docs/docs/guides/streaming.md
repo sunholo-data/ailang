@@ -89,7 +89,7 @@ func myHandler(event: StreamEvent) -> bool ! {IO} {
 
 Custom headers for authentication:
 
-```typescript
+```ailang
 let config = {headers: [
   {name: "Authorization", value: "Bearer ${token}"},
   {name: "X-Custom", value: "value"}
@@ -137,7 +137,7 @@ func handleSSE(event: StreamEvent) -> bool ! {IO} {
 
 Claude, OpenAI, and Gemini all use POST+SSE:
 
-```typescript
+```ailang
 let body = "{\"model\": \"claude-sonnet-4-5-20250514\", \"messages\": [...]}";
 let config = {headers: [
   {name: "Authorization", value: "Bearer ${apiKey}"},

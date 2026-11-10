@@ -65,7 +65,7 @@ ailang run --caps IO --entry process --args-json '{"input": "data"}' examples/pr
 
 ### Minimal Example
 
-<CodeBlock language="typescript" title="examples/runnable/hello.ail">
+<CodeBlock language="ailang" title="examples/runnable/hello.ail">
   {HelloExample}
 </CodeBlock>
 
@@ -81,7 +81,7 @@ ailang run --caps IO --entry main examples/runnable/hello.ail
 
 ### Anatomy of an Executable Module
 
-<CodeBlock language="typescript" title="examples/docs/module_with_helper.ail">
+<CodeBlock language="ailang" title="examples/docs/module_with_helper.ail">
   {ModuleWithHelper}
 </CodeBlock>
 
@@ -108,7 +108,7 @@ An entrypoint function must:
 
 #### 0-Argument Functions
 
-<CodeBlock language="typescript" title="examples/docs/module_main_int.ail">
+<CodeBlock language="ailang" title="examples/docs/module_main_int.ail">
   {ModuleMainInt}
 </CodeBlock>
 
@@ -120,7 +120,7 @@ ailang run --entry main examples/docs/module_main_int.ail
 
 #### 1-Argument Functions
 
-<CodeBlock language="typescript" title="examples/docs/module_greet.ail">
+<CodeBlock language="ailang" title="examples/docs/module_greet.ail">
   {ModuleGreet}
 </CodeBlock>
 
@@ -132,7 +132,7 @@ ailang run --caps IO --entry greet --args-json '"World"' examples/docs/module_gr
 
 #### Record Parameters (Recommended Pattern)
 
-<CodeBlock language="typescript" title="examples/docs/module_process_record.ail">
+<CodeBlock language="ailang" title="examples/docs/module_process_record.ail">
   {ModuleProcessRecord}
 </CodeBlock>
 
@@ -154,7 +154,7 @@ export func add(x: int, y: int) -> int {
 ```
 
 <CheckIcon inline size={14} /> **Supported pattern:**
-<CodeBlock language="typescript" title="examples/docs/module_add_record.ail">
+<CodeBlock language="ailang" title="examples/docs/module_add_record.ail">
   {ModuleAddRecord}
 </CodeBlock>
 
@@ -176,7 +176,7 @@ AILANG v0.2.0 provides three builtin IO functions:
 
 Print a string without a newline.
 
-<CodeBlock language="typescript" title="examples/docs/io_print_demo.ail">
+<CodeBlock language="ailang" title="examples/docs/io_print_demo.ail">
   {IoPrintDemo}
 </CodeBlock>
 
@@ -186,7 +186,7 @@ Output: `Hello World`
 
 Print a string with a newline.
 
-<CodeBlock language="typescript" title="examples/docs/io_println_demo.ail">
+<CodeBlock language="ailang" title="examples/docs/io_println_demo.ail">
   {IoPrintlnDemo}
 </CodeBlock>
 
@@ -282,7 +282,7 @@ export func main() -> () {
 
 ### CLI Tool with Arguments
 
-<CodeBlock language="typescript" title="examples/docs/cli_greeter.ail">
+<CodeBlock language="ailang" title="examples/docs/cli_greeter.ail">
   {CliGreeter}
 </CodeBlock>
 

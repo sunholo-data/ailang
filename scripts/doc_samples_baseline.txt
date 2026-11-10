@@ -1,14 +1,15 @@
 # Known-failing documentation code blocks, grandfathered by tools/docsamples
 # (make check-doc-samples). Format: <page> <sha1-12 of the normalised block> <first error code>
 #
-# This file only SHRINKS. The gate fails on:
-#   - a failing block that is not listed here (fix it, or tag it: parse / sketch / repl /
-#     error=CODE / file=path.ail — see .claude/rules/docs-review.md);
-#   - a listed block that now passes, or that no longer exists (delete its line);
-#   - more entries than origin/dev has (CI compares the counts).
+# This file only SHRINKS, as a set: CI refuses any line whose page+hash the base commit's
+# copy does not have (a swap that keeps the count is still growth). The gate also fails on
+#   - a failing block that is not listed (fix it, or tag it: parse / error=CODE / file=path.ail,
+#     or sketch / repl via doc_samples_unchecked.txt — see .claude/rules/docs-review.md);
+#   - a listed block that now passes, no longer exists, or fails with a DIFFERENT code;
+#   - any structural defect (DOC_*: mis-fenced AILANG, bad tag, broken fence) — those
+#     cannot be listed here at all.
 # Editing a listed block changes its hash, so touching a block means fixing or tagging it.
-# The error code is informational: a different first error is reported, not failed.
-# Regenerate after burn-down with: make check-doc-samples DOC_SAMPLES_ARGS=--write-baseline
+# After a burn-down: make check-doc-samples DOC_SAMPLES_ARGS=-write-baseline
 docs/LIMITATIONS.md 64ed8b72df7b PAR017
 docs/docs/architecture/types.md b4b5e8fe92ad PAR_TYPE_RBRACE_MISSING
 docs/docs/architecture/types.md bc3281149b9b PAR_NO_PREFIX_PARSE
@@ -30,6 +31,7 @@ docs/docs/guides/build-a-motoko-extension.md 4f7de3610090 MODULE
 docs/docs/guides/build-a-motoko-extension.md d004cdf34e94 PAR_NO_PREFIX_PARSE
 docs/docs/guides/contracts.mdx 4d8ff047641a TC_UNDEFINED_VAR
 docs/docs/guides/contracts.mdx 6c1bc8f4d3ae PAR_UNEXPECTED_TOKEN
+docs/docs/guides/custom-ai-providers.md 783ef894c9fd MOD014
 docs/docs/guides/extension-packages.md 10c15c373ba8 MOD002
 docs/docs/guides/extension-packages.md 1ca9369fb7e1 MOD002
 docs/docs/guides/extension-packages.md 6dedb95f9137 MOD002
@@ -47,15 +49,16 @@ docs/docs/guides/ifc-labels.mdx d761ac010837 TC_TYPE
 docs/docs/guides/ifc-labels.mdx d7d2305426b6 PAR_UNEXPECTED_TOKEN
 docs/docs/guides/mcp-connectors.md 50385e2341e5 TC_UNDEFINED_VAR
 docs/docs/guides/mcp-connectors.md 61a047b5a511 TC_UNDEFINED_VAR
-docs/docs/guides/mcp-connectors.md 623b015b047a TC_UNDEFINED_VAR
+docs/docs/guides/mcp-connectors.md 623b015b047a MOD014
 docs/docs/guides/mcp-connectors.md 68bbd0f36c41 TC_UNDEFINED_VAR
 docs/docs/guides/mcp-connectors.md 961d0c65d5a1 TC_UNDEFINED_VAR
 docs/docs/guides/mcp-connectors.md dde81793f030 TC_UNDEFINED_VAR
 docs/docs/guides/module_execution.mdx 08eea7ff2f90 TC_EFFECT
 docs/docs/guides/module_execution.mdx 508fcc0f85c7 TC_EFFECT
 docs/docs/guides/module_execution.mdx 5f32bd6172b0 MODULE
+docs/docs/guides/module_execution.mdx 7a8194331548 MOD014
 docs/docs/guides/module_execution.mdx cb7bafb2f5c1 TC_EFFECT
-docs/docs/guides/module_execution.mdx d27744461e68 TC_EFFECT
+docs/docs/guides/module_execution.mdx d27744461e68 MOD014
 docs/docs/guides/motoko-extension-development.md 2089f12e380f PAR_UNEXPECTED_TOKEN
 docs/docs/guides/motoko-extension-development.md 2ca042b3ae80 PAR_UNEXPECTED_TOKEN
 docs/docs/guides/motoko-extension-development.md 617fecb25be3 MODULE
@@ -101,8 +104,13 @@ docs/docs/guides/serve-api.md f01963fe0559 PAR_UNEXPECTED_TOKEN
 docs/docs/guides/serve-api.md f24fda8e48a6 TC_TYPE
 docs/docs/guides/serve-api.md f340db2e99ce PAR_UNEXPECTED_TOKEN
 docs/docs/guides/serve-api.md fc45126fbb6f PAR_UNEXPECTED_TOKEN
+docs/docs/guides/streaming.md 360a4fce6f48 MOD014
+docs/docs/guides/streaming.md 758dc108012a PAR017
+docs/docs/guides/streaming.md 8904d6216f35 PAR017
 docs/docs/guides/streaming.md 92a7b244c765 TC_MATCH_001
 docs/docs/guides/streaming.md ec3ce2dba7ec TC_UNDEFINED_VAR
+docs/docs/guides/streaming.md f8d720217990 MOD014
+docs/docs/guides/streaming.md fe18fac13093 MOD014
 docs/docs/guides/strict-fallbacks.md 3eb3011da0af TC_UNDEFINED_VAR
 docs/docs/guides/strict-fallbacks.md 723e69603b6f TC_UNDEFINED_VAR
 docs/docs/guides/strict-fallbacks.md a36470d41ca3 TC_UNDEFINED_VAR
@@ -114,14 +122,14 @@ docs/docs/recipes/ai-token-streaming.md 003e3d5792ea TC_UNDEFINED_VAR
 docs/docs/recipes/ai-token-streaming.md 06721d19cbcf TC_UNDEFINED_VAR
 docs/docs/recipes/ai-token-streaming.md 14ce6a1c8cd8 PAR_UNEXPECTED_TOKEN
 docs/docs/recipes/ai-token-streaming.md 254cd46be5ec TC_UNDEFINED_VAR
-docs/docs/recipes/ai-token-streaming.md 3053783b2f0c TC_EFFECT
-docs/docs/recipes/ai-token-streaming.md 39f88ef6b424 TC_TYPE
+docs/docs/recipes/ai-token-streaming.md 3053783b2f0c MOD014
+docs/docs/recipes/ai-token-streaming.md 39f88ef6b424 MOD014
 docs/docs/recipes/ai-token-streaming.md 953efc0b09ad TC_UNDEFINED_VAR
 docs/docs/recipes/ai-token-streaming.md ae2192a5bbad PAR_UNEXPECTED_TOKEN
 docs/docs/recipes/ai-token-streaming.md d7a666cb3506 TC_UNDEFINED_VAR
 docs/docs/recipes/ai-tool-loop.md ad840e20bbef TC_UNDEFINED_VAR
 docs/docs/recipes/ai-tool-loop.md d8c66d104dbb TC_TYPE
-docs/docs/recipes/ai-tool-loop.md fd3320924193 TC_TYPE
+docs/docs/recipes/ai-tool-loop.md fd3320924193 MOD014
 docs/docs/reference/arrays.md 06c43cfb3274 TC_UNDEFINED_VAR
 docs/docs/reference/arrays.md 11777370e52e PAR_UNEXPECTED_TOKEN
 docs/docs/reference/arrays.md 262dca5c5b58 TC_UNDEFINED_VAR
@@ -138,11 +146,11 @@ docs/docs/reference/arrays.md f1f5867e5ea3 PAR_NO_PREFIX_PARSE
 docs/docs/reference/capability-budgets.mdx 36843c488cc5 PAR_NO_PREFIX_PARSE
 docs/docs/reference/effects.md 02ed51e45701 TC_UNDEFINED_VAR
 docs/docs/reference/effects.md 0ff9f0622a46 TC_UNDEFINED_VAR
-docs/docs/reference/effects.md 15e23b028be7 OTHER
+docs/docs/reference/effects.md 15e23b028be7 MOD014
 docs/docs/reference/effects.md 240542fec8ef TC_UNDEFINED_VAR
-docs/docs/reference/effects.md 2782cf78e628 TC_UNDEFINED_VAR
+docs/docs/reference/effects.md 2782cf78e628 MOD014
 docs/docs/reference/effects.md 3901c54e046d PAR_UNEXPECTED_TOKEN
-docs/docs/reference/effects.md 3ef2220b653e TC_UNDEFINED_VAR
+docs/docs/reference/effects.md 3ef2220b653e MOD014
 docs/docs/reference/effects.md 602343e9c4a8 TC_UNDEFINED_VAR
 docs/docs/reference/effects.md 68ebb92c3216 TC_UNDEFINED_VAR
 docs/docs/reference/effects.md 89c600b84b74 TC_UNDEFINED_VAR
@@ -152,7 +160,7 @@ docs/docs/reference/effects.md b595552ad902 TC_UNDEFINED_VAR
 docs/docs/reference/effects.md d15aaf245cb0 TC_MATCH_001
 docs/docs/reference/effects.md d3caf0e74d13 PAR_UNEXPECTED_TOKEN
 docs/docs/reference/effects.md dec561561da7 TC_UNDEFINED_VAR
-docs/docs/reference/effects.md eb0de484f803 TC_UNDEFINED_VAR
+docs/docs/reference/effects.md eb0de484f803 MOD014
 docs/docs/reference/errors/mod007.md 3fc51e1e0d02 MOD007
 docs/docs/reference/errors/mod007.md 650bc961972b MOD007
 docs/docs/reference/errors/mod013.md 8b2f68889437 MODULE
@@ -160,6 +168,7 @@ docs/docs/reference/errors/mod015.md 2863880e8a87 MODULE
 docs/docs/reference/language-syntax.md 0c7907e0662b PAR_NO_PREFIX_PARSE
 docs/docs/reference/language-syntax.md 20edb20cb1df TC_UNDEFINED_VAR
 docs/docs/reference/language-syntax.md 4796b1027da9 TC_ARITY_001
+docs/docs/reference/language-syntax.md 6227c99a86e1 MOD014
 docs/docs/reference/language-syntax.md 66b06cbf9664 PAR_EXPORT_REQUIRES_FUNC
 docs/docs/reference/language-syntax.md 7830a2f63a02 TC_UNDEFINED_VAR
 docs/docs/reference/language-syntax.md b45d7ebc85fd PAR_UNEXPECTED_TOKEN
@@ -179,16 +188,18 @@ docs/docs/reference/limitations.md caf8db55cd35 TC_UNDEFINED_VAR
 docs/docs/reference/modules.md 1f9e9198bbd2 PAR_IMPORT_PLACEMENT
 docs/docs/reference/modules.md 218e28608c3a PAR017
 docs/docs/reference/modules.md 320f1cd7f18a PAR_NO_PREFIX_PARSE
+docs/docs/reference/modules.md 475f846f1572 MOD014
 docs/docs/reference/modules.md 6dfa630e3478 MODULE
 docs/docs/reference/modules.md 768fb8810f52 PAR_NO_PREFIX_PARSE
 docs/docs/reference/modules.md 7805463c810f MOD002
-docs/docs/reference/modules.md 80428185108c TC_UNDEFINED_VAR
+docs/docs/reference/modules.md 7c31c7e2506e MOD014
+docs/docs/reference/modules.md 80428185108c MOD014
 docs/docs/reference/modules.md aa0f83e813fc PAR017
 docs/docs/reference/modules.md c469433708e0 PAR_EXPORT_REQUIRES_FUNC
 docs/docs/reference/modules.md d885e59af9ce MODULE
-docs/docs/reference/modules.md dc15b2021b94 TC_UNDEFINED_VAR
-docs/docs/reference/modules.md e9539e3b5e2f TC_UNDEFINED_VAR
-docs/docs/reference/modules.md f1a5fb3ce3a0 OTHER
+docs/docs/reference/modules.md dc15b2021b94 MOD014
+docs/docs/reference/modules.md e9539e3b5e2f MOD014
+docs/docs/reference/modules.md f1a5fb3ce3a0 MOD014
 docs/docs/reference/no-loops.md 2432036678b2 TC_UNDEFINED_VAR
 docs/docs/reference/no-loops.md 27bcf746f8f4 TC_UNDEFINED_VAR
 docs/docs/reference/no-loops.md 874aebe47844 TC_UNDEFINED_VAR
@@ -218,13 +229,24 @@ docs/docs/vision.mdx 2197bf894f52 TC_UNDEFINED_VAR
 docs/docs/vision.mdx 25620e1d9404 PAR_UNEXPECTED_TOKEN
 docs/docs/why-ailang.mdx 7cacf62d459d PAR_UNEXPECTED_TOKEN
 docs/docs/why-ailang.mdx c6aa73915b7f PAR_UNEXPECTED_TOKEN
+docs/src/pages/index.jsx eebfcea32e22 TC_UNDEFINED_VAR
+examples/debug/anf_example.ail e52361a0ae52 TC_ARITY_001
+examples/docs/adt_option_pattern.ail 026675b81071 TC_TYPE
+examples/docs/lambdas_full.ail 7ac5526c3175 TC_TYPE
+examples/docs/npc_dialogue.ail 2a271c8de99d TC_TYPE
+examples/docs/records_person.ail 0dc0e095266e TC_TYPE
+examples/docs/summarize_file.ail d7c0cad7a82b TC_TYPE
+examples/reference/budget_minimum.ail 80b2236232ca TC_TYPE
+examples/runnable/secrets/sink_function_value.ail 2d220912e62b TC_TYPE
 prompt:active 0da6a89ac8a8 TC_UNDEFINED_VAR
 prompt:active 0df966f18f16 TC_UNDEFINED_VAR
 prompt:active 1490420c0688 TC_UNDEFINED_VAR
-prompt:active 15e23b028be7 OTHER
+prompt:active 15e23b028be7 MOD014
 prompt:active 24ff00f1505b TC_UNDEFINED_VAR
+prompt:active 2a21e7b028cf MOD014
 prompt:active 365a6d876706 PAR017
 prompt:active 3ed28286ab60 TC_UNDEFINED_VAR
+prompt:active 3f346cabb0b7 MOD014
 prompt:active 3fed61990e40 TC_UNDEFINED_VAR
 prompt:active 414d96f18831 TC_UNDEFINED_VAR
 prompt:active 42dafab03bfe PAR_RESERVED_KEYWORD
@@ -232,6 +254,7 @@ prompt:active 46b6e876a834 PAR017
 prompt:active 470af8e8d050 MODULE
 prompt:active 4dc496247969 PAR017
 prompt:active 548e37bcf709 PAR_NO_PREFIX_PARSE
+prompt:active 5646a0932397 MOD014
 prompt:active 5b25f0c1c86c PAR017
 prompt:active 5d0a95f89b0f TC_UNDEFINED_VAR
 prompt:active 61ef1c47bc7a TC_UNDEFINED_VAR
@@ -242,7 +265,7 @@ prompt:active 8a68231138f2 MOD002
 prompt:active 900afa6ac117 PAR017
 prompt:active 982c16bbbb76 PAR_UNEXPECTED_TOKEN
 prompt:active a045c8d04e9c PAR_IMPORT_PLACEMENT
-prompt:active a55bd65c43e6 TC_UNDEFINED_VAR
+prompt:active a55bd65c43e6 MOD014
 prompt:active a57219b91845 PAR017
 prompt:active aeb790dfd689 TC_UNDEFINED_VAR
 prompt:active b6e3ca5022da TC_UNDEFINED_VAR
@@ -257,14 +280,16 @@ prompt:active c88b14793b28 MODULE
 prompt:active d3cc78a73cd2 TC_UNDEFINED_VAR
 prompt:active d6707bf1f582 TC_UNDEFINED_VAR
 prompt:active d8dbaad30c5a TC_UNDEFINED_VAR
-prompt:active ddfa674b342f DOC_MISFENCED
 prompt:active dea8211cf3b1 PAR_IMPORT_PLACEMENT
 prompt:active e12311d19bf0 PAR017
+prompt:active e410df42f2a2 MOD014
 prompt:active e4daed23afac TC_UNDEFINED_VAR
+prompt:active e57f1229815b MOD014
 prompt:active eba90591aae8 PAR017
 prompt:active ee9a9f32c17d PAR_IMPORT_PLACEMENT
-prompt:active f4d47d3987bb TC_UNDEFINED_VAR
+prompt:active f4d47d3987bb MOD014
 prompt:active f5735270cfe9 TC_UNDEFINED_VAR
+prompt:active f84cb5e228aa MOD014
 prompt:active fb131811078b TC_UNDEFINED_VAR
 prompt:active fc10209170a0 TC_UNDEFINED_VAR
 prompt:active fdd0f6416c60 PAR_UNEXPECTED_TOKEN

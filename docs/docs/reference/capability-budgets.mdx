@@ -39,7 +39,7 @@ Traditional capability systems are binary: either you can perform an effect or y
 
 Add `@limit=N` to set a maximum budget, or `@min=N` to require a minimum usage:
 
-<CodeBlock language="typescript" title="examples/reference/budget_basic.ail">
+<CodeBlock language="ailang" title="examples/reference/budget_basic.ail">
   {BudgetBasic}
 </CodeBlock>
 
@@ -77,7 +77,7 @@ func unlimited() -> () ! {IO} { ... }
 
 Each function **call** gets a fresh budget. The budget is not shared across calls:
 
-<CodeBlock language="typescript" title="examples/reference/budget_per_invocation.ail">
+<CodeBlock language="ailang" title="examples/reference/budget_per_invocation.ail">
   {BudgetPerInvocation}
 </CodeBlock>
 
@@ -101,7 +101,7 @@ All three calls succeed because each gets its own budget of 2.
 
 When a function exceeds its budget, it fails with a `BudgetExhaustedError`:
 
-<CodeBlock language="typescript" title="examples/reference/budget_exhausted.ail">
+<CodeBlock language="ailang" title="examples/reference/budget_exhausted.ail">
   {BudgetExhausted}
 </CodeBlock>
 
@@ -124,7 +124,7 @@ The error includes:
 
 Sometimes you need to **verify that an effect actually occurred** rather than being skipped or cached. The `@min=N` annotation enforces that a function performs at least N operations:
 
-<CodeBlock language="typescript" title="examples/reference/budget_minimum.ail">
+<CodeBlock language="ailang" title="examples/reference/budget_minimum.ail">
   {BudgetMinimum}
 </CodeBlock>
 
@@ -167,7 +167,7 @@ This is particularly useful for:
 
 This example demonstrates unlimited functions, limited functions, and per-invocation semantics all together:
 
-<CodeBlock language="typescript" title="examples/reference/capability_budgets.ail">
+<CodeBlock language="ailang" title="examples/reference/capability_budgets.ail">
   {CapabilityBudgets}
 </CodeBlock>
 

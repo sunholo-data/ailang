@@ -65,7 +65,7 @@ AILANG replaces loops with **total, structurally recursive functions** and **hig
 
 ### Approach 1: Pattern Matching (Structural Recursion)
 
-<CodeBlock language="typescript" title="examples/runnable/no_loops_recursion.ail">
+<CodeBlock language="ailang" title="examples/runnable/no_loops_recursion.ail">
   {RecursionExample}
 </CodeBlock>
 
@@ -77,7 +77,7 @@ AILANG replaces loops with **total, structurally recursive functions** and **hig
 
 ### Approach 2: Fold Combinators (Catamorphisms)
 
-<CodeBlock language="typescript" title="examples/runnable/no_loops_fold.ail">
+<CodeBlock language="ailang" title="examples/runnable/no_loops_fold.ail">
   {FoldExample}
 </CodeBlock>
 
@@ -178,7 +178,7 @@ These laws **do not hold** for imperative loops (mutation breaks equational reas
 
 The most common loop patterns can be expressed as combinations of `filter`, `map`, and `foldl`:
 
-<CodeBlock language="typescript" title="examples/runnable/no_loops_filter_map.ail">
+<CodeBlock language="ailang" title="examples/runnable/no_loops_filter_map.ail">
   {FilterMapExample}
 </CodeBlock>
 
