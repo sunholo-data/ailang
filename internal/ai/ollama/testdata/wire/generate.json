@@ -114,13 +114,8 @@
         "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"options\":{\"num_predict\":4096,\"seed\":42}}"
       }
     ],
-    "result": {
-      "text": "",
-      "model": "ollama:qwen3:8b",
-      "input_tokens": 0,
-      "output_tokens": 0,
-      "total_tokens": 0
-    }
+    "error": "ollama error: 500 Internal Server Error: empty response body",
+    "error_code": "Internal"
   },
   "err_500_text": {
     "requests": [

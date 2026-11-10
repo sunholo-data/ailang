@@ -147,6 +147,8 @@ func TestWireParity_Generate(t *testing.T) {
 		{name: "num_ctx_env", env: map[string]string{config.EnvOllamaNumCtx: "65536"}, replies: ok, call: generate(genReq(nil))},
 		{name: "err_404_json", replies: []wiregolden.Reply{{Status: 404, Body: `{"error":"model 'qwen3:8b' not found"}`}}, call: generate(genReq(nil))},
 		{name: "err_500_text", replies: []wiregolden.Reply{{Status: 500, Body: "boom: runner exploded"}}, call: generate(genReq(nil))},
+		// The one scenario that departs from the SDK on purpose: it returned an
+		// empty successful result here; the local client reports the 500.
 		{name: "err_500_empty_body", replies: []wiregolden.Reply{{Status: 500, Body: ""}}, call: generate(genReq(nil))},
 		{name: "err_401_signin", replies: []wiregolden.Reply{{Status: 401, Body: `{"error":"unauthorized","signin_url":"https://ollama.com/connect?x=1"}`}}, call: generate(genReq(nil))},
 		{name: "err_429_json", replies: []wiregolden.Reply{{Status: 429, Body: `{"error":"too many requests"}`}}, call: generate(genReq(nil))},

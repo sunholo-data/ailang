@@ -193,11 +193,19 @@ func (c *Client) do(ctx context.Context, method, path string, in, out any) error
 	return nil
 }
 
+// ErrEmptyStream is a 2xx streaming reply with no lines at all. /api/generate
+// and /api/chat always end with a done chunk, so an empty reply is a truncated
+// one, not an empty answer.
+var ErrEmptyStream = errors.New("ollama: empty streaming reply: no response lines before the body ended")
+
 // stream POSTs in and calls fn with each NDJSON line of the reply. Every line
 // is first checked for an {"error": ...} object; on a status >= 400 the first
-// line becomes the error. A reply with no lines at all returns nil whatever
-// its status — the SDK's behaviour, kept for parity (callers check what they
-// received).
+// line becomes the error.
+//
+// A reply with no lines at all is an error at every status. This is the one
+// deliberate departure from the SDK, which returned nil: its caller then saw a
+// successful call with empty text and zero tokens, so an HTTP 500 with an empty
+// body was banked as "the model said nothing".
 func (c *Client) stream(ctx context.Context, path string, in any, fn func([]byte) error) error {
 	body, err := json.Marshal(in)
 	if err != nil {
@@ -215,8 +223,10 @@ func (c *Client) stream(ctx context.Context, path string, in any, fn func([]byte
 
 	scanner := bufio.NewScanner(resp.Body)
 	scanner.Buffer(make([]byte, 0, maxLineBytes), maxLineBytes)
+	lines := 0
 	for scanner.Scan() {
 		line := scanner.Bytes()
+		lines++
 		var errLine struct {
 			Error     string `json:"error,omitempty"`
 			SigninURL string `json:"signin_url,omitempty"`
@@ -239,7 +249,20 @@ func (c *Client) stream(ctx context.Context, path string, in any, fn func([]byte
 			return err
 		}
 	}
-	return scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return err
+	}
+	if lines == 0 {
+		switch {
+		case resp.StatusCode == http.StatusUnauthorized:
+			return AuthorizationError{StatusCode: resp.StatusCode, Status: resp.Status}
+		case resp.StatusCode >= http.StatusBadRequest:
+			return StatusError{StatusCode: resp.StatusCode, Status: resp.Status, ErrorMessage: "empty response body"}
+		default:
+			return ErrEmptyStream
+		}
+	}
+	return nil
 }
 
 // Generate streams POST /api/generate, calling fn per chunk.

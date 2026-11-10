@@ -110,10 +110,27 @@ func TestStreamErrors(t *testing.T) {
 			}
 		})
 	}
-	t.Run("empty body is success", func(t *testing.T) {
-		c, _ := serve(t, 500, "")
-		if err := c.Chat(context.Background(), &ChatRequest{}, func(ChatResponse) error { return nil }); err != nil {
-			t.Fatalf("err = %v; the SDK returned nil for a body with no lines", err)
+	// An empty reply is an error at every status: the one deliberate departure
+	// from the SDK, which returned nil and so reported a 500 as an empty answer.
+	t.Run("empty body is an error", func(t *testing.T) {
+		called := false
+		chat := func(status int) error {
+			c, _ := serve(t, status, "")
+			return c.Chat(context.Background(), &ChatRequest{}, func(ChatResponse) error { called = true; return nil })
+		}
+		var se StatusError
+		if err := chat(500); !errors.As(err, &se) || se.StatusCode != 500 || se.ErrorMessage != "empty response body" {
+			t.Errorf("500 empty: err = %#v, want StatusError 500", err)
+		}
+		var ae AuthorizationError
+		if err := chat(401); !errors.As(err, &ae) || ae.StatusCode != 401 {
+			t.Errorf("401 empty: err = %#v, want AuthorizationError", err)
+		}
+		if err := chat(200); !errors.Is(err, ErrEmptyStream) {
+			t.Errorf("200 empty: err = %v, want ErrEmptyStream", err)
+		}
+		if called {
+			t.Error("callback ran for a reply with no lines")
 		}
 	})
 	t.Run("callback error stops the stream", func(t *testing.T) {
