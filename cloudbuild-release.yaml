@@ -526,8 +526,12 @@ steps:
         echo "GATE 3/4: coordinator /health"
         curl -fsS -m 20 "$$COORD/health" >/dev/null || { echo "GATE FAIL: coordinator unhealthy"; exit 1; }
 
-        echo "GATE 4/4: dashboard /health"
-        curl -fsS -m 20 "$$DASH/health" >/dev/null || { echo "GATE FAIL: dashboard unhealthy"; exit 1; }
+        echo "GATE 4/4: dashboard API smoke (status codes only; scripts/dashboard_smoke.sh)"
+        # /health 200, "/" is the headless banner, a gated read refuses an
+        # anonymous caller, OTLP ingest accepts an empty POST, an unrouted path
+        # 404s. Bodies are never printed. Test has no benchmarks bucket, so no
+        # --expect-benchmarks here (m-dashboard-headless-api).
+        bash scripts/dashboard_smoke.sh "$$DASH" || { echo "GATE FAIL: dashboard smoke"; exit 1; }
 
         echo "SMOKE GATE PASSED — $TAG_NAME is on TEST and promotable:"
         echo "  ailang-multivac/scripts/release.sh promote core $TAG_NAME"
