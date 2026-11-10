@@ -44,20 +44,25 @@ func (ml *ModuleLinker) TopoSortFromRoot(root string, loaded map[string]*loader.
 
 		// Cycle detected
 		if inPath[module] {
-			// Build cycle path for error message
+			// Build the cycle for the error message: the path from the first
+			// visit of module back to module. (This used to append the cycle
+			// to the whole DFS path, so the message repeated it after the
+			// path that led there.)
+			var cycle []ModuleID
 			foundStart := false
 			for _, m := range cyclePath {
 				if m == module {
 					foundStart = true
 				}
 				if foundStart {
-					cyclePath = append(cyclePath, m)
+					cycle = append(cycle, m)
 				}
 			}
-			cyclePath = append(cyclePath, module) // Complete the cycle
+			cycle = append(cycle, module) // Complete the cycle
 			return &CycleError{
-				Code:  "LDR002",
-				Cycle: cyclePath,
+				Code:    "LDR002",
+				Cycle:   cycle,
+				Written: ml.cycleSpellings(cycle),
 			}
 		}
 
@@ -120,16 +125,43 @@ func (ml *ModuleLinker) getDependencies(module ModuleID) ([]ModuleID, error) {
 	return nil, fmt.Errorf("LDR001: module not found: %s\nAvailable modules: %v", module, available)
 }
 
+// cycleSpellings returns, for each module of a cycle after the first, the
+// spelling the previous module's source wrote to import it when the loader
+// rewrote that spelling to the canonical identity ("" otherwise).
+func (ml *ModuleLinker) cycleSpellings(cycle []ModuleID) []string {
+	written := make([]string, len(cycle))
+	for i := 1; i < len(cycle); i++ {
+		from := ml.loadedModules[string(cycle[i-1])]
+		if from == nil || from.File == nil {
+			continue
+		}
+		for _, imp := range from.File.Imports {
+			if imp != nil && loader.CanonicalModuleID(imp.Path) == string(cycle[i]) {
+				written[i] = imp.WrittenPath
+				break
+			}
+		}
+	}
+	return written
+}
+
 // CycleError represents a dependency cycle error
 type CycleError struct {
 	Code  string
 	Cycle []ModuleID
+	// Written[i] is the spelling that imported Cycle[i], when it differs from
+	// the canonical module ID ("" otherwise; nil when unknown).
+	Written []string
 }
 
 func (e *CycleError) Error() string {
 	var path []string
-	for _, m := range e.Cycle {
-		path = append(path, string(m))
+	for i, m := range e.Cycle {
+		written := ""
+		if i < len(e.Written) {
+			written = e.Written[i]
+		}
+		path = append(path, loader.DisplayModule(string(m), written))
 	}
 	return fmt.Sprintf("%s: dependency cycle detected: %s", e.Code, strings.Join(path, " -> "))
 }

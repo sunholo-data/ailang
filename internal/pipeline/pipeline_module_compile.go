@@ -175,7 +175,7 @@ func typeCheckAndLowerModule(
 	// M-DX19 + M-EQ-DERIVE-CONTAINERS: register `deriving (Eq)` instances and
 	// require Eq of every field
 	if err := registerDerivedEq(cfg, elaborator, imports.ImportedTypeAliases); err != nil {
-		return nil, fmt.Errorf("type error in %s: %w", modID, err)
+		return nil, fmt.Errorf("type error in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
 	}
 
 	// #327 interim diagnostic: record this module's function names so the type
@@ -201,7 +201,7 @@ func typeCheckAndLowerModule(
 		var err error
 		_, moduleTypeEnv, _, _, err = typeChecker.InferWithConstraints(decl, moduleTypeEnv)
 		if err != nil {
-			return nil, fmt.Errorf("type error in %s (decl %d): %w", modID, i, err)
+			return nil, fmt.Errorf("type error in %s (decl %d): %w", loader.DeclaredModuleDisplay(modID, unit.Surface), i, err)
 		}
 	}
 
@@ -215,7 +215,7 @@ func typeCheckAndLowerModule(
 	// `let r = step(); r.field` shape that the early gate in
 	// inferRecordAccess can't catch (receiver is still a TVar at that point).
 	if err := typeChecker.VerifyTaggedUnionFieldAccesses(); err != nil {
-		return nil, fmt.Errorf("type error in %s: %w", modID, err)
+		return nil, fmt.Errorf("type error in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
 	}
 
 	// M-SECRET-EFFECT (M5): static information-flow-control enforcement.
@@ -229,7 +229,7 @@ func typeCheckAndLowerModule(
 	// (M-TRACE-LABEL-AWARE); they are stamped on the final Core below.
 	ifcErrs, traceSites := types.CheckModuleIFCWithImportsAndTraceSites(unit.Surface, imports.IFC)
 	if len(ifcErrs) > 0 {
-		return nil, fmt.Errorf("type error in %s: %w", modID, ifcErrs[0])
+		return nil, fmt.Errorf("type error in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), ifcErrs[0])
 	}
 
 	// Fill operator methods (resolve operators to type class methods)
@@ -347,7 +347,7 @@ func runPostTypeCheckPhases(
 	// Validate effects (M-SOUNDNESS)
 	// Compare declared effects from Surface AST with required effects from Core AST
 	if err := ValidateEffectsWithCalls(unit.Surface, unit.Core, typeChecker.CoreTI, typeChecker.ApplicationEffects, typeChecker.DeclaredLambdaEffectRow, typeChecker.EffectValueType); err != nil {
-		return fmt.Errorf("effect checking failed in %s: %w", modID, err)
+		return fmt.Errorf("effect checking failed in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
 	}
 
 	// Perform monomorphization unless explicitly disabled
