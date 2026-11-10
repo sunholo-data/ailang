@@ -129,3 +129,65 @@ func TestGeneralizableVars_DescendsIntoOpenRecords(t *testing.T) {
 		t.Fatalf("generalizableVars = %v, %v; want [α74], [ρ5]", tv, rows)
 	}
 }
+
+// Every type constructor is walked, renamed and kind-classified (the traversal
+// arms that std does not happen to exercise).
+func TestCanonicalizeScheme_AllConstructors(t *testing.T) {
+	v := func(n string) Type { return &TVar2{Name: n, Kind: Star} }
+	rr := &RowVar{Name: "ρ1", Kind: RecordRow}
+	typ := &TFunc2{
+		Params: []Type{
+			&TList{Element: v("a")},
+			&TArray{Element: &TVar{Name: "b"}},
+			&TMap{Key: v("c"), Value: v("a")},
+			&TTuple{Elements: []Type{v("d"), TInt}},
+			&TApp{Constructor: &TCon{Name: "Option"}, Args: []Type{v("e")}},
+			&TRecord2{Row: &Row{Kind: RecordRow, Labels: map[string]Type{"k": v("f")}, Tail: rr}},
+			&TRecord{Fields: map[string]Type{"x": v("g")}, Row: &Row{Kind: RecordRow, Labels: map[string]Type{}, Tail: &RowVar{Name: "ρ2", Kind: RecordRow}}},
+			&TLabelled{Inner: &TRecordOpen{Fields: map[string]Type{"y": v("h")}, Row: rr}, L: LabelBottom()},
+		},
+		Return:    v("a"),
+		EffectRow: &Row{Kind: EffectRow, Labels: map[string]Type{}, Tail: &RowVar{Name: "ε1", Kind: EffectRow}},
+	}
+	s := &Scheme{
+		TypeVars:    []string{"a", "b", "c", "d", "e", "f", "g", "h"},
+		RowVars:     []string{"ε1", "ρ1", "ρ2"},
+		Type:        typ,
+		Constraints: []Constraint{{Class: "Ord", Type: v("c")}, {Class: "Eq", Type: v("a")}},
+	}
+	c, free := CanonicalizeScheme(s)
+	if len(free) != 0 {
+		t.Fatalf("free = %v", free)
+	}
+	wantT := []string{"'t0", "'t1", "'t2", "'t3", "'t4", "'t5", "'t6", "'t7"}
+	if !slices.Equal(c.TypeVars, wantT) || !slices.Equal(c.RowVars, []string{"'r0", "'r1", "'e0"}) {
+		t.Fatalf("quantifiers: %v %v", c.TypeVars, c.RowVars)
+	}
+	if c.Constraints[0].Class != "Eq" || c.Constraints[0].Type.String() != "'t0" {
+		t.Fatalf("constraints not renamed and sorted: %v", c.Constraints)
+	}
+	if got := QuantifiedRecordRows(c); !slices.Equal(got, []string{"'r0", "'r1"}) {
+		t.Fatalf("QuantifiedRecordRows = %v", got)
+	}
+	if tv, rows := generalizableVars(typ); len(tv) != 8 || !slices.Equal(rows, []string{"ρ1", "ρ2"}) {
+		t.Fatalf("generalizableVars = %v %v", tv, rows)
+	}
+	if QuantifiedRecordRows(nil) != nil {
+		t.Fatal("nil scheme has record rows")
+	}
+	if got, f := CanonicalizeScheme(nil); got != nil || f != nil {
+		t.Fatal("nil scheme canonicalised")
+	}
+}
+
+// A cyclic type terminates in every walker.
+func TestCanonicalizeScheme_CyclicTypeTerminates(t *testing.T) {
+	rec := &TRecord{Fields: map[string]Type{"v": &TVar2{Name: "a", Kind: Star}}}
+	rec.Fields["self"] = &TList{Element: rec}
+	s := &Scheme{TypeVars: []string{"a"}, Type: &TFunc2{Params: []Type{rec}, Return: rec}}
+	c, _ := CanonicalizeScheme(s)
+	if !slices.Equal(c.TypeVars, []string{"'t0"}) {
+		t.Fatalf("TypeVars = %v", c.TypeVars)
+	}
+	recordRowNames(s.Type, map[string]bool{}, 0)
+}
