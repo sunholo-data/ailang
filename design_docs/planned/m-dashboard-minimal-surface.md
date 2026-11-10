@@ -1,6 +1,11 @@
 # M-DASHBOARD-MINIMAL-SURFACE: two screens over one work-ledger API, a four-package runtime
 
-**Status**: Planned (amended 2026-10-09: work-ledger API added; D8–D10 need ratification)
+> **SUPERSEDED (2026-11-10).** Mark chose zero screens: the dashboard becomes a headless API
+> with a stability contract — see [m-dashboard-headless-api.md](m-dashboard-headless-api.md).
+> The two-screen plan and its work-ledger API below are not being built; D8–D10 were never
+> ratified. The content is kept as the record of the option that was not taken.
+
+**Status**: Superseded by [m-dashboard-headless-api.md](m-dashboard-headless-api.md) (was: Planned, amended 2026-10-09: work-ledger API added; D8–D10 need ratification)
 **Target**: v0.53.0
 **Priority**: P1 for the work ledger (the operator cannot see what the fleet did with a request without an agent hand-joining four sources); P2 for the UI diet
 **Estimated**: 6–8 days across five phases. Phases 1–3 (UI diet) are unchanged at 3–4 days; Phase 0 (write-time links) and Phase 4 (ledger API, CLI and the screens on top) add 3–4 days

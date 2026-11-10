@@ -110,7 +110,7 @@ scope to, and so contributors and AI agents know which subsystem they are in.
 | Layer | Real packages |
 |---|---|
 | **core** (the compiler + runtime) | `internal/{parser,types,eval,core,elaborate,effects,builtins,lexer,ast,pipeline,runtime,link,iface}` |
-| **dashboard / apps** (services + UI) | `internal/{server,coordinator,observatory,messaging}` (+ `ui/`) |
+| **dashboard / apps** (services; the dashboard is a headless API) | `internal/{server,coordinator,observatory,messaging}` |
 | **tools** | `internal/{eval_harness,eval_analysis}` (`internal/ai` is core: the AI effect is a language feature — measured 2026-09-15) |
 | **bridge / sdk** | `internal/embed` (+ `internal/runtime`, `internal/schema`) |
 

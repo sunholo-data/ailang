@@ -37,7 +37,6 @@
 /internal/coordinator/  @ailang/dashboard
 /internal/observatory/  @ailang/dashboard
 /internal/messaging/    @ailang/dashboard
-/ui/                    @ailang/dashboard
 
 # ---------------------------------------------------------------------------
 # bridge — the sanctioned dashboard -> compiler path; both teams review

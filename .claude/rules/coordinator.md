@@ -4,15 +4,14 @@ paths:
   - "internal/executor/**"
   - "internal/server/**"
   - "cmd/ailang/coordinator*"
-  - "ui/**"
 ---
 
 # Coordinator & Infrastructure Rules
 
 The coordinator daemon executes tasks autonomously using AI agents in isolated git worktrees.
 Config: `~/.ailang/config.yaml`. Day-to-day operation (start/stop, delegation, approvals) is
-covered by the `coordinator-helper` skill and `ailang coordinator --help`; the Collaboration Hub
-UI by the `collaboration-hub` skill; execution monitoring by `ailang chains --help` (works
+covered by the `coordinator-helper` skill and `ailang coordinator --help`; the dashboard API
+(`ailang serve`, headless) by the `collaboration-hub` skill; execution monitoring by `ailang chains --help` (works
 offline, direct SQLite).
 
 ## Multi-host workers — two gotchas

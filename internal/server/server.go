@@ -63,13 +63,12 @@ All endpoints pull from the same underlying data stores:
 	   Same Go store methods used by:
 	   - API handlers (this package)
 	   - CLI commands (cmd/ailang/dashboard.go)
-	   - UI hooks (ui/src/features/controlplane/hooks/)
+	   - other HTTP clients (scripts, the website builder's /ws proxy)
 */
 package server
 
 import (
 	"context"
-	"embed"
 	"fmt"
 	"log"
 	"net/http"
@@ -90,9 +89,6 @@ import (
 	"github.com/sunholo-data/ailang/internal/websocket"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
-
-//go:embed dist
-var uiAssets embed.FS
 
 // AgentProcess tracks a running agent process
 type AgentProcess struct {
@@ -513,7 +509,7 @@ func (s *Server) Start() error {
 	log.Printf("Starting HTTP server on %s", s.httpAddr)
 	log.Printf("WebSocket endpoint: ws://%s/ws", s.httpAddr)
 	log.Printf("REST API: http://%s/api/", s.httpAddr)
-	log.Printf("UI: http://%s/", s.httpAddr)
+	log.Printf("Health: http://%s/health (no UI: headless API)", s.httpAddr)
 
 	return http.ListenAndServe(s.httpAddr, handler)
 }

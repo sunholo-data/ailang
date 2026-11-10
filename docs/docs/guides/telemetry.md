@@ -767,8 +767,8 @@ The AILANG Observatory provides a local dashboard for viewing traces, spans, and
 │   (full traces)                                       │              │
 │                                                       ▼              │
 │                                              ┌──────────────────┐    │
-│                                              │  Observatory UI  │    │
-│                                              │  /observatory    │    │
+│                                              │ observatory.db   │    │
+│                                              │ (ailang chains)  │    │
 │                                              └──────────────────┘    │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -800,9 +800,11 @@ Add to `~/.claude/settings.json`:
 }
 ```
 
-**3. View the dashboard:**
+**3. Inspect what arrived:**
 
-Open http://localhost:1957 and navigate to the Observatory tab.
+The server has no UI. Read the data with the CLI: `ailang chains` (execution chains),
+`ailang chains dashboard spans` and `ailang chains dashboard traces`, or the
+`/api/observatory/*` REST reads.
 
 ### What Gets Captured
 
@@ -950,6 +952,6 @@ Export errors and missing records must remain visible in operational checks.
 ## See Also
 
 - [Debugging Guide](/docs/guides/debugging) - Environment variables and CLI debug flags for troubleshooting
-- [Collaboration Hub](/docs/guides/collaboration-hub) - Real-time dashboard with Observatory integration
+- [Collaboration Hub](/docs/guides/collaboration-hub) - Coordinator and the headless dashboard API
 - [Coordinator Guide](/docs/guides/coordinator) - Task execution lifecycle with traced spans
 - [Evaluation Framework](/docs/guides/evaluation) - AI benchmarks with `eval.suite` and `eval.benchmark` traces

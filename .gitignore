@@ -117,7 +117,6 @@ __pycache__/
 # ...and the perf-sweep snapshots (M-V1-MEMORY-FOOTPRINT): same reason, monthly.
 !/.ailang/state/perf/
 !/.ailang/state/perf/*.json
-/ui/node_modules
 internal/executor/opencode/plugins/node_modules
 internal/executor/opencode/plugins/coverage
 
@@ -128,7 +127,6 @@ temp_data/
 eval_results/
 !eval_results/baselines/
 !eval_results/performance_tables/
-ui/.env.local
 code-harness-skills/
 # Stray compiled binary (build output lands in repo root)
 /registry-validator

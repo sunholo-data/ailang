@@ -444,5 +444,5 @@ This means the coordinator is trying to create a worktree from branch `dev`, but
 - [Coordinator Guide](./coordinator.md) - Full coordinator documentation
 - [Telemetry & Tracing](./telemetry.md) - Trace task execution with distributed tracing
 - [Agent Messaging](./agent-messaging.md) - Message system details
-- [Collaboration Hub](./collaboration-hub.md) - Web UI for approvals
+- [Collaboration Hub](./collaboration-hub.md) - Approvals via the CLI and the headless dashboard API
 - [Debugging Guide](./debugging.md) - Troubleshoot coordinator issues
