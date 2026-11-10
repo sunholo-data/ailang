@@ -125,6 +125,11 @@ func Run(ctx context.Context, opts Options) int {
 	caps := opts.Caps
 	quiet := opts.Quiet
 
+	if msg := ContractsOnVMRefusal(opts); msg != "" {
+		fmt.Fprintf(os.Stderr, "%s: %s\n", red("Error"), msg)
+		return 2
+	}
+
 	// One stdlib root for the whole run (M-STDLIB-ROOT-RESOLUTION): --stdlib-path
 	// is a real override (it beats ./std and AILANG_STDLIB_PATH, and a path that
 	// holds no stdlib is an error), --trace-loader prints the chosen root and every

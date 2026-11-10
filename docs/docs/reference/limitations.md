@@ -326,6 +326,25 @@ explicit recursion in code you compile to Go.
 
 ---
 
+### Runtime contracts are checked only on the evaluator, and not in named tests
+
+**Status**: Open
+**Verified at**: dev, 2026-11-10 (M-V1-VERIFICATION-HONESTY M2). A `half(x) = x - 100` with
+`ensures { result >= 0 }`, called as `half(5)`:
+- `ailang run --verify-contracts` → `contract violation: ensures failed in half at k1.ail:5:11`, exit 1.
+- `ailang run --bytecode --verify-contracts` → `CTR004: --verify-contracts is not enforced on the
+  bytecode VM yet`, exit 2 (it used to print `-95` and exit 0, [#1956](https://github.com/sunholo-data/ailang/issues/1956)).
+- `ailang run` without the flag → `-95`, exit 0. Contracts are off by default.
+- `test "half five" { half(5) == -95 }` passes: named-test bodies do not check contracts. Contracts
+  reach `ailang test` only as the generated property tests.
+
+**Affects**: run-time contract checking. `ailang verify` and `check --verify` (static) are unaffected.
+
+**Workaround**: check contracts on the evaluator (`run --verify-contracts`, no `--bytecode`), and
+assert the property directly in a named test. Design: [M-RUNTIME-CONTRACT-PARITY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/m-runtime-contract-parity.md).
+
+---
+
 ### `--bytecode` silently falls back to the evaluator; the VM is slower than CPython
 
 **Status**: Partly fixed. The main fallback causes were closed by

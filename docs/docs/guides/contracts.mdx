@@ -178,24 +178,35 @@ AILANG implements this pattern natively: contracts are first-class syntax, not c
 
 ## Runtime Contract Checking
 
-Enable runtime contract verification with the `--verify-contracts` flag:
+**`ailang run` does not check contracts by default.** Enable runtime contract
+verification with the `--verify-contracts` flag:
 
 ```bash
 ailang run --verify-contracts --caps IO --entry main examples/runnable/contracts/basic.ail
 ```
 
-### Contract Violation Messages
-
-When a contract is violated at runtime, you get a clear panic message:
+Runtime contracts run on the evaluator only. `--verify-contracts` together with
+`--bytecode` or `--strict-bytecode` (also under `--batch`) is refused before the
+program runs, with exit code 2:
 
 ```
-panic: contract violation: requires: (divisor != 0) at basic.ail:21:12
+Error: CTR004: --verify-contracts is not enforced on the bytecode VM yet (runtime contracts run only on the evaluator). Drop --bytecode to check contracts, or drop --verify-contracts to run on the VM. Tracking: #1956.
+```
+
+### Contract Violation Messages
+
+When a contract is violated at runtime, the run stops with exit code 1. For a
+`half(x) = x - 100` with `ensures { result >= 0 }`, called as `half(5)`:
+
+```
+Error: execution failed: contract violation: ensures failed in half at k1.ail:5:11: (result >= 0)
 ```
 
 The message includes:
 - Contract type (`requires` or `ensures`)
-- Original predicate expression
+- The function whose contract failed
 - Source location (file:line:column)
+- Original predicate expression
 
 ## Static Verification with Z3
 

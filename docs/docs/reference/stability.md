@@ -241,6 +241,16 @@ flags (`--max-memory`, `--net-timeout`, `--net-max-bytes`, `--fs-max-bytes`,
 `--process-allowlist`), and `check --format agent`. The `ai-check` alias is Stable as a route, but
 the JSON report it prints is Experimental ⚠ close call, because its shape is still settling.
 
+**Stable behaviour of those commands, stated so it is not frozen by omission:**
+- The exit codes of `check --verify` (and `ai-check`) follow the table in the
+  [contracts guide](/docs/guides/contracts#exit-codes): 0 for verified, partial (skips listed on stderr) or
+  no contracts; 1 for a failed check, a counterexample, a solver error or timeout, an inconclusive result,
+  or contracts with no solver. The JSON `outcome` field may gain values in a minor; existing values keep
+  their meaning.
+- `ailang run` does not check `requires`/`ensures` unless `--verify-contracts` is given. With
+  `--bytecode`/`--strict-bytecode` that flag is refused (CTR004, exit 2) until the VM enforces contracts;
+  lifting the refusal is additive.
+
 ### Experimental CLI (23)
 
 These may change in a 1.x minor, with a CHANGELOG entry.

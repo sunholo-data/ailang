@@ -128,6 +128,16 @@ const (
 	BC001 = "BC001"
 
 	// ============================================================================
+	// Contract Errors (CTR###)
+	// ============================================================================
+
+	// CTR004 refuses `run --verify-contracts` together with `--bytecode` or
+	// `--strict-bytecode` (including under --batch): the VM does not enforce
+	// contracts yet, so the combination used to run unchecked and exit 0
+	// (#1956, M-RUNTIME-CONTRACT-PARITY M1). Lifted when the VM enforces them.
+	CTR004 = "CTR004"
+
+	// ============================================================================
 	// Loader Errors (LDR###)
 	// ============================================================================
 
@@ -313,6 +323,9 @@ var ErrorRegistry = map[string]ErrorInfo{
 
 	// Bytecode errors
 	BC001: {BC001, "bytecode", "coverage", "Function is evaluator-only under --strict-bytecode"},
+
+	// Contract errors
+	CTR004: {CTR004, "runtime", "contract", "--verify-contracts is not enforced on the bytecode VM"},
 
 	// Loader errors
 	LDR001: {LDR001, "loader", "resolution", "Module not found"},

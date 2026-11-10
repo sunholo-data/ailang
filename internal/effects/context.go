@@ -635,6 +635,7 @@ func (ctx *EffContext) IsContractCheckingEnabled() bool {
 // If no ContractContext is configured, this is a no-op.
 //
 // Parameters:
+//   - function: The name of the function whose contract was evaluated
 //   - cond: The boolean result of evaluating the precondition
 //   - msg: User-provided message or auto-generated predicate string
 //   - location: Source location "file.ail:42"
@@ -642,15 +643,15 @@ func (ctx *EffContext) IsContractCheckingEnabled() bool {
 // Returns:
 //   - nil if check passes or contracts disabled
 //   - Error in Panic mode if check fails
-func (ctx *EffContext) CheckRequires(cond bool, msg, location string) error {
+func (ctx *EffContext) CheckRequires(function string, cond bool, msg, location string) error {
 	if ctx.Contracts == nil {
 		return nil
 	}
 	// M-TRACE-EXPORT: Record contract check in semantic trace
 	if ctx.Trace != nil && ctx.Trace.Enabled() {
-		ctx.Trace.RecordContractCheck("requires", cond, msg, location, ctx.Contracts.CurrentFunction())
+		ctx.Trace.RecordContractCheck("requires", cond, msg, location, function)
 	}
-	return ctx.Contracts.CheckRequires(cond, msg, location)
+	return ctx.Contracts.CheckRequiresIn(function, cond, msg, location)
 }
 
 // CheckEnsures delegates postcondition checking to ContractContext
@@ -659,6 +660,7 @@ func (ctx *EffContext) CheckRequires(cond bool, msg, location string) error {
 // If no ContractContext is configured, this is a no-op.
 //
 // Parameters:
+//   - function: The name of the function whose contract was evaluated
 //   - cond: The boolean result of evaluating the postcondition
 //   - msg: User-provided message or auto-generated predicate string
 //   - location: Source location "file.ail:42"
@@ -666,15 +668,15 @@ func (ctx *EffContext) CheckRequires(cond bool, msg, location string) error {
 // Returns:
 //   - nil if check passes or contracts disabled
 //   - Error in Panic mode if check fails
-func (ctx *EffContext) CheckEnsures(cond bool, msg, location string) error {
+func (ctx *EffContext) CheckEnsures(function string, cond bool, msg, location string) error {
 	if ctx.Contracts == nil {
 		return nil
 	}
 	// M-TRACE-EXPORT: Record contract check in semantic trace
 	if ctx.Trace != nil && ctx.Trace.Enabled() {
-		ctx.Trace.RecordContractCheck("ensures", cond, msg, location, ctx.Contracts.CurrentFunction())
+		ctx.Trace.RecordContractCheck("ensures", cond, msg, location, function)
 	}
-	return ctx.Contracts.CheckEnsures(cond, msg, location)
+	return ctx.Contracts.CheckEnsuresIn(function, cond, msg, location)
 }
 
 // M-TRACE-EXPORT: Trace delegate methods
