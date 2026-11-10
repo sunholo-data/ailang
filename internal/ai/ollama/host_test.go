@@ -1,49 +1,89 @@
 package ollama
 
 import (
+	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 
-	"github.com/ollama/ollama/envconfig"
+	"github.com/sunholo-data/ailang/internal/ai/ollama/wire"
 	"github.com/sunholo-data/ailang/internal/config"
 )
 
-// TestParseHostMatchesSDK pins parseHost against the SDK's own OLLAMA_HOST
-// parser: for every endpoint shape the rig, the plists and the factory have
-// produced, the URL we hand ollamaapi.NewClient must equal the one
-// ClientFromEnvironment would have derived from the exported variable
-// (which NewClient no longer exports — M-V1-SIMPLIFY-S4 M4).
-func TestParseHostMatchesSDK(t *testing.T) {
-	cases := []string{
-		"",
-		defaultEndpoint,
-		"http://127.0.0.1:11434",
-		"http://127.0.0.1:11434/",
-		"127.0.0.1:11434",
-		"localhost",
-		"localhost:11434",
-		"http://localhost",
-		"https://ollama.example.com",
-		"ollama.com",
-		"http://ollama.com",
-		"0.0.0.0:11434",
-		"[::1]:11434",
-		"http://[::1]:11434",
-		"http://10.0.0.5:99999",
-		"http://10.0.0.5:11434/v1",
-		"  http://127.0.0.1:11434  ",
-		"http://host:11434/some/path",
+// hostCases is every OLLAMA_HOST shape the rig, the plists and the factory
+// have produced, plus the quoting and port edge cases.
+var hostCases = []string{
+	"",
+	defaultEndpoint,
+	"http://127.0.0.1:11434",
+	"http://127.0.0.1:11434/",
+	"127.0.0.1:11434",
+	"localhost",
+	"localhost:11434",
+	"http://localhost",
+	"https://ollama.example.com",
+	"ollama.com",
+	"http://ollama.com",
+	"0.0.0.0:11434",
+	"[::1]:11434",
+	"http://[::1]:11434",
+	"http://10.0.0.5:99999",
+	"http://10.0.0.5:-1",
+	"http://10.0.0.5:11434/v1",
+	"  http://127.0.0.1:11434  ",
+	"http://host:11434/some/path",
+	`"http://127.0.0.1:11435"`,
+	`'127.0.0.1:11436'`,
+	` "quoted-with-space:1" `,
+	"ftp://weird:21",
+	"::1",
+	"[::1]",
+}
+
+// TestHostFromEnvironmentGolden pins OLLAMA_HOST resolution against
+// testdata/wire/host.json, captured from the SDK's envconfig.Host() (which its
+// ClientFromEnvironment used) before the SDK was removed.
+func TestHostFromEnvironmentGolden(t *testing.T) {
+	want := loadHostGolden(t)
+	for _, in := range hostCases {
+		t.Setenv(config.EnvOllamaHost, in)
+		if got := wire.HostFromEnvironment().String(); got != want[in] {
+			t.Errorf("OLLAMA_HOST=%q resolves to %q, golden %q", in, got, want[in])
+		}
 	}
-	for _, in := range cases {
-		t.Run(in, func(t *testing.T) {
-			t.Setenv(config.EnvOllamaHost, in)
-			want := envconfig.Host()
-			got := parseHost(in)
-			if got.String() != want.String() {
-				t.Fatalf("parseHost(%q) = %q, SDK envconfig.Host() = %q", in, got, want)
-			}
-		})
+}
+
+// TestParseHostGolden pins wire.ParseHost — the resolver for the provider client,
+// which takes OLLAMA_HOST verbatim (no quote trimming) — against the same
+// golden for every unquoted shape.
+func TestParseHostGolden(t *testing.T) {
+	want := loadHostGolden(t)
+	for _, in := range hostCases {
+		if strings.ContainsAny(in, `"'`) {
+			continue
+		}
+		if got := wire.ParseHost(in).String(); got != want[in] {
+			t.Errorf("wire.ParseHost(%q) = %q, golden %q", in, got, want[in])
+		}
 	}
+}
+
+func loadHostGolden(t *testing.T) map[string]string {
+	t.Helper()
+	data, err := os.ReadFile("testdata/wire/host.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	var m map[string]string
+	if err := json.Unmarshal(data, &m); err != nil {
+		t.Fatal(err)
+	}
+	for _, in := range hostCases {
+		if _, ok := m[in]; !ok {
+			t.Fatalf("host golden has no entry for %q", in)
+		}
+	}
+	return m
 }
 
 // TestNewClientDoesNotExportOllamaHost is the seam the migration closed:

@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	ollamaapi "github.com/ollama/ollama/api"
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai/ollama/wire"
 )
 
 // b64 encodes raw bytes to standard base64 for building test fixtures.
@@ -38,7 +38,7 @@ func TestToOllamaImages_TwoImages(t *testing.T) {
 		t.Errorf("image[1] = %q, want %q", got, imgB)
 	}
 
-	om := ollamaapi.Message{Role: "user", Content: "look", Images: imgs}
+	om := wire.Message{Role: "user", Content: "look", Images: imgs}
 	data, err := json.Marshal(om)
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
@@ -67,7 +67,7 @@ func TestToOllamaImages_DataURIStripped(t *testing.T) {
 		t.Errorf("decoded image = %q, want %q", got, payload)
 	}
 
-	data, err := json.Marshal(ollamaapi.Message{Role: "user", Images: imgs})
+	data, err := json.Marshal(wire.Message{Role: "user", Images: imgs})
 	if err != nil {
 		t.Fatalf("marshal: %v", err)
 	}
@@ -84,7 +84,7 @@ func TestToOllamaImages_EmptyOmitted(t *testing.T) {
 		t.Errorf("expected nil for empty input, got %#v", imgs)
 	}
 
-	om := ollamaapi.Message{Role: "user", Content: "hello"}
+	om := wire.Message{Role: "user", Content: "hello"}
 	// Mirror the step.go guard: only set Images when there are images.
 	var m ai.Message // zero value has no images
 	if len(m.Images) > 0 {

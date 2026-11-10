@@ -3,8 +3,8 @@ package ollama
 import (
 	"testing"
 
-	ollamaapi "github.com/ollama/ollama/api"
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai/ollama/wire"
 )
 
 // TestTokenTallyStreamedResponse pins the shape Ollama actually streams:
@@ -16,10 +16,10 @@ func TestTokenTallyStreamedResponse(t *testing.T) {
 	var tally tokenTally
 
 	// Content chunks carry no metrics — the zero Metrics must not clobber.
-	tally.observe(ollamaapi.Metrics{})
-	tally.observe(ollamaapi.Metrics{})
+	tally.observe(wire.Metrics{})
+	tally.observe(wire.Metrics{})
 	// Terminal chunk carries the counts.
-	tally.observe(ollamaapi.Metrics{PromptEvalCount: 282048, EvalCount: 1971})
+	tally.observe(wire.Metrics{PromptEvalCount: 282048, EvalCount: 1971})
 
 	var resp ai.Response
 	tally.apply(&resp)
@@ -41,8 +41,8 @@ func TestTokenTallyStreamedResponse(t *testing.T) {
 // trailing metric-free chunk must not zero out or double a settled count.
 func TestTokenTallyIgnoresZeroChunks(t *testing.T) {
 	var tally tokenTally
-	tally.observe(ollamaapi.Metrics{PromptEvalCount: 100, EvalCount: 20})
-	tally.observe(ollamaapi.Metrics{}) // trailing empty chunk
+	tally.observe(wire.Metrics{PromptEvalCount: 100, EvalCount: 20})
+	tally.observe(wire.Metrics{}) // trailing empty chunk
 
 	var resp ai.Response
 	tally.apply(&resp)
@@ -59,7 +59,7 @@ func TestTokenTallyIgnoresZeroChunks(t *testing.T) {
 // counts WERE available, not the zero itself.
 func TestTokenTallyNoMetricsStaysZero(t *testing.T) {
 	var tally tokenTally
-	tally.observe(ollamaapi.Metrics{})
+	tally.observe(wire.Metrics{})
 
 	var resp ai.Response
 	tally.apply(&resp)

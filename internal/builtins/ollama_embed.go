@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/ollama/ollama/api"
+	"github.com/sunholo-data/ailang/internal/ai/ollama/wire"
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/types"
@@ -177,7 +177,7 @@ func ollamaMediaInput(text string, image, audio []byte) map[string]string {
 
 // ollamaEmbedRequest calls Ollama's embed API with one input and returns its vector
 func ollamaEmbedRequest(name, model string, input any, timeout time.Duration) (eval.Value, error) {
-	client, err := api.ClientFromEnvironment()
+	client, err := wire.ClientFromEnvironment()
 	if err != nil {
 		return nil, fmt.Errorf("%s: failed to create Ollama client: %w", name, err)
 	}
@@ -185,7 +185,7 @@ func ollamaEmbedRequest(name, model string, input any, timeout time.Duration) (e
 	goCtx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	resp, err := client.Embed(goCtx, &api.EmbedRequest{
+	resp, err := client.Embed(goCtx, &wire.EmbedRequest{
 		Model: model,
 		Input: input,
 	})

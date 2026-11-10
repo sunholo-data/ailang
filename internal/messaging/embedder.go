@@ -8,7 +8,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ollama/ollama/api"
+	"github.com/sunholo-data/ailang/internal/ai/ollama/wire"
 	"github.com/sunholo-data/ailang/internal/config"
 )
 
@@ -245,7 +245,7 @@ func NewEmbedderFromConfig(cfg EmbedConfig) (Embedder, error) {
 
 // OllamaEmbedder implements Embedder using local Ollama
 type OllamaEmbedder struct {
-	client    *api.Client
+	client    *wire.Client
 	model     string
 	dimension int
 	timeout   time.Duration
@@ -258,7 +258,7 @@ func NewOllamaEmbedder(cfg OllamaConfig) (*OllamaEmbedder, error) {
 		os.Setenv(config.EnvOllamaHost, cfg.Endpoint)
 	}
 
-	client, err := api.ClientFromEnvironment()
+	client, err := wire.ClientFromEnvironment()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create Ollama client: %w", err)
 	}
@@ -339,7 +339,7 @@ func (e *OllamaEmbedder) embedSingle(text string) ([]float32, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), e.timeout)
 	defer cancel()
 
-	resp, err := e.client.Embed(ctx, &api.EmbedRequest{
+	resp, err := e.client.Embed(ctx, &wire.EmbedRequest{
 		Model: e.model,
 		Input: text,
 	})

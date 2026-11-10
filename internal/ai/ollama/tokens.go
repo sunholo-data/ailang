@@ -1,8 +1,8 @@
 package ollama
 
 import (
-	ollamaapi "github.com/ollama/ollama/api"
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai/ollama/wire"
 )
 
 // tokenTally accumulates the token counts Ollama reports over a streamed
@@ -10,8 +10,8 @@ import (
 //
 // Both native call sites previously hardcoded InputTokens/OutputTokens/
 // TotalTokens to 0, with a comment claiming "Ollama doesn't report tokens the
-// same way". That was stale: ollamaapi.ChatResponse embeds Metrics, which
-// carries PromptEvalCount and EvalCount (api/types.go:557-564), and the
+// same way". That was stale: wire.ChatResponse embeds Metrics, which
+// carries PromptEvalCount and EvalCount (wire/types.go), and the
 // OpenAI-compatible /v1 path returns a standard `usage` block.
 //
 // The zeros were invisible for as long as every ollama row in models.yml was
@@ -32,7 +32,7 @@ type tokenTally struct {
 
 // observe records the token counts from one streamed chunk. Zero-valued
 // metrics (every chunk before the last) are ignored.
-func (t *tokenTally) observe(m ollamaapi.Metrics) {
+func (t *tokenTally) observe(m wire.Metrics) {
 	if m.PromptEvalCount > 0 {
 		t.in = m.PromptEvalCount
 	}
