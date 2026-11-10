@@ -30,6 +30,9 @@ type Arm struct {
 
 const releaseRepo = "sunholo-data/ailang"
 
+// maxBinaryBytes caps the baseline binary extracted from a release tarball.
+const maxBinaryBytes = 1 << 30
+
 var releaseTagRE = regexp.MustCompile(`^v\d+\.\d+\.\d+(?:-[0-9A-Za-z.]+)?$`)
 
 // systemStdlibDirs are the resolver's "system" tier (internal/stdlibroot). A
@@ -130,6 +133,9 @@ func extractBinary(tgz, dest string) error {
 			return err
 		}
 		if h.Typeflag == tar.TypeReg && filepath.Base(h.Name) == "ailang" {
+			if h.Size > maxBinaryBytes {
+				return fmt.Errorf("%s: ailang binary is %d bytes, over the %d-byte cap", tgz, h.Size, maxBinaryBytes)
+			}
 			tmp := dest + ".tmp"
 			out, err := os.OpenFile(tmp, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0o755)
 			if err != nil {

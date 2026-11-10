@@ -161,17 +161,12 @@ func (m *Materialiser) Materialise(c Corpus, mode, dest string) (Source, error) 
 		return src, fmt.Errorf("corpus %s: %w", c.Name, err)
 	}
 	src.Ref, src.SHA, src.Cached, src.State = refName(ref), sha, cached, "clean snapshot"
-	f, err := os.Open(m.tarPath(c.Repo, sha))
-	if err != nil {
-		return src, err
-	}
-	defer f.Close()
-	gz, err := gzip.NewReader(f)
-	if err != nil {
-		return src, fmt.Errorf("corpus %s: snapshot %s: %w", c.Name, sha, err)
-	}
-	if src.Skipped, err = extractTar(gz, dest, 1); err != nil {
-		return src, fmt.Errorf("corpus %s: extract: %w", c.Name, err)
+	tp := m.tarPath(c.Repo, sha)
+	if src.Skipped, err = extractTarGz(tp, dest); err != nil {
+		// A cached snapshot that does not extract would fail every later run;
+		// drop it so the next online run fetches it again.
+		rmErr := os.Remove(tp)
+		return src, fmt.Errorf("corpus %s: snapshot %s: %w (cached tarball removed: %v; the next online run refetches it)", c.Name, sha, err, rmErr)
 	}
 	if local != "" {
 		if info, err := readLocal(local); err == nil {
@@ -300,6 +295,11 @@ func (m *Materialiser) snapshot(repo, ref string) (string, bool, error) {
 			os.Remove(tmp.Name())
 			return "", false, errors.Join(ferr, cerr)
 		}
+		// Only a tarball that reads to the end (within the size caps) is cached.
+		if err := verifyTarGz(tmp.Name()); err != nil {
+			os.Remove(tmp.Name())
+			return "", false, fmt.Errorf("downloaded snapshot of %s@%s is not a readable tar.gz: %w", repo, sha, err)
+		}
 		if err := os.Rename(tmp.Name(), tp); err != nil {
 			return "", false, err
 		}
@@ -307,12 +307,77 @@ func (m *Materialiser) snapshot(repo, ref string) (string, bool, error) {
 	return sha, cached, os.WriteFile(lastFile, []byte(sha+"\n"), 0o644)
 }
 
+// Extraction caps: a corpus is source code, so anything near these is a wrong or
+// hostile archive, and filling the disk is not a measurement.
+var (
+	maxEntryBytes int64 = 64 << 20 // one file
+	maxTotalBytes int64 = 4 << 30  // one archive
+)
+
+func extractTarGz(path, dest string) (int, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return 0, err
+	}
+	defer f.Close()
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		return 0, err
+	}
+	return extractTar(gz, dest, 1)
+}
+
+// verifyTarGz reads a tar.gz to the end without writing anything.
+func verifyTarGz(path string) error {
+	f, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		return err
+	}
+	tr := tar.NewReader(gz)
+	var total int64
+	for {
+		h, err := tr.Next()
+		if err == io.EOF {
+			return nil
+		}
+		if err != nil {
+			return err
+		}
+		if err := checkSize(h, &total); err != nil {
+			return err
+		}
+		if _, err := io.Copy(io.Discard, tr); err != nil {
+			return err
+		}
+	}
+}
+
+func checkSize(h *tar.Header, total *int64) error {
+	if h.Typeflag != tar.TypeReg {
+		return nil
+	}
+	if h.Size > maxEntryBytes {
+		return fmt.Errorf("archive entry %q is %d bytes, over the %d-byte per-file cap", h.Name, h.Size, maxEntryBytes)
+	}
+	*total += h.Size
+	if *total > maxTotalBytes {
+		return fmt.Errorf("archive exceeds the %d-byte total cap at %q", maxTotalBytes, h.Name)
+	}
+	return nil
+}
+
 // extractTar unpacks regular files and directories under dest, dropping strip
 // leading path components. Links are skipped (counted), never followed, and an
-// entry that would land outside dest is an error.
+// entry that would land outside dest, or over the size caps, is an error.
 func extractTar(r io.Reader, dest string, strip int) (int, error) {
 	tr := tar.NewReader(r)
 	skipped := 0
+	var total int64
 	for {
 		h, err := tr.Next()
 		if err == io.EOF {
@@ -347,6 +412,9 @@ func extractTar(r io.Reader, dest string, strip int) (int, error) {
 				return skipped, err
 			}
 		case tar.TypeReg:
+			if err := checkSize(h, &total); err != nil {
+				return skipped, err
+			}
 			if err := writeFile(target, tr); err != nil {
 				return skipped, err
 			}
