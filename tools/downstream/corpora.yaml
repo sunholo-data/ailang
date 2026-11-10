@@ -15,6 +15,9 @@
 #           doc §11 decision 3) and every ci-tier value (advisory, per design §6.9: the
 #           ci tier starts advisory; the CI job itself is not built yet).
 # pinned:   heads of each default branch as of 2026-11-10.
+# allow_not_measured: {max: N, reason: "..."} — a reviewed allowance for entries the
+#           baseline cannot check (unresolved deps, timeout, crash). Absent = zero
+#           tolerance in a blocking corpus (exit 4). See tools/downstream/README.md.
 
 - name: ailang-examples
   repo: self
