@@ -1,0 +1,14 @@
+# Iteration 103 — controller observations (2026-11-10, fire fleet-1794349189-54079)
+
+- Kill switch `mission-fleet.disabled` absent (armed). gh active account `sunholo-voight-kampff`. Billing tripwire CLEAN.
+- Skill: resolved symlink target `~/dev/sunholo-data/ailang/.claude/skills/mission-control`. SKILL.md and all 13 `resources/*.md` are byte-identical to `origin/dev` (per-file `cmp`, 14/14 SAME). Pin HEAD == origin/dev (`0df45ce29`), `AILANG_DRIVER_DRIFT=0`.
+- Gate 1 base `0df45ce299e4571790b00e1a9996be24fb0a12ea` (origin/dev at the Gate-1 fetch).
+- Newest record: iteration 102 on draft #2225 (`fleet/i102-record`, head `064e25a11`), stacked on #2214 → #2200 → #2198 → #2194 → #2173 → #2171 → #2169. origin/dev's log ends at 94. No `fleet/i103*` branch or worktree existed before this fire (`git ls-remote` and `git worktree list`).
+- Directives: `mission_directives.sh` on #2172 → 0 allowlisted of 7 comments (all `sunholo-voight-kampff`; watermark file absent, so it read every comment). #2039 → 0 allowlisted of 29.
+- Self-notice read, prescribed form (watermark files): **rc 2**, instrument failure, because neither `mission-2172-last-seen` nor `mission-2039-last-seen` exists (seventh consecutive fleet fire). `--since 2026-11-10T16:07:40Z` form (iteration 102's Gate 1 base): **rc 0**, control 852:10 ok, 0 crash notices on #2172/#2039, 0 in-window transcript notices (3 older #2039 transcript notices, all out of window, already reported by iterations 91–93).
+- Tickets: `ailang mission ticket open --json` → 27, byte-identical to iteration 102's capture (`cmp` silent).
+- Ledger: `mission_decisions.sh --check` on the iteration-102 charter → valid, 44 rows. `--open` → 28 OPEN rows, byte-identical to iteration 102's `open-decisions.tsv`.
+- origin/dev `2a7cee7bf..0df45ce29` is 73 commits (v0.60.0 release, JInt/JSON, canonical module identity, verify/check exit contracts, M-CONNECTOR-CHANNELS + executor OAuth, gemini-4-carbon in modelreg, `mcp check --target copilot`, fine-tune docs, design-doc moves). `git diff --name-only` filtered to `design_docs/fleet-|tools/launchd/|.claude/skills/mission-control/|.claude/skills/sprint-|scripts/mission_|internal/mission/|cmd/ailang/mission|missions/` → **0** paths (control: 199 paths changed in total).
+- Dev @ `0df45ce29`: CI success, Build and Release success.
+- Unread inbox (prod store, listed without marking): nothing from Mark, no regression; sibling FYIs (world 378/377, stapledon 84), eval-suite notices, triage digest ("codex judge lane down"), coordinator no_changes/dedup, feedback-gate dry-run audits. Nothing is a `mission-fleet` ticket.
+- Driver routing note: planner and executor codex `gpt-6.1-sol` probe rc 75 (quota UNREADABLE) → `opus` / `claude:claude-haiku-5-5`. Designer `claude:claude-opus-5-5` (recipe). Evaluator `sonnet` (Agent tool).
