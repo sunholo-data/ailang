@@ -5,6 +5,25 @@ _Snapshot, overwritten every iteration. History: `v1-mission.md` (STATUS) + `v1-
 **Last update:** 2026-11-09 · ATTENDED re-cut (`D-64`) · **Goal distance:** **N = 1 open bar-v3 gate item** (was 7; G1+G3 closed by `D-65`, G4 closed on the prod domain, G2 closed by #2184 + #2185) — only G5 remains, at release (unit changed from D-51's "design docs remaining", last N = 12 on 2026-09-14)
 **Latest release:** v0.57.4. The V1 launchd loop has been PAUSED since 2026-09-08 (`~/.ailang/state/mission-control.disabled`) and stays paused; the attended session is the orchestrator and dispatches the work to subagents.
 
+## ⚠ RELEASE ORDER — `dev` carries `JInt` (#2223 merged `543192d20`, 2026-11-10)
+
+`dev` is past v0.59.0 with a change that silently alters downstream behaviour: integer JSON literals
+now decode as `JInt`, so a `match` with a `JNumber` arm and no `JInt` arm stops seeing integers. `check`
+still passes on these files, so **`make downstream-check` cannot see it.** Tagging is fine; **installing
+the next release on the rig, or promoting it, is not, until these land and their pins move:**
+
+| Repo | Site | What an integer does today-on-`dev` |
+|---|---|---|
+| motoko fork | `src/eval/journal/association.ail:227` (inner match :230) | outer: no catch-all → fails at run time with RT002; inner: silently `false` |
+| motoko fork | `packages/motoko-ext-skills/skills.ail:166` (`json_kind`), and :245 | :166 no catch-all → RT002; :245 takes the generic fallback |
+| world | `se_tools/read.ail:197` | silently rejects every integer line argument |
+| motoko upstream only | `src/core/process_limits.ail:92` | `{"timeout_secs": 60}` silently becomes an invalid request (matters when the fork next syncs) |
+
+The arms cannot be added before a release exists: a compiler without `JInt` rejects the import. So the
+order is: tag → land the arms in the motoko fork and world → move their pins → only then move the rig
+binary and promote. The exact arms are written out in upstream issue arniwesth/motoko_agent#323.
+Also live on merge: **teaching prompt v0.16.13** is the active prompt for every binary built from `dev`.
+
 ## Roadmap accepted 2026-11-10 (`D-66`) — v1.0.0 is NOT the next tag
 An independent readiness review found work bar v3 does not count: type-soundness holes, a prover/runtime
 mismatch on integer overflow, a lossy `show`, and stdlib names that cannot change after the promise.
