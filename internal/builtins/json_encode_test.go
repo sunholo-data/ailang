@@ -406,3 +406,21 @@ func makeKV(key string, value eval.Value) eval.Value {
 		},
 	}
 }
+
+// JInt encodes digit for digit; a malformed JInt is an error, not a guess.
+func TestEncodeJInt(t *testing.T) {
+	jint := func(fields ...eval.Value) eval.Value {
+		return &eval.TaggedValue{ModulePath: "std/json", TypeName: "Json", CtorName: "JInt", Fields: fields}
+	}
+	res, err := jsonEncodeImpl(nil, []eval.Value{makeJArray([]eval.Value{jint(&eval.IntValue{Value: 1234567890123456789}), jint(&eval.IntValue{Value: -1})})})
+	require.NoError(t, err)
+	assert.Equal(t, "[1234567890123456789,-1]", res.(*eval.StringValue).Value)
+	_, err = jsonEncodeImpl(nil, []eval.Value{jint(&eval.FloatValue{Value: 1})})
+	assert.Error(t, err)
+	_, err = jsonEncodeImpl(nil, []eval.Value{jint()})
+	assert.Error(t, err)
+	// An AILANG int handed to decode as a value converts to JInt, exactly.
+	dec, err := jsonDecodeImpl(nil, []eval.Value{&eval.IntValue{Value: 1 << 60}})
+	require.NoError(t, err)
+	assert.Equal(t, "JInt", extractOk(dec).(*eval.TaggedValue).CtorName)
+}
