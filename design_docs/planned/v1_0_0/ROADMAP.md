@@ -78,6 +78,9 @@ estimate built from ten estimates, not a plan.
 17. Paired AILANG/Python baseline on that build, **after** exhaustiveness and `show` have landed,
     since both move pass rates. Scope per `D-67`: one Opus-level model and Haiku on subscription, one
     cheap open-weight model, and the on-device lanes. No full-suite run without Mark's go.
+    The open-weight slot is **whatever the current default is when the run is scoped** — GLM 5.3
+    Flash as of 2026-11-10 (Mark: "a good default recently but this changes like the wind").
+    Re-confirm the pick at run time; do not treat this name as pinned.
 18. Soak ≥ 7 days with every downstream pin on the final v0.58.x. A new breaking fragment resets it.
 19. `v1.0.0-rc.1`, then `v1.0.0` = that build plus docs and version strings.
 
