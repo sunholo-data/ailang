@@ -243,7 +243,7 @@ screenshots). No real customer data, no email addresses other than the reviewer 
 2. GE admin: new MCP data store, URL `https://executor.ailang.sunholo.com/mcp/connect/`, OAuth with that
    client, Basic auth, PKCE ticked. Enable the tools in the Actions tab.
 
-## P0 audit results (in progress, 2026-11-10)
+## P0 audit results (2026-11-10; widget tools and executor prod pending)
 
 **Blocked half:** every signed-in call on both services returned "needs you to sign in again" in Claude
 Code. Prod logs show why: the 13:10 tool calls got 401 (the access token from the 07:20 refresh had
@@ -258,10 +258,25 @@ refused (`expected int`) until it reconnects.
 |---|---|---|---|
 | Parse | `mcpFormats` | ✅ open | — |
 | Parse | `mcpEstimate` | ✅ open, but ❌ data minimisation | Returned the REST string, double-encoded, with `meta.request_id`. **Fixed:** docparse PR #265 (`mcpOutput`; test asserts the shape and fails on the old code) |
-| Parse | `mcpParse`, `mcpConvert`, `editDocument`, `mcpAccount`, `createUpload` | ⏳ re-auth | — |
+| Parse | `mcpParse` (sample, summary) | ✅ | — |
+| Parse | `mcpParse` (`content` + `notes.md`, `maxChars` sent as the old schema's string `"2000"`) | ✅ | Accepted; whether the client coerced it or serve-api bound the digits was not isolated |
+| Parse | `createUpload` → `curl` → `mcpParse(fileRef)` | ✅ | Real 3 KB DOCX: 7 headings, 1 table. **G3 closed** for the code path |
+| Parse | `mcpConvert` (Markdown → docx) | ✅ | `download_url` (signed, 1 h) + base64. **G4 closed** |
+| Parse | `editDocument` (sample, `deltas: []`) | ✅ | **G2 closed** (sample ids now resolve) |
+| Parse | `mcpAccount status` | ✅ | No upgrade links (`manageUrl: ""`) |
 | Parse | `uploadDocument`, `uploadViaHost` | ⏳ needs a widget host (claude.ai, P2) | — |
 | Parse | `submit_feedback` | not called (files real feedback) | — |
-| Executor | all 29 | ⏳ re-auth (dev URL in this session; prod needs `claude mcp add`) | — |
+| Executor (dev) | `executor_whoami` | ✅ | Reports `client: "claude.ai"`: Claude Code signs in with claude.ai's CIMD identity |
+| Executor (dev) | `ailang_eval`, `ailang_run` | ✅ | — |
+| Executor (dev) | `ailang_run` reading `/etc/passwd` (`! {IO, FS}`) | ✅ refused | `policy_violation`, `missing_from_policy: ["FS"]` |
+| Executor (dev) | `ailang_check` with `requires`/`ensures` | ⚠️ | **`verify.available: false`: the image has no Z3**, so the description's "verify its contracts with Z3 where available" never applies hosted. Also returns the request dir (`/tmp/ailang-exec/<uuid>/main.ail`) and a MOD010 warning naming it: an internal identifier in a tool result (OpenAI data minimisation) |
+| Executor (dev) | `ailang_builtins` | ✅ | — |
+| Executor (dev) | `docs_search "record update"` (latest) | ⚠️ | ~30 KB result, top hits are **old prompt files** (v0.8.2, v0.11.4, v0.16.x) rather than current docs: too big and stale for a listed connector |
+| Executor (prod) | all | ⏳ `ailang-executor` added to local config; needs a session restart | — |
+
+**Executor fix tickets from P0:** (E1) Z3 in `docker/Dockerfile.executor-mcp`, or drop the promise from
+`ailang_check`'s description; (E2) strip the request directory from `ailang_check`/`ailang_run` results, as
+the logs already do; (E3) `docs_search`: rank current docs above `prompts/v*.md` and cap the body per hit.
 
 **Hints vs OpenAI's rule** ("Use `false` for … persisting artifacts, starting stateful jobs …, uploading
 files"), from prod `tools/list`:
@@ -276,7 +291,7 @@ files"), from prod `tools/list`:
 
 Submission-kit gaps (2026-10-06) re-checked so far: **G1 closed** (email/password reviewer login),
 **G5/G7 closed** except `mcpEstimate` (#265), **G6 closed** (no upgrade links, `mcp_account.ail:31`).
-G2–G4 wait for the signed-in calls.
+**G2, G3, G4 closed** (signed-in calls above).
 
 ## Success Criteria
 
