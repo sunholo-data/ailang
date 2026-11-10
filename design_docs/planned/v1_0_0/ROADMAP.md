@@ -180,44 +180,85 @@ v0.58.x; `runtime/` and `third_party/goopus` move under `internal/`; `check --js
 | 9 | Go API excluded from the 1.x promise in writing | Yes | public surface |
 | 10 | Which downstream repos are blocking in the gate | docparse, email-parse, daneel, ailang-packages blocking; world and motoko advisory at first | downstream gate |
 
-## 7. First implementation wave (2026-11-10)
+## 7. Implementation waves (2026-11-10)
 
-Six Opus agents, each in its own worktree, each opening a PR it does not merge.
+Each PR was written by an Opus agent in its own worktree, then reviewed by a different Opus agent
+that had not seen it, then fixed, and merged only when a review came back clean. **Every one of the
+ten reviews of non-trivial PRs found at least one blocking defect that the author's tests and green
+CI had missed, except two** (#2203, #2206, #2207 passed first time; #2203 and #2206 are the two
+counted). Review is not optional for this work.
 
-| PR | Scope | State at time of writing |
+### Wave 1 — all merged; shipped in v0.59.0
+
+| PR | Scope | Outcome |
 |---|---|---|
-| #2203 | Release gates M1+M2: hook installer, `release.yml` ci-gate | Green before the `build.yml` jobs were added (`ccd80d1d9`); CI re-running |
-| #2205 | Nominal type identity M0 spike | Draft, not for merge. **Go**, with a new milestone first (below) |
-| #2206 | Replace the `ollama` Go module | Agent still working |
-| #2207 | Match exhaustiveness core: algorithm package, located RT002, VM silent-Unit fix, warnings in JSON | Green |
-| #2208 | `make downstream-check` | CI re-running after a path-traversal hardening (`c98631ede`) |
-| #2209 | Type-variable hygiene: #2157, #2076 | CI re-running after a coverage fix |
+| #2203 | Release gates M1+M2: hook installer, `release.yml` ci-gate | Merged. Gate also requires `build.yml`'s per-OS jobs (`D-68`); polling window 90 min |
+| #2206 | `ollama` Go module replaced by local wire types | Merged. Empty streaming reply is now an error |
+| #2207 | Match exhaustiveness core: algorithm package, located RT002, VM silent-Unit fix, warnings in JSON | Merged. Not yet wired into `check` |
+| #2208 | `make downstream-check` | Merged after review found five ways it could PASS without measuring |
+| #2209 | Type-variable hygiene: #2157, #2076 | Merged after review found a soundness REGRESSION (let-generalisation over open records); the fix unified four free-variable walks into one and closed three older holes |
 
-**What the wave changed in the plan** (rulings in ledger `D-68`):
+### Wave 2
 
-- **New milestone: canonical module identity**, before the main type-identity change. A module inside a
-  package loads twice, under two paths, so one file has two identities; without this the fix falsely
-  rejects 14 of docparse's 44 files. The design doc's regex census had found 0 — only a real binary
-  saw it. Type identity is now estimated at 11.5–17 days (was 9–14).
-- **Exhaustiveness wiring needs less than §3 says:** a four-line constructor stamp keyed by the
-  canonical module, not the whole identity change.
-- **The release gate requires `build.yml`'s per-OS jobs.** Without them it would have passed v0.57.4.
-- **Two soundness holes now have issues:** #2210 (missing record field passes `check`; the cause is
-  the open-vs-closed record unification, not the shared row name the design doc guessed) and #2211
-  (lowercase type names are never enforced).
-- **First downstream-gate run:** v0.57.4 against `dev` at `470b6ea59`, 1,974 files and 125 packages
-  per arm, **0 newly failing**. Caveat: 41 daneel entries were not checked because their dependencies
-  did not resolve, and daneel is a blocking corpus.
+| PR | Scope | State |
+|---|---|---|
+| #2220 | Downstream gate: dependency provisioning, 600 s default timeout, candidate runs its own `lock` | **Merged** after one fix round |
+| #2219 | Doc-sample gate (`make check-doc-samples`, in `ci-quick` and on the pre-push path) | **Merged** after one fix round. 537 samples: 223 pass, 284 fail and are baselined (shrink-only set) |
+| #2222 | Verification honesty part 1: one exit contract, `unproved` outcome, CTR004, printer, parser | Fix round done; `D-69` rulings being applied; second review to follow |
+| #2223 | `JInt`, `decode` rejects trailing data, one shared decoder, prompt v0.16.13 | Fix round done; `D-69` rulings being applied; second review to follow. **Release order applies** (motoko, world) |
+| #2224 | Canonical module identity (M1b) | Two reviews; third fix round in progress |
+| #2218 + infra #17 | Registry validator: final tags only, behind the CI gate; promote refuses pre-releases | Drafts. **Not run in Cloud Build**; need an attended check |
 
-**Found by the wave and not yet owned by any doc:**
+Also landed directly on `dev`: the end-of-session auto-push bound now covers the pre-push gates
+(`f2a9807e2`) — it had been killing every push mid-gate since the pre-push hook started resolving
+again.
 
-- A warm compile cache drops warnings in every output format, so exhaustiveness warnings would vanish
-  on a cached run.
-- With plain `--bytecode`, a VM run-time error falls back and re-runs the program on the evaluator
-  (already item B4 in `m-bytecode-vm-parity-bugs.md`).
-- The `()` pattern fails during elaboration.
-- Single-constructor record ADTs still cross module boundaries after the identity fix, because
-  aliases expand by bare name first. Undecided.
+### What the waves changed in the plan
+
+- **New milestone: canonical module identity**, before module-qualified type identity (`D-68`). A
+  module inside a package was compiled two or three times under different names and its module-level
+  code RUN more than once. The design doc's regex census had found 0 affected programs; a real
+  binary found 14 docparse files.
+- **Exhaustiveness wiring needs less than §3 says:** a constructor stamp keyed by the canonical
+  module, not the whole identity change.
+- **The downstream gate is a type-check comparison, not downstream CI.** Exit 0 guarantees the
+  candidate's `check` is no worse than the baseline's on every entry, against dependencies provisioned
+  from each repo's own pins. It does not run downstream tests. Release runs need `FETCH_DEPS=1`.
+  Three entries remain NOT_MEASURED for real bugs in their repos (one unexported import in the motoko
+  fork, one invalid manifest in ailang-packages).
+- **`VERIFIED` means less than the teaching prompt says**, in two ways now: the solver models `int` as
+  unbounded while the runtime wraps (§4), and `requires` is assumed, never checked at call sites, with
+  run-time contract checking off by default. Both must be stated in LIMITATIONS, the contracts guide
+  and the security-model page before 1.0.
+- **More than half the code samples in the docs do not pass `check` as written** (284 of 537). The
+  number can now only go down.
+
+### Issues filed from review (all pre-existing on `dev`)
+
+- #2210 — a missing record field passes `check` when a declared record return flows through a lambda
+  parameter (open-vs-closed record unification never binds the row).
+- #2211 — lowercase type names parse as type variables, so the declared type is never enforced.
+- #2221 — `check` never terminates on an infinite type through a record; a record update loses the
+  other fields (unsound); a user-written `| r` clashes with the internal row name; defaulting keeps a
+  separate free-variable walk.
+- #2215 — non-blocking follow-ups for #2203, #2206, #2207.
+
+### Found and not yet owned by any doc
+
+- A warm compile cache drops warnings from machine output (`check --json` gives `warnings` on the
+  first run and omits the key on the second).
+- With plain `--bytecode`, a VM run-time error in a PURE entry falls back and re-runs on the evaluator
+  (item B4 in `m-bytecode-vm-parity-bugs.md`).
+- `serve-api` / MCP / A2A arguments turn whole-number JSON floats into ints before the program sees
+  them.
+- A stream that ends without its `done` chunk is still reported as a short success by the ollama
+  client.
+- The downstream gate's write audit raises a false "could not measure" when another session edits a
+  sibling checkout mid-run.
+- The hosted `ailang_check` image has no Z3 (needs a non-static base image).
+- The infra repo published all of `docs/` to a public Pages site on a push to `main`; the landing page
+  now publishes from its own folder (infra #17). Where the AILANG Cloud landing page should live is
+  open.
 
 ## 7. Suggested next step
 
