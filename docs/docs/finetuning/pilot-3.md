@@ -1,5 +1,5 @@
 ---
-sidebar_position: 7
+sidebar_position: 8
 title: Pilot-3 (learning from its own mistakes)
 description: The third AILANG fine-tune, in progress. It trains on the pilot-2 model's own failing attempts, repaired and verified, and on the habit of looking things up after a fix fails.
 reviewed: 2026-11-09

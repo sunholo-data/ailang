@@ -1,5 +1,5 @@
 ---
-sidebar_position: 2
+sidebar_position: 3
 title: Decision log
 description: Dated decisions for the AILANG fine-tuning programme — who decided, what, and why.
 reviewed: 2026-11-06
@@ -31,6 +31,10 @@ on the [Baseline](./baseline.md) or [Pilot-1](./pilot-1.md) page.
 | D-FT-10 | 2026-11-09 | Mark ("get ready for another training run") + measured | **Pilot-3 trains on the model's own mistakes (on-policy repair data) and a fifth habit: after a failed fix, read the matching section of the reference** | Pilot-2's held-out failures were two-thirds parse errors from borrowed syntax, and its runs looped 40–80 times without a lookup. Its repair data had 26 parse-error episodes out of 1,671, and none that looked anything up after a failed fix. The model's broken steps stay in each episode as context, with no loss ([pilot-3](./pilot-3.md)) |
 | D-FT-11 | 2026-11-09 | analysis | **Pilot-3 warm-starts from the pilot-2 adapter** (1 epoch, half the learning rate, replay sample of pilot-2's data) | Pilot-2's protocol and loop habits measured fine (0 protocol misses); what it lacks is in the new data. This saves a ~21-hour retrain from base. If pilot-3 fails, a from-base run on the combined mix is the control |
 | D-FT-12 | 2026-11-09 | measured | **Held-out arms run without a wall-clock cap, and base is re-run from scratch** | Pilot-2's 5-hour caps cut base and fine-tune-without-prompt to 13 and 19 of 24. Pilot-2's base rows also saw a tool-output notice that pilot-3's runs won't (#2151, fixed), so re-using them would confound the comparison |
+| D-FT-13 | 2026-11-10 | Mark + measured | **Pilot-4 pools the data and restarts from the pilot-2 adapter**: round-1 + round-2 on-policy repairs + a replay sample, not another warm start on pilot-3 | Pilot-3 reached 10/24 (pilot-2: 4/24; 6 newly pass, none newly fail), so the on-policy method stays. Stacking a second warm start would also carry pilot-3's dropped-tool-call habit forward; pooling the rounds (DAgger-style aggregation) keeps everything learned without it ([pilot-4](./pilot-4.md)) |
+| D-FT-14 | 2026-11-10 | Mark | **Round-2 collection: pilot-3 on the 57 training benchmarks, one trial, traced** | One trial is ~7–8 h of GPU; with round 1 pooled in that is two rounds of the model's own mistakes. It also measures pilot-3 on its own training distribution (pilot-2: 30/57) |
+| D-FT-15 | 2026-11-10 | measured | **Keep trained writes short, and teach building a file up in steps** | Pilot-3's "read then stop" runs were `write` calls that ran away (one repeated a function 225 times) or ended malformed; ollama dropped them and the agent harness read that as the end of the run. 1.8% of pilot-3's responses vs 0.05% of pilot-2's |
+| D-FT-16 | 2026-11-10 | Mark + measured | **Every eval is traced, dropped tool calls are counted, and a 30-minute behaviour check runs before the held-out evals.** Held-out scope: fine-tune + slim prompt, and base re-run once | The banked eval row could not tell a dropped tool call from a real stop, and the transcripts were not kept; diagnosing it took a re-run. Base re-run once serves later pilots too |
 
 ## Open
 

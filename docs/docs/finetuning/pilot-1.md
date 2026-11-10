@@ -1,5 +1,5 @@
 ---
-sidebar_position: 5
+sidebar_position: 6
 title: Pilot-1 (Gemma 4 12B LoRA)
 description: The first AILANG fine-tune — recipe, training curve, the traps we hit, and the held-out A/B against the base model.
 reviewed: 2026-11-06

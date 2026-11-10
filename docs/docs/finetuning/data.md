@@ -1,5 +1,5 @@
 ---
-sidebar_position: 4
+sidebar_position: 5
 title: Training data
 description: Where AILANG fine-tuning data comes from, the rules it must pass, the habits it should teach, and the coverage gaps it exposed.
 reviewed: 2026-11-06

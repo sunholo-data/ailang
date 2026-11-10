@@ -1,5 +1,5 @@
 ---
-sidebar_position: 6
+sidebar_position: 7
 title: Pilot-2 (served format, habit episodes)
 description: The second AILANG fine-tune — trained in the format it is served in, on habit-simulated agent episodes — and its held-out result against base Gemma 4 12B.
 reviewed: 2026-11-09
