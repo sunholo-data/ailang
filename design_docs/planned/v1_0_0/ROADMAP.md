@@ -1,6 +1,7 @@
 # v1.0.0 roadmap — from the readiness review to a tag
 
-**Status:** proposed, awaiting Mark's decisions (§6). Written 2026-11-10.
+**Status:** ACCEPTED — decisions 1–5 ruled by Mark, attended 2026-11-10 (ledger `D-66`: "go with all
+recommendations"). Decisions 6–10 in §6 are still open. Written 2026-11-10.
 **Source:** [v1-release-readiness-review-2026-11-09.md](../v1-release-readiness-review-2026-11-09.md).
 Each row in §2 is a design doc written by an independent Opus agent from that review, grounded in
 the code and with its blast radius measured. This file is the index: order, dependencies, what the
@@ -147,7 +148,10 @@ right; each has a "differs from the review" section with the evidence.
 
 ## 6. Decisions that unblock the work
 
-Each doc ends with its own list. These are the ones that gate the most:
+Each doc ends with its own list. These are the ones that gate the most. **Rows 1–5 are RULED as
+recommended (`D-66`)**, including the sub-rulings under row 2 (no escape hatch, `unreachable`,
+literal-only matches follow the same rule, redundant arms warn and warnings reach JSON output) and
+the transitional warning under row 4. Rows 6–10 have not been put to Mark.
 
 | # | Decision | Recommendation | Unblocks |
 |---|---|---|---|
@@ -164,6 +168,7 @@ Each doc ends with its own list. These are the ones that gate the most:
 
 ## 7. Suggested next step
 
-Rule on decisions 1–5, then send wave 0 and nominal-identity M1 to sprint-planner. Running
+Decisions 1–5 are ruled. Send wave 0 and nominal-identity M1 to sprint-planner; the older overflow
+design doc's pending quorum round is unblocked by ruling 3. Running
 `ailang design-quorum` on the two type-system docs first is worth its cost; on long docs pass
 `--max-cost-usd 0.30` or the budget cap drops a reviewer.

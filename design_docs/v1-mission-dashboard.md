@@ -5,6 +5,13 @@ _Snapshot, overwritten every iteration. History: `v1-mission.md` (STATUS) + `v1-
 **Last update:** 2026-11-09 · ATTENDED re-cut (`D-64`) · **Goal distance:** **N = 1 open bar-v3 gate item** (was 7; G1+G3 closed by `D-65`, G4 closed on the prod domain, G2 closed by #2184 + #2185) — only G5 remains, at release (unit changed from D-51's "design docs remaining", last N = 12 on 2026-09-14)
 **Latest release:** v0.57.4. The V1 launchd loop has been PAUSED since 2026-09-08 (`~/.ailang/state/mission-control.disabled`) and stays paused; the attended session is the orchestrator and dispatches the work to subagents.
 
+## Roadmap accepted 2026-11-10 (`D-66`) — v1.0.0 is NOT the next tag
+An independent readiness review found work bar v3 does not count: type-soundness holes, a prover/runtime
+mismatch on integer overflow, a lossy `show`, and stdlib names that cannot change after the promise.
+Mark accepted the roadmap: **v0.58.x is the last breaking window → soak ≥ 7 days → rc.1 → v1.0.0.**
+Order, the ten design docs and the open decisions (6–10): [planned/v1_0_0/ROADMAP.md](planned/v1_0_0/ROADMAP.md).
+The N below still counts bar-v3 items only; re-cutting the unit to cover the roadmap is not yet ruled.
+
 ## The bar (v3, "1.0 = a promise we can keep")
 | Gate | Open | What closes it |
 |---|---|---|
