@@ -45,6 +45,12 @@ type scopedModule struct {
 // Load resolves it as before (std, a file path, the root's project-relative
 // fallback, or a resolver error Load reports itself).
 func (ml *ModuleLoader) resolveInScope(owner, canonPath string) (*scopedModule, error) {
+	return ml.resolveScoped(owner, canonPath, true)
+}
+
+// resolveScoped is resolveInScope; rootPaths=false leaves out the root's
+// project-relative step (rootFile uses it to resolve a file's declared name).
+func (ml *ModuleLoader) resolveScoped(owner, canonPath string, rootPaths bool) (*scopedModule, error) {
 	if strings.HasPrefix(canonPath, "../") || strings.HasPrefix(canonPath, "std/") || strings.HasSuffix(canonPath, ".ail") {
 		return nil, nil
 	}
@@ -147,6 +153,9 @@ func (ml *ModuleLoader) resolveInScope(owner, canonPath string) (*scopedModule, 
 
 	// 5. Nothing in the importer's scope provides it.
 	if isRoot {
+		if !rootPaths {
+			return nil, nil
+		}
 		return ml.rootFile(canonPath)
 	}
 	if len(claimers) > 0 {
@@ -209,9 +218,13 @@ func (ml *ModuleLoader) finishScoped(pkgName, rest, file, spelling string) (*sco
 }
 
 // rootFile canonicalises a root-package spelling that is a project-relative
-// path to a file of the root package (`import util` for util.ail in an
-// unprefixed root): it names that module, so it shares the identity of the
-// package spellings of the same file. Any other path is left to Load.
+// path to a file of the root package (`import util` for util.ail, which
+// declares `module acme/app/util`): it names that module, so it shares the
+// identity of the package spellings of the same file. Only when the file's
+// own `module` line is a package spelling of the SAME file — a file that
+// declares itself by its path (`module stub_step` imported as `stub_step`, a
+// test fixture inside the package directory) keeps its path identity, as
+// before. Any other path is left to Load.
 func (ml *ModuleLoader) rootFile(canonPath string) (*scopedModule, error) {
 	root := ml.currentPackageName
 	if root == "" {
@@ -221,10 +234,34 @@ func (ml *ModuleLoader) rootFile(canonPath string) (*scopedModule, error) {
 	if _, err := os.Stat(proj); err != nil {
 		return nil, nil
 	}
-	if _, ok := ml.modulePathOf(root, proj); !ok {
+	// A path-named file (`module stub_step`, or no module line) is not a
+	// package spelling, so it does not resolve here and keeps its path.
+	res, err := ml.resolveScoped(root, declaredModuleOf(proj), false)
+	if err != nil || res == nil || res.pkg != root || realFile(res.file) != realFile(proj) {
 		return nil, nil
 	}
-	return ml.finishScoped(root, "", proj, canonPath)
+	return ml.finishScoped(root, res.rest, proj, canonPath)
+}
+
+// declaredModuleOf returns the path of the first `module` line of the file at
+// path, skipping blank lines and `--` comments; "" if there is none.
+func declaredModuleOf(path string) string {
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return ""
+	}
+	for _, line := range strings.Split(string(data), "\n") {
+		line = strings.TrimSpace(line)
+		if line == "" || strings.HasPrefix(line, "--") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) >= 2 && fields[0] == "module" {
+			return fields[1]
+		}
+		return ""
+	}
+	return ""
 }
 
 // resolveUnscoped is the pre-scoping rule: the published path, the ROOT's bare
