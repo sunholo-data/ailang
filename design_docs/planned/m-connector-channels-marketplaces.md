@@ -51,7 +51,7 @@ Status today (2026-11-10). ✅ = observed working live. 🔧 = we have to build 
 | # | Channel | How the user gets it | Client model | Parse | Executor |
 |---|---|---|---|---|---|
 | C1 | **claude.ai** (web, desktop, mobile) | Settings → Connectors → custom connector, or the directory | CIMD | ✅ (directory-ready since v0.52.3) | 👤 untested; should work (same stack) |
-| C2 | **Claude Code** | `claude mcp add --transport http …` | CIMD | ✅ (this repo's sessions use the prod URL) | ✅ on **dev** only (`ailang-exec-oauth` → the dev run.app URL); prod 👤 |
+| C2 | **Claude Code** | `claude mcp add --transport http …` | CIMD | ✅ (this repo's sessions use the prod URL) | ✅ dev and **prod** (`ailang-executor` → `executor.ailang.sunholo.com`, signed in 2026-11-10: `whoami` + `ailang_run` OK) |
 | C3 | **ChatGPT** (developer mode, then directory) | Developer mode connector | CIMD + `iss` | 👤 no live sign-in recorded | 👤 same |
 | C4 | **Codex** | OpenAI requires cases to pass "on the supported ChatGPT and Codex surfaces" | as ChatGPT | 👤 | 👤 |
 | C5 | **Microsoft 365 Copilot** (declarative agent + MCP plugin) | Agents Toolkit ≥ 6.12.0, sideload; then Marketplace | static client or DCR | 🔧 client model off | 🔧 client model off |
@@ -280,7 +280,7 @@ refused (`expected int`) until it reconnects.
 | Executor (dev) | `ailang_check` with `requires`/`ensures` | ⚠️ | **`verify.available: false`: the image has no Z3**, so the description's "verify its contracts with Z3 where available" never applies hosted. Also returns the request dir (`/tmp/ailang-exec/<uuid>/main.ail`) and a MOD010 warning naming it: an internal identifier in a tool result (OpenAI data minimisation) |
 | Executor (dev) | `ailang_builtins` | ✅ | — |
 | Executor (dev) | `docs_search "record update"` (latest) | ⚠️ | ~30 KB result, top hits are **old prompt files** (v0.8.2, v0.11.4, v0.16.x) rather than current docs: too big and stale for a listed connector |
-| Executor (prod) | all | ⏳ `ailang-executor` added to local config; needs a session restart | — |
+| Executor (prod) | `executor_whoami`, `ailang_run` | ✅ | Signed in through `executor.ailang.sunholo.com`; runs v0.57.4 (annotations, scrub and z3 arrive with the next release + tag bump) |
 
 **Executor fix tickets from P0** (all on `dev` in `8fd2cbca9`; prod with the next release + image-tag bump):
 (E1) **z3 in the image** (`6a6f4b9e6`, base `distroless/cc-debian12`, pin `tools/ci/install_z3.sh`); live on the dev executor 2026-11-10: `verify.available: true`, `double` verified in 0.3 s, `wrong` counterexample `x = 0`.
