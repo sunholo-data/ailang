@@ -2,6 +2,7 @@ package main
 
 import (
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -300,5 +301,53 @@ func TestSnapshotCacheAndOffline(t *testing.T) {
 	}
 	if !rep.Sources[0].Cached {
 		t.Error("offline source not marked cached")
+	}
+}
+
+// A sibling checkout that changes while the gate runs is somebody else's work on a
+// shared machine, not a write by the gate: the arms read snapshots. It is listed in
+// the report and must not turn a clean measurement into exit 3 — which it did on the
+// first release-tier run after the corpus fixes (0 newly failing, 0 not measured,
+// verdict "INSTRUMENT FAILURE") because another session saved files in a checkout.
+func TestLocalCheckoutChangeIsReportedNotGated(t *testing.T) {
+	needUnix(t)
+	local := filepath.Join(t.TempDir(), "sibling")
+	if err := os.MkdirAll(local, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"init", "-q"}, {"-c", "user.email=t@t", "-c", "user.name=t", "commit", "-q", "--allow-empty", "-m", "init"}} {
+		cmd := exec.Command("git", args...)
+		cmd.Dir = local
+		if out, err := cmd.CombinedOutput(); err != nil {
+			t.Fatalf("git %v: %v\n%s", args, err, out)
+		}
+	}
+	manifest := "\n- name: app\n  repo: owner/app\n  local: " + local + "\n  tier: {ci: advisory, release: blocking}\n"
+	f := newFixture(t, manifest, "")
+	edited := filepath.Join(local, "edited-by-someone-else.txt")
+	f.remote.repos["owner/app"] = map[string]string{
+		"src/a/ok.ail":        "module a/ok\nexport func x() -> int = 1\n",
+		"src/a/bystander.ail": "module a/bystander\n-- TOUCH_FILE=" + edited + "\n",
+	}
+	code, rep := f.run(f.options(f.base, f.cand))
+	if rep == nil {
+		t.Fatalf("no report (exit %d)", code)
+	}
+	if _, err := os.Stat(edited); err != nil {
+		t.Fatalf("control did not fire: the sibling checkout was never touched: %v", err)
+	}
+	if code != 0 || len(rep.Failures) != 0 || len(rep.Audit) != 0 {
+		t.Fatalf("exit %d failures %v audit %+v; a bystander's edit must not gate", code, rep.Failures, rep.Audit)
+	}
+	named := false
+	for _, c := range rep.LocalChanges {
+		named = named || (strings.Contains(c.Scope, local) && c.Path == "edited-by-someone-else.txt")
+	}
+	if !named {
+		t.Fatalf("local change not reported: %+v", rep.LocalChanges)
+	}
+	md, err := os.ReadFile(filepath.Join(f.dir, "out", "report.md"))
+	if err != nil || !strings.Contains(string(md), "reported, not gated") || !strings.Contains(string(md), "edited-by-someone-else.txt") {
+		t.Fatalf("report.md does not show the local change (err %v)", err)
 	}
 }

@@ -51,6 +51,13 @@ compared as an entry of kind `lock` (`<dir>/ailang.lock`):
 | fails | fails | NOT_MEASURED (`DEP/lock`) |
 | fails | ok | `newly_passing` |
 
+**What the write audit covers.** The run's own inputs: each snapshot, each provisioned tree and the
+package root copy. A write into any of those is exit 3. The operator's sibling checkouts are *not*
+inputs — every arm reads a snapshot (in `REF=worktree` mode, a copy taken before the run) with a
+scratch HOME and cwd — so a path that changes there while the gate runs is listed in the report
+under "Local checkouts that changed during the run" and **never gated**: on a machine where several
+sessions edit those trees it is somebody else's work, not a write by the gate.
+
 The snapshot itself is never written (the write audit's snapshot stamp is taken before
 provisioning); the provisioned copy and the package root copy are audited from the moment
 provisioning ends. Entries are discovered in the provisioned copy when there is one.
