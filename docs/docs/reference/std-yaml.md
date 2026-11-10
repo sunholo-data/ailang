@@ -55,6 +55,7 @@ Encodes the shared `Json` ADT into one deterministic block YAML document
 import std/yaml (encode)
 import std/json (JObject, JString, JInt)
 import std/result (Ok, Err)
+import std/io (println)
 
 match encode(JObject([
   {key: "title", value: JString("Fysik A")},

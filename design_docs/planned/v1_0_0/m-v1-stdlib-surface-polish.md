@@ -254,6 +254,18 @@ encodes the same wrong value. A literal outside float64 range is already an `Err
 | B. Keep `JNumber(float)` | Document the 2^53 limit as part of the Stable contract; still do B4 | Nothing | 0.5 day; the limit is permanent for 1.x, since an int constructor is 2.0 |
 | C. Lossless `JNumber(string)` | Keep the literal text | Every `JNumber(x)` binding changes type: loud, but the widest churn, and the worst ergonomics for models | 4+ days |
 
+**Round trip through text (ruled 2026-11-10, implementation PR #2223).** `encode` keeps printing a
+whole-number `JNumber` with integer syntax (`jnum(3.0)` → `3`), so the numeric value round-trips
+and the constructor does not: `decode(encode(jnum(3.0)))` is `Ok(JInt(3))`. The alternative —
+printing float syntax (`3.0`, `100000000000000000000.0`) so the constructor survives — was measured
+on a scratch build and rejected: 0 changes to in-repo example or program output, but the
+`json_encode` benchmark's expectation would change; 37 of 236 banked passing std/json solutions
+would change output (all `json_encode`; those reproducing their expected output would fall from 53
+to 16); and about 514 of 545 downstream `jnum(` call sites (368 `jnum(intToFloat(…))`-style, 146
+whole literals, across motoko, docparse, ailang-packages, ailang-parse, email-parse, daneel) would
+print `.0`. Do not reopen without new data. (`std/yaml` does write float syntax, because YAML's own
+`!!int`/`!!float` distinction must survive its bridge.)
+
 This agrees with m-v1-match-exhaustiveness, which finds 1 `Json` match with no catch-all
 (motoko). That one fails loudly with the witness `JInt(_)`. The catch-all matches are the silent
 ones.

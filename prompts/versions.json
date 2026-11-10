@@ -1162,7 +1162,7 @@
     },
     "v0.16.13": {
       "file": "prompts/v0.16.13.md",
-      "hash": "6b29958e2d3ef893d0daab83c906d21bb5ef0397bb1b2561cf87fde2df7726bd",
+      "hash": "8cf251b6b65ba603149cde5ce34a8ba2417aa9f98be56fadfe2c6052732deb8a",
       "description": "JSON numbers: JInt for integers (exact), match JInt and JNumber or use the accessors, getInt never truncates, decode takes exactly one value",
       "created": "2026-11-10",
       "tags": [

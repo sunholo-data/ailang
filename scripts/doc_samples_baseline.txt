@@ -223,7 +223,6 @@ docs/docs/reference/std-xml.md 88b1486c937a TC_UNDEFINED_VAR
 docs/docs/reference/std-xml.md 8c01e6ccdee2 PAR016
 docs/docs/reference/std-xml.md fbdcf0e8fe3b TC_UNDEFINED_VAR
 docs/docs/reference/std-yaml.md 2173d1d358fd TC_UNDEFINED_VAR
-docs/docs/reference/std-yaml.md 6485a9814608 TC_UNDEFINED_VAR
 docs/docs/reference/std-yaml.md 9dee7beb70be TC_UNDEFINED_VAR
 docs/docs/references/philosophical-foundations.mdx 0f58a36db072 TC_UNDEFINED_VAR
 docs/docs/vision.mdx 2197bf894f52 TC_UNDEFINED_VAR
@@ -288,7 +287,6 @@ prompt:active e4daed23afac TC_UNDEFINED_VAR
 prompt:active e57f1229815b MOD014
 prompt:active eba90591aae8 PAR017
 prompt:active ee9a9f32c17d PAR_IMPORT_PLACEMENT
-prompt:active f4d47d3987bb MOD014
 prompt:active f5735270cfe9 TC_UNDEFINED_VAR
 prompt:active f84cb5e228aa MOD014
 prompt:active fb131811078b TC_UNDEFINED_VAR

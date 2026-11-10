@@ -11,11 +11,9 @@ import "strings"
 // reason and its exit. Keyed by "<source file> <block key>" — the SOURCE file, not the
 // page key, so an exemption for a frozen prompt revision does not carry over to the next
 // revision.
-var structuralExemptions = map[string]string{
-	"prompts/v0.16.12.md ddfa674b342f": "frozen prompt v0.16.12 (sha256-pinned by `ailang prompt freeze --check`; editing it needs a new " +
-		"revision): the stray fence at line 569 swallows the ```ailang block at line 591, which is never checked. " +
-		"Fix it in the next prompt revision (PR #2223) and delete this exemption.",
-}
+// Empty: the one entry (the stray fence in prompts/v0.16.12.md) was fixed in
+// prompt revision v0.16.13 (PR #2223).
+var structuralExemptions = map[string]string{}
 
 // exemptFor returns the exemption reason for a structural block, if it has one.
 func exemptFor(b *Block) (string, bool) {
