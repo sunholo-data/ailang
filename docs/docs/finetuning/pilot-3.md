@@ -166,6 +166,10 @@ Training **truncates from the end**, so an over-long on-policy sample keeps the 
 - Over-long samples are dropped **before** they take a per-kind slot, so another episode of the same benchmark and error kind fills the slot.
 - A character-count estimate had flagged 22 samples, not 16; it would have dropped some good ones.
 
+### "Read, then stop" was a lost tool call, not a decision
+
+Four arm-B runs read the starter file and ended without writing anything. The obvious reading, that the model gave up, was wrong, and so was our first theory (masked writes in the training data). The trace showed the model *did* write: thousands of tokens of program inside a `write` call. When such a call runs away (repeating itself) or ends malformed, ollama cannot parse it, returns an empty "stop", and the agent harness takes that as the end of the run. The failure looks like a quiet, early, cheap run, which is exactly the opposite of what happened. The lesson for every eval since: record the raw responses, because the banked row cannot tell these apart.
+
 ## Training and evaluation plan
 
 `tools/finetune/pilot3_run.sh` runs each stage and can resume from any of them:
@@ -216,3 +220,7 @@ would take. The replay sample of pilot-2's data guards against forgetting what i
 | 2026-11-10 | Serve: fused and registered `gemma4-12b-ailang-ft3` (75 s) | Loaded and answering in arm B within a minute |
 | 2026-11-10 | **Arm B finished: 10/24** (pilot-2: 4/24), same 24 held-out benchmarks, same slim prompt | 6 benchmarks newly pass, **none newly fail** (exact sign test on the 6 discordant pairs, two-sided p ≈ 0.03). Compile errors 16 → 6; median turns 57.5 → 12; runs of 50+ turns 13 → 4. One trial per benchmark, so treat the size of the gain with care |
 | 2026-11-10 | A new failure in arm B: **read the starter file, then stop** | 4 of 24 runs read the stub and gave a final answer without writing any code (2 turns). Pilot-2 did this in **0** of its 56 eval runs. Candidate cause, not yet confirmed: in 297 of 784 training samples (38%) the write that follows the first read is the model's own wrong code, so it carries no loss; pilot-2 had a write *with* loss after the read in 85% of samples. A replay probe is queued for after the evals; the rig's GPU gateway correctly refused it while the eval runner holds the lock |
+| 2026-11-10 | Paused the evals (Mark: the next training run takes priority); D had 3 rows banked | Resumable: `--skip-existing` and the runner's stage markers |
+| 2026-11-10 | Probe: after reading the stub on 16 *training* benchmarks, does the model write? | pilot-3 15 writes + 1 bash, pilot-2 14 + 2: **no difference**. The masked-write theory was wrong |
+| 2026-11-10 | Re-ran the 4 stop benchmarks with every request traced (diagnosis only; held-out, never training data) | The run that stopped again had generated **4,340 tokens**; pi received ~80 of them, the rest was a `write` call that ollama's tool-call parser dropped. Across the run, 4 of 223 responses (1.8%) were dropped this way; in pilot-2's 4,106-request collection trace, 2 (0.05%) |
+| 2026-11-10 | Replayed the failing request 5 times through the API and 5 times raw | The API returned no tool call 2 of 5 times (8,326 and 6,257 tokens). Raw, the tool-call format is correct when the call finishes; 2 of 5 never finished inside 12,000 tokens, one repeating the same function definition 225 times. The model is not choosing to stop: **some writes run away and are lost** |
