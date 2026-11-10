@@ -14,14 +14,12 @@ import (
 	"go.opentelemetry.io/otel/trace"
 )
 
-// Exercise real SDK protobuf transport -> production OTLP auth/conversion ->
+// Exercise real SDK protobuf transport -> production OTLP conversion ->
 // persistent Backend reads. No artificial pass based on an HTTP 200 alone.
 func TestTelemetryExporterReceiverPreservesWorkProvenance(t *testing.T) {
 	for _, key := range []string{"GOOGLE_CLOUD_PROJECT", "OTLP_GOOGLE_CLOUD_PROJECT", "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT", "OTEL_EXPORTER_OTLP_HEADERS", "OTEL_EXPORTER_OTLP_METRICS_HEADERS", "AILANG_OTLP_FILTER_DISABLE", "AILANG_OTLP_FILTER_DENY", "AILANG_OTLP_FILTER_ALLOW"} {
 		t.Setenv(key, "")
 	}
-	t.Setenv(OTLPIngestTokenEnv, "isolated-test-token")
-	t.Setenv("OTEL_EXPORTER_OTLP_TRACES_HEADERS", OTLPIngestTokenHeader+"=isolated-test-token")
 	t.Setenv("OTEL_RESOURCE_ATTRIBUTES", "ailang.task_id=task-roundtrip,ailang.chain_id=chain-roundtrip,ailang.stage_id=stage-roundtrip")
 	ctx := context.Background()
 	backend := newTestBackend(t)

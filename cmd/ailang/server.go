@@ -161,11 +161,14 @@ func serverCommand(args []string) error {
 		server.WithCORSOrigins(corsOrigins),
 	}
 
-	// Add hook token auth if configured (for cloud deployments)
-	if hookToken := config.HubToken(); hookToken != "" {
-		serverOpts = append(serverOpts, server.WithHookToken(hookToken))
-		log.Printf("Hook token authentication enabled for /api/hooks/*")
-	}
+	// Ingest auth (internal/server/ingest_auth.go): the shared secrets for the
+	// hook/exec/telemetry routes and OTLP /v1/*, and the warn|enforce|off
+	// rollout mode. Checked only on a non-loopback bind.
+	serverOpts = append(serverOpts,
+		server.WithHookToken(config.HubToken()),
+		server.WithOTLPIngestToken(config.OTLPIngestToken()),
+		server.WithIngestAuthMode(config.IngestAuthMode()),
+	)
 
 	// The dashboard's machine credential (COORDINATOR_API_KEY): on a
 	// non-loopback bind, /api/ reads and the WebSocket require it (or a

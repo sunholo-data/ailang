@@ -47,7 +47,7 @@ func (s *Server) httpHandler() (http.Handler, []string, error) {
 	if err := s.registerRoutes(mux); err != nil {
 		return nil, nil, err
 	}
-	return s.corsMiddleware(s.readAuthMiddleware(mux.ServeMux)), mux.patterns, nil
+	return s.corsMiddleware(s.ingestAuthMiddleware(mux.ServeMux, s.readAuthMiddleware(mux.ServeMux))), mux.patterns, nil
 }
 
 // registerRoutes registers every route the dashboard serves. The dashboard is

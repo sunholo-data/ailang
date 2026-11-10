@@ -584,67 +584,6 @@ func BenchmarkClaudeHooks_SessionStart(b *testing.B) {
 	}
 }
 
-// --- Hook Token Auth Tests ---
-
-func TestClaudeHooks_AuthToken_Rejected(t *testing.T) {
-	mock := newMockClaudeHooksBackend()
-	s := &Server{obsBackend: mock, hookToken: "secret-token-123"}
-	body := `{"hook_event_name":"SessionStart","session_id":"s1","cwd":"/tmp"}`
-
-	// No auth header
-	req := httptest.NewRequest("POST", "/api/hooks/claude", bytes.NewBufferString(body))
-	w := httptest.NewRecorder()
-	s.handleClaudeHooks(w, req)
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401, got %d", w.Code)
-	}
-
-	// Wrong token
-	req = httptest.NewRequest("POST", "/api/hooks/claude", bytes.NewBufferString(body))
-	req.Header.Set("Authorization", "Bearer wrong-token")
-	w = httptest.NewRecorder()
-	s.handleClaudeHooks(w, req)
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401, got %d", w.Code)
-	}
-
-	// Not Bearer scheme
-	req = httptest.NewRequest("POST", "/api/hooks/claude", bytes.NewBufferString(body))
-	req.Header.Set("Authorization", "Basic dXNlcjpwYXNz")
-	w = httptest.NewRecorder()
-	s.handleClaudeHooks(w, req)
-	if w.Code != http.StatusUnauthorized {
-		t.Errorf("expected 401, got %d", w.Code)
-	}
-}
-
-func TestClaudeHooks_AuthToken_Accepted(t *testing.T) {
-	mock := newMockClaudeHooksBackend()
-	s := &Server{obsBackend: mock, hookToken: "secret-token-123"}
-	body := `{"hook_event_name":"SessionStart","session_id":"s1","cwd":"/tmp"}`
-
-	req := httptest.NewRequest("POST", "/api/hooks/claude", bytes.NewBufferString(body))
-	req.Header.Set("Authorization", "Bearer secret-token-123")
-	w := httptest.NewRecorder()
-	s.handleClaudeHooks(w, req)
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200, got %d", w.Code)
-	}
-}
-
-func TestClaudeHooks_NoToken_PassThrough(t *testing.T) {
-	mock := newMockClaudeHooksBackend()
-	s := &Server{obsBackend: mock} // hookToken is empty = local mode
-	body := `{"hook_event_name":"SessionStart","session_id":"s1","cwd":"/tmp"}`
-
-	req := httptest.NewRequest("POST", "/api/hooks/claude", bytes.NewBufferString(body))
-	w := httptest.NewRecorder()
-	s.handleClaudeHooks(w, req)
-	if w.Code != http.StatusOK {
-		t.Errorf("expected 200 (no token = pass through), got %d", w.Code)
-	}
-}
-
 func BenchmarkClaudeHooks_PreToolUse(b *testing.B) {
 	mock := newMockClaudeHooksBackend()
 	s := &Server{obsBackend: mock}

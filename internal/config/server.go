@@ -7,6 +7,7 @@ import "strings"
 const (
 	EnvFirebaseProject    = "AILANG_FIREBASE_PROJECT"
 	EnvHubToken           = "AILANG_HUB_TOKEN"
+	EnvIngestAuth         = "AILANG_INGEST_AUTH"
 	EnvApprovalSigningKey = "AILANG_APPROVAL_SIGNING_KEY"
 	EnvBenchmarksBucket   = "BENCHMARKS_BUCKET"
 	EnvDashboardURL       = "AILANG_DASHBOARD_URL"
@@ -19,7 +20,8 @@ const (
 
 var serverVars = []Var{
 	{EnvFirebaseProject, "", AreaServer, "Firebase / Firestore project for the dashboard's auth, workspaces and access control when --firebase-project is not given."},
-	{EnvHubToken, "", AreaServer, "Bearer token the hub's /api/hooks/* routes require; unset leaves them open (local use)."},
+	{EnvHubToken, "", AreaServer, "Shared secret for the dashboard's hook/exec/telemetry ingest routes (/api/hooks/claude, /api/observatory/hooks, /api/exec/sessions, /api/exec/events, /api/coordinator/events, /api/telemetry), sent as Authorization: Bearer or X-AILANG-Ingest-Token; checked on non-loopback binds per AILANG_INGEST_AUTH."},
+	{EnvIngestAuth, "warn", AreaServer, "How a dashboard on a non-loopback bind treats ingest writes (OTLP /v1/* and the hook/exec/telemetry routes) that lack the matching token: warn (default) accepts and logs them, enforce refuses them (401; 503 when the token is unset), off accepts them (rollback lever, logged at startup). Any other value enforces. Loopback binds are always exempt."},
 	{EnvApprovalSigningKey, "", AreaServer, "HMAC key that signs the secret-approval action links, so ntfy buttons can POST without IAM; unset disables those endpoints."},
 	{EnvBenchmarksBucket, "ailang-multivac-dev-benchmarks", AreaServer, "GCS bucket the benchmarks API reads through."},
 	{EnvDashboardURL, "", AreaServer, "Dashboard base URL for commands that print or open links, after the --dashboard flag."},
@@ -32,8 +34,27 @@ var serverVars = []Var{
 // FirebaseProject returns AILANG_FIREBASE_PROJECT, "" when unset.
 func FirebaseProject() string { return get(EnvFirebaseProject) }
 
-// HubToken returns AILANG_HUB_TOKEN, "" when unset.
-func HubToken() string { return get(EnvHubToken) }
+// HubToken returns the trimmed AILANG_HUB_TOKEN, "" when unset.
+func HubToken() string { return strings.TrimSpace(get(EnvHubToken)) }
+
+// Ingest auth modes (AILANG_INGEST_AUTH).
+const (
+	IngestAuthOff     = "off"
+	IngestAuthWarn    = "warn"
+	IngestAuthEnforce = "enforce"
+)
+
+// IngestAuthMode returns AILANG_INGEST_AUTH normalised to off, warn or
+// enforce; default warn. Any other value — a typo included — enforces: this
+// is a security gate, so an unreadable setting fails closed.
+func IngestAuthMode() string {
+	switch v := strings.ToLower(strings.TrimSpace(getOr(EnvIngestAuth))); v {
+	case IngestAuthOff, IngestAuthWarn:
+		return v
+	default:
+		return IngestAuthEnforce
+	}
+}
 
 // ApprovalSigningKey returns AILANG_APPROVAL_SIGNING_KEY, "" when unset.
 func ApprovalSigningKey() string { return get(EnvApprovalSigningKey) }

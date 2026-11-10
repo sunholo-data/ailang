@@ -154,7 +154,9 @@ When a coordinator-managed agent completes work, the coordinator automatically t
 
 For cloud deployments, HTTP hooks work without any CLI dependencies:
 
-1. **Set auth token**: `AILANG_HUB_TOKEN=<secret>` on the server
+1. **Set auth token**: `AILANG_HUB_TOKEN=<secret>` on the server, and send it from the hook as
+   `Authorization: Bearer <secret>`. `AILANG_INGEST_AUTH` decides what a hook without it gets:
+   `warn` (default) accepts and logs it, `enforce` refuses it. A server bound to loopback never checks.
 2. **Configure hook URL**: Point to your Cloud Run endpoint
 3. **No bash/jq/curl needed**: HTTP hooks are built into Claude Code
 

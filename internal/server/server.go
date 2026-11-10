@@ -89,8 +89,13 @@ type Server struct {
 	accessControl    *auth.AccessControlCache
 	workspaceService *auth.WorkspaceService
 
-	// Hook authentication (simple bearer token for cloud deployments)
-	hookToken string
+	// Ingest authentication (ingest_auth.go): hookToken is AILANG_HUB_TOKEN
+	// (hook/exec/telemetry routes), otlpIngestToken AILANG_OTLP_INGEST_TOKEN
+	// (/v1/*), ingestAuthMode AILANG_INGEST_AUTH.
+	hookToken       string
+	otlpIngestToken string
+	ingestAuthMode  string
+	ingestWarnings  *ingestWarnLog
 
 	// apiKey is the dashboard's machine credential (COORDINATOR_API_KEY): the
 	// bearer token that authenticates /api/ reads and the ?token= external
