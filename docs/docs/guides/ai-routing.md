@@ -208,7 +208,7 @@ for the design.
 
 When that lands, programs will be able to write:
 
-```ailang
+```ailang sketch
 func summarise(text: string) -> Result[string, AIError]
   ! {AI[mode=routeable]} =
     ai.complete({ ... })

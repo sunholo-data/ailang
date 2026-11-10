@@ -107,6 +107,9 @@ func printFailure(w io.Writer, j Judged, o options, work string) {
 	msg := oc.FirstErr
 	if j.Verdict == VStale {
 		why := "PASSES now"
+		if b.Class == ClassError {
+			why = "now fails exactly as tagged (error=" + b.WantCode + ")"
+		}
 		if !oc.Ran {
 			why = "is tagged " + string(b.Class) + " and no longer checked"
 		}

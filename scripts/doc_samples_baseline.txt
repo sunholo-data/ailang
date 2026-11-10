@@ -23,11 +23,9 @@ docs/docs/examples/ai-api-integration.mdx b20478d00c38 TC_UNDEFINED_VAR
 docs/docs/examples/ai-api-integration.mdx bc23ee187434 TC_UNDEFINED_VAR
 docs/docs/examples/ai-api-integration.mdx c4fd344227d6 TC_UNDEFINED_VAR
 docs/docs/examples/ai-api-integration.mdx c5f2e00683ac PAR017
-docs/docs/guides/ai-effect.mdx 457d264c9266 PAR_NO_PREFIX_PARSE
 docs/docs/guides/ai-effect.mdx 6dcc796075d8 PAR_UNEXPECTED_TOKEN
 docs/docs/guides/ai-effect.mdx 7ae1a201ca18 PAR_UNEXPECTED_TOKEN
 docs/docs/guides/ai-effect.mdx ca2334dfccab TC_UNDEFINED_VAR
-docs/docs/guides/ai-routing.md aad5b06a800c PAR_NO_PREFIX_PARSE
 docs/docs/guides/build-a-motoko-extension.md 4f7de3610090 MODULE
 docs/docs/guides/build-a-motoko-extension.md d004cdf34e94 PAR_NO_PREFIX_PARSE
 docs/docs/guides/contracts.mdx 4d8ff047641a TC_UNDEFINED_VAR
@@ -38,9 +36,6 @@ docs/docs/guides/extension-packages.md 6dedb95f9137 MOD002
 docs/docs/guides/extension-packages.md 7930e289cdd2 PAR_HYPHEN_IN_IMPORT
 docs/docs/guides/extension-packages.md aa77014e1b09 MODULE
 docs/docs/guides/go-interop.md 18a47ef74050 TC_UNDEFINED_VAR
-docs/docs/guides/go-interop.md 71e95bc1b427 EXT003
-docs/docs/guides/go-interop.md ac3bdaf0f4a9 EXT001
-docs/docs/guides/go-interop.md cd68f16aad23 EXT002
 docs/docs/guides/ifc-labels.mdx 4f0a2310f808 PAR_UNEXPECTED_TOKEN
 docs/docs/guides/ifc-labels.mdx 6ed978c5df13 PAR_UNEXPECTED_TOKEN
 docs/docs/guides/ifc-labels.mdx 9e6e76bdc952 TC_TYPE
@@ -95,7 +90,6 @@ docs/docs/guides/serve-api.md 09b8ea62c284 PAR_UNEXPECTED_TOKEN
 docs/docs/guides/serve-api.md 0d83520f08db PAR_UNEXPECTED_TOKEN
 docs/docs/guides/serve-api.md 18611c298643 PAR_UNEXPECTED_TOKEN
 docs/docs/guides/serve-api.md 26b550aac389 TC_TYPE
-docs/docs/guides/serve-api.md 34d242d83f1a PAR_NO_PREFIX_PARSE
 docs/docs/guides/serve-api.md 5b4fea57e7d8 PAR_UNEXPECTED_TOKEN
 docs/docs/guides/serve-api.md 7eaf3cd9836c TC_UNDEFINED_VAR
 docs/docs/guides/serve-api.md 899692d19bba PAR_UNEXPECTED_TOKEN
@@ -103,7 +97,6 @@ docs/docs/guides/serve-api.md 93efd95b82ee TC_UNDEFINED_VAR
 docs/docs/guides/serve-api.md 9554611fd467 PAR_UNEXPECTED_TOKEN
 docs/docs/guides/serve-api.md d7130bf94748 PAR_UNEXPECTED_TOKEN
 docs/docs/guides/serve-api.md e3959fc716ae PAR019
-docs/docs/guides/serve-api.md ef9477efae24 PAR_NO_PREFIX_PARSE
 docs/docs/guides/serve-api.md f01963fe0559 PAR_UNEXPECTED_TOKEN
 docs/docs/guides/serve-api.md f24fda8e48a6 TC_TYPE
 docs/docs/guides/serve-api.md f340db2e99ce PAR_UNEXPECTED_TOKEN
@@ -143,11 +136,6 @@ docs/docs/reference/arrays.md be108c059caa TC_UNDEFINED_VAR
 docs/docs/reference/arrays.md dd275ccef870 TC_UNDEFINED_VAR
 docs/docs/reference/arrays.md f1f5867e5ea3 PAR_NO_PREFIX_PARSE
 docs/docs/reference/capability-budgets.mdx 36843c488cc5 PAR_NO_PREFIX_PARSE
-docs/docs/reference/capability-budgets.mdx 37596b4deb69 PAR_NO_PREFIX_PARSE
-docs/docs/reference/capability-budgets.mdx 3c0541762ef1 PAR_NO_PREFIX_PARSE
-docs/docs/reference/capability-budgets.mdx 42c6f34f7361 PAR_EFF005_BUDGET
-docs/docs/reference/capability-budgets.mdx 698bcacae2c9 PAR_NO_PREFIX_PARSE
-docs/docs/reference/capability-budgets.mdx e6398218c6b0 PAR_NO_PREFIX_PARSE
 docs/docs/reference/effects.md 02ed51e45701 TC_UNDEFINED_VAR
 docs/docs/reference/effects.md 0ff9f0622a46 TC_UNDEFINED_VAR
 docs/docs/reference/effects.md 15e23b028be7 OTHER
@@ -157,7 +145,6 @@ docs/docs/reference/effects.md 3901c54e046d PAR_UNEXPECTED_TOKEN
 docs/docs/reference/effects.md 3ef2220b653e TC_UNDEFINED_VAR
 docs/docs/reference/effects.md 602343e9c4a8 TC_UNDEFINED_VAR
 docs/docs/reference/effects.md 68ebb92c3216 TC_UNDEFINED_VAR
-docs/docs/reference/effects.md 72137629a9e2 PAR_NO_PREFIX_PARSE
 docs/docs/reference/effects.md 89c600b84b74 TC_UNDEFINED_VAR
 docs/docs/reference/effects.md 90739edae386 TC_UNDEFINED_VAR
 docs/docs/reference/effects.md 99d9848243a6 TC_UNDEFINED_VAR
@@ -202,17 +189,10 @@ docs/docs/reference/modules.md d885e59af9ce MODULE
 docs/docs/reference/modules.md dc15b2021b94 TC_UNDEFINED_VAR
 docs/docs/reference/modules.md e9539e3b5e2f TC_UNDEFINED_VAR
 docs/docs/reference/modules.md f1a5fb3ce3a0 OTHER
-docs/docs/reference/no-loops.md 081fd18f2fd8 PAR_NO_PREFIX_PARSE
-docs/docs/reference/no-loops.md 11ba631ef958 PAR_NO_PREFIX_PARSE
 docs/docs/reference/no-loops.md 2432036678b2 TC_UNDEFINED_VAR
 docs/docs/reference/no-loops.md 27bcf746f8f4 TC_UNDEFINED_VAR
-docs/docs/reference/no-loops.md 2b74abd5810c PAR015
-docs/docs/reference/no-loops.md 4659edc4b82f PAR015
-docs/docs/reference/no-loops.md 51bac7c7ce3c PAR015
 docs/docs/reference/no-loops.md 874aebe47844 TC_UNDEFINED_VAR
-docs/docs/reference/no-loops.md 891405216bfa PAR015
 docs/docs/reference/no-loops.md 99580184e442 TC_UNDEFINED_VAR
-docs/docs/reference/no-loops.md fed6a6309817 PAR015
 docs/docs/reference/option-vs-result.md 291bd7e019b1 TC_UNDEFINED_VAR
 docs/docs/reference/option-vs-result.md 2d4b02c438e0 TC_UNDEFINED_VAR
 docs/docs/reference/option-vs-result.md 3a624eef7cdf TC_UNDEFINED_VAR

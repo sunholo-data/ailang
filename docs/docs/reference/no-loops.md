@@ -98,48 +98,48 @@ AILANG's iteration primitives obey **equational laws** that enable safe transfor
 ### Fold Laws
 
 **Identity**:
-```ailang
+```ailang sketch
 foldl(f, z, []) = z
 foldr(f, z, []) = z
 ```
 
 **Fusion** (fold-after-map):
-```ailang
+```ailang sketch
 foldl(f, z, map(g, xs)) = foldl(\acc x. f(acc, g(x)), z, xs)
 ```
 
 **Associativity** (for commutative operators):
-```ailang
+```ailang sketch
 foldl(f, z, xs ++ ys) = foldl(f, foldl(f, z, xs), ys)
 ```
 
 ### Map Laws
 
 **Identity**:
-```ailang
+```ailang sketch
 map(\x. x, xs) = xs
 ```
 
 **Composition**:
-```ailang
+```ailang sketch
 map(g, map(f, xs)) = map(\x. g(f(x)), xs)
 ```
 
 **Fusion** (map-after-map):
-```ailang
+```ailang sketch
 map(g, map(f, xs)) = map(\x. g(f(x)), xs)
 ```
 
 ### Effect Preservation
 
 **Pure functions preserve purity**:
-```ailang
+```ailang sketch
 -- map has no effect annotation → guaranteed pure
 map : ((a) -> b, [a]) -> [b]
 ```
 
 **Effectful functions propagate effects** (planned):
-```ailang
+```ailang sketch
 -- Future: mapM will propagate effects from the mapping function
 mapM : ((a) -> b ! {E}, [a]) -> [b] ! {E}
 ```

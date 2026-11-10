@@ -495,19 +495,19 @@ func Find_path(world *World, from *Coord, to *Coord) []*Coord {
 ## Restrictions
 
 1. **Monomorphic only**: Extern functions cannot use type parameters (generics)
-   ```ailang
+   ```ailang error=EXT002
    -- ERROR: extern functions cannot be polymorphic
    extern func identity[T](x: T) -> T
    ```
 
 2. **No underscore prefix**: Extern function names cannot start with `_`
-   ```ailang
+   ```ailang error=EXT001
    -- ERROR: underscore prefix reserved for builtins
    extern func _internal_helper(x: int) -> int
    ```
 
 3. **Explicit return type**: Extern functions must declare their return type
-   ```ailang
+   ```ailang error=EXT003
    -- ERROR: must have explicit return type
    extern func do_something(x: int)
 

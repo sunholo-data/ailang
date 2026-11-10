@@ -447,7 +447,7 @@ ailang run --caps Stream,Process,IO --process-allowlist "echo,ffmpeg" --entry ma
 
 Effects are declared after the return type with `!`:
 
-```ailang
+```ailang sketch
 -- Single effect
 func greet() -> () ! {IO} { ... }
 
