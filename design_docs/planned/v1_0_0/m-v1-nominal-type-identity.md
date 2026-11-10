@@ -474,12 +474,16 @@ spelling imported it; the file compiles and evaluates once.
 > digests. `detectModulePathCollisions` (`pipeline_module.go:26-135`) already knew: it de-duplicated
 > "the same file loaded under two canonical IDs … routinely with `module_prefix`-aliased packages".
 >
-> *Design.* `ModuleLoader.canonicalImportPath` (`internal/loader/canonical_identity.go`) resolves every
-> spelling the package resolver answers — `<prefix>/<m>`, bare `<vendor>/<name>/<m>` inside the root
-> package, `pkg/<vendor>/<name>/<m>`, and `./x` — to (package, module) and names it with **one ID per
-> build**: a **dependency's** module is `pkg/<vendor>/<name>/<m>`; the **root package's** own module is the
-> spelling the package itself writes, `<prefix>/<m>` when it declares a `module_prefix`, else
-> `<vendor>/<name>/<m>`. `Load` keys and names the module by it; `extractImports` rewrites `imp.Path` to
+> *Design (as revised after review, see "Review fixes" below).* `ModuleLoader.canonicalImportPath`
+> (`internal/loader/canonical_identity.go`) resolves every spelling the package resolver answers —
+> `<prefix>/<m>`, bare `<vendor>/<name>/<m>` inside the root package, `pkg/<vendor>/<name>/<m>`, `./x`,
+> and in a package without `[exports]` any other path that names a file — to the **package and the file**,
+> then derives the module path from the FILE (not the spelling): prefix, `src/` or checkout
+> `<vendor>/<name>/` stripped, kept only if the resolver maps it back to the same file. A prefix spelling is
+> read in the **importing package's scope** (its own prefix, then its declared dependencies'; the build-wide
+> table only when neither claims it). It names the result with **one ID per build**: a **dependency's**
+> module is `pkg/<vendor>/<name>/<m>`; the **root package's** own module is the spelling the package itself
+> writes, `<prefix>/<m>` when it declares a `module_prefix`, else `<vendor>/<name>/<m>`. `Load` keys and names the module by it; `extractImports` rewrites `imp.Path` to
 > it and keeps the author's spelling in `ImportDecl.WrittenPath`; every downstream consumer already reads
 > `imp.Path`/`LoadedModule.Imports`, so no consumer changed. Decisions:
 >
@@ -518,17 +522,48 @@ spelling imported it; the file compiles and evaluates once.
 >   cached package versions that build (444 fail to build in both arms, identically), and
 >   `make verify-stdlib` unchanged; `ailang iface` rendering; `cacheKeyVersion` stays `v10` — the cache
 >   is indexed by module ID, so a renamed module simply misses once; no format changed.
-> - **Diagnostics name both.** IMP010: `symbol 'Triangle' not exported by
->   'pkg/acme/shapes/types/shape' (imported as 'shp/types/shape')`; `loader.ImportDisplay` renders the
->   pair for any other import diagnostic.
-> - **Shared prefixes are now deterministic.** `SetModulePrefixMap` sorts each prefix's package list;
->   which package `shared/x` resolved to used to follow Go's map order.
+> - **Diagnostics name both.** `loader.DisplayModule` / `DeclaredModuleDisplay` are wired into IMP010
+>   (`symbol 'Triangle' not exported by 'pkg/acme/shapes/types/shape (imported as shp/types/shape)'`),
+>   LDR002 (`… -> pkg/acme/shapes/cyc/b (imported as shp/cyc/b) -> …`, and the cycle is no longer printed
+>   twice) and the type / effect errors of a dependency module (`type error in pkg/acme/shapes/ops/area
+>   (module shp/ops/area)`). LDR001 needs nothing: a spelling that does not resolve keeps its spelling.
+>   The root's own modules and entry files are named exactly as before.
+> - **Shared prefixes are scoped, not just deterministic.** Two dependencies may share a `module_prefix`;
+>   each one's own prefix spellings name its own modules. The build-wide table (now sorted, so it no
+>   longer follows Go's map order) only answers a prefix no package in scope claims.
 >
-> *A behaviour change that was a bug.* `isOwnPackageModule` (`pipeline/effect_ceiling.go:67`) treats
-> every non-`pkg/` module ID as the root's own, so a **dependency** module reached by its prefix spelling
-> was judged against the **root's** `[effects].max` ("effect ceiling violation in package acme/app" for
-> code acme/app does not own), while the same file under its `pkg/` spelling was exempt. It is now
-> exempt under every spelling (`TestCanonicalModuleIdentity_DependencyNotChargedToRootCeiling`).
+> *A behaviour change that was a bug — and whose ceiling bounds a dependency.* `isOwnPackageModule`
+> (`pipeline/effect_ceiling.go:67`) treats every non-`pkg/` module ID as the root's own, so a
+> **dependency** module reached by its prefix spelling was judged WHOLE against the **root's**
+> `[effects].max` — every function in it, called or not ("effect ceiling violation in package acme/app" for
+> code acme/app does not own) — while the same file under its `pkg/` spelling was exempt. It is now exempt
+> under every spelling. This is not a loosening of authority (independent review, 2026-11-10): in a
+> consumer build only the ROOT's ceiling is ever enforced (a dependency's own `[effects].max` is not
+> checked there, on `dev` or here), and it bounds a dependency through the root's code — rule (a) on the
+> root's declared rows, rule (b) on every reference the root's code makes to a global it does not own
+> (`isAuthorityEntry`), which charges the referenced function's whole effect row. A root capped at `[IO]`
+> that calls, returns, stores in a record, or returns a transitively-effectful dependency function (FS,
+> Net) is rejected under both spellings on `check`, and on `run` (evaluator and `--strict-bytecode`) before
+> any effect (`TestCanonicalModuleIdentity_RootCeilingBoundsDependencyReferences`,
+> `TestCanonicalModuleIdentity_RunRefusesDependencyEffectBeyondRootCeiling`). After M1b, rule (b) is the
+> ONLY thing bounding a prefix-spelled dependency, which is why those tests exist: a mutant that stops
+> charging `pkg/` references survived every test before them and fails 8 subtests now.
+>
+> *Review fixes (independent review of PR #2224, 2026-11-10; each reproduced with a failing test first).*
+> (1) the ceiling tests above. (2) Identity was built from the spelling: in a package without `[exports]`,
+> `pkg/acme/shapes/types/shape` and `pkg/acme/shapes/shp/types/shape` reach one file and compiled it twice
+> (its module-level code ran twice). Fixed by deriving the module path from the resolved file; the loader
+> now records file↔identity for the whole build and `pipeline.Result.ModuleIdentityConflicts` lists any
+> violation (tests assert none). (3) Prefix lookup was build-wide, so when two dependencies share a prefix
+> one package's own `px/types/t` loaded the other's file — `dev` did so by map order, the first cut of this
+> PR deterministically. Fixed by scoping; a dependency's own prefix spelling that does not resolve fails
+> naming that dependency. Measured on the reviewer's fixture in both orders. The real
+> `ailang_parse`/`docparse` pair no longer shares a prefix (`docparse` uses `docparse_api`), and no other
+> pair in the cached registry does, so no real build was mis-resolving. (4) A prefixed package that is only
+> a TRANSITIVE dependency could not load its own prefix imports (LDR001); scoping fixes it. (5) The display
+> helpers were not wired; they now are (above), and the unused `ImportDisplay` is gone. Pre-existing on
+> both, not changed: with a hand-written lock, a root that depends on an old copy of itself has its own
+> files replaced by the old copy (`ResolveImport` consults the lock before the self-reference).
 >
 > *Tests* (`internal/loader/canonical_identity_test.go`, `internal/pipeline/canonical_module_identity_test.go`,
 > `internal/runner/canonical_module_identity_test.go`): every spelling → one `*LoadedModule` and one cache
@@ -562,9 +597,14 @@ spelling imported it; the file compiles and evaluates once.
 > only compares IDs within one build, which is all nominal identity needs. M2's cache-key bump (v11) then
 > covers the qualified digest; nothing in M1b needs a bump. (2) After
 > `Load`, every `ImportDecl.Path` and `LoadedModule.Imports` entry is that ID; the spelling survives only
-> in `WrittenPath` (diagnostics). (3) The entry file keeps its path-derived ID; nothing else can reach it
-> without a cycle. (4) The REPL/WASM loader has no packages, so it has no second spelling to fold; it
-> still needs the M3 resolver. (5) Not assumed: realpath-level identity (see above).
+> in `WrittenPath` (diagnostics). (3) Every spelling that RESOLVES to one package file — including the
+> extra paths a package without `[exports]` accepts — yields that one ID, and a prefix spelling means the
+> importing package's module; `pipeline.Result.ModuleIdentityConflicts` is empty when this holds over the
+> whole build, so M2 can assert it. (4) The entry file keeps its path-derived ID; nothing else can reach it
+> without a cycle. (5) The REPL/WASM loader has no packages, so it has no second spelling to fold; it
+> still needs the M3 resolver. (6) Not assumed: identity across builds (the root names its own modules by
+> its own spelling), or realpath-level identity of two DIFFERENT packages that share bytes through a
+> symlink — those stay distinct by design, and the loader reports them as a conflict.
 >
 > **The four-line constructor stamp** the exhaustiveness wiring needs (from the spike, on `dev` lines of
 > `internal/iface/builder.go`): the constructor result type is built from a bare name in four places —
