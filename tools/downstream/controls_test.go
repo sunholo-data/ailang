@@ -27,6 +27,8 @@ func appFiles() map[string]string {
 		"src/a/plant.ail":  "module a/plant\n-- PLANT: the candidate rejects this\n",
 		"pkg/ailang.toml":  "[package]\nname = \"x/pkg\"\nailang = \">=0.50.0\"\n",
 		"pkg/lib.ail":      "module lib\nexport func z() -> int = 3\n",
+		"pkg2/ailang.toml": "[package]\nname = \"x/pkg2\"\n",
+		"pkg2/bad.ail":     "module bad\n-- BROKEN package\n",
 	}
 }
 
@@ -53,8 +55,8 @@ func TestControlNullBaselineVsItself(t *testing.T) {
 	if len(rep.Buckets) != 0 {
 		t.Errorf("null control produced buckets %+v", rep.Buckets)
 	}
-	if got := stateCounts(rep)[statePassBoth] + stateCounts(rep)[stateFailSame]; got != 7 {
-		t.Errorf("checked %d entries, want 7 (6 files + 1 package)", got)
+	if got := stateCounts(rep)[statePassBoth] + stateCounts(rep)[stateFailSame]; got != 9 {
+		t.Errorf("checked %d entries, want 9 (7 files + 2 packages)", got)
 	}
 }
 
@@ -81,6 +83,9 @@ func TestControlPlantedBreakReportedOnce(t *testing.T) {
 	}
 	if r := rowByRel(rep, "src/a/broken.ail"); r == nil || r.State != stateFailSame {
 		t.Errorf("broken row = %+v, want fail_same", r)
+	}
+	if r := rowByRel(rep, "pkg2"); r == nil || r.Kind != "package" || r.State != stateFailSame {
+		t.Errorf("failing package with a new candidate warning = %+v, want fail_same", r)
 	}
 	if n := stateCounts(rep)[stateNewlyFailing]; n != 2 {
 		t.Errorf("NEWLY_FAILING = %d, want 2 (app plant + advisory side plant)", n)

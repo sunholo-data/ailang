@@ -28,7 +28,13 @@ shift
 pass() { printf '{"file":"%s","passed":true,"error_count":0,"errors":[]}\n' "$1"; exit 0; }
 failj() { printf '{"file":"%s","passed":false,"error_count":1,"errors":[{"code":"ERROR","message":"%s"}]}\n' "$1" "$2"; exit 1; }
 if [ "$1" = "--package" ]; then
-	if grep -rq BROKEN . ; then failj . "type error in pkg (decl 0): cannot unify int vs string"; fi
+	if grep -rq BROKEN . ; then
+		# The candidate adds a warning to a package that fails in both arms: warnings
+		# never fail a check, so this must stay fail_same, not fail_changed.
+		w=""; [ "$ARM" = cand ] && w=',{"code":"WARNING","message":"unused import std/io"}'
+		printf '{"file":".","passed":false,"error_count":1,"errors":[{"code":"ERROR","message":"type error in pkg (decl 0): cannot unify int vs string"}%s]}\n' "$w"
+		exit 1
+	fi
 	pass .
 fi
 f="$2"

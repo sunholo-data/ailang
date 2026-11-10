@@ -9,9 +9,11 @@
 #           branch); pinned = the commit REF=pinned snapshots (reproducible).
 # tier:     off | advisory | blocking, per tier. Blocking corpora fail the gate on an
 #           unacknowledged break; advisory ones are reported only.
-#           NOT YET RULED (design §11 decision 3 vs ROADMAP §6 row 10): these values
-#           follow the design doc's recommendation; the roadmap's alternative makes
-#           motoko-fork advisory and leaves ailang-parse unlisted.
+#           Release tier RULED by Mark (ROADMAP §6 row 10, ledger D-67): docparse,
+#           email-parse, daneel, ailang-packages and motoko-fork blocking; world advisory.
+#           NOT YET RULED: ailang-examples and ailang-parse (blocking here, per the design
+#           doc §11 decision 3) and every ci-tier value (advisory, per design §6.9: the
+#           ci tier starts advisory; the CI job itself is not built yet).
 # pinned:   heads of each default branch as of 2026-11-10.
 
 - name: ailang-examples

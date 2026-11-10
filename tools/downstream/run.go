@@ -106,11 +106,16 @@ func (r *Runner) runOnce(a *Arm, e Entry, timeout int) Result {
 	}
 	set := map[string]bool{}
 	for _, d := range j.Errors {
+		// `check --package --json` lists warnings beside errors (code WARNING);
+		// they never fail a check, so a new warning must not read as a new break.
+		if d.Code == "WARNING" {
+			continue
+		}
 		set[normaliseCode(d.Code, d.Message)] = true
-	}
-	if len(j.Errors) > 0 {
-		res.Message = j.Errors[0].Message
-		res.Msg = firstLine(res.Message)
+		if res.Message == "" {
+			res.Message = d.Message
+			res.Msg = firstLine(d.Message)
+		}
 	}
 	if len(set) == 0 {
 		set["FAILED/no-diagnostic"] = true
