@@ -1754,6 +1754,64 @@ models:
       Agent mode: via the gemini-agents-argon row (gemini_agents executor, pinned
       through agent_config on the Developer API; Vertex cannot pin, 2026-10-21).
 
+  # Google Gemini 4 Carbon (announced 2026-10-28 cyber/Fairwind-gated; API-callable 2026-11-10).
+  gemini-4-carbon:
+    api_name: "gemini-4-carbon"
+    provider: "google"
+    default_thinking: "on"
+    description: "Gemini 4 Carbon - Google's most capable reasoning model (Nov 2026); list $4/$20 (intro $2/$10 to 2026-11-30)"
+    env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
+    # 32768: the same Vertex non-streaming ceiling as gemini-4-argon (see that row).
+    # maxOutputTokens 65537 returned 200 STOP (probed 2026-11-10), so Vertex clamps
+    # silently here too. Thinking shares the cap.
+    max_output_tokens: 32768
+    model_family: "gemini-4"
+    pricing:
+      # Registered at the post-intro list price, following gemini-4-argon, whose
+      # "introductory $2/$10 through 2026-11-30" was never billed (every Argon SKU line
+      # in the billing export is $4/$20/$0.20). Carbon's own billed rate is NOT yet
+      # verified against the export; re-check once its SKU lines appear.
+      input_per_1k: 0.004          # $4.00 per 1M
+      output_per_1k: 0.02          # $20.00 per 1M (incl. thinking)
+      cache_read_per_1k: 0.0002    # $0.20 per 1M (implicit caching only)
+    notes: |
+      Announced 2026-10-28, gated to selected cyber defenders then Fairwind partners.
+      On 2026-10-29 it was NOT callable (Vertex 404; absent from the Developer API list).
+
+      Access VERIFIED 2026-11-10: Vertex global ailang-dev generateContent -> 200,
+      modelVersion "gemini-4-carbon"; controls gemini-4-argon -> 200, gemini-4-carbon-zzz
+      -> 404 (as do -preview and gemini-carbon). The Developer API list
+      (GEMINI_AGENTS_API_KEY) now shows models/gemini-4-carbon next to models/gemini-4-argon.
+
+      Pricing from aistudio.google.com/docs/pricing (fetched 2026-11-10), Standard paid tier:
+      identical to Argon. Input $2.00 through 2026-11-30, then $4.00; output incl. thinking
+      $10.00, then $20.00; cached input $0.10, then $0.20; implicit caching only; no >200k
+      tier; not on the free tier. Google calls it "our most capable reasoning model" and
+      Argon the efficient one, with "lower token spend per turn".
+
+      ⚠️  THINKING — ADAPTIVE, like Argon. thinkingConfig.thinkingBudget -> 400
+      "Thinking budget is not supported for this model. Use thinking level instead."
+      DO NOT set reasoning_effort / reasoning_max_tokens on this row.
+      Probes 2026-11-10, no reasoning params:
+        "prove infinitely many primes" -> 446 thoughts / 447 out, STOP
+        CSV-parser coding prompt       -> no thoughts / 1215 out, STOP
+      Yet in eval it thinks on nearly everything: 79 of 81 placement runs had thinking tokens.
+
+      PLACEMENT 2026-11-10 (standard, candidate ALONE, --trials 1, parallel 6,
+      --tier smoke,core,frontier,stretch,long-frontier): 81/81, anchored ELO 2969.0 (banked;
+      a FLOOR, like fable-5-2 2924.5 / opus-5-5 2871.9 / argon 2778.2 — perfect runs are
+      not ranked against each other). First pass read 77/81: all four failures were
+      "unknown Json constructor: JInt" — VERSION SKEW, not the model. eval-suite built the
+      prompt from a dev scratch binary (teaches JInt) but ran the generated code with the
+      `ailang` on PATH (installed, pre-JInt). Re-run with the scratch binary first on PATH:
+      4/4 pass. One retry was a Vertex 429 "TPM quota exhausted" on ailang-dev at parallel 4.
+      Cost at list ($4/$20/$0.20): $10.47 as run (84% implicit-cache hits), $19.53 uncached.
+      Per-run on the 49 benchmarks Argon also ran: Carbon $0.084 cached / $0.190 uncached
+      vs Argon $0.135 (no cache recorded) — the gap is output+thinking, 131.7K vs 19.6K
+      tokens (6.7x). Input dominates both; cache hit rate is a run condition, not the model.
+
   # Google Gemini 3.5 Flash (released May 19, 2026 at Google I/O 2026)
   # ⚠️  EXCLUDED FROM STANDARD EVAL ROTATION (v0.22.0, 2026-05-20).
   # The Vertex Managed Agents API path is cost-prohibitive due to a documented
@@ -6671,6 +6729,10 @@ extended_suite:
   - "claude-sonnet-4-6" # Anthropic previous-gen, kept as longitudinal anchor (Feb 2026)
   - "gemini-4-argon"     # Google flagship (Oct 2026) — REPLACED gemini-3-1-pro 2026-10-13 (Mark);
     # gate record on the benchmark_suite entry. 3.1 Pro kept opt-in for longitudinal compare.
+  - "gemini-4-carbon"    # Google reasoning flagship — ADDED 2026-11-10 (Mark), alongside Argon, not
+    # replacing it: Google positions Argon as the low-token-spend model. Placement run alone,
+    # --trials 1, smoke+core+frontier+stretch+long-frontier: 81/81, anchored ELO 2969 (a floor).
+    # Same list price as Argon but 6.7x its output+thinking tokens; full record on the row.
   - "gemini-3-7-flash"  # Google newest Flash (Aug 2026) — REPLACED gemini-3-6-flash 2026-08-13
     # (per Mark), three weeks after 3.6 took the same slot from 3.5. Matched head-to-head, same
     # command, same day, thinking-inclusive, N=1 unless noted:

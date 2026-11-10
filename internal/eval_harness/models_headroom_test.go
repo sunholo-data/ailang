@@ -92,6 +92,9 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		// Vertex clamps silently (1,000,000 returns 200), so the API cannot
 		// confirm this; it is docs-sourced, see the models.yml row.
 		"gemini-4-argon": 32768,
+		// Gemini 4 Carbon (API-callable 2026-11-10): same Vertex non-streaming
+		// ceiling as Argon; 65537 also returned 200 STOP (silent clamp).
+		"gemini-4-carbon": 32768,
 		// TypeSafe Jev is a text->decisions model (M-AI-DECIDE-SYSTEM-ONE M2):
 		// it never generates a completion, so output headroom is meaningless.
 		// 28800 is the value /endpoints reports (2026-09-17 endpoint); the row
