@@ -144,6 +144,14 @@ func TestScope_UndeclaredPackageIsLDR006(t *testing.T) {
 				"add \"eee/e\" to [dependencies] in aaa/a's ailang.toml")
 		})
 	}
+}
+
+// fxG: a dependency importing the ROOT package's module (by the root's prefix
+// or bare name). It is a real downstream pattern — a motoko extension imports
+// its host's src/core/… — so it resolves, to the root's one module, with a
+// loud LDR006 warning printed once (not the error the review asked for; see
+// the PR body).
+func TestScope_DependencyImportingRootWarns(t *testing.T) {
 	for name, spelling := range map[string]string{"fxG-prefix": "ap/util", "fxG-bare": "acme/app/util"} {
 		t.Run(name, func(t *testing.T) {
 			app := tree(t, map[string]string{
@@ -151,11 +159,22 @@ func TestScope_UndeclaredPackageIsLDR006(t *testing.T) {
 				"app/ap/util.ail": "module ap/util\n\nexport func rootSecret() -> string = \"ROOT-SECRET\"\n",
 				"a/ailang.toml":   pkgToml("aaa/a", "pa", nil, nil),
 				"a/pa/m.ail":      "module pa/m\n\nimport " + spelling + " (rootSecret)\n\nexport func fromA() -> string = rootSecret()\n",
-				"app/ap/main.ail": "module ap/main\n\nimport std/io (println)\nimport pkg/aaa/a/m (fromA)\n\n" +
-					"export func main() -> () ! {IO} = println(fromA())\n",
+				"app/ap/main.ail": "module ap/main\n\nimport std/io (println)\nimport pkg/aaa/a/m (fromA)\nimport ap/util (rootSecret)\n\n" +
+					"export func main() -> () ! {IO} = println(\"${fromA()} ${rootSecret()}\")\n",
 			}, dep{Name: "aaa/a", Dir: "../a"})
-			wantCheckError(t, app, filepath.Join("ap", "main.ail"),
-				"LDR006: package aaa/a imports \""+spelling+"\", which is a module of the root package acme/app")
+			var buf strings.Builder
+			old := scopeWarningOut
+			scopeWarningOut = &buf
+			t.Cleanup(func() { scopeWarningOut = old })
+			result := checkFixture(t, filepath.Join(app, "ap", "main.ail"))
+			assertOneIdentityPerFile(t, result.Modules)
+			if _, ok := result.Modules["ap/util"]; !ok {
+				t.Fatalf("the root module must be loaded once as ap/util; modules %v", sortedKeys(result.Modules))
+			}
+			want := "WARNING LDR006 (warning): package aaa/a imports \"" + spelling + "\", which is a module of the root package acme/app"
+			if strings.Count(buf.String(), want) != 1 {
+				t.Fatalf("want the warning once\n got: %q\nwant: %s", buf.String(), want)
+			}
 		})
 	}
 }

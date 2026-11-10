@@ -42,6 +42,7 @@ type ModuleLoader struct {
 	identityOfFile    map[string]string
 	fileOfIdentity    map[string]string
 	identityConflicts []string
+	scopeWarnings     []string // canonical_scope.go warnImportsRoot
 
 	// pkgResolverAbsentReason explains why pkgLoader is nil, as diagnosed by
 	// whoever wired (or failed to wire) the resolver. The loader cannot know:

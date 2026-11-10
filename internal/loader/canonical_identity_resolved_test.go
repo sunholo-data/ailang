@@ -104,9 +104,6 @@ func TestCanonicalImportPath_ScopeErrors(t *testing.T) {
 		{"acme/mid", "pkg/aaa/one/t", "LDR006: package acme/mid imports \"pkg/aaa/one/t\" from package aaa/one, which it does not declare"},
 		// A prefix only an undeclared package provides (the build-wide table would have).
 		{"acme/mid", "px/t-not", "LDR001"},
-		// A dependency importing the root's modules, by prefix and by bare name.
-		{"acme/mid", "rt/secret", "LDR006: package acme/mid imports \"rt/secret\", which is a module of the root package acme/root"},
-		{"acme/mid", "acme/root/secret", "LDR006: package acme/mid imports \"acme/root/secret\", which is a module of the root package acme/root"},
 		// Nothing anywhere provides it.
 		{"acme/mid", "zz/q", "LDR001: module zz/q, imported by package acme/mid, was not found in its scope"},
 		// A spelling whose case differs from the file on disk, on every host.
@@ -122,6 +119,27 @@ func TestCanonicalImportPath_ScopeErrors(t *testing.T) {
 	file := &ast.File{Imports: []*ast.ImportDecl{{Path: "px/t"}}}
 	if _, err := ml.extractImportsFor("acme/both", file); err == nil || !strings.Contains(err.Error(), "LDR005") {
 		t.Errorf("extractImportsFor must return the scope error, got %v", err)
+	}
+}
+
+// A dependency importing a module of the ROOT package (by prefix, bare name or
+// published path) resolves to the root's one module with an LDR006 warning: a
+// real downstream pattern (a motoko extension importing its host's modules).
+func TestCanonicalImportPath_DependencyImportingRootWarns(t *testing.T) {
+	ml := scopeFixture(t)
+	for _, spelling := range []string{"rt/secret", "acme/root/secret", "pkg/acme/root/secret"} {
+		got, err := ml.canonicalImportPathFor("acme/mid", spelling)
+		if err != nil || got != "rt/secret" {
+			t.Errorf("acme/mid imports %q: %q, %v; want the root module rt/secret", spelling, got, err)
+		}
+	}
+	w := ml.ScopeWarnings()
+	if len(w) != 3 || !strings.Contains(w[0], "LDR006 (warning): package acme/mid imports \"rt/secret\", which is a module of the root package acme/root") {
+		t.Fatalf("warnings = %q", w)
+	}
+	ml.warnImportsRoot("acme/mid", "rt/secret", "acme/root") // recorded once
+	if len(ml.ScopeWarnings()) != 3 {
+		t.Fatal("a repeated warning must be recorded once")
 	}
 }
 

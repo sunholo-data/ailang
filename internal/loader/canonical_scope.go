@@ -24,8 +24,9 @@ import (
 //     is LDR005 (ambiguous); none is LDR001 for a dependency.
 //  5. Nothing else. A dependency's spelling that no package in its scope
 //     claims fails in its scope: LDR006 when some other package in the build
-//     (or the root) would have provided it, LDR001 otherwise. It is never
-//     retried in the root's scope. The ROOT keeps its project-relative
+//     would have provided it, LDR001 otherwise. A dependency importing a module
+//     of the ROOT package resolves to it with an LDR006 WARNING (a real
+//     downstream pattern; see warnImportsRoot). The ROOT keeps its project-relative
 //     fallback: a spelling that names a file of the root package is
 //     canonicalised to that module; any other path is loaded by path.
 //
@@ -81,7 +82,10 @@ func (ml *ModuleLoader) resolveInScope(owner, canonPath string) (*scopedModule, 
 			return nil, nil // Load reports the resolver's error, as before
 		}
 		if !declared[name] {
-			return nil, ml.undeclaredError(owner, canonPath, name)
+			if name != ml.currentPackageName {
+				return nil, ml.undeclaredError(owner, canonPath, name)
+			}
+			ml.warnImportsRoot(owner, canonPath, name)
 		}
 		return ml.finishScoped(name, strings.TrimPrefix(bare, name), f, canonPath)
 	}
@@ -151,10 +155,37 @@ func (ml *ModuleLoader) resolveInScope(owner, canonPath string) (*scopedModule, 
 		c := claimers[0]
 		return nil, notInScopeError(owner, canonPath, "pkg/"+c+rest, missErr[c])
 	}
-	if other := ml.providerOutsideScope(canonPath); other != "" {
-		return nil, ml.undeclaredError(owner, canonPath, other)
+	if res := ml.resolveUnscoped(canonPath); res != nil {
+		if res.pkg != ml.currentPackageName {
+			return nil, ml.undeclaredError(owner, canonPath, res.pkg)
+		}
+		// A dependency importing the ROOT package's module. It is a real
+		// pattern downstream (a motoko extension importing its host's
+		// src/core/…), so it resolves as before, under the root module's one
+		// identity, with a loud warning — not an error — until that is ruled on.
+		ml.warnImportsRoot(owner, canonPath, res.pkg)
+		return ml.finishScoped(res.pkg, res.rest, res.file, canonPath)
 	}
 	return nil, notInScopeError(owner, canonPath, "", nil)
+}
+
+// warnImportsRoot records the LDR006 warning for a dependency that imports a
+// module of the root package (ScopeWarnings; the pipeline prints each once).
+func (ml *ModuleLoader) warnImportsRoot(owner, spelling, root string) {
+	msg := fmt.Sprintf("LDR006 (warning): package %s imports %q, which is a module of the root package %s; "+
+		"a dependency importing the package that depends on it is allowed for now but is planned to become an error — "+
+		"move the code into %s, or into a package both declare", owner, spelling, root, owner)
+	for _, w := range ml.scopeWarnings {
+		if w == msg {
+			return
+		}
+	}
+	ml.scopeWarnings = append(ml.scopeWarnings, msg)
+}
+
+// ScopeWarnings returns the import-scope warnings this loader recorded.
+func (ml *ModuleLoader) ScopeWarnings() []string {
+	return append([]string(nil), ml.scopeWarnings...)
 }
 
 // finishScoped completes a resolution: the spelling must match the file's
@@ -194,16 +225,6 @@ func (ml *ModuleLoader) rootFile(canonPath string) (*scopedModule, error) {
 		return nil, nil
 	}
 	return ml.finishScoped(root, "", proj, canonPath)
-}
-
-// providerOutsideScope reports which package — outside the importer's scope —
-// the pre-scoping rule would have resolved canonPath to: the root (bare
-// self-import) or a package in the build-wide prefix table. "" if none.
-func (ml *ModuleLoader) providerOutsideScope(canonPath string) string {
-	if res := ml.resolveUnscoped(canonPath); res != nil {
-		return res.pkg
-	}
-	return ""
 }
 
 // resolveUnscoped is the pre-scoping rule: the published path, the ROOT's bare
@@ -247,13 +268,8 @@ func splitFirstSegment(p string) (first, rest string) {
 }
 
 // undeclaredError is LDR006: owner's import resolves to a package outside its
-// scope.
+// scope (a dependency importing the root is a warning, warnImportsRoot).
 func (ml *ModuleLoader) undeclaredError(owner, spelling, other string) error {
-	if other == ml.currentPackageName && owner != other {
-		return fmt.Errorf("LDR006: package %s imports %q, which is a module of the root package %s; "+
-			"a dependency cannot import the package that depends on it — move the code into %s or into a package both declare",
-			owner, spelling, other, owner)
-	}
 	return fmt.Errorf("LDR006: package %s imports %q from package %s, which it does not declare; "+
 		"add %q to [dependencies] in %s's ailang.toml, or fix the import",
 		owner, spelling, other, other, owner)

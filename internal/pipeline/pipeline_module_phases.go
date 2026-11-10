@@ -197,6 +197,7 @@ func (st *modulePipelineState) loadModules() error {
 		st.pipelineSpan.RecordError(loadErr)
 		return loadErr
 	}
+	emitScopeWarnings(modLoader.ScopeWarnings())
 	if len(st.afterLoad) > 0 && st.afterLoad[0] != nil {
 		st.afterLoad[0](st.modules)
 	}
