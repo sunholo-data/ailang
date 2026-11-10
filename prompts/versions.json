@@ -1153,9 +1153,20 @@
         "latest"
       ],
       "notes": "Correct six teaching errors found writing canonical examples (semicolons vs fmt, **, mapSlicesJoin, verifyWithKid, record patterns, no int max/min, non-exhaustive match). Amended in place 2026-11-09 (#1443): IFC examples drop `pure` beside `! {Net}`/`! {Declassify}` rows, which the checker now rejects; `pure` means `! {}`."
+    },
+    "v0.16.13": {
+      "file": "prompts/v0.16.13.md",
+      "hash": "6b29958e2d3ef893d0daab83c906d21bb5ef0397bb1b2561cf87fde2df7726bd",
+      "description": "JSON numbers: JInt for integers (exact), match JInt and JNumber or use the accessors, getInt never truncates, decode takes exactly one value",
+      "created": "2026-11-10",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "JSON numbers: JInt for integers (exact), match JInt and JNumber or use the accessors, getInt never truncates, decode takes exactly one value"
     }
   },
-  "active": "v0.16.12",
+  "active": "v0.16.13",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
