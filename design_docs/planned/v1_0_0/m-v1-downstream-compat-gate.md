@@ -170,9 +170,9 @@ make downstream-check CANDIDATE=./bin/ailang [BASELINE=v0.57.4|<path>] [TIER=ci|
      2. materialise       per corpus: mirror fetch -> `git archive <ref>` into scratch
      3. provision deps    `ailang lock` inside the scratch snapshot, then each lock -> scratch AILANG_PACKAGE_ROOT (offline after this)
      4. discover entries  per corpus rules (6.4)
-     5. run both arms     isolated env (6.3), perl-alarm timeout, nice 15, -P3
+     5. run both arms     isolated env (6.3), Go-side deadline killing the check's process group, nice 15, -P3
      6. classify + diff   normalised codes; states per entry
-     7. gate + report     report.md + report.json + pins.md; exit 0 / 2 (unexpected breaks) / 3 (instrument failure)
+     7. gate + report     report.md + report.json + pins.md; exit 0 / 2 (unexpected breaks) / 3 (instrument failure) / 4 (NOT_MEASURED over allowance)
 ```
 
 ### 6.2 Freshness
@@ -201,7 +201,7 @@ Measured traps, each of which silently corrupts a comparison:
 | Missing dependencies are downloaded and written to `~/.ailang/cache/registry` | `internal/pkg/resolver.go` ("Not cached — download from registry") | set `AILANG_PACKAGE_ROOT` (read-only, "never written or created"; a missing dep is a loud error, not a download) |
 | Other `~/.ailang` writes (state stores, traces) | `internal/pkg/authority.go` `UserDir` uses `$HOME` | per-arm scratch `HOME`, `AILANG_STATE_DIR`, `AILANG_TRACE=off` |
 | Module paths resolve against the cwd | `check --json` from the wrong cwd gives MOD010 on every file | entry discovery computes the root (6.4) |
-| macOS has no `timeout`; a missing one exits 127 in both arms and reports "0 flips" | corpus-sweep memory, 2026-11-03 | `perl -e 'alarm N; exec @ARGV'`, plus a planted positive control every run |
+| macOS has no `timeout`; a missing one exits 127 in both arms and reports "0 flips" | corpus-sweep memory, 2026-11-03 | a Go-side deadline that SIGKILLs the check's process group (the first build used `perl -e 'alarm N; exec …'`, which never fires on a Go binary: Go ignores SIGALRM — PR #2208 review), plus a planted positive control every run |
 
 The report ends with a **write audit**: files under each materialised corpus *and* each named
 local checkout newer than the run's start stamp. Non-empty for a local checkout = exit 3.
@@ -252,10 +252,16 @@ and `fail_changed` in blocking corpora, grouped by (corpus, normalised code), an
   expires: v0.58.1              # entry is reported stale after this release
 ```
 
-Exit 2 if any bucket is unacknowledged or over its `max`. `newly_passing` is reported, never gated
+Exit 2 if any bucket is unacknowledged or over its `max`. *Implemented (PR #2208 review):* an entry
+whose **baseline** result is an infrastructure outcome (unresolved dependencies, timeout, crash) is
+`NOT_MEASURED`, not `fail_same`; a blocking corpus tolerates none unless `corpora.yaml` carries a
+reviewed `allow_not_measured: {max, reason}`, and exceeding it exits 4. Same code with a different
+error is `fail_diag_changed` (reported, not gated). Full state and exit-code tables:
+`tools/downstream/README.md`. `newly_passing` is reported, never gated
 (a fixture that was meant to fail and now passes deserves a look). For in-repo examples the
 expectation already exists: an entry whose `examples/manifest.json` `expected.exit_code` is non-zero
-and that fails with its `error_pattern` is `expected_fail`, not a break (§4 run A's two examples). The **release order** is derived:
+and that fails with its `error_pattern` is `expected_fail`, not a break (`exit_code` alone is a
+run-time exit code — `exit_code.ail` exits 42 and type-checks — so it excuses nothing) (§4 run A's two examples). The **release order** is derived:
 for each acknowledged bucket, the `republish` packages come first (ordered by the lock graph read
 from every corpus's `ailang.lock`), then the apps that depend on them, then pin moves, then the
 compiler release — the dashboard's hand-written "#2184 release order", generated, with each `fix`
