@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"regexp"
 	"sort"
 	"strings"
@@ -132,6 +134,9 @@ func (r *Runner) runOnce(a *Arm, e Entry, timeout int) Result {
 			continue
 		}
 		code := normaliseCode(d.Code, d.Message)
+		if code == codeUncheckedManifest && !ownManifest(e, d.Message) {
+			code = "DEP/setup" // a dependency's manifest: the dependency is the problem
+		}
 		set[code] = true
 		res.Diags = append(res.Diags, code+" "+r.diagText(a, d.Message))
 		if res.Message == "" {
@@ -170,6 +175,43 @@ func (r *Runner) diagText(a *Arm, msg string) string {
 		msg = msg[:400]
 	}
 	return msg
+}
+
+var manifestPathRE = regexp.MustCompile(`invalid manifest (\S+?ailang\.toml)`)
+
+// ownManifest reports whether an "invalid manifest" diagnostic names the
+// entry's own package manifest (the nearest ailang.toml at or above the file,
+// or the package dir) rather than a dependency's. A message without a path is
+// taken as the entry's own.
+func ownManifest(e Entry, msg string) bool {
+	m := manifestPathRE.FindStringSubmatch(msg)
+	if m == nil {
+		return true
+	}
+	dir := e.Cwd
+	if e.Kind != "package" {
+		dir = filepath.Dir(filepath.Join(e.Cwd, filepath.FromSlash(e.Arg)))
+		for {
+			if _, err := os.Stat(filepath.Join(dir, "ailang.toml")); err == nil {
+				break
+			}
+			up := filepath.Dir(dir)
+			if up == dir {
+				return false
+			}
+			dir = up
+		}
+	}
+	return samePath(filepath.Dir(m[1]), dir)
+}
+
+func samePath(a, b string) bool {
+	ra, ea := filepath.EvalSymlinks(a)
+	rb, eb := filepath.EvalSymlinks(b)
+	if ea != nil || eb != nil {
+		return filepath.Clean(a) == filepath.Clean(b)
+	}
+	return ra == rb
 }
 
 func firstLine(s string) string {

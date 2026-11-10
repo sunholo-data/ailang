@@ -34,9 +34,12 @@ func (rep *Report) score(byCorpus map[string][]Entry, expectations map[string]ex
 			if row.NotMeasured != "" {
 				sum.NotMeasured[row.NotMeasured]++
 			}
-			if e.Kind == "package" {
+			switch e.Kind {
+			case "package":
 				sum.Packages++
-			} else {
+			case "lock":
+				sum.Locks++
+			default:
 				sum.Files++
 			}
 			if _, err := os.Stat(filepath.Join(e.Cwd, "std", "io.ail")); err == nil {
@@ -104,8 +107,10 @@ func (rep *Report) gateNotMeasured(corpora []Corpus) {
 			sum.AllowanceStatus = "OVER"
 			rep.Incomplete = append(rep.Incomplete, fmt.Sprintf(
 				"%s (blocking): %d entries NOT MEASURED (%s), allowance %d. The baseline never reached a verdict on them, so "+
-					"\"no break\" there is unproven. Fix the cause (deps_unresolved: provision the corpus's dependencies into the "+
-					"package root; timeout: raise --timeout or fix the hang; crash: see the rows), or, after review, acknowledge "+
+					"\"no break\" there is unproven. Fix the cause (deps_unresolved: read the UNPROVISIONED lines of the provisioning "+
+					"section — FETCH_DEPS=1 fetches registry versions the package root lacks; timeout: raise --timeout or fix "+
+					"the hang; crash: see the rows; invalid_manifest / unexported_import: the loader rejected the entry's own "+
+					"manifest or an import before type checking anything — the corpus owner's fix), or, after review, acknowledge "+
 					"them with `allow_not_measured: {max: %d, reason: \"...\"}` on the corpus in corpora.yaml",
 				sum.Name, n, reasonList(sum.NotMeasured), allowed, n))
 		default:

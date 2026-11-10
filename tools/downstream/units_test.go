@@ -20,6 +20,12 @@ func TestNormaliseCode(t *testing.T) {
 		{"ERROR", "type error in m (decl 0): cannot unify string vs int", "TYPE_ERROR/unify"},
 		{"ERROR", "type error in m: undefined variable foo", "TYPE_ERROR/unbound"},
 		{"ERROR", "failed to resolve package import sunholo/x", "DEP/unresolved"},
+		// Measured messages (2026-11-10): the loader stops before type checking.
+		{"ERROR", `module loading error: failed to load pkg/a/b/c: failed to resolve package import "pkg/a/b/c": module "a/b/c" is not exported by package "a/b" Available exports: a/b/d`, codeUncheckedExport},
+		{"ERROR", `package resolution setup failed: cannot load package manifest x/ailang.toml: invalid manifest x/ailang.toml: exported module "main" must start with package name "a/b"`, codeUncheckedManifest},
+		{"PKG_MANIFEST", `cannot load ailang.toml: invalid manifest x/ailang.toml: exported module "main" must start with package name "a/b"`, codeUncheckedManifest},
+		{"ERROR", "package resolution setup failed: registry package a/b@1.0.0 is not provisioned in AILANG_PACKAGE_ROOT at <run>/pkgroot/a/b/1.0.0", "DEP/setup"},
+		{"ERROR", `module loading error: failed to resolve package import "pkg/a/b/t": package "a/b" not found in ailang.lock; run 'ailang lock'`, "DEP/unresolved"},
 		{"ERROR", "effect checking failed in x: something new", "EFFECT/other"},
 		{"ERROR", "MAX_SIZE exceeded in user constant", uncodedPrefix + "max-size-exceeded-in-user-constant"},
 	}

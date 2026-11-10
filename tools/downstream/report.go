@@ -18,6 +18,7 @@ type CorpusSummary struct {
 	Level       string         `json:"level"` // blocking | advisory in this tier
 	Files       int            `json:"files"`
 	Packages    int            `json:"packages"`
+	Locks       int            `json:"generated_locks"` // lock entries: the candidate's own `ailang lock` vs the baseline's
 	States      map[string]int `json:"states"`
 	BaseFail    int            `json:"baseline_failing"`
 	NotMeasured map[string]int `json:"not_measured"` // NOT_MEASURED rows by reason (deps_unresolved, timeout, crash)
@@ -43,16 +44,19 @@ type Report struct {
 	Failures    []string           `json:"instrument_failures"`
 	Incomplete  []string           `json:"not_measured_failures"` // exit 4: blocking corpora over their allowance
 	PackageRoot *PackageRootCopy   `json:"package_root,omitempty"`
-	Sources     []Source           `json:"sources"`
-	Corpora     []CorpusSummary    `json:"corpora"`
-	Buckets     []Bucket           `json:"buckets"`
-	Expected    []ExpectedStatus   `json:"expected_breaks"`
-	Uncoded     [2]int             `json:"uncoded_codes_of_candidate_failures"` // [uncoded, total]
-	Audit       []AuditFinding     `json:"write_audit"`
-	Pins        []PinHit           `json:"pins"`
-	ExitCode    int                `json:"exit_code"`
-	Verdict     string             `json:"verdict"`
-	Rows        []Row              `json:"rows"` // every entry that is not pass_both
+	// Provisioning is what each corpus's dependencies needed and where every
+	// package the arms read came from (provision.go).
+	Provisioning *ProvisionReport `json:"provisioning,omitempty"`
+	Sources      []Source         `json:"sources"`
+	Corpora      []CorpusSummary  `json:"corpora"`
+	Buckets      []Bucket         `json:"buckets"`
+	Expected     []ExpectedStatus `json:"expected_breaks"`
+	Uncoded      [2]int           `json:"uncoded_codes_of_candidate_failures"` // [uncoded, total]
+	Audit        []AuditFinding   `json:"write_audit"`
+	Pins         []PinHit         `json:"pins"`
+	ExitCode     int              `json:"exit_code"`
+	Verdict      string           `json:"verdict"`
+	Rows         []Row            `json:"rows"` // every entry that is not pass_both
 }
 
 // PinHit is one pin line found in a snapshot (pins.md).
@@ -117,6 +121,11 @@ func (r *Report) renderMarkdown(w io.Writer) {
 	if r.NullControl {
 		p("> Null control: both arms are the same binary, so any difference below is instrument noise.\n\n")
 	}
+	if r.Provisioning != nil {
+		for _, f := range r.Provisioning.Findings {
+			p("> **FINDING for the corpus owner:** %s\n\n", cell(f))
+		}
+	}
 	p("## Arms\n\n| arm | origin | version | sha256 | wall s |\n|---|---|---|---|---|\n")
 	for _, a := range r.Arms {
 		p("| %s | %s | %s | %s | %.0f |\n", a.Name, cell(a.Origin), cell(a.Version), shortSHA(a.SHA256), r.ArmWall[a.Name])
@@ -125,6 +134,7 @@ func (r *Report) renderMarkdown(w io.Writer) {
 		p("\nPackage root: a per-run copy of `%s` (%d files, %.1f MiB, `.ailang` compile caches left out, %d links skipped); both arms read the copy.\n",
 			pr.Source, pr.Files, float64(pr.Bytes)/(1<<20), pr.Links)
 	}
+	r.Provisioning.render(p)
 	if len(r.Failures) > 0 {
 		p("\n## INSTRUMENT FAILURES (exit 3)\n\n")
 		for _, f := range r.Failures {

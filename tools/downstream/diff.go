@@ -29,9 +29,12 @@ const (
 
 // Reasons a baseline result is an infrastructure outcome rather than a verdict.
 const (
-	reasonDeps    = "deps_unresolved"
-	reasonTimeout = "timeout"
-	reasonCrash   = "crash"
+	reasonDeps     = "deps_unresolved"
+	reasonTimeout  = "timeout"
+	reasonCrash    = "crash"
+	reasonManifest = "invalid_manifest"  // the entry's own ailang.toml did not load
+	reasonExport   = "unexported_import" // it imports a module a package does not export
+
 )
 
 // Row is one entry's outcome across both arms.
@@ -120,6 +123,10 @@ func infraReason(r *Result) string {
 		switch {
 		case isDepCode(code):
 			this = reasonDeps
+		case code == codeUncheckedManifest:
+			this = reasonManifest
+		case code == codeUncheckedExport:
+			this = reasonExport
 		case code == codeTimeout:
 			this = reasonTimeout
 		case strings.HasPrefix(code, codeCrash), code == codeNoDiagnostic:
@@ -136,7 +143,9 @@ func infraReason(r *Result) string {
 
 // environmental codes say nothing about the candidate's verdict on the code when
 // the baseline did not reach one either; a crash or a real error does.
-func environmental(code string) bool { return isDepCode(code) || code == codeTimeout }
+func environmental(code string) bool {
+	return isDepCode(code) || code == codeTimeout || strings.HasPrefix(code, uncheckedPrefix)
+}
 
 // classify assigns a state to one entry.
 func classify(e Entry, b, c *Result, ex expectation) Row {

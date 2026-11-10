@@ -26,6 +26,13 @@ var phraseFamilies = []struct{ phrase, code string }{
 	{"effect ceiling violation", "EFFECT/ceiling"},
 	{"Missing effects", "EFFECT/undeclared"},
 	{"uses effects not declared", "EFFECT/undeclared"},
+	// The loader stops at these two before any type checking (measured
+	// 2026-11-10: a type error planted in the file is not reported), so the
+	// entry is NOT_MEASURED with its own reason, not a verdict and not a
+	// missing dependency: an import of a module a package does not export, and
+	// the entry's own manifest rejected (a dependency's is DEP/setup: runOnce).
+	{"is not exported by package", codeUncheckedExport},
+	{"invalid manifest", codeUncheckedManifest},
 	{"failed to resolve package import", "DEP/unresolved"},
 	{"not found in ailang.lock", "DEP/unresolved"},
 	{"package resolution setup failed", "DEP/setup"},
@@ -41,8 +48,18 @@ var (
 	fpSpacesRE = regexp.MustCompile(` +`)
 )
 
+// Codes for entries the loader rejected before type checking anything.
+const (
+	uncheckedPrefix       = "UNCHECKED/"
+	codeUncheckedManifest = "UNCHECKED/invalid-manifest"
+	codeUncheckedExport   = "UNCHECKED/not-exported"
+)
+
 // normaliseCode maps one diagnostic to its bucket code.
 func normaliseCode(code, msg string) string {
+	if code == "PKG_MANIFEST" { // `check --package`: the manifest did not load
+		return codeUncheckedManifest
+	}
 	if code != "" && code != "ERROR" {
 		return code
 	}

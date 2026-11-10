@@ -23,6 +23,47 @@ const fakeAilang = `#!/bin/bash
 ARM=__ARM__
 if [ "$1" = "--version" ]; then echo "fake-ailang v0.58.1 ($ARM)"; exit 0; fi
 env > "$AILANG_STATE_DIR/env.txt"
+if [ "$1" = "lock" ]; then
+	# Enough of 'ailang lock' for provisioning: path deps must exist, registry deps
+	# must be in AILANG_PACKAGE_ROOT, an unreadable lock is refused, never repaired.
+	env > "$AILANG_STATE_DIR/lock-env.txt"
+	if [ -f ailang.lock ] && ! grep -q 'ailang.lock/v1' ailang.lock; then echo "Error: cannot update existing ailang.lock" >&2; exit 1; fi
+	if grep -q HANGLOCK ailang.toml; then sleep 30; fi
+	if [ "$ARM" = cand ] && grep -q CANDLOCKFAIL ailang.toml; then echo "Error: dependency resolution failed: the candidate's resolver broke" >&2; exit 1; fi
+	entries=""
+	if [ "$ARM" = cand ] && grep -q CANDLOCKDIFF ailang.toml; then entries='{"name":"acme/extra","version":"9.0.0","source":"registry"}'; fi
+	while IFS= read -r line; do
+		case "$line" in \"*=*) ;; *) continue;; esac
+		name=${line#\"}; name=${name%%\"*}
+		case "$line" in
+		*path*)
+			p=$(printf '%s\n' "$line" | sed 's/.*path *= *"\([^"]*\)".*/\1/')
+			[ -f "$p/ailang.toml" ] || { echo "Error: dependency resolution failed: path dependency $p not found" >&2; exit 1; }
+			e="{\"name\":\"$name\",\"version\":\"0.1.0\",\"source\":\"path\",\"path\":\"$p\"}";;
+		*)
+			v=$(printf '%s\n' "$line" | sed 's/.*= *"\([^"]*\)".*/\1/')
+			[ -d "$AILANG_PACKAGE_ROOT/$name/$v" ] || { echo "Error: dependency resolution failed: registry package $name@$v is not provisioned in AILANG_PACKAGE_ROOT" >&2; exit 1; }
+			e="{\"name\":\"$name\",\"version\":\"$v\",\"source\":\"registry\"}";;
+		esac
+		entries="${entries:+$entries,}$e"
+	done < ailang.toml
+	printf '{"schema":"ailang.lock/v1","packages":[%s]}\n' "$entries" > ailang.lock
+	echo "Generated ailang.lock"
+	exit 0
+fi
+if [ "$1" = "install" ]; then
+	# 'ailang install --no-bin name@version' from DOWNSTREAM_FAKE_REGISTRY (a dir);
+	# unset = the network is unreachable.
+	[ "$2" = "--no-bin" ] || { echo "Error: want --no-bin" >&2; exit 64; }
+	name=${3%@*}; ver=${3##*@}
+	echo "Fetching $3 from ${DOWNSTREAM_FAKE_REGISTRY:-https://registry.invalid}..."
+	[ -n "$DOWNSTREAM_FAKE_REGISTRY" ] || { echo "Error: failed to fetch package metadata: dial tcp: connection refused" >&2; exit 1; }
+	[ -d "$DOWNSTREAM_FAKE_REGISTRY/$name/$ver" ] || { echo "Error: failed to fetch package metadata: registry returned HTTP 404 for metadata of $3" >&2; exit 1; }
+	[ -f "$DOWNSTREAM_FAKE_REGISTRY/$name/$ver/FAIL503" ] && { echo "Error: failed to fetch package metadata: registry returned HTTP 503 for metadata of $3" >&2; exit 1; }
+	# Like the real install: the named package only, not its dependencies.
+	mkdir -p "$HOME/.ailang/cache/registry/$name" && cp -R "$DOWNSTREAM_FAKE_REGISTRY/$name/$ver" "$HOME/.ailang/cache/registry/$name/$ver"
+	exit 0
+fi
 [ "$1" = "check" ] || { echo "usage" >&2; exit 64; }
 shift
 pass() { printf '{"file":"%s","passed":true,"error_count":0,"errors":[]}\n' "$1"; exit 0; }
@@ -41,6 +82,17 @@ f="$2"
 content=$(cat "$f") || { echo "cannot read $f" >&2; exit 2; }
 case "$content" in *BROKEN*|*"not an int"*) failj "$f" "type error in m (decl 0): type unification failed: cannot unify string vs int";; esac
 case "$content" in *DEPMISS*) failj "$f" "failed to resolve package import sunholo/missing: not in the package root";; esac
+case "$content" in *OWNBADMANIFEST*) failj "$f" "package resolution setup failed: cannot load package manifest $PWD/ailang.toml: invalid manifest $PWD/ailang.toml: exported module main must start with package name";; esac
+case "$content" in *DEPBADMANIFEST*) failj "$f" "package resolution setup failed: cannot load package manifest $AILANG_PACKAGE_ROOT/acme/bad/1.0.0/ailang.toml: invalid manifest $AILANG_PACKAGE_ROOT/acme/bad/1.0.0/ailang.toml: bad";; esac
+case "$content" in *UNEXPORTED*) failj "$f" "module loading error: failed to load pkg/acme/p/hidden: failed to resolve package import pkg/acme/p/hidden: module acme/p/hidden is not exported by package acme/p";; esac
+case "$content" in *NEEDDEPS*)
+	# Resolve through the lock beside the file, as the loader does.
+	[ -f ailang.lock ] || failj "$f" "module loading error: package acme/x not found in ailang.lock; run 'ailang lock'"
+	grep -q 'ailang.lock/v1' ailang.lock || failj "$f" "package resolution setup failed: invalid lock file ailang.lock: unsupported lock file schema"
+	for nv in $(grep -o '"name":"[^"]*","version":"[^"]*","source":"registry"' ailang.lock | sed 's/"name":"\([^"]*\)","version":"\([^"]*\)".*/\1@\2/'); do
+		[ -d "$AILANG_PACKAGE_ROOT/${nv%@*}/${nv##*@}" ] || failj "$f" "package resolution setup failed: registry package $nv is not provisioned in AILANG_PACKAGE_ROOT"
+	done;;
+esac
 case "$content" in *MSGDRIFT*)
 	if [ "$ARM" = cand ]; then failj "$f" "type error in m (decl 0): cannot unify string vs int at m.ail:9:2"; fi
 	failj "$f" "type error in m (decl 0): cannot unify string vs int at m.ail:3:1";;
