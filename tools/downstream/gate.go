@@ -104,8 +104,9 @@ func (rep *Report) gateNotMeasured(corpora []Corpus) {
 			sum.AllowanceStatus = "OVER"
 			rep.Incomplete = append(rep.Incomplete, fmt.Sprintf(
 				"%s (blocking): %d entries NOT MEASURED (%s), allowance %d. The baseline never reached a verdict on them, so "+
-					"\"no break\" there is unproven. Fix the cause (deps_unresolved: provision the corpus's dependencies into the "+
-					"package root; timeout: raise --timeout or fix the hang; crash: see the rows), or, after review, acknowledge "+
+					"\"no break\" there is unproven. Fix the cause (deps_unresolved: read the UNPROVISIONED lines of the provisioning "+
+					"section — FETCH_DEPS=1 fetches registry versions the package root lacks; timeout: raise --timeout or fix "+
+					"the hang; crash: see the rows), or, after review, acknowledge "+
 					"them with `allow_not_measured: {max: %d, reason: \"...\"}` on the corpus in corpora.yaml",
 				sum.Name, n, reasonList(sum.NotMeasured), allowed, n))
 		default:

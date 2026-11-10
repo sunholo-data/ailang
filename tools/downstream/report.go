@@ -43,16 +43,19 @@ type Report struct {
 	Failures    []string           `json:"instrument_failures"`
 	Incomplete  []string           `json:"not_measured_failures"` // exit 4: blocking corpora over their allowance
 	PackageRoot *PackageRootCopy   `json:"package_root,omitempty"`
-	Sources     []Source           `json:"sources"`
-	Corpora     []CorpusSummary    `json:"corpora"`
-	Buckets     []Bucket           `json:"buckets"`
-	Expected    []ExpectedStatus   `json:"expected_breaks"`
-	Uncoded     [2]int             `json:"uncoded_codes_of_candidate_failures"` // [uncoded, total]
-	Audit       []AuditFinding     `json:"write_audit"`
-	Pins        []PinHit           `json:"pins"`
-	ExitCode    int                `json:"exit_code"`
-	Verdict     string             `json:"verdict"`
-	Rows        []Row              `json:"rows"` // every entry that is not pass_both
+	// Provisioning is what each corpus's dependencies needed and where every
+	// package the arms read came from (provision.go).
+	Provisioning *ProvisionReport `json:"provisioning,omitempty"`
+	Sources      []Source         `json:"sources"`
+	Corpora      []CorpusSummary  `json:"corpora"`
+	Buckets      []Bucket         `json:"buckets"`
+	Expected     []ExpectedStatus `json:"expected_breaks"`
+	Uncoded      [2]int           `json:"uncoded_codes_of_candidate_failures"` // [uncoded, total]
+	Audit        []AuditFinding   `json:"write_audit"`
+	Pins         []PinHit         `json:"pins"`
+	ExitCode     int              `json:"exit_code"`
+	Verdict      string           `json:"verdict"`
+	Rows         []Row            `json:"rows"` // every entry that is not pass_both
 }
 
 // PinHit is one pin line found in a snapshot (pins.md).
@@ -125,6 +128,7 @@ func (r *Report) renderMarkdown(w io.Writer) {
 		p("\nPackage root: a per-run copy of `%s` (%d files, %.1f MiB, `.ailang` compile caches left out, %d links skipped); both arms read the copy.\n",
 			pr.Source, pr.Files, float64(pr.Bytes)/(1<<20), pr.Links)
 	}
+	r.Provisioning.render(p)
 	if len(r.Failures) > 0 {
 		p("\n## INSTRUMENT FAILURES (exit 3)\n\n")
 		for _, f := range r.Failures {

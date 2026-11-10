@@ -175,6 +175,14 @@ make downstream-check CANDIDATE=./bin/ailang [BASELINE=v0.57.4|<path>] [TIER=ci|
      7. gate + report     report.md + report.json + pins.md; exit 0 / 2 (unexpected breaks) / 3 (instrument failure) / 4 (NOT_MEASURED over allowance)
 ```
 
+**Step 3 as built (2026-11-10, after Mark's ruling to provision rather than allow):** the first
+implementation only copied the local registry cache, so 66 entries stayed NOT_MEASURED. Step 3 now
+runs the baseline binary's `ailang lock` in a per-run copy of the snapshot for every package dir
+with dependencies and no parseable lock (the snapshot itself stays unwritten), honours committed
+locks as committed, and fetches registry versions missing from the package root copy with
+`ailang install --no-bin` only under the explicit `FETCH_DEPS=1` (a non-404 fetch failure is
+exit 3). Usage and the measured diagnosis: `tools/downstream/README.md`.
+
 ### 6.2 Freshness
 
 Working checkouts are the wrong source: they are on feature branches, behind origin, and dirty

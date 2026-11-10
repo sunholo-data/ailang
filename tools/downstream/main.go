@@ -6,7 +6,7 @@
 // breaks nobody acknowledged. Design: design_docs/planned/v1_0_0/m-v1-downstream-compat-gate.md.
 //
 //	make downstream-check CANDIDATE=<binary> [BASELINE=latest|vX.Y.Z|<binary>] [TIER=release|ci]
-//	     [CORPORA=a,b] [REF=default|pinned|worktree] [OUT=<dir>] [OFFLINE=1]
+//	     [CORPORA=a,b] [REF=default|pinned|worktree] [OUT=<dir>] [OFFLINE=1] [FETCH_DEPS=1]
 //
 // Exit codes (precedence 3 > 2 > 4; README.md has the full table):
 //
@@ -26,7 +26,11 @@
 // dependency is an error, never a download, and no other process can change it.
 // Corpora are materialised into the run dir (snapshots of the remote ref through
 // the operator's `gh`, or a copy of the local checkout in REF=worktree); the
-// operator's checkouts are only read, with --no-optional-locks.
+// operator's checkouts are only read, with --no-optional-locks. Before the arms
+// run, provision.go gives each corpus the dependencies its locks and manifests
+// declare (`ailang lock` in a per-run copy of the snapshot; `ailang install` of
+// missing registry versions only under --fetch-deps), so the arms themselves
+// never download.
 package main
 
 import (
@@ -46,8 +50,13 @@ type Options struct {
 	Manifest, Expected, Out, State          string
 	PackageRoot, SelfRoot                   string
 	Jobs, Timeout                           int
-	Offline, NoNice                         bool
+	Offline, NoNice, FetchDeps              bool
 }
+
+// defaultTimeout is the per-check deadline in seconds (retried once at 2x).
+// RULED by Mark 2026-11-10: 600. At 240 s motoko's root package timed out in the
+// baseline on a loaded machine and read as 22 false breaks; at 600 both arms agree.
+const defaultTimeout = 600
 
 func defaultOptions() Options {
 	home, _ := os.UserHomeDir()
@@ -56,7 +65,7 @@ func defaultOptions() Options {
 		Manifest: "tools/downstream/corpora.yaml", Expected: "tools/downstream/expected-breaks.yaml",
 		State:       filepath.Join(home, ".ailang", "state", "downstream"),
 		PackageRoot: filepath.Join(home, ".ailang", "cache", "registry"),
-		Jobs:        3, Timeout: 120,
+		Jobs:        3, Timeout: defaultTimeout,
 	}
 }
 
@@ -79,6 +88,7 @@ func main() {
 	fs.IntVar(&o.Timeout, "timeout", o.Timeout, "seconds per check (a timeout is retried once at 2x)")
 	fs.BoolVar(&o.Offline, "offline", false, "no network: reuse the last snapshot per corpus and a cached baseline (--offline=0|1)")
 	fs.BoolVar(&o.NoNice, "no-nice", false, "do not run checks under nice -n 15")
+	fs.BoolVar(&o.FetchDeps, "fetch-deps", false, "fetch registry versions missing from the package root (ailang install; network) into the run's copy (--fetch-deps=0|1)")
 	fs.Usage = func() {
 		fmt.Fprintln(fs.Output(), "usage: downstream --candidate <ailang binary> [flags]\n\n"+
 			"exit 0 PASS · 2 FAIL (unacknowledged break, or an unused expected-breaks entry) · 3 INSTRUMENT FAILURE ·\n"+
@@ -164,6 +174,9 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 			fail("a system stdlib exists at %s; both arms would load it instead of their own", d)
 		}
 	}
+	if o.FetchDeps && o.Offline {
+		fail("FETCH_DEPS=1 needs the network to reach the package registry; it cannot run with OFFLINE=1")
+	}
 	if fi, err := os.Stat(o.PackageRoot); err != nil || !fi.IsDir() {
 		fail("package root %s is not a directory (it must exist; it is never written): %v", o.PackageRoot, err)
 	}
@@ -171,9 +184,14 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 	if err != nil {
 		fail("baseline: %v", err)
 	}
-	var base, cand *Arm
+	var base, cand, provArm *Arm
 	if err == nil {
 		if base, err = PrepareArm("baseline", basePath, baseOrigin, o.Out); err != nil {
+			fail("%v", err)
+		}
+		// The provision arm is the baseline binary in its own scratch HOME: the
+		// released `ailang lock` / `ailang install` provision both arms' input.
+		if provArm, err = PrepareArm("provision", basePath, baseOrigin, o.Out); err != nil {
 			fail("%v", err)
 		}
 	}
@@ -201,12 +219,15 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 		return finish(nil)
 	}
 
-	// Materialise and discover.
+	// Materialise every corpus, then stamp: from here on nothing may write a snapshot.
 	mat := &Materialiser{StateDir: o.State, SelfRoot: o.SelfRoot, Offline: o.Offline, Remote: remote}
-	var entries []Entry
-	byCorpus := map[string][]Entry{}
-	expectations := map[string]expectation{}
-	var checked []Corpus
+	type materialised struct {
+		c   Corpus
+		src Source
+		sum CorpusSummary
+		err error
+	}
+	var mats []materialised
 	var locals []string
 	for _, c := range selected {
 		sum := CorpusSummary{Name: c.Name, Level: c.tierOf(o.Tier), States: map[string]int{}, EntryRules: map[string]int{}, NotMeasured: map[string]int{}}
@@ -217,16 +238,34 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 			// report the operator's own work.
 			locals = append(locals, src.Local.Path)
 		}
-		if err != nil {
-			sum.NotChecked = err.Error()
-			fail("NOT CHECKED %s: %v", c.Name, err)
-			rep.Corpora = append(rep.Corpora, sum)
-			continue
+		mats = append(mats, materialised{c, src, sum, err})
+	}
+	time.Sleep(20 * time.Millisecond)
+	snapStamp := time.Now()
+
+	// Provision each corpus's dependencies (provision.go), then discover its
+	// entries in the tree the arms will read.
+	prov := newProvisioner(provArm, pkgRoot.Path, o.Out, o.FetchDeps, o.Timeout, !o.NoNice)
+	rep.Provisioning = prov.Report
+	var entries []Entry
+	byCorpus := map[string][]Entry{}
+	expectations := map[string]expectation{}
+	var checked []Corpus
+	var trees []string
+	for _, m := range mats {
+		c, src, sum, err := m.c, m.src, m.sum, m.err
+		var tree string
+		if err == nil {
+			rep.Sources = append(rep.Sources, src)
+			if tree, err = prov.Corpus(c, src.Root); err == nil && tree != src.Root {
+				trees = append(trees, tree)
+			}
 		}
-		rep.Sources = append(rep.Sources, src)
-		es, err := Discover(c, src.Root)
-		if err == nil && len(es) == 0 {
-			err = fmt.Errorf("no entries discovered (include/exclude match nothing?)")
+		var es []Entry
+		if err == nil {
+			if es, err = Discover(c, tree); err == nil && len(es) == 0 {
+				err = fmt.Errorf("no entries discovered (include/exclude match nothing?)")
+			}
 		}
 		var ex expectation
 		if err == nil {
@@ -245,7 +284,7 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 		rep.Corpora = append(rep.Corpora, sum)
 	}
 	time.Sleep(20 * time.Millisecond)
-	snapStamp := time.Now()
+	provStamp := time.Now()
 
 	// Both arms, one after the other.
 	t0 := time.Now()
@@ -270,9 +309,13 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 	for _, l := range locals {
 		auditInto(rep, "local checkout "+l, l, started)
 	}
-	// Both arms read the run's copy of the package root; by contract it is never
-	// written (a write would be one arm's output feeding the other's input).
-	auditInto(rep, "package root copy", pkgRoot.Path, snapStamp)
+	// Both arms read the run's copy of the package root and the provisioned
+	// trees; once provisioning is done they are never written (a write would be
+	// one arm's output feeding the other's input).
+	auditInto(rep, "package root copy", pkgRoot.Path, provStamp)
+	for _, t := range trees {
+		auditInto(rep, "provisioned tree "+filepath.Base(t), t, provStamp)
+	}
 	return finish(rows)
 }
 
