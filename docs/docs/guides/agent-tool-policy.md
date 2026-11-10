@@ -297,7 +297,7 @@ one function, `executor.BuildEnvironment` (M-EXECUTOR-ENV-HARDENING), and that e
 | executor-required | the executor's own variables (motoko's `MODEL`, `MOTOKO_CONFIG`, …) |
 
 **Grants.** Each executor gets its inference credential and nothing else: claude none (OAuth
-from its credentials file; `ANTHROPIC_API_KEY` only under `AILANG_AUTH_MODE=apikey`); codex
+from its credentials file; `ANTHROPIC_API_KEY` only under `AILANG_AUTH_MODE=apikey`, the guarded credit lane); codex
 `OPENAI_API_KEY`/`CODEX_API_KEY`; pi and opencode the key of the model's `provider/` prefix;
 motoko `OPENROUTER_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`. A task with a program policy
 also grants the credentials that policy's worker may select (its pinned `ai_provider`, std/web's

@@ -25,7 +25,7 @@ const (
 
 var providerVars = []Var{
 	{EnvAnthropicBaseURL, "", AreaProviders, "Claude Messages API origin; the guarded credit lane requires the authenticated HTTPS budget gateway and refuses alternate provider routes."},
-	{EnvAnthropicAPIKey, "", AreaProviders, "Anthropic API key (METERED); the in-process client resolves it first, and the claude executor requires it under AILANG_AUTH_MODE=apikey and decrypts an ENC:-prefixed value with AILANG_KMS_KEY."},
+	{EnvAnthropicAPIKey, "", AreaProviders, "Anthropic API key (METERED); the in-process client resolves it first, and the claude executor requires it under AILANG_AUTH_MODE=apikey (the guarded credit lane)."},
 	{EnvAnthropicAuthToken, "", AreaProviders, "Anthropic OAuth access token from a Claude subscription profile (SUBSCRIPTION QUOTA); the in-process client resolves it after ANTHROPIC_API_KEY, matching the official SDKs."},
 	{EnvClaudeCodeOAuthToken, "", AreaProviders, "Claude Code subscription token: a raw `claude setup-token` token (`sk-ant-oat…`) held by ONE consumer, the cloud executors or the local mission loops, never both, so no other session can rotate it; or a legacy JSON credential blob, whose embedded refresh token dies when any other session rotates it. The claude executor passes a setup-token to the child in this variable and writes a blob to the credentials file. The in-process client resolves either third; the mission loop's Anthropic quota reader tries it after the login credential, since a setup-token cannot read usage (an empty-but-set value deliberately bypasses the keychain)."},
 	{EnvOpenAIAPIKey, "", AreaProviders, "OpenAI API key (METERED); a cloud codex job bootstraps an api-key auth.json from it ONLY under AILANG_AUTH_MODE=apikey."},

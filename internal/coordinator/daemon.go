@@ -175,10 +175,6 @@ type Daemon struct {
 	// Cloud dispatcher for triggering remote task execution (M-CLOUD-DISPATCH)
 	cloudDispatcher CloudDispatcher
 
-	// API key cache for external user auth (M-CLOUD-DUAL-AUTH)
-	apiKeyCache  *APIKeyCache
-	kmsEncrypter *KMSEncrypter
-
 	// M-COORD-MULTI-HOST-WORKERS (v0.22.0): heartbeat machinery.
 	// Optional — nil heartbeatStore means no heartbeats are emitted (legacy
 	// single-host setups). When wired, the daemon advertises its presence
@@ -279,8 +275,6 @@ func NewDaemon(config *Config) (*Daemon, error) {
 		ctx:              ctx,
 		cancel:           cancel,
 		resourceRegistry: NewResourceTrackerRegistry(),
-		apiKeyCache:      NewAPIKeyCache(10 * time.Minute),
-		kmsEncrypter:     NewKMSEncrypter(), // nil if AILANG_KMS_KEY not set (local dev)
 	}, nil
 }
 

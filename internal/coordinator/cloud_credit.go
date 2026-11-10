@@ -46,8 +46,8 @@ func ValidateCloudCreditLane(p DispatchParams) error {
 	if p.CreditAccount == "" {
 		return nil
 	}
-	if p.CreditAccount != "anthropic-api-credits" || p.Provider != "claude" || p.AuthMode != "apikey" || p.Model != modelreg.ClaudeCreditModel || p.APIKey != "" {
-		return fmt.Errorf("credit lane requires Claude apikey Haiku 5.5 with no provider key override")
+	if p.CreditAccount != "anthropic-api-credits" || p.Provider != "claude" || p.AuthMode != "apikey" || p.Model != modelreg.ClaudeCreditModel {
+		return fmt.Errorf("credit lane requires Claude apikey Haiku 5.5")
 	}
 	if math.IsNaN(p.MaxCostUSD) || math.IsInf(p.MaxCostUSD, 0) || p.MaxCostUSD < 0.000001 || p.MaxCostUSD > 2 {
 		return fmt.Errorf("credit lane requires a positive task budget at most $2")

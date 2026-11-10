@@ -6,6 +6,7 @@ package cloudrun
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"strconv"
@@ -86,7 +87,8 @@ func NewDispatcher(ctx context.Context, projectID, region, prefix string, direct
 // Each variant corresponds to a separate Cloud Run Job template in Terraform with the
 // matching Docker image baked in. The Cloud Run Jobs API does not support per-execution
 // image overrides, so variant selection happens via job name, not ContainerOverride.
-// Job naming: {prefix}-agent-executor[-{variant}][-apikey]
+// Job naming: {prefix}-agent-executor[-{variant}] (plus the -claude-credit jobs
+// of the guarded credit lane; the *-apikey jobs were retired 2026-11-10).
 var knownVariants = map[string]bool{
 	"":         true, // defaults to "default"
 	"default":  true,
@@ -173,14 +175,13 @@ func variantImageName(variant string) string {
 	return variant
 }
 
-// jobSuffixForVariant returns the Cloud Run Job name suffix for a variant + auth mode pair.
+// jobSuffixForVariant returns the Cloud Run Job name suffix for a variant.
 // Examples:
 //
-//	("", "oauth")      → "agent-executor"
-//	("go", "oauth")    → "agent-executor-go"
-//	("go", "apikey")   → "agent-executor-go-apikey"
-//	("codex", "oauth") → "agent-executor-codex"
-func jobSuffixForVariant(variant, authMode string) (string, error) {
+//	""      → "agent-executor"
+//	"go"    → "agent-executor-go"
+//	"codex" → "agent-executor-codex"
+func jobSuffixForVariant(variant string) (string, error) {
 	if err := coordinator.RetiredVariantError(variant); err != nil {
 		return "", err
 	}
@@ -191,11 +192,16 @@ func jobSuffixForVariant(variant, authMode string) (string, error) {
 	if variant != "" && variant != "default" {
 		suffix += "-" + variant
 	}
-	if authMode == "apikey" {
-		suffix += "-apikey"
-	}
 	return suffix, nil
 }
+
+// retiredAPIKeyAuthMode is the auth_mode that once selected a *-apikey job.
+const retiredAPIKeyAuthMode = "apikey"
+
+// errRetiredAPIKeyJobs names the retirement so the failed task says why.
+var errRetiredAPIKeyJobs = errors.New(`auth_mode "apikey" without credit_account selected a *-apikey Cloud Run job; ` +
+	`those jobs were retired 2026-11-10 (per-request API keys, M-CLOUD-DUAL-AUTH). ` +
+	`Drop auth_mode from the agent, or add credit_account for the guarded Claude credit lane`)
 
 // Dispatch triggers a Cloud Run Job execution with per-execution env var overrides.
 // The job is identified by the pattern: projects/{project}/locations/{region}/jobs/{prefix}-agent-executor
@@ -204,12 +210,19 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 	if err := (&coordinator.AgentConfig{AutoMerge: params.AutoMerge, AutoMergeCode: params.AutoMergeCode, AutoMergeRequiredChecks: params.AutoMergeRequiredChecks, AutoMergeApproverSecret: params.AutoMergeApproverSecret, AutoMergeApproverIdentity: params.AutoMergeApproverIdentity, ArtifactPatterns: params.ArtifactPatterns, SkipApproval: params.PushBranch != ""}).ValidateAutoMergeCode(); err != nil {
 		return fmt.Errorf("%w: %v", coordinator.ErrDispatchPermanent, err)
 	}
-	// M-EXECUTOR-VARIANTS + M-CLOUD-DUAL-AUTH: select the Cloud Run Job template.
-	// Each variant has its own job with the corresponding Docker image baked in.
-	// Auth mode selects between OAuth and API-key job templates within each variant.
-	// Both are registry misconfigurations: every retry fails the same way until
-	// someone edits the agent, so they fail the task rather than requeue it.
-	jobSuffix, err := jobSuffixForVariant(params.ExecutorVariant, params.AuthMode)
+	// The *-apikey jobs (M-CLOUD-DUAL-AUTH) were retired 2026-11-10. auth_mode
+	// apikey survives only as the guarded credit lane's marker, which routes to
+	// its own -claude-credit job below; anywhere else it named a job that no
+	// longer exists, so refuse it here rather than launch the OAuth job with an
+	// API-key marker and no key.
+	if params.AuthMode == retiredAPIKeyAuthMode && params.CreditAccount == "" {
+		return fmt.Errorf("%w: %v", coordinator.ErrDispatchPermanent, errRetiredAPIKeyJobs)
+	}
+	// M-EXECUTOR-VARIANTS: select the Cloud Run Job template. Each variant has
+	// its own job with the corresponding Docker image baked in. Both are
+	// registry misconfigurations: every retry fails the same way until someone
+	// edits the agent, so they fail the task rather than requeue it.
+	jobSuffix, err := jobSuffixForVariant(params.ExecutorVariant)
 	if err != nil {
 		return fmt.Errorf("%w: %v", coordinator.ErrDispatchPermanent, err)
 	}
@@ -486,18 +499,13 @@ func (d *Dispatcher) Dispatch(ctx context.Context, params coordinator.DispatchPa
 			envOverrides = append(envOverrides, &runpb.EnvVar{Name: name, Values: &runpb.EnvVar_Value{Value: value}})
 		}
 	}
-	// M-CLOUD-DUAL-AUTH: Inject API key and auth mode marker for apikey mode.
-	// The Cloud Run Job reads ANTHROPIC_API_KEY natively (Claude Code supports it).
+	// The guarded credit lane runs Claude on its task-scoped gateway key, so
 	// AILANG_AUTH_MODE tells the executor to skip OAuth credentials file writing.
-	if params.AuthMode == "apikey" {
+	// (Reached only with CreditAccount set; plain apikey is refused above.)
+	if params.AuthMode == retiredAPIKeyAuthMode {
 		envOverrides = append(envOverrides, &runpb.EnvVar{
 			Name: "AILANG_AUTH_MODE", Values: &runpb.EnvVar_Value{Value: "apikey"},
 		})
-		if params.APIKey != "" {
-			envOverrides = append(envOverrides, &runpb.EnvVar{
-				Name: "ANTHROPIC_API_KEY", Values: &runpb.EnvVar_Value{Value: params.APIKey},
-			})
-		}
 	}
 
 	// Transitional: an older job image reads only AILANG_DIRECTIVE. Sent when it

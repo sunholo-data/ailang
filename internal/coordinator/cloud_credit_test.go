@@ -16,7 +16,6 @@ func TestCloudCreditLaneFailsBeforeAdmission(t *testing.T) {
 		{CreditAccount: "anthropic-api-credits", Provider: "claude", AuthMode: "apikey", Model: "claude-haiku-5-5", MaxCostUSD: 0},
 		{CreditAccount: "anthropic-api-credits", Provider: "claude", AuthMode: "oauth", Model: "claude-haiku-5-5", MaxCostUSD: 2},
 		{CreditAccount: "anthropic-api-credits", Provider: "claude", AuthMode: "apikey", Model: "opus", MaxCostUSD: 2},
-		{CreditAccount: "anthropic-api-credits", Provider: "claude", AuthMode: "apikey", Model: "claude-haiku-5-5", MaxCostUSD: 2, APIKey: "user-key"},
 	} {
 		if err := ValidateCloudCreditLane(p); err == nil {
 			t.Fatalf("accepted incoherent guarded lane: %+v", p)

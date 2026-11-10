@@ -55,11 +55,10 @@ type DispatchParams struct {
 	// declaring 5m/6m/10m, all silently 3m, while `coordinator agents <id>`
 	// printed the declared value as EFFECTIVE. Measured 2026-09-22.
 	IdleTimeout       string
-	AuthMode          string // "oauth" (default) or "apikey" — selects Cloud Run Job template (M-CLOUD-DUAL-AUTH)
+	AuthMode          string // "oauth" (default), or "apikey" for the guarded credit lane only (the *-apikey jobs were retired 2026-11-10)
 	CreditAccount     string // Explicit API-credit lane; never inferred from apikey mode.
 	CreditGatewayURL  string
 	CreditJobIdentity string  // Expected Cloud Run job service-account identity.
-	APIKey            string  // User-provided Anthropic API key, only when AuthMode == "apikey"
 	MaxCostUSD        float64 // Per-task cost budget (0 = unlimited) — M-CLOUD-PROGRESS-TRACKING
 	GitMode           string  // "guardrails", "strict", "permissive" — M-GIT-GUARDRAILS
 	SiteSlug          string  // Website site slug for commit message — M-HARNESS-COMMIT-CONTRACT

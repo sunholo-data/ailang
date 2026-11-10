@@ -32,7 +32,7 @@
 # binaryless managed_agents executor, which needs no image of its own.
 #
 # Deploy: the shared library in ailang-multivac (scripts/cloudbuild-lib.sh,
-# cloned at run time) rolls the 4 core services and all 15 executor jobs. The
+# cloned at run time) rolls the 4 core services and every executor job. The
 # job -> image map lives there, mirroring terraform/cloud_run_jobs.tf; this
 # file does not carry a copy.
 #
@@ -453,7 +453,7 @@ steps:
     waitFor: ['build-resident-pi']
     allowFailure: true
 
-  # ── Deploy: 4 core services + all 15 executor jobs, via the shared library ──
+  # ── Deploy: 4 core services + every executor job, via the shared library ──
   # Waits on every image, optional ones included, so each job is rolled after
   # its image's build attempt (a failed optional build leaves :latest as it was).
   - id: deploy-services

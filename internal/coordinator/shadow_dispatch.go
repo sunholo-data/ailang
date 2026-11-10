@@ -74,8 +74,6 @@ func shadowDispatchParams(primary DispatchParams, childID string, agent *AgentCo
 	p.AutoMergeRequiredChecks = nil
 	p.AutoMergeApproverSecret, p.AutoMergeApproverIdentity = "", ""
 	p.PRLabels, p.MergeStarts = nil, nil
-	// A user-provided key belongs to the user's own task, not to our comparison.
-	p.APIKey = ""
 	p.AuthMode = agent.AuthMode
 	return p
 }

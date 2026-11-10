@@ -8,7 +8,7 @@
 #         tagged SHA (polled up to 40 min; runs in parallel with the builds)
 #     (1) build all 17 images from the tagged source → TEST registry, each
 #         tagged :latest AND :vX.Y.Z — the version names the WHOLE deployment
-#     (2) deploy TEST: the core services + all 15 executor jobs, via the shared
+#     (2) deploy TEST: the core services + every executor job, via the shared
 #         library in ailang-multivac (scripts/cloudbuild-lib.sh, cloned here).
 #         The lib rolls every service in its CORE_SERVICES that EXISTS in test;
 #         the two executor-mcp services are not enabled in test, so for them
@@ -461,7 +461,7 @@ steps:
           /usr/local/bin/test-image.sh
     waitFor: ['build-resident-pi']
 
-  # ── (2) Deploy TEST: core services + all 15 jobs ───────────────────────────
+  # ── (2) Deploy TEST: core services + every executor job ────────────────────
   # :latest was moved to :$TAG_NAME by the builds above, and :latest is what
   # Terraform pins by string — deploying it means the next config-only apply
   # sees no drift. Waits on the CI gate so red code never reaches test.

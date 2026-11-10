@@ -168,7 +168,12 @@ themselves verify every flag in this CLI's mandatory list.
 
 Read-only `gcloud run jobs/services/revisions describe` queries on 2026-10-10:
 
-| Environment | Existing API-key job | Runtime identity | Image |
+> **Retired 2026-11-10:** the `*-apikey` jobs and the `agent-external` service account in the
+> next table were removed with the per-request API-key lane (ailang PR "Retire the per-request
+> API-key lane", ailang-multivac#16). The table is the 2026-10-10 snapshot. The guarded
+> `-claude-credit` jobs are a separate mechanism and are unaffected.
+
+| Environment | Existing API-key job (retired 2026-11-10) | Runtime identity | Image |
 |---|---|---|---|
 | Prod, `ailang-multivac`, `europe-west1` | `ailang-agent-executor-apikey` | `ailang-agent-external@ailang-multivac.iam.gserviceaccount.com` | `europe-west1-docker.pkg.dev/ailang-multivac/ailang/agent@sha256:83dd4c6deec4d5992b84fccbe3f3ebaedea4bba74c7c0f09efdead4291a98468` |
 | Dev, `ailang-multivac-dev`, `europe-west1` | `ailang-dev-agent-executor-apikey` | `ailang-dev-agent-external@ailang-multivac-dev.iam.gserviceaccount.com` | `europe-west1-docker.pkg.dev/ailang-multivac-dev/ailang/agent:latest` |
