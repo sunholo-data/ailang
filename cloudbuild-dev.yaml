@@ -486,6 +486,21 @@ steps:
       - build-agent-motoko
       - build-resident-pi
 
+  # ── Verify: the dashboard API answers its contract on dev (m-dashboard-headless-api).
+  # Status codes only, never a response body. Runs after the roll, so a failure
+  # marks the build red without blocking the deploy that already happened. Dev
+  # serves the docs site's benchmark data, so it must answer /benchmarks/.
+  - id: smoke-dashboard
+    name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -e
+        DASH=$$(gcloud run services describe ${_PREFIX}-dashboard --region ${_REGION} --project $_TARGET_PROJECT --format='value(status.url)')
+        bash scripts/dashboard_smoke.sh "$$DASH" --expect-benchmarks
+    waitFor: ['deploy-services']
+
 # The GitHub connection's own OAuth token, already present in the deploy project
 # (every build here runs there as sa-cloudbuild). Used for the multivac clone and
 # the image builds whose Dockerfiles fetch from GitHub (agent-base, agent-motoko).

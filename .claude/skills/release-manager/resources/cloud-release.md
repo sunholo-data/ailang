@@ -18,7 +18,8 @@ On-demand companion to `SKILL.md` §7.6–7.7. Design:
                 scripts/cloudbuild-lib.sh (cloned at run time; the one copy of the
                 roll / job→image logic, mirroring terraform/cloud_run_jobs.tf).
 (3) smoke gate  MCP serves exactly the tag (GATE 1 — hence std/VERSION must equal
-                it), docs_search answers, coordinator + dashboard /health.
+                it), docs_search answers, coordinator /health, and the dashboard API
+                smoke (scripts/dashboard_smoke.sh: status codes only).
 ```
 
 It **stops there**. The 17 images: coordinator, dashboard, mcp, executor-mcp, ntfy,

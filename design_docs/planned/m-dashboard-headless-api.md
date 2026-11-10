@@ -116,9 +116,15 @@ to a one-step always-pass job with that name. Owner action: remove `UI build gat
 2. **Every kept route has a contract test** (`internal/server/contract_test.go`): method allowed,
    anonymous outcome (public reached / gated 401 with the dashboard realm), credentialed outcome,
    status, and — for reads a CLI or script parses — the JSON keys that client reads.
-3. **Deploy smoke** (`scripts/dashboard_smoke.sh <base-url>`): status codes only, never a
-   response body — `/health` 200, a gated read 401 without a token, `/benchmarks/` reachable,
-   OTLP `/v1/traces` accepts a POST (not 401/404/405), an unrouted path 404, `/` not HTML.
+3. **Deploy smoke** (`scripts/dashboard_smoke.sh <base-url> [--expect-benchmarks]`): status
+   codes only, never a response body — `/health` 200, `/` a `text/plain` banner (not a UI page),
+   `/api/version` 200, a gated read 401 without a token (200 on a loopback URL; 200 with
+   `$AILANG_DASHBOARD_TOKEN` when set), OTLP `/v1/traces` accepts an empty POST, `/benchmarks/`
+   registered and GET-only (and `latest.json` 200 with `--expect-benchmarks`), an unrouted path
+   404. Wired into `cloudbuild-release.yaml` (smoke gate 4/4, against **test**) and
+   `cloudbuild-dev.yaml` (`smoke-dashboard`, after the dev roll, with `--expect-benchmarks`).
+   Prod is promoted from a test-verified build; to check it by hand:
+   `scripts/dashboard_smoke.sh https://dashboard.ailang.sunholo.com`.
 4. **A route is added only with a consumer.** The PR adding it names the client that calls it,
    adds the table row above, classifies it, and adds its contract test.
 
