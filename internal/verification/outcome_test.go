@@ -56,6 +56,12 @@ func TestExitCode_Table(t *testing.T) {
 		{"error", ok(func(t *Tally) { t.Obligations, t.Errors = 1, 1 }), ExitPolicy{}, OutcomeError, 1},
 		{"error outranks inconclusive", ok(func(t *Tally) { t.Obligations, t.Errors, t.Inconclusive = 2, 1, 1 }), allow, OutcomeError, 1},
 		{"counterexample outranks error", ok(func(t *Tally) { t.Obligations, t.Errors, t.Counterexample = 2, 1, 1 }), ExitPolicy{}, OutcomeCounterexample, 1},
+		// ai-check --no-verify: type check only, nothing attempted, so nothing
+		// fails — with or without a solver.
+		{"not requested", Tally{CheckPassed: true, NotRequested: true, Obligations: 2}, ExitPolicy{}, OutcomeNotRequested, 0},
+		{"not requested, solver present", Tally{CheckPassed: true, SolverAvailable: true, NotRequested: true, Obligations: 1}, ExitPolicy{}, OutcomeNotRequested, 0},
+		{"not requested, no obligations", Tally{CheckPassed: true, NotRequested: true}, ExitPolicy{}, OutcomeNoObligations, 0},
+		{"not requested, check failed", Tally{CheckPassed: false, NotRequested: true, Obligations: 1}, ExitPolicy{}, OutcomeNotRun, 1},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {

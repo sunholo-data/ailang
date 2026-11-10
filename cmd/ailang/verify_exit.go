@@ -70,7 +70,8 @@ func writeVerificationNotice(w io.Writer, t verification.Tally, p verification.E
 	case verification.OutcomeUnavailable:
 		writeZ3NotFound(w, fmt.Sprintf("%d contract obligation(s) were not verified (verify.outcome: unavailable)", t.Obligations))
 		return
-	case verification.OutcomeNotRun, verification.OutcomeNoObligations, verification.OutcomeVerified:
+	case verification.OutcomeNotRun, verification.OutcomeNoObligations, verification.OutcomeVerified,
+		verification.OutcomeNotRequested: // --no-verify: the caller asked for no verifier
 		return
 	case verification.OutcomeUnproved:
 		fmt.Fprintf(w, "Error: no contract was proved: %d contract(s) skipped and none verified (verify.outcome: unproved): %s\n",

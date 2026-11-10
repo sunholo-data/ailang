@@ -17,7 +17,7 @@ became a nameless, untyped parameter — on v0.47 `func f(5) -> int = 1` checked
 
 **Breaking:** a parameter written as a literal, a tuple pattern (`(a, b): (int, int)`) or any other
 non-name token no longer parses. For a top-level function this already failed `check` since
-v0.57.x (the IFC error above). A `func(...)` *literal* was not covered by that error: on v0.58.0
+v0.57.x (the IFC error above). A `func(...)` *literal* was not covered by that error: on v0.59.0
 `let g = func(7) -> int { 1 }` checks and `g(3)` returns `1`; it is now `PAR_PARAM_NAME`. Measured:
 no file in `examples/`, `std/`, `benchmarks/` or `tests/` changes its `check` result (725 files);
 the downstream corpora are in the PR. Migration: name the parameter (`x: T`, `_: ()`), and

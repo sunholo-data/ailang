@@ -20,7 +20,7 @@ import std/clock (now)
 import std/crypto (sha256Hex)
 import std/debug (log)
 import std/env (getEnvOr)
-import std/fs (mkdirAllResult, writeFileResult, removeFileResult, removeDirResult)
+import std/fs (mkdirAllResult, readFileResult, writeFileResult, removeFileResult, removeDirResult)
 import std/json (Json, jo, kv, js, jb, jnum, jint, encode, decode, get, getString, getBool, getInt, getArray)
 import std/list (filter, length as listLength)
 import std/option (Option, Some, None)
@@ -163,7 +163,7 @@ pure func checkOutcome(out: ProcessOutput, dir: string) -> [Field] = match decod
       None => 0
     };
     let vout = reportVerifyOutcome(toString(out.stdout));
-    let outcome = if !passed then "check_failed" else if vout == "unavailable" then "ok_unverified" else if out.exitCode != 0 then "verify_failed" else "ok";
+    let outcome = if !passed then "check_failed" else if vout == "not_requested" then "ok_unverified" else if out.exitCode != 0 then "verify_failed" else "ok";
     outcomeFields(outcome, first) ++ [kv("error_count", jint(count)), kv("counterexamples", jint(cex)), kv("verify_outcome", js(vout))]
   }
 }
@@ -173,27 +173,70 @@ pure func checkOutcome(out: ProcessOutput, dir: string) -> [Field] = match decod
 -- a machine the caller does not control.
 pure func noSolverMessage() -> string = "contract verification is not available on this hosted tool; type checking passed"
 
--- ailang_check's result. The Stable envelope {ok, exit_code, stdout, stderr,
--- truncated} plus two ADDITIVE fields:
---   verification          the report's verify.outcome ("verified", "partial",
---                         "unproved", "counterexample", "unavailable", ...;
---                         "unknown" when stdout carries no report)
+-- The `verification` value for a report: the report's verify.outcome, except
+-- that a type check run without the verifier (`not_requested`: this host has
+-- no solver) is "unavailable", and a missing report is "unknown".
+pure func verificationOf(outcome: string) -> string =
+  if outcome == "not_requested" then "unavailable" else if outcome == "" then "unknown" else outcome
+
+-- ailang_check's result: the Stable envelope {ok, exit_code, stdout, stderr,
+-- truncated}, every field with its old meaning (ok is exit_code == 0, and
+-- exit_code is the real status of the command that ran), plus two ADDITIVE
+-- fields:
+--   verification          "verified", "partial", "unproved", "counterexample",
+--                         "inconclusive", "error", "no_obligations",
+--                         "not_run" (type check failed), "unavailable" (this
+--                         host has no solver; see ailangCheck), "unknown"
 --   verification_message  only when verification is "unavailable"
--- When the solver is unavailable and the program type-checks, the verdict is
--- the type check's, as it was before ai-check failed that case: ok stays true,
--- exit_code stays ai-check's real status (1), and stderr carries the remote
--- message instead of local install advice. Like every exec result, it never
--- names the per-request directory (scrubDir).
+-- Like every exec result, it never names the per-request directory (scrubDir).
 pure func checkResultJson(out: ProcessOutput, dir: string) -> Json {
   let stdout = scrubDir(toString(out.stdout), dir);
-  let outcome = reportVerifyOutcome(stdout);
-  let unverified = outcome == "unavailable";
-  let localAdvice = \l. startsWith(l, "Error: Z3 solver not found") || startsWith(l, "Install Z3");
-  let rawErr = scrubDir(toString(out.stderr), dir);
-  let stderr = if unverified then concat([join("\n", filter(\l. !localAdvice(l), split(rawErr, "\n"))), noSolverMessage(), "\n"]) else rawErr;
-  let base = [kv("ok", jb(out.exitCode == 0 || unverified)), kv("exit_code", jnum(intToFloat(out.exitCode))), kv("stdout", js(stdout)), kv("stderr", js(stderr)), kv("truncated", jb(out.truncated)), kv("verification", js(if outcome == "" then "unknown" else outcome))];
-  jo(if unverified then base ++ [kv("verification_message", js(noSolverMessage()))] else base)
+  let verification = verificationOf(reportVerifyOutcome(stdout));
+  let base = [kv("ok", jb(out.exitCode == 0)), kv("exit_code", jnum(intToFloat(out.exitCode))), kv("stdout", js(stdout)), kv("stderr", js(scrubDir(toString(out.stderr), dir))), kv("truncated", jb(out.truncated)), kv("verification", js(verification))];
+  jo(if verification == "unavailable" then base ++ [kv("verification_message", js(noSolverMessage()))] else base)
 }
+
+-- A program with no contracts, used only to ask the ailang binary whether it
+-- can find a solver.
+pure func probeProgram() -> string = "module main\nexport pure func probe(x: int) -> int = x\n"
+
+-- Whether this host can run the solver. Decided by the ailang binary itself
+-- (`ai-check --no-verify` reports verify.available from the CLI's own Z3
+-- resolution: AILANG_Z3_PATH, then PATH and the usual install paths) on a
+-- fixed contract-free probe — never on the caller's code, and never by
+-- running a verification and retrying. The answer is cached in the work root,
+-- keyed by the binary and the two variables the resolution reads, so it is
+-- probed once per host configuration: an image that later ships z3 starts
+-- verifying with no code change. A probe that cannot run is not cached.
+func solverAvailable() -> bool ! {Env, FS, Process, Rand} {
+  let key = substring(sha256Hex(concat([ailangBin(), "|", getEnvOr("AILANG_Z3_PATH", ""), "|", getEnvOr("PATH", "")])), 0, 12);
+  let cache = "${workRoot()}/.solver-available-${key}";
+  match readFileResult(cache) {
+    Ok(s) => trim(s) == "yes",
+    Err(_) => match probeSolver() {
+      Some(found) => {
+        let _ = mkdirAllResult(workRoot());
+        let _ = writeFileResult(cache, if found then "yes" else "no");
+        found
+      },
+      None => false
+    }
+  }
+}
+
+func probeSolver() -> Option[bool] ! {Env, FS, Process, Rand} =
+  match withRequestFile(probeProgram(), \dir. execAilang(["ai-check", "-relax-modules", "--no-verify", "${dir}/main.ail"], \_. [])) {
+    (j, _) => match getString(j, "stdout") {
+      Some(s) => match decode(s) {
+        Ok(r) => match get(r, "verify") {
+          Some(v) => getBool(v, "available"),
+          None => None
+        },
+        Err(_) => None
+      },
+      None => None
+    }
+  }
 
 -- Run `ailang <args>`, returning the tool result and its log fields.
 func execAilang(args: [string], classify: ProcessOutput -> [Field]) -> (Json, [Field]) ! {Env, Process} =
@@ -277,7 +320,10 @@ export func ailangPrompt() -> Json ! {Clock, Debug, Env, Process} {
 @mcp_hints("readOnly", "idempotent")
 export func ailangCheck(code: string) -> Json ! {Clock, Debug, Env, FS, Process, Rand} {
   let t0 = now();
-  logged("ailang_check", t0, codeFields(code), withRequestFile(code, \dir. execAilangWith(["ai-check", "-relax-modules", "${dir}/main.ail"], \out. checkResultJson(out, dir), \out. checkOutcome(out, dir))))
+  -- Without a solver, ask for the type check only, so a program that
+  -- type-checks really exits 0 (no exit code is ever rewritten).
+  let mode = if solverAvailable() then [] else ["--no-verify"];
+  logged("ailang_check", t0, codeFields(code), withRequestFile(code, \dir. execAilangWith(["ai-check", "-relax-modules"] ++ mode ++ ["${dir}/main.ail"], \out. checkResultJson(out, dir), \out. checkOutcome(out, dir))))
 }
 
 -- Run AILANG source in the hosted sandbox. Entry point is `main`, with no

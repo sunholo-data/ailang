@@ -362,6 +362,45 @@ func TestVerifyExit_HumanVerifyWithoutSolver(t *testing.T) {
 	}
 }
 
+// TestVerifyExit_AICheckNoVerify: `ai-check --no-verify` is the type check
+// alone (the hosted ailang_check tool uses it when its host has no solver). A
+// program that type-checks exits 0 whatever its contracts and whether or not
+// a solver exists; the report says not_requested and still counts the
+// obligations; a type error still fails; --strict / --allow-inconclusive with
+// it would do nothing and are refused. Red mutation: ignore the flag — the
+// contracted file exits 1 as "unavailable".
+func TestVerifyExit_AICheckNoVerify(t *testing.T) {
+	requireShForFakeSolver(t)
+	bin := buildAilang(t)
+	for _, solver := range []string{"missing", "unsat"} {
+		t.Setenv("AILANG_Z3_PATH", fakeSolver(t, solver, solver, 0))
+		for _, c := range []struct {
+			fixture, outcome string
+			code             int
+			obligations      float64
+		}{
+			{"half.ail", "not_requested", 0, 1},
+			{"nocontracts.ail", "no_obligations", 0, 0},
+			{"requiresonly.ail", "no_obligations", 0, 0},
+			{"typeerror.ail", "not_run", 1, 0},
+		} {
+			stdout, stderr, code := runAilangBin(t, bin, "ai-check", "--no-verify", verifyExitFixtures+c.fixture)
+			v, err := nestedVerify(stdout)
+			if err != nil || code != c.code || v["outcome"] != c.outcome || v["obligations"] != c.obligations {
+				t.Fatalf("solver=%s %s: exit %d, verify %v (err %v); want exit %d, %s, %v obligations\nstderr:\n%s",
+					solver, c.fixture, code, v, err, c.code, c.outcome, c.obligations, stderr)
+			}
+			if v["available"] != (solver != "missing") {
+				t.Fatalf("solver=%s: available = %v; it must still say whether a solver was found", solver, v["available"])
+			}
+		}
+	}
+	_, stderr, code := runAilangBin(t, bin, "ai-check", "--no-verify", "--strict", verifyExitFixtures+"half.ail")
+	if code != 2 || !strings.Contains(stderr, "--no-verify runs no verifier") {
+		t.Fatalf("--no-verify --strict: exit %d, stderr %q; want a refusal", code, stderr)
+	}
+}
+
 // TestVerifyExit_StrictNeedsVerify: `check --strict` alone would silently do
 // nothing, so it is refused.
 func TestVerifyExit_StrictNeedsVerify(t *testing.T) {

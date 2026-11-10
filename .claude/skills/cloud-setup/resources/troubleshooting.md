@@ -57,8 +57,8 @@ set it to Full.
 
 ## `ailang ai-check` exits 1 with `"outcome": "unavailable"`
 
-z3 is missing and the file has contracts, so nothing was proved. (Up to v0.58.0 this case
-passed silently.) `apt-get install -y z3` (`setup.sh` does this).
+z3 is missing and the file has contracts, so nothing was proved. (Releases up to v0.59.0 let this case pass
+silently.) `apt-get install -y z3` (`setup.sh` does this).
 
 ## The Stop hook pushed / rebased `dev`
 

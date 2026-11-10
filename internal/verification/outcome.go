@@ -21,6 +21,7 @@ package verification
 //	skipped only, NOTHING verified                -> 1  unproved
 //	at least one verified + at least one skipped  -> 0  partial       (1 with Strict)
 //	all obligations verified                      -> 0  verified
+//	type check only (ai-check --no-verify)        -> 0  not_requested (no_obligations when none)
 //
 // An OBLIGATION is a function with at least one `ensures` clause: something
 // the verifier is asked to prove about that function. A `requires`-only
@@ -52,6 +53,10 @@ const (
 	OutcomeCounterexample Outcome = "counterexample"
 	OutcomeError          Outcome = "error"
 	OutcomeUnavailable    Outcome = "unavailable"
+	// OutcomeNotRequested: the caller asked for the type check only
+	// (`ai-check --no-verify`) and the file has obligations. Nothing was
+	// attempted, so nothing failed; the obligations are counted and reported.
+	OutcomeNotRequested Outcome = "not_requested"
 )
 
 // Tally is what a verification run measured, over OBLIGATIONS only (functions
@@ -61,12 +66,15 @@ const (
 type Tally struct {
 	CheckPassed     bool
 	SolverAvailable bool
-	Obligations     int
-	Verified        int
-	Counterexample  int
-	Inconclusive    int
-	Skipped         int
-	Errors          int
+	// NotRequested: verification was deliberately not asked for (type check
+	// only); only Obligations is meaningful.
+	NotRequested   bool
+	Obligations    int
+	Verified       int
+	Counterexample int
+	Inconclusive   int
+	Skipped        int
+	Errors         int
 }
 
 // ExitPolicy holds the two flags that move a lane: Strict fails a partial
@@ -82,6 +90,10 @@ func Classify(t Tally) Outcome {
 	switch {
 	case !t.CheckPassed:
 		return OutcomeNotRun
+	case t.NotRequested && t.Obligations > 0:
+		return OutcomeNotRequested
+	case t.NotRequested:
+		return OutcomeNoObligations
 	case !t.SolverAvailable && t.Obligations > 0:
 		return OutcomeUnavailable
 	case t.Counterexample > 0:
@@ -104,7 +116,7 @@ func Classify(t Tally) Outcome {
 // ExitCode is the process exit status every verification command returns.
 func ExitCode(t Tally, p ExitPolicy) int {
 	switch Classify(t) {
-	case OutcomeNoObligations, OutcomeVerified:
+	case OutcomeNoObligations, OutcomeVerified, OutcomeNotRequested:
 		return 0
 	case OutcomePartial:
 		if p.Strict {

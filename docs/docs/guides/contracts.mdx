@@ -70,6 +70,13 @@ is enabled. A static result is separate evidence; it does not establish that a
 runtime assertion or a generated property test ran. Checked APIs should guard
 bad inputs in ordinary execution rather than rely on that opt-in flag.
 
+**A `requires` clause is an unchecked assumption by default.** The verifier
+assumes a function's precondition while proving that function's `ensures`, and
+it never checks the precondition where the function is called. `ailang run`
+does not check it either unless `--verify-contracts` is given. So a `VERIFIED`
+result means "the `ensures` holds whenever the `requires` holds", and nothing
+stops a caller from passing an argument that breaks the `requires`.
+
 The verifier encodes floats as SMT `Real` and integers as `Int`. Its results do
 not establish IEEE-754 rounding, NaN/infinity behavior, machine-overflow safety or
 cross-architecture byte equality. Bounded recursion results carry their actual
@@ -264,6 +271,7 @@ or without Z3, and passes `--strict`.
 | Any counterexample | 1 | `counterexample` |
 | Any solver error, `unknown` or timeout | 1 | `error` |
 | Obligations exist but Z3 is not found | 1, stderr names where it looked | `unavailable` |
+| `ai-check --no-verify`: type check only, verifier not run | 0 when it type-checks | `not_requested` (`no_obligations` when there are none) |
 
 `obligations` counts the functions with an `ensures` clause and is reported
 even when Z3 is missing. `available` means "the solver was found". The legacy

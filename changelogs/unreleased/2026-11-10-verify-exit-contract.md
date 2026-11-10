@@ -35,6 +35,14 @@ What you will now see:
   `cross_module_functions_lib.ail` documents `--allow-inconclusive`.
 - A contract on a function that matches on list patterns is a skip on every spelling (`ai-check`
   used to call it a verifier error, `verify` a skip).
+- **LOOSER than the previous release in one case.** A file with at least one verified obligation
+  and at least one skipped one (for example a list-pattern contract next to a proved one) used to
+  exit 1 on `check --verify` / `ai-check`, because the list-pattern skip counted as a verifier
+  error. It now exits 0 as `partial`: the skipped functions are listed on stderr and by name in
+  `results`, and `--strict` fails it. Every other change in this entry is stricter or equal.
+- `ai-check --no-verify` (new) type-checks only: the verifier does not run, a program that
+  type-checks exits 0, and the report says `outcome: not_requested` (or `no_obligations`) and
+  still counts `obligations` and reports `available`.
 - `verify` on a contract-free file without Z3 exits 0 (it refused up front).
 - `available` always means "the solver was found", including on a failed check.
 - Each command checks one file: `check --verify a.ail b.ail` used to verify `a.ail` and never look
@@ -61,12 +69,22 @@ solution has a contract on a list-pattern function: those rows banked `verify_er
 `verify_ok` means "no violation found", and now also requires `check.passed`). Verified-success
 (`isVerifiedSuccess`) is unaffected, since it already requires `skipped == 0`.
 
-**Operational consequence, hosted `ailang_check`:** `docker/Dockerfile.executor-mcp` is
-`distroless/static` with no z3, so `ai-check` there now exits 1 on contracted code. The tool
-(`executor_tools/executor.ail`) handles that case explicitly: `ok` stays the type-check verdict,
-`exit_code` stays ai-check's real status, two additive fields say what happened —
-`verification` (the report's `verify.outcome`, on every `ailang_check` response) and
+**What `VERIFIED` does not mean.** A `requires` clause is an unchecked assumption by default: the
+verifier assumes it while proving the function's own `ensures` and never checks it at call sites,
+and `ailang run` checks it only with `--verify-contracts`. A `requires`-only function is therefore
+not an obligation. (The other known gap: the verifier models `int` as unbounded while the runtime
+wraps on overflow; it is decision D5 of M-V1-VERIFICATION-HONESTY, not changed here.)
+
+**Hosted `ailang_check`:** a host without z3 (the executor image had none until it moved to `distroless/cc-debian12` with z3 in a separate change) would have failed every contracted program.
+The tool (`executor_tools/executor.ail`) now finds out whether its host has a solver by asking the
+ailang binary once (`ai-check --no-verify` on a fixed contract-free probe reports `available`
+from the CLI's own Z3 resolution), caches the answer in its work root keyed by the binary,
+`AILANG_Z3_PATH` and `PATH`, and with no solver runs `ai-check --no-verify` on the caller's code.
+So a program that type-checks really exits 0: `ok` is still `exit_code == 0` and `exit_code` is the
+real status. Two fields are added to the envelope (`{ok, exit_code, stdout, stderr, truncated}`
+before; the same five plus these after, none changed): `verification` on every `ailang_check`
+response (the report's `verify.outcome`, or `unavailable` when the host has no solver) and
 `verification_message` ("contract verification is not available on this hosted tool; type
-checking passed", only when `verification` is `unavailable`) — stderr carries that message
-instead of local install advice, and the call is logged as `ok_unverified` (a failed verification
-is logged `verify_failed`; both were logged `ok`). Adding z3 to that image is a follow-up.
+checking passed", only when `verification` is `unavailable`). The call is logged `ok_unverified`
+in that case and `verify_failed` when verification fails (both were logged `ok`). An image that
+ships z3 verifies, and one that loses it degrades to the type check, with no code change.

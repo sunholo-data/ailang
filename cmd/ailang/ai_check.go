@@ -73,8 +73,13 @@ func aiCheckCommand() {
 	relaxModulesFlag := fs.Bool("relax-modules", false, "Relax MOD010 validation (allow module path mismatches with warning)")
 	strictFlag := fs.Bool("strict", false, strictFlagHelp)
 	allowInconclusiveFlag := fs.Bool("allow-inconclusive", false, allowInconclusiveFlagHelp)
+	noVerifyFlag := fs.Bool("no-verify", false, noVerifyFlagHelp)
 
 	parseInterspersed(fs, os.Args[2:])
+	if *noVerifyFlag && (*strictFlag || *allowInconclusiveFlag) {
+		fmt.Fprintf(os.Stderr, "%s: --no-verify runs no verifier, so --strict and --allow-inconclusive would do nothing\n", red("Error"))
+		os.Exit(2)
+	}
 	file := verificationFileArg(fs, "ai-check")
 
 	if file == "" {
@@ -90,12 +95,18 @@ func aiCheckCommand() {
 		fmt.Println("  --relax-modules           Relax MOD010 validation")
 		fmt.Println("  --strict                  " + strictFlagHelp)
 		fmt.Println("  --allow-inconclusive      " + allowInconclusiveFlagHelp)
+		fmt.Println("  --no-verify               " + noVerifyFlagHelp)
 		os.Exit(1)
 	}
 
 	runAICheckReport(file, *timeoutFlag, *recursiveDepthFlag, *relaxModulesFlag,
-		verification.ExitPolicy{Strict: *strictFlag, AllowInconclusive: *allowInconclusiveFlag})
+		verification.ExitPolicy{Strict: *strictFlag, AllowInconclusive: *allowInconclusiveFlag}, *noVerifyFlag)
 }
+
+// noVerifyFlagHelp: the hosted ailang_check tool uses --no-verify when its
+// host has no solver, so a program that type-checks genuinely exits 0 there
+// instead of failing the `unavailable` lane (Mark's ruling on #2222).
+const noVerifyFlagHelp = "Type-check only: do not run the verifier (verify.outcome is not_requested, or no_obligations, and obligations are still counted)"
 
 // The two flags that move a lane of the shared exit contract
 // (verification.ExitCode). Every verification command offers both.
@@ -117,8 +128,9 @@ const (
 // extracting it would have re-created exactly that.
 //
 // It prints the JSON, then the stderr notice, then exits with
-// verification.ExitCode of the numbers it just printed.
-func runAICheckReport(filename string, timeout time.Duration, recursiveDepth int, relaxModules bool, policy verification.ExitPolicy) {
+// verification.ExitCode of the numbers it just printed. noVerify (ai-check
+// --no-verify) asks for the type check only.
+func runAICheckReport(filename string, timeout time.Duration, recursiveDepth int, relaxModules bool, policy verification.ExitPolicy, noVerify bool) {
 	// Suppress warnings so they don't pollute JSON output
 	os.Setenv("AILANG_QUIET_WARNINGS", "1")
 
@@ -174,8 +186,22 @@ func runAICheckReport(filename string, timeout time.Duration, recursiveDepth int
 		checkSection.Errors = jsonErrors
 	}
 
-	verifySection := buildAIVerifySection(checkSection.Passed, result, timeout, recursiveDepth, smt.Z3Available())
-	tally := verifySection.tally(checkSection.Passed)
+	var verifySection aiVerifySection
+	var tally verification.Tally
+	if noVerify {
+		// Type check only, by request: the verifier is not run, so nothing
+		// can fail it. The obligations are still counted and reported, and
+		// `available` still says whether a solver was found.
+		verifySection = aiVerifySection{Available: smt.Z3Available(), Results: []smt.VerifyResult{}}
+		if checkSection.Passed {
+			verifySection.Obligations = smt.CountObligations(result.Artifacts.Core)
+		}
+		tally = verification.Tally{CheckPassed: checkSection.Passed, SolverAvailable: verifySection.Available,
+			NotRequested: true, Obligations: verifySection.Obligations}
+	} else {
+		verifySection = buildAIVerifySection(checkSection.Passed, result, timeout, recursiveDepth, smt.Z3Available())
+		tally = verifySection.tally(checkSection.Passed)
+	}
 	verifySection.Outcome = verification.Classify(tally)
 
 	// The JSON is ALWAYS emitted before the exit decision: `ai-check` is an AI

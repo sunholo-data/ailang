@@ -433,9 +433,10 @@ For a **Stable** tool, the promise covers:
 - the top-level response envelope. Version-scoped docs tools return `{served_for, data}` or
   `{error, detail}`. Executor tools return `{ok, exit_code, stdout, stderr, truncated}` or
   `{ok: false, error, message}`. `ailang_check` adds two
-  fields to that envelope: `verification` (the report's `verify.outcome`) and, only when it is
-  `unavailable` (the host has no solver), `verification_message`. In that case `ok` is the type-check
-  verdict and `exit_code` stays ai-check's status.
+  fields to that envelope: `verification` (the verification result: the report's `verify.outcome`,
+  or `unavailable` when the host has no solver and ran the type check only) and, only when it is
+  `unavailable`, `verification_message`. `ok` is still `exit_code == 0`, and `exit_code` is still the
+  real status of the command the tool ran.
 
 The *content* inside a response, such as prompt text, docs pages or stdlib listings, changes with
 every release by design. The **hosted URL is part of the promise:** the production OAuth endpoint

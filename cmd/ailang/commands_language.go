@@ -439,7 +439,7 @@ func runCheckCommand(args []string) error {
 			os.Exit(1)
 		}
 		runAICheckReport(file, *verifyTimeoutCheck, *verifyDepthCheck, *relaxModulesCheck,
-			verification.ExitPolicy{Strict: *verifyStrictCheck, AllowInconclusive: *allowInconclusiveCheck})
+			verification.ExitPolicy{Strict: *verifyStrictCheck, AllowInconclusive: *allowInconclusiveCheck}, false)
 		return nil
 	}
 
