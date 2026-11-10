@@ -242,7 +242,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		defaultedType = tc.closeDeclaredEffectRowForBinding(let.Value.ID(), defaultedType)
 		defaultedType = ctx.closeOpenedTailsForGeneralization(sub, defaultedType, ctx.env, ctx.baseEnv) // #1958
 
-		binding = tc.generalizeWithConstraints(defaultedType, valueEffects, nonGroundConstraints, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints))
+		binding = tc.generalizeWithConstraints(defaultedType, valueEffects, nonGroundConstraints, sub, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints))
 	} else {
 		binding = defaultedType
 	}
@@ -407,7 +407,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		// the recursive bindings' own fresh vars live only in newEnv, so they
 		// remain generalizable, while any enclosing lambda params (free in
 		// oldEnv but not in the decl's base env) are correctly withheld.
-		scheme := tc.generalizeWithConstraints(valueType, getEffectRow(valueNode), nonGroundConstraints, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, letrec, nonGroundConstraints))
+		scheme := tc.generalizeWithConstraints(valueType, getEffectRow(valueNode), nonGroundConstraints, reSub, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, letrec, nonGroundConstraints))
 
 		typedBindings[i] = typedast.TypedRecBinding{
 			Name:   binding.Name,
@@ -479,10 +479,13 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 // in a binding pushed above baseEnv by this declaration. Without it a parameter
 // typed with the declaration's own `a` was generalized whenever a leaked `a`
 // also sat in the base env, re-opening exactly the ANF `[b]` hole above.
-func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, constraints []ClassConstraint, currentEnv *TypeEnv, baseEnvFreeVars map[string]bool, baseEnv *TypeEnv, literalWithhold map[string]bool) *Scheme {
-	// Find free type variables in the type being generalized.
-	typeFreeVars := make(map[string]bool)
-	collectFreeVars(typ, typeFreeVars)
+func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, constraints []ClassConstraint, sub Substitution, currentEnv *TypeEnv, baseEnvFreeVars map[string]bool, baseEnv *TypeEnv, literalWithhold map[string]bool) *Scheme {
+	// Find free type variables in the type being generalized, in first-appearance
+	// order. M-V1-TYVAR-HYGIENE (#2157): this walk descends into open records and
+	// record rows, and its order is deterministic (the old map range fed
+	// Instantiate a different order every run, #2076). The environment side below
+	// is built from the same traversal (free_vars.go).
+	typeFreeVars, typeFreeRecordRows := generalizableVars(typ)
 
 	// Compute the vars introduced by binders inside this declaration:
 	// free in the current env but NOT in the declaration's base env.
@@ -499,20 +502,6 @@ func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, con
 		}
 	}
 
-	generalizedTypeVars := []string{}
-	for v := range typeFreeVars {
-		if literalWithhold[v] {
-			// Constrained by an integer literal (see literalWithhold) —
-			// stays monomorphic so its use sites decide the literal's type.
-			continue
-		}
-		if withhold[v] {
-			// Bound by an enclosing binder in this decl — not generalizable.
-			continue
-		}
-		generalizedTypeVars = append(generalizedTypeVars, v)
-	}
-
 	// M-EFFECT-ROW-SHOW-INTERP (#386) Section B: generalize every free EffectRow
 	// variable of the WHOLE type (outer + nested callback effect rows, rows
 	// nested in collections/tuples/records/ADTs) that is NOT free in the
@@ -521,15 +510,50 @@ func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, con
 	// mapE-shaped scheme left its callback/outer row var `e` unquantified, so
 	// Scheme.InstantiateWithConstraints could not freshen it and separate
 	// imported uses shared one row identity — the second half of #386.
-	typeFreeRowVars := freeEffectRowVarsInType(typ)
 	var envFreeRowVars map[string]bool
 	if currentEnv != nil {
 		envFreeRowVars = currentEnv.effectRowsAbove(baseEnv)
 	}
+	// Record rows owned by an enclosing binder (the tail of a `{name: a, ...}`
+	// parameter) are withheld like type variables (PR #2209 review).
+	recordRowWithhold := currentEnv.recordRowsToWithhold(baseEnv)
+
+	// The side condition is "not free in the SUBSTITUTED environment". The
+	// environment still holds a lambda parameter as its unsolved variable α
+	// while sub already says α ↦ {name: β | r}; β and r belong to the parameter
+	// just as much as α does. Without this, `\p. let g = \u. {name: p.name} in …`
+	// generalised β and let g's result be used at two field types (PR #2209
+	// review; the closed-record form predates that PR).
+	ownedUnderSub := varsUnderSubstitution(sub, withhold, envFreeRowVars, recordRowWithhold)
+
+	generalizedTypeVars := []string{}
+	for _, v := range typeFreeVars {
+		if literalWithhold[v] {
+			// Constrained by an integer literal (see literalWithhold) —
+			// stays monomorphic so its use sites decide the literal's type.
+			continue
+		}
+		if withhold[v] || ownedUnderSub[v] {
+			// Bound by an enclosing binder in this decl — not generalizable.
+			continue
+		}
+		generalizedTypeVars = append(generalizedTypeVars, v)
+	}
+
 	generalizedRowVars := []string{}
-	for v := range typeFreeRowVars {
-		if envFreeRowVars[v] {
+	for v := range freeEffectRowVarsInType(typ) {
+		if envFreeRowVars[v] || ownedUnderSub[v] {
 			// Free in the environment (owned by an enclosing binder) — withhold.
+			continue
+		}
+		generalizedRowVars = append(generalizedRowVars, v)
+	}
+	// M-V1-TYVAR-HYGIENE (#2157): record rows (field-access shims, `{f: t | r}`
+	// annotations) are generalised by the same side condition. Unquantified, one
+	// declaration's row was shared by every use of its scheme, and across a module
+	// boundary it met the importer's variables of the same name.
+	for _, v := range typeFreeRecordRows {
+		if withhold[v] || envFreeRowVars[v] || recordRowWithhold[v] || ownedUnderSub[v] {
 			continue
 		}
 		generalizedRowVars = append(generalizedRowVars, v)
