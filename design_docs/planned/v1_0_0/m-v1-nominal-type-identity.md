@@ -645,7 +645,19 @@ spelling imported it; the file compiles and evaluates once.
 > vendored copies — distinct files — stay distinct packages). Without a resolver that can describe package
 > layouts, or outside any package, the pre-scoping rule applies unchanged.
 >
-> *Measured after round 2* (baseline = `origin/dev`, candidate = this branch): __C2__
+> *Measured after round 2* (baseline = `origin/dev`, candidate = this branch): import-edge census (a scratch instrument running the pipeline over
+> every file of the seven downstream corpus copies and every cached registry package version, read-only):
+> **5,730 files, 14,474 distinct import edges, 0 resolved to a different file, 0 verdicts flipped, and 0 real
+> imports hit any new error (LDR003 0, LDR005 0, LDR006 0, case 0, LDR001-in-scope 0)**. One real import
+> hits the LDR006 *warning*: `sunholo/motoko_ext_scratchpad` → `src/core/env_client` (motoko-fork, reached
+> by 91 entry files). As an error it had flipped 69 motoko-fork entries — the reason it is a warning. The
+> first round-2 candidate also renamed a motoko-fork test fixture that declares itself by its path
+> (`module stub_step`), which `make downstream-check` caught as one NEWLY_FAILING MOD010; the rule above was
+> narrowed and the gate then reported **0 NEWLY_FAILING in every corpus** (exit 3 only from the write
+> audit's false positive: another session was writing a log under the motoko checkout during the run).
+> `internal-dump-iface` over the cached registry 0 differ; `examples/` + `std/` 0 flips, 0 text changes;
+> `verify-stdlib` 49/49; `cacheKeyVersion` v10. Mutation: 20 new mutants over the scoped resolution (incl.
+> the reviewer's M2/M3), all killed.
 >
 > **What M2 can now assume** — each a property the build enforces, not a convention.
 > (1) **One identity per file per build.** Every file the loader reads has exactly one module ID and every ID
