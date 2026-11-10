@@ -73,8 +73,7 @@ func runParity(t *testing.T, golden string, cases []parityCase) {
 			res, err := pc.call(context.Background(), c)
 			out := wiregolden.Outcome{Requests: srv.Exchanges()}
 			if err != nil {
-				host := strings.TrimPrefix(srv.URL, "http://")
-				out.Error = strings.ReplaceAll(err.Error(), host, "SERVER")
+				out.Error = wiregolden.ErrorText(err, srv.URL)
 				out.ErrorCode = ai.ClassifyError(err).Code
 			} else {
 				out.Result = res

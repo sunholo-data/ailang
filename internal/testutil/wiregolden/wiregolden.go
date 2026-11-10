@@ -144,6 +144,19 @@ func normalizeHeader(h http.Header) map[string]string {
 	return out
 }
 
+// windowsRefused is how Windows words the dial error Unix spells
+// "connect: connection refused".
+const windowsRefused = "connectex: No connection could be made because the target machine actively refused it."
+
+// ErrorText is err's text with the server's host:port replaced by SERVER and
+// the operating system's wording of a refused connection made portable, so
+// one golden holds on every OS and port. Everything else is kept verbatim:
+// callers classify errors by their text.
+func ErrorText(err error, serverURL string) string {
+	s := strings.ReplaceAll(err.Error(), strings.TrimPrefix(serverURL, "http://"), "SERVER")
+	return strings.ReplaceAll(s, windowsRefused, "connect: connection refused")
+}
+
 // Check compares got with the golden file at path (relative to the test's
 // package directory), or rewrites it under -update-wire-goldens.
 func Check(t *testing.T, path string, got map[string]Outcome) {

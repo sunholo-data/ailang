@@ -53,7 +53,7 @@ func TestOllamaEmbedderWireParity(t *testing.T) {
 			v, err := e.Embed(c.text)
 			out := wiregolden.Outcome{Requests: srv.Exchanges()}
 			if err != nil {
-				out.Error = strings.ReplaceAll(err.Error(), strings.TrimPrefix(srv.URL, "http://"), "SERVER")
+				out.Error = wiregolden.ErrorText(err, srv.URL)
 			} else {
 				out.Result = v
 			}

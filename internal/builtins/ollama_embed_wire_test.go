@@ -1,7 +1,6 @@
 package builtins
 
 import (
-	"strings"
 	"testing"
 	"time"
 
@@ -55,7 +54,7 @@ func TestOllamaEmbedWireParity(t *testing.T) {
 			v, err := ollamaEmbedRequest("_ollama_embed", "nomic-embed-text", c.input, 10*time.Second)
 			out := wiregolden.Outcome{Requests: srv.Exchanges()}
 			if err != nil {
-				out.Error = strings.ReplaceAll(err.Error(), strings.TrimPrefix(srv.URL, "http://"), "SERVER")
+				out.Error = wiregolden.ErrorText(err, srv.URL)
 			} else {
 				var floats []float64
 				for _, e := range v.(*eval.ListValue).Elements {
