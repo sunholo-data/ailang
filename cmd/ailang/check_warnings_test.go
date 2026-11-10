@@ -106,9 +106,10 @@ func TestCheckMachineOutputsCarryWarnings(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("check --format agent exit %d\nstdout: %s\nstderr: %s", code, stdout, stderr)
 	}
-	lines := strings.Split(strings.TrimSpace(stdout), "\n")
+	// Paths print with the OS separator; compare slash-normalised.
+	lines := strings.Split(strings.TrimSpace(strings.ReplaceAll(stdout, "\r\n", "\n")), "\n")
 	want := "warn: " + file + ":5:36 ELB004: non-exhaustive match — missing pattern: _"
-	if len(lines) != 2 || lines[0] != "ok: "+src || !strings.HasPrefix(lines[1], want) {
-		t.Errorf("agent output:\n%s\nwant `ok: %s` then a line starting %q", stdout, src, want)
+	if len(lines) != 2 || filepath.ToSlash(lines[0]) != "ok: "+file || !strings.HasPrefix(filepath.ToSlash(lines[1]), want) {
+		t.Errorf("agent output:\n%s\nwant `ok: %s` then a line starting %q", stdout, file, want)
 	}
 }
