@@ -222,6 +222,7 @@ export func ailangPrompt() -> Json ! {Clock, Debug, Env, Process} {
 -- check.passed and check.errors (with locations and fixes), and verify: each
 -- function's requires/ensures proved with Z3 (verify.results: verified,
 -- counterexample with a witness, or inconclusive after 5s per function).
+-- Only `pure` functions (or `! {}`) are proved; others report skipped/NOT_PURE.
 @route("POST", "/api/executor/ailang_check")
 @mcp_name("ailang_check")
 @mcp_title("Check AILANG code")

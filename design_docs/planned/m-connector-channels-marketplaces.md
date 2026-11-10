@@ -275,7 +275,7 @@ refused (`expected int`) until it reconnects.
 | Executor (prod) | all | ⏳ `ailang-executor` added to local config; needs a session restart | — |
 
 **Executor fix tickets from P0** (all on `dev` in `8fd2cbca9`; prod with the next release + image-tag bump):
-(E1) `ailang_check` no longer promises Z3; adding Z3 needs a non-static base image, deferred.
+(E1) **z3 in the image** (`6a6f4b9e6`, base `distroless/cc-debian12`, pin `tools/ci/install_z3.sh`); live on the dev executor 2026-11-10: `verify.available: true`, `double` verified in 0.3 s, `wrong` counterexample `x = 0`.
 (E2) `stdout`/`stderr` scrubbed of the request directory (`scrubDir`); `smoke.sh` checks it and fails on the
 old code. (E3) `docs_search` returns path, title, 10 headings and an ~800-character excerpt, docs before
 `prompts/v*.md`: ~30 KB → 3–11 KB per search.
