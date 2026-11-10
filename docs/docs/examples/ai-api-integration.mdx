@@ -85,21 +85,25 @@ AILANG provides a type-safe JSON ADT for constructing JSON payloads:
 type Json =
   | JNull                                      -- null
   | JBool(bool)                                -- true/false
-  | JNumber(float)                             -- 42.0, 3.14
+  | JNumber(float)                             -- 3.14, 1e3, 42.0
   | JString(string)                            -- "hello"
   | JArray(List[Json])                         -- [1, 2, 3]
   | JObject(List[{key: string, value: Json}])  -- {"a": 1}
+  | JInt(int)                                  -- 42 (exact, any int64)
 ```
+
+`decode` gives `JInt` for an integer literal that fits int64 and `JNumber` for every other number.
 
 ### Convenience Helpers
 
 ```ailang
-import std/json (jn, jb, jnum, js, ja, jo, kv, encode)
+import std/json (jn, jb, jnum, jint, js, ja, jo, kv, encode)
 
 -- Primitives
 jn()            -- JNull
 jb(true)        -- JBool(true)
-jnum(42.0)      -- JNumber(42.0)
+jnum(42.5)      -- JNumber(42.5)
+jint(42)        -- JInt(42)
 js("hello")     -- JString("hello")
 
 -- Collections

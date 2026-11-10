@@ -99,7 +99,7 @@ Arbitrary AILANG records and other ADTs are not accepted as input.
   - **non-string map keys** (`1: a`, `true: x`) — JSON object keys must be strings;
   - **`NaN` / `±Inf` floats** — not representable in JSON.
 - **Anchors and aliases work but are not preserved.** `a: &x 1\nb: *x` decodes to `{"a":1,"b":1}`; the output is plain JSON with no anchor structure.
-- **Numbers decode as `JNumber(float)`.** Like `std/json`, integers become floats, so integers beyond 2^53 lose precision. This is inherited from the shared `Json` ADT, not specific to YAML.
+- **Numbers decode as in `std/json`.** An integer that fits int64 decodes as `JInt(int)`, exactly; any other number decodes as `JNumber(float)`. An integer outside int64 is converted to a float by the YAML→JSON bridge before `std/json` sees it, so its low digits are rounded.
 - **Empty input decodes to `JNull`** (`yamlToJson("")` returns `Ok("null")`).
 
 ## Run the examples
