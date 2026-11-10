@@ -26,6 +26,13 @@ var phraseFamilies = []struct{ phrase, code string }{
 	{"effect ceiling violation", "EFFECT/ceiling"},
 	{"Missing effects", "EFFECT/undeclared"},
 	{"uses effects not declared", "EFFECT/undeclared"},
+	// A package's own manifest decides these two, not provisioning: an import of
+	// a module the package does not export, and a manifest the loader rejects.
+	// Both arms read the same manifest, so they are verdicts, not DEP/* (which
+	// makes an entry NOT_MEASURED). Measured 2026-11-10: motoko's
+	// examples/scripted_backend.ail and ailang-packages' motoko-ext-typefix-agent.
+	{"is not exported by package", "PKG/not-exported"},
+	{"invalid manifest", "PKG/invalid-manifest"},
 	{"failed to resolve package import", "DEP/unresolved"},
 	{"not found in ailang.lock", "DEP/unresolved"},
 	{"package resolution setup failed", "DEP/setup"},
