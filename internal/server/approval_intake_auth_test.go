@@ -19,7 +19,7 @@ const (
 	testDashURL  = "https://ailang-dev-dashboard-abc-ew.a.run.app"
 	testAgentSA  = "ailang-dev-agent@ailang-multivac-dev.iam.gserviceaccount.com"
 	testOtherSA  = "someone-else@other-project.iam.gserviceaccount.com"
-	testExtLane  = "ailang-dev-agent-external@ailang-multivac-dev.iam.gserviceaccount.com"
+	testEvalLane = "ailang-dev-agent-eval@ailang-multivac-dev.iam.gserviceaccount.com"
 	testBadToken = "not-a-google-token"
 )
 
@@ -33,7 +33,7 @@ func fakeIDTokens() idTokenValidator {
 	}
 	tokens := map[string]*idtoken.Payload{
 		"valid-agent":    payload("https://accounts.google.com", testDashURL, testAgentSA, true),
-		"valid-external": payload("accounts.google.com", testDashURL+"/", testExtLane, true),
+		"valid-eval":     payload("accounts.google.com", testDashURL+"/", testEvalLane, true),
 		"wrong-audience": payload("https://accounts.google.com", "https://evil.example", testAgentSA, true),
 		"wrong-issuer":   payload("https://cloud.google.com/iap", testDashURL, testAgentSA, true),
 		"not-allowed":    payload("https://accounts.google.com", testDashURL, testOtherSA, true),
@@ -84,7 +84,7 @@ func postIntake(s *Server, bearer string) *httptest.ResponseRecorder {
 // service account — 401 for a missing or bad credential, 403 for a real
 // identity that is not allowed — and creates nothing when it refuses.
 func TestApprovalIntakeAuth_Matrix(t *testing.T) {
-	approvalAuthEnv(t, "", testAgentSA+", "+testExtLane)
+	approvalAuthEnv(t, "", testAgentSA+", "+testEvalLane)
 	cases := []struct {
 		name   string
 		bearer string
@@ -97,7 +97,7 @@ func TestApprovalIntakeAuth_Matrix(t *testing.T) {
 		{"SA not in allowlist", "not-allowed", http.StatusForbidden},
 		{"unverified email", "unverified", http.StatusForbidden},
 		{"valid agent SA", "valid-agent", http.StatusCreated},
-		{"valid external-lane SA, aud with trailing slash", "valid-external", http.StatusCreated},
+		{"valid eval-lane SA, aud with trailing slash", "valid-eval", http.StatusCreated},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -4,7 +4,6 @@ go 1.26.10
 
 require (
 	cloud.google.com/go/firestore v1.29.2
-	cloud.google.com/go/kms v1.36.1
 	cloud.google.com/go/pubsub v1.52.0
 	cloud.google.com/go/run v1.24.1
 	cloud.google.com/go/secretmanager v1.24.0
@@ -57,6 +56,7 @@ require (
 	cloud.google.com/go/auth/oauth2adapt v0.3.1 // indirect
 	cloud.google.com/go/compute/metadata v0.10.0 // indirect
 	cloud.google.com/go/iam v1.14.0 // indirect
+	cloud.google.com/go/kms v1.36.1 // indirect
 	cloud.google.com/go/longrunning v1.5.0 // indirect
 	cloud.google.com/go/monitoring v1.30.0 // indirect
 	cloud.google.com/go/pubsub/v2 v2.6.0 // indirect

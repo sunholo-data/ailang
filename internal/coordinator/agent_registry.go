@@ -237,9 +237,10 @@ type AgentConfig struct {
 	// Installs marketplace and custom plugins before task execution.
 	Plugins *PluginsConfig `yaml:"plugins" json:"plugins,omitempty"`
 
-	// Per-agent auth mode override (M-CLOUD-DUAL-AUTH, v0.9.2).
-	// "oauth" (default) or "apikey" — selects Cloud Run Job template.
-	// User-provided API keys from messages override this setting.
+	// Per-agent auth mode (M-CLOUD-DUAL-AUTH, v0.9.2). "oauth" (default), or
+	// "apikey" together with credit_account for the guarded Claude credit lane.
+	// The *-apikey jobs and per-request API keys were retired 2026-11-10; the
+	// cloud dispatcher refuses "apikey" without credit_account.
 	AuthMode          string `yaml:"auth_mode" json:"auth_mode,omitempty"`
 	CreditAccount     string `yaml:"credit_account" json:"credit_account,omitempty"`
 	CreditGatewayURL  string `yaml:"credit_gateway_url" json:"credit_gateway_url,omitempty"`

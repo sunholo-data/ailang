@@ -11,7 +11,6 @@ const (
 	EnvCoordHTTPPort           = "AILANG_COORD_HTTP_PORT"
 	EnvGitHubWebhookSecret     = "GITHUB_WEBHOOK_SECRET"
 	EnvRepoURL                 = "AILANG_REPO_URL"
-	EnvKMSKey                  = "AILANG_KMS_KEY"
 	EnvBackstopSweep           = "AILANG_BACKSTOP_SWEEP"
 	EnvFeedbackGateMode        = "AILANG_FEEDBACK_GATE_MODE"
 	EnvFeedbackGateDryRun      = "AILANG_FEEDBACK_GATE_DRY_RUN"
@@ -47,7 +46,6 @@ var coordinatorVars = []Var{
 	{EnvCoordHTTPPort, "", AreaCoordinator, "Port the coordinator's HTTP API is on, for commands that must reach a running daemon; falls back to PORT."},
 	{EnvGitHubWebhookSecret, "", AreaCoordinator, "HMAC secret for the /github/webhook route; unset means the route is not served."},
 	{EnvRepoURL, "", AreaCoordinator, "Repository URL for task worktrees when the task's workspace does not name one."},
-	{EnvKMSKey, "", AreaCoordinator, "Cloud KMS key resource that encrypts stored secrets and decrypts an ENC:-prefixed ANTHROPIC_API_KEY; unset means plaintext passthrough."},
 	{EnvBackstopSweep, "report", AreaCoordinator, "Backstop sweep mode: dispatch runs stranded work, off disables the sweep, report (and any other value) only reports."},
 	{EnvFeedbackGateMode, "", AreaCoordinator, "Overrides the feedback gate's configured mode (operator kill-switch)."},
 	{EnvFeedbackGateDryRun, "", AreaCoordinator, "1, true, yes or on forces the feedback gate into dry-run."},
@@ -103,9 +101,6 @@ func GitHubWebhookSecret() string { return get(EnvGitHubWebhookSecret) }
 
 // RepoURL returns AILANG_REPO_URL, "" when unset.
 func RepoURL() string { return get(EnvRepoURL) }
-
-// KMSKey returns AILANG_KMS_KEY, "" when unset.
-func KMSKey() string { return get(EnvKMSKey) }
 
 // BackstopSweep returns AILANG_BACKSTOP_SWEEP lower-cased and trimmed, ""
 // when unset; the coordinator maps it to a mode.

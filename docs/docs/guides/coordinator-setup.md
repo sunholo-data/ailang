@@ -155,7 +155,7 @@ When `auto_approve_handoffs: false`, each stage requires human approval before t
 | `model` | No | Claude model override (e.g., "opus") - v0.8.0+ |
 | `timeout` | No | Hard ceiling timeout (default: 60m) - v0.8.1+ |
 | `effort` | No | Claude effort level: "low", "medium", "high" |
-| `auth_mode` | No | `"oauth"` (default) or `"apikey"` — selects Cloud Run Job template - v0.9.2+ |
+| `auth_mode` | No | `"oauth"` (default), or `"apikey"` only together with `credit_account` (the guarded Claude credit lane). The `*-apikey` jobs were retired 2026-11-10, so `"apikey"` without `credit_account` fails dispatch - v0.9.2+ |
 
 ### Template Files (v0.6.7+)
 
