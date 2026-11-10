@@ -33,7 +33,9 @@ Supports all JSON types: objects, arrays, strings, numbers, booleans, and null.
 String escaping follows RFC 8259 specification with proper handling of control characters and unicode.
 Numbers use shortest round-trip digits (Go encoding/json / JSON.stringify window): fixed notation for
 1e-6 <= |x| < 1e21, exponent notation outside it; -0.0 encodes as "-0.0"; NaN/Infinity encode as null.
-Every finite float survives decode(encode(x)) bit-for-bit.`,
+A JInt prints every digit. For a finite JNumber the numeric value survives decode(encode(x)) bit-for-bit,
+but the constructor does not always: a whole-number JNumber prints with integer syntax ("3") and re-decodes
+as JInt(3) (so decode(encode(jnum(3.0))) == Ok(jint(3)), not Ok(jnum(3.0))); "-0.0" keeps its sign and stays JNumber.`,
 			Params: []ParamDoc{
 				{Name: "value", Description: "Json ADT value to encode"},
 			},

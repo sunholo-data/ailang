@@ -71,6 +71,9 @@ var jsonDecodeCases = []struct{ in, want string }{
 	{`[1, 2.5, 1234567890123456789]`, `[JInt(1),JNumber(2.5),JInt(1234567890123456789)]`},
 	{`[01]`, `ERR invalid json`},
 	{`01`, `ERR decode: trailing data at offset 1`},
+	{`00`, `ERR decode: trailing data at offset 1`},
+	{`0x10`, `ERR decode: trailing data at offset 1`},
+	{`1_000`, `ERR decode: trailing data at offset 1`},
 	// B1: one value, whitespace allowed around it.
 	{`1 2`, `ERR decode: trailing data at offset 2`},
 	{`{"a":1} xx`, `ERR decode: trailing data at offset 8`},
@@ -78,6 +81,11 @@ var jsonDecodeCases = []struct{ in, want string }{
 	{`{} x`, `ERR decode: trailing data at offset 3`},
 	{`"a""b"`, `ERR decode: trailing data at offset 3`},
 	{" \t\n1\r\n ", `JInt(1)`},
+	// Only JSON's four whitespace bytes may follow the value.
+	{"1\f", `ERR decode: trailing data at offset 1`},
+	{"1\v", `ERR decode: trailing data at offset 1`},
+	{"1\u00a0", `ERR decode: trailing data at offset 1`},
+	{"1 \x00", `ERR decode: trailing data at offset 2`},
 	{`null `, `null`},
 	{``, `ERR no JSON value found`},
 	{`   `, `ERR no JSON value found`},

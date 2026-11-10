@@ -27,6 +27,12 @@
 --   let raw = AI.callJsonSimple("Return [1,2,3] as JSON")
 --   let result = decode(raw)
 --
+--   decode accepts exactly ONE JSON value (whitespace around it is fine):
+--   prose after it ("[1,2,3] Hope that helps!") is Err("decode: trailing data
+--   at offset N"). If a model may wrap its JSON in text, cut the JSON out
+--   first (e.g. from the first "{" to its matching "}"), or use callJson with
+--   a schema. json.repair fixes truncated JSON, not surrounding prose.
+--
 -- IMPORTANT: Host must configure AIHandler explicitly:
 --   - game.NewStubAIHandler() for testing
 --   - Your custom handler for production (e.g., OpenAI, local LLM)
@@ -384,7 +390,8 @@ export func callJson(input: string, schema: string) -> string ! {AI} = _ai_call_
 
 -- callJsonSimple: Call the AI oracle requesting valid JSON (no schema)
 -- The provider returns valid JSON but without schema enforcement.
--- Returns the raw JSON string. Use std/json.decode to parse.
+-- Returns the raw JSON string. Use std/json.decode to parse; decode rejects
+-- anything but whitespace after the value, so strip any surrounding prose first.
 export func callJsonSimple(input: string) -> string ! {AI} = _ai_call_json_simple(input)
 
 -- callImage: Generate an image via AI and save to file
