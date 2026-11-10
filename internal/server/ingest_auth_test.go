@@ -60,7 +60,7 @@ func enforcingServer(t *testing.T, addr string, opts ...ServerOption) *Server {
 // ingestHeader is canonicalised as a real server would: serve() copies the map
 // verbatim.
 func ingestHeader(tok string) http.Header {
-	return http.Header{http.CanonicalHeaderKey(IngestTokenHeader): {tok}}
+	return http.Header{http.CanonicalHeaderKey(config.IngestTokenHeader): {tok}}
 }
 
 // The classification guard: every write the read gate lets through

@@ -1,6 +1,9 @@
 package config
 
-import "strings"
+import (
+	"net/http"
+	"strings"
+)
 
 // `ailang server` (the dashboard / collaboration hub) and the commands that
 // talk to it.
@@ -36,6 +39,24 @@ func FirebaseProject() string { return get(EnvFirebaseProject) }
 
 // HubToken returns the trimmed AILANG_HUB_TOKEN, "" when unset.
 func HubToken() string { return strings.TrimSpace(get(EnvHubToken)) }
+
+// IngestTokenHeader carries an ingest shared secret: the header the
+// dashboard's ingest gate (internal/server/ingest_auth.go) reads besides
+// Authorization: Bearer. It lives here, not in internal/server, so senders in
+// every layer (pipeline is core, eval_harness is tools) can name it.
+const IngestTokenHeader = "X-AILANG-Ingest-Token"
+
+// AttachHubToken sets IngestTokenHeader on h to AILANG_HUB_TOKEN, for a
+// sender of a hub-class ingest route (/api/hooks/claude,
+// /api/observatory/hooks, /api/exec/{sessions,events},
+// /api/coordinator/events, /api/telemetry). With the token unset it sets
+// nothing: the request is what it was before ingest auth existed, which a
+// loopback or warn-mode dashboard still accepts.
+func AttachHubToken(h http.Header) {
+	if t := HubToken(); t != "" {
+		h.Set(IngestTokenHeader, t)
+	}
+}
 
 // Ingest auth modes (AILANG_INGEST_AUTH).
 const (
