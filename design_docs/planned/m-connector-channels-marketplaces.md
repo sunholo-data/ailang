@@ -274,9 +274,11 @@ refused (`expected int`) until it reconnects.
 | Executor (dev) | `docs_search "record update"` (latest) | ⚠️ | ~30 KB result, top hits are **old prompt files** (v0.8.2, v0.11.4, v0.16.x) rather than current docs: too big and stale for a listed connector |
 | Executor (prod) | all | ⏳ `ailang-executor` added to local config; needs a session restart | — |
 
-**Executor fix tickets from P0:** (E1) Z3 in `docker/Dockerfile.executor-mcp`, or drop the promise from
-`ailang_check`'s description; (E2) strip the request directory from `ailang_check`/`ailang_run` results, as
-the logs already do; (E3) `docs_search`: rank current docs above `prompts/v*.md` and cap the body per hit.
+**Executor fix tickets from P0** (all on `dev` in `8fd2cbca9`; prod with the next release + image-tag bump):
+(E1) `ailang_check` no longer promises Z3; adding Z3 needs a non-static base image, deferred.
+(E2) `stdout`/`stderr` scrubbed of the request directory (`scrubDir`); `smoke.sh` checks it and fails on the
+old code. (E3) `docs_search` returns path, title, 10 headings and an ~800-character excerpt, docs before
+`prompts/v*.md`: ~30 KB → 3–11 KB per search.
 
 **Hints vs OpenAI's rule** ("Use `false` for … persisting artifacts, starting stateful jobs …, uploading
 files"), from prod `tools/list`:
