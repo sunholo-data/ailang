@@ -42,7 +42,7 @@ The coordinator watches for messages across multiple inboxes, routes them to con
 - **Isolated environments** - Each task gets its own git worktree
 - **Agent-to-agent handoffs** - Session continuity across agents
 - **GitHub integration** - Auto-import issues as tasks
-- **Real-time dashboard** - Watch execution progress live
+- **Execution chains** - Follow progress with `ailang chains`
 
 ## Quick Start
 
@@ -50,14 +50,11 @@ The coordinator watches for messages across multiple inboxes, routes them to con
 # 1. Start both services
 make services-start
 
-# 2. Open dashboard
-open http://localhost:1957
-
-# 3. Send a task
+# 2. Send a task
 ailang messages send coordinator "Fix the bug in parser.go" \
   --title "Bug: Parser error" --from "user"
 
-# 4. Watch it execute in the dashboard
+# 3. Watch it execute
 ```
 
 ## Agent Configuration
@@ -723,13 +720,6 @@ To request changes at any stage:
 
 When a task completes, the coordinator creates an approval request.
 
-### Dashboard Integration
-
-The Collaboration Hub dashboard shows:
-- Pending approvals with worktree path
-- Git diff viewer for changes
-- One-click approve/reject buttons
-
 ### API Endpoints
 
 ```bash
@@ -793,11 +783,10 @@ The `merge_handoff` type is created automatically when an agent has `trigger_on_
 
 ### Multi-Channel Approval Workflow (v0.6.4+)
 
-Approvals can come from three different channels, all feeding into the same workflow:
+Approvals can come from two channels, both feeding into the same workflow (the dashboard UI that was a third channel was removed in November 2026; older audit records may still carry `approval.channel: "dashboard"`):
 
 | Channel | How to Approve/Reject | Tracked In |
 |---------|----------------------|------------|
-| **Dashboard** | Click buttons in Collaboration Hub UI | `approval.channel: "dashboard"` |
 | **CLI** | `ailang coordinator approve/reject` | `approval.channel: "cli"` |
 | **GitHub** | Add labels (`ailang:approved`, `ailang:needs-revision`) | `approval.channel: "github"` |
 
@@ -809,7 +798,7 @@ When tasks are rejected, they can be re-triggered with feedback. The iteration c
 - **Iteration 2**: First retry (after rejection with feedback)
 - **Iteration 3**: Final attempt (max iterations)
 
-The UI shows an "Iteration N/3" badge for retriggered tasks, with a "Final attempt" warning on iteration 3.
+`ailang coordinator pending` shows the iteration of a retriggered task.
 
 #### Feedback Flow
 
@@ -822,7 +811,6 @@ When you reject a task with feedback:
 
 Feedback can be provided via:
 - **CLI**: `ailang coordinator reject <task-id> -f "Your feedback"`
-- **Dashboard**: Enter feedback in the rejection modal
 - **GitHub**: Add `ailang:needs-revision` label and comment on the issue
 
 #### Telemetry Spans
@@ -1032,9 +1020,10 @@ Tasks are routed to providers based on agent configuration:
 | `cost` | Execution cost in USD |
 | `tokens_used` | Total tokens consumed |
 
-## Real-Time Dashboard
+## Real-Time Task Events
 
-The coordinator streams task execution events to the Collaboration Hub dashboard.
+The coordinator streams task execution events to the dashboard API (`ailang serve`), which has no
+UI of its own.
 
 ### Event Flow
 
@@ -1042,8 +1031,8 @@ The coordinator streams task execution events to the Collaboration Hub dashboard
 2. **Events generated** - Status changes, tool calls, output, metrics
 3. **HTTP broadcaster** - POSTs to `http://127.0.0.1:1957/api/coordinator/events`
 4. **Server receives** - Converts to WebSocket format
-5. **WebSocket broadcast** - All connected browsers receive updates
-6. **UI renders** - Task progress shown in real-time
+5. **WebSocket broadcast** - Connected `/ws` clients (for example a proxy holding the
+   `COORDINATOR_API_KEY`) receive updates
 
 ### Event Types
 
@@ -1467,14 +1456,12 @@ The coordinator is designed to be your **autonomous coding assistant**. Here's h
    make services-start
    ```
 
-2. **Open the dashboard**: http://localhost:1957
-
-3. **Check for pending approvals**:
+2. **Check for pending approvals**:
    ```bash
    ailang coordinator pending
    ```
 
-4. **Review and approve/reject** completed work
+3. **Review and approve/reject** completed work
 
 ### Sending Tasks to Agents
 
@@ -1500,13 +1487,7 @@ ailang messages send coordinator "Fix issue described in #42" \
 
 When agents complete tasks, they request approval. You can review via:
 
-**Dashboard (Recommended):**
-- Open http://localhost:1957
-- Click on Task Execution tab
-- Review git diff
-- Approve or reject with notes
-
-**CLI (Alternative):**
+**CLI:**
 ```bash
 # List pending approvals
 ailang coordinator pending
@@ -1624,7 +1605,7 @@ When approving changes that conflict:
 ## See Also
 
 - [Agent Messaging](./agent-messaging.md) - How to send messages
-- [Collaboration Hub](./collaboration-hub.md) - Web UI for monitoring
+- [Collaboration Hub](./collaboration-hub.md) - Coordinator, CLI and the headless dashboard API
 - [Development Workflow](./development-workflow.md) - Integration with development
 
 

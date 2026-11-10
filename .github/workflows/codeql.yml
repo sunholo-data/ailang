@@ -39,8 +39,8 @@ jobs:
       fail-fast: false
       matrix:
         # Single-language matrix for now. Add 'javascript' if/when we
-        # want CodeQL to scan the dashboard (ui/ and docs/); currently
-        # those are excluded from Sonar too — iteration-heavy dashboards
+        # want CodeQL to scan the docs site (docs/); currently
+        # it is excluded from Sonar too — iteration-heavy docs components
         # aren't where the security surface lives.
         language: [go]
         build-mode: [autobuild]

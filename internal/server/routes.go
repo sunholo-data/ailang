@@ -1,8 +1,6 @@
 package server
 
 import (
-	"fmt"
-	"io/fs"
 	"log"
 	"net/http"
 
@@ -196,12 +194,30 @@ func (s *Server) registerRoutes(mux router) error {
 		mux.Handle("/api/auth/whoami", s.AuthMiddleware(http.HandlerFunc(WhoAmIHandler)))
 	}
 
-	// Serve static UI files from embedded dist folder
-	distFS, err := fs.Sub(uiAssets, "dist")
-	if err != nil {
-		return fmt.Errorf("failed to load UI assets: %w", err)
-	}
-	fileServer := http.FileServer(http.FS(distFS))
-	mux.Handle("/", fileServer)
+	// No UI: the dashboard is a headless API (m-dashboard-headless-api). "/"
+	// is the mux's catch-all, so it answers every path no other route claims:
+	// a one-line pointer at "/" itself and a plain 404 for everything else —
+	// no SPA fallback that would turn a mistyped API path into a 200.
+	mux.HandleFunc("/", handleRoot)
 	return nil
+}
+
+// rootBanner is what GET / answers. Plain text: nothing here is for a browser.
+const rootBanner = "AILANG dashboard API (headless). Health: /health\n"
+
+// handleRoot answers "/" and every path no other route is registered for.
+func handleRoot(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/plain; charset=utf-8")
+	w.Header().Set("X-Content-Type-Options", "nosniff")
+	if r.URL.Path != "/" {
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write([]byte("404 page not found\n"))
+		return
+	}
+	if r.Method != http.MethodGet && r.Method != http.MethodHead {
+		w.Header().Set("Allow", "GET, HEAD")
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		return
+	}
+	_, _ = w.Write([]byte(rootBanner))
 }

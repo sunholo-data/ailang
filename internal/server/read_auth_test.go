@@ -23,7 +23,7 @@ import (
 // Everything else a public pattern serves, and every method of every
 // gatedRoutes pattern, must be refused.
 var publicRoutes = map[string][]string{
-	"/":                {"*"}, // embedded UI assets
+	"/":                {"*"}, // one-line banner; 404 for any unrouted path
 	"/health":          {"*"},
 	"/benchmarks/":     {"*"}, // docs-site data, intentionally public
 	"POST /v1/traces":  {"*"}, // OTLP ingest (own optional AILANG_OTLP_INGEST_TOKEN)

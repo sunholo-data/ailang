@@ -7,9 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/approvaltoken"
@@ -69,7 +67,8 @@ func serverCommand(args []string) error {
 		case "--help", "-h":
 			fmt.Println("Usage: ailang server [options]")
 			fmt.Println("")
-			fmt.Println("Start the AILANG Observatory and Collaboration Hub server")
+			fmt.Println("Start the AILANG dashboard API server (headless: telemetry ingest,")
+			fmt.Println("observatory and chains reads, approvals intake, /benchmarks/ data)")
 			fmt.Println("")
 			fmt.Println("Alias: 'ailang serve' also works (backward compatibility)")
 			fmt.Println("")
@@ -101,8 +100,7 @@ func serverCommand(args []string) error {
 			fmt.Println("  ailang server --port 8080")
 			fmt.Println("  ailang server --firebase-project ailang-dev")
 			fmt.Println("")
-			fmt.Println("Endpoints:")
-			fmt.Println("  UI:          http://localhost:PORT/")
+			fmt.Println("Endpoints (headless API, no UI):")
 			fmt.Println("  WebSocket:   ws://localhost:PORT/ws")
 			fmt.Println("  REST API:    http://localhost:PORT/api/")
 			fmt.Println("  Health:      http://localhost:PORT/health")
@@ -139,18 +137,7 @@ func serverCommand(args []string) error {
 		// Port is in use - check if it's our server
 		healthURL := fmt.Sprintf("http://%s/health", httpAddr)
 		if checkServerHealth(healthURL) {
-			uiURL := fmt.Sprintf("http://%s/", httpAddr)
-			log.Printf("✓ AILANG server is already running on port %s", port)
-			log.Printf("")
-			log.Printf("Opening UI at: %s", uiURL)
-			log.Printf("")
-
-			// Open browser to UI
-			if err := openBrowser(uiURL); err != nil {
-				log.Printf("Could not open browser automatically: %v", err)
-				log.Printf("Please open %s manually", uiURL)
-			}
-
+			log.Printf("✓ AILANG server is already running on port %s (%s)", port, healthURL)
 			return nil
 		}
 
@@ -295,19 +282,6 @@ func serverCommand(args []string) error {
 	log.Printf("Collaboration DB: %s", dbPath)
 	log.Printf("")
 
-	// Auto-open browser after a short delay (server needs to start first)
-	uiURL := fmt.Sprintf("http://%s/", httpAddr)
-	go func() {
-		time.Sleep(500 * time.Millisecond)
-		log.Printf("")
-		log.Printf("Opening UI at: %s", uiURL)
-		log.Printf("")
-		if err := openBrowser(uiURL); err != nil {
-			log.Printf("Could not open browser automatically: %v", err)
-			log.Printf("Please open %s manually", uiURL)
-		}
-	}()
-
 	return srv.Start()
 }
 
@@ -332,24 +306,6 @@ func checkServerHealth(healthURL string) bool {
 	}
 	defer resp.Body.Close()
 	return resp.StatusCode == http.StatusOK
-}
-
-// openBrowser opens the default browser to the specified URL
-func openBrowser(url string) error {
-	var cmd *exec.Cmd
-
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.Command("open", url)
-	case "linux":
-		cmd = exec.Command("xdg-open", url)
-	case "windows":
-		cmd = exec.Command("cmd", "/c", "start", url)
-	default:
-		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
-	}
-
-	return cmd.Start()
 }
 
 // coordStoreAdapter adapts coordinator.Store to server.CoordinatorStore

@@ -5,7 +5,6 @@
 .PHONY: repl run serve serve-bg
 .PHONY: coordinator-start coordinator-stop coordinator-status
 .PHONY: services-start services-stop services-restart services-status
-.PHONY: ui-deploy
 
 # REPL & Run
 repl: build ## Start the AILANG REPL
@@ -26,8 +25,8 @@ run: build ## Run an AILANG file (FILE=path/to/file.ail)
 # AILANG_PROJECT_ROOT tells the embed.Engine where to find the .ail files
 AILANG_ENV := AILANG_PROJECT_ROOT="$(CURDIR)"
 
-serve: quick-install ## Start Collaboration Hub server (foreground)
-	@echo "Starting AILANG Collaboration Hub..."
+serve: quick-install ## Start the dashboard API server (foreground, headless)
+	@echo "Starting AILANG dashboard API (headless)..."
 	@echo "  AILANG transforms: enabled"
 	@$(AILANG_ENV) ailang serve
 
@@ -98,13 +97,3 @@ services-status: ## Show status of all services
 	@echo ""
 	@echo "$(BOLD)Coordinator:$(RESET)"
 	@ailang coordinator status 2>/dev/null || echo "  Status: not running"
-
-# UI deployment
-ui-deploy: ## Build and deploy UI to server
-	@echo "Building UI..."
-	@cd ui && npm run build
-	@echo "Cleaning old assets..."
-	@rm -rf internal/server/dist/assets/*
-	@echo "Deploying to server..."
-	@cp -r ui/dist/* internal/server/dist/
-	@echo "$(GREEN)$(CHECKMARK) UI deployed ($$(ls internal/server/dist/assets | wc -l | tr -d ' ') assets)$(RESET)"

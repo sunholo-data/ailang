@@ -15,7 +15,7 @@ package server
 // /api/version. A route added later is gated until someone classifies it, and
 // TestReadAuth_EveryRouteClassified fails until they do.
 //
-// Paths outside /api/ and /ws stay public: the static UI, /health,
+// Paths outside /api/ and /ws stay public: "/" (a one-line banner), /health,
 // /benchmarks/* (docs-site data) and OTLP ingest /v1/* (its own optional
 // AILANG_OTLP_INGEST_TOKEN, observatory/otlp_auth.go).
 //

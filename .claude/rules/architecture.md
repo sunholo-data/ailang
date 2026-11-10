@@ -2,12 +2,11 @@
 paths:
   - "internal/**"
   - "cmd/**"
-  - "ui/**"
 ---
 
 # Architecture Rules
 
-Loads whenever you touch `internal/`, `cmd/`, or `ui/`. Full rationale and the
+Loads whenever you touch `internal/` or `cmd/`. Full rationale and the
 allow/deny table: [ARCHITECTURE.md](../../ARCHITECTURE.md#architecture-boundaries).
 
 ## Layers
@@ -15,7 +14,7 @@ allow/deny table: [ARCHITECTURE.md](../../ARCHITECTURE.md#architecture-boundarie
 `internal/` is organized into logical layers. Know which one you're touching:
 
 - **core** (compiler/runtime): `internal/{parser,types,eval,core,elaborate,effects,builtins,lexer,ast,pipeline,runtime,link,iface}`
-- **dashboard/apps** (services + UI): `internal/{server,coordinator,observatory,messaging}` (+ `ui/`)
+- **dashboard/apps** (services; the dashboard is a headless API): `internal/{server,coordinator,observatory,messaging}`
 - **bridge**: `internal/embed` — the ONLY sanctioned path from dashboard → compiler.
 
 ## Never cross these import directions
