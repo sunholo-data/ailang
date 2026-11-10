@@ -217,6 +217,7 @@ func runCheckWithContext(ctx context.Context, cfg pipeline.Config, src pipeline.
 				Passed:     false,
 				ErrorCount: len(result.Errors),
 				Errors:     jsonErrors,
+				Warnings:   checkWarningsJSON(result.Warnings, filename),
 			})
 		} else {
 			for _, e := range result.Errors {
@@ -242,6 +243,7 @@ func runCheckWithContext(ctx context.Context, cfg pipeline.Config, src pipeline.
 			Passed:     true,
 			ErrorCount: 0,
 			Errors:     []checkJSONError{},
+			Warnings:   checkWarningsJSON(result.Warnings, filename),
 		})
 	} else if !quietFlag {
 		printCheckWarnings(result.Warnings)
@@ -322,6 +324,7 @@ func runCheckWithTimeoutAndContext(ctx context.Context, cfg pipeline.Config, src
 					Passed:     false,
 					ErrorCount: len(r.result.Errors),
 					Errors:     jsonErrors,
+					Warnings:   checkWarningsJSON(r.result.Warnings, filename),
 				})
 			} else {
 				for _, e := range r.result.Errors {
@@ -345,6 +348,7 @@ func runCheckWithTimeoutAndContext(ctx context.Context, cfg pipeline.Config, src
 				Passed:     true,
 				ErrorCount: 0,
 				Errors:     []checkJSONError{},
+				Warnings:   checkWarningsJSON(r.result.Warnings, filename),
 			})
 		} else if !quietFlag {
 			printCheckWarnings(r.result.Warnings)

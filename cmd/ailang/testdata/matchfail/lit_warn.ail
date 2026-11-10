@@ -1,0 +1,8 @@
+module cmd/ailang/testdata/matchfail/lit_warn
+
+-- A literal-only match with no catch-all: `ailang check` passes with a
+-- non-exhaustive-match warning (ELB004). Asserted by check_warnings_test.go.
+pure func name(n: int) -> string = match n {
+  0 => "zero",
+  1 => "one"
+}

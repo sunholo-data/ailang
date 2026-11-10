@@ -17,6 +17,9 @@ type checkJSONOutput struct {
 	Passed     bool             `json:"passed"`
 	ErrorCount int              `json:"error_count"`
 	Errors     []checkJSONError `json:"errors"`
+	// Warnings are non-blocking pipeline warnings, same shape as errors;
+	// omitted when there are none (check_warnings.go).
+	Warnings []checkJSONError `json:"warnings,omitempty"`
 }
 
 // checkJSONError represents a single error in JSON check output
@@ -60,10 +63,14 @@ func outputCheckJSON(out checkJSONOutput) {
 func outputCheckAgent(out checkJSONOutput) {
 	if out.Passed {
 		fmt.Printf("ok: %s\n", out.File)
-		return
+	} else {
+		for _, e := range out.Errors {
+			fmt.Println(distillAgentLine(e, out.File))
+		}
 	}
-	for _, e := range out.Errors {
-		fmt.Println(distillAgentLine(e, out.File))
+	// Warnings follow the verdict, so a reader of the first line is unaffected.
+	for _, w := range out.Warnings {
+		fmt.Println(agentWarnLine(w, out.File))
 	}
 }
 
