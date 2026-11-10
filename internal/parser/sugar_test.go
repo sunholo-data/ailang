@@ -143,7 +143,9 @@ func TestSugarCall0_StrictMode(t *testing.T) {
 	}
 }
 
-// TestSugarCons_Basic tests S-CONS sugar: x :: xs desugars to ::(x, xs)
+// TestSugarCons_Basic: x :: xs parses to the constructor call FuncCall{::, [x, xs]}.
+// Infix is the only expression spelling of a cons, so it is canonical, not
+// sugar (`::(x, xs)` parses only as a pattern).
 func TestSugarCons_Basic(t *testing.T) {
 	input := `let list = 1 :: 2 :: []`
 	l := lexer.New(input, "test.ail")
@@ -152,9 +154,8 @@ func TestSugarCons_Basic(t *testing.T) {
 
 	AssertNoErrors(t, p)
 
-	// Check that sugar was used
-	if !p.SugarUsed() {
-		t.Fatalf("Expected sugarUsed=true for :: syntax")
+	if p.SugarUsed() {
+		t.Fatalf("infix :: is canonical; it must not set sugarUsed")
 	}
 
 	// Should have one statement
@@ -193,20 +194,27 @@ func TestSugarCons_Basic(t *testing.T) {
 	AssertIdentifier(t, innerCall.Func, "::")
 }
 
-// TestSugarCons_StrictMode tests that S-CONS is rejected in strict mode
+// TestSugarCons_StrictMode (M-V1-VERIFICATION-HONESTY M3c): strict syntax mode
+// accepts infix ::. It used to reject it and suggest `::(x, xs)`, which does
+// not parse as an expression — so under --strict-syntax a cons could not be
+// written at all. Red mutation: restore the strict-mode rejection.
 func TestSugarCons_StrictMode(t *testing.T) {
-	input := `let list = 1 :: []`
-	l := lexer.New(input, "test.ail")
-	p := New(l)
-	p.SetStrictSyntaxMode(true)
-	_ = p.ParseFile()
-
-	// Should have an error
-	if len(p.Errors()) == 0 {
-		t.Fatalf("Expected error in strict mode, got none")
+	for _, input := range []string{`let list = 1 :: []`, `let list = 1 :: 2 :: []`, `let n = length(x :: xs)`} {
+		l := lexer.New(input, "test.ail")
+		p := New(l)
+		p.SetStrictSyntaxMode(true)
+		file := p.ParseFile()
+		AssertNoErrors(t, p)
+		letExpr, ok := file.Statements[0].(*ast.Let)
+		if !ok {
+			t.Fatalf("%s: expected Let, got %T", input, file.Statements[0])
+		}
+		if call, ok := letExpr.Value.(*ast.FuncCall); ok {
+			if id, ok := call.Func.(*ast.Identifier); ok && id.Name == "::" && len(call.Args) != 2 {
+				t.Fatalf("%s: cons has %d args, want 2", input, len(call.Args))
+			}
+		}
 	}
-
-	// Error should exist (we already checked this above)
 }
 
 // TestSugarArrowType_Basic tests S-ARROWTYPE sugar: int -> bool
@@ -329,7 +337,6 @@ func TestSugar_AllDisabled(t *testing.T) {
 		input string
 	}{
 		{"call0", `myFunc()`},
-		{"cons", `let x = 1 :: []`},
 		{"arrowtype", `let f: int -> bool = undefined`},
 	}
 
