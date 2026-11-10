@@ -181,7 +181,9 @@ func KeyOf(body string) string {
 
 // ExtractBlocks returns the AILANG blocks (tagged, and mis-fenced) of one markdown text.
 func ExtractBlocks(page, source, text string) []*Block {
-	lines := strings.Split(text, "\n")
+	// CRLF (a Windows checkout with autocrlf) would leave `\r` on every fence line and
+	// no closing fence would match; the key is unaffected (Normalize trims `\r`).
+	lines := strings.Split(strings.ReplaceAll(text, "\r\n", "\n"), "\n")
 	var out []*Block
 	ordinal := 0
 	for i := 0; i < len(lines); i++ {

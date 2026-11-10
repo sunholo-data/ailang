@@ -56,10 +56,30 @@ func TestExtractClassifiesTheInfoString(t *testing.T) {
 		}
 	}
 	if len(bs) != len(want) {
-		t.Errorf("extracted %d marked blocks, want %d (the TypeScript and bash blocks must be ignored)", len(bs), len(want))
+		t.Fatalf("extracted %d marked blocks, want %d (the TypeScript and bash blocks must be ignored)", len(bs), len(want))
 	}
 	if bs["error-fails-correctly"].WantCode != "PAR_UNEXPECTED_TOKEN" || bs["file-lib"].File != "fixture/lib.ail" {
 		t.Errorf("error=/file= values not parsed: %+v %+v", bs["error-fails-correctly"], bs["file-lib"])
+	}
+}
+
+// A CRLF checkout (Windows, autocrlf) must yield the same blocks and the same keys,
+// or a baseline written on one OS would read as all-orphaned on the other.
+func TestExtractIsLineEndingIndependent(t *testing.T) {
+	raw, err := os.ReadFile(filepath.Join("testdata/site", fixturePage))
+	if err != nil {
+		t.Fatal(err)
+	}
+	lf := strings.ReplaceAll(string(raw), "\r\n", "\n")
+	a := ExtractBlocks(fixturePage, fixturePage, lf)
+	b := ExtractBlocks(fixturePage, fixturePage, strings.ReplaceAll(lf, "\n", "\r\n"))
+	if len(a) == 0 || len(a) != len(b) {
+		t.Fatalf("LF: %d blocks, CRLF: %d blocks", len(a), len(b))
+	}
+	for i := range a {
+		if a[i].Key != b[i].Key || a[i].Class != b[i].Class || a[i].Line != b[i].Line {
+			t.Errorf("block %d differs: LF %+v vs CRLF %+v", i, *a[i], *b[i])
+		}
 	}
 }
 

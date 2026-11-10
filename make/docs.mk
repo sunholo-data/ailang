@@ -111,7 +111,7 @@ ifeq ($(strip $(DOC_SAMPLES_AILANG)),)
 check-doc-samples test-check-doc-samples: build
 DOC_SAMPLES_BIN = $(CURDIR)/$(BUILD_DIR)/$(BINARY)
 else
-DOC_SAMPLES_BIN = $(DOC_SAMPLES_AILANG)
+DOC_SAMPLES_BIN = $(abspath $(DOC_SAMPLES_AILANG))
 endif
 
 check-doc-samples: ## Every AILANG block in the docs passes `ailang check` or is tagged; baseline only shrinks (CI gate)
