@@ -5,6 +5,13 @@ on:
     tags:
       - 'v*'
       - '!v*-*'  # ignore pre-release tags (e.g. v0.24.1-rc1) — no CLI release/binaries for those
+  # Dry run of the release gate ONLY (m-v1-release-gates §1.5): runs `ci-gate` against `sha`;
+  # every build/publish job is skipped, nothing is tagged or released.
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Commit SHA to judge (dry run: gate only, nothing is built or published)'
+        required: true
 
 # Least-privilege default. Only `create-release` escalates to
 # `contents: write` (publish release) + `id-token: write` (cosign).
@@ -14,8 +21,57 @@ permissions:
   contents: read
 
 jobs:
+  # Release test gate (m-v1-release-gates §1). Nothing is built, signed or drafted unless every
+  # check-run named in tools/ci/release_required_checks.txt concluded `success` on the tagged SHA
+  # (all runs per name). Queries the recorded checks — it does not re-run the suite. Pending or
+  # missing checks are polled for up to 90 min (a tag pushed with its commit waits for CI; build.yml's per-OS jobs have
+  # taken 45–77 min on a busy queue), then
+  # fail closed. A known flake: re-run the failed job, then re-run this workflow. Emergency: an
+  # annotated tag carrying `release-gate-override: <issue-url> <reason>` waives the red checks and
+  # is printed at the top of the release notes.
+  ci-gate:
+    name: CI gate (required checks green on the tagged SHA)
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    permissions:
+      contents: read
+      checks: read
+    outputs:
+      override: ${{ steps.gate.outputs.override }}
+      waived: ${{ steps.gate.outputs.waived }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v7
+
+    - name: Fetch the annotated tag object (override marker)
+      # actions/checkout may materialise the tag without its annotation; fetch the tag object
+      # itself so `git cat-file -t` sees an annotated tag as one.
+      if: github.event_name == 'push'
+      env:
+        TAG: ${{ github.ref_name }}
+      run: git fetch --no-tags --force origin "+refs/tags/${TAG}:refs/tags/${TAG}"
+
+    - name: Require the release checks
+      id: gate
+      env:
+        GH_TOKEN: ${{ github.token }}
+        EVENT: ${{ github.event_name }}
+        TAG: ${{ github.ref_name }}
+        TAG_SHA: ${{ github.sha }}
+        DRY_RUN_SHA: ${{ inputs.sha }}
+      run: |
+        set -euo pipefail
+        if [ "$EVENT" = workflow_dispatch ]; then
+          echo "Dry run: judging $DRY_RUN_SHA (nothing will be built or published)"
+          bash tools/ci/require_checks.sh "$DRY_RUN_SHA"
+        else
+          bash tools/ci/require_checks.sh --tag "$TAG" "$TAG_SHA"
+        fi
+
   build-wasm:
     name: Build WASM Binary
+    needs: [ci-gate]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -104,6 +160,8 @@ jobs:
 
   build-bootstrap-content:
     name: Build Bootstrap Content Bundle
+    needs: [ci-gate]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -129,6 +187,8 @@ jobs:
 
   build-examples:
     name: Build Examples Bundle
+    needs: [ci-gate]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -152,6 +212,8 @@ jobs:
 
   build-release:
     name: Build Release ${{ matrix.os }}
+    needs: [ci-gate]
+    if: github.event_name == 'push'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -238,6 +300,8 @@ jobs:
 
   build-error-codes:
     name: Generate error_codes.json
+    needs: [ci-gate]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -263,7 +327,8 @@ jobs:
 
   create-release:
     name: Create GitHub Release
-    needs: [build-release, build-wasm, build-bootstrap-content, build-examples, build-error-codes]
+    needs: [ci-gate, build-release, build-wasm, build-bootstrap-content, build-examples, build-error-codes]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # id-token: write is required for cosign keyless signing — the job
@@ -362,8 +427,21 @@ jobs:
 
     - name: Generate changelog
       id: changelog
+      env:
+        # Set only when ci-gate passed on a release-gate-override marker (m-v1-release-gates §1.3).
+        GATE_OVERRIDE: ${{ needs.ci-gate.outputs.override }}
+        GATE_WAIVED: ${{ needs.ci-gate.outputs.waived }}
       run: |
-        echo "## What's Changed" > changelog.md
+        : > changelog.md
+        if [ -n "$GATE_OVERRIDE" ]; then
+          {
+            echo "> **Released with a CI-gate override:** $GATE_OVERRIDE"
+            echo ">"
+            echo "> Required checks that were NOT green on this commit: $GATE_WAIVED"
+            echo ""
+          } >> changelog.md
+        fi
+        echo "## What's Changed" >> changelog.md
         echo "" >> changelog.md
         git log --pretty=format:"* %s (%h)" $(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")..HEAD >> changelog.md || echo "* Initial release" >> changelog.md
         echo "" >> changelog.md

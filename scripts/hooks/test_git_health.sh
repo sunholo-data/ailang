@@ -14,7 +14,10 @@ ck() { if [ "$2" = "$3" ]; then echo "  ok   — $1"; pass=$((pass+1)); else ech
 git init -q --bare "$T/origin.git"
 git clone -q "$T/origin.git" "$T/main" 2>/dev/null; cd "$T/main" || exit 1
 git config user.email t@t; git config user.name t
-git checkout -q -b dev; echo a > a; git add a; git commit -qm init; git push -q origin dev
+git checkout -q -b dev; echo a > a
+mkdir -p scripts/hooks; printf '#!/bin/sh\nexit 0\n' > scripts/hooks/pre-push; chmod +x scripts/hooks/pre-push
+git add -A; git commit -qm init; git push -q origin dev
+ln -s "$T/main/scripts/hooks/pre-push" .git/hooks/pre-push
 mkdir -p scripts
 printf '#!/bin/sh\nprintf "%%s\\n" "${AILANG_SWEEP_PROTECT:-}" > "%s/protect"\necho ran >> "%s/swept"\n' "$T" "$T" > scripts/worktree_sweep.sh
 chmod +x scripts/worktree_sweep.sh
@@ -31,6 +34,19 @@ ACCOUNT_PROTECT="$ACCT/.ailang-driver-pin/:$ACCT/.ailang-ab/:$ACCT/.ailang-night
 ck "A HOME_PREFIXES: fake HOME retains all account prefixes" "$(cat "$T/protect")" "$ACCOUNT_PROTECT"
 run "$T/main"
 ck "within 6h: sweep not relaunched" "$(swept)" "1"
+
+# m-v1-release-gates §5: the 09-27 pre-push link into a removed worktree went unreported for six weeks.
+PP="$T/main/.git/hooks/pre-push"
+rm -f "$PP"; ln -s "$T/main/.claude/worktrees/gone/scripts/hooks/pre-push" "$PP"
+run "$T/main"
+ck "dangling pre-push: reported, exit 0" "$RC:$(echo "$OUT" | grep -c 'pre-push hook does not resolve')" "0:1"
+run "$T/wt"
+ck "dangling pre-push: reported from a worktree session (hooks are shared)" "$(echo "$OUT" | grep -c 'pre-push hook does not resolve')" "1"
+OUT=$(AILANG_MISSION_STAGE=x CLAUDE_PROJECT_DIR="$T/main" bash "$HOOK" 2>&1)
+ck "dangling pre-push: mission stage stays silent" "$OUT" ""
+rm -f "$PP"; ln -s "$T/main/scripts/hooks/pre-push" "$PP"
+run "$T/main"
+ck "repaired pre-push: silent again" "$OUT" ""
 
 mkdir "$T/main/.git/rebase-merge"
 run "$T/wt"
@@ -68,4 +84,4 @@ PATH="$T/bin:$PATH" run "$T/main"
 ck "C LOOKUP_FAIL_OPEN: failed lookup skips sweep, exit 0" "$RC:$(swept)" "0:$BEFORE"
 
 echo "  ---- $pass passed, $fail failed"
-[ "$fail" -eq 0 ] && [ "$pass" -eq 12 ]
+[ "$fail" -eq 0 ] && [ "$pass" -eq 16 ]

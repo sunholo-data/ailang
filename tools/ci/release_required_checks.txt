@@ -1,0 +1,25 @@
+# Check-runs that must be green on a commit before release.yml builds or publishes anything for a
+# tag on it. One GitHub Actions job name per line (the check-run name: the job's `name:`, else its
+# id), exact match; blank lines and '#' comments ignored. EVERY check-run with a listed name must
+# conclude `success` — a matrix that emits two runs under one name needs both.
+# Read by tools/ci/require_checks.sh. Design: design_docs/planned/v1_0_0/m-v1-release-gates.md §1.
+#
+# A name no workflow emits any more (renamed job) never turns green, so the gate times out RED:
+# rename here in the same commit as the job.
+
+# ci.yml
+test
+checks
+lint
+build
+test-windows
+govulncheck (vuln gate)
+float determinism (arm64)
+
+# build.yml — required by Mark's ruling, attended 2026-11-10 (m-v1-release-gates Decision 2). These
+# jobs run the full Go suite per OS; v0.57.4 (dec3e8756) shipped with `Build macos-latest` red and
+# `Build windows-latest` cancelled, which the ci.yml names alone would NOT have caught. A flaky leg
+# here blocks a release until it is re-run: that is the intended trade.
+Build ubuntu-latest
+Build windows-latest
+Build macos-latest

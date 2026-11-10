@@ -12,6 +12,8 @@
 #
 #   - a rebase/merge/cherry-pick/bisect in progress in the main checkout OR this worktree
 #   - main-checkout dev diverged from last-known origin/dev (the Stop hook will try to rebase)
+#   - a managed git hook (pre-push) that is missing, dangling, linked into a worktree or not ours
+#     (install_hooks.sh --check; git skips a dangling hook without a word — 2026-09-27..11-10)
 #   - at most every 6h, scripts/worktree_sweep.sh --apply runs detached in the background
 #     (it removes only landed, clean, idle worktrees; log: ~/.ailang/state/worktree-sweep.log)
 #
@@ -20,6 +22,7 @@
 [ -n "${AILANG_MISSION_STAGE:-}" ] && exit 0
 [ -n "${AILANG_TASK_ID:-}" ] && exit 0
 
+HOOKS_HERE=$(cd "$(dirname "$0")" && pwd)
 ROOT="${CLAUDE_PROJECT_DIR:-$(cd "$(dirname "$0")/../.." && pwd)}"
 cd "$ROOT" 2>/dev/null || exit 0
 COMMON=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null) || exit 0
@@ -47,6 +50,15 @@ if git rev-parse -q --verify refs/remotes/origin/dev >/dev/null && git rev-parse
 		echo "⚠️  GIT: local dev has $AHEAD unpushed commit(s) and is $BEHIND behind origin/dev (last fetch)."
 		echo "   The Stop hook will try a guarded rebase + push; if it reports a conflict, resolve it then."
 	fi
+fi
+
+# session_start.sh installs/repairs the hooks IN PARALLEL with this script (same SessionStart
+# group), so a failed check is re-read once after 1s before it is reported: the session that
+# repairs a dangling hook should not also be told to repair it.
+if [ -f "$HOOKS_HERE/install_hooks.sh" ]; then
+	HOOKMSG=$(bash "$HOOKS_HERE/install_hooks.sh" --check 2>/dev/null) \
+		|| { sleep 1; HOOKMSG=$(bash "$HOOKS_HERE/install_hooks.sh" --check 2>/dev/null); }
+	[ -n "$HOOKMSG" ] && printf '%s\n' "$HOOKMSG"
 fi
 
 if [ "${AILANG_WORKTREE_SWEEP:-1}" != "0" ] && [ -x "$ROOT/scripts/worktree_sweep.sh" ]; then
