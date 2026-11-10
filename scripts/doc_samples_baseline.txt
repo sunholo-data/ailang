@@ -52,6 +52,7 @@ docs/docs/guides/mcp-connectors.md 61a047b5a511 TC_UNDEFINED_VAR
 docs/docs/guides/mcp-connectors.md 623b015b047a MOD014
 docs/docs/guides/mcp-connectors.md 68bbd0f36c41 TC_UNDEFINED_VAR
 docs/docs/guides/mcp-connectors.md 961d0c65d5a1 TC_UNDEFINED_VAR
+docs/docs/guides/mcp-connectors.md cc3bad909c38 MODULE
 docs/docs/guides/mcp-connectors.md dde81793f030 TC_UNDEFINED_VAR
 docs/docs/guides/module_execution.mdx 08eea7ff2f90 TC_EFFECT
 docs/docs/guides/module_execution.mdx 508fcc0f85c7 TC_EFFECT
