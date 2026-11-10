@@ -259,7 +259,8 @@ call sites, so a precondition alone gives it nothing to prove. Such a function
 is still listed in `results` (status `skipped`, reason code
 `missing_postcondition`) but never changes the outcome or the exit code, with
 or without Z3, and passes `--strict`. The same holds for a function whose only `ensures` is the
-literal `true`: it proves nothing, so it is not an obligation either.
+literal `true`: it proves nothing, so it is not an obligation either. Other tautologies
+(`1 == 1`, `result == result`) are not detected and count as verified.
 
 | Outcome | Exit | `outcome` |
 |---|---|---|
@@ -280,7 +281,8 @@ counter `skipped` still includes `requires`-only rows. Each command checks one
 file: a second file is a usage error (exit 2), and flags may follow the file. `--strict` with
 `--allow-inconclusive`, and `check --strict` without `--verify`, are usage errors too. Only the
 checked file is verified: when it imports (non-stdlib) modules that declare contracts, stderr says
-so and `imported_contracts_unverified` names them; verify each module on its own.
+so and `imported_contracts_unverified` names them, including modules reached only transitively (A
+imports B imports C: C is listed); the checked file itself is never listed. Verify each module on its own.
 `verify --package` refuses up front when Z3 is missing.
 
 ### How It Works

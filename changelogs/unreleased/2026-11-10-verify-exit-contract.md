@@ -89,12 +89,15 @@ truncated}` before; the same five plus these after, none changed): `verification
 solver) and `verification_message`, only when `verification` is `unavailable`: "contract
 verification is not available on this hosted tool; type checking passed" on the quiet lane (exit
 0), "contract verification could not run on this hosted tool: no solver was found" on the loud lane
-(exit 1). No host path and no install advice reaches a remote caller. The call is logged
+(exit 1). No host path and no install advice reaches a remote caller: a solver that exists but cannot be
+started (not executable, a directory) stays `error`, exit 1, with the reason "the verification
+solver could not be started" instead of the CLI's `fork/exec <host path>` text. The call is logged
 `ok_unverified` on the quiet lane and `verify_failed` when verification fails (both were logged
 `ok`).
 
 Also: a literal `ensures { true }` proves nothing and is not an obligation (it can no longer turn
 an all-skipped file into `partial`); a file importing (non-stdlib) modules that declare contracts
-says on stderr and in `imported_contracts_unverified` that those contracts were not verified
+(directly or transitively) says on stderr and in `imported_contracts_unverified` that those
+contracts were not verified
 (behaviour unchanged: only the checked file is verified); `--strict` with `--allow-inconclusive`,
 and `check --strict` without `--verify` (was exit 1), are usage errors, exit 2.

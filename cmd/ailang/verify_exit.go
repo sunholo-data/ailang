@@ -62,10 +62,19 @@ func verificationFileArg(fs *flag.FlagSet, command string) string {
 // Behaviour is unchanged; the commands now SAY it (stderr note and the JSON
 // field imported_contracts_unverified). The standard library is left out:
 // its contracts are not re-verified per program.
+//
+// The entry module is excluded by the key the pipeline itself used for it
+// (Result.RootModuleKey), never by its declared module name: under
+// -relax-modules a file `r/main.ail` declaring `module main` is keyed by its
+// path, and comparing names listed the checked file as its own import on
+// every hosted call. Every other module in Result.Modules was loaded because
+// the entry module imports it, directly or TRANSITIVELY (A imports B imports
+// C: C is listed when it declares contracts). Without a known entry key
+// nothing is listed, rather than a guess.
 func importedContractModules(result pipeline.Result) []string {
-	self := ""
-	if ast := result.Artifacts.AST; ast != nil && ast.Module != nil {
-		self = ast.Module.Path
+	self := result.RootModuleKey
+	if self == "" {
+		return nil
 	}
 	var mods []string
 	for path, mod := range result.Modules {

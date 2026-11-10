@@ -458,6 +458,72 @@ func TestVerifyExit_ImportedContractsAreNamed(t *testing.T) {
 	}
 }
 
+// importedList runs one spelling and returns imported_contracts_unverified
+// and whether stderr carried the imports note.
+func importedList(t *testing.T, bin string, sp verifySpelling, extra []string, file string) ([]string, bool) {
+	t.Helper()
+	stdout, stderr, code := runAilangBin(t, bin, sp.args(extra, file)...)
+	v, err := sp.jsonVerify(stdout)
+	if err != nil {
+		t.Fatalf("%s %s: invalid JSON (exit %d): %v\n%s", sp.name, file, code, err, stderr)
+	}
+	var mods []string
+	raw, _ := v["imported_contracts_unverified"].([]any)
+	for _, m := range raw {
+		s, _ := m.(string)
+		mods = append(mods, s)
+	}
+	return mods, strings.Contains(stderr, "contracts in imported modules were not verified")
+}
+
+// TestVerifyExit_ImportedContractsIdentity (third-round review): the checked
+// file is never listed as its own import. Under -relax-modules a file
+// `r/main.ail` declaring `module main` used to report
+// imported_contracts_unverified: ["r/main"] — the declared module name and
+// the pipeline's key for the entry module differ, and the hosted tool runs
+// exactly that shape on every call. The entry module is now excluded by the
+// key the pipeline used for it, and "imported" means reached through
+// imports, transitively. Red mutation: compare against the declared module
+// name again.
+func TestVerifyExit_ImportedContractsIdentity(t *testing.T) {
+	requireShForFakeSolver(t)
+	bin := buildAilang(t)
+	t.Setenv("AILANG_Z3_PATH", fakeSolver(t, "unsat", "unsat", 0))
+	const half = "cmd/ailang/testdata/verify_exit/half"
+	dir := filepath.Join(t.TempDir(), "r")
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	selfOnly := filepath.Join(dir, "main.ail")
+	if err := os.WriteFile(selfOnly, []byte("module main\n\nexport pure func half(x: int) -> int\n  requires { x >= 0 }\n  ensures { result >= 0 }\n{ x / 2 }\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	relaxImporter := filepath.Join(t.TempDir(), "main.ail")
+	if err := os.WriteFile(relaxImporter, []byte("module main\n\nimport "+half+" (half)\n\nexport pure func quarter(x: int) -> int = half(half(x))\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	relax := []string{"--relax-modules"}
+	for _, sp := range verifySpellings {
+		for _, c := range []struct {
+			name  string
+			extra []string
+			file  string
+			want  []string
+		}{
+			{"(a) relax-modules self-contained file with contracts", relax, selfOnly, nil},
+			{"(b) strict-module self-contained file", nil, verifyExitFixtures + "half.ail", nil},
+			{"(c) real import, strict", nil, verifyExitFixtures + "importer.ail", []string{half}},
+			{"(c) real import, relax-modules", relax, relaxImporter, []string{half}},
+			{"(d) transitive import A -> B -> C", nil, verifyExitFixtures + "transitive.ail", []string{half}},
+		} {
+			got, note := importedList(t, bin, sp, c.extra, c.file)
+			if strings.Join(got, ",") != strings.Join(c.want, ",") || note != (len(c.want) > 0) {
+				t.Fatalf("%s %s: imported_contracts_unverified = %v (note %v), want %v", sp.name, c.name, got, note, c.want)
+			}
+		}
+	}
+}
+
 // TestVerifyExit_AllowInconclusiveAlone: a file whose ONLY obligation is
 // inconclusive exits 0 under --allow-inconclusive on every spelling — an
 // explicit opt-in that may mean nothing was proved — and the outcome says

@@ -440,13 +440,16 @@ func (st *modulePipelineState) registerResolver() error {
 // ModeEval, and assembles the result.
 func (st *modulePipelineState) evaluateAndAssemble() error {
 	start := time.Now()
-	rootUnit := st.compiledUnits[st.rootCanonical]
+	rootKey := st.rootCanonical
+	rootUnit := st.compiledUnits[rootKey]
 	if rootUnit == nil {
-		rootUnit = st.compiledUnits[st.src.Filename]
+		rootKey = st.src.Filename
+		rootUnit = st.compiledUnits[rootKey]
 		if rootUnit == nil {
 			return fmt.Errorf("root module not found: %s (canonical: %s)", st.src.Filename, st.rootCanonical)
 		}
 	}
+	st.result.RootModuleKey = rootKey
 
 	coreEval := eval.NewCoreEvaluator()
 	coreEval.SetGlobalResolver(st.resolver)

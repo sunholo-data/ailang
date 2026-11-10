@@ -248,8 +248,9 @@ the JSON report it prints is Experimental ⚠ close call, because its shape is s
   check, nothing proved (`unproved`: every obligation skipped), a counterexample, a solver error or
   timeout, an inconclusive result, or obligations with no solver. `--allow-inconclusive` makes an
   inconclusive result exit 0 even when it is the only obligation (nothing proved); the outcome stays
-  `inconclusive`. An obligation is a function with a non-trivial `ensures` clause; a `requires`-only
-  function, or one whose only `ensures` is the literal `true`, is not one. Contradictory flags
+  `inconclusive`. An obligation is a function with an `ensures` clause; a `requires`-only function, or
+  one whose only `ensures` is the literal `ensures { true }`, is not one. Other tautologies (`1 == 1`,
+  `result == result`, `true && true`) are not detected and count as verified. Contradictory flags
   (`--strict` with `--allow-inconclusive`, either with `--no-verify`, `--strict` without `--verify`)
   are usage errors (exit 2). The JSON `outcome` field may gain values in a minor; existing values keep
   their meaning. `ai-check --no-verify` (type check only, outcome `not_requested`) is Experimental.

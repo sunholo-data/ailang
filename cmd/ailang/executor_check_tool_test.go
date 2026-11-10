@@ -130,6 +130,12 @@ func TestCheckTool_Matrix(t *testing.T) {
 			if hasMsg != r.message || (!r.message && strings.Contains(run.result, "verification_message")) {
 				t.Fatalf("verification_message present=%v, want %v:\n%s", hasMsg, r.message, run.result)
 			}
+			// (third-round review) The tool checks a self-contained `module
+			// main` under -relax-modules; it must never report its own file as
+			// an unverified import.
+			if strings.Contains(run.result, "imported_contracts_unverified") || strings.Contains(run.result, "imported modules were not verified") {
+				t.Fatalf("a self-contained program reports unverified imports:\n%s", run.result)
+			}
 			for _, local := range []string{"Install Z3", "brew"} {
 				if strings.Contains(run.result, local) {
 					t.Fatalf("result tells a remote caller about local setup (%q):\n%s", local, run.result)
@@ -239,6 +245,40 @@ func TestCheckTool_ProbeFailureIsNotNoSolver(t *testing.T) {
 		if strings.Contains(noSolver.result, "type checking passed") {
 			t.Fatalf("%s probe: verification_message claims success beside exit 1:\n%s", probe.name, noSolver.result)
 		}
+	}
+}
+
+// TestCheckTool_SolverThatCannotStartNamesNoHostPath (third-round review): a
+// solver path that exists but cannot be started — a non-executable file or a
+// directory — makes the CLI report `fork/exec <host path>: permission
+// denied` in the result reason. The hosted tool keeps the outcome and exit
+// code (error, exit 1) and replaces that reason with a fixed message, so no
+// host path reaches a remote caller in any field. Red mutation: drop
+// scrubSolverStart.
+func TestCheckTool_SolverThatCannotStartNamesNoHostPath(t *testing.T) {
+	requireShForFakeSolver(t)
+	noExec := filepath.Join(t.TempDir(), "z3")
+	if err := os.WriteFile(noExec, []byte("not a program"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	dirSolver := filepath.Join(t.TempDir(), "z3dir")
+	if err := os.MkdirAll(dirSolver, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	for _, z3 := range []string{noExec, dirSolver} {
+		run := runCheckTool(t, z3, toolContract)
+		for _, want := range []string{field("ok", "JBool(false)"), field("exit_code", "JNumber(1.0)"), field("verification", "JString(error)"),
+			"the verification solver could not be started"} {
+			if !strings.Contains(run.result, want) {
+				t.Fatalf("solver %s: result missing %q:\n%s", z3, want, run.result)
+			}
+		}
+		for _, leak := range []string{z3, "fork/exec"} {
+			if strings.Contains(run.result, leak) {
+				t.Fatalf("solver %s: result leaks %q:\n%s", z3, leak, run.result)
+			}
+		}
+		assertRemoteSafe(t, run.result)
 	}
 }
 

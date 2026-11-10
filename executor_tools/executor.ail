@@ -24,6 +24,7 @@ import std/fs (mkdirAllResult, writeFileResult, removeFileResult, removeDirResul
 import std/json (Json, jo, kv, js, jb, jnum, jint, encode, decode, get, getString, getBool, getInt, getArray)
 import std/list (filter, length as listLength)
 import std/option (Option, Some, None)
+import std/regex (compile, replaceAll)
 import std/process (exec, ProcessOutput, ProcessError, NotAllowed, NotFound, PermissionDenied, Timeout, OutputLimitExceeded, SpawnFailed, AbnormalExit)
 import std/rand (uuid4)
 import std/result (Result, Ok, Err)
@@ -178,6 +179,16 @@ pure func noSolverMessage(exitCode: int) -> string =
   if exitCode == 0 then "contract verification is not available on this hosted tool; type checking passed"
   else "contract verification could not run on this hosted tool: no solver was found"
 
+-- A solver that exists but cannot be started (not executable, a directory)
+-- makes the CLI report `"reason": "Z3 error (exit fork/exec <host path>: …)"`.
+-- The path helps a local user; a remote caller gets a fixed message instead
+-- (outcome and exit code are untouched: error, exit 1).
+pure func scrubSolverStart(report: string) -> string =
+  match compile("\"reason\": \"[^\"]*fork/exec [^\"]*\"") {
+    Ok(re) => replaceAll(re, report, "\"reason\": \"the verification solver could not be started\""),
+    Err(_) => report
+  }
+
 -- The CLI's local "solver not found" lines: they name host paths and give
 -- install advice, so they never reach a remote caller.
 pure func isLocalSolverAdvice(line: string) -> bool =
@@ -201,7 +212,7 @@ pure func verificationOf(outcome: string) -> string =
 -- Like every exec result, it never names the per-request directory (scrubDir),
 -- and it never carries the CLI's local solver advice (isLocalSolverAdvice).
 pure func checkResultJson(out: ProcessOutput, dir: string) -> Json {
-  let stdout = scrubDir(toString(out.stdout), dir);
+  let stdout = scrubSolverStart(scrubDir(toString(out.stdout), dir));
   let verification = verificationOf(reportVerifyOutcome(stdout));
   let rawErr = scrubDir(toString(out.stderr), dir);
   let stderr = if verification == "unavailable" then join("\n", filter(\l. !isLocalSolverAdvice(l), split(rawErr, "\n"))) else rawErr;
