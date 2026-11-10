@@ -19,9 +19,22 @@ the next release on the rig, or promoting it, is not, until these land and their
 | world | `se_tools/read.ail:197` | silently rejects every integer line argument |
 | motoko upstream only | `src/core/process_limits.ail:92` | `{"timeout_secs": 60}` silently becomes an invalid request (matters when the fork next syncs) |
 
-The arms cannot be added before a release exists: a compiler without `JInt` rejects the import. So the
-order is: tag → land the arms in the motoko fork and world → move their pins → only then move the rig
-binary and promote. The exact arms are written out in upstream issue arniwesth/motoko_agent#323.
+**Corrected the same day — two things in the first version of this note were wrong.**
+
+1. **The table above is not the whole list.** A sweep of `ailang-packages` with a `dev` compiler found
+   12 more places (audio, maintenance-bench, specstore, terminal-ui, two examples, four benchmark
+   fixtures). The compiler names every one: `ailang check` on `dev` prints warning `TC_MATCH_005` for a
+   `JNumber` arm with no `JInt` arm. One already bites: the path-filtered `Maintenance instrument`
+   workflow fails on any PR that triggers it, because `maintenance-bench/codec.ail` rejects integer
+   counts. A census of every downstream corpus is running; its result replaces this table.
+2. **No release ordering is needed for most fixes.** `asNumber`, `getNumber` and `getInt` have been in
+   `std/json` since at least v0.54.14 and accept both constructors on `dev`. A site rewritten with them is
+   correct on old and new compilers and can land today. Only a site that must tell an integer from a
+   float needs a `JInt` arm, and only that kind waits for a release.
+
+So: fix the downstream sites with the accessors now; **do not install or promote a release containing
+`JInt` until the census is clean.** The exhaustiveness gate is still blind to this (`check` exits 0 with a
+warning) — counting `TC_MATCH_005` in `make downstream-check` is the missing instrument.
 Also live on merge: **teaching prompt v0.16.13** is the active prompt for every binary built from `dev`.
 
 ## Roadmap accepted 2026-11-10 (`D-66`) — v1.0.0 is NOT the next tag
