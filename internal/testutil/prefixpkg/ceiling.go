@@ -68,8 +68,11 @@ export func touchVia(p: string) -> () ! {FS} = touch(p)
 	root := Tree(t, files)
 	app := filepath.Join(root, "app")
 	for sp, pre := range Spellings {
+		// Forward slashes: a Windows path's backslashes would be string escapes
+		// in the AILANG literal, and Windows accepts "/" in file paths.
+		marker := filepath.ToSlash(CeilingMarker(app, sp))
 		src := "module call_" + sp + "\n\nimport std/io (println)\nimport " + pre + "files (touch)\n\n" +
-			"export func main() -> () ! {IO, FS} {\n  touch(\"" + CeilingMarker(app, sp) + "\");\n  println(\"done\")\n}\n"
+			"export func main() -> () ! {IO, FS} {\n  touch(\"" + marker + "\");\n  println(\"done\")\n}\n"
 		if err := os.WriteFile(filepath.Join(app, "call_"+sp+".ail"), []byte(src), 0o600); err != nil {
 			t.Fatal(err)
 		}
