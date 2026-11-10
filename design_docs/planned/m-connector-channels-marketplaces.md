@@ -169,6 +169,15 @@ in prod changes without this, and success metric 4 depends on it.
 5. Gate: `ailang mcp check --target both` passes on both prod URLs. Client models stay **off in prod**
    (`ClientConfig` fields false) until D2; the code ships dark.
 
+**P1b status (2026-11-10): done.** AILANG v0.60.0 (tag on `2f3ebb81f`; a macOS PTY flake in
+`TestWorkerCLIProcessExitLifecycle` held the release gate until a job re-run) promoted to prod;
+docparse v0.47.0 promoted to prod; ailang-multivac #20 pins `executor-mcp:v0.60.0` and is applied on
+`test` and `prod` (98456f1). Verified on prod: `mcp.ailang.sunholo.com` serves 0.60.0 as
+`ailang-docs`; the executor reports `executor (AILANG Executor) 0.60.0`, all 29 tools annotated,
+`ailang_check` proves contracts (`double` verified, `wrong` counterexample `x = 0`), no request
+directory in results; Parse 0.47.0 passes `--target both`. Client-model switches present and empty
+on both prod services, so `--target copilot` FAILs registration there until D2.
+
 **P2: Mark at the consoles, with screenshots (Mark ~1 day, agent on call).** One session per channel, against
 dev for anything new: C1, C3, C4, C5, C6, C7, C8 (OAuth). This also takes the GE measurements P0-1…P0-5 from
 `m-mcp-oauth-client-models.md`. Each session yields its shots (§4) and a row in the §1 matrix.
