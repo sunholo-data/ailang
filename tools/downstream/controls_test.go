@@ -275,7 +275,7 @@ func TestIsolationEnvAndWriteAudit(t *testing.T) {
 	for _, want := range []string{
 		"HOME=" + filepath.Join(f.dir, "out", "arms", "candidate", "home"),
 		"AILANG_CACHE_DIR=" + filepath.Join(f.dir, "out", "arms", "candidate", "cache"),
-		"AILANG_PACKAGE_ROOT=" + filepath.Join(f.dir, "pkgroot"),
+		"AILANG_PACKAGE_ROOT=" + filepath.Join(f.dir, "out", "pkgroot"),
 		"AILANG_TRACE=off",
 	} {
 		if !strings.Contains(s, want+"\n") {

@@ -9,14 +9,15 @@ buckets in `tools/downstream/expected-breaks.yaml`. Exit codes (`tools/downstrea
 0 PASS; 2 an unacknowledged or over-max bucket in a blocking corpus, or an expected-breaks entry
 that matched nothing; 3 the instrument could not measure (unreachable corpus, a binary that does
 not start, a failed built-in canary, bad configuration, or a file written where nothing may be
-written — snapshots, read checkouts, the package root); 4 a blocking corpus has entries the
+written — snapshots, read checkouts, the run's package-root copy); 4 a blocking corpus has entries the
 baseline never reached a verdict on (`NOT_MEASURED`: unresolved dependencies, timeout, crash)
 beyond its reviewed `allow_not_measured` — never a silent pass.
 
 Corpora are snapshots of each repo's remote ref fetched with the operator's `gh` (`REF=default`, the
 release default, or `REF=pinned`); sibling checkouts are only read (`REF=worktree` copies one and
 labels every row DIRTY). Each arm gets its own binary dir, HOME, compile cache, state and temp dirs,
-a read-only `AILANG_PACKAGE_ROOT`, and no inherited `AILANG_*` variable. Each check runs in its own
+a per-run copy of the package root (the operator's own registry cache is shared with every other
+`ailang` process on the machine, so it is only read), and no inherited `AILANG_*` variable. Each check runs in its own
 process group under a Go-side deadline that kills the whole group (a Go binary ignores `SIGALRM`, so
 an alarm-based timeout never fires on `ailang`). Same-code-different-error rows are reported as
 `fail_diag_changed`; an examples-manifest `exit_code` without an `error_pattern` (a run-time exit

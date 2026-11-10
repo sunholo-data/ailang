@@ -187,9 +187,32 @@ func TestOneArmResultIsAnInstrumentFailure(t *testing.T) {
 	}
 }
 
-// SHOULD-FIX: the package root is shared by every arm and must stay unwritten.
+// SHOULD-FIX: the package root both arms read must stay unwritten. They read a
+// per-run copy (the operator's root is shared with every other ailang process on
+// the machine); a write into the copy is the gate's own and fails the run.
 func TestPackageRootWriteIsAudited(t *testing.T) {
 	f := newFixture(t, oneBlocking, "")
+	op := filepath.Join(f.dir, "pkgroot")
+	for rel, body := range map[string]string{"sunholo/p/1.0.0/lib.ail": "module lib\n", "sunholo/p/1.0.0/.ailang/cache/x": "stale"} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(op, rel)), 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(op, rel), []byte(body), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	copied := filepath.Join(f.dir, "out", "pkgroot", "sunholo", "p", "1.0.0")
+	defer func() {
+		if _, err := os.Stat(filepath.Join(copied, "lib.ail")); err != nil {
+			t.Errorf("package file not copied: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(copied, ".ailang")); !os.IsNotExist(err) {
+			t.Errorf("a compile cache was copied into the run's package root: %v", err)
+		}
+		if _, err := os.Stat(filepath.Join(op, "leaked.txt")); !os.IsNotExist(err) {
+			t.Errorf("the operator's package root was written: %v", err)
+		}
+	}()
 	f.remote.repos["owner/app"] = map[string]string{"a/w.ail": "module a/w\n-- WRITE_PKGROOT\n"}
 	code, rep := f.run(f.options(f.base, f.cand))
 	named := false

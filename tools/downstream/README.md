@@ -13,8 +13,15 @@ make downstream-check CANDIDATE=./bin/ailang TIER=release   # BASELINE defaults 
 
 Other knobs: `BASELINE=vX.Y.Z|<binary>`, `CORPORA=a,b`, `REF=default|pinned|worktree`,
 `OUT=<dir>` (new or empty), `DOWNSTREAM_STATE=<dir>` (snapshot and baseline cache, default
-`~/.ailang/state/downstream`), `OFFLINE=0|1`, `JOBS=n` (default 3; checks run under `nice -n 15`).
-The private corpora are fetched with the operator's own `gh` auth.
+`~/.ailang/state/downstream`), `OFFLINE=0|1`, `JOBS=n` (default 3; checks run under `nice -n 15`),
+`TIMEOUT=s` (per check, default 120, retried once at 2×). The private corpora are fetched with
+the operator's own `gh` auth.
+
+**Package root.** Dependencies resolve from a per-run copy of `--package-root` (default
+`~/.ailang/cache/registry`, about 60 MiB without compile caches) at `<OUT>/pkgroot`. The operator's
+directory is only read: it is shared with every other `ailang` process on the machine, and on the
+first real run a scheduled job compiled a registry package into it mid-run. The copy leaves out
+`.ailang` compile caches, both arms read it, and the write audit covers it.
 
 The report lands in `OUT` (default `<state>/runs/<timestamp>/`): `report.md`, `report.json`,
 `rows.jsonl` (every entry) and `pins.md`.
@@ -25,7 +32,7 @@ The report lands in `OUT` (default `<state>/runs/<timestamp>/`): `report.md`, `r
 |---|---|---|
 | 0 | PASS | every entry of every blocking corpus was measured, and no unacknowledged break |
 | 2 | FAIL | an unacknowledged or over-`max` bucket in a blocking corpus, **or** an `expected-breaks.yaml` entry that matched nothing (a stale acknowledgement — remove it) |
-| 3 | INSTRUMENT FAILURE | could not measure: a corpus not fetched, a binary that does not start, the built-in canary failed, bad configuration (e.g. an invalid `error_pattern`), an entry with a result from one arm only, or a write where nothing may be written (snapshots, read local checkouts, the package root) |
+| 3 | INSTRUMENT FAILURE | could not measure: a corpus not fetched, a binary that does not start, the built-in canary failed, bad configuration (e.g. an invalid `error_pattern`), an entry with a result from one arm only, or a write where nothing may be written (snapshots, read local checkouts, the run's package-root copy) |
 | 4 | INCOMPLETE | a blocking corpus has `NOT_MEASURED` entries beyond its `allow_not_measured` (or an allowance that no longer excuses anything) |
 | 64 | usage | a flag that does not parse (`--offline=maybe`) |
 
@@ -59,8 +66,8 @@ A blocking corpus tolerates **zero** unmeasured entries by default. When some ca
 yet, the operator has two choices, and the exit-4 message says which applies:
 
 1. **Fix the cause.** `deps_unresolved`: provision the corpus's dependencies into the package root
-   the gate reads (`--package-root`, default `~/.ailang/cache/registry`; it is never written by the
-   gate); `timeout`: raise `--timeout` or fix the hang; `crash`: read the rows.
+   the gate copies (`--package-root`, default `~/.ailang/cache/registry`; the gate never writes
+   it); `timeout`: raise `TIMEOUT=` or fix the hang; `crash`: read the rows.
 2. **Acknowledge it, reviewed.** Add to the corpus in `corpora.yaml`:
 
    ```yaml

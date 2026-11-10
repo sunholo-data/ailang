@@ -42,6 +42,7 @@ type Report struct {
 	NullControl bool               `json:"null_control"` // both arms are the same binary
 	Failures    []string           `json:"instrument_failures"`
 	Incomplete  []string           `json:"not_measured_failures"` // exit 4: blocking corpora over their allowance
+	PackageRoot *PackageRootCopy   `json:"package_root,omitempty"`
 	Sources     []Source           `json:"sources"`
 	Corpora     []CorpusSummary    `json:"corpora"`
 	Buckets     []Bucket           `json:"buckets"`
@@ -119,6 +120,10 @@ func (r *Report) renderMarkdown(w io.Writer) {
 	p("## Arms\n\n| arm | origin | version | sha256 | wall s |\n|---|---|---|---|---|\n")
 	for _, a := range r.Arms {
 		p("| %s | %s | %s | %s | %.0f |\n", a.Name, cell(a.Origin), cell(a.Version), shortSHA(a.SHA256), r.ArmWall[a.Name])
+	}
+	if pr := r.PackageRoot; pr != nil {
+		p("\nPackage root: a per-run copy of `%s` (%d files, %.1f MiB, `.ailang` compile caches left out, %d links skipped); both arms read the copy.\n",
+			pr.Source, pr.Files, float64(pr.Bytes)/(1<<20), pr.Links)
 	}
 	if len(r.Failures) > 0 {
 		p("\n## INSTRUMENT FAILURES (exit 3)\n\n")

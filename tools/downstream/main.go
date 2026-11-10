@@ -21,8 +21,9 @@
 //
 // Isolation (design §6.3, enforced here, not by convention): each binary is copied
 // into its own empty dir; every AILANG_*/XDG_* variable is dropped; HOME, compile
-// cache, state and TMPDIR are per-arm scratch dirs; AILANG_PACKAGE_ROOT is a
-// read-only package root, so a missing dependency is an error, never a download.
+// cache, state and TMPDIR are per-arm scratch dirs; AILANG_PACKAGE_ROOT is the
+// run's audited copy of the operator's package root (pkgroot.go), so a missing
+// dependency is an error, never a download, and no other process can change it.
 // Corpora are materialised into the run dir (snapshots of the remote ref through
 // the operator's `gh`, or a copy of the local checkout in REF=worktree); the
 // operator's checkouts are only read, with --no-optional-locks.
@@ -188,7 +189,13 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 		return finish(nil)
 	}
 	rep.NullControl = base.SHA256 == cand.SHA256
-	runner := &Runner{Jobs: o.Jobs, Timeout: o.Timeout, PackageRoot: o.PackageRoot, Nice: !o.NoNice, RunDir: o.Out}
+	pkgRoot, err := copyPackageRoot(o.PackageRoot, filepath.Join(o.Out, "pkgroot"))
+	if err != nil {
+		fail("%v", err)
+		return finish(nil)
+	}
+	rep.PackageRoot = &pkgRoot
+	runner := &Runner{Jobs: o.Jobs, Timeout: o.Timeout, PackageRoot: pkgRoot.Path, Nice: !o.NoNice, RunDir: o.Out}
 	if msg := runCanary(runner, base, cand, filepath.Join(o.Out, "canary")); msg != "" {
 		fail("canary: %s", msg)
 		return finish(nil)
@@ -263,8 +270,9 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 	for _, l := range locals {
 		auditInto(rep, "local checkout "+l, l, started)
 	}
-	// Every arm shares the package root; by contract it is never written.
-	auditInto(rep, "package root "+o.PackageRoot, o.PackageRoot, started)
+	// Both arms read the run's copy of the package root; by contract it is never
+	// written (a write would be one arm's output feeding the other's input).
+	auditInto(rep, "package root copy", pkgRoot.Path, snapStamp)
 	return finish(rows)
 }
 
