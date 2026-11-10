@@ -1,0 +1,4 @@
+module h5/main
+import h5/a (mk)
+import h5/b (idu)
+export func main() -> () ! {IO} = println(show(match idu(mk()) { _ => 1 }))

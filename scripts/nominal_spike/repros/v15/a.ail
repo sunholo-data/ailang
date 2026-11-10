@@ -1,0 +1,4 @@
+module v15/a
+export type T = A(int) | B
+export pure func mk() -> T = B
+export pure func desc(t: T) -> string = match t { A(n) => "a.A ${show(n)}", B => "a.B" }

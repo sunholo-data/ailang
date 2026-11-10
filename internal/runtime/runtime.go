@@ -554,11 +554,11 @@ func (rt *ModuleRuntime) buildMinimalInterface(loaded *loader.LoadedModule) (*if
 			var resultType types.Type
 			if typeParamCount > 0 {
 				resultType = &types.TApp{
-					Constructor: &types.TCon{Name: typeName},
+					Constructor: types.SpikeCon(typeName),
 					Args:        adtTypeVars,
 				}
 			} else {
-				resultType = &types.TCon{Name: typeName}
+				resultType = types.SpikeCon(typeName)
 			}
 
 			constructors[ctorName] = &iface.ConstructorScheme{

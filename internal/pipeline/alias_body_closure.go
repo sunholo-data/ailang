@@ -23,7 +23,7 @@ func newAliasBodyCloser(aliases map[string]types.Type, params map[string][]strin
 func (c *aliasBodyCloser) alias(name string) types.Type {
 	if c.active[name] {
 		c.cycles++
-		return &types.TCon{Name: name}
+		return types.SpikeCon(name)
 	}
 	if t, ok := c.memo[name]; ok {
 		return t

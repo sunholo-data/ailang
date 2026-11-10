@@ -428,7 +428,7 @@ func (r *REPL) registerDictionariesForLinker(linker *link.Linker) {
 		className := dict.TypeClass
 
 		// Create a proper Type for key generation
-		typeForKey := &types.TCon{Name: dict.Type}
+		typeForKey := types.SpikeCon(dict.Type)
 
 		// Register each method with its canonical key
 		for methodName := range dict.Methods {
@@ -445,7 +445,7 @@ func (r *REPL) registerDictionariesForEvaluator(evaluator *eval.CoreEvaluator) {
 		className := dict.TypeClass
 
 		// Create a proper Type for key generation
-		typeForKey := &types.TCon{Name: dict.Type}
+		typeForKey := types.SpikeCon(dict.Type)
 
 		// Register each method with its canonical key
 		for methodName := range dict.Methods {

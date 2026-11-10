@@ -488,11 +488,11 @@ func (tc *CoreTypeChecker) resolveGroundConstraints(constraints []ClassConstrain
 			// We need to determine the method based on the node
 			// This will be done when we scan the Core AST
 			// Create normalized type for dictionary lookup consistency
-			normalizedType := &TCon{Name: NormalizeTypeName(c.Type)}
+			normalizedType := SpikeCon(NormalizeTypeName(c.Type))
 			// M-EQ-DERIVE-CONTAINERS: a synthesized Eq (list, Option, tuple,
 			// derived record…) dispatches to the one structural dictionary.
 			if inst.Structural {
-				normalizedType = &TCon{Name: StructuralEqTypeName}
+				normalizedType = SpikeCon(StructuralEqTypeName)
 			}
 
 			// M-FIX-FLOAT-OP: Upgrade class based on resolved type

@@ -1,0 +1,2 @@
+module v2/b
+export type T = B(string)

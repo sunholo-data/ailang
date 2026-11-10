@@ -1,0 +1,6 @@
+module q/main
+import q/a (mk)
+import q/b (T, A)
+import std/string (length, toUpper)
+pure func use(t: T) -> string = match t { A(s) => toUpper(s) }
+export func main() -> () ! {IO} { println(use(mk())); println(show(length(use(mk())))) }

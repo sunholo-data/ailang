@@ -1,0 +1,4 @@
+module v15/main
+import v15/a as Ma (mk, desc)
+import v15/b as Mb (mk, desc)
+export func main() -> () ! {IO} { println(Ma.desc(Ma.mk())); println(Mb.desc(Mb.mk())) }

@@ -67,18 +67,18 @@ func (b *Builder) Var(name string) Type {
 
 // Con creates a type constructor (e.g., "Result", "Option", "List")
 func (b *Builder) Con(name string) Type {
-	return &TCon{Name: name}
+	return SpikeCon(name)
 }
 
 // App creates a type application (e.g., List<String>, Result<T, E>)
 // For higher-kinded types like Result<Response, NetError>
 func (b *Builder) App(con string, args ...Type) Type {
 	if len(args) == 0 {
-		return &TCon{Name: con}
+		return SpikeCon(con)
 	}
 
 	return &TApp{
-		Constructor: &TCon{Name: con},
+		Constructor: SpikeCon(con),
 		Args:        args,
 	}
 }

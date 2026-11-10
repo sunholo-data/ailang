@@ -193,7 +193,7 @@ func deriveEqFromOrd(ord *ClassInstance) *ClassInstance {
 // M-DX19: This enables the type checker to resolve Eq constraints for the ADT type.
 func (env *InstanceEnv) AddDerivedEqForADT(typeName string) error {
 	// Create a TCon type for the ADT
-	adtType := &TCon{Name: typeName}
+	adtType := SpikeCon(typeName)
 
 	// Check if instance already exists
 	key := canonicalKey("Eq", adtType)

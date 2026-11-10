@@ -50,6 +50,9 @@ type moduleImports struct {
 	// renamed, Alias.qualified) to the exporting module's IFC summary — the
 	// same identities GlobalRefs binds (M-IFC-CROSS-MODULE M3, #1134).
 	IFC types.IFCImports
+	// TypeHomes: type name bound by an explicit selective import -> the
+	// exporting (defining) module. M-V1-NOMINAL-TYPE-IDENTITY M0 spike.
+	TypeHomes map[string]string
 }
 
 // resolveModuleImports builds the external type environment and global references
@@ -72,6 +75,7 @@ func resolveModuleImports(
 		AllCtorTypes:          make(map[string]string),
 		ImportedAliasOrigin:   make(map[string]string),
 		CapturedAliases:       make(map[string]string),
+		TypeHomes:             make(map[string]string),
 	}
 
 	// M-MATCH-XCHECK-ERROR-QUALITY: collect a diagnostic-only Constructor → ADT
@@ -237,6 +241,7 @@ func resolveSelectiveImports(
 
 		// Try to import as a type name
 		if typ, ok := depIface.GetType(sym); ok {
+			imports.TypeHomes[bindName] = depIface.Module
 			if cfg.TraceDefaulting {
 				fmt.Printf("  Import type %s (arity %d)\n", typ.Name, typ.Arity)
 			}

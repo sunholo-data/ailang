@@ -1,0 +1,3 @@
+module h4c/b
+export type W = W({ x: int }) | Z
+export pure func getb(w: W) -> int = match w { W(r) => r.x, Z => 0 }

@@ -1,0 +1,3 @@
+module h4/b
+export type R = { x: int }
+export pure func get(r: R) -> int = r.x

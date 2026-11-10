@@ -1,0 +1,3 @@
+module h5/a
+export type T = A(int)
+export pure func mk() -> T = A(1)

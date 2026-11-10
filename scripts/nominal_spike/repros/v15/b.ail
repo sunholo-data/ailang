@@ -1,0 +1,4 @@
+module v15/b
+export type T = B | C(string) | A(string)
+export pure func mk() -> T = A("hi")
+export pure func desc(t: T) -> string = match t { B => "b.B", C(s) => "b.C", A(s) => "b.A ${s}" }

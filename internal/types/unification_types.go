@@ -287,7 +287,7 @@ func equalHead(h1, h2 Type) bool {
 	con2, ok2 := h2.(*TCon)
 
 	if ok1 && ok2 {
-		return con1.Name == con2.Name
+		return NominalSame(con1, con2)
 	}
 
 	// Fallback: use Equals for other cases (e.g., type variables)

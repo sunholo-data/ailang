@@ -56,6 +56,9 @@ func (t *TVar) Substitute(subs map[string]Type) Type {
 // TCon represents a type constructor (int, bool, string, etc.)
 type TCon struct {
 	Name string
+	// Module is the defining module of a nominal type (M-V1-NOMINAL-TYPE-IDENTITY
+	// M0 spike). "" is a wildcard: it matches any module. See nominal_spike.go.
+	Module string
 }
 
 func (t *TCon) String() string {
@@ -64,7 +67,7 @@ func (t *TCon) String() string {
 
 func (t *TCon) Equals(other Type) bool {
 	if o, ok := other.(*TCon); ok {
-		return t.Name == o.Name
+		return NominalSame(t, o)
 	}
 	return false
 }

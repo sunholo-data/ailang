@@ -253,6 +253,18 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 		}
 	}
 
+	// M-V1-NOMINAL-TYPE-IDENTITY M0 spike: every type this module declares is
+	// stamped with this module wherever it appears in the interface.
+	localTypes := map[string]bool{}
+	if file, ok := astFile.(*ast.File); ok {
+		for _, decl := range append(append([]ast.Node{}, file.Decls...), file.Statements...) {
+			if td, ok := decl.(*ast.TypeDecl); ok {
+				localTypes[td.Name] = true
+			}
+		}
+	}
+	qualify := func(t types.Type) types.Type { return types.QualifyNames(t, localTypes, b.module) }
+
 	// Process each export
 	for name := range exports {
 		// Get the type from the environment
@@ -291,6 +303,12 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 			}
 		}
 
+		if scheme != nil {
+			cp := *scheme
+			cp.Type = qualify(scheme.Type)
+			scheme = &cp
+		}
+
 		// Publish purity from the checked outer row after restoration.
 		purity := derivePurity(scheme, funcDecls[name])
 
@@ -327,11 +345,11 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 				typeArgs[i] = &types.TVar2{Name: fmt.Sprintf("t%d", i), Kind: types.Star}
 			}
 			resultType = &types.TApp{
-				Constructor: &types.TCon{Name: ctorInfo.TypeName},
+				Constructor: types.SpikeConIn(ctorInfo.TypeName, b.module),
 				Args:        typeArgs,
 			}
 		} else {
-			resultType = &types.TCon{Name: ctorInfo.TypeName}
+			resultType = types.SpikeConIn(ctorInfo.TypeName, b.module)
 		}
 
 		// Create placeholder field types (will be refined by type checker)
@@ -363,7 +381,7 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 						// M-FIX-RECORD-UPDATE: Add type alias for record types
 						// This allows cross-module record update to expand type names to their underlying structure
 						if recordType, ok := typeDecl.Definition.(*ast.RecordType); ok {
-							internalType := astTypeToInternalType(recordType)
+							internalType := qualify(astTypeToInternalType(recordType))
 							iface.AddTypeAlias(typeDecl.Name, internalType)
 							// M-XMOD-ALIAS-POLY: carry param names cross-module so
 							// importers can instantiate `Box[int]`.
@@ -381,7 +399,7 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 						// intentionally NOT matched here, so they stay nominal.
 						if aliasType, ok := typeDecl.Definition.(*ast.TypeAlias); ok {
 							if internalType := astTypeToInternalType(aliasType.Target); internalType != nil {
-								iface.AddTypeAlias(typeDecl.Name, internalType)
+								iface.AddTypeAlias(typeDecl.Name, qualify(internalType))
 								// M-XMOD-ALIAS-POLY: carry param names cross-module
 								// (e.g. `Ident[a]`, `Pair[a,b]`).
 								iface.AddTypeAliasParams(typeDecl.Name, typeDecl.TypeParams)
@@ -396,7 +414,7 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 								// Convert AST field types to internal types
 								fieldTypes := make([]types.Type, len(ctor.Fields))
 								for i, field := range ctor.Fields {
-									fieldTypes[i] = astTypeToInternalType(field.Type)
+									fieldTypes[i] = qualify(astTypeToInternalType(field.Type))
 								}
 
 								// M-TAPP-FIX: Build TApp for parameterized ADTs
@@ -407,11 +425,11 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 										typeArgs[i] = &types.TVar2{Name: param, Kind: types.Star}
 									}
 									resultType = &types.TApp{
-										Constructor: &types.TCon{Name: typeDecl.Name},
+										Constructor: types.SpikeConIn(typeDecl.Name, b.module),
 										Args:        typeArgs,
 									}
 								} else {
-									resultType = &types.TCon{Name: typeDecl.Name}
+									resultType = types.SpikeConIn(typeDecl.Name, b.module)
 								}
 
 								// Update/add constructor with actual field types (overwriting placeholders)
@@ -427,7 +445,7 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 									if _, isRecord := singleCtor.Fields[0].Type.(*ast.RecordType); isRecord {
 										recordType := astTypeToInternalType(singleCtor.Fields[0].Type)
 										if recordType != nil {
-											iface.AddTypeAlias(typeDecl.Name, recordType)
+											iface.AddTypeAlias(typeDecl.Name, qualify(recordType))
 										}
 									}
 								}

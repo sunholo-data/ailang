@@ -1,0 +1,3 @@
+module h4/a
+export type R = { x: int }
+export pure func mk() -> R = { x: 1 }

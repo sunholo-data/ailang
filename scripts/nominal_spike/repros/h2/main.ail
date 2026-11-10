@@ -1,0 +1,4 @@
+module h2/main
+import h2/b (getb)
+import h2/a (A, get)
+export func main() -> () ! {IO} = println(show(get(A(7))))

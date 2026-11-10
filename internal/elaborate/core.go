@@ -56,7 +56,14 @@ type Elaborator struct {
 	// scope is the stack of local-binder frames open at the current
 	// normalization point (scope.go, #1467).
 	scope []map[string]bool
+	// typeHomes: bare type name -> defining module, for the names this module
+	// declares or imports by name (M-V1-NOMINAL-TYPE-IDENTITY M0 spike).
+	typeHomes map[string]string
 }
+
+// SetTypeHomes installs the M0 spike's name -> defining-module table used to
+// stamp TCon.Module on annotation types.
+func (e *Elaborator) SetTypeHomes(h map[string]string) { e.typeHomes = h }
 
 // DerivedEqField is one field a `deriving (Eq)` declaration needs Eq for.
 type DerivedEqField struct {

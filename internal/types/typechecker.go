@@ -210,7 +210,7 @@ func (tc *TypeChecker) astTypeToType(t ast.Type) Type {
 			if isLowerCase(typ.Name) {
 				return &TVar2{Name: typ.Name, Kind: Star}
 			}
-			return &TCon{Name: typ.Name}
+			return SpikeCon(typ.Name)
 		}
 
 	case *ast.FuncType:
@@ -282,7 +282,7 @@ func (tc *TypeChecker) astTypeToType(t ast.Type) Type {
 			args[i] = tc.astTypeToType(a)
 		}
 		return &TApp{
-			Constructor: &TCon{Name: typ.Constructor},
+			Constructor: SpikeCon(typ.Constructor),
 			Args:        args,
 		}
 

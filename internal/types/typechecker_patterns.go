@@ -187,12 +187,12 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 						typeArgs[i] = ctx.freshTypeVar()
 					}
 					adtType = &TApp{
-						Constructor: &TCon{Name: adtTypeName},
+						Constructor: SpikeCon(adtTypeName),
 						Args:        typeArgs,
 					}
 				} else {
 					// No type parameters - use simple TCon
-					adtType = &TCon{Name: adtTypeName}
+					adtType = SpikeCon(adtTypeName)
 				}
 
 				// Add constraint: scrutinee type = ADT type

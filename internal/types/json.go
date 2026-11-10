@@ -27,7 +27,10 @@ type kindJSON struct {
 // --- MarshalJSON implementations for each Type ---
 
 func (t *TCon) MarshalJSON() ([]byte, error) {
-	raw, _ := json.Marshal(struct{ Name string }{t.Name})
+	raw, _ := json.Marshal(struct {
+		Name   string
+		Module string `json:",omitempty"`
+	}{t.Name, t.Module})
 	return json.Marshal(typeJSON{Tag: "tcon", Data: raw})
 }
 
@@ -305,11 +308,14 @@ func UnmarshalType(data []byte) (Type, error) {
 
 	switch envelope.Tag {
 	case "tcon":
-		var d struct{ Name string }
+		var d struct {
+			Name   string
+			Module string
+		}
 		if err := json.Unmarshal(envelope.Data, &d); err != nil {
 			return nil, err
 		}
-		return &TCon{Name: d.Name}, nil
+		return SpikeConIn(d.Name, d.Module), nil
 
 	case "tvar":
 		var d struct{ Name string }

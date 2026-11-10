@@ -315,8 +315,11 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 	case *TCon:
 		// Type constructor unification
 		if t2Con, ok := t2.(*TCon); ok {
-			if t1.Name == t2Con.Name {
+			if NominalSame(t1, t2Con) {
 				return sub, nil
+			}
+			if t1.Name == t2Con.Name {
+				return nil, fmt.Errorf("cannot unify type constructors: %s (from %s) vs %s (from %s) — different types that share a name", t1.Name, t1.Module, t2Con.Name, t2Con.Module)
 			}
 			return nil, fmt.Errorf("cannot unify type constructors: %s vs %s", t1.Name, t2Con.Name)
 		}

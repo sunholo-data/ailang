@@ -29,7 +29,7 @@ func astTypeToInternalType(t ast.Type) types.Type {
 			if len(typ.Name) > 0 && typ.Name[0] >= 'a' && typ.Name[0] <= 'z' {
 				return &types.TVar2{Name: typ.Name, Kind: types.Star}
 			}
-			return &types.TCon{Name: typ.Name}
+			return types.SpikeCon(typ.Name)
 		}
 
 	case *ast.FuncType:
@@ -100,7 +100,7 @@ func astTypeToInternalType(t ast.Type) types.Type {
 			args[i] = astTypeToInternalType(a)
 		}
 		return &types.TApp{
-			Constructor: &types.TCon{Name: typ.Constructor},
+			Constructor: types.SpikeCon(typ.Constructor),
 			Args:        args,
 		}
 

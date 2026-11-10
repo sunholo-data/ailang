@@ -1,0 +1,6 @@
+module v6/main
+import v6/a (mk)
+import std/string (toUpper)
+type T = A(string)
+pure func use(t: T) -> string = match t { A(s) => toUpper(s) }
+export func main() -> () ! {IO} = println(use(mk()))

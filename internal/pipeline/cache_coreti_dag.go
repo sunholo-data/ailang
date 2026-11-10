@@ -184,7 +184,11 @@ func (e *coreTIEncoder) node(t types.Type) (coreTINode, error) {
 	var err error
 	switch t := t.(type) {
 	case *types.TCon:
-		return coreTINode{Tag: ctiTagCon, Name: t.Name}, nil
+		n := coreTINode{Tag: ctiTagCon, Name: t.Name}
+		if t.Module != "" { // M0 spike: carry the nominal module in Keys (part of key())
+			n.Keys = []string{t.Module}
+		}
+		return n, nil
 	case *types.TVar:
 		return coreTINode{Tag: ctiTagVar, Name: t.Name}, nil
 	case *types.TVar2:
@@ -415,7 +419,10 @@ func (d *coreTIDecoder) build(n *coreTINode, self int32) (types.Type, error) {
 	var err error
 	switch n.Tag {
 	case ctiTagCon:
-		return &types.TCon{Name: n.Name}, nil
+		if len(n.Keys) == 1 {
+			return types.SpikeConIn(n.Name, n.Keys[0]), nil
+		}
+		return types.SpikeCon(n.Name), nil
 	case ctiTagVar:
 		return &types.TVar{Name: n.Name}, nil
 	case ctiTagVar2:

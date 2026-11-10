@@ -52,11 +52,11 @@ func NewDictionaryRegistry() *DictionaryRegistry {
 
 // Register adds a dictionary entry to the registry
 func (r *DictionaryRegistry) Register(namespace, className, typeName, method string, impl interface{}) {
-	key := MakeDictionaryKey(namespace, className, &TCon{Name: typeName}, method)
+	key := MakeDictionaryKey(namespace, className, SpikeCon(typeName), method)
 	r.generation++
 	r.dictionaries[key] = DictionaryEntry{
 		ClassName: className,
-		TypeName:  NormalizeTypeName(&TCon{Name: typeName}),
+		TypeName:  NormalizeTypeName(SpikeCon(typeName)),
 		Method:    method,
 		Impl:      impl,
 	}

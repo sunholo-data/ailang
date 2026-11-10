@@ -1,0 +1,4 @@
+module h4/main
+import h4/a (mk)
+import h4/b (get)
+export func main() -> () ! {IO} = println(show(get(mk())))

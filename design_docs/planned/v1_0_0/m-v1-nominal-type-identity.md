@@ -316,6 +316,137 @@ the test hook across `make test`, `make verify-examples` and the downstream gate
 *Accept:* a ranked list of sites; rows a, a′, a″, a‴ already rejected; `v15` passes; go/no-go on
 Alternative B recorded in this doc.
 
+> **Spike result (2026-11-10, branch `v1/nominal-identity-m0-spike`, base `dev` = `470b6ea59`).**
+> **Verdict: GO on A, with two conditions the doc did not have.** (i) A **module is not one identity
+> today**: a package's own modules load a second time under their `module_prefix` path, so the same
+> `type Block` arrives as `docparse/types/document.Block` *and* `pkg/sunholo/ailang_parse/types/document.Block`
+> and the spike rejects 14 of docparse's 44 files. A new milestone (M1b, canonical module identity) must
+> land before M2; it blocks B equally. (ii) M2 cannot remove the wildcard until M3's resolver exists, so
+> M2 and the resolver half of M3 merge, and three hard cases the counter cannot see join M2. Revised M2:
+> **5.5–7 d** (was 3–4) plus M1b **1–1.5 d**; M3 shrinks to ~1 d (diagnostics only); whole doc
+> **11.5–17 d** (was 9–14).
+>
+> *What the spike is.* `TCon.Module` (wildcard `""`); one comparison, `types.NominalSame`, used by
+> `TCon.Equals`, `SafeEquals`, `equalHead` and the unifier's TCon case; stamping only where this doc
+> says — the elaborator (local declarations and explicit `import M (T)`, via a name→module table the
+> pipeline builds) and the iface builder (ctor result/field types, alias bodies, export schemes, for
+> every type the module declares). Every non-primitive `&TCon{Name: …}` literal (47 sites) goes through
+> `types.SpikeCon`, which records its call site; `AILANG_NOMINAL_SPIKE_LOG=<file>` logs each wildcard
+> use as (kind, name, minting site, comparison site). Two serialisers had to learn the field for warm and
+> cold runs to agree: the type JSON in the iface cache, and the CoreTI DAG codec, whose pinned field-count
+> test (`TestCoreTIDAG_FieldCountsPinned`) failed as soon as the field appeared, which is what it is for.
+> Instrument: `internal/types/nominal_spike.go`, `internal/pipeline/nominal_spike.go`.
+>
+> *Verdicts.* In-repo nothing changed: `make test-core` green (17 core packages, 45 s); `make
+> verify-examples` 339 passed / 0 failed / 12 skipped; `make verify-stdlib` all 49 interface hashes
+> unchanged (D3 holds: Module never reaches a hashed rendering); full `make test`: see the PR. Downstream
+> (check-only, 1,492 files, baseline `dev` vs spike): **14 flips, all in docparse, one cause** — see
+> "Downstream" below.
+>
+> *a-rows, evaluator and `--strict-bytecode`.* With nothing but the two stamping sites, `check` rejects
+> a (`q`), a′ (`v2`), a″ (`v6`) and a‴ (`v14`) with `cannot unify type constructors: T (from q/b) vs T
+> (from q/a)`; `run` and `--strict-bytecode` reject identically (the check runs first). `v15` passes on
+> both back ends. Warm cache agrees with cold.
+>
+> *Ranked unqualified minting sites.* Events = wildcard uses where one side was qualified and the other
+> was minted at this site (test-core + verify-examples, power-of-two sampled, so within 2x low): each is a
+> false rejection M2 would cause if the site stayed unqualified. A further 39k uses had *both* sides
+> empty; they come from the same six families.
+>
+> | Rank | Site | What it mints | Events | Class |
+> |---|---|---|---|---|
+> | 1 | `types/typechecker_patterns.go:190,195` `checkPattern` | a constructor pattern's ADT from `ctorTypes[ctor]` (bare) | 64.1k | **trivial** once `ctorTypes` values carry the module (local → modID, imported → iface ctor's module) |
+> | 2 | `types/constructor_factory.go:106,108` ← `pipeline.buildConstructorFactoryTypes` | the result type of this module's own constructor factories | 49.0k | **trivial**: pass `modID`. `runtime/runtime.go:557` builds the same scheme at run time — same fix |
+> | 3 | `types/builder.go:70,77,81` `Builder.Con/App` ← 162 call sites in 52 builtin files | builtin signatures: 28 names (`Result` 90, `XmlNode` 27, `Option` 21, `StreamConn` 14, `NetError` 7, … `DOMEvent`, `BridgeFrame`) | 29.8k | **module-less** → one `nominalHome` table inside `Con`/`App` fixes all 162 (D4) |
+> | 4 | `types/json.go:318` `UnmarshalType` (and gob, and the DAG codec) | pass-through of cached types | 6.8k | **trivial**, done in the spike; the origin is upstream. A missed serialiser strips identity on *warm* runs only, so M2 needs a warm-vs-cold test |
+> | 5 | `elaborate/file_funcs.go:359,441` (default arm, `TypeApp` head) | annotation names that are neither local nor explicitly imported: prelude `Option`/`Result`, auto-imported `Json`/`XmlNode`, builtin-only `DOMEvent`, the structural head `Map` | 0.67k | **needs design**: this *is* §4.3 rules 4–6. Without it, removing the wildcard rejects every `-> Option[int]` written against `std/option` |
+> | 6 | `elaborate/patterns.go:254-260`, test literals | capitalised primitives `Int`/`Bool`/`Float`/`String` | 0 | **module-less**: treat as primitives, not nominal |
+> | 7 | `iface/type_conversion.go:32,103` (downstream only) | ctor field types and alias bodies in an *interface* that name an *imported* type (`LedgerEvent`, `WaitDescriptor`, `Json`, `Option`) | 11.9k downstream | **needs design**: the iface builder re-converts AST with its own converter instead of reusing the elaborator's resolved types. There are four AST→type converters (`elaborate/file_funcs.go`, `iface/type_conversion.go`, `types/typechecker.go:190` `astTypeToType`, `smt/from_ast.go`); M2 should make it one |
+>
+> Downstream the order is the same with more weight on the resolver: 2.16M wildcard uses, led by pattern
+> types (1.41M), factories (0.30M), cache decode (0.22M), and the elaborator's auto-imported `Json` and
+> `XmlNode` (0.16M, rank 5) — the names docparse, ailang-parse and email-parse write without importing.
+>
+> Comparison sites: all wildcard uses arrive through three comparators (`SafeEquals`, `equalHead`,
+> `TCon.Equals`), called from `SolveConstraints`, `solveEqualitiesInto` and `typesIdentical`. Bare-name
+> logic that bypasses `NominalSame` and that the counter cannot see (static census): 13 literal checks
+> (`Name == "Array"|"Map"|"List"|"Option"|"Result"|…`, fine once builtins have homes);
+> `unification_types.go:241` (diagnostic only); and the name-keyed tables below. The other 37 rewritten
+> literal sites never minted a compared TCon in these runs (instance/dictionary keys, `derived_eq.go`,
+> `typechecker.go:213/285`, `link/linker.go`, `eval/eval_patterns.go`, `smt/from_ast.go`, `repl/*`).
+>
+> *Hard cases* (repros `h1`–`h7` in the PR; "base" = `dev`, "spike" = this branch):
+>
+> - **Aliases vs ADTs — a hole in A as specified.** The unifier expands aliases by *bare name* before
+>   any nominal comparison, and the iface builder registers every single-constructor ADT wrapping a
+>   record as an *alias* (M-STREAM-DX/M4, for field access). So `a: type W = W({x:int})` passed where
+>   `b: type W = W({x:int}) | Z` is expected checks on base *and on the spike* (`h4c`) — identity is lost
+>   before `NominalSame` runs. M2 must key `aliasEnv`/`ImportedTypeAliases` by `(module, name)` and stop
+>   treating newtype-record ADTs as aliases for identity. Plain record aliases stay structural and work
+>   (`h4`); an alias to an imported ADT works (`h5`).
+> - **`$adt` factory keys — a legal program crashes today.** `import h2/b (getb)` then
+>   `import h2/a (A, get)`; `get(A(7))`: `check` ✓ on both, **evaluator** `ambiguous constructor T.A found
+>   in multiple modules`, **VM** prints `7`. Not a soundness hole, a run-time failure of a correct program,
+>   and the back ends disagree. Fixed by the qualified factory key M2 already plans.
+> - **Bytecode ADT tables — a legal program fails under `--strict-bytecode` today.** `h7` (`a.T = A(int)`,
+>   `b.T = B(string)`, used disjointly via `Ma.`/`Mb.`): evaluator prints `a 1 / b x`; VM `BC001 …
+>   compiler: unknown ADT tag T.A` because `bytecode/compiler/compiler.go:65` keeps the last `T` declared
+>   in the program. `v15` passes only because its two `T`s share constructor names. So M4's bytecode part
+>   is a fix for valid programs, not hardening.
+> - **Derived Eq keys** (`h1`, two modules deriving Eq on `Row`): correct on both back ends, base and
+>   spike. The bare-name key collision exists but is not observable here; keep the M2 item, lower risk.
+> - **Pattern `TypeName`**: rank 1 above — the pattern's ADT is rebuilt from a bare name.
+> - **iface v2 hashing**: unchanged by construction; verified by `verify-stdlib`.
+> - **SMT**: the doc's "first write wins" is stale — `smt/verify.go:94-121` now records ambiguous ADT
+>   names and skips the function as unresolved (fails closed). M4's SMT part shrinks to keying, no
+>   soundness work.
+> - **REPL/WASM**: `repl/module_registry_load.go` is a second module loader that never calls
+>   `compileFreshModule`, so it got no stamping and stays all-wildcard. It must share the resolver.
+> - **Re-exports**: none exist (`MOD003`); nothing to measure.
+> - **Cache**: the key already includes the compiler identity (commit, plus a per-build fingerprint when
+>   dirty), so a pre-change verdict cannot be served across binaries in practice; the v11 bump stays as
+>   belt-and-braces and was *not* done here.
+>
+> *Why A over B.* The counter says unqualified minting is concentrated: seven families, three trivial,
+> one table, two that are the resolver this doc already designs. Nothing in the corpus needed the
+> wildcard for a reason that A cannot model once module identity is canonical. B (ban duplicate names across a closure) is cheaper but
+> rejects `h7`/`h2`/`v15`-shaped programs and two packages exporting `Event`, and still needs the alias,
+> factory-key and bytecode fixes to stop the legal-program failures above *or* to reject them. B stays
+> the fallback only if the merged M2 slips past the 0.58.x window.
+>
+> *New M1b, canonical module identity (1–1.5 d, before M2):* one module ID per source file — a
+> dependency package's modules keep their `pkg/<owner>/<name>/…` identity whether reached from inside the
+> package (via `module_prefix`, m-dx-module-prefix-resolution) or from outside; the file compiles once.
+> *Test:* docparse's `tests/verify_ai_cache.ail` loads `types/document` once; the spike's 14 flips go to 0.
+>
+> *Revised M2 (5.5–7 d):* representation + `NominalSame` + serialisers with a warm-vs-cold test (0.5);
+> qualified `ctorTypes`/factories/pattern types (0.5); `nominalHome` + completeness test (0.5–1);
+> elaborator resolver for §4.3 rules 4–6, shared with the REPL loader (1–1.5); alias env keyed by
+> `(module, name)` and newtype-record ADTs out of the alias channel (0.5–1, **new**); qualified `$adt`
+> keys + runtime resolver (0.5); derived-Eq/instance keys (0.5); digest + cache-key bump (0.5); wildcard
+> removal, internal-error hook, downstream gate and fallout (1).
+>
+> *Ordering findings.* (0) M1b (canonical module identity) before M2, and before B if B is chosen.
+> (1) M3's resolver must land with or before M2's wildcard removal. (2) The
+> exhaustiveness doc's universe registry does not need all of M2: the iface constructor result type is
+> already stamped with its module in this spike (`iface/builder.go`, four lines), so
+> `adtUniverse[(module, name)]` can be built from `ConstructorScheme` as soon as that stamp lands; its
+> wiring milestone can start on that alone — keyed by the canonical module (M1b), or a package's ADT has
+> two universes. (3) `h7` and `h2` belong in
+> [m-bytecode-vm-parity-bugs](m-bytecode-vm-parity-bugs.md) as well: they fail on valid programs today.
+>
+> *Downstream.* Check-only sweep, baseline (`dev` @ `470b6ea59`) vs spike, over the scratch snapshots
+> of docparse, email-parse, daneel, ailang-packages, ailang-parse, ailang-world and mk-main (1,492 files;
+> 1,280 pass on baseline; 4 min per arm; snapshots taken 2026-11-10 08:20, isolated HOME/cache, no writes
+> to the snapshots). **14 verdict flips, all docparse, all `Block (from pkg/sunholo/ailang_parse/types/document)
+> vs Block (from docparse/types/document)`** at three call sites (`convert.ail:463` `generateHtml`,
+> `mcp_paging.ail:134` `renderMarkdown`, `tests/verify_ai_cache.ail:21`). Not an a-row: `--debug-compile`
+> on the baseline shows the one file compiled twice, as `docparse/types/document` (ailang_parse's own
+> imports, `module_prefix = "docparse"`) and as `pkg/sunholo/ailang_parse/types/document` (docparse's
+> imports). It is a false rejection that A — and B — would ship unless M1b lands first. The doc's §8
+> regex sweep resolved imports by path, so it could not see that two paths name one file. No other
+> corpus flipped; email-parse also depends on ailang_parse but never meets both paths in one value.
+
 **M1 Duplicates (0.5–1 d, independent of M0).** MOD007 func/type/constructor cases.
 *Tests:* `v8`, `v12`, `v13` rejected with both positions; MOD007 let cases unchanged; a func defined
 once in each of two modules is fine. *Mutation:* delete the func-vs-func loop, `TestMOD007_DuplicateFunc`

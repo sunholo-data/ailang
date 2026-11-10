@@ -1,0 +1,5 @@
+module h4b/main
+import h4b/a (mk)
+import h4b/b (get)
+import std/string (toUpper)
+export func main() -> () ! {IO} = println(toUpper(get(mk())))

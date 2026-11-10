@@ -355,6 +355,7 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 	shadowLocalTypeNames(imports, mod.File, modID)
 
 	elaborator := elaborate.NewElaboratorWithPath(modID)
+	elaborator.SetTypeHomes(spikeTypeHomes(imports, mod.File, modID))
 	elaborator.SetGlobalEnv(imports.GlobalRefs)
 	elaborator.SetModuleLoader(st.modLoader)
 	elaborator.AddBuiltinsToGlobalEnv()

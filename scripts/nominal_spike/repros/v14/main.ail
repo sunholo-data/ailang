@@ -1,0 +1,4 @@
+module v14/main
+import v14/a (pick)
+import v14/b (name)
+export func main() -> () ! {IO} = println(name(pick()))

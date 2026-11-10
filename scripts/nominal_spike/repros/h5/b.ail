@@ -1,0 +1,4 @@
+module h5/b
+import h5/a (T)
+export type U = T
+export pure func idu(u: U) -> U = u

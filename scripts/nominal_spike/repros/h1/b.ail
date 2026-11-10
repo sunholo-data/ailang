@@ -1,0 +1,3 @@
+module h1/b
+export type Row = R(string) deriving (Eq)
+export pure func mk(s: string) -> Row = R(s)

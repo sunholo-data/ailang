@@ -75,7 +75,7 @@ func (env *InstanceEnv) synthesizeEq(typ Type, depth int) (inst *ClassInstance, 
 		if rec.TypeName == "" {
 			return nil, false, nil
 		}
-		if _, found := env.instances[canonicalKey("Eq", &TCon{Name: rec.TypeName})]; !found {
+		if _, found := env.instances[canonicalKey("Eq", SpikeCon(rec.TypeName))]; !found {
 			return nil, false, nil
 		}
 		return structuralEqInstance(typ), true, nil
@@ -248,7 +248,7 @@ func (env *InstanceEnv) reduceEq(typ Type, depth int) ([]Type, error) {
 		return nil, err
 	}
 	if rec, ok := typ.(*TRecord); ok && rec.TypeName != "" {
-		if _, found := env.instances[canonicalKey("Eq", &TCon{Name: rec.TypeName})]; found {
+		if _, found := env.instances[canonicalKey("Eq", SpikeCon(rec.TypeName))]; found {
 			return nil, nil
 		}
 	}

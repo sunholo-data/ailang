@@ -1,0 +1,4 @@
+module h7/b
+export type T = B(string)
+export pure func mk() -> T = B("x")
+export pure func desc(t: T) -> string = match t { B(s) => "b ${s}" }

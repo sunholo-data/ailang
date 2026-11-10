@@ -475,7 +475,7 @@ func ConvertASTTypeToType(t ast.Type) types.Type {
 	case *ast.TypeVar:
 		return &types.TVar{Name: ty.Name}
 	case *ast.SimpleType:
-		return &types.TCon{Name: ty.Name}
+		return types.SpikeCon(ty.Name)
 	case *ast.ListType:
 		elem := ConvertASTTypeToType(ty.Element)
 		if elem == nil {
@@ -502,11 +502,11 @@ func ConvertASTTypeToType(t ast.Type) types.Type {
 				args[i] = at
 			}
 			return &types.TApp{
-				Constructor: &types.TCon{Name: ty.Constructor},
+				Constructor: types.SpikeCon(ty.Constructor),
 				Args:        args,
 			}
 		}
-		return &types.TCon{Name: ty.Constructor}
+		return types.SpikeCon(ty.Constructor)
 	case *ast.RecordType:
 		if ty.Row != nil {
 			return &types.TRecordOpen{Row: &types.TVar{Name: ty.Row.Name}}

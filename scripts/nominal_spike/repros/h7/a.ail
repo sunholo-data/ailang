@@ -1,0 +1,4 @@
+module h7/a
+export type T = A(int)
+export pure func mk() -> T = A(1)
+export pure func desc(t: T) -> string = match t { A(n) => "a ${show(n)}" }

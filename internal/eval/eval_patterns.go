@@ -321,7 +321,7 @@ func (e *CoreEvaluator) buildDictRef(ref *core.DictRef) (*RecordValue, error) {
 	methods := make(map[string]Value)
 
 	// Create type for normalized key generation
-	typ := &types.TCon{Name: ref.TypeName}
+	typ := types.SpikeCon(ref.TypeName)
 
 	// Common methods for each class
 	var methodNames []string

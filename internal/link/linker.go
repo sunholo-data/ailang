@@ -108,7 +108,7 @@ func (l *Linker) LinkProgram(prog *core.Program, opts LinkOptions) (*core.Progra
 		}
 
 		if methodToCheck != "" {
-			typ := &types.TCon{Name: ref.TypeName}
+			typ := types.SpikeCon(ref.TypeName)
 			testKey := types.MakeDictionaryKey(opts.Namespace, ref.ClassName, typ, methodToCheck)
 			if _, ok := l.registry.Lookup(testKey); ok {
 				l.resolvedRefs[baseKey] = true
@@ -225,7 +225,7 @@ func (l *Linker) collectFromExpr(expr core.CoreExpr) []*core.DictRef {
 // makeDictKey constructs a dictionary key for a DictRef
 func (l *Linker) makeDictKey(namespace string, ref *core.DictRef) string {
 	// DictRef carries a normalized type *name*; build a TCon and let MakeDictionaryKey normalize.
-	typ := &types.TCon{Name: ref.TypeName}
+	typ := types.SpikeCon(ref.TypeName)
 	return types.MakeDictionaryKey(namespace, ref.ClassName, typ, "")
 }
 

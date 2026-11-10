@@ -356,7 +356,7 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 				return alias
 			}
 			// Type constructor (e.g., user-defined ADT)
-			return &types.TCon{Name: typ.Name}
+			return types.SpikeConIn(typ.Name, e.typeHomes[typ.Name])
 		}
 
 	case *ast.TypeVar:
@@ -438,7 +438,7 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 			args[i] = e.astTypeToInternalType(arg)
 		}
 		return &types.TApp{
-			Constructor: &types.TCon{Name: typ.Constructor},
+			Constructor: types.SpikeConIn(typ.Constructor, e.typeHomes[typ.Constructor]),
 			Args:        args,
 		}
 

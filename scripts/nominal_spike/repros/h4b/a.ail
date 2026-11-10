@@ -1,0 +1,3 @@
+module h4b/a
+export type W = W({ x: int })
+export pure func mk() -> W = W({ x: 1 })

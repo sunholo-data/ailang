@@ -1,0 +1,5 @@
+module v2/main
+import v2/a (mk)
+import v2/b (T, B)
+pure func use(t: T) -> string = match t { B(s) => s }
+export func main() -> () ! {IO} = println(use(mk()))

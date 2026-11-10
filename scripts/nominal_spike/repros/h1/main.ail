@@ -1,0 +1,4 @@
+module h1/main
+import h1/a as Ma (mk)
+import h1/b as Mb (mk)
+export func main() -> () ! {IO} { println(show(Ma.mk(1) == Ma.mk(1))); println(show(Mb.mk("x") == Mb.mk("y"))) }

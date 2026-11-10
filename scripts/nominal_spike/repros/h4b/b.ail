@@ -1,0 +1,3 @@
+module h4b/b
+export type W = W({ x: string })
+export pure func get(w: W) -> string = match w { W(r) => r.x }

@@ -1,0 +1,3 @@
+module h1/a
+export type Row = R(int) deriving (Eq)
+export pure func mk(n: int) -> Row = R(n)

@@ -58,7 +58,7 @@ func registerDerivedEqInstances(cfg Config, typeNames []string) {
 	for _, typeName := range typeNames {
 		inst := &types.ClassInstance{
 			ClassName: "Eq",
-			TypeHead:  &types.TCon{Name: typeName},
+			TypeHead:  types.SpikeCon(typeName),
 			Dict: types.Dict{
 				"eq":  fmt.Sprintf("derived_eq_%s", typeName),
 				"neq": fmt.Sprintf("derived_neq_%s", typeName),

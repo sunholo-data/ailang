@@ -235,22 +235,22 @@ func registerPreludeInstances(linker *link.Linker) {
 
 	// Register with canonical keys
 	for methodName := range numInt.Methods {
-		key := types.MakeDictionaryKey("prelude", "Num", &types.TCon{Name: "Int"}, methodName)
+		key := types.MakeDictionaryKey("prelude", "Num", types.SpikeCon("Int"), methodName)
 		linker.AddDictionary(key, numInt)
 	}
 
 	for methodName := range numFloat.Methods {
-		key := types.MakeDictionaryKey("prelude", "Num", &types.TCon{Name: "Float"}, methodName)
+		key := types.MakeDictionaryKey("prelude", "Num", types.SpikeCon("Float"), methodName)
 		linker.AddDictionary(key, numFloat)
 	}
 
 	for methodName := range eqInt.Methods {
-		key := types.MakeDictionaryKey("prelude", "Eq", &types.TCon{Name: "Int"}, methodName)
+		key := types.MakeDictionaryKey("prelude", "Eq", types.SpikeCon("Int"), methodName)
 		linker.AddDictionary(key, eqInt)
 	}
 
 	for methodName := range eqString.Methods {
-		key := types.MakeDictionaryKey("prelude", "Eq", &types.TCon{Name: "String"}, methodName)
+		key := types.MakeDictionaryKey("prelude", "Eq", types.SpikeCon("String"), methodName)
 		linker.AddDictionary(key, eqString)
 	}
 }
@@ -401,7 +401,7 @@ func registerPreludeInstancesForEvaluator(evaluator *eval.CoreEvaluator) {
 
 	// Register each instance with canonical keys for evaluator lookups
 	for _, dict := range instances {
-		typeForKey := &types.TCon{Name: dict.Type}
+		typeForKey := types.SpikeCon(dict.Type)
 		for methodName := range dict.Methods {
 			canonicalKey := types.MakeDictionaryKey("prelude", dict.TypeClass, typeForKey, methodName)
 			evaluator.AddDictionary(canonicalKey, dict)

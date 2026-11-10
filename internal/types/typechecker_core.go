@@ -486,7 +486,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	if typ, ok := inferredType.(Type); ok {
 		finalType = typ
 	} else {
-		finalType = &TCon{Name: "Unknown"}
+		finalType = SpikeCon("Unknown")
 	}
 
 	// Solve constraints and apply defaulting (proper way)

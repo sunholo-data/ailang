@@ -103,9 +103,9 @@ func BuildConstructorFactoryScheme(
 	// plain TCon for non-parameterized ones.
 	var resultType Type
 	if typeParamCount > 0 {
-		resultType = &TApp{Constructor: &TCon{Name: typeName}, Args: adtTypeVars}
+		resultType = &TApp{Constructor: SpikeCon(typeName), Args: adtTypeVars}
 	} else {
-		resultType = &TCon{Name: typeName}
+		resultType = SpikeCon(typeName)
 	}
 
 	var factoryType Type

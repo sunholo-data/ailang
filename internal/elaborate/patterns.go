@@ -251,13 +251,13 @@ func (e *Elaborator) inferScrutineeType(arms []core.MatchArm) types.Type {
 		if litPat, ok := arm.Pattern.(*core.LitPattern); ok {
 			switch litPat.Value.(type) {
 			case bool:
-				return &types.TCon{Name: "Bool"}
+				return types.SpikeCon("Bool")
 			case int, int64:
-				return &types.TCon{Name: "Int"}
+				return types.SpikeCon("Int")
 			case float64:
-				return &types.TCon{Name: "Float"}
+				return types.SpikeCon("Float")
 			case string:
-				return &types.TCon{Name: "String"}
+				return types.SpikeCon("String")
 			}
 		}
 	}

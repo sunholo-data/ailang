@@ -1,0 +1,4 @@
+module h7/main
+import h7/a as Ma (mk, desc)
+import h7/b as Mb (mk, desc)
+export func main() -> () ! {IO} { println(Ma.desc(Ma.mk())); println(Mb.desc(Mb.mk())) }
