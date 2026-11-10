@@ -611,8 +611,12 @@ spelling imported it; the file compiles and evaluates once.
 > scope, so a dependency's miss could silently run the root's file (fxC) or another package's (fxA, dev);
 > an identity resolved in an importer's scope is now loaded as resolved, and a dependency's miss fails in its
 > own scope (**LDR001** naming the package, the published path tried and the spelling written). (3) An import
-> could be satisfied by a package the importer does not declare (fxB prefix table, fxB2 `pkg/` path, fxG a
-> dependency importing the root): **LDR006**. Also: two declared dependencies providing one prefix spelling
+> could be satisfied by a package the importer does not declare (fxB prefix table, fxB2 `pkg/` path):
+> **LDR006**. The third case, fxG — a dependency importing the ROOT package — was asked to be an error too,
+> but the census found it in real code: `sunholo/motoko_ext_scratchpad` (a motoko extension) imports
+> `src/core/env_client`, a module of its host `local/motoko_agent`, and the error flipped 69 motoko-fork
+> entries. It therefore resolves as on `dev`, to the root's one module, with a loud **LDR006 warning**
+> printed once per process — a decision for Mark (below). Also: two declared dependencies providing one prefix spelling
 > is **LDR005** naming both (fxD; it used to pick one by map order, then alphabetically); the bare
 > self-import is scoped to the importer (fxM: a dependency whose prefix is the root's vendor got the root's
 > `util`); a spelling whose letter case differs from the file on disk is **LDR001** on every host (fxI:
@@ -626,8 +630,9 @@ spelling imported it; the file compiles and evaluates once.
 > 3. `<vendor>/<name>/<m>` with `<vendor>/<name>` = P is P's bare self-import.
 > 4. `<prefix>/<m>`: P's own module if `<prefix>` is P's `module_prefix` and P has it; else the module of the
 >    ONE declared dependency with that prefix that has it; two such dependencies is **LDR005**.
-> 5. Otherwise, for a DEPENDENCY P: **LDR006** if a package outside P's scope (or the root) would have
->    provided it, else **LDR001**; never retried in another scope. For the ROOT: a path to a file of the root
+> 5. Otherwise, for a DEPENDENCY P: the ROOT's module if the root provides it, with an **LDR006 warning**;
+>    **LDR006** if any other package outside P's scope would have provided it; else **LDR001**. A `pkg/`
+>    path into the root from a dependency is the same warning. For the ROOT: a path to a file of the root
 >    package is canonicalised to that module; any other path is loaded by path, as before.
 > The resolved (package, file) is then named — module path derived from the file, so every spelling of one
 > file agrees; a dependency as `pkg/<vendor>/<name>/<path>`, the root by its own spelling — and a spelling
@@ -651,9 +656,10 @@ spelling imported it; the file compiles and evaluates once.
 > `pkg/<vendor>/<name>/<m>` for a dependency and the package's own spelling for the root — compare IDs
 > within one build only; never read "dependency or not" out of the string, and never compare across builds.
 > (3) **A name means one thing in one importer.** A prefix or self-import spelling resolves only within its
-> importer's declared scope; nothing resolves through a package the importer does not declare (LDR006), and
-> an ambiguous prefix is an error (LDR005), so a type reached through an import is a type of a package the
-> importer chose. (4) Nothing in M1b needs a cache-key bump; `cacheKeyVersion` stays `v10` and M2's v11 covers
+> importer's declared scope — plus, for a dependency, the root package (with an LDR006 warning, pending a
+> ruling); nothing resolves through any other undeclared package (LDR006), and an ambiguous prefix is an
+> error (LDR005), so a type reached through an import is a type of a package the importer chose (or of the
+> root that depends on it). (4) Nothing in M1b needs a cache-key bump; `cacheKeyVersion` stays `v10` and M2's v11 covers
 > its qualified digest. (5) The REPL/WASM loader has no packages; it has no second spelling to fold, and it
 > still needs the M3 resolver.
 >

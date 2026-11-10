@@ -25,13 +25,15 @@ build-wide table and a failed lookup was retried in the root package's scope, so
 ANOTHER package's module that shared its prefix, a module of a package it never declared, or even a
 file of the root package that depends on it — and a prefixed package that was only a transitive
 dependency could not resolve its own imports at all. These are now errors (none occurs in the
-downstream corpora or the cached registry packages):
+downstream corpora or the cached registry packages; the one real case of a dependency importing the
+root package — a motoko extension — is a warning):
 
 - `LDR006: package aaa/a imports "cc/x" from package eee/e, which it does not declare; add "eee/e" to
   [dependencies] in aaa/a's ailang.toml, or fix the import` — also for a `pkg/` path into an
-  undeclared package. A dependency importing the root package: `LDR006: package aaa/a imports
-  "ap/util", which is a module of the root package acme/app; a dependency cannot import the package
-  that depends on it`. Fix: declare the dependency, or move the code.
+  undeclared package. Fix: declare the dependency, or fix the import. A dependency importing the ROOT
+  package still resolves, with a warning: `WARNING LDR006 (warning): package aaa/a imports "ap/util",
+  which is a module of the root package acme/app; a dependency importing the package that depends on it
+  is allowed for now but is planned to become an error`.
 - `LDR005: package acme/app imports "sh/x", but its dependencies aaa/one and zzz/two all provide it under
   module_prefix "sh"; import the one you mean by its published path (pkg/aaa/one/x)`. Fix: import it by
   its `pkg/<vendor>/<name>/…` path.
