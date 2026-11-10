@@ -1801,3 +1801,46 @@ No code, policy, skill, ledger status, ticket state or host configuration change
 - Executor: resolver `claude:claude-haiku-5-5` (codex rc 75 handoff; path recipe). **Not spawned**, because there was no pick.
 - Evaluator: resolver `sonnet` (path `agent-tool`) → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, 72,546 tok, 11 tool uses, 55 s. Judge independence: cross-model (controller opus, judge sonnet; same vendor).
 - Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
+
+## 101 — 2026-11-10 — idle: inputs byte-identical to iteration 100; all 27 tickets ruling-gated, independent sonnet judge NONE; D-FLEET-43 exclusion grounded in the charter's own justification; nothing designed, planned, built or merged [ADMIN]
+
+**Pick**: NONE. The 27 open tickets and the 28 OPEN decision rows are byte-identical to iteration 100's captures (`cmp` on `tickets.json` and `open-decisions.tsv`; 44 rows, `--check` valid). #2172 has 0 allowlisted comments of 5, and #2039 has none. origin/dev `6617e7f54..8dc92cb52` is 26 commits (v0.58.0 release, dashboard web-UI removal, match exhaustiveness, docs). None touches a fleet charter, `tools/launchd`, mission skill, `scripts/mission_*` or `internal/mission` file. All nine drafts named by OPEN rows are still OPEN, and none was updated after 2026-11-08. The step-level screen finds no row that qualifies.
+
+**Orphans / prior record**: the newest record is iteration 100 on draft #2200 (`fleet/i100-record`), stacked on #2198 → #2194 → #2173 → #2171 → #2169. origin/dev's log ends at 94. This record stacks on #2200. No `fleet/i101*` branch or worktree existed before this fire.
+
+**Preflight / observe**: armed, gh `sunholo-voight-kampff`, billing CLEAN. The resolved skill (SKILL.md plus 13 resources) matched origin/dev per file, 14/14; pin == origin/dev. Gate 1 base `8dc92cb526192d38d9a4fc57531ab0043f138d30@2026-11-10T09:59:57Z`. Dev @ `8dc92cb52`: CI, Build and Release and Docs deploy runs exist but are still queued or in progress (17 check runs, the non-green ones pending). The last completed dev CI (`712237983`) was success. V1 owns any red.
+- **Gate 0 self-notice**: watermark form **rc 2**, the fifth consecutive fleet fire with no watermark file for #2172 or #2039. The documented `--since 2026-11-10T03:53:10Z` form (iteration 100's Gate 1 base) gave **rc 0**: control 852:10 ok, 0 crash notices, 0 in-window transcript notices.
+- **Inbox (ambient)**: nothing from Mark, no regression. The triage digest again reports codex login expired, matching this fire's codex probe rc 75. Nothing is a `mission-fleet` ticket.
+- [Observations](fleet-mission-evidence/iteration101/observations.md).
+
+**Did** (generator ≠ judge): the controller captured [tickets](fleet-mission-evidence/iteration101/tickets.json) and [OPEN rows](fleet-mission-evidence/iteration101/open-decisions.tsv). It then spawned the independent evaluator (sonnet, Agent tool, `MISSION-ROLE: evaluator`, foreground) with the inputs and rules, without the controller's conclusion, and told it to re-adjudicate iteration 100's D-FLEET-43 objection itself. It made one complete pass. It returned [**NONE (idle)**](fleet-mission-evidence/iteration101/idle-judge.md) at about 78% confidence:
+- 27/27 tickets are gated. Of the 28 OPEN rows, 8 that begin in scope already have diffs, and D-FLEET-43 A is the only in-scope row with none.
+- **The D-FLEET-43 objection is settled on non-circular grounds.** The judge reached the same basis the controller had checked independently before the spawn. The "Ticket-driven only" screen justifies drafting for ruling-gated rows with "the ticket is already in the queue". D-FLEET-43 was filed at iteration 92 as a controller observation, with no ticket behind it, and none of the 27 signatures concerns the fleet's own idle skip. So drafting it would be self-sourcing, which the guardrail forbids. The exclusion no longer rests on the row's own "only if you choose A".
+- Strongest objection (judge's own): the charter does not state outright that a qualifying row needs an originating ticket, so a purely structural reading would still pick A. Reported as a wording gap; not fixed, because editing the screen rule is not ticket work.
+
+No code, policy, skill, ledger status, ticket state or host configuration changed. Unscored: no implementation.
+
+**Ruled out**:
+- Drafting D-FLEET-43 A: no originating ticket, so the screen's not-self-sourcing justification fails. This is the replacement basis for iterations 92–100's "built only if you choose A".
+- Editing the charter's screen bullet to say "requires an originating ticket": that is self-sourced, not ticket work.
+- D-FLEET-38's sync-list half: it follows the scope arm that must ship alone first (#2108, unmerged).
+- Merging the 95–100 record stack: #2171 carries iteration 96's design parked for review.
+- Treating the watermark-form rc 2 as "no deaths".
+
+**Retro lane**: no skill edit. The self-notice watermark friction now has four fleet instances (98–101). It is still not taken, for the earlier reasons: ticket-driven only, and a skill edit on an unmerged record stack reaches no running loop. The `--since <previous Gate 1 base>` workaround held again.
+
+**Progress**: 27 open tickets; clause 1 UNMEASURED, 2 UNMET, 3 MET, 4 met by its letter, 5 preserved. **Goal unmoved.** Harness share 14/20 (log headlines 82–101; 92, 94, 98, 99, 100 and 101 are ADMIN). The last three landings (91/87/86) each moved clause 2, so there is no DRIFT alarm.
+
+**Validation**: darwin/arm64. Record checks in the record commit: `mission_decisions.sh --check`, the STATUS rotation arithmetic plus an archive grep, the canonical heading grep and test, and index regeneration. No code changed, so Gate 3b does not apply. The record ships as a draft PR stacked on #2200.
+
+**Budget**: metered **$0**. Evaluator Agent sonnet 49,818 tok (subscription). Controller tok not reported. Designer, planner and executor spent nothing.
+
+**Next**: any ruling on D-FLEET-16..45, or a new ticket. This is the fourth consecutive idle fire (98–101). Without a ruling, the next fire repeats this screen.
+
+**Routing evidence**: base=8dc92cb526192d38d9a4fc57531ab0043f138d30@2026-11-10T10:02:39Z (Gate-4 record).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `claude:claude-opus-5-5` (path recipe). **Not spawned**: no pick. This is a routing outcome, not a spawn failure.
+- Planner: resolver `opus` (codex `gpt-6.1-sol` probe rc 75 → opus, per driver; path agent-tool). **Not spawned**: no pick.
+- Executor: resolver `claude:claude-haiku-5-5` (codex rc 75 handoff; path recipe). **Not spawned**: no pick.
+- Evaluator: resolver `sonnet` (path `agent-tool`) → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, 49,818 tok, 4 tool uses, 36 s. Judge independence: cross-model (controller opus, judge sonnet; same vendor).
+- Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
