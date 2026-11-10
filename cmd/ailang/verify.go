@@ -28,10 +28,7 @@ func verifyCommand() {
 	packageFlag := fs.String("package", "", "Verify every exported module of the package at this directory (M-PKG-QUALITY-LADDER)")
 	wallCapFlag := fs.Duration("wall-cap", 0, "With --package: whole-package time cap (0 = unbounded)")
 
-	if err := fs.Parse(os.Args[2:]); err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
-		os.Exit(1)
-	}
+	parseInterspersed(fs, os.Args[2:])
 	policy := verification.ExitPolicy{Strict: *strictFlag, AllowInconclusive: *allowInconclusiveFlag}
 
 	if *packageFlag != "" {
@@ -44,7 +41,8 @@ func verifyCommand() {
 		return
 	}
 
-	if fs.NArg() < 1 {
+	filename := verificationFileArg(fs, "verify")
+	if filename == "" {
 		fmt.Fprintf(os.Stderr, "%s: missing file argument\n", red("Error"))
 		fmt.Println("Usage: ailang verify [options] <file.ail>")
 		fmt.Println()
@@ -59,8 +57,8 @@ func verifyCommand() {
 		fmt.Println("  --wall-cap        With --package: whole-package time cap (default: unbounded)")
 		fmt.Println()
 		fmt.Println("Verifies requires/ensures contracts using Z3 SMT solver.")
-		fmt.Println("Exit 0: every contract proved, or proved + skipped (skips listed on stderr), or no contracts.")
-		fmt.Println("Exit 1: a counterexample, a solver error/timeout, an inconclusive result, or Z3 missing while")
+		fmt.Println("Exit 0: every contract proved, or some proved + some skipped (skips listed on stderr), or no ensures to prove.")
+		fmt.Println("Exit 1: a counterexample, a solver error/timeout, an inconclusive result, every contract skipped (none proved), or Z3 missing while")
 		fmt.Println("        the file has contracts. The JSON 'outcome' field names which.")
 		fmt.Println()
 		fmt.Println("IFC labels (v0.16.0+):")
@@ -71,8 +69,6 @@ func verifyCommand() {
 		fmt.Println("    examples/runnable/contracts/inbox_injection_v2.ail")
 		os.Exit(1)
 	}
-
-	filename := fs.Arg(0)
 
 	// Read and compile the file. The solver is looked for AFTER compiling:
 	// whether a missing Z3 fails the run depends on whether the file has any
@@ -102,13 +98,20 @@ func verifyCommand() {
 	}
 
 	result, err := pipeline.Run(cfg, src)
+	var compileErrors []string
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%s: compilation failed: %v\n", red("Error"), err)
-		os.Exit(1)
+		compileErrors = append(compileErrors, err.Error())
 	}
-	if len(result.Errors) > 0 {
-		for _, e := range result.Errors {
-			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), e)
+	for _, e := range result.Errors {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), e)
+		compileErrors = append(compileErrors, fmt.Sprint(e))
+	}
+	if len(compileErrors) > 0 {
+		// --json always prints a report, so a consumer reads `not_run` rather
+		// than an empty stdout.
+		if *jsonFlag {
+			printVerifyJSONNotRun(filename, compileErrors)
 		}
 		os.Exit(1)
 	}
@@ -183,10 +186,7 @@ func verifyModulesFromPipeline(result pipeline.Result) map[string]smt.VerifyModu
 // module to count obligations.
 func verifyPackageCommand(dir string, opts verifyPackageOptions, jsonOut bool, policy verification.ExitPolicy) {
 	if !smt.Z3Available() {
-		fmt.Fprintf(os.Stderr, "%s Z3 solver not found (verify.outcome: unavailable)\n", red("Error:"))
-		for _, l := range z3InstallLines {
-			fmt.Fprintln(os.Stderr, l)
-		}
+		writeZ3NotFound(os.Stderr, "the package was not verified (verify.outcome: unavailable)")
 		os.Exit(1)
 	}
 	if jsonOut {
@@ -202,16 +202,27 @@ func verifyPackageCommand(dir string, opts verifyPackageOptions, jsonOut bool, p
 	} else {
 		printPackageVerifyHuman(report)
 	}
+	// Module-level outcomes (a compile error, a wall-cap skip) have no rows, so
+	// the package counters are the base; requires-only rows are taken back out
+	// of `skipped` because they are not obligations (smt.IsObligation).
+	nonObligations := 0
+	for _, m := range report.Modules {
+		for _, r := range m.Results {
+			if !smt.IsObligation(smt.VerifyResult{Status: r.Status, ReasonCode: r.ReasonCode}) && r.Status == "skipped" {
+				nonObligations++
+			}
+		}
+	}
 	t := verification.Tally{
 		CheckPassed:     true,
 		SolverAvailable: true,
-		Obligations:     report.Verified + report.Counterexample + report.Inconclusive + report.Skipped + report.Errors,
 		Verified:        report.Verified,
 		Counterexample:  report.Counterexample,
 		Inconclusive:    report.Inconclusive,
-		Skipped:         report.Skipped,
+		Skipped:         report.Skipped - nonObligations,
 		Errors:          report.Errors,
 	}
+	t.Obligations = t.Verified + t.Counterexample + t.Inconclusive + t.Skipped + t.Errors
 	writeVerificationNotice(os.Stderr, t, policy, nil)
 	if code := verification.ExitCode(t, policy); code != 0 {
 		os.Exit(code)

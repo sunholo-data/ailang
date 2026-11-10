@@ -17,15 +17,25 @@ package verification
 //	obligations exist, solver unavailable         -> 1  unavailable
 //	any counterexample                            -> 1  counterexample
 //	any solver error, unknown or timeout          -> 1  error
-//	any inconclusive (bounded-unrolling sat)      -> 1  inconclusive  (0 with AllowInconclusive)
-//	verified + skipped only                       -> 0  partial       (1 with Strict)
+//	any inconclusive (bounded-unrolling sat)      -> 1  inconclusive  (see AllowInconclusive)
+//	skipped only, NOTHING verified                -> 1  unproved
+//	at least one verified + at least one skipped  -> 0  partial       (1 with Strict)
 //	all obligations verified                      -> 0  verified
 //
+// An OBLIGATION is a function with at least one `ensures` clause: something
+// the verifier is asked to prove about that function. A `requires`-only
+// function is not one. The verifier assumes a precondition while proving the
+// function's own ensures and does not check it at call sites, so a precondition
+// alone gives it nothing to prove; such a function counts nowhere in this
+// tally, with or without a solver, and passes --strict.
+//
 // A skip is a stated boundary of the decidable fragment (effects, a
-// higher-order parameter, an unsupported construct), so it passes by default —
-// callers list it loudly on stderr. An inconclusive result is the solver's
-// candidate counterexample and can be a real one, so it fails by default.
-// There is ONE non-zero code; the JSON `outcome` discriminates.
+// higher-order parameter, an unsupported construct). A run that verified at
+// least one obligation and skipped others passes with the skips listed (and
+// enumerated by name in the JSON results). A run whose obligations were ALL
+// skipped proved nothing and fails as `unproved`. An inconclusive result is
+// the solver's candidate counterexample and can be a real one, so it fails by
+// default. There is ONE non-zero code; the JSON `outcome` discriminates.
 
 // Outcome is the machine-readable verdict of one verification run. The values
 // are the `verify.outcome` JSON field; new values may be added, existing ones
@@ -37,15 +47,17 @@ const (
 	OutcomeNoObligations  Outcome = "no_obligations"
 	OutcomeVerified       Outcome = "verified"
 	OutcomePartial        Outcome = "partial"
+	OutcomeUnproved       Outcome = "unproved"
 	OutcomeInconclusive   Outcome = "inconclusive"
 	OutcomeCounterexample Outcome = "counterexample"
 	OutcomeError          Outcome = "error"
 	OutcomeUnavailable    Outcome = "unavailable"
 )
 
-// Tally is what a verification run measured. Obligations is the number of
-// contract-bearing functions in the checked file; it is counted from the
-// compiled program, so it is known even when the solver is not.
+// Tally is what a verification run measured, over OBLIGATIONS only (functions
+// with an ensures clause; see the file comment). Obligations is counted from
+// the compiled program, so it is known even when the solver is not; with a
+// solver it equals Verified+Counterexample+Inconclusive+Skipped+Errors.
 type Tally struct {
 	CheckPassed     bool
 	SolverAvailable bool
@@ -78,6 +90,8 @@ func Classify(t Tally) Outcome {
 		return OutcomeError
 	case t.Inconclusive > 0:
 		return OutcomeInconclusive
+	case t.Skipped > 0 && t.Verified == 0:
+		return OutcomeUnproved
 	case t.Skipped > 0:
 		return OutcomePartial
 	case t.Verified > 0:
@@ -100,10 +114,18 @@ func ExitCode(t Tally, p ExitPolicy) int {
 	case OutcomeInconclusive:
 		// --strict outranks --allow-inconclusive: a strict gate passes nothing
 		// that was not proved.
-		if p.AllowInconclusive && !p.Strict {
-			return 0
+		if !p.AllowInconclusive || p.Strict {
+			return 1
 		}
-		return 1
+		// --allow-inconclusive accepts the inconclusive obligations and only
+		// them: the rest of the run is judged as if they were absent, so
+		// inconclusive + skipped with nothing verified is still unproved.
+		rest := t
+		rest.Inconclusive = 0
+		if Classify(rest) == OutcomeUnproved {
+			return 1
+		}
+		return 0
 	default:
 		return 1
 	}

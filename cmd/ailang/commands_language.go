@@ -402,7 +402,10 @@ func runCheckCommand(args []string) error {
 	verifyStrictCheck := checkFS.Bool("strict", false, "With --verify: "+strictFlagHelp)
 	allowInconclusiveCheck := checkFS.Bool("allow-inconclusive", false, "With --verify: "+allowInconclusiveFlagHelp)
 
-	_ = checkFS.Parse(args)
+	// Flags may follow the file (`check f.ail --verify`): they used to be read
+	// as further positionals and dropped. A second file still only checks the
+	// first outside --verify (pre-existing; refused under --verify below).
+	parseInterspersed(checkFS, args)
 	if (*verifyStrictCheck || *allowInconclusiveCheck) && !*verifyCheck {
 		fmt.Fprintf(os.Stderr, "%s: --strict and --allow-inconclusive apply to contract verification; add --verify\n", red("Error"))
 		os.Exit(1)
@@ -429,12 +432,13 @@ func runCheckCommand(args []string) error {
 	// Phase 3 item 2 names, and it yields the same bytes. runAICheckReport
 	// never returns.
 	if *verifyCheck {
-		if checkFS.NArg() < 1 {
+		file := verificationFileArg(checkFS, "check --verify")
+		if file == "" {
 			fmt.Fprintf(os.Stderr, "%s: missing file argument\n", red("Error"))
 			fmt.Println("Usage: ailang check --verify [options] <file.ail>")
 			os.Exit(1)
 		}
-		runAICheckReport(checkFS.Arg(0), *verifyTimeoutCheck, *verifyDepthCheck, *relaxModulesCheck,
+		runAICheckReport(file, *verifyTimeoutCheck, *verifyDepthCheck, *relaxModulesCheck,
 			verification.ExitPolicy{Strict: *verifyStrictCheck, AllowInconclusive: *allowInconclusiveCheck})
 		return nil
 	}

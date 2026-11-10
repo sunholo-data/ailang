@@ -9,7 +9,8 @@ import "testing"
 // Red mutations, each measured: drop the `unavailable` arm of Classify (the
 // "solver unavailable" rows fail: the run classifies as no_obligations, exit 0
 // — the original bug); make OutcomeInconclusive return 0 (the inconclusive
-// rows fail); make Strict ignore partial (the strict partial row fails).
+// rows fail); make Strict ignore partial (the strict partial row fails); drop
+// the `unproved` arm (skipped-only classifies as partial, exit 0).
 func TestExitCode_Table(t *testing.T) {
 	ok := func(f func(*Tally)) Tally {
 		t := Tally{CheckPassed: true, SolverAvailable: true}
@@ -35,8 +36,15 @@ func TestExitCode_Table(t *testing.T) {
 		{"verified", ok(func(t *Tally) { t.Obligations, t.Verified = 2, 2 }), ExitPolicy{}, OutcomeVerified, 0},
 		{"verified, strict", ok(func(t *Tally) { t.Obligations, t.Verified = 2, 2 }), strict, OutcomeVerified, 0},
 		{"partial", ok(func(t *Tally) { t.Obligations, t.Verified, t.Skipped = 2, 1, 1 }), ExitPolicy{}, OutcomePartial, 0},
-		{"skipped only", ok(func(t *Tally) { t.Obligations, t.Skipped = 1, 1 }), ExitPolicy{}, OutcomePartial, 0},
 		{"partial, strict", ok(func(t *Tally) { t.Obligations, t.Verified, t.Skipped = 2, 1, 1 }), strict, OutcomePartial, 1},
+		// Review fix 1: obligations exist and none was verified — nothing was
+		// proved, so it fails whatever the policy.
+		{"skipped only is unproved", ok(func(t *Tally) { t.Obligations, t.Skipped = 1, 1 }), ExitPolicy{}, OutcomeUnproved, 1},
+		{"skipped only is unproved, allow-inconclusive", ok(func(t *Tally) { t.Obligations, t.Skipped = 2, 2 }), allow, OutcomeUnproved, 1},
+		{"inconclusive + skipped, nothing verified, allowed: still unproved",
+			ok(func(t *Tally) { t.Obligations, t.Inconclusive, t.Skipped = 2, 1, 1 }), allow, OutcomeInconclusive, 1},
+		{"inconclusive + skipped + verified, allowed: passes like partial",
+			ok(func(t *Tally) { t.Obligations, t.Inconclusive, t.Skipped, t.Verified = 3, 1, 1, 1 }), allow, OutcomeInconclusive, 0},
 		{"inconclusive", ok(func(t *Tally) { t.Obligations, t.Inconclusive = 1, 1 }), ExitPolicy{}, OutcomeInconclusive, 1},
 		{"inconclusive, allowed", ok(func(t *Tally) { t.Obligations, t.Inconclusive = 1, 1 }), allow, OutcomeInconclusive, 0},
 		{"inconclusive, allowed but strict", ok(func(t *Tally) { t.Obligations, t.Inconclusive = 1, 1 }),

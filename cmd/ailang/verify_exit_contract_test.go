@@ -96,6 +96,7 @@ type verifyExitCase struct {
 	solverOut   string
 	solverRC    int
 	extra       []string
+	trailing    []string // flags placed AFTER the file
 	wantCode    int
 	wantOutcome string // "" when no JSON verify object is expected (check failed under `verify`)
 	wantStderr  string // substring every spelling must print on stderr ("" = no requirement)
@@ -111,14 +112,36 @@ var verifyExitCases = []verifyExitCase{
 		wantStderr: "1 contract(s) inconclusive (not proved; fails this run): sumTo"},
 	{name: "inconclusive allowed", fixture: "sumto.ail", solver: "sat", solverOut: "sat", extra: []string{"--allow-inconclusive"},
 		wantCode: 0, wantOutcome: "inconclusive", wantStderr: "accepted by --allow-inconclusive"},
-	{name: "skipped passes loudly", fixture: "effectful.ail", solver: "unsat", solverOut: "unsat", wantCode: 0, wantOutcome: "partial",
+	// Review fix 1: obligations exist and NONE was verified — nothing proved,
+	// so it fails as "unproved" (it passed as "partial" in the first cut), with
+	// or without --strict.
+	{name: "all skipped is unproved", fixture: "effectful.ail", solver: "unsat", solverOut: "unsat", wantCode: 1, wantOutcome: "unproved",
+		wantStderr: "1 contract(s) skipped and none verified (verify.outcome: unproved): g (Function \"g\" has effects)"},
+	{name: "all skipped is unproved, strict", fixture: "effectful.ail", solver: "unsat", solverOut: "unsat", extra: []string{"--strict"},
+		wantCode: 1, wantOutcome: "unproved"},
+	// The reviewer's probe: a FALSE contract the verifier skips. origin/dev
+	// exited 1 (as a verifier error), the first cut exited 0.
+	{name: "false contract, skipped", fixture: "skiplist.ail", solver: "unsat", solverOut: "unsat", wantCode: 1, wantOutcome: "unproved",
+		wantStderr: "len (unsupported construct"},
+	// At least one verified + at least one skipped passes, loudly.
+	{name: "partial passes loudly", fixture: "mixed.ail", solver: "unsat", solverOut: "unsat", wantCode: 0, wantOutcome: "partial",
 		wantStderr: "1 contract(s) not verified (pass --strict to fail on these): g (Function \"g\" has effects)"},
-	{name: "skipped fails under --strict", fixture: "effectful.ail", solver: "unsat", solverOut: "unsat", extra: []string{"--strict"},
+	{name: "partial fails under --strict", fixture: "mixed.ail", solver: "unsat", solverOut: "unsat", extra: []string{"--strict"},
 		wantCode: 1, wantOutcome: "partial", wantStderr: "--strict fails this run"},
+	// Flags after the file are honoured (they used to be dropped silently).
+	{name: "trailing --strict", fixture: "mixed.ail", solver: "unsat", solverOut: "unsat", trailing: []string{"--strict"},
+		wantCode: 1, wantOutcome: "partial", wantStderr: "--strict fails this run"},
+	// Review fix 2: a requires-only function is not an obligation — the same
+	// verdict with and without a solver, and it passes --strict.
+	{name: "requires-only", fixture: "requiresonly.ail", solver: "unsat", solverOut: "unsat", wantCode: 0, wantOutcome: "no_obligations"},
+	{name: "requires-only, strict", fixture: "requiresonly.ail", solver: "unsat", solverOut: "unsat", extra: []string{"--strict"},
+		wantCode: 0, wantOutcome: "no_obligations"},
+	{name: "requires-only, no solver", fixture: "requiresonly.ail", solver: "missing", wantCode: 0, wantOutcome: "no_obligations"},
 	// THE bug: a missing solver with contracts in the file used to exit 0 on
-	// `check --verify` / `ai-check`, reporting `available: false` and nothing else.
+	// `check --verify` / `ai-check`, reporting `available: false` and nothing
+	// else. The message names where it looked.
 	{name: "solver unavailable", fixture: "half.ail", solver: "missing", wantCode: 1, wantOutcome: "unavailable",
-		wantStderr: "Z3 solver not found: 1 contract obligation(s) were not verified"},
+		wantStderr: "Z3 solver not found (AILANG_Z3_PATH="},
 	{name: "no obligations, no solver", fixture: "nocontracts.ail", solver: "missing", wantCode: 0, wantOutcome: "no_obligations"},
 	{name: "no obligations", fixture: "nocontracts.ail", solver: "unsat", solverOut: "unsat", wantCode: 0, wantOutcome: "no_obligations"},
 }
@@ -126,7 +149,7 @@ var verifyExitCases = []verifyExitCase{
 func runVerifySpelling(t *testing.T, bin string, sp verifySpelling, c verifyExitCase) (code int, outcome string, stdout, stderr string) {
 	t.Helper()
 	t.Setenv("AILANG_Z3_PATH", fakeSolver(t, c.solver, c.solverOut, c.solverRC))
-	stdout, stderr, code = runAilangBin(t, bin, sp.args(c.extra, verifyExitFixtures+c.fixture)...)
+	stdout, stderr, code = runAilangBin(t, bin, append(sp.args(c.extra, verifyExitFixtures+c.fixture), c.trailing...)...)
 	if c.wantOutcome == "" {
 		return code, "", stdout, stderr
 	}
@@ -217,13 +240,65 @@ func TestVerifyExit_CheckFailed(t *testing.T) {
 	if code != 1 || !strings.Contains(stderr, "compilation failed") {
 		t.Fatalf("verify on a type error: exit %d, stderr %q", code, stderr)
 	}
+	// verify --json printed NO JSON on a type error; it now prints not_run.
+	// Red mutation: drop the printVerifyJSONNotRun call.
+	stdout, stderr, code := runAilangBin(t, bin, "verify", "--json", verifyExitFixtures+"typeerror.ail")
+	v, err := flatVerify(stdout)
+	if err != nil || code != 1 || v["outcome"] != "not_run" || v["compile_errors"] == nil {
+		t.Fatalf("verify --json on a type error: exit %d, err %v, json %v\nstderr:\n%s", code, err, v, stderr)
+	}
+}
+
+// TestVerifyExit_SecondFileIsAUsageError: `check --verify ok.ail bad.ail`
+// verified ok.ail, exited 0 and never looked at bad.ail. A second file is now
+// a usage error (exit 2) on every spelling. Red mutation: make
+// verificationFileArg ignore extra arguments.
+func TestVerifyExit_SecondFileIsAUsageError(t *testing.T) {
+	requireShForFakeSolver(t)
+	bin := buildAilang(t)
+	t.Setenv("AILANG_Z3_PATH", fakeSolver(t, "unsat", "unsat", 0))
+	for _, sp := range verifySpellings {
+		args := append(sp.args(nil, verifyExitFixtures+"nocontracts.ail"), verifyExitFixtures+"skiplist.ail")
+		_, stderr, code := runAilangBin(t, bin, args...)
+		if code != 2 || !strings.Contains(stderr, "one file at a time") || !strings.Contains(stderr, "skiplist.ail") {
+			t.Fatalf("%s with two files: exit %d, stderr %q; want exit 2 naming the unchecked file", sp.name, code, stderr)
+		}
+	}
+}
+
+// TestVerifyExit_PartialEnumeratesSkipsInJSON: a partial run lists each
+// skipped obligation BY NAME in the JSON results (not only on stderr), so a
+// machine consumer can see what was not proved.
+func TestVerifyExit_PartialEnumeratesSkipsInJSON(t *testing.T) {
+	requireShForFakeSolver(t)
+	bin := buildAilang(t)
+	t.Setenv("AILANG_Z3_PATH", fakeSolver(t, "unsat", "unsat", 0))
+	for _, sp := range verifySpellings {
+		stdout, stderr, code := runAilangBin(t, bin, sp.args(nil, verifyExitFixtures+"mixed.ail")...)
+		v, err := sp.jsonVerify(stdout)
+		if err != nil || code != 0 {
+			t.Fatalf("%s: exit %d, err %v\n%s", sp.name, code, err, stderr)
+		}
+		status := map[string]string{}
+		rows, _ := v["results"].([]any)
+		for _, r := range rows {
+			m, _ := r.(map[string]any)
+			fn, _ := m["function"].(string)
+			st, _ := m["status"].(string)
+			status[fn] = st
+		}
+		if status["g"] != "skipped" || status["dbl"] != "verified" || v["obligations"] != float64(2) {
+			t.Fatalf("%s: results %v, obligations %v; want g skipped and dbl verified by name, 2 obligations", sp.name, status, v["obligations"])
+		}
+	}
 }
 
 // TestVerifyExit_UnsupportedConstructIsASkipEverywhere: a contracted function
 // matching on list patterns is outside the decidable fragment. `verify` always
-// reported it skipped (#757); ai-check reported it as a verifier ERROR and
-// exited 1. Under the shared contract it is a skip on every spelling: exit 0,
-// listed on stderr, and --strict fails it.
+// reported it skipped (#757); ai-check reported it as a verifier ERROR. Under
+// the shared contract it is a skip on every spelling, and because it is the
+// file's only obligation nothing was proved: "unproved", exit 1, strict or
+// not, with the function listed on stderr.
 func TestVerifyExit_UnsupportedConstructIsASkipEverywhere(t *testing.T) {
 	requireShForFakeSolver(t)
 	bin := buildAilang(t)
@@ -246,18 +321,16 @@ ensures { result >= 0 }
 	for _, sp := range verifySpellings {
 		for _, strict := range []bool{false, true} {
 			extra := []string{"--relax-modules"}
-			want := 0
 			if strict {
 				extra = append(extra, "--strict")
-				want = 1
 			}
 			stdout, stderr, code := runAilangBin(t, bin, sp.args(extra, f)...)
 			v, err := sp.jsonVerify(stdout)
 			if err != nil {
 				t.Fatalf("%s: invalid JSON (exit %d): %v\n%s", sp.name, code, err, stderr)
 			}
-			if code != want || v["outcome"] != "partial" || v["skipped"] != float64(1) || v["errors"] != float64(0) {
-				t.Fatalf("%s strict=%v: exit %d, verify %v; want exit %d, partial, skipped 1, errors 0\nstderr:\n%s", sp.name, strict, code, v, want, stderr)
+			if code != 1 || v["outcome"] != "unproved" || v["skipped"] != float64(1) || v["errors"] != float64(0) {
+				t.Fatalf("%s strict=%v: exit %d, verify %v; want exit 1, unproved, skipped 1, errors 0\nstderr:\n%s", sp.name, strict, code, v, stderr)
 			}
 			if strings.Contains(stdout+stderr, "*core.ListPattern") {
 				t.Fatalf("%s leaked the internal pattern type name:\n%s", sp.name, stdout+stderr)
@@ -272,18 +345,20 @@ ensures { result >= 0 }
 // TestVerifyExit_HumanVerifyWithoutSolver: the human `verify` path (no
 // --json) compiles BEFORE looking for the solver, so a contract-free file
 // passes without Z3 (it used to exit 1) and a contracted one fails naming the
-// install command and the obligation count.
+// path it looked at (not an assumed installer) and the obligation count.
 func TestVerifyExit_HumanVerifyWithoutSolver(t *testing.T) {
 	requireShForFakeSolver(t)
 	bin := buildAilang(t)
-	t.Setenv("AILANG_Z3_PATH", fakeSolver(t, "missing", "", 0))
+	missing := fakeSolver(t, "missing", "", 0)
+	t.Setenv("AILANG_Z3_PATH", missing)
 	_, stderr, code := runAilangBin(t, bin, "verify", verifyExitFixtures+"nocontracts.ail")
 	if code != 0 || !strings.Contains(stderr, "nothing needed it") {
 		t.Fatalf("contract-free file without Z3: exit %d, stderr %q; want 0", code, stderr)
 	}
 	_, stderr, code = runAilangBin(t, bin, "verify", verifyExitFixtures+"half.ail")
-	if code != 1 || !strings.Contains(stderr, "1 contract obligation(s) were not verified") || !strings.Contains(stderr, "brew install z3") {
-		t.Fatalf("contracted file without Z3: exit %d, stderr %q; want 1 with the install hint", code, stderr)
+	if code != 1 || !strings.Contains(stderr, "1 contract obligation(s) were not verified") ||
+		!strings.Contains(stderr, "AILANG_Z3_PATH="+missing+" (no such file)") || strings.Contains(stderr, "brew") {
+		t.Fatalf("contracted file without Z3: exit %d, stderr %q; want 1 naming AILANG_Z3_PATH and its value, no platform installer", code, stderr)
 	}
 }
 

@@ -7,16 +7,19 @@
 -- uninterpreted stub. If Z3 proves the contract over every value of that stub,
 -- it reports VERIFIED (bounded: depth N). If it only finds a model by choosing a
 -- value for the stub, the verdict is INCONCLUSIVE (bounded: depth N) — neither a
--- proof nor a violation. All three functions here are inconclusive at the
--- default depth 2; because `requires` bounds n <= 4, a depth past that bound
--- decides them: `ailang verify --verify-recursive-depth 6` verifies all three.
--- For unbounded inputs (any-length lists) no depth decides it.
+-- proof nor a violation, and `ailang verify` exits 1 on it (pass
+-- --allow-inconclusive to accept it). At the default depth 2 all three functions
+-- here would be inconclusive; because `requires` bounds n <= 4, a depth past that
+-- bound decides them, so each carries @verify(depth: 6) and
+-- `ailang verify examples/runnable/contracts/recursive_verify.ail` verifies all
+-- three (exit 0). For unbounded inputs (any-length lists) no depth decides it.
 -- (M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE)
 
 module examples/runnable/contracts/recursive_verify
 
 -- Factorial: n! is always >= 1 for small non-negative n
--- With --verify-recursive-depth 5, Z3 proves this for n in [0..4]
+-- Z3 proves this for n in [0..4] (depth 5 or more decides it)
+@verify(depth: 6)
 export func factorial(n: int) -> int ! {}
 requires { n >= 0, n <= 4 }
 ensures { result >= 1 } {
@@ -25,6 +28,7 @@ ensures { result >= 1 } {
 
 -- Sum from 1 to n: always non-negative
 -- Base case returns 0 (>= 0), recursive case adds n (>= 1)
+@verify(depth: 6)
 export func sumTo(n: int) -> int ! {}
 requires { n >= 0, n <= 4 }
 ensures { result >= 0 } {
@@ -32,6 +36,7 @@ ensures { result >= 0 } {
 }
 
 -- Fibonacci: always non-negative for small non-negative input
+@verify(depth: 6)
 export func fib(n: int) -> int ! {}
 requires { n >= 0, n <= 4 }
 ensures { result >= 0 } {

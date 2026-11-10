@@ -474,6 +474,12 @@ slots. Runtime: int arithmetic on every route (see the overflow doc's seam table
 the test harness. CLI: `check --verify`, `ai-check`, `verify`. Programs that must not change:
 `tests/binops_int.ail`, `examples/float_nan.ail`, `examples/poly_arith_lambda.ail`, every
 `examples/runnable/contracts/*.ail` under `ailang verify`, and probes c01, c06, c13b, c17.
+**Changed by M1 (PR #2222), on purpose:** `recursive_verify.ail`, `per_function_depth_verify.ail` and
+`cross_module_functions_lib.ail` have true recursive contracts that were inconclusive at depth 2 and
+exited 0 only because inconclusive passed. Under D1 they exit 1 as written, so the first two gained
+`requires` upper bounds and `@verify(depth: N)` past those bounds (they now verify), and the library's
+header documents `ailang verify --allow-inconclusive` (its `sumTo` has an unbounded input that no depth
+decides). Each passes its documented command (`TestContractExamples_PassAsDocumented`).
 
 ## Risks
 

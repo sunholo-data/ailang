@@ -230,7 +230,7 @@ ailang verify --json examples/runnable/contracts/basic.ail
 ailang verify --strict examples/runnable/contracts/basic.ail
 
 # Accept inconclusive (bounded-unrolling) results instead of failing on them
-ailang verify --allow-inconclusive examples/runnable/contracts/recursive_verify.ail
+ailang verify --allow-inconclusive examples/runnable/contracts/cross_module_functions_lib.ail
 
 # Custom timeout per function (default: 5s)
 ailang verify --timeout 10s examples/runnable/contracts/park.ail
@@ -245,20 +245,31 @@ rule: they exit non-zero whenever something that should have been proved was
 not. The JSON field `outcome` names which case it was (`verify.outcome` in the
 `check --verify` report).
 
+An **obligation** is a function with at least one `ensures` clause. A
+`requires`-only function is not one: the verifier assumes a precondition while
+proving that function's own `ensures`, and it does not check preconditions at
+call sites, so a precondition alone gives it nothing to prove. Such a function
+is still listed in `results` (status `skipped`, reason code
+`missing_postcondition`) but never changes the outcome or the exit code, with
+or without Z3, and passes `--strict`.
+
 | Outcome | Exit | `outcome` |
 |---|---|---|
 | The file does not type-check | 1 | `not_run` |
-| No contracts in the file (with or without Z3) | 0 | `no_obligations` |
-| Every contract proved | 0 | `verified` |
-| Proved + skipped (outside the decidable fragment) | 0, the skipped functions listed on stderr; 1 with `--strict` | `partial` |
-| Any inconclusive result (bounded recursion) | 1; 0 with `--allow-inconclusive` | `inconclusive` |
+| No obligations in the file (with or without Z3) | 0 | `no_obligations` |
+| Every obligation proved | 0 | `verified` |
+| At least one proved, at least one skipped (outside the decidable fragment) | 0, the skipped functions listed on stderr and by name in `results`; 1 with `--strict` | `partial` |
+| Obligations exist, **none** proved, the rest skipped | 1 | `unproved` |
+| Any inconclusive result (bounded recursion) | 1; 0 with `--allow-inconclusive` (unless nothing else was proved) | `inconclusive` |
 | Any counterexample | 1 | `counterexample` |
 | Any solver error, `unknown` or timeout | 1 | `error` |
-| Contracts exist but Z3 is not installed | 1, stderr names the install command | `unavailable` |
+| Obligations exist but Z3 is not found | 1, stderr names where it looked | `unavailable` |
 
-`obligations` counts the contract-bearing functions, and is reported even when
-Z3 is missing. `available` means "the solver was found". `verify --package`
-refuses up front when Z3 is missing.
+`obligations` counts the functions with an `ensures` clause and is reported
+even when Z3 is missing. `available` means "the solver was found". The legacy
+counter `skipped` still includes `requires`-only rows. Each command checks one
+file: a second file is a usage error (exit 2), and flags may follow the file.
+`verify --package` refuses up front when Z3 is missing.
 
 ### How It Works
 
@@ -581,16 +592,17 @@ Recursive functions were previously outside the decidable fragment. With **bound
 </CodeBlock>
 
 ```bash
-$ ailang verify --verify-recursive-depth 5 examples/runnable/contracts/recursive_verify.ail
+$ ailang verify examples/runnable/contracts/recursive_verify.ail
 
 → Verifying contracts in recursive_verify.ail
   Solver: Z3 version 4.15.4
 
-  ✓ VERIFIED (bounded: depth 5) factorial   43ms
-  ✓ VERIFIED (bounded: depth 5) sumTo        6ms
-  ✓ VERIFIED (bounded: depth 5) fib          7ms
+  ✓ VERIFIED (bounded: depth 6) factorial   10ms
+  ✓ VERIFIED (bounded: depth 6) sumTo        6ms
+  ✓ VERIFIED (bounded: depth 6) fib          7ms
+  ○ NO CONTRACTS main
 
-  3 functions: 3 verified
+  4 exported functions: 3 verified, 1 without contracts
 
   Note: "bounded: depth N" means the property was verified assuming at most N
         levels of recursion. This is sound but not a full inductive proof.

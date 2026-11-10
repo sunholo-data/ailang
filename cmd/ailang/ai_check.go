@@ -74,12 +74,10 @@ func aiCheckCommand() {
 	strictFlag := fs.Bool("strict", false, strictFlagHelp)
 	allowInconclusiveFlag := fs.Bool("allow-inconclusive", false, allowInconclusiveFlagHelp)
 
-	if err := fs.Parse(os.Args[2:]); err != nil {
-		fmt.Fprintf(os.Stderr, "Error parsing flags: %v\n", err)
-		os.Exit(1)
-	}
+	parseInterspersed(fs, os.Args[2:])
+	file := verificationFileArg(fs, "ai-check")
 
-	if fs.NArg() < 1 {
+	if file == "" {
 		fmt.Fprintf(os.Stderr, "%s: missing file argument\n", red("Error"))
 		fmt.Println("Usage: ailang ai-check [options] <file.ail>")
 		fmt.Println()
@@ -95,7 +93,7 @@ func aiCheckCommand() {
 		os.Exit(1)
 	}
 
-	runAICheckReport(fs.Arg(0), *timeoutFlag, *recursiveDepthFlag, *relaxModulesFlag,
+	runAICheckReport(file, *timeoutFlag, *recursiveDepthFlag, *relaxModulesFlag,
 		verification.ExitPolicy{Strict: *strictFlag, AllowInconclusive: *allowInconclusiveFlag})
 }
 
@@ -217,16 +215,19 @@ func buildAIVerifySection(checkPassed bool, result pipeline.Result, timeout time
 
 // tally projects the JSON section onto the shared exit contract, so the exit
 // status is computed from exactly the numbers the consumer just read.
+//
+// With a solver it is computed from the result rows the report carries
+// (smt.TallyResults), which leaves requires-only rows out: they count in the
+// legacy `skipped` field but are not obligations. Without a solver, or when
+// the check failed, only Obligations (counted from Core) is known.
 func (v aiVerifySection) tally(checkPassed bool) verification.Tally {
+	if checkPassed && v.Available {
+		return smt.TallyResults(v.Results)
+	}
 	return verification.Tally{
 		CheckPassed:     checkPassed,
 		SolverAvailable: v.Available,
 		Obligations:     v.Obligations,
-		Verified:        v.Verified,
-		Counterexample:  v.Counterexample,
-		Inconclusive:    v.Inconclusive,
-		Skipped:         v.Skipped,
-		Errors:          v.Errors,
 	}
 }
 

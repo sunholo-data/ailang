@@ -9,8 +9,10 @@ package main
 // Used by `check --verify`, `ai-check`, `verify` and `verify --package`.
 
 import (
+	"flag"
 	"fmt"
 	"io"
+	"os"
 	"sort"
 	"strings"
 
@@ -18,11 +20,46 @@ import (
 	"github.com/sunholo-data/ailang/internal/verification"
 )
 
-// z3InstallLines is the one install hint every verification command prints
-// when the solver is missing.
-var z3InstallLines = []string{
-	"Install with: brew install z3 (macOS), apt install z3 (Linux), or choco install z3 / scoop install z3 (Windows)",
-	"Or download from https://github.com/Z3Prover/z3/releases and set AILANG_Z3_PATH.",
+// parseInterspersed parses flags wherever they appear among the positional
+// arguments and leaves the positionals as fs.Args().
+//
+// Go's flag package stops at the first positional argument, so
+// `check --verify f.ail --strict` used to drop --strict (it became a second
+// "file" nobody read). The flag sets use ExitOnError, so a bad flag still exits
+// 2 with usage. Arguments after a literal "--" stay positional.
+func parseInterspersed(fs *flag.FlagSet, args []string) {
+	var positionals []string
+	_ = fs.Parse(args)
+	for fs.NArg() > 0 {
+		rest := fs.Args()
+		positionals = append(positionals, rest[0])
+		_ = fs.Parse(rest[1:])
+	}
+	_ = fs.Parse(append([]string{"--"}, positionals...))
+}
+
+// verificationFileArg returns the one file a verification command checks, or
+// "" when none was given. A second file is a usage error (exit 2): the
+// commands check one file, and `check --verify ok.ail bad.ail` used to verify
+// ok.ail, exit 0 and never look at bad.ail.
+func verificationFileArg(fs *flag.FlagSet, command string) string {
+	if fs.NArg() < 1 {
+		return ""
+	}
+	if fs.NArg() > 1 {
+		fmt.Fprintf(os.Stderr, "%s: %s checks one file at a time; %q would not be checked (only %q would be). Run it once per file.\n",
+			red("Error"), command, fs.Arg(1), fs.Arg(0))
+		os.Exit(2)
+	}
+	return fs.Arg(0)
+}
+
+// writeZ3NotFound prints where the solver was looked for and how to provide
+// one. It names the actual search (smt.Z3Lookup) rather than assuming one
+// platform's installer.
+func writeZ3NotFound(w io.Writer, what string) {
+	fmt.Fprintf(w, "Error: Z3 solver not found (%s): %s\n", smt.Z3Lookup(), what)
+	fmt.Fprintln(w, "Install Z3 (https://github.com/Z3Prover/z3/releases, or your package manager's z3 package) and put it on PATH, or set AILANG_Z3_PATH to the z3 binary.")
 }
 
 // writeVerificationNotice prints the stderr lines for one run's outcome.
@@ -31,12 +68,13 @@ var z3InstallLines = []string{
 func writeVerificationNotice(w io.Writer, t verification.Tally, p verification.ExitPolicy, results []smt.VerifyResult) {
 	switch verification.Classify(t) {
 	case verification.OutcomeUnavailable:
-		fmt.Fprintf(w, "Error: Z3 solver not found: %d contract obligation(s) were not verified (verify.outcome: unavailable)\n", t.Obligations)
-		for _, l := range z3InstallLines {
-			fmt.Fprintln(w, l)
-		}
+		writeZ3NotFound(w, fmt.Sprintf("%d contract obligation(s) were not verified (verify.outcome: unavailable)", t.Obligations))
 		return
 	case verification.OutcomeNotRun, verification.OutcomeNoObligations, verification.OutcomeVerified:
+		return
+	case verification.OutcomeUnproved:
+		fmt.Fprintf(w, "Error: no contract was proved: %d contract(s) skipped and none verified (verify.outcome: unproved): %s\n",
+			t.Skipped, notProvedList(results, "skipped"))
 		return
 	}
 	if t.Inconclusive > 0 {
@@ -62,7 +100,7 @@ func writeVerificationNotice(w io.Writer, t verification.Tally, p verification.E
 func notProvedList(results []smt.VerifyResult, status string) string {
 	var parts []string
 	for _, r := range results {
-		if r.Status != status {
+		if r.Status != status || !smt.IsObligation(r) {
 			continue
 		}
 		reason := shortReason(r)

@@ -70,37 +70,78 @@ type VerifyReport struct {
 	Uncontracted int
 }
 
-// Obligations is the number of contract-bearing functions the run examined:
-// every result that is not "uncontracted". It equals CountObligations of the
-// same program (INV: the verify loop visits exactly the functions
-// CountObligations counts).
+// Obligations is the number of proof obligations the run examined: every
+// result that is neither "uncontracted" nor a requires-only function. It
+// equals CountObligations of the same program (INV: the verify loop reports
+// every obligation CountObligations counts exactly once).
 func (r *VerifyReport) Obligations() int {
-	return r.Verified + r.Counterexample + r.Inconclusive + r.Skipped + r.Errors
+	return TallyResults(r.Results).Obligations
 }
 
 // Tally projects the report onto the shared exit contract.
 func (r *VerifyReport) Tally() verification.Tally {
-	return verification.Tally{
-		CheckPassed:     true,
-		SolverAvailable: true,
-		Obligations:     r.Obligations(),
-		Verified:        r.Verified,
-		Counterexample:  r.Counterexample,
-		Inconclusive:    r.Inconclusive,
-		Skipped:         r.Skipped,
-		Errors:          r.Errors,
+	return TallyResults(r.Results)
+}
+
+// IsObligation reports whether a result row is a proof obligation. Two kinds
+// of row are not: an exported function with no contract ("uncontracted"), and
+// a requires-only function (skipped, reason_code missing_postcondition). The
+// verifier assumes a precondition while proving the function's own ensures and
+// does not check it at call sites, so a precondition alone gives it nothing to
+// prove. Such a row stays in the report as evidence and still counts in the
+// legacy `skipped` counter, but never in the exit tally.
+func IsObligation(r VerifyResult) bool {
+	if r.Status == "uncontracted" {
+		return false
 	}
+	return !(r.Status == "skipped" && r.ReasonCode == verification.MissingPostcondition)
 }
 
-// hasObligation is the ONE predicate for "this function is a verification
-// candidate"; Verify's loop and CountObligations both use it.
+// TallyResults is the exit-contract tally of a solver run, computed from the
+// result rows so every command derives it the same way (the CLI JSON report
+// carries the same rows).
+func TallyResults(results []VerifyResult) verification.Tally {
+	t := verification.Tally{CheckPassed: true, SolverAvailable: true}
+	for _, r := range results {
+		if !IsObligation(r) {
+			continue
+		}
+		t.Obligations++
+		switch r.Status {
+		case "verified":
+			t.Verified++
+		case "counterexample":
+			t.Counterexample++
+		case "inconclusive":
+			t.Inconclusive++
+		case "skipped":
+			t.Skipped++
+		default: // "error", "unknown"
+			t.Errors++
+		}
+	}
+	return t
+}
+
+// hasObligation is the ONE predicate for "this function carries a proof
+// obligation": at least one ensures clause. CountObligations uses it; the
+// verify loop reports every such function exactly once.
 func hasObligation(meta *core.DeclMeta) bool {
-	return meta != nil && len(meta.Contracts) > 0
+	if meta == nil {
+		return false
+	}
+	for _, c := range meta.Contracts {
+		if c != nil && c.Kind == core.EnsuresKind {
+			return true
+		}
+	}
+	return false
 }
 
-// CountObligations counts the contract-bearing functions of a compiled
-// program without a solver. It is how a verification command knows, with Z3
-// missing, whether it has dropped anything (M-V1-VERIFICATION-HONESTY M1).
+// CountObligations counts the proof obligations (functions with an ensures
+// clause) of a compiled program without a solver. It is how a verification
+// command knows, with Z3 missing, whether it has dropped anything
+// (M-V1-VERIFICATION-HONESTY M1).
 func CountObligations(coreProg *core.Program) int {
 	if coreProg == nil {
 		return 0
@@ -280,7 +321,22 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 
 	// Process each function with contracts
 	for funcName, meta := range coreProg.Meta {
+		if meta == nil || len(meta.Contracts) == 0 {
+			continue
+		}
+
+		// A requires-only function carries no proof obligation (hasObligation):
+		// it is reported as evidence, with the reason code IsObligation keys on,
+		// and never reaches the body or solver steps. Checked before the body
+		// lookup so a missing body cannot turn it into an obligation skip.
 		if !hasObligation(meta) {
+			report.Results = append(report.Results, VerifyResult{
+				Function:   funcName,
+				Status:     "skipped",
+				Reason:     "no ensures clause (nothing to verify)",
+				ReasonCode: verification.MissingPostcondition,
+			})
+			report.Skipped++
 			continue
 		}
 
@@ -292,25 +348,6 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 				Status:     "skipped",
 				Reason:     "function body not found in Core AST",
 				ReasonCode: verification.MissingBody,
-			})
-			report.Skipped++
-			continue
-		}
-
-		// Check if function has ensures clauses (nothing to verify without postconditions)
-		hasEnsures := false
-		for _, c := range meta.Contracts {
-			if c.Kind == core.EnsuresKind {
-				hasEnsures = true
-				break
-			}
-		}
-		if !hasEnsures {
-			report.Results = append(report.Results, VerifyResult{
-				Function:   funcName,
-				Status:     "skipped",
-				Reason:     "no ensures clause (nothing to verify)",
-				ReasonCode: verification.MissingPostcondition,
 			})
 			report.Skipped++
 			continue

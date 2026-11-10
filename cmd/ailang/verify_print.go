@@ -148,11 +148,22 @@ func printVerifyHuman(report *smt.VerifyReport, filename string, verbose bool) {
 	fmt.Println()
 }
 
+// printVerifyJSONNotRun is the `verify --json` report for a file that did not
+// compile: the same keys as printVerifyJSON with outcome not_run and every
+// counter zero, plus compile_errors. It used to print nothing at all.
+func printVerifyJSONNotRun(filename string, compileErrors []string) {
+	printVerifyJSONWith(&smt.VerifyReport{}, filename, verification.Tally{SolverAvailable: smt.Z3Available()}, compileErrors)
+}
+
 // printVerifyJSON outputs verification results as JSON. t is the run's tally
 // under the shared exit contract; outcome, obligations and available are
 // additive fields (M-V1-VERIFICATION-HONESTY M1) with the same meaning as in
 // the `check --verify` report.
 func printVerifyJSON(report *smt.VerifyReport, filename string, t verification.Tally) {
+	printVerifyJSONWith(report, filename, t, nil)
+}
+
+func printVerifyJSONWith(report *smt.VerifyReport, filename string, t verification.Tally, compileErrors []string) {
 	results := report.Results
 	if results == nil {
 		results = []smt.VerifyResult{}
@@ -173,7 +184,9 @@ func printVerifyJSON(report *smt.VerifyReport, filename string, t verification.T
 		Uncontracted   int                  `json:"uncontracted"`
 		TotalExported  int                  `json:"total_exported"`
 		Results        []smt.VerifyResult   `json:"results"`
+		CompileErrors  []string             `json:"compile_errors,omitempty"`
 	}{
+		CompileErrors:  compileErrors,
 		Evidence:       verification.EncodedEvidence(),
 		File:           filename,
 		Outcome:        verification.Classify(t),

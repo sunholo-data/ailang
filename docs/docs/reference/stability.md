@@ -243,10 +243,12 @@ the JSON report it prints is Experimental ⚠ close call, because its shape is s
 
 **Stable behaviour of those commands, stated so it is not frozen by omission:**
 - The exit codes of `check --verify` (and `ai-check`) follow the table in the
-  [contracts guide](/docs/guides/contracts#exit-codes): 0 for verified, partial (skips listed on stderr) or
-  no contracts; 1 for a failed check, a counterexample, a solver error or timeout, an inconclusive result,
-  or contracts with no solver. The JSON `outcome` field may gain values in a minor; existing values keep
-  their meaning.
+  [contracts guide](/docs/guides/contracts#exit-codes): 0 for verified, no obligations, or partial (at
+  least one obligation proved and the skipped ones listed on stderr and in `results`); 1 for a failed
+  check, nothing proved (`unproved`: every obligation skipped), a counterexample, a solver error or
+  timeout, an inconclusive result, or obligations with no solver. An obligation is a function with an
+  `ensures` clause; a `requires`-only function is not one. The JSON `outcome` field may gain values in a
+  minor; existing values keep their meaning.
 - `ailang run` does not check `requires`/`ensures` unless `--verify-contracts` is given. With
   `--bytecode`/`--strict-bytecode` that flag is refused (CTR004, exit 2) until the VM enforces contracts;
   lifting the refusal is additive.
@@ -430,7 +432,10 @@ For a **Stable** tool, the promise covers:
 - the read-only / idempotent hints;
 - the top-level response envelope. Version-scoped docs tools return `{served_for, data}` or
   `{error, detail}`. Executor tools return `{ok, exit_code, stdout, stderr, truncated}` or
-  `{ok: false, error, message}`.
+  `{ok: false, error, message}`. `ailang_check` adds two
+  fields to that envelope: `verification` (the report's `verify.outcome`) and, only when it is
+  `unavailable` (the host has no solver), `verification_message`. In that case `ok` is the type-check
+  verdict and `exit_code` stays ai-check's status.
 
 The *content* inside a response, such as prompt text, docs pages or stdlib listings, changes with
 every release by design. The **hosted URL is part of the promise:** the production OAuth endpoint

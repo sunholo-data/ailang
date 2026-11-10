@@ -254,8 +254,10 @@ ensures { result >= 0 }
 			}
 			out, stderr, rc = runAilangBin(t, bin, "verify", "--json", "--relax-modules", file)
 			report := readSMTParametricFileReport(t, out, stderr)
-			if rc != 0 || report.Verified != 0 || report.Counterexample != 0 || report.Skipped != 1 || report.Errors != 0 || len(report.Results) != 1 {
-				t.Fatalf("unsupported shape must skip honestly (not prove/error): exit=%d\n%s\n%s", rc, out, stderr)
+			// The file's only obligation is skipped, so nothing was proved: exit 1,
+			// outcome "unproved" (M-V1-VERIFICATION-HONESTY review fix 1).
+			if rc != 1 || report.Verified != 0 || report.Counterexample != 0 || report.Skipped != 1 || report.Errors != 0 || len(report.Results) != 1 {
+				t.Fatalf("unsupported shape must skip honestly (not prove/error) and fail as unproved: exit=%d\n%s\n%s", rc, out, stderr)
 			}
 			r := report.Results[0]
 			if r.Status != "skipped" || r.ReasonCode != verification.UnsupportedEncoding || r.Reason == "" {
@@ -266,7 +268,7 @@ ensures { result >= 0 }
 			if err := json.Unmarshal([]byte(out), &ai); err != nil {
 				t.Fatalf("ai-check JSON: %v\n%s\n%s", err, out, stderr)
 			}
-			wantSkipped, wantErrors, wantExit := 1, 0, 0
+			wantSkipped, wantErrors, wantExit := 1, 0, 1
 			if !ai.Check.Passed || ai.Verify.Verified != 0 || ai.Verify.Counterexample != 0 || ai.Verify.Skipped != wantSkipped || ai.Verify.Errors != wantErrors || rc != wantExit {
 				t.Fatalf("ai-check unsupported policy changed: exit=%d expected skipped/errors/exit=%d/%d/%d\n%s\n%s", rc, wantSkipped, wantErrors, wantExit, out, stderr)
 			}

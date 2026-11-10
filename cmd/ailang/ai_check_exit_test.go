@@ -130,23 +130,52 @@ func TestAICheck_CrossModuleCalleesAreShared(t *testing.T) {
 }
 
 // TestAICheck_PerFunctionDepthOverrideIsShared — SHARED behaviour #2. The
-// private loop ignored @verify(depth: N); fibonacci in this fixture declares
-// depth 5 and was verified at the global default of 2 (bounded_depth 2 in the
-// pre-fold JSON). It now reports 5, exactly as `verify` does; factorial keeps
-// its own declared 2.
+// private loop ignored @verify(depth: N) and verified at the global default
+// of 2. The fixture now declares fibonacci depth 6 and factorial depth 5 (both
+// past their requires bounds, so they verify rather than stay inconclusive);
+// ai-check reports each declared depth, exactly as `verify` does, and exits 0.
 func TestAICheck_PerFunctionDepthOverrideIsShared(t *testing.T) {
-	p, combined, _ := runAICheckJSON(t, "examples/runnable/contracts/per_function_depth_verify.ail")
+	p, combined, code := runAICheckJSON(t, "examples/runnable/contracts/per_function_depth_verify.ail")
 	if !p.Check.Passed {
 		t.Fatalf("instrument failure: fixture no longer type-checks:\n%s", combined)
+	}
+	if code != 0 || p.Verify.Outcome != "verified" {
+		t.Fatalf("exit %d, outcome %q; the example must verify as documented\n%s", code, p.Verify.Outcome, combined)
 	}
 	depths := map[string]int{}
 	for _, r := range p.Verify.Results {
 		depths[r.Function] = r.BoundedDepth
 	}
-	if depths["fibonacci"] != 5 {
-		t.Fatalf("fibonacci bounded_depth = %d, want 5 from @verify(depth: 5); results: %+v", depths["fibonacci"], p.Verify.Results)
+	if depths["fibonacci"] != 6 {
+		t.Fatalf("fibonacci bounded_depth = %d, want 6 from @verify(depth: 6); results: %+v", depths["fibonacci"], p.Verify.Results)
 	}
-	if depths["factorial"] != 2 {
-		t.Fatalf("factorial bounded_depth = %d, want 2 from @verify(depth: 2)", depths["factorial"])
+	if depths["factorial"] != 5 {
+		t.Fatalf("factorial bounded_depth = %d, want 5 from @verify(depth: 5)", depths["factorial"])
+	}
+}
+
+// TestContractExamples_PassAsDocumented: the three contract examples whose
+// recursive contracts were inconclusive at the default depth used to pass
+// `ailang verify` (inconclusive exited 0). Under the shared exit contract an
+// inconclusive result fails, so each example now passes the command its
+// header documents: per-function @verify depths past the requires bound
+// (recursive_verify, per_function_depth_verify), or --allow-inconclusive for
+// the library whose sumTo has an unbounded input.
+func TestContractExamples_PassAsDocumented(t *testing.T) {
+	if !smt.Z3Available() {
+		t.Skip("Z3 not installed (e.g. Windows CI) — these are real-solver runs")
+	}
+	bin := buildAilang(t)
+	for _, args := range [][]string{
+		{"verify", "examples/runnable/contracts/recursive_verify.ail"},
+		{"verify", "examples/runnable/contracts/per_function_depth_verify.ail"},
+		{"verify", "--verify-recursive-depth", "1", "examples/runnable/contracts/per_function_depth_verify.ail"},
+		{"verify", "--allow-inconclusive", "examples/runnable/contracts/cross_module_functions_lib.ail"},
+		{"ai-check", "examples/runnable/contracts/recursive_verify.ail"},
+	} {
+		stdout, stderr, code := runAilangBin(t, bin, args...)
+		if code != 0 {
+			t.Fatalf("%v: exit %d, want 0 as the example documents\nstdout:\n%s\nstderr:\n%s", args, code, stdout, stderr)
+		}
 	}
 }
