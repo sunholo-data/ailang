@@ -39,7 +39,8 @@ type Finding struct {
 	Source  string `json:"source,omitempty"` // requirement ID in the sources file
 }
 
-// Options configures a run. Target is "anthropic", "openai" or "both".
+// Options configures a run. Target is "anthropic", "openai", "both"
+// (anthropic + openai), "copilot", or "all".
 // ProbeClientID/ProbeRedirectURI name a pre-registered client for the
 // framing probe on an AS without CIMD; with CIMD the probe uses
 // ProbeClientURL.
@@ -114,16 +115,21 @@ func Run(ctx context.Context, opts Options) ([]Finding, error) {
 
 	var fs []Finding
 	fs = append(fs, checkServerInfo(initRes), s.checkListedResources(ctx))
-	fs = append(fs, checkAnnotations(list.Tools, opts.Target)...)
+	if opts.Target != "copilot" {
+		fs = append(fs, checkAnnotations(list.Tools, opts.Target)...)
+	}
 	creds := checkCredentials(list.Tools)
 	fs = append(fs, creds...)
 	fs = append(fs, checkZeroArg(list.Tools)...)
 	authFs, issuer, gated := s.checkLazyAuth(ctx, list.Tools, hasFail(creds))
 	fs = append(fs, authFs...)
 	fs = append(fs, s.checkAuthorizationServer(ctx, issuer)...)
-	if opts.Target == "openai" || opts.Target == "both" {
+	if opts.Target == "openai" || opts.Target == "both" || opts.Target == "all" {
 		fs = append(fs, checkFileParams(list.Tools)...)
 		fs = append(fs, checkSecuritySchemes(list.Tools, gated)...)
+	}
+	if opts.Target == "copilot" || opts.Target == "all" {
+		fs = append(fs, s.checkCopilot(ctx, list.Tools, issuer)...)
 	}
 	return fs, nil
 }
@@ -134,7 +140,7 @@ func hasFail(fs []Finding) bool { return Failed(fs) }
 
 func checkAnnotations(tools []tool, target string) []Finding {
 	var fs []Finding
-	openai := target == "openai" || target == "both"
+	openai := target == "openai" || target == "both" || target == "all"
 	for _, t := range tools {
 		title := t.Title
 		if title == "" {

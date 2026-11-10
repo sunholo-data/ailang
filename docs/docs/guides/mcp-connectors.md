@@ -620,6 +620,10 @@ the same HTML works in Claude and Copilot. Three things are different in Copilot
 - **Fewer hints read.** Copilot reads `readOnlyHint` only, not `destructiveHint`, `openWorldHint` or
   `idempotentHint`. Declare them anyway: the other directories require them.
 
+`ailang mcp check <url> --target copilot` checks the Copilot side: a registration endpoint or
+client-secret methods (`copilot-registration`, FAIL on a CIMD-only server), and warns when tools
+depend on `openai/fileParams` or render widgets. `--target all` runs every directory's checks.
+
 Microsoft lists every supported widget API and `_meta` field on its MCP Apps page (linked below).
 Copilot also injects `window.openai`, so a widget written for ChatGPT keeps working. Check that each
 `window.openai.*` function exists before calling it, because Copilot leaves some of them undefined.
