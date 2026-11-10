@@ -53,10 +53,15 @@ type Report struct {
 	Expected     []ExpectedStatus `json:"expected_breaks"`
 	Uncoded      [2]int           `json:"uncoded_codes_of_candidate_failures"` // [uncoded, total]
 	Audit        []AuditFinding   `json:"write_audit"`
-	Pins         []PinHit         `json:"pins"`
-	ExitCode     int              `json:"exit_code"`
-	Verdict      string           `json:"verdict"`
-	Rows         []Row            `json:"rows"` // every entry that is not pass_both
+	// LocalChanges are paths that changed in the operator's own sibling checkouts
+	// while the run was in progress. They are reported, never gated: the arms read
+	// snapshots (or, in worktree mode, a copy taken before the run), so nothing a
+	// local checkout does during the run can reach the measurement.
+	LocalChanges []AuditFinding `json:"local_checkout_changes,omitempty"`
+	Pins         []PinHit       `json:"pins"`
+	ExitCode     int            `json:"exit_code"`
+	Verdict      string         `json:"verdict"`
+	Rows         []Row          `json:"rows"` // every entry that is not pass_both
 }
 
 // PinHit is one pin line found in a snapshot (pins.md).
@@ -210,9 +215,18 @@ func (r *Report) renderMarkdown(w io.Writer) {
 	}
 	p("\n## Write audit\n\n")
 	if len(r.Audit) == 0 {
-		p("Nothing was written in any materialised corpus or read local checkout during the run.\n")
+		p("Nothing was written in any snapshot, provisioned tree or the package root copy during the run.\n")
 	} else {
 		for _, a := range r.Audit {
+			p("- %s: `%s`\n", a.Scope, a.Path)
+		}
+	}
+	if len(r.LocalChanges) > 0 {
+		p("\n### Local checkouts that changed during the run (reported, not gated)\n\n")
+		p("Another process edited these while the gate ran. The arms read snapshots, not these\n")
+		p("directories, so the measurement above is unaffected; the checkout no longer matches what\n")
+		p("was measured only if its `Sources` row already said so.\n\n")
+		for _, a := range r.LocalChanges {
 			p("- %s: `%s`\n", a.Scope, a.Path)
 		}
 	}

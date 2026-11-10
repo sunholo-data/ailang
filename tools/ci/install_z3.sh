@@ -6,7 +6,8 @@
 # (2026-10-27; 6-19s on the rest), silent the whole time under -qq. This takes
 # the same z3 version Ubuntu ships (4.13.3) as an official release asset from
 # GitHub, checked against a pinned sha256, so no Ubuntu mirror is involved.
-# internal/smt finds the solver with exec.LookPath("z3").
+# internal/smt finds the solver with exec.LookPath("z3"). Also the ONE z3 pin for the
+# hosted executor image (docker/Dockerfile.executor-mcp copies /usr/local/bin/z3).
 
 set -euo pipefail
 
@@ -21,7 +22,10 @@ trap 'rm -rf "$TMP"' EXIT
 curl -fsSL --retry 3 --retry-delay 5 --max-time 120 -o "$TMP/z3.zip" "$URL"
 echo "$SHA256  $TMP/z3.zip" | sha256sum -c -
 unzip -q -j "$TMP/z3.zip" "$ASSET/bin/z3" -d "$TMP"
-sudo install -m 0755 "$TMP/z3" /usr/local/bin/z3
+# sudo only when not already root: the executor image's builder stage runs this
+# as root with no sudo (docker/Dockerfile.executor-mcp), CI runs it as a user.
+SUDO=""; [ "$(id -u)" -ne 0 ] && SUDO=sudo
+$SUDO install -m 0755 "$TMP/z3" /usr/local/bin/z3
 
 got="$(z3 --version)"
 echo "$got"

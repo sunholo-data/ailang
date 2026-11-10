@@ -327,8 +327,14 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 	for _, s := range rep.Sources {
 		auditInto(rep, "snapshot "+s.Corpus, s.Root, snapStamp)
 	}
+	// Sibling checkouts are NOT an input: every arm reads a snapshot, or in
+	// worktree mode a copy taken before the run, with a scratch HOME and cwd. A
+	// change there during the run is someone else's work on a shared machine
+	// (several sessions edit these trees), so it is reported and never gated.
+	// Gating it made the release gate exit 3 on 2026-11-10 with 0 newly failing
+	// and 0 not measured, because another session saved files in ailang-world.
 	for _, l := range locals {
-		auditInto(rep, "local checkout "+l, l, started)
+		noteLocalChanges(rep, "local checkout "+l, l, started)
 	}
 	// Both arms read the run's copy of the package root and the provisioned
 	// trees; once provisioning is done they are never written (a write would be
@@ -356,6 +362,19 @@ func countState(rows []Row, st string) int {
 		}
 	}
 	return n
+}
+
+// noteLocalChanges records paths that changed under an operator checkout during
+// the run. Unlike auditInto it never fails the run: see the call site.
+func noteLocalChanges(rep *Report, scope, root string, stamp time.Time) {
+	paths, err := writtenSince(root, stamp, 20)
+	if err != nil {
+		rep.LocalChanges = append(rep.LocalChanges, AuditFinding{Scope: scope, Path: "(could not be walked: " + err.Error() + ")"})
+		return
+	}
+	for _, p := range paths {
+		rep.LocalChanges = append(rep.LocalChanges, AuditFinding{Scope: scope, Path: p})
+	}
 }
 
 func auditInto(rep *Report, scope, root string, stamp time.Time) {

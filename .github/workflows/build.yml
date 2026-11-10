@@ -80,7 +80,13 @@ jobs:
         [[ "$HTTPS_PROXY" == "http://127.0.0.1:9" ]] || { echo "::error::HTTPS_PROXY poison is not configured"; exit 1; }
         [[ "$NO_PROXY" == "localhost,127.0.0.1" ]] || { echo "::error::NO_PROXY loopback bypass is not configured"; exit 1; }
         [[ "$GOPROXY" == "off" ]] || { echo "::error::GOPROXY is not disabled"; exit 1; }
-        go test -v $(go list ./... | grep -v /scripts | grep -v /examples/agents)
+        # -timeout 900s: the same DERIVED PROVISIONAL budget as ci.yml's test-windows job
+        # (derivation in the comment on its "Run Go test suite" step). This step used Go's
+        # default 600s, which cmd/ailang outgrew on windows-latest: it measured 451s and
+        # 485s on dev, then 600s and 590s on one PR (2026-11-10) whose own new tests take
+        # about 2s — the hang guard refused the package's last tests both times. The two
+        # workflows had drifted; keep them in step. The durable fix is a faster cmd/ailang.
+        go test -v -timeout 900s $(go list ./... | grep -v /scripts | grep -v /examples/agents)
 
     - name: Build binary
       env:

@@ -162,8 +162,14 @@ type ImportDecl struct {
 	PackageName   string            // Package name (vendor/name) extracted from pkg/ import path
 	IsRelative    bool              // True if import uses ./ prefix (intra-package sibling)
 	RelativePath  string            // Relative portion after ./ (e.g., "plan" from "./plan")
-	Pos           Pos
-	Span          Span
+	// WrittenPath is the spelling the author wrote when the loader replaced
+	// Path with the module's canonical identity (a module_prefix or bare
+	// self-import spelling becomes pkg/<vendor>/<name>/<module>). Empty when
+	// Path is what was written. Diagnostics name both (M1b, canonical module
+	// identity — one module file, one identity).
+	WrittenPath string
+	Pos         Pos
+	Span        Span
 }
 
 func (f *File) String() string {

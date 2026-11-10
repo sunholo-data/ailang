@@ -97,6 +97,11 @@ case "$content" in *MSGDRIFT*)
 	if [ "$ARM" = cand ]; then failj "$f" "type error in m (decl 0): cannot unify string vs int at m.ail:9:2"; fi
 	failj "$f" "type error in m (decl 0): cannot unify string vs int at m.ail:3:1";;
 esac
+case "$content" in *TOUCH_FILE=*)
+	# a bystander: something OUTSIDE the run's own trees changes while the gate runs
+	touch_path=${content#*TOUCH_FILE=}; touch_path=${touch_path%%[[:space:]]*}
+	echo x > "$touch_path";;
+esac
 case "$content" in *ABSPATH*) failj "$f" "type error in m (decl 0): cannot unify string vs int in $AILANG_CACHE_DIR/m.cache";; esac
 case "$content" in *BASESLOW*)
 	if [ "$ARM" = cand ]; then failj "$f" "type error in m (decl 0): cannot unify string vs int"; fi

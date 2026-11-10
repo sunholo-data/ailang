@@ -9,6 +9,7 @@ import "strings"
 // through to project-relative resolution. Pass "" to clear.
 func (ml *ModuleLoader) SetCurrentPackageName(name string) {
 	ml.currentPackageName = name
+	ml.resetCanonical() // the self-import spelling depends on it
 }
 
 // pathMatchesPackagePrefix reports whether canonPath is a self-reference to

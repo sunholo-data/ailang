@@ -148,6 +148,14 @@ taken the screenshot.
    static-client path, and (when the server has widgets) that the Copilot widget origin passes CORS.
 4. Dev only. Prod waits for D2.
 
+**P1 status (2026-11-10).** Executor done: `f3daa15c2` (env switches `OAUTH_CONFIDENTIAL_CLIENTS`,
+`OAUTH_DCR` + `OAUTH_DCR_REDIRECT_HOSTS`, `OAUTH_REVOCATION`, all off by default; DCR fails closed
+without hosts; operator command `createClientCli`; consent page names registered clients and flags DCR
+ones unverified). `test_oauth.sh` 43/43. Dev switch-on: ailang-multivac #18, merged and **live on the dev executor 2026-11-10** (metadata advertises registration + revocation + client-secret methods; a `teams.microsoft.com` registration → 201, `evil.example` → 400; `mcp check --target both` no failures, all 29 tools annotated) (`terraform test` 50/50;
+prod plan adds the four env vars empty). Finding: the live prod executor service runs
+`executor-mcp:latest`, not the pinned tag; any prod apply re-pins it. **Next:** the same change in
+docparse, plus `--cors-origin` for Copilot's widget host, and `mcp check --target copilot`.
+
 **P1b: release to prod (agent drives, Mark runs the promotes; ~0.5 day of work, ~1 day elapsed).** Nothing
 in prod changes without this, and success metric 4 depends on it.
 1. AILANG release carrying the docs-tool annotations (`4f9dd4835`), the 0.2.0 lock (`7af2d7195`) and P1's
@@ -275,7 +283,7 @@ refused (`expected int`) until it reconnects.
 | Executor (prod) | all | ⏳ `ailang-executor` added to local config; needs a session restart | — |
 
 **Executor fix tickets from P0** (all on `dev` in `8fd2cbca9`; prod with the next release + image-tag bump):
-(E1) `ailang_check` no longer promises Z3; adding Z3 needs a non-static base image, deferred.
+(E1) **z3 in the image** (`6a6f4b9e6`, base `distroless/cc-debian12`, pin `tools/ci/install_z3.sh`); live on the dev executor 2026-11-10: `verify.available: true`, `double` verified in 0.3 s, `wrong` counterexample `x = 0`.
 (E2) `stdout`/`stderr` scrubbed of the request directory (`scrubDir`); `smoke.sh` checks it and fails on the
 old code. (E3) `docs_search` returns path, title, 10 headings and an ~800-character excerpt, docs before
 `prompts/v*.md`: ~30 KB → 3–11 KB per search.

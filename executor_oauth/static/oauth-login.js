@@ -68,7 +68,7 @@
       prompt.style.display = 'none';
       form.style.display = 'block';
       setText('signed-in-as', 'Signed in as ' + (user.email || user.displayName || user.uid));
-      setText('allow-btn', 'Allow ' + request.client_host);
+      setText('allow-btn', 'Allow ' + (request.display || request.client_host));
     } else {
       prompt.style.display = 'block';
       form.style.display = 'none';
@@ -149,10 +149,17 @@
         return;
       }
       request = info;
+      // A registered client's id is an opaque mco_ string: name it by where the
+      // code goes instead. A DCR client registered itself, so anyone could have
+      // created it (sunholo/mcp_oauth AGENT.md): say it is not verified.
+      var registered = request.registered === 'dcr' || request.registered === 'operator';
+      request.display = registered ? request.redirect_host : request.client_host;
+      var unverified = request.registered === 'dcr'
+        ? ' This app registered itself and is not verified by AILANG.' : '';
       setText('consent-text',
-        request.client_host + ' wants to run AILANG code for you in the hosted sandbox. ' +
-        'Only continue if you started this from that app.');
-      addRow('App', request.client_host);
+        request.display + ' wants to run AILANG code for you in the hosted sandbox. ' +
+        'Only continue if you started this from that app.' + unverified);
+      addRow('App', request.display + (unverified ? ' (unverified)' : ''));
       addRow('Returns to', request.redirect_host);
       $('trust-panel').style.display = 'block';
 

@@ -219,9 +219,10 @@ export func ailangPrompt() -> Json ! {Clock, Debug, Env, Process} {
 
 -- Type-check AILANG source. `code` is a whole module; the module line may be
 -- omitted or be `module main`. Returns the ai-check JSON report on stdout:
--- check.passed and check.errors (with locations and fixes). Contracts
--- (requires/ensures) are type-checked but not proved here: this server has no
--- Z3, so verify.available is false. Prove them locally with `ailang verify`.
+-- check.passed and check.errors (with locations and fixes), and verify: each
+-- function's requires/ensures proved with Z3 (verify.results: verified,
+-- counterexample with a witness, or inconclusive after 5s per function).
+-- Only `pure` functions (or `! {}`) are proved; others report skipped/NOT_PURE.
 @route("POST", "/api/executor/ailang_check")
 @mcp_name("ailang_check")
 @mcp_title("Check AILANG code")

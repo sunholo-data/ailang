@@ -5,7 +5,8 @@
 # submit_feedback tool, and the executor tools (executor_tools/): ailang_prompt,
 # ailang_check, ailang_run, ailang_eval, ailang_builtins. Untrusted code runs
 # in a child `ailang run --policy /srv/executor-policy.toml` (IO only,
-# supervised 60s timeout), never in the server process. The server may exec
+# supervised 60s timeout), never in the server process. ailang_check proves
+# contracts with z3 (/usr/local/bin/z3, found by internal/smt). The server may exec
 # only those four ailang subcommands, each bounded at 90s (policy 60s + compile).
 #
 # Two services run this image (ailang-multivac cloud_run_executor_mcp.tf):
@@ -26,9 +27,17 @@ RUN /out/build-snapshot --repo /build --out /out/snapshot
 # executor_oauth/ has its own manifest; fetch its registry packages (versions
 # and content hashes pinned by its ailang.lock) into /root/.ailang.
 RUN cd /build/executor_oauth && /out/ailang lock
+# z3, so ailang_check proves requires/ensures instead of reporting
+# verify.available=false (ai-check never fails without it, it just skips).
+# Same pinned, sha256-checked release CI uses: tools/ci/install_z3.sh is the one pin.
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends unzip >/dev/null \
+    && rm -rf /var/lib/apt/lists/* \
+    && tools/ci/install_z3.sh
 
-FROM gcr.io/distroless/static-debian12:nonroot
+# cc, not static: the z3 release binary links glibc, libstdc++, libm and libgcc_s.
+FROM gcr.io/distroless/cc-debian12:nonroot
 COPY --from=builder /out/ailang /usr/local/bin/ailang
+COPY --from=builder /usr/local/bin/z3 /usr/local/bin/z3
 COPY --from=builder /out/snapshot /srv/snapshot
 COPY --from=builder /build/mcp_tools /srv/mcp_tools
 COPY --from=builder /build/executor_tools /srv/executor_tools

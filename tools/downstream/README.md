@@ -51,6 +51,13 @@ compared as an entry of kind `lock` (`<dir>/ailang.lock`):
 | fails | fails | NOT_MEASURED (`DEP/lock`) |
 | fails | ok | `newly_passing` |
 
+**What the write audit covers.** The run's own inputs: each snapshot, each provisioned tree and the
+package root copy. A write into any of those is exit 3. The operator's sibling checkouts are *not*
+inputs — every arm reads a snapshot (in `REF=worktree` mode, a copy taken before the run) with a
+scratch HOME and cwd — so a path that changes there while the gate runs is listed in the report
+under "Local checkouts that changed during the run" and **never gated**: on a machine where several
+sessions edit those trees it is somebody else's work, not a write by the gate.
+
 The snapshot itself is never written (the write audit's snapshot stamp is taken before
 provisioning); the provisioned copy and the package root copy are audited from the moment
 provisioning ends. Entries are discovered in the provisioned copy when there is one.
@@ -84,7 +91,7 @@ The report lands in `OUT` (default `<state>/runs/<timestamp>/`): `report.md`, `r
 |---|---|---|
 | 0 | PASS | every entry of every blocking corpus was measured, and no unacknowledged break |
 | 2 | FAIL | an unacknowledged or over-`max` bucket in a blocking corpus, **or** an `expected-breaks.yaml` entry that matched nothing (a stale acknowledgement — remove it) |
-| 3 | INSTRUMENT FAILURE | could not measure: a corpus not fetched, a binary that does not start, the built-in canary failed, bad configuration (e.g. an invalid `error_pattern`), an entry with a result from one arm only, a `FETCH_DEPS=1` fetch that failed for any reason but HTTP 404 (or `FETCH_DEPS=1` with `OFFLINE=1`), or a write where nothing may be written (snapshots, read local checkouts, the run's package-root copy and provisioned trees once provisioning is done) |
+| 3 | INSTRUMENT FAILURE | could not measure: a corpus not fetched, a binary that does not start, the built-in canary failed, bad configuration (e.g. an invalid `error_pattern`), an entry with a result from one arm only, a `FETCH_DEPS=1` fetch that failed for any reason but HTTP 404 (or `FETCH_DEPS=1` with `OFFLINE=1`), or a write where nothing may be written (snapshots, the run's package-root copy and provisioned trees once provisioning is done — not the operator's sibling checkouts, which are only reported) |
 | 4 | INCOMPLETE | a blocking corpus has `NOT_MEASURED` entries beyond its `allow_not_measured` (or an allowance that no longer excuses anything) |
 | 64 | usage | a flag that does not parse (`--offline=maybe`) |
 
