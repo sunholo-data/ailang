@@ -1,6 +1,17 @@
 package runner
 
-import "github.com/sunholo-data/ailang/internal/errors"
+import (
+	"github.com/sunholo-data/ailang/internal/effects"
+	"github.com/sunholo-data/ailang/internal/errors"
+	"github.com/sunholo-data/ailang/internal/eval"
+)
+
+// The evaluator finds the contract checker by a type assertion on its effect
+// context (eval.ContractChecker), and a context that does not satisfy the
+// interface silently disables contract checking. Pin the production context
+// to the interface at compile time, so a signature change on either side is a
+// build error instead of `--verify-contracts` quietly checking nothing.
+var _ eval.ContractChecker = (*effects.EffContext)(nil)
 
 // ContractsOnVMRefusal returns the CTR004 refusal for a run that asks for
 // runtime contract checking on the bytecode VM, or "" when the run may go
