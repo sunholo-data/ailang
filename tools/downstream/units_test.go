@@ -97,14 +97,44 @@ func TestVersionAfter(t *testing.T) {
 }
 
 func TestExtractTarRejectsEscape(t *testing.T) {
-	var buf bytes.Buffer
-	tw := tar.NewWriter(&buf)
-	_ = tw.WriteHeader(&tar.Header{Name: "top/../../evil.ail", Mode: 0o644, Size: 1, Typeflag: tar.TypeReg})
-	_, _ = tw.Write([]byte("x"))
-	_ = tw.Close()
-	dest := t.TempDir()
-	if _, err := extractTar(&buf, dest, 1); err == nil || !strings.Contains(err.Error(), "unsafe") {
-		t.Fatalf("extractTar accepted an escaping path: %v", err)
+	// Each name must either be rejected as unsafe or land inside dest; none may
+	// create a file outside it.
+	// mustReject: the name escapes on every platform. The backslash forms escape
+	// only where `\\` is a separator; elsewhere they are one odd, local filename.
+	for _, tc := range []struct {
+		name       string
+		mustReject bool
+	}{
+		{"top/../../evil.ail", true},
+		{"top/a/../../../evil.ail", true},
+		{"top/..", true},
+		{`top/..\..\evil.ail`, filepath.Separator == '\\'},
+		{`top/a\..\..\..\evil.ail`, filepath.Separator == '\\'},
+	} {
+		name := tc.name
+		t.Run(name, func(t *testing.T) {
+			var buf bytes.Buffer
+			tw := tar.NewWriter(&buf)
+			_ = tw.WriteHeader(&tar.Header{Name: name, Mode: 0o644, Size: 1, Typeflag: tar.TypeReg})
+			_, _ = tw.Write([]byte("x"))
+			_ = tw.Close()
+			parent := t.TempDir()
+			dest := filepath.Join(parent, "dest")
+			if err := os.MkdirAll(dest, 0o755); err != nil {
+				t.Fatal(err)
+			}
+			_, err := extractTar(&buf, dest, 1)
+			if tc.mustReject && (err == nil || !strings.Contains(err.Error(), "unsafe")) {
+				t.Fatalf("extractTar accepted an escaping path: %v", err)
+			}
+			entries, rerr := os.ReadDir(parent)
+			if rerr != nil {
+				t.Fatal(rerr)
+			}
+			if len(entries) != 1 || entries[0].Name() != "dest" {
+				t.Fatalf("extraction escaped dest: parent now holds %v", entries)
+			}
+		})
 	}
 }
 

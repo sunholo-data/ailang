@@ -329,10 +329,18 @@ func extractTar(r io.Reader, dest string, strip int) (int, error) {
 		if rel == "." {
 			continue
 		}
-		if filepath.IsAbs(rel) || rel == ".." || strings.HasPrefix(rel, "../") {
+		// filepath.IsLocal is the platform-aware test: it rejects absolute paths,
+		// any ".." escape in the host separator (a "../" prefix check misses `..\`
+		// on Windows), and reserved device names. The Rel check below is the same
+		// guarantee stated on the joined path, so a future edit to the lines above
+		// cannot silently reopen the hole.
+		if !filepath.IsLocal(rel) {
 			return skipped, fmt.Errorf("unsafe path in archive: %q", h.Name)
 		}
 		target := filepath.Join(dest, rel)
+		if within, err := filepath.Rel(dest, target); err != nil || !filepath.IsLocal(within) {
+			return skipped, fmt.Errorf("unsafe path in archive: %q", h.Name)
+		}
 		switch h.Typeflag {
 		case tar.TypeDir:
 			if err := os.MkdirAll(target, 0o755); err != nil {
