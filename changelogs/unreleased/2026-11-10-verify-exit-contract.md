@@ -18,7 +18,7 @@ it at call sites, so there is nothing to prove. It stays in `results` (skipped,
 | every obligation proved | 0 | `verified` |
 | at least one proved + at least one skipped | 0, skipped functions on stderr and by name in `results`; 1 with `--strict` | `partial` |
 | obligations exist, **none** proved, rest skipped | **1** | **`unproved`** (new) |
-| any inconclusive (bounded recursion) | **1** (was 0); 0 with `--allow-inconclusive` unless nothing else was proved | `inconclusive` |
+| any inconclusive (bounded recursion) | **1** (was 0); 0 with `--allow-inconclusive`, even when it is the only obligation, i.e. possibly with nothing proved | `inconclusive` (never `verified`) |
 | any counterexample | 1 | `counterexample` |
 | any solver error, `unknown` or timeout | 1 | `error` |
 | obligations exist, Z3 missing | **1** (was 0 on `check --verify` / `ai-check`) | `unavailable` |
@@ -76,15 +76,25 @@ not an obligation. (The other known gap: the verifier models `int` as unbounded 
 wraps on overflow; it is decision D5 of M-V1-VERIFICATION-HONESTY, not changed here.)
 
 **Hosted `ailang_check`:** a host without z3 (the executor image had none until it moved to `distroless/cc-debian12` with z3 in a separate change) would have failed every contracted program.
-The tool (`executor_tools/executor.ail`) now finds out whether its host has a solver by asking the
-ailang binary once (`ai-check --no-verify` on a fixed contract-free probe reports `available`
-from the CLI's own Z3 resolution), caches the answer in its work root keyed by the binary,
-`AILANG_Z3_PATH` and `PATH`, and with no solver runs `ai-check --no-verify` on the caller's code.
-So a program that type-checks really exits 0: `ok` is still `exit_code == 0` and `exit_code` is the
-real status. Two fields are added to the envelope (`{ok, exit_code, stdout, stderr, truncated}`
-before; the same five plus these after, none changed): `verification` on every `ailang_check`
-response (the report's `verify.outcome`, or `unavailable` when the host has no solver) and
-`verification_message` ("contract verification is not available on this hosted tool; type
-checking passed", only when `verification` is `unavailable`). The call is logged `ok_unverified`
-in that case and `verify_failed` when verification fails (both were logged `ok`). An image that
-ships z3 verifies, and one that loses it degrades to the type check, with no code change.
+The tool (`executor_tools/executor.ail`) now asks the ailang binary, on every call, whether its
+host has a solver: `ai-check --no-verify` on a fixed contract-free probe reports `available` from
+the CLI's own Z3 resolution (about 0.1 s). Nothing is stored, so no stale, corrupt or planted
+answer can switch verification off. Only when that probe runs cleanly and says "no solver" does
+the tool run `ai-check --no-verify` on the caller's code, so a program that type-checks really
+exits 0; a probe that fails or prints anything unexpected requests verification, so a missing
+solver is reported loudly (`unavailable`, exit 1). `ok` is still `exit_code == 0` and `exit_code`
+is the real status. Two fields are added to the envelope (`{ok, exit_code, stdout, stderr,
+truncated}` before; the same five plus these after, none changed): `verification` on every
+`ailang_check` response (the report's `verify.outcome`, or `unavailable` when the host has no
+solver) and `verification_message`, only when `verification` is `unavailable`: "contract
+verification is not available on this hosted tool; type checking passed" on the quiet lane (exit
+0), "contract verification could not run on this hosted tool: no solver was found" on the loud lane
+(exit 1). No host path and no install advice reaches a remote caller. The call is logged
+`ok_unverified` on the quiet lane and `verify_failed` when verification fails (both were logged
+`ok`).
+
+Also: a literal `ensures { true }` proves nothing and is not an obligation (it can no longer turn
+an all-skipped file into `partial`); a file importing (non-stdlib) modules that declare contracts
+says on stderr and in `imported_contracts_unverified` that those contracts were not verified
+(behaviour unchanged: only the checked file is verified); `--strict` with `--allow-inconclusive`,
+and `check --strict` without `--verify` (was exit 1), are usage errors, exit 2.

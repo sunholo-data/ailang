@@ -408,8 +408,9 @@ func runCheckCommand(args []string) error {
 	parseInterspersed(checkFS, args)
 	if (*verifyStrictCheck || *allowInconclusiveCheck) && !*verifyCheck {
 		fmt.Fprintf(os.Stderr, "%s: --strict and --allow-inconclusive apply to contract verification; add --verify\n", red("Error"))
-		os.Exit(1)
+		os.Exit(2) // a usage error, like every contradictory flag combination
 	}
+	refuseContradictoryPolicy(verification.ExitPolicy{Strict: *verifyStrictCheck, AllowInconclusive: *allowInconclusiveCheck})
 
 	// Resolve output format (M-AILANG-SEMANTIC-CONTEXT R1). --json is the
 	// back-compat alias for --format=json. Both json and agent are "machine"

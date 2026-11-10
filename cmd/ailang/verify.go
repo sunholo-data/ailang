@@ -30,6 +30,7 @@ func verifyCommand() {
 
 	parseInterspersed(fs, os.Args[2:])
 	policy := verification.ExitPolicy{Strict: *strictFlag, AllowInconclusive: *allowInconclusiveFlag}
+	refuseContradictoryPolicy(policy)
 
 	if *packageFlag != "" {
 		verifyPackageCommand(*packageFlag, verifyPackageOptions{
@@ -118,22 +119,25 @@ func verifyCommand() {
 
 	coreProg := result.Artifacts.Core
 	surfaceAST := result.Artifacts.AST
+	imported := importedContractModules(result)
 
 	// Solver missing: count what would have been proved. No obligations is a
 	// pass (nothing needed Z3); any obligation is the `unavailable` lane.
 	if !smt.Z3Available() {
 		t := verification.Tally{CheckPassed: true, Obligations: smt.CountObligations(coreProg)}
 		if *jsonFlag {
-			printVerifyJSON(&smt.VerifyReport{Evidence: verification.EncodedEvidence()}, filename, t)
+			printVerifyJSON(&smt.VerifyReport{Evidence: verification.EncodedEvidence()}, filename, t, imported)
 		} else if t.Obligations == 0 {
 			fmt.Fprintf(os.Stderr, "%s: no functions with contracts found (Z3 not found; nothing needed it)\n", yellow("Warning"))
 		}
 		writeVerificationNotice(os.Stderr, t, policy, nil)
+		writeImportedNote(os.Stderr, imported)
 		os.Exit(verification.ExitCode(t, policy))
 	}
 
 	if coreProg == nil || coreProg.Meta == nil {
 		fmt.Fprintf(os.Stderr, "%s: no functions with contracts found\n", yellow("Warning"))
+		writeImportedNote(os.Stderr, imported)
 		os.Exit(0)
 	}
 
@@ -147,7 +151,7 @@ func verifyCommand() {
 
 	// Output results
 	if *jsonFlag {
-		printVerifyJSON(report, filename, t)
+		printVerifyJSON(report, filename, t, imported)
 	} else {
 		printVerifyHuman(report, filename, *verboseFlag)
 	}
@@ -157,6 +161,7 @@ func verifyCommand() {
 	// never counted — it is a function nobody wrote a contract for, not one
 	// that failed to verify.
 	writeVerificationNotice(os.Stderr, t, policy, report.Results)
+	writeImportedNote(os.Stderr, imported)
 	if code := verification.ExitCode(t, policy); code != 0 {
 		os.Exit(code)
 	}

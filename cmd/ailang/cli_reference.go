@@ -90,7 +90,7 @@ Two commands parse ` + "`--format`" + ` by hand rather than registering it, so t
 ` + "`ailang doctor managed_agents --format=json`" + `. Both need the ` + "`=`" + ` form. Converging them is a
 follow-up, not a documentation problem.
 
-## Groups are a drawer, not a rename
+` + cliVerificationFlagsSection + `## Groups are a drawer, not a rename
 
 ` + "`ailang messages list`" + ` and ` + "`ailang ops messages list`" + ` are the same route. A group exists
 so ` + "`ailang --help`" + ` fits on one screen; **every grouped command keeps its own top-level
@@ -323,3 +323,18 @@ func escapeSummary(s string) string {
 	s = strings.ReplaceAll(s, ">", `\>`)
 	return s
 }
+
+// cliVerificationFlagsSection documents the flags that move the shared
+// verification exit contract (M-V1-VERIFICATION-HONESTY), with each flag's
+// stability tier. An interpreted string because the prose is full of
+// backquotes.
+const cliVerificationFlagsSection = "## Contract verification flags\n\n" +
+	"`ailang check --verify`, `ailang ai-check` and `ailang verify` share one exit rule\n" +
+	"([contracts guide](/docs/guides/contracts#exit-codes)) and the flags that move it:\n\n" +
+	"| Flag | On | Effect | Tier |\n" +
+	"|---|---|---|---|\n" +
+	"| `--strict` | all three (`check` only with `--verify`) | a skipped or inconclusive obligation fails | as the command (Stable on `check --verify`) |\n" +
+	"| `--allow-inconclusive` | all three | an inconclusive result exits 0, even when it is the only obligation (nothing proved); `outcome` stays `inconclusive` | as the command (Stable on `check --verify`) |\n" +
+	"| `--no-verify` | `ai-check` | type check only: the verifier does not run, `outcome` is `not_requested` (or `no_obligations`) | Experimental |\n\n" +
+	"`--strict` with `--allow-inconclusive`, `--no-verify` with either, and `check --strict` without\n" +
+	"`--verify` are usage errors (exit 2). Each command checks one file; a second file is a usage error.\n\n"

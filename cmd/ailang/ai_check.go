@@ -34,11 +34,14 @@ type aiVerifySection struct {
 	// (verification.Classify); Obligations counts the contract-bearing
 	// functions, known even when the solver is not. Both are additive
 	// (M-V1-VERIFICATION-HONESTY M1): Available keeps meaning "solver found".
-	Outcome        verification.Outcome `json:"outcome"`
-	Obligations    int                  `json:"obligations"`
-	Available      bool                 `json:"available"`
-	Verified       int                  `json:"verified"`
-	Counterexample int                  `json:"counterexample"`
+	Outcome     verification.Outcome `json:"outcome"`
+	Obligations int                  `json:"obligations"`
+	// ImportedUnverified names imported (non-stdlib) modules that declare
+	// contracts, which this run did not verify. Absent when there are none.
+	ImportedUnverified []string `json:"imported_contracts_unverified,omitempty"`
+	Available          bool     `json:"available"`
+	Verified           int      `json:"verified"`
+	Counterexample     int      `json:"counterexample"`
 	// Inconclusive: obligations attempted but undecided — a sat under bounded
 	// recursion unrolling (M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE).
 	Inconclusive int                `json:"inconclusive"`
@@ -76,6 +79,7 @@ func aiCheckCommand() {
 	noVerifyFlag := fs.Bool("no-verify", false, noVerifyFlagHelp)
 
 	parseInterspersed(fs, os.Args[2:])
+	refuseContradictoryPolicy(verification.ExitPolicy{Strict: *strictFlag, AllowInconclusive: *allowInconclusiveFlag})
 	if *noVerifyFlag && (*strictFlag || *allowInconclusiveFlag) {
 		fmt.Fprintf(os.Stderr, "%s: --no-verify runs no verifier, so --strict and --allow-inconclusive would do nothing\n", red("Error"))
 		os.Exit(2)
@@ -112,7 +116,7 @@ const noVerifyFlagHelp = "Type-check only: do not run the verifier (verify.outco
 // (verification.ExitCode). Every verification command offers both.
 const (
 	strictFlagHelp            = "Exit 1 when any contract is skipped or inconclusive (only a full proof passes)"
-	allowInconclusiveFlagHelp = "Exit 0 on inconclusive obligations (bounded-unrolling sat); they are still listed on stderr"
+	allowInconclusiveFlagHelp = "Exit 0 on inconclusive obligations (bounded-unrolling sat), even when they are the only ones and nothing was proved; outcome stays \"inconclusive\" and they are listed on stderr"
 )
 
 // runAICheckReport is the unified check+verify report: type-check and contract
@@ -203,12 +207,16 @@ func runAICheckReport(filename string, timeout time.Duration, recursiveDepth int
 		tally = verifySection.tally(checkSection.Passed)
 	}
 	verifySection.Outcome = verification.Classify(tally)
+	if checkSection.Passed {
+		verifySection.ImportedUnverified = importedContractModules(result)
+	}
 
 	// The JSON is ALWAYS emitted before the exit decision: `ai-check` is an AI
 	// convergence signal, so a consumer must be able to read the full report even
 	// on the failing exit path.
 	outputAICheck(aiCheckOutput{File: filename, Check: checkSection, Verify: verifySection})
 	writeVerificationNotice(os.Stderr, tally, policy, verifySection.Results)
+	writeImportedNote(os.Stderr, verifySection.ImportedUnverified)
 
 	if code := verification.ExitCode(tally, policy); code != 0 {
 		os.Exit(code)

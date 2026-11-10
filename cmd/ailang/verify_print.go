@@ -152,18 +152,19 @@ func printVerifyHuman(report *smt.VerifyReport, filename string, verbose bool) {
 // compile: the same keys as printVerifyJSON with outcome not_run and every
 // counter zero, plus compile_errors. It used to print nothing at all.
 func printVerifyJSONNotRun(filename string, compileErrors []string) {
-	printVerifyJSONWith(&smt.VerifyReport{}, filename, verification.Tally{SolverAvailable: smt.Z3Available()}, compileErrors)
+	printVerifyJSONWith(&smt.VerifyReport{}, filename, verification.Tally{SolverAvailable: smt.Z3Available()}, compileErrors, nil)
 }
 
 // printVerifyJSON outputs verification results as JSON. t is the run's tally
 // under the shared exit contract; outcome, obligations and available are
 // additive fields (M-V1-VERIFICATION-HONESTY M1) with the same meaning as in
-// the `check --verify` report.
-func printVerifyJSON(report *smt.VerifyReport, filename string, t verification.Tally) {
-	printVerifyJSONWith(report, filename, t, nil)
+// the `check --verify` report. imported names imported modules whose
+// contracts this run did not verify (importedContractModules).
+func printVerifyJSON(report *smt.VerifyReport, filename string, t verification.Tally, imported []string) {
+	printVerifyJSONWith(report, filename, t, nil, imported)
 }
 
-func printVerifyJSONWith(report *smt.VerifyReport, filename string, t verification.Tally, compileErrors []string) {
+func printVerifyJSONWith(report *smt.VerifyReport, filename string, t verification.Tally, compileErrors, imported []string) {
 	results := report.Results
 	if results == nil {
 		results = []smt.VerifyResult{}
@@ -185,8 +186,10 @@ func printVerifyJSONWith(report *smt.VerifyReport, filename string, t verificati
 		TotalExported  int                  `json:"total_exported"`
 		Results        []smt.VerifyResult   `json:"results"`
 		CompileErrors  []string             `json:"compile_errors,omitempty"`
+		Imported       []string             `json:"imported_contracts_unverified,omitempty"`
 	}{
 		CompileErrors:  compileErrors,
+		Imported:       imported,
 		Evidence:       verification.EncodedEvidence(),
 		File:           filename,
 		Outcome:        verification.Classify(t),

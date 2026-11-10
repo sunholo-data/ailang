@@ -246,9 +246,13 @@ the JSON report it prints is Experimental ⚠ close call, because its shape is s
   [contracts guide](/docs/guides/contracts#exit-codes): 0 for verified, no obligations, or partial (at
   least one obligation proved and the skipped ones listed on stderr and in `results`); 1 for a failed
   check, nothing proved (`unproved`: every obligation skipped), a counterexample, a solver error or
-  timeout, an inconclusive result, or obligations with no solver. An obligation is a function with an
-  `ensures` clause; a `requires`-only function is not one. The JSON `outcome` field may gain values in a
-  minor; existing values keep their meaning.
+  timeout, an inconclusive result, or obligations with no solver. `--allow-inconclusive` makes an
+  inconclusive result exit 0 even when it is the only obligation (nothing proved); the outcome stays
+  `inconclusive`. An obligation is a function with a non-trivial `ensures` clause; a `requires`-only
+  function, or one whose only `ensures` is the literal `true`, is not one. Contradictory flags
+  (`--strict` with `--allow-inconclusive`, either with `--no-verify`, `--strict` without `--verify`)
+  are usage errors (exit 2). The JSON `outcome` field may gain values in a minor; existing values keep
+  their meaning. `ai-check --no-verify` (type check only, outcome `not_requested`) is Experimental.
 - `ailang run` does not check `requires`/`ensures` unless `--verify-contracts` is given. With
   `--bytecode`/`--strict-bytecode` that flag is refused (CTR004, exit 2) until the VM enforces contracts;
   lifting the refusal is additive.

@@ -123,6 +123,10 @@ var verifyExitCases = []verifyExitCase{
 	// exited 1 (as a verifier error), the first cut exited 0.
 	{name: "false contract, skipped", fixture: "skiplist.ail", solver: "unsat", solverOut: "unsat", wantCode: 1, wantOutcome: "unproved",
 		wantStderr: "len (unsupported construct"},
+	// A literal `ensures { true }` proves nothing: it does not count as the
+	// "at least one verified" that would make this file partial (exit 0).
+	// Red mutation: drop the isTriviallyTrue test in hasObligation.
+	{name: "ensures true does not rescue a skip", fixture: "trueplusskip.ail", solver: "unsat", solverOut: "unsat", wantCode: 1, wantOutcome: "unproved"},
 	// At least one verified + at least one skipped passes, loudly.
 	{name: "partial passes loudly", fixture: "mixed.ail", solver: "unsat", solverOut: "unsat", wantCode: 0, wantOutcome: "partial",
 		wantStderr: "1 contract(s) not verified (pass --strict to fail on these): g (Function \"g\" has effects)"},
@@ -401,12 +405,72 @@ func TestVerifyExit_AICheckNoVerify(t *testing.T) {
 	}
 }
 
-// TestVerifyExit_StrictNeedsVerify: `check --strict` alone would silently do
-// nothing, so it is refused.
-func TestVerifyExit_StrictNeedsVerify(t *testing.T) {
+// TestVerifyExit_ContradictoryFlagsAreUsageErrors: flag combinations that
+// contradict each other or would silently do nothing exit 2 with a message,
+// never a silent precedence: `check --strict` without --verify, and
+// --strict with --allow-inconclusive on every spelling (the second-round
+// review). `ai-check --no-verify --strict` is pinned in
+// TestVerifyExit_AICheckNoVerify. Red mutation: drop the
+// refuseContradictoryPolicy call — --strict wins silently, exit 1.
+func TestVerifyExit_ContradictoryFlagsAreUsageErrors(t *testing.T) {
+	requireShForFakeSolver(t)
 	bin := buildAilang(t)
+	t.Setenv("AILANG_Z3_PATH", fakeSolver(t, "sat", "sat", 0))
 	_, stderr, code := runAilangBin(t, bin, "check", "--strict", verifyExitFixtures+"nocontracts.ail")
-	if code != 1 || !strings.Contains(stderr, "add --verify") {
-		t.Fatalf("check --strict without --verify: exit %d, stderr %q; want a refusal", code, stderr)
+	if code != 2 || !strings.Contains(stderr, "add --verify") {
+		t.Fatalf("check --strict without --verify: exit %d, stderr %q; want exit 2", code, stderr)
+	}
+	for _, sp := range verifySpellings {
+		_, stderr, code := runAilangBin(t, bin, sp.args([]string{"--strict", "--allow-inconclusive"}, verifyExitFixtures+"sumto.ail")...)
+		if code != 2 || !strings.Contains(stderr, "contradict each other") {
+			t.Fatalf("%s --strict --allow-inconclusive: exit %d, stderr %q; want exit 2", sp.name, code, stderr)
+		}
+	}
+}
+
+// TestVerifyExit_ImportedContractsAreNamed: contracts in imported modules are
+// not verified (unchanged behaviour: no_obligations, exit 0), and every
+// spelling now says so on stderr and in imported_contracts_unverified. A file
+// with no such import carries neither. Red mutation: make
+// importedContractModules return nil.
+func TestVerifyExit_ImportedContractsAreNamed(t *testing.T) {
+	requireShForFakeSolver(t)
+	bin := buildAilang(t)
+	t.Setenv("AILANG_Z3_PATH", fakeSolver(t, "unsat", "unsat", 0))
+	const lib = "cmd/ailang/testdata/verify_exit/half"
+	for _, sp := range verifySpellings {
+		stdout, stderr, code := runAilangBin(t, bin, sp.args(nil, verifyExitFixtures+"importer.ail")...)
+		v, err := sp.jsonVerify(stdout)
+		if err != nil || code != 0 || v["outcome"] != "no_obligations" {
+			t.Fatalf("%s: exit %d, verify %v (err %v)\nstderr:\n%s", sp.name, code, v, err, stderr)
+		}
+		mods, _ := v["imported_contracts_unverified"].([]any)
+		if len(mods) != 1 || mods[0] != lib {
+			t.Fatalf("%s: imported_contracts_unverified = %v, want [%s]", sp.name, v["imported_contracts_unverified"], lib)
+		}
+		if !strings.Contains(stderr, "contracts in imported modules were not verified") || !strings.Contains(stderr, lib) {
+			t.Fatalf("%s: stderr does not name the unverified import:\n%s", sp.name, stderr)
+		}
+		stdout, stderr, _ = runAilangBin(t, bin, sp.args(nil, verifyExitFixtures+"half.ail")...)
+		if strings.Contains(stdout, "imported_contracts_unverified") || strings.Contains(stderr, "imported modules") {
+			t.Fatalf("%s: a file without such imports mentions them:\n%s\n%s", sp.name, stdout, stderr)
+		}
+	}
+}
+
+// TestVerifyExit_AllowInconclusiveAlone: a file whose ONLY obligation is
+// inconclusive exits 0 under --allow-inconclusive on every spelling — an
+// explicit opt-in that may mean nothing was proved — and the outcome says
+// so: "inconclusive", never "verified" or "partial".
+func TestVerifyExit_AllowInconclusiveAlone(t *testing.T) {
+	requireShForFakeSolver(t)
+	bin := buildAilang(t)
+	t.Setenv("AILANG_Z3_PATH", fakeSolver(t, "sat", "sat", 0))
+	for _, sp := range verifySpellings {
+		stdout, stderr, code := runAilangBin(t, bin, sp.args([]string{"--allow-inconclusive"}, verifyExitFixtures+"sumto.ail")...)
+		v, err := sp.jsonVerify(stdout)
+		if err != nil || code != 0 || v["outcome"] != "inconclusive" || v["verified"] != float64(0) {
+			t.Fatalf("%s: exit %d, verify %v (err %v); want exit 0, outcome inconclusive, 0 verified\nstderr:\n%s", sp.name, code, v, err, stderr)
+		}
 	}
 }

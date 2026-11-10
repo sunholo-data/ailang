@@ -258,7 +258,8 @@ proving that function's own `ensures`, and it does not check preconditions at
 call sites, so a precondition alone gives it nothing to prove. Such a function
 is still listed in `results` (status `skipped`, reason code
 `missing_postcondition`) but never changes the outcome or the exit code, with
-or without Z3, and passes `--strict`.
+or without Z3, and passes `--strict`. The same holds for a function whose only `ensures` is the
+literal `true`: it proves nothing, so it is not an obligation either.
 
 | Outcome | Exit | `outcome` |
 |---|---|---|
@@ -267,7 +268,7 @@ or without Z3, and passes `--strict`.
 | Every obligation proved | 0 | `verified` |
 | At least one proved, at least one skipped (outside the decidable fragment) | 0, the skipped functions listed on stderr and by name in `results`; 1 with `--strict` | `partial` |
 | Obligations exist, **none** proved, the rest skipped | 1 | `unproved` |
-| Any inconclusive result (bounded recursion) | 1; 0 with `--allow-inconclusive` (unless nothing else was proved) | `inconclusive` |
+| Any inconclusive result (bounded recursion) | 1; 0 with `--allow-inconclusive`, even when the inconclusive result is the only obligation and nothing was proved (skips still count as without the flag) | `inconclusive` (never `verified` or `partial`) |
 | Any counterexample | 1 | `counterexample` |
 | Any solver error, `unknown` or timeout | 1 | `error` |
 | Obligations exist but Z3 is not found | 1, stderr names where it looked | `unavailable` |
@@ -276,7 +277,10 @@ or without Z3, and passes `--strict`.
 `obligations` counts the functions with an `ensures` clause and is reported
 even when Z3 is missing. `available` means "the solver was found". The legacy
 counter `skipped` still includes `requires`-only rows. Each command checks one
-file: a second file is a usage error (exit 2), and flags may follow the file.
+file: a second file is a usage error (exit 2), and flags may follow the file. `--strict` with
+`--allow-inconclusive`, and `check --strict` without `--verify`, are usage errors too. Only the
+checked file is verified: when it imports (non-stdlib) modules that declare contracts, stderr says
+so and `imported_contracts_unverified` names them; verify each module on its own.
 `verify --package` refuses up front when Z3 is missing.
 
 ### How It Works

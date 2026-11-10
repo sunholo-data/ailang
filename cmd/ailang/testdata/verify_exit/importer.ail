@@ -1,0 +1,9 @@
+module cmd/ailang/testdata/verify_exit/importer
+
+-- Second-round review of #2222: this file has no contracts of its own, but it
+-- imports `half`, whose ensures is FALSE. The verifier proves only the
+-- checked file, so the outcome is no_obligations (exit 0, unchanged) — and
+-- the output now SAYS the imported contracts were not verified.
+import cmd/ailang/testdata/verify_exit/half (half)
+
+export pure func quarter(x: int) -> int = half(half(x))

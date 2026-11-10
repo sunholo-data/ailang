@@ -131,11 +131,25 @@ func hasObligation(meta *core.DeclMeta) bool {
 		return false
 	}
 	for _, c := range meta.Contracts {
-		if c != nil && c.Kind == core.EnsuresKind {
+		if c != nil && c.Kind == core.EnsuresKind && !isTriviallyTrue(c.Expr) {
 			return true
 		}
 	}
 	return false
+}
+
+// isTriviallyTrue reports a postcondition that is the literal `true`. It
+// proves nothing, so it must not count as a verified obligation: otherwise
+// `ensures { true }` next to a skipped false contract turned "unproved" into
+// "partial", exit 0 (second-round review of #2222). Only the literal is
+// detected; other tautologies are verified like any other clause.
+func isTriviallyTrue(e core.CoreExpr) bool {
+	lit, ok := e.(*core.Lit)
+	if !ok || lit.Kind != core.BoolLit {
+		return false
+	}
+	b, ok := lit.Value.(bool)
+	return ok && b
 }
 
 // CountObligations counts the proof obligations (functions with an ensures
@@ -325,15 +339,22 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			continue
 		}
 
-		// A requires-only function carries no proof obligation (hasObligation):
-		// it is reported as evidence, with the reason code IsObligation keys on,
-		// and never reaches the body or solver steps. Checked before the body
-		// lookup so a missing body cannot turn it into an obligation skip.
+		// A requires-only function, or one whose only ensures is the literal
+		// `true`, carries no proof obligation (hasObligation): it is reported
+		// as evidence, with the reason code IsObligation keys on, and never
+		// reaches the body or solver steps. Checked before the body lookup so a
+		// missing body cannot turn it into an obligation skip.
 		if !hasObligation(meta) {
+			reason := "no ensures clause (nothing to verify)"
+			for _, c := range meta.Contracts {
+				if c != nil && c.Kind == core.EnsuresKind {
+					reason = "ensures is the literal true (nothing to verify)"
+				}
+			}
 			report.Results = append(report.Results, VerifyResult{
 				Function:   funcName,
 				Status:     "skipped",
-				Reason:     "no ensures clause (nothing to verify)",
+				Reason:     reason,
 				ReasonCode: verification.MissingPostcondition,
 			})
 			report.Skipped++

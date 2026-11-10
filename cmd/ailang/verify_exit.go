@@ -16,6 +16,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/smt"
 	"github.com/sunholo-data/ailang/internal/verification"
 )
@@ -52,6 +53,49 @@ func verificationFileArg(fs *flag.FlagSet, command string) string {
 		os.Exit(2)
 	}
 	return fs.Arg(0)
+}
+
+// importedContractModules lists the imported (non-stdlib) modules of a
+// compiled file that declare proof obligations. The verifier proves only the
+// checked file's own contracts; an import with a false `ensures` used to give
+// `no_obligations`, exit 0, with nothing saying the import was not looked at.
+// Behaviour is unchanged; the commands now SAY it (stderr note and the JSON
+// field imported_contracts_unverified). The standard library is left out:
+// its contracts are not re-verified per program.
+func importedContractModules(result pipeline.Result) []string {
+	self := ""
+	if ast := result.Artifacts.AST; ast != nil && ast.Module != nil {
+		self = ast.Module.Path
+	}
+	var mods []string
+	for path, mod := range result.Modules {
+		if mod == nil || path == self || strings.HasPrefix(path, "std/") {
+			continue
+		}
+		if smt.CountObligations(mod.Core) > 0 {
+			mods = append(mods, path)
+		}
+	}
+	sort.Strings(mods)
+	return mods
+}
+
+// writeImportedNote prints the one-line note for importedContractModules.
+func writeImportedNote(w io.Writer, mods []string) {
+	if len(mods) == 0 {
+		return
+	}
+	fmt.Fprintf(w, "Note: contracts in imported modules were not verified (verify each module on its own): %s\n", strings.Join(mods, ", "))
+}
+
+// refuseContradictoryPolicy makes `--strict --allow-inconclusive` a usage
+// error (exit 2) instead of a silent precedence: --strict fails an
+// inconclusive result and --allow-inconclusive passes it.
+func refuseContradictoryPolicy(p verification.ExitPolicy) {
+	if p.Strict && p.AllowInconclusive {
+		fmt.Fprintf(os.Stderr, "%s: --strict and --allow-inconclusive contradict each other (--strict fails an inconclusive result, --allow-inconclusive passes it); pass one\n", red("Error"))
+		os.Exit(2)
+	}
 }
 
 // writeZ3NotFound prints where the solver was looked for and how to provide
