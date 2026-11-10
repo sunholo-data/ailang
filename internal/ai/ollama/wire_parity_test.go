@@ -109,6 +109,13 @@ func view(r *ai.Response) any {
 	}
 }
 
+// stallBudget is the AILANG_OLLAMA_HTTP_TIMEOUT_SEC the stall scenarios run
+// under. The golden expects the deadline to cut the BODY read ("context
+// deadline exceeded"); on a loaded machine a 1s budget occasionally expired
+// before the response headers arrived instead, which is a different (also
+// correct) error text. 3s keeps the scenario on the body-read path.
+const stallBudget = "3"
+
 const (
 	genChunk1 = `{"model":"qwen3:8b","created_at":"2026-11-10T10:00:00.123456789Z","response":"Hel","done":false}`
 	genChunk2 = `{"model":"qwen3:8b","created_at":"2026-11-10T10:00:00.2Z","response":"lo <&> é","thinking":"hmm","done":false,"surprise":{"x":[1,2]}}`
@@ -151,7 +158,7 @@ func TestWireParity_Generate(t *testing.T) {
 		{name: "err_wrong_field_type", replies: []wiregolden.Reply{{Lines: []string{`{"model":"m","response":5,"done":false}`}}}, call: generate(genReq(nil))},
 		{name: "err_line_over_8MB", replies: []wiregolden.Reply{{Lines: []string{genChunk1, `{"response":"` + strings.Repeat("a", 8_000_000) + `"}`}}}, call: generate(genReq(nil))},
 		{name: "err_refused", refused: true, call: generate(genReq(nil))},
-		{name: "err_stall_deadline", env: map[string]string{config.EnvOllamaHTTPTimeoutSec: "1"}, replies: []wiregolden.Reply{{Lines: []string{genChunk1}, Stall: true}}, call: generate(genReq(nil))},
+		{name: "err_stall_deadline", env: map[string]string{config.EnvOllamaHTTPTimeoutSec: stallBudget}, replies: []wiregolden.Reply{{Lines: []string{genChunk1}, Stall: true}}, call: generate(genReq(nil))},
 		{name: "no_trailing_newline", replies: []wiregolden.Reply{{Body: genChunk1 + "\n" + genDone}}, call: generate(genReq(nil))},
 		{name: "crlf_framing", replies: []wiregolden.Reply{{Body: genChunk1 + "\r\n" + genDone + "\r\n"}}, call: generate(genReq(nil))},
 	}
@@ -240,7 +247,7 @@ func TestWireParity_Chat(t *testing.T) {
 		{name: "err_503_text", replies: []wiregolden.Reply{{Status: 503, Body: "Service Unavailable"}}, call: step(chatReq(nil))},
 		{name: "err_midstream", replies: []wiregolden.Reply{{Lines: []string{chatText, `{"error":"context length exceeded"}`}}}, call: step(chatReq(nil))},
 		{name: "err_refused", refused: true, call: step(chatReq(nil))},
-		{name: "err_stall_deadline", env: map[string]string{config.EnvOllamaHTTPTimeoutSec: "1"}, replies: []wiregolden.Reply{{Lines: []string{chatText}, Stall: true}}, call: step(chatReq(nil))},
+		{name: "err_stall_deadline", env: map[string]string{config.EnvOllamaHTTPTimeoutSec: stallBudget}, replies: []wiregolden.Reply{{Lines: []string{chatText}, Stall: true}}, call: step(chatReq(nil))},
 	}
 	runParity(t, "testdata/wire/chat.json", cases)
 }

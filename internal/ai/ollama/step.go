@@ -11,8 +11,8 @@ import (
 	"strings"
 	"time"
 
-	ollamaapi "github.com/ollama/ollama/api"
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai/ollama/wire"
 	"github.com/sunholo-data/ailang/internal/ai/openai"
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/statedir"
@@ -260,21 +260,21 @@ func rawBase64(source string) string {
 }
 
 // toOllamaImages converts provider image parts into Ollama message images.
-// ollamaapi.ImageData is []byte and encoding/json marshals it to base64, so we
+// wire.ImageData is []byte and encoding/json marshals it to base64, so we
 // store the *decoded* image bytes (decoding each normalized source) to avoid
 // double-encoding on the wire. Undecodable sources are dropped rather than sent
 // as garbage. Returns nil for empty input so the images field is omitted.
-func toOllamaImages(imgs []ai.ImagePart) []ollamaapi.ImageData {
+func toOllamaImages(imgs []ai.ImagePart) []wire.ImageData {
 	if len(imgs) == 0 {
 		return nil
 	}
-	out := make([]ollamaapi.ImageData, 0, len(imgs))
+	out := make([]wire.ImageData, 0, len(imgs))
 	for _, img := range imgs {
 		raw, err := base64.StdEncoding.DecodeString(rawBase64(img.Source))
 		if err != nil {
 			continue
 		}
-		out = append(out, ollamaapi.ImageData(raw))
+		out = append(out, wire.ImageData(raw))
 	}
 	return out
 }
@@ -355,8 +355,8 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		return resp, err
 	}
 
-	// Translate req.Messages → ollamaapi.Message[], threading tool calls/results.
-	messages := make([]ollamaapi.Message, 0, len(req.Messages)+1)
+	// Translate req.Messages → wire.Message[], threading tool calls/results.
+	messages := make([]wire.Message, 0, len(req.Messages)+1)
 
 	// Prepend req.SystemPrompt unless req.Messages already carries a system role.
 	hasSystemMsg := false
@@ -367,11 +367,11 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		}
 	}
 	if req.SystemPrompt != "" && !hasSystemMsg {
-		messages = append(messages, ollamaapi.Message{Role: "system", Content: req.SystemPrompt})
+		messages = append(messages, wire.Message{Role: "system", Content: req.SystemPrompt})
 	}
 
 	for _, m := range req.Messages {
-		om := ollamaapi.Message{Role: m.Role, Content: m.Content}
+		om := wire.Message{Role: m.Role, Content: m.Content}
 		// Tool-result message: Ollama has a native "tool" role with tool_call_id.
 		if m.Role == "tool" {
 			om.ToolCallID = m.ToolCallID
@@ -386,9 +386,9 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		// Assistant message that issued tool calls: re-attach them so the model
 		// sees its own prior calls in the running conversation.
 		if len(m.ToolCalls) > 0 {
-			om.ToolCalls = make([]ollamaapi.ToolCall, 0, len(m.ToolCalls))
+			om.ToolCalls = make([]wire.ToolCall, 0, len(m.ToolCalls))
 			for _, tc := range m.ToolCalls {
-				oc := ollamaapi.ToolCall{Function: ollamaapi.ToolCallFunction{Name: tc.Name}}
+				oc := wire.ToolCall{Function: wire.ToolCallFunction{Name: tc.Name}}
 				if tc.Arguments != "" {
 					// Best-effort: Ollama wants structured args; a parse failure
 					// just yields empty args rather than dropping the whole call.
@@ -417,7 +417,7 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		options["temperature"] = t
 	}
 
-	chatReq := &ollamaapi.ChatRequest{
+	chatReq := &wire.ChatRequest{
 		Model:    bareModel(req.Model),
 		Messages: messages,
 		Options:  options,
@@ -430,20 +430,20 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 		}
 	}
 
-	// Advertise tools: translate each ai.ToolSchema → ollamaapi.Tool. The
+	// Advertise tools: translate each ai.ToolSchema → wire.Tool. The
 	// ToolSchema.Parameters is a JSON-Schema string; unmarshal it into Ollama's
 	// structured parameter type.
 	if len(req.Tools) > 0 {
-		tools := make(ollamaapi.Tools, 0, len(req.Tools))
+		tools := make(wire.Tools, 0, len(req.Tools))
 		for _, t := range req.Tools {
-			fn := ollamaapi.ToolFunction{Name: t.Name, Description: t.Description}
+			fn := wire.ToolFunction{Name: t.Name, Description: t.Description}
 			if t.Parameters != "" {
 				if err := json.Unmarshal([]byte(t.Parameters), &fn.Parameters); err != nil {
 					return nil, ai.NewAIError(ai.CodeToolsNotSupported,
 						fmt.Sprintf("ollama: invalid JSON-Schema parameters for tool %q: %v", t.Name, err), false)
 				}
 			}
-			tools = append(tools, ollamaapi.Tool{Type: "function", Function: fn})
+			tools = append(tools, wire.Tool{Type: "function", Function: fn})
 		}
 		chatReq.Tools = tools
 	}
@@ -451,7 +451,7 @@ func (c *Client) Step(ctx context.Context, req *ai.Request) (*ai.Response, error
 	var response strings.Builder
 	var toolCalls []ai.ToolCall
 	var tally tokenTally
-	err := c.client.Chat(ctx, chatReq, func(resp ollamaapi.ChatResponse) error {
+	err := c.client.Chat(ctx, chatReq, func(resp wire.ChatResponse) error {
 		response.WriteString(resp.Message.Content)
 		tally.observe(resp.Metrics)
 		// Tool calls arrive in the message (possibly across streamed chunks).

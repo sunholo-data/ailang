@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/ollama/ollama/envconfig"
+	"github.com/sunholo-data/ailang/internal/ai/ollama/wire"
 	"github.com/sunholo-data/ailang/internal/config"
 )
 
@@ -41,19 +41,19 @@ var hostCases = []string{
 }
 
 // TestHostFromEnvironmentGolden pins OLLAMA_HOST resolution against
-// testdata/wire/host.json, captured from the SDK's envconfig.Host() (which
+// testdata/wire/host.json, captured from the SDK's envconfig.Host() (which its
 // ClientFromEnvironment used) before the SDK was removed.
 func TestHostFromEnvironmentGolden(t *testing.T) {
 	want := loadHostGolden(t)
 	for _, in := range hostCases {
 		t.Setenv(config.EnvOllamaHost, in)
-		if got := envconfig.Host().String(); got != want[in] {
+		if got := wire.HostFromEnvironment().String(); got != want[in] {
 			t.Errorf("OLLAMA_HOST=%q resolves to %q, golden %q", in, got, want[in])
 		}
 	}
 }
 
-// TestParseHostGolden pins parseHost — the resolver for the provider client,
+// TestParseHostGolden pins wire.ParseHost — the resolver for the provider client,
 // which takes OLLAMA_HOST verbatim (no quote trimming) — against the same
 // golden for every unquoted shape.
 func TestParseHostGolden(t *testing.T) {
@@ -62,8 +62,8 @@ func TestParseHostGolden(t *testing.T) {
 		if strings.ContainsAny(in, `"'`) {
 			continue
 		}
-		if got := parseHost(in).String(); got != want[in] {
-			t.Errorf("parseHost(%q) = %q, golden %q", in, got, want[in])
+		if got := wire.ParseHost(in).String(); got != want[in] {
+			t.Errorf("wire.ParseHost(%q) = %q, golden %q", in, got, want[in])
 		}
 	}
 }
