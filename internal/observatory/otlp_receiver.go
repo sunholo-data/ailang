@@ -164,14 +164,13 @@ func NewOTLPReceiver(backend Backend) *OTLPReceiver {
 // - POST /v1/logs - Receive logs/events (for Claude Code events)
 // - POST /v1/metrics - Receive metrics (for Claude Code metrics)
 //
-// All three are wrapped in requireOTLPIngestAuth. Wrapping happens HERE rather
-// than at the server's mux so the auth cannot accidentally widen to the
-// dashboard UI or the /api/observatory/* read endpoints: only the handlers
-// registered on this line are covered, by construction.
+// The receiver does not authenticate: the dashboard server that mounts it
+// gates these patterns with the AILANG_OTLP_INGEST_TOKEN shared secret
+// (internal/server/ingest_auth.go), alongside its other ingest routes.
 func (r *OTLPReceiver) RegisterRoutes(mux Router) {
-	mux.HandleFunc("POST /v1/traces", requireOTLPIngestAuth(r.handleTraces))
-	mux.HandleFunc("POST /v1/logs", requireOTLPIngestAuth(r.handleLogs))
-	mux.HandleFunc("POST /v1/metrics", requireOTLPIngestAuth(r.handleMetrics))
+	mux.HandleFunc("POST /v1/traces", r.handleTraces)
+	mux.HandleFunc("POST /v1/logs", r.handleLogs)
+	mux.HandleFunc("POST /v1/metrics", r.handleMetrics)
 }
 
 // handleTraces handles the OTLP trace export endpoint.

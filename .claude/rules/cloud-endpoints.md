@@ -47,17 +47,6 @@ path still points at the dev run.app URL — see `design_docs/planned/m-eval-dat
 `server.go:31-33` flips it to `0.0.0.0` whenever `PORT` is set — the Cloud Run convention. Reading
 only the default and concluding "local-only" is wrong, and has been made before.
 
-## The OTLP receiver is public, and currently unauthenticated BY CHOICE
-
-[`internal/server/server.go:603-605`](../../internal/server/server.go) registers the OTLP receiver at
-`/v1/traces`, `/v1/logs`, `/v1/metrics` on the main mux. `server.go:631` wraps that mux in
-`corsMiddleware` **only** — Firebase auth is applied per-route and does not cover these. Anyone who
-knows the URL can write spans into the production observatory; the read APIs (`/api/observatory/*`,
-`/api/chains`) are open too.
-
-Since v0.33.1 a shared-secret gate **exists** but ships disabled — see "OTLP ingest auth" below for
-the decision and how to turn it on.
-
 ## Verify with a control, never a bare 200
 
 `ailang serve` returns 200 on many paths. Pair every probe with a path that must 404, or the 200
@@ -104,17 +93,21 @@ JSON decode sites (malformed IDs now 400), and prod was fully repaired 2026-08-1
 `ailang observatory repair-ids --apply`. A stored trace ID longer than 32 hex chars is the
 symptom of an unfixed receiver.
 
-## OTLP ingest auth (available, OFF — deliberately)
+## Ingest auth (`AILANG_INGEST_AUTH`: warn by default)
 
-**Decision, Mark 2026-08-13: stays off for now — "it's just us."** Recorded so it is not re-derived
-as an oversight. Revisit when the endpoint is exposed to anyone outside the team.
+The 2026-08-13 "stays off — it's just us" decision is superseded: ingest is being hardened.
 
+| Class | Routes (POST) | Secret on the dashboard |
+|-------|---------------|-------------------------|
+| otlp | `/v1/traces`, `/v1/logs`, `/v1/metrics` | `AILANG_OTLP_INGEST_TOKEN` |
+| hub | `/api/hooks/claude`, `/api/observatory/hooks`, `/api/exec/{sessions,events}`, `/api/coordinator/events`, `/api/telemetry` | `AILANG_HUB_TOKEN` |
 
-`AILANG_OTLP_INGEST_TOKEN` gates `/v1/traces`, `/v1/logs`, `/v1/metrics` behind a shared secret, sent
-as `X-AILANG-Ingest-Token` or `Authorization: Bearer`. **Unset or empty = auth disabled**, which is
-how it ships — Broadcast is already streaming to prod and the rig posts to `localhost:1957` with no
-credential, so an enforcing default would break both on deploy.
+Senders present it as `X-AILANG-Ingest-Token` or `Authorization: Bearer`; an OTLP exporter via
+`OTEL_EXPORTER_OTLP_HEADERS=x-ailang-ingest-token=<token>`, OpenRouter Broadcast via a custom header
+on its destination. Modes: **`warn`** (default) accepts and logs `ingest auth WARN` lines naming each
+unauthenticated sender; **`enforce`** refuses (401, or 503 when the class's secret is unset); `off`
+accepts. A loopback bind (the rig's `ailang serve`) is always exempt.
 
-Enabling it takes **both** sides, or ingest silently stops: set the Cloud Run env var **and** add the
-matching custom header on the OpenRouter destination. Verify with a before/after span count, never
-with a 200.
+Never flip a deployment to `enforce` while `ingest auth WARN` lines are still appearing in its logs —
+that is the list of senders whose writes would stop. Verify a flip with a before/after span count,
+never with a 200.

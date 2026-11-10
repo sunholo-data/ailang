@@ -17,7 +17,7 @@ package server
 //
 // Paths outside /api/ and /ws stay public: the static UI, /health,
 // /benchmarks/* (docs-site data) and OTLP ingest /v1/* (its own optional
-// AILANG_OTLP_INGEST_TOKEN, observatory/otlp_auth.go).
+// AILANG_OTLP_INGEST_TOKEN, ingest_auth.go).
 //
 // Credentials accepted, and nothing else:
 //
@@ -103,8 +103,9 @@ func (s *Server) publicAPIRoute(pattern string, r *http.Request) bool {
 		return r.Method == http.MethodGet || r.Method == http.MethodHead
 
 	// Machine ingest. Each handler is POST-only and answers {"status":"ok"} or
-	// the id it created.
-	case "/api/hooks/claude", // Claude Code HTTP hooks; optional AILANG_HUB_TOKEN
+	// the id it created. Their shared secret (AILANG_HUB_TOKEN) is checked by
+	// the ingest gate, ingest_auth.go.
+	case "/api/hooks/claude", // Claude Code HTTP hooks
 		"/api/observatory/hooks",  // command hooks + resident executor sessions
 		"/api/exec/sessions",      // exec session start (claude_telemetry.sh, resident)
 		"/api/exec/events",        // exec transcript events
