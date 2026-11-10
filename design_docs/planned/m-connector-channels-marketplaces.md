@@ -243,6 +243,41 @@ screenshots). No real customer data, no email addresses other than the reviewer 
 2. GE admin: new MCP data store, URL `https://executor.ailang.sunholo.com/mcp/connect/`, OAuth with that
    client, Basic auth, PKCE ticked. Enable the tools in the Actions tab.
 
+## P0 audit results (in progress, 2026-11-10)
+
+**Blocked half:** every signed-in call on both services returned "needs you to sign in again" in Claude
+Code. Prod logs show why: the 13:10 tool calls got 401 (the access token from the 07:20 refresh had
+expired), and Claude Code did **not** attempt a refresh (no `/oauth/token` request after the 401s). The
+07:20 refresh itself succeeded. So this is client-side token state, not an mcp_oauth 0.2.0 regression; the
+re-sign-in (Mark, `/mcp`) doubles as the first live CIMD sign-in against Parse on 0.2.0. Note for docs:
+hosts cache `tools/list` at connect, so this session still sees Parse's pre-v0.46.0 schemas
+(`maxChars: string`, `count: number`). A client holding the old list sends `"maxChars": "2000"` and is
+refused (`expected int`) until it reconnects.
+
+| Service | Tool | Result | Finding |
+|---|---|---|---|
+| Parse | `mcpFormats` | ✅ open | — |
+| Parse | `mcpEstimate` | ✅ open, but ❌ data minimisation | Returned the REST string, double-encoded, with `meta.request_id`. **Fixed:** docparse PR #265 (`mcpOutput`; test asserts the shape and fails on the old code) |
+| Parse | `mcpParse`, `mcpConvert`, `editDocument`, `mcpAccount`, `createUpload` | ⏳ re-auth | — |
+| Parse | `uploadDocument`, `uploadViaHost` | ⏳ needs a widget host (claude.ai, P2) | — |
+| Parse | `submit_feedback` | not called (files real feedback) | — |
+| Executor | all 29 | ⏳ re-auth (dev URL in this session; prod needs `claude mcp add`) | — |
+
+**Hints vs OpenAI's rule** ("Use `false` for … persisting artifacts, starting stateful jobs …, uploading
+files"), from prod `tools/list`:
+
+| Tool | readOnly | Assessment |
+|---|---|---|
+| `mcpConvert` | true | **Likely wrong.** It stores the generated file for an hour behind `download_url`: persisting an artifact. Recommend `false` (not destructive). Changing it also changes how Claude prompts before calling it, so it waits for Mark |
+| `mcpParse` | true | Borderline: output is kept only when the user turned history on (`mcpAccount history_on`). Keep `true`; say so in the OpenAI submission notes |
+| `editDocument` | true | OK: returns edited blocks, persists nothing |
+| `createUpload`, `uploadDocument`, `uploadViaHost`, `mcpAccount`, `submit_feedback` | false | OK |
+| `mcpFormats`, `mcpEstimate` | true | OK |
+
+Submission-kit gaps (2026-10-06) re-checked so far: **G1 closed** (email/password reviewer login),
+**G5/G7 closed** except `mcpEstimate` (#265), **G6 closed** (no upgrade links, `mcp_account.ail:31`).
+G2–G4 wait for the signed-in calls.
+
 ## Success Criteria
 
 - [ ] P0 table appended; every tool on both services passes with valid arguments, or has a ticket.
