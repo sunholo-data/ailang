@@ -36,6 +36,15 @@ log(){ echo "[$(date -u +%FT%TZ)] $*" | tee -a "$LOG"; }
 done_(){ [ -f "$STATE/$1.done" ]; }
 mark(){ date -u +%FT%TZ > "$STATE/$1.done"; log "STAGE $1 DONE"; }
 die(){ log "FATAL: $*"; exit 1; }
+# Disk guard (2026-11-10: the rig was at 14 GiB free). Fail BEFORE a stage that writes big files,
+# never halfway through one. GiB each stage needs, with headroom:
+#   train ~6 (adapter checkpoints), serve ~40 (22 GB fused copy + 12 GB ollama import), evals ~5.
+need_disk(){ # stage GiB
+  local free; free=$(df -g "$HOME" | awk 'NR==2{print $4}')
+  log "disk: ${free} GiB free (stage $1 needs ${2})"
+  [ "$free" -ge "$2" ] || die "only ${free} GiB free, $1 needs ${2}. Regenerable candidates: \
+fused/ dirs of served pilots (ollama holds its own copy), intermediate 0*_adapters.safetensors checkpoints"
+}
 cd "$REPO" || exit 1
 export AILANG_OLLAMA_HTTP_TIMEOUT_SEC=1800
 HELD=$(python3 -I -c "import json;h=json.load(open('tools/finetune/heldout.json'));print(','.join(h['core']+h['stretch']))")
@@ -73,6 +82,7 @@ stage_data(){
 }
 
 stage_train(){
+  need_disk train 6
   local n upd
   n=$(wc -l < "$MIX/train.jsonl" | tr -d ' ')
   upd=$(( n / 4 ))
@@ -86,6 +96,7 @@ stage_train(){
 }
 
 stage_serve(){
+  need_disk serve 40
   "$PY" -I -m mlx_lm.fuse --model "$BASE" --adapter-path "$ADAPTER" --save-path "$FUSED" --dequantize > "$P4/fuse.log" 2>&1 || die "fuse failed"
   "$PY" -I - "$FUSED/config.json" <<'EOF'
 import json,sys
@@ -136,6 +147,7 @@ with_proxy(){ # trace-file cmd...
 }
 
 stage_gate(){
+  need_disk gate 5
   # 1) after reading the template, does it act? 16 training benchmarks, from the round-2 trace.
   "$PY" -I tools/finetune/probe_after_read.py --trace "$OP2/trace.jsonl" --model "$OLLAMA_NAME" -n 16 \
     > "$P4/gate_probe.log" 2>&1 || die "probe failed"
@@ -179,8 +191,8 @@ EOF2
   echo "$name dropped: $(python3 -I tools/finetune/trace_dropped.py "$OUT/$name.trace.jsonl")" | tee -a "$LOG"
 }
 
-stage_eval_B(){ run_arm B pi-gemma4-12b-ft4-trace ft-slim-v1 off; }
-stage_eval_A(){ run_arm A pi-gemma4-12b-trace v0.16.12 on; }   # base, once (D-FT-16); reusable later
+stage_eval_B(){ need_disk eval_B 5; run_arm B pi-gemma4-12b-ft4-trace ft-slim-v1 off; }
+stage_eval_A(){ need_disk eval_A 5; run_arm A pi-gemma4-12b-trace v0.16.12 on; }   # base, once (D-FT-16); reusable later
 stage_summary(){ grep -E "^(A|B)[ :]|GATE" "$LOG" | tail -8; }
 
 STAGES=${*:-pairs}
