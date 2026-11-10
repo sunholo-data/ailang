@@ -224,12 +224,36 @@ if [ -n "$BAD_GO_FILES" ]; then
     exit 0
 fi
 
-if bounded 25 git push origin dev >/dev/null 2>&1; then
+# The push runs the pre-push hook, which builds the tree and runs `make ci-quick` (and the
+# doc-sample gate) whenever the push touches code, examples, changelogs or docs — a minute or
+# more, not seconds. The bound here used to be 25 s, sized for a bare `git push`: on 2026-11-10
+# the pre-push hook started resolving again after six weeks as a dangling link, and EVERY
+# auto-push that day was then killed mid-gate (12 in a row) and logged as "auth, network, or a
+# race". A gate that is slower than the thing calling it is indistinguishable from an outage, so:
+# the bound covers the gates, and a timeout, a refusal and a real failure are reported apart.
+PUSH_TIMEOUT="${AILANG_AUTOPUSH_TIMEOUT:-300}"
+case "$PUSH_TIMEOUT" in ''|*[!0-9]*) PUSH_TIMEOUT=300 ;; esac
+PUSH_OUT=$(mktemp "${TMPDIR:-/tmp}/ailang-autopush.XXXXXX" 2>/dev/null) || PUSH_OUT=/dev/null
+bounded "$PUSH_TIMEOUT" git push origin dev >"$PUSH_OUT" 2>&1
+PUSH_RC=$?
+if [ "$PUSH_RC" -eq 0 ]; then
     log "pushed $AHEAD commit(s) to origin/dev"
     echo "✅ pushed $AHEAD unpushed commit(s) from local dev to origin/dev."
+elif [ "$PUSH_RC" -eq 142 ]; then
+    # 128 + SIGALRM: our own bound fired. Nothing was refused; the gates were still running.
+    log "push TIMED OUT after ${PUSH_TIMEOUT}s for $AHEAD commit(s) (pre-push gates still running)"
+    echo "⚠️  local dev has $AHEAD unpushed commit(s); the auto-push timed out after ${PUSH_TIMEOUT}s."
+    echo "   The pre-push gates had not finished. Push manually so the work does not strand:"
+    echo "   git push origin dev        # or raise AILANG_AUTOPUSH_TIMEOUT"
+elif [ "$PUSH_OUT" != /dev/null ] && grep -q '^.*pre-push: refusing' "$PUSH_OUT" 2>/dev/null; then
+    log "push REFUSED by the pre-push gate for $AHEAD commit(s)"
+    echo "⚠️  local dev has $AHEAD unpushed commit(s); the pre-push gate REFUSED the push:"
+    grep -v '^remote:' "$PUSH_OUT" | tail -12 | sed 's/^/   /'
 else
     log "push FAILED for $AHEAD commit(s) (auth, network, or a race)"
     echo "⚠️  local dev has $AHEAD unpushed commit(s); the auto-push failed."
+    [ "$PUSH_OUT" = /dev/null ] || grep -v '^remote:' "$PUSH_OUT" | tail -4 | sed 's/^/   /'
     echo "   Push manually so the work does not strand: git push origin dev"
 fi
+[ "$PUSH_OUT" = /dev/null ] || rm -f "$PUSH_OUT"
 exit 0

@@ -221,6 +221,43 @@ ck "P setup: human Git output is quoted" "$([ "${quoted_path#\"}" != "$quoted_pa
 before=$(ORIGIN_SHA); out=$(bash "$HOOK" 2>&1); after=$(ORIGIN_SHA)
 ck "P non-ASCII Go pathname: pushed" "$([ "$before" != "$after" ] && echo yes || echo no)" "yes"
 
+# S/T/U. The push runs the pre-push hook, whose gates take far longer than a bare push. The
+# bound must cover them, and a timeout, a gate refusal and a plain failure must read differently:
+# on 2026-11-10 a 25 s bound killed twelve auto-pushes mid-gate and logged each as "auth,
+# network, or a race". Own clone, so the [fmtlocal] log count asserted below is untouched.
+git clone -q "$W/origin.git" "$W/slowhook"; cd "$W/slowhook" || exit 1
+git config user.email t@t; git config user.name t; git checkout -q dev
+export CLAUDE_PROJECT_DIR="$W/slowhook"
+SLOW_LOG="$W/home/.ailang/state/autopush.log"
+mkhook() { printf '%s\n' '#!/bin/sh' "$@" > .git/hooks/pre-push; chmod +x .git/hooks/pre-push; }
+
+# S. a hook slower than the old 25 s would be is fine under the default bound (scaled: 3 s hook).
+mkhook 'cat >/dev/null' 'sleep 3' 'exit 0'
+echo s > s.txt; git add s.txt; git commit -qm 'slow hook, passes'
+before=$(ORIGIN_SHA); out=$(bash "$HOOK" 2>&1); after=$(ORIGIN_SHA)
+ck "S slow passing pre-push hook: pushed" "$([ "$before" != "$after" ] && echo yes || echo no):$(echo "$out" | grep -c 'pushed 1 unpushed')" "yes:1"
+
+# T. the bound firing is reported AS a timeout, with the manual command — not as auth/network.
+mkhook 'cat >/dev/null' 'sleep 6' 'exit 0'
+echo t > t.txt; git add t.txt; git commit -qm 'hook outlives the bound'
+before=$(ORIGIN_SHA); out=$(AILANG_AUTOPUSH_TIMEOUT=1 bash "$HOOK" 2>&1); after=$(ORIGIN_SHA)
+ck "T bound fires: not pushed, says timed out, names the fix" \
+   "$([ "$before" = "$after" ] && echo stayed):$(echo "$out" | grep -c 'timed out after 1s'):$(echo "$out" | grep -c 'git push origin dev'):$(echo "$out" | grep -c 'auth, network')" "stayed:1:1:0"
+ck "T bound fires: logged as TIMED OUT" "$(grep -c '\[slowhook\] push TIMED OUT after 1s' "$SLOW_LOG")" "1"
+sleep 6   # let the orphaned hook finish before the next arm reuses the repo
+
+# U. a gate REFUSAL shows the gate's own words, and is not called a timeout or an outage.
+mkhook 'cat >/dev/null' 'echo "✗ pre-push: refusing to push to dev — make ci-quick fails on the pushed commit." >&2' 'echo "  Reproduce and fix:   make ci-quick" >&2' 'exit 1'
+before=$(ORIGIN_SHA); out=$(bash "$HOOK" 2>&1); after=$(ORIGIN_SHA)
+ck "U gate refusal: not pushed, shows the gate's message" \
+   "$([ "$before" = "$after" ] && echo stayed):$(echo "$out" | grep -c 'REFUSED the push'):$(echo "$out" | grep -c 'make ci-quick fails'):$(echo "$out" | grep -c 'timed out')" "stayed:1:1:0"
+ck "U gate refusal: logged as REFUSED" "$(grep -c '\[slowhook\] push REFUSED by the pre-push gate' "$SLOW_LOG")" "1"
+
+# V. a non-numeric bound falls back to the default instead of disabling the bound or crashing.
+mkhook 'cat >/dev/null' 'exit 0'
+before=$(ORIGIN_SHA); out=$(AILANG_AUTOPUSH_TIMEOUT=soon bash "$HOOK" 2>&1); after=$(ORIGIN_SHA)
+ck "V junk bound: default used, pushed" "$([ "$before" != "$after" ] && echo yes || echo no)" "yes"
+
 ck "N harness HOME: private log populated" "$([ -s "$PRIVATE_LOG" ] && grep -c '\[fmtlocal\]' "$PRIVATE_LOG" || echo 0)" "4"
 if [ -f "$CALLER_LOG" ]; then
     CALLER_LOG_SHA_AFTER=$(shasum "$CALLER_LOG" | awk '{print $1}')
