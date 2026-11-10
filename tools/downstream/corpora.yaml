@@ -1,0 +1,94 @@
+# Downstream corpora for `make downstream-check` (tools/downstream).
+# Design: design_docs/planned/v1_0_0/m-v1-downstream-compat-gate.md (§3 inventory, §6.4 schema).
+#
+# repo:     owner/name on GitHub (snapshotted through the operator's `gh`), or `self`
+#           (this checkout, via `git archive`). Sibling checkouts are never fetched,
+#           pulled, checked out or written; `local:` is read only, and is the source
+#           only under REF=worktree (labelled DIRTY in the report).
+# ref:      default = the branch REF=default snapshots (empty = the remote default
+#           branch); pinned = the commit REF=pinned snapshots (reproducible).
+# tier:     off | advisory | blocking, per tier. Blocking corpora fail the gate on an
+#           unacknowledged break; advisory ones are reported only.
+#           NOT YET RULED (design §11 decision 3 vs ROADMAP §6 row 10): these values
+#           follow the design doc's recommendation; the roadmap's alternative makes
+#           motoko-fork advisory and leaves ailang-parse unlisted.
+# pinned:   heads of each default branch as of 2026-11-10.
+
+- name: ailang-examples
+  repo: self
+  include: ["examples/**/*.ail"]
+  expected_fail: ["examples/expected_fail/**"]
+  examples_manifest: examples/manifest.json
+  modes: [files]
+  owner: ailang
+  tier: {ci: advisory, release: blocking}
+
+- name: docparse
+  repo: sunholo-data/docparse            # private
+  local: ~/dev/sunholo-data/docparse
+  ref: {pinned: 7950010ee5d77fb8a3a2cffa9af342d8fe6ca8b0}
+  pin_files:
+    - 'Dockerfile:AILANG_VERSION'
+    - 'cloudbuild-ci.yaml:AILANG_VERSION'
+    - 'cloudbuild-deploy.yaml:AILANG_VERSION'
+  test: {cmd: "scripts/ci/checks.sh", hermetic: false}
+  owner: docparse
+  tier: {ci: off, release: blocking}
+
+- name: ailang-parse
+  repo: sunholo-data/ailang-parse
+  local: ~/dev/sunholo-data/ailang-parse
+  ref: {pinned: ee4deb7803d6b1518c551e1caeccf79b53b3af55}
+  pin_files:
+    - 'Dockerfile:AILANG_REF'
+  test: {cmd: "./bin/docparse --check", hermetic: false}
+  owner: ailang-parse
+  tier: {ci: advisory, release: blocking}
+
+- name: email-parse
+  repo: sunholo-data/email-parse         # private
+  local: ~/dev/sunholo-data/email-parse
+  ref: {pinned: ddfb70064ab3b57cf955b43b78bc82c98ded98ec}
+  exclude: ["scripts/wip/**"]
+  owner: email-parse
+  tier: {ci: off, release: blocking}
+
+- name: daneel
+  repo: sunholo-data/daneel              # private
+  local: ~/dev/daneel
+  ref: {pinned: 0d6e670250584f13a663ae64419815ea75fa1214}
+  pin_files:
+    - 'cloudbuild-ci.yaml:AILANG'
+    - '.github/workflows/guard.yml:AILANG'
+  test: {cmd: "tools/ci.sh", hermetic: false}
+  owner: daneel
+  tier: {ci: off, release: blocking}
+
+- name: motoko-fork
+  repo: sunholo-voight-kampff/motoko_agent
+  local: ~/dev/mk-20261027                # MOTOKO.md: the rig's worktree
+  ref: {default: sunholo/main-dst-20261027, pinned: 597a6fbf95ee136beb87f4de9bc8d45127ac2fc8}
+  exclude: [".agent/**"]                  # evidence probes, not motoko sources
+  pin_files:
+    - 'scripts/install-prerequisites.sh:^AILANG_REF='
+  test: {cmd: "make check_core && make verify_extensions", hermetic: false}
+  owner: motoko
+  tier: {ci: advisory, release: blocking}
+
+- name: ailang-packages
+  repo: sunholo-data/ailang-packages
+  local: ~/dev/sunholo-data/ailang-packages
+  ref: {pinned: 6854907327bea8556662ffa1c6363afaf0590993}
+  owner: ailang-packages
+  tier: {ci: advisory, release: blocking}
+
+- name: world
+  repo: sunholo-data/ailang-world
+  local: ~/dev/sunholo-data/ailang-world
+  ref: {pinned: 115f5a2becc926f5c669c65cf79648e7f1592034}
+  pin_files:
+    - '.github/workflows/ci.yml:(releases/latest|v0\.[0-9]+\.[0-9]+)'
+  test: {cmd: "go test ./...", hermetic: false}
+  owner: world
+  notes: "v0.41.0 pinned leg is a deliberate publish fence for world/core (design §3)"
+  tier: {ci: advisory, release: advisory}

@@ -74,6 +74,7 @@ include make/code-health.mk
 include make/claude.mk
 include make/ci.mk
 include make/coord.mk
+include make/downstream.mk
 
 # =============================================================================
 # HELP SYSTEM
@@ -166,7 +167,7 @@ help-health: ## Show code health targets
 	@echo ""
 	@echo "$(BOLD)Code Health & Quality Targets$(RESET)"
 	@echo "$(LINE)"
-	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' make/code-health.mk | \
+	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' make/code-health.mk make/downstream.mk | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-24s$(RESET) %s\n", $$1, $$2}'
 
 help-claude: ## Show Claude CLI targets
