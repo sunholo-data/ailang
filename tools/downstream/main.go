@@ -8,9 +8,16 @@
 //	make downstream-check CANDIDATE=<binary> [BASELINE=latest|vX.Y.Z|<binary>] [TIER=release|ci]
 //	     [CORPORA=a,b] [REF=default|pinned|worktree] [OUT=<dir>] [OFFLINE=1]
 //
-// Exit 0 = no unacknowledged break; 2 = an unacknowledged or over-max bucket in a
-// blocking corpus; 3 = the instrument could not measure (missing corpus, fetch
-// failure, binary that does not start, failed canary, a write where none may happen).
+// Exit codes (precedence 3 > 2 > 4; README.md has the full table):
+//
+//	0  PASS: every entry of every blocking corpus measured, no unacknowledged break
+//	2  FAIL: an unacknowledged or over-max bucket in a blocking corpus, or an
+//	   expected-breaks.yaml entry that matched nothing (a stale acknowledgement)
+//	3  INSTRUMENT FAILURE: could not measure (missing corpus, fetch failure, binary
+//	   that does not start, failed canary, bad configuration, a write where none may happen)
+//	4  INCOMPLETE: a blocking corpus has NOT_MEASURED entries (the baseline reported
+//	   unresolved dependencies, a timeout or a crash) beyond its allow_not_measured
+//	64 usage: a flag that does not parse
 //
 // Isolation (design §6.3, enforced here, not by convention): each binary is copied
 // into its own empty dir; every AILANG_*/XDG_* variable is dropped; HOME, compile
@@ -54,7 +61,8 @@ func defaultOptions() Options {
 
 func main() {
 	o := defaultOptions()
-	fs := flag.NewFlagSet("downstream", flag.ExitOnError)
+	// ContinueOnError: flag's own exit status (2) would read as "unacknowledged breaks".
+	fs := flag.NewFlagSet("downstream", flag.ContinueOnError)
 	fs.StringVar(&o.Candidate, "candidate", "", "candidate ailang binary (required)")
 	fs.StringVar(&o.Baseline, "baseline", o.Baseline, "baseline: latest, a release tag, or a binary path")
 	fs.StringVar(&o.Tier, "tier", o.Tier, "release | ci")
@@ -68,9 +76,24 @@ func main() {
 	fs.StringVar(&o.SelfRoot, "self-root", "", "the ailang checkout for in-repo corpora (default: git toplevel of cwd)")
 	fs.IntVar(&o.Jobs, "jobs", o.Jobs, "parallel checks per arm")
 	fs.IntVar(&o.Timeout, "timeout", o.Timeout, "seconds per check (a timeout is retried once at 2x)")
-	fs.BoolVar(&o.Offline, "offline", false, "no network: reuse the last snapshot per corpus and a cached baseline")
+	fs.BoolVar(&o.Offline, "offline", false, "no network: reuse the last snapshot per corpus and a cached baseline (--offline=0|1)")
 	fs.BoolVar(&o.NoNice, "no-nice", false, "do not run checks under nice -n 15")
-	_ = fs.Parse(os.Args[1:])
+	fs.Usage = func() {
+		fmt.Fprintln(fs.Output(), "usage: downstream --candidate <ailang binary> [flags]\n\n"+
+			"exit 0 PASS · 2 FAIL (unacknowledged break, or an unused expected-breaks entry) · 3 INSTRUMENT FAILURE ·\n"+
+			"4 INCOMPLETE (blocking corpus has NOT_MEASURED entries beyond allow_not_measured) · 64 usage\n\nflags:")
+		fs.PrintDefaults()
+	}
+	if err := fs.Parse(os.Args[1:]); err != nil {
+		if err == flag.ErrHelp {
+			os.Exit(exitPass)
+		}
+		os.Exit(exitUsage)
+	}
+	if fs.NArg() > 0 {
+		fmt.Fprintf(os.Stderr, "downstream: unexpected arguments %q\n", fs.Args())
+		os.Exit(exitUsage)
+	}
 	code, err := Run(o, ghRemote{}, os.Stdout)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "downstream:", err)
@@ -83,61 +106,53 @@ func main() {
 func Run(o Options, remote Remote, log io.Writer) (int, error) {
 	started := time.Now()
 	if o.Candidate == "" {
-		return 3, fmt.Errorf("CANDIDATE is required")
+		return exitInstrument, fmt.Errorf("CANDIDATE is required")
 	}
 	if o.Tier != "release" && o.Tier != "ci" {
-		return 3, fmt.Errorf("TIER must be release or ci, got %q", o.Tier)
+		return exitInstrument, fmt.Errorf("TIER must be release or ci, got %q", o.Tier)
 	}
 	if o.Ref != refDefault && o.Ref != refPinned && o.Ref != refWorktree {
-		return 3, fmt.Errorf("REF must be default, pinned or worktree, got %q", o.Ref)
+		return exitInstrument, fmt.Errorf("REF must be default, pinned or worktree, got %q", o.Ref)
 	}
 	corpora, err := LoadCorpora(o.Manifest)
 	if err != nil {
-		return 3, err
+		return exitInstrument, err
 	}
 	expected, err := LoadExpected(o.Expected, corpora)
 	if err != nil {
-		return 3, err
+		return exitInstrument, err
 	}
 	selected, err := selectCorpora(corpora, o.Tier, o.Corpora)
 	if err != nil {
-		return 3, err
+		return exitInstrument, err
 	}
 	if o.Out == "" {
 		o.Out = filepath.Join(o.State, "runs", started.Format("20060102-150405"))
 	}
 	if err := freshDir(o.Out); err != nil {
-		return 3, err
+		return exitInstrument, err
 	}
 	if o.SelfRoot == "" {
 		if o.SelfRoot, err = gitOut(".", "rev-parse", "--show-toplevel"); err != nil {
-			return 3, err
+			return exitInstrument, err
 		}
 	}
 	rep := &Report{Started: started, Tier: o.Tier, RefMode: o.Ref, ArmWall: map[string]float64{}}
 	fail := func(format string, a ...interface{}) { rep.Failures = append(rep.Failures, fmt.Sprintf(format, a...)) }
 	finish := func(rows []Row) (int, error) {
 		rep.WallSecs = time.Since(started).Seconds()
-		rep.ExitCode, rep.Verdict = 0, "PASS"
-		for _, b := range rep.Buckets {
-			if b.Status == "UNEXPECTED" || b.Status == "OVER_MAX" {
-				rep.ExitCode, rep.Verdict = 2, "FAIL: unacknowledged breaks"
-			}
-		}
-		if len(rep.Failures) > 0 {
-			rep.ExitCode, rep.Verdict = 3, "INSTRUMENT FAILURE: not measured"
-		}
+		rep.verdict()
 		if err := rep.WriteReports(o.Out, rows); err != nil {
-			return 3, err
+			return exitInstrument, err
 		}
 		fmt.Fprintf(log, "downstream: %s (exit %d) — %s\n", rep.Verdict, rep.ExitCode, filepath.Join(o.Out, "report.md"))
+		for _, msg := range rep.Incomplete {
+			fmt.Fprintf(log, "downstream: NOT MEASURED %s\n", msg)
+		}
 		return rep.ExitCode, nil
 	}
 
 	// Preflight: every precondition of a meaningful measurement, loudly.
-	if _, err := exec.LookPath("perl"); err != nil {
-		fail("perl not found: it is the per-check timeout (macOS has no timeout(1)): %v", err)
-	}
 	if !o.NoNice {
 		if _, err := exec.LookPath("nice"); err != nil {
 			fail("nice not found: %v", err)
@@ -173,7 +188,7 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 		return finish(nil)
 	}
 	rep.NullControl = base.SHA256 == cand.SHA256
-	runner := &Runner{Jobs: o.Jobs, Timeout: o.Timeout, PackageRoot: o.PackageRoot, Nice: !o.NoNice}
+	runner := &Runner{Jobs: o.Jobs, Timeout: o.Timeout, PackageRoot: o.PackageRoot, Nice: !o.NoNice, RunDir: o.Out}
 	if msg := runCanary(runner, base, cand, filepath.Join(o.Out, "canary")); msg != "" {
 		fail("canary: %s", msg)
 		return finish(nil)
@@ -187,7 +202,7 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 	var checked []Corpus
 	var locals []string
 	for _, c := range selected {
-		sum := CorpusSummary{Name: c.Name, Level: c.tierOf(o.Tier), States: map[string]int{}, EntryRules: map[string]int{}}
+		sum := CorpusSummary{Name: c.Name, Level: c.tierOf(o.Tier), States: map[string]int{}, EntryRules: map[string]int{}, NotMeasured: map[string]int{}}
 		src, err := mat.Materialise(c, o.Ref, filepath.Join(o.Out, "corpora", c.Name))
 		if src.Local != nil && c.Repo != selfRepo {
 			// The audit covers sibling checkouts; the ailang checkout itself is
@@ -234,56 +249,13 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 	rep.ArmWall["candidate"] = time.Since(t0).Seconds()
 
 	// Classify, gate, audit.
-	var rows []Row
 	blocking, inRun := map[string]bool{}, map[string]bool{}
 	for _, c := range checked {
 		inRun[c.Name] = true
 		blocking[c.Name] = c.tierOf(o.Tier) == tierBlocking
 	}
-	for i := range rep.Corpora {
-		sum := &rep.Corpora[i]
-		for _, e := range byCorpus[sum.Name] {
-			b, c := resultPtr(baseRes, e), resultPtr(candRes, e)
-			row := classify(e, b, c, expectations[sum.Name])
-			rows = append(rows, row)
-			sum.States[row.State]++
-			sum.EntryRules[e.Rule]++
-			if e.Kind == "package" {
-				sum.Packages++
-			} else {
-				sum.Files++
-			}
-			if _, err := os.Stat(filepath.Join(e.Cwd, "std", "io.ail")); err == nil {
-				sum.CwdStdlibAt = append(sum.CwdStdlibAt, e.Rel)
-			}
-			if b != nil {
-				sum.BaseSecs += b.Secs
-				if !b.Passed {
-					sum.BaseFail++
-					if allDep(b.Codes) {
-						sum.Unchecked++
-					}
-				}
-			}
-			if c != nil {
-				sum.CandSecs += c.Secs
-				if !c.Passed {
-					for _, code := range c.Codes {
-						rep.Uncoded[1]++
-						if strings.HasPrefix(code, uncodedPrefix) {
-							rep.Uncoded[0]++
-						}
-					}
-				}
-			}
-			if row.State != statePassBoth {
-				rep.Rows = append(rep.Rows, row)
-			}
-		}
-	}
-	if n := countState(rows, stateMissingArm); n > 0 {
-		fail("%d entries have a result from only one arm", n)
-	}
+	rows := rep.score(byCorpus, expectations, baseRes, candRes)
+	rep.gateNotMeasured(checked)
 	rep.Buckets, rep.Expected, _ = Gate(rows, blocking, inRun, expected, cand.Version)
 	for _, s := range rep.Sources {
 		auditInto(rep, "snapshot "+s.Corpus, s.Root, snapStamp)
@@ -291,6 +263,8 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 	for _, l := range locals {
 		auditInto(rep, "local checkout "+l, l, started)
 	}
+	// Every arm shares the package root; by contract it is never written.
+	auditInto(rep, "package root "+o.PackageRoot, o.PackageRoot, started)
 	return finish(rows)
 }
 
@@ -300,15 +274,6 @@ func resultPtr(m map[string]Result, e Entry) *Result {
 		return nil
 	}
 	return &r
-}
-
-func allDep(codes []string) bool {
-	for _, c := range codes {
-		if !isDepCode(c) {
-			return false
-		}
-	}
-	return len(codes) > 0
 }
 
 func countState(rows []Row, st string) int {

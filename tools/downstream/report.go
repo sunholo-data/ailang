@@ -20,12 +20,15 @@ type CorpusSummary struct {
 	Packages    int            `json:"packages"`
 	States      map[string]int `json:"states"`
 	BaseFail    int            `json:"baseline_failing"`
-	Unchecked   int            `json:"baseline_unchecked_deps"` // baseline failures that are only DEP/*
-	BaseSecs    float64        `json:"baseline_cpu_secs"`
-	CandSecs    float64        `json:"candidate_cpu_secs"`
-	NotChecked  string         `json:"not_checked,omitempty"`
-	EntryRules  map[string]int `json:"entry_rules"`
-	CwdStdlibAt []string       `json:"cwd_stdlib_dirs,omitempty"`
+	NotMeasured map[string]int `json:"not_measured"` // NOT_MEASURED rows by reason (deps_unresolved, timeout, crash)
+	Allowance   *Allowance     `json:"allow_not_measured,omitempty"`
+	// AllowanceStatus: "" (none unmeasured) | within | OVER | STALE | advisory.
+	AllowanceStatus string         `json:"not_measured_status,omitempty"`
+	BaseSecs        float64        `json:"baseline_cpu_secs"`
+	CandSecs        float64        `json:"candidate_cpu_secs"`
+	NotChecked      string         `json:"not_checked,omitempty"`
+	EntryRules      map[string]int `json:"entry_rules"`
+	CwdStdlibAt     []string       `json:"cwd_stdlib_dirs,omitempty"`
 }
 
 // Report is report.json; report.md and pins.md are rendered from it.
@@ -38,6 +41,7 @@ type Report struct {
 	Arms        []*Arm             `json:"arms"`
 	NullControl bool               `json:"null_control"` // both arms are the same binary
 	Failures    []string           `json:"instrument_failures"`
+	Incomplete  []string           `json:"not_measured_failures"` // exit 4: blocking corpora over their allowance
 	Sources     []Source           `json:"sources"`
 	Corpora     []CorpusSummary    `json:"corpora"`
 	Buckets     []Bucket           `json:"buckets"`
@@ -122,15 +126,21 @@ func (r *Report) renderMarkdown(w io.Writer) {
 			p("- %s\n", f)
 		}
 	}
-	p("\n## Sources\n\n| corpus | repo | mode | ref | sha | state | local checkout | freshness |\n|---|---|---|---|---|---|---|---|\n")
+	if len(r.Incomplete) > 0 {
+		p("\n## NOT MEASURED beyond allowance (exit 4)\n\n")
+		for _, f := range r.Incomplete {
+			p("- %s\n", f)
+		}
+	}
+	p("\n## Sources\n\n| corpus | repo | mode | ref | sha | state | local checkout | freshness | links skipped |\n|---|---|---|---|---|---|---|---|---|\n")
 	for _, s := range r.Sources {
 		loc := "—"
 		if s.Local != nil {
 			loc = fmt.Sprintf("%s @%s, %d uncommitted", s.Local.Branch, shortSHA(s.Local.HEAD), s.Local.Porcelain)
 		}
-		p("| %s | %s | %s | %s | %s | %s | %s | %s |\n", s.Corpus, s.Repo, s.Mode, cell(s.Ref), shortSHA(s.SHA), cell(s.State), cell(loc), cell(s.Freshest))
+		p("| %s | %s | %s | %s | %s | %s | %s | %s | %d |\n", s.Corpus, s.Repo, s.Mode, cell(s.Ref), shortSHA(s.SHA), cell(s.State), cell(loc), cell(s.Freshest), s.Skipped)
 	}
-	p("\n## Summary\n\n| corpus | level | files | pkgs | pass_both | **NEWLY_FAILING** | fail_changed | timeout_cand | newly_passing | fail_same | expected_fail | timeout_base | baseline fail | of which deps unresolved | base cpu s | cand cpu s |\n")
+	p("\n## Summary\n\n| corpus | level | files | pkgs | pass_both | **NEWLY_FAILING** | fail_changed | timeout_cand | **NOT_MEASURED** | fail_diag_changed | newly_passing | fail_same | expected_fail | baseline fail | base cpu s | cand cpu s |\n")
 	p("|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|\n")
 	for _, c := range r.Corpora {
 		if c.NotChecked != "" {
@@ -138,10 +148,11 @@ func (r *Report) renderMarkdown(w io.Writer) {
 			continue
 		}
 		s := c.States
-		p("| %s | %s | %d | %d | %d | **%d** | %d | %d | %d | %d | %d | %d | %d | %d | %.0f | %.0f |\n", c.Name, c.Level, c.Files, c.Packages,
-			s[statePassBoth], s[stateNewlyFailing], s[stateFailChanged], s[stateTimeoutCand], s[stateNewlyPassing], s[stateFailSame],
-			s[stateExpectedFail], s[stateTimeoutBase], c.BaseFail, c.Unchecked, c.BaseSecs, c.CandSecs)
+		p("| %s | %s | %d | %d | %d | **%d** | %d | %d | **%d** | %d | %d | %d | %d | %d | %.0f | %.0f |\n", c.Name, c.Level, c.Files, c.Packages,
+			s[statePassBoth], s[stateNewlyFailing], s[stateFailChanged], s[stateTimeoutCand], s[stateNotMeasured], s[stateFailDiagChanged],
+			s[stateNewlyPassing], s[stateFailSame], s[stateExpectedFail], c.BaseFail, c.BaseSecs, c.CandSecs)
 	}
+	r.renderNotMeasured(p)
 	p("\n## Gate buckets (corpus × normalised code)\n\n")
 	if len(r.Buckets) == 0 {
 		p("No newly failing entries.\n")
@@ -190,6 +201,60 @@ func (r *Report) renderMarkdown(w io.Writer) {
 			p("- %s: `%s`\n", a.Scope, a.Path)
 		}
 	}
+}
+
+// renderNotMeasured lists, per corpus, the entries the baseline never reached a
+// verdict on, by reason, against the corpus's allowance; and the rows whose
+// error changed under an unchanged code.
+func (r *Report) renderNotMeasured(p func(string, ...interface{})) {
+	p("\n## NOT MEASURED (baseline reported unresolved dependencies, a timeout or a crash)\n\n")
+	shown := false
+	for _, c := range r.Corpora {
+		n := c.States[stateNotMeasured]
+		if n == 0 && c.AllowanceStatus == "" {
+			continue
+		}
+		shown = true
+		allow := "none (blocking corpora tolerate 0)"
+		if c.Allowance != nil {
+			allow = fmt.Sprintf("%d — %s", c.Allowance.Max, c.Allowance.Reason)
+		}
+		p("- **%s** (%s): %d entries — %s; allowance %s; status **%s**\n", c.Name, c.Level, n, reasonList(c.NotMeasured), cell(allow), c.AllowanceStatus)
+	}
+	if !shown {
+		p("None.\n")
+	}
+	listRows(p, r.Rows, stateNotMeasured, func(row Row) string {
+		s := fmt.Sprintf("%s `%s` — %s; baseline %s", row.Corpus, row.Rel, row.NotMeasured, strings.Join(row.Base.Codes, ","))
+		if len(row.NewCodes) > 0 {
+			s += "; candidate NEW " + strings.Join(row.NewCodes, ",")
+		}
+		return s
+	})
+	p("\n## Same code, different error (reported and counted, not gated)\n\n")
+	if !listRows(p, r.Rows, stateFailDiagChanged, func(row Row) string {
+		return fmt.Sprintf("%s `%s` (%s): baseline %d error(s), candidate %d — first: %s", row.Corpus, row.Rel,
+			strings.Join(row.Cand.Codes, ","), len(row.Base.Diags), len(row.Cand.Diags), cell(row.Cand.Msg))
+	}) {
+		p("None.\n")
+	}
+}
+
+// listRows prints up to 50 rows of one state and says how many more there are.
+func listRows(p func(string, ...interface{}), rows []Row, state string, line func(Row) string) bool {
+	n := 0
+	for _, row := range rows {
+		if row.State == state {
+			if n < 50 {
+				p("- %s\n", line(row))
+			}
+			n++
+		}
+	}
+	if n > 50 {
+		p("- … and %d more (report.json)\n", n-50)
+	}
+	return n > 0
 }
 
 func (r *Report) renderPins(w io.Writer) {

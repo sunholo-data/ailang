@@ -44,6 +44,17 @@ type Corpus struct {
 	Owner            string    `yaml:"owner"`
 	Tier             TierSet   `yaml:"tier"`
 	Notes            string    `yaml:"notes"`
+	// AllowNotMeasured is a reviewed acknowledgement that up to Max entries of
+	// this corpus cannot be measured (the baseline reports unresolved
+	// dependencies, a timeout or a crash). Without it a blocking corpus
+	// tolerates none: the gate exits 4 rather than pass on what it never checked.
+	AllowNotMeasured *Allowance `yaml:"allow_not_measured"`
+}
+
+// Allowance is a count with the reason a reviewer accepted it.
+type Allowance struct {
+	Max    int    `yaml:"max" json:"max"`
+	Reason string `yaml:"reason" json:"reason"`
 }
 
 // RefSet holds the refs for REF=default and REF=pinned.
@@ -134,6 +145,9 @@ func LoadCorpora(path string) ([]Corpus, error) {
 			if _, err := globRegexp(g); err != nil {
 				return nil, fmt.Errorf("%s: corpus %s: %w", path, c.Name, err)
 			}
+		}
+		if a := c.AllowNotMeasured; a != nil && (a.Max <= 0 || strings.TrimSpace(a.Reason) == "") {
+			return nil, fmt.Errorf("%s: corpus %s: allow_not_measured needs max > 0 and a reason", path, c.Name)
 		}
 		for _, p := range c.PinFiles {
 			if _, _, err := splitPinSpec(p); err != nil {

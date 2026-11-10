@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -10,37 +11,53 @@ import (
 	"strings"
 )
 
-// Entry states (design doc §6.5). Only NEWLY_FAILING, fail_changed (its new codes)
-// and timeout_cand count toward the gate, and only in blocking corpora.
+// Entry states (design doc §6.5). New codes count toward the gate's buckets from
+// NEWLY_FAILING, fail_changed, timeout_cand and NOT_MEASURED rows, and only in
+// blocking corpora. NOT_MEASURED rows are also counted on their own (see gate.go).
 const (
-	statePassBoth     = "pass_both"
-	stateNewlyFailing = "NEWLY_FAILING"
-	stateNewlyPassing = "newly_passing"
-	stateFailSame     = "fail_same"
-	stateFailChanged  = "fail_changed"
-	stateExpectedFail = "expected_fail"
-	stateTimeoutCand  = "timeout_cand"
-	stateTimeoutBase  = "timeout_base"
-	stateMissingArm   = "MISSING_ARM"
+	statePassBoth        = "pass_both"
+	stateNewlyFailing    = "NEWLY_FAILING"
+	stateNewlyPassing    = "newly_passing"
+	stateFailSame        = "fail_same"
+	stateFailDiagChanged = "fail_diag_changed" // same code set, different errors: reported, not gated
+	stateFailChanged     = "fail_changed"
+	stateExpectedFail    = "expected_fail"
+	stateTimeoutCand     = "timeout_cand"
+	stateNotMeasured     = "NOT_MEASURED" // the baseline never really checked it (deps, timeout, crash)
+	stateMissingArm      = "MISSING_ARM"
+)
+
+// Reasons a baseline result is an infrastructure outcome rather than a verdict.
+const (
+	reasonDeps    = "deps_unresolved"
+	reasonTimeout = "timeout"
+	reasonCrash   = "crash"
 )
 
 // Row is one entry's outcome across both arms.
 type Row struct {
 	Entry
-	State    string   `json:"state"`
-	Base     *Result  `json:"baseline"`
-	Cand     *Result  `json:"candidate"`
-	NewCodes []string `json:"new_codes,omitempty"` // the codes that count toward buckets
+	State       string   `json:"state"`
+	Base        *Result  `json:"baseline"`
+	Cand        *Result  `json:"candidate"`
+	NewCodes    []string `json:"new_codes,omitempty"`           // the codes that count toward buckets
+	NotMeasured string   `json:"not_measured_reason,omitempty"` // why the baseline result is not a verdict
 }
 
 // expectation decides whether a candidate failure is an intended one.
 type expectation struct {
 	globs    globSet
-	patterns map[string]*regexp.Regexp // corpus-relative path -> error_pattern (nil = any)
+	patterns map[string]*regexp.Regexp // corpus-relative path -> error_pattern (never nil)
 }
 
-// loadExpectation reads a corpus's expected_fail globs and its examples manifest
-// (entries with a non-zero expected.exit_code; paths are relative to the manifest's dir).
+// loadExpectation reads a corpus's expected_fail globs and its examples manifest.
+//
+// The manifest's expected.exit_code is the exit code of RUNNING the example
+// (examples/runnable/exit_code.ail exits 42 and type-checks fine), so it cannot
+// on its own say "this file fails `ailang check`". Only an entry with a non-zero
+// exit_code AND an error_pattern is a check-time expectation, and only a failure
+// whose message matches that pattern is excused. An error_pattern that does not
+// compile is a configuration error. Paths are relative to the manifest's dir.
 func loadExpectation(c Corpus, root string) (expectation, error) {
 	ex := expectation{globs: newGlobSet(c.ExpectedFail), patterns: map[string]*regexp.Regexp{}}
 	if c.ExamplesManifest == "" {
@@ -64,14 +81,12 @@ func loadExpectation(c Corpus, root string) (expectation, error) {
 	}
 	base := filepath.ToSlash(filepath.Dir(c.ExamplesManifest))
 	for _, e := range m.Examples {
-		if e.Expected == nil || e.Expected.ExitCode == 0 {
-			continue
+		if e.Expected == nil || e.Expected.ExitCode == 0 || e.Expected.ErrorPattern == "" {
+			continue // no check-time expectation: a run-time exit code excuses nothing
 		}
-		var re *regexp.Regexp
-		if e.Expected.ErrorPattern != "" {
-			if re, err = regexp.Compile(e.Expected.ErrorPattern); err != nil {
-				re = regexp.MustCompile(regexp.QuoteMeta(e.Expected.ErrorPattern))
-			}
+		re, err := regexp.Compile(e.Expected.ErrorPattern)
+		if err != nil {
+			return ex, fmt.Errorf("%s: %s: error_pattern %q is not a valid regexp: %w", c.ExamplesManifest, e.Path, e.Expected.ErrorPattern, err)
 		}
 		ex.patterns[strings.TrimPrefix(base+"/"+e.Path, "./")] = re
 	}
@@ -83,13 +98,45 @@ func (ex expectation) expectsFailure(rel string, cand *Result) bool {
 		return true
 	}
 	re, ok := ex.patterns[rel]
-	if !ok {
-		return false
-	}
-	return re == nil || re.MatchString(cand.Message)
+	return ok && re.MatchString(cand.Message)
 }
 
 func isTimeout(r *Result) bool { return len(r.Codes) == 1 && r.Codes[0] == codeTimeout }
+
+// infraReason says why a failed result is an infrastructure outcome — the
+// check never reached a verdict on the code — or "" when it is a real verdict.
+// Every code must be infrastructure: a dependency failure beside a type error
+// means the file was (partly) checked.
+func infraReason(r *Result) string {
+	if r.Passed {
+		return ""
+	}
+	if len(r.Codes) == 0 {
+		return reasonCrash
+	}
+	reason := ""
+	for _, code := range r.Codes {
+		var this string
+		switch {
+		case isDepCode(code):
+			this = reasonDeps
+		case code == codeTimeout:
+			this = reasonTimeout
+		case strings.HasPrefix(code, codeCrash), code == codeNoDiagnostic:
+			this = reasonCrash
+		default:
+			return ""
+		}
+		if reason == "" {
+			reason = this
+		}
+	}
+	return reason
+}
+
+// environmental codes say nothing about the candidate's verdict on the code when
+// the baseline did not reach one either; a crash or a real error does.
+func environmental(code string) bool { return isDepCode(code) || code == codeTimeout }
 
 // classify assigns a state to one entry.
 func classify(e Entry, b, c *Result, ex expectation) Row {
@@ -101,29 +148,44 @@ func classify(e Entry, b, c *Result, ex expectation) Row {
 		row.State = stateExpectedFail
 	case b.Passed && c.Passed:
 		row.State = statePassBoth
-	case isTimeout(c) && !isTimeout(b):
+	case infraReason(b) != "" && c.Passed:
+		row.State = stateNewlyPassing
+	case infraReason(b) != "":
+		// The baseline never measured this entry, so "unchanged" would be a guess.
+		// Whatever real error the candidate reports is new.
+		row.State, row.NotMeasured = stateNotMeasured, infraReason(b)
+		row.NewCodes = newCodes(b, c, environmental)
+	case isTimeout(c):
 		row.State, row.NewCodes = stateTimeoutCand, []string{codeTimeout}
-	case isTimeout(b) && !isTimeout(c):
-		row.State = stateTimeoutBase
 	case b.Passed:
 		row.State, row.NewCodes = stateNewlyFailing, c.Codes
 	case c.Passed:
 		row.State = stateNewlyPassing
 	case strings.Join(b.Codes, ",") == strings.Join(c.Codes, ","):
 		row.State = stateFailSame
+		if strings.Join(b.Diags, "\x00") != strings.Join(c.Diags, "\x00") {
+			row.State = stateFailDiagChanged
+		}
 	default:
 		row.State = stateFailChanged
-		had := map[string]bool{}
-		for _, x := range b.Codes {
-			had[x] = true
-		}
-		for _, x := range c.Codes {
-			if !had[x] {
-				row.NewCodes = append(row.NewCodes, x)
-			}
-		}
+		row.NewCodes = newCodes(b, c, nil)
 	}
 	return row
+}
+
+// newCodes are the candidate's codes the baseline did not report, minus skip.
+func newCodes(b, c *Result, skip func(string) bool) []string {
+	had := map[string]bool{}
+	for _, x := range b.Codes {
+		had[x] = true
+	}
+	var out []string
+	for _, x := range c.Codes {
+		if !had[x] && (skip == nil || !skip(x)) {
+			out = append(out, x)
+		}
+	}
+	return out
 }
 
 // Bucket is the gate's unit: entries of one corpus newly failing with one code.

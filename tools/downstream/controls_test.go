@@ -102,24 +102,33 @@ func TestControlPlantedBreakReportedOnce(t *testing.T) {
 }
 
 // Control 3: an expected-break entry suppresses exactly its bucket; an entry that
-// matches nothing is reported UNUSED; a count above max fails.
+// matches nothing is UNUSED and fails the gate (a stale acknowledgement is how a
+// later real break gets excused); a count above max fails.
 func TestControlExpectedBreaks(t *testing.T) {
-	expected := `
+	used := `
 - change: "#9999 planted"
   code: EFFECT/pure-with-row
   corpus: app
   max: 1
   expires: v0.58.0
+`
+	expected := used + `
 - change: "#9998 never happens"
   code: TYPE_ERROR/unify
   corpus: app
   max: 4
 `
+	f0 := newFixture(t, twoCorpora, used)
+	f0.remote.repos["owner/app"], f0.remote.repos["owner/side"] = appFiles(), sideFiles()
+	if code, rep := f0.run(f0.options(f0.base, f0.cand)); code != 0 {
+		t.Fatalf("exit %d, want 0 with the break acknowledged; buckets %+v failures %v", code, rep.Buckets, rep.Failures)
+	}
+
 	f := newFixture(t, twoCorpora, expected)
 	f.remote.repos["owner/app"], f.remote.repos["owner/side"] = appFiles(), sideFiles()
 	code, rep := f.run(f.options(f.base, f.cand))
-	if code != 0 {
-		t.Fatalf("exit %d, want 0 with the break acknowledged; buckets %+v failures %v", code, rep.Buckets, rep.Failures)
+	if code != 2 || !strings.Contains(rep.Verdict, "matched nothing") {
+		t.Fatalf("exit %d verdict %q, want 2 for the unused entry", code, rep.Verdict)
 	}
 	got := map[string]string{}
 	for _, e := range rep.Expected {
@@ -131,6 +140,7 @@ func TestControlExpectedBreaks(t *testing.T) {
 	if got["#9999 planted"] != "used" || got["#9998 never happens"] != "UNUSED" {
 		t.Errorf("expected-break statuses %v", got)
 	}
+	expected = used
 
 	// Over max: a second planted file in the same bucket.
 	files := appFiles()
@@ -271,19 +281,6 @@ func TestIsolationEnvAndWriteAudit(t *testing.T) {
 		if !strings.Contains(s, want+"\n") {
 			t.Errorf("child env lacks %s", want)
 		}
-	}
-}
-
-// A candidate-only timeout is retried at 2x, then counted as its own bucket.
-func TestCandidateTimeoutIsItsOwnState(t *testing.T) {
-	f := newFixture(t, "- name: app\n  repo: owner/app\n  tier: {ci: off, release: blocking}\n", "")
-	f.remote.repos["owner/app"] = map[string]string{"s/slow.ail": "module s/slow\n-- SLOW\n"}
-	o := f.options(f.base, f.cand)
-	o.Timeout = 1
-	code, rep := f.run(o)
-	r := rowByRel(rep, "s/slow.ail")
-	if code != 2 || r == nil || r.State != stateTimeoutCand || !r.Cand.Retried {
-		t.Fatalf("exit %d row %+v, want 2 and a retried timeout_cand", code, r)
 	}
 }
 

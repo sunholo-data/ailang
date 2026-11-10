@@ -40,7 +40,18 @@ fi
 f="$2"
 content=$(cat "$f") || { echo "cannot read $f" >&2; exit 2; }
 case "$content" in *BROKEN*|*"not an int"*) failj "$f" "type error in m (decl 0): type unification failed: cannot unify string vs int";; esac
+case "$content" in *DEPMISS*) failj "$f" "failed to resolve package import sunholo/missing: not in the package root";; esac
+case "$content" in *MSGDRIFT*)
+	if [ "$ARM" = cand ]; then failj "$f" "type error in m (decl 0): cannot unify string vs int at m.ail:9:2"; fi
+	failj "$f" "type error in m (decl 0): cannot unify string vs int at m.ail:3:1";;
+esac
+case "$content" in *ABSPATH*) failj "$f" "type error in m (decl 0): cannot unify string vs int in $AILANG_CACHE_DIR/m.cache";; esac
+case "$content" in *BASESLOW*)
+	if [ "$ARM" = cand ]; then failj "$f" "type error in m (decl 0): cannot unify string vs int"; fi
+	sleep 20;;
+esac
 if [ "$ARM" = cand ]; then
+	case "$content" in *WRITE_PKGROOT*) echo x > "$AILANG_PACKAGE_ROOT/leaked.txt";; esac
 	case "$content" in *PLANT*) failj "$f" "effect checking failed in a/b: Effect checking failed for function 'f'\\n  The pure keyword contradicts the declared effect row ! {IO}.";; esac
 	case "$content" in *SLOW*) sleep 20;; esac
 	case "$content" in *WRITE_CWD*) echo x > ./leaked.txt;; esac

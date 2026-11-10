@@ -2,12 +2,13 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os/exec"
+	"regexp"
 	"sort"
-	"strconv"
 	"strings"
 	"sync"
 	"syscall"
@@ -22,22 +23,34 @@ type Result struct {
 	Secs    float64  `json:"secs"`
 	Msg     string   `json:"msg,omitempty"`     // first diagnostic, first line, truncated
 	Message string   `json:"-"`                 // full first-diagnostic text (expected_fail patterns)
+	Diags   []string `json:"diags,omitempty"`   // every error as "code message", volatile text scrubbed, sorted
 	Retried bool     `json:"retried,omitempty"` // timed out once and was retried at 2x
 }
 
 const (
 	codeTimeout = "TIMEOUT"
 	codeCrash   = "CRASH" // no JSON on stdout: the binary died or printed something else
+	// codeNoDiagnostic: the check said "failed" and named no error.
+	codeNoDiagnostic = "FAILED/no-diagnostic"
 )
 
-// Runner runs `ailang check` per entry, isolated: perl alarm for the timeout (macOS
-// has no timeout(1)), nice 15, a fixed number of workers.
+// Runner runs `ailang check` per entry, isolated: a Go-side deadline that kills the
+// check's whole process group, nice 15, a fixed number of workers.
+//
+// The deadline is enforced here, not by a signal the compiler is asked to honour:
+// a Go binary ignores SIGALRM unless it registers for it, so the earlier
+// `perl -e 'alarm N; exec …'` wrapper never fired on the real compiler.
 type Runner struct {
 	Jobs        int
 	Timeout     int // seconds; a timeout is retried once at 2x
 	PackageRoot string
 	Nice        bool
+	RunDir      string // scrubbed out of diagnostics, with each arm's dir
 }
+
+// pipeGrace bounds the wait for stdout/stderr after the check is gone: a
+// grandchild that escaped the group kill must not hold the gate open.
+const pipeGrace = 2 * time.Second
 
 type checkJSON struct {
 	Passed *bool `json:"passed"`
@@ -47,34 +60,45 @@ type checkJSON struct {
 	} `json:"errors"`
 }
 
-func (r *Runner) command(a *Arm, e Entry, timeout int) *exec.Cmd {
-	args := []string{"-e", "alarm shift @ARGV; exec @ARGV or die qq(exec: $!)", strconv.Itoa(timeout), a.Bin, "check"}
+func (r *Runner) command(ctx context.Context, a *Arm, e Entry) *exec.Cmd {
+	args := []string{"check"}
 	if e.Kind == "package" {
 		args = append(args, "--package", "--json", ".")
 	} else {
 		args = append(args, "--json", e.Arg)
 	}
-	name := "perl"
+	name := a.Bin
 	if r.Nice {
-		args = append([]string{"-n", "15", "perl"}, args...)
+		args = append([]string{"-n", "15", a.Bin}, args...)
 		name = "nice"
 	}
-	cmd := exec.Command(name, args...)
-	// The alarm kills the compiler, but a child it spawned (z3, a shell) can keep
-	// stdout open; bound the wait for the pipes after the process is gone.
-	cmd.WaitDelay = 2 * time.Second
+	cmd := exec.CommandContext(ctx, name, args...)
+	ownGroup(cmd) // on the deadline: SIGKILL the whole group, grandchildren included
+	cmd.WaitDelay = pipeGrace
 	cmd.Dir = e.Cwd
 	cmd.Env = append(a.Env(), "AILANG_PACKAGE_ROOT="+r.PackageRoot)
 	return cmd
 }
 
 func (r *Runner) runOnce(a *Arm, e Entry, timeout int) Result {
-	cmd := r.command(a, e, timeout)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeout)*time.Second)
+	defer cancel()
+	cmd := r.command(ctx, a, e)
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	t0 := time.Now()
 	err := cmd.Run()
 	res := Result{Secs: float64(time.Since(t0).Milliseconds()) / 1000}
+	if errors.Is(err, exec.ErrWaitDelay) {
+		// The check exited but something it started still held a pipe: the
+		// group is still populated, so clean it up rather than leak it.
+		_ = killGroup(cmd)
+	}
+	if ctx.Err() == context.DeadlineExceeded {
+		res.RC = -1
+		res.Codes = []string{codeTimeout}
+		return res
+	}
 	var ee *exec.ExitError
 	switch {
 	case err == nil, errors.Is(err, exec.ErrWaitDelay):
@@ -83,10 +107,6 @@ func (r *Runner) runOnce(a *Arm, e Entry, timeout int) Result {
 		res.RC = ee.ExitCode()
 		if ws, ok := ee.Sys().(syscall.WaitStatus); ok && ws.Signaled() {
 			res.RC = 128 + int(ws.Signal())
-			if ws.Signal() == syscall.SIGALRM {
-				res.Codes = []string{codeTimeout}
-				return res
-			}
 		}
 	default:
 		res.RC = -1
@@ -111,20 +131,45 @@ func (r *Runner) runOnce(a *Arm, e Entry, timeout int) Result {
 		if d.Code == "WARNING" {
 			continue
 		}
-		set[normaliseCode(d.Code, d.Message)] = true
+		code := normaliseCode(d.Code, d.Message)
+		set[code] = true
+		res.Diags = append(res.Diags, code+" "+r.diagText(a, d.Message))
 		if res.Message == "" {
 			res.Message = d.Message
 			res.Msg = firstLine(d.Message)
 		}
 	}
 	if len(set) == 0 {
-		set["FAILED/no-diagnostic"] = true
+		set[codeNoDiagnostic] = true
 	}
 	for c := range set {
 		res.Codes = append(res.Codes, c)
 	}
 	sort.Strings(res.Codes)
+	sort.Strings(res.Diags)
 	return res
+}
+
+var (
+	tmpPathRE = regexp.MustCompile(`(?:/private)?/(?:var/folders|tmp)/[^\s'"` + "`" + `:,)]*`)
+	spaceRE   = regexp.MustCompile(`\s+`)
+)
+
+// diagText is a diagnostic's message with the run's volatile text removed (each
+// arm's scratch dir, the run dir, the package root, temp dirs), so the same error
+// compares equal across arms while a different line, column or count does not.
+func (r *Runner) diagText(a *Arm, msg string) string {
+	for _, rep := range [][2]string{{a.Dir, "<arm>"}, {r.RunDir, "<run>"}, {r.PackageRoot, "<pkgroot>"}} {
+		if rep[0] != "" {
+			msg = strings.ReplaceAll(msg, rep[0], rep[1])
+		}
+	}
+	msg = tmpPathRE.ReplaceAllString(msg, "<tmp>")
+	msg = strings.TrimSpace(spaceRE.ReplaceAllString(msg, " "))
+	if len(msg) > 400 {
+		msg = msg[:400]
+	}
+	return msg
 }
 
 func firstLine(s string) string {
