@@ -28,6 +28,7 @@ import std/debug (log)
 import std/env (getEnvOr)
 import std/fs (readFile, writeFile, fileExists, removeFileResult, mkdirAllResult)
 import std/json (Json, encode, decode, jo, kv, js, get, getString, getBool)
+import std/io (println)
 import std/jwt (decodeJWT)
 import std/list (nth, filter, map, any, length as listLength)
 import std/option (Option, Some, None)
@@ -37,9 +38,9 @@ import std/string (length, replace, find, substring, split, stringToInt, endsWit
 import pkg/sunholo/firestore/client (getDoc, setDoc, deleteDoc)
 import pkg/sunholo/firestore/fields (stringVal, intVal, timestampVal)
 import pkg/sunholo/firebase_auth/firebase_jwt (verifyFirebaseJWTFull)
-import pkg/sunholo/mcp_oauth/core (asMetadata, formGet)
-import pkg/sunholo/mcp_oauth/flow (Hooks, beginAuthorize, describeRequest, completeLogin, exchangeCode, refreshTokens, oauthError)
-import pkg/sunholo/mcp_oauth/cimd (fetchClient)
+import pkg/sunholo/mcp_oauth/core (ClientConfig, defaultClientConfig, asMetadataFor, formGet)
+import pkg/sunholo/mcp_oauth/clients (trustedCallerIp)
+import pkg/sunholo/mcp_oauth/flow (Hooks, beginAuthorizeFor, describeRequest, completeLogin, tokenRequest, revokeRequest, registerClientDcr, createClient, oauthError)
 
 -- ============================================================
 -- Configuration
@@ -55,6 +56,33 @@ pure func loginUrlFor(issuer: string) -> string =
   if endsWith(issuer, "/") then "${issuer}oauth-login.html" else "${issuer}/oauth-login.html"
 
 func nowSec() -> int ! {Clock} = now() / 1000
+
+-- ============================================================
+-- Client models (sunholo/mcp_oauth 0.2; M-CONNECTOR-CHANNELS P1)
+-- ============================================================
+
+-- Each model is an env switch, all OFF unless set to "1": the same image runs
+-- in prod with 0.1.2's behaviour (CIMD only, metadata byte-identical) until a
+-- deployment turns one on.
+--   OAUTH_CONFIDENTIAL_CLIENTS=1  operator-created mco_ clients (Gemini Enterprise,
+--                                 Copilot "static"): createClientCli below
+--   OAUTH_DCR=1 + OAUTH_DCR_REDIRECT_HOSTS=h1,.suffix
+--                                 RFC 7591 registration (Copilot "dynamic", Connected Apps)
+--   OAUTH_REVOCATION=1            RFC 7009 /oauth/revoke
+pure func switchOn(v: string) -> bool = trim(v) == "1"
+
+export pure func redirectHostList(raw: string) -> [string] =
+  filter(\h. length(h) > 0, map(\h. toLower(trim(h)), split(raw, ",")))
+
+-- DCR fails CLOSED without a redirect-host allowlist: the package reads [] as
+-- "any https host", which a public write endpoint must never mean here.
+export pure func clientConfigFrom(confidential: string, dcr: string, dcrHosts: string, revocation: string) -> ClientConfig {
+  let hosts = redirectHostList(dcrHosts);
+  { defaultClientConfig() | confidential: switchOn(confidential), dcr: switchOn(dcr) && listLength(hosts) > 0, dcrRedirectHosts: hosts, revocation: switchOn(revocation) }
+}
+
+func oauthConfig() -> ClientConfig ! {Env} =
+  clientConfigFrom(getEnvOr("OAUTH_CONFIDENTIAL_CLIENTS", ""), getEnvOr("OAUTH_DCR", ""), getEnvOr("OAUTH_DCR_REDIRECT_HOSTS", ""), getEnvOr("OAUTH_REVOCATION", ""))
 
 -- Access-token lifetime, sent as expires_in. Short because refresh rotation
 -- renews it; a leaked access token is good for an hour at most.
@@ -312,13 +340,14 @@ pure func errJson(e: string) -> Json = match decode(e) {
   Err(_) => js(e)
 }
 
--- RFC 8414 metadata: issuer, endpoints, S256 only, CIMD, no client secret.
+-- RFC 8414 metadata: issuer, endpoints, S256 only, CIMD; plus the
+-- registration, revocation and client-secret methods the switches turn on.
 @route("GET", "/.well-known/oauth-authorization-server")
 @nowrap
 @nomcp
 export func oauthMetadata() -> Result[string, Json] ! {Env} {
   let iss = oauthIssuer()
-  if length(iss) == 0 then Err(errJson(oauthError("server_error", "OAUTH_ISSUER is not configured"))) else Ok(asMetadata(iss))
+  if length(iss) == 0 then Err(errJson(oauthError("server_error", "OAUTH_ISSUER is not configured"))) else Ok(asMetadataFor(iss, oauthConfig()))
 }
 
 -- Which Firebase project the sign-in page signs in to. The page holds each
@@ -331,19 +360,17 @@ export func oauthLoginConfig() -> Result[string, Json] ! {Env} {
   if length(project) == 0 then Err(errJson(oauthError("server_error", "GOOGLE_CLOUD_PROJECT is not configured"))) else Ok(encode(jo([kv("project_id", js(project))])))
 }
 
--- Authorization endpoint. client_id is a CIMD URL whose document (fetched
--- under Net[scope=public]) lists the only redirect_uris accepted.
+-- Authorization endpoint. client_id is a CIMD URL (its document, fetched under
+-- Net[scope=public], lists the only redirect_uris accepted) or, when a switch
+-- allows it, an mco_ client from the store; beginAuthorizeFor dispatches.
 @route("GET", "/oauth/authorize")
 @raw
 @nomcp
 export func oauthAuthorize(req: { body: string, headers: Json, method: string, path: string, query: Json }) -> { _body: string, _status: int, _headers: { location: string } } ! {IO, FS, Env, Net, Clock, SharedMem, Rand[mode=crypto], Declassify} {
   let iss = oauthIssuer()
-  if length(iss) == 0 then bad(oauthError("server_error", "OAUTH_ISSUER is not configured")) else match fetchClient(q(req.query, "client_id")) {
-    Err(e) => bad(oauthError("invalid_client", e)),
-    Ok(registered) => match beginAuthorize(hooks(), loginUrlFor(iss), q(req.query, "client_id"), registered, q(req.query, "redirect_uri"), q(req.query, "response_type"), q(req.query, "code_challenge"), q(req.query, "code_challenge_method"), q(req.query, "state"), nowSec()) {
-      Ok(loc) => redirect(loc),
-      Err(e) => bad(e)
-    }
+  if length(iss) == 0 then bad(oauthError("server_error", "OAUTH_ISSUER is not configured")) else match beginAuthorizeFor(hooks(), oauthConfig(), loginUrlFor(iss), q(req.query, "client_id"), q(req.query, "redirect_uri"), q(req.query, "response_type"), q(req.query, "code_challenge"), q(req.query, "code_challenge_method"), q(req.query, "state"), nowSec()) {
+    Ok(loc) => redirect(loc),
+    Err(e) => bad(e)
   }
 }
 
@@ -359,7 +386,7 @@ export func oauthRequestInfo(req: { body: string, headers: Json, method: string,
     Err(e) => Err(errJson(e)),
     Ok(raw) => match decode(raw) {
       Err(_) => Err(errJson(oauthError("server_error", "corrupt sign-in request"))),
-      Ok(rec) => Ok(encode(jo([kv("client_id", js(q(rec, "client_id"))), kv("client_host", js(hostOf(q(rec, "client_id")))), kv("redirect_host", js(hostOf(q(rec, "redirect_uri"))))])))
+      Ok(rec) => Ok(encode(jo([kv("client_id", js(q(rec, "client_id"))), kv("client_host", js(hostOf(q(rec, "client_id")))), kv("redirect_host", js(hostOf(q(rec, "redirect_uri")))), kv("registered", js(q(rec, "registered")))])))
     }
   }
 }
@@ -375,18 +402,65 @@ export func oauthLoginComplete(req: { body: string, headers: Json, method: strin
     Err(e) => bad(e)
   }
 
--- Token endpoint (form-encoded; public clients, PKCE). Errors are RFC 6749
--- section 5.2 JSON with HTTP 400.
+pure func header(headers: Json, name: string) -> string = q(headers, name)
+
+-- (status, body, WWW-Authenticate) from the 0.2 flow -> a raw response. Token
+-- responses must not be cached (AGENT.md checklist 7).
+pure func respond(st: int, body: string, www: string) -> { _body: string, _status: int, _headers: Json } =
+  { _body: body, _status: st, _headers: jo([kv("Content-Type", js("application/json")), kv("Cache-Control", js("no-store"))] ++ (if www == "" then [] else [kv("WWW-Authenticate", js(www))])) }
+
+-- Token endpoint (form-encoded). Public CIMD and DCR clients authenticate with
+-- PKCE alone; an mco_ client also with its secret (Basic or form). Errors are
+-- RFC 6749 section 5.2 JSON.
 @route("POST", "/oauth/token")
 @raw
-@nowrap
 @nomcp
-export func oauthToken(req: { body: string, headers: Json, method: string, path: string, query: Json }) -> Result[string, Json] ! {IO, FS, Env, Net, Clock, SharedMem, Rand[mode=crypto], Declassify} {
-  let b = req.body
-  let grant = formGet(b, "grant_type")
-  let res = if grant == "authorization_code" then exchangeCode(hooks(), formGet(b, "code"), formGet(b, "code_verifier"), formGet(b, "client_id"), formGet(b, "redirect_uri"), nowSec()) else if grant == "refresh_token" then refreshTokens(hooks(), formGet(b, "refresh_token"), formGet(b, "client_id"), nowSec()) else Err(oauthError("unsupported_grant_type", "grant_type must be authorization_code or refresh_token"))
-  match res {
-    Ok(body) => Ok(body),
-    Err(e) => Err(errJson(e))
+export func oauthToken(req: { body: string, headers: Json, method: string, path: string, query: Json }) -> { _body: string, _status: int, _headers: Json } ! {IO, FS, Env, Net, Clock, SharedMem, Rand[mode=crypto], Declassify} =
+  match tokenRequest(hooks(), oauthConfig(), header(req.headers, "Authorization"), req.body, nowSec()) {
+    (st, body, www) => respond(st, body, www)
+  }
+
+-- RFC 7009 revocation (Google calls it when a user unlinks). 404 unless
+-- OAUTH_REVOCATION=1.
+@route("POST", "/oauth/revoke")
+@raw
+@nomcp
+export func oauthRevoke(req: { body: string, headers: Json, method: string, path: string, query: Json }) -> { _body: string, _status: int, _headers: Json } ! {IO, FS, Env, Net, Clock, SharedMem, Declassify} =
+  match revokeRequest(hooks(), oauthConfig(), header(req.headers, "Authorization"), req.body, nowSec()) {
+    (st, body, www) => respond(st, body, www)
+  }
+
+-- RFC 7591 dynamic registration. 404 unless OAUTH_DCR=1 with a non-empty
+-- OAUTH_DCR_REDIRECT_HOSTS. The rate-limit key is the RIGHTMOST
+-- X-Forwarded-For entry (Cloud Run's front end appends the real peer).
+@route("POST", "/oauth/register")
+@raw
+@nomcp
+export func oauthRegister(req: { body: string, headers: Json, method: string, path: string, query: Json }) -> { _body: string, _status: int, _headers: Json } ! {IO, FS, Env, Net, Clock, SharedMem, Rand[mode=crypto], Declassify} =
+  match registerClientDcr(hooks(), oauthConfig(), trustedCallerIp(header(req.headers, "X-Forwarded-For"), header(req.headers, "X-Real-Ip")), req.body, nowSec()) {
+    Ok((st, body)) => respond(st, body, ""),
+    Err(e) => respond(500, e, "")
+  }
+
+-- ============================================================
+-- Operator command (never served: @noexpose @nomcp, no @route)
+-- ============================================================
+
+-- Mint an mco_ client for an admin form (Gemini Enterprise, Copilot static).
+-- Run with the deployment's storage env (or FIRESTORE_STUB=true to try it):
+--   OAUTH_CONFIDENTIAL_CLIENTS=1 OPERATOR_REDIRECTS=https://vertexaisearch.cloud.google.com/oauth-redirect \
+--   ailang run --caps IO,FS,Env,Net,Clock,Rand --entry createClientCli executor_oauth/oauth.ail
+-- OPERATOR_METHOD: client_secret_basic (default) | client_secret_post;
+-- OPERATOR_REFRESH: rotate (default) | stable. The secret prints ONCE; the
+-- store keeps only its digest.
+@noexpose
+@nomcp
+export func createClientCli() -> () ! {IO, FS, Env, Net, Clock, SharedMem, Rand[mode=crypto], Declassify} {
+  let redirects = filter(\u. length(u) > 0, map(trim, split(getEnvOr("OPERATOR_REDIRECTS", ""), ",")))
+  let method = getEnvOr("OPERATOR_METHOD", "client_secret_basic")
+  let refresh = getEnvOr("OPERATOR_REFRESH", "rotate")
+  if listLength(redirects) == 0 then println("OPERATOR_REDIRECTS is empty: give the client's redirect URI(s), comma-separated") else match createClient(hooks(), oauthConfig(), redirects, method, refresh, nowSec()) {
+    Ok((clientId, secret)) => { println("Client ID:     ${clientId}"); println("Client secret: ${secret}") },
+    Err(e) => println("could not create the client: ${e}")
   }
 }
