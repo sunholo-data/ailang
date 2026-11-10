@@ -16,6 +16,8 @@ test "scalars and empty collections round-trip" {
   assert roundtrip(JBool(true))
   assert roundtrip(JNumber(42.5))
   assert roundtrip(JInt(9007199254740993))
+  assert roundtrip(JNumber(1.0))
+  assert roundtrip(JNumber(1.0e20))
   assert roundtrip(JString("true\n\"quoted\""))
   assert roundtrip(JArray([]))
   assert roundtrip(JObject([]))
@@ -24,7 +26,7 @@ test "scalars and empty collections round-trip" {
 test "nested sorted unique-key objects round-trip exactly" {
   -- Decode currently sorts object keys recursively; encode preserves list order.
   assert roundtrip(JObject([
-    {key: "a", value: JArray([JObject([{key: "x", value: JInt(1)}, {key: "y", value: JNumber(1.5)}]), JNull])},
+    {key: "a", value: JArray([JObject([{key: "x", value: JNumber(1.0)}, {key: "i", value: JInt(1)}]), JNull])},
     {key: "b", value: JString("日本")}
   ]))
 }

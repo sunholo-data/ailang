@@ -53,12 +53,12 @@ Encodes the shared `Json` ADT into one deterministic block YAML document
 
 ```ailang
 import std/yaml (encode)
-import std/json (JObject, JString, JNumber)
+import std/json (JObject, JString, JInt)
 import std/result (Ok, Err)
 
 match encode(JObject([
   {key: "title", value: JString("Fysik A")},
-  {key: "year", value: JNumber(2027.0)}
+  {key: "year", value: JInt(2027)}
 ])) {
   Ok(s) => println(s),
   Err(e) => println("encode failed: ${e}")
@@ -86,7 +86,9 @@ For finite numbers and recursively unique object keys, matching an encoded
 `Ok(s)` and then calling `decode(s)` preserves the Json value **modulo recursive
 object key order**: today's decode sorts keys. Exact equality holds for sorted
 objects; encode does not depend on the sibling decode-order improvement.
-Numbers follow `std/json`'s canonical formatting, including signed zero.
+Numbers follow `std/json`'s canonical formatting, including signed zero, except
+that a whole-number `JNumber` keeps float syntax (`1.0`, `100000000000000000000.0`)
+so it decodes back as `JNumber`, not `JInt`.
 Integer payloads from the WASM bridge emit without conversion to float; decoding
 still uses the shared Json number representation and its precision limits.
 Arbitrary AILANG records and other ADTs are not accepted as input.
@@ -99,7 +101,7 @@ Arbitrary AILANG records and other ADTs are not accepted as input.
   - **non-string map keys** (`1: a`, `true: x`) — JSON object keys must be strings;
   - **`NaN` / `±Inf` floats** — not representable in JSON.
 - **Anchors and aliases work but are not preserved.** `a: &x 1\nb: *x` decodes to `{"a":1,"b":1}`; the output is plain JSON with no anchor structure.
-- **Numbers decode as in `std/json`.** An integer that fits int64 decodes as `JInt(int)`, exactly; any other number decodes as `JNumber(float)`. An integer outside int64 is converted to a float by the YAML→JSON bridge before `std/json` sees it, so its low digits are rounded.
+- **Numbers keep YAML's own int/float distinction.** A YAML integer (`2026`, `0x10`, `1_000`) that fits int64 decodes as `JInt(int)`, exactly. A YAML float (`1.0`, `1e3`, `!!float 3`, `2.5`) decodes as `JNumber(float)`, whole or not: `yamlToJson` writes it with float syntax (`1.0`, `1000.0`). An integer outside int64 decodes as `JNumber`, nearest float. `encode` writes a whole-number `JNumber` as `1.0` for the same reason, so `Json → YAML → Json` keeps the constructor.
 - **Empty input decodes to `JNull`** (`yamlToJson("")` returns `Ok("null")`).
 
 ## Run the examples
