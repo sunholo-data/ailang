@@ -14,6 +14,8 @@ import std/string (toLower, contains)
 -- List all AILANG versions the server can answer for.
 @route("POST", "/api/mcp/ailang_versions")
 @mcp_name("ailang_versions")
+@mcp_title("AILANG versions")
+@mcp_hints("readOnly", "idempotent")
 export func ailangVersions() -> Json ! {Env, FS} =
   readUnscopedOrError("versions_index.json")
 
@@ -21,6 +23,8 @@ export func ailangVersions() -> Json ! {Env, FS} =
 -- kind = "agent" | "devtools" | "compact" (full prompt = empty).
 @route("POST", "/api/mcp/prompt_get")
 @mcp_name("prompt_get")
+@mcp_title("Get an AILANG teaching prompt")
+@mcp_hints("readOnly", "idempotent")
 export func promptGet(forVersion: string, kind: string) -> Json ! {Env, FS} =
   let chosen = if kind == "" then "full" else kind in
   let suffix = "prompts/${chosen}.json" in
@@ -29,12 +33,16 @@ export func promptGet(forVersion: string, kind: string) -> Json ! {Env, FS} =
 -- List stdlib modules available in this AILANG version with one-line summaries.
 @route("POST", "/api/mcp/stdlib_modules")
 @mcp_name("stdlib_modules")
+@mcp_title("List stdlib modules")
+@mcp_hints("readOnly", "idempotent")
 export func stdlibModules(forVersion: string) -> Json ! {Env, FS} =
   readOrError(forVersion, "stdlib_summary.json")
 
 -- Full module: exports + signatures + docstrings.
 @route("POST", "/api/mcp/stdlib_module")
 @mcp_name("stdlib_module")
+@mcp_title("Stdlib module reference")
+@mcp_hints("readOnly", "idempotent")
 export func stdlibModule(name: string, forVersion: string) -> Json ! {Env, FS} =
   if name == "" then
     errorJson("missing_field", "name is required")
@@ -46,6 +54,8 @@ export func stdlibModule(name: string, forVersion: string) -> Json ! {Env, FS} =
 -- Filters the pre-built search index server-side; returns top 20 matches.
 @route("POST", "/api/mcp/stdlib_search")
 @mcp_name("stdlib_search")
+@mcp_title("Search the stdlib")
+@mcp_hints("readOnly", "idempotent")
 export func stdlibSearch(query: string, forVersion: string) -> Json ! {Env, FS} =
   if query == "" then
     errorJson("missing_field", "query is required")
@@ -68,11 +78,15 @@ export func stdlibSearch(query: string, forVersion: string) -> Json ! {Env, FS} 
 -- Known limitations (Y-combinator, etc.) optionally filtered by category.
 @route("POST", "/api/mcp/limitations_list")
 @mcp_name("limitations_list")
+@mcp_title("Known limitations")
+@mcp_hints("readOnly", "idempotent")
 export func limitationsList(category: string, forVersion: string) -> Json ! {Env, FS} =
   readOrError(forVersion, "limitations.json")
 
 -- All declared effects with capability mapping and the version they appeared in.
 @route("POST", "/api/mcp/effects_catalog")
 @mcp_name("effects_catalog")
+@mcp_title("Effects catalog")
+@mcp_hints("readOnly", "idempotent")
 export func effectsCatalog(forVersion: string) -> Json ! {Env, FS} =
   readOrError(forVersion, "effects.json")

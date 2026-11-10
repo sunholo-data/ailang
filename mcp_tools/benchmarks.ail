@@ -10,12 +10,16 @@ import std/json (Json)
 -- List benchmark suites and runs, optionally filtered to a since_version cutoff.
 @route("POST", "/api/mcp/benchmarks_list")
 @mcp_name("benchmarks_list")
+@mcp_title("List benchmark runs")
+@mcp_hints("readOnly", "idempotent")
 export func benchmarksList(sinceVersion: string) -> Json ! {Env, FS} =
   readUnscopedOrError("benchmarks_index.json")
 
 -- One run's full result (code, compile_ok, runtime_ok, stdout_ok, cost, tokens).
 @route("POST", "/api/mcp/benchmark_run")
 @mcp_name("benchmark_run")
+@mcp_title("Benchmark run details")
+@mcp_hints("readOnly", "idempotent")
 export func benchmarkRun(runId: string) -> Json ! {Env, FS} =
   if runId == "" then
     errorJson("missing_field", "run_id is required")
@@ -27,6 +31,8 @@ export func benchmarkRun(runId: string) -> Json ! {Env, FS} =
 -- Output: {passes: [...], fails_by_category: {...}, total_cost}
 @route("POST", "/api/mcp/benchmarks_for_model")
 @mcp_name("benchmarks_for_model")
+@mcp_title("Benchmarks for a model")
+@mcp_hints("readOnly", "idempotent")
 export func benchmarksForModel(model: string, version: string) -> Json ! {Env, FS} =
   if model == "" then
     errorJson("missing_field", "model is required")
@@ -38,6 +44,8 @@ export func benchmarksForModel(model: string, version: string) -> Json ! {Env, F
 -- Output: {a_only_passes, b_only_passes, both, neither}
 @route("POST", "/api/mcp/benchmarks_compare")
 @mcp_name("benchmarks_compare")
+@mcp_title("Compare two models on benchmarks")
+@mcp_hints("readOnly", "idempotent")
 export func benchmarksCompare(modelA: string, modelB: string, version: string) -> Json ! {Env, FS} =
   if modelA == "" then
     errorJson("missing_field", "model_a is required")

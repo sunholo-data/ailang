@@ -17,5 +17,7 @@ import std/json (Json)
 -- filter on AILANG side once we have proper record-projection helpers.
 @route("POST", "/api/mcp/onboarding_guide")
 @mcp_name("onboarding_guide")
+@mcp_title("AILANG onboarding guide")
+@mcp_hints("readOnly", "idempotent")
 export func onboardingGuide(role: string) -> Json ! {Env, FS} =
   readUnscopedOrError("onboarding_guide.json")

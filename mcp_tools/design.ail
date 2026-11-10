@@ -10,12 +10,16 @@ import std/json (Json)
 -- state = "planned" | "implemented" | "rejected" | ""; empty = all.
 @route("POST", "/api/mcp/design_docs_list")
 @mcp_name("design_docs_list")
+@mcp_title("List design docs")
+@mcp_hints("readOnly", "idempotent")
 export func designDocsList(state: string, version: string) -> Json ! {Env, FS} =
   readUnscopedOrError("design_docs_index.json")
 
 -- Full design doc by slug (e.g. "m-agent-mcp-website").
 @route("POST", "/api/mcp/design_doc")
 @mcp_name("design_doc")
+@mcp_title("Read a design doc")
+@mcp_hints("readOnly", "idempotent")
 export func designDoc(slug: string) -> Json ! {Env, FS} =
   if slug == "" then
     errorJson("missing_field", "slug is required")
@@ -26,5 +30,7 @@ export func designDoc(slug: string) -> Json ! {Env, FS} =
 -- What's shipping next, what's been rejected and why.
 @route("POST", "/api/mcp/roadmap")
 @mcp_name("roadmap")
+@mcp_title("AILANG roadmap")
+@mcp_hints("readOnly", "idempotent")
 export func roadmap() -> Json ! {Env, FS} =
   readUnscopedOrError("roadmap.json")

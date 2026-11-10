@@ -85,9 +85,12 @@ EXPOSE 8080
 # discovers sibling modules cleanly. --bind 0.0.0.0 is explicit because
 # serve-api binds 127.0.0.1 unless PORT is set, and a local
 # `docker run -p 8080:8080` (no -e PORT) must still be reachable.
+# --server-info names the listing (MCP serverInfo); version is left out so it
+# stays the binary's own, stamped from std/VERSION above.
 ENTRYPOINT ["/usr/local/bin/ailang", "serve-api", \
             "--bind", "0.0.0.0", \
             "--mcp-http", "--routes-only", \
+            "--server-info", "name=ailang-docs,title=AILANG Docs", \
             "--caps", "FS,Env", \
             "--port", "8080", \
             "mcp_tools/"]

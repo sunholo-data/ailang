@@ -11,6 +11,8 @@ import std/string (toLower, contains)
 -- Version-scoped: snapshot of that release's docs site nav.
 @route("POST", "/api/mcp/docs_nav")
 @mcp_name("docs_nav")
+@mcp_title("Docs navigation")
+@mcp_hints("readOnly", "idempotent")
 export func docsNav(forVersion: string) -> Json ! {Env, FS} =
   readOrError(forVersion, "docs_nav.json")
 
@@ -18,6 +20,8 @@ export func docsNav(forVersion: string) -> Json ! {Env, FS} =
 -- Filters server-side on lowercased body + title; returns top 10 matches.
 @route("POST", "/api/mcp/docs_search")
 @mcp_name("docs_search")
+@mcp_title("Search AILANG docs")
+@mcp_hints("readOnly", "idempotent")
 export func docsSearch(query: string, forVersion: string) -> Json ! {Env, FS} =
   if query == "" then
     errorJson("missing_field", "query is required")
@@ -42,6 +46,8 @@ export func docsSearch(query: string, forVersion: string) -> Json ! {Env, FS} =
 -- What changed in a given release (added/changed/fixed/breaking).
 @route("POST", "/api/mcp/changelog_for_version")
 @mcp_name("changelog_for_version")
+@mcp_title("Changelog for a version")
+@mcp_hints("readOnly", "idempotent")
 export func changelogForVersion(version: string) -> Json ! {Env, FS} =
   if version == "" then
     errorJson("missing_field", "version is required")
