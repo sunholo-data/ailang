@@ -216,7 +216,7 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (prog *core.Program, err erro
 		for _, imp := range file.Imports {
 			// Selective imports only: `import M as L` binds no bare names.
 			for _, sym := range imp.Symbols {
-				decl, err := e.moduleLoader.GetExport(imp.Path, sym)
+				decl, err := e.moduleLoader.GetImportExport(imp, sym)
 				if err != nil {
 					// Preserve structured error reports without wrapping
 					return nil, err
