@@ -633,7 +633,9 @@ spelling imported it; the file compiles and evaluates once.
 > 5. Otherwise, for a DEPENDENCY P: the ROOT's module if the root provides it, with an **LDR006 warning**;
 >    **LDR006** if any other package outside P's scope would have provided it; else **LDR001**. A `pkg/`
 >    path into the root from a dependency is the same warning. For the ROOT: a path to a file of the root
->    package is canonicalised to that module; any other path is loaded by path, as before.
+>    package whose own `module` line is a package spelling of that same file (util.ail declaring
+>    `acme/app/util`) is canonicalised to that module; any other path — including a file that names itself
+>    by its path, like a test fixture's `module stub_step` — is loaded by path, as before.
 > The resolved (package, file) is then named — module path derived from the file, so every spelling of one
 > file agrees; a dependency as `pkg/<vendor>/<name>/<path>`, the root by its own spelling — and a spelling
 > whose case differs from the file on disk is **LDR001**. Finally the pipeline checks the whole build's
