@@ -83,9 +83,7 @@ func (env *TypeEnv) ownSets() *envVarSets {
 			effectRows: make(map[string]bool),
 			stamp:      envStamp.Add(1),
 		}
-		frame.collectFreeTypeVars(s.types)
-		frame.collectFreeRowVars(s.rows)
-		frame.collectFreeEffectRowVars(s.effectRows)
+		frame.collectFreeVarSets(s.types, s.rows, s.effectRows)
 		env.own = s
 	}
 	return env.own
@@ -161,9 +159,7 @@ func copyVarSet(s map[string]bool) map[string]bool {
 // crossCheckVarSets compares cached sets with the original whole-chain walks.
 func (env *TypeEnv) crossCheckVarSets(sets *envVarSets) {
 	want := map[string]map[string]bool{"type": {}, "row": {}, "effect-row": {}}
-	env.collectFreeTypeVars(want["type"])
-	env.collectFreeRowVars(want["row"])
-	env.collectFreeEffectRowVars(want["effect-row"])
+	env.collectFreeVarSets(want["type"], want["row"], want["effect-row"])
 	got := map[string]map[string]bool{"type": sets.types, "row": sets.rows, "effect-row": sets.effectRows}
 	for kind, w := range want {
 		if !sameVarSet(w, got[kind]) {

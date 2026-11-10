@@ -140,11 +140,11 @@ func TestFreeVars_EveryTypeConstructorIsWalked(t *testing.T) {
 	if len(impls) < 15 {
 		t.Fatalf("found only %d Type implementations (%v); the source scan is broken", len(impls), impls)
 	}
-	walked := switchCases(t, "free_vars.go", "typeVarOccurrences")
+	walked := switchCases(t, "free_vars.go", "walkType")
 	renamed := switchCases(t, "scheme_canonical.go", "renameSchemeVars")
 	for _, name := range impls {
 		if !walked[name] {
-			t.Errorf("typeVarOccurrences has no case for *%s", name)
+			t.Errorf("varWalker.walkType has no case for *%s", name)
 		}
 		if !renamed[name] && name != "TCon" { // TCon is a leaf (the default arm)
 			t.Errorf("renameSchemeVars has no case for *%s", name)
@@ -160,6 +160,9 @@ func TestFreeVars_EveryTypeConstructorIsWalked(t *testing.T) {
 		if !slices.Contains(typeVars, "v") {
 			t.Errorf("*%s: generalisation does not see the type variable: %v", name, typeVars)
 		}
+		if !freeTypeVars(typ)["v"] {
+			t.Errorf("*%s: freeTypeVars does not see the type variable", name)
+		}
 		env := NewTypeEnv().Extend("p", typ)
 		owned := env.ownedVars()
 		for _, v := range typeVars {
@@ -171,6 +174,15 @@ func TestFreeVars_EveryTypeConstructorIsWalked(t *testing.T) {
 			if !owned.rows[v] {
 				t.Errorf("*%s: record row %s is generalisable in %s but not owned by an environment binding it", name, v, typ)
 			}
+		}
+		rowWalk, effectWalk := map[string]bool{}, map[string]bool{}
+		env.collectFreeRowVars(rowWalk)
+		env.collectFreeEffectRowVars(effectWalk)
+		if !sameVarSet(rowWalk, owned.rows) || !sameVarSet(effectWalk, owned.effectRows) {
+			t.Errorf("*%s: single-set walks disagree with the cached sets: rows %v vs %v, effect rows %v vs %v", name, rowWalk, owned.rows, effectWalk, owned.effectRows)
+		}
+		if r, ok := typ.(*TRecord2); ok && name == "Row" && !freeRowVars(r.Row)["ρ"] {
+			t.Errorf("*%s: freeRowVars does not see the row tail", name)
 		}
 		for v := range effectRows {
 			if !owned.effectRows[v] || !owned.rows[v] {
@@ -305,5 +317,42 @@ func TestGeneralize_WithholdsWhatTheEnclosingParameterOwns(t *testing.T) {
 	}
 	if !slices.Contains(s.TypeVars, "αu") {
 		t.Errorf("declaration-local variable not generalised: %v", s)
+	}
+}
+
+// nodeSet keeps the first nodes inline and moves to a map past that; both
+// halves must answer membership by pointer identity, and a large cyclic type
+// must still terminate with every variable found.
+func TestNodeSet_SpillsToMapAndStaysCycleSafe(t *testing.T) {
+	var s nodeSet
+	nodes := make([]Type, 40)
+	for i := range nodes {
+		nodes[i] = &TVar2{Name: fmt.Sprintf("v%d", i), Kind: Star}
+		if s.add(nodes[i]) {
+			t.Fatalf("node %d reported present on first add", i)
+		}
+	}
+	for i, n := range nodes {
+		if !s.add(n) {
+			t.Fatalf("node %d not found after spilling to the map", i)
+		}
+	}
+	if s.add(&TVar2{Name: "v0", Kind: Star}) {
+		t.Fatal("membership must be by identity, not by name")
+	}
+
+	fields := map[string]Type{}
+	for i := 0; i < 30; i++ {
+		fields[fmt.Sprintf("f%02d", i)] = &TList{Element: &TVar2{Name: fmt.Sprintf("α%d", i), Kind: Star}}
+	}
+	rec := &TRecord{Fields: fields}
+	fields["self"] = &TList{Element: rec} // cycle
+	if tv, _ := generalizableVars(rec); len(tv) != 30 {
+		t.Fatalf("found %d type variables in a 30-variable cyclic record, want 30", len(tv))
+	}
+	free := map[string]bool{}
+	collectFreeTypeVars(rec, free)
+	if len(free) != 30 {
+		t.Fatalf("unordered walk found %d, want 30", len(free))
 	}
 }

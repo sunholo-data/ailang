@@ -28,8 +28,8 @@ func TestEnvCache_ExtendReusesAncestors(t *testing.T) {
 	child := top.Extend("e", &TVar2{Name: "α3", Kind: Star})
 	ResetEnvScanWork()
 	free := child.FreeTypeVars()
-	if got := EnvScanWork(); got != 3 { // e only, once per kind
-		t.Fatalf("a new frame over a cached chain walked %d bindings, want 3", got)
+	if got := EnvScanWork(); got != 1 { // e only; one walk fills all three sets
+		t.Fatalf("a new frame over a cached chain walked %d bindings, want 1", got)
 	}
 	if !free["α1"] || !free["α2"] || !free["α3"] {
 		t.Fatalf("free = %v", free)

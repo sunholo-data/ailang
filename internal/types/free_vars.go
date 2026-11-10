@@ -18,7 +18,7 @@ import (
 // against a string field (PR #2209 review; the closed-record and Option forms
 // predate that PR).
 //
-// typeVarOccurrences is now the only traversal. Every collector of free
+// varWalker (walkType) is now the only traversal. Every collector of free
 // variables is a filter over it: the generalisation side (generalizableVars,
 // freeEffectRowVarsInType), the environment side (collectFreeTypeVars and the
 // row walks behind TypeEnv's memoised sets), instantiation's kind lookup
@@ -54,101 +54,157 @@ type varOccurrence struct {
 	row  bool // occurs as a row variable (RowVar or a row tail), not a TVar/TVar2
 }
 
+// varWalker is the one traversal. walkType visits every variable occurrence
+// in a type (a name can be visited more than once). With ordered set, record
+// fields and row labels are visited in sorted label order, which canonical
+// naming needs; the collectors that only build sets skip the sort, because
+// they run on every binding of every environment frame.
+//
+// Cycle-safe: visited (pointer identity) stops at any node already walked.
+type varWalker struct {
+	ordered bool
+	visited nodeSet
+	visit   func(name string, s varSort, row bool)
+}
+
+// nodeSet is a set of type nodes by pointer identity. Most types have a
+// handful of nodes, so the first ones live in an inline array and a map is
+// only allocated for large types; this walk runs on every binding of every
+// environment frame.
+type nodeSet struct {
+	small [16]Type
+	n     int
+	big   map[Type]bool
+}
+
+// add records t and reports whether it was already present.
+func (s *nodeSet) add(t Type) bool {
+	if s.big != nil {
+		if s.big[t] {
+			return true
+		}
+		s.big[t] = true
+		return false
+	}
+	for i := 0; i < s.n; i++ {
+		if s.small[i] == t {
+			return true
+		}
+	}
+	if s.n < len(s.small) {
+		s.small[s.n] = t
+		s.n++
+		return false
+	}
+	s.big = make(map[Type]bool, 2*len(s.small))
+	for _, x := range s.small {
+		s.big[x] = true
+	}
+	s.big[t] = true
+	return false
+}
+
+func (w *varWalker) walkFields(fields map[string]Type) {
+	if !w.ordered {
+		for _, ft := range fields {
+			w.walkType(ft)
+		}
+		return
+	}
+	for _, f := range slices.Sorted(maps.Keys(fields)) {
+		w.walkType(fields[f])
+	}
+}
+
+func (w *varWalker) walkRow(r *Row) {
+	if r == nil || w.visited.add(r) {
+		return
+	}
+	w.walkFields(r.Labels)
+	if r.Tail != nil {
+		w.visit(r.Tail.Name, sortOfKind(r.Tail.Kind), true)
+	}
+}
+
+func (w *varWalker) walkType(t Type) {
+	if t == nil {
+		return
+	}
+	if row, ok := t.(*Row); ok {
+		w.walkRow(row)
+		return
+	}
+	if w.visited.add(t) {
+		return
+	}
+	switch typ := t.(type) {
+	case *TVar:
+		w.visit(typ.Name, sortType, false)
+	case *TVar2:
+		w.visit(typ.Name, sortOfKind(typ.Kind), false)
+	case *RowVar:
+		w.visit(typ.Name, sortOfKind(typ.Kind), true)
+	case *TCon:
+		// no variables
+	case *TFunc2:
+		for _, p := range typ.Params {
+			w.walkType(p)
+		}
+		w.walkType(typ.Return)
+		w.walkRow(typ.EffectRow)
+	case *TList:
+		w.walkType(typ.Element)
+	case *TArray:
+		w.walkType(typ.Element)
+	case *TMap:
+		w.walkType(typ.Key)
+		w.walkType(typ.Value)
+	case *TTuple:
+		for _, e := range typ.Elements {
+			w.walkType(e)
+		}
+	case *TApp:
+		w.walkType(typ.Constructor)
+		for _, a := range typ.Args {
+			w.walkType(a)
+		}
+	case *TRecord:
+		w.walkFields(typ.Fields)
+		w.walkType(typ.Row)
+	case *TRecord2:
+		w.walkRow(typ.Row)
+	case *TRecordOpen:
+		w.walkFields(typ.Fields)
+		w.walkType(typ.Row)
+	case *TLabelled:
+		w.walkType(typ.Inner)
+	}
+}
+
+// forEachVar runs the traversal over t, calling visit for each occurrence.
+func forEachVar(t Type, ordered bool, visit func(name string, s varSort, row bool)) {
+	w := varWalker{ordered: ordered, visit: visit}
+	w.walkType(t)
+}
+
 // typeVarOccurrences lists every variable occurring in t, once each, in a
 // fixed order: function params left to right, then the return, then the effect
 // row; record fields, row labels and effect labels in sorted label order, each
 // row's tail after its labels.
-//
-// Cycle-safe: a visited set on type pointers stops at any node already walked.
 func typeVarOccurrences(t Type) []varOccurrence {
 	var out []varOccurrence
 	seen := map[string]bool{}
-	visited := map[Type]bool{}
-	note := func(name string, s varSort, row bool) {
+	forEachVar(t, true, func(name string, s varSort, row bool) {
 		if name != "" && !seen[name] {
 			seen[name] = true
 			out = append(out, varOccurrence{name, s, row})
 		}
-	}
-	var walk func(Type)
-	walkRow := func(r *Row) {
-		if r == nil || visited[r] {
-			return
-		}
-		visited[r] = true
-		for _, l := range slices.Sorted(maps.Keys(r.Labels)) {
-			walk(r.Labels[l])
-		}
-		if r.Tail != nil {
-			note(r.Tail.Name, sortOfKind(r.Tail.Kind), true)
-		}
-	}
-	walkFields := func(fields map[string]Type) {
-		for _, f := range slices.Sorted(maps.Keys(fields)) {
-			walk(fields[f])
-		}
-	}
-	walk = func(t Type) {
-		if t == nil {
-			return
-		}
-		if row, ok := t.(*Row); ok {
-			walkRow(row)
-			return
-		}
-		if visited[t] {
-			return
-		}
-		visited[t] = true
-		switch typ := t.(type) {
-		case *TVar:
-			note(typ.Name, sortType, false)
-		case *TVar2:
-			note(typ.Name, sortOfKind(typ.Kind), false)
-		case *RowVar:
-			note(typ.Name, sortOfKind(typ.Kind), true)
-		case *TCon:
-			// no variables
-		case *TFunc2:
-			for _, p := range typ.Params {
-				walk(p)
-			}
-			walk(typ.Return)
-			walkRow(typ.EffectRow)
-		case *TList:
-			walk(typ.Element)
-		case *TArray:
-			walk(typ.Element)
-		case *TMap:
-			walk(typ.Key)
-			walk(typ.Value)
-		case *TTuple:
-			for _, e := range typ.Elements {
-				walk(e)
-			}
-		case *TApp:
-			walk(typ.Constructor)
-			for _, a := range typ.Args {
-				walk(a)
-			}
-		case *TRecord:
-			walkFields(typ.Fields)
-			walk(typ.Row)
-		case *TRecord2:
-			walkRow(typ.Row)
-		case *TRecordOpen:
-			walkFields(typ.Fields)
-			walk(typ.Row)
-		case *TLabelled:
-			walk(typ.Inner)
-		}
-	}
-	walk(t)
+	})
 	return out
 }
 
-// The is*Occ predicates are the filters the
-// collectors below apply to typeVarOccurrences.
+// The is*Occ predicates are the filters the collectors below apply to the
+// traversal.
 func isTypeVarOcc(o varOccurrence) bool   { return !o.row }
 func isRowOcc(o varOccurrence) bool       { return o.row }
 func isEffectRowOcc(o varOccurrence) bool { return o.row && o.sort == sortEffectRow }
@@ -157,11 +213,11 @@ func isRecordRowOcc(o varOccurrence) bool { return o.row && o.sort == sortRecord
 // collectVars adds to free every variable of t that keep accepts, except the
 // names in bound (a scheme's quantifiers).
 func collectVars(t Type, free map[string]bool, keep func(varOccurrence) bool, bound []string) {
-	for _, o := range typeVarOccurrences(t) {
-		if keep(o) && !slices.Contains(bound, o.name) {
-			free[o.name] = true
+	forEachVar(t, false, func(name string, s varSort, row bool) {
+		if name != "" && keep(varOccurrence{name, s, row}) && !slices.Contains(bound, name) {
+			free[name] = true
 		}
-	}
+	})
 }
 
 // collectFreeTypeVars adds the type variables of t to free.
