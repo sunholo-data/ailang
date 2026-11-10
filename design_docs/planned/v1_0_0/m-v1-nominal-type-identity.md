@@ -339,7 +339,9 @@ Alternative B recorded in this doc.
 >
 > *Verdicts.* In-repo nothing changed: `make test-core` green (17 core packages, 45 s); `make
 > verify-examples` 339 passed / 0 failed / 12 skipped; `make verify-stdlib` all 49 interface hashes
-> unchanged (D3 holds: Module never reaches a hashed rendering); full `make test`: see the PR. Downstream
+> unchanged (D3 holds: Module never reaches a hashed rendering); full `make test` (5 min): 163 packages
+> ok, 4 failed — 5 s fake-binary timeouts in `executor/{codex,opencode,pi}` and `mission/dispatch` under
+> concurrent load, all green on rerun and on `dev`; it found no new minting site and no nominal mismatch. Downstream
 > (check-only, 1,492 files, baseline `dev` vs spike): **14 flips, all in docparse, one cause** — see
 > "Downstream" below.
 >
