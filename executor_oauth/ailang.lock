@@ -1,7 +1,7 @@
 {
-  "ailang_version": "v0.54.9-14-gbf46845d7-dirty",
-  "generated_at": "2026-10-14T17:28:57.823364Z",
-  "generator": "ailang lock v0.54.9-14-gbf46845d7-dirty",
+  "ailang_version": "v0.58.0-39-g4c775b713-dirty",
+  "generated_at": "2026-11-10T12:47:28.249483Z",
+  "generator": "ailang lock v0.58.0-39-g4c775b713-dirty",
   "packages": [
     {
       "ailang": ">=0.12.1",
@@ -69,8 +69,8 @@
       "version": "0.8.1"
     },
     {
-      "ailang": ">=0.52.0",
-      "content_hash": "sha256:7cba9b663efaa44eb6b1d3b4706d6bdbd47da22ae1358bed89e6f9ed4b5f54e6",
+      "ailang": ">=0.57.0",
+      "content_hash": "sha256:ecb854f4f0e2580dc7d8571d790092b6937fc1a6e63a8c72f6c88660942eceb2",
       "effects": [
         "Clock",
         "Declassify",
@@ -83,13 +83,14 @@
       ],
       "exports": [
         "sunholo/mcp_oauth/cimd",
+        "sunholo/mcp_oauth/clients",
         "sunholo/mcp_oauth/core",
         "sunholo/mcp_oauth/flow"
       ],
-      "interface_hash": "sha256:d739c96a9865897498c590c0e233af3fc1a67963d03522885991c507454a8d7c",
+      "interface_hash": "sha256:51a153ee47f1f4862d242a7df34c838d8364e26c6b2bd10fa56ed0038fcbc6ca",
       "name": "sunholo/mcp_oauth",
       "source": "registry",
-      "version": "0.1.2"
+      "version": "0.2.0"
     }
   ],
   "schema": "ailang.lock/v1",

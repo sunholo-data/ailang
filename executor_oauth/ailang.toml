@@ -13,12 +13,12 @@ description = "OAuth 2.1 sign-in for the hosted AILANG executor MCP (/mcp/connec
 modules = ["executor_oauth/oauth"]
 
 [dependencies]
-"sunholo/mcp_oauth" = "0.1.2"
+"sunholo/mcp_oauth" = "0.2.0"
 "sunholo/firestore" = "0.7.2"
 "sunholo/firebase_auth" = "0.1.2"
 
 [effects]
-# SharedMem only because sunholo/mcp_oauth 0.1.x's Hooks record names it in
+# SharedMem only because sunholo/mcp_oauth 0.1.x and 0.2.x's Hooks record names it in
 # every hook row (record fields need exact rows); nothing here uses it.
 # Declassify is type-system-only and needs no runtime grant.
 max = ["IO", "FS", "Net", "Env", "Rand", "Clock", "Debug", "Declassify", "SharedMem"]

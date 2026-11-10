@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-MCP-OAUTH-CLIENT-MODELS",
-  "status": "in_progress",
+  "status": "completed",
   "created": "2026-11-05T07:48:51Z",
   "design_doc": "design_docs/planned/v0_57_2/m-mcp-oauth-client-models.md",
   "sprint_plan": "design_docs/planned/v0_57_2/m-mcp-oauth-client-models-sprint-plan.md",
@@ -155,10 +155,10 @@
         "ailang repo: executor_oauth/ailang.lock bumped to 0.2.0 only, bash executor_oauth/test_oauth.sh 21/21",
         "published only after the package PR merges; ailang pkg search mcp_oauth shows 0.2.0"
       ],
-      "passes": false,
+      "passes": true,
       "started": "2026-11-05T08:35:10Z",
-      "completed": null,
-      "notes": "sunholo-data/ailang-packages PR #179 (branch sprint/mcp-oauth-0.2, head 3ee4111; not merged, not published), commits 48c72b2, 1bfc990, 88b49b0, 3ee4111. ALL BUILD CRITERIA MET; NOT PUBLISHED by instruction (Mark reviews, merges and publishes). asMetadataFor(issuer,cfg); golden: asMetadata byte-identical to 0.1.2 (test + asMetadataFor(default) == golden). tests/e2e_flow.sh (unmodified) 8/8; new tests/e2e_client_models.sh 16/16 on v0.57.1 (GE client Basic flow, wrong secret 401+Basic, rotation, RFC 7009 family kill, DCR public flow, allowlist, 11th registration 429 under forged XFF prefixes, mcp check, log never holds secrets) and with ailang origin/dev 25c2bd9c2 also authorization-framing PASS (closes M3c's open package step; asserted whenever the binary has --probe-client-id). pkg quality: contracts 21/21 verified (verified == total), gates [] (no gates). Executor: read-only copy of origin/dev executor_oauth/mcp_tools/executor_tools; ailang.lock bumped to 0.2.0 only (version, content/interface hash, +clients export; ailang.toml untouched); package root held 0.2.0 only; bash executor_oauth/test_oauth.sh 21/21; negative control (corrupted 0.2.0) refuses to load. AGENT.md (API, ClientConfig, three recipes), routes_template.ail (0.2 routes + createGeClient operator recipe), CHANGELOG 0.2.0, ailang.toml 0.2.0 with ailang >= 0.57.0. Totals: 92 pure tests, 21 Z3 proofs, 9 IFC leak fixtures, 47/47 mutants killed (tests/mutation_check.sh). Review fix 3ee4111: core.httpsHost is the one host parser (CIMD + DCR): authority ends at / ? # \\\\, port digits only, lowercased, userinfo/brackets/%/trailing dot/bad chars refused; cimdUrlOk also refuses backslash, single-label and numeric hosts; new Z3 gate core.cimdUrlGate; https://localhost?.x -> host localhost -> refused. Executor test_oauth.sh re-run 21/21 on 3ee4111. Remaining: merge PR #179, then ailang pkg publish; ailang pkg search mcp_oauth -> 0.2.0."
+      "completed": "2026-11-10T12:48:08Z",
+      "notes": "sunholo-data/ailang-packages PR #179 (branch sprint/mcp-oauth-0.2, head 3ee4111; not merged, not published), commits 48c72b2, 1bfc990, 88b49b0, 3ee4111. ALL BUILD CRITERIA MET; NOT PUBLISHED by instruction (Mark reviews, merges and publishes). asMetadataFor(issuer,cfg); golden: asMetadata byte-identical to 0.1.2 (test + asMetadataFor(default) == golden). tests/e2e_flow.sh (unmodified) 8/8; new tests/e2e_client_models.sh 16/16 on v0.57.1 (GE client Basic flow, wrong secret 401+Basic, rotation, RFC 7009 family kill, DCR public flow, allowlist, 11th registration 429 under forged XFF prefixes, mcp check, log never holds secrets) and with ailang origin/dev 25c2bd9c2 also authorization-framing PASS (closes M3c's open package step; asserted whenever the binary has --probe-client-id). pkg quality: contracts 21/21 verified (verified == total), gates [] (no gates). Executor: read-only copy of origin/dev executor_oauth/mcp_tools/executor_tools; ailang.lock bumped to 0.2.0 only (version, content/interface hash, +clients export; ailang.toml untouched); package root held 0.2.0 only; bash executor_oauth/test_oauth.sh 21/21; negative control (corrupted 0.2.0) refuses to load. AGENT.md (API, ClientConfig, three recipes), routes_template.ail (0.2 routes + createGeClient operator recipe), CHANGELOG 0.2.0, ailang.toml 0.2.0 with ailang >= 0.57.0. Totals: 92 pure tests, 21 Z3 proofs, 9 IFC leak fixtures, 47/47 mutants killed (tests/mutation_check.sh). Review fix 3ee4111: core.httpsHost is the one host parser (CIMD + DCR): authority ends at / ? # \\\\, port digits only, lowercased, userinfo/brackets/%/trailing dot/bad chars refused; cimdUrlOk also refuses backslash, single-label and numeric hosts; new Z3 gate core.cimdUrlGate; https://localhost?.x -> host localhost -> refused. Executor test_oauth.sh re-run 21/21 on 3ee4111. Remaining: merge PR #179, then ailang pkg publish; ailang pkg search mcp_oauth -> 0.2.0. | 2026-11-10: PR #179 merged (a0a934936), 0.2.0 published (ailang pkg search mcp_oauth -> 0.2.0). executor_oauth/ailang.toml + lock bumped to 0.2.0 on dev; bash executor_oauth/test_oauth.sh 27 PASS / 0 FAIL (suite grew from 21). No ClientConfig yet: enabling confidential/DCR/revocation in a deployment stays gated on P0 measurements."
     },
     {
       "id": "M2_IDENTITY_VERIFIER",
@@ -172,7 +172,7 @@
         "D6"
       ],
       "acceptance_criteria": [
-        "precondition: gh pr view 2112 --json state; if not MERGED, bind _auth in makeToolHandler + TestAuthBindingParity (design \u00a7M4)",
+        "precondition: gh pr view 2112 --json state; if not MERGED, bind _auth in makeToolHandler + TestAuthBindingParity (design §M4)",
         "go test ./internal/apiserver/ ./serveapi/... passes TestAuthParamNotForgeableByArgs, TestIdentityHeaderStripped, TestAuthExportAbsentFromAgentSurface, TestAuthExportNoRESTRoute, TestAuthWithNoauthIsError, TestEmptySubjectRejected, TestBoolVerifierUnchanged, TestSubjectRateLimit429, TestMcphttpGateUnchanged",
         "existing mcp_header_auth_test.go and bearer_gate*_test.go pass unmodified",
         "make test-changed, make verify-examples, make check-file-sizes, make check-changelog pass (run unpiped)",
