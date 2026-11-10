@@ -52,6 +52,11 @@ func checkFixture(t *testing.T, entry string) Result {
 	if err != nil || len(result.Errors) > 0 {
 		t.Fatalf("check %s: %v %v", entry, err, result.Errors)
 	}
+	// The loader's own record over the whole build: each file read under one
+	// identity, each identity read from one file.
+	if len(result.ModuleIdentityConflicts) > 0 {
+		t.Errorf("check %s: module identity conflicts: %v", entry, result.ModuleIdentityConflicts)
+	}
 	return result
 }
 
@@ -130,7 +135,7 @@ export func unitSquare() -> Shape = area(unitSquare())
 		t.Fatal("expected IMP010 for a symbol the module does not export")
 	}
 	msg := err.Error()
-	want := "symbol 'Triangle' not exported by '" + prefixpkg.Canonical + "' (imported as '" + prefixpkg.PrefixSpelling + "')"
+	want := "symbol 'Triangle' not exported by '" + prefixpkg.Canonical + " (imported as " + prefixpkg.PrefixSpelling + ")'"
 	if !strings.Contains(msg, want) {
 		t.Fatalf("IMP010 should name the canonical module and the written spelling\n got: %s\nwant substring: %s", msg, want)
 	}

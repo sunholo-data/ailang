@@ -21,7 +21,23 @@ import (
 // that calls Debug.log and falls back to the evaluator, so it would re-run
 // this same arm.
 func TestCanonicalModuleIdentity_ModuleLevelCodeRunsOnce(t *testing.T) {
-	app, _ := prefixpkg.New(t, nil)
+	// "exported": the dependency's own prefix spelling vs the consumer's pkg/.
+	// "unexported": a package with no [exports] list also accepts
+	// pkg/acme/shapes/shp/types/shape for the same file (review of #2224).
+	files := prefixpkg.Files()
+	unexported := map[string]string{
+		"shapes/ailang.toml": "[package]\nname = \"acme/shapes\"\nmodule_prefix = \"shp\"\nversion = \"0.1.0\"\nedition = \"1\"\n",
+		"app/main.ail": strings.Replace(files["app/main.ail"],
+			"import pkg/acme/shapes/types/shape (Shape, Circle, mkCircle, marked)",
+			"import pkg/acme/shapes/types/shape (Shape, Circle, marked)\nimport pkg/acme/shapes/shp/types/shape (mkCircle)", 1),
+	}
+	for name, overrides := range map[string]map[string]string{"exported": nil, "unexported": unexported} {
+		t.Run(name, func(t *testing.T) { runOnceCase(t, overrides) })
+	}
+}
+
+func runOnceCase(t *testing.T, overrides map[string]string) {
+	app, _ := prefixpkg.New(t, overrides)
 	file := filepath.Join(app, "main.ail")
 	res, err := pipeline.Run(pipeline.Config{Mode: pipeline.ModeCheck, NoCache: true}, pipeline.Source{Filename: file})
 	if err != nil || len(res.Errors) > 0 {

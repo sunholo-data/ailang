@@ -8,8 +8,11 @@
 package prefixpkg
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/pkg"
@@ -120,14 +123,25 @@ const Want = "17\n"
 // package directories.
 func New(t *testing.T, overrides map[string]string) (app, shapes string) {
 	t.Helper()
-	testutil.SetHomeDir(t, t.TempDir())
-	t.Setenv("AILANG_PACKAGE_ROOT", "")
-	t.Setenv("AILANG_STDLIB_PATH", "")
-	root := t.TempDir()
 	files := Files()
 	for k, v := range overrides {
 		files[k] = v
 	}
+	root := Tree(t, files)
+	app, shapes = filepath.Join(root, "app"), filepath.Join(root, "shapes")
+	Lock(t, app, Dep{Name: "acme/shapes", Dir: "../shapes"})
+	return app, shapes
+}
+
+// Tree writes files (keyed by slash path relative to the root) under a fresh
+// temp dir, with HOME isolated and no package-root or stdlib override, and
+// returns the root.
+func Tree(t *testing.T, files map[string]string) string {
+	t.Helper()
+	testutil.SetHomeDir(t, t.TempDir())
+	t.Setenv("AILANG_PACKAGE_ROOT", "")
+	t.Setenv("AILANG_STDLIB_PATH", "")
+	root := t.TempDir()
 	for rel, content := range files {
 		path := filepath.Join(root, filepath.FromSlash(rel))
 		if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -137,16 +151,73 @@ func New(t *testing.T, overrides map[string]string) (app, shapes string) {
 			t.Fatal(err)
 		}
 	}
-	app, shapes = filepath.Join(root, "app"), filepath.Join(root, "shapes")
-	hash, err := pkg.ContentHash(shapes)
-	if err != nil {
+	return root
+}
+
+// Dep is one path dependency in a lock written by Lock: Dir is relative to
+// the locking package's directory.
+type Dep struct {
+	Name string
+	Dir  string
+}
+
+// Lock writes an ailang.lock in dir listing deps as path dependencies with the
+// content hashes of the directories they name. List transitive dependencies
+// too: `ailang lock` writes a flat lock.
+func Lock(t *testing.T, dir string, deps ...Dep) {
+	t.Helper()
+	locked := make([]pkg.LockedPackage, 0, len(deps))
+	for _, d := range deps {
+		hash, err := pkg.ContentHash(filepath.Join(dir, filepath.FromSlash(d.Dir)))
+		if err != nil {
+			t.Fatal(err)
+		}
+		locked = append(locked, pkg.LockedPackage{Name: d.Name, Version: "0.1.0", Source: "path", Path: d.Dir, ContentHash: hash})
+	}
+	if err := pkg.NewLockFile(locked, "prefixpkg-fixture").Save(dir); err != nil {
 		t.Fatal(err)
 	}
-	lf := pkg.NewLockFile([]pkg.LockedPackage{{
-		Name: "acme/shapes", Version: "0.1.0", Source: "path", Path: "../shapes", ContentHash: hash,
-	}}, "prefixpkg-fixture")
-	if err := lf.Save(app); err != nil {
-		t.Fatal(err)
+}
+
+// Manifest renders a minimal ailang.toml. prefix, exports and maxEffects may
+// be empty; deps maps a dependency name to its path relative to the package.
+func Manifest(name, prefix string, exports []string, deps map[string]string, maxEffects []string) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "[package]\nname = %q\n", name)
+	if prefix != "" {
+		fmt.Fprintf(&b, "module_prefix = %q\n", prefix)
 	}
-	return app, shapes
+	b.WriteString("version = \"0.1.0\"\nedition = \"1\"\n")
+	if len(exports) > 0 {
+		b.WriteString("\n[exports]\nmodules = [")
+		for i, e := range exports {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			fmt.Fprintf(&b, "%q", e)
+		}
+		b.WriteString("]\n")
+	}
+	if len(deps) > 0 {
+		names := make([]string, 0, len(deps))
+		for n := range deps {
+			names = append(names, n)
+		}
+		sort.Strings(names)
+		b.WriteString("\n[dependencies]\n")
+		for _, n := range names {
+			fmt.Fprintf(&b, "%q = { path = %q }\n", n, deps[n])
+		}
+	}
+	if maxEffects != nil {
+		b.WriteString("\n[effects]\nmax = [")
+		for i, e := range maxEffects {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			fmt.Fprintf(&b, "%q", e)
+		}
+		b.WriteString("]\n")
+	}
+	return b.String()
 }

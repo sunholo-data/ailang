@@ -29,10 +29,19 @@ type ModuleLoader struct {
 	modulePrefixMap    map[string][]string // module_prefix → package names (e.g., "docparse" → ["sunholo/ailang_parse", "sunholo/docparse"])
 	currentPackageName string              // <vendor>/<name> of the package being compiled, when known. Enables bare-canonical self-imports (e.g., "import sunholo/linkedin/types" from within sunholo/linkedin).
 
-	// canonicalOf memoises import spelling -> canonical module identity
-	// (canonical_identity.go). Cleared whenever an input to the mapping
-	// (resolver, prefix map, current package) changes.
-	canonicalOf map[string]string
+	// canonicalOf memoises (importing package, spelling) -> canonical module
+	// identity, and resolvedByID the package module each package-resolved
+	// identity names (canonical_identity.go). Cleared whenever an input to the
+	// mapping (resolver, prefix map, current package) changes.
+	canonicalOf  map[string]string
+	resolvedByID map[string]resolvedModule
+
+	// identityOfFile / fileOfIdentity record which file each module was read
+	// from; identityConflicts lists every violation of one-file-one-identity
+	// (IdentityConflicts).
+	identityOfFile    map[string]string
+	fileOfIdentity    map[string]string
+	identityConflicts []string
 
 	// pkgResolverAbsentReason explains why pkgLoader is nil, as diagnosed by
 	// whoever wired (or failed to wire) the resolver. The loader cannot know:
@@ -79,7 +88,7 @@ func (ml *ModuleLoader) SetStrictSyntaxMode(strict bool) {
 // SetPackageResolver sets the resolver for pkg/ imports.
 func (ml *ModuleLoader) SetPackageResolver(resolver PackageResolver) {
 	ml.pkgLoader = resolver
-	ml.canonicalOf = nil
+	ml.resetCanonical()
 }
 
 // SetPackageResolverAbsentReason records WHY no package resolver could be
@@ -105,7 +114,7 @@ func (ml *ModuleLoader) SetModulePrefixMap(prefixMap map[string]string) {
 	for _, names := range ml.modulePrefixMap {
 		sort.Strings(names)
 	}
-	ml.canonicalOf = nil
+	ml.resetCanonical()
 }
 
 // Preload adds a pre-loaded module to the cache
@@ -140,9 +149,9 @@ func canonicalizeModulePath(path string) string {
 
 // Load loads a module by path
 func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
-	// Canonicalize the import path. A package module reached by its
-	// module_prefix or bare self-import spelling is keyed by its published
-	// pkg/ path, so every spelling of one file shares ONE cache entry (M1b).
+	// Canonicalize the import path. Every spelling that resolves to one
+	// package module shares ONE identity and ONE cache entry (M1b,
+	// canonical_identity.go).
 	canonPath := ml.canonicalImportPath(path)
 
 	// Use canonicalized path for all subsequent operations
@@ -160,8 +169,16 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	fullPath := ""
 	var content []byte // Pre-loaded content (from embedded stdlib fallback)
 
-	// Try relative path first
-	if strings.HasPrefix(canonPath, "./") || strings.HasPrefix(canonPath, "../") {
+	// The package whose module this is: its imports are read in its scope.
+	owner := ml.currentPackageName
+
+	if res, ok := ml.resolvedByID[canonicalID]; ok {
+		// A package module: read the file the identity was derived from.
+		fullPath = res.file
+		owner = res.pkg
+		searchTrace = append(searchTrace, "package("+res.pkg+"): "+res.file)
+	} else if strings.HasPrefix(canonPath, "./") || strings.HasPrefix(canonPath, "../") {
+		// Try relative path first
 		relPath := filepath.Join(ml.basePath, canonPath) + ".ail"
 		searchTrace = append(searchTrace, "relative: "+relPath)
 		fullPath = relPath
@@ -309,7 +326,7 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	}
 
 	// Extract imports from the file
-	imports := ml.extractImports(file)
+	imports := ml.extractImportsFor(owner, file)
 	// DEBUG: Show imports (commented out - pollutes output for benchmarks)
 	//if len(imports) > 0 {
 	//	fmt.Printf("DEBUG loader: module %s imports %v\n", path, imports)
@@ -346,6 +363,7 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		Core:          nil, // Will be populated by runtime
 	}
 	ml.cache[canonicalID] = loaded
+	ml.recordIdentity(canonicalID, fullPath)
 
 	return loaded, nil
 }
@@ -501,7 +519,7 @@ func (ml *ModuleLoader) getExport(modulePath, written, symbol string) (*ast.Func
 	errReport := newIMP010Loader(symbol, modulePath, available, nil)
 	if written != "" && written != modulePath {
 		errReport.Message = strings.Replace(errReport.Message,
-			"'"+modulePath+"'", "'"+modulePath+"' (imported as '"+written+"')", 1)
+			"'"+modulePath+"'", "'"+DisplayModule(modulePath, written)+"'", 1)
 		errReport.Data["import_spelling"] = written
 	}
 	return nil, errors.WrapReport(errReport)
@@ -562,7 +580,14 @@ func (ml *ModuleLoader) LoadAll(roots []string) (map[string]*LoadedModule, error
 // Relative imports (./...) are normalized to canonical pkg/ paths using the
 // current module's declaration. The AST's imp.Path is updated in-place so all
 // downstream pipeline stages see the canonical identity (not the relative syntax).
+// The spellings are read in the root package's scope; Load uses
+// extractImportsFor with the package the module belongs to.
 func (ml *ModuleLoader) extractImports(file *ast.File) []string {
+	return ml.extractImportsFor(ml.currentPackageName, file)
+}
+
+// extractImportsFor is extractImports for a module of package owner.
+func (ml *ModuleLoader) extractImportsFor(owner string, file *ast.File) []string {
 	var imports []string
 	for _, imp := range file.Imports {
 		// Normalize relative imports: ./plan → pkg/vendor/name/plan
@@ -581,7 +606,7 @@ func (ml *ModuleLoader) extractImports(file *ast.File) []string {
 		}
 		// module_prefix and bare self-import spellings get the same treatment:
 		// the AST carries the canonical identity, WrittenPath the spelling (M1b).
-		ml.canonicalizeImportDecl(imp)
+		ml.canonicalizeImportDecl(owner, imp)
 		imports = append(imports, imp.Path)
 	}
 	return imports

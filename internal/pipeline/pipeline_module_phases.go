@@ -196,6 +196,7 @@ func (st *modulePipelineState) loadModules() error {
 		st.pipelineSpan.RecordError(loadErr)
 		return loadErr
 	}
+	st.result.ModuleIdentityConflicts = modLoader.IdentityConflicts()
 	if len(st.afterLoad) > 0 && st.afterLoad[0] != nil {
 		st.afterLoad[0](st.modules)
 	}

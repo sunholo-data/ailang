@@ -228,14 +228,11 @@ func TestExtractImports_RewritesSpellingKeepsWrittenPath(t *testing.T) {
 		t.Errorf("an import already canonical must keep an empty WrittenPath: %q %q",
 			file.Imports[1].WrittenPath, file.Imports[2].WrittenPath)
 	}
-	if got := ImportDisplay(rewritten); got != docPublished+" (imported as "+docPrefix+")" {
-		t.Errorf("ImportDisplay = %q", got)
+	if got := DisplayModule(rewritten.Path, rewritten.WrittenPath); got != docPublished+" (imported as "+docPrefix+")" {
+		t.Errorf("DisplayModule = %q", got)
 	}
-	if got := ImportDisplay(file.Imports[2]); got != "std/io" {
-		t.Errorf("ImportDisplay(std/io) = %q", got)
-	}
-	if ImportDisplay(nil) != "" {
-		t.Error("ImportDisplay(nil) should be empty")
+	if got := DisplayModule(file.Imports[2].Path, file.Imports[2].WrittenPath); got != "std/io" {
+		t.Errorf("DisplayModule(std/io) = %q", got)
 	}
 }
 
@@ -280,7 +277,7 @@ func TestGetImportExport_IMP010NamesBoth(t *testing.T) {
 	if err == nil {
 		t.Fatal("expected IMP010")
 	}
-	want := "not exported by '" + docPublished + "' (imported as '" + docPrefix + "')"
+	want := "not exported by '" + docPublished + " (imported as " + docPrefix + ")'"
 	if !strings.Contains(err.Error(), want) {
 		t.Fatalf("IMP010 = %q, want substring %q", err.Error(), want)
 	}
