@@ -9,6 +9,17 @@ import (
 	"github.com/sunholo-data/ailang/internal/ast"
 )
 
+// canonOf canonicalises spelling in the root package's scope, failing the
+// test on an error.
+func canonOf(t *testing.T, ml *ModuleLoader, spelling string) string {
+	t.Helper()
+	canon, err := ml.canonicalImportPath(spelling)
+	if err != nil {
+		t.Fatalf("canonicalImportPath(%q): %v", spelling, err)
+	}
+	return canon
+}
+
 // writeModule writes source to dir/rel and returns the absolute path.
 func writeModule(t *testing.T, dir, rel, source string) string {
 	t.Helper()
@@ -58,7 +69,7 @@ func assertOneInstance(t *testing.T, ml *ModuleLoader, file, canonical string, s
 	t.Helper()
 	var first *LoadedModule
 	for _, spelling := range spellings {
-		if got := ml.canonicalImportPath(spelling); got != canonical {
+		if got := canonOf(t, ml, spelling); got != canonical {
 			t.Errorf("canonicalImportPath(%q) = %q, want %q", spelling, got, canonical)
 		}
 		loaded, err := ml.Load(spelling)
@@ -91,7 +102,7 @@ func TestCanonicalImportPath_DependencyIsPublishedPath(t *testing.T) {
 	// A dependency's own files write the prefix; its consumers write pkg/.
 	assertOneInstance(t, ml, doc, docPublished, []string{docPrefix, docPublished, "./" + docPublished})
 	// The bare vendor/name form is a self-import only inside the root package.
-	if got := ml.canonicalImportPath(docBareSelf); got != docBareSelf {
+	if got := canonOf(t, ml, docBareSelf); got != docBareSelf {
 		t.Errorf("bare form of a dependency = %q, want it unchanged (not a self-import)", got)
 	}
 }
@@ -126,14 +137,14 @@ func TestCanonicalImportPath_UnresolvedSpellingUnchanged(t *testing.T) {
 		"some/file.ail",                      // explicit file path
 		"../up/one",                          // relative path
 	} {
-		if got := ml.canonicalImportPath(spelling); got != spelling {
+		if got := canonOf(t, ml, spelling); got != spelling {
 			t.Errorf("canonicalImportPath(%q) = %q, want it unchanged", spelling, got)
 		}
 	}
 	// Without a package resolver nothing is a package spelling.
 	bare := NewModuleLoader(t.TempDir())
 	bare.SetModulePrefixMap(map[string]string{parsePkg: "docparse"})
-	if got := bare.canonicalImportPath(docPrefix); got != docPrefix {
+	if got := canonOf(t, bare, docPrefix); got != docPrefix {
 		t.Errorf("without a resolver: got %q, want the spelling unchanged", got)
 	}
 }
@@ -149,7 +160,7 @@ func TestCanonicalImportPath_SharedPrefixIsDeterministic(t *testing.T) {
 		ml := NewModuleLoader(t.TempDir())
 		ml.SetPackageResolver(&mockPkgResolver{files: map[string]string{"v/b_pkg/x": b, "v/a_pkg/x": a}})
 		ml.SetModulePrefixMap(map[string]string{"v/b_pkg": "shared", "v/a_pkg": "shared"})
-		if got := ml.canonicalImportPath("shared/x"); got != "pkg/v/a_pkg/x" {
+		if got := canonOf(t, ml, "shared/x"); got != "pkg/v/a_pkg/x" {
 			t.Fatalf("run %d: canonicalImportPath(shared/x) = %q, want pkg/v/a_pkg/x", i, got)
 		}
 	}
@@ -171,11 +182,11 @@ func TestCanonicalImportPath_MemoClearedWhenInputsChange(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			ml, _ := parseLoader(t, tc.root)
-			if got := ml.canonicalImportPath(tc.spelling); got != tc.before {
+			if got := canonOf(t, ml, tc.spelling); got != tc.before {
 				t.Fatalf("setup: canonicalImportPath(%q) = %q, want %q", tc.spelling, got, tc.before)
 			}
 			tc.change(ml)
-			if got := ml.canonicalImportPath(tc.spelling); got != tc.after {
+			if got := canonOf(t, ml, tc.spelling); got != tc.after {
 				t.Errorf("after %s: got %q, want %q (stale memo)", tc.name, got, tc.after)
 			}
 		})
@@ -213,7 +224,10 @@ func TestExtractImports_RewritesSpellingKeepsWrittenPath(t *testing.T) {
 			{Path: "std/io"},
 		},
 	}
-	got := ml.extractImports(file)
+	got, err := ml.extractImports(file)
+	if err != nil {
+		t.Fatal(err)
+	}
 	want := []string{docPublished, docPublished, "std/io"}
 	for i := range want {
 		if got[i] != want[i] {
@@ -253,7 +267,10 @@ func TestExtractImports_RootRelativeAndPublishedFoldIntoOwnSpelling(t *testing.T
 			{Path: postsBare},
 		},
 	}
-	got := ml.extractImports(file)
+	got, err := ml.extractImports(file)
+	if err != nil {
+		t.Fatal(err)
+	}
 	for i, imp := range file.Imports {
 		if got[i] != postsBare || imp.Path != postsBare {
 			t.Errorf("import %d = (%q, %q), want %q", i, got[i], imp.Path, postsBare)

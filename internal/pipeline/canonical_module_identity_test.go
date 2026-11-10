@@ -52,11 +52,8 @@ func checkFixture(t *testing.T, entry string) Result {
 	if err != nil || len(result.Errors) > 0 {
 		t.Fatalf("check %s: %v %v", entry, err, result.Errors)
 	}
-	// The loader's own record over the whole build: each file read under one
-	// identity, each identity read from one file.
-	if len(result.ModuleIdentityConflicts) > 0 {
-		t.Errorf("check %s: module identity conflicts: %v", entry, result.ModuleIdentityConflicts)
-	}
+	// The loader's own file↔identity record is checked by the pipeline itself
+	// (LDR003 fails the build), so a passing check is one identity per file.
 	return result
 }
 

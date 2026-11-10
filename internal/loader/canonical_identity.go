@@ -1,8 +1,9 @@
 package loader
 
 import (
+	"fmt"
+	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
@@ -12,40 +13,35 @@ import (
 //
 // A package's module can be named several ways: by its published path
 // (`pkg/<vendor>/<name>/<module>`), by the package's `module_prefix`
-// (`<prefix>/<module>`, what the package's own files write), inside the root
-// package by the bare self-import (`<vendor>/<name>/<module>`), and — in a
-// package with no [exports] list — by any other path the resolver maps to the
-// same file (`pkg/<vendor>/<name>/<prefix>/<module>`). The loader used to key
-// its cache by the spelling, so one file imported two ways was parsed,
-// type-checked and evaluated twice under two module IDs.
+// (`<prefix>/<module>`), by the bare self-import (`<vendor>/<name>/<module>`),
+// inside the root package by a project-relative path (`util` for util.ail),
+// and — in a package with no [exports] list — by any other path the resolver
+// maps to the same file. The loader used to key its cache by the spelling, so
+// one file imported two ways was compiled and evaluated twice.
 //
-// The identity is now derived from what a spelling RESOLVES to — the package
-// and the file — never from the spelling:
+// The identity is derived from what a spelling RESOLVES to, never from the
+// spelling (canonical_scope.go has the resolution rule):
 //
-//  1. Scope. A spelling is read in the scope of the package whose module wrote
-//     it. A module_prefix spelling names the importing package's own module
-//     when the prefix is its own, else a module of one of its declared
-//     dependencies with that prefix; only when neither claims the prefix does
-//     the build-wide prefix table (root + direct dependencies) apply. So a
-//     dependency's `px/types/t` is its own file even when another package
-//     shares "px", and a transitive dependency resolves its own prefix.
+//  1. Scope. A spelling is resolved in the scope of the package whose module
+//     wrote it: that package itself, its DECLARED dependencies and std. A
+//     spelling that resolves to any other package is an error (LDR006), a
+//     prefix two declared dependencies both provide is an error (LDR005), and
+//     a dependency's spelling that does not resolve in its scope fails there
+//     (LDR001) — it is never retried in another package's scope.
 //  2. Module path. From the resolved file, the module's path inside its
-//     package is the shortest of (prefix stripped, src/ stripped, checkout
+//     package is the first of (prefix stripped, src/ stripped, checkout
 //     <vendor>/<name>/ stripped, the path as is) that the resolver maps back to
-//     the SAME file. Every spelling of one file therefore yields one path.
-//  3. Name. A DEPENDENCY's module is `pkg/<vendor>/<name>/<path>`, the path its
-//     consumers write; unique in a build because package names are unique in
-//     the lock. The ROOT package's own module keeps the spelling the package
-//     writes — `<prefix>/<path>`, else `<vendor>/<name>/<path>` — the ID it had
-//     before, so a package checked in its own repository reports its modules
-//     by the names it declares (MOD013 forbids a dependency to share the
-//     root's prefix, so this is unique too).
+//     the SAME file, so every spelling of one file yields one path. A spelling
+//     whose case differs from the file on disk is rejected on every host.
+//  3. Name. A DEPENDENCY's module is `pkg/<vendor>/<name>/<path>`. The ROOT
+//     package's own module keeps the spelling the package writes —
+//     `<prefix>/<path>`, else `<vendor>/<name>/<path>` — the ID it had before.
 //
-// A spelling the resolver rejects is returned unchanged, so Load reports the
-// error it reported before — except a dependency's own prefix spelling, which
-// is pinned to that dependency (`pkg/<owner>/<path>`) so it fails naming the
-// dependency instead of silently loading another package's module.
-func (ml *ModuleLoader) canonicalImportPath(path string) string {
+// What is left — a file reached through a path the package resolver does not
+// govern (a symlink into a package, a file-path import of another package's
+// file) — is caught by the file↔identity record: the pipeline fails the build
+// with LDR003 if any file was read under two identities (IdentityConflicts).
+func (ml *ModuleLoader) canonicalImportPath(path string) (string, error) {
 	return ml.canonicalImportPathFor(ml.currentPackageName, path)
 }
 
@@ -62,165 +58,79 @@ type resolvedModule struct {
 	file string // the file ResolveImport returned
 }
 
+// canonicalResult is a memoised canonicalisation: the canonical spelling, or
+// the error the spelling must fail with in its importer's scope.
+type canonicalResult struct {
+	canon string
+	err   error
+}
+
 // PackageLayoutResolver is implemented by package resolvers that can describe
 // a package visible to the build: its directory, module_prefix and declared
-// dependency names (pkg.PackageLoader). Without it the loader falls back to
-// the build-wide prefix table and to spelling-derived module paths.
+// dependency names (pkg.PackageLoader). Without it the loader keeps the
+// pre-scoping behaviour: the build-wide prefix table and spelling-derived
+// module paths.
 type PackageLayoutResolver interface {
 	PackageLayout(pkgName string) (dir, prefix string, deps []string, ok bool)
 }
 
-// canonicalImportPathFor is canonicalImportPath for a spelling written by a
-// module of package owner ("" = no package context).
-func (ml *ModuleLoader) canonicalImportPathFor(owner, path string) string {
+// canonicalImportPathFor canonicalises a spelling written by a module of
+// package owner ("" = no package context).
+func (ml *ModuleLoader) canonicalImportPathFor(owner, path string) (string, error) {
 	canonPath := canonicalizeModulePath(path)
 	if ml.pkgLoader == nil {
-		return canonPath
+		return canonPath, nil
 	}
 	key := owner + "\x00" + canonPath
-	if canon, ok := ml.canonicalOf[key]; ok {
-		return canon
+	if r, ok := ml.canonicalOf[key]; ok {
+		return r.canon, r.err
 	}
-	canon := canonPath
-	if pkgName, rest, file, ok := ml.resolvePackageSpelling(owner, canonPath); ok {
-		canon = ml.packageModuleID(pkgName, ml.modulePathOf(pkgName, file, rest))
+	r := canonicalResult{canon: canonPath}
+	res, err := ml.resolveInScope(owner, canonPath)
+	switch {
+	case err != nil:
+		r.err = err
+	case res != nil:
+		r.canon = ml.packageModuleID(res.pkg, res.rest)
 		if ml.resolvedByID == nil {
 			ml.resolvedByID = make(map[string]resolvedModule)
 		}
-		ml.resolvedByID[CanonicalModuleID(canon)] = resolvedModule{pkg: pkgName, file: file}
-	} else if pinned, ok := ml.pinOwnPrefix(owner, canonPath); ok {
-		canon = pinned
+		ml.resolvedByID[CanonicalModuleID(r.canon)] = resolvedModule{pkg: res.pkg, file: res.file}
 	}
 	if ml.canonicalOf == nil {
-		ml.canonicalOf = make(map[string]string)
+		ml.canonicalOf = make(map[string]canonicalResult)
 	}
-	ml.canonicalOf[key] = canon
-	return canon
-}
-
-// resolvePackageSpelling reports which package module a spelling names, when
-// the package resolver answers it: the package, the module path the spelling
-// wrote ("" for the package's root module, else "/<path>"), and the file.
-func (ml *ModuleLoader) resolvePackageSpelling(owner, canonPath string) (pkgName, rest, file string, ok bool) {
-	switch {
-	case strings.HasPrefix(canonPath, "../"), strings.HasPrefix(canonPath, "std/"),
-		strings.HasSuffix(canonPath, ".ail"):
-		return "", "", "", false
-	case strings.HasPrefix(canonPath, "pkg/"):
-		// The published path. ResolveImport takes it without "pkg/".
-		bare := strings.TrimPrefix(canonPath, "pkg/")
-		parts := strings.SplitN(bare, "/", 3)
-		if len(parts) < 2 {
-			return "", "", "", false
-		}
-		f, err := ml.pkgLoader.ResolveImport(bare)
-		if err != nil {
-			return "", "", "", false
-		}
-		name := parts[0] + "/" + parts[1]
-		return name, strings.TrimPrefix(bare, name), f, true
-	}
-	// Bare self-import: `import sunholo/linkedin/types` inside sunholo/linkedin.
-	// Load does not fall through when this fails, so neither do we.
-	if ml.currentPackageName != "" && pathMatchesPackagePrefix(canonPath, ml.currentPackageName) {
-		f, err := ml.pkgLoader.ResolveImport(canonPath)
-		if err != nil {
-			return "", "", "", false
-		}
-		return ml.currentPackageName, strings.TrimPrefix(canonPath, ml.currentPackageName), f, true
-	}
-	// module_prefix spelling, read in the importing package's scope.
-	firstSeg, rest := splitFirstSegment(canonPath)
-	for _, name := range ml.prefixCandidates(owner, firstSeg) {
-		if f, err := ml.pkgLoader.ResolveImport(name + rest); err == nil {
-			return name, rest, f, true
-		}
-	}
-	return "", "", "", false
-}
-
-func splitFirstSegment(p string) (first, rest string) {
-	if idx := strings.Index(p, "/"); idx >= 0 {
-		return p[:idx], p[idx:]
-	}
-	return p, ""
-}
-
-// prefixCandidates lists the packages a module_prefix spelling written by a
-// module of owner may name, in the order they are tried: owner itself if the
-// prefix is its own, then owner's declared dependencies with that prefix
-// (sorted). Only when neither claims the prefix does the build-wide table
-// (root + its direct dependencies, sorted per prefix) apply — the behaviour
-// before scoping, kept for packages whose resolver cannot describe layouts.
-func (ml *ModuleLoader) prefixCandidates(owner, prefix string) []string {
-	var scoped []string
-	if lr, ok := ml.pkgLoader.(PackageLayoutResolver); ok && owner != "" {
-		if _, own, deps, ok := lr.PackageLayout(owner); ok {
-			if own == prefix {
-				scoped = append(scoped, owner)
-			}
-			sorted := append([]string(nil), deps...)
-			sort.Strings(sorted)
-			for _, d := range sorted {
-				if _, p, _, ok := lr.PackageLayout(d); ok && p == prefix && d != owner {
-					scoped = append(scoped, d)
-				}
-			}
-		}
-	}
-	if len(scoped) > 0 {
-		return scoped
-	}
-	return ml.modulePrefixMap[prefix]
-}
-
-// pinOwnPrefix maps a DEPENDENCY's own prefix spelling that did not resolve to
-// `pkg/<owner><rest>`, so Load fails naming the dependency rather than falling
-// back to the build-wide prefix table or the root's directory. The root keeps
-// its old fallback (project-relative), which its unexported modules use.
-func (ml *ModuleLoader) pinOwnPrefix(owner, canonPath string) (string, bool) {
-	if owner == "" || owner == ml.currentPackageName || strings.HasPrefix(canonPath, "pkg/") {
-		return "", false
-	}
-	lr, ok := ml.pkgLoader.(PackageLayoutResolver)
-	if !ok {
-		return "", false
-	}
-	_, own, _, ok := lr.PackageLayout(owner)
-	firstSeg, rest := splitFirstSegment(canonPath)
-	if !ok || own == "" || own != firstSeg {
-		return "", false
-	}
-	return "pkg/" + owner + rest, true
+	ml.canonicalOf[key] = r
+	return r.canon, r.err
 }
 
 // modulePathOf is the module path ("" or "/<path>") of file inside package
 // pkgName, derived from the file so that every spelling of it agrees: the
-// first candidate the resolver maps back to the same file. spellingRest (what
-// the spelling wrote) is the fallback when the layout is unknown or no
-// candidate round-trips.
-func (ml *ModuleLoader) modulePathOf(pkgName, file, spellingRest string) string {
+// first candidate the resolver maps back to the same file. ok is false when
+// the layout is unknown, the file is outside the package, or no candidate
+// round-trips.
+func (ml *ModuleLoader) modulePathOf(pkgName, file string) (string, bool) {
 	lr, ok := ml.pkgLoader.(PackageLayoutResolver)
 	if !ok {
-		return spellingRest
+		return "", false
 	}
 	dir, prefix, _, ok := lr.PackageLayout(pkgName)
 	if !ok {
-		return spellingRest
+		return "", false
 	}
 	want := realFile(file)
 	rel, err := filepath.Rel(realFile(dir), want)
 	if err != nil || strings.HasPrefix(rel, "..") {
-		return spellingRest
+		return "", false
 	}
 	rel = strings.TrimSuffix(filepath.ToSlash(rel), ".ail")
 	for _, cand := range modulePathCandidates(rel, prefix, pkgName) {
 		f, err := ml.pkgLoader.ResolveImport(pkgName + cand)
 		if err == nil && realFile(f) == want {
-			return cand
+			return cand, true
 		}
 	}
-	return spellingRest
+	return "", false
 }
 
 // modulePathCandidates lists, most canonical first, the module paths a file
@@ -261,8 +171,42 @@ func realFile(p string) string {
 	return filepath.Clean(p)
 }
 
+// caseOnDisk reports the first path component of file below dir whose name on
+// disk differs from the spelling only in letter case, as (written, actual).
+// On a case-sensitive filesystem such a file does not resolve at all; on a
+// case-insensitive one it does, so without this check `cc/Init` and `cc/init`
+// would be two modules of one file on macOS and a missing module on Linux.
+func caseOnDisk(dir, file string) (written, actual string, mismatch bool) {
+	rel, err := filepath.Rel(dir, file)
+	if err != nil || strings.HasPrefix(rel, "..") {
+		return "", "", false
+	}
+	parent := dir
+	for _, part := range strings.Split(filepath.ToSlash(rel), "/") {
+		entries, err := os.ReadDir(parent)
+		if err != nil {
+			return "", "", false
+		}
+		exact, folded := false, ""
+		for _, e := range entries {
+			if e.Name() == part {
+				exact = true
+				break
+			}
+			if strings.EqualFold(e.Name(), part) {
+				folded = e.Name()
+			}
+		}
+		if !exact && folded != "" {
+			return part, folded, true
+		}
+		parent = filepath.Join(parent, part)
+	}
+	return "", "", false
+}
+
 // packageModuleID is the canonical module ID of module rest of package
-// pkgName in this build (see canonicalImportPath).
+// pkgName in this build.
 func (ml *ModuleLoader) packageModuleID(pkgName, rest string) string {
 	if pkgName != ml.currentPackageName || ml.currentPackageName == "" {
 		return "pkg/" + pkgName + rest
@@ -297,18 +241,21 @@ func (ml *ModuleLoader) prefixOf(pkgName string) string {
 // owner, to its canonical identity, keeping the author's spelling in
 // WrittenPath for diagnostics. A relative import arrives here already turned
 // into `pkg/<declared dir>/<name>` by extractImports; its written form is
-// `./<name>`.
-func (ml *ModuleLoader) canonicalizeImportDecl(owner string, imp *ast.ImportDecl) {
+// `./<name>`. It returns the error the import fails with in owner's scope.
+func (ml *ModuleLoader) canonicalizeImportDecl(owner string, imp *ast.ImportDecl) error {
 	if imp == nil {
-		return
-	}
-	canon := ml.canonicalImportPathFor(owner, imp.Path)
-	if canon == imp.Path {
-		return
+		return nil
 	}
 	written := imp.Path
 	if imp.IsRelative {
 		written = "./" + imp.RelativePath
+	}
+	canon, err := ml.canonicalImportPathFor(owner, imp.Path)
+	if err != nil {
+		return err
+	}
+	if canon == imp.Path {
+		return nil
 	}
 	if imp.WrittenPath == "" {
 		imp.WrittenPath = written
@@ -322,11 +269,11 @@ func (ml *ModuleLoader) canonicalizeImportDecl(owner string, imp *ast.ImportDecl
 			imp.PackageName = parts[0] + "/" + parts[1]
 		}
 	}
+	return nil
 }
 
 // recordIdentity notes that module id was read from file. A file read under
-// a second id, or an id read from a second file, is an identity conflict:
-// IdentityConflicts reports them (tests assert there are none).
+// a second id, or an id read from a second file, is an identity conflict.
 func (ml *ModuleLoader) recordIdentity(id, file string) {
 	if file == "" {
 		return
@@ -337,12 +284,14 @@ func (ml *ModuleLoader) recordIdentity(id, file string) {
 		ml.fileOfIdentity = make(map[string]string)
 	}
 	if prev, ok := ml.identityOfFile[rf]; ok && prev != id {
-		ml.identityConflicts = append(ml.identityConflicts, rf+": loaded as "+prev+" and as "+id)
+		ml.identityConflicts = append(ml.identityConflicts,
+			fmt.Sprintf("module file %s is loaded under two identities, %s and %s", rf, prev, id))
 	} else if !ok {
 		ml.identityOfFile[rf] = id
 	}
 	if prev, ok := ml.fileOfIdentity[id]; ok && prev != rf {
-		ml.identityConflicts = append(ml.identityConflicts, id+": read from "+prev+" and from "+rf)
+		ml.identityConflicts = append(ml.identityConflicts,
+			fmt.Sprintf("module %s is read from two files, %s and %s", id, prev, rf))
 	} else if !ok {
 		ml.fileOfIdentity[id] = rf
 	}
@@ -350,15 +299,16 @@ func (ml *ModuleLoader) recordIdentity(id, file string) {
 
 // IdentityConflicts reports every source file this loader read under more
 // than one module ID, and every module ID it read from more than one file.
-// Empty when module identity is single-valued and injective over the build.
+// Empty when module identity is single-valued and injective over the build;
+// the module pipeline fails the build (LDR003) otherwise.
 func (ml *ModuleLoader) IdentityConflicts() []string {
 	return append([]string(nil), ml.identityConflicts...)
 }
 
 // DisplayModule renders a canonical module ID with the spelling that reached
 // it, when the two differ: `pkg/acme/shapes/types/shape (imported as
-// shp/types/shape)`. Used by IMP010 (loader.getExport) and LDR002
-// (link.CycleError).
+// shp/types/shape)`. Used by IMP010 (loader.getExport), LDR001 in a package's
+// scope (canonical_scope.go) and LDR002 (link.CycleError).
 func DisplayModule(canonical, written string) string {
 	if written == "" || written == canonical {
 		return canonical

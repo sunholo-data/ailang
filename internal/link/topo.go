@@ -49,10 +49,14 @@ func (ml *ModuleLinker) TopoSortFromRoot(root string, loaded map[string]*loader.
 			// to the whole DFS path, so the message repeated it after the
 			// path that led there.)
 			var cycle []ModuleID
+			var into ModuleID // the module whose import led into the cycle
 			foundStart := false
-			for _, m := range cyclePath {
-				if m == module {
+			for i, m := range cyclePath {
+				if m == module && !foundStart {
 					foundStart = true
+					if i > 0 {
+						into = cyclePath[i-1]
+					}
 				}
 				if foundStart {
 					cycle = append(cycle, m)
@@ -62,7 +66,7 @@ func (ml *ModuleLinker) TopoSortFromRoot(root string, loaded map[string]*loader.
 			return &CycleError{
 				Code:    "LDR002",
 				Cycle:   cycle,
-				Written: ml.cycleSpellings(cycle),
+				Written: ml.cycleSpellings(into, cycle),
 			}
 		}
 
@@ -125,24 +129,33 @@ func (ml *ModuleLinker) getDependencies(module ModuleID) ([]ModuleID, error) {
 	return nil, fmt.Errorf("LDR001: module not found: %s\nAvailable modules: %v", module, available)
 }
 
-// cycleSpellings returns, for each module of a cycle after the first, the
-// spelling the previous module's source wrote to import it when the loader
-// rewrote that spelling to the canonical identity ("" otherwise).
-func (ml *ModuleLinker) cycleSpellings(cycle []ModuleID) []string {
+// cycleSpellings returns, for each module of a cycle, the spelling that
+// imported it when the loader rewrote that spelling to the canonical identity
+// ("" otherwise): for the first module, as the module that led into the cycle
+// (into, "" for the entry) wrote it; for every other, as the previous one did.
+func (ml *ModuleLinker) cycleSpellings(into ModuleID, cycle []ModuleID) []string {
 	written := make([]string, len(cycle))
+	if len(cycle) > 0 && into != "" {
+		written[0] = ml.importSpelling(into, cycle[0])
+	}
 	for i := 1; i < len(cycle); i++ {
-		from := ml.loadedModules[string(cycle[i-1])]
-		if from == nil || from.File == nil {
-			continue
-		}
-		for _, imp := range from.File.Imports {
-			if imp != nil && loader.CanonicalModuleID(imp.Path) == string(cycle[i]) {
-				written[i] = imp.WrittenPath
-				break
-			}
-		}
+		written[i] = ml.importSpelling(cycle[i-1], cycle[i])
 	}
 	return written
+}
+
+// importSpelling is the WrittenPath of from's import of to, or "".
+func (ml *ModuleLinker) importSpelling(from, to ModuleID) string {
+	mod := ml.loadedModules[string(from)]
+	if mod == nil || mod.File == nil {
+		return ""
+	}
+	for _, imp := range mod.File.Imports {
+		if imp != nil && loader.CanonicalModuleID(imp.Path) == string(to) {
+			return imp.WrittenPath
+		}
+	}
+	return ""
 }
 
 // CycleError represents a dependency cycle error

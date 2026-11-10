@@ -17,29 +17,24 @@ func TestModulePathOf_Fallbacks(t *testing.T) {
 	}
 	ml := NewModuleLoader(t.TempDir())
 	ml.SetPackageResolver(lr)
-	if got := ml.modulePathOf("acme/p", in, "/spelled"); got != "/x" {
-		t.Errorf("derived path = %q, want /x", got)
+	if got, ok := ml.modulePathOf("acme/p", in); !ok || got != "/x" {
+		t.Errorf("derived path = %q, %v; want /x", got, ok)
 	}
 	// Unknown layout, a file outside the package dir, and a file no candidate
-	// maps back to: the spelling's own path is kept.
-	if got := ml.modulePathOf("acme/unknown", in, "/spelled"); got != "/spelled" {
-		t.Errorf("unknown layout = %q", got)
+	// maps back to: no derived path.
+	for name, c := range map[string][2]string{
+		"unknown layout":  {"acme/unknown", in},
+		"outside package": {"acme/p", outside},
+		"no round-trip":   {"acme/p", writeModule(t, dir, "pkg/shp/y.ail", "module shp/y\n")},
+	} {
+		if got, ok := ml.modulePathOf(c[0], c[1]); ok {
+			t.Errorf("%s: derived %q, want none", name, got)
+		}
 	}
-	if got := ml.modulePathOf("acme/p", outside, "/spelled"); got != "/spelled" {
-		t.Errorf("file outside the package = %q", got)
-	}
-	other := writeModule(t, dir, "pkg/shp/y.ail", "module shp/y\n")
-	if got := ml.modulePathOf("acme/p", other, "/spelled"); got != "/spelled" {
-		t.Errorf("no round-trip = %q", got)
-	}
-	// A resolver without layouts: the spelling decides, as before scoping.
 	plain := NewModuleLoader(t.TempDir())
 	plain.SetPackageResolver(&mockPkgResolver{files: map[string]string{}})
-	if got := plain.modulePathOf("acme/p", in, "/spelled"); got != "/spelled" {
-		t.Errorf("no layout resolver = %q", got)
-	}
-	if got, ok := plain.pinOwnPrefix("acme/p", "shp/x"); ok || got != "" {
-		t.Errorf("no layout resolver: nothing pinned, got %q", got)
+	if _, ok := plain.modulePathOf("acme/p", in); ok {
+		t.Error("a resolver without layouts derives nothing")
 	}
 }
 
@@ -59,13 +54,12 @@ func TestPackageModuleID_RootForms(t *testing.T) {
 	if got := ml.prefixOf("acme/nobody"); got != "" {
 		t.Errorf("prefix of an unknown package = %q", got)
 	}
-	if got, ok := ml.pinOwnPrefix("acme/root", "rt/x"); ok || got != "" {
-		t.Errorf("the root's own spelling is never pinned, got %q", got)
-	}
 	if first, rest := splitFirstSegment("solo"); first != "solo" || rest != "" {
 		t.Errorf("splitFirstSegment(solo) = %q, %q", first, rest)
 	}
-	ml.canonicalizeImportDecl("acme/root", nil) // nil import: no-op
+	if err := ml.canonicalizeImportDecl("acme/root", nil); err != nil { // nil import: no-op
+		t.Fatal(err)
+	}
 }
 
 func TestRecordIdentity_IgnoresEmptyFile(t *testing.T) {
@@ -73,6 +67,26 @@ func TestRecordIdentity_IgnoresEmptyFile(t *testing.T) {
 	ml.recordIdentity("m", "")
 	if len(ml.identityOfFile) != 0 || len(ml.IdentityConflicts()) != 0 {
 		t.Fatal("a module without a file records nothing")
+	}
+}
+
+func TestCaseOnDisk(t *testing.T) {
+	dir := t.TempDir()
+	f := writeModule(t, dir, "cc/init.ail", "module cc/init\n")
+	if _, _, bad := caseOnDisk(dir, f); bad {
+		t.Fatal("exact case must not be a mismatch")
+	}
+	if w, a, bad := caseOnDisk(dir, filepath.Join(dir, "cc", "Init.ail")); !bad || w != "Init.ail" || a != "init.ail" {
+		t.Fatalf("case mismatch not reported: %q %q %v", w, a, bad)
+	}
+	if w, a, bad := caseOnDisk(dir, filepath.Join(dir, "CC", "init.ail")); !bad || w != "CC" || a != "cc" {
+		t.Fatalf("directory case mismatch not reported: %q %q %v", w, a, bad)
+	}
+	if _, _, bad := caseOnDisk(dir, filepath.Join(dir, "..", "x.ail")); bad {
+		t.Fatal("a file outside the dir is not judged")
+	}
+	if _, _, bad := caseOnDisk(dir, filepath.Join(dir, "cc", "missing.ail")); bad {
+		t.Fatal("a missing file is not a case mismatch")
 	}
 }
 

@@ -56,6 +56,21 @@ func TestTopoSort_CycleNamesSpellingOnce(t *testing.T) {
 	}
 }
 
+// The first module of a cycle shows how the module that led into the cycle
+// imported it.
+func TestTopoSort_CycleFirstElementShowsItsSpelling(t *testing.T) {
+	ml := NewModuleLinker(nil)
+	_, err := ml.TopoSortFromRoot("main", map[string]*loader.LoadedModule{
+		"main":                  mod("main", &ast.ImportDecl{Path: "pkg/acme/shapes/cyc/a", WrittenPath: "shp/cyc/a"}),
+		"pkg/acme/shapes/cyc/a": mod("pkg/acme/shapes/cyc/a", &ast.ImportDecl{Path: "pkg/acme/shapes/cyc/b"}),
+		"pkg/acme/shapes/cyc/b": mod("pkg/acme/shapes/cyc/b", &ast.ImportDecl{Path: "pkg/acme/shapes/cyc/a", WrittenPath: "shp/cyc/a"}),
+	})
+	want := "LDR002: dependency cycle detected: pkg/acme/shapes/cyc/a (imported as shp/cyc/a) -> pkg/acme/shapes/cyc/b -> pkg/acme/shapes/cyc/a (imported as shp/cyc/a)"
+	if err == nil || err.Error() != want {
+		t.Fatalf("cycle error\n got: %v\nwant: %s", err, want)
+	}
+}
+
 func TestTopoSort_MissingModule(t *testing.T) {
 	ml := NewModuleLinker(nil)
 	if _, err := ml.TopoSortFromRoot("main", map[string]*loader.LoadedModule{

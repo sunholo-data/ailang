@@ -135,21 +135,17 @@ type Artifacts struct {
 type Result struct {
 	PkgAssets map[string]effects.PkgAssetTarget // Immutable locked dependency asset targets.
 
-	Value       eval.Value
-	Type        types.Type
-	Constraints []types.Constraint
-	Errors      []error             // TODO: Use structured errors
-	Warnings    []elaborate.Warning // Compile-time warnings (exhaustiveness, split-arg-order, ...)
-	Artifacts   Artifacts
-	Interface   *iface.Iface                    // Module interface (for modules only)
-	Modules     map[string]*loader.LoadedModule // Loaded modules with Core (for module execution)
-	// ModuleIdentityConflicts lists every source file the loader read under
-	// more than one module ID, and every ID read from more than one file
-	// (loader.IdentityConflicts). Empty when one file has one identity (M1b).
-	ModuleIdentityConflicts []string
-	EnvLockDigest           string
-	PhaseTimings            map[string]int64       // milliseconds
-	Instantiations          map[string]interface{} // Polymorphic instantiation tracking
+	Value          eval.Value
+	Type           types.Type
+	Constraints    []types.Constraint
+	Errors         []error             // TODO: Use structured errors
+	Warnings       []elaborate.Warning // Compile-time warnings (exhaustiveness, split-arg-order, ...)
+	Artifacts      Artifacts
+	Interface      *iface.Iface                    // Module interface (for modules only)
+	Modules        map[string]*loader.LoadedModule // Loaded modules with Core (for module execution)
+	EnvLockDigest  string
+	PhaseTimings   map[string]int64       // milliseconds
+	Instantiations map[string]interface{} // Polymorphic instantiation tracking
 
 	// M-DX11: Type debugging
 	TypeChecker *types.CoreTypeChecker  // Type checker (for debug output)

@@ -33,7 +33,7 @@ type ModuleLoader struct {
 	// identity, and resolvedByID the package module each package-resolved
 	// identity names (canonical_identity.go). Cleared whenever an input to the
 	// mapping (resolver, prefix map, current package) changes.
-	canonicalOf  map[string]string
+	canonicalOf  map[string]canonicalResult
 	resolvedByID map[string]resolvedModule
 
 	// identityOfFile / fileOfIdentity record which file each module was read
@@ -152,7 +152,16 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	// Canonicalize the import path. Every spelling that resolves to one
 	// package module shares ONE identity and ONE cache entry (M1b,
 	// canonical_identity.go).
-	canonPath := ml.canonicalImportPath(path)
+	// An identity an importer's scope already resolved (canonical_scope.go) is
+	// loaded as resolved — never re-resolved in the root's scope. Any other
+	// path is canonicalised as written by the root.
+	canonPath := canonicalizeModulePath(path)
+	if _, scoped := ml.resolvedByID[CanonicalModuleID(canonPath)]; !scoped {
+		var err error
+		if canonPath, err = ml.canonicalImportPath(path); err != nil {
+			return nil, err
+		}
+	}
 
 	// Use canonicalized path for all subsequent operations
 	canonicalID := CanonicalModuleID(canonPath)
@@ -326,7 +335,10 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	}
 
 	// Extract imports from the file
-	imports := ml.extractImportsFor(owner, file)
+	imports, err := ml.extractImportsFor(owner, file)
+	if err != nil {
+		return nil, err
+	}
 	// DEBUG: Show imports (commented out - pollutes output for benchmarks)
 	//if len(imports) > 0 {
 	//	fmt.Printf("DEBUG loader: module %s imports %v\n", path, imports)
@@ -582,12 +594,13 @@ func (ml *ModuleLoader) LoadAll(roots []string) (map[string]*LoadedModule, error
 // downstream pipeline stages see the canonical identity (not the relative syntax).
 // The spellings are read in the root package's scope; Load uses
 // extractImportsFor with the package the module belongs to.
-func (ml *ModuleLoader) extractImports(file *ast.File) []string {
+func (ml *ModuleLoader) extractImports(file *ast.File) ([]string, error) {
 	return ml.extractImportsFor(ml.currentPackageName, file)
 }
 
-// extractImportsFor is extractImports for a module of package owner.
-func (ml *ModuleLoader) extractImportsFor(owner string, file *ast.File) []string {
+// extractImportsFor is extractImports for a module of package owner. An
+// import that fails in owner's scope (canonical_scope.go) is an error.
+func (ml *ModuleLoader) extractImportsFor(owner string, file *ast.File) ([]string, error) {
 	var imports []string
 	for _, imp := range file.Imports {
 		// Normalize relative imports: ./plan → pkg/vendor/name/plan
@@ -606,10 +619,12 @@ func (ml *ModuleLoader) extractImportsFor(owner string, file *ast.File) []string
 		}
 		// module_prefix and bare self-import spellings get the same treatment:
 		// the AST carries the canonical identity, WrittenPath the spelling (M1b).
-		ml.canonicalizeImportDecl(owner, imp)
+		if err := ml.canonicalizeImportDecl(owner, imp); err != nil {
+			return nil, err
+		}
 		imports = append(imports, imp.Path)
 	}
-	return imports
+	return imports, nil
 }
 
 // NormalizeRelativeImport resolves a relative import against the current module's

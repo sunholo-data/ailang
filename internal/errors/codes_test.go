@@ -118,7 +118,7 @@ func TestAllErrorCodesInRegistry(t *testing.T) {
 		// Bytecode
 		BC001,
 		// Loader
-		LDR001, LDR002, LDR003, LDR004, LDR005,
+		LDR001, LDR002, LDR003, LDR004, LDR005, LDR006,
 		// Desugar
 		DSG001, DSG002, DSG003,
 		// Type checking
