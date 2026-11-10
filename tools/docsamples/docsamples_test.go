@@ -1,65 +1,71 @@
 package main
 
 import (
-	"bytes"
-	"encoding/json"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"regexp"
-	"strconv"
 	"strings"
 	"testing"
-
-	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 const fixturePage = "docs/docs/fixture.md"
 
 var markerRe = regexp.MustCompile(`marker: ([a-z-]+)`)
 
-// fixtureBlocks extracts the fixture page and indexes its blocks by marker.
-func fixtureBlocks(t *testing.T, root string) map[string]*Block {
+// fixtureBlocks extracts a fixture page and indexes its blocks by marker.
+func fixtureBlocks(t *testing.T, root, page string) map[string]*Block {
 	t.Helper()
-	raw, err := os.ReadFile(filepath.Join(root, fixturePage))
+	raw, err := os.ReadFile(filepath.Join(root, page))
 	if err != nil {
 		t.Fatal(err)
 	}
 	out := map[string]*Block{}
-	for _, b := range ExtractBlocks(fixturePage, fixturePage, string(raw)) {
-		if m := markerRe.FindStringSubmatch(b.Body); m != nil {
-			out[m[1]] = b
-		} else if b.Class == ClassRepl {
+	for _, b := range ExtractBlocks(page, page, string(raw)) {
+		switch {
+		case markerRe.MatchString(b.Body):
+			out[markerRe.FindStringSubmatch(b.Body)[1]] = b
+		case b.Class == ClassRepl:
 			out["repl"] = b
+		case strings.HasPrefix(b.Body, "let answer"): // marker-less: a `--` marker is itself a hint
+			out["probe-untagged"] = b
+		case strings.HasPrefix(b.Body, "match parse"):
+			out["hint-match"] = b
+		case strings.HasPrefix(b.Body, "let r = run"):
+			out["hint-adt-arm"] = b
 		}
 	}
 	return out
 }
 
 func TestExtractClassifiesTheInfoString(t *testing.T) {
-	bs := fixtureBlocks(t, "testdata/site")
+	bs := fixtureBlocks(t, "testdata/site", fixturePage)
 	want := map[string]Class{
-		"pass-program": ClassProgram, "pass-header": ClassProgram, "fail-untagged": ClassProgram,
-		"fragment-parse": ClassParse, "error-fails-correctly": ClassError, "error-wrongly-passes": ClassError,
-		"error-wrong-code": ClassError, "baselined-failure": ClassProgram, "stale-baseline": ClassProgram,
-		"sketch": ClassSketch, "repl": ClassRepl, "file-lib": ClassProgram, "file-user": ClassProgram,
-		"misfenced": ClassMisfenced, "bad-tag": ClassBadTag,
+		"pass-program": ClassProgram, "pass-header": ClassProgram, "main-needs-module": ClassProgram,
+		"fail-untagged": ClassProgram, "fragment-parse": ClassParse, "error-fails-correctly": ClassError,
+		"error-wrongly-passes": ClassError, "error-wrong-code": ClassError, "error-prefix-only": ClassError,
+		"error-second-code": ClassError, "error-pseudo-code": ClassBadTag, "baselined-failure": ClassProgram,
+		"baselined-code-changed": ClassProgram, "stale-baseline": ClassProgram, "sketch": ClassSketch,
+		"sketch-unlisted": ClassSketch, "repl": ClassRepl, "file-lib": ClassProgram, "file-user": ClassProgram,
+		"tilde-fence": ClassProgram, "misfenced": ClassMisfenced, "misfenced-untagged": ClassMisfenced,
+		"misfenced-parse-probe": ClassCandidate, "bad-tag": ClassBadTag, "stray-fence": ClassStructural,
+		"unterminated": ClassStructural, "probe-untagged": ClassCandidate, "hint-match": ClassMisfenced,
+		"hint-adt-arm": ClassMisfenced,
 	}
 	for m, c := range want {
-		b := bs[m]
-		if b == nil {
+		if b := bs[m]; b == nil {
 			t.Errorf("marker %s: block not extracted", m)
-			continue
-		}
-		if b.Class != c {
+		} else if b.Class != c {
 			t.Errorf("marker %s: class %s, want %s", m, b.Class, c)
 		}
 	}
 	if len(bs) != len(want) {
-		t.Fatalf("extracted %d marked blocks, want %d (the TypeScript and bash blocks must be ignored)", len(bs), len(want))
+		t.Fatalf("extracted %d marked blocks, want %d (TypeScript, bash and output blocks must be ignored)", len(bs), len(want))
 	}
 	if bs["error-fails-correctly"].WantCode != "PAR_UNEXPECTED_TOKEN" || bs["file-lib"].File != "fixture/lib.ail" {
 		t.Errorf("error=/file= values not parsed: %+v %+v", bs["error-fails-correctly"], bs["file-lib"])
+	}
+	if bs["stray-fence"].Defect != "DOC_FENCE_PAIRING" || bs["unterminated"].Defect != "DOC_UNTERMINATED" {
+		t.Errorf("structural defects: %q %q", bs["stray-fence"].Defect, bs["unterminated"].Defect)
 	}
 }
 
@@ -89,7 +95,12 @@ func TestInfoStringGrammar(t *testing.T) {
 		`title="a b.ail" showLineNumbers`: ClassProgram,
 		`{1,3-4} parse`:                   ClassParse,
 		`error=PAR015`:                    ClassError,
+		`error=PAR_UNEXPECTED`:            ClassError, // a well-formed code; whether it is THE code is the check's job
 		`file=a/b.ail error=MOD014`:       ClassError,
+		`error=OTHER`:                     ClassBadTag, // the gate's own fallback class, not a binary code
+		`error=TC_UNDEFINED_VAR`:          ClassBadTag,
+		`error=DOC_MISFENCED`:             ClassBadTag,
+		`error=par015`:                    ClassBadTag,
 		`parse sketch`:                    ClassBadTag, // two classes
 		`file=a/b.ail sketch`:             ClassBadTag, // a file must be checked
 		`file=../x.ail`:                   ClassBadTag, // escapes the stage
@@ -118,236 +129,107 @@ func TestKeyIgnoresWhitespaceNotContent(t *testing.T) {
 	}
 }
 
-func TestJudgeAppliesTheBaseline(t *testing.T) {
-	mk := func(key string, c Class) *Block { return &Block{Page: "p.md", Key: key, Class: c} }
-	pass, fail, listedFail, listedPass, sketchListed, skipped :=
+func TestScopeCoversEveryDocsDirectory(t *testing.T) {
+	for rel, want := range map[string]bool{
+		"docs/docs/reference/stability.md": false, "docs/docs/guides/x.mdx": false, "docs/docs/intro.mdx": false,
+		"docs/docs/prompts/index.md": false, "docs/docs/prompts/v0.16.12.md": true, "docs/docs/prompts/current.md": true,
+		"docs/docs/packages/index.mdx": false, "docs/docs/packages/sunholo/x.md": true,
+	} {
+		if excluded(rel) != want {
+			t.Errorf("excluded(%s) = %v, want %v", rel, !want, want)
+		}
+	}
+	s, err := Scope("testdata/site")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Join(s.Pages, ",") != "docs/docs/fixture.md,docs/docs/reference/imports.mdx" || strings.Join(s.JS, ",") != "docs/src/pages/index.jsx" {
+		t.Errorf("scope: pages %v, js %v", s.Pages, s.JS)
+	}
+}
+
+func TestImportsAndLiterals(t *testing.T) {
+	raw, _ := os.ReadFile("testdata/site/docs/docs/reference/imports.mdx")
+	imps, defects := ImportsOf("testdata/site", "docs/docs/reference/imports.mdx", string(raw))
+	if len(imps) != 2 || imps[0].Path != "examples/fixture/good.ail" || imps[1].Path != "examples/fixture/bad.ail" {
+		t.Errorf("imports: %+v", imps)
+	}
+	codes := []string{}
+	for _, d := range defects {
+		codes = append(codes, d.Defect)
+	}
+	if strings.Join(codes, ",") != "DOC_MISSING_IMPORT,DOC_MISFENCED" {
+		t.Errorf("defects: %v", codes)
+	}
+	jsx, _ := os.ReadFile("testdata/site/docs/src/pages/index.jsx")
+	lits := LiteralsOf("docs/src/pages/index.jsx", string(jsx))
+	if len(lits) != 1 || !strings.Contains(lits[0].Body, "module fixture/hero") || lits[0].Line != 5 {
+		t.Errorf("literals (want the AILANG one only, not the CSS): %+v", lits)
+	}
+}
+
+func list(es ...Entry) *List {
+	l := &List{Entries: map[string]Entry{}}
+	for _, e := range es {
+		l.Entries[e.id()] = e
+		l.Order = append(l.Order, e.id())
+	}
+	return l
+}
+
+func TestJudgeAppliesTheLists(t *testing.T) {
+	mk := func(key string, c Class) *Block { return &Block{Page: "p.md", Source: "p.md", Key: key, Class: c} }
+	blocks := []*Block{
 		mk("aaaaaaaaaaaa", ClassProgram), mk("bbbbbbbbbbbb", ClassProgram), mk("cccccccccccc", ClassProgram),
-		mk("dddddddddddd", ClassProgram), mk("eeeeeeeeeeee", ClassSketch), mk("ffffffffffff", ClassRepl)
-	blocks := []*Block{pass, fail, listedFail, listedPass, sketchListed, skipped}
+		mk("dddddddddddd", ClassProgram), mk("eeeeeeeeeeee", ClassSketch), mk("ffffffffffff", ClassRepl),
+		mk("111111111111", ClassProgram), mk("222222222222", ClassMisfenced), mk("333333333333", ClassSketch),
+	}
 	out := map[*Block]*Outcome{
-		pass: {Ran: true, Pass: true}, fail: {Ran: true, Code: "X"}, listedFail: {Ran: true, Code: "Y"},
-		listedPass: {Ran: true, Pass: true}, sketchListed: {}, skipped: {},
+		blocks[0]: {Ran: true, Pass: true}, blocks[1]: {Ran: true, Code: "X"}, blocks[2]: {Ran: true, Code: "Z"},
+		blocks[3]: {Ran: true, Pass: true}, blocks[4]: {}, blocks[5]: {},
+		blocks[6]: {Ran: true, Code: "NEW"}, blocks[7]: {Ran: true, Code: "DOC_MISFENCED"}, blocks[8]: {},
 	}
-	bl := &Baseline{Entries: map[string]Entry{}}
-	for _, e := range []Entry{{"p.md", "cccccccccccc", "Z"}, {"p.md", "dddddddddddd", "X"}, {"p.md", "eeeeeeeeeeee", "X"}, {"p.md", "999999999999", "X"}} {
-		bl.Entries[e.id()] = e
-		bl.Order = append(bl.Order, e.id())
-	}
-	got := Judge(blocks, out, bl)
-	want := []Verdict{VOK, VFail, VBaselined, VStale, VStale, VSkipped, VOrphan}
+	bl := list(Entry{"p.md", "cccccccccccc", "Z", ""}, Entry{"p.md", "dddddddddddd", "X", ""}, Entry{"p.md", "eeeeeeeeeeee", "X", ""},
+		Entry{"p.md", "111111111111", "OLD", ""}, Entry{"p.md", "222222222222", "TC_TYPE", ""}, Entry{"p.md", "999999999999", "X", ""})
+	un := list(Entry{"p.md", "ffffffffffff", "repl", ""}, Entry{"p.md", "333333333333", "repl", ""}, Entry{"p.md", "888888888888", "sketch", ""})
+	got := Judge(blocks, out, bl, un)
+	want := []Verdict{VOK, VFail, VBaselined, VStale, VStale, VSkipped, VFail, VFail, VFail, VOrphan, VOrphan}
 	if len(got) != len(want) {
 		t.Fatalf("got %d verdicts, want %d", len(got), len(want))
 	}
 	for i, w := range want {
 		if got[i].Verdict != w {
-			t.Errorf("verdict %d: %s, want %s", i, got[i].Verdict, w)
+			t.Errorf("verdict %d: %s, want %s (%s)", i, got[i].Verdict, w, got[i].Why)
 		}
 	}
-	if got[2].CodeNote == "" {
-		t.Error("a baselined block whose first code changed carries no note")
+	// A baselined block re-fenced as typescript keeps its key: it must be judged as a
+	// structural defect (no list can excuse it), not as an ordinary code change.
+	if got[7].Why != "" {
+		t.Errorf("a listed block that turned structural must fail as structural, got %q", got[7].Why)
+	}
+	if !strings.Contains(got[6].Why, "baselined as OLD but now fails with NEW") {
+		t.Errorf("a changed code must say so: %q", got[6].Why)
 	}
 }
 
-// ailangBin is the binary the fixture runs against. make test-check-doc-samples sets
-// DOCSAMPLES_AILANG to a binary built from this commit and then a missing binary is
-// a FAILURE; under a plain `go test ./...` the shared stale-aware finder may skip.
-func ailangBin(t *testing.T) string {
-	if p := os.Getenv("DOCSAMPLES_AILANG"); p != "" {
-		if _, err := os.Stat(p); err != nil {
-			t.Fatalf("DOCSAMPLES_AILANG=%s: %v", p, err)
-		}
-		return p
-	}
-	return testutil.FindAilangBinary(t)
-}
-
-// copyFixture copies testdata/site into a temp dir and writes the fixture baseline:
-// the baselined-failure block, the stale-baseline block (which passes), and one
-// orphan entry for a block that does not exist.
-func copyFixture(t *testing.T) string {
-	t.Helper()
-	dst := t.TempDir()
-	raw, err := os.ReadFile(filepath.Join("testdata/site", fixturePage))
-	if err != nil {
+func TestListsRefuseStructuralCodes(t *testing.T) {
+	p := filepath.Join(t.TempDir(), "b.txt")
+	if err := os.WriteFile(p, []byte("p.md 0123456789ab DOC_MISFENCED\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
-	if err := os.MkdirAll(filepath.Join(dst, "docs/docs"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dst, fixturePage), raw, 0o644); err != nil {
-		t.Fatal(err)
-	}
-	bs := fixtureBlocks(t, dst)
-	bl := baselineHeader +
-		fixturePage + " " + bs["baselined-failure"].Key + " TC_UNDEFINED_VAR\n" +
-		fixturePage + " " + bs["stale-baseline"].Key + " TC_UNDEFINED_VAR\n" +
-		fixturePage + " 000000000000 PAR015\n"
-	if err := os.MkdirAll(filepath.Join(dst, "scripts"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dst, "scripts/doc_samples_baseline.txt"), []byte(bl), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	return dst
-}
-
-func repoStd(t *testing.T) string {
-	p, err := filepath.Abs("../../std")
-	if err != nil {
-		t.Fatal(err)
-	}
-	return p
-}
-
-// TestFixtureVerdicts is the control: one block per verdict, checked by the real
-// binary, each asserted exactly — including the gate's exit code and that the
-// failure lines name page:line, the tag, the code and a repro command.
-func TestFixtureVerdicts(t *testing.T) {
-	bin := ailangBin(t)
-	root := copyFixture(t)
-	var buf bytes.Buffer
-	jsonPath := filepath.Join(t.TempDir(), "out.json")
-	rc := run(options{root: root, bin: bin, baseline: "scripts/doc_samples_baseline.txt", stdlib: repoStd(t), jobs: 4, jsonOut: jsonPath}, &buf)
-	out := buf.String()
-	if rc != 1 {
-		t.Fatalf("exit %d, want 1 (the fixture has deliberate failures)\n%s", rc, out)
-	}
-	bs := fixtureBlocks(t, root)
-	want := map[string]string{
-		"pass-program":          "ok",
-		"pass-header":           "ok",
-		"fail-untagged":         "FAIL TC_UNDEFINED_VAR",
-		"fragment-parse":        "ok",
-		"error-fails-correctly": "ok",
-		"error-wrongly-passes":  "FAIL DOC_EXPECTED_FAIL",
-		"error-wrong-code":      "FAIL DOC_WRONG_ERROR",
-		"baselined-failure":     "baselined",
-		"stale-baseline":        "STALE",
-		"sketch":                "skipped",
-		"repl":                  "skipped",
-		"file-lib":              "ok",
-		"file-user":             "ok",
-		"misfenced":             "FAIL DOC_MISFENCED",
-		"bad-tag":               "FAIL DOC_BADTAG",
-	}
-	rows := readRows(t, jsonPath)
-	for m, w := range want {
-		b := bs[m]
-		r, ok := rows[b.Line]
-		if !ok {
-			t.Errorf("%s (line %d): no verdict", m, b.Line)
-			continue
-		}
-		got := r.Verdict
-		if strings.HasPrefix(w, "FAIL ") {
-			got += " " + r.Code
-		}
-		if got != w {
-			t.Errorf("%s (line %d): %q, want %q (%s)", m, b.Line, got, w, r.FirstErr)
-		}
-	}
-	if !strings.Contains(out, "ORPHAN    docs/docs/fixture.md 000000000000") {
-		t.Errorf("orphan baseline entry not reported:\n%s", out)
-	}
-	line := bs["fail-untagged"].Line
-	for _, frag := range []string{
-		"FAIL      docs/docs/fixture.md:" + itoa(line) + " [ailang] TC_UNDEFINED_VAR: ",
-		"repro: make check-doc-samples DOC_SAMPLES_ARGS='-only docs/docs/fixture.md:" + itoa(line),
-		"NEW failures 5", "stale baseline 1, orphaned 1",
-	} {
-		if !strings.Contains(out, frag) {
-			t.Errorf("report lacks %q:\n%s", frag, out)
-		}
+	if _, err := LoadList(p, false); err == nil || !strings.Contains(err.Error(), "cannot be baselined") {
+		t.Errorf("a DOC_* line must be refused, got %v", err)
 	}
 }
 
-// TestFixtureGreenOnceBaselined: the same tree, with the failures listed and the
-// stale/orphan entries gone, exits 0 — so the gate is not simply always red.
-func TestFixtureGreenOnceBaselined(t *testing.T) {
-	bin := ailangBin(t)
-	root := copyFixture(t)
-	var buf bytes.Buffer
-	o := options{root: root, bin: bin, baseline: "scripts/doc_samples_baseline.txt", stdlib: repoStd(t), jobs: 4, write: true}
-	if rc := run(o, &buf); rc != 0 {
-		t.Fatalf("after -write-baseline: exit %d, want 0\n%s", rc, buf.String())
+func TestAddedIsASetRule(t *testing.T) {
+	base := list(Entry{"p.md", "aaaaaaaaaaaa", "X", ""}, Entry{"p.md", "bbbbbbbbbbbb", "X", ""})
+	swapped := list(Entry{"p.md", "aaaaaaaaaaaa", "X", ""}, Entry{"p.md", "cccccccccccc", "X", ""})
+	if got := Added(swapped, base, nil); len(got) != 1 || got[0] != "p.md cccccccccccc" {
+		t.Errorf("a swap keeps the count but adds a key: Added = %v", got)
 	}
-	o.write = false
-	buf.Reset()
-	if rc := run(o, &buf); rc != 0 {
-		t.Fatalf("re-run against the written baseline: exit %d, want 0\n%s", rc, buf.String())
+	marked := list(Entry{"p.md", "cccccccccccc", "sketch", "reviewed: body-less signature"}, Entry{"p.md", "dddddddddddd", "sketch", "reviewed:"})
+	if got := Added(marked, base, reviewed); len(got) != 1 || got[0] != "p.md dddddddddddd" {
+		t.Errorf("only a non-empty reviewed: marker admits a new unchecked line: %v", got)
 	}
-	raw, _ := os.ReadFile(filepath.Join(root, "scripts/doc_samples_baseline.txt"))
-	if strings.Contains(string(raw), "000000000000") || strings.Count(string(raw), fixturePage) != 6 {
-		t.Errorf("written baseline should list exactly the 6 failing blocks:\n%s", raw)
-	}
-}
-
-func TestShrinkOnlyAgainstBaseRef(t *testing.T) {
-	bin := ailangBin(t)
-	root := copyFixture(t)
-	git := func(args ...string) {
-		cmd := exec.Command("git", append([]string{"-C", root, "-c", "user.name=t", "-c", "user.email=t@example.invalid"}, args...)...)
-		if out, err := cmd.CombinedOutput(); err != nil {
-			t.Fatalf("git %v: %v\n%s", args, err, out)
-		}
-	}
-	git("init", "-q")
-	o := options{root: root, bin: bin, baseline: "scripts/doc_samples_baseline.txt", stdlib: repoStd(t), jobs: 4, write: true}
-	var buf bytes.Buffer
-	run(o, &buf) // seed: 6 entries
-	git("add", "-A")
-	git("commit", "-q", "-m", "seed")
-	// Grow the baseline by one line: the ratchet must refuse it against HEAD's count.
-	o.write, o.baseRef = false, "HEAD"
-	bl := filepath.Join(root, o.baseline)
-	raw, _ := os.ReadFile(bl)
-	if err := os.WriteFile(bl, append(raw, []byte(fixturePage+" 0123456789ab EXTRA\n")...), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	buf.Reset()
-	if rc := run(o, &buf); rc != 1 || !strings.Contains(buf.String(), "FAIL shrink-only") {
-		t.Fatalf("a grown baseline: exit %d, want 1 with a shrink-only failure\n%s", rc, buf.String())
-	}
-	o.baseRef = "no-such-ref"
-	buf.Reset()
-	if rc := run(o, &buf); rc != 2 {
-		t.Fatalf("a missing base ref: exit %d, want 2 (instrument failure, never a silent pass)\n%s", rc, buf.String())
-	}
-}
-
-func TestRefusesVacuousAndMissingInputs(t *testing.T) {
-	var buf bytes.Buffer
-	if rc := run(options{root: t.TempDir(), bin: ""}, &buf); rc != 2 {
-		t.Errorf("no binary: exit %d, want 2", rc)
-	}
-	empty := t.TempDir()
-	if err := os.MkdirAll(filepath.Join(empty, "docs/docs"), 0o755); err != nil {
-		t.Fatal(err)
-	}
-	self, _ := os.Executable()
-	if rc := run(options{root: empty, bin: self, baseline: "b.txt"}, &buf); rc != 2 {
-		t.Errorf("no blocks in scope: exit %d, want 2", rc)
-	}
-}
-
-func itoa(n int) string { return strconv.Itoa(n) }
-
-// readRows loads the -json output, indexed by line (fixture blocks only).
-func readRows(t *testing.T, path string) map[int]jsonRow {
-	t.Helper()
-	raw, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	var rows []jsonRow
-	if err := json.Unmarshal(raw, &rows); err != nil {
-		t.Fatal(err)
-	}
-	out := map[int]jsonRow{}
-	for _, r := range rows {
-		if r.Line > 0 {
-			out[r.Line] = r
-		}
-	}
-	return out
 }

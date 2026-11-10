@@ -10,9 +10,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
-	"sync"
 	"time"
 )
 
@@ -25,6 +23,8 @@ type Outcome struct {
 	FirstErr string   // one line of the first diagnostic
 	Dir      string   // staged directory (kept with --keep)
 	Cmd      string   // the command, relative to Dir
+	Synth    bool     // passed/failed with a module line the gate synthesised
+	Dropped  bool     // a parse-probe candidate that is not AILANG: not reported
 }
 
 // Checker runs one staged block. The real one shells out to `ailang`; tests fake it.
@@ -192,148 +192,4 @@ func (c *BinChecker) Parse(ctx context.Context, dir, rel string) ([]string, stri
 		codes = append([]string{fmt.Sprintf("FMT_EXIT%d", rc)}, codes...)
 	}
 	return codes, firstLine(stderr), false, nil
-}
-
-// stagedFile is where a block lives in its page's temp tree, and its content there.
-func stagedFile(b *Block) (rel, content string) {
-	switch {
-	case b.File != "":
-		rel = b.File
-		if moduleOf(b.Body) == "" {
-			return rel, "module " + strings.TrimSuffix(rel, ".ail") + "\n\n" + b.Body
-		}
-		return rel, b.Body
-	case moduleOf(b.Body) != "":
-		return moduleOf(b.Body) + ".ail", b.Body
-	}
-	mod := fmt.Sprintf("docsample/b%d", b.Ordinal)
-	return mod + ".ail", "module " + mod + "\n\n" + b.Body
-}
-
-func writeFile(dir, rel, content string) error {
-	p := filepath.Join(dir, filepath.FromSlash(rel))
-	if err := os.MkdirAll(filepath.Dir(p), 0o755); err != nil {
-		return err
-	}
-	return os.WriteFile(p, []byte(content), 0o644)
-}
-
-// CheckAll checks every block, `jobs` at a time. Each block gets its own directory
-// holding the page's `file=` siblings plus itself, so no block sees another's output.
-func CheckAll(ctx context.Context, ck Checker, blocks []*Block, work string, jobs int) (map[*Block]*Outcome, error) {
-	siblings := map[string][]*Block{}
-	pageIdx := map[string]int{}
-	for _, b := range blocks {
-		if _, ok := pageIdx[b.Page]; !ok {
-			pageIdx[b.Page] = len(pageIdx) + 1
-		}
-		if b.File != "" && b.Class != ClassBadTag {
-			siblings[b.Page] = append(siblings[b.Page], b)
-		}
-	}
-	out := make(map[*Block]*Outcome, len(blocks))
-	var mu sync.Mutex
-	var firstErr error
-	sem := make(chan struct{}, jobs)
-	var wg sync.WaitGroup
-	for _, b := range blocks {
-		b := b
-		wg.Add(1)
-		sem <- struct{}{}
-		go func() {
-			defer wg.Done()
-			defer func() { <-sem }()
-			o, err := checkOne(ctx, ck, b, siblings[b.Page], filepath.Join(work, fmt.Sprintf("p%04d", pageIdx[b.Page]), fmt.Sprintf("b%03d", b.Ordinal)))
-			mu.Lock()
-			defer mu.Unlock()
-			if err != nil && firstErr == nil {
-				firstErr = fmt.Errorf("%s:%d: %w", b.Source, b.Line, err)
-			}
-			out[b] = o
-		}()
-	}
-	wg.Wait()
-	return out, firstErr
-}
-
-func checkOne(ctx context.Context, ck Checker, b *Block, sibs []*Block, dir string) (*Outcome, error) {
-	o := &Outcome{Dir: dir}
-	switch b.Class {
-	case ClassSketch, ClassRepl:
-		return o, nil
-	case ClassBadTag:
-		o.Ran, o.Code, o.Codes = true, "DOC_BADTAG", []string{"DOC_BADTAG"}
-		o.FirstErr = fmt.Sprintf("unknown or conflicting info-string word %q (known: parse, sketch, repl, error=CODE, file=path.ail)", b.BadTag)
-		return o, nil
-	case ClassMisfenced:
-		o.Ran, o.Code, o.Codes = true, "DOC_MISFENCED", []string{"DOC_MISFENCED"}
-		lang := b.Lang
-		if lang == "" {
-			lang = "(none)"
-		}
-		o.FirstErr = fmt.Sprintf("AILANG fenced as %s: fence it ```ailang (add not-ailang to the info string if this is a false positive)", lang)
-		return o, nil
-	}
-	o.Ran = true
-	if err := os.MkdirAll(dir, 0o755); err != nil {
-		return o, err
-	}
-	for _, s := range sibs {
-		if s == b {
-			continue
-		}
-		rel, content := stagedFile(s)
-		if err := writeFile(dir, rel, content); err != nil {
-			return o, err
-		}
-	}
-	rel, content := stagedFile(b)
-	if err := writeFile(dir, rel, content); err != nil {
-		return o, err
-	}
-	var codes []string
-	var first string
-	var ok bool
-	var err error
-	if b.Class == ClassParse {
-		o.Cmd = "ailang fmt " + rel
-		codes, first, ok, err = ck.Parse(ctx, dir, rel)
-	} else {
-		o.Cmd = "ailang check --json " + rel
-		codes, first, ok, err = ck.Check(ctx, dir, rel)
-	}
-	if err != nil {
-		return o, err
-	}
-	o.Codes = codes
-	if b.Class == ClassError {
-		if ok {
-			o.Code, o.FirstErr = "DOC_EXPECTED_FAIL", fmt.Sprintf("tagged error=%s but the block now PASSES: fix the claim around it, then retag", b.WantCode)
-			return o, nil
-		}
-		for _, c := range codes {
-			if c == b.WantCode {
-				o.Pass = true
-				return o, nil
-			}
-		}
-		o.Code = "DOC_WRONG_ERROR"
-		o.FirstErr = fmt.Sprintf("tagged error=%s but got %s: %s", b.WantCode, strings.Join(codes, ","), first)
-		return o, nil
-	}
-	o.Pass = ok
-	if !ok {
-		o.Code, o.FirstErr = codes[0], first
-	}
-	return o, nil
-}
-
-// sortBlocks orders blocks by page, then line — the report and baseline order.
-func sortBlocks(bs []*Block) {
-	sort.SliceStable(bs, func(i, j int) bool {
-		if bs[i].Page != bs[j].Page {
-			return bs[i].Page < bs[j].Page
-		}
-		return bs[i].Line < bs[j].Line
-	})
 }

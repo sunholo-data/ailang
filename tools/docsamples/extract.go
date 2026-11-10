@@ -3,13 +3,8 @@ package main
 import (
 	"crypto/sha1"
 	"encoding/hex"
-	"encoding/json"
 	"fmt"
-	"io/fs"
-	"os"
-	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 )
 
@@ -17,13 +12,16 @@ import (
 type Class string
 
 const (
-	ClassProgram   Class = "program"   // ```ailang            -> ailang check (module line synthesised if absent)
-	ClassParse     Class = "parse"     // ```ailang parse      -> ailang fmt must parse it
-	ClassError     Class = "error"     // ```ailang error=CODE -> ailang check must FAIL with CODE
-	ClassSketch    Class = "sketch"    // ```ailang sketch     -> not run, counted
-	ClassRepl      Class = "repl"      // ```ailang repl       -> not run, counted
-	ClassMisfenced Class = "misfenced" // AILANG in a typescript/untagged fence -> failure
-	ClassBadTag    Class = "badtag"    // an info-string word the gate does not know -> failure
+	ClassProgram    Class = "program"    // ```ailang            -> ailang check
+	ClassParse      Class = "parse"      // ```ailang parse      -> ailang fmt must parse it
+	ClassError      Class = "error"      // ```ailang error=CODE -> ailang check must FAIL with CODE first
+	ClassSketch     Class = "sketch"     // ```ailang sketch     -> not run; listed in the unchecked ratchet
+	ClassRepl       Class = "repl"       // ```ailang repl       -> not run; listed in the unchecked ratchet
+	ClassFile       Class = "file"       // an .ail file the docs import (raw-loader) -> ailang check in place
+	ClassCandidate  Class = "candidate"  // a non-ailang fence that may be AILANG -> parsed, then misfenced or dropped
+	ClassMisfenced  Class = "misfenced"  // AILANG in a typescript/untagged/text fence -> structural failure
+	ClassBadTag     Class = "badtag"     // an info-string word the gate does not know -> structural failure
+	ClassStructural Class = "structural" // a fence the page cannot render as written -> structural failure
 )
 
 // PromptPage is the page key of the active teaching prompt. It names the ROLE, not the
@@ -31,25 +29,28 @@ const (
 // baseline key, and one that edits a block has to fix or tag it.
 const PromptPage = "prompt:active"
 
-// Block is one fenced code block the gate checks or counts.
+// Block is one code block (or imported .ail file) the gate checks or counts.
 type Block struct {
-	Page     string // repo-relative path, or PromptPage
-	Source   string // repo-relative file the block was read from
-	Line     int    // 1-based line of the opening fence in Source
-	Ordinal  int    // 1-based index among the page's AILANG blocks
-	Lang     string // the fence language as written ("" = none)
-	Info     string // the rest of the info string
-	Class    Class
-	File     string // file=<path> (multi-file examples)
-	WantCode string // error=<CODE>
-	BadTag   string // the unknown word, for ClassBadTag
-	Body     string // dedented block text
-	Key      string // sha1-12 of the normalised body
+	Page      string // repo-relative path, or PromptPage
+	Source    string // repo-relative file the block was read from
+	Line      int    // 1-based line of the opening fence in Source
+	Ordinal   int    // 1-based index among the page's AILANG blocks
+	Lang      string // the fence language as written ("" = none)
+	Info      string // the rest of the info string
+	Class     Class
+	File      string // file=<path> (multi-file examples)
+	WantCode  string // error=<CODE>
+	BadTag    string // the unknown word, for ClassBadTag
+	Defect    string // DOC_* code, for ClassStructural
+	DefectMsg string // what is wrong, for ClassStructural / ClassMisfenced
+	Body      string // dedented block text
+	Key       string // sha1-12 of the normalised body
 }
 
 var (
 	fenceOpen  = regexp.MustCompile("^([ \t]*)(`{3,}|~{3,})[ \t]*([^\\s`{]*)[ \t]*(.*)$")
 	moduleLine = regexp.MustCompile(`(?m)^[ \t]*module[ \t]+([A-Za-z0-9_/]+)[ \t]*$`)
+	mainDecl   = regexp.MustCompile(`(?m)^[ \t]*(export[ \t]+)?func[ \t]+main[ \t]*\(`)
 	ailHints   = []*regexp.Regexp{
 		regexp.MustCompile(`(?m)^\s*(export\s+)?(pure\s+)?func\s+\w+\s*(\[[^\]]*\])?\s*\(`),
 		regexp.MustCompile(`(?m)^\s*module\s+\w+/\w+`),
@@ -59,16 +60,30 @@ var (
 		regexp.MustCompile(`(?m)^\s*--\s+\S`),                                   // -- line comment
 		regexp.MustCompile(`(?m)^\s*(λ[^>\n]*|ailang)>\s`),                      // REPL transcript
 		regexp.MustCompile(`#\[`),                                               // array literal
+		regexp.MustCompile(`(?m)^\s*match\s+[A-Za-z_(\[]`),                      // `match e {` (TS has .match( / match =)
+		regexp.MustCompile(`(?m)^\s*(Ok|Err|Some|None)\b[^\n]*=>`),              // ADT match arm
 	}
 	// Lines only another language writes. Matched at line start, not anywhere: an
 	// AILANG comment saying "-- Lambda function" must not hide the block.
 	notAilHint = regexp.MustCompile(`(?m)^\s*((export\s+)?(function|const|interface)\s|def\s|fn\s|package\s|console\.|\$\s)`)
+	// ailKeyword gates the parse probe: a block must contain an AILANG-only keyword or
+	// operator before "it parses as AILANG" counts as evidence (bare `42`, `(15, 5)` or
+	// `owner/repo` parse too, and are output).
+	ailKeyword = regexp.MustCompile(`\b(func|let|letrec|match|module|import|export|test|requires|ensures)\b|=>|\\[a-z_]\w*\s*\.`)
+	// pseudoCodes are classes the gate invents for code-less diagnostics; `error=` must
+	// name a code the binary itself prints.
+	pseudoCode = regexp.MustCompile(`^(TC_UNDEFINED_VAR|TC_EFFECT|TC_TYPE|MODULE|OTHER|CHECK_NO_JSON|FMT_EXIT\d*|DOC_\w+)$`)
+	realCode   = regexp.MustCompile(`^[A-Z]{2,5}(\d{3}|_[A-Z][A-Z0-9_]+)$`)
 )
 
-// candidateLangs are fence languages that AILANG has historically been mis-fenced as
-// (`typescript` was the only way to get highlighting before the site had an ailang
-// grammar). Other languages (bash, text, json, go, ...) are never inspected.
-var candidateLangs = map[string]bool{"": true, "typescript": true, "ts": true}
+// hintLangs are fences AILANG was historically mis-fenced as (`typescript` was the only
+// way to get highlighting before the site had an ailang grammar): a keyword hint alone
+// convicts. probeLangs are additionally PARSED (see ClassCandidate): text and JavaScript
+// fences are mostly output and objects, so they need both a keyword and a clean parse.
+var (
+	hintLangs  = map[string]bool{"": true, "typescript": true, "ts": true}
+	probeLangs = map[string]bool{"": true, "typescript": true, "ts": true, "text": true, "javascript": true, "js": true}
+)
 
 // docusaurusMeta are metastring words Docusaurus itself interprets; the gate ignores them.
 func docusaurusMeta(w string) bool {
@@ -125,8 +140,13 @@ func classify(b *Block) {
 			b.Class, classWords = ClassSketch, classWords+1
 		case w == "repl":
 			b.Class, classWords = ClassRepl, classWords+1
-		case strings.HasPrefix(w, "error=") && len(w) > len("error="):
-			b.Class, b.WantCode, classWords = ClassError, strings.TrimPrefix(w, "error="), classWords+1
+		case strings.HasPrefix(w, "error="):
+			code := strings.TrimPrefix(w, "error=")
+			if !realCode.MatchString(code) || pseudoCode.MatchString(code) {
+				b.Class, b.BadTag = ClassBadTag, w+" (error= names a code the binary prints, e.g. PAR015 or EXT002)"
+				return
+			}
+			b.Class, b.WantCode, classWords = ClassError, code, classWords+1
 		case strings.HasPrefix(w, "file=") && strings.HasSuffix(w, ".ail") && !strings.Contains(w, ".."):
 			b.File = strings.TrimPrefix(w, "file=")
 		default:
@@ -142,9 +162,9 @@ func classify(b *Block) {
 	}
 }
 
-// looksAILANG is the mis-fence detector. It is deliberately conservative: a false
-// positive fails the gate on someone's TypeScript, so a hint must be AILANG-only
-// syntax (an effect row, `module a/b`, `import std/`, a `func` declaration).
+// looksAILANG is the keyword-hint half of the mis-fence detector. It is deliberately
+// conservative: a false positive fails the gate on someone's TypeScript, so a hint must be
+// AILANG-only syntax. The parse probe (ClassCandidate) is the other half.
 func looksAILANG(src string) bool {
 	if notAilHint.MatchString(src) {
 		return false
@@ -179,7 +199,10 @@ func KeyOf(body string) string {
 	return hex.EncodeToString(sum[:])[:12]
 }
 
-// ExtractBlocks returns the AILANG blocks (tagged, and mis-fenced) of one markdown text.
+// ExtractBlocks returns the AILANG blocks of one markdown text: `ailang` fences,
+// mis-fence suspects, and structural fence defects in ANY fence (an opening fence nested
+// inside a block of the same kind, or a fence that never closes) — those swallow the
+// blocks after them, which then are never checked.
 func ExtractBlocks(page, source, text string) []*Block {
 	// CRLF (a Windows checkout with autocrlf) would leave `\r` on every fence line and
 	// no closing fence would match; the key is unaffected (Normalize trims `\r`).
@@ -192,19 +215,37 @@ func ExtractBlocks(page, source, text string) []*Block {
 			continue
 		}
 		indent, fence, lang, info := m[1], m[2], strings.ToLower(m[3]), strings.TrimSpace(m[4])
-		closeRe := regexp.MustCompile(`^[ \t]*` + regexp.QuoteMeta(fence[:1]) + `{` + fmt.Sprint(len(fence)) + `,}[ \t]*$`)
+		ch, n := regexp.QuoteMeta(fence[:1]), fmt.Sprint(len(fence))
+		closeRe := regexp.MustCompile(`^[ \t]*` + ch + `{` + n + `,}[ \t]*$`)
+		nestedRe := regexp.MustCompile(`^[ \t]*` + ch + `{` + n + `,}[ \t]*[^\s` + "`" + `~]`)
 		var body []string
+		nested := 0
 		j := i + 1
 		for ; j < len(lines) && !closeRe.MatchString(lines[j]); j++ {
+			if nested == 0 && nestedRe.MatchString(lines[j]) {
+				nested = j + 1
+			}
 			body = append(body, strings.TrimPrefix(lines[j], indent))
 		}
 		text := strings.Join(body, "\n")
 		b := &Block{Page: page, Source: source, Line: i + 1, Lang: lang, Info: info, Body: text, Key: KeyOf(text)}
 		switch {
+		case j >= len(lines):
+			b.Class, b.Defect = ClassStructural, "DOC_UNTERMINATED"
+			b.DefectMsg = fmt.Sprintf("fence %s opened here never closes: everything to the end of the file renders as one code block", fence)
+		case nested > 0:
+			b.Class, b.Defect = ClassStructural, "DOC_FENCE_PAIRING"
+			b.DefectMsg = fmt.Sprintf("line %d opens a fence (%s) inside this block, so it is rendered as text and its block is never checked; "+
+				"a stray or missing fence above usually causes this (block runs %d-%d)", nested, strings.TrimSpace(lines[nested-1]), i+1, j+1)
 		case lang == "ailang" || lang == "ail":
 			classify(b)
-		case candidateLangs[lang] && !strings.Contains(info, "not-ailang") && looksAILANG(text):
+		case strings.Contains(info, "not-ailang"):
+			i = j
+			continue
+		case hintLangs[lang] && looksAILANG(text):
 			b.Class = ClassMisfenced
+		case probeLangs[lang] && ailKeyword.MatchString(text):
+			b.Class = ClassCandidate // CheckAll parses it; a clean parse convicts
 		default:
 			i = j
 			continue
@@ -225,77 +266,6 @@ func moduleOf(body string) string {
 	return ""
 }
 
-// Scope lists the documents the gate reads, relative to root, sorted:
-// docs/docs/** (minus generated prompt mirrors and registry package pages),
-// README.md, docs/LIMITATIONS.md, and the active teaching prompt's SOURCE file
-// (prompts/versions.json .active -> .versions[active].file), not its docs mirror.
-func Scope(root string) (pages []string, prompt string, err error) {
-	docs := filepath.Join(root, "docs", "docs")
-	err = filepath.WalkDir(docs, func(p string, d fs.DirEntry, werr error) error {
-		if werr != nil {
-			return werr
-		}
-		rel, _ := filepath.Rel(root, p)
-		rel = filepath.ToSlash(rel)
-		if d.IsDir() {
-			return nil
-		}
-		if !strings.HasSuffix(rel, ".md") && !strings.HasSuffix(rel, ".mdx") {
-			return nil
-		}
-		if excluded(rel) {
-			return nil
-		}
-		pages = append(pages, rel)
-		return nil
-	})
-	if err != nil {
-		return nil, "", fmt.Errorf("walk %s: %w", docs, err)
-	}
-	for _, f := range []string{"README.md", "docs/LIMITATIONS.md"} {
-		if _, e := os.Stat(filepath.Join(root, f)); e == nil {
-			pages = append(pages, f)
-		}
-	}
-	sort.Strings(pages)
-	prompt, err = activePrompt(root)
-	return pages, prompt, err
-}
-
-// excluded: pages that are generated copies of something checked elsewhere, or not ours.
-func excluded(rel string) bool {
-	if strings.HasPrefix(rel, "docs/docs/prompts/") {
-		// Archived revisions and the synced mirror of the active prompt (which is checked
-		// at its source). index.md is a hand-written landing page.
-		return rel != "docs/docs/prompts/index.md"
-	}
-	if strings.HasPrefix(rel, "docs/docs/packages/") {
-		// docs/docs/packages/<vendor>/<pkg>.md is synced from the registry (third-party READMEs).
-		return strings.Count(strings.TrimPrefix(rel, "docs/docs/packages/"), "/") > 0
-	}
-	return false
-}
-
-func activePrompt(root string) (string, error) {
-	raw, err := os.ReadFile(filepath.Join(root, "prompts", "versions.json"))
-	if os.IsNotExist(err) {
-		return "", nil
-	}
-	if err != nil {
-		return "", err
-	}
-	var v struct {
-		Active   string `json:"active"`
-		Versions map[string]struct {
-			File string `json:"file"`
-		} `json:"versions"`
-	}
-	if err := json.Unmarshal(raw, &v); err != nil {
-		return "", fmt.Errorf("prompts/versions.json: %w", err)
-	}
-	e, ok := v.Versions[v.Active]
-	if !ok || e.File == "" {
-		return "", fmt.Errorf("prompts/versions.json: active %q has no file", v.Active)
-	}
-	return e.File, nil
-}
+// definesMain reports whether a block declares `main` — a program a reader will copy
+// into a file and run, so it must carry its own `module` line (MOD014 otherwise).
+func definesMain(body string) bool { return mainDecl.MatchString(body) }
