@@ -1,0 +1,52 @@
+module cmd/ailang/testdata/matchfail/match_fail
+
+-- Run-time no-match fixtures (M-V1-MATCH-EXHAUSTIVENESS M0). Every match
+-- below is deliberately non-exhaustive; each entry reaches the missing case.
+-- Both engines must stop with RT002 at the match's position — never yield
+-- Unit (the VM's old behaviour) and fail later somewhere else. Line and
+-- column numbers are asserted by cmd/ailang/match_fail_parity_test.go.
+type Color = Red | Green | Blue
+
+type Opt = Has(int) | Nothing
+
+pure func code(c: Color) -> int = match c {
+  Red => 1,
+  Green => 2
+}
+
+export pure func adt() -> int = code(Blue)
+
+export pure func adtArith() -> int = code(Blue) + 10
+
+pure func guarded(o: Opt) -> int = match o {
+  Has(x) if x > 0 => x,
+  Nothing => 0
+}
+
+export pure func guardFails() -> int = guarded(Has(0))
+
+pure func pair(xs: [int]) -> int = match xs {
+  [a] => a,
+  [a, b] => a + b
+}
+
+export pure func listEmpty() -> int = pair([])
+
+pure func valuePos(c: Color) -> int {
+  let r = match c {
+    Red => 1,
+    Blue => 3
+  }
+  r + 1
+}
+
+export pure func letBound() -> int = valuePos(Green)
+
+pure func viaLambda(c: Color) -> int {
+  let f = \x. match x {
+    Red => 1
+  }
+  f(c)
+}
+
+export pure func lambdaMatch() -> int = viaLambda(Blue)

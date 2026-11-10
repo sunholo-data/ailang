@@ -182,6 +182,13 @@ func formatInstruction(inst Instruction, ip int, p *FuncPrototype, img *Bytecode
 	case OpEffectTrap:
 		return fmt.Sprintf("EFFECT_TRAP  r%d, effect#%d", inst.A(), inst.Bx())
 
+	case OpMatchFail:
+		base := fmt.Sprintf("MATCH_FAIL   r%d, pos#%d", inst.A(), inst.Bx())
+		if v, ok := p.LookupConstant(int(inst.Bx()), img); ok {
+			return fmt.Sprintf("%-30s ; %s", base, formatConstant(v))
+		}
+		return base
+
 	case OpMakeADT:
 		return fmt.Sprintf("MAKE_ADT     r%d, tag=%d, fields=%d", inst.A(), inst.B(), inst.C())
 

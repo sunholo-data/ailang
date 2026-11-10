@@ -194,6 +194,23 @@ type ExprStmt struct {
 
 func (ExprStmt) stmt() {}
 
+// MatchFail is the trap at the end of a match whose arms are not closed by an
+// unguarded catch-all: control reaches it only when no arm matched. It raises
+// RT002 (errors.MatchFailureError) and never completes normally — a match
+// that fell off its last arm used to yield Unit, which failed later at an
+// unrelated site (M-V1-MATCH-EXHAUSTIVENESS M0).
+//
+// Scrutinee is read for its shape only (constructor tag, list length), never
+// its payload. File/Line/Col locate the match; 0 means unknown.
+type MatchFail struct {
+	Scrutinee Expr
+	File      string
+	Line      int
+	Col       int
+}
+
+func (MatchFail) stmt() {}
+
 // --- Expressions ---
 
 // Expr is an expression that produces a value.

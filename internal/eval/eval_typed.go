@@ -558,7 +558,7 @@ func (e *TypedEvaluator) evalMatch(match *typedast.TypedMatch) (Value, error) {
 		return result, err
 	}
 
-	return nil, fmt.Errorf("non-exhaustive pattern match at %s", match.Span)
+	return nil, matchFailure(match.Span, scrutinee)
 }
 
 // matchPattern attempts to match a pattern against a value

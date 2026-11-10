@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"strings"
 
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 	"github.com/sunholo-data/ailang/internal/gen/stmt"
 )
 
@@ -96,7 +97,23 @@ func (e *emitter) emitStmt(s stmt.Stmt) {
 		e.emitIfStmt(s)
 	case stmt.SwitchStmt:
 		e.emitSwitchStmt(s)
+	case stmt.MatchFail:
+		e.writeIndent()
+		e.writef("panic(%q)\n", matchFailText(s))
 	}
+}
+
+// matchFailText is the RT002 text a MatchFail traps with in emitted Go. The
+// scrutinee's shape is a run-time fact the panic text does not carry.
+func matchFailText(s stmt.MatchFail) string {
+	mf := &ailerrors.MatchFailureError{}
+	if s.Line > 0 {
+		mf.Pos = fmt.Sprintf("%s:%d", s.File, s.Line)
+		if s.Col > 0 {
+			mf.Pos += fmt.Sprintf(":%d", s.Col)
+		}
+	}
+	return mf.Error()
 }
 
 func (e *emitter) emitVarDecl(vd stmt.VarDecl) {
