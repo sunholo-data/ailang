@@ -183,10 +183,10 @@ v0.58.x; `runtime/` and `third_party/goopus` move under `internal/`; `check --js
 ## 7. Implementation waves (2026-11-10)
 
 Each PR was written by an Opus agent in its own worktree, then reviewed by a different Opus agent
-that had not seen it, then fixed, and merged only when a review came back clean. **Every one of the
-ten reviews of non-trivial PRs found at least one blocking defect that the author's tests and green
-CI had missed, except two** (#2203, #2206, #2207 passed first time; #2203 and #2206 are the two
-counted). Review is not optional for this work.
+that had not seen it, then fixed, and merged only when a review came back clean. **Of the ten
+first-round reviews, seven found at least one blocking defect that the author's tests and green CI
+had missed** — two of five in wave 1 and all five in wave 2; three passed first time (#2203, #2206,
+#2207). Review is not optional for this work.
 
 ### Wave 1 — all merged; shipped in v0.59.0
 
