@@ -107,34 +107,6 @@ func (srv *Server) firebaseUser(r *http.Request, token string) (*auth.User, erro
 	return user, nil
 }
 
-// OptionalAuthMiddleware extracts user info if a token is present but doesn't reject unauthenticated requests.
-// Use this for endpoints that work for both authenticated and unauthenticated users.
-func (srv *Server) OptionalAuthMiddleware(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token := extractBearerToken(r)
-		if token == "" {
-			// No token - continue without user context
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		// Try to verify token
-		claims, err := srv.tokenVerifier.VerifyToken(r.Context(), token)
-		if err != nil {
-			// Invalid token - continue without user context (don't reject)
-			next.ServeHTTP(w, r)
-			return
-		}
-
-		// Create user object
-		user := auth.NewUserFromClaims(claims)
-
-		// Add user to request context
-		ctx := context.WithValue(r.Context(), UserContextKey, user)
-		next.ServeHTTP(w, r.WithContext(ctx))
-	})
-}
-
 // RequireAuth is a middleware that requires authentication.
 func RequireAuth(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -297,24 +269,5 @@ func (srv *Server) HealthHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
 		"status": "healthy",
-	})
-}
-
-// WhoAmIHandler returns information about the current authenticated user.
-func WhoAmIHandler(w http.ResponseWriter, r *http.Request) {
-	user, err := GetUserFromContext(r)
-	if err != nil {
-		writeErrorResponse(w, http.StatusUnauthorized, "unauthorized", "Not authenticated")
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(http.StatusOK)
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"id":           user.ID,
-		"email":        user.Email,
-		"name":         user.Name,
-		"role":         user.Role,
-		"workspace_id": user.WorkspaceID,
 	})
 }

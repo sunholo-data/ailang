@@ -45,8 +45,8 @@ Examples:
 - **Public workspaces**: Visible to all users (authenticated or not)
 - **Private workspaces**: Only visible to users with explicit access grants
 
-A dashboard bound to anything but loopback (Cloud Run, `--bind 0.0.0.0`) answers no `/api/` read —
-`/api/workspaces` included — without its `COORDINATOR_API_KEY` as a bearer token or a Firebase
+A dashboard bound to anything but loopback (Cloud Run, `--bind 0.0.0.0`) answers no `/api/` read
+without its `COORDINATOR_API_KEY` as a bearer token or a Firebase
 Viewer/Approver session, so "public" here means visible to every *authenticated* caller. A
 loopback-bound local dashboard is exempt.
 
@@ -174,52 +174,20 @@ workspace_access/{workspace_id}/users/{email}
 └── granted_by: string
 ```
 
-## API Endpoints
+## Dashboard
 
-### List Accessible Workspaces
-
-```
-GET /api/workspaces
-```
-
-Returns workspaces the authenticated user can access:
-
-```json
-[
-  {
-    "id": "sunholo-data/ailang",
-    "name": "AILANG Project",
-    "role": "Approver",
-    "is_public": true
-  }
-]
-```
-
-### Workspace Filtering
-
-All dashboard endpoints support workspace filtering via query parameter:
-
-```
-GET /api/threads?workspace=sunholo-data/ailang
-GET /api/tasks?workspace=sunholo-data/ailang
-```
-
-## Dashboard Integration
-
-The Collaboration Hub dashboard automatically filters data by workspace access:
-
-1. **Unauthenticated users**: See only public workspace data
-2. **Authenticated users**: See public + granted workspace data
-3. **Workspace selector**: Shows role badges (Approver/Viewer)
+The dashboard is a headless API (no UI since November 2026), and it no longer serves
+`/api/workspaces` or workspace-filtered thread/task lists — those were read only by the removed
+UI. Workspace grants are managed with the `ailang workspaces` CLI above; the dashboard's read gate
+accepts a Firebase Viewer/Approver session as one of its credentials.
 
 ## Security Model
 
 Defense in depth:
 
-1. **Frontend**: Workspace selector only shows accessible workspaces
-2. **API Middleware**: Validates workspace access on every request
-3. **Query Filtering**: Database queries scoped to accessible workspaces
-4. **Safe Defaults**: Unknown workspaces default to "public" (if exists)
+1. **API gate**: every dashboard `/api/` read needs a credential on a non-loopback bind
+2. **Roles**: a Firebase session must hold Viewer or Approver
+3. **Safe Defaults**: Unknown workspaces default to "public" (if exists)
 
 ## Troubleshooting
 

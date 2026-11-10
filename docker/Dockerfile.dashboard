@@ -38,7 +38,7 @@ FROM gcr.io/distroless/static-debian12:nonroot
 
 COPY --from=go-builder /ailang /usr/local/bin/ailang
 
-# The dashboard's transforms (event formatting, heatmap, budget) are AILANG
+# The dashboard's transforms (task-event formatting) are AILANG
 # modules, and since 2026-09-08 they are the ONLY implementation — the Go copies
 # that used to answer when these were missing have been removed. They were
 # missing here: this image shipped the binary and no .ail files at all, so the
