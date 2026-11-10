@@ -8,20 +8,24 @@
 # is recorded. onpolicy_pairs.py turns the trace into repair items.
 #
 #   tools/finetune/collect_onpolicy.sh [trials] [benchmarks-file]     (resumable: --skip-existing)
+#   OP=<dir> LANE=<trace lane> tools/finetune/collect_onpolicy.sh     round 2+: another model, own dir
+#     (OP must hold models.onpolicy.yml with LANE in it; pilot-4 round 2: OP=onpolicy-r2,
+#      LANE=pi-gemma4-12b-ft3-trace)
 #
 # Takes the GPU by the cooperative handoff (the rotation lends it at a benchmark boundary)
 # and holds it for the whole collection; --max-wall-clock bounds the run.
 set -u
 REPO=/Users/voightkampff/dev/sunholo-data/ailang
 FT=$HOME/models/finetune
-OP=$FT/onpolicy
+OP=${OP:-$FT/onpolicy}
 TRIALS=${1:-1}
 BFILE=${2:-$FT/train_benchmarks.txt}
 BIN=$FT/bin/ailang-ft3
-LANE=pi-gemma4-12b-ft2-trace
+LANE=${LANE:-pi-gemma4-12b-ft2-trace}
 PORT=11437
 cd "$REPO" || exit 1
 mkdir -p "$OP"
+grep -q "^  $LANE:" "$OP/models.onpolicy.yml" 2>/dev/null || { echo "FATAL: $LANE not in $OP/models.onpolicy.yml"; exit 1; }
 LOG=$OP/collect.log
 log(){ echo "[$(date -u +%FT%TZ)] $*" | tee -a "$LOG"; }
 

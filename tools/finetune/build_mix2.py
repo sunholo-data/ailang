@@ -81,6 +81,10 @@ def main():
     ap.add_argument("--repair-per-kind", type=int, default=6, help="per (benchmark, error kind)")
     ap.add_argument("--onpolicy-per-kind", type=int, default=8, help="per (benchmark, error kind)")
     ap.add_argument("--max-steps", type=int, default=24, help="drop longer episodes (pilot-2 looped for 40-400 turns)")
+    ap.add_argument("--build-per-bench", type=int, default=2, help="pilot-4 build-up episodes per benchmark")
+    ap.add_argument("--max-write-chars", type=int, default=0,
+                    help="drop episodes with a TRAINED write longer than this (0 = off). Pilot-3's long writes "
+                         "sometimes ran away and were dropped by the tool-call parser (D-FT-15)")
     ap.add_argument("--example-repeat", type=int, default=2)
     ap.add_argument("--valid-frac", type=float, default=0.05)
     ap.add_argument("--seed", type=int, default=13)
@@ -108,12 +112,18 @@ def main():
         if len(e["steps"]) > a.max_steps:
             rep[f"too_long:{e['kind']}"] += 1
             continue
+        if a.max_write_chars and any(st["call"]["name"] == "write" and not st.get("no_loss") and
+                                     len(st["call"]["args"].get("content", "")) > a.max_write_chars for st in e["steps"]):
+            rep[f"long_write:{e['kind']}"] += 1
+            continue
         if e["kind"] == "solve":
             key = ("solve", e["benchmark"])
             cap = a.solve_per_bench
         elif e["kind"] == "onpolicy":
             key = ("onpolicy", e["benchmark"], e.get("error_kind") or error_kind(e))
             cap = a.onpolicy_per_kind
+        elif e["kind"] == "build":
+            key, cap = ("build", e["benchmark"]), a.build_per_bench
         elif e["kind"] == "repair":
             key = ("repair", e["benchmark"], error_kind(e))
             cap = a.repair_per_kind

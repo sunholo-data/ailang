@@ -252,7 +252,7 @@ def fix(a):
                             "benchmark": it["benchmark"], "fixed": fixed, "got": (got or "")[:2000]}
                 return {"code_hash": h, "ok": True, "why": "", "usage": usage, "rounds": len(chain),
                         "benchmark": it["benchmark"], "old": it["code"], "error": it["error"], "fixed": fixed,
-                        "chain": chain, "prev": it.get("prev"), "kind": it.get("kind")}
+                        "chain": chain, "prev": it.get("prev"), "history": it.get("history"), "kind": it.get("kind")}
             code, error = fixed, "\n".join(err.splitlines()[:12])
         return {"code_hash": h, "ok": False, "why": "check", "usage": usage, "rounds": len(chain)}
 

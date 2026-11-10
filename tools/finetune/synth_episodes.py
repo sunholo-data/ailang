@@ -204,16 +204,36 @@ SECTIONS = [
     (r"INTERP_END|interpolation", "String Interpolation", 28),
     (r"in expression: as\b|Fractional", "Number Conversions", 17),
     (r"`\+\+`", "String and List Concatenation", 18),
+    (r"MOD010|doesn't match file path", "Required Program Structure", 20),  # rule 1: module matches the path
+    (r"belongs to ADT 'Result', not 'Option'", "Constructing Option Values", 40),
     (r"\bPAR[_A-Z0-9]+", "What AILANG Does NOT Have", 22),
 ]
 
 
-def section_lookup(err):
+def signature_lookup(err, code):
+    """A type mismatch in a call to an imported stdlib function: look up its exact signature
+    (habit 3 applied after the fact). Only for names the code imports from a std/ module."""
+    m = re.search(r"function application of (\w+) at", err)
+    if not m:
+        return None
+    name = m.group(1)
+    for mod, names in re.findall(r"^import\s+(std/[\w/]+)\s*\(([^)]*)\)", code or "", re.M):
+        if name in [n.strip().split(" as ")[0].strip() for n in names.split(",")]:
+            cmd = f"ailang docs --all-functions {mod}.{name}"
+            out = lookup(cmd)
+            if f"{mod}.{name}" in out:
+                line = next((ln for ln in err.splitlines() if "function application of" in ln), "")
+                return {"call": {"name": "bash", "args": {"command": cmd}}, "result": out, "habit": "reference",
+                        "lookup": f"{mod}.{name}", "lookup_kind": "signature", "about": re.sub(r"\s+", " ", line.strip())[:200]}
+    return None
+
+
+def section_lookup(err, code=None):
     """The first error LINE that a specific section covers (else the first parse error, with the
     general "does not have" table). Only error lines count: the Hint text mentions other constructs.
     Returns the lookup step, recording which error line it is about."""
     lines = [ln.strip() for ln in err.splitlines()
-             if re.search(r"\b(PAR\w*|TC_\w+|IMP\d+|MOD\d+) at |type error|expected next token|unexpected token", ln)]
+             if re.search(r"\b(PAR\w*|TC_\w+|IMP\d+|MOD\d+) at |MOD\d+: |type error|expected next token|unexpected token", ln)]
     for specific in (True, False):
         for ln in lines:
             for pat, sec, n in (SECTIONS[:-1] if specific else SECTIONS[-1:]):
@@ -224,7 +244,7 @@ def section_lookup(err):
                 if out.strip().startswith("## " + sec):
                     return {"call": {"name": "bash", "args": {"command": cmd}}, "result": out, "habit": "reference",
                             "lookup": sec, "about": re.sub(r"\s+", " ", ln)[:200]}
-    return None
+    return signature_lookup(err, code)
 
 
 def onpolicy_episode(rnd, task, pair, stdout, p_first_lookup=0.35):
@@ -242,21 +262,28 @@ def onpolicy_episode(rnd, task, pair, stdout, p_first_lookup=0.35):
         return {"call": {"name": "bash", "args": {"command": f"ailang check {rel}"}}, "result": err}, err
 
     steps = [{"call": {"name": "read", "args": {"path": path}}, "result": TEMPLATE}]
-    prev, start = pair.get("prev"), pair["old"]
-    if prev:
-        steps.append({"call": {"name": "write", "args": {"path": path, "content": prev["code"]}},
+    start = pair["old"]
+    # The model's own earlier attempts at this same kind of error, oldest first (pilot-4). Two or
+    # more is a loop: fix after fix that never worked. All of them are context, never a target.
+    hist = pair.get("history") or ([pair["prev"]] if pair.get("prev") else [])
+    if hist:
+        steps.append({"call": {"name": "write", "args": {"path": path, "content": hist[0]["code"]}},
                       "result": f"Successfully wrote to {path}", "no_loss": True})
-        obs, _ = observe(prev["code"])
-        steps.append(obs)
-        call, res = edit_or_write(path, prev["code"], start)
-        steps.append({"call": call, "result": res, "no_loss": True, "failed_fix": True})
+        cur_h = hist[0]["code"]
+        for h in [x["code"] for x in hist[1:]] + [start]:
+            obs, _ = observe(cur_h)
+            steps.append(obs)
+            call, res = edit_or_write(path, cur_h, h)
+            steps.append({"call": call, "result": res, "no_loss": True, "failed_fix": True})
+            cur_h = h
     else:
         steps.append({"call": {"name": "write", "args": {"path": path, "content": start}},
                       "result": f"Successfully wrote to {path}", "no_loss": True})
     obs, err = observe(start)
     steps.append(obs)
-    look = section_lookup(err) if (prev or rnd.random() < p_first_lookup) else None
+    look = section_lookup(err, start) if (hist or rnd.random() < p_first_lookup) else None
     if look:
+        look["after_failed"] = len(hist)  # failed fixes of this kind before the lookup
         steps.append(look)
     cur = start
     for k, link in enumerate(pair["chain"]):
@@ -271,7 +298,71 @@ def onpolicy_episode(rnd, task, pair, stdout, p_first_lookup=0.35):
         return None
     steps.append({"call": {"name": "bash", "args": {"command": run_cmd(caps)}}, "result": stdout})
     return {"kind": "onpolicy", "benchmark": task["id"], "task_prompt": task["task_prompt"].replace(WS_TOKEN, ws),
-            "steps": steps, "final": rnd.choice(DONE_LINES).format(rel=rel), "error_kind": pair.get("kind")}
+            "steps": steps, "final": rnd.choice(DONE_LINES).format(rel=rel), "error_kind": pair.get("kind"),
+            "loop": len(hist) >= 2}
+
+
+TOP_DECL = re.compile(r"^(?:export\s+)?(?:pure\s+)?(?:func|type)\s", re.M)
+MAIN_SIG = re.compile(r"^(?:export\s+)?func\s+main\s*\(\s*\)\s*(?:->\s*\(\s*\))?\s*(?:!\s*\{[^}]*\})?", re.M)
+
+
+def build_split(code):
+    """Split a verified program into (part1, rest, final) for a build-up episode, or None.
+    part1 = header + the first ~half of the non-main declarations + a stub `main` (body `()`);
+    final = header + every non-main declaration in order + the real `main` LAST, so that one
+    `edit` (stub main -> rest) turns part1 into final. Caller verifies part1 checks and final runs."""
+    starts = [m.start() for m in TOP_DECL.finditer(code)]
+    if len(starts) < 3:
+        return None
+    header = code[: starts[0]]
+    decls = [code[a:b].rstrip("\n") + "\n" for a, b in zip(starts, starts[1:] + [len(code)])]
+    mains = [d for d in decls if re.match(r"(?:export\s+)?func\s+main\b", d)]
+    if len(mains) != 1:
+        return None
+    sig = MAIN_SIG.match(mains[0])
+    if not sig:
+        return None  # main returns a value: no `()` stub
+    others = [d for d in decls if d is not mains[0]]
+    total, acc, k = sum(len(d) for d in others), 0, 0
+    while k < len(others) - 1 and acc + len(others[k]) <= total * 0.6:
+        acc += len(others[k])
+        k += 1
+    if k == 0:
+        return None
+    stub = sig.group(0).rstrip() + " {\n  ()\n}\n"
+    part1 = header + "\n".join(others[:k]) + "\n" + stub
+    rest = "\n".join(others[k:]) + "\n" + mains[0]
+    final = header + "\n".join(others[:k]) + "\n" + rest
+    return part1, stub, rest, final
+
+
+def build_episode(rnd, task, code, stdout):
+    """Habit (pilot-4): build a long file up in steps instead of one huge write. Pilot-3's long
+    `write` calls sometimes ran away or ended malformed and were dropped by the tool-call parser.
+    read -> write helpers + stub main -> ailang check -> edit: stub -> rest + real main -> run."""
+    sp = build_split(code)
+    if not sp:
+        return None
+    part1, stub, rest, final = sp
+    ok, out = check_out(part1)
+    caps = ",".join(task["caps"] or ["IO"])
+    if not ok or final.count(stub.rstrip("\n")) or part1.count(stub.rstrip("\n")) != 1 or \
+            part1.replace(stub.rstrip("\n"), rest.rstrip("\n")) != final:  # the edit must reproduce final exactly
+        return None
+    got = run(final, caps)
+    if got is None or got.rstrip("\n") != stdout.rstrip("\n"):
+        return None
+    ws = fake_ws(rnd, task["id"])
+    path, rel = f"{ws}/benchmark/solution.ail", "benchmark/solution.ail"
+    steps = [{"call": {"name": "read", "args": {"path": path}}, "result": TEMPLATE},
+             {"call": {"name": "write", "args": {"path": path, "content": part1}},
+              "result": f"Successfully wrote to {path}", "habit": "build"},
+             {"call": {"name": "bash", "args": {"command": f"ailang check {rel}"}}, "result": out, "habit": "check"},
+             {"call": {"name": "edit", "args": {"path": path, "edits": [{"oldText": stub.rstrip("\n"), "newText": rest.rstrip("\n")}]}},
+              "result": f"Successfully replaced 1 block(s) in {path}.", "habit": "build_rest"},
+             {"call": {"name": "bash", "args": {"command": run_cmd(caps)}}, "result": got}]
+    return {"kind": "build", "benchmark": task["id"], "task_prompt": task["task_prompt"].replace(WS_TOKEN, ws),
+            "steps": steps, "final": rnd.choice(DONE_LINES).format(rel=rel)}
 
 
 def example_task(header, expected, caps, ws):
@@ -291,7 +382,10 @@ def main():
     ap.add_argument("--lang-data", default="~/models/finetune/data-v1")
     ap.add_argument("--stale", default="~/models/finetune/stale")
     ap.add_argument("--per-bench", type=int, default=25)
-    ap.add_argument("--onpolicy", default="", help="on-policy repair pairs (stale_fix.py --prompt onpolicy output)")
+    ap.add_argument("--onpolicy", default="", help="on-policy repair pairs (stale_fix.py --prompt onpolicy output); "
+                                                   "comma-separate several rounds to pool them")
+    ap.add_argument("--build-min-chars", type=int, default=0,
+                    help="pilot-4: also make a build-up episode from every solve program at least this long (0 = off)")
     ap.add_argument("--workers", type=int, default=8)
     ap.add_argument("--seed", type=int, default=11)
     a = ap.parse_args()
@@ -325,7 +419,15 @@ def main():
 
     onp = []
     if a.onpolicy:
-        onp = [json.loads(l) for l in open(os.path.expanduser(a.onpolicy)) if '"ok": true' in l]
+        seen_h = set()
+        for fn in a.onpolicy.split(","):
+            for l in open(os.path.expanduser(fn)):
+                if '"ok": true' not in l:
+                    continue
+                p = json.loads(l)
+                if p["code_hash"] not in seen_h:  # the same broken state in two rounds counts once
+                    seen_h.add(p["code_hash"])
+                    onp.append(p)
     bids = sorted({e["benchmark"] for e in evals} | {p["benchmark"] for p in pairs} | {p["benchmark"] for p in onp})
     bids = [b for b in bids if ok_spec(b)]
     tasks = render_tasks(bids)
@@ -374,10 +476,17 @@ def main():
     with cf.ThreadPoolExecutor(a.workers) as ex:
         op = [r for r in ex.map(do_repair, onp) if r]
     oeps = [e for e in (onpolicy_episode(rnd, tasks[p["benchmark"]], p, g) for p, g in op) if e]
-    rep["onpolicy"] = {"candidates": len(onp), "kept": len(oeps),
+    rep["onpolicy"] = {"candidates": len(onp), "kept": len(oeps), "loop": sum(1 for e in oeps if e.get("loop")),
                        "with_failed_fix": sum(1 for e in oeps if any(s.get("failed_fix") for s in e["steps"])),
                        "with_lookup": sum(1 for e in oeps if any(s.get("habit") == "reference" for s in e["steps"]))}
     reps += oeps
+
+    # ---- build-up episodes (pilot-4): long programs written in two steps
+    if a.build_min_chars:
+        longs = [(b, c, g) for b, c, g in solved if len(c) >= a.build_min_chars]
+        beps = [e for e in (build_episode(rnd, tasks[b], c, g) for b, c, g in longs) if e]
+        rep["build"] = {"candidates": len(longs), "kept": len(beps)}
+        eps += beps
 
     # ---- example episodes (manifest-pinned stdout; retargeted module)
     man = json.load(open(os.path.join(REPO, "examples", "manifest.json")))

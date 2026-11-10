@@ -8,9 +8,14 @@ produced, and each state is re-checked here with the current `ailang` (check, th
 the benchmark's expected stdout), never trusting the transcript's own tool output.
 
 Output (stale_fix.py `fix --items` format, one line per distinct failing state):
-  {benchmark, code, error, expected_stdout, task, kind, prev}
+  {benchmark, code, error, expected_stdout, task, kind, prev, history}
   prev = {code, error} when this state was the model's own attempt to fix a previous failing
          state with the same error kind (a failed fix: the moment to look something up).
+  history = up to 3 such consecutive earlier attempts, oldest first (prev is the last);
+         2+ is a loop (pilot-4's loop-break episodes).
+
+  --enrich-pairs/--enrich-out add `history` to repair pairs made before it existed, matched by
+  code hash, so an earlier round's paid-for repairs are reused, never re-bought.
 
   python3 -I tools/finetune/onpolicy_pairs.py --trace ~/models/finetune/onpolicy/trace.jsonl \
       --out ~/models/finetune/onpolicy/items.jsonl
@@ -141,6 +146,8 @@ def main():
     ap.add_argument("--trace", required=True)
     ap.add_argument("--out", required=True)
     ap.add_argument("--workers", type=int, default=8)
+    ap.add_argument("--enrich-pairs", default="", help="repair pairs (stale_fix output) to add history to")
+    ap.add_argument("--enrich-out", default="")
     ap.add_argument("--per-kind", type=int, default=10,
                     help="cap items per (benchmark, error kind), failed-fix items first: bounds the repair spend")
     a = ap.parse_args()
@@ -174,15 +181,38 @@ def main():
                     rep["duplicate"] += 1
                     continue
                 seen.add(h)
-                prev = None
-                if i and res[i - 1][1] is not None and kind_of(res[i - 1][1]) == kind_of(err):
-                    prev = {"code": res[i - 1][0], "error": res[i - 1][1]}
+                # history: the model's own consecutive earlier attempts that failed with the SAME
+                # kind of error, oldest first (up to 3). prev is the last of them. A history of 2+
+                # is a loop: fix after fix of one error that never worked (pilot-4 loop-break data).
+                history, j = [], i - 1
+                while j >= 0 and len(history) < 3 and res[j][1] is not None and kind_of(res[j][1]) == kind_of(err):
+                    history.insert(0, {"code": res[j][0], "error": res[j][1]})
+                    j -= 1
+                prev = history[-1] if history else None
+                if prev:
                     rep["failed_fix"] += 1
+                if len(history) >= 2:
+                    rep["loop"] += 1
                 task = (b.get("task_prompt") or b.get("prompt") or "").replace("<LANG>", "AILANG")
                 items.append({"benchmark": bid, "code": code, "error": err, "expected_stdout": b.get("expected_stdout"),
-                              "task": task, "kind": kind_of(err), "prev": prev, "state_index": i})
+                              "task": task, "kind": kind_of(err), "prev": prev, "history": history,
+                              "state_index": i})
+    if a.enrich_pairs:  # before the cap: every extracted state can match a pair
+        hist = {norm_hash(it["code"]): it["history"] for it in items}
+        n = miss = 0
+        with open(os.path.expanduser(a.enrich_out), "w") as f:
+            for line in open(os.path.expanduser(a.enrich_pairs)):
+                p = json.loads(line)
+                if p.get("ok") and "history" not in p:
+                    h = hist.get(p["code_hash"])
+                    if h is None:
+                        miss += 1
+                    p["history"] = h or ([p["prev"]] if p.get("prev") else [])
+                    n += 1
+                f.write(json.dumps(p) + "\n")
+        rep["enriched"], rep["enrich_unmatched"] = n, miss
     per, kept = collections.Counter(), []
-    for it in sorted(items, key=lambda x: (x["prev"] is None, x["state_index"])):
+    for it in sorted(items, key=lambda x: (-min(len(x["history"]), 2), x["state_index"])):
         k = (it["benchmark"], it["kind"])
         if per[k] < a.per_kind:
             per[k] += 1
