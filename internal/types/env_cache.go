@@ -201,3 +201,32 @@ func (env *TypeEnv) depth() int {
 	}
 	return n
 }
+
+// recordRowsToWithhold returns the row variables that generalisation must not
+// quantify as record rows, by the rules generalizeWithConstraints applies to
+// type variables: every row free in a frame env pushed above base (an
+// enclosing binder of this declaration), and every row free in env but not in
+// base. With no base, every row free in env. Read-only.
+func (env *TypeEnv) recordRowsToWithhold(base *TypeEnv) map[string]bool {
+	if env == nil {
+		return nil
+	}
+	if base == nil {
+		return env.ownedVars().rows
+	}
+	out := make(map[string]bool)
+	baseRows := base.ownedVars().rows
+	for v := range env.ownedVars().rows {
+		if !baseRows[v] {
+			out[v] = true
+		}
+	}
+	if frames, ok := env.framesAbove(base); ok {
+		for _, f := range frames {
+			for v := range f.ownSets().rows {
+				out[v] = true
+			}
+		}
+	}
+	return out
+}

@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-	"maps"
 	"slices"
 	"sort"
 )
@@ -14,8 +13,8 @@ import (
 // interface digest, so the digest depended on Go map order and on unrelated
 // declarations, and an unquantified αN collided with the importer's own αN.
 // CanonicalizeScheme renames every variable, in order of first appearance under
-// one fixed traversal, into a reserved namespace that neither the lexer nor any
-// fresh-variable supply can produce:
+// one fixed traversal (typeVarOccurrences, free_vars.go), into a reserved
+// namespace that neither the lexer nor any fresh-variable supply can produce:
 //
 //	't0 't1 …  type variables          'r0 …  record-row variables
 //	'e0 …      effect-row variables    'f0 …  variables the scheme leaves FREE
@@ -29,124 +28,6 @@ const (
 	canonEffectRowPrefix = "'e"
 	canonFreeVarPrefix   = "'f"
 )
-
-// varSort classifies a variable occurrence for canonical naming.
-type varSort int
-
-const (
-	sortType varSort = iota
-	sortRecordRow
-	sortEffectRow
-)
-
-func sortOfKind(k Kind) varSort {
-	switch {
-	case k == nil:
-		return sortType
-	case k.Equals(RecordRow):
-		return sortRecordRow
-	case k.Equals(EffectRow):
-		return sortEffectRow
-	default:
-		return sortType
-	}
-}
-
-type varOccurrence struct {
-	name string
-	sort varSort
-	row  bool // occurs as a row variable (RowVar or a row tail), not a TVar/TVar2
-}
-
-// orderedSchemeVars lists every variable occurring in t, once each, in the
-// canonical traversal order: function params left to right, then the return,
-// then the effect row; record fields, row labels and effect labels in sorted
-// label order, each row's tail after its labels.
-//
-// Cycle-safe: a visited set on type pointers stops at any node already walked.
-func orderedSchemeVars(t Type) []varOccurrence {
-	var out []varOccurrence
-	seen := map[string]bool{}
-	visited := map[Type]bool{}
-	note := func(name string, s varSort, row bool) {
-		if name != "" && !seen[name] {
-			seen[name] = true
-			out = append(out, varOccurrence{name, s, row})
-		}
-	}
-	var walk func(Type)
-	walkRow := func(r *Row) {
-		if r == nil || visited[r] {
-			return
-		}
-		visited[r] = true
-		for _, l := range slices.Sorted(maps.Keys(r.Labels)) {
-			walk(r.Labels[l])
-		}
-		if r.Tail != nil {
-			note(r.Tail.Name, sortOfKind(r.Tail.Kind), true)
-		}
-	}
-	walk = func(t Type) {
-		if t == nil {
-			return
-		}
-		if row, ok := t.(*Row); ok {
-			walkRow(row)
-			return
-		}
-		if visited[t] {
-			return
-		}
-		visited[t] = true
-		switch typ := t.(type) {
-		case *TVar:
-			note(typ.Name, sortType, false)
-		case *TVar2:
-			note(typ.Name, sortOfKind(typ.Kind), false)
-		case *RowVar:
-			note(typ.Name, sortOfKind(typ.Kind), true)
-		case *TFunc2:
-			for _, p := range typ.Params {
-				walk(p)
-			}
-			walk(typ.Return)
-			walkRow(typ.EffectRow)
-		case *TList:
-			walk(typ.Element)
-		case *TArray:
-			walk(typ.Element)
-		case *TMap:
-			walk(typ.Key)
-			walk(typ.Value)
-		case *TTuple:
-			for _, e := range typ.Elements {
-				walk(e)
-			}
-		case *TApp:
-			walk(typ.Constructor)
-			for _, a := range typ.Args {
-				walk(a)
-			}
-		case *TRecord:
-			for _, f := range slices.Sorted(maps.Keys(typ.Fields)) {
-				walk(typ.Fields[f])
-			}
-			walk(typ.Row)
-		case *TRecord2:
-			walkRow(typ.Row)
-		case *TRecordOpen:
-			for _, f := range slices.Sorted(maps.Keys(typ.Fields)) {
-				walk(typ.Fields[f])
-			}
-			walk(typ.Row)
-		case *TLabelled:
-			walk(typ.Inner)
-		}
-	}
-	walk(t)
-	return out
-}
 
 // renameSchemeVars returns t with every variable named in m renamed. Every
 // other field of every node (labels, budgets, provenance, nominal names,
@@ -311,7 +192,7 @@ func CanonicalizeScheme(s *Scheme) (*Scheme, []string) {
 		isRowVar[v] = true
 	}
 
-	occs := orderedSchemeVars(s.Type)
+	occs := typeVarOccurrences(s.Type)
 	// Variables that occur only in constraints, in a deterministic order: by
 	// class, then by first appearance within the constraint's own type.
 	cons := slices.Clone(s.Constraints)
@@ -321,7 +202,7 @@ func CanonicalizeScheme(s *Scheme) (*Scheme, []string) {
 		seen[o.name] = true
 	}
 	for _, c := range cons {
-		for _, o := range orderedSchemeVars(c.Type) {
+		for _, o := range typeVarOccurrences(c.Type) {
 			if !seen[o.name] && quantified[o.name] {
 				seen[o.name] = true
 				occs = append(occs, o)
@@ -374,90 +255,6 @@ func CanonicalizeScheme(s *Scheme) (*Scheme, []string) {
 	return out, free
 }
 
-// generalizableVars returns, in first-appearance order, the type variables and
-// the record-row variables occurring anywhere in t, including under open records
-// (TRecordOpen) and record rows. The old collector (collectFreeVars) skips both,
-// so a field type such as std/sem.is_newer's `ver` stayed free in the exported
-// scheme and collided with the importer's own variables (#2157). Effect rows are
-// generalised separately (freeEffectRowVarsInType).
-func generalizableVars(t Type) (typeVars, recordRows []string) {
-	for _, o := range orderedSchemeVars(t) {
-		switch {
-		case !o.row:
-			typeVars = append(typeVars, o.name)
-		case o.sort == sortRecordRow:
-			recordRows = append(recordRows, o.name)
-		}
-	}
-	return typeVars, recordRows
-}
-
-// maxRowKindDepth bounds recordRowNames so a cyclic type cannot recurse forever.
-const maxRowKindDepth = 64
-
-// recordRowNames adds to out the names of the record-kinded row variables in t.
-// Instantiation uses it to freshen each quantified row with its own kind.
-//
-// Cycle-safe: recursion stops at maxRowKindDepth.
-func recordRowNames(t Type, out map[string]bool, depth int) {
-	if t == nil || depth > maxRowKindDepth {
-		return
-	}
-	rowTail := func(r *Row) {
-		if r == nil {
-			return
-		}
-		if r.Tail != nil && sortOfKind(r.Tail.Kind) == sortRecordRow {
-			out[r.Tail.Name] = true
-		}
-		for _, lt := range r.Labels {
-			recordRowNames(lt, out, depth+1)
-		}
-	}
-	switch typ := t.(type) {
-	case *RowVar:
-		if sortOfKind(typ.Kind) == sortRecordRow {
-			out[typ.Name] = true
-		}
-	case *Row:
-		rowTail(typ)
-	case *TFunc2:
-		for _, p := range typ.Params {
-			recordRowNames(p, out, depth+1)
-		}
-		recordRowNames(typ.Return, out, depth+1)
-	case *TList:
-		recordRowNames(typ.Element, out, depth+1)
-	case *TArray:
-		recordRowNames(typ.Element, out, depth+1)
-	case *TMap:
-		recordRowNames(typ.Key, out, depth+1)
-		recordRowNames(typ.Value, out, depth+1)
-	case *TTuple:
-		for _, e := range typ.Elements {
-			recordRowNames(e, out, depth+1)
-		}
-	case *TApp:
-		for _, a := range typ.Args {
-			recordRowNames(a, out, depth+1)
-		}
-	case *TRecord:
-		for _, ft := range typ.Fields {
-			recordRowNames(ft, out, depth+1)
-		}
-		recordRowNames(typ.Row, out, depth+1)
-	case *TRecord2:
-		rowTail(typ.Row)
-	case *TRecordOpen:
-		for _, ft := range typ.Fields {
-			recordRowNames(ft, out, depth+1)
-		}
-		recordRowNames(typ.Row, out, depth+1)
-	case *TLabelled:
-		recordRowNames(typ.Inner, out, depth+1)
-	}
-}
-
 // QuantifiedRecordRows returns the scheme's quantified row variables that are
 // record rows, in quantifier order. The iface builder keeps them when it
 // recomputes a scheme's effect-row quantifiers after label restoration.
@@ -466,7 +263,7 @@ func QuantifiedRecordRows(s *Scheme) []string {
 		return nil
 	}
 	recordRows := map[string]bool{}
-	recordRowNames(s.Type, recordRows, 0)
+	recordRowNames(s.Type, recordRows)
 	var out []string
 	for _, v := range s.RowVars {
 		if recordRows[v] {

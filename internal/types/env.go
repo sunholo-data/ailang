@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"slices"
 	"sync/atomic"
 )
 
@@ -135,27 +136,42 @@ func (env *TypeEnv) FreeTypeVarsAbove(base *TypeEnv) map[string]bool {
 }
 
 func (env *TypeEnv) collectFreeTypeVars(free map[string]bool) {
+	env.collectFreeVars(free, isTypeVarOcc)
+}
+
+// collectFreeVars adds to free the variables accepted by keep that occur free
+// in the bindings of env and its ancestors. A scheme's own quantifiers are not
+// free: TypeVars for type variables, RowVars for row variables.
+//
+// It is built on typeVarOccurrences, the traversal generalisation uses for the
+// type being generalised (free_vars.go), so "free in the environment" and
+// "generalisable in this type" cannot disagree about a type form. They did:
+// this walk had no case for records, record rows or type applications, so a
+// variable owned by a parameter of type {name: a} or Option[a] was generalised
+// by an inner let (PR #2209 review).
+func (env *TypeEnv) collectFreeVars(free map[string]bool, keep func(varOccurrence) bool) {
 	for _, binding := range env.bindings {
 		envScanBindings.Add(1)
 		switch b := binding.(type) {
 		case Type:
-			collectFreeTypeVars(b, free)
+			collectVars(b, free, keep, nil)
 		case *Scheme:
-			// Scheme's quantified variables are not free
-			schemeVars := make(map[string]bool)
-			for _, v := range b.TypeVars {
-				schemeVars[v] = true
-			}
-			typeFree := freeTypeVars(b.Type)
-			for v := range typeFree {
-				if !schemeVars[v] {
-					free[v] = true
+			for _, o := range typeVarOccurrences(b.Type) {
+				if !keep(o) {
+					continue
+				}
+				quantifiers := b.TypeVars
+				if o.row {
+					quantifiers = b.RowVars
+				}
+				if !slices.Contains(quantifiers, o.name) {
+					free[o.name] = true
 				}
 			}
 		}
 	}
 	if env.parent != nil {
-		env.parent.collectFreeTypeVars(free)
+		env.parent.collectFreeVars(free, keep)
 	}
 }
 
@@ -165,38 +181,10 @@ func (env *TypeEnv) FreeRowVars() map[string]bool {
 	return copyVarSet(env.ownedVars().rows)
 }
 
+// collectFreeRowVars adds the row variables of every kind (record and effect)
+// that occur free in the environment.
 func (env *TypeEnv) collectFreeRowVars(free map[string]bool) {
-	for _, binding := range env.bindings {
-		envScanBindings.Add(1)
-		switch b := binding.(type) {
-		case Type:
-			// Check for row variables in types
-			if fn, ok := b.(*TFunc2); ok && fn.EffectRow != nil {
-				collectFreeRowVars(fn.EffectRow, free)
-			}
-			if rec, ok := b.(*TRecord2); ok && rec.Row != nil {
-				collectFreeRowVars(rec.Row, free)
-			}
-		case *Scheme:
-			// Scheme's quantified row variables are not free
-			schemeVars := make(map[string]bool)
-			for _, v := range b.RowVars {
-				schemeVars[v] = true
-			}
-			// Check the type for row variables
-			if fn, ok := b.Type.(*TFunc2); ok && fn.EffectRow != nil {
-				rowFree := freeRowVars(fn.EffectRow)
-				for v := range rowFree {
-					if !schemeVars[v] {
-						free[v] = true
-					}
-				}
-			}
-		}
-	}
-	if env.parent != nil {
-		env.parent.collectFreeRowVars(free)
-	}
+	env.collectFreeVars(free, isRowOcc)
 }
 
 // FreeEffectRowVars returns every free EffectRow-kinded row variable reachable
@@ -214,27 +202,5 @@ func (env *TypeEnv) FreeEffectRowVars() map[string]bool {
 }
 
 func (env *TypeEnv) collectFreeEffectRowVars(free map[string]bool) {
-	visited := make(map[Type]bool)
-	for _, binding := range env.bindings {
-		envScanBindings.Add(1)
-		switch b := binding.(type) {
-		case Type:
-			collectFreeEffectRowVarsInType(b, free, visited)
-		case *Scheme:
-			schemeVars := make(map[string]bool)
-			for _, v := range b.RowVars {
-				schemeVars[v] = true
-			}
-			local := make(map[string]bool)
-			collectFreeEffectRowVarsInType(b.Type, local, visited)
-			for v := range local {
-				if !schemeVars[v] {
-					free[v] = true
-				}
-			}
-		}
-	}
-	if env.parent != nil {
-		env.parent.collectFreeEffectRowVars(free)
-	}
+	env.collectFreeVars(free, isEffectRowOcc)
 }

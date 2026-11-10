@@ -189,5 +189,5 @@ func TestCanonicalizeScheme_CyclicTypeTerminates(t *testing.T) {
 	if !slices.Equal(c.TypeVars, []string{"'t0"}) {
 		t.Fatalf("TypeVars = %v", c.TypeVars)
 	}
-	recordRowNames(s.Type, map[string]bool{}, 0)
+	recordRowNames(s.Type, map[string]bool{})
 }

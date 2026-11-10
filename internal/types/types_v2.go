@@ -547,7 +547,7 @@ func (s *Scheme) InstantiateWithConstraints(fresh func(Kind) Type) (Type, []Cons
 	// would hand unification a kind mismatch.
 	if len(s.RowVars) > 0 {
 		recordRows := map[string]bool{}
-		recordRowNames(s.Type, recordRows, 0)
+		recordRowNames(s.Type, recordRows)
 		for _, v := range s.RowVars {
 			if recordRows[v] {
 				subs[v] = fresh(RecordRow)

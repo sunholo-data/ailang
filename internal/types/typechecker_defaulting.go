@@ -291,6 +291,14 @@ func collectConstraintVars(t Type, vars map[string]bool) {
 // collectFreeVars collects all free type variables from a type.
 // Uses internal cycle detection via visited set.
 //
+// KNOWN DIVERGENCE (PR #2209 review): unlike typeVarOccurrences (free_vars.go),
+// this walk skips open records, a closed record's row, TRecord2 and labelled
+// types. Defaulting therefore treats a constrained variable under an open-record
+// field as ambiguous and defaults it. Routing it through typeVarOccurrences
+// changes std/sem's exported `bump_version` from `({ver: int, ...a})` to
+// `({ver: b, ...a})`, with the Num constraint dropped at the boundary, so it
+// waits for its own decision rather than riding on a soundness fix.
+//
 // NOTE: Code outside the types package should use traverse.CollectFreeVars
 // which provides the same cycle-safe behavior with a cleaner API.
 // See: internal/types/traverse/wrappers.go
