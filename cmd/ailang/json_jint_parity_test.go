@@ -22,15 +22,19 @@ func TestJSONJIntParity(t *testing.T) {
 		"evaluator": {"run", "--quiet", "--caps", "IO", "--entry", "main", src},
 		"vm":        {"run", "--quiet", "--bytecode", "--strict-bytecode", "--caps", "IO", "--entry", "main", src},
 	}
+	// A Windows checkout may give the expected file CRLF line endings, and
+	// println may write them; compare lines, not line terminators.
+	lf := func(s string) string { return strings.ReplaceAll(s, "\r\n", "\n") }
 	outs := map[string]string{}
 	for engine, args := range engines {
 		stdout, stderr, code := runWithStdin(t, bin, "", args...)
 		if code != 0 {
 			t.Fatalf("%s: exit %d\nstderr: %s", engine, code, stderr)
 		}
+		stdout = lf(stdout)
 		outs[engine] = stdout
-		if stdout != string(want) {
-			t.Errorf("%s transcript differs from json_jint.expected:\n%s", engine, lineDiff(string(want), stdout))
+		if stdout != lf(string(want)) {
+			t.Errorf("%s transcript differs from json_jint.expected:\n%s", engine, lineDiff(lf(string(want)), stdout))
 		}
 	}
 	if outs["evaluator"] != outs["vm"] {
