@@ -31,6 +31,12 @@ func TestNamedTest_ConsInBody(t *testing.T) {
 		"right-assoc":      `  1 :: 2 :: [] == [1, 2]`,
 		"operand of ++":    `  (0 :: [1]) ++ [2] == [0, 1, 2]`,
 		"inside an assert": `  assert 1 :: [2] == [1, 2]`,
+		// Reviewer probes on PR #2222: an if-operand of :: and an if-base of
+		// a field access keep their meaning only once both go through
+		// printOperand (they failed with "No instance for Num[list[int]]" and
+		// a unification error).
+		"if operand of ::":        `  (if true then 1 else 2) :: [5] == [1, 5]`,
+		"if base of field access": `  (if true then {a: 1} else {a: 2}).a == 1`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			result := runInlineTestsOnSource(t, consFixtureSource(body))

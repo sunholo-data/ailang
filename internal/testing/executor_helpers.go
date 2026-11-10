@@ -338,7 +338,7 @@ func PrintAILANGSource(expr ast.Expr) string {
 		// pattern), so a cons must go back out infix (#1914). Parenthesised like
 		// BinaryOp, so precedence never depends on the surrounding expression.
 		if id, ok := e.Func.(*ast.Identifier); ok && id.Name == "::" && len(e.Args) == 2 {
-			return fmt.Sprintf("(%s :: %s)", PrintAILANGSource(e.Args[0]), PrintAILANGSource(e.Args[1]))
+			return fmt.Sprintf("(%s :: %s)", printOperand(e.Args[0]), printOperand(e.Args[1]))
 		}
 		if len(e.Args) == 0 {
 			return funcStr + "()"
@@ -414,7 +414,7 @@ func PrintAILANGSource(expr ast.Expr) string {
 		}
 		return "{ " + strings.Join(fields, ", ") + " }"
 	case *ast.RecordAccess:
-		return fmt.Sprintf("%s.%s", PrintAILANGSource(e.Record), e.Field)
+		return fmt.Sprintf("%s.%s", printOperand(e.Record), e.Field)
 	case *ast.RecordUpdate:
 		fields := make([]string, len(e.Fields))
 		for i, f := range e.Fields {
