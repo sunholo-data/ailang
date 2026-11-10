@@ -470,24 +470,16 @@ func (p *Parser) parseInfixExpression(left ast.Expr) ast.Expr {
 	return expr
 }
 
-// S-CONS: Parse infix cons operator :: (right-associative)
-// Desugars x :: xs to ::(x, xs) - a constructor call
+// Parse infix cons operator :: (right-associative). The AST is a call of the
+// constructor `::`: FuncCall{::, [x, xs]}.
+//
+// Infix is the ONLY expression spelling of a cons, so it is canonical, not
+// sugar: `::(x, xs)` parses only as a pattern, never as an expression. Strict
+// syntax mode used to reject `x :: xs` and suggest `::(x, xs)`, which left no
+// way to write a cons at all under --strict-syntax (M-V1-VERIFICATION-HONESTY
+// M3c, D4).
 func (p *Parser) parseConsExpression(left ast.Expr) ast.Expr {
 	consPos := p.curPos()
-
-	// Check if strict syntax mode is enabled
-	if p.strictSyntaxMode {
-		p.reportSugarError("CONS", "x :: xs", "::(x, xs)")
-		// Return a placeholder to avoid cascading errors
-		return &ast.FuncCall{
-			Func: &ast.Identifier{Name: "::", Pos: consPos},
-			Args: []ast.Expr{left},
-			Pos:  consPos,
-		}
-	}
-
-	// Sugar is allowed - mark that it was used
-	p.sugarUsed = true
 
 	// Right-associative: parse right side with lower precedence
 	// This makes a :: b :: c parse as a :: (b :: c)

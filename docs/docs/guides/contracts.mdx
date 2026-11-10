@@ -70,6 +70,13 @@ is enabled. A static result is separate evidence; it does not establish that a
 runtime assertion or a generated property test ran. Checked APIs should guard
 bad inputs in ordinary execution rather than rely on that opt-in flag.
 
+**A `requires` clause is an unchecked assumption by default.** The verifier
+assumes a function's precondition while proving that function's `ensures`, and
+it never checks the precondition where the function is called. `ailang run`
+does not check it either unless `--verify-contracts` is given. So a `VERIFIED`
+result means "the `ensures` holds whenever the `requires` holds", and nothing
+stops a caller from passing an argument that breaks the `requires`.
+
 The verifier encodes floats as SMT `Real` and integers as `Int`. Its results do
 not establish IEEE-754 rounding, NaN/infinity behavior, machine-overflow safety or
 cross-architecture byte equality. Bounded recursion results carry their actual
@@ -178,24 +185,35 @@ AILANG implements this pattern natively: contracts are first-class syntax, not c
 
 ## Runtime Contract Checking
 
-Enable runtime contract verification with the `--verify-contracts` flag:
+**`ailang run` does not check contracts by default.** Enable runtime contract
+verification with the `--verify-contracts` flag:
 
 ```bash
 ailang run --verify-contracts --caps IO --entry main examples/runnable/contracts/basic.ail
 ```
 
-### Contract Violation Messages
-
-When a contract is violated at runtime, you get a clear panic message:
+Runtime contracts run on the evaluator only. `--verify-contracts` together with
+`--bytecode` or `--strict-bytecode` (also under `--batch`) is refused before the
+program runs, with exit code 2:
 
 ```
-panic: contract violation: requires: (divisor != 0) at basic.ail:21:12
+Error: CTR004: --verify-contracts is not enforced on the bytecode VM yet (runtime contracts run only on the evaluator). Drop --bytecode to check contracts, or drop --verify-contracts to run on the VM. Tracking: #1956.
+```
+
+### Contract Violation Messages
+
+When a contract is violated at runtime, the run stops with exit code 1. For a
+`half(x) = x - 100` with `ensures { result >= 0 }`, called as `half(5)`:
+
+```
+Error: execution failed: contract violation: ensures failed in half at k1.ail:5:11: (result >= 0)
 ```
 
 The message includes:
 - Contract type (`requires` or `ensures`)
-- Original predicate expression
+- The function whose contract failed
 - Source location (file:line:column)
+- Original predicate expression
 
 ## Static Verification with Z3
 
@@ -215,14 +233,57 @@ ailang verify --verbose examples/runnable/contracts/basic.ail
 # Machine-readable JSON output (for CI/CD)
 ailang verify --json examples/runnable/contracts/basic.ail
 
-# Strict mode: fail if any function can't be verified
+# Strict mode: fail if any contract is skipped or inconclusive
 ailang verify --strict examples/runnable/contracts/basic.ail
+
+# Accept inconclusive (bounded-unrolling) results instead of failing on them
+ailang verify --allow-inconclusive examples/runnable/contracts/cross_module_functions_lib.ail
 
 # Custom timeout per function (default: 5s)
 ailang verify --timeout 10s examples/runnable/contracts/park.ail
 ```
 
 **Prerequisites**: Install Z3 via `brew install z3` (macOS), `apt install z3` (Linux), `choco install z3` or `scoop install z3` (Windows), or download from [Z3 releases](https://github.com/Z3Prover/z3/releases) and set `AILANG_Z3_PATH`.
+
+### Exit codes
+
+`ailang verify`, `ailang check --verify` and `ailang ai-check` share one exit
+rule: they exit non-zero whenever something that should have been proved was
+not. The JSON field `outcome` names which case it was (`verify.outcome` in the
+`check --verify` report).
+
+An **obligation** is a function with at least one `ensures` clause. A
+`requires`-only function is not one: the verifier assumes a precondition while
+proving that function's own `ensures`, and it does not check preconditions at
+call sites, so a precondition alone gives it nothing to prove. Such a function
+is still listed in `results` (status `skipped`, reason code
+`missing_postcondition`) but never changes the outcome or the exit code, with
+or without Z3, and passes `--strict`. The same holds for a function whose only `ensures` is the
+literal `true`: it proves nothing, so it is not an obligation either. Other tautologies
+(`1 == 1`, `result == result`) are not detected and count as verified.
+
+| Outcome | Exit | `outcome` |
+|---|---|---|
+| The file does not type-check | 1 | `not_run` |
+| No obligations in the file (with or without Z3) | 0 | `no_obligations` |
+| Every obligation proved | 0 | `verified` |
+| At least one proved, at least one skipped (outside the decidable fragment) | 0, the skipped functions listed on stderr and by name in `results`; 1 with `--strict` | `partial` |
+| Obligations exist, **none** proved, the rest skipped | 1 | `unproved` |
+| Any inconclusive result (bounded recursion) | 1; 0 with `--allow-inconclusive`, even when the inconclusive result is the only obligation and nothing was proved (skips still count as without the flag) | `inconclusive` (never `verified` or `partial`) |
+| Any counterexample | 1 | `counterexample` |
+| Any solver error, `unknown` or timeout | 1 | `error` |
+| Obligations exist but Z3 is not found | 1, stderr names where it looked | `unavailable` |
+| `ai-check --no-verify`: type check only, verifier not run | 0 when it type-checks | `not_requested` (`no_obligations` when there are none) |
+
+`obligations` counts the functions with an `ensures` clause and is reported
+even when Z3 is missing. `available` means "the solver was found". The legacy
+counter `skipped` still includes `requires`-only rows. Each command checks one
+file: a second file is a usage error (exit 2), and flags may follow the file. `--strict` with
+`--allow-inconclusive`, and `check --strict` without `--verify`, are usage errors too. Only the
+checked file is verified: when it imports (non-stdlib) modules that declare contracts, stderr says
+so and `imported_contracts_unverified` names them, including modules reached only transitively (A
+imports B imports C: C is listed); the checked file itself is never listed. Verify each module on its own.
+`verify --package` refuses up front when Z3 is missing.
 
 ### How It Works
 
@@ -545,16 +606,17 @@ Recursive functions were previously outside the decidable fragment. With **bound
 </CodeBlock>
 
 ```bash
-$ ailang verify --verify-recursive-depth 5 examples/runnable/contracts/recursive_verify.ail
+$ ailang verify examples/runnable/contracts/recursive_verify.ail
 
 → Verifying contracts in recursive_verify.ail
   Solver: Z3 version 4.15.4
 
-  ✓ VERIFIED (bounded: depth 5) factorial   43ms
-  ✓ VERIFIED (bounded: depth 5) sumTo        6ms
-  ✓ VERIFIED (bounded: depth 5) fib          7ms
+  ✓ VERIFIED (bounded: depth 6) factorial   10ms
+  ✓ VERIFIED (bounded: depth 6) sumTo        6ms
+  ✓ VERIFIED (bounded: depth 6) fib          7ms
+  ○ NO CONTRACTS main
 
-  3 functions: 3 verified
+  4 exported functions: 3 verified, 1 without contracts
 
   Note: "bounded: depth N" means the property was verified assuming at most N
         levels of recursion. This is sound but not a full inductive proof.

@@ -135,14 +135,19 @@ type Artifacts struct {
 type Result struct {
 	PkgAssets map[string]effects.PkgAssetTarget // Immutable locked dependency asset targets.
 
-	Value          eval.Value
-	Type           types.Type
-	Constraints    []types.Constraint
-	Errors         []error             // TODO: Use structured errors
-	Warnings       []elaborate.Warning // Compile-time warnings (exhaustiveness, split-arg-order, ...)
-	Artifacts      Artifacts
-	Interface      *iface.Iface                    // Module interface (for modules only)
-	Modules        map[string]*loader.LoadedModule // Loaded modules with Core (for module execution)
+	Value       eval.Value
+	Type        types.Type
+	Constraints []types.Constraint
+	Errors      []error             // TODO: Use structured errors
+	Warnings    []elaborate.Warning // Compile-time warnings (exhaustiveness, split-arg-order, ...)
+	Artifacts   Artifacts
+	Interface   *iface.Iface                    // Module interface (for modules only)
+	Modules     map[string]*loader.LoadedModule // Loaded modules with Core (for module execution)
+	// RootModuleKey is the key of the entry module in Modules. It can differ
+	// from the entry file's declared module name (e.g. `module main` under
+	// RelaxModules), so code that must tell the entry module from its imports
+	// compares against this, never against ast.Module.Path.
+	RootModuleKey  string
 	EnvLockDigest  string
 	PhaseTimings   map[string]int64       // milliseconds
 	Instantiations map[string]interface{} // Polymorphic instantiation tracking

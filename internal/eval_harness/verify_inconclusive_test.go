@@ -80,3 +80,24 @@ func TestVerifyRepairSignal_CounterexampleStillTriggers(t *testing.T) {
 		t.Fatalf("genuine counterexample lost its repair turn: code=%q hint=%v", code, hint)
 	}
 }
+
+// TestVerifyOk_RequiresAPassedCheck (M-V1-VERIFICATION-HONESTY M1): ai-check
+// now reports `available: true` whenever the solver exists, including on a
+// failed type-check (outcome not_run). Such a report verified nothing and must
+// not bank verify_ok. Red mutation: drop `result.Check.Passed &&` from
+// verifyOk — this fails.
+func TestVerifyOk_RequiresAPassedCheck(t *testing.T) {
+	raw := `{"check":{"passed":false,"error_count":1},"verify":{"outcome":"not_run","obligations":0,"available":true,` +
+		`"verified":0,"counterexample":0,"inconclusive":0,"skipped":0,"errors":0,"results":[]}}`
+	m := &RunMetrics{}
+	PopulateVerifyMetrics(m, parseAICheck(t, raw), raw)
+	if m.VerifyOk {
+		t.Fatalf("VerifyOk = true on a failed check: nothing was verified")
+	}
+	unavailable := `{"check":{"passed":true},"verify":{"outcome":"unavailable","obligations":2,"available":false,"results":[]}}`
+	m = &RunMetrics{}
+	PopulateVerifyMetrics(m, parseAICheck(t, unavailable), unavailable)
+	if m.VerifyOk {
+		t.Fatalf("VerifyOk = true with no solver")
+	}
+}

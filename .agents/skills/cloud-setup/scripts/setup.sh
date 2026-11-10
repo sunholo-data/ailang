@@ -42,7 +42,7 @@ else
 fi
 
 # 2. System packages the executor images carry and this container does not.
-#    z3: without it `ailang ai-check` silently skips contract verification.
+#    z3: without it `ailang ai-check` fails (outcome unavailable) on any file with contracts.
 missing=""
 command -v z3 >/dev/null 2>&1 || missing="$missing z3"
 command -v ssh >/dev/null 2>&1 || missing="$missing openssh-client"

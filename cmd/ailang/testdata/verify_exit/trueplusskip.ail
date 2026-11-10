@@ -1,0 +1,18 @@
+module cmd/ailang/testdata/verify_exit/trueplusskip
+
+-- Second-round review of #2222: `ensures { true }` proves nothing, so it must
+-- not count as "at least one verified" and turn the skipped FALSE contract
+-- below into "partial", exit 0. The literal-true function is not an
+-- obligation (like a requires-only one); the file is "unproved", exit 1.
+export pure func idf(x: int) -> int
+ensures { true } {
+  x
+}
+
+export pure func len(xs: [int]) -> int
+ensures { result >= 5 } {
+  match xs {
+    [] => 0,
+    _ :: rest => 1 + len(rest)
+  }
+}

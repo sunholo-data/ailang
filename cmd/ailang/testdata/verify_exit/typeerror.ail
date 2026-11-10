@@ -1,0 +1,8 @@
+module cmd/ailang/testdata/verify_exit/typeerror
+
+-- M-V1-VERIFICATION-HONESTY M1 fixture: does not type-check, so verification
+-- never runs (outcome not_run).
+export pure func dbl(x: int) -> int
+ensures { result >= x } {
+  x + "a"
+}

@@ -2,6 +2,7 @@ package parser
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/lexer"
@@ -247,6 +248,23 @@ func (p *Parser) Errors() []error {
 }
 
 // reservedKeywordError shares cause, alternatives and position across name sites.
+// paramNameError is PAR_PARAM_NAME: a function or lambda parameter that is not
+// `name` or `name: Type` (M-V1-VERIFICATION-HONESTY M4).
+func paramNameError(token lexer.Token) *ParserError {
+	pos := ast.Pos{Line: token.Line, Column: token.Column, File: token.File}
+	shown := token.Literal
+	if token.Type == lexer.STRING {
+		shown = strconv.Quote(shown) // the token holds the unquoted text, which reads like a name
+	}
+	return NewSuggestionError("PAR_PARAM_NAME", pos, token,
+		fmt.Sprintf("parameter must be a name, got `%s`", shown),
+		[]string{
+			"Write the parameter as `name` or `name: Type`",
+			"Write `_: ()` (or `()`) for an ignored unit parameter",
+			"AILANG has no pattern parameters: match on the argument in the body instead",
+		}, "")
+}
+
 func reservedKeywordError(token lexer.Token, code string) *ParserError {
 	suggestions := []string{
 		fmt.Sprintf("Use a different name instead of '%s'", token.Literal),

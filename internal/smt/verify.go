@@ -51,15 +51,6 @@ type VerifyOptions struct {
 	RecursiveDepth int
 	// Verbose attaches the generated SMT-LIB to each solved result.
 	Verbose bool
-	// UnsupportedConstructIsError reports a function whose body uses a
-	// construct outside the decidable fragment (ErrUnsupportedConstruct, e.g.
-	// a match on list patterns) as Status "error" — counted in Errors — instead
-	// of the honest "skipped" (#757) that `ailang verify` reports. `ai-check`
-	// sets it: its exit-code contract (cmd/ailang/ai_check_exit_test.go) has
-	// always surfaced that case as a verifier error, and changing what the
-	// eval harness banks as verify_errors is a ruling, not a refactor
-	// (M-V1-SIMPLIFY-S4 M3A). Both modes name the construct in the reason.
-	UnsupportedConstructIsError bool
 }
 
 // VerifyReport is the outcome of Verify over one program.
@@ -77,6 +68,105 @@ type VerifyReport struct {
 	// Uncontracted counts exported functions that carry no contract at all;
 	// they appear in Results with Status "uncontracted".
 	Uncontracted int
+}
+
+// Obligations is the number of proof obligations the run examined: every
+// result that is neither "uncontracted" nor a requires-only function. It
+// equals CountObligations of the same program (INV: the verify loop reports
+// every obligation CountObligations counts exactly once).
+func (r *VerifyReport) Obligations() int {
+	return TallyResults(r.Results).Obligations
+}
+
+// Tally projects the report onto the shared exit contract.
+func (r *VerifyReport) Tally() verification.Tally {
+	return TallyResults(r.Results)
+}
+
+// IsObligation reports whether a result row is a proof obligation. Two kinds
+// of row are not: an exported function with no contract ("uncontracted"), and
+// a requires-only function (skipped, reason_code missing_postcondition). The
+// verifier assumes a precondition while proving the function's own ensures and
+// does not check it at call sites, so a precondition alone gives it nothing to
+// prove. Such a row stays in the report as evidence and still counts in the
+// legacy `skipped` counter, but never in the exit tally.
+func IsObligation(r VerifyResult) bool {
+	if r.Status == "uncontracted" {
+		return false
+	}
+	return !(r.Status == "skipped" && r.ReasonCode == verification.MissingPostcondition)
+}
+
+// TallyResults is the exit-contract tally of a solver run, computed from the
+// result rows so every command derives it the same way (the CLI JSON report
+// carries the same rows).
+func TallyResults(results []VerifyResult) verification.Tally {
+	t := verification.Tally{CheckPassed: true, SolverAvailable: true}
+	for _, r := range results {
+		if !IsObligation(r) {
+			continue
+		}
+		t.Obligations++
+		switch r.Status {
+		case "verified":
+			t.Verified++
+		case "counterexample":
+			t.Counterexample++
+		case "inconclusive":
+			t.Inconclusive++
+		case "skipped":
+			t.Skipped++
+		default: // "error", "unknown"
+			t.Errors++
+		}
+	}
+	return t
+}
+
+// hasObligation is the ONE predicate for "this function carries a proof
+// obligation": at least one ensures clause. CountObligations uses it; the
+// verify loop reports every such function exactly once.
+func hasObligation(meta *core.DeclMeta) bool {
+	if meta == nil {
+		return false
+	}
+	for _, c := range meta.Contracts {
+		if c != nil && c.Kind == core.EnsuresKind && !isTriviallyTrue(c.Expr) {
+			return true
+		}
+	}
+	return false
+}
+
+// isTriviallyTrue reports a postcondition that is the literal `true`. It
+// proves nothing, so it must not count as a verified obligation: otherwise
+// `ensures { true }` next to a skipped false contract turned "unproved" into
+// "partial", exit 0 (second-round review of #2222). Only the literal is
+// detected; other tautologies are verified like any other clause.
+func isTriviallyTrue(e core.CoreExpr) bool {
+	lit, ok := e.(*core.Lit)
+	if !ok || lit.Kind != core.BoolLit {
+		return false
+	}
+	b, ok := lit.Value.(bool)
+	return ok && b
+}
+
+// CountObligations counts the proof obligations (functions with an ensures
+// clause) of a compiled program without a solver. It is how a verification
+// command knows, with Z3 missing, whether it has dropped anything
+// (M-V1-VERIFICATION-HONESTY M1).
+func CountObligations(coreProg *core.Program) int {
+	if coreProg == nil {
+		return 0
+	}
+	n := 0
+	for _, meta := range coreProg.Meta {
+		if hasObligation(meta) {
+			n++
+		}
+	}
+	return n
 }
 
 // Verify runs static contract verification over every contracted function of
@@ -245,7 +335,29 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 
 	// Process each function with contracts
 	for funcName, meta := range coreProg.Meta {
-		if len(meta.Contracts) == 0 {
+		if meta == nil || len(meta.Contracts) == 0 {
+			continue
+		}
+
+		// A requires-only function, or one whose only ensures is the literal
+		// `true`, carries no proof obligation (hasObligation): it is reported
+		// as evidence, with the reason code IsObligation keys on, and never
+		// reaches the body or solver steps. Checked before the body lookup so a
+		// missing body cannot turn it into an obligation skip.
+		if !hasObligation(meta) {
+			reason := "no ensures clause (nothing to verify)"
+			for _, c := range meta.Contracts {
+				if c != nil && c.Kind == core.EnsuresKind {
+					reason = "ensures is the literal true (nothing to verify)"
+				}
+			}
+			report.Results = append(report.Results, VerifyResult{
+				Function:   funcName,
+				Status:     "skipped",
+				Reason:     reason,
+				ReasonCode: verification.MissingPostcondition,
+			})
+			report.Skipped++
 			continue
 		}
 
@@ -257,25 +369,6 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 				Status:     "skipped",
 				Reason:     "function body not found in Core AST",
 				ReasonCode: verification.MissingBody,
-			})
-			report.Skipped++
-			continue
-		}
-
-		// Check if function has ensures clauses (nothing to verify without postconditions)
-		hasEnsures := false
-		for _, c := range meta.Contracts {
-			if c.Kind == core.EnsuresKind {
-				hasEnsures = true
-				break
-			}
-		}
-		if !hasEnsures {
-			report.Results = append(report.Results, VerifyResult{
-				Function:   funcName,
-				Status:     "skipped",
-				Reason:     "no ensures clause (nothing to verify)",
-				ReasonCode: verification.MissingPostcondition,
 			})
 			report.Skipped++
 			continue
@@ -433,10 +526,11 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			}
 			// #757: an unsupported Core construct (e.g. match on list patterns)
 			// is an honest capability boundary of the decidable fragment — skip
-			// with the reason, never a hard ERROR leaking Go type names. Unless
-			// the caller opted into the error lane (ai-check's contract), in
-			// which case it falls through to the generic encoding error below.
-			if errors.Is(err, ErrUnsupportedConstruct) && !opts.UnsupportedConstructIsError {
+			// with the reason, never a hard ERROR leaking Go type names. Every
+			// command reports it this way: ai-check's former error lane was
+			// retired with the shared exit contract (M-V1-VERIFICATION-HONESTY
+			// M1), under which a skip passes loudly and --strict fails it.
+			if errors.Is(err, ErrUnsupportedConstruct) {
 				report.Results = append(report.Results, VerifyResult{
 					Function:   funcName,
 					Status:     "skipped",

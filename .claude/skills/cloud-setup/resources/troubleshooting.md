@@ -55,10 +55,10 @@ All egress goes through the agent proxy. Read `/root/.ccr/README.md` and
 `HTTPS_PROXY`. A host denied outright means the environment's network level is too narrow —
 set it to Full.
 
-## `ailang ai-check` passes but verified nothing
+## `ailang ai-check` exits 1 with `"outcome": "unavailable"`
 
-z3 is missing, and contract verification is skipped silently. `apt-get install -y z3`
-(`setup.sh` does this).
+z3 is missing and the file has contracts, so nothing was proved. (Releases up to v0.59.0 let this case pass
+silently.) `apt-get install -y z3` (`setup.sh` does this).
 
 ## The Stop hook pushed / rebased `dev`
 

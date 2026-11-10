@@ -241,6 +241,23 @@ flags (`--max-memory`, `--net-timeout`, `--net-max-bytes`, `--fs-max-bytes`,
 `--process-allowlist`), and `check --format agent`. The `ai-check` alias is Stable as a route, but
 the JSON report it prints is Experimental ⚠ close call, because its shape is still settling.
 
+**Stable behaviour of those commands, stated so it is not frozen by omission:**
+- The exit codes of `check --verify` (and `ai-check`) follow the table in the
+  [contracts guide](/docs/guides/contracts#exit-codes): 0 for verified, no obligations, or partial (at
+  least one obligation proved and the skipped ones listed on stderr and in `results`); 1 for a failed
+  check, nothing proved (`unproved`: every obligation skipped), a counterexample, a solver error or
+  timeout, an inconclusive result, or obligations with no solver. `--allow-inconclusive` makes an
+  inconclusive result exit 0 even when it is the only obligation (nothing proved); the outcome stays
+  `inconclusive`. An obligation is a function with an `ensures` clause; a `requires`-only function, or
+  one whose only `ensures` is the literal `ensures { true }`, is not one. Other tautologies (`1 == 1`,
+  `result == result`, `true && true`) are not detected and count as verified. Contradictory flags
+  (`--strict` with `--allow-inconclusive`, either with `--no-verify`, `--strict` without `--verify`)
+  are usage errors (exit 2). The JSON `outcome` field may gain values in a minor; existing values keep
+  their meaning. `ai-check --no-verify` (type check only, outcome `not_requested`) is Experimental.
+- `ailang run` does not check `requires`/`ensures` unless `--verify-contracts` is given. With
+  `--bytecode`/`--strict-bytecode` that flag is refused (CTR004, exit 2) until the VM enforces contracts;
+  lifting the refusal is additive.
+
 ### Experimental CLI (23)
 
 These may change in a 1.x minor, with a CHANGELOG entry.
@@ -420,7 +437,11 @@ For a **Stable** tool, the promise covers:
 - the read-only / idempotent hints;
 - the top-level response envelope. Version-scoped docs tools return `{served_for, data}` or
   `{error, detail}`. Executor tools return `{ok, exit_code, stdout, stderr, truncated}` or
-  `{ok: false, error, message}`.
+  `{ok: false, error, message}`. `ailang_check` adds two
+  fields to that envelope: `verification` (the verification result: the report's `verify.outcome`,
+  or `unavailable` when the host has no solver and ran the type check only) and, only when it is
+  `unavailable`, `verification_message`. `ok` is still `exit_code == 0`, and `exit_code` is still the
+  real status of the command the tool ran.
 
 The *content* inside a response, such as prompt text, docs pages or stdlib listings, changes with
 every release by design. The **hosted URL is part of the promise:** the production OAuth endpoint

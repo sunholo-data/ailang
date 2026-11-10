@@ -1,0 +1,10 @@
+module cmd/ailang/testdata/verify_exit/half
+
+-- M-V1-VERIFICATION-HONESTY M1 fixture: one non-recursive contracted function.
+-- Its outcome is decided entirely by what the (fake) solver answers, so the
+-- exit-contract tests drive every solver lane from this one file.
+export pure func half(x: int) -> int
+requires { x >= 0 }
+ensures { result >= 0 } {
+  x - 100
+}

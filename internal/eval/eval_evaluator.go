@@ -576,8 +576,8 @@ func (e *CoreEvaluator) evalDecl(decl core.CoreExpr) (Value, error) {
 // ContractChecker is an interface for checking contract violations via EffContext
 // M-VERIFY-CONTRACTS: Used to integrate with the effects.ContractContext
 type ContractChecker interface {
-	CheckRequires(cond bool, msg, location string) error
-	CheckEnsures(cond bool, msg, location string) error
+	CheckRequires(function string, cond bool, msg, location string) error
+	CheckEnsures(function string, cond bool, msg, location string) error
 	IsContractCheckingEnabled() bool
 }
 
@@ -613,7 +613,7 @@ func (e *CoreEvaluator) checkPreconditions(fn *FunctionValue) error {
 		}
 
 		// Report via ContractContext
-		if err := checker.CheckRequires(boolVal.Value, pre.Message, pre.Location); err != nil {
+		if err := checker.CheckRequires(pre.Function, boolVal.Value, pre.Message, pre.Location); err != nil {
 			return err
 		}
 	}
@@ -660,7 +660,7 @@ func (e *CoreEvaluator) checkPostconditions(fn *FunctionValue, result Value) err
 		}
 
 		// Report via ContractContext
-		if err := checker.CheckEnsures(boolVal.Value, post.Message, post.Location); err != nil {
+		if err := checker.CheckEnsures(post.Function, boolVal.Value, post.Message, post.Location); err != nil {
 			return err
 		}
 	}

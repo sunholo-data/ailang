@@ -149,8 +149,18 @@ func applyAgentVerification(out *AgentBenchmarkResult, config AgentBenchmarkConf
 	out.VerifyInconclusive = result.Verify.Inconclusive
 	out.VerifySkipped = result.Verify.Skipped
 	out.VerifyErrors = result.Verify.Errors
-	out.VerifyOk = result.Verify.Available && result.Verify.Counterexample == 0 && result.Verify.Errors == 0
+	out.VerifyOk = verifyOk(result)
 	out.VerifyJSON = rawJSON
+}
+
+// verifyOk is the ONE "no violation was found" predicate both eval modes bank.
+// It requires check.passed: since M-V1-VERIFICATION-HONESTY M1 `available`
+// means "solver found" on every lane, including a failed check, so it no
+// longer implies that verification ran. Inconclusive stays outside it on
+// purpose (isVerifiedSuccess requires inconclusive == 0 separately).
+func verifyOk(result *AICheckResult) bool {
+	return result.Check.Passed && result.Verify.Available &&
+		result.Verify.Counterexample == 0 && result.Verify.Errors == 0
 }
 
 // PopulateVerifyMetrics fills verify fields in RunMetrics from an AICheckResult
@@ -163,6 +173,6 @@ func PopulateVerifyMetrics(metrics *RunMetrics, result *AICheckResult, rawJSON s
 	metrics.VerifyInconclusive = result.Verify.Inconclusive
 	metrics.VerifySkipped = result.Verify.Skipped
 	metrics.VerifyErrors = result.Verify.Errors
-	metrics.VerifyOk = result.Verify.Available && result.Verify.Counterexample == 0 && result.Verify.Errors == 0
+	metrics.VerifyOk = verifyOk(result)
 	metrics.VerifyJSON = rawJSON
 }

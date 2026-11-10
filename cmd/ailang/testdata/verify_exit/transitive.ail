@@ -1,0 +1,9 @@
+module cmd/ailang/testdata/verify_exit/transitive
+
+-- Third-round review of #2222: A imports B imports C. This file (A) and
+-- `importer` (B) declare no contracts; `half` (C) does. Every module reached
+-- through imports is listed when it declares contracts, so the report names
+-- `half` (transitively imported) and never this file or `importer`.
+import cmd/ailang/testdata/verify_exit/importer (quarter)
+
+export pure func eighth(x: int) -> int = quarter(quarter(x))
