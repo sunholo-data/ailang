@@ -480,9 +480,11 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 // typed with the declaration's own `a` was generalized whenever a leaked `a`
 // also sat in the base env, re-opening exactly the ANF `[b]` hole above.
 func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, constraints []ClassConstraint, currentEnv *TypeEnv, baseEnvFreeVars map[string]bool, baseEnv *TypeEnv, literalWithhold map[string]bool) *Scheme {
-	// Find free type variables in the type being generalized.
-	typeFreeVars := make(map[string]bool)
-	collectFreeVars(typ, typeFreeVars)
+	// Find free type variables in the type being generalized, in first-appearance
+	// order. M-V1-TYVAR-HYGIENE (#2157): this walk descends into open records and
+	// record rows, which collectFreeVars skips, and its order is deterministic
+	// (the old map range fed Instantiate a different order every run, #2076).
+	typeFreeVars, typeFreeRecordRows := generalizableVars(typ)
 
 	// Compute the vars introduced by binders inside this declaration:
 	// free in the current env but NOT in the declaration's base env.
@@ -500,7 +502,7 @@ func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, con
 	}
 
 	generalizedTypeVars := []string{}
-	for v := range typeFreeVars {
+	for _, v := range typeFreeVars {
 		if literalWithhold[v] {
 			// Constrained by an integer literal (see literalWithhold) —
 			// stays monomorphic so its use sites decide the literal's type.
@@ -530,6 +532,16 @@ func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, con
 	for v := range typeFreeRowVars {
 		if envFreeRowVars[v] {
 			// Free in the environment (owned by an enclosing binder) — withhold.
+			continue
+		}
+		generalizedRowVars = append(generalizedRowVars, v)
+	}
+	// M-V1-TYVAR-HYGIENE (#2157): record rows (field-access shims, `{f: t | r}`
+	// annotations) are generalised by the same side condition. Unquantified, one
+	// declaration's row was shared by every use of its scheme, and across a module
+	// boundary it met the importer's variables of the same name.
+	for _, v := range typeFreeRecordRows {
+		if withhold[v] || envFreeRowVars[v] {
 			continue
 		}
 		generalizedRowVars = append(generalizedRowVars, v)

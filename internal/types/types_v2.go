@@ -542,11 +542,19 @@ func (s *Scheme) InstantiateWithConstraints(fresh func(Kind) Type) (Type, []Cons
 		subs[v] = fresh(Star)
 	}
 
-	// Fresh row variables for effects
-	for _, v := range s.RowVars {
-		// Determine kind from usage in type
-		// For now, assume effect rows (can be refined)
-		subs[v] = fresh(EffectRow)
+	// Fresh row variables, each with its own kind. M-V1-TYVAR-HYGIENE (#2157):
+	// record rows are now quantified too, and freshening one as an effect row
+	// would hand unification a kind mismatch.
+	if len(s.RowVars) > 0 {
+		recordRows := map[string]bool{}
+		recordRowNames(s.Type, recordRows, 0)
+		for _, v := range s.RowVars {
+			if recordRows[v] {
+				subs[v] = fresh(RecordRow)
+			} else {
+				subs[v] = fresh(EffectRow)
+			}
+		}
 	}
 
 	if len(s.Constraints) == 0 {

@@ -287,9 +287,18 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 			// functions with concrete outer effects, e.g. std/sem's `! {SharedMem}`,
 			// into "same row variable with different extensions").
 			if hasRowVarEffects(fd.Effects) {
-				scheme.RowVars = types.FreeEffectRowVarNames(scheme.Type)
+				// Record rows are not effect rows: keep their quantifiers (#2157).
+				scheme.RowVars = append(types.FreeEffectRowVarNames(scheme.Type), types.QuantifiedRecordRows(scheme)...)
 			}
 		}
+
+		// M-V1-TYVAR-HYGIENE (#2076, #2157): the scheme that crosses the module
+		// boundary carries canonical names, never the raw names of this module's
+		// inference context. iface.json and the digest are then byte-identical
+		// across runs and unaffected by unrelated declarations. Free variables
+		// (an unclosed scheme) are renamed into their own namespace; making them
+		// an error is decision D-1 and is not taken here.
+		scheme, _ = types.CanonicalizeScheme(scheme)
 
 		// Publish purity from the checked outer row after restoration.
 		purity := derivePurity(scheme, funcDecls[name])
@@ -546,19 +555,16 @@ func (b *Builder) generalizeType(typ interface{}, name string) (*types.Scheme, e
 	return nil, fmt.Errorf("unexpected type kind for export %s: %T", name, typ)
 }
 
-// canonicalizeScheme ensures deterministic representation of a scheme
+// canonicalizeScheme copies a scheme for export. Class constraints are not
+// exported (unchanged behaviour). Canonical variable naming happens in Build,
+// after IFC label restoration, via types.CanonicalizeScheme.
 func (b *Builder) canonicalizeScheme(scheme *types.Scheme) (*types.Scheme, error) {
-	// Sort quantified variables for deterministic ordering
 	typeVars := make([]string, len(scheme.TypeVars))
 	copy(typeVars, scheme.TypeVars)
-	sort.Strings(typeVars)
 
 	rowVars := make([]string, len(scheme.RowVars))
 	copy(rowVars, scheme.RowVars)
-	sort.Strings(rowVars)
 
-	// TODO: Alpha-normalize the type to ensure consistent variable naming
-	// For now, just return with sorted quantifiers
 	return &types.Scheme{
 		TypeVars: typeVars,
 		RowVars:  rowVars,

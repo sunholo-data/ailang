@@ -2,6 +2,8 @@ package types
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/typedast"
@@ -428,7 +430,7 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 			//     passing extra fields is (correctly) rejected. This preserves the
 			//     M-SCHEME-IMPORT-PRESERVE-ADT-HEAD strictness — it must NOT reverse.
 			fieldTypes = make(map[string]Type)
-			for fieldName := range p.Fields {
+			for _, fieldName := range slices.Sorted(maps.Keys(p.Fields)) { // #2076: no map order
 				// This branch only runs when scrutType is NOT a *TRecord (the
 				// outer type-switch handled the resolved-record case above), so
 				// each matched field starts as a fresh type variable.
@@ -449,7 +451,8 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 		bindings := make(map[string]Type)
 		typedFields := make(map[string]typedast.TypedPattern)
 
-		for fieldName, fieldPat := range p.Fields {
+		for _, fieldName := range slices.Sorted(maps.Keys(p.Fields)) { // #2076: no map order
+			fieldPat := p.Fields[fieldName]
 			fieldType, ok := fieldTypes[fieldName]
 			if !ok {
 				// Field not in scrutinee type - create fresh type variable

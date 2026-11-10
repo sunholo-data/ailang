@@ -2,6 +2,8 @@ package types
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
@@ -14,7 +16,10 @@ func (tc *CoreTypeChecker) inferRecord(ctx *InferenceContext, rec *core.Record) 
 	fieldTypes := make(map[string]Type)
 	var allEffects []*Row
 
-	for name, value := range rec.Fields {
+	// Sorted, not map order: inference allocates fresh variables, and their
+	// names must not depend on Go's map iteration (#2076).
+	for _, name := range slices.Sorted(maps.Keys(rec.Fields)) {
+		value := rec.Fields[name]
 		valueNode, _, err := tc.inferCore(ctx, value)
 		if err != nil {
 			return nil, ctx.env, err
@@ -103,7 +108,17 @@ func (tc *CoreTypeChecker) inferRecordAccess(ctx *InferenceContext, acc *core.Re
 		}
 	}
 
-	// Create fresh type variable for field
+	// Create fresh type variable for field. The rest of the record is the shared
+	// record row "r".
+	//
+	// M-V1-TYVAR-HYGIENE (#2157): "r" is now generalised like any other variable
+	// (generalizableVars) and instantiated as a fresh record row, so it no longer
+	// leaks across the module boundary as a free name. A fresh row per access
+	// (ctx.freshRecordRow) would be more precise, but it changes the rendered
+	// interface of an export over two different shim records — `({x: b, ...a},
+	// {y: b, ...a})` becomes `(…, {y: b, ...c})` — and with it `interface_hash`
+	// v2. That is a published-surface change and waits for a ruling (design doc
+	// D-2/D-3).
 	fieldType := ctx.freshTypeVar()
 	rowVar := &RowVar{Name: "r", Kind: RecordRow}
 
@@ -146,13 +161,16 @@ func (tc *CoreTypeChecker) inferRecordUpdate(ctx *InferenceContext, upd *core.Re
 	baseType := getType(baseNode)
 
 	// 2. Create fresh type variables for each field being updated
+	// Sorted, not map order, so fresh names are deterministic (#2076).
+	updateFields := slices.Sorted(maps.Keys(upd.Updates))
 	fieldTypes := make(map[string]Type)
-	for fieldName := range upd.Updates {
+	for _, fieldName := range updateFields {
 		fieldTypes[fieldName] = ctx.freshTypeVar()
 	}
 
 	// 3. Create row variable for other fields (row polymorphism)
-	// Using "r" as the name matches the pattern in inferRecordAccess
+	// Using "r" as the name matches the pattern in inferRecordAccess (see the
+	// comment there for why it is not yet a fresh row).
 	rowVar := &RowVar{Name: "r", Kind: RecordRow}
 
 	// 4. Create constraint: base must be a record with at least these fields
@@ -169,7 +187,8 @@ func (tc *CoreTypeChecker) inferRecordUpdate(ctx *InferenceContext, upd *core.Re
 
 	// 5. Type check updated field values
 	updatedFields := make(map[string]typedast.TypedNode)
-	for fieldName, fieldValue := range upd.Updates {
+	for _, fieldName := range updateFields {
+		fieldValue := upd.Updates[fieldName]
 		valueNode, _, err := tc.inferCore(ctx, fieldValue)
 		if err != nil {
 			return nil, ctx.env, err
