@@ -1,0 +1,140 @@
+-- M-V1-STDLIB-SURFACE-POLISH B1/B2/B3/B4: the Json number contract, trailing
+-- data and empty keys. TestJSONJIntParity runs this on the evaluator and the
+-- strict bytecode VM and compares both against one expected transcript.
+module cmd/ailang/testdata/jsonjint/json_jint
+import std/json (Json, JNull, JBool, JNumber, JString, JArray, JObject, JInt, decode, encode, jint, jnum, getInt, getNumber, asNumber, filterNumbers, allNumbers, getNumberArray, getNumberArrayStrict)
+import std/yaml (decode as yamlDecode)
+import std/result (Result, Ok, Err)
+import std/option (Option, Some, None)
+import std/io (println)
+
+-- The input is echoed JSON-escaped, so whitespace inputs stay on one line.
+func row(s: string) -> string = match decode(s) {
+  Ok(j) => "${encode(JString(s))} => ${show(j)} => ${encode(j)}",
+  Err(e) => "${encode(JString(s))} => Err(${e})"
+}
+
+func kind(j: Json) -> string = match j {
+  JInt(n) => "JInt ${show(n)}",
+  JNumber(x) => "JNumber ${show(x)}",
+  _ => "other"
+}
+
+func decodeKind(s: string) -> string = match decode(s) {
+  Ok(j) => kind(j),
+  Err(e) => "Err(${e})"
+}
+
+func intOf(s: string) -> string = match decode(s) {
+  Ok(j) => show(getInt(j, "v")),
+  Err(e) => "Err(${e})"
+}
+
+func floatsOf(s: string) -> string = match decode(s) {
+  Ok(j) => "${show(getNumber(j, "v"))} ${show(getNumberArray(j, "a"))} ${show(getNumberArrayStrict(j, "a"))}",
+  Err(e) => "Err(${e})"
+}
+
+func roundTrip(s: string) -> string = match decode(s) {
+  Ok(j) => if encode(j) == s then "same" else "DIFFERS: ${encode(j)}",
+  Err(e) => "Err(${e})"
+}
+
+func yamlRow(s: string) -> string = match yamlDecode(s) {
+  Ok(j) => encode(j),
+  Err(e) => "Err(${e})"
+}
+
+func numbers() -> () ! {IO} {
+  println("-- number syntax")
+  println(decodeKind("1"))
+  println(decodeKind("-7"))
+  println(decodeKind("0"))
+  println(decodeKind("1.0"))
+  println(decodeKind("1e3"))
+  println(decodeKind("1E3"))
+  println(decodeKind("1.5e3"))
+  println(decodeKind("-0"))
+  println(decodeKind("-0.0"))
+  println(decodeKind("9007199254740993"))
+  println(decodeKind("9223372036854775807"))
+  println(decodeKind("-9223372036854775808"))
+  println(decodeKind("9223372036854775808"))
+  println(decodeKind("-9223372036854775809"))
+  println(decodeKind("123456789012345678901234567890"))
+  println(decodeKind("1E400"))
+  println(decodeKind("100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000"))
+  println(decodeKind("01"))
+  println(row("[01]"))
+  println(row("[1, 2.5, 1234567890123456789, -0]"))
+  println(row("{\"id\": 1234567890123456789}"))
+}
+
+func trailing() -> () ! {IO} {
+  println("-- trailing data (B1)")
+  println(row("1 2"))
+  println(row("{\"a\":1} xx"))
+  println(row("[1]]"))
+  println(row("{} x"))
+  println(row("  1 \n\t "))
+  println(row("\"s\"\r\n"))
+  println(row(""))
+  println(row("   "))
+}
+
+func emptyKeys() -> () ! {IO} {
+  println("-- empty keys (B2)")
+  println(row("{\"\": 1, \"b\": 2}"))
+  println(row("{\"\": \"x\", \"b\": \"y\"}"))
+  println(row("{\"a\": {\"\": [true, null]}, \"\": \"\"}"))
+  println(row("{\"k\": 1, \"k\": 2}"))
+}
+
+func ints() -> () ! {IO} {
+  println("-- getInt (B4)")
+  println(intOf("{\"v\": 42}"))
+  println(intOf("{\"v\": 30.0}"))
+  println(intOf("{\"v\": 1187.50}"))
+  println(intOf("{\"v\": -0}"))
+  println(intOf("{\"v\": 1e30}"))
+  println(intOf("{\"v\": 9223372036854775807}"))
+  println(intOf("{\"v\": 9223372036854775808}"))
+  println(intOf("{\"v\": \"7\"}"))
+  println(intOf("{\"w\": 7}"))
+}
+
+func floats() -> () ! {IO} {
+  println("-- float accessors take both")
+  println(floatsOf("{\"v\": 3, \"a\": [1, 2.5, \"x\"]}"))
+  println(floatsOf("{\"v\": 3.5, \"a\": [1, 2]}"))
+  println(show(asNumber(jint(5))))
+  println(show(filterNumbers([jint(1), jnum(2.5), JString("x"), JNull])))
+  println(show(allNumbers([jint(1), jnum(2.5)])))
+}
+
+func builders() -> () ! {IO} {
+  println("-- builders and equality")
+  println(encode(jint(1234567890123456789)))
+  println(encode(jint(-9223372036854775807)))
+  println(encode(jnum(42.0)))
+  println(show(decode("1") == Ok(jint(1))))
+  println(show(decode("1") == Ok(jnum(1.0))))
+  println(show(decode("1.0") == Ok(jnum(1.0))))
+}
+
+func roundTrips() -> () ! {IO} {
+  println("-- encode output round-trips byte for byte")
+  println(roundTrip(encode(JArray([jint(1), jnum(1.0), jnum(2.5), jnum(-0.0), jnum(1e+21), jnum(1e+20), jint(9223372036854775807), JObject([{ key: "", value: jint(0) }])]))))
+  println("-- YAML goes through the same decoder")
+  println(yamlRow("a: 1\nb: 1.5\nc: 1234567890123456789\nd: 12345678901234567890\n"))
+}
+
+export func main() -> () ! {IO} {
+  numbers()
+  trailing()
+  emptyKeys()
+  ints()
+  floats()
+  builders()
+  roundTrips()
+}

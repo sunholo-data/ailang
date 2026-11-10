@@ -261,11 +261,21 @@ func TestRoundtripNumber(t *testing.T) {
 
 			result := extractOk(decoded)
 
-			// Extract the number value
+			// The value survives; an integral float's text ("42") has
+			// integer syntax, so it comes back as JInt with the same value,
+			// and re-encodes to the same bytes.
 			resultTagged := result.(*eval.TaggedValue)
-			assert.Equal(t, "JNumber", resultTagged.CtorName)
-			resultFloat := resultTagged.Fields[0].(*eval.FloatValue).Value
-			assert.Equal(t, num, resultFloat)
+			switch resultTagged.CtorName {
+			case "JInt":
+				assert.Equal(t, num, float64(resultTagged.Fields[0].(*eval.IntValue).Value))
+			case "JNumber":
+				assert.Equal(t, num, resultTagged.Fields[0].(*eval.FloatValue).Value)
+			default:
+				t.Fatalf("decoded %s, want a number", resultTagged.CtorName)
+			}
+			again, err := jsonEncodeImpl(ctx.EffContext, []eval.Value{result})
+			require.NoError(t, err)
+			assert.Equal(t, encoded.(*eval.StringValue).Value, again.(*eval.StringValue).Value)
 		})
 	}
 }

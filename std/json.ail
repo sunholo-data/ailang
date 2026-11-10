@@ -6,15 +6,21 @@ import std/result (Result)
 import std/list (foldl, foldr, map, flatMap, length, findIndex)
 import std/math (floatToInt, intToFloat)
 
--- JSON ADT with all JSON types
-export type Json = JNull | JBool(bool) | JNumber(float) | JString(string) | JArray([Json]) | JObject([{ key: string, value: Json }]) deriving (Eq)
+-- JSON ADT with all JSON types.
+-- Numbers: decode gives JInt(n) for an integer literal that fits int64 ("42",
+-- "-7", "9223372036854775807") and JNumber(x) for everything else ("1.0",
+-- "1e3", "-0", integers outside int64). JInt is exact; encode prints it digit
+-- for digit. JInt is declared last so the older constructors keep their tags.
+export type Json = JNull | JBool(bool) | JNumber(float) | JString(string) | JArray([Json]) | JObject([{ key: string, value: Json }]) | JInt(int) deriving (Eq)
 
 -- Encode JSON to string (Go-backed for correctness)
 export func encode(obj: Json) -> string {
   _json_encode(obj)
 }
 
--- Decode JSON from string (Go-backed for correctness)
+-- Decode JSON from string (Go-backed for correctness).
+-- The string must hold exactly one JSON value; anything but whitespace after
+-- it is Err("decode: trailing data at offset N") (use repair for lenient input).
 export func decode(s: string) -> Result[Json, string] {
   _json_decode(s)
 }
@@ -40,8 +46,8 @@ export func jnum(x: float) -> Json {
   JNumber(x)
 }
 
--- jint: convenience constructor for integer JSON numbers (JSON numbers are floats internally)
-export pure func jint(n: int) -> Json = JNumber(intToFloat(n))
+-- jint: integer JSON number, exact for every int (encode prints all digits)
+export pure func jint(n: int) -> Json = JInt(n)
 
 export func js(s: string) -> Json {
   JString(s)
@@ -106,10 +112,13 @@ export func asString(j: Json) -> Option[string] {
   }
 }
 
--- Extract number value
+-- Extract number value as a float; accepts JInt and JNumber.
+-- A JInt above 2^53 is rounded to the nearest float: use getInt or match
+-- JInt(n) to keep it exact.
 export func asNumber(j: Json) -> Option[float] {
   match j {
     JNumber(n) => Some(n),
+    JInt(i) => Some(intToFloat(i)),
     _ => None
   }
 }
@@ -201,16 +210,24 @@ export func getNumber(obj: Json, key: string) -> Option[float] {
   }
 }
 
--- getInt: Get int value from JSON object by key (truncates float)
+-- getInt: Get int value from JSON object by key.
+-- JInt(n) gives Some(n); a JNumber gives Some only when it is integral and
+-- within int64 (30.0 -> Some(30)); a fractional one (1187.5) is None, never
+-- truncated. Anything else, or a missing key, is None.
 export func getInt(obj: Json, key: string) -> Option[int] {
   match get(obj, key) {
-    Some(j) => match asNumber(j) {
-      Some(f) => Some(floatToInt(f)),
-      None => None
-    },
-    None => None
+    Some(JInt(i)) => Some(i),
+    Some(JNumber(f)) => integralFloat(f),
+    _ => None
   }
 }
+
+-- integralFloat: Some(int) when f is a whole number inside int64, else None
+-- (NaN fails every comparison, so it is None too).
+pure func integralFloat(f: float) -> Option[int] =
+  if f >= -9223372036854775808.0 && f < 9223372036854775808.0 && intToFloat(floatToInt(f)) == f
+  then Some(floatToInt(f))
+  else None
 
 -- getBool: Get bool value from JSON object by key
 export func getBool(obj: Json, key: string) -> Option[bool] {
@@ -249,9 +266,9 @@ export pure func filterStrings(xs: [Json]) -> [string] =
   flatMap(\x. match x { JString(s) => [s], _ => [] }, xs)
 
 -- filterNumbers: Extract float values from JSON array, skipping non-numbers
--- Permissive: JString, JBool, etc. are silently ignored
+-- Permissive: JString, JBool, etc. are silently ignored; JInt and JNumber both count
 export pure func filterNumbers(xs: [Json]) -> [float] =
-  flatMap(\x. match x { JNumber(n) => [n], _ => [] }, xs)
+  flatMap(\x. match x { JNumber(n) => [n], JInt(i) => [intToFloat(i)], _ => [] }, xs)
 
 -- allStrings: Extract ALL elements as strings, or None if any non-string
 -- Strict: Returns None if array contains JNumber, JBool, etc.

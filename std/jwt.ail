@@ -5,7 +5,7 @@
 module std/jwt
 import std/result (Result, Ok, Err)
 import std/option (Option, Some, None)
-import std/json (Json, JString, JArray, JNumber, decode, get, getString, asString, asNumber)
+import std/json (Json, JString, JArray, JNumber, JInt, decode, get, getString, asString, asNumber)
 import std/bytes (fromBase64URL, toString, fromString)
 import std/crypto (rsaVerifyPKCS1v15)
 import std/string (split)
@@ -177,6 +177,7 @@ pure func containsString(xs: [Json], target: string) -> bool =
 
 pure func getClaimInt(obj: Json, key: string) -> Option[int] = {
   match get(obj, key) {
+    Some(JInt(n)) => Some(n),
     Some(JNumber(n)) => Some(floatToInt(n)),
     _ => None
   }

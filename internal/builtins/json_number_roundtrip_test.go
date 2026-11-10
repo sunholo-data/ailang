@@ -66,9 +66,24 @@ func TestRegistryJSONNumberRoundTrip(t *testing.T) {
 		if inner == nil {
 			t.Fatalf("decode(%q) not Ok: %v", text, dec)
 		}
-		g := inner.(*eval.TaggedValue).Fields[0].(*eval.FloatValue).Value
+		// An integral float within int64 encodes with integer syntax and
+		// comes back as JInt with the same value; the bytes re-encode equal.
+		var g float64
+		switch tv := inner.(*eval.TaggedValue); tv.CtorName {
+		case "JInt":
+			g = float64(tv.Fields[0].(*eval.IntValue).Value)
+		default:
+			g = tv.Fields[0].(*eval.FloatValue).Value
+		}
 		if math.Float64bits(g) != math.Float64bits(f) {
 			t.Fatalf("round-trip %v -> %q -> %v", f, text, g)
+		}
+		again, err := jsonEncodeImpl(nil, []eval.Value{inner})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if again.(*eval.StringValue).Value != text {
+			t.Fatalf("re-encode %q -> %q", text, again.(*eval.StringValue).Value)
 		}
 	}
 }

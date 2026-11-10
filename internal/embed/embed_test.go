@@ -159,6 +159,8 @@ func TestToGo_JsonUnwrap(t *testing.T) {
 		{"JBool true", mkJson("JBool", &eval.BoolValue{Value: true}), true},
 		{"JNumber float", mkJson("JNumber", &eval.FloatValue{Value: 3.14}), 3.14},
 		{"JNumber int", mkJson("JNumber", &eval.IntValue{Value: 42}), 42.0},
+		// JInt stays an exact int64, so encoding/json prints every digit.
+		{"JInt above 2^53", mkJson("JInt", &eval.IntValue{Value: 1234567890123456789}), int64(1234567890123456789)},
 		{"JString", mkJson("JString", &eval.StringValue{Value: "hi"}), "hi"},
 	}
 	for _, tt := range tests {

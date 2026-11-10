@@ -1,0 +1,63 @@
+-- number syntax
+JInt 1
+JInt -7
+JInt 0
+JNumber 1.0
+JNumber 1000.0
+JNumber 1000.0
+JNumber 1500.0
+JNumber -0.0
+JNumber -0.0
+JInt 9007199254740993
+JInt 9223372036854775807
+JInt -9223372036854775808
+JNumber 9223372036854776000.0
+JNumber -9223372036854776000.0
+JNumber 123456789012345680000000000000.0
+Err(json: number 1E400 out of float64 range)
+Err(json: number 100000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000 out of float64 range)
+Err(decode: trailing data at offset 1)
+"[01]" => Err(invalid json: invalid character '1' after array element)
+"[1, 2.5, 1234567890123456789, -0]" => JArray([JInt(1), JNumber(2.5), JInt(1234567890123456789), JNumber(-0.0)]) => [1,2.5,1234567890123456789,-0.0]
+"{\"id\": 1234567890123456789}" => JObject([{key: id, value: JInt(...)}]) => {"id":1234567890123456789}
+-- trailing data (B1)
+"1 2" => Err(decode: trailing data at offset 2)
+"{\"a\":1} xx" => Err(decode: trailing data at offset 8)
+"[1]]" => Err(decode: trailing data at offset 3)
+"{} x" => Err(decode: trailing data at offset 3)
+"  1 \n\t " => JInt(1) => 1
+"\"s\"\r\n" => JString(s) => "s"
+"" => Err(no JSON value found)
+"   " => Err(no JSON value found)
+-- empty keys (B2)
+"{\"\": 1, \"b\": 2}" => JObject([{key: , value: JInt(...)}, {key: b, value: JInt(...)}]) => {"":1,"b":2}
+"{\"\": \"x\", \"b\": \"y\"}" => JObject([{key: , value: JString(...)}, {key: b, value: JString(...)}]) => {"":"x","b":"y"}
+"{\"a\": {\"\": [true, null]}, \"\": \"\"}" => JObject([{key: a, value: JObject(...)}, {key: , value: JString(...)}]) => {"a":{"":[true,null]},"":""}
+"{\"k\": 1, \"k\": 2}" => JObject([{key: k, value: JInt(...)}, {key: k, value: JInt(...)}]) => {"k":1,"k":2}
+-- getInt (B4)
+Some(42)
+Some(30)
+None
+Some(0)
+None
+Some(9223372036854775807)
+None
+None
+None
+-- float accessors take both
+Some(3.0) Some([1.0, 2.5]) None
+Some(3.5) Some([1.0, 2.0]) Some([1.0, 2.0])
+Some(5.0)
+[1.0, 2.5]
+Some([1.0, 2.5])
+-- builders and equality
+1234567890123456789
+-9223372036854775807
+42
+true
+false
+true
+-- encode output round-trips byte for byte
+same
+-- YAML goes through the same decoder
+{"a":1,"b":1.5,"c":1234567890123456789,"d":12345678901234567000}

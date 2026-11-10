@@ -1,9 +1,7 @@
 package builtins
 
 import (
-	"encoding/json"
 	"fmt"
-	"strings"
 
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -31,17 +29,22 @@ func registerJSONDecode() {
 			LongDesc: `Parses a JSON string using Go's encoding/json package and converts it to AILANG's Json algebraic data type.
 Supports all JSON types: objects, arrays, strings, numbers, booleans, and null.
 Returns Result[Json, string] - Ok(json) on success, Err(message) on parse error.
-Every number literal decodes to its nearest float64 (integers beyond 2^63 are exact, not saturated; "-0" keeps its sign);
-a literal outside float64 range (e.g. 1e400) is an Err, never a silent Infinity.`,
+An integer-syntax literal (no '.', no exponent) that fits int64 decodes to JInt(int), exactly; every other
+number literal (fractions, exponents, "-0", integers outside int64) decodes to JNumber with its nearest float64.
+A literal outside float64 range (e.g. 1e400) is an Err, never a silent Infinity. The input must hold exactly one
+JSON value: anything but whitespace after it is Err("decode: trailing data at offset N"). An empty-string
+object key is an ordinary key.`,
 			Params: []ParamDoc{
 				{Name: "input", Description: "JSON string to parse"},
 			},
 			Returns: "Result[Json, string] - Ok(Json) on success, Err(error message) on invalid JSON",
 			Examples: []Example{
 				{Code: `_json_decode("{\"name\":\"Alice\",\"age\":30}")`, Description: "Returns Ok(JObject(...))"},
-				{Code: `_json_decode("[1,2,3]")`, Description: "Returns Ok(JArray([JNumber(1.0), JNumber(2.0), JNumber(3.0)]))"},
+				{Code: `_json_decode("[1,2,3]")`, Description: "Returns Ok(JArray([JInt(1), JInt(2), JInt(3)]))"},
 				{Code: `_json_decode("\"hello\"")`, Description: "Returns Ok(JString(\"hello\"))"},
-				{Code: `_json_decode("42")`, Description: "Returns Ok(JNumber(42.0))"},
+				{Code: `_json_decode("42")`, Description: "Returns Ok(JInt(42))"},
+				{Code: `_json_decode("42.0")`, Description: "Returns Ok(JNumber(42.0))"},
+				{Code: `_json_decode("1 2")`, Description: "Returns Err(\"decode: trailing data at offset 2\")"},
 				{Code: `_json_decode("10000000000000000000")`, Description: "Returns Ok(JNumber(1.0e19)) exactly"},
 				{Code: `_json_decode("1e400")`, Description: "Returns Err(\"json: number 1e400 out of float64 range\")"},
 				{Code: `_json_decode("true")`, Description: "Returns Ok(JBool(true))"},
@@ -113,13 +116,10 @@ func jsonDecodeImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, err
 }
 
 // jsonDecodeString parses a JSON string into the Json ADT, returning Result[Json, string].
+// It is the shared eval.DecodeJSON walk, so both engines agree on numbers
+// (JInt vs JNumber), empty-string keys and trailing data.
 func jsonDecodeString(strVal *eval.StringValue) (eval.Value, error) {
-	builder := newJSONBuilder(strVal.Value)
-	jsonVal, err := builder.build()
-	if err != nil {
-		return wrapErr(err.Error()), nil
-	}
-	return wrapOk(jsonVal), nil
+	return eval.DecodeJSONString(strVal.Value), nil
 }
 
 // valueToJSON converts an arbitrary AILANG value to the Json ADT.
@@ -128,11 +128,12 @@ func valueToJSON(v eval.Value) eval.Value {
 	case *eval.StringValue:
 		return makeJString(val.Value)
 	case *eval.IntValue:
+		// An AILANG int is exact: JInt, not a float that rounds above 2^53.
 		return &eval.TaggedValue{
 			ModulePath: "std/json",
 			TypeName:   "Json",
-			CtorName:   "JNumber",
-			Fields:     []eval.Value{&eval.FloatValue{Value: float64(val.Value)}},
+			CtorName:   "JInt",
+			Fields:     []eval.Value{&eval.IntValue{Value: val.Value}},
 		}
 	case *eval.FloatValue:
 		return &eval.TaggedValue{
@@ -257,220 +258,6 @@ func unwrapToString(tv *eval.TaggedValue) (*eval.StringValue, bool) {
 	return nil, false
 }
 
-// Streaming builder implementation
-
-type frameType int
-
-const (
-	frameArray frameType = iota
-	frameObject
-)
-
-type buildFrame struct {
-	typ     frameType
-	values  []eval.Value // For arrays
-	kvPairs []eval.Value // For objects: list of {key: string, value: Json} records
-	lastKey string       // For objects: current key waiting for value
-}
-
-type JSONBuilder struct {
-	decoder *json.Decoder
-	stack   []buildFrame
-	result  eval.Value
-}
-
-func newJSONBuilder(input string) *JSONBuilder {
-	dec := json.NewDecoder(strings.NewReader(input))
-	dec.UseNumber() // Preserve number precision, convert later
-	return &JSONBuilder{
-		decoder: dec,
-		stack:   []buildFrame{},
-	}
-}
-
-func (b *JSONBuilder) build() (eval.Value, error) {
-	// Process all tokens
-	for {
-		tok, err := b.decoder.Token()
-		if err == nil {
-			// Process the token
-			switch v := tok.(type) {
-			case json.Delim:
-				switch v {
-				case '{':
-					b.pushObject()
-				case '}':
-					obj, err := b.popObject()
-					if err != nil {
-						return nil, err
-					}
-					b.addValue(obj)
-				case '[':
-					b.pushArray()
-				case ']':
-					arr, err := b.popArray()
-					if err != nil {
-						return nil, err
-					}
-					b.addValue(arr)
-				}
-			case string:
-				if b.inObject() && b.expectingKey() {
-					b.setKey(v)
-				} else {
-					b.addValue(makeJString(v))
-				}
-			case json.Number:
-				num, err := makeJNumber(v)
-				if err != nil {
-					return nil, err
-				}
-				b.addValue(num)
-			case bool:
-				b.addValue(makeJBool(v))
-			case nil:
-				b.addValue(makeJNull())
-			}
-		} else {
-			// Check if we're done (EOF is expected)
-			if err.Error() == "EOF" {
-				break
-			}
-			return nil, b.normalizeError(err)
-		}
-
-		// Check if we've consumed all tokens for the top-level value
-		if len(b.stack) == 0 && b.result != nil {
-			break
-		}
-	}
-
-	// Top-level value should be stored in result
-	if len(b.stack) != 0 {
-		return nil, fmt.Errorf("unexpected end of input")
-	}
-
-	if b.result == nil {
-		return nil, fmt.Errorf("no JSON value found")
-	}
-
-	return b.result, nil
-}
-
-// Stack management
-
-func (b *JSONBuilder) pushObject() {
-	b.stack = append(b.stack, buildFrame{
-		typ:     frameObject,
-		kvPairs: []eval.Value{},
-	})
-}
-
-func (b *JSONBuilder) popObject() (eval.Value, error) {
-	if len(b.stack) == 0 {
-		return nil, fmt.Errorf("unexpected '}'")
-	}
-
-	frame := b.stack[len(b.stack)-1]
-	if frame.typ != frameObject {
-		return nil, fmt.Errorf("mismatched brackets")
-	}
-
-	b.stack = b.stack[:len(b.stack)-1]
-
-	// Build JObject constructor with list of {key, value} records
-	listVal := &eval.ListValue{Elements: frame.kvPairs}
-	return &eval.TaggedValue{
-		ModulePath: "std/json",
-		TypeName:   "Json",
-		CtorName:   "JObject",
-		Fields:     []eval.Value{listVal},
-	}, nil
-}
-
-func (b *JSONBuilder) pushArray() {
-	b.stack = append(b.stack, buildFrame{
-		typ:    frameArray,
-		values: []eval.Value{},
-	})
-}
-
-func (b *JSONBuilder) popArray() (eval.Value, error) {
-	if len(b.stack) == 0 {
-		return nil, fmt.Errorf("unexpected ']'")
-	}
-
-	frame := b.stack[len(b.stack)-1]
-	if frame.typ != frameArray {
-		return nil, fmt.Errorf("mismatched brackets")
-	}
-
-	b.stack = b.stack[:len(b.stack)-1]
-
-	// Build JArray constructor with list of values
-	listVal := &eval.ListValue{Elements: frame.values}
-	return &eval.TaggedValue{
-		ModulePath: "std/json",
-		TypeName:   "Json",
-		CtorName:   "JArray",
-		Fields:     []eval.Value{listVal},
-	}, nil
-}
-
-func (b *JSONBuilder) addValue(val eval.Value) {
-	if len(b.stack) == 0 {
-		// Top-level value
-		b.result = val
-		return
-	}
-
-	frame := &b.stack[len(b.stack)-1]
-	if frame.typ == frameArray {
-		frame.values = append(frame.values, val)
-	} else {
-		// Object: this is the value for the current key
-		if frame.lastKey == "" {
-			// This shouldn't happen - encoding/json alternates keys and values
-			return
-		}
-
-		// Create {key: string, value: Json} record
-		kvRecord := &eval.RecordValue{
-			Fields: map[string]eval.Value{
-				"key":   &eval.StringValue{Value: frame.lastKey},
-				"value": val,
-			},
-		}
-		frame.kvPairs = append(frame.kvPairs, kvRecord)
-		frame.lastKey = "" // Reset for next key
-	}
-}
-
-func (b *JSONBuilder) setKey(key string) {
-	if len(b.stack) == 0 {
-		return
-	}
-	frame := &b.stack[len(b.stack)-1]
-	if frame.typ == frameObject {
-		frame.lastKey = key
-	}
-}
-
-func (b *JSONBuilder) inObject() bool {
-	if len(b.stack) == 0 {
-		return false
-	}
-	return b.stack[len(b.stack)-1].typ == frameObject
-}
-
-func (b *JSONBuilder) expectingKey() bool {
-	if len(b.stack) == 0 {
-		return false
-	}
-	frame := &b.stack[len(b.stack)-1]
-	return frame.typ == frameObject && frame.lastKey == ""
-}
-
 // Value constructors
 
 func makeJString(s string) eval.Value {
@@ -480,22 +267,6 @@ func makeJString(s string) eval.Value {
 		CtorName:   "JString",
 		Fields:     []eval.Value{&eval.StringValue{Value: s}},
 	}
-}
-
-// makeJNumber decodes a JSON number token via the canonical
-// eval.ParseJSONNumber (M-JSON-NUMBER-ROUNDTRIP): exact for every in-range
-// literal, error (not ±Inf / int64 saturation) for out-of-range literals.
-func makeJNumber(n json.Number) (eval.Value, error) {
-	f, err := eval.ParseJSONNumber(n)
-	if err != nil {
-		return nil, err
-	}
-	return &eval.TaggedValue{
-		ModulePath: "std/json",
-		TypeName:   "Json",
-		CtorName:   "JNumber",
-		Fields:     []eval.Value{&eval.FloatValue{Value: f}},
-	}, nil
 }
 
 func makeJBool(b bool) eval.Value {
@@ -514,20 +285,4 @@ func makeJNull() eval.Value {
 		CtorName:   "JNull",
 		Fields:     []eval.Value{},
 	}
-}
-
-// Error normalization
-
-func (b *JSONBuilder) normalizeError(err error) error {
-	// Normalize encoding/json errors to short, stable messages
-	msg := err.Error()
-
-	// Try to extract position info if available
-	// encoding/json errors often include position like "json: error at offset X"
-	// For now, keep it simple - just return a clean message
-	if strings.Contains(msg, "unexpected") {
-		return fmt.Errorf("invalid json: %s", msg)
-	}
-
-	return fmt.Errorf("invalid json: %s", msg)
 }

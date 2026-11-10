@@ -2,6 +2,7 @@ package builtins
 
 import (
 	"fmt"
+	"strconv"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/effects"
@@ -40,6 +41,7 @@ Every finite float survives decode(encode(x)) bit-for-bit.`,
 			Examples: []Example{
 				{Code: `_json_encode(JNull)`, Description: `Returns "null"`},
 				{Code: `_json_encode(JBool(true))`, Description: `Returns "true"`},
+				{Code: `_json_encode(JInt(9007199254740993))`, Description: `Returns "9007199254740993" (exact)`},
 				{Code: `_json_encode(JNumber(42.0))`, Description: `Returns "42"`},
 				{Code: `_json_encode(JNumber(-0.0))`, Description: `Returns "-0.0"`},
 				{Code: `_json_encode(JNumber(1.0e21))`, Description: `Returns "1e+21"`},
@@ -135,6 +137,17 @@ func encodeValue(val eval.Value, buf *strings.Builder) error {
 		default:
 			return fmt.Errorf("JNumber field expected numeric value, got %T", tagged.Fields[0])
 		}
+		return nil
+
+	case "JInt":
+		if len(tagged.Fields) != 1 {
+			return fmt.Errorf("JInt expected 1 field, got %d", len(tagged.Fields))
+		}
+		intVal, ok := tagged.Fields[0].(*eval.IntValue)
+		if !ok {
+			return fmt.Errorf("JInt field expected IntValue, got %T", tagged.Fields[0])
+		}
+		buf.WriteString(strconv.Itoa(intVal.Value))
 		return nil
 
 	case "JString":

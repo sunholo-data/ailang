@@ -74,7 +74,13 @@ func TestYAMLEncodeNumbers(t *testing.T) {
 			decoded := expectYAMLOk(t, callYAMLToJSON(t, text))
 			result, err := jsonDecodeImpl(nil, []eval.Value{&eval.StringValue{Value: decoded}})
 			require.NoError(t, err)
-			got := result.(*eval.TaggedValue).Fields[0].(*eval.TaggedValue).Fields[0].(*eval.FloatValue).Value
+			num := result.(*eval.TaggedValue).Fields[0].(*eval.TaggedValue)
+			var got float64
+			if num.CtorName == "JInt" { // integral text such as "42" decodes as JInt
+				got = float64(num.Fields[0].(*eval.IntValue).Value)
+			} else {
+				got = num.Fields[0].(*eval.FloatValue).Value
+			}
 			require.Equal(t, f, got)
 			require.Equal(t, math.Signbit(f), math.Signbit(got))
 		})
@@ -87,6 +93,8 @@ func TestYAMLEncodeNumbers(t *testing.T) {
 		text := expectYAMLOk(t, callYAMLEncode(t, v))
 		require.Equal(t, "9007199254740993\n", text)
 		require.Equal(t, "9007199254740993", expectYAMLOk(t, callYAMLToJSON(t, text)))
+		jint := &eval.TaggedValue{TypeName: "Json", CtorName: "JInt", Fields: []eval.Value{&eval.IntValue{Value: n}}}
+		require.Equal(t, "9007199254740993\n", expectYAMLOk(t, callYAMLEncode(t, jint)))
 	}
 }
 

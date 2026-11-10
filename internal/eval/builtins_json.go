@@ -1,8 +1,8 @@
 package eval
 
 import (
-	"encoding/json"
 	"fmt"
+	"strconv"
 	"strings"
 )
 
@@ -112,6 +112,16 @@ func encodeJSON(v *TaggedValue) (string, error) {
 		}
 
 		return "", fmt.Errorf("JNumber: expected float or int field, got %T", v.Fields[0])
+
+	case "JInt":
+		if len(v.Fields) != 1 {
+			return "", fmt.Errorf("JInt: expected 1 field, got %d", len(v.Fields))
+		}
+		i, ok := v.Fields[0].(*IntValue)
+		if !ok {
+			return "", fmt.Errorf("JInt: expected int field, got %T", v.Fields[0])
+		}
+		return strconv.Itoa(i.Value), nil
 
 	case "JString":
 		if len(v.Fields) != 1 {
@@ -281,19 +291,11 @@ func unwrapTaggedToString(tv *TaggedValue) (*StringValue, bool) {
 	return nil, false
 }
 
-// legacyDecodeString parses a JSON string into the Json ADT, returning Result[Json, string].
+// legacyDecodeString parses a JSON string into the Json ADT, returning
+// Result[Json, string], through the shared DecodeJSON walk (one decoder for
+// every engine).
 func legacyDecodeString(str *StringValue) (Value, error) {
-	dec := json.NewDecoder(strings.NewReader(str.Value))
-	dec.UseNumber()
-	var result interface{}
-	if err := dec.Decode(&result); err != nil {
-		return legacyWrapErr(err.Error()), nil
-	}
-	jsonVal, err := interfaceToJSON(result)
-	if err != nil {
-		return legacyWrapErr(err.Error()), nil
-	}
-	return legacyWrapOk(jsonVal), nil
+	return DecodeJSONString(str.Value), nil
 }
 
 // legacyValueToJSON converts an AILANG value to the Json ADT.
@@ -302,7 +304,7 @@ func legacyValueToJSON(v Value) Value {
 	case *StringValue:
 		return &TaggedValue{ModulePath: "std/json", TypeName: "Json", CtorName: "JString", Fields: []Value{val}}
 	case *IntValue:
-		return &TaggedValue{ModulePath: "std/json", TypeName: "Json", CtorName: "JNumber", Fields: []Value{&FloatValue{Value: float64(val.Value)}}}
+		return &TaggedValue{ModulePath: "std/json", TypeName: "Json", CtorName: "JInt", Fields: []Value{&IntValue{Value: val.Value}}}
 	case *FloatValue:
 		return &TaggedValue{ModulePath: "std/json", TypeName: "Json", CtorName: "JNumber", Fields: []Value{val}}
 	case *BoolValue:
@@ -358,92 +360,4 @@ func legacyWrapOk(v Value) Value {
 
 func legacyWrapErr(msg string) Value {
 	return &TaggedValue{ModulePath: "std/result", TypeName: "Result", CtorName: "Err", Fields: []Value{&StringValue{Value: msg}}}
-}
-
-// interfaceToJSON converts Go's json.Decode output to AILANG Json ADT
-func interfaceToJSON(v interface{}) (Value, error) {
-	switch val := v.(type) {
-	case nil:
-		// JNull constructor
-		return &TaggedValue{
-			ModulePath: "std/json",
-			TypeName:   "Json",
-			CtorName:   "JNull",
-			Fields:     []Value{},
-		}, nil
-
-	case bool:
-		// JBool(bool) constructor
-		return &TaggedValue{
-			ModulePath: "std/json",
-			TypeName:   "Json",
-			CtorName:   "JBool",
-			Fields:     []Value{&BoolValue{Value: val}},
-		}, nil
-
-	case json.Number:
-		// JNumber(float) constructor — canonical decode (M-JSON-NUMBER-ROUNDTRIP)
-		f, err := ParseJSONNumber(val)
-		if err != nil {
-			return nil, err
-		}
-		return &TaggedValue{
-			ModulePath: "std/json",
-			TypeName:   "Json",
-			CtorName:   "JNumber",
-			Fields:     []Value{&FloatValue{Value: f}},
-		}, nil
-
-	case string:
-		// JString(string) constructor
-		return &TaggedValue{
-			ModulePath: "std/json",
-			TypeName:   "Json",
-			CtorName:   "JString",
-			Fields:     []Value{&StringValue{Value: val}},
-		}, nil
-
-	case []interface{}:
-		// JArray(List[Json]) constructor
-		elements := make([]Value, 0, len(val))
-		for i, elem := range val {
-			jsonElem, err := interfaceToJSON(elem)
-			if err != nil {
-				return nil, fmt.Errorf("array element %d: %w", i, err)
-			}
-			elements = append(elements, jsonElem)
-		}
-		return &TaggedValue{
-			ModulePath: "std/json",
-			TypeName:   "Json",
-			CtorName:   "JArray",
-			Fields:     []Value{&ListValue{Elements: elements}},
-		}, nil
-
-	case map[string]interface{}:
-		// JObject(List[{key: string, value: Json}]) constructor
-		// Preserve insertion order by extracting keys first
-		kvPairs := make([]Value, 0, len(val))
-		for key, value := range val {
-			jsonValue, err := interfaceToJSON(value)
-			if err != nil {
-				return nil, fmt.Errorf("object field %q: %w", key, err)
-			}
-			kvPairs = append(kvPairs, &RecordValue{
-				Fields: map[string]Value{
-					"key":   &StringValue{Value: key},
-					"value": jsonValue,
-				},
-			})
-		}
-		return &TaggedValue{
-			ModulePath: "std/json",
-			TypeName:   "Json",
-			CtorName:   "JObject",
-			Fields:     []Value{&ListValue{Elements: kvPairs}},
-		}, nil
-
-	default:
-		return nil, fmt.Errorf("unsupported JSON type: %T", v)
-	}
 }
