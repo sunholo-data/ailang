@@ -137,14 +137,20 @@ const (
 	// LDR002 indicates circular module dependency detected
 	LDR002 = "LDR002"
 
-	// LDR003 indicates duplicate module definition
+	// LDR003 indicates duplicate module definition: one module file loaded
+	// under two identities in one build (M1b, canonical module identity)
 	LDR003 = "LDR003"
 
 	// LDR004 indicates import of non-existent export
 	LDR004 = "LDR004"
 
-	// LDR005 indicates ambiguous import (multiple modules export same name)
+	// LDR005 indicates ambiguous import (multiple modules export same name, or
+	// two declared dependencies provide one module_prefix spelling)
 	LDR005 = "LDR005"
+
+	// LDR006 indicates an import satisfied only by a package the importing
+	// package does not declare (or a dependency importing the root package)
+	LDR006 = "LDR006"
 
 	// ============================================================================
 	// Import Errors (IMP###)
@@ -314,6 +320,7 @@ var ErrorRegistry = map[string]ErrorInfo{
 	LDR003: {LDR003, "loader", "namespace", "Duplicate module"},
 	LDR004: {LDR004, "loader", "resolution", "Import not exported"},
 	LDR005: {LDR005, "loader", "resolution", "Ambiguous import"},
+	LDR006: {LDR006, "loader", "resolution", "Import from an undeclared package"},
 
 	// Import errors
 	IMP001: {IMP001, "import", "syntax", "Invalid import syntax"},

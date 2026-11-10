@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/core"
@@ -196,6 +197,7 @@ func (st *modulePipelineState) loadModules() error {
 		st.pipelineSpan.RecordError(loadErr)
 		return loadErr
 	}
+	emitScopeWarnings(modLoader.ScopeWarnings())
 	if len(st.afterLoad) > 0 && st.afterLoad[0] != nil {
 		st.afterLoad[0](st.modules)
 	}
@@ -233,6 +235,19 @@ func (st *modulePipelineState) validateAndSort() error {
 		topoSpan.End()
 		st.pipelineSpan.RecordError(topoErr)
 		return topoErr
+	}
+
+	// One module file, one identity (M1b): checked here, after the cycle check,
+	// because an entry file imported back by its own closure is a second
+	// identity AND a cycle, and the cycle is the error worth reading.
+	if conflicts := st.modLoader.IdentityConflicts(); len(conflicts) > 0 {
+		idErr := fmt.Errorf("LDR003: %s; import it by one spelling — its published path pkg/<vendor>/<name>/<module>, "+
+			"its module_prefix form, or (in the root package) its path — not through a symlink or a second path to the same file",
+			strings.Join(conflicts, "; "))
+		topoSpan.RecordError(idErr)
+		topoSpan.End()
+		st.pipelineSpan.RecordError(idErr)
+		return idErr
 	}
 
 	topoSpan.SetAttributes(attribute.Int("modules.sorted", len(sortedModules)))
