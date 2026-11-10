@@ -5,36 +5,29 @@ _Snapshot, overwritten every iteration. History: `v1-mission.md` (STATUS) + `v1-
 **Last update:** 2026-11-09 · ATTENDED re-cut (`D-64`) · **Goal distance:** **N = 1 open bar-v3 gate item** (was 7; G1+G3 closed by `D-65`, G4 closed on the prod domain, G2 closed by #2184 + #2185) — only G5 remains, at release (unit changed from D-51's "design docs remaining", last N = 12 on 2026-09-14)
 **Latest release:** v0.57.4. The V1 launchd loop has been PAUSED since 2026-09-08 (`~/.ailang/state/mission-control.disabled`) and stays paused; the attended session is the orchestrator and dispatches the work to subagents.
 
-## ⚠ RELEASE ORDER — `dev` carries `JInt` (#2223 merged `543192d20`, 2026-11-10)
+## `JInt` on `dev` (#2223, 2026-11-10) — downstream census CLEAN, fixes merged the same day
 
-`dev` is past v0.59.0 with a change that silently alters downstream behaviour: integer JSON literals
-now decode as `JInt`, so a `match` with a `JNumber` arm and no `JInt` arm stops seeing integers. `check`
-still passes on these files, so **`make downstream-check` cannot see it.** Tagging is fine; **installing
-the next release on the rig, or promoting it, is not, until these land and their pins move:**
+Integer JSON literals now decode as `JInt`; a `match` with a `JNumber` arm and no `JInt` arm stops
+seeing integers, and `check` still passes (warning `TC_MATCH_005`), so `make downstream-check` is blind
+to it. A sweep of every downstream corpus with a `dev` compiler found 17 real sites; all are fixed with
+`asNumber`/`getNumber`, which exist since v0.54.14 and accept both constructors, so no release ordering
+was needed:
 
-| Repo | Site | What an integer does today-on-`dev` |
+| Repo | Sites | Fix |
 |---|---|---|
-| motoko fork | `src/eval/journal/association.ail:227` (inner match :230) | outer: no catch-all → fails at run time with RT002; inner: silently `false` |
-| motoko fork | `packages/motoko-ext-skills/skills.ail:166` (`json_kind`), and :245 | :166 no catch-all → RT002; :245 takes the generic fallback |
-| world | `se_tools/read.ail:197` | silently rejects every integer line argument |
-| motoko upstream only | `src/core/process_limits.ail:92` | `{"timeout_secs": 60}` silently becomes an invalid request (matters when the fork next syncs) |
+| ailang-packages | 9 (audio, maintenance-bench, specstore, terminal-ui, crew-lab) + 4 task-pack fixtures | #187 merged; task pack re-frozen in #188 (Mark's ruling) |
+| motoko fork | 3 | #8 merged |
+| world | 1 | #545 **open** — the one site still unfixed on a default branch |
+| ailang examples + std, ailang-parse, docparse, email-parse, daneel | 0 | — |
 
-**Corrected the same day — two things in the first version of this note were wrong.**
+Upstream motoko has a fourth site of its own (`src/core/process_limits.ail:92`); the fix is posted on
+arniwesth/motoko_agent#323. **Before installing or promoting a release with `JInt`:** world #545 merged.
+Not caught by the warning, so read for them when touching JSON code: `getInt` returns `None` for a
+fraction (it used to truncate); a decoded integer is not `==` to `JNumber` of the same value; `show` of
+a decoded integer prints `JInt(…)`. Published package versions that carry the old match cannot be
+changed (maintenance_bench 0.1.0, audio 0.3–0.6.0, terminal_ui 0.2/0.3.0); their fixed versions are
+not yet published. Missing instrument: count `TC_MATCH_005` in `make downstream-check`.
 
-1. **The table above is not the whole list.** A sweep of `ailang-packages` with a `dev` compiler found
-   12 more places (audio, maintenance-bench, specstore, terminal-ui, two examples, four benchmark
-   fixtures). The compiler names every one: `ailang check` on `dev` prints warning `TC_MATCH_005` for a
-   `JNumber` arm with no `JInt` arm. One already bites: the path-filtered `Maintenance instrument`
-   workflow fails on any PR that triggers it, because `maintenance-bench/codec.ail` rejects integer
-   counts. A census of every downstream corpus is running; its result replaces this table.
-2. **No release ordering is needed for most fixes.** `asNumber`, `getNumber` and `getInt` have been in
-   `std/json` since at least v0.54.14 and accept both constructors on `dev`. A site rewritten with them is
-   correct on old and new compilers and can land today. Only a site that must tell an integer from a
-   float needs a `JInt` arm, and only that kind waits for a release.
-
-So: fix the downstream sites with the accessors now; **do not install or promote a release containing
-`JInt` until the census is clean.** The exhaustiveness gate is still blind to this (`check` exits 0 with a
-warning) — counting `TC_MATCH_005` in `make downstream-check` is the missing instrument.
 Also live on merge: **teaching prompt v0.16.13** is the active prompt for every binary built from `dev`.
 
 ## Roadmap accepted 2026-11-10 (`D-66`) — v1.0.0 is NOT the next tag

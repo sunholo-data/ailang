@@ -28,7 +28,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           repository: sunholo-data/ailang-packages
-          ref: 9ac50f6a25d587fc3a6a935a87991bbaecdd0fc1
+          ref: 70ddbf53bdc572dad13bcff03e22e6de93409f8e
           path: package-source
       - uses: actions/setup-go@v7
         with:
