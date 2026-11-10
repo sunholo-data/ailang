@@ -124,6 +124,7 @@ LAUNCHD_SUITES := \
 	scripts/hooks/test_stage_isolation.sh \
 	scripts/hooks/test_pre_push.sh \
 	scripts/hooks/test_git_health.sh \
+	scripts/hooks/test_install_hooks.sh \
 	scripts/test_worktree_sweep.sh \
 	tools/launchd/test_evaluator_skill_lane.sh
 LAUNCHD_SERIAL_SUITES := \
