@@ -450,7 +450,7 @@ Alternative B recorded in this doc.
 > corpus flipped; email-parse also depends on ailang_parse but never meets both paths in one value.
 
 **M1b Canonical module identity (1–1.5 d, before M2) — DONE 2026-11-10** (branch
-`v1/canonical-module-identity`, PR __PR__). One module ID per package module file, whichever
+`v1/canonical-module-identity`, PR #2224). One module ID per package module file, whichever
 spelling imported it; the file compiles and evaluates once.
 
 > **Measured before the change** (`dev` = `b517ebe09`; fixture `internal/testutil/prefixpkg`: package
@@ -547,7 +547,7 @@ spelling imported it; the file compiles and evaluates once.
 > name the file declares, `sunholo/crew_lab/reply_runner` (likewise `sunholo/motoko_ext_a2a/a2a`). The first
 > cut (root under `pkg/` too) had produced 15 such renames in motoko-fork instead, in the other
 > direction — the reason for the root rule above. Same-file probe (scratch instrument running the
-> pipeline per corpus file and grouping loaded modules by realpath): on `dev`, **16 of docparse's 44 files** loaded at least one file under two IDs (129 same-file pairs) and one ailang-packages file did (a bare and a `pkg/` self-import); on this branch **0** in docparse, ailang-packages (600 files), ailang-parse, email-parse and daneel; motoko-fork __MOTOKO__. docparse's
+> pipeline per corpus file and grouping loaded modules by realpath): on `dev`, **16 of docparse's 44 files** loaded at least one file under two IDs (129 same-file pairs) and one ailang-packages file did (a bare and a `pkg/` self-import); on this branch **0** in docparse, ailang-packages (600 files), ailang-parse, email-parse and daneel; motoko-fork and world (1,515 corpus files in all; 1,190 check in both arms, the probe sees module sets of those). Remaining realpath-level double loads: none. docparse's
 > `tests/verify_ai_cache.ail` now compiles 68 modules instead of 70 — `types/document` and
 > `services/output_formatter` once each — which is the spike's M1b acceptance. docparse's serve-api
 > (corpus copy) dropped 127 out-of-basePath module loads before and 95 after (32 `ailang_parse` files
