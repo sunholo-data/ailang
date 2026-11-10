@@ -58,51 +58,53 @@ func (srv *Server) AuthMiddleware(next http.Handler) http.Handler {
 			return
 		}
 
-		// Verify token
-		claims, err := srv.tokenVerifier.VerifyToken(r.Context(), token)
+		user, err := srv.firebaseUser(r, token)
 		if err != nil {
 			writeErrorResponse(w, http.StatusUnauthorized, "invalid_token", "Invalid or expired token")
 			return
-		}
-
-		// Create user object
-		user := auth.NewUserFromClaims(claims)
-
-		// Load user role from Firestore
-		if srv.accessControl != nil {
-			// For now, we'll set a default workspace. This should be enhanced based on the request.
-			workspaceID := r.Header.Get("X-Workspace-ID")
-			if workspaceID == "" {
-				// Try to extract from URL or use default
-				workspaceID = "default"
-			}
-
-			// Try email-based lookup first (preferred), then fall back to UID
-			var role *auth.WorkspaceRole
-			var err error
-
-			if user.Email != "" {
-				role, err = srv.accessControl.GetUserRoleByEmail(r.Context(), user.Email, workspaceID)
-			}
-
-			if err != nil || role == nil {
-				// Fall back to UID-based lookup
-				role, err = srv.accessControl.GetUserRole(r.Context(), user.FirebaseUID, workspaceID)
-			}
-
-			if err != nil || role == nil {
-				// User not in access control, treat as Guest
-				user.Role = "Guest"
-			} else {
-				user.Role = role.Role
-				user.WorkspaceID = role.WorkspaceID
-			}
 		}
 
 		// Add user to request context
 		ctx := context.WithValue(r.Context(), UserContextKey, user)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	})
+}
+
+// firebaseUser verifies a Firebase ID token and loads the caller's workspace
+// role from Firestore access control (Guest when they have none). It needs a
+// configured tokenVerifier.
+func (srv *Server) firebaseUser(r *http.Request, token string) (*auth.User, error) {
+	claims, err := srv.tokenVerifier.VerifyToken(r.Context(), token)
+	if err != nil {
+		return nil, err
+	}
+	user := auth.NewUserFromClaims(claims)
+	if srv.accessControl == nil {
+		return user, nil
+	}
+
+	// For now, we'll set a default workspace. This should be enhanced based on the request.
+	workspaceID := r.Header.Get("X-Workspace-ID")
+	if workspaceID == "" {
+		workspaceID = "default"
+	}
+
+	// Try email-based lookup first (preferred), then fall back to UID
+	var role *auth.WorkspaceRole
+	if user.Email != "" {
+		role, err = srv.accessControl.GetUserRoleByEmail(r.Context(), user.Email, workspaceID)
+	}
+	if err != nil || role == nil {
+		role, err = srv.accessControl.GetUserRole(r.Context(), user.FirebaseUID, workspaceID)
+	}
+	if err != nil || role == nil {
+		// User not in access control, treat as Guest
+		user.Role = "Guest"
+	} else {
+		user.Role = role.Role
+		user.WorkspaceID = role.WorkspaceID
+	}
+	return user, nil
 }
 
 // OptionalAuthMiddleware extracts user info if a token is present but doesn't reject unauthenticated requests.

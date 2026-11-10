@@ -45,6 +45,11 @@ Examples:
 - **Public workspaces**: Visible to all users (authenticated or not)
 - **Private workspaces**: Only visible to users with explicit access grants
 
+A dashboard bound to anything but loopback (Cloud Run, `--bind 0.0.0.0`) answers no `/api/` read —
+`/api/workspaces` included — without its `COORDINATOR_API_KEY` as a bearer token or a Firebase
+Viewer/Approver session, so "public" here means visible to every *authenticated* caller. A
+loopback-bound local dashboard is exempt.
+
 ## CLI Commands
 
 ### List Workspaces

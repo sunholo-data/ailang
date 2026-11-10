@@ -168,7 +168,7 @@ func NewOTLPReceiver(backend Backend) *OTLPReceiver {
 // than at the server's mux so the auth cannot accidentally widen to the
 // dashboard UI or the /api/observatory/* read endpoints: only the handlers
 // registered on this line are covered, by construction.
-func (r *OTLPReceiver) RegisterRoutes(mux *http.ServeMux) {
+func (r *OTLPReceiver) RegisterRoutes(mux Router) {
 	mux.HandleFunc("POST /v1/traces", requireOTLPIngestAuth(r.handleTraces))
 	mux.HandleFunc("POST /v1/logs", requireOTLPIngestAuth(r.handleLogs))
 	mux.HandleFunc("POST /v1/metrics", requireOTLPIngestAuth(r.handleMetrics))
