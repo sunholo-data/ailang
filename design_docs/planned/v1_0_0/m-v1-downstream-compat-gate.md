@@ -181,7 +181,9 @@ runs the baseline binary's `ailang lock` in a per-run copy of the snapshot for e
 with dependencies and no parseable lock (the snapshot itself stays unwritten), honours committed
 locks as committed, and fetches registry versions missing from the package root copy with
 `ailang install --no-bin` only under the explicit `FETCH_DEPS=1` (a non-404 fetch failure is
-exit 3). Usage and the measured diagnosis: `tools/downstream/README.md`.
+exit 3). Where it generates a lock, the candidate's own `ailang lock` runs too and a failure or a
+different resolved set is a break (review of #2220: corpora that gitignore their lock re-lock with
+the deployed binary in CI). Usage and the measured diagnosis: `tools/downstream/README.md`.
 
 ### 6.2 Freshness
 

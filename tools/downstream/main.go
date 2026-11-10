@@ -51,6 +51,7 @@ type Options struct {
 	PackageRoot, SelfRoot                   string
 	Jobs, Timeout                           int
 	Offline, NoNice, FetchDeps              bool
+	provisionBudget                         time.Duration // tests only: 0 = provisionBudget
 }
 
 // defaultTimeout is the per-check deadline in seconds (retried once at 2x).
@@ -160,6 +161,11 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 		for _, msg := range rep.Incomplete {
 			fmt.Fprintf(log, "downstream: NOT MEASURED %s\n", msg)
 		}
+		if rep.Provisioning != nil {
+			for _, msg := range rep.Provisioning.Findings {
+				fmt.Fprintf(log, "downstream: FINDING %s\n", msg)
+			}
+		}
 		return rep.ExitCode, nil
 	}
 
@@ -184,7 +190,7 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 	if err != nil {
 		fail("baseline: %v", err)
 	}
-	var base, cand, provArm *Arm
+	var base, cand, provArm, provCand *Arm
 	if err == nil {
 		if base, err = PrepareArm("baseline", basePath, baseOrigin, o.Out); err != nil {
 			fail("%v", err)
@@ -196,6 +202,10 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 		}
 	}
 	if cand, err = PrepareArm("candidate", o.Candidate, "path "+o.Candidate, o.Out); err != nil {
+		fail("%v", err)
+	}
+	// The candidate's own `ailang lock`, compared with the baseline's (provision_lock.go).
+	if provCand, err = PrepareArm("provision-candidate", o.Candidate, "path "+o.Candidate, o.Out); err != nil {
 		fail("%v", err)
 	}
 	for _, a := range []*Arm{base, cand} {
@@ -245,7 +255,10 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 
 	// Provision each corpus's dependencies (provision.go), then discover its
 	// entries in the tree the arms will read.
-	prov := newProvisioner(provArm, pkgRoot.Path, o.Out, o.FetchDeps, o.Timeout, !o.NoNice)
+	prov := newProvisioner(provArm, provCand, pkgRoot.Path, o.Out, o.FetchDeps, o.Timeout, !o.NoNice)
+	if o.provisionBudget > 0 {
+		prov.Deadline = time.Now().Add(o.provisionBudget)
+	}
 	rep.Provisioning = prov.Report
 	var entries []Entry
 	byCorpus := map[string][]Entry{}
@@ -278,8 +291,13 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 			continue
 		}
 		rep.Pins = append(rep.Pins, findPins(c, src.Root)...)
+		entries = append(entries, es...) // the arms check these; lock entries are already scored
+		for _, lc := range prov.Checks {
+			if lc.Corpus == c.Name {
+				es = append(es, lc.Entry)
+			}
+		}
 		expectations[c.Name], byCorpus[c.Name] = ex, es
-		entries = append(entries, es...)
 		checked = append(checked, c)
 		rep.Corpora = append(rep.Corpora, sum)
 	}
@@ -293,6 +311,9 @@ func Run(o Options, remote Remote, log io.Writer) (int, error) {
 	t0 = time.Now()
 	candRes := runner.RunArm(cand, entries)
 	rep.ArmWall["candidate"] = time.Since(t0).Seconds()
+	for _, lc := range prov.Checks {
+		baseRes[lc.key()], candRes[lc.key()] = lc.Base, lc.Cand
+	}
 
 	// Classify, gate, audit.
 	blocking, inRun := map[string]bool{}, map[string]bool{}

@@ -30,12 +30,19 @@ import (
 //     parse, gets `ailang lock` — in a per-run COPY of the snapshot
 //     (<run>/provisioned/<corpus>), never in the snapshot itself. Path
 //     dependencies resolve inside that copy, i.e. from the snapshot's content.
-//   - Registry versions missing from the package root are fetched only in the
-//     explicit fetch mode (--fetch-deps / FETCH_DEPS=1), with `ailang install
-//     --no-bin name@version` into the provision arm's HOME and then copied into
-//     the run's package root. A version the registry does not have (HTTP 404)
+//     The candidate runs its own `ailang lock` there too (provision_lock.go).
+//   - Registry versions missing from the package root, and the registry
+//     dependencies of each fetched package, are fetched only in the explicit
+//     fetch mode (--fetch-deps / FETCH_DEPS=1), with `ailang install --no-bin
+//     name@version` into the provision arm's HOME and then copied into the
+//     run's package root. A version the registry does not have (HTTP 404)
 //     stays unprovisioned and named; any other fetch failure is an instrument
 //     failure (exit 3), never a quiet "not measured".
+//
+// `ailang lock` never gets the network: its HTTP(S) proxy is a closed port, so
+// a resolver that reaches for the registry index fails instead of fetching.
+// Every command has the per-check deadline, and provisioning as a whole has a
+// budget (provisionBudget); running out is exit 3.
 //
 // Nothing is written outside the run dir: the operator's package root was
 // copied earlier (pkgroot.go) and is never written, and the write audit covers
@@ -43,62 +50,43 @@ import (
 
 const lockFile = "ailang.lock"
 
-// ProvisionReport is report.json's "provisioning" object.
-type ProvisionReport struct {
-	Binary   string               `json:"binary"` // the provision arm's version line
-	Mode     string               `json:"mode"`   // offline | fetch
-	Registry string               `json:"registry,omitempty"`
-	Fetched  []ProvisionedPackage `json:"fetched"`
-	Corpora  []CorpusProvision    `json:"corpora"`
-}
+// provisionBudget bounds provisioning as a whole: commands run one at a time
+// under the per-check deadline, so without it a slow resolver times many
+// locks at up to --timeout each.
+const provisionBudget = 30 * time.Minute
 
-// CorpusProvision is what one corpus needed and what it got.
-type CorpusProvision struct {
-	Corpus string `json:"corpus"`
-	// Tree is the provisioned copy, relative to the run dir; empty when the
-	// entries read the snapshot as it is (nothing had to be locked).
-	Tree          string               `json:"tree,omitempty"`
-	Locks         []LockAction         `json:"locks"`
-	Packages      []ProvisionedPackage `json:"packages"`
-	Unprovisioned []string             `json:"unprovisioned,omitempty"`
-}
+// deadProxy is a closed local port: a child given it as its HTTP(S) proxy
+// cannot reach the network (the CI test job uses the same poison).
+const deadProxy = "http://127.0.0.1:9"
 
-// LockAction is one package dir's lock: committed, generated (none committed),
-// regenerated (the committed one does not parse) or FAILED.
-type LockAction struct {
-	Dir    string `json:"dir"`
-	Lock   string `json:"lock"`
-	Reason string `json:"reason,omitempty"`
-}
+var errProvisionBudget = fmt.Errorf("provisioning exceeded its %s budget", provisionBudget)
 
-// ProvisionedPackage is one dependency an arm reads, with where it came from.
-type ProvisionedPackage struct {
-	Name        string `json:"name"`
-	Version     string `json:"version"`
-	Kind        string `json:"kind"`   // registry | git | path
-	Source      string `json:"source"` // package root copy | registry fetch | MISSING | path <rel>
-	ContentHash string `json:"content_hash,omitempty"`
-}
-
-// Provisioner runs the provision arm. Root is the run's package root copy.
+// Provisioner runs the provision arms. Root is the run's package root copy.
 type Provisioner struct {
-	Arm     *Arm
-	Root    string
-	RunDir  string
-	Fetch   bool
-	Timeout int
-	Nice    bool
-	Report  *ProvisionReport
-	fetched map[string]bool // name@version added to Root by a fetch
+	Arm      *Arm // the baseline binary: generates the locks both arms read
+	CandArm  *Arm // the candidate binary: its own lock, compared (nil = skip)
+	Root     string
+	RunDir   string
+	Fetch    bool
+	Timeout  int
+	Nice     bool
+	Deadline time.Time
+	Report   *ProvisionReport
+	Checks   []LockCheck     // one per generated lock, scored with the entries
+	fetched  map[string]bool // name@version added to Root by a fetch
 }
 
-func newProvisioner(a *Arm, root, runDir string, fetch bool, timeout int, nice bool) *Provisioner {
+func newProvisioner(a, cand *Arm, root, runDir string, fetch bool, timeout int, nice bool) *Provisioner {
 	mode := "offline"
 	if fetch {
 		mode = "fetch"
 	}
-	return &Provisioner{Arm: a, Root: root, RunDir: runDir, Fetch: fetch, Timeout: timeout, Nice: nice,
-		Report: &ProvisionReport{Binary: a.Version, Mode: mode, Fetched: []ProvisionedPackage{}}, fetched: map[string]bool{}}
+	rep := &ProvisionReport{Binary: a.Version, Mode: mode, Fetched: []ProvisionedPackage{}}
+	if cand != nil {
+		rep.Candidate = cand.Version
+	}
+	return &Provisioner{Arm: a, CandArm: cand, Root: root, RunDir: runDir, Fetch: fetch, Timeout: timeout, Nice: nice,
+		Deadline: time.Now().Add(provisionBudget), Report: rep, fetched: map[string]bool{}}
 }
 
 // lockJSON is the part of ailang.lock the gate reads.
@@ -189,6 +177,14 @@ func (p *Provisioner) inRoot(name, version string) bool {
 	return err == nil && fi.IsDir()
 }
 
+// lockPlan is one package dir that needs a lock generated.
+type lockPlan struct {
+	dir, why   string
+	unreadable bool   // a committed lock exists but does not parse
+	action     int    // index of its LockAction
+	failed     string // the baseline's `ailang lock` error, if any
+}
+
 // Corpus provisions one materialised corpus and returns the tree its entries
 // must be discovered in. An error is an instrument failure (exit 3).
 func (p *Provisioner) Corpus(c Corpus, snap string) (string, error) {
@@ -198,8 +194,7 @@ func (p *Provisioner) Corpus(c Corpus, snap string) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	type plan struct{ dir, why string }
-	var relock []plan
+	var plans []lockPlan
 	want := map[string]string{} // name@version -> who pins it
 	for _, rel := range dirs {
 		abs := filepath.Join(snap, rel)
@@ -225,12 +220,14 @@ func (p *Provisioner) Corpus(c Corpus, snap string) (string, error) {
 		case errors.Is(lerr, fs.ErrNotExist) && len(deps) == 0:
 			// nothing to resolve: the check needs no lock
 		case errors.Is(lerr, fs.ErrNotExist):
-			relock = append(relock, plan{rel, "no committed " + lockFile})
+			plans = append(plans, lockPlan{dir: rel, why: "no committed " + lockFile})
 		default:
-			relock = append(relock, plan{rel, "committed " + lockFile + " " + lerr.Error()})
+			plans = append(plans, lockPlan{dir: rel, why: "committed " + lockFile + " " + lerr.Error(), unreadable: true})
+			p.Report.Findings = append(p.Report.Findings, fmt.Sprintf(
+				"%s: the committed %s/%s cannot be read (%s); this run regenerated it, the corpus should fix or re-lock it", c.Name, rel, lockFile, lerr))
 		}
 	}
-	for _, pl := range relock {
+	for _, pl := range plans {
 		for _, d := range p.registryClosure(snap, pl.dir, map[string]bool{}) {
 			if _, ok := want[d]; !ok {
 				want[d] = pl.dir + "/ailang.toml"
@@ -241,28 +238,36 @@ func (p *Provisioner) Corpus(c Corpus, snap string) (string, error) {
 		return "", err
 	}
 	tree := snap
-	if len(relock) > 0 {
+	if len(plans) > 0 {
 		tree = filepath.Join(p.RunDir, "provisioned", c.Name)
 		if _, _, _, err := copyRegular(snap, tree, func(string) bool { return false }); err != nil {
 			return "", fmt.Errorf("copy %s for provisioning: %w", c.Name, err)
 		}
 		cp.Tree, _ = filepath.Rel(p.RunDir, tree)
-		for _, pl := range relock {
+		for i := range plans {
+			pl := &plans[i]
 			dir := filepath.Join(tree, pl.dir)
-			if !strings.HasPrefix(pl.why, "no committed") {
+			act := LockAction{Dir: pl.dir, Lock: "generated", Reason: pl.why}
+			if pl.unreadable {
+				act.Lock = "regenerated"
 				if err := os.Remove(filepath.Join(dir, lockFile)); err != nil {
 					return "", err
 				}
 			}
-			act := LockAction{Dir: pl.dir, Lock: "generated", Reason: pl.why}
-			if !strings.HasPrefix(pl.why, "no committed") {
-				act.Lock = "regenerated"
+			out, err := p.run(p.Arm, dir, false, "lock")
+			if err == errProvisionBudget {
+				return "", err
 			}
-			if out, err := p.run(dir, true, "lock"); err != nil {
-				act.Lock, act.Reason = "FAILED", pl.why+"; `ailang lock`: "+lastErrorLine(out, err)
+			if err != nil {
+				pl.failed = lastErrorLine(out, err)
+				act.Lock, act.Reason = "FAILED", pl.why+"; `ailang lock`: "+pl.failed
 				cp.Unprovisioned = append(cp.Unprovisioned, pl.dir+": "+act.Reason)
 			}
+			pl.action = len(cp.Locks)
 			cp.Locks = append(cp.Locks, act)
+		}
+		if err := p.candidateLocks(c, snap, tree, plans, &cp); err != nil {
+			return "", err
 		}
 	}
 	cp.Packages = p.inventory(tree, dirs)
@@ -270,7 +275,8 @@ func (p *Provisioner) Corpus(c Corpus, snap string) (string, error) {
 }
 
 // registryClosure is every registry name@version a package dir's manifest
-// reaches through its path dependencies (inside the snapshot), for fetch mode.
+// reaches through its path dependencies inside the snapshot (a path that leaves
+// the snapshot is not followed), for fetch mode.
 func (p *Provisioner) registryClosure(snap, rel string, seen map[string]bool) []string {
 	if seen[rel] {
 		return nil
@@ -296,15 +302,18 @@ func (p *Provisioner) registryClosure(snap, rel string, seen map[string]bool) []
 }
 
 // provideAll makes sure every wanted name@version is in the package root,
-// fetching in fetch mode. A 404 leaves it unprovisioned (named); any other fetch
-// failure is returned (exit 3).
+// fetching in fetch mode — and then each fetched package's own registry
+// dependencies. A 404 leaves it unprovisioned (named); any other fetch failure
+// is returned (exit 3).
 func (p *Provisioner) provideAll(want map[string]string, cp *CorpusProvision) error {
-	keys := make([]string, 0, len(want))
+	queue := make([]string, 0, len(want))
 	for k := range want {
-		keys = append(keys, k)
+		queue = append(queue, k)
 	}
-	sort.Strings(keys)
-	for _, k := range keys {
+	sort.Strings(queue)
+	for len(queue) > 0 {
+		k := queue[0]
+		queue = queue[1:]
 		i := strings.LastIndexByte(k, '@')
 		name, version := k[:i], k[i+1:]
 		if p.inRoot(name, version) {
@@ -320,6 +329,15 @@ func (p *Provisioner) provideAll(want map[string]string, cp *CorpusProvision) er
 		}
 		if missing != "" {
 			cp.Unprovisioned = append(cp.Unprovisioned, fmt.Sprintf("%s (pinned by %s): %s", k, want[k], missing))
+			continue
+		}
+		deps, _ := readDeps(filepath.Join(p.Root, filepath.FromSlash(name), version))
+		for _, d := range deps {
+			dk := d.Name + "@" + d.Version
+			if d.Path == "" && d.Git == "" && d.Version != "" && want[dk] == "" {
+				want[dk] = k
+				queue = append(queue, dk)
+			}
 		}
 	}
 	return nil
@@ -336,12 +354,14 @@ func (p *Provisioner) fetch(name, version string) (string, error) {
 	if err := os.MkdirAll(cwd, 0o755); err != nil {
 		return "", err
 	}
-	out, err := p.run(cwd, false, "install", "--no-bin", name+"@"+version)
+	out, err := p.run(p.Arm, cwd, true, "install", "--no-bin", name+"@"+version)
 	if m := registryURLRE.FindStringSubmatch(out); m != nil && p.Report.Registry == "" {
 		p.Report.Registry = m[1]
 	}
 	if err != nil {
-		if strings.Contains(out, "HTTP 404") {
+		// Only the registry's own "no such version" is a fact about the
+		// dependency; a 5xx, a timeout or no network says nothing about it.
+		if strings.Contains(out, "registry returned HTTP 404 for metadata of "+name+"@"+version) {
 			return "the registry has no such version (HTTP 404); it cannot be provisioned here", nil
 		}
 		return "", fmt.Errorf("`ailang install --no-bin %s@%s` failed: %s", name, version, lastErrorLine(out, err))
@@ -372,34 +392,52 @@ func (p *Provisioner) fetch(name, version string) (string, error) {
 	return "", nil
 }
 
-// run executes the provision arm under a deadline that kills its process group.
-func (p *Provisioner) run(dir string, withRoot bool, args ...string) (string, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(p.Timeout)*time.Second)
+// run executes a provision arm under the per-check deadline (bounded by the
+// provisioning budget) and kills its process group when it expires. Without
+// network it reads the run's package root and its proxy is a closed port; with
+// network (install only) it has no package root and writes its own cache.
+func (p *Provisioner) run(a *Arm, dir string, network bool, args ...string) (string, error) {
+	timeout := time.Duration(p.Timeout) * time.Second
+	left := time.Until(p.Deadline)
+	if left <= 0 {
+		return "", errProvisionBudget
+	}
+	if left < timeout {
+		timeout = left
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
-	name := p.Arm.Bin
+	name := a.Bin
 	if p.Nice {
-		args = append([]string{"-n", "15", p.Arm.Bin}, args...)
+		args = append([]string{"-n", "15", a.Bin}, args...)
 		name = "nice"
 	}
 	cmd := exec.CommandContext(ctx, name, args...)
 	ownGroup(cmd)
 	cmd.WaitDelay = pipeGrace
 	cmd.Dir = dir
-	cmd.Env = p.Arm.Env()
-	if withRoot {
-		cmd.Env = append(cmd.Env, "AILANG_PACKAGE_ROOT="+p.Root)
+	cmd.Env = a.Env()
+	if !network {
+		cmd.Env = append(cmd.Env, "AILANG_PACKAGE_ROOT="+p.Root, "HTTP_PROXY="+deadProxy, "HTTPS_PROXY="+deadProxy,
+			"http_proxy="+deadProxy, "https_proxy="+deadProxy, "NO_PROXY=", "no_proxy=")
 	}
 	var buf bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &buf, &buf
 	err := cmd.Run()
 	if ctx.Err() == context.DeadlineExceeded {
-		err = fmt.Errorf("timed out after %d s", p.Timeout)
+		if time.Until(p.Deadline) <= 0 {
+			return buf.String(), errProvisionBudget
+		}
+		err = fmt.Errorf("timed out after %s", timeout.Round(time.Second))
 	}
 	return buf.String(), err
 }
 
 // lastErrorLine is the most useful line of a failed command's output.
 func lastErrorLine(out string, err error) string {
+	if err != nil && strings.HasPrefix(err.Error(), "timed out") {
+		return err.Error()
+	}
 	lines := strings.Split(strings.TrimSpace(out), "\n")
 	for i := len(lines) - 1; i >= 0; i-- {
 		if l := strings.TrimSpace(lines[i]); strings.HasPrefix(l, "Error") || strings.Contains(l, "failed") {
@@ -410,80 +448,4 @@ func lastErrorLine(out string, err error) string {
 		return firstLine(lines[len(lines)-1])
 	}
 	return err.Error()
-}
-
-// render writes report.md's provisioning section (the full package list is in
-// report.json).
-func (pr *ProvisionReport) render(p func(string, ...interface{})) {
-	if pr == nil {
-		return
-	}
-	p("\n## Dependency provisioning\n\nMode `%s` · provisioned by %s (the baseline binary, own scratch HOME)", pr.Mode, cell(pr.Binary))
-	if pr.Registry != "" {
-		p(" · registry %s", pr.Registry)
-	}
-	p("\n\n| corpus | tree | locks committed / generated / regenerated / FAILED | packages: package root / fetched / path / MISSING |\n|---|---|---|---|\n")
-	for _, c := range pr.Corpora {
-		locks := map[string]int{}
-		for _, l := range c.Locks {
-			locks[l.Lock]++
-		}
-		src := map[string]int{}
-		for _, pk := range c.Packages {
-			src[strings.Fields(pk.Source)[0]]++
-		}
-		tree := "snapshot"
-		if c.Tree != "" {
-			tree = "`" + filepath.ToSlash(c.Tree) + "`"
-		}
-		p("| %s | %s | %d / %d / %d / **%d** | %d / %d / %d / **%d** |\n", c.Corpus, tree,
-			locks["committed"], locks["generated"], locks["regenerated"], locks["FAILED"],
-			src["package"], src["registry"], src["path"], src["MISSING"])
-	}
-	p("\n")
-	for _, f := range pr.Fetched {
-		p("- fetched %s@%s from the registry\n", f.Name, f.Version)
-	}
-	for _, c := range pr.Corpora {
-		for _, u := range c.Unprovisioned {
-			p("- **UNPROVISIONED** %s: %s\n", c.Corpus, cell(u))
-		}
-	}
-}
-
-// inventory lists every package the corpus's locks name, once, with its source.
-func (p *Provisioner) inventory(tree string, dirs []string) []ProvisionedPackage {
-	seen := map[string]bool{}
-	out := []ProvisionedPackage{}
-	for _, rel := range dirs {
-		lk, err := readLock(filepath.Join(tree, rel))
-		if err != nil {
-			continue
-		}
-		for _, e := range lk.Packages {
-			pp := ProvisionedPackage{Name: e.Name, Version: e.Version, Kind: e.Source, ContentHash: e.ContentHash}
-			switch {
-			case e.Source == "path":
-				pp.Source = "path " + filepath.ToSlash(filepath.Join(rel, e.Path))
-			case p.fetched[e.Name+"@"+e.Version]:
-				pp.Source = "registry fetch"
-			case p.inRoot(e.Name, e.Version):
-				pp.Source = "package root copy"
-			default:
-				pp.Source = "MISSING"
-			}
-			key := pp.Name + "@" + pp.Version + " " + pp.Source
-			if !seen[key] {
-				seen[key] = true
-				out = append(out, pp)
-			}
-		}
-	}
-	sort.Slice(out, func(i, j int) bool {
-		if out[i].Name != out[j].Name {
-			return out[i].Name < out[j].Name
-		}
-		return out[i].Version < out[j].Version
-	})
-	return out
 }

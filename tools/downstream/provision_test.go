@@ -145,7 +145,7 @@ func TestProvisionOfflineThreeOutcomes(t *testing.T) {
 		t.Errorf("acme/lib source %q, want a path into the snapshot", got)
 	}
 	un := strings.Join(cp.Unprovisioned, "\n")
-	for _, want := range []string{"acme/missing@9.9.9", "acme/old@0.1.0 (pinned by pinned/ailang.lock)", "FETCH_DEPS=1"} {
+	for _, want := range []string{"acme/missing@9.9.9", "acme/old@0.1.0 (pinned by pinned/ailang.lock)", "FETCH_DEPS=1", "gone: no committed ailang.lock; `ailang lock`: "} {
 		if !strings.Contains(un, want) {
 			t.Errorf("unprovisioned list does not name %q:\n%s", want, un)
 		}

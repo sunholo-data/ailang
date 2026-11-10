@@ -26,8 +26,12 @@ env > "$AILANG_STATE_DIR/env.txt"
 if [ "$1" = "lock" ]; then
 	# Enough of 'ailang lock' for provisioning: path deps must exist, registry deps
 	# must be in AILANG_PACKAGE_ROOT, an unreadable lock is refused, never repaired.
+	env > "$AILANG_STATE_DIR/lock-env.txt"
 	if [ -f ailang.lock ] && ! grep -q 'ailang.lock/v1' ailang.lock; then echo "Error: cannot update existing ailang.lock" >&2; exit 1; fi
+	if grep -q HANGLOCK ailang.toml; then sleep 30; fi
+	if [ "$ARM" = cand ] && grep -q CANDLOCKFAIL ailang.toml; then echo "Error: dependency resolution failed: the candidate's resolver broke" >&2; exit 1; fi
 	entries=""
+	if [ "$ARM" = cand ] && grep -q CANDLOCKDIFF ailang.toml; then entries='{"name":"acme/extra","version":"9.0.0","source":"registry"}'; fi
 	while IFS= read -r line; do
 		case "$line" in \"*=*) ;; *) continue;; esac
 		name=${line#\"}; name=${name%%\"*}
@@ -55,6 +59,8 @@ if [ "$1" = "install" ]; then
 	echo "Fetching $3 from ${DOWNSTREAM_FAKE_REGISTRY:-https://registry.invalid}..."
 	[ -n "$DOWNSTREAM_FAKE_REGISTRY" ] || { echo "Error: failed to fetch package metadata: dial tcp: connection refused" >&2; exit 1; }
 	[ -d "$DOWNSTREAM_FAKE_REGISTRY/$name/$ver" ] || { echo "Error: failed to fetch package metadata: registry returned HTTP 404 for metadata of $3" >&2; exit 1; }
+	[ -f "$DOWNSTREAM_FAKE_REGISTRY/$name/$ver/FAIL503" ] && { echo "Error: failed to fetch package metadata: registry returned HTTP 503 for metadata of $3" >&2; exit 1; }
+	# Like the real install: the named package only, not its dependencies.
 	mkdir -p "$HOME/.ailang/cache/registry/$name" && cp -R "$DOWNSTREAM_FAKE_REGISTRY/$name/$ver" "$HOME/.ailang/cache/registry/$name/$ver"
 	exit 0
 fi
@@ -76,6 +82,9 @@ f="$2"
 content=$(cat "$f") || { echo "cannot read $f" >&2; exit 2; }
 case "$content" in *BROKEN*|*"not an int"*) failj "$f" "type error in m (decl 0): type unification failed: cannot unify string vs int";; esac
 case "$content" in *DEPMISS*) failj "$f" "failed to resolve package import sunholo/missing: not in the package root";; esac
+case "$content" in *OWNBADMANIFEST*) failj "$f" "package resolution setup failed: cannot load package manifest $PWD/ailang.toml: invalid manifest $PWD/ailang.toml: exported module main must start with package name";; esac
+case "$content" in *DEPBADMANIFEST*) failj "$f" "package resolution setup failed: cannot load package manifest $AILANG_PACKAGE_ROOT/acme/bad/1.0.0/ailang.toml: invalid manifest $AILANG_PACKAGE_ROOT/acme/bad/1.0.0/ailang.toml: bad";; esac
+case "$content" in *UNEXPORTED*) failj "$f" "module loading error: failed to load pkg/acme/p/hidden: failed to resolve package import pkg/acme/p/hidden: module acme/p/hidden is not exported by package acme/p";; esac
 case "$content" in *NEEDDEPS*)
 	# Resolve through the lock beside the file, as the loader does.
 	[ -f ailang.lock ] || failj "$f" "module loading error: package acme/x not found in ailang.lock; run 'ailang lock'"

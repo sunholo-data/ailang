@@ -18,6 +18,7 @@ type CorpusSummary struct {
 	Level       string         `json:"level"` // blocking | advisory in this tier
 	Files       int            `json:"files"`
 	Packages    int            `json:"packages"`
+	Locks       int            `json:"generated_locks"` // lock entries: the candidate's own `ailang lock` vs the baseline's
 	States      map[string]int `json:"states"`
 	BaseFail    int            `json:"baseline_failing"`
 	NotMeasured map[string]int `json:"not_measured"` // NOT_MEASURED rows by reason (deps_unresolved, timeout, crash)
@@ -119,6 +120,11 @@ func (r *Report) renderMarkdown(w io.Writer) {
 		r.Verdict, r.ExitCode, r.Tier, r.RefMode, r.Started.Format(time.RFC3339), r.WallSecs)
 	if r.NullControl {
 		p("> Null control: both arms are the same binary, so any difference below is instrument noise.\n\n")
+	}
+	if r.Provisioning != nil {
+		for _, f := range r.Provisioning.Findings {
+			p("> **FINDING for the corpus owner:** %s\n\n", cell(f))
+		}
 	}
 	p("## Arms\n\n| arm | origin | version | sha256 | wall s |\n|---|---|---|---|---|\n")
 	for _, a := range r.Arms {
