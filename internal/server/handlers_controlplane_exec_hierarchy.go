@@ -78,37 +78,6 @@ func (s *Server) handleControlPlaneExecHierarchy(w http.ResponseWriter, r *http.
 	}
 }
 
-// GET /api/controlplane/span-hierarchy - Get span hierarchy using parent_span_id relationships
-// This works with standard OTEL span parenting, not custom attributes.
-// Query params:
-//   - limit: Maximum number of root spans to query (default: 100)
-func (s *Server) handleSpanHierarchy(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Parse limit parameter
-	limit := 100
-	if limitParam := r.URL.Query().Get("limit"); limitParam != "" {
-		if l, err := strconv.Atoi(limitParam); err == nil && l > 0 && l <= 1000 {
-			limit = l
-		}
-	}
-
-	result, err := s.obsBackend.GetSpanHierarchy(r.Context(), limit)
-	if err != nil {
-		log.Printf("Failed to get span hierarchy: %v", err)
-		http.Error(w, "Failed to get span hierarchy", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(result); err != nil {
-		log.Printf("Failed to encode span hierarchy response: %v", err)
-	}
-}
-
 // enrichExecHierarchy adds display_name to tool_use nodes using session_tools data.
 // This correlates OTEL spans with hook-captured tool metadata for richer display.
 func enrichExecHierarchy(ctx context.Context, backend observatory.Backend, hierarchy []*observatory.ExecTaskNode) {

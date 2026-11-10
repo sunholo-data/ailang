@@ -119,7 +119,7 @@ flowchart TB
     subgraph Server["ailang serve (:1957)"]
         HTTP["HTTP Server"]
         WS["WebSocket /ws"]
-        REST["REST API<br/>/api/threads, /api/thread-messages"]
+        REST["REST API<br/>/api/observatory/*, /api/chains/*"]
         CoordAPI["Coordinator API<br/>/api/coordinator/events"]
     end
 
@@ -214,7 +214,7 @@ A page on any other origin:
 
 - gets **no `Access-Control-Allow-Origin`** on reads, so it cannot read the API;
 - gets **403 before dispatch** on any other method, including preflights and `text/plain` POSTs;
-- gets **403 on the WebSocket upgrade** (`/ws`, `/ws/observatory`), which blocks cross-site
+- gets **403 on the WebSocket upgrade** (`/ws`), which blocks cross-site
   WebSocket hijacking. A client holding the `COORDINATOR_API_KEY` token (`?token=`) is still
   admitted from any origin, as before.
 
@@ -384,128 +384,48 @@ When spans don't have `task_id` set (common with CLI tools), use `session.id` fr
 
 ## API Endpoints
 
-### Threads
-
-```bash
-# List threads
-curl http://localhost:1957/api/threads
-
-# Create thread
-curl -X POST http://localhost:1957/api/threads \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Build a CLI tool"}'
-
-# Get thread
-curl http://localhost:1957/api/threads/{thread_id}
-```
-
-### Messages
-
-```bash
-# Get messages for thread (NOT /api/messages — that path is the coordinator
-# daemon's inbox-message REST API on port 8765, a different body and auth)
-curl http://localhost:1957/api/thread-messages?thread_id={thread_id}
-
-# Send message
-curl -X POST http://localhost:1957/api/thread-messages \
-  -H "Content-Type: application/json" \
-  -d '{
-    "thread_id": "...",
-    "from_type": "human",
-    "from_id": "user",
-    "to_type": "ailang_instance",
-    "to_id": "default",
-    "kind": "directive",
-    "content": "Create a hello.go file"
-  }'
-```
-
-### Approvals
-
-```bash
-# List pending approvals
-curl http://localhost:1957/api/approvals?status=pending
-
-# Approve
-curl -X POST http://localhost:1957/api/approvals/{id}/approve \
-  -H "Content-Type: application/json" \
-  -d '{"notes": "Looks safe"}'
-
-# Reject
-curl -X POST http://localhost:1957/api/approvals/{id}/reject \
-  -H "Content-Type: application/json" \
-  -d '{"notes": "Too risky"}'
-```
-
-### Coordinator API
-
-The coordinator daemon integrates with the Collaboration Hub for task management and approvals.
-
-#### Pending Approvals
-
-```bash
-# List pending approvals (enriched with task details)
-curl http://localhost:1957/api/coordinator/pending
-
-# Response includes task context:
-# {
-#   "id": "approval-123",
-#   "task_id": "task-456",
-#   "type": "task_completion",
-#   "status": "pending",
-#   "worktree_path": "/Users/.../.ailang/state/worktrees/coordinator/task-456",
-#   "session_id": "claude-session-abc",
-#   "task_title": "Fix parser bug",
-#   "task_status": "pending_approval",
-#   "provider": "claude-code"
-# }
-```
-
-#### Approve/Reject Tasks
-
-```bash
-# Approve changes (merges worktree to main branch)
-curl -X POST http://localhost:1957/api/coordinator/approve/approval-123
-
-# Reject changes (preserves worktree for inspection)
-curl -X POST http://localhost:1957/api/coordinator/reject/approval-123
-```
-
-#### Task Diff
-
-```bash
-# Get git diff for a task's worktree
-curl http://localhost:1957/api/coordinator/tasks/task-456/diff
-
-# Returns git diff output showing all changes made by the agent
-```
-
-#### Task Events
-
-```bash
-# Get execution events for a task (tool calls, output, etc.)
-curl http://localhost:1957/api/coordinator/tasks/task-456/events
-```
-
-#### Coordinator Events (Internal)
-
-```bash
-# POST events from coordinator daemon (used internally)
-curl -X POST http://localhost:1957/api/coordinator/events \
-  -H "Content-Type: application/json" \
-  -d '{
-    "task_id": "...",
-    "stream_type": "status",
-    "status": "running"
-  }'
-```
+The dashboard serves only routes with a caller outside it. The full table — route, method, auth
+class and the client that calls it — is in the
+[design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/m-dashboard-headless-api.md).
+On a non-loopback bind every `/api/` read needs `Authorization: Bearer $AILANG_DASHBOARD_TOKEN`
+(the server's `COORDINATOR_API_KEY`); a loopback server is exempt.
 
 ### Health Check
 
 ```bash
 curl http://localhost:1957/health
-# {"status":"healthy","connections":1,"timestamp":1732888800}
+# {"status":"healthy","version":"...","connections":1,"timestamp":1732888800}
 ```
+
+### Task Events
+
+```bash
+# A task's recorded events (json | text | summary)
+curl "http://localhost:1957/api/coordinator/tasks/task-456/events?format=summary"
+```
+
+### Coordinator Events (Internal)
+
+```bash
+# POST events from coordinator daemon (used internally; rebroadcast on /ws)
+curl -X POST http://localhost:1957/api/coordinator/events \
+  -H "Content-Type: application/json" \
+  -d '{"task_id": "task-123", "stream_type": "text", "text": "Working..."}'
+```
+
+### Approvals
+
+Coordinator task approvals are decided with the CLI — `ailang coordinator pending`,
+`ailang coordinator approve <task-id>`, `ailang coordinator reject <task-id> -f "..."` (add
+`--remote gcp` for the cloud plane). The dashboard's `/api/approvals` routes serve **secret**
+approvals only: intake and status poll for cloud jobs, and the signed Approve/Deny links in the
+ntfy push (see [Secret approvals](/docs/guides/secret-approvals)).
+
+### Reads
+
+`/api/observatory/*` (spans, traces, tasks, sessions), `/api/chains/*`, `/api/inbox`,
+`/api/controlplane/exec-hierarchy` and `/api/controlplane/stats/breakdown` — the reads behind
+`ailang chains dashboard`.
 
 ## Troubleshooting
 

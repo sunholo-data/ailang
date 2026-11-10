@@ -8,7 +8,7 @@ package server
 // Claude conversation history. Anonymous reads were observed in prod logs.
 //
 // The rule is now: on a non-loopback bind, every path under /api/ and the
-// WebSocket (/ws, /ws/observatory) require a credential, EXCEPT the explicit
+// WebSocket (/ws) require a credential, EXCEPT the explicit
 // allow-list in publicAPIRoute — machine ingest (hooks, exec sessions,
 // coordinator events, eval telemetry), routes that carry their own auth
 // (secret-approval intake/poll, the signed ntfy approve/deny link) and

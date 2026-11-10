@@ -42,24 +42,9 @@ var publicRoutes = map[string][]string{
 }
 
 var gatedRoutes = []string{
-	"/ws", "/ws/observatory",
-	"/api/threads", "/api/threads/", "/api/workspaces", "/api/statistics", "/api/thread-messages",
-	"/api/approvals/history",
-	"/api/agents", "/api/agents/",
-	"/api/monitor", "/api/hierarchy", "/api/agent-stats/", "/api/metrics", "/api/metrics/", "/api/instances/history",
-	"/api/coordinator/status", "/api/coordinator/pending", "/api/coordinator/approve/", "/api/coordinator/reject/",
-	"/api/coordinator/tasks/", "/api/coordinator/running", "/api/tasks/",
-	"/api/exec/sessions/",
-	"/api/inbox", "/api/inbox/", "/api/inbox/ack-all", "/api/inbox/cleanup",
-	"/api/select-folder", "/api/telemetry/config",
-	"/api/controlplane/heatmap", "/api/controlplane/topology/observed", "/api/controlplane/topology",
-	"/api/controlplane/stats", "/api/controlplane/stats/breakdown", "/api/controlplane/exec-hierarchy",
-	"/api/controlplane/span-hierarchy", "/api/controlplane/task-hierarchy", "/api/controlplane/task-evolution",
-	"/api/controlplane/usage-timeseries", "/api/controlplane/token-distribution", "/api/controlplane/outliers",
-	"/api/budget/status", "/api/budget/check",
-	"/api/claude-history/projects", "/api/claude-history/sessions", "/api/claude-history/session/",
-	"/api/claude-history/by-span/", "/api/claude-history/search", "/api/claude-history/sync",
-	"/api/claude-history/sync-status", "/api/claude-history/db/session/", "/api/claude-history/db/by-span/",
+	"/ws",
+	"/api/inbox", "/api/coordinator/tasks/",
+	"/api/controlplane/exec-hierarchy", "/api/controlplane/stats/breakdown",
 	"GET /api/observatory/workspaces", "POST /api/observatory/workspaces", "GET /api/observatory/workspaces/{id}",
 	"PUT /api/observatory/workspaces/{id}", "DELETE /api/observatory/workspaces/{id}", "GET /api/observatory/workspaces/{id}/stats",
 	"GET /api/observatory/tasks", "POST /api/observatory/tasks", "GET /api/observatory/tasks/{id}",
@@ -81,13 +66,12 @@ var gatedRoutes = []string{
 	"POST /api/observatory/ingest/claude", "POST /api/observatory/ingest/otel",
 	"/api/chains", "/api/chains/stats", "/api/chains/active", "/api/chains/pending", "/api/chains/by-message/",
 	"/api/chains/by-task/", "/api/chains/by-github/", "/api/spans/", "/api/chains/",
-	"/api/auth/whoami",
 }
 
 const testAPIKey = "test-dashboard-key"
 
 // fullRouteServer builds a server with every optional route family registered
-// (observatory, chains, hooks, OTLP, whoami), bound to addr.
+// (observatory, chains, hooks, OTLP), bound to addr.
 func fullRouteServer(t *testing.T, addr string, opts ...ServerOption) *Server {
 	t.Helper()
 	dir := t.TempDir()
@@ -183,7 +167,7 @@ func bearer(tok string) http.Header {
 // still registered (so the tables cannot rot into allowing a dead name).
 func TestReadAuth_EveryRouteClassified(t *testing.T) {
 	s := fullRouteServer(t, "0.0.0.0:0", WithAPIKey(testAPIKey))
-	s.tokenVerifier = auth.NewTokenVerifier(nil) // registers /api/auth/whoami
+	s.tokenVerifier = auth.NewTokenVerifier(nil) // Firebase configured must not register extra routes
 	patterns := registeredPatterns(t, s)
 
 	classified := map[string]bool{}
@@ -242,20 +226,22 @@ func TestReadAuth_RouteTable_NoCredentials(t *testing.T) {
 // The same through the server's REAL handler chain (httpHandler): removing
 // readAuthMiddleware from httpHandler fails this test. It probes only reads
 // that are safe to execute if the gate is missing (temp-dir stores) — the
-// full route table is covered against the gate itself above, because some
-// handlers have host side effects (/api/select-folder opens a native folder
-// picker on the server's desktop).
+// full route table is covered against the gate itself above.
 func TestReadAuth_EndToEnd_GatedRoutesRefuseAnonymous(t *testing.T) {
 	s := fullRouteServer(t, "0.0.0.0:0", WithAPIKey(testAPIKey))
 	h, _, err := s.httpHandler()
 	if err != nil {
 		t.Fatal(err)
 	}
-	// The ones that leaked in prod, by name, plus the WebSocket.
+	// Every kept read, by name, plus the WebSocket — and paths of routes that
+	// were removed (m-dashboard-headless-api): an unrouted /api/ path is still
+	// inside the gated namespace, so it is refused before it can 404.
 	for _, target := range []string{
-		"/api/inbox", "/api/approvals", "/api/approvals/history", "/api/chains", "/api/chains/stats",
-		"/api/observatory/traces", "/api/observatory/spans", "/api/observatory/messages", "/api/threads",
-		"/api/controlplane/stats", "/api/workspaces", "/api/statistics", "/ws",
+		"/api/inbox", "/api/approvals", "/api/chains", "/api/chains/stats",
+		"/api/observatory/traces", "/api/observatory/spans", "/api/observatory/messages",
+		"/api/controlplane/exec-hierarchy", "/api/controlplane/stats/breakdown",
+		"/api/coordinator/tasks/t-1/events", "/ws",
+		"/api/threads", "/api/controlplane/stats", "/api/workspaces", "/api/statistics", "/api/auth/whoami",
 	} {
 		w := serve(h, http.MethodGet, target, nil)
 		if w.Code != http.StatusUnauthorized || w.Header().Get("WWW-Authenticate") != dashboardAuthRealm {
@@ -280,7 +266,7 @@ func TestReadAuth_ValidAPIKeyPasses(t *testing.T) {
 		}
 	}
 	// The WebSocket's documented external-client contract: ?token=.
-	for _, ws := range []string{"/ws", "/ws/observatory"} {
+	for _, ws := range []string{"/ws"} {
 		if w := serve(h, http.MethodGet, ws+"?token="+testAPIKey, nil); w.Body.String() != "reached" {
 			t.Errorf("%s?token=<key>: got %d, want reached", ws, w.Code)
 		}
@@ -355,7 +341,7 @@ func TestReadAuth_LoopbackExemption(t *testing.T) {
 
 // Secret-approval decisions: the signed ntfy ?token= reaches the handler
 // (which verifies it); without one — or with token auth disabled — the
-// decision needs the dashboard credential. The list and history never pass.
+// decision needs the dashboard credential. GET /api/approvals never passes.
 func TestReadAuth_ApprovalRoutes(t *testing.T) {
 	s := fullRouteServer(t, "0.0.0.0:0", WithAPIKey(testAPIKey))
 	patterns := registeredPatterns(t, s)
@@ -381,9 +367,7 @@ func TestReadAuth_ApprovalRoutes(t *testing.T) {
 		{http.MethodPost, "/api/approvals/appr-1/approve", false},
 		{http.MethodGet, "/api/approvals/appr-1", true}, // poll: own intake auth
 		{http.MethodPost, "/api/approvals", true},       // intake: own auth
-		{http.MethodGet, "/api/approvals", false},       // the list
-		{http.MethodGet, "/api/approvals/history", false},
-		{http.MethodGet, "/api/approvals/history?token=x", false},
+		{http.MethodGet, "/api/approvals", false},       // was the list; still gated
 		{http.MethodGet, "/api/approvals/appr-1/approve", false},
 	}
 	for _, tc := range cases {

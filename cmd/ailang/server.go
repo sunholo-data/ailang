@@ -247,7 +247,6 @@ func serverCommand(args []string) error {
 		// Cloud mode: coordinator store already created
 		srv.SetTaskEventStore(backends.Coordinator)
 		srv.SetApprovalStore(backends.Coordinator)
-		srv.SetCoordinatorStore(&coordStoreAdapter{store: backends.Coordinator})
 		srv.SetCoordinatorStoreRaw(backends.Coordinator)
 	} else {
 		// Local mode: open SQLite coordinator store under the state dir
@@ -259,7 +258,6 @@ func serverCommand(args []string) error {
 		} else {
 			srv.SetTaskEventStore(coordStore)
 			srv.SetApprovalStore(coordStore)
-			srv.SetCoordinatorStore(&coordStoreAdapter{store: coordStore})
 			srv.SetCoordinatorStoreRaw(coordStore)
 			defer coordStore.Close()
 		}
@@ -308,36 +306,6 @@ func checkServerHealth(healthURL string) bool {
 	return resp.StatusCode == http.StatusOK
 }
 
-// coordStoreAdapter adapts coordinator.Store to server.CoordinatorStore
-type coordStoreAdapter struct {
-	store coordinator.Store
-}
-
-// GetCoordinatorStats implements server.CoordinatorStore
-func (a *coordStoreAdapter) GetCoordinatorStats() (*server.CoordinatorStats, error) {
-	ctx := context.Background()
-	stats, err := a.store.GetTaskStats(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &server.CoordinatorStats{
-		Running:      true, // If we got here, coordinator store is available
-		TasksRun:     stats.CompletedTasks,
-		PendingTasks: stats.PendingTasks,
-		RunningTasks: stats.RunningTasks,
-		FailedTasks:  stats.FailedTasks,
-		TotalCost:    stats.TotalCost,
-		TotalTokens:  stats.TotalTokens,
-	}, nil
-}
-
-// GetCostByProvider implements server.CoordinatorStore
-func (a *coordStoreAdapter) GetCostByProvider() (map[string]float64, error) {
-	return a.store.GetCostByProvider()
-}
-
-// getFirebaseProjectFromConfig loads Firebase project ID from ~/.ailang/config.yaml
 func getFirebaseProjectFromConfig() string {
 	cfg := coordinator.LoadFirebaseConfig()
 	if cfg != nil {

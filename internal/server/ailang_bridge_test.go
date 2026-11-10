@@ -40,19 +40,6 @@ func TestBridgeMethods_ErrorRatherThanAnswerWhenUnavailable(t *testing.T) {
 	if _, err := b.Truncate("text", 2); err == nil {
 		t.Error("Truncate must error, not return the text")
 	}
-	if _, err := b.BuildHeatmapGrid(nil, 0, 0, 7); err == nil {
-		t.Error("BuildHeatmapGrid must error, not return an empty grid")
-	}
-	// The one that gates spending.
-	if _, err := b.CheckTaskBudget(DefaultBudgetConfig(), 1, 0, 0); err == nil {
-		t.Error("CheckTaskBudget must error, not return an allowed=false or allowed=true guess")
-	}
-	if _, err := b.CalculateBurnRate(nil, 3600000); err == nil {
-		t.Error("CalculateBurnRate must error, not return 0")
-	}
-	if _, err := b.ForecastExhaustion(10, 1); err == nil {
-		t.Error("ForecastExhaustion must error, not return -1")
-	}
 }
 
 // TestBudgetRule_WholeNumberBudgetsReachAILANGAsFloats is the regression arm for

@@ -18,7 +18,7 @@ run: build ## Run an AILANG file (FILE=path/to/file.ail)
 	@$(BUILD_DIR)/$(BINARY) run $(FILE)
 
 # Server
-# The dashboard transforms (event_formatter.ail, heatmap.ail, budget_checker.ail) are
+# The dashboard transforms (event_formatter.ail; budget_checker.ail for `ailang budget`) are
 # AILANG and are the ONLY implementation, so AILANG_PROJECT_ROOT is required, not
 # optional. AILANG_DASHBOARD=1 used to pick between AILANG and a Go copy; the copies
 # were removed 2026-09-08 and the flag with them.

@@ -227,7 +227,7 @@ func TestSecretApprovalConfirmationPush(t *testing.T) {
 
 // TestResolveSecretApproval_IgnoresNonSecret guards the live task-approval path:
 // resolveSecretApproval must decline anything that is not a secret request so it
-// falls through to ProcessApprovalRequest unchanged.
+// is answered as a task approval (409, decide it with the CLI) instead.
 func TestResolveSecretApproval_IgnoresNonSecret(t *testing.T) {
 	s, _ := newSecretApprovalServer()
 	rec := &coordinator.ApprovalRequestRecord{ID: "task-1", Type: "merge", Status: "pending"}

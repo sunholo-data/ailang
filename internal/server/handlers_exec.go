@@ -153,69 +153,6 @@ func (s *Server) handleExecEvents(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
-// handleExecSessionEvents retrieves events for an exec session
-// GET /api/exec/sessions/{session_id}/events
-func (s *Server) handleExecSessionEvents(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	if s.coordStoreRaw == nil {
-		http.Error(w, "Store not configured", http.StatusServiceUnavailable)
-		return
-	}
-
-	// Extract session ID from path
-	// Expected: /api/exec/sessions/{session_id}/events
-	path := r.URL.Path
-	const prefix = "/api/exec/sessions/"
-	const suffix = "/events"
-
-	if !hasPrefix(path, prefix) || !hasSuffix(path, suffix) {
-		http.Error(w, "Invalid path", http.StatusBadRequest)
-		return
-	}
-
-	sessionID := path[len(prefix) : len(path)-len(suffix)]
-	if sessionID == "" {
-		http.Error(w, "session_id is required", http.StatusBadRequest)
-		return
-	}
-
-	// Build task ID from session ID
-	taskID := "exec-" + sessionID
-	if len(sessionID) > 8 {
-		taskID = "exec-" + sessionID[:8]
-	}
-
-	ctx := r.Context()
-
-	events, err := s.coordStoreRaw.GetTaskEvents(ctx, taskID, 1000)
-	if err != nil {
-		log.Printf("Failed to get exec events: %v", err)
-		http.Error(w, "Failed to get events: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]interface{}{
-		"task_id": taskID,
-		"events":  events,
-		"count":   len(events),
-	})
-}
-
-// hasPrefix is a simple string prefix check
-func hasPrefix(s, prefix string) bool {
-	return len(s) >= len(prefix) && s[:len(prefix)] == prefix
-}
-
-// hasSuffix is a simple string suffix check
-func hasSuffix(s, suffix string) bool {
-	return len(s) >= len(suffix) && s[len(s)-len(suffix):] == suffix
-}
-
 // ExecEventStorer is a helper interface for storing exec events
 // Can be used by the Claude Code hooks endpoint
 type ExecEventStorer interface {

@@ -1,12 +1,31 @@
 # REST API Reference
 
-Complete reference for all Collaboration Hub API endpoints.
+Reference for the dashboard API (`ailang serve`, headless — no UI). The authoritative route
+table, with each route's auth class and the client that calls it, is in
+`design_docs/planned/m-dashboard-headless-api.md`; `internal/server/read_auth_test.go` enforces it.
+
+**Auth:** on a non-loopback bind (Cloud Run) every `/api/` read and `/ws` need
+`Authorization: Bearer $AILANG_DASHBOARD_TOKEN` (the server's `COORDINATOR_API_KEY`). Machine
+ingest routes and `/api/version` are public. A loopback-bound server (the rig) is exempt.
+
+## Public routes
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/health` | GET | Liveness + version |
+| `/api/version` | GET | Version only |
+| `/benchmarks/<path>.json` | GET | Docs-site benchmark data (read-through from GCS) |
+| `/v1/traces`, `/v1/logs`, `/v1/metrics` | POST | OTLP ingest |
+| `/api/hooks/claude`, `/api/observatory/hooks` | POST | Claude Code hooks |
+| `/api/exec/sessions`, `/api/exec/events` | POST | Exec session ingest |
+| `/api/coordinator/events` | POST | Coordinator task events (rebroadcast on `/ws`) |
+| `/api/telemetry` | POST | Eval/pipeline self-reports |
+| `/` | GET | One-line banner; any unrouted path is a plain 404 |
 
 ## Control Plane API (`/api/controlplane/`)
 
-### Stats & Metrics
-
-**`GET /api/controlplane/stats`** - Unified stats (Observatory + Coordinator)
+**`GET /api/controlplane/stats/breakdown`** - Breakdown by provider/model/source/workspace
+(`ailang chains dashboard stats`)
 
 Query params:
 - `source_type` - Filter by source type
@@ -15,23 +34,8 @@ Query params:
 - `workspace` - Filter by workspace
 - `start_date`, `end_date` - Date range
 
-**`GET /api/controlplane/stats/breakdown`** - Breakdown by provider/model/source/workspace
-
-Same filter params as stats.
-
-### Visualizations
-
-**`GET /api/controlplane/heatmap`** - Activity heatmap by day
-
-Query params:
-- `days` (default: 90)
-- Plus all filter params from stats
-
-**`GET /api/controlplane/topology`** - Agent topology from config (static)
-
-**`GET /api/controlplane/topology/observed`** - Data-driven topology from message flows
-
 **`GET /api/controlplane/exec-hierarchy`** - Execution hierarchy from spans
+(`ailang chains dashboard hierarchy`)
 
 Query params:
 - `limit` (default: 100)
@@ -138,24 +142,25 @@ Message list query params:
 
 Query param or header: `task_id` or `X-Task-ID`
 
-## Inbox API (`/api/inbox/`)
+## Inbox API (`/api/inbox`)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/inbox` | GET | List messages (includes counts) |
-| `/api/inbox/{id}` | GET | Get single message |
-| `/api/inbox` | POST | Send message |
-| `/api/inbox/{id}` | PUT | Update message |
-| `/api/inbox/ack-all` | POST | Mark all as read |
-| `/api/inbox/cleanup` | POST | Clean up old messages |
+| `/api/inbox` | GET | List messages merged with Claude Code events (`ailang chains dashboard inbox`) |
 
-## Approvals API (`/api/approvals/`)
+Writes go through `ailang messages` (send, ack) — the dashboard has no inbox write routes.
+
+## Secret Approvals API (`/api/approvals`)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/approvals?status=pending` | GET | Pending approvals |
-| `/api/approvals/:id/approve` | POST | Approve with notes |
-| `/api/approvals/:id/reject` | POST | Reject with notes |
+| `/api/approvals` | POST | Secret-approval intake (own auth: Google ID token / `AILANG_APPROVAL_TOKEN`) |
+| `/api/approvals/{id}` | GET | Status poll (same auth) |
+| `/api/approvals/{id}/approve` | POST | Approve — signed ntfy `?token=`, or an Approver session |
+| `/api/approvals/{id}/reject` | POST | Reject — same |
+
+Coordinator **task** approvals are decided with `ailang coordinator approve|reject <task-id>`
+(`--remote gcp` for the cloud plane), not over HTTP.
 
 ## Chains API (`/api/chains/`)
 
@@ -201,11 +206,8 @@ ailang chains stats --hours 168          # GET /api/chains/stats?hours=168
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/coordinator/events` | GET | SSE stream for task events |
-| `/api/coordinator/events` | POST | Receive coordinator events |
-| `/api/coordinator/status` | GET | Coordinator daemon status |
-| `/api/coordinator/running` | GET | Currently running tasks |
-| `/api/coordinator/pending` | GET | Pending approvals |
+| `/api/coordinator/events` | POST | Receive coordinator events (rebroadcast on `/ws`) |
+| `/api/coordinator/tasks/{id}/events` | GET | A task's recorded events; `?format=json\|text\|summary`, `?type=`, `?turn=`, `?limit=` |
 
 ## WebSocket Events
 
@@ -217,7 +219,8 @@ Event types:
 - `task_update` - Task status change
 - `span_created` - New span ingested
 
-**`ws://localhost:1957/ws/observatory`** - Observatory-specific events
+External clients on a non-loopback server pass `?token=<COORDINATOR_API_KEY>` (browsers cannot
+set headers on a WebSocket).
 
 ## Example curl Commands
 
@@ -247,7 +250,7 @@ curl -s "http://localhost:1957/api/chains/by-task/TASK_ID" | jq '.'
 ### Get Overall Metrics
 ```bash
 curl -s "http://localhost:1957/api/observatory/metrics/summary" | jq '.'
-curl -s "http://localhost:1957/api/controlplane/stats" | jq '.'
+curl -s "http://localhost:1957/api/controlplane/stats/breakdown" | jq '.'
 ```
 
 ### List Tasks

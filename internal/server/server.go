@@ -1,69 +1,25 @@
 /*
-Package server implements the HTTP server for the Collaboration Hub dashboard.
+Package server implements `ailang serve`: the dashboard, a headless HTTP API.
 
-# API Namespace Reference
+There is no UI (design_docs/planned/m-dashboard-headless-api.md). The server
+ingests telemetry, serves the reads the CLI and scripts make, takes secret
+approvals, and serves the docs site's benchmark data. That design doc holds the
+route table — every route, its auth class and the client that calls it — and
+routes.go registers exactly those routes.
 
-The dashboard exposes several API namespaces:
+  - Ingest: OTLP /v1/{traces,logs,metrics}; /api/hooks/claude and
+    /api/observatory/hooks (Claude Code); /api/exec/{sessions,events};
+    /api/coordinator/events; /api/telemetry.
+  - Reads (gated on a non-loopback bind, read_auth.go): /api/observatory/*
+    (internal/observatory/api.go), /api/chains/*, /api/inbox,
+    /api/controlplane/{exec-hierarchy,stats/breakdown},
+    /api/coordinator/tasks/{id}/events, and the /ws event stream.
+  - Secret approvals: /api/approvals, /api/approvals/{id}[/approve|/reject].
+  - Public: /health, /api/version, /benchmarks/*, and "/" (a one-line banner).
 
-## /api/observatory/* (Core Telemetry - 44 endpoints)
-
-Primary telemetry data: spans, traces, tasks, sessions, messages.
-Source: internal/observatory/api.go
-
-Key endpoints:
-  - GET  /api/observatory/spans           - List spans with filters
-  - GET  /api/observatory/spans/enriched  - Spans with display names from session_tools
-  - GET  /api/observatory/traces          - List traces
-  - GET  /api/observatory/sessions        - List Claude Code sessions
-  - GET  /api/observatory/sessions/{id}/tools - Session tool usage
-
-## /api/controlplane/* (Aggregated Analytics - 6 endpoints)
-
-Unified stats combining Observatory + Coordinator data.
-Source: internal/server/handlers_controlplane.go
-
-Key endpoints:
-  - GET  /api/controlplane/stats          - Unified statistics with filters (USE THIS)
-  - GET  /api/controlplane/stats/breakdown - Detailed breakdown by dimension
-  - GET  /api/controlplane/exec-hierarchy - Execution tree (Messages→Execs→Turns→Tools)
-  - GET  /api/controlplane/heatmap        - Activity heatmap
-
-## /api/coordinator/* (Task Execution - ~8 endpoints)
-
-Task management and approval workflow.
-Source: internal/server/handlers_coordinator.go
-
-Key endpoints:
-  - POST /api/coordinator/approve/{id}    - Approve a task
-  - POST /api/coordinator/reject/{id}     - Reject a task
-  - GET  /api/coordinator/events          - SSE stream of task events
-
-## Legacy Endpoints (Deprecated)
-
-  - GET  /api/statistics                  - DEPRECATED: Use /api/controlplane/stats
-  - GET  /api/observatory/metrics/summary - DEPRECATED: Use /api/controlplane/stats
-
-# Data Source Architecture
-
-All endpoints pull from the same underlying data stores:
-
-	┌─────────────────────────────────────────┐
-	│           SQLite Databases              │
-	├─────────────────────────────────────────┤
-	│ ~/.ailang/state/collaboration.db       │
-	│ ├── spans (OTEL telemetry)             │
-	│ ├── traces, tasks, sessions            │
-	│ └── session_tools, messages            │
-	├─────────────────────────────────────────┤
-	│ ~/.ailang/state/coordinator.db         │
-	│ └── tasks, approvals, agent_state      │
-	└─────────────────────────────────────────┘
-	              │
-	              ▼
-	   Same Go store methods used by:
-	   - API handlers (this package)
-	   - CLI commands (cmd/ailang/dashboard.go)
-	   - other HTTP clients (scripts, the website builder's /ws proxy)
+Stores: the observatory backend (SQLite observatory.db locally, Firestore in
+the cloud), the messaging store (collaboration.db), and the coordinator store
+(coordinator.db) — the same Go store methods the CLI uses directly.
 */
 package server
 
@@ -72,9 +28,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
-	"os/exec"
 	"strings"
-	"sync"
 	"time"
 
 	firebase "firebase.google.com/go/v4"
@@ -90,42 +44,16 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
-// AgentProcess tracks a running agent process
-type AgentProcess struct {
-	InstanceID string    `json:"instance_id"`
-	PID        int       `json:"pid"`
-	StartedAt  time.Time `json:"started_at"`
-	cmd        *exec.Cmd
-}
-
-// Server represents the HTTP server for the collaboration hub
+// Server represents the dashboard's HTTP server
 type Server struct {
 	store    messaging.MessageStore
 	wsServer *websocket.Server
 	httpAddr string
 	dbPath   string
-	version  string // AILANG version for display in UI
+	version  string // AILANG version reported by /health and /api/version
 
-	// Process management for spawned agents
-	agentsMu sync.RWMutex
-	agents   map[string]*AgentProcess
-
-	// External telemetry from self-reporting processes (eval suite, etc.)
-	externalTelemetryMu sync.RWMutex
-	externalTelemetry   map[int]*websocket.TelemetryEvent // keyed by PID
-
-	// Process history for recently completed/failed processes
-	processHistoryMu sync.RWMutex
-	processHistory   []ProcessStats // Recent history, oldest first
-
-	// Track previously seen processes for history detection
-	previouslySeenMu sync.RWMutex
-	previouslySeen   map[int]ProcessStats // keyed by PID
-
-	// Coordinator integration for task metrics
-	resourceRegistry *coordinator.ResourceTrackerRegistry
-	coordStore       CoordinatorStore
-	coordStoreRaw    coordinator.Store // Full store interface for Control Plane queries
+	// Coordinator store: task events, exec sessions, chains
+	coordStoreRaw coordinator.Store
 
 	// Coordinator approval store for approval workflow
 	approvalStore CoordinatorApprovalStore
@@ -185,14 +113,11 @@ type Server struct {
 // If a messaging store was set via WithMessagingStore, dbPath is only used for display.
 func NewServer(dbPath string, httpAddr string, opts ...ServerOption) (*Server, error) {
 	s := &Server{
-		httpAddr:          httpAddr,
-		dbPath:            dbPath,
-		version:           "dev", // Default version
-		agents:            make(map[string]*AgentProcess),
-		externalTelemetry: make(map[int]*websocket.TelemetryEvent),
-		previouslySeen:    make(map[int]ProcessStats),
-		pollingCache:      newResponseCache(30 * time.Second),  // 30s TTL for dashboard polling endpoints (M-COST2: was 5s)
-		breakdownCache:    newResponseCache(300 * time.Second), // 300s TTL for expensive breakdown queries (M-COST2: was 60s)
+		httpAddr:       httpAddr,
+		dbPath:         dbPath,
+		version:        "dev",                               // Default version
+		pollingCache:   newResponseCache(30 * time.Second),  // 30s TTL for dashboard polling endpoints (M-COST2: was 5s)
+		breakdownCache: newResponseCache(300 * time.Second), // 300s TTL for expensive breakdown queries (M-COST2: was 60s)
 	}
 
 	// Apply options (may set s.store and s.obsBackend via WithBackends)
@@ -218,7 +143,7 @@ func NewServer(dbPath string, httpAddr string, opts ...ServerOption) (*Server, e
 	s.wsServer.SetOriginPolicy(s.origins)
 	if s.apiKey != "" {
 		s.wsServer.SetToken(s.apiKey)
-		log.Printf("WebSocket token authentication enabled for /ws and /ws/observatory")
+		log.Printf("WebSocket token authentication enabled for /ws")
 	}
 
 	// Create Pub/Sub event subscriber if configured (cloud mode).
@@ -300,20 +225,6 @@ func WithApprovalPublisher(pub ApprovalPublisher) ServerOption {
 	}
 }
 
-// WithResourceRegistry sets the resource tracker registry for coordinator metrics
-func WithResourceRegistry(registry *coordinator.ResourceTrackerRegistry) ServerOption {
-	return func(s *Server) {
-		s.resourceRegistry = registry
-	}
-}
-
-// WithCoordinatorStore sets the coordinator store for task statistics
-func WithCoordinatorStore(store CoordinatorStore) ServerOption {
-	return func(s *Server) {
-		s.coordStore = store
-	}
-}
-
 // WithObservatoryDB sets up the observatory backend with SQLite at the given path.
 // The observatory is local-only; the GCP Trace / composite remote backends were
 // deleted in M-V1-SIMPLIFY-S1 M4 (nothing ever set AILANG_ENABLE_GCP_TRACE).
@@ -385,25 +296,6 @@ func WithFirebaseAuth(projectID string) ServerOption {
 	}
 }
 
-// CoordinatorStore provides coordinator statistics
-type CoordinatorStore interface {
-	GetCoordinatorStats() (*CoordinatorStats, error)
-	GetCostByProvider() (map[string]float64, error)
-}
-
-// CoordinatorStats holds coordinator daemon statistics
-type CoordinatorStats struct {
-	Running      bool
-	PID          int
-	Uptime       string
-	TasksRun     int
-	PendingTasks int
-	RunningTasks int
-	FailedTasks  int
-	TotalCost    float64
-	TotalTokens  int
-}
-
 // requireApprover wraps a handler to require Approver role if auth is enabled.
 // If Firebase auth is not configured, passes through without auth check.
 func (s *Server) requireApprover(handler http.HandlerFunc) http.Handler {
@@ -445,64 +337,7 @@ func (s *Server) Start() error {
 	if telemetry.IsEnabled() {
 		log.Printf("OpenTelemetry instrumentation enabled")
 		handler = otelhttp.NewHandler(handler, "ailang-server",
-			otelhttp.WithFilter(func(r *http.Request) bool {
-				path := r.URL.Path
-				// Skip tracing for:
-				// - Health checks
-				// - WebSocket endpoints
-				// - Static assets (JS, CSS, images, fonts)
-				// - Root path (just serves UI)
-				// - OTLP receiver endpoints (would cause infinite loop)
-				// - High-frequency polling endpoints (create noise)
-				// - Observatory API (tracing our own traces is confusing)
-				if path == "/health" || path == "/" {
-					return false
-				}
-				if path == "/ws" || path == "/ws/observatory" {
-					return false
-				}
-				if strings.HasPrefix(path, "/assets/") {
-					return false
-				}
-				if strings.HasPrefix(path, "/v1/") { // OTLP endpoints
-					return false
-				}
-				// Skip high-frequency polling endpoints (UI polls these constantly)
-				// M-DB-CLEANUP: These endpoints generate 97% of ailang-server span noise
-				if path == "/api/approvals" || path == "/api/hierarchy" ||
-					path == "/api/statistics" || path == "/api/version" ||
-					path == "/api/monitor" || path == "/api/telemetry/config" ||
-					path == "/api/inbox" {
-					return false
-				}
-				// Skip control plane polling endpoints (dashboard polls these every few seconds)
-				// M-DB-CLEANUP: /api/controlplane/* generated 140K+ spans
-				if strings.HasPrefix(path, "/api/controlplane/") {
-					return false
-				}
-				// Skip coordinator events SSE endpoint (long-lived connection, creates noise)
-				if path == "/api/coordinator/events" {
-					return false
-				}
-				// Skip budget status polling
-				if strings.HasPrefix(path, "/api/budget/") {
-					return false
-				}
-				// Skip observatory API (tracing our own traces would be confusing)
-				if strings.HasPrefix(path, "/api/observatory/") {
-					return false
-				}
-				// Skip metrics polling
-				if strings.HasPrefix(path, "/api/metrics") {
-					return false
-				}
-				// Skip common static files
-				if strings.HasSuffix(path, ".png") || strings.HasSuffix(path, ".ico") ||
-					strings.HasSuffix(path, ".svg") || strings.HasSuffix(path, ".woff2") {
-					return false
-				}
-				return true
-			}),
+			otelhttp.WithFilter(func(r *http.Request) bool { return shouldTraceRequest(r.URL.Path) }),
 		)
 	}
 
@@ -526,4 +361,28 @@ func (s *Server) Close() error {
 		}
 	}
 	return s.store.Close()
+}
+
+// shouldTraceRequest decides which requests the server's own OpenTelemetry
+// instrumentation records. Skipped: health and the banner, the WebSocket,
+// OTLP ingest (tracing it would loop), the high-frequency polling paths
+// (M-DB-CLEANUP: these were 97% of ailang-server span noise), the observatory
+// API (tracing our own trace reads is confusing) and static-file probes. The
+// same rules as before the UI was removed, minus the paths of deleted routes.
+func shouldTraceRequest(path string) bool {
+	switch path {
+	case "/", "/health", "/ws", "/api/approvals", "/api/version", "/api/inbox", "/api/coordinator/events":
+		return false
+	}
+	for _, prefix := range []string{"/v1/", "/api/observatory/", "/api/controlplane/"} {
+		if strings.HasPrefix(path, prefix) {
+			return false
+		}
+	}
+	for _, suffix := range []string{".png", ".ico", ".svg", ".woff2"} {
+		if strings.HasSuffix(path, suffix) {
+			return false
+		}
+	}
+	return true
 }

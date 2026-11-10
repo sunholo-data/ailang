@@ -315,8 +315,8 @@ The coordinator streams events to the Collaboration Hub server:
 
 1. Start server: `ailang serve` or `make services-start`
 2. Events POST to: `http://127.0.0.1:1957/api/coordinator/events`
-3. Server broadcasts via WebSocket to browsers
-4. View at: http://localhost:1957
+3. Server broadcasts to connected `/ws` clients (the dashboard has no UI;
+   read history with the events API below or `ailang chains`)
 
 ## Chat History API (v0.6.4+)
 
@@ -324,16 +324,17 @@ View task conversation history via REST API:
 
 ```bash
 # Get all events for a task
-curl http://localhost:1957/api/tasks/{task-id}/events
+curl http://localhost:1957/api/coordinator/tasks/{task-id}/events
 
 # Filter by event type
-curl http://localhost:1957/api/tasks/{task-id}/events?type=text,tool_use
+curl "http://localhost:1957/api/coordinator/tasks/{task-id}/events?type=text,tool_use"
 
 # Limit results
-curl http://localhost:1957/api/tasks/{task-id}/events?limit=50
+curl "http://localhost:1957/api/coordinator/tasks/{task-id}/events?limit=50"
 
-# Get formatted text output (alternative endpoint)
-curl http://localhost:1957/api/tasks/{task-id}/transcript
+# Formatted text / compact summary instead of JSON
+curl "http://localhost:1957/api/coordinator/tasks/{task-id}/events?format=text"
+curl "http://localhost:1957/api/coordinator/tasks/{task-id}/events?format=summary"
 ```
 
 **Response format:**

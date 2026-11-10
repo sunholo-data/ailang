@@ -720,21 +720,19 @@ To request changes at any stage:
 
 When a task completes, the coordinator creates an approval request.
 
-### API Endpoints
+### Deciding approvals
+
+Task approvals are decided with the CLI, which runs the merge-and-handoff processor:
 
 ```bash
-# List pending approvals
-GET /api/coordinator/pending
-
-# Approve changes (merges to main)
-POST /api/coordinator/approve/{approval_id}
-
-# Reject changes (preserves worktree)
-POST /api/coordinator/reject/{approval_id}
-
-# Get git diff for a task
-GET /api/coordinator/tasks/{task_id}/diff
+ailang coordinator pending                    # list
+ailang coordinator approve <task-id>          # merge (+ handoff), shows the diff first
+ailang coordinator reject <task-id> -f "..."  # re-queue with feedback
+# --remote gcp for the cloud plane
 ```
+
+The dashboard API no longer has approve/reject/pending routes; it had no caller besides the
+removed UI.
 
 ### Approval Response Format
 
@@ -941,18 +939,15 @@ flowchart TB
 
     subgraph Server["Collaboration Hub Server (:1957)"]
         Events["POST /api/coordinator/events"]
-        Pending["GET /api/coordinator/pending"]
-        Diff["GET /api/coordinator/tasks/diff"]
-        ApproveAPI["POST /api/coordinator/approve"]
-        RejectAPI["POST /api/coordinator/reject"]
-        WS["WebSocket broadcast"]
+        TaskEvents["GET /api/coordinator/tasks/{id}/events"]
+        WS["WebSocket broadcast /ws"]
     end
 
-    Browser["Browser"]
+    WSClient["/ws client (token)"]
 
     Broadcaster -->|"HTTP POST"| Events
     Events --> WS
-    WS --> Browser
+    WS --> WSClient
 ```
 
 ## Task Processing
@@ -1585,8 +1580,8 @@ which claude  # Claude Code CLI
 ### Approvals Not Showing
 
 ```bash
-# Check pending approvals via API
-curl http://127.0.0.1:1957/api/coordinator/pending | jq
+# Check pending approvals
+ailang coordinator pending
 
 # Check task status
 sqlite3 ~/.ailang/state/coordinator.db \
