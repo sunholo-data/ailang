@@ -2,7 +2,6 @@ package loader
 
 import (
 	"fmt"
-	"os"
 	"path/filepath"
 	"sort"
 	"strings"
@@ -230,10 +229,12 @@ func (ml *ModuleLoader) rootFile(canonPath string) (*scopedModule, error) {
 	if root == "" {
 		return nil, nil
 	}
-	proj := filepath.Join(ml.basePath, canonPath) + ".ail"
-	if _, err := os.Stat(proj); err != nil {
+	// A spelling that climbs out of the base directory is never a module of
+	// the root package (and is not a path this function reads).
+	if strings.Contains(canonPath, "..") {
 		return nil, nil
 	}
+	proj := filepath.Join(ml.basePath, canonPath) + ".ail"
 	// A path-named file (`module stub_step`, or no module line) is not a
 	// package spelling, so it does not resolve here and keeps its path.
 	res, err := ml.resolveScoped(root, declaredModuleOf(proj), false)
@@ -244,9 +245,14 @@ func (ml *ModuleLoader) rootFile(canonPath string) (*scopedModule, error) {
 }
 
 // declaredModuleOf returns the path of the first `module` line of the file at
-// path, skipping blank lines and `--` comments; "" if there is none.
+// path, skipping blank lines and `--` comments; "" if there is none or the
+// file cannot be read. It reads through ReadSourceFile, so a policy run's
+// source snapshot sees the same bytes Load will.
 func declaredModuleOf(path string) string {
-	data, err := os.ReadFile(path)
+	if strings.Contains(path, "..") {
+		return ""
+	}
+	data, err := ReadSourceFile(path)
 	if err != nil {
 		return ""
 	}

@@ -183,6 +183,9 @@ func caseOnDisk(dir, file string) (written, actual string, mismatch bool) {
 	}
 	parent := dir
 	for _, part := range strings.Split(filepath.ToSlash(rel), "/") {
+		if strings.Contains(parent, "..") {
+			return "", "", false // dir and file are absolute and clean; never climb
+		}
 		entries, err := os.ReadDir(parent)
 		if err != nil {
 			return "", "", false
