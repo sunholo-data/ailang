@@ -19,7 +19,7 @@ Browse the [Live Demos](https://www.sunholo.com/ailang-demos/) to see streaming 
 
 A minimal WebSocket echo client:
 
-```typescript
+```ailang
 module my/echo_client
 
 import std/stream (connect, transmit, onEvent, runEventLoop, disconnect,
@@ -71,7 +71,7 @@ The handler function receives `StreamEvent` and returns `bool`:
 - Return `true` to continue receiving events
 - Return `false` to exit the event loop
 
-```typescript
+```ailang
 func myHandler(event: StreamEvent) -> bool ! {IO} {
   match event {
     Message(text)      => { println("Text: ${text}"); true },
@@ -116,7 +116,7 @@ Read-only HTTP streaming for consuming APIs.
 
 SSE connections deliver events as `SSEData(eventType, data)`:
 
-```typescript
+```ailang
 import std/stream (ssePost, onEvent, runEventLoop, disconnect,
                    StreamEvent, SSEData, StreamError, Closed)
 
@@ -191,7 +191,7 @@ Multi-source events carry their source name:
 
 ### Example: Stdin + WebSocket
 
-```typescript
+```ailang
 import std/stream (
   connect, sourceOfConn, asyncReadStdinLines, selectEvents,
   StreamEvent, Message, SourceText, SourceBytes, StreamError, Closed
@@ -224,7 +224,7 @@ Spawn a subprocess and receive its stdout as fixed-size byte chunks via `SourceB
 - **Log tailing**: `tail -f` producing text lines
 - **Any streaming subprocess**: Pipe output through `selectEvents`
 
-```typescript
+```ailang
 import std/stream (asyncExecProcess, asyncReadStdinLines, selectEvents,
                    StreamEvent, SourceText, SourceBytes)
 import std/bytes (toString, toBase64)
@@ -310,7 +310,7 @@ Use cases:
 - **Data processing**: Feed data to `jq`, `sed`, `awk` via stdin
 - **Interprocess communication**: Write structured data to a child process
 
-```typescript
+```ailang
 import std/process (spawnProcess, writeProcessStdin, closeProcessStdin, ProcessHandle)
 import std/bytes (fromString)
 import std/result (Result, Ok, Err)

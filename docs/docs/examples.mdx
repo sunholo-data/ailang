@@ -170,7 +170,7 @@ ailang run --caps IO,FS examples/runnable/effects_fs_io.ail
 
 Functions can be generic over effects. This allows writing reusable code that works with any combination of capabilities:
 
-```typescript
+```ailang
 -- Effect row polymorphism: {IO | e} means "IO plus any other effects"
 -- This allows functions to compose while preserving effect safety
 ```

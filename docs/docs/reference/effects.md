@@ -37,7 +37,7 @@ def process_data():
 
 **AILANG makes effects explicit:**
 
-```typescript
+```ailang
 -- AILANG - effects declared in signature
 func processData() -> Data ! {IO, FS} {
   println("Processing...");
@@ -58,7 +58,7 @@ func processData() -> Data ! {IO, FS} {
 
 Console input/output operations.
 
-```typescript
+```ailang
 import std/io (println, print, readLine)
 
 func greet(name: string) -> () ! {IO} {
@@ -102,7 +102,7 @@ An error from native activation must be handled explicitly by the application.
 which runs *other* programs), needs only `--caps IO`, never returns, and flushes
 telemetry/traces before the process ends. Shipped v0.10.1 (M-EXIT-CODE).
 
-```typescript
+```ailang
 import std/io (println, exit)
 
 export func main() -> () ! {IO} {
@@ -130,7 +130,7 @@ reason before exiting.
 
 File system operations.
 
-```typescript
+```ailang
 import std/fs (readFile, writeFile, exists)
 
 func copyFile(src: string, dst: string) -> () ! {FS} {
@@ -166,7 +166,7 @@ AILANG_FS_SANDBOX=/tmp/sandbox ailang run --caps FS --entry main program.ail
 
 When set, all file paths are resolved relative to the sandbox root:
 
-```typescript
+```ailang
 -- With AILANG_FS_SANDBOX=/tmp/sandbox:
 readFile("data.txt")       -- reads /tmp/sandbox/data.txt
 writeFile("out.txt", s)    -- writes /tmp/sandbox/out.txt
@@ -187,7 +187,7 @@ If unset (the default), paths resolve normally from the process working director
 
 Time operations with deterministic mode support.
 
-```typescript
+```ailang
 import std/clock (now, sleep)
 
 func timedOperation() -> int ! {Clock, IO} {
@@ -295,7 +295,7 @@ the existing idle timeout and maximum duration still apply.
 
 Environment variable access.
 
-```typescript
+```ailang
 import std/env (getEnv)
 
 func getConfig() -> string ! {Env} {
@@ -318,7 +318,7 @@ Execute external commands with capability-based security. (This effect runs *oth
 programs. To set *this* program's own exit code — a CLI that must fail non-zero — use
 `exit(code)` from **`std/io`**, under the IO effect; see [Exit code](#exit-code) below.)
 
-```typescript
+```ailang
 import std/process (exec)
 import std/bytes (toString)
 
@@ -399,7 +399,7 @@ The allowlist is a property of the **invocation**, not of the program's signatur
 
 Real-time streaming I/O: WebSocket, SSE, and multi-source event multiplexing.
 
-```typescript
+```ailang
 import std/stream (connect, transmit, onEvent, runEventLoop, disconnect,
                    sourceOfConn, asyncReadStdinLines, asyncExecProcess, selectEvents,
                    StreamEvent, Message, Closed, StreamError, SourceText, SourceBytes)
@@ -447,7 +447,7 @@ ailang run --caps Stream,Process,IO --process-allowlist "echo,ffmpeg" --entry ma
 
 Effects are declared after the return type with `!`:
 
-```typescript
+```ailang
 -- Single effect
 func greet() -> () ! {IO} { ... }
 
@@ -490,7 +490,7 @@ are a breaking soundness correction targeting v0.56.0.
 
 Effects from called functions are combined:
 
-```typescript
+```ailang
 func helper() -> () ! {IO} {
   println("Helper called")
 }
@@ -506,7 +506,7 @@ func main() -> () ! {IO, FS} {
 
 Functions can be called in contexts with additional effects:
 
-```typescript
+```ailang
 func pureCalc(x: int) -> int { x * 2 }
 
 func effectful() -> int ! {IO} {
@@ -564,7 +564,7 @@ requires `Rand`).
 
 You can limit how many times a function can perform an effect using **capability budgets**:
 
-```typescript
+```ailang
 -- Function limited to 5 IO operations (maximum)
 func rateLimited() -> () ! {IO @limit=5} {
   println("Call 1");  -- Uses 1/5 budget
@@ -644,7 +644,7 @@ ailang run --caps IO --no-budgets --entry main program.ail
 
 The type checker verifies effect declarations:
 
-```typescript
+```ailang
 -- Error: readFile requires FS but not declared
 func badFunction() -> string ! {IO} {
   readFile("data.txt")  -- Compile error!
@@ -655,7 +655,7 @@ func badFunction() -> string ! {IO} {
 
 Even if you declare an effect, you must grant it:
 
-```typescript
+```ailang
 func main() -> () ! {FS} {
   writeFile("output.txt", "data")
 }
@@ -673,7 +673,7 @@ ailang run --caps IO --entry main program.ail
 
 Functions can work with any effect set:
 
-```typescript
+```ailang
 -- Works with any effects
 func twice[e](f: () -> () ! {e}) -> () ! {e} {
   f();
@@ -696,7 +696,7 @@ capability grants are still required for concrete effects.
 
 Use pattern matching to handle effect boundaries:
 
-```typescript
+```ailang
 func maybeLog(verbose: bool, msg: string) -> () ! {IO} {
   if verbose then println(msg) else ()
 }
@@ -706,7 +706,7 @@ func maybeLog(verbose: bool, msg: string) -> () ! {IO} {
 
 Keep business logic pure, effects at boundaries:
 
-```typescript
+```ailang
 -- Pure business logic
 pure func calculateTax(amount: float) -> float {
   amount * 0.2
@@ -725,7 +725,7 @@ func processInvoice(id: string) -> () ! {IO, FS} {
 
 ### Mocking Effects (Planned)
 
-```typescript
+```ailang
 -- Future: Mock effects for testing
 test "file processing" with {
   FS.mock({
@@ -741,7 +741,7 @@ test "file processing" with {
 
 Use inline tests for pure functions:
 
-```typescript
+```ailang
 pure func double(x: int) -> int
   tests [
     (0, 0),

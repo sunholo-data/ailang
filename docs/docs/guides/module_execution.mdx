@@ -147,7 +147,7 @@ ailang run --caps IO --entry process --args-json '{"input": "data", "count": 5}'
 Functions with 2+ parameters are not directly supported. Wrap parameters in a record:
 
 <CrossIcon inline size={14} /> **Not supported:**
-```typescript
+```ailang
 export func add(x: int, y: int) -> int {
     x + y
 }
@@ -200,7 +200,7 @@ Line 2
 
 Read a line from stdin (blocking).
 
-```typescript
+```ailang
 export func main() -> () {
     _io_println("Enter your name:")
     let name = _io_readLine() in
@@ -217,7 +217,7 @@ export func main() -> () {
 - **Non-Unit values**: Printed to stdout automatically
 - **Unit values**: Silent (no output)
 
-```typescript
+```ailang
 -- Returns int, prints to stdout
 export func compute() -> int {
     42
@@ -244,7 +244,7 @@ export func greet() -> () {
 
 Effects are **type-checked** but **not enforced** at runtime in v0.2.0.
 
-```typescript
+```ailang
 -- Effect annotation required for IO operations
 export func main() -> () ! {IO} {
     _io_println("Hello")
@@ -260,7 +260,7 @@ granted). See the [effects reference](/docs/reference/effects) and
 
 Pure functions have no effect annotation:
 
-```typescript
+```ailang
 export pure func add(x: int, y: int) -> int {
     x + y
 }
@@ -272,7 +272,7 @@ export pure func add(x: int, y: int) -> int {
 
 ### Simple Script
 
-```typescript
+```ailang
 module scripts/hello
 
 export func main() -> () {
@@ -294,7 +294,7 @@ ailang run --caps IO --entry greet --args-json '{"name":"Alice","greeting":"Hell
 
 ### Interactive Program
 
-```typescript
+```ailang
 module apps/echo
 
 export func main() -> () {
@@ -378,7 +378,7 @@ Suggestions:
 
 Modules can import other modules:
 
-```typescript
+```ailang
 -- math/utils.ail
 module math/utils
 
@@ -387,7 +387,7 @@ export func double(x: int) -> int {
 }
 ```
 
-```typescript
+```ailang
 -- app/main.ail
 module app/main
 import math/utils (double)
@@ -402,7 +402,7 @@ export func main() -> () {
 
 Only **exported** bindings are accessible from other modules:
 
-```typescript
+```ailang
 module lib/secret
 
 -- Private (not accessible from imports)

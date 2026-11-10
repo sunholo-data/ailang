@@ -296,7 +296,8 @@ const config = {
         theme: prismThemes.github,
         darkTheme: prismThemes.dracula,
         additionalLanguages: ['bash', 'json', 'javascript', 'typescript', 'go'],
-        // Note: AILANG syntax highlighting coming soon - use 'typescript' for now
+        // `ailang` is registered in src/theme/prism-include-languages.js (grammar: src/theme/prism-ailang.js).
+        // Fence AILANG as ```ailang, never typescript: make check-doc-samples checks ailang fences.
       },
       colorMode: {
         defaultMode: 'dark',

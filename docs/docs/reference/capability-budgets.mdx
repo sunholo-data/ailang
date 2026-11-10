@@ -50,7 +50,7 @@ ailang run --caps IO --entry main examples/reference/budget_basic.ail
 
 ### Syntax Rules
 
-```typescript
+```ailang
 -- Maximum limit: can use at most 5 IO operations
 func f() -> () ! {IO @limit=5} { ... }
 
@@ -150,7 +150,7 @@ Hint: Ensure the function actually performs at least 1 IO operation(s)
 
 Use both annotations to specify a valid range:
 
-```typescript
+```ailang
 -- Must call API at least once, but no more than 5 times
 func fetchWithRetry(url: string) -> string ! {Net @min=1 @limit=5} {
   -- At least 1 call required, up to 5 allowed for retries
@@ -214,7 +214,7 @@ Budgets reset on each function call for several reasons:
 
 Global budgets (shared across all calls) are harder to reason about:
 
-```typescript
+```ailang
 -- Hypothetical global budget (NOT how AILANG works)
 func a() -> () ! {IO @global=5} { println("A"); () }
 func b() -> () ! {IO @global=5} { println("B"); () }
@@ -248,7 +248,7 @@ ailang run --caps IO --entry main program.ail
 
 Add budgets when you identify specific resource concerns:
 
-```typescript
+```ailang
 -- Start with unlimited
 func process() -> () ! {IO} { ... }
 
@@ -260,7 +260,7 @@ func process() -> () ! {IO @limit=100} { ... }
 
 Choose limits based on actual requirements:
 
-```typescript
+```ailang
 -- Too restrictive
 func fetchAll() -> () ! {Net @limit=1} { ... }  -- Only 1 request?
 
@@ -272,7 +272,7 @@ func fetchAll() -> () ! {Net @limit=50} { ... }  -- Batch of 50
 
 Add comments explaining why the limit exists:
 
-```typescript
+```ailang
 -- Rate limited to respect API quota (100 requests/minute)
 func apiCall() -> () ! {Net @limit=100} { ... }
 ```

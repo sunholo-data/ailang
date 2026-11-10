@@ -769,7 +769,7 @@ In Go, `if` is a statement, assignment mutates variables, and `switch` can fall 
 
 AILANG compiles surface syntax into a Core intermediate representation that's already in let-normal form. By the time the SMT encoder sees the code, complex subexpressions are broken into named bindings:
 
-```
+```ailang sketch
 -- Surface AILANG
 manhattan(p) + getX(p)
 
