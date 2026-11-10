@@ -1152,7 +1152,13 @@
         "production",
         "latest"
       ],
-      "notes": "Correct six teaching errors found writing canonical examples (semicolons vs fmt, **, mapSlicesJoin, verifyWithKid, record patterns, no int max/min, non-exhaustive match). Amended in place 2026-11-09 (#1443): IFC examples drop `pure` beside `! {Net}`/`! {Declassify}` rows, which the checker now rejects; `pure` means `! {}`."
+      "notes": "Correct six teaching errors found writing canonical examples (semicolons vs fmt, **, mapSlicesJoin, verifyWithKid, record patterns, no int max/min, non-exhaustive match). Amended in place 2026-11-09 (#1443): IFC examples drop `pure` beside `! {Net}`/`! {Declassify}` rows, which the checker now rejects; `pure` means `! {}`.",
+      "frozen": {
+        "at": "2026-11-10",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
     },
     "v0.16.13": {
       "file": "prompts/v0.16.13.md",
