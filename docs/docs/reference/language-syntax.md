@@ -10,7 +10,7 @@ This reference documents the syntax and features of AILANG v0.6.0. Features mark
 
 ## Basic Constructs
 
-```typescript
+```ailang
 -- Comments use double dash
 let x = 5 in x + 1                 -- Immutable binding with scope
 \x. x * 2                          -- Lambda function
@@ -22,7 +22,7 @@ if x > 0 then "pos" else "neg"     -- Conditional expression
 
 ## Module System ✅
 
-```typescript
+```ailang
 -- Define a module
 module examples/math
 
@@ -53,7 +53,7 @@ Besides functions, a module can declare top-level `let` bindings — constants s
 across the module's functions. Both the annotated and inferred forms work (module-level
 `let` scoping has been supported since v0.5.0):
 
-```typescript
+```ailang
 module examples/config
 
 let maxRetries : int = 3        -- with type annotation
@@ -68,7 +68,7 @@ module — use it for shared constants instead of zero-argument functions.
 
 ### Function Declarations ✅
 
-```typescript
+```ailang
 -- Pure function (no effects)
 export func add(x: int, y: int) -> int {
   x + y
@@ -104,7 +104,7 @@ A function body is written in **exactly one** of two styles. Mixing them is a pa
 | **Block body** | `func f(...) -> T { s1; s2; result }` | **No `=`** | Yes — statements separated by `;`, last expression is the return value |
 | **Expression body** | `func f(...) -> T = expr` | **`=` required** | No — it is a *single* expression (use `let … in …` to sequence) |
 
-```typescript
+```ailang
 -- Block body: multiple statements, braces, NO '='
 export func render() -> () ! {IO} {
   print("frame");
@@ -120,7 +120,7 @@ multiple statements, use a **block body** (`{ … }` with no `=`). If it is one 
 `= expr`.
 
 ### ✅ Inline Tests (v0.4.5+)
-```typescript
+```ailang
 -- Inline tests for pure functions
 pure func factorial(n: int) -> int
   tests [
@@ -184,7 +184,7 @@ ailang test examples/factorial.ail
 
 ## Lambda Expressions ✅
 
-```typescript
+```ailang
 -- Basic lambda syntax
 let add = \x y. x + y in
 let add5 = add(5) in  -- Partial application (currying)
@@ -205,7 +205,7 @@ add10(5)  -- Result: 15
 
 ## Pattern Matching ✅
 
-```typescript
+```ailang
 -- ADT definition
 type Option[a] = Some(a) | None
 
@@ -241,7 +241,7 @@ match (1, "hello") {
 
 ## Records ✅
 
-```typescript
+```ailang
 -- Record literals
 let person = {name: "Alice", age: 30}
 
@@ -268,7 +268,7 @@ getName({name: "Bob", id: 123})     -- ✅ Works! Subsumption
 
 ### 🚧 Row Polymorphism (Partial - requires AILANG_RECORDS_V2=1)
 
-```typescript
+```ailang
 -- Opt-in with environment variable
 export AILANG_RECORDS_V2=1
 
@@ -280,7 +280,7 @@ func getName[r](obj: {name: string | r}) -> string {
 
 ## Block Expressions ✅
 
-```typescript
+```ailang
 -- Sequential statements in blocks
 {
   let x = 5;
@@ -307,7 +307,7 @@ if x > 0 then {
 
 ## Effects and Capabilities ✅
 
-```typescript
+```ailang
 module examples/demo
 
 import std/io (println)
@@ -346,7 +346,7 @@ ailang run --caps IO,FS,Clock,Net --entry processData demo.ail
 
 ### 🚧 Quasiquotes (Planned v0.4.0+)
 
-```typescript
+```ailang
 -- NOT YET IMPLEMENTED
 let query = sql"""
   SELECT * FROM users
@@ -360,7 +360,7 @@ let page = html"""
 
 ### 🚧 Error Propagation (Planned)
 
-```typescript
+```ailang
 -- NOT YET IMPLEMENTED
 func readAndProcess() -> Result[Data] ! {FS} {
   let content = readFile("input.txt")?  -- ? operator not yet available
@@ -372,7 +372,7 @@ func readAndProcess() -> Result[Data] ! {FS} {
 
 ## Concurrency (CSP)
 
-```typescript
+```ailang
 func worker(ch: Channel[Task]) ! {Async} {
   loop {
     let task <- ch       -- Receive from channel
@@ -391,7 +391,7 @@ parallel {
 
 AILANG uses **Hindley-Milner type inference** — you rarely need to write type annotations. The compiler infers the most general type for every expression.
 
-```typescript
+```ailang
 -- Types are inferred automatically
 let x = 42                       -- x: int
 let greeting = "hello"           -- greeting: string
@@ -414,7 +414,7 @@ export func add(x: int, y: int) -> int ! {}
 
 ## Type Classes
 
-```typescript
+```ailang
 -- Type class instances (REPL only currently)
 let sum = 1 + 2 + 3             -- Works: 6
 let calc = 10 * 5 - 20 / 4      -- Works: 45

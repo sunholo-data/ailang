@@ -96,8 +96,13 @@ Mark selected all seven clauses attended on 2026-08-28; clauses 5-7 are his addi
   constants, CLI commands and flags, and design docs moved `planned/` → `implemented/`. Instruments:
   `docs-sync`'s `audit_design_docs.sh` / `check_versions.sh`, plus running the command a page shows.
 - **Clause 2 — Examples compile and run.** Every `.ail` under `examples/` passes
-  `make verify-examples`, and every raw-loader import resolves. Website examples are IMPORTED from
-  `examples/`, never inlined — an inline code block is itself a clause-2 defect.
+  `make verify-examples`, and every raw-loader import resolves. An inline AILANG block must pass the
+  doc-sample gate (`make check-doc-samples`: `ailang check` on every block) or be tagged `parse` /
+  `sketch` / `repl` / `error=CODE` / `file=path.ail`; the gate also checks every `.ail` file the
+  site imports with raw-loader (which `make verify-examples` does not, outside `examples/runnable/`),
+  and its shrink-only baseline is the clause-2 burn-down list. (Amended 2026-11-10 by ROADMAP `D-67` ruling 7, which replaced "an
+  inline code block is itself a clause-2 defect"; complete runnable programs still prefer a
+  raw-loader import from `examples/`.)
 - **Clause 3 — Site build health.** `make docs-build` green, the Pages deploy passing, no broken
   internal links, no orphaned pages unreachable from the nav.
 - **Clause 4 — New features get pages.** Shipped features with no page are tracked and closed, read

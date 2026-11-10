@@ -65,7 +65,7 @@ AILANG replaces loops with **total, structurally recursive functions** and **hig
 
 ### Approach 1: Pattern Matching (Structural Recursion)
 
-<CodeBlock language="typescript" title="examples/runnable/no_loops_recursion.ail">
+<CodeBlock language="ailang" title="examples/runnable/no_loops_recursion.ail">
   {RecursionExample}
 </CodeBlock>
 
@@ -77,7 +77,7 @@ AILANG replaces loops with **total, structurally recursive functions** and **hig
 
 ### Approach 2: Fold Combinators (Catamorphisms)
 
-<CodeBlock language="typescript" title="examples/runnable/no_loops_fold.ail">
+<CodeBlock language="ailang" title="examples/runnable/no_loops_fold.ail">
   {FoldExample}
 </CodeBlock>
 
@@ -98,48 +98,48 @@ AILANG's iteration primitives obey **equational laws** that enable safe transfor
 ### Fold Laws
 
 **Identity**:
-```ailang
+```ailang sketch
 foldl(f, z, []) = z
 foldr(f, z, []) = z
 ```
 
 **Fusion** (fold-after-map):
-```ailang
+```ailang sketch
 foldl(f, z, map(g, xs)) = foldl(\acc x. f(acc, g(x)), z, xs)
 ```
 
 **Associativity** (for commutative operators):
-```ailang
+```ailang sketch
 foldl(f, z, xs ++ ys) = foldl(f, foldl(f, z, xs), ys)
 ```
 
 ### Map Laws
 
 **Identity**:
-```ailang
+```ailang sketch
 map(\x. x, xs) = xs
 ```
 
 **Composition**:
-```ailang
+```ailang sketch
 map(g, map(f, xs)) = map(\x. g(f(x)), xs)
 ```
 
 **Fusion** (map-after-map):
-```ailang
+```ailang sketch
 map(g, map(f, xs)) = map(\x. g(f(x)), xs)
 ```
 
 ### Effect Preservation
 
 **Pure functions preserve purity**:
-```ailang
+```ailang sketch
 -- map has no effect annotation → guaranteed pure
 map : ((a) -> b, [a]) -> [b]
 ```
 
 **Effectful functions propagate effects** (planned):
-```ailang
+```ailang sketch
 -- Future: mapM will propagate effects from the mapping function
 mapM : ((a) -> b ! {E}, [a]) -> [b] ! {E}
 ```
@@ -178,7 +178,7 @@ These laws **do not hold** for imperative loops (mutation breaks equational reas
 
 The most common loop patterns can be expressed as combinations of `filter`, `map`, and `foldl`:
 
-<CodeBlock language="typescript" title="examples/runnable/no_loops_filter_map.ail">
+<CodeBlock language="ailang" title="examples/runnable/no_loops_filter_map.ail">
   {FilterMapExample}
 </CodeBlock>
 

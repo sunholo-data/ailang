@@ -16,9 +16,10 @@
 # consulted: a shared checkout carries other sessions' edits.
 #
 # Second gate (2026-09-27): if the range touches Go, examples, changelogs, make files or
-# the generated docs, run `make ci-quick` in the same worktree (~25 s): gofmt, the
+# the generated docs, run `make ci-quick` in the same worktree (~55 s): gofmt, the
 # ARCHITECTURE.md closure section, the CLI reference, the devtools prompt commands, file
-# sizes, the changelog index, layer boundaries and the examples manifest. On 2026-09-27
+# sizes, the changelog index, layer boundaries, the examples manifest and the doc samples
+# (docs, README, std/ and prompt changes trigger it too). On 2026-09-27
 # three direct pushes turned dev red on exactly these (cli.md for rig-gate, the closure
 # count, manifest statistics), and every open PR inherited the red.
 #
@@ -39,7 +40,10 @@ gate_paths_regex='^(std/|\.stdlib-golden/|internal/(iface|types|builtins)/|tools
 
 # Paths whose change can make a ci-quick gate fail. Pushes touching none of these (design
 # docs, state files, benchmark data) skip it.
-quick_paths_regex='(\.go$|^go\.(mod|sum)$|^examples/|^changelogs/|^CHANGELOG\.md$|^ARCHITECTURE\.md$|^docs/docs/reference/cli\.md$|^prompts/|^make/|^Makefile$|^scripts/validate_manifest\.go$)'
+# The doc-sample gate (make check-doc-samples, in ci-quick) reads docs/docs, docs/src,
+# README.md, docs/LIMITATIONS.md, the prompt, examples/ and its two ratchet lists, and a
+# std/ change can break a sample as surely as a compiler change can.
+quick_paths_regex='(\.go$|^go\.(mod|sum)$|^examples/|^changelogs/|^CHANGELOG\.md$|^ARCHITECTURE\.md$|^docs/docs/|^docs/src/|^docs/LIMITATIONS\.md$|^README\.md$|^std/|^scripts/doc_samples_|^prompts/|^make/|^Makefile$|^scripts/validate_manifest\.go$)'
 
 changed_files() {
     # $1 base (may be empty), $2 head. Prints the changed paths; exit 1 when the range

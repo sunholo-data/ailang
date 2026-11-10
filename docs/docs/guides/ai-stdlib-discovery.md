@@ -21,7 +21,7 @@ can drift out of sync with the language.
 Dumps one deterministic, grep-able line per stdlib export — signature rendered from the
 AST, so effect rows are always complete:
 
-```
+```text
 std/clock.now: (()) -> int ! {Clock} -- Returns epoch time in seconds
 std/list.map: [a, b]((a) -> b, list[a]) -> list[b] -- Apply f to every element
 prelude.println: string -> () ! {IO} -- Available without import in entry modules

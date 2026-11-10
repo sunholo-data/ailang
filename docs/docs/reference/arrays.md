@@ -25,7 +25,7 @@ AILANG v0.5.6 introduces **fixed-size arrays** as a complement to linked lists. 
 
 Use `#[...]` to create arrays:
 
-```typescript
+```ailang
 -- Integer array
 let numbers: Array[int] = #[1, 2, 3, 4, 5]
 
@@ -47,7 +47,7 @@ let grid: Array[Array[int]] = #[
 
 The `Array[T]` type is parameterized by element type:
 
-```typescript
+```ailang
 -- Type annotations
 let xs: Array[int] = #[1, 2, 3]
 let ys: Array[string] = #["hello", "world"]
@@ -63,7 +63,7 @@ func processArray(arr: Array[int]) -> int { ... }
 
 Access elements by index (0-based):
 
-```typescript
+```ailang
 let arr = #[10, 20, 30, 40, 50]
 
 arr[0]  -- 10
@@ -77,7 +77,7 @@ arr[4]  -- 50
 
 Get array size:
 
-```typescript
+```ailang
 let arr = #[1, 2, 3, 4, 5]
 length(arr)  -- 5
 
@@ -89,7 +89,7 @@ length(empty)  -- 0
 
 Transform each element:
 
-```typescript
+```ailang
 let arr = #[1, 2, 3, 4, 5]
 let doubled = arrayMap(\x. x * 2, arr)
 -- #[2, 4, 6, 8, 10]
@@ -102,7 +102,7 @@ let strings = arrayMap(show, arr)
 
 Reduce array to single value:
 
-```typescript
+```ailang
 let arr = #[1, 2, 3, 4, 5]
 
 -- Sum
@@ -122,7 +122,7 @@ let max = arrayFold(\acc x. if x > acc then x else acc, arr[0], arr)
 
 Select elements matching a predicate:
 
-```typescript
+```ailang
 let arr = #[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
 
 let evens = arrayFilter(\x. x % 2 == 0, arr)
@@ -136,7 +136,7 @@ let large = arrayFilter(\x. x > 5, arr)
 
 Extract subarrays:
 
-```typescript
+```ailang
 let arr = #[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
 
 arraySlice(arr, 2, 5)  -- #[2, 3, 4] (from index 2, length 5)
@@ -150,7 +150,7 @@ arraySlice(arr, 7, 3)  -- #[7, 8, 9]
 
 Process each element:
 
-```typescript
+```ailang
 func printAll(arr: Array[string]) -> () ! {IO} {
   arrayForEach(\s. println(s), arr)
 }
@@ -166,7 +166,7 @@ printAll(#["Hello", "World", "!"])
 
 Search for elements:
 
-```typescript
+```ailang
 let arr = #[10, 20, 30, 40, 50]
 
 -- Find first matching element
@@ -182,7 +182,7 @@ let idx = arrayFindIndex(\x. x == 30, arr)
 
 Test array properties:
 
-```typescript
+```ailang
 let arr = #[2, 4, 6, 8, 10]
 
 -- All elements match predicate
@@ -196,7 +196,7 @@ arrayAny(\x. x > 8, arr)  -- true
 
 ### 2D Grids
 
-```typescript
+```ailang
 type Cell = Empty | Wall | Player | Enemy
 
 type Grid = Array[Array[Cell]]
@@ -222,7 +222,7 @@ func setCell(grid: Grid, x: int, y: int, cell: Cell) -> Grid {
 
 ### Entity Arrays
 
-```typescript
+```ailang
 type Entity = {
   id: int,
   x: float,
@@ -246,7 +246,7 @@ func filterAlive(entities: Array[Entity]) -> Array[Entity] {
 
 ### Buffers
 
-```typescript
+```ailang
 type RingBuffer[a] = {
   data: Array[a],
   head: int,
@@ -268,7 +268,7 @@ func push[a](buf: RingBuffer[a], item: a) -> RingBuffer[a] {
 Arrays compile to Go slices with proper typing:
 
 **AILANG:**
-```typescript
+```ailang
 let scores: Array[int] = #[100, 95, 87, 92]
 let total = arrayFold(\acc x. acc + x, 0, scores)
 ```
@@ -284,7 +284,7 @@ total := ArrayFold(func(acc, x int) int { return acc + x }, 0, scores)
 Arrays of ADTs compile to properly typed slices:
 
 **AILANG:**
-```typescript
+```ailang
 type Action = Move(int, int) | Attack(int) | Wait
 
 let actions: Array[Action] = #[

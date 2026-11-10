@@ -124,7 +124,7 @@ prompt pages**. The real site backlog is 342 blocks on 59 pages — about a fift
 ### Design Freeze
 
 - [ ] Normative syntax source (Decision 2 below)
-- [ ] Gate replaces "inline is a defect" in `docs-mission.md` clause 2 and `docs-sync` SKILL.md rule 2
+- [x] Gate replaces "inline is a defect" in `docs-mission.md` clause 2 and `docs-sync` SKILL.md rule 2
 - [ ] Support window wording (Decision 1)
 - [ ] Internal-docs mechanism (Decision 3)
 

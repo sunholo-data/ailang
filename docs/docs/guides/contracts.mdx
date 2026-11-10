@@ -104,7 +104,7 @@ and records runtime contract evidence as not measured unless separately supplied
 
 This example demonstrates core contract patterns:
 
-<CodeBlock language="typescript" title="examples/runnable/contracts/basic.ail">
+<CodeBlock language="ailang" title="examples/runnable/contracts/basic.ail">
   {BasicContracts}
 </CodeBlock>
 
@@ -118,7 +118,7 @@ ailang run --caps IO --entry main examples/runnable/contracts/basic.ail
 
 This example reproduces the park admission policy from the [ARC paper](https://arxiv.org/abs/2511.09008), demonstrating how AILANG can express the same policy models with machine-checkable contracts.
 
-<CodeBlock language="typescript" title="examples/runnable/contracts/park.ail">
+<CodeBlock language="ailang" title="examples/runnable/contracts/park.ail">
   {ParkExample}
 </CodeBlock>
 
@@ -237,7 +237,7 @@ This is where `ailang verify` becomes genuinely valuable. Invoice processing is 
 
 This single file combines every verification feature — enums, records, strings, lists, and cross-function calls — to model a realistic billing system:
 
-<CodeBlock language="typescript" title="examples/runnable/contracts/invoice.ail">
+<CodeBlock language="ailang" title="examples/runnable/contracts/invoice.ail">
   {InvoiceExample}
 </CodeBlock>
 
@@ -280,7 +280,7 @@ $ ailang verify examples/runnable/contracts/invoice.ail
 <details>
 <summary>Financial Calculations (simple cross-function + counterexample)</summary>
 
-<CodeBlock language="typescript" title="examples/runnable/contracts/finance.ail">
+<CodeBlock language="ailang" title="examples/runnable/contracts/finance.ail">
   {FinanceExample}
 </CodeBlock>
 
@@ -300,7 +300,7 @@ $ ailang verify examples/runnable/contracts/finance.ail
 <details>
 <summary>Access Control (enum-based security policy)</summary>
 
-<CodeBlock language="typescript" title="examples/runnable/contracts/access_control.ail">
+<CodeBlock language="ailang" title="examples/runnable/contracts/access_control.ail">
   {AccessControlExample}
 </CodeBlock>
 
@@ -309,7 +309,7 @@ $ ailang verify examples/runnable/contracts/finance.ail
 <details>
 <summary>Temperature Conversion (physical constraints)</summary>
 
-<CodeBlock language="typescript" title="examples/runnable/contracts/temperature.ail">
+<CodeBlock language="ailang" title="examples/runnable/contracts/temperature.ail">
   {TemperatureExample}
 </CodeBlock>
 
@@ -320,7 +320,7 @@ $ ailang verify examples/runnable/contracts/finance.ail
 
 Five enum types combine to create 768 distinct execution paths. A human reviewer would need to trace every combination — Z3 does it in milliseconds:
 
-<CodeBlock language="typescript" title="examples/runnable/contracts/insurance.ail">
+<CodeBlock language="ailang" title="examples/runnable/contracts/insurance.ail">
   {InsuranceExample}
 </CodeBlock>
 
@@ -346,7 +346,7 @@ Z3 found that `discountPercent=101` causes a negative result — invisible when 
 
 Department weights can push scores above 100 for specific enum combinations. Z3 finds the exact combination:
 
-<CodeBlock language="typescript" title="examples/runnable/contracts/scoring.ail">
+<CodeBlock language="ailang" title="examples/runnable/contracts/scoring.ail">
   {ScoringExample}
 </CodeBlock>
 
@@ -368,7 +368,7 @@ EXPERT(95) + POOR(0) = 95, × ENGINEERING(110%) = 104, + JUNIOR(5) = 109 > 100. 
 
 Functions that call other user-defined functions are verified by **inlining the callee as a `define-fun`** in the SMT-LIB context. Z3 then reasons about the caller with full knowledge of what the callee computes:
 
-<CodeBlock language="typescript" title="examples/runnable/contracts/cross_function.ail">
+<CodeBlock language="ailang" title="examples/runnable/contracts/cross_function.ail">
   {CrossFunctionExample}
 </CodeBlock>
 
@@ -399,7 +399,7 @@ $ ailang verify examples/runnable/contracts/cross_function.ail
 
 Records can be verified by Z3. Record parameters are mapped to SMT-LIB `declare-datatype` declarations with named field accessors, enabling contracts that reference record fields:
 
-<CodeBlock language="typescript" title="examples/runnable/contracts/record_verify.ail">
+<CodeBlock language="ailang" title="examples/runnable/contracts/record_verify.ail">
   {RecordVerifyExample}
 </CodeBlock>
 
@@ -431,7 +431,7 @@ $ ailang verify examples/runnable/contracts/record_verify.ail
 
 Record types are automatically discovered from **all positions** — not just function parameters. This means you can use record types in return annotations, construct records in function bodies, and reference record fields in ensures clauses:
 
-<CodeBlock language="typescript" title="examples/runnable/contracts/record_discovery_verify.ail">
+<CodeBlock language="ailang" title="examples/runnable/contracts/record_discovery_verify.ail">
   {RecordDiscoveryExample}
 </CodeBlock>
 
@@ -459,7 +459,7 @@ If parameter names match record field names (e.g., `makePoint(x: int, y: int) ->
 
 String parameters, literals, concatenation, length, comparison, and substring operations can all be verified by Z3 using its built-in string theory:
 
-<CodeBlock language="typescript" title="examples/runnable/contracts/string_verify.ail">
+<CodeBlock language="ailang" title="examples/runnable/contracts/string_verify.ail">
   {StringVerifyExample}
 </CodeBlock>
 
@@ -501,7 +501,7 @@ Use `import std/string` to access these functions. The verifier resolves stdlib 
 
 List parameters, literals, length, head, nth, and cons can all be verified by Z3 using its built-in sequence theory:
 
-<CodeBlock language="typescript" title="examples/runnable/contracts/list_verify.ail">
+<CodeBlock language="ailang" title="examples/runnable/contracts/list_verify.ail">
   {ListVerifyExample}
 </CodeBlock>
 
@@ -540,7 +540,7 @@ Use `import std/list (length)` for list length. The raw builtins `_list_head` an
 
 Recursive functions were previously outside the decidable fragment. With **bounded unrolling**, `ailang verify` can now verify recursive functions by generating a chain of `define-fun` declarations at a configurable depth (Dafny-style approach):
 
-<CodeBlock language="typescript" title="examples/runnable/contracts/recursive_verify.ail">
+<CodeBlock language="ailang" title="examples/runnable/contracts/recursive_verify.ail">
   {RecursiveVerifyExample}
 </CodeBlock>
 
@@ -653,7 +653,7 @@ Functions outside the fragment are skipped with clear messages explaining why an
 A guard can return a successful value or a structured error and state its
 postcondition by matching the result:
 
-<CodeBlock language="typescript" title="examples/runnable/contracts/result_error_guard.ail">
+<CodeBlock language="ailang" title="examples/runnable/contracts/result_error_guard.ail">
   {ResultErrorGuardExample}
 </CodeBlock>
 
@@ -769,7 +769,7 @@ In Go, `if` is a statement, assignment mutates variables, and `switch` can fall 
 
 AILANG compiles surface syntax into a Core intermediate representation that's already in let-normal form. By the time the SMT encoder sees the code, complex subexpressions are broken into named bindings:
 
-```
+```ailang sketch
 -- Surface AILANG
 manhattan(p) + getX(p)
 

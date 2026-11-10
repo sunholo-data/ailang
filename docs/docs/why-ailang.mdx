@@ -76,7 +76,7 @@ This means you can:
 
 Side effects are the #1 source of bugs in production systems. AILANG makes them visible:
 
-```
+```ailang
 let processFile: string -> ! {FS, IO} string =
   \path.
     let content = readFile(path)

@@ -114,7 +114,7 @@ The following examples show AILANG syntax for reference. **You don't need to wri
 
 The simplest AILANG program:
 
-<CodeBlock language="typescript" title="examples/runnable/hello.ail">
+<CodeBlock language="ailang" title="examples/runnable/hello.ail">
   {HelloExample}
 </CodeBlock>
 
@@ -135,7 +135,7 @@ ailang run --caps IO --entry main examples/runnable/hello.ail
 
 AILANG is a pure functional language with built-in testing. This example shows both:
 
-<CodeBlock language="typescript" title="examples/runnable/recursion_factorial.ail">
+<CodeBlock language="ailang" title="examples/runnable/recursion_factorial.ail">
   {FactorialExample}
 </CodeBlock>
 
@@ -164,7 +164,7 @@ ailang test examples/runnable/recursion_factorial.ail
 
 Use the FS (file system) effect to read files:
 
-<CodeBlock language="typescript" title="examples/docs/read_file.ail">
+<CodeBlock language="ailang" title="examples/docs/read_file.ail">
   {ReadFileExample}
 </CodeBlock>
 
@@ -185,7 +185,7 @@ ailang run --caps IO,FS --args-json '"README.md"' --entry main examples/docs/rea
 
 Call AI models directly from AILANG:
 
-<CodeBlock language="typescript" title="examples/runnable/ai_effect.ail">
+<CodeBlock language="ailang" title="examples/runnable/ai_effect.ail">
   {AIEffectExample}
 </CodeBlock>
 
@@ -210,7 +210,7 @@ ailang run --caps IO,AI --ai claude-haiku-4-5 --entry main examples/runnable/ai_
 
 Combine FS and AI effects for a useful tool:
 
-<CodeBlock language="typescript" title="examples/docs/summarize_file.ail">
+<CodeBlock language="ailang" title="examples/docs/summarize_file.ail">
   {SummarizeFileExample}
 </CodeBlock>
 
@@ -226,7 +226,7 @@ ailang run --caps IO,FS,AI --ai claude-haiku-4-5 \
 
 Work with structured data:
 
-<CodeBlock language="typescript" title="examples/docs/records_person.ail">
+<CodeBlock language="ailang" title="examples/docs/records_person.ail">
   {RecordsPersonExample}
 </CodeBlock>
 
@@ -241,7 +241,7 @@ ailang run --caps IO --entry main examples/docs/records_person.ail
 
 Define custom types with variants and pattern matching:
 
-<CodeBlock language="typescript" title="examples/docs/adt_option_pattern.ail">
+<CodeBlock language="ailang" title="examples/docs/adt_option_pattern.ail">
   {ADTOptionExample}
 </CodeBlock>
 
@@ -263,7 +263,7 @@ Doubled: 84
 
 Functional programming with lambdas and higher-order functions:
 
-<CodeBlock language="typescript" title="examples/docs/lambdas_full.ail">
+<CodeBlock language="ailang" title="examples/docs/lambdas_full.ail">
   {LambdasFullExample}
 </CodeBlock>
 
@@ -286,7 +286,7 @@ doubleThenInc(5) = 11
 
 A complete implementation showing arrays, ADTs, and pure functions:
 
-<CodeBlock language="typescript" title="examples/runnable/conway_grid.ail">
+<CodeBlock language="ailang" title="examples/runnable/conway_grid.ail">
   {ConwayGridExample}
 </CodeBlock>
 
@@ -312,7 +312,7 @@ ailang repl
 ```
 
 **Try these expressions:**
-```
+```ailang repl
 λ> 1 + 2
 3 :: Int
 

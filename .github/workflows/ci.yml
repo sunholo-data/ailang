@@ -523,6 +523,50 @@ jobs:
     - name: Check frozen prompt immutability and mirror agreement
       run: make check-prompt-freeze
 
+    # Doc-sample gate (M-V1-DOCS-FOR-1-0 §A): every AILANG block on the site, in
+    # README.md, docs/LIMITATIONS.md, the active prompt, docs/src and every .ail file
+    # the docs import must pass `ailang check` with the binary `make install` built
+    # above from THIS commit, or be tagged. It runs on every PR and push, not only on
+    # docs changes: a compiler change can break a sample, which is the point.
+    #
+    # -base-ref is the shrink-only ratchet on scripts/doc_samples_{baseline,unchecked}.txt
+    # (a SET rule). Its base must be the state BEFORE this change: the PR's base commit,
+    # or on a push the previous tip (`before`). origin/dev is wrong on a push — it IS the
+    # commit just pushed, so the ratchet would compare the lists with themselves. A new
+    # branch (all-zero `before`) uses its merge-base with origin/dev; a force-push's
+    # `before` is fetched by SHA; anything unresolvable fails the job.
+    - name: Resolve the doc-sample ratchet base
+      id: docsamples-base
+      env:
+        EVENT: ${{ github.event_name }}
+        PR_BASE: ${{ github.event.pull_request.base.sha }}
+        BEFORE: ${{ github.event.before }}
+      run: |
+        set -euo pipefail
+        case "$EVENT" in
+          pull_request) base="$PR_BASE" ;;
+          push)
+            if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+              base=$(git merge-base HEAD origin/dev)
+            else
+              base="$BEFORE"
+            fi ;;
+          *) base=$(git rev-parse HEAD~1) ;;
+        esac
+        if ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+          git fetch --no-tags origin "$base" || true
+        fi
+        git cat-file -e "${base}^{commit}" 2>/dev/null \
+          || { echo "::error::doc-sample ratchet base $base ($EVENT) cannot be resolved; failing closed"; exit 1; }
+        echo "doc-sample ratchet base: $base ($EVENT)"
+        echo "base=$base" >> "$GITHUB_OUTPUT"
+
+    - name: Check documentation code samples
+      run: make check-doc-samples DOC_SAMPLES_AILANG="$(go env GOPATH)/bin/ailang" DOC_SAMPLES_ARGS="-github -base-ref ${{ steps.docsamples-base.outputs.base }}"
+
+    - name: Doc-sample gate self-test
+      run: make test-check-doc-samples DOC_SAMPLES_AILANG="$(go env GOPATH)/bin/ailang"
+
     # M-V1-SIMPLIFY-S5 M3/M6: the devtools prompt may only teach routes the
     # binary accepts, and the generated CLI reference must match the dispatch
     # table. Both are gate-shaped make targets; cihygiene's

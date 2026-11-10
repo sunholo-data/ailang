@@ -437,7 +437,7 @@ value is a startup error.
 - **Header auth (`_headers` on MCP)** — A declared `_headers: Json` parameter binds the HTTP headers of the `tools/call` request, the same contract as the REST `@route` path. It is never advertised in `inputSchema`, and a `_headers` key in the client's arguments is ignored, so headers cannot be forged. Keys arrive canonicalized (`Authorization`, `X-Api-Key`). On stdio it binds to an empty object. Use it to take an API key from a header so the agent never holds the key in model context (MCP registries inject secrets only as headers).
 - **Optional parameters (`@optional`)** — `@optional("apiKey", ...)` drops the named params from the tool's `required` list; an absent or `null` value binds to the type's zero value (`""`, `0`, `false`, `[]`, `{}`) instead of being rejected. Names are checked at registration: a name that is not a parameter, is `_headers`, or has a type with no zero value (e.g. `Json`) is logged as an `ERROR` and the tool is not registered.
 
-  ```ailang
+  ```ailang sketch
   -- Key from the argument, else Authorization: Bearer, else X-API-Key
   @optional("apiKey")
   export func whoami(apiKey: string, _headers: Json) -> string { ... }
@@ -1560,7 +1560,7 @@ names them:
 ailang serve-api --caps Stream --bind 127.0.0.1 --ws-pass-header Tailscale-User-Login ./server/
 ```
 
-```ailang
+```ailang sketch
 @route("WS", "/live")
 export func live(client: StreamConn, req: {path: string, headers: [{name: string, value: string}]}) -> unit ! {Stream} = ...
 ```

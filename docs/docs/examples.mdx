@@ -41,7 +41,7 @@ Learn AILANG through interactive examples. Each example demonstrates a key featu
 
 The simplest AILANG program with I/O effects:
 
-<CodeBlock language="typescript" title="examples/runnable/hello.ail">
+<CodeBlock language="ailang" title="examples/runnable/hello.ail">
   {HelloExample}
 </CodeBlock>
 
@@ -63,7 +63,7 @@ ailang run --caps IO examples/runnable/hello.ail
 
 AILANG uses recursion instead of loops for deterministic control flow:
 
-<CodeBlock language="typescript" title="examples/runnable/recursion_factorial.ail">
+<CodeBlock language="ailang" title="examples/runnable/recursion_factorial.ail">
   {FactorialExample}
 </CodeBlock>
 
@@ -89,7 +89,7 @@ ailang run --caps IO examples/runnable/recursion_factorial.ail
 
 Pattern matching is AILANG's primary control flow mechanism:
 
-<CodeBlock language="typescript" title="examples/runnable/list_sum.ail">
+<CodeBlock language="ailang" title="examples/runnable/list_sum.ail">
   {ListSumExample}
 </CodeBlock>
 
@@ -117,7 +117,7 @@ ailang run examples/runnable/list_sum.ail
 
 Define custom types with multiple constructors:
 
-<CodeBlock language="typescript" title="examples/runnable/adt_tree.ail">
+<CodeBlock language="ailang" title="examples/runnable/adt_tree.ail">
   {ADTTreeExample}
 </CodeBlock>
 
@@ -148,7 +148,7 @@ Node count: 5
 
 Functions can declare multiple effects they perform:
 
-<CodeBlock language="typescript" title="examples/runnable/effects_fs_io.ail">
+<CodeBlock language="ailang" title="examples/runnable/effects_fs_io.ail">
   {EffectsFsIoExample}
 </CodeBlock>
 
@@ -170,7 +170,7 @@ ailang run --caps IO,FS examples/runnable/effects_fs_io.ail
 
 Functions can be generic over effects. This allows writing reusable code that works with any combination of capabilities:
 
-```typescript
+```ailang
 -- Effect row polymorphism: {IO | e} means "IO plus any other effects"
 -- This allows functions to compose while preserving effect safety
 ```
@@ -188,7 +188,7 @@ Functions can be generic over effects. This allows writing reusable code that wo
 
 AILANG infers types automatically using Hindley-Milner:
 
-<CodeBlock language="typescript" title="examples/runnable/type_inference.ail">
+<CodeBlock language="ailang" title="examples/runnable/type_inference.ail">
   {TypeInferenceExample}
 </CodeBlock>
 
@@ -210,7 +210,7 @@ ailang run --caps IO examples/runnable/type_inference.ail
 
 Records are structural types with width subtyping:
 
-<CodeBlock language="typescript" title="examples/runnable/records.ail">
+<CodeBlock language="ailang" title="examples/runnable/records.ail">
   {RecordsExample}
 </CodeBlock>
 
@@ -234,7 +234,7 @@ ailang run examples/runnable/records.ail
 A numeric literal such as `0` or `2` takes the type it is used at. So `f >= 0`, `2 * f`,
 a float function that returns `0`, and `make(3, 0)` for an `Array[float]` all produce floats:
 
-<CodeBlock language="typescript" title="examples/runnable/float_int_literals.ail">
+<CodeBlock language="ailang" title="examples/runnable/float_int_literals.ail">
   {FloatIntLiteralsExample}
 </CodeBlock>
 
@@ -259,7 +259,7 @@ ailang run --caps IO examples/runnable/float_int_literals.ail
 
 Parse and work with JSON data:
 
-<CodeBlock language="typescript" title="examples/runnable/json_parsing.ail">
+<CodeBlock language="ailang" title="examples/runnable/json_parsing.ail">
   {JsonParsingExample}
 </CodeBlock>
 
@@ -281,7 +281,7 @@ ailang run --caps IO examples/runnable/json_parsing.ail
 
 Make HTTP requests with the Net effect:
 
-<CodeBlock language="typescript" title="examples/runnable/http_simple.ail">
+<CodeBlock language="ailang" title="examples/runnable/http_simple.ail">
   {HttpSimpleExample}
 </CodeBlock>
 
@@ -305,7 +305,7 @@ ailang run --caps IO,Net examples/runnable/http_simple.ail
 
 Read and inspect ZIP archives (including .docx, .xlsx, .pptx files):
 
-<CodeBlock language="typescript" title="examples/runnable/zip_reader.ail">
+<CodeBlock language="ailang" title="examples/runnable/zip_reader.ail">
   {ZipReaderExample}
 </CodeBlock>
 
@@ -328,7 +328,7 @@ ailang run --caps IO,FS examples/runnable/zip_reader.ail
 
 Parse and query XML documents (pure functions, no effects needed):
 
-<CodeBlock language="typescript" title="examples/runnable/xml_parser.ail">
+<CodeBlock language="ailang" title="examples/runnable/xml_parser.ail">
   {XmlParserExample}
 </CodeBlock>
 
@@ -351,7 +351,7 @@ ailang run examples/runnable/xml_parser.ail
 
 Match, find, capture, replace and split with `std/regex`, which uses the linear-time RE2 engine. See the [standard library reference](/docs/reference/stdlib):
 
-<CodeBlock language="typescript" title="examples/runnable/regex_basics.ail">
+<CodeBlock language="ailang" title="examples/runnable/regex_basics.ail">
   {RegexBasicsExample}
 </CodeBlock>
 
@@ -376,7 +376,7 @@ ailang run --caps IO examples/runnable/regex_basics.ail
 
 Check a fast algorithm against a slow, obviously-correct reference on generated inputs. `ailang test` runs each `property` on 100 generated cases and prints the failing input as a counterexample:
 
-<CodeBlock language="typescript" title="examples/runnable/property_differential_testing.ail">
+<CodeBlock language="ailang" title="examples/runnable/property_differential_testing.ail">
   {PropertyDifferentialExample}
 </CodeBlock>
 
@@ -403,7 +403,7 @@ The competitive-programming toolkit in pure AILANG: a visited set, tuple and rec
 
 Shortest path on a grid with a visited `Set[(int, int)]` and a list frontier:
 
-<CodeBlock language="typescript" title="examples/runnable/visited_set_bfs.ail">
+<CodeBlock language="ailang" title="examples/runnable/visited_set_bfs.ail">
   {VisitedSetBfsExample}
 </CodeBlock>
 
@@ -423,7 +423,7 @@ ailang run --caps IO examples/runnable/visited_set_bfs.ail
 
 Count moves until a `(row, col, Dir)` state repeats:
 
-<CodeBlock language="typescript" title="examples/runnable/cycle_detection_visited_set.ail">
+<CodeBlock language="ailang" title="examples/runnable/cycle_detection_visited_set.ail">
   {CycleDetectionExample}
 </CodeBlock>
 
@@ -442,7 +442,7 @@ ailang run --caps IO examples/runnable/cycle_detection_visited_set.ail
 
 Tuples, records and ADT constructors as `std/map` keys:
 
-<CodeBlock language="typescript" title="examples/runnable/map_tuple_record_keys.ail">
+<CodeBlock language="ailang" title="examples/runnable/map_tuple_record_keys.ail">
   {MapTupleRecordKeysExample}
 </CodeBlock>
 
@@ -462,7 +462,7 @@ ailang run --caps IO examples/runnable/map_tuple_record_keys.ail
 
 Interval coverage, a histogram and a per-bucket max, each with one array copy:
 
-<CodeBlock language="typescript" title="examples/runnable/difference_array_accumulate.ail">
+<CodeBlock language="ailang" title="examples/runnable/difference_array_accumulate.ail">
   {DifferenceArrayExample}
 </CodeBlock>
 
@@ -483,7 +483,7 @@ ailang run --caps IO examples/runnable/difference_array_accumulate.ail
 
 Values are immutable, so `A.set`, `A.append`, `M.insert` and `acc ++ [x]` each copy the whole structure. Doing one per loop step is quadratic. Build the structure once instead. See [Arrays](/docs/reference/arrays):
 
-<CodeBlock language="typescript" title="examples/runnable/bulk_build_cost_model.ail">
+<CodeBlock language="ailang" title="examples/runnable/bulk_build_cost_model.ail">
   {BulkBuildCostModelExample}
 </CodeBlock>
 
@@ -507,7 +507,7 @@ ailang run --caps IO examples/runnable/bulk_build_cost_model.ail
 
 Functions are first-class values:
 
-<CodeBlock language="typescript" title="examples/runnable/lambdas_higher_order.ail">
+<CodeBlock language="ailang" title="examples/runnable/lambdas_higher_order.ail">
   {LambdasHigherOrderExample}
 </CodeBlock>
 
@@ -530,7 +530,7 @@ ailang run --caps IO examples/runnable/lambdas_higher_order.ail
 
 Multiple functions can call each other:
 
-<CodeBlock language="typescript" title="examples/runnable/recursion_mutual.ail">
+<CodeBlock language="ailang" title="examples/runnable/recursion_mutual.ail">
   {MutualRecursionExample}
 </CodeBlock>
 
@@ -552,7 +552,7 @@ ailang run --caps IO examples/runnable/recursion_mutual.ail
 
 A loop is a local recursive lambda with accumulator parameters. The recursive call is a tail call, so a million iterations run in constant stack:
 
-<CodeBlock language="typescript" title="examples/runnable/local_letrec_loop.ail">
+<CodeBlock language="ailang" title="examples/runnable/local_letrec_loop.ail">
   {LocalLetrecLoopExample}
 </CodeBlock>
 
