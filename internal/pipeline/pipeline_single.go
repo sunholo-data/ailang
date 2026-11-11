@@ -260,31 +260,42 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 
 	// M-DX25.4: Pass constructor → ADT type mappings to type checker
 	// This enables correct type inference for pattern matching on ADTs
+	// M-V1-NOMINAL-TYPE-IDENTITY: this file's types are declared in the
+	// elaborator's module identity; every type-keyed table uses it.
+	singleModID := elaborator.ModuleID()
 	elabCtors := elaborator.GetConstructors()
 	if len(elabCtors) > 0 {
 		ctorTypes := make(map[string]string)
-		adtTypeParams := make(map[string]int) // M-TAPP-FIX: Track type param counts
+		ctorModules := make(map[string]string)
+		adtTypeParams := make(map[string]int) // M-TAPP-FIX: keyed by types.NominalKey
 		for ctorName, ctorInfo := range elabCtors {
 			ctorTypes[ctorName] = ctorInfo.TypeName
+			ctorModules[ctorName] = ctorInfo.Module
 			// M-TAPP-FIX: Only set if not already set (first ctor wins, all should have same count)
-			if _, exists := adtTypeParams[ctorInfo.TypeName]; !exists {
-				adtTypeParams[ctorInfo.TypeName] = ctorInfo.TypeParamCount
+			if adtKey := types.NominalKey(ctorInfo.Module, ctorInfo.TypeName); true {
+				if _, exists := adtTypeParams[adtKey]; !exists {
+					adtTypeParams[adtKey] = ctorInfo.TypeParamCount
+				}
 			}
 		}
 		typeChecker.SetConstructorTypes(ctorTypes)
+		typeChecker.SetConstructorModules(ctorModules)
 		typeChecker.SetADTTypeParams(adtTypeParams) // M-TAPP-FIX
 	}
 
 	// M-BUGFIX: Pass type aliases to type checker for expansion during unification
 	// This enables `type Coord = {x: int, y: int}` to work with ADT variants
-	elabAliases := elaborator.GetTypeAliases()
-	for name, target := range elabAliases {
-		typeChecker.RegisterTypeAlias(name, target)
-	}
 	// M-XMOD-ALIAS-POLY: register parameterized-alias params so applied uses
 	// (`Box[int]`) instantiate their body during unification.
-	for name, params := range elaborator.GetTypeAliasParams() {
-		typeChecker.RegisterTypeAliasParams(name, params)
+	singleAliases := qualifiedAliasEnv(singleModID, &moduleImports{}, elaborator)
+	for key, target := range singleAliases.Bodies {
+		typeChecker.RegisterTypeAlias(key, target)
+	}
+	for key, params := range singleAliases.Params {
+		typeChecker.RegisterTypeAliasParams(key, params)
+	}
+	for key := range singleAliases.Newtypes {
+		typeChecker.RegisterNewtypeADT(key)
 	}
 
 	// M-FIX-FLOAT-OP: Pass parameter type annotations to type checker
@@ -317,7 +328,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 
 	// M-DX19 + M-EQ-DERIVE-CONTAINERS: register `deriving (Eq)` instances and
 	// require Eq of every field
-	if err := registerDerivedEq(cfg, elaborator, nil); err != nil {
+	if err := registerDerivedEq(cfg, singleModID, elaborator, singleAliases.Bodies); err != nil {
 		return result, err
 	}
 

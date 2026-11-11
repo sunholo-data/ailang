@@ -141,11 +141,50 @@ design constraint.
 
 ## Same-named types across imports
 
-Nonrecursive nullary alias bodies, exported function types and constructor fields
-are closed in their defining module. Importing an unrelated `Item` or `Planet`
-therefore cannot change a name nested inside another module's exported type.
-Applied parameterized alias heads and recursive references remain unresolved;
-nominal ADT names are not module-qualified. Local capture of residual names retains
-`TC_TYPE_SHADOW_001`. When the importer itself writes an ambiguous bare type name,
-explicit imports still use last-wins and bulk alias imports first-wins behavior.
-Import ambiguity diagnostics and REPL/WASM/SMT top-level name merging are deferred.
+Since M-V1-NOMINAL-TYPE-IDENTITY (M2) a nominal type is its **defining module plus its
+name**: `q/a`'s `type T` and `q/b`'s `type T` are different types, and mixing them is
+`TC_NOMINAL_001` at `check` (it used to type-check and fail at run time). A local `type T`
+no longer captures an imported `T`, an imported alias body keeps the types it names, and a
+module may declare its own `Map`, `List`, `Json`, … (its own wins over the built-in).
+Using the two types disjointly (`Ma.desc(Ma.mk())`, `Mb.desc(Mb.mk())`) is fine.
+A bare name never depends on import order: two explicit imports of one type or constructor
+name are `MOD015`; a type name two imported modules export is `TC_AMBIGUOUS_TYPE_001` unless it
+is declared locally, imported by name, a built-in or a prelude name; a name no imported module
+exports may be resolved through a module reached indirectly (one candidate), and is ambiguous
+when two such modules declare it; a constructor two imported modules offer is resolved in a
+pattern by the scrutinee's type (once inference has decided it, whatever the order of the code),
+and is `TC_AMBIGUOUS_CTOR_001` where nothing decides it and in an expression. While undecided, a
+let-bound function matching it is not generic: using it at two types is `TC_AMBIGUOUS_CTOR_001`
+(import the constructor by name). A built-in name (`Map`, `List`, `Bytes`, …)
+means the built-in unless the module declares or imports its own: a module that writes `Map`
+meaning a dependency's `Map` must import it by name (`import dep (Map)`); the `TC_NOMINAL_001`
+diagnostic says so. The implicit prelude (`Option`, `Result`, `Some`, `None`, `Ok`, `Err`) is
+the lowest-precedence binding: a module's own declaration or import of any of them wins.
+The REPL/WASM module registry follows the same rules, except that it has no import closure:
+every loaded module is reachable, and a constructor offered by exactly one directly imported
+module is used before the other loaded modules are considered.
+
+Still open:
+
+- An undeclared type name is still an opaque type of the module that writes it rather
+  than `TC_UNBOUND_TYPE_001` (#1485); duplicate funcs/types/constructors in one module
+  are not yet `MOD007` (#1278).
+- Three back-end tables key by bare type name: the bytecode VM's ADT tables (two same-named
+  ADTs with *different* constructors used in one program fail under `--strict-bytecode` with
+  `BC001`; the evaluator runs them), the SMT encoder behind `check --verify`, and the Go
+  emitter (`--emit-go`), which strips the module and names Go types by bare name.
+- Records are structural, so a record type's `==` is decided by its declared name: if any
+  imported module declares a record of the same name with `deriving (Eq)`, a same-shaped
+  record of another module gets `==` too. The comparison is structurally correct, and a record
+  with a field that has no `==` (a function) is still rejected.
+- A single-constructor ADT wrapping a record (`type W = W({x: int})`) keeps its identity
+  against every other nominal type, but still converts implicitly to and from its record
+  (for field access), so one such type can reach another through a record-typed value, and a
+  bare record is accepted where it is expected — a soundness hole (#2239, with #2233 and
+  #2234; pre-existing).
+- A bare type name resolved only through an indirect dependency can become ambiguous when another
+  indirect dependency adds the name, and an added import that exports the name re-points it (as
+  on dev); import the type by name to pin it. A constructor pattern's argument count is not
+  checked against the constructor (#2243, pre-existing).
+- An uppercase name in a type-parameter list (`func id[T](x: T)`) is not a type variable: `T`
+  is a type constructor (#2240). Inline function-literal annotations are not enforced (#2238).

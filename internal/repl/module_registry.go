@@ -24,6 +24,7 @@ type ModuleRegistry struct {
 // CachedConstructor stores constructor info for cross-module import resolution
 type CachedConstructor struct {
 	TypeName       string
+	Module         string // the ADT's defining module (M-V1-NOMINAL-TYPE-IDENTITY)
 	CtorName       string
 	Arity          int
 	TypeParamCount int
@@ -99,30 +100,30 @@ func (r *RegistryResolver) ResolveValue(ref core.GlobalRef) (eval.Value, error) 
 
 // resolveAdtFactory resolves $adt.make_Type_Ctor constructor factories
 func (r *RegistryResolver) resolveAdtFactory(ref core.GlobalRef) (eval.Value, error) {
-	// Parse "make_Option_Some" -> TypeName="Option", CtorName="Some"
+	// Parse "make_Option_Some@std/option" -> TypeName="Option", CtorName="Some"
 	name := ref.Name
-	if len(name) < 6 || name[:5] != "make_" {
+	module, typeName, ctorName, ok := core.ParseADTFactoryName(name)
+	if !ok {
 		return nil, fmt.Errorf("invalid $adt factory name: %s", name)
 	}
 
-	rest := name[5:]
-	underscoreIdx := -1
-	for i := 0; i < len(rest); i++ {
-		if rest[i] == '_' {
-			underscoreIdx = i
-			break
+	// Look up constructor in registry cache
+	// The table is keyed by (module, constructor) (M-V1-NOMINAL-TYPE-IDENTITY);
+	// a factory name always carries its module here, so the lookup is exact.
+	r.registry.mu.RLock()
+	ctor, ok := r.registry.constructors[ctorKey(module, ctorName)]
+	if !ok && module == "" {
+		// Hand-built Core without a module: accept only an unambiguous name.
+		var hits []*CachedConstructor
+		for _, c := range r.registry.constructors {
+			if c.CtorName == ctorName && c.TypeName == typeName {
+				hits = append(hits, c)
+			}
+		}
+		if len(hits) == 1 {
+			ctor, ok = hits[0], true
 		}
 	}
-	if underscoreIdx < 0 {
-		return nil, fmt.Errorf("invalid $adt factory format: %s", name)
-	}
-
-	typeName := rest[:underscoreIdx]
-	ctorName := rest[underscoreIdx+1:]
-
-	// Look up constructor in registry cache
-	r.registry.mu.RLock()
-	ctor, ok := r.registry.constructors[ctorName]
 	r.registry.mu.RUnlock()
 
 	if !ok || ctor.TypeName != typeName {
@@ -141,7 +142,7 @@ func (r *RegistryResolver) resolveAdtFactory(ref core.GlobalRef) (eval.Value, er
 	// Non-nullary: return factory function
 	expectedArity := ctor.Arity
 	return &eval.BuiltinFunction{
-		Name: ref.Name,
+		Name: core.ADTFactoryDisplayName(ref.Name),
 		Fn: func(args []eval.Value) (eval.Value, error) {
 			if len(args) != expectedArity {
 				return nil, fmt.Errorf("constructor %s.%s expects %d arguments, got %d",
@@ -162,6 +163,12 @@ type RegisteredModule struct {
 	Source      string                // Original source code
 	Exports     map[string]*Export    // Exported functions and values
 	TypeAliases map[string]types.Type // Type aliases declared in this module (for cross-module signature resolution)
+	// TypeNames: the types this module declares, so importers resolve a bare
+	// name to this module (M-V1-NOMINAL-TYPE-IDENTITY).
+	TypeNames []string
+	// Newtypes: aliases in TypeAliases that are single-constructor ADTs
+	// wrapping a record (field access only; they stay nominal).
+	Newtypes map[string]bool
 }
 
 // Export represents a single exported function or value from a module.

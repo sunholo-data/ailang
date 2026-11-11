@@ -54,8 +54,14 @@ func (t *TVar) Substitute(subs map[string]Type) Type {
 }
 
 // TCon represents a type constructor (int, bool, string, etc.)
+//
+// Module is the defining module of a nominal type (M-V1-NOMINAL-TYPE-IDENTITY):
+// two TCons denote the same type only when Name AND Module agree. It is empty
+// only for module-less names (primitives, structural heads); see nominal.go.
+// String() renders the bare Name, so display and interface hashes are unchanged.
 type TCon struct {
-	Name string
+	Name   string
+	Module string
 }
 
 func (t *TCon) String() string {
@@ -64,7 +70,7 @@ func (t *TCon) String() string {
 
 func (t *TCon) Equals(other Type) bool {
 	if o, ok := other.(*TCon); ok {
-		return t.Name == o.Name
+		return NominalSame(t, o)
 	}
 	return false
 }

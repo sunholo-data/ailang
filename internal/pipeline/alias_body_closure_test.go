@@ -104,20 +104,36 @@ export pure func main() -> int { match wrapped() { Wrap(i) => i.x } }
 	}
 }
 
-func TestAliasBodyClosure_ResidualNominalCaptureIsLoud(t *testing.T) {
-	files := map[string]string{
-		"a.ail": `module a
+// M-V1-NOMINAL-TYPE-IDENTITY replaced M-TYPE-NAME-SHADOW's residual-capture
+// error (TC_TYPE_SHADOW_001): an imported alias body names a.Item, which a
+// local `type Item` can no longer capture, so using the alias is legal and
+// expands to a's Item. Putting the LOCAL Item where a's is expected is still
+// rejected, now as a nominal mismatch.
+func TestAliasBodyClosure_ImportedBodyNotCapturedByLocalName(t *testing.T) {
+	a := `module a
 export type Item = Empty | Full(int)
 export type Box = {items: [Item]}
 export pure func mk() -> Box { {items:[Full(1)]} }
-`,
-		"main.ail": `module main
+`
+	ok := map[string]string{"a.ail": a, "main.ail": `module main
 import a (Box, mk)
 type Item = {y: string}
 export pure func main(b: Box) -> int { match b.items { [] => 0, _ :: _ => 1 } }
 `}
-	err := checkModules(t, files)
-	if err == nil || !strings.Contains(err.Error(), TC_TYPE_SHADOW_001) {
-		t.Fatalf("expected residual nominal capture diagnostic, got %v", err)
+	if err := checkModules(t, ok); err != nil {
+		t.Fatalf("an imported alias whose body names a.Item must be usable next to a local Item: %v", err)
+	}
+	bad := map[string]string{"a.ail": a, "main.ail": `module main
+import a (Box, mk)
+type Item = {y: string}
+pure func mine() -> Item { {y: "s"} }
+export pure func main() -> Box { {items: [mine()]} }
+`}
+	err := checkModules(t, bad)
+	if err == nil {
+		t.Fatal("a local Item must not be accepted where a's Item is expected")
+	}
+	if !strings.Contains(err.Error(), "Item") {
+		t.Fatalf("diagnostic should name Item: %v", err)
 	}
 }

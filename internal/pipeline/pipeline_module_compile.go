@@ -26,11 +26,12 @@ type moduleCompileResult struct {
 // locally-defined constructors and adds them to the external types map.
 // This allows the type checker to know about constructor factories.
 func buildConstructorFactoryTypes(
+	modID string,
 	constructors map[string]*ConstructorInfo,
 	externalTypes map[string]*types.Scheme,
 ) {
 	for ctorName, ctorInfo := range constructors {
-		factoryKey := fmt.Sprintf("$adt.make_%s_%s", ctorInfo.TypeName, ctorName)
+		factoryKey := core.ADTFactoryKey(modID, ctorInfo.TypeName, ctorName)
 
 		// M-POLY-ADT / M-TAPP-FIX / M-TYPE-LIST-SOUND round 3: build the factory
 		// scheme via the shared helper, which remaps declared param vars to the
@@ -38,6 +39,7 @@ func buildConstructorFactoryTypes(
 		// keeps compound fields ([a], (a,a), Option[a]) tied to the result type
 		// instead of leaking an orphaned free var that unified with anything.
 		externalTypes[factoryKey] = types.BuildConstructorFactoryScheme(
+			modID,
 			ctorInfo.TypeName,
 			ctorInfo.Arity,
 			ctorInfo.TypeParamCount,
@@ -90,25 +92,32 @@ func typeCheckAndLowerModule(
 	// M-DX25.4: Pass constructor -> ADT type mappings to type checker
 	// This enables correct type inference for pattern matching on ADTs
 	ctorTypes := make(map[string]string)
-	adtTypeParams := make(map[string]int) // M-TAPP-FIX: Track type param counts
+	ctorModules := make(map[string]string) // M-V1-NOMINAL-TYPE-IDENTITY: ctor -> ADT's module
+	adtTypeParams := make(map[string]int)  // M-TAPP-FIX: keyed by types.NominalKey(module, ADT)
 
 	// M-TAPP-FIX: First add imported constructors (from depIface.GetConstructor)
 	for ctorName, typeName := range imports.ImportedCtorTypes {
 		ctorTypes[ctorName] = typeName
+		ctorModules[ctorName] = imports.ImportedCtorModules[ctorName]
 	}
-	for typeName, paramCount := range imports.ImportedADTTypeParams {
-		adtTypeParams[typeName] = paramCount
+	for adtKey, paramCount := range imports.ImportedADTTypeParams {
+		adtTypeParams[adtKey] = paramCount
 	}
 
 	// Then add local constructors (may override imports if same name)
 	for ctorName, ctorInfo := range unit.Constructors {
 		ctorTypes[ctorName] = ctorInfo.TypeName
+		ctorModules[ctorName] = modID
 		// M-TAPP-FIX: Only set if not already set (first ctor wins, all should have same count)
-		if _, exists := adtTypeParams[ctorInfo.TypeName]; !exists {
-			adtTypeParams[ctorInfo.TypeName] = ctorInfo.TypeParamCount
+		if adtKey := types.NominalKey(modID, ctorInfo.TypeName); true {
+			if _, exists := adtTypeParams[adtKey]; !exists {
+				adtTypeParams[adtKey] = ctorInfo.TypeParamCount
+			}
 		}
 	}
 	typeChecker.SetConstructorTypes(ctorTypes)
+	typeChecker.SetConstructorModules(ctorModules)
+	typeChecker.SetAmbiguousConstructors(imports.AmbiguousCtors)
 	typeChecker.SetADTTypeParams(adtTypeParams) // M-TAPP-FIX
 
 	// M-MATCH-XCHECK-ERROR-QUALITY: diagnostic-only registry of ALL transitively-
@@ -119,29 +128,20 @@ func typeCheckAndLowerModule(
 
 	// M-FIX-RECORD-UPDATE: Pass type aliases to type checker for expansion during unification
 	// This enables `type NPC = { pos: Pos, name: string }` to work with record update
-	elabAliases := elaborator.GetTypeAliases()
-	for name, target := range elabAliases {
-		typeChecker.RegisterTypeAlias(name, target)
+	// M-FIX-RECORD-UPDATE / M-XMOD-ALIAS-POLY: local and imported aliases (with
+	// their params) expand during unification. M-V1-NOMINAL-TYPE-IDENTITY:
+	// every key is types.NominalKey(defining module, name), so an alias expands
+	// only its own module's TCon, and newtype ADTs stay nominal except against
+	// a record (field access).
+	aliasEnv := qualifiedAliasEnv(modID, imports, elaborator)
+	for key, target := range aliasEnv.Bodies {
+		typeChecker.RegisterTypeAlias(key, target)
 	}
-	// M-XMOD-ALIAS-POLY: register local parameterized-alias params so applied
-	// uses (`Box[int]`) instantiate their body during unification.
-	for name, params := range elaborator.GetTypeAliasParams() {
-		typeChecker.RegisterTypeAliasParams(name, params)
+	for key, params := range aliasEnv.Params {
+		typeChecker.RegisterTypeAliasParams(key, params)
 	}
-
-	// M-FIX-RECORD-UPDATE: Also register type aliases from imported modules
-	// This enables cross-module record update (e.g., { npc | pos: ... } where NPC is imported)
-	for name, target := range imports.ImportedTypeAliases {
-		typeChecker.RegisterTypeAlias(name, target)
-	}
-	// M-XMOD-ALIAS-POLY: register imported parameterized-alias params (cross-module).
-	for name, params := range imports.ImportedAliasParams {
-		typeChecker.RegisterTypeAliasParams(name, params)
-	}
-	// M-TYPE-NAME-SHADOW: imported aliases a local type name would capture are
-	// withheld above; using one is a loud error naming both definitions.
-	for name, msg := range imports.CapturedAliases {
-		typeChecker.RegisterAliasCapture(name, msg)
+	for key := range aliasEnv.Newtypes {
+		typeChecker.RegisterNewtypeADT(key)
 	}
 
 	// M-FIX-FLOAT-OP: Pass parameter type annotations to type checker
@@ -174,7 +174,7 @@ func typeCheckAndLowerModule(
 
 	// M-DX19 + M-EQ-DERIVE-CONTAINERS: register `deriving (Eq)` instances and
 	// require Eq of every field
-	if err := registerDerivedEq(cfg, elaborator, imports.ImportedTypeAliases); err != nil {
+	if err := registerDerivedEq(cfg, modID, elaborator, aliasEnv.Bodies); err != nil {
 		return nil, fmt.Errorf("type error in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
 	}
 
@@ -529,9 +529,8 @@ func buildAndRegisterInterface(
 	modID string,
 	moduleTypeEnv *types.TypeEnv,
 	modLinker *link.ModuleLinker,
-	importedAliases map[string]types.Type,
-	localAliases map[string]types.Type,
-	aliasParams map[string][]string,
+	scope *types.TypeScope,
+	aliases *aliasTables,
 	derivedEq []string,
 	ifcImports types.IFCImports,
 ) error {
@@ -539,19 +538,19 @@ func buildAndRegisterInterface(
 	ifaceCtors := convertToIfaceConstructors(unit.Constructors)
 	// The export summaries see this module's imports, so a wrapper over an
 	// imported secret producer exports that taint (transitive libraries, #1134).
-	unitIface, err := iface.NewBuilder(modID, moduleTypeEnv).WithIFCImports(ifcImports.Sigs).Build(unit.Core, ifaceCtors, unit.Surface)
+	// The type scope qualifies every type name the interface re-reads from the
+	// AST (constructor fields, alias bodies) exactly as the elaborator did.
+	unitIface, err := iface.NewBuilder(modID, moduleTypeEnv).WithIFCImports(ifcImports.Sigs).WithTypeScope(scope).Build(unit.Core, ifaceCtors, unit.Surface)
 	if err != nil {
 		return fmt.Errorf("interface build error in %s: %w", modID, err)
 	}
 
-	closeInterfaceTypes(unitIface, importedAliases, localAliases, aliasParams)
+	closeInterfaceTypes(unitIface, aliases)
 
 	// M-TYPE-ALIAS: Embed transitive type aliases referenced in exported function signatures.
 	// When Package B exports getUsage() -> Result[Usage, string] and Usage is defined in
 	// Package A, we need Usage in B's interface so Package C can resolve it transitively.
-	if len(importedAliases) > 0 {
-		embedTransitiveAliases(unitIface, importedAliases)
-	}
+	embedTransitiveAliases(unitIface, aliases)
 
 	// SetDerivedEq also finalizes the digest after closure and transitive embedding.
 	if err := unitIface.SetDerivedEq(derivedEq); err != nil {
@@ -565,67 +564,89 @@ func buildAndRegisterInterface(
 
 // embedTransitiveAliases adds imported type aliases to a module's interface when they are
 // referenced in the module's exported function signatures or constructor types.
-func embedTransitiveAliases(ifc *iface.Iface, importedAliases map[string]types.Type) {
-	// Collect all TCon names referenced in exported signatures
+//
+// M-V1-NOMINAL-TYPE-IDENTITY: an embedded alias is defined by ANOTHER module,
+// so it is stored under its NominalKey ("module::name"); the interface's own
+// aliases keep their bare names (ifaceAliasKey reads both).
+func embedTransitiveAliases(ifc *iface.Iface, aliases *aliasTables) {
+	// Collect all TCon keys referenced in exported signatures
 	referenced := make(map[string]bool)
 	for _, item := range ifc.Exports {
 		if item.Type != nil {
-			collectTConNames(item.Type.Type, referenced)
+			collectTConKeys(item.Type.Type, referenced)
 		}
 	}
 	for _, ctor := range ifc.Constructors {
 		for _, ft := range ctor.FieldTypes {
-			collectTConNames(ft, referenced)
+			collectTConKeys(ft, referenced)
 		}
-		collectTConNames(ctor.ResultType, referenced)
+		collectTConKeys(ctor.ResultType, referenced)
 	}
 
 	// Add imported aliases that are referenced but not already in the interface
-	for name := range referenced {
-		if _, exists := ifc.TypeAliases[name]; !exists {
-			if alias, ok := importedAliases[name]; ok {
-				ifc.AddTypeAlias(name, alias)
+	for key := range referenced {
+		module, _ := types.SplitNominalKey(key)
+		if module == ifc.Module || module == "" {
+			continue // the module's own aliases are already in the interface
+		}
+		if _, exists := ifc.TypeAliases[key]; exists {
+			continue
+		}
+		if alias, ok := aliases.Bodies[key]; ok {
+			ifc.AddTypeAlias(key, alias)
+			if params := aliases.Params[key]; len(params) > 0 {
+				ifc.AddTypeAliasParams(key, params)
 			}
 		}
 	}
 }
 
-// collectTConNames recursively collects all type constructor names from a type.
-func collectTConNames(t types.Type, names map[string]bool) {
+// collectTConKeys collects the NominalKey of every type constructor in t.
+func collectTConKeys(t types.Type, keys map[string]bool) {
+	collectTConRefs(t, func(c *types.TCon) { keys[c.KeyOf()] = true })
+}
+
+// collectTConRefs calls visit on every type constructor of a type.
+func collectTConRefs(t types.Type, visit func(*types.TCon)) {
 	if t == nil {
 		return
 	}
 	switch ty := t.(type) {
 	case *types.TCon:
-		names[ty.Name] = true
+		visit(ty)
 	case *types.TApp:
-		collectTConNames(ty.Constructor, names)
+		collectTConRefs(ty.Constructor, visit)
 		for _, arg := range ty.Args {
-			collectTConNames(arg, names)
+			collectTConRefs(arg, visit)
 		}
 	case *types.TFunc2:
 		for _, p := range ty.Params {
-			collectTConNames(p, names)
+			collectTConRefs(p, visit)
 		}
-		collectTConNames(ty.Return, names)
+		collectTConRefs(ty.Return, visit)
 	case *types.TRecord:
 		for _, ft := range ty.Fields {
-			collectTConNames(ft, names)
+			collectTConRefs(ft, visit)
 		}
-		collectTConNames(ty.Row, names)
+		collectTConRefs(ty.Row, visit)
 	case *types.TList:
-		collectTConNames(ty.Element, names)
+		collectTConRefs(ty.Element, visit)
 	case *types.TArray:
-		collectTConNames(ty.Element, names)
+		collectTConRefs(ty.Element, visit)
 	case *types.TMap:
-		collectTConNames(ty.Key, names)
-		collectTConNames(ty.Value, names)
+		collectTConRefs(ty.Key, visit)
+		collectTConRefs(ty.Value, visit)
 	case *types.TTuple:
 		for _, e := range ty.Elements {
-			collectTConNames(e, names)
+			collectTConRefs(e, visit)
 		}
 	}
 	// TVar2, TInt, TString, etc. — no TCon names to collect
+}
+
+// collectTConNames recursively collects all type constructor names from a type.
+func collectTConNames(t types.Type, names map[string]bool) {
+	collectTConRefs(t, func(c *types.TCon) { names[c.Name] = true })
 }
 
 // assembleModuleResult converts compiled units into LoadedModule entries

@@ -683,7 +683,7 @@ func checkDirectoryWithContext(ctx context.Context, dir string, strictSyntax boo
 		jsonErrors := make([]checkJSONError, 0, len(errors))
 		for _, e := range errors {
 			jsonErrors = append(jsonErrors, checkJSONError{
-				Code:    "ERROR",
+				Code:    jsonErrorCode(e),
 				Message: e,
 			})
 		}

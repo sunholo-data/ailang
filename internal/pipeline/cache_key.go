@@ -47,7 +47,13 @@ import (
 // imports' IFC contracts, and export summaries see the module's own imports
 // (transitive intrinsic taint). A cache hit skips the IFC gate, so a v9 caller
 // verdict — reached without imported contracts — must never be served.
-const cacheKeyVersion = "v10"
+// v10 -> v11 (M-V1-NOMINAL-TYPE-IDENTITY M2): a nominal type is its defining
+// module plus its name. types.TCon gained Module (carried by the iface type
+// JSON, the CoreTI DAG codec and gob), constructor factories are named
+// make_<T>_<C>@<module>, and the interface digest renders qualified refs. A v10
+// blob decodes every nominal type with no module, which no longer unifies with
+// a qualified one, so v10 entries must miss.
+const cacheKeyVersion = "v11"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:

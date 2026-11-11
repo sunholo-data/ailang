@@ -221,7 +221,7 @@ func TestAstTypeToInternalType_TypeVar(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := astTypeToInternalType(tt.input)
+			result := astTypeToInternalType(nil, tt.input)
 			switch tt.wantKind {
 			case "TVar2":
 				tv, ok := result.(*types.TVar2)
@@ -263,7 +263,7 @@ func TestAstTypeToInternalType_TypeVar(t *testing.T) {
 // TestAstTypeToInternalType_TypeVarNotUnknown is a targeted regression test:
 // Before the fix, ast.TypeVar fell through to default and became "unknown".
 func TestAstTypeToInternalType_TypeVarNotUnknown(t *testing.T) {
-	result := astTypeToInternalType(&ast.TypeVar{Name: "a"})
+	result := astTypeToInternalType(nil, &ast.TypeVar{Name: "a"})
 	tv, ok := result.(*types.TVar2)
 	if !ok {
 		t.Fatalf("ast.TypeVar{Name:\"a\"} produced %T, want *types.TVar2", result)

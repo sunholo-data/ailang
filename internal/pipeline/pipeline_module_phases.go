@@ -365,17 +365,29 @@ func (st *modulePipelineState) isTransientRoot(modID string) bool {
 // typechecking/lowering, interface construction, fresh artifact publication
 // and unit registration.
 func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modID string, unit *CompileUnit, cacheKey string) error {
-	imports := resolveModuleImports(mod.File.Imports, modID, st.modLinker, st.cfg, st.depClosure(modID))
-	// M-TYPE-NAME-SHADOW: the module's own type declarations win over any
-	// same-named type from its imports (direct or transitive).
-	shadowLocalTypeNames(imports, mod.File, modID)
+	reach := st.depClosure(modID)
+	imports := resolveModuleImports(mod.File, modID, st.modLinker, st.cfg, reach)
+	if len(imports.Collisions) > 0 {
+		return imports.Collisions[0]
+	}
+	// M-V1-NOMINAL-TYPE-IDENTITY: one resolver decides which declaration every
+	// bare type name of this module denotes (local first, then explicit
+	// imports, prelude, direct dependencies, the import closure). It replaces
+	// M-TYPE-NAME-SHADOW's name-keyed shadowing: every imported table is keyed
+	// by defining module, so a local `Row` and an imported `Row` never share an
+	// entry and an imported alias body can no longer be captured.
+	scope := buildTypeScope(mod.File, modID, imports, st.modLinker, reach)
 
 	elaborator := elaborate.NewElaboratorWithPath(modID)
+	elaborator.SetTypeScope(scope)
 	elaborator.SetGlobalEnv(imports.GlobalRefs)
 	elaborator.SetModuleLoader(st.modLoader)
 	elaborator.AddBuiltinsToGlobalEnv()
 	for ctorName, info := range imports.ImportedCtorInfos {
-		elaborator.RegisterImportedConstructorAs(ctorName, info.CanonicalName, info.TypeName, info.Arity, info.TypeParamCount)
+		elaborator.RegisterImportedConstructorAs(ctorName, info.CanonicalName, info.Module, info.TypeName, info.Arity, info.TypeParamCount)
+	}
+	for ctorName, cands := range imports.AmbiguousCtors {
+		elaborator.MarkAmbiguousConstructor(ctorName, cands)
 	}
 
 	var err error
@@ -384,7 +396,7 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 		return err
 	}
 	unit.Constructors = convertConstructors(elaborator.GetConstructors())
-	buildConstructorFactoryTypes(unit.Constructors, imports.ExternalTypes)
+	buildConstructorFactoryTypes(modID, unit.Constructors, imports.ExternalTypes)
 
 	compileResult, err := typeCheckAndLowerModule(unit, modID, st.rootCanonical, imports, elaborator, st.cfg)
 	if err != nil {
@@ -398,14 +410,8 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 		st.rootDebugSink = compileResult.DebugSink
 	}
 
-	aliasParams := make(map[string][]string)
-	for name, params := range imports.ImportedAliasParams {
-		aliasParams[name] = params
-	}
-	for name, params := range elaborator.GetTypeAliasParams() {
-		aliasParams[name] = params
-	}
-	if err := buildAndRegisterInterface(unit, modID, compileResult.ModuleTypeEnv, st.modLinker, imports.ImportedTypeAliases, elaborator.GetTypeAliases(), aliasParams, elaborator.GetDerivedEqTypes(), imports.IFC); err != nil {
+	aliases := qualifiedAliasEnv(modID, imports, elaborator)
+	if err := buildAndRegisterInterface(unit, modID, compileResult.ModuleTypeEnv, st.modLinker, scope, aliases, elaborator.GetDerivedEqTypes(), imports.IFC); err != nil {
 		return err
 	}
 

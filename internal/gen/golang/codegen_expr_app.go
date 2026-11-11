@@ -310,7 +310,8 @@ func (g *Generator) getADTConstructorForApp(app *core.App) *ADTConstructorInfo {
 	// Check for $adt.make_TypeName_CtorName pattern
 	if v, ok := app.Func.(*core.VarGlobal); ok {
 		if v.Ref.Module == "$adt" && strings.HasPrefix(v.Ref.Name, "make_") {
-			parts := strings.SplitN(v.Ref.Name[5:], "_", 2) // Skip "make_"
+			base, _ := core.SplitADTFactoryModule(v.Ref.Name) // M-V1-NOMINAL-TYPE-IDENTITY
+			parts := strings.SplitN(base[5:], "_", 2)         // Skip "make_"
 			if len(parts) == 2 {
 				typeName := parts[0]
 				ctorName := parts[1]

@@ -116,6 +116,23 @@ func (i *Iface) AddTypeAlias(name string, target types.Type) {
 	i.TypeAliases[name] = target
 }
 
+// TypeAliasFor returns the alias a type constructor names, read from this
+// interface (M-V1-NOMINAL-TYPE-IDENTITY): the interface's own aliases are
+// stored under their bare name, aliases it embeds from another module under
+// types.NominalKey(module, name). A TCon of another module is never expanded
+// through a same-named alias of this one.
+func (i *Iface) TypeAliasFor(con *types.TCon) (types.Type, bool) {
+	if con == nil {
+		return nil, false
+	}
+	if con.Module == "" || con.Module == i.Module {
+		t, ok := i.TypeAliases[con.Name]
+		return t, ok
+	}
+	t, ok := i.TypeAliases[con.KeyOf()]
+	return t, ok
+}
+
 // GetTypeAlias retrieves a type alias expansion (M-FIX-RECORD-UPDATE)
 func (i *Iface) GetTypeAlias(name string) (types.Type, bool) {
 	typ, ok := i.TypeAliases[name]

@@ -153,7 +153,7 @@ func TestAliasBodyClosure_InterfaceCopiesAndDigest(t *testing.T) {
 		t.Fatal(err)
 	}
 	oldDigest := ifc.Digest
-	closeInterfaceTypes(ifc, nil, map[string]types.Type{"Item": &types.TRecord{Fields: map[string]types.Type{"x": types.TInt}}}, nil)
+	closeInterfaceTypes(ifc, &aliasTables{Bodies: map[string]types.Type{"Item": &types.TRecord{Fields: map[string]types.Type{"x": types.TInt}}}})
 	if scheme.Type.(*types.TFunc2).Params[0].String() != "Item" || originalCtor.FieldTypes[0].String() != "Item" {
 		t.Fatal("shared scheme or constructor mutated")
 	}
@@ -196,11 +196,20 @@ func TestAliasBodyClosure_InterfaceCopiesAndDigest(t *testing.T) {
 func TestAliasBodyClosure_InterfaceAliasParamsAndImportedEnvironment(t *testing.T) {
 	ifc := iface.NewIface("local")
 	variable := &types.TVar{Name: "a"}
-	ifc.AddTypeAlias("Poly", &types.TTuple{Elements: []types.Type{variable, &types.TCon{Name: "Private"}, &types.TCon{Name: "Imported"}}})
+	// M-V1-NOMINAL-TYPE-IDENTITY: the alias env is keyed by defining module;
+	// `other` also declares a Private, which must not expand local's Private.
+	ifc.AddTypeAlias("Poly", &types.TTuple{Elements: []types.Type{variable, &types.TCon{Name: "Private", Module: "local"}, &types.TCon{Name: "Imported", Module: "other"}}})
 	ifc.AddTypeAliasParams("Poly", []string{"a"})
-	imported := map[string]types.Type{"Private": types.TString, "Imported": types.TBool}
-	local := map[string]types.Type{"Poly": ifc.TypeAliases["Poly"], "Private": types.TInt}
-	closeInterfaceTypes(ifc, imported, local, ifc.AliasParams)
+	imported := map[string]types.Type{"other::Private": types.TString, "other::Imported": types.TBool}
+	local := map[string]types.Type{"local::Poly": ifc.TypeAliases["Poly"], "local::Private": types.TInt}
+	env := map[string]types.Type{}
+	for k, v := range imported {
+		env[k] = v
+	}
+	for k, v := range local {
+		env[k] = v
+	}
+	closeInterfaceTypes(ifc, &aliasTables{Bodies: env, Params: map[string][]string{"local::Poly": {"a"}}})
 	got := ifc.TypeAliases["Poly"].(*types.TTuple)
 	if got.Elements[0] != variable || got.Elements[1] != types.TInt || got.Elements[2] != types.TBool {
 		t.Fatal("wrong local/imported environment or lost variable")
@@ -208,7 +217,7 @@ func TestAliasBodyClosure_InterfaceAliasParamsAndImportedEnvironment(t *testing.
 	if !reflect.DeepEqual(ifc.AliasParams["Poly"], []string{"a"}) {
 		t.Fatal("AliasParams changed")
 	}
-	if imported["Private"] != types.TString || local["Poly"].String() != "(a, Private, Imported)" {
+	if imported["other::Private"] != types.TString || local["local::Poly"].String() != "(a, Private, Imported)" {
 		t.Fatal("alias environment mutated")
 	}
 	// Nil rows and empty composite slices occur in monomorphic interfaces too.

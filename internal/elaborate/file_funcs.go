@@ -208,6 +208,12 @@ func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error
 					recordType := e.astTypeToInternalType(ctor.Fields[0].Type)
 					if recordType != nil {
 						e.RegisterTypeAlias(typeName, recordType)
+						// Only for field access: the ADT stays nominal
+						// (M-V1-NOMINAL-TYPE-IDENTITY hard case h4c).
+						if e.newtypeADTs == nil {
+							e.newtypeADTs = make(map[string]bool)
+						}
+						e.newtypeADTs[typeName] = true
 					}
 				}
 			}
@@ -355,8 +361,9 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 			if alias, ok := e.typeAliases[typ.Name].(*types.TFunc2); ok {
 				return alias
 			}
-			// Type constructor (e.g., user-defined ADT)
-			return &types.TCon{Name: typ.Name}
+			// Type constructor (e.g., user-defined ADT), qualified by the module
+			// that declares it (M-V1-NOMINAL-TYPE-IDENTITY §4.3).
+			return e.typeCon(typ.Name, typ.Pos)
 		}
 
 	case *ast.TypeVar:
@@ -438,7 +445,7 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 			args[i] = e.astTypeToInternalType(arg)
 		}
 		return &types.TApp{
-			Constructor: &types.TCon{Name: typ.Constructor},
+			Constructor: e.typeCon(typ.Constructor, typ.Pos),
 			Args:        args,
 		}
 

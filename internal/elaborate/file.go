@@ -148,6 +148,7 @@ func collectModuleLets(file *ast.File) []*ModuleLet {
 // ElaborateFile transforms a complete file with module structure to Core ANF
 func (e *Elaborator) ElaborateFile(file *ast.File) (prog *core.Program, err error) {
 	e.typeAnnotationErr = nil
+	e.ensureTypeScope(file)
 	defer func() {
 		if e.typeAnnotationErr != nil {
 			prog, err = nil, e.typeAnnotationErr

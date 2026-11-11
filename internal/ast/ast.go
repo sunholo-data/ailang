@@ -168,8 +168,13 @@ type ImportDecl struct {
 	// Path is what was written. Diagnostics name both (M1b, canonical module
 	// identity — one module file, one identity).
 	WrittenPath string
-	Pos         Pos
-	Span        Span
+	// Implicit marks an import the loader injected (the implicit prelude of an
+	// entry module), not one the user wrote. It is the lowest-precedence
+	// binding of its names (M-V1-NOMINAL-TYPE-IDENTITY) and carries no
+	// position, so no diagnostic may point at it.
+	Implicit bool
+	Pos      Pos
+	Span     Span
 }
 
 func (f *File) String() string {
