@@ -381,3 +381,9 @@ Where it differs from the plan:
   output, and no longer reaches stdout.
 - `examples/manifest.json` now pins stdout (`verify-examples` compares it), so 10 pins were
   re-pinned; the doc's census predates that gate.
+- **M2's mutation note does not hold.** Dropping only the `\\` escape does not break injectivity
+  (an opening quote is never preceded by a backslash, so the text stays decodable); it breaks the
+  literal round trip. The property test therefore also re-lexes every nested string, and that check
+  catches the mutation. Dropping `\"` is caught by the injectivity property itself.
+- Measured downstream (gate + `ailang test` on every inline-test file of all eight corpora, both
+  binaries): one change, a fix — the motoko compaction test that §(c) predicted tested nothing.
