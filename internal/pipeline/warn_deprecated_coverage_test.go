@@ -230,7 +230,9 @@ func contains(xs []string, x string) bool {
 // heard of — is searched: one synthetic module holds a use of the deprecated
 // lib.f in each, and each yields its warning.
 func TestDeprecatedASTPassSearchesEveryStatementKind(t *testing.T) {
-	use := func(line int) ast.Expr { return &ast.Identifier{Name: "f", Pos: ast.Pos{File: "m.ail", Line: line, Column: 1}} }
+	use := func(line int) ast.Expr {
+		return &ast.Identifier{Name: "f", Pos: ast.Pos{File: "m.ail", Line: line, Column: 1}}
+	}
 	stmts := []ast.Node{
 		&ast.TestDecl{Name: "t", Body: []ast.Expr{&ast.AssertStmt{Condition: use(10)}}},
 		&ast.PropertyDecl{Name: "p", Property: &ast.Property{Kind: ast.PropertyKind, Expr: use(11)}},
@@ -259,7 +261,7 @@ type unknownStmt struct {
 	Payload ast.Expr
 }
 
-func (*unknownStmt) String() string   { return "unknown" }
+func (*unknownStmt) String() string    { return "unknown" }
 func (*unknownStmt) Position() ast.Pos { return ast.Pos{} }
 
 // holdsExpr reports whether a value of type t can contain an ast.Expr.
