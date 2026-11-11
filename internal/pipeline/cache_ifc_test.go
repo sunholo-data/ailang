@@ -166,8 +166,9 @@ func TestCacheIFCValidatesInjectedDecoder(t *testing.T) {
 func TestCacheIFCPreviousVersionKeyMisses(t *testing.T) {
 	const source = "module lib\nexport func f() -> int { 42 }\n"
 	current := ModuleCacheKey("test-compiler", source, nil)
-	// v10: a pre-tier blob (no Iface.Tier/ReplacedBy) must miss too.
-	for version := 1; version <= 10; version++ {
+	// v10: a pre-tier blob (no Iface.Tier/ReplacedBy) must miss too; v11 is
+	// another branch's format (#2228) and must never be served by this one.
+	for version := 1; version <= 11; version++ {
 		t.Run(fmt.Sprintf("v%d", version), func(t *testing.T) {
 			old := sha256.New()
 			fmt.Fprintf(old, "ailang-cache:v%d:test-compiler\n", version)

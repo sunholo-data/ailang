@@ -50,7 +50,7 @@ changes a type, an interface digest or `interface_hash`.
 `ailang iface` now emits `"tier"` (`stable|experimental|internal`) on every std function and type, and
 `"replaced_by"`/`"deprecation_note"` on deprecated ones; `iface --compact` and `ailang docs` mark both.
 Module tiers live in `std/STABILITY.toml`; `docs/docs/reference/stability.md` is checked against it by a
-test. Compile-cache key v10 → v11: the cache's `iface.json` codec dropped the new fields, so a warm
+test. Compile-cache key v10 → v12 (v11 belongs to #2228): the cache's `iface.json` codec dropped the new fields, so a warm
 `ailang iface std/list` printed no `tier` (found while freezing; fixed and tested).
 
 `ailang check --package` now reports the pipeline's coded warnings too (`TC_DEPRECATED_001`,

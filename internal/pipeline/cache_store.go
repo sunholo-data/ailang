@@ -188,7 +188,7 @@ type ifaceFullJSON struct {
 	DerivedEq    []string                     `json:"derived_eq,omitempty"`
 	// Tier fields (M-V1-STDLIB-SURFACE-POLISH M1). Without them a cache hit
 	// served an interface with no tier, so `ailang iface std/<m>` and the
-	// stdlib goldens lost `"tier"` on a warm cache (cache key v11).
+	// stdlib goldens lost `"tier"` on a warm cache (cache key v12).
 	Tier string `json:"tier,omitempty"`
 }
 
