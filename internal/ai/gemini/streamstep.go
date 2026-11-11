@@ -172,7 +172,7 @@ func parseGeminiSSEStream(req *ai.Request, body io.Reader, onChunk func(ai.Strea
 						fmt.Sprintf("gemini: failed to re-encode tool args for %q: %v", p.FunctionCall.Name, marshalErr), false)
 				}
 				out.ToolCalls = append(out.ToolCalls, ai.ToolCall{
-					ID:        fmt.Sprintf("%d_%d", turnIndex, len(out.ToolCalls)),
+					ID:        toolCallID(turnIndex, len(out.ToolCalls), p.ThoughtSignature),
 					Name:      p.FunctionCall.Name,
 					Arguments: string(argsJSON),
 				})

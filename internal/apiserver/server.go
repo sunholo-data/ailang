@@ -78,6 +78,9 @@ type Server struct {
 	mcpEnabled     bool                // serve MCP at /mcp/
 	mcpOnly        bool                // stdio-only MCP mode (no HTTP)
 	a2aEnabled     bool                // serve A2A at /.well-known/agent.json and /a2a/
+	a2aMessage     string              // --a2a-message: the export that answers message/send and message/stream
+	a2aHandlerFn   *a2aHandler         // a2aMessage resolved by ValidateA2A
+	a2aTasks       a2aTaskStore        // recent tasks for tasks/get
 	maxUploadSize  int64               // maximum upload size in bytes (0 = use DefaultMaxUploadSize)
 	apiKeyHeader   string              // HTTP header name for API key auth
 	apiKeyEnv      string              // env var containing expected API key
@@ -155,6 +158,7 @@ type Config struct {
 	MCP            bool        // enable MCP endpoint at /mcp/
 	MCPOnly        bool        // run as MCP stdio server only (no HTTP)
 	A2A            bool        // enable A2A endpoints (/.well-known/agent.json, /a2a/)
+	A2AMessage     string      // export answering A2A v0.3 message/send and message/stream ("" = none)
 	MaxUploadSize  int64       // max upload size in bytes (0 = DefaultMaxUploadSize)
 	APIKeyHeader   string      // HTTP header for API key auth (empty = no auth)
 	APIKeyEnv      string      // env var containing expected API key
@@ -258,6 +262,7 @@ func New(basePath string, cfg Config) *Server {
 		mcpEnabled:         cfg.MCP,
 		mcpOnly:            cfg.MCPOnly,
 		a2aEnabled:         cfg.A2A,
+		a2aMessage:         cfg.A2AMessage,
 		maxUploadSize:      maxUpload,
 		apiKeyHeader:       cfg.APIKeyHeader,
 		apiKeyEnv:          cfg.APIKeyEnv,
@@ -474,6 +479,9 @@ func (s *Server) Start() error {
 	if err := s.ValidateMCPIdentity(); err != nil {
 		return err
 	}
+	if err := s.ValidateA2A(); err != nil {
+		return err
+	}
 	mux := s.buildRoutes()
 
 	// Bind before anything announces a launch: a taken port exits non-zero
@@ -543,7 +551,11 @@ func (s *Server) buildRoutes() http.Handler {
 	// A2A Agent Card (opt-in via --a2a flag)
 	if s.a2aEnabled {
 		mux.HandleFunc("/.well-known/agent.json", s.corsWrap(s.handleA2AAgentCard))
-		mux.HandleFunc("/a2a/", s.corsWrap(s.handleA2ATask))
+		mux.HandleFunc("/.well-known/agent-card.json", s.corsWrap(s.handleA2AAgentCard))
+		// Under --mcp-connect-only, mountMCP mounts /a2a/ behind the Bearer gate.
+		if !s.mcpConnectOnly {
+			mux.HandleFunc("/a2a/", s.corsWrap(s.handleA2ATask))
+		}
 	}
 
 	// MCP endpoint (streamable HTTP transport)
@@ -563,6 +575,7 @@ func (s *Server) buildRoutes() http.Handler {
 	}
 	if s.a2aEnabled {
 		builtinPaths["/.well-known/agent.json"] = true
+		builtinPaths["/.well-known/agent-card.json"] = true
 		builtinPaths["/a2a/"] = true
 	}
 	if s.mcpEnabled {
@@ -669,7 +682,7 @@ func (s *Server) printStartupBanner(addr string) {
 	log.Println()
 	log.Println("  Protocols:")
 	if s.a2aEnabled {
-		log.Println("    GET  /.well-known/agent.json    (A2A Agent Card)")
+		log.Println("    GET  /.well-known/agent.json    (A2A Agent Card; also agent-card.json)")
 		log.Println("    POST /a2a/                      (A2A JSON-RPC)")
 	}
 	if s.mcpEnabled {

@@ -141,6 +141,8 @@ func TestMCPConnectOnly_ControlWithoutFlag(t *testing.T) {
 	}
 }
 
+// --a2a is no longer refused: /a2a/ is mounted behind the gate
+// (a2a_gate_test.go, TestA2AHandlerMustBeHiddenUnderConnectOnly).
 func TestMCPConnectOnly_RefusesUngatableSetup(t *testing.T) {
 	cases := []struct {
 		name string
@@ -149,7 +151,6 @@ func TestMCPConnectOnly_RefusesUngatableSetup(t *testing.T) {
 	}{
 		{"no issuer", Config{MCP: true, MCPConnectOnly: true}, "--oauth-issuer"},
 		{"no mcp-http", Config{OAuthIssuer: gateIssuer, MCPConnectOnly: true}, "--mcp-http"},
-		{"with a2a", Config{MCP: true, A2A: true, OAuthIssuer: gateIssuer, MCPConnectOnly: true}, "--a2a"},
 	}
 	for _, c := range cases {
 		srv, _ := connectOnlyServer(t, c.cfg)

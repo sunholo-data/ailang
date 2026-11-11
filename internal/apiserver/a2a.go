@@ -11,6 +11,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/embed"
 	"github.com/sunholo-data/ailang/internal/httpjson"
+	"github.com/sunholo-data/ailang/serveapi/protocol"
 )
 
 // handleA2AAgentCard serves the A2A Agent Card at /.well-known/agent.json.
@@ -82,18 +83,17 @@ func (s *Server) buildAgentCard(r *http.Request) map[string]any {
 		}
 	}
 
-	// Determine server URL from request.
-	scheme := "http"
-	if r.TLS != nil {
-		scheme = "https"
-	}
-	serverURL := fmt.Sprintf("%s://%s", scheme, r.Host)
-
-	return map[string]any{
-		"name":        "AILANG Function Server",
-		"description": "AILANG module exports as callable functions via A2A protocol",
-		"url":         serverURL,
-		"version":     s.serverIdentity().Version,
+	// The JSON-RPC endpoint as the caller reached the server: behind a TLS
+	// proxy (Cloud Run) X-Forwarded-Proto says https, so the card never
+	// advertises http (Aitana F22).
+	base := protocol.PublicBaseURL(r)
+	card := map[string]any{
+		"protocolVersion":    a2aProtocolVersion,
+		"name":               "AILANG Function Server",
+		"description":        "AILANG module exports as callable functions via A2A protocol",
+		"url":                base + "/a2a/",
+		"preferredTransport": "JSONRPC",
+		"version":            s.serverIdentity().Version,
 		"capabilities": map[string]any{
 			"streaming":              false,
 			"pushNotifications":      false,
@@ -103,6 +103,27 @@ func (s *Server) buildAgentCard(r *http.Request) map[string]any {
 		"defaultOutputModes": []string{"application/json"},
 		"skills":             skills,
 	}
+	// A message handler makes this an agent: one skill (the handler), text in
+	// and out, streamed.
+	if h := s.a2aHandlerFn; h != nil {
+		id := s.serverIdentity()
+		card["name"] = id.Name
+		if id.Title != "" {
+			card["name"] = id.Title
+		}
+		card["description"] = s.a2aSkill(h)["description"]
+		card["capabilities"].(map[string]any)["streaming"] = true
+		card["defaultInputModes"] = []string{"text/plain"}
+		card["defaultOutputModes"] = []string{"text/plain"}
+		card["skills"] = []map[string]any{s.a2aSkill(h)}
+	}
+	if icon := s.serverIdentity().Icon; icon != "" {
+		if strings.HasPrefix(icon, "/") {
+			icon = base + icon
+		}
+		card["iconUrl"] = icon
+	}
+	return card
 }
 
 // handleA2ATask handles JSON-RPC 2.0 requests at /a2a/.
@@ -132,8 +153,12 @@ func (s *Server) handleA2ATask(w http.ResponseWriter, r *http.Request) {
 	switch req.Method {
 	case "tasks/send":
 		s.handleA2ATaskSend(w, &req)
+	case "message/send":
+		s.handleA2AMessageSend(w, r, &req)
+	case "message/stream":
+		s.handleA2AMessageStream(w, r, &req)
 	case "tasks/get":
-		s.handleA2ATaskGet(w, &req)
+		s.handleA2ATasksGet(w, &req)
 	default:
 		a2aError(w, req.ID, -32601, "method not found: "+req.Method)
 	}
@@ -271,10 +296,4 @@ func (s *Server) handleA2ATaskSend(w http.ResponseWriter, req *a2aRequest) {
 			},
 		},
 	})
-}
-
-// handleA2ATaskGet handles tasks/get - returns task status.
-// Since all tasks are synchronous, this always returns "not found".
-func (s *Server) handleA2ATaskGet(w http.ResponseWriter, req *a2aRequest) {
-	a2aError(w, req.ID, -32602, "tasks/get not supported (all tasks complete synchronously)")
 }
