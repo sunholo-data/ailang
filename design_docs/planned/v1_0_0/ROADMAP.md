@@ -198,20 +198,38 @@ had missed** — two of five in wave 1 and all five in wave 2; three passed firs
 | #2208 | `make downstream-check` | Merged after review found five ways it could PASS without measuring |
 | #2209 | Type-variable hygiene: #2157, #2076 | Merged after review found a soundness REGRESSION (let-generalisation over open records); the fix unified four free-variable walks into one and closed three older holes |
 
-### Wave 2
+### Wave 2 — all merged 2026-11-10; on `dev`, tagged in v0.60.0 (tag blocked by the gate, see below)
 
-| PR | Scope | State |
+| PR | Scope | Outcome |
 |---|---|---|
-| #2220 | Downstream gate: dependency provisioning, 600 s default timeout, candidate runs its own `lock` | **Merged** after one fix round |
-| #2219 | Doc-sample gate (`make check-doc-samples`, in `ci-quick` and on the pre-push path) | **Merged** after one fix round. 537 samples: 223 pass, 284 fail and are baselined (shrink-only set) |
-| #2222 | Verification honesty part 1: one exit contract, `unproved` outcome, CTR004, printer, parser | Fix round done; `D-69` rulings being applied; second review to follow |
-| #2223 | `JInt`, `decode` rejects trailing data, one shared decoder, prompt v0.16.13 | Fix round done; `D-69` rulings being applied; second review to follow. **Release order applies** (motoko, world) |
-| #2224 | Canonical module identity (M1b) | Two reviews; third fix round in progress |
-| #2218 + infra #17 | Registry validator: final tags only, behind the CI gate; promote refuses pre-releases | Drafts. **Not run in Cloud Build**; need an attended check |
+| #2220 | Downstream gate: dependency provisioning, 600 s default timeout, candidate runs its own `lock` | Merged after one fix round |
+| #2219 | Doc-sample gate (`make check-doc-samples`, in `ci-quick` and on the pre-push path) | Merged after one fix round. 537 samples: 223 pass, 284 fail and are baselined (shrink-only set) |
+| #2224 | Canonical module identity (M1b) | Merged after three fix rounds and two reviews |
+| #2223 | `JInt`, `decode` rejects trailing data, one shared decoder, prompt v0.16.13, warning `TC_MATCH_005` | Merged after two reviews. **17 downstream sites**, not the 4 the review counted (below) |
+| #2222 | Verification honesty part 1: one exit contract, hosted tool probes the solver per call, `--no-verify`, imports note | Merged after three reviews and four fix rounds; each round's fixes introduced the next finding |
+| #2218 + infra #17, #21 | Registry validator: final tags only, behind the CI gate; trigger narrowed; the triggers stack applies on push | Merged and **applied**, verified in Cloud Build (positive and two negative controls) |
 
-Also landed directly on `dev`: the end-of-session auto-push bound now covers the pre-push gates
-(`f2a9807e2`) — it had been killing every push mid-gate since the pre-push hook started resolving
-again.
+Also landed directly on `dev` that day, each a CI or tooling fault that was failing good changes:
+the auto-push bound (`f2a9807e2`); the gate's false alarm on a sibling checkout edited mid-run
+(`dc63d01a5`); `build.yml`'s Windows test budget, out of step with `ci.yml` (`f6988a304`); a 20 ms
+sleep-then-assume race in nine daemon tests (`73dac3c4d`); the gate now removes its 3.4 GB of working
+trees per run (`e05c600b1`); the maintenance workflow's packages pin (`cfaf5f836`).
+
+**Review tally, both waves: eight of eleven PRs had a blocking defect that the author's tests and green
+CI missed.**
+
+### Wave 3 — started 2026-11-11
+
+| Work | Doc | State |
+|---|---|---|
+| Module-qualified type identity (M2 + resolver half of M3) | m-v1-nominal-type-identity | In progress. **Critical path**; exhaustiveness-as-error queues behind it |
+| Total `show` | m-v1-show-total | In progress |
+| Stdlib renames with `@deprecated` aliases, re-tiering, remaining behaviour fixes | m-v1-stdlib-surface-polish | In progress |
+
+**Not started:** exhaustiveness as an error (after type identity); integer overflow trap; callback
+effect rule; capability-grant changes and Internal command moves; help text; docs rewrites (284
+baselined samples) and the migration, security-model and support-window pages; rest of the rc
+pipeline; then close-out steps 16–19. Unowned soundness issues from review: #2210, #2211, #2221.
 
 ### What the waves changed in the plan
 
@@ -230,6 +248,14 @@ again.
   unbounded while the runtime wraps (§4), and `requires` is assumed, never checked at call sites, with
   run-time contract checking off by default. Both must be stated in LIMITATIONS, the contracts guide
   and the security-model page before 1.0.
+- **A breaking change must be swept with a compiler, not counted.** `JInt` was scoped at 4 downstream
+  sites; a sweep of every corpus with a `dev` compiler found 17 (9 in ailang-packages plus 4 frozen
+  task-pack fixtures, 3 in the motoko fork, 1 in world). All were fixable with `asNumber`/`getNumber`,
+  which exist since v0.54.14, so no release ordering was needed after all. Every remaining breaking
+  change gets that sweep **before** merge, and the gate should count the warning: `check` exits 0 on
+  these files, so `make downstream-check` cannot see a change that alters behaviour but still type-checks.
+- **The roadmap's "last v0.58.x" is stale as a name.** Releases have moved to v0.59.0 and a tagged
+  v0.60.0; the breaking window is still open and closes at step 16, whatever that version is called.
 - **More than half the code samples in the docs do not pass `check` as written** (284 of 537). The
   number can now only go down.
 
