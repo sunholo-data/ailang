@@ -1933,3 +1933,48 @@ No code, policy, skill, ledger status, ticket state or host configuration change
 - Executor: resolver `claude:claude-haiku-5-5` (codex rc 75 handoff; path recipe). **Not spawned**: no pick.
 - Evaluator: resolver `sonnet` (path `agent-tool`) → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, 56,572 tok, 3 tool uses, 26 s. Judge independence: cross-model (controller opus, judge sonnet; same vendor).
 - Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
+
+## 104 — 2026-11-11 — idle: inputs byte-identical to iteration 103; all 27 tickets ruling-gated, independent sonnet judge NONE after a first-party ticket-to-row re-derivation; nothing designed, planned, built or merged [ADMIN]
+
+**Pick**: NONE. The 27 open tickets and the 28 OPEN decision rows are byte-identical to iteration 103's captures (`cmp` on `tickets.json` and `open-decisions.tsv`; 44 rows, `--check` valid). #2172 has 0 allowlisted comments of 9, and #2039 has 0 of 29. origin/dev `0df45ce29..de918c252` is one commit (`docs(triage): record iteration 36`), touching only `design_docs/triage-mission-log.md`; 0 fleet-surface paths.
+
+**Orphans / prior record**: the newest record is iteration 103 on draft #2226 (`fleet/i103-record`), stacked on #2225 → #2214 → #2200 → #2198 → #2194 → #2173 → #2171 → #2169. origin/dev's log ends at 94. This record stacks on #2226. No `fleet/i104*` branch existed before this fire.
+
+**Preflight / observe**: armed, gh `sunholo-voight-kampff`, billing CLEAN. The resolved skill (SKILL.md plus 13 resources) matched origin/dev per file, 14/14; pin == origin/dev. Gate 1 base `de918c25270f4976f1e0ea4ace72e89bcd71b766`.
+- **Dev @ `de918c252`**: CI success; **Build and Release failure**, `Build macos-latest` only: `TestWorkerCLIProcessExitLifecycle/async/eval/sigint` (`internal/runner`) exited 0 where 130 was expected. Build and Release alternates over the last four dev heads (ok, fail, ok, fail) and this head is a docs-only commit, so it reads as a flake. Product code; V1 owns it. Same class as ticket `ci:distinct-build-test-failures` (a fourth distinct test of that class), which stays gated on D-FLEET-17.
+- **Gate 0 self-notice**: watermark form **rc 2**, the eighth consecutive fleet fire with no watermark file for #2172 or #2039. The `--since 2026-11-10T22:19:49Z` form (iteration 103's fire start) gave **rc 0**: control 852:10 ok, 0 crash notices, 0 in-window transcript notices.
+- **Inbox (ambient)**: nothing from Mark, no regression. Sibling FYIs (world 378–380, stapledon 84–85), eval-suite notices, triage digests (codex judge lane down again, matching this fire's codex probe rc 75). Nothing is a `mission-fleet` ticket.
+- [Observations](fleet-mission-evidence/iteration104/observations.md).
+
+**Did** (generator ≠ judge): the controller captured [tickets](fleet-mission-evidence/iteration104/tickets.json) and [OPEN rows](fleet-mission-evidence/iteration104/open-decisions.tsv), plus the dev delta and the dev red. It then spawned the independent evaluator (sonnet, Agent tool, `MISSION-ROLE: evaluator`, foreground) with the inputs and the fleet admissibility rules, without the controller's conclusion. It was told to re-derive the ticket-to-row mapping first-party rather than carry it forward (iteration 103's errata). It returned [**NONE (idle)**](fleet-mission-evidence/iteration104/idle-judge.md) at 93% confidence:
+- 27/27 tickets map to a named OPEN row or a scope boundary, each with a quoted row phrase; none is mechanical and in scope.
+- The dev red is product code, flaky, and changes no ticket's gate.
+- Strongest objection (judge's own): it read the lead and key sections of each row, not every full recommendation, so it may have under-read a harness-only mechanical sub-ask. It named D-FLEET-35 and D-FLEET-38 as candidates.
+- **Controller check of that objection**: both rows were read in full. D-FLEET-35's recommended fix is in `tools/pi-extensions/` and `internal/modelreg/models.yml`, which the row places with V1/attended. D-FLEET-38 A needs `_scope_is_fleet_support` widened by 16 paths, a scope-guard change that is Mark's ruling, with default C. Neither is buildable. The verdict stands.
+
+No code, policy, skill, ledger status, ticket state or host configuration changed. Unscored: no implementation.
+
+**Ruled out**:
+- Drafting D-FLEET-43 A: no originating ticket (unchanged from iterations 101–103).
+- Spawning designer/planner/executor "screens": with byte-identical inputs and no pick, the routing table assigns them no work.
+- Treating the dev macOS red as fleet work: `internal/runner` is product code; V1 owns reds on this repo.
+- Merging the 95–103 record stack: #2171 carries iteration 96's design parked for review.
+- Treating the watermark-form rc 2 as "no deaths".
+
+**Retro lane**: no skill edit. The self-notice watermark friction now has seven fleet instances (98–104), and the idle-fire cost is D-FLEET-43's question. Neither is ticketed; ticket-driven only, and a skill edit on an unmerged record stack reaches no running loop. The `--since <previous fire start>` workaround held again.
+
+**Progress**: 27 open tickets; clause 1 UNMEASURED, 2 UNMET, 3 MET, 4 met by its letter, 5 preserved. **Goal unmoved.** Harness share 11/20 (log headlines 85–104; 92, 94, 98, 99, 100, 101, 102, 103 and 104 are ADMIN). The last three landings (91/87/86) each moved clause 2, so there is no DRIFT alarm.
+
+**Validation**: darwin/arm64. Record checks in the record commit: `mission_decisions.sh --check`, the STATUS rotation arithmetic plus an archive grep for the moved ITERATION 101 stamp, the canonical stamp grep and `go test ./internal/mission/ -run Canonical`, and index regeneration. No code changed, so Gate 3b does not apply. The record ships as a draft PR stacked on #2226.
+
+**Budget**: metered **$0**. Evaluator Agent sonnet 64,823 tok (subscription). Controller tok not reported. Designer, planner and executor spent nothing.
+
+**Next**: any ruling on D-FLEET-16..45, or a new ticket. This is the seventh consecutive idle fire (98–104). Without a ruling, the next fire repeats this screen.
+
+**Routing evidence**: base=de918c25270f4976f1e0ea4ace72e89bcd71b766 (Gate-1 read; no dev movement before the record).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `claude:claude-opus-5-5` (path recipe). **Not spawned**: no pick. A routing outcome, not a spawn failure.
+- Planner: resolver `opus` (codex `gpt-6.1-sol` probe rc 75 → opus, per driver; path agent-tool). **Not spawned**: no pick.
+- Executor: resolver `claude:claude-haiku-5-5` (codex rc 75 handoff; path recipe). **Not spawned**: no pick.
+- Evaluator: resolver `sonnet` (path `agent-tool`) → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, 64,823 tok, 8 tool uses, 42 s. Judge independence: cross-model (controller opus, judge sonnet; same vendor).
+- Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
