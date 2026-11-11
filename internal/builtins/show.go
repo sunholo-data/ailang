@@ -10,6 +10,7 @@ import (
 
 func init() {
 	registerShow()
+	registerShowPreview()
 }
 
 func registerShow() {
@@ -23,9 +24,12 @@ func registerShow() {
 
 		Metadata: &BuiltinMetadata{
 			Description: "Convert any value to its string representation",
-			LongDesc: `Polymorphic function that converts values to canonical string form.
-Works with all types: primitives (int, float, bool, string), lists, records, and ADTs.
-Handles special float values (NaN, Inf) and limits depth for recursive structures.`,
+			LongDesc: `Polymorphic function that converts any value to its canonical string form.
+Total: every element and every level is rendered; nothing is elided.
+A top-level string is returned unchanged; a string nested inside a list, tuple,
+record, map or constructor is double-quoted and escaped, so different values
+never print the same text. Floats print shortest round-trip digits (NaN, Inf,
+-Inf, -0.0). For bounded output use std/string.showPreview(value, maxChars).`,
 			Params: []ParamDoc{
 				{Name: "value", Description: "Any value to convert to string"},
 			},
@@ -34,7 +38,9 @@ Handles special float values (NaN, Inf) and limits depth for recursive structure
 				{Code: `show(42)`, Description: `Returns "42"`},
 				{Code: `show(3.14)`, Description: `Returns "3.14"`},
 				{Code: `show(true)`, Description: `Returns "true"`},
+				{Code: `show("hi")`, Description: `Returns "hi" (a top-level string is unchanged)`},
 				{Code: `show([1, 2, 3])`, Description: `Returns "[1, 2, 3]"`},
+				{Code: `show(["a", "b, c"])`, Description: `Returns "[\"a\", \"b, c\"]" (nested strings are quoted)`},
 				{Code: `show({x: 5, y: 10})`, Description: `Returns "{x: 5, y: 10}"`},
 			},
 			Since:     "v0.1.0",
@@ -61,15 +67,59 @@ func makeShowType() types.Type {
 }
 
 func showImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
-	val := args[0]
-	return &eval.StringValue{Value: showValue(val, 0)}, nil
+	return &eval.StringValue{Value: eval.Show(args[0])}, nil
 }
 
-// showValue renders v with the one shared show renderer (eval.Show), also
-// used by the bytecode VM and the REPL. depth > 0 renders v as if nested.
-func showValue(v eval.Value, depth int) string {
-	return eval.ShowAt(v, depth)
+// registerShowPreview registers _show_preview, the builtin behind
+// std/string.showPreview (M-V1-SHOW-TOTAL M3).
+func registerShowPreview() {
+	err := RegisterEffectBuiltin(BuiltinSpec{
+		Module:  "std/string",
+		Name:    "_show_preview",
+		NumArgs: 2,
+		IsPure:  true,
+		Type:    makeShowPreviewType,
+		Impl:    showPreviewImpl,
+		Metadata: &BuiltinMetadata{
+			Description: "Bounded show: the first maxChars code points of show(value)",
+			LongDesc: `If show(value) is at most maxChars code points it is returned unchanged.
+Otherwise the first maxChars code points are followed by "…(+N chars)", N being
+the exact number of code points left out. Never builds more than maxChars of
+output. maxChars <= 0 returns just the marker (or "" for an empty rendering).`,
+			Params: []ParamDoc{
+				{Name: "value", Description: "Any value"},
+				{Name: "maxChars", Description: "Maximum code points of show(value) to keep"},
+			},
+			Returns: "show(value), cut head-only with a count marker",
+			Examples: []Example{
+				{Code: `_show_preview([1, 2, 3], 100)`, Description: `Returns "[1, 2, 3]"`},
+				{Code: `_show_preview([1, 2, 3], 5)`, Description: `Returns "[1, 2…(+4 chars)"`},
+			},
+			Since:     "v0.61.0",
+			Stability: StabilityStable,
+			Tags:      []string{"conversion", "string", "debug", "display", "polymorphic"},
+			Category:  "string",
+		},
+	})
+	if err != nil {
+		panic(fmt.Sprintf("failed to register _show_preview: %v", err))
+	}
 }
 
-// maxWidth is the elision column, kept for this package's tests.
-const maxWidth = eval.ShowMaxWidth
+// _show_preview : ∀α. (α, int) -> string
+func makeShowPreviewType() types.Type {
+	alpha := &types.TVar2{Name: "α", Kind: types.Star}
+	return &types.TFunc2{
+		Params:    []types.Type{alpha, types.TInt},
+		Return:    types.TString,
+		EffectRow: types.EmptyEffectRow(),
+	}
+}
+
+func showPreviewImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, error) {
+	n, err := SafeAsInt(args[1])
+	if err != nil {
+		return nil, fmt.Errorf("_show_preview: arg 1 (maxChars) - %w", err)
+	}
+	return &eval.StringValue{Value: eval.ShowPreview(args[0], n)}, nil
+}

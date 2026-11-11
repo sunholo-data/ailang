@@ -107,6 +107,14 @@ export pure func intToStr(n: int) -> string {
   _string_intToStr(n)
 }
 
+-- showPreview: show(x), cut to at most maxChars code points for logging.
+-- If show(x) fits it is returned unchanged; otherwise the first maxChars code
+-- points are followed by "…(+N chars)", N being exactly how many were left out.
+-- Never builds the full rendering. maxChars <= 0 returns just the marker.
+-- showPreview([1, 2, 3], 100) = "[1, 2, 3]"
+-- showPreview([1, 2, 3], 5) = "[1, 2…(+4 chars)"
+export pure func showPreview[a](x: a, maxChars: int) -> string = _show_preview(x, maxChars)
+
 -- ============================================================================
 -- String Building (v0.6.5)
 -- ============================================================================

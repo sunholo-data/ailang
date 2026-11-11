@@ -34,7 +34,7 @@ func diff1(xs: [int], run: int) -> [int] =
 `
 
 func TestArrayAccumulateBothEngines(t *testing.T) {
-	want := `#[3, 0, 5, 0] #[, ab, ] #[0.5, 1.0] #[3, 7] #[123] #[9, 9] #[1, 1] #[6, 1] [0, 1, 2, 2, 1, 0]`
+	want := `#[3, 0, 5, 0] #["", "ab", ""] #[0.5, 1.0] #[3, 7] #[123] #[9, 9] #[1, 1] #[6, 1] [0, 1, 2, 2, 1, 0]`
 	for run := 0; run < 2; run++ {
 		e, eerr, v, verr := runBothEngines(t, "acc", accumulateSource)
 		if eerr != nil || verr != nil {

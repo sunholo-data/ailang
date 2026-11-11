@@ -253,6 +253,7 @@ _sharedmem_delete : string -> () ! {SharedMem}
 _sharedmem_get : string -> Option[bytes] ! {SharedMem}
 _sharedmem_keys : () -> list[string] ! {SharedMem}
 _sharedmem_put : (string, bytes) -> () ! {SharedMem}
+_show_preview : (α, int) -> string
 _simhash : string -> int
 _str_charAt : (string, int) -> string
 _str_charCode : string -> int

@@ -51,7 +51,7 @@ func TestShowTraceBounded_KeepsNonCredentials(t *testing.T) {
 		"note":         str("Bearer"), // the bare word, no credential after it
 		"pair":         &TupleValue{Elements: []Value{str("Accept"), str("text/plain")}},
 	}}
-	if got, want := ShowTraceBounded(v, 0), v.String(); got != want {
+	if got, want := ShowTraceBounded(v, 0), Show(v); got != want {
 		t.Fatalf("non-credential value changed:\n got %s\nwant %s", got, want)
 	}
 	long := &ListValue{Elements: []Value{str(strings.Repeat("x", 100))}}

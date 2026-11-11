@@ -8,6 +8,8 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strconv"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -217,7 +219,7 @@ func TestShow_Lists(t *testing.T) {
 				testctx.MakeString("hello"),
 				testctx.MakeBool(true),
 			}),
-			"[42, hello, true]",
+			`[42, "hello", true]`,
 		},
 		{
 			"nested lists",
@@ -270,7 +272,7 @@ func TestShow_Records(t *testing.T) {
 				"name": testctx.MakeString("Alice"),
 				"age":  testctx.MakeInt(30),
 			}),
-			"{age: 30, name: Alice}", // Sorted alphabetically
+			`{age: 30, name: "Alice"}`, // Sorted by field name; nested strings quoted
 		},
 		{
 			"nested record",
@@ -280,7 +282,7 @@ func TestShow_Records(t *testing.T) {
 					"age":  testctx.MakeInt(25),
 				}),
 			}),
-			"{person: {age: 25, name: Bob}}",
+			`{person: {age: 25, name: "Bob"}}`,
 		},
 	}
 
@@ -326,7 +328,7 @@ func TestShow_Constructors(t *testing.T) {
 					testctx.MakeString("hello"),
 				},
 			},
-			"Pair(1, hello)",
+			`Pair(1, "hello")`,
 		},
 		{
 			"nested constructors",
@@ -352,40 +354,32 @@ func TestShow_Constructors(t *testing.T) {
 	}
 }
 
-func TestShow_DepthLimit(t *testing.T) {
+// show is total: no depth limit (the old renderer turned anything nested
+// deeper than three levels into "...").
+func TestShow_NoDepthLimit(t *testing.T) {
 	ctx := testctx.NewMockEffContext()
-
-	// Create deeply nested list: [[[[42]]]]
 	deepList := testctx.MakeInt(42)
 	for i := 0; i < 5; i++ {
 		deepList = testctx.MakeList([]eval.Value{deepList})
 	}
-
 	result, err := showImpl(ctx.EffContext, []eval.Value{deepList})
 	require.NoError(t, err)
-
-	// Should hit depth limit and show "..."
-	assert.Contains(t, testctx.GetString(result), "...")
+	assert.Equal(t, "[[[[[42]]]]]", testctx.GetString(result))
 }
 
-func TestShow_LongStrings(t *testing.T) {
+// show is total: no width limit (the old renderer cut anything wider than 80
+// bytes to 20 + "..." + 20).
+func TestShow_NoWidthLimit(t *testing.T) {
 	ctx := testctx.NewMockEffContext()
-
-	// Create a very long list
 	elements := make([]eval.Value, 50)
+	parts := make([]string, 50)
 	for i := 0; i < 50; i++ {
 		elements[i] = testctx.MakeInt(i)
+		parts[i] = strconv.Itoa(i)
 	}
-	longList := testctx.MakeList(elements)
-
-	result, err := showImpl(ctx.EffContext, []eval.Value{longList})
+	result, err := showImpl(ctx.EffContext, []eval.Value{testctx.MakeList(elements)})
 	require.NoError(t, err)
-
-	output := testctx.GetString(result)
-
-	// Should truncate with "..." in the middle
-	assert.Contains(t, output, "...")
-	assert.LessOrEqual(t, len(output), maxWidth+10) // Some tolerance
+	assert.Equal(t, "["+strings.Join(parts, ", ")+"]", testctx.GetString(result))
 }
 
 func TestShow_FunctionValue(t *testing.T) {
@@ -411,21 +405,26 @@ func TestShow_RemainingValueForms(t *testing.T) {
 		value    eval.Value
 		expected string
 	}{
-		{"tuple", &eval.TupleValue{Elements: []eval.Value{testctx.MakeInt(1), testctx.MakeString("a")}}, "(1, a)"},
+		{"tuple", &eval.TupleValue{Elements: []eval.Value{testctx.MakeInt(1), testctx.MakeString("a")}}, `(1, "a")`},
 		{"array", eval.NewArray([]eval.Value{testctx.MakeInt(1), testctx.MakeInt(2)}), "#[1, 2]"},
 		{"map", &eval.MapValue{Entries: map[string]*eval.MapEntry{
 			"s:b": {Key: testctx.MakeString("b"), Value: testctx.MakeInt(2)},
 			"s:a": {Key: testctx.MakeString("a"), Value: testctx.MakeInt(1)},
-		}}, "Map{a: 1, b: 2}"},
+		}}, `Map{"a": 1, "b": 2}`},
 		{"bytes", &eval.BytesValue{Value: []byte{0x01, 0xab}}, "<bytes:01ab>"},
 		{"builtin", &eval.BuiltinFunction{Name: "example"}, "<function>"},
 		{"constructor closure", &eval.ConstructorClosure{CtorName: "Some", Arity: 1}, "<function>"},
-		{"indirect", initialized, "(1, a)"},
+		{"indirect", initialized, `(1, "a")`},
+		// Bytes are total: no 32-byte cut, and an upload's filename/mime are
+		// not content, so they are not rendered (M-V1-SHOW-TOTAL).
+		{"long bytes", &eval.BytesValue{Value: []byte(strings.Repeat("\xff", 40))}, "<bytes:" + strings.Repeat("ff", 40) + ">"},
+		{"upload bytes", &eval.BytesValue{Value: []byte("hi"), Filename: "a.txt", MimeType: "text/plain"}, "<bytes:6869>"},
+		{"empty bytes", &eval.BytesValue{}, "<bytes:>"},
 		{"uninitialized indirect", &eval.IndirectValue{Cell: &eval.RefCell{}}, "<uninitialized>"},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			assert.Equal(t, tt.expected, showValue(tt.value, 0))
+			assert.Equal(t, tt.expected, eval.Show(tt.value))
 		})
 	}
 }

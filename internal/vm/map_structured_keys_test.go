@@ -50,7 +50,7 @@ func TestStructuredMapKeysBothEngines(t *testing.T) {
 	// Tuple keys sort element-wise with lexical ints (the D2-preserved int
 	// order, also shown by the last field: V10's [10, 2, 9]); constructors sort
 	// by name; floats numerically, with -0.0 and 0.0 one key.
-	want := `[(1, 2), (10, 0), (2, 1)] | Some(d) | false | 2 | Some(1) | [East, North, South, West] | [((1, East, s), false), ((1, North, s), true)] | [(-1.0, y), (-0.0, w), (2.5, x)] | Some(7) | [None, Some(3)] | [10, 2, 9]`
+	want := `[(1, 2), (10, 0), (2, 1)] | Some("d") | false | 2 | Some(1) | [East, North, South, West] | [((1, East, "s"), false), ((1, North, "s"), true)] | [(-1.0, "y"), (-0.0, "w"), (2.5, "x")] | Some(7) | [None, Some(3)] | [10, 2, 9]`
 	var first string
 	for run := 0; run < 2; run++ {
 		e, eerr, v, verr := runBothEngines(t, "structured_keys", structuredKeysSource)

@@ -193,6 +193,7 @@ var BuiltinTable = []BuiltinFunc{
 	builtinMapToList,
 	builtinMapKeys,
 	builtinMapValues,
+	builtinShowPreview, // __show_preview (std/string._show_preview, M-V1-SHOW-TOTAL M3)
 }
 
 // builtinRecordGet returns the value of the named field in a record. Used as
@@ -275,69 +276,80 @@ func showValue(v bytecode.Value) string {
 	return eval.RenderShow(v, inspectVMShow)
 }
 
-func vmItems(vs []bytecode.Value) []any {
-	out := make([]any, len(vs))
-	for i, x := range vs {
-		out[i] = x
+// Show renders a VM value exactly as the `show` builtin does. The runner uses
+// it to print an entry's result (`run --print`).
+func Show(v bytecode.Value) string { return showValue(v) }
+
+// builtinShowPreview is _show_preview (std/string.showPreview): the same
+// bounded walk as the evaluator's eval.ShowPreview.
+func builtinShowPreview(args []bytecode.Value) (bytecode.Value, error) {
+	if len(args) != 2 {
+		return bytecode.Value{}, fmt.Errorf("_show_preview: expected 2 args, got %d", len(args))
 	}
-	return out
+	if args[1].Tag != bytecode.TagInt {
+		return bytecode.Value{}, fmt.Errorf("_show_preview: arg 1 (maxChars) - expected int, got %s", args[1].Tag)
+	}
+	return bytecode.NewString(eval.RenderShowPreview(args[0], inspectVMShow, int(args[1].Int))), nil
 }
 
-// inspectVMShow describes a VM value for eval.RenderShow.
-func inspectVMShow(x any) eval.ShowNode {
-	v := x.(bytecode.Value)
+type vmShowNode = eval.ShowNode[bytecode.Value]
+
+// inspectVMShow describes a VM value for eval.RenderShow. Every case must
+// match the evaluator's inspectShow (internal/eval/show.go) node for node;
+// TestShowEnginesAgree generates values of every shape to hold it there.
+func inspectVMShow(v bytecode.Value) vmShowNode {
 	switch v.Tag {
 	case bytecode.TagInt:
-		return eval.ShowNode{Text: strconv.FormatInt(v.Int, 10)}
+		return vmShowNode{Kind: eval.ShowInt, Int: v.Int}
 	case bytecode.TagFloat:
-		return eval.ShowNode{Kind: eval.ShowFloat, Float: v.Flt}
+		return vmShowNode{Kind: eval.ShowFloat, Float: v.Flt}
 	case bytecode.TagBool:
-		return eval.ShowNode{Text: strconv.FormatBool(v.Bool)}
+		return vmShowNode{Text: strconv.FormatBool(v.Bool)}
 	case bytecode.TagString:
-		return eval.ShowNode{Text: v.AsString()}
+		return vmShowNode{Kind: eval.ShowString, Text: v.AsString()}
 	case bytecode.TagUnit:
-		return eval.ShowNode{Text: "()"}
+		return vmShowNode{Text: "()"}
 	case bytecode.TagList:
-		return eval.ShowNode{Kind: eval.ShowList, Items: vmItems(v.AsList())}
+		return vmShowNode{Kind: eval.ShowList, Items: v.AsList()}
 	case bytecode.TagArray:
 		a := v.AsArray()
-		items := make([]any, a.Len())
+		items := make([]bytecode.Value, a.Len())
 		for i := range items {
 			items[i] = a.At(i)
 		}
-		return eval.ShowNode{Kind: eval.ShowArray, Items: items}
+		return vmShowNode{Kind: eval.ShowArray, Items: items}
 	case bytecode.TagTuple:
-		return eval.ShowNode{Kind: eval.ShowTuple, Items: vmItems(v.AsTuple())}
+		return vmShowNode{Kind: eval.ShowTuple, Items: v.AsTuple()}
 	case bytecode.TagRecord:
 		fields := v.AsRecord()
 		names := make([]string, len(fields))
-		items := make([]any, len(fields))
+		items := make([]bytecode.Value, len(fields))
 		for i, f := range fields {
 			names[i], items[i] = f.Name, f.Value
 		}
-		return eval.ShowNode{Kind: eval.ShowRecord, Names: names, Items: items}
+		return vmShowNode{Kind: eval.ShowRecord, Names: names, Items: items}
 	case bytecode.TagMap:
-		items := make([]any, 0, len(v.AsMap().Entries)*2)
-		for _, k := range v.AsMap().SortedKeys() {
-			e := v.AsMap().Entries[k]
+		m := v.AsMap()
+		items := make([]bytecode.Value, 0, len(m.Entries)*2)
+		for _, k := range m.SortedKeys() {
+			e := m.Entries[k]
 			items = append(items, e.Key, e.Value)
 		}
-		return eval.ShowNode{Kind: eval.ShowMap, Items: items}
+		return vmShowNode{Kind: eval.ShowMap, Items: items}
 	case bytecode.TagBytes:
-		b := v.AsBytes()
-		return eval.ShowNode{Text: (&eval.BytesValue{Value: b.B, Filename: b.Filename, MimeType: b.MimeType}).String()}
+		return vmShowNode{Kind: eval.ShowBytes, Bytes: v.AsBytes().B}
 	case bytecode.TagADT:
 		a := v.AsADT()
 		if a.Ctor == "" {
 			// Every ADT the VM builds carries its name; an unnamed one is a
 			// construction-site bug, so show it as such rather than guess.
-			return eval.ShowNode{Text: v.String()}
+			return vmShowNode{Text: v.String()}
 		}
-		return eval.ShowNode{Kind: eval.ShowCtor, Text: a.Ctor, Items: vmItems(a.Fields)}
+		return vmShowNode{Kind: eval.ShowCtor, Text: a.Ctor, Items: a.Fields}
 	case bytecode.TagClosure:
-		return eval.ShowNode{Text: "<function>"}
+		return vmShowNode{Text: "<function>"}
 	}
-	return eval.ShowNode{Text: fmt.Sprintf("<%s>", v.Tag)}
+	return vmShowNode{Text: fmt.Sprintf("<%s>", v.Tag)}
 }
 
 // builtinLen returns the length of a list, tuple, string, or record.
