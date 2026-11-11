@@ -17,6 +17,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/importhint"
 	"github.com/sunholo-data/ailang/internal/lexer"
 	"github.com/sunholo-data/ailang/internal/parser"
+	"github.com/sunholo-data/ailang/internal/pkg"
 )
 
 // TC_DEPRECATED_001 (M-V1-STDLIB-SURFACE-POLISH §6.1): one warning per use
@@ -159,6 +160,46 @@ func TestDetectDeprecatedUses_OwnModuleVarGlobalIsNotAUse(t *testing.T) {
 	ws := deprecatedWarnings(DetectDeprecatedUses(units))
 	if len(ws) != 1 || ws[0].WarningFile() != "user.ail" {
 		t.Fatalf("want exactly the use in user.ail, got %v", ws)
+	}
+}
+
+// A use inside an installed dependency package (pkg/<other>/...) is not the
+// importing project's to fix: it is not reported there. The project's own
+// modules — including its own pkg/<self>/ modules — still are.
+func TestDetectDeprecatedUses_SkipsInstalledDependencies(t *testing.T) {
+	dep := &ast.FuncDecl{Name: "head_or", IsExport: true, Annotations: []*ast.Annotation{{
+		Name: ast.AnnotationDeprecated,
+		Args: []ast.Expr{&ast.Literal{Kind: ast.StringLit, Value: "headOr"}},
+	}}}
+	use := func(file string) *core.Program {
+		return &core.Program{Decls: []core.CoreExpr{&core.VarGlobal{
+			CoreNode: core.CoreNode{OrigSpan: ast.Pos{File: file, Line: 1, Column: 1}},
+			Ref:      core.GlobalRef{Module: "std/list", Name: "head_or"},
+		}}}
+	}
+	units := map[string]*CompileUnit{
+		"std/list":           {ID: "std/list", Surface: &ast.File{Funcs: []*ast.FuncDecl{dep}}, Core: &core.Program{}},
+		"pkg/other/lib/util": {ID: "pkg/other/lib/util", Surface: &ast.File{}, Core: use("dep.ail")},
+		"pkg/acme/self/mod":  {ID: "pkg/acme/self/mod", Surface: &ast.File{}, Core: use("self.ail")},
+		"app/main":           {ID: "app/main", Surface: &ast.File{}, Core: use("main.ail")},
+	}
+	files := func() []string {
+		var fs []string
+		for _, w := range deprecatedWarnings(DetectDeprecatedUses(units)) {
+			fs = append(fs, w.WarningFile())
+		}
+		sort.Strings(fs)
+		return fs
+	}
+	if got := strings.Join(files(), ","); got != "main.ail" {
+		t.Errorf("no package manifest: warned in %q, want main.ail only", got)
+	}
+	prev := currentPackageManifest
+	defer func() { currentPackageManifest = prev }()
+	currentPackageManifest = &pkg.PackageManifest{}
+	currentPackageManifest.Package.Name = "acme/self"
+	if got := strings.Join(files(), ","); got != "main.ail,self.ail" {
+		t.Errorf("inside package acme/self: warned in %q, want main.ail,self.ail", got)
 	}
 }
 

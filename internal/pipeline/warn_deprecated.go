@@ -3,6 +3,7 @@ package pipeline
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
@@ -115,10 +116,22 @@ func DetectDeprecatedUses(units map[string]*CompileUnit) []elaborate.Warning {
 	}
 	sort.Strings(ids)
 
+	pkgName := ""
+	if currentPackageManifest != nil {
+		pkgName = currentPackageManifest.Package.Name
+	}
 	var out []elaborate.Warning
 	for _, id := range ids {
 		u := units[id]
 		if u == nil || u.Core == nil {
+			continue
+		}
+		// A use inside an installed dependency (pkg/<other package>/...) is
+		// that package's to fix, and its own `check` reports it. Reporting it
+		// here buried a downstream project under warnings it cannot act on
+		// (measured: docparse got 15 sites from sunholo/ailang_parse, repeated
+		// in 21 files). The project's own modules and std still report.
+		if strings.HasPrefix(id, "pkg/") && !isOwnPackageModule(id, pkgName) {
 			continue
 		}
 		// One warning per use site: a node reachable twice (a shared subtree)

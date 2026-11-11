@@ -40,7 +40,10 @@ had the `std/map` arguments reversed and did not type-check.
 stderr, in `check --json` `warnings[]` (code, file, line, column, message, suggestion) and in
 `check --format agent`, cold and warm compile cache alike. Importing a deprecated name without using it,
 defining it, and uses inside the defining module do not warn; a wrapper module that forwards to a
-deprecated function warns at its own use, not at its callers. `@experimental` puts one function in the
+deprecated function warns at its own use, not at its callers. Uses inside an installed dependency
+package (`pkg/<other>/...`) are not reported to the project that imports it — that package's own
+`check` reports them (docparse would otherwise get 15 sites from `sunholo/ailang_parse`, repeated in 21
+files). `@experimental` puts one function in the
 Experimental tier. Both are allowed in packages; the annotation syntax is Experimental in 1.0. Neither
 changes a type, an interface digest or `interface_hash`.
 
