@@ -5,7 +5,7 @@
 # (design_docs/planned/m-dashboard-headless-api.md).
 
 # ── Build Go binary ──────────────────────────────────────────
-FROM golang:1.26.10-bookworm AS go-builder
+FROM golang:1.26.11-bookworm AS go-builder
 
 WORKDIR /build
 

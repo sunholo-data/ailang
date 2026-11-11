@@ -25,7 +25,7 @@ What differs is the OAuth client model each host uses (status on 2026-11-10):
 | Host | Client model it uses | AILANG today | Section |
 |---|---|---|---|
 | **Claude** (claude.ai, desktop, mobile) | CIMD | ✅ Works; both demos pass `ailang mcp check` | §4, §8 |
-| **ChatGPT** (developer mode, plugin directory) | CIMD | ✅ Built, CIMD and `iss` in place; a live sign-in is not recorded yet | §4, §8 |
+| **ChatGPT** (chatgpt.com plugins, plugin directory) | CIMD | ✅ Executor verified 2026-11-11 (sign-in and tool calls from chat) | §4, §8 |
 | **Microsoft 365 Copilot**, **Copilot Studio** | Pre-registered client or DCR | ⚠️ Supported by `sunholo/mcp_oauth` 0.2.0 when switched on; not yet tried | §7 |
 | **Gemini Enterprise**, MCP data store | IAM, or a pre-registered client | ✅ IAM works; ⚠️ OAuth supported by 0.2.0, not yet tried | §6 |
 | **Gemini app and Search** (Connected Apps) | CIMD, then DCR; stable refresh; revocation | ⚠️ Supported by 0.2.0 when switched on; needs Google's preview admission | §6 |
@@ -451,9 +451,13 @@ your sign-in page, and reviewers read all three (see section 6).
    With or without the trailing slash both work from v0.52.3.
 3. In the connector's settings, choose **"Sign in when needed"** (lazy auth) and **"Use Claude's
    published identity (CIMD)"**. With CIMD there is no client ID or secret to enter.
+   ![claude.ai: Sign in when needed, and Claude's published identity (CIMD)](/img/connectors/claude-ai-02-connector-auth-settings.png)
+
 4. Ask for something an open tool answers. It should run without sign-in.
 5. Ask for something a gated tool answers. A **Connect** prompt appears. Sign in on your page, and
    the call completes.
+
+   ![AILANG Parse's sign-in page: claude.ai asks to use Parse on your behalf](/img/connectors/claude-ai-03-oauth-allow-parse.png)
 6. Run **every** tool once. Anthropic asks you to confirm this when you submit.
 
 If claude.ai says it "couldn't determine how this server signs in", run `mcp check` on the exact
@@ -462,13 +466,20 @@ that URL.
 
 ### Test it in ChatGPT
 
-ChatGPT calls these **plugins**. In the desktop app open Settings → Plugins → **Add** → **Add MCP
-server** and paste the `/mcp/connect/` URL; on the web, add it at `chatgpt.com/plugins`. (**Create
-plugin** in the same menu is the packaging route for the directory, §8.) Then repeat steps 4–6. ChatGPT
+ChatGPT calls these **plugins**. On **chatgpt.com**, open **Plugins** → **Add** → **Add custom MCP
+server**, paste the `/mcp/connect/` URL, and pick the authentication that matches the service:
+**OAuth** if every tool needs sign-in, **OAuth or no authentication** if some tools are open (lazy
+auth; declare `securitySchemes` per tool, §1). Leave the client setup method on CIMD. Then repeat
+steps 4–6. (The desktop app's MCPs tab is the Codex/Work side and did not pass its token to Work
+tasks on 2026-11-11; use the web.)
+
+![Add custom MCP server on chatgpt.com](/img/connectors/chatgpt-web-01-create-plugin.png)
+
+ ChatGPT
 registers itself through CIMD. Because `sunholo/mcp_oauth` returns `iss`, ChatGPT uses its stable
 redirect `https://chatgpt.com/connector_platform_oauth_redirect`. With CIMD, the allowed redirect
-URIs come from ChatGPT's own client metadata document, so you register nothing. A live ChatGPT sign-in against an AILANG service has not been recorded yet, so treat
-this as the first thing to test.
+URIs come from ChatGPT's own client metadata document, so you register nothing. Verified 2026-11-11 against the hosted executor: ChatGPT signed in as
+`https://chatgpt.com/oauth/client.json` and called tools from an ordinary chat.
 
 ## 5. File input
 

@@ -61,11 +61,26 @@ request directory removed. **The code itself is never logged.**
 
 ## Add it to your assistant
 
-**Claude (claude.ai, desktop, mobile).** Settings → Connectors → **Add custom connector**, and paste
-the URL above. Choose **"Sign in when needed"** and **"Use Claude's published identity (CIMD)"**:
-there is no client ID or secret to enter. The first tool call opens the Google sign-in.
+### Claude (claude.ai, desktop, mobile)
 
-**Claude Code.**
+Verified 2026-11-11.
+
+1. Settings → **Connectors** → **Add** → **Add custom connector**, give it a name and paste the URL
+   above.
+
+   ![The Connectors list with Add custom connector open](/img/connectors/claude-ai-01-add-custom-connector.png)
+
+2. Authentication: **Sign in when needed**. OAuth client: **Use Claude's published identity
+   (CIMD)**. There is no client ID or secret to enter.
+
+   ![Add custom connector: Sign in when needed, and Claude's published identity](/img/connectors/claude-ai-02-connector-auth-settings.png)
+
+3. The first tool call opens the executor's sign-in page: sign in with Google and **Allow**. Every
+   tool is read-only, so **Always allow** under Tool permissions is safe.
+
+   ![Tool permissions for the executor connector: 28 read-only tools](/img/connectors/claude-ai-04-tool-permissions.png)
+
+### Claude Code
 
 ```bash
 claude mcp add --transport http ailang-executor https://executor.ailang.sunholo.com/mcp/connect/
@@ -73,10 +88,42 @@ claude mcp add --transport http ailang-executor https://executor.ailang.sunholo.
 
 Then run `/mcp` in a session and choose the server to sign in.
 
-**ChatGPT.** ChatGPT calls these **plugins**. In the desktop app: Settings → Plugins → **Add** →
-**Add MCP server**, then paste the URL above; on the web, add it at `chatgpt.com/plugins`. Sign in
-when ChatGPT asks. ChatGPT registers itself with CIMD and the executor returns `iss`, so there is nothing to
-configure. A live ChatGPT sign-in has not been recorded yet.
+### ChatGPT
+
+ChatGPT calls these **plugins**. Verified 2026-11-11 on chatgpt.com: sign-in and tool calls from an
+ordinary chat.
+
+1. On **chatgpt.com**, open **Plugins** → **Add** → **Add custom MCP server**. Name it, choose
+   **Server URL** and paste the URL above. **Authentication: OAuth**: every executor tool except
+   `submit_feedback` needs sign-in. Under **Advanced OAuth settings**, leave the client setup method
+   on the client metadata document (CIMD); the executor does not offer dynamic registration. Tick
+   "I understand and want to continue" and **Create as a plugin**.
+
+   ![Add custom MCP server on chatgpt.com, filled in for the executor](/img/connectors/chatgpt-web-01-create-plugin.png)
+
+2. **Connect** it.
+
+   ![Connect the plugin](/img/connectors/chatgpt-web-02-connect-plugin.png)
+
+3. The executor's own page asks you to sign in with Google and allow chatgpt.com. It shows which
+   app is asking and where the code goes.
+
+   ![The executor's consent page: chatgpt.com wants to run AILANG code in the hosted sandbox](/img/connectors/chatgpt-web-03-oauth-allow.png)
+
+4. The plugin is listed under **Personal**, and an ordinary chat can use it:
+
+   ![A chat that wrote and ran an AILANG Fibonacci program through the executor](/img/connectors/chatgpt-web-05-fibonacci-run.png)
+
+ChatGPT identifies itself as `https://chatgpt.com/oauth/client.json` and returns to
+`https://chatgpt.com/connector_platform_oauth_redirect`; the executor returns `iss`, so there is
+nothing to register.
+
+**ChatGPT desktop app.** Use chatgpt.com for now. The desktop app's **MCPs** tab (Settings →
+Plugins → MCPs → Add MCP server) signs in, but on 2026-11-11 the process that runs **Work** tasks did
+not send the token it got, so tool calls were refused with 401, and ordinary chats do not see servers
+from that tab.
+
+### Others
 
 **Gemini Enterprise, Microsoft Copilot.** Not available yet for this server. Both need an OAuth
 client model (a pre-registered client or dynamic registration) that the executor has not switched
