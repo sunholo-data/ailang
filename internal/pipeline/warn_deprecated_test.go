@@ -12,6 +12,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/elaborate"
 	"github.com/sunholo-data/ailang/internal/importhint"
 	"github.com/sunholo-data/ailang/internal/lexer"
@@ -96,6 +97,8 @@ func TestDeprecatedUseWarning(t *testing.T) {
 			[]want{{3, "f", "renamedImport.ail"}}},
 		{"twoUses", "module twoUses\nimport lib (f, f2)\nexport pure func k() -> int = f(1)\nexport pure func k2() -> int = f2(1, 2)\n",
 			[]want{{3, "f", "twoUses.ail"}, {4, "f2", "twoUses.ail"}}},
+		{"sameNameTwice", "module sameNameTwice\nimport lib (f)\nexport pure func k() -> int = f(1)\nexport pure func k2() -> int = f(f(2))\n",
+			[]want{{3, "f", "sameNameTwice.ail"}, {4, "f", "sameNameTwice.ail"}, {4, "f", "sameNameTwice.ail"}}},
 		{"importOnly", "module importOnly\nimport lib (f)\nexport pure func k() -> int = 1\n", nil},
 		{"replacementOnly", "module replacementOnly\nimport lib (g)\nexport pure func k() -> int = g(1)\n", nil},
 		{"viaForwarder", "module viaForwarder\nimport mid (h)\nexport pure func k() -> int = h(1)\n",
@@ -134,6 +137,28 @@ func TestDeprecatedUseWarning(t *testing.T) {
 	// The defining module alone never warns (its own uses are not VarGlobals).
 	if ws := checkDeprecatedModule(t, "lib.ail"); len(ws) != 0 {
 		t.Errorf("defining module warned about itself: %v", ws)
+	}
+}
+
+// The defining module never warns about its own deprecated function, even when
+// a reference to it reaches Core as a VarGlobal (today the elaborator gives a
+// module's own top-level names as local Vars, so this guard is what keeps a
+// future elaborator change from making every std alias module warn).
+func TestDetectDeprecatedUses_OwnModuleVarGlobalIsNotAUse(t *testing.T) {
+	dep := &ast.FuncDecl{Name: "f", IsExport: true, Annotations: []*ast.Annotation{{
+		Name: ast.AnnotationDeprecated,
+		Args: []ast.Expr{&ast.Literal{Kind: ast.StringLit, Value: "g"}},
+	}}}
+	ref := func(file string, line int) core.CoreExpr {
+		return &core.VarGlobal{CoreNode: core.CoreNode{OrigSpan: ast.Pos{File: file, Line: line, Column: 1}}, Ref: core.GlobalRef{Module: "lib", Name: "f"}}
+	}
+	units := map[string]*CompileUnit{
+		"lib":  {ID: "lib", Surface: &ast.File{Funcs: []*ast.FuncDecl{dep}}, Core: &core.Program{Decls: []core.CoreExpr{ref("lib.ail", 3)}}},
+		"user": {ID: "user", Surface: &ast.File{}, Core: &core.Program{Decls: []core.CoreExpr{ref("user.ail", 5)}}},
+	}
+	ws := deprecatedWarnings(DetectDeprecatedUses(units))
+	if len(ws) != 1 || ws[0].WarningFile() != "user.ail" {
+		t.Fatalf("want exactly the use in user.ail, got %v", ws)
 	}
 }
 
