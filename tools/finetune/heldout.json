@@ -2,6 +2,14 @@
   "frozen": "2026-11-05",
   "design_doc": "design_docs/planned/v1_1_0/m-eval-finetuning-data-pipeline.md#data-spec-2026-11-05",
   "rule": "Nothing derived from these tasks may enter fine-tune training data: no solutions from any model, no near-duplicate tasks, no repo code that copies a solution. They are the before/after eval set for every fine-tune arm.",
+  "amendments": [
+    {
+      "date": "2026-11-11",
+      "change": "stretch: run_length_encode -> run_length_encode_v2 (the same task; v1 retired to benchmarks/retired/ because its expected output was the old lossy show). v1 moves to retired_excluded so its banked solutions stay out of training.",
+      "by": "PR #2229 (M-V1-SHOW-TOTAL), pending Mark's ruling",
+      "record": "design_docs/planned/v1_1_0/m-eval-finetuning-data-pipeline.md#held-out-amendment-2026-11-11"
+    }
+  ],
   "core": [
     "api_call_json",
     "ast_patch_roundtrip",
@@ -27,7 +35,10 @@
     "graph_bfs",
     "log_file_analyzer",
     "parse_prec_climb",
-    "run_length_encode",
+    "run_length_encode_v2",
     "stream_lcg_topk"
+  ],
+  "retired_excluded": [
+    "run_length_encode"
   ]
 }

@@ -220,6 +220,31 @@ Supersedes §"Data extraction" and §R4 where they conflict. The binding constra
 5. **Tool mapping:** every trajectory is converted to **pi's tool schema** (the harness it will run in). Claude Code Edit/Write/Bash, opencode and motoko tools are mapped to pi equivalents, and unmappable turns are dropped.
 6. **No teaching prompt in training inputs.** The point is a model that does not need it; a slim prompt (G4) may be included as the system turn.
 
+### Held-out amendment (2026-11-11)
+
+**Pending Mark's ruling** (made in PR #2229, M-V1-SHOW-TOTAL; no pilot data, config or run touched).
+`run_length_encode` was retired to `benchmarks/retired/`: its expected output was the old lossy
+`show` of a `[(int, string)]`. Its replacement `run_length_encode_v2` is the same task with an
+explicit output format. Left alone, that broke the held-out set both ways: the pilot scripts pass
+core + stretch to `--benchmarks`, which loads `benchmarks/<id>.yml`, so the old id no longer loads;
+and the exclusion matched exact ids, so v2 solutions (a near-duplicate of a held-out task) could
+enter training.
+
+Change in `tools/finetune/heldout.json`: stretch now names `run_length_encode_v2`; a new key,
+`retired_excluded: ["run_length_encode"]`, keeps the old id's banked solutions out of training. The
+EVAL list is still core + stretch (pilot scripts unchanged); every TRAINING-exclusion reader
+(`extract_lang.load_heldout`, used by onpolicy_pairs, stale_fix, probe_after_read and
+synth_episodes; `extract_traj.py`; `collect_onpolicy.sh`) now also reads `retired_excluded`.
+`TestFinetuneHeldoutMatchesBenchmarks` and its siblings (internal/eval_harness) fail if a retired id
+is in the eval list, if any version (`_vN`) of a held-out task is missing from the exclusion, or if
+an exclusion reader ignores `retired_excluded`.
+
+Consequence for comparability: arm-A baselines (`baseline_armA.json`, pilot-1/2 summaries) were
+measured on `run_length_encode`, so stretch numbers from now on are on a different task variant for
+one of 12 stretch benchmarks. Options for Mark: accept (one benchmark, same task), re-baseline arm A
+on v2 alone, or keep evaluating v1 from `benchmarks/retired/` (needs the eval loader to read
+retired specs).
+
 ### Generation (only where the inventory has gaps)
 
 - **G1, nothing for protocol or repairs.** Existing trajectories and repairs cover them.

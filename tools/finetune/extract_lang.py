@@ -105,8 +105,11 @@ def check_eval_program(code: str) -> tuple[bool, str]:
 
 
 def load_heldout():
+    """Every benchmark id excluded from TRAINING data: the eval set (core +
+    stretch) plus retired held-out ids whose banked solutions must stay out
+    (retired_excluded). The eval list itself is core + stretch only."""
     h = json.load(open(os.path.join(HERE, "heldout.json")))
-    return set(h["core"] + h["stretch"])
+    return set(h["core"] + h["stretch"] + h.get("retired_excluded", []))
 
 
 def task_prompt(bid: str) -> str:

@@ -451,7 +451,7 @@ def main():
     ap.add_argument("--name", default="traj")
     a = ap.parse_args()
     h = json.load(open(os.path.join(HERE, "heldout.json")))
-    held = set(h["core"] + h["stretch"])
+    held = set(h["core"] + h["stretch"] + h.get("retired_excluded", []))
     held_re = re.compile(r"\b(" + "|".join(map(re.escape, sorted(held, key=len, reverse=True))) + r")\b")
     held_hashes = set()
     for root, _, files in os.walk(os.path.join(REPO, "eval_results")):

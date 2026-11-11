@@ -108,3 +108,14 @@
   label: "long-frontier tier: 4 long-running benchmarks leave stretch/frontier"
   kind: taxonomy
   affects_tiers: [stretch, frontier]
+
+# run_length_encode retired (2026-11-11, PR #2229, M-V1-SHOW-TOTAL Decision 5): its
+# expected output was AILANG's old lossy `show` of a [(int, string)], which total
+# `show` no longer produces. Replaced in stretch by run_length_encode_v2 (same task,
+# explicit `3a 2b 4c 1a` output), a new id so ELO and banked rows stay separable.
+# Version: the first release containing PR #2229 — release-manager, correct it if
+# that release is not v0.61.0.
+- version: v0.61.0
+  label: "run_length_encode → run_length_encode_v2 (show became total)"
+  kind: benchmark_remove
+  affects_tiers: [stretch]
