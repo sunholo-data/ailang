@@ -1,10 +1,10 @@
 module cmd/ailang/testdata/matchfail/match_fail
 
--- Run-time no-match fixtures (M-V1-MATCH-EXHAUSTIVENESS M0). Every match
--- below is deliberately non-exhaustive; each entry reaches the missing case.
--- Both engines must stop with RT002 at the match's position — never yield
--- Unit (the VM's old behaviour) and fail later somewhere else. Line and
--- column numbers are asserted by cmd/ailang/match_fail_parity_test.go.
+-- Non-exhaustive match fixtures (M-V1-MATCH-EXHAUSTIVENESS). Every match
+-- below misses a case and each entry reaches it. Before the check they failed
+-- at run time (RT002, or a Unit value on the VM); now every path rejects the
+-- module with TC_MATCH_002 at each match before anything runs. Line and
+-- column numbers are asserted by cmd/ailang/match_exhaustive_paths_test.go.
 type Color = Red | Green | Blue
 
 type Opt = Has(int) | Nothing

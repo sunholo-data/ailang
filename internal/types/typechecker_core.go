@@ -101,6 +101,12 @@ type CoreTypeChecker struct {
 	// M-TYPE-LIST-ELEMENT-SOUNDNESS: let-binding type annotations from elaboration
 	// Maps core.Let NodeID -> annotated type so `let xs: [string] = [42]` is checked
 	letTypeAnnots map[uint64]Type
+	// M-V1-MATCH-EXHAUSTIVENESS (match_exhaustiveness.go): every ADT's complete
+	// constructor list, and the type each constructor pattern the elaborator
+	// left unstamped was checked against (kept current by the same
+	// substitutions as CoreTI).
+	matchUniverse    MatchUniverse
+	ctorPatternTypes map[*core.ConstructorPattern]Type
 	// M-DX11: Debug sink for type inference events
 	DebugSink TypeDebugSink
 	// M-PERF-DOCPARSE: Deferred CoreTI substitution — accumulated during inference,

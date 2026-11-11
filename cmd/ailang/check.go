@@ -188,11 +188,12 @@ func runCheckWithContext(ctx context.Context, cfg pipeline.Config, src pipeline.
 		resultSpan.RecordError(err)
 		resultSpan.SetStatus(codes.Error, err.Error())
 		if jsonFlag {
+			errs := pipelineErrorsToCheckJSON(err, filename)
 			outputCheckJSON(checkJSONOutput{
 				File:       filename,
 				Passed:     false,
-				ErrorCount: 1,
-				Errors:     []checkJSONError{errorToCheckJSONError(err, filename)},
+				ErrorCount: len(errs),
+				Errors:     errs,
 			})
 		} else {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -297,11 +298,12 @@ func runCheckWithTimeoutAndContext(ctx context.Context, cfg pipeline.Config, src
 			resultSpan.RecordError(r.err)
 			resultSpan.SetStatus(codes.Error, r.err.Error())
 			if jsonFlag {
+				errs := pipelineErrorsToCheckJSON(r.err, filename)
 				outputCheckJSON(checkJSONOutput{
 					File:       filename,
 					Passed:     false,
-					ErrorCount: 1,
-					Errors:     []checkJSONError{errorToCheckJSONError(r.err, filename)},
+					ErrorCount: len(errs),
+					Errors:     errs,
 				})
 			} else {
 				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), r.err)

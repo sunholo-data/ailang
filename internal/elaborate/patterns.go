@@ -7,7 +7,6 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
-	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // normalizeMatch handles pattern matching
@@ -41,29 +40,12 @@ func (e *Elaborator) normalizeMatch(match *ast.Match) (core.CoreExpr, error) {
 		})
 	}
 
+	// Exhaustiveness is a type checker verdict on the finished types
+	// (types.VerifyMatchExhaustiveness), not a guess made here.
 	result := &core.Match{
-		CoreNode:   e.makeNode(match.Position()),
-		Scrutinee:  scrutinee,
-		Arms:       arms,
-		Exhaustive: false, // Will be checked below
-	}
-
-	// Check exhaustiveness (without type info, use simple heuristic)
-	// For now, assume Bool type if we see boolean literals
-	scrutineeType := e.inferScrutineeType(arms)
-	if scrutineeType != nil {
-		exhaustive, missing := e.exChecker.CheckExhaustiveness(result, scrutineeType)
-		result.Exhaustive = exhaustive
-
-		if !exhaustive {
-			// Add warning with source location
-			pos := match.Position()
-			location := fmt.Sprintf("%s:%d:%d", e.filePath, pos.Line, pos.Column)
-			e.warnings = append(e.warnings, &ExhaustivenessWarning{
-				Location:       location,
-				MissingPattern: missing,
-			})
-		}
+		CoreNode:  e.makeNode(match.Position()),
+		Scrutinee: scrutinee,
+		Arms:      arms,
 	}
 
 	return e.wrapWithBindings(result, binds), nil
@@ -252,26 +234,4 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 	default:
 		return nil, fmt.Errorf("pattern elaboration not implemented for %T", pat)
 	}
-}
-
-// inferScrutineeType attempts to infer the type of a scrutinee from its patterns
-// This is a simple heuristic - returns Bool if we see boolean literals
-func (e *Elaborator) inferScrutineeType(arms []core.MatchArm) types.Type {
-	// Look at patterns to infer type
-	for _, arm := range arms {
-		if litPat, ok := arm.Pattern.(*core.LitPattern); ok {
-			switch litPat.Value.(type) {
-			case bool:
-				return &types.TCon{Name: "Bool"}
-			case int, int64:
-				return &types.TCon{Name: "Int"}
-			case float64:
-				return &types.TCon{Name: "Float"}
-			case string:
-				return &types.TCon{Name: "String"}
-			}
-		}
-	}
-	// Can't infer type - return nil
-	return nil
 }

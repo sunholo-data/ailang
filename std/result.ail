@@ -45,10 +45,10 @@ export pure func isErr[a, e](r: Result[a, e]) -> bool {
   }
 }
 
--- Unsafe: crashes on Err; document in README.
+-- Unsafe: stops the program with RT010 on Err; prefer a match or unwrapOr.
 export pure func unwrap[a, e](r: Result[a, e]) -> a {
   match r {
     Ok(x) => x,
-    Err(_) => 0 / 0  -- TODO: replace with proper error once runtime errors are standardized
+    Err(_) => unreachable("unwrap called on Err")
   }
 }

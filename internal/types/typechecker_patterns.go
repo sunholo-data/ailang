@@ -17,8 +17,9 @@ func (tc *CoreTypeChecker) inferMatch(ctx *InferenceContext, match *core.Match) 
 		return nil, ctx.env, err
 	}
 
-	// Check exhaustiveness (simplified for now)
-	// TODO: Implement full exhaustiveness checking
+	// Exhaustiveness is decided after inference, on the finalised types
+	// (VerifyMatchExhaustiveness, match_exhaustiveness.go), which also sets
+	// match.Exhaustive.
 	exhaustive := match.Exhaustive
 
 	// Infer types of all arms
@@ -153,6 +154,10 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 		if cands, amb := tc.ambiguousCtors[p.Name]; amb && p.TypeName == "" {
 			return tc.checkAmbiguousCtorPattern(p, cands, scrutType, ctx)
 		}
+		// M-V1-MATCH-EXHAUSTIVENESS: a pattern the elaborator could not
+		// stamp with its ADT (matched by name, #323) takes its type's
+		// identity from the value it is checked against.
+		tc.recordCtorPatternType(p, scrutType)
 		// #1478: a name outside direct scope is accepted only if a loaded
 		// module defines it (and it isn't provably a foreign ADT's).
 		if err := tc.checkCtorPatternScope(p, scrutType); err != nil {

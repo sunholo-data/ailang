@@ -64,6 +64,11 @@ type moduleImports struct {
 	// transitively; it does NOT bring constructors into scope.
 	// M-MATCH-XCHECK-ERROR-QUALITY.
 	AllCtorTypes map[string]string
+	// MatchUniverse is every transitively-loaded ADT's complete constructor
+	// list, keyed by nominal identity, for the exhaustiveness check
+	// (M-V1-MATCH-EXHAUSTIVENESS). Like AllCtorTypes it brings nothing into
+	// scope.
+	MatchUniverse types.MatchUniverse
 	// ImportedAliasOrigin records which module's interface supplied each entry
 	// of ImportedTypeAliases (M-TYPE-NAME-SHADOW), for diagnostics.
 	ImportedAliasOrigin map[string]string
@@ -96,6 +101,7 @@ func resolveModuleImports(
 		AmbiguousCtors:        make(map[string][]types.CtorCandidate),
 		ns:                    newImportNamespaces(),
 		AllCtorTypes:          make(map[string]string),
+		MatchUniverse:         make(types.MatchUniverse),
 		ImportedAliasOrigin:   make(map[string]string),
 	}
 
@@ -109,6 +115,7 @@ func resolveModuleImports(
 		if loadedIface == nil {
 			continue
 		}
+		addIfaceToMatchUniverse(imports.MatchUniverse, loadedIface)
 		for ctorName, ctorScheme := range loadedIface.Constructors {
 			if ctorScheme == nil {
 				continue

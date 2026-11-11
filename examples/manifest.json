@@ -4252,6 +4252,28 @@
       "modules": ["std/list","std/string"]
     },
     {
+      "path": "runnable/match_exhaustiveness.ail",
+      "status": "working",
+      "tags": [
+        "adt",
+        "pattern-matching",
+        "exhaustiveness",
+        "guards",
+        "unreachable"
+      ],
+      "description": "Every match covers every value (TC_MATCH_002 otherwise): constructors, catch-alls for int/string, guards that do not count, nested Option/Result, unreachable for an impossible case",
+      "run_flags": [
+        "--caps",
+        "IO",
+        "--entry",
+        "main"
+      ],
+      "expected": {
+        "stdout": "Green many negative\n18\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/stdlib/lang_adt_match_guards.ail",
       "status": "working",
       "tags": ["adt", "pattern-matching", "guards", "deriving"],
@@ -4389,11 +4411,11 @@
     }
   ],
   "statistics": {
-    "total": 329,
-    "working": 321,
+    "total": 330,
+    "working": 322,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9756838905775076,
+    "coverage": 0.9757575757575757,
     "experimental": 0
   },
   "milestones": {

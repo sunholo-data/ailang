@@ -53,7 +53,14 @@ import (
 // make_<T>_<C>@<module>, and the interface digest renders qualified refs. A v10
 // blob decodes every nominal type with no module, which no longer unifies with
 // a qualified one, so v10 entries must miss.
-const cacheKeyVersion = "v11"
+// v12 is #2230's (stdlib surface polish). v12 -> v13
+// (M-V1-MATCH-EXHAUSTIVENESS M2): a non-exhaustive match is an error
+// (TC_MATCH_002) and a constructor pattern of the wrong arity is TC_MATCH_006.
+// A cache hit skips type checking, so a module cached by an earlier compiler —
+// which passed with such a match — must miss, or `check` would pass it warm
+// and fail it cold. Modules also carry a fifth artifact, match_warnings.json
+// (TC_MATCH_003, replayed on a hit).
+const cacheKeyVersion = "v13"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:

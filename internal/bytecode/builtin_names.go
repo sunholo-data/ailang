@@ -136,6 +136,7 @@ var BuiltinNames = []string{
 	"__map_to_list",
 	"__map_keys",
 	"__map_values",
+	"_unreachable", // M-V1-MATCH-EXHAUSTIVENESS: RT010, never returns
 }
 
 // HOFBuiltinNames lists builtins that take closure arguments. These are

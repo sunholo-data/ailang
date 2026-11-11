@@ -10,6 +10,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/elaborate"
 	"github.com/sunholo-data/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 func TestWarningToCheckJSON(t *testing.T) {
@@ -20,25 +21,12 @@ func TestWarningToCheckJSON(t *testing.T) {
 		want checkJSONError
 	}{
 		{
-			name: "exhaustiveness warning in the checked file",
-			w:    &elaborate.ExhaustivenessWarning{Location: "lit1:3:36", MissingPattern: []string{"_"}},
-			file: "lit1.ail",
-			want: checkJSONError{Code: "ELB004", Message: "non-exhaustive match — missing pattern: _", File: "lit1.ail", Line: 3, Column: 36,
-				Suggestion: "add an arm for the missing pattern, or end with `_ => …`"},
-		},
-		{
-			name: "exhaustiveness warning, module path matches a nested file",
-			w:    &elaborate.ExhaustivenessWarning{Location: "pkg/a/lit:5:2", MissingPattern: []string{"_"}},
-			file: "pkg/a/lit.ail",
-			want: checkJSONError{Code: "ELB004", Message: "non-exhaustive match — missing pattern: _", File: "pkg/a/lit.ail", Line: 5, Column: 2,
-				Suggestion: "add an arm for the missing pattern, or end with `_ => …`"},
-		},
-		{
-			name: "exhaustiveness warning from an imported module names that module's file",
-			w:    &elaborate.ExhaustivenessWarning{Location: "lib/other:9:4", MissingPattern: []string{"_"}},
+			name: "TC_MATCH_003 names its file, position, message and fix",
+			w:    &types.MatchWarning{Pos: ast.Pos{File: "lib/m.ail", Line: 7, Column: 39}, Arm: 3, Pattern: "Idle"},
 			file: "main.ail",
-			want: checkJSONError{Code: "ELB004", Message: "non-exhaustive match — missing pattern: _", File: "lib/other.ail", Line: 9, Column: 4,
-				Suggestion: "add an arm for the missing pattern, or end with `_ => …`"},
+			want: checkJSONError{Code: "TC_MATCH_003", File: "lib/m.ail", Line: 7, Column: 39,
+				Message:    "arm 3 (Idle) of this match can never be reached: earlier arms match every value it matches",
+				Suggestion: "remove the arm, or move it above the arm that already covers it"},
 		},
 		{
 			name: "coded, positioned warning",
@@ -82,41 +70,44 @@ func TestWarningToCheckJSON(t *testing.T) {
 	}
 }
 
-// End to end: a passing check with a warning carries it in --json and in
-// --format agent. The compile cache is off: a warm cache drops elaborator
-// warnings from every output today (pre-existing; see the PR).
+// End to end: a passing check with a TC_MATCH_003 warning carries it in --json
+// and in --format agent — on a cold compile and on a warm one, where the
+// module is served from the compile cache and the type checker that finds the
+// warning does not run (the warning is cached with the module).
 func TestCheckMachineOutputsCarryWarnings(t *testing.T) {
-	t.Setenv("AILANG_NO_CACHE", "1")
+	t.Setenv("AILANG_CACHE_DIR", t.TempDir())
 	bin := buildAilang(t)
-	src := filepath.Join("cmd", "ailang", "testdata", "matchfail", "lit_warn.ail")
+	src := filepath.Join("cmd", "ailang", "testdata", "matchfail", "redundant_arm.ail")
 	file := filepath.ToSlash(src)
 
-	stdout, stderr, code := runWithStdin(t, bin, "", "check", "--json", src)
-	if code != 0 {
-		t.Fatalf("check --json exit %d\nstdout: %s\nstderr: %s", code, stdout, stderr)
-	}
-	var out checkJSONOutput
-	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
-		t.Fatalf("bad JSON %q: %v", stdout, err)
-	}
-	if !out.Passed || len(out.Errors) != 0 {
-		t.Fatalf("want a pass with no errors, got %+v", out)
-	}
-	if len(out.Warnings) != 1 {
-		t.Fatalf("want 1 warning, got %+v", out.Warnings)
-	}
-	w := out.Warnings[0]
-	if w.Code != "ELB004" || filepath.ToSlash(w.File) != file || w.Line != 5 || w.Column != 36 || !strings.Contains(w.Message, "missing pattern: _") {
-		t.Errorf("warning = %+v, want ELB004 at %s:5:36 naming the missing pattern", w, file)
+	for _, run := range []string{"cold", "warm"} {
+		stdout, stderr, code := runWithStdin(t, bin, "", "check", "--json", src)
+		if code != 0 {
+			t.Fatalf("%s: check --json exit %d\nstdout: %s\nstderr: %s", run, code, stdout, stderr)
+		}
+		var out checkJSONOutput
+		if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+			t.Fatalf("%s: bad JSON %q: %v", run, stdout, err)
+		}
+		if !out.Passed || len(out.Errors) != 0 {
+			t.Fatalf("%s: want a pass with no errors, got %+v", run, out)
+		}
+		if len(out.Warnings) != 1 {
+			t.Fatalf("%s: want 1 warning, got %+v", run, out.Warnings)
+		}
+		w := out.Warnings[0]
+		if w.Code != "TC_MATCH_003" || filepath.ToSlash(w.File) != file || w.Line != 7 || w.Column != 39 || !strings.Contains(w.Message, "arm 3 (Idle)") {
+			t.Errorf("%s: warning = %+v, want TC_MATCH_003 at %s:7:39 naming arm 3 (Idle)", run, w, file)
+		}
 	}
 
-	stdout, stderr, code = runWithStdin(t, bin, "", "check", "--format", "agent", src)
+	stdout, stderr, code := runWithStdin(t, bin, "", "check", "--format", "agent", src)
 	if code != 0 {
 		t.Fatalf("check --format agent exit %d\nstdout: %s\nstderr: %s", code, stdout, stderr)
 	}
 	// Paths print with the OS separator; compare slash-normalised.
 	lines := strings.Split(strings.TrimSpace(strings.ReplaceAll(stdout, "\r\n", "\n")), "\n")
-	want := "warn: " + file + ":5:36 ELB004: non-exhaustive match — missing pattern: _"
+	want := "warn: " + file + ":7:39 TC_MATCH_003: arm 3 (Idle) of this match can never be reached"
 	if len(lines) != 2 || filepath.ToSlash(lines[0]) != "ok: "+file || !strings.HasPrefix(filepath.ToSlash(lines[1]), want) {
 		t.Errorf("agent output:\n%s\nwant `ok: %s` then a line starting %q", stdout, file, want)
 	}

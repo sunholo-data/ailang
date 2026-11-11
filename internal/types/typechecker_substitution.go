@@ -75,6 +75,7 @@ func (tc *CoreTypeChecker) FinalizeSubstitutions() {
 // M-TYPENAME-NESTED-PROPAGATION: Also propagates TypeName from type aliases
 func (tc *CoreTypeChecker) applySubstitutionToCoreTI(sub Substitution) {
 	tc.substituteApplicationRows(sub)
+	tc.substituteCtorPatternTypes(sub)
 	if tc.CoreTI == nil {
 		return
 	}

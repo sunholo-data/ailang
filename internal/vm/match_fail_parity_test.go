@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	ailerrors "github.com/sunholo-data/ailang/internal/errors"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // M-V1-MATCH-EXHAUSTIVENESS M0, in process: a match with no matching arm is
@@ -13,7 +14,14 @@ import (
 // shape, reachable with errors.As. Before MATCH_FAIL the VM yielded Unit
 // (these entries returned it and "passed"). The binary-level twin is
 // cmd/ailang/match_fail_parity_test.go.
+//
+// Every match here is deliberately non-exhaustive, which `check` now rejects
+// (TC_MATCH_002); RT002 is defence in depth for checker bugs. The test turns
+// the check's errors off to reach it, with the compile cache off so that no
+// module compiled that way is served to a later compile.
 func TestMatchFailBothEngines(t *testing.T) {
+	t.Setenv("AILANG_NO_CACHE", "1")
+	defer types.SetMatchExhaustivenessErrorsForTest(false)()
 	cases := []struct {
 		name, src, pos, ctor, shape string
 	}{

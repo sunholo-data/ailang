@@ -404,6 +404,7 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 	}
 
 	st.result.Warnings = append(st.result.Warnings, compileResult.Warnings...)
+	unit.MatchWarnings = compileResult.MatchWarnings
 
 	if compileResult.TypeChecker != nil {
 		st.rootTypeChecker = compileResult.TypeChecker

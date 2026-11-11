@@ -192,11 +192,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		return result, elabErr
 	}
 
-	// Collect exhaustiveness warnings
 	result.Warnings = nil
-	for _, w := range elaborator.GetWarnings() {
-		result.Warnings = append(result.Warnings, w)
-	}
 
 	// M-DX-SPLIT-ARG: same-typed-arg swap warnings on the elaborated Core
 	// (before lowering). In the single-file/REPL pipeline imports are not
@@ -282,6 +278,10 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		typeChecker.SetConstructorModules(ctorModules)
 		typeChecker.SetADTTypeParams(adtTypeParams) // M-TAPP-FIX
 	}
+	// Only the file's own ADTs: this path loads no interfaces, and the
+	// elaborator's imported entries are the constructors in scope, not whole
+	// types. A match on any other ADT needs a catch-all arm here.
+	typeChecker.SetMatchUniverse(elaboratorMatchUniverse(elabCtors))
 
 	// M-BUGFIX: Pass type aliases to type checker for expansion during unification
 	// This enables `type Coord = {x: int, y: int}` to work with ADT variants
@@ -359,6 +359,20 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		typeSpan.End()
 		pipelineSpan.RecordError(typeErr)
 		return result, typeErr
+	}
+
+	// M-V1-MATCH-EXHAUSTIVENESS: the same verdict as the module pipeline, on
+	// the one declaration this path type-checks.
+	matchWarnings, err := typeChecker.VerifyMatchExhaustiveness(coreExpr)
+	if err != nil {
+		typeSpan.RecordError(err)
+		typeSpan.SetStatus(codes.Error, "match exhaustiveness")
+		typeSpan.End()
+		pipelineSpan.RecordError(err)
+		return result, err
+	}
+	for _, w := range matchWarnings {
+		result.Warnings = append(result.Warnings, w)
 	}
 
 	// Record type inference stats on span

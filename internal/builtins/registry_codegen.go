@@ -27,6 +27,7 @@ func registerCodegenSpecs() {
 	registerJSONCodegenSpecs()
 	registerEffectCodegenSpecs()
 	registerBytesCodegenSpecs()
+	registerUnreachableCodegenSpec()
 }
 
 // ============================================================================
