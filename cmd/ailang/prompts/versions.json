@@ -1170,9 +1170,20 @@
         "latest"
       ],
       "notes": "JSON numbers: JInt for integers (exact), match JInt and JNumber or use the accessors, getInt never truncates, decode takes exactly one value"
+    },
+    "v0.16.16": {
+      "file": "prompts/v0.16.16.md",
+      "hash": "09902cab9d73d2a7147440bba5e5b482eb17da6bd8df752fbf86d154eff8d435",
+      "description": "Exhaustive match: check rejects a match that misses a case (TC_MATCH_002), guards do not count, unreachable(\"why\") for impossible cases",
+      "created": "2026-11-11",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Exhaustive match: check rejects a match that misses a case (TC_MATCH_002), guards do not count, unreachable(\"why\") for impossible cases"
     }
   },
-  "active": "v0.16.13",
+  "active": "v0.16.16",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

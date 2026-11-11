@@ -4,7 +4,7 @@ AILANG is a deterministic, effect-typed programming language designed as a safe 
 
 This file bundles the AILANG documentation, README, language reference, and active teaching prompt for LLM consumption.
 
-Last updated: 2026-11-09T14:06:56Z
+Last updated: 2026-11-11T19:20:22Z
 
 ---
 
@@ -1402,9 +1402,9 @@ current teaching prompt and `ailang check file.ail` for diagnostics.
 
 ---
 
-# AI Teaching Prompt (Latest: v0.16.12)
+# AI Teaching Prompt (Latest: v0.16.16)
 
-# AILANG v0.16.12 - AI Teaching Prompt (with IFC Labels + Output Discipline)
+# AILANG v0.16.16 - AI Teaching Prompt (with IFC Labels + Output Discipline)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -1972,7 +1972,6 @@ export func main() -> () { println("hi") }
 -- CORRECT: declare IO effect
 export func main() -> () ! {IO} { println("hi") }
 ```
-```
 
 | Effect | Functions | Import |
 |--------|-----------|--------|
@@ -1995,6 +1994,8 @@ runtime currently treats all modes identically (mode-aware dispatch
 lands later).
 
 ```ailang
+import std/rand (rand_int, rand_seed)
+
 -- Bare !{Rand} desugars to !{Rand[mode=os]} via the default-mode table.
 func roll_d6() -> int ! {Rand} = rand_int(1, 6)
 
@@ -2830,6 +2831,34 @@ match data {
 - **A record pattern must name EVERY field of the record or end with `...`.** `{name}` on a
   record that also has `age` is a type error ("record field mismatch: expected 2 fields, got 1").
 
+**Every `match` must cover every case.** `ailang check` rejects one that misses a case
+(`TC_MATCH_002: non-exhaustive match on Light — no arm matches: Amber`):
+- cover every constructor of the type, or end with `_ =>`
+- a match on `int`, `string` or `float` always needs a final `_ =>` (or variable) arm
+- an arm with an `if` guard does not count: put an unguarded arm after it
+- a case that cannot happen: `unreachable("why")` fits any type and stops the program (RT010) if reached
+
+```ailang
+type Light = Red | Amber | Green
+
+pure func next(l: Light) -> Light = match l {
+  Red => Green,
+  Green => Amber,
+  Amber => Red
+}
+
+pure func sign(n: int) -> string = match n {
+  k if k < 0 => "negative",
+  0 => "zero",
+  _ => "positive"
+}
+
+pure func head(xs: [int]) -> int = match xs {
+  [] => unreachable("callers pass a non-empty list"),
+  [h, ..._] => h
+}
+```
+
 ## Deriving Eq for ADT Types
 
 Use `deriving (Eq)` to auto-generate `==` and `!=` for ADT types:
@@ -3004,7 +3033,7 @@ import std/result (Result, Ok, Err)
 import std/json (encode, jo, ja, kv, js, jnum, jb, jn)
 
 -- JSON constructors: js(string), jnum(float), jint(int), jb(bool), jn() for null
--- jint(n) is the integer convenience for jnum(intToFloat(n))
+-- jint(n) builds JInt(n), exact for every int; jnum(x) builds JNumber(x)
 -- jo([kv(k,v)...]) for objects, ja([...]) for arrays
 
 -- Build JSON object with all types
@@ -3030,6 +3059,22 @@ match result {
   Err(msg) => print("Parse error: ${msg}")
 }
 ```
+`decode` takes exactly ONE JSON value (whitespace around it is fine); text after it is `Err`.
+
+**JSON numbers: `JInt(n)` for integers (`42`), `JNumber(x)` for others (`1.5`, `1e3`).**
+A match on `Json` needs BOTH arms, or integers fall to `_`:
+```ailang
+import std/json (Json, JInt, JNumber)
+import std/math (intToFloat)
+
+func toFloat(j: Json) -> float =
+  match j {
+    JInt(n) => intToFloat(n),
+    JNumber(x) => x,
+    _ => 0.0
+  }
+```
+Or use the accessors, which accept both: `getInt`, `getNumber`, `asNumber`.
 
 **Parse JSON array directly (IMPORTANT - use asArray!):**
 ```ailang
@@ -3100,10 +3145,12 @@ match decode("{\"name\":\"Alice\",\"age\":30}") {
 Use these to reduce nested Option matching from 4 levels to 2:
 
 ```ailang
-import std/json (decode, getString, getNumber, getInt, getBool, getArray, getObject)
+module benchmark/solution
+import std/json (Json, decode, getString, getNumber, getInt, getBool, getArray, getObject)
 import std/string (intToStr)
 import std/option (Option, Some, None)
 import std/result (Result, Ok, Err)
+import std/io (print)
 
 -- Extract string field with single match
 func getName(obj: Json) -> string =
@@ -3112,7 +3159,7 @@ func getName(obj: Json) -> string =
     None => "unknown"
   }
 
--- Extract int field (JSON numbers are floats, getInt truncates)
+-- Extract int field (getInt: 30 -> Some(30), 30.0 -> Some(30), 1.5 -> None; never truncates)
 func getAge(obj: Json) -> int =
   match getInt(obj, "age") {
     Some(age) => age,
@@ -3130,7 +3177,7 @@ export func main() -> () ! {IO} =
 **JSON accessor functions:**
 - `getString(obj, key)` -> `Option[string]` - Get string value directly
 - `getNumber(obj, key)` -> `Option[float]` - Get float value directly
-- `getInt(obj, key)` -> `Option[int]` - Get int value (truncates float)
+- `getInt(obj, key)` -> `Option[int]` - Get int value (`None` for a fractional number)
 - `getBool(obj, key)` -> `Option[bool]` - Get boolean value directly
 - `getArray(obj, key)` -> `Option[[Json]]` - Get array value by key
 - `getObject(obj, key)` -> `Option[Json]` - Get nested object directly
@@ -3971,7 +4018,7 @@ let data = readFile("other.txt")  -- Works!
 | `x = x + 1` inside a block | No assignment: bind a new name, `let x2 = x + 1` (or shadow with `let x = x + 1`) |
 | `2 ** 10` | No `**` operator: `pow(2.0, 10.0)` (`std/math`, floats) |
 | `import std/math (max)` / `min` | No int `max`/`min` exists anywhere: define `pure func maxInt(a: int, b: int) -> int = if a > b then a else b` |
-| A `match` that leaves out a constructor | `ailang check` does NOT catch it; it fails at run time ("no pattern matched"). Cover every constructor or end with `_ =>` |
+| A `match` that leaves out a case | `ailang check` rejects it (`TC_MATCH_002`) and names the missing pattern. Add that arm, or `_ => …`, or `C => unreachable("why")` when the case cannot happen. Arms with `if` guards do not count |
 | `{user: {email: e}}` on a record with more fields | Record patterns must name every field or end with `...`: `{user: {email: e, ...}, ...}` |
 
 ## Running Programs
@@ -4189,7 +4236,6 @@ without writing. Formatting never changes program meaning: `Parse(fmt(x)) ≡ Pa
 - `test_effect_fs.ail`
 - `test_effect_io.ail`
 - `test_exhaustive_bool_complete.ail`
-- `test_exhaustive_bool_incomplete.ail`
 - `test_exhaustive_wildcard.ail`
 - `test_guard_bool.ail`
 - `test_guard_debug.ail`
