@@ -60,6 +60,15 @@ func SetMatchExhaustivenessErrorsForTest(asError bool) (restore func()) {
 	return func() { matchVerdictIsError = prev }
 }
 
+// matchState is the type checker's exhaustiveness state: every ADT's complete
+// constructor list, and the type each constructor pattern the elaborator left
+// unstamped was checked against (kept current by the same substitutions as
+// CoreTI).
+type matchState struct {
+	matchUniverse    MatchUniverse
+	ctorPatternTypes map[*core.ConstructorPattern]Type
+}
+
 // MatchUniverse maps an ADT's NominalKey(module, name) to its complete
 // constructor list, sorted by name (interfaces carry no declaration order).
 type MatchUniverse map[string][]exhaust.CtorSig

@@ -398,10 +398,11 @@ func (cs *CacheStore) readBoundedArtifact(path string, fileLimit int64, fileScop
 }
 
 func validateArtifactDigests(digests map[string]string) error {
-	if len(digests) != len(artifactPayloadNames()) {
-		return fmt.Errorf("stamp must contain exactly %d payload digests", len(artifactPayloadNames()))
+	names := artifactPayloadNames()
+	if len(digests) != len(names) {
+		return fmt.Errorf("stamp must contain exactly %d payload digests", len(names))
 	}
-	for _, name := range artifactPayloadNames() {
+	for _, name := range names {
 		digest, ok := digests[name]
 		if !ok || len(digest) != sha256.Size*2 {
 			return fmt.Errorf("missing or malformed digest for %s", name)
