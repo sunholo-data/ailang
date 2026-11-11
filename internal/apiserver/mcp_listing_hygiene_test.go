@@ -265,6 +265,10 @@ func TestServerInfoParse(t *testing.T) {
 		{"colour=red", ServerIdentity{}, "unknown key"},
 		{"parse", ServerIdentity{}, "key=value"},
 		{"name=a\nb", ServerIdentity{}, "control"},
+		{"name=x,icon=/icon.png", ServerIdentity{Name: "x", Version: def.Version, Icon: "/icon.png"}, ""},
+		{"icon=https://cdn.example/i.svg", ServerIdentity{Name: def.Name, Version: def.Version, Icon: "https://cdn.example/i.svg"}, ""},
+		{"icon=http://cdn.example/i.svg", ServerIdentity{}, "https"},
+		{"icon=icon.png", ServerIdentity{}, "path on this server"},
 	} {
 		got, err := ParseServerInfo(tc.in)
 		if tc.err != "" {

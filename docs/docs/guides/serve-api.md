@@ -422,6 +422,10 @@ comma. The same values set `serverInfo` on `/mcp/` and `/mcp/connect/` (and stdi
 the version is the AILANG binary's (for example `0.57.2`). An unknown key, a repeated key or an empty
 value is a startup error.
 
+`icon` sets the A2A card's `iconUrl`, which Gemini Enterprise shows next to the agent. Give a path
+served by this server (`icon=/icon.png`, resolved against the host the caller reached, so one flag
+works on every deployment and the icon stays on the card's host) or an `https://` URL.
+
 **MCP tool quality features:**
 
 - **Named parameter schemas** — `inputSchema` uses named parameters with JSON Schema types (e.g., `{"filepath": {"type": "string"}}`) instead of generic positional arrays. Types are mapped from AILANG: `string`→`"string"`, `int`→`"integer"`, `float`→`"number"`, `bool`→`"boolean"`, `Json`/records→`"object"`, lists→`"array"`.
@@ -809,7 +813,7 @@ Flags:
   --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)
   --oauth-issuer URL   OAuth authorization server for @mcp_auth("oauth2") tools on /mcp/connect/
   --a2a-message FN     With --a2a: the export (one string param) answering A2A v0.3 message/send and message/stream
-  --server-info S      Service identity name=N,title=T,version=V: MCP serverInfo, A2A card version, OpenAPI info.version
+  --server-info S      Service identity name=N,title=T,version=V,icon=I: MCP serverInfo, A2A card (name, version, iconUrl), OpenAPI info.version
   --mcp-connect-only   Tools only on /mcp/connect/, all behind the Bearer gate (no /mcp/; HTTP serves @nomcp routes only)
   --process-timeout D  Process exec timeout (default 30s; needs --caps Process)
   --process-allowlist L  Commands Process may exec: cmd or cmd:sub, comma-separated (default: any on PATH)

@@ -117,6 +117,12 @@ func (s *Server) buildAgentCard(r *http.Request) map[string]any {
 		card["defaultOutputModes"] = []string{"text/plain"}
 		card["skills"] = []map[string]any{s.a2aSkill(h)}
 	}
+	if icon := s.serverIdentity().Icon; icon != "" {
+		if strings.HasPrefix(icon, "/") {
+			icon = base + icon
+		}
+		card["iconUrl"] = icon
+	}
 	return card
 }
 
