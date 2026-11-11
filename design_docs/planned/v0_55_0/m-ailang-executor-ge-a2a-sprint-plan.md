@@ -88,6 +88,14 @@ Source: [Register and manage A2A agents](https://docs.cloud.google.com/gemini/en
   (`serve-api.md`, `mcp-connectors.md`). Open: multivac #24 (card name on `latest`); Mark mints the
   client with both redirects and runs `auth`; registration after the quota reset; measure which
   method GE calls and how long it holds a stream.
+- **Status 2026-11-11 (end of day):** client minted and authorization `ailang-executor-dev` created
+  (PKCE, Basic, real `mco_` id; the first run stored the placeholder and was redone). Card has an icon
+  (ailang `254602e`, multivac #26). GE's import preview accepts the card (v0.3, streaming, name,
+  skill). Registration refused twice today with the daily quota (spent by the 09:50 creations); the
+  console's step 2 has both PKCE and Basic checkboxes and empty URL fields (our card has no
+  `securitySchemes` to prefill them; follow-up, optional). **Next (after 08:00 UTC):**
+  `ailang-multivac/scripts/ge-a2a-agent.sh agent` from the `ge-a2a` worktree: it re-runs every check
+  (card, icon, gate, authorization, a GE-shaped authorize) before it spends the unit (multivac #25).
 
 ## Spend (D5)
 Dev only until D5 is decided: model calls bill to the GCP project per task. Bounded by max steps per
