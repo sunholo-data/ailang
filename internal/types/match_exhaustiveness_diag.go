@@ -10,6 +10,9 @@ import (
 	"github.com/sunholo-data/ailang/internal/types/exhaust"
 )
 
+// suggestCatchAll is the fix when no single arm is the answer.
+const suggestCatchAll = "add a final catch-all arm: _ => ..."
+
 // MatchError is one TC_MATCH_002/004/006 diagnostic. It unwraps to a
 // structured ailerrors.Report, so `check --json` and `--format agent` carry
 // its code, file:line:col and one-line suggestion.
@@ -90,7 +93,7 @@ func newNonExhaustiveError(pos ast.Pos, typeName string, missing []exhaust.Patte
 	var suggestion string
 	switch {
 	case len(rendered) == 1 && rendered[0] == "_":
-		suggestion = "add a final catch-all arm: _ => ..."
+		suggestion = suggestCatchAll
 	case len(rendered) == 1:
 		suggestion = fmt.Sprintf("add the missing arm: %s => ...", rendered[0])
 	default:
@@ -111,7 +114,7 @@ func newNonExhaustiveError(pos ast.Pos, typeName string, missing []exhaust.Patte
 func newBudgetError(pos ast.Pos, cause error) *MatchError {
 	return newMatchError(TC_MATCH_004, pos,
 		fmt.Sprintf("this match is too large to check for exhaustiveness (%v)", cause),
-		"add a final catch-all arm: _ => ...", nil, nil)
+		suggestCatchAll, nil, nil)
 }
 
 // newUndecidedError is TC_MATCH_002 for a match whose coverage the checker
@@ -119,7 +122,7 @@ func newBudgetError(pos ast.Pos, cause error) *MatchError {
 func newUndecidedError(pos ast.Pos, cause error) *MatchError {
 	return newMatchError(TC_MATCH_002, pos,
 		fmt.Sprintf("this match cannot be checked for exhaustiveness: %s", strings.TrimPrefix(cause.Error(), errUndecidable.Error()+": ")),
-		"add a final catch-all arm: _ => ...", nil, nil)
+		suggestCatchAll, nil, nil)
 }
 
 // patternArityError is a constructor pattern with the wrong number of arguments.
@@ -141,12 +144,14 @@ func newPatternArityError(matchPos ast.Pos, e *patternArityError) *MatchError {
 			pos.File = matchPos.File
 		}
 	}
-	holes := make([]string, e.arity)
-	for i := range holes {
-		holes[i] = "_"
+	// One `_` per declared field, appended rather than pre-sized: the arity
+	// comes from the program's own declaration.
+	var holes []string
+	for i := 0; i < e.arity; i++ {
+		holes = append(holes, "_")
 	}
 	fix := e.pattern.Name
-	if e.arity > 0 {
+	if len(holes) > 0 {
 		fix += "(" + strings.Join(holes, ", ") + ")"
 	}
 	return newMatchError(TC_MATCH_006, pos, e.Error(), "write "+fix, nil, nil)

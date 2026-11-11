@@ -200,6 +200,8 @@ func (v *matchVerifier) walk(expr core.CoreExpr) {
 		v.walk(e.Dict)
 		v.walkAll(e.Args)
 	case *core.Forall:
+		v.walk(e.Lo)
+		v.walk(e.Hi)
 		v.walk(e.Body)
 	default:
 		panic(fmt.Sprintf("VerifyMatchExhaustiveness: unhandled Core node %T", expr))
@@ -218,55 +220,52 @@ var errUndecidable = errors.New("cannot be checked for exhaustiveness")
 // check decides one match.
 func (v *matchVerifier) check(m *core.Match) {
 	pos := matchPosition(m)
-	arms := make([]exhaust.Arm, len(m.Arms))
-	closed := false // an unguarded `_` / variable arm covers everything
-	guarded := false
-	for i, arm := range m.Arms {
-		p, err := v.pattern(arm.Pattern)
-		if err != nil {
-			var ae *patternArityError
-			if errors.As(err, &ae) {
-				v.errs = append(v.errs, newPatternArityError(pos, ae))
-				return
-			}
-			if hasCatchAll(m) {
-				m.Exhaustive = true
-				return
-			}
-			v.errs = append(v.errs, newUndecidedError(pos, err))
-			return
-		}
-		arms[i] = exhaust.Arm{Pattern: p, Guarded: arm.Guard != nil}
-		if arm.Guard != nil {
-			guarded = true
-		} else if isCatchAll(arm.Pattern) {
-			closed = true
-		}
+	closed := hasCatchAll(m) // an unguarded `_` / variable arm covers everything
+	arms, err := v.arms(m)
+	if err == nil {
+		err = v.crossCheckRoot(m, arms)
 	}
-	if err := v.crossCheckRoot(m, arms); err != nil {
-		v.errs = append(v.errs, newUndecidedError(pos, err))
+	var res *exhaust.Result
+	if err == nil {
+		res, err = exhaust.Check(arms, exhaust.StaticUniverse(v.tc.matchUniverse), exhaust.Options{})
+	}
+	var arity *patternArityError
+	switch {
+	case errors.As(err, &arity):
+		// Never rescued by a catch-all: the engines disagree on the arm itself.
+		v.errs = append(v.errs, newPatternArityError(pos, arity))
 		return
-	}
-	res, err := exhaust.Check(arms, exhaust.StaticUniverse(v.tc.matchUniverse), exhaust.Options{})
-	if err != nil {
-		if closed {
-			m.Exhaustive = true // the answer does not depend on the rest
-			return
-		}
-		if errors.Is(err, exhaust.ErrBudget) {
-			v.errs = append(v.errs, newBudgetError(pos, err))
-		} else {
-			v.errs = append(v.errs, newUndecidedError(pos, err))
-		}
+	case err != nil && closed:
+		m.Exhaustive = true // the answer does not depend on the rest
+		return
+	case errors.Is(err, exhaust.ErrBudget):
+		v.errs = append(v.errs, newBudgetError(pos, err))
+		return
+	case err != nil:
+		v.errs = append(v.errs, newUndecidedError(pos, err))
 		return
 	}
 	m.Exhaustive = res.Exhaustive
 	if !res.Exhaustive {
-		v.errs = append(v.errs, newNonExhaustiveError(pos, v.scrutineeName(m), res.Missing, guarded))
+		v.errs = append(v.errs, newNonExhaustiveError(pos, v.scrutineeName(m), res.Missing, hasGuard(m)))
 	}
 	for _, i := range res.Redundant {
 		v.warns = append(v.warns, &MatchWarning{Pos: pos, Arm: i + 1, Pattern: exhaust.Render(arms[i].Pattern)})
 	}
+}
+
+// arms converts a match's arms; the first pattern that cannot be converted
+// stops it.
+func (v *matchVerifier) arms(m *core.Match) ([]exhaust.Arm, error) {
+	arms := make([]exhaust.Arm, len(m.Arms))
+	for i, arm := range m.Arms {
+		p, err := v.pattern(arm.Pattern)
+		if err != nil {
+			return nil, err
+		}
+		arms[i] = exhaust.Arm{Pattern: p, Guarded: arm.Guard != nil}
+	}
+	return arms, nil
 }
 
 // pattern converts a Core pattern, resolving each constructor's ADT.
@@ -448,6 +447,15 @@ func (v *matchVerifier) scrutineeName(m *core.Match) string {
 func hasCatchAll(m *core.Match) bool {
 	for _, a := range m.Arms {
 		if a.Guard == nil && isCatchAll(a.Pattern) {
+			return true
+		}
+	}
+	return false
+}
+
+func hasGuard(m *core.Match) bool {
+	for _, a := range m.Arms {
+		if a.Guard != nil {
 			return true
 		}
 	}
