@@ -73,8 +73,9 @@ claude mcp add --transport http ailang-executor https://executor.ailang.sunholo.
 
 Then run `/mcp` in a session and choose the server to sign in.
 
-**ChatGPT.** Turn on developer mode, add a connector with the URL above, and sign in when ChatGPT
-asks. ChatGPT registers itself with CIMD and the executor returns `iss`, so there is nothing to
+**ChatGPT.** ChatGPT calls these **plugins**. In the desktop app: Settings → Plugins → **Add** →
+**Add MCP server**, then paste the URL above; on the web, add it at `chatgpt.com/plugins`. Sign in
+when ChatGPT asks. ChatGPT registers itself with CIMD and the executor returns `iss`, so there is nothing to
 configure. A live ChatGPT sign-in has not been recorded yet.
 
 **Gemini Enterprise, Microsoft Copilot.** Not available yet for this server. Both need an OAuth
