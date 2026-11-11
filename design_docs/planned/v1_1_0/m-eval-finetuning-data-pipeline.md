@@ -238,13 +238,18 @@ enter training.
 
 Change: `tools/finetune/heldout.json` stretch now names `run_length_encode_v2`; a new key,
 `retired_excluded: ["run_length_encode"]`, keeps the old id's banked solutions out of training.
-The set is read in one place, `tools/finetune/heldout.py` (`load_heldout`: the training exclusion,
-core + stretch + retired_excluded; `eval_ids`: core + stretch). `extract_lang` re-exports
-`load_heldout` to onpolicy_pairs, stale_fix, probe_after_read and synth_episodes; `extract_traj.py`
-and `collect_onpolicy.sh`'s guard call it too. The pilot scripts are unchanged and evaluate core +
-stretch. Tests in `internal/eval_harness/finetune_heldout_test.go` run every reader against a
-fixture, and fail if a retired id is in the eval list or any version (`_vN`) of a held-out task is
-missing from the exclusion.
+Who reads `heldout.json`, and for what:
+- TRAINING exclusion (core + stretch + retired_excluded): `extract_lang.load_heldout` (one added
+  term), used by onpolicy_pairs, stale_fix, probe_after_read, synth_episodes and now
+  `extract_traj.py` (which re-read the file itself before); the inline guard in
+  `collect_onpolicy.sh` (one added term).
+- EVAL list (core + stretch, unchanged): `pilot*_run.sh`, `weekend_pilot.sh`, and
+  `summarize_pilot.py` (core only).
+
+Tests in `internal/eval_harness/finetune_heldout_test.go` run each training reader's real entry
+point against a fixture (network, model and compiler calls stubbed, the held-out filter not) and
+fail if any admits a held-out, retired or successor id; they also fail if a retired id is in the
+eval list or any version (`_vN`) of a held-out task is missing from the exclusion.
 
 ### Generation (only where the inventory has gaps)
 

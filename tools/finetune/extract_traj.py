@@ -35,8 +35,7 @@ from collections import Counter
 HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 sys.path.insert(0, HERE)
-from extract_lang import norm_hash, task_prompt  # noqa: E402
-from heldout import load_heldout  # noqa: E402
+from extract_lang import load_heldout, norm_hash, task_prompt  # noqa: E402
 
 SYSTEM = ("You are an AILANG coding agent. Work with the tools: write the solution to the file, "
           "verify it with `ailang check` / `ailang run`, read the errors, and fix until it passes. "

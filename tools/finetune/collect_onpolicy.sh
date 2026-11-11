@@ -31,10 +31,8 @@ log(){ echo "[$(date -u +%FT%TZ)] $*" | tee -a "$LOG"; }
 
 # Never collect on a held-out task.
 BENCH=$(python3 -I - "$BFILE" <<'EOF'
-import sys
-sys.path.insert(0, "tools/finetune")
-from heldout import load_heldout
-H=load_heldout("tools/finetune/heldout.json")
+import json,sys
+h=json.load(open("tools/finetune/heldout.json")); H=set(h["core"]+h["stretch"]+h.get("retired_excluded",[]))
 b=[l.strip() for l in open(sys.argv[1]) if l.strip()]
 bad=[x for x in b if x in H]
 if bad: sys.exit(f"held-out benchmarks in the collection list: {bad}")
