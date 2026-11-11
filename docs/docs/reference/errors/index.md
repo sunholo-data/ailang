@@ -111,7 +111,7 @@ TC_MATCH_005 at app.ail:6:45
   Fix: add a `JInt(i) => …` arm (intToFloat(i) gives a float), or read numbers with asNumber/getNumber/getInt, which accept both
 ```
 
-**`TC_DEPRECATED_001` — use of a `@deprecated` function (warning).** Emitted once per use site — a call, a function passed as a value, a module-qualified `L.f` or an aliased import — of a function declared `@deprecated("replacement")` in another module. The message names the replacement and the suggestion carries the annotation's optional note (for example, that the arguments swap). Importing the name without using it, defining it, and uses inside the defining module do not warn; nor do uses inside an installed dependency package (`pkg/<other>/...`), which that package's own `check` reports. It is reported on a warm compile cache too, and never blocks compilation. The stdlib renames before 1.0 (`head_or` → `headOr`, `rand_int` → `randInt`, …) use it; see [Deprecated stdlib names](/docs/reference/stability#deprecated-stdlib-names).
+**`TC_DEPRECATED_001` — use of a `@deprecated` function (warning).** Emitted once per use site — a call, a function passed as a value, a module-qualified `L.f` or an aliased import — of a function declared `@deprecated("replacement")` in another module. The message names the replacement and the suggestion carries the annotation's optional note (for example, that the arguments swap). A name imported by name and never used warns once, at that name in the import list (the import itself fails once the alias is removed). Defining it and uses inside the defining module do not warn; nor do uses inside an installed dependency package (`pkg/<other>/...`), which that package's own `check` reports. If the replacement is itself deprecated, the message names the first function along the chain that is not (`use headOr`, not `use head_or`); when the chain cycles or reaches a name that does not exist, it names the annotation's own replacement. It is reported on a warm compile cache too, and never blocks compilation. The stdlib renames before 1.0 (`head_or` → `headOr`, `rand_int` → `randInt`, …) use it; see [Deprecated stdlib names](/docs/reference/stability#deprecated-stdlib-names).
 
 ```
 TC_DEPRECATED_001 at app.ail:4:31
@@ -119,10 +119,10 @@ TC_DEPRECATED_001 at app.ail:4:31
   Fix: replace head_or with headOr (import it from std/list)
 ```
 
-**`TC_DEPRECATED_002` — `@deprecated` names no usable replacement (error).** The replacement in `@deprecated("x")` must be a live export: an export of the same module (`"headOr"`), or `"mod/path.name"` from a module this one imports. It is an error, at the annotation, when the name does not exist (with a did-you-mean, spelled the way the annotation must spell it), when it is the function itself, when it is itself deprecated (the message names the live end of the chain, so deprecations never chain), or when the chain is a cycle. Fix: point the annotation at the live replacement.
+**`TC_DEPRECATED_002` — `@deprecated` names no replacement (error).** The replacement in `@deprecated("x")` must exist: an export of the same module (`"headOr"`), or `"mod/path.name"` from a module this one imports. It is an error, at the annotation, when that name is not exported (with a did-you-mean, spelled the way the annotation must spell it) or is the function itself. Nothing else: a replacement that is itself deprecated, or a chain that cycles, is legal — whether a name in another module is deprecated is not part of this module's compile-cache key, so rejecting it would give one verdict cold and another warm. A std function deprecated in a later release therefore gives an unchanged library warnings only, never an error, and those warnings are not reported inside an installed dependency. Fix: point the annotation at an existing export.
 
 ```
-Error TC_DEPRECATED_002 at lib.ail:6:1: @deprecated("headOR") on head_or names no usable replacement: lib does not export headOR
+Error TC_DEPRECATED_002 at lib.ail:6:1: @deprecated("headOR") on head_or names no replacement: lib does not export headOR
   Fix: did you mean @deprecated("headOr")?
 ```
 

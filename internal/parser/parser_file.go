@@ -325,6 +325,7 @@ func (p *Parser) parseImportDecl() *ast.ImportDecl {
 			if p.curTokenIs(lexer.IDENT) {
 				symbolName := p.curToken.Literal
 				imp.Symbols = append(imp.Symbols, symbolName)
+				imp.SymbolPos = append(imp.SymbolPos, p.curPos())
 
 				// Check for symbol aliasing: symbol as alias
 				if p.peekTokenIs(lexer.AS) {

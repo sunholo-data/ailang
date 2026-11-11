@@ -1,9 +1,13 @@
 package pipeline
 
 import (
+	"fmt"
 	goast "go/ast"
+	"go/importer"
 	goparser "go/parser"
 	"go/token"
+	"go/types"
+	"os"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -130,46 +134,97 @@ var deprecatedExprKinds = map[string]string{
 	"Send": "plain", "Recv": "plain",
 }
 
-// astMarkerTypes returns the receiver type names of every method called marker
-// in internal/ast's non-test sources.
+// astMarkerTypes returns every named type of internal/ast (non-test sources)
+// whose method set has a method called marker.
 func astMarkerTypes(t *testing.T, marker string) []string {
 	t.Helper()
 	_, self, _, _ := runtime.Caller(0)
-	dir := filepath.Join(filepath.Dir(self), "..", "ast")
+	out, err := markerTypesIn(filepath.Join(filepath.Dir(self), "..", "ast"), marker)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return out
+}
+
+// markerTypesIn type-checks the Go package in dir and returns the names of its
+// non-interface named types whose method set (of T or *T) has a method called
+// marker. Method sets come from go/types, so a marker promoted from an embedded
+// struct and one declared on a generic receiver both count — a scan of
+// receiver syntax misses both.
+func markerTypesIn(dir, marker string) ([]string, error) {
 	files, err := filepath.Glob(filepath.Join(dir, "*.go"))
 	if err != nil || len(files) == 0 {
-		t.Fatalf("no internal/ast sources: %v", err)
+		return nil, fmt.Errorf("no Go sources in %s: %v", dir, err)
 	}
-	seen := map[string]bool{}
 	fset := token.NewFileSet()
+	var parsed []*goast.File
 	for _, f := range files {
 		if strings.HasSuffix(f, "_test.go") {
 			continue
 		}
 		file, err := goparser.ParseFile(fset, f, nil, 0)
 		if err != nil {
-			t.Fatal(err)
+			return nil, err
 		}
-		for _, d := range file.Decls {
-			fn, ok := d.(*goast.FuncDecl)
-			if !ok || fn.Recv == nil || fn.Name.Name != marker || len(fn.Recv.List) != 1 {
-				continue
-			}
-			rt := fn.Recv.List[0].Type
-			if star, ok := rt.(*goast.StarExpr); ok {
-				rt = star.X
-			}
-			if id, ok := rt.(*goast.Ident); ok {
-				seen[id.Name] = true
-			}
-		}
+		parsed = append(parsed, file)
+	}
+	conf := types.Config{Importer: importer.Default()}
+	pkg, err := conf.Check(parsed[0].Name.Name, fset, parsed, nil)
+	if err != nil {
+		return nil, err
 	}
 	var out []string
-	for k := range seen {
-		out = append(out, k)
+	scope := pkg.Scope()
+	for _, name := range scope.Names() {
+		tn, ok := scope.Lookup(name).(*types.TypeName)
+		if !ok || tn.IsAlias() || types.IsInterface(tn.Type()) {
+			continue
+		}
+		if types.NewMethodSet(types.NewPointer(tn.Type())).Lookup(pkg, marker) != nil {
+			out = append(out, name)
+		}
 	}
 	sort.Strings(out)
-	return out
+	return out, nil
+}
+
+// The guard itself: a node kind whose marker is promoted from an embedded
+// struct, or declared on a generic receiver, is still found.
+func TestMarkerTypesSeesEmbeddedAndGenericReceivers(t *testing.T) {
+	dir := t.TempDir()
+	src := `package fake
+
+type Expr interface{ exprNode() }
+
+type base struct{}
+
+func (base) exprNode() {}
+
+type ByEmbedding struct{ base }
+
+type ByPointerEmbedding struct{ *base }
+
+type Generic[T any] struct{ v T }
+
+func (*Generic[T]) exprNode() {}
+
+type Plain struct{}
+
+func (Plain) exprNode() {}
+
+type NotANode struct{}
+`
+	if err := os.WriteFile(filepath.Join(dir, "fake.go"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	got, err := markerTypesIn(dir, "exprNode")
+	if err != nil {
+		t.Fatal(err)
+	}
+	want := []string{"ByEmbedding", "ByPointerEmbedding", "Generic", "Plain", "base"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("marker types = %v, want %v", got, want)
+	}
 }
 
 func TestDeprecatedASTConstructsClassified(t *testing.T) {

@@ -241,7 +241,10 @@ in the last 0.x release before the v1.0.0 soak (roadmap step 16).
 named `test` blocks, `property` blocks, inline `tests` rows and module-level `let`s — in
 `ailang check` (stderr, `--json`, `--format agent`, `--package`), `ailang run` (stderr) and
 `ailang test` (stderr). Uses inside an installed dependency package are reported by that
-package's own `check`, not by its importers. The command-line REPL cannot import std modules
+package's own `check`, not by its importers. A deprecation can only ever produce
+`TC_DEPRECATED_001` in code that uses the name: a std function deprecated in a later release therefore gives an unchanged library warnings only, never an error, and those warnings are not reported inside an installed dependency.
+When a replacement is deprecated in turn, the warning names the first live function along the
+chain. The command-line REPL cannot import std modules
 (`:import std/list` is "Unknown module"), so a deprecated std name cannot be reached there;
 modules loaded into the browser REPL's registry do not warn.
 Package authors may use `@deprecated` and `@experimental` too; the annotation syntax itself is

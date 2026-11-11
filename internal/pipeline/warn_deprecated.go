@@ -46,9 +46,12 @@ type DeprecatedUseWarning struct {
 	Name        string  // its name
 	Replacement string  // @deprecated's first argument
 	Note        string  // @deprecated's optional second argument
+	// ReplacementModule is the module that exports Replacement (the defining
+	// module unless the chain led elsewhere).
+	ReplacementModule string
 	// UnusedImport: the deprecated name is imported but never used in the
 	// file. It still breaks (IMP010) when the alias is removed, so the import
-	// itself warns — once — and Location is the import line.
+	// itself warns — once — and Location is the name in the import list.
 	UnusedImport bool
 }
 
@@ -83,7 +86,11 @@ func (w *DeprecatedUseWarning) Suggestion() string {
 		}
 		return s
 	}
-	s := fmt.Sprintf("replace %s with %s (import it from %s)", w.Name, w.Replacement, w.Module)
+	from := w.ReplacementModule
+	if from == "" {
+		from = w.Module
+	}
+	s := fmt.Sprintf("replace %s with %s (import it from %s)", w.Name, strings.TrimPrefix(w.Replacement, from+"."), from)
 	if w.Note != "" {
 		s += "; " + w.Note
 	}
@@ -95,12 +102,16 @@ func (w *DeprecatedUseWarning) String() string {
 	return fmt.Sprintf("%s at %s\n  %s.\n  Fix: %s", CodeDeprecated, w.Location.String(), w.Message(), w.Suggestion())
 }
 
-type deprecation struct{ replacement, note string }
+// deprecation is one @deprecated export as a use site reports it.
+// replacement/replModule name the LIVE end of the replacement chain
+// (finalReplacement); note is the annotation's own note.
+type deprecation struct{ replacement, replModule, note string }
 
 // deprecatedIndex collects every exported @deprecated function of the units,
 // keyed by its global identity.
 func deprecatedIndex(units map[string]*CompileUnit) map[core.GlobalRef]deprecation {
-	idx := map[core.GlobalRef]deprecation{}
+	raw := map[core.GlobalRef]deprecation{}
+	exported := map[core.GlobalRef]bool{}
 	for id, u := range units {
 		if u == nil || u.Surface == nil {
 			continue
@@ -109,12 +120,52 @@ func deprecatedIndex(units map[string]*CompileUnit) map[core.GlobalRef]deprecati
 			if fd == nil || !fd.IsExport {
 				continue
 			}
+			ref := core.GlobalRef{Module: id, Name: fd.Name}
+			exported[ref] = true
 			if repl, note, ok := fd.Deprecation(); ok {
-				idx[core.GlobalRef{Module: id, Name: fd.Name}] = deprecation{repl, note}
+				raw[ref] = deprecation{replacement: repl, note: note}
 			}
 		}
 	}
+	idx := make(map[core.GlobalRef]deprecation, len(raw))
+	for ref, d := range raw {
+		final := finalReplacement(raw, exported, ref)
+		d.replModule = final.Module
+		d.replacement = final.Name
+		if final.Module != ref.Module {
+			d.replacement = final.Module + "." + final.Name
+		}
+		idx[ref] = d
+	}
 	return idx
+}
+
+// finalReplacement follows @deprecated targets from ref to the first function
+// that is not deprecated, so a use of head_or still says "use headOr" after
+// headOr is deprecated in turn. If the chain cycles, or reaches a name that is
+// not an export of a loaded module, it names the immediate replacement.
+//
+// It reads only the parsed sources of the units (CompileUnit.Surface), which
+// the loader parses on every run, never the compile cache, so its answer is
+// the same cold and warm (TestDeprecationDiagnosticsAreCacheStable).
+func finalReplacement(raw map[core.GlobalRef]deprecation, exported map[core.GlobalRef]bool, ref core.GlobalRef) core.GlobalRef {
+	next := func(from core.GlobalRef) core.GlobalRef {
+		mod, name, _ := splitDeprecationTarget(raw[from].replacement, from.Module)
+		return core.GlobalRef{Module: mod, Name: name}
+	}
+	immediate := next(ref)
+	visited := map[core.GlobalRef]bool{ref: true}
+	cur := immediate
+	for {
+		if visited[cur] || !exported[cur] {
+			return immediate
+		}
+		visited[cur] = true
+		if _, deprecated := raw[cur]; !deprecated {
+			return cur
+		}
+		cur = next(cur)
+	}
 }
 
 // DetectDeprecatedUses returns one warning per use site of a deprecated
@@ -169,7 +220,7 @@ func DetectDeprecatedUses(units map[string]*CompileUnit) []elaborate.Warning {
 			seen[key] = true
 			found = append(found, &DeprecatedUseWarning{
 				Location: pos, Module: vg.Ref.Module, Name: vg.Ref.Name,
-				Replacement: d.replacement, Note: d.note,
+				Replacement: d.replacement, ReplacementModule: d.replModule, Note: d.note,
 			})
 		}
 		for _, decl := range u.Core.Decls {
@@ -313,16 +364,20 @@ func unusedDeprecatedImports(u *CompileUnit, idx map[core.GlobalRef]deprecation,
 		if imp == nil {
 			continue
 		}
-		for _, sym := range imp.Symbols {
+		for i, sym := range imp.Symbols {
 			ref := core.GlobalRef{Module: imp.Path, Name: sym}
 			d, ok := idx[ref]
 			if !ok || used[ref] {
 				continue
 			}
 			used[ref] = true // one warning even if imported twice
+			at := imp.Pos
+			if i < len(imp.SymbolPos) {
+				at = imp.SymbolPos[i] // the name in the import list, not `import`
+			}
 			out = append(out, &DeprecatedUseWarning{
-				Location: imp.Pos, Module: ref.Module, Name: sym,
-				Replacement: d.replacement, Note: d.note, UnusedImport: true,
+				Location: at, Module: ref.Module, Name: sym,
+				Replacement: d.replacement, ReplacementModule: d.replModule, Note: d.note, UnusedImport: true,
 			})
 		}
 	}

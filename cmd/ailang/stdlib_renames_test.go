@@ -372,7 +372,7 @@ func TestDeprecatedUnusedImport(t *testing.T) {
 	for _, run := range []string{"cold", "warm"} {
 		_, stderr, code := runWithStdin(t, bin, "", "check", src)
 		if code != 0 || strings.Count(stderr, "TC_DEPRECATED_001 at ") != 2 ||
-			!strings.Contains(stderr, "unused_import.ail:6:") || !strings.Contains(stderr, "std/list.nth_or is deprecated; use nthOr (it is imported here and never used)") ||
+			!strings.Contains(stderr, "unused_import.ail:6:27") || !strings.Contains(stderr, "std/list.nth_or is deprecated; use nthOr (it is imported here and never used)") ||
 			!strings.Contains(stderr, "unused_import.ail:8:") {
 			t.Errorf("%s: check:\n%s", run, stderr)
 		}
@@ -425,6 +425,31 @@ func TestTestCommandDeduplicatesDeprecations(t *testing.T) {
 		want := "TC_DEPRECATED_001 at " + filepath.Join(dir, "shared.ail") + ":7:44"
 		if !strings.Contains(filepath.ToSlash(stderr), filepath.ToSlash(want)) {
 			t.Errorf("%s: want the relative spelling %q:\n%s", name, want, stderr)
+		}
+	}
+}
+
+// The de-duplication is per use site, not per position: two files with a
+// deprecated use at the same line:column are both reported, in a multi-file
+// and in a directory run (sub-directories included).
+func TestTestCommandReportsSamePositionInTwoFiles(t *testing.T) {
+	bin := buildAilang(t)
+	t.Setenv("AILANG_CACHE_DIR", t.TempDir())
+	dir := filepath.Join("cmd", "ailang", "testdata", "stdrenames", "samepos")
+	b, c := filepath.Join(dir, "b.ail"), filepath.Join(dir, "sub", "c.ail")
+	for name, args := range map[string][]string{
+		"two files": {"test", b, c},
+		"directory": {"test", dir},
+	} {
+		_, stderr, _ := runWithStdin(t, bin, "", args...)
+		got := filepath.ToSlash(stderr)
+		if n := strings.Count(got, "TC_DEPRECATED_001 at "); n != 2 {
+			t.Errorf("%s: %d TC_DEPRECATED_001 lines, want 2:\n%s", name, n, stderr)
+		}
+		for _, f := range []string{b, c} {
+			if want := "TC_DEPRECATED_001 at " + filepath.ToSlash(f) + ":4:33"; !strings.Contains(got, want) {
+				t.Errorf("%s: want %q:\n%s", name, want, stderr)
+			}
 		}
 	}
 }

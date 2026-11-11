@@ -136,7 +136,7 @@ func (w *astUseWalker) record(pos ast.Pos, ref core.GlobalRef) {
 	}
 	w.found = append(w.found, &DeprecatedUseWarning{
 		Location: pos, Module: ref.Module, Name: ref.Name,
-		Replacement: d.replacement, Note: d.note,
+		Replacement: d.replacement, ReplacementModule: d.replModule, Note: d.note,
 	})
 }
 

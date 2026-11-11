@@ -43,8 +43,9 @@ had the `std/map` arguments reversed and did not type-check.
 `@deprecated` on an exported function makes every use of it from another module — a call, a value
 (`map(abs_Int, xs)`), a module-qualified `L.f`, an aliased import `f as g` — warn once per use site, on
 stderr, in `check --json` `warnings[]` (code, file, line, column, message, suggestion) and in
-`check --format agent`, cold and warm compile cache alike. Importing a deprecated name without using it,
-defining it, and uses inside the defining module do not warn; a wrapper module that forwards to a
+`check --format agent`, cold and warm compile cache alike. A deprecated name imported and never used warns
+once, at that name in the import list (the import alone fails once the alias is removed); defining
+it and uses inside the defining module do not warn; a wrapper module that forwards to a
 deprecated function warns at its own use, not at its callers. Uses inside an installed dependency
 package (`pkg/<other>/...`) are not reported to the project that imports it — that package's own
 `check` reports them (docparse would otherwise get 15 sites from `sunholo/ailang_parse`, repeated in 21
@@ -66,7 +67,10 @@ The warning also covers uses that `check` never elaborates — named `test` bloc
 blocks, inline `tests` rows and `properties [forall …]` — resolved from the parsed source
 (imports and binders in scope), and `ailang test` prints the file's warnings on stderr.
 `@deprecated("x")` must name an export of the same module or an imported `"mod/path.name"`:
-otherwise `TC_DEPRECATED_002` at the definition, with a did-you-mean. `@experimental(...)` is
+otherwise `TC_DEPRECATED_002` at the annotation, with a did-you-mean. That is the whole rule —
+a replacement that is itself deprecated is legal (it is not in the module's cache key, so an
+error would depend on the cache); the use-site warning names the first live function along the
+chain instead. A std function deprecated in a later release therefore gives an unchanged library warnings only, never an error, and those warnings are not reported inside an installed dependency. `@experimental(...)` is
 `PAR_EXPERIMENTAL_ARG` ("takes no arguments"). `make check-llms-txt` (CI and `ci-quick`) now fails
 when the committed `llms.txt` copies do not embed the active teaching prompt; they had sat at
 v0.16.12 and are regenerated here.

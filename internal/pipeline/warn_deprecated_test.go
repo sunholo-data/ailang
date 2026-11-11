@@ -154,6 +154,26 @@ func TestDeprecatedUseWarning(t *testing.T) {
 	}
 }
 
+// Each unused deprecated import warns at its own name in the import list, not
+// at the `import` keyword: two on one line get two distinct positions.
+func TestDeprecatedUnusedImportPosition(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	t.Setenv("AILANG_CACHE_DIR", filepath.Join(root, "cache"))
+	writeModule(t, "lib.ail", deprecatedLib)
+	writeModule(t, "app.ail", "module app\nimport lib (g,  f as old,\n  f2)\nexport pure func k() -> int = g(1)\n")
+	for _, run := range []string{"cold", "warm"} {
+		var got []string
+		for _, w := range checkDeprecatedModule(t, "app.ail") {
+			line, col := w.Position()
+			got = append(got, fmt.Sprintf("%s@%d:%d", w.Name, line, col))
+		}
+		if want := "f@2:17 f2@3:3"; strings.Join(got, " ") != want {
+			t.Errorf("%s run: unused-import positions %v, want %s", run, got, want)
+		}
+	}
+}
+
 // The defining module never warns about its own deprecated function, even when
 // a reference to it reaches Core as a VarGlobal (today the elaborator gives a
 // module's own top-level names as local Vars, so this guard is what keeps a
@@ -237,10 +257,15 @@ func TestDeprecatedReplacementMustExist(t *testing.T) {
 		{"qualifiedNotImported", "@deprecated(\"std/math.absInt\")\nexport pure func a(x: int) -> int = x\n", "is not imported"},
 		// A typo in a qualified target suggests the qualified spelling.
 		{"qualifiedTypoHint", "import std/list (headOr)\n@deprecated(\"std/list.headOR\")\nexport pure func first(xs: [int]) -> int = headOr(xs, 0)\n", "did you mean @deprecated(\"std/list.headOr\")"},
-		// A target that is itself deprecated names the live end of the chain.
-		{"targetDeprecated", "export pure func c(x: int) -> int = x\n@deprecated(\"c\")\nexport pure func b(x: int) -> int = c(x)\n@deprecated(\"b\")\nexport pure func a(x: int) -> int = b(x)\n", "did you mean @deprecated(\"c\")"},
-		{"targetDeprecatedStd", "import std/list (head_or)\n@deprecated(\"std/list.head_or\")\nexport pure func first(xs: [int]) -> int = head_or(xs, 0)\n", "did you mean @deprecated(\"std/list.headOr\")"},
-		{"cycle", "@deprecated(\"b\")\nexport pure func a(x: int) -> int = x\n@deprecated(\"a\")\nexport pure func b(x: int) -> int = x\n", "never reaches a live function"},
+		// A target that is itself deprecated, or a cycle, is legal: whether a
+		// name in another module is deprecated is not in this module's cache
+		// key, so rejecting it would make the verdict depend on the cache. The
+		// use-site warning names the live end of the chain instead.
+		{"targetDeprecated", "export pure func c(x: int) -> int = x\n@deprecated(\"c\")\nexport pure func b(x: int) -> int = c(x)\n@deprecated(\"b\")\nexport pure func a(x: int) -> int = b(x)\n", ""},
+		{"targetDeprecatedStd", "import std/list (head_or)\n@deprecated(\"std/list.head_or\")\nexport pure func first(xs: [int]) -> int = head_or(xs, 0)\n", ""},
+		{"cycle", "@deprecated(\"b\")\nexport pure func a(x: int) -> int = x\n@deprecated(\"a\")\nexport pure func b(x: int) -> int = x\n", ""},
+		// A module path without a slash is still a qualified target.
+		{"qualifiedNoSlash", "@deprecated(\"lib.g\")\nexport pure func a(x: int) -> int = x\n", "is not imported"},
 		// The error is placed at the annotation (line 3 here), not the func.
 		{"position", "export pure func g(x: int) -> int = x\n@deprecated(\"gg\")\nexport pure func f(x: int) -> int = g(x)\n", "position.ail:3:1"},
 	}
