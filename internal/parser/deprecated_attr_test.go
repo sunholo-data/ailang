@@ -62,6 +62,7 @@ func TestDeprecatedAnnotationArgumentErrors(t *testing.T) {
 		"empty name":  `@deprecated("")`,
 		"blank name":  `@deprecated("  ")`,
 		"exp has arg": `@experimental("x")`,
+		"exp has unit": `@experimental()`,
 	} {
 		t.Run(name, func(t *testing.T) {
 			p := New(lexer.New("module lib\n\n"+ann+"\nexport func f(x: int) -> int = x\n", "lib.ail"))
@@ -69,7 +70,16 @@ func TestDeprecatedAnnotationArgumentErrors(t *testing.T) {
 			if len(p.Errors()) == 0 {
 				t.Fatalf("%s: accepted", ann)
 			}
-			if name == "exp has arg" {
+			if name == "exp has arg" || name == "exp has unit" {
+				// The right message, first: not "must be followed by a function".
+				if first := p.Errors()[0].Error(); !strings.Contains(first, "PAR_EXPERIMENTAL_ARG") || !strings.Contains(first, "takes no arguments") {
+					t.Errorf("@experimental(\"x\"): first error %q, want PAR_EXPERIMENTAL_ARG", first)
+				}
+				for _, err := range p.Errors() {
+					if strings.Contains(err.Error(), "must be followed by a function") {
+						t.Errorf("misleading follow-on error: %v", err)
+					}
+				}
 				return
 			}
 			named := false

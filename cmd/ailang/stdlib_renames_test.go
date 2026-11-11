@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -307,6 +308,56 @@ func TestCheckPackageReportsDeprecations(t *testing.T) {
 			if e.Code == "TC_DEPRECATED_001" {
 				t.Errorf("%s: a deprecation reached errors[]: %+v", run, out.Errors)
 			}
+		}
+	}
+}
+
+// Deprecated names used only in test code — named test blocks and a property
+// block, which `check` never elaborates — warn from check (human and --json)
+// and from `ailang test` (stderr; stdout and the verdict unchanged), once per
+// use, cold and warm. Before the fix all three were silent.
+func TestDeprecatedWarningsInTestCode(t *testing.T) {
+	bin := buildAilang(t)
+	t.Setenv("AILANG_CACHE_DIR", t.TempDir())
+	src := filepath.Join("cmd", "ailang", "testdata", "stdrenames", "testblock.ail")
+	wantLines := []int{16, 20, 24}
+	for _, run := range []string{"cold", "warm"} {
+		_, stderr, code := runWithStdin(t, bin, "", "check", src)
+		if code != 0 || strings.Count(stderr, "TC_DEPRECATED_001 at ") != len(wantLines) {
+			t.Errorf("%s: check: exit %d, want %d warnings:\n%s", run, code, len(wantLines), stderr)
+		}
+		stdout, _, code := runWithStdin(t, bin, "", "check", "--json", src)
+		var out struct {
+			Passed   bool `json:"passed"`
+			Warnings []struct {
+				Code string `json:"code"`
+				Line int    `json:"line"`
+			} `json:"warnings"`
+		}
+		if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+			t.Fatalf("%s: %v\n%s", run, err, stdout)
+		}
+		var lines []int
+		for _, w := range out.Warnings {
+			if w.Code == "TC_DEPRECATED_001" {
+				lines = append(lines, w.Line)
+			}
+		}
+		sort.Ints(lines)
+		if code != 0 || !out.Passed || !reflect.DeepEqual(lines, wantLines) {
+			t.Errorf("%s: check --json: exit %d passed %v, warning lines %v, want %v", run, code, out.Passed, lines, wantLines)
+		}
+
+		stdout, stderr, code = runWithStdin(t, bin, "", "test", src)
+		if code != 0 || strings.Count(stderr, "TC_DEPRECATED_001 at ") != len(wantLines) || strings.Contains(stdout, "TC_DEPRECATED_001") {
+			t.Errorf("%s: ailang test: exit %d, want %d warnings on stderr only\nstdout:\n%s\nstderr:\n%s", run, code, len(wantLines), stdout, stderr)
+		}
+		stdout, _, code = runWithStdin(t, bin, "", "test", "--json", src)
+		var tr struct {
+			Passed int `json:"passed_tests"`
+		}
+		if err := json.Unmarshal([]byte(stdout), &tr); err != nil || code != 0 || tr.Passed != 4 {
+			t.Errorf("%s: ailang test --json must stay clean JSON with 4 passes: exit %d err %v\n%s", run, code, err, stdout)
 		}
 	}
 }

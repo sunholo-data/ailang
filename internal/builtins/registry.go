@@ -185,20 +185,26 @@ func RebuildStdlibIndex() {
 			delete(unambiguousStdlibNameIndex, stdlibName)
 		}
 	}
-	// A deprecated std spelling is a forwarder to its replacement with the
-	// same arguments, so it resolves to the replacement's builtin. Qualified
-	// keys only: a bare old name stays resolvable through the module-less
-	// index only if it was there already (M-V1-STDLIB-SURFACE-POLISH M2).
+	AddRenameAliases(StdlibIndex)
+}
+
+// AddRenameAliases makes each deprecated std spelling resolve to its
+// replacement's builtin: the alias is a forwarder with the same arguments.
+// Qualified keys only; a key some spec already claims is left alone. A rename
+// that swaps arguments (list.member -> contains) is never aliased, or
+// generated Go would call contains with member's argument order
+// (M-V1-STDLIB-SURFACE-POLISH M2).
+func AddRenameAliases(index map[StdlibKey]string) {
 	for _, r := range importhint.StdlibRenames {
 		if r.Swapped {
 			continue
 		}
 		oldKey := StdlibKey{Module: r.Module, Name: r.Old}
-		if _, taken := StdlibIndex[oldKey]; taken {
+		if _, taken := index[oldKey]; taken {
 			continue
 		}
-		if name, ok := StdlibIndex[StdlibKey{Module: r.Module, Name: r.New}]; ok {
-			StdlibIndex[oldKey] = name
+		if name, ok := index[StdlibKey{Module: r.Module, Name: r.New}]; ok {
+			index[oldKey] = name
 		}
 	}
 }

@@ -28,6 +28,8 @@ const deprecatedLib = `module lib
 
 export pure func g(x: int) -> int = x + 1
 
+export pure func g2(a: int, b: int) -> int = b - a
+
 @deprecated("g")
 export pure func f(x: int) -> int = g(x)
 
@@ -200,6 +202,42 @@ func TestDetectDeprecatedUses_SkipsInstalledDependencies(t *testing.T) {
 	currentPackageManifest.Package.Name = "acme/self"
 	if got := strings.Join(files(), ","); got != "main.ail,self.ail" {
 		t.Errorf("inside package acme/self: warned in %q, want main.ail,self.ail", got)
+	}
+}
+
+// @deprecated must name a replacement that exists: an export of the same
+// module, or "mod/path.name" from a module this one imports. A typo is a
+// compile error (TC_DEPRECATED_002) at the definition, not a warning that
+// tells every caller to use a name that is not there.
+func TestDeprecatedReplacementMustExist(t *testing.T) {
+	root := t.TempDir()
+	t.Chdir(root)
+	t.Setenv("AILANG_CACHE_DIR", filepath.Join(root, "cache"))
+	cases := []struct {
+		name, src string
+		wantErr   string // "" = compiles
+	}{
+		{"sameModule", "export pure func g(x: int) -> int = x\n@deprecated(\"g\")\nexport pure func f(x: int) -> int = g(x)\n", ""},
+		{"typo", "export pure func gNew(x: int) -> int = x\n@deprecated(\"gNw\")\nexport pure func f(x: int) -> int = gNew(x)\n", "did you mean @deprecated(\"gNew\")"},
+		{"missing", "@deprecated(\"nonexistent\")\nexport pure func f(x: int) -> int = x\n", "does not export nonexistent"},
+		{"self", "@deprecated(\"f\")\nexport pure func f(x: int) -> int = x\n", "cannot be its own replacement"},
+		{"qualifiedImported", "import std/list (headOr)\n@deprecated(\"std/list.headOr\")\nexport pure func first(xs: [int]) -> int = headOr(xs, 0)\n", ""},
+		{"qualifiedMissing", "import std/list (headOr)\n@deprecated(\"std/list.headOrr\")\nexport pure func first(xs: [int]) -> int = headOr(xs, 0)\n", "std/list does not export headOrr"},
+		{"qualifiedNotImported", "@deprecated(\"std/math.absInt\")\nexport pure func a(x: int) -> int = x\n", "is not imported"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			writeModule(t, c.name+".ail", "module "+c.name+"\n"+c.src)
+			_, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: c.name + ".ail"}, productionCacheDependencies())
+			switch {
+			case c.wantErr == "" && err != nil:
+				t.Fatalf("want it to compile, got %v", err)
+			case c.wantErr != "" && err == nil:
+				t.Fatalf("want %s, it compiled", CodeDeprecatedTarget)
+			case c.wantErr != "" && (!strings.Contains(err.Error(), CodeDeprecatedTarget) || !strings.Contains(err.Error(), c.wantErr)):
+				t.Fatalf("want %s mentioning %q, got %v", CodeDeprecatedTarget, c.wantErr, err)
+			}
+		})
 	}
 }
 

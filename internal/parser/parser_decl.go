@@ -119,6 +119,20 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 	case ast.AnnotationExperimental:
 		// Parameterless: the function is tier Experimental in the interface
 		// (`"tier": "experimental"`), whatever its module's default tier.
+		// It takes no arguments: say so, and skip them so the function after
+		// it still parses (the error used to be "must be followed by a
+		// function").
+		if p.peekTokenIs(lexer.UNIT) || p.peekTokenIs(lexer.LPAREN) {
+			p.report("PAR_EXPERIMENTAL_ARG", "@experimental takes no arguments",
+				"Write @experimental on its own line before the function")
+			if p.peekTokenIs(lexer.UNIT) {
+				p.nextToken()
+			} else {
+				for !p.curTokenIs(lexer.RPAREN) && !p.curTokenIs(lexer.EOF) {
+					p.nextToken()
+				}
+			}
+		}
 		return &ast.Annotation{Name: ast.AnnotationExperimental, Pos: pos}
 	default:
 		p.report("PAR_UNKNOWN_ATTRIBUTE",

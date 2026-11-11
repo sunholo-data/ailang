@@ -171,6 +171,18 @@ func DetectDeprecatedUses(units map[string]*CompileUnit) []elaborate.Warning {
 				}
 			}
 		}
+		// Test blocks, property blocks, inline tests and forall properties
+		// never reach Core; they are resolved from the parsed source
+		// (warn_deprecated_ast.go).
+		for _, w := range deprecatedUsesOutsideCore(u, idx) {
+			pos := w.Location
+			key := fmt.Sprintf("%s|%d|%d|%s|%s", pos.File, pos.Line, pos.Column, w.Module, w.Name)
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			found = append(found, w)
+		}
 		sort.SliceStable(found, func(a, b int) bool {
 			pa, pb := found[a].Location, found[b].Location
 			if pa.File != pb.File {

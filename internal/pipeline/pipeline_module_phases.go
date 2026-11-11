@@ -411,6 +411,9 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 	if err := buildAndRegisterInterface(unit, modID, compileResult.ModuleTypeEnv, st.modLinker, imports.ImportedTypeAliases, elaborator.GetTypeAliases(), aliasParams, elaborator.GetDerivedEqTypes(), imports.IFC); err != nil {
 		return err
 	}
+	if err := validateDeprecationTargets(mod.File, unit.Iface, st.modLinker.GetIface); err != nil {
+		return err
+	}
 
 	st.publishFreshModule(modID, cacheKey, unit)
 	st.compiledUnits[modID] = unit
