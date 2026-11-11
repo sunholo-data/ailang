@@ -32,7 +32,8 @@
       "name": "buildArchive",
       "type": "(list[{content: string, name: string}])-\u003eResult[string,string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -64,7 +65,8 @@
       "name": "buildArchiveWithBytes",
       "type": "(list[{data: string, name: string}])-\u003eResult[string,string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -110,7 +112,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -156,7 +159,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -190,7 +194,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -236,7 +241,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -282,7 +288,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -364,7 +371,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -446,7 +454,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

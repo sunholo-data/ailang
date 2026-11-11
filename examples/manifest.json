@@ -1709,7 +1709,7 @@
         "stdlib",
         "re2"
       ],
-      "description": "Extract regex capture groups with std/regex findFirst + nth_or",
+      "description": "Extract regex capture groups with std/regex findFirst + nthOr",
       "modules": [
         "std/io",
         "std/list",
@@ -3465,7 +3465,7 @@
         "total-accessor",
         "stdlib"
       ],
-      "description": "Total character access: charAtOpt / charAt_or vs partial charAt",
+      "description": "Total character access: charAtOpt / charAtOr vs partial charAt",
       "modules": [
         "std/io",
         "std/list",
@@ -3500,6 +3500,24 @@
       }
     },
     {
+      "path": "runnable/deprecated_annotation.ail",
+      "status": "working",
+      "tags": [
+        "annotations",
+        "deprecated",
+        "experimental",
+        "stability"
+      ],
+      "description": "@deprecated(\"newName\") forwarders and @experimental on your own exports; old names keep working and warn TC_DEPRECATED_001 in importing modules",
+      "modules": [
+        "std/io"
+      ],
+      "expected": {
+        "stdout": "clampTo(15, 0, 10) = 10\nclamp_to(-3, 0, 10) = 0\nclampOld(0, 10, 7) = 7\nclampFloat(2.5, 0.0, 1.0) = 1.0\n",
+        "exit_code": 0
+      }
+    },
+    {
       "path": "runnable/fs_walk_glob.ail",
       "status": "working",
       "tags": [
@@ -3510,14 +3528,14 @@
         "glob",
         "effects"
       ],
-      "description": "std/fs walk (recursive sorted file listing) and glob (suffix filter) over a small /tmp tree",
+      "description": "std/fs walk (recursive sorted file listing) and walkWithSuffix (suffix filter) over a small /tmp tree",
       "modules": [
         "std/fs",
         "std/io",
         "std/list"
       ],
       "expected": {
-        "stdout": "walk: 5 files\n  /tmp/ailang_walk_glob/README.md\n  /tmp/ailang_walk_glob/src/main.ail\n  /tmp/ailang_walk_glob/src/nested/deep.ail\n  /tmp/ailang_walk_glob/src/notes.txt\n  /tmp/ailang_walk_glob/src/util.ail\nglob .ail: 3 files\n  /tmp/ailang_walk_glob/src/main.ail\n  /tmp/ailang_walk_glob/src/nested/deep.ail\n  /tmp/ailang_walk_glob/src/util.ail\nglob .md: 1 file\n",
+        "stdout": "walk: 5 files\n  /tmp/ailang_walk_glob/README.md\n  /tmp/ailang_walk_glob/src/main.ail\n  /tmp/ailang_walk_glob/src/nested/deep.ail\n  /tmp/ailang_walk_glob/src/notes.txt\n  /tmp/ailang_walk_glob/src/util.ail\nwalkWithSuffix .ail: 3 files\n  /tmp/ailang_walk_glob/src/main.ail\n  /tmp/ailang_walk_glob/src/nested/deep.ail\n  /tmp/ailang_walk_glob/src/util.ail\nwalkWithSuffix .md: 1 file\n",
         "exit_code": 0
       }
     },
@@ -3533,14 +3551,14 @@
         "result",
         "effects"
       ],
-      "description": "std/fs readFileRaw (raw bytes) and writeFileBytesResult (Err instead of panic) round-trip non-UTF-8 bytes; readFileBytes returns base64 text",
+      "description": "std/fs readFileRaw (raw bytes) and writeFileBytesResult (Err instead of panic) round-trip non-UTF-8 bytes; readFileBase64 returns base64 text",
       "modules": [
         "std/bytes",
         "std/fs",
         "std/io"
       ],
       "expected": {
-        "stdout": "write: Ok\nreadFileRaw: 6 bytes [0, 255, 254, 128, 97, 10]\nreadFileBytes: base64 text \"AP/+gGEK\"\nmissing parent: Err\nmissing file: Err\n",
+        "stdout": "write: Ok\nreadFileRaw: 6 bytes [0, 255, 254, 128, 97, 10]\nreadFileBase64: base64 text \"AP/+gGEK\"\nmissing parent: Err\nmissing file: Err\n",
         "exit_code": 0
       }
     },
@@ -3907,7 +3925,7 @@
       "path": "runnable/stdlib/io_stdout_stderr.ail",
       "status": "working",
       "tags": ["io", "stderr", "output"],
-      "description": "Data on stdout, diagnostics on stderr with print/println/eprintln/printErr/flush",
+      "description": "Data on stdout, diagnostics on stderr with print/println/eprintln/eprint/flush",
       "modules": ["std/io", "std/string", "std/list"],
       "expected": {"stdout": "3 squared = 9\n12 squared = 144\n5 squared = 25\nvalid: 3 12 5\n", "exit_code": 0}
     },
@@ -3915,7 +3933,7 @@
       "path": "runnable/stdlib/rand_seeded_simulation.ail",
       "status": "working",
       "tags": ["rand", "random", "determinism", "simulation"],
-      "description": "Reproducible dice/coin/float draws with rand_seed, rand_int, rand_bool, rand_float",
+      "description": "Reproducible dice/coin/float draws with randSeed, randInt, randBool, randFloat",
       "modules": ["std/rand", "std/list", "std/string"],
       "expected": {"stdout": "rolls: [5, 6, 2, 6, 4, 1, 6, 6, 6, 4]\nsixes: 5, total: 46\ncoins: HTHHHHTHTTHT\njitter: 0.268, 0.073, 0.072, -0.048\nreplayed after re-seed: true\n", "exit_code": 0},
       "run_flags": ["--caps", "IO,Rand", "--entry", "main"]
@@ -4382,11 +4400,11 @@
     }
   ],
   "statistics": {
-    "total": 328,
-    "working": 320,
+    "total": 329,
+    "working": 321,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.975609756097561,
+    "coverage": 0.9756838905775076,
     "experimental": 0
   },
   "milestones": {

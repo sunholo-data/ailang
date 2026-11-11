@@ -3,7 +3,7 @@ module examples/expected_fail/effect_budgets_multi
 -- Demonstrates multiple effect budgets in a single function
 -- Shows how different effects can have independent limits
 import std/io (println)
-import std/rand (rand_int, rand_seed)
+import std/rand (randInt, randSeed)
 import std/clock (now, sleep)
 
 -- Function with multiple independent effect budgets
@@ -16,8 +16,8 @@ export func multiEffectGame() -> () ! {IO @limit=4, Rand @limit=2, Clock @limit=
   let startTime = now()
   println("  Got start timestamp")
   -- Use our rand budget (2 allowed)
-  let roll1 = rand_int(1, 7)
-  let roll2 = rand_int(1, 7)
+  let roll1 = randInt(1, 7)
+  let roll2 = randInt(1, 7)
   -- Use remaining IO budget
   println("  Dice rolled")
   println("  Game complete!");
@@ -50,7 +50,7 @@ export func main() -> () ! {IO, Rand, Clock} {
   println("Budget composition: ! {IO @limit=4, Rand @limit=2, Clock @limit=1}")
   println("")
   -- Set deterministic seed for reproducible demo
-  rand_seed(42)
+  randSeed(42)
   println("Single game with multiple budgets:")
   multiEffectGame()
   println("")

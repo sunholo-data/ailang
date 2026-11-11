@@ -1,27 +1,40 @@
 -- std/rand - Random number generation
 --
 -- Generate random integers, floats, and booleans.
--- Use rand_seed() for reproducible sequences (testing, replays).
+-- Use randSeed() for reproducible sequences (testing, replays).
 --
 -- Requires: Rand capability (--caps Rand)
 
 module std/rand
 
--- rand_int: Generate random integer in range [min, max] inclusive
--- Set a seed first with rand_seed() for deterministic behavior
-export func rand_int(min: int, max: int) -> int ! {Rand} = _rand_int(min, max)
+-- randInt: Generate random integer in range [min, max] inclusive
+-- Set a seed first with randSeed() for deterministic behavior
+export func randInt(min: int, max: int) -> int ! {Rand} = _rand_int(min, max)
 
--- rand_float: Generate random float in range [min, max)
--- Set a seed first with rand_seed() for deterministic behavior
-export func rand_float(min: float, max: float) -> float ! {Rand} = _rand_float(min, max)
+-- randFloat: Generate random float in range [min, max)
+-- Set a seed first with randSeed() for deterministic behavior
+export func randFloat(min: float, max: float) -> float ! {Rand} = _rand_float(min, max)
 
--- rand_bool: Generate random boolean (50/50 chance)
--- Set a seed first with rand_seed() for deterministic behavior
-export func rand_bool() -> bool ! {Rand} = _rand_bool()
+-- randBool: Generate random boolean (50/50 chance)
+-- Set a seed first with randSeed() for deterministic behavior
+export func randBool() -> bool ! {Rand} = _rand_bool()
 
--- rand_seed: Set random seed for deterministic generation
+-- randSeed: Set random seed for deterministic generation
 -- Use this for reproducible random sequences (game replays, testing)
-export func rand_seed(seed: int) -> () ! {Rand} = _rand_seed(seed)
+export func randSeed(seed: int) -> () ! {Rand} = _rand_seed(seed)
+
+-- Deprecated spelling (renamed before 1.0): warns TC_DEPRECATED_001, removed before the v1.0.0 soak.
+@deprecated("randInt")
+export func rand_int(min: int, max: int) -> int ! {Rand} = randInt(min, max)
+
+@deprecated("randFloat")
+export func rand_float(min: float, max: float) -> float ! {Rand} = randFloat(min, max)
+
+@deprecated("randBool")
+export func rand_bool() -> bool ! {Rand} = randBool()
+
+@deprecated("randSeed")
+export func rand_seed(seed: int) -> () ! {Rand} = randSeed(seed)
 
 -- uuid4: Generate random UUID v4
 -- Returns RFC 4122 v4 UUID (e.g., "550e8400-e29b-41d4-a716-446655440000")

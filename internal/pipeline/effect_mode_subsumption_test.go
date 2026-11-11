@@ -16,14 +16,14 @@ func TestEffectModeSubsumptionFinalMatrix(t *testing.T) {
 		want    string
 	}{
 		{"blocker", `module blocker
-import std/rand (rand_int)
-export func seeded_roll() -> int ! {Rand[mode=seeded]} = rand_int(1, 6)`, false, ""},
+import std/rand (randInt)
+export func seeded_roll() -> int ! {Rand[mode=seeded]} = randInt(1, 6)`, false, ""},
 		{"c1", `module c1
-import std/rand (rand_int)
-export func f() -> int ! {Rand[mode=os]} = rand_int(1, 6)`, false, ""},
+import std/rand (randInt)
+export func f() -> int ! {Rand[mode=os]} = randInt(1, 6)`, false, ""},
 		{"c2", `module c2
-import std/rand (rand_int)
-export func f() -> int ! {Rand[mode=crypto]} = rand_int(1, 6)`, false, ""},
+import std/rand (randInt)
+export func f() -> int ! {Rand[mode=crypto]} = randInt(1, 6)`, false, ""},
 		{"c3", `module c3
 export func g() -> int ! {Rand[mode=seeded]} = 42
 export func f() -> int ! {Rand} = g(())`, true, "Effect mode mismatch: Rand requires mode=seeded; declaration provides mode=os"},
@@ -31,8 +31,8 @@ export func f() -> int ! {Rand} = g(())`, true, "Effect mode mismatch: Rand requ
 export func g() -> int ! {Rand[mode=seeded]} = 42
 export func f() -> int = g(())`, true, "Missing effects: Rand"},
 		{"c6", `module c6
-import std/rand (rand_int)
-export func g() -> int ! {Rand} = rand_int(1, 6)
+import std/rand (randInt)
+export func g() -> int ! {Rand} = randInt(1, 6)
 export func f() -> int ! {Rand[mode=seeded]} = g(())`, false, ""},
 		{"c7", `module c7
 export func g() -> int ! {Rand[mode=seeded]} = 42
@@ -98,12 +98,12 @@ func TestConflictingImportedAndLocalModesAreOrderIndependent(t *testing.T) {
 	for _, declaredMode := range []string{"os", "seeded"} {
 		for _, order := range []string{"local_first", "imported_first"} {
 			t.Run(declaredMode+"/"+order, func(t *testing.T) {
-				first, second := "seeded(())", "rand_int(1, 6)"
+				first, second := "seeded(())", "randInt(1, 6)"
 				if order == "imported_first" {
 					first, second = second, first
 				}
 				src := `module conflict_imported
-import std/rand (rand_int)
+import std/rand (randInt)
 export func seeded() -> int ! {Rand[mode=seeded]} = 1
 export func caller() -> int ! {Rand[mode=` + declaredMode + `]} {
   let ignored = ` + first + `;

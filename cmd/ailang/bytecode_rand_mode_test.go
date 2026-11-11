@@ -20,10 +20,10 @@ import (
 )
 
 const seededProbeSrc = `module modeprobe
-import std/rand (rand_int)
+import std/rand (randInt)
 import std/io (println)
 
-func draw() -> int ! {Rand} = rand_int(0, 1000000)
+func draw() -> int ! {Rand} = randInt(0, 1000000)
 
 func seededOuter() -> int ! {Rand[mode=seeded]} = draw()
 
@@ -34,10 +34,10 @@ export func main() -> unit ! {IO, Rand[mode=seeded]} {
 `
 
 const cryptoProbeSrc = `module cryptoprobe
-import std/rand (rand_int)
+import std/rand (randInt)
 import std/io (println)
 
-func draw() -> int ! {Rand} = rand_int(0, 1000000)
+func draw() -> int ! {Rand} = randInt(0, 1000000)
 
 func cryptoOuter() -> int ! {Rand[mode=crypto]} = draw()
 

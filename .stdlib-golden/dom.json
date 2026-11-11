@@ -8,7 +8,8 @@
         "AddTimeline(string)",
         "RemoveNode(string)",
         "UpdateNode(string, string)"
-      ]
+      ],
+      "tier": "experimental"
     }
   ],
   "funcs": [
@@ -56,7 +57,8 @@
       "effects": [
         "DOM"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -102,7 +104,8 @@
       "effects": [
         "DOM"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -148,7 +151,8 @@
       "effects": [
         "DOM"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -194,7 +198,8 @@
       "effects": [
         "DOM"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -253,7 +258,8 @@
         "Cog",
         "DOM"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

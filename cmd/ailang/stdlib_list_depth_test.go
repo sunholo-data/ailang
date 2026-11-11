@@ -27,7 +27,7 @@ func TestStdListCombinatorsAtDefaultDepth(t *testing.T) {
 	cases := []struct {
 		name, body, want string
 	}{
-		{"sortBy", `{ let s = sortBy(compare, xs()) in "${show(length(s))}:${head_or(s, "?")}" }`, "50001:"},
+		{"sortBy", `{ let s = sortBy(compare, xs()) in "${show(length(s))}:${headOr(s, "?")}" }`, "50001:"},
 		{"take", `show(length(take(40000, xs())))`, "40000"},
 		{"zip", `show(length(zip(xs(), xs())))`, "50001"},
 		{"concat", `show(length(concat(xs(), xs())))`, "100002"},
@@ -39,7 +39,7 @@ func TestStdListCombinatorsAtDefaultDepth(t *testing.T) {
 			src := filepath.Join(t.TempDir(), "listdepth.ail")
 			prog := fmt.Sprintf(`module test/listdepth
 
-import std/list (sortBy, take, zip, concat, flatMap, length, head_or, map)
+import std/list (sortBy, take, zip, concat, flatMap, length, headOr, map)
 import std/string (split, repeat, compare, join)
 
 func xs() -> [string] = split(repeat("b,a,", 25000), ",")

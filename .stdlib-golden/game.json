@@ -34,7 +34,8 @@
       "effects": [
         "Clock"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -68,7 +69,8 @@
       "effects": [
         "Clock"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -102,7 +104,8 @@
       "effects": [
         "Clock"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

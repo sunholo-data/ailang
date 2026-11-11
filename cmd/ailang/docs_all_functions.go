@@ -62,9 +62,19 @@ func buildAllFunctionsLines(stdlib fs.FS) []string {
 			docByName[exp.Name] = exp.DocLine
 		}
 
+		marks, modTier, err := parseExportMarks(stdlib, mod.FileName)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
 		// Exports in file (declaration) order.
 		for _, name := range order {
-			lines = append(lines, formatFunctionLine(mod.Name, name, astSigs[name], docByName[name]))
+			sig := astSigs[name]
+			if tag := marks[name].tag(modTier); tag != "" {
+				sig += "  " + tag
+			}
+			lines = append(lines, formatFunctionLine(mod.Name, name, sig, docByName[name]))
 		}
 	}
 

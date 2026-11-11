@@ -432,7 +432,7 @@ Ollama and config-driven providers reject image generation with an error.
 well as the prompt. Use them to edit an image, or to keep the same character
 across variations. Each ref is an `ImagePart` record `{source, mime}`, the
 same record `step()` uses for vision input. `source` is a base64 payload or a
-data-URI. `std/fs.readFileBytes` returns base64 you can pass straight in, and
+data-URI. `std/fs.readFileBase64` returns base64 you can pass straight in, and
 `mime` is required for raw base64. Gemini receives refs as `inlineData` parts
 and OpenRouter as `image_url` content parts. Every other provider fails with
 "not supported" instead of dropping them, and an empty `refs` list behaves

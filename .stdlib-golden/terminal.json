@@ -12,7 +12,8 @@
         "NotTTY(string)",
         "QueryFailure(string)",
         "Unsupported(string)"
-      ]
+      ],
+      "tier": "experimental"
     },
     {
       "name": "TerminalEvent",
@@ -22,11 +23,13 @@
         "Interrupted",
         "Key(TerminalKey)",
         "Resize(TerminalSize)"
-      ]
+      ],
+      "tier": "experimental"
     },
     {
       "name": "TerminalInfo",
-      "alias": "{input_tty: bool, output_tty: bool, raw_supported: bool, size: Option[TerminalSize]}"
+      "alias": "{input_tty: bool, output_tty: bool, raw_supported: bool, size: Option[TerminalSize]}",
+      "tier": "experimental"
     },
     {
       "name": "TerminalKey",
@@ -45,21 +48,25 @@
         "Tab",
         "Text(string)",
         "Up"
-      ]
+      ],
+      "tier": "experimental"
     },
     {
       "name": "TerminalOptions",
-      "alias": "{alternate_screen: bool, hide_cursor: bool}"
+      "alias": "{alternate_screen: bool, hide_cursor: bool}",
+      "tier": "experimental"
     },
     {
       "name": "TerminalSession",
       "ctors": [
         "TerminalSession(int)"
-      ]
+      ],
+      "tier": "experimental"
     },
     {
       "name": "TerminalSize",
-      "alias": "{columns: int, rows: int}"
+      "alias": "{columns: int, rows: int}",
+      "tier": "experimental"
     }
   ],
   "funcs": [
@@ -95,7 +102,8 @@
       "effects": [
         "IO"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -141,7 +149,8 @@
       "effects": [
         "IO"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -187,7 +196,8 @@
       "effects": [
         "IO"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

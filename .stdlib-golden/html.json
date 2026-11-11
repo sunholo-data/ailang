@@ -32,7 +32,8 @@
       "name": "parse",
       "type": "(string)-\u003eResult[XmlNode,string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -64,7 +65,8 @@
       "name": "parseFragment",
       "type": "(string)-\u003eResult[list[XmlNode],string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

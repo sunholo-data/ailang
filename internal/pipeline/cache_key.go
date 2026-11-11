@@ -47,7 +47,13 @@ import (
 // imports' IFC contracts, and export summaries see the module's own imports
 // (transitive intrinsic taint). A cache hit skips the IFC gate, so a v9 caller
 // verdict — reached without imported contracts — must never be served.
-const cacheKeyVersion = "v10"
+// v10 -> v11 (M-V1-STDLIB-SURFACE-POLISH M1): the cached iface.json gained
+// Tier (module and per function), ReplacedBy and DeprecationNote. A v10 entry
+// decodes with none, so `ailang iface` served from it would drop `"tier"` from
+// a std golden (measured: a warm run printed list.json with no tier); v10
+// entries must miss. (TC_DEPRECATED_001 itself reads the defining
+// module's parsed source, which is never cached, so it survives either way.)
+const cacheKeyVersion = "v11"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:

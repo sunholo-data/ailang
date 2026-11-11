@@ -299,6 +299,9 @@ func (st *modulePipelineState) compileAllAndFinalize() error {
 		st.result.Warnings = append(st.result.Warnings,
 			DetectStrictFallbacks(st.compiledUnits[modID].Surface, st.compiledUnits[modID].Core)...)
 	}
+	// Needs every unit at once: the deprecation lives in the defining module,
+	// the use in another.
+	st.result.Warnings = append(st.result.Warnings, DetectDeprecatedUses(st.compiledUnits)...)
 
 	link.RegisterAdtModule(st.modLinker)
 	st.saveCacheAndReportStats()

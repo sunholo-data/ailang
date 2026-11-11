@@ -44,7 +44,8 @@
       "name": "constantTimeEqual",
       "type": "(string,string)-\u003ebool",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -88,7 +89,8 @@
       "name": "hmacSha256",
       "type": "(string,string)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -144,7 +146,8 @@
       "name": "rsaVerifyPKCS1v15",
       "type": "(bytes,bytes,string)-\u003eResult[bool,string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -176,7 +179,8 @@
       "name": "sha256Bytes",
       "type": "(bytes)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -208,7 +212,8 @@
       "name": "sha256Hex",
       "type": "(string)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

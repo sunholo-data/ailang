@@ -1,0 +1,6 @@
+module cmd/ailang/testdata/stdrenames/qualified_missing
+
+-- Deliberately fails: L.nthOrx is not an export of std/list.
+import std/list as L
+
+export pure func k(xs: [int]) -> int = L.nthOrx(xs, 0, 0)

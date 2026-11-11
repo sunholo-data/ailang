@@ -20,6 +20,10 @@ type Iface struct {
 	DerivedEq    []string                      // Types this module declares `deriving (Eq)`, sorted; importers need their Eq instances
 	Schema       string                        // Schema version, e.g., SchemaVersion
 	Digest       string                        // Deterministic digest of interface
+	// Tier is the module's default tier from std/STABILITY.toml ("" outside the
+	// manifest). Every exported type carries it; a function carries its own
+	// IfaceItem.Tier (M-V1-STDLIB-SURFACE-POLISH §6.1). Not hashed.
+	Tier string
 }
 
 // TypeExport represents an exported type name
@@ -35,6 +39,12 @@ type IfaceItem struct {
 	Type   *types.Scheme         // Generalized type scheme
 	Purity bool                  // Whether the function is pure
 	Ref    core.GlobalRef        // Global reference to this item
+	// Tier: the module default, or "experimental" under @experimental.
+	Tier string
+	// ReplacedBy / DeprecationNote come from @deprecated("replacement", "note").
+	// Informational: neither changes the type, the digest or interface_hash.
+	ReplacedBy      string
+	DeprecationNote string
 }
 
 // ConstructorScheme represents the type scheme of an ADT constructor

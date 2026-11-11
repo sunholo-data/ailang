@@ -512,8 +512,10 @@ func compactInterface(jsonBytes []byte) (string, error) {
 			Alias string   `json:"alias"`
 		} `json:"types"`
 		Funcs []struct {
-			Name string `json:"name"`
-			Type string `json:"type"`
+			Name       string `json:"name"`
+			Type       string `json:"type"`
+			Tier       string `json:"tier"`
+			ReplacedBy string `json:"replaced_by"`
 		} `json:"funcs"`
 	}
 	if err := json.Unmarshal(jsonBytes, &iface); err != nil {
@@ -531,7 +533,29 @@ func compactInterface(jsonBytes []byte) (string, error) {
 			fmt.Fprintf(&b, "type %s\n", t.Name)
 		}
 	}
+	// A wholly Experimental module (std/ai, ...) is not marked line by line.
+	mixedTiers := false
 	for _, f := range iface.Funcs {
+		if f.Tier != "experimental" {
+			mixedTiers = true
+			break
+		}
+	}
+	for _, f := range iface.Funcs {
+		// Mark what an agent should not reach for: a deprecated name (with
+		// its replacement) and an Experimental function in a module whose
+		// other exports are not.
+		var marks []string
+		if f.ReplacedBy != "" {
+			marks = append(marks, "deprecated: use "+f.ReplacedBy)
+		}
+		if f.Tier == "experimental" && mixedTiers {
+			marks = append(marks, "experimental")
+		}
+		if len(marks) > 0 {
+			fmt.Fprintf(&b, "%s : %s  -- %s\n", f.Name, f.Type, strings.Join(marks, "; "))
+			continue
+		}
 		fmt.Fprintf(&b, "%s : %s\n", f.Name, f.Type)
 	}
 	return b.String(), nil

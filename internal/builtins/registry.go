@@ -1,5 +1,7 @@
 package builtins
 
+import "github.com/sunholo-data/ailang/internal/importhint"
+
 // BuiltinMeta holds metadata about a builtin function
 // This is a lightweight struct that doesn't depend on eval types
 type BuiltinMeta struct {
@@ -181,6 +183,22 @@ func RebuildStdlibIndex() {
 	for stdlibName, count := range counts {
 		if count != 1 {
 			delete(unambiguousStdlibNameIndex, stdlibName)
+		}
+	}
+	// A deprecated std spelling is a forwarder to its replacement with the
+	// same arguments, so it resolves to the replacement's builtin. Qualified
+	// keys only: a bare old name stays resolvable through the module-less
+	// index only if it was there already (M-V1-STDLIB-SURFACE-POLISH M2).
+	for _, r := range importhint.StdlibRenames {
+		if r.Swapped {
+			continue
+		}
+		oldKey := StdlibKey{Module: r.Module, Name: r.Old}
+		if _, taken := StdlibIndex[oldKey]; taken {
+			continue
+		}
+		if name, ok := StdlibIndex[StdlibKey{Module: r.Module, Name: r.New}]; ok {
+			StdlibIndex[oldKey] = name
 		}
 	}
 }

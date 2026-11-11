@@ -48,6 +48,13 @@ func (e *Elaborator) normalizeRecordAccess(acc *ast.RecordAccess) (core.CoreExpr
 				Ref:      ref,
 			}, nil
 		}
+		// `L.nthOr` where L is a module alias but the module has no such
+		// export used to fall through to a record access and report
+		// "undefined variable: L", blaming the alias. Name the member instead,
+		// with the IMP010 hint (M-V1-STDLIB-SURFACE-POLISH §6.3).
+		if modPath, isAlias := e.moduleAliasPath(ident.Name); isAlias {
+			return nil, qualifiedMissingMember(ident.Name, acc.Field, modPath, acc.Position())
+		}
 	}
 
 	// Standard record field access

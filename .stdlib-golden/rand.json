@@ -29,12 +29,178 @@
         },
         "declassify": []
       },
+      "name": "randBool",
+      "type": "(())-\u003ebool!{Rand}",
+      "effects": [
+        "Rand"
+      ],
+      "pure": false,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "min",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "max",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "randFloat",
+      "type": "(float,float)-\u003efloat!{Rand}",
+      "effects": [
+        "Rand"
+      ],
+      "pure": false,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "min",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "max",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "randInt",
+      "type": "(int,int)-\u003eint!{Rand}",
+      "effects": [
+        "Rand"
+      ],
+      "pure": false,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "seed",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "randSeed",
+      "type": "(int)-\u003e()!{Rand}",
+      "effects": [
+        "Rand"
+      ],
+      "pure": false,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "_",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "rand_bool",
       "type": "(())-\u003ebool!{Rand}",
       "effects": [
         "Rand"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable",
+      "replaced_by": "randBool"
     },
     {
       "ifc": {
@@ -80,7 +246,9 @@
       "effects": [
         "Rand"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable",
+      "replaced_by": "randFloat"
     },
     {
       "ifc": {
@@ -126,7 +294,9 @@
       "effects": [
         "Rand"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable",
+      "replaced_by": "randInt"
     },
     {
       "ifc": {
@@ -160,7 +330,9 @@
       "effects": [
         "Rand"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable",
+      "replaced_by": "randSeed"
     },
     {
       "ifc": {
@@ -194,7 +366,8 @@
       "effects": [
         "Rand"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     }
   ],
   "schema": "ailang.iface/v2"

@@ -232,6 +232,13 @@ func BuildInterfaceWithTypesAndConstructors(module string, prog *core.Program, t
 func (b *Builder) Build(prog *core.Program, constructors map[string]*ConstructorInfo, astFile interface{}) (*Iface, error) {
 	iface := NewIface(b.module)
 
+	// The module's default tier (std/STABILITY.toml); "" outside the manifest.
+	modTier, err := ModuleTier(b.module)
+	if err != nil {
+		return nil, err
+	}
+	iface.Tier = modTier
+
 	// Extract exportable bindings from the program
 	exports, err := b.extractExports(prog)
 	if err != nil {
@@ -317,6 +324,12 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 				Module: b.module,
 				Name:   name,
 			},
+			Tier: FuncTier(modTier, funcDecls[name]),
+		}
+		if fd := funcDecls[name]; fd != nil {
+			if repl, note, ok := fd.Deprecation(); ok {
+				item.ReplacedBy, item.DeprecationNote = repl, note
+			}
 		}
 
 		iface.Exports[name] = item

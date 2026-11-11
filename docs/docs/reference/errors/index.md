@@ -111,6 +111,14 @@ TC_MATCH_005 at app.ail:6:45
   Fix: add a `JInt(i) => …` arm (intToFloat(i) gives a float), or read numbers with asNumber/getNumber/getInt, which accept both
 ```
 
+**`TC_DEPRECATED_001` — use of a `@deprecated` function (warning).** Emitted once per use site — a call, a function passed as a value, a module-qualified `L.f` or an aliased import — of a function declared `@deprecated("replacement")` in another module. The message names the replacement and the suggestion carries the annotation's optional note (for example, that the arguments swap). Importing the name without using it, defining it, and uses inside the defining module do not warn. It is reported on a warm compile cache too, and never blocks compilation. The stdlib renames before 1.0 (`head_or` → `headOr`, `rand_int` → `randInt`, …) use it; see [Deprecated stdlib names](/docs/reference/stability#deprecated-stdlib-names).
+
+```
+TC_DEPRECATED_001 at app.ail:4:31
+  std/list.head_or is deprecated; use headOr.
+  Fix: replace head_or with headOr (import it from std/list)
+```
+
 ## Individual error code pages
 
 - [BC001 — Function is evaluator-only under --strict-bytecode](bc001.md)
