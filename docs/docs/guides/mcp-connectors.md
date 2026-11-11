@@ -462,7 +462,9 @@ that URL.
 
 ### Test it in ChatGPT
 
-Turn on developer mode, add the `/mcp/connect/` URL as a connector, then repeat steps 4–6. ChatGPT
+ChatGPT calls these **plugins**. In the desktop app open Settings → Plugins → **Add** → **Add MCP
+server** and paste the `/mcp/connect/` URL; on the web, add it at `chatgpt.com/plugins`. (**Create
+plugin** in the same menu is the packaging route for the directory, §8.) Then repeat steps 4–6. ChatGPT
 registers itself through CIMD. Because `sunholo/mcp_oauth` returns `iss`, ChatGPT uses its stable
 redirect `https://chatgpt.com/connector_platform_oauth_redirect`. With CIMD, the allowed redirect
 URIs come from ChatGPT's own client metadata document, so you register nothing. A live ChatGPT sign-in against an AILANG service has not been recorded yet, so treat
