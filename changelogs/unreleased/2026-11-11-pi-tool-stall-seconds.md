@@ -9,10 +9,12 @@ at 396-573 s under load 12-25 and died at 600 s under load 30-60.
 While a tool call is OPEN the no-progress bound is this value; while the model is silent with no tool
 open, the bound is still `--stall-seconds`. Defaults are unchanged: when not given, the tool bound is the
 effective `--stall-seconds`, so a caller that passes neither flag gets the same kill time and verdict.
-A given value is validated (positive integer, no leading zero) and refused with rc 14 and a verdict file.
+A given value is validated (positive integer of at most 9 digits, no leading zero) and refused with rc 14
+and a verdict file.
 
-The verdict JSON gains `stall_seconds`, `tool_stall_seconds` (configured) and `stall_bound_seconds` (the
-bound that fired; 0 when the run did not end on a stall). The `tool_hang` stderr line names the bound.
+The verdict JSON gains `stall_seconds`, `tool_stall_seconds` (configured; `null` if non-numeric),
+`stall_bound_seconds` (the bound that fired; 0 when the run did not end on a stall) and `poll_seconds`
+(the poll interval after the clamp, which now follows the smaller of the two bounds). The `tool_hang` stderr line names the bound.
 
 The mission-control skill (`resources/gate-3-route.md`, mirrored to `.agents/skills`) gets rule (d): a
 named long gate command is given `--tool-stall-seconds`, derived from its measured duration (never a
