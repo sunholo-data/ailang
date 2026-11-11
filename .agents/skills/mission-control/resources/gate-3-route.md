@@ -428,7 +428,7 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
        parameter, not a constant: pass `--max-seconds 3600` to `mission_pi_run.sh` for any milestone
        the plan estimates above ~150 LOC or that carries a mutation drill; keep 1800 for smaller work.
        Never `0`, never unbounded — standing rule 6 still binds; 3600 is still a bound, and the
-       `--stall-seconds` no-progress cap (600) is unchanged, so a stalled run still dies in ten minutes.
+       `--stall-seconds` no-progress cap (600) is unchanged, so a stalled run still dies in ten minutes. A named long gate command is not a stall: give it `--tool-stall-seconds` per (d), never a raised `--stall-seconds`.
        **(b)** A `wall_timeout` whose worktree diff is NON-EMPTY and whose gates the controller can run
        green is not a lane failure in the sense the fallback rule means — measure the partial first
        (rule 3b(v)); a second run on the next link of the SAME milestone under the SAME cap is the shape
@@ -436,6 +436,14 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
        ~250 LOC should cut it, because the rule above only doubles the budget once. Mission-independent
        — every mission on this rig runs the same runner and the same 30-minute default. The tell: you
        are about to fall back on rc=13 and `worktree_changed_files` in the verdict is not zero.
+      **(d) A named long gate command gets `--tool-stall-seconds`, not a raised `--stall-seconds`.** When a
+      pi role (executor or evaluator) is directed to run a named long gate command (a full test target,
+      a Godot run), pass `--tool-stall-seconds` = 2 × that command's longest duration MEASURED this
+      iteration on this host (3× if measured at markedly lower host load than the run will see), never
+      below 600, and size `--max-seconds` above it plus the role's other work. Derive the bound from the
+      measured stimulus (verification-protocol.md rule 3m). Record the measurement and the derived value in
+      the log. Leave `--stall-seconds` at its default. Evidence: stapledon iter 86 measured 396-573 s at
+      load 12-25, and the run was killed at the 600 s bound at load 30-60.
        **ROOT CAUSE, MEASURED 2026-08-26 FROM THE PROVIDER'S OWN SIDE OF THE WIRE.** Every
        silent pi failure on record has one shape: the model streams ONLY reasoning tokens and
        never emits content or a tool call. In the whole OpenRouter Broadcast corpus for
@@ -476,7 +484,7 @@ value matches `^([a-z_]+):(.+)$`, DO NOT use the Agent tool. Split it (`PROVIDER
      **`tool_hang` (rc 18) is NOT a lane failure at all** — the model was fine; a command it ran
      never returned (`hung_tool` in the verdict names it). Falling back just hangs the next lane on
      the same command. Retry ONCE on the same lane with the directive telling it not to run that
-     command, and FLAG the command as a harness ticket. Measured 2026-09-29: every World iter-208
+     command, and FLAG the command as a harness ticket. Exception: if `hung_tool` is a gate command the directive told the role to run, the retry passes `--tool-stall-seconds` per (d) instead of forbidding the command; `stall_bound_seconds` in the verdict shows which bound fired. Measured 2026-09-29: every World iter-208
      "deepseek stream_dead" was `ailang messages list` hanging inside the sandbox (row 121).
      Trial caveat stands (N=1): the replay's single miss was a discretionary refinement
      beyond the plan's letter — this lane wants PRESCRIPTIVE, sprint-plan-shaped directives;
@@ -520,6 +528,8 @@ verification commands, mutation matrix, and report path only after this preamble
 launcher configuration, or a missing/false protocol acknowledgement, stops the attempt and enters the
 existing fallback chain; it never becomes PASS or FAIL.
 <!-- PI_EVALUATOR_SESSION_HANDSHAKE_END -->
+
+A pi evaluator that must run a long named gate gets `--tool-stall-seconds` per (d).
 
 - **Any other `PROVIDER`** (motoko/opencode): NOT wired (motoko needs the GPU `rig.lock`, out of
   scope). Treat as unavailable → fall back to `$MODEL` + FLAG.

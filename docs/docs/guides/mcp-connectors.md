@@ -603,6 +603,43 @@ rules from it matter here:
 tab. They start disabled. GE sends its ID token only to `*.run.app` hosts, so this path does not
 work on a custom domain.
 
+### Gemini Enterprise with per-user sign-in: the steps, and what bit us
+
+Tested 2026-11-11 against the hosted executor's dev service, with a pre-registered client
+(`confidential: true`). Sign-in works: GE sends PKCE, uses the documented redirect and
+authenticates to the token endpoint with HTTP Basic. Every step below is one that failed for us
+first.
+
+1. **Mint a client** with your operator command (the executor's is `createClientCli`), redirect
+   `https://vertexaisearch.cloud.google.com/oauth-redirect`. The secret prints once.
+2. **Allow egress.** The org policy `discoveryengine.managed.allowedEgressFqdns` must list the
+   **exact host** of the MCP URL, authorization URL and token URL. The console's tool reload can
+   succeed while chat is still blocked, so check the policy, not the reload.
+3. **Create the data store inside the app**: Gemini Enterprise → Apps → *your app* → **Connected
+   Data Stores** → New data store → Custom MCP Server. A data store created on its own cannot be
+   linked to an app later.
+4. **The form:** MCP Server URL is the full `/mcp/connect/` path, not the base. Authorization and
+   token URLs are yours. **Tick Enable PKCE Support** (it is off by default, and an OAuth 2.1 server
+   refuses an authorize without it). Leave HTTP Basic ticked. Click **Verify Auth**, then wait for the
+   state to become **Active**.
+5. **Enable the actions** (Actions → Reload custom actions → select all → Enable actions). They
+   start disabled. Tools with `readOnlyHint` skip GE's per-call confirmation.
+6. **Use it from an agent.** The default assistant's tool menu does **not** list custom MCP data
+   stores; Agent Designer agents do. In the web app: Agents → Create agent → Chat agent → **Tools &
+   Integrations** → **Connect** your server (each user signs in once) → toggle it on.
+7. **Accept a long `state`.** The web app's per-user Connect sends a 768-character base64 `state`
+   with `=` padding. `sunholo/mcp_oauth` before 0.2.1 refused anything but unreserved characters
+   up to 512 (`invalid_request: state must be unreserved characters, at most 512`); 0.2.1 accepts
+   RFC 6749 VSCHAR up to 2048. The console's Verify Auth sends a short state, so it does not show
+   the problem.
+8. **Mind the agent-creation quota.** It is per day and pooled across licences: Standard allows 1
+   creation per licensed user per day, Plus 10, Frontline 0 ([Workflow Builder quotas](https://docs.cloud.google.com/gemini/enterprise/docs/workflow-builder/quotas-and-limits)).
+   Every create counts, including a double-clicked save and a failed attempt; deleting an agent does
+   not give a creation back. Beyond it, `CreateAgent` returns 429 `RESOURCE_EXHAUSTED: Agent
+   creation quota exceeded`, and it is not a Cloud Quotas entry you can raise. Create one agent and
+   edit it, or have an admin enable pay-as-you-go usage above quota. Registering an A2A agent is the
+   same `CreateAgent` call, so it shares this quota.
+
 ## 7. Microsoft Copilot
 
 Microsoft has two MCP hosts. Both take a remote **Streamable HTTP** server (Copilot Studio dropped

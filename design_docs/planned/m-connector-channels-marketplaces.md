@@ -57,8 +57,8 @@ Status today (2026-11-10). ✅ = observed working live. 🔧 = we have to build 
 | C5 | **Microsoft 365 Copilot** (declarative agent + MCP plugin) | Agents Toolkit ≥ 6.12.0, sideload; then Marketplace | static client or DCR | 🔧 client model off | 🔧 client model off |
 | C6 | **Copilot Studio** (agent tool) | MCP onboarding wizard | DCR (discovery) or manual client | 🔧 | 🔧 |
 | C7 | **GitHub Copilot / VS Code** | `MCP: Add Server`, or from the MCP Registry | remote MCP + OAuth | 👤 untested | 👤 untested; not in the Registry |
-| C8 | **Gemini Enterprise, MCP data store** | Admin adds the URL | IAM, or pre-registered client | 🔧 no confidential client in prod | ✅ IAM-only (dev, 2026-10-14); ✅ **OAuth on dev 2026-11-11** (pre-registered `mco_` client, PKCE + Basic, token issued, `google-adk` lists tools); prod needs `executor_mcp_oauth_confidential_clients` (D2) |
-| C9 | **Gemini Enterprise, A2A agent** | Agent Registry; Cloud Marketplace | A2A v0.3 | ⛔ out of scope (D7) | 🔧 serve-api A2A is pre-0.2 |
+| C8 | **Gemini Enterprise, MCP data store** | Admin adds the URL **inside the app**; users reach it only through an **Agent Designer agent** (the default assistant does not list custom MCP tools) | IAM, or pre-registered client | 🔧 no confidential client in prod | ✅ IAM-only (dev, 2026-10-14); ✅ OAuth sign-in on dev 2026-11-11 (PKCE + Basic, token issued); web-app Connect needed `mcp_oauth` 0.2.1 (768-char `state`); ⏳ chat tool call blocked by GE's daily agent-creation quota (Standard = 1/licensed user/day, pooled; deletes do not refund) — retry after reset |
+| C9 | **Gemini Enterprise, A2A agent** | Agent Registry; Cloud Marketplace | A2A v0.3 | ⛔ out of scope (D7) | 🔧 serve-api A2A is pre-0.2. **Registration is the same `CreateAgent` call, so it shares GE's daily agent-creation quota** (measured 2026-11-11: 429 RESOURCE_EXHAUSTED); not a shortcut past the MCP route |
 | C10 | **Gemini app + Search** (Connected Apps, preview) | Google's console after admission | CIMD, then DCR; stable refresh; revoke | 🔧 + ⛔ preview admission | 🔧 + ⛔ preview admission |
 
 ## 2. The marketplaces
@@ -182,7 +182,7 @@ on both prod services, so `--target copilot` FAILs registration there until D2.
 dev for anything new: C1, C3, C4, C5, C6, C7, C8 (OAuth). This also takes the GE measurements P0-1…P0-5 from
 `m-mcp-oauth-client-models.md`. Each session yields its shots (§4) and a row in the §1 matrix.
 
-**P3: A2A v0.3 for the executor (agent, ~3 days once its location is decided).** This is
+**P3: A2A v0.3 for the executor (agent, ~3 days once its location is decided).** **Location decided 2026-11-11 (Mark): serve-api, model Gemini on Vertex; in progress under [m-ailang-executor-ge-a2a-sprint-plan.md](v0_55_0/m-ailang-executor-ge-a2a-sprint-plan.md).** This is
 M-AILANG-EXECUTOR-GE P2, and **where the gateway lives is that doc's open D2** (coordinator route,
 recommended there, or a serve-api service). This plan does not re-decide it; it records the seam either
 choice has to cross (§3.1). Deliverable: agent card with `protocolVersion: "0.3.0"`, `message/send`,
