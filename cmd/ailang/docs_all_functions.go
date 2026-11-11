@@ -70,11 +70,13 @@ func buildAllFunctionsLines(stdlib fs.FS) []string {
 
 		// Exports in file (declaration) order.
 		for _, name := range order {
-			sig := astSigs[name]
+			// The marks go in the description, never the signature: the
+			// signature part must re-parse (TestAllFunctions_SignatureFidelity).
+			doc := docByName[name]
 			if tag := marks[name].tag(modTier); tag != "" {
-				sig += "  " + tag
+				doc = strings.TrimSpace(tag + " " + doc)
 			}
-			lines = append(lines, formatFunctionLine(mod.Name, name, sig, docByName[name]))
+			lines = append(lines, formatFunctionLine(mod.Name, name, astSigs[name], doc))
 		}
 	}
 
