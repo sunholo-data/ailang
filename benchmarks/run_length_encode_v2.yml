@@ -1,0 +1,36 @@
+id: run_length_encode_v2
+description: "Run-length encoding of a string (string processing + recursion)"
+languages: ["python", "ailang", "javascript", "go"]
+entrypoint: "main"
+caps: ["IO"]
+difficulty: "medium"
+expected_gain: "medium"
+# Replaces run_length_encode (now benchmarks/retired/), whose expected output
+# `[(3, a), (2, b), (4, c), (1, a)]` was exactly AILANG's old lossy `show` of a
+# [(int, string)] — so it graded one language's default printer, and broke when
+# `show` became total (M-V1-SHOW-TOTAL Decision 5). The output format here is
+# spelled out and is not any language's default rendering of a list, so every
+# language must format it explicitly. New id so ELO and banked rows of the old
+# benchmark stay separable.
+task_prompt: |
+  Write a program in <LANG> that:
+
+  1. Implements run-length encoding for a list of characters
+     - Run-length encoding replaces consecutive identical elements with (count, element) pairs
+     - Example: ['a', 'a', 'a', 'b', 'b', 'c'] becomes [(3, 'a'), (2, 'b'), (1, 'c')]
+
+  2. Encodes this input: ['a', 'a', 'a', 'b', 'b', 'c', 'c', 'c', 'c', 'a']
+
+  3. Prints the encoded result on ONE line: each pair written as the count
+     immediately followed by the character, pairs separated by a single space,
+     with no brackets, quotes or commas.
+
+  Expected output: 3a 2b 4c 1a
+
+  Note: Characters are single-character strings in AILANG.
+
+  Output only the code, no explanations.
+expected_stdout: |
+  3a 2b 4c 1a
+tier: stretch
+tags: [string_algo, algorithmic]

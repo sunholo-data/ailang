@@ -1,6 +1,6 @@
 # M-V1-SHOW-TOTAL: make `show` total and unambiguous before it is frozen
 
-**Status**: Planned
+**Status**: Implemented on branch `v1/show-total` (M1–M5), in review. See [Implementation](#implementation-2026-11-11)
 **Target**: v0.58.x (the last breaking window before v1.0.0)
 **Priority**: P0. `show` is Stable, it is the function the teaching prompt tells every model to use for every type, and its output is graded byte for byte. After the freeze this change needs 2.0
 **Estimated**: about 7 working days (estimate, not a plan; per-milestone sizes below)

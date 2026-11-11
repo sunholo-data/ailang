@@ -123,6 +123,13 @@ breaking change.
 
 "Uses" below means files under `examples/` that import the module, counted at HEAD.
 
+**The text `show` returns is part of the Stable promise** (the `show` builtin is Stable): it is
+total (nothing elided, at any width or depth), deterministic (the same on the evaluator and the
+bytecode VM, on every OS), and injective per type for values without NaN or functions. A
+top-level string is returned unchanged; a string nested in a list, tuple, record, map or
+constructor is quoted with the escapes `ailang fmt` uses. `std/string.showPreview` is Stable with
+`std/string`; its `…(+N chars)` marker is for people, not for parsing.
+
 ### Stable stdlib (17)
 
 | Module | Purpose | Evidence |

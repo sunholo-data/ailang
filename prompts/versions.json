@@ -1170,9 +1170,20 @@
         "latest"
       ],
       "notes": "JSON numbers: JInt for integers (exact), match JInt and JNumber or use the accessors, getInt never truncates, decode takes exactly one value"
+    },
+    "v0.16.14": {
+      "file": "prompts/v0.16.14.md",
+      "hash": "9ef47171e07bc634379f7adcdd0113d0fa55d341872a934760f9b91597aa321f",
+      "description": "show is total and unambiguous: nested strings quoted, nothing elided; showPreview for bounded logging",
+      "created": "2026-11-11",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "show is total and unambiguous: nested strings quoted, nothing elided; showPreview for bounded logging"
     }
   },
-  "active": "v0.16.13",
+  "active": "v0.16.14",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

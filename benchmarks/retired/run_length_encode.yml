@@ -1,3 +1,7 @@
+# RETIRED (M-V1-SHOW-TOTAL Decision 5): superseded by run_length_encode_v2.
+# Its expected output was the old lossy `show` of a [(int, string)], which
+# `show` no longer produces (nested strings are now quoted). Kept here so
+# historical baselines stay reproducible (benchmarks/CURATION.md, Retirement).
 id: run_length_encode
 description: "Run-length encoding of a string (string processing + recursion)"
 languages: ["python", "ailang", "javascript", "go"]

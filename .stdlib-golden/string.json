@@ -962,6 +962,50 @@
       "ifc": {
         "params": [
           {
+            "name": "x",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "maxChars",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "showPreview",
+      "type": "(a,int)-\u003estring",
+      "effects": [],
+      "pure": true
+    },
+    {
+      "ifc": {
+        "params": [
+          {
             "name": "s",
             "label": {
               "constants": [],
