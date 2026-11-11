@@ -112,6 +112,16 @@ R=$(curl -s "$BASE/oauth-login.js")
 R=$(curl -s "$BASE/vendor/")
 [[ "$R" != *firebase-app-compat.js* ]] && pass "no directory listing" || fail "no directory listing" "$R"
 
+# Gemini Enterprise's web app sends a 768-character base64 state with "="
+# padding (measured 2026-11-11); mcp_oauth 0.2.0 refused it ("state must be
+# unreserved characters, at most 512"). 0.2.1 accepts any VSCHAR up to 2048.
+GE_STATE="$(printf 'A%.0s' $(seq 1 766))=="
+L=$(loc -G "$BASE/oauth/authorize" --data-urlencode response_type=code --data-urlencode "client_id=$CLIENT" \
+  --data-urlencode "redirect_uri=$CB" --data-urlencode "code_challenge=$CHALLENGE" \
+  --data-urlencode code_challenge_method=S256 --data-urlencode "state=$GE_STATE")
+[[ "$L" == "$BASE/oauth-login.html?handle="* ]] && pass "a Gemini Enterprise-shaped state (768 chars, '=' padding) is accepted" \
+  || fail "a Gemini Enterprise-shaped state is accepted" "location=$L"
+
 # --- Sign in, get a token, use it ---
 L1=$(authorize); HANDLE=$(qparam "$L1" handle)
 [[ "$L1" == "$BASE/oauth-login.html?handle="* && -n "$HANDLE" ]] && pass "authorize -> same-origin sign-in page" || fail "authorize -> sign-in page" "location=$L1"

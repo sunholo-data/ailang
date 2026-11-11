@@ -13,7 +13,7 @@ description = "OAuth 2.1 sign-in for the hosted AILANG executor MCP (/mcp/connec
 modules = ["executor_oauth/oauth"]
 
 [dependencies]
-"sunholo/mcp_oauth" = "0.2.0"
+"sunholo/mcp_oauth" = "0.2.1"
 "sunholo/firestore" = "0.7.2"
 "sunholo/firebase_auth" = "0.1.2"
 
