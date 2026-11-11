@@ -146,10 +146,13 @@ preflight_fail() { # rc verdict error
   echo "pi lane verdict: $2 (rc=$1): $3" >&2
   exit "$1"
 }
+# A bare JSON number for the verdict: digits only (else null), leading zeros dropped (JSON forbids them).
+json_num() { case "$1" in ''|*[!0-9]*) echo null ;; 0*) echo "$((10#$1))" ;; *) echo "$1" ;; esac; }
 # Validated only when GIVEN (flag or env). Unset, it inherits the effective STALL_SECONDS exactly,
-# so no existing caller's bound or verdict changes. `0*` also refuses leading zeros ($(( )) reads octal).
+# so no existing caller's bound or verdict changes. `0*` also refuses leading zeros ($(( )) reads octal);
+# more than 9 digits would overflow the `[ -lt ]` comparisons below.
 if [ -n "$TOOL_STALL_SECONDS" ]; then
-  case "$TOOL_STALL_SECONDS" in *[!0-9]*|0*) preflight_fail 14 launch_failed "--tool-stall-seconds must be a positive integer: '$TOOL_STALL_SECONDS'" ;; esac
+  case "$TOOL_STALL_SECONDS" in *[!0-9]*|0*|??????????*) preflight_fail 14 launch_failed "--tool-stall-seconds must be a positive integer of at most 9 digits: '$TOOL_STALL_SECONDS'" ;; esac
 else
   TOOL_STALL_SECONDS="$STALL_SECONDS"
 fi
@@ -502,9 +505,10 @@ cat > "$VERDICT" <<EOF
   "head_after": "$HEAD_AFTER",
   "commits_since_start": $COMMITS,
   "tool_executions": ${TOOL_CALLS:-0},
-  "stall_seconds": $STALL_SECONDS,
-  "tool_stall_seconds": $TOOL_STALL_SECONDS,
+  "stall_seconds": $(json_num "$STALL_SECONDS"),
+  "tool_stall_seconds": $(json_num "$TOOL_STALL_SECONDS"),
   "stall_bound_seconds": ${STALL_BOUND_APPLIED:-0},
+  "poll_seconds": $(json_num "$POLL_SECONDS"),
   "hung_tool": $HUNG_TOOL_JSON,
   "provider_errors": ${PROVIDER_ERRORS:-0},
   "provider_error": $PROVIDER_ERROR_JSON,
