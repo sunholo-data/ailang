@@ -7,8 +7,10 @@ import (
 	"github.com/sunholo-data/ailang/internal/eval"
 )
 
-// serve-api, MCP and A2A return an entry's result as structured JSON built by
-// ToGo, never as show text, so M-V1-SHOW-TOTAL does not change them: nested
+// ToGo is the converter serve-api, MCP and A2A use for an entry's result (the
+// API-level check is TestFunctionCall/list_of_strings_is_JSON in
+// internal/apiserver). It builds structured JSON
+// rather than show text, so M-V1-SHOW-TOTAL does not change results: nested
 // strings stay JSON strings (not `"\"a\""`), floats stay numbers, and nothing
 // is elided. Only text a program builds itself with show changes.
 func TestResultJSONDoesNotGoThroughShow(t *testing.T) {

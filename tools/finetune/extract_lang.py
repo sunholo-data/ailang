@@ -104,12 +104,8 @@ def check_eval_program(code: str) -> tuple[bool, str]:
         return check_file("benchmark/solution.ail", td)
 
 
-def load_heldout():
-    """Every benchmark id excluded from TRAINING data: the eval set (core +
-    stretch) plus retired held-out ids whose banked solutions must stay out
-    (retired_excluded). The eval list itself is core + stretch only."""
-    h = json.load(open(os.path.join(HERE, "heldout.json")))
-    return set(h["core"] + h["stretch"] + h.get("retired_excluded", []))
+sys.path.insert(0, HERE)
+from heldout import load_heldout  # noqa: E402,F401  (re-exported: onpolicy_pairs, stale_fix, probe_after_read, synth_episodes)
 
 
 def task_prompt(bid: str) -> str:

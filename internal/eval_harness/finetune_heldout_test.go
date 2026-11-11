@@ -3,6 +3,7 @@ package eval_harness
 import (
 	"encoding/json"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"regexp"
 	"strings"
@@ -139,32 +140,97 @@ func TestFinetuneHeldoutCheckCatchesRetirementMistakes(t *testing.T) {
 	}
 }
 
-// Every script that reads heldout.json to EXCLUDE training data must include
-// retired_excluded; only the eval runners (which pass the list to
-// --benchmarks) read core + stretch alone.
-func TestFinetuneExclusionReadersIncludeRetired(t *testing.T) {
-	dir := filepath.Join("..", "..", "tools", "finetune")
-	files, _ := filepath.Glob(filepath.Join(dir, "*"))
-	readers := 0
-	for _, f := range files {
-		if !strings.HasSuffix(f, ".py") && !strings.HasSuffix(f, ".sh") {
-			continue
-		}
-		raw, err := os.ReadFile(f)
-		if err != nil {
+// Every training-exclusion reader, run for real against a fixture heldout.json
+// (review 2 of #2229: a text grep passed with the key removed from the code).
+// heldout.load_heldout is the one function; extract_lang re-exports it to
+// onpolicy_pairs, stale_fix, probe_after_read and synth_episodes; extract_traj
+// imports it; collect_onpolicy.sh's guard snippet calls it. No collection,
+// training or eval script is run — only the readers and the guard snippet.
+func TestFinetuneExclusionReadersBehaviour(t *testing.T) {
+	python, err := exec.LookPath("python3")
+	if err != nil {
+		t.Skip("python3 not on PATH")
+	}
+	root, err := filepath.Abs(filepath.Join("..", ".."))
+	if err != nil {
+		t.Fatal(err)
+	}
+	finetune := filepath.Join(root, "tools", "finetune")
+	tmp := t.TempDir()
+	fixture := filepath.Join(tmp, "tools", "finetune", "heldout.json")
+	if err := os.MkdirAll(filepath.Dir(fixture), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	const fixtureJSON = `{"core": ["held_core"], "stretch": ["task_v2"], "retired_excluded": ["task"]}`
+	if err := os.WriteFile(fixture, []byte(fixtureJSON), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	// extract_lang imports PyYAML; the readers never call it, so a stub keeps
+	// the test independent of the environment.
+	stub := filepath.Join(tmp, "stub")
+	if err := os.MkdirAll(stub, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(stub, "yaml.py"), []byte("def safe_load(*a, **k):\n    return {}\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+
+	script := `import sys
+sys.path[:0] = [sys.argv[1], sys.argv[2]]
+import heldout, extract_lang, extract_traj
+fx = sys.argv[3]
+assert extract_lang.load_heldout is heldout.load_heldout, "extract_lang has its own load_heldout"
+assert extract_traj.load_heldout is heldout.load_heldout, "extract_traj has its own load_heldout"
+print(",".join(sorted(heldout.load_heldout(fx))))
+print(",".join(heldout.eval_ids(fx)))
+`
+	cmd := exec.Command(python, "-I", "-c", script, stub, finetune, fixture)
+	out, err := cmd.CombinedOutput()
+	if err != nil {
+		t.Fatalf("readers failed: %v\n%s", err, out)
+	}
+	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	if len(lines) != 2 || lines[0] != "held_core,task,task_v2" || lines[1] != "held_core,task_v2" {
+		t.Fatalf("training exclusion / eval list:\n%s\nwant held_core,task,task_v2 / held_core,task_v2", out)
+	}
+
+	// collect_onpolicy.sh's guard snippet, run on its own (cwd = a fixture
+	// repo root): it must refuse the retired id and its successor alike.
+	src, err := os.ReadFile(filepath.Join(finetune, "collect_onpolicy.sh"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := string(src)
+	start := strings.Index(body, "<<'EOF'\n")
+	end := strings.Index(body[start+1:], "\nEOF\n")
+	if start < 0 || end < 0 {
+		t.Fatal("collect_onpolicy.sh: held-out guard heredoc not found")
+	}
+	snippet := body[start+len("<<'EOF'\n") : start+1+end+1]
+	if err := os.WriteFile(filepath.Join(tmp, "tools", "finetune", "heldout.py"), mustRead(t, filepath.Join(finetune, "heldout.py")), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for list, wantRefused := range map[string]bool{"task\nother\n": true, "task_v2\n": true, "held_core\n": true, "other\nmore\n": false} {
+		bench := filepath.Join(tmp, "bench.txt")
+		if err := os.WriteFile(bench, []byte(list), 0o644); err != nil {
 			t.Fatal(err)
 		}
-		src := string(raw)
-		if !strings.Contains(src, "heldout.json") || !strings.Contains(src, `"stretch"]`) && !strings.Contains(src, `'stretch']`) {
-			continue
-		}
-		readers++
-		evalRunner := strings.Contains(src, "--benchmarks") && strings.Contains(src, "HELD=")
-		if !evalRunner && !strings.Contains(src, "retired_excluded") {
-			t.Errorf("%s reads the held-out set for exclusion but ignores retired_excluded", filepath.Base(f))
+		guard := exec.Command(python, "-I", "-", bench)
+		guard.Dir = tmp
+		guard.Stdin = strings.NewReader(snippet)
+		out, err := guard.CombinedOutput()
+		refused := err != nil && strings.Contains(string(out), "held-out benchmarks in the collection list")
+		if refused != wantRefused {
+			t.Errorf("collection list %q: refused=%v (err %v), want %v\n%s", list, refused, err, wantRefused, out)
 		}
 	}
-	if readers < 3 {
-		t.Fatalf("found only %d heldout.json readers; the instrument is not seeing the scripts", readers)
+}
+
+func mustRead(t *testing.T, path string) []byte {
+	t.Helper()
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
 	}
+	return b
 }

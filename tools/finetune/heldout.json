@@ -6,7 +6,7 @@
     {
       "date": "2026-11-11",
       "change": "stretch: run_length_encode -> run_length_encode_v2 (the same task; v1 retired to benchmarks/retired/ because its expected output was the old lossy show). v1 moves to retired_excluded so its banked solutions stay out of training.",
-      "by": "PR #2229 (M-V1-SHOW-TOTAL), pending Mark's ruling",
+      "by": "PR #2229 (M-V1-SHOW-TOTAL); approved by Mark 2026-11-11, to be recorded as D-FT-17",
       "record": "design_docs/planned/v1_1_0/m-eval-finetuning-data-pipeline.md#held-out-amendment-2026-11-11"
     }
   ],
