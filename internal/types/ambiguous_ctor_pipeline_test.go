@@ -117,6 +117,8 @@ func TestAmbiguousCtorChoice_FailureNamesItsCause(t *testing.T) {
 			[]string{"at m/main.ail:4:", "where `f` is defined", "cannot be generic", "Caused:", "int vs string", "import m/a (C)"}},
 		{"c_poly: a lambda used at both candidates' types", withMain("export pure func run() -> int { let f = \\x. match x { C(n) => n, _ => 0 }; f(mka()) + f(mkb()) }\n"),
 			[]string{"at m/main.ail:", "where `f` is defined", "Caused:"}},
+		{"c_unsnd1: a let that only calls the matching one is named", withMain("export pure func run() -> int { let f = \\x. match x { C(n) => n + 1, _ => 0 }; let g = \\y. f(y); g(mka()) + g(mkb()) }\n"),
+			[]string{"where `g` is defined", "Caused:"}},
 		{"ca2b: a pattern read by its arity, used at the other type", map[string]string{"m/a.ail": ctorA, "m/b.ail": two,
 			"m/main.ail": "module m/main\nimport m/a (mka)\nimport m/b (mkb)\nexport pure func run() -> int { let f = \\x. match x { C(n) => n, _ => 0 }; f(mkb()) }\n"},
 			[]string{"at m/main.ail:4:", "has 1 argument(s)", "whose C takes 2", "Caused:", "C(_, _)"}},
@@ -130,6 +132,34 @@ func TestAmbiguousCtorChoice_FailureNamesItsCause(t *testing.T) {
 				if !strings.Contains(err.Error(), w) {
 					t.Errorf("missing %q in %v", w, err)
 				}
+			}
+		})
+	}
+}
+
+// Review round 4 (b4–b6): the monomorphism explanation must be true. One call
+// of the binding — or a call wrong on its own — is an ordinary type error and
+// keeps its plain unification message.
+func TestAmbiguousCtorChoice_OrdinaryMistakesKeepThePlainError(t *testing.T) {
+	for _, c := range []struct{ name, body, want string }{
+		{"b4: one call, result used at the wrong type",
+			"export pure func run() -> int { let f = \\x. match x { C(n) => n, _ => 0 }; let r: string = f(mkb()); 0 }\n", "string vs int"},
+		{"b5: one call of a curried binding",
+			"export pure func run() -> int { let f = \\x. \\k. match x { C(n) => n + k, _ => 0 }; f(mkb())(\"s\") }\n", "int vs string"},
+		{"b6: the result passed on at the wrong type",
+			"pure func needS(s: string) -> int = 0\nexport pure func run() -> int { let f = \\x. match x { C(n) => n, _ => 0 }; let a = f(mkb()); needS(a) }\n", "string vs int"},
+		{"two calls, the second wrong for the constructor once the first decided it",
+			"export pure func run() -> int { let f = \\x. match x { C(n) => n, _ => 0 }; let a = f(mkb()); let b = f(\"s\"); a + b }\n", "U vs string"},
+		{"two calls, one wrong on its own",
+			"export pure func run() -> int { let f = \\x. match x { C(n) => n, _ => 0 }; let r: string = f(mkb()); f(mkb()) }\n", "string vs int"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			err := checkModules(t, withMain(c.body))
+			if err == nil {
+				t.Fatal("must be rejected")
+			}
+			if strings.Contains(err.Error(), types.TC_AMBIGUOUS_CTOR_001) || !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("want the plain unification error (%q), not %s: %v", c.want, types.TC_AMBIGUOUS_CTOR_001, err)
 			}
 		})
 	}

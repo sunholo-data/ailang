@@ -758,7 +758,12 @@ spelling imported it; the file compiles and evaluates once.
 > and at `Box[string]` is rejected, in every import order (dev accepted it only in a lucky order).
 > The failure is reported as **TC_AMBIGUOUS_CTOR_001 at the pattern**, naming the constructor and
 > `f`, with the unification failure as its cause and the fix: import the constructor by name,
-> which makes `f` generic again (mp1ctl). Accepting the program instead would need the choice to be
+> which makes `f` generic again (mp1ctl). The re-labelling fires only when the failure IS a
+> conflict between calls of `f` (review round 4, b4): `f` has two or more calls, each solves on
+> its own in a dry run (equalities and constructor choices, the other calls left out), and they
+> fail together. One call, or a call wrong by itself (`let r: string = f(mkb())`), keeps the plain
+> unification error; uses other than calls are not counted, so it under-fires rather than
+> over-fires. Accepting the program instead would need the choice to be
 > part of `f`'s type scheme (a qualified type resolved per instantiation) — a wider inference
 > change, not made here. The same attribution names the pattern when a pattern read by its arity
 > alone meets the other candidate's type (ca2b), and a pattern whose scrutinee's type is a

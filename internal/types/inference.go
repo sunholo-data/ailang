@@ -65,6 +65,9 @@ type InferenceContext struct {
 	// kept monomorphic, a pattern read by its arity), so a later unification
 	// failure can name it as the cause (ambiguous_ctor_cause.go).
 	ctorNotes []*ctorNote
+	// derivedEqs are the indices in constraints of equalities a resolved
+	// choice added (a diagnostic dry run re-derives them).
+	derivedEqs []int
 }
 
 // TypeConstraint represents a constraint to be solved (TypeEq, RowEq,

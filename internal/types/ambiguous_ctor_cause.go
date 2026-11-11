@@ -2,6 +2,7 @@ package types
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/core"
 )
@@ -17,9 +18,18 @@ import (
 //
 // The failure then surfaces as a plain unification error at a use site that
 // does not mention the constructor. A ctorNote records each such decision, and
-// explainCtorFailure turns a unification failure that involves it into
+// explainCtorFailure turns a unification failure it explains into
 // TC_AMBIGUOUS_CTOR_001 at the pattern, with the failure as its cause. This
 // changes no verdict: it only names the cause of an error that happens anyway.
+//
+// For a monomorphic let the explanation must be TRUE: the failure has to be a
+// conflict between two uses of the binding, i.e. one that a generic binding
+// would not have. usesConflict establishes that by dry runs: every call of the
+// binding on its own (the other calls dropped) must solve — equalities and
+// constructor choices — while all of them together fail. One call, or a call
+// that is wrong by itself (probe b4: `let r: string = f(mkb())`), keeps the
+// plain error. Uses other than calls are not counted, so the rule under-fires
+// rather than over-fires.
 type ctorNote struct {
 	pattern *core.ConstructorPattern
 	all     []CtorCandidate
@@ -84,7 +94,7 @@ func (ctx *InferenceContext) explainCtorFailure(eq TypeEq, sub Substitution, fai
 	collectTConKeys(ApplySubstitution(sub, eq.Left), heads, 0)
 	collectTConKeys(ApplySubstitution(sub, eq.Right), heads, 0)
 	for _, n := range ctx.ctorNotes {
-		if n.vars != nil && overlaps(n.vars, raw) {
+		if n.vars != nil && overlaps(n.vars, raw) && n.binder != "" && ctx.usesConflict(n.binder) {
 			what := "a function"
 			if n.binder != "" {
 				what = fmt.Sprintf("`%s`", n.binder)
@@ -102,6 +112,66 @@ func (ctx *InferenceContext) explainCtorFailure(eq TypeEq, sub Substitution, fai
 		}
 	}
 	return nil
+}
+
+// usesConflict reports whether the calls of binder conflict with each other:
+// at least two of them, each of which solves on its own (the other calls'
+// equalities left out), dry-run over the current constraints.
+func (ctx *InferenceContext) usesConflict(binder string) bool {
+	prefix := "function application of " + binder + " at "
+	var calls []int
+	for i, c := range ctx.constraints {
+		if eq, ok := c.(TypeEq); ok && len(eq.Path) > 0 && strings.HasPrefix(eq.Path[0], prefix) {
+			calls = append(calls, i)
+		}
+	}
+	if len(calls) < 2 {
+		return false
+	}
+	skip := make(map[int]bool, len(ctx.derivedEqs))
+	for _, i := range ctx.derivedEqs {
+		skip[i] = true
+	}
+	for _, keep := range calls {
+		var cs []TypeConstraint
+		for i, c := range ctx.constraints {
+			drop := skip[i]
+			for _, call := range calls {
+				if i == call && call != keep {
+					drop = true
+				}
+			}
+			if !drop {
+				cs = append(cs, c)
+			}
+		}
+		if !ctx.solvesDry(cs) {
+			return false
+		}
+	}
+	return true
+}
+
+// solvesDry reports whether cs solves — every equality, then the constructor
+// choices — without touching the context (its fresh-name counter is restored).
+func (ctx *InferenceContext) solvesDry(cs []TypeConstraint) bool {
+	saved := ctx.freshCounter
+	defer func() { ctx.freshCounter = saved }()
+	sub := make(Substitution)
+	for _, c := range cs {
+		var err error
+		switch x := c.(type) {
+		case TypeEq:
+			sub, err = ctx.unifier.Unify(ApplySubstitution(sub, x.Left), ApplySubstitution(sub, x.Right), sub)
+		case RowEq:
+			sub, err = ctx.unifier.rowUnifier.UnifyRows(x.Left, x.Right, sub)
+		}
+		if err != nil {
+			return false
+		}
+	}
+	_, err := ctx.resolveChoicesIn(sub, cs, map[*ctorChoice]bool{})
+	return err == nil
 }
 
 func overlaps(a, b map[string]bool) bool {

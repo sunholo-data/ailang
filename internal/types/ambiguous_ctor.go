@@ -245,11 +245,20 @@ func describeCandidates(cands []CtorCandidate) string {
 // monotone: it only ever adds constraints, so the result does not depend on
 // the order the choices are tried in.
 func (ctx *InferenceContext) resolveCtorChoices(sub Substitution) (Substitution, error) {
+	return ctx.resolveChoicesIn(sub, ctx.constraints, nil)
+}
+
+// resolveChoicesIn is resolveCtorChoices over cs. With dry non-nil it is a
+// DRY RUN for a diagnostic (ambiguous_ctor_cause.go): choices resolved are
+// recorded in dry instead of on the choice, and nothing is mutated, observed
+// or added to the context.
+func (ctx *InferenceContext) resolveChoicesIn(sub Substitution, cs []TypeConstraint, dry map[*ctorChoice]bool) (Substitution, error) {
 	for progress := true; progress; {
 		progress = false
-		for _, c := range ctx.constraints {
+		for _, c := range cs {
 			choice, ok := c.(*ctorChoice)
-			if !ok || choice.resolved {
+			// A dry run re-decides every choice from its own constraints.
+			if !ok || (dry == nil && choice.resolved) || dry[choice] {
 				continue
 			}
 			head := ctx.choiceHead(ApplySubstitution(sub, choice.scrut))
@@ -269,10 +278,14 @@ func (ctx *InferenceContext) resolveCtorChoices(sub Substitution) (Substitution,
 				return nil, &AmbiguousCtorError{Name: choice.pattern.Name, Candidates: choice.cands,
 					Where: patternWhere(choice.pattern), Scrutinee: describeTCon(head)}
 			}
-			choice.resolved = true
-			cand := choice.cands[idx]
-			choice.pattern.TypeName, choice.pattern.TypeModule = cand.TypeName, cand.Module
-			ObserveAmbiguity(AmbiguityEvent{Kind: "ctor-pattern-resolved", Name: choice.pattern.Name, Candidates: candidateRefs(choice.cands)})
+			if dry != nil {
+				dry[choice] = true
+			} else {
+				choice.resolved = true
+				cand := choice.cands[idx]
+				choice.pattern.TypeName, choice.pattern.TypeModule = cand.TypeName, cand.Module
+				ObserveAmbiguity(AmbiguityEvent{Kind: "ctor-pattern-resolved", Name: choice.pattern.Name, Candidates: candidateRefs(choice.cands)})
+			}
 			var eqs []TypeConstraint
 			if scheme := choice.schemes[idx]; scheme != nil {
 				switch t := scheme.Instantiate(ctx.freshType).(type) {
@@ -288,9 +301,16 @@ func (ctx *InferenceContext) resolveCtorChoices(sub Substitution) (Substitution,
 				}
 			}
 			for _, eq := range eqs {
-				ctx.addConstraint(eq)
 				e := eq.(TypeEq)
 				var err error
+				if dry != nil {
+					if sub, err = ctx.unifier.Unify(ApplySubstitution(sub, e.Left), ApplySubstitution(sub, e.Right), sub); err != nil {
+						return nil, err
+					}
+					continue
+				}
+				ctx.derivedEqs = append(ctx.derivedEqs, len(ctx.constraints))
+				ctx.addConstraint(eq)
 				sub, err = ctx.unifier.Unify(ApplySubstitution(sub, e.Left), ApplySubstitution(sub, e.Right), sub)
 				if err != nil {
 					return nil, ctx.unifyFailure(e, sub, err)
@@ -298,6 +318,9 @@ func (ctx *InferenceContext) resolveCtorChoices(sub Substitution) (Substitution,
 			}
 			progress = true
 		}
+	}
+	if dry != nil {
+		return sub, nil
 	}
 	ctx.pendingCtorVars = nil
 	for _, c := range ctx.constraints {
