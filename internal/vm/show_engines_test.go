@@ -11,6 +11,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/bytecode"
 	"github.com/sunholo-data/ailang/internal/eval"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // M-V1-SHOW-TOTAL: `show` is total, deterministic and injective per type, and
@@ -555,6 +556,57 @@ func (g *showGen) value(t testing.TB, ty *genType, depth int) eval.Value {
 // structKey is an obviously injective encoding of a value's structure: every
 // node is tagged and every sequence and string is length-prefixed; floats are
 // compared by bit pattern (so -0.0 and 0.0 differ, as show distinguishes them).
+// checkNestedStringsRelex: every valid-UTF-8 string inside v, rendered as a
+// nested string (show([s])), lexes back as exactly `[`, STRING(s), `]`.
+// Injectivity alone cannot see a lost `\\` escape (an opening quote is never
+// preceded by a backslash, so the text stays decodable); the literal round
+// trip can. Mutation-tested: dropping the `\\` escape survives the
+// injectivity property and fails here.
+func checkNestedStringsRelex(t *testing.T, v eval.Value) {
+	t.Helper()
+	var walk func(v eval.Value)
+	walk = func(v eval.Value) {
+		switch x := v.(type) {
+		case *eval.StringValue:
+			if !utf8.ValidString(x.Value) {
+				return
+			}
+			src := eval.Show(sList(x))
+			l := lexer.New(src, "show.ail")
+			open, str, closeTok, end := l.NextToken(), l.NextToken(), l.NextToken(), l.NextToken()
+			if open.Type != lexer.LBRACKET || str.Type != lexer.STRING || str.Literal != x.Value || closeTok.Type != lexer.RBRACKET || end.Type != lexer.EOF {
+				t.Fatalf("show of nested %q is %s, which does not lex back to it (got %v %v %v %v)", x.Value, src, open, str, closeTok, end)
+			}
+		case *eval.ListValue:
+			for _, e := range x.Elements {
+				walk(e)
+			}
+		case *eval.ArrayValue:
+			for _, e := range x.Elements() {
+				walk(e)
+			}
+		case *eval.TupleValue:
+			for _, e := range x.Elements {
+				walk(e)
+			}
+		case *eval.TaggedValue:
+			for _, e := range x.Fields {
+				walk(e)
+			}
+		case *eval.RecordValue:
+			for _, e := range x.Fields {
+				walk(e)
+			}
+		case *eval.MapValue:
+			for _, e := range x.Entries {
+				walk(e.Key)
+				walk(e.Value)
+			}
+		}
+	}
+	walk(v)
+}
+
 func structKey(v eval.Value) string {
 	var b strings.Builder
 	var walk func(v eval.Value)
@@ -640,6 +692,7 @@ func TestShowEnginesAgreeAndInjective(t *testing.T) {
 			if _, top := v.(*eval.StringValue); !top && !utf8.ValidString(s) {
 				t.Fatalf("show of a %s is not valid UTF-8: %q", ty.kind, s)
 			}
+			checkNestedStringsRelex(t, v)
 			k := structKey(v)
 			if prev, ok := seen[s]; ok {
 				if prev != k {
