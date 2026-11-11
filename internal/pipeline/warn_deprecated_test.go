@@ -235,6 +235,14 @@ func TestDeprecatedReplacementMustExist(t *testing.T) {
 		{"qualifiedImported", "import std/list (headOr)\n@deprecated(\"std/list.headOr\")\nexport pure func first(xs: [int]) -> int = headOr(xs, 0)\n", ""},
 		{"qualifiedMissing", "import std/list (headOr)\n@deprecated(\"std/list.headOrr\")\nexport pure func first(xs: [int]) -> int = headOr(xs, 0)\n", "std/list does not export headOrr"},
 		{"qualifiedNotImported", "@deprecated(\"std/math.absInt\")\nexport pure func a(x: int) -> int = x\n", "is not imported"},
+		// A typo in a qualified target suggests the qualified spelling.
+		{"qualifiedTypoHint", "import std/list (headOr)\n@deprecated(\"std/list.headOR\")\nexport pure func first(xs: [int]) -> int = headOr(xs, 0)\n", "did you mean @deprecated(\"std/list.headOr\")"},
+		// A target that is itself deprecated names the live end of the chain.
+		{"targetDeprecated", "export pure func c(x: int) -> int = x\n@deprecated(\"c\")\nexport pure func b(x: int) -> int = c(x)\n@deprecated(\"b\")\nexport pure func a(x: int) -> int = b(x)\n", "did you mean @deprecated(\"c\")"},
+		{"targetDeprecatedStd", "import std/list (head_or)\n@deprecated(\"std/list.head_or\")\nexport pure func first(xs: [int]) -> int = head_or(xs, 0)\n", "did you mean @deprecated(\"std/list.headOr\")"},
+		{"cycle", "@deprecated(\"b\")\nexport pure func a(x: int) -> int = x\n@deprecated(\"a\")\nexport pure func b(x: int) -> int = x\n", "never reaches a live function"},
+		// The error is placed at the annotation (line 3 here), not the func.
+		{"position", "export pure func g(x: int) -> int = x\n@deprecated(\"gg\")\nexport pure func f(x: int) -> int = g(x)\n", "position.ail:3:1"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {

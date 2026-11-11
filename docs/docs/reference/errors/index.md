@@ -119,6 +119,17 @@ TC_DEPRECATED_001 at app.ail:4:31
   Fix: replace head_or with headOr (import it from std/list)
 ```
 
+**`TC_DEPRECATED_002` — `@deprecated` names no usable replacement (error).** The replacement in `@deprecated("x")` must be a live export: an export of the same module (`"headOr"`), or `"mod/path.name"` from a module this one imports. It is an error, at the annotation, when the name does not exist (with a did-you-mean, spelled the way the annotation must spell it), when it is the function itself, when it is itself deprecated (the message names the live end of the chain, so deprecations never chain), or when the chain is a cycle. Fix: point the annotation at the live replacement.
+
+```
+Error TC_DEPRECATED_002 at lib.ail:6:1: @deprecated("headOR") on head_or names no usable replacement: lib does not export headOR
+  Fix: did you mean @deprecated("headOr")?
+```
+
+**`PAR_DEPRECATED_ARG` / `PAR_EXPERIMENTAL_ARG` — malformed annotation (parse error).** `@deprecated` takes the replacement's name and an optional note, as one or two non-empty string literals: `@deprecated("headOr")`, `@deprecated("contains", "arguments swap")`. `@experimental` takes no arguments; `@experimental("x")` is `PAR_EXPERIMENTAL_ARG: @experimental takes no arguments`.
+
+These codes are inline diagnostic codes, like `TC_MATCH_005`; they are not entries of the generated `error_codes.json` registry, which covers the `PREFIX###` codes in `internal/errors/codes.go`.
+
 ## Individual error code pages
 
 - [BC001 — Function is evaluator-only under --strict-bytecode](bc001.md)
