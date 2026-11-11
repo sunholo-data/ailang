@@ -17,6 +17,12 @@ var quoteFragments = []string{
 	"", "a", "Z", " ", `"`, `\`, `\"`, `\\`, ", ", "${", "$", "{", "}", "$${", `\${`,
 	"\n", "\t", "\r", "\x00", "\x01", "\x1b", "\x7f", "\u0085", "\u00a0", "\u200b", "\u2028", "\ufeff",
 	"é", "中文", "😀", "\U0010FFFF", "\ufffd", "[", "]", "(", ")", ": ", "Some(", "x", "\\x41", "\\u{41}",
+	// Normalisation-sensitive: NFD, combining marks (incl. at the start and
+	// after an escape), canonical reordering, singletons, Hangul jamo,
+	// compatibility forms that NFC keeps, line/paragraph separators.
+	"e\U00000301", "\U00000301", "\U00000303", "q\U00000303", "\U0000212B", "\U00002126", "\U00000344",
+	"a\U00000323\U00000302", "a\U00000302\U00000323", "\U00001100", "\U00001161", "\U0000AC00", "\U000011A8",
+	"\U0000FB01", "\U00002029", "n",
 }
 
 func randomQuoteInput(r *rand.Rand) string {
@@ -29,7 +35,9 @@ func randomQuoteInput(r *rand.Rand) string {
 
 func lexOneString(t *testing.T, src string) (string, bool) {
 	t.Helper()
-	l := New(src, "quote.ail")
+	// The loader NFC-normalises source before lexing (Normalize); a literal
+	// that only round-trips through the raw lexer is not a round trip.
+	l := New(string(Normalize([]byte(src))), "quote.ail")
 	tok := l.NextToken()
 	if tok.Type != STRING {
 		return "", false

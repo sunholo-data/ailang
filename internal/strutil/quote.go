@@ -5,6 +5,8 @@ import (
 	"strconv"
 	"strings"
 	"unicode/utf8"
+
+	"golang.org/x/text/unicode/norm"
 )
 
 // Quote renders s as a double-quoted AILANG string literal. It is the one
@@ -18,10 +20,13 @@ import (
 //	LF TAB CR       -> \n  \t  \r
 //	$ before {      -> \$   (so the lexer does not read an interpolation)
 //	other C0, DEL, C1 and non-graphic runes -> \u{X} (uppercase hex, no padding)
+//	a rune NFC could change in place        -> \u{X}: a non-starter or
+//	    singleton when s is not NFC, or one that directly follows an escape
 //	a byte that is not valid UTF-8          -> \xHH (uppercase)
 //
 // Every other rune, including printable non-ASCII text, is written verbatim.
-// For valid UTF-8 the result re-lexes (lexer readEscape) to exactly s. A
+// For valid UTF-8 the result, read back the way the loader reads source
+// (BOM strip + NFC, lexer.Normalize, then readEscape), is exactly s. A
 // printable rune is never written as \xHH, so the invalid-byte spelling keeps
 // the mapping injective even though \xHH re-lexes to the rune U+00HH rather
 // than to the raw byte.
@@ -44,6 +49,15 @@ func QuoteTo(w io.StringWriter, s string) {
 			_, _ = w.WriteString(s[start:end])
 		}
 	}
+	// The loader NFC-normalises source before lexing (lexer.Normalize), so a
+	// literal must survive NFC. A rune that is not an NFC-stable starter
+	// (a combining mark, a Hangul vowel/trailing jamo, a singleton such as
+	// U+212B ANGSTROM SIGN) is escaped when written raw it could change:
+	// always if s itself is not NFC, and right after an escape sequence,
+	// whose last ASCII letter it could combine with (`\n` + U+0303 -> `\ñ`).
+	// NFC text is otherwise written verbatim, so ordinary text stays readable.
+	nfc := norm.NFC.IsNormalString(s)
+	afterEscape := false
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
 		esc := ""
@@ -64,7 +78,8 @@ func QuoteTo(w io.StringWriter, s string) {
 			if i+1 < len(s) && s[i+1] == '{' {
 				esc = `\$`
 			}
-		case !IsPrintableRune(r):
+		case !IsPrintableRune(r),
+			r >= utf8.RuneSelf && (!nfc || afterEscape) && !nfcStableStarter(s[i:i+size]):
 			esc = `\u{` + upperHex(uint64(r), 0) + `}`
 		}
 		if esc != "" {
@@ -72,10 +87,17 @@ func QuoteTo(w io.StringWriter, s string) {
 			_, _ = w.WriteString(esc)
 			start = i + size
 		}
+		afterEscape = esc != ""
 		i += size
 	}
 	flush(len(s))
 	_, _ = w.WriteString(`"`)
+}
+
+// nfcStableStarter reports whether the rune in r (one UTF-8 sequence) can
+// neither combine with a rune before it nor be rewritten by NFC on its own.
+func nfcStableStarter(r string) bool {
+	return norm.NFC.PropertiesString(r).BoundaryBefore() && norm.NFC.IsNormalString(r)
 }
 
 // IsPrintableRune reports whether r can be written verbatim inside a string
