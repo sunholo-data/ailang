@@ -4,7 +4,10 @@ import (
 	"fmt"
 	"strconv"
 	"strings"
+	"unicode/utf8"
 	"unsafe"
+
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // Retention policy for the in-memory collector (M-TRACE-TIER-NOT-ENFORCED M2).
@@ -142,17 +145,28 @@ func truncateValue(s string, max int) string {
 	if max <= 0 || len(s) <= max || isBoundedAt(s, max) {
 		return s
 	}
-	return fmt.Sprintf("%s…(+%d bytes elided)", s[:max], len(s)-max)
+	cut := strutil.RuneSafeCut(s, max) // never split a UTF-8 sequence
+	return fmt.Sprintf("%s…(+%d bytes elided)", s[:cut], len(s)-cut)
 }
 
-// isBoundedAt reports whether s is already the output of bounding at exactly
-// max bytes — a max-byte prefix followed by the elision marker. The check is
-// anchored at offset max, so the marker text appearing anywhere else in a
-// value is ordinary content. This is what makes truncateValue idempotent for
-// values a render site bounded with eval.ShowBounded before recording them.
+// isBoundedAt reports whether s is already the output of bounding at max
+// bytes — a prefix of max bytes, or up to 3 fewer where the cut backed off to
+// a rune boundary, followed by the elision marker. The check is anchored
+// there, so the marker text appearing anywhere else in a value is ordinary
+// content. This is what makes truncateValue idempotent for values a render
+// site bounded with eval.ShowBounded before recording them.
 func isBoundedAt(s string, max int) bool {
+	for k := max; k >= 0 && k >= max-(utf8.UTFMax-1); k-- {
+		if markerAt(s, k) {
+			return true
+		}
+	}
+	return false
+}
+
+func markerAt(s string, at int) bool {
 	const pre, suf = "…(+", " bytes elided)"
-	tail := s[max:]
+	tail := s[at:]
 	if !strings.HasPrefix(tail, pre) || !strings.HasSuffix(tail, suf) {
 		return false
 	}

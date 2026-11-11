@@ -9,7 +9,8 @@ import (
 // which quoted strings and spelled floats with %g, so `show({a: "x"})` was
 // {a: "x"} in the REPL but {a: x} under `ailang run`. They now call Show, the
 // renderer the `show` builtin and the bytecode VM share (#1453 cleanup). The
-// renderer's own cases live in show_spec_test.go (M-V1-SHOW-TOTAL).
+// renderer's own cases live in internal/vm/show_engines_test.go (spec table,
+// both engines) and internal/runner/show_engines_test.go (whole programs).
 func TestEnvShowIsTheCanonicalRenderer(t *testing.T) {
 	env := NewEnvironment()
 	registerBuiltins(env, nil)

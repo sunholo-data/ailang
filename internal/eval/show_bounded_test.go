@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // truncateLikeCollector mirrors trace.truncateValue: the golden the bounded
@@ -13,7 +15,8 @@ func truncateLikeCollector(s string, max int) string {
 	if max <= 0 || len(s) <= max {
 		return s
 	}
-	return fmt.Sprintf("%s…(+%d bytes elided)", s[:max], len(s)-max)
+	cut := strutil.RuneSafeCut(s, max) // the collector cuts on a rune boundary
+	return fmt.Sprintf("%s…(+%d bytes elided)", s[:cut], len(s)-cut)
 }
 
 func boundedFixtures() map[string]Value {
@@ -37,6 +40,7 @@ func boundedFixtures() map[string]Value {
 	return map[string]Value{
 		"int":       &IntValue{Value: 42},
 		"string":    &StringValue{Value: strings.Repeat("abc", 1000)},
+		"multibyte": &ListValue{Elements: []Value{&StringValue{Value: strings.Repeat("é中😀", 60)}, &StringValue{Value: "ü"}}},
 		"bytes":     &BytesValue{Value: []byte(strings.Repeat("z", 100))},
 		"list":      &ListValue{Elements: ints},
 		"array":     NewArray(ints),

@@ -149,9 +149,12 @@ func (w *showWriter) WriteString(s string) (int, error) {
 			w.buf = append(w.buf, s...)
 			w.used += len(s)
 		default:
-			w.buf = append(w.buf, s[:room]...)
-			w.used += room
-			w.over += len(s) - room
+			// Cut on a rune boundary, then stop writing: a later short
+			// segment must not slip in after the cut.
+			cut := strutil.RuneSafeCut(s, room)
+			w.buf = append(w.buf, s[:cut]...)
+			w.used = w.limit
+			w.over += len(s) - cut
 		}
 	default:
 		room := w.limit - w.used

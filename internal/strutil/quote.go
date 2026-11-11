@@ -94,6 +94,26 @@ func QuoteTo(w io.StringWriter, s string) {
 	_, _ = w.WriteString(`"`)
 }
 
+// RuneSafeCut returns the largest k <= max at which s can be cut without
+// splitting a UTF-8 sequence (it backs off at most 3 bytes; a stray byte
+// counts as its own rune). max >= len(s) returns len(s).
+func RuneSafeCut(s string, max int) int {
+	if max >= len(s) {
+		return len(s)
+	}
+	if max <= 0 {
+		return 0
+	}
+	k := max
+	for k > 0 && max-k < utf8.UTFMax-1 && !utf8.RuneStart(s[k]) {
+		k--
+	}
+	if !utf8.RuneStart(s[k]) {
+		return max // not UTF-8 here; a byte cut is all there is
+	}
+	return k
+}
+
 // nfcStableStarter reports whether the rune in r (one UTF-8 sequence) can
 // neither combine with a rune before it nor be rewritten by NFC on its own.
 func nfcStableStarter(r string) bool {
