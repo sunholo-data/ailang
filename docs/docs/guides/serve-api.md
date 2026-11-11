@@ -132,7 +132,7 @@ Running `ailang serve-api ./api/` auto-generates these endpoints:
 | GET | `/api/_meta/docs` | Swagger UI (interactive explorer) |
 | GET | `/api/_meta/redoc` | ReDoc (API reference) |
 | GET | `/api/_health` | Health check |
-| GET | `/.well-known/agent.json` | A2A Agent Card (requires `--a2a`) |
+| GET | `/.well-known/agent.json` | A2A Agent Card (requires `--a2a`); also `/.well-known/agent-card.json` |
 | POST | `/a2a/` | A2A JSON-RPC endpoint (requires `--a2a`) |
 
 ### URL Convention
@@ -503,7 +503,9 @@ anonymous caller runs with `--mcp-connect-only`:
 - plain HTTP (dispatch, `@route`, OpenAPI, `_meta`) serves `@nomcp` exports only, which are the OAuth and sign-in routes.
 
 `tools/list` stays open, because directory clients list tools before signing in. Startup fails
-without `--mcp-http`, without `--oauth-issuer`, without an `@mcp_token_verifier`, or with `--a2a`.
+without `--mcp-http`, without `--oauth-issuer`, or without an `@mcp_token_verifier`. With `--a2a`,
+`/a2a/` sits behind the same gate (every A2A request needs a token; the agent card stays open), and
+an `--a2a-message` handler must be `@noexpose @nomcp`.
 The hosted AILANG executor's public service uses it (`executor_oauth/`).
 
 **The signed-in identity in a tool: `_auth`.** With an identity verifier, a tool that declares
@@ -646,10 +648,44 @@ and `ToolDescriptor.Auth`.
 
 ### A2A (Agent-to-Agent Protocol)
 
-Google's A2A protocol is enabled with the `--a2a` flag:
+Google's A2A protocol (v0.3) is enabled with the `--a2a` flag:
 
-- **Agent Card**: `GET /.well-known/agent.json` — lists all functions as skills
-- **Task endpoint**: `POST /a2a/` — JSON-RPC 2.0 for function invocation
+- **Agent Card**: `GET /.well-known/agent-card.json` (also `/.well-known/agent.json`):
+  `protocolVersion: "0.3.0"`, `preferredTransport: "JSONRPC"`, and `url` = this server's `/a2a/`
+  as the caller reached it (https behind a TLS proxy). Without a handler it lists every function as
+  a skill.
+- **Task endpoint**: `POST /a2a/` — JSON-RPC 2.0.
+
+#### An AILANG program as an A2A agent: `--a2a-message`
+
+A2A clients such as Gemini Enterprise send a person's request as **text**, not as a function call.
+`--a2a-message <fn | module/path.fn>` names the one export that answers it. It takes one `string`
+(the message's text parts, joined) and returns the answer:
+
+```bash
+ailang serve-api --a2a --a2a-message reply --server-info "name=echo,title=Echo agent" \
+  examples/runnable/serve_api_a2a_message.ail
+```
+
+The card then describes an agent: its name is the `--server-info` title, it has one skill (the
+handler) whose description is the handler's doc comment, which is what a client's model reads to
+decide when to delegate, `capabilities.streaming` is true, and the modes are `text/plain`.
+
+| Method | Answer |
+|---|---|
+| `message/send` | A `Task`: `completed` with one `answer` artifact, or `failed` with the handler's error as the status message |
+| `message/stream` | Server-sent events: the `Task` (`submitted`), a `status-update` (`working`), an SSE comment heartbeat at most every 15s while the handler runs, an `artifact-update` with the answer, and a final `status-update` (`completed` or `failed`, `final: true`) |
+| `tasks/get` | A task from the last hour, by `params.id` |
+
+The handler runs with the request's context, so a Net or AI call it makes stops when the caller
+disconnects. Its effects are the service's `--caps`; an agent loop needs `AI` and `--ai <model>`.
+The hosted executor's agent (`executor_tools/agent.ail`) is the worked example: a bounded
+`std/ai` `runTools` loop over the sandboxed `ailang_check` and `ailang_run`.
+
+Under `--mcp-connect-only`, `/a2a/` is behind the Bearer gate and the handler must be `@noexpose
+@nomcp`, so nothing but the signed-in `/a2a/` reaches it.
+
+`tasks/send` (below) is unchanged: it calls a function by `metadata.skill_id`.
 
 > **Tip:** To serve a custom agent card (e.g., with additional metadata or a different schema), use `@nowrap @route("GET", "/.well-known/agent.json")` on a function that returns your card as a record. The `@nowrap` annotation ensures the output matches the A2A spec exactly, without the `FunctionCallResponse` envelope.
 
@@ -772,6 +808,7 @@ Flags:
   --ws-pass-header H   Give @route("WS") handlers this request header in req.headers (repeatable)
   --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)
   --oauth-issuer URL   OAuth authorization server for @mcp_auth("oauth2") tools on /mcp/connect/
+  --a2a-message FN     With --a2a: the export (one string param) answering A2A v0.3 message/send and message/stream
   --server-info S      Service identity name=N,title=T,version=V: MCP serverInfo, A2A card version, OpenAPI info.version
   --mcp-connect-only   Tools only on /mcp/connect/, all behind the Bearer gate (no /mcp/; HTTP serves @nomcp routes only)
   --process-timeout D  Process exec timeout (default 30s; needs --caps Process)

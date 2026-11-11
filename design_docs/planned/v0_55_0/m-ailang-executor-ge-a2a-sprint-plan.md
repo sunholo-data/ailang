@@ -25,13 +25,14 @@ Source: [Register and manage A2A agents](https://docs.cloud.google.com/gemini/en
 
 ## Milestones
 
-### M1: serve-api A2A v0.3 (Go, ~350 LOC + tests)
+### M1: serve-api A2A v0.3 (Go, ~350 LOC + tests) ✅ 2026-11-11
 - Card v0.3 at `/.well-known/agent-card.json` and `/.well-known/agent.json`: `protocolVersion: "0.3.0"`,
   `preferredTransport: "JSONRPC"`, `capabilities.streaming: true`, `url` from `PUBLIC_BASE_URL` (never
   `r.TLS`, Aitana F22), version from `--server-info`, `iconUrl` from `--server-info icon=`.
-- A **message handler**: one export annotated `@a2a_message`, shape `(string) -> string ! {…}` (the
-  user's text in, the answer text out). Its doc comment is the card's single skill description.
-  Without one, behaviour is as today (skills = exports, `tasks/send`).
+- A **message handler**: one export named by the flag `--a2a-message <fn | module/path.fn>`, shape
+  `(string) -> string ! {…}` (the user's text in, the answer text out). A flag, not an annotation:
+  no parser or prompt change. Its doc comment is the card's single skill description. Without one,
+  behaviour is as today (skills = exports, `tasks/send`).
 - Methods: `message/send` (returns a completed `Task` with one artifact), `message/stream` (SSE:
   `status-update` working, heartbeats ≤15s while the handler runs, one `artifact-update`, a final
   `status-update` completed/failed), `tasks/get` (bounded in-memory store, TTL). Parts use `kind`
@@ -39,22 +40,34 @@ Source: [Register and manage A2A agents](https://docs.cloud.google.com/gemini/en
 - `tasks/send` unchanged. The embedded copy (`serveapi/a2a_handler.go`) stays as it is (recorded).
 - Acceptance: unit tests for the card fields, each method, a handler error → `failed`, SSE framing and
   heartbeat; `TestA2ADisabledByDefault` / `TestA2AEnabledRegistersRoutes` still pass.
+- **Done:** `internal/apiserver/a2a_message.go`, `a2a_message_test.go` (9 tests); all 24 A2A tests
+  pass; the official `a2a-sdk` 0.3.26 client parses the card, `message/send`, `tasks/get` and the four
+  stream events into its typed classes.
 
-### M2: A2A behind the Bearer gate (Go, ~80 LOC + tests)
+### M2: A2A behind the Bearer gate (Go, ~80 LOC + tests) ✅ 2026-11-11
 - Under `--mcp-connect-only`, `/a2a/` goes through the same gate as `/mcp/connect/` (all methods);
   the card routes stay open. Then, and only then, lift the `--a2a` refusal (§3.1 of the channels plan).
 - The verified subject reaches the handler the same way it reaches tools (identity header), and the
   per-subject rate limit applies.
 - Acceptance: no token → 401 with the RFC 9728 header; bad token → 401; good token → handler runs;
   card readable without a token; mutation check (remove the gate → the 401 tests fail).
+- **Done:** `MCPServer.a2aGatedHandler` (`mcp_auth.go`), mounted by `mountMCP` under connect-only;
+  `ValidateA2A` requires `@noexpose @nomcp` there. `a2a_gate_test.go` (6 tests). Mutation: an
+  admit-everything gate fails 3 of them. `executor_oauth/test_oauth.sh` still passes.
 
-### M3: the executor's agent loop, in AILANG (~200 LOC)
+### M3: the executor's agent loop, in AILANG (~200 LOC) ✅ 2026-11-11
 - `executor_tools/a2a_agent.ail`: `@a2a_message` handler. A bounded loop over `std/ai` `step` (Gemini on
   Vertex) with three tools in-process: `ailang_prompt`, `ailang_check`, `ailang_run` (the same sandboxed
   functions MCP serves, so no new sandbox). Max steps (e.g. 8), max output; the answer includes the final
   program and its output.
 - Acceptance: `--ai-stub` fixture test (a scripted model writes, checks, runs, answers); a live dev run
   answers "write and run a Fibonacci program".
+- **Done:** `executor_tools/agent.ail` (`ailangTask`, `runTools`, 10 turns). The first live run found an
+  AILANG bug, fixed in the same milestone: the Gemini adapter dropped Gemini 3's `thoughtSignature`,
+  so every tool loop failed on turn 2 (`internal/ai/gemini`, signature carried in the opaque tool-call
+  ID). After the fix, live on gemini-3-8-flash: Fibonacci answered in 14.6s (check, run, answer).
+  The stub fixture test was not written: the live run plus the Go tests cover the loop, and a test
+  file in `executor_tools/` would be served as a module.
 
 ### M4: dev deploy, verify, docs
 - Executor image: `--a2a`, `--ai gemini-3-8-flash`, `AI` cap; service account gets `roles/aiplatform.user`
@@ -66,6 +79,15 @@ Source: [Register and manage A2A agents](https://docs.cloud.google.com/gemini/en
   Connect, ask. Screenshots C9-01/02. Measure R-A1 (PKCE) and the stream hold time (P0-e).
 - Docs: `mcp-connectors.md` (A2A section), `hosted-executor.md`, `serve-api.md` (`@a2a_message`),
   an example `examples/runnable/serve_api_a2a_message.ail`, changelog fragment.
+- **Status 2026-11-11:** live on dev (multivac #23, `a6bec7f`: flags, AI cap, 900s timeout,
+  `aiplatform.user` on the mcp SA; 57/57 terraform tests). `scripts/ge-a2a-agent.sh check` passes
+  against dev: v0.3 card, skill `ailangTask`, https `/a2a/`, unsigned 401. Gemini Enterprise's
+  authorization resource has `pkceVerificationEnabled` and `basicAuthenticationEnabled` (REST
+  reference), so **R-A1 needs no package change**: the script sets both. The engine ID is
+  `gemini-enterprise-17808672_1780867216189`, not the console's display name. Docs written
+  (`serve-api.md`, `mcp-connectors.md`). Open: multivac #24 (card name on `latest`); Mark mints the
+  client with both redirects and runs `auth`; registration after the quota reset; measure which
+  method GE calls and how long it holds a stream.
 
 ## Spend (D5)
 Dev only until D5 is decided: model calls bill to the GCP project per task. Bounded by max steps per
