@@ -79,6 +79,15 @@ Source: [Register and manage A2A agents](https://docs.cloud.google.com/gemini/en
   Connect, ask. Screenshots C9-01/02. Measure R-A1 (PKCE) and the stream hold time (P0-e).
 - Docs: `mcp-connectors.md` (A2A section), `hosted-executor.md`, `serve-api.md` (`@a2a_message`),
   an example `examples/runnable/serve_api_a2a_message.ail`, changelog fragment.
+- **Status 2026-11-11:** live on dev (multivac #23, `a6bec7f`: flags, AI cap, 900s timeout,
+  `aiplatform.user` on the mcp SA; 57/57 terraform tests). `scripts/ge-a2a-agent.sh check` passes
+  against dev: v0.3 card, skill `ailangTask`, https `/a2a/`, unsigned 401. Gemini Enterprise's
+  authorization resource has `pkceVerificationEnabled` and `basicAuthenticationEnabled` (REST
+  reference), so **R-A1 needs no package change**: the script sets both. The engine ID is
+  `gemini-enterprise-17808672_1780867216189`, not the console's display name. Docs written
+  (`serve-api.md`, `mcp-connectors.md`). Open: multivac #24 (card name on `latest`); Mark mints the
+  client with both redirects and runs `auth`; registration after the quota reset; measure which
+  method GE calls and how long it holds a stream.
 
 ## Spend (D5)
 Dev only until D5 is decided: model calls bill to the GCP project per task. Bounded by max steps per
