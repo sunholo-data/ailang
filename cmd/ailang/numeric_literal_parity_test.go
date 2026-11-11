@@ -53,7 +53,7 @@ func TestNumericLiteralParityVMvsInterpreter(t *testing.T) {
 		"intsStayInts": "3",
 		// The int literal key is the float 1.0 / 2.0, so the map-key encoder
 		// (internal/pcoll) files it where a float lookup finds it.
-		"floatMapKey": "Some(x)",
+		"floatMapKey": `Some("x")`,
 		"tupleMapKey": "true",
 	}
 	for entry, w := range want {

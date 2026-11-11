@@ -261,9 +261,6 @@ func showAllocBytes(render func() string) (perOp int64, out string) {
 // Go recursion (it would overflow the goroutine stack long before a million
 // levels) and no per-level string concatenation (quadratic).
 func TestShowDeepAndWideAreLinear(t *testing.T) {
-	if testing.Short() {
-		t.Skip("allocates several hundred MB")
-	}
 	const depth = 1_000_000
 	var chain eval.Value = sCtor("Z")
 	var vmChain = bytecode.NewADT(0, "Z", nil)

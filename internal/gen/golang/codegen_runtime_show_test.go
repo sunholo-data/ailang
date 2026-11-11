@@ -18,9 +18,6 @@ import (
 // to carry its own copy of the elision constants and never quoted nested
 // strings.
 func TestEmittedShowMatchesEvaluator(t *testing.T) {
-	if testing.Short() {
-		t.Skip("builds a Go module")
-	}
 	str := func(s string) eval.Value { return &eval.StringValue{Value: s} }
 	i := func(n int) eval.Value { return &eval.IntValue{Value: n} }
 	f := func(x float64) eval.Value { return &eval.FloatValue{Value: x} }

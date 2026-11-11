@@ -352,3 +352,32 @@ deep1_{25000,50000,100000}.ail      -> 0.47s/664MB, 1.54s/1.53GB, 5.21s/3.53GB (
 go test ./internal/{eval,builtins,vm,runtime,pipeline,testing}  (prototype) -> 9 FAIL in 3 packages
 printf '["a", "b, c"]\n1.0e300\n' | ailang-base repl   -> [a, b, c] :: [String]; 1e+300 :: Float
 ```
+
+## Implementation (2026-11-11)
+
+Branch `v1/show-total`. All five milestones landed; the open decisions were taken as recommended.
+
+| Decision | Taken |
+|---|---|
+| 1. Top-level strings bare, nested quoted | Yes |
+| 2. Helper name and home | `std/string.showPreview(x, maxChars)`, head-only cut, `…(+N chars)`; backed by `_show_preview` (native on the VM as `__show_preview`) |
+| 3. Float spelling | Unchanged (shortest round-trip, no exponent) |
+| 4. Set rendering | Honest `Set(Map{…})`, no special case |
+| 5. `run_length_encode` | Retired to `benchmarks/retired/`; `run_length_encode_v2` states `3a 2b 4c 1a` |
+| 6. M4 now or 1.x | Now: REPL echo, `run --print`, test messages, traces and the WASM display all use the show walk |
+
+Where it differs from the plan:
+
+- **One walk, three budgets.** `eval.RenderShow` (unbounded), `RenderShowPreview` (code-point budget)
+  and `ShowBounded`/`ShowTraceBounded` (byte budget, trace redaction as an inspector wrapper) share
+  one explicit-stack walk in `internal/eval/show.go`. The old `boundedWriter` (a second renderer
+  that mirrored `Value.String()`) is gone, so traces now spell floats and nested strings as `show`.
+- **State is two stacks**: one byte per open container plus a frame only for containers with
+  children left, so `S(S(…))` a million deep costs about 1 MB of state. Output buffers grow by
+  doubling (append's 1.25x policy re-copied a 30 MB rendering about five times).
+- `ShowNode` is generic over the engine's value type, so neither engine boxes its children.
+- The escaper moved to `internal/strutil.Quote` (an existing stdlib-leaf package), used by `ailang fmt` too.
+- `Value.String()` is unchanged: it is still the Go-side spelling of error messages and debug
+  output, and no longer reaches stdout.
+- `examples/manifest.json` now pins stdout (`verify-examples` compares it), so 10 pins were
+  re-pinned; the doc's census predates that gate.
