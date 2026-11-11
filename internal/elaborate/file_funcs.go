@@ -363,7 +363,7 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 			}
 			// Type constructor (e.g., user-defined ADT), qualified by the module
 			// that declares it (M-V1-NOMINAL-TYPE-IDENTITY §4.3).
-			return e.typeCon(typ.Name)
+			return e.typeCon(typ.Name, typ.Pos)
 		}
 
 	case *ast.TypeVar:
@@ -445,7 +445,7 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 			args[i] = e.astTypeToInternalType(arg)
 		}
 		return &types.TApp{
-			Constructor: e.typeCon(typ.Constructor),
+			Constructor: e.typeCon(typ.Constructor, typ.Pos),
 			Args:        args,
 		}
 

@@ -112,3 +112,18 @@ func repoRoot(t *testing.T) string {
 		dir = parent
 	}
 }
+
+// TestBuiltinHomes_RegistrationRejectsAnUnhomedType: a builtin whose signature
+// names a nominal type missing from the home table is refused when it is
+// registered, so the binary cannot start with it.
+func TestBuiltinHomes_RegistrationRejectsAnUnhomedType(t *testing.T) {
+	T := types.NewBuilder()
+	bad := T.Func(T.String()).Returns(T.App("Result", T.Con("NotAHomedType"), T.String())).Build()
+	if err := checkBuiltinHomes("_test_unhomed", bad); err == nil || !strings.Contains(err.Error(), "NotAHomedType") {
+		t.Fatalf("an unhomed nominal type must be refused, got %v", err)
+	}
+	ok := T.Func(T.String()).Returns(T.App("Result", T.Con("Json"), T.String())).Build()
+	if err := checkBuiltinHomes("_test_homed", ok); err != nil {
+		t.Fatalf("a homed signature must pass: %v", err)
+	}
+}

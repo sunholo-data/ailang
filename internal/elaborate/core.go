@@ -65,6 +65,9 @@ type Elaborator struct {
 	// registered as aliases for field access (M-STREAM-DX/M4); they must stay
 	// nominal everywhere else.
 	newtypeADTs map[string]bool
+	// ambiguousCtors: auto-imported constructor names two or more modules
+	// offer (ambiguous_ctor.go).
+	ambiguousCtors map[string][]types.TypeRef
 }
 
 // DerivedEqField is one field a `deriving (Eq)` declaration needs Eq for.
@@ -174,6 +177,7 @@ func (e *Elaborator) RegisterConstructor(typeName, ctorName string, arity int, i
 // M-POLY-ADT: Stores field types to correctly build constructor type schemes
 // This fixes the bug where Err(string) in Result[a] was incorrectly typed as ∀a. a -> Result[a]
 func (e *Elaborator) RegisterConstructorWithFields(typeName, ctorName string, arity int, isImported bool, typeParamCount int, typeParamNames []string, fieldTypes []types.Type) {
+	delete(e.ambiguousCtors, ctorName) // a declared constructor is not ambiguous
 	e.constructors[ctorName] = &ConstructorInfo{
 		TypeName:       typeName,
 		Module:         e.ModuleID(),

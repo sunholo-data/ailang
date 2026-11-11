@@ -117,6 +117,7 @@ func typeCheckAndLowerModule(
 	}
 	typeChecker.SetConstructorTypes(ctorTypes)
 	typeChecker.SetConstructorModules(ctorModules)
+	typeChecker.SetAmbiguousConstructors(imports.AmbiguousCtors)
 	typeChecker.SetADTTypeParams(adtTypeParams) // M-TAPP-FIX
 
 	// M-MATCH-XCHECK-ERROR-QUALITY: diagnostic-only registry of ALL transitively-

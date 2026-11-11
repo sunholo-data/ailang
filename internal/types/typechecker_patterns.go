@@ -146,6 +146,13 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 		return nil, typedast.TypedWildcardPattern{}, nil
 
 	case *core.ConstructorPattern:
+		// M-V1-NOMINAL-TYPE-IDENTITY: a constructor two imported modules offer
+		// is resolved by the scrutinee's type, never by import order.
+		if _, amb := tc.ambiguousCtors[p.Name]; amb && p.TypeName == "" {
+			if err := tc.resolveAmbiguousPattern(p, scrutType, ctx); err != nil {
+				return nil, nil, err
+			}
+		}
 		// #1478: a name outside direct scope is accepted only if a loaded
 		// module defines it (and it isn't provably a foreign ADT's).
 		if err := tc.checkCtorPatternScope(p, scrutType); err != nil {

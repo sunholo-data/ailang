@@ -96,23 +96,112 @@ func TestTConJSON_RoundTripsModule(t *testing.T) {
 	}
 }
 
-func TestTypeScope_Precedence(t *testing.T) {
-	s := NewTypeScope("m")
-	s.Bind("Option", TypeRef{Module: "m", Name: "Option"}) // local wins
-	s.Bind("Option", TypeRef{Module: "std/option", Name: "Option"})
-	s.Bind("U", TypeRef{Module: "q/a", Name: "T"}) // import q/a (T as U)
-	cases := map[string]TypeRef{
-		"Option":   {Module: "m", Name: "Option"},
-		"U":        {Module: "q/a", Name: "T"},
-		"Json":     {Module: "std/json", Name: "Json"},
-		"DOMEvent": {Module: BuiltinModule, Name: "DOMEvent"},
-		"Nope":     {Module: "m", Name: "Nope"},
-		"int":      {Name: "int"},
-		"Map":      {Name: "Map"},
+// TestTypeScope_LocalAndExplicitBeatEveryBuiltinName: a module may declare,
+// or import by name, a type whose name is a built-in (Map, List, Int, ...), a
+// prelude name or a builtin-home name (Json, DOMEvent, ...); its own or the
+// imported one wins. The names come from the tables themselves, so a new
+// built-in cannot be missed.
+func TestTypeScope_LocalAndExplicitBeatEveryBuiltinName(t *testing.T) {
+	var names []string
+	names = append(names, ModulelessNames()...)
+	names = append(names, PreludeTypeNames()...)
+	names = append(names, BuiltinHomeNames()...)
+	if len(names) < 30 {
+		t.Fatalf("only %d built-in names: the tables are not being read", len(names))
 	}
-	for name, want := range cases {
-		if got := s.Resolve(name); got != want {
-			t.Errorf("Resolve(%s) = %+v, want %+v", name, got, want)
+	for _, n := range names {
+		local := NewTypeScope("m")
+		local.BindLocal(n)
+		if got, err := local.Lookup(n); err != nil || got != (TypeRef{Module: "m", Name: n}) {
+			t.Errorf("local %s: got %+v %v, want m's", n, got, err)
+		}
+		imp := NewTypeScope("m")
+		imp.BindExplicit(n, TypeRef{Module: "q/a", Name: n})
+		if got, err := imp.Lookup(n); err != nil || got != (TypeRef{Module: "q/a", Name: n}) {
+			t.Errorf("imported %s: got %+v %v, want q/a's", n, got, err)
+		}
+	}
+}
+
+// TestTypeScope_EachStepBeatsTheNext pins the precedence order step by step:
+// each scope binds a name at two adjacent steps and must answer the earlier.
+func TestTypeScope_EachStepBeatsTheNext(t *testing.T) {
+	type step struct {
+		name string
+		bind func(s *TypeScope, n string)
+		want func(n string) TypeRef
+	}
+	local := step{"local", func(s *TypeScope, n string) { s.BindLocal(n) }, func(n string) TypeRef { return TypeRef{"m", n} }}
+	explicit := step{"explicit", func(s *TypeScope, n string) { s.BindExplicit(n, TypeRef{"q/exp", n}) }, func(n string) TypeRef { return TypeRef{"q/exp", n} }}
+	direct := step{"direct", func(s *TypeScope, n string) { s.AddDirect(TypeRef{"q/dir", n}) }, func(n string) TypeRef { return TypeRef{"q/dir", n} }}
+	closure := step{"closure", func(s *TypeScope, n string) { s.AddClosure(TypeRef{"q/clo", n}) }, func(n string) TypeRef { return TypeRef{"q/clo", n} }}
+	pairs := []struct {
+		name          string
+		first, second step
+	}{
+		{"T", local, explicit},
+		{"T", explicit, direct},
+		{"T", direct, closure},
+		{"Map", explicit, direct}, // explicit beats a built-in name too
+		{"Option", local, direct},
+	}
+	for _, p := range pairs {
+		s := NewTypeScope("m")
+		p.second.bind(s, p.name)
+		p.first.bind(s, p.name)
+		if got, err := s.Lookup(p.name); err != nil || got != p.first.want(p.name) {
+			t.Errorf("%s: %s must beat %s, got %+v %v", p.name, p.first.name, p.second.name, got, err)
+		}
+	}
+	// Built-in (step 4) beats direct and closure; prelude (5) beats them too.
+	for _, n := range []string{"Map", "List", "Int", "Option", "Result"} {
+		s := NewTypeScope("m")
+		direct.bind(s, n)
+		closure.bind(s, n)
+		got, err := s.Lookup(n)
+		if err != nil || got.Module == "q/dir" || got.Module == "q/clo" {
+			t.Errorf("%s: a built-in/prelude name must beat the auto-import channels, got %+v %v", n, got, err)
+		}
+	}
+	// Closure (7) beats the builtin home table (8); the table beats "this module" (9).
+	s := NewTypeScope("m")
+	closure.bind(s, "Json")
+	if got, _ := s.Lookup("Json"); got != (TypeRef{"q/clo", "Json"}) {
+		t.Errorf("closure must beat the builtin home table, got %+v", got)
+	}
+	if got, _ := NewTypeScope("m").Lookup("Json"); got != (TypeRef{"std/json", "Json"}) {
+		t.Errorf("builtin home must beat this module, got %+v", got)
+	}
+	if got, _ := NewTypeScope("m").Lookup("Nope"); got != (TypeRef{"m", "Nope"}) {
+		t.Errorf("an unbound name is this module's, got %+v", got)
+	}
+}
+
+// TestTypeScope_AmbiguityIsAnErrorNotAPick: two candidates at the direct or
+// closure step are TC_AMBIGUOUS_TYPE_001 naming both, in an order that does
+// not depend on the order they were added.
+func TestTypeScope_AmbiguityIsAnErrorNotAPick(t *testing.T) {
+	for _, add := range []func(*TypeScope, TypeRef){(*TypeScope).AddDirect, (*TypeScope).AddClosure} {
+		var msgs []string
+		for _, order := range [][]string{{"q/a", "q/b"}, {"q/b", "q/a"}} {
+			s := NewTypeScope("m")
+			for _, mod := range order {
+				add(s, TypeRef{mod, "Leg"})
+				add(s, TypeRef{mod, "Leg"}) // the same declaration twice is one candidate
+			}
+			_, err := s.Lookup("Leg")
+			if err == nil {
+				t.Fatal("two candidates must be TC_AMBIGUOUS_TYPE_001")
+			}
+			for _, want := range []string{TC_AMBIGUOUS_TYPE_001, "q/a", "q/b", "Suggestion:"} {
+				if !strings.Contains(err.Error(), want) {
+					t.Errorf("missing %q: %v", want, err)
+				}
+			}
+			msgs = append(msgs, err.Error())
+		}
+		if msgs[0] != msgs[1] {
+			t.Errorf("diagnostic depends on order:\n%s\n%s", msgs[0], msgs[1])
 		}
 	}
 }

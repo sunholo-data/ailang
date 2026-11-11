@@ -1,6 +1,8 @@
 package elaborate
 
 import (
+	"fmt"
+
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/types"
 )
@@ -41,7 +43,7 @@ func (e *Elaborator) ensureTypeScope(file *ast.File) {
 	s := types.NewTypeScope(e.ModuleID())
 	if file != nil {
 		for _, name := range LocalTypeNames(file) {
-			s.Bind(name, types.TypeRef{Module: s.Module, Name: name})
+			s.BindLocal(name)
 		}
 	}
 	e.typeScope = s
@@ -64,12 +66,18 @@ func LocalTypeNames(file *ast.File) []string {
 	return out
 }
 
-// typeCon mints the TCon a bare type name denotes in this module.
-func (e *Elaborator) typeCon(name string) *types.TCon {
+// typeCon mints the TCon a bare type name denotes in this module. An
+// ambiguous name (TC_AMBIGUOUS_TYPE_001) is latched as the elaboration error,
+// located at the annotation that wrote it.
+func (e *Elaborator) typeCon(name string, pos ast.Pos) *types.TCon {
 	if e.typeScope == nil {
 		e.ensureTypeScope(nil)
 	}
-	return e.typeScope.Con(name)
+	r, err := e.typeScope.Lookup(name)
+	if err != nil && e.typeAnnotationErr == nil {
+		e.typeAnnotationErr = fmt.Errorf("at %s: %w", e.sourcePos(pos), err)
+	}
+	return &types.TCon{Name: r.Name, Module: r.Module}
 }
 
 // GetNewtypeADTs returns the local single-constructor ADTs wrapping a record

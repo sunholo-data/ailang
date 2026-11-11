@@ -63,9 +63,16 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	// CRITICAL: Register constructors from previously loaded modules for import resolution
 	// Without this, imports like "import std/option (Option, Some, None)" fail because
 	// the elaborator doesn't know that None/Some are constructors (they become unresolved Var nodes).
+	// M-V1-NOMINAL-TYPE-IDENTITY: the table holds one entry per (module,
+	// constructor); constructorsInScope decides what each bare name means here
+	// with the CLI's rule, and marks a name two modules offer as ambiguous.
 	mr.mu.RLock()
-	for ctorName, ctor := range mr.constructors {
-		elaborator.RegisterImportedConstructorAs(ctorName, ctor.CtorName, ctor.Module, ctor.TypeName, ctor.Arity, ctor.TypeParamCount)
+	chosenCtors, ambiguousCtors := mr.constructorsInScope(name, program.File)
+	for bind, ctor := range chosenCtors {
+		elaborator.RegisterImportedConstructorAs(bind, ctor.CtorName, ctor.Module, ctor.TypeName, ctor.Arity, ctor.TypeParamCount)
+	}
+	for ctorName, cands := range ambiguousCtors {
+		elaborator.MarkAmbiguousConstructor(ctorName, cands)
 	}
 	// M-WASM-TYPECHECK-FLOAT-DIVERGENCE: aliases from previously loaded modules
 	// reach the TYPE CHECKER below (keyed by their defining module), not the
@@ -185,9 +192,6 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 
 	// Helper function to build and register $adt factory type for a constructor
 	registerAdtFactory := func(module string, ctorName string, typeName string, arity int, typeParamCount int, typeParamNames []string, fieldTypes []types.Type) {
-		// Track constructor -> ADT type mapping (for pattern matching)
-		ctorTypes[ctorName] = typeName
-		ctorModules[ctorName] = module
 		if adtKey := types.NominalKey(module, typeName); true {
 			if _, exists := adtTypeParams[adtKey]; !exists {
 				adtTypeParams[adtKey] = typeParamCount
@@ -212,20 +216,30 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	}
 
 	// Register $adt factory types for IMPORTED constructors (from previously loaded modules)
+	// Every loaded module's factories are in scope under their own
+	// module-qualified keys; the bare-name tables below hold only the
+	// constructor each name means in this module.
 	mr.mu.RLock()
-	for ctorName, ctor := range mr.constructors {
-		registerAdtFactory(ctor.Module, ctorName, ctor.TypeName, ctor.Arity, ctor.TypeParamCount, ctor.TypeParamNames, ctor.FieldTypes)
+	for _, ctor := range mr.constructors {
+		registerAdtFactory(ctor.Module, ctor.CtorName, ctor.TypeName, ctor.Arity, ctor.TypeParamCount, ctor.TypeParamNames, ctor.FieldTypes)
 	}
 	mr.mu.RUnlock()
+	for bind, ctor := range chosenCtors {
+		if _, amb := ambiguousCtors[bind]; !amb && bind == ctor.CtorName {
+			ctorTypes[bind], ctorModules[bind] = ctor.TypeName, ctor.Module
+		}
+	}
 
 	// Register $adt factory types for LOCAL constructors (from this module)
 	for ctorName, ctorInfo := range elabCtors {
 		registerAdtFactory(ctorInfo.Module, ctorName, ctorInfo.TypeName, ctorInfo.Arity, ctorInfo.TypeParamCount, ctorInfo.TypeParamNames, ctorInfo.FieldTypes)
+		ctorTypes[ctorName], ctorModules[ctorName] = ctorInfo.TypeName, ctorInfo.Module
 	}
 
 	// Set constructor types and ADT type params for pattern matching
 	typeChecker.SetConstructorTypes(ctorTypes)
 	typeChecker.SetConstructorModules(ctorModules)
+	typeChecker.SetAmbiguousConstructors(ambiguousCtors)
 	typeChecker.SetADTTypeParams(adtTypeParams)
 
 	// CRITICAL: Register type aliases for unification
@@ -486,7 +500,7 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	}
 	// Cache constructors from this module for future import resolution
 	for ctorName, ctorInfo := range elabCtors {
-		mr.constructors[ctorName] = &CachedConstructor{
+		mr.constructors[ctorKey(ctorInfo.Module, ctorName)] = &CachedConstructor{
 			TypeName:       ctorInfo.TypeName,
 			Module:         ctorInfo.Module,
 			CtorName:       ctorInfo.CtorName,

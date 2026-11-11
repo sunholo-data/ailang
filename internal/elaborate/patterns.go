@@ -108,12 +108,16 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 				// It's a nullary constructor - create ConstructorPattern with no args.
 				// Emit the CANONICAL name: for an aliased import (`None as Nada`)
 				// p.Name is the alias, and runtime matching compares tags (#1478).
-				return &core.ConstructorPattern{
+				pat := &core.ConstructorPattern{
 					Name:       ctorInfo.CtorName,
 					TypeName:   ctorInfo.TypeName,
 					TypeModule: ctorInfo.Module,
 					Args:       nil, // Empty args for nullary constructor
-				}, nil
+				}
+				if _, amb := e.ambiguousCtors[p.Name]; amb {
+					pat.TypeName, pat.TypeModule = "", "" // the typechecker resolves it by the scrutinee
+				}
+				return pat, nil
 			}
 			// Bare non-nullary constructor (e.g. `Some` without arguments):
 			// previously this silently became a catch-all VarPattern named "Some".
@@ -181,6 +185,9 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 		name, typeName, typeModule := p.Name, "", ""
 		if ctorInfo, ok := e.constructors[p.Name]; ok && ctorInfo.CtorName != "" {
 			name, typeName, typeModule = ctorInfo.CtorName, ctorInfo.TypeName, ctorInfo.Module
+			if _, amb := e.ambiguousCtors[p.Name]; amb {
+				typeName, typeModule = "", "" // the typechecker resolves it by the scrutinee
+			}
 		}
 		return &core.ConstructorPattern{
 			Name:       name,

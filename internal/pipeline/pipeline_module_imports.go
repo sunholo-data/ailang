@@ -50,6 +50,14 @@ type moduleImports struct {
 	// ExplicitTypes: a type name bound by a selective import (`import M (T)`,
 	// `import M (T as U)` binds U) -> the declaration it names. §4.3 rule 3.
 	ExplicitTypes map[string]types.TypeRef
+	// AmbiguousCtors: auto-imported constructor names two or more modules
+	// offer (and nothing imports by name) -> the candidate ADTs, sorted by
+	// module (import_ambiguity.go).
+	AmbiguousCtors map[string][]types.TypeRef
+	// Collisions: MOD015 errors for two explicit imports binding one bare type
+	// or constructor name to different declarations.
+	Collisions []error
+	ns         *importNamespaces
 	// AllCtorTypes is a diagnostic-only Constructor → ADT map covering ALL
 	// transitively-loaded modules (not just direct imports). It feeds error-
 	// message constructor suggestions when the scrutinee's ADT is known only
@@ -68,7 +76,7 @@ type moduleImports struct {
 // resolveModuleImports builds the external type environment and global references
 // by collecting exports, types, and constructors from already-compiled dependencies.
 func resolveModuleImports(
-	fileImports []*ast.ImportDecl,
+	file *ast.File,
 	modID string,
 	modLinker *link.ModuleLinker,
 	cfg Config,
@@ -85,6 +93,8 @@ func resolveModuleImports(
 		ImportedCtorInfos:     make(map[string]*importedCtorInfo),
 		ImportedNewtypes:      make(map[string]bool),
 		ExplicitTypes:         make(map[string]types.TypeRef),
+		AmbiguousCtors:        make(map[string][]types.TypeRef),
+		ns:                    newImportNamespaces(),
 		AllCtorTypes:          make(map[string]string),
 		ImportedAliasOrigin:   make(map[string]string),
 	}
@@ -130,9 +140,17 @@ func resolveModuleImports(
 	}
 
 	// Get imports for this module
+	var fileImports []*ast.ImportDecl
+	if file != nil {
+		fileImports = file.Imports
+	}
 	if len(fileImports) == 0 {
 		return imports
 	}
+	defer func() {
+		imports.ns.finishAutoCtors(imports)
+		imports.Collisions = imports.ns.collisions
+	}()
 
 	for _, imp := range fileImports {
 		// Get the interface of the imported module
@@ -144,7 +162,7 @@ func resolveModuleImports(
 			continue
 		}
 		if len(imp.Symbols) > 0 {
-			resolveSelectiveImports(imp, depIface, imports, cfg)
+			resolveSelectiveImports(file, imp, depIface, imports, cfg)
 		}
 
 		// Handle module alias: import std/list as List
@@ -215,6 +233,7 @@ func sortedIfaceKeys(m map[string]*iface.Iface) []string {
 
 // resolveSelectiveImports resolves selective symbol imports from a dependency interface.
 func resolveSelectiveImports(
+	file *ast.File,
 	imp *ast.ImportDecl,
 	depIface *iface.Iface,
 	imports *moduleImports,
@@ -257,6 +276,7 @@ func resolveSelectiveImports(
 			if _, bound := imports.ExplicitTypes[bindName]; !bound {
 				imports.ExplicitTypes[bindName] = types.TypeRef{Module: depIface.Module, Name: sym}
 			}
+			imports.ns.bindExplicit(imports.ns.explicitTypes, "type", bindName, importSite{depIface.Module, sym, imp}, file)
 			// M-FIX-RECORD-UPDATE: Also import type alias if present
 			// This enables cross-module record update syntax.
 			if alias, hasAlias := depIface.GetTypeAlias(sym); hasAlias {
@@ -274,6 +294,7 @@ func resolveSelectiveImports(
 			// be dropped here, so `None as Nada` registered nothing and `Nada`
 			// silently never matched in a pattern.
 			resolveConstructorImport(bindName, depIface.Module, ctor, imports, cfg)
+			imports.ns.bindExplicit(imports.ns.explicitCtors, "constructor", bindName, importSite{depIface.Module, sym, imp}, file)
 			found = true
 		}
 		// No else needed - if constructor not found, we continue searching
@@ -301,6 +322,7 @@ func resolveSelectiveImports(
 	// Without this, `None` in a match pattern is treated as a variable binding,
 	// silently matching everything. Same pattern as type alias auto-import above.
 	for _, ctor := range depIface.Constructors {
+		imports.ns.addAutoCtor(depIface.Module, ctor)
 		if _, exists := imports.ImportedCtorInfos[ctor.CtorName]; !exists {
 			resolveConstructorImport(ctor.CtorName, depIface.Module, ctor, imports, cfg)
 		}

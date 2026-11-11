@@ -341,7 +341,7 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 			for _, list := range [][]ast.Node{file.Decls, file.Statements} {
 				for _, d := range list {
 					if td, ok := d.(*ast.TypeDecl); ok {
-						scope.Bind(td.Name, types.TypeRef{Module: b.module, Name: td.Name})
+						scope.BindLocal(td.Name)
 					}
 				}
 			}

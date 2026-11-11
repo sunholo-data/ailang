@@ -689,37 +689,76 @@ spelling imported it; the file compiles and evaluates once.
 **M2 (merged with the resolver half of M3) — implemented 2026-11-11** (branch `v1/nominal-identity-m2`).
 
 > *What landed.* `types.TCon.Module`; `NominalSame` behind `TCon.Equals`, `SafeEquals`, `equalHead` and
-> the unifier, **no wildcard** (`""` equals only `""`). One resolver, `types.TypeScope`, built per module by
-> `pipeline.buildTypeScope` with the §4.3 order (local → explicit `import M (T [as U])` → prelude →
-> direct dependency, any import form, source order → import closure, sorted → builtin home table →
-> this module), and used by the elaborator, the interface builder's AST re-conversion (rank 7) and
-> the REPL/WASM registry loader (`repl/registry_type_scope.go`). Builtins: `nominalHome` is
-> `types.builtinHomes` (`Option`→`std/option`, `Json`→`std/json`, … `DOMEvent`→`$builtin`) behind
-> `Builder.Con/App`, with `TestBuiltinHomes_Complete`. Constructor patterns carry `TypeModule`;
-> `ctorTypes` gained a module half and `adtTypeParams` is keyed by `NominalKey`. Factories are named
-> `make_<T>_<C>@<module>` (not the doc's `make_<module>_<T>_<C>`: the suffix keeps every back end's
-> existing `<T>_<C>` split and is stripped with one helper, `core.SplitADTFactoryModule`); the
-> evaluator's resolver filters by it (h2 fixed). Alias tables (`aliasEnv`, params, the alias-body
-> closer, imported/transitive aliases, interface-embedded foreign aliases) are keyed by
-> `(module, name)`; newtype-record ADTs expand only against a record (h4c and same-shaped twins
-> rejected; field access kept). Derived-Eq instance keys carry the module (a `Row` without
-> `deriving (Eq)` can no longer borrow another module's). Serialisers: iface type JSON, CoreTI DAG
-> codec (`Module` field + hash-cons key), gob (automatic). Digest renders qualified refs;
-> `cacheKeyVersion` `v10` → `v11`. `TC_NOMINAL_001` (both modules, fix hint, error page). The test
-> hook of §4.1 is `types.SetUnqualifiedNominalPanic`, on in the pipeline package's tests; in
-> production a same-named pair with one side unqualified is an internal compiler error.
-> M-TYPE-NAME-SHADOW's capture machinery (`TC_TYPE_SHADOW_001`) is retired: with qualified bodies
-> a capture cannot happen.
+> the unifier, **no wildcard** (`""` equals only `""`). One resolver, `types.TypeScope`
+> (`internal/types/type_scope.go`, where the order below is also the code comment), filled per module
+> by `pipeline.buildTypeScope` and by the REPL/WASM registry loader (`repl/registry_type_scope.go`), and
+> read by the elaborator and the interface builder's AST re-conversion (rank 7). **The precedence, as
+> implemented** (revised after review; the §4.3 list above put the prelude before the built-ins and
+> did not say what two candidates at one step mean):
 >
-> *Deliberately not in M2:* `TC_UNBOUND_TYPE_001`, `TC_AMBIGUOUS_TYPE_001` and `MOD015` for
-> import-vs-import (an ambiguous name takes the first candidate in the order above; an unbound name
-> stays an opaque type of its module — both sound, since a name always denotes ONE declaration);
-> MOD007 duplicates (M1); bytecode ADT tables, SMT and the registry's flat constructor table (M4:
-> `h7` still fails under `--strict-bytecode` with BC001); a `module` field in the iface JSON
+> 1. a type parameter (the parser makes lowercase names type variables);
+> 2. a type this module declares;
+> 3. a type bound by an explicit selective import (`import M (T)`, `import M (T as U)` binds `U`);
+>    two explicit imports binding one bare type or constructor name to different modules are
+>    **MOD015** at the import (pulled forward from M3);
+> 4. a built-in, module-less name (`Int`, `String`, `Map`, `List`, `Array`, `Bytes`, `Unit`, …) —
+>    after 2 and 3, so a module may declare or import its own `Map`;
+> 5. the prelude (`Option` → `std/option`, `Result` → `std/result`);
+> 6. a type exported by a direct dependency (any import form): one candidate is used; two or more
+>    distinct ones are **TC_AMBIGUOUS_TYPE_001** naming them all (pulled forward from M3);
+> 7. a type declared by a module of the import closure: same rule;
+> 8. the builtin home table (`Json` → `std/json`, … `DOMEvent` → `$builtin`);
+> 9. otherwise an opaque type of this module (TC_UNBOUND_TYPE_001 remains M3).
+>
+> Constructors follow the same principle: an explicit import decides; a name the constructor
+> auto-import (M-CTOR-AUTO) offers from two or more modules is resolved in a pattern by the
+> scrutinee's type (read through the equalities collected so far), and is **TC_AMBIGUOUS_CTOR_001**
+> in an expression or on a scrutinee of unknown type. Nothing is chosen by import order, file
+> order or module path (`TestNominalIdentity_ImportOrderIndependent` permutes every case).
+>
+> Builtins: `nominalHome` is `types.builtinHomes` behind `Builder.Con/App`. A nominal name missing
+> from it is minted without a module and `builtins.RegisterEffectBuiltin` rejects the signature, so
+> the binary does not start (there is no `$builtin` fallback for an unknown name; `$builtin` is only
+> the explicit home of names no `.ail` declares, today `DOMEvent`). Constructor patterns carry
+> `TypeModule`; `ctorTypes` gained a module half and `adtTypeParams` is keyed by `NominalKey`.
+> Factories are named `make_<T>_<C>@<module>` (not the doc's `make_<module>_<T>_<C>`: the suffix
+> keeps every back end's existing `<T>_<C>` split and is stripped with one helper,
+> `core.SplitADTFactoryModule`); the evaluator's resolver and the REPL/WASM registry (now keyed by
+> `(module, constructor)`) look it up exactly (h2 fixed). Alias tables (`aliasEnv`, params, the
+> alias-body closer, imported/transitive aliases, interface-embedded foreign aliases) are keyed by
+> `(module, name)`; newtype-record ADTs expand only against a record. Derived-Eq instance keys
+> carry the module. Serialisers: iface type JSON, CoreTI DAG codec (`Module` field + hash-cons
+> key), gob (automatic). Digest renders qualified refs; `cacheKeyVersion` `v10` → `v11`.
+> `TC_NOMINAL_001` (both modules, or "the built-in Map"; fix hint; error page). The test hook of
+> §4.1 is `types.SetUnqualifiedNominalPanic`, on in the pipeline package's tests; in production a
+> same-named pair with one side unqualified is an internal compiler error. M-TYPE-NAME-SHADOW's
+> capture machinery (`TC_TYPE_SHADOW_001`) is retired: with qualified bodies a capture cannot happen.
+>
+> *What stays structural, deliberately.* Record aliases. Consequences: a record type's `==` is
+> keyed by its declared name, so a same-shaped record of another module borrows a `deriving (Eq)`
+> declared elsewhere under that name (structurally correct; records with an `==`-less field are
+> still rejected). A newtype-record ADT is distinct from every other nominal type, but still
+> converts to and from its own record (for field access), so two newtypes can meet through a
+> record-typed value — pre-existing, independent of names: #2233, #2234.
+>
+> *Remaining census* — the sites that still mint a `TCon` without a module, and why each is safe:
+> runtime dictionary keys built from `NormalizeTypeName` (`types/typechecker_substitution.go`
+> `resolveGroundConstraints` ×2, `types/dictionaries.go` ×2, `link/linker.go` ×2,
+> `eval/eval_patterns.go` `buildDictRef`, `repl/repl_eval.go` ×2, `repl/module_registry_prelude.go`)
+> — keys, never unified, and derived Eq at run time is one structural comparator;
+> `types/typechecker_core.go` `"Unknown"` — a placeholder for a non-type inference result, never
+> unified with a nominal type; `smt/from_ast.go` ×3 — SMT encodes by bare name and never unifies
+> (M4); `types/nominal.go` `BuiltinCon` for a name missing from the home table — by design, and
+> rejected at registration; `types/typechecker.go` `astTypeToType` ×2 — the legacy AST-level
+> checker's converter, which nothing in production calls (follow-up: delete it in its own change,
+> not here). The remaining grep hits are comments, `gob.Register(&TCon{})` and a test file.
+>
+> *Deliberately not in M2:* `TC_UNBOUND_TYPE_001` (an unbound name stays an opaque type of its
+> module — sound, since it still denotes one declaration); MOD007 duplicates (M1); bytecode ADT
+> tables, SMT and the Go emitter (M4: `h7` still fails under `--strict-bytecode` with BC001; Go
+> codegen strips the module and names types by bare name); a `module` field in the iface JSON
 > constructors/types (no consumer needs it yet); unifying the four AST→type converters (the
-> interface converter now takes the shared scope; `types.TypeChecker.astTypeToType` and
-> `smt/from_ast.go` still mint unqualified names; SMT keys its encodings by bare name and never
-> unifies them, so it behaves as before — M4).
+> interface converter now takes the shared scope).
 
 **M1 Duplicates (0.5–1 d, independent of M0).** MOD007 func/type/constructor cases.
 *Tests:* `v8`, `v12`, `v13` rejected with both positions; MOD007 let cases unchanged; a func defined

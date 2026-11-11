@@ -108,11 +108,25 @@ func (r *RegistryResolver) resolveAdtFactory(ref core.GlobalRef) (eval.Value, er
 	}
 
 	// Look up constructor in registry cache
+	// The table is keyed by (module, constructor) (M-V1-NOMINAL-TYPE-IDENTITY);
+	// a factory name always carries its module here, so the lookup is exact.
 	r.registry.mu.RLock()
-	ctor, ok := r.registry.constructors[ctorName]
+	ctor, ok := r.registry.constructors[ctorKey(module, ctorName)]
+	if !ok && module == "" {
+		// Hand-built Core without a module: accept only an unambiguous name.
+		var hits []*CachedConstructor
+		for _, c := range r.registry.constructors {
+			if c.CtorName == ctorName && c.TypeName == typeName {
+				hits = append(hits, c)
+			}
+		}
+		if len(hits) == 1 {
+			ctor, ok = hits[0], true
+		}
+	}
 	r.registry.mu.RUnlock()
 
-	if !ok || ctor.TypeName != typeName || (module != "" && ctor.Module != module) {
+	if !ok || ctor.TypeName != typeName {
 		return nil, fmt.Errorf("constructor %s.%s not found", typeName, ctorName)
 	}
 

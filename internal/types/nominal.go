@@ -115,10 +115,10 @@ func BuiltinHomeNames() []string {
 }
 
 // BuiltinCon mints the TCon for a name used in a builtin signature: module-less
-// for primitives and structural heads, its home module otherwise. A name in
-// neither class gets BuiltinModule so that it is still a distinct identity
-// (never a silent match with a user type of the same name); the completeness
-// test makes that case a test failure.
+// for primitives and structural heads, its home module otherwise. A nominal
+// name missing from the home table is minted WITHOUT a module — there is no
+// fallback home — so builtins.RegisterEffectBuiltin rejects the signature at
+// registration (MissingBuiltinHomes) and TestBuiltinHomes_Complete fails.
 func BuiltinCon(name string) *TCon {
 	if IsModuleless(name) {
 		return &TCon{Name: name}
@@ -126,7 +126,63 @@ func BuiltinCon(name string) *TCon {
 	if home, ok := builtinHomes[name]; ok {
 		return &TCon{Name: name, Module: home}
 	}
-	return &TCon{Name: name, Module: BuiltinModule}
+	return &TCon{Name: name}
+}
+
+// MissingBuiltinHomes lists, sorted, the nominal type names in t that carry
+// no defining module: in a builtin signature, a name the home table lacks.
+func MissingBuiltinHomes(t Type) []string {
+	set := map[string]bool{}
+	var walk func(Type, int)
+	walk = func(t Type, depth int) {
+		if t == nil || depth > 64 {
+			return
+		}
+		switch x := t.(type) {
+		case *TCon:
+			if UnqualifiedNominal(x) {
+				set[x.Name] = true
+			}
+		case *TApp:
+			walk(x.Constructor, depth+1)
+			for _, a := range x.Args {
+				walk(a, depth+1)
+			}
+		case *TFunc2:
+			for _, p := range x.Params {
+				walk(p, depth+1)
+			}
+			walk(x.Return, depth+1)
+		case *TList:
+			walk(x.Element, depth+1)
+		case *TArray:
+			walk(x.Element, depth+1)
+		case *TMap:
+			walk(x.Key, depth+1)
+			walk(x.Value, depth+1)
+		case *TTuple:
+			for _, e := range x.Elements {
+				walk(e, depth+1)
+			}
+		case *TRecord:
+			for _, f := range x.Fields {
+				walk(f, depth+1)
+			}
+		case *TRecordOpen:
+			for _, f := range x.Fields {
+				walk(f, depth+1)
+			}
+		case *TLabelled:
+			walk(x.Inner, depth+1)
+		}
+	}
+	walk(t, 0)
+	out := make([]string, 0, len(set))
+	for n := range set {
+		out = append(out, n)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // IsNominalHome reports whether the TCon is the nominal type `name` declared in
@@ -147,74 +203,35 @@ func UnqualifiedNominal(t *TCon) bool {
 // and different defining modules. Unification does not know which side is the
 // expected one, so the text names both without claiming a direction.
 func nominalMismatchMsg(a, b *TCon) string {
-	return fmt.Sprintf("%s: cannot unify %s (defined in %s) with %s (defined in %s): "+
-		"they are different types that share a name.\n"+
-		"  Suggestion: use the %s from one module on both sides (import it by name from the module whose %s you mean, e.g. import %s (%s)), or convert between them explicitly.",
-		TC_NOMINAL_001, a.Name, displayModule(a.Module), b.Name, displayModule(b.Module),
-		a.Name, a.Name, displayModule(a.Module), a.Name)
+	// The suggestion names a module that declares the type; a built-in has no
+	// module to import from, so the other side is named instead.
+	from := a
+	if from.Module == "" || from.Module == BuiltinModule {
+		from = b
+	}
+	hint := fmt.Sprintf("use the %s from one module on both sides (import it by name from the module whose %s you mean, e.g. import %s (%s)), or convert between them explicitly.",
+		a.Name, a.Name, from.Module, a.Name)
+	if from.Module == "" || from.Module == BuiltinModule {
+		hint = fmt.Sprintf("use one %s on both sides, or convert between them explicitly.", a.Name)
+	}
+	return fmt.Sprintf("%s: cannot unify %s with %s: they are different types that share a name.\n  Suggestion: %s",
+		TC_NOMINAL_001, describeTCon(a), describeTCon(b), hint)
+}
+
+// describeTCon names a type constructor for a diagnostic: "T (defined in q/a)",
+// or "the built-in Map" for a module-less or $builtin one.
+func describeTCon(t *TCon) string {
+	if t.Module == "" || t.Module == BuiltinModule {
+		return "the built-in " + t.Name
+	}
+	return fmt.Sprintf("%s (defined in %s)", t.Name, t.Module)
 }
 
 func displayModule(m string) string {
 	if m == "" {
-		return "<no module>"
+		return "the built-in"
 	}
 	return m
-}
-
-// TypeRef names one nominal declaration: its defining module and its declared
-// name (an `import M (T as U)` binds U to TypeRef{M, T}).
-type TypeRef struct {
-	Module string
-	Name   string
-}
-
-// TypeScope answers "what does this bare type name mean here" for one module
-// (§4.3 of m-v1-nominal-type-identity.md). Names holds every binding already
-// ordered by precedence (local, explicit import, prelude, direct-dependency
-// auto-import, transitive); Resolve falls back to the builtin home table and
-// finally to this module (an unbound name is an opaque local type, as before —
-// TC_UNBOUND_TYPE_001 is M3).
-type TypeScope struct {
-	Module string
-	Names  map[string]TypeRef
-}
-
-// NewTypeScope returns an empty scope for module.
-func NewTypeScope(module string) *TypeScope {
-	return &TypeScope{Module: module, Names: make(map[string]TypeRef)}
-}
-
-// Bind records name -> ref unless name is already bound (first binding wins,
-// so callers bind in precedence order).
-func (s *TypeScope) Bind(name string, ref TypeRef) {
-	if _, ok := s.Names[name]; !ok {
-		s.Names[name] = ref
-	}
-}
-
-// Resolve returns the declaration a bare type name denotes in this scope.
-func (s *TypeScope) Resolve(name string) TypeRef {
-	if IsModuleless(name) {
-		return TypeRef{Name: name}
-	}
-	if s != nil {
-		if r, ok := s.Names[name]; ok {
-			return r
-		}
-	}
-	if home, ok := builtinHomes[name]; ok {
-		return TypeRef{Module: home, Name: name}
-	}
-	if s == nil {
-		return TypeRef{Module: BuiltinModule, Name: name}
-	}
-	return TypeRef{Module: s.Module, Name: name}
-}
-
-// Con mints the TCon a bare type name denotes in this scope.
-func (s *TypeScope) Con(name string) *TCon {
-	r := s.Resolve(name)
-	return &TCon{Name: r.Name, Module: r.Module}
 }
 
 // unqualifiedNominalPanic is the test-only hook of §4.1: when set, any nominal

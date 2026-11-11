@@ -46,6 +46,11 @@ func (e *Elaborator) normalizeFuncCall(app *ast.FuncCall) (core.CoreExpr, error)
 	// name is in scope: the local wins at call position too, #1467)
 	if ident, ok := app.Func.(*ast.Identifier); ok && !e.inScope(ident.Name) {
 		if ctorInfo, isConstructor := e.constructors[ident.Name]; isConstructor {
+			if _, amb := e.ambiguousCtors[ident.Name]; amb {
+				if err := e.ambiguousCtorError(ident.Name, app.Position()); err != nil {
+					return nil, err
+				}
+			}
 			// This is a constructor! Emit $adt factory call
 			// Transform Some(x) → $adt.make_Option_Some(x)
 			factoryName := core.ADTFactoryName(ctorInfo.Module, ctorInfo.TypeName, ctorInfo.CtorName)

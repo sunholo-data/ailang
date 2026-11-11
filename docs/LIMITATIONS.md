@@ -144,19 +144,29 @@ design constraint.
 Since M-V1-NOMINAL-TYPE-IDENTITY (M2) a nominal type is its **defining module plus its
 name**: `q/a`'s `type T` and `q/b`'s `type T` are different types, and mixing them is
 `TC_NOMINAL_001` at `check` (it used to type-check and fail at run time). A local `type T`
-no longer captures an imported `T`, and an imported alias body keeps the types it names.
+no longer captures an imported `T`, an imported alias body keeps the types it names, and a
+module may declare its own `Map`, `List`, `Json`, … (its own wins over the built-in).
 Using the two types disjointly (`Ma.desc(Ma.mk())`, `Mb.desc(Mb.mk())`) is fine.
-Record aliases stay structural: two `R = {x: int}` from different modules are one type.
+A bare name never depends on import order: two explicit imports of one type or constructor
+name are `MOD015`; a type name two imported modules both declare is `TC_AMBIGUOUS_TYPE_001`
+unless it is declared locally or imported by name; a constructor two imported modules offer is
+resolved by the scrutinee's type in a pattern, and is `TC_AMBIGUOUS_CTOR_001` where nothing
+decides it. The REPL/WASM module registry follows the same rules.
 
-Still open (later milestones of the same design doc):
+Still open:
 
-- A bare type name that two imports both export resolves to the first candidate (an
-  explicit `import M (T)` always wins); the `TC_AMBIGUOUS_TYPE_001` diagnostic is M3.
 - An undeclared type name is still an opaque type of the module that writes it rather
-  than `TC_UNBOUND_TYPE_001` (#1485, M3); duplicate funcs/types/constructors in one module
-  are not yet `MOD007` (#1278, M1).
-- The REPL/WASM module registry keeps one constructor per name across loaded modules,
-  the SMT encoder and the bytecode VM's ADT tables are keyed by bare type name: two
-  same-named ADTs with different constructors used in one program under
-  `--strict-bytecode` still fail with `BC001` (M4).
-- `deriving (Eq)` on a record type is looked up by the record's bare name.
+  than `TC_UNBOUND_TYPE_001` (#1485); duplicate funcs/types/constructors in one module
+  are not yet `MOD007` (#1278).
+- Three back-end tables key by bare type name: the bytecode VM's ADT tables (two same-named
+  ADTs with *different* constructors used in one program fail under `--strict-bytecode` with
+  `BC001`; the evaluator runs them), the SMT encoder behind `check --verify`, and the Go
+  emitter (`--emit-go`), which strips the module and names Go types by bare name.
+- Records are structural, so a record type's `==` is decided by its declared name: if any
+  imported module declares a record of the same name with `deriving (Eq)`, a same-shaped
+  record of another module gets `==` too. The comparison is structurally correct, and a record
+  with a field that has no `==` (a function) is still rejected.
+- A single-constructor ADT wrapping a record (`type W = W({x: int})`) keeps its identity
+  against every other nominal type, but still converts implicitly to and from its record
+  (for field access), so one such type can reach another through a record-typed value, and a
+  bare record is accepted where it is expected (#2233, #2234; pre-existing).

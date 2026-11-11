@@ -366,7 +366,10 @@ func (st *modulePipelineState) isTransientRoot(modID string) bool {
 // and unit registration.
 func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modID string, unit *CompileUnit, cacheKey string) error {
 	reach := st.depClosure(modID)
-	imports := resolveModuleImports(mod.File.Imports, modID, st.modLinker, st.cfg, reach)
+	imports := resolveModuleImports(mod.File, modID, st.modLinker, st.cfg, reach)
+	if len(imports.Collisions) > 0 {
+		return imports.Collisions[0]
+	}
 	// M-V1-NOMINAL-TYPE-IDENTITY: one resolver decides which declaration every
 	// bare type name of this module denotes (local first, then explicit
 	// imports, prelude, direct dependencies, the import closure). It replaces
@@ -382,6 +385,9 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 	elaborator.AddBuiltinsToGlobalEnv()
 	for ctorName, info := range imports.ImportedCtorInfos {
 		elaborator.RegisterImportedConstructorAs(ctorName, info.CanonicalName, info.Module, info.TypeName, info.Arity, info.TypeParamCount)
+	}
+	for ctorName, cands := range imports.AmbiguousCtors {
+		elaborator.MarkAmbiguousConstructor(ctorName, cands)
 	}
 
 	var err error
