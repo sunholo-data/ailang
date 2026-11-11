@@ -182,7 +182,7 @@ on both prod services, so `--target copilot` FAILs registration there until D2.
 dev for anything new: C1, C3, C4, C5, C6, C7, C8 (OAuth). This also takes the GE measurements P0-1…P0-5 from
 `m-mcp-oauth-client-models.md`. Each session yields its shots (§4) and a row in the §1 matrix.
 
-**P3: A2A v0.3 for the executor (agent, ~3 days once its location is decided).** This is
+**P3: A2A v0.3 for the executor (agent, ~3 days once its location is decided).** **Location decided 2026-11-11 (Mark): serve-api, model Gemini on Vertex; in progress under [m-ailang-executor-ge-a2a-sprint-plan.md](v0_55_0/m-ailang-executor-ge-a2a-sprint-plan.md).** This is
 M-AILANG-EXECUTOR-GE P2, and **where the gateway lives is that doc's open D2** (coordinator route,
 recommended there, or a serve-api service). This plan does not re-decide it; it records the seam either
 choice has to cross (§3.1). Deliverable: agent card with `protocolVersion: "0.3.0"`, `message/send`,
