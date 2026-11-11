@@ -812,3 +812,12 @@ Selection: 30 items (4 stale PRs, 2 held CLOSE-DUPLICATE PRs #2090/#1984, 17 sta
 No VERIFIED, no ⚖ action, no comments/labels/closes on items, no approve/reject/merge. Ledger 742→770 rows, prefix intact. Digest: https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6785127762. Decisions: none OPEN. Record PR #2199 (iteration 36) rebased onto origin/dev, carries this entry. Iteration 37's log entry is not on any branch I found (ledger has its rows).
 
 **Ruled out**: the verifier's "inherited stale base" explanation for #2090/#1984 failures is the judge's inference, not read from job logs.
+
+## 39 — 2026-11-11 — five judged attestations, two duplicate closes, one dissent downgraded [ADMIN]
+
+**Picked**: 60 of 70 candidates (3 PRs and 9 issues changed, 19 cards new, 39 stale; 104 skipped as current). Open ledger rows: 0, so the moot and decompose sweeps (D-TRIAGE-48/49) had nothing to do. Packet: not due (14:40 UTC is outside 18:00-05:00).
+**Reality check**: origin/dev 71b6927110b6598becaceb1ecdce8fa99dedcf72. Skill resources byte-identical to origin on all 14 files.
+**Shipped**: five unsigned attestations (#2136, #2138, #2140, #2159, #2009), closes of #2234 and #2233 as duplicates of #2239 (comment read back 0 to 1 each), label needs-decision on #1278. Nothing approved, rejected or merged. 52 shadow rows appended.
+**Ruled out**: verifier CLOSE-FIXED for #1278. The judge reproduced it on origin/dev: two `export func f()` still prints "No errors found"; MOD007 covers let/let and let/func only.
+**Routing evidence**: verifiers claude:claude-haiku-5-5 (3 Agent-tool batches); judge claude:claude-sonnet-5-5 (Agent tool, evaluator). The operator asked for a different-vendor judge; resolve-role-spawn.sh returned `sonnet` for the evaluator, which shares a vendor with haiku. D-TRIAGE-10 allows that, so no other lane was tried. First spawn attempt failed the role-token hook (missing `MISSION-ROLE:` line) and was retried with it.
+**Not done**: evidence comments on the NEEDS-FIX/REBASE/SUPERSEDED PRs (verifier-only verdicts, no judge pass); T4 landed-card dry run; ledger scoring of past outcomes (no OUTCOME rows written).
