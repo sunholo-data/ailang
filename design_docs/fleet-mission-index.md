@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 104 | 2026-11-11 | idle: inputs byte-identical to iteration 103; all 27 tickets ruling-gated, independent sonnet judge NONE after a first-party ticket-to-row re-deriv... |
 | 103 | 2026-11-10 | idle: inputs byte-identical to iteration 102; all 27 tickets ruling-gated, independent sonnet judge NONE; nothing designed, planned, built or merge... |
 | 102 | 2026-11-10 | idle: inputs byte-identical to iteration 101; all 27 tickets ruling-gated, independent sonnet judge NONE; nothing designed, planned, built or merge... |
 | 101 | 2026-11-10 | idle: inputs byte-identical to iteration 100; all 27 tickets ruling-gated, independent sonnet judge NONE; D-FLEET-43 exclusion grounded in the char... |
