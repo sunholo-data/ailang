@@ -77,8 +77,17 @@ func (es MatchErrors) Unwrap() []error {
 	return out
 }
 
-// newNonExhaustiveError is TC_MATCH_002 with its witnesses.
+// shownWitnesses caps how many missing patterns a message names; more are
+// summarised as "and more".
+const shownWitnesses = 5
+
+// newNonExhaustiveError is TC_MATCH_002 with its witnesses (the check asks
+// for one more than it shows, to know whether there are more).
 func newNonExhaustiveError(pos ast.Pos, typeName string, missing []exhaust.Pattern, guarded bool) *MatchError {
+	more := len(missing) > shownWitnesses
+	if more {
+		missing = missing[:shownWitnesses]
+	}
 	described := make([]string, len(missing))
 	rendered := make([]string, len(missing))
 	for i, w := range missing {
@@ -89,7 +98,11 @@ func newNonExhaustiveError(pos ast.Pos, typeName string, missing []exhaust.Patte
 	if typeName != "" {
 		on = " on " + typeName
 	}
-	msg := fmt.Sprintf("non-exhaustive match%s — no arm matches: %s", on, strings.Join(described, ", "))
+	list := strings.Join(described, ", ")
+	if more {
+		list += ", and more"
+	}
+	msg := fmt.Sprintf("non-exhaustive match%s — no arm matches: %s", on, list)
 	var suggestion string
 	switch {
 	case len(rendered) == 1 && rendered[0] == "_":
@@ -108,6 +121,22 @@ func newNonExhaustiveError(pos ast.Pos, typeName string, missing []exhaust.Patte
 		notes = append(notes, "Note: arms with `if` guards do not count toward coverage.")
 	}
 	return newMatchError(TC_MATCH_002, pos, msg, suggestion, notes, map[string]any{"missing": rendered})
+}
+
+// newByNameUnfixedError is TC_MATCH_002 for a constructor matched by name
+// against a value nothing types. The fix that works is to import the type:
+// its constructors then come into scope and the pattern fixes the value's
+// type.
+func newByNameUnfixedError(pos ast.Pos, e *byNameUnfixedError) *MatchError {
+	imp := "import the constructor's type from the module that declares it"
+	if len(e.types) == 1 {
+		mod, name := SplitNominalKey(e.types[0])
+		imp = fmt.Sprintf("import %s (%s)", mod, name)
+	}
+	msg := fmt.Sprintf("this match cannot be checked for exhaustiveness: %s is matched by name (neither its type nor the constructor is imported here), and nothing fixes the type of the value it matches, so other values can reach the match", e.ctor)
+	return newMatchError(TC_MATCH_002, pos, msg, imp,
+		[]string{"Or annotate the type of the value matched; a final `_ =>` arm also closes the match, but hides missing cases."},
+		map[string]any{"constructor": e.ctor})
 }
 
 // newBudgetError is TC_MATCH_004.

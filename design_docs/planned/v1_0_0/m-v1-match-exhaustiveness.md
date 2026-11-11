@@ -546,8 +546,18 @@ error naming it a compiler bug. It has not fired on any corpus.
 **Decided in the PR, not in this doc.**
 - *Wrong-arity constructor patterns* (#2243) are `TC_MATCH_006`, an error at the pattern: the
   evaluator never matches `C(n)` against `C(int, int)` while the VM binds the first field, so the
-  pattern has no single coverage. 3 of 8,201 passing AI programs had one; no repo or downstream
-  file did.
+  pattern has no single coverage. The arity check is a pass of its own, before coverage: a
+  catch-all arm never hides it, and a pattern whose ADT cannot be placed is compared with every
+  loaded ADT declaring the name (review finding: the first version let `_` rescue it). 3 of 8,201
+  passing AI programs had one; no repo or downstream file did.
+- *By-name constructors on an untyped value* have their own message and fix: import the
+  constructor's type (`import bn/a (Ev)`), which brings the constructors into scope so the
+  pattern fixes the value's type.
+- *A module-level definition named `unreachable`* is `TC_BUILTIN_SHADOW_001`: a builtin wins over
+  a module-level name, so it would otherwise be silently replaced. None exists in the eval or
+  downstream corpora. Older builtin names keep the general precedence rule.
+- *A scrutinee/pattern disagreement* ("compiler bug") is reported even under a catch-all.
+- Witness lists show five and end "and more" when there are more.
 - *`unreachable`* is a `$builtin`, so it needs no import in any module; RT010 "unreachable code
   reached: <msg>" on the evaluator, the VM (a native builtin) and generated Go (a helper that
   panics with the same text). `std/result.unwrap` uses it.
@@ -560,6 +570,12 @@ error naming it a compiler bug. It has not fired on any corpus.
   `ExhaustivenessWarning` plumbing, ELB004 in `check` output) is deleted; ELB004 stays registered.
 - The TC_MATCH_005 (`JInt`) warning's "no catch-all" variant is gone: that match is now
   TC_MATCH_002 naming `JInt(_)`.
+
+**Known holes, pre-existing, not closed here:** #2239 (newtype-record coercion) and #2247 (an
+int literal accepted for a `Box[a]`/`[a]` parameter: the `Num[T[α]]` constraint is dropped) can
+still bring a value of another type to a checked match (RT002). Contracts with `forall` are never
+type-checked (#2248), so matches in them — including a quantifier's bounds — are not checked; the
+walk visits `Forall` bounds, but inference never succeeds on such a contract to reach it.
 
 **Blast radius, re-measured with the compiler** (the §10 census was a regex prototype):
 

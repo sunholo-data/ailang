@@ -3,6 +3,8 @@ package eval
 import (
 	"fmt"
 
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
+
 	"github.com/sunholo-data/ailang/internal/typedast"
 )
 
@@ -208,6 +210,23 @@ func registerBuiltins(env *Environment, e *CoreEvaluator) {
 				return nil, fmt.Errorf("toText expects exactly 1 argument, got %d", len(args))
 			}
 			return &StringValue{Value: toTextValue(args[0])}, nil
+		},
+	})
+
+	// unreachable(msg): RT010 (M-V1-MATCH-EXHAUSTIVENESS). Module code reaches
+	// the $builtin; this binding serves environments without that resolver
+	// (the REPL), which type-check the name from the builtin type env.
+	env.Set("unreachable", &BuiltinFunction{
+		Name: "unreachable",
+		Fn: func(args []Value) (Value, error) {
+			if len(args) != 1 {
+				return nil, fmt.Errorf("unreachable expects exactly 1 argument, got %d", len(args))
+			}
+			msg, ok := args[0].(*StringValue)
+			if !ok {
+				return nil, fmt.Errorf("unreachable: expected a string, got %s", args[0].Type())
+			}
+			return nil, &ailerrors.UnreachableError{Msg: msg.Value}
 		},
 	})
 }

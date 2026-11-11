@@ -101,7 +101,7 @@ func TestMatchExhaustivenessAcrossModules(t *testing.T) {
 			src: "module main\n\nimport lib/hold (one)\n\n" +
 				"export pure func g[a](x: a) -> int = match x {\n  Ping => 1,\n  Message(_) => 2\n}\n\n" +
 				"export pure func h[a](x: a) -> int = match x {\n  Ping => 1,\n  _ => 2\n}\n",
-			want: []string{"5:TC_MATCH_002:this match cannot be checked for exhaustiveness: constructor Ping is matched by name and nothing fixes the type of the value it is matched against (a); import the constructor's type, or annotate that value"},
+			want: []string{"5:TC_MATCH_002:this match cannot be checked for exhaustiveness: Ping is matched by name (neither its type nor the constructor is imported here), and nothing fixes the type of the value it matches, so other values can reach the match"},
 		},
 		{
 			// The design's in-scope registry trap: importing ONE constructor
@@ -159,6 +159,22 @@ func TestMatchExhaustivenessAcrossModules(t *testing.T) {
 			name: "constructor pattern with the wrong arity",
 			src: "module main\n\nimport lib/a (Msg, Message, Ping)\n\n" +
 				"export pure func f(m: Msg) -> int = match m {\n  Message(a, b) => 1,\n  _ => 0\n}\n",
+			want: []string{"6:TC_MATCH_006:constructor pattern Message has 2 argument(s), but Message takes 1"},
+		},
+		{
+			// Review probes t9/t8 (#2243): a by-name constructor in a let-bound
+			// lambda, whose ADT cannot be placed, with the wrong arity and a
+			// catch-all. The catch-all must not hide the arity error: the
+			// evaluator printed 4, the strict VM crashed in GET_FIELD.
+			name: "wrong arity on an unplaced by-name pattern, first arm",
+			src: "module main\n\nimport lib/hold (one)\n\n" +
+				"export pure func g(x: int) -> int {\n  let h = \\e. match e { Message(a, b) => 2, Ping => 1, _ => 3 };\n  h(x)\n}\n",
+			want: []string{"6:TC_MATCH_006:constructor pattern Message has 2 argument(s), but Message takes 1"},
+		},
+		{
+			name: "wrong arity on an unplaced by-name pattern, later arm",
+			src: "module main\n\nimport lib/hold (one)\n\n" +
+				"export pure func g(x: int) -> int {\n  let h = \\e. match e { Ping => 1, Message(a, b) => 2, _ => 3 };\n  h(x)\n}\n",
 			want: []string{"6:TC_MATCH_006:constructor pattern Message has 2 argument(s), but Message takes 1"},
 		},
 	}
@@ -260,5 +276,55 @@ func TestExpectedFail_MatchNonExhaustive(t *testing.T) {
 	}
 	if _, err := Run(Config{Mode: ModeCheck}, Source{Filename: "examples/runnable/match_exhaustiveness.ail"}); err != nil {
 		t.Fatalf("the exhaustive twin was rejected: %v", err)
+	}
+}
+
+// The step budget (TC_MATCH_004) applies only when nothing else decides the
+// match: a final unguarded `_` closes it whatever the search would say. The
+// 22-column bool tuple, each column covered by its own two arms, exceeds the
+// budget in the redundancy search (review probe budget/b_both_22).
+func TestMatchBudgetAndCatchAll(t *testing.T) {
+	const n = 22
+	var arms []string
+	for c := 0; c < n; c++ {
+		for _, b := range []string{"true", "false"} {
+			cols := make([]string, n)
+			for i := range cols {
+				cols[i] = "_"
+			}
+			cols[c] = b
+			arms = append(arms, "("+strings.Join(cols, ", ")+") => "+itoa(c))
+		}
+	}
+	ty := "(" + strings.TrimSuffix(strings.Repeat("bool, ", n), ", ") + ")"
+	src := func(extra string) string {
+		return "module main\n\nexport pure func f(t: " + ty + ") -> int = match t {\n  " +
+			strings.Join(append(arms, extra), ",\n  ") + "\n}\n"
+	}
+	errs, warns, err := checkMatchModules(t, map[string]string{"main.ail": src("_ => -1")}, "main.ail")
+	if err != nil || len(warns) != 0 {
+		t.Fatalf("a final `_` closes the match: %v %v", errs, warns)
+	}
+	errs, _, _ = checkMatchModules(t, map[string]string{"main.ail": src("(" + strings.TrimSuffix(strings.Repeat("true, ", n), ", ") + ") => -1")}, "main.ail")
+	if len(errs) != 1 || errs[0].Code != types.TC_MATCH_004 {
+		t.Fatalf("without a catch-all the budget is TC_MATCH_004: %v", errs)
+	}
+}
+
+// A module-level definition named `unreachable` would be replaced by the
+// builtin at every call: refused.
+func TestBuiltinShadowRefused(t *testing.T) {
+	for _, src := range []string{
+		"module main\n\npure func unreachable(s: string) -> int = 0\n",
+		"module main\n\nlet unreachable = 3\n",
+	} {
+		_, _, err := checkMatchModules(t, map[string]string{"main.ail": src}, "main.ail")
+		if err == nil || !strings.Contains(err.Error(), TCBuiltinShadow) || !strings.Contains(err.Error(), "main.ail:3:") {
+			t.Errorf("%q: want %s at main.ail:3, got %v", src, TCBuiltinShadow, err)
+		}
+	}
+	// A local binding keeps ordinary lexical scope.
+	if _, _, err := checkMatchModules(t, map[string]string{"main.ail": "module main\n\nexport pure func f() -> int {\n  let unreachable = \\s. 0;\n  unreachable(\"x\")\n}\n"}, "main.ail"); err != nil {
+		t.Errorf("local binding refused: %v", err)
 	}
 }

@@ -221,3 +221,56 @@ func TestRender(t *testing.T) {
 		t.Error("Describe dropped the excluded literals")
 	}
 }
+
+// `x :: []` and `x :: [y, ...r]` are one list: Render does not print the
+// tail as a nested list (`[_, ...[]]`).
+func TestRenderConsOntoList(t *testing.T) {
+	cases := map[string]Pattern{
+		"[_]":          List{Elems: []Pattern{w}, Rest: lst()},
+		"[_, _, ..._]": List{Elems: []Pattern{w}, Rest: List{Elems: []Pattern{w}, Rest: Wild{}}},
+		"[_, _]":       List{Elems: []Pattern{w}, Rest: List{Elems: []Pattern{w}, Rest: lst()}},
+		"[_, ..._]":    List{Elems: []Pattern{w}, Rest: Wild{}},
+	}
+	for want, p := range cases {
+		if got := Render(p); got != want {
+			t.Errorf("Render(%#v) = %q, want %q", p, got, want)
+		}
+	}
+}
+
+// A row of wildcards closes the missing-pattern search at once: an
+// 18-column bool tuple, each column covered by its own two arms, then `_`.
+func TestMissingStopsAtAWildcardRow(t *testing.T) {
+	const n = 18
+	var rows []Arm
+	for c := 0; c < n; c++ {
+		for _, b := range []bool{true, false} {
+			elems := make([]Pattern, n)
+			for i := range elems {
+				elems[i] = w
+			}
+			elems[c] = l(b)
+			rows = append(rows, Arm{Pattern: Tuple{Elems: elems}})
+		}
+	}
+	res, err := missingOnly(append(rows, Arm{Pattern: w}))
+	if err != nil || len(res) != 0 {
+		t.Fatalf("got %v, %v", err, res)
+	}
+}
+
+// missingOnly runs the witness search alone, with a small budget the old
+// exhaustive descent (2^18 vectors) blows through.
+func missingOnly(arms []Arm) ([]row, error) {
+	n := &normalizer{u: testUniverse, cache: map[string][]CtorSig{}}
+	rows := make([]row, len(arms))
+	for i, a := range arms {
+		p, err := n.pattern(a.Pattern)
+		if err != nil {
+			return nil, err
+		}
+		rows[i] = row{p}
+	}
+	c := &checker{max: 10_000}
+	return c.missing(rows, 1, DefaultMaxWitnesses)
+}

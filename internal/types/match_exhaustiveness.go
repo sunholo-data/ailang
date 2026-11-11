@@ -217,26 +217,51 @@ func (v *matchVerifier) walkAll(es []core.CoreExpr) {
 // errUndecidable marks a pattern the check cannot place in a universe.
 var errUndecidable = errors.New("cannot be checked for exhaustiveness")
 
+// byNameUnfixedError: a constructor matched by name (#323) — its type is
+// neither imported nor declared here — against a value whose type nothing
+// fixes. A by-name pattern constrains nothing, so other values can reach the
+// match. types lists the loaded ADTs that declare the name (NominalKeys).
+type byNameUnfixedError struct {
+	ctor  string
+	types []string
+}
+
+func (e *byNameUnfixedError) Error() string {
+	return fmt.Sprintf("constructor %s is matched by name and nothing fixes the type of the value matched", e.ctor)
+}
+
 // check decides one match.
 func (v *matchVerifier) check(m *core.Match) {
 	pos := matchPosition(m)
-	closed := hasCatchAll(m) // an unguarded `_` / variable arm covers everything
+	// A constructor pattern with the wrong number of arguments is an error
+	// whatever else the match says, a catch-all included: the evaluator
+	// never matches it and the VM binds a prefix of the fields (#2243).
+	for _, arm := range m.Arms {
+		if ae := v.arityOf(arm.Pattern); ae != nil {
+			v.errs = append(v.errs, newPatternArityError(pos, ae))
+			return
+		}
+	}
 	arms, err := v.arms(m)
 	if err == nil {
-		err = v.crossCheckRoot(m, arms)
+		// A disagreement between the scrutinee's type and its patterns is a
+		// checker bug: reported even under a catch-all.
+		if cerr := v.crossCheckRoot(m, arms); cerr != nil {
+			v.errs = append(v.errs, newUndecidedError(pos, cerr))
+			return
+		}
 	}
 	var res *exhaust.Result
 	if err == nil {
-		res, err = exhaust.Check(arms, exhaust.StaticUniverse(v.tc.matchUniverse), exhaust.Options{})
+		res, err = exhaust.Check(arms, exhaust.StaticUniverse(v.tc.matchUniverse), exhaust.Options{MaxWitnesses: shownWitnesses + 1})
 	}
-	var arity *patternArityError
+	var unfixed *byNameUnfixedError
 	switch {
-	case errors.As(err, &arity):
-		// Never rescued by a catch-all: the engines disagree on the arm itself.
-		v.errs = append(v.errs, newPatternArityError(pos, arity))
+	case err != nil && hasCatchAll(m):
+		m.Exhaustive = true // an unguarded `_` covers everything, whatever the rest says
 		return
-	case err != nil && closed:
-		m.Exhaustive = true // the answer does not depend on the rest
+	case errors.As(err, &unfixed):
+		v.errs = append(v.errs, newByNameUnfixedError(pos, unfixed))
 		return
 	case errors.Is(err, exhaust.ErrBudget):
 		v.errs = append(v.errs, newBudgetError(pos, err))
@@ -252,6 +277,80 @@ func (v *matchVerifier) check(m *core.Match) {
 	for _, i := range res.Redundant {
 		v.warns = append(v.warns, &MatchWarning{Pos: pos, Arm: i + 1, Pattern: exhaust.Render(arms[i].Pattern)})
 	}
+}
+
+// arityOf finds a constructor pattern, at any depth, whose argument count
+// fits no declaration of its name: the pattern's own ADT when it is known,
+// otherwise every loaded ADT declaring a constructor of that name. It runs
+// before, and independently of, the coverage check, so a pattern whose ADT
+// cannot be placed is still checked.
+func (v *matchVerifier) arityOf(p core.CorePattern) *patternArityError {
+	switch p := p.(type) {
+	case *core.ConstructorPattern:
+		var arities []int
+		if _, sigs, err := v.ctorUniverse(p); err == nil {
+			arities = sigArities(sigs, p.Name)
+		} else {
+			for _, key := range v.byName[p.Name] {
+				arities = append(arities, sigArities(v.tc.matchUniverse[key], p.Name)...)
+			}
+		}
+		if len(arities) > 0 && !containsInt(arities, len(p.Args)) {
+			return &patternArityError{pattern: p, arity: arities[0]}
+		}
+		return v.arityOfAll(p.Args)
+	case *core.TuplePattern:
+		return v.arityOfAll(p.Elements)
+	case *core.ListPattern:
+		if ae := v.arityOfAll(p.Elements); ae != nil || p.Tail == nil {
+			return ae
+		}
+		return v.arityOf(*p.Tail)
+	case *core.RecordPattern:
+		for _, f := range sortedPatternFields(p.Fields) {
+			if ae := v.arityOf(p.Fields[f]); ae != nil {
+				return ae
+			}
+		}
+	}
+	return nil
+}
+
+func (v *matchVerifier) arityOfAll(ps []core.CorePattern) *patternArityError {
+	for _, p := range ps {
+		if ae := v.arityOf(p); ae != nil {
+			return ae
+		}
+	}
+	return nil
+}
+
+func sigArities(sigs []exhaust.CtorSig, name string) []int {
+	var out []int
+	for _, s := range sigs {
+		if s.Name == name {
+			out = append(out, s.Arity)
+		}
+	}
+	return out
+}
+
+func containsInt(xs []int, x int) bool {
+	for _, y := range xs {
+		if y == x {
+			return true
+		}
+	}
+	return false
+}
+
+func sortedPatternFields(m map[string]core.CorePattern) []string {
+	out := make([]string, 0, len(m))
+	for f := range m {
+		out = append(out, f)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // arms converts a match's arms; the first pattern that cannot be converted
@@ -279,14 +378,9 @@ func (v *matchVerifier) pattern(p core.CorePattern) (exhaust.Pattern, error) {
 		}
 		return exhaust.Lit{Value: p.Value}, nil
 	case *core.ConstructorPattern:
-		key, sigs, err := v.ctorUniverse(p)
+		key, _, err := v.ctorUniverse(p)
 		if err != nil {
 			return nil, err
-		}
-		for _, s := range sigs {
-			if s.Name == p.Name && s.Arity != len(p.Args) {
-				return nil, &patternArityError{pattern: p, arity: s.Arity}
-			}
 		}
 		args, err := v.patterns(p.Args)
 		if err != nil {
@@ -358,7 +452,7 @@ func (v *matchVerifier) ctorUniverse(p *core.ConstructorPattern) (string, []exha
 	case checked:
 		head := v.head(t)
 		if head == nil {
-			return "", nil, fmt.Errorf("%w: constructor %s is matched by name and nothing fixes the type of the value it is matched against (%s); import the constructor's type, or annotate that value", errUndecidable, p.Name, t)
+			return "", nil, &byNameUnfixedError{ctor: p.Name, types: v.byName[p.Name]}
 		}
 		cands = append(cands, head.KeyOf())
 	default:

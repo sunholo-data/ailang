@@ -201,3 +201,70 @@ func TestMatchDiagnosticShapes(t *testing.T) {
 		t.Errorf("matchPosition fallback: %v", got)
 	}
 }
+
+// A catch-all rescues a match whose coverage cannot be decided — but never a
+// wrong-arity constructor pattern (#2243: the engines disagree on the arm),
+// even when that pattern's own ADT cannot be placed, nested or not, and
+// never a scrutinee/pattern disagreement (a checker bug).
+func TestVerifyMatchExhaustivenessCatchAllRescuesOnlyCoverage(t *testing.T) {
+	arm := func(p core.CorePattern) core.MatchArm { return core.MatchArm{Pattern: p, Body: &core.Lit{}} }
+	unfixedViolet := func(tc *CoreTypeChecker, args ...core.CorePattern) *core.ConstructorPattern {
+		p := &core.ConstructorPattern{Name: "Violet", Args: args, Pos: ast.Pos{Line: 5, Column: 9}}
+		tc.recordCtorPatternType(p, &TVar2{Name: "t1"})
+		return p
+	}
+	two := []core.CorePattern{&core.VarPattern{Name: "a"}, &core.VarPattern{Name: "b"}}
+
+	tc := newMatchTC()
+	m := matchOn(1, 5, &TVar2{Name: "t1"}, tc, arm(unfixedViolet(tc, two...)), wildArm())
+	_, err := tc.VerifyMatchExhaustiveness(m)
+	var me *MatchError
+	if !errors.As(err, &me) || me.Code != TC_MATCH_006 || me.Suggestion != "write Violet" {
+		t.Fatalf("unplaced wrong-arity pattern under a catch-all: %v", err)
+	}
+
+	tc = newMatchTC()
+	nested := &core.TuplePattern{Elements: []core.CorePattern{unfixedViolet(tc, two[0]), &core.WildcardPattern{}}}
+	m = matchOn(2, 6, &TTuple{Elements: []Type{&TVar2{Name: "t1"}, TInt}}, tc, arm(nested), wildArm())
+	if _, err := tc.VerifyMatchExhaustiveness(m); !errors.As(err, &me) || me.Code != TC_MATCH_006 {
+		t.Fatalf("nested wrong-arity pattern under a catch-all: %v", err)
+	}
+
+	tc = newMatchTC()
+	m = matchOn(3, 7, &TVar2{Name: "t1"}, tc, arm(unfixedViolet(tc)), wildArm())
+	if _, err := tc.VerifyMatchExhaustiveness(m); err != nil || !m.Exhaustive {
+		t.Fatalf("a right-arity unplaced pattern is closed by the catch-all: %v", err)
+	}
+	m = matchOn(4, 8, &TVar2{Name: "t1"}, tc, arm(unfixedViolet(tc)))
+	_, err = tc.VerifyMatchExhaustiveness(m)
+	if !errors.As(err, &me) || me.Suggestion != "import n (Color)" || strings.Contains(me.Message, "t1") ||
+		!strings.Contains(me.Message, "Violet is matched by name") {
+		t.Fatalf("by-name on an untyped value: %v (suggestion %q)", err, me.Suggestion)
+	}
+
+	tc = newMatchTC()
+	m = matchOn(5, 9, &TCon{Name: "Color", Module: "n"}, tc, ctorArm("m", "Color", "Red", false), wildArm())
+	if _, err := tc.VerifyMatchExhaustiveness(m); err == nil || !strings.Contains(err.Error(), "compiler bug") {
+		t.Fatalf("a disagreement must be reported under a catch-all: %v", err)
+	}
+}
+
+// At most five witnesses are named; more are summarised.
+func TestVerifyMatchExhaustivenessManyWitnesses(t *testing.T) {
+	tc := newMatchTC()
+	var sigs []exhaust.CtorSig
+	for _, n := range []string{"C1", "C2", "C3", "C4", "C5", "C6", "C7", "C8"} {
+		sigs = append(sigs, exhaust.CtorSig{Name: n})
+	}
+	tc.SetMatchUniverse(MatchUniverse{NominalKey("m", "Big"): sigs})
+	m := matchOn(1, 2, &TCon{Name: "Big", Module: "m"}, tc, ctorArm("m", "Big", "C1", false))
+	_, err := tc.VerifyMatchExhaustiveness(m)
+	var me *MatchError
+	if !errors.As(err, &me) || !strings.HasSuffix(me.Message, "no arm matches: C2, C3, C4, C5, C6, and more") {
+		t.Fatalf("got %v", err)
+	}
+	m = matchOn(2, 3, &TCon{Name: "Big", Module: "m"}, tc, ctorArm("m", "Big", "C1", false), ctorArm("m", "Big", "C2", false), ctorArm("m", "Big", "C3", false))
+	if _, err := tc.VerifyMatchExhaustiveness(m); !errors.As(err, &me) || strings.Contains(me.Message, "and more") {
+		t.Fatalf("exactly five missing: %v", err)
+	}
+}

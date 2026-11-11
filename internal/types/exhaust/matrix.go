@@ -318,6 +318,14 @@ func (c *checker) missing(rows []row, n, limit int) ([]row, error) {
 		}
 		return nil, nil
 	}
+	// A row of wildcards matches every vector: nothing is missing. Without
+	// this the search below specialises through every constructor of every
+	// column first (an 18-column bool tuple ending in `_` hit the budget).
+	for _, r := range rows {
+		if allWild(r) {
+			return nil, nil
+		}
+	}
 	col, err := analyse(rows, nil)
 	if err != nil {
 		return nil, err
@@ -355,4 +363,13 @@ func (c *checker) missing(rows []row, n, limit int) ([]row, error) {
 		}
 	}
 	return out, nil
+}
+
+func allWild(r row) bool {
+	for _, p := range r {
+		if !p.wild {
+			return false
+		}
+	}
+	return true
 }
