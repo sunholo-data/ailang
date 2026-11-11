@@ -138,9 +138,6 @@ var goEmitBothFail = map[string]bool{
 // equality with the evaluator for the pure pairs is
 // TestStdlibRenamesGoCodegenMatchesEvaluator.
 func TestStdlibRenamePairsGoEmitter(t *testing.T) {
-	if testing.Short() {
-		t.Skip("compiles 32 modules through the Go emitter")
-	}
 	bin := buildAilang(t)
 	dir := t.TempDir()
 	emit := func(name string, p goEmitPair) (string, bool) {
