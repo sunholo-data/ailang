@@ -222,14 +222,15 @@ CI missed.**
 
 | Work | Doc | State |
 |---|---|---|
-| Module-qualified type identity (M2 + resolver half of M3) | m-v1-nominal-type-identity | In progress. **Critical path**; exhaustiveness-as-error queues behind it |
-| Total `show` | m-v1-show-total | In progress |
-| Stdlib renames with `@deprecated` aliases, re-tiering, remaining behaviour fixes | m-v1-stdlib-surface-polish | In progress |
+| Module-qualified type identity (M2 + resolver half of M3) | m-v1-nominal-type-identity | **Merged** (#2228, b7465ed6a) after four review rounds. Import-only scoping of indirect type names left for M3 |
+| Total `show` | m-v1-show-total | #2229 reviewed and green; merge held until the fine-tune pilot-4 evals finish |
+| Stdlib renames with `@deprecated` aliases, re-tiering, remaining behaviour fixes | m-v1-stdlib-surface-polish | #2230 reviewed and green; merges before #2229, same hold |
+| Non-exhaustive match as an error, `unreachable` | m-v1-match-exhaustiveness | In progress (started 2026-11-11, after type identity) |
 
-**Not started:** exhaustiveness as an error (after type identity); integer overflow trap; callback
+**Not started:** integer overflow trap; callback
 effect rule; capability-grant changes and Internal command moves; help text; docs rewrites (284
 baselined samples) and the migration, security-model and support-window pages; rest of the rc
-pipeline; then close-out steps 16–19. Unowned soundness issues from review: #2210, #2211, #2221.
+pipeline; then close-out steps 16–19. Unowned soundness issues from review: #2210, #2211, #2221, #2232, #2238, #2239, #2240, #2243.
 
 ### What the waves changed in the plan
 
