@@ -1,0 +1,8 @@
+-- One deprecated name used (head_or: warns at the use) and one imported and
+-- never used (nth_or: warns once, at the import, because the import alone fails
+-- once the alias is removed). TestDeprecatedUnusedImport.
+module cmd/ailang/testdata/stdrenames/unused_import
+
+import std/list (head_or, nth_or)
+
+export pure func first(xs: [int]) -> int = head_or(xs, 0)

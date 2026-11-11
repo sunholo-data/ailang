@@ -68,7 +68,23 @@ func TestDeprecatedUseCoverage(t *testing.T) {
 				if err != nil {
 					t.Fatalf("%s: fixture does not compile: %v\n%s", run, err, src)
 				}
-				ws := deprecatedWarnings(res.Warnings)
+				var ws, unusedImport []*DeprecatedUseWarning
+				for _, w := range deprecatedWarnings(res.Warnings) {
+					if w.UnusedImport {
+						unusedImport = append(unusedImport, w)
+					} else {
+						ws = append(ws, w)
+					}
+				}
+				// No use of f (the shadowing rows): the import warns, once.
+				// Any use: the import does not warn.
+				wantUnused := 0
+				if c.want == 0 {
+					wantUnused = 1
+				}
+				if len(unusedImport) != wantUnused {
+					t.Fatalf("%s: %d unused-import warnings, want %d\n%s\n%v", run, len(unusedImport), wantUnused, src, unusedImport)
+				}
 				if len(ws) != c.want {
 					t.Fatalf("%s: %d TC_DEPRECATED_001, want %d\n%s\n%v", run, len(ws), c.want, src, ws)
 				}

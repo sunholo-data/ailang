@@ -102,7 +102,18 @@ func TestDeprecatedUseWarning(t *testing.T) {
 			[]want{{3, "f", "twoUses.ail"}, {4, "f2", "twoUses.ail"}}},
 		{"sameNameTwice", "module sameNameTwice\nimport lib (f)\nexport pure func k() -> int = f(1)\nexport pure func k2() -> int = f(f(2))\n",
 			[]want{{3, "f", "sameNameTwice.ail"}, {4, "f", "sameNameTwice.ail"}, {4, "f", "sameNameTwice.ail"}}},
-		{"importOnly", "module importOnly\nimport lib (f)\nexport pure func k() -> int = 1\n", nil},
+		// Imported and never used: still breaks at alias removal, so the
+		// import itself warns, exactly once.
+		{"importOnly", "module importOnly\nimport lib (f)\nexport pure func k() -> int = 1\n",
+			[]want{{2, "f", "importOnly.ail"}}},
+		{"importOnlyRenamed", "module importOnlyRenamed\nimport lib (f as old)\nexport pure func k() -> int = 1\n",
+			[]want{{2, "f", "importOnlyRenamed.ail"}}},
+		// One used (warns at the use only), one unused (warns at the import).
+		{"usedAndUnused", "module usedAndUnused\nimport lib (f, f2)\nexport pure func k() -> int = f(1)\n",
+			[]want{{2, "f2", "usedAndUnused.ail"}, {3, "f", "usedAndUnused.ail"}}},
+		// Used only in a test block: the use warns, the import does not.
+		{"usedOnlyInTest", "module usedOnlyInTest\nimport lib (f)\nexport pure func k() -> int = 1\ntest \"t\" {\n  assert f(1) == 2\n}\n",
+			[]want{{5, "f", "usedOnlyInTest.ail"}}},
 		{"replacementOnly", "module replacementOnly\nimport lib (g)\nexport pure func k() -> int = g(1)\n", nil},
 		{"viaForwarder", "module viaForwarder\nimport mid (h)\nexport pure func k() -> int = h(1)\n",
 			[]want{{3, "f", "mid.ail"}}},

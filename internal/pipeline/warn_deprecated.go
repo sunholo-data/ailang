@@ -46,6 +46,10 @@ type DeprecatedUseWarning struct {
 	Name        string  // its name
 	Replacement string  // @deprecated's first argument
 	Note        string  // @deprecated's optional second argument
+	// UnusedImport: the deprecated name is imported but never used in the
+	// file. It still breaks (IMP010) when the alias is removed, so the import
+	// itself warns — once — and Location is the import line.
+	UnusedImport bool
 }
 
 var _ elaborate.Warning = (*DeprecatedUseWarning)(nil)
@@ -64,11 +68,21 @@ func (w *DeprecatedUseWarning) WarningFile() string { return w.Location.File }
 
 // Message is the warning without its location and fix.
 func (w *DeprecatedUseWarning) Message() string {
+	if w.UnusedImport {
+		return fmt.Sprintf("%s.%s is deprecated; use %s (it is imported here and never used)", w.Module, w.Name, w.Replacement)
+	}
 	return fmt.Sprintf("%s.%s is deprecated; use %s", w.Module, w.Name, w.Replacement)
 }
 
 // Suggestion is the one-line fix.
 func (w *DeprecatedUseWarning) Suggestion() string {
+	if w.UnusedImport {
+		s := fmt.Sprintf("remove %s from the import list (or import %s if you need it); the import fails once the deprecated name is removed", w.Name, w.Replacement)
+		if w.Note != "" {
+			s += "; " + w.Note
+		}
+		return s
+	}
 	s := fmt.Sprintf("replace %s with %s (import it from %s)", w.Name, w.Replacement, w.Module)
 	if w.Note != "" {
 		s += "; " + w.Note
@@ -183,6 +197,7 @@ func DetectDeprecatedUses(units map[string]*CompileUnit) []elaborate.Warning {
 			seen[key] = true
 			found = append(found, w)
 		}
+		found = append(found, unusedDeprecatedImports(u, idx, found)...)
 		sort.SliceStable(found, func(a, b int) bool {
 			pa, pb := found[a].Location, found[b].Location
 			if pa.File != pb.File {
@@ -279,4 +294,37 @@ func walkEveryCore(e core.CoreExpr, visit func(core.CoreExpr)) {
 		walkEveryCore(n.Hi, visit)
 		walkEveryCore(n.Body, visit)
 	}
+}
+
+// unusedDeprecatedImports returns one warning per deprecated name a module
+// imports by name (selectively, or renamed with `as`) and never uses. A used
+// name already warns at each use; an unused one would otherwise compile clean
+// today and fail with IMP010 when the alias is removed.
+func unusedDeprecatedImports(u *CompileUnit, idx map[core.GlobalRef]deprecation, uses []*DeprecatedUseWarning) []*DeprecatedUseWarning {
+	if u == nil || u.Surface == nil {
+		return nil
+	}
+	used := map[core.GlobalRef]bool{}
+	for _, w := range uses {
+		used[core.GlobalRef{Module: w.Module, Name: w.Name}] = true
+	}
+	var out []*DeprecatedUseWarning
+	for _, imp := range u.Surface.Imports {
+		if imp == nil {
+			continue
+		}
+		for _, sym := range imp.Symbols {
+			ref := core.GlobalRef{Module: imp.Path, Name: sym}
+			d, ok := idx[ref]
+			if !ok || used[ref] {
+				continue
+			}
+			used[ref] = true // one warning even if imported twice
+			out = append(out, &DeprecatedUseWarning{
+				Location: imp.Pos, Module: ref.Module, Name: sym,
+				Replacement: d.replacement, Note: d.note, UnusedImport: true,
+			})
+		}
+	}
+	return out
 }

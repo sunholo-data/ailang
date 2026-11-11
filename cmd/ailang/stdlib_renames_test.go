@@ -362,6 +362,51 @@ func TestDeprecatedWarningsInTestCode(t *testing.T) {
 	}
 }
 
+// A deprecated name that is imported and never used warns once, at the import
+// (it fails with IMP010 when the alias is removed); a used one warns at its use
+// only. Every channel, cold and warm.
+func TestDeprecatedUnusedImport(t *testing.T) {
+	bin := buildAilang(t)
+	t.Setenv("AILANG_CACHE_DIR", t.TempDir())
+	src := filepath.Join("cmd", "ailang", "testdata", "stdrenames", "unused_import.ail")
+	for _, run := range []string{"cold", "warm"} {
+		_, stderr, code := runWithStdin(t, bin, "", "check", src)
+		if code != 0 || strings.Count(stderr, "TC_DEPRECATED_001 at ") != 2 ||
+			!strings.Contains(stderr, "unused_import.ail:6:") || !strings.Contains(stderr, "std/list.nth_or is deprecated; use nthOr (it is imported here and never used)") ||
+			!strings.Contains(stderr, "unused_import.ail:8:") {
+			t.Errorf("%s: check:\n%s", run, stderr)
+		}
+		stdout, _, _ := runWithStdin(t, bin, "", "check", "--json", src)
+		var out struct {
+			Warnings []struct {
+				Code    string `json:"code"`
+				Line    int    `json:"line"`
+				Message string `json:"message"`
+			} `json:"warnings"`
+		}
+		if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+			t.Fatal(err)
+		}
+		got := map[int]string{}
+		for _, w := range out.Warnings {
+			if w.Code == "TC_DEPRECATED_001" {
+				got[w.Line] = w.Message
+			}
+		}
+		if len(got) != 2 || !strings.Contains(got[6], "nth_or") || !strings.Contains(got[8], "head_or") {
+			t.Errorf("%s: --json warnings by line: %v", run, got)
+		}
+		stdout, _, _ = runWithStdin(t, bin, "", "check", "--format", "agent", src)
+		if strings.Count(stdout, "TC_DEPRECATED_001") != 2 {
+			t.Errorf("%s: --format agent:\n%s", run, stdout)
+		}
+		_, stderr, _ = runWithStdin(t, bin, "", "test", src)
+		if strings.Count(stderr, "TC_DEPRECATED_001 at ") != 2 {
+			t.Errorf("%s: ailang test stderr:\n%s", run, stderr)
+		}
+	}
+}
+
 // `L.nthOrx` through a module alias is IMP010 naming the member, with the
 // did-you-mean of the import-list path, in human and --json output. It used to
 // say "undefined variable: L".
