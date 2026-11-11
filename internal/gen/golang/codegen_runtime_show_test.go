@@ -86,6 +86,8 @@ func TestEmittedShowMatchesEvaluator(t *testing.T) {
 		{`[]interface{}{int64(1), int64(2), int64(3)}`, list(i(1), i(2), i(3)), 9},
 		{`[]interface{}{int64(1), int64(2), int64(3)}`, list(i(1), i(2), i(3)), 0},
 		{`""`, str(""), -1},
+		{`"abcdef"`, str("abcdef"), 4},
+		{`"abc"`, str("abc"), 5},
 	} {
 		fmt.Fprintf(&b, "\t\t{%s, %d, %q},\n", c.goExpr, c.max, eval.ShowPreview(c.v, c.max))
 	}

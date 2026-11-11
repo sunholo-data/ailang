@@ -82,10 +82,11 @@ func registerShowPreview() {
 		Impl:    showPreviewImpl,
 		Metadata: &BuiltinMetadata{
 			Description: "Bounded show: the first maxChars code points of show(value)",
-			LongDesc: `If show(value) is at most maxChars code points it is returned unchanged.
-Otherwise the first maxChars code points are followed by "…(+N chars)", N being
-the exact number of code points left out. Never builds more than maxChars of
-output. maxChars <= 0 returns just the marker (or "" for an empty rendering).`,
+			LongDesc: `Renders value as show does, except that a string is quoted even at the
+top level, so a cut preview never reads as complete. If that rendering is at
+most maxChars code points it is returned whole; otherwise the first maxChars
+code points are followed by "…(+N chars)", N being the exact number left out.
+Never builds more than maxChars of output. maxChars <= 0 keeps only the marker.`,
 			Params: []ParamDoc{
 				{Name: "value", Description: "Any value"},
 				{Name: "maxChars", Description: "Maximum code points of show(value) to keep"},
@@ -94,6 +95,7 @@ output. maxChars <= 0 returns just the marker (or "" for an empty rendering).`,
 			Examples: []Example{
 				{Code: `_show_preview([1, 2, 3], 100)`, Description: `Returns "[1, 2, 3]"`},
 				{Code: `_show_preview([1, 2, 3], 5)`, Description: `Returns "[1, 2…(+4 chars)"`},
+				{Code: `_show_preview("abc", 10)`, Description: `Returns "\"abc\"" (strings are quoted in a preview)`},
 			},
 			Since:     "v0.61.0",
 			Stability: StabilityStable,

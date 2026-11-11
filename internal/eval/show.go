@@ -83,22 +83,29 @@ func RenderShow[V any](v V, inspect func(V) ShowNode[V]) string {
 }
 
 // PreviewMarker formats the tail showPreview appends after a cut: the exact
-// number of code points left out. Deliberately not valid AILANG or JSON, so a
-// preview never reads as a complete value.
+// number of code points left out. Deliberately not valid AILANG or JSON.
 func PreviewMarker(omitted int) string {
 	return "…(+" + strconv.Itoa(omitted) + " chars)"
 }
 
-// RenderShowPreview renders the first maxChars code points of RenderShow(v)
-// and, if anything was left out, PreviewMarker(n). It never builds more than
-// maxChars code points of output: past the budget the walk only counts. A
-// maxChars <= 0 is a budget of zero: the result is just the marker (or "" when
-// the full rendering is itself empty).
+// RenderShowPreview renders a preview of v: its show rendering, except that a
+// string is quoted and escaped at the top level too (as if nested). If that
+// rendering has at most maxChars code points it is returned whole; otherwise
+// its first maxChars code points followed by PreviewMarker(n), n being the
+// exact number left out. It never builds more than maxChars code points of
+// output: past the budget the walk only counts. maxChars <= 0 is a budget of 0.
+//
+// Quoting a top-level string is what makes a cut preview impossible to
+// mistake for a complete one: a bare string can contain the marker text
+// itself (showPreview("abc…(+3 chars)", 100) would equal
+// showPreview("abcdef", 3)); a quoted one cannot, because an untruncated
+// string preview always ends in its closing quote and the marker never does,
+// and no other complete rendering contains "…" outside a quoted string.
 func RenderShowPreview[V any](v V, inspect func(V) ShowNode[V], maxChars int) string {
 	if maxChars < 0 {
 		maxChars = 0
 	}
-	w := showWriter{limit: maxChars, runes: true, buf: make([]byte, 0, min(maxChars, 256))}
+	w := showWriter{limit: maxChars, runes: true, quoteTop: true, buf: make([]byte, 0, min(maxChars, 256))}
 	renderShow(&w, v, inspect)
 	if w.over == 0 {
 		return string(w.buf)
@@ -118,12 +125,14 @@ func ShowPreview(v Value, maxChars int) string {
 // first limit units (bytes, or code points when runes is set) are kept and the
 // rest only counted in over.
 type showWriter struct {
-	buf     []byte
-	limit   int
-	runes   bool
-	used    int
-	over    int
-	scratch [64]byte
+	buf   []byte
+	limit int
+	runes bool
+	used  int
+	over  int
+	// quoteTop quotes a top-level string as if it were nested (previews).
+	quoteTop bool
+	scratch  [64]byte
 }
 
 // WriteString implements io.StringWriter (strutil.QuoteTo writes through it).
@@ -219,7 +228,7 @@ func renderShow[V any](w *showWriter, root V, inspect func(V) ShowNode[V]) {
 		}
 		switch n.Kind {
 		case ShowString:
-			if len(closes) > 0 {
+			if len(closes) > 0 || w.quoteTop {
 				strutil.QuoteTo(w, n.Text)
 			} else {
 				_, _ = w.WriteString(n.Text)

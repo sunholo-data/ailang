@@ -23,11 +23,20 @@ quoted and escaped: `show(["a", "b, c"])` is `["a", "b, c"]` (was `[a, b, c]`, t
   rendering (credential redaction unchanged), the WASM playground (record fields are now in
   name order, not Go map order), and `ailang compile` output. The evaluator and the bytecode VM
   print byte-identical text for every shape.
-- New: `std/string.showPreview(x: a, maxChars: int) -> string`. If `show(x)` has at most
-  `maxChars` code points it is returned unchanged; otherwise the first `maxChars` code points
-  are followed by `…(+N chars)`, N being exactly how many were left out. It never builds the full
-  rendering. `maxChars <= 0` returns just the marker. Additive to the Stable `std/string`
-  interface (golden refrozen).
+- New: `std/string.showPreview(x: a, maxChars: int) -> string`. It renders `x` as `show`
+  does, except that a string is quoted even at the top level (`showPreview("abc", 10)` is
+  `"abc"` with the quotes), so a cut preview can never be mistaken for a complete one. If the
+  rendering has at most `maxChars` code points it is returned whole; otherwise the first
+  `maxChars` code points are followed by `…(+N chars)`, N being exactly how many were left out.
+  It never builds the full rendering. `maxChars <= 0` keeps only the marker. Additive to the
+  Stable `std/string` interface (golden refrozen).
+- A quoted string reads back as the same string through the loader, which NFC-normalises
+  source: a combining mark or other character that normalisation would change is written
+  `\u{X}` when the string is not NFC or the character follows an escape. `ailang fmt` uses the
+  same escaper; this also fixes fmt changing the value of literals such as `"e\u{301}"` and
+  turning `"\n\u{303}"` into an invalid escape. Every tracked `.ail` file formats identically.
+- A constructor used as a value (`map(Some, xs)`, `let f = Ok`) is a function on the bytecode VM
+  too: it printed as `Some` there (and `<function>` on the evaluator), and calling it failed.
 - Teaching prompt v0.16.14 (active) documents the quoting and `showPreview`.
 - Benchmark `run_length_encode` is retired (moved to `benchmarks/retired/`): its expected output
   was the old lossy rendering of a `[(int, string)]`. It is replaced by `run_length_encode_v2`,

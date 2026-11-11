@@ -12,6 +12,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/bytecode"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/lexer"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // M-V1-SHOW-TOTAL: `show` is total, deterministic and injective per type, and
@@ -315,6 +316,18 @@ func TestShowDeepAndWideAreLinear(t *testing.T) {
 
 // --- showPreview ------------------------------------------------------------
 
+// previewFull is what showPreview renders before any cut: show, except that a
+// top-level string is quoted too.
+func previewFull(v eval.Value) string {
+	if ind, ok := v.(*eval.IndirectValue); ok && ind.Cell != nil && ind.Cell.Init {
+		v = ind.Cell.Val
+	}
+	if s, ok := v.(*eval.StringValue); ok {
+		return strutil.Quote(s.Value)
+	}
+	return eval.Show(v)
+}
+
 func TestShowPreviewSemantics(t *testing.T) {
 	big := sList(showInts(0, 50)...)
 	full := eval.Show(big)
@@ -334,10 +347,22 @@ func TestShowPreviewSemantics(t *testing.T) {
 		{ee, 2, `["…(+10 chars)`},
 		{big, 0, "…(+" + strconv.Itoa(n) + " chars)"},
 		{big, -3, "…(+" + strconv.Itoa(n) + " chars)"},
-		{sStr(""), 0, ""},
-		{sStr(""), -1, ""},
-		{sStr("abc"), 2, "ab…(+1 chars)"},
-		{sStr("\xff\xfeok"), 1, "\xff…(+3 chars)"},
+		// A top-level string is quoted in a preview, so a cut one never
+		// reads as complete: it has no closing quote.
+		{sStr("abc"), 5, `"abc"`},
+		{sStr("abc"), 6, `"abc"`},
+		{sStr("abc"), 4, `"abc…(+1 chars)`},
+		{sStr("abc"), 2, `"a…(+3 chars)`},
+		{sStr(""), 2, `""`},
+		{sStr(""), 1, `"…(+1 chars)`},
+		{sStr(""), 0, `…(+2 chars)`},
+		{sStr(""), -1, `…(+2 chars)`},
+		{sStr("éé"), 2, `"é…(+2 chars)`},
+		{sStr("\xff\xfeok"), 1, `"…(+11 chars)`},
+		{sStr("abc…(+3 chars)"), 100, `"abc…(+3 chars)"`},
+		{sStr("abcdef"), 4, `"abc…(+4 chars)`},
+		{sInt(42), 1, "4…(+1 chars)"},
+		{sInt(42), 2, "42"},
 	}
 	for _, c := range cases {
 		got := eval.ShowPreview(c.v, c.max)
@@ -354,23 +379,24 @@ func TestShowPreviewSemantics(t *testing.T) {
 	}
 }
 
-// Property: for any budget, a preview is either the full rendering, or a
-// prefix of it on a code-point boundary plus a marker whose count is exact.
+// Property: for any budget, a preview is either the full preview rendering,
+// or a prefix of it on a code-point boundary plus a marker whose count is
+// exact.
 func TestShowPreviewIsAnExactPrefix(t *testing.T) {
 	for _, row := range showSpecRows(t) {
-		full := eval.Show(row.v)
+		full := previewFull(row.v)
 		n := utf8.RuneCountInString(full)
 		for _, max := range []int{-1, 0, 1, 2, 3, 7, 40, n - 1, n, n + 1} {
 			got := eval.ShowPreview(row.v, max)
-			if max >= n || (max < 0 && n == 0) { // a negative budget is a budget of 0
+			keep := max
+			if keep < 0 {
+				keep = 0
+			}
+			if keep >= n {
 				if got != full {
 					t.Fatalf("%s @%d: fits, want full rendering, got %q", row.name, max, got)
 				}
 				continue
-			}
-			keep := max
-			if keep < 0 {
-				keep = 0
 			}
 			i := 0
 			for r := 0; r < keep; r++ {
@@ -381,6 +407,42 @@ func TestShowPreviewIsAnExactPrefix(t *testing.T) {
 				t.Fatalf("%s @%d:\n got %q\nwant %q", row.name, max, got, want)
 			}
 		}
+	}
+}
+
+// A cut preview can never equal a complete one (review item 5): over
+// generated values of every type, including strings that contain the marker
+// text, two previews with the same text are both complete (and then the
+// values render identically) or both cut.
+func TestShowPreviewCutIsNeverMistakenForComplete(t *testing.T) {
+	g := &showGen{seed: 77}
+	type seen struct {
+		cut  bool
+		full string
+	}
+	byText := map[string]seen{}
+	values := []eval.Value{sStr("abc…(+3 chars)"), sStr("abcdef"), sStr("\"abc…(+3 chars)"), sStr("…(+2 chars)"), sStr("")}
+	for i := 0; i < 2000; i++ {
+		values = append(values, g.value(t, g.typ(0), 0))
+	}
+	checked := 0
+	for _, v := range values {
+		full := previewFull(v)
+		n := utf8.RuneCountInString(full)
+		for _, max := range []int{0, 1, 3, 5, 8, 13, n - 1, n, n + 5} {
+			p := eval.ShowPreview(v, max)
+			cut := max < n
+			if prev, ok := byText[p]; ok {
+				checked++
+				if prev.cut != cut || (!cut && prev.full != full) {
+					t.Fatalf("preview %q is ambiguous: once cut=%v of %q, now cut=%v of %q", p, prev.cut, prev.full, cut, full)
+				}
+			}
+			byText[p] = seen{cut: cut, full: full}
+		}
+	}
+	if checked == 0 {
+		t.Fatal("no two previews collided; the property was never exercised")
 	}
 }
 

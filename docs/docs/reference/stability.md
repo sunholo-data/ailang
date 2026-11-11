@@ -127,8 +127,12 @@ breaking change.
 total (nothing elided, at any width or depth), deterministic (the same on the evaluator and the
 bytecode VM, on every OS), and injective per type for values without NaN or functions. A
 top-level string is returned unchanged; a string nested in a list, tuple, record, map or
-constructor is quoted with the escapes `ailang fmt` uses. `std/string.showPreview` is Stable with
-`std/string`; its `…(+N chars)` marker is for people, not for parsing.
+constructor is quoted with the escapes `ailang fmt` uses, and that literal reads back as the same
+string through the normal loader (valid UTF-8 only). Function values of every kind, constructors
+used as values included, print `<function>` on every engine. `std/string.showPreview` is Stable
+with `std/string`: it quotes a string even at the top level, keeps a head-only prefix of at most
+`maxChars` code points, and marks a cut with `…(+N chars)` (N exact), so a cut preview never
+equals a complete one. The marker is for people, not for parsing.
 
 ### Stable stdlib (17)
 

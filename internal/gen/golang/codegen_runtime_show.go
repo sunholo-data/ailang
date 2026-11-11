@@ -25,9 +25,12 @@ func Show(v interface{}) string {
 }
 
 // ShowPreview is std/string.showPreview: the first maxChars code points of
-// Show(v), then "…(+N chars)" when anything was left out.
+// Show(v) - with a top-level string quoted, so a cut preview never reads as
+// complete - then "…(+N chars)" when anything was left out.
 func ShowPreview(v interface{}, maxChars interface{}) interface{} {
-	s := Show(v)
+	var full strings.Builder
+	showInto(&full, v, true)
+	s := full.String()
 	n := int(toInt64(maxChars))
 	if n < 0 {
 		n = 0
