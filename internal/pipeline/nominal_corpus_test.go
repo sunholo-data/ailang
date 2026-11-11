@@ -17,9 +17,6 @@ import (
 // type-checks is not asserted (make verify-examples owns that); only that no
 // unqualified nominal type reaches the unifier.
 func TestNominalIdentity_NoUnqualifiedNominalInCorpus(t *testing.T) {
-	if testing.Short() {
-		t.Skip("corpus sweep; run without -short")
-	}
 	root, err := os.Getwd()
 	if err != nil {
 		t.Fatal(err)

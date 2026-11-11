@@ -85,11 +85,8 @@ type CoreTypeChecker struct {
 	constructorTypes      map[string]string // M-DX25.4: Constructor name → ADT type name (e.g., "Up" → "Direction")
 	diagnosticCtorTypes   map[string]string // M-MATCH-XCHECK-ERROR-QUALITY: transitively-known Constructor → ADT (diagnostics ONLY, never in scope)
 	adtTypeParams         map[string]int    // M-TAPP-FIX: ADT NominalKey → number of type params (e.g., "std/option::Option" → 1)
-	// ctorADTModule: constructor name → defining module of its ADT, the
-	// module half of constructorTypes (M-V1-NOMINAL-TYPE-IDENTITY).
-	ctorADTModule map[string]string
-	// newtypes: aliasEnv keys that are newtype ADTs (RegisterNewtypeADT).
-	newtypes map[string]bool
+	ctorADTModule         map[string]string // constructor → its ADT's defining module (typechecker_nominal.go)
+	newtypes              map[string]bool   // aliasEnv keys that are newtype ADTs (typechecker_nominal.go)
 	// aliasEnv maps type alias names to their underlying types
 	// M-BUGFIX: Used for alias expansion during unification
 	aliasEnv map[string]Type
@@ -276,24 +273,12 @@ func (tc *CoreTypeChecker) SetDebugSink(sink TypeDebugSink) {
 
 // RegisterTypeAlias registers a type alias for expansion during unification
 // M-BUGFIX: This allows `type Coord = {x: int, y: int}` to work with ADT variants
-//
-// name is the alias's NominalKey(defining module, name)
-// (M-V1-NOMINAL-TYPE-IDENTITY): it expands only TCons of that module.
+// name is the alias's NominalKey(module, name): it expands only that module's TCon.
 func (tc *CoreTypeChecker) RegisterTypeAlias(name string, target Type) {
 	if tc.aliasEnv == nil {
 		tc.aliasEnv = make(map[string]Type)
 	}
 	tc.aliasEnv[name] = target
-}
-
-// RegisterNewtypeADT marks an alias key as a single-constructor ADT wrapping a
-// record (M-STREAM-DX/M4): it expands only against a record, never against
-// another type constructor (M-V1-NOMINAL-TYPE-IDENTITY).
-func (tc *CoreTypeChecker) RegisterNewtypeADT(key string) {
-	if tc.newtypes == nil {
-		tc.newtypes = make(map[string]bool)
-	}
-	tc.newtypes[key] = true
 }
 
 // GetAliasEnv returns the type alias environment for use in unification
@@ -337,12 +322,6 @@ func (tc *CoreTypeChecker) SetGlobalType(key string, scheme *Scheme) {
 // M-DX25.4: Used to infer correct types for pattern matching on ADTs.
 func (tc *CoreTypeChecker) SetConstructorTypes(ctors map[string]string) {
 	tc.constructorTypes = ctors
-}
-
-// SetConstructorModules sets constructor → defining module of its ADT, the
-// module half of SetConstructorTypes (M-V1-NOMINAL-TYPE-IDENTITY).
-func (tc *CoreTypeChecker) SetConstructorModules(mods map[string]string) {
-	tc.ctorADTModule = mods
 }
 
 // SetDiagnosticConstructorTypes sets a diagnostic-only constructor → ADT map.
@@ -397,8 +376,7 @@ func (tc *CoreTypeChecker) lookupADTConstructors(adtName string) []string {
 	return out
 }
 
-// SetADTTypeParams sets the ADT → number of type parameters mapping, keyed by
-// NominalKey(module, name) (M-V1-NOMINAL-TYPE-IDENTITY).
+// SetADTTypeParams sets ADT NominalKey(module, name) → number of type parameters.
 // M-TAPP-FIX: Used to generate proper TApp types in pattern matching.
 func (tc *CoreTypeChecker) SetADTTypeParams(params map[string]int) {
 	tc.adtTypeParams = params

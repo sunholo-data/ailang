@@ -21,12 +21,11 @@ const (
 )
 
 type nominalCase struct {
-	name    string
-	files   map[string]string
-	entry   string
-	prime   string   // a passing module importing the same dependencies (warm run)
-	reject  []string // substrings the rejection must contain; nil = must check
-	compile bool
+	name   string
+	files  map[string]string
+	entry  string
+	prime  string   // a passing module importing the same dependencies (warm run)
+	reject []string // substrings the rejection must contain; nil = must check
 }
 
 func nominalCases() []nominalCase {
