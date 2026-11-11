@@ -90,7 +90,8 @@ func TestEmittedQuoteRuntimeUpToDate(t *testing.T) {
 		}
 		return
 	}
-	if !bytes.Equal([]byte(emittedQuoteRuntime), want) {
+	// A Windows checkout may give the embedded file CRLF line endings.
+	if !bytes.Equal(bytes.ReplaceAll([]byte(emittedQuoteRuntime), []byte("\r\n"), []byte("\n")), want) {
 		t.Fatal("emitted_quote_runtime.txt is out of date with internal/strutil's quoting rule: regenerate with -update-quote")
 	}
 }

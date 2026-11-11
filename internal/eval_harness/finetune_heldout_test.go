@@ -189,7 +189,8 @@ print(",".join(heldout.eval_ids(fx)))
 	if err != nil {
 		t.Fatalf("readers failed: %v\n%s", err, out)
 	}
-	lines := strings.Split(strings.TrimSpace(string(out)), "\n")
+	// Windows: python prints CRLF.
+	lines := strings.Split(strings.TrimSpace(strings.ReplaceAll(string(out), "\r\n", "\n")), "\n")
 	if len(lines) != 2 || lines[0] != "held_core,task,task_v2" || lines[1] != "held_core,task_v2" {
 		t.Fatalf("training exclusion / eval list:\n%s\nwant held_core,task,task_v2 / held_core,task_v2", out)
 	}
@@ -200,7 +201,7 @@ print(",".join(heldout.eval_ids(fx)))
 	if err != nil {
 		t.Fatal(err)
 	}
-	body := string(src)
+	body := strings.ReplaceAll(string(src), "\r\n", "\n") // a Windows checkout may be CRLF
 	start := strings.Index(body, "<<'EOF'\n")
 	end := strings.Index(body[start+1:], "\nEOF\n")
 	if start < 0 || end < 0 {

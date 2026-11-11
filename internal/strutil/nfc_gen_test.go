@@ -133,7 +133,8 @@ func TestNFCTablesUpToDate(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Equal(got, want) {
+	// A Windows checkout may give the file CRLF line endings.
+	if !bytes.Equal(bytes.ReplaceAll(got, []byte("\r\n"), []byte("\n")), want) {
 		t.Fatalf("%s is stale for golang.org/x/text Unicode %s (a dependency bump?): regenerate with -update-nfc", nfcTablesFile, norm.Version)
 	}
 	if nfcUnicodeVersion != norm.Version {
