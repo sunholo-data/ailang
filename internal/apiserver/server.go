@@ -552,7 +552,10 @@ func (s *Server) buildRoutes() http.Handler {
 	if s.a2aEnabled {
 		mux.HandleFunc("/.well-known/agent.json", s.corsWrap(s.handleA2AAgentCard))
 		mux.HandleFunc("/.well-known/agent-card.json", s.corsWrap(s.handleA2AAgentCard))
-		mux.HandleFunc("/a2a/", s.corsWrap(s.handleA2ATask))
+		// Under --mcp-connect-only, mountMCP mounts /a2a/ behind the Bearer gate.
+		if !s.mcpConnectOnly {
+			mux.HandleFunc("/a2a/", s.corsWrap(s.handleA2ATask))
+		}
 	}
 
 	// MCP endpoint (streamable HTTP transport)

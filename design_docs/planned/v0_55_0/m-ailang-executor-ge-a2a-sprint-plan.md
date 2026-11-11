@@ -44,13 +44,16 @@ Source: [Register and manage A2A agents](https://docs.cloud.google.com/gemini/en
   pass; the official `a2a-sdk` 0.3.26 client parses the card, `message/send`, `tasks/get` and the four
   stream events into its typed classes.
 
-### M2: A2A behind the Bearer gate (Go, ~80 LOC + tests)
+### M2: A2A behind the Bearer gate (Go, ~80 LOC + tests) ✅ 2026-11-11
 - Under `--mcp-connect-only`, `/a2a/` goes through the same gate as `/mcp/connect/` (all methods);
   the card routes stay open. Then, and only then, lift the `--a2a` refusal (§3.1 of the channels plan).
 - The verified subject reaches the handler the same way it reaches tools (identity header), and the
   per-subject rate limit applies.
 - Acceptance: no token → 401 with the RFC 9728 header; bad token → 401; good token → handler runs;
   card readable without a token; mutation check (remove the gate → the 401 tests fail).
+- **Done:** `MCPServer.a2aGatedHandler` (`mcp_auth.go`), mounted by `mountMCP` under connect-only;
+  `ValidateA2A` requires `@noexpose @nomcp` there. `a2a_gate_test.go` (6 tests). Mutation: an
+  admit-everything gate fails 3 of them. `executor_oauth/test_oauth.sh` still passes.
 
 ### M3: the executor's agent loop, in AILANG (~200 LOC)
 - `executor_tools/a2a_agent.ail`: `@a2a_message` handler. A bounded loop over `std/ai` `step` (Gemini on
