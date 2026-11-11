@@ -407,6 +407,28 @@ func TestDeprecatedUnusedImport(t *testing.T) {
 	}
 }
 
+// `ailang test a.ail b.ail` (and a directory) prints a shared module's
+// deprecation once per run, in one path spelling — not once per importing
+// file, in relative and absolute forms.
+func TestTestCommandDeduplicatesDeprecations(t *testing.T) {
+	bin := buildAilang(t)
+	t.Setenv("AILANG_CACHE_DIR", t.TempDir())
+	dir := filepath.Join("cmd", "ailang", "testdata", "stdrenames", "multi")
+	for name, args := range map[string][]string{
+		"two files": {"test", filepath.Join(dir, "a.ail"), filepath.Join(dir, "b.ail")},
+		"directory": {"test", dir},
+	} {
+		_, stderr, _ := runWithStdin(t, bin, "", args...)
+		if n := strings.Count(stderr, "TC_DEPRECATED_001 at "); n != 1 {
+			t.Errorf("%s: %d TC_DEPRECATED_001 lines, want 1:\n%s", name, n, stderr)
+		}
+		want := "TC_DEPRECATED_001 at " + filepath.Join(dir, "shared.ail") + ":7:44"
+		if !strings.Contains(filepath.ToSlash(stderr), filepath.ToSlash(want)) {
+			t.Errorf("%s: want the relative spelling %q:\n%s", name, want, stderr)
+		}
+	}
+}
+
 // `L.nthOrx` through a module alias is IMP010 naming the member, with the
 // did-you-mean of the import-list path, in human and --json output. It used to
 // say "undefined variable: L".

@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/elaborate"
 	"github.com/sunholo-data/ailang/internal/pipeline"
@@ -40,10 +42,42 @@ func testDeprecationWarnings(filename string) []elaborate.Warning {
 	return out
 }
 
+// printedTestDeprecations de-duplicates across one `ailang test` run: a module
+// imported by several test files is compiled once per file, and its warnings
+// would otherwise print once per importer, under both a relative and an
+// absolute spelling of its path.
+var printedTestDeprecations = map[string]bool{}
+
 // printTestDeprecationWarnings writes a test file's deprecation warnings to
-// stderr, so stdout (human or --json results) is unchanged.
+// stderr, so stdout (human or --json results) is unchanged. Each use site is
+// printed once per run, with its path relative to the working directory when
+// it lies under it.
 func printTestDeprecationWarnings(filename string) {
+	cwd, _ := os.Getwd()
 	for _, w := range testDeprecationWarnings(filename) {
-		fmt.Fprintf(os.Stderr, "%s\n", yellow(w.String()))
+		dw := w.(*pipeline.DeprecatedUseWarning)
+		abs := dw.Location.File
+		if a, err := filepath.Abs(abs); err == nil {
+			abs = a
+		}
+		if r, err := filepath.EvalSymlinks(abs); err == nil {
+			abs = r
+		}
+		key := fmt.Sprintf("%s|%d|%d|%s|%s.%s|%v", abs, dw.Location.Line, dw.Location.Column, dw.Code(), dw.Module, dw.Name, dw.UnusedImport)
+		if printedTestDeprecations[key] {
+			continue
+		}
+		printedTestDeprecations[key] = true
+		if cwd != "" {
+			if c, err := filepath.EvalSymlinks(cwd); err == nil {
+				cwd = c
+			}
+			if rel, err := filepath.Rel(cwd, abs); err == nil && !strings.HasPrefix(rel, "..") {
+				dw.Location.File = rel
+			} else {
+				dw.Location.File = abs
+			}
+		}
+		fmt.Fprintf(os.Stderr, "%s\n", yellow(dw.String()))
 	}
 }
