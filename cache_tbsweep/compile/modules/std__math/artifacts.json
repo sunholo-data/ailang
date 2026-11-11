@@ -1,0 +1,11 @@
+{
+  "version": "v12",
+  "module_id": "std/math",
+  "cache_key": "8b5c0c5e86cb6f9fc0807779f459af2e69b946fe380be3eab0d4138262bbf8fe",
+  "sha256": {
+    "constructors.json": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "core.gob": "3521a31f557488d2d15cb035d599d182ca746bb734e2801aaf6e1848dc5120e6",
+    "coretypeinfo.gob": "aa33d7ce7df2981dbbd430af397c0000c7884f88a10ea8bf557543dbb208ab02",
+    "iface.json": "ad1fecd93a611ba03f0e43debac015c5cf9f09bd6853ba5c03155f2a509ad62f"
+  }
+}

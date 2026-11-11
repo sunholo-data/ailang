@@ -1,0 +1,11 @@
+{
+  "version": "v12",
+  "module_id": "std/yaml",
+  "cache_key": "56af33e3c5becf588ab9eb7b6958af8154933e098f2e4def1275bb649f90cc69",
+  "sha256": {
+    "constructors.json": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "core.gob": "013fc2543a770a8b92ed20c5bdd314d4690250199cde8c21ad76538ddf4d363f",
+    "coretypeinfo.gob": "b789dec33c7ae1added17ae6a852d95cff9a202001afb8297e0fa606dbb92a4b",
+    "iface.json": "669172d229a946d98175fc830bf04685fcca31fef99584e5271aa6e79c8a6395"
+  }
+}

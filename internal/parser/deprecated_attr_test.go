@@ -54,14 +54,14 @@ pure func both(x: int) -> int = x
 
 func TestDeprecatedAnnotationArgumentErrors(t *testing.T) {
 	for name, ann := range map[string]string{
-		"no args":     `@deprecated`,
-		"empty list":  `@deprecated()`,
-		"three args":  `@deprecated("a", "b", "c")`,
-		"not string":  `@deprecated(headOr)`,
-		"int arg":     `@deprecated(1)`,
-		"empty name":  `@deprecated("")`,
-		"blank name":  `@deprecated("  ")`,
-		"exp has arg": `@experimental("x")`,
+		"no args":      `@deprecated`,
+		"empty list":   `@deprecated()`,
+		"three args":   `@deprecated("a", "b", "c")`,
+		"not string":   `@deprecated(headOr)`,
+		"int arg":      `@deprecated(1)`,
+		"empty name":   `@deprecated("")`,
+		"blank name":   `@deprecated("  ")`,
+		"exp has arg":  `@experimental("x")`,
 		"exp has unit": `@experimental()`,
 	} {
 		t.Run(name, func(t *testing.T) {

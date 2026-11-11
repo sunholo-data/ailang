@@ -1,0 +1,11 @@
+{
+  "version": "v12",
+  "module_id": "named_test_contract",
+  "cache_key": "defe3fa2dff9f336ad5a84a700c91eb54d8ae6226e09be936ae248f97f48768a",
+  "sha256": {
+    "constructors.json": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "core.gob": "4804fa889a13e25667b1dc7ea26e72050d67fb6f28198c48e1f2738a82ee1bf4",
+    "coretypeinfo.gob": "06751f2b69bb378d621c2a9d9aed2efb49d821e269ca90ca93898a8ae08464bd",
+    "iface.json": "fd3a288cb014a6325e7d4b46f9ef8b0b0f039c9adba5cc31b751f51b056a7ed5"
+  }
+}

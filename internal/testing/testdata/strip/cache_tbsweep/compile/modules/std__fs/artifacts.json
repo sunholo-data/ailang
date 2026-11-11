@@ -1,0 +1,11 @@
+{
+  "version": "v12",
+  "module_id": "std/fs",
+  "cache_key": "39bf6e78e809a6a8309eaa8f1cc6d3de396b5f9a4980059274525722b2d4f95a",
+  "sha256": {
+    "constructors.json": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "core.gob": "2c5efd8093bbde63b81b2a8572d60f912ca65ce418e3c267a3b8172d186f9696",
+    "coretypeinfo.gob": "1692a0f954e37bde05e1ce45d2ae4f921cd61cd837d799ecd239864ac7eb9285",
+    "iface.json": "c4cecf5b66b11dda32d3013623d32a2c338c3533e99a732e25e693de40383ccd"
+  }
+}

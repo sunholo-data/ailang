@@ -1,0 +1,11 @@
+{
+  "version": "v12",
+  "module_id": "std/audio",
+  "cache_key": "1732b44ff2f757683972e6a7fe9fe43f89c9be18e6f5a9f8328f88495dfd3cb1",
+  "sha256": {
+    "constructors.json": "799a71483e871388d4cefad95a38fe73298d0b2b9092bb72c25920511a6ac459",
+    "core.gob": "23d7b4c0dcd7aca0d9e2af135bc499a532756bc07a43d3e5ee254b6d40dbafe0",
+    "coretypeinfo.gob": "6dd90b4c1e23ac6d6b452ac2864740130b3228eeaa9ac2c92380ebb99fecccea",
+    "iface.json": "c82a8308db2e9c489552122a32ec54ac9c9a80bc7d9320315c95a09131533cf5"
+  }
+}

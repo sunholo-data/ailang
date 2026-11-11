@@ -1,0 +1,1 @@
+{"None":{"type_name":"Option","ctor_name":"None","arity":0,"type_param_count":1,"type_param_names":["a"]},"Some":{"type_name":"Option","ctor_name":"Some","arity":1,"type_param_count":1,"type_param_names":["a"],"field_types":[{"tag":"tvar2","data":{"name":"a","kind":{"tag":"star"}}}]}}

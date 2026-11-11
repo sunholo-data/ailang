@@ -1,0 +1,11 @@
+{
+  "version": "v12",
+  "module_id": "cmd/ailang/testdata/stdrenames/testblock",
+  "cache_key": "214580c302bbc1afeb00715213fcbaf6b9b925ade0ab81e619bd7e56cf22eb35",
+  "sha256": {
+    "constructors.json": "44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a",
+    "core.gob": "692585f61b6486d2da0b12812db465cb91ceb50504507faef6a643ad25b61f23",
+    "coretypeinfo.gob": "11ab328220013ff7ba3a7546eac6ad6d026d0bbd734dd9038f39abed406e52b3",
+    "iface.json": "617b7ce00381e93e4d730f86c6cb0a14bedd468c6d33256571ff53dd157a6bb7"
+  }
+}
