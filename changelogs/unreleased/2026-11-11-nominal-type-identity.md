@@ -12,22 +12,27 @@ enforces), interface constructor fields and alias bodies, and every cache decode
 
 A bare type name resolves in this order: the module's own declaration → an explicit
 `import M (T [as U])` the user wrote → a built-in (`Map`, `List`, `Int`, …) → the prelude
-(`Option`, `Result`) → the ONE declaration among the types the program imports or reaches →
-the builtin home table → an opaque type of this module. A module may therefore declare or
+(`Option`, `Result`) → the ONE type the imported modules export → only if none does, the ONE
+type a module reached indirectly (through the imports) declares → the builtin home table → an
+opaque type of this module. A module may therefore declare or
 import its own `Map`, `List`, `Option` or `Ok`; the implicit prelude never competes with a
 user's own binding. Nothing depends on import order, on the order of the code, or on module
 paths:
 
 - two explicit imports binding one bare type or constructor name to different modules
   (`import a (T)` + `import b (T)`) are **`MOD015`** (it used to be "first import wins");
-- a type name that two modules the program imports or reaches both declare is
-  **`TC_AMBIGUOUS_TYPE_001`** unless declared locally, imported by name, a built-in or prelude
-  name (an unrelated import used to change what such a name — or an alias like `Num` — meant);
+- a type name that two imported modules export — or, when no imported module exports it, that
+  two indirectly reached modules declare — is **`TC_AMBIGUOUS_TYPE_001`** unless declared
+  locally, imported by name, a built-in or prelude name. A type an indirect dependency adds never
+  changes or breaks a name an imported module exports;
 - a constructor auto-imported from two modules is a **deferred choice** in a pattern: the
   pattern's own arity narrows the candidates, and the scrutinee's type decides once inference
   has fixed it (until then its type variables stay monomorphic). It is
   **`TC_AMBIGUOUS_CTOR_001`** in an expression, and in a pattern whose scrutinee nothing in the
-  enclosing top-level declaration decides.
+  enclosing top-level declaration decides. Because of the monomorphism, a let-bound function
+  matching such a constructor cannot be used at two types (`Box[int]` and `Box[string]`); that
+  is reported as `TC_AMBIGUOUS_CTOR_001` at the pattern with the conflict as its cause, and
+  importing the constructor by name fixes it. Pattern diagnostics point at the pattern.
 
 Also fixed on the way:
 
@@ -59,7 +64,10 @@ type (and constructors) you mean by name from one module, or convert explicitly
 separately need no change. For `MOD015`/`TC_AMBIGUOUS_*`, import the one you mean by name or alias
 one import with `as`. A module that writes a built-in name (`Map`, `List`, `Bytes`, `Unit`, …)
 meaning a dependency's type of that name must now import it by name: `import dep (Map)` —
-the bare name means the built-in, and the `TC_NOMINAL_001` diagnostic gives that fix. Not covered yet: undeclared type names (`TC_UNBOUND_TYPE_001`), duplicate
+the bare name means the built-in, and the `TC_NOMINAL_001` diagnostic gives that fix.
+A bare type name that only an indirect dependency (a module your imports import) declares
+becomes `TC_AMBIGUOUS_TYPE_001` if a second indirect module declares it, and is re-pointed if
+you add an import that exports the name; fix either with `import M (T)` from the module you mean. Not covered yet: undeclared type names (`TC_UNBOUND_TYPE_001`), duplicate
 declarations (`MOD007`), and three back-end tables keyed by bare type name — bytecode ADT tables,
 the SMT encoder and the Go emitter. Design: `design_docs/planned/v1_0_0/m-v1-nominal-type-identity.md`;
 error page `docs/docs/reference/errors/tc_nominal_001.md`.

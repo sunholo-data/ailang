@@ -5,6 +5,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/typedast"
 )
@@ -27,32 +28,68 @@ type CtorCandidate struct {
 type AmbiguousCtorError struct {
 	Name       string
 	Candidates []CtorCandidate // sorted by module
-	Where      string
-	Scrutinee  string // non-empty: the scrutinee's type is known and matches none
+	Where      string          // "at file:line:col" (the pattern or expression), or a description
+	Scrutinee  string          // non-empty: the scrutinee's type is known and matches none
+	Expression bool            // an expression use (decided by the elaborator; no annotation helps)
+	// Detail, when set, replaces the generic explanation (arity, monomorphism);
+	// Cause is the unification failure it explains.
+	Detail string
+	Cause  error
+	// Meant, when set, is the candidate the suggestion should name (the type
+	// matched, for an arity error) instead of the first one.
+	Meant *CtorCandidate
 }
 
-// NewAmbiguousCtorError builds TC_AMBIGUOUS_CTOR_001.
+// NewAmbiguousCtorError builds TC_AMBIGUOUS_CTOR_001 for a constructor
+// EXPRESSION (the elaborator's case); where is "at file:line:col".
 func NewAmbiguousCtorError(name string, cands []CtorCandidate, where string) *AmbiguousCtorError {
-	return &AmbiguousCtorError{Name: name, Candidates: cands, Where: where}
+	return &AmbiguousCtorError{Name: name, Candidates: cands, Where: where, Expression: true}
 }
+
+func (e *AmbiguousCtorError) Unwrap() error { return e.Cause }
 
 func (e *AmbiguousCtorError) Error() string {
 	parts := make([]string, len(e.Candidates))
 	for i, c := range e.Candidates {
 		parts[i] = fmt.Sprintf("%s's %s", c.Module, c.TypeName)
 	}
-	first := ""
+	example := ""
 	if len(e.Candidates) > 0 {
-		first = e.Candidates[0].Module
+		example = fmt.Sprintf("import %s (%s)", e.Candidates[0].Module, e.Name)
 	}
-	if e.Scrutinee != "" {
+	if e.Meant != nil {
+		// An arity error: the fix is the pattern's argument count.
+		holes := make([]string, e.Meant.Arity)
+		for i := range holes {
+			holes[i] = "_"
+		}
+		msg := fmt.Sprintf("%s %s: %s", TC_AMBIGUOUS_CTOR_001, e.Where, e.Detail)
+		if e.Cause != nil {
+			msg += "\n  Caused: " + e.Cause.Error()
+		}
+		return msg + fmt.Sprintf("\n  Suggestion: give the pattern %d argument(s), %s(%s), to match %s's %s.",
+			e.Meant.Arity, e.Name, strings.Join(holes, ", "), e.Meant.Module, e.Meant.TypeName)
+	}
+	switch {
+	case e.Detail != "":
+		msg := fmt.Sprintf("%s %s: %s", TC_AMBIGUOUS_CTOR_001, e.Where, e.Detail)
+		if e.Cause != nil {
+			msg += "\n  Caused: " + e.Cause.Error()
+		}
+		return msg + fmt.Sprintf("\n  Suggestion: import the constructor by name from the module you mean, e.g. %s.", example)
+	case e.Scrutinee != "":
 		return fmt.Sprintf("%s %s: constructor '%s' belongs to %s, but the value matched has type %s.\n"+
-			"  Suggestion: match a value of one of those types, or import the constructor you mean by name, e.g. import %s (%s).",
-			TC_AMBIGUOUS_CTOR_001, e.Where, e.Name, strings.Join(parts, " and "), e.Scrutinee, first, e.Name)
+			"  Suggestion: match a value of one of those types, or import the constructor you mean by name, e.g. %s.",
+			TC_AMBIGUOUS_CTOR_001, e.Where, e.Name, strings.Join(parts, " and "), e.Scrutinee, example)
+	case e.Expression:
+		// An expression is decided where it is written, by its imports only.
+		return fmt.Sprintf("%s %s: constructor '%s' is ambiguous: it belongs to %s, all imported, and nothing here says which one is meant.\n"+
+			"  Suggestion: import the constructor by name from the module you mean, e.g. %s (or alias one: import %s (%s as Other%s)).",
+			TC_AMBIGUOUS_CTOR_001, e.Where, e.Name, strings.Join(parts, " and "), example, e.Candidates[len(e.Candidates)-1].Module, e.Name, e.Name)
 	}
-	return fmt.Sprintf("%s %s: constructor '%s' is ambiguous: it belongs to %s, all imported, and nothing here says which one is meant.\n"+
-		"  Suggestion: import the constructor by name from the module you mean, e.g. import %s (%s), or annotate the value matched.",
-		TC_AMBIGUOUS_CTOR_001, e.Where, e.Name, strings.Join(parts, " and "), first, e.Name)
+	return fmt.Sprintf("%s %s: constructor '%s' is ambiguous: it belongs to %s, all imported, and nothing in this declaration says which one the value matched is.\n"+
+		"  Suggestion: import the constructor by name from the module you mean, e.g. %s, or annotate the value matched.",
+		TC_AMBIGUOUS_CTOR_001, e.Where, e.Name, strings.Join(parts, " and "), example)
 }
 
 // SetAmbiguousConstructors installs the auto-imported constructor names that
@@ -75,8 +112,9 @@ type ctorChoice struct {
 	pattern  *core.ConstructorPattern
 	scrut    Type
 	args     []Type
-	cands    []CtorCandidate
-	schemes  []*Scheme // factory scheme of each candidate (nil if unavailable)
+	cands    []CtorCandidate // the candidates the pattern's arity allows
+	all      []CtorCandidate // every candidate (for arity diagnostics)
+	schemes  []*Scheme       // factory scheme of each candidate (nil if unavailable)
 	path     []string
 	resolved bool
 }
@@ -84,6 +122,17 @@ type ctorChoice struct {
 func (c *ctorChoice) constraint() {}
 func (c *ctorChoice) String() string {
 	return fmt.Sprintf("choose %s for %s", c.pattern.Name, c.scrut)
+}
+
+// patternWhere renders a constructor pattern's position for a diagnostic.
+func patternWhere(p *core.ConstructorPattern) string {
+	if p.Pos == (ast.Pos{}) {
+		return "in a pattern"
+	}
+	if p.Pos.File == "" {
+		return fmt.Sprintf("at %d:%d", p.Pos.Line, p.Pos.Column)
+	}
+	return fmt.Sprintf("at %s:%d:%d", p.Pos.File, p.Pos.Line, p.Pos.Column)
 }
 
 // checkAmbiguousCtorPattern types a pattern whose constructor two or more
@@ -98,15 +147,28 @@ func (tc *CoreTypeChecker) checkAmbiguousCtorPattern(p *core.ConstructorPattern,
 		}
 	}
 	ObserveAmbiguity(AmbiguityEvent{Kind: "ctor-pattern", Name: p.Name, Candidates: candidateRefs(cands)})
+	// A scrutinee whose type is already known to be a candidate the arity
+	// excluded is an arity error about THAT constructor (round 3, ca2).
+	if head := ctx.choiceHead(scrutType); head != nil {
+		if c, ok := candidateOf(cands, head); ok && c.Arity != len(p.Args) {
+			return nil, nil, arityError(p, c, cands, nil)
+		}
+	}
 	switch len(fit) {
 	case 0:
-		return nil, nil, fmt.Errorf("%s: constructor pattern %s has %d argument(s), but no imported constructor %s takes %d: %s",
-			TC_AMBIGUOUS_CTOR_001, p.Name, len(p.Args), p.Name, len(p.Args), describeCandidates(cands))
+		return nil, nil, &AmbiguousCtorError{Name: p.Name, Candidates: cands, Where: patternWhere(p),
+			Detail: fmt.Sprintf("constructor pattern %s has %d argument(s), but no imported constructor %s takes %d: %s.",
+				p.Name, len(p.Args), p.Name, len(p.Args), describeCandidates(cands))}
 	case 1:
 		p.TypeName, p.TypeModule = fit[0].TypeName, fit[0].Module
+		if len(cands) > len(fit) {
+			// Read by its arity alone: a later conflict with an excluded
+			// candidate's type is explained by this pattern (ca2b).
+			ctx.ctorNotes = append(ctx.ctorNotes, &ctorNote{pattern: p, all: cands, chosen: &fit[0]})
+		}
 		return tc.checkPattern(p, scrutType, ctx)
 	}
-	choice := &ctorChoice{pattern: p, scrut: scrutType, cands: fit,
+	choice := &ctorChoice{pattern: p, scrut: scrutType, cands: fit, all: cands,
 		path: []string{fmt.Sprintf("constructor pattern %s", p.Name)}}
 	for _, c := range fit {
 		choice.schemes = append(choice.schemes, tc.globalTypes[core.ADTFactoryKey(c.Module, c.TypeName, p.Name)])
@@ -133,12 +195,40 @@ func (tc *CoreTypeChecker) checkAmbiguousCtorPattern(p *core.ConstructorPattern,
 	return bindings, typedast.TypedConstructorPattern{Name: p.Name, Args: typedArgs}, nil
 }
 
+// candidateOf returns the candidate whose ADT is head.
+func candidateOf(cands []CtorCandidate, head *TCon) (CtorCandidate, bool) {
+	for _, c := range cands {
+		if c.TypeName == head.Name && c.Module == head.Module {
+			return c, true
+		}
+	}
+	return CtorCandidate{}, false
+}
+
+// arityError is TC_AMBIGUOUS_CTOR_001 for a pattern whose argument count fits
+// some imported constructor of the name, but not the one of the type matched.
+func arityError(p *core.ConstructorPattern, meant CtorCandidate, all []CtorCandidate, cause error) error {
+	return &AmbiguousCtorError{Name: p.Name, Candidates: all, Where: patternWhere(p), Cause: cause, Meant: &meant,
+		Detail: fmt.Sprintf("constructor pattern %s has %d argument(s), but the value matched has type %s, whose %s takes %d. (The imported constructors named %s are %s.)",
+			p.Name, len(p.Args), describeTCon(&TCon{Name: meant.TypeName, Module: meant.Module}), p.Name, meant.Arity,
+			p.Name, describeCandidates(all))}
+}
+
 func candidateRefs(cands []CtorCandidate) []TypeRef {
 	out := make([]TypeRef, len(cands))
 	for i, c := range cands {
 		out[i] = TypeRef{Module: c.Module, Name: c.TypeName}
 	}
 	return out
+}
+
+// candidateList renders candidates as "q/a's T and q/b's U".
+func candidateList(cands []CtorCandidate) string {
+	parts := make([]string, len(cands))
+	for i, c := range cands {
+		parts[i] = fmt.Sprintf("%s's %s", c.Module, c.TypeName)
+	}
+	return strings.Join(parts, " and ")
 }
 
 func describeCandidates(cands []CtorCandidate) string {
@@ -173,8 +263,11 @@ func (ctx *InferenceContext) resolveCtorChoices(sub Substitution) (Substitution,
 				}
 			}
 			if idx < 0 {
+				if c, ok := candidateOf(choice.all, head); ok {
+					return nil, arityError(choice.pattern, c, choice.all, nil)
+				}
 				return nil, &AmbiguousCtorError{Name: choice.pattern.Name, Candidates: choice.cands,
-					Where: "in a pattern", Scrutinee: describeTCon(head)}
+					Where: patternWhere(choice.pattern), Scrutinee: describeTCon(head)}
 			}
 			choice.resolved = true
 			cand := choice.cands[idx]
@@ -200,7 +293,7 @@ func (ctx *InferenceContext) resolveCtorChoices(sub Substitution) (Substitution,
 				var err error
 				sub, err = ctx.unifier.Unify(ApplySubstitution(sub, e.Left), ApplySubstitution(sub, e.Right), sub)
 				if err != nil {
-					return nil, fmt.Errorf("type unification failed at %v: %w", e.Path, err)
+					return nil, ctx.unifyFailure(e, sub, err)
 				}
 			}
 			progress = true
@@ -236,31 +329,44 @@ func (ctx *InferenceContext) choiceHead(t Type) *TCon {
 	return nil
 }
 
-// openCtorChoiceError returns TC_AMBIGUOUS_CTOR_001 for the first (in source
-// order of the patterns' names, for a stable message) choice still open.
-func (ctx *InferenceContext) openCtorChoiceError() error {
-	if !nominalAmbiguityIsError {
-		return nil
-	}
+// openChoices returns the choices still open, sorted by name, then by
+// candidates, then by position, so neither a message nor an observed event
+// depends on the order the checker visited the patterns.
+func (ctx *InferenceContext) openChoices() []*ctorChoice {
 	var open []*ctorChoice
 	for _, c := range ctx.constraints {
 		if choice, ok := c.(*ctorChoice); ok && !choice.resolved {
 			open = append(open, choice)
 		}
 	}
+	sort.SliceStable(open, func(i, j int) bool {
+		a, b := open[i], open[j]
+		if a.pattern.Name != b.pattern.Name {
+			return a.pattern.Name < b.pattern.Name
+		}
+		if da, db := describeCandidates(a.cands), describeCandidates(b.cands); da != db {
+			return da < db
+		}
+		if a.pattern.Pos.Line != b.pattern.Pos.Line {
+			return a.pattern.Pos.Line < b.pattern.Pos.Line
+		}
+		return a.pattern.Pos.Column < b.pattern.Pos.Column
+	})
+	return open
+}
+
+// openCtorChoiceError returns TC_AMBIGUOUS_CTOR_001 for a choice still open
+// at the end of the top-level declaration.
+func (ctx *InferenceContext) openCtorChoiceError() error {
+	if !nominalAmbiguityIsError {
+		return nil
+	}
+	open := ctx.openChoices()
 	if len(open) == 0 {
 		return nil
 	}
-	// Sorted by name, then by candidate list, so neither the message nor the
-	// observed event depends on the order the checker visited the patterns.
-	sort.SliceStable(open, func(i, j int) bool {
-		if open[i].pattern.Name != open[j].pattern.Name {
-			return open[i].pattern.Name < open[j].pattern.Name
-		}
-		return describeCandidates(open[i].cands) < describeCandidates(open[j].cands)
-	})
 	ObserveAmbiguity(AmbiguityEvent{Kind: "ctor-pattern-unresolved", Name: open[0].pattern.Name, Candidates: candidateRefs(open[0].cands)})
-	return NewAmbiguousCtorError(open[0].pattern.Name, open[0].cands, "in a pattern")
+	return &AmbiguousCtorError{Name: open[0].pattern.Name, Candidates: open[0].cands, Where: patternWhere(open[0].pattern)}
 }
 
 // solveDeclConstraints is SolveConstraints at the end of a top-level

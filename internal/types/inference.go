@@ -61,6 +61,10 @@ type InferenceContext struct {
 	// pendingCtorVars: variables an open constructor choice depends on, as of
 	// the last SolveConstraints; withheld from let-generalisation (ambiguous_ctor.go).
 	pendingCtorVars map[string]bool
+	// ctorNotes record where an ambiguous constructor shaped inference (a let
+	// kept monomorphic, a pattern read by its arity), so a later unification
+	// failure can name it as the cause (ambiguous_ctor_cause.go).
+	ctorNotes []*ctorNote
 }
 
 // TypeConstraint represents a constraint to be solved (TypeEq, RowEq,

@@ -43,7 +43,7 @@ func TestMissingBuiltinHomes_EveryShape(t *testing.T) {
 func TestAmbiguousTypeError_Text(t *testing.T) {
 	e := &AmbiguousTypeError{Name: "Leg", Candidates: []TypeRef{{"pkg/x/a-b", "Leg"}, {"pkg/y/9z", "Leg"}}, Transitive: true}
 	msg := e.Error()
-	for _, want := range []string{TC_AMBIGUOUS_TYPE_001, "pkg/x/a-b, pkg/y/9z", "reaches through its imports", "import pkg/x/a-b (Leg)", "Leg as OtherLeg"} {
+	for _, want := range []string{TC_AMBIGUOUS_TYPE_001, "pkg/x/a-b (indirect), pkg/y/9z (indirect)", "does not import, but reaches indirectly", "import pkg/x/a-b (Leg)", "Leg as OtherLeg"} {
 		if !strings.Contains(msg, want) {
 			t.Errorf("missing %q in %s", want, msg)
 		}

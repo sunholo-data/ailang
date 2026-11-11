@@ -47,6 +47,9 @@ func (tc *CoreTypeChecker) literalWithhold(ctx *InferenceContext, binder core.Co
 	vars := literalConstrainedVars(constraints)
 	// M-V1-NOMINAL-TYPE-IDENTITY: a variable an open constructor choice still
 	// depends on stays monomorphic too, so a later use can decide the choice.
+	// Recorded, so a conflict between two uses names the constructor as its
+	// cause (ambiguous_ctor_cause.go).
+	ctx.noteMonomorphicLet(binder)
 	for v := range ctx.pendingCtorVars {
 		if vars == nil {
 			vars = make(map[string]bool)

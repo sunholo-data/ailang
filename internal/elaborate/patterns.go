@@ -107,7 +107,7 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 			// Two imported modules offer it: the typechecker chooses by the
 			// pattern's arity and the scrutinee's type (ambiguous_ctor.go).
 			if anyNullaryCandidate(cands) {
-				return &core.ConstructorPattern{Name: p.Name}, nil
+				return &core.ConstructorPattern{Name: p.Name, Pos: p.Pos}, nil
 			}
 			return nil, fmt.Errorf("constructor %s in pattern expects argument(s) — write %s(...), or use a lowercase name for a variable binding", p.Name, p.Name)
 		}
@@ -195,6 +195,7 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 			Args:       args,
 			TypeName:   typeName,
 			TypeModule: typeModule,
+			Pos:        p.Pos,
 		}, nil
 	case *ast.TuplePattern:
 		// Elaborate tuple element patterns

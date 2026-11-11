@@ -709,13 +709,34 @@ spelling imported it; the file compiles and evaluates once.
 > 3. a built-in, module-less name (`Int`, `String`, `Map`, `List`, `Array`, `Bytes`, `Unit`, …) —
 >    after 1 and 2, so a module may declare or import its own `Map`;
 > 4. the prelude (`Option` → `std/option`, `Result` → `std/result`);
-> 5. the ONE declaration of the name among the types every imported module exports and every
->    module of the import closure declares; two or more distinct ones are
->    **TC_AMBIGUOUS_TYPE_001** naming them all (pulled forward from M3). Direct and transitive
->    are one step: "nearer wins" let an unrelated import change what a name (or an alias such as
->    `Num`) meant (review probes al1/al2);
-> 6. the builtin home table (`Json` → `std/json`, … `DOMEvent` → `$builtin`);
-> 7. otherwise an opaque type of this module (TC_UNBOUND_TYPE_001 remains M3).
+> 5. the ONE type of the name the modules this module imports export (any import form); two or
+>    more distinct ones are **TC_AMBIGUOUS_TYPE_001** naming them all (pulled forward from M3);
+> 6. only when no imported module exports the name: the ONE type of the name declared by a module
+>    this module reaches only **indirectly**, through its imports; two or more are
+>    **TC_AMBIGUOUS_TYPE_001**, each candidate marked "(indirect)";
+> 7. the builtin home table (`Json` → `std/json`, … `DOMEvent` → `$builtin`);
+> 8. otherwise an opaque type of this module (TC_UNBOUND_TYPE_001 remains M3).
+>
+> **Indirect names (review round 3).** Round 2 merged steps 5 and 6 into one ambiguity-checked
+> tier, to stop an unrelated import from re-pointing a name (al1/al2). That made a module's bare
+> `T` — resolved on dev to the `T` its import exports — fail as soon as any module it reaches
+> indirectly declared a `T` (s67, pe_dirclo): a library author adding a type could break a
+> dependent's dependent that never names the library. The tiers are split again. The boundary:
+>
+> - (a) An indirect dependency's type name is in scope only when NO module this module imports
+>   exports that name, and nothing earlier (local, explicit import, built-in, prelude) binds it.
+> - (b) Importing `T` by name (`import M (T)`) always wins, silently, over everything but a local
+>   declaration — over every imported and indirect `T` (`TestNominalIdentity_PermutationInvariant`
+>   "importing T by name always wins").
+> - (c) A bare `T` that an imported module exports can never fail, or change meaning, because an
+>   indirect module declares `T` (s67 case; `TestTypeScope_EachStepBeatsTheNext` "direct beats
+>   closure"). What remains: (i) a name this module reaches ONLY indirectly becomes
+>   TC_AMBIGUOUS_TYPE_001 when a second indirect module declares it — where dev silently took the
+>   first; (ii) adding an import that exports the name re-points a name that was resolved
+>   indirectly (the al2 shape) — as on dev. Both are fixed by importing the type by name. Making
+>   (i) and (ii) impossible means a bare name resolves ONLY through imported modules — a breaking
+>   change for programs that write an indirect-only name; measured over the downstream corpora
+>   (see the PR), it belongs with TC_UNBOUND_TYPE_001 in M3.
 >
 > Constructors follow the same principle: an explicit import decides, then the prelude; a name
 > the constructor auto-import (M-CTOR-AUTO) offers from two or more modules is a **deferred
@@ -729,7 +750,20 @@ spelling imported it; the file compiles and evaluates once.
 > let-generalisation, so a later use can still decide it. The pattern's own arity narrows the
 > candidates before any of this (no candidate's arity or fields are read from "the first" one).
 > A choice still open when the top-level declaration is solved is **TC_AMBIGUOUS_CTOR_001**, as
-> is an ambiguous constructor in an expression. Resolution is monotone (constraints are only
+> is an ambiguous constructor in an expression.
+>
+> **Consequence: monomorphism while undecided (review round 3, mp1/mp2).** A let-bound function
+> that matches an ambiguous constructor is NOT generalised while its choice is open (that is what
+> lets a later use decide it). So `let f = \x. match x { C(_) => 1, _ => 0 }` used at `Box[int]`
+> and at `Box[string]` is rejected, in every import order (dev accepted it only in a lucky order).
+> The failure is reported as **TC_AMBIGUOUS_CTOR_001 at the pattern**, naming the constructor and
+> `f`, with the unification failure as its cause and the fix: import the constructor by name,
+> which makes `f` generic again (mp1ctl). Accepting the program instead would need the choice to be
+> part of `f`'s type scheme (a qualified type resolved per instantiation) — a wider inference
+> change, not made here. The same attribution names the pattern when a pattern read by its arity
+> alone meets the other candidate's type (ca2b), and a pattern whose scrutinee's type is a
+> candidate of another arity is an arity error about that constructor (ca2). Every pattern
+> diagnostic carries the pattern's position. Resolution is monotone (constraints are only
 > added; a head once fixed cannot change), so it does not depend on the order the checker
 > visits the code. `TestNominalIdentity_PermutationInvariant` permutes imports, independent
 > lets, call arguments, match arms, declarations and module names over every multi-candidate

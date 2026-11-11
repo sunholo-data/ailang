@@ -143,6 +143,8 @@ func TestTypeScope_EachStepBeatsTheNext(t *testing.T) {
 	}{
 		{"T", local, explicit},
 		{"T", explicit, direct},
+		{"T", explicit, closure},
+		{"T", direct, closure},    // an indirect module never re-points a name an import exports
 		{"Map", explicit, direct}, // explicit beats a built-in name too
 		{"Option", local, direct},
 	}
@@ -164,14 +166,14 @@ func TestTypeScope_EachStepBeatsTheNext(t *testing.T) {
 			t.Errorf("%s: a built-in/prelude name must beat the auto-import channels, got %+v %v", n, got, err)
 		}
 	}
-	// Direct and closure are ONE step: a candidate in each is ambiguous.
+	// Two indirect declarations with no imported one: ambiguous, each named as indirect.
 	s0 := NewTypeScope("m")
-	direct.bind(s0, "T")
-	closure.bind(s0, "T")
-	if _, err := s0.Lookup("T"); err == nil {
-		t.Error("a direct dependency's T and a closure module's T must be ambiguous, not decided by which is nearer")
+	s0.AddClosure(TypeRef{"q/x", "T"})
+	s0.AddClosure(TypeRef{"q/y", "T"})
+	if _, err := s0.Lookup("T"); err == nil || !strings.Contains(err.Error(), "q/x (indirect), q/y (indirect)") {
+		t.Errorf("two indirect T's must be ambiguous and named as indirect, got %v", err)
 	}
-	// The auto-import step beats the builtin home table; the table beats "this module".
+	// The auto-import steps beat the builtin home table; the table beats "this module".
 	s := NewTypeScope("m")
 	closure.bind(s, "Json")
 	if got, _ := s.Lookup("Json"); got != (TypeRef{"q/clo", "Json"}) {

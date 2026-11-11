@@ -148,11 +148,14 @@ no longer captures an imported `T`, an imported alias body keeps the types it na
 module may declare its own `Map`, `List`, `Json`, … (its own wins over the built-in).
 Using the two types disjointly (`Ma.desc(Ma.mk())`, `Mb.desc(Mb.mk())`) is fine.
 A bare name never depends on import order: two explicit imports of one type or constructor
-name are `MOD015`; a type name that two modules the program imports or reaches both declare is
-`TC_AMBIGUOUS_TYPE_001` unless it is declared locally, imported by name, a built-in or a prelude
-name; a constructor two imported modules offer is resolved in a pattern by the scrutinee's type
-(once inference has decided it, whatever the order of the code), and is `TC_AMBIGUOUS_CTOR_001`
-where nothing decides it and in an expression. A built-in name (`Map`, `List`, `Bytes`, …)
+name are `MOD015`; a type name two imported modules export is `TC_AMBIGUOUS_TYPE_001` unless it
+is declared locally, imported by name, a built-in or a prelude name; a name no imported module
+exports may be resolved through a module reached indirectly (one candidate), and is ambiguous
+when two such modules declare it; a constructor two imported modules offer is resolved in a
+pattern by the scrutinee's type (once inference has decided it, whatever the order of the code),
+and is `TC_AMBIGUOUS_CTOR_001` where nothing decides it and in an expression. While undecided, a
+let-bound function matching it is not generic: using it at two types is `TC_AMBIGUOUS_CTOR_001`
+(import the constructor by name). A built-in name (`Map`, `List`, `Bytes`, …)
 means the built-in unless the module declares or imports its own: a module that writes `Map`
 meaning a dependency's `Map` must import it by name (`import dep (Map)`); the `TC_NOMINAL_001`
 diagnostic says so. The implicit prelude (`Option`, `Result`, `Some`, `None`, `Ok`, `Err`) is
@@ -179,5 +182,9 @@ Still open:
   (for field access), so one such type can reach another through a record-typed value, and a
   bare record is accepted where it is expected — a soundness hole (#2239, with #2233 and
   #2234; pre-existing).
+- A bare type name resolved only through an indirect dependency can become ambiguous when another
+  indirect dependency adds the name, and an added import that exports the name re-points it (as
+  on dev); import the type by name to pin it. A constructor pattern's argument count is not
+  checked against the constructor (#2243, pre-existing).
 - An uppercase name in a type-parameter list (`func id[T](x: T)`) is not a type variable: `T`
   is a type constructor (#2240). Inline function-literal annotations are not enforced (#2238).

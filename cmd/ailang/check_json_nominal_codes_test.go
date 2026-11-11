@@ -51,4 +51,10 @@ func TestCheckJSON_NominalIdentityCodesAppearAsThemselves(t *testing.T) {
 			t.Errorf("new code %s has no --json case", code)
 		}
 	}
+	// Review round 3: an error whose cause carries another code is coded by
+	// its own (first) code.
+	nested := "type error in q/main (decl 0): " + types.TC_AMBIGUOUS_CTOR_001 + " at q/main.ail:4:5: …\n  Caused: … " + types.TC_NOMINAL_001 + ": cannot unify T …"
+	if got := jsonErrorCode(nested); got != types.TC_AMBIGUOUS_CTOR_001 {
+		t.Errorf("nested codes: got %q, want the error's own %s", got, types.TC_AMBIGUOUS_CTOR_001)
+	}
 }

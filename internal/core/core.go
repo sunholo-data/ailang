@@ -373,6 +373,9 @@ type ConstructorPattern struct {
 	// TypeModule is the defining module of TypeName (M-V1-NOMINAL-TYPE-IDENTITY):
 	// the pattern's ADT is the nominal type (TypeModule, TypeName).
 	TypeModule string
+	// Pos is the pattern's source position, for diagnostics only (the
+	// typechecker's TC_AMBIGUOUS_CTOR_001 points at the pattern).
+	Pos ast.Pos
 }
 
 func (c *ConstructorPattern) patternNode() {}

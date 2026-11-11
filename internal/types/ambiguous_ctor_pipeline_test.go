@@ -57,12 +57,16 @@ func TestAmbiguousCtorChoice_Pipeline(t *testing.T) {
 			"pure func g(x: UA) -> int = match x { C(n) => n + 1, _ => 0 }\nexport pure func run() -> int = g(mkb())\n", ""},
 		{"a use in ANOTHER top-level declaration does not decide it",
 			"pure func g(x) = match x { C(n) => n, _ => 0 }\nexport pure func run() -> int = g(mka())\n", "is ambiguous"},
+		{"the pattern's arity does not fit the type matched",
+			"export pure func run() -> int = match mka() { C(a, b) => a, _ => 0 }\n", "has type T (defined in m/a), whose C takes 1"},
 		{"the pattern's arity matches no candidate",
-			"export pure func run() -> int = match mka() { C(a, b) => a, _ => 0 }\n", "no imported constructor C takes 2"},
+			"export pure func run() -> int {\n  let f = \\t. match t { C(a, b) => a, _ => 0 };\n  0\n}\n", "no imported constructor C takes 2"},
 		{"the scrutinee's type is none of the candidates",
 			"export pure func run() -> int = match \"s\" { C(n) => n, _ => 0 }\n", "the value matched has type"},
-		{"nothing in the declaration decides it",
-			"export pure func run() -> int {\n  let f = \\t. match t { C(n) => n, _ => 0 };\n  0\n}\n", "is ambiguous"},
+		{"nothing in the declaration decides it (reported at the pattern)",
+			"export pure func run() -> int {\n  let f = \\t. match t { C(n) => n, _ => 0 };\n  0\n}\n", "at m/main.ail:5:"},
+		{"a constructor expression has no annotation hint",
+			"export pure func run() -> int { let v: UA = C(5); 0 }\n", "import m/a (C)"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			err := checkModules(t, withMain(c.body))
@@ -73,6 +77,8 @@ func TestAmbiguousCtorChoice_Pipeline(t *testing.T) {
 				t.Fatalf("must be %s (%s)", types.TC_AMBIGUOUS_CTOR_001, c.want)
 			case c.want != "" && (!strings.Contains(err.Error(), types.TC_AMBIGUOUS_CTOR_001) || !strings.Contains(err.Error(), c.want)):
 				t.Fatalf("want %s with %q, got %v", types.TC_AMBIGUOUS_CTOR_001, c.want, err)
+			case strings.Contains(c.name, "expression") && strings.Contains(err.Error(), "annotate"):
+				t.Fatalf("an expression is decided by its imports; an annotation does not help: %v", err)
 			}
 		})
 	}
@@ -91,5 +97,40 @@ func TestAmbiguousCtorChoice_InstrumentSeesTheResolution(t *testing.T) {
 		if !strings.Contains(got, want) {
 			t.Errorf("instrument missed %s: %s", want, got)
 		}
+	}
+}
+
+// Review round 3 (mp1, mp2, c_poly, ca2b): a unification failure an ambiguous
+// constructor is behind is reported as TC_AMBIGUOUS_CTOR_001 at the pattern,
+// naming the cause, with the failure kept.
+func TestAmbiguousCtorChoice_FailureNamesItsCause(t *testing.T) {
+	boxA := "module m/a\nexport type Box[a] = C(a) | D\nexport pure func boxi() -> Box[int] = C(1)\nexport pure func boxs() -> Box[string] = C(\"s\")\n"
+	boxB := "module m/b\nexport type Bx[a] = C(a) | E\nexport pure func bxi() -> Bx[int] = C(2)\n"
+	two := "module m/b\nexport type U = C(int, int) | E\nexport pure func mkb() -> U = C(40, 2)\n"
+	for _, c := range []struct {
+		name  string
+		files map[string]string
+		want  []string
+	}{
+		{"mp1: a monomorphic lambda used at Box[int] and Box[string]", map[string]string{"m/a.ail": boxA, "m/b.ail": boxB,
+			"m/main.ail": "module m/main\nimport m/a (boxi, boxs)\nimport m/b (bxi)\nexport pure func run() -> int { let f = \\x. match x { C(_) => 1, _ => 0 }; f(boxi()) + f(boxs()) }\n"},
+			[]string{"at m/main.ail:4:", "`f` matches it", "cannot be generic", "Caused:", "int vs string", "import m/a (C)"}},
+		{"c_poly: a lambda used at both candidates' types", withMain("export pure func run() -> int { let f = \\x. match x { C(n) => n, _ => 0 }; f(mka()) + f(mkb()) }\n"),
+			[]string{"at m/main.ail:", "`f` matches it", "Caused:"}},
+		{"ca2b: a pattern read by its arity, used at the other type", map[string]string{"m/a.ail": ctorA, "m/b.ail": two,
+			"m/main.ail": "module m/main\nimport m/a (mka)\nimport m/b (mkb)\nexport pure func run() -> int { let f = \\x. match x { C(n) => n, _ => 0 }; f(mkb()) }\n"},
+			[]string{"at m/main.ail:4:", "has 1 argument(s)", "whose C takes 2", "Caused:", "C(_, _)"}},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			err := checkModules(t, c.files)
+			if err == nil {
+				t.Fatal("must be rejected")
+			}
+			for _, w := range append([]string{types.TC_AMBIGUOUS_CTOR_001}, c.want...) {
+				if !strings.Contains(err.Error(), w) {
+					t.Errorf("missing %q in %v", w, err)
+				}
+			}
+		})
 	}
 }
