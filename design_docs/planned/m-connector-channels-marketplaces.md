@@ -52,8 +52,8 @@ Status today (2026-11-10). ✅ = observed working live. 🔧 = we have to build 
 |---|---|---|---|---|---|
 | C1 | **claude.ai** (web, desktop, mobile) | Settings → Connectors → custom connector, or the directory | CIMD | ✅ (directory-ready since v0.52.3) | 👤 untested; should work (same stack) |
 | C2 | **Claude Code** | `claude mcp add --transport http …` | CIMD | ✅ (this repo's sessions use the prod URL) | ✅ dev and **prod** (`ailang-executor` → `executor.ailang.sunholo.com`, signed in 2026-11-10: `whoami` + `ailang_run` OK) |
-| C3 | **ChatGPT** (developer mode, then directory) | Developer mode connector | CIMD + `iss` | 👤 no live sign-in recorded | 👤 same |
-| C4 | **Codex** | OpenAI requires cases to pass "on the supported ChatGPT and Codex surfaces" | as ChatGPT | 👤 | 👤 |
+| C3 | **ChatGPT** (chatgpt.com plugins, then directory) | Plugins → Add custom MCP server (OAuth, CIMD) | CIMD + `iss` | 👤 not yet tried | ✅ 2026-11-11: `chatgpt.com/oauth/client.json` signed in, `openai-mcp/1.0.0` tool calls `executor_auth ok` |
+| C4 | **Codex / ChatGPT desktop Work** | Desktop Settings → Plugins → MCPs → Add MCP server | CIMD (`chatgpt.com/oauth/codex/client.json`) | 👤 | ⚠️ 2026-11-11: sign-in OK (token issued to `codex-mcp-client/0.167`), but the Work runner (`codex-mcp-client/0.0.0`, same machine) sends no token → 401. Client-side |
 | C5 | **Microsoft 365 Copilot** (declarative agent + MCP plugin) | Agents Toolkit ≥ 6.12.0, sideload; then Marketplace | static client or DCR | 🔧 client model off | 🔧 client model off |
 | C6 | **Copilot Studio** (agent tool) | MCP onboarding wizard | DCR (discovery) or manual client | 🔧 | 🔧 |
 | C7 | **GitHub Copilot / VS Code** | `MCP: Add Server`, or from the MCP Registry | remote MCP + OAuth | 👤 untested | 👤 untested; not in the Registry |
