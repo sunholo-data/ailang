@@ -26,6 +26,11 @@ importing an old name is `IMP010` naming the replacement.
 | `std/list` | `member(x, xs)` | `contains(xs, x)` | **the arguments swap** |
 | `std/array` | `unsafeGet` | `get` | identical behaviour; import `get as arrayGet` if it collides with `json.get` |
 
+**Order:** none of the 14 new names exists in v0.59.0 or v0.60.0, so downstream code moves to them
+only after its pin is on a release containing this change (`member` → `contains` and `unsafeGet` →
+`get` use names that already exist and can change any time). Release → downstream migrates →
+aliases removed (roadmap step 16).
+
 **Migrate:** `sed -E -i.bak -f tools/migrate-stdlib-renames.sed <files>` rewrites the twelve unique
 names; edit `glob`, `slice`, `member` and `unsafeGet` by hand; then `ailang check` until no
 `TC_DEPRECATED_001` is left. Every use in this repository (std/, examples/, tests, docs, the teaching
@@ -56,6 +61,15 @@ test. Compile-cache key v10 → v12 (v11 belongs to #2228): the cache's `iface.j
 `ailang check --package` now reports the pipeline's coded warnings too (`TC_DEPRECATED_001`,
 `TC_MATCH_005`, ...) — on stderr and as a `warnings` array in `--json`, once each even when several
 files import the module — where it used to drop them all; `errors` and the exit code are unchanged.
+
+The warning also covers uses that `check` never elaborates — named `test` blocks, `property`
+blocks, inline `tests` rows and `properties [forall …]` — resolved from the parsed source
+(imports and binders in scope), and `ailang test` prints the file's warnings on stderr.
+`@deprecated("x")` must name an export of the same module or an imported `"mod/path.name"`:
+otherwise `TC_DEPRECATED_002` at the definition, with a did-you-mean. `@experimental(...)` is
+`PAR_EXPERIMENTAL_ARG` ("takes no arguments"). `make check-llms-txt` (CI and `ci-quick`) now fails
+when the committed `llms.txt` copies do not embed the active teaching prompt; they had sat at
+v0.16.12 and are regenerated here.
 
 Also: `L.nthOrx` through a module alias is now `IMP010: symbol 'nthOrx' not exported by 'std/list'`
 with the did-you-mean, instead of `undefined variable: L`; IMP010's suggestion ranks a name equal up to

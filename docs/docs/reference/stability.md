@@ -228,6 +228,22 @@ replacement (`IMP010`).
 
 `sed -E -f tools/migrate-stdlib-renames.sed` rewrites the unique names; edit `glob`, `slice`,
 `member` and `unsafeGet` by hand, then run `ailang check` until no `TC_DEPRECATED_001` is left.
+
+**Migration order.** None of the 14 new names (`headOr` … `sliceLen`) exists in v0.59.0 or
+v0.60.0, so code pinned to those releases cannot use them: a project moves to them only once
+its pin is on the first release that contains them. `member(x, xs)` → `contains(xs, x)` and
+`unsafeGet` → `get` use names that already exist, so those two can change at any time. The
+order is: (1) release the new names, with the old ones warning; (2) downstream projects move
+their pins and migrate until `check` shows no `TC_DEPRECATED_001`; (3) the aliases are removed
+in the last 0.x release before the v1.0.0 soak (roadmap step 16).
+
+**Where the warning appears.** Every use from another module — in function bodies, contracts,
+named `test` blocks, `property` blocks, inline `tests` rows and module-level `let`s — in
+`ailang check` (stderr, `--json`, `--format agent`, `--package`), `ailang run` (stderr) and
+`ailang test` (stderr). Uses inside an installed dependency package are reported by that
+package's own `check`, not by its importers. The command-line REPL cannot import std modules
+(`:import std/list` is "Unknown module"), so a deprecated std name cannot be reached there;
+modules loaded into the browser REPL's registry do not warn.
 Package authors may use `@deprecated` and `@experimental` too; the annotation syntax itself is
 Experimental in 1.0.
 
