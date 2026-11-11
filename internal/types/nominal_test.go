@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // M-V1-NOMINAL-TYPE-IDENTITY: identity is (Module, Name); "" is not a wildcard.
@@ -219,5 +221,25 @@ func TestNominalKey_RoundTrip(t *testing.T) {
 	}
 	if NominalKey("", "int") != "int" {
 		t.Fatal("module-less key must be the bare name")
+	}
+}
+
+func TestNominalIdentityHelpers(t *testing.T) {
+	codes := strings.Join(NominalIdentityCodes(), ",")
+	for _, c := range []string{TC_NOMINAL_001, TC_AMBIGUOUS_TYPE_001, TC_AMBIGUOUS_CTOR_001} {
+		if !strings.Contains(codes, c) {
+			t.Errorf("NominalIdentityCodes misses %s: %s", c, codes)
+		}
+	}
+	if m, ok := BuiltinHome("Json"); !ok || m != "std/json" {
+		t.Errorf("BuiltinHome(Json) = %q, %v", m, ok)
+	}
+	if _, ok := BuiltinHome("NoSuchType"); ok {
+		t.Error("BuiltinHome must not invent a home")
+	}
+	choice := &ctorChoice{pattern: &core.ConstructorPattern{Name: "C"}, scrut: &TVar2{Name: "a"}}
+	choice.constraint()
+	if s := choice.String(); !strings.Contains(s, "choose C for") {
+		t.Errorf("ctorChoice.String() = %q", s)
 	}
 }

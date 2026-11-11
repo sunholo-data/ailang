@@ -223,7 +223,7 @@ var nominalAmbiguityIsError = true
 
 // AmbiguityEvent is one resolution that had more than one candidate.
 type AmbiguityEvent struct {
-	Kind       string // "type-direct", "type-closure", "ctor-pattern", "ctor-expr", "explicit-dup"
+	Kind       string // "type-direct", "type-closure", "ctor-pattern", "ctor-pattern-resolved", "ctor-pattern-unresolved", "ctor-expr", "explicit-dup"
 	Module     string // the module being compiled
 	Name       string
 	Candidates []TypeRef

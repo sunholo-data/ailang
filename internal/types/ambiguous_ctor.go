@@ -251,8 +251,15 @@ func (ctx *InferenceContext) openCtorChoiceError() error {
 	if len(open) == 0 {
 		return nil
 	}
+	// Sorted by name, then by candidate list, so neither the message nor the
+	// observed event depends on the order the checker visited the patterns.
+	sort.SliceStable(open, func(i, j int) bool {
+		if open[i].pattern.Name != open[j].pattern.Name {
+			return open[i].pattern.Name < open[j].pattern.Name
+		}
+		return describeCandidates(open[i].cands) < describeCandidates(open[j].cands)
+	})
 	ObserveAmbiguity(AmbiguityEvent{Kind: "ctor-pattern-unresolved", Name: open[0].pattern.Name, Candidates: candidateRefs(open[0].cands)})
-	sort.SliceStable(open, func(i, j int) bool { return open[i].pattern.Name < open[j].pattern.Name })
 	return NewAmbiguousCtorError(open[0].pattern.Name, open[0].cands, "in a pattern")
 }
 
