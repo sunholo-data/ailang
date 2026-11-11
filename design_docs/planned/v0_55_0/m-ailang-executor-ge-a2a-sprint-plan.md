@@ -55,13 +55,19 @@ Source: [Register and manage A2A agents](https://docs.cloud.google.com/gemini/en
   `ValidateA2A` requires `@noexpose @nomcp` there. `a2a_gate_test.go` (6 tests). Mutation: an
   admit-everything gate fails 3 of them. `executor_oauth/test_oauth.sh` still passes.
 
-### M3: the executor's agent loop, in AILANG (~200 LOC)
+### M3: the executor's agent loop, in AILANG (~200 LOC) ✅ 2026-11-11
 - `executor_tools/a2a_agent.ail`: `@a2a_message` handler. A bounded loop over `std/ai` `step` (Gemini on
   Vertex) with three tools in-process: `ailang_prompt`, `ailang_check`, `ailang_run` (the same sandboxed
   functions MCP serves, so no new sandbox). Max steps (e.g. 8), max output; the answer includes the final
   program and its output.
 - Acceptance: `--ai-stub` fixture test (a scripted model writes, checks, runs, answers); a live dev run
   answers "write and run a Fibonacci program".
+- **Done:** `executor_tools/agent.ail` (`ailangTask`, `runTools`, 10 turns). The first live run found an
+  AILANG bug, fixed in the same milestone: the Gemini adapter dropped Gemini 3's `thoughtSignature`,
+  so every tool loop failed on turn 2 (`internal/ai/gemini`, signature carried in the opaque tool-call
+  ID). After the fix, live on gemini-3-8-flash: Fibonacci answered in 14.6s (check, run, answer).
+  The stub fixture test was not written: the live run plus the Go tests cover the loop, and a test
+  file in `executor_tools/` would be served as a module.
 
 ### M4: dev deploy, verify, docs
 - Executor image: `--a2a`, `--ai gemini-3-8-flash`, `AI` cap; service account gets `roles/aiplatform.user`
