@@ -89,6 +89,8 @@ MAX_SECONDS="${MISSION_PI_MAX_SECONDS:-1800}"
 STALL_SECONDS="${MISSION_PI_STALL_SECONDS:-600}"
 POLL_SECONDS="${MISSION_PI_POLL_SECONDS:-10}"
 SNAP_EVERY="${MISSION_PI_SNAP_EVERY:-50}"
+# Empty = not given: it then inherits the EFFECTIVE --stall-seconds (resolved after parsing).
+TOOL_STALL_SECONDS="${MISSION_PI_TOOL_STALL_SECONDS:-}"
 
 usage() {
   cat >&2 <<'EOF'
@@ -102,6 +104,9 @@ usage: mission_pi_run.sh --model M --directive FILE --workdir DIR --out NDJSON
   --verdict       path for the verdict JSON (default: <out>.verdict.json)
   --max-seconds   wall-clock cap        (default 1800, env MISSION_PI_MAX_SECONDS)
   --stall-seconds no-progress cap       (default 600,  env MISSION_PI_STALL_SECONDS)
+  --tool-stall-seconds no-progress cap while a tool call is OPEN (default = --stall-seconds, env MISSION_PI_TOOL_STALL_SECONDS)
+                  use it for a named long command; raising --stall-seconds also blinds the
+                  reasoning_stall/stream_dead detection.
 
 Deliberately generous stall default: a legitimate thinking turn on a hard sprint
 runs for minutes. This bound exists to catch a turn that never ENDS, not one that
@@ -118,7 +123,8 @@ while [ $# -gt 0 ]; do
     --verdict)       VERDICT="$2"; shift 2 ;;
     --max-seconds)   MAX_SECONDS="$2"; shift 2 ;;
     --stall-seconds) STALL_SECONDS="$2"; shift 2 ;;
-    -h|--help)       usage; exit 0 ;;
+    --tool-stall-seconds) TOOL_STALL_SECONDS="$2"; shift 2 ;;
+    -h|--help)     usage; exit 0 ;;
     *) echo "mission_pi_run.sh: unknown argument '$1'" >&2; usage; exit 14 ;;
   esac
 done
@@ -140,6 +146,16 @@ preflight_fail() { # rc verdict error
   echo "pi lane verdict: $2 (rc=$1): $3" >&2
   exit "$1"
 }
+# Validated only when GIVEN (flag or env). Unset, it inherits the effective STALL_SECONDS exactly,
+# so no existing caller's bound or verdict changes. `0*` also refuses leading zeros ($(( )) reads octal).
+if [ -n "$TOOL_STALL_SECONDS" ]; then
+  case "$TOOL_STALL_SECONDS" in *[!0-9]*|0*) preflight_fail 14 launch_failed "--tool-stall-seconds must be a positive integer: '$TOOL_STALL_SECONDS'" ;; esac
+else
+  TOOL_STALL_SECONDS="$STALL_SECONDS"
+fi
+# The poll must observe the SMALLER of the two bounds in time (see the clamp below).
+MIN_BOUND="$STALL_SECONDS"
+[ "$TOOL_STALL_SECONDS" -lt "$MIN_BOUND" ] && MIN_BOUND="$TOOL_STALL_SECONDS"
 [ -f "$DIRECTIVE" ] || preflight_fail 14 launch_failed "directive file not found: $DIRECTIVE"
 [ -d "$WORKDIR" ] || preflight_fail 14 launch_failed "workdir not found: $WORKDIR"
 WORKDIR=$(cd "$WORKDIR" && pwd -P)
@@ -231,6 +247,14 @@ mtime_of() {
   stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null || echo 0
 }
 now() { date +%s; }
+# "A tool is open": pi wrote more tool_execution_start than _end. ONE implementation, used by the
+# loop (which bound applies) and the post-loop relabel (tool_hang vs stream_dead).
+tool_open() {
+  local s e
+  s=$(grep -c '"type":"tool_execution_start"' "$OUT" 2>/dev/null)
+  e=$(grep -c '"type":"tool_execution_end"' "$OUT" 2>/dev/null)
+  [ "${s:-0}" -gt "${e:-0}" ]
+}
 
 # Content fingerprint of the worktree relative to its CURRENT HEAD: what porcelain lists,
 # the bytes of every tracked change, and the bytes of every untracked file. rc!=0 = no git.
@@ -322,11 +346,12 @@ PROGRESS_AT=$START
 # (and much noisier) question — it misses any snapshot cadence slower than the poll.
 SNAP_AT_PROGRESS=$(mtime_of "$SNAP")
 OUTCOME=""
+STALL_BOUND_APPLIED=0
 
-# Never poll slower than a third of the stall window, or the first observation can
+# Never poll slower than a third of the SMALLER stall window, or the first observation can
 # land past the bound and report a stall that never happened.
-if [ "$POLL_SECONDS" -gt $((STALL_SECONDS / 3)) ] && [ $((STALL_SECONDS / 3)) -gt 0 ]; then
-  POLL_SECONDS=$((STALL_SECONDS / 3))
+if [ "$POLL_SECONDS" -gt $((MIN_BOUND / 3)) ] && [ $((MIN_BOUND / 3)) -gt 0 ]; then
+  POLL_SECONDS=$((MIN_BOUND / 3))
 fi
 
 while :; do
@@ -352,13 +377,21 @@ while :; do
     SNAP_AT_PROGRESS="$SNAP_M"
   fi
 
-  if [ $((T - PROGRESS_AT)) -ge "$STALL_SECONDS" ]; then
-    if [ "$SNAP_M" != "$SNAP_AT_PROGRESS" ]; then
-      OUTCOME="reasoning_stall"   # thinking hard, emitting nothing usable
-    else
-      OUTCOME="stream_dead"       # nothing at all is arriving
+  # Only look for an open tool once idle time could reach the smaller bound, so the grep does not
+  # run on every poll. An open tool gets --tool-stall-seconds; silent model output gets the stall bound.
+  IDLE=$((T - PROGRESS_AT))
+  if [ "$IDLE" -ge "$MIN_BOUND" ]; then
+    BOUND="$STALL_SECONDS"
+    if tool_open; then BOUND="$TOOL_STALL_SECONDS"; fi
+    if [ "$IDLE" -ge "$BOUND" ]; then
+      STALL_BOUND_APPLIED="$BOUND"
+      if [ "$SNAP_M" != "$SNAP_AT_PROGRESS" ]; then
+        OUTCOME="reasoning_stall"   # thinking hard, emitting nothing usable
+      else
+        OUTCOME="stream_dead"       # nothing at all is arriving
+      fi
+      break
     fi
-    break
   fi
 
   if [ $((T - START)) -ge "$MAX_SECONDS" ]; then
@@ -410,8 +443,7 @@ OUT_BYTES=$(wc -c < "$OUT" 2>/dev/null | tr -d ' ')
 # was read off those verdicts; the lane never got to answer.
 HUNG_TOOL=""
 if [ "$OUTCOME" = "stream_dead" ]; then
-  _starts=$(grep -c '"type":"tool_execution_start"' "$OUT" 2>/dev/null | tr -d ' ')
-  if [ "${_starts:-0}" -gt "${TOOL_CALLS:-0}" ]; then
+  if tool_open; then
     HUNG_TOOL=$(grep '"type":"tool_execution_start"' "$OUT" | tail -1 | \
       jq -r '(.toolName // "tool") + ": " + ((.args.command // .args.path // "") | tostring | .[0:200])' 2>/dev/null)
     [ -n "$HUNG_TOOL" ] || HUNG_TOOL="(unparsed tool call)"
@@ -470,6 +502,9 @@ cat > "$VERDICT" <<EOF
   "head_after": "$HEAD_AFTER",
   "commits_since_start": $COMMITS,
   "tool_executions": ${TOOL_CALLS:-0},
+  "stall_seconds": $STALL_SECONDS,
+  "tool_stall_seconds": $TOOL_STALL_SECONDS,
+  "stall_bound_seconds": ${STALL_BOUND_APPLIED:-0},
   "hung_tool": $HUNG_TOOL_JSON,
   "provider_errors": ${PROVIDER_ERRORS:-0},
   "provider_error": $PROVIDER_ERROR_JSON,
@@ -483,7 +518,7 @@ EOF
 rm -rf "$STAGE"
 
 echo "pi lane verdict: $VERDICT_NAME (rc=$RC) after ${ELAPSED}s — ${DIFF_LINES:-0} changed files, ${PREDIRTY_FILES:-0} pre-dirty, changed since start: $WORKTREE_CHANGED, ${TOOL_CALLS:-0} tool executions, $COMMITS commits" >&2
-[ -n "$HUNG_TOOL" ] && echo "pi lane verdict: the MODEL did not stall — pi was waiting on a tool call that never returned: $HUNG_TOOL" >&2
+[ -n "$HUNG_TOOL" ] && echo "pi lane verdict: the MODEL did not stall — pi was waiting on a tool call that never returned (no-progress bound ${STALL_BOUND_APPLIED}s): $HUNG_TOOL" >&2
 [ "$RC" -eq 19 ] && echo "pi lane verdict: the PROVIDER refused on capacity — park the lane, not the model: $PROVIDER_ERROR" >&2
 [ "$RC" -ne 19 ] && [ "$PROVIDER_ERRORS" -gt 0 ] && echo "pi lane verdict: $PROVIDER_ERRORS provider error(s) during the run; last: $PROVIDER_ERROR" >&2
 exit "$RC"
