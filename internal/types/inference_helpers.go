@@ -250,6 +250,13 @@ func (ctx *InferenceContext) SolveConstraints() (Substitution, []ClassConstraint
 		}
 	}
 
+	// Phase 1b (M-V1-NOMINAL-TYPE-IDENTITY): resolve the deferred
+	// constructor choices the equalities now decide (ambiguous_ctor.go).
+	sub, err := ctx.resolveCtorChoices(sub)
+	if err != nil {
+		return nil, nil, err
+	}
+
 	// Phase 2: Apply final substitution to all class constraints
 	unsolvedClass := []ClassConstraint{}
 	for _, c := range ctx.constraints {

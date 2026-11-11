@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+	"unicode"
 )
 
 // M-V1-NOMINAL-TYPE-IDENTITY (M2): a nominal type is its defining module plus
@@ -130,10 +131,23 @@ func BuiltinCon(name string) *TCon {
 }
 
 // MissingBuiltinHomes lists, sorted, the nominal type names in t that carry
-// no defining module: in a builtin signature, a name the home table lacks.
+// no defining module: in a builtin signature, a name the home table lacks. It
+// walks every type form, including both record representations, rows (record
+// and effect) and their budgets' carriers, function effect rows and labels.
 func MissingBuiltinHomes(t Type) []string {
 	set := map[string]bool{}
 	var walk func(Type, int)
+	walkRow := func(r *Row, depth int) {
+		if r == nil {
+			return
+		}
+		for _, l := range r.Labels {
+			walk(l, depth+1)
+		}
+		if r.Tail != nil {
+			walk(r.Tail, depth+1)
+		}
+	}
 	walk = func(t Type, depth int) {
 		if t == nil || depth > 64 {
 			return
@@ -153,6 +167,7 @@ func MissingBuiltinHomes(t Type) []string {
 				walk(p, depth+1)
 			}
 			walk(x.Return, depth+1)
+			walkRow(x.EffectRow, depth)
 		case *TList:
 			walk(x.Element, depth+1)
 		case *TArray:
@@ -168,12 +183,23 @@ func MissingBuiltinHomes(t Type) []string {
 			for _, f := range x.Fields {
 				walk(f, depth+1)
 			}
+			walk(x.Row, depth+1)
 		case *TRecordOpen:
 			for _, f := range x.Fields {
 				walk(f, depth+1)
 			}
+			walk(x.Row, depth+1)
+		case *TRecord2:
+			walkRow(x.Row, depth)
+		case *Row:
+			walkRow(x, depth)
 		case *TLabelled:
 			walk(x.Inner, depth+1)
+		case *TVar, *TVar2, *RowVar:
+			// no constructor inside
+		default:
+			// A type form this walk does not know must not pass silently.
+			set[fmt.Sprintf("<unwalked %T>", t)] = true
 		}
 	}
 	walk(t, 0)
@@ -221,6 +247,9 @@ func nominalMismatchMsg(a, b *TCon) string {
 // describeTCon names a type constructor for a diagnostic: "T (defined in q/a)",
 // or "the built-in Map" for a module-less or $builtin one.
 func describeTCon(t *TCon) string {
+	if t.Module == "" && t.Name != "" && unicode.IsLower(rune(t.Name[0])) {
+		return t.Name // int, string, ...: a primitive needs no qualifier
+	}
 	if t.Module == "" || t.Module == BuiltinModule {
 		return "the built-in " + t.Name
 	}
@@ -273,4 +302,11 @@ func checkNominalPair(a, b *TCon) error {
 	}
 	return fmt.Errorf("internal compiler error (M-V1-NOMINAL-TYPE-IDENTITY): type %s was minted without its defining module "+
 		"on one side of a comparison (other side: %s). Please report this with the program that triggered it", a.Name, displayModule(a.Module+b.Module))
+}
+
+// NominalIdentityCodes lists the diagnostic codes M-V1-NOMINAL-TYPE-IDENTITY
+// introduced that are reported inline in an error message (MOD015 is a
+// structured report). `check --json` reports each as itself.
+func NominalIdentityCodes() []string {
+	return []string{TC_NOMINAL_001, TC_AMBIGUOUS_TYPE_001, TC_AMBIGUOUS_CTOR_001}
 }

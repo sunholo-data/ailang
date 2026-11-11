@@ -355,7 +355,7 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 				return u.Unify(t2Var, t1, sub)
 			}
 		}
-		return nil, fmt.Errorf("cannot unify row with %T", t2)
+		return nil, fmt.Errorf("cannot unify row with %s", t2)
 
 	case *TCon:
 		// Type constructor unification
@@ -399,7 +399,7 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 		if recOpen, ok := t2.(*TRecordOpen); ok && isTaggedUnion(t1, u.constructorTypes) {
 			return nil, makeUnificationTaggedUnionError(t1, recOpen, u.constructorTypes)
 		}
-		return nil, fmt.Errorf("cannot unify type constructor %s with %T", t1.Name, t2)
+		return nil, fmt.Errorf("cannot unify %s with %s", describeTCon(t1), t2)
 
 	case *TFunc2:
 		return u.unifyFunctions(t1, t2, sub)

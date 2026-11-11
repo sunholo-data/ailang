@@ -38,6 +38,7 @@ type ambiguousCtorCandidate struct {
 type importNamespaces struct {
 	explicitTypes map[string]importSite
 	explicitCtors map[string]importSite
+	preludeCtors  map[string]bool // bound by an injected prelude import
 	autoCtors     map[string][]ambiguousCtorCandidate
 	collisions    []error
 }
@@ -46,6 +47,7 @@ func newImportNamespaces() *importNamespaces {
 	return &importNamespaces{
 		explicitTypes: make(map[string]importSite),
 		explicitCtors: make(map[string]importSite),
+		preludeCtors:  make(map[string]bool),
 		autoCtors:     make(map[string][]ambiguousCtorCandidate),
 	}
 }
@@ -100,27 +102,22 @@ func (n *importNamespaces) finishAutoCtors(imports *moduleImports) {
 	sort.Strings(names)
 	for _, name := range names {
 		cands := n.autoCtors[name]
-		if _, explicit := n.explicitCtors[name]; explicit || len(cands) < 2 {
+		if _, explicit := n.explicitCtors[name]; explicit || n.preludeCtors[name] || len(cands) < 2 {
 			continue
 		}
 		sort.Slice(cands, func(i, j int) bool { return cands[i].module < cands[j].module })
-		refs := make([]types.TypeRef, len(cands))
+		list := make([]types.CtorCandidate, len(cands))
 		for i, c := range cands {
-			refs[i] = types.TypeRef{Module: c.module, Name: c.ctor.TypeName}
+			list[i] = types.CtorCandidate{Module: c.module, TypeName: c.ctor.TypeName, Arity: c.ctor.Arity}
 			registerCtorFactoryType(c.module, c.ctor, imports)
 		}
-		imports.AmbiguousCtors[name] = refs
-		first := cands[0]
-		paramCount := 0
-		if tapp, ok := first.ctor.ResultType.(*types.TApp); ok {
-			paramCount = len(tapp.Args)
-		}
-		imports.ImportedCtorInfos[name] = &importedCtorInfo{
-			TypeName: first.ctor.TypeName, Module: first.module, CanonicalName: name,
-			Arity: first.ctor.Arity, TypeParamCount: paramCount,
-		}
-		// No silent pick: the bare name is not a value, and the typechecker's
-		// name-keyed constructor table does not hold one candidate for it.
+		imports.AmbiguousCtors[name] = list
+		// No silent pick: nothing about any one candidate is registered under
+		// the bare name (not its ADT, module or arity), the name is not a
+		// value, and the typechecker's name-keyed constructor table does not
+		// hold one candidate for it. The elaborator learns the name is a
+		// constructor from MarkAmbiguousConstructor.
+		delete(imports.ImportedCtorInfos, name)
 		delete(imports.GlobalRefs, name)
 		delete(imports.ImportedCtorTypes, name)
 		delete(imports.ImportedCtorModules, name)

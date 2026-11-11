@@ -21,29 +21,29 @@ const TC_AMBIGUOUS_TYPE_001 = "TC_AMBIGUOUS_TYPE_001"
 // TypeScope answers "what does this bare type name mean here" for one module
 // (M-V1-NOMINAL-TYPE-IDENTITY §4.3). This is THE precedence order; every type
 // name the elaborator, the interface builder and the REPL/WASM registry loader
-// read goes through Lookup:
+// read goes through Lookup. (Lowercase names never get here: the parser makes
+// them type variables. An uppercase name is always a type constructor, even
+// inside a `[T]` type-parameter list — #2240.)
 //
-//  1. a type parameter in scope — handled before the scope is asked (the
-//     parser makes lowercase names type variables);
-//  2. a type this module declares (BindLocal);
-//  3. a type bound by an explicit selective import, `import M (T)` or
-//     `import M (T as U)` (BindExplicit; two different ones are MOD015 at the
-//     import, so there is at most one);
-//  4. a built-in, module-less name: Int, String, Map, List, Array, Bytes, Unit
+//  1. a type this module declares (BindLocal);
+//  2. a type bound by an explicit selective import the USER wrote,
+//     `import M (T)` or `import M (T as U)` (BindExplicit; two different ones
+//     are MOD015 at the import, so there is at most one). The prelude the
+//     loader injects into an entry module is NOT this step but step 4;
+//  3. a built-in, module-less name: Int, String, Map, List, Array, Bytes, Unit
 //     and the other names of IsModuleless;
-//  5. the prelude: Option -> std/option, Result -> std/result;
-//  6. a type exported by a DIRECT dependency, through any import form
-//     (AddDirect) — one candidate is used, two or more distinct ones are
-//     TC_AMBIGUOUS_TYPE_001;
-//  7. a type declared by a module of the import closure (AddClosure) — same
-//     rule;
-//  8. the builtin home table (Json -> std/json, ... DOMEvent -> $builtin);
-//  9. otherwise this module: an undeclared name stays an opaque type of the
+//  4. the prelude: Option -> std/option, Result -> std/result;
+//  5. the ONE declaration of that name among the types every imported module
+//     exports (AddDirect) and every module of the import closure declares
+//     (AddClosure) — two or more distinct ones are TC_AMBIGUOUS_TYPE_001, so
+//     an unrelated import can never silently change what a name means;
+//  6. the builtin home table (Json -> std/json, ... DOMEvent -> $builtin);
+//  7. otherwise this module: an undeclared name stays an opaque type of the
 //     module that writes it (TC_UNBOUND_TYPE_001 is a later milestone).
 //
-// No step depends on import order, file order or module path: steps 2–3 hold
-// one binding per name, and steps 6–7 either have exactly one candidate or
-// fail naming all of them (sorted).
+// No step depends on import order, file order or module path: steps 1–2 hold
+// one binding per name, and step 5 has exactly one candidate or fails naming
+// all of them (sorted by module).
 type TypeScope struct {
 	Module   string
 	local    map[string]TypeRef
@@ -152,20 +152,26 @@ func (s *TypeScope) Lookup(name string) (TypeRef, error) {
 		return TypeRef{Module: home, Name: name}, nil
 	}
 	if s != nil {
-		for i, tier := range []map[string][]TypeRef{s.direct, s.closure} {
-			switch c := tier[name]; len(c) {
-			case 0:
-				continue
-			case 1:
-				return c[0], nil
-			default:
-				observeAmbiguity(s.Module, name, c, i == 1)
-				err := &AmbiguousTypeError{Name: name, Candidates: c, Transitive: i == 1}
-				if nominalAmbiguityIsError {
-					return c[0], err
-				}
-				return c[0], nil
+		var cands []TypeRef
+		for _, r := range s.direct[name] {
+			cands = addCandidate(cands, r)
+		}
+		transitive := len(cands) == 0
+		for _, r := range s.closure[name] {
+			cands = addCandidate(cands, r)
+		}
+		switch len(cands) {
+		case 0:
+		case 1:
+			return cands[0], nil
+		default:
+			observeAmbiguity(s.Module, name, cands, transitive)
+			// No candidate is picked: the name denotes none of them.
+			ambiguous := TypeRef{Module: AmbiguousModule, Name: name}
+			if nominalAmbiguityIsError {
+				return ambiguous, &AmbiguousTypeError{Name: name, Candidates: cands, Transitive: transitive}
 			}
+			return ambiguous, nil
 		}
 	}
 	if home, ok := builtinHomes[name]; ok {
@@ -176,6 +182,10 @@ func (s *TypeScope) Lookup(name string) (TypeRef, error) {
 	}
 	return TypeRef{Module: s.Module, Name: name}, nil
 }
+
+// AmbiguousModule is the module of a TCon minted for an ambiguous name (only
+// reachable after TC_AMBIGUOUS_TYPE_001 was reported): it equals no real type.
+const AmbiguousModule = "$ambiguous"
 
 // Resolve is Lookup for callers that run after the elaborator has already
 // reported any ambiguity (the interface builder): it never fails.

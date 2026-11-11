@@ -14,7 +14,10 @@ import (
 // prelude, the types of directly imported modules, then the types of every
 // other loaded module (the registry has no import closure; every loaded
 // module is reachable). Two candidates at one step are TC_AMBIGUOUS_TYPE_001.
-func (mr *ModuleRegistry) typeScope(name string, file *ast.File) *types.TypeScope {
+//
+// Two explicit imports binding one bare type name to different modules are
+// MOD015, as in the CLI pipeline (returned as the error).
+func (mr *ModuleRegistry) typeScope(name string, file *ast.File) (*types.TypeScope, error) {
 	s := types.NewTypeScope(name)
 	for _, n := range elaborate.LocalTypeNames(file) {
 		s.BindLocal(n)
@@ -34,6 +37,7 @@ func (mr *ModuleRegistry) typeScope(name string, file *ast.File) *types.TypeScop
 		return false
 	}
 	direct := map[string]bool{}
+	sites := map[string]elaborate.ImportSite{}
 	if file != nil {
 		for _, imp := range file.Imports {
 			direct[imp.Path] = true
@@ -45,6 +49,15 @@ func (mr *ModuleRegistry) typeScope(name string, file *ast.File) *types.TypeScop
 				if alias, ok := imp.SymbolAliases[sym]; ok {
 					bind = alias
 				}
+				site := elaborate.ImportSite{Path: imp.Path, Sym: sym, Pos: imp.Pos}
+				if prev, dup := sites[bind]; dup && (prev.Path != imp.Path || prev.Sym != sym) {
+					first, second := prev, site
+					if second.Path < first.Path {
+						first, second = second, first
+					}
+					return nil, elaborate.ImportImportCollision(file, "type", bind, first, second)
+				}
+				sites[bind] = site
 				s.BindExplicit(bind, types.TypeRef{Module: imp.Path, Name: sym})
 			}
 		}
@@ -62,7 +75,7 @@ func (mr *ModuleRegistry) typeScope(name string, file *ast.File) *types.TypeScop
 			}
 		}
 	}
-	return s
+	return s, nil
 }
 
 // constructorsInScope decides, for each constructor name the registry knows,
@@ -72,7 +85,10 @@ func (mr *ModuleRegistry) typeScope(name string, file *ast.File) *types.TypeScop
 // offer at the deciding step is returned in ambiguous (patterns resolve it by
 // the scrutinee's type; an expression using it is TC_AMBIGUOUS_CTOR_001).
 // Caller holds mr.mu.
-func (mr *ModuleRegistry) constructorsInScope(name string, file *ast.File) (chosen map[string]*CachedConstructor, ambiguous map[string][]types.TypeRef) {
+//
+// Two explicit imports binding one bare constructor name to different modules
+// are MOD015.
+func (mr *ModuleRegistry) constructorsInScope(name string, file *ast.File) (chosen map[string]*CachedConstructor, ambiguous map[string][]types.CtorCandidate, err error) {
 	byName := map[string][]*CachedConstructor{}
 	for _, c := range mr.constructors {
 		if c.Module == name {
@@ -81,6 +97,7 @@ func (mr *ModuleRegistry) constructorsInScope(name string, file *ast.File) (chos
 		byName[c.CtorName] = append(byName[c.CtorName], c)
 	}
 	explicit := map[string]*CachedConstructor{}
+	sites := map[string]elaborate.ImportSite{}
 	direct := map[string]bool{}
 	if file != nil {
 		for _, imp := range file.Imports {
@@ -91,13 +108,22 @@ func (mr *ModuleRegistry) constructorsInScope(name string, file *ast.File) (chos
 					if alias, ok := imp.SymbolAliases[sym]; ok {
 						bind = alias
 					}
+					site := elaborate.ImportSite{Path: imp.Path, Sym: sym, Pos: imp.Pos}
+					if prev, dup := sites[bind]; dup && (prev.Path != imp.Path || prev.Sym != sym) {
+						first, second := prev, site
+						if second.Path < first.Path {
+							first, second = second, first
+						}
+						return nil, nil, elaborate.ImportImportCollision(file, "constructor", bind, first, second)
+					}
+					sites[bind] = site
 					explicit[bind] = c
 				}
 			}
 		}
 	}
 	chosen = map[string]*CachedConstructor{}
-	ambiguous = map[string][]types.TypeRef{}
+	ambiguous = map[string][]types.CtorCandidate{}
 	for bind, c := range explicit {
 		chosen[bind] = c
 	}
@@ -120,14 +146,13 @@ func (mr *ModuleRegistry) constructorsInScope(name string, file *ast.File) (chos
 			continue
 		}
 		sort.Slice(pick, func(i, j int) bool { return pick[i].Module < pick[j].Module })
-		refs := make([]types.TypeRef, len(pick))
+		list := make([]types.CtorCandidate, len(pick))
 		for i, c := range pick {
-			refs[i] = types.TypeRef{Module: c.Module, Name: c.TypeName}
+			list[i] = types.CtorCandidate{Module: c.Module, TypeName: c.TypeName, Arity: c.Arity}
 		}
-		chosen[ctorName] = pick[0] // registered so the name is a constructor; marked ambiguous below
-		ambiguous[ctorName] = refs
+		ambiguous[ctorName] = list // no candidate is "chosen": the typechecker decides
 	}
-	return chosen, ambiguous
+	return chosen, ambiguous, nil
 }
 
 // ctorKey keys the registry's constructor table: one entry per (module,

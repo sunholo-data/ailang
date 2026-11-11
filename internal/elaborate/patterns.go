@@ -103,21 +103,25 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 		}
 		// Check if this identifier is a nullary constructor
 		// Nullary constructors appear as bare identifiers (e.g., "None", "Red")
+		if cands, amb := e.ambiguousCtors[p.Name]; amb {
+			// Two imported modules offer it: the typechecker chooses by the
+			// pattern's arity and the scrutinee's type (ambiguous_ctor.go).
+			if anyNullaryCandidate(cands) {
+				return &core.ConstructorPattern{Name: p.Name}, nil
+			}
+			return nil, fmt.Errorf("constructor %s in pattern expects argument(s) — write %s(...), or use a lowercase name for a variable binding", p.Name, p.Name)
+		}
 		if ctorInfo, ok := e.constructors[p.Name]; ok {
 			if ctorInfo.Arity == 0 {
 				// It's a nullary constructor - create ConstructorPattern with no args.
 				// Emit the CANONICAL name: for an aliased import (`None as Nada`)
 				// p.Name is the alias, and runtime matching compares tags (#1478).
-				pat := &core.ConstructorPattern{
+				return &core.ConstructorPattern{
 					Name:       ctorInfo.CtorName,
 					TypeName:   ctorInfo.TypeName,
 					TypeModule: ctorInfo.Module,
 					Args:       nil, // Empty args for nullary constructor
-				}
-				if _, amb := e.ambiguousCtors[p.Name]; amb {
-					pat.TypeName, pat.TypeModule = "", "" // the typechecker resolves it by the scrutinee
-				}
-				return pat, nil
+				}, nil
 			}
 			// Bare non-nullary constructor (e.g. `Some` without arguments):
 			// previously this silently became a catch-all VarPattern named "Some".
@@ -185,9 +189,6 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 		name, typeName, typeModule := p.Name, "", ""
 		if ctorInfo, ok := e.constructors[p.Name]; ok && ctorInfo.CtorName != "" {
 			name, typeName, typeModule = ctorInfo.CtorName, ctorInfo.TypeName, ctorInfo.Module
-			if _, amb := e.ambiguousCtors[p.Name]; amb {
-				typeName, typeModule = "", "" // the typechecker resolves it by the scrutinee
-			}
 		}
 		return &core.ConstructorPattern{
 			Name:       name,

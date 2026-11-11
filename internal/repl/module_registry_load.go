@@ -54,7 +54,11 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	// M-V1-NOMINAL-TYPE-IDENTITY: this loader resolves type names with the same
 	// rules as the CLI pipeline (registry_type_scope.go); the module's own types
 	// are declared in module `name`.
-	elaborator.SetTypeScope(mr.typeScope(name, program.File))
+	scope, err := mr.typeScope(name, program.File)
+	if err != nil {
+		return nil, err
+	}
+	elaborator.SetTypeScope(scope)
 	// CRITICAL: Add builtins to global environment so stdlib wrappers can reference them
 	// Without this, calls like _string_intToStr are elaborated as Var instead of VarGlobal,
 	// causing "undefined variable" errors when the closure is later executed.
@@ -67,7 +71,11 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	// constructor); constructorsInScope decides what each bare name means here
 	// with the CLI's rule, and marks a name two modules offer as ambiguous.
 	mr.mu.RLock()
-	chosenCtors, ambiguousCtors := mr.constructorsInScope(name, program.File)
+	chosenCtors, ambiguousCtors, err := mr.constructorsInScope(name, program.File)
+	if err != nil {
+		mr.mu.RUnlock()
+		return nil, err
+	}
 	for bind, ctor := range chosenCtors {
 		elaborator.RegisterImportedConstructorAs(bind, ctor.CtorName, ctor.Module, ctor.TypeName, ctor.Arity, ctor.TypeParamCount)
 	}

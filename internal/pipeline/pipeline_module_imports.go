@@ -53,7 +53,7 @@ type moduleImports struct {
 	// AmbiguousCtors: auto-imported constructor names two or more modules
 	// offer (and nothing imports by name) -> the candidate ADTs, sorted by
 	// module (import_ambiguity.go).
-	AmbiguousCtors map[string][]types.TypeRef
+	AmbiguousCtors map[string][]types.CtorCandidate
 	// Collisions: MOD015 errors for two explicit imports binding one bare type
 	// or constructor name to different declarations.
 	Collisions []error
@@ -93,7 +93,7 @@ func resolveModuleImports(
 		ImportedCtorInfos:     make(map[string]*importedCtorInfo),
 		ImportedNewtypes:      make(map[string]bool),
 		ExplicitTypes:         make(map[string]types.TypeRef),
-		AmbiguousCtors:        make(map[string][]types.TypeRef),
+		AmbiguousCtors:        make(map[string][]types.CtorCandidate),
 		ns:                    newImportNamespaces(),
 		AllCtorTypes:          make(map[string]string),
 		ImportedAliasOrigin:   make(map[string]string),
@@ -150,6 +150,8 @@ func resolveModuleImports(
 	defer func() {
 		imports.ns.finishAutoCtors(imports)
 		imports.Collisions = imports.ns.collisions
+		// Report the same one whatever the import order (sorted by text).
+		sort.Slice(imports.Collisions, func(i, j int) bool { return imports.Collisions[i].Error() < imports.Collisions[j].Error() })
 	}()
 
 	for _, imp := range fileImports {
@@ -273,10 +275,15 @@ func resolveSelectiveImports(
 			// is still M's ADT (it used to be an opaque `U` that unified with
 			// nothing). --args-json reads the same key (stapledons_godot,
 			// 2026-10-01).
-			if _, bound := imports.ExplicitTypes[bindName]; !bound {
-				imports.ExplicitTypes[bindName] = types.TypeRef{Module: depIface.Module, Name: sym}
+			// An injected prelude import is the prelude step of the type
+			// scope (types.TypeScope), never an explicit import: a user's own
+			// import or declaration of Option/Result wins over it silently.
+			if !imp.Implicit {
+				if _, bound := imports.ExplicitTypes[bindName]; !bound {
+					imports.ExplicitTypes[bindName] = types.TypeRef{Module: depIface.Module, Name: sym}
+				}
+				imports.ns.bindExplicit(imports.ns.explicitTypes, "type", bindName, importSite{depIface.Module, sym, imp}, file)
 			}
-			imports.ns.bindExplicit(imports.ns.explicitTypes, "type", bindName, importSite{depIface.Module, sym, imp}, file)
 			// M-FIX-RECORD-UPDATE: Also import type alias if present
 			// This enables cross-module record update syntax.
 			if alias, hasAlias := depIface.GetTypeAlias(sym); hasAlias {
@@ -293,8 +300,17 @@ func resolveSelectiveImports(
 			// Bind under the alias when one is given (#1478): the alias used to
 			// be dropped here, so `None as Nada` registered nothing and `Nada`
 			// silently never matched in a pattern.
-			resolveConstructorImport(bindName, depIface.Module, ctor, imports, cfg)
-			imports.ns.bindExplicit(imports.ns.explicitCtors, "constructor", bindName, importSite{depIface.Module, sym, imp}, file)
+			if imp.Implicit {
+				// Prelude constructor (Some, None, Ok, Err): a user's explicit
+				// import of the name replaces it (user imports come after the
+				// prepended prelude and overwrite), and it beats auto-imported
+				// candidates, as on dev.
+				resolveConstructorImport(bindName, depIface.Module, ctor, imports, cfg)
+				imports.ns.preludeCtors[bindName] = true
+			} else {
+				resolveConstructorImport(bindName, depIface.Module, ctor, imports, cfg)
+				imports.ns.bindExplicit(imports.ns.explicitCtors, "constructor", bindName, importSite{depIface.Module, sym, imp}, file)
+			}
 			found = true
 		}
 		// No else needed - if constructor not found, we continue searching

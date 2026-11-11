@@ -141,7 +141,6 @@ func TestTypeScope_EachStepBeatsTheNext(t *testing.T) {
 	}{
 		{"T", local, explicit},
 		{"T", explicit, direct},
-		{"T", direct, closure},
 		{"Map", explicit, direct}, // explicit beats a built-in name too
 		{"Option", local, direct},
 	}
@@ -163,11 +162,18 @@ func TestTypeScope_EachStepBeatsTheNext(t *testing.T) {
 			t.Errorf("%s: a built-in/prelude name must beat the auto-import channels, got %+v %v", n, got, err)
 		}
 	}
-	// Closure (7) beats the builtin home table (8); the table beats "this module" (9).
+	// Direct and closure are ONE step: a candidate in each is ambiguous.
+	s0 := NewTypeScope("m")
+	direct.bind(s0, "T")
+	closure.bind(s0, "T")
+	if _, err := s0.Lookup("T"); err == nil {
+		t.Error("a direct dependency's T and a closure module's T must be ambiguous, not decided by which is nearer")
+	}
+	// The auto-import step beats the builtin home table; the table beats "this module".
 	s := NewTypeScope("m")
 	closure.bind(s, "Json")
 	if got, _ := s.Lookup("Json"); got != (TypeRef{"q/clo", "Json"}) {
-		t.Errorf("closure must beat the builtin home table, got %+v", got)
+		t.Errorf("an imported/reachable declaration must beat the builtin home table, got %+v", got)
 	}
 	if got, _ := NewTypeScope("m").Lookup("Json"); got != (TypeRef{"std/json", "Json"}) {
 		t.Errorf("builtin home must beat this module, got %+v", got)

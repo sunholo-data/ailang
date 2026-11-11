@@ -80,14 +80,14 @@ type CoreTypeChecker struct {
 	// their body effects. M-EFFECT-ROW-SHOW-INTERP (#386).
 	declaredLambdaEffects map[uint64]*Row
 	applicationEffects    map[uint64]ApplicationEffects
-	returnTypeAnnots      map[uint64]Type      // Return type annotations from elaboration (Lambda NodeID → return type)
-	CoreTI                CoreTypeInfo         // Core NodeID → inferred types (principal types for lowering)
-	constructorTypes      map[string]string    // M-DX25.4: Constructor name → ADT type name (e.g., "Up" → "Direction")
-	diagnosticCtorTypes   map[string]string    // M-MATCH-XCHECK-ERROR-QUALITY: transitively-known Constructor → ADT (diagnostics ONLY, never in scope)
-	adtTypeParams         map[string]int       // M-TAPP-FIX: ADT NominalKey → number of type params (e.g., "std/option::Option" → 1)
-	ctorADTModule         map[string]string    // constructor → its ADT's defining module (typechecker_nominal.go)
-	newtypes              map[string]bool      // aliasEnv keys that are newtype ADTs (typechecker_nominal.go)
-	ambiguousCtors        map[string][]TypeRef // constructors two imports offer (ambiguous_ctor.go)
+	returnTypeAnnots      map[uint64]Type            // Return type annotations from elaboration (Lambda NodeID → return type)
+	CoreTI                CoreTypeInfo               // Core NodeID → inferred types (principal types for lowering)
+	constructorTypes      map[string]string          // M-DX25.4: Constructor name → ADT type name (e.g., "Up" → "Direction")
+	diagnosticCtorTypes   map[string]string          // M-MATCH-XCHECK-ERROR-QUALITY: transitively-known Constructor → ADT (diagnostics ONLY, never in scope)
+	adtTypeParams         map[string]int             // M-TAPP-FIX: ADT NominalKey → number of type params (e.g., "std/option::Option" → 1)
+	ctorADTModule         map[string]string          // constructor → its ADT's defining module (typechecker_nominal.go)
+	newtypes              map[string]bool            // aliasEnv keys that are newtype ADTs (typechecker_nominal.go)
+	ambiguousCtors        map[string][]CtorCandidate // constructors two imports offer (ambiguous_ctor.go)
 	// aliasEnv maps type alias names to their underlying types
 	// M-BUGFIX: Used for alias expansion during unification
 	aliasEnv map[string]Type
@@ -494,7 +494,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	}
 
 	// Solve constraints and apply defaulting (proper way)
-	sub, unsolved, err := ctx.SolveConstraints()
+	sub, unsolved, err := ctx.solveDeclConstraints()
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -606,7 +606,7 @@ func (tc *CoreTypeChecker) checkCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 	}
 
 	// Solve type equality constraints first
-	sub, unsolved, err := ctx.SolveConstraints()
+	sub, unsolved, err := ctx.solveDeclConstraints()
 	if err != nil {
 		return nil, env, err
 	}

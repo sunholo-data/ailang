@@ -19,6 +19,12 @@ func TestMissingBuiltinHomes_EveryShape(t *testing.T) {
 		&TRecord{Fields: map[string]Type{"x": bad}},
 		&TRecordOpen{Fields: map[string]Type{"x": bad}},
 		&TLabelled{Inner: bad, L: LabelBottom()},
+		// Review round 2: Builder.Record produces TRecord2, which the first
+		// walk skipped, so an unhomed record field passed registration.
+		NewBuilder().Record(Field("f", bad)),
+		&TRecord2{Row: &Row{Kind: RecordRow, Labels: map[string]Type{"f": bad}}},
+		&TRecord{Fields: map[string]Type{"x": TInt}, Row: &Row{Kind: RecordRow, Labels: map[string]Type{"y": bad}}},
+		&TFunc2{Params: []Type{TInt}, Return: TInt, EffectRow: &Row{Kind: EffectRow, Labels: map[string]Type{"IO": bad}}},
 	}
 	for _, s := range shapes {
 		if got := MissingBuiltinHomes(s); len(got) != 1 || got[0] != "Unhomed" {
@@ -55,8 +61,8 @@ func TestAmbiguityInstrument_ObservesAndCanDowngrade(t *testing.T) {
 	s.AddClosure(TypeRef{"q/b", "T"})
 	s.AddClosure(TypeRef{"q/a", "T"})
 	got, err := s.Lookup("T")
-	if err != nil || got.Module != "q/a" {
-		t.Fatalf("with errors off the first candidate in module order is used: %+v %v", got, err)
+	if err != nil || got.Module != AmbiguousModule {
+		t.Fatalf("with errors off no candidate is picked: %+v %v", got, err)
 	}
 	if AmbiguityIsError() {
 		t.Fatal("instrument should have turned errors off")
@@ -86,7 +92,7 @@ func TestNominalMismatchMsg_BuiltinSide(t *testing.T) {
 }
 
 func TestAmbiguousCtorError_Text(t *testing.T) {
-	e := NewAmbiguousCtorError("C", []TypeRef{{"q/a", "T"}, {"q/b", "T"}}, "at q/m:4:2")
+	e := NewAmbiguousCtorError("C", []CtorCandidate{{"q/a", "T", 1}, {"q/b", "T", 1}}, "at q/m:4:2")
 	msg := e.Error()
 	for _, want := range []string{TC_AMBIGUOUS_CTOR_001, "at q/m:4:2", "q/a's T and q/b's T", "import q/a (C)"} {
 		if !strings.Contains(msg, want) {

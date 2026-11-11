@@ -58,9 +58,13 @@ type InferenceContext struct {
 	// openedLambdaTails are fresh tails given to unannotated closed lambda rows
 	// (#1958 F-B); see typechecker_lambda_open.go.
 	openedLambdaTails map[string]bool
+	// pendingCtorVars: variables an open constructor choice depends on, as of
+	// the last SolveConstraints; withheld from let-generalisation (ambiguous_ctor.go).
+	pendingCtorVars map[string]bool
 }
 
-// TypeConstraint represents a constraint to be solved
+// TypeConstraint represents a constraint to be solved (TypeEq, RowEq,
+// ClassConstraint, or a deferred constructor choice, ambiguous_ctor.go)
 type TypeConstraint interface {
 	constraint()
 	String() string

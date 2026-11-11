@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	ailerrors "github.com/sunholo-data/ailang/internal/errors"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // checkJSONOutput represents the JSON output format for ailang check --json
@@ -133,8 +134,22 @@ func errorToCheckJSONError(err error, filename string) checkJSONError {
 	}
 	// Fallback for non-Report errors
 	return checkJSONError{
-		Code:    "ERROR",
+		Code:    jsonErrorCode(err.Error()),
 		Message: err.Error(),
 		File:    filename,
 	}
+}
+
+// jsonErrorCode is the --json code of an error that is not a structured
+// report: the nominal-identity code its message carries
+// (M-V1-NOMINAL-TYPE-IDENTITY: TC_NOMINAL_001, TC_AMBIGUOUS_TYPE_001,
+// TC_AMBIGUOUS_CTOR_001), else the generic "ERROR". Other inline TC_* codes
+// keep "ERROR", as before, so existing consumers see no change.
+func jsonErrorCode(msg string) string {
+	for _, code := range types.NominalIdentityCodes() {
+		if strings.Contains(msg, code) {
+			return code
+		}
+	}
+	return "ERROR"
 }

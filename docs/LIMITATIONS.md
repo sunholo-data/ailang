@@ -148,10 +148,18 @@ no longer captures an imported `T`, an imported alias body keeps the types it na
 module may declare its own `Map`, `List`, `Json`, … (its own wins over the built-in).
 Using the two types disjointly (`Ma.desc(Ma.mk())`, `Mb.desc(Mb.mk())`) is fine.
 A bare name never depends on import order: two explicit imports of one type or constructor
-name are `MOD015`; a type name two imported modules both declare is `TC_AMBIGUOUS_TYPE_001`
-unless it is declared locally or imported by name; a constructor two imported modules offer is
-resolved by the scrutinee's type in a pattern, and is `TC_AMBIGUOUS_CTOR_001` where nothing
-decides it. The REPL/WASM module registry follows the same rules.
+name are `MOD015`; a type name that two modules the program imports or reaches both declare is
+`TC_AMBIGUOUS_TYPE_001` unless it is declared locally, imported by name, a built-in or a prelude
+name; a constructor two imported modules offer is resolved in a pattern by the scrutinee's type
+(once inference has decided it, whatever the order of the code), and is `TC_AMBIGUOUS_CTOR_001`
+where nothing decides it and in an expression. A built-in name (`Map`, `List`, `Bytes`, …)
+means the built-in unless the module declares or imports its own: a module that writes `Map`
+meaning a dependency's `Map` must import it by name (`import dep (Map)`); the `TC_NOMINAL_001`
+diagnostic says so. The implicit prelude (`Option`, `Result`, `Some`, `None`, `Ok`, `Err`) is
+the lowest-precedence binding: a module's own declaration or import of any of them wins.
+The REPL/WASM module registry follows the same rules, except that it has no import closure:
+every loaded module is reachable, and a constructor offered by exactly one directly imported
+module is used before the other loaded modules are considered.
 
 Still open:
 
@@ -169,4 +177,7 @@ Still open:
 - A single-constructor ADT wrapping a record (`type W = W({x: int})`) keeps its identity
   against every other nominal type, but still converts implicitly to and from its record
   (for field access), so one such type can reach another through a record-typed value, and a
-  bare record is accepted where it is expected (#2233, #2234; pre-existing).
+  bare record is accepted where it is expected — a soundness hole (#2239, with #2233 and
+  #2234; pre-existing).
+- An uppercase name in a type-parameter list (`func id[T](x: T)`) is not a type variable: `T`
+  is a type constructor (#2240). Inline function-literal annotations are not enforced (#2238).

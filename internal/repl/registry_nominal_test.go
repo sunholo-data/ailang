@@ -54,9 +54,23 @@ func TestRegistryNominalIdentity_SameNamedConstructorsCoexist(t *testing.T) {
 	if err == nil || !strings.Contains(err.Error(), types.TC_AMBIGUOUS_CTOR_001) {
 		t.Fatalf("A without an import is offered by q/a and q/b: want TC_AMBIGUOUS_CTOR_001, got %v", err)
 	}
+	// Review round 2 (d1/d2): two explicit imports of one bare constructor are
+	// MOD015 in the registry too, in both orders (the last one used to win).
+	for _, src := range []string{
+		"module q/d1\nimport q/a (A, get)\nimport q/b (A)\nexport pure func run() -> int = get(A(1))\n",
+		"module q/d2\nimport q/b (A)\nimport q/a (A, get)\nexport pure func run() -> int = get(A(1))\n",
+		"module q/d3\nimport q/a (T)\nimport q/b (T)\nexport pure func run() -> int = 0\n",
+	} {
+		name := strings.Fields(src)[1]
+		if _, err := reg.LoadModule(name, src); err == nil || !strings.Contains(err.Error(), "MOD015") {
+			t.Fatalf("%s: two explicit imports of one bare name must be MOD015, got %v", name, err)
+		}
+	}
+	// A pattern on q/a's T with q/b's A also loaded resolves by the scrutinee.
+	mustLoad("q/pat", "module q/pat\nimport q/a (mk)\nimport q/b (mkb)\nexport pure func run() -> int = match mk() { A(n) => n + 1 }\n")
 	for _, c := range []struct {
 		mod, fn, want string
-	}{{"q/a", "mk", "A(42)"}, {"q/b", "mkb", "A(s)"}, {"q/ok", "run", "47"}, {"q/ok", "run2", "42"}} {
+	}{{"q/a", "mk", "A(42)"}, {"q/b", "mkb", "A(s)"}, {"q/ok", "run", "47"}, {"q/ok", "run2", "42"}, {"q/pat", "run", "43"}} {
 		v, err := reg.InvokeExport(c.mod, c.fn, nil)
 		if err != nil {
 			t.Fatalf("%s.%s: %v", c.mod, c.fn, err)

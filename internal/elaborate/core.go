@@ -67,7 +67,7 @@ type Elaborator struct {
 	newtypeADTs map[string]bool
 	// ambiguousCtors: auto-imported constructor names two or more modules
 	// offer (ambiguous_ctor.go).
-	ambiguousCtors map[string][]types.TypeRef
+	ambiguousCtors map[string][]types.CtorCandidate
 }
 
 // DerivedEqField is one field a `deriving (Eq)` declaration needs Eq for.

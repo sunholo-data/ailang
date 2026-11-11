@@ -14,17 +14,35 @@ import (
 // for the typechecker, which resolves it by the scrutinee's type; an
 // expression using it is TC_AMBIGUOUS_CTOR_001. A local declaration of the
 // name clears the mark (the local wins).
-func (e *Elaborator) MarkAmbiguousConstructor(name string, candidates []types.TypeRef) {
+func (e *Elaborator) MarkAmbiguousConstructor(name string, candidates []types.CtorCandidate) {
 	if e.ambiguousCtors == nil {
-		e.ambiguousCtors = make(map[string][]types.TypeRef)
+		e.ambiguousCtors = make(map[string][]types.CtorCandidate)
 	}
 	e.ambiguousCtors[name] = candidates
+	// Recognised as a constructor, but no candidate's ADT, module or arity is
+	// recorded: the typechecker chooses (never "the first candidate").
+	e.constructors[name] = &ConstructorInfo{CtorName: name, Arity: -1, IsImported: true}
+}
+
+// anyNullaryCandidate reports whether some candidate of an ambiguous
+// constructor takes no fields (so a bare `C` in a pattern can mean it).
+func anyNullaryCandidate(cands []types.CtorCandidate) bool {
+	for _, c := range cands {
+		if c.Arity == 0 {
+			return true
+		}
+	}
+	return false
 }
 
 // ambiguousCtorError is TC_AMBIGUOUS_CTOR_001 for a constructor expression.
 func (e *Elaborator) ambiguousCtorError(name string, pos ast.Pos) error {
 	cands := e.ambiguousCtors[name]
-	types.ObserveAmbiguity(types.AmbiguityEvent{Kind: "ctor-expr", Module: e.ModuleID(), Name: name, Candidates: cands})
+	refs := make([]types.TypeRef, len(cands))
+	for i, c := range cands {
+		refs[i] = types.TypeRef{Module: c.Module, Name: c.TypeName}
+	}
+	types.ObserveAmbiguity(types.AmbiguityEvent{Kind: "ctor-expr", Module: e.ModuleID(), Name: name, Candidates: refs})
 	if !types.AmbiguityIsError() {
 		return nil
 	}

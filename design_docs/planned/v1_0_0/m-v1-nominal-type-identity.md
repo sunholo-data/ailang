@@ -696,25 +696,44 @@ spelling imported it; the file compiles and evaluates once.
 > implemented** (revised after review; the §4.3 list above put the prelude before the built-ins and
 > did not say what two candidates at one step mean):
 >
-> 1. a type parameter (the parser makes lowercase names type variables);
-> 2. a type this module declares;
-> 3. a type bound by an explicit selective import (`import M (T)`, `import M (T as U)` binds `U`);
->    two explicit imports binding one bare type or constructor name to different modules are
->    **MOD015** at the import (pulled forward from M3);
-> 4. a built-in, module-less name (`Int`, `String`, `Map`, `List`, `Array`, `Bytes`, `Unit`, …) —
->    after 2 and 3, so a module may declare or import its own `Map`;
-> 5. the prelude (`Option` → `std/option`, `Result` → `std/result`);
-> 6. a type exported by a direct dependency (any import form): one candidate is used; two or more
->    distinct ones are **TC_AMBIGUOUS_TYPE_001** naming them all (pulled forward from M3);
-> 7. a type declared by a module of the import closure: same rule;
-> 8. the builtin home table (`Json` → `std/json`, … `DOMEvent` → `$builtin`);
-> 9. otherwise an opaque type of this module (TC_UNBOUND_TYPE_001 remains M3).
+> (Lowercase names are type variables and never reach the scope; an uppercase name is always a
+> type constructor, even in a `[T]` type-parameter list — #2240. The §4.3 "type parameter" step
+> is therefore not a step of the scope.)
 >
-> Constructors follow the same principle: an explicit import decides; a name the constructor
-> auto-import (M-CTOR-AUTO) offers from two or more modules is resolved in a pattern by the
-> scrutinee's type (read through the equalities collected so far), and is **TC_AMBIGUOUS_CTOR_001**
-> in an expression or on a scrutinee of unknown type. Nothing is chosen by import order, file
-> order or module path (`TestNominalIdentity_ImportOrderIndependent` permutes every case).
+> 1. a type this module declares;
+> 2. a type bound by an explicit selective import the USER wrote (`import M (T)`,
+>    `import M (T as U)` binds `U`); two explicit imports binding one bare type or constructor
+>    name to different modules are **MOD015** at the import (pulled forward from M3). The prelude
+>    the loader injects into an entry module is marked `ImportDecl.Implicit` and is step 4, never
+>    this step, so a user's own `Option`/`Ok`/… wins silently, as on dev;
+> 3. a built-in, module-less name (`Int`, `String`, `Map`, `List`, `Array`, `Bytes`, `Unit`, …) —
+>    after 1 and 2, so a module may declare or import its own `Map`;
+> 4. the prelude (`Option` → `std/option`, `Result` → `std/result`);
+> 5. the ONE declaration of the name among the types every imported module exports and every
+>    module of the import closure declares; two or more distinct ones are
+>    **TC_AMBIGUOUS_TYPE_001** naming them all (pulled forward from M3). Direct and transitive
+>    are one step: "nearer wins" let an unrelated import change what a name (or an alias such as
+>    `Num`) meant (review probes al1/al2);
+> 6. the builtin home table (`Json` → `std/json`, … `DOMEvent` → `$builtin`);
+> 7. otherwise an opaque type of this module (TC_UNBOUND_TYPE_001 remains M3).
+>
+> Constructors follow the same principle: an explicit import decides, then the prelude; a name
+> the constructor auto-import (M-CTOR-AUTO) offers from two or more modules is a **deferred
+> choice** in a pattern (`types/ambiguous_ctor.go`). It reuses the checker's existing deferral
+> machinery: the choice is a constraint in the inference context's list beside the class
+> constraints; `SolveConstraints` (which re-solves all equalities collected so far at every let
+> boundary and at the end of the declaration) resolves each open choice whose scrutinee head the
+> substitution fixes (aliases expanded by module first), adds the chosen constructor's
+> equalities, and repeats to a fixpoint; and, like an integer literal's type variable
+> (`literalWithhold`), every variable an open choice depends on is withheld from
+> let-generalisation, so a later use can still decide it. The pattern's own arity narrows the
+> candidates before any of this (no candidate's arity or fields are read from "the first" one).
+> A choice still open when the top-level declaration is solved is **TC_AMBIGUOUS_CTOR_001**, as
+> is an ambiguous constructor in an expression. Resolution is monotone (constraints are only
+> added; a head once fixed cannot change), so it does not depend on the order the checker
+> visits the code. `TestNominalIdentity_PermutationInvariant` permutes imports, independent
+> lets, call arguments, match arms, declarations and module names over every multi-candidate
+> case and asserts identical verdicts and identical chosen constructors.
 >
 > Builtins: `nominalHome` is `types.builtinHomes` behind `Builder.Con/App`. A nominal name missing
 > from it is minted without a module and `builtins.RegisterEffectBuiltin` rejects the signature, so

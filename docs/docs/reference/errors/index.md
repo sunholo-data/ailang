@@ -118,9 +118,9 @@ TC_NOMINAL_001: cannot unify T (defined in q/a) with T (defined in q/b): they ar
   Suggestion: use the T from one module on both sides (import it by name from the module whose T you mean, e.g. import q/a (T)), or convert between them explicitly.
 ```
 
-**`TC_AMBIGUOUS_TYPE_001` — a type name two imported modules both declare.** A bare type name that is not declared in the module, not imported by name, not a built-in or prelude name, and that two or more direct dependencies (or, failing those, two or more modules of the import closure) declare. The candidates are listed in module order; the fix is to import the one you mean by name. It used to mean whichever module happened to come first.
+**`TC_AMBIGUOUS_TYPE_001` — a type name two modules both declare.** A bare type name that is not declared in the module, not imported by name, not a built-in or prelude name, and that two or more of the modules the program imports or reaches through its imports declare. The candidates are listed in module order; the fix is to import the one you mean by name. It used to mean whichever module happened to come first (or nearest).
 
-**`TC_AMBIGUOUS_CTOR_001` — a constructor two imported modules both offer.** The constructor auto-import brings every constructor of a selectively imported module into scope; when two modules offer the same name and neither is imported by name, a pattern is resolved by the scrutinee's type, and an expression (or a pattern on a value of unknown type) is this error. Fix: `import M (C)` from the module you mean.
+**`TC_AMBIGUOUS_CTOR_001` — a constructor two imported modules both offer.** The constructor auto-import brings every constructor of a selectively imported module into scope; when two modules offer the same name and neither is imported by name, a pattern is resolved by the scrutinee's type once inference has decided it (a deferred choice, independent of the order of the code; the pattern's own number of arguments narrows the candidates first). The error is reported for an expression, and for a pattern whose scrutinee's type nothing in the enclosing top-level declaration decides. Fix: `import M (C)` from the module you mean, or annotate the value matched.
 
 ## Individual error code pages
 
