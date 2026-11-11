@@ -96,7 +96,7 @@ func TestQuoteEscapeTable(t *testing.T) {
 		"\x00\x1b\x7f": `"\u{0}\u{1B}\u{7F}"`,
 		"\u0085":       `"\u{85}"`,
 		"\u200b":       `"\u{200B}"`,
-		"é 😀 中":       `"é 😀 中"`,
+		"é 😀 中":        `"é 😀 中"`,
 		"":             `""`,
 	} {
 		if got := strutil.Quote(s); got != want {
