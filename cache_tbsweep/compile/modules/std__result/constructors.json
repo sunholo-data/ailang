@@ -1,1 +1,0 @@
-{"Err":{"type_name":"Result","ctor_name":"Err","arity":1,"type_param_count":2,"type_param_names":["a","e"],"field_types":[{"tag":"tvar2","data":{"name":"e","kind":{"tag":"star"}}}]},"Ok":{"type_name":"Result","ctor_name":"Ok","arity":1,"type_param_count":2,"type_param_names":["a","e"],"field_types":[{"tag":"tvar2","data":{"name":"a","kind":{"tag":"star"}}}]}}
