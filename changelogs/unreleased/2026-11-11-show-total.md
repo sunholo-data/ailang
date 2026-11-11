@@ -37,7 +37,7 @@ quoted and escaped: `show(["a", "b, c"])` is `["a", "b, c"]` (was `[a, b, c]`, t
   turning `"\n\u{303}"` into an invalid escape. Every tracked `.ail` file formats identically.
 - A constructor used as a value (`map(Some, xs)`, `let f = Ok`) is a function on the bytecode VM
   too: it printed as `Some` there (and `<function>` on the evaluator), and calling it failed.
-- Teaching prompt v0.16.14 (active) documents the quoting and `showPreview`.
+- Teaching prompt v0.16.15 (active) documents the quoting and `showPreview`.
 - Benchmark `run_length_encode` is retired (moved to `benchmarks/retired/`): its expected output
   was the old lossy rendering of a `[(int, string)]`. It is replaced by `run_length_encode_v2`,
   which states its output format (`3a 2b 4c 1a`) explicitly. The new id keeps ELO and banked rows

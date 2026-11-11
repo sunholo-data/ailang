@@ -1177,9 +1177,9 @@
         "evidence_example": ""
       }
     },
-    "v0.16.14": {
-      "file": "prompts/v0.16.14.md",
-      "hash": "9ef47171e07bc634379f7adcdd0113d0fa55d341872a934760f9b91597aa321f",
+    "v0.16.15": {
+      "file": "prompts/v0.16.15.md",
+      "hash": "e8bb98de5a39c36a0cea0e966ac6fec048d215df1300e3589a09ac4964c499d6",
       "description": "show is total and unambiguous: nested strings quoted, nothing elided; showPreview for bounded logging",
       "created": "2026-11-11",
       "tags": [
@@ -1189,7 +1189,7 @@
       "notes": "show is total and unambiguous: nested strings quoted, nothing elided; showPreview for bounded logging"
     }
   },
-  "active": "v0.16.14",
+  "active": "v0.16.15",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",
