@@ -73,10 +73,25 @@ claude mcp add --transport http ailang-executor https://executor.ailang.sunholo.
 
 Then run `/mcp` in a session and choose the server to sign in.
 
-**ChatGPT.** ChatGPT calls these **plugins**. In the desktop app: Settings → Plugins → **Add** →
-**Add MCP server**, then paste the URL above; on the web, add it at `chatgpt.com/plugins`. Sign in
-when ChatGPT asks. ChatGPT registers itself with CIMD and the executor returns `iss`, so there is nothing to
-configure. A live ChatGPT sign-in has not been recorded yet.
+**ChatGPT.** ChatGPT calls these **plugins**. Verified 2026-11-11: sign-in and tool calls from an
+ordinary chat.
+
+1. On **chatgpt.com**, open **Plugins** → **Add** → **Add custom MCP server**.
+2. Name it (for example `AILANG Executor`), choose **Server URL**, and paste the URL above.
+3. **Authentication: OAuth.** Every executor tool except `submit_feedback` needs sign-in. Under
+   **Advanced OAuth settings**, choose the client metadata document (CIMD) as the client setup
+   method; the executor does not offer dynamic registration.
+4. Accept the custom-server warning, create it, and sign in with Google when ChatGPT asks.
+
+ChatGPT identifies itself as `https://chatgpt.com/oauth/client.json` and returns to
+`https://chatgpt.com/connector_platform_oauth_redirect`; the executor returns `iss`, so there is
+nothing to register.
+
+**ChatGPT desktop app, Work mode.** The desktop app also takes the server under Settings → Plugins →
+**MCPs** (Add → Add MCP server, Streamable HTTP, no token). Its **Authenticate** button signs in
+(it chooses CIMD, `https://chatgpt.com/oauth/codex/client.json`), but on 2026-11-11 the process that
+runs Work tasks did not send the token it got, so tool calls were refused with 401. Ordinary chats do
+not see servers from this tab. Use chatgpt.com (above) until that is fixed on the app's side.
 
 **Gemini Enterprise, Microsoft Copilot.** Not available yet for this server. Both need an OAuth
 client model (a pre-registered client or dynamic registration) that the executor has not switched
