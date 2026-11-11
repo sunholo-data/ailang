@@ -55,10 +55,12 @@ func (g *Generator) writeRuntimeMiscHelpers() {
 	g.writef("}\n\n")
 
 	// Show helper: the `show` spec (M-V1-SHOW-TOTAL), ported from
-	// internal/eval/show.go — total (no width or depth limit), nested strings
-	// quoted with the escaper of internal/strutil/quote.go, top-level strings
-	// bare. A Helper body cannot add imports (fmt, math, reflect, sort,
-	// strconv, strings only), so invalid UTF-8 is detected without utf8.
+	// internal/eval/show.go — total (no width or depth limit), top-level
+	// strings bare, nested strings quoted by internal/strutil's quoting rule,
+	// copied in by emittedQuoteRuntime (which needs unicode/utf8, imported by
+	// the runtime header). Always emitted: Println/Print/ToString helpers call
+	// Show, so nearly every program reaches it; the quoting rule's NFC tables
+	// add about 95 KB of source / 110 KB of binary to every compiled program.
 	g.write(emittedShowRuntime)
 	g.write(emittedQuoteRuntime)
 

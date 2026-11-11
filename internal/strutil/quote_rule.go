@@ -35,10 +35,12 @@ func QuoteTo(w stringWriter, s string) {
 	// literal must survive NFC. A rune that is not an NFC-stable starter
 	// (a combining mark, a Hangul vowel/trailing jamo, a singleton such as
 	// U+212B ANGSTROM SIGN) is escaped where writing it raw could change it:
-	// always if s itself is not NFC, and right after an escape sequence,
-	// whose last ASCII letter it could combine with (`\n` + U+0303 -> `\ñ`).
-	// NFC text is otherwise written verbatim, so ordinary text stays readable.
-	nfc := nfcIsNormal(s)
+	// always if NFC might change s (nfcMayChange: not NFC, or a run of more
+	// than 30 non-starters, where the loader inserts U+034F), and right after
+	// an escape sequence, whose last ASCII letter it could combine with
+	// (`\n` + U+0303 -> `\ñ`). Text NFC leaves alone is otherwise written
+	// verbatim, so ordinary text stays readable.
+	nfc := !nfcMayChange(s)
 	afterEscape := false
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])

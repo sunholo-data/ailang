@@ -5,17 +5,26 @@ import (
 	"unicode/utf8"
 )
 
-// A standard-library-only implementation of the two NFC questions the quoting
-// rule asks (quote.go): is this string already in NFC, and is this rune an
-// NFC-stable starter (a rune that NFC can neither rewrite on its own nor
-// combine with the rune before it). The data comes from nfc_tables.go,
-// generated from golang.org/x/text/unicode/norm — the normaliser the loader
-// uses — and TestNFCAgreesWithXText checks both answers against x/text.
+// The two NFC questions the quoting rule asks (quote_rule.go), answered with
+// the standard library and the tables in nfc_tables.go (generated from
+// golang.org/x/text/unicode/norm, the normaliser the loader uses):
 //
-// It has no dependency outside the standard library on purpose: the Go
-// emitter copies this file, quote.go's rule and the tables into every
-// compiled program (internal/gen/golang, emittedQuoteRuntime), so compiled
-// programs quote exactly as the interpreters do.
+//   - nfcStableStarter(r): can NFC neither rewrite r on its own nor combine it
+//     with the rune before it? Exact (TestNFCAgreesWithXText checks every rune).
+//   - nfcMayChange(s): might NFC change s? CONSERVATIVE: false means NFC
+//     leaves s unchanged; true means it might. A wrong "true" only costs an
+//     unnecessary \u{…} escape, which still round-trips; a wrong "false"
+//     would be a bug, so the test asserts that direction only.
+//
+// nfcMayChange is a single linear pass (no normalisation, no sorting): the
+// UAX #15 quick check (no rune NFC rewrites on its own, canonical order holds,
+// no rune that combines backward meets something it combines with) plus the
+// Stream-Safe Text Format limit x/text applies (a run of more than 30
+// non-starters gets a U+034F inserted).
+//
+// Standard library only on purpose: the Go emitter copies this file,
+// quote_rule.go and the tables into every compiled program that uses show
+// (internal/gen/golang, emittedQuoteRuntime).
 
 const (
 	hangulSBase  = 0xAC00
@@ -27,6 +36,9 @@ const (
 	hangulTCount = 28
 	hangulNCount = hangulVCount * hangulTCount
 	hangulSCount = hangulLCount * hangulNCount
+
+	// nfcMaxNonStarters is x/text's maxNonStarters (Stream-Safe Text Format).
+	nfcMaxNonStarters = 30
 )
 
 // nfcComposites and nfcBackward are the sorted composite runes and the sorted
@@ -54,7 +66,7 @@ func nfcHas(set []int32, r rune) bool {
 	return i < len(set) && set[i] == int32(r)
 }
 
-// nfcCCC is r's canonical combining class (0 for a starter or a stray byte).
+// nfcCCC is r's canonical combining class.
 func nfcCCC(r rune) int32 {
 	if r < 0x300 {
 		return 0
@@ -66,45 +78,41 @@ func nfcCCC(r rune) int32 {
 	return 0
 }
 
-// nfcDecompose appends r's full canonical decomposition (or r) to dst.
-func nfcDecompose(dst []rune, r rune) []rune {
-	if r >= hangulSBase && r < hangulSBase+hangulSCount {
-		s := r - hangulSBase
-		dst = append(dst, hangulLBase+s/hangulNCount, hangulVBase+(s%hangulNCount)/hangulTCount)
-		if t := s % hangulTCount; t != 0 {
-			dst = append(dst, hangulTBase+t)
-		}
-		return dst
-	}
-	if r >= 0xC0 {
-		i := sort.Search(len(nfcDecompKeys), func(i int) bool { return nfcDecompKeys[i] >= int32(r) })
-		if i < len(nfcDecompKeys) && nfcDecompKeys[i] == int32(r) {
-			for _, d := range nfcDecompData[nfcDecompOff[i]:nfcDecompOff[i+1]] {
-				dst = append(dst, rune(d))
-			}
-			return dst
-		}
-	}
-	return append(dst, r)
+func nfcIsHangulSyllable(r rune) bool { return r >= hangulSBase && r < hangulSBase+hangulSCount }
+
+// nfcBackwardRune: r can combine with the rune before it (a Hangul vowel or
+// trailing jamo, or the second rune of a primary composite).
+func nfcBackwardRune(r rune) bool {
+	return (r >= hangulVBase && r < hangulVBase+hangulVCount) ||
+		(r > hangulTBase && r < hangulTBase+hangulTCount) || nfcHas(nfcBackward, r)
 }
 
-// nfcCompose returns the primary composite of a followed by b, if any.
-func nfcCompose(a, b rune) (rune, bool) {
-	if a >= hangulLBase && a < hangulLBase+hangulLCount && b >= hangulVBase && b < hangulVBase+hangulVCount {
-		return hangulSBase + ((a-hangulLBase)*hangulVCount+(b-hangulVBase))*hangulTCount, true
+// nfcDecomp returns r's full canonical decomposition from the table, or nil
+// (no decomposition, or a Hangul syllable: all starters).
+func nfcDecomp(r rune) []int32 {
+	if r < 0xC0 || nfcIsHangulSyllable(r) {
+		return nil
 	}
-	if a >= hangulSBase && a < hangulSBase+hangulSCount && (a-hangulSBase)%hangulTCount == 0 &&
-		b > hangulTBase && b < hangulTBase+hangulTCount {
-		return a + (b - hangulTBase), true
+	i := sort.Search(len(nfcDecompKeys), func(i int) bool { return nfcDecompKeys[i] >= int32(r) })
+	if i < len(nfcDecompKeys) && nfcDecompKeys[i] == int32(r) {
+		return nfcDecompData[nfcDecompOff[i]:nfcDecompOff[i+1]]
+	}
+	return nil
+}
+
+// nfcCompose reports whether a followed by b has a primary composite.
+func nfcCompose(a, b rune) bool {
+	if a >= hangulLBase && a < hangulLBase+hangulLCount && b >= hangulVBase && b < hangulVBase+hangulVCount {
+		return true
+	}
+	if nfcIsHangulSyllable(a) && (a-hangulSBase)%hangulTCount == 0 && b > hangulTBase && b < hangulTBase+hangulTCount {
+		return true
 	}
 	i := sort.Search(len(nfcCompTable), func(i int) bool {
 		p := nfcCompTable[i]
 		return p[0] > int32(a) || p[0] == int32(a) && p[1] >= int32(b)
 	})
-	if i < len(nfcCompTable) && nfcCompTable[i][0] == int32(a) && nfcCompTable[i][1] == int32(b) {
-		return rune(nfcCompTable[i][2]), true
-	}
-	return 0, false
+	return i < len(nfcCompTable) && nfcCompTable[i][0] == int32(a) && nfcCompTable[i][1] == int32(b)
 }
 
 // nfcStableStarter reports whether r is a starter that NFC can neither
@@ -113,90 +121,88 @@ func nfcStableStarter(r rune) bool {
 	if r < 0x300 {
 		return true
 	}
-	if nfcCCC(r) != 0 || nfcHas(nfcBackward, r) ||
-		(r >= hangulVBase && r < hangulVBase+hangulVCount) || (r > hangulTBase && r < hangulTBase+hangulTCount) {
+	if nfcCCC(r) != 0 || nfcBackwardRune(r) {
 		return false
 	}
 	// A rune with a decomposition survives NFC only if it is a primary
 	// composite (singletons and composition exclusions do not).
-	if r >= hangulSBase && r < hangulSBase+hangulSCount {
-		return true
-	}
-	if one := nfcDecompose(nil, r); len(one) == 1 && one[0] == r {
-		return true
-	}
-	return nfcHas(nfcComposites, r)
+	return nfcDecomp(r) == nil || nfcHas(nfcComposites, r)
 }
 
-// nfcIsNormal reports whether s is already in NFC (invalid bytes pass
-// through untouched, as starters that compose with nothing).
-func nfcIsNormal(s string) bool {
+// nfcNonStarters is r's leading and trailing non-starter count as x/text's
+// Stream-Safe Text Format counts them: runes of class != 0 or that combine
+// backward, at the start and end of r's decomposition (x/text uses the
+// compatibility decomposition; nfcNonStarterExtra holds where that differs).
+func nfcNonStarters(r rune) (lead, trail int) {
+	i := sort.Search(len(nfcNonStarterExtra), func(i int) bool { return nfcNonStarterExtra[i][0] >= int32(r) })
+	if i < len(nfcNonStarterExtra) && nfcNonStarterExtra[i][0] == int32(r) {
+		return int(nfcNonStarterExtra[i][1]), int(nfcNonStarterExtra[i][2])
+	}
+	if nfcIsHangulSyllable(r) {
+		if (r-hangulSBase)%hangulTCount == 0 {
+			return 0, 1 // LV: the vowel
+		}
+		return 0, 2 // LVT: vowel and trailing jamo
+	}
+	ns := func(x int32) bool { return nfcCCC(rune(x)) != 0 || nfcBackwardRune(rune(x)) }
+	d := nfcDecomp(r)
+	if d == nil {
+		d = []int32{int32(r)}
+	}
+	for lead < len(d) && ns(d[lead]) {
+		lead++
+	}
+	for trail < len(d) && ns(d[len(d)-1-trail]) {
+		trail++
+	}
+	return lead, trail
+}
+
+// nfcMayChange reports whether NFC might change s (see the file comment:
+// false is a guarantee, true is conservative). One pass, linear in len(s).
+func nfcMayChange(s string) bool {
+	prev := rune(-1)      // the previous rune; -1 = none, or a byte that is not UTF-8
+	starter := rune(-1)   // the last rune of class 0 (-1: none, or a stray byte)
+	lastTrail := int32(0) // class of the last rune of prev's decomposition
+	nonStarters := 0      // x/text's stream-safe count
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
-		if (r == utf8.RuneError && size == 1) || nfcStableStarter(r) {
-			i += size
+		i += size
+		if r < 0xA0 || (r == utf8.RuneError && size == 1) {
+			// Class 0, no decomposition, combines with nothing before it.
+			prev, starter, lastTrail, nonStarters = r, r, 0, 0
+			if size == 1 && r >= utf8.RuneSelf {
+				prev, starter = -1, -1 // a stray byte composes with nothing
+			}
 			continue
 		}
-		return nfcString(s) == s
-	}
-	return true
-}
-
-// nfcString returns NFC(s): canonical decomposition, canonical ordering,
-// canonical composition. A byte that is not valid UTF-8 is carried through as
-// a pseudo-rune below zero.
-func nfcString(s string) string {
-	buf := make([]rune, 0, len(s))
-	for i := 0; i < len(s); {
-		r, size := utf8.DecodeRuneInString(s[i:])
-		if r == utf8.RuneError && size == 1 {
-			buf = append(buf, -1-rune(s[i]))
-		} else {
-			buf = nfcDecompose(buf, r)
-		}
-		i += size
-	}
-	ccc := func(r rune) int32 {
-		if r < 0 {
-			return 0
-		}
-		return nfcCCC(r)
-	}
-	// Canonical ordering: stable sort of each run of non-starters by class.
-	for i := 1; i < len(buf); i++ {
-		for j := i; j > 0; j-- {
-			cj, cp := ccc(buf[j]), ccc(buf[j-1])
-			if cj == 0 || cp <= cj {
-				break
+		ccc := nfcCCC(r)
+		lead, trail := ccc, ccc
+		if d := nfcDecomp(r); d != nil {
+			if !nfcHas(nfcComposites, r) {
+				return true // a singleton or composition exclusion: NFC rewrites it
 			}
-			buf[j], buf[j-1] = buf[j-1], buf[j]
+			lead, trail = nfcCCC(rune(d[0])), nfcCCC(rune(d[len(d)-1]))
+		}
+		if lead != 0 && lastTrail > lead {
+			return true // not in canonical order: NFC reorders
+		}
+		// r composes with the last starter unless something between blocks
+		// it: a starter, or (the marks are in canonical order, so the last is
+		// the highest) a mark of class >= r's.
+		if nfcBackwardRune(r) && starter >= 0 && (prev == starter || ccc != 0 && lastTrail < ccc) && nfcCompose(starter, r) {
+			return true
+		}
+		// The stream-safe limit: x/text inserts U+034F after 30 non-starters.
+		if nLead, nTrail := nfcNonStarters(r); nLead == 0 {
+			nonStarters = nTrail
+		} else if nonStarters += nLead; nonStarters > nfcMaxNonStarters {
+			return true
+		}
+		prev, lastTrail = r, trail
+		if ccc == 0 {
+			starter = r
 		}
 	}
-	// Canonical composition.
-	out := buf[:0]
-	starter, last := -1, int32(0)
-	for _, c := range buf {
-		cc := ccc(c)
-		if starter >= 0 && c >= 0 && out[starter] >= 0 && (last < cc || last == 0 && len(out)-1 == starter) {
-			if comp, ok := nfcCompose(out[starter], c); ok {
-				out[starter] = comp
-				continue
-			}
-		}
-		if cc == 0 {
-			starter, last = len(out), 0
-		} else {
-			last = cc
-		}
-		out = append(out, c)
-	}
-	b := make([]byte, 0, len(s))
-	for _, r := range out {
-		if r < 0 {
-			b = append(b, byte(-1-r))
-		} else {
-			b = utf8.AppendRune(b, r)
-		}
-	}
-	return string(b)
+	return false
 }

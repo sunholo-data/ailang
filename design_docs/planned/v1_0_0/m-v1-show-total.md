@@ -377,6 +377,15 @@ Where it differs from the plan:
   doubling (append's 1.25x policy re-copied a 30 MB rendering about five times).
 - `ShowNode` is generic over the engine's value type, so neither engine boxes its children.
 - The escaper moved to `internal/strutil.Quote` (an existing stdlib-leaf package), used by `ailang fmt` too.
+- **NFC (review rounds 1–3).** The loader NFC-normalises source, so the escaper writes `\u{X}`
+  for a character that is not an NFC-stable starter whenever normalisation *might* change the
+  string, and right after an escape. "Might" is one conservative linear pass (`nfcMayChange`):
+  the UAX #15 quick check plus x/text's stream-safe limit (after 30 non-starters it inserts
+  U+034F), counted as x/text counts them — over the compatibility decomposition, with
+  backward-combining starters (Hangul vowels and trailing jamo) as non-starters. It never
+  normalises or sorts. The tables are generated from x/text and must match the Unicode version
+  the toolchain selects (x/text switches to Unicode 17 tables under go1.27):
+  `TestNFCTablesUpToDate` fails with the regenerate commands on a toolchain or x/text bump.
 - `Value.String()` is unchanged: it is still the Go-side spelling of error messages and debug
   output, and no longer reaches stdout.
 - `examples/manifest.json` now pins stdout (`verify-examples` compares it), so 10 pins were

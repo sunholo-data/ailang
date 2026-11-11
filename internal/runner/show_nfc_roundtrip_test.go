@@ -36,8 +36,8 @@ func asciiLiteral(s string) string {
 // engine.
 func TestShowOutputSurvivesTheLoaderAllEngines(t *testing.T) {
 	strs := []string{
-		"e\U00000301",           // NFD é
-		"\U000000E9",            // NFC é (stays readable)
+		"e\U00000301",           // NFD e-acute
+		"\U000000E9",            // NFC e-acute (stays readable)
 		"\U00000301x",           // lone combining mark at the start
 		"\n\U00000303",          // combining mark right after an escape
 		"q\U00000303",           // NFC-stable, no precomposed form
@@ -50,8 +50,24 @@ func TestShowOutputSurvivesTheLoaderAllEngines(t *testing.T) {
 		"\U0000FB01",            // NFKC-sensitive ligature, NFC-stable
 		"\U00002028\U00002029",  // line / paragraph separators
 		"\U0000FEFFbom",         // BOM inside a string
-		"plain, \"quoted\" \\ ${x} $y 中文 😀", // the ordinary escapes still apply
+		"plain, \"quoted\" \\ ${x} $y \U00004E2D\U00006587 \U0001F600", // the ordinary escapes still apply
 	}
+	// Long runs of marks (review 3): the loader's normaliser inserts U+034F
+	// after 30 non-starters, so a run that long must not be written raw.
+	acute, below := "\U00000301", "\U00000316"
+	for _, n := range []int{1, 29, 30, 31, 32, 100, 100000} {
+		strs = append(strs,
+			"q"+strings.Repeat(acute, n)+"x",              // starter before and after
+			strings.Repeat(acute, n),                      // at the start of the string
+			"\n"+strings.Repeat(acute+below, (n+1)/2)+"x", // after an escape, mixed classes
+		)
+	}
+	strs = append(strs,
+		strings.Repeat("\U00001100\U00001161", 40), // Hangul jamo run (L V pairs)
+		strings.Repeat("\U000011A8", 40),           // trailing jamo run
+		"\U00001EA1"+strings.Repeat(acute, 30)+"x", // composite with a trailing mark, then 30
+		"\U000000C0"+strings.Repeat(below, 29)+"x", // composite with a mark of a lower class
+	)
 	vals := make([]eval.Value, len(strs))
 	lits := make([]string, len(strs))
 	nonNFC := 0

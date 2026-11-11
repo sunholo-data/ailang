@@ -13,7 +13,7 @@ func showq_QuoteTo(w showq_stringWriter, s string) {
 		}
 	}
 
-	nfc := showq_nfcIsNormal(s)
+	nfc := !showq_nfcMayChange(s)
 	afterEscape := false
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
@@ -79,6 +79,8 @@ const (
 	showq_hangulTCount	= 28
 	showq_hangulNCount	= showq_hangulVCount * showq_hangulTCount
 	showq_hangulSCount	= showq_hangulLCount * showq_hangulNCount
+
+	showq_nfcMaxNonStarters	= 30
 )
 
 var showq_nfcComposites, showq_nfcBackward = showq_nfcDeriveSets()
@@ -115,129 +117,119 @@ func showq_nfcCCC(r rune) int32 {
 	return 0
 }
 
-func showq_nfcDecompose(dst []rune, r rune) []rune {
-	if r >= showq_hangulSBase && r < showq_hangulSBase+showq_hangulSCount {
-		s := r - showq_hangulSBase
-		dst = append(dst, showq_hangulLBase+s/showq_hangulNCount, showq_hangulVBase+(s%showq_hangulNCount)/showq_hangulTCount)
-		if t := s % showq_hangulTCount; t != 0 {
-			dst = append(dst, showq_hangulTBase+t)
-		}
-		return dst
-	}
-	if r >= 0xC0 {
-		i := sort.Search(len(showq_nfcDecompKeys), func(i int) bool { return showq_nfcDecompKeys[i] >= int32(r) })
-		if i < len(showq_nfcDecompKeys) && showq_nfcDecompKeys[i] == int32(r) {
-			for _, d := range showq_nfcDecompData[showq_nfcDecompOff[i]:showq_nfcDecompOff[i+1]] {
-				dst = append(dst, rune(d))
-			}
-			return dst
-		}
-	}
-	return append(dst, r)
+func showq_nfcIsHangulSyllable(r rune) bool {
+	return r >= showq_hangulSBase && r < showq_hangulSBase+showq_hangulSCount
 }
 
-func showq_nfcCompose(a, b rune) (rune, bool) {
-	if a >= showq_hangulLBase && a < showq_hangulLBase+showq_hangulLCount && b >= showq_hangulVBase && b < showq_hangulVBase+showq_hangulVCount {
-		return showq_hangulSBase + ((a-showq_hangulLBase)*showq_hangulVCount+(b-showq_hangulVBase))*showq_hangulTCount, true
+func showq_nfcBackwardRune(r rune) bool {
+	return (r >= showq_hangulVBase && r < showq_hangulVBase+showq_hangulVCount) ||
+		(r > showq_hangulTBase && r < showq_hangulTBase+showq_hangulTCount) || showq_nfcHas(showq_nfcBackward, r)
+}
+
+func showq_nfcDecomp(r rune) []int32 {
+	if r < 0xC0 || showq_nfcIsHangulSyllable(r) {
+		return nil
 	}
-	if a >= showq_hangulSBase && a < showq_hangulSBase+showq_hangulSCount && (a-showq_hangulSBase)%showq_hangulTCount == 0 &&
-		b > showq_hangulTBase && b < showq_hangulTBase+showq_hangulTCount {
-		return a + (b - showq_hangulTBase), true
+	i := sort.Search(len(showq_nfcDecompKeys), func(i int) bool { return showq_nfcDecompKeys[i] >= int32(r) })
+	if i < len(showq_nfcDecompKeys) && showq_nfcDecompKeys[i] == int32(r) {
+		return showq_nfcDecompData[showq_nfcDecompOff[i]:showq_nfcDecompOff[i+1]]
+	}
+	return nil
+}
+
+func showq_nfcCompose(a, b rune) bool {
+	if a >= showq_hangulLBase && a < showq_hangulLBase+showq_hangulLCount && b >= showq_hangulVBase && b < showq_hangulVBase+showq_hangulVCount {
+		return true
+	}
+	if showq_nfcIsHangulSyllable(a) && (a-showq_hangulSBase)%showq_hangulTCount == 0 && b > showq_hangulTBase && b < showq_hangulTBase+showq_hangulTCount {
+		return true
 	}
 	i := sort.Search(len(showq_nfcCompTable), func(i int) bool {
 		p := showq_nfcCompTable[i]
 		return p[0] > int32(a) || p[0] == int32(a) && p[1] >= int32(b)
 	})
-	if i < len(showq_nfcCompTable) && showq_nfcCompTable[i][0] == int32(a) && showq_nfcCompTable[i][1] == int32(b) {
-		return rune(showq_nfcCompTable[i][2]), true
-	}
-	return 0, false
+	return i < len(showq_nfcCompTable) && showq_nfcCompTable[i][0] == int32(a) && showq_nfcCompTable[i][1] == int32(b)
 }
 
 func showq_nfcStableStarter(r rune) bool {
 	if r < 0x300 {
 		return true
 	}
-	if showq_nfcCCC(r) != 0 || showq_nfcHas(showq_nfcBackward, r) ||
-		(r >= showq_hangulVBase && r < showq_hangulVBase+showq_hangulVCount) || (r > showq_hangulTBase && r < showq_hangulTBase+showq_hangulTCount) {
+	if showq_nfcCCC(r) != 0 || showq_nfcBackwardRune(r) {
 		return false
 	}
 
-	if r >= showq_hangulSBase && r < showq_hangulSBase+showq_hangulSCount {
-		return true
-	}
-	if one := showq_nfcDecompose(nil, r); len(one) == 1 && one[0] == r {
-		return true
-	}
-	return showq_nfcHas(showq_nfcComposites, r)
+	return showq_nfcDecomp(r) == nil || showq_nfcHas(showq_nfcComposites, r)
 }
 
-func showq_nfcIsNormal(s string) bool {
+func showq_nfcNonStarters(r rune) (lead, trail int) {
+	i := sort.Search(len(showq_nfcNonStarterExtra), func(i int) bool { return showq_nfcNonStarterExtra[i][0] >= int32(r) })
+	if i < len(showq_nfcNonStarterExtra) && showq_nfcNonStarterExtra[i][0] == int32(r) {
+		return int(showq_nfcNonStarterExtra[i][1]), int(showq_nfcNonStarterExtra[i][2])
+	}
+	if showq_nfcIsHangulSyllable(r) {
+		if (r-showq_hangulSBase)%showq_hangulTCount == 0 {
+			return 0, 1
+		}
+		return 0, 2
+	}
+	ns := func(x int32) bool { return showq_nfcCCC(rune(x)) != 0 || showq_nfcBackwardRune(rune(x)) }
+	d := showq_nfcDecomp(r)
+	if d == nil {
+		d = []int32{int32(r)}
+	}
+	for lead < len(d) && ns(d[lead]) {
+		lead++
+	}
+	for trail < len(d) && ns(d[len(d)-1-trail]) {
+		trail++
+	}
+	return lead, trail
+}
+
+func showq_nfcMayChange(s string) bool {
+	prev := rune(-1)
+	starter := rune(-1)
+	lastTrail := int32(0)
+	nonStarters := 0
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
-		if (r == utf8.RuneError && size == 1) || showq_nfcStableStarter(r) {
-			i += size
+		i += size
+		if r < 0xA0 || (r == utf8.RuneError && size == 1) {
+
+			prev, starter, lastTrail, nonStarters = r, r, 0, 0
+			if size == 1 && r >= utf8.RuneSelf {
+				prev, starter = -1, -1
+			}
 			continue
 		}
-		return showq_nfcString(s) == s
-	}
-	return true
-}
-
-func showq_nfcString(s string) string {
-	buf := make([]rune, 0, len(s))
-	for i := 0; i < len(s); {
-		r, size := utf8.DecodeRuneInString(s[i:])
-		if r == utf8.RuneError && size == 1 {
-			buf = append(buf, -1-rune(s[i]))
-		} else {
-			buf = showq_nfcDecompose(buf, r)
-		}
-		i += size
-	}
-	ccc := func(r rune) int32 {
-		if r < 0 {
-			return 0
-		}
-		return showq_nfcCCC(r)
-	}
-
-	for i := 1; i < len(buf); i++ {
-		for j := i; j > 0; j-- {
-			cj, cp := ccc(buf[j]), ccc(buf[j-1])
-			if cj == 0 || cp <= cj {
-				break
+		ccc := showq_nfcCCC(r)
+		lead, trail := ccc, ccc
+		if d := showq_nfcDecomp(r); d != nil {
+			if !showq_nfcHas(showq_nfcComposites, r) {
+				return true
 			}
-			buf[j], buf[j-1] = buf[j-1], buf[j]
+			lead, trail = showq_nfcCCC(rune(d[0])), showq_nfcCCC(rune(d[len(d)-1]))
 		}
-	}
+		if lead != 0 && lastTrail > lead {
+			return true
+		}
 
-	out := buf[:0]
-	starter, last := -1, int32(0)
-	for _, c := range buf {
-		cc := ccc(c)
-		if starter >= 0 && c >= 0 && out[starter] >= 0 && (last < cc || last == 0 && len(out)-1 == starter) {
-			if comp, ok := showq_nfcCompose(out[starter], c); ok {
-				out[starter] = comp
-				continue
-			}
+		if showq_nfcBackwardRune(r) && starter >= 0 && (prev == starter || ccc != 0 && lastTrail < ccc) && showq_nfcCompose(starter, r) {
+			return true
 		}
-		if cc == 0 {
-			starter, last = len(out), 0
-		} else {
-			last = cc
+
+		if nLead, nTrail := showq_nfcNonStarters(r); nLead == 0 {
+			nonStarters = nTrail
+		} else if nonStarters += nLead; nonStarters > showq_nfcMaxNonStarters {
+			return true
 		}
-		out = append(out, c)
-	}
-	b := make([]byte, 0, len(s))
-	for _, r := range out {
-		if r < 0 {
-			b = append(b, byte(-1-r))
-		} else {
-			b = utf8.AppendRune(b, r)
+		prev, lastTrail = r, trail
+		if ccc == 0 {
+			starter = r
 		}
 	}
-	return string(b)
+	return false
 }
 
 const showq_nfcUnicodeVersion = "15.0.0"
@@ -771,5 +763,31 @@ var showq_nfcCompTable = [...][3]int32{
 	{0x30F0, 0x3099, 0x30F8}, {0x30F1, 0x3099, 0x30F9}, {0x30F2, 0x3099, 0x30FA}, {0x30FD, 0x3099, 0x30FE}, {0x11099, 0x110BA, 0x1109A}, {0x1109B, 0x110BA, 0x1109C},
 	{0x110A5, 0x110BA, 0x110AB}, {0x11131, 0x11127, 0x1112E}, {0x11132, 0x11127, 0x1112F}, {0x11347, 0x1133E, 0x1134B}, {0x11347, 0x11357, 0x1134C}, {0x114B9, 0x114B0, 0x114BC},
 	{0x114B9, 0x114BA, 0x114BB}, {0x114B9, 0x114BD, 0x114BE}, {0x115B8, 0x115AF, 0x115BA}, {0x115B9, 0x115AF, 0x115BB}, {0x11935, 0x11930, 0x11938},
+}
+
+var showq_nfcNonStarterExtra = [...][3]int32{
+	{0xA8, 0, 1}, {0xAF, 0, 1}, {0xB4, 0, 1}, {0xB8, 0, 1}, {0x1C4, 0, 1}, {0x1C5, 0, 1}, {0x1C6, 0, 1}, {0x2D8, 0, 1},
+	{0x2D9, 0, 1}, {0x2DA, 0, 1}, {0x2DB, 0, 1}, {0x2DC, 0, 1}, {0x2DD, 0, 1}, {0x37A, 0, 1}, {0x384, 0, 1}, {0x385, 0, 2},
+	{0xF77, 0, 2}, {0xF79, 0, 2}, {0x1FBD, 0, 1}, {0x1FBF, 0, 1}, {0x1FC0, 0, 1}, {0x1FC1, 0, 2}, {0x1FCD, 0, 2}, {0x1FCE, 0, 2},
+	{0x1FCF, 0, 2}, {0x1FDD, 0, 2}, {0x1FDE, 0, 2}, {0x1FDF, 0, 2}, {0x1FED, 0, 2}, {0x1FEE, 0, 2}, {0x1FFD, 0, 1}, {0x1FFE, 0, 1},
+	{0x2017, 0, 1}, {0x203E, 0, 1}, {0x309B, 0, 1}, {0x309C, 0, 1}, {0x3133, 1, 1}, {0x3135, 1, 1}, {0x3136, 1, 1}, {0x313A, 1, 1},
+	{0x313B, 1, 1}, {0x313C, 1, 1}, {0x313D, 1, 1}, {0x313E, 1, 1}, {0x313F, 1, 1}, {0x314F, 1, 1}, {0x3150, 1, 1}, {0x3151, 1, 1},
+	{0x3152, 1, 1}, {0x3153, 1, 1}, {0x3154, 1, 1}, {0x3155, 1, 1}, {0x3156, 1, 1}, {0x3157, 1, 1}, {0x3158, 1, 1}, {0x3159, 1, 1},
+	{0x315A, 1, 1}, {0x315B, 1, 1}, {0x315C, 1, 1}, {0x315D, 1, 1}, {0x315E, 1, 1}, {0x315F, 1, 1}, {0x3160, 1, 1}, {0x3161, 1, 1},
+	{0x3162, 1, 1}, {0x3163, 1, 1}, {0x326E, 0, 1}, {0x326F, 0, 1}, {0x3270, 0, 1}, {0x3271, 0, 1}, {0x3272, 0, 1}, {0x3273, 0, 1},
+	{0x3274, 0, 1}, {0x3275, 0, 1}, {0x3276, 0, 1}, {0x3277, 0, 1}, {0x3278, 0, 1}, {0x3279, 0, 1}, {0x327A, 0, 1}, {0x327B, 0, 1},
+	{0x327C, 0, 1}, {0x327D, 0, 1}, {0x327E, 0, 1}, {0x3304, 0, 1}, {0x3307, 0, 1}, {0x3310, 0, 1}, {0x331E, 0, 1}, {0x3321, 0, 1},
+	{0x3332, 0, 1}, {0x333B, 0, 1}, {0x3340, 0, 1}, {0x334B, 0, 1}, {0x334E, 0, 1}, {0xFBA4, 0, 1}, {0xFBA5, 0, 1}, {0xFBB0, 0, 1},
+	{0xFBB1, 0, 1}, {0xFC5B, 0, 1}, {0xFC5C, 0, 1}, {0xFC5D, 0, 1}, {0xFC5E, 0, 2}, {0xFC5F, 0, 2}, {0xFC60, 0, 2}, {0xFC61, 0, 2},
+	{0xFC62, 0, 2}, {0xFC63, 0, 2}, {0xFC90, 0, 1}, {0xFCD9, 0, 1}, {0xFCF2, 0, 2}, {0xFCF3, 0, 2}, {0xFCF4, 0, 2}, {0xFD3C, 0, 1},
+	{0xFD3D, 0, 1}, {0xFE49, 0, 1}, {0xFE4A, 0, 1}, {0xFE4B, 0, 1}, {0xFE4C, 0, 1}, {0xFE70, 0, 1}, {0xFE71, 0, 1}, {0xFE72, 0, 1},
+	{0xFE74, 0, 1}, {0xFE76, 0, 1}, {0xFE77, 0, 1}, {0xFE78, 0, 1}, {0xFE79, 0, 1}, {0xFE7A, 0, 1}, {0xFE7B, 0, 1}, {0xFE7C, 0, 1},
+	{0xFE7D, 0, 1}, {0xFE7E, 0, 1}, {0xFE7F, 0, 1}, {0xFE81, 0, 1}, {0xFE82, 0, 1}, {0xFE83, 0, 1}, {0xFE84, 0, 1}, {0xFE85, 0, 1},
+	{0xFE86, 0, 1}, {0xFE87, 0, 1}, {0xFE88, 0, 1}, {0xFE89, 0, 1}, {0xFE8A, 0, 1}, {0xFE8B, 0, 1}, {0xFE8C, 0, 1}, {0xFEF5, 0, 1},
+	{0xFEF6, 0, 1}, {0xFEF7, 0, 1}, {0xFEF8, 0, 1}, {0xFEF9, 0, 1}, {0xFEFA, 0, 1}, {0xFF9E, 1, 1}, {0xFF9F, 1, 1}, {0xFFA3, 1, 1},
+	{0xFFA5, 1, 1}, {0xFFA6, 1, 1}, {0xFFAA, 1, 1}, {0xFFAB, 1, 1}, {0xFFAC, 1, 1}, {0xFFAD, 1, 1}, {0xFFAE, 1, 1}, {0xFFAF, 1, 1},
+	{0xFFC2, 1, 1}, {0xFFC3, 1, 1}, {0xFFC4, 1, 1}, {0xFFC5, 1, 1}, {0xFFC6, 1, 1}, {0xFFC7, 1, 1}, {0xFFCA, 1, 1}, {0xFFCB, 1, 1},
+	{0xFFCC, 1, 1}, {0xFFCD, 1, 1}, {0xFFCE, 1, 1}, {0xFFCF, 1, 1}, {0xFFD2, 1, 1}, {0xFFD3, 1, 1}, {0xFFD4, 1, 1}, {0xFFD5, 1, 1},
+	{0xFFD6, 1, 1}, {0xFFD7, 1, 1}, {0xFFDA, 1, 1}, {0xFFDB, 1, 1}, {0xFFDC, 1, 1}, {0xFFE3, 0, 1}, {0x1F213, 0, 1},
 }
 

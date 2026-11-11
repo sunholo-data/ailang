@@ -39,6 +39,14 @@ func TestFormatStringLiteralsSurviveNFC(t *testing.T) {
 		{"jamo pair", `"\u{1100}\u{1161}"`, `\u{1161}`},
 		{"lone mark at the start", `"\u{301}x"`, ""},
 		{"line separator", `"a\u{2028}b"`, `\u{2028}`},
+		// Runs at the stream-safe limit (third review): the loader inserts
+		// U+034F after 30 non-starters, so 31 escaped marks must stay escaped
+		// and 31 raw ones (which load with a U+034F in them) must survive.
+		{"30 escaped marks", `"q` + strings.Repeat(`\u{301}`, 30) + `"`, ""},
+		{"31 escaped marks", `"q` + strings.Repeat(`\u{301}`, 31) + `"`, `\u{301}`},
+		{"100 escaped mixed marks", `"q` + strings.Repeat(`\u{316}\u{301}`, 50) + `"`, `\u{301}`},
+		{"31 raw marks", "\"q" + strings.Repeat("\U00000301", 31) + "\"", ""},
+		{"31 trailing jamo", `"` + strings.Repeat(`\u{11A8}`, 31) + `"`, `\u{11A8}`},
 	}
 	for _, c := range cases {
 		src := "module m\n\nexport func f() -> string = " + c.lit + "\n"

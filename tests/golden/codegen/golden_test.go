@@ -13,13 +13,41 @@ import (
 
 const expectedDifferentialFixtureCount = 8
 
+// ailangBin is an ailang built from this checkout by TestMain, so these tests
+// compare the code under test, not whatever `ailang` is first on PATH.
+var ailangBin string
+
+func TestMain(m *testing.M) {
+	dir, err := os.MkdirTemp("", "golden-codegen-ailang")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+	ailangBin = filepath.Join(dir, "ailang")
+	if runtime.GOOS == "windows" {
+		ailangBin += ".exe"
+	}
+	root, _ := filepath.Abs(filepath.Join("..", "..", ".."))
+	build := exec.Command("go", "build", "-o", ailangBin, "./cmd/ailang")
+	build.Dir = root
+	if out, err := build.CombinedOutput(); err != nil {
+		fmt.Fprintf(os.Stderr, "building ailang: %v\n%s", err, out)
+		os.RemoveAll(dir)
+		os.Exit(1)
+	}
+	os.Setenv("AILANG_STDLIB_PATH", filepath.Join(root, "std"))
+	code := m.Run()
+	os.RemoveAll(dir)
+	os.Exit(code)
+}
+
 func TestTypedAggregateArrayGeneratedOutput(t *testing.T) {
 	outDir := t.TempDir()
 	fixture, err := filepath.Abs("show_differential_array_adt_field.ail")
 	if err != nil {
 		t.Fatal(err)
 	}
-	cmd := exec.Command("ailang", "compile", "--emit-go", "--out", outDir,
+	cmd := exec.Command(ailangBin, "compile", "--emit-go", "--out", outDir,
 		"--package-name", "golden", "--relax-modules", "--no-verify-go", fixture)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("ailang compile failed: %v\n%s", err, output)
@@ -82,7 +110,7 @@ func TestGoldenCompile(t *testing.T) {
 
 			// Compile .ail to Go using ailang CLI
 			absAil, _ := filepath.Abs(ailFile)
-			cmd := exec.Command("ailang", "compile", "--emit-go",
+			cmd := exec.Command(ailangBin, "compile", "--emit-go",
 				"--out", outDir,
 				"--package-name", "golden",
 				"--relax-modules",
@@ -147,14 +175,14 @@ func TestInterpreterCompiledDifferential(t *testing.T) {
 				t.Fatal(err)
 			}
 
-			interpreted := exec.Command("ailang", "run", "--quiet", "--caps", "IO", "--relax-modules", absFixture)
+			interpreted := exec.Command(ailangBin, "run", "--quiet", "--caps", "IO", "--relax-modules", absFixture)
 			interpretedOut, err := interpreted.Output()
 			if err != nil {
 				t.Fatalf("ailang run failed for %s: %v", fixture, err)
 			}
 
 			outDir := t.TempDir()
-			compile := exec.Command("ailang", "compile", "--emit-go", "--out", outDir,
+			compile := exec.Command(ailangBin, "compile", "--emit-go", "--out", outDir,
 				"--package-name", "main", "--relax-modules", "--no-verify-go", absFixture)
 			if output, err := compile.CombinedOutput(); err != nil {
 				t.Fatalf("ailang compile failed for %s: %v\n%s", fixture, err, output)

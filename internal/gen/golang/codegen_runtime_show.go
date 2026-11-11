@@ -6,6 +6,9 @@ import _ "embed"
 // (quote_rule.go, nfc.go, nfc_tables.go) with every name prefixed showq_,
 // written into every compiled program after emittedShowRuntime. Generated and
 // kept current by TestEmittedQuoteRuntimeUpToDate; standard library only.
+// Cost: about 95 KB of source and 110 KB of binary in every compiled program
+// (the println/print helpers call Show, so it cannot be left out per program
+// without splitting those helpers).
 //
 //go:embed emitted_quote_runtime.txt
 var emittedQuoteRuntime string
@@ -22,9 +25,8 @@ var emittedQuoteRuntime string
 // but a value nested deeper than the goroutine stack allows still overflows),
 // and ShowPreview renders in full before cutting.
 //
-// A runtime helper cannot add imports (the runtime import block is fmt, math,
-// reflect, sort, strconv, strings), so an invalid UTF-8 byte is recognised as
-// a U+FFFD from `range` whose source bytes are not the encoding of U+FFFD.
+// showDecodeRune (used by ShowPreview) recognises an invalid UTF-8 byte as a
+// U+FFFD from a range loop whose source bytes are not the encoding of U+FFFD.
 // TestEmittedShowMatchesEvaluator compiles this source and compares it with
 // eval.Show on every shape the emitter can represent.
 const emittedShowRuntime = `// Show converts any value to its string form, exactly as the show builtin does.

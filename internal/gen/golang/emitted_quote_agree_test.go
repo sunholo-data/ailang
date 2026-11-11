@@ -9,6 +9,7 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/strutil"
 )
@@ -37,6 +38,13 @@ func TestEmittedQuoteAgreesWithStrutil(t *testing.T) {
 		var b strings.Builder
 		for n := 1 + rnd.Intn(6); n > 0; n-- {
 			b.WriteString(quoteAgreePieces[rnd.Intn(len(quoteAgreePieces))])
+		}
+		// Long runs of marks (the stream-safe limit, review 3 of #2229).
+		if rnd.Intn(20) == 0 {
+			b.WriteString(strings.Repeat("\U00000301", 25+rnd.Intn(15)))
+			if rnd.Intn(50) == 0 {
+				b.WriteString(strings.Repeat("\U00000316\U00000301", 500+rnd.Intn(1500)))
+			}
 		}
 		inputs[i] = b.String()
 		in.WriteString(hex.EncodeToString([]byte(inputs[i])))
@@ -98,12 +106,14 @@ func TestQuoteAll(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
+	started := time.Now()
 	cmd := exec.Command("go", "test", "-count=1", "-run", "TestQuoteAll", "./...")
 	cmd.Dir = filepath.Join(tmp, "mod")
 	cmd.Env = append(os.Environ(), "QUOTE_IN="+inPath, "QUOTE_OUT="+outPath)
 	if output, err := cmd.CombinedOutput(); err != nil {
 		t.Fatalf("emitted quote driver failed: %v\n%s", err, output)
 	}
+	t.Logf("compiled driver (build + 100k quotes): %v", time.Since(started))
 	f, err := os.Open(outPath)
 	if err != nil {
 		t.Fatal(err)

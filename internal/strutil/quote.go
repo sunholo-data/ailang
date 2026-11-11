@@ -18,7 +18,8 @@ import (
 //	$ before {      -> \$   (so the lexer does not read an interpolation)
 //	other C0, DEL, C1 and non-graphic runes -> \u{X} (uppercase hex, no padding)
 //	a rune NFC could change in place        -> \u{X}: a non-starter or
-//	    singleton when s is not NFC, or one that directly follows an escape
+//	    singleton when NFC might change s (not NFC, or a run of more than
+//	    30 non-starters), or one that directly follows an escape
 //	a byte that is not valid UTF-8          -> \xHH (uppercase)
 //
 // Every other rune, including printable non-ASCII text, is written verbatim.

@@ -32,14 +32,17 @@ quoted and escaped: `show(["a", "b, c"])` is `["a", "b, c"]` (was `[a, b, c]`, t
   Stable `std/string` interface (golden refrozen).
 - A quoted string reads back as the same string through the loader, which NFC-normalises
   source: a combining mark or other character that normalisation would change is written
-  `\u{X}` when the string is not NFC or the character follows an escape. `ailang fmt` uses the
+  `\u{X}` when normalisation might change the string (it is not NFC, or has a run of more than 30
+  combining marks, where normalisation inserts U+034F) or the character follows an escape. The
+  check is one linear pass (quoting a million marks takes well under a second). `ailang fmt` uses the
   same escaper; this also fixes fmt changing the value of literals such as `"e\u{301}"` and
   turning `"\n\u{303}"` into an invalid escape. Every tracked `.ail` file formats identically.
 - A constructor used as a value (`map(Some, xs)`, `let f = Ok`) is a function on the bytecode VM
   and in `ailang compile` output too: it printed as `Some` on the VM (and `<function>` on the
   evaluator), and calling it failed on the VM and panicked in compiled programs. Compiled programs
   also quote nested strings with the same NFC rule as the interpreters (the rule and its Unicode
-  tables are copied into the emitted runtime).
+  tables are copied into the emitted runtime: about 95 KB of source and 110 KB of binary in every
+  compiled program).
 - Teaching prompt v0.16.15 (active) documents the quoting and `showPreview`.
 - Benchmark `run_length_encode` is retired (moved to `benchmarks/retired/`): its expected output
   was the old lossy rendering of a `[(int, string)]`. It is replaced by `run_length_encode_v2`,

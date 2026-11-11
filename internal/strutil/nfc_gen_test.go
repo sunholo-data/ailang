@@ -113,10 +113,66 @@ func generateNFCTables() []byte {
 			b.WriteString("\n")
 		}
 	}
+	b.WriteString("\n}\n\n")
+	fmt.Fprintf(&b, "// nfcNonStarterExtra: {rune, leading, trailing} stream-safe non-starter counts where x/text's\n"+
+		"// differ from the canonical rule in nfcNonStarters (x/text counts over the COMPATIBILITY decomposition).\n"+
+		"var nfcNonStarterExtra = [...][3]int32{\n")
+	seconds := make([]rune, len(pairs))
+	for i, p := range pairs {
+		seconds[i] = p.b
+	}
+	for i, e := range nonStarterExtra(seconds) {
+		fmt.Fprintf(&b, "{0x%X, %d, %d}, ", e[0], e[1], e[2])
+		if i%8 == 7 {
+			b.WriteString("\n")
+		}
+	}
 	b.WriteString("\n}\n")
 	out, err := format.Source(b.Bytes())
 	if err != nil {
 		panic(err)
+	}
+	return out
+}
+
+// nonStarterExtra applies x/text's rule (maketables.go: count the leading and
+// trailing runes of the compatibility decomposition that have a non-zero class
+// or combine backward; Hangul syllables trail 1 or 2) and keeps the runes
+// where it differs from the same rule over the canonical decomposition, which
+// nfcNonStarters computes from the other tables. TestNFCNonStartersMatchXText
+// checks the result against x/text's behaviour, not against this rule.
+func nonStarterExtra(seconds []rune) [][3]int32 {
+	backward := map[rune]bool{}
+	for _, r := range seconds {
+		backward[r] = true
+	}
+	ns := func(x rune) bool {
+		return norm.NFD.PropertiesString(string(x)).CCC() != 0 || backward[x] ||
+			(x >= hangulVBase && x < hangulVBase+hangulVCount) || (x > hangulTBase && x < hangulTBase+hangulTCount)
+	}
+	count := func(d []rune) (lead, trail int) {
+		for _, x := range d {
+			if !ns(x) {
+				break
+			}
+			lead++
+		}
+		for j := len(d) - 1; j >= 0 && ns(d[j]); j-- {
+			trail++
+		}
+		return
+	}
+	var out [][3]int32
+	for r := rune(0); r <= 0x10FFFF; r++ {
+		if (r >= 0xD800 && r <= 0xDFFF) || (r >= hangulSBase && r < hangulSBase+hangulSCount) {
+			continue
+		}
+		s := string(r)
+		kl, kt := count([]rune(norm.NFKD.String(s)))
+		cl, ct := count([]rune(norm.NFD.String(s)))
+		if kl != cl || kt != ct {
+			out = append(out, [3]int32{r, int32(kl), int32(kt)})
+		}
 	}
 	return out
 }
@@ -135,9 +191,12 @@ func TestNFCTablesUpToDate(t *testing.T) {
 	}
 	// A Windows checkout may give the file CRLF line endings.
 	if !bytes.Equal(bytes.ReplaceAll(got, []byte("\r\n"), []byte("\n")), want) {
-		t.Fatalf("%s is stale for golang.org/x/text Unicode %s (a dependency bump?): regenerate with -update-nfc", nfcTablesFile, norm.Version)
+		t.Fatalf("%s is stale: the loader's normaliser (golang.org/x/text/unicode/norm) is Unicode %s with this x/text AND this Go toolchain "+
+			"(x/text switches to newer Unicode tables under newer Go, e.g. 17.0.0 from go1.27). Regenerate: "+
+			"go test ./internal/strutil -run TestNFCTablesUpToDate -update-nfc, then "+
+			"go test ./internal/gen/golang -run TestEmittedQuoteRuntimeUpToDate -update-quote", nfcTablesFile, norm.Version)
 	}
 	if nfcUnicodeVersion != norm.Version {
-		t.Fatalf("tables are Unicode %s, x/text is %s", nfcUnicodeVersion, norm.Version)
+		t.Fatalf("tables are Unicode %s but the loader normalises with Unicode %s (Go toolchain or x/text bump): regenerate with -update-nfc", nfcUnicodeVersion, norm.Version)
 	}
 }
