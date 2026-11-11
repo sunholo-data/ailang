@@ -68,6 +68,18 @@ func TestShowOutputSurvivesTheLoaderAllEngines(t *testing.T) {
 		"\U00001EA1"+strings.Repeat(acute, 30)+"x", // composite with a trailing mark, then 30
 		"\U000000C0"+strings.Repeat(below, 29)+"x", // composite with a mark of a lower class
 	)
+	// Fourth review: stable starters that x/text counts as leading
+	// non-starters (U+FF9E, Hangul compatibility vowels), in runs past the
+	// limit, alone and mixed with marks; and every escape form followed by a
+	// mark, a jamo and one of those runes.
+	for _, z := range []string{"\U0000FF9E", "\U00003133", "\U0000314F", "\U0000FFA3", "\U0000FFDC"} {
+		strs = append(strs, "x"+strings.Repeat(z, 31), strings.Repeat(z+acute, 16)+"y", "x"+strings.Repeat(z, 30)+"y")
+	}
+	for _, esc := range []string{"\n", "\t", "\r", "\\", "\"", "\x01", "\U0000200B"} {
+		for _, f := range []string{"\U00000303", "\U00001161", "\U000011A8", "\U0000FF9E"} {
+			strs = append(strs, "a"+esc+f+"b")
+		}
+	}
 	vals := make([]eval.Value, len(strs))
 	lits := make([]string, len(strs))
 	nonNFC := 0

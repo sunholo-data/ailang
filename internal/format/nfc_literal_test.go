@@ -1,6 +1,8 @@
 package format
 
 import (
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -47,6 +49,15 @@ func TestFormatStringLiteralsSurviveNFC(t *testing.T) {
 		{"100 escaped mixed marks", `"q` + strings.Repeat(`\u{316}\u{301}`, 50) + `"`, `\u{301}`},
 		{"31 raw marks", "\"q" + strings.Repeat("\U00000301", 31) + "\"", ""},
 		{"31 trailing jamo", `"` + strings.Repeat(`\u{11A8}`, 31) + `"`, `\u{11A8}`},
+		// Stable starters x/text counts as leading non-starters (fourth review).
+		{"31 halfwidth voiced marks", `"x` + strings.Repeat(`\u{FF9E}`, 31) + `"`, `\u{FF9E}`},
+		{"31 Hangul compatibility vowels", `"x` + strings.Repeat(`\u{314F}`, 31) + `"`, `\u{314F}`},
+		// The after-escape rule, for each escape form.
+		{"mark after tab", `"\t\u{301}"`, `\t\u{301}`},
+		{"mark after CR", `"\r\u{303}"`, `\r\u{303}`},
+		{"jamo after backslash", `"\\\u{1161}"`, `\\\u{1161}`},
+		{"mark after quote", `"\"\u{303}"`, `\"\u{303}`},
+		{"mark after a hex escape", `"\u{1}\u{303}"`, `\u{1}\u{303}`},
 	}
 	for _, c := range cases {
 		src := "module m\n\nexport func f() -> string = " + c.lit + "\n"
@@ -65,5 +76,31 @@ func TestFormatStringLiteralsSurviveNFC(t *testing.T) {
 		if c.mustContain != "" && !strings.Contains(once, c.mustContain) {
 			t.Errorf("%s: fmt output %q does not keep %q", c.name, once, c.mustContain)
 		}
+	}
+}
+
+// NFC text in a user's file is left byte-identical by fmt (fourth review:
+// fmt rewrote the Arabic literal alef-hamza + fatha into an escape). The
+// paragraphs are shared with strutil's readability test.
+func TestFormatLeavesNFCParagraphsAlone(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "strutil", "testdata", "nfc_paragraphs.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	n := 0
+	for _, line := range strings.Split(strings.ReplaceAll(string(data), "\r\n", "\n"), "\n") {
+		name, text, ok := strings.Cut(line, "\t")
+		if !ok || strings.HasPrefix(line, "#") {
+			continue
+		}
+		n++
+		lit := "\"" + text + "\""
+		src := "module m\n\nexport func f() -> string = " + lit + "\n"
+		if once := formatSrc(t, string(lexer.Normalize([]byte(src)))); !strings.Contains(once, lit) {
+			t.Errorf("%s: fmt rewrote an NFC literal:\n%s", name, once)
+		}
+	}
+	if n != 8 {
+		t.Fatalf("%d paragraphs, want 8", n)
 	}
 }

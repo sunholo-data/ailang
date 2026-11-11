@@ -33,8 +33,9 @@ quoted and escaped: `show(["a", "b, c"])` is `["a", "b, c"]` (was `[a, b, c]`, t
 - A quoted string reads back as the same string through the loader, which NFC-normalises
   source: a combining mark or other character that normalisation would change is written
   `\u{X}` when normalisation might change the string (it is not NFC, or has a run of more than 30
-  combining marks, where normalisation inserts U+034F) or the character follows an escape. The
-  check is one linear pass (quoting a million marks takes well under a second). `ailang fmt` uses the
+  combining marks or similar characters such as U+FF9E, where normalisation inserts U+034F) or the
+  character follows an escape. NFC text in any script is written as is. The check is one linear pass
+  (quoting a million marks takes well under a second). `ailang fmt` uses the
   same escaper; this also fixes fmt changing the value of literals such as `"e\u{301}"` and
   turning `"\n\u{303}"` into an invalid escape. Every tracked `.ail` file formats identically.
 - A constructor used as a value (`map(Some, xs)`, `let f = Ok`) is a function on the bytecode VM

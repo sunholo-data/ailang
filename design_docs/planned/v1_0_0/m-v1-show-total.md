@@ -377,15 +377,21 @@ Where it differs from the plan:
   doubling (append's 1.25x policy re-copied a 30 MB rendering about five times).
 - `ShowNode` is generic over the engine's value type, so neither engine boxes its children.
 - The escaper moved to `internal/strutil.Quote` (an existing stdlib-leaf package), used by `ailang fmt` too.
-- **NFC (review rounds 1–3).** The loader NFC-normalises source, so the escaper writes `\u{X}`
-  for a character that is not an NFC-stable starter whenever normalisation *might* change the
-  string, and right after an escape. "Might" is one conservative linear pass (`nfcMayChange`):
-  the UAX #15 quick check plus x/text's stream-safe limit (after 30 non-starters it inserts
-  U+034F), counted as x/text counts them — over the compatibility decomposition, with
-  backward-combining starters (Hangul vowels and trailing jamo) as non-starters. It never
-  normalises or sorts. The tables are generated from x/text and must match the Unicode version
-  the toolchain selects (x/text switches to Unicode 17 tables under go1.27):
-  `TestNFCTablesUpToDate` fails with the regenerate commands on a toolchain or x/text bump.
+- **NFC (review rounds 1–4).** The loader NFC-normalises source, so the escaper writes `\u{X}`
+  for a character that is not raw-safe whenever normalisation *might* change the string, and
+  right after an escape. Raw-safe = an NFC-stable starter that x/text does not count as a leading
+  non-starter (U+FF9E and the Hangul compatibility vowels are stable starters with a leading
+  count). "Might" is one linear pass (`nfcMayChange`): no rune NFC rewrites alone; marks in
+  canonical order; no backward-combining rune meets an unblocked base it composes with, where a
+  mark sorted in among a composite's own trailing marks meets the composite only partly
+  recomposed (U+0623 + fatha meets U+0627); and x/text's stream-safe limit (after 30
+  non-starters it inserts U+034F), counted as x/text counts them — over the compatibility
+  decomposition, with backward-combining starters as non-starters. It never normalises or sorts.
+  It is designed to be conservative, and measured exact: 468M strings in the fourth review's
+  harness and every composite + mark pair agree with x/text in both directions. The tables are
+  generated from x/text and must match the Unicode version the toolchain selects (x/text
+  switches to Unicode 17 tables under go1.27): `TestNFCTablesUpToDate` fails with the
+  regenerate commands on a toolchain or x/text bump.
 - `Value.String()` is unchanged: it is still the Go-side spelling of error messages and debug
   output, and no longer reaches stdout.
 - `examples/manifest.json` now pins stdout (`verify-examples` compares it), so 10 pins were

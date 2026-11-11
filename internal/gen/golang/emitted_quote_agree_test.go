@@ -26,6 +26,9 @@ var quoteAgreePieces = []string{
 	"\U00000928", "\U0000093C", "\U00000BC6", "\U00000BBE", "\U000009BE", "\U000005B8", "\U0000064E", "\U00000654",
 	"\U0000200D", "\U0000FE0F", "\U000E0100", "\U0001F468", "\U00002028", "\U0000FEFF", "\U00003099", "\U0000304B",
 	"\xff", "\xc3",
+	// Fourth review: leading-count stable starters, composites with a
+	// trailing mark before a lower-class mark (Arabic hamza + haraka).
+	"\U0000FF9E", "\U00003133", "\U0000314F", "\U00000623", "\U00000622", "\U00000650", "\U000000C1",
 }
 
 // The quoting rule compiled into a program agrees with strutil.QuoteTo byte
@@ -41,7 +44,7 @@ func TestEmittedQuoteAgreesWithStrutil(t *testing.T) {
 		}
 		// Long runs of marks (the stream-safe limit, review 3 of #2229).
 		if rnd.Intn(20) == 0 {
-			b.WriteString(strings.Repeat("\U00000301", 25+rnd.Intn(15)))
+			b.WriteString(strings.Repeat([]string{"\U00000301", "\U0000FF9E", "\U0000314F"}[rnd.Intn(3)], 25+rnd.Intn(15)))
 			if rnd.Intn(50) == 0 {
 				b.WriteString(strings.Repeat("\U00000316\U00000301", 500+rnd.Intn(1500)))
 			}

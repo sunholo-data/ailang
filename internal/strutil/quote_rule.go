@@ -32,9 +32,10 @@ func QuoteTo(w stringWriter, s string) {
 		}
 	}
 	// The loader NFC-normalises source before lexing (lexer.Normalize), so a
-	// literal must survive NFC. A rune that is not an NFC-stable starter
-	// (a combining mark, a Hangul vowel/trailing jamo, a singleton such as
-	// U+212B ANGSTROM SIGN) is escaped where writing it raw could change it:
+	// literal must survive NFC. A rune that is not raw-safe (nfcRawSafe: a
+	// combining mark, a Hangul vowel/trailing jamo, a singleton such as
+	// U+212B ANGSTROM SIGN, or a rune x/text counts as a leading non-starter
+	// such as U+FF9E) is escaped where writing it raw could change it:
 	// always if NFC might change s (nfcMayChange: not NFC, or a run of more
 	// than 30 non-starters, where the loader inserts U+034F), and right after
 	// an escape sequence, whose last ASCII letter it could combine with
@@ -63,7 +64,7 @@ func QuoteTo(w stringWriter, s string) {
 				esc = `\$`
 			}
 		case !IsPrintableRune(r),
-			r >= utf8.RuneSelf && (!nfc || afterEscape) && !nfcStableStarter(r):
+			r >= utf8.RuneSelf && (!nfc || afterEscape) && !nfcRawSafe(r):
 			esc = `\u{` + upperHex(uint64(r), 0) + `}`
 		}
 		if esc != "" {

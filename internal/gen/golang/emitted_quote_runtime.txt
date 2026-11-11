@@ -36,7 +36,7 @@ func showq_QuoteTo(w showq_stringWriter, s string) {
 				esc = `\$`
 			}
 		case !showq_IsPrintableRune(r),
-			r >= utf8.RuneSelf && (!nfc || afterEscape) && !showq_nfcStableStarter(r):
+			r >= utf8.RuneSelf && (!nfc || afterEscape) && !showq_nfcRawSafe(r):
 			esc = `\u{` + showq_upperHex(uint64(r), 0) + `}`
 		}
 		if esc != "" {
@@ -137,18 +137,21 @@ func showq_nfcDecomp(r rune) []int32 {
 	return nil
 }
 
-func showq_nfcCompose(a, b rune) bool {
+func showq_nfcCompose(a, b rune) (rune, bool) {
 	if a >= showq_hangulLBase && a < showq_hangulLBase+showq_hangulLCount && b >= showq_hangulVBase && b < showq_hangulVBase+showq_hangulVCount {
-		return true
+		return showq_hangulSBase + ((a-showq_hangulLBase)*showq_hangulVCount+b-showq_hangulVBase)*showq_hangulTCount, true
 	}
 	if showq_nfcIsHangulSyllable(a) && (a-showq_hangulSBase)%showq_hangulTCount == 0 && b > showq_hangulTBase && b < showq_hangulTBase+showq_hangulTCount {
-		return true
+		return a + b - showq_hangulTBase, true
 	}
 	i := sort.Search(len(showq_nfcCompTable), func(i int) bool {
 		p := showq_nfcCompTable[i]
 		return p[0] > int32(a) || p[0] == int32(a) && p[1] >= int32(b)
 	})
-	return i < len(showq_nfcCompTable) && showq_nfcCompTable[i][0] == int32(a) && showq_nfcCompTable[i][1] == int32(b)
+	if i < len(showq_nfcCompTable) && showq_nfcCompTable[i][0] == int32(a) && showq_nfcCompTable[i][1] == int32(b) {
+		return rune(showq_nfcCompTable[i][2]), true
+	}
+	return 0, false
 }
 
 func showq_nfcStableStarter(r rune) bool {
@@ -160,6 +163,11 @@ func showq_nfcStableStarter(r rune) bool {
 	}
 
 	return showq_nfcDecomp(r) == nil || showq_nfcHas(showq_nfcComposites, r)
+}
+
+func showq_nfcRawSafe(r rune) bool {
+	lead, _ := showq_nfcNonStarters(r)
+	return lead == 0 && showq_nfcStableStarter(r)
 }
 
 func showq_nfcNonStarters(r rune) (lead, trail int) {
@@ -188,35 +196,52 @@ func showq_nfcNonStarters(r rune) (lead, trail int) {
 }
 
 func showq_nfcMayChange(s string) bool {
-	prev := rune(-1)
 	starter := rune(-1)
-	lastTrail := int32(0)
+	starterTrail := 0
+	lastMark := int32(0)
 	nonStarters := 0
 	for i := 0; i < len(s); {
 		r, size := utf8.DecodeRuneInString(s[i:])
 		i += size
 		if r < 0xA0 || (r == utf8.RuneError && size == 1) {
 
-			prev, starter, lastTrail, nonStarters = r, r, 0, 0
+			starter, starterTrail, lastMark, nonStarters = r, 0, 0, 0
 			if size == 1 && r >= utf8.RuneSelf {
-				prev, starter = -1, -1
+				starter = -1
 			}
 			continue
 		}
 		ccc := showq_nfcCCC(r)
-		lead, trail := ccc, ccc
-		if d := showq_nfcDecomp(r); d != nil {
-			if !showq_nfcHas(showq_nfcComposites, r) {
+		d := showq_nfcDecomp(r)
+		if d != nil && (!showq_nfcHas(showq_nfcComposites, r) || ccc != 0 || showq_nfcCCC(rune(d[0])) != 0) {
+			return true
+		}
+		if ccc != 0 {
+			if lastMark > ccc {
 				return true
 			}
-			lead, trail = showq_nfcCCC(rune(d[0])), showq_nfcCCC(rune(d[len(d)-1]))
-		}
-		if lead != 0 && lastTrail > lead {
-			return true
-		}
 
-		if showq_nfcBackwardRune(r) && starter >= 0 && (prev == starter || ccc != 0 && lastTrail < ccc) && showq_nfcCompose(starter, r) {
-			return true
+			if starter >= 0 && lastMark < ccc && showq_nfcBackwardRune(r) {
+				base, ok := showq_nfcPartialBase(starter, starterTrail, ccc)
+				if !ok {
+					return true
+				}
+				if _, ok := showq_nfcCompose(base, r); ok {
+					return true
+				}
+			}
+			lastMark = ccc
+		} else {
+
+			if starter >= 0 && lastMark == 0 && showq_nfcBackwardRune(r) {
+				if _, ok := showq_nfcCompose(starter, r); ok {
+					return true
+				}
+			}
+			starter, starterTrail, lastMark = r, 0, 0
+			if d != nil {
+				starterTrail = int(showq_nfcCCC(rune(d[len(d)-1])))
+			}
 		}
 
 		if nLead, nTrail := showq_nfcNonStarters(r); nLead == 0 {
@@ -224,12 +249,27 @@ func showq_nfcMayChange(s string) bool {
 		} else if nonStarters += nLead; nonStarters > showq_nfcMaxNonStarters {
 			return true
 		}
-		prev, lastTrail = r, trail
-		if ccc == 0 {
-			starter = r
-		}
 	}
 	return false
+}
+
+func showq_nfcPartialBase(s rune, trail int, c int32) (rune, bool) {
+	if int32(trail) <= c {
+		return s, true
+	}
+	d := showq_nfcDecomp(s)
+	base := rune(d[0])
+	for _, x := range d[1:] {
+		if k := showq_nfcCCC(rune(x)); k == 0 || k > c {
+			break
+		}
+		next, ok := showq_nfcCompose(base, rune(x))
+		if !ok {
+			return 0, false
+		}
+		base = next
+	}
+	return base, true
 }
 
 const showq_nfcUnicodeVersion = "15.0.0"

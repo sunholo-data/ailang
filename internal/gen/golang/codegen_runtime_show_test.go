@@ -72,6 +72,11 @@ func TestEmittedShowMatchesEvaluator(t *testing.T) {
 		{`[]interface{}{"q" + strings.Repeat("\U00000301", 30), "q" + strings.Repeat("\U00000301", 31), strings.Repeat("\U00000316\U00000301", 500), strings.Repeat("\U000011A8", 31)}`,
 			list(str("q"+strings.Repeat("\U00000301", 30)), str("q"+strings.Repeat("\U00000301", 31)),
 				str(strings.Repeat("\U00000316\U00000301", 500)), str(strings.Repeat("\U000011A8", 31)))},
+		// Fourth review: a run of U+FF9E past the limit, alef-hamza + fatha
+		// (NFC, stays raw), and the after-escape rule for each escape form.
+		{`[]interface{}{"x" + strings.Repeat("\U0000FF9E", 31), "\U00000623\U0000064E", "a\n\U00000303", "a\t\U00001161", "a\\\U000011A8", "a\"\U0000FF9E", "a\x01\U00000303"}`,
+			list(str("x"+strings.Repeat("\U0000FF9E", 31)), str("\U00000623\U0000064E"), str("a\n\U00000303"), str("a\t\U00001161"),
+				str("a\\\U000011A8"), str("a\"\U0000FF9E"), str("a\x01\U00000303"))},
 		{`[]byte("hi")`, &eval.BytesValue{Value: []byte("hi")}},
 		{`func() {}`, &eval.FunctionValue{}},
 	}

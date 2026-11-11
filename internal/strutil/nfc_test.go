@@ -2,9 +2,12 @@ package strutil
 
 import (
 	"math/rand"
+	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
+	"unicode/utf8"
 
 	"golang.org/x/text/unicode/norm"
 )
@@ -132,22 +135,104 @@ func TestNFCStreamSafeBoundary(t *testing.T) {
 	}
 }
 
-// Ordinary NFC text in several scripts is written verbatim.
-func TestQuoteKeepsOrdinaryTextReadable(t *testing.T) {
-	for name, para := range map[string]string{
-		"Korean":     "\U0000D55C\U0000AD6D\U0000C5B4\U0000B294 \U0000C544\U0000B984\U0000B2E4\U0000C6B4 \U0000C5B8\U0000C5B4\U0000C785\U0000B2C8\U0000B2E4.",
-		"Vietnamese": "Ti\U00001EBFng Vi\U00001EC7t c\U000000F3 nhi\U00001EC1u d\U000000E2\U00001EA5u thanh \U00001EDF \U00000111\U000000E2y.",
-		"Devanagari": "\U00000939\U0000093F\U00000928\U0000094D\U00000926\U00000940 \U00000915\U00000940 \U0000091C\U0000093C\U00000930\U0000093E \U00000926\U00000947\U00000916\U00000947\U00000902\U00000964",
-		"Arabic":     "\U00000627\U00000644\U00000644\U0000064F\U0000063A\U0000064E\U00000629\U0000064F \U00000627\U00000644\U0000064A\U0000064E\U00000648\U0000064E\U00000645\U0000064E",
-		"Thai":       "\U00000E20\U00000E32\U00000E29\U00000E32\U00000E44\U00000E17\U00000E22 \U00000E2A\U00000E27\U00000E31\U00000E2A\U00000E14\U00000E35",
-		"emoji":      "\U0001F468\U0001F469\U0001F467 \U0001F44D\U0001F3FD \U00002764\U0000FE0F \U0001F389", // ZWJ is a format character: escaped by the non-printing rule, not by NFC
-	} {
-		para = norm.NFC.String(para)
-		if nfcMayChange(para) {
-			t.Errorf("%s: NFC paragraph judged changeable: %+q", name, para)
+// nfcParagraphs reads testdata/nfc_paragraphs.txt (shared with the fmt test).
+func nfcParagraphs(t *testing.T) map[string]string {
+	t.Helper()
+	data, err := os.ReadFile(filepath.Join("testdata", "nfc_paragraphs.txt"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	out := map[string]string{}
+	for _, line := range strings.Split(strings.ReplaceAll(string(data), "\r\n", "\n"), "\n") {
+		if name, text, ok := strings.Cut(line, "\t"); ok && !strings.HasPrefix(line, "#") {
+			out[name] = text
 		}
-		if q := Quote(para); strings.Contains(q, `\u{`) {
-			t.Errorf("%s: escaped: %s", name, q)
+	}
+	if len(out) != 8 {
+		t.Fatalf("%d paragraphs, want 8", len(out))
+	}
+	return out
+}
+
+// Ordinary NFC text is written verbatim: ZERO escaped runes in a real
+// paragraph of each script (fourth review: Arabic with harakat had 42% of its
+// runes escaped, because a haraka after U+0622-0626 was judged a reordering).
+func TestQuoteKeepsOrdinaryTextReadable(t *testing.T) {
+	for name, para := range nfcParagraphs(t) {
+		if norm.NFC.String(para) != para {
+			t.Fatalf("%s: test paragraph is not NFC", name)
+		}
+		if nfcMayChange(para) {
+			t.Errorf("%s: NFC paragraph judged changeable", name)
+		}
+		if q, want := Quote(para), `"`+para+`"`; q != want {
+			t.Errorf("%s: %d of %d runes escaped: %s", name, strings.Count(q, `\u{`), utf8.RuneCountInString(para), q)
+		}
+	}
+}
+
+// Exact, not just conservative, on a finite class: every precomposed
+// character whose decomposition ends in a mark, followed by every mark.
+// nfcMayChange must say "no change" exactly where x/text makes none, so
+// over-escaping cannot creep back in for this class.
+func TestNFCCompositePlusMarkExact(t *testing.T) {
+	var composites, marks []rune
+	for r := rune(0xA0); r <= 0x10FFFF; r++ {
+		if r >= 0xD800 && r <= 0xDFFF {
+			continue
+		}
+		s := string(r)
+		if p := norm.NFC.PropertiesString(s); p.CCC() != 0 {
+			marks = append(marks, r)
+		} else if d := []rune(norm.NFD.String(s)); len(d) > 1 && norm.NFC.String(s) == s &&
+			norm.NFC.PropertiesString(string(d[len(d)-1])).CCC() != 0 {
+			composites = append(composites, r)
+		}
+	}
+	pairs := 0
+	for _, c := range composites {
+		for _, m := range marks {
+			s := string(c) + string(m)
+			if got, want := nfcMayChange(s), norm.NFC.String(s) != s; got != want {
+				t.Fatalf("nfcMayChange(%U %U) = %v, x/text changes it = %v", c, m, got, want)
+			}
+			pairs++
+		}
+	}
+	if len(composites) < 850 || len(marks) < 850 {
+		t.Fatalf("only %d composites and %d marks enumerated", len(composites), len(marks))
+	}
+	t.Logf("%d composites x %d marks = %d pairs, all exact", len(composites), len(marks), pairs)
+}
+
+// Exact on mixed text from the scripts above: starters, composites, marks of
+// several classes (equal classes block, lower ones reorder), Hangul jamo and
+// syllables, and runs past the stream-safe limit with starters between them.
+func TestNFCExactOnScriptText(t *testing.T) {
+	var alphabet []string
+	for _, para := range nfcParagraphs(t) {
+		for _, r := range norm.NFD.String(para) + para {
+			alphabet = append(alphabet, string(r))
+		}
+	}
+	alphabet = append(alphabet, "a", "A", "o", "\U000000C1", "\U000001FB", "\U00001EA0", "\U00001FC7",
+		"\U00000622", "\U00000623", "\U00000624", "\U00000625", "\U00000626", "\U00000627", "\U00000648", "\U0000064A",
+		"\U00000300", "\U00000301", "\U00000302", "\U0000030A", "\U00000316", "\U00000323", "\U00000327", "\U00000328",
+		"\U00000315", "\U0000035C", "\U00000653", "\U00000654", "\U00000655", "\U0000064E", "\U00000650", "\U00000651",
+		"\U00001100", "\U00001161", "\U000011A8", "\U0000AC00", "\U0000AC01", "\U00003099", "\U0000FF9E", "\U0000304B")
+	rnd := rand.New(rand.NewSource(4))
+	for i := 0; i < 300000; i++ {
+		var b strings.Builder
+		for n := 1 + rnd.Intn(10); n > 0; n-- {
+			b.WriteString(alphabet[rnd.Intn(len(alphabet))])
+		}
+		if rnd.Intn(30) == 0 { // a run around the limit, a starter, another run
+			m := stressMarks[rnd.Intn(len(stressMarks))]
+			b.WriteString(strings.Repeat(m, 10+rnd.Intn(25)) + "a" + strings.Repeat(m, 10+rnd.Intn(25)))
+		}
+		s := b.String()
+		if got, want := nfcMayChange(s), norm.NFC.String(s) != s; got != want {
+			t.Fatalf("nfcMayChange(%+q) = %v, x/text changes it = %v", s, got, want)
 		}
 	}
 }
