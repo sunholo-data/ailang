@@ -24,16 +24,10 @@ import (
 // Every other expression-holding construct reaches Core: function bodies,
 // requires/ensures/invariant clauses (DeclMeta.Contracts), module-level `let`s
 // and top-level expressions. TestDeprecatedUseCoverage pins that split with one
-// fixture per construct, and TestDeprecatedASTConstructsClassified fails when
-// the parser produces a top-level node kind or a FuncDecl field that holds
-// expressions and is classified as neither.
-
-// astOnlyTopLevel are the top-level node kinds whose expressions never reach
-// Core; deprecatedUsesOutsideCore walks them.
-var astOnlyTopLevel = map[reflect.Type]bool{
-	reflect.TypeOf(&ast.TestDecl{}):     true,
-	reflect.TypeOf(&ast.PropertyDecl{}): true,
-}
+// fixture per construct; TestDeprecatedASTConstructsClassified reads the
+// statement and expression kinds from internal/ast's own type definitions and
+// fails on any it has not classified; and a statement kind nobody has told this
+// pass about is still searched (TestDeprecatedASTPassSearchesEveryStatementKind).
 
 // importedNames maps the names a module can use without qualification to the
 // global they denote, and module aliases to their module path. `import M`
@@ -110,6 +104,19 @@ func deprecatedUsesOutsideCore(u *CompileUnit, idx map[core.GlobalRef]deprecatio
 			w.walk(&ast.Block{Exprs: n.Body}, nil)
 		case *ast.PropertyDecl:
 			w.walkProperty(n.Property)
+		case *ast.FuncDecl, *ast.TypeDecl:
+			// Functions: bodies and contracts are in Core, tests and
+			// properties are walked above. Type declarations hold no
+			// expressions.
+		default:
+			// A top-level expression (module `let`, bare expression) is
+			// elaborated into Core. Anything else — class defaults,
+			// instance methods, and any statement kind added later — is
+			// searched here, so a new construct is never silently skipped.
+			if _, isExpr := st.(ast.Expr); isExpr {
+				continue
+			}
+			w.walkFields(reflect.ValueOf(st), nil)
 		}
 	}
 	return w.found

@@ -1,7 +1,9 @@
 package pipeline
 
 import (
-	"os"
+	goast "go/ast"
+	goparser "go/parser"
+	"go/token"
 	"path/filepath"
 	"reflect"
 	"runtime"
@@ -10,8 +12,7 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/ast"
-	"github.com/sunholo-data/ailang/internal/lexer"
-	"github.com/sunholo-data/ailang/internal/parser"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // TC_DEPRECATED_001 covers every place a module can use a name. One fixture per
@@ -99,27 +100,106 @@ func TestDeprecatedUseCoverage(t *testing.T) {
 	}
 }
 
-// Every top-level node kind the parser produces, and every FuncDecl field
-// that can hold an expression, is classified: reaches Core, walked from the
-// parsed source by warn_deprecated_ast.go, or holds no expressions. A new
-// construct fails here until it is classified (and covered above).
+// The guard is driven by the AST package's own type definitions, not by what
+// some .ail file happens to use: it parses internal/ast/*.go and lists every
+// type with a stmtNode() method (top-level statements) or an exprNode() method
+// (expressions). Each must be classified below — how its expressions are
+// searched, and whether it binds names — so adding a node type fails here until
+// someone decides. A second part runs the AST pass over a synthetic module
+// holding every AST-only statement kind and checks each one is searched.
+var deprecatedStmtKinds = map[string]string{
+	"FuncDecl":     "body and contracts reach Core; tests and properties are walked by the AST pass",
+	"TypeDecl":     "no expressions",
+	"TestDecl":     "AST pass (a sequence: let scopes over the rest)",
+	"PropertyDecl": "AST pass (forall binders in scope)",
+	"TypeClass":    "AST pass, generic walk (method defaults)",
+	"Instance":     "AST pass, generic walk (method bodies)",
+	"AssertStmt":   "only inside test bodies (top-level assert does not parse); generic walk",
+}
+
+// deprecatedExprKinds: "binder" kinds are handled explicitly by
+// astUseWalker.walk (they bring names into scope); "plain" kinds bind nothing
+// and are searched field by field.
+var deprecatedExprKinds = map[string]string{
+	"Identifier": "use", "RecordAccess": "use (L.f)",
+	"Lambda": "binder", "FuncLit": "binder", "Let": "binder", "LetRec": "binder",
+	"Block": "binder (sequential let)", "Match": "binder (pattern variables)", "ForallExpr": "binder",
+	"Literal": "plain", "BinaryOp": "plain", "UnaryOp": "plain", "AssertStmt": "plain",
+	"FuncCall": "plain", "If": "plain", "List": "plain", "Array": "plain", "Tuple": "plain",
+	"Record": "plain", "RecordUpdate": "plain", "Error": "plain", "QuasiQuote": "plain",
+	"Send": "plain", "Recv": "plain",
+}
+
+// astMarkerTypes returns the receiver type names of every method called marker
+// in internal/ast's non-test sources.
+func astMarkerTypes(t *testing.T, marker string) []string {
+	t.Helper()
+	_, self, _, _ := runtime.Caller(0)
+	dir := filepath.Join(filepath.Dir(self), "..", "ast")
+	files, err := filepath.Glob(filepath.Join(dir, "*.go"))
+	if err != nil || len(files) == 0 {
+		t.Fatalf("no internal/ast sources: %v", err)
+	}
+	seen := map[string]bool{}
+	fset := token.NewFileSet()
+	for _, f := range files {
+		if strings.HasSuffix(f, "_test.go") {
+			continue
+		}
+		file, err := goparser.ParseFile(fset, f, nil, 0)
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, d := range file.Decls {
+			fn, ok := d.(*goast.FuncDecl)
+			if !ok || fn.Recv == nil || fn.Name.Name != marker || len(fn.Recv.List) != 1 {
+				continue
+			}
+			rt := fn.Recv.List[0].Type
+			if star, ok := rt.(*goast.StarExpr); ok {
+				rt = star.X
+			}
+			if id, ok := rt.(*goast.Ident); ok {
+				seen[id.Name] = true
+			}
+		}
+	}
+	var out []string
+	for k := range seen {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
+
 func TestDeprecatedASTConstructsClassified(t *testing.T) {
-	coreTopLevel := map[string]bool{
-		"*ast.FuncDecl": true, // body + contracts reach Core; tests/properties via the AST pass
-		"*ast.Let":      true, // module-level let
-		"*ast.LetRec":   true,
+	stmts := astMarkerTypes(t, "stmtNode")
+	exprs := astMarkerTypes(t, "exprNode")
+	if len(stmts) < 5 || len(exprs) < 20 {
+		t.Fatalf("control: found %d statement and %d expression kinds in internal/ast; the scan is broken", len(stmts), len(exprs))
 	}
-	noExpressions := map[string]bool{
-		"*ast.TypeDecl":   true,
-		"*ast.ExternDecl": true,
-		"*ast.ClassDecl":  true, // method signatures only
+	for _, k := range stmts {
+		if _, ok := deprecatedStmtKinds[k]; !ok {
+			t.Errorf("ast.%s is a statement kind that TC_DEPRECATED_001 has not classified: decide how its expressions are searched (warn_deprecated_ast.go) and add it here", k)
+		}
 	}
-	astOnly := map[string]bool{}
-	for typ := range astOnlyTopLevel {
-		astOnly[typ.String()] = true
+	for _, k := range exprs {
+		if _, ok := deprecatedExprKinds[k]; !ok {
+			t.Errorf("ast.%s is an expression kind that TC_DEPRECATED_001 has not classified: if it binds names, handle it in astUseWalker.walk; then add it here", k)
+		}
+	}
+	for k := range deprecatedStmtKinds {
+		if !contains(stmts, k) {
+			t.Errorf("deprecatedStmtKinds lists ast.%s, which is no longer a statement kind", k)
+		}
+	}
+	for k := range deprecatedExprKinds {
+		if !contains(exprs, k) {
+			t.Errorf("deprecatedExprKinds lists ast.%s, which is no longer an expression kind", k)
+		}
 	}
 
-	// 1. FuncDecl fields that can hold an ast.Expr.
+	// FuncDecl fields that can hold an expression.
 	funcFields := map[string]string{
 		"Body":        "core",
 		"Properties":  "core (requires/ensures/invariant) + ast (forall)",
@@ -135,52 +215,52 @@ func TestDeprecatedASTConstructsClassified(t *testing.T) {
 			}
 		}
 	}
+}
 
-	// 2. Top-level node kinds in every .ail file of this repository.
-	_, self, _, _ := runtime.Caller(0)
-	repo := filepath.Join(filepath.Dir(self), "..", "..")
-	seen := map[string]string{}
-	for _, dir := range []string{"std", "examples", "tests", "benchmarks", "cmd/ailang/testdata", "internal/pipeline/testdata"} {
-		_ = filepath.Walk(filepath.Join(repo, dir), func(p string, info os.FileInfo, err error) error {
-			if err != nil || info.IsDir() || !strings.HasSuffix(p, ".ail") {
-				return nil
-			}
-			src, err := os.ReadFile(p)
-			if err != nil {
-				return nil
-			}
-			prs := parser.New(lexer.New(string(src), p))
-			file := prs.ParseFile()
-			if file == nil || len(prs.Errors()) > 0 {
-				return nil
-			}
-			for _, st := range file.Statements {
-				seen[reflect.TypeOf(st).String()] = p
-			}
-			return nil
-		})
-	}
-	var kinds []string
-	for k := range seen {
-		kinds = append(kinds, k)
-	}
-	sort.Strings(kinds)
-	for _, k := range kinds {
-		if !coreTopLevel[k] && !noExpressions[k] && !astOnly[k] {
-			// A top-level expression statement reaches Core as a module
-			// binding; anything else must be classified explicitly.
-			if isExprKind(k) {
-				continue
-			}
-			t.Errorf("top-level node kind %s (e.g. %s) is not classified for TC_DEPRECATED_001", k, seen[k])
+func contains(xs []string, x string) bool {
+	for _, y := range xs {
+		if y == x {
+			return true
 		}
 	}
-	for _, want := range []string{"*ast.TestDecl", "*ast.PropertyDecl"} {
-		if _, ok := seen[want]; !ok {
-			t.Errorf("control: no %s found in the repository, so this scan proves nothing about it", want)
-		}
+	return false
+}
+
+// Every AST-only statement kind — and a statement kind the pass has never
+// heard of — is searched: one synthetic module holds a use of the deprecated
+// lib.f in each, and each yields its warning.
+func TestDeprecatedASTPassSearchesEveryStatementKind(t *testing.T) {
+	use := func(line int) ast.Expr { return &ast.Identifier{Name: "f", Pos: ast.Pos{File: "m.ail", Line: line, Column: 1}} }
+	stmts := []ast.Node{
+		&ast.TestDecl{Name: "t", Body: []ast.Expr{&ast.AssertStmt{Condition: use(10)}}},
+		&ast.PropertyDecl{Name: "p", Property: &ast.Property{Kind: ast.PropertyKind, Expr: use(11)}},
+		&ast.Instance{ClassName: "C", Methods: map[string]ast.Expr{"m": use(12)}},
+		&ast.TypeClass{Name: "C", Methods: []*ast.Method{{Name: "m", Default: use(13)}}},
+		&unknownStmt{Payload: use(14)},
+	}
+	u := &CompileUnit{ID: "m", Surface: &ast.File{
+		Imports:    []*ast.ImportDecl{{Path: "lib", Symbols: []string{"f"}}},
+		Statements: stmts,
+	}}
+	idx := map[core.GlobalRef]deprecation{{Module: "lib", Name: "f"}: {replacement: "g"}}
+	var lines []int
+	for _, w := range deprecatedUsesOutsideCore(u, idx) {
+		lines = append(lines, w.Location.Line)
+	}
+	sort.Ints(lines)
+	if !reflect.DeepEqual(lines, []int{10, 11, 12, 13, 14}) {
+		t.Errorf("uses found at lines %v, want one in each statement kind [10 11 12 13 14]", lines)
 	}
 }
+
+// unknownStmt stands in for a statement kind added to the parser later: the
+// pass must search it without being told about it.
+type unknownStmt struct {
+	Payload ast.Expr
+}
+
+func (*unknownStmt) String() string   { return "unknown" }
+func (*unknownStmt) Position() ast.Pos { return ast.Pos{} }
 
 // holdsExpr reports whether a value of type t can contain an ast.Expr.
 func holdsExpr(t reflect.Type, visiting map[reflect.Type]bool) bool {
@@ -200,21 +280,6 @@ func holdsExpr(t reflect.Type, visiting map[reflect.Type]bool) bool {
 			if holdsExpr(t.Field(i).Type, visiting) {
 				return true
 			}
-		}
-	}
-	return false
-}
-
-// isExprKind reports whether a top-level statement kind is an expression: a
-// top-level expression statement, elaborated into Core like a module let
-// (the "top-level expression" coverage row).
-func isExprKind(k string) bool {
-	exprT := reflect.TypeOf((*ast.Expr)(nil)).Elem()
-	for _, e := range []interface{}{&ast.FuncCall{}, &ast.Identifier{}, &ast.Literal{}, &ast.Block{}, &ast.If{},
-		&ast.Match{}, &ast.BinaryOp{}, &ast.UnaryOp{}, &ast.Record{}, &ast.RecordAccess{}, &ast.RecordUpdate{},
-		&ast.Tuple{}, &ast.List{}, &ast.Array{}, &ast.Lambda{}, &ast.FuncLit{}} {
-		if reflect.TypeOf(e).String() == k && reflect.TypeOf(e).Implements(exprT) {
-			return true
 		}
 	}
 	return false
