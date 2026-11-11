@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
@@ -135,6 +136,11 @@ func (u MatchUniverse) byName() map[string][]string {
 			out[s.Name] = append(out[s.Name], key)
 		}
 	}
+	// Sorted: every message and choice built from these lists must not
+	// depend on map iteration order.
+	for _, keys := range out {
+		sort.Strings(keys)
+	}
 	return out
 }
 
@@ -237,8 +243,14 @@ func (v *matchVerifier) check(m *core.Match) {
 	// whatever else the match says, a catch-all included: the evaluator
 	// never matches it and the VM binds a prefix of the fields (#2243).
 	for _, arm := range m.Arms {
-		if ae := v.arityOf(arm.Pattern); ae != nil {
+		var ae *patternArityError
+		var amb *ambiguousArityError
+		switch err := v.arityOf(arm.Pattern); {
+		case errors.As(err, &ae):
 			v.errs = append(v.errs, newPatternArityError(pos, ae))
+			return
+		case errors.As(err, &amb):
+			v.errs = append(v.errs, newAmbiguousArityError(pos, amb))
 			return
 		}
 	}
@@ -284,42 +296,93 @@ func (v *matchVerifier) check(m *core.Match) {
 // otherwise every loaded ADT declaring a constructor of that name. It runs
 // before, and independently of, the coverage check, so a pattern whose ADT
 // cannot be placed is still checked.
-func (v *matchVerifier) arityOf(p core.CorePattern) *patternArityError {
+func (v *matchVerifier) arityOf(p core.CorePattern) error {
 	switch p := p.(type) {
 	case *core.ConstructorPattern:
-		var arities []int
-		if _, sigs, err := v.ctorUniverse(p); err == nil {
-			arities = sigArities(sigs, p.Name)
-		} else {
-			for _, key := range v.byName[p.Name] {
-				arities = append(arities, sigArities(v.tc.matchUniverse[key], p.Name)...)
-			}
-		}
-		if len(arities) > 0 && !containsInt(arities, len(p.Args)) {
-			return &patternArityError{pattern: p, arity: arities[0]}
+		if err := v.ctorArity(p); err != nil {
+			return err
 		}
 		return v.arityOfAll(p.Args)
 	case *core.TuplePattern:
 		return v.arityOfAll(p.Elements)
 	case *core.ListPattern:
-		if ae := v.arityOfAll(p.Elements); ae != nil || p.Tail == nil {
-			return ae
+		if err := v.arityOfAll(p.Elements); err != nil || p.Tail == nil {
+			return err
 		}
 		return v.arityOf(*p.Tail)
 	case *core.RecordPattern:
 		for _, f := range sortedPatternFields(p.Fields) {
-			if ae := v.arityOf(p.Fields[f]); ae != nil {
-				return ae
+			if err := v.arityOf(p.Fields[f]); err != nil {
+				return err
 			}
 		}
 	}
 	return nil
 }
 
-func (v *matchVerifier) arityOfAll(ps []core.CorePattern) *patternArityError {
+// ctorArity checks one constructor pattern's argument count. With its ADT
+// resolved, against that ADT's declaration. Unresolved (matched by name, the
+// value's type not fixed), against every loaded ADT declaring the name, in
+// sorted order: when they all agree, against that arity; when they disagree
+// the pattern's meaning is undecided — the evaluator matches by tag and field
+// count, the VM by tag alone — so it is an error whatever its own count.
+func (v *matchVerifier) ctorArity(p *core.ConstructorPattern) error {
+	if _, sigs, err := v.ctorUniverse(p); err == nil {
+		for _, a := range sigArities(sigs, p.Name) {
+			if a != len(p.Args) {
+				return &patternArityError{pattern: p, arity: a}
+			}
+		}
+		return nil
+	}
+	var cands []arityCandidate
+	for _, key := range v.byName[p.Name] {
+		for _, a := range sigArities(v.tc.matchUniverse[key], p.Name) {
+			cands = append(cands, arityCandidate{key: key, arity: a})
+		}
+	}
+	if len(cands) == 0 {
+		return nil
+	}
+	for _, c := range cands[1:] {
+		if c.arity != cands[0].arity {
+			return &ambiguousArityError{pattern: p, cands: cands}
+		}
+	}
+	if cands[0].arity != len(p.Args) {
+		return &patternArityError{pattern: p, arity: cands[0].arity}
+	}
+	return nil
+}
+
+// arityCandidate is one loaded ADT declaring a constructor name, with that
+// constructor's arity.
+type arityCandidate struct {
+	key   string // NominalKey of the ADT
+	arity int
+}
+
+// ambiguousArityError: a constructor matched by name whose ADT is not
+// resolved, declared by two or more loaded ADTs with different arities.
+type ambiguousArityError struct {
+	pattern *core.ConstructorPattern
+	cands   []arityCandidate // sorted by key
+}
+
+func (e *ambiguousArityError) Error() string {
+	parts := make([]string, len(e.cands))
+	for i, c := range e.cands {
+		mod, name := SplitNominalKey(c.key)
+		parts[i] = fmt.Sprintf("%s's %s takes %d", mod, name, c.arity)
+	}
+	return fmt.Sprintf("constructor pattern %s is matched by name, the type of the value it matches is not fixed, and the loaded types declaring %s disagree on its arguments (%s)",
+		e.pattern.Name, e.pattern.Name, strings.Join(parts, ", "))
+}
+
+func (v *matchVerifier) arityOfAll(ps []core.CorePattern) error {
 	for _, p := range ps {
-		if ae := v.arityOf(p); ae != nil {
-			return ae
+		if err := v.arityOf(p); err != nil {
+			return err
 		}
 	}
 	return nil
@@ -333,15 +396,6 @@ func sigArities(sigs []exhaust.CtorSig, name string) []int {
 		}
 	}
 	return out
-}
-
-func containsInt(xs []int, x int) bool {
-	for _, y := range xs {
-		if y == x {
-			return true
-		}
-	}
-	return false
 }
 
 func sortedPatternFields(m map[string]core.CorePattern) []string {
@@ -407,7 +461,8 @@ func (v *matchVerifier) pattern(p core.CorePattern) (exhaust.Pattern, error) {
 		return l, nil
 	case *core.RecordPattern:
 		fields := make(map[string]exhaust.Pattern, len(p.Fields))
-		for f, fp := range p.Fields {
+		for _, f := range sortedPatternFields(p.Fields) {
+			fp := p.Fields[f]
 			q, err := v.pattern(fp)
 			if err != nil {
 				return nil, err

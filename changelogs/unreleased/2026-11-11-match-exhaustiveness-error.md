@@ -19,7 +19,8 @@ constrains nothing, so other values reach the match. Fix: import the constructor
 
 Also: a constructor pattern with the wrong number of arguments, `C(n)` for `C(int, int)`, is
 `TC_MATCH_006` in every checked match, a catch-all arm or not (the engines disagreed on it,
-#2243); a match too large to check is `TC_MATCH_004` (fix: a final `_` arm). The elaborator's old literal-only warning (ELB004) and its checker are
+#2243); so is a constructor matched by name against an untyped value when two loaded types declare
+it with different arities (fix: import the type you mean); a match too large to check is `TC_MATCH_004` (fix: a final `_` arm). The elaborator's old literal-only warning (ELB004) and its checker are
 gone. The teaching prompt line "`ailang check` does NOT catch it" is removed. Compile-cache key
 v13: modules cached by an earlier compiler must be re-checked. Design:
 design_docs/planned/v1_0_0/m-v1-match-exhaustiveness.md (#2146).
@@ -37,9 +38,10 @@ is warning `TC_MATCH_003`, in `check --json` `warnings` and as a `warn:` line in
 `--format agent`. It is stored with the module in the compile cache, so a warm `check` reports it
 too.
 
-### Changed — BREAKING: a module-level definition named `unreachable` is refused (TC_BUILTIN_SHADOW_001) (2026-11-11)
+### Changed — BREAKING: a module-level definition or import named `unreachable` is refused (TC_BUILTIN_SHADOW_001) (2026-11-11)
 
-A builtin wins over a module-level definition of the same name, so a program that defined its own
-`unreachable` would now silently call the new builtin instead. `check` refuses such a definition
-with `TC_BUILTIN_SHADOW_001` (rename it); a local `let unreachable = …` keeps ordinary lexical
+A builtin wins over a module-level name, so a program that defined its own `unreachable`, or
+imported something under that name (`import M (x as unreachable)`), would now silently call the
+new builtin instead. `check` refuses both with `TC_BUILTIN_SHADOW_001` (rename it), also when the
+module is served from the compile cache; a local `let unreachable = …` keeps ordinary lexical
 scope. No definition of that name exists in the 10,401 eval programs or the downstream corpora.

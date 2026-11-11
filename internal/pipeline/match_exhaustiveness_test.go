@@ -177,6 +177,14 @@ func TestMatchExhaustivenessAcrossModules(t *testing.T) {
 				"export pure func g(x: int) -> int {\n  let h = \\e. match e { Ping => 1, Message(a, b) => 2, _ => 3 };\n  h(x)\n}\n",
 			want: []string{"6:TC_MATCH_006:constructor pattern Message has 2 argument(s), but Message takes 1"},
 		},
+		{
+			// Review probe a9: the arity pass recurses into constructor
+			// arguments, under a tuple and a catch-all.
+			name: "wrong arity nested in a constructor argument",
+			src: "module main\n\nimport std/option (Option, Some, None)\n\ntype K2 = K(int, int) | Z\n\n" +
+				"export pure func c(p: (int, Option[K2])) -> int = match p { (_, Some(K(_, _, _))) => 1, _ => 0 }\n",
+			want: []string{"7:TC_MATCH_006:constructor pattern K has 3 argument(s), but K takes 2"},
+		},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -326,5 +334,65 @@ func TestBuiltinShadowRefused(t *testing.T) {
 	// A local binding keeps ordinary lexical scope.
 	if _, _, err := checkMatchModules(t, map[string]string{"main.ail": "module main\n\nexport pure func f() -> int {\n  let unreachable = \\s. 0;\n  unreachable(\"x\")\n}\n"}, "main.ail"); err != nil {
 		t.Errorf("local binding refused: %v", err)
+	}
+}
+
+// Review probes a2/a11/a3: two loaded types declare `Msg` with different
+// arities and the pattern's type is not fixed (a let-bound lambda, neither
+// type imported). Whichever arity the pattern has — one candidate's, the
+// other's, or neither — it is TC_MATCH_006 naming both candidates, under a
+// catch-all too; importing the type decides it.
+func TestMatchAmbiguousArityByName(t *testing.T) {
+	files := map[string]string{
+		"ar/x.ail":  "module ar/x\n\nexport type Ev = Msg(string) | Done\n\nexport pure func evs() -> [Ev] = [Msg(\"a\"), Done]\n",
+		"ar/y.ail":  "module ar/y\n\nexport type Pkt = Msg(string, int) | Done(int)\n\nexport pure func pkts() -> [Pkt] = [Msg(\"b\", 1), Done(2)]\n",
+		"ar/hx.ail": "module ar/hx\n\nimport ar/x (Ev, evs)\n\nexport pure func xs() -> [Ev] = evs()\n",
+		"ar/hy.ail": "module ar/hy\n\nimport ar/y (Pkt, pkts)\n\nexport pure func ys() -> [Pkt] = pkts()\n",
+	}
+	main := func(imports, pat string) string {
+		return "module main\n\nimport ar/hx (xs)\nimport ar/hy (ys)\nimport std/list (map)\n" + imports + "\n" +
+			"export pure func f() -> [string] {\n  let h = \\e. match e { " + pat + " => \"m\", _ => \"other\" };\n  map(h, xs())\n}\n"
+	}
+	want := "constructor pattern Msg is matched by name, the type of the value it matches is not fixed, and the loaded types declaring Msg disagree on its arguments (ar/x's Ev takes 1, ar/y's Pkt takes 2)"
+	for _, pat := range []string{"Msg(a)", "Msg(a, b)", "Msg(a, b, c)"} {
+		files["main.ail"] = main("", pat)
+		errs, _, err := checkMatchModules(t, files, "main.ail")
+		if len(errs) != 1 || errs[0].Code != types.TC_MATCH_006 || errs[0].Message != want ||
+			errs[0].Suggestion != "import the type you mean, import ar/x (Ev) or import ar/y (Pkt)" {
+			t.Errorf("%s: got %v", pat, err)
+		}
+	}
+	files["main.ail"] = main("import ar/x (Ev)\n", "Msg(a)")
+	if errs, _, err := checkMatchModules(t, files, "main.ail"); err != nil {
+		t.Errorf("with the type imported: %v %v", errs, err)
+	}
+}
+
+// `import M (x as unreachable)` and `import M (unreachable)` bind the
+// builtin's name: refused, on a cold compile and on a warm one (the check
+// runs before the compile-cache lookup).
+func TestBuiltinShadowImportRefused(t *testing.T) {
+	for _, src := range []string{
+		"module main\n\nimport std/string (trim as unreachable)\n\nexport pure func f() -> string = unreachable(\" hi \")\n",
+		"module main\n\nimport lib/u (unreachable)\n\nexport pure func f() -> int = 1\n",
+	} {
+		root := t.TempDir()
+		t.Chdir(root)
+		t.Setenv("AILANG_CACHE_DIR", filepath.Join(root, "cache"))
+		if err := os.MkdirAll("lib", 0o755); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile("lib/u.ail", []byte("module lib/u\n\nexport pure func unreachable_() -> int = 1\n"), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile("main.ail", []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+		for _, run := range []string{"cold", "warm"} {
+			_, err := runModuleWithCacheDependencies(t.Context(), Config{Mode: ModeCheck}, Source{Filename: "main.ail"}, productionCacheDependencies())
+			if err == nil || !strings.Contains(err.Error(), TCBuiltinShadow) || !strings.Contains(err.Error(), "main.ail:3:") {
+				t.Errorf("%s %q: want %s at main.ail:3, got %v", run, src, TCBuiltinShadow, err)
+			}
+		}
 	}
 }

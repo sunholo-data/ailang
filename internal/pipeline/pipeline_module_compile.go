@@ -62,9 +62,6 @@ func typeCheckAndLowerModule(
 	cfg Config,
 ) (*moduleCompileResult, error) {
 	result := &moduleCompileResult{}
-	if err := checkBuiltinShadow(unit.Surface); err != nil {
-		return nil, err
-	}
 
 	// Type check with external types from dependencies
 	// Create a local TypeEnv for this module (inherits from global builtins)

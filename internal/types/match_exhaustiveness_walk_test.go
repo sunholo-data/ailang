@@ -249,6 +249,50 @@ func TestVerifyMatchExhaustivenessCatchAllRescuesOnlyCoverage(t *testing.T) {
 	}
 }
 
+// A by-name constructor whose type is not fixed, declared by two loaded types
+// with different arities, is undecided whatever its own argument count — the
+// evaluator matches tag and field count, the VM the tag alone. The message
+// names every candidate, sorted, so it is the same on every run (the
+// candidates come from a map).
+func TestVerifyMatchExhaustivenessAmbiguousArity(t *testing.T) {
+	arm := func(p core.CorePattern) core.MatchArm { return core.MatchArm{Pattern: p, Body: &core.Lit{}} }
+	want := "constructor pattern Msg is matched by name, the type of the value it matches is not fixed, and the loaded types declaring Msg disagree on its arguments (ar/x's Ev takes 1, ar/y's Pkt takes 2)"
+	for run := 0; run < 50; run++ {
+		for _, n := range []int{1, 2, 3} {
+			tc := NewCoreTypeChecker()
+			tc.CoreTI = CoreTypeInfo{}
+			tc.SetMatchUniverse(MatchUniverse{
+				NominalKey("ar/y", "Pkt"): {{Name: "Done", Arity: 1}, {Name: "Msg", Arity: 2}},
+				NominalKey("ar/x", "Ev"):  {{Name: "Done"}, {Name: "Msg", Arity: 1}},
+				NominalKey("ar/z", "Zz"):  {{Name: "Other"}},
+			})
+			args := make([]core.CorePattern, n)
+			for i := range args {
+				args[i] = &core.WildcardPattern{}
+			}
+			p := &core.ConstructorPattern{Name: "Msg", Args: args, Pos: ast.Pos{Line: 6, Column: 28}}
+			tc.recordCtorPatternType(p, &TVar2{Name: "t1"})
+			_, err := tc.VerifyMatchExhaustiveness(matchOn(1, 6, &TVar2{Name: "t1"}, tc, arm(p), wildArm()))
+			var me *MatchError
+			if !errors.As(err, &me) || me.Code != TC_MATCH_006 || me.Message != want ||
+				me.Suggestion != "import the type you mean, import ar/x (Ev) or import ar/y (Pkt)" {
+				t.Fatalf("run %d, %d args: %v (suggestion %q)", run, n, err, me.Suggestion)
+			}
+		}
+	}
+	// Candidates that agree: the ordinary arity check, against that arity.
+	tc := NewCoreTypeChecker()
+	tc.CoreTI = CoreTypeInfo{}
+	tc.SetMatchUniverse(MatchUniverse{NominalKey("a", "T"): {{Name: "K", Arity: 2}}, NominalKey("b", "U"): {{Name: "K", Arity: 2}}})
+	p := &core.ConstructorPattern{Name: "K", Args: []core.CorePattern{&core.WildcardPattern{}}}
+	tc.recordCtorPatternType(p, &TVar2{Name: "t1"})
+	_, err := tc.VerifyMatchExhaustiveness(matchOn(2, 3, &TVar2{Name: "t1"}, tc, arm(p), wildArm()))
+	var me *MatchError
+	if !errors.As(err, &me) || me.Code != TC_MATCH_006 || me.Suggestion != "write K(_, _)" {
+		t.Fatalf("agreeing candidates: %v", err)
+	}
+}
+
 // At most five witnesses are named; more are summarised.
 func TestVerifyMatchExhaustivenessManyWitnesses(t *testing.T) {
 	tc := newMatchTC()

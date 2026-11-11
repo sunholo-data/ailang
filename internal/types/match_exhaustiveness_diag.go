@@ -186,6 +186,25 @@ func newPatternArityError(matchPos ast.Pos, e *patternArityError) *MatchError {
 	return newMatchError(TC_MATCH_006, pos, e.Error(), "write "+fix, nil, nil)
 }
 
+// newAmbiguousArityError is TC_MATCH_006 for a by-name constructor whose
+// candidate ADTs disagree on its arity: it leads with the fix that decides it.
+func newAmbiguousArityError(matchPos ast.Pos, e *ambiguousArityError) *MatchError {
+	pos := matchPos
+	if e.pattern.Pos.Line > 0 {
+		pos = e.pattern.Pos
+		if pos.File == "" {
+			pos.File = matchPos.File
+		}
+	}
+	imports := make([]string, len(e.cands))
+	for i, c := range e.cands {
+		mod, name := SplitNominalKey(c.key)
+		imports[i] = fmt.Sprintf("import %s (%s)", mod, name)
+	}
+	return newMatchError(TC_MATCH_006, pos, e.Error(),
+		"import the type you mean, "+strings.Join(imports, " or "), nil, nil)
+}
+
 // MatchWarning is TC_MATCH_003: an arm no value can reach, because the
 // unguarded arms before it match everything it matches.
 type MatchWarning struct {

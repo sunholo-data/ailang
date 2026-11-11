@@ -20,11 +20,27 @@ const TCBuiltinShadow = "TC_BUILTIN_SHADOW_001"
 // keep their behaviour.
 var shadowCheckedBuiltins = map[string]bool{"unreachable": true}
 
-// checkBuiltinShadow refuses a module-level function or binding with one of
-// shadowCheckedBuiltins' names.
+// checkBuiltinShadow refuses a module-level function or binding, or an
+// imported name or import alias, with one of shadowCheckedBuiltins' names.
+// It reads only the parsed file, so it runs before the compile-cache lookup
+// and holds on a cache hit.
 func checkBuiltinShadow(file *ast.File) error {
 	if file == nil {
 		return nil
+	}
+	for _, imp := range file.Imports {
+		if imp == nil || imp.Implicit {
+			continue
+		}
+		for _, sym := range imp.Symbols {
+			name := sym
+			if alias, ok := imp.SymbolAliases[sym]; ok && alias != "" {
+				name = alias
+			}
+			if shadowCheckedBuiltins[name] {
+				return builtinShadowImportError(name, sym, imp)
+			}
+		}
 	}
 	for _, fn := range file.Funcs {
 		if fn != nil && shadowCheckedBuiltins[fn.Name] {
@@ -37,6 +53,22 @@ func checkBuiltinShadow(file *ast.File) error {
 		}
 	}
 	return nil
+}
+
+func builtinShadowImportError(name, sym string, imp *ast.ImportDecl) error {
+	what := fmt.Sprintf("`import %s (%s)`", imp.Path, sym)
+	if sym != name {
+		what = fmt.Sprintf("`import %s (%s as %s)`", imp.Path, sym, name)
+	}
+	msg := fmt.Sprintf("%s binds the name of the builtin `%s`, which would silently replace it at every call", what, name)
+	return fmt.Errorf("%s: %w", imp.Pos, &ailerrors.ReportError{Rep: &ailerrors.Report{
+		Schema:  "ailang.error/v1",
+		Code:    TCBuiltinShadow,
+		Phase:   "typecheck",
+		Message: msg,
+		Span:    &ast.Span{Start: imp.Pos, End: imp.Pos},
+		Fix:     &ailerrors.Fix{Suggestion: fmt.Sprintf("import it under another name, e.g. import %s (%s as %s_)", imp.Path, sym, name), Confidence: 0.9},
+	}})
 }
 
 func builtinShadowError(name string, pos ast.Pos) error {

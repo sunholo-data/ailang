@@ -548,13 +548,16 @@ error naming it a compiler bug. It has not fired on any corpus.
   evaluator never matches `C(n)` against `C(int, int)` while the VM binds the first field, so the
   pattern has no single coverage. The arity check is a pass of its own, before coverage: a
   catch-all arm never hides it, and a pattern whose ADT cannot be placed is compared with every
-  loaded ADT declaring the name (review finding: the first version let `_` rescue it). 3 of 8,201
+  loaded ADT declaring the name (review finding: the first version let `_` rescue it). When those
+  ADTs disagree on the constructor's arity the pattern is an error whatever its own count (the
+  evaluator matches tag and count, the VM the tag alone); every candidate is named, sorted. 3 of 8,201
   passing AI programs had one; no repo or downstream file did.
 - *By-name constructors on an untyped value* have their own message and fix: import the
   constructor's type (`import bn/a (Ev)`), which brings the constructors into scope so the
   pattern fixes the value's type.
-- *A module-level definition named `unreachable`* is `TC_BUILTIN_SHADOW_001`: a builtin wins over
-  a module-level name, so it would otherwise be silently replaced. None exists in the eval or
+- *A module-level definition or import named `unreachable`* is `TC_BUILTIN_SHADOW_001`: a builtin
+  wins over a module-level name, so it would otherwise be silently replaced. The check reads the
+  parsed file before the compile-cache lookup, so it holds on a cache hit. None exists in the eval or
   downstream corpora. Older builtin names keep the general precedence rule.
 - *A scrutinee/pattern disagreement* ("compiler bug") is reported even under a catch-all.
 - Witness lists show five and end "and more" when there are more.
