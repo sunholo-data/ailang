@@ -8,7 +8,7 @@
 all: test build ## Run tests and build
 
 # CI verification
-ci: deps fmt-check test-fmt-check shellcheck-autopush test-shellcheck-autopush vet lint check-wasm-build test test-nightly-classifier test-coverage-badge check-coverage-threshold test-lowering verify-no-shim verify-examples verify-examples-toplevel verify-stdlib verify-stdlib-selftest verify-examples-gate-selftest verify-mcp-tools verify-install-guide verify-pi-assets verify-maintenance-assets check-boundaries check-no-fma check-architecture-closure check-referenced-paths check-git-exec test-check-git-exec check-changelog check-file-sizes check-golden-drift check-protocol-closure check-skills check-context-docs test-check-context-docs check-doc-review test-check-doc-review check-doc-samples test-check-doc-samples check-tmpfile-hygiene check-home-isolation check-no-personal-email test-check-no-personal-email test-check-autoclose test-check-referenced-paths test-check-changelog test-check-protocol-closure test-check-tmpfile-hygiene test-check-home-isolation check-prompt-freeze check-prompt-commands check-llms-txt check-cli-docs test-parser test-stdlib-ail test-regression-guards test-imports-success test-import-errors test-launchd-drivers ## Run full CI verification, including workflow gates
+ci: deps fmt-check test-fmt-check shellcheck-autopush test-shellcheck-autopush vet lint check-wasm-build test test-nightly-classifier test-coverage-badge check-coverage-threshold test-lowering verify-no-shim verify-examples verify-examples-toplevel verify-stdlib verify-stdlib-selftest verify-examples-gate-selftest verify-mcp-tools verify-install-guide verify-pi-assets verify-maintenance-assets check-boundaries check-no-fma check-architecture-closure check-referenced-paths check-git-exec test-check-git-exec check-changelog check-file-sizes check-golden-drift check-protocol-closure check-skills check-context-docs test-check-context-docs check-doc-review test-check-doc-review check-doc-samples test-check-doc-samples check-tmpfile-hygiene check-home-isolation check-no-personal-email test-check-no-personal-email test-check-autoclose test-check-referenced-paths test-check-changelog test-check-protocol-closure test-check-tmpfile-hygiene test-check-home-isolation check-prompt-freeze check-prompt-commands check-llms-txt test-check-llms-txt check-cli-docs test-parser test-stdlib-ail test-regression-guards test-imports-success test-import-errors test-launchd-drivers ## Run full CI verification, including workflow gates
 	@echo "$(GREEN)$(CHECKMARK) CI verification complete$(RESET)"
 
 # Fast (~55 s with the doc-sample build) gates over generated files and docs that a direct push to dev can leave
@@ -30,3 +30,7 @@ ci-strict: deps fmt-check vet lint test test-coverage-badge verify-lowering test
 .PHONY: check-llms-txt
 check-llms-txt: ## llms.txt (3 committed copies) embeds the active teaching prompt; fix with make generate-llms-txt
 	@scripts/check_llms_txt.sh
+
+.PHONY: test-check-llms-txt
+test-check-llms-txt: ## Self-test of the llms.txt gate against the real generator (bash 3.2)
+	@/bin/bash scripts/test_check_llms_txt.sh

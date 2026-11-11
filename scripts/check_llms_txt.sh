@@ -12,7 +12,7 @@
 # Fix a failure with: make generate-llms-txt
 set -euo pipefail
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT="${LLMS_TXT_ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"  # LLMS_TXT_ROOT: self-test only
 cd "$REPO_ROOT"
 
 ACTIVE="$(jq -r '.active' prompts/versions.json)"

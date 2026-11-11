@@ -582,6 +582,9 @@ jobs:
     - name: Check llms.txt embeds the active teaching prompt
       run: make check-llms-txt
 
+    - name: Self-test the llms.txt gate
+      run: make test-check-llms-txt
+
     - name: Check golden drift protection (M-P2)
       run: make check-golden-drift
       env:
