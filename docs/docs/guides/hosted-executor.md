@@ -125,9 +125,11 @@ from that tab.
 
 ### Others
 
-**Gemini Enterprise, Microsoft Copilot.** Not available yet for this server. Both need an OAuth
-client model (a pre-registered client or dynamic registration) that the executor has not switched
-on. The status of each platform is in [Where an AILANG MCP service can appear](./mcp-connectors.md#where-an-ailang-mcp-service-can-appear).
+**Gemini Enterprise, Microsoft Copilot.** Not on this (production) server yet: both need an OAuth
+client model the production executor has switched off (pre-registered clients, dynamic
+registration). Gemini Enterprise sign-in is verified on the dev service (2026-11-11); the steps and
+the traps, including GE's daily agent-creation quota, are in
+[Gemini Enterprise with per-user sign-in](./mcp-connectors.md#gemini-enterprise-with-per-user-sign-in-the-steps-and-what-bit-us).
 
 **Without sign-in.** For the documentation tools only, use `https://mcp.ailang.sunholo.com/mcp/`.
 To run code on your own machine instead, install AILANG and the `ailang_bootstrap` plugin, which
