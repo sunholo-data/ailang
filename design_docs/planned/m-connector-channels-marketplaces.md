@@ -57,7 +57,7 @@ Status today (2026-11-10). ✅ = observed working live. 🔧 = we have to build 
 | C5 | **Microsoft 365 Copilot** (declarative agent + MCP plugin) | Agents Toolkit ≥ 6.12.0, sideload; then Marketplace | static client or DCR | 🔧 client model off | 🔧 client model off |
 | C6 | **Copilot Studio** (agent tool) | MCP onboarding wizard | DCR (discovery) or manual client | 🔧 | 🔧 |
 | C7 | **GitHub Copilot / VS Code** | `MCP: Add Server`, or from the MCP Registry | remote MCP + OAuth | 👤 untested | 👤 untested; not in the Registry |
-| C8 | **Gemini Enterprise, MCP data store** | Admin adds the URL | IAM, or pre-registered client | 🔧 no confidential client | ✅ IAM-only (dev, 2026-10-14); 🔧 OAuth |
+| C8 | **Gemini Enterprise, MCP data store** | Admin adds the URL | IAM, or pre-registered client | 🔧 no confidential client in prod | ✅ IAM-only (dev, 2026-10-14); ✅ **OAuth on dev 2026-11-11** (pre-registered `mco_` client, PKCE + Basic, token issued, `google-adk` lists tools); prod needs `executor_mcp_oauth_confidential_clients` (D2) |
 | C9 | **Gemini Enterprise, A2A agent** | Agent Registry; Cloud Marketplace | A2A v0.3 | ⛔ out of scope (D7) | 🔧 serve-api A2A is pre-0.2 |
 | C10 | **Gemini app + Search** (Connected Apps, preview) | Google's console after admission | CIMD, then DCR; stable refresh; revoke | 🔧 + ⛔ preview admission | 🔧 + ⛔ preview admission |
 
