@@ -109,9 +109,10 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 				// Emit the CANONICAL name: for an aliased import (`None as Nada`)
 				// p.Name is the alias, and runtime matching compares tags (#1478).
 				return &core.ConstructorPattern{
-					Name:     ctorInfo.CtorName,
-					TypeName: ctorInfo.TypeName,
-					Args:     nil, // Empty args for nullary constructor
+					Name:       ctorInfo.CtorName,
+					TypeName:   ctorInfo.TypeName,
+					TypeModule: ctorInfo.Module,
+					Args:       nil, // Empty args for nullary constructor
 				}, nil
 			}
 			// Bare non-nullary constructor (e.g. `Some` without arguments):
@@ -177,14 +178,15 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 		// Canonicalize an aliased constructor (`Some as S` → pattern S(v)
 		// matches tag Some). Unknown names keep the written name; the
 		// typechecker rejects names no loaded module defines (#1478).
-		name, typeName := p.Name, ""
+		name, typeName, typeModule := p.Name, "", ""
 		if ctorInfo, ok := e.constructors[p.Name]; ok && ctorInfo.CtorName != "" {
-			name, typeName = ctorInfo.CtorName, ctorInfo.TypeName
+			name, typeName, typeModule = ctorInfo.CtorName, ctorInfo.TypeName, ctorInfo.Module
 		}
 		return &core.ConstructorPattern{
-			Name:     name,
-			Args:     args,
-			TypeName: typeName,
+			Name:       name,
+			Args:       args,
+			TypeName:   typeName,
+			TypeModule: typeModule,
 		}, nil
 	case *ast.TuplePattern:
 		// Elaborate tuple element patterns

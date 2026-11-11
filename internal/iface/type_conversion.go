@@ -8,7 +8,13 @@ import (
 
 // astTypeToInternalType converts an AST type to an internal type
 // This is used during interface building to get actual constructor field types
-func astTypeToInternalType(t ast.Type) types.Type {
+//
+// scope resolves every bare type name to its defining module
+// (M-V1-NOMINAL-TYPE-IDENTITY): it is the same resolver the elaborator used
+// for this module, so a constructor field or alias body that names an imported
+// type (LedgerEvent, Json, Option) crosses the module boundary with that
+// type's identity, not as an unqualified name.
+func astTypeToInternalType(scope *types.TypeScope, t ast.Type) types.Type {
 	switch typ := t.(type) {
 	case *ast.SimpleType:
 		switch typ.Name {
@@ -29,13 +35,13 @@ func astTypeToInternalType(t ast.Type) types.Type {
 			if len(typ.Name) > 0 && typ.Name[0] >= 'a' && typ.Name[0] <= 'z' {
 				return &types.TVar2{Name: typ.Name, Kind: types.Star}
 			}
-			return &types.TCon{Name: typ.Name}
+			return scope.Con(typ.Name)
 		}
 
 	case *ast.FuncType:
 		paramTypes := make([]types.Type, len(typ.Params))
 		for i, p := range typ.Params {
-			paramTypes[i] = astTypeToInternalType(p)
+			paramTypes[i] = astTypeToInternalType(scope, p)
 		}
 		var effectRow *types.Row
 		if len(typ.Effects) > 0 {
@@ -59,25 +65,25 @@ func astTypeToInternalType(t ast.Type) types.Type {
 		return &types.TFunc2{
 			Params:                 paramTypes,
 			EffectRow:              effectRow,
-			Return:                 astTypeToInternalType(typ.Return),
+			Return:                 astTypeToInternalType(scope, typ.Return),
 			ImplicitEffectContract: typ.Effects == nil,
 			ConcreteEffectContract: typ.Effects != nil && !hasRowVarEffects(typ.Effects),
 		}
 
 	case *ast.ListType:
 		return &types.TList{
-			Element: astTypeToInternalType(typ.Element),
+			Element: astTypeToInternalType(scope, typ.Element),
 		}
 
 	case *ast.ArrayType:
 		return &types.TArray{
-			Element: astTypeToInternalType(typ.Element),
+			Element: astTypeToInternalType(scope, typ.Element),
 		}
 
 	case *ast.TupleType:
 		elements := make([]types.Type, len(typ.Elements))
 		for i, e := range typ.Elements {
-			elements[i] = astTypeToInternalType(e)
+			elements[i] = astTypeToInternalType(scope, e)
 		}
 		return &types.TTuple{Elements: elements}
 
@@ -85,7 +91,7 @@ func astTypeToInternalType(t ast.Type) types.Type {
 		// Convert record type fields
 		labels := make(map[string]types.Type)
 		for _, f := range typ.Fields {
-			labels[f.Name] = astTypeToInternalType(f.Type)
+			labels[f.Name] = astTypeToInternalType(scope, f.Type)
 		}
 		return &types.TRecord{Fields: labels, Row: nil}
 
@@ -97,10 +103,10 @@ func astTypeToInternalType(t ast.Type) types.Type {
 		// Type applications (e.g., Option[int], Result[a, e])
 		args := make([]types.Type, len(typ.Args))
 		for i, a := range typ.Args {
-			args[i] = astTypeToInternalType(a)
+			args[i] = astTypeToInternalType(scope, a)
 		}
 		return &types.TApp{
-			Constructor: &types.TCon{Name: typ.Constructor},
+			Constructor: scope.Con(typ.Constructor),
 			Args:        args,
 		}
 
@@ -108,7 +114,7 @@ func astTypeToInternalType(t ast.Type) types.Type {
 		// IFC label — wrap the base type in TLabelled so the label survives
 		// iface serialisation (M6). Refinements (`{not LABEL}`) are sink-side
 		// only and are not stored on the type itself.
-		base := astTypeToInternalType(typ.Base)
+		base := astTypeToInternalType(scope, typ.Base)
 		if typ.Label != nil {
 			return types.WithLabel(base, types.LabelConst(typ.Label.Name))
 		}

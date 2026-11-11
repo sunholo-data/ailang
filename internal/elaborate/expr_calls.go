@@ -1,8 +1,6 @@
 package elaborate
 
 import (
-	"fmt"
-
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
 )
@@ -50,7 +48,7 @@ func (e *Elaborator) normalizeFuncCall(app *ast.FuncCall) (core.CoreExpr, error)
 		if ctorInfo, isConstructor := e.constructors[ident.Name]; isConstructor {
 			// This is a constructor! Emit $adt factory call
 			// Transform Some(x) → $adt.make_Option_Some(x)
-			factoryName := fmt.Sprintf("make_%s_%s", ctorInfo.TypeName, ctorInfo.CtorName)
+			factoryName := core.ADTFactoryName(ctorInfo.Module, ctorInfo.TypeName, ctorInfo.CtorName)
 
 			// Normalize arguments to atomic values
 			var allBindings []binding

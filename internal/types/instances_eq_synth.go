@@ -55,9 +55,12 @@ func eqParts(typ Type) ([]Type, bool) {
 		head, args := decomposeApp(t)
 		if con, ok := head.(*TCon); ok {
 			switch {
-			case con.Name == "Option" && len(args) == 1:
+			// The prelude's Option and Result only: a user type that happens to
+			// be named Option is not structurally comparable by this rule
+			// (M-V1-NOMINAL-TYPE-IDENTITY).
+			case IsNominal(con, "std/option", "Option") && len(args) == 1:
 				return args, true
-			case con.Name == "Result" && len(args) == 2:
+			case IsNominal(con, "std/result", "Result") && len(args) == 2:
 				return args, true
 			}
 		}
@@ -75,7 +78,7 @@ func (env *InstanceEnv) synthesizeEq(typ Type, depth int) (inst *ClassInstance, 
 		if rec.TypeName == "" {
 			return nil, false, nil
 		}
-		if _, found := env.instances[canonicalKey("Eq", &TCon{Name: rec.TypeName})]; !found {
+		if !env.eqRecordNames[rec.TypeName] {
 			return nil, false, nil
 		}
 		return structuralEqInstance(typ), true, nil
@@ -188,13 +191,13 @@ func (env *InstanceEnv) checkDerivedEqField(t Type, aliases map[string]Type, exp
 	case *TCon:
 		// Keyed apart from the record's TypeName: the alias target usually
 		// carries the same name, and sharing the key would skip its fields.
-		key := "alias:" + tt.Name
+		key := "alias:" + tt.KeyOf()
 		if expanding[key] {
 			return nil
 		}
 		expanding[key] = true
 		defer delete(expanding, key)
-		return env.checkDerivedEqField(aliases[tt.Name], aliases, expanding, depth)
+		return env.checkDerivedEqField(aliases[tt.KeyOf()], aliases, expanding, depth)
 	}
 	parts, _ := eqParts(t)
 	for _, part := range parts {
@@ -214,7 +217,8 @@ func isRecordReach(t Type, aliases map[string]Type) bool {
 	case *TRecord:
 		return true
 	case *TCon:
-		_, isRec := aliases[tt.Name].(*TRecord)
+		// aliases is keyed by NominalKey (M-V1-NOMINAL-TYPE-IDENTITY).
+		_, isRec := aliases[tt.KeyOf()].(*TRecord)
 		return isRec
 	}
 	parts, ok := eqParts(t)
@@ -248,7 +252,7 @@ func (env *InstanceEnv) reduceEq(typ Type, depth int) ([]Type, error) {
 		return nil, err
 	}
 	if rec, ok := typ.(*TRecord); ok && rec.TypeName != "" {
-		if _, found := env.instances[canonicalKey("Eq", &TCon{Name: rec.TypeName})]; found {
+		if env.eqRecordNames[rec.TypeName] {
 			return nil, nil
 		}
 	}

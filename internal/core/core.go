@@ -370,6 +370,9 @@ type ConstructorPattern struct {
 	// typechecker tell apart same-named constructors of different ADTs, e.g.
 	// `import M (Arrived as TripArrived)` next to a local Arrived (#1478).
 	TypeName string
+	// TypeModule is the defining module of TypeName (M-V1-NOMINAL-TYPE-IDENTITY):
+	// the pattern's ADT is the nominal type (TypeModule, TypeName).
+	TypeModule string
 }
 
 func (c *ConstructorPattern) patternNode() {}

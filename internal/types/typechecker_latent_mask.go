@@ -67,7 +67,7 @@ func (tc *CoreTypeChecker) EffectValueType(id uint64) (Type, bool) {
 
 func (tc *CoreTypeChecker) effectAliasHead(typ Type) Type {
 	u := NewUnifier()
-	u.aliasEnv, u.aliasParams, u.aliasCaptures = tc.aliasEnv, tc.aliasParams, tc.aliasCaptures
+	u.aliasEnv, u.aliasParams, u.aliasCaptures, u.newtypes = tc.aliasEnv, tc.aliasParams, tc.aliasCaptures, tc.newtypes
 	return u.expandAlias(typ)
 }
 

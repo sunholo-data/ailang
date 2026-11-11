@@ -12,8 +12,8 @@ import (
 // `func main(a: Args)` failed with "unsupported type constructor: Args".
 
 func aliasTable(m map[string]types.Type) AliasLookup {
-	return func(name string) (types.Type, bool) {
-		t, ok := m[name]
+	return func(con *types.TCon) (types.Type, bool) {
+		t, ok := m[con.Name]
 		return t, ok
 	}
 }

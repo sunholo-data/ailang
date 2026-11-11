@@ -90,15 +90,17 @@ func (r *CombinedResolver) resolveAdtFactory(factoryName string) (eval.Value, er
 	if !strings.HasPrefix(factoryName, "make_") {
 		return nil, fmt.Errorf("invalid $adt factory name: %s", factoryName)
 	}
-	parts := strings.SplitN(factoryName[5:], "_", 2)
-	if len(parts) != 2 {
+	declModule, typeName, ctorName, ok := core.ParseADTFactoryName(factoryName)
+	if !ok {
 		return nil, fmt.Errorf("invalid $adt factory format: %s (expected make_TypeName_CtorName)", factoryName)
 	}
-	typeName, ctorName := parts[0], parts[1]
 
 	for _, mod := range r.Modules {
 		if mod == nil || mod.Iface == nil || mod.Iface.Constructors == nil {
 			continue
+		}
+		if declModule != "" && mod.Iface.Module != declModule {
+			continue // M-V1-NOMINAL-TYPE-IDENTITY: the factory names its module
 		}
 		ctor, ok := mod.Iface.Constructors[ctorName]
 		if !ok || ctor.TypeName != typeName {

@@ -141,11 +141,22 @@ design constraint.
 
 ## Same-named types across imports
 
-Nonrecursive nullary alias bodies, exported function types and constructor fields
-are closed in their defining module. Importing an unrelated `Item` or `Planet`
-therefore cannot change a name nested inside another module's exported type.
-Applied parameterized alias heads and recursive references remain unresolved;
-nominal ADT names are not module-qualified. Local capture of residual names retains
-`TC_TYPE_SHADOW_001`. When the importer itself writes an ambiguous bare type name,
-explicit imports still use last-wins and bulk alias imports first-wins behavior.
-Import ambiguity diagnostics and REPL/WASM/SMT top-level name merging are deferred.
+Since M-V1-NOMINAL-TYPE-IDENTITY (M2) a nominal type is its **defining module plus its
+name**: `q/a`'s `type T` and `q/b`'s `type T` are different types, and mixing them is
+`TC_NOMINAL_001` at `check` (it used to type-check and fail at run time). A local `type T`
+no longer captures an imported `T`, and an imported alias body keeps the types it names.
+Using the two types disjointly (`Ma.desc(Ma.mk())`, `Mb.desc(Mb.mk())`) is fine.
+Record aliases stay structural: two `R = {x: int}` from different modules are one type.
+
+Still open (later milestones of the same design doc):
+
+- A bare type name that two imports both export resolves to the first candidate (an
+  explicit `import M (T)` always wins); the `TC_AMBIGUOUS_TYPE_001` diagnostic is M3.
+- An undeclared type name is still an opaque type of the module that writes it rather
+  than `TC_UNBOUND_TYPE_001` (#1485, M3); duplicate funcs/types/constructors in one module
+  are not yet `MOD007` (#1278, M1).
+- The REPL/WASM module registry keeps one constructor per name across loaded modules,
+  the SMT encoder and the bytecode VM's ADT tables are keyed by bare type name: two
+  same-named ADTs with different constructors used in one program under
+  `--strict-bytecode` still fail with `BC001` (M4).
+- `deriving (Eq)` on a record type is looked up by the record's bare name.

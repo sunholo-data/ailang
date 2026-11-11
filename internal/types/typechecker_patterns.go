@@ -154,7 +154,8 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 		// M-DX25.4: Look up constructor's ADT type and add constraint
 		// This ensures pattern matching on ADTs infers the correct ADT type for the scrutinee
 		if tc.constructorTypes != nil {
-			if adtTypeName, ok := tc.patternADT(p); ok {
+			if adtRef, ok := tc.patternADT(p); ok {
+				adtTypeName := adtRef.Name
 				// M-MATCH-ADT-XCHECK (v0.18.10): if the scrutinee's type
 				// is already concretely resolved to a different ADT,
 				// fail FAST with a structured error naming both ADTs
@@ -182,19 +183,19 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 				// M-TAPP-FIX: Check if ADT has type parameters
 				// If so, create TApp with fresh type vars, not just TCon
 				var adtType Type
-				if paramCount, hasParams := tc.adtTypeParams[adtTypeName]; hasParams && paramCount > 0 {
+				if paramCount, hasParams := tc.adtTypeParams[NominalKey(adtRef.Module, adtRef.Name)]; hasParams && paramCount > 0 {
 					// ADT has type parameters - create TApp with fresh type vars
 					typeArgs := make([]Type, paramCount)
 					for i := 0; i < paramCount; i++ {
 						typeArgs[i] = ctx.freshTypeVar()
 					}
 					adtType = &TApp{
-						Constructor: &TCon{Name: adtTypeName},
+						Constructor: &TCon{Name: adtTypeName, Module: adtRef.Module},
 						Args:        typeArgs,
 					}
 				} else {
 					// No type parameters - use simple TCon
-					adtType = &TCon{Name: adtTypeName}
+					adtType = &TCon{Name: adtTypeName, Module: adtRef.Module}
 				}
 
 				// Add constraint: scrutinee type = ADT type
@@ -220,8 +221,8 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 		// over-tightening); if no factory scheme is registered we fall through to
 		// the old fresh-var behaviour (no worse than before).
 		var ctorFieldTypes []Type
-		if adtTypeName, ok := tc.patternADT(p); ok {
-			factoryKey := fmt.Sprintf("$adt.make_%s_%s", adtTypeName, p.Name)
+		if adtRef, ok := tc.patternADT(p); ok {
+			factoryKey := core.ADTFactoryKey(adtRef.Module, adtRef.Name, p.Name)
 			if scheme, ok := tc.globalTypes[factoryKey]; ok {
 				if fn, ok := scheme.Instantiate(ctx.freshType).(*TFunc2); ok {
 					ctorFieldTypes = fn.Params

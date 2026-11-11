@@ -138,7 +138,7 @@ func (st *modulePipelineState) serveFromCache(mod *loader.LoadedModule, unit *Co
 	unit.Constructors = cached.Constructors
 	if unit.Iface != nil {
 		st.modLinker.RegisterIface(unit.Iface)
-		registerDerivedEqInstances(st.cfg, unit.Iface.DerivedEq)
+		registerDerivedEqInstances(st.cfg, unit.Iface.Module, unit.Iface.DerivedEq)
 	}
 	st.compiledUnits[unit.ID] = unit
 	return true

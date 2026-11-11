@@ -75,7 +75,7 @@ func coreTIVariantSamples() map[string]types.Type {
 	}
 	recRow := &types.Row{Kind: types.RecordRow, Labels: map[string]types.Type{"x": types.TInt}, Tail: tail}
 	return map[string]types.Type{
-		"TCon":        &types.TCon{Name: "Item"},
+		"TCon":        &types.TCon{Name: "Item", Module: "pkg/acme/items"},
 		"TVar":        &types.TVar{Name: "a"},
 		"TVar2":       &types.TVar2{Name: "b", Kind: types.Star},
 		"RowVar":      tail,
@@ -86,7 +86,7 @@ func coreTIVariantSamples() map[string]types.Type {
 		"TRecord":     &types.TRecord{Fields: map[string]types.Type{"x": types.TInt, "y": &types.TList{Element: types.TInt}}, Row: &types.TVar{Name: "r"}, TypeName: "Point"},
 		"TRecordOpen": &types.TRecordOpen{Fields: map[string]types.Type{"x": types.TInt}, Row: &types.TVar{Name: "r"}},
 		"TRecord2":    &types.TRecord2{Row: recRow},
-		"TApp":        &types.TApp{Constructor: &types.TCon{Name: "Option"}, Args: []types.Type{types.TInt}},
+		"TApp":        &types.TApp{Constructor: &types.TCon{Name: "Option", Module: "std/option"}, Args: []types.Type{types.TInt}},
 		"TFunc2":      &types.TFunc2{ImplicitEffectContract: true, ConcreteEffectContract: true, Params: []types.Type{types.TInt, types.TString}, Return: types.TBool, EffectRow: effRow},
 		"TLabelled":   &types.TLabelled{Inner: types.TInt, L: types.LabelBottom()},
 		"Row":         effRow,
@@ -114,6 +114,15 @@ func TestCoreTIDAG_EveryVariantMatchesGob(t *testing.T) {
 	}
 	assertCoreTIEquivalent(t, types.CoreTypeInfo{})
 	assertCoreTIEquivalent(t, nil)
+	// M-V1-NOMINAL-TYPE-IDENTITY: two same-named types of different modules
+	// are two DAG nodes; hash-consing them into one would hand q/b's T the
+	// identity of q/a's on a warm run.
+	assertCoreTIEquivalent(t, types.CoreTypeInfo{
+		1: &types.TCon{Name: "T", Module: "q/a"},
+		2: &types.TCon{Name: "T", Module: "q/b"},
+		3: &types.TCon{Name: "T"},
+		4: &types.TList{Element: &types.TCon{Name: "T", Module: "q/b"}},
+	})
 
 	packages, err := parser.ParseDir(token.NewFileSet(), "../types", func(info os.FileInfo) bool { return !strings.HasSuffix(info.Name(), "_test.go") }, 0)
 	if err != nil {
@@ -135,7 +144,7 @@ func TestCoreTIDAG_EveryVariantMatchesGob(t *testing.T) {
 // Adding a field to a type struct must fail here until the codec carries it.
 func TestCoreTIDAG_FieldCountsPinned(t *testing.T) {
 	want := map[string]int{
-		"TCon": 1, "TVar": 1, "TVar2": 2, "RowVar": 2, "TList": 1, "TArray": 1, "TMap": 2, "TTuple": 1,
+		"TCon": 2, "TVar": 1, "TVar2": 2, "RowVar": 2, "TList": 1, "TArray": 1, "TMap": 2, "TTuple": 1,
 		// TRecord's 4th field is groundMemo, a per-node cache (#1787) that is
 		// deliberately not encoded: a decoded record recomputes it on demand.
 		"TRecord": 4, "TRecordOpen": 2, "TRecord2": 1, "TApp": 2, "TFunc2": 5, "TLabelled": 2, "Row": 7,

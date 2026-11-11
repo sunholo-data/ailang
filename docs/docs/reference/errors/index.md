@@ -111,6 +111,13 @@ TC_MATCH_005 at app.ail:6:45
   Fix: add a `JInt(i) => …` arm (intToFloat(i) gives a float), or read numbers with asNumber/getNumber/getInt, which accept both
 ```
 
+**`TC_NOMINAL_001` — two different types that share a name.** A nominal type (an ADT) is its defining module plus its name, so `q/a`'s `type T` and `q/b`'s `type T` are different types. Emitted where a value of one is used where the other is expected; both modules are named. Until v0.60.0 such programs type-checked and failed at run time. See [tc_nominal_001.md](tc_nominal_001.md).
+
+```
+TC_NOMINAL_001: cannot unify T (defined in q/a) with T (defined in q/b): they are different types that share a name.
+  Suggestion: use the T from one module on both sides (import it by name from the module whose T you mean, e.g. import q/a (T)), or convert between them explicitly.
+```
+
 ## Individual error code pages
 
 - [BC001 — Function is evaluator-only under --strict-bytecode](bc001.md)
@@ -118,4 +125,5 @@ TC_MATCH_005 at app.ail:6:45
 - [MOD013 — Shared module_prefix](mod013.md)
 - [MOD015 — Imported name collides with a module-level definition](mod015.md)
 - [RT001 — Integer division or modulo by zero](rt001.md)
+- [TC_NOMINAL_001 — Two different types that share a name](tc_nominal_001.md)
 - [Effect row mismatch](typ_effect_row_mismatch.md)

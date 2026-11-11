@@ -16,5 +16,8 @@ func TestMain(m *testing.M) {
 	// Every environment free-variable query is recomputed uncached and must
 	// match the memoised answer (M-TYPECHECK-ENV-SCAN-COST).
 	types.SetEnvVarCrossCheck(true)
+	// A nominal type that reaches unification without its defining module is a
+	// minting site M-V1-NOMINAL-TYPE-IDENTITY missed: fail loudly (§4.1).
+	types.SetUnqualifiedNominalPanic(true)
 	os.Exit(m.Run())
 }

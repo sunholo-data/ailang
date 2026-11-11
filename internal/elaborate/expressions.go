@@ -56,7 +56,7 @@ func (e *Elaborator) normalize(expr ast.Expr) (core.CoreExpr, error) {
 		if ctorInfo, isConstructor := e.constructors[ex.Name]; isConstructor && ctorInfo.Arity == 0 {
 			// Nullary constructor: transform None → $adt.make_Option_None
 			// Note: No App node needed - factory is a value, not a function call
-			factoryName := fmt.Sprintf("make_%s_%s", ctorInfo.TypeName, ctorInfo.CtorName)
+			factoryName := core.ADTFactoryName(ctorInfo.Module, ctorInfo.TypeName, ctorInfo.CtorName)
 			return &core.VarGlobal{
 				CoreNode: e.makeNode(ex.Position()),
 				Ref: core.GlobalRef{

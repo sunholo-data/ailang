@@ -5,8 +5,35 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/sunholo-data/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/types/traverse"
 	"sort"
 )
+
+// nominalRefs lists, sorted, the defining module and name of every nominal
+// type constructor in ts. The digest renders types by bare name; this is the
+// qualified half (M-V1-NOMINAL-TYPE-IDENTITY §4.6), so an upstream that
+// switches which `T` an export returns (a.T -> b.T) changes the digest and
+// invalidates its importers' cache entries. It never reaches the registry
+// interface_hash (hash_projection.go), which keeps rendering bare names (D3).
+func nominalRefs(ts ...types.Type) []string {
+	set := make(map[string]bool)
+	for _, t := range ts {
+		if t == nil {
+			continue
+		}
+		traverse.Walk(t, func(n types.Type) {
+			if c, ok := n.(*types.TCon); ok && c.Module != "" {
+				set[c.KeyOf()] = true
+			}
+		})
+	}
+	out := make([]string, 0, len(set))
+	for k := range set {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
+}
 
 // ifaceItem is used for JSON serialization
 type ifaceItem struct {
@@ -35,6 +62,8 @@ func (b *Builder) computeDigest(iface *Iface) (string, error) {
 		Exports      map[string]ifaceItem `json:"exports"`
 		Constructors map[string]ctorItem  `json:"constructors,omitempty"`
 		DerivedEq    []string             `json:"derived_eq,omitempty"`
+		// Nominal: export/constructor name -> qualified nominal refs.
+		Nominal map[string][]string `json:"nominal,omitempty"`
 	}
 
 	// Convert to JSON-friendly format with sorted keys
@@ -44,6 +73,7 @@ func (b *Builder) computeDigest(iface *Iface) (string, error) {
 		Exports:      make(map[string]ifaceItem),
 		Constructors: make(map[string]ctorItem),
 		DerivedEq:    iface.DerivedEq,
+		Nominal:      make(map[string][]string),
 	}
 
 	// Sort export names for deterministic ordering
@@ -61,6 +91,11 @@ func (b *Builder) computeDigest(iface *Iface) (string, error) {
 			Type:    b.schemeToString(item.Type),
 			Pure:    item.Purity,
 			Effects: []string{}, // Placeholder for future effect system
+		}
+		if item.Type != nil {
+			if refs := nominalRefs(item.Type.Type); len(refs) > 0 {
+				ji.Nominal["export:"+name] = refs
+			}
 		}
 	}
 
@@ -83,6 +118,9 @@ func (b *Builder) computeDigest(iface *Iface) (string, error) {
 			FieldTypes: fieldTypeStrs,
 			ResultType: ctor.ResultType.String(),
 			Arity:      ctor.Arity,
+		}
+		if refs := nominalRefs(append(append([]types.Type{}, ctor.FieldTypes...), ctor.ResultType)...); len(refs) > 0 {
+			ji.Nominal["ctor:"+name] = refs
 		}
 	}
 
