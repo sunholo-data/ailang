@@ -239,6 +239,9 @@ pipeline; then close-out steps 16–19. Unowned soundness issues from review: #2
   binary found 14 docparse files.
 - **Exhaustiveness wiring needs less than §3 says:** a constructor stamp keyed by the canonical
   module, not the whole identity change.
+  Confirmed in the wiring PR (exhaustiveness doc §14): the stamp from #2228 plus the type a
+  by-name pattern was checked against was enough. A non-exhaustive match is now TC_MATCH_002;
+  measured cost 8 downstream sites in 3 repos and 2.1% of passing AI-written programs.
 - **The downstream gate is a type-check comparison, not downstream CI.** Exit 0 guarantees the
   candidate's `check` is no worse than the baseline's on every entry, against dependencies provisioned
   from each repo's own pins. It does not run downstream tests. Release runs need `FETCH_DEPS=1`.
