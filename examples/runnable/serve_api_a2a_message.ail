@@ -1,0 +1,21 @@
+-- serve_api_a2a_message.ail - an AILANG program as an A2A v0.3 agent
+-- An A2A client such as Gemini Enterprise sends a user's request as text, not
+-- as a function call. --a2a-message names the one export that answers it: the
+-- caller's text in, the answer out. serve-api turns that into message/send,
+-- message/stream (SSE, with heartbeats) and tasks/get, and the card gets one
+-- streamed skill whose description is the handler's doc comment.
+-- Run with:
+--   ailang serve-api --a2a --a2a-message reply --server-info "name=echo,title=Echo agent" \
+--     examples/runnable/serve_api_a2a_message.ail
+module examples/runnable/serve_api_a2a_message
+import std/io (println)
+import std/string (length, toUpper, trim)
+
+-- Repeat the request back in capitals, with its length. Use it to test an A2A client.
+export pure func reply(text: string) -> string {
+  let t = trim(text);
+  "${toUpper(t)} (${show(length(t))} characters)"
+}
+
+-- `ailang run` calls the handler directly; serve-api calls it once per A2A message.
+export func main() -> () ! {IO} = println(reply("  hello agent "))

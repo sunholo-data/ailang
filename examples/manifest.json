@@ -5,6 +5,13 @@
   "generator": "auto-metadata-v0.6.2",
   "examples": [
     {
+      "path": "runnable/serve_api_a2a_message.ail",
+      "status": "working",
+      "tags": ["serve-api", "a2a", "gemini-enterprise"],
+      "description": "An A2A v0.3 agent: --a2a-message names the export that answers message/send and message/stream (text in, answer out)",
+      "modules": ["std/io", "std/string"]
+    },
+    {
       "path": "runnable/serve_api_typed_args.ail",
       "status": "working",
       "tags": ["http", "mcp", "types"],
@@ -4382,11 +4389,11 @@
     }
   ],
   "statistics": {
-    "total": 328,
-    "working": 320,
+    "total": 329,
+    "working": 321,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.975609756097561,
+    "coverage": 0.9756838905775076,
     "experimental": 0
   },
   "milestones": {

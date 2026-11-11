@@ -32,6 +32,7 @@ func serveAPICommand(args []string) error {
 	mcpFlag := fs.Bool("mcp", false, "Run as MCP stdio server (for Claude Desktop, Cursor, etc.)")
 	mcpHTTPFlag := fs.Bool("mcp-http", false, "Enable MCP HTTP endpoint at /mcp/")
 	a2aFlag := fs.Bool("a2a", false, "Enable A2A protocol endpoints (/.well-known/agent.json, /a2a/)")
+	a2aMessageFlag := fs.String("a2a-message", "", "With --a2a: the export (fn or module/path.fn, one string param) that answers A2A v0.3 message/send and message/stream")
 	maxUploadFlag := fs.Int64("max-upload-size", 0, "Maximum upload size in bytes (default: 50MB)")
 	apiKeyHeaderFlag := fs.String("api-key-header", "", "HTTP header name for API key authentication")
 	apiKeyEnvFlag := fs.String("api-key-env", "", "Environment variable containing the expected API key")
@@ -199,6 +200,7 @@ func serveAPICommand(args []string) error {
 		MCP:            *mcpHTTPFlag,
 		MCPOnly:        *mcpFlag,
 		A2A:            *a2aFlag,
+		A2AMessage:     *a2aMessageFlag,
 		MaxUploadSize:  *maxUploadFlag,
 		APIKeyHeader:   *apiKeyHeaderFlag,
 		APIKeyEnv:      *apiKeyEnvFlag,
@@ -283,6 +285,9 @@ func printServeAPIHelp() {
 	fmt.Println("  --mcp                Run as MCP stdio server (for Claude Desktop, Cursor)")
 	fmt.Println("  --mcp-http           Enable MCP HTTP endpoint at /mcp/")
 	fmt.Println("  --a2a                Enable A2A protocol (/.well-known/agent.json, /a2a/)")
+	fmt.Println("  --a2a-message FN     With --a2a: the export (one string param) answering A2A v0.3")
+	fmt.Println("                       message/send and message/stream: the caller's text in, the answer out.")
+	fmt.Println("                       Makes the card an agent with one streamed skill (Gemini Enterprise).")
 	fmt.Println("  --max-upload-size N  Maximum file upload size in bytes (default: 50MB)")
 	fmt.Println("  --api-key-header H   HTTP header name for API key authentication")
 	fmt.Println("  --api-key-env VAR    Environment variable containing the expected API key")

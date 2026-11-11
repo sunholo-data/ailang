@@ -25,13 +25,14 @@ Source: [Register and manage A2A agents](https://docs.cloud.google.com/gemini/en
 
 ## Milestones
 
-### M1: serve-api A2A v0.3 (Go, ~350 LOC + tests)
+### M1: serve-api A2A v0.3 (Go, ~350 LOC + tests) ✅ 2026-11-11
 - Card v0.3 at `/.well-known/agent-card.json` and `/.well-known/agent.json`: `protocolVersion: "0.3.0"`,
   `preferredTransport: "JSONRPC"`, `capabilities.streaming: true`, `url` from `PUBLIC_BASE_URL` (never
   `r.TLS`, Aitana F22), version from `--server-info`, `iconUrl` from `--server-info icon=`.
-- A **message handler**: one export annotated `@a2a_message`, shape `(string) -> string ! {…}` (the
-  user's text in, the answer text out). Its doc comment is the card's single skill description.
-  Without one, behaviour is as today (skills = exports, `tasks/send`).
+- A **message handler**: one export named by the flag `--a2a-message <fn | module/path.fn>`, shape
+  `(string) -> string ! {…}` (the user's text in, the answer text out). A flag, not an annotation:
+  no parser or prompt change. Its doc comment is the card's single skill description. Without one,
+  behaviour is as today (skills = exports, `tasks/send`).
 - Methods: `message/send` (returns a completed `Task` with one artifact), `message/stream` (SSE:
   `status-update` working, heartbeats ≤15s while the handler runs, one `artifact-update`, a final
   `status-update` completed/failed), `tasks/get` (bounded in-memory store, TTL). Parts use `kind`
@@ -39,6 +40,9 @@ Source: [Register and manage A2A agents](https://docs.cloud.google.com/gemini/en
 - `tasks/send` unchanged. The embedded copy (`serveapi/a2a_handler.go`) stays as it is (recorded).
 - Acceptance: unit tests for the card fields, each method, a handler error → `failed`, SSE framing and
   heartbeat; `TestA2ADisabledByDefault` / `TestA2AEnabledRegistersRoutes` still pass.
+- **Done:** `internal/apiserver/a2a_message.go`, `a2a_message_test.go` (9 tests); all 24 A2A tests
+  pass; the official `a2a-sdk` 0.3.26 client parses the card, `message/send`, `tasks/get` and the four
+  stream events into its typed classes.
 
 ### M2: A2A behind the Bearer gate (Go, ~80 LOC + tests)
 - Under `--mcp-connect-only`, `/a2a/` goes through the same gate as `/mcp/connect/` (all methods);
