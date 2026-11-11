@@ -63,6 +63,10 @@ func TestEmittedShowMatchesEvaluator(t *testing.T) {
 			ctor("Named", str("n\"m"), ctor("Dot"))},
 		{`[]interface{}{` + strings.Join(wideGo, ", ") + `}`, list(wide...)},
 		{deepGo, deep},
+		// The NFC rule of strutil.QuoteTo (second review of #2229): NFD text, a
+		// mark after an escape (must not become the invalid escape \ñ), a singleton.
+		{`[]interface{}{"e\U00000301", "\n\U00000303", "\U0000212B", "q\U00000303", "\U00000301x"}`,
+			list(str("e\U00000301"), str("\n\U00000303"), str("\U0000212B"), str("q\U00000303"), str("\U00000301x"))},
 		{`[]byte("hi")`, &eval.BytesValue{Value: []byte("hi")}},
 		{`func() {}`, &eval.FunctionValue{}},
 	}

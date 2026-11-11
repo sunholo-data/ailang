@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-const expectedDifferentialFixtureCount = 7
+const expectedDifferentialFixtureCount = 8
 
 func TestTypedAggregateArrayGeneratedOutput(t *testing.T) {
 	outDir := t.TempDir()

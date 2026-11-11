@@ -1,5 +1,15 @@
 package golang
 
+import _ "embed"
+
+// emittedQuoteRuntime is internal/strutil's quoting rule and NFC tables
+// (quote_rule.go, nfc.go, nfc_tables.go) with every name prefixed showq_,
+// written into every compiled program after emittedShowRuntime. Generated and
+// kept current by TestEmittedQuoteRuntimeUpToDate; standard library only.
+//
+//go:embed emitted_quote_runtime.txt
+var emittedQuoteRuntime string
+
 // emittedShowRuntime is the `show` / `showPreview` runtime written into every
 // compiled program (writeRuntimeMiscHelpers). It ports the spec of
 // internal/eval/show.go (M-V1-SHOW-TOTAL): total — no width, depth or byte
@@ -64,33 +74,11 @@ func showDecodeRune(s string, i int) (rune, int) {
 	return 0, 0
 }
 
+// showQuote is strutil.QuoteTo, copied with its NFC tables into this program
+// (showq_*, from emitted_quote_runtime.txt), so a nested string is quoted
+// exactly as the interpreters quote it.
 func showQuote(b *strings.Builder, s string) {
-	b.WriteByte('"')
-	for i := 0; i < len(s); {
-		r, size := showDecodeRune(s, i)
-		switch {
-		case r == '�' && size == 1:
-			b.WriteString("\\x" + strings.ToUpper(fmt.Sprintf("%02x", s[i])))
-		case r == '"':
-			b.WriteString("\\\"")
-		case r == '\\':
-			b.WriteString("\\\\")
-		case r == '\n':
-			b.WriteString("\\n")
-		case r == '\t':
-			b.WriteString("\\t")
-		case r == '\r':
-			b.WriteString("\\r")
-		case r == '$' && i+1 < len(s) && s[i+1] == '{':
-			b.WriteString("\\$")
-		case r != ' ' && (r < 0x20 || r == 0x7f || !strconv.IsPrint(r)):
-			b.WriteString("\\u{" + strings.ToUpper(strconv.FormatInt(int64(r), 16)) + "}")
-		default:
-			b.WriteString(s[i : i+size])
-		}
-		i += size
-	}
-	b.WriteByte('"')
+	showq_QuoteTo(b, s)
 }
 
 func showFloat(x float64) string {

@@ -60,6 +60,7 @@ func (g *Generator) writeRuntimeMiscHelpers() {
 	// bare. A Helper body cannot add imports (fmt, math, reflect, sort,
 	// strconv, strings only), so invalid UTF-8 is detected without utf8.
 	g.write(emittedShowRuntime)
+	g.write(emittedQuoteRuntime)
 
 	// ConcatString helper for string concatenation
 	g.writef("// ConcatString concatenates two values as strings.\n")

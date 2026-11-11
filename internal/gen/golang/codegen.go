@@ -562,6 +562,7 @@ func (g *Generator) writePackageHeader() {
 		g.writef("\t\"sort\"\n")
 		g.writef("\t\"strconv\"\n")
 		g.writef("\t\"strings\"\n")
+		g.writef("\t\"unicode/utf8\"\n") // the show runtime's quoting rule (emittedQuoteRuntime)
 		g.writef(")\n\n")
 		g.writef("type Tuple []interface{}\n\n")
 		g.writef("type ArrayVal []interface{}\n\n")
@@ -668,6 +669,9 @@ func (g *Generator) GenerateRuntime() ([]byte, error) {
 	}
 	if strings.Contains(helpersCode, "strings.") || g.needsStringsImport {
 		g.writef("\t\"strings\"\n")
+	}
+	if strings.Contains(helpersCode, "utf8.") {
+		g.writef("\t\"unicode/utf8\"\n")
 	}
 	g.writef(")\n\n")
 

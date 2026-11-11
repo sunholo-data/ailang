@@ -36,7 +36,10 @@ quoted and escaped: `show(["a", "b, c"])` is `["a", "b, c"]` (was `[a, b, c]`, t
   same escaper; this also fixes fmt changing the value of literals such as `"e\u{301}"` and
   turning `"\n\u{303}"` into an invalid escape. Every tracked `.ail` file formats identically.
 - A constructor used as a value (`map(Some, xs)`, `let f = Ok`) is a function on the bytecode VM
-  too: it printed as `Some` there (and `<function>` on the evaluator), and calling it failed.
+  and in `ailang compile` output too: it printed as `Some` on the VM (and `<function>` on the
+  evaluator), and calling it failed on the VM and panicked in compiled programs. Compiled programs
+  also quote nested strings with the same NFC rule as the interpreters (the rule and its Unicode
+  tables are copied into the emitted runtime).
 - Teaching prompt v0.16.15 (active) documents the quoting and `showPreview`.
 - Benchmark `run_length_encode` is retired (moved to `benchmarks/retired/`): its expected output
   was the old lossy rendering of a `[(int, string)]`. It is replaced by `run_length_encode_v2`,
