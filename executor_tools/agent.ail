@@ -1,0 +1,110 @@
+-- executor_tools/agent.ail — the executor as an A2A agent (M-EXECUTOR-GE-A2A M3).
+--
+-- Gemini Enterprise (or any A2A client) delegates a request as text. This
+-- module answers it: a bounded tool loop over std/ai, where the model writes
+-- AILANG, checks it with ailang_check and runs it with ailang_run. Those are
+-- the same sandboxed functions the MCP surface serves (executor.ail), so the
+-- agent adds no new sandbox: every run still goes through `ailang run --policy`.
+--
+-- serve-api serves it with --a2a --a2a-message ailangTask; the model is the
+-- one bound by --ai (Gemini on Vertex in the hosted executor). The handler is
+-- @noexpose @nomcp: only the signed-in /a2a/ reaches it, because every call
+-- spends model tokens.
+--
+-- One JSON log line per message (event "executor_a2a"): outcome, messages
+-- added, error code, duration and request size. Neither the request nor the answer is logged.
+module executor_tools/agent
+import executor_tools/executor (ailangCheck, ailangRun, ailangPrompt)
+import std/ai (Message, ToolCall, ToolSchema, AIError, runTools)
+import std/clock (now)
+import std/debug (log)
+import std/json (Json, jo, kv, js, jnum, encode, decode, getString)
+import std/list (last, length as listLength)
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err)
+import std/string (concat, length, trim)
+
+-- Model turns per message. Each turn that calls tools is one step; a working
+-- program usually takes three (check, run, answer), a repair two more.
+pure func maxTurns() -> int = 10
+
+-- Requests longer than this are refused before any model call.
+pure func maxRequestChars() -> int = 20000
+
+pure func instructions() -> string =
+  "You are the AILANG executor agent. The user asks for something to be computed, written or explained in AILANG. Write an AILANG program, call ailang_check on it, fix what the report says, then call ailang_run and use its real output.\n\nRules:\n- Always check before you run. Programs need `module main` and `export func main() -> () ! {IO}`; the sandbox grants IO only (no network, files, clock or environment) for 60 seconds.\n- Never state output you did not get from ailang_run.\n- If it still fails after a few repairs, say what failed and show the last error.\n- Answer in this order: one or two sentences with the result, the final program in an ```ailang block, then its output in a ``` block.\n\nThe AILANG language reference follows. Use it instead of guessing syntax from other languages.\n\n"
+
+pure func msg(role: string, content: string) -> Message =
+  { role: role, content: content, tool_calls: [], tool_call_id: "", images: [] }
+
+pure func codeSchema(what: string) -> string =
+  "{\"type\":\"object\",\"properties\":{\"code\":{\"type\":\"string\",\"description\":\"${what}\"}},\"required\":[\"code\"]}"
+
+pure func tools() -> [ToolSchema] =
+  [{ name: "ailang_check", description: "Type-check an AILANG module and prove its contracts with Z3. Returns check.passed, check.errors with locations and fixes, and the verification result.", parameters: codeSchema("The whole AILANG module source") }, { name: "ailang_run", description: "Run an AILANG module in the sandbox (IO only, 60s, entry main). Returns ok, stdout, stderr and the outcome.", parameters: codeSchema("The whole AILANG module source, with export func main") }]
+
+-- The `code` argument of a tool call, if the model sent one.
+pure func codeOf(arguments: string) -> Option[string] = match decode(arguments) {
+  Ok(j) => getString(j, "code"),
+  Err(_) => None
+}
+
+pure func toolError(message: string) -> string = encode(jo([kv("error", js(message))]))
+
+func dispatch(call: ToolCall) -> string ! {Clock, Debug, Env, FS, Process, Rand} = match codeOf(call.arguments) {
+  None => toolError("missing string argument: code"),
+  Some(code) => if call.name == "ailang_check" then encode(ailangCheck(code)) else if call.name == "ailang_run" then encode(ailangRun(code)) else toolError("unknown tool ${call.name}: use ailang_check or ailang_run")
+}
+
+-- The reference text, from the same ailang_prompt the MCP surface serves.
+func reference() -> string ! {Clock, Debug, Env, Process} = match getString(ailangPrompt(), "stdout") {
+  Some(p) => p,
+  None => ""
+}
+
+-- The answer is the model's last message; an empty one is reported, not sent.
+pure func finalAnswer(messages: [Message]) -> Result[string, string] = match last(messages) {
+  Some(m) => if trim(m.content) == "" then Err("the model ended without an answer") else Ok(m.content),
+  None => Err("no reply from the model")
+}
+
+pure func stopped(e: AIError) -> string =
+  if e.message == "runTools: step budget exhausted" then "I stopped after ${show(maxTurns())} attempts without a working program. Try a smaller or more specific request." else "The model call failed (${e.code}): ${e.message}"
+
+-- messages: how many the loop added (model replies plus tool results); code: the
+-- AIError code on a failed model call, else "".
+func logLine(outcome: string, messages: int, code: string, t0: int, size: int) -> () ! {Clock, Debug} =
+  log(encode(jo([kv("event", js("executor_a2a")), kv("outcome", js(outcome)), kv("messages", jnum(intToFloat(messages))), kv("error_code", js(code)), kv("duration_ms", jnum(intToFloat(now() - t0))), kv("request_chars", jnum(intToFloat(size)))])))
+
+-- Write, check and run AILANG for a request in plain language, and answer with the result, the program and its real output. Use it for anything to compute, generate or demonstrate in AILANG, a deterministic language for AI-written code with explicit effects and contracts proved by Z3. Programs run in a sandbox with no network or file access.
+@noexpose
+@nomcp
+export func ailangTask(text: string) -> string ! {AI, Clock, Debug, Env, FS, Process, Rand} {
+  let t0 = now()
+  let size = length(text)
+  if size > maxRequestChars() then {
+    logLine("too_large", 0, "", t0, size)
+    "The request is too long (${show(size)} characters; the limit is ${show(maxRequestChars())})."
+  } else {
+    let messages = [msg("system", concat([instructions(), reference()])), msg("user", text)]
+    match runTools("", messages, tools(), dispatch, maxTurns()) {
+      Err(e) => {
+        logLine(if e.code == "Internal" then "turn_limit" else "model_error", 0, e.code, t0, size)
+        stopped(e)
+      },
+      Ok(all) => {
+        let added = listLength(all) - listLength(messages)
+        match finalAnswer(all) {
+          Ok(a) => {
+            logLine("ok", added, "", t0, size)
+            a
+          },
+          Err(why) => {
+            logLine("no_answer", added, "", t0, size)
+            "Sorry: ${why}."
+          }
+        }
+      }
+    }
+  }
+}

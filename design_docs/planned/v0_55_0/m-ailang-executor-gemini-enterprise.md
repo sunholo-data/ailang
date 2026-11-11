@@ -194,7 +194,7 @@ Every row is a measurement against GE, recorded with the observed headers and re
 ## Design-freeze items (Mark)
 
 - **D1 — Which GE app/project?** **Resolved 2026-10-14:** `sunholo-gemini-enterprise` (project number 863281350736).
-- **D2 — Where the A2A gateway lives:** a coordinator route (recommended) or a serve-api service.
+- **D2 — Where the A2A gateway lives.** **Resolved 2026-11-11 (Mark): (b) serve-api**, with an in-AILANG agent loop on Gemini via Vertex. Any AILANG program can then be a GE A2A agent; the coordinator route (a) stays possible later behind the same card. Plan: [m-ailang-executor-ge-a2a-sprint-plan.md](m-ailang-executor-ge-a2a-sprint-plan.md).
 - **D3 — If P0-c shows GE cannot do authenticated A2A:** ship A2A open behind D5's budget and rate limit, or offer GE MCP only?
 - **D4 — serve-api Process allowlist.** **Resolved 2026-10-14: flags** (`--process-timeout`, `--process-allowlist`, same as `ailang run`). serve-api has no policy file to put it in, and a fixed 30s timeout had to be lifted anyway.
 - **D5 — A2A spend:** a per-day budget for `ge-executor`, a per-caller rate limit, and who pays when GE is used by an external org. Until this is decided, `ge-executor` is dev-only.

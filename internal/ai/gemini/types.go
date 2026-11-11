@@ -2,7 +2,11 @@
 // It supports both AI Studio (API key) and Vertex AI (ADC) authentication.
 package gemini
 
-import "encoding/json"
+import (
+	"encoding/json"
+	"fmt"
+	"strings"
+)
 
 // generateRequest represents the request body for generateContent API.
 type generateRequest struct {
@@ -63,6 +67,31 @@ type part struct {
 	FileData         *fileData         `json:"fileData,omitempty"`         // For file URI references (GCS, Files API)
 	FunctionCall     *functionCall     `json:"functionCall,omitempty"`     // Model-emitted tool invocation (Step path)
 	FunctionResponse *functionResponse `json:"functionResponse,omitempty"` // Host-supplied tool result (Step path)
+	// ThoughtSignature: Gemini 3 signs each functionCall part and refuses the
+	// next turn unless the signature comes back on the same part
+	// ("Function call is missing a thought_signature", 400). It rides in the
+	// tool-call ID (toolCallID / splitToolCallID) so no caller has to carry it.
+	ThoughtSignature string `json:"thoughtSignature,omitempty"`
+}
+
+// toolCallSigSep separates the adapter's "<turn>_<call>" ID from the part's
+// thought signature. ':' is not in the base64 alphabet, so the split is exact.
+const toolCallSigSep = ":"
+
+// toolCallID is the opaque ID a functionCall part gets: "<turn>_<call>",
+// plus ":<signature>" when Gemini signed the part.
+func toolCallID(turn, call int, signature string) string {
+	id := fmt.Sprintf("%d_%d", turn, call)
+	if signature != "" {
+		id += toolCallSigSep + signature
+	}
+	return id
+}
+
+// splitToolCallID returns the signature toolCallID put in an ID ("" if none).
+func splitToolCallID(id string) string {
+	_, sig, _ := strings.Cut(id, toolCallSigSep)
+	return sig
 }
 
 // inlineData represents inline binary data for multimodal requests.
