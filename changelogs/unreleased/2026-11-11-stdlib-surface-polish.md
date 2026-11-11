@@ -50,6 +50,10 @@ Module tiers live in `std/STABILITY.toml`; `docs/docs/reference/stability.md` is
 test. Compile-cache key v10 → v11: the cache's `iface.json` codec dropped the new fields, so a warm
 `ailang iface std/list` printed no `tier` (found while freezing; fixed and tested).
 
+`ailang check --package` now reports the pipeline's coded warnings too (`TC_DEPRECATED_001`,
+`TC_MATCH_005`, ...) — on stderr and as a `warnings` array in `--json`, once each even when several
+files import the module — where it used to drop them all; `errors` and the exit code are unchanged.
+
 Also: `L.nthOrx` through a module alias is now `IMP010: symbol 'nthOrx' not exported by 'std/list'`
 with the did-you-mean, instead of `undefined variable: L`; IMP010's suggestion ranks a name equal up to
 case and underscores first (`nth_or` → `nthOr`, not `nth`).

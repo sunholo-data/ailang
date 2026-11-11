@@ -263,6 +263,54 @@ func TestDocsShowsTierMarks(t *testing.T) {
 	}
 }
 
+// `check --package` (the publish boundary, and how downstream packages are
+// checked) reports TC_DEPRECATED_001 too: package mode used to drop every
+// pipeline warning. Two files share one use through a common module; the
+// warning appears once, the check still passes, and `errors` is unchanged.
+func TestCheckPackageReportsDeprecations(t *testing.T) {
+	bin := buildAilang(t)
+	dir := t.TempDir()
+	t.Setenv("AILANG_CACHE_DIR", t.TempDir())
+	files := map[string]string{
+		"ailang.toml": "[package]\nname = \"depvendor/deppkg\"\nversion = \"0.1.0\"\nedition = \"1\"\n\n[exports]\nmodules = [\"depvendor/deppkg/a\", \"depvendor/deppkg/b\"]\n",
+		"a.ail":       "module depvendor/deppkg/a\nimport std/list (head_or)\n\nexport pure func first(xs: [int]) -> int = head_or(xs, 0)\n",
+		"b.ail":       "module depvendor/deppkg/b\nimport depvendor/deppkg/a (first)\n\nexport pure func firstPlusOne(xs: [int]) -> int = first(xs) + 1\n",
+	}
+	for name, src := range files {
+		if err := os.WriteFile(filepath.Join(dir, name), []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	for _, run := range []string{"cold", "warm"} {
+		_, stderr, code := runAilangBin(t, bin, "check", "--package", dir)
+		if code != 0 || strings.Count(stderr, "TC_DEPRECATED_001 at ") != 1 || !strings.Contains(stderr, "std/list.head_or is deprecated; use headOr") {
+			t.Errorf("%s: human: exit %d, want 1 TC_DEPRECATED_001 on stderr:\n%s", run, code, stderr)
+		}
+		stdout, _, code := runAilangBin(t, bin, "check", "--package", "--json", dir)
+		var out struct {
+			Passed   bool                    `json:"passed"`
+			Errors   []struct{ Code string } `json:"errors"`
+			Warnings []struct {
+				Code string `json:"code"`
+				File string `json:"file"`
+				Line int    `json:"line"`
+			} `json:"warnings"`
+		}
+		if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+			t.Fatalf("%s: %v\n%s", run, err, stdout)
+		}
+		if code != 0 || !out.Passed || len(out.Warnings) != 1 || out.Warnings[0].Code != "TC_DEPRECATED_001" ||
+			!strings.HasSuffix(filepath.ToSlash(out.Warnings[0].File), "a.ail") || out.Warnings[0].Line != 4 {
+			t.Errorf("%s: --json: exit %d %+v", run, code, out)
+		}
+		for _, e := range out.Errors {
+			if e.Code == "TC_DEPRECATED_001" {
+				t.Errorf("%s: a deprecation reached errors[]: %+v", run, out.Errors)
+			}
+		}
+	}
+}
+
 // `L.nthOrx` through a module alias is IMP010 naming the member, with the
 // did-you-mean of the import-list path, in human and --json output. It used to
 // say "undefined variable: L".
