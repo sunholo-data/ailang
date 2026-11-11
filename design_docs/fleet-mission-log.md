@@ -1979,3 +1979,61 @@ No code, policy, skill, ledger status, ticket state or host configuration change
 - Executor: resolver `claude:claude-haiku-5-5` (codex rc 75 handoff; path recipe). **Not spawned**: no pick.
 - Evaluator: resolver `sonnet` (path `agent-tool`) → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, 64,823 tok, 8 tool uses, 42 s. Judge independence: cross-model (controller opus, judge sonnet; same vendor).
 - Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
+
+## 105 — 2026-11-11 — `tool-hang:pi-evaluator:stall-bound-below-single-test-run` LANDED: #2235 → `956af1ae6`, independent sonnet judge FAIL 68 then PASS 82; ticket resolved [HARNESS]
+
+**Pick**: the one ticket new since iteration 104. `ailang mission ticket open --json` went from 27 to 28 tickets; the `cmp` against iteration 104's capture differs only by `tool-hang:pi-evaluator:stall-bound-below-single-test-run` (stapledon 86, filed 07:56Z, 1 slot, blocking none, workaround `--stall-seconds 1500`). The other 27 are unchanged and ruling-gated as iterations 98–104 found. Scope: `scripts/mission_*`, plus the skill and `make/test.mk`. Not policy class: no default, routing, lane, quota, ration or billing value changes. It is not D-FLEET-34, which is the driver's pi-controller watchdog, nor D-FLEET-44 (triage HOME search), and both of those defaults are untouched. Clause map: 1 UNMEASURED, **2 UNMET (this ticket moves it)**, 3 MET, 4 met by its letter, 5 preserved.
+
+**Reality check (first-party)**: at `cdf91c5a6`, `scripts/mission_pi_run.sh` had one no-progress bound. A silent open tool call was killed at `--stall-seconds` and relabelled `tool_hang`. [repro.sh](fleet-mission-evidence/iteration105/repro.sh) runs a stub `pi` with an 8 s silent tool call under a 4 s bound and gets **rc 18 `tool_hang`**; the control, a 1 s tool call, gets **rc 0 ok**.
+
+**Preflight / observe**: armed, gh `sunholo-voight-kampff`, billing CLEAN. The resolved skill matched origin/dev on every file (SKILL.md plus 13 resources). The pin equals origin/dev at `cdf91c5a6`, which is also the Gate 1 base. #2172 has 0 allowlisted directives in 10 comments and #2039 has 0 in 29. The self-notice watermark form returned **rc 2**, the ninth consecutive fire. The `--since 2026-11-11T04:20:00Z` form gave 0 crash and 0 in-window transcript notices, control 852:10 ok. Dev at `cdf91c5a6`: CI, Build and Release, and Docs all green; 18 check-runs, 0 not green. Inbox: nothing from Mark. Record stack: the newest record is iteration 104 on #2227 (`fleet/i104-record`), and this record stacks on it.
+
+**Did** (generator ≠ judge):
+- **Planner** opus (Agent tool, foreground, 102,573 tok): wrote [sprint-plan-pi-tool-stall-seconds](planned/sprint-plan-pi-tool-stall-seconds.md) with M1 (runner knob, test, make wiring) and M2 (skill rule, changelog). It corrected three of the controller's premises, each re-checked by the controller:
+  - the existing flags are not validated;
+  - the handshake span is pinned by `.pi/extensions/.session-protocol-gate.test.ts`;
+  - the `.agents` mirror is enforced by `test_agents_skills_sync.sh`.
+- **Executor** `claude:claude-haiku-5-5` (claude-sub, probe rc 0, bounded 30 min), round 1: `e653d19a5` (M1) and `f993cadf0` (M2). Tests were written first: 15/15 red before the change, green after. 9/9 mutants killed. Report: [executor-r1](fleet-mission-evidence/iteration105/executor-r1.md).
+- **Controller full suite at `f993cadf0`**: `make test-launchd-drivers` passed **56/57**. The failure, `test_skill_sync.sh` (`sequencer` arm, `error:git-timeout`), also failed at base `cdf91c5a6` (1 of 2 runs, a different arm; load 18–20) and passed 2/2 at head, so it is inherited and load-sensitive. Dry-runs under the idle, armed stapledon profile (`env -i`, `AILANG_DRIVER_PINNED`, stdin `/dev/null`): healthy rc 0; degraded (`codex:bogus-model-i105`) rc 0, falling back to `claude:claude-haiku-5-5`. Neither left a pidfile or a new worktree. The state directory went 401 → 403 entries, the newest being brain and observatory WAL files from ambient rig activity.
+- **Judge round 1**, sonnet (Agent tool, `MISSION-ROLE: evaluator`, foreground): [**FAIL 68**](fleet-mission-evidence/iteration105/judge-r1.md).
+  - B1: arm `1_default` flaked 3 of 6 times at load 35, returning `stream_dead` instead of `tool_hang`. The controller did not reproduce it (0 of 6 concurrent runs at load 28–33), but the mechanism holds: a 4 s bound is shorter than the stub's start-up time under fork contention. The fix was routed back to the executor.
+  - NB2 claimed `--stall-seconds abc` gave invalid JSON. **Refuted by measurement** ([abc-probe.sh](fleet-mission-evidence/iteration105/abc-probe.sh)): at base and at head the runner aborts under `set -u` with rc 0 and **no verdict file**. The judge retracted in round 2: its `jq -e … || INVALID` also printed INVALID for a missing file.
+- **Executor round 2**: `902016622`.
+  - Timing arms moved from a 4 s to a 10 s stall bound.
+  - Arm 6 now asserts a recorded `poll_seconds` instead of wall time.
+  - `json_num` keeps the new verdict keys valid JSON.
+  - Values over 9 digits are refused with rc 14.
+  - 6 concurrent runs green; the 4 prior mutants are still killed. Report: [executor-r2](fleet-mission-evidence/iteration105/executor-r2.md).
+- **Judge round 2** (same agent, resumed with SendMessage): [**PASS 82**](fleet-mission-evidence/iteration105/judge-r2.md), 0 blocking. 8/8 concurrent runs green at load 80–55; three of its own mutants killed. Strongest objection: the fix widens a margin instead of synchronising on the stub's start, so a start-up stall over 10 s could still false-red arms 1, 2 and 4.
+- **Controller full suite at `902016622`**: **56/57**. The failure was `test_motoko_connection_probe.sh`, which also failed at base at load 67 and passed on rerun at head; `test_skill_sync.sh` passed this time. The new suite passed in 89 s. `git diff --check`, `check-changelog`, `check-file-sizes` and `check-context-docs` all rc 0.
+- Controller commit `9e391d094` adds the plan and updates the changelog to cover `poll_seconds` and the 9-digit cap. Closing-keyword scan: 0 hits in commits and PR body, with the control firing.
+
+**Gate 3b**: the PR head `9e391d094` had 25 check-runs terminal and 0 red, and was MERGEABLE/CLEAN. Squash-merged as `956af1ae6`. Dev CI on the merge commit: CI run 43020548218 **completed/success** on `956af1ae6`. Its other non-green checks are outside this diff: `ailang-core-dev (ailang-multivac-deploy)` was already failing on the parent `aaf81a06c`; two `Dependabot Updates` (event `dynamic`) jobs fail on a `/docs` `deepmerge` security update that has no patched version; Build and Release `Build macos-latest` fails `TestMemprobeDebugLogDoesNotAccumulate` (`cmd/ailang/memprobe_test.go`, product code, V1-owned; the diff changes 0 `.go` files; recorded, not worked). Ticket resolved with `ailang mission ticket resolve … --sha 956af1ae6…` (replied to stapledon); 27 tickets remain open..
+
+**Ruled out**:
+- Raising the runner's default `--stall-seconds`. That changes a default every mission depends on, which is policy class and overlaps D-FLEET-34.
+- Fixing the pre-existing rc-0-no-verdict defect for a non-numeric `--stall-seconds` inside this ticket. Refusing it changes existing callers' behaviour; it is recorded below for a ticket.
+- Adopting the judge's NB2 as written: refuted first-party.
+- Treating the `test_skill_sync.sh` and `test_motoko_connection_probe.sh` reds as caused by this change: both fail at base under the same load, and this diff touches neither.
+
+**Observations (not ticketed — the fleet does not self-source)**:
+- (a) `mission_pi_run.sh --stall-seconds <non-numeric>` exits **rc 0 with no verdict file** at base and at head. That is a false green: success reported for a run that never happened. Any filing mission or attended session can ticket it.
+- (b) The self-notice watermark form has now returned rc 2 on nine consecutive fires (96–105, as counted from iteration 98's first note); the `--since` workaround holds.
+
+**Retro lane**: no skill edit beyond the ticket's own rule (d), and no process change. Friction this iteration: a judge finding produced by an instrument that cannot tell "missing" from "invalid" (`jq -e . f || INVALID`). One instance only, so it is recorded, not ruled.
+
+**Progress**: 27 open tickets after resolution (28 before). Clause 2 moved: this ticket was filed 07:56Z and resolved the same day, about 6 h against the 48 h bar. Clause 1 UNMEASURED, 3 MET, 4 met by its letter, 5 preserved (done-gate run). Harness share: see the dashboard.
+
+**Validation**: darwin/arm64. Planner claims re-checked first-party. Two full `make test-launchd-drivers` runs (56/57 each; the single failure was inherited and base-reproduced both times). Healthy and degraded dry-runs. PR CI green. Dev CI on the merge commit as recorded in Gate 3b.
+
+**Budget**: metered **$0**. Planner opus 102,573 tok; evaluator sonnet 75,074 (round 1) + 86,520 (round 2) tok; executor haiku via claude-sub (subscription; CLI self-report $0.29 + $0.09, not billed) over 52 + 34 turns; controller tok not reported. Designer not spawned.
+
+**Next**: any ruling on D-FLEET-16..45, or a new ticket.
+
+**Routing evidence**: base=cdf91c5a60e7d3f34e8c7218bd1cb557488bf8af (Gate-1 read).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5 declared:provider-pin`. **Not spawned**: the fix is a 60-line additive knob whose spec is the ticket plus the controller's repro (Gate 3: design only when warranted). A routing outcome, not a spawn failure. Rotation pointer unchanged.
+- Planner: resolver `agent-tool opus fail-closed:env-pin` → Agent tool `model=opus`, `MISSION-ROLE: planner`, foreground, 102,573 tok, 21 tool uses, 239 s.
+- Executor: resolver `recipe claude:claude-haiku-5-5 declared:provider-pin` → `claude-sub -p --model claude-haiku-5-5` (probe rc 0; billing CLEAN), 2 runs, both rc 0, bounded 1800 s. Tok: not reported in tokens (CLI JSON reports 52 and 34 turns).
+- Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground; round 1 75,074 tok / 13 tool uses; round 2 (SendMessage resume) 86,520 tok / 6 tool uses. Judge independence: cross-model (executor haiku, planner/controller opus, judge sonnet; same vendor).
+- Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
