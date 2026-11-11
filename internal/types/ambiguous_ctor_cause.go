@@ -90,7 +90,7 @@ func (ctx *InferenceContext) explainCtorFailure(eq TypeEq, sub Substitution, fai
 				what = fmt.Sprintf("`%s`", n.binder)
 			}
 			return &AmbiguousCtorError{Name: n.pattern.Name, Candidates: n.all, Where: patternWhere(n.pattern), Cause: failure,
-				Detail: fmt.Sprintf("constructor '%s' belongs to %s, and %s matches it before anything says which; until that is decided %s cannot be generic, so all its uses must have one type — they do not.",
+				Detail: fmt.Sprintf("constructor '%s' belongs to %s, and which one this pattern means is not yet decided where %s is defined, so %s cannot be generic: all its uses must have one type — they do not.",
 					n.pattern.Name, candidateList(n.all), what, what)}
 		}
 		if n.chosen != nil && heads[NominalKey(n.chosen.Module, n.chosen.TypeName)] {

@@ -114,9 +114,9 @@ func TestAmbiguousCtorChoice_FailureNamesItsCause(t *testing.T) {
 	}{
 		{"mp1: a monomorphic lambda used at Box[int] and Box[string]", map[string]string{"m/a.ail": boxA, "m/b.ail": boxB,
 			"m/main.ail": "module m/main\nimport m/a (boxi, boxs)\nimport m/b (bxi)\nexport pure func run() -> int { let f = \\x. match x { C(_) => 1, _ => 0 }; f(boxi()) + f(boxs()) }\n"},
-			[]string{"at m/main.ail:4:", "`f` matches it", "cannot be generic", "Caused:", "int vs string", "import m/a (C)"}},
+			[]string{"at m/main.ail:4:", "where `f` is defined", "cannot be generic", "Caused:", "int vs string", "import m/a (C)"}},
 		{"c_poly: a lambda used at both candidates' types", withMain("export pure func run() -> int { let f = \\x. match x { C(n) => n, _ => 0 }; f(mka()) + f(mkb()) }\n"),
-			[]string{"at m/main.ail:", "`f` matches it", "Caused:"}},
+			[]string{"at m/main.ail:", "where `f` is defined", "Caused:"}},
 		{"ca2b: a pattern read by its arity, used at the other type", map[string]string{"m/a.ail": ctorA, "m/b.ail": two,
 			"m/main.ail": "module m/main\nimport m/a (mka)\nimport m/b (mkb)\nexport pure func run() -> int { let f = \\x. match x { C(n) => n, _ => 0 }; f(mkb()) }\n"},
 			[]string{"at m/main.ail:4:", "has 1 argument(s)", "whose C takes 2", "Caused:", "C(_, _)"}},
