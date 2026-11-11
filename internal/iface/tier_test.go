@@ -100,7 +100,7 @@ func stabilityDocTables(t *testing.T) (map[string][]string, map[string]int, stri
 	if err != nil {
 		t.Fatal(err)
 	}
-	doc := string(data)
+	doc := strings.ReplaceAll(string(data), "\r\n", "\n") // a Windows checkout may have CRLF
 	heading := regexp.MustCompile(`(?m)^### (Stable|Experimental|Internal) stdlib \((\d+)\)$`)
 	row := regexp.MustCompile("(?m)^\\| `(std/[a-z_/]+)` \\|")
 	out := map[string][]string{}

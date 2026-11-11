@@ -396,7 +396,7 @@ func TestMigrateSedCoversRenames(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	sed := string(data)
+	sed := strings.ReplaceAll(string(data), "\r\n", "\n") // a Windows checkout may have CRLF
 	byHand := map[string]bool{"glob": true, "slice": true, "member": true, "unsafeGet": true}
 	for _, r := range importhint.StdlibRenames {
 		rule := regexp.MustCompile(`(?m)^s/\(\^\|\[\^A-Za-z0-9_\]\)` + regexp.QuoteMeta(r.Old) + `\(\[\^A-Za-z0-9_\]\|\$\)/\\1` + regexp.QuoteMeta(r.New) + `\\2/g$`)
