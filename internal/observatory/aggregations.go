@@ -83,24 +83,3 @@ func isToolCallSpan(name string) bool {
 	}
 	return false
 }
-
-// RecalculateTaskAggregates recalculates all aggregate metrics for a task from its spans.
-// Use this for backfill operations or to fix inconsistent aggregates.
-// Deprecated: Use Store.RecalculateTaskAggregates instead for encapsulation.
-func RecalculateTaskAggregates(ctx context.Context, db *sql.DB, taskID string) error {
-	_, err := db.ExecContext(ctx, `
-		UPDATE tasks SET
-			span_count = COALESCE((SELECT COUNT(*) FROM spans WHERE task_id = ?), 0),
-			total_duration_ms = COALESCE((SELECT SUM(duration_ms) FROM spans WHERE task_id = ?), 0),
-			total_tokens_in = COALESCE((SELECT SUM(tokens_in) FROM spans WHERE task_id = ?), 0),
-			total_tokens_out = COALESCE((SELECT SUM(tokens_out) FROM spans WHERE task_id = ?), 0),
-			total_cost_usd = COALESCE((SELECT SUM(cost_usd) FROM spans WHERE task_id = ?), 0),
-			error_count = COALESCE((SELECT COUNT(*) FROM spans WHERE task_id = ? AND status = 'error'), 0)
-		WHERE id = ?
-	`, taskID, taskID, taskID, taskID, taskID, taskID, taskID)
-
-	if err != nil {
-		return fmt.Errorf("recalculate task aggregates: %w", err)
-	}
-	return nil
-}
