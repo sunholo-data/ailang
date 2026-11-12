@@ -64,6 +64,25 @@ var moduleless = map[string]bool{
 // i.e. a TCon that is correct with Module == "".
 func IsModuleless(name string) bool { return moduleless[name] }
 
+// structuralHomes names the stdlib module that owns each builtin structural
+// head. The type itself stays moduleless (in scope everywhere, no import needed),
+// but `import std/map (Map)` must also work: std/set and std/option export their
+// type names, and the prompt teaches `import std/set (Set)` right beside
+// `import std/map as M`, so models import Map and Array by analogy. Rejecting
+// that with IMP010 cost Gemini 4 Hydrogen 4 of its 5 placement failures
+// (2026-11-12).
+var structuralHomes = map[string]string{
+	"Map":   "std/map",
+	"Array": "std/array",
+}
+
+// IsStructuralTypeOf reports whether name is a builtin structural type that
+// module owns, so a selective import of it is accepted as a no-op.
+func IsStructuralTypeOf(name, module string) bool {
+	home, ok := structuralHomes[name]
+	return ok && home == module
+}
+
 // builtinHomes maps every nominal name a builtin signature (types.Builder.Con /
 // App) uses to the module that declares it (D4). A name no .ail module
 // declares gets BuiltinModule. TestBuiltinHomes_Complete walks every builtin

@@ -245,3 +245,22 @@ func TestNominalIdentityHelpers(t *testing.T) {
 		t.Errorf("ctorChoice.String() = %q", s)
 	}
 }
+
+func TestIsStructuralTypeOf(t *testing.T) {
+	for _, c := range []struct {
+		name, module string
+		want         bool
+	}{
+		{"Map", "std/map", true},
+		{"Array", "std/array", true},
+		{"Map", "std/array", false},
+		{"Array", "std/map", false},
+		{"Map", "std/list", false},
+		{"Set", "std/set", false}, // std/set DECLARES Set; it needs no structural rule
+		{"List", "std/list", false},
+	} {
+		if got := IsStructuralTypeOf(c.name, c.module); got != c.want {
+			t.Errorf("IsStructuralTypeOf(%q, %q) = %v, want %v", c.name, c.module, got, c.want)
+		}
+	}
+}

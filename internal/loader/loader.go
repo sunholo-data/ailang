@@ -17,6 +17,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/iface"
 	"github.com/sunholo-data/ailang/internal/lexer"
 	"github.com/sunholo-data/ailang/internal/parser"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // ModuleLoader loads and caches modules
@@ -505,8 +506,10 @@ func (ml *ModuleLoader) getExport(modulePath, written, symbol string) (*ast.Func
 		return decl, nil
 	}
 
-	// Check if it's a type name - return nil (not an error, just not a function)
-	if _, isType := module.Types[symbol]; isType {
+	// Check if it's a type name - return nil (not an error, just not a function).
+	// Builtin structural types (Map, Array) are declared by no module but owned by
+	// one; importing them from it is a no-op.
+	if _, isType := module.Types[symbol]; isType || types.IsStructuralTypeOf(symbol, modulePath) {
 		return nil, nil
 	}
 
