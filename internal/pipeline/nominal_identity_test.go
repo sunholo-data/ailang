@@ -170,6 +170,20 @@ func nominalCases() []nominalCase {
 			reject: []string{"Eq"},
 		},
 		{
+			// #2247: constraint types are alias-expanded before instance lookup,
+			// but a newtype is nominal: expanding b's Row to its record would let
+			// it borrow a's `deriving (Eq)` through the bare-name record path.
+			name: "derived Eq of one module's newtype is not another module's",
+			files: map[string]string{
+				"dn/a.ail":     "module dn/a\nexport type Row = R({n: int}) deriving (Eq)\n",
+				"dn/b.ail":     "module dn/b\nexport type Row = R({n: int})\nexport pure func mk() -> Row = R({n: 1})\n",
+				"dn/main.ail":  "module dn/main\nimport dn/a (Row)\nimport dn/b (mk)\nexport pure func main() -> bool = mk() == mk()\n",
+				"dn/prime.ail": "module dn/prime\nimport dn/a (Row)\nimport dn/b (mk)\nexport pure func main() -> int = 1\n",
+			},
+			entry: "dn/main.ail", prime: "dn/prime.ail",
+			reject: []string{"Eq"},
+		},
+		{
 			name: "renamed import of an ADT is still that module's ADT",
 			files: map[string]string{
 				"rn/a.ail":    "module rn/a\nexport type T = A(int)\nexport pure func mk() -> T = A(1)\n",

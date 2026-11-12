@@ -274,29 +274,3 @@ func (env *InstanceEnv) reduceEq(typ Type, depth int) ([]Type, error) {
 	}
 	return residual, nil
 }
-
-// ReduceEqConstraints checks every non-ground Eq constraint that is not a bare
-// type variable, replacing it with the Eq constraints on its residual variables.
-// Other classes pass through unchanged.
-func (env *InstanceEnv) ReduceEqConstraints(constraints []ClassConstraint) ([]ClassConstraint, error) {
-	out := make([]ClassConstraint, 0, len(constraints))
-	for _, c := range constraints {
-		if c.Class != "Eq" {
-			out = append(out, c)
-			continue
-		}
-		residual, err := env.reduceEq(c.Type, 0)
-		if err != nil {
-			if len(c.Path) > 0 {
-				return nil, fmt.Errorf("at %s: %w", c.Path[0], err)
-			}
-			return nil, err
-		}
-		for _, r := range residual {
-			rc := c
-			rc.Type = r
-			out = append(out, rc)
-		}
-	}
-	return out, nil
-}

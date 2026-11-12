@@ -340,10 +340,15 @@ func (tc *CoreTypeChecker) partitionConstraints(constraints []ClassConstraint) (
 // partitionAndReduce is partitionConstraints for a top-level boundary, where a
 // non-ground constraint would otherwise leave unchecked: each non-ground Eq is
 // decomposed (M-EQ-DERIVE-CONTAINERS R-D7), so a closure can never reach the
-// runtime comparator behind a residual type variable.
+// runtime comparator behind a residual type variable, and every other class
+// with a constructor at its head must be solved by an instance (#2247), so
+// Num[Box[α]] is "no instance", not a silently dropped constraint.
+//
+// Aliases are expanded first (constraint_alias.go): Num[Id[a]] with
+// `type Id[a] = int` is Num[int], and must be judged as such.
 func (tc *CoreTypeChecker) partitionAndReduce(constraints []ClassConstraint) (ground, nonGround []ClassConstraint, err error) {
-	ground, nonGround = tc.partitionConstraints(constraints)
-	nonGround, err = tc.instanceEnv.ReduceEqConstraints(nonGround)
+	ground, nonGround = tc.partitionConstraints(tc.expandConstraintAliases(constraints))
+	nonGround, err = tc.instanceEnv.ReduceConstraints(nonGround)
 	return ground, nonGround, err
 }
 
@@ -354,7 +359,7 @@ func (tc *CoreTypeChecker) partitionAndReduce(constraints []ClassConstraint) (gr
 // lists, tuples and functions, so Eq[[α]] used to be "resolved" and rejected
 // while Eq[Option[α]] was generalized — `[] == []` failed, `None == None`
 // passed, and generic `xs == ys` on [a] could never compile. A non-ground Eq is
-// then decomposed by ReduceEqConstraints, which still rejects functions.
+// then decomposed by ReduceConstraints, which still rejects functions.
 //
 // Every other class keeps isGround: their instances all have primitive heads,
 // so Num[int -> β] can never be satisfied, and resolving it now is what makes
