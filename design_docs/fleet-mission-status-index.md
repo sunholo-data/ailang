@@ -12,6 +12,16 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 104 | 2026-11-11 | idle — inputs byte-identical to iteration 103; all 27 tickets ruling-gated; independent sonnet judge NONE after a first-party ticket-to-row re-deri... |
+| 103 | 2026-11-10 | idle — inputs byte-identical to iteration 102; all 27 tickets ruling-gated; independent sonnet judge NONE; nothing built or merged [ADMIN] |
+| 102 | 2026-11-10 | idle — inputs byte-identical to iteration 101; all 27 tickets ruling-gated; independent sonnet judge NONE; nothing built or merged [ADMIN] |
+| 101 | 2026-11-10 | idle — inputs byte-identical to iteration 100; all 27 tickets ruling-gated; independent sonnet judge NONE; D-FLEET-43 exclusion grounded in the cha... |
+| 100 | 2026-11-10 | idle — inputs byte-identical to iteration 99; all 27 tickets ruling-gated; independent sonnet judge NONE; nothing built or merged [ADMIN] |
+| 99 | 2026-11-09 | idle — inputs byte-identical to iteration 98; all 27 tickets ruling-gated; independent sonnet judge NONE after a resumed re-derivation; nothing bui... |
+| 98 | 2026-11-09 | idle — inputs unchanged since iteration 97; all 27 tickets ruling-gated; independent sonnet judge NONE; nothing built or merged [ADMIN] |
+| 97 | 2026-11-09 | World's idle-record degraded-bar ticket designed; quorum BLOCKED twice; independent sonnet judge PARK-UPHELD; D-FLEET-45 parks it [HARNESS] |
+| 96 | 2026-11-08 | instruction-only HOME-search design drafted; final quorum BLOCKED and independent MiniMax FAIL; D-FLEET-44 parks planning and execution [HARNESS] |
+| 95 | 2026-11-07 | new triage HOME-search hang captured; PARKED-ON-LANE because independent evaluator probes exhausted; no judge verdict, implementation or ticket res... |
 | 94 | 2026-11-07 | idle — independent MiniMax NONE after a fresh protocol-complete review; all 25 tickets ruling-gated, nine drafts preserved, no implementation or ru... |
 | 93 | 2026-11-07 | D-FLEET-25’s remaining mechanism proposed in draft #2165; one GLM revision, re-quorum BLOCKED and independent MiniMax judge NEEDS-HUMAN-REVIEW; pla... |
 | 92 | 2026-11-06 | idle — no buildable step; all 25 open tickets are ruling-gated and an independent sonnet idle-screen judge ruled NONE, as iteration 90 predicted; n... |
