@@ -7,6 +7,11 @@
 #   audit.sh              # full (runs make test-core for the timing row)
 #   audit.sh --fast       # skip the timed test run
 #   audit.sh --against <snapshot.json>
+#   audit.sh --offline    # skip the external-service rows (Sonar, GitHub): null + reason
+#   audit.sh --services   # also the Cloud Run used-or-not check (gcloud, read-only, minutes)
+#
+# A metric absent from the old snapshot (or null in either) shows `?`, never
+# WORSE, and cannot be a regression: a new row or an offline run is not a change.
 #
 # bash 3.2 / BSD grep compatible.
 set -euo pipefail
@@ -14,11 +19,13 @@ cd "$(git rev-parse --show-toplevel)"
 
 FAST=""
 AGAINST=""
+EXT=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --fast) FAST="--no-test" ;;
     --against) shift; AGAINST="$1" ;;
-    -h|--help) sed -n '2,12p' "$0"; exit 0 ;;
+    --offline|--services) EXT="$EXT $1" ;;
+    -h|--help) sed -n '2,17p' "$0"; exit 0 ;;
     *) echo "unknown flag: $1" >&2; exit 64 ;;
   esac
   shift
@@ -34,13 +41,13 @@ fi
 if [ -z "$AGAINST" ] || [ ! -f "$AGAINST" ]; then
   echo "no previous snapshot to diff against; banking a baseline instead" >&2
   # shellcheck disable=SC2086
-  exec /bin/bash tools/simplicity_metrics.sh $FAST
+  exec /bin/bash tools/simplicity_metrics.sh $FAST $EXT
 fi
 
 NOW="$(mktemp -t simplicity.XXXXXX)"
 trap 'rm -f "$NOW"' EXIT
 # shellcheck disable=SC2086
-/bin/bash tools/simplicity_metrics.sh $FAST --json --out "$NOW" >/dev/null
+/bin/bash tools/simplicity_metrics.sh $FAST $EXT --json --out "$NOW" >/dev/null
 
 echo "simplicity audit — $(jq -r .date "$NOW") @ $(jq -r .commit "$NOW")  vs  $(jq -r .date "$AGAINST") @ $(jq -r .commit "$AGAINST")"
 echo
@@ -50,13 +57,15 @@ jq -r --slurpfile prev "$AGAINST" '
   ($prev[0].metrics) as $p
   | .metrics | to_entries[]
   | .key as $k | .value as $m
+  | ($p | has($k)) as $known
   | ($p[$k].value // null) as $before
   | (if ($m.value|type)=="number" and ($before|type)=="number" then ($m.value - $before) else null end) as $d
   | (if $d == null then "?"
      elif $d == 0 then "="
+     elif ($m.dir != "le" and $m.dir != "ge") then "changed"
      elif ($m.dir == "le" and $d > 0) or ($m.dir == "ge" and $d < 0) then "WORSE"
      else "better" end) as $v
-  | [$k, ($before|tostring), ($m.value|tostring), (if $d==null then "" elif $d>0 then "+"+($d|tostring) else ($d|tostring) end), $v]
+  | [$k, (if $known then ($before|tostring) else "—" end), ($m.value|tostring), (if $d==null then "" elif $d>0 then "+"+($d|tostring) else ($d|tostring) end), $v]
   | @tsv' "$NOW" \
   | awk -F'\t' 'BEGIN{printf "%-40s %10s %10s %8s  %s\n","metric","before","now","delta",""} {printf "%-40s %10s %10s %8s  %s\n",$1,$2,$3,$4,$5}'
 
@@ -77,6 +86,18 @@ echo "• packages without a package comment:"
 jq -r '.metrics.packages_without_doc.detail' "$NOW" | tr ' ' '\n' | sed 's/^/    /'
 echo "• platform packages / third-party roots reachable from the language core:"
 jq -r '[.metrics.closure_platform_packages.detail, .metrics.closure_leak_roots.detail] | join(" ")' "$NOW" | tr ' ' '\n' | sed 's/^/    /'
+echo "• unreachable functions by package (deadcode -test=false; cross-check -test=true + git log -S before deleting):"
+jq -r '.metrics.unreachable_funcs | if .value == null then "(unmeasured: \(.reason))" else .detail end' "$NOW" | tr ' ' '\n' | sed 's/^/    /'
+echo "• external services (SonarCloud, GitHub security):"
+jq -r '.metrics | to_entries[]
+  | select(.key | test("^(sonar_|codeql_|dependabot_|secret_scanning_)"))
+  | "\(.key)=\(.value.value // "null")  \(if .value.value == null then "UNMEASURED: " + .value.reason else (.value.detail // "") end)"' "$NOW" | sed 's/^/    /'
+echo "• Cloud Run services, 2xx requests in 30 days (--services):"
+jq -r '.metrics.cloud_run_services_used
+  | if .value == null then "(unmeasured: \(.reason))"
+    else (.services[] | if .error != null then "\(.project)/\(.service)  ERROR \(.error)"
+          else "\(.project)/\(.service)  2xx=\(.requests_2xx)\(if .truncated then "+ (capped)" else "" end) ips=\(.distinct_ips)  \([.classes[] | "\(.class)=\(.n)"] | join(" "))" end)
+    end' "$NOW" | sed 's/^/    /'
 echo "• skills citing an ailang command the binary does not have (count, command):"
 # The dispatch table is the authority (help omits some on purpose): since the S5
 # CLI reshape every command, group member and alias is a `Name: "x"` or an
