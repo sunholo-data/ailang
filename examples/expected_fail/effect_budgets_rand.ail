@@ -3,20 +3,20 @@ module examples/expected_fail/effect_budgets_rand
 -- Demonstrates effect budget annotations with Rand capability
 -- Budgets limit random number generation operations
 import std/io (println)
-import std/rand (rand_int, rand_float, rand_bool)
+import std/rand (randInt, randFloat, randBool)
 
 -- Function limited to 5 random integer generations
 export func limitedDiceRolls() -> () ! {IO, Rand @limit=5} {
   println("  Rolling dice (5 rolls max):")
-  let roll1 = rand_int(1, 7)
+  let roll1 = randInt(1, 7)
   println("    Roll 1")
-  let roll2 = rand_int(1, 7)
+  let roll2 = randInt(1, 7)
   println("    Roll 2")
-  let roll3 = rand_int(1, 7)
+  let roll3 = randInt(1, 7)
   println("    Roll 3")
-  let roll4 = rand_int(1, 7)
+  let roll4 = randInt(1, 7)
   println("    Roll 4")
-  let roll5 = rand_int(1, 7)
+  let roll5 = randInt(1, 7)
   println("    Roll 5");
   -- A 6th roll would exceed the budget
   ()
@@ -25,11 +25,11 @@ export func limitedDiceRolls() -> () ! {IO, Rand @limit=5} {
 -- Function limited to 3 random floats
 export func limitedProbabilities() -> () ! {IO, Rand @limit=3} {
   println("  Generating probabilities (3 max):")
-  let p1 = rand_float(0.0, 1.0)
+  let p1 = randFloat(0.0, 1.0)
   println("    Probability 1")
-  let p2 = rand_float(0.0, 1.0)
+  let p2 = randFloat(0.0, 1.0)
   println("    Probability 2")
-  let p3 = rand_float(0.0, 1.0)
+  let p3 = randFloat(0.0, 1.0)
   println("    Probability 3");
   ()
 }
@@ -37,9 +37,9 @@ export func limitedProbabilities() -> () ! {IO, Rand @limit=3} {
 -- Function limited to 2 coin flips
 export func limitedCoinFlips() -> () ! {IO, Rand @limit=2} {
   println("  Flipping coins (2 max):")
-  let flip1 = rand_bool()
+  let flip1 = randBool()
   println("    Flip 1")
-  let flip2 = rand_bool()
+  let flip2 = randBool()
   println("    Flip 2");
   ()
 }

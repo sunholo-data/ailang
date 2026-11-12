@@ -1,6 +1,6 @@
 # M-V1-SHOW-TOTAL: make `show` total and unambiguous before it is frozen
 
-**Status**: Planned
+**Status**: Implemented on branch `v1/show-total` (M1–M5), in review. See [Implementation](#implementation-2026-11-11)
 **Target**: v0.58.x (the last breaking window before v1.0.0)
 **Priority**: P0. `show` is Stable, it is the function the teaching prompt tells every model to use for every type, and its output is graded byte for byte. After the freeze this change needs 2.0
 **Estimated**: about 7 working days (estimate, not a plan; per-milestone sizes below)
@@ -352,3 +352,53 @@ deep1_{25000,50000,100000}.ail      -> 0.47s/664MB, 1.54s/1.53GB, 5.21s/3.53GB (
 go test ./internal/{eval,builtins,vm,runtime,pipeline,testing}  (prototype) -> 9 FAIL in 3 packages
 printf '["a", "b, c"]\n1.0e300\n' | ailang-base repl   -> [a, b, c] :: [String]; 1e+300 :: Float
 ```
+
+## Implementation (2026-11-11)
+
+Branch `v1/show-total`. All five milestones landed; the open decisions were taken as recommended.
+
+| Decision | Taken |
+|---|---|
+| 1. Top-level strings bare, nested quoted | Yes |
+| 2. Helper name and home | `std/string.showPreview(x, maxChars)`, head-only cut, `…(+N chars)`; backed by `_show_preview` (native on the VM as `__show_preview`) |
+| 3. Float spelling | Unchanged (shortest round-trip, no exponent) |
+| 4. Set rendering | Honest `Set(Map{…})`, no special case |
+| 5. `run_length_encode` | Retired to `benchmarks/retired/`; `run_length_encode_v2` states `3a 2b 4c 1a` |
+| 6. M4 now or 1.x | Now: REPL echo, `run --print`, test messages, traces and the WASM display all use the show walk |
+
+Where it differs from the plan:
+
+- **One walk, three budgets.** `eval.RenderShow` (unbounded), `RenderShowPreview` (code-point budget)
+  and `ShowBounded`/`ShowTraceBounded` (byte budget, trace redaction as an inspector wrapper) share
+  one explicit-stack walk in `internal/eval/show.go`. The old `boundedWriter` (a second renderer
+  that mirrored `Value.String()`) is gone, so traces now spell floats and nested strings as `show`.
+- **State is two stacks**: one byte per open container plus a frame only for containers with
+  children left, so `S(S(…))` a million deep costs about 1 MB of state. Output buffers grow by
+  doubling (append's 1.25x policy re-copied a 30 MB rendering about five times).
+- `ShowNode` is generic over the engine's value type, so neither engine boxes its children.
+- The escaper moved to `internal/strutil.Quote` (an existing stdlib-leaf package), used by `ailang fmt` too.
+- **NFC (review rounds 1–4).** The loader NFC-normalises source, so the escaper writes `\u{X}`
+  for a character that is not raw-safe whenever normalisation *might* change the string, and
+  right after an escape. Raw-safe = an NFC-stable starter that x/text does not count as a leading
+  non-starter (U+FF9E and the Hangul compatibility vowels are stable starters with a leading
+  count). "Might" is one linear pass (`nfcMayChange`): no rune NFC rewrites alone; marks in
+  canonical order; no backward-combining rune meets an unblocked base it composes with, where a
+  mark sorted in among a composite's own trailing marks meets the composite only partly
+  recomposed (U+0623 + fatha meets U+0627); and x/text's stream-safe limit (after 30
+  non-starters it inserts U+034F), counted as x/text counts them — over the compatibility
+  decomposition, with backward-combining starters as non-starters. It never normalises or sorts.
+  It is designed to be conservative, and measured exact: 468M strings in the fourth review's
+  harness and every composite + mark pair agree with x/text in both directions. The tables are
+  generated from x/text and must match the Unicode version the toolchain selects (x/text
+  switches to Unicode 17 tables under go1.27): `TestNFCTablesUpToDate` fails with the
+  regenerate commands on a toolchain or x/text bump.
+- `Value.String()` is unchanged: it is still the Go-side spelling of error messages and debug
+  output, and no longer reaches stdout.
+- `examples/manifest.json` now pins stdout (`verify-examples` compares it), so 10 pins were
+  re-pinned; the doc's census predates that gate.
+- **M2's mutation note does not hold.** Dropping only the `\\` escape does not break injectivity
+  (an opening quote is never preceded by a backslash, so the text stays decodable); it breaks the
+  literal round trip. The property test therefore also re-lexes every nested string, and that check
+  catches the mutation. Dropping `\"` is caught by the injectivity property itself.
+- Measured downstream (gate + `ailang test` on every inline-test file of all eight corpora, both
+  binaries): one change, a fix — the motoko compaction test that §(c) predicted tested nothing.

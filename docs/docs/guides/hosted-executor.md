@@ -125,11 +125,20 @@ from that tab.
 
 ### Others
 
-**Gemini Enterprise, Microsoft Copilot.** Not on this (production) server yet: both need an OAuth
-client model the production executor has switched off (pre-registered clients, dynamic
-registration). Gemini Enterprise sign-in is verified on the dev service (2026-11-11); the steps and
-the traps, including GE's daily agent-creation quota, are in
-[Gemini Enterprise with per-user sign-in](./mcp-connectors.md#gemini-enterprise-with-per-user-sign-in-the-steps-and-what-bit-us).
+**Gemini Enterprise.** Since v0.60.1 this server accepts pre-registered clients, which Gemini
+Enterprise needs, in two ways. As a **custom MCP data store**, its tools become actions in an
+Agent Designer agent. As an **A2A agent** ("AILANG Executor", card at
+`https://executor.ailang.sunholo.com/.well-known/agent-card.json`), Gemini Enterprise hands it a
+whole request, and it writes, checks and runs AILANG with Gemini and answers with the result, the
+program and its real output. Either way, a Gemini Enterprise admin needs a client from us: ask
+through `submit_feedback` or the AILANG repository. The agent answers a limited number of requests a
+day, and over the limit it says so. It can also file feedback for the user. Steps and traps
+(including Gemini Enterprise's daily agent-creation quota):
+[Gemini Enterprise with per-user sign-in](./mcp-connectors.md#gemini-enterprise-with-per-user-sign-in-the-steps-and-what-bit-us)
+and [Gemini Enterprise A2A agent](./mcp-connectors.md#gemini-enterprise-a2a-agent).
+
+**Microsoft Copilot.** Not on this server yet: it needs dynamic registration or a pre-registered
+client, and has not been tried.
 
 **Without sign-in.** For the documentation tools only, use `https://mcp.ailang.sunholo.com/mcp/`.
 To run code on your own machine instead, install AILANG and the `ailang_bootstrap` plugin, which

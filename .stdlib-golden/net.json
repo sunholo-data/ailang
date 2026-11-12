@@ -3,7 +3,8 @@
   "types": [
     {
       "name": "HttpResponse",
-      "alias": "{body: string, bodyBytes: bytes, headers: list[{name: string, value: string}], ok: bool, status: int}"
+      "alias": "{body: string, bodyBytes: bytes, headers: list[{name: string, value: string}], ok: bool, status: int}",
+      "tier": "experimental"
     },
     {
       "name": "NetError",
@@ -12,11 +13,13 @@
         "DisallowedHost(string)",
         "InvalidHeader(string)",
         "Transport(string)"
-      ]
+      ],
+      "tier": "experimental"
     },
     {
       "name": "Url",
-      "alias": "{fragment: string, host: string, path: string, port: string, query: string, scheme: string}"
+      "alias": "{fragment: string, host: string, path: string, port: string, query: string, scheme: string}",
+      "tier": "experimental"
     }
   ],
   "funcs": [
@@ -52,7 +55,8 @@
       "effects": [
         "Net"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -98,7 +102,8 @@
       "effects": [
         "Net"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -168,7 +173,8 @@
       "effects": [
         "Net"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -238,7 +244,8 @@
       "effects": [
         "Net"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -270,7 +277,8 @@
       "name": "parseQuery",
       "type": "(string)-\u003elist[{name: string, value: string}]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -302,7 +310,8 @@
       "name": "parseUrl",
       "type": "(string)-\u003eResult[{fragment: string, host: string, path: string, port: string, query: string, scheme: string},string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -334,7 +343,8 @@
       "name": "urlEncode",
       "type": "(string)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -366,7 +376,8 @@
       "name": "urlEncodeForm",
       "type": "(list[{name: string, value: string}])-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

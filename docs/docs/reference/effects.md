@@ -173,7 +173,7 @@ writeFile("out.txt", s)    -- writes /tmp/sandbox/out.txt
 listDir("subdir")          -- lists /tmp/sandbox/subdir
 ```
 
-This applies to **every** FS builtin (`readFile`, `writeFile`, `readFileBytes`, `writeFileBytes`, `appendFile`, `appendFileBytes`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`) and all `std/zip` operations. It also sets the working directory for `std/process` `exec`.
+This applies to **every** FS builtin (`readFile`, `writeFile`, `readFileBase64`, `writeFileBytes`, `appendFile`, `appendFileBytes`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`) and all `std/zip` operations. It also sets the working directory for `std/process` `exec`.
 
 If unset (the default), paths resolve normally from the process working directory.
 
@@ -545,12 +545,12 @@ especially for capability-constrained (auditable/sandboxed) programs:
 
 | stdlib module | Capability | Notes |
 |---------------|-----------|-------|
-| `std/io` | `IO` | `print`, `println`, `readLine`, `writeBytes`, `flush`, `printErr`/`eprintln` |
+| `std/io` | `IO` | `print`, `println`, `readLine`, `writeBytes`, `flush`, `eprint`/`eprintln` |
 | `std/fs` | `FS` | file read/write |
 | `std/clock` | `Clock` | `now`, `sleep` (use a seed for deterministic time) |
 | `std/datetime` | `Clock` | `now()` is effectful; formatting/arithmetic are pure |
 | `std/net` | `Net` | HTTP; also needs `--net-allow-*` flags |
-| `std/rand` | `Rand` | `rand_int`, `rand_float`, `rand_bool`, `rand_seed`, `uuid4` |
+| `std/rand` | `Rand` | `randInt`, `randFloat`, `randBool`, `randSeed`, `uuid4` |
 | `std/env` | `Env` | environment variables (with an allowlist) |
 | `std/process` | `Process` | spawn external commands |
 | `std/ai` | `AI` | model calls |

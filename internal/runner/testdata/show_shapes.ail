@@ -1,0 +1,78 @@
+module show_shapes
+
+-- Every value shape `show` renders, printed one per line. Run on the
+-- tree-walking evaluator and on the strict bytecode VM by
+-- TestShowShapesAllEngines (internal/runner); the outputs must be byte-identical and equal
+-- to show_shapes.golden (M-V1-SHOW-TOTAL).
+
+import std/io (println)
+import std/list (range)
+import std/map as M
+import std/set as S
+import std/array as A
+import std/bytes as B
+import std/json (decode)
+import std/string (showPreview)
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err)
+
+type Shape = Dot | Circle(int) | Rect(float, float) | Named(string, Shape)
+
+type Tree = Leaf | Node(Tree, int, Tree)
+
+func tree(n: int) -> Tree = if n <= 0 then Leaf else Node(tree(n - 1), n, Leaf)
+
+func nest(n: int) -> [string] = if n <= 0 then ["x"] else [show(nest(n - 1))]
+
+func ints() -> [int] = [42, -7, 0, 9223372036854775807, -9223372036854775807 - 1]
+
+func floats() -> [float] = [3.14, 2.0, -0.0, 0.0, 0.1 + 0.2, 1.0e300, 1.0e-300, 0.0 / 0.0, 1.0 / 0.0, -1.0 / 0.0, 123456789012345680000.0, 0.000001]
+
+func strs() -> [string] = ["", "plain", "say \"hi\"", "back\\slash", "tab\tnl\ncr\r", "dollar \${x} and $y", "nul\u{0}del\u{7F}c1\u{85}zw\u{200B}", "é ü 中文 😀", "a, b", "]", "Some(x)"]
+
+func unitValue() -> () = ()
+
+export func main() -> () ! {IO} {
+  println(show(ints()));
+  println(show(floats()));
+  println(show(-0.0));
+  println(show(2.0));
+  println(show(strs()));
+  println(show("top \"level\" stays bare\t"));
+  println(show(true));
+  println(show(unitValue()));
+  println(show((1, "x", true, 2.5, unitValue())));
+  println(show(["a", "b, c"]));
+  println(show(["", "x"]));
+  println(show([[1], [], [2, 3]]));
+  println(show({b: "two", a: 1, c: {z: [], y: "q"}}));
+  println(show([Dot, Circle(3), Rect(1.0, -0.0), Named("n\"m", Named("", Dot))]));
+  println(show([Some("x"), None]));
+  println(show([Ok("y"), Err("e")]));
+  println(show(Some(Some(None))));
+  println(show(tree(5)));
+  println(show(nest(4)));
+  println(show([[[[[1]]]]]));
+  println(show(range(0, 50)));
+  println(show(M.fromList([(9, "a"), (10, "b"), (2, "c")])));
+  println(show(M.fromList([("k\"1", [1]), ("", [])])));
+  println(show(M.fromList([((1, "t"), Some(1.5))])));
+  println(show(S.fromList(["b", "a"])));
+  println(show(A.fromList([1, 2, 3])));
+  println(show(A.fromList(["s", ""])));
+  println(show(A.fromList([1.5, -0.0])));
+  println(show(B.fromString("hi")));
+  println(show(B.fromString("a much longer byte string, well past thirty-two bytes long")));
+  println(show(decode("{\"n\": 3, \"f\": 2.5, \"s\": \"q\\\"\", \"l\": [true, null]}")));
+  println(show(\x. x + 1));
+  println(show([\x. x]));
+  println("interp: ${["a", "b"]} ${Some("x")} ${"bare"} ${1.0}");
+  println(showPreview(range(0, 50), 10));
+  println(showPreview(["éé", "éé"], 3));
+  println(showPreview([1, 2, 3], 100));
+  println(showPreview([1, 2, 3], 9));
+  println(showPreview([1, 2, 3], 8));
+  println(showPreview([1, 2, 3], 0));
+  println(showPreview("", 0));
+  println(showPreview("abc", -5))
+}

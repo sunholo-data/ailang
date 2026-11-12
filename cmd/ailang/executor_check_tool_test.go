@@ -76,7 +76,11 @@ func runCheckToolWith(t *testing.T, z3, code, work, execBin string) checkToolRun
 	return run
 }
 
-func field(name, value string) string { return "{key: " + name + ", value: " + value + "}" }
+// field and jstr spell a JObject entry and a JString the way `show` prints
+// them: nested strings quoted (M-V1-SHOW-TOTAL).
+func field(name, value string) string { return "{key: \"" + name + "\", value: " + value + "}" }
+
+func jstr(s string) string { return "JString(\"" + s + "\")" }
 
 const (
 	toolTypeError    = "module main\nexport pure func f(x: int) -> int = x + \"a\"\n"
@@ -121,12 +125,12 @@ func TestCheckTool_Matrix(t *testing.T) {
 			if r.ok {
 				okVal = "JBool(true)"
 			}
-			for _, want := range []string{field("ok", okVal), field("exit_code", "JNumber("+r.exitCode+")"), field("verification", "JString("+r.verification+")")} {
+			for _, want := range []string{field("ok", okVal), field("exit_code", "JNumber("+r.exitCode+")"), field("verification", jstr(r.verification))} {
 				if !strings.Contains(run.result, want) {
 					t.Fatalf("result missing %s:\n%s", want, run.result)
 				}
 			}
-			hasMsg := strings.Contains(run.result, field("verification_message", "JString("+noSolverMsg+")"))
+			hasMsg := strings.Contains(run.result, field("verification_message", jstr(noSolverMsg)))
 			if hasMsg != r.message || (!r.message && strings.Contains(run.result, "verification_message")) {
 				t.Fatalf("verification_message present=%v, want %v:\n%s", hasMsg, r.message, run.result)
 			}
@@ -180,14 +184,14 @@ func TestCheckTool_SolverInstalledLaterIsUsed(t *testing.T) {
 	work := t.TempDir()
 	slot := filepath.Join(t.TempDir(), "z3")
 	first := runCheckToolWith(t, slot, toolContract, work, bin)
-	if !strings.Contains(first.result, field("verification", "JString(unavailable)")) || !strings.Contains(first.result, field("exit_code", "JNumber(0.0)")) {
+	if !strings.Contains(first.result, field("verification", jstr("unavailable"))) || !strings.Contains(first.result, field("exit_code", "JNumber(0.0)")) {
 		t.Fatalf("no solver yet: want the quiet unavailable lane:\n%s", first.result)
 	}
 	if err := os.WriteFile(slot, []byte("#!/bin/sh\nprintf '%s\\n' 'sat'\nexit 0\n"), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	second := runCheckToolWith(t, slot, toolContract, work, bin)
-	for _, want := range []string{field("ok", "JBool(false)"), field("exit_code", "JNumber(1.0)"), field("verification", "JString(counterexample)")} {
+	for _, want := range []string{field("ok", "JBool(false)"), field("exit_code", "JNumber(1.0)"), field("verification", jstr("counterexample"))} {
 		if !strings.Contains(second.result, want) {
 			t.Fatalf("solver installed at the same path: result missing %s:\n%s", want, second.result)
 		}
@@ -232,11 +236,11 @@ func TestCheckTool_ProbeFailureIsNotNoSolver(t *testing.T) {
 	} {
 		wrapper := probeFailingAilang(t, probe.out, probe.rc)
 		withSolver := runCheckToolWith(t, fakeSolver(t, "sat", "sat", 0), toolContract, t.TempDir(), wrapper)
-		if !strings.Contains(withSolver.result, field("verification", "JString(counterexample)")) {
+		if !strings.Contains(withSolver.result, field("verification", jstr("counterexample"))) {
 			t.Fatalf("%s probe, solver present: want verification to run:\n%s", probe.name, withSolver.result)
 		}
 		noSolver := runCheckToolWith(t, fakeSolver(t, "missing", "", 0), toolContract, t.TempDir(), wrapper)
-		for _, want := range []string{field("ok", "JBool(false)"), field("exit_code", "JNumber(1.0)"), field("verification", "JString(unavailable)")} {
+		for _, want := range []string{field("ok", "JBool(false)"), field("exit_code", "JNumber(1.0)"), field("verification", jstr("unavailable"))} {
 			if !strings.Contains(noSolver.result, want) {
 				t.Fatalf("%s probe, no solver: result missing %s:\n%s", probe.name, want, noSolver.result)
 			}
@@ -267,7 +271,7 @@ func TestCheckTool_SolverThatCannotStartNamesNoHostPath(t *testing.T) {
 	}
 	for _, z3 := range []string{noExec, dirSolver} {
 		run := runCheckTool(t, z3, toolContract)
-		for _, want := range []string{field("ok", "JBool(false)"), field("exit_code", "JNumber(1.0)"), field("verification", "JString(error)"),
+		for _, want := range []string{field("ok", "JBool(false)"), field("exit_code", "JNumber(1.0)"), field("verification", jstr("error")),
 			"the verification solver could not be started"} {
 			if !strings.Contains(run.result, want) {
 				t.Fatalf("solver %s: result missing %q:\n%s", z3, want, run.result)

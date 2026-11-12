@@ -136,6 +136,8 @@ var BuiltinNames = []string{
 	"__map_to_list",
 	"__map_keys",
 	"__map_values",
+	// M-V1-SHOW-TOTAL M3: std/string.showPreview
+	"__show_preview",
 	"_unreachable", // M-V1-MATCH-EXHAUSTIVENESS: RT010, never returns
 }
 

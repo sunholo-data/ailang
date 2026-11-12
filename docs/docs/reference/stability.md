@@ -63,7 +63,7 @@ coordinator, missions, approvals, dashboards, eval tooling and chains/observator
 
 | Area | Stable | Experimental | Internal | Source of truth |
 |------|-------:|-------------:|---------:|-----------------|
-| Stdlib modules | 17 | 31 | 3 | `.stdlib-golden/` (49 frozen modules) + 2 subdirectory modules |
+| Stdlib modules | 17 | 31 | 3 | `std/STABILITY.toml` (module tiers) + `@experimental` (25 functions) → `.stdlib-golden/` |
 | CLI commands | 19 | 23 | 46 | `cmd/ailang` dispatch table → [CLI Reference](/docs/reference/cli) |
 | Package surface | 12 | 9 | 1 | `internal/pkg` manifest + lockfile code |
 | Hosted MCP tools | 24 | 5 | 0 | `mcp_tools/`, `executor_tools/`, `executor_oauth/`, built-in `submit_feedback` |
@@ -121,7 +121,26 @@ For a **Stable** module, the promise covers the interface that the golden file r
 names, types and effect rows. Changing a Stable module's golden in a way that is not additive is a
 breaking change.
 
+**Where tiers are recorded.** One source per fact: the tier of every module is in
+[`std/STABILITY.toml`](https://github.com/sunholo-data/ailang/blob/dev/std/STABILITY.toml), and a
+function that is Experimental inside a Stable module says so in its source with `@experimental`.
+`ailang iface std/<module>` stamps the result on every export as `"tier"`, and the goldens in
+`.stdlib-golden/` record it. `ailang docs` shows the same marks. The tables on this page are checked
+against both by a test, so they cannot drift. Marking a function changes neither its type nor any
+package's `interface_hash`.
+
 "Uses" below means files under `examples/` that import the module, counted at HEAD.
+
+**The text `show` returns is part of the Stable promise** (the `show` builtin is Stable): it is
+total (nothing elided, at any width or depth), deterministic (the same on the evaluator and the
+bytecode VM, on every OS), and injective per type for values without NaN or functions. A
+top-level string is returned unchanged; a string nested in a list, tuple, record, map or
+constructor is quoted with the escapes `ailang fmt` uses, and that literal reads back as the same
+string through the normal loader (valid UTF-8 only). Function values of every kind, constructors
+used as values included, print `<function>` on every engine. `std/string.showPreview` is Stable
+with `std/string`: it quotes a string even at the top level, keeps a head-only prefix of at most
+`maxChars` code points, and marks a cut with `…(+N chars)` (N exact), so a cut preview never
+equals a complete one. The marker is for people, not for parsing.
 
 ### Stable stdlib (17)
 
@@ -182,6 +201,80 @@ These may change in a 1.x minor, with a CHANGELOG entry.
 | `std/embedding` | Vector-embedding utilities | niche |
 | `std/simhash` | Locality-sensitive hashing | niche |
 | `std/debug` | `Debug` ghost-effect logging | ⚠ close call — was Internal; moved because published packages (`sunholo/logging`) and the hosted executor depend on it |
+
+### Experimental functions in Stable modules (25)
+
+These functions are in Stable modules but are Experimental themselves (`@experimental`): they may
+change in a 1.x minor, with a CHANGELOG entry.
+
+| Module | Functions | Why Experimental |
+|--------|-----------|------------------|
+| `std/json` | `repair`, `asBoolLoose`, `getStringArrayStrict`, `getNumberArrayStrict`, `decodeFloatArray` | boundary and niche helpers; no downstream use |
+| `std/string` | `decodeQuotedPrintable`, `foldSlices`, `mapSlicesJoin`, `startsWithIgnoreCase` | niche; `foldSlices`/`mapSlicesJoin` take the function last, unlike every other higher-order export, and may be reordered |
+| `std/list` | `takeMap`, `takeFlatMap` | workarounds for strict evaluation; redundant if fusion lands |
+| `std/array` | `dot`, `axpy`, `scale`, `add`, `sub`, `mul`, `sum`, `argmax`, `scatterAdd`, `accumulate`, `encodeF64LE`, `decodeF64LE`, `encodeF32LE`, `decodeF32LE` | the numerics kernels, still growing; `axpy`/`scale` keep BLAS argument order |
+
+### Deprecated stdlib names
+
+A function marked `@deprecated("replacement")` keeps working, with the same type, effects and
+behaviour, and every use of it from another module gives the warning `TC_DEPRECATED_001` naming the
+replacement — on stderr, in `check --json` `warnings[]` and in `check --format agent`, on a warm
+compile cache too. Deprecation is not a tier: a deprecated Stable function stays Stable until it is
+removed. These 16 names were renamed or deprecated before 1.0 and are **removed before the v1.0.0
+soak**, so they are not part of the 1.x surface. After removal, importing one still names the
+replacement (`IMP010`).
+
+| Module | Deprecated | Use instead |
+|--------|------------|-------------|
+| `std/list` | `head_or`, `last_or`, `nth_or` | `headOr`, `lastOr`, `nthOr` |
+| `std/list` | `member(x, xs)` | `contains(xs, x)` — the arguments swap |
+| `std/string` | `charAt_or` | `charAtOr` |
+| `std/math` | `abs_Int`, `abs_Float` | `absInt`, `absFloat` |
+| `std/rand` | `rand_int`, `rand_float`, `rand_bool`, `rand_seed` | `randInt`, `randFloat`, `randBool`, `randSeed` |
+| `std/fs` | `readFileBytes` | `readFileBase64` (it returns base64 text; `readFileRaw` returns bytes) |
+| `std/fs` | `glob` | `walkWithSuffix` (a suffix filter, not a glob; the name stays retired for 1.x) |
+| `std/io` | `printErr` | `eprint` (no newline; `eprintln` adds one) |
+| `std/bytes` | `slice(b, start, len)` | `sliceLen` (the third argument is a length; the name stays retired for 1.x) |
+| `std/array` | `unsafeGet` | `get` (identical behaviour) |
+
+`sed -E -f tools/migrate-stdlib-renames.sed` rewrites the unique names; edit `glob`, `slice`,
+`member` and `unsafeGet` by hand, then run `ailang check` until no `TC_DEPRECATED_001` is left.
+
+**Migration order.** None of the 14 new names (`headOr` … `sliceLen`) exists in v0.59.0 or
+v0.60.0, so code pinned to those releases cannot use them: a project moves to them only once
+its pin is on the first release that contains them. `member(x, xs)` → `contains(xs, x)` and
+`unsafeGet` → `get` use names that already exist, so those two can change at any time. The
+order is: (1) release the new names, with the old ones warning; (2) downstream projects move
+their pins and migrate until `check` shows no `TC_DEPRECATED_001`; (3) the aliases are removed
+in the last 0.x release before the v1.0.0 soak (roadmap step 16).
+
+**Where the warning appears.** Every use from another module — in function bodies, contracts,
+named `test` blocks, `property` blocks, inline `tests` rows and module-level `let`s — in
+`ailang check` (stderr, `--json`, `--format agent`, `--package`), `ailang run` (stderr) and
+`ailang test` (stderr). Uses inside an installed dependency package are reported by that
+package's own `check`, not by its importers. A deprecation can only ever produce
+`TC_DEPRECATED_001` in code that uses the name: a std function deprecated in a later release therefore gives an unchanged library warnings only, never an error, and those warnings are not reported inside an installed dependency.
+When a replacement is deprecated in turn, the warning names the first live function along the
+chain. The command-line REPL cannot import std modules
+(`:import std/list` is "Unknown module"), so a deprecated std name cannot be reached there;
+modules loaded into the browser REPL's registry do not warn.
+Package authors may use `@deprecated` and `@experimental` too; the annotation syntax itself is
+Experimental in 1.0.
+
+### Conventions of the Stable stdlib
+
+- **Names** are lowerCamelCase. The exceptions are kept on purpose: the mathematical constants
+  `PI()` and `E()`, the terse `Json` builders (`jn`, `jb`, `jnum`, `jint`, `js`, `ja`, `jo`, `kv`),
+  and the `intToStr`/`floatToStr` vs `stringToInt`/`stringToFloat` spellings.
+- **Argument order** is data first: the collection, string, path or `Json` value comes first
+  (`nth(xs, i)`, `map.lookup(m, k)`, `set.member(s, x)`), except that a higher-order function takes
+  the function first and the traversed collection last (`map(f, xs)`, `foldl(f, acc, xs)`).
+  `list.take(n, xs)`, `list.drop(n, xs)` and `string.join(sep, xs)` are documented exceptions.
+- **`Json` numbers.** `decode` gives `JInt(n)` for an integer literal that fits in 64 bits and
+  `JNumber(x)` for every other number; `encode` prints a `JInt` exactly. The numeric value
+  round-trips through text and the constructor does not: a whole-number `JNumber` prints as `3`,
+  so `decode(encode(jnum(3.0)))` is `JInt(3)`. Read numbers with `asNumber`/`getNumber` (both
+  constructors) or `getInt` (`None` for a fractional value, never truncated).
 
 ### Internal stdlib (3)
 
@@ -501,7 +594,8 @@ metadata name that host. Raw `*.run.app` URLs, including the dev deployment's, a
   this page.
 - A gate that checks this page's tables against the dispatch table, the stdlib goldens and the
   `@mcp_name` list, the way `check-cli-docs` checks the CLI Reference.
-- Compile-time deprecation warnings for Experimental items on their way to removal (post-v1).
+- ~~Compile-time deprecation warnings~~: done — `@deprecated` and `TC_DEPRECATED_001` (see
+  [Deprecated stdlib names](#deprecated-stdlib-names)).
 
 ---
 

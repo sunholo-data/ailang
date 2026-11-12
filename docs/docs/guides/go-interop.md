@@ -620,10 +620,10 @@ When you compile AILANG code with effects:
 ```ailang
 module game/step
 
-import std/rand (rand_int)
+import std/rand (randInt)
 
 export func rollDice() -> int ! {Rand} {
-  rand_int(1, 6)
+  randInt(1, 6)
 }
 ```
 

@@ -1,7 +1,7 @@
--- fs_walk_glob.ail - Demonstrates std/fs walk (recursive file listing) and glob (suffix filter)
+-- fs_walk_glob.ail - Demonstrates std/fs walk (recursive file listing) and walkWithSuffix (suffix filter)
 -- Builds a small tree under /tmp, then walks it — no hand-rolled recursion needed
 module examples/runnable/fs_walk_glob
-import std/fs (mkdirAll, writeFile, walk, glob)
+import std/fs (mkdirAll, writeFile, walk, walkWithSuffix)
 import std/list (length, forEachE)
 import std/io (println)
 
@@ -19,9 +19,9 @@ export func main() -> () ! {IO, FS} {
   let all = walk(base)
   let _ = println("walk: ${show(length(all))} files")
   let _ = forEachE(\p. println("  ${p}"), all)
-  -- glob: walk filtered by suffix (not fnmatch — "*.ail" would match nothing)
-  let ail = glob(base, ".ail")
-  let _ = println("glob .ail: ${show(length(ail))} files")
+  -- walkWithSuffix: walk filtered by suffix (not a glob — "*.ail" would match nothing)
+  let ail = walkWithSuffix(base, ".ail")
+  let _ = println("walkWithSuffix .ail: ${show(length(ail))} files")
   let _ = forEachE(\p. println("  ${p}"), ail)
-  println("glob .md: ${show(length(glob(base, ".md")))} file")
+  println("walkWithSuffix .md: ${show(length(walkWithSuffix(base, ".md")))} file")
 }

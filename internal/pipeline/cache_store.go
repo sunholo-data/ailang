@@ -189,15 +189,22 @@ type ifaceFullJSON struct {
 	TypeAliases  map[string]json.RawMessage   `json:"type_aliases,omitempty"`
 	AliasParams  map[string][]string          `json:"alias_params,omitempty"` // M-XMOD-ALIAS-POLY
 	DerivedEq    []string                     `json:"derived_eq,omitempty"`
+	// Tier fields (M-V1-STDLIB-SURFACE-POLISH M1). Without them a cache hit
+	// served an interface with no tier, so `ailang iface std/<m>` and the
+	// stdlib goldens lost `"tier"` on a warm cache (cache key v12).
+	Tier string `json:"tier,omitempty"`
 }
 
 type ifaceItemJSON struct {
-	IFC    *types.ImportedIFCSig `json:"ifc"`
-	Name   string                `json:"name"`
-	Type   json.RawMessage       `json:"type"`
-	Purity bool                  `json:"purity"`
-	Module string                `json:"ref_module"`
-	Symbol string                `json:"ref_symbol"`
+	IFC             *types.ImportedIFCSig `json:"ifc"`
+	Name            string                `json:"name"`
+	Type            json.RawMessage       `json:"type"`
+	Purity          bool                  `json:"purity"`
+	Module          string                `json:"ref_module"`
+	Symbol          string                `json:"ref_symbol"`
+	Tier            string                `json:"tier,omitempty"`
+	ReplacedBy      string                `json:"replaced_by,omitempty"`
+	DeprecationNote string                `json:"deprecation_note,omitempty"`
 }
 
 type ctorSchemeJSON struct {
@@ -220,6 +227,7 @@ func marshalIfaceFull(ifc *iface.Iface) ([]byte, error) {
 		Constructors: make(map[string]*ctorSchemeJSON),
 		Types:        ifc.Types,
 		DerivedEq:    ifc.DerivedEq,
+		Tier:         ifc.Tier,
 	}
 
 	// Exports
@@ -229,12 +237,15 @@ func marshalIfaceFull(ifc *iface.Iface) ([]byte, error) {
 			return nil, fmt.Errorf("marshal scheme for %s: %w", name, err)
 		}
 		result.Exports[name] = &ifaceItemJSON{
-			IFC:    item.IFC,
-			Name:   item.Name,
-			Type:   schemeBytes,
-			Purity: item.Purity,
-			Module: item.Ref.Module,
-			Symbol: item.Ref.Name,
+			IFC:             item.IFC,
+			Name:            item.Name,
+			Type:            schemeBytes,
+			Purity:          item.Purity,
+			Module:          item.Ref.Module,
+			Symbol:          item.Ref.Name,
+			Tier:            item.Tier,
+			ReplacedBy:      item.ReplacedBy,
+			DeprecationNote: item.DeprecationNote,
 		}
 	}
 
@@ -304,6 +315,7 @@ func unmarshalIfaceFull(data []byte) (*iface.Iface, error) {
 		TypeAliases:  make(map[string]types.Type),
 		AliasParams:  make(map[string][]string),
 		DerivedEq:    d.DerivedEq,
+		Tier:         d.Tier,
 	}
 
 	// Exports
@@ -316,11 +328,14 @@ func unmarshalIfaceFull(data []byte) (*iface.Iface, error) {
 			return nil, fmt.Errorf("unmarshal scheme for %s: %w", name, err)
 		}
 		ifc.Exports[name] = &iface.IfaceItem{
-			IFC:    item.IFC,
-			Name:   item.Name,
-			Type:   scheme,
-			Purity: item.Purity,
-			Ref:    core.GlobalRef{Module: item.Module, Name: item.Symbol},
+			IFC:             item.IFC,
+			Name:            item.Name,
+			Type:            scheme,
+			Purity:          item.Purity,
+			Ref:             core.GlobalRef{Module: item.Module, Name: item.Symbol},
+			Tier:            item.Tier,
+			ReplacedBy:      item.ReplacedBy,
+			DeprecationNote: item.DeprecationNote,
 		}
 	}
 

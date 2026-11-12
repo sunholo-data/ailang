@@ -382,7 +382,11 @@ print(head + tail)' 2>/dev/null || echo "parse failed"
 # pooled pass rate, fast (median <=12 min where measured). ~8 x 2 trials ~ 2h.
 # Refresh deliberately (re-run the history query in the 2026-09-27 audit), never
 # nightly — a set recomputed from pass rates lets a regressed benchmark drop out.
-GUARD_BENCH_LIST="${AILANG_NIGHTLY_BENCHMARKS:-records_book,canonical_normalization,json_parse,numeric_modulo,cli_args,run_length_encode,polymorphic_ord_defaulting,api_call_json}"
+# 2026-11-11 (PR #2229): run_length_encode was retired (its expected output was the
+# old lossy `show`); run_length_encode_v2 is the same task with an explicit output
+# format. Its per-benchmark window starts empty, and its pass rate on this model is
+# not yet measured: re-check it against the >=96% rule after a week of nights.
+GUARD_BENCH_LIST="${AILANG_NIGHTLY_BENCHMARKS:-records_book,canonical_normalization,json_parse,numeric_modulo,cli_args,run_length_encode_v2,polymorphic_ord_defaulting,api_call_json}"
 RAG_BENCH_LIST="$GUARD_BENCH_LIST"
 TIER_COUNT=$(echo "$RAG_BENCH_LIST" | tr ',' '\n' | grep -c .)
 BENCH_TIERS="guard-set"

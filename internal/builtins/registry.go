@@ -1,5 +1,7 @@
 package builtins
 
+import "github.com/sunholo-data/ailang/internal/importhint"
+
 // BuiltinMeta holds metadata about a builtin function
 // This is a lightweight struct that doesn't depend on eval types
 type BuiltinMeta struct {
@@ -181,6 +183,28 @@ func RebuildStdlibIndex() {
 	for stdlibName, count := range counts {
 		if count != 1 {
 			delete(unambiguousStdlibNameIndex, stdlibName)
+		}
+	}
+	AddRenameAliases(StdlibIndex)
+}
+
+// AddRenameAliases makes each deprecated std spelling resolve to its
+// replacement's builtin: the alias is a forwarder with the same arguments.
+// Qualified keys only; a key some spec already claims is left alone. A rename
+// that swaps arguments (list.member -> contains) is never aliased, or
+// generated Go would call contains with member's argument order
+// (M-V1-STDLIB-SURFACE-POLISH M2).
+func AddRenameAliases(index map[StdlibKey]string) {
+	for _, r := range importhint.StdlibRenames {
+		if r.Swapped {
+			continue
+		}
+		oldKey := StdlibKey{Module: r.Module, Name: r.Old}
+		if _, taken := index[oldKey]; taken {
+			continue
+		}
+		if name, ok := index[StdlibKey{Module: r.Module, Name: r.New}]; ok {
+			index[oldKey] = name
 		}
 	}
 }

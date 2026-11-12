@@ -33,6 +33,7 @@ export func decode(s: string) -> Result[Json, string] {
 -- Repair truncated/malformed JSON string (Go-backed)
 -- Returns the repaired string so callers can inspect or re-decode.
 -- Handles: trailing whitespace, unclosed strings/arrays/objects, trailing commas, truncated keywords.
+@experimental
 export func repair(s: string) -> Result[string, string] {
   _json_repair(s)
 }
@@ -142,6 +143,7 @@ export func asBool(j: Json) -> Option[bool] {
 -- (e.g. Firestore's booleanValue). Accepts JBool(b) OR JString "true"/"false";
 -- anything else is None. Prefer asBool for values you control — reach for
 -- asBoolLoose only at the boundary with an API that may hand back either shape.
+@experimental
 export func asBoolLoose(j: Json) -> Option[bool] {
   match j {
     JBool(b) => Some(b),
@@ -302,6 +304,7 @@ export func getStringArray(obj: Json, key: string) -> Option[[string]] {
 }
 
 -- getStringArrayStrict: Get string array from object (strict)
+@experimental
 export func getStringArrayStrict(obj: Json, key: string) -> Option[[string]] {
   match getArray(obj, key) {
     Some(arr) => allStrings(arr),
@@ -326,6 +329,7 @@ export func getNumberArray(obj: Json, key: string) -> Option[[float]] {
 }
 
 -- getNumberArrayStrict: Get number array from object (strict)
+@experimental
 export func getNumberArrayStrict(obj: Json, key: string) -> Option[[float]] {
   match getArray(obj, key) {
     Some(arr) => allNumbers(arr),
@@ -346,4 +350,5 @@ export func getNumberArrayOrEmpty(obj: Json, key: string) -> [float] {
 -- column exported from DuckDB or numpy. Anything else (nesting, strings, null,
 -- a trailing comma, trailing data) is Err naming the byte offset.
 --   decodeFloatArray("[1.5, 2]")  -- Ok(#[1.5, 2.0])
+@experimental
 export pure func decodeFloatArray(s: string) -> Result[Array[float], string] = _json_decode_float_array(s)

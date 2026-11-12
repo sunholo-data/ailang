@@ -1,0 +1,9 @@
+module cmd/ailang/testdata/stdrenames/multi/a
+
+import cmd/ailang/testdata/stdrenames/multi/shared (first)
+
+export pure func one() -> int = first([1])
+
+test "first" {
+  assert one() == 1
+}

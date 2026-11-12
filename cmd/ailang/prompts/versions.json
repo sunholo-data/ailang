@@ -1177,11 +1177,45 @@
         "evidence_example": ""
       }
     },
+    "v0.16.14": {
+      "file": "prompts/v0.16.14.md",
+      "hash": "421e84f575369be66c4822ac027ce9cd4575effd6f3abcf8ef480b6cf839bd59",
+      "description": "Stdlib renames (headOr/lastOr/nthOr, charAtOr, absInt/absFloat, randInt/randFloat/randBool/randSeed, readFileBase64, walkWithSuffix, eprint, bytes.sliceLen; list.contains for member, array.get for unsafeGet), a short @deprecated note, and the corrected Map member/lookup line",
+      "created": "2026-11-11",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Stdlib renames (headOr/lastOr/nthOr, charAtOr, absInt/absFloat, randInt/randFloat/randBool/randSeed, readFileBase64, walkWithSuffix, eprint, bytes.sliceLen; list.contains for member, array.get for unsafeGet), a short @deprecated note, and the corrected Map member/lookup line",
+      "frozen": {
+        "at": "2026-11-12",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
+    },
+    "v0.16.15": {
+      "file": "prompts/v0.16.15.md",
+      "hash": "8d1ce433c6157ce744ddca7188d6a4f1c4b32749990a82d0f0ec73269f305f99",
+      "description": "show is total and unambiguous: nested strings quoted, nothing elided; showPreview for bounded logging (built on v0.16.14)",
+      "created": "2026-11-12",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "show is total and unambiguous: nested strings quoted, nothing elided; showPreview for bounded logging (built on v0.16.14)",
+      "frozen": {
+        "at": "2026-11-12",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
+    },
     "v0.16.16": {
       "file": "prompts/v0.16.16.md",
-      "hash": "09902cab9d73d2a7147440bba5e5b482eb17da6bd8df752fbf86d154eff8d435",
+      "hash": "f8244e94cdf7cf404c92a9c7ee9108390f6780db56e322a7358aca63aae98f65",
       "description": "Exhaustive match: check rejects a match that misses a case (TC_MATCH_002), guards do not count, unreachable(\"why\") for impossible cases",
-      "created": "2026-11-11",
+      "created": "2026-11-12",
       "tags": [
         "production",
         "latest"

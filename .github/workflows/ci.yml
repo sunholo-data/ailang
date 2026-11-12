@@ -35,7 +35,7 @@ jobs:
       code: ${{ steps.classify.outputs.code }}
       shell: ${{ steps.classify.outputs.shell }}
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 0
 
@@ -98,14 +98,14 @@ jobs:
     timeout-minutes: 45
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         # SonarCloud needs full history to attribute blame and compute
         # "new code" metrics correctly. Shallow clones break both.
         fetch-depth: 0
 
     - name: Set up Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
         go-version: '1.26.11'
         cache: true
@@ -298,14 +298,14 @@ jobs:
     timeout-minutes: 45
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         # Full history: the autoclose gate scans the pushed commit range and the
         # prompt-freeze gate diffs against `git merge-base HEAD origin/dev`.
         fetch-depth: 0
 
     - name: Set up Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
         go-version: '1.26.11'
         cache: true
@@ -577,6 +577,14 @@ jobs:
     - name: Check the CLI reference matches the dispatch table
       run: make check-cli-docs
 
+    # The docs deploy publishes the committed llms.txt; it must embed the
+    # active teaching prompt (it sat two versions stale until 2026-11-11).
+    - name: Check llms.txt embeds the active teaching prompt
+      run: make check-llms-txt
+
+    - name: Self-test the llms.txt gate
+      run: make test-check-llms-txt
+
     - name: Check golden drift protection (M-P2)
       run: make check-golden-drift
       env:
@@ -648,7 +656,7 @@ jobs:
 
     - name: Upload cycle analysis (M-DX11)
       if: always()
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: cycle-analysis
         path: cycles.json
@@ -683,7 +691,7 @@ jobs:
     timeout-minutes: 25
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         # Avoid CRLF rewrites on test fixtures and golden files.
         # PowerShell + git autocrlf can otherwise mutate bytes between
@@ -695,7 +703,7 @@ jobs:
       run: git config --global core.autocrlf false
 
     - name: Set up Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
         go-version: '1.26.11'
         cache: true
@@ -813,10 +821,10 @@ jobs:
     if: needs.changes.outputs.code == 'true'
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Set up Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
         go-version: '1.26.11'
         cache: true
@@ -825,7 +833,7 @@ jobs:
       run: make build
 
     - name: Upload binary artifact
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: ailang-binary
         path: bin/ailang
@@ -836,7 +844,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Sync prompts/ to docs/prompts/
       run: ./docs/scripts/sync-prompts.sh
@@ -859,10 +867,10 @@ jobs:
     timeout-minutes: 15
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Set up Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
         go-version: '1.26.11'
         cache: true
@@ -914,7 +922,7 @@ jobs:
     timeout-minutes: 15
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Confirm /bin/bash really is 3.2 (guard against a silent runner upgrade)
       run: |
@@ -949,9 +957,9 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Set up Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
         go-version: '1.26.11'
         cache: true
@@ -970,10 +978,10 @@ jobs:
     # allowlist entry past its expires date — forces re-review rather
     # than letting suppressions float forever.
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Set up Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
         go-version: '1.26.11'
 
@@ -1000,13 +1008,13 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Set up Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
         go-version: '1.26.11'
 
     - name: Go Dependency Submission
-      uses: actions/go-dependency-submission@v2.0.3
+      uses: actions/go-dependency-submission@f35d5c9af13ce9cc32f7930b171e315e878f6921 # v2.0.3
       continue-on-error: true  # Known upstream bug: duplicate namespace assertion with multi-module deps

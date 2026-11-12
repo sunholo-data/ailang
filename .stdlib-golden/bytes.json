@@ -44,7 +44,8 @@
       "name": "byteAt",
       "type": "(bytes,int)-\u003eOption[int]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -88,7 +89,8 @@
       "name": "concat",
       "type": "(bytes,bytes)-\u003ebytes",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -120,7 +122,8 @@
       "name": "concatList",
       "type": "(list[bytes])-\u003ebytes",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -152,7 +155,8 @@
       "name": "fromBase64",
       "type": "(string)-\u003eOption[bytes]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -184,7 +188,8 @@
       "name": "fromBase64URL",
       "type": "(string)-\u003eOption[bytes]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -216,7 +221,8 @@
       "name": "fromInts",
       "type": "(list[int])-\u003ebytes",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -248,7 +254,8 @@
       "name": "fromString",
       "type": "(string)-\u003ebytes",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -280,7 +287,8 @@
       "name": "length",
       "type": "(bytes)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -336,7 +344,67 @@
       "name": "slice",
       "type": "(bytes,int,int)-\u003eOption[bytes]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable",
+      "replaced_by": "sliceLen",
+      "deprecation_note": "the third argument is a length, not an end index"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "b",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "start",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "len",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "sliceLen",
+      "type": "(bytes,int,int)-\u003eOption[bytes]",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -368,7 +436,8 @@
       "name": "toBase64",
       "type": "(bytes)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -400,7 +469,8 @@
       "name": "toBase64URL",
       "type": "(bytes)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -432,7 +502,8 @@
       "name": "toInts",
       "type": "(bytes)-\u003elist[int]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -464,7 +535,8 @@
       "name": "toString",
       "type": "(bytes)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     }
   ],
   "schema": "ailang.iface/v2"

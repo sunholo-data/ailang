@@ -22,7 +22,8 @@ import (
 //   - any string that is itself an HTTP credential ("Bearer …", "Basic …").
 //
 // The redaction applies to the trace rendering only: program values, show()
-// and println are unchanged.
+// and println are unchanged. Apart from the withheld values a trace spells a
+// value exactly as show() does (same walk, show.go).
 
 // RedactedMarker replaces a withheld value in a trace rendering.
 const RedactedMarker = "[REDACTED]"
@@ -72,12 +73,48 @@ func ShowTraceBounded(v Value, maxBytes int) string {
 	if maxBytes <= 0 {
 		maxBytes = math.MaxInt
 	}
-	w := boundedWriter{buf: make([]byte, 0, min(maxBytes, 256)), budget: maxBytes, redact: true}
-	w.render(v)
-	if w.overflow == 0 {
-		return string(w.buf)
+	return showBoundedWith(v, maxBytes, inspectTrace)
+}
+
+// redactedValue stands in for a withheld value; inspectTrace renders it as the
+// bare RedactedMarker (never quoted, so it cannot be mistaken for a string).
+type redactedValue struct{}
+
+func (redactedValue) Type() string   { return "redacted" }
+func (redactedValue) String() string { return RedactedMarker }
+
+// inspectTrace is inspectShow with credentials replaced by redactedValue.
+func inspectTrace(x Value) ShowNode[Value] {
+	switch val := x.(type) {
+	case redactedValue:
+		return ShowNode[Value]{Text: RedactedMarker}
+	case *StringValue:
+		if isCredentialString(val.Value) {
+			return ShowNode[Value]{Text: RedactedMarker}
+		}
+	case *TupleValue:
+		if len(val.Elements) == 2 {
+			if name, ok := val.Elements[0].(*StringValue); ok && IsSensitiveHeaderName(name.Value) {
+				return ShowNode[Value]{Kind: ShowTuple, Items: []Value{name, redactedValue{}}}
+			}
+		}
+	case *RecordValue:
+		redactValue := false
+		if name, ok := headerEntryName(val); ok && IsSensitiveHeaderName(name) {
+			redactValue = true
+		}
+		names := make([]string, 0, len(val.Fields))
+		items := make([]Value, 0, len(val.Fields))
+		for k, fv := range val.Fields {
+			if (redactValue && k == "value") || IsSensitiveHeaderName(k) {
+				fv = redactedValue{}
+			}
+			names = append(names, k)
+			items = append(items, fv)
+		}
+		return ShowNode[Value]{Kind: ShowRecord, Names: names, Items: items}
 	}
-	return ShowBoundedOverflow(w.buf, w.overflow)
+	return inspectShow(x)
 }
 
 // headerEntryName returns the name of a header-shaped record

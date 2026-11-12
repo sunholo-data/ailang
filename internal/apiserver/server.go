@@ -89,6 +89,7 @@ type Server struct {
 	logLevel       int                 // minimum severity for Debug output
 	oauthIssuer    string              // --oauth-issuer: required by @mcp_auth("oauth2") tools
 	mcpConnectOnly bool                // --mcp-connect-only: tools only on the gated /mcp/connect/
+	issuerMeta     issuerMetaCache     // --oauth-issuer's RFC 8414 endpoints, for the A2A card (a2a_security.go)
 	routesOnly     bool                // only expose @route-annotated functions
 	noFeedbackTool bool                // suppress the built-in submit_feedback MCP tool
 	ws             *wsState            // WebSocket route sessions (routes_ws.go)

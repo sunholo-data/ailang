@@ -98,6 +98,11 @@ func IMP010(symbol, modID string) string {
 	if autoImportedBuiltins[symbol] {
 		return fmt.Sprintf(" — '%s' is a builtin available in every module; remove it from the import list", symbol)
 	}
+	// A std name renamed before 1.0 names its replacement, even after the
+	// deprecated alias is gone (M-V1-STDLIB-SURFACE-POLISH §6.3).
+	if hint := RenameHint(symbol, modID); hint != "" {
+		return hint
+	}
 	if Locator != nil {
 		var others []string
 		for _, m := range Locator(symbol) {
@@ -129,10 +134,19 @@ func Closest(want string, candidates []string) string {
 
 // closestExport returns the export most likely intended for `want`, or "" when no
 // export is close enough (a genuinely unknown symbol gets no misleading hint).
-// Signals, strongest first: a prefix relationship (flushStdout↔flush, shorter side
+// Signals, strongest first: the same name up to case and underscores
+// (nth_or↔nthOr — the snake_case→camelCase renames, which a prefix match would
+// send to `nth`), then a prefix relationship (flushStdout↔flush, shorter side
 // ≥3 chars), then a small Levenshtein distance (catches transposition/typo misses).
 func closestExport(want string, exports []string) string {
 	wl := strings.ToLower(want)
+	if wn := normaliseName(want); wn != "" {
+		for _, e := range exports {
+			if e != want && normaliseName(e) == wn {
+				return e
+			}
+		}
+	}
 	best := ""
 	for _, e := range exports {
 		el := strings.ToLower(e)
@@ -159,6 +173,12 @@ func closestExport(want string, exports []string) string {
 		}
 	}
 	return best
+}
+
+// normaliseName folds case and drops underscores: nth_or, nthOr and NTHOR all
+// normalise to "nthor".
+func normaliseName(s string) string {
+	return strings.ReplaceAll(strings.ToLower(s), "_", "")
 }
 
 func lenDiff(a, b string) int {

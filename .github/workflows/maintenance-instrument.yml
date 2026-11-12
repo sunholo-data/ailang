@@ -21,20 +21,20 @@ jobs:
       run:
         working-directory: core
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           path: core
           fetch-depth: 0
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           repository: sunholo-data/ailang-packages
           ref: 70ddbf53bdc572dad13bcff03e22e6de93409f8e
           path: package-source
-      - uses: actions/setup-go@v7
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version: '1.26.11'
           cache-dependency-path: core/go.sum
-      - uses: actions/setup-node@v7
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: '26.12.1'
       - name: Build native runtime and install explicit tool dependencies

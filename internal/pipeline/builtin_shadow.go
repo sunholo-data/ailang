@@ -29,17 +29,8 @@ func checkBuiltinShadow(file *ast.File) error {
 		return nil
 	}
 	for _, imp := range file.Imports {
-		if imp == nil || imp.Implicit {
-			continue
-		}
-		for _, sym := range imp.Symbols {
-			name := sym
-			if alias, ok := imp.SymbolAliases[sym]; ok && alias != "" {
-				name = alias
-			}
-			if shadowCheckedBuiltins[name] {
-				return builtinShadowImportError(name, sym, imp)
-			}
+		if err := importShadow(imp); err != nil {
+			return err
 		}
 	}
 	for _, fn := range file.Funcs {
@@ -50,6 +41,25 @@ func checkBuiltinShadow(file *ast.File) error {
 	for _, st := range file.Statements {
 		if l, ok := st.(*ast.Let); ok && shadowCheckedBuiltins[l.Name] {
 			return builtinShadowError(l.Name, l.Pos)
+		}
+	}
+	return nil
+}
+
+// importShadow checks the names one import binds (an alias, else the
+// symbol itself). The loader's implicit prelude import binds nothing a user
+// wrote.
+func importShadow(imp *ast.ImportDecl) error {
+	if imp == nil || imp.Implicit {
+		return nil
+	}
+	for _, sym := range imp.Symbols {
+		name := sym
+		if alias := imp.SymbolAliases[sym]; alias != "" {
+			name = alias
+		}
+		if shadowCheckedBuiltins[name] {
+			return builtinShadowImportError(name, sym, imp)
 		}
 	}
 	return nil

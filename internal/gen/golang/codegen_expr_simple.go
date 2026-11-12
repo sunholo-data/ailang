@@ -100,6 +100,47 @@ func (g *Generator) generateVar(v *core.Var) error {
 	return nil
 }
 
+// writeConstructorValue emits an n-ary constructor used as a VALUE (`map(Some,
+// xs)`, `let f = Ok`) as a closure of the shape CallFunc dispatches on
+// (func(interface{}...) interface{}), converting each argument to the field's
+// Go type. The bare typed constructor (func(interface{}) *Option) made
+// CallFunc panic "unsupported function type" (M-V1-SHOW-TOTAL review).
+func (g *Generator) writeConstructorValue(goFuncName string, info *ADTConstructorInfo) {
+	n := info.FieldCount
+	arg := func(i int) string {
+		name := fmt.Sprintf("a%d", i)
+		if i < len(info.FieldTypes) {
+			switch t := info.FieldTypes[i]; {
+			case t == "" || t == "interface{}":
+			case g.getSliceConversion(t) != "":
+				return g.getSliceConversion(t) + "(" + name + ")"
+			default:
+				return name + ".(" + t + ")"
+			}
+		}
+		return name
+	}
+	args := make([]string, n)
+	for i := range args {
+		args[i] = arg(i)
+	}
+	if n <= 4 {
+		params := make([]string, n)
+		for i := range params {
+			params[i] = fmt.Sprintf("a%d", i)
+		}
+		g.write("func(" + strings.Join(params, ", ") + " interface{}) interface{} { return " + goFuncName + "(" + strings.Join(args, ", ") + ") }")
+		return
+	}
+	// CallFunc's fixed shapes stop at four arguments; wider constructors use
+	// its variadic shape.
+	var unpack strings.Builder
+	for i := 0; i < n; i++ {
+		fmt.Fprintf(&unpack, "a%d := args[%d]; ", i, i)
+	}
+	g.write("func(args ...interface{}) interface{} { " + unpack.String() + "return " + goFuncName + "(" + strings.Join(args, ", ") + ") }")
+}
+
 // generateVarGlobal generates code for a VarGlobal expression (module-qualified reference).
 func (g *Generator) generateVarGlobal(e *core.VarGlobal) error {
 	if err := unsupportedHostSurface(e.Ref.Module, e.Ref.Name); err != nil {
@@ -118,9 +159,13 @@ func (g *Generator) generateVarGlobal(e *core.VarGlobal) error {
 			goFuncName := "New" + ToVariantStructName(typeName, ctorName)
 
 			// M-DX22: Use qualified lookup with typeName for disambiguation
-			if ctorInfo, ok := g.LookupADTConstructor(typeName, ctorName); ok && ctorInfo.FieldCount == 0 {
+			ctorInfo, ok := g.LookupADTConstructor(typeName, ctorName)
+			switch {
+			case ok && ctorInfo.FieldCount == 0:
 				g.write(goFuncName + "()")
-			} else {
+			case ok:
+				g.writeConstructorValue(goFuncName, ctorInfo)
+			default:
 				g.write(goFuncName)
 			}
 			return nil
@@ -135,9 +180,9 @@ func (g *Generator) generateVarGlobal(e *core.VarGlobal) error {
 			// Nullary constructor: call with no args
 			g.write(ctorInfo.GoFuncName + "()")
 		} else {
-			// Constructor with fields - just reference the function
-			// (it will be called with App)
-			g.write(ctorInfo.GoFuncName)
+			// Constructor with fields used as a value (applied constructors
+			// never reach here: generateApp emits the call itself).
+			g.writeConstructorValue(ctorInfo.GoFuncName, ctorInfo)
 		}
 		return nil
 	}
@@ -225,6 +270,12 @@ func mapEffectBuiltinToHandler(name string) string {
 		"_rand_bool":  "requireRand().RandBool",
 		"_rand_seed":  "requireRand().SetSeed",
 		// Rand effect - stdlib wrappers (std/rand exports these)
+		"randInt":   "requireRand().RandInt",
+		"randFloat": "requireRand().RandFloat",
+		"randBool":  "requireRand().RandBool",
+		"randSeed":  "requireRand().SetSeed",
+		// Deprecated spellings, forwarders to the above until they are removed
+		// before the v1.0.0 soak (M-V1-STDLIB-SURFACE-POLISH).
 		"rand_int":   "requireRand().RandInt",
 		"rand_float": "requireRand().RandFloat",
 		"rand_bool":  "requireRand().RandBool",
@@ -340,7 +391,8 @@ var mathFunctions = map[string]string{
 	"round":       "math.Round",
 	// Utility
 	"_math_abs_Float": "math.Abs",
-	"abs_Float":       "math.Abs",
+	"absFloat":        "math.Abs",
+	"abs_Float":       "math.Abs", // deprecated spelling of absFloat
 }
 
 // getMathConstant checks if a function expression refers to a math constant (PI, E).

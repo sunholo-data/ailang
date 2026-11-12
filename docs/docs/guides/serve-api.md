@@ -687,7 +687,18 @@ The hosted executor's agent (`executor_tools/agent.ail`) is the worked example: 
 `std/ai` `runTools` loop over the sandboxed `ailang_check` and `ailang_run`.
 
 Under `--mcp-connect-only`, `/a2a/` is behind the Bearer gate and the handler must be `@noexpose
-@nomcp`, so nothing but the signed-in `/a2a/` reaches it.
+@nomcp`, so nothing but the signed-in `/a2a/` reaches it. The card then says so: with
+`--oauth-issuer` set it carries `securitySchemes.oauth` (an authorization-code flow with the
+issuer's `authorization_endpoint` and `token_endpoint`, read from its
+`/.well-known/oauth-authorization-server` and cached for an hour) and `security: [{"oauth": []}]`.
+If the issuer's metadata cannot be read or names another issuer, the card is served without them
+and the reason is logged.
+
+Every `/a2a/` request writes one JSON line to stderr: `event` `a2a_request`, the `method`, the
+`outcome` (`completed` or `failed`, or why no task ran: `invalid_params`, `not_found`,
+`unknown_method`, `bad_request`, `client_gone`), `duration_ms`, and for `message/stream` the number
+of `heartbeats`. It never holds the request text, the answer or the caller's identity. On Cloud
+Run, `jsonPayload.event="a2a_request"` finds them.
 
 `tasks/send` (below) is unchanged: it calls a function by `metadata.skill_id`.
 

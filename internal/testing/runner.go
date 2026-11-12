@@ -192,7 +192,7 @@ func (r *Runner) runTest(testCase TestCase) TestResult {
 			// Compare values
 			if !r.executor.CompareValues(actualValue, expectedValue) {
 				result.Status = StatusFail
-				result.Error = fmt.Sprintf("test %d: expected %v, got %v", i, expectedValue, actualValue)
+				result.Error = fmt.Sprintf("test %d: expected %s, got %s", i, eval.Show(expectedValue), eval.Show(actualValue))
 				result.Duration = time.Since(start)
 				return result
 			}
@@ -366,7 +366,7 @@ func (r *Runner) runProperty(propCase PropertyCase) PropertyResult {
 		if !boolVal.Value {
 			counterexample := shrinkCounterexample(call, generatedValues, shrinkers)
 			result.Status = StatusFail
-			result.Error = fmt.Sprintf("property failed on input: %v", counterexample)
+			result.Error = "property failed on input: " + showValues(counterexample)
 			result.TestsRun = testNum + 1
 			result.Duration = time.Since(start)
 			return result
@@ -570,6 +570,13 @@ func (r *Runner) findLoweredContractPredicate(propCase PropertyCase, astKind ast
 	return nil
 }
 
+// showValues renders a list of values the way `show` renders a list of them,
+// for counterexample reporting (M-V1-SHOW-TOTAL M4: test messages spell values
+// as show does).
+func showValues(vs []eval.Value) string {
+	return eval.Show(&eval.ListValue{Elements: vs})
+}
+
 // formatEnsuresInputs renders generated parameter values as `name=value, ...` for counterexample reporting.
 func formatEnsuresInputs(params []*ast.Param, values []eval.Value) string {
 	parts := make([]string, len(values))
@@ -578,7 +585,7 @@ func formatEnsuresInputs(params []*ast.Param, values []eval.Value) string {
 		if i < len(params) && params[i] != nil {
 			name = params[i].Name
 		}
-		parts[i] = fmt.Sprintf("%s=%v", name, v)
+		parts[i] = name + "=" + eval.Show(v)
 	}
 	return strings.Join(parts, ", ")
 }

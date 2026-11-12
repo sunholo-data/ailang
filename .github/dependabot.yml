@@ -32,7 +32,9 @@ updates:
       - dependency-name: "go.lsp.dev/*"
         update-types: ["version-update:semver-major"]
 
-  # GitHub Actions — keep our workflow actions pinned to current patched majors.
+  # GitHub Actions — workflow actions are pinned by commit SHA with a `# vX.Y.Z`
+  # comment (OpenSSF Scorecard PinnedDependencies); Dependabot bumps SHA and
+  # comment together. The SLSA generator stays on a tag: it requires one.
   - package-ecosystem: github-actions
     directory: /
     schedule:

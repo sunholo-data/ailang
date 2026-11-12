@@ -34,7 +34,8 @@
       "effects": [
         "Cog"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -68,7 +69,8 @@
       "effects": [
         "Msg"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -102,7 +104,8 @@
       "effects": [
         "Msg"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -148,7 +151,8 @@
       "effects": [
         "Msg"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -194,7 +198,8 @@
       "effects": [
         "Msg"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -241,7 +246,8 @@
         "Cog",
         "Msg"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

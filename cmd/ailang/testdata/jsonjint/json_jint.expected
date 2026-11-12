@@ -19,21 +19,21 @@ Err(json: number 100000000000000000000000000000000000000000000000000000000000000
 Err(decode: trailing data at offset 1)
 "[01]" => Err(invalid json: invalid character '1' after array element)
 "[1, 2.5, 1234567890123456789, -0]" => JArray([JInt(1), JNumber(2.5), JInt(1234567890123456789), JNumber(-0.0)]) => [1,2.5,1234567890123456789,-0.0]
-"{\"id\": 1234567890123456789}" => JObject([{key: id, value: JInt(...)}]) => {"id":1234567890123456789}
+"{\"id\": 1234567890123456789}" => JObject([{key: "id", value: JInt(1234567890123456789)}]) => {"id":1234567890123456789}
 -- trailing data (B1)
 "1 2" => Err(decode: trailing data at offset 2)
 "{\"a\":1} xx" => Err(decode: trailing data at offset 8)
 "[1]]" => Err(decode: trailing data at offset 3)
 "{} x" => Err(decode: trailing data at offset 3)
 "  1 \n\t " => JInt(1) => 1
-"\"s\"\r\n" => JString(s) => "s"
+"\"s\"\r\n" => JString("s") => "s"
 "" => Err(no JSON value found)
 "   " => Err(no JSON value found)
 -- empty keys (B2)
-"{\"\": 1, \"b\": 2}" => JObject([{key: , value: JInt(...)}, {key: b, value: JInt(...)}]) => {"":1,"b":2}
-"{\"\": \"x\", \"b\": \"y\"}" => JObject([{key: , value: JString(...)}, {key: b, value: JString(...)}]) => {"":"x","b":"y"}
-"{\"a\": {\"\": [true, null]}, \"\": \"\"}" => JObject([{key: a, value: JObject(...)}, {key: , value: JString(...)}]) => {"a":{"":[true,null]},"":""}
-"{\"k\": 1, \"k\": 2}" => JObject([{key: k, value: JInt(...)}, {key: k, value: JInt(...)}]) => {"k":1,"k":2}
+"{\"\": 1, \"b\": 2}" => JObject([{key: "", value: JInt(1)}, {key: "b", value: JInt(2)}]) => {"":1,"b":2}
+"{\"\": \"x\", \"b\": \"y\"}" => JObject([{key: "", value: JString("x")}, {key: "b", value: JString("y")}]) => {"":"x","b":"y"}
+"{\"a\": {\"\": [true, null]}, \"\": \"\"}" => JObject([{key: "a", value: JObject([{key: "", value: JArray([JBool(true), JNull])}])}, {key: "", value: JString("")}]) => {"a":{"":[true,null]},"":""}
+"{\"k\": 1, \"k\": 2}" => JObject([{key: "k", value: JInt(1)}, {key: "k", value: JInt(2)}]) => {"k":1,"k":2}
 -- getInt (B4)
 Some(42)
 Some(30)

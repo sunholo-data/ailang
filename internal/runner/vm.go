@@ -273,7 +273,7 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 			return true, fmt.Errorf("execution failed: %w", err)
 		}
 		if !params.NoPrint && params.Print && result != nil && result.Type() != "unit" {
-			fmt.Println(result.String())
+			fmt.Println(eval.Show(result))
 		}
 		return true, nil
 	}
@@ -292,31 +292,13 @@ func tryRunEntryViaVM(rt *runtime.ModuleRuntime, inst *runtime.ModuleInstance, p
 }
 
 // printVMResult mirrors the evaluator path's print policy for VM-side
-// results: skip Unit, honor --no-print, and render the return value in
-// evaluator-compatible spelling. We route the VM value through the bridge
-// back to an eval.Value so that String() matches the tree-walking path
-// byte-for-byte — bytecode.Value.String() is debug-oriented (it prints
-// strings with Go %q quoting and would break parity tests).
+// results: skip Unit, honor --no-print, and render the return value with
+// `show` (vm.Show, the same renderer as the evaluator path's eval.Show), so
+// the two engines print byte-identical text (M-V1-SHOW-TOTAL M4).
+// bytecode.Value.String() is debug-oriented and never reaches stdout.
 func printVMResult(v bytecode.Value, params ModuleExecParams) {
-	if params.NoPrint {
+	if params.NoPrint || v.Tag == bytecode.TagUnit || !params.Print {
 		return
 	}
-	if v.Tag == bytecode.TagUnit {
-		return
-	}
-	if !params.Print {
-		return
-	}
-	ev, err := vm.BytecodeToEvalForDisplay(v)
-	if err != nil || ev == nil {
-		// Fall back to the bytecode value's own formatting for shapes
-		// the bridge doesn't know how to convert (currently none on
-		// the success path — all Tier-1 shapes round-trip).
-		fmt.Println(v.String())
-		return
-	}
-	if ev.Type() == "unit" {
-		return
-	}
-	fmt.Println(ev.String())
+	fmt.Println(vm.Show(v))
 }

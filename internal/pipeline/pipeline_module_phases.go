@@ -299,6 +299,9 @@ func (st *modulePipelineState) compileAllAndFinalize() error {
 		st.result.Warnings = append(st.result.Warnings,
 			DetectStrictFallbacks(st.compiledUnits[modID].Surface, st.compiledUnits[modID].Core)...)
 	}
+	// Needs every unit at once: the deprecation lives in the defining module,
+	// the use in another.
+	st.result.Warnings = append(st.result.Warnings, DetectDeprecatedUses(st.compiledUnits)...)
 
 	link.RegisterAdtModule(st.modLinker)
 	st.saveCacheAndReportStats()
@@ -417,6 +420,9 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 
 	aliases := qualifiedAliasEnv(modID, imports, elaborator)
 	if err := buildAndRegisterInterface(unit, modID, compileResult.ModuleTypeEnv, st.modLinker, scope, aliases, elaborator.GetDerivedEqTypes(), imports.IFC); err != nil {
+		return err
+	}
+	if err := validateDeprecationTargets(mod.File, unit.Iface, st.modLinker.GetIface); err != nil {
 		return err
 	}
 

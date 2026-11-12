@@ -194,8 +194,8 @@ func registerTrigonometry() {
 		[]ParamDoc{{Name: "x", Description: "Float value"}},
 		"Absolute value of x",
 		[]Example{
-			{Code: "abs_Float(-3.14)", Description: "Returns 3.14"},
-			{Code: "abs_Float(2.0)", Description: "Returns 2.0"},
+			{Code: "absFloat(-3.14)", Description: "Returns 3.14"},
+			{Code: "absFloat(2.0)", Description: "Returns 2.0"},
 		},
 		[]string{"math", "abs", "absolute", "float"})
 
@@ -227,8 +227,8 @@ func registerTrigonometry() {
 			Params:      []ParamDoc{{Name: "x", Description: "Integer value"}},
 			Returns:     "Absolute value of x",
 			Examples: []Example{
-				{Code: "abs_Int(-42)", Description: "Returns 42"},
-				{Code: "abs_Int(5)", Description: "Returns 5"},
+				{Code: "absInt(-42)", Description: "Returns 42"},
+				{Code: "absInt(5)", Description: "Returns 5"},
 			},
 			Since:     "v0.5.10",
 			Stability: StabilityStable,
