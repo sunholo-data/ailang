@@ -138,6 +138,7 @@ var BuiltinNames = []string{
 	"__map_values",
 	// M-V1-SHOW-TOTAL M3: std/string.showPreview
 	"__show_preview",
+	"_unreachable", // M-V1-MATCH-EXHAUSTIVENESS: RT010, never returns
 }
 
 // HOFBuiltinNames lists builtins that take closure arguments. These are

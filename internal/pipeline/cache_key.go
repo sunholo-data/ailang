@@ -59,7 +59,14 @@ import (
 // a std golden (measured: a warm run printed list.json with no tier); v11
 // (and older) entries must miss. (TC_DEPRECATED_001 itself reads the defining
 // module's parsed source, which is never cached, so it survives either way.)
-const cacheKeyVersion = "v12"
+// v12 -> v13
+// (M-V1-MATCH-EXHAUSTIVENESS M2): a non-exhaustive match is an error
+// (TC_MATCH_002) and a constructor pattern of the wrong arity is TC_MATCH_006.
+// A cache hit skips type checking, so a module cached by an earlier compiler —
+// which passed with such a match — must miss, or `check` would pass it warm
+// and fail it cold. Modules also carry a fifth artifact, match_warnings.json
+// (TC_MATCH_003, replayed on a hit).
+const cacheKeyVersion = "v13"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:

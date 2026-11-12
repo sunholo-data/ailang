@@ -136,6 +136,10 @@ func (st *modulePipelineState) serveFromCache(mod *loader.LoadedModule, unit *Co
 	unit.CoreTI = cached.CoreTI
 	unit.Iface = cached.Iface
 	unit.Constructors = cached.Constructors
+	unit.MatchWarnings = cached.MatchWarnings
+	for _, w := range cached.MatchWarnings {
+		st.result.Warnings = append(st.result.Warnings, w)
+	}
 	if unit.Iface != nil {
 		st.modLinker.RegisterIface(unit.Iface)
 		registerDerivedEqInstances(st.cfg, unit.Iface.Module, unit.Iface.DerivedEq)
@@ -173,10 +177,11 @@ func (st *modulePipelineState) publishFreshModule(modID, cacheKey string, unit *
 		Timestamp:     time.Now(),
 	}
 	st.moduleCache.publish(modID, cacheKey, entry, &CachedModule{
-		Core:         unit.Core,
-		CoreTI:       unit.CoreTI,
-		Iface:        unit.Iface,
-		Constructors: unit.Constructors,
+		Core:          unit.Core,
+		CoreTI:        unit.CoreTI,
+		Iface:         unit.Iface,
+		Constructors:  unit.Constructors,
+		MatchWarnings: unit.MatchWarnings,
 	})
 }
 

@@ -395,6 +395,7 @@ var ErrorRegistry = map[string]ErrorInfo{
 	RT007: {RT007, "runtime", "memory", "Out of memory"},
 	RT008: {RT008, "runtime", "timeout", "Timeout exceeded"},
 	RT009: {RT009, "runtime", "cycle", "Value initialization cycle detected"},
+	RT010: {RT010, "runtime", "unreachable", "unreachable(msg) was evaluated"},
 }
 
 // GetErrorInfo returns information about an error code

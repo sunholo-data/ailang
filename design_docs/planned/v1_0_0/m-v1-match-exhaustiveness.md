@@ -1,6 +1,6 @@
 # M-V1-MATCH-EXHAUSTIVENESS: Non-exhaustive `match` is a compile error, with a witness
 
-**Status**: Planned
+**Status**: Implemented — M0, M1, M3 warnings in #2207; M2, M3 (TC_MATCH_003), M4 in the PR recorded in §14
 **Target**: v0.58.x (the last breaking window before the 1.x Stability Promise)
 **Priority**: P0. Review §3.1(b); raises [#2146](https://github.com/sunholo-data/ailang/issues/2146) from P2
 **Estimated**: 6–8 working days across 5 milestones. This is an estimate, not a plan (§12)
@@ -514,3 +514,80 @@ and failed at run time with an unlocated "no pattern matched" — or, on `--byte
 Unit value and failed later elsewhere. Run-time match failure is now `RT002` with a source
 position on both engines. Design: design_docs/planned/v1_0_0/m-v1-match-exhaustiveness.md (#2146).
 ```
+
+## 14. Implementation status (2026-11-11)
+
+M0, M1 and the warnings half of M3 shipped in #2207. M2, the rest of M3 and M4 ship in the PR
+that sets this status. What was built, and where it departs from the sections above:
+
+**Wiring (M2).** `VerifyMatchExhaustiveness` (`internal/types/match_exhaustiveness.go`) runs after
+`FinalizeSubstitutions`, next to `VerifyTaggedUnionFieldAccesses`, on `Decls` and, after they are
+type-checked, on the contracts whose inference succeeded; and in the single-file path on the
+declaration it type-checks. Test blocks reach it through `ailang test`, which compiles them through
+the module pipeline; `check` does not type-check them at all (#2232). The interactive REPL
+(`internal/repl`) has its own type-checker set-up with no constructor registry and is not wired.
+
+**Identity (§8).** The universe is `types.MatchUniverse`, keyed by `NominalKey(defining module,
+ADT)`, built from the module's own declarations and every loaded interface — never from the
+constructors in scope. Constructor lists are sorted by name, not declaration order: interfaces keep
+constructors in a map and adding an ordinal would move the Stable interface hash. A pattern's ADT is
+the elaborator's stamp (`TypeModule`, `TypeName`), set at elaboration or when a deferred ambiguous
+choice is decided (#2228). An unstamped pattern — a constructor matched by name (#323) — takes the
+head of the type the checker matched it against: the checker records that type and keeps it current
+with the same substitutions as CoreTI. Only that type: a by-name pattern of another type, or one
+matched against a type nothing fixes, is "cannot be checked" (TC_MATCH_002), because a by-name
+pattern constrains nothing and the check would otherwise accept a match a value of the real type
+falls through (found while testing; first version of this PR accepted
+`pure func g[a](x: a) -> int = match x { Ping => 1, Message(_) => 2 }`, which fails with RT002 on
+`g(42)`). Every undecidable case fails closed unless an unguarded `_`/variable arm closes the match.
+The root column is cross-checked against the scrutinee's CoreTI type (§4.1); a disagreement is an
+error naming it a compiler bug. It has not fired on any corpus.
+
+**Decided in the PR, not in this doc.**
+- *Wrong-arity constructor patterns* (#2243) are `TC_MATCH_006`, an error at the pattern: the
+  evaluator never matches `C(n)` against `C(int, int)` while the VM binds the first field, so the
+  pattern has no single coverage. The arity check is a pass of its own, before coverage: a
+  catch-all arm never hides it, and a pattern whose ADT cannot be placed is compared with every
+  loaded ADT declaring the name (review finding: the first version let `_` rescue it). When those
+  ADTs disagree on the constructor's arity the pattern is an error whatever its own count (the
+  evaluator matches tag and count, the VM the tag alone); every candidate is named, sorted. 3 of 8,201
+  passing AI programs had one; no repo or downstream file did.
+- *By-name constructors on an untyped value* have their own message and fix: import the
+  constructor's type (`import bn/a (Ev)`), which brings the constructors into scope so the
+  pattern fixes the value's type.
+- *A module-level definition or import named `unreachable`* is `TC_BUILTIN_SHADOW_001`: a builtin
+  wins over a module-level name, so it would otherwise be silently replaced. The check reads the
+  parsed file before the compile-cache lookup, so it holds on a cache hit. None exists in the eval or
+  downstream corpora. Older builtin names keep the general precedence rule.
+- *A scrutinee/pattern disagreement* ("compiler bug") is reported even under a catch-all.
+- Witness lists show five and end "and more" when there are more.
+- *`unreachable`* is a `$builtin`, so it needs no import in any module; RT010 "unreachable code
+  reached: <msg>" on the evaluator, the VM (a native builtin) and generated Go (a helper that
+  panics with the same text). `std/result.unwrap` uses it.
+- *All errors of a module* are reported (`types.MatchErrors`; `check --json` lists each).
+- *TC_MATCH_003 survives the compile cache*: warnings are stored with the module as a fifth
+  artifact, `match_warnings.json` (cache key v13). The other elaborator-era warnings still vanish on
+  a warm cache (pre-existing, #2207's finding 1).
+- `TC_MATCH_004` is reported only when no unguarded catch-all arm closes the match.
+- The elaborator checker (`internal/elaborate/exhaustiveness.go`, `inferScrutineeType`, the
+  `ExhaustivenessWarning` plumbing, ELB004 in `check` output) is deleted; ELB004 stays registered.
+- The TC_MATCH_005 (`JInt`) warning's "no catch-all" variant is gone: that match is now
+  TC_MATCH_002 naming `JInt(_)`.
+
+**Known holes, pre-existing, not closed here:** #2239 (newtype-record coercion) and #2247 (an
+int literal accepted for a `Box[a]`/`[a]` parameter: the `Num[T[α]]` constraint is dropped) can
+still bring a value of another type to a checked match (RT002). Contracts with `forall` are never
+type-checked (#2248), so matches in them — including a quantifier's bounds — are not checked; the
+walk visits `Forall` bounds, but inference never succeeds on such a contract to reach it.
+
+**Blast radius, re-measured with the compiler** (the §10 census was a regex prototype):
+
+| Corpus | §10 census | compiler |
+|---|---|---|
+| ailang repo (`git ls-files '*.ail'`, 916 files) | 1 example | 1 file: the intended negative fixture, now `examples/expected_fail/match_nonexhaustive_bool.ail`; 3 TC_MATCH_003 warnings |
+| downstream gate, release tier | 6 edits in 2 repos | 8 sites in 3 repos (daneel 1, motoko fork 6 in 5 files, ailang-packages 1); 101 gate rows, all `TC_MATCH_002`; one patch per repo checks clean on v0.60.0 and on the candidate |
+| AI-written passing programs (the census's 10,401 files in `dd-exhaust/evalcode`) | 150 / 10,166 (1.5%) | 175 / 8,201 that still pass `check` on dev (2.1%); 175 / 10,401 of all (1.7%); 344 sites: 341 TC_MATCH_002 (witness: list 270, literal `_` 33, ADT 27, tuple 11), 3 TC_MATCH_006; none "cannot be checked" |
+
+Cost: `check --package` on ailang-parse, cold cache, 6 runs each: median 10.91 s → 10.95 s
+(+0.4%; means +0.9%); ailang-packages `crew-core`: 9.51 → 9.48 s median. `verify-examples`:
+13.0–13.7 s → 13.6–14.0 s, within run-to-run noise.

@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
@@ -113,6 +114,21 @@ func distillAgentLine(e checkJSONError, fallbackFile string) string {
 		out += " → " + e.Suggestion
 	}
 	return out
+}
+
+// pipelineErrorsToCheckJSON converts a pipeline error to its JSON entries:
+// one per error when the error carries several (every TC_MATCH_* error of a
+// module, so an author can fix them in one pass), else one.
+func pipelineErrorsToCheckJSON(err error, filename string) []checkJSONError {
+	var many types.MatchErrors
+	if errors.As(err, &many) && len(many) > 1 {
+		out := make([]checkJSONError, len(many))
+		for i, e := range many {
+			out[i] = errorToCheckJSONError(e, filename)
+		}
+		return out
+	}
+	return []checkJSONError{errorToCheckJSONError(err, filename)}
 }
 
 // errorToCheckJSONError converts an error to a structured JSON error entry

@@ -59,6 +59,12 @@ func render(b *strings.Builder, p Pattern) {
 		renderList(b, p.Elems)
 		b.WriteByte(')')
 	case List:
+		// `h :: t` with t itself a list pattern renders as one list:
+		// `x :: []` is `[x]`, `x :: [y, ...r]` is `[x, y, ...r]`.
+		if rest, ok := p.Rest.(List); ok {
+			render(b, List{Elems: append(append([]Pattern(nil), p.Elems...), rest.Elems...), Rest: rest.Rest})
+			return
+		}
 		b.WriteByte('[')
 		renderList(b, p.Elems)
 		if p.Rest != nil {

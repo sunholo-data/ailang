@@ -5,6 +5,7 @@ import (
 	"strconv"
 
 	"github.com/sunholo-data/ailang/internal/bytecode"
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 	"github.com/sunholo-data/ailang/internal/eval"
 )
 
@@ -194,6 +195,16 @@ var BuiltinTable = []BuiltinFunc{
 	builtinMapKeys,
 	builtinMapValues,
 	builtinShowPreview, // __show_preview (std/string._show_preview, M-V1-SHOW-TOTAL M3)
+	builtinUnreachable, // _unreachable
+}
+
+// builtinUnreachable is `unreachable(msg)`: RT010 with the evaluator's error
+// type and text (M-V1-MATCH-EXHAUSTIVENESS).
+func builtinUnreachable(args []bytecode.Value) (bytecode.Value, error) {
+	if len(args) != 1 || args[0].Tag != bytecode.TagString {
+		return bytecode.Value{}, fmt.Errorf("_unreachable: expected 1 string arg")
+	}
+	return bytecode.Value{}, &ailerrors.UnreachableError{Msg: args[0].AsString()}
 }
 
 // builtinRecordGet returns the value of the named field in a record. Used as

@@ -75,6 +75,10 @@ func (tc *CoreTypeChecker) FinalizeSubstitutions() {
 // M-TYPENAME-NESTED-PROPAGATION: Also propagates TypeName from type aliases
 func (tc *CoreTypeChecker) applySubstitutionToCoreTI(sub Substitution) {
 	tc.substituteApplicationRows(sub)
+	// Not tc.substituteCtorPatternTypes: this path carries only the numeric
+	// defaulting of let boundaries (α ↦ int/float), which never decides the
+	// ADT head a constructor pattern takes its identity from. The full
+	// per-declaration substitution reaches them (applyApplicationSubstitution).
 	if tc.CoreTI == nil {
 		return
 	}

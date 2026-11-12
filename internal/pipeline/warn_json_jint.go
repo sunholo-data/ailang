@@ -41,9 +41,6 @@ const (
 type JSONIntArmWarning struct {
 	Location ast.Pos
 	Module   string // module the match is in
-	// NoCatchAll: no arm covers a JInt at the JNumber arm's position, so an
-	// integer does not fall through quietly — the match fails at run time.
-	NoCatchAll bool
 }
 
 var _ elaborate.Warning = (*JSONIntArmWarning)(nil)
@@ -68,12 +65,11 @@ func (w *JSONIntArmWarning) Suggestion() string {
 // Message is the warning without its location and fix (structured output
 // carries those as fields).
 func (w *JSONIntArmWarning) Message() string {
-	m := "this match over std/json.Json has a JNumber arm but no JInt arm; " +
-		"decode now gives JInt(n) for integer literals such as 42, so integers skip the JNumber arm"
-	if w.NoCatchAll {
-		return m + ", and this match has no catch-all, so an integer will fail at run time with RT002 (no arm matched)"
-	}
-	return m + " and take the catch-all"
+	// A match with no arm for a JInt at all is not exhaustive (TC_MATCH_002,
+	// M-V1-MATCH-EXHAUSTIVENESS), so a match that reaches this warning has
+	// one: the catch-all the integers now take.
+	return "this match over std/json.Json has a JNumber arm but no JInt arm; " +
+		"decode now gives JInt(n) for integer literals such as 42, so integers skip the JNumber arm and take the catch-all"
 }
 
 // String renders the warning for stderr.
@@ -109,18 +105,14 @@ func DetectJSONIntArm(unit *CompileUnit) []elaborate.Warning {
 					}
 				})
 			}
-			uncovered, noCatchAll := false, false
-			for key, path := range numberAt {
-				if intAt[key] {
-					continue
-				}
-				uncovered = true
-				if !anyArmCovers(n.Arms, path) {
-					noCatchAll = true
+			uncovered := false
+			for key := range numberAt {
+				if !intAt[key] {
+					uncovered = true
 				}
 			}
 			if uncovered {
-				out = append(out, &JSONIntArmWarning{Location: n.OriginalSpan(), Module: unit.ID, NoCatchAll: noCatchAll})
+				out = append(out, &JSONIntArmWarning{Location: n.OriginalSpan(), Module: unit.ID})
 			}
 		// walkCore does not descend into these; their children are atomic in
 		// ANF, except a lambda value, which can hold a match.
@@ -214,49 +206,4 @@ func walkCtorPatterns(p core.CorePattern, path []string, f func(*core.Constructo
 			walkCtorPatterns(fp, at("."+name), f)
 		}
 	}
-}
-
-// anyArmCovers reports whether some unguarded arm would also match a JInt at
-// path: along the path it agrees with the enclosing constructors, tuples and
-// records, and it reaches a variable or wildcard at or above the position.
-func anyArmCovers(arms []core.MatchArm, path []string) bool {
-	for _, arm := range arms {
-		if arm.Guard == nil && covers(arm.Pattern, path) {
-			return true
-		}
-	}
-	return false
-}
-
-func covers(p core.CorePattern, path []string) bool {
-	switch p.(type) {
-	case *core.VarPattern, *core.WildcardPattern:
-		return true
-	case nil:
-		return false
-	}
-	if len(path) == 0 {
-		return false // a constructor/literal/list at the position itself
-	}
-	step, rest := path[0], path[1:]
-	switch n := p.(type) {
-	case *core.ConstructorPattern:
-		for i, a := range n.Args {
-			if step == fmt.Sprintf("%s#%d", n.Name, i) {
-				return covers(a, rest)
-			}
-		}
-	case *core.TuplePattern:
-		for i, el := range n.Elements {
-			if step == fmt.Sprintf("(%d)", i) {
-				return covers(el, rest)
-			}
-		}
-	case *core.RecordPattern:
-		if fp, ok := n.Fields[strings.TrimPrefix(step, ".")]; ok && strings.HasPrefix(step, ".") {
-			return covers(fp, rest)
-		}
-		return n.Rest && strings.HasPrefix(step, ".")
-	}
-	return false
 }

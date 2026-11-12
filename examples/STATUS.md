@@ -33,7 +33,6 @@
 - `test_effect_fs.ail`
 - `test_effect_io.ail`
 - `test_exhaustive_bool_complete.ail`
-- `test_exhaustive_bool_incomplete.ail`
 - `test_exhaustive_wildcard.ail`
 - `test_guard_bool.ail`
 - `test_guard_debug.ail`

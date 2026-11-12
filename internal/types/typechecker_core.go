@@ -98,9 +98,9 @@ type CoreTypeChecker struct {
 	// M-FIX-FLOAT-OP: Parameter type annotations from function declarations
 	// Maps Lambda NodeID -> parameter types to preserve float annotations through elaboration
 	paramTypeAnnots map[uint64][]Type
-	// M-TYPE-LIST-ELEMENT-SOUNDNESS: let-binding type annotations from elaboration
-	// Maps core.Let NodeID -> annotated type so `let xs: [string] = [42]` is checked
+	// M-TYPE-LIST-ELEMENT-SOUNDNESS: core.Let NodeID -> annotation, so `let xs: [string] = [42]` is checked
 	letTypeAnnots map[uint64]Type
+	matchState    // M-V1-MATCH-EXHAUSTIVENESS state (match_exhaustiveness.go)
 	// M-DX11: Debug sink for type inference events
 	DebugSink TypeDebugSink
 	// M-PERF-DOCPARSE: Deferred CoreTI substitution — accumulated during inference,

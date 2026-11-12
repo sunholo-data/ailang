@@ -239,6 +239,35 @@ match (1, "hello") {
 }
 ```
 
+### Exhaustiveness ✅
+
+A `match` must cover every value of what it matches; `ailang check` rejects one
+that misses a case with `TC_MATCH_002` and names the missing pattern
+(`no arm matches: Blue`). Arms with an `if` guard do not count toward coverage.
+`int`, `float` and `string` matches need a catch-all arm. For a case that cannot
+happen, say so with `unreachable("why")`: it has any type and stops the program
+with `RT010` if it is ever reached. An arm that no value can reach is warning
+`TC_MATCH_003`.
+
+```ailang
+module docs/exhaustive
+
+type Light = Red | Amber | Green
+
+pure func next(l: Light) -> Light = match l {
+  Red => Green,
+  Green => Amber,
+  Amber => Red
+}
+
+pure func head(xs: [int]) -> int = match xs {
+  [] => unreachable("callers pass a non-empty list"),
+  [h, ..._] => h
+}
+```
+
+Full runnable example: `examples/runnable/match_exhaustiveness.ail`.
+
 ## Records ✅
 
 ```ailang

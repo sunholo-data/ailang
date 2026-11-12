@@ -10,4 +10,31 @@
 #   fix: "motoko fork#6"           # PR/issue that removes the breaks
 #   republish: []                  # registry packages to re-publish first
 #   expires: v0.58.1               # reported stale once the candidate is newer
-[]
+
+# M-V1-MATCH-EXHAUSTIVENESS: a match that misses a case is TC_MATCH_002. Every
+# site is a one-line arm (or catch-all) in the corpus; the patches check on both
+# v0.60.0 and the candidate, so they can land in any order. `expires` is a
+# version (the field takes no date): stale once a candidate is newer than
+# v0.61.0 — remove these entries by 2026-12-02, when the corpus fixes have
+# landed, so slack under `max` cannot hide a later TC_MATCH_002.
+- change: "match exhaustiveness: non-exhaustive match is TC_MATCH_002"
+  code: TC_MATCH_002
+  corpus: daneel
+  max: 3
+  fix: "tools/video/daneel_video.ail:240 — StreamEvent match gains `_ => true`"
+  republish: []
+  expires: v0.61.0
+- change: "match exhaustiveness: non-exhaustive match is TC_MATCH_002"
+  code: TC_MATCH_002
+  corpus: motoko-fork
+  max: 96
+  fix: "6 sites in 5 files: progress_contract_guard.ail (2), admission.ail, scripted_ports.ail, stream_parity_dst.ail, verify_herdr_orchestrator.ail"
+  republish: []
+  expires: v0.61.0
+- change: "match exhaustiveness: non-exhaustive match is TC_MATCH_002"
+  code: TC_MATCH_002
+  corpus: ailang-packages
+  max: 2
+  fix: "packages/specstore/qa_test.ail:35 — inner list match gains the [] case"
+  republish: []
+  expires: v0.61.0

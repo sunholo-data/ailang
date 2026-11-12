@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.16.15) - auto-synced from source
+description: The active AILANG teaching prompt (v0.16.16) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.15.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.16.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.16.15.md -->
-<!-- Active Version: v0.16.15 -->
+<!-- Source: prompts/v0.16.16.md -->
+<!-- Active Version: v0.16.16 -->
 
-# AILANG v0.16.15 - AI Teaching Prompt (with IFC Labels + Output Discipline)
+# AILANG v0.16.16 - AI Teaching Prompt (with IFC Labels + Output Discipline)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -1446,6 +1446,34 @@ match data {
 - **A record pattern must name EVERY field of the record or end with `...`.** `{name}` on a
   record that also has `age` is a type error ("record field mismatch: expected 2 fields, got 1").
 
+**Every `match` must cover every case.** `ailang check` rejects one that misses a case
+(`TC_MATCH_002: non-exhaustive match on Light — no arm matches: Amber`):
+- cover every constructor of the type, or end with `_ =>`
+- a match on `int`, `string` or `float` always needs a final `_ =>` (or variable) arm
+- an arm with an `if` guard does not count: put an unguarded arm after it
+- a case that cannot happen: `unreachable("why")` fits any type and stops the program (RT010) if reached
+
+```ailang
+type Light = Red | Amber | Green
+
+pure func next(l: Light) -> Light = match l {
+  Red => Green,
+  Green => Amber,
+  Amber => Red
+}
+
+pure func sign(n: int) -> string = match n {
+  k if k < 0 => "negative",
+  0 => "zero",
+  _ => "positive"
+}
+
+pure func head(xs: [int]) -> int = match xs {
+  [] => unreachable("callers pass a non-empty list"),
+  [h, ..._] => h
+}
+```
+
 ## Deriving Eq for ADT Types
 
 Use `deriving (Eq)` to auto-generate `==` and `!=` for ADT types:
@@ -2605,7 +2633,7 @@ let data = readFile("other.txt")  -- Works!
 | `x = x + 1` inside a block | No assignment: bind a new name, `let x2 = x + 1` (or shadow with `let x = x + 1`) |
 | `2 ** 10` | No `**` operator: `pow(2.0, 10.0)` (`std/math`, floats) |
 | `import std/math (max)` / `min` | No int `max`/`min` exists anywhere: define `pure func maxInt(a: int, b: int) -> int = if a > b then a else b` |
-| A `match` that leaves out a constructor | `ailang check` does NOT catch it; it fails at run time ("no pattern matched"). Cover every constructor or end with `_ =>` |
+| A `match` that leaves out a case | `ailang check` rejects it (`TC_MATCH_002`) and names the missing pattern. Add that arm, or `_ => …`, or `C => unreachable("why")` when the case cannot happen. Arms with `if` guards do not count |
 | `{user: {email: e}}` on a record with more fields | Record patterns must name every field or end with `...`: `{user: {email: e, ...}, ...}` |
 
 ## Running Programs

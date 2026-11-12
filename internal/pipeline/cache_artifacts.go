@@ -12,6 +12,7 @@ import (
 	"os"
 	"path/filepath"
 
+	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/iface"
 	"github.com/sunholo-data/ailang/internal/types"
@@ -23,6 +24,9 @@ const (
 	artifactCoreTIName       = "coretypeinfo.gob"
 	artifactIfaceName        = "iface.json"
 	artifactConstructorsName = "constructors.json"
+	// TC_MATCH_003 warnings (M-V1-MATCH-EXHAUSTIVENESS): a cache hit skips the
+	// type checker that computes them, so they are stored with the module.
+	artifactMatchWarningsName = "match_warnings.json"
 
 	// The 16/32 MiB ceilings were sized from std modules (largest blob 20 KB).
 	// Real modules outgrew them: stapledons-godot's 638-line protocol_test
@@ -103,10 +107,12 @@ type cacheArtifactCodec struct {
 	encodeCoreTI       func(types.CoreTypeInfo) ([]byte, error)
 	encodeIface        func(*iface.Iface) ([]byte, error)
 	encodeConstructors func(map[string]*ConstructorInfo) ([]byte, error)
+	encodeMatchWarns   func([]*types.MatchWarning) ([]byte, error)
 	decodeCore         func([]byte) (*core.Program, error)
 	decodeCoreTI       func([]byte) (types.CoreTypeInfo, error)
 	decodeIface        func([]byte) (*iface.Iface, error)
 	decodeConstructors func([]byte) (map[string]*ConstructorInfo, error)
+	decodeMatchWarns   func([]byte) ([]*types.MatchWarning, error)
 }
 
 func productionCacheArtifactCodec() cacheArtifactCodec {
@@ -119,6 +125,7 @@ func productionCacheArtifactCodec() cacheArtifactCodec {
 		encodeCoreTI:       encodeCoreTIDAG,
 		encodeIface:        marshalIfaceFull,
 		encodeConstructors: marshalConstructors,
+		encodeMatchWarns:   marshalMatchWarnings,
 		decodeCore: func(data []byte) (*core.Program, error) {
 			var program core.Program
 			err := gob.NewDecoder(bytes.NewReader(data)).Decode(&program)
@@ -127,6 +134,7 @@ func productionCacheArtifactCodec() cacheArtifactCodec {
 		decodeCoreTI:       decodeCoreTIDAG,
 		decodeIface:        unmarshalIfaceFull,
 		decodeConstructors: unmarshalConstructors,
+		decodeMatchWarns:   unmarshalMatchWarnings,
 	}
 }
 
@@ -182,6 +190,7 @@ func (cs *CacheStore) encodeArtifacts(moduleID string, cm *CachedModule) ([]enco
 		{artifactCoreTIName, func() ([]byte, error) { return cs.artifactCodec.encodeCoreTI(cm.CoreTI) }},
 		{artifactIfaceName, func() ([]byte, error) { return cs.artifactCodec.encodeIface(cm.Iface) }},
 		{artifactConstructorsName, func() ([]byte, error) { return cs.artifactCodec.encodeConstructors(cm.Constructors) }},
+		{artifactMatchWarningsName, func() ([]byte, error) { return cs.artifactCodec.encodeMatchWarns(cm.MatchWarnings) }},
 	}
 
 	artifacts := make([]encodedArtifact, 0, len(encoders))
@@ -346,7 +355,11 @@ func (cs *CacheStore) loadArtifacts(moduleID, expectedCacheKey string) (*CachedM
 	if err != nil {
 		return nil, artifactFailure("decoding", filepath.Join(modDir, artifactConstructorsName), err)
 	}
-	return &CachedModule{Core: program, CoreTI: coreTI, Iface: ifc, Constructors: constructors}, nil
+	matchWarnings, err := cs.artifactCodec.decodeMatchWarns(artifacts[artifactMatchWarningsName])
+	if err != nil {
+		return nil, artifactFailure("decoding", filepath.Join(modDir, artifactMatchWarningsName), err)
+	}
+	return &CachedModule{Core: program, CoreTI: coreTI, Iface: ifc, Constructors: constructors, MatchWarnings: matchWarnings}, nil
 }
 
 func (cs *CacheStore) readBoundedArtifact(path string, fileLimit int64, fileScope string, accepted *int64) ([]byte, error) {
@@ -385,10 +398,11 @@ func (cs *CacheStore) readBoundedArtifact(path string, fileLimit int64, fileScop
 }
 
 func validateArtifactDigests(digests map[string]string) error {
-	if len(digests) != 4 {
-		return fmt.Errorf("stamp must contain exactly four payload digests")
+	names := artifactPayloadNames()
+	if len(digests) != len(names) {
+		return fmt.Errorf("stamp must contain exactly %d payload digests", len(names))
 	}
-	for _, name := range artifactPayloadNames() {
+	for _, name := range names {
 		digest, ok := digests[name]
 		if !ok || len(digest) != sha256.Size*2 {
 			return fmt.Errorf("missing or malformed digest for %s", name)
@@ -400,8 +414,37 @@ func validateArtifactDigests(digests map[string]string) error {
 	return nil
 }
 
-func artifactPayloadNames() [4]string {
-	return [4]string{artifactCoreName, artifactCoreTIName, artifactIfaceName, artifactConstructorsName}
+func artifactPayloadNames() [5]string {
+	return [5]string{artifactCoreName, artifactCoreTIName, artifactIfaceName, artifactConstructorsName, artifactMatchWarningsName}
+}
+
+// matchWarningJSON is one cached TC_MATCH_003 warning.
+type matchWarningJSON struct {
+	File    string `json:"file"`
+	Line    int    `json:"line"`
+	Column  int    `json:"column"`
+	Arm     int    `json:"arm"`
+	Pattern string `json:"pattern"`
+}
+
+func marshalMatchWarnings(ws []*types.MatchWarning) ([]byte, error) {
+	out := make([]matchWarningJSON, len(ws))
+	for i, w := range ws {
+		out[i] = matchWarningJSON{File: w.Pos.File, Line: w.Pos.Line, Column: w.Pos.Column, Arm: w.Arm, Pattern: w.Pattern}
+	}
+	return json.Marshal(out)
+}
+
+func unmarshalMatchWarnings(data []byte) ([]*types.MatchWarning, error) {
+	var in []matchWarningJSON
+	if err := json.Unmarshal(data, &in); err != nil {
+		return nil, err
+	}
+	out := make([]*types.MatchWarning, len(in))
+	for i, w := range in {
+		out[i] = &types.MatchWarning{Pos: ast.Pos{File: w.File, Line: w.Line, Column: w.Column}, Arm: w.Arm, Pattern: w.Pattern}
+	}
+	return out, nil
 }
 
 func (cs *CacheStore) moduleArtifactDir(moduleID string) string {

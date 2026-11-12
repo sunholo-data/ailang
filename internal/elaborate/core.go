@@ -22,8 +22,6 @@ type Elaborator struct {
 	filePath          string                      // Current file path for relative imports
 	globalEnv         map[string]core.GlobalRef   // Global environment for imports (name -> GlobalRef)
 	constructors      map[string]*ConstructorInfo // Available constructors (name -> info)
-	warnings          []*ExhaustivenessWarning    // Accumulated warnings
-	exChecker         *ExhaustivenessChecker      // Exhaustiveness checker
 	// typeAliases stores type aliases for expansion during type checking
 	// M-BUGFIX: Maps alias names to their underlying types (e.g., "Coord" -> {x: int, y: int})
 	typeAliases map[string]types.Type
@@ -98,8 +96,6 @@ func NewElaborator() *Elaborator {
 		freshVarNum:      0,
 		globalEnv:        make(map[string]core.GlobalRef),
 		constructors:     make(map[string]*ConstructorInfo),
-		warnings:         []*ExhaustivenessWarning{},
-		exChecker:        NewExhaustivenessChecker(),
 		typeAliases:      make(map[string]types.Type),   // M-BUGFIX: Initialize type aliases
 		paramTypeAnnots:  make(map[uint64][]types.Type), // M-FIX-FLOAT-OP: Initialize param annotations
 		returnTypeAnnots: make(map[uint64]types.Type),   // M-FIX-FLOAT-OP: Initialize return annotations
@@ -121,8 +117,6 @@ func NewElaboratorWithPath(filePath string) *Elaborator {
 		filePath:         filePath,
 		globalEnv:        make(map[string]core.GlobalRef),
 		constructors:     make(map[string]*ConstructorInfo),
-		warnings:         []*ExhaustivenessWarning{},
-		exChecker:        NewExhaustivenessChecker(),
 		typeAliases:      make(map[string]types.Type),   // M-BUGFIX: Initialize type aliases
 		paramTypeAnnots:  make(map[uint64][]types.Type), // M-FIX-FLOAT-OP: Initialize param annotations
 		returnTypeAnnots: make(map[uint64]types.Type),   // M-FIX-FLOAT-OP: Initialize return annotations
@@ -321,16 +315,6 @@ func (e *Elaborator) recordDerivedEqField(typeName, where string, t types.Type) 
 		e.derivedEqFields = make(map[string][]DerivedEqField)
 	}
 	e.derivedEqFields[typeName] = append(e.derivedEqFields[typeName], DerivedEqField{Where: where, Type: t})
-}
-
-// GetWarnings returns accumulated exhaustiveness warnings
-func (e *Elaborator) GetWarnings() []*ExhaustivenessWarning {
-	return e.warnings
-}
-
-// ClearWarnings clears accumulated warnings
-func (e *Elaborator) ClearWarnings() {
-	e.warnings = []*ExhaustivenessWarning{}
 }
 
 // GetSurfaceSpan retrieves the original surface span for a Core node ID

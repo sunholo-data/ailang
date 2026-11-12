@@ -103,6 +103,27 @@ TC_MATCH_001: constructor pattern 'Bogus' does not name any constructor in scope
   Suggestion: Option's constructors are: None, Some
 ```
 
+**`TC_MATCH_002` — a `match` that misses a case.** Every `match` must cover every value of the scrutinee's type with its unguarded arms: every constructor of an ADT (all of them, from the type's own declaration, not only the ones a module imports), `true` and `false`, `[]` and a non-empty list, every combination inside tuples, records and nested patterns. `int`, `float` and `string` have infinitely many values, so a match on them needs a catch-all (`_` or a variable). Arms with an `if` guard never count, because the guard may be false. The error names concrete missing patterns, in syntax you can paste as an arm (`Blue`, `Some(Err(_))`, `[]`, `(true, false)`, `{a: false, ...}`; at most five, then "and more"), and appears in human, `--json` and `--format agent` output with the match's file:line:col. Every way of compiling a program (`check`, `run`, `run --bytecode`, `run --strict-bytecode`, `compile --emit-go`, `test`) gives it before anything runs. Fix: add the arm, end with `_ => …`, or — for a case that cannot happen — write `C => unreachable("why")`. Through v0.60.0 such a match passed `check` and failed at run time.
+
+```text
+Error: p1.ail:3:38: TC_MATCH_002: non-exhaustive match on Color — no arm matches: Blue
+  Suggestion: add the missing arm: Blue => ...
+  If this case cannot happen, say so: Blue => unreachable("<why it cannot happen>")
+```
+
+The same code, with "this match cannot be checked for exhaustiveness", is reported in two cases:
+
+- **A constructor matched by name against a value nothing types.** When neither a constructor nor its type is imported, the pattern names it by name and constrains nothing, so a value of any type can reach the match (`let h = \e. match e { Msg(_) => 1, Done => 2 }` where `Msg` is declared only in a module you import something else from). Fix: import the constructor's type, `import bn/a (Ev)`; its constructors come into scope and fix the value's type. Annotating the value matched also works.
+- **The checker cannot place a constructor in a type** (a compiler bug if it ever fires). It fails closed; an unguarded `_ =>` arm resolves it.
+
+**`TC_MATCH_003` — an arm no value can reach (warning).** Every value the arm matches is already matched by an unguarded arm above it (`Running(n) => …, other => …, Idle => …` warns on `Idle`). It never blocks compilation; `check --json` lists it under `warnings` and `--format agent` prints a `warn:` line, also when the module is served from the compile cache.
+
+**`TC_MATCH_004` — a match too large to check.** The check stops after 10^6 steps per match rather than guess. No program in the measured corpora comes near it. Fix: add a final `_ =>` arm.
+
+**`TC_MATCH_006` — a constructor pattern with the wrong number of arguments.** `C(n)` against `type U = C(int, int) | E`. Such a pattern never matched on the evaluator while the bytecode VM bound the first field (#2243), so its coverage was not one thing; it is now an error located at the pattern, with the right shape as the fix (`write C(_, _)`), whatever the other arms are — a catch-all does not hide it. A constructor matched by name against a value whose type nothing fixes, when two loaded types declare that name with different arities (`ar/x`'s `Msg(string)` and `ar/y`'s `Msg(string, int)`), is the same error whatever its own count: the engines would disagree on which values it matches. The message names every candidate; the fix is to import the type you mean.
+
+**`TC_BUILTIN_SHADOW_001` — a module-level definition or an import named `unreachable`.** A builtin wins over a module-level name, so a program defining its own `unreachable`, or importing something under that name (`import std/string (trim as unreachable)`), would silently call the builtin (`RT010`) instead. Rename the definition or the import; a local `let unreachable = …` is unaffected.
+
 **`TC_MATCH_005` — `Json` match with a `JNumber` arm and no `JInt` arm (warning).** Transitional for v0.58.x. `std/json.decode` gives `JInt(n)` for integer literals and `JNumber(x)` for other numbers, so a match written before `JInt` existed, `match j { JNumber(n) => …, _ => … }`, compiles but sends every integer to the catch-all. The warning is keyed on std/json's own `JNumber` (aliased imports included; a module's own `JNumber` constructor is never flagged), looks at every pattern depth (`Some(JNumber(n))` counts), and is reported on a warm compile cache too. It never blocks compilation. Fix: add a `JInt(i) => …` arm (`intToFloat(i)` gives a float), or read numbers with `asNumber`/`getNumber`/`getInt`, which accept both.
 
 ```
@@ -148,5 +169,7 @@ These codes are inline diagnostic codes, like `TC_MATCH_005`; they are not entri
 - [MOD013 — Shared module_prefix](mod013.md)
 - [MOD015 — Imported name collides with a module-level definition](mod015.md)
 - [RT001 — Integer division or modulo by zero](rt001.md)
+- RT002 — no arm of a `match` matched, with the match's position (defence in depth: a checked program cannot reach it, except through a checker bug)
+- RT010 — `unreachable(msg)` was evaluated: `RT010: unreachable code reached: <msg>`
 - [TC_NOMINAL_001 — Two different types that share a name](tc_nominal_001.md)
 - [Effect row mismatch](typ_effect_row_mismatch.md)

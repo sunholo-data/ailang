@@ -2,12 +2,9 @@ package main
 
 import (
 	"fmt"
-	"path/filepath"
-	"strconv"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/elaborate"
-	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 )
 
 // Pipeline warnings in the machine-readable check outputs
@@ -44,9 +41,6 @@ func checkWarningsJSON(ws []elaborate.Warning, filename string) []checkJSONError
 }
 
 func warningToCheckJSON(w elaborate.Warning, filename string) checkJSONError {
-	if ew, ok := w.(*elaborate.ExhaustivenessWarning); ok {
-		return exhaustivenessWarningJSON(ew, filename)
-	}
 	e := checkJSONError{Code: "WARNING", Message: oneLine(w.String()), File: filename}
 	if c, ok := w.(warningCoder); ok {
 		e.Code = c.Code()
@@ -64,35 +58,6 @@ func warningToCheckJSON(w elaborate.Warning, filename string) checkJSONError {
 	}
 	if m, ok := w.(warningMessager); ok {
 		e.Message = m.Message()
-	}
-	return e
-}
-
-// exhaustivenessWarningJSON renders the elaborator's literal-only
-// non-exhaustive-match warning. Its Location is "<module>:<line>:<col>", a
-// module path rather than a file: the file is the checked one when the module
-// is that file's, else the module path's own .ail file. The registry code for
-// it is ELB004 ("Non-exhaustive pattern").
-func exhaustivenessWarningJSON(w *elaborate.ExhaustivenessWarning, filename string) checkJSONError {
-	e := checkJSONError{
-		Code:       ailerrors.ELB004,
-		Message:    "non-exhaustive match — missing pattern: " + strings.Join(w.MissingPattern, ", "),
-		File:       filename,
-		Suggestion: "add an arm for the missing pattern, or end with `_ => …`",
-	}
-	loc := w.Location
-	parts := strings.Split(loc, ":")
-	if len(parts) >= 3 {
-		line, err1 := strconv.Atoi(parts[len(parts)-2])
-		col, err2 := strconv.Atoi(parts[len(parts)-1])
-		if err1 == nil && err2 == nil {
-			e.Line, e.Column = line, col
-			mod := strings.Join(parts[:len(parts)-2], ":")
-			own := strings.TrimSuffix(filepath.ToSlash(filename), ".ail")
-			if mod != "" && mod != own && !strings.HasSuffix(own, "/"+mod) {
-				e.File = mod + ".ail"
-			}
-		}
 	}
 	return e
 }

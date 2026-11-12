@@ -18,6 +18,7 @@ specific error message.
 
 - `match_foreign_constructor_option.ail` — `match Option { Err(_) ... }` (M-MATCH-ADT-XCHECK v0.18.10)
 - `match_foreign_constructor_result.ail` — `match Result { Some(_) ... }` (M-MATCH-ADT-XCHECK v0.18.10)
+- `match_nonexhaustive_bool.ail` — a `match` that misses `false`: `TC_MATCH_002 … no arm matches: false` (M-V1-MATCH-EXHAUSTIVENESS; pinned by `TestExpectedFail_MatchNonExhaustive`)
 - `pure_with_effect_row.ail` — `pure func … ! {IO}`: `pure` means `! {}` (M-PURE-ROW-AND-IFACE-PURITY, #1443; pinned by `TestExpectedFail_PureWithEffectRow`)
 
 ## Budget Enforcement Demonstrations (correctly fail at runtime)

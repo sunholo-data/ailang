@@ -411,3 +411,4 @@ shiftRight_Int : (int, int) -> int
 show : α -> string
 sub_Float : (float, float) -> float
 sub_Int : (int, int) -> int
+unreachable : string -> α

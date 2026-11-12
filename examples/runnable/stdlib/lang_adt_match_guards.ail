@@ -9,8 +9,8 @@ type Shape = Circle(int) | Rect(int, int) | Triangle(int, int, int)
 
 type Size = Small | Medium | Large deriving (Eq)
 
--- One arm per constructor. A missing arm is not caught by `ailang check`;
--- it fails at run time with RT002 "no arm matched", so cover every case.
+-- One arm per constructor. A missing arm is a compile error, TC_MATCH_002,
+-- naming the constructor left out.
 pure func perimeter(s: Shape) -> int = match s {
   Circle(r) => 6 * r,
   Rect(w, h) => 2 * (w + h),

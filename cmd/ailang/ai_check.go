@@ -178,8 +178,8 @@ func runAICheckReport(filename string, timeout time.Duration, recursiveDepth int
 
 	if pipelineErr != nil {
 		checkSection.Passed = false
-		checkSection.ErrorCount = 1
-		checkSection.Errors = []checkJSONError{errorToCheckJSONError(pipelineErr, filename)}
+		checkSection.Errors = pipelineErrorsToCheckJSON(pipelineErr, filename)
+		checkSection.ErrorCount = len(checkSection.Errors)
 	} else if len(result.Errors) > 0 {
 		checkSection.Passed = false
 		checkSection.ErrorCount = len(result.Errors)

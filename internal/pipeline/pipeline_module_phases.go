@@ -350,6 +350,10 @@ func (st *modulePipelineState) compileOneModule(modID link.ModuleID, unit *Compi
 			return err
 		}
 	}
+	// Before the cache lookup, so a cached module is refused too.
+	if err := checkBuiltinShadow(mod.File); err != nil {
+		return err
+	}
 	key, cacheable := st.prepareCacheLookup(mod, string(modID))
 	if cacheable && st.serveFromCache(mod, unit, key) {
 		return nil
@@ -407,6 +411,7 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 	}
 
 	st.result.Warnings = append(st.result.Warnings, compileResult.Warnings...)
+	unit.MatchWarnings = compileResult.MatchWarnings
 
 	if compileResult.TypeChecker != nil {
 		st.rootTypeChecker = compileResult.TypeChecker

@@ -102,6 +102,7 @@ func (tc *CoreTypeChecker) substituteApplicationRows(sub Substitution) {
 func (tc *CoreTypeChecker) applyApplicationSubstitution(sub Substitution) {
 	tc.CoreTI.ApplySubstitution(sub)
 	tc.substituteApplicationRows(sub)
+	tc.substituteCtorPatternTypes(sub)
 	for id, record := range tc.applicationEffects {
 		record.finalized = true
 		tc.applicationEffects[id] = record

@@ -146,6 +146,9 @@ type CachedModule struct {
 	CoreTI       types.CoreTypeInfo          // Type info for Core nodes (JSON-encoded)
 	Iface        *iface.Iface                // Module interface
 	Constructors map[string]*ConstructorInfo // ADT constructors
+	// MatchWarnings are the module's TC_MATCH_003 warnings: a hit skips the
+	// type checker that finds them, so they are replayed from here.
+	MatchWarnings []*types.MatchWarning
 }
 
 // StoreArtifacts serializes a CachedModule to disk alongside the manifest.

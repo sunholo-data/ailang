@@ -33,3 +33,13 @@ func TestMatchFailureErrorText(t *testing.T) {
 		t.Fatal("errors.As did not find *MatchFailureError through %w")
 	}
 }
+
+func TestUnreachableError(t *testing.T) {
+	e := &UnreachableError{Msg: "callers pass a non-empty list"}
+	if e.Code() != RT010 || e.Error() != "RT010: unreachable code reached: callers pass a non-empty list" {
+		t.Fatalf("got %q (%s)", e.Error(), e.Code())
+	}
+	if _, ok := GetErrorInfo(RT010); !ok {
+		t.Fatal("RT010 is not registered")
+	}
+}

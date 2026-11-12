@@ -19,7 +19,8 @@ type moduleCompileResult struct {
 	TypeChecker   *types.CoreTypeChecker
 	DebugSink     *types.VerboseDebugSink
 	Warnings      []elaborate.Warning
-	ModuleTypeEnv *types.TypeEnv // Accumulated type environment for interface building
+	MatchWarnings []*types.MatchWarning // TC_MATCH_003, also in Warnings; cached with the module
+	ModuleTypeEnv *types.TypeEnv        // Accumulated type environment for interface building
 }
 
 // buildConstructorFactoryTypes creates $adt factory type schemes for a module's
@@ -119,6 +120,8 @@ func typeCheckAndLowerModule(
 	typeChecker.SetConstructorModules(ctorModules)
 	typeChecker.SetAmbiguousConstructors(imports.AmbiguousCtors)
 	typeChecker.SetADTTypeParams(adtTypeParams) // M-TAPP-FIX
+	// M-V1-MATCH-EXHAUSTIVENESS: every visible ADT's full constructor list.
+	typeChecker.SetMatchUniverse(moduleMatchUniverse(imports.MatchUniverse, modID, unit.Constructors))
 
 	// M-MATCH-XCHECK-ERROR-QUALITY: diagnostic-only registry of ALL transitively-
 	// loaded constructors, so foreign-constructor errors can enumerate an ADT's
@@ -218,6 +221,15 @@ func typeCheckAndLowerModule(
 		return nil, fmt.Errorf("type error in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
 	}
 
+	// M-V1-MATCH-EXHAUSTIVENESS: a match whose unguarded arms miss a value of
+	// the scrutinee's type is an error (TC_MATCH_002) naming the missing
+	// pattern; an arm no value can reach is a warning (TC_MATCH_003). Runs on
+	// the finalised types, before any pass copies or rewrites matches.
+	matchWarnings, err := typeChecker.VerifyMatchExhaustiveness(unit.Core.Decls...)
+	if err != nil {
+		return nil, err
+	}
+
 	// M-SECRET-EFFECT (M5): static information-flow-control enforcement.
 	// A <secret> (or any <label>) value reaching a {not label} sink without an
 	// intervening ! {Declassify} step is a compile-time error. This is a
@@ -241,6 +253,7 @@ func typeCheckAndLowerModule(
 	// M-CONTRACT-OPLOWERING-FIX: Type-check contract expressions to populate CoreTI.
 	// Without this, OpLowering hits CoreTI misses for operators in ensures/requires clauses,
 	// causing comparison ops to be deferred as raw Intrinsic nodes that fail at runtime.
+	var checkedContracts []core.CoreExpr
 	if unit.Core.Meta != nil {
 		// Build a map of function name -> Lambda params for contract env construction
 		funcParams := extractFuncParams(unit.Core)
@@ -282,10 +295,26 @@ func typeCheckAndLowerModule(
 				if inferErr != nil && cfg.DebugCompile {
 					fmt.Fprintf(os.Stderr, "[DEBUG] Contract type inference for %s: %v\n", funcName, inferErr)
 				}
+				// A contract's matches are checked like a body's. A contract
+				// whose inference failed has no final types to check against
+				// (its type errors are not reported either: pre-existing).
+				if inferErr == nil {
+					checkedContracts = append(checkedContracts, contract.Expr)
+				}
 				// Also fill operator methods for contract expressions
 				typeChecker.FillOperatorMethods(contract.Expr)
 			}
 		}
+	}
+
+	// The contracts' matches (VerifyMatchExhaustiveness sorts its errors, so
+	// the map order above does not decide which is reported first).
+	if len(checkedContracts) > 0 {
+		ws, err := typeChecker.VerifyMatchExhaustiveness(checkedContracts...)
+		if err != nil {
+			return nil, err
+		}
+		matchWarnings = append(matchWarnings, ws...)
 	}
 
 	// M-DX23: Capture type info for codegen
@@ -299,8 +328,9 @@ func typeCheckAndLowerModule(
 		fmt.Fprintf(os.Stderr, "[DEBUG] trace redaction for %s: %d labelled call sites, %d with no Core call %v\n", modID, len(traceSites), len(unmatched), unmatched)
 	}
 
-	// Collect exhaustiveness warnings
-	for _, w := range elaborator.GetWarnings() {
+	// TC_MATCH_003: unreachable match arms
+	result.MatchWarnings = matchWarnings
+	for _, w := range matchWarnings {
 		result.Warnings = append(result.Warnings, w)
 	}
 	result.ModuleTypeEnv = moduleTypeEnv
