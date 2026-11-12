@@ -38,7 +38,7 @@ Newly rejected (all previously unsound), with the migration for each:
   Write the open row the body needs: `func(a: {key: int | r}, b: {key: int | r}) -> int`.
 - Reading a field the annotated record does not have (`func(ctx: PureCtx) -> int
   { ctx.ports.emit(…) }` with `PureCtx = {name: string}`):
-  `record field 'ports' not found in concrete record`. Annotate the record the body
+  `TC_REC_001: field 'ports' not found in record {name}`. Annotate the record the body
   actually reads.
 - A literal's effect contract violated by its body: `! {IO}` calling an
   `FS`-contract callback, `! {}` calling an `IO` callback or printing, an
@@ -75,6 +75,8 @@ Measured: of 11,181 banked AI-written programs that check on dev (14,692
 deduped), 4 are newly rejected, all genuinely ill-typed (a closed `{key: int}`
 annotation given 4-field records; a function applied where an int is expected;
 `jnum` given an int where a float is declared; `Option[Json]` returned where
-`Json` is declared). In motoko-fork, 3 DST fixtures that document the
-missing-field hole and 21 that document `! {}` effect escapes (its
-run_declared_vs_performed.sh group 3, "accepted bare") become compiler-rejected.
+`Json` is declared). In motoko-fork, 21 DST fixtures that document `! {}`
+effect escapes (its run_declared_vs_performed.sh group 3, "accepted bare")
+become compiler-rejected. (The 3 that document the missing-field hole are
+already rejected on dev by #2210/#2221, as TC_REC_001; this change reports the
+same code for them.)
