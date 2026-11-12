@@ -208,14 +208,10 @@ help-release: ## Show release workflow
 # CODEGEN HARNESS
 # =============================================================================
 
-## test-codegen: Compile multi-module harness to Go and run go build (M-CODEGEN-SUSTAINABILITY)
+## test-codegen: Go emitter harness — build, evaluator-vs-Go parity, known failures (tests/codegen-harness/run.sh)
 test-codegen: build
 	@echo "$(BOLD)Running codegen harness test...$(RESET)"
-	@rm -rf tests/codegen-harness/gen
-	@./bin/ailang compile -emit-go -out tests/codegen-harness/gen -relax-modules tests/codegen-harness/*.ail
-	@cd tests/codegen-harness/gen && go build ./...
-	@echo "$(GREEN)✓ Codegen harness: compile + go build passed$(RESET)"
-	@rm -rf tests/codegen-harness/gen
+	@tests/codegen-harness/run.sh ./bin/ailang
 
 # =============================================================================
 # MICRO-RAG (μRAG) CORPUS INDEXER

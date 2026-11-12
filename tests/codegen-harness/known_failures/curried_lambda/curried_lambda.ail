@@ -1,0 +1,6 @@
+-- #2264: a curried lambda passed to foldl panics in the generated Go.
+module harness/kf/curried_lambda
+
+import std/list (foldl)
+
+export pure func summary() -> string = show(foldl(\acc. \x. acc + x, 0, [1, 2, 3]))

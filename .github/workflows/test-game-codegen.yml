@@ -9,6 +9,9 @@ on:
       - 'internal/parser/**'
       - 'cmd/ailang/compile.go'
       - 'examples/sim_stub/**'
+      - 'std/**'
+      - 'internal/builtins/registry_codegen*.go'
+      - 'tests/codegen-harness/**'
       - '.github/workflows/test-game-codegen.yml'
   pull_request:
     branches: [ main, dev ]
@@ -18,6 +21,9 @@ on:
       - 'internal/parser/**'
       - 'cmd/ailang/compile.go'
       - 'examples/sim_stub/**'
+      - 'std/**'
+      - 'internal/builtins/registry_codegen*.go'
+      - 'tests/codegen-harness/**'
       - '.github/workflows/test-game-codegen.yml'
 
 permissions:
@@ -46,3 +52,8 @@ jobs:
 
       - name: Run sim_stub codegen test
         run: make test-sim-stub
+
+      # Build + evaluator-vs-Go parity + the known-failure list
+      # (tests/codegen-harness/known_failures/known_failures.tsv).
+      - name: Run codegen harness
+        run: make test-codegen

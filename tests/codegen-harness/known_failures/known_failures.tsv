@@ -1,0 +1,18 @@
+# Go-emitter bugs the codegen harness knows about (tests/codegen-harness/run.sh).
+# Each case must still fail, and with this message: a case that starts to pass
+# (or fails differently) fails the harness, so fix the list when an issue is
+# fixed. Columns (tab-separated):
+#   case     directory under known_failures/
+#   mode     build  = `compile --emit-go` (which go-builds) must fail
+#            parity = it builds, and the generated Go's summary() must differ
+#                     from the evaluator's (or panic)
+#   issue    the GitHub issue that tracks the bug
+#   expect   a substring of the failure output
+std_helper_headOr	build	#2259	undefined: HeadOr
+std_helper_zipWith	build	#2259	undefined: ZipWith
+string_length	build	#2261	undefined: utf8
+let_into_helper	build	#2262	is not an interface
+nominal_same_name	build	#2260	undefined: NewTB
+zip_tuples	parity	#2263	[[1, 3], [2, 4]]
+curried_lambda	parity	#2264	interface conversion
+contains_records	parity	#2241	comparing uncomparable type
