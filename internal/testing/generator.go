@@ -172,12 +172,6 @@ func NewPropertyRunner(config GenConfig, testRuns int) *PropertyRunner {
 	}
 }
 
-// GetRNG returns the random number generator for this runner.
-// Useful for custom generators that need direct RNG access.
-func (pr *PropertyRunner) GetRNG() *rand.Rand {
-	return pr.rng
-}
-
 // GetConfig returns the generation configuration.
 func (pr *PropertyRunner) GetConfig() GenConfig {
 	return pr.config

@@ -147,8 +147,3 @@ func (c *Collector) collectInlineTests(decl *ast.FuncDecl) {
 		}
 	}
 }
-
-// GetSuite returns the collected test suite.
-func (c *Collector) GetSuite() *TestSuite {
-	return &c.suite
-}

@@ -21,7 +21,6 @@ type Executor struct {
 	// ModeEval evaluates Core.Decls[0] through link.Resolver, which only gains a
 	// $builtin lookup when the caller supplies a GlobalResolver.
 	globalResolver eval.GlobalResolver
-	enableDebug    bool
 	modules        map[string]*loader.LoadedModule // Cached modules from last pipeline run
 	rootModule     string                          // Key in modules of the module under test (see cacheModules)
 	lastMeta       map[string]*core.DeclMeta       // Cached Core.Meta from last pipeline run (lowered contracts)
@@ -88,7 +87,6 @@ func NewExecutor(modulePath string) *Executor {
 		modulePath:     modulePath,
 		sourceFile:     nil,
 		globalResolver: runtime.NewBuiltinOnlyResolver(builtins),
-		enableDebug:    false,
 		modules:        make(map[string]*loader.LoadedModule),
 		lastMeta:       nil,
 	}
@@ -110,24 +108,6 @@ func (e *Executor) LastDeclMeta(funcName string) *core.DeclMeta {
 // SetSourceFile sets the source file to provide context for test evaluation.
 func (e *Executor) SetSourceFile(file *ast.File) {
 	e.sourceFile = file
-}
-
-// SetDebug enables debug output for test execution.
-func (e *Executor) SetDebug(debug bool) {
-	e.enableDebug = debug
-}
-
-// EvaluateEnsuresHarness evaluates a single iteration of an ensures-clause property test.
-// Returns a *eval.BoolValue: true if the ensures predicate held for the given inputs, false if violated.
-//
-// This is the M-DX26 Phase 5 entry point: it evaluates Core directly, the
-// same way EvaluateInlineTestsWithHarness does for inline tests blocks.
-func (e *Executor) EvaluateEnsuresHarness(binding core.RecBinding, params []EnsuresParam, predicate ast.Expr) (eval.Value, error) {
-	harness, err := BuildEnsuresPropertyHarness(binding, params, predicate)
-	if err != nil {
-		return nil, err
-	}
-	return e.evaluateEnsuresHarnessCore(harness)
 }
 
 // EvaluateEnsuresHarnessFromCore is the lowered-Core variant — accepts a predicate
@@ -640,15 +620,4 @@ func (e *Executor) ExtractPureClusterForFunction(
 	}
 
 	return cluster, coreProg, nil
-}
-
-// HasCrossFunctionDependencies checks if a function has dependencies on other user-defined functions.
-func (e *Executor) HasCrossFunctionDependencies(
-	functionName string,
-	coreProg *core.Program,
-) bool {
-	g := BuildCallGraph(coreProg)
-	sccs := ComputeSCCs(g)
-	closure := GetDependencyClosure(g, sccs, functionName)
-	return len(closure) > 1
 }
