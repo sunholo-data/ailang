@@ -12,6 +12,8 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 107 | 2026-11-12 | idle — inputs byte-identical to iteration 106; all 27 tickets ruling-gated; independent sonnet judge NONE; nothing built or merged [ADMIN] |
+| 106 | 2026-11-11 | idle — inputs byte-identical to iteration 104 (iteration 105's one new ticket resolved); all 27 tickets ruling-gated; independent sonnet judge NONE... |
 | 105 | 2026-11-11 | `tool-hang:pi-evaluator:stall-bound-below-single-test-run` LANDED — #2235 → `956af1ae6`, independent sonnet judge FAIL 68 then PASS 82; ticket reso... |
 | 104 | 2026-11-11 | idle — inputs byte-identical to iteration 103; all 27 tickets ruling-gated; independent sonnet judge NONE after a first-party ticket-to-row re-deri... |
 | 103 | 2026-11-10 | idle — inputs byte-identical to iteration 102; all 27 tickets ruling-gated; independent sonnet judge NONE; nothing built or merged [ADMIN] |
