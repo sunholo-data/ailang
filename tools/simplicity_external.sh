@@ -23,10 +23,11 @@ REPO_SLUG="sunholo-data/ailang"
 SONAR_KEY="sunholo-data_ailang"
 SONAR_API="https://sonarcloud.io/api"
 GH_DEADLINE=90
-# The Cloud Run planes (prod, dev, test) and the identity that can read their
-# request logs. Read-only calls only: `run services list`, `logging read`.
+# The Cloud Run planes (prod, dev, test). Read-only calls only: `run services
+# list`, `logging read`. The identity is gcloud's own: its active account, or
+# CLOUDSDK_CORE_ACCOUNT=<account> to pick one. No address is written here:
+# this file is loop-written surface (make check-no-personal-email).
 GCLOUD_PROJECTS="ailang-multivac ailang-multivac-dev ailang-multivac-test"
-GCLOUD_ACCOUNT="m@sunholo.com"
 # Per-service ceiling on log entries read. A service at the ceiling is reported
 # truncated:true, so a capped count is never mistaken for the whole month.
 SERVICES_LOG_CAP=250000
@@ -206,7 +207,7 @@ probe_github() {
 }
 
 # ---- Cloud Run used-or-not (--services; gcloud; slow) ---------------------
-SERVICES_HOW="Cloud Run services with >=1 2xx request in 30 days, across $GCLOUD_PROJECTS (gcloud logging read, request logs, --account $GCLOUD_ACCOUNT); per-service request classes in .services"
+SERVICES_HOW="Cloud Run services with >=1 2xx request in 30 days, across $GCLOUD_PROJECTS (gcloud logging read, request logs, gcloud active account or CLOUDSDK_CORE_ACCOUNT); per-service request classes in .services"
 
 # stdin: "url<TAB>remoteIp" lines -> "T<TAB>total<TAB>distinct_ips" + "C<TAB>n<TAB>class" lines
 classify_requests() {
@@ -224,7 +225,7 @@ classify_requests() {
 
 probe_services() {
   if [ "$SERVICES" -eq 0 ]; then
-    unmeasured cloud_run_services_used info "$SERVICES_HOW" "not run: pass --services (slow; needs gcloud as $GCLOUD_ACCOUNT)"
+    unmeasured cloud_run_services_used info "$SERVICES_HOW" "not run: pass --services (slow; needs gcloud with read access to the request logs)"
     return
   fi
   if [ "$OFFLINE" -eq 1 ]; then unmeasured cloud_run_services_used info "$SERVICES_HOW" "skipped: --offline"; return; fi
@@ -233,7 +234,7 @@ probe_services() {
   local rows="$TMPD/services.jsonl" errors="" project svc region filter
   : >"$rows"
   for project in $GCLOUD_PROJECTS; do
-    if ! gcloud run services list --project "$project" --account "$GCLOUD_ACCOUNT" --quiet \
+    if ! gcloud run services list --project "$project" --quiet \
          --format='value(metadata.name,metadata.labels."cloud.googleapis.com/location")' \
          >"$TMPD/svcs" 2>"$TMPD/svcs.err"; then
       errors="$errors $project: $(first_err "$TMPD/svcs.err");"
@@ -243,7 +244,7 @@ probe_services() {
       [ -n "$svc" ] || continue
       echo "simplicity_external: services: $project/$svc ..." >&2
       filter="resource.type=\"cloud_run_revision\" AND resource.labels.service_name=\"$svc\" AND logName=\"projects/$project/logs/run.googleapis.com%2Frequests\" AND httpRequest.status>=200 AND httpRequest.status<300"
-      if ! gcloud logging read "$filter" --project "$project" --account "$GCLOUD_ACCOUNT" --quiet \
+      if ! gcloud logging read "$filter" --project "$project" --quiet \
            --freshness=30d --limit "$SERVICES_LOG_CAP" \
            --format='value(httpRequest.requestUrl,httpRequest.remoteIp)' \
            >"$TMPD/log" 2>"$TMPD/log.err" </dev/null; then

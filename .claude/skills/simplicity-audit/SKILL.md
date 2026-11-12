@@ -44,7 +44,7 @@ Added 2026-11-12 so the audit tracks what
 | `prod_loc_core` / `prod_loc_platform` / `prod_loc_platform_pct` | tracked non-test Go under `internal/`, split by the core list **read from** `.claude/rules/architecture.md` | no (informational) |
 | `sonar_gate_passing`, `sonar_{security,reliability,maintainability}_rating` | SonarCloud public API (`api/qualitygates/project_status`, `api/measures/component`); ratings 1=A .. 5=E | no |
 | `codeql_high_open`, `dependabot_open_{critical,high,medium,low}`, `secret_scanning_enabled` | `gh api` code-scanning (CodeQL, high+critical), Dependabot alerts, repo `security_and_analysis` | no |
-| `cloud_run_services_used` | `--services` only: `gcloud logging read` of 30 days of 2xx request logs per Cloud Run service in prod/dev/test, `--account m@sunholo.com`, read-only; per-service request classes (otlp, health, static, `/api/<x>`, `/<x>`) and distinct IPs in `.services` | no |
+| `cloud_run_services_used` | `--services` only: `gcloud logging read` of 30 days of 2xx request logs per Cloud Run service in prod/dev/test, gcloud's active account (or `CLOUDSDK_CORE_ACCOUNT`), read-only; per-service request classes (otlp, health, static, `/api/<x>`, `/<x>`) and distinct IPs in `.services` | no |
 
 The external rows live in `tools/simplicity_external.sh` and are **optional and
 offline-safe**: no network, no `gh` credential, no `gcloud`, or `--offline` records
