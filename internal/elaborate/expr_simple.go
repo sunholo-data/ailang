@@ -35,6 +35,32 @@ func (e *Elaborator) normalizeLiteral(lit *ast.Literal) (core.CoreExpr, error) {
 	}, nil
 }
 
+// recordSignatureAnnots hands a function's parameter and return annotations to
+// the type checker (inferLambda reads them by Lambda NodeID). It is the ONE
+// path for every function form — top-level `func`, module/local `func(...)`
+// literals, `func(x: T) => e` lambdas — so an annotation is a constraint
+// wherever it is written (#2238: inline literals used to drop theirs).
+// A nil ast.Type (an unannotated parameter, or no return type) records nothing
+// for that slot; inferLambda then uses a fresh variable.
+func (e *Elaborator) recordSignatureAnnots(lam *core.Lambda, params []*ast.Param, ret ast.Type) {
+	paramTypes := make([]types.Type, len(params))
+	hasAnnotations := false
+	for i, param := range params {
+		if param.Type != nil {
+			paramTypes[i] = e.astTypeToInternalType(param.Type)
+			hasAnnotations = hasAnnotations || paramTypes[i] != nil
+		}
+	}
+	if hasAnnotations {
+		e.paramTypeAnnots[lam.ID()] = paramTypes
+	}
+	if ret != nil {
+		if returnType := e.astTypeToInternalType(ret); returnType != nil {
+			e.returnTypeAnnots[lam.ID()] = returnType
+		}
+	}
+}
+
 // normalizeLambda handles lambda expressions
 func (e *Elaborator) normalizeLambda(lam *ast.Lambda) (core.CoreExpr, error) {
 	// Extract parameter names
@@ -57,6 +83,8 @@ func (e *Elaborator) normalizeLambda(lam *ast.Lambda) (core.CoreExpr, error) {
 		Params:   params,
 		Body:     body,
 	}
+	// `func(x: int) => e` carries parameter types (no return type).
+	e.recordSignatureAnnots(coreLam, lam.Params, nil)
 
 	// Store effect annotations if present
 	if len(lam.Effects) > 0 {
@@ -78,7 +106,6 @@ func (e *Elaborator) normalizeLambda(lam *ast.Lambda) (core.CoreExpr, error) {
 // normalizeFuncLit handles function literal expressions (func(x) -> T { body })
 // Desugars to Lambda: func(x: int) -> int { x + 1 } ≡ \x. x + 1
 func (e *Elaborator) normalizeFuncLit(funcLit *ast.FuncLit) (core.CoreExpr, error) {
-	// Extract parameter names (type annotations are handled by type checker)
 	params := make([]string, len(funcLit.Params))
 	for i, p := range funcLit.Params {
 		params[i] = p.Name
@@ -98,6 +125,7 @@ func (e *Elaborator) normalizeFuncLit(funcLit *ast.FuncLit) (core.CoreExpr, erro
 		Params:   params,
 		Body:     body,
 	}
+	e.recordSignatureAnnots(coreLam, funcLit.Params, funcLit.ReturnType)
 
 	// Store effect annotations if present
 	if len(funcLit.Effects) > 0 {

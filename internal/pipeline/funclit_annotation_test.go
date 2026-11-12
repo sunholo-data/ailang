@@ -1,0 +1,162 @@
+package pipeline
+
+import (
+	"strings"
+	"testing"
+)
+
+// #2238: the parameter and return annotations of a function literal constrain
+// it exactly as a top-level `func`'s do. Every form that can carry an
+// annotation goes through elaborate.recordSignatureAnnots; each row below pins
+// one form (rejects) or one shape that must keep checking (accepts).
+func TestFuncLitAnnotations_Enforced(t *testing.T) {
+	cases := []struct {
+		name    string
+		src     string
+		wantErr string // "" = must check
+	}{
+		// --- rejected: the annotation is the only thing that can catch these ---
+		{
+			name: "issue_repro_param", // body ignores x, so only the annotation constrains it
+			src: `module m
+export func main() -> () ! {IO} {
+  let f = func(x: int) -> int { 0 };
+  println(show(f("str")))
+}`,
+			wantErr: "int vs string",
+		},
+		{
+			name: "return_annotation",
+			src: `module m
+export func main() -> () ! {IO} {
+  let f = func(x: int) -> int { "s" };
+  println(f(1))
+}`,
+			wantErr: "return type annotation",
+		},
+		{
+			name: "fat_arrow_lambda_param", // func(x: T) => e
+			src: `module m
+export func main() -> () ! {IO} {
+  let f = func(x: int) => 0;
+  println(show(f("str")))
+}`,
+			wantErr: "int vs string",
+		},
+		{
+			name: "module_level_let_literal",
+			src: `module m
+let g = func(x: int) -> int { 0 }
+export func main() -> () ! {IO} = println(show(g("str")))`,
+			wantErr: "int vs string",
+		},
+		{
+			name: "letrec_literal",
+			src: `module m
+export func main() -> () ! {IO} {
+  letrec f = func(x: int) -> int { 0 };
+  println(show(f("str")))
+}`,
+			wantErr: "int vs string",
+		},
+		{
+			name: "literal_as_callback_argument",
+			src: `module m
+import std/list (map)
+export func main() -> () ! {IO} =
+  println(show(map(func(x: int) -> int { 0 }, ["a", "b"])))`,
+			wantErr: "function application of map",
+		},
+		// --- controls: top-level and let-annotation paths were already enforced ---
+		{
+			name: "control_top_level_func",
+			src: `module m
+func top(x: int) -> int = 0
+export func main() -> () ! {IO} = println(show(top("str")))`,
+			wantErr: "int vs string",
+		},
+		{
+			name: "control_let_type_annotation",
+			src: `module m
+export func main() -> () ! {IO} {
+  let f: int -> int = \x. 0;
+  println(show(f("str")))
+}`,
+			wantErr: "int vs string",
+		},
+		// --- accepted: correct programs that must keep checking ---
+		{
+			name: "foldl_callback",
+			src: `module m
+import std/list (foldl)
+export func main() -> () ! {IO} = println(show(foldl(func(acc: int, x: int) -> int { acc + x }, 0, [1, 2, 3])))`,
+		},
+		{
+			name: "let_polymorphic_annotated_literal",
+			src: `module m
+export func main() -> () ! {IO} {
+  let id = func(x: a) -> a { x };
+  println("${show(id(1))}${id("s")}")
+}`,
+		},
+		{
+			name: "enclosing_type_param",
+			src: `module m
+import std/list (map)
+pure func keep[a](xs: [a]) -> [a] = map(func(x: a) -> a { x }, xs)
+export func main() -> () ! {IO} = println(show(keep([1, 2])))`,
+		},
+		{
+			name: "effectful_callback_param",
+			src: `module m
+export func main() -> () ! {IO} {
+  let run = func(g: (int) -> () ! {IO}) -> () ! {IO} { g(1) };
+  run(\n. println(show(n)))
+}`,
+		},
+		{
+			name: "adt_record_list_and_open_record_params",
+			src: `module m
+type P = { name: string, age: int }
+export func main() -> () ! {IO} {
+  let f = func(o: Option[int], p: P, xs: [int]) -> int { match o { Some(n) => n + p.age, None => 0 } };
+  let nm = func(r: { name: string | rest }) -> string { r.name };
+  println(show(f(Some(1), { name: "a", age: 2 }, [1])));
+  println(nm({ name: "z", k: 1 }))
+}`,
+		},
+		{
+			name: "recursive_literal",
+			src: `module m
+export func main() -> () ! {IO} {
+  letrec fact = func(n: int) -> int { if n <= 1 then 1 else n * fact(n - 1) };
+  println(show(fact(5)))
+}`,
+		},
+		{
+			name: "unannotated_param_stays_inferred",
+			src: `module m
+export func main() -> () ! {IO} {
+  let f = func(x) -> int { 0 };
+  println(show(f("str")))
+}`,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := checkSource(t, "m", tc.src)
+			if tc.wantErr == "" {
+				if err != nil {
+					t.Fatalf("expected the program to check, got: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("expected a type error containing %q, program checked", tc.wantErr)
+			}
+			if !strings.Contains(err.Error(), tc.wantErr) {
+				t.Fatalf("expected error containing %q, got: %v", tc.wantErr, err)
+			}
+		})
+	}
+}
