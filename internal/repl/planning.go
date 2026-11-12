@@ -2,7 +2,6 @@
 package repl
 
 import (
-	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -169,101 +168,4 @@ func ParseScaffoldCommand(input string) (planFile, outputDir string, overwrite b
 	}
 
 	return planFile, outputDir, overwrite, nil
-}
-
-// PrintPlanHelp prints help text for planning commands
-func PrintPlanHelp() {
-	fmt.Println("Planning Commands:")
-	fmt.Println("  :propose <plan.json>")
-	fmt.Println("      Validate an architecture plan before coding")
-	fmt.Println()
-	fmt.Println("  :scaffold --from-plan <plan.json> [--output <dir>] [--overwrite]")
-	fmt.Println("      Generate module stubs from a validated plan")
-	fmt.Println("      Options:")
-	fmt.Println("        --output <dir>   Output directory (default: ./generated)")
-	fmt.Println("        --overwrite      Overwrite existing files")
-	fmt.Println()
-	fmt.Println("Example plan structure:")
-	fmt.Println(`{
-  "schema": "ailang.plan/v1",
-  "goal": "Build a REST API",
-  "modules": [{
-    "path": "api/core",
-    "exports": ["handleRequest"],
-    "imports": ["std/io"]
-  }],
-  "types": [{
-    "name": "Request",
-    "kind": "record",
-    "definition": "{url: string, method: string}",
-    "module": "api/core"
-  }],
-  "functions": [{
-    "name": "handleRequest",
-    "type": "(Request) -> () ! {IO}",
-    "effects": ["IO"],
-    "module": "api/core"
-  }],
-  "effects": ["IO"]
-}`)
-	fmt.Println()
-}
-
-// CreateExamplePlan creates an example plan and returns it as JSON
-func CreateExamplePlan() (string, error) {
-	plan := schema.NewPlan("Example REST API")
-	plan.AddModule("api/core", []string{"handleRequest"}, []string{"std/io"})
-	plan.AddType("Request", "record", "{url: string, method: string}", "api/core")
-	plan.AddFunction("handleRequest", "(Request) -> () ! {IO}", "api/core", []string{"IO"})
-	plan.AddEffect("IO")
-
-	data, err := plan.ToJSON()
-	if err != nil {
-		return "", err
-	}
-
-	return string(data), nil
-}
-
-// SaveExamplePlan saves an example plan to a file
-func SaveExamplePlan(filename string) error {
-	planJSON, err := CreateExamplePlan()
-	if err != nil {
-		return fmt.Errorf("failed to create example plan: %w", err)
-	}
-
-	if err := os.WriteFile(filename, []byte(planJSON), 0644); err != nil {
-		return fmt.Errorf("failed to write plan file: %w", err)
-	}
-
-	fmt.Printf("✅ Example plan saved to: %s\n", filename)
-	return nil
-}
-
-// ValidatePlanJSON validates raw JSON against the plan schema
-func ValidatePlanJSON(jsonData []byte) error {
-	var raw map[string]interface{}
-	if err := json.Unmarshal(jsonData, &raw); err != nil {
-		return fmt.Errorf("invalid JSON: %w", err)
-	}
-
-	// Check schema field
-	schemaField, ok := raw["schema"].(string)
-	if !ok {
-		return fmt.Errorf("missing or invalid 'schema' field")
-	}
-
-	if schemaField != schema.PlanV1 {
-		return fmt.Errorf("invalid schema version: %s (expected %s)", schemaField, schema.PlanV1)
-	}
-
-	// Check required fields
-	requiredFields := []string{"goal", "modules", "types", "functions"}
-	for _, field := range requiredFields {
-		if _, ok := raw[field]; !ok {
-			return fmt.Errorf("missing required field: %s", field)
-		}
-	}
-
-	return nil
 }
