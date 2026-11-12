@@ -96,7 +96,7 @@ var inheritPrefixes = []string{
 
 // credentialSegments mark a name as a credential when any "_"-separated
 // segment equals one of them (so MAX_OUTPUT_TOKENS is not a token, but
-// GITHUB_TOKEN and AILANG_KMS_KEY are).
+// GITHUB_TOKEN and AILANG_REGISTRY_API_KEY are).
 var credentialSegments = toSet(
 	"KEY", "TOKEN", "SECRET", "SECRETS", "PASSWORD", "PASSWD", "PASS", "CREDENTIAL",
 	"CREDENTIALS", "APIKEY", "PAT", "DSN", "WEBHOOK", "COOKIE", "PRIVATE",
@@ -181,8 +181,9 @@ func executorCredentialGrants(executorName, model string) []string {
 	case envExecClaude:
 		// OAuth lanes authenticate from ~/.claude/.credentials.json, written by
 		// the parent; CLAUDE_CODE_OAUTH_TOKEN never reaches the child (the
-		// env var also crashes Claude Code). The metered key only under
-		// AILANG_AUTH_MODE=apikey, where the parent has KMS-decrypted it.
+		// env var also crashes Claude Code). The key only under
+		// AILANG_AUTH_MODE=apikey: the guarded credit lane, where it is the
+		// task-scoped gateway capability the dispatcher injected.
 		if config.AuthMode() == "apikey" {
 			return []string{config.EnvAnthropicAPIKey}
 		}
