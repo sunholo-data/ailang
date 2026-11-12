@@ -25,7 +25,7 @@ require (
 	github.com/peterh/liner v1.2.3
 	github.com/petermattis/goid v0.0.0-20260330135022-df67b199bc81
 	github.com/stretchr/testify v1.12.1
-	github.com/tphakala/simd v1.15.0
+	github.com/tphakala/simd v1.16.0
 	go.lsp.dev/jsonrpc2 v0.10.0
 	go.lsp.dev/protocol v0.12.0
 	go.lsp.dev/uri v0.3.0
