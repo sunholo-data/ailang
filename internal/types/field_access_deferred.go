@@ -118,7 +118,7 @@ func (ctx *InferenceContext) retryFieldAccesses(sub Substitution, pending []*fie
 // When ctx.settleFieldAccesses is set, accesses still undecided at the
 // fixpoint are settled as record accesses (permanently) and solving
 // continues. The accesses left open are recorded in ctx.pendingAccesses for
-// let-generalisation (attachFieldAccesses).
+// let-generalisation (withFieldAccesses).
 func (ctx *InferenceContext) solveDeferred(sub Substitution, pending []*fieldAccess) (Substitution, error) {
 	for {
 		var err error
@@ -143,16 +143,17 @@ func (ctx *InferenceContext) solveDeferred(sub Substitution, pending []*fieldAcc
 	return sub, nil
 }
 
-// attachFieldAccesses records in scheme (a let's generalised type, solved
+// withFieldAccesses records in scheme (a let's generalised type, solved
 // under sub) every access still undecided whose receiver or field type
 // mentions a variable the scheme quantifies: each use of the binding
 // instantiates it afresh (Scheme.instantiate), and the use decides it. The
 // original stays in the constraint list over the scheme's own variables, so
 // the binding's body is typed as before (settled as a record at the
 // declaration if nothing decides it).
-func (ctx *InferenceContext) attachFieldAccesses(scheme *Scheme, sub Substitution) {
+// It returns scheme, so a generalisation site wraps its call in it.
+func (ctx *InferenceContext) withFieldAccesses(scheme *Scheme, sub Substitution) *Scheme {
 	if scheme == nil || len(ctx.pendingAccesses) == 0 || len(scheme.TypeVars)+len(scheme.RowVars) == 0 {
-		return
+		return scheme
 	}
 	quantified := make(map[string]bool, len(scheme.TypeVars)+len(scheme.RowVars))
 	for _, v := range scheme.TypeVars {
@@ -172,6 +173,7 @@ func (ctx *InferenceContext) attachFieldAccesses(scheme *Scheme, sub Substitutio
 			})
 		}
 	}
+	return scheme
 }
 
 // instantiateFieldAccesses returns the scheme's field accesses under subs.
@@ -193,16 +195,17 @@ func (s *Scheme) instantiateFieldAccesses(subs map[string]Type, use []string) []
 	return out
 }
 
-// settleFieldAccessesAt marks binder's solve as a settling one when binder is
-// the declaration being checked: its scheme is exported as is, so no access
-// may stay undecided there.
-func (ctx *InferenceContext) settleFieldAccessesAt(binder core.CoreExpr) func() {
+// solveConstraintsAt is SolveConstraints at the generalisation of binder. When
+// binder is the declaration being checked, the solve settles every undecided
+// access: its scheme is exported as is, so none may stay undecided there.
+func (ctx *InferenceContext) solveConstraintsAt(binder core.CoreExpr) (Substitution, []ClassConstraint, error) {
 	if ctx.declRoot == nil || binder != ctx.declRoot {
-		return func() {}
+		return ctx.SolveConstraints()
 	}
 	prev := ctx.settleFieldAccesses
 	ctx.settleFieldAccesses = true
-	return func() { ctx.settleFieldAccesses = prev }
+	defer func() { ctx.settleFieldAccesses = prev }()
+	return ctx.SolveConstraints()
 }
 
 // newtypeBody returns the record a newtype-record ADT wraps.
