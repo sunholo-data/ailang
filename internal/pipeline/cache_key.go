@@ -66,7 +66,12 @@ import (
 // which passed with such a match — must miss, or `check` would pass it warm
 // and fail it cold. Modules also carry a fifth artifact, match_warnings.json
 // (TC_MATCH_003, replayed on a hit).
-const cacheKeyVersion = "v13"
+// v13 -> v14 (#2247): a class constraint on an applied type with a free
+// variable (Num[Box[α]], Ord[[a]]) is now resolved against the instances
+// instead of dropped, so a module that used to check can be rejected. A cache
+// hit skips type checking, so an entry written by an earlier compiler must
+// miss, or `check` would pass the module warm and fail it cold.
+const cacheKeyVersion = "v14"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:

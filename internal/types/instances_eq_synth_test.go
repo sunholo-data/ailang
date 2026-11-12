@@ -141,7 +141,7 @@ func TestReduceEqConstraints(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			out, err := env.ReduceEqConstraints([]ClassConstraint{{Class: "Eq", Type: c.typ, Path: []string{"here"}}})
+			out, err := env.ReduceConstraints([]ClassConstraint{{Class: "Eq", Type: c.typ, Path: []string{"here"}}})
 			if !c.ok {
 				if err == nil {
 					t.Fatalf("Eq[%s] must be rejected, reduced to %v", c.typ, out)
@@ -181,7 +181,7 @@ func TestReduceEqConstraintsDepthCap(t *testing.T) {
 	for i := 0; i < eqSynthDepthCap+1; i++ {
 		deep = &TList{Element: deep}
 	}
-	_, err := env.ReduceEqConstraints([]ClassConstraint{{Class: "Eq", Type: deep, Path: []string{"here"}}})
+	_, err := env.ReduceConstraints([]ClassConstraint{{Class: "Eq", Type: deep, Path: []string{"here"}}})
 	if err == nil || !strings.Contains(err.Error(), "E_EQ_SYNTH_DEPTH") {
 		t.Fatalf("depth %d residual Eq: want E_EQ_SYNTH_DEPTH, got %v", eqSynthDepthCap+1, err)
 	}
