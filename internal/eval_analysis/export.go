@@ -18,11 +18,6 @@ const (
 	FormatCSV      ExportFormat = "csv"
 )
 
-// GenerateReport creates a comprehensive evaluation report
-func GenerateReport(matrix *PerformanceMatrix, history []*Baseline) string {
-	return ExportMarkdown(matrix, history)
-}
-
 // ExportMarkdown generates a GitHub-flavored markdown report
 func ExportMarkdown(matrix *PerformanceMatrix, history []*Baseline) string {
 	var sb strings.Builder

@@ -170,38 +170,6 @@ type RetryConfig struct {
 	BaseDelay  time.Duration
 }
 
-// GenerateWithRetry generates code with retry logic
-func (a *AIAgent) GenerateWithRetry(ctx context.Context, prompt string, cfg RetryConfig) (*GenerateResult, error) {
-	var lastErr error
-	delay := cfg.BaseDelay
-
-	for attempt := 0; attempt <= cfg.MaxRetries; attempt++ {
-		if attempt > 0 {
-			// Wait with exponential backoff
-			select {
-			case <-time.After(delay):
-			case <-ctx.Done():
-				return nil, ctx.Err()
-			}
-			delay *= 2
-		}
-
-		result, err := a.GenerateCode(ctx, prompt)
-		if err == nil {
-			return result, nil
-		}
-
-		lastErr = err
-
-		// Check if error is retryable
-		if !isRetryableError(err) {
-			return nil, err
-		}
-	}
-
-	return nil, fmt.Errorf("max retries exceeded: %w", lastErr)
-}
-
 // isRetryableError is the retry predicate: ai.ShouldRetry, the one classifier
 // (M-V1-SIMPLIFY-S3 M4), which refuses quota exhaustion — it ARRIVES AS A 429
 // but an Ollama Cloud session limit does not clear until the 5-hour window
@@ -211,33 +179,6 @@ func (a *AIAgent) GenerateWithRetry(ctx context.Context, prompt string, cfg Retr
 // that ShouldRetry consults, so the two cannot disagree about one error.
 func isRetryableError(err error) bool {
 	return err != nil && ai.ShouldRetry(err)
-}
-
-// MockAIAgent is a mock implementation for testing
-type MockAIAgent struct {
-	model string
-	code  string
-}
-
-// NewMockAIAgent creates a mock AI agent
-func NewMockAIAgent(model, code string) *MockAIAgent {
-	return &MockAIAgent{
-		model: model,
-		code:  code,
-	}
-}
-
-// GenerateCode returns the pre-configured mock code
-func (m *MockAIAgent) GenerateCode(ctx context.Context, prompt string) (*GenerateResult, error) {
-	outputTokens := len(m.code) / 4 // Rough estimate: ~4 chars per token
-	inputTokens := len(prompt) / 4  // Rough estimate: ~4 chars per token
-	return &GenerateResult{
-		Code:         m.code,
-		InputTokens:  inputTokens,
-		OutputTokens: outputTokens,
-		TotalTokens:  inputTokens + outputTokens,
-		Model:        m.model,
-	}, nil
 }
 
 // SetCorrelation attaches OpenRouter Broadcast correlation identifiers so the

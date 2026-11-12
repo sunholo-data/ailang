@@ -104,23 +104,3 @@ func RecalculateTaskAggregates(ctx context.Context, db *sql.DB, taskID string) e
 	}
 	return nil
 }
-
-// RecalculateAgentAssignmentAggregates recalculates all aggregate metrics for an agent assignment.
-// Use this for backfill operations or to fix inconsistent aggregates.
-// Deprecated: Use Store.RecalculateAgentAssignmentAggregates instead for encapsulation.
-func RecalculateAgentAssignmentAggregates(ctx context.Context, db *sql.DB, assignmentID string) error {
-	_, err := db.ExecContext(ctx, `
-		UPDATE agent_assignments SET
-			duration_ms = COALESCE((SELECT SUM(duration_ms) FROM spans WHERE agent_assignment_id = ?), 0),
-			tokens_in = COALESCE((SELECT SUM(tokens_in) FROM spans WHERE agent_assignment_id = ?), 0),
-			tokens_out = COALESCE((SELECT SUM(tokens_out) FROM spans WHERE agent_assignment_id = ?), 0),
-			cost_usd = COALESCE((SELECT SUM(cost_usd) FROM spans WHERE agent_assignment_id = ?), 0),
-			tool_calls = COALESCE((SELECT COUNT(*) FROM spans WHERE agent_assignment_id = ? AND name LIKE '%tool.%'), 0)
-		WHERE id = ?
-	`, assignmentID, assignmentID, assignmentID, assignmentID, assignmentID, assignmentID)
-
-	if err != nil {
-		return fmt.Errorf("recalculate agent assignment aggregates: %w", err)
-	}
-	return nil
-}

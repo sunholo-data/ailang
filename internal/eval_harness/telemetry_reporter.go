@@ -59,62 +59,10 @@ func NewTelemetryReporter(serverURL, instanceID string) *TelemetryReporter {
 	}
 }
 
-// IsEnabled returns whether telemetry reporting is enabled
-func (t *TelemetryReporter) IsEnabled() bool {
-	return t.enabled
-}
-
-// IncrementTurn increments the turn counter and sends an update
-func (t *TelemetryReporter) IncrementTurn() {
-	t.mu.Lock()
-	t.turns++
-	t.mu.Unlock()
-	t.sendUpdate()
-}
-
-// SetUsage sets the token usage and cost
-func (t *TelemetryReporter) SetUsage(tokensIn, tokensOut int, cost float64) {
-	t.mu.Lock()
-	t.tokensIn = tokensIn
-	t.tokensOut = tokensOut
-	t.cost = cost
-	t.mu.Unlock()
-	t.sendUpdate()
-}
-
-// AddUsage adds to the token usage and cost (for cumulative updates)
-func (t *TelemetryReporter) AddUsage(tokensIn, tokensOut int, cost float64) {
-	t.mu.Lock()
-	t.tokensIn += tokensIn
-	t.tokensOut += tokensOut
-	t.cost += cost
-	t.mu.Unlock()
-	t.sendUpdate()
-}
-
 // SetStatus sets the process status (running, completed, error)
 func (t *TelemetryReporter) SetStatus(status string) {
 	t.mu.Lock()
 	t.status = status
-	t.mu.Unlock()
-	t.sendUpdate()
-}
-
-// Complete marks the session as complete with final metrics
-func (t *TelemetryReporter) Complete(tokensIn, tokensOut int, cost float64) {
-	t.mu.Lock()
-	t.tokensIn = tokensIn
-	t.tokensOut = tokensOut
-	t.cost = cost
-	t.status = "completed"
-	t.mu.Unlock()
-	t.sendUpdate()
-}
-
-// Error marks the session as failed
-func (t *TelemetryReporter) Error() {
-	t.mu.Lock()
-	t.status = "error"
 	t.mu.Unlock()
 	t.sendUpdate()
 }

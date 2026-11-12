@@ -3,8 +3,6 @@ package messaging
 import (
 	"errors"
 	"fmt"
-	"os"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -236,94 +234,4 @@ func ValidateGitHubConfig(config *GitHubConfig) error {
 	}
 
 	return nil
-}
-
-// EnsureConfigDir creates the ~/.ailang directory if it doesn't exist
-func EnsureConfigDir() error {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return fmt.Errorf("failed to get home directory: %w", err)
-	}
-
-	configDir := filepath.Join(homeDir, ".ailang")
-	if err := os.MkdirAll(configDir, 0755); err != nil {
-		return fmt.Errorf("failed to create config directory: %w", err)
-	}
-
-	return nil
-}
-
-// WriteExampleConfig writes an example config file if none exists
-// Returns true if the file was created, false if it already exists
-func WriteExampleConfig() (bool, error) {
-	configPath := GetConfigPath()
-	if configPath == "" {
-		return false, fmt.Errorf("failed to determine config path")
-	}
-
-	// Check if config already exists
-	if _, err := os.Stat(configPath); err == nil {
-		return false, nil // Already exists
-	}
-
-	if err := EnsureConfigDir(); err != nil {
-		return false, err
-	}
-
-	exampleConfig := `# AILANG Configuration
-# See: https://ailang.sunholo.com/docs/guides/configuration
-
-github:
-  # Default repository for --github flag
-  default_repo: sunholo-data/ailang
-
-  # REQUIRED: Expected GitHub username (must match 'gh auth status')
-  # This prevents accidentally creating issues under wrong account
-  expected_user: YOUR_GITHUB_USERNAME
-
-  # Labels to add when creating issues
-  create_labels:
-    - ailang-message
-    - from-agent
-
-  # Labels to watch for incoming messages
-  watch_labels:
-    - ailang-message
-    - needs-agent-response
-
-  # Auto-import GitHub issues on session start (default: true)
-  auto_import: true
-
-# Embedding configuration for semantic search
-embeddings:
-  # Provider: "ollama" (local) or "none" (SimHash only)
-  provider: ollama
-
-  # Ollama settings (requires 'ollama serve' running)
-  ollama:
-    # Model name - see 'ollama list' for available models
-    # Recommended: nomic-embed-text (fast), embeddinggemma (quality)
-    model: nomic-embed-text
-
-    # Ollama API endpoint (default: localhost)
-    endpoint: http://localhost:11434
-
-    # Request timeout
-    timeout: 30s
-
-  # Search behavior
-  search:
-    # Default mode: "simhash" (fast, local) or "neural" (semantic)
-    default_mode: simhash
-
-    # Similarity thresholds (0.0-1.0)
-    simhash_threshold: 0.70
-    neural_threshold: 0.75
-`
-
-	if err := os.WriteFile(configPath, []byte(exampleConfig), 0644); err != nil {
-		return false, fmt.Errorf("failed to write config file: %w", err)
-	}
-
-	return true, nil
 }

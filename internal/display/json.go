@@ -76,22 +76,3 @@ func IsJSON(s string) bool {
 	return (s[0] == '{' && s[len(s)-1] == '}') ||
 		(s[0] == '[' && s[len(s)-1] == ']')
 }
-
-// FormatJSONKeyValue formats a JSON object's key-value pairs for display.
-// Each key-value pair is formatted on its own line with truncation.
-func FormatJSONKeyValue(data string, maxValueLen int) string {
-	var parsed map[string]interface{}
-	if err := json.Unmarshal([]byte(data), &parsed); err != nil {
-		return strutil.Truncate(data, maxValueLen*3) // Fallback for invalid JSON
-	}
-
-	var sb strings.Builder
-	for key, val := range parsed {
-		valStr := FormatJSONValue(val, maxValueLen)
-		sb.WriteString(key)
-		sb.WriteString(": ")
-		sb.WriteString(valStr)
-		sb.WriteString("\n")
-	}
-	return strings.TrimRight(sb.String(), "\n")
-}

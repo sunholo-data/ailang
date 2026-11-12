@@ -4,8 +4,6 @@ package display
 
 import (
 	"strings"
-
-	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // WrapText wraps text at the specified width, preserving existing newlines.
@@ -58,41 +56,6 @@ func TruncateID(id string, length ...int) string {
 		return id
 	}
 	return id[:maxLen] + "..."
-}
-
-// TruncateFirstLine returns the first line of text, truncated to maxLen.
-// Useful for prompts and multi-line strings.
-func TruncateFirstLine(text string, maxLen int) string {
-	lines := strings.Split(text, "\n")
-	firstLine := strings.TrimSpace(lines[0])
-	return strutil.Truncate(firstLine, maxLen)
-}
-
-// TruncateOutput truncates output text and trims whitespace.
-// Convenience function for tool outputs and results.
-func TruncateOutput(output string, maxLen int) string {
-	output = strings.TrimSpace(output)
-	return strutil.Truncate(output, maxLen)
-}
-
-// WordWrapIndent wraps text at width and adds a prefix indent to each line.
-func WordWrapIndent(text string, width int, indent string) string {
-	wrapped := WrapText(text, width-len(indent))
-	lines := strings.Split(wrapped, "\n")
-	var result strings.Builder
-	for i, line := range lines {
-		if i > 0 {
-			result.WriteString("\n")
-		}
-		result.WriteString(indent)
-		result.WriteString(line)
-	}
-	return result.String()
-}
-
-// SanitizeNewlines replaces newlines with spaces for single-line display.
-func SanitizeNewlines(s string) string {
-	return strings.ReplaceAll(strings.ReplaceAll(s, "\r\n", " "), "\n", " ")
 }
 
 // TruncateMiddle truncates a string by removing the middle portion.

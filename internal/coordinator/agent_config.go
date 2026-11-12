@@ -233,19 +233,6 @@ func LoadBudgetsConfig() (*BudgetsConfig, error) {
 	return applyBudgetDefaults(budgets), nil
 }
 
-// LoadBudgetsConfigFrom is LoadBudgetsConfig for an explicit path.
-func LoadBudgetsConfigFrom(configPath string) (*BudgetsConfig, error) {
-	budgets := &BudgetsConfig{}
-	present, err := loadSectionFrom(configPath, "budgets", budgets)
-	if err != nil {
-		return nil, err
-	}
-	if !present {
-		return DefaultBudgetsConfig(), nil
-	}
-	return applyBudgetDefaults(budgets), nil
-}
-
 func applyBudgetDefaults(budgets *BudgetsConfig) *BudgetsConfig {
 	if budgets.Global == nil {
 		budgets.Global = DefaultBudgetsConfig().Global
@@ -462,97 +449,6 @@ func LoadAgentRegistryFromDeclared(configPath string) (*AgentRegistry, bool, err
 	}
 	reg, err := buildRegistryFromConfig(cfg)
 	return reg, declared, err
-}
-
-// SampleAgentConfig returns a sample configuration string for documentation.
-func SampleAgentConfig() string {
-	return `# Coordinator agent configuration
-# Place in ~/.ailang/config.yaml
-
-coordinator:
-  default_provider: claude  # Default AI provider for agents
-
-  agents:
-    - id: coordinator
-      label: "Main Coordinator"
-      inbox: coordinator
-      workspace: /path/to/main/project
-      capabilities: [code, test, docs, research]
-      provider: claude
-      session_continuity: true
-      max_concurrent_tasks: 1
-
-    - id: sprint-planner
-      label: "Sprint Planner"
-      inbox: sprint-planner
-      workspace: /path/to/main/project
-      capabilities: [research, docs]
-      provider: claude
-      trigger_on_complete: [sprint-executor]
-      auto_approve_handoffs: false  # Require approval for handoffs
-      session_continuity: true
-
-    - id: sprint-executor
-      label: "Sprint Executor"
-      inbox: sprint-executor
-      workspace: /path/to/main/project
-      capabilities: [code, test]
-      provider: claude
-      trigger_on_complete: [sprint-evaluator]  # Evaluator judges implementation quality
-      auto_merge: false  # Require approval before merge
-      session_continuity: true
-
-    - id: sprint-evaluator
-      label: "Sprint Evaluator"
-      inbox: sprint-evaluator
-      workspace: /path/to/main/project
-      capabilities: [review, test, docs]
-      provider: claude
-      trigger_on_complete: []  # End of chain on pass
-      auto_merge: false
-      session_continuity: false  # Stateless per evaluation round
-
-    # Script agent for deterministic workflows (v0.6.4+)
-    # Runs shell scripts instead of AI - useful for evals, deploys, syncs
-    - id: eval-runner
-      label: "Eval Runner"
-      inbox: eval-runner
-      workspace: /path/to/main/project
-      invoke:
-        type: script                    # Run script, not AI
-        command: ./scripts/run-eval.sh  # Script to execute
-        env_from_payload: true          # JSON payload becomes env vars
-        timeout: 2h                     # Long timeout for evals
-      output_markers: ["EVAL_RESULT:", "PASS_RATE:"]
-      trigger_on_complete: []           # End of pipeline
-
-  # GitHub sync - single repo (legacy)
-  github_sync:
-    enabled: true
-    interval_secs: 300  # Check every 5 minutes
-    watch_labels: [from:external, bug, feature]
-    target_inbox: coordinator
-
-  # GitHub sync - multi-repo (v0.6.6+)
-  # github_sync:
-  #   repos:
-  #     - repo: sunholo-data/ailang
-  #       enabled: true
-  #       interval_secs: 300
-  #       target_inbox: design-doc-creator
-  #       label_routing:
-  #         - label_prefix: "coordinator:bug"
-  #           target: design-doc-creator
-  #         - label_prefix: "coordinator:docs"
-  #           target: coordinator
-  #     - repo: sunholo-data/stapledons_voyage
-  #       enabled: true
-  #       interval_secs: 300
-  #       target_inbox: stapledon-design-doc
-  #       label_routing:
-  #         - label_prefix: "feature"
-  #           target: stapledon-design-doc
-`
 }
 
 // UnknownConfigKeys returns config keys that no struct field reads.

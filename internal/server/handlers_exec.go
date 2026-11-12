@@ -158,8 +158,3 @@ func (s *Server) handleExecEvents(w http.ResponseWriter, r *http.Request) {
 type ExecEventStorer interface {
 	StoreTaskEvent(ctx context.Context, event *coordinator.TaskEventRecord) error
 }
-
-// GetExecEventStorer returns the event storer for external use
-func (s *Server) GetExecEventStorer() ExecEventStorer {
-	return s.coordStoreRaw
-}
