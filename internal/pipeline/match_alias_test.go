@@ -81,6 +81,39 @@ func TestMatchOnADTAliasStillChecked(t *testing.T) {
 			t.Fatalf("got %v %v", errs, err)
 		}
 	})
+	t.Run("re-exported alias, constructors matched by name", func(t *testing.T) {
+		// lib/b re-exports lib/color's Color as Hue: main loads Color's
+		// constructors only transitively, so the elaborator stamps none of
+		// them and the check resolves them through the alias (review p32).
+		files := map[string]string{
+			"lib/color.ail": "module lib/color\n\nexport type Color = Red | Green | Blue\n",
+			"lib/b.ail":     "module lib/b\n\nimport lib/color (Color)\n\nexport type Hue = Color\n",
+		}
+		files["main.ail"] = "module main\n\nimport lib/b (Hue)\n\nexport pure func code(h: Hue) -> int = match h {\n  Red => 1,\n  Green => 2,\n  Blue => 3\n}\n"
+		if errs, _, err := checkMatchModules(t, files, "main.ail"); err != nil {
+			t.Fatalf("exhaustive: %v %v", errs, err)
+		}
+		files["main.ail"] = "module main\n\nimport lib/b (Hue)\n\nexport pure func code(h: Hue) -> int = match h {\n  Red => 1,\n  Blue => 3\n}\n"
+		errs, _, err := checkMatchModules(t, files, "main.ail")
+		if len(errs) != 1 || errs[0].Message != "non-exhaustive match on Hue (= Color) — no arm matches: Green" {
+			t.Fatalf("missing arm: %v %v", errs, err)
+		}
+	})
+	t.Run("constructor two imports offer, chosen through an alias", func(t *testing.T) {
+		// Importing the types brings in their constructors, so Red comes from
+		// lib/a and lib/b; the scrutinee's type, an alias of lib/a's Color,
+		// decides (ambiguous_ctor.go choiceHead).
+		files := map[string]string{
+			"lib/a.ail": "module lib/a\n\nexport type Color = Green | Red | Blue\nexport type Hue = Color\n",
+			"lib/b.ail": "module lib/b\n\nexport type Mood = Red | Calm\n",
+			"main.ail": "module main\n\nimport lib/a (Color, Hue)\nimport lib/b (Mood)\n\n" +
+				"export pure func code(h: Hue) -> int = match h {\n  Red => 1,\n  Green => 2,\n  Blue => 3\n}\n\n" +
+				"export pure func mood(m: Mood) -> int = match m {\n  Red => 1,\n  Calm => 2\n}\n",
+		}
+		if errs, _, err := checkMatchModules(t, files, "main.ail"); err != nil {
+			t.Fatalf("rejected: %v %v", errs, err)
+		}
+	})
 	t.Run("foreign constructor on an alias", func(t *testing.T) {
 		_, _, err := checkMatchModules(t, map[string]string{"main.ail": "module main\n\nimport std/option (Option, Some, None)\n\n" + local +
 			"export pure func code(h: Hue) -> int = match h {\n  Red => 1,\n  Some(_) => 2,\n  _ => 3\n}\n"}, "main.ail")

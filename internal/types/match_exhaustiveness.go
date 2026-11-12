@@ -436,6 +436,7 @@ func (v *matchVerifier) pattern(p core.CorePattern) (exhaust.Pattern, error) {
 		if err != nil {
 			return nil, err
 		}
+		v.stamp(p, key)
 		args, err := v.patterns(p.Args)
 		if err != nil {
 			return nil, err
@@ -531,6 +532,24 @@ func (v *matchVerifier) ctorUniverse(p *core.ConstructorPattern) (string, []exha
 	}
 	_, name := SplitNominalKey(cands[0])
 	return "", nil, fmt.Errorf("%w: constructor %s is not a known constructor of %s", errUndecidable, p.Name, name)
+}
+
+// stamp records on a constructor matched by name (#323) the ADT this check
+// resolved it to from the type the checker matched it against — the nominal
+// head after alias expansion (#2244). The back ends dispatch on the stamp, so
+// none of them has to resolve a type name, an alias above all, on its own:
+// before the stamp, the VM and the Go emitter dispatched on the scrutinee's
+// written type (`Hue`), which declares no tags, and a nested by-name pattern
+// carried no type at all, so the VM took the first loaded ADT declaring the
+// tag. A pattern the checker never saw keeps no stamp: its ADT is a guess.
+func (v *matchVerifier) stamp(p *core.ConstructorPattern, key string) {
+	if p.TypeName != "" {
+		return
+	}
+	if _, checked := v.tc.ctorPatternTypes[p]; !checked {
+		return
+	}
+	p.TypeModule, p.TypeName = SplitNominalKey(key)
 }
 
 // crossCheckRoot: the scrutinee's own type and its patterns' constructors
