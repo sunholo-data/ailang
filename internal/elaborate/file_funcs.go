@@ -27,7 +27,7 @@ func (e *Elaborator) funcToLambda(f *FuncSig) (core.CoreExpr, error) {
 	}
 
 	if f.FuncDecl != nil {
-		e.recordSignatureAnnots(lambda, f.FuncDecl.Params, f.FuncDecl.ReturnType)
+		e.recordSignatureAnnots(lambda, f.FuncDecl.Params, f.FuncDecl.ReturnType, false)
 	}
 
 	// M-CAPABILITY-BUDGETS: Preserve effect annotations for the type checker
@@ -256,7 +256,7 @@ func (e *Elaborator) elaborateFuncDecl(fn *ast.FuncDecl) (core.CoreExpr, error) 
 	// normalizeLambda recorded the parameter annotations; the return type is
 	// not part of ast.Lambda, so record the full signature here.
 	if coreLambda, ok := value.(*core.Lambda); ok {
-		e.recordSignatureAnnots(coreLambda, fn.Params, fn.ReturnType)
+		e.recordSignatureAnnots(coreLambda, fn.Params, fn.ReturnType, false)
 	}
 
 	// Wrap in let rec if recursive

@@ -37,6 +37,11 @@ type Elaborator struct {
 	// M-FIX-FLOAT-OP: Return type annotations from function declarations
 	// Maps Lambda NodeID -> return type (ensures PI() -> float is actually float)
 	returnTypeAnnots map[uint64]types.Type
+	// literalLambdas: Lambda NodeIDs of function literals (`func(x: T) -> R {…}`,
+	// `func(x: T) => e`) whose annotations were recorded (#2238). The checker
+	// enforces a literal's parameter annotations as equalities, the way it
+	// enforces a let annotation, rather than seeding the parameter's type.
+	literalLambdas map[uint64]bool
 	// M-TYPE-LIST-ELEMENT-SOUNDNESS: let-binding type annotations.
 	// Maps the resulting core.Let NodeID -> the annotated type, so that
 	// `let xs: [string] = [42]` actually constrains inference (otherwise the
@@ -281,6 +286,12 @@ func (e *Elaborator) GetParamTypeAnnotations() map[uint64][]types.Type {
 // M-FIX-FLOAT-OP: Used to ensure PI() -> float actually returns float
 func (e *Elaborator) GetReturnTypeAnnotations() map[uint64]types.Type {
 	return e.returnTypeAnnots
+}
+
+// GetLiteralLambdas returns the Lambda NodeIDs of annotated function literals
+// (#2238); the type checker enforces their parameter annotations as equalities.
+func (e *Elaborator) GetLiteralLambdas() map[uint64]bool {
+	return e.literalLambdas
 }
 
 // GetLetTypeAnnotations returns all let-binding type annotations (Let NodeID -> annotated type)

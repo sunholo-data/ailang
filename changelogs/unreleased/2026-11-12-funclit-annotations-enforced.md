@@ -8,8 +8,13 @@ typed as an int. Only top-level `func` declarations recorded their annotations.
 Every function form now hands its annotations to the type checker through one
 path (`elaborate.recordSignatureAnnots`): top-level `func`, `func(x: T) -> R { … }`
 literals (in a `let`, a `letrec`, a module-level `let`, or passed as an argument),
-and `func(x: T) => e` lambdas. An annotation constrains the literal exactly as
-it does a top-level function; an unannotated parameter is still inferred.
+and `func(x: T) => e` lambdas. An unannotated parameter is still inferred. A
+literal's parameter annotation is enforced as an equality on the parameter's
+variable — the way a `let` annotation is — rather than by seeding the
+parameter's type as a top-level `func` does: seeding made a callback parameter
+annotated `! {IO}` and passed on to an effect-polymorphic callee leak its open
+effect tail into the enclosing function (a pre-existing effect-row defect that
+top-level `func`s share), which rejected correct programs.
 
 Newly rejected (all previously unsound): calling an annotated literal with an
 argument of another type, and a literal whose body does not have its declared

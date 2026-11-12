@@ -7,6 +7,17 @@ import (
 	"github.com/sunholo-data/ailang/internal/typedast"
 )
 
+// literalParamType is the type of an annotated parameter of a function literal
+// (#2238): a fresh variable equal to the annotation, enforced as a let
+// annotation is, rather than the annotation itself (see
+// elaborate.recordSignatureAnnots for why literals differ from top-level funcs).
+func (tc *CoreTypeChecker) literalParamType(ctx *InferenceContext, lam *core.Lambda, param string, annot Type) Type {
+	v := ctx.freshTypeVar()
+	ctx.addConstraint(TypeEq{Left: v, Right: annot,
+		Path: []string{fmt.Sprintf("parameter annotation %s at %s", param, lam.Span())}})
+	return v
+}
+
 // inferLit infers type of literal
 func (tc *CoreTypeChecker) inferLit(ctx *InferenceContext, lit *core.Lit) (*typedast.TypedLit, *TypeEnv, error) {
 	var typ Type

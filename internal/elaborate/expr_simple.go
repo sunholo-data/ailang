@@ -42,7 +42,15 @@ func (e *Elaborator) normalizeLiteral(lit *ast.Literal) (core.CoreExpr, error) {
 // wherever it is written (#2238: inline literals used to drop theirs).
 // A nil ast.Type (an unannotated parameter, or no return type) records nothing
 // for that slot; inferLambda then uses a fresh variable.
-func (e *Elaborator) recordSignatureAnnots(lam *core.Lambda, params []*ast.Param, ret ast.Type) {
+//
+// literal marks a function literal: the checker enforces its parameter
+// annotations as equalities (as a let annotation is) instead of seeding the
+// parameter's type. Seeding resolves a callback parameter's annotated effect
+// row inside the literal's own application solves, where the row's open
+// compatibility tail then reads as an undeclared effect of the enclosing
+// function — a pre-existing effect-row defect that top-level `func`s share.
+// Top-level `func`s keep seeding (M-FIX-FLOAT-OP relies on it).
+func (e *Elaborator) recordSignatureAnnots(lam *core.Lambda, params []*ast.Param, ret ast.Type, literal bool) {
 	paramTypes := make([]types.Type, len(params))
 	hasAnnotations := false
 	for i, param := range params {
@@ -53,6 +61,14 @@ func (e *Elaborator) recordSignatureAnnots(lam *core.Lambda, params []*ast.Param
 	}
 	if hasAnnotations {
 		e.paramTypeAnnots[lam.ID()] = paramTypes
+	}
+	if literal {
+		if e.literalLambdas == nil {
+			e.literalLambdas = make(map[uint64]bool)
+		}
+		e.literalLambdas[lam.ID()] = true
+	} else {
+		delete(e.literalLambdas, lam.ID())
 	}
 	if ret != nil {
 		if returnType := e.astTypeToInternalType(ret); returnType != nil {
@@ -84,7 +100,7 @@ func (e *Elaborator) normalizeLambda(lam *ast.Lambda) (core.CoreExpr, error) {
 		Body:     body,
 	}
 	// `func(x: int) => e` carries parameter types (no return type).
-	e.recordSignatureAnnots(coreLam, lam.Params, nil)
+	e.recordSignatureAnnots(coreLam, lam.Params, nil, true)
 
 	// Store effect annotations if present
 	if len(lam.Effects) > 0 {
@@ -125,7 +141,7 @@ func (e *Elaborator) normalizeFuncLit(funcLit *ast.FuncLit) (core.CoreExpr, erro
 		Params:   params,
 		Body:     body,
 	}
-	e.recordSignatureAnnots(coreLam, funcLit.Params, funcLit.ReturnType)
+	e.recordSignatureAnnots(coreLam, funcLit.Params, funcLit.ReturnType, true)
 
 	// Store effect annotations if present
 	if len(funcLit.Effects) > 0 {

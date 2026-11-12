@@ -38,7 +38,9 @@ func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) 
 		var paramType Type
 
 		// Use annotation if available, otherwise fresh type variable
-		if annotations != nil && i < len(annotations) && annotations[i] != nil {
+		if annotations != nil && i < len(annotations) && annotations[i] != nil && tc.literalLambdas[lam.ID()] {
+			paramType = tc.literalParamType(ctx, lam, param, annotations[i]) // #2238
+		} else if annotations != nil && i < len(annotations) && annotations[i] != nil {
 			// Use the annotated type directly - this ensures float params stay float
 			paramType = annotations[i]
 			if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {

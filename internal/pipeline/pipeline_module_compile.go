@@ -153,6 +153,7 @@ func typeCheckAndLowerModule(
 	if len(paramAnnots) > 0 {
 		typeChecker.SetParamTypeAnnotations(paramAnnots)
 	}
+	typeChecker.SetLiteralLambdas(elaborator.GetLiteralLambdas()) // #2238
 
 	// M-FIX-FLOAT-OP: Pass return type annotations to type checker
 	// This ensures PI() -> float ACTUALLY constrains inference to return float

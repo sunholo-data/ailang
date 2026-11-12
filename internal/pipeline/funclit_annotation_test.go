@@ -126,6 +126,21 @@ export func main() -> () ! {IO} {
 }`,
 		},
 		{
+			// motoko-fork stub_step.live_ports shape: an annotated callback
+			// parameter passed on to an effect-polymorphic callee. Seeding the
+			// annotation leaked its open effect tail into the enclosing function
+			// (60 downstream files); literal annotations are equalities instead.
+			name: "annotated_callback_passed_to_effect_polymorphic_callee",
+			src: `module m
+type Ex = { v: int }
+type Ports = Ports({ step: (int, int -> () ! {IO}) -> Ex ! {IO, Trace} })
+func poly(n: int, cb: int -> () ! {e}) -> int ! {e} { cb(n); n }
+export func live() -> Ports ! {IO} {
+  let step = func(n: int, cb: int -> () ! {IO}) -> Ex ! {IO, Trace} { let m = poly(n, cb); { v: m } };
+  Ports({ step: step })
+}`,
+		},
+		{
 			name: "recursive_literal",
 			src: `module m
 export func main() -> () ! {IO} {
