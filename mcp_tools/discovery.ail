@@ -7,8 +7,8 @@ import std/option (getOrElse)
 import std/list (filter, take, map)
 import std/string (toLower, contains, find, substring, length, startsWith)
 
--- Sidebar tree as JSON. Replaces scraping the Docusaurus sidebar.
--- Version-scoped: snapshot of that release's docs site nav.
+-- The AILANG docs site's navigation tree for a version, as JSON: section and
+-- page titles with their paths.
 @route("POST", "/api/mcp/docs_nav")
 @mcp_name("docs_nav")
 @mcp_title("Docs navigation")
@@ -16,12 +16,10 @@ import std/string (toLower, contains, find, substring, length, startsWith)
 export func docsNav(forVersion: string) -> Json ! {Env, FS} =
   readOrError(forVersion, "docs_nav.json")
 
--- Full-text search across doc Markdown for the given version.
--- Filters server-side on lowercased body + title; returns the top 10 matches,
--- docs pages before archived teaching prompts (prompts/v*.md match almost any
--- query), each as path, title, its first 10 headings and an excerpt around the
--- match: the full page is a docs_nav / example_get away. Whole bodies made one
--- search ~30 KB, too much for a tool result in a listed connector.
+-- Full-text search of the AILANG documentation for a version (case-insensitive,
+-- on page titles and text). Returns the top 10 matches, docs pages before
+-- archived teaching prompts, each with its path, title, first 10 headings and
+-- an excerpt around the match.
 @route("POST", "/api/mcp/docs_search")
 @mcp_name("docs_search")
 @mcp_title("Search AILANG docs")

@@ -11,10 +11,9 @@ module mcp_tools/onboarding
 import mcp_tools/lib (readUnscopedOrError, errorJson)
 import std/json (Json)
 
--- Stepwise onboarding flow for using AILANG.
--- role: "agent" (AI coding agent flow, default) | "developer" (human dev flow) | "" (returns both)
--- For v1 returns the full guide; client picks the relevant role. v2 may
--- filter on AILANG side once we have proper record-projection helpers.
+-- Step-by-step guide to getting started with AILANG, for an AI coding agent
+-- and for a human developer. role: "agent" | "developer" | "" (both). The
+-- guide for both roles is returned whatever role says; pick the part you need.
 @route("POST", "/api/mcp/onboarding_guide")
 @mcp_name("onboarding_guide")
 @mcp_title("AILANG onboarding guide")

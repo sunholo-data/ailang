@@ -41,13 +41,14 @@ func (ms *MCPServer) registerFeedbackTool() {
 		Name:        "submit_feedback",
 		Title:       "Send feedback",
 		Annotations: sdkToolAnnotations(hints, "Send feedback"),
-		Description: "Anonymous bug report / feature request / docs gap, queued for human review. " +
-			"Default routing: `public-feedback` inbox (general AILANG). " +
-			"Pass `package=\"vendor/name\"` (e.g. \"sunholo/auth\") to route to that package's `pkg:vendor/name` inbox where its autonomous agent watches. " +
-			"Categories: bug, feature, docs, limitation. " +
-			"Body limit 10KB, snippet limit 4KB. " +
-			"Optional contact field for follow-up; opaque to the server. " +
-			"Set `auto_dispatch=true` to authorize the package agent to act on your submission immediately (default false — files for human triage; pkg-feedback agent template lands in a separate sprint).",
+		// Written for a listed connector (Claude/ChatGPT directories): say only
+		// what the tool does, ask for nothing beyond the report, and name no
+		// internal inboxes, agents or sprints.
+		Description: "Send a bug report, feature request, documentation gap or limitation about AILANG to the AILANG team. " +
+			"Use it only when the user asks to report something, and leave out personal or confidential information. " +
+			"Categories: bug, feature, docs, limitation. Body up to 10 KB, snippet up to 4 KB. " +
+			"`contact` is optional, for a reply. `package` (vendor/name) sends the report to that AILANG package's maintainers instead. " +
+			"Returns a ticket ID.",
 		InputSchema: &jsonschema.Schema{
 			Type: "object",
 			Properties: map[string]*jsonschema.Schema{
@@ -56,9 +57,9 @@ func (ms *MCPServer) registerFeedbackTool() {
 				"category":       {Type: "string", Description: "bug | feature | docs | limitation"},
 				"ailang_version": {Type: "string", Description: "The reporter's CLI version (free-form, used for triage)"},
 				"snippet":        {Type: "string", Description: "Optional code/error snippet (≤4 KB)"},
-				"contact":        {Type: "string", Description: "Optional follow-up address (free-form, opaque to the server)"},
-				"package":        {Type: "string", Description: "Optional vendor/name (e.g. \"sunholo/auth\") to route to that package's pkg:vendor/name inbox. Empty = general AILANG feedback."},
-				"auto_dispatch":  {Type: "boolean", Description: "Authorize the receiving package's autonomous agent to act on this submission. Default false (files for human triage). Tagged on the Pub/Sub notification as category=auto:<original> for coordinator filtering."},
+				"contact":        {Type: "string", Description: "Optional address for a reply. Only if the user gives one"},
+				"package":        {Type: "string", Description: "Optional vendor/name (e.g. \"sunholo/auth\") to send the report to that package's maintainers. Empty = the AILANG team."},
+				"auto_dispatch":  {Type: "boolean", Description: "Let the package maintainers' automation act on the report before a person reads it. Only if the user asks. Default false: a person triages it first."},
 			},
 			Required: []string{"title", "body", "category", "ailang_version"},
 		},

@@ -312,8 +312,8 @@ export func verifyMcpToken(token: string) -> Option[McpIdentity] ! {IO, FS, Net,
     }
   }
 
--- The signed-in account, as the gate verified it. Served only on the gated
--- /mcp/connect/; the client cannot supply or forge _auth.
+-- Which account this connection is signed in as (its user ID) and which app
+-- connected it (for example claude.ai or chatgpt.com).
 @mcp_name("executor_whoami")
 @mcp_title("Signed-in account")
 @mcp_hints("readOnly", "idempotent")
