@@ -387,7 +387,11 @@ func (ctx *InferenceContext) openCtorChoiceError() error {
 // declaration: every deferred constructor choice must be decided by now
 // (TC_AMBIGUOUS_CTOR_001 otherwise).
 func (ctx *InferenceContext) solveDeclConstraints() (Substitution, []ClassConstraint, error) {
+	// A field access still undecided here reads as a record access (#2239).
+	prev := ctx.settleFieldAccesses
+	ctx.settleFieldAccesses = true
 	sub, unsolved, err := ctx.SolveConstraints()
+	ctx.settleFieldAccesses = prev
 	if err != nil {
 		return nil, nil, err
 	}

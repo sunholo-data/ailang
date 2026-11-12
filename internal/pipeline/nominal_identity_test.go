@@ -216,7 +216,7 @@ func assertNominalVerdict(t *testing.T, c nominalCase, err error) {
 		return
 	}
 	if err == nil {
-		t.Fatal("accepted a program that mixes two different types sharing a name")
+		t.Fatal("accepted a program that mixes two different types")
 	}
 	for _, want := range c.reject {
 		if !strings.Contains(err.Error(), want) {
@@ -225,8 +225,13 @@ func assertNominalVerdict(t *testing.T, c nominalCase, err error) {
 	}
 }
 
-func TestNominalIdentity_RowsCold(t *testing.T) {
-	for _, c := range nominalCases() {
+func TestNominalIdentity_RowsCold(t *testing.T) { runNominalRowsCold(t, nominalCases()) }
+
+func TestNominalIdentity_RowsWarm(t *testing.T) { runNominalRowsWarm(t, nominalCases()) }
+
+func runNominalRowsCold(t *testing.T, cases []nominalCase) {
+	t.Helper()
+	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			root := t.TempDir()
 			t.Chdir(root)
@@ -240,8 +245,9 @@ func TestNominalIdentity_RowsCold(t *testing.T) {
 // Warm: the prime module compiles every dependency into the cache; the entry
 // is then checked with those dependencies served from it (asserted through
 // the cache's own hit counter, so a run that silently recompiled would fail).
-func TestNominalIdentity_RowsWarm(t *testing.T) {
-	for _, c := range nominalCases() {
+func runNominalRowsWarm(t *testing.T, cases []nominalCase) {
+	t.Helper()
+	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			root := t.TempDir()
 			t.Chdir(root)

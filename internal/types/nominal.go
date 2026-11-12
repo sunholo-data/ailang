@@ -325,9 +325,9 @@ func checkNominalPair(a, b *TCon) error {
 
 // NominalIdentityCodes lists the type-name diagnostic codes that are reported
 // inline in an error message (M-V1-NOMINAL-TYPE-IDENTITY's three, and
-// TC_UNBOUND_TYPE_001 and _003 and TC_TYPE_ALIAS_CYCLE_001 from #2211; MOD015
-// is a structured report).
+// TC_UNBOUND_TYPE_001 and _003 and TC_TYPE_ALIAS_CYCLE_001 from #2211,
+// TC_NEWTYPE_001 from #2239; MOD015 is a structured report).
 // `check --json` reports each as itself.
 func NominalIdentityCodes() []string {
-	return []string{TC_NOMINAL_001, TC_AMBIGUOUS_TYPE_001, TC_AMBIGUOUS_CTOR_001, TC_UNBOUND_TYPE_001, TC_UNBOUND_TYPE_003, TC_TYPE_ALIAS_CYCLE_001}
+	return []string{TC_NOMINAL_001, TC_AMBIGUOUS_TYPE_001, TC_AMBIGUOUS_CTOR_001, TC_UNBOUND_TYPE_001, TC_UNBOUND_TYPE_003, TC_TYPE_ALIAS_CYCLE_001, TC_NEWTYPE_001}
 }

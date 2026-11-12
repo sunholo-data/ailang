@@ -19,11 +19,11 @@ package types
 // while t is not headed by a named type: a type variable, a record, a
 // function, a tuple. A nil unifier expands nothing.
 //
-// Cycle-safety: expandAliasMode stops on a repeated alias key, and the head
+// Cycle-safety: expandAlias stops on a repeated alias key, and the head
 // is read one level deep.
 func (u *Unifier) nominalHead(t Type) *TCon {
 	if u != nil {
-		t = u.expandAliasMode(t, false)
+		t = u.expandAlias(t)
 	}
 	if app, ok := t.(*TApp); ok {
 		t, _ = decomposeApp(app)

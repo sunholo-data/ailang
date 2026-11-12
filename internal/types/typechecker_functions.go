@@ -206,7 +206,9 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 	// silently breaking downstream pattern-match cross-checks. See the
 	// design doc m-scheme-import-preserve-adt-head.md and bug report
 	// msg_20260520_111521_44c38751.
+	settled := ctx.settleFieldAccessesAt(let) // #2239: the declaration's own binding
 	sub, unsolvedConstraints, err := ctx.SolveConstraints()
+	settled()
 	if err != nil {
 		return nil, ctx.env, err
 	}
@@ -244,7 +246,9 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		defaultedType = tc.closeDeclaredEffectRowForBinding(let.Value.ID(), defaultedType)
 		defaultedType = ctx.closeOpenedTailsForGeneralization(sub, defaultedType, ctx.env, ctx.baseEnv) // #1958
 
-		binding = tc.generalizeWithConstraints(defaultedType, valueEffects, nonGroundConstraints, sub, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints))
+		generalized := tc.generalizeWithConstraints(defaultedType, valueEffects, nonGroundConstraints, sub, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints))
+		ctx.attachFieldAccesses(generalized, sub) // #2239
+		binding = generalized
 	} else {
 		binding = defaultedType
 	}
@@ -336,7 +340,9 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 	// substitution to every binding's valueType and typed node before
 	// defaulting + generalization. See sibling fix in inferLet above and
 	// the design doc m-scheme-import-preserve-adt-head.md for context.
+	settled := ctx.settleFieldAccessesAt(letrec) // #2239: the declaration's own binding
 	sub, unsolvedConstraints, err := ctx.SolveConstraints()
+	settled()
 	if err != nil {
 		return nil, oldEnv, err
 	}
@@ -410,6 +416,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		// remain generalizable, while any enclosing lambda params (free in
 		// oldEnv but not in the decl's base env) are correctly withheld.
 		scheme := tc.generalizeWithConstraints(valueType, getEffectRow(valueNode), nonGroundConstraints, reSub, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, letrec, nonGroundConstraints))
+		ctx.attachFieldAccesses(scheme, reSub) // #2239
 
 		typedBindings[i] = typedast.TypedRecBinding{
 			Name:   binding.Name,

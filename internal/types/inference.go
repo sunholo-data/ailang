@@ -61,6 +61,12 @@ type InferenceContext struct {
 	// pendingCtorVars: variables an open constructor choice depends on, as of
 	// the last SolveConstraints; withheld from let-generalisation (ambiguous_ctor.go).
 	pendingCtorVars map[string]bool
+	// pendingAccesses: the field accesses still undecided after the last
+	// SolveConstraints; a let that generalises over one carries it in its
+	// scheme (field_access_deferred.go). settleFieldAccesses makes a solve
+	// settle the undecided accesses as record accesses (the declaration).
+	pendingAccesses     []*fieldAccess
+	settleFieldAccesses bool
 	// ctorNotes record where an ambiguous constructor shaped inference (a let
 	// kept monomorphic, a pattern read by its arity), so a later unification
 	// failure can name it as the cause (ambiguous_ctor_cause.go).

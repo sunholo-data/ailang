@@ -172,7 +172,13 @@ func (tc *CoreTypeChecker) inferVar(ctx *InferenceContext, v *core.Var) (*typeda
 		}
 
 		var instConstraints []Constraint
-		monotype, instConstraints = scheme.InstantiateWithConstraints(ctx.freshType)
+		var accesses []*fieldAccess
+		monotype, instConstraints, accesses = scheme.instantiate(ctx.freshType, []string{fmt.Sprintf("use of %s at %v", v.Name, v.Span())})
+		// #2239: a let-bound function whose field accesses were undecided when
+		// it was generalised decides them afresh at every use.
+		for _, fa := range accesses {
+			ctx.addConstraint(fa)
+		}
 
 		// M-TYPE-LIST-ELEMENT-SOUNDNESS: re-emit the scheme's class constraints
 		// as fresh wanted constraints on the instantiated type variables. Without
