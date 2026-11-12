@@ -207,7 +207,32 @@ func (g *BearerGate) challenge(w http.ResponseWriter, r *http.Request, errCode s
 	}
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusUnauthorized)
-	_, _ = w.Write(ChallengeResult(callID, value))
+	_, _ = w.Write(ChallengeResult(callID, MetaChallenge(value, errCode)))
+}
+
+// MetaChallenge is the _meta["mcp/www_authenticate"] value for a refused
+// call: the HTTP challenge plus the error and error_description parameters
+// OpenAI requires. Apps SDK, Authentication
+// (https://developers.openai.com/apps-sdk/build/auth, fetched 2026-11-12):
+// "make sure the value contains both an `error` and `error_description`
+// parameter"; this payload "is what actually triggers the tool-level OAuth
+// UI". The HTTP header keeps RFC 6750 §3.1 (no error code when the request
+// carried no token), which is what Claude starts sign-in from.
+//
+// With no token the error is insufficient_scope, as in OpenAI's own example
+// for "no access token provided"; a rejected token keeps its code
+// (invalid_token).
+func MetaChallenge(httpChallenge, errCode string) string {
+	desc := "Sign in to use this tool."
+	if errCode == "" {
+		errCode = "insufficient_scope"
+	} else {
+		desc = "Your sign-in has expired or was revoked. Sign in again to use this tool."
+	}
+	if !strings.Contains(httpChallenge, "error=") {
+		httpChallenge += fmt.Sprintf(", error=%q", errCode)
+	}
+	return httpChallenge + fmt.Sprintf(", error_description=%q", desc)
 }
 
 // WWWAuthenticateMetaKey is the tool-result _meta key that carries the
@@ -215,8 +240,9 @@ func (g *BearerGate) challenge(w http.ResponseWriter, r *http.Request, errCode s
 const WWWAuthenticateMetaKey = "mcp/www_authenticate"
 
 // ChallengeResult is the JSON-RPC response for a refused tools/call: an
-// isError tool result whose _meta["mcp/www_authenticate"] holds the same
-// challenge as the HTTP WWW-Authenticate header.
+// isError tool result whose _meta["mcp/www_authenticate"] holds the
+// challenge (MetaChallenge: the HTTP WWW-Authenticate header plus error and
+// error_description).
 //
 // OpenAI Apps SDK, Authentication (https://developers.openai.com/apps-sdk/build/auth,
 // fetched 2026-10-07): mixed auth "requires both metadata (securitySchemes and
