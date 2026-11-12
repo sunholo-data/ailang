@@ -50,7 +50,9 @@ type fieldAccess struct {
 	defaulted bool
 }
 
-func (c *fieldAccess) constraint() {}
+// constraint marks fieldAccess as a TypeConstraint; it has no behaviour.
+func (c *fieldAccess) constraint() { /* marker method of TypeConstraint */ }
+
 func (c *fieldAccess) String() string {
 	return fmt.Sprintf("%s has field %s : %s", c.recv, c.field, c.fieldType)
 }
