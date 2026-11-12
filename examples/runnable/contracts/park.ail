@@ -11,7 +11,7 @@ module examples/runnable/contracts/park
 -- Type vocabulary (matching ARC's datatypes/variables)
 export type Season = LOW_SEASON | HIGH_SEASON
 
-export type AgeClass = CHILD | ADULT | SENIOR
+export type AgeClass = CHILD | ADULT | SENIOR deriving (Eq)
 
 export type AdmissionDecision = ADMIT | DENY
 

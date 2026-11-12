@@ -148,6 +148,7 @@ func collectModuleLets(file *ast.File) []*ModuleLet {
 // ElaborateFile transforms a complete file with module structure to Core ANF
 func (e *Elaborator) ElaborateFile(file *ast.File) (prog *core.Program, err error) {
 	e.typeAnnotationErr = nil
+	e.checkBodies = nil
 	e.ensureTypeScope(file)
 	defer func() {
 		if e.typeAnnotationErr != nil {
@@ -175,6 +176,11 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (prog *core.Program, err erro
 					return nil, err
 				}
 				coreDecls = append(coreDecls, coreExpr)
+			}
+		}
+		if file.Module != nil { // a module of test blocks only (#2232)
+			if err := e.elaborateCheckBodies(file); err != nil {
+				return nil, err
 			}
 		}
 		return &core.Program{Decls: coreDecls, Meta: make(map[string]*core.DeclMeta)}, nil
@@ -394,6 +400,11 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (prog *core.Program, err erro
 			}
 			coreDecls = append(coreDecls, coreExpr)
 		}
+	}
+
+	// #2232: test blocks, properties and inline rows, for type checking only.
+	if err := e.elaborateCheckBodies(file); err != nil {
+		return nil, err
 	}
 
 	return &core.Program{Decls: coreDecls, Meta: meta}, nil

@@ -79,6 +79,12 @@ func (r *Runner) RunSuite(suite *TestSuite) *SuiteResult {
 
 	// Run all tests. Named tests share one compile (named_batch.go).
 	r.executor.prepareNamedTests(suite.Tests, suite.Properties)
+	if len(suite.Tests)+len(suite.Properties) > 0 {
+		if msg := r.executor.moduleCompileFailure(hasInlineRows(suite)); msg != "" { // module_compile.go
+			result.AddTestResult(moduleCompileResult(r.executor.sourceFile, r.executor.modulePath, msg))
+			return result
+		}
+	}
 	for _, testCase := range suite.Tests {
 		testResult := r.runTest(testCase)
 		result.AddTestResult(testResult)

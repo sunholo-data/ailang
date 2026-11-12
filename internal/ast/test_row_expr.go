@@ -63,3 +63,28 @@ func RowExprSupported(expr Expr) *RowExprProblem {
 	}
 	return reject("TST001", fmt.Sprintf("unsupported tests row expression %T; write the value or move this case to a named test block", expr))
 }
+
+// Inline test rows are run by the test harness (internal/testing) and
+// type-checked by the compiler (internal/elaborate, #2232). Both build the
+// call of the function under test from a row with these two functions, so a
+// row the harness runs is exactly the row the checker types.
+
+// RowInput is the input of an inline test row as the harness stores it: the
+// single input itself (`(x, r)`, and also `(((a, b)), r)`, whose one input is
+// a tuple), or all the inputs as one tuple (`((a, b), r)`).
+func RowInput(row *TestCase) Expr {
+	if len(row.Inputs) == 1 {
+		return row.Inputs[0]
+	}
+	return &Tuple{Elements: row.Inputs, Pos: row.Pos}
+}
+
+// RowCallArgs is the argument list the function under test is applied to for
+// a row input: the elements of a tuple of two or more (so `((a, b), r)` and
+// `(((a, b)), r)` both call f(a, b)), else the input as the one argument.
+func RowCallArgs(input Expr) []Expr {
+	if t, ok := input.(*Tuple); ok && len(t.Elements) > 1 {
+		return t.Elements
+	}
+	return []Expr{input}
+}

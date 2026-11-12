@@ -80,6 +80,20 @@ type TypedIf struct {
 	Else TypedNode
 }
 
+// TypedForall represents a typed bounded quantifier `forall v: lo..hi => body`
+// (contracts only). Its type is bool; v ranges over int.
+type TypedForall struct {
+	TypedExpr
+	Var  string
+	Lo   TypedNode
+	Hi   TypedNode
+	Body TypedNode
+}
+
+func (t TypedForall) String() string {
+	return fmt.Sprintf("(forall %s: %s..%s => %s) : %s", t.Var, t.Lo, t.Hi, t.Body, t.Type)
+}
+
 // TypedMatch represents typed pattern matching
 type TypedMatch struct {
 	TypedExpr

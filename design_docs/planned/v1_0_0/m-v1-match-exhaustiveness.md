@@ -524,7 +524,9 @@ that sets this status. What was built, and where it departs from the sections ab
 `FinalizeSubstitutions`, next to `VerifyTaggedUnionFieldAccesses`, on `Decls` and, after they are
 type-checked, on the contracts whose inference succeeded; and in the single-file path on the
 declaration it type-checks. Test blocks reach it through `ailang test`, which compiles them through
-the module pipeline; `check` does not type-check them at all (#2232). The interactive REPL
+the module pipeline; `check` does not type-check them at all (#2232). *Since #2232/#2248 every
+contract clause and every test-only body (test and property blocks, inline properties and rows) is
+type-checked in the module compile, and all of them are walked.* The interactive REPL
 (`internal/repl`) has its own type-checker set-up with no constructor registry and is not wired.
 
 **Identity (§8).** The universe is `types.MatchUniverse`, keyed by `NominalKey(defining module,
@@ -576,9 +578,9 @@ error naming it a compiler bug. It has not fired on any corpus.
 
 **Known holes, pre-existing, not closed here:** #2239 (newtype-record coercion) and #2247 (an
 int literal accepted for a `Box[a]`/`[a]` parameter: the `Num[T[α]]` constraint is dropped) can
-still bring a value of another type to a checked match (RT002). Contracts with `forall` are never
-type-checked (#2248), so matches in them — including a quantifier's bounds — are not checked; the
-walk visits `Forall` bounds, but inference never succeeds on such a contract to reach it.
+still bring a value of another type to a checked match (RT002). Contracts with `forall` were never
+type-checked (#2248), so matches in them — including a quantifier's bounds — were not checked
+(closed by the #2232/#2248 fix: `forall` now type-checks and the walk reaches it).
 
 **Blast radius, re-measured with the compiler** (the §10 census was a regex prototype):
 

@@ -129,6 +129,8 @@ This example reproduces the park admission policy from the [ARC paper](https://a
   {ParkExample}
 </CodeBlock>
 
+`AgeClass` is declared `deriving (Eq)` because the `ensures` of `classifyAge` compares it with `==`. Contracts are type-checked like function bodies: `==` on an enum without `deriving (Eq)` is an error in a contract too.
+
 **Run it:**
 ```bash
 ailang run --caps IO --entry main examples/runnable/contracts/park.ail
@@ -678,7 +680,7 @@ Bounded verification is **sound but incomplete**. A model Z3 finds for a bounded
 - `int`, `bool`, `string`, list, and enum/ADT parameters and return types
 - Concrete parametric ADTs such as `Result[int, AudioError]` and nested `Option[int]`
 - Arithmetic: `+`, `-`, `*`, `/`
-- Comparison: `>=`, `<=`, `>`, `<`, `==`, `!=`
+- Comparison: `>=`, `<=`, `>`, `<`, `==`, `!=` — a contract is type-checked like a function body, so `==`/`!=` on an enum or other ADT needs `deriving (Eq)` on the type (`type AgeClass = CHILD | ADULT | SENIOR deriving (Eq)`); without it `check` reports TC_CONTRACT_001 naming the type to change
 - Logical: `&&`, `||`, `!`
 - String operations: `++` (concat), `length`, `find`, `substring`, `startsWith`, `endsWith` from `std/string`, string comparisons
 - List operations: `length`, `reverse`, `take`, `drop`, `contains` from `std/list`, `_list_head`, `_list_nth`, `_list_contains`, `_list_extract`, `::` (cons), `++` (concat), list literals

@@ -56,7 +56,9 @@ const (
 // Config contains pipeline configuration options
 type Config struct {
 	// SkipTestRowValidation is for the test harness, which validates each row
-	// before execution so a bad neighbor does not poison a shared compile.
+	// before execution so a bad neighbor does not poison a shared compile. It
+	// also skips type-checking the root's test-only bodies (#2232), which the
+	// harness compiles and reports one by one.
 	// Check, ai-check and LSP must leave this false; no CLI flag exposes it.
 	SkipTestRowValidation bool
 

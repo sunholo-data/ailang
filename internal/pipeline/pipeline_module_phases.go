@@ -354,11 +354,24 @@ func (st *modulePipelineState) compileOneModule(modID link.ModuleID, unit *Compi
 	if err := checkBuiltinShadow(mod.File); err != nil {
 		return err
 	}
+	recordTypeDeclSites(st.cfg.InstEnv, modID, mod.File)
 	key, cacheable := st.prepareCacheLookup(mod, string(modID))
 	if cacheable && st.serveFromCache(mod, unit, key) {
 		return nil
 	}
 	return st.compileFreshModule(mod, string(modID), unit, key)
+}
+
+// checksTestBodies reports whether modID's test blocks, properties and inline
+// rows are type-checked (#2232): only for the module being checked, run or
+// tested as the root. They are not part of any program, so a dependency's
+// ill-typed test never fails its importers; `check` of the dependency itself
+// (or `check --package`, which checks every file as a root) reports it.
+//
+// The test harness's own compiles (SkipTestRowValidation) skip it too: the
+// harness compiles each body itself and fails that test alone.
+func (st *modulePipelineState) checksTestBodies(modID string) bool {
+	return !st.cfg.SkipTestRowValidation && (modID == st.rootCanonical || modID == st.src.Filename)
 }
 
 // isTransientRoot reports whether modID is the root of a TransientRoot run,
@@ -405,7 +418,7 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 	unit.Constructors = convertConstructors(elaborator.GetConstructors())
 	buildConstructorFactoryTypes(modID, unit.Constructors, imports.ExternalTypes)
 
-	compileResult, err := typeCheckAndLowerModule(unit, modID, st.rootCanonical, imports, elaborator, st.cfg)
+	compileResult, err := typeCheckAndLowerModule(unit, modID, st.rootCanonical, imports, elaborator, st.cfg, st.checksTestBodies(modID))
 	if err != nil {
 		return err
 	}

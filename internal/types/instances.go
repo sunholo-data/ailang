@@ -29,6 +29,9 @@ type InstanceEnv struct {
 	// value carries only its declared name (TRecord.TypeName), not its module,
 	// so the record path of Eq synthesis is still keyed by name.
 	eqRecordNames map[string]bool
+	// typeDeclSites: NominalKey -> "file:line" of the type's declaration, for
+	// the missing-Eq diagnostic only (instances_eq_hint.go).
+	typeDeclSites map[string]typeDeclSite
 }
 
 // NewInstanceEnv creates a new empty instance environment
@@ -84,7 +87,7 @@ func (env *InstanceEnv) lookup(class string, typ Type, depth int) (*ClassInstanc
 	return nil, &MissingInstanceError{
 		Class: class,
 		Type:  typ,
-		Hint:  actionableInstanceHint(class, typ),
+		Hint:  env.instanceHint(class, typ),
 	}
 }
 
@@ -155,7 +158,7 @@ func eqInstanceHint(typ Type, ts string) string {
 		}
 		return prefix + " deriving (Eq) is not supported on polymorphic types yet: pattern-match on the constructors instead."
 	case *TCon:
-		return prefix + " If this is your own type, declare it with `deriving (Eq)`, e.g. `type T = A | B(int) deriving (Eq)`."
+		return eqTConHint(t, typeDeclSite{})
 	}
 	return prefix + " Compare a supported type instead (int, float, string, bool, or a type declared with `deriving (Eq)`)."
 }

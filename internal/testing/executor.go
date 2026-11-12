@@ -36,8 +36,9 @@ type Executor struct {
 	batch                  *namedBatch
 	batchResult            pipeline.Result
 	batchFailure           *BatchFailure
-	perBodyCompileFailures int // per-body compiles that failed after a batch failure
-	pipelineRuns           int // runNamedTestPipeline calls, for tests
+	perBodyCompileFailures int    // per-body compiles that failed after a batch failure
+	batchModuleError       string // the batch failed in the module itself (module_compile.go)
+	pipelineRuns           int    // runNamedTestPipeline calls, for tests
 
 	// Inline-test compiles, memoized per file (#1328): every inline test used
 	// to compile the module twice (binding + cluster), so a 41-test file paid
@@ -436,12 +437,7 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 		}
 		pipelineFilename = tmpFile
 	}
-	cfg := pipeline.Config{
-		SkipTestRowValidation: true,
-		Mode:                  pipeline.ModeEval,
-		RelaxModules:          true,
-		GlobalResolver:        e.globalResolver,
-	}
+	cfg := e.inlineModuleConfig()
 	src := pipeline.Source{
 		Code:     strippedSource,
 		Filename: pipelineFilename,

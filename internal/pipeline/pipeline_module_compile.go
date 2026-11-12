@@ -60,6 +60,7 @@ func typeCheckAndLowerModule(
 	imports *moduleImports,
 	elaborator *elaborate.Elaborator,
 	cfg Config,
+	checkTestBodies bool, // #2232: the root module's only (checksTestBodies)
 ) (*moduleCompileResult, error) {
 	result := &moduleCompileResult{}
 
@@ -209,6 +210,16 @@ func typeCheckAndLowerModule(
 		}
 	}
 
+	// #2232: test blocks, properties and inline rows type-check against the
+	// module, though they are never compiled into it (check_bodies.go).
+	var checkBodies []elaborate.CheckBody
+	if checkTestBodies {
+		checkBodies = elaborator.CheckBodies()
+	}
+	if err := typeCheckTestBodies(checkBodies, typeChecker, moduleTypeEnv); err != nil {
+		return nil, fmt.Errorf("type error in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
+	}
+
 	// M-PERF-DOCPARSE: Apply all deferred CoreTI substitutions in one pass
 	// Must happen before FillOperatorMethods which reads CoreTI for operator resolution
 	typeChecker.FinalizeSubstitutions()
@@ -222,11 +233,16 @@ func typeCheckAndLowerModule(
 		return nil, fmt.Errorf("type error in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
 	}
 
+	if err := checkTestBodyEffects(unit.Surface, checkBodies, typeChecker); err != nil {
+		return nil, fmt.Errorf("type error in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
+	}
+
 	// M-V1-MATCH-EXHAUSTIVENESS: a match whose unguarded arms miss a value of
 	// the scrutinee's type is an error (TC_MATCH_002) naming the missing
 	// pattern; an arm no value can reach is a warning (TC_MATCH_003). Runs on
-	// the finalised types, before any pass copies or rewrites matches.
-	matchWarnings, err := typeChecker.VerifyMatchExhaustiveness(unit.Core.Decls...)
+	// the finalised types, before any pass copies or rewrites matches. The
+	// test-only bodies' matches are checked the same way (#2232).
+	matchWarnings, err := typeChecker.VerifyMatchExhaustiveness(append(append([]core.CoreExpr{}, unit.Core.Decls...), checkBodyExprs(checkBodies)...)...)
 	if err != nil {
 		return nil, err
 	}
@@ -251,65 +267,16 @@ func typeCheckAndLowerModule(
 		typeChecker.FillOperatorMethods(decl)
 	}
 
-	// M-CONTRACT-OPLOWERING-FIX: Type-check contract expressions to populate CoreTI.
-	// Without this, OpLowering hits CoreTI misses for operators in ensures/requires clauses,
-	// causing comparison ops to be deferred as raw Intrinsic nodes that fail at runtime.
-	var checkedContracts []core.CoreExpr
-	if unit.Core.Meta != nil {
-		// Build a map of function name -> Lambda params for contract env construction
-		funcParams := extractFuncParams(unit.Core)
-
-		for funcName, meta := range unit.Core.Meta {
-			if len(meta.Contracts) == 0 {
-				continue
-			}
-
-			// Build contract environment: module env + function params + result
-			contractEnv := moduleTypeEnv
-
-			// Bind function parameters from the function's type signature
-			if binding, err := moduleTypeEnv.Lookup(funcName); err == nil {
-				paramTypes, retType := extractFuncSignature(binding)
-
-				// Bind parameters by name (from Core Lambda) with types (from type env)
-				if params, ok := funcParams[funcName]; ok {
-					for i, paramName := range params {
-						if i < len(paramTypes) {
-							contractEnv = contractEnv.Extend(paramName, paramTypes[i])
-						}
-					}
-				}
-
-				// Bind "result" for ensures clauses
-				if retType != nil {
-					contractEnv = contractEnv.Extend("result", retType)
-				}
-			}
-
-			for _, contract := range meta.Contracts {
-				if contract.Expr == nil {
-					continue
-				}
-				// Infer types for contract expression — populates CoreTI as side effect.
-				// Errors are non-fatal: contract type-checking is best-effort for CoreTI population.
-				_, _, _, _, inferErr := typeChecker.InferWithConstraints(contract.Expr, contractEnv)
-				if inferErr != nil && cfg.DebugCompile {
-					fmt.Fprintf(os.Stderr, "[DEBUG] Contract type inference for %s: %v\n", funcName, inferErr)
-				}
-				// A contract's matches are checked like a body's. A contract
-				// whose inference failed has no final types to check against
-				// (its type errors are not reported either: pre-existing).
-				if inferErr == nil {
-					checkedContracts = append(checkedContracts, contract.Expr)
-				}
-				// Also fill operator methods for contract expressions
-				typeChecker.FillOperatorMethods(contract.Expr)
-			}
-		}
+	// M-CONTRACT-OPLOWERING-FIX + #2248: type-check every contract clause as a
+	// bool predicate. It populates CoreTI for op-lowering, and an inference
+	// error is TC_CONTRACT_001 (it used to be swallowed: check_bodies.go).
+	checkedContracts, err := typeCheckContracts(unit.Core, typeChecker, moduleTypeEnv)
+	if err != nil {
+		return nil, fmt.Errorf("type error in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
 	}
 
-	// The contracts' matches (VerifyMatchExhaustiveness sorts its errors, so
-	// the map order above does not decide which is reported first).
+	// The contracts' matches (every clause is now inferred, so every one is
+	// checked; VerifyMatchExhaustiveness sorts its errors).
 	if len(checkedContracts) > 0 {
 		ws, err := typeChecker.VerifyMatchExhaustiveness(checkedContracts...)
 		if err != nil {
