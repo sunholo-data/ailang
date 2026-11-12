@@ -89,23 +89,6 @@ func GetDefaultDatabasePath() string {
 	return p
 }
 
-// EnsureDatabase creates the database if it doesn't exist.
-// Returns true if database was created, false if it already exists.
-func EnsureDatabase(dbPath string) (bool, error) {
-	// If database already exists, nothing to do
-	if DatabaseExists(dbPath) {
-		return false, nil
-	}
-
-	// Create new database
-	db, err := InitDB(dbPath)
-	if err != nil {
-		return false, fmt.Errorf("failed to initialize database: %w", err)
-	}
-	db.Close()
-	return true, nil
-}
-
 // generateRandomID generates a random hex string of the given length using crypto/rand
 func generateRandomID(length int) string {
 	bytes := make([]byte, length/2)
