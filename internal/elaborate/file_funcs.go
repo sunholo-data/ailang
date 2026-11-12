@@ -117,6 +117,11 @@ func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error
 	// Extract type name
 	typeName := decl.Name
 
+	// A lowercase name in the body must be a parameter or a type (#2211).
+	if err := e.checkTypeDeclVars(decl); err != nil {
+		return nil, err
+	}
+
 	// M-DX19: Check for deriving (Eq) clause
 	hasDerivingEq := false
 	for _, d := range decl.Deriving {
@@ -296,7 +301,7 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 			}
 			// Type constructor (e.g., user-defined ADT), qualified by the module
 			// that declares it (M-V1-NOMINAL-TYPE-IDENTITY §4.3).
-			return e.typeCon(typ.Name, typ.Pos)
+			return e.simpleType(typ.Name, typ.Pos)
 		}
 
 	case *ast.TypeVar:

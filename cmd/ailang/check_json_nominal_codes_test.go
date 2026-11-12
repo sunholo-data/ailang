@@ -21,6 +21,12 @@ func TestCheckJSON_NominalIdentityCodesAppearAsThemselves(t *testing.T) {
 		types.TC_AMBIGUOUS_TYPE_001: "module q/main\nimport q/a (mka)\nimport q/b (mkb)\npure func f(t: T) -> int = 0\nexport pure func run() -> int = 0\n",
 		types.TC_AMBIGUOUS_CTOR_001: "module q/main\nimport q/a (mka)\nimport q/b (mkb)\nexport pure func run() -> int = match C(1) { _ => 0 }\n",
 		"MOD015":                    "module q/main\nimport q/a (T)\nimport q/b (T)\nexport pure func run() -> int = 0\n",
+		// #2211: a lowercase name applied to arguments that names no type.
+		types.TC_UNBOUND_TYPE_001: "module q/main\nimport q/a (mka)\npure func f(t: zz[int]) -> int = 0\nexport pure func run() -> int = 0\n",
+		// #2211: a type declaration whose body names a variable that is not its parameter.
+		types.TC_UNBOUND_TYPE_003: "module q/main\nimport q/a (mka)\ntype Count = integer\nexport pure func run() -> int = 0\n",
+		// A type alias that refers to itself.
+		types.TC_TYPE_ALIAS_CYCLE_001: "module q/main\nimport q/a (mka)\ntype L = [L]\nexport pure func run() -> int = 0\n",
 	}
 	for want, main := range cases {
 		t.Run(want, func(t *testing.T) {

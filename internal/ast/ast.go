@@ -143,6 +143,32 @@ type File struct {
 	Statements []Node        // Top-level statements/expressions
 	Path       string        // File path for validation
 	Pos        Pos
+	// LowerTypeNames records each bare lowercase name in type position that
+	// the parser resolved without a binder (rules 3 and 4 of
+	// parser_type_names.go), for diagnostics that need the module's imports,
+	// which the parser cannot see (#2211). Nothing reads it for typing.
+	LowerTypeNames []LowerTypeName
+}
+
+// LowerTypeNameKind says how the parser read a bare lowercase type name.
+type LowerTypeNameKind int
+
+const (
+	// LowerImplicitVar: undeclared here and not imported by name, so an
+	// implicitly quantified type variable.
+	LowerImplicitVar LowerTypeNameKind = iota
+	// LowerImported: imported by name (import M (x)), so read as that import.
+	LowerImported
+	// LowerLocal: declared as a type in this file (type x = ...).
+	LowerLocal
+)
+
+// LowerTypeName is one use of a bare lowercase name in type position.
+type LowerTypeName struct {
+	Name string
+	Pos  Pos
+	Kind LowerTypeNameKind
+	Decl string // the enclosing top-level declaration ("" if none)
 }
 
 // ModuleDecl represents a module declaration

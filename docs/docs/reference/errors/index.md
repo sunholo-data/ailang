@@ -161,6 +161,36 @@ TC004: occurs check failed: α1 occurs in { self: α1 } (an infinite type)
 
 **`TC_AMBIGUOUS_CTOR_001` — a constructor two imported modules both offer.** The constructor auto-import brings every constructor of a selectively imported module into scope; when two modules offer the same name and neither is imported by name, a pattern is resolved by the scrutinee's type once inference has decided it (a deferred choice, independent of the order of the code; the pattern's own number of arguments narrows the candidates first). The error is reported, at the pattern or expression, for an expression; for a pattern whose scrutinee's type nothing in the enclosing top-level declaration decides (fix: import the constructor by name, or annotate the value matched); for a pattern whose argument count fits another candidate than the type matched (fix: the argument count); and as the cause of a conflict it creates — a let-bound function matching the constructor stays monomorphic while the choice is open, so using it at two types (`Box[int]` and `Box[string]`) fails; the message names the function and the conflict. Fix for expressions and conflicts: `import M (C)` from the module you mean.
 
+**`TC_UNBOUND_TYPE_001` — a lowercase name applied to type arguments that names no type.** Whether a name in type position is a type variable is decided by scope: a name an enclosing `[T]` list binds is a variable (any case), a lowercase name the module declares as a type or imports by name is that type, and any other lowercase name is an implicitly quantified variable. A lowercase name written with arguments (`zz[int]`) has no variable reading (type variables cannot be applied), so when no type of that name is declared, imported by name, or exported by an import, it is this error. Uppercase undeclared names are not reported yet (#1485).
+
+```
+TC_UNBOUND_TYPE_001: type 'zz' is not in scope: no type constructor 'zz' is declared here, imported by name, or exported by an import.
+```
+
+**`TC_UNBOUND_TYPE_003` — a type declaration whose body names a type variable that is not its parameter.** A function signature quantifies an undeclared lowercase name implicitly (the caller supplies it); a type declaration cannot, so in the body of a `type` declaration — alias, constructor fields, record fields — a lowercase name must be one of the declaration's own `[..]` parameters or a type in scope. Otherwise the type would silently stand for any type. Fix: add the parameter, or write the type you meant; the message suggests a type within edit distance 2 or differing only by case, or the import when an imported module exports the type but it is not imported by name.
+
+```
+TC_UNBOUND_TYPE_003: type variable 'integer' is not a parameter of Count: write `type Count[integer] = …` to make it a parameter, or did you mean the type `int`?
+```
+
+**`TC_TYPE_ALIAS_CYCLE_001` — a type alias that refers to itself.** An alias (`type X = <type expression>`, not a constructor list or a record) stands for its body, so an alias that mentions itself, directly (`type L[a] = [L[a]]`) or through other aliases (`type A = B`, `type B = A`), has no finite meaning. Recursion needs a nominal type: make it an ADT with a constructor. A cycle through an ADT or a record declaration (`type Node = {label: string, kids: [Node]}`) is allowed.
+
+```
+TC_TYPE_ALIAS_CYCLE_001: type alias 'T2' refers to itself; a recursive type must be an ADT: write `type T2[a] = T2((T2[a], T2[a]))` (a constructor) instead
+```
+
+**`TC_UNBOUND_TYPE_002` — a lowercase name read as a type variable that may have meant a type (warning).** Two readings keep a lowercase name a type variable, as they were before #2211, and warn: an implicit variable named like a type that an imported module exports but this module does not import by name (`import std/sem (validate_namespace)` then `n: namespace`; fix: `import std/sem (namespace)` if the type was meant, otherwise rename the variable), and a name imported by name that is a value, not a type (`import std/list (map)` then `(map) -> map`). One warning per declaration and name; reported on a warm compile cache too. It never blocks compilation: an error would let a library break every importer just by exporting a type named like a common type variable.
+
+```
+TC_UNBOUND_TYPE_002 at app.ail:3:18
+  'namespace' is treated as a type variable here; std/sem exports a type 'namespace', which is not imported by name.
+  Fix: import it by name, import std/sem (namespace), if you meant the type; otherwise rename the type variable
+```
+
+**`PAR_TYPE_PARAM_BUILTIN` — a type parameter named like a built-in type (parse error).** A built-in (`int`, `string`, `float`, `bool`, `unit`, `char`, `bytes`) is never a type variable, so `type Result[int] = Ok(int) | Err(string)` or `func f[string](x: string)` declares a parameter that nothing can refer to. Fix: rename the parameter (`[a]`, `[T]`) and use that name in the declaration.
+
+**`PAR_TYPE_PARAM_APPLIED` — a type parameter applied to type arguments (parse error).** There are no higher-kinded type parameters, so `func same[m](x: m[int])` cannot mean "any container of int". Before #2240 the parameter list was ignored and `m[int]` silently named an opaque type that no value could have. Fix: use a concrete type constructor (`Option[int]`, `[int]`).
+
 **`TC_DEPRECATED_001` — use of a `@deprecated` function (warning).** Emitted once per use site — a call, a function passed as a value, a module-qualified `L.f` or an aliased import — of a function declared `@deprecated("replacement")` in another module. The message names the replacement and the suggestion carries the annotation's optional note (for example, that the arguments swap). A name imported by name and never used warns once, at that name in the import list (the import itself fails once the alias is removed). Defining it and uses inside the defining module do not warn; nor do uses inside an installed dependency package (`pkg/<other>/...`), which that package's own `check` reports. If the replacement is itself deprecated, the message names the first function along the chain that is not (`use headOr`, not `use head_or`); when the chain cycles or reaches a name that does not exist, it names the annotation's own replacement. It is reported on a warm compile cache too, and never blocks compilation. The stdlib renames before 1.0 (`head_or` → `headOr`, `rand_int` → `randInt`, …) use it; see [Deprecated stdlib names](/docs/reference/stability#deprecated-stdlib-names).
 
 ```
