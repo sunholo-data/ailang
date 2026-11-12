@@ -223,14 +223,14 @@ CI missed.**
 | Work | Doc | State |
 |---|---|---|
 | Module-qualified type identity (M2 + resolver half of M3) | m-v1-nominal-type-identity | **Merged** (#2228, b7465ed6a) after four review rounds. Import-only scoping of indirect type names left for M3 |
-| Total `show` | m-v1-show-total | #2229 reviewed and green; merge held until the fine-tune pilot-4 evals finish |
-| Stdlib renames with `@deprecated` aliases, re-tiering, remaining behaviour fixes | m-v1-stdlib-surface-polish | #2230 reviewed and green; merges before #2229, same hold |
-| Non-exhaustive match as an error, `unreachable` | m-v1-match-exhaustiveness | In progress (started 2026-11-11, after type identity) |
+| Total `show` | m-v1-show-total | **Merged** 2026-11-12 (#2229, becc37909). Prompt v0.16.15; benchmark `run_length_encode` replaced by `_v2` |
+| Stdlib renames with `@deprecated` aliases, re-tiering, remaining behaviour fixes | m-v1-stdlib-surface-polish | **Merged** 2026-11-12 (#2230, e52ee05fd). Cache key v12, prompt v0.16.14. Broke scoring for a running eval: a binary run from the repo root loads `./std`, so pin `AILANG_STDLIB_PATH` before merging `std/` changes |
+| Non-exhaustive match as an error, `unreachable` | m-v1-match-exhaustiveness | #2246 open, reviewed (MERGE) and rebuilt on the two above; final review pass and merge pending. 8 downstream sites in 3 repos need patches before any release that contains it |
 
 **Not started:** integer overflow trap; callback
 effect rule; capability-grant changes and Internal command moves; help text; docs rewrites (284
 baselined samples) and the migration, security-model and support-window pages; rest of the rc
-pipeline; then close-out steps 16–19. Unowned soundness issues from review: #2210, #2211, #2221, #2232, #2238, #2239, #2240, #2243.
+pipeline; then close-out steps 16–19. Unowned soundness issues from review: #2210, #2211, #2221, #2232, #2238, #2239, #2240, #2244, #2247, #2248 (#2243 is fixed by #2246). Go emitter bugs found by the new harness (#2265): #2241, #2259–#2264.
 
 ### What the waves changed in the plan
 
