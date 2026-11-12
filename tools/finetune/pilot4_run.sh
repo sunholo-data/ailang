@@ -35,6 +35,12 @@ BIN=$FT/bin/ailang-ft3          # eval-suite binary, rebuilt 2026-11-10 with the
 # the installed binary's commit: git archive 6d28e1ad5 std | tar -x -C $FT/std-ft3
 export AILANG_STDLIB_PATH=$FT/std-ft3/std
 [ -f "$AILANG_STDLIB_PATH/list.ail" ] || { echo "pinned stdlib missing: $AILANG_STDLIB_PATH" >&2; exit 1; }
+# The env pin alone is not enough: scoring passes --stdlib-path <cwd>/std whenever the cwd holds
+# a stdlib, and a flag beats the env. So the suite runs from a directory with no std/, holding a
+# snapshot of benchmarks/ (rsync -a benchmarks/ $FT/evalroot/benchmarks/), which also freezes the tasks.
+EVALROOT=$FT/evalroot
+[ -d "$EVALROOT/benchmarks" ] && [ ! -e "$EVALROOT/std" ] || { echo "bad eval root: $EVALROOT" >&2; exit 1; }
+in_evalroot(){ ( cd "$EVALROOT" && "$@" ); }
 PY=$FT/.venv/bin/python
 OUT=$REPO/eval_results/finetune-pilot4
 PORT=11437
@@ -183,7 +189,7 @@ run_arm(){ # name lane prompt_version traps(on/off)
   local name=$1 lane=$2 pv=$3 traps=$4
   trace_models
   ( [ "$traps" = off ] && export AILANG_EVAL_TRAPS_CARD=off
-    with_proxy "$OUT/$name.trace.jsonl" env AILANG_MODELS_PATH="$P4/models.trace.yml" \
+    with_proxy "$OUT/$name.trace.jsonl" in_evalroot env AILANG_MODELS_PATH="$P4/models.trace.yml" \
       "$BIN" eval-suite --agent --models "$lane" --benchmarks "$HELD" --langs ailang --trials 1 --parallel 1 \
       --skip-existing --tool-policy lean --prompt-version "$pv" --output "$OUT/$name" ) > "$OUT/$name.log" 2>&1
   python3 -I - "$OUT/$name" "$pv" "$name" <<'EOF2' | tee -a "$LOG"
