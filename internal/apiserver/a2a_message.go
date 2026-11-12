@@ -314,36 +314,39 @@ func a2aTask(c *a2aCall, answer string, callErr error) map[string]any {
 
 // --- the methods ---
 
-func (s *Server) handleA2AMessageSend(w http.ResponseWriter, r *http.Request, req *a2aRequest) {
+// Each method handler returns its outcome for the request log line (a2a_log.go).
+
+func (s *Server) handleA2AMessageSend(w http.ResponseWriter, r *http.Request, req *a2aRequest) a2aOutcome {
 	if s.a2aHandlerFn == nil {
 		a2aError(w, req.ID, -32601, "message/send needs a message handler (serve-api --a2a-message)")
-		return
+		return a2aOutcome{result: "no_handler"}
 	}
 	c, err := parseA2AMessage(req)
 	if err != nil {
 		a2aError(w, req.ID, -32602, err.Error())
-		return
+		return a2aOutcome{result: "invalid_params"}
 	}
 	answer, callErr := s.runA2AHandler(r, c.text)
 	task := a2aTask(c, answer, callErr)
 	s.a2aTasks.put(c.taskID, task)
 	a2aResult(w, req.ID, task)
+	return a2aOutcome{result: taskState(task)}
 }
 
-func (s *Server) handleA2AMessageStream(w http.ResponseWriter, r *http.Request, req *a2aRequest) {
+func (s *Server) handleA2AMessageStream(w http.ResponseWriter, r *http.Request, req *a2aRequest) a2aOutcome {
 	if s.a2aHandlerFn == nil {
 		a2aError(w, req.ID, -32601, "message/stream needs a message handler (serve-api --a2a-message)")
-		return
+		return a2aOutcome{result: "no_handler"}
 	}
 	c, err := parseA2AMessage(req)
 	if err != nil {
 		a2aError(w, req.ID, -32602, err.Error())
-		return
+		return a2aOutcome{result: "invalid_params"}
 	}
 	flusher, ok := w.(http.Flusher)
 	if !ok {
 		a2aError(w, req.ID, -32603, "streaming unsupported by this connection")
-		return
+		return a2aOutcome{result: "no_streaming"}
 	}
 	w.Header().Set("Content-Type", "text/event-stream")
 	w.Header().Set("Cache-Control", "no-cache")
@@ -373,6 +376,7 @@ func (s *Server) handleA2AMessageStream(w http.ResponseWriter, r *http.Request, 
 	tick := time.NewTicker(a2aHeartbeat)
 	defer tick.Stop()
 	var out outcome
+	beats := 0
 wait:
 	for {
 		select {
@@ -382,8 +386,9 @@ wait:
 			// An SSE comment: every client ignores it, every proxy sees traffic.
 			_, _ = fmt.Fprint(w, ": heartbeat\n\n")
 			flusher.Flush()
+			beats++
 		case <-r.Context().Done():
-			return
+			return a2aOutcome{result: "client_gone", heartbeats: beats}
 		}
 	}
 	task := a2aTask(c, out.answer, out.err)
@@ -394,20 +399,22 @@ wait:
 	}
 	send(map[string]any{"kind": "status-update", "taskId": c.taskID, "contextId": c.contextID,
 		"status": task["status"], "final": true})
+	return a2aOutcome{result: taskState(task), heartbeats: beats}
 }
 
-func (s *Server) handleA2ATasksGet(w http.ResponseWriter, req *a2aRequest) {
+func (s *Server) handleA2ATasksGet(w http.ResponseWriter, req *a2aRequest) a2aOutcome {
 	var p struct {
 		ID string `json:"id"`
 	}
 	if err := json.Unmarshal(req.Params, &p); err != nil || p.ID == "" {
 		a2aError(w, req.ID, -32602, "tasks/get needs params.id")
-		return
+		return a2aOutcome{result: "invalid_params"}
 	}
 	task, ok := s.a2aTasks.get(p.ID)
 	if !ok {
 		a2aError(w, req.ID, -32001, "task not found")
-		return
+		return a2aOutcome{result: "not_found"}
 	}
 	a2aResult(w, req.ID, task)
+	return a2aOutcome{result: "found"}
 }

@@ -22,6 +22,7 @@ func (s *Server) handleA2AAgentCard(w http.ResponseWriter, r *http.Request) {
 	}
 
 	card := s.buildAgentCard(r)
+	s.addA2ASecurity(r.Context(), card)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	enc := json.NewEncoder(w)
@@ -126,41 +127,49 @@ func (s *Server) buildAgentCard(r *http.Request) map[string]any {
 	return card
 }
 
-// handleA2ATask handles JSON-RPC 2.0 requests at /a2a/.
+// handleA2ATask handles JSON-RPC 2.0 requests at /a2a/, one log line each.
 func (s *Server) handleA2ATask(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
 		httpjson.Write(w, http.StatusMethodNotAllowed, map[string]string{"error": "POST only"})
 		return
 	}
+	t0 := time.Now()
+	method, out := s.dispatchA2A(w, r)
+	logA2ARequest(method, out, time.Since(t0))
+}
 
+// dispatchA2A runs one JSON-RPC request and says what came of it.
+func (s *Server) dispatchA2A(w http.ResponseWriter, r *http.Request) (string, a2aOutcome) {
 	body, err := io.ReadAll(io.LimitReader(r.Body, 1<<20))
 	if err != nil {
 		a2aError(w, nil, -32700, "failed to read request body")
-		return
+		return "", a2aOutcome{result: "bad_request"}
 	}
 
 	var req a2aRequest
 	if err := json.Unmarshal(body, &req); err != nil {
 		a2aError(w, nil, -32700, "invalid JSON: "+err.Error())
-		return
+		return "", a2aOutcome{result: "bad_request"}
 	}
 
 	if req.JSONRPC != "2.0" {
 		a2aError(w, req.ID, -32600, "expected jsonrpc: \"2.0\"")
-		return
+		return req.Method, a2aOutcome{result: "bad_request"}
 	}
 
 	switch req.Method {
 	case "tasks/send":
 		s.handleA2ATaskSend(w, &req)
+		return req.Method, a2aOutcome{result: "answered"}
 	case "message/send":
-		s.handleA2AMessageSend(w, r, &req)
+		return req.Method, s.handleA2AMessageSend(w, r, &req)
 	case "message/stream":
-		s.handleA2AMessageStream(w, r, &req)
+		return req.Method, s.handleA2AMessageStream(w, r, &req)
 	case "tasks/get":
-		s.handleA2ATasksGet(w, &req)
+		return req.Method, s.handleA2ATasksGet(w, &req)
 	default:
 		a2aError(w, req.ID, -32601, "method not found: "+req.Method)
+		return req.Method, a2aOutcome{result: "unknown_method"}
 	}
 }
 
