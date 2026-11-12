@@ -21,6 +21,11 @@
 -- costs no model call. A restarted instance starts its count again; the
 -- project's budget alert is the backstop. Per-user limits and paid tiers need
 -- the caller's identity in the handler (a later change).
+--
+-- submit_feedback files a report through the public docs MCP's tool of the
+-- same name (EXECUTOR_FEEDBACK_MCP_URL, default https://mcp.ailang.sunholo.com/mcp/):
+-- the same validation, public-feedback inbox and per-IP limit as any MCP
+-- client. The model calls it only when the user asks to report something.
 module executor_tools/agent
 import executor_tools/executor (ailangCheck, ailangRun, ailangPrompt)
 import std/ai (Message, ToolCall, ToolSchema, AIError, runTools)
@@ -28,11 +33,12 @@ import std/clock (now)
 import std/debug (log)
 import std/env (getEnvOr)
 import std/fs (fileExists, readFileResult, writeFileResult, mkdirAllResult)
-import std/json (Json, jo, kv, js, jnum, encode, decode, getString)
-import std/list (last, length as listLength)
+import std/net (httpRequest)
+import std/json (Json, jo, kv, js, jnum, encode, decode, get, getString, getArray)
+import std/list (last, filter, length as listLength)
 import std/option (Option, Some, None)
 import std/result (Result, Ok, Err)
-import std/string (concat, length, trim, stringToInt)
+import std/string (concat, length, trim, stringToInt, split, startsWith, substring)
 
 -- Model turns per message. Each turn that calls tools is one step; a working
 -- program usually takes three (check, run, answer), a repair two more.
@@ -97,7 +103,7 @@ pure func capRefusal(why: string) -> string =
   if why == "daily_cap" then "The AILANG executor agent has answered as many requests as it can today. The limit resets at 00:00 UTC; please try again then." else "The AILANG executor agent cannot take requests right now (its usage counter is unavailable). Please try again later."
 
 pure func instructions() -> string =
-  "You are the AILANG executor agent. The user asks for something to be computed, written or explained in AILANG. Write an AILANG program, call ailang_check on it, fix what the report says, then call ailang_run and use its real output.\n\nRules:\n- Always check before you run. Programs need `module main` and `export func main() -> () ! {IO}`; the sandbox grants IO only (no network, files, clock or environment) for 60 seconds.\n- Never state output you did not get from ailang_run.\n- If it still fails after a few repairs, say what failed and show the last error.\n- Answer in this order: one or two sentences with the result, the final program in an ```ailang block, then its output in a ``` block.\n\nThe AILANG language reference follows. Use it instead of guessing syntax from other languages.\n\n"
+  "You are the AILANG executor agent. The user asks for something to be computed, written or explained in AILANG. Write an AILANG program, call ailang_check on it, fix what the report says, then call ailang_run and use its real output.\n\nRules:\n- Always check before you run. Programs need `module main` and `export func main() -> () ! {IO}`; the sandbox grants IO only (no network, files, clock or environment) for 60 seconds.\n- Never state output you did not get from ailang_run.\n- If it still fails after a few repairs, say what failed and show the last error.\n- Answer in this order: one or two sentences with the result, the final program in an ```ailang block, then its output in a ``` block.\n- Call submit_feedback only when the user asks you to report a bug, request a feature or send feedback about AILANG. Write the report yourself from what happened (what was asked, the program, the error), leave out personal details, and tell the user the ticket id it returns.\n\nThe AILANG language reference follows. Use it instead of guessing syntax from other languages.\n\n"
 
 pure func msg(role: string, content: string) -> Message =
   { role: role, content: content, tool_calls: [], tool_call_id: "", images: [] }
@@ -105,8 +111,11 @@ pure func msg(role: string, content: string) -> Message =
 pure func codeSchema(what: string) -> string =
   "{\"type\":\"object\",\"properties\":{\"code\":{\"type\":\"string\",\"description\":\"${what}\"}},\"required\":[\"code\"]}"
 
+pure func feedbackSchema() -> string =
+  "{\"type\":\"object\",\"properties\":{\"title\":{\"type\":\"string\",\"description\":\"Short title for the report\"},\"body\":{\"type\":\"string\",\"description\":\"What happened and what was expected, with the program and error if any (at most 10 KB)\"},\"category\":{\"type\":\"string\",\"enum\":[\"bug\",\"feature\",\"docs\",\"limitation\"]}},\"required\":[\"title\",\"body\",\"category\"]}"
+
 pure func tools() -> [ToolSchema] =
-  [{ name: "ailang_check", description: "Type-check an AILANG module and prove its contracts with Z3. Returns check.passed, check.errors with locations and fixes, and the verification result.", parameters: codeSchema("The whole AILANG module source") }, { name: "ailang_run", description: "Run an AILANG module in the sandbox (IO only, 60s, entry main). Returns ok, stdout, stderr and the outcome.", parameters: codeSchema("The whole AILANG module source, with export func main") }]
+  [{ name: "submit_feedback", description: "File a bug report, feature request, docs gap or limitation about AILANG with the AILANG team (queued for human review). Only when the user asks to report something. Returns a ticket_id.", parameters: feedbackSchema() }, { name: "ailang_check", description: "Type-check an AILANG module and prove its contracts with Z3. Returns check.passed, check.errors with locations and fixes, and the verification result.", parameters: codeSchema("The whole AILANG module source") }, { name: "ailang_run", description: "Run an AILANG module in the sandbox (IO only, 60s, entry main). Returns ok, stdout, stderr and the outcome.", parameters: codeSchema("The whole AILANG module source, with export func main") }]
 
 -- The `code` argument of a tool call, if the model sent one.
 pure func codeOf(arguments: string) -> Option[string] = match decode(arguments) {
@@ -116,9 +125,72 @@ pure func codeOf(arguments: string) -> Option[string] = match decode(arguments) 
 
 pure func toolError(message: string) -> string = encode(jo([kv("error", js(message))]))
 
-func dispatch(call: ToolCall) -> string ! {Clock, Debug, Env, FS, Process, Rand} = match codeOf(call.arguments) {
+func dispatch(call: ToolCall) -> string ! {Clock, Debug, Env, FS, Net, Process, Rand} =
+  if call.name == "submit_feedback" then submitFeedback(call.arguments) else runTool(call)
+
+func runTool(call: ToolCall) -> string ! {Clock, Debug, Env, FS, Process, Rand} = match codeOf(call.arguments) {
   None => toolError("missing string argument: code"),
   Some(code) => if call.name == "ailang_check" then encode(ailangCheck(code)) else if call.name == "ailang_run" then encode(ailangRun(code)) else toolError("unknown tool ${call.name}: use ailang_check or ailang_run")
+}
+
+-- --- submit_feedback ---
+
+func feedbackUrl() -> string ! {Env} = getEnvOr("EXECUTOR_FEEDBACK_MCP_URL", "https://mcp.ailang.sunholo.com/mcp/")
+
+pure func argStr(args: Json, name: string) -> string = match getString(args, name) {
+  Some(v) => v,
+  None => ""
+}
+
+-- The tools/call request for the docs MCP's submit_feedback. The origin goes
+-- in the body so triage can tell these reports apart.
+export pure func feedbackRequest(arguments: string) -> Result[string, string] = match decode(arguments) {
+  Err(_) => Err("arguments are not JSON"),
+  Ok(args) => feedbackCall(trim(argStr(args, "title")), trim(argStr(args, "body")), argStr(args, "category"))
+}
+
+pure func feedbackCall(title: string, body: string, category: string) -> Result[string, string] =
+  if title == "" || body == "" then Err("title and body are required") else Ok(encode(jo([kv("jsonrpc", js("2.0")), kv("id", jnum(1.0)), kv("method", js("tools/call")), kv("params", jo([kv("name", js("submit_feedback")), kv("arguments", jo([kv("title", js(title)), kv("body", js(concat(["[Sent by the hosted AILANG executor's A2A agent, on a user's request]\n\n", body]))), kv("category", js(category)), kv("ailang_version", js("hosted-executor-a2a"))]))]))])))
+
+-- The JSON in a Streamable HTTP reply: the body itself, or the last data:
+-- line of an SSE stream.
+pure func ssePayload(raw: string) -> string = match last(filter(\l. startsWith(l, "data: "), split(raw, "\n"))) {
+  Some(l) => substring(l, 6, length(l)),
+  None => raw
+}
+
+-- The tool result text from that JSON (a tool error is its own JSON text).
+export pure func feedbackReply(raw: string) -> string = match decode(ssePayload(raw)) {
+  Err(_) => toolError("the feedback service sent an unreadable reply"),
+  Ok(j) => match get(j, "result") {
+    None => toolError("the feedback service refused the call"),
+    Some(r) => resultText(r)
+  }
+}
+
+pure func resultText(r: Json) -> string = match getArray(r, "content") {
+  None => toolError("the feedback service sent no content"),
+  Some(parts) => match last(parts) {
+    None => toolError("the feedback service sent no content"),
+    Some(part) => match getString(part, "text") {
+      Some(t) => t,
+      None => toolError("the feedback service sent no text")
+    }
+  }
+}
+
+func submitFeedback(arguments: string) -> string ! {Debug, Env, Net} = match feedbackRequest(arguments) {
+  Err(why) => toolError(why),
+  Ok(req) => match httpRequest("POST", feedbackUrl(), [{ name: "Content-Type", value: "application/json" }, { name: "Accept", value: "application/json, text/event-stream" }], req) {
+    Err(_) => toolError("the feedback service could not be reached; tell the user to try again later"),
+    Ok(resp) => feedbackLogged(resp.status, feedbackReply(resp.body))
+  }
+}
+
+-- One log line per report: the HTTP status only, never the report.
+func feedbackLogged(status: int, out: string) -> string ! {Debug} {
+  log(encode(jo([kv("event", js("executor_a2a_feedback")), kv("status", jnum(intToFloat(status)))])));
+  out
 }
 
 -- The reference text, from the same ailang_prompt the MCP surface serves.
@@ -144,7 +216,7 @@ func logLine(outcome: string, messages: int, code: string, t0: int, size: int) -
 -- Write, check and run AILANG for a request in plain language, and answer with the result, the program and its real output. Use it for anything to compute, generate or demonstrate in AILANG, a deterministic language for AI-written code with explicit effects and contracts proved by Z3. Programs run in a sandbox with no network or file access.
 @noexpose
 @nomcp
-export func ailangTask(text: string) -> string ! {AI, Clock, Debug, Env, FS, Process, Rand} {
+export func ailangTask(text: string) -> string ! {AI, Clock, Debug, Env, FS, Net, Process, Rand} {
   let t0 = now()
   let size = length(text)
   if size > maxRequestChars() then {
@@ -160,7 +232,7 @@ export func ailangTask(text: string) -> string ! {AI, Clock, Debug, Env, FS, Pro
 }
 
 -- The model loop for an admitted message.
-func answer(text: string, t0: int, size: int) -> string ! {AI, Clock, Debug, Env, FS, Process, Rand} {
+func answer(text: string, t0: int, size: int) -> string ! {AI, Clock, Debug, Env, FS, Net, Process, Rand} {
   let messages = [msg("system", concat([instructions(), reference()])), msg("user", text)]
   match runTools("", messages, tools(), dispatch, maxTurns()) {
     Err(e) => {
