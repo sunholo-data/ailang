@@ -45,7 +45,7 @@ costs weeks.
 
 ## 1. The channel matrix
 
-Status today (2026-11-10). ✅ = observed working live. 🔧 = we have to build or switch something on.
+Status today (2026-11-12; C8, C9 and M3 updated). ✅ = observed working live. 🔧 = we have to build or switch something on.
 👤 = needs Mark at a console. ⛔ = blocked on something outside us.
 
 | # | Channel | How the user gets it | Client model | Parse | Executor |
@@ -57,8 +57,8 @@ Status today (2026-11-10). ✅ = observed working live. 🔧 = we have to build 
 | C5 | **Microsoft 365 Copilot** (declarative agent + MCP plugin) | Agents Toolkit ≥ 6.12.0, sideload; then Marketplace | static client or DCR | 🔧 client model off | 🔧 client model off |
 | C6 | **Copilot Studio** (agent tool) | MCP onboarding wizard | DCR (discovery) or manual client | 🔧 | 🔧 |
 | C7 | **GitHub Copilot / VS Code** | `MCP: Add Server`, or from the MCP Registry | remote MCP + OAuth | 👤 untested | 👤 untested; not in the Registry |
-| C8 | **Gemini Enterprise, MCP data store** | Admin adds the URL **inside the app**; users reach it only through an **Agent Designer agent** (the default assistant does not list custom MCP tools) | IAM, or pre-registered client | 🔧 no confidential client in prod | ✅ IAM-only (dev, 2026-10-14); ✅ OAuth sign-in on dev 2026-11-11 (PKCE + Basic, token issued); web-app Connect needed `mcp_oauth` 0.2.1 (768-char `state`); ⏳ chat tool call blocked by GE's daily agent-creation quota (Standard = 1/licensed user/day, pooled; deletes do not refund) — retry after reset |
-| C9 | **Gemini Enterprise, A2A agent** | Agent Registry; Cloud Marketplace | A2A v0.3 | ⛔ out of scope (D7) | 🔧 serve-api A2A is pre-0.2. **Registration is the same `CreateAgent` call, so it shares GE's daily agent-creation quota** (measured 2026-11-11: 429 RESOURCE_EXHAUSTED); not a shortcut past the MCP route |
+| C8 | **Gemini Enterprise, MCP data store** | Admin adds the URL **inside the app**; users reach it only through an **Agent Designer agent** (the default assistant does not list custom MCP tools) | IAM, or pre-registered client | 🔧 no confidential client in prod | ✅ IAM-only (dev); ✅ OAuth sign-in (dev 2026-11-11, `mcp_oauth` 0.2.1 for the web app's 768-char `state`); **prod since v0.60.1**: pre-registered clients on, prod client minted 2026-11-12, GE egress allows `executor.ailang.sunholo.com` |
+| C9 | **Gemini Enterprise, A2A agent** | Admin registers the agent card (REST: `ailang-multivac/scripts/ge-a2a-agent.sh`); Cloud Marketplace later | A2A v0.3 | ⛔ out of scope (D7) | ✅ dev 2026-11-12 (sign-in, token, 27s answer); **prod live on v0.60.2** (card, 401 gate, daily cap 150, feedback tool); prod agent registration pending GE's daily creation quota. Shares GE's agent-creation quota with MCP agents |
 | C10 | **Gemini app + Search** (Connected Apps, preview) | Google's console after admission | CIMD, then DCR; stable refresh; revoke | 🔧 + ⛔ preview admission | 🔧 + ⛔ preview admission |
 
 ## 2. The marketplaces
@@ -70,7 +70,7 @@ What each one demands before it accepts a submission. Sources: `integrations-rev
 |---|---|---|---|---|---|
 | M1 | **Anthropic connector directory** (`claude.ai/directory/manage`) | Paid Claude plan (Owner on Team/Ent); ownership of every endpoint (§3F); title + hint on every tool; populated test account; ≥ 3 working prompts; public docs by publish date; 3–5 PNG screenshots ≥ 1000 px if it has an MCP App; seven acknowledgments | Mark | plan only | Parse, executor |
 | M2 | **OpenAI plugin directory** (`platform.openai.com/plugins`, ZIP) | Org verified (individual or business, enforced); Owner or Apps Management Write; **project with global, not EU, data residency**; domain token at `/.well-known/openai-apps-challenge`; 5 positive + 3 negative cases; **demo video**; MFA-free reviewer account; four listing URLs; no pricing or upsell in tool output; strip IDs and timestamps from results | Mark | none found | Parse, executor |
-| M3 | **Official MCP Registry** (feeds VS Code / GitHub Copilot) | `server.json` with a `remotes` entry; `io.github.<org>/` namespace via `mcp-publisher` GitHub login or OIDC in CI | agent (CI) | free | Parse ✅ listed; executor to add |
+| M3 | **Official MCP Registry** (feeds VS Code / GitHub Copilot) | `server.json` with a `remotes` entry; `io.github.<org>/` namespace via `mcp-publisher` GitHub login or OIDC in CI | agent (CI) | free | ✅ Parse, executor and docs MCP listed |
 | M4 | **Microsoft Marketplace** (Partner Center → Marketplace offers → *Microsoft 365 and Copilot*) | Publisher account enrolled in the Microsoft 365 and Copilot program; an offer type that accepts a declarative agent + MCP plugin package (**must be confirmed first**, V10); Marketplace certification policies; Microsoft 365 store validation guidelines for agents; Responsible AI checks at manifest validation; reviewer test instructions; optional App Compliance certification | Mark (enrolment), agent (package) | none found | Parse first |
 | M5 | **Google Connected Apps** (Gemini app + Search) | Preview admission; Connected Apps ToS accepted by an admin; description < 30 words; 512×512 icon; ≥ 3 capabilities; ≥ 3 prompts (2 starting `@App`); seeded no-2FA test account; data-deletion help docs; `/.well-known/google-connected-apps` JSON; tools frozen per version; `destructiveHint` or console HITL on writes | Mark (admission), agent (well-known, docs) | none found | Parse first |
 | M6 | **Google Cloud Marketplace, AI agents** (→ GE Agent Gallery) | Vendor onboarding + Project Info Form; **A2A**; "Model Garden as a default configuration"; Partner Procurement API + Pub/Sub integration; product, pricing, technical and card reviews; 3% revenue share | Mark + agent | 3% rev share | Recommend defer (D4) |
@@ -337,7 +337,8 @@ stub storage. `mcp check --target both|copilot` runs against dev in each service
 | Marketplace | Service | Version | Submitted | Status | Notes |
 |---|---|---|---|---|---|
 | M3 MCP Registry | Parse | 0.14.1 (ailang-parse) | yes | listed | `io.github.sunholo-data/parse`, CI-stamped |
-| | | | | | |
+| M3 MCP Registry | Executor | 0.60.2 | 2026-11-12 | listed | `io.github.sunholo-data/ailang-executor` → `executor.ailang.sunholo.com/mcp/connect/`; `publish-mcp-registry.yml`, run from `release.yml` on every release |
+| M3 MCP Registry | Docs MCP | 0.60.2 | 2026-11-12 | listed | `io.github.sunholo-data/ailang-docs` → `mcp.ailang.sunholo.com/mcp/`; same workflow |
 
 ## Deferred Decisions
 
