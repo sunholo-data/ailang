@@ -1,7 +1,7 @@
 # M-PLATFORM-SPLIT: put the Internal tier behind a boundary the build can see
 
-**Status**: Planned (draft for Mark's decisions; see Design Freeze)
-**Target**: v1.1 (post-1.0). M0 is tools-only and may land earlier; see "Pre-1.0 or post-1.0"
+**Status**: Planned (draft for Mark's decisions; see Design Freeze). D4 decided 2026-11-12 (post-1.0, v1.1); D1–D3 open until v1.1 starts
+**Target**: v1.1 (post-1.0), all milestones including M0 (D4, decided by Mark 2026-11-12); see "Pre-1.0 or post-1.0"
 **Priority**: P1
 **Estimated**: 13–18 engineer-days for M0–M4, plus 2–3 days for the optional M5 (an estimate; see Timeline)
 **Dependencies**: [m-v1-public-surface-hygiene](../v1_0_0/m-v1-public-surface-hygiene.md) M1 (a `Tier` field on the command table); dashboard UI removal (handover workstream 4) before M3; Phase 3b preconditions of [m-v1-simplification-program](../m-v1-simplification-program.md) for M4
@@ -199,7 +199,7 @@ only if M2's measurements justify it. A separate repo (Option D) is rejected.
 
 ## 4. Pre-1.0 or post-1.0
 
-**Post-1.0 (v1.1).** Four reasons, each checkable:
+**Post-1.0 (v1.1). Decided (D4): post-1.0 (v1.1) — Mark, 2026-11-12.** Four reasons, each checkable:
 
 1. **Nothing in the 1.0 promise needs it.** Internal carries no promise (`D-65`; stability.md "Tiers"). The
    readiness review §8 ruled "Platform split: **After, but say so in 1.0**", and m-v1-public-surface-hygiene §9
@@ -214,8 +214,8 @@ only if M2's measurements justify it. A separate repo (Option D) is rejected.
 4. **Phase 3b's own precondition 2 is still open.** The caller sweep F1 has no landing commit (V17: `git log
    --grep="caller sweep"` shows only the 2026-09-18 Phase 3 close-out).
 
-**What may land before the tag:** only M0 (tools and tests, no binary byte changes), and only if Mark wants the
-boundary numbers in the 1.0 notes (D4). Everything that touches `cmd/ailang` or moves a package waits for v1.0.0.
+**What may land before the tag:** nothing. The option was M0 (tools and tests, no binary byte changes), and only if
+Mark wanted the boundary numbers in the 1.0 notes; D4 chose post-1.0 (v1.1) for every milestone (Mark, 2026-11-12).
 
 ## 5. The seams (M1)
 
@@ -343,7 +343,7 @@ needs M3 plus Phase 3b's preconditions. M5 needs M3, and is taken only if D5 say
 | D1. Mechanism: one module + directory + build tag (recommended) **vs** a nested module now **vs** a separate repo | Fixes how every later step works; a separate repo would turn 47 language packages into Go API (V15) | human | design | high |
 | D2. Where the message plane goes (`messaging`, `pubsub`, `storage`, `storage/firestore`, `feedback`: 19,603 LOC). **(a)** language side: the language binary keeps Firestore/Pub/Sub. **(b)** ops side (recommended): `ailang messages` stays in the default binary, and after M4 it delegates (D1 spelling rule). **(c)** split it further | `messages` is **Experimental** (D-64), not Internal, and it imports `coordinator.AgentRegistry` (V6). The Stable `pkg publish` notifies through it (S8) | human | design | high |
 | D3. Directory name: `internal/ops/` (recommended) **vs** a top-level `platform/` | A top-level non-`internal` directory would make 43 packages importable by any module, which is Go API growth (D-67(9)) | human | before M3 | med |
-| D4. Timing: all milestones after v1.0.0 (recommended) **vs** M0 before the tag so the numbers appear in the 1.0 notes | M0 changes no binary byte, but it adds rows to the metric set G5 reports | human | before M0 | low |
+| D4. Timing: all milestones after v1.0.0 (recommended) **vs** M0 before the tag so the numbers appear in the 1.0 notes. **Decided: post-1.0 (v1.1) — Mark, 2026-11-12.** | M0 changes no binary byte, but it adds rows to the metric set G5 reports | human | before M0 | low |
 | D5. Whether M5 (nested module) is ever done | Decided on M2's measured module count and on the Dependabot share attributable to ops-only modules | human | after M2 | med |
 | D6. Hosted `submit_feedback` after M4: the `mcp`/`executor-mcp` images run the full default build as `ailang-ops serve-api` (the tool stays; the image keeps the platform dependencies), **or** they run the language-only `ailang serve-api` and the tool is dropped. Shipping `ailang-ops` beside a language-only `ailang` is **not** an option, because S7's registration is in-process (§6.3) | The tool is Experimental (D-65 call 3). Dropping it changes the hosted tool list; keeping it keeps Firestore in the hosted Stable-MCP image | human | before M4 | low |
 
@@ -354,7 +354,9 @@ Before implementation begins, these must be resolved (unchecked = pause for Mark
 - [ ] D1: mechanism (recommendation: one module, `internal/ops/`, build tag `ailang_lang`)
 - [ ] D2: message plane placement (recommendation: (b), with S8 cutting the Stable `pkg publish` dependency)
 - [ ] D3: directory name (recommendation: `internal/ops/`)
-- [ ] D4: post-1.0 for everything, or M0 before the tag (recommendation: post-1.0; M0 is allowed earlier)
+- [x] D4: post-1.0 for everything, or M0 before the tag (recommendation: post-1.0; M0 is allowed earlier). **Decided: post-1.0 (v1.1) — Mark, 2026-11-12.**
+
+D1–D3 stay open; they are decided when v1.1 starts.
 
 D5 and D6 are not freeze items. They are decided later, on measurements this doc's milestones produce.
 
