@@ -557,19 +557,13 @@ func (v *matchVerifier) crossCheckRoot(m *core.Match, arms []exhaust.Arm) error 
 	return nil
 }
 
-// head returns the nominal head of t after alias expansion, or nil.
+// head returns the nominal head of t after alias expansion, or nil
+// (nominal_head.go).
 func (v *matchVerifier) head(t Type) *TCon {
 	if v.unif == nil {
 		v.unif = v.tc.aliasUnifier()
 	}
-	t = v.unif.expandAliasMode(t, false)
-	if app, ok := t.(*TApp); ok {
-		t, _ = decomposeApp(app)
-	}
-	if h, ok := t.(*TCon); ok {
-		return h
-	}
-	return nil
+	return v.unif.nominalHead(t)
 }
 
 // aliasUnifier is a unifier that knows this module's aliases, for expansion.
@@ -581,6 +575,8 @@ func (tc *CoreTypeChecker) aliasUnifier() *Unifier {
 }
 
 // scrutineeName names the scrutinee's type for a message, "" when unknown.
+// A type written as an alias is named with what it expands to, "Hue (=
+// Color)", because the missing patterns are the expansion's constructors.
 func (v *matchVerifier) scrutineeName(m *core.Match) string {
 	t, ok := v.tc.CoreTI.Get(m.Scrutinee.ID())
 	if !ok {
@@ -589,6 +585,12 @@ func (v *matchVerifier) scrutineeName(m *core.Match) string {
 	switch t.(type) {
 	case *TVar, *TVar2:
 		return ""
+	}
+	if v.unif == nil {
+		v.unif = v.tc.aliasUnifier()
+	}
+	if exp := v.unif.expandAliasMode(t, false); exp.String() != t.String() {
+		return t.String() + " (= " + exp.String() + ")"
 	}
 	return t.String()
 }
