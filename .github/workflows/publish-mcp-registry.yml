@@ -1,0 +1,97 @@
+name: Publish to MCP Registry
+
+# Publishes the two hosted AILANG MCP servers to the official MCP Registry
+# (registry.modelcontextprotocol.io, which feeds VS Code and GitHub Copilot):
+#
+#   registry/executor/server.json  io.github.sunholo-data/ailang-executor  https://executor.ailang.sunholo.com/mcp/connect/
+#   registry/docs/server.json      io.github.sunholo-data/ailang-docs      https://mcp.ailang.sunholo.com/mcp/
+#
+# Both are remote-only listings: the version is the AILANG release, stamped in
+# here, and the URL is the prod service, which moves only on promote-to-prod.
+# Called by release.yml after a release is published; runnable by hand to
+# (re)publish for an existing release:
+#
+#   gh workflow run publish-mcp-registry.yml -f version=0.60.2
+#
+# Auth is GitHub OIDC, which grants the io.github.sunholo-data/ namespace to
+# workflows in this org (AILANG Parse publishes io.github.sunholo-data/parse
+# the same way from sunholo-data/ailang-parse).
+
+on:
+  workflow_call:
+    inputs:
+      version:
+        description: AILANG release version (0.60.2 or v0.60.2)
+        required: true
+        type: string
+  workflow_dispatch:
+    inputs:
+      version:
+        description: AILANG release version (0.60.2 or v0.60.2)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: Publish ${{ matrix.listing }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      id-token: write # GitHub OIDC for mcp-publisher
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        listing: [executor, docs]
+    env:
+      VERSION: ${{ inputs.version }}
+      DIR: registry/${{ matrix.listing }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Check the version is semver
+        # release.yml passes the tag (v0.60.2); by hand, either form works.
+        run: |
+          v="${VERSION#v}"
+          echo "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+$' \
+            || { echo "::error::version must be X.Y.Z, got '$VERSION'"; exit 1; }
+          echo "VERSION=$v" >> "$GITHUB_ENV"
+
+      - name: Stamp server.json with the version
+        run: |
+          jq --arg v "$VERSION" '.version = $v' "$DIR/server.json" > "$DIR/server.json.new"
+          mv "$DIR/server.json.new" "$DIR/server.json"
+          jq '{name, version, remotes}' "$DIR/server.json"
+
+      - name: Check the remote answers MCP
+        # A listing that points at a dead URL is worse than none. tools/list
+        # is open on both servers (sign-in is lazy on the executor).
+        run: |
+          url=$(jq -r '.remotes[0].url' "$DIR/server.json")
+          n=$(curl -sf -X POST "$url" -H 'Content-Type: application/json' \
+                -H 'Accept: application/json, text/event-stream' \
+                -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}' \
+              | sed -n 's/^data: //p' | jq '.result.tools | length')
+          [ "${n:-0}" -gt 0 ] || { echo "::error::$url did not list any tools"; exit 1; }
+          echo "$url lists $n tools"
+
+      - name: Install mcp-publisher
+        run: |
+          # 1.7.x has the OIDC audience the registry expects (1.5.0 did not).
+          MCP_PUBLISHER_VERSION="1.7.9"
+          SHA256="ab128162b0616090b47cf245afe0a23f3ef08936fdce19074f5ba0a4469281ac"
+          curl -sfL -o /tmp/mcp-publisher.tar.gz \
+            "https://github.com/modelcontextprotocol/registry/releases/download/v${MCP_PUBLISHER_VERSION}/mcp-publisher_linux_amd64.tar.gz"
+          echo "${SHA256}  /tmp/mcp-publisher.tar.gz" | sha256sum -c -
+          sudo tar -xzf /tmp/mcp-publisher.tar.gz -C /usr/local/bin mcp-publisher
+          mcp-publisher --help | head -3
+
+      - name: Authenticate with GitHub OIDC
+        run: mcp-publisher login github-oidc
+
+      - name: Publish to MCP Registry
+        working-directory: ${{ env.DIR }}
+        run: mcp-publisher publish

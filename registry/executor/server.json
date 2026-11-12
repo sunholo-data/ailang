@@ -1,0 +1,26 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.sunholo-data/ailang-executor",
+  "title": "AILANG Executor",
+  "description": "Write, type-check and run AILANG in a sandbox, with Z3-proved contracts and docs search.",
+  "websiteUrl": "https://ailang.sunholo.com/docs/guides/hosted-executor",
+  "repository": {
+    "url": "https://github.com/sunholo-data/ailang",
+    "source": "github",
+    "id": "1064514521"
+  },
+  "icons": [
+    {
+      "src": "https://ailang.sunholo.com/img/connectors/ailang-icon-256.png",
+      "mimeType": "image/png",
+      "sizes": ["256x256"]
+    }
+  ],
+  "version": "0.0.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://executor.ailang.sunholo.com/mcp/connect/"
+    }
+  ]
+}

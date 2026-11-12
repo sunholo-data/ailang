@@ -575,3 +575,17 @@ jobs:
           jq -e 'any(.assets[]; .name == "multiple.intoto.jsonl" and .size > 0)' complete.json
           gh api --method PATCH "$endpoint" -F draft=false > published.json
           jq -e --arg tag "$TAG" '.tag_name == $tag and .draft == false' published.json
+
+  # The hosted executor and docs MCP servers in the official MCP Registry
+  # (registry/*/server.json). Remote-only listings: the URL is the prod
+  # service, so publishing on release is safe before promote-to-prod.
+  mcp-registry:
+    name: Publish to MCP Registry
+    needs: [finalize-release]
+    if: github.event_name == 'push'
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/publish-mcp-registry.yml
+    with:
+      version: ${{ github.ref_name }}
