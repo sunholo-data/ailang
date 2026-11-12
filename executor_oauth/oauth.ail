@@ -360,6 +360,21 @@ export func oauthLoginConfig() -> Result[string, Json] ! {Env} {
   if length(project) == 0 then Err(errJson(oauthError("server_error", "GOOGLE_CLOUD_PROJECT is not configured"))) else Ok(encode(jo([kv("project_id", js(project))])))
 }
 
+-- OpenAI plugin domain verification: the portal shows a token and fetches
+-- https://<host>/.well-known/openai-apps-challenge, expecting exactly that
+-- token as plain text. It comes from OPENAI_APPS_CHALLENGE (terraform, set
+-- only for the submission), trimmed. Unset or blank: 404, so the host never
+-- claims a verification it was not given. Same contract as AILANG Parse's.
+export pure func openAiAppsChallengeResponse(token: string) -> { _status: int, _body: string } {
+  let t = trim(token)
+  if length(t) == 0 then { _status: 404, _body: "not found\n" } else { _status: 200, _body: t }
+}
+
+@route("GET", "/.well-known/openai-apps-challenge")
+@nomcp
+export func openAiAppsChallenge() -> { _status: int, _body: string } ! {Env} =
+  openAiAppsChallengeResponse(getEnvOr("OPENAI_APPS_CHALLENGE", ""))
+
 -- Authorization endpoint. client_id is a CIMD URL (its document, fetched under
 -- Net[scope=public], lists the only redirect_uris accepted) or, when a switch
 -- allows it, an mco_ client from the store; beginAuthorizeFor dispatches.

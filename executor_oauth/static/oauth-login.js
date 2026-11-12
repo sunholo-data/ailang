@@ -4,9 +4,17 @@
  * every request below is same-origin. Adapted from AILANG Parse's page.
  *
  * Flow: GET /oauth/login-config (which Firebase project) -> GET /oauth/request
- * (who is asking) -> Google sign-in popup -> consent -> top-level form POST of
- * the ID token to /oauth/login/complete, whose 302 returns the user to the app
- * with an authorization code.
+ * (who is asking) -> Google sign-in popup (or email + password, below) ->
+ * consent -> top-level form POST of the ID token to /oauth/login/complete,
+ * whose 302 returns the user to the app with an authorization code.
+ *
+ * Email + password is for accounts created by hand in the Firebase console
+ * (directory reviewers need a login with no MFA, emailed codes or magic links:
+ * m-executor-directory-submission-kit.md). The page only ever SIGNS IN with it;
+ * it never creates an account or sends a password reset, so there is no self
+ * sign-up here. It needs the Email/Password provider enabled in the
+ * Firebase project (console only), and the server's gate still requires a
+ * verified email address, so a hand-made account must be marked verified.
  *
  * Never log the handle or the ID token: the handle is a one-time credential
  * for this sign-in, and the token is the user's.
@@ -69,6 +77,15 @@
       form.style.display = 'block';
       setText('signed-in-as', 'Signed in as ' + (user.email || user.displayName || user.uid));
       setText('allow-btn', 'Allow ' + (request.display || request.client_host));
+      // The server refuses an unverified address (executor_oauth/oauth.ail
+      // gate); say so here instead of letting Allow end on its error page.
+      if (user.emailVerified === false) {
+        $('allow-btn').disabled = true;
+        showStatus('This account\'s email address is not verified, so the executor will not accept it. ' +
+          'Sign in with a different account.', true);
+      } else {
+        $('allow-btn').disabled = submitting;
+      }
     } else {
       prompt.style.display = 'block';
       form.style.display = 'none';
@@ -84,6 +101,32 @@
       if (e && e.code === 'auth/popup-closed-by-user') return;
       showStatus('Sign-in failed. Allow pop-ups for this page and try again.', true);
     });
+  }
+
+  // Email + password: sign in only (see the header). Firebase's messages can
+  // say whether an address has an account; ours never do.
+  function emailSignIn(ev) {
+    ev.preventDefault();
+    if (!auth) return;
+    var email = $('email-input').value.trim();
+    var password = $('password-input').value;
+    if (!email || !password) return;
+    $('email-btn').disabled = true;
+    auth.signInWithEmailAndPassword(email, password).then(function () {
+      $('password-input').value = '';
+      $('status').className = 'status';
+    }).catch(function (e) {
+      var code = e && e.code;
+      if (code === 'auth/operation-not-allowed') {
+        showStatus('Email sign-in is not enabled on this server. Sign in with Google.', true);
+      } else if (code === 'auth/too-many-requests') {
+        showStatus('Too many attempts. Wait a few minutes and try again.', true);
+      } else if (code === 'auth/network-request-failed') {
+        showStatus('Could not reach the sign-in service. Check your connection and try again.', true);
+      } else {
+        showStatus('That email and password did not match an account.', true);
+      }
+    }).then(function () { $('email-btn').disabled = false; });
   }
 
   function allow() {
@@ -120,9 +163,13 @@
     // hidden too; this stops the flow even if the CSS were overridden).
     if (window.AX_FRAMED !== false) return;
     $('signin-btn').addEventListener('click', startSignIn);
+    $('email-form').addEventListener('submit', emailSignIn);
     $('allow-btn').addEventListener('click', allow);
     $('cancel-btn').addEventListener('click', deny);
-    $('switch-user').addEventListener('click', function () { if (auth) auth.signOut(); });
+    $('switch-user').addEventListener('click', function () {
+      $('status').className = 'status';
+      if (auth) auth.signOut();
+    });
 
     if (!handle) {
       setText('consent-text', 'This link is incomplete. Start the connection again from the app.');

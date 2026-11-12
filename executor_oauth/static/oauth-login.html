@@ -54,6 +54,15 @@ h1 { font-size: 21px; margin: 0 0 8px; }
 .status.error { color: var(--error); border: 1px solid var(--error); }
 .status.success { color: var(--ok); border: 1px solid var(--ok); }
 .info { margin-top: 22px; line-height: 1.6; }
+.legal { margin-top: 12px; font-size: 12px; color: var(--muted); }
+.legal a { color: var(--accent); }
+details.email-signin { margin-top: 18px; font-size: 13px; color: var(--muted); }
+details.email-signin summary { cursor: pointer; }
+.email-form { display: grid; gap: 8px; max-width: 320px; margin: 12px auto 0; text-align: left; }
+.email-form label { font-size: 12px; color: var(--muted); }
+.email-form input { font: inherit; padding: 8px 10px; border-radius: 6px; border: 1px solid var(--border);
+  background: var(--card); color: var(--text); width: 100%; }
+.email-form .btn { justify-self: center; margin-top: 4px; }
 </style>
 </head>
 <body>
@@ -69,8 +78,21 @@ h1 { font-size: 21px; margin: 0 0 8px; }
     </div>
 
     <div id="signin-prompt" style="display:none">
-      <p>Sign in with Google to continue.</p>
+      <p>Sign in to continue.</p>
       <button id="signin-btn" class="btn primary" type="button">Sign in with Google</button>
+      <!-- Email + password for accounts we create by hand (directory reviewers,
+           who need a login without MFA or emailed codes). There is no sign-up
+           here: the page never creates an account. -->
+      <details class="email-signin" id="email-signin">
+        <summary>Have an account we created for you? Sign in with email</summary>
+        <form class="email-form" id="email-form" autocomplete="on">
+          <label for="email-input">Email</label>
+          <input id="email-input" type="email" autocomplete="username" required>
+          <label for="password-input">Password</label>
+          <input id="password-input" type="password" autocomplete="current-password" required>
+          <button id="email-btn" class="btn" type="submit">Sign in</button>
+        </form>
+      </details>
     </div>
 
     <div id="approve-form" style="display:none">
@@ -86,8 +108,16 @@ h1 { font-size: 21px; margin: 0 0 8px; }
 
     <div class="info">
       OAuth 2.1 with PKCE. The app gets a token that can only run AILANG code in the sandbox: it has no
-      file, network or environment access, and every run is time-limited. Your Google credentials are
-      never shared with the app. The token lasts an hour and the app renews it while you stay connected.
+      file, network or environment access, and every run is time-limited. Your Google account and
+      password are never shared with the app. The token lasts an hour and the app renews it while you
+      stay connected; remove the connector in the app to disconnect.
+    </div>
+    <div class="legal">
+      By continuing you agree to the
+      <a href="https://ailang.sunholo.com/docs/legal/terms" target="_blank" rel="noopener">Terms</a>
+      and the
+      <a href="https://ailang.sunholo.com/docs/legal/privacy" target="_blank" rel="noopener">Privacy Policy</a>.
+      <a href="https://ailang.sunholo.com/docs/guides/hosted-executor" target="_blank" rel="noopener">Help</a>
     </div>
   </div>
 </div>

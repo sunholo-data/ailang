@@ -109,6 +109,16 @@ R=$(curl -s -w ' HTTP%{http_code}' "$BASE/oauth-login.html")
 R=$(curl -s "$BASE/oauth-login.js")
 [[ "$R" == *"'ailang-multivac-dev': {"* && "$R" == *"'ailang-multivac': {"* && "$R" == *"authDomain: 'ailang-multivac.firebaseapp.com'"* ]] \
   && pass "sign-in page knows dev and prod Firebase" || fail "sign-in page knows dev and prod Firebase" "$(grep -c projectId <<<"$R") projectId lines"
+# Directory reviewers sign in with email + password (accounts made in the
+# Firebase console); the page must never create one (no self sign-up).
+[[ "$R" == *signInWithEmailAndPassword* && "$R" != *createUser* && "$R" != *sendPasswordReset* && "$R" != *sendSignInLink* ]] \
+  && pass "sign-in page offers email + password sign-in, no sign-up" || fail "email sign-in, no sign-up" "$(grep -c signInWith <<<"$R") signInWith lines"
+R=$(curl -s "$BASE/oauth-login.html")
+[[ "$R" == *'href="https://ailang.sunholo.com/docs/legal/privacy"'* && "$R" == *'href="https://ailang.sunholo.com/docs/legal/terms"'* && "$R" == *'id="email-form"'* ]] \
+  && pass "consent page links privacy and terms, has the email form" || fail "consent page legal links" "$(grep -c legal <<<"$R") legal lines"
+# OpenAI domain verification: no OPENAI_APPS_CHALLENGE in this run -> 404.
+R=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/.well-known/openai-apps-challenge")
+[[ "$R" == 404 ]] && pass "openai-apps-challenge unset -> 404" || fail "openai-apps-challenge unset -> 404" "$R"
 R=$(curl -s "$BASE/vendor/")
 [[ "$R" != *firebase-app-compat.js* ]] && pass "no directory listing" || fail "no directory listing" "$R"
 
@@ -191,7 +201,11 @@ L=$(loc -X POST "$BASE/oauth/login/complete" --data-urlencode "handle=$(qparam "
 stop_server
 
 # --- The test seam is shut on Cloud Run ---
-start_server K_SERVICE=executor-mcp-oauth
+start_server K_SERVICE=executor-mcp-oauth "OPENAI_APPS_CHALLENGE=  tok_e2e_challenge_123 "
+# OpenAI domain verification, set: exactly the token (trimmed), as text/plain.
+R=$(curl -s "$BASE/.well-known/openai-apps-challenge")
+CT=$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "$BASE/.well-known/openai-apps-challenge" | cut -d';' -f1)
+[[ "$R" == tok_e2e_challenge_123 && "$CT" == "200 text/plain" ]] && pass "openai-apps-challenge serves the exact token as text/plain" || fail "openai-apps-challenge set" "$R / $CT"
 HANDLE=$(qparam "$(authorize)" handle)
 R=$(curl -s -w ' HTTP%{http_code}' -X POST "$BASE/oauth/login/complete" --data-urlencode "handle=$HANDLE" --data-urlencode "id_token=$TEST_ID_TOKEN")
 # The handle exists (storage works), so the refusal is the sign-in itself:
