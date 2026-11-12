@@ -156,6 +156,7 @@ type ModuleDecl struct {
 type ImportDecl struct {
 	Path          string            // Module path to import
 	Symbols       []string          // Selective imports (empty = whole module)
+	SymbolPos     []Pos             // Position of each Symbols entry (same index; empty if synthesized)
 	ModuleAlias   string            // Module alias: "import std/list as List" -> "List"
 	SymbolAliases map[string]string // Symbol aliases: original -> alias (e.g., "length" -> "stringLength")
 	IsPackage     bool              // True if import uses pkg/ prefix (external package)
@@ -168,8 +169,13 @@ type ImportDecl struct {
 	// Path is what was written. Diagnostics name both (M1b, canonical module
 	// identity — one module file, one identity).
 	WrittenPath string
-	Pos         Pos
-	Span        Span
+	// Implicit marks an import the loader injected (the implicit prelude of an
+	// entry module), not one the user wrote. It is the lowest-precedence
+	// binding of its names (M-V1-NOMINAL-TYPE-IDENTITY) and carries no
+	// position, so no diagnostic may point at it.
+	Implicit bool
+	Pos      Pos
+	Span     Span
 }
 
 func (f *File) String() string {

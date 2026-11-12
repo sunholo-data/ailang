@@ -46,7 +46,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

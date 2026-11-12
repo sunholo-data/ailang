@@ -34,7 +34,8 @@
       "effects": [
         "Clock"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -68,7 +69,8 @@
       "effects": [
         "Clock"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     }
   ],
   "schema": "ailang.iface/v2"

@@ -29,20 +29,20 @@ unifier treats the bare and explicit forms as equal. 332/332 example
 ```ailang
 module examples/modal_rand
 
-import std/rand (rand_int)
+import std/rand (randInt)
 import std/io (println)
 
 -- Bare !{Rand} — desugars to !{Rand[mode=os]} via the default-mode table.
-export func roll_d6() -> int ! {Rand} = rand_int(1, 6)
+export func roll_d6() -> int ! {Rand} = randInt(1, 6)
 
 -- Explicit !{Rand[mode=os]} — same effect signature as bare !{Rand}.
-export func roll_d20() -> int ! {Rand[mode=os]} = rand_int(1, 20)
+export func roll_d20() -> int ! {Rand[mode=os]} = randInt(1, 20)
 
 export func seeded_roll() -> int ! {Rand[mode=seeded]} =
-  rand_int(1, 100)
+  randInt(1, 100)
 
 export func crypto_roll() -> int ! {Rand[mode=crypto]} =
-  rand_int(1, 100)
+  randInt(1, 100)
 
 export func main() -> () ! {Rand, IO} = {
   let r1 = roll_d6(()) in println(concat_String("roll_d6 (bare Rand): ", show(show(r1))))
@@ -224,7 +224,7 @@ sources:
 
 | Mode | Runtime source | Replay contract |
 |------|----------------|-----------------|
-| `os` (default) | global OS-entropy PRNG, reseedable via `rand_seed` | re-sampleable |
+| `os` (default) | global OS-entropy PRNG, reseedable via `randSeed` | re-sampleable |
 | `seeded` | dedicated deterministic PRNG pinned by `AILANG_SEED` | deterministic |
 | `crypto` | `crypto/rand` CSPRNG draws | opaque |
 
@@ -238,9 +238,9 @@ re-sampleable, opaque}`, so replay tooling can dispatch pin / redraw /
 substitute on the contract rather than the raw effect token.
 
 **Seeding contract.** The `seeded` source is seeded ONLY by the
-dedicated explicit path (`AILANG_SEED`), never by `rand_seed`.
-`rand_seed` keeps its existing contract: it reseeds the **os** source
-(so bare-`!{Rand}` programs that call `rand_seed` for reproducible
+dedicated explicit path (`AILANG_SEED`), never by `randSeed`.
+`randSeed` keeps its existing contract: it reseeds the **os** source
+(so bare-`!{Rand}` programs that call `randSeed` for reproducible
 tests are byte-identical to before). A `seeded`-mode draw with no
 `AILANG_SEED` provided is a loud typed error (`RAND_SEEDED_NO_SEED`),
 never a silent random fallback. `crypto` entropy failure panics loudly.

@@ -44,7 +44,8 @@
       "name": "add_vectors",
       "type": "(list[float],list[float])-\u003elist[float]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -100,7 +101,8 @@
       "name": "axpy",
       "type": "(float,list[float],list[float])-\u003elist[float]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -144,7 +146,8 @@
       "name": "cosine",
       "type": "(list[float],list[float])-\u003efloat",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -188,7 +191,8 @@
       "name": "cosine_encoded",
       "type": "(bytes,bytes)-\u003efloat",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -220,7 +224,8 @@
       "name": "decodeF32LE",
       "type": "(bytes)-\u003eResult[list[float],string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -252,7 +257,8 @@
       "name": "decodeF64LE",
       "type": "(bytes)-\u003eResult[list[float],string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -296,7 +302,8 @@
       "name": "dot",
       "type": "(list[float],list[float])-\u003efloat",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -328,7 +335,8 @@
       "name": "encodeF32LE",
       "type": "(list[float])-\u003ebytes",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -360,7 +368,8 @@
       "name": "encodeF64LE",
       "type": "(list[float])-\u003ebytes",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -404,7 +413,8 @@
       "name": "euclidean_distance",
       "type": "(list[float],list[float])-\u003efloat",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -436,7 +446,8 @@
       "name": "magnitude",
       "type": "(list[float])-\u003efloat",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -468,7 +479,8 @@
       "name": "normalize",
       "type": "(list[float])-\u003elist[float]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -512,7 +524,8 @@
       "name": "scale",
       "type": "(float,list[float])-\u003elist[float]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

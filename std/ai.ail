@@ -419,7 +419,7 @@ export func callImageBase64(prompt: string, options: string) -> string ! {AI} = 
 -- (image+text input: editing, or keeping one character consistent across
 -- variations) and save it to output_path.
 --   refs : ImagePart records {source, mime}; source is base64 or a data-URI,
---          mime is required for raw base64. std/fs.readFileBytes yields
+--          mime is required for raw base64. std/fs.readFileBase64 yields
 --          base64 suitable for source. [] behaves like callImage.
 -- Supported by Gemini and OpenRouter image models; other providers fail
 -- loudly rather than ignoring refs. Options as for callImage.

@@ -11,7 +11,8 @@
         "JNumber(float)",
         "JObject(list[{key: string, value: Json}])",
         "JString(string)"
-      ]
+      ],
+      "tier": "stable"
     }
   ],
   "funcs": [
@@ -45,7 +46,8 @@
       "name": "allNumbers",
       "type": "(list[Json])-\u003eOption[list[float]]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -77,7 +79,8 @@
       "name": "allStrings",
       "type": "(list[Json])-\u003eOption[list[string]]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -109,7 +112,8 @@
       "name": "asArray",
       "type": "(Json)-\u003eOption[list[Json]]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -141,7 +145,8 @@
       "name": "asBool",
       "type": "(Json)-\u003eOption[bool]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -173,7 +178,8 @@
       "name": "asBoolLoose",
       "type": "(Json)-\u003eOption[bool]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -205,7 +211,8 @@
       "name": "asNumber",
       "type": "(Json)-\u003eOption[float]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -237,7 +244,8 @@
       "name": "asObject",
       "type": "(Json)-\u003eOption[list[{key: string, value: Json}]]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -269,7 +277,8 @@
       "name": "asString",
       "type": "(Json)-\u003eOption[string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -301,7 +310,8 @@
       "name": "decode",
       "type": "(string)-\u003eResult[Json,string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -333,7 +343,8 @@
       "name": "decodeFloatArray",
       "type": "(string)-\u003eResult[Array[float],string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -365,7 +376,8 @@
       "name": "encode",
       "type": "(Json)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -397,7 +409,8 @@
       "name": "filterNumbers",
       "type": "(list[Json])-\u003elist[float]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -429,7 +442,8 @@
       "name": "filterStrings",
       "type": "(list[Json])-\u003elist[string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -473,7 +487,8 @@
       "name": "get",
       "type": "(Json,string)-\u003eOption[Json]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -517,7 +532,8 @@
       "name": "getArray",
       "type": "(Json,string)-\u003eOption[list[Json]]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -561,7 +577,8 @@
       "name": "getBool",
       "type": "(Json,string)-\u003eOption[bool]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -605,7 +622,8 @@
       "name": "getInt",
       "type": "(Json,string)-\u003eOption[int]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -649,7 +667,8 @@
       "name": "getNumber",
       "type": "(Json,string)-\u003eOption[float]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -693,7 +712,8 @@
       "name": "getNumberArray",
       "type": "(Json,string)-\u003eOption[list[float]]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -737,7 +757,8 @@
       "name": "getNumberArrayOrEmpty",
       "type": "(Json,string)-\u003elist[float]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -781,7 +802,8 @@
       "name": "getNumberArrayStrict",
       "type": "(Json,string)-\u003eOption[list[float]]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -825,7 +847,8 @@
       "name": "getObject",
       "type": "(Json,string)-\u003eOption[Json]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -881,7 +904,8 @@
       "name": "getOr",
       "type": "(Json,string,Json)-\u003eJson",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -925,7 +949,8 @@
       "name": "getString",
       "type": "(Json,string)-\u003eOption[string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -969,7 +994,8 @@
       "name": "getStringArray",
       "type": "(Json,string)-\u003eOption[list[string]]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1013,7 +1039,8 @@
       "name": "getStringArrayOrEmpty",
       "type": "(Json,string)-\u003elist[string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1057,7 +1084,8 @@
       "name": "getStringArrayStrict",
       "type": "(Json,string)-\u003eOption[list[string]]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -1101,7 +1129,8 @@
       "name": "has",
       "type": "(Json,string)-\u003ebool",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1133,7 +1162,8 @@
       "name": "ja",
       "type": "(list[Json])-\u003eJson",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1165,7 +1195,8 @@
       "name": "jb",
       "type": "(bool)-\u003eJson",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1197,7 +1228,8 @@
       "name": "jint",
       "type": "(int)-\u003eJson",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1229,7 +1261,8 @@
       "name": "jn",
       "type": "(())-\u003eJson",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1261,7 +1294,8 @@
       "name": "jnum",
       "type": "(float)-\u003eJson",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1293,7 +1327,8 @@
       "name": "jo",
       "type": "(list[{key: string, value: Json}])-\u003eJson",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1325,7 +1360,8 @@
       "name": "js",
       "type": "(string)-\u003eJson",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1357,7 +1393,8 @@
       "name": "keys",
       "type": "(Json)-\u003elist[string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1401,7 +1438,8 @@
       "name": "kv",
       "type": "(string,Json)-\u003e{key: string, value: Json}",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1433,7 +1471,8 @@
       "name": "repair",
       "type": "(string)-\u003eResult[string,string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -1465,7 +1504,8 @@
       "name": "values",
       "type": "(Json)-\u003elist[Json]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     }
   ],
   "schema": "ailang.iface/v2"

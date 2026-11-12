@@ -3,7 +3,7 @@
 -- list, Option or record, and on every code path. Use std/math.isNaN to test for it.
 module examples/float_nan
 import std/math (isNaN, sqrt)
-import std/list (member, dedup, length)
+import std/list (contains, dedup, length)
 
 func nan() -> float {
   0.0 / 0.0
@@ -33,7 +33,7 @@ export func main() -> () ! {IO} {
   let _ = check("isNaN_sqrt_neg", isNaN(sqrt(-1.0)), true) in
   let _ = check("isNaN_number", isNaN(1.5), false) in
   let _ = check("signed_zero", 0.0 == 0.0 * -1.0, true) in
-  let _ = check("member_nan", member(n, [n]), false) in
+  let _ = check("contains_nan", contains([n], n), false) in
   let _ = check("dedup_keeps_nans", length(dedup([n, n])) == 2, true) in
   let _ = check("ordinary_float", [1.5] == [1.5], true) in
   -- Ordered comparisons are IEEE too (M-FLOAT-ORD-ONE-SEMANTICS, #1419):

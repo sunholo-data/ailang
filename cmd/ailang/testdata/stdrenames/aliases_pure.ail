@@ -1,0 +1,36 @@
+-- The pure deprecated std spellings next to their replacements, for the strict
+-- bytecode VM (which does not yet run the FS and Rand builtins that the other
+-- aliases forward to; aliases.ail covers those on the evaluator and the hybrid
+-- VM). One line per pair: <old> -> <new>: <old result> | <new result>
+module cmd/ailang/testdata/stdrenames/aliases_pure
+import std/io (println)
+import std/list (headOr, head_or, lastOr, last_or, nthOr, nth_or, contains, member, map)
+import std/string (charAtOr, charAt_or)
+import std/math (absInt, abs_Int, absFloat, abs_Float)
+import std/bytes (fromString, toString, sliceLen, slice)
+import std/array (fromList, get, unsafeGet)
+import std/option (Option, Some, None)
+
+pure func showBytes(o: Option[bytes]) -> string = match o {
+  Some(b) => "Some(${toString(b)})",
+  None => "None"
+}
+
+func pair(name: string, old: string, new: string) -> () ! {IO} = println("${name}: ${old} | ${new}")
+
+export func main() -> () ! {IO} {
+  let xs = [10, 20, 30]
+  pair("head_or -> headOr", show(head_or([], 7)), show(headOr([], 7)))
+  pair("last_or -> lastOr", show(last_or(xs, 0)), show(lastOr(xs, 0)))
+  pair("nth_or -> nthOr", show(nth_or(xs, 9, 0 - 1)), show(nthOr(xs, 9, 0 - 1)))
+  pair("charAt_or -> charAtOr", charAt_or("héllo", 1, "?"), charAtOr("héllo", 1, "?"))
+  pair("abs_Int (as a value) -> absInt", show(map(abs_Int, [0 - 3, 4])), show(map(absInt, [0 - 3, 4])))
+  pair("abs_Float -> absFloat", show(abs_Float(0.0 - 2.5)), show(absFloat(0.0 - 2.5)))
+  let bs = fromString("hello")
+  pair("slice -> sliceLen", showBytes(slice(bs, 1, 3)), showBytes(sliceLen(bs, 1, 3)))
+  pair("slice out of range -> sliceLen", showBytes(slice(bs, 4, 3)), showBytes(sliceLen(bs, 4, 3)))
+  pair("member(x, xs) -> contains(xs, x)", show(member(40, xs)), show(contains(xs, 40)))
+  let arr = fromList(xs)
+  pair("unsafeGet -> get", show(unsafeGet(arr, 2)), show(get(arr, 2)))
+  println("done")
+}

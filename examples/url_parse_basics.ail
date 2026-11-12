@@ -9,7 +9,7 @@
 module examples/url_parse_basics
 import std/net (parseUrl, parseQuery)
 import std/result (Result, Ok, Err)
-import std/list (nth_or)
+import std/list (nthOr)
 import std/io (println)
 
 export func main() -> () ! {IO} {
@@ -25,8 +25,8 @@ export func main() -> () ! {IO} {
       println("fragment: ${u.fragment}")  -- top
       -- Decode the query into {name,value} pairs (values percent-DECODED).
       let params = parseQuery(u.query)
-      let q = nth_or(params, 0, { name: "", value: "" })
-      let r = nth_or(params, 1, { name: "", value: "" })
+      let q = nthOr(params, 0, { name: "", value: "" })
+      let r = nthOr(params, 1, { name: "", value: "" })
       println("param 0:  ${q.name}=${q.value}")  -- q=hello world
       println("param 1:  ${r.name}=${r.value}")  -- r=2
     }

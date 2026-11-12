@@ -128,10 +128,10 @@ The Net capability must be granted to use this function.`,
 
 			Examples: []Example{
 				{
-					Code: `import std/fs (readFileBytes)
+					Code: `import std/fs (readFileBase64)
 import std/bytes (fromBase64)
 
-let Ok(b64) = readFileBytes("photo.png")
+let Ok(b64) = readFileBase64("photo.png")
 let Some(bytes) = fromBase64(b64)
 _net_httpRequestBytes("PUT", uploadUrl, [], bytes)`,
 					Description: "PUT raw image bytes to an upload URL (e.g. LinkedIn image attach API)",

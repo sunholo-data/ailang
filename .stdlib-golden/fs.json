@@ -46,7 +46,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -92,7 +93,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -138,7 +140,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -172,7 +175,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -218,7 +222,9 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable",
+      "replaced_by": "walkWithSuffix"
     },
     {
       "ifc": {
@@ -252,7 +258,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -286,7 +293,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -320,7 +328,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -354,7 +363,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -388,7 +398,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -422,7 +433,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -456,7 +468,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -490,7 +503,43 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "path",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "readFileBase64",
+      "type": "(string)-\u003eResult[string,string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -524,7 +573,9 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable",
+      "replaced_by": "readFileBase64"
     },
     {
       "ifc": {
@@ -558,7 +609,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -592,7 +644,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -626,7 +679,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -660,7 +714,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -694,7 +749,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -740,7 +796,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -786,7 +843,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -820,7 +878,55 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "root",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "suffix",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "walkWithSuffix",
+      "type": "(string,string)-\u003elist[string]!{FS}",
+      "effects": [
+        "FS"
+      ],
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -866,7 +972,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -912,7 +1019,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -958,7 +1066,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1004,7 +1113,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     }
   ],
   "schema": "ailang.iface/v2"

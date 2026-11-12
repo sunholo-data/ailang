@@ -47,6 +47,9 @@ func HashProjection(j *InterfaceJSON) ([]byte, error) {
 		if t.Alias != "" {
 			out.Alias = ""
 		}
+		// Tiers are promise metadata, not interface: re-tiering a module must
+		// not change its packages' identity (M-V1-STDLIB-SURFACE-POLISH §6.1).
+		out.Tier = ""
 		projection.Types = append(projection.Types, out)
 	}
 	sort.Slice(projection.Types, func(a, b int) bool {
@@ -65,6 +68,9 @@ func HashProjection(j *InterfaceJSON) ([]byte, error) {
 		if out.IFC.IsUnlabelled() {
 			out.IFC = nil
 		}
+		// @experimental / @deprecated mark a function without changing it:
+		// marking one must leave interface_hash unchanged (§6.1 item 4).
+		out.Tier, out.ReplacedBy, out.DeprecationNote = "", "", ""
 		projection.Funcs = append(projection.Funcs, out)
 	}
 	sort.Slice(projection.Funcs, func(a, b int) bool {

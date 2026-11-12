@@ -3,7 +3,7 @@
 -- --bytecode --strict-bytecode. Each entry takes n and returns a string, so the
 -- strict VM (which has no IO) can run it.
 module cmd/ailang/testdata/listiter/helpers
-import std/list (any, findIndex, foldr, foldlE, forEachE, mapE, filterE, flatMapE, maximumInt, minimumInt, maximumFloat, minimumFloat, maximumString, minimumString, range, length, map, last_or)
+import std/list (any, findIndex, foldr, foldlE, forEachE, mapE, filterE, flatMapE, maximumInt, minimumInt, maximumFloat, minimumFloat, maximumString, minimumString, range, length, map, lastOr)
 import std/option (Option, Some, None)
 import std/string (intToStr)
 import std/math (sqrt)
@@ -57,7 +57,7 @@ export func effectfulAt(n: int) -> string {
   let evens = filterE(\x. x % 2 == 0, xs)
   let twice = flatMapE(\x. [x, x], xs)
   let _ = forEachE(\x. (), xs)
-  "${intToStr(sum)},${intToStr(length(ys))}:${intToStr(last_or(ys, -1))},${intToStr(length(evens))}:${intToStr(last_or(evens, -1))},${intToStr(length(twice))}:${intToStr(last_or(twice, -1))}"
+  "${intToStr(sum)},${intToStr(length(ys))}:${intToStr(lastOr(ys, -1))},${intToStr(length(evens))}:${intToStr(lastOr(evens, -1))},${intToStr(length(twice))}:${intToStr(lastOr(twice, -1))}"
 }
 
 pure func prependDigit(x: int, acc: string) -> string = "${intToStr(x)}${acc}"

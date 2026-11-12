@@ -554,11 +554,13 @@ func (rt *ModuleRuntime) buildMinimalInterface(loaded *loader.LoadedModule) (*if
 			var resultType types.Type
 			if typeParamCount > 0 {
 				resultType = &types.TApp{
-					Constructor: &types.TCon{Name: typeName},
+					Constructor: &types.TCon{Name: typeName, Module: loaded.Path},
 					Args:        adtTypeVars,
 				}
 			} else {
-				resultType = &types.TCon{Name: typeName}
+				// M-V1-NOMINAL-TYPE-IDENTITY: the run-time twin of the
+				// pipeline's factory scheme carries the defining module too.
+				resultType = &types.TCon{Name: typeName, Module: loaded.Path}
 			}
 
 			constructors[ctorName] = &iface.ConstructorScheme{

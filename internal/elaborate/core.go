@@ -56,6 +56,18 @@ type Elaborator struct {
 	// scope is the stack of local-binder frames open at the current
 	// normalization point (scope.go, #1467).
 	scope []map[string]bool
+	// typeScope resolves a bare type name to its defining module
+	// (M-V1-NOMINAL-TYPE-IDENTITY §4.3). The module pipeline installs one built
+	// from the module's imports (SetTypeScope); otherwise ElaborateFile builds a
+	// local one from the file's own declarations (type_scope.go).
+	typeScope *types.TypeScope
+	// newtypeADTs: local single-constructor ADTs wrapping a record that are
+	// registered as aliases for field access (M-STREAM-DX/M4); they must stay
+	// nominal everywhere else.
+	newtypeADTs map[string]bool
+	// ambiguousCtors: auto-imported constructor names two or more modules
+	// offer (ambiguous_ctor.go).
+	ambiguousCtors map[string][]types.CtorCandidate
 }
 
 // DerivedEqField is one field a `deriving (Eq)` declaration needs Eq for.
@@ -67,6 +79,7 @@ type DerivedEqField struct {
 // ConstructorInfo holds information about an available constructor
 type ConstructorInfo struct {
 	TypeName       string       // The ADT type name (e.g., "Option")
+	Module         string       // The ADT's defining module (M-V1-NOMINAL-TYPE-IDENTITY)
 	CtorName       string       // Constructor name (e.g., "Some")
 	Arity          int          // Number of fields
 	IsImported     bool         // Whether this constructor is imported
@@ -164,8 +177,10 @@ func (e *Elaborator) RegisterConstructor(typeName, ctorName string, arity int, i
 // M-POLY-ADT: Stores field types to correctly build constructor type schemes
 // This fixes the bug where Err(string) in Result[a] was incorrectly typed as ∀a. a -> Result[a]
 func (e *Elaborator) RegisterConstructorWithFields(typeName, ctorName string, arity int, isImported bool, typeParamCount int, typeParamNames []string, fieldTypes []types.Type) {
+	delete(e.ambiguousCtors, ctorName) // a declared constructor is not ambiguous
 	e.constructors[ctorName] = &ConstructorInfo{
 		TypeName:       typeName,
+		Module:         e.ModuleID(),
 		CtorName:       ctorName,
 		Arity:          arity,
 		IsImported:     isImported,
@@ -180,7 +195,9 @@ func (e *Elaborator) RegisterConstructorWithFields(typeName, ctorName string, ar
 // "Nada" while CtorName stays "None", so patterns and expressions written with
 // the alias elaborate to the canonical constructor (#1478). Unaliased imports
 // pass key == canonical.
-func (e *Elaborator) RegisterImportedConstructorAs(key, canonical, typeName string, arity, typeParamCount int) {
+//
+// module is the ADT's defining module (M-V1-NOMINAL-TYPE-IDENTITY).
+func (e *Elaborator) RegisterImportedConstructorAs(key, canonical, module, typeName string, arity, typeParamCount int) {
 	if canonical == "" {
 		canonical = key
 	}
@@ -189,6 +206,7 @@ func (e *Elaborator) RegisterImportedConstructorAs(key, canonical, typeName stri
 	// clash an alias exists to avoid), and must not be overwritten.
 	e.constructors[key] = &ConstructorInfo{
 		TypeName:       typeName,
+		Module:         module,
 		CtorName:       canonical,
 		Arity:          arity,
 		IsImported:     true,

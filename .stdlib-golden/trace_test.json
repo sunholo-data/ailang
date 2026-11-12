@@ -32,7 +32,8 @@
       "name": "assert_trace_exists",
       "type": "(string)-\u003ebool",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "internal"
     },
     {
       "ifc": {
@@ -64,7 +65,8 @@
       "name": "assert_trace_not_exists",
       "type": "(string)-\u003ebool",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "internal"
     },
     {
       "ifc": {
@@ -96,7 +98,8 @@
       "name": "test_compile_traces",
       "type": "(())-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "internal"
     }
   ],
   "schema": "ailang.iface/v2"

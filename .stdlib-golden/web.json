@@ -3,11 +3,13 @@
   "types": [
     {
       "name": "FetchResult",
-      "alias": "{content: string, links: list[string], title: string}"
+      "alias": "{content: string, links: list[string], title: string}",
+      "tier": "experimental"
     },
     {
       "name": "SearchResult",
-      "alias": "{content: string, title: string, url: string}"
+      "alias": "{content: string, title: string, url: string}",
+      "tier": "experimental"
     }
   ],
   "funcs": [
@@ -43,7 +45,8 @@
       "effects": [
         "Net"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -89,7 +92,8 @@
       "effects": [
         "Net"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

@@ -1,12 +1,12 @@
--- List-based set operations (std/list): member, dedup, intersect, union, difference.
--- These treat a plain list as a set and are O(n) per member check. For a real set
+-- List-based set operations (std/list): contains, dedup, intersect, union, difference.
+-- These treat a plain list as a set and are O(n) per contains check. For a real set
 -- type with O(1) member, use std/set (Set[a]); see visited_set_bfs.ail.
 module examples/runnable/set_operations
-import std/list (member, dedup, intersect, union, difference)
+import std/list (contains, dedup, intersect, union, difference)
 
 export func main() -> () ! {IO} =
-  let _ = println("member(3, [1,2,3]) = ${show(member(3, [1, 2, 3]))}") in
-  let _ = println("member(4, [1,2,3]) = ${show(member(4, [1, 2, 3]))}") in
+  let _ = println("contains([1,2,3], 3) = ${show(contains([1, 2, 3], 3))}") in
+  let _ = println("contains([1,2,3], 4) = ${show(contains([1, 2, 3], 4))}") in
   let _ = println("dedup([1,2,1,3,2]) = ${show(dedup([1, 2, 1, 3, 2]))}") in
   let _ = println("intersect([1,2,3], [2,3,4]) = ${show(intersect([1, 2, 3], [2, 3, 4]))}") in
   let _ = println("union([1,2], [2,3]) = ${show(union([1, 2], [2, 3]))}") in

@@ -1,0 +1,25 @@
+-- Deprecated names used only in test code: two named test blocks and a
+-- property block. TestDeprecatedWarningsInTestCode expects one
+-- TC_DEPRECATED_001 per use from check, check --json and ailang test.
+module cmd/ailang/testdata/stdrenames/testblock
+
+import std/math (abs_Int, abs_Float)
+import std/list as L
+
+export pure func double(x: int) -> int
+  tests [(2, 4)]
+{
+  x * 2
+}
+
+test "abs in a test block" {
+  assert abs_Float(0.0 - 1.5) == 1.5
+}
+
+test "qualified use in a test block" {
+  assert L.head_or([], 7) == 7
+}
+
+property "abs is non-negative" {
+  forall(x: int) => abs_Int(x) >= 0
+}

@@ -27,6 +27,9 @@ type TypeJSON struct {
 	// rendered as a bare `type TableCell`, so an agent couldn't build/destructure the record
 	// from the compact iface and fell back to cat-ing the full source.
 	Alias string `json:"alias,omitempty"`
+	// Tier is the module's default tier (stable|experimental|internal) from
+	// std/STABILITY.toml: present on every std type, omitted outside std.
+	Tier string `json:"tier,omitempty"`
 }
 
 // FuncJSON represents an exported function in normalized form
@@ -36,6 +39,14 @@ type FuncJSON struct {
 	Type    string                `json:"type"`
 	Effects []string              `json:"effects"`
 	Pure    bool                  `json:"pure"`
+	// Tier (M-V1-STDLIB-SURFACE-POLISH §6.1): the module default, or
+	// "experimental" for an @experimental function. Present on every std
+	// function; outside std only when @experimental sets it.
+	Tier string `json:"tier,omitempty"`
+	// ReplacedBy and DeprecationNote mirror @deprecated("replacement", "note").
+	// Deprecation is not a tier: a deprecated Stable function stays stable.
+	ReplacedBy      string `json:"replaced_by,omitempty"`
+	DeprecationNote string `json:"deprecation_note,omitempty"`
 }
 
 // ToNormalizedJSON converts an Iface to normalized JSON
@@ -90,6 +101,7 @@ func (i *Iface) ToNormalizedJSON() ([]byte, error) {
 			Name:   name,
 			Params: params,
 			Ctors:  typeToCtors[name], // Already sorted
+			Tier:   i.Tier,
 		}
 
 		// M-IFACE-RECORD-FIELDS: a record/type alias has no constructors; render its underlying
@@ -118,11 +130,14 @@ func (i *Iface) ToNormalizedJSON() ([]byte, error) {
 		effects := extractEffects(export.Type)
 
 		funcJSON := FuncJSON{
-			IFC:     export.IFC,
-			Name:    name,
-			Type:    typeStr,
-			Effects: effects,
-			Pure:    export.Purity,
+			IFC:             export.IFC,
+			Name:            name,
+			Type:            typeStr,
+			Effects:         effects,
+			Pure:            export.Purity,
+			Tier:            export.Tier,
+			ReplacedBy:      export.ReplacedBy,
+			DeprecationNote: export.DeprecationNote,
 		}
 
 		result.Funcs = append(result.Funcs, funcJSON)

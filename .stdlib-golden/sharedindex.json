@@ -46,7 +46,8 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -80,7 +81,8 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -162,7 +164,8 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -244,7 +247,8 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -278,7 +282,8 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -360,7 +365,8 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -454,7 +460,8 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

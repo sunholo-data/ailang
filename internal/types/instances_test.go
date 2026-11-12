@@ -270,7 +270,7 @@ func TestEqInstanceHintIsActionable(t *testing.T) {
 		// are the genuinely non-Eq types.
 		{"function", &TFunc2{Params: []Type{TInt}, Return: TInt}, "Functions have no =="},
 		{"anonymous record", &TRecord{Fields: map[string]Type{"x": TInt}}, "deriving (Eq)"},
-		{"option of non-Eq", &TApp{Constructor: &TCon{Name: "Option"}, Args: []Type{TInt}}, "only when its type arguments do"},
+		{"option of non-Eq", &TApp{Constructor: BuiltinCon("Option"), Args: []Type{TInt}}, "only when its type arguments do"},
 		{"polymorphic ADT", &TApp{Constructor: &TCon{Name: "Tree"}, Args: []Type{TInt}}, "pattern-match"},
 		{"user ADT", &TCon{Name: "Color"}, "deriving (Eq)"},
 	}

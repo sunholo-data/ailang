@@ -36,6 +36,37 @@ func TestCacheIFCRoundTrip(t *testing.T) {
 	}
 }
 
+// Tier and deprecation survive the cache's iface.json codec. Before cache key
+// v12 they were dropped, so a warm `ailang iface std/list` printed no "tier".
+func TestCacheIfaceRoundTripKeepsTierAndDeprecation(t *testing.T) {
+	i := iface.NewIface("std/list")
+	i.Tier = iface.TierStable
+	i.AddExport("head_or", &types.Scheme{Type: &types.TFunc2{Params: []types.Type{types.TString}, Return: types.TString}}, true)
+	i.Exports["head_or"].Tier = iface.TierStable
+	i.Exports["head_or"].ReplacedBy = "headOr"
+	i.Exports["head_or"].DeprecationNote = "note"
+	i.AddExport("takeMap", &types.Scheme{Type: types.TString}, true)
+	i.Exports["takeMap"].Tier = iface.TierExperimental
+	raw, err := marshalIfaceFull(i)
+	if err != nil {
+		t.Fatal(err)
+	}
+	decoded, err := unmarshalIfaceFull(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if decoded.Tier != iface.TierStable {
+		t.Errorf("module tier = %q", decoded.Tier)
+	}
+	h := decoded.Exports["head_or"]
+	if h.Tier != iface.TierStable || h.ReplacedBy != "headOr" || h.DeprecationNote != "note" {
+		t.Errorf("head_or lost its marks: %+v", h)
+	}
+	if decoded.Exports["takeMap"].Tier != iface.TierExperimental {
+		t.Errorf("takeMap tier = %q", decoded.Exports["takeMap"].Tier)
+	}
+}
+
 // A valid hash authorizes bytes, not their semantic schema. Replace the payload
 // AND update its stamp so rejection must come from IFC validation.
 func rewriteIFCArtifact(t *testing.T, dir string, mutate func(map[string]any)) {
@@ -135,7 +166,9 @@ func TestCacheIFCValidatesInjectedDecoder(t *testing.T) {
 func TestCacheIFCPreviousVersionKeyMisses(t *testing.T) {
 	const source = "module lib\nexport func f() -> int { 42 }\n"
 	current := ModuleCacheKey("test-compiler", source, nil)
-	for version := 1; version <= 9; version++ {
+	// v11 (#2228, type identity) and older: pre-tier blobs (no Iface.Tier /
+	// ReplacedBy) must miss.
+	for version := 1; version <= 11; version++ {
 		t.Run(fmt.Sprintf("v%d", version), func(t *testing.T) {
 			old := sha256.New()
 			fmt.Fprintf(old, "ailang-cache:v%d:test-compiler\n", version)

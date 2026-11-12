@@ -100,8 +100,9 @@ func injectEntryPreludeImports(file *ast.File, importPaths []string) []string {
 		// the constructor infos (for elaborator match-pattern registration) all
 		// land in scope.
 		synthetic = append(synthetic, &ast.ImportDecl{
-			Path:    modPath,
-			Symbols: preludeModuleSymbols[modPath],
+			Path:     modPath,
+			Symbols:  preludeModuleSymbols[modPath],
+			Implicit: true,
 		})
 		syntheticPaths = append(syntheticPaths, modPath)
 	}

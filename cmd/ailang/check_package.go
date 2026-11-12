@@ -140,7 +140,7 @@ func checkPackageWithContext(dir string, strictSyntax bool, relaxModules bool, t
 		jsonErrors := make([]checkJSONError, 0, len(allErrors)+len(warnings))
 		for _, e := range allErrors {
 			jsonErrors = append(jsonErrors, checkJSONError{
-				Code:    "ERROR",
+				Code:    jsonErrorCode(e),
 				Message: e,
 			})
 		}
@@ -155,6 +155,10 @@ func checkPackageWithContext(dir string, strictSyntax bool, relaxModules bool, t
 			Passed:     failed == 0,
 			ErrorCount: len(allErrors),
 			Errors:     jsonErrors,
+			// Coded compile warnings (TC_DEPRECATED_001, ...) in their own
+			// field, as single-file `check --json` reports them; `errors`
+			// keeps its manifest-drift WARNING entries unchanged.
+			Warnings: checkWarningsJSON(report.CompileWarnings, absDir),
 		})
 		if failed > 0 {
 			os.Exit(1)
@@ -165,6 +169,11 @@ func checkPackageWithContext(dir string, strictSyntax bool, relaxModules bool, t
 	// Human-readable output
 	if !quietFlag {
 		fmt.Println()
+	}
+
+	// Coded compile warnings go to stderr, as in single-file check.
+	if !quietFlag {
+		printCheckWarnings(report.CompileWarnings)
 	}
 
 	// Print warnings

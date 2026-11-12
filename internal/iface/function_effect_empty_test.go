@@ -17,7 +17,7 @@ func TestExplicitEmptyIfaceConversionAndRestore(t *testing.T) {
 			t.Fatalf("empty contract lost: %+v", fn)
 		}
 	}
-	check(t, astTypeToInternalType(astFn).(*types.TFunc2))
+	check(t, astTypeToInternalType(nil, astFn).(*types.TFunc2))
 	inferred := &types.TFunc2{Params: []types.Type{types.TInt}, Return: types.TInt, EffectRow: &types.Row{Kind: types.EffectRow, Labels: map[string]types.Type{}, Tail: &types.RowVar{Name: "old", Kind: types.EffectRow}}, ImplicitEffectContract: true}
 	check(t, restoreNestedEffectRow(inferred, astFn).(*types.TFunc2))
 	outer := &types.TFunc2{Params: []types.Type{inferred}, Return: inferred, EffectRow: types.EmptyEffectRow()}

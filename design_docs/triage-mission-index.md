@@ -12,6 +12,8 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 40 | 2026-11-12 | two judged attestations (#2099 #1978), #604 closed, #1914/#1436 downgraded by T2/T3 [ADMIN] |
+| 39 | 2026-11-11 | five judged attestations, two duplicate closes, #1278 dissent downgraded [ADMIN] |
 | 34 | 2026-11-08 | independent judge preserves readiness reports and holds an unsupported population verdict [HARNESS] [ADMIN] |
 | 33 | 2026-11-07 | independent judge refreshes three reports and corrects a baseline population claim [HARNESS] [ADMIN] |
 | 32 | 2026-11-07 | independent judge clears prior lane park and exposes three concrete decisions [HARNESS] [ADMIN] |

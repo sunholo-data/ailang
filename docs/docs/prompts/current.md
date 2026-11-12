@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.16.13) - auto-synced from source
+description: The active AILANG teaching prompt (v0.16.15) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.13.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.15.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.16.13.md -->
-<!-- Active Version: v0.16.13 -->
+<!-- Source: prompts/v0.16.15.md -->
+<!-- Active Version: v0.16.15 -->
 
-# AILANG v0.16.13 - AI Teaching Prompt (with IFC Labels + Output Discipline)
+# AILANG v0.16.15 - AI Teaching Prompt (with IFC Labels + Output Discipline)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -62,7 +62,7 @@ import std/io (print, flush)
 print("\r\x1b[92m50%\x1b[0m");  -- \x1b = ESC (ANSI colour); "\x1b[2J" clears the screen
 flush()                          -- force it to the screen NOW (no /dev/tty hack needed)
 ```
-Runs under `--caps IO,Clock` — no `FS`. `printErr`/`eprintln` (std/io) write to stderr (unbuffered).
+Runs under `--caps IO,Clock` — no `FS`. `eprint`/`eprintln` (std/io) write to stderr (unbuffered).
 
 ## Line input and native terminals (supporting runtime required)
 
@@ -581,7 +581,7 @@ export func main() -> () ! {IO} { println("hi") }
 | Effect | Functions | Import |
 |--------|-----------|--------|
 | `IO` | `print`, `println`, `readLine`, `writeBytes`, `exit` | `std/io` (print is builtin) |
-| `FS` | `readFile`, `writeFile`, `fileExists`, `listDir`, `walk`, `glob`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, `_zip_*` | `std/fs`, `std/zip` |
+| `FS` | `readFile`, `writeFile`, `fileExists`, `listDir`, `walk`, `walkWithSuffix`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, `_zip_*` | `std/fs`, `std/zip` |
 | `Net` | `httpGet`, `httpPost`, `httpRequest` | `std/net` |
 | `Env` | `getArgs`, `getEnv`, `getEnvOr`, `hasEnv` | `std/env` |
 | `Clock` | `now`, `sleep` | `std/clock` |
@@ -599,18 +599,18 @@ runtime currently treats all modes identically (mode-aware dispatch
 lands later).
 
 ```ailang
-import std/rand (rand_int, rand_seed)
+import std/rand (randInt, randSeed)
 
 -- Bare !{Rand} desugars to !{Rand[mode=os]} via the default-mode table.
-func roll_d6() -> int ! {Rand} = rand_int(1, 6)
+func roll_d6() -> int ! {Rand} = randInt(1, 6)
 
 -- Same effect signature as bare !{Rand}; unifies via default-desugar.
-func roll_d20() -> int ! {Rand[mode=os]} = rand_int(1, 20)
+func roll_d20() -> int ! {Rand[mode=os]} = randInt(1, 20)
 
 -- Distinct mode — does NOT unify with mode=os under invariant rules.
 func deterministic() -> int ! {Rand[mode=seeded]} = {
-  rand_seed(42);
-  rand_int(1, 100)
+  randSeed(42);
+  randInt(1, 100)
 }
 ```
 
@@ -690,7 +690,7 @@ func handleRequest(path: string) -> Response ! {Net} {
 
 **Auto-imported (no import needed):**
 - `println` (entry modules only) — `print` (no newline) is NOT auto-imported: `import std/io (print)`
-- `show(x)` - convert to string
+- `show(x)` - convert to string. Renders the WHOLE value, never elided. A top-level string is unchanged (`show("hi")` is `hi`); strings inside lists, tuples, records, maps and constructors are quoted: `show(["a", "b"])` is `["a", "b"]`, `show(Some("x"))` is `Some("x")`. For a bounded log line use `showPreview(v, 200)` (`import std/string (showPreview)`)
 - Comparison operators: `<`, `>`, `<=`, `>=`, `==`, `!=`
 - **`Option`/`Some`/`None` and `Result`/`Ok`/`Err`** (entry modules only, v0.30.0+) —
   the types AND their constructors resolve without `import std/option` / `import std/result`.
@@ -701,9 +701,9 @@ func handleRequest(path: string) -> Response ! {Net} {
 **Common imports:**
 ```ailang
 import std/io (println, readLine)
-import std/fs (readFile, writeFile, fileExists, listDir, walk, glob, mkdir, mkdirAll, isDir, isFile, removeFile)
+import std/fs (readFile, writeFile, fileExists, listDir, walk, walkWithSuffix, mkdir, mkdirAll, isDir, isFile, removeFile)
 -- walk(root) -> [string] ! {FS}: every file under root, recursively, sorted, paths prefixed with root.
--- glob(root, ".ail") -> [string] ! {FS}: walk filtered by suffix. Never hand-roll a recursive listDir/isDir walker.
+-- walkWithSuffix(root, ".ail") -> [string] ! {FS}: walk filtered by suffix (not a glob pattern). Never hand-roll a recursive listDir/isDir walker.
 import std/env (getArgs, getEnv, getEnvOr)
 import std/net (httpGet, httpPost, httpRequest)
 import std/json (encode, decode, get, getString, getNumber, getInt, getBool, getArray, getObject, asString, asNumber, asArray)
@@ -720,17 +720,19 @@ import std/embedding (dot, cosine, magnitude, normalize, scale, add_vectors, axp
 -- Its dot/axpy/scale clash with std/embedding's: import one module qualified (import std/array as A).
 import std/array (make, fromList, toList, get, getOpt, set, length, dot, axpy, scale, add, sub, mul, sum, argmax, updateMany, scatterAdd, encodeF64LE, decodeF64LE)
 import std/string (split, chars, trim, stringToInt, stringToFloat, contains, find, substring, intToStr, floatToStr, join, startsWith, endsWith, length, toUpper, toLower, compare, repeat)
-import std/math (floatToInt, intToFloat, floor, ceil, round, sqrt, pow, abs_Float, abs_Int)
+import std/math (floatToInt, intToFloat, floor, ceil, round, sqrt, pow, absFloat, absInt)
 import std/ai (call, callJson, callJsonSimple)
 import std/sem (make_frame_at, store_frame, load_frame, update_frame)
 import std/option (Option, Some, None)
 import std/result (Result, Ok, Err)
-import std/bytes (fromString, toString, toBase64, fromBase64, toBase64URL, fromBase64URL, length, slice, fromInts, toInts, byteAt)
+import std/bytes (fromString, toString, toBase64, fromBase64, toBase64URL, fromBase64URL, length, sliceLen, fromInts, toInts, byteAt)
 import std/stream (connect, transmit, transmitBinary, onEvent, runEventLoop, disconnect, sseConnect, ssePost, withSSE, sourceOfConn, asyncReadStdinLines, asyncExecProcess, selectEvents, StreamConn, StreamSource, StreamEvent, Message, Binary, Opened, Closed, StreamError, Ping, SSEData, SourceText, SourceBytes)
 import std/process (exec, spawnProcess, writeProcessStdin, closeProcessStdin, ProcessHandle)
 import std/zip (listEntries, readEntry, readEntryBytes)
 import std/xml (parse, findAll, findFirst, getText, getAttr, getChildren, getTag)
 ```
+
+**Renamed stdlib functions.** Use the camelCase names above. The old spellings still compile but warn `TC_DEPRECATED_001` and are being removed: `head_or`/`last_or`/`nth_or` → `headOr`/`lastOr`/`nthOr`, `charAt_or` → `charAtOr`, `abs_Int`/`abs_Float` → `absInt`/`absFloat`, `rand_int`/`rand_float`/`rand_bool`/`rand_seed` → `randInt`/`randFloat`/`randBool`/`randSeed`, `fs.readFileBytes` → `readFileBase64`, `fs.glob` → `walkWithSuffix`, `io.printErr` → `eprint`, `bytes.slice` → `sliceLen`, `list.member(x, xs)` → `contains(xs, x)`, `array.unsafeGet` → `get`.
 
 **List functions** (std/list) — all polymorphic, fully stable, **use these instead of hand-rolling recursion**:
 - `map(f, xs)` - Apply function to each element
@@ -812,7 +814,7 @@ let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("fold"); acc +
 - `floatToInt(x) -> int` - Convert float to int (truncates toward zero)
 - `intToFloat(x) -> float` - Convert int to float
 - `floor(x) -> float`, `ceil(x) -> float`, `round(x) -> float` - Rounding
-- `sqrt(x)`, `pow(x, y)`, `abs_Float(x)`, `abs_Int(x)` - Math operations
+- `sqrt(x)`, `pow(x, y)`, `absFloat(x)`, `absInt(x)` - Math operations
 - `sin(x)`, `cos(x)`, `tan(x)` - Trigonometric (radians)
 - `asin(x)`, `acos(x)`, `atan(x)`, `atan2(y, x)` - Inverse trig
 - `exp(x)`, `log(x)`, `log10(x)` - Exponential and logarithm (natural + base-10)
@@ -826,7 +828,7 @@ let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("fold"); acc +
 - `toBase64URL(b) -> string` - base64url encode (RFC 4648 §5: URL-safe alphabet, NO padding). Required by the Gmail API's `raw` field and by JWT segments. Do NOT hand-roll it from `toBase64` + `replaceMany` — a missed substitution still looks like valid base64 and is rejected at the far end: `toBase64(fromString("a+b/c?"))` is `"YStiL2M/"`, `toBase64URL` of the same bytes is `"YStiL2M_"`
 - `fromBase64URL(s) -> Option[bytes]` - base64url decode (None if invalid; REJECTS padding). Exact inverse of `toBase64URL`
 - `length(b) -> int` - Byte length
-- `slice(b, start, len) -> Option[bytes]` - Extract subsequence (None if out of bounds)
+- `sliceLen(b, start, len) -> Option[bytes]` - Extract `len` bytes from `start` (a LENGTH, not an end index; None if out of bounds)
 - `fromInts(xs: [int]) -> bytes` - Construct bytes from list of integers (0-255)
 - `byteAt(b, i) -> Option[int]` - Get byte value (0-255) at index, or None if out of bounds. Use for ASCII char codes: `byteAt(fromString("A"), 0) == Some(65)`
 - `toInts(b) -> [int]` - All byte values as a list, the inverse of `fromInts`. Use this (not `byteAt` in a loop) to walk bytes with `map`/`filter`/`foldl`. NOTE: to inspect the raw bytes behind a string, go through `fromString` — `toInts(fromString(s))`. `charCode`/string indexing give codepoints and return U+FFFD for bytes that are not valid UTF-8 on their own; `toInts` is the only way to reach those bytes (needed for charset transcoding, e.g. Latin-1 -> UTF-8)
@@ -1126,7 +1128,7 @@ Costs are in "Cost Model" below. `import std/array as A`; `#[10, 20, 30]` is an 
 - `empty() -> Array[a]` - Empty array
 - `make(size: int, default: a) -> Array[a]` - Fixed-size array initialized to `default`
 - `append(arr, val) -> Array[a]` - Return new array with `val` appended
-- `unsafeGet(arr, idx) -> a` - Get; out of bounds is a runtime error — use `getOpt` for safety
+- `get(arr, idx) -> a` - Get; out of bounds is a runtime error — use `getOpt` for safety
 - `get`/`set` out of bounds are errors naming the index and length (`set` never returns the array unchanged)
 
 **Float arrays.** An `Array[float]` is stored unboxed (8 bytes per element; a 10M-element array is ~130 MB,
@@ -1210,13 +1212,13 @@ export func main() -> () ! {IO} {
     Err(e) => println("bad pattern: ${e}"),
     Ok(re) => {
       println(show(R.isMatch(re, "x=1")));  -- true
-      println(show(map(\m. m.text, R.findAll(re, "a=1, bb=22"))));  -- [a=1, bb=22]
+      println(show(map(\m. m.text, R.findAll(re, "a=1, bb=22"))));  -- ["a=1", "bb=22"]
       match R.findFirst(re, "key=42") {
-        Some(m) => println(show(map(\g. g.text, m.groups))),  -- [key=42, key, 42]
+        Some(m) => println(show(map(\g. g.text, m.groups))),  -- ["key=42", "key", "42"]
         None => println("no match")
       };
       println(R.replaceAll(re, "a=1 b=2", "$2:$1"));  -- 1:a 2:b
-      println(show(R.split(re, "x a=1 y")))  -- [x ,  y]
+      println(show(R.split(re, "x a=1 y")))  -- ["x ", " y"]
     }
   }
 }
@@ -1301,14 +1303,21 @@ if !done then retry() else finish()
 evaluated when the LHS determines the result. This makes guarded expressions safe:
 
 ```ailang
--- SAFE: charAt(s, i-1) is only called when i > 0
-if i > 0 && charAt(s, i - 1) == "\\" then "escaped" else "normal"
+import std/string (charAt)
+import std/map (member, lookup)
+import std/option (Some)
 
--- SAFE: lookup never runs when key is missing
-if member(key, m) && lookup(key, m) == target then "match" else "no"
+-- SAFE: charAt(s, i-1) is only called when i > 0
+pure func escaped(s: string, i: int) -> string =
+  if i > 0 && charAt(s, i - 1) == "\\" then "escaped" else "normal"
+
+-- SAFE: lookup never runs when key is missing (std/map: map first, then key)
+pure func matches(m: Map[string, int], key: string, target: int) -> string =
+  if member(m, key) && lookup(m, key) == Some(target) then "match" else "no"
 
 -- || short-circuits: the RHS effect runs only if LHS is false
-if cached || expensiveFetch() then "ok" else "fail"
+func fetchOk(cached: bool, expensiveFetch: () -> bool ! {IO}) -> string ! {IO} =
+  if cached || expensiveFetch() then "ok" else "fail"
 ```
 
 `&&` and `||` desugar to `if`: `a && b` → `if a then b else false`,
@@ -1341,7 +1350,8 @@ println("Use \${var} to interpolate.")
 
 **How it works:** `"Hello, ${x}!"` desugars to `concat_String(concat_String("Hello, ", show(x)), "!")`.
 `show_String` is identity, so string-typed values are spliced without quoting. Any `Show`-able type
-works automatically (int, float, bool, records, ADTs).
+works automatically (int, float, bool, records, ADTs); strings inside them are quoted, as `show`
+quotes them: `"${["a", "b"]}"` is `["a", "b"]`.
 
 ## String and List Concatenation
 
@@ -2624,7 +2634,7 @@ When set, all paths are resolved relative to the sandbox root:
 - `writeFile("out.txt", s)` writes `/tmp/work/out.txt`
 - `_zip_listEntries("archive.zip")` opens `/tmp/work/archive.zip`
 
-Applies to **all FS builtins**: `readFile`, `writeFile`, `readFileBytes`, `writeFileBytes`, `appendFile`, `appendFileBytes`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, and all `std/zip` operations. Also sets the working directory for `std/process` `exec`.
+Applies to **all FS builtins**: `readFile`, `writeFile`, `readFileBase64`, `writeFileBytes`, `appendFile`, `appendFileBytes`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, and all `std/zip` operations. Also sets the working directory for `std/process` `exec`.
 
 If unset (default), paths resolve normally from the process working directory.
 

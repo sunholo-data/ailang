@@ -46,7 +46,8 @@
       "effects": [
         "IO"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "internal"
     },
     {
       "ifc": {
@@ -92,7 +93,8 @@
       "effects": [
         "IO"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "internal"
     },
     {
       "ifc": {
@@ -126,7 +128,8 @@
       "effects": [
         "IO"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "internal"
     }
   ],
   "schema": "ailang.iface/v2"

@@ -1177,16 +1177,33 @@
         "evidence_example": ""
       }
     },
-    "v0.16.15": {
-      "file": "prompts/v0.16.15.md",
-      "hash": "e8bb98de5a39c36a0cea0e966ac6fec048d215df1300e3589a09ac4964c499d6",
-      "description": "show is total and unambiguous: nested strings quoted, nothing elided; showPreview for bounded logging",
+    "v0.16.14": {
+      "file": "prompts/v0.16.14.md",
+      "hash": "421e84f575369be66c4822ac027ce9cd4575effd6f3abcf8ef480b6cf839bd59",
+      "description": "Stdlib renames (headOr/lastOr/nthOr, charAtOr, absInt/absFloat, randInt/randFloat/randBool/randSeed, readFileBase64, walkWithSuffix, eprint, bytes.sliceLen; list.contains for member, array.get for unsafeGet), a short @deprecated note, and the corrected Map member/lookup line",
       "created": "2026-11-11",
       "tags": [
         "production",
         "latest"
       ],
-      "notes": "show is total and unambiguous: nested strings quoted, nothing elided; showPreview for bounded logging"
+      "notes": "Stdlib renames (headOr/lastOr/nthOr, charAtOr, absInt/absFloat, randInt/randFloat/randBool/randSeed, readFileBase64, walkWithSuffix, eprint, bytes.sliceLen; list.contains for member, array.get for unsafeGet), a short @deprecated note, and the corrected Map member/lookup line",
+      "frozen": {
+        "at": "2026-11-12",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
+    },
+    "v0.16.15": {
+      "file": "prompts/v0.16.15.md",
+      "hash": "8d1ce433c6157ce744ddca7188d6a4f1c4b32749990a82d0f0ec73269f305f99",
+      "description": "show is total and unambiguous: nested strings quoted, nothing elided; showPreview for bounded logging (built on v0.16.14)",
+      "created": "2026-11-12",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "show is total and unambiguous: nested strings quoted, nothing elided; showPreview for bounded logging (built on v0.16.14)"
     }
   },
   "active": "v0.16.15",

@@ -116,7 +116,9 @@ func (tc *CoreTypeChecker) propagateTypeNameToCoreTI() {
 	// Build a map of field signatures → TypeName from type aliases
 	// Track ambiguous signatures (multiple types with same fields)
 	fieldSigToTypeNames := make(map[string][]string) // sig → [typeName1, typeName2, ...]
-	for aliasName, aliasType := range tc.aliasEnv {
+	for aliasKey, aliasType := range tc.aliasEnv {
+		// aliasEnv is keyed by NominalKey; TRecord.TypeName is the bare name.
+		_, aliasName := SplitNominalKey(aliasKey)
 		if rec, ok := aliasType.(*TRecord); ok {
 			sig := recordFieldSignature(rec)
 			fieldSigToTypeNames[sig] = append(fieldSigToTypeNames[sig], aliasName)

@@ -3,7 +3,8 @@
   "types": [
     {
       "name": "TarEntry",
-      "alias": "{isDir: bool, name: string, size: int}"
+      "alias": "{isDir: bool, name: string, size: int}",
+      "tier": "experimental"
     }
   ],
   "funcs": [
@@ -51,7 +52,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -85,7 +87,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -131,7 +134,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -177,7 +181,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -223,7 +228,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -269,7 +275,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

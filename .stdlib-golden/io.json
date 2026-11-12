@@ -29,12 +29,48 @@
         },
         "declassify": []
       },
+      "name": "eprint",
+      "type": "(string)-\u003e()!{IO}",
+      "effects": [
+        "IO"
+      ],
+      "pure": false,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "s",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
       "name": "eprintln",
       "type": "(string)-\u003e()!{IO}",
       "effects": [
         "IO"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -68,7 +104,8 @@
       "effects": [
         "IO"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -102,7 +139,8 @@
       "effects": [
         "IO"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -136,7 +174,8 @@
       "effects": [
         "IO"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -170,7 +209,9 @@
       "effects": [
         "IO"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable",
+      "replaced_by": "eprint"
     },
     {
       "ifc": {
@@ -204,7 +245,8 @@
       "effects": [
         "IO"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -238,7 +280,8 @@
       "effects": [
         "IO"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -272,7 +315,8 @@
       "effects": [
         "IO"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -306,7 +350,8 @@
       "effects": [
         "IO"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "stable"
     }
   ],
   "schema": "ailang.iface/v2"

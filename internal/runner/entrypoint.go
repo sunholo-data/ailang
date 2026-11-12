@@ -131,7 +131,7 @@ func ExecuteModuleEntrypoint(rt *runtime.ModuleRuntime, params ModuleExecParams)
 	}
 
 	// Decode arguments
-	args, err := decodeEntrypointArgs(params.ArgsJSON, fnType, entry, params.Iface.GetTypeAlias)
+	args, err := decodeEntrypointArgs(params.ArgsJSON, fnType, entry, params.Iface.TypeAliasFor)
 	if err != nil {
 		return err
 	}

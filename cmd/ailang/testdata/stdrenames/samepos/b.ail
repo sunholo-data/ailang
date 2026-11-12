@@ -1,0 +1,8 @@
+module cmd/ailang/testdata/stdrenames/samepos/b
+import std/list (head_or)
+
+export pure func one() -> int = head_or([1], 0)
+
+test "one" {
+  assert one() == 1
+}

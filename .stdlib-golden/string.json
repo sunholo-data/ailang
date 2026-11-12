@@ -44,7 +44,8 @@
       "name": "charAt",
       "type": "(string,int)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -88,7 +89,65 @@
       "name": "charAtOpt",
       "type": "(string,int)-\u003eOption[string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "s",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "i",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "default",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "charAtOr",
+      "type": "(string,int,string)-\u003estring",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -144,7 +203,9 @@
       "name": "charAt_or",
       "type": "(string,int,string)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable",
+      "replaced_by": "charAtOr"
     },
     {
       "ifc": {
@@ -176,7 +237,8 @@
       "name": "charCode",
       "type": "(string)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -208,7 +270,8 @@
       "name": "chars",
       "type": "(string)-\u003elist[string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -252,7 +315,8 @@
       "name": "compare",
       "type": "(string,string)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -284,7 +348,8 @@
       "name": "concat",
       "type": "(list[string])-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -328,7 +393,8 @@
       "name": "contains",
       "type": "(string,string)-\u003ebool",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -360,7 +426,8 @@
       "name": "decodeQuotedPrintable",
       "type": "(string)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -404,7 +471,8 @@
       "name": "endsWith",
       "type": "(string,string)-\u003ebool",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -448,7 +516,8 @@
       "name": "find",
       "type": "(string,string)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -480,7 +549,8 @@
       "name": "floatToStr",
       "type": "(float)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -536,7 +606,8 @@
       "name": "foldChars",
       "type": "((a,string)-\u003ea,a,string)-\u003ea",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -604,7 +675,8 @@
       "name": "foldSlices",
       "type": "(string,string,a,(a,string)-\u003ea)-\u003ea",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -648,7 +720,8 @@
       "name": "formatFixed",
       "type": "(float,int)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -680,7 +753,8 @@
       "name": "intToStr",
       "type": "(int)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -724,7 +798,8 @@
       "name": "join",
       "type": "(string,list[string])-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -756,7 +831,8 @@
       "name": "length",
       "type": "(string)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -812,7 +888,8 @@
       "name": "mapSlicesJoin",
       "type": "(string,string,(string)-\u003estring)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -856,7 +933,8 @@
       "name": "repeat",
       "type": "(string,int)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -912,7 +990,8 @@
       "name": "replace",
       "type": "(string,string,string)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -956,7 +1035,8 @@
       "name": "replaceMany",
       "type": "(string,list[(string,string)])-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1000,7 +1080,8 @@
       "name": "showPreview",
       "type": "(a,int)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1044,7 +1125,8 @@
       "name": "split",
       "type": "(string,string)-\u003elist[string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1088,7 +1170,8 @@
       "name": "splitAny",
       "type": "(string,list[string])-\u003elist[string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1132,7 +1215,8 @@
       "name": "startsWith",
       "type": "(string,string)-\u003ebool",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1176,7 +1260,8 @@
       "name": "startsWithIgnoreCase",
       "type": "(string,string)-\u003ebool",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -1208,7 +1293,8 @@
       "name": "stringToFloat",
       "type": "(string)-\u003eOption[float]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1240,7 +1326,8 @@
       "name": "stringToInt",
       "type": "(string)-\u003eOption[int]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1296,7 +1383,8 @@
       "name": "substring",
       "type": "(string,int,int)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1328,7 +1416,8 @@
       "name": "toLower",
       "type": "(string)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1360,7 +1449,8 @@
       "name": "toUpper",
       "type": "(string)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1392,7 +1482,8 @@
       "name": "trim",
       "type": "(string)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1424,7 +1515,8 @@
       "name": "words",
       "type": "(string)-\u003elist[string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     }
   ],
   "schema": "ailang.iface/v2"

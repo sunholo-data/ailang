@@ -13,15 +13,15 @@
 --
 -- RUNTIME BEHAVIOUR (v1.0.0, M-EFFECT-REPLAY-CONTRACTS): the three Rand modes
 -- now dispatch to three DIFFERENT sources at runtime — os draws from the global
--- OS-entropy source (reseedable via rand_seed), seeded draws from a dedicated
+-- OS-entropy source (reseedable via randSeed), seeded draws from a dedicated
 -- deterministic source pinned by the AILANG_SEED environment variable, and
 -- crypto draws from crypto/rand. Trace events for moded Rand ops carry the
 -- resolved mode and its replay-contract label (deterministic/re-sampleable/
 -- opaque). See ailang trace + docs/docs/guides/parameterised-effects.md.
 --
 -- SEEDING CONTRACT (Mark's decision, 2026-07-24): the seeded-mode source is
--- seeded ONLY by AILANG_SEED (the dedicated explicit path), NEVER by rand_seed.
--- rand_seed keeps its existing contract: it reseeds the os/global source. A
+-- seeded ONLY by AILANG_SEED (the dedicated explicit path), NEVER by randSeed.
+-- randSeed keeps its existing contract: it reseeds the os/global source. A
 -- seeded-mode draw with no AILANG_SEED is a loud typed error (RAND_SEEDED_NO_SEED),
 -- never a silent random fallback.
 --
@@ -40,27 +40,27 @@
 --   design_docs/implemented/v0_30_0/m-effect-replay-contracts.md (Phase 3 dispatch)
 
 module examples/modal_rand
-import std/rand (rand_int)
+import std/rand (randInt)
 import std/io (println)
 
 -- Bare !{Rand} — desugars to !{Rand[mode=os]} via the default-mode table.
 -- Existing programs that wrote !{Rand} continue to type-check unchanged and
 -- draw from the global OS-entropy source at runtime.
-export func roll_d6() -> int ! {Rand} = rand_int(1, 6)
+export func roll_d6() -> int ! {Rand} = randInt(1, 6)
 
 -- Explicit !{Rand[mode=os]} — same effect signature as bare !{Rand}.
 -- Unifies with bare form via the default-desugar match in the unifier; draws
 -- from the same global os source.
-export func roll_d20() -> int ! {Rand[mode=os]} = rand_int(1, 20)
+export func roll_d20() -> int ! {Rand[mode=os]} = randInt(1, 20)
 
 -- Explicit seeded mode — deterministic across processes for the same
 -- AILANG_SEED. The declared mode covers std/rand's bare/os requirement only
 -- along the validation path; runtime dispatch remains seeded.
-export func seeded_roll() -> int ! {Rand[mode=seeded]} = rand_int(1, 1000000)
+export func seeded_roll() -> int ! {Rand[mode=seeded]} = randInt(1, 1000000)
 
 -- Explicit crypto mode — draws from crypto/rand and has an opaque replay
 -- contract. It does not read AILANG_SEED.
-export func crypto_roll() -> int ! {Rand[mode=crypto]} = rand_int(1, 1000000)
+export func crypto_roll() -> int ! {Rand[mode=crypto]} = randInt(1, 1000000)
 
 -- main demonstrates only os-mode forms end-to-end.
 export func main() -> () ! {Rand, IO} = {

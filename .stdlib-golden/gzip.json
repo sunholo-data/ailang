@@ -44,7 +44,8 @@
       "name": "compress",
       "type": "(string,int)-\u003eResult[string,string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -76,7 +77,8 @@
       "name": "decompress",
       "type": "(string)-\u003eResult[string,string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -110,7 +112,8 @@
       "effects": [
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

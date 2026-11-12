@@ -202,7 +202,7 @@ func (ctx *InferenceContext) solveEqualitiesInto(sub Substitution, cs []TypeCons
 				sub,
 			)
 			if err != nil {
-				return nil, fmt.Errorf("type unification failed at %v: %w", constraint.Path, err)
+				return nil, ctx.unifyFailure(constraint, sub, err)
 			}
 		case RowEq:
 			var err error
@@ -234,7 +234,7 @@ func (ctx *InferenceContext) SolveConstraints() (Substitution, []ClassConstraint
 				sub,
 			)
 			if err != nil {
-				return nil, nil, fmt.Errorf("type unification failed at %v: %w", constraint.Path, err)
+				return nil, nil, ctx.unifyFailure(constraint, sub, err)
 			}
 
 		case RowEq:
@@ -248,6 +248,13 @@ func (ctx *InferenceContext) SolveConstraints() (Substitution, []ClassConstraint
 				return nil, nil, fmt.Errorf("row unification failed at %v: %w", constraint.Path, err)
 			}
 		}
+	}
+
+	// Phase 1b (M-V1-NOMINAL-TYPE-IDENTITY): resolve the deferred
+	// constructor choices the equalities now decide (ambiguous_ctor.go).
+	sub, err := ctx.resolveCtorChoices(sub)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// Phase 2: Apply final substitution to all class constraints

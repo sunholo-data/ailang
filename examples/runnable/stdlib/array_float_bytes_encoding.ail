@@ -5,7 +5,7 @@
 -- round-trip results, and the size of each encoding.
 module examples/runnable/stdlib/array_float_bytes_encoding
 import std/array (fromList, toList, encodeF32LE, decodeF32LE, encodeF64LE, decodeF64LE)
-import std/bytes (length, toInts, slice)
+import std/bytes (length, toInts, sliceLen)
 import std/option (Some, None)
 
 func showDecoded(label: string, r: Result[Array[float], string]) -> () ! {IO} = match r {
@@ -24,12 +24,12 @@ export func main() -> () ! {IO} {
   showDecoded("f32 round-trip", decodeF32LE(f32))
   showDecoded("f64 round-trip", decodeF64LE(f64))
   -- A truncated buffer is an error, not a partial array
-  match slice(f32, 0, 6) {
+  match sliceLen(f32, 0, 6) {
     Some(cut) => showDecoded("6 bytes as f32", decodeF32LE(cut)),
     None => println("slice out of range")
   }
   -- 8 valid f32 bytes decode as two floats
-  match slice(f32, 0, 8) {
+  match sliceLen(f32, 0, 8) {
     Some(two) => showDecoded("first 8 bytes as f32", decodeF32LE(two)),
     None => println("slice out of range")
   }

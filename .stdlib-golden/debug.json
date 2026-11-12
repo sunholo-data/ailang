@@ -46,7 +46,8 @@
       "effects": [
         "Debug"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -80,7 +81,8 @@
       "effects": [
         "Debug"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"
