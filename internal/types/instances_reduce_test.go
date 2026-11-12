@@ -13,7 +13,6 @@ func TestReduceConstraintsEveryClass(t *testing.T) {
 	env := LoadBuiltinInstances()
 	alpha := &TVar2{Name: "α1", Kind: Star}
 	box := func(t Type) Type { return &TApp{Constructor: &TCon{Name: "Box", Module: "m"}, Args: []Type{t}} }
-	higher := &TApp{Constructor: &TVar2{Name: "f1", Kind: Star}, Args: []Type{TInt}}
 	cases := []struct {
 		name     string
 		class    string
@@ -25,7 +24,6 @@ func TestReduceConstraintsEveryClass(t *testing.T) {
 		{"Ord on a bare variable is deferred", "Ord", alpha, 1, true},
 		{"Fractional on a bare variable is deferred", "Fractional", alpha, 1, true},
 		{"Show on a bare variable is deferred", "Show", alpha, 1, true},
-		{"a variable head is deferred", "Num", higher, 1, true},
 		{"Num[int] is solved", "Num", TInt, 0, true},
 		{"Ord[string] is solved", "Ord", TString, 0, true},
 		{"Num[Box[α]]", "Num", box(alpha), 0, false},

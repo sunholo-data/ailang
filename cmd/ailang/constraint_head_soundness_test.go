@@ -5,6 +5,9 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
+
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
 
 // #2247: a class constraint on a type with a constructor at its head and a
@@ -60,6 +63,13 @@ export func main() -> () ! {IO} = {
   let h = \u. g(7);
   println(show(h(())))
 }`, "No instance for Num[Box["},
+		// An alias is judged by what it stands for, in both directions.
+		{"alias_to_list_lit", `type Stack[a] = [a]
+pure func sz[a](s: Stack[a]) -> int = match s { [] => 0, _ :: _ => 1 }
+export func main() -> () ! {IO} = println(show(sz(7)))`, "No instance for Num[list["},
+		{"alias_to_string_arith", `type Tagged[t] = string
+pure func dbl[t](x: Tagged[t]) -> Tagged[t] = x + x
+export func main() -> () ! {IO} = println(show(dbl("a")))`, "No instance for Num[string]"},
 	}
 	for _, c := range cases {
 		t.Run(c.module, func(t *testing.T) {
@@ -142,6 +152,118 @@ func TestConstraintOnAppliedTypeControls(t *testing.T) {
 		{"run", "--quiet", "--caps", "IO", "--bytecode", "--strict-bytecode", file},
 	} {
 		stdout, stderr, code := runAilangBin(t, bin, engine...)
+		if code != 0 {
+			t.Errorf("%v: exit %d\n%s", engine, code, stderr)
+			continue
+		}
+		if got := strings.TrimSpace(stdout); got != want {
+			t.Errorf("%v:\ngot\n%s\nwant\n%s", engine, got, want)
+		}
+	}
+}
+
+// Aliases of primitives are seen through before a constraint is judged
+// (#2247 review): Num[Id[a]] with `type Id[a] = int` is Num[int]. Before the
+// alias expansion the #2247 fix rejected every one of these, and several were
+// already wrong on dev (Num[Score], Eq[Id[a]] and Num[Same[int]] were rejected;
+// Meters[u] crashed at run time because `m * 2.0` ran on the Int dictionary).
+const constraintAliasControls = `module constraint_alias_controls
+type Score = int
+type Id[a] = int
+type Ref[a] = Id[a]
+type Same[a] = a
+type Meters[u] = float
+type Tagged[t] = string
+type UserId[t] = int
+type User = {id: UserId[User], name: string}
+pure func inc[a](x: Id[a]) -> Id[a] = x + 1
+pure func incS(x: Id[string]) -> Id[string] = x + 1
+pure func incScore(x: Score) -> Score = x + 1
+pure func sameScore(x: Score, y: Score) -> bool = x == y
+pure func lessRef[a](x: Ref[a], y: Ref[a]) -> bool = x < y
+pure func sameId[a](x: Id[a], y: Id[a]) -> bool = x == y
+pure func sameIds[a](x: [Id[a]], y: [Id[a]]) -> bool = x == y
+pure func incSame[a](x: Same[a]) -> Same[a] = x + 1
+pure func dbl[u](m: Meters[u]) -> Meters[u] = m * 2.0
+pure func cmpm[u](m: Meters[u], n: Meters[u]) -> bool = m >= n
+pure func lessT[t](a: Tagged[t], b: Tagged[t]) -> bool = a < b
+pure func nextId(u: User) -> int = u.id + 1
+export func main() -> () ! {IO} = {
+  println(show(inc(41)));
+  println(show(incS(41)));
+  println(show(incScore(41)));
+  println(show(sameScore(3, 3)));
+  println(show(lessRef(1, 2)));
+  println(show(sameId(1, 2)));
+  println(show(sameIds([1], [1])));
+  println(show(incSame(41)));
+  println(show(dbl(1.5)));
+  println(show(cmpm(1.0, 2.0)));
+  println(show(lessT("a", "b")));
+  println(show(nextId({id: 4, name: "x"})))
+}
+`
+
+func TestConstraintAliasControls(t *testing.T) {
+	bin := buildAilang(t)
+	file := filepath.Join(t.TempDir(), "constraint_alias_controls.ail")
+	if err := os.WriteFile(file, []byte(constraintAliasControls), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if stdout, stderr, code := runAilangBin(t, bin, "check", file); code != 0 {
+		t.Fatalf("alias controls must check:\n%s%s", stdout, stderr)
+	}
+	want := strings.Join([]string{
+		"42", "42", "42", "true", "true", "false", "true", "42", "3.0", "false", "true", "5",
+	}, "\n")
+	assertBothEngines(t, want, file, func(args ...string) (string, string, int) {
+		return runAilangBin(t, bin, args...)
+	})
+}
+
+// The alias may come from another module, through a chain.
+func TestConstraintAliasAcrossModules(t *testing.T) {
+	bin := buildAilang(t)
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "xm"), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	files := map[string]string{
+		"xm/lib.ail": `module xm/lib
+export type Id[a] = int
+export type Score = int
+export type Ref[a] = Id[a]
+export pure func inc[a](x: Id[a]) -> Id[a] = x + 1
+`,
+		"xm/main.ail": `module xm/main
+import xm/lib (Id, Score, Ref, inc)
+pure func dbl[a](x: Id[a]) -> Id[a] = x * 2
+pure func lessR[a](x: Ref[a], y: Ref[a]) -> bool = x < y
+pure func same(x: Score, y: Score) -> bool = x == y
+export func main() -> () ! {IO} = { println(show(inc(41))); println(show(dbl(21))); println(show(lessR(1, 2))); println(show(same(3, 3))) }
+`,
+	}
+	for rel, src := range files {
+		if err := os.WriteFile(filepath.Join(dir, rel), []byte(src), 0o644); err != nil {
+			t.Fatal(err)
+		}
+	}
+	run := func(args ...string) (string, string, int) {
+		return testutil.RunBounded(t, dir, 60*time.Second, bin, args...)
+	}
+	if stdout, stderr, code := run("check", "xm/main.ail"); code != 0 {
+		t.Fatalf("cross-module alias program must check:\n%s%s", stdout, stderr)
+	}
+	assertBothEngines(t, "42\n42\ntrue\ntrue", "xm/main.ail", run)
+}
+
+func assertBothEngines(t *testing.T, want, file string, run func(args ...string) (string, string, int)) {
+	t.Helper()
+	for _, engine := range [][]string{
+		{"run", "--quiet", "--caps", "IO", file},
+		{"run", "--quiet", "--caps", "IO", "--bytecode", "--strict-bytecode", file},
+	} {
+		stdout, stderr, code := run(engine...)
 		if code != 0 {
 			t.Errorf("%v: exit %d\n%s", engine, code, stderr)
 			continue

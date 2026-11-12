@@ -439,16 +439,7 @@ func (tc *CoreTypeChecker) SetLetTypeAnnotations(annots map[uint64]Type) {
 // InferWithConstraints infers type with constraints for a Core expression
 // Returns: typed expression, updated env, qualified type, constraints, error
 func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv) (typedast.TypedNode, *TypeEnv, Type, []Constraint, error) {
-	// M-BUGFIX: Create unifier with alias environment for type alias expansion
-	var unifier *Unifier
-	if len(tc.aliasEnv) > 0 || len(tc.aliasCaptures) > 0 {
-		// M-XMOD-ALIAS-POLY: param env so applied aliases (`Box[int]`) instantiate.
-		unifier = NewUnifierWithAliasesAndParams(tc.aliasEnv, tc.aliasParams)
-		unifier.SetAliasCaptures(tc.aliasCaptures)
-		unifier.SetNewtypes(tc.newtypes)
-	} else {
-		unifier = NewUnifier()
-	}
+	unifier := tc.newAliasUnifier()
 
 	// Create inference context
 	ctx := &InferenceContext{

@@ -22,6 +22,16 @@ import "fmt"
 // string, bool), so a non-variable type is solved only by an instance at
 // exactly that type; a type with a free variable under a constructor can
 // never match one, and the lookup reports the missing instance.
+//
+// Aliases are expanded before this runs (constraint_alias.go), so the head
+// judged here is never an alias of an instance's type.
+//
+// Higher-kinded heads are not supported: a user-written `f[a]` reaches the
+// checker with `f` as a type constructor, never as a variable, so there is no
+// variable-headed application to defer. Were one to appear (a binder change
+// that made `f` a variable), rejecting it would stay sound for every class
+// but Eq, since no non-Eq instance has an applied head, and Eq's reduceEq
+// already rejects an unknown head.
 
 // ReduceConstraints reduces every non-ground constraint that is not on a bare
 // type variable: Eq decomposes structurally, every other class must be solved
@@ -52,26 +62,12 @@ func (env *InstanceEnv) reduceConstraint(class string, typ Type) ([]Type, error)
 	if class == "Eq" {
 		return env.reduceEq(typ, 0)
 	}
-	if hasVariableHead(typ) {
+	switch typ.(type) {
+	case *TVar, *TVar2:
 		return []Type{typ}, nil
 	}
 	if _, err := env.Lookup(class, typ); err != nil {
 		return nil, err
 	}
 	return nil, nil
-}
-
-// hasVariableHead reports whether typ is a type variable or an application
-// whose head is one (`f[a]`): only then can a later substitution still pick
-// the instance, so only then may the constraint be deferred.
-func hasVariableHead(typ Type) bool {
-	head := typ
-	if app, ok := typ.(*TApp); ok {
-		head, _ = decomposeApp(app)
-	}
-	switch head.(type) {
-	case *TVar, *TVar2:
-		return true
-	}
-	return false
 }
