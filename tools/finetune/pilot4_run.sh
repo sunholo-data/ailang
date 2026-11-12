@@ -11,6 +11,8 @@
 #   gate     30-min behaviour check on TRAINING benchmarks before the long evals    D-FT-16
 #   eval_B   held-out 24, fine-tune + slim prompt, TRACED (dropped calls counted)
 #   eval_A   held-out 24, base 12B + full teaching prompt, TRACED (once; reusable)
+#   eval_A2  held-out 24, base 12B + slim prompt (diagnostic)
+#   eval_D   held-out 24, pilot-3 + full teaching prompt (diagnostic)
 #   summary
 set -u
 REPO=/Users/voightkampff/dev/sunholo-data/ailang
@@ -116,14 +118,14 @@ trace_models(){
 import re,sys
 src,out=sys.argv[1],sys.argv[2]; s=open(src).read()
 add=""
-for lane in ("pi-gemma4-12b","pi-gemma4-12b-ft4"):
+for lane in ("pi-gemma4-12b","pi-gemma4-12b-ft3","pi-gemma4-12b-ft4"):
     i=s.index(f"\n  {lane}:\n")+1; j=re.compile(r"^  [A-Za-z0-9#]",re.M).search(s,i+5).start()
     blk=s[i:j].replace(f"  {lane}:",f"  {lane}-trace:",1).replace('agent_model_name: "ollama-rig/','agent_model_name: "ollama-trace/')
     add+=blk
 k=s.index("\nmodels:\n")+len("\nmodels:\n")
 open(out,"w").write(s[:k]+add+s[k:])
 EOF
-  for m in gemma4:12b-mxfp8 "$OLLAMA_NAME"; do
+  for m in gemma4:12b-mxfp8 gemma4-12b-ailang-ft3 "$OLLAMA_NAME"; do
     "$PY" -I - "$m" <<'EOF'
 import json,os,sys
 p=os.path.expanduser("~/.pi/agent/models.json"); d=json.load(open(p)); m=sys.argv[1]
@@ -193,7 +195,12 @@ EOF2
 
 stage_eval_B(){ need_disk eval_B 5; run_arm B pi-gemma4-12b-ft4-trace ft-slim-v1 off; }
 stage_eval_A(){ need_disk eval_A 5; run_arm A pi-gemma4-12b-trace v0.16.12 on; }   # base, once (D-FT-16); reusable later
-stage_summary(){ grep -E "^(A|B)[ :]|GATE" "$LOG" | tail -8; }
+# The two diagnostic arms the design doc asked for and no pilot ran (2026-11-12):
+#   A2: base + slim prompt  -> how much of a fine-tune's slim-prompt score is the training?
+#   D:  pilot-3 + full prompt -> did training damage the model, or just fail to replace the prompt?
+stage_eval_A2(){ need_disk eval_A2 5; run_arm A2 pi-gemma4-12b-trace ft-slim-v1 off; }
+stage_eval_D(){ need_disk eval_D 5; run_arm D pi-gemma4-12b-ft3-trace v0.16.12 on; }
+stage_summary(){ grep -E "^(A|A2|B|D)[ :]|GATE" "$LOG" | tail -8; }
 
 STAGES=${*:-pairs}
 case " $STAGES " in *" train "*|*" serve "*|*" gate "*|*" eval_"*) gpu_lock ;; esac
