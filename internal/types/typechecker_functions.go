@@ -244,7 +244,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		defaultedType = tc.closeDeclaredEffectRowForBinding(let.Value.ID(), defaultedType)
 		defaultedType = ctx.closeOpenedTailsForGeneralization(sub, defaultedType, ctx.env, ctx.baseEnv) // #1958
 
-		binding = ctx.withFieldAccesses(tc.generalizeWithConstraints(defaultedType, valueEffects, nonGroundConstraints, sub, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints)), sub) // #2239
+		binding = tc.generalizeCarrying(ctx, defaultingSub, defaultedType, valueEffects, nonGroundConstraints, sub, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints)) // #2239
 	} else {
 		binding = defaultedType
 	}
@@ -409,7 +409,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		// the recursive bindings' own fresh vars live only in newEnv, so they
 		// remain generalizable, while any enclosing lambda params (free in
 		// oldEnv but not in the decl's base env) are correctly withheld.
-		scheme := ctx.withFieldAccesses(tc.generalizeWithConstraints(valueType, getEffectRow(valueNode), nonGroundConstraints, reSub, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, letrec, nonGroundConstraints)), reSub) // #2239
+		scheme := tc.generalizeCarrying(ctx, nil, valueType, getEffectRow(valueNode), nonGroundConstraints, reSub, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, letrec, nonGroundConstraints)) // #2239
 
 		typedBindings[i] = typedast.TypedRecBinding{
 			Name:   binding.Name,

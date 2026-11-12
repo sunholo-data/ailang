@@ -181,8 +181,13 @@ Still open:
   record of another module gets `==` too. The comparison is structurally correct, and a record
   with a field that has no `==` (a function) is still rejected.
 - A single-constructor ADT wrapping a record (`type W = W({x: int})`) is a nominal type, not
-  its record (`TC_NEWTYPE_001`, #2239); field access `w.x` works on it. Only the evaluator runs
-  that field access: `--strict-bytecode` fails with `_record_get: arg 0 must be record, got
+  its record (`TC_NEWTYPE_001`, #2239); field access `w.x` works on it. A let-bound or inline
+  field reader (`let getx = \r. r.x`, `map(\t. t.name, items)`) accepts records and `W`s alike,
+  but a **top-level** function whose parameter type is inferred from field reads
+  (`pure func getx(r) = r.x`) is a record reader: its scheme is exported, so the read is
+  settled as a record access there, and `getx(W({x: 1}))` is `TC_NEWTYPE_001` with a hint to
+  annotate the parameter as `W` (it worked by accident before #2239). Only the evaluator runs
+  newtype field access: `--strict-bytecode` fails with `_record_get: arg 0 must be record, got
   ADT` (`--bytecode` falls back to the evaluator), and `--emit-go` emits two Go types of the
   one name. Both pre-existing.
 - A bare type name resolved only through an indirect dependency can become ambiguous when another

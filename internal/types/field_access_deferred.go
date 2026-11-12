@@ -3,6 +3,7 @@ package types
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/core"
 )
@@ -145,37 +146,98 @@ func (ctx *InferenceContext) solveDeferred(sub Substitution, pending []*fieldAcc
 	return sub, nil
 }
 
-// withFieldAccesses records in scheme (a let's generalised type, solved
-// under sub) every access still undecided whose receiver or field type
-// mentions a variable the scheme quantifies: each use of the binding
-// instantiates it afresh (Scheme.instantiate), and the use decides it. The
-// original stays in the constraint list over the scheme's own variables, so
-// the binding's body is typed as before (settled as a record at the
-// declaration if nothing decides it).
-// It returns scheme, so a generalisation site wraps its call in it.
-func (ctx *InferenceContext) withFieldAccesses(scheme *Scheme, sub Substitution) *Scheme {
-	if scheme == nil || len(ctx.pendingAccesses) == 0 || len(scheme.TypeVars)+len(scheme.RowVars) == 0 {
-		return scheme
+// generalizeCarrying is generalizeWithConstraints for a let (or letrec)
+// binding that leaves field accesses undecided. The accesses that share a
+// variable with the binding's type — closed over: an access sharing one with
+// an access already taken joins too (`r.a.b`: the receiver of `.b` is the field
+// type of `.a`) — are generalised TOGETHER with the type, so a variable that
+// occurs only inside one (the field type of `p.x` in `\p. show(p.x)`) is
+// quantified under the same side conditions as the type's own variables, and
+// the class constraints on it (`Show`, `Eq`, `Num`) travel with the scheme
+// (schemeConstraintsFor). The scheme carries those accesses; every use
+// instantiates them afresh (Scheme.instantiate) and decides them. The originals
+// stay in the constraint list over the scheme's own variables, so the
+// binding's body is typed as before (settled as a record at the declaration
+// if nothing decides it). Review of #2284, item 1: quantifying only the type's
+// variables left such a field type shared by every use.
+func (tc *CoreTypeChecker) generalizeCarrying(ctx *InferenceContext, defaulting Substitution, typ Type, effects *Row, constraints []ClassConstraint, sub Substitution, currentEnv *TypeEnv, baseEnvFreeVars map[string]bool, baseEnv *TypeEnv, literalWithhold map[string]bool) *Scheme {
+	carried := ctx.accessesSharingVars(typ, sub, defaulting)
+	if len(carried) == 0 {
+		return tc.generalizeWithConstraints(typ, effects, constraints, sub, currentEnv, baseEnvFreeVars, baseEnv, literalWithhold)
 	}
-	quantified := make(map[string]bool, len(scheme.TypeVars)+len(scheme.RowVars))
-	for _, v := range scheme.TypeVars {
-		quantified[v] = true
+	parts := []Type{typ}
+	for _, fa := range carried {
+		parts = append(parts, fa.recv, fa.expected())
 	}
-	for _, v := range scheme.RowVars {
-		quantified[v] = true
+	scheme := tc.generalizeWithConstraints(&TTuple{Elements: parts}, effects, constraints, sub, currentEnv, baseEnvFreeVars, baseEnv, literalWithhold)
+	scheme.Type = typ
+	scheme.fieldAccesses = carried
+	return scheme
+}
+
+// expected is the record an access requires of a record receiver.
+func (fa *fieldAccess) expected() *TRecordOpen {
+	return &TRecordOpen{Fields: map[string]Type{fa.field: fa.fieldType}, Row: fa.row}
+}
+
+// accessesSharingVars returns the undecided accesses (under sub) connected to
+// typ through shared variables, as copies over the substituted types. The
+// access row is left out of the connection: on this branch every access shares
+// the literal row name "r", which would connect unrelated accesses.
+func (ctx *InferenceContext) accessesSharingVars(typ Type, sub, defaulting Substitution) []*fieldAccess {
+	if len(ctx.pendingAccesses) == 0 {
+		return nil
 	}
-	for _, fa := range ctx.pendingAccesses {
-		recv, ft := ApplySubstitution(sub, fa.recv), ApplySubstitution(sub, fa.fieldType)
-		free := make(map[string]bool)
-		collectFreeVars(recv, free)
-		collectFreeVars(ft, free)
-		if overlaps(free, quantified) {
-			scheme.fieldAccesses = append(scheme.fieldAccesses, &fieldAccess{
-				recv: recv, field: fa.field, fieldType: ft, row: fa.row, path: fa.path,
-			})
+	vars := allTypeVars(typ)
+	cands := make([]*fieldAccess, len(ctx.pendingAccesses))
+	candVars := make([]map[string]bool, len(cands))
+	for i, fa := range ctx.pendingAccesses {
+		cands[i] = &fieldAccess{recv: subThen(sub, defaulting, fa.recv), field: fa.field,
+			fieldType: subThen(sub, defaulting, fa.fieldType), row: fa.row, path: fa.path}
+		candVars[i] = allTypeVars(&TTuple{Elements: []Type{cands[i].recv, cands[i].fieldType}})
+	}
+	taken := make([]bool, len(cands))
+	for progress := true; progress; {
+		progress = false
+		for i := range cands {
+			if taken[i] || !overlaps(candVars[i], vars) {
+				continue
+			}
+			taken[i], progress = true, true
+			for v := range candVars[i] {
+				vars[v] = true
+			}
 		}
 	}
-	return scheme
+	var out []*fieldAccess
+	for i, fa := range cands {
+		if taken[i] {
+			out = append(out, fa)
+		}
+	}
+	return out
+}
+
+// subThen applies sub and then the let's defaulting substitution (which binds
+// an ambiguous Num variable, e.g. the field type of `\r. show(r.n * 2)`, to
+// int): an access must see the binding exactly as its type does, or a variable
+// defaulted in the body would be quantified in the access and each use would
+// pick a different numeric dictionary at run time (review of #2284, r10–r13).
+func subThen(sub, defaulting Substitution, t Type) Type {
+	t = ApplySubstitution(sub, t)
+	if len(defaulting) > 0 {
+		t = ApplySubstitution(defaulting, t)
+	}
+	return t
+}
+
+// allTypeVars is every variable of t (type, record-row and effect-row) by the
+// shared free-variable walk (free_vars.go), which descends into open records,
+// record rows and effect rows.
+func allTypeVars(t Type) map[string]bool {
+	out := make(map[string]bool)
+	collectVars(t, out, func(varOccurrence) bool { return true }, nil)
+	return out
 }
 
 // instantiateFieldAccesses returns the scheme's field accesses under subs.
@@ -243,11 +305,68 @@ func (u *Unifier) newtypeRecordMismatch(t1, t2 Type) error {
 	if len(ctors) == 1 {
 		ctor = ctors[0]
 	}
+	shown, open := diagRecord(rec)
+	if open {
+		// The record side is a row-polymorphic record: typically the parameter
+		// of a top-level function whose type was inferred from `.f` reads
+		// (`pure func getx(r) = r.x`). An undecided access is read as a record
+		// access at its declaration (it must not reach an exported scheme), so
+		// such a function takes records, not a W (review of #2284, item 2).
+		return fmt.Errorf("%s: cannot unify %s with the record type %s: a function whose parameter type was inferred from field reads takes a record; "+
+			"%s is a type with one constructor wrapping the record %s, not a record.\n"+
+			"  Suggestion: annotate that parameter as %s (field access works on a %s), or pass the record inside: match v { %s(r) => … r … }.",
+			TC_NEWTYPE_001, describeTCon(c), shown, c.Name, diagRecordString(body), c.Name, c.Name, ctor)
+	}
 	return fmt.Errorf("%s: cannot unify %s with the record type %s: %s is a type with one constructor wrapping the record %s, "+
 		"not that record, and the two do not convert implicitly.\n"+
 		"  Suggestion: build a %s with its constructor, %s({...}), or take the record out with match v { %s(r) => r }; "+
 		"field access (v.%s) works on a %s directly.",
-		TC_NEWTYPE_001, describeTCon(c), rec, c.Name, body, c.Name, ctor, ctor, firstField(body), c.Name)
+		TC_NEWTYPE_001, describeTCon(c), shown, c.Name, diagRecordString(body), c.Name, ctor, ctor, firstField(body), c.Name)
+}
+
+// diagRecord renders a record type for a diagnostic as a user writes one:
+// `{ x: int, y: _ }` — fields sorted, an unresolved field type as `_`, a
+// trailing `...` only when the record is open — instead of the internal form
+// (`{ x: α4, ...{x: α4} }`, review of #2284 item 5). open reports a row that
+// can still take fields.
+func diagRecord(t Type) (string, bool) {
+	var fields map[string]Type
+	open := false
+	switch r := t.(type) {
+	case *TRecord:
+		fields, open = r.Fields, recordRowIsOpen(r.Row)
+	case *TRecordOpen:
+		fields = r.Fields
+		open = r.Row != nil && recordRowIsOpen(r.Row)
+	case *TRecord2:
+		return diagRecord(TRecord2ToTRecord(r))
+	default:
+		return fmt.Sprint(t), false
+	}
+	names := make([]string, 0, len(fields))
+	for n := range fields {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	parts := make([]string, 0, len(names)+1)
+	for _, n := range names {
+		ft := "_"
+		switch fields[n].(type) {
+		case *TVar2, *TVar:
+		default:
+			ft = fields[n].String()
+		}
+		parts = append(parts, n+": "+ft)
+	}
+	if open {
+		parts = append(parts, "...")
+	}
+	return "{ " + strings.Join(parts, ", ") + " }", open
+}
+
+func diagRecordString(t Type) string {
+	s, _ := diagRecord(t)
+	return s
 }
 
 // firstField names a field of a record for a diagnostic example ("field" if

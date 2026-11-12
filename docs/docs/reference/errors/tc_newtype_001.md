@@ -68,6 +68,25 @@ pure func grow(m: Meters) -> Meters = match m { Meters(r) => Meters({ r | v: r.v
 export func main() -> () ! {IO} = println(describe(grow(Meters({ v: 3 }))))
 ```
 
+## A top-level function that reads fields from an inferred parameter
+
+A `let`-bound or inline reader accepts a `W` (`map(\t. t.x, ws)`). A **top-level**
+function whose parameter type is inferred from the fields it reads is exported with
+a record type, so it takes records, not a `W`:
+
+```ailang error=TC_NEWTYPE_001
+module units/reader
+
+type Meters = Meters({ v: int })
+
+pure func value(m) = m.v
+
+export func main() -> () ! {IO} = println(show(value(Meters({ v: 3 }))))
+```
+
+Annotate the parameter (`pure func value(m: Meters) -> int = m.v`), or unwrap at the
+call: `match m { Meters(r) => value(r) }`.
+
 ## What is not an error
 
 - Field access on a `W`, including through a lambda whose parameter type is inferred:

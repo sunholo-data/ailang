@@ -24,6 +24,32 @@ func newtypeRecordCases() []nominalCase {
 			reject: []string{types.TC_NEWTYPE_001, "W (defined in pnt/a)"},
 		},
 		{
+			// Review of #2284, M5: an access undecided at a declaration is settled
+			// as a record access before the scheme is exported, so an importer
+			// cannot call an inferred reader with a non-record (a string here;
+			// with an int literal it is the same rejection, worded as #2302).
+			name: "an exported inferred field reader is a record reader (cross-module, M5)",
+			files: map[string]string{
+				"m5/a.ail":     "module m5/a\nexport pure func getx(r) = r.x\n",
+				"m5/main.ail":  "module m5/main\nimport m5/a (getx)\nexport pure func main() -> int { let n: int = getx(\"s\"); n + 1 }\n",
+				"m5/prime.ail": "module m5/prime\nimport m5/a (getx)\nexport pure func main() -> int = 1\n",
+			},
+			entry: "m5/main.ail", prime: "m5/prime.ail",
+			reject: []string{"getx"},
+		},
+		{
+			// Review of #2284, item 2 (x02): a W passed to an exported reader with
+			// an inferred parameter gets the message that says what to do.
+			name: "a W passed to an exported inferred reader (cross-module, x02)",
+			files: map[string]string{
+				"x2/a.ail":     "module x2/a\nexport type W = W({ x: int })\nexport pure func getx(r) = r.x\n",
+				"x2/main.ail":  "module x2/main\nimport x2/a (getx, W)\nexport pure func main() -> int = getx({ x: 1 }) + getx(W({ x: 3 }))\n",
+				"x2/prime.ail": "module x2/prime\nimport x2/a (getx, W)\nexport pure func main() -> int = 1\n",
+			},
+			entry: "x2/main.ail", prime: "x2/prime.ail",
+			reject: []string{types.TC_NEWTYPE_001, "annotate that parameter as W"},
+		},
+		{
 			name: "an imported W's fields through an inferred lambda (cross-module)",
 			files: map[string]string{
 				"ntx/a.ail":     "module ntx/a\nexport type W = W({ x: int })\nexport pure func mk(n: int) -> W = W({ x: n })\n",

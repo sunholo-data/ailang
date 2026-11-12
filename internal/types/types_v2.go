@@ -562,6 +562,9 @@ func (s *Scheme) instantiate(fresh func(Kind) Type, use []string) (Type, []Const
 	if len(s.RowVars) > 0 {
 		recordRows := map[string]bool{}
 		recordRowNames(s.Type, recordRows)
+		for _, fa := range s.fieldAccesses { // #2239: rows quantified only there
+			recordRowNames(&TTuple{Elements: []Type{fa.recv, fa.expected()}}, recordRows)
+		}
 		for _, v := range s.RowVars {
 			if recordRows[v] {
 				subs[v] = fresh(RecordRow)

@@ -17,7 +17,7 @@ import (
 // this package; the cross-module rows (cold and warm cache) are in
 // internal/pipeline/newtype_record_test.go.
 
-const ntHdr = "module m/main\nimport std/list (map, foldl)\n" +
+const ntHdr = "module m/main\nimport std/list (map, foldl, length)\n" +
 	"type W = W({ x: int, y: int })\ntype V = V({ x: int, y: int })\n" +
 	"pure func getw(w: W) -> int = match w { W(r) => r.x * 3 }\n"
 
@@ -71,6 +71,42 @@ func TestNewtypeRecord_FieldAccessIsAProjection(t *testing.T) {
 			"pure func getx(r: { x: int, y: int }) -> int = r.x\nexport pure func main() -> int = getx({ x: 1, y: 2 })\n", ""},
 		{"an unannotated field reader in its own declaration is settled as a record reader",
 			"export pure func main() -> int { let k = 1; let f = \\r. r.y + k; f({ y: 2 }) }\n", ""},
+		// --- review of #2284, item 1: a let-bound record reader stays polymorphic
+		// when the field's type is not in the reader's own type (it is quantified
+		// with the carried access, and its class constraint travels with it) ---
+		{"r05: show of a field at int and at string",
+			"export pure func main() -> string { let describe = \\p. show(p.x); \"${describe({ x: 1 })} ${describe({ x: \"s\" })}\" }\n", ""},
+		{"r09: == on two fields at int and at string",
+			"export pure func main() -> bool { let same = \\p. p.a == p.b; same({ a: 1, b: 1 }) && same({ a: \"x\", b: \"y\" }) }\n", ""},
+		{"r06: length of a list field at [int] and at [string]",
+			"export pure func main() -> int { let count = \\r. length(r.items); count({ items: [1, 2] }) + count({ items: [\"a\"] }) }\n", ""},
+		{"r01: chain r.a.b at two field types",
+			"export pure func main() -> string { let f = \\r. r.a.b; \"${show(f({ a: { b: 1 } }))} ${f({ a: { b: \"s\" } })}\" }\n", ""},
+		{"r07: two fields of a nested record, extra field at one use",
+			"export pure func main() -> int { let f = \\r. r.a.x + r.a.y; f({ a: { x: 1, y: 2 } }) + f({ a: { x: 1, y: 2, z: 3 } }) }\n", ""},
+		{"r14: letrec reader at int and at string",
+			"export pure func main() -> string { letrec describe = \\p. \\n. if n <= 0 then show(p.x) else describe(p)(n - 1); \"${describe({ x: 1 })(2)} ${describe({ x: \"s\" })(1)}\" }\n", ""},
+		{"a chain inside show at two field types (the middle access shares nothing with the type)",
+			"export pure func main() -> string { let f = \\r. show(r.a.b); \"${f({ a: { b: 1 } })} ${f({ a: { b: \"s\" } })}\" }\n", ""},
+		{"a chained access the type does not mention still constrains every use",
+			"export pure func main() -> string { let f = \\r. show(r.a.b + 1); f({ a: { b: \"s\" } }) }\n", "string"},
+		{"a let-bound reader applied to an open-row annotated parameter",
+			"export pure func main() -> int { let gx = \\t. t.x; let h = func(p: { x: int | rest }) -> int { gx(p) }; h({ x: 1, y: 2 }) }\n", ""},
+		{"d09c: Eq and Ord on fields at two types",
+			"export pure func main() -> bool { let lt = \\r. r.a < r.b; lt({ a: 1, b: 2 }) && lt({ a: \"b\", b: \"a\" }) }\n", ""},
+		{"r11: an integer literal still fixes the field type (one reader, int and float uses)",
+			"export pure func main() -> string { let f = \\r. show(r.n * 2); \"${f({ n: 7 })} ${f({ n: 1.5 })}\" }\n", "Fractional[int]"},
+		{"r13: a defaulted field type is not re-generalised in the access",
+			"export pure func main() -> string { let half = \\r. show(r.n / 2); let x: float = 7.0; \"${half({ n: 7 })} ${half({ n: x })}\" }\n", "half"},
+		// --- review of #2284, item 3 (M10): a receiver that is an alias of a
+		// newtype is expanded to the newtype before the access is decided ---
+		{"q01: field access through type V = W",
+			"type V2 = W\npure func getv(v: V2) -> int = v.x + 1000\nexport pure func main() -> int { let f = \\t. t.x; let v: V2 = W({ x: 2, y: 0 }); getv(W({ x: 1, y: 0 })) + f(v) }\n", ""},
+		// --- review of #2284, item 2: a TOP-LEVEL reader with an inferred
+		// parameter is a record reader (its scheme is exported); a W passed to it
+		// gets its own message ---
+		{"d13: a W passed to a top-level reader with an inferred parameter",
+			"pure func getx(r) = r.x\nexport pure func main() -> int = getx({ x: 1 }) + getx(W({ x: 2, y: 0 }))\n", "annotate that parameter as W"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			err := checkModules(t, map[string]string{"m/main.ail": ntHdr + c.body})
