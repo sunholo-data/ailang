@@ -39,9 +39,9 @@ func (tc *CoreTypeChecker) checkCtorPatternScope(p *core.ConstructorPattern, scr
 	if adt, ok := tc.diagnosticCtorTypes[name]; ok {
 		// adt == "" marks a name defined by two different ADTs across loaded
 		// modules; which one is meant is unknowable here, so accept.
-		if scrutADT := extractADTName(scrutType); adt != "" && scrutADT != "" && scrutADT != adt {
+		if scrutADT := tc.scrutineeADTName(scrutType); adt != "" && scrutADT != "" && scrutADT != adt {
 			return NewMatchForeignConstructorError(
-				name, adt, scrutADT,
+				name, adt, scrutADT, writtenAlias(scrutType, scrutADT),
 				tc.lookupADTConstructors(adt), tc.lookupADTConstructors(scrutADT),
 				path,
 			)
@@ -72,7 +72,7 @@ func (tc *CoreTypeChecker) patternADT(p *core.ConstructorPattern) (TypeRef, bool
 // otherwise the closest known constructor name.
 func (tc *CoreTypeChecker) newUnknownConstructorError(name string, scrutType Type, path []string) *TypeCheckError {
 	var suggestion string
-	if scrutADT := extractADTName(scrutType); scrutADT != "" {
+	if scrutADT := tc.scrutineeADTName(scrutType); scrutADT != "" {
 		if ctors := tc.lookupADTConstructors(scrutADT); len(ctors) > 0 {
 			sort.Strings(ctors)
 			if best := importhint.Closest(name, ctors); best != "" {

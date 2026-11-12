@@ -436,6 +436,7 @@ func (v *matchVerifier) pattern(p core.CorePattern) (exhaust.Pattern, error) {
 		if err != nil {
 			return nil, err
 		}
+		v.stamp(p, key)
 		args, err := v.patterns(p.Args)
 		if err != nil {
 			return nil, err
@@ -533,6 +534,24 @@ func (v *matchVerifier) ctorUniverse(p *core.ConstructorPattern) (string, []exha
 	return "", nil, fmt.Errorf("%w: constructor %s is not a known constructor of %s", errUndecidable, p.Name, name)
 }
 
+// stamp records on a constructor matched by name (#323) the ADT this check
+// resolved it to from the type the checker matched it against — the nominal
+// head after alias expansion (#2244). The back ends dispatch on the stamp, so
+// none of them has to resolve a type name, an alias above all, on its own:
+// before the stamp, the VM and the Go emitter dispatched on the scrutinee's
+// written type (`Hue`), which declares no tags, and a nested by-name pattern
+// carried no type at all, so the VM took the first loaded ADT declaring the
+// tag. A pattern the checker never saw keeps no stamp: its ADT is a guess.
+func (v *matchVerifier) stamp(p *core.ConstructorPattern, key string) {
+	if p.TypeName != "" {
+		return
+	}
+	if _, checked := v.tc.ctorPatternTypes[p]; !checked {
+		return
+	}
+	p.TypeModule, p.TypeName = SplitNominalKey(key)
+}
+
 // crossCheckRoot: the scrutinee's own type and its patterns' constructors
 // must name the same ADT; a disagreement is a checker bug, never skipped.
 func (v *matchVerifier) crossCheckRoot(m *core.Match, arms []exhaust.Arm) error {
@@ -557,19 +576,13 @@ func (v *matchVerifier) crossCheckRoot(m *core.Match, arms []exhaust.Arm) error 
 	return nil
 }
 
-// head returns the nominal head of t after alias expansion, or nil.
+// head returns the nominal head of t after alias expansion, or nil
+// (nominal_head.go).
 func (v *matchVerifier) head(t Type) *TCon {
 	if v.unif == nil {
 		v.unif = v.tc.aliasUnifier()
 	}
-	t = v.unif.expandAliasMode(t, false)
-	if app, ok := t.(*TApp); ok {
-		t, _ = decomposeApp(app)
-	}
-	if h, ok := t.(*TCon); ok {
-		return h
-	}
-	return nil
+	return v.unif.nominalHead(t)
 }
 
 // aliasUnifier is a unifier that knows this module's aliases, for expansion.
@@ -581,6 +594,8 @@ func (tc *CoreTypeChecker) aliasUnifier() *Unifier {
 }
 
 // scrutineeName names the scrutinee's type for a message, "" when unknown.
+// A type written as an alias is named with what it expands to, "Hue (=
+// Color)", because the missing patterns are the expansion's constructors.
 func (v *matchVerifier) scrutineeName(m *core.Match) string {
 	t, ok := v.tc.CoreTI.Get(m.Scrutinee.ID())
 	if !ok {
@@ -589,6 +604,12 @@ func (v *matchVerifier) scrutineeName(m *core.Match) string {
 	switch t.(type) {
 	case *TVar, *TVar2:
 		return ""
+	}
+	if v.unif == nil {
+		v.unif = v.tc.aliasUnifier()
+	}
+	if exp := v.unif.expandAliasMode(t, false); exp.String() != t.String() {
+		return t.String() + " (= " + exp.String() + ")"
 	}
 	return t.String()
 }

@@ -123,10 +123,17 @@ func switchEligible(arms []core.MatchArm) bool {
 func lowerConstructorMatch(m *core.Match, cti types.CoreTypeInfo) stmt.Stmt {
 	scrutinee := lowerExpr(m.Scrutinee, cti)
 
-	adtName := ""
+	// switchEligible guarantees a constructor arm; the type checker that
+	// every constructor arm names the scrutinee's ADT.
+	var scrutType types.Type
 	if m.Scrutinee != nil {
-		if t, ok := cti[m.Scrutinee.ID()]; ok {
-			adtName = extractADTName(t)
+		scrutType = cti[m.Scrutinee.ID()]
+	}
+	adtName := ""
+	for _, arm := range m.Arms {
+		if p, ok := arm.Pattern.(*core.ConstructorPattern); ok {
+			adtName = patternADTName(p, scrutType)
+			break
 		}
 	}
 
@@ -184,6 +191,18 @@ func armBodyStmts(arm core.MatchArm, cti types.CoreTypeInfo) []stmt.Stmt {
 		body = append(body, stmt.ReturnStmt{Value: ret})
 	}
 	return body
+}
+
+// patternADTName names the ADT a constructor pattern tests: the ADT the
+// elaborator resolved the constructor to, else the head of the type of the
+// value it is matched against (a constructor matched by name, #323). The
+// stamp comes first because the value's type may be written as an alias
+// (`type Hue = Color`, #2244), a name no back end declares an ADT under.
+func patternADTName(p *core.ConstructorPattern, t types.Type) string {
+	if p.TypeName != "" {
+		return p.TypeName
+	}
+	return extractADTName(t)
 }
 
 // extractADTName gets the ADT type name from a types.Type.

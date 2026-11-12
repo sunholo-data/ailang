@@ -48,7 +48,7 @@ func patternCond(s stmt.Expr, t types.Type, pat core.CorePattern) stmt.Expr {
 		return lowerLitPatternCond(s, p)
 
 	case *core.ConstructorPattern:
-		cond := stmt.Expr(stmt.ADTTagEq{Value: s, TypeName: extractADTName(t), Tag: p.Name})
+		cond := stmt.Expr(stmt.ADTTagEq{Value: s, TypeName: patternADTName(p, t), Tag: p.Name})
 		for j, arg := range p.Args {
 			cond = andCond(cond, patternCond(ctorField(s, j), nil, arg))
 		}

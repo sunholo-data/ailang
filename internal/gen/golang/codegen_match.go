@@ -96,7 +96,16 @@ func (g *Generator) generateMatch(match *core.Match) error {
 		// ADT constructor matching - use Kind-based switch
 		// M-DX22: First try to get ADT type from scrutinee's type info (avoids constructor name collisions)
 		var adtTypeName string
-		if g.matchScrutineeAILANGType != nil {
+		// #2244: the ADT the elaborator resolved the constructors to comes
+		// first — the scrutinee's type may be written as an alias
+		// (`type Hue = Color`), which has no Kind constants of its own.
+		for _, arm := range match.Arms {
+			if cp, ok := arm.Pattern.(*core.ConstructorPattern); ok && cp.TypeName != "" {
+				adtTypeName = cp.TypeName
+				break
+			}
+		}
+		if adtTypeName == "" && g.matchScrutineeAILANGType != nil {
 			adtTypeName = g.extractADTTypeName(g.matchScrutineeAILANGType)
 		}
 		// Fallback: find the ADT type from constructor patterns (legacy behavior)

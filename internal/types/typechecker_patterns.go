@@ -183,11 +183,14 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 				// returns "" for unresolved types, so the check is
 				// conservative and doesn't fire on legitimately
 				// polymorphic code.
-				if scrutADT := extractADTName(scrutType); scrutADT != "" && scrutADT != adtTypeName {
+				//
+				// #2244: the scrutinee's ADT is read after alias expansion
+				// (nominal_head.go) — `type Hue = Color` is Color.
+				if scrutADT := tc.scrutineeADTName(scrutType); scrutADT != "" && scrutADT != adtTypeName {
 					ctorList := tc.lookupADTConstructors(adtTypeName)
 					scrutList := tc.lookupADTConstructors(scrutADT)
 					return nil, nil, NewMatchForeignConstructorError(
-						p.Name, adtTypeName, scrutADT,
+						p.Name, adtTypeName, scrutADT, writtenAlias(scrutType, scrutADT),
 						ctorList, scrutList,
 						[]string{fmt.Sprintf("constructor pattern %s", p.Name)},
 					)

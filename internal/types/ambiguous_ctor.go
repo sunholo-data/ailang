@@ -340,16 +340,7 @@ func (ctx *InferenceContext) resolveChoicesIn(sub Substitution, cs []TypeConstra
 // choiceHead returns the nominal head of a scrutinee type (aliases expanded
 // by their defining module first), or nil while it is not yet known.
 func (ctx *InferenceContext) choiceHead(t Type) *TCon {
-	if ctx.unifier != nil {
-		t = ctx.unifier.expandAliasMode(t, false)
-	}
-	if app, ok := t.(*TApp); ok {
-		t, _ = decomposeApp(app)
-	}
-	if head, ok := t.(*TCon); ok {
-		return head
-	}
-	return nil
+	return ctx.unifier.nominalHead(t)
 }
 
 // openChoices returns the choices still open, sorted by name, then by
