@@ -210,9 +210,10 @@ func TestOrphanedShadowIsFailedNotDispatched(t *testing.T) {
 // The sampling decision is a pure function of the task ID: stable, and close to
 // the configured rate over many IDs.
 func TestShadowSamplingStableAndCalibrated(t *testing.T) {
+	first := shadowSampleFraction("task-abc123")
 	for i := 0; i < 20; i++ {
-		if shadowSampleFraction("task-abc123") != shadowSampleFraction("task-abc123") {
-			t.Fatal("sampling fraction is not stable")
+		if got := shadowSampleFraction("task-abc123"); got != first {
+			t.Fatalf("sampling fraction is not stable: %v then %v", first, got)
 		}
 	}
 	hits := 0

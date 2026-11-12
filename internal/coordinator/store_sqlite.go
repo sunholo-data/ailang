@@ -408,9 +408,9 @@ func (s *SQLiteStore) ListTasks(ctx context.Context, filter *TaskFilter) ([]*Tas
 	}
 
 	// Order by
-	orderBy := "created_at"
-	if filter.OrderBy != "" {
-		orderBy = filter.OrderBy
+	orderBy, err := filter.OrderColumn()
+	if err != nil {
+		return nil, err
 	}
 	order := "ASC"
 	if filter.OrderDesc {
