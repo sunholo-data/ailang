@@ -74,27 +74,29 @@ export func main() -> () ! {IO} = println(show(dbl("a")))`, "No instance for Num
 		// `type Any = a`) must not turn a ground constraint into a deferred one:
 		// expanding Num[Count] to Num[integer] made it a constraint on a fresh
 		// variable, which the top-level boundary dropped, so inc("x") checked
-		// and crashed (#2285 second review, v01-v06).
+		// and crashed (#2285 second review, v01-v06). Since #2211 such a
+		// declaration is rejected up front, at the declaration
+		// (TC_UNBOUND_TYPE_003), before any constraint is formed.
 		{"free_var_alias", `type Any = a
 pure func inc(x: Any) -> Any = x + 1
-export func main() -> () ! {IO} = println(show(inc(41)))`, "No instance for Num[Any]"},
+export func main() -> () ! {IO} = println(show(inc(41)))`, "TC_UNBOUND_TYPE_003: type variable 'a' is not a parameter of Any"},
 		{"free_var_alias_str", `type Any = a
 pure func inc(x: Any) -> Any = x + 1
 pure func useS(s: string) -> string = s
-export func main() -> () ! {IO} = println(useS(inc("s")))`, "No instance for Num[Any]"},
+export func main() -> () ! {IO} = println(useS(inc("s")))`, "TC_UNBOUND_TYPE_003: type variable 'a' is not a parameter of Any"},
 		{"free_var_alias_lt", `type Any = a
 pure func lt(x: Any, y: Any) -> bool = x < y
-export func main() -> () ! {IO} = println(show(lt(\u. u, \u. u)))`, "No instance for Ord[Any]"},
+export func main() -> () ! {IO} = println(show(lt(\u. u, \u. u)))`, "TC_UNBOUND_TYPE_003: type variable 'a' is not a parameter of Any"},
 		{"phantom_param_unused_var", `type Any2[b] = c
 pure func lt(x: Any2[int], y: Any2[int]) -> bool = x < y
-export func main() -> () ! {IO} = println(show(lt(Some(1), Some(2))))`, "No instance for Ord[Any2[int]]"},
+export func main() -> () ! {IO} = println(show(lt(Some(1), Some(2))))`, "TC_UNBOUND_TYPE_003: type variable 'c' is not a parameter of Any2"},
 		{"typo_alias", `type Count = integer
 pure func inc(c: Count) -> Count = c + 1
 pure func tag(s: string) -> string = s
-export func main() -> () ! {IO} = { println(show(inc(41))); println(tag(inc("x"))) }`, "No instance for Num[Count]"},
+export func main() -> () ! {IO} = { println(show(inc(41))); println(tag(inc("x"))) }`, "did you mean the type `int`?"},
 		{"typo_alias_eq_fn", `type Handler = handler
 pure func same(a: Handler, b: Handler) -> bool = a == b
-export func main() -> () ! {IO} = println(show(same(\u. u + 1, \u. u + 1)))`, "No instance for Eq[Handler]"},
+export func main() -> () ! {IO} = println(show(same(\u. u + 1, \u. u + 1)))`, "TC_UNBOUND_TYPE_003: type variable 'handler' is not a parameter of Handler"},
 		// An alias of a type variable is judged as written (#2285 third review,
 		// k01/k15): expanding Num[Id[b]] to Num[b] would defer it with no
 		// dictionary recorded, and the `+` node, still typed Id[b], was lowered
@@ -105,10 +107,11 @@ export func main() -> () ! {IO} = println(show(dbl(1.5)))`, "No instance for Num
 		{"identity_alias_poly_ord", `type Id[a] = a
 pure func lt[b](x: Id[b], y: Id[b]) -> bool = x < y
 export func main() -> () ! {IO} = println(show(lt("a", "b")))`, "No instance for Ord[Id[b]]"},
-		// A self-referential alias is reported as written, not unfolded.
+		// A self-referential alias is rejected at its declaration
+		// (TC_TYPE_ALIAS_CYCLE_001, #2211), never unfolded.
 		{"self_referential_alias", `type L[a] = [L[a]]
 pure func f(x: L[int]) -> bool = x == x
-export func main() -> () ! {IO} = println("hi")`, "No instance for Eq[L[int]] in scope"},
+export func main() -> () ! {IO} = println("hi")`, "TC_TYPE_ALIAS_CYCLE_001: type alias 'L' refers to itself"},
 	}
 	for _, c := range cases {
 		t.Run(c.module, func(t *testing.T) {

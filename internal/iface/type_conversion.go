@@ -36,7 +36,7 @@ func astTypeToInternalType(scope *types.TypeScope, t ast.Type) types.Type {
 			// become a fresh variable here). The one exception mirrors the
 			// elaborator (elaborate.simpleType): a lowercase name imported by
 			// name that is not a type in scope is a type variable, as before.
-			if len(typ.Name) > 0 && typ.Name[0] >= 'a' && typ.Name[0] <= 'z' && !scope.Declares(typ.Name) {
+			if scope.ReadsAsTypeVar(typ.Name) {
 				return &types.TVar2{Name: typ.Name, Kind: types.Star}
 			}
 			return scope.Con(typ.Name)

@@ -223,6 +223,24 @@ func (s *TypeScope) Declares(name string) bool {
 	return IsModuleless(name) || prelude || home
 }
 
+// ReadsAsTypeVar is THE decision for a bare name the parser left as an
+// ast.SimpleType (#2211): true when it is nevertheless an implicitly
+// quantified type variable. That happens for one case only — a lowercase name
+// the file imports by name (`import std/list (map)`) that is a value, not a
+// type in this scope. The parser cannot tell (it has no interfaces), so it
+// builds a SimpleType and records the use in ast.File.LowerTypeNames with
+// Kind LowerImported; the elaborator (elaborate.simpleType) and the interface
+// builder both ask this method.
+//
+// Contract for later passes that collect a signature's type variables (e.g.
+// rigid signature variables, #2273): the variables of an annotation are its
+// ast.TypeVar nodes PLUS each ast.SimpleType for which ReadsAsTypeVar is true
+// in the module's installed scope. ast.File.LowerTypeNames lists the
+// candidates (Kind LowerImported) with their positions and declarations.
+func (s *TypeScope) ReadsAsTypeVar(name string) bool {
+	return len(name) > 0 && name[0] >= 'a' && name[0] <= 'z' && !moduleless[name] && !s.Declares(name)
+}
+
 // Names lists every bare type name this scope resolves (steps 1–7), sorted,
 // for did-you-mean suggestions.
 func (s *TypeScope) Names() []string {

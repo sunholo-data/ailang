@@ -7,6 +7,29 @@ import (
 	"testing"
 )
 
+// Aliases of primitives keep their instances (#2211 with #2285): ==, <, + on
+// lowercase and uppercase int aliases and / on float aliases, declared locally
+// and imported, check and print the same on the evaluator and the strict VM,
+// cold and warm.
+func TestPrimitiveAliasOperators(t *testing.T) {
+	bin := buildAilang(t)
+	src := filepath.Join("cmd", "ailang", "testdata", "typenames", "alias_ops.ail")
+	t.Setenv("AILANG_CACHE_DIR", t.TempDir())
+	want := "true\ntrue\n42\n1.5\ntrue\n0.25\n"
+	for _, run := range []string{"cold", "warm"} {
+		if _, stderr, code := runWithStdin(t, bin, "", "check", src); code != 0 {
+			t.Fatalf("%s: check: exit %d\n%s", run, code, stderr)
+		}
+		for _, backend := range [][]string{{"run"}, {"run", "--strict-bytecode"}} {
+			args := append(append([]string{}, backend...), "--caps", "IO", "--entry", "main", src)
+			stdout, stderr, code := runWithStdin(t, bin, "", args...)
+			if code != 0 || stdout != want {
+				t.Errorf("%s %v: exit %d\nstdout:\n%s\nstderr:\n%s", run, backend, code, stdout, stderr)
+			}
+		}
+	}
+}
+
 // TC_UNBOUND_TYPE_002 (#2211) reaches every output channel of `ailang check`,
 // on a cold and on a warm compile cache, and the program still checks.
 func TestTypeNameWarningCheckOutputs(t *testing.T) {

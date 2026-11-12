@@ -138,6 +138,28 @@ func typeNameScopeCases() []tnCase {
 			"module q/main\nimport q/shapes (point, label, px)\n"+
 				"type seg2 = {a: pt, b: point}\ntype Tagged[t] = T(t, label) | N\ntype pt = {x: int, y: int}\n"+
 				"export pure func main() -> int = match T(1, \"s\") { T(n, _) => n, N => 0 }\n")),
+		// ---- with #2288 (record rows) and #2289 (literal annotations) ----
+		c("2211+2288: a lowercase record type rejects a missing field like an uppercase one", solo(
+			"module q/main\ntype point = {x: int, y: int}\npure func mk() -> point = {x: 1}\nexport pure func main() -> int = mk().x\n"),
+			"record field mismatch", "{x, y}"),
+		c("2211+2288: a lowercase record type rejects an extra field", solo(
+			"module q/main\ntype point = {x: int, y: int}\npure func px(p: point) -> int = p.x\nexport pure func main() -> int = px({x: 1, y: 2, z: 3})\n"),
+			"record field mismatch"),
+		c("2211+2288: std/sem's sem_frame is enforced at a call", solo(
+			"module q/main\nimport std/sem (get_simhash)\nexport pure func main() -> int = get_simhash({simhash: 7})\n"),
+			"record field mismatch", "simhash"),
+		c("control: std/sem's frames through their declared type", solo(
+			"module q/main\nimport std/sem (sem_frame, make_frame_at, bump_version)\nimport std/bytes (fromString)\n"+
+				"pure func touch(f: sem_frame) -> sem_frame = bump_version(f)\n"+
+				"export pure func main() -> int = touch(make_frame_at(\"k\", \"c\", fromString(\"\"), 0)).ver\n")),
+		c("2211+2289: a literal annotated with a lowercase declared type is enforced", solo(
+			"module q/main\ntype cnt = int\nexport pure func main() -> int {\n  let inc = func(c: cnt) -> cnt { c + 1 };\n  match inc(\"s\") { _ => 0 }\n}\n"),
+			"int vs string"),
+		c("2240+2289: a literal annotated with the enclosing function's [T]", solo(
+			"module q/main\npure func app[T](x: T) -> T {\n  let g = func(y: T) -> T { y };\n  g(x)\n}\n"+
+				"export pure func main() -> int = app(5) + match app(\"s\") { _ => 0 }\n")),
+		c("control: a literal annotated with an implicit lowercase variable", solo(
+			"module q/main\nexport pure func main() -> int {\n  let ident = func(y: a) -> a { y };\n  ident(5) + ident(6)\n}\n")),
 		// ---- a type alias may not refer to itself (no ADT on the cycle) ----
 		c("alias cycle: a list of itself", solo(
 			"module q/main\ntype L[a] = [L[a]]\nexport pure func main() -> int = 0\n"),

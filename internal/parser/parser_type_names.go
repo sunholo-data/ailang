@@ -20,7 +20,10 @@ import (
 //  3. a lowercase name this file declares as a type (`type point = ...`) or
 //     imports by name (`import std/sem (sem_frame)`) is a type. An import by
 //     name that turns out to be a value, not a type, is read as a type
-//     variable by the elaborator (with warning TC_UNBOUND_TYPE_002), as before;
+//     variable by the elaborator (with warning TC_UNBOUND_TYPE_002), as before
+//     — such a variable is an ast.SimpleType in the AST, so a pass that
+//     collects type variables must also ask types.TypeScope.ReadsAsTypeVar
+//     (see its comment for the contract);
 //  4. any other lowercase name is an implicitly quantified type variable
 //     (`func f(x: a) -> a`), as before;
 //  5. any other name is a type constructor, resolved by the module's type

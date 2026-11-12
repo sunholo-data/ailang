@@ -95,12 +95,14 @@ func (e *Elaborator) typeCon(name string, pos ast.Pos) *types.TCon {
 // (#2211). One imported by name that is a value, not a type, keeps the
 // meaning it had before #2211: an implicitly quantified type variable
 // (pipeline/warn_type_names.go warns TC_UNBOUND_TYPE_002). So does any
-// lowercase name a file-derived scope cannot resolve.
+// lowercase name a file-derived scope cannot resolve. The decision is
+// types.TypeScope.ReadsAsTypeVar, shared with the interface builder; its
+// comment states the contract for passes that collect type variables.
 func (e *Elaborator) simpleType(name string, pos ast.Pos) types.Type {
 	if e.typeScope == nil {
 		e.ensureTypeScope(nil)
 	}
-	if isLowerName(name) && !e.typeScope.Declares(name) {
+	if e.typeScope.ReadsAsTypeVar(name) {
 		return &types.TVar2{Name: name, Kind: types.Star}
 	}
 	return e.typeCon(name, pos)

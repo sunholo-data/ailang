@@ -175,9 +175,9 @@ func TestConstraintAliasExpansionIsBounded(t *testing.T) {
 		fmt.Fprintf(&pairs, "type P%d = (P%d, P%d)\n", i, i-1, i-1)
 	}
 	cases := []struct{ name, src, want string }{
-		{"branching_self_eq", "type T2[a] = (T2[a], T2[a])\npure func f(x: T2[int]) -> bool = x == x\n", "No instance for Eq[T2[int]]"},
-		{"branching_self_num", "type T2[a] = (T2[a], T2[a])\npure func f(x: T2[int]) -> T2[int] = x + x\n", "No instance for Num[T2[int]]"},
-		{"branching_self_option", "type T3[a] = Option[(T3[a], T3[a], T3[a])]\npure func f(x: T3[int]) -> bool = x == x\n", "No instance for Eq[T3[int]]"},
+		{"branching_self_eq", "type T2[a] = (T2[a], T2[a])\npure func f(x: T2[int]) -> bool = x == x\n", "TC_TYPE_ALIAS_CYCLE_001: type alias 'T2' refers to itself"},
+		{"branching_self_num", "type T2[a] = (T2[a], T2[a])\npure func f(x: T2[int]) -> T2[int] = x + x\n", "TC_TYPE_ALIAS_CYCLE_001: type alias 'T2' refers to itself"},
+		{"branching_self_option", "type T3[a] = Option[(T3[a], T3[a], T3[a])]\npure func f(x: T3[int]) -> bool = x == x\n", "TC_TYPE_ALIAS_CYCLE_001: type alias 'T3' refers to itself"},
 		// 2^20 leaves legitimately: past the expansion budget it is judged as
 		// written, as on dev.
 		{"pair_nest_20", pairs.String() + "pure func f(x: P20, y: P20) -> bool = x == y\n", "No instance for Eq[P20]"},
