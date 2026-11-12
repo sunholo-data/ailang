@@ -61,7 +61,9 @@
 #      reaped in the verdict; the verdict name and rc do not change. It is NOT matched by pgid,
 #      session or command line: pi already setsid()s each tool (so a session reaches no tool
 #      descendant), a process can setpgrp away, and a command-line match would kill unrelated work
-#      on a shared rig. Residual R1: a double-fork whose intermediate dies BETWEEN two polls escapes.
+#      on a shared rig. Each reaped row is { pid, pgid, signal, command }, where command is the EXECUTABLE
+#      NAME (ps comm=, 120 chars max), never argv: argv can carry secrets. Residual R1: a double-fork
+#      whose intermediate dies BETWEEN two polls escapes.
 #      See tools/launchd/lib/pi-run-reap.sh.
 #
 # EXIT CODES (the verdict is also written as JSON to --verdict)

@@ -4,7 +4,8 @@
 # MECHANISM: an ancestry ledger. Every poll the runner calls _pr_ledger_update, which records
 # (pid, birth) of every live descendant of the run's root, and of every descendant of a ledger
 # member that is still alive with the same birth. At role exit _pr_reap signals that set on every
-# outcome: TERM, grace, a ledger refresh (to catch children born during the grace), then KILL.
+# outcome: TERM, grace, then KILL. A child born during the grace is caught by the closure while its
+# parent is still alive; once the parent is gone the child is reparented and is the R1 residual.
 #
 # WHY NOT PGID OR SESSION OR COMMAND LINE: pi's tools already setsid() (so a session reaches no tool
 # descendant), a process can setpgrp away from its parent, and a command-line match would kill
@@ -68,26 +69,39 @@ _pr_ledger_update() {
     { k = $1 SUBSEP $4; if (!(k in have)) { print $1 "\t" $4; have[k] = 1 } }' >> "$led"
 }
 
+# _pr_exe PID — the executable name only: `ps -o comm=`, one line, at most 120 characters. Never argv,
+# which can carry secrets (`env TOKEN=... cmd`). Prints nothing if PID is gone.
+_pr_exe() {
+  LC_ALL=C ps -p "$1" -o comm= 2>/dev/null | tr '\t\n' '  ' | sed 's/ *$//' | cut -c1-120
+}
+
 # _pr_reap LEDGER ROOT ROOT_BIRTH GRACE REPORT_TSV
-# Writes REPORT_TSV rows "pid<TAB>pgid<TAB>signal<TAB>command", signal in {TERM, KILL, TERM+KILL}.
+# Writes REPORT_TSV rows "pid<TAB>pgid<TAB>signal<TAB>executable", signal in {TERM, KILL, TERM+KILL}.
+# Two passes: TERM the live members, sleep GRACE, then KILL whatever still answers. The post-grace
+# snapshot is taken with NO ledger refresh: _pr_members reaches a child born during the grace through
+# its parent (a ledger member, still alive, same birth), so the refresh could add nothing to this pass.
 _pr_reap() {
   local led=$1 root=$2 rootb=$3 grace=$4 rep=$5 m cur p pg st b cmd sent=0
   _pr_ledger_update "$led" "$root" "$rootb"
-  m=$(_pr_members "$led" "$root" "$rootb") || m=""
+  if ! m=$(_pr_members "$led" "$root" "$rootb"); then
+    echo "WARNING: pi reap could not read the process table; nothing could be reaped, so children of this run may still be running" >&2
+    m=""
+  fi
   : > "$rep"
   while IFS=$'\t' read -r p pg st b; do
     [ -n "$p" ] || continue
     case "$st" in *Z*) continue ;; esac
     [ "$(_pr_birth "$p")" = "$b" ] || continue
-    cmd=$(LC_ALL=C ps -p "$p" -o command= 2>/dev/null | tr '\t\n' '  ' | cut -c1-200)
+    cmd=$(_pr_exe "$p")
     if kill -TERM "$p" 2>/dev/null; then
       printf '%s\t%s\tTERM\t%s\n' "$p" "$pg" "$cmd" >> "$rep"
       sent=1
     fi
   done <<< "$m"
   [ "$sent" = 1 ] && sleep "$grace"
-  _pr_ledger_update "$led" "$root" "$rootb"
-  cur=$(_pr_members "$led" "$root" "$rootb") || cur=""
+  if ! cur=$(_pr_members "$led" "$root" "$rootb") && [ "$sent" = 1 ]; then
+    echo "WARNING: pi reap could not re-read the process table after TERM; processes that ignored TERM were not KILLed" >&2
+  fi
   while IFS=$'\t' read -r p pg st b; do
     [ -n "$p" ] || continue
     case "$st" in *Z*) continue ;; esac
@@ -97,7 +111,7 @@ _pr_reap() {
         awk -F'\t' -v OFS='\t' -v p="$p" '$1==p && $3=="TERM"{$3="TERM+KILL"} {print}' "$rep" > "$rep.tmp" && mv "$rep.tmp" "$rep"
       fi
     else
-      cmd=$(LC_ALL=C ps -p "$p" -o command= 2>/dev/null | tr '\t\n' '  ' | cut -c1-200)
+      cmd=$(_pr_exe "$p")
       if kill -KILL "$p" 2>/dev/null; then
         printf '%s\t%s\tKILL\t%s\n' "$p" "$pg" "$cmd" >> "$rep"
       fi

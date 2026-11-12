@@ -145,12 +145,15 @@ through `make/test.mk:145`'s `tools/launchd/lib/*.sh` glob.
 - `_pr_reap LEDGER ROOT ROOT_BIRTH GRACE REPORT_TSV`:
   1. Run `_pr_ledger_update`.
   2. For each `_pr_members` line, skip it if `stat` has Z or `_pr_birth` does not equal the recorded
-     birth. Otherwise capture `ps -p pid -o command=`, truncated to 200 chars, then `kill -TERM`. On
-     success append `pid\tpgid\tTERM\tcommand`.
+     birth. Otherwise capture the executable name (`ps -p pid -o comm=`, 120 chars max; never argv,
+     which can carry secrets), then `kill -TERM`. On success append `pid\tpgid\tTERM\texecutable`.
+
   3. If at least one TERM was sent, `sleep GRACE`.
-  4. Run `_pr_ledger_update` again. For each live member with matching identity and no Z,
+  4. Take a fresh `_pr_members` snapshot (no ledger refresh: a child born during the grace is
+     reached through its live parent). For each live member with matching identity and no Z,
      `kill -KILL`. Mark the existing row `TERM+KILL`, or append a `KILL` row for a process born
      during the grace.
+
 - `_pr_report_json REPORT_TSV` prints `{"count":N,"list":[…first 50…]}` in compact form. It is built with
   `jq -R -s` (split on `\n`, then `\t`; `pid`/`pgid` with `tonumber`; `command` is the remaining fields
   joined). Never use printf interpolation.
@@ -277,7 +280,7 @@ Expect rc ≠ 0 **and** the named arm FAIL. Then restore by re-copying.
 | 4 | drop the `bad[]` never-admit set | U2 |
 | 5 | seed the closure from ROOT only (skip `want`) | U3, R1 |
 | 6 | delete the KILL pass | R2, U5 |
-| 7 | delete the post-grace `_pr_ledger_update` | U5 |
+| 7 | (retired in round 2: the post-grace ledger refresh was removed as redundant; U5 now proves the closure path) | U5 |
 | 8 | replace membership with a command-line match (`$0 ~ /sleep 3127/`) | R1 via N1/N2 |
 | 9 | build the report with `printf '{"command":"%s"}'` | U4, R1 (`jq -e .`) |
 | 10 | `REAPED_COUNT=$(wc -l < "$REAP_LEDGER")` | R0 |
