@@ -104,10 +104,11 @@ classifies, and the contract tests pin behaviour. This table is the human-readab
   remaining control-plane analytics, budget, Claude history, `/ws/observatory`, whoami), their
   handlers and the helpers only they used. Each removal's consumer check is recorded in the PR.
 
-**Ruleset stub.** The `dev` branch ruleset requires a check named `UI build gate`. Deleting the
-workflow would block every PR, and the ruleset is an owner setting, so the workflow is reduced
-to a one-step always-pass job with that name. Owner action: remove `UI build gate` from the
-`dev` ruleset, then delete the stub.
+**Ruleset stub.** The `dev` branch ruleset required a check named `UI build gate`. Deleting the
+workflow would have blocked every PR, and the ruleset is an owner setting, so the workflow was
+reduced to a one-step always-pass job with that name. **Done 2026-11-12:** Mark removed
+`UI build gate` from dev's required checks (now `test, lint, build, docs-gate, checks`) and the
+stub workflow was deleted.
 
 ## Stability contract
 
@@ -137,7 +138,8 @@ to a one-step always-pass job with that name. Owner action: remove `UI build gat
 
 ## Follow-ups outside this repo (owner / ops)
 
-- Remove `UI build gate` from the `dev` ruleset, then delete `.github/workflows/dashboard-ui-build.yml`.
+- ~~Remove `UI build gate` from the `dev` ruleset, then delete `.github/workflows/dashboard-ui-build.yml`.~~
+  Done 2026-11-12 (Mark removed the required check; the stub workflow was deleted).
 - ailang-multivac `scripts/test-cloud.sh` probes `/api/workspaces` and an anonymous `/api/inbox`;
   replace those probes with `scripts/dashboard_smoke.sh`.
 - ailang-multivac `cloudbuild-images.yaml` comments the dashboard build as "Go + Node"; it is Go only.
