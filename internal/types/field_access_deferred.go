@@ -181,9 +181,9 @@ func (fa *fieldAccess) expected() *TRecordOpen {
 }
 
 // accessesSharingVars returns the undecided accesses (under sub) connected to
-// typ through shared variables, as copies over the substituted types. The
-// access row is left out of the connection: on this branch every access shares
-// the literal row name "r", which would connect unrelated accesses.
+// typ through shared variables — receiver, field type and record row — as
+// copies over the substituted types. Each access has its own fresh row
+// (#2210/#2221), so a row connects only what really shares it.
 func (ctx *InferenceContext) accessesSharingVars(typ Type, sub, defaulting Substitution) []*fieldAccess {
 	if len(ctx.pendingAccesses) == 0 {
 		return nil
@@ -194,7 +194,7 @@ func (ctx *InferenceContext) accessesSharingVars(typ Type, sub, defaulting Subst
 	for i, fa := range ctx.pendingAccesses {
 		cands[i] = &fieldAccess{recv: subThen(sub, defaulting, fa.recv), field: fa.field,
 			fieldType: subThen(sub, defaulting, fa.fieldType), row: fa.row, path: fa.path}
-		candVars[i] = allTypeVars(&TTuple{Elements: []Type{cands[i].recv, cands[i].fieldType}})
+		candVars[i] = allTypeVars(&TTuple{Elements: []Type{cands[i].recv, subThen(sub, defaulting, cands[i].expected())}})
 	}
 	taken := make([]bool, len(cands))
 	for progress := true; progress; {
@@ -330,19 +330,13 @@ func (u *Unifier) newtypeRecordMismatch(t1, t2 Type) error {
 // (`{ x: α4, ...{x: α4} }`, review of #2284 item 5). open reports a row that
 // can still take fields.
 func diagRecord(t Type) (string, bool) {
-	var fields map[string]Type
-	open := false
-	switch r := t.(type) {
-	case *TRecord:
-		fields, open = r.Fields, recordRowIsOpen(r.Row)
-	case *TRecordOpen:
-		fields = r.Fields
-		open = r.Row != nil && recordRowIsOpen(r.Row)
-	case *TRecord2:
-		return diagRecord(TRecord2ToTRecord(r))
-	default:
+	// recordShapeOf (unification_record_rows.go) flattens the row's labels into
+	// the fields and reports the unbound tail, if any.
+	shape, ok := recordShapeOf(t, nil)
+	if !ok {
 		return fmt.Sprint(t), false
 	}
+	fields, open := shape.labels, shape.tail != nil
 	names := make([]string, 0, len(fields))
 	for n := range fields {
 		names = append(names, n)
