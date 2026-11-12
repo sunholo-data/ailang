@@ -11,7 +11,6 @@ import (
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/observatory"
 	"github.com/sunholo-data/ailang/internal/pubsub"
-	"github.com/sunholo-data/ailang/internal/websocket"
 )
 
 // shouldRecoverStaleTasksOnStartup reports whether startup recovery — which
@@ -475,14 +474,4 @@ func (d *Daemon) initPubSubBroadcaster() error {
 // When set, task execution events will be streamed via the broadcaster.
 func (d *Daemon) SetEventBroadcaster(broadcaster EventBroadcaster) {
 	d.eventBroadcaster = broadcaster
-}
-
-// CreateWebSocketBroadcaster creates an EventBroadcaster that broadcasts to a WebSocket server.
-// This is used when the coordinator is connected to the collaboration hub server.
-func CreateWebSocketBroadcaster(wsServer interface {
-	BroadcastTaskEvent(stream *websocket.TaskStreamEvent)
-}) EventBroadcaster {
-	return func(event *websocket.TaskStreamEvent) {
-		wsServer.BroadcastTaskEvent(event)
-	}
 }

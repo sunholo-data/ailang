@@ -353,11 +353,6 @@ func RenderImplementCompleteComment(data *CommentData) (string, error) {
 	return RenderComment(CommentTemplates.ImplementComplete, data)
 }
 
-// RenderEvaluationComment renders the evaluation complete comment.
-func RenderEvaluationComment(data *CommentData) (string, error) {
-	return RenderComment(CommentTemplates.EvaluationComplete, data)
-}
-
 // RenderMergeCompleteComment renders the merge complete comment.
 func RenderMergeCompleteComment(data *CommentData) (string, error) {
 	return RenderComment(CommentTemplates.MergeComplete, data)

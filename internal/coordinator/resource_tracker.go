@@ -4,7 +4,6 @@ package coordinator
 import (
 	"context"
 	"fmt"
-	"os"
 	"os/exec"
 	"strconv"
 	"strings"
@@ -234,11 +233,6 @@ func getProcessMetrics(pid int) (cpuPercent, memoryMB float64, err error) {
 	memoryMB = float64(rss) / 1024.0
 
 	return cpu, memoryMB, nil
-}
-
-// GetCurrentPID returns the current process PID (useful for self-monitoring)
-func GetCurrentPID() int {
-	return os.Getpid()
 }
 
 // ResourceTrackerRegistry manages multiple resource trackers for concurrent tasks
