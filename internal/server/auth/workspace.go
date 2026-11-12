@@ -4,16 +4,12 @@ package auth
 import (
 	"context"
 	"fmt"
-	"path/filepath"
 	"strings"
 	"sync"
 	"time"
 
 	"cloud.google.com/go/firestore"
-	"github.com/sunholo-data/ailang/internal/coordinator"
 	"google.golang.org/api/iterator"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 // EncodeDocID encodes a workspace ID for use as a Firestore document ID.
@@ -53,21 +49,16 @@ type AccessibleWorkspace struct {
 	Role string `json:"role"` // User's role in this workspace
 }
 
-// WorkspacesConfig is an alias to coordinator.WorkspacesConfig for convenience.
-type WorkspacesConfig = coordinator.WorkspacesConfig
-
 // WorkspaceService provides workspace access control operations.
 type WorkspaceService struct {
 	firestore *firestore.Client
-	config    *WorkspacesConfig
 	cache     *workspaceCache
 	mutex     sync.RWMutex
 }
 
-// workspaceCache caches workspace access checks.
+// workspaceCache caches workspace metadata lookups.
 type workspaceCache struct {
-	workspaces map[string]*cachedWorkspace       // workspace_id -> workspace metadata
-	access     map[string]*cachedWorkspaceAccess // email:workspace_id -> access entry
+	workspaces map[string]*cachedWorkspace // workspace_id -> workspace metadata
 	ttl        time.Duration
 }
 
@@ -76,25 +67,12 @@ type cachedWorkspace struct {
 	expiresAt time.Time
 }
 
-type cachedWorkspaceAccess struct {
-	hasAccess bool
-	role      string
-	expiresAt time.Time
-}
-
 // NewWorkspaceService creates a new workspace service.
-func NewWorkspaceService(fs *firestore.Client, config *WorkspacesConfig) *WorkspaceService {
-	if config == nil {
-		config = &WorkspacesConfig{
-			DefaultWorkspace: "public",
-		}
-	}
+func NewWorkspaceService(fs *firestore.Client) *WorkspaceService {
 	return &WorkspaceService{
 		firestore: fs,
-		config:    config,
 		cache: &workspaceCache{
 			workspaces: make(map[string]*cachedWorkspace),
-			access:     make(map[string]*cachedWorkspaceAccess),
 			ttl:        5 * time.Minute,
 		},
 	}
@@ -217,83 +195,6 @@ func (ws *WorkspaceService) listGrantedWorkspaces(ctx context.Context, email str
 	return result, nil
 }
 
-// HasWorkspaceAccess checks if a user has access to a workspace.
-// Returns (hasAccess, role, error).
-// For public workspaces, unauthenticated users get Viewer access.
-func (ws *WorkspaceService) HasWorkspaceAccess(ctx context.Context, email, workspaceID string) (bool, string, error) {
-	// Check cache first
-	cacheKey := fmt.Sprintf("%s:%s", email, workspaceID)
-	ws.mutex.RLock()
-	if cached, exists := ws.cache.access[cacheKey]; exists {
-		if time.Now().Before(cached.expiresAt) {
-			ws.mutex.RUnlock()
-			return cached.hasAccess, cached.role, nil
-		}
-	}
-	ws.mutex.RUnlock()
-
-	// Get workspace to check if public
-	workspace, err := ws.GetWorkspace(ctx, workspaceID)
-	if err != nil {
-		// Workspace doesn't exist
-		ws.cacheAccessResult(cacheKey, false, "")
-		return false, "", nil
-	}
-
-	// If workspace is public, everyone has at least Viewer access
-	if workspace.IsPublic {
-		// Check if user has explicit higher role
-		if email != "" {
-			role, err := ws.getUserWorkspaceRole(ctx, email, workspaceID)
-			if err == nil && role != "" {
-				ws.cacheAccessResult(cacheKey, true, role)
-				return true, role, nil
-			}
-		}
-		// Default to Viewer for public workspace
-		ws.cacheAccessResult(cacheKey, true, "Viewer")
-		return true, "Viewer", nil
-	}
-
-	// Private workspace - need explicit grant
-	if email == "" {
-		ws.cacheAccessResult(cacheKey, false, "")
-		return false, "", nil
-	}
-
-	role, err := ws.getUserWorkspaceRole(ctx, email, workspaceID)
-	if err != nil {
-		ws.cacheAccessResult(cacheKey, false, "")
-		return false, "", nil
-	}
-
-	if role == "" {
-		ws.cacheAccessResult(cacheKey, false, "")
-		return false, "", nil
-	}
-
-	ws.cacheAccessResult(cacheKey, true, role)
-	return true, role, nil
-}
-
-// getUserWorkspaceRole gets a user's role in a workspace from Firestore.
-func (ws *WorkspaceService) getUserWorkspaceRole(ctx context.Context, email, workspaceID string) (string, error) {
-	// Encode workspace ID for Firestore document path
-	encodedWorkspaceID := EncodeDocID(workspaceID)
-	docPath := fmt.Sprintf("workspace_access/%s/users/%s", encodedWorkspaceID, email)
-	doc, err := ws.firestore.Doc(docPath).Get(ctx)
-	if err != nil {
-		if status.Code(err) == codes.NotFound {
-			return "", nil // No access
-		}
-		return "", err
-	}
-
-	data := doc.Data()
-	role, _ := data["role"].(string)
-	return role, nil
-}
-
 // GetWorkspace retrieves a workspace by ID.
 func (ws *WorkspaceService) GetWorkspace(ctx context.Context, workspaceID string) (*Workspace, error) {
 	// Check cache
@@ -336,181 +237,6 @@ func (ws *WorkspaceService) GetWorkspace(ctx context.Context, workspaceID string
 	return &workspace, nil
 }
 
-// GetWorkspaceByPath maps a file path to a workspace ID using configured mappings.
-// Returns the default workspace if no mapping matches.
-func (ws *WorkspaceService) GetWorkspaceByPath(path string) string {
-	if ws.config == nil || len(ws.config.Mappings) == 0 {
-		return ws.getDefaultWorkspace()
-	}
-
-	// Normalize path separators
-	normalizedPath := filepath.ToSlash(path)
-
-	for _, mapping := range ws.config.Mappings {
-		if matchPathPattern(mapping.Pattern, normalizedPath) {
-			return mapping.Workspace
-		}
-	}
-
-	return ws.getDefaultWorkspace()
-}
-
-// matchPathPattern checks if a path matches a glob-like pattern.
-// Supports * for single directory and ** for multiple directories.
-func matchPathPattern(pattern, path string) bool {
-	// Handle exact match
-	if pattern == path {
-		return true
-	}
-
-	// Handle wildcard patterns
-	patternParts := strings.Split(pattern, "/")
-	pathParts := strings.Split(path, "/")
-
-	return matchParts(patternParts, pathParts)
-}
-
-// matchParts recursively matches pattern parts against path parts.
-func matchParts(pattern, path []string) bool {
-	if len(pattern) == 0 {
-		return len(path) == 0
-	}
-
-	if pattern[0] == "**" {
-		// ** matches zero or more directories
-		if len(pattern) == 1 {
-			return true // ** at end matches everything
-		}
-		// Try matching rest of pattern at each position
-		for i := 0; i <= len(path); i++ {
-			if matchParts(pattern[1:], path[i:]) {
-				return true
-			}
-		}
-		return false
-	}
-
-	if len(path) == 0 {
-		return false
-	}
-
-	if pattern[0] == "*" || pattern[0] == path[0] {
-		return matchParts(pattern[1:], path[1:])
-	}
-
-	// Check if pattern part contains wildcard
-	if strings.Contains(pattern[0], "*") {
-		if matchWildcard(pattern[0], path[0]) {
-			return matchParts(pattern[1:], path[1:])
-		}
-	}
-
-	return false
-}
-
-// matchWildcard matches a pattern with * wildcards against a string.
-func matchWildcard(pattern, s string) bool {
-	if pattern == "*" {
-		return true
-	}
-	if pattern == "" {
-		return s == ""
-	}
-	if s == "" {
-		return pattern == "*"
-	}
-
-	// Simple implementation: split on * and check contains
-	parts := strings.Split(pattern, "*")
-	if len(parts) == 1 {
-		return pattern == s
-	}
-
-	// First part must be prefix
-	if parts[0] != "" && !strings.HasPrefix(s, parts[0]) {
-		return false
-	}
-
-	// Last part must be suffix
-	if parts[len(parts)-1] != "" && !strings.HasSuffix(s, parts[len(parts)-1]) {
-		return false
-	}
-
-	// Middle parts must appear in order
-	remaining := s
-	if parts[0] != "" {
-		remaining = remaining[len(parts[0]):]
-	}
-	for i := 1; i < len(parts)-1; i++ {
-		idx := strings.Index(remaining, parts[i])
-		if idx == -1 {
-			return false
-		}
-		remaining = remaining[idx+len(parts[i]):]
-	}
-
-	return true
-}
-
-// getDefaultWorkspace returns the configured default workspace or "public".
-func (ws *WorkspaceService) getDefaultWorkspace() string {
-	if ws.config != nil && ws.config.DefaultWorkspace != "" {
-		return ws.config.DefaultWorkspace
-	}
-	return "public"
-}
-
-// cacheAccessResult caches an access check result.
-func (ws *WorkspaceService) cacheAccessResult(key string, hasAccess bool, role string) {
-	ws.mutex.Lock()
-	ws.cache.access[key] = &cachedWorkspaceAccess{
-		hasAccess: hasAccess,
-		role:      role,
-		expiresAt: time.Now().Add(ws.cache.ttl),
-	}
-	ws.mutex.Unlock()
-}
-
-// GetAccessibleWorkspaceIDs returns a list of workspace IDs the user can access.
-// Useful for SQL IN clauses when filtering queries.
-func (ws *WorkspaceService) GetAccessibleWorkspaceIDs(ctx context.Context, email string) ([]string, error) {
-	workspaces, err := ws.ListAccessibleWorkspaces(ctx, email)
-	if err != nil {
-		return nil, err
-	}
-
-	ids := make([]string, len(workspaces))
-	for i, w := range workspaces {
-		ids[i] = w.ID
-	}
-	return ids, nil
-}
-
-// CreateWorkspace creates a new workspace in Firestore.
-func (ws *WorkspaceService) CreateWorkspace(ctx context.Context, workspace *Workspace) error {
-	if workspace.ID == "" {
-		return fmt.Errorf("workspace ID is required")
-	}
-	if workspace.Name == "" {
-		workspace.Name = workspace.ID
-	}
-	workspace.CreatedAt = time.Now()
-
-	// Encode workspace ID for Firestore document ID
-	docID := EncodeDocID(workspace.ID)
-	_, err := ws.firestore.Collection("workspaces").Doc(docID).Set(ctx, workspace)
-	if err != nil {
-		return fmt.Errorf("failed to create workspace: %w", err)
-	}
-
-	// Invalidate cache
-	ws.mutex.Lock()
-	delete(ws.cache.workspaces, workspace.ID)
-	ws.mutex.Unlock()
-
-	return nil
-}
-
 // GrantAccess grants a user access to a workspace with the specified role.
 func (ws *WorkspaceService) GrantAccess(ctx context.Context, email, workspaceID, role, grantedBy string) error {
 	if role != "Viewer" && role != "Approver" {
@@ -533,12 +259,6 @@ func (ws *WorkspaceService) GrantAccess(ctx context.Context, email, workspaceID,
 		return fmt.Errorf("failed to grant access: %w", err)
 	}
 
-	// Invalidate cache
-	cacheKey := fmt.Sprintf("%s:%s", email, workspaceID)
-	ws.mutex.Lock()
-	delete(ws.cache.access, cacheKey)
-	ws.mutex.Unlock()
-
 	return nil
 }
 
@@ -551,12 +271,6 @@ func (ws *WorkspaceService) RevokeAccess(ctx context.Context, email, workspaceID
 	if err != nil {
 		return fmt.Errorf("failed to revoke access: %w", err)
 	}
-
-	// Invalidate cache
-	cacheKey := fmt.Sprintf("%s:%s", email, workspaceID)
-	ws.mutex.Lock()
-	delete(ws.cache.access, cacheKey)
-	ws.mutex.Unlock()
 
 	return nil
 }
@@ -575,28 +289,7 @@ func (ws *WorkspaceService) SetPublic(ctx context.Context, workspaceID string, i
 	// Invalidate cache
 	ws.mutex.Lock()
 	delete(ws.cache.workspaces, workspaceID)
-	// Clear all access cache entries for this workspace (pattern: *:workspaceID)
-	for key := range ws.cache.access {
-		if strings.HasSuffix(key, ":"+workspaceID) {
-			delete(ws.cache.access, key)
-		}
-	}
 	ws.mutex.Unlock()
 
 	return nil
-}
-
-// InvalidateCache clears all cached data.
-func (ws *WorkspaceService) InvalidateCache() {
-	ws.mutex.Lock()
-	ws.cache.workspaces = make(map[string]*cachedWorkspace)
-	ws.cache.access = make(map[string]*cachedWorkspaceAccess)
-	ws.mutex.Unlock()
-}
-
-// CacheStats returns cache statistics.
-func (ws *WorkspaceService) CacheStats() (workspaces, access int) {
-	ws.mutex.RLock()
-	defer ws.mutex.RUnlock()
-	return len(ws.cache.workspaces), len(ws.cache.access)
 }

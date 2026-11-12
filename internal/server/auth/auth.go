@@ -100,20 +100,6 @@ func (tv *TokenVerifier) VerifyToken(ctx context.Context, token string) (*UserCl
 	return claims, nil
 }
 
-// InvalidateCache clears the token cache.
-func (tv *TokenVerifier) InvalidateCache() {
-	tv.cacheMutex.Lock()
-	tv.cache = make(map[string]*cachedToken)
-	tv.cacheMutex.Unlock()
-}
-
-// CacheStats returns the number of cached tokens.
-func (tv *TokenVerifier) CacheStats() int {
-	tv.cacheMutex.RLock()
-	defer tv.cacheMutex.RUnlock()
-	return len(tv.cache)
-}
-
 // User represents an authenticated user with workspace role information.
 type User struct {
 	ID          string // Unique user identifier (UUID)

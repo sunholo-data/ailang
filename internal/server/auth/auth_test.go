@@ -7,23 +7,6 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func TestTokenVerifierInvalidateCache(t *testing.T) {
-	verifier := NewTokenVerifier(nil)
-
-	// Manually add some cached entries
-	verifier.cacheMutex.Lock()
-	verifier.cache["test-token"] = &cachedToken{
-		claims:    &UserClaims{UID: "test"},
-		expiresAt: time.Now().Add(time.Hour),
-	}
-	verifier.cacheMutex.Unlock()
-
-	assert.Equal(t, 1, verifier.CacheStats())
-
-	verifier.InvalidateCache()
-	assert.Equal(t, 0, verifier.CacheStats())
-}
-
 func TestUserFromClaims(t *testing.T) {
 	claims := &UserClaims{
 		UID:      "test-uid",
@@ -100,17 +83,4 @@ func TestUserStructure(t *testing.T) {
 	assert.Equal(t, "Viewer", user.Role)
 	assert.Equal(t, "workspace-1", user.WorkspaceID)
 	assert.Len(t, user.Permissions, 1)
-}
-
-func TestTokenVerifierStats(t *testing.T) {
-	verifier := NewTokenVerifier(nil)
-	assert.Equal(t, 0, verifier.CacheStats())
-
-	// Add entries manually
-	verifier.cacheMutex.Lock()
-	verifier.cache["token1"] = &cachedToken{claims: &UserClaims{}}
-	verifier.cache["token2"] = &cachedToken{claims: &UserClaims{}}
-	verifier.cacheMutex.Unlock()
-
-	assert.Equal(t, 2, verifier.CacheStats())
 }
