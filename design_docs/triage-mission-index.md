@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 41 | 2026-11-12 | eight judged attestations (#2135 #2126 #2105 #2104 #2097 #2139 #2148 #2149); #2265/#1914 dissents downgraded [ADMIN] |
 | 40 | 2026-11-12 | two judged attestations (#2099 #1978), #604 closed, #1914/#1436 downgraded by T2/T3 [ADMIN] |
 | 39 | 2026-11-11 | five judged attestations, two duplicate closes, #1278 dissent downgraded [ADMIN] |
 | 34 | 2026-11-08 | independent judge preserves readiness reports and holds an unsupported population verdict [HARNESS] [ADMIN] |

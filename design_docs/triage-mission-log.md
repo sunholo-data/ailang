@@ -832,3 +832,13 @@ No VERIFIED, no ⚖ action, no comments/labels/closes on items, no approve/rejec
 **Findings routed to the digest, not fixed**: P0 soundness #2243 #2247 #2248 unowned; #534 and #1259 live P1.
 **Not done**: priority/area/needs-decision labels; T4 landed-card dry run; ledger outcome scoring; Daneel `[normal]` digest went to `controlplane`, not `daneel-reports`.
 **Record PR**: #2242 red on `internal/effects` TestTerminalAsyncClosePreservesUnemittedReadAhead (not in its files); one `--failed` rerun issued. Digest: https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6812999176
+
+## 41 — 2026-11-12 — eight judged attestations, two dissents downgraded, no closes [ADMIN]
+
+**Picked**: 40 items (24 PRs changed head vs ledger null, 1 never-verified PR, 6 never-verified issues, stale #2131, held #1914, 11 cards without a listed PR joined to their PRs); 123 skipped as current; 27 PRs excluded; #2172 reported only. Open ledger rows: 0, so the moot and decompose sweeps had nothing to do. Packet: not due (15:20 UTC is outside 18:00-05:00).
+**Reality check**: origin/dev `abecb2c0c6db57e77dfefbab3c98fcee20405343`, CI green; all 14 skill files byte-identical to origin from the resolved symlink target.
+**Shipped**: eight unsigned attestations (#2135, #2126, #2105, #2104, #2097, #2139, #2148, #2149), each read back 0/1 to +1 comment; heads re-read immediately before posting. Nothing approved, rejected or merged; no closes, labels or PR comments. 44 shadow rows appended (855 to 899). Score of settled verdicts in the last 14 days: 8 agree, 2 disagree (#2064 VERIFIED closed unmerged; #1914 CLOSE-FIXED still open under T2), 8 pending.
+**Ruled out**: verifier VERIFIED for #2265 (judge: it fixes none of #2259-#2264); verifier CLOSE-FIXED for #1914 (T2: pending card task-8b94f341 and open PR #1916).
+**Routing evidence**: verifiers claude:claude-haiku-5-5 (4 foreground Agent-tool batches, role token). Judge: openrouter:minimax/minimax-m3 via pi `--no-tools` (rc=0), a different vendor from the verifier as the operator required; resolve-role-spawn.sh evaluator returned `sonnet` (same vendor), which was not used. The judge saw only quoted evidence. Five items already attested at the same head (#2136 #2138 #2140 #2155 #2159) were not re-judged.
+**Findings routed to the digest, not fixed**: #2264/#2263 Go codegen P1; #2149 doc carries a future date.
+**Not done**: evidence comments on report-only PRs; T4 landed-card dry run; labels.

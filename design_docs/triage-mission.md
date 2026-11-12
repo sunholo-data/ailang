@@ -41,11 +41,12 @@ the `user` inbox, and **Daneel** via `daneel-reports`. See "Communication".
 
 Newest **3** STATUS stamps live here; older ones move to `triage-mission-status-archive.md`.
 
+## STATUS 2026-11-12 — ITERATION 41: 40 items verified; eight judge-concurred unsigned attestations (#2135 #2126 #2105 #2104 #2097 #2139 #2148 #2149); two dissents downgraded (#2265, #1914); 0 OPEN decisions; shadow 899 rows, score 8 agree/2 disagree; no approvals or merges. [ADMIN]
+
 ## STATUS 2026-11-08 — ITERATION 34: Five verdicts cross-vendor judged; three unsigned attestations; one dissent held; 44 OPEN; shadow 693/6of9; no approvals or merges. [HARNESS] [ADMIN]
 
 ## STATUS 2026-11-07 — ITERATION 33: five independent verdicts; three unsigned attestations and one correction; 44 human holds; 12 aged stalls; no approvals or merges. [HARNESS] [ADMIN]
 
-## STATUS 2026-11-07 — ITERATION 32: 16 independently concurred verdicts; one unsigned attestation, six comments,13 labels; D78–80 OPEN/44 holds; shadow683/score6of9. [HARNESS] [ADMIN]
 
 ## CURRENT LEVEL: **1 — Tidy, with attestations** (Mark, attended 2026-10-15; D-TRIAGE-7)
 
