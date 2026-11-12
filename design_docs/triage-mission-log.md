@@ -821,3 +821,14 @@ No VERIFIED, no ⚖ action, no comments/labels/closes on items, no approve/rejec
 **Ruled out**: verifier CLOSE-FIXED for #1278. The judge reproduced it on origin/dev: two `export func f()` still prints "No errors found"; MOD007 covers let/let and let/func only.
 **Routing evidence**: verifiers claude:claude-haiku-5-5 (3 Agent-tool batches); judge claude:claude-sonnet-5-5 (Agent tool, evaluator). The operator asked for a different-vendor judge; resolve-role-spawn.sh returned `sonnet` for the evaluator, which shares a vendor with haiku. D-TRIAGE-10 allows that, so no other lane was tried. First spawn attempt failed the role-token hook (missing `MISSION-ROLE:` line) and was retried with it.
 **Not done**: evidence comments on the NEEDS-FIX/REBASE/SUPERSEDED PRs (verifier-only verdicts, no judge pass); T4 landed-card dry run; ledger scoring of past outcomes (no OUTCOME rows written).
+
+## 40 — 2026-11-12 — two judged attestations, one close, two dissents downgraded by T2/T3 [ADMIN]
+
+**Picked**: 33 items (3 stale PRs, 4 never-verified issues, 1 changed, 25 stale issues); 88 skipped as current; 28 PRs excluded (fleet/triage/v1/dependabot). Ledger rows OPEN: 0, so the moot and decompose sweeps had nothing to do. Packet: DUE (02:54 UTC, two cards ready, no prior packet file); `daneel-reports` refused rc1, sent to `controlplane` (inbox_1794452163102_d8a92924).
+**Reality check**: origin/dev `6d28e1ad5a945f2570c7b242f8a8ea2dba37e423`; resources read from the resolved symlink target.
+**Shipped**: unsigned attestations on #2099 and #1978; evidence comment on #1985 (SUPERSEDED, decision for Mark); #604 closed (comment read back 0 to 1). Nothing approved, rejected or merged. 33 shadow rows appended (822 to 855).
+**Ruled out**: verifier CLOSE-OBSOLETE for #1436 (it is the docs mission's current thread, T3). #1914 CLOSE-FIXED held by T2 (cards task-8b94f341, task-585f9c51, PR #1916).
+**Routing evidence**: verifiers claude:claude-haiku-5-5 (3 Agent-tool batches, role token required by the spawn hook). Judge: openrouter:minimax/minimax-m3 via pi (`--no-tools`), a different vendor, after `pi:ollama/minimax-m3:cloud` returned 429 weekly limit. The judge saw only quoted evidence.
+**Findings routed to the digest, not fixed**: P0 soundness #2243 #2247 #2248 unowned; #534 and #1259 live P1.
+**Not done**: priority/area/needs-decision labels; T4 landed-card dry run; ledger outcome scoring; Daneel `[normal]` digest went to `controlplane`, not `daneel-reports`.
+**Record PR**: #2242 red on `internal/effects` TestTerminalAsyncClosePreservesUnemittedReadAhead (not in its files); one `--failed` rerun issued. Digest: https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6812999176
