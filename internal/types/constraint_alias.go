@@ -144,9 +144,9 @@ func (x *aliasExpander) expand(t Type) (Type, bool) {
 	if x.onPath[key] {
 		return t, false // the alias recurs inside its own expansion
 	}
-	// withNewtypes=false keeps a newtype ADT nominal; a record alias stays
-	// nominal too (see the file comment).
-	e := x.u.expandAliasMode(t, false)
+	// expandAlias never expands a newtype ADT (#2239), so it stays nominal; a
+	// record alias stays nominal too (see the file comment).
+	e := x.u.expandAlias(t)
 	if e == t {
 		return t, true
 	}
