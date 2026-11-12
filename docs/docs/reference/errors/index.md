@@ -124,6 +124,24 @@ The same code, with "this match cannot be checked for exhaustiveness", is report
 
 **`TC_BUILTIN_SHADOW_001` — a module-level definition or an import named `unreachable`.** A builtin wins over a module-level name, so a program defining its own `unreachable`, or importing something under that name (`import std/string (trim as unreachable)`), would silently call the builtin (`RT010`) instead. Rename the definition or the import; a local `let unreachable = …` is unaffected.
 
+**`TC_CONTRACT_001` — a contract clause does not type-check.** A `requires`/`ensures` clause is type-checked like a function body: it must be a `bool` over the function's parameters (and `result`, in `ensures` only), with every name in scope and every `==` on a type with `Eq` (an enum compared in an `ensures` needs `deriving (Eq)`, exactly as in a body; the message names the type and where it is declared). A bounded `forall i: lo..hi => p` needs `int` bounds and a `bool` body. Before #2248 the clause's inference error was swallowed, and a clause containing `forall` was never checked at all, so `requires { forall i: 0..2 => i + "x" }` passed `check`.
+
+```text
+TC_CONTRACT_001: requires clause of total at app.ail:3:12 does not type-check (a contract is a bool predicate over the parameters): type unification failed at [arithmetic at app.ail:3:32]: cannot unify type constructors: int vs string
+```
+
+**`TC_TEST_001` — a test body does not type-check.** Named `test "…" { }` blocks, `property "…" { }` blocks, inline `properties [ … ]` and inline `tests [ … ]` rows of the module being checked or run are type-checked in the form `ailang test` compiles them: a test or property body is checked pure; a property, and a test body with no `assert` and no earlier bare check, must end in a `bool` (the runner fails anything else with "expected bool result"); and a row `(inputs, expected)` must type as a call of the function whose result has the expected value's type (stricter than the runner, which compares row values without type-checking them). A dependency's test blocks and rows are not checked when it is imported: they are not part of the importer's program; `check` of the dependency itself (or `check --package`) reports them. Before #2232, `check` never looked at them, so a test that could not compile passed `check`. Fix the body, add the missing import, or move effectful checks into an exported entry run with `ailang run --caps …`.
+
+```text
+TC_TEST_001: test "illtyped" at app.ail:10:1 does not type-check: type unification failed at [function application of absInt at app.ail:11:16]: failed to unify parameter 0: cannot unify type constructors: int vs string
+```
+
+**`TC_FORALL_001` — `forall` outside a contract.** The bounded quantifier `forall i: lo..hi => p` exists for `requires`/`ensures` clauses, where the verifier encodes it; nothing evaluates it at run time. In a function body, a `let` or a test body it is this error (before, it was an uncoded `type inference not implemented for *core.Forall` error). Compute the condition with recursion or a `std/list` function such as `any`, or move it into a contract.
+
+```text
+TC_FORALL_001: `forall i: lo..hi => p` at app.ail:3:43 is a contract quantifier: it is allowed only in a requires/ensures clause
+```
+
 **`TC_MATCH_005` — `Json` match with a `JNumber` arm and no `JInt` arm (warning).** Transitional for v0.58.x. `std/json.decode` gives `JInt(n)` for integer literals and `JNumber(x)` for other numbers, so a match written before `JInt` existed, `match j { JNumber(n) => …, _ => … }`, compiles but sends every integer to the catch-all. The warning is keyed on std/json's own `JNumber` (aliased imports included; a module's own `JNumber` constructor is never flagged), looks at every pattern depth (`Some(JNumber(n))` counts), and is reported on a warm compile cache too. It never blocks compilation. Fix: add a `JInt(i) => …` arm (`intToFloat(i)` gives a float), or read numbers with `asNumber`/`getNumber`/`getInt`, which accept both.
 
 ```

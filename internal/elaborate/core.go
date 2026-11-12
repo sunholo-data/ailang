@@ -71,6 +71,9 @@ type Elaborator struct {
 	// ambiguousCtors: auto-imported constructor names two or more modules
 	// offer (ambiguous_ctor.go).
 	ambiguousCtors map[string][]types.CtorCandidate
+	// checkBodies: the test-only bodies of the last ElaborateFile (#2232,
+	// check_bodies.go), type-checked by the module pipeline, never compiled.
+	checkBodies []CheckBody
 }
 
 // DerivedEqField is one field a `deriving (Eq)` declaration needs Eq for.

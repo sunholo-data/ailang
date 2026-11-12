@@ -259,7 +259,7 @@ func (env *InstanceEnv) reduceEq(typ Type, depth int) ([]Type, error) {
 	parts, ok := eqParts(typ)
 	if !ok {
 		typ = withoutFreeEffectTails(typ)
-		return nil, &MissingInstanceError{Class: "Eq", Type: typ, Hint: actionableInstanceHint("Eq", typ)}
+		return nil, &MissingInstanceError{Class: "Eq", Type: typ, Hint: env.instanceHint("Eq", typ)}
 	}
 	if depth >= eqSynthDepthCap {
 		return nil, &EqSynthDepthError{Type: typ}

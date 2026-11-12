@@ -41,6 +41,11 @@ func (st *modulePipelineState) prepareCacheLookup(mod *loader.LoadedModule, modI
 	// calls — so the mode is part of the compiler identity: without it a
 	// --release compile was served to normal runs (all Debug output gone)
 	// and vice versa (M-DEBUG-SINK-STRUCTURED-LINES, measured 2026-09-11).
+	// #2232: a root module's test-only bodies are type-checked, a
+	// dependency's are not, so the two verdicts must not share an entry.
+	if st.checksTestBodies(modID) && hasTestOnlyBodies(mod.File) {
+		depDigests["$test-bodies"] = "checked"
+	}
 	identity, err := currentCompilerIdentity(st.cfg)
 	if err != nil {
 		// No per-build identity: a commit-only key would serve another

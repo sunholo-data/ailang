@@ -92,7 +92,7 @@ func (f BatchFailure) Notice() string {
 // run. It is a no-op when there is nothing to batch; on failure it records a
 // BatchFailure and leaves the per-body path in charge.
 func (e *Executor) prepareNamedTests(cases []TestCase, properties []PropertyCase) {
-	e.batch, e.batchFailure, e.perBodyCompileFailures = nil, nil, 0
+	e.batch, e.batchFailure, e.perBodyCompileFailures, e.batchModuleError = nil, nil, 0, ""
 	if e.sourceFile == nil {
 		return
 	}
@@ -156,6 +156,9 @@ func (e *Executor) prepareNamedTests(cases []TestCase, properties []PropertyCase
 			}
 		}
 		e.batchFailure = &BatchFailure{Module: e.modulePath, Reason: reason}
+		if moduleErrorOutsideEntries(err.Error(), len(lineMap)) { // module_compile.go
+			e.batchModuleError = reason
+		}
 		return
 	}
 	e.cacheModules(&res)

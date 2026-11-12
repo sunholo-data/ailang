@@ -176,7 +176,7 @@ was silently discarded, so `test "x" { add_one(1) == 99; add_one(1) == 2 }` pass
 apply, and a block `{ a; b }` evaluates `a` and discards its value. A false check nested
 in a block is therefore still not seen:
 
-```ailang
+```ailang parse
 test "still passes" { if true then { add_one(1) == 99; add_one(1) == 2 } else false }
 ```
 

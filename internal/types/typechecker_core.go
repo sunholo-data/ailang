@@ -100,7 +100,8 @@ type CoreTypeChecker struct {
 	literalLambdas  map[uint64]bool // #2238: function literals, annotations enforced as equalities
 	// M-TYPE-LIST-ELEMENT-SOUNDNESS: core.Let NodeID -> annotation, so `let xs: [string] = [42]` is checked
 	letTypeAnnots map[uint64]Type
-	matchState    // M-V1-MATCH-EXHAUSTIVENESS state (match_exhaustiveness.go)
+	matchState                  // M-V1-MATCH-EXHAUSTIVENESS state (match_exhaustiveness.go)
+	predicateRoot core.CoreExpr // #2248: InferPredicate's root, which must type as bool
 	// M-DX11: Debug sink for type inference events
 	DebugSink TypeDebugSink
 	// M-PERF-DOCPARSE: Deferred CoreTI substitution — accumulated during inference,
@@ -476,13 +477,12 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		unifier.SetConstructorTypes(tc.constructorTypes)
 	}
 
-	// Infer type (returns updated env)
+	// Infer type (returns updated env); a predicate root must type as bool (#2248)
 	typedNode, updatedEnv, err := tc.inferCore(ctx, expr)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-
-	// Get the inferred type
+	tc.constrainPredicateRoot(ctx, expr, typedNode)
 	inferredType := typedNode.GetType()
 
 	// Apply substitution if we have one
@@ -768,8 +768,8 @@ func (tc *CoreTypeChecker) inferCore(ctx *InferenceContext, expr core.CoreExpr) 
 	case *core.Intrinsic:
 		typedNode, env, err = tc.inferIntrinsic(ctx, e)
 
-	default:
-		return nil, ctx.env, fmt.Errorf("type inference not implemented for %T", expr)
+	default: // core.Forall (#2248), else an inference error
+		typedNode, env, err = tc.inferCoreOther(ctx, expr)
 	}
 
 	// If inference succeeded, store the type in CoreTI for operator lowering

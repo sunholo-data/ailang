@@ -9,7 +9,9 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/elaborate"
 	ailerrors "github.com/sunholo-data/ailang/internal/errors"
+	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
@@ -163,10 +165,12 @@ func errorToCheckJSONError(err error, filename string) checkJSONError {
 // TC_REC_003, TC004), else the generic "ERROR". When several appear (a
 // TC_AMBIGUOUS_CTOR_001 whose cause carries TC_NOMINAL_001) the first in the
 // message is the error's own. Other inline TC_* codes keep "ERROR", as before,
-// so existing consumers see no change.
+// so existing consumers see no change. The body checks of #2232/#2248
+// (TC_TEST_001, TC_CONTRACT_001) are reports, coded here too.
 func jsonErrorCode(msg string) string {
 	best, at := "ERROR", -1
-	for _, code := range append(types.NominalIdentityCodes(), types.RecordRowCodes()...) {
+	codes := append(append(types.NominalIdentityCodes(), types.RecordRowCodes()...), elaborate.CodeTestBody, pipeline.CodeContract, types.TC_FORALL_001)
+	for _, code := range codes {
 		if i := strings.Index(msg, code); i >= 0 && (at < 0 || i < at) {
 			best, at = code, i
 		}
