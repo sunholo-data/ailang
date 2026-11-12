@@ -44,6 +44,16 @@ func TestValidatePassHeaders(t *testing.T) {
 	}
 }
 
+// wsWaitBound caps a wait on an event these tests cannot hurry: the handshake,
+// and the handler's first frame (a server goroutine that has to be scheduled
+// and evaluate the handler — with a deep trace attached, in the canary). Both
+// readers return the moment the event arrives, so the bound costs nothing on a
+// pass; it only decides how long a genuine hang takes to fail. It was 5s, and a
+// loaded windows-latest runner (the whole ./... in parallel) crossed it:
+// TestWS_PassHeaderCanary "read tcp ...: i/o timeout" at 5.20s on 2026-11-10
+// (job 129830999793), where the same test passes in 0.2-0.3s otherwise.
+const wsWaitBound = 60 * time.Second
+
 // dialWithHeaders opens a same-origin browser connection carrying extra
 // request headers; values of a repeated name arrive as separate lines.
 func dialWithHeaders(t *testing.T, f *wsFixture, path string, extra http.Header) *websocket.Conn {
@@ -55,7 +65,7 @@ func dialWithHeaders(t *testing.T, f *wsFixture, path string, extra http.Header)
 		}
 	}
 	hdr.Set("Origin", f.sameOrigin())
-	d := websocket.Dialer{HandshakeTimeout: 5 * time.Second}
+	d := websocket.Dialer{HandshakeTimeout: wsWaitBound}
 	c, resp, err := d.Dial(f.wsURL(path), hdr)
 	if err != nil {
 		status := 0
@@ -70,7 +80,7 @@ func dialWithHeaders(t *testing.T, f *wsFixture, path string, extra http.Header)
 
 func readText(t *testing.T, c *websocket.Conn) string {
 	t.Helper()
-	_ = c.SetReadDeadline(time.Now().Add(5 * time.Second))
+	_ = c.SetReadDeadline(time.Now().Add(wsWaitBound))
 	_, b, err := c.ReadMessage()
 	if err != nil {
 		t.Fatalf("read: %v", err)
