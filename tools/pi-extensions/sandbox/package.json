@@ -7,5 +7,8 @@
   "pi": { "extensions": ["./index.ts"] },
   "dependencies": {
     "@anthropic-ai/sandbox-runtime": "^0.0.71"
+  },
+  "overrides": {
+    "zod": "^4.6.6"
   }
 }
