@@ -299,6 +299,14 @@ func collectConstraintVars(t Type, vars map[string]bool) {
 // `({ver: b, ...a})`, with the Num constraint dropped at the boundary, so it
 // waits for its own decision rather than riding on a soundness fix.
 //
+// Measured on the #2210/#2221 branch: routing it through collectFreeTypeVars
+// makes `bump_version({ver: "s", id: "x"})` from another module pass `check`
+// and fail at run time (`missing dictionary method: prelude::Num::String::add`),
+// because an exported scheme's class constraints do not reach the importer —
+// `export pure func inc(x: a) -> a = x + 1` has the same hole today. Defaulting
+// here is what keeps bump_version sound, so this walk stays until constraints
+// cross the module boundary.
+//
 // NOTE: Code outside the types package should use traverse.CollectFreeVars
 // which provides the same cycle-safe behavior with a cleaner API.
 // See: internal/types/traverse/wrappers.go

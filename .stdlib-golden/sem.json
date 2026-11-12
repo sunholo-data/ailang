@@ -168,7 +168,7 @@
         "declassify": []
       },
       "name": "create_or_update_frame",
-      "type": "(string,{id: string, ...a},({id: string, ...a})-\u003e{id: string, ...a},int)-\u003eUpdateResult!{SharedMem}",
+      "type": "(string,{content: string, embedding: Option[bytes], embedding_dim: int, id: string, opaque: bytes, simhash: int, ts: int, ver: int},({content: string, embedding: Option[bytes], embedding_dim: int, id: string, opaque: bytes, simhash: int, ts: int, ver: int})-\u003e{content: string, embedding: Option[bytes], embedding_dim: int, id: string, opaque: bytes, simhash: int, ts: int, ver: int},int)-\u003eUpdateResult!{SharedMem}",
       "effects": [
         "SharedMem"
       ],
@@ -284,7 +284,7 @@
         "declassify": []
       },
       "name": "encode_frame",
-      "type": "({id: string, ...a})-\u003estring",
+      "type": "({content: string, embedding: Option[bytes], embedding_dim: int, id: string, opaque: bytes, simhash: int, ts: int, ver: int, ...a})-\u003estring",
       "effects": [],
       "pure": true,
       "tier": "experimental"
@@ -945,7 +945,7 @@
         "declassify": []
       },
       "name": "store_frame",
-      "type": "(string,{id: string, ...a})-\u003e()!{SharedMem}",
+      "type": "(string,{content: string, embedding: Option[bytes], embedding_dim: int, id: string, opaque: bytes, simhash: int, ts: int, ver: int, ...a})-\u003e()!{SharedMem}",
       "effects": [
         "SharedMem"
       ],
@@ -992,7 +992,7 @@
         "declassify": []
       },
       "name": "store_frame_ns",
-      "type": "(string,{id: string, ...a})-\u003e()!{SharedIndex,SharedMem}",
+      "type": "(string,{content: string, embedding: Option[bytes], embedding_dim: int, id: string, opaque: bytes, simhash: int, ts: int, ver: int, ...a})-\u003e()!{SharedIndex,SharedMem}",
       "effects": [
         "SharedIndex",
         "SharedMem"

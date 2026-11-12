@@ -88,6 +88,31 @@ func TestFormatTypeCanonical_OpenRow(t *testing.T) {
 	}
 }
 
+// #2288 review: an open shim record whose row is a concrete *types.Row (a
+// duplicate label never unified, e.g. an uncallable export) renders
+// structurally. It used to render `...<*types.Row>`, and interface_hash v2
+// hashes the rendered string, so every such row hashed alike. The record's own
+// field wins over the row's copy, as in the checker.
+func TestFormatTypeCanonical_OpenShimWithConcreteRow(t *testing.T) {
+	rec := &types.TRecordOpen{
+		Fields: map[string]types.Type{"x": &types.TCon{Name: "int"}},
+		Row: &types.Row{Kind: types.RecordRow, Labels: map[string]types.Type{
+			"x": &types.TCon{Name: "string"},
+			"y": &types.TCon{Name: "bool"},
+		}, Tail: &types.RowVar{Name: "r", Kind: types.RecordRow}},
+	}
+	if got, want := formatTypeCanonical(rec, identCanon()), "{x: int, y: bool, ...r}"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+	closed := &types.TRecordOpen{
+		Fields: map[string]types.Type{"x": &types.TCon{Name: "int"}},
+		Row:    &types.Row{Kind: types.RecordRow, Labels: map[string]types.Type{"y": &types.TCon{Name: "bool"}}},
+	}
+	if got, want := formatTypeCanonical(closed, identCanon()), "{x: int, y: bool}"; got != want {
+		t.Fatalf("closed row: got %q, want %q", got, want)
+	}
+}
+
 // A self-referential record must never hang the renderer (depth guard). If the guard
 // were missing this test would time out rather than fail — that is the signal.
 func TestFormatTypeCanonical_CycleSafe(t *testing.T) {

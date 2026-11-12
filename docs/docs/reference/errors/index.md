@@ -139,6 +139,24 @@ TC_NOMINAL_001: cannot unify T (defined in q/a) with T (defined in q/b): they ar
   Suggestion: use the T from one module on both sides (import it by name from the module whose T you mean, e.g. import q/a (T)), or convert between them explicitly.
 ```
 
+**`TC_REC_001` — a record has no such field.** A field access, a record update, an open pattern (`{name, ...}`) or an open annotation (`{name: string | r}`) requires a field the record does not have. The record's own fields are listed. Before v0.60.x (#2210) the check was skipped when the record reached the access through a lambda parameter, so such programs type-checked and failed at run time with `record has no field`.
+
+```
+TC_REC_001: field 'bogus' not found in record {label, score}
+```
+
+**`TC_REC_004` — a field with two types.** A row variable extends two records (`func f(p: {y: int | r}, q: {x: int | r})`), and a call binds it to a field one of them already has (`f({y: 1, x: "s"}, {x: 2})` makes `r = {x: string}`, so `q` would have `x` as both `int` and `string`). The two copies are one field and must agree. Fix: give the two records separate row variables, or make the types agree.
+
+```
+TC_REC_004: field 'x' would have two types, int and string: a row variable shared by two records was bound to a field one of them already has
+```
+
+**`TC004` / `TC_REC_003` — an infinite type.** A type variable (`TC004`) or a record row (`TC_REC_003`) would have to contain itself, as in `\x. {self: x} == x` or `letrec f = \x. {inner: f(x)}`. Before #2221 a record in the cycle made `check` run forever.
+
+```
+TC004: occurs check failed: α1 occurs in { self: α1 } (an infinite type)
+```
+
 **`TC_AMBIGUOUS_TYPE_001` — a type name two modules both declare.** A bare type name that is not declared in the module, not imported by name, not a built-in or prelude name, and that two or more imported modules export — or, when no imported module exports it, that two or more modules reached only indirectly (marked "(indirect)") declare. A module an import reaches indirectly never competes with a name an imported module exports. The candidates are listed in module order; the fix is to import the one you mean by name. It used to mean whichever module happened to come first.
 
 **`TC_AMBIGUOUS_CTOR_001` — a constructor two imported modules both offer.** The constructor auto-import brings every constructor of a selectively imported module into scope; when two modules offer the same name and neither is imported by name, a pattern is resolved by the scrutinee's type once inference has decided it (a deferred choice, independent of the order of the code; the pattern's own number of arguments narrows the candidates first). The error is reported, at the pattern or expression, for an expression; for a pattern whose scrutinee's type nothing in the enclosing top-level declaration decides (fix: import the constructor by name, or annotate the value matched); for a pattern whose argument count fits another candidate than the type matched (fix: the argument count); and as the cause of a conflict it creates — a let-bound function matching the constructor stays monomorphic while the choice is open, so using it at two types (`Box[int]` and `Box[string]`) fails; the message names the function and the conflict. Fix for expressions and conflicts: `import M (C)` from the module you mean.

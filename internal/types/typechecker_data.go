@@ -108,19 +108,20 @@ func (tc *CoreTypeChecker) inferRecordAccess(ctx *InferenceContext, acc *core.Re
 		}
 	}
 
-	// Create fresh type variable for field. The rest of the record is the shared
-	// record row "r".
+	// Create fresh type variable for the field, and a fresh record row for the
+	// rest of the record.
 	//
-	// M-V1-TYVAR-HYGIENE (#2157): "r" is now generalised like any other variable
-	// (generalizableVars) and instantiated as a fresh record row, so it no longer
-	// leaks across the module boundary as a free name. A fresh row per access
-	// (ctx.freshRecordRow) would be more precise, but it changes the rendered
-	// interface of an export over two different shim records — `({x: b, ...a},
-	// {y: b, ...a})` becomes `(…, {y: b, ...c})` — and with it `interface_hash`
-	// v2. That is a published-surface change and waits for a ruling (design doc
-	// D-2/D-3).
+	// #2210/#2221: the rest used to be one literal row "r" shared by every
+	// access and update in a module. While record rows were never bound that
+	// was harmless; once the shim's row is bound to the record's remaining
+	// fields (unification_record_rows.go), a shared row would force `p.x` and
+	// `q.y` on two different records to have the same remaining fields, and it
+	// collided with a user-written `| r`. It changes the rendered interface of
+	// an export over two shim records — `({x: b, ...a}, {y: b, ...a})` becomes
+	// `({x: b, ...a}, {y: b, ...c})` — which is the correct type: the old one
+	// claimed both records share their other fields.
 	fieldType := ctx.freshTypeVar()
-	rowVar := &RowVar{Name: "r", Kind: RecordRow}
+	rowVar := ctx.freshRecordRow()
 
 	// Expected record type with field - use TRecordOpen for subsumption
 	// This allows {id:int} to unify with {id:int, email:string}
@@ -168,10 +169,10 @@ func (tc *CoreTypeChecker) inferRecordUpdate(ctx *InferenceContext, upd *core.Re
 		fieldTypes[fieldName] = ctx.freshTypeVar()
 	}
 
-	// 3. Create row variable for other fields (row polymorphism)
-	// Using "r" as the name matches the pattern in inferRecordAccess (see the
-	// comment there for why it is not yet a fresh row).
-	rowVar := &RowVar{Name: "r", Kind: RecordRow}
+	// 3. Create row variable for other fields (row polymorphism): a fresh row,
+	// as in inferRecordAccess. Unification binds it to the base record's other
+	// fields, so the result (the base type) keeps them (#2221).
+	rowVar := ctx.freshRecordRow()
 
 	// 4. Create constraint: base must be a record with at least these fields
 	// Using TRecordOpen allows the base to have additional fields

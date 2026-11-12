@@ -33,3 +33,18 @@
   fix: "packages/specstore/qa_test.ail:35 — inner list match gains the [] case"
   republish: []
   expires: v0.61.0
+
+# #2210/#2221 record rows: a field the record lacks, read through a lambda, is
+# TC_REC_001 at check. The three newly failing motoko-fork files are the DST
+# ADR-001 probes that pin exactly this hole (scripts/dst/fixtures/adr001_boundary/
+# missingport.ail, missingannot.ail, fs_missing.ail: "accepted by ailang check and
+# fails only at invocation"); run_declared_vs_performed.sh LIMITATION 3/4/5 has a
+# "IS FIXED UPSTREAM" branch for this. The other 3 in the bucket already failed
+# and only gained the code (missingnamed, missingworld, the package dir).
+- change: "#2210/#2221 record rows: missing field through a lambda is TC_REC_001"
+  code: TC_REC_001
+  corpus: motoko-fork
+  max: 6
+  fix: "motoko DST ADR-001 LIMITATION 3/4/5 probes flip to their FIXED UPSTREAM branch; re-read ADR fact 1 / 2(a)"
+  republish: []
+  expires: v0.61.0
