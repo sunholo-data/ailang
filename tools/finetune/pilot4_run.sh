@@ -29,6 +29,12 @@ RESUME=$FT/pilot2/adapters/adapters.safetensors
 FUSED=$P4/fused
 OLLAMA_NAME=gemma4-12b-ailang-ft4
 BIN=$FT/bin/ailang-ft3          # eval-suite binary, rebuilt 2026-11-10 with the #2151 fix
+# The suite runs with cwd = the repo root, and stdlib resolution prefers <cwd>/std over the
+# embedded copy, so a rebase of the checkout mid-arm changes the stdlib the scoring run loads
+# (2026-11-12: #2230 added @deprecated, which the installed 03:31 build cannot parse). Pin it to
+# the installed binary's commit: git archive 6d28e1ad5 std | tar -x -C $FT/std-ft3
+export AILANG_STDLIB_PATH=$FT/std-ft3/std
+[ -f "$AILANG_STDLIB_PATH/list.ail" ] || { echo "pinned stdlib missing: $AILANG_STDLIB_PATH" >&2; exit 1; }
 PY=$FT/.venv/bin/python
 OUT=$REPO/eval_results/finetune-pilot4
 PORT=11437
