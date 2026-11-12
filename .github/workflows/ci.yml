@@ -1000,6 +1000,16 @@ jobs:
         set -o pipefail
         govulncheck -format json ./... | ./bin/govulncheck-filter
 
+  # Feeds GitHub's dependency graph (and so Dependabot's Go alerts) the module
+  # list of this push. This used actions/go-dependency-submission, which threw
+  # "expected no more than one package in cache with namespace+name" on every
+  # push (upstream #74, still in v2.0.3) behind `continue-on-error: true`; the
+  # graph kept a stale snapshot for months (it still listed ollama v0.13.4 after
+  # #2206 removed it). The script builds the snapshot from `go list -deps all` +
+  # `go mod graph` and POSTs it under the action's detector name and correlator,
+  # so it supersedes the stale one. NO continue-on-error: a submission that fails
+  # turns this job red. Not a required or release-gate check, so a red here never
+  # blocks a merge or a release; it only stops being silent.
   dependency-submission:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -1015,6 +1025,7 @@ jobs:
       with:
         go-version: '1.26.11'
 
-    - name: Go Dependency Submission
-      uses: actions/go-dependency-submission@f35d5c9af13ce9cc32f7930b171e315e878f6921 # v2.0.3
-      continue-on-error: true  # Known upstream bug: duplicate namespace assertion with multi-module deps
+    - name: Submit Go dependency snapshot
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: tools/ci/go_dependency_snapshot.sh --submit
