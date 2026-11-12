@@ -358,31 +358,3 @@ func (b *SQLiteBackend) GetClaudeCodeEventsWithLookup(ctx context.Context, limit
 
 	return events, rows.Err()
 }
-
-// splitPath splits a file path into components (works for both Unix and Windows paths)
-//
-//nolint:unused // Utility for path-based span filtering
-func splitPath(path string) []string {
-	// Remove trailing slashes
-	path = strings.TrimRight(path, "/\\")
-	if path == "" {
-		return nil
-	}
-	// Split on both / and \
-	var parts []string
-	current := ""
-	for _, c := range path {
-		if c == '/' || c == '\\' {
-			if current != "" {
-				parts = append(parts, current)
-				current = ""
-			}
-		} else {
-			current += string(c)
-		}
-	}
-	if current != "" {
-		parts = append(parts, current)
-	}
-	return parts
-}
