@@ -25,6 +25,10 @@ type ClassInstance struct {
 type InstanceEnv struct {
 	instances map[string]*ClassInstance // Key: "ClassName:NormalizedType"
 	defaults  map[string]Type           // Default types for ambiguous literals
+	// eqRecordNames: bare names of nominal types with an Eq instance. A record
+	// value carries only its declared name (TRecord.TypeName), not its module,
+	// so the record path of Eq synthesis is still keyed by name.
+	eqRecordNames map[string]bool
 }
 
 // NewInstanceEnv creates a new empty instance environment
@@ -42,6 +46,12 @@ func (env *InstanceEnv) Add(inst *ClassInstance) error {
 		return fmt.Errorf("overlapping instance: %s[%s]", inst.ClassName, inst.TypeHead)
 	}
 	env.instances[key] = inst
+	if c, ok := inst.TypeHead.(*TCon); ok && inst.ClassName == "Eq" {
+		if env.eqRecordNames == nil {
+			env.eqRecordNames = make(map[string]bool)
+		}
+		env.eqRecordNames[c.Name] = true
+	}
 	return nil
 }
 
@@ -140,7 +150,7 @@ func eqInstanceHint(typ Type, ts string) string {
 	case *TRecord, *TRecordOpen:
 		return prefix + " Anonymous records have no ==: declare a named record type with `deriving (Eq)`, e.g. `type Point = {x: int, y: int} deriving (Eq)`, or compare the fields you care about, e.g. a.id == b.id."
 	case *TApp:
-		if c, ok := t.Constructor.(*TCon); ok && (c.Name == "Option" || c.Name == "Result") {
+		if c, ok := t.Constructor.(*TCon); ok && (IsNominal(c, "std/option", "Option") || IsNominal(c, "std/result", "Result")) {
 			return prefix + fmt.Sprintf(" %s has == only when its type arguments do.", c.Name)
 		}
 		return prefix + " deriving (Eq) is not supported on polymorphic types yet: pattern-match on the constructors instead."
@@ -171,6 +181,11 @@ func (env *InstanceEnv) GetDefault(class string) Type {
 // canonicalKey creates a normalized key for instance lookup
 // NOTE: InstanceEnv keys are class+type (no namespace, no method). Reuse NormalizeTypeName.
 func canonicalKey(className string, typ Type) string {
+	// M-V1-NOMINAL-TYPE-IDENTITY: a nominal type's instance is keyed by its
+	// defining module too, so a's `Row deriving (Eq)` is not b's Row's instance.
+	if c, ok := typ.(*TCon); ok && c.Module != "" {
+		return fmt.Sprintf("%s::%s::%s", className, c.Module, NormalizeTypeName(typ))
+	}
 	// Double-colon to match the rest of the system's visual convention for segments.
 	return fmt.Sprintf("%s::%s", className, NormalizeTypeName(typ))
 }
@@ -191,9 +206,11 @@ func deriveEqFromOrd(ord *ClassInstance) *ClassInstance {
 
 // AddDerivedEqForADT registers an Eq instance for an ADT type with `deriving (Eq)`.
 // M-DX19: This enables the type checker to resolve Eq constraints for the ADT type.
-func (env *InstanceEnv) AddDerivedEqForADT(typeName string) error {
+//
+// module is the ADT's defining module (M-V1-NOMINAL-TYPE-IDENTITY).
+func (env *InstanceEnv) AddDerivedEqForADT(module, typeName string) error {
 	// Create a TCon type for the ADT
-	adtType := &TCon{Name: typeName}
+	adtType := &TCon{Name: typeName, Module: module}
 
 	// Check if instance already exists
 	key := canonicalKey("Eq", adtType)

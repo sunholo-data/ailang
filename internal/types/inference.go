@@ -58,9 +58,20 @@ type InferenceContext struct {
 	// openedLambdaTails are fresh tails given to unannotated closed lambda rows
 	// (#1958 F-B); see typechecker_lambda_open.go.
 	openedLambdaTails map[string]bool
+	// pendingCtorVars: variables an open constructor choice depends on, as of
+	// the last SolveConstraints; withheld from let-generalisation (ambiguous_ctor.go).
+	pendingCtorVars map[string]bool
+	// ctorNotes record where an ambiguous constructor shaped inference (a let
+	// kept monomorphic, a pattern read by its arity), so a later unification
+	// failure can name it as the cause (ambiguous_ctor_cause.go).
+	ctorNotes []*ctorNote
+	// derivedEqs are the indices in constraints of equalities a resolved
+	// choice added (a diagnostic dry run re-derives them).
+	derivedEqs []int
 }
 
-// TypeConstraint represents a constraint to be solved
+// TypeConstraint represents a constraint to be solved (TypeEq, RowEq,
+// ClassConstraint, or a deferred constructor choice, ambiguous_ctor.go)
 type TypeConstraint interface {
 	constraint()
 	String() string

@@ -8,37 +8,45 @@ import (
 // aliasBodyCloser rebuilds types in the defining module's alias environment.
 // Only acyclic expansions are memoized: a cycle's opaque reference depends on
 // the current root, and must never leak into a later root's expansion.
+//
+// M-V1-NOMINAL-TYPE-IDENTITY: aliases, params and newtypes are keyed by
+// types.NominalKey(defining module, name); a TCon expands only through its own
+// module's alias, and a newtype ADT (a single-constructor ADT wrapping a
+// record, an alias only for field access) is never expanded into an interface,
+// or the interface would hand importers a bare record in place of the ADT.
 type aliasBodyCloser struct {
-	aliases map[string]types.Type
-	params  map[string][]string
-	active  map[string]bool
-	memo    map[string]types.Type
-	cycles  int
+	aliases  map[string]types.Type
+	params   map[string][]string
+	newtypes map[string]bool
+	active   map[string]bool
+	memo     map[string]types.Type
+	cycles   int
 }
 
 func newAliasBodyCloser(aliases map[string]types.Type, params map[string][]string) *aliasBodyCloser {
 	return &aliasBodyCloser{aliases: aliases, params: params, active: make(map[string]bool), memo: make(map[string]types.Type)}
 }
 
-func (c *aliasBodyCloser) alias(name string) types.Type {
-	if c.active[name] {
+func (c *aliasBodyCloser) alias(key string) types.Type {
+	module, name := types.SplitNominalKey(key)
+	if c.active[key] {
 		c.cycles++
-		return &types.TCon{Name: name}
+		return &types.TCon{Name: name, Module: module}
 	}
-	if t, ok := c.memo[name]; ok {
+	if t, ok := c.memo[key]; ok {
 		return t
 	}
-	c.active[name] = true
+	c.active[key] = true
 	before := c.cycles
-	t := c.walk(c.aliases[name])
-	delete(c.active, name)
+	t := c.walk(c.aliases[key])
+	delete(c.active, key)
 	if r, ok := t.(*types.TRecord); ok && r.TypeName == "" {
 		copy := *r
 		copy.TypeName = name
 		t = &copy
 	}
 	if before == c.cycles {
-		c.memo[name] = t
+		c.memo[key] = t
 	}
 	return t
 }
@@ -82,8 +90,9 @@ func (c *aliasBodyCloser) walk(t types.Type) types.Type {
 	case nil:
 		return nil
 	case *types.TCon:
-		if _, ok := c.aliases[t.Name]; ok && len(c.params[t.Name]) == 0 {
-			return c.alias(t.Name)
+		key := t.KeyOf()
+		if _, ok := c.aliases[key]; ok && len(c.params[key]) == 0 && !c.newtypes[key] {
+			return c.alias(key)
 		}
 		return t
 	case *types.TVar, *types.TVar2, *types.RowVar:
@@ -122,20 +131,18 @@ func (c *aliasBodyCloser) walk(t types.Type) types.Type {
 }
 
 // closeInterfaceTypes operates on copies of shared schemes/constructor entries.
-// Local aliases include private dependencies and override post-shadow imports.
-func closeInterfaceTypes(ifc *iface.Iface, imported, local map[string]types.Type, params map[string][]string) {
-	env := make(map[string]types.Type, len(imported)+len(local))
-	for name, t := range imported {
-		env[name] = t
+// The alias tables include private dependencies (all keyed by defining module).
+func closeInterfaceTypes(ifc *iface.Iface, tables *aliasTables) {
+	if tables == nil {
+		tables = &aliasTables{}
 	}
-	for name, t := range local {
-		env[name] = t
-	}
-	c := newAliasBodyCloser(env, params)
+	env := tables.Bodies
+	c := newAliasBodyCloser(env, tables.Params)
+	c.newtypes = tables.Newtypes
 	for _, name := range sortedTypeKeys(ifc.TypeAliases) {
 		// Expand the root even when parameterized; its body retains bound TVars.
-		if _, ok := env[name]; ok {
-			ifc.AddTypeAlias(name, c.alias(name))
+		if key := ifaceAliasKey(ifc, name); env[key] != nil {
+			ifc.AddTypeAlias(name, c.alias(key))
 		}
 	}
 	for name, item := range ifc.Exports {

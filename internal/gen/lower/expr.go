@@ -322,6 +322,9 @@ func recordTypeName(cti types.CoreTypeInfo, e core.CoreExpr) string {
 // generic GlobalRef path (which will fail loudly in the compiler — the
 // correct behavior, since an unrecognized $adt ref is a bug upstream).
 func parseADTFactoryName(name string) (string, string, bool) {
+	// M-V1-NOMINAL-TYPE-IDENTITY: drop the "@<module>" qualifier; the bytecode
+	// ADT tables are still keyed by bare name (M4).
+	name, _ = core.SplitADTFactoryModule(name)
 	const prefix = "make_"
 	if len(name) <= len(prefix) || name[:len(prefix)] != prefix {
 		return "", "", false

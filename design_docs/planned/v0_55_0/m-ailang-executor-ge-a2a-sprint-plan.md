@@ -88,6 +88,27 @@ Source: [Register and manage A2A agents](https://docs.cloud.google.com/gemini/en
   (`serve-api.md`, `mcp-connectors.md`). Open: multivac #24 (card name on `latest`); Mark mints the
   client with both redirects and runs `auth`; registration after the quota reset; measure which
   method GE calls and how long it holds a stream.
+- **Status 2026-11-11 (end of day):** client minted and authorization `ailang-executor-dev` created
+  (PKCE, Basic, real `mco_` id; the first run stored the placeholder and was redone). Card has an icon
+  (ailang `254602e`, multivac #26). GE's import preview accepts the card (v0.3, streaming, name,
+  skill). Registration refused twice today with the daily quota (spent by the 09:50 creations); the
+  console's step 2 has both PKCE and Basic checkboxes and empty URL fields (our card has no
+  `securitySchemes` to prefill them; follow-up, optional). **Next (after 08:00 UTC):**
+  `ailang-multivac/scripts/ge-a2a-agent.sh agent` from the `ge-a2a` worktree: it re-runs every check
+  (card, icon, gate, authorization, a GE-shaped authorize) before it spends the unit (multivac #25).
+- **Status 2026-11-12: works end to end in Gemini Enterprise (dev).** Registered as a custom A2A
+  agent; Mark asked it a question in the GE web app and got the answer. Measured from the dev logs
+  (request log plus the agent's own lines), first message:
+  - sign-in: `GET /oauth/authorize` with GE's static redirect and S256 PKCE at 11:17:38 → login page →
+    `POST /oauth/login/complete` 302 (11:17:53) → `POST /oauth/token` 200 from user agent `Google`
+    (11:17:55), so the Basic + PKCE token exchange works, R-A1 closed;
+  - call: one `POST /a2a/` from `Google` 6s later, 200 after **27.4s** in one request (no retry, no
+    timeout); `executor_auth ok` names the signed-in account, so the user token reached the gate;
+  - agent: `ailang_prompt` 62ms, `ailang_check` ok (346 bytes), `ailang_run` ok, `executor_a2a ok`,
+    5 messages, 26.9s, request 127 chars: the program passed on the first check, and Vertex under the
+    mcp SA works.
+  - Not measured: whether GE used `message/send` or `message/stream` (serve-api does not log the
+    method; the request log shows only one 27s POST). Follow-up: log the A2A method per request.
 
 ## Spend (D5)
 Dev only until D5 is decided: model calls bill to the GCP project per task. Bounded by max steps per
@@ -96,5 +117,6 @@ message and the per-subject rate limit (30/min).
 ## Risks
 - **R-A1 PKCE** (above). **R-A2** GE may require behaviour the doc does not state (methods, timeouts):
   the first live call is the measurement; logs are kept per request.
-- **R-A3 quota:** a failed registration still spends the day's unit. Validate the card with
-  `verify-ge-a2a.sh` before registering.
+- **R-A3 quota:** every successful `agents.create` spends one unit of the daily creation quota
+  (deletes do not refund it; a refused 429 costs nothing). Validate first with
+  `ailang-multivac/scripts/ge-a2a-agent.sh check`; `agent` re-runs every check before it creates.

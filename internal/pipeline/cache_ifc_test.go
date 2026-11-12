@@ -37,7 +37,7 @@ func TestCacheIFCRoundTrip(t *testing.T) {
 }
 
 // Tier and deprecation survive the cache's iface.json codec. Before cache key
-// v11 they were dropped, so a warm `ailang iface std/list` printed no "tier".
+// v12 they were dropped, so a warm `ailang iface std/list` printed no "tier".
 func TestCacheIfaceRoundTripKeepsTierAndDeprecation(t *testing.T) {
 	i := iface.NewIface("std/list")
 	i.Tier = iface.TierStable
@@ -166,8 +166,8 @@ func TestCacheIFCValidatesInjectedDecoder(t *testing.T) {
 func TestCacheIFCPreviousVersionKeyMisses(t *testing.T) {
 	const source = "module lib\nexport func f() -> int { 42 }\n"
 	current := ModuleCacheKey("test-compiler", source, nil)
-	// v10: a pre-tier blob (no Iface.Tier/ReplacedBy) must miss too; v11 is
-	// another branch's format (#2228) and must never be served by this one.
+	// v11 (#2228, type identity) and older: pre-tier blobs (no Iface.Tier /
+	// ReplacedBy) must miss.
 	for version := 1; version <= 11; version++ {
 		t.Run(fmt.Sprintf("v%d", version), func(t *testing.T) {
 			old := sha256.New()

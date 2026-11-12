@@ -47,13 +47,17 @@ import (
 // imports' IFC contracts, and export summaries see the module's own imports
 // (transitive intrinsic taint). A cache hit skips the IFC gate, so a v9 caller
 // verdict — reached without imported contracts — must never be served.
-// v10 -> v12 (M-V1-STDLIB-SURFACE-POLISH M1; v11 is taken by the type-identity
-// change, PR #2228, so the two bumps stay distinct whatever the merge order):
-// the cached iface.json gained
-// Tier (module and per function), ReplacedBy and DeprecationNote. A v10 entry
+// v10 -> v11 (M-V1-NOMINAL-TYPE-IDENTITY M2): a nominal type is its defining
+// module plus its name. types.TCon gained Module (carried by the iface type
+// JSON, the CoreTI DAG codec and gob), constructor factories are named
+// make_<T>_<C>@<module>, and the interface digest renders qualified refs. A v10
+// blob decodes every nominal type with no module, which no longer unifies with
+// a qualified one, so v10 entries must miss.
+// v11 -> v12 (M-V1-STDLIB-SURFACE-POLISH M1): the cached iface.json gained
+// Tier (module and per function), ReplacedBy and DeprecationNote. A v11 entry
 // decodes with none, so `ailang iface` served from it would drop `"tier"` from
-// a std golden (measured: a warm run printed list.json with no tier); v10
-// and v11 entries must miss. (TC_DEPRECATED_001 itself reads the defining
+// a std golden (measured: a warm run printed list.json with no tier); v11
+// (and older) entries must miss. (TC_DEPRECATED_001 itself reads the defining
 // module's parsed source, which is never cached, so it survives either way.)
 const cacheKeyVersion = "v12"
 

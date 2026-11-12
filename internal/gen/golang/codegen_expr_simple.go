@@ -109,7 +109,8 @@ func (g *Generator) generateVarGlobal(e *core.VarGlobal) error {
 	// Elaborator generates: $adt.make_TypeName_CtorName
 	if e.Ref.Module == "$adt" && strings.HasPrefix(e.Ref.Name, "make_") {
 		// Parse "make_TypeName_CtorName" to get the constructor info
-		parts := strings.SplitN(e.Ref.Name[5:], "_", 2) // Skip "make_"
+		base, _ := core.SplitADTFactoryModule(e.Ref.Name) // M-V1-NOMINAL-TYPE-IDENTITY
+		parts := strings.SplitN(base[5:], "_", 2)         // Skip "make_"
 		if len(parts) == 2 {
 			typeName := parts[0]
 			ctorName := parts[1]

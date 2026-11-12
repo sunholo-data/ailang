@@ -32,7 +32,7 @@ func newA2AServer(t *testing.T, handler string) *httptest.Server {
 	t.Helper()
 	eff := effects.NewEffContext(nil)
 	eff.Grant(effects.NewCapability("Clock"))
-	id, err := ParseServerInfo("name=agent,title=Test agent")
+	id, err := ParseServerInfo("name=agent,title=Test agent,icon=/icon.png")
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -91,6 +91,9 @@ func TestA2AMessageCardIsV03Agent(t *testing.T) {
 		}
 		if u, _ := card["url"].(string); !strings.HasPrefix(u, "https://") || !strings.HasSuffix(u, "/a2a/") {
 			t.Fatalf("%s: url = %q, want https://…/a2a/ behind a TLS proxy", path, u)
+		}
+		if card["iconUrl"] != strings.TrimSuffix(card["url"].(string), "/a2a/")+"/icon.png" {
+			t.Fatalf("%s: iconUrl = %v, want /icon.png on the card's own host", path, card["iconUrl"])
 		}
 		if card["name"] != "Test agent" {
 			t.Fatalf("%s: name = %v, want the --server-info title", path, card["name"])

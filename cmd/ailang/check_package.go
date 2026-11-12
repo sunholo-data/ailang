@@ -140,7 +140,7 @@ func checkPackageWithContext(dir string, strictSyntax bool, relaxModules bool, t
 		jsonErrors := make([]checkJSONError, 0, len(allErrors)+len(warnings))
 		for _, e := range allErrors {
 			jsonErrors = append(jsonErrors, checkJSONError{
-				Code:    "ERROR",
+				Code:    jsonErrorCode(e),
 				Message: e,
 			})
 		}

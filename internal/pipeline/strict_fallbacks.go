@@ -35,7 +35,15 @@ import (
 
 // The resolved factory identity for `Ok(...)`. `Err(...)` is make_Result_Err,
 // which we never flag (an empty Err is not a lie about success).
-var resultOkFactory = core.GlobalRef{Module: "$adt", Name: "make_Result_Ok"}
+// M-V1-NOMINAL-TYPE-IDENTITY: the factory name carries the defining module
+// (make_Result_Ok@std/result); only std/result's Ok is the prelude's.
+func isResultOkFactory(ref core.GlobalRef) bool {
+	if ref.Module != core.ADTModule {
+		return false
+	}
+	module, typeName, ctor, ok := core.ParseADTFactoryName(ref.Name)
+	return ok && typeName == "Result" && ctor == "Ok" && (module == "std/result" || module == "")
+}
 
 // maxResolveDepth bounds let-chain / value-classification recursion so a
 // pathological or cyclic Core graph cannot loop the pass.
@@ -362,7 +370,7 @@ func walkStrictFallback(fnName string, e core.CoreExpr, env map[string]core.Core
 	}
 	switch n := e.(type) {
 	case *core.App:
-		if vg, ok := n.Func.(*core.VarGlobal); ok && vg.Ref == resultOkFactory && len(n.Args) == 1 {
+		if vg, ok := n.Func.(*core.VarGlobal); ok && isResultOkFactory(vg.Ref) && len(n.Args) == 1 {
 			if empty, kind := isEmptyValue(n.Args[0], env, maxResolveDepth); empty {
 				*out = append(*out, &StrictFallbackWarning{
 					Location: n.OriginalSpan(),

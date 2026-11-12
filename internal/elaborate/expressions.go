@@ -53,10 +53,15 @@ func (e *Elaborator) normalize(expr ast.Expr) (core.CoreExpr, error) {
 			}, nil
 		}
 		// Check if this is a nullary constructor (e.g., None, True, False)
+		if _, amb := e.ambiguousCtors[ex.Name]; amb {
+			if err := e.ambiguousCtorError(ex.Name, ex.Position()); err != nil {
+				return nil, err
+			}
+		}
 		if ctorInfo, isConstructor := e.constructors[ex.Name]; isConstructor && ctorInfo.Arity == 0 {
 			// Nullary constructor: transform None → $adt.make_Option_None
 			// Note: No App node needed - factory is a value, not a function call
-			factoryName := fmt.Sprintf("make_%s_%s", ctorInfo.TypeName, ctorInfo.CtorName)
+			factoryName := core.ADTFactoryName(ctorInfo.Module, ctorInfo.TypeName, ctorInfo.CtorName)
 			return &core.VarGlobal{
 				CoreNode: e.makeNode(ex.Position()),
 				Ref: core.GlobalRef{

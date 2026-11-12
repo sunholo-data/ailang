@@ -422,6 +422,10 @@ comma. The same values set `serverInfo` on `/mcp/` and `/mcp/connect/` (and stdi
 the version is the AILANG binary's (for example `0.57.2`). An unknown key, a repeated key or an empty
 value is a startup error.
 
+`icon` sets the A2A card's `iconUrl`, which Gemini Enterprise shows next to the agent. Give a path
+served by this server (`icon=/icon.png`, resolved against the host the caller reached, so one flag
+works on every deployment and the icon stays on the card's host) or an `https://` URL.
+
 **MCP tool quality features:**
 
 - **Named parameter schemas** — `inputSchema` uses named parameters with JSON Schema types (e.g., `{"filepath": {"type": "string"}}`) instead of generic positional arrays. Types are mapped from AILANG: `string`→`"string"`, `int`→`"integer"`, `float`→`"number"`, `bool`→`"boolean"`, `Json`/records→`"object"`, lists→`"array"`.
@@ -683,7 +687,18 @@ The hosted executor's agent (`executor_tools/agent.ail`) is the worked example: 
 `std/ai` `runTools` loop over the sandboxed `ailang_check` and `ailang_run`.
 
 Under `--mcp-connect-only`, `/a2a/` is behind the Bearer gate and the handler must be `@noexpose
-@nomcp`, so nothing but the signed-in `/a2a/` reaches it.
+@nomcp`, so nothing but the signed-in `/a2a/` reaches it. The card then says so: with
+`--oauth-issuer` set it carries `securitySchemes.oauth` (an authorization-code flow with the
+issuer's `authorization_endpoint` and `token_endpoint`, read from its
+`/.well-known/oauth-authorization-server` and cached for an hour) and `security: [{"oauth": []}]`.
+If the issuer's metadata cannot be read or names another issuer, the card is served without them
+and the reason is logged.
+
+Every `/a2a/` request writes one JSON line to stderr: `event` `a2a_request`, the `method`, the
+`outcome` (`completed` or `failed`, or why no task ran: `invalid_params`, `not_found`,
+`unknown_method`, `bad_request`, `client_gone`), `duration_ms`, and for `message/stream` the number
+of `heartbeats`. It never holds the request text, the answer or the caller's identity. On Cloud
+Run, `jsonPayload.event="a2a_request"` finds them.
 
 `tasks/send` (below) is unchanged: it calls a function by `metadata.skill_id`.
 
@@ -809,7 +824,7 @@ Flags:
   --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)
   --oauth-issuer URL   OAuth authorization server for @mcp_auth("oauth2") tools on /mcp/connect/
   --a2a-message FN     With --a2a: the export (one string param) answering A2A v0.3 message/send and message/stream
-  --server-info S      Service identity name=N,title=T,version=V: MCP serverInfo, A2A card version, OpenAPI info.version
+  --server-info S      Service identity name=N,title=T,version=V,icon=I: MCP serverInfo, A2A card (name, version, iconUrl), OpenAPI info.version
   --mcp-connect-only   Tools only on /mcp/connect/, all behind the Bearer gate (no /mcp/; HTTP serves @nomcp routes only)
   --process-timeout D  Process exec timeout (default 30s; needs --caps Process)
   --process-allowlist L  Commands Process may exec: cmd or cmd:sub, comma-separated (default: any on PATH)
