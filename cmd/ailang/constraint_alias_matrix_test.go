@@ -229,3 +229,76 @@ export func main() -> () ! {IO} = {
 	}
 	assertBothEngines(t, "true\nfalse", "main.ail", run)
 }
+
+// Self-referential and mutually recursive RECORD declarations are legal and
+// common (`type Node = {label: string, kids: [Node]}`); a record alias is
+// never expanded for a class constraint, so each must check as on dev, in
+// bounded time, and print the same on both engines (#2285 fourth review).
+// Direct `==` on such a record is left out of the run: with `deriving (Eq)`
+// it crashes the evaluator on dev too (#2318).
+func TestConstraintSelfReferentialRecords(t *testing.T) {
+	bin := buildAilang(t)
+	shapes := []struct{ name, decl, rec, v1, v2, want string }{
+		{"node", "type Node = {n: int, label: string, kids: [Node]} deriving (Eq)", "Node",
+			`{n: 1, label: "a", kids: []}`, `{n: 2, label: "b", kids: [{n: 3, label: "c", kids: []}]}`, "true\nfalse\ntrue\ntrue\ntrue\n2\n{kids: [], label: \"a\", n: 1}"},
+		{"person", "type Person = {n: int, name: string, friends: [Person]} deriving (Eq)", "Person",
+			`{n: 1, name: "p", friends: []}`, `{n: 2, name: "q", friends: []}`, "true\nfalse\ntrue\ntrue\ntrue\n2\n{friends: [], n: 1, name: \"p\"}"},
+		{"chain", "type N = {n: int, next: Option[N]} deriving (Eq)", "N",
+			`{n: 1, next: None}`, `{n: 2, next: Some({n: 3, next: None})}`, "true\nfalse\ntrue\ntrue\ntrue\n2\n{n: 1, next: None}"},
+		{"account", "type AccountState = {n: int, owner: string, snapshots: [AccountState]} deriving (Eq)", "AccountState",
+			`{n: 1, owner: "x", snapshots: []}`, `{n: 1, owner: "x", snapshots: [{n: 0, owner: "x", snapshots: []}]}`, "true\nfalse\ntrue\ntrue\ntrue\n0\n{n: 1, owner: \"x\", snapshots: []}"},
+		{"mutual", "type RA = {n: int, b: Option[RB]} deriving (Eq)\ntype RB = {m: int, ras: [RA]} deriving (Eq)", "RA",
+			`{n: 1, b: None}`, `{n: 2, b: Some({m: 1, ras: []})}`, "true\nfalse\ntrue\ntrue\ntrue\n2\n{b: None, n: 1}"},
+	}
+	for _, sh := range shapes {
+		t.Run(sh.name, func(t *testing.T) {
+			r, a, b := sh.rec, sh.v1, sh.v2
+			src := fmt.Sprintf(`module main
+%s
+type Box[a] = (a, a)
+pure func eqL(x: [%[2]s], y: [%[2]s]) -> bool = x == y
+pure func neO(x: Option[%[2]s], y: Option[%[2]s]) -> bool = x != y
+pure func eqT(x: (%[2]s, int), y: (%[2]s, int)) -> bool = x == y
+pure func eqB(x: Box[%[2]s], y: Box[%[2]s]) -> bool = x == y
+pure func field(x: %[2]s, y: %[2]s) -> int = if x.n < y.n then x.n + 1 else y.n - 1
+pure func sameD(x: %[2]s, y: %[2]s) -> bool = x == y
+export func main() -> () ! {IO} = {
+  println(show(eqL([%[3]s], [%[3]s])));
+  println(show(eqL([%[3]s], [%[4]s])));
+  println(show(neO(Some(%[3]s), Some(%[4]s))));
+  println(show(eqT((%[3]s, 1), (%[3]s, 1))));
+  println(show(eqB((%[3]s, %[4]s), (%[3]s, %[4]s))));
+  println(show(field(%[3]s, %[4]s)));
+  println(show(%[3]s))
+}
+`, sh.decl, r, a, b)
+			dir := t.TempDir()
+			if err := os.WriteFile(filepath.Join(dir, "main.ail"), []byte(src), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			stdout, stderr, code := testutil.RunBounded(t, dir, 5*time.Second, bin, "check", "main.ail")
+			if code == -1 {
+				t.Fatal("check did not finish within 5s")
+			}
+			if code != 0 {
+				t.Fatalf("must check:\n%s%s", stdout, stderr)
+			}
+			// Without deriving (Eq) the record has no ==, directly or in a container.
+			plain := strings.ReplaceAll(src, " deriving (Eq)", "")
+			if err := os.WriteFile(filepath.Join(dir, "plain.ail"), []byte(strings.Replace(plain, "module main", "module plain", 1)), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			stdout, stderr, code = testutil.RunBounded(t, dir, 5*time.Second, bin, "check", "plain.ail")
+			if code == -1 {
+				t.Fatal("check (no deriving) did not finish within 5s")
+			}
+			if code == 0 || !strings.Contains(stdout+stderr, "No instance for Eq[") {
+				t.Fatalf("without deriving (Eq) == must be rejected, got exit %d:\n%s%s", code, stdout, stderr)
+			}
+			run := func(args ...string) (string, string, int) {
+				return testutil.RunBounded(t, dir, 10*time.Second, bin, args...)
+			}
+			assertBothEngines(t, sh.want, "main.ail", run)
+		})
+	}
+}

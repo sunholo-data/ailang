@@ -44,5 +44,8 @@ resolves); otherwise the constraint is judged, and reported, as written. Hence:
   `No instance for Num[Count]`.
 - Diagnostics name the type as written (`Num[Tagged[t]]`, `Eq[L[int]]` for a self-referential
   `type L[a] = [L[a]]`).
+- Expansion is bounded: an alias is never expanded inside its own expansion, and a node budget stops a
+  legitimately huge expansion (a 2^20-leaf nest of pair aliases). Either way the constraint is judged as
+  written. A self-referential alias such as `type T2[a] = (T2[a], T2[a])` checks as fast as on dev.
 - Record aliases and newtypes are never expanded: their `deriving (Eq)` is keyed by their module, and
   the record path of Eq synthesis is keyed by bare name. The existing record-alias Eq failures are #2318.
