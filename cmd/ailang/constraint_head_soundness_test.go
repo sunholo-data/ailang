@@ -95,6 +95,16 @@ export func main() -> () ! {IO} = { println(show(inc(41))); println(tag(inc("x")
 		{"typo_alias_eq_fn", `type Handler = handler
 pure func same(a: Handler, b: Handler) -> bool = a == b
 export func main() -> () ! {IO} = println(show(same(\u. u + 1, \u. u + 1)))`, "No instance for Eq[Handler]"},
+		// An alias of a type variable is judged as written (#2285 third review,
+		// k01/k15): expanding Num[Id[b]] to Num[b] would defer it with no
+		// dictionary recorded, and the `+` node, still typed Id[b], was lowered
+		// to the Int implementation, so dbl(1.5) crashed on both engines.
+		{"identity_alias_poly_float", `type Id[a] = a
+pure func dbl[b](x: Id[b]) -> Id[b] = x + x
+export func main() -> () ! {IO} = println(show(dbl(1.5)))`, "No instance for Num[Id[b]]"},
+		{"identity_alias_poly_ord", `type Id[a] = a
+pure func lt[b](x: Id[b], y: Id[b]) -> bool = x < y
+export func main() -> () ! {IO} = println(show(lt("a", "b")))`, "No instance for Ord[Id[b]]"},
 		// A self-referential alias is reported as written, not unfolded.
 		{"self_referential_alias", `type L[a] = [L[a]]
 pure func f(x: L[int]) -> bool = x == x
@@ -198,7 +208,7 @@ func TestConstraintOnAppliedTypeControls(t *testing.T) {
 // Aliases of primitives are seen through before a constraint is judged
 // (#2247 review): Num[Id[a]] with `type Id[a] = int` is Num[int]. Before the
 // alias expansion the #2247 fix rejected every one of these, and several were
-// already wrong on dev (Num[Score], Eq[Id[a]] and Num[Same[int]] were rejected;
+// already wrong on dev (Num[Score] and Eq[Id[a]] were rejected;
 // Meters[u] crashed at run time because `m * 2.0` ran on the Int dictionary).
 const constraintAliasControls = `module constraint_alias_controls
 type Score = int
@@ -216,11 +226,11 @@ pure func sameScore(x: Score, y: Score) -> bool = x == y
 pure func lessRef[a](x: Ref[a], y: Ref[a]) -> bool = x < y
 pure func sameId[a](x: Id[a], y: Id[a]) -> bool = x == y
 pure func sameIds[a](x: [Id[a]], y: [Id[a]]) -> bool = x == y
-pure func incSame[a](x: Same[a]) -> Same[a] = x + 1
 pure func dbl[u](m: Meters[u]) -> Meters[u] = m * 2.0
 pure func cmpm[u](m: Meters[u], n: Meters[u]) -> bool = m >= n
 pure func lessT[t](a: Tagged[t], b: Tagged[t]) -> bool = a < b
 pure func nextId(u: User) -> int = u.id + 1
+pure func incSameInt(x: Same[int]) -> Same[int] = x + 1
 export func main() -> () ! {IO} = {
   println(show(inc(41)));
   println(show(incS(41)));
@@ -229,11 +239,11 @@ export func main() -> () ! {IO} = {
   println(show(lessRef(1, 2)));
   println(show(sameId(1, 2)));
   println(show(sameIds([1], [1])));
-  println(show(incSame(41)));
   println(show(dbl(1.5)));
   println(show(cmpm(1.0, 2.0)));
   println(show(lessT("a", "b")));
-  println(show(nextId({id: 4, name: "x"})))
+  println(show(nextId({id: 4, name: "x"})));
+  println(show(incSameInt(41)))
 }
 `
 
@@ -247,42 +257,58 @@ func TestConstraintAliasControls(t *testing.T) {
 		t.Fatalf("alias controls must check:\n%s%s", stdout, stderr)
 	}
 	want := strings.Join([]string{
-		"42", "42", "42", "true", "true", "false", "true", "42", "3.0", "false", "true", "5",
+		"42", "42", "42", "true", "true", "false", "true", "3.0", "false", "true", "5", "42",
 	}, "\n")
 	assertBothEngines(t, want, file, func(args ...string) (string, string, int) {
 		return runAilangBin(t, bin, args...)
 	})
 }
 
-// A record alias resolves Eq through the record's declared name, on both
-// engines: `deriving (Eq)` on a record alias crashed the evaluator
-// ("derived Eq for P: expected TaggedValue") and an alias of it (`type Q = P`)
-// was rejected (#2285 second review, r02 and r07).
-const constraintRecordAliasControls = `module constraint_record_alias_controls
-type P = {x: int} deriving (Eq)
-type Q = P
-pure func sameP(p: P, q: P) -> bool = p == q
-pure func sameQ(p: Q, q: Q) -> bool = p == q
-export func main() -> () ! {IO} = {
-  println(show(sameP({x: 1}, {x: 1})));
-  println(show(sameP({x: 1}, {x: 2})));
-  println(show(sameQ({x: 1}, {x: 1})));
-  println(show(sameQ({x: 1}, {x: 3})))
-}
-`
-
-func TestConstraintRecordAliasControls(t *testing.T) {
+// A record alias is nominal for class constraints: its == comes only from its
+// own `deriving (Eq)` (#2285 third review, w11/w15). Expanding it reached the
+// record path, which is keyed by bare name, so a local `type P` borrowed
+// another module's `P deriving (Eq)`: two records of functions compared with
+// == (VM printed false), and a P that never derived Eq had ==.
+func TestConstraintRecordAliasStaysNominal(t *testing.T) {
 	bin := buildAilang(t)
-	file := filepath.Join(t.TempDir(), "constraint_record_alias_controls.ail")
-	if err := os.WriteFile(file, []byte(constraintRecordAliasControls), 0o644); err != nil {
-		t.Fatal(err)
+	lib := `module lib/recA
+export type P = {x: int} deriving (Eq)
+export pure func mkA(n: int) -> P = {x: n}
+`
+	cases := []struct{ name, main string }{
+		{"same name, function field", `module main
+import lib/recA (mkA)
+type P = {x: int -> int}
+pure func same(a: P, b: P) -> bool = a == b
+export func main() -> () ! {IO} = println(show(same({x: \u. u}, {x: \u. u})))
+`},
+		{"same name, no deriving", `module main
+import lib/recA (mkA)
+type P = {x: int}
+pure func same(a: P, b: P) -> bool = a == b
+export func main() -> () ! {IO} = println(show(same({x: 1}, {x: 1})))
+`},
 	}
-	if stdout, stderr, code := runAilangBin(t, bin, "check", file); code != 0 {
-		t.Fatalf("record alias controls must check:\n%s%s", stdout, stderr)
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			if err := os.MkdirAll(filepath.Join(dir, "lib"), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			for rel, src := range map[string]string{"lib/recA.ail": lib, "main.ail": c.main} {
+				if err := os.WriteFile(filepath.Join(dir, rel), []byte(src), 0o644); err != nil {
+					t.Fatal(err)
+				}
+			}
+			stdout, stderr, code := testutil.RunBounded(t, dir, 60*time.Second, bin, "check", "main.ail")
+			if code == 0 {
+				t.Fatalf("a local record alias must not borrow another module's deriving (Eq):\n%s", stdout)
+			}
+			if out := stdout + stderr; !strings.Contains(out, "No instance for Eq[P]") {
+				t.Errorf("want No instance for Eq[P], got:\n%s", out)
+			}
+		})
 	}
-	assertBothEngines(t, "true\nfalse\ntrue\nfalse", file, func(args ...string) (string, string, int) {
-		return runAilangBin(t, bin, args...)
-	})
 }
 
 // The alias may come from another module, through a chain.

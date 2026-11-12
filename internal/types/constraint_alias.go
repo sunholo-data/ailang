@@ -11,25 +11,32 @@ package types
 // with #2247 it was "No instance for Num[Id[a]]" for a correct program. The
 // alias has to be seen through before the head is judged: Num[Id[a]] is
 // Num[int]. The same holds for a nullary alias of a primitive
-// (`type Score = int`; Num[Score] was rejected even before #2247), for a
-// record alias (Eq on `type P = {x: int} deriving (Eq)` resolves through the
-// record's declared name), and for Eq.
+// (`type Score = int`; Num[Score] was rejected even before #2247) and for Eq.
 //
-// Two expansions are refused:
-//   - one that introduces a type variable the unexpanded type did not have.
-//     An alias whose body names a variable it does not bind
-//     (`type Count = integer`: a lowercase name is a type variable) would turn
-//     the ground Num[Count] into a constraint on a fresh variable, which is
-//     deferred and then dropped, so `inc("x")` passed check;
-//   - a newtype ADT (`type W = W({x: int})`), which is a nominal type, not an
-//     alias: its Eq instance is keyed by its defining module, and expanding it
-//     would let it borrow a same-named type's `deriving (Eq)` from another
-//     module through the bare-name record path.
+// An expansion is used only when it SOLVES the constraint outright: it is
+// ground and an instance resolves it (which records the dictionary for the
+// operator node), or it reduces to nothing. Otherwise the constraint keeps
+// its written type and is judged, and reported, as written. That rule is what
+// keeps every consumer that picks an implementation from a node's type safe:
+//   - `type Id[a] = a` with `x + x` on `x: Id[b]` would expand to Num[b],
+//     which is deferred, records no dictionary, and leaves the `+` node typed
+//     Id[b]; lowering then picks the Int implementation and `dbl(1.5)`
+//     crashes. Kept as written, it is "No instance for Num[Id[b]]", as on dev
+//     (LIMITATION: a polymorphic operator on an alias of a type variable is
+//     rejected; write the variable instead).
+//   - an alias body naming a variable it does not bind (`type Count =
+//     integer`) would turn the ground Num[Count] into a deferred, then
+//     dropped, constraint on a fresh variable.
+//   - a self-referential alias (`type L[a] = [L[a]]`) unfolds to something
+//     unsolvable, so the diagnostic names L[int], not a type unfolded
+//     aliasExpandDepthCap levels deep.
 //
-// And a constraint keeps its written type whenever the expanded one cannot be
-// solved either, so a diagnostic names what the user wrote: `Eq[P]`, not the
-// record P stands for, and `Eq[L[int]]` for a self-referential alias
-// (`type L[a] = [L[a]]`), not a type unfolded aliasExpandDepthCap levels deep.
+// Two kinds of type are never expanded: a newtype ADT (`type W =
+// W({x: int})`) and a record alias (`type P = {x: int}`). Both are nominal:
+// their `deriving (Eq)` instance is keyed by their defining module, while the
+// record path of Eq synthesis is keyed by bare name, so expanding them would
+// let one borrow a same-named type's `deriving (Eq)` from another module, or
+// give a record that never derived Eq an ==.
 
 // aliasExpandDepthCap bounds the structural walk (a self-referential alias
 // such as `type L[a] = [L[a]]` would otherwise unfold forever).
@@ -49,11 +56,9 @@ func (tc *CoreTypeChecker) newAliasUnifier() *Unifier {
 	return u
 }
 
-// expandConstraintAliases rewrites every constraint's type with its aliases
-// expanded, so instance resolution and context reduction judge the type the
-// alias stands for. A constraint keeps its written type when the expanded one
-// cannot be solved either: the diagnostic then names the type the user wrote
-// (`Eq[P]`, not the record P stands for), exactly as before the expansion.
+// expandConstraintAliases rewrites a constraint's type with its aliases
+// expanded when that solves it outright (see the file comment); otherwise
+// the constraint keeps its written type.
 func (tc *CoreTypeChecker) expandConstraintAliases(constraints []ClassConstraint) []ClassConstraint {
 	if len(constraints) == 0 || (len(tc.aliasEnv) == 0 && len(tc.aliasCaptures) == 0) {
 		return constraints
@@ -64,7 +69,7 @@ func (tc *CoreTypeChecker) expandConstraintAliases(constraints []ClassConstraint
 		if expanded := expandAliasesForConstraint(u, c.Type, 0); expanded != c.Type {
 			e := c
 			e.Type = expanded
-			if tc.constraintSolvable(e) {
+			if tc.constraintSolvedNow(e) {
 				c = e
 			}
 		}
@@ -73,15 +78,16 @@ func (tc *CoreTypeChecker) expandConstraintAliases(constraints []ClassConstraint
 	return out
 }
 
-// constraintSolvable reports, without recording anything, whether c would
-// pass instance resolution (ground) or context reduction (non-ground).
-func (tc *CoreTypeChecker) constraintSolvable(c ClassConstraint) bool {
+// constraintSolvedNow reports, without recording anything, whether c is
+// solved at this boundary: a ground constraint an instance resolves, or one
+// that context reduction discharges with nothing left to defer.
+func (tc *CoreTypeChecker) constraintSolvedNow(c ClassConstraint) bool {
 	if constraintIsGround(c) {
 		_, err := tc.instanceEnv.Lookup(c.Class, c.Type)
 		return err == nil
 	}
-	_, err := tc.instanceEnv.ReduceConstraints([]ClassConstraint{c})
-	return err == nil
+	residual, err := tc.instanceEnv.ReduceConstraints([]ClassConstraint{c})
+	return err == nil && len(residual) == 0
 }
 
 // expandAliasesForConstraint expands alias heads at t and inside the
@@ -96,8 +102,18 @@ func expandAliasesForConstraint(u *Unifier, t Type, depth int) Type {
 	if t == nil || depth > aliasExpandDepthCap {
 		return t
 	}
-	// withNewtypes=false: a newtype ADT stays nominal (see the file comment).
-	if e := u.expandAliasMode(t, false); e != t && !introducesTypeVars(t, e) {
+	// withNewtypes=false: a newtype ADT stays nominal, and so does a record
+	// alias (see the file comment).
+	// Repeated because expandAliasMode treats a second application of the
+	// same alias as a cycle: Id[Id[int]] stops at Id[int] in one call.
+	for i := 0; i < aliasExpandDepthCap; i++ {
+		e := u.expandAliasMode(t, false)
+		if e == t {
+			break
+		}
+		if _, isRecord := e.(*TRecord); isRecord {
+			break
+		}
 		t = e
 	}
 	switch tt := t.(type) {
@@ -125,20 +141,4 @@ func expandAliasesInEach(u *Unifier, ts []Type, depth int) ([]Type, bool) {
 		changed = changed || out[i] != a
 	}
 	return out, changed
-}
-
-// introducesTypeVars reports whether after has a free type variable that
-// before does not: the mark of an alias body naming a variable it does not
-// bind. Cycle-safety: collectFreeVars tracks visited types.
-func introducesTypeVars(before, after Type) bool {
-	had := make(map[string]bool)
-	collectFreeVars(before, had)
-	now := make(map[string]bool)
-	collectFreeVars(after, now)
-	for v := range now {
-		if !had[v] {
-			return true
-		}
-	}
-	return false
 }

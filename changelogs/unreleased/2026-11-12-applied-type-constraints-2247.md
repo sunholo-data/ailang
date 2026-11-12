@@ -25,18 +25,24 @@ variable is deferred to the caller. `Eq` keeps its structural decomposition (`No
 
 ### Fixed — class constraints see through type aliases (#2247)
 
-A constraint is now judged by the type an alias stands for: with `type Id[a] = int`,
-`x + 1` on `x: Id[a]` is `Num[int]`. Expansion follows alias chains, aliases imported from another
-module, record aliases, and aliases inside lists, tuples and type arguments. Correct programs that
-were rejected before now check: `type Score = int` with `x + 1` or `x == y`
-(`No instance for Num[Score]`), `Eq[Id[a]]`, `Num[Id[string]]`, `type Same[a] = a`, and `type Q = P`
-where `P` is a record alias declared `deriving (Eq)`. `type Meters[u] = float` with `m * 2.0`, which
-checked and then crashed at run time on the Int dictionary, now prints the right result, and `==` on a
-record alias declared `deriving (Eq)` no longer crashes the evaluator
-(`derived Eq for P: expected TaggedValue`).
+A constraint is now judged by the type an alias stands for when that solves it: with
+`type Id[a] = int`, `x + 1` on `x: Id[a]` is `Num[int]`. Expansion follows alias chains (including
+`Id[Id[int]]`), aliases imported from another module, and aliases inside lists, tuples and type
+arguments. Correct programs that were rejected before now check: `type Score = int` with `x + 1` or
+`x == y` (`No instance for Num[Score]`), `Eq[Id[a]]`, `Num[Id[string]]`, `Same[int]` with
+`type Same[a] = a`. `type Meters[u] = float` with `m * 2.0`, which checked and then crashed at run time
+on the Int dictionary, now prints the right result.
 
-Two expansions are refused: a newtype (`type W = W({x: int})`) stays nominal, and an alias whose body
-names a type variable it does not bind (`type Count = integer`) is judged as written, so
-`No instance for Num[Count]` is still reported rather than the constraint becoming a variable and being
-dropped. When the expanded constraint cannot be solved either, the diagnostic names the type as
-written (`Eq[P]`, `Num[Tagged[t]]`, and `Eq[L[int]]` for a self-referential `type L[a] = [L[a]]`).
+An expansion is used only when it solves the constraint outright (a ground constraint an instance
+resolves); otherwise the constraint is judged, and reported, as written. Hence:
+
+- **Limitation:** a polymorphic operator on an alias of a type variable is rejected, as before:
+  `type Id[a] = a` with `x + x` on `x: Id[b]` is `No instance for Num[Id[b]]`. Write `x: b` instead.
+  (Expanding it to `Num[b]` deferred the constraint while the operator was still lowered from the
+  alias type, to the Int implementation.)
+- An alias whose body names a type variable it does not bind (`type Count = integer`) still reports
+  `No instance for Num[Count]`.
+- Diagnostics name the type as written (`Num[Tagged[t]]`, `Eq[L[int]]` for a self-referential
+  `type L[a] = [L[a]]`).
+- Record aliases and newtypes are never expanded: their `deriving (Eq)` is keyed by their module, and
+  the record path of Eq synthesis is keyed by bare name. The existing record-alias Eq failures are #2318.
