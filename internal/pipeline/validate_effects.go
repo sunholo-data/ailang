@@ -3,6 +3,7 @@ package pipeline
 import (
 	"fmt"
 	"os"
+	"sort"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
@@ -137,6 +138,9 @@ func validateEffects(surfaceAST *ast.File, coreProg *core.Program, coreTypeInfo 
 	if len(valueLookup) > 0 {
 		collector.valueLookup = valueLookup[0]
 	}
+	if len(lambdaLookup) > 0 {
+		collector.lambdaLookup = lambdaLookup[0]
+	}
 	// Walk all top-level declarations
 	// Note: Top-level declarations are often wrapped in Let/LetRec nodes
 	for _, decl := range coreProg.Decls {
@@ -215,6 +219,68 @@ func validateLambdaAnnotations(expr core.CoreExpr, declaredEffects map[string]*t
 			return err
 		}
 		return validateLambdaAnnotations(e.Else, declaredEffects, typeInfo, lookup, collector)
+	case *core.Match:
+		if err := validateLambdaAnnotations(e.Scrutinee, declaredEffects, typeInfo, lookup, collector); err != nil {
+			return err
+		}
+		for _, arm := range e.Arms {
+			if err := validateLambdaAnnotations(arm.Body, declaredEffects, typeInfo, lookup, collector.shadow(patternBindingNames(arm.Pattern)...)); err != nil {
+				return err
+			}
+		}
+	default:
+		// #2238 review: a lambda is an atomic value, so ANF leaves it directly
+		// inside a record, list, tuple, update or operator — walk every child,
+		// or an annotated literal there (`{ f: func(…) -> int ! {} { println(…) } }`)
+		// is never checked against its annotation.
+		for _, child := range lambdaWalkChildren(expr) {
+			if err := validateLambdaAnnotations(child, declaredEffects, typeInfo, lookup, collector); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
+}
+
+// lambdaWalkChildren returns the sub-expressions of the Core nodes that bind
+// no names (binders are handled by validateLambdaAnnotations itself). Map
+// fields are visited in sorted order so the first error is deterministic.
+func lambdaWalkChildren(expr core.CoreExpr) []core.CoreExpr {
+	sortedValues := func(m map[string]core.CoreExpr) []core.CoreExpr {
+		keys := make([]string, 0, len(m))
+		for k := range m {
+			keys = append(keys, k)
+		}
+		sort.Strings(keys)
+		out := make([]core.CoreExpr, 0, len(keys))
+		for _, k := range keys {
+			out = append(out, m[k])
+		}
+		return out
+	}
+	switch e := expr.(type) {
+	case *core.Record:
+		return sortedValues(e.Fields)
+	case *core.RecordUpdate:
+		return append([]core.CoreExpr{e.Base}, sortedValues(e.Updates)...)
+	case *core.RecordAccess:
+		return []core.CoreExpr{e.Record}
+	case *core.List:
+		return e.Elements
+	case *core.Array:
+		return e.Elements
+	case *core.Tuple:
+		return e.Elements
+	case *core.Intrinsic:
+		return e.Args
+	case *core.BinOp:
+		return []core.CoreExpr{e.Left, e.Right}
+	case *core.UnOp:
+		return []core.CoreExpr{e.Operand}
+	case *core.DictAbs:
+		return []core.CoreExpr{e.Body}
+	case *core.DictApp:
+		return append([]core.CoreExpr{e.Dict}, e.Args...)
 	}
 	return nil
 }
@@ -351,7 +417,7 @@ func (collector *effectCollector) collect(expr core.CoreExpr) *types.Row {
 	case *core.Lambda:
 		// Lambdas: the effects are in their type, and we need to check the body
 		debugLog("    Lambda -> checking body")
-		bodyEffects := collector.shadow(e.Params...).collect(e.Body)
+		bodyEffects := collector.lambdaOwnTailDropped(e, collector.shadow(e.Params...).collect(e.Body))
 		debugLog("    Lambda body effects: %s", formatRow(bodyEffects))
 		return bodyEffects
 

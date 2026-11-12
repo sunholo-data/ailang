@@ -3,6 +3,7 @@ package elaborate
 import (
 	"testing"
 
+	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/lexer"
 	"github.com/sunholo-data/ailang/internal/parser"
@@ -77,6 +78,45 @@ func TestRecordSignatureAnnots_TopLevelFuncIsNotALiteral(t *testing.T) {
 	}
 	if len(e.GetLiteralLambdas()) != 0 {
 		t.Fatalf("a top-level func must not be marked a literal: %v", e.GetLiteralLambdas())
+	}
+}
+
+// elaborateFuncDecl (the legacy Module-decls path) goes through normalizeLambda,
+// which marks a literal; recording the declaration's own signature afterwards
+// must unmark it and record the return annotation (#2238 review: mutants M6,
+// M12b).
+func TestRecordSignatureAnnots_ElaborateFuncDecl(t *testing.T) {
+	p := parser.New(lexer.New("module m\nfunc f(x: int) -> string = \"a\"\n", "m.ail"))
+	file := p.ParseFile()
+	if len(p.Errors()) > 0 {
+		t.Fatalf("parse errors: %v", p.Errors())
+	}
+	var fd *ast.FuncDecl
+	for _, d := range file.Decls {
+		if f, ok := d.(*ast.FuncDecl); ok {
+			fd = f
+		}
+	}
+	if fd == nil {
+		t.Fatal("no FuncDecl parsed")
+	}
+	e := NewElaborator()
+	expr, err := e.elaborateFuncDecl(fd)
+	if err != nil {
+		t.Fatalf("elaborateFuncDecl: %v", err)
+	}
+	lam := firstLambda(expr)
+	if lam == nil {
+		t.Fatal("no core.Lambda produced")
+	}
+	if got := e.GetParamTypeAnnotations()[lam.ID()]; len(got) != 1 || !types.TInt.Equals(got[0]) {
+		t.Errorf("param annotations = %v, want [int]", got)
+	}
+	if ret := e.GetReturnTypeAnnotations()[lam.ID()]; ret == nil || !types.TString.Equals(ret) {
+		t.Errorf("return annotation = %v, want string", ret)
+	}
+	if e.GetLiteralLambdas()[lam.ID()] {
+		t.Error("a func declaration must not stay marked as a literal")
 	}
 }
 

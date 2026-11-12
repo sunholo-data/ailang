@@ -108,10 +108,10 @@ func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) 
 
 	// Check for explicit effect annotation from AST
 	// M-CAPABILITY-BUDGETS: First check for full annotations with budgets
-	if effectAnnots := tc.effectAnnotsFull[lam.ID()]; len(effectAnnots) > 0 {
-		// Use full annotations with budgets
+	if effectAnnots, explicit := tc.effectAnnotsFull[lam.ID()]; explicit {
+		// Use full annotations with budgets (an empty entry is a literal's `! {}`)
 		var err error
-		funcEffectRow, err = ElaborateEffectRowWithBudgets(effectAnnots)
+		funcEffectRow, err = declaredEffectRow(effectAnnots)
 		if err != nil {
 			return nil, oldEnv, fmt.Errorf("invalid effect annotation at %s: %w", lam.Span(), err)
 		}

@@ -14,7 +14,9 @@ import (
 // lambdaHasEffectAnnotation reports whether the given lambda carried an explicit
 // `! {...}` effect annotation in the surface syntax (with or without budgets).
 func lambdaHasEffectAnnotation(tc *CoreTypeChecker, lam *core.Lambda) bool {
-	return len(tc.effectAnnotsFull[lam.ID()]) > 0 || len(tc.effectAnnots[lam.ID()]) > 0
+	// A present, EMPTY entry is a function literal's explicit `! {}` (#2238).
+	_, explicit := tc.effectAnnotsFull[lam.ID()]
+	return explicit || len(tc.effectAnnots[lam.ID()]) > 0
 }
 
 // DeclaredLambdaEffectRow returns the ORIGINAL source-declared effect row of an

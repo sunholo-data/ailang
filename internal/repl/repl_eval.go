@@ -55,6 +55,14 @@ func (r *REPL) ProcessExpression(input string, out io.Writer) {
 	// Step 3: Type check with constraints
 	typeChecker := types.NewCoreTypeCheckerWithInstances(r.instEnv)
 	typeChecker.EnableTraceDefaulting(r.config.TraceDefaulting)
+	// The annotations the elaborator recorded, as the pipelines pass them
+	// (#2238 review): without them the prompt checked `let f: int -> int = \x. 0
+	// in f("s")` and every annotated function literal as if unannotated.
+	typeChecker.SetParamTypeAnnotations(elaborator.GetParamTypeAnnotations())
+	typeChecker.SetReturnTypeAnnotations(elaborator.GetReturnTypeAnnotations())
+	typeChecker.SetLetTypeAnnotations(elaborator.GetLetTypeAnnotations())
+	typeChecker.SetLiteralLambdas(elaborator.GetLiteralLambdas())
+	typeChecker.SetEffectAnnotationsFull(elaborator.GetEffectAnnotationsFull())
 
 	typedNode, updatedEnv, qualType, constraints, err := typeChecker.InferWithConstraints(coreExpr, r.typeEnv)
 	if err != nil {

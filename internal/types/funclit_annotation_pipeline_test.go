@@ -87,6 +87,43 @@ export func main() -> () ! {IO} {
 			wantErr: "int vs string",
 		},
 		// --- accepted: correct programs that must keep checking ---
+		// --- an explicit `! {}` is an annotation (review of #2289: d02, d04) ---
+		{
+			name: "explicit_pure_literal_that_prints",
+			src: `module m/main
+export func main() -> () ! {IO} {
+  let f = func(x: int) -> int ! {} { println("side"); x };
+  println(show(f(1)))
+}`,
+			wantErr: "uses effects not declared",
+		},
+		{
+			name: "explicit_pure_literal_calling_an_IO_callback",
+			src: `module m/main
+export func main() -> () ! {IO} {
+  let run = func(g: int -> () ! {IO}) -> () ! {} { g(1) };
+  run(\n. println(show(n)))
+}`,
+			wantErr: "uses effects not declared",
+		},
+		{
+			// motoko-fork localannot shape: a lambda is atomic, so ANF leaves it
+			// directly in the record; the annotation check must still reach it.
+			name: "explicit_pure_literal_stored_in_a_record",
+			src: `module m/main
+type W = { f: (int) -> int }
+export func main() -> () ! {IO} {
+  let w: W = { f: func(n: int) -> int ! {} { println("side"); n } };
+  println(show(w.f(1)))
+}`,
+			wantErr: "uses effects not declared",
+		},
+		{
+			name: "explicit_pure_literal_that_is_pure",
+			src: `module m/main
+import std/list (map)
+export func main() -> () ! {IO} = println(show(map(func(x: int) -> int ! {} { x + 1 }, [1, 2])))`,
+		},
 		{
 			name: "foldl_callback",
 			src: `module m/main

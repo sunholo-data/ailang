@@ -11,11 +11,55 @@ type effectValueLookup func(uint64) (types.Type, bool)
 type latentMaskLookup func(uint64) (types.ApplicationEffects, bool)
 
 type effectCollector struct {
-	typeInfo    types.CoreTypeInfo
-	declared    map[string]*types.Row
-	maskLookup  latentMaskLookup
-	valueLookup effectValueLookup
-	invariant   *error
+	typeInfo     types.CoreTypeInfo
+	declared     map[string]*types.Row
+	maskLookup   latentMaskLookup
+	valueLookup  effectValueLookup
+	lambdaLookup declaredLambdaLookup // source-declared lambda rows (#2238)
+	invariant    *error
+}
+
+// lambdaOwnTailDropped removes from a lambda's body effects a row variable that
+// belongs to the lambda itself: the tail it declares
+// (`func(g: int -> () ! {e}) -> () ! {e} { g(1) }`) or a row variable of its
+// own parameter types (`func(g: int -> () ! {e}) -> () { g(1) }`). Such a
+// variable is the literal's effect polymorphism: every call of the literal
+// instantiates it, and the call is charged what it resolves to there —
+// exactly as a top-level `! {e}` function's own tail stops at its declaration,
+// and as an unannotated parameter's implicit row already was (ImplicitOwnedTail).
+// Left in, it surfaced as an unresolved tail of the ENCLOSING function once the
+// literal's parameter annotations were enforced (#2238). Labels stay.
+func (c *effectCollector) lambdaOwnTailDropped(lam *core.Lambda, body *types.Row) *types.Row {
+	if body == nil || body.Tail == nil || !c.lambdaOwnsRow(lam, body.Tail) {
+		return body
+	}
+	out := cloneEffectRow(body)
+	out.Tail = nil
+	return out
+}
+
+func (c *effectCollector) lambdaOwnsRow(lam *core.Lambda, tail *types.RowVar) bool {
+	if c.lambdaLookup != nil {
+		if declared, ok := c.lambdaLookup(lam.ID()); ok && declared != nil && declared.Tail != nil && declared.Tail.Equals(tail) {
+			return true
+		}
+	}
+	t, ok := c.typeInfo.Get(lam.ID())
+	if !ok {
+		return false
+	}
+	fn, ok := t.(*types.TFunc2)
+	if !ok {
+		return false
+	}
+	for _, p := range fn.Params {
+		for _, name := range types.FreeEffectRowVarNames(p) {
+			if name == tail.Name {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func collectRequiredEffects(expr core.CoreExpr, typeInfo types.CoreTypeInfo, declared map[string]*types.Row) *types.Row {

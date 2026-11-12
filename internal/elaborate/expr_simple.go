@@ -143,6 +143,14 @@ func (e *Elaborator) normalizeFuncLit(funcLit *ast.FuncLit) (core.CoreExpr, erro
 	}
 	e.recordSignatureAnnots(coreLam, funcLit.Params, funcLit.ReturnType, true)
 
+	// An explicit `! {}` (non-nil, empty — the parser distinguishes it from no
+	// annotation) is an annotation: the literal is declared pure, and the
+	// checker enforces it like any other declared row (#2238 review). Recorded
+	// as a present, empty entry.
+	if funcLit.Effects != nil && len(funcLit.Effects) == 0 {
+		e.effectAnnotsFull[coreLam.ID()] = []ast.EffectAnnotation{}
+	}
+
 	// Store effect annotations if present
 	if len(funcLit.Effects) > 0 {
 		// Extract effect names for backward compatibility
