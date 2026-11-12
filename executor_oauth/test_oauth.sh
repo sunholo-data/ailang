@@ -147,6 +147,14 @@ REFRESH=$(sed -n 's/.*"refresh_token":"\([^"]*\)".*/\1/p' <<<"$TOK")
 [[ "$ACCESS" == ax_* && ${#ACCESS} -eq 67 && -n "$REFRESH" && "$TOK" == *'"expires_in":3600'* ]] && pass "token issued (ax_, 1h)" || fail "token issued" "$TOK"
 R=$(mcp "$ACCESS" tools/call "$EVAL")
 [[ "$R" == *HTTP200* && "$R" == *42* ]] && pass "token runs ailang_eval" || fail "token runs ailang_eval" "$R"
+# A listed connector must not return server paths or digests (OpenAI app
+# review): the supervisor's policy echo keeps caps/limits/decision only.
+[[ "$R" == *caps* && "$R" == *decision* && "$R" != *executor-policy.toml* && "$R" != *digest* ]] \
+  && pass "run result names no policy path or digest" || fail "run result names no policy path or digest" "$R"
+R=$(mcp "$ACCESS" tools/call '{"name":"roadmap","arguments":{}}')
+# The snapshot has no roadmap.json, so this is the missing-file error: it names
+# the file relative to the snapshot root, never the server's directory.
+[[ "$R" == *'missing:unscoped/roadmap.json'* && "$R" != *"$ROOT"* && "$R" != *'snapshot/'* ]] && pass "docs tool errors name no server path" || fail "docs tool errors name no server path" "$(tail -c 300 <<<"$R")"
 R=$(mcp "ax_0000000000000000000000000000000000000000000000000000000000000000" tools/call "$EVAL")
 [[ "$R" == *HTTP401* ]] && pass "unknown token -> 401" || fail "unknown token -> 401" "$R"
 # The tool sees the signed-in account (_auth, from the verifier), and a

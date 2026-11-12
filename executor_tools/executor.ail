@@ -21,8 +21,8 @@ import std/crypto (sha256Hex)
 import std/debug (log)
 import std/env (getEnvOr)
 import std/fs (mkdirAllResult, writeFileResult, removeFileResult, removeDirResult)
-import std/json (Json, jo, kv, js, jb, jnum, jint, encode, decode, get, getString, getBool, getInt, getArray)
-import std/list (filter, length as listLength)
+import std/json (Json, JObject, jo, kv, js, jb, jnum, jint, encode, decode, get, getString, getBool, getInt, getArray)
+import std/list (filter, map, length as listLength)
 import std/option (Option, Some, None)
 import std/regex (compile, replaceAll)
 import std/process (exec, ProcessOutput, ProcessError, NotAllowed, NotFound, PermissionDenied, Timeout, OutputLimitExceeded, SpawnFailed, AbnormalExit)
@@ -69,9 +69,25 @@ pure func outputJson(out: ProcessOutput) -> Json = outputJsonIn(out, "")
 pure func scrubDir(s: string, dir: string) -> string =
   if dir == "" then s else replace(replace(s, "${dir}/", ""), "${substring(dir, 1, length(dir))}/", "")
 
--- outputJson with the request directory scrubbed from stdout and stderr.
+-- Keys of the supervisor's "policy: {json}" echo that name the server rather
+-- than the run: the policy file's path on this host, its digest, and the
+-- module-graph digest. A listed connector must not return internal paths or
+-- identifiers (OpenAI app review), so results drop them; caps, timeout,
+-- limits and the decision stay.
+pure func serverPolicyKey(k: string) -> bool = k == "policy" || k == "policy_digest" || k == "module_graph"
+
+export pure func publicPolicyLine(line: string) -> string =
+  if startsWith(line, "policy: ") then match decode(substring(line, 8, length(line))) {
+    Ok(JObject(fields)) => "policy: ${encode(JObject(filter(\f. !serverPolicyKey(f.key), fields)))}",
+    _ => line
+  } else line
+
+export pure func scrubPolicy(s: string) -> string = join("\n", map(publicPolicyLine, split(s, "\n")))
+
+-- outputJson with the request directory scrubbed from stdout and stderr, and
+-- the server-identifying policy keys dropped from stderr.
 pure func outputJsonIn(out: ProcessOutput, dir: string) -> Json =
-  jo([kv("ok", jb(out.exitCode == 0)), kv("exit_code", jnum(intToFloat(out.exitCode))), kv("stdout", js(scrubDir(toString(out.stdout), dir))), kv("stderr", js(scrubDir(toString(out.stderr), dir))), kv("truncated", jb(out.truncated))])
+  jo([kv("ok", jb(out.exitCode == 0)), kv("exit_code", jnum(intToFloat(out.exitCode))), kv("stdout", js(scrubDir(toString(out.stdout), dir))), kv("stderr", js(scrubPolicy(scrubDir(toString(out.stderr), dir)))), kv("truncated", jb(out.truncated))])
 
 -- First non-blank line of s, without the request directory and a leading
 -- "Error: ", clipped. Error text names <dir>/main.ail in several spellings.
