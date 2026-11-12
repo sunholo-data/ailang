@@ -1,19 +1,11 @@
 ---
 title: Privacy policy (hosted AILANG executor)
 description: What the hosted AILANG executor and docs server collect when you use them from Claude, ChatGPT or another AI assistant, why, for how long, and how to remove it.
-# DRAFT: not published. `draft: true` keeps this page out of production builds until Mark
-# (legal/GDPR owner) approves the wording, fills in the contact address, and deletes this line
-# and the next one. See design_docs/planned/v0_51_0/m-executor-directory-submission-kit.md §4.3.
-draft: true
 reviewed: 2026-11-12
 reviewBy: 2027-02-12
 ---
 
 # Privacy policy: hosted AILANG executor
-
-:::caution Draft
-This policy is a draft awaiting legal approval and is not yet in effect.
-:::
 
 **Last updated:** 2026-11-12
 
@@ -26,7 +18,7 @@ This policy covers two hosted services:
   with no sign-in.
 
 The services are operated by **Holosun ApS** (CVR 44324687), Denmark ("we"). Contact:
-**[CONTACT EMAIL: to be confirmed]**.
+[ailang@sunholo.com](mailto:ailang@sunholo.com).
 
 It does not cover the AI assistant you use the services from. Claude, ChatGPT, Gemini and other
 assistants handle your conversation, and the tool results we return to them, under their own

@@ -149,8 +149,11 @@ serves the same `ailang_*` tools over a local stdio MCP server.
 Remove the connector in the assistant to disconnect (Claude: Settings → **Connectors**; ChatGPT:
 **Plugins**). The access token it holds expires within an hour, and the executor keeps only digests
 of the tokens it issued, each until it expires (refresh tokens: 30 days). The code you run is never
-stored or logged. To delete your sign-in account, use `submit_feedback` or open an issue in the
-AILANG repository.
+stored or logged. To delete your sign-in account, email
+[ailang@sunholo.com](mailto:ailang@sunholo.com) from the address you sign in with.
+
+The [privacy policy](../legal/privacy.md) lists everything the executor and docs server keep and for
+how long; the [terms of use](../legal/terms.md) cover using them.
 
 ## Troubleshooting
 

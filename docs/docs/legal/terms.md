@@ -1,19 +1,11 @@
 ---
 title: Terms of use (hosted AILANG executor)
 description: The terms for using the hosted AILANG executor and docs server, including from Claude, ChatGPT or another AI assistant.
-# DRAFT: not published. `draft: true` keeps this page out of production builds until Mark
-# (legal owner) approves the wording, fills in the contact address, and deletes this line
-# and the next one. See design_docs/planned/v0_51_0/m-executor-directory-submission-kit.md §4.3.
-draft: true
 reviewed: 2026-11-12
 reviewBy: 2027-02-12
 ---
 
 # Terms of use: hosted AILANG executor
-
-:::caution Draft
-These terms are a draft awaiting legal approval and are not yet in effect.
-:::
 
 **Last updated:** 2026-11-12
 
@@ -52,4 +44,4 @@ to these terms. The [privacy policy](./privacy.md) explains what we collect.
    services at any time and ask us to delete your account.
 10. **Law.** Danish law governs these terms, and the courts of Denmark have jurisdiction, without
     limiting any mandatory consumer protection where you live.
-11. **Contact.** **[CONTACT EMAIL: to be confirmed]**
+11. **Contact.** [ailang@sunholo.com](mailto:ailang@sunholo.com)
