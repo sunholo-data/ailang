@@ -99,15 +99,6 @@ func (p *providerAdapter) setExpectedCalls(n int) {
 	p.expectedCalls = n
 }
 
-// setAttribution sets OpenRouter app-attribution overrides. Retained for the
-// app-attribution-override feature (cc726339); the caller that wires it is not
-// yet in place, so it is intentionally unused for now.
-//
-//nolint:unused // setter awaiting its caller (attribution-override feature)
-func (p *providerAdapter) setAttribution(attr *ai.Attribution) {
-	p.attribution = attr
-}
-
 // setMaxTokens overrides the per-request output budget.
 // Pass 0 to fall back to defaultMaxTokens.
 // setCorrelation attaches OpenRouter Broadcast correlation identifiers, so a
