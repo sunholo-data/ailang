@@ -14,7 +14,7 @@ export func main() -> () ! {IO} =
   let add = \x. \y. x + y in
   let _ = println(show(add(3)(7))) in
   -- Multi-parameter function via currying
-  let multiply = func(x: int) -> int {
+  let multiply = func(x: int) -> int -> int {
     func(y: int) -> int {
       x * y
     }

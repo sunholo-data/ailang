@@ -55,6 +55,14 @@ func (r *REPL) ProcessExpression(input string, out io.Writer) {
 	// Step 3: Type check with constraints
 	typeChecker := types.NewCoreTypeCheckerWithInstances(r.instEnv)
 	typeChecker.EnableTraceDefaulting(r.config.TraceDefaulting)
+	// The annotations the elaborator recorded, as the pipelines pass them
+	// (#2238 review): without them the prompt checked `let f: int -> int = \x. 0
+	// in f("s")` and every annotated function literal as if unannotated.
+	typeChecker.SetParamTypeAnnotations(elaborator.GetParamTypeAnnotations())
+	typeChecker.SetReturnTypeAnnotations(elaborator.GetReturnTypeAnnotations())
+	typeChecker.SetLetTypeAnnotations(elaborator.GetLetTypeAnnotations())
+	typeChecker.SetLiteralLambdas(elaborator.GetLiteralLambdas())
+	typeChecker.SetEffectAnnotationsFull(elaborator.GetEffectAnnotationsFull())
 
 	typedNode, updatedEnv, qualType, constraints, err := typeChecker.InferWithConstraints(coreExpr, r.typeEnv)
 	if err != nil {
@@ -122,8 +130,13 @@ func (r *REPL) ProcessExpression(input string, out io.Writer) {
 
 	// Step 5.4.5: Validate effects (M-SOUNDNESS)
 	// Note: REPL doesn't preserve Surface AST, so we pass nil
-	// Effect validation is primarily for module files where explicit declarations matter
-	if err := pipeline.ValidateEffects(nil, elaboratedProg, typeChecker.CoreTI); err != nil {
+	// Effect validation is primarily for module files where explicit declarations matter.
+	// The same call as the file pipelines (#2238 review): the declared-lambda
+	// lookup enables the literal-annotation pass, so a literal's `! {}` holds at
+	// the prompt as in a file, and the application records give that pass each
+	// call's settled row (without them it read raw callee types and reported a
+	// valid row-polymorphic call as an unresolved tail).
+	if err := pipeline.ValidateEffectsWithCalls(nil, elaboratedProg, typeChecker.CoreTI, typeChecker.ApplicationEffects, typeChecker.DeclaredLambdaEffectRow, typeChecker.EffectValueType); err != nil {
 		fmt.Fprintf(out, "%s: %v\n", red("Effect checking error"), err)
 		return
 	}

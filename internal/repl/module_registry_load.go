@@ -291,6 +291,7 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	if paramAnnots := elaborator.GetParamTypeAnnotations(); len(paramAnnots) > 0 {
 		typeChecker.SetParamTypeAnnotations(paramAnnots)
 	}
+	typeChecker.SetLiteralLambdas(elaborator.GetLiteralLambdas()) // #2238
 	if returnAnnots := elaborator.GetReturnTypeAnnotations(); len(returnAnnots) > 0 {
 		typeChecker.SetReturnTypeAnnotations(returnAnnots)
 	}

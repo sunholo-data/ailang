@@ -66,38 +66,45 @@ func TestNominalIdentity_RunsOnBothEngines(t *testing.T) {
 					t.Fatal(err)
 				}
 			}
-			res, err := pipeline.Run(pipeline.Config{Mode: pipeline.ModeCheck, NoCache: true}, pipeline.Source{Filename: filepath.Join(root, c.entry)})
-			if err != nil || len(res.Errors) > 0 {
-				t.Fatalf("compile: %v %v", err, res.Errors)
-			}
 			engines := []string{"eval"}
 			if c.strict {
 				engines = append(engines, "strict-bytecode")
 			}
-			for _, engine := range engines {
-				var out bytes.Buffer
-				rt := runtime.NewModuleRuntime(".")
-				if res.DictReg != nil {
-					rt.GetEvaluator().SetDictionaryRegistry(res.DictReg)
-				}
-				ctx := effects.NewEffContext(nil)
-				ctx.Grant(effects.Capability{Name: "IO"})
-				ctx.IOWriter = &out
-				rt.GetEvaluator().SetEffContext(ctx)
-				ctx.FnCaller = rt.GetEvaluator().CallValue
-				ctx.FnCallerN = rt.GetEvaluator().CallValueN
-				err := ExecuteModuleEntrypoint(rt, ModuleExecParams{
-					Filename: filepath.Join(root, c.entry), Iface: res.Interface, Modules: res.Modules, Entry: "main", ArgsJSON: "null",
-					NoPrint: true, Quiet: true, PipelineResult: &res,
-					BytecodeMode: engine != "eval", StrictBytecode: engine != "eval",
-				})
-				if err != nil {
-					t.Fatalf("%s: %v", engine, err)
-				}
-				if out.String() != c.want {
-					t.Fatalf("%s: stdout = %q, want %q", engine, out.String(), c.want)
-				}
-			}
+			runOnEngines(t, filepath.Join(root, c.entry), c.want, engines)
 		})
+	}
+}
+
+// runOnEngines compiles entry and runs its main on each engine ("eval",
+// "strict-bytecode"), requiring stdout == want on every one.
+func runOnEngines(t *testing.T, entry, want string, engines []string) {
+	t.Helper()
+	res, err := pipeline.Run(pipeline.Config{Mode: pipeline.ModeCheck, NoCache: true}, pipeline.Source{Filename: entry})
+	if err != nil || len(res.Errors) > 0 {
+		t.Fatalf("compile: %v %v", err, res.Errors)
+	}
+	for _, engine := range engines {
+		var out bytes.Buffer
+		rt := runtime.NewModuleRuntime(".")
+		if res.DictReg != nil {
+			rt.GetEvaluator().SetDictionaryRegistry(res.DictReg)
+		}
+		ctx := effects.NewEffContext(nil)
+		ctx.Grant(effects.Capability{Name: "IO"})
+		ctx.IOWriter = &out
+		rt.GetEvaluator().SetEffContext(ctx)
+		ctx.FnCaller = rt.GetEvaluator().CallValue
+		ctx.FnCallerN = rt.GetEvaluator().CallValueN
+		err := ExecuteModuleEntrypoint(rt, ModuleExecParams{
+			Filename: entry, Iface: res.Interface, Modules: res.Modules, Entry: "main", ArgsJSON: "null",
+			NoPrint: true, Quiet: true, PipelineResult: &res,
+			BytecodeMode: engine != "eval", StrictBytecode: engine != "eval",
+		})
+		if err != nil {
+			t.Fatalf("%s: %v", engine, err)
+		}
+		if out.String() != want {
+			t.Fatalf("%s: stdout = %q, want %q", engine, out.String(), want)
+		}
 	}
 }

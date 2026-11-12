@@ -48,3 +48,18 @@
   fix: "motoko DST ADR-001 LIMITATION 3/4/5 probes flip to their FIXED UPSTREAM branch; re-read ADR fact 1 / 2(a)"
   republish: []
   expires: v0.61.0
+
+# #2238 review: an explicit `! {}` on a function literal is enforced, also for a
+# literal stored in a record. 21 motoko-fork DST fixtures under
+# scripts/dst/fixtures/adr001_boundary/ (and gate/) store a `! {}` lambda that
+# prints and invoke it through a pure slot — run_declared_vs_performed.sh group 3,
+# "COMPILER-ACCEPTED ESCAPES ... the D2 boundary must reject every one". The
+# compiler now rejects them. Count measured by checking every file with a `! {}`
+# literal in a clone of the snapshot ref (f73603e), not by a gate run.
+- change: "#2238 explicit ! {} on a function literal enforced (incl. literals in records)"
+  code: EFFECT/undeclared
+  corpus: motoko-fork
+  max: 21
+  fix: "the group-3 escape fixtures (n_pure_passthru_captured, q_named_partial, q_named_shadow, n_dec_prepare_escape, computed_list, delegate_shadow, v7_delegate_*, gate/fx_* …) move to the compiler-rejected group, as their own 'closed' texts anticipate"
+  republish: []
+  expires: v0.61.0

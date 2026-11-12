@@ -190,4 +190,4 @@ Still open:
   on dev); import the type by name to pin it. A constructor pattern's argument count is not
   checked against the constructor (#2243, pre-existing).
 - An uppercase name in a type-parameter list (`func id[T](x: T)`) is not a type variable: `T`
-  is a type constructor (#2240). Inline function-literal annotations are not enforced (#2238).
+  is a type constructor (#2240).
