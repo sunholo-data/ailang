@@ -13,16 +13,26 @@
 --
 -- One JSON log line per message (event "executor_a2a"): outcome, messages
 -- added, error code, duration and request size. Neither the request nor the answer is logged.
+--
+-- A daily cap bounds the model spend: at most EXECUTOR_A2A_DAILY_CAP messages
+-- (default 150) per UTC day, counted per instance in EXECUTOR_A2A_STATE_DIR
+-- (default /tmp/executor_a2a), so the service total is at most the cap times
+-- its max instances. A message over the cap gets a refusal that says so and
+-- costs no model call. A restarted instance starts its count again; the
+-- project's budget alert is the backstop. Per-user limits and paid tiers need
+-- the caller's identity in the handler (a later change).
 module executor_tools/agent
 import executor_tools/executor (ailangCheck, ailangRun, ailangPrompt)
 import std/ai (Message, ToolCall, ToolSchema, AIError, runTools)
 import std/clock (now)
 import std/debug (log)
+import std/env (getEnvOr)
+import std/fs (fileExists, readFileResult, writeFileResult, mkdirAllResult)
 import std/json (Json, jo, kv, js, jnum, encode, decode, getString)
 import std/list (last, length as listLength)
 import std/option (Option, Some, None)
 import std/result (Result, Ok, Err)
-import std/string (concat, length, trim)
+import std/string (concat, length, trim, stringToInt)
 
 -- Model turns per message. Each turn that calls tools is one step; a working
 -- program usually takes three (check, run, answer), a repair two more.
@@ -30,6 +40,61 @@ pure func maxTurns() -> int = 10
 
 -- Requests longer than this are refused before any model call.
 pure func maxRequestChars() -> int = 20000
+
+-- Messages per UTC day per instance when EXECUTOR_A2A_DAILY_CAP is unset.
+pure func defaultDailyCap() -> int = 150
+
+-- The cap from its env value: a non-negative integer, else 0 (refuse every
+-- message), so a typo closes the agent instead of removing the limit.
+export pure func parseCap(raw: string) -> int = match stringToInt(trim(raw)) {
+  Some(n) => clampCap(n),
+  None => 0
+}
+
+-- A negative cap is 0: closed, never unlimited.
+export pure func clampCap(n: int) -> int
+ensures { result >= 0 && (n < 0 || result == n) } = if n >= 0 then n else 0
+
+-- A message is admitted while today's count is below the cap.
+export pure func underCap(count: int, cap: int) -> bool
+ensures { result == (count < cap) } = count < cap
+
+-- The UTC day number of a millisecond timestamp.
+export pure func utcDay(ms: int) -> int
+requires { ms >= 0 }
+ensures { result >= 0 } = ms / 86400000
+
+func dailyCap() -> int ! {Env} = parseCap(getEnvOr("EXECUTOR_A2A_DAILY_CAP", show(defaultDailyCap())))
+
+func countPath(day: int) -> string ! {Env} = "${getEnvOr("EXECUTOR_A2A_STATE_DIR", "/tmp/executor_a2a")}/count-${show(day)}"
+
+-- Today's count: 0 when no message was counted yet today.
+func countToday(path: string) -> int ! {FS} =
+  if fileExists(path) == false then 0 else match readFileResult(path) {
+    Ok(text) => match stringToInt(trim(text)) {
+      Some(n) => n,
+      None => 0
+    },
+    Err(_) => 0
+  }
+
+-- Count one message, or refuse it: Ok(count) when admitted. A count that
+-- cannot be written refuses the message, so the cap never silently lapses.
+func admit(t0: int) -> Result[int, string] ! {Env, FS} {
+  let cap = dailyCap()
+  let path = countPath(utcDay(t0))
+  let count = countToday(path)
+  if underCap(count, cap) == false then Err("daily_cap") else {
+    let _ = mkdirAllResult(getEnvOr("EXECUTOR_A2A_STATE_DIR", "/tmp/executor_a2a"))
+    match writeFileResult(path, show(count + 1)) {
+      Ok(_) => Ok(count + 1),
+      Err(_) => Err("count_unwritable")
+    }
+  }
+}
+
+pure func capRefusal(why: string) -> string =
+  if why == "daily_cap" then "The AILANG executor agent has answered as many requests as it can today. The limit resets at 00:00 UTC; please try again then." else "The AILANG executor agent cannot take requests right now (its usage counter is unavailable). Please try again later."
 
 pure func instructions() -> string =
   "You are the AILANG executor agent. The user asks for something to be computed, written or explained in AILANG. Write an AILANG program, call ailang_check on it, fix what the report says, then call ailang_run and use its real output.\n\nRules:\n- Always check before you run. Programs need `module main` and `export func main() -> () ! {IO}`; the sandbox grants IO only (no network, files, clock or environment) for 60 seconds.\n- Never state output you did not get from ailang_run.\n- If it still fails after a few repairs, say what failed and show the last error.\n- Answer in this order: one or two sentences with the result, the final program in an ```ailang block, then its output in a ``` block.\n\nThe AILANG language reference follows. Use it instead of guessing syntax from other languages.\n\n"
@@ -85,24 +150,33 @@ export func ailangTask(text: string) -> string ! {AI, Clock, Debug, Env, FS, Pro
   if size > maxRequestChars() then {
     logLine("too_large", 0, "", t0, size)
     "The request is too long (${show(size)} characters; the limit is ${show(maxRequestChars())})."
-  } else {
-    let messages = [msg("system", concat([instructions(), reference()])), msg("user", text)]
-    match runTools("", messages, tools(), dispatch, maxTurns()) {
-      Err(e) => {
-        logLine(if e.code == "Internal" then "turn_limit" else "model_error", 0, e.code, t0, size)
-        stopped(e)
-      },
-      Ok(all) => {
-        let added = listLength(all) - listLength(messages)
-        match finalAnswer(all) {
-          Ok(a) => {
-            logLine("ok", added, "", t0, size)
-            a
-          },
-          Err(why) => {
-            logLine("no_answer", added, "", t0, size)
-            "Sorry: ${why}."
-          }
+  } else match admit(t0) {
+    Err(why) => {
+      logLine(why, 0, "", t0, size)
+      capRefusal(why)
+    },
+    Ok(_) => answer(text, t0, size)
+  }
+}
+
+-- The model loop for an admitted message.
+func answer(text: string, t0: int, size: int) -> string ! {AI, Clock, Debug, Env, FS, Process, Rand} {
+  let messages = [msg("system", concat([instructions(), reference()])), msg("user", text)]
+  match runTools("", messages, tools(), dispatch, maxTurns()) {
+    Err(e) => {
+      logLine(if e.code == "Internal" then "turn_limit" else "model_error", 0, e.code, t0, size)
+      stopped(e)
+    },
+    Ok(all) => {
+      let added = listLength(all) - listLength(messages)
+      match finalAnswer(all) {
+        Ok(a) => {
+          logLine("ok", added, "", t0, size)
+          a
+        },
+        Err(why) => {
+          logLine("no_answer", added, "", t0, size)
+          "Sorry: ${why}."
         }
       }
     }
