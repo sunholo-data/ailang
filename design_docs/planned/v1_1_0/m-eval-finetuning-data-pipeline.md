@@ -220,6 +220,37 @@ Supersedes §"Data extraction" and §R4 where they conflict. The binding constra
 5. **Tool mapping:** every trajectory is converted to **pi's tool schema** (the harness it will run in). Claude Code Edit/Write/Bash, opencode and motoko tools are mapped to pi equivalents, and unmappable turns are dropped.
 6. **No teaching prompt in training inputs.** The point is a model that does not need it; a slim prompt (G4) may be included as the system turn.
 
+### Held-out amendment (2026-11-11)
+
+**Approved by Mark 2026-11-11, to be recorded as D-FT-17** (made in PR #2229, M-V1-SHOW-TOTAL; no
+pilot data, config or run touched). Reasons: under total `show` the old task's natural solution no
+longer prints its expected output, so it would grade the format change rather than the model; and
+both earlier pilots failed the old task (a compile error and the 1-hour limit), so no existing paired
+comparison is affected. Pilot-4 is compared with earlier pilots on the 23 shared tasks, with
+`run_length_encode_v2` reported separately.
+
+`run_length_encode` was retired to `benchmarks/retired/`: its expected output was the old lossy
+`show` of a `[(int, string)]`. Its replacement `run_length_encode_v2` is the same task with an
+explicit output format. Left alone, that broke the held-out set both ways: the pilot scripts pass
+core + stretch to `--benchmarks`, which loads `benchmarks/<id>.yml`, so the old id no longer loads;
+and the exclusion matched exact ids, so v2 solutions (a near-duplicate of a held-out task) could
+enter training.
+
+Change: `tools/finetune/heldout.json` stretch now names `run_length_encode_v2`; a new key,
+`retired_excluded: ["run_length_encode"]`, keeps the old id's banked solutions out of training.
+Who reads `heldout.json`, and for what:
+- TRAINING exclusion (core + stretch + retired_excluded): `extract_lang.load_heldout` (one added
+  term), used by onpolicy_pairs, stale_fix, probe_after_read, synth_episodes and now
+  `extract_traj.py` (which re-read the file itself before); the inline guard in
+  `collect_onpolicy.sh` (one added term).
+- EVAL list (core + stretch, unchanged): `pilot*_run.sh`, `weekend_pilot.sh`, and
+  `summarize_pilot.py` (core only).
+
+Tests in `internal/eval_harness/finetune_heldout_test.go` run each training reader's real entry
+point against a fixture (network, model and compiler calls stubbed, the held-out filter not) and
+fail if any admits a held-out, retired or successor id; they also fail if a retired id is in the
+eval list or any version (`_vN`) of a held-out task is missing from the exclusion.
+
 ### Generation (only where the inventory has gaps)
 
 - **G1, nothing for protocol or repairs.** Existing trajectories and repairs cover them.

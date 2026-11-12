@@ -1679,7 +1679,30 @@
         "IO"
       ],
       "expected": {
-        "stdout": "true\nfalse\n[a=1, bb=22]\n[key=42, key, 42]\n1:a 2:b\n[x ,  y]\n",
+        "stdout": "true\nfalse\n[\"a=1\", \"bb=22\"]\n[\"key=42\", \"key\", \"42\"]\n1:a 2:b\n[\"x \", \" y\"]\n",
+        "exit_code": 0
+      }
+    },
+    {
+      "path": "runnable/show_total.ail",
+      "status": "working",
+      "tags": [
+        "show",
+        "string",
+        "interpolation",
+        "stdlib"
+      ],
+      "description": "show is total and unambiguous: a top-level string stays bare, nested strings are quoted, nothing is elided; showPreview for bounded output.",
+      "modules": [
+        "std/io",
+        "std/list",
+        "std/string"
+      ],
+      "requires": [
+        "IO"
+      ],
+      "expected": {
+        "stdout": "top-level strings stay bare\n[\"a\", \"b, c\"]\nSome(\"x\")\n{name: \"Ann \\\"A\\\"\", tags: [\"\", \"x\"]}\ninterpolated: [\"a\", \"b, c\"]\njoined explicitly: a | b, c\nNode(Node(Node(Node(Leaf, 1, Leaf), 2, Leaf), 3, Leaf), 4, Leaf)\n[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29]\n[0, 1, 2, 3, 4, 5, 6…(+4870 chars)\n",
         "exit_code": 0
       }
     },
@@ -2534,7 +2557,7 @@
       "description": "Structured Map keys: tuple, record and ADT-constructor keys with lookup, member and canonical key order.",
       "modules": ["std/io", "std/map"],
       "expected": {
-        "stdout": "tuple key (1, 1): Some(2)\nmissing (5, 5): false\nkeys: [(0, 0), (0, 1), (1, 1)]\nrecord key: Some(lead)\nADT keys: [(Blue, 3), (Green, 2), (Red, 1)]\n",
+        "stdout": "tuple key (1, 1): Some(2)\nmissing (5, 5): false\nkeys: [(0, 0), (0, 1), (1, 1)]\nrecord key: Some(\"lead\")\nADT keys: [(Blue, 3), (Green, 2), (Red, 1)]\n",
         "exit_code": 0
       }
     },
@@ -2545,7 +2568,7 @@
       "description": "Difference array, histogram and per-bucket max with std/array.accumulate (one copy, O(n + k)).",
       "modules": ["std/array", "std/io", "std/list", "std/string"],
       "expected": {
-        "stdout": "coverage: [1, 1, 2, 1, 2, 1, 0]\nhistogram a/b/c: #[3, 2, 1]\nmax per bucket: #[abcd, x]\n",
+        "stdout": "coverage: [1, 1, 2, 1, 2, 1, 0]\nhistogram a/b/c: #[3, 2, 1]\nmax per bucket: #[\"abcd\", \"x\"]\n",
         "exit_code": 0
       }
     },
@@ -2881,7 +2904,7 @@
         "std/simhash"
       ],
       "expected": {
-        "stdout": "namespaces: [docs]\nentry count: 3\nquery hits: 3\n",
+        "stdout": "namespaces: [\"docs\"]\nentry count: 3\nquery hits: 3\n",
         "exit_code": 0
       }
     },
@@ -3612,7 +3635,7 @@
         "IO"
       ],
       "expected": {
-        "stdout": "[(5, a), (4, b)] true abab aGk= 6\n",
+        "stdout": "[(5, \"a\"), (4, \"b\")] true abab aGk= 6\n",
         "exit_code": 0
       }
     },
@@ -3991,7 +4014,7 @@
       "tags": ["yaml", "json", "conversion", "anchors", "error-handling"],
       "description": "Convert YAML text to JSON text with yamlToJson, including merge keys and a malformed-input error, and compare with yaml decode",
       "modules": ["std/json", "std/list", "std/string", "std/yaml"],
-      "expected": {"stdout": "json: {\"name\":\"demo\",\"version\":2,\"enabled\":\"yes\",\"owner\":{\"team\":\"infra\"},\"ports\":[80,443]}\njson: {\"base\":{\"retries\":3,\"timeout\":30},\"prod\":{\"retries\":3,\"timeout\":60}}\nerror: yaml: yaml: line 1: did not find expected ',' or ']'\nkeys: region, zones\nsame value: true\nregion: Some(eu-west)\n", "exit_code": 0}
+      "expected": {"stdout": "json: {\"name\":\"demo\",\"version\":2,\"enabled\":\"yes\",\"owner\":{\"team\":\"infra\"},\"ports\":[80,443]}\njson: {\"base\":{\"retries\":3,\"timeout\":30},\"prod\":{\"retries\":3,\"timeout\":60}}\nerror: yaml: yaml: line 1: did not find expected ',' or ']'\nkeys: region, zones\nsame value: true\nregion: Some(\"eu-west\")\n", "exit_code": 0}
     },
     {
       "path": "runnable/stdlib/yaml_encode_update.ail",
@@ -4063,7 +4086,7 @@
       "tags": ["stdlib", "std/iter", "std/list", "fold", "early-exit", "FoldStep", "adt"],
       "description": "std/iter FoldStep (Continue/Stop) with isStop and fromFoldStep driving a fold that stops early: budget-limited sum and collect-until-marker",
       "modules": ["std/iter", "std/list"],
-      "expected": {"stdout": "budget 100: stopped early at 95\nbudget 500: finished with 155\nwords before STOP: [alpha, beta]\nhit marker: true\n", "exit_code": 0}
+      "expected": {"stdout": "budget 100: stopped early at 95\nbudget 500: finished with 155\nwords before STOP: [\"alpha\", \"beta\"]\nhit marker: true\n", "exit_code": 0}
     },
     {
       "path": "runnable/stdlib/datetime_time_of_day.ail",
@@ -4103,7 +4126,7 @@
       "tags": ["stdlib", "std/fs", "std/bytes", "std/string", "filesystem", "append", "rename", "effects"],
       "description": "Append-only log rotation in a relative scratch dir: appendFile, appendFileBytes, renameFile, readFile, listDir, then removeFileResult/removeDirResult cleanup",
       "modules": ["std/bytes", "std/fs", "std/list", "std/string"],
-      "expected": {"stdout": "before rotation: 3 lines\nfiles: [app.log, app.log.1]\napp.log.1:\n  boot\n  request /home\n  request /about\napp.log:\n  after rotate\ncleaned up\n", "exit_code": 0}
+      "expected": {"stdout": "before rotation: 3 lines\nfiles: [\"app.log\", \"app.log.1\"]\napp.log.1:\n  boot\n  request /home\n  request /about\napp.log:\n  after rotate\ncleaned up\n", "exit_code": 0}
     },
     {
       "path": "runnable/stdlib/fs_mkdir_lock.ail",
@@ -4306,7 +4329,7 @@
       "status": "working",
       "tags": ["tuples", "pattern-matching", "fold"],
       "description": "Tuple types and values, one-pass min/max/sum fold, destructuring tuples with match (no let (a, b) = t)",
-      "expected": {"stdout": "min 1 max 9 mean 5\npairs: [(a, 1), (b, 2), (c, 3)]\nswapped: [(1, a), (2, b), (3, c)]\nlabelled: [a=1, b=2, c=3]\nequal: true\n", "exit_code": 0},
+      "expected": {"stdout": "min 1 max 9 mean 5\npairs: [(\"a\", 1), (\"b\", 2), (\"c\", 3)]\nswapped: [(1, \"a\"), (2, \"b\"), (3, \"c\")]\nlabelled: [\"a=1\", \"b=2\", \"c=3\"]\nequal: true\n", "exit_code": 0},
       "modules": ["std/list"]
     },
     {
@@ -4346,7 +4369,7 @@
       "status": "working",
       "tags": ["polymorphism", "generics", "type-parameters", "adt"],
       "description": "Functions and ADTs with type parameters [a, b] reused across ints, strings and records",
-      "expected": {"stdout": "first: id\nswapped first: 7\nfirstOr ints: 99 strings: x\nfirstOr record: Ann\nlastOf: Some(3) Some(solo)\npairUp firsts: [a, b]\n", "exit_code": 0},
+      "expected": {"stdout": "first: id\nswapped first: 7\nfirstOr ints: 99 strings: x\nfirstOr record: Ann\nlastOf: Some(3) Some(\"solo\")\npairUp firsts: [\"a\", \"b\"]\n", "exit_code": 0},
       "modules": ["std/list"]
     },
     {
@@ -4407,11 +4430,11 @@
     }
   ],
   "statistics": {
-    "total": 330,
-    "working": 322,
+    "total": 331,
+    "working": 323,
     "aspirational": 4,
     "broken": 4,
-    "coverage": 0.9757575757575757,
+    "coverage": 0.9758308157099698,
     "experimental": 0
   },
   "milestones": {

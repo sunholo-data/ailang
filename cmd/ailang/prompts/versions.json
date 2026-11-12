@@ -1186,10 +1186,27 @@
         "production",
         "latest"
       ],
-      "notes": "Stdlib renames (headOr/lastOr/nthOr, charAtOr, absInt/absFloat, randInt/randFloat/randBool/randSeed, readFileBase64, walkWithSuffix, eprint, bytes.sliceLen; list.contains for member, array.get for unsafeGet), a short @deprecated note, and the corrected Map member/lookup line"
+      "notes": "Stdlib renames (headOr/lastOr/nthOr, charAtOr, absInt/absFloat, randInt/randFloat/randBool/randSeed, readFileBase64, walkWithSuffix, eprint, bytes.sliceLen; list.contains for member, array.get for unsafeGet), a short @deprecated note, and the corrected Map member/lookup line",
+      "frozen": {
+        "at": "2026-11-12",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
+    },
+    "v0.16.15": {
+      "file": "prompts/v0.16.15.md",
+      "hash": "8d1ce433c6157ce744ddca7188d6a4f1c4b32749990a82d0f0ec73269f305f99",
+      "description": "show is total and unambiguous: nested strings quoted, nothing elided; showPreview for bounded logging (built on v0.16.14)",
+      "created": "2026-11-12",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "show is total and unambiguous: nested strings quoted, nothing elided; showPreview for bounded logging (built on v0.16.14)"
     }
   },
-  "active": "v0.16.14",
+  "active": "v0.16.15",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

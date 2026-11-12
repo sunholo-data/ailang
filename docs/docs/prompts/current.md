@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.16.14) - auto-synced from source
+description: The active AILANG teaching prompt (v0.16.15) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.14.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.15.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.16.14.md -->
-<!-- Active Version: v0.16.14 -->
+<!-- Source: prompts/v0.16.15.md -->
+<!-- Active Version: v0.16.15 -->
 
-# AILANG v0.16.14 - AI Teaching Prompt (with IFC Labels + Output Discipline)
+# AILANG v0.16.15 - AI Teaching Prompt (with IFC Labels + Output Discipline)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -690,7 +690,7 @@ func handleRequest(path: string) -> Response ! {Net} {
 
 **Auto-imported (no import needed):**
 - `println` (entry modules only) — `print` (no newline) is NOT auto-imported: `import std/io (print)`
-- `show(x)` - convert to string
+- `show(x)` - convert to string. Renders the WHOLE value, never elided. A top-level string is unchanged (`show("hi")` is `hi`); strings inside lists, tuples, records, maps and constructors are quoted: `show(["a", "b"])` is `["a", "b"]`, `show(Some("x"))` is `Some("x")`. For a bounded log line use `showPreview(v, 200)` (`import std/string (showPreview)`)
 - Comparison operators: `<`, `>`, `<=`, `>=`, `==`, `!=`
 - **`Option`/`Some`/`None` and `Result`/`Ok`/`Err`** (entry modules only, v0.30.0+) —
   the types AND their constructors resolve without `import std/option` / `import std/result`.
@@ -1212,13 +1212,13 @@ export func main() -> () ! {IO} {
     Err(e) => println("bad pattern: ${e}"),
     Ok(re) => {
       println(show(R.isMatch(re, "x=1")));  -- true
-      println(show(map(\m. m.text, R.findAll(re, "a=1, bb=22"))));  -- [a=1, bb=22]
+      println(show(map(\m. m.text, R.findAll(re, "a=1, bb=22"))));  -- ["a=1", "bb=22"]
       match R.findFirst(re, "key=42") {
-        Some(m) => println(show(map(\g. g.text, m.groups))),  -- [key=42, key, 42]
+        Some(m) => println(show(map(\g. g.text, m.groups))),  -- ["key=42", "key", "42"]
         None => println("no match")
       };
       println(R.replaceAll(re, "a=1 b=2", "$2:$1"));  -- 1:a 2:b
-      println(show(R.split(re, "x a=1 y")))  -- [x ,  y]
+      println(show(R.split(re, "x a=1 y")))  -- ["x ", " y"]
     }
   }
 }
@@ -1350,7 +1350,8 @@ println("Use \${var} to interpolate.")
 
 **How it works:** `"Hello, ${x}!"` desugars to `concat_String(concat_String("Hello, ", show(x)), "!")`.
 `show_String` is identity, so string-typed values are spliced without quoting. Any `Show`-able type
-works automatically (int, float, bool, records, ADTs).
+works automatically (int, float, bool, records, ADTs); strings inside them are quoted, as `show`
+quotes them: `"${["a", "b"]}"` is `["a", "b"]`.
 
 ## String and List Concatenation
 

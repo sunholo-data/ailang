@@ -486,49 +486,14 @@ func callExport(this js.Value, args []js.Value) interface{} {
 	}
 }
 
-// formatValue converts an eval.Value to a string representation for JavaScript
+// formatValue renders an eval.Value for display exactly as `show` does
+// (M-V1-SHOW-TOTAL M4): one spelling with the CLI, and record fields in name
+// order rather than Go map order.
 func formatValue(v eval.Value) string {
 	if v == nil {
 		return "null"
 	}
-	switch val := v.(type) {
-	case *eval.IntValue:
-		return fmt.Sprintf("%d", val.Value)
-	case *eval.FloatValue:
-		return fmt.Sprintf("%g", val.Value)
-	case *eval.StringValue:
-		return val.Value // Return raw string, not quoted
-	case *eval.BoolValue:
-		if val.Value {
-			return "true"
-		}
-		return "false"
-	case *eval.ListValue:
-		var parts []string
-		for _, elem := range val.Elements {
-			parts = append(parts, formatValue(elem))
-		}
-		return "[" + strings.Join(parts, ", ") + "]"
-	case *eval.RecordValue:
-		var parts []string
-		for k, v := range val.Fields {
-			parts = append(parts, fmt.Sprintf("%s: %s", k, formatValue(v)))
-		}
-		return "{" + strings.Join(parts, ", ") + "}"
-	case *eval.TaggedValue:
-		if len(val.Fields) == 0 {
-			return val.CtorName
-		}
-		var parts []string
-		for _, f := range val.Fields {
-			parts = append(parts, formatValue(f))
-		}
-		return val.CtorName + "(" + strings.Join(parts, ", ") + ")"
-	case *eval.UnitValue:
-		return "()"
-	default:
-		return fmt.Sprintf("%v", v)
-	}
+	return eval.Show(v)
 }
 
 // evalAsync: ailangEvalAsync(expr) -> Promise<string>

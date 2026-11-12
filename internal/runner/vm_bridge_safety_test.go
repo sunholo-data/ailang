@@ -34,7 +34,7 @@ export func main() -> () ! {IO} = {
 }
 `
 	file := filepath.Join(t.TempDir(), "caf_values.ail")
-	const want = "start\n42\n82\n[a, b]\n164\n6.0\n"
+	const want = "start\n42\n82\n[\"a\", \"b\"]\n164\n6.0\n"
 	for _, engine := range allEngines {
 		t.Run(engine, func(t *testing.T) {
 			if got := runOnEngine(t, file, source, engine); got != want {

@@ -34,6 +34,9 @@ func lowerExpr(e core.CoreExpr, cti types.CoreTypeInfo) stmt.Expr {
 		// See M-BYTECODE-MULTIMODULE M3.
 		if e.Ref.Module == "$adt" {
 			if typ, tag, ok := parseADTFactoryName(e.Ref.Name); ok {
+				if ft, isFn := cti[e.ID()].(*types.TFunc2); isFn && len(ft.Params) > 0 {
+					return ctorAsFunction(typ, tag, ft)
+				}
 				return stmt.ADTConstructor{TypeName: typ, Tag: tag}
 			}
 		}
@@ -159,6 +162,26 @@ func lowerLit(e *core.Lit) stmt.Expr {
 		return stmt.LitUnit{}
 	default:
 		return stmt.LitUnit{}
+	}
+}
+
+// ctorAsFunction lowers a constructor of arity n used as a VALUE (`map(Some,
+// xs)`, `let f = Ok`) to its eta-expansion `\a0 … an-1. Tag(a0, …, an-1)`.
+// It used to lower to a zero-field ADT, so the VM held `Some` (no fields)
+// where the evaluator held a function: `show(Some)` printed `Some` on the VM
+// and `<function>` on the evaluator, and calling it failed with "CallClosure:
+// expected closure, got ADT" (M-V1-SHOW-TOTAL review).
+func ctorAsFunction(typeName, tag string, ft *types.TFunc2) stmt.Expr {
+	params := make([]stmt.Param, len(ft.Params))
+	args := make([]stmt.Expr, len(ft.Params))
+	for i, pt := range ft.Params {
+		name := fmt.Sprintf("ctorArg%d__", i)
+		params[i] = stmt.Param{Name: name, Type: ProjectType(pt)}
+		args[i] = stmt.VarRef{Name: name}
+	}
+	return stmt.Lambda{
+		Params: params,
+		Return: stmt.ADTConstructor{TypeName: typeName, Tag: tag, Args: args},
 	}
 }
 

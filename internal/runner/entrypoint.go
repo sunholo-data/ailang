@@ -164,7 +164,7 @@ func ExecuteModuleEntrypoint(rt *runtime.ModuleRuntime, params ModuleExecParams)
 	// Print result if not Unit and not suppressed
 	if execResult.Type() != "unit" && !params.NoPrint {
 		if params.Print {
-			fmt.Println(execResult.String())
+			fmt.Println(eval.Show(execResult))
 		}
 	}
 
@@ -203,7 +203,7 @@ func decodeEntrypointArgs(argsJSON string, fnType *types.TFunc2, entry string, a
 func PrintNonModuleResult(value eval.Value, print, noprint bool) {
 	if value != nil && value.Type() != "unit" && !noprint {
 		if print {
-			fmt.Println(value.String())
+			fmt.Println(eval.Show(value))
 		}
 	}
 }

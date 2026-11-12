@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"strings"
 	"testing"
+
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
 // truncateLikeCollector mirrors trace.truncateValue: the golden the bounded
@@ -13,7 +15,8 @@ func truncateLikeCollector(s string, max int) string {
 	if max <= 0 || len(s) <= max {
 		return s
 	}
-	return fmt.Sprintf("%s…(+%d bytes elided)", s[:max], len(s)-max)
+	cut := strutil.RuneSafeCut(s, max) // the collector cuts on a rune boundary
+	return fmt.Sprintf("%s…(+%d bytes elided)", s[:cut], len(s)-cut)
 }
 
 func boundedFixtures() map[string]Value {
@@ -37,6 +40,7 @@ func boundedFixtures() map[string]Value {
 	return map[string]Value{
 		"int":       &IntValue{Value: 42},
 		"string":    &StringValue{Value: strings.Repeat("abc", 1000)},
+		"multibyte": &ListValue{Elements: []Value{&StringValue{Value: strings.Repeat("é中😀", 60)}, &StringValue{Value: "ü"}}},
 		"bytes":     &BytesValue{Value: []byte(strings.Repeat("z", 100))},
 		"list":      &ListValue{Elements: ints},
 		"array":     NewArray(ints),
@@ -57,7 +61,7 @@ func boundedFixtures() map[string]Value {
 
 func TestShowBoundedMatchesCollectorTruncation(t *testing.T) {
 	for name, v := range boundedFixtures() {
-		full := v.String()
+		full := Show(v)
 		for _, budget := range []int{0, 1, 3, 16, 100, 1024, len(full), len(full) + 1, 1 << 20} {
 			got := ShowBounded(v, budget)
 			want := truncateLikeCollector(full, budget)
@@ -75,10 +79,10 @@ func head(s string) string {
 	return s
 }
 
-func TestRenderedLenMatchesString(t *testing.T) {
+func TestRenderedLenMatchesShow(t *testing.T) {
 	for name, v := range boundedFixtures() {
-		if got, want := RenderedLen(v), len(v.String()); got != want {
-			t.Errorf("%s: RenderedLen %d, len(String()) %d", name, got, want)
+		if got, want := RenderedLen(v), len(Show(v)); got != want {
+			t.Errorf("%s: RenderedLen %d, len(Show()) %d", name, got, want)
 		}
 	}
 }
@@ -93,7 +97,7 @@ func TestShowBoundedDoesNotMaterialiseLargeValues(t *testing.T) {
 		elems[i] = &IntValue{Value: i}
 	}
 	big := &ListValue{Elements: elems}
-	full := big.String()
+	full := Show(big)
 	want := truncateLikeCollector(full, 64)
 
 	bytesPerRun := testing.AllocsPerRun(1, func() {
@@ -119,10 +123,10 @@ func TestShowBoundedDoesNotMaterialiseLargeValues(t *testing.T) {
 
 func TestShowBoundedUnboundedDelegates(t *testing.T) {
 	v := &ListValue{Elements: []Value{&IntValue{Value: 1}, &StringValue{Value: "two"}}}
-	if got := ShowBounded(v, 0); got != v.String() {
+	if got := ShowBounded(v, 0); got != Show(v) {
 		t.Fatalf("budget 0 must be unbounded: %q", got)
 	}
-	if got := ShowBounded(v, -1); got != v.String() {
+	if got := ShowBounded(v, -1); got != Show(v) {
 		t.Fatalf("negative budget must be unbounded: %q", got)
 	}
 }
