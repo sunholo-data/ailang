@@ -141,8 +141,19 @@ func (tc *CoreTypeChecker) inferVarGlobal(ctx *InferenceContext, v *core.VarGlob
 		}
 	}
 
-	// Instantiate the scheme
-	monotype := scheme.Instantiate(ctx.freshType)
+	// Instantiate the scheme, and re-emit its class constraints as wanted
+	// constraints at this use (#2290), exactly as inferVar does for a
+	// same-module binding: an imported `eqq[a](x: a, y: a) = x == y` carries
+	// Eq[a], and `eqq(f, g)` on two functions must fail here, not at run time.
+	monotype, instConstraints := scheme.InstantiateWithConstraints(ctx.freshType)
+	for _, c := range instConstraints {
+		ctx.addConstraint(ClassConstraint{
+			Class:  c.Class,
+			Type:   c.Type,
+			Path:   []string{fmt.Sprintf("use of %s at %v", v.Ref.Name, v.Span())},
+			NodeID: v.ID(),
+		})
+	}
 
 	// Record instantiation after it happens
 	if tc.trackInstantiations {

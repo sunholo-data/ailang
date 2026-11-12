@@ -34,11 +34,14 @@ type TypeJSON struct {
 
 // FuncJSON represents an exported function in normalized form
 type FuncJSON struct {
-	IFC     *types.ImportedIFCSig `json:"ifc,omitempty"`
-	Name    string                `json:"name"`
-	Type    string                `json:"type"`
-	Effects []string              `json:"effects"`
-	Pure    bool                  `json:"pure"`
+	IFC  *types.ImportedIFCSig `json:"ifc,omitempty"`
+	Name string                `json:"name"`
+	Type string                `json:"type"`
+	// Constraints are the export's class constraints (#2290), e.g. "Ord[a]",
+	// with the same canonical variable names as Type. Omitted when none.
+	Constraints []string `json:"constraints,omitempty"`
+	Effects     []string `json:"effects"`
+	Pure        bool     `json:"pure"`
 	// Tier (M-V1-STDLIB-SURFACE-POLISH §6.1): the module default, or
 	// "experimental" for an @experimental function. Present on every std
 	// function; outside std only when @experimental sets it.
@@ -124,7 +127,7 @@ func (i *Iface) ToNormalizedJSON() ([]byte, error) {
 		export := i.Exports[name]
 
 		// Format type with canonicalized variables
-		typeStr := canonicalizeType(export.Type)
+		typeStr, constraints := canonicalizeSchemeParts(export.Type)
 
 		// Extract and sort effects
 		effects := extractEffects(export.Type)
@@ -133,6 +136,7 @@ func (i *Iface) ToNormalizedJSON() ([]byte, error) {
 			IFC:             export.IFC,
 			Name:            name,
 			Type:            typeStr,
+			Constraints:     constraints,
 			Effects:         effects,
 			Pure:            export.Purity,
 			Tier:            export.Tier,
@@ -197,6 +201,41 @@ func renderTypeAlias(target types.Type) string {
 		return canon
 	}
 	return formatTypeCanonical(target, getCanonName)
+}
+
+// canonicalizeSchemeParts renders a scheme's type and its class constraints
+// with one canonical variable naming, so "Ord[a]" names the a of the type.
+// Constraints are sorted and de-duplicated.
+func canonicalizeSchemeParts(scheme *types.Scheme) (string, []string) {
+	if scheme == nil || scheme.Type == nil {
+		return "unknown", nil
+	}
+	varMap := make(map[string]string)
+	varCounter := 0
+	getCanonName := func(original string) string {
+		if canon, ok := varMap[original]; ok {
+			return canon
+		}
+		canon := string(rune('a' + varCounter))
+		varMap[original] = canon
+		varCounter++
+		return canon
+	}
+	typeStr := formatTypeCanonical(scheme.Type, getCanonName)
+	if len(scheme.Constraints) == 0 {
+		return typeStr, nil
+	}
+	seen := make(map[string]bool, len(scheme.Constraints))
+	out := make([]string, 0, len(scheme.Constraints))
+	for _, c := range scheme.Constraints {
+		r := c.Class + "[" + formatTypeCanonical(c.Type, getCanonName) + "]"
+		if !seen[r] {
+			seen[r] = true
+			out = append(out, r)
+		}
+	}
+	sort.Strings(out)
+	return typeStr, out
 }
 
 // canonicalizeType converts a Scheme to canonical string form
