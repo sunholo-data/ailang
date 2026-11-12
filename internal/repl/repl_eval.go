@@ -3,6 +3,7 @@ package repl
 import (
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/elaborate"
@@ -377,13 +378,13 @@ func (r *REPL) initBuiltins() {
 		Methods: map[string]interface{}{
 			"eq": &eval.BuiltinFunction{Name: "eq", Fn: wrapFloatCmp2(func(a, b float64) bool {
 				// Law-compliant: reflexive for NaN
-				if a != a && b != b {
+				if math.IsNaN(a) && math.IsNaN(b) {
 					return true
 				}
 				return a == b
 			})},
 			"neq": &eval.BuiltinFunction{Name: "neq", Fn: wrapFloatCmp2(func(a, b float64) bool {
-				if a != a && b != b {
+				if math.IsNaN(a) && math.IsNaN(b) {
 					return false
 				}
 				return a != b
