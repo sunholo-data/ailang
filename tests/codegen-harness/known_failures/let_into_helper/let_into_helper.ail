@@ -1,0 +1,9 @@
+-- #2262: a module-level let passed to a mapped std helper is type-asserted as
+-- interface{} ("is not an interface").
+module harness/kf/let_into_helper
+
+import std/string (startsWith)
+
+let prefix = "hi"
+
+export pure func summary() -> string = show(startsWith("hit", prefix))

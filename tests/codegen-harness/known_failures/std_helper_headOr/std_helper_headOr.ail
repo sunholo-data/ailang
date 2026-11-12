@@ -1,0 +1,7 @@
+-- #2259: a std function written in AILANG emits a call to a Go helper that
+-- does not exist (undefined: HeadOr).
+module harness/kf/std_helper_headOr
+
+import std/list (headOr)
+
+export pure func summary() -> string = show(headOr([4, 5], 0))

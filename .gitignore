@@ -52,6 +52,9 @@ build/snapshot/
 
 # Generated Go code from compiler (root-level only, not internal/gen/)
 /gen/
+# Codegen harness: run.sh compiles into a temp dir; never commit its cache or output
+tests/codegen-harness/.ailang/
+tests/codegen-harness/gen/
 
 # CI/CD generated files
 examples_report.json

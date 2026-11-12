@@ -1,0 +1,7 @@
+-- #2261: string length emits utf8.RuneCountInString without importing
+-- unicode/utf8.
+module harness/kf/string_length
+
+import std/string (length)
+
+export pure func summary() -> string = show(length("héllo"))
