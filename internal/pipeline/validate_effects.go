@@ -297,7 +297,8 @@ func validateDecl(decl core.CoreExpr, declaredEffects map[string]*types.Row, typ
 			debugLog("  Declared effects: %s", formatRow(declared))
 
 			// Collect required effects from Core AST
-			required := collector.collect(binding.Value)
+			_, isFunc := declaredEffects[binding.Name]
+			required := collector.collectDeclared(binding.Value, isFunc)
 			if *collector.invariant != nil {
 				return fmt.Errorf("function %s: %w", binding.Name, *collector.invariant)
 			}
@@ -323,7 +324,8 @@ func validateDecl(decl core.CoreExpr, declaredEffects map[string]*types.Row, typ
 		debugLog("  Declared effects: %s", formatRow(declared))
 
 		// Collect required effects from Core AST
-		required := collector.collect(let.Value)
+		_, isFunc := declaredEffects[let.Name]
+		required := collector.collectDeclared(let.Value, isFunc)
 		if *collector.invariant != nil {
 			return fmt.Errorf("function %s: %w", let.Name, *collector.invariant)
 		}

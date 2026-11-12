@@ -19,6 +19,20 @@ type effectCollector struct {
 	invariant    *error
 }
 
+// collectDeclared is collect for a top-level binding's value. For a `func`
+// declaration (isFunc: it has a source signature) whose value is its lambda,
+// the body's effects — row variables included — are what the declaration is
+// checked against, so the own-tail rule below (which is about charging an
+// ENCLOSING function) must not apply to it. A module-level `let` of a function
+// literal has no signature: the literal's own annotation is checked by
+// validateLambdaAnnotations, and the let is charged as an enclosing scope.
+func (c *effectCollector) collectDeclared(value core.CoreExpr, isFunc bool) *types.Row {
+	if lam, ok := value.(*core.Lambda); ok && isFunc {
+		return c.shadow(lam.Params...).collect(lam.Body)
+	}
+	return c.collect(value)
+}
+
 // lambdaOwnTailDropped removes from a lambda's body effects a row variable that
 // belongs to the lambda itself: the tail it declares
 // (`func(g: int -> () ! {e}) -> () ! {e} { g(1) }`) or a row variable of its
