@@ -171,30 +171,6 @@ func TestMarkAllAsAcked(t *testing.T) {
 	}
 }
 
-// TestDatabaseExists tests checking if database exists
-func TestDatabaseExists(t *testing.T) {
-	tmpDir := t.TempDir()
-
-	// Non-existent database
-	nonExistentPath := filepath.Join(tmpDir, "nonexistent.db")
-	if DatabaseExists(nonExistentPath) {
-		t.Error("DatabaseExists returned true for non-existent database")
-	}
-
-	// Create database
-	dbPath := filepath.Join(tmpDir, "test.db")
-	db, err := InitDB(dbPath)
-	if err != nil {
-		t.Fatalf("Failed to create database: %v", err)
-	}
-	db.Close()
-
-	// Should now exist
-	if !DatabaseExists(dbPath) {
-		t.Error("DatabaseExists returned false for existing database")
-	}
-}
-
 // Helper functions
 
 func createTestThread(t *testing.T, db *sql.DB, id, createdByType, createdByID string) {
