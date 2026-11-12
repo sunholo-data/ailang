@@ -313,7 +313,7 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 	case *TVar2:
 		// Type variable unification
 		if u.occurs(t1.Name, t2, t1.Kind) {
-			return nil, fmt.Errorf("occurs check failed: %s occurs in %s", t1.Name, t2.String())
+			return nil, fmt.Errorf("%s: occurs check failed: %s occurs in %s (an infinite type)", TC_OCCURS, t1.Name, t2.String())
 		}
 		if !u.kindsCompatible(t1.Kind, GetKind(t2)) {
 			return nil, fmt.Errorf("kind mismatch: variable %s has kind %s, but %s has kind %s",
@@ -327,7 +327,7 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 	case *RowVar:
 		// Row variable unification
 		if u.occurs(t1.Name, t2, t1.Kind) {
-			return nil, fmt.Errorf("occurs check failed: row variable %s occurs in %s", t1.Name, t2.String())
+			return nil, fmt.Errorf("%s: occurs check failed: row variable %s occurs in %s (an infinite type)", TC_OCCURS, t1.Name, t2.String())
 		}
 		if !u.kindsCompatible(t1.Kind, GetKind(t2)) {
 			return nil, fmt.Errorf("kind mismatch: row variable %s has kind %s, but %s has kind %s",

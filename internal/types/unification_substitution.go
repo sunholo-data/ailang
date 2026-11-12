@@ -195,6 +195,15 @@ func safeSubstitute(t Type, sub Substitution, visited map[Type]Type) Type {
 				fields[n] = f
 			}
 		}
+		// An open record whose row was bound to fields carries them in Fields
+		// too: back ends and the field-count checks read Fields (#2210).
+		if r, ok := row.(*Row); ok {
+			for n, f := range r.Labels {
+				if _, exists := fields[n]; !exists {
+					fields[n] = f
+				}
+			}
+		}
 		// M-CODEGEN-RECORD-TYPENAME-PRESERVATION: Preserve TypeName through substitution
 		// TypeName is set during unification with nominal types (e.g., `Planet` from return annotation)
 		// If lost, codegen falls back to map[string]interface{} instead of &Planet{}
@@ -222,7 +231,8 @@ func safeSubstitute(t Type, sub Substitution, visited map[Type]Type) Type {
 		if !changed {
 			return t
 		}
-		result := &TRecordOpen{Fields: fields, Row: row}
+		// A row bound to fields folds into them (recordWithRow).
+		result := recordWithRow(fields, row)
 		visited[t] = result
 		return result
 
@@ -248,7 +258,13 @@ func safeSubstitute(t Type, sub Substitution, visited map[Type]Type) Type {
 			}
 		}
 		var tail *RowVar
-		if typ.Tail != nil {
+		if typ.Kind.Equals(RecordRow) {
+			tail, changed = resolveRecordRowTail(typ.Tail, labels, sub, visited, changed)
+		} else if typ.Tail != nil {
+			// Effect rows keep their one-hop resolution: resolving the whole
+			// chain here changed which callback rows close (std/list zipWith
+			// with an IO callback was rejected), and effect rows are out of the
+			// #2210/#2221 scope.
 			if tailSub, ok := sub[typ.Tail.Name]; ok {
 				changed = true
 				if subRow, ok := tailSub.(*Row); ok {
@@ -293,6 +309,44 @@ func safeSubstitute(t Type, sub Substitution, visited map[Type]Type) Type {
 		// but with the visited guard already in place
 		return t.Substitute(sub)
 	}
+}
+
+// resolveRecordRowTail resolves a record row's tail through the WHOLE chain
+// (ρ1 := {a | ρ2}, ρ2 := {b | ρ3} …), adding to labels the substituted labels
+// each link contributes, and returns the final tail. One hop was enough while
+// record rows were never bound in chains; now that a field access binds a
+// shim's row to the record's remaining fields (unification_record_rows.go), a
+// one-hop result lost the later links' fields and left their field types
+// unsubstituted (#2210). Cycle-safe: stops at a tail already seen.
+func resolveRecordRowTail(tail *RowVar, labels map[string]Type, sub Substitution, visited map[Type]Type, changed bool) (*RowVar, bool) {
+	seen := map[string]bool{}
+	for tail != nil && !seen[tail.Name] {
+		seen[tail.Name] = true
+		next, ok := sub[tail.Name]
+		if !ok {
+			break
+		}
+		changed = true
+		switch n := next.(type) {
+		case *Row:
+			// The record's own labels (and earlier links) win, as in
+			// recordShape.extend; unification makes a duplicate one field
+			// (TC_REC_004), so the choice only matters for an ill-typed record.
+			for k, v := range n.Labels {
+				if _, has := labels[k]; !has {
+					labels[k] = safeSubstitute(v, sub, visited)
+				}
+			}
+			tail = n.Tail
+		case *RowVar:
+			tail = n
+		case *TVar2:
+			tail = &RowVar{Name: n.Name, Kind: RecordRow}
+		default:
+			return tail, changed
+		}
+	}
+	return tail, changed
 }
 
 // ComposeSubstitutions composes two substitutions

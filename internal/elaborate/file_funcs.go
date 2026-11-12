@@ -379,7 +379,12 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 		}
 		// M-GAP4: If row variable present, create open record type
 		if typ.Row != nil {
-			rowVar := &types.RowVar{Name: typ.Row.Name, Kind: &types.KRow{ElemKind: &types.KRecord{}}}
+			// types.RecordRow, the value kind every other record row carries.
+			// A *KRow here did not Equal it (KRow.Equals matches the value
+			// type), so a user-written `| r` met the checker's own record row
+			// as "r has kind Row Record, but r has kind Row Record", and the
+			// interface cache could not marshal the kind (#2221).
+			rowVar := &types.RowVar{Name: typ.Row.Name, Kind: types.RecordRow}
 			return &types.TRecordOpen{Fields: fields, Row: rowVar}
 		}
 		return &types.TRecord{Fields: fields}

@@ -292,17 +292,7 @@ func formatTypeCanonicalDepth(t types.Type, getCanonName func(string) string, de
 		for name, ft := range typ.Fields {
 			merged[name] = ft
 		}
-		openTail := ""
-		if row, ok := typ.Row.(*types.Row); ok {
-			for name, ft := range row.Labels {
-				merged[name] = ft
-			}
-			if row.Tail != nil {
-				openTail = "..." + getCanonName(row.Tail.Name)
-			}
-		} else if typ.Row != nil {
-			openTail = "..." + formatTypeCanonicalDepth(typ.Row, getCanonName, depth+1)
-		}
+		openTail := mergeRecordRow(merged, typ.Row, getCanonName, depth)
 		return formatRecordCanonical(merged, openTail, getCanonName, depth)
 	case *types.TRecord2:
 		// #1374: the row-based record (e.g. std/ai's AIError inside Result[...])
@@ -317,11 +307,15 @@ func formatTypeCanonicalDepth(t types.Type, getCanonName func(string) string, de
 		return formatRecordCanonical(typ.Row.Labels, openTail, getCanonName, depth)
 	case *types.TRecordOpen:
 		// Field-access shim record ({x: a | r}); same rendering as an open TRecord.
-		openTail := ""
-		if typ.Row != nil {
-			openTail = "..." + formatTypeCanonicalDepth(typ.Row, getCanonName, depth+1)
+		// Its row can be a concrete *types.Row (a duplicate label not yet
+		// unified, #2288 review): it renders structurally, never as `<*types.Row>`,
+		// which interface_hash v2 would hash as the same string for any row.
+		merged := make(map[string]types.Type, len(typ.Fields))
+		for name, ft := range typ.Fields {
+			merged[name] = ft
 		}
-		return formatRecordCanonical(typ.Fields, openTail, getCanonName, depth)
+		openTail := mergeRecordRow(merged, typ.Row, getCanonName, depth)
+		return formatRecordCanonical(merged, openTail, getCanonName, depth)
 	case *types.TTuple:
 		elems := make([]string, len(typ.Elements))
 		for i, e := range typ.Elements {
@@ -401,4 +395,26 @@ func extractEffects(scheme *types.Scheme) []string {
 	}
 
 	return []string{}
+}
+
+// mergeRecordRow adds a record row's labels to merged (the record's own fields
+// win, as in the checker's recordShape.extend) and returns the "...<rowvar>"
+// suffix, empty for a closed record.
+func mergeRecordRow(merged map[string]types.Type, row types.Type, getCanonName func(string) string, depth int) string {
+	switch r := row.(type) {
+	case nil:
+		return ""
+	case *types.Row:
+		for name, ft := range r.Labels {
+			if _, has := merged[name]; !has {
+				merged[name] = ft
+			}
+		}
+		if r.Tail != nil {
+			return "..." + getCanonName(r.Tail.Name)
+		}
+		return ""
+	default:
+		return "..." + formatTypeCanonicalDepth(row, getCanonName, depth+1)
+	}
 }

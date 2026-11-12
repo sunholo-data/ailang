@@ -85,6 +85,31 @@ func (u *Unifier) occursWithVisited(varName string, t Type, varKind Kind, visite
 		}
 		return false
 
+	// #2221: the record forms had no case, so `α := {self: α}` was bound and
+	// later traversals never terminated. A variable occurs in a record if it
+	// occurs in a field or in the row.
+	case *TRecord:
+		for _, f := range t.Fields {
+			if u.occursWithVisited(varName, f, varKind, visited) {
+				return true
+			}
+		}
+		return t.Row != nil && u.occursWithVisited(varName, t.Row, varKind, visited)
+
+	case *TRecordOpen:
+		for _, f := range t.Fields {
+			if u.occursWithVisited(varName, f, varKind, visited) {
+				return true
+			}
+		}
+		return t.Row != nil && u.occursWithVisited(varName, t.Row, varKind, visited)
+
+	case *TLabelled:
+		return u.occursWithVisited(varName, t.Inner, varKind, visited)
+
+	case *TVar:
+		return t.Name == varName
+
 	case *TApp:
 		// Check constructor and all args
 		if u.occursWithVisited(varName, t.Constructor, varKind, visited) {
@@ -98,7 +123,8 @@ func (u *Unifier) occursWithVisited(varName string, t Type, varKind Kind, visite
 		return false
 
 	default:
-		// For old types, no occurs
+		// TCon-like leaves. TestOccurs_EveryRecordFormIsWalked pins the
+		// composite forms above.
 		return false
 	}
 }

@@ -9,44 +9,9 @@ import (
 // unifyRecord2 unifies TRecord2 (new row-polymorphic record type)
 func (u *Unifier) unifyRecord2(t1 *TRecord2, t2 Type, sub Substitution) (Substitution, error) {
 	switch t2 := t2.(type) {
-	case *TRecord2:
-		// TRecord2 ~ TRecord2 - unify rows
-		if t1.Row == nil && t2.Row == nil {
-			return sub, nil // Both empty records
-		}
-		if t1.Row == nil || t2.Row == nil {
-			return nil, fmt.Errorf("cannot unify closed record with open record")
-		}
-		// Delegate to row unification
-		return u.unifyRows(t1.Row, t2.Row, sub)
-
-	case *TRecord:
-		// TRecord2 ~ TRecord (old) - convert and unify
-		// Check all fields in old record exist in new record
-		if t1.Row == nil {
-			return nil, fmt.Errorf("empty TRecord2 cannot unify with non-empty TRecord")
-		}
-		for fieldName, oldFieldType := range t2.Fields {
-			newFieldType, exists := t1.Row.Labels[fieldName]
-			if !exists {
-				return nil, fmt.Errorf("field '%s' not found in TRecord2", fieldName)
-			}
-			var err error
-			sub, err = u.Unify(newFieldType, oldFieldType, sub)
-			if err != nil {
-				return nil, fmt.Errorf("failed to unify field '%s': %w", fieldName, err)
-			}
-		}
-		// If TRecord2 has more fields and old TRecord has no row var, fail
-		if len(t1.Row.Labels) > len(t2.Fields) && t2.Row == nil {
-			return nil, fmt.Errorf("TRecord2 has extra fields not in closed TRecord")
-		}
-		return sub, nil
-
-	case *TRecordOpen:
-		// TRecord2 ~ TRecordOpen - convert and unify
-		// Swap and let TRecordOpen case handle it
-		return u.Unify(t2, t1, sub)
+	case *TRecord2, *TRecord, *TRecordOpen:
+		// One record unification for every representation (unification_record_rows.go).
+		return u.unifyRecordTypes(t1, t2, sub)
 
 	case *TVar:
 		// Swap and retry
@@ -74,61 +39,16 @@ func (u *Unifier) unifyRecord(t1 *TRecord, t2 Type, sub Substitution) (Substitut
 		} else if t2Rec.TypeName == "" && t1.TypeName != "" {
 			t2Rec.TypeName = t1.TypeName
 		}
-
-		// M-LAMBDA-OPEN-RECORD-PATTERN: when at least one side is an OPEN record
-		// (its row has an UNBOUND tail), field-count equality is the WRONG test —
-		// extra fields on either side must be absorbed by the other side's row
-		// variable (row-polymorphic subsumption). The historical strict length
-		// check is kept ONLY for the closed~closed case, which preserves the
-		// (correct) rejection of extra fields against a closed `{name}` pattern.
-		//
-		// NOTE: `TRecord.Row` is overloaded — a *closed* record literal still
-		// carries a non-nil `*Row{Tail: nil}` (see inferRecord). So `Row != nil`
-		// does NOT mean open; recordRowIsOpen inspects the tail to decide.
-		if recordRowIsOpen(t1.Row) || recordRowIsOpen(t2Rec.Row) {
-			return u.unifyOpenRecords(t1, t2Rec, sub)
-		}
-
-		// Closed ~ closed: exact-shape match required.
-		if len(t1.Fields) != len(t2Rec.Fields) {
-			// M-GAP4: Improved error message with field lists and suggestions
-			return nil, recordFieldMismatchError(t1.Fields, t2Rec.Fields)
-		}
-		// Unify each field
-		for name, typ1 := range t1.Fields {
-			typ2, exists := t2Rec.Fields[name]
-			if !exists {
-				return nil, fmt.Errorf("record field '%s' not found in second record", name)
-			}
-			var err error
-			sub, err = u.Unify(typ1, typ2, sub)
-			if err != nil {
-				return nil, fmt.Errorf("failed to unify record field '%s': %w", name, err)
-			}
-		}
-		return sub, nil
 	}
-	if t2Open, ok := t2.(*TRecordOpen); ok {
-		// TRecord ~ TRecordOpen (reverse subsumption)
-		// Swap and let TRecordOpen case handle it
-		return u.Unify(t2Open, t1, sub)
+	if isRecordType(t2) {
+		// Closed and open records alike: unification_record_rows.go. A closed
+		// pair must have exactly the same fields (recordFieldMismatchError);
+		// an open side absorbs the other side's extra fields into its row.
+		return u.unifyRecordTypes(t1, t2, sub)
 	}
 	if t2Var, ok := t2.(*TVar2); ok {
 		// Swap and retry
 		return u.Unify(t2Var, t1, sub)
-	}
-	// M-SCHEME-IMPORT-PRESERVE-ADT-HEAD (v0.22.0): TRecord ~ TRecord2 bridge.
-	// Pre-v0.22.0 this case never arose because typechecker_functions.go
-	// discarded the unification substitution, so record-typed values were
-	// left as polymorphic TVars at generalization boundaries. With the
-	// substitution now correctly applied, concrete TRecord and TRecord2
-	// values can meet at expression boundaries (e.g. list-concat of two
-	// [Record] values arriving from different module surfaces). Convert
-	// TRecord2 to TRecord and retry unification through the field-by-field
-	// path above. The conversion helper at TRecord2ToTRecord:443 is the
-	// canonical bridge.
-	if t2Rec2, ok := t2.(*TRecord2); ok {
-		return u.Unify(t1, TRecord2ToTRecord(t2Rec2), sub)
 	}
 	// M-CROSS-MODULE-RECORD-UNIFICATION: Handle TCon by expanding alias
 	// This occurs when a nested record field type is imported from another module
@@ -145,246 +65,13 @@ func (u *Unifier) unifyRecord(t1 *TRecord, t2 Type, sub Substitution) (Substitut
 	return nil, fmt.Errorf("cannot unify record %s with %s", t1, t2)
 }
 
-// recordRowIsOpen reports whether a TRecord.Row value denotes an OPEN record,
-// i.e. one that may carry additional unlisted fields.
-//
-// The TRecord.Row field is overloaded:
-//   - nil                          => closed
-//   - *Row with Tail == nil        => closed (e.g. a closed record literal)
-//   - *Row with Tail != nil        => open (has a row-variable extension)
-//   - *RowVar                      => open (a bare row variable, e.g. from an
-//     open pattern `{name, ...}` via freshRecordRow)
-//   - *TVar2 with a row kind        => open (unresolved row variable)
-func recordRowIsOpen(row Type) bool {
-	switch r := row.(type) {
-	case nil:
-		return false
-	case *Row:
-		return r.Tail != nil
-	case *RowVar:
-		return true
-	case *TVar2:
-		_, isRowKind := r.Kind.(*KRow)
-		return isRowKind
-	default:
-		// Unknown row representation — treat as open (conservative: allows
-		// subsumption rather than a spurious field-count rejection).
-		return true
-	}
-}
-
-// recordExtensionRow returns the row-variable tail that an OPEN record's Row
-// exposes for absorbing extra fields, or nil if the record is closed.
-func recordExtensionRow(row Type) Type {
-	switch r := row.(type) {
-	case nil:
-		return nil
-	case *Row:
-		if r.Tail == nil {
-			return nil
-		}
-		return r.Tail
-	case *RowVar:
-		return r
-	case *TVar2:
-		if _, isRowKind := r.Kind.(*KRow); isRowKind {
-			return r
-		}
-		return nil
-	default:
-		return row
-	}
-}
-
-// unifyOpenRecords performs row-polymorphic subsumption between two TRecords
-// where AT LEAST ONE side is open (its row exposes an unbound tail).
-//
-// M-LAMBDA-OPEN-RECORD-PATTERN: this is what lets `\obj. match obj { {name, ...} => name }`
-// (whose parameter unifies to an open `{name | ρ}`) accept a caller passing
-// `{name: ..., id: ...}`. Common fields unify pointwise; each side's EXTRA
-// fields must be absorbed by the OTHER side's extension row. A closed side
-// cannot absorb any extra fields, so leftover fields on one side against a
-// closed other side is a genuine mismatch (keeps soundness — rejects
-// closed+extra and missing-field callers).
-func (u *Unifier) unifyOpenRecords(t1, t2 *TRecord, sub Substitution) (Substitution, error) {
-	ext1 := recordExtensionRow(t1.Row)
-	ext2 := recordExtensionRow(t2.Row)
-	// 1. Unify fields present in BOTH records.
-	for name, typ1 := range t1.Fields {
-		if typ2, exists := t2.Fields[name]; exists {
-			var err error
-			sub, err = u.Unify(typ1, typ2, sub)
-			if err != nil {
-				return nil, fmt.Errorf("failed to unify record field '%s': %w", name, err)
-			}
-		}
-	}
-
-	// 2. Collect the fields each side has that the other lacks.
-	//    extra2 = fields in t2 not in t1 → must flow into t1's row.
-	//    extra1 = fields in t1 not in t2 → must flow into t2's row.
-	extra2 := make(map[string]Type)
-	for name, typ := range t2.Fields {
-		if _, exists := t1.Fields[name]; !exists {
-			extra2[name] = typ
-		}
-	}
-	extra1 := make(map[string]Type)
-	for name, typ := range t1.Fields {
-		if _, exists := t2.Fields[name]; !exists {
-			extra1[name] = typ
-		}
-	}
-
-	// 3. A CLOSED side cannot absorb the other side's extra fields. This is the
-	//    soundness gate:
-	//      - closed `{name}` param vs `{name, id}` caller → extra2={id}, ext1=nil → reject
-	//      - open `{name | ρ}` param vs `{id}` caller → extra1={name}, ext2=nil → reject
-	//        (the caller is MISSING `name`).
-	if ext1 == nil && len(extra2) > 0 {
-		return nil, recordFieldMismatchError(t1.Fields, t2.Fields)
-	}
-	if ext2 == nil && len(extra1) > 0 {
-		return nil, recordFieldMismatchError(t1.Fields, t2.Fields)
-	}
-
-	// 4. Bind the extension row variables so leftover fields are accounted for.
-	//    ext1 absorbs t2's extras (extra2); ext2 absorbs t1's extras (extra1).
-	//
-	//    The tail of each binding depends on whether the OTHER side is open:
-	//      - other side OPEN  → bind to {extras | freshTail}, sharing ONE fresh
-	//        tail so both records stay mutually extensible.
-	//      - other side CLOSED → bind to a CLOSED row {extras} (Tail: nil). The
-	//        closed side names EXACTLY its fields, so the open side must resolve
-	//        to precisely {common ∪ extras} with no further extension. Leaving
-	//        this tail OPEN was order-dependent: an open arm solved first would
-	//        leave the shared param row open, silently weakening a later CLOSED
-	//        arm's constraint on the same TVar (open-first accepted a wide caller
-	//        that closed-first rejected). Closing the tail here makes open-first
-	//        and closed-first arm orders agree — both reject the wide caller.
-	//        (Runtime matching is subset-based and already sound; this only
-	//        removes the order-dependent STATIC acceptance.)
-	freshTail := &RowVar{Name: u.freshRowVarName(), Kind: RecordRow}
-
-	var err error
-	if ext1 != nil {
-		// ext1 absorbs extra2; its tail stays open only if ext2 (the other
-		// side's extension) is also open.
-		var tail *RowVar
-		if ext2 != nil {
-			tail = freshTail
-		}
-		sub, err = u.Unify(ext1, &Row{Kind: RecordRow, Labels: extra2, Tail: tail}, sub)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unify record row (left): %w", err)
-		}
-	}
-	if ext2 != nil {
-		// ext2 absorbs extra1; its tail stays open only if ext1 (the other
-		// side's extension) is also open.
-		var tail *RowVar
-		if ext1 != nil {
-			tail = freshTail
-		}
-		sub, err = u.Unify(ext2, &Row{Kind: RecordRow, Labels: extra1, Tail: tail}, sub)
-		if err != nil {
-			return nil, fmt.Errorf("failed to unify record row (right): %w", err)
-		}
-	}
-
-	return sub, nil
-}
-
 // unifyRecordOpen unifies TRecordOpen (open record for subsumption)
 func (u *Unifier) unifyRecordOpen(t1 *TRecordOpen, t2 Type, sub Substitution) (Substitution, error) {
 	switch t2 := t2.(type) {
-	case *TRecord:
-		// TRecordOpen ~ TRecord (subsumption)
-		// Check that all fields in open record exist in closed record
-		for fieldName, openFieldType := range t1.Fields {
-			closedFieldType, exists := t2.Fields[fieldName]
-			if !exists {
-				return nil, fmt.Errorf("record field '%s' not found in concrete record", fieldName)
-			}
-			// Unify the field types
-			var err error
-			sub, err = u.Unify(openFieldType, closedFieldType, sub)
-			if err != nil {
-				return nil, fmt.Errorf("failed to unify field '%s': %w", fieldName, err)
-			}
-		}
-
-		// Unify row variable with remaining fields
-		// Row variable captures all the extra fields not mentioned in TRecordOpen
-		if t1.Row != nil {
-			// Collect remaining fields (those not in TRecordOpen.Fields)
-			remainingFields := make(map[string]Type)
-			for name, typ := range t2.Fields {
-				if _, inOpen := t1.Fields[name]; !inOpen {
-					remainingFields[name] = typ
-				}
-			}
-
-			// Create a closed record for remaining fields
-			// The row variable gets unified with this closed record's row
-			if len(remainingFields) > 0 {
-				// Unify row variable with remaining record's structure
-				// Note: This is a simplification; proper implementation would
-				// need row unification support
-				if rowVar, ok := t1.Row.(*RowVar); ok {
-					// For now, just record the substitution
-					// Full row unification will be added in Day 2
-					_ = rowVar // Placeholder
-					// remainingFields captured but not used until Day 2
-					_ = remainingFields
-				}
-			}
-		}
-		return sub, nil
-
-	case *TRecordOpen:
-		// TRecordOpen ~ TRecordOpen
-		// Both are open records - unify common fields
-		for fieldName, field1Type := range t1.Fields {
-			if field2Type, exists := t2.Fields[fieldName]; exists {
-				var err error
-				sub, err = u.Unify(field1Type, field2Type, sub)
-				if err != nil {
-					return nil, fmt.Errorf("failed to unify field '%s': %w", fieldName, err)
-				}
-			}
-		}
-
-		// Unify row variables
-		if t1.Row != nil && t2.Row != nil {
-			var err error
-			sub, err = u.Unify(t1.Row, t2.Row, sub)
-			if err != nil {
-				return nil, fmt.Errorf("failed to unify row variables: %w", err)
-			}
-		}
-		return sub, nil
-
-	case *TRecord2:
-		// TRecordOpen ~ TRecord2 (subsumption)
-		// Check that all fields in open record exist in TRecord2
-		if t2.Row == nil {
-			return nil, fmt.Errorf("empty TRecord2 cannot unify with open record")
-		}
-		for fieldName, openFieldType := range t1.Fields {
-			newFieldType, exists := t2.Row.Labels[fieldName]
-			if !exists {
-				return nil, fmt.Errorf("field '%s' not found in TRecord2", fieldName)
-			}
-			// Unify the field types
-			var err error
-			sub, err = u.Unify(openFieldType, newFieldType, sub)
-			if err != nil {
-				return nil, fmt.Errorf("failed to unify field '%s': %w", fieldName, err)
-			}
-		}
-		// Row variable captures extra fields (handled by TRecord2's tail)
-		return sub, nil
+	case *TRecord, *TRecordOpen, *TRecord2:
+		// The shim's row is bound to the other record's remaining fields
+		// (unification_record_rows.go). It used to be left unbound (#2210).
+		return u.unifyRecordTypes(t1, t2, sub)
 
 	case *TVar:
 		// Swap and retry
@@ -653,7 +340,12 @@ func recordFieldMismatchError(expectedFields, actualFields map[string]Type) erro
 	}
 
 	var msg strings.Builder
-	msg.WriteString(fmt.Sprintf("record field mismatch: expected %d fields, got %d\n", len(expected), len(actual)))
+	if len(expected) == len(actual) {
+		// "expected 2 fields, got 2" named no difference (#2221 review).
+		msg.WriteString(fmt.Sprintf("record field mismatch: both records have %d fields, but not the same ones\n", len(expected)))
+	} else {
+		msg.WriteString(fmt.Sprintf("record field mismatch: expected %d fields, got %d\n", len(expected), len(actual)))
+	}
 	msg.WriteString(fmt.Sprintf("  expected fields: {%s}\n", strings.Join(expected, ", ")))
 	msg.WriteString(fmt.Sprintf("  actual fields:   {%s}\n", strings.Join(actual, ", ")))
 

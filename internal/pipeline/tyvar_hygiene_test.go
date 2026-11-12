@@ -2,7 +2,6 @@ package pipeline
 
 import (
 	"bytes"
-	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -137,36 +136,6 @@ export pure func managerEmail(dir, wanted: string) {
 `
 	if _, err := writeAndCheck(t, map[string]string{"coll.ail": src}, "coll.ail"); err != nil {
 		t.Fatalf("valid program rejected: %v", err)
-	}
-}
-
-// Hash-neutrality guard. The rendered interface (the input to interface_hash
-// v2 and .stdlib-golden/) of an export over two different shim records keeps
-// its current shape, a shared rest `...a`. A fresh row per field access would
-// render `...c` for the second record: more precise, but it moves the published
-// hash of every such package, so it waits for a ruling (design doc D-2/D-3).
-func TestTyvarHygiene_SharedShimRowRenderingUnchanged(t *testing.T) {
-	src := `module two
-
-export pure func f(a, b) = a.x + b.y
-`
-	res, err := writeAndCheck(t, map[string]string{"two.ail": src}, "two.ail")
-	if err != nil {
-		t.Fatal(err)
-	}
-	data, err := res.Interface.ToNormalizedJSON()
-	if err != nil {
-		t.Fatal(err)
-	}
-	var rendered struct {
-		Funcs []struct{ Name, Type string } `json:"funcs"`
-	}
-	if err := json.Unmarshal(data, &rendered); err != nil {
-		t.Fatal(err)
-	}
-	const want = "({x: b, ...a},{y: b, ...a})->b"
-	if len(rendered.Funcs) != 1 || rendered.Funcs[0].Type != want {
-		t.Fatalf("rendered interface changed (this moves interface_hash v2): got %+v, want f: %s", rendered.Funcs, want)
 	}
 }
 

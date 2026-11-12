@@ -159,13 +159,14 @@ func errorToCheckJSONError(err error, filename string) checkJSONError {
 // jsonErrorCode is the --json code of an error that is not a structured
 // report: the nominal-identity code its message carries
 // (M-V1-NOMINAL-TYPE-IDENTITY: TC_NOMINAL_001, TC_AMBIGUOUS_TYPE_001,
-// TC_AMBIGUOUS_CTOR_001), else the generic "ERROR". When several appear (a
+// TC_AMBIGUOUS_CTOR_001) or record unification (#2210/#2221: TC_REC_001, TC_REC_004,
+// TC_REC_003, TC004), else the generic "ERROR". When several appear (a
 // TC_AMBIGUOUS_CTOR_001 whose cause carries TC_NOMINAL_001) the first in the
 // message is the error's own. Other inline TC_* codes keep "ERROR", as before,
 // so existing consumers see no change.
 func jsonErrorCode(msg string) string {
 	best, at := "ERROR", -1
-	for _, code := range types.NominalIdentityCodes() {
+	for _, code := range append(types.NominalIdentityCodes(), types.RecordRowCodes()...) {
 		if i := strings.Index(msg, code); i >= 0 && (at < 0 || i < at) {
 			best, at = code, i
 		}
