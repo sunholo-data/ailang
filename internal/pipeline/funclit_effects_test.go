@@ -16,7 +16,13 @@ func TestFuncLitEffects_Validation(t *testing.T) {
 		{"literal taking ! {e} with no annotation of its own", "export func main() -> () ! {IO} {\n  let run = func(g: int -> () ! {e}, n: int) -> () { g(n) };\n  run(\\n. println(show(n)), 7)\n}\n", ""},
 		{"module-level literal", "let run = func(g: int -> () ! {e}) -> () ! {e} { g(1) }\nexport func main() -> () ! {IO} = run(\\n. println(show(n)))\n", ""},
 		{"a pure func calling an ! {e} callback is still rejected", "func runTwice(f: () -> int ! {e}) -> int = f() + f()\nexport func main() -> () ! {IO} = println(show(runTwice(\\u. 1)))\n", "runTwice"},
-		{"! {} literal in a record", "type W = { f: (int) -> int }\nexport func main() -> () ! {IO} {\n  let w: W = { f: func(n: int) -> int ! {} { println(\"x\"); n } };\n  println(show(w.f(1)))\n}\n", "uses effects not declared"},
+		// A row the literal does not own (outer's e) is still charged to the
+		// enclosing function, even when the literal is only returned. Whether
+		// building a closure should charge at all is #2322; this pins today's
+		// rule (the top-level one) so dropping every tail cannot slip in.
+		{"a returned literal's foreign row is charged to the enclosing function", "func outer(cb: int -> () ! {e}) -> (int -> () ! {e}) {\n  \\n. cb(n)\n}\nexport func main() -> () ! {IO} = outer(\\n. println(show(n)))(1)\n", "Unresolved effect tail: e"},
+		{"the same with the row declared", "func outer(cb: int -> () ! {e}) -> (int -> () ! {e}) ! {e} {\n  \\n. cb(n)\n}\nexport func main() -> () ! {IO} = outer(\\n. println(show(n)))(1)\n", ""},
+		{"! {} literal in a record", "type W = { f: (int) -> int }\nexport func main() -> () ! {IO} {\n  let w: W = { f: func(n: int) -> int ! {} { println(\"x\"); n } };\n  println(show(w.f(1)))\n}\n", "declared in its ! {} annotation"},
 		{"! {} literal in a list", "export func main() -> () ! {IO} {\n  let fs = [func(n: int) -> int ! {} { println(\"x\"); n }];\n  println(show(length(fs)))\n}\n", "uses effects not declared"},
 		{"! {} literal in a tuple", "export func main() -> () ! {IO} {\n  let p = (1, func(n: int) -> int ! {} { println(\"x\"); n });\n  println(\"ok\")\n}\n", "uses effects not declared"},
 		{"! {} literal in a record update", "type W = { f: (int) -> int, k: int }\nexport func main() -> () ! {IO} {\n  let w: W = { f: \\n. n, k: 1 };\n  let w2 = { w | f: func(n: int) -> int ! {} { println(\"x\"); n } };\n  println(show(w2.k))\n}\n", "uses effects not declared"},

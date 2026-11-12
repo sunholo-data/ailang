@@ -22,7 +22,9 @@ variable a literal declares or takes in its parameters (`func(g: int -> () ! {e}
 where the literal is called, not to the function around it. An explicit `! {}`
 on a literal is a declaration of purity and is enforced, including for a literal
 stored in a record, list or tuple. The REPL prompt now passes all of these
-annotations (and `let` annotations) to the checker; it passed none.
+annotations (and `let` annotations) to the checker, and validates effects with
+the same call as a file — so `(func(x: int) -> int ! {} { println("e"); x })(1)`
+is rejected at the prompt too; it passed none.
 
 Newly rejected (all previously unsound), with the migration for each:
 
@@ -41,8 +43,33 @@ Newly rejected (all previously unsound), with the migration for each:
 - A literal's effect contract violated by its body: `! {IO}` calling an
   `FS`-contract callback, `! {}` calling an `IO` callback or printing, an
   unannotated-effect literal inside a `pure` function that invokes an `IO`
-  callback: `lambda at … uses effects not declared in its annotation`. Declare
-  the effects the body performs (or a row variable `! {e}`).
+  callback: `lambda at … uses effects not declared in its ! {IO} annotation`
+  (`… its ! {} annotation`). Declare the effects the body performs (or a row
+  variable `! {e}`).
+
+Also newly rejected — programs dev accepted only because it ignored the
+literal's annotation (each matches what the same code as a top-level `func`
+already got on dev):
+
+- A **pure callback given to an `! {IO}`-contract parameter** by a let-bound,
+  unannotated applier: `let ap = \g. g(41, \n. ()); ap(func(x: int, k: int ->
+  () ! {IO}) -> int { x + 1 })` — `failed to unify parameter 1`. A concrete
+  contract is exact. Write the parameter as row-polymorphic
+  (`k: int -> () ! {e}`) or unannotated-effect (`k: int -> ()`).
+- An inner literal that **reuses the enclosing function's row name** and is then
+  given a pure callback: inside `func outer(cb: int -> () ! {e}) -> () ! {e}`,
+  `let lit = func(g: int -> () ! {e}) -> () ! {e} { cb(1); g(2) }; lit(\n. ())`
+  — `failed to unify effect row`: the inner `e` is outer's `e`, so `g` must be
+  `cb`'s type. Pass the outer callback (`lit(cb)`), or rename the inner row
+  (`! {e2}`) and call `cb` outside the literal.
+- A `! {}` literal that only **builds or returns** an effectful closure:
+  `func(s: string) -> (() -> () ! {IO}) ! {} { \u. println(s) }`, or one that
+  stores it in a record — `uses effects not declared in its ! {} annotation`.
+  The checker charges a built closure's body to the scope that builds it, as it
+  does for a top-level `pure func mk(…) -> (() -> () ! {IO})`; this contradicts
+  the teaching prompt's "Constructing a record that stores a callback does not
+  perform those effects" and is tracked in #2322. Until it is decided, drop the
+  `! {}` from such a literal.
 
 Measured: of 11,181 banked AI-written programs that check on dev (14,692
 deduped), 4 are newly rejected, all genuinely ill-typed (a closed `{key: int}`

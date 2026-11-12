@@ -666,8 +666,12 @@ func formatEffectError(funcName string, required *types.Row, declared *types.Row
 
 func formatLambdaEffectError(span string, required, declared *types.Row) error {
 	var msg strings.Builder
+	annot := types.FormatEffectRow(declared)
+	if annot == "" { // the closed empty row renders as nothing; the literal wrote `! {}`
+		annot = "! {}"
+	}
 	fmt.Fprintf(&msg, "effect checking failed: lambda at %s uses effects not declared in its %s annotation\n",
-		span, types.FormatEffectRow(declared))
+		span, annot)
 	writeEffectDiff(&msg, types.DiffEffectRows(required, declared))
 	return fmt.Errorf("%s", msg.String())
 }

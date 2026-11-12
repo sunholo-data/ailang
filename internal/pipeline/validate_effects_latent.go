@@ -43,6 +43,16 @@ func (c *effectCollector) collectDeclared(value core.CoreExpr, isFunc bool) *typ
 // and as an unannotated parameter's implicit row already was (ImplicitOwnedTail).
 // Left in, it surfaced as an unresolved tail of the ENCLOSING function once the
 // literal's parameter annotations were enforced (#2238). Labels stay.
+//
+// Only an OWN row is dropped. A row the lambda does not own — the enclosing
+// function's (`func outer(cb: int -> () ! {e}) -> … { \n. cb(n) }`) — stays and
+// is charged to the enclosing scope. That matters only for a lambda that is
+// built but not applied there (returned or stored): an applied one is charged
+// again through its type at the call. Charging a merely BUILT closure's body is
+// the long-standing rule for top-level declarations too, and contradicts the
+// prompt's "constructing a record that stores a callback does not perform those
+// effects" (#2322); until that is decided, a foreign row is kept, so the
+// returned-closure test in funclit_effects_test.go fails if it is dropped.
 func (c *effectCollector) lambdaOwnTailDropped(lam *core.Lambda, body *types.Row) *types.Row {
 	if body == nil || body.Tail == nil || !c.lambdaOwnsRow(lam, body.Tail) {
 		return body

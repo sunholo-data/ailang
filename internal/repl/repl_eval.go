@@ -130,8 +130,13 @@ func (r *REPL) ProcessExpression(input string, out io.Writer) {
 
 	// Step 5.4.5: Validate effects (M-SOUNDNESS)
 	// Note: REPL doesn't preserve Surface AST, so we pass nil
-	// Effect validation is primarily for module files where explicit declarations matter
-	if err := pipeline.ValidateEffects(nil, elaboratedProg, typeChecker.CoreTI); err != nil {
+	// Effect validation is primarily for module files where explicit declarations matter.
+	// The same call as the file pipelines (#2238 review): the declared-lambda
+	// lookup enables the literal-annotation pass, so a literal's `! {}` holds at
+	// the prompt as in a file, and the application records give that pass each
+	// call's settled row (without them it read raw callee types and reported a
+	// valid row-polymorphic call as an unresolved tail).
+	if err := pipeline.ValidateEffectsWithCalls(nil, elaboratedProg, typeChecker.CoreTI, typeChecker.ApplicationEffects, typeChecker.DeclaredLambdaEffectRow, typeChecker.EffectValueType); err != nil {
 		fmt.Fprintf(out, "%s: %v\n", red("Effect checking error"), err)
 		return
 	}
