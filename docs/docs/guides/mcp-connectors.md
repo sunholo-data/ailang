@@ -570,11 +570,11 @@ Google has three ways in. Two of them are remote MCP, so they reuse the `/mcp/co
 and differ only in the OAuth client model they need. The third is A2A: Gemini Enterprise delegates a
 whole request to your agent, which `serve-api --a2a-message` serves (below).
 
-| Google surface | What it needs | AILANG today (2026-11-10) |
+| Google surface | What it needs | AILANG today (2026-11-12) |
 |---|---|---|
-| **Gemini Enterprise: custom MCP server data store.** An admin adds your remote MCP URL, and your tools become GE "actions" | Streamable HTTP. For per-user sign-in, an OAuth client that the admin pre-registers at your server: a client ID and secret, plus redirect `https://vertexaisearch.cloud.google.com/oauth-redirect` | **Without sign-in: works, observed.** With "No authentication" selected and Cloud Run IAM on a default `*.run.app` URL, GE sends a Google-signed ID token for its service agent. The AILANG executor runs this way in dev. **With sign-in: built, not yet tried against GE.** `sunholo/mcp_oauth` 0.2.0 accepts pre-registered confidential clients (`confidential: true`), so you can mint a client for the GE admin. Neither demo service has switched it on yet |
+| **Gemini Enterprise: custom MCP server data store.** An admin adds your remote MCP URL, and your tools become GE "actions" | Streamable HTTP. For per-user sign-in, an OAuth client that the admin pre-registers at your server: a client ID and secret, plus redirect `https://vertexaisearch.cloud.google.com/oauth-redirect` | **Without sign-in: works, observed.** With "No authentication" selected and Cloud Run IAM on a default `*.run.app` URL, GE sends a Google-signed ID token for its service agent. The AILANG executor runs this way in dev. **With sign-in: works, observed** (dev executor, 2026-11-11) with a pre-registered confidential client (`confidential: true`) and `sunholo/mcp_oauth` 0.2.1 or later. Steps: [Gemini Enterprise with per-user sign-in](#gemini-enterprise-with-per-user-sign-in-the-steps-and-what-bit-us) |
 | **Google Connected Apps** (the Gemini app and Search AI Mode, preview since 2026-10-28) | Remote MCP. CIMD, then DCR (Google's OAuth guide also asks for a `registration_endpoint`). A **non-rotating** refresh token. A revocation endpoint that Google calls when a user unlinks | **Built in `sunholo/mcp_oauth` 0.2.0, off by default:** `dcr: true` serves `POST /oauth/register` and advertises `registration_endpoint`, `revocation: true` serves RFC 7009 `/oauth/revoke`, and a client can be given a `stable` refresh policy. Listing needs Google's preview admission. Onboarding steps are in [m-google-connected-apps-distribution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/m-google-connected-apps-distribution.md) |
-| **Gemini Enterprise: A2A agent** | An A2A **v0.3** agent card (with `protocolVersion`) and the `message/send` / `message/stream` methods; per-user sign-in through an *authorization* resource | **Supported from the next release** (on `dev` now): `serve-api --a2a --a2a-message <export>` answers `message/send`, `message/stream` and `tasks/get`, and under `--mcp-connect-only` `/a2a/` is behind the same sign-in as `/mcp/connect/`. Registration: [Gemini Enterprise A2A agent](#gemini-enterprise-a2a-agent) |
+| **Gemini Enterprise: A2A agent** | An A2A **v0.3** agent card (with `protocolVersion`) and the `message/send` / `message/stream` methods; per-user sign-in through an *authorization* resource | **Works, observed on dev (2026-11-12); in the next release.** `serve-api --a2a --a2a-message <export>` answers `message/send`, `message/stream` and `tasks/get`, and under `--mcp-connect-only` `/a2a/` is behind the same sign-in as `/mcp/connect/`. Registration: [Gemini Enterprise A2A agent](#gemini-enterprise-a2a-agent) |
 
 **Turning on the 0.2.0 client models.** Each one is a field on a `ClientConfig`, passed to the 0.2
 entry points (`asMetadataFor`, `beginAuthorizeFor`, `tokenRequest`, `revokeRequest`,
@@ -610,6 +610,9 @@ Tested 2026-11-11 against the hosted executor's dev service, with a pre-register
 authenticates to the token endpoint with HTTP Basic. Every step below is one that failed for us
 first.
 
+The screenshots show our **dev** service (`ailang-dev-executor-mcp-oauth-…run.app`). Use your own
+service's URLs; for the hosted executor that is `https://executor.ailang.sunholo.com`.
+
 1. **Mint a client** with your operator command (the executor's is `createClientCli`), redirect
    `https://vertexaisearch.cloud.google.com/oauth-redirect`. The secret prints once.
 2. **Allow egress.** The org policy `discoveryengine.managed.allowedEgressFqdns` must list the
@@ -618,15 +621,29 @@ first.
 3. **Create the data store inside the app**: Gemini Enterprise → Apps → *your app* → **Connected
    Data Stores** → New data store → Custom MCP Server. A data store created on its own cannot be
    linked to an app later.
+
+   ![Gemini Enterprise: the app's Connected data stores page, with New data store](/img/connectors/gemini-enterprise-datastore-01-connected-data-stores.png)
+
+   ![The Custom MCP Server card, under MCP servers](/img/connectors/gemini-enterprise-datastore-02-add-custom-mcp-server.png)
 4. **The form:** MCP Server URL is the full `/mcp/connect/` path, not the base. Authorization and
    token URLs are yours. **Tick Enable PKCE Support** (it is off by default, and an OAuth 2.1 server
    refuses an authorize without it). Leave HTTP Basic ticked. Click **Verify Auth**, then wait for the
    state to become **Active**.
+
+   ![The MCP server configuration filled in for the executor: OAuth 2.0, the three URLs, client ID, PKCE and HTTP Basic ticked](/img/connectors/gemini-enterprise-datastore-04-oauth-config-filled.png)
+
+   ![The executor's consent page: vertexaisearch.cloud.google.com asks to run AILANG code for you](/img/connectors/gemini-enterprise-datastore-07-oauth-allow.png)
+
+   ![The connector's details: state Active, actions still disabled](/img/connectors/gemini-enterprise-datastore-06-connector-details.png)
 5. **Enable the actions** (Actions → Reload custom actions → select all → Enable actions). They
    start disabled. Tools with `readOnlyHint` skip GE's per-call confirmation.
+
+   ![Actions tab: all 29 executor tools selected, Enable actions](/img/connectors/gemini-enterprise-datastore-08-enable-actions.png)
 6. **Use it from an agent.** The default assistant's tool menu does **not** list custom MCP data
    stores; Agent Designer agents do. In the web app: Agents → Create agent → Chat agent → **Tools &
    Integrations** → **Connect** your server (each user signs in once) → toggle it on.
+
+   ![The web app's New agent menu: Chat agent](/img/connectors/gemini-enterprise-datastore-10-new-chat-agent.png)
 7. **Accept a long `state`.** The web app's per-user Connect sends a 768-character base64 `state`
    with `=` padding. `sunholo/mcp_oauth` before 0.2.1 refused anything but unreserved characters
    up to 512 (`invalid_request: state must be unreserved characters, at most 512`); 0.2.1 accepts
@@ -634,8 +651,8 @@ first.
    the problem.
 8. **Mind the agent-creation quota.** It is per day and pooled across licences: Standard allows 1
    creation per licensed user per day, Plus 10, Frontline 0 ([Workflow Builder quotas](https://docs.cloud.google.com/gemini/enterprise/docs/workflow-builder/quotas-and-limits)).
-   Every create counts, including a double-clicked save and a failed attempt; deleting an agent does
-   not give a creation back. Beyond it, `CreateAgent` returns 429 `RESOURCE_EXHAUSTED: Agent
+   Every successful create counts, including a double-clicked save; deleting an agent does not give
+   a creation back. A create refused with 429 costs nothing. Beyond it, `CreateAgent` returns 429 `RESOURCE_EXHAUSTED: Agent
    creation quota exceeded`, and it is not a Cloud Quotas entry you can raise. Create one agent and
    edit it, or have an admin enable pay-as-you-go usage above quota. Registering an A2A agent is the
    same `CreateAgent` call, so it shares this quota.
@@ -655,10 +672,13 @@ What Google requires, from [Register and manage A2A agents](https://docs.cloud.g
   `url` is the endpoint Gemini Enterprise calls. Serve it anyway (`/.well-known/agent-card.json`) so
   you can check it before you spend a registration.
 - **Sign-in is a separate *authorization* resource**: client ID and secret, authorization URI, token
-  URI. Gemini Enterprise ignores the card's `securitySchemes`. Set `pkceVerificationEnabled: true`
-  (`sunholo/mcp_oauth` refuses an authorize without PKCE) and `basicAuthenticationEnabled: true`
-  (pre-registered clients use `client_secret_basic`). The console form may not show these two, so
-  create the authorization over REST.
+  URI. Gemini Enterprise does not sign in from the card's `securitySchemes`, but the console's
+  registration form pre-fills its authorization and token URL fields from them; under
+  `--mcp-connect-only` serve-api puts your `--oauth-issuer`'s endpoints there. The client ID is never
+  on the card, and the authorization URL must carry it (`…/oauth/authorize?client_id=<id>&response_type=code`).
+  Tick **PKCE** (`pkceVerificationEnabled`: `sunholo/mcp_oauth` refuses an authorize without it) and
+  **HTTP Basic** (`basicAuthenticationEnabled`: pre-registered clients use `client_secret_basic`);
+  the console form has both checkboxes, and the REST script below sets them.
 - **Redirects.** Gemini Enterprise overwrites `redirect_uri` and returns to
   `https://vertexaisearch.cloud.google.com/static/oauth/oauth.html`; mint the client with that and
   `https://vertexaisearch.cloud.google.com/oauth-redirect`.
@@ -670,6 +690,27 @@ What Google requires, from [Register and manage A2A agents](https://docs.cloud.g
 
 The AILANG deployment scripts the REST calls: `ailang-multivac/scripts/ge-a2a-agent.sh` (`check`, `auth`,
 `agent`, `list`, `delete`).
+
+**What it looks like** (dev executor, 2026-11-12). After registration the agent is listed as an
+enabled A2A (Custom) agent, and its landing page shows the card's name, icon and description:
+
+![Agents table: AILANG Executor, A2A (Custom), Enabled](/img/connectors/gemini-enterprise-agent-01-agents-table.png)
+
+![The agent's landing page: the AILANG icon, name and the handler's description](/img/connectors/gemini-enterprise-agent-02-agent-landing.png)
+
+The first message asks the user to authorize; **Authorize** opens your consent page, and the request
+is sent once they allow it:
+
+![In chat: "The agent requires additional authorization", with an Authorize button](/img/connectors/gemini-enterprise-agent-03-authorize-prompt.png)
+
+![The executor's consent page for vertexaisearch.cloud.google.com](/img/connectors/gemini-enterprise-agent-04-oauth-allow.png)
+
+![The answer: the first 15 Fibonacci numbers summing to 986, the AILANG program and its real output](/img/connectors/gemini-enterprise-agent-05-fibonacci-run.png)
+
+Measured on that run: sign-in to the first `/a2a/` call took 23 seconds (most of it the user), and
+the call answered in 27 seconds in one request (model, `ailang_check`, `ailang_run`, answer). Each
+`/a2a/` request logs one `a2a_request` line with its method and outcome
+([serve-api](./serve-api.md#an-ailang-program-as-an-a2a-agent---a2a-message)).
 
 ## 7. Microsoft Copilot
 
