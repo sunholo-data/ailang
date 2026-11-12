@@ -375,35 +375,6 @@ func TestCountTurns_Empty(t *testing.T) {
 	}
 }
 
-func TestGetTurnTimestamp(t *testing.T) {
-	now := time.Now()
-	later := now.Add(time.Hour)
-	events := []*TaskEventRecord{
-		{TurnNum: 1, CreatedAt: now},
-		{TurnNum: 1, CreatedAt: later},
-		{TurnNum: 2, CreatedAt: later},
-	}
-
-	ts := GetTurnTimestamp(events, 1)
-	if ts == nil {
-		t.Fatal("expected timestamp, got nil")
-	}
-	if !ts.Equal(now) {
-		t.Errorf("expected first event timestamp, got %v", ts)
-	}
-}
-
-func TestGetTurnTimestamp_NotFound(t *testing.T) {
-	events := []*TaskEventRecord{
-		{TurnNum: 1, CreatedAt: time.Now()},
-	}
-
-	ts := GetTurnTimestamp(events, 99)
-	if ts != nil {
-		t.Errorf("expected nil for missing turn, got %v", ts)
-	}
-}
-
 func TestSummarizeEvents(t *testing.T) {
 	events := []*TaskEventRecord{
 		{StreamType: "turn_start", TurnNum: 1},

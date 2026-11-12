@@ -107,37 +107,6 @@ func StoreIterationStartEvent(ctx context.Context, store Store, taskID string, i
 	return nil
 }
 
-// PrepareTaskForRetrigger prepares feedback content for a re-triggered task.
-// NOTE (M-TASK-HIERARCHY): This function no longer modifies task status.
-// The new workflow creates a NEW task via the message system with parent_task_id linking,
-// and the old task is marked as "rejected" separately via store.MarkTaskRejected().
-//
-// This function now only:
-// - Increments iteration count for tracking
-// - Appends feedback to content for context propagation
-func PrepareTaskForRetrigger(task *TaskRecord, feedback string) {
-	// Increment iteration
-	if task.Iteration == 0 {
-		task.Iteration = 1 // First run was iteration 1
-	}
-	task.Iteration++
-
-	// NOTE: Status is NOT modified here. The caller is responsible for:
-	// 1. Marking this task as "rejected" via store.MarkTaskRejected()
-	// 2. Creating a NEW task via the message system with parent_task_id linking
-
-	// Clear previous completion data (still useful for tracking)
-	task.CompletedAt = nil
-	task.Error = ""
-	task.Output = ""
-
-	// Append feedback to content for context
-	if feedback != "" {
-		task.Content = fmt.Sprintf("%s\n\n[HUMAN FEEDBACK - Iteration %d]\n%s",
-			task.Content, task.Iteration, feedback)
-	}
-}
-
 // MaxAgentIterations is the limit for agent-to-agent handoffs to prevent infinite loops.
 // Human rejections (via dashboard or CLI) have no iteration limit.
 const MaxAgentIterations = 3
