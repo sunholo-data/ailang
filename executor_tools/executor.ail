@@ -22,7 +22,7 @@ import std/debug (log)
 import std/env (getEnvOr)
 import std/fs (mkdirAllResult, writeFileResult, removeFileResult, removeDirResult)
 import std/json (Json, JObject, jo, kv, js, jb, jnum, jint, encode, decode, get, getString, getBool, getInt, getArray)
-import std/list (filter, map, length as listLength)
+import std/list (filter, map, any, length as listLength)
 import std/option (Option, Some, None)
 import std/regex (compile, replaceAll)
 import std/process (exec, ProcessOutput, ProcessError, NotAllowed, NotFound, PermissionDenied, Timeout, OutputLimitExceeded, SpawnFailed, AbnormalExit)
@@ -84,10 +84,22 @@ export pure func publicPolicyLine(line: string) -> string =
 
 export pure func scrubPolicy(s: string) -> string = join("\n", map(publicPolicyLine, split(s, "\n")))
 
+-- A refused program never starts: the supervisor prints its decision as a
+-- JSON object on stdout, which also names the policy file's server path. Only
+-- on a failed run (a program that ran and exited 0 keeps its stdout verbatim),
+-- and only for an object carrying both "decision" and "policy", drop the same
+-- server keys.
+export pure func publicRefusal(exitCode: int, stdout: string) -> string =
+  if exitCode == 0 then stdout else match decode(stdout) {
+    Ok(JObject(fields)) => if any(\f. f.key == "decision", fields) && any(\f. f.key == "policy", fields) then "${encode(JObject(filter(\f. !serverPolicyKey(f.key), fields)))}\n" else stdout,
+    _ => stdout
+  }
+
 -- outputJson with the request directory scrubbed from stdout and stderr, and
--- the server-identifying policy keys dropped from stderr.
+-- the server-identifying policy keys dropped from the policy echo (stderr) and
+-- from a refusal (stdout).
 pure func outputJsonIn(out: ProcessOutput, dir: string) -> Json =
-  jo([kv("ok", jb(out.exitCode == 0)), kv("exit_code", jnum(intToFloat(out.exitCode))), kv("stdout", js(scrubDir(toString(out.stdout), dir))), kv("stderr", js(scrubPolicy(scrubDir(toString(out.stderr), dir)))), kv("truncated", jb(out.truncated))])
+  jo([kv("ok", jb(out.exitCode == 0)), kv("exit_code", jnum(intToFloat(out.exitCode))), kv("stdout", js(publicRefusal(out.exitCode, scrubDir(toString(out.stdout), dir)))), kv("stderr", js(scrubPolicy(scrubDir(toString(out.stderr), dir)))), kv("truncated", jb(out.truncated))])
 
 -- First non-blank line of s, without the request directory and a leading
 -- "Error: ", clipped. Error text names <dir>/main.ail in several spellings.

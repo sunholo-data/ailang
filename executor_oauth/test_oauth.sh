@@ -151,6 +151,8 @@ R=$(mcp "$ACCESS" tools/call "$EVAL")
 # review): the supervisor's policy echo keeps caps/limits/decision only.
 [[ "$R" == *caps* && "$R" == *decision* && "$R" != *executor-policy.toml* && "$R" != *digest* ]] \
   && pass "run result names no policy path or digest" || fail "run result names no policy path or digest" "$R"
+R=$(mcp "$ACCESS" tools/call '{"name":"ailang_run","arguments":{"code":"module main\nimport std/fs (readFile)\nexport func main() -> () ! {IO, FS} = println(readFile(\"/etc/hostname\"))\n"}}')
+[[ "$R" == *policy_violation* && "$R" != *executor-policy.toml* ]] && pass "a refusal names no policy path" || fail "a refusal names no policy path" "$R"
 R=$(mcp "$ACCESS" tools/call '{"name":"roadmap","arguments":{}}')
 # The snapshot has no roadmap.json, so this is the missing-file error: it names
 # the file relative to the snapshot root, never the server's directory.
