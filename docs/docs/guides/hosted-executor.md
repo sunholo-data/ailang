@@ -144,6 +144,29 @@ client, and has not been tried.
 To run code on your own machine instead, install AILANG and the `ailang_bootstrap` plugin, which
 serves the same `ailang_*` tools over a local stdio MCP server.
 
+## Disconnecting and your data
+
+Remove the connector in the assistant to disconnect (Claude: Settings → **Connectors**; ChatGPT:
+**Plugins**). The access token it holds expires within an hour, and the executor keeps only digests
+of the tokens it issued, each until it expires (refresh tokens: 30 days). The code you run is never
+stored or logged. To delete your sign-in account, use `submit_feedback` or open an issue in the
+AILANG repository.
+
+## Troubleshooting
+
+| What you see | Why, and what to do |
+|---|---|
+| The sign-in page says the request has expired or was already used | Each sign-in link works once, for 10 minutes. Start the connection again from the assistant. |
+| "This account's email address is not verified" | The executor accepts only verified email addresses. Use another Google account. |
+| Sign-in with Google does nothing | The page signs in through a pop-up. Allow pop-ups for `executor.ailang.sunholo.com` and try again. |
+| A tool answers "Authentication required: sign in to use this tool." | The assistant has no valid token: reconnect the connector. |
+| HTTP 429, or the assistant reports a rate limit | More than 30 calls a minute from one account. Wait for the `Retry-After` time. |
+| A run ends with a policy refusal | The program asked for a capability the sandbox does not grant (anything but `IO`). Print results instead of writing files or calling the network. |
+| A run is killed after 60 seconds | The sandbox time limit. Make the program smaller or faster. |
+
+**Email sign-in.** The sign-in page also has a "Sign in with email" option. It is only for
+accounts we create by hand (for example, for a directory reviewer): there is no sign-up.
+
 ## Check it yourself
 
 ```bash
