@@ -21,9 +21,8 @@ type TelemetryReportRequest struct {
 	Status     string  `json:"status"` // running, completed, error
 }
 
-// handleTelemetryReport handles POST /api/telemetry: eval-suite and pipeline
-// self-reports (internal/eval_harness/telemetry_reporter.go,
-// internal/pipeline/metrics.go). A report is broadcast to /ws clients, and a
+// handleTelemetryReport handles POST /api/telemetry: pipeline self-reports
+// (internal/pipeline/metrics.go). A report is broadcast to /ws clients, and a
 // completed run's token/cost totals are recorded in the messaging store's
 // metrics. (The per-PID cache the process monitor read is gone with the
 // monitor.)
