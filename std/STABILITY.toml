@@ -1,0 +1,69 @@
+# std/STABILITY.toml — the tier of every std module (AILANG 1.x Stability Promise).
+#
+# ONE source for module tiers. `ailang iface std/<m>` stamps this tier on every
+# exported function and type of the module (`"tier"` in .stdlib-golden/<m>.json);
+# `@experimental` on a function in the source overrides it for that function.
+# docs/docs/reference/stability.md must agree with this file and with the
+# `@experimental` annotations: internal/iface TestStabilityDocMatchesManifest
+# fails when they drift.
+#
+# Tiers: stable | experimental | internal. Lowering a tier is a breaking change
+# after 1.0 (m-v1-release-gates §4.2); Experimental -> Stable is allowed.
+
+[modules]
+# Stable (17)
+"std/io" = "stable"
+"std/list" = "stable"
+"std/string" = "stable"
+"std/result" = "stable"
+"std/option" = "stable"
+"std/json" = "stable"
+"std/bytes" = "stable"
+"std/fs" = "stable"
+"std/env" = "stable"
+"std/array" = "stable"
+"std/math" = "stable"
+"std/map" = "stable"
+"std/clock" = "stable"
+"std/rand" = "stable"
+"std/iter" = "stable"
+"std/datetime" = "stable"
+"std/set" = "stable"
+
+# Experimental (31)
+"std/ai" = "experimental"
+"std/ai/streaming" = "experimental"
+"std/net" = "experimental"
+"std/web" = "experimental"
+"std/stream" = "experimental"
+"std/stream/bridge" = "experimental"
+"std/secret" = "experimental"
+"std/process" = "experimental"
+"std/crypto" = "experimental"
+"std/jwt" = "experimental"
+"std/regex" = "experimental"
+"std/xml" = "experimental"
+"std/yaml" = "experimental"
+"std/html" = "experimental"
+"std/zip" = "experimental"
+"std/tar" = "experimental"
+"std/gzip" = "experimental"
+"std/deflate" = "experimental"
+"std/audio" = "experimental"
+"std/terminal" = "experimental"
+"std/package" = "experimental"
+"std/extension" = "experimental"
+"std/cognition" = "experimental"
+"std/dom" = "experimental"
+"std/game" = "experimental"
+"std/sem" = "experimental"
+"std/sharedmem" = "experimental"
+"std/sharedindex" = "experimental"
+"std/embedding" = "experimental"
+"std/simhash" = "experimental"
+"std/debug" = "experimental"
+
+# Internal (3)
+"std/trace" = "internal"
+"std/trace_test" = "internal"
+"std/smoke" = "internal"

@@ -10,7 +10,8 @@
       "ctors": [
         "Err(a)",
         "Ok(a)"
-      ]
+      ],
+      "tier": "stable"
     }
   ],
   "funcs": [
@@ -56,7 +57,8 @@
       "name": "flatMap",
       "type": "((a)-\u003eResult[b,c],Result[a,c])-\u003eResult[b,c]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -88,7 +90,8 @@
       "name": "isErr",
       "type": "(Result[a,b])-\u003ebool",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -120,7 +123,8 @@
       "name": "isOk",
       "type": "(Result[a,b])-\u003ebool",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -164,7 +168,8 @@
       "name": "map",
       "type": "((a)-\u003eb,Result[a,c])-\u003eResult[b,c]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -208,7 +213,8 @@
       "name": "mapErr",
       "type": "((a)-\u003eb,Result[c,a])-\u003eResult[c,b]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -240,7 +246,8 @@
       "name": "unwrap",
       "type": "(Result[a,b])-\u003ea",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     }
   ],
   "schema": "ailang.iface/v2"

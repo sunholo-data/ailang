@@ -1169,10 +1169,27 @@
         "production",
         "latest"
       ],
-      "notes": "JSON numbers: JInt for integers (exact), match JInt and JNumber or use the accessors, getInt never truncates, decode takes exactly one value"
+      "notes": "JSON numbers: JInt for integers (exact), match JInt and JNumber or use the accessors, getInt never truncates, decode takes exactly one value",
+      "frozen": {
+        "at": "2026-11-11",
+        "reason": "legacy",
+        "evidence_count": 0,
+        "evidence_example": ""
+      }
+    },
+    "v0.16.14": {
+      "file": "prompts/v0.16.14.md",
+      "hash": "421e84f575369be66c4822ac027ce9cd4575effd6f3abcf8ef480b6cf839bd59",
+      "description": "Stdlib renames (headOr/lastOr/nthOr, charAtOr, absInt/absFloat, randInt/randFloat/randBool/randSeed, readFileBase64, walkWithSuffix, eprint, bytes.sliceLen; list.contains for member, array.get for unsafeGet), a short @deprecated note, and the corrected Map member/lookup line",
+      "created": "2026-11-11",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "Stdlib renames (headOr/lastOr/nthOr, charAtOr, absInt/absFloat, randInt/randFloat/randBool/randSeed, readFileBase64, walkWithSuffix, eprint, bytes.sliceLen; list.contains for member, array.get for unsafeGet), a short @deprecated note, and the corrected Map member/lookup line"
     }
   },
-  "active": "v0.16.13",
+  "active": "v0.16.14",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default prompt version",

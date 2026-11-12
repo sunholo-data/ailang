@@ -53,7 +53,13 @@ import (
 // make_<T>_<C>@<module>, and the interface digest renders qualified refs. A v10
 // blob decodes every nominal type with no module, which no longer unifies with
 // a qualified one, so v10 entries must miss.
-const cacheKeyVersion = "v11"
+// v11 -> v12 (M-V1-STDLIB-SURFACE-POLISH M1): the cached iface.json gained
+// Tier (module and per function), ReplacedBy and DeprecationNote. A v11 entry
+// decodes with none, so `ailang iface` served from it would drop `"tier"` from
+// a std golden (measured: a warm run printed list.json with no tier); v11
+// (and older) entries must miss. (TC_DEPRECATED_001 itself reads the defining
+// module's parsed source, which is never cached, so it survives either way.)
+const cacheKeyVersion = "v12"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:

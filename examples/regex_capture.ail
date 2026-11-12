@@ -2,7 +2,7 @@
 --
 -- findFirst returns Option[RegexMatch]; RegexMatch.groups is a list where
 -- groups[0] is the whole match and groups[i] is capture group i. Because lists
--- are accessed with std/list.nth_or (not [i] subscript), we pull each group with
+-- are accessed with std/list.nthOr (not [i] subscript), we pull each group with
 -- a safe default. Spans are RUNE indices, consistent with std/string.
 --
 -- Run: ailang run --caps IO examples/regex_capture.ail
@@ -12,7 +12,7 @@ import std/io (println)
 import std/regex as R
 import std/result (Ok, Err)
 import std/option (Some, None)
-import std/list (nth_or)
+import std/list (nthOr)
 
 -- A missing group falls back to this empty match.
 export func noGroup() -> { start: int, end: int, text: string } = {
@@ -26,8 +26,8 @@ export func main() -> () ! {IO} = {
     Ok(re) => match R.findFirst(re, "port=8080") {
       None => println("no match"),
       Some(m) => {
-        let key = (nth_or(m.groups, 1, noGroup())).text
-        let val = (nth_or(m.groups, 2, noGroup())).text
+        let key = (nthOr(m.groups, 1, noGroup())).text
+        let val = (nthOr(m.groups, 2, noGroup())).text
         println("whole match: '${m.text}' at rune [${show(m.start)}, ${show(m.end)})")
         println("key = ${key}")
         println("value = ${val}")

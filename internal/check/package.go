@@ -8,6 +8,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/elaborate"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/pkg"
 )
@@ -65,7 +66,13 @@ type PackageReport struct {
 	// Warnings lists manifest/export drift: exported modules that did not
 	// compile, and compiled modules missing from [exports].modules.
 	Warnings []string
-	Files    []FileResult
+	// CompileWarnings are the pipeline's coded, non-blocking warnings
+	// (TC_DEPRECATED_001, TC_MATCH_005, ...), once each: every file is
+	// compiled separately, so a warning in a module several files import
+	// would otherwise repeat. They used to be dropped in package mode, so
+	// `check --package` hid every deprecation from a package author.
+	CompileWarnings []elaborate.Warning
+	Files           []FileResult
 }
 
 // CheckPackageFiles checks every source file of an AILANG package through the
@@ -82,6 +89,20 @@ func CheckPackageFiles(absDir string, manifest *pkg.PackageManifest, sourceFiles
 
 	var report PackageReport
 	compiledModules := make(map[string]bool)
+	seenWarning := make(map[string]bool)
+	keepWarnings := func(ws []elaborate.Warning) {
+		for _, w := range ws {
+			if w == nil {
+				continue
+			}
+			key := w.String()
+			if seenWarning[key] {
+				continue
+			}
+			seenWarning[key] = true
+			report.CompileWarnings = append(report.CompileWarnings, w)
+		}
+	}
 
 	record := func(fr FileResult) {
 		report.Files = append(report.Files, fr)
@@ -151,6 +172,8 @@ func CheckPackageFiles(absDir string, manifest *pkg.PackageManifest, sourceFiles
 			record(fr)
 			continue
 		}
+
+		keepWarnings(result.Warnings)
 
 		if len(result.Errors) > 0 {
 			fr.Status = FileCompileError

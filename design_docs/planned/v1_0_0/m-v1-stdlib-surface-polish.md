@@ -1,6 +1,12 @@
 # M-V1-STDLIB-SURFACE-POLISH: the last cheap fixes to the Stable stdlib before it freezes
 
-**Status**: Planned
+**Status**: M1–M5 implemented (M3+M4 in PR #2223; M1, M2, M5 in branch `v1/stdlib-surface-polish`); M6 (alias removal) is roadmap step 16
+**Implementation notes (M1/M2/M5)**: warning code is `TC_DEPRECATED_001`; the deprecation set is read
+from each module's parsed source, so it survives a warm cache without depending on the cached iface;
+module tiers live in `std/STABILITY.toml` (release-gates §4.3's manifest, modules only — per-function
+tiers come only from `@experimental`); the migration script is `tools/migrate-stdlib-renames.sed`
+(not `-0.58`, since the release names moved on); prompt v0.16.14. The cache's `iface.json` codec
+dropped the new fields — the reason for the key bump turned out to be real, not precautionary. The key is v12, not v11: v11 is #2228's.
 **Target**: v0.58.x (the last breaking window before the v1.0.0 soak)
 **Priority**: P1 — not a soundness blocker, but every item is now-or-2.0
 **Estimated**: 9–11.5 working days (estimate; M4 is 3–4 of them and shrinks to 0.5 if Mark picks

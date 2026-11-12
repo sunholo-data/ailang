@@ -161,3 +161,6 @@ design_docs/research/*.pdf
 /gen/
 /.eval_workspace/
 _namedtest_body_*.ail
+
+# Scratch compile caches a sweep script once wrote into the tree (#2230 review).
+cache_tbsweep/

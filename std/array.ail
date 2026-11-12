@@ -66,7 +66,9 @@ export pure func getOpt[a](arr: Array[a], idx: int) -> Option[a] {
   if idx < 0 then None else if idx >= _array_length(arr) then None else Some(_array_get(arr, idx))
 }
 
--- Unsafe get: runtime error if out of bounds. Use only when you've verified bounds.
+-- Unsafe get: runtime error if out of bounds — exactly what get does, so it is
+-- deprecated (warns TC_DEPRECATED_001) and removed before the v1.0.0 soak.
+@deprecated("get", "identical behaviour; if get collides with an imported json.get, import it as `get as arrayGet`")
 export pure func unsafeGet[a](arr: Array[a], idx: int) -> a {
   _array_unsafe_get(arr, idx)
 }
@@ -102,6 +104,7 @@ export pure func updateMany[a](arr: Array[a], writes: [(int, a)]) -> Array[a] {
 -- Add xs[j] into position idx[j] for every j, with ONE copy (gradient
 -- accumulation). idx and xs must have equal length; out of bounds is an error.
 --   scatterAdd(make(3, 0.0), [0, 0, 2], [1.0, 2.0, 5.0])  -- #[3.0, 0.0, 5.0]
+@experimental
 export pure func scatterAdd(arr: Array[float], idx: [int], xs: [float]) -> Array[float] {
   _array_scatter_add(arr, idx, xs)
 }
@@ -112,6 +115,7 @@ export pure func scatterAdd(arr: Array[float], idx: [int], xs: [float]) -> Array
 -- counting sort over any element type (scatterAdd is the Array[float] + case).
 --   accumulate(make(4, 0), [(0, 1), (2, 5), (0, 2)], \a b. a + b)  -- #[3, 0, 5, 0]
 --   accumulate(make(3, ""), [(1, "a"), (1, "b")], \a b. "${a}${b}")  -- #["", "ab", ""]
+@experimental
 export pure func accumulate[a](arr: Array[a], writes: [(int, a)], combine: (a, a) -> a) -> Array[a] {
   _array_accumulate(arr, writes, combine)
 }
@@ -126,27 +130,35 @@ export pure func accumulate[a](arr: Array[a], writes: [(int, a)], combine: (a, a
 -- bulk updates matter.
 
 -- Dot product. O(n).
+@experimental
 export pure func dot(a: Array[float], b: Array[float]) -> float = _array_f_dot(a, b)
 
 -- a*x + y in one pass (the SGD update). O(n).
+@experimental
 export pure func axpy(a: float, x: Array[float], y: Array[float]) -> Array[float] = _array_f_axpy(a, x, y)
 
 -- s * v. O(n).
+@experimental
 export pure func scale(s: float, v: Array[float]) -> Array[float] = _array_f_scale(s, v)
 
 -- Elementwise a + b. O(n).
+@experimental
 export pure func add(a: Array[float], b: Array[float]) -> Array[float] = _array_f_add(a, b)
 
 -- Elementwise a - b. O(n).
+@experimental
 export pure func sub(a: Array[float], b: Array[float]) -> Array[float] = _array_f_sub(a, b)
 
 -- Elementwise a * b. O(n).
+@experimental
 export pure func mul(a: Array[float], b: Array[float]) -> Array[float] = _array_f_mul(a, b)
 
 -- Sum of all elements, in index order. O(n).
+@experimental
 export pure func sum(v: Array[float]) -> float = _array_f_sum(v)
 
 -- Index of the first largest element; NaNs are skipped. Error on empty. O(n).
+@experimental
 export pure func argmax(v: Array[float]) -> int = _array_f_argmax(v)
 
 -- ============================================================================
@@ -158,13 +170,17 @@ export pure func argmax(v: Array[float]) -> int = _array_f_argmax(v)
 --   match decodeF64LE(encodeF64LE(make(3, 0.1))) { Ok(a) => length(a), Err(e) => 0 }  -- 3
 
 -- 8 bytes per float, exact.
+@experimental
 export pure func encodeF64LE(v: Array[float]) -> bytes = _array_encode_f64le(v)
 
 -- Inverse of encodeF64LE.
+@experimental
 export pure func decodeF64LE(b: bytes) -> Result[Array[float], string] = _array_decode_f64le(b)
 
 -- 4 bytes per float, LOSSY.
+@experimental
 export pure func encodeF32LE(v: Array[float]) -> bytes = _array_encode_f32le(v)
 
 -- Inverse of encodeF32LE.
+@experimental
 export pure func decodeF32LE(b: bytes) -> Result[Array[float], string] = _array_decode_f32le(b)

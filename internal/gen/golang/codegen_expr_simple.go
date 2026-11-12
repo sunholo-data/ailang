@@ -225,6 +225,12 @@ func mapEffectBuiltinToHandler(name string) string {
 		"_rand_bool":  "requireRand().RandBool",
 		"_rand_seed":  "requireRand().SetSeed",
 		// Rand effect - stdlib wrappers (std/rand exports these)
+		"randInt":   "requireRand().RandInt",
+		"randFloat": "requireRand().RandFloat",
+		"randBool":  "requireRand().RandBool",
+		"randSeed":  "requireRand().SetSeed",
+		// Deprecated spellings, forwarders to the above until they are removed
+		// before the v1.0.0 soak (M-V1-STDLIB-SURFACE-POLISH).
 		"rand_int":   "requireRand().RandInt",
 		"rand_float": "requireRand().RandFloat",
 		"rand_bool":  "requireRand().RandBool",
@@ -340,7 +346,8 @@ var mathFunctions = map[string]string{
 	"round":       "math.Round",
 	// Utility
 	"_math_abs_Float": "math.Abs",
-	"abs_Float":       "math.Abs",
+	"absFloat":        "math.Abs",
+	"abs_Float":       "math.Abs", // deprecated spelling of absFloat
 }
 
 // getMathConstant checks if a function expression refers to a math constant (PI, E).

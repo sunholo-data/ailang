@@ -15,7 +15,7 @@ module examples/regex_log_orchestration
 import std/io (println)
 import std/regex as R
 import std/string (split)
-import std/list (nth_or, forEachE)
+import std/list (nthOr, forEachE)
 import std/result (Ok, Err)
 import std/option (Some, None)
 
@@ -33,8 +33,8 @@ export func main() -> () ! {IO} = {
       forEachE(\line. match R.findFirst(re, line) {
         None => println("  (skipped unstructured line: '${line}')"),
         Some(m) => {
-          let level = (nth_or(m.groups, 1, noGroup())).text
-          let body = (nth_or(m.groups, 2, noGroup())).text
+          let level = (nthOr(m.groups, 1, noGroup())).text
+          let body = (nthOr(m.groups, 2, noGroup())).text
           if level == "ERROR" then println("  ALERT [${level}]: ${body}") else println("  ok    [${level}]: ${body}")
         }
       }, split(logs, "\n"))

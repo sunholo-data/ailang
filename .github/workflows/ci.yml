@@ -577,6 +577,14 @@ jobs:
     - name: Check the CLI reference matches the dispatch table
       run: make check-cli-docs
 
+    # The docs deploy publishes the committed llms.txt; it must embed the
+    # active teaching prompt (it sat two versions stale until 2026-11-11).
+    - name: Check llms.txt embeds the active teaching prompt
+      run: make check-llms-txt
+
+    - name: Self-test the llms.txt gate
+      run: make test-check-llms-txt
+
     - name: Check golden drift protection (M-P2)
       run: make check-golden-drift
       env:

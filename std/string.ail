@@ -150,7 +150,7 @@ export pure func foldChars(f: (a, string) -> a, acc: a, s: string) -> a = _str_f
 -- charAt: Get character at rune index (0-based) — ABORTS out of bounds
 -- WARNING: this is a PARTIAL accessor. Out of range — including index 0 of the
 -- empty string — it aborts the program rather than returning a value. Its type
--- gives no hint of that, so prefer charAtOpt or charAt_or whenever the index is
+-- gives no hint of that, so prefer charAtOpt or charAtOr whenever the index is
 -- derived from data rather than from a literal you have already bounds-checked.
 -- The abort exits non-zero, which makes it invisible to a test that asserts
 -- rejection by exit code alone: such a suite stays green while the program
@@ -164,16 +164,20 @@ export pure func charAt(s: string, i: int) -> string = _str_charAt(s, i)
 -- charAtOpt: Total character access at rune index (0-based)
 -- Returns None for every out-of-range index instead of aborting, matching the
 -- shape of every other partial accessor in the stdlib (list.nth, list.head,
--- string.stringToInt, json.asString, bytes.slice).
+-- string.stringToInt, json.asString, bytes.sliceLen).
 -- Example: charAtOpt("hello", 1) = Some("e"); charAtOpt("", 0) = None
 export pure func charAtOpt(s: string, i: int) -> Option[string] =
   if i >= 0 && i < length(s) then Some(_str_charAt(s, i)) else None
 
--- charAt_or: Character at rune index, or a caller-supplied default
--- Total for every index. Mirrors nth_or in std/list.
--- Example: charAt_or("hello", 9, "?") = "?"
-export pure func charAt_or(s: string, i: int, default: string) -> string =
+-- charAtOr: Character at rune index, or a caller-supplied default
+-- Total for every index. Mirrors nthOr in std/list.
+-- Example: charAtOr("hello", 9, "?") = "?"
+export pure func charAtOr(s: string, i: int, default: string) -> string =
   if i >= 0 && i < length(s) then _str_charAt(s, i) else default
+
+-- Deprecated spelling (renamed before 1.0): warns TC_DEPRECATED_001, removed before the v1.0.0 soak.
+@deprecated("charAtOr")
+export pure func charAt_or(s: string, i: int, default: string) -> string = charAtOr(s, i, default)
 
 -- Get Unicode code point of a single-character string
 -- Example: charCode("a") = 97, charCode("🎉") = 127881
@@ -187,6 +191,7 @@ export pure func charCode(c: string) -> int = _str_charCode(c)
 -- Equivalent to foldl(f, acc, split(s, delim)) but O(n) memory.
 -- No intermediate list allocated — segments are slices from the source string.
 -- Example: foldSlices("a,b,c", ",", 0, \acc s -> acc + length(s)) = 3
+@experimental
 export pure func foldSlices(s: string, delim: string, acc: a, f: (a, string) -> a) -> a =
   _str_foldSlices(s, delim, acc, f)
 
@@ -195,6 +200,7 @@ export pure func foldSlices(s: string, delim: string, acc: a, f: (a, string) -> 
 -- No intermediate list, no O(n^2) accumulator concatenation.
 -- This is the recommended pattern for any split->transform->concatenate workflow.
 -- Example: mapSlicesJoin("a,b,c", ",", toUpper) = "ABC"
+@experimental
 export pure func mapSlicesJoin(s: string, delim: string, f: string -> string) -> string =
   _str_mapSlicesJoin(s, delim, f)
 
@@ -209,9 +215,11 @@ export pure func replaceMany(s: string, replacements: [(string, string)]) -> str
 -- =XX hex escapes decoded, soft line breaks (=\r\n) removed,
 -- invalid sequences passed through unchanged.
 -- Example: decodeQuotedPrintable("hello=20world") = "hello world"
+@experimental
 export pure func decodeQuotedPrintable(s: string) -> string = _str_decodeQP(s)
 
 -- startsWithIgnoreCase: Case-insensitive prefix check
 -- Uses Unicode-aware case folding (handles ß ↔ SS, etc.)
 -- Example: startsWithIgnoreCase("Content-Type", "content-type") = true
+@experimental
 export pure func startsWithIgnoreCase(s: string, prefix: string) -> bool = _str_startsWithIC(s, prefix)

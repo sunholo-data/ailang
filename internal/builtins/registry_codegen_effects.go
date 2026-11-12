@@ -251,6 +251,23 @@ func registerEffectCodegenSpecs() {
 		StdlibName:   "member",
 		StdlibModule: "std/list",
 	})
+	// contains(xs, x) is member's replacement (arguments swapped). Without a
+	// spec the Go emitter left `Contains` undefined, so the deprecation
+	// warning steered Go-codegen users from a working name to a broken one
+	// (M-V1-STDLIB-SURFACE-POLISH review). Same equality as Member.
+	registerIfMissing("_list_contains", 2, true, &GoCodegenSpec{
+		Helper: &GoHelperSpec{
+			FuncName:  "ListContains",
+			Signature: "func ListContains(xs, x interface{}) interface{}",
+			Body: `list := toSlice(xs)
+	for _, v := range list {
+		if v == x { return true }
+	}
+	return false`,
+		},
+		StdlibName:   "contains",
+		StdlibModule: "std/list",
+	})
 	registerIfMissing("_list_difference", 2, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
 			FuncName:  "Difference",

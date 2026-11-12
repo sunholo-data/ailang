@@ -6,27 +6,33 @@
       "ctors": [
         "CASConflict",
         "CASSuccess"
-      ]
+      ],
+      "tier": "experimental"
     },
     {
       "name": "namespace",
-      "alias": "string"
+      "alias": "string",
+      "tier": "experimental"
     },
     {
       "name": "search_result",
-      "alias": "{key: string, score: float, timestamp: int, version: int}"
+      "alias": "{key: string, score: float, timestamp: int, version: int}",
+      "tier": "experimental"
     },
     {
       "name": "sem_frame",
-      "alias": "{content: string, embedding: Option[bytes], embedding_dim: int, id: string, opaque: bytes, simhash: int, ts: int, ver: int}"
+      "alias": "{content: string, embedding: Option[bytes], embedding_dim: int, id: string, opaque: bytes, simhash: int, ts: int, ver: int}",
+      "tier": "experimental"
     },
     {
       "name": "simhash64",
-      "alias": "int"
+      "alias": "int",
+      "tier": "experimental"
     },
     {
       "name": "similarity_match",
-      "alias": "{distance: int, hash: int}"
+      "alias": "{distance: int, hash: int}",
+      "tier": "experimental"
     }
   ],
   "funcs": [
@@ -60,7 +66,8 @@
       "name": "bump_version",
       "type": "({ver: int, ...a})-\u003e{ver: int, ...a}",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -94,7 +101,8 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -164,7 +172,8 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -196,7 +205,8 @@
       "name": "decode_frame",
       "type": "(string)-\u003eOption[{content: string, embedding: Option[bytes], embedding_dim: int, id: string, opaque: bytes, simhash: int, ts: int, ver: int}]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -243,7 +253,8 @@
         "SharedIndex",
         "SharedMem"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -275,7 +286,8 @@
       "name": "encode_frame",
       "type": "({id: string, ...a})-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -333,7 +345,8 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -415,7 +428,8 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -447,7 +461,8 @@
       "name": "get_simhash",
       "type": "({simhash: int, ...a})-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -479,7 +494,8 @@
       "name": "has_embedding",
       "type": "({embedding: Option[b], ...a})-\u003ebool",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -523,7 +539,8 @@
       "name": "is_newer",
       "type": "({ver: b, ...a},{ver: b, ...a})-\u003ebool",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -579,7 +596,8 @@
       "name": "is_similar",
       "type": "({simhash: int, ...a},{simhash: int, ...a},int)-\u003ebool",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -613,7 +631,8 @@
       "effects": [
         "SharedIndex"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -647,7 +666,8 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -705,7 +725,8 @@
       "effects": [
         "Clock"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -773,7 +794,8 @@
       "name": "make_frame_at",
       "type": "(string,string,bytes,int)-\u003e{content: string, embedding: Option[a], embedding_dim: b, id: string, opaque: bytes, simhash: int, ts: int, ver: c}",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -820,7 +842,8 @@
         "SharedIndex",
         "SharedMem"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -879,7 +902,8 @@
         "SharedIndex",
         "SharedMem"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -925,7 +949,8 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -972,7 +997,8 @@
         "SharedIndex",
         "SharedMem"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -1030,7 +1056,8 @@
       "effects": [
         "SharedMem"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -1062,7 +1089,8 @@
       "name": "validate_namespace",
       "type": "(string)-\u003eOption[string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -1118,7 +1146,8 @@
       "name": "with_embedding",
       "type": "({embedding: Option[bytes], embedding_dim: int, ...a},bytes,int)-\u003e{embedding: Option[bytes], embedding_dim: int, ...a}",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

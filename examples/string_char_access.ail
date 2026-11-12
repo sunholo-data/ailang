@@ -8,9 +8,9 @@ module examples/string_char_access
 -- rejected" by checking for a non-zero exit stays GREEN while the program
 -- crashes on every input.
 --
--- charAtOpt and charAt_or are total. Prefer them whenever the index comes from
+-- charAtOpt and charAtOr are total. Prefer them whenever the index comes from
 -- data rather than from a literal you have already bounds-checked.
-import std/string (charAt, charAtOpt, charAt_or, length)
+import std/string (charAt, charAtOpt, charAtOr, length)
 import std/option (Option, Some, None)
 import std/list (map)
 import std/io (println)
@@ -26,10 +26,10 @@ pure func describeFirst(s: string) -> string = match charAtOpt(s, 0) {
 
 -- The case that bit a real caller: a field that is sometimes absent arrives as
 -- "", and the accessor runs inside a map over every record.
-pure func initials(fields: [string]) -> [string] = map(\f. charAt_or(f, 0, "?"), fields)
+pure func initials(fields: [string]) -> [string] = map(\f. charAtOr(f, 0, "?"), fields)
 
 -- Rune-indexed, not byte-indexed: a multi-byte character is one index.
-pure func runeIndexed() -> string = charAt_or("🎉ab", 0, "?")
+pure func runeIndexed() -> string = charAtOr("🎉ab", 0, "?")
 
 export func main() -> () ! {IO} {
   println(firstCharGuarded("hello"))

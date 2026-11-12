@@ -3,13 +3,15 @@
   "types": [
     {
       "name": "StreamConfig",
-      "alias": "{headers: list[StreamHeader]}"
+      "alias": "{headers: list[StreamHeader]}",
+      "tier": "experimental"
     },
     {
       "name": "StreamConn",
       "ctors": [
         "StreamConn(int)"
-      ]
+      ],
+      "tier": "experimental"
     },
     {
       "name": "StreamErrorKind",
@@ -19,7 +21,8 @@
         "MessageTooLarge(string)",
         "ProtocolError(string)",
         "Timeout(string)"
-      ]
+      ],
+      "tier": "experimental"
     },
     {
       "name": "StreamEvent",
@@ -33,24 +36,28 @@
         "SourceBytes(string, bytes)",
         "SourceText(string, string)",
         "StreamError(StreamErrorKind)"
-      ]
+      ],
+      "tier": "experimental"
     },
     {
       "name": "StreamHeader",
-      "alias": "{name: string, value: string}"
+      "alias": "{name: string, value: string}",
+      "tier": "experimental"
     },
     {
       "name": "StreamMessage",
       "ctors": [
         "Bin(string)",
         "Text(string)"
-      ]
+      ],
+      "tier": "experimental"
     },
     {
       "name": "StreamSource",
       "ctors": [
         "StreamSource(int)"
-      ]
+      ],
+      "tier": "experimental"
     },
     {
       "name": "StreamStatus",
@@ -59,7 +66,8 @@
         "Connecting",
         "Open",
         "StreamClosed"
-      ]
+      ],
+      "tier": "experimental"
     }
   ],
   "funcs": [
@@ -144,7 +152,8 @@
         "Process",
         "Stream"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -190,7 +199,8 @@
       "effects": [
         "Stream"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -225,7 +235,8 @@
         "Process",
         "Stream"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -271,7 +282,8 @@
       "effects": [
         "Stream"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -303,7 +315,8 @@
       "name": "defaultConfig",
       "type": "(())-\u003e{headers: [{name: string, value: string}]}",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -337,7 +350,8 @@
       "effects": [
         "Stream"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -395,7 +409,8 @@
       "effects": [
         "Stream"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -441,7 +456,8 @@
       "effects": [
         "Stream"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -475,7 +491,8 @@
       "effects": [
         "Stream"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -521,7 +538,8 @@
       "effects": [
         "Stream"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -579,7 +597,8 @@
       "effects": [
         "Stream"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -625,7 +644,8 @@
       "effects": [
         "Stream"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -683,7 +703,8 @@
       "effects": [
         "Stream"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -717,7 +738,8 @@
       "effects": [
         "Stream"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -763,7 +785,8 @@
       "effects": [
         "Stream"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -809,7 +832,8 @@
       "effects": [
         "Stream"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -855,7 +879,8 @@
       "effects": [
         "Stream"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -901,7 +926,8 @@
       "effects": [
         "Stream"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

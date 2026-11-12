@@ -3,27 +3,33 @@
   "types": [
     {
       "name": "AIError",
-      "alias": "{code: string, message: string, retryable: bool}"
+      "alias": "{code: string, message: string, retryable: bool}",
+      "tier": "experimental"
     },
     {
       "name": "CacheBreakpoint",
-      "alias": "{position: string, ttl: string}"
+      "alias": "{position: string, ttl: string}",
+      "tier": "experimental"
     },
     {
       "name": "ImagePart",
-      "alias": "{mime: string, source: string}"
+      "alias": "{mime: string, source: string}",
+      "tier": "experimental"
     },
     {
       "name": "Message",
-      "alias": "{content: string, images: list[ImagePart], role: string, tool_call_id: string, tool_calls: list[ToolCall]}"
+      "alias": "{content: string, images: list[ImagePart], role: string, tool_call_id: string, tool_calls: list[ToolCall]}",
+      "tier": "experimental"
     },
     {
       "name": "RecordedStream",
-      "alias": "{chunks: list[StreamChunk], outcome: Result[StepResult,AIError]}"
+      "alias": "{chunks: list[StreamChunk], outcome: Result[StepResult,AIError]}",
+      "tier": "experimental"
     },
     {
       "name": "StepResult",
-      "alias": "{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: Message, output_tokens: int, tool_calls: list[ToolCall]}"
+      "alias": "{cache_creation_input_tokens: int, cache_read_input_tokens: int, finish_reason: string, input_tokens: int, message: Message, output_tokens: int, tool_calls: list[ToolCall]}",
+      "tier": "experimental"
     },
     {
       "name": "StreamChunk",
@@ -31,15 +37,18 @@
         "ContentDelta(string)",
         "ThinkingDelta(string)",
         "Usage({cache_creation_input_tokens: int, cache_read_input_tokens: int, input_tokens: int, output_tokens: int})"
-      ]
+      ],
+      "tier": "experimental"
     },
     {
       "name": "ToolCall",
-      "alias": "{arguments: string, id: string, name: string}"
+      "alias": "{arguments: string, id: string, name: string}",
+      "tier": "experimental"
     },
     {
       "name": "ToolSchema",
-      "alias": "{description: string, name: string, parameters: string}"
+      "alias": "{description: string, name: string, parameters: string}",
+      "tier": "experimental"
     }
   ],
   "funcs": [
@@ -75,7 +84,8 @@
       "effects": [
         "AI"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -134,7 +144,8 @@
         "AI",
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -180,7 +191,8 @@
       "effects": [
         "AI"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -238,7 +250,8 @@
       "effects": [
         "AI"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -309,7 +322,8 @@
         "AI",
         "FS"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -355,7 +369,8 @@
       "effects": [
         "AI"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -401,7 +416,8 @@
       "effects": [
         "AI"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -435,7 +451,8 @@
       "effects": [
         "AI"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -469,7 +486,8 @@
       "effects": [
         "AI"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -503,7 +521,8 @@
       "effects": [
         "AI"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -573,7 +592,8 @@
       "effects": [
         "AI"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -655,7 +675,8 @@
       "effects": [
         "AI"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -687,7 +708,8 @@
       "name": "speechSampleRate",
       "type": "(())-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -745,7 +767,8 @@
       "effects": [
         "AI"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -815,7 +838,8 @@
       "effects": [
         "AI"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -897,7 +921,8 @@
       "effects": [
         "AI"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -979,7 +1004,8 @@
       "effects": [
         "AI"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

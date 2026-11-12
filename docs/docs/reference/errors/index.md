@@ -122,6 +122,25 @@ TC_NOMINAL_001: cannot unify T (defined in q/a) with T (defined in q/b): they ar
 
 **`TC_AMBIGUOUS_CTOR_001` — a constructor two imported modules both offer.** The constructor auto-import brings every constructor of a selectively imported module into scope; when two modules offer the same name and neither is imported by name, a pattern is resolved by the scrutinee's type once inference has decided it (a deferred choice, independent of the order of the code; the pattern's own number of arguments narrows the candidates first). The error is reported, at the pattern or expression, for an expression; for a pattern whose scrutinee's type nothing in the enclosing top-level declaration decides (fix: import the constructor by name, or annotate the value matched); for a pattern whose argument count fits another candidate than the type matched (fix: the argument count); and as the cause of a conflict it creates — a let-bound function matching the constructor stays monomorphic while the choice is open, so using it at two types (`Box[int]` and `Box[string]`) fails; the message names the function and the conflict. Fix for expressions and conflicts: `import M (C)` from the module you mean.
 
+**`TC_DEPRECATED_001` — use of a `@deprecated` function (warning).** Emitted once per use site — a call, a function passed as a value, a module-qualified `L.f` or an aliased import — of a function declared `@deprecated("replacement")` in another module. The message names the replacement and the suggestion carries the annotation's optional note (for example, that the arguments swap). A name imported by name and never used warns once, at that name in the import list (the import itself fails once the alias is removed). Defining it and uses inside the defining module do not warn; nor do uses inside an installed dependency package (`pkg/<other>/...`), which that package's own `check` reports. If the replacement is itself deprecated, the message names the first function along the chain that is not (`use headOr`, not `use head_or`); when the chain cycles or reaches a name that does not exist, it names the annotation's own replacement. It is reported on a warm compile cache too, and never blocks compilation. The stdlib renames before 1.0 (`head_or` → `headOr`, `rand_int` → `randInt`, …) use it; see [Deprecated stdlib names](/docs/reference/stability#deprecated-stdlib-names).
+
+```
+TC_DEPRECATED_001 at app.ail:4:31
+  std/list.head_or is deprecated; use headOr.
+  Fix: replace head_or with headOr (import it from std/list)
+```
+
+**`TC_DEPRECATED_002` — `@deprecated` names no replacement (error).** The replacement in `@deprecated("x")` must exist: an export of the same module (`"headOr"`), or `"mod/path.name"` from a module this one imports. It is an error, at the annotation, when that name is not exported (with a did-you-mean, spelled the way the annotation must spell it) or is the function itself. Nothing else: a replacement that is itself deprecated, or a chain that cycles, is legal — whether a name in another module is deprecated is not part of this module's compile-cache key, so rejecting it would give one verdict cold and another warm. A std function deprecated in a later release therefore gives an unchanged library warnings only, never an error, and those warnings are not reported inside an installed dependency. Fix: point the annotation at an existing export.
+
+```
+Error TC_DEPRECATED_002 at lib.ail:6:1: @deprecated("headOR") on head_or names no replacement: lib does not export headOR
+  Fix: did you mean @deprecated("headOr")?
+```
+
+**`PAR_DEPRECATED_ARG` / `PAR_EXPERIMENTAL_ARG` — malformed annotation (parse error).** `@deprecated` takes the replacement's name and an optional note, as one or two non-empty string literals: `@deprecated("headOr")`, `@deprecated("contains", "arguments swap")`. `@experimental` takes no arguments; `@experimental("x")` is `PAR_EXPERIMENTAL_ARG: @experimental takes no arguments`.
+
+These codes are inline diagnostic codes, like `TC_MATCH_005`; they are not entries of the generated `error_codes.json` registry, which covers the `PREFIX###` codes in `internal/errors/codes.go`.
+
 ## Individual error code pages
 
 - [BC001 — Function is evaluator-only under --strict-bytecode](bc001.md)

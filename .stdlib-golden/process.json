@@ -11,17 +11,20 @@
         "PermissionDenied(string)",
         "SpawnFailed(string)",
         "Timeout(int)"
-      ]
+      ],
+      "tier": "experimental"
     },
     {
       "name": "ProcessHandle",
       "ctors": [
         "ProcessHandle(int)"
-      ]
+      ],
+      "tier": "experimental"
     },
     {
       "name": "ProcessOutput",
-      "alias": "{exitCode: int, resolvedPath: string, stderr: bytes, stdout: bytes, truncated: bool}"
+      "alias": "{exitCode: int, resolvedPath: string, stderr: bytes, stdout: bytes, truncated: bool}",
+      "tier": "experimental"
     },
     {
       "name": "WorkerCancelError",
@@ -30,7 +33,8 @@
         "WorkerCancelTimedOut(int)",
         "WorkerCancelUnsupported(string)",
         "WorkerHandleInvalid(string)"
-      ]
+      ],
+      "tier": "experimental"
     }
   ],
   "funcs": [
@@ -66,7 +70,8 @@
       "effects": [
         "Process"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -100,7 +105,8 @@
       "effects": [
         "Process"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -146,7 +152,8 @@
       "effects": [
         "Process"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -192,7 +199,8 @@
       "effects": [
         "Process"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -238,7 +246,8 @@
       "effects": [
         "Process"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -284,7 +293,8 @@
       "effects": [
         "Process"
       ],
-      "pure": false
+      "pure": false,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"
