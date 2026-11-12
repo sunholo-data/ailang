@@ -1,4 +1,4 @@
-package pipeline
+package types_test
 
 import (
 	"strings"
@@ -8,7 +8,9 @@ import (
 // #2238: the parameter and return annotations of a function literal constrain
 // it exactly as a top-level `func`'s do. Every form that can carry an
 // annotation goes through elaborate.recordSignatureAnnots; each row below pins
-// one form (rejects) or one shape that must keep checking (accepts).
+// one form (rejects) or one shape that must keep checking (accepts). Seen
+// through the pipeline (like ambiguous_ctor_pipeline_test.go), so the
+// checker side (literalParamType) is exercised in this package.
 func TestFuncLitAnnotations_Enforced(t *testing.T) {
 	cases := []struct {
 		name    string
@@ -18,7 +20,7 @@ func TestFuncLitAnnotations_Enforced(t *testing.T) {
 		// --- rejected: the annotation is the only thing that can catch these ---
 		{
 			name: "issue_repro_param", // body ignores x, so only the annotation constrains it
-			src: `module m
+			src: `module m/main
 export func main() -> () ! {IO} {
   let f = func(x: int) -> int { 0 };
   println(show(f("str")))
@@ -27,7 +29,7 @@ export func main() -> () ! {IO} {
 		},
 		{
 			name: "return_annotation",
-			src: `module m
+			src: `module m/main
 export func main() -> () ! {IO} {
   let f = func(x: int) -> int { "s" };
   println(f(1))
@@ -36,7 +38,7 @@ export func main() -> () ! {IO} {
 		},
 		{
 			name: "fat_arrow_lambda_param", // func(x: T) => e
-			src: `module m
+			src: `module m/main
 export func main() -> () ! {IO} {
   let f = func(x: int) => 0;
   println(show(f("str")))
@@ -45,14 +47,14 @@ export func main() -> () ! {IO} {
 		},
 		{
 			name: "module_level_let_literal",
-			src: `module m
+			src: `module m/main
 let g = func(x: int) -> int { 0 }
 export func main() -> () ! {IO} = println(show(g("str")))`,
 			wantErr: "int vs string",
 		},
 		{
 			name: "letrec_literal",
-			src: `module m
+			src: `module m/main
 export func main() -> () ! {IO} {
   letrec f = func(x: int) -> int { 0 };
   println(show(f("str")))
@@ -61,7 +63,7 @@ export func main() -> () ! {IO} {
 		},
 		{
 			name: "literal_as_callback_argument",
-			src: `module m
+			src: `module m/main
 import std/list (map)
 export func main() -> () ! {IO} =
   println(show(map(func(x: int) -> int { 0 }, ["a", "b"])))`,
@@ -70,14 +72,14 @@ export func main() -> () ! {IO} =
 		// --- controls: top-level and let-annotation paths were already enforced ---
 		{
 			name: "control_top_level_func",
-			src: `module m
+			src: `module m/main
 func top(x: int) -> int = 0
 export func main() -> () ! {IO} = println(show(top("str")))`,
 			wantErr: "int vs string",
 		},
 		{
 			name: "control_let_type_annotation",
-			src: `module m
+			src: `module m/main
 export func main() -> () ! {IO} {
   let f: int -> int = \x. 0;
   println(show(f("str")))
@@ -87,13 +89,13 @@ export func main() -> () ! {IO} {
 		// --- accepted: correct programs that must keep checking ---
 		{
 			name: "foldl_callback",
-			src: `module m
+			src: `module m/main
 import std/list (foldl)
 export func main() -> () ! {IO} = println(show(foldl(func(acc: int, x: int) -> int { acc + x }, 0, [1, 2, 3])))`,
 		},
 		{
 			name: "let_polymorphic_annotated_literal",
-			src: `module m
+			src: `module m/main
 export func main() -> () ! {IO} {
   let id = func(x: a) -> a { x };
   println("${show(id(1))}${id("s")}")
@@ -101,14 +103,14 @@ export func main() -> () ! {IO} {
 		},
 		{
 			name: "enclosing_type_param",
-			src: `module m
+			src: `module m/main
 import std/list (map)
 pure func keep[a](xs: [a]) -> [a] = map(func(x: a) -> a { x }, xs)
 export func main() -> () ! {IO} = println(show(keep([1, 2])))`,
 		},
 		{
 			name: "effectful_callback_param",
-			src: `module m
+			src: `module m/main
 export func main() -> () ! {IO} {
   let run = func(g: (int) -> () ! {IO}) -> () ! {IO} { g(1) };
   run(\n. println(show(n)))
@@ -116,7 +118,7 @@ export func main() -> () ! {IO} {
 		},
 		{
 			name: "adt_record_list_and_open_record_params",
-			src: `module m
+			src: `module m/main
 type P = { name: string, age: int }
 export func main() -> () ! {IO} {
   let f = func(o: Option[int], p: P, xs: [int]) -> int { match o { Some(n) => n + p.age, None => 0 } };
@@ -131,7 +133,7 @@ export func main() -> () ! {IO} {
 			// annotation leaked its open effect tail into the enclosing function
 			// (60 downstream files); literal annotations are equalities instead.
 			name: "annotated_callback_passed_to_effect_polymorphic_callee",
-			src: `module m
+			src: `module m/main
 type Ex = { v: int }
 type Ports = Ports({ step: (int, int -> () ! {IO}) -> Ex ! {IO, Trace} })
 func poly(n: int, cb: int -> () ! {e}) -> int ! {e} { cb(n); n }
@@ -142,7 +144,7 @@ export func live() -> Ports ! {IO} {
 		},
 		{
 			name: "recursive_literal",
-			src: `module m
+			src: `module m/main
 export func main() -> () ! {IO} {
   letrec fact = func(n: int) -> int { if n <= 1 then 1 else n * fact(n - 1) };
   println(show(fact(5)))
@@ -150,7 +152,7 @@ export func main() -> () ! {IO} {
 		},
 		{
 			name: "unannotated_param_stays_inferred",
-			src: `module m
+			src: `module m/main
 export func main() -> () ! {IO} {
   let f = func(x) -> int { 0 };
   println(show(f("str")))
@@ -159,7 +161,7 @@ export func main() -> () ! {IO} {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			err := checkSource(t, "m", tc.src)
+			err := checkModules(t, map[string]string{"m/main.ail": tc.src})
 			if tc.wantErr == "" {
 				if err != nil {
 					t.Fatalf("expected the program to check, got: %v", err)
