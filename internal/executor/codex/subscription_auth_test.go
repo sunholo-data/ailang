@@ -2,12 +2,15 @@ package codex
 
 import (
 	"os"
+	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/testutil"
 )
+
+func authPath(home string) string { return filepath.Join(home, ".codex", "auth.json") }
 
 func chatgptAuth(lastRefresh string) []byte {
 	return []byte(`{"auth_mode":"chatgpt","OPENAI_API_KEY":null,"last_refresh":"` + lastRefresh +

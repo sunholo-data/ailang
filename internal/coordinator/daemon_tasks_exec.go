@@ -191,7 +191,7 @@ func (d *Daemon) dispatchTasksCloud() error {
 
 		// One rotating credential, one job at a time (credential_lane.go). A
 		// second codex job would lose the lease and be banked as failed.
-		if lane := credentialLane(inputAgent, provider); lane != "" {
+		if lane := credentialLane(provider); lane != "" {
 			holder, err := d.credentialLaneHolder(d.ctx, lane, task.ID, claimedLanes)
 			if err != nil {
 				d.logger.Printf("Task %s: cannot check credential lane %s, leaving it pending: %v", task.ID, lane, err)

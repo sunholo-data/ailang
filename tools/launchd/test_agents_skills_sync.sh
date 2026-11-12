@@ -12,7 +12,7 @@ ok() { PASS=$((PASS+1)); echo "  PASS: $1"; }
 bad() { FAIL=$((FAIL+1)); echo "  FAIL: $1 ($2)"; }
 
 out=$(/bin/bash "$ROOT/tools/launchd/sync-agents-skills.sh" --check 2>&1)
-if [ $? -eq 0 ]; then ok "mission-*/sprint-* .agents copies equal .claude"; else bad "mission-*/sprint-* .agents copies equal .claude" "$out — run tools/launchd/sync-agents-skills.sh"; fi
+if [ $? -eq 0 ]; then ok "mission-*/sprint-*/release-manager .agents copies equal .claude"; else bad "mission-*/sprint-*/release-manager .agents copies equal .claude" "$out — run tools/launchd/sync-agents-skills.sh"; fi
 
 # Check canonical rule 3(c); the equality check above covers the generated mirror.
 # Collect wrapped prose, then inspect only inline commands between (c) and (d).
@@ -69,7 +69,7 @@ fi
 # Negative control: the check must SEE a drifted copy.
 tmp=$(mktemp -d); mkdir -p "$tmp/tools/launchd" "$tmp/.claude/skills" "$tmp/.agents/skills"
 cp "$ROOT/tools/launchd/sync-agents-skills.sh" "$tmp/tools/launchd/"
-for s in mission-control mission-brief mission-loop-change sprint-planner sprint-executor sprint-evaluator; do
+for s in mission-control mission-brief mission-loop-change sprint-planner sprint-executor sprint-evaluator release-manager; do
   mkdir -p "$tmp/.claude/skills/$s" "$tmp/.agents/skills/$s"; echo x > "$tmp/.claude/skills/$s/SKILL.md"; echo x > "$tmp/.agents/skills/$s/SKILL.md"
 done
 echo drifted > "$tmp/.agents/skills/sprint-planner/SKILL.md"

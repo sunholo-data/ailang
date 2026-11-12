@@ -63,7 +63,7 @@ Run all pre-release verification checks before making any changes.
 
 **Usage:**
 ```bash
-.Codex/skills/release-manager/scripts/pre_release_checks.sh
+.claude/skills/release-manager/scripts/pre_release_checks.sh
 ```
 
 **What it checks:**
@@ -97,7 +97,7 @@ Verify all implemented design docs are documented in CHANGELOG.
 
 **Usage:**
 ```bash
-.Codex/skills/release-manager/scripts/check_implemented_docs.sh 0.5.10
+.claude/skills/release-manager/scripts/check_implemented_docs.sh 0.5.10
 ```
 
 **What it checks:**
@@ -114,7 +114,7 @@ Verify release was created successfully on GitHub.
 
 **Usage:**
 ```bash
-.Codex/skills/release-manager/scripts/post_release_checks.sh 0.3.14
+.claude/skills/release-manager/scripts/post_release_checks.sh 0.3.14
 ```
 
 **What it checks:**
@@ -128,7 +128,7 @@ Update website version constants to the new release version.
 
 **Usage:**
 ```bash
-.Codex/skills/release-manager/scripts/update_version_constants.sh 0.5.7
+.claude/skills/release-manager/scripts/update_version_constants.sh 0.5.7
 ```
 
 **What it updates:**
@@ -149,9 +149,9 @@ Find GitHub issues that can be closed with this release.
 
 **Usage:**
 ```bash
-.Codex/skills/release-manager/scripts/collect_closable_issues.sh 0.5.9
-.Codex/skills/release-manager/scripts/collect_closable_issues.sh 0.5.9 --close
-.Codex/skills/release-manager/scripts/collect_closable_issues.sh 0.5.9 --json
+.claude/skills/release-manager/scripts/collect_closable_issues.sh 0.5.9
+.claude/skills/release-manager/scripts/collect_closable_issues.sh 0.5.9 --close
+.claude/skills/release-manager/scripts/collect_closable_issues.sh 0.5.9 --json
 ```
 
 **What it scans:**
@@ -179,8 +179,8 @@ Close a GitHub issue with proper release references (URLs, commits, design docs)
 
 **Usage:**
 ```bash
-.Codex/skills/release-manager/scripts/close_issues_with_references.sh 0.5.10 29
-.Codex/skills/release-manager/scripts/close_issues_with_references.sh 0.5.10 29 'M-STRING-CONVERT'
+.claude/skills/release-manager/scripts/close_issues_with_references.sh 0.5.10 29
+.claude/skills/release-manager/scripts/close_issues_with_references.sh 0.5.10 29 'M-STRING-CONVERT'
 ```
 
 **What it does:**
@@ -197,8 +197,8 @@ Broadcast release notification with changelog to all projects.
 
 **Usage:**
 ```bash
-.Codex/skills/release-manager/scripts/broadcast_release.sh 0.4.5
-.Codex/skills/release-manager/scripts/broadcast_release.sh 0.4.5 --include-issues
+.claude/skills/release-manager/scripts/broadcast_release.sh 0.4.5
+.claude/skills/release-manager/scripts/broadcast_release.sh 0.4.5 --include-issues
 ```
 
 **Options:**
@@ -217,7 +217,7 @@ Broadcast release notification with changelog to all projects.
 
 **Run checks BEFORE making any changes:**
 ```bash
-.Codex/skills/release-manager/scripts/pre_release_checks.sh
+.claude/skills/release-manager/scripts/pre_release_checks.sh
 ```
 
 **If checks fail:**
@@ -241,7 +241,7 @@ otherwise the fragments have no heading to land under. The fold is part of the r
 
 **Check that all implemented features are documented:**
 ```bash
-.Codex/skills/release-manager/scripts/check_implemented_docs.sh X.X.X
+.claude/skills/release-manager/scripts/check_implemented_docs.sh X.X.X
 ```
 
 **This checks `design_docs/implemented/vX_Y_Z/` against CHANGELOG:**
@@ -258,7 +258,7 @@ otherwise the fragments have no heading to land under. The fold is part of the r
 
 **Run the version update script:**
 ```bash
-.Codex/skills/release-manager/scripts/update_version_constants.sh X.X.X
+.claude/skills/release-manager/scripts/update_version_constants.sh X.X.X
 ```
 
 **Also update these files manually:**
@@ -374,7 +374,7 @@ prod was frozen at 0.19.1 for ~3 weeks).
 **Test is automatic and gated; prod is a manual promote by version** (unified
 2026-09-03 — full picture in `resources/cloud-release.md`). Pushing the `v*` tag fires
 `ailang-core-release` → `cloudbuild-release.yaml`: CI gate → build **all 16 images**
-(`:vX.Y.Z` + `:latest`) → deploy TEST (4 services + 15 jobs) → smoke gate, and it
+(`:vX.Y.Z` + `:latest`) → deploy TEST (4 services + 10 jobs) → smoke gate, and it
 **stops there**. The smoke gate requires the **test** MCP to serve the released
 version, so **`std/VERSION` must equal the tag** (intentional: it catches tagging
 without bumping `std/VERSION`; `ailang-multivac/scripts/release.sh tag ailang vX.Y.Z`
@@ -439,20 +439,28 @@ Prod only ever receives images that exist in test, by version. From the ailang-m
 checkout (guards, sets, verification and rollback: `resources/cloud-release.md`):
 
 ```bash
-scripts/release.sh promote core vX.Y.Z --dry-run   # refuses unless the release build
-scripts/release.sh promote core vX.Y.Z             # SUCCEEDED and all 16 :vX exist
+scripts/release.sh promote core vX.Y.Z --dry-run       # refuses unless the release build
+YES=1 scripts/release.sh promote core vX.Y.Z           # SUCCEEDED and all 16 :vX exist
 ```
+
+**`YES=1` is required whenever you are not typing at a terminal** — an agent session, CI,
+anything piping stdin. The promote asks `Proceed? [y/N]` interactively; with no TTY `read`
+takes EOF, `$REPLY` stays empty and the script exits 1. Before 2026-09-07 it printed
+*nothing* when that happened, so the banner scrolled by and prod was silently left
+un-promoted — the failure looked identical to success. It now refuses loudly and names
+this flag. `--dry-run` skips the prompt entirely, which is why a dry-run can pass on the
+same command line that then does nothing.
 
 ### 8. Collect and Close Related Issues
 
 **Find issues that can be closed with this release:**
 ```bash
-.Codex/skills/release-manager/scripts/collect_closable_issues.sh X.X.X
+.claude/skills/release-manager/scripts/collect_closable_issues.sh X.X.X
 ```
 
 **Review the suggested issues, then close them:**
 ```bash
-.Codex/skills/release-manager/scripts/collect_closable_issues.sh X.X.X --close
+.claude/skills/release-manager/scripts/collect_closable_issues.sh X.X.X --close
 ```
 
 The script scans commits, CHANGELOG, and design docs for issue references, and matches open issues against CHANGELOG keywords.
@@ -461,7 +469,7 @@ The script scans commits, CHANGELOG, and design docs for issue references, and m
 
 **Use the verification script:**
 ```bash
-.Codex/skills/release-manager/scripts/post_release_checks.sh X.X.X
+.claude/skills/release-manager/scripts/post_release_checks.sh X.X.X
 ```
 
 Or manually:
@@ -479,7 +487,7 @@ Expected binaries:
 
 **Notify all projects about the new release:**
 ```bash
-.Codex/skills/release-manager/scripts/broadcast_release.sh X.X.X
+.claude/skills/release-manager/scripts/broadcast_release.sh X.X.X
 ```
 
 This extracts the changelog entry for the version and broadcasts it to the user inbox.

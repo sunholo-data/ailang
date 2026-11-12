@@ -91,8 +91,7 @@ func resolveContainerProvider(requested, image string) (string, error) {
 // found in $PATH" says what is missing and not what the container is.
 func preflightExecutor(ctx context.Context, provider string) error {
 	// codex's credential is installed BEFORE this runs (installCodexCredential):
-	// subscription auth.json by default, the metered key only under
-	// AILANG_AUTH_MODE=apikey. HealthCheck below proves whichever landed.
+	// the subscription auth.json. HealthCheck below proves it landed.
 
 	exec, err := executor.GlobalFactory().GetExecutor(provider)
 	if err != nil {

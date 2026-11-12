@@ -21,13 +21,11 @@ import "context"
 const laneCodexSubscription = "codex-subscription"
 
 // credentialLane returns the shared-credential lane a dispatch would occupy, or
-// "" when its credential is not exclusive.
-func credentialLane(agent *AgentConfig, provider string) string {
+// "" when its credential is not exclusive. Every cloud codex job is on the
+// subscription: the metered codex key went with the *-apikey jobs (2026-11-10).
+func credentialLane(provider string) string {
 	if provider != "codex" {
 		return ""
-	}
-	if agent != nil && agent.AuthMode == "apikey" {
-		return "" // the metered key is not leased
 	}
 	return laneCodexSubscription
 }
@@ -48,11 +46,7 @@ func (d *Daemon) credentialLaneHolder(ctx context.Context, lane, self string, cl
 		if t.ID == self {
 			continue
 		}
-		var agent *AgentConfig
-		if d.agentRegistry != nil {
-			agent = d.agentRegistry.GetAgentByID(t.AgentID)
-		}
-		if credentialLane(agent, resolveDispatchProvider(d.agentRegistry, t.AgentID, d.coordConfig)) == lane {
+		if credentialLane(resolveDispatchProvider(d.agentRegistry, t.AgentID, d.coordConfig)) == lane {
 			return t.ID, nil
 		}
 	}

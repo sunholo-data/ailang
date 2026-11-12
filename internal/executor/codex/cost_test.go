@@ -1,11 +1,47 @@
 package codex
 
 import (
+	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/modelreg"
+	"github.com/sunholo-data/ailang/internal/testutil"
 )
+
+// TestAuthLane_ReadsTheFile: the cost record depends on this. An api-key
+// auth.json misreported as subscription would under-count spend, and a wrong
+// "billed" is never the fallback.
+func TestAuthLane_ReadsTheFile(t *testing.T) {
+	for _, c := range []struct {
+		name, file string
+		want       executor.AuthLane
+	}{
+		{"chatgpt", `{"auth_mode":"chatgpt","tokens":{"refresh_token":"r"}}`, executor.AuthLaneSubscription},
+		{"apikey", `{"auth_mode":"apikey","OPENAI_API_KEY":"sk-x"}`, executor.AuthLaneBilled},
+		{"legacy key, no discriminator", `{"OPENAI_API_KEY":"sk-x"}`, executor.AuthLaneBilled},
+		{"unparseable", `{`, executor.AuthLaneUnknown},
+		{"absent", "", executor.AuthLaneUnknown},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			home := t.TempDir()
+			testutil.SetHomeDir(t, home)
+			t.Setenv("CODEX_HOME", "")
+			if c.file != "" {
+				if err := os.MkdirAll(filepath.Join(home, ".codex"), 0o700); err != nil {
+					t.Fatal(err)
+				}
+				if err := os.WriteFile(authPath(home), []byte(c.file), 0o600); err != nil {
+					t.Fatal(err)
+				}
+			}
+			if got := (&CodexExecutor{}).authLane(); got != c.want {
+				t.Errorf("authLane = %v, want %v", got, c.want)
+			}
+		})
+	}
+}
 
 // TestCodexCostModel: the fallback rate card is the registry row of the model
 // the executor is configured with, not gpt-5-codex's table applied to every

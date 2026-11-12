@@ -60,7 +60,7 @@ version, `crane tag … latest` in prod, digest assertion, and a roll with `:lat
 which is what Terraform pins by string, so the next apply sees no drift while the
 registry records which version is live. Rollback: `promote core v<previous>`.
 
-Sets: `core` (every `AILANG_IMAGES` image + the core services + 15 jobs), `agents`, `agent`, `agent-pi`,
+Sets: `core` (every `AILANG_IMAGES` image + the core services + 10 jobs), `agents`, `agent`, `agent-pi`,
 `coordinator`, `dashboard`, `mcp`; `docparse`/`billing` and `website-builder` are
 promoted by their own repos' versions. There is no `all`.
 
@@ -78,6 +78,6 @@ expose the digest only on executions (`gcloud run jobs executions describe …
 
 ## Break-glass caveat
 
-`cloudbuild-dev.yaml` submitted at prod builds all 17 images and rolls 15 jobs but tags
+`cloudbuild-dev.yaml` submitted at prod builds all 17 images and rolls 10 jobs but tags
 `:latest` only, bypassing promote-by-version: the registry will not record which version
 prod runs. Re-promote a real version afterwards.

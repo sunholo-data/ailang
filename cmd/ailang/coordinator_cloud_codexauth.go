@@ -60,27 +60,21 @@ func canonicalCodexSecret(project, secret string) (string, error) {
 // installCodexCredential gives a cloud codex job its credential, BEFORE the
 // preflight health check.
 //
-// Default is the ChatGPT SUBSCRIPTION (Mark, 2026-09-30: cloud executors bill
-// OAuth, never the metered API; OpenAI has confirmed this use). The metered key is
-// used only by a job that explicitly declares AILANG_AUTH_MODE=apikey. Neither
-// present is a hard failure — the old behaviour of quietly writing an api-key
+// The only credential is the ChatGPT SUBSCRIPTION (Mark, 2026-09-30: cloud
+// executors bill OAuth, never the metered API; OpenAI has confirmed this use).
+// No secret is a hard failure — the old behaviour of quietly writing an api-key
 // auth.json from OPENAI_API_KEY is how every cloud codex run billed the API.
+// AILANG_AUTH_MODE=apikey no longer selects a metered key here: the per-request
+// API-key jobs were retired 2026-11-10, and the dispatcher only sends that
+// marker on the guarded credit lane, which is Claude-only.
 func installCodexCredential(ctx context.Context, provider, project string) (*codexCredential, error) {
 	if provider != "codex" {
 		return nil, nil
 	}
-	if config.AuthMode() == "apikey" {
-		if wrote, err := codex.EnsureAPIKeyAuth(); err != nil {
-			return nil, fmt.Errorf("codex api-key auth (AILANG_AUTH_MODE=apikey): %w", err)
-		} else if wrote {
-			fmt.Println("execute-job: codex auth = METERED api key (AILANG_AUTH_MODE=apikey)")
-		}
-		return nil, nil
-	}
 	secret := config.CodexAuthSecret()
 	if secret == "" {
-		return nil, fmt.Errorf("codex job has no subscription credential: set %s to the Secret Manager secret holding a ChatGPT auth.json (or %s=apikey for the explicitly metered job)",
-			config.EnvCodexAuthSecret, config.EnvAuthMode)
+		return nil, fmt.Errorf("codex job has no subscription credential: set %s to the Secret Manager secret holding a ChatGPT auth.json",
+			config.EnvCodexAuthSecret)
 	}
 	key, err := canonicalCodexSecret(project, secret)
 	if err != nil {

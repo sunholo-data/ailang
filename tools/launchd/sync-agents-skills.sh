@@ -10,15 +10,17 @@
 # mission-loop-change were missing. Verbatim is correct: the .claude/... paths
 # resolve for any agent reading this repo.
 #
-# Scope is the fleet's (ticket skills:agents-copies-stale): mission-* and sprint-*.
-# Other skills carry .agents-only edits (model-manager, design-doc-creator) and need
-# a reconciliation, not an overwrite. test_agents_skills_sync.sh enforces this list.
+# Scope is the fleet's (ticket skills:agents-copies-stale): mission-* and sprint-*,
+# plus release-manager (2026-11-12: its .agents copy carried no .agents-only edits,
+# only the stale ".Codex/skills" rename and old job counts). Other skills carry
+# .agents-only edits (model-manager, design-doc-creator) and need a reconciliation,
+# not an overwrite. test_agents_skills_sync.sh enforces this list.
 #
 #   tools/launchd/sync-agents-skills.sh           copy
 #   tools/launchd/sync-agents-skills.sh --check   exit 1 if any copy differs
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-SKILLS="mission-control mission-brief mission-loop-change sprint-planner sprint-executor sprint-evaluator"
+SKILLS="mission-control mission-brief mission-loop-change sprint-planner sprint-executor sprint-evaluator release-manager"
 rc=0
 for s in $SKILLS; do
   src="$ROOT/.claude/skills/$s"; dst="$ROOT/.agents/skills/$s"

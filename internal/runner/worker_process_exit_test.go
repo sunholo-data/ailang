@@ -98,7 +98,14 @@ with tempfile.TemporaryDirectory() as work:
   assert worker_pid > 1
   os.kill(worker_pid,0)
   start = time.monotonic()
-  if scenario in ('sigint','sigterm'): os.kill(process.pid,signal.SIGINT if scenario=='sigint' else signal.SIGTERM)
+  if scenario in ('sigint','sigterm'):
+   # stdin stays OPEN until the host has exited. communicate() closes it, and
+   # that EOF lets readLine return so the host finishes normally, racing the
+   # signal it was just sent: 0 on macOS CI, -15 when the signal lands after
+   # signal.Stop (reproduced by closing stdin first). The signal must be the
+   # host's only way out.
+   os.kill(process.pid,signal.SIGINT if scenario=='sigint' else signal.SIGTERM)
+   process.wait(timeout=4)
   else: process.stdin.write(b'quit\n'); process.stdin.flush()
   stdout,stderr = process.communicate(timeout=4)
   elapsed = time.monotonic()-start
