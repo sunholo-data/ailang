@@ -27,9 +27,9 @@ package types
 //   - an alias body naming a variable it does not bind (`type Count =
 //     integer`) would turn the ground Num[Count] into a deferred, then
 //     dropped, constraint on a fresh variable.
-//   - a self-referential alias (`type L[a] = [L[a]]`) unfolds to something
-//     unsolvable, so the diagnostic names L[int], not a type unfolded
-//     aliasExpandDepthCap levels deep.
+//   - a self-referential alias (`type L[a] = [L[a]]`, or the branching
+//     `type T2[a] = (T2[a], T2[a])`) never reaches a finite ground type: the
+//     expansion stops where the alias recurs, and the diagnostic names L[int].
 //
 // Two kinds of type are never expanded: a newtype ADT (`type W =
 // W({x: int})`) and a record alias (`type P = {x: int}`). Both are nominal:
@@ -38,23 +38,12 @@ package types
 // let one borrow a same-named type's `deriving (Eq)` from another module, or
 // give a record that never derived Eq an ==.
 
-// aliasExpandDepthCap bounds the structural walk (a self-referential alias
-// such as `type L[a] = [L[a]]` would otherwise unfold forever).
-const aliasExpandDepthCap = 32
-
-// newAliasUnifier builds the unifier that sees through this checker's
-// aliases (local and imported, with applied-alias parameters, name-shadow
-// captures and newtypes).
-func (tc *CoreTypeChecker) newAliasUnifier() *Unifier {
-	if len(tc.aliasEnv) == 0 && len(tc.aliasCaptures) == 0 {
-		return NewUnifier()
-	}
-	// M-XMOD-ALIAS-POLY: param env so applied aliases (`Box[int]`) instantiate.
-	u := NewUnifierWithAliasesAndParams(tc.aliasEnv, tc.aliasParams)
-	u.SetAliasCaptures(tc.aliasCaptures)
-	u.SetNewtypes(tc.newtypes)
-	return u
-}
+// aliasExpandNodeBudget bounds the work of expanding one constraint type.
+// The written type is finite, but expansion can multiply it: a nest of
+// nullary pair aliases (`type P2 = (P1, P1)`, ... `P20`) is legitimately
+// 2^20 leaves. Running out of budget means "not solved outright", so the
+// constraint is judged as written, exactly as it would be on dev.
+const aliasExpandNodeBudget = 4096
 
 // expandConstraintAliases rewrites a constraint's type with its aliases
 // expanded when that solves it outright (see the file comment); otherwise
@@ -63,10 +52,10 @@ func (tc *CoreTypeChecker) expandConstraintAliases(constraints []ClassConstraint
 	if len(constraints) == 0 || (len(tc.aliasEnv) == 0 && len(tc.aliasCaptures) == 0) {
 		return constraints
 	}
-	u := tc.newAliasUnifier()
+	u := tc.aliasUnifier()
 	out := make([]ClassConstraint, len(constraints))
 	for i, c := range constraints {
-		if expanded := expandAliasesForConstraint(u, c.Type, 0); expanded != c.Type {
+		if expanded, ok := expandAliasesForConstraint(u, c.Type); ok && expanded != c.Type {
 			e := c
 			e.Type = expanded
 			if tc.constraintSolvedNow(e) {
@@ -90,55 +79,111 @@ func (tc *CoreTypeChecker) constraintSolvedNow(c ClassConstraint) bool {
 	return err == nil && len(residual) == 0
 }
 
-// expandAliasesForConstraint expands alias heads at t and inside the
-// structures context reduction looks through (type-application arguments,
-// list elements, tuple elements).
-//
-// Cycle-safety: alias chains are cut by expandAliasMode's own seen-set, and
-// the structural recursion stops at aliasExpandDepthCap (a self-referential
-// alias); what it returns there is unsolvable, so expandConstraintAliases
-// keeps the written type.
-func expandAliasesForConstraint(u *Unifier, t Type, depth int) Type {
-	if t == nil || depth > aliasExpandDepthCap {
-		return t
-	}
-	// withNewtypes=false: a newtype ADT stays nominal, and so does a record
-	// alias (see the file comment).
-	// Repeated because expandAliasMode treats a second application of the
-	// same alias as a cycle: Id[Id[int]] stops at Id[int] in one call.
-	for i := 0; i < aliasExpandDepthCap; i++ {
-		e := u.expandAliasMode(t, false)
-		if e == t {
-			break
-		}
-		if _, isRecord := e.(*TRecord); isRecord {
-			break
-		}
-		t = e
-	}
-	switch tt := t.(type) {
-	case *TApp:
-		if args, changed := expandAliasesInEach(u, tt.Args, depth); changed {
-			return &TApp{Constructor: tt.Constructor, Args: args}
-		}
-	case *TList:
-		if el := expandAliasesForConstraint(u, tt.Element, depth+1); el != tt.Element {
-			return &TList{Element: el}
-		}
-	case *TTuple:
-		if elems, changed := expandAliasesInEach(u, tt.Elements, depth); changed {
-			return &TTuple{Elements: elems}
-		}
-	}
-	return t
+// expandAliasesForConstraint expands the aliases in t: at its head and inside
+// the structures context reduction looks through (type-application arguments,
+// list elements, tuple elements). ok is false when expansion cannot finish:
+// an alias recurs inside its own expansion (`type T2[a] = (T2[a], T2[a])`,
+// which can never reach a finite ground type), or the node budget runs out.
+// The caller then judges the constraint as written.
+func expandAliasesForConstraint(u *Unifier, t Type) (Type, bool) {
+	x := &aliasExpander{u: u, onPath: map[string]bool{}, budget: aliasExpandNodeBudget}
+	return x.expand(t)
 }
 
-func expandAliasesInEach(u *Unifier, ts []Type, depth int) ([]Type, bool) {
+// aliasExpander carries the expansion path and the remaining node budget.
+// Termination: every call spends budget, so the walk visits at most
+// aliasExpandNodeBudget nodes; an alias is never expanded inside its own
+// expansion (onPath), so a self-referential alias stops at its first
+// recurrence instead of being unfolded.
+type aliasExpander struct {
+	u      *Unifier
+	onPath map[string]bool
+	budget int
+}
+
+func (x *aliasExpander) expand(t Type) (Type, bool) {
+	if t == nil {
+		return t, true
+	}
+	if x.budget--; x.budget < 0 {
+		return t, false
+	}
+	// Arguments first, so an alias in an argument (Id[Id[float]], Pair[Pair[int]])
+	// is expanded before its enclosing alias and is never mistaken for that
+	// alias recurring in its own body.
+	switch tt := t.(type) {
+	case *TApp:
+		args, changed, ok := x.expandEach(tt.Args)
+		if !ok {
+			return t, false
+		}
+		if changed {
+			t = &TApp{Constructor: tt.Constructor, Args: args}
+		}
+	case *TList:
+		el, ok := x.expand(tt.Element)
+		if !ok {
+			return t, false
+		}
+		if el != tt.Element {
+			t = &TList{Element: el}
+		}
+	case *TTuple:
+		elems, changed, ok := x.expandEach(tt.Elements)
+		if !ok {
+			return t, false
+		}
+		if changed {
+			t = &TTuple{Elements: elems}
+		}
+	}
+	key, isAlias := x.aliasHead(t)
+	if !isAlias {
+		return t, true
+	}
+	if x.onPath[key] {
+		return t, false // the alias recurs inside its own expansion
+	}
+	// withNewtypes=false keeps a newtype ADT nominal; a record alias stays
+	// nominal too (see the file comment).
+	e := x.u.expandAliasMode(t, false)
+	if e == t {
+		return t, true
+	}
+	if _, isRecord := e.(*TRecord); isRecord {
+		return t, true
+	}
+	x.onPath[key] = true
+	defer delete(x.onPath, key)
+	return x.expand(e)
+}
+
+func (x *aliasExpander) expandEach(ts []Type) ([]Type, bool, bool) {
 	out := make([]Type, len(ts))
 	changed := false
 	for i, a := range ts {
-		out[i] = expandAliasesForConstraint(u, a, depth+1)
-		changed = changed || out[i] != a
+		e, ok := x.expand(a)
+		if !ok {
+			return nil, false, false
+		}
+		out[i] = e
+		changed = changed || e != a
 	}
-	return out, changed
+	return out, changed, true
+}
+
+// aliasHead returns the alias key of t's head (a nullary alias, or the
+// constructor of an applied one) when that head is an alias.
+func (x *aliasExpander) aliasHead(t Type) (string, bool) {
+	head := t
+	if app, ok := t.(*TApp); ok {
+		head, _ = decomposeApp(app)
+	}
+	con, ok := head.(*TCon)
+	if !ok {
+		return "", false
+	}
+	key := con.KeyOf()
+	_, isAlias := x.u.aliasEnv[key]
+	return key, isAlias
 }

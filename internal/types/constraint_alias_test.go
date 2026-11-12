@@ -1,6 +1,9 @@
 package types
 
-import "testing"
+import (
+	"fmt"
+	"testing"
+)
 
 // TestExpandConstraintAliases pins when a constraint is judged through its
 // aliases and when it keeps its written type (#2247 reviews 1-3).
@@ -56,6 +59,53 @@ func TestExpandConstraintAliases(t *testing.T) {
 			out := tc.expandConstraintAliases([]ClassConstraint{{Class: c.class, Type: c.in}})
 			if got := out[0].Type; !got.Equals(c.want) {
 				t.Fatalf("%s[%s] -> %s, want %s", c.class, c.in, got, c.want)
+			}
+		})
+	}
+}
+
+// TestAliasExpansionIsBounded pins the work done expanding one constraint type
+// (#2285 fourth review). A branching self-referential alias
+// (`type T2[a] = (T2[a], T2[a])`) was unfolded to a fixed depth at every
+// occurrence, k^32 nodes: `check` reached 65 GB. The expansion must stop at
+// the alias's first recurrence, and a legitimately huge expansion (a nest of
+// pair aliases) must stop at the node budget, both reporting !ok.
+func TestAliasExpansionIsBounded(t *testing.T) {
+	con := func(name string) *TCon { return &TCon{Name: name, Module: "m"} }
+	b := &TVar2{Name: "b", Kind: Star}
+	t2, t3 := con("T2"), con("T3")
+	aliases := map[string]Type{
+		t2.KeyOf(): &TTuple{Elements: []Type{&TApp{Constructor: t2, Args: []Type{b}}, &TApp{Constructor: t2, Args: []Type{b}}}},
+		t3.KeyOf(): optionOf(&TTuple{Elements: []Type{&TApp{Constructor: t3, Args: []Type{b}}, &TApp{Constructor: t3, Args: []Type{b}}, &TApp{Constructor: t3, Args: []Type{b}}}}),
+	}
+	params := map[string][]string{t2.KeyOf(): {"b"}, t3.KeyOf(): {"b"}}
+	// type P1 = (int, int); type Pn = (Pn-1, Pn-1): 2^20 leaves at P20.
+	var prev Type = TInt
+	var p20 *TCon
+	for i := 1; i <= 20; i++ {
+		p := con(fmt.Sprintf("P%d", i))
+		aliases[p.KeyOf()] = &TTuple{Elements: []Type{prev, prev}}
+		prev, p20 = p, p
+	}
+	u := NewUnifierWithAliasesAndParams(aliases, params)
+
+	cases := []struct {
+		name     string
+		in       Type
+		maxNodes int
+	}{
+		{"branching self-reference", &TApp{Constructor: t2, Args: []Type{TInt}}, 16},
+		{"branching self-reference under Option", &TApp{Constructor: t3, Args: []Type{TInt}}, 16},
+		{"2^20-leaf pair nest", p20, aliasExpandNodeBudget + 1},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			x := &aliasExpander{u: u, onPath: map[string]bool{}, budget: aliasExpandNodeBudget}
+			if _, ok := x.expand(c.in); ok {
+				t.Fatalf("expand(%s) must stop (judge as written), got ok", c.in)
+			}
+			if used := aliasExpandNodeBudget - x.budget; used > c.maxNodes {
+				t.Fatalf("expand(%s) visited %d nodes, want <= %d", c.in, used, c.maxNodes)
 			}
 		})
 	}

@@ -162,3 +162,70 @@ func TestConstraintAliasOfVariableRejected(t *testing.T) {
 		})
 	}
 }
+
+// #2285 fourth review: a branching self-referential alias made `check` use
+// memory without bound (the expansion re-expanded the alias at every
+// occurrence to a fixed depth: 65 GB before it was killed). Each program must
+// be decided within a hard time cap; the process is killed at the cap.
+func TestConstraintAliasExpansionIsBounded(t *testing.T) {
+	bin := buildAilang(t)
+	var pairs strings.Builder
+	pairs.WriteString("type P1 = (int, int)\n")
+	for i := 2; i <= 20; i++ {
+		fmt.Fprintf(&pairs, "type P%d = (P%d, P%d)\n", i, i-1, i-1)
+	}
+	cases := []struct{ name, src, want string }{
+		{"branching_self_eq", "type T2[a] = (T2[a], T2[a])\npure func f(x: T2[int]) -> bool = x == x\n", "No instance for Eq[T2[int]]"},
+		{"branching_self_num", "type T2[a] = (T2[a], T2[a])\npure func f(x: T2[int]) -> T2[int] = x + x\n", "No instance for Num[T2[int]]"},
+		{"branching_self_option", "type T3[a] = Option[(T3[a], T3[a], T3[a])]\npure func f(x: T3[int]) -> bool = x == x\n", "No instance for Eq[T3[int]]"},
+		// 2^20 leaves legitimately: past the expansion budget it is judged as
+		// written, as on dev.
+		{"pair_nest_20", pairs.String() + "pure func f(x: P20, y: P20) -> bool = x == y\n", "No instance for Eq[P20]"},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			dir := t.TempDir()
+			src := "module main\n" + c.src + "export func main() -> () ! {IO} = println(\"hi\")\n"
+			if err := os.WriteFile(filepath.Join(dir, "main.ail"), []byte(src), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			start := time.Now()
+			stdout, stderr, code := testutil.RunBounded(t, dir, 5*time.Second, bin, "check", "main.ail")
+			if code == -1 {
+				t.Fatalf("check did not finish within 5s (killed after %s)", time.Since(start))
+			}
+			if code == 0 {
+				t.Fatalf("check must reject:\n%s", stdout)
+			}
+			if !strings.Contains(stdout+stderr, c.want) {
+				t.Errorf("want %q, got:\n%s%s", c.want, stdout, stderr)
+			}
+		})
+	}
+}
+
+// A small pair nest is expanded and compared structurally on both engines.
+func TestConstraintAliasPairNestRuns(t *testing.T) {
+	bin := buildAilang(t)
+	src := `module main
+type P1 = (int, int)
+type P2 = (P1, P1)
+type P3 = (P2, P2)
+pure func same(x: P3, y: P3) -> bool = x == y
+export func main() -> () ! {IO} = {
+  let a = (((1, 2), (3, 4)), ((5, 6), (7, 8)));
+  let b = (((1, 2), (3, 4)), ((5, 6), (7, 9)));
+  println(show(same(a, a)));
+  println(show(same(a, b)))
+}
+`
+	dir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(dir, "main.ail"), []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	run := func(args ...string) (string, string, int) { return runInDir(t, dir, bin, args...) }
+	if stdout, stderr, code := run("check", "main.ail"); code != 0 {
+		t.Fatalf("pair nest must check:\n%s%s", stdout, stderr)
+	}
+	assertBothEngines(t, "true\nfalse", "main.ail", run)
+}
