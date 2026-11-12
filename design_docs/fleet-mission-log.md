@@ -2189,3 +2189,108 @@ No code changed, so Gate 3b does not apply. The record ships as a draft PR stack
 - Executor: resolver `claude:claude-haiku-5-5` (codex rc 75 handoff; path recipe). **Not spawned**: no pick.
 - Evaluator: `resolve-role-spawn.sh evaluator` → `agent-tool sonnet declared:alias-pin`; spawned with Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground: 58,954 tok, 6 tool uses, 37 s. Judge independence: cross-model (controller opus, judge sonnet; same vendor).
 - Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
+
+## 109 — 2026-11-12 — `orphan:pi-runner:own-pgid-children-survive-role-exit` LANDED: #2267 → `47b123139`, independent sonnet judge PASS 86 then PASS 91; ticket resolved [HARNESS]
+
+**Pick**: the one ticket new since iteration 108. `ailang mission ticket open --json` went from 27 to 28 tickets. The signature-sorted diff against iteration 108's capture differs only by `orphan:pi-runner:own-pgid-children-survive-role-exit` (stapledon 89, filed 12:41Z, 1 slot, blocking none, workaround "controller killed the orphans by pid"). The other 27 are unchanged and ruling-gated as iterations 98–108 found.
+- **Scope**: `scripts/mission_*`, `tools/launchd/**` and `make/test.mk`.
+- **Not policy class**: no default, routing, lane, quota, ration or billing value changes.
+- **Not `.pi/extensions/**`** (D-FLEET-3). The sandbox-side group kill is left as a follow-up (F2 in the plan).
+- **Prior work**: none. Index, log, open PRs and worktrees all came back empty for orphan/reap/pgid. The nearest prior art is fleet iteration 1's driver slot-kill (#1325), which walks ppid at kill time and so cannot see a process already reparented to pid 1.
+- **Clause map**: clause 2 UNMET, and this ticket moves it. Clause 1 UNMEASURED, 3 MET, 4 met by its letter, 5 preserved.
+
+**Reality check (first-party)**: at `4b9fda4bf`, [repro.sh](fleet-mission-evidence/iteration109/repro.sh) stubs `pi` with a backgrounded `perl -e 'setpgrp(0,0); exec "/bin/sleep","300"'`:
+- `ok` arm: rc 0, child **survives** with ppid 1 and its own pgid.
+- `wall_timeout` arm: rc 13, child **survives**.
+- [control.sh](fleet-mission-evidence/iteration109/control.sh), the same child without `setpgrp`, on `wall_timeout`: **killed**, 0 survivors.
+- The planner then showed the `ok` path signals nothing at all, so even a same-group child survives it.
+- Both scripts kill every `/bin/sleep 300` on the host. The planner flagged them as unsafe on a shared rig, and both now carry that warning.
+
+**Preflight / observe**:
+- Armed, gh `sunholo-voight-kampff`, billing CLEAN.
+- The resolved skill matched origin/dev on 14/14 files (SKILL.md plus 13 resources), and so did the pin's CWD copy.
+- Gate 1 base `4b9fda4bf6069e1df5dfa985f131c4919cf013f0`. The pin sat at `db13f5a8b`, one dependabot commit behind; `4b9fda4bf` was the base for everything.
+- #2172: 0 allowlisted directives in 15 comments. The watermark file is absent, so every comment was read.
+- Self-notice: the watermark form returned **rc 2** for the thirteenth fire in a row. The `--since 2026-11-12T07:20:00Z` form gave rc 0 (control 852:10 ok, 0 crash notices, 0 in-window transcript notices).
+- Record stack: the newest record was iteration 108 on #2250 (`fleet/i108-record`, CLEAN). This record stacks on it.
+
+**Did** (generator ≠ judge):
+- **Designer**: not spawned. The spec is the ticket plus the repro; this follows iteration 105's precedent.
+- **Planner**, opus (Agent tool, foreground, 173,777 tok, 49 tool uses): wrote [sprint-plan-pi-run-orphan-reap](planned/sprint-plan-pi-run-orphan-reap.md).
+  - It weighed four mechanisms and chose an ancestry ledger:
+    - a per-poll ledger;
+    - a cwd sweep, rejected because it cannot prove ownership;
+    - reaping by session, rejected because pi's bash tool and the mission sandbox both spawn `detached: true`, so every tool already has its own session;
+    - an env token, deferred because macOS hides the environment of Apple-signed binaries.
+  - It corrected five controller premises. Three were re-checked first-party:
+    - the only `test-launchd-drivers` CI leg is macos-latest (`ci.yml`);
+    - `tools/pi-extensions/sandbox/index.ts:154` spawns `detached: true`;
+    - extracting `_mc_kill_tree` would break three awk-range test harnesses.
+- **Executor round 1**, `claude:claude-haiku-5-5` via `claude-sub` (probe rc 0, 3 s; billing CLEAN; bounded 1800 s).
+  - It committed M1 `e68ae354a`, M2 `be6fb2f59` and M3 `7dbba8b4d`, then hit its alarm (**rc 142, SIGALRM**) before writing a report. The controller recovered its on-disk artifacts into [executor-r1](fleet-mission-evidence/iteration109/executor-r1.md).
+  - Tests: 9 of 11 arms red at base, 11/11 after. Mutants: 9 of 10 killed. Mutant 7, dropping the post-grace ledger refresh, survived.
+  - Its last tool shell outlived the alarm (ppid 1, still running the old runner suites). The controller confirmed it, and it exited on its own before the kill was sent.
+- **Judge round 1**, sonnet (Agent tool, `MISSION-ROLE: evaluator`, foreground, 103,109 tok): [**PASS 86**](fleet-mission-evidence/iteration109/judge-r1.md), 0 blocking.
+  - Strongest objection: four safety guards could each be deleted with the suite still 11/11. These were the root-birth check (F), the "snapshot lists `$$`" check (C), and the pre-TERM and pre-KILL birth rechecks (B, G).
+  - Mutant 7 was equivalent: the `_pr_members` closure already reaches grace-born children, so the refresh was dead code.
+  - Also: argv could carry secrets into the verdict.
+- **Executor round 2** (same lane, rc 0, 67 turns): `0d0d73a4a`.
+  - Arms U6–U9 kill F, C, B and G. U10/U11 cover the unreadable-table WARNING, and U12 checks that only the executable is recorded.
+  - The dead refresh is removed.
+  - The suite is 18/18. Mutants F, C, B, G, 1, 2, 6, 9, W and E are each killed. Report: [executor-r2](fleet-mission-evidence/iteration109/executor-r2.md).
+- **Judge round 2** (same agent, resumed with SendMessage, 125,226 tok cumulative): [**PASS 91**](fleet-mission-evidence/iteration109/judge-r2.md), 0 blocking. 18/18 twice. It re-killed F, C, B and G itself, and its own new mutants include two survivors:
+  - the 120-character cap is untested;
+  - a cosmetic double WARNING.
+  - Strongest objection: U8 and U9 depend on the order of `_pr_birth` calls, so a refactor that adds a call could make U9 vacuous.
+- **Controller done-gate at `0d0d73a4a`** ([done-gate](fleet-mission-evidence/iteration109/done-gate.md)):
+  - `make test-launchd-drivers`: **all 58 suites passed**, rc 0, unpiped.
+  - Dry-runs under the idle, armed stapledon profile (`AILANG_DRIVER_PINNED=0d0d73a4a`): healthy rc 0; degraded (`codex:bogus-model-i109`, re-run under `/bin/bash` after a zsh no-word-split first attempt) rc 0, executor → `claude:claude-haiku-5-5`.
+  - No pidfile was left, and the state directory stayed at 410 → 410 entries.
+
+**Gate 3b**:
+- PR #2267 head `0d0d73a4a`: 25 check-runs terminal, 1 not green. That was one of two `Build macos-latest` check-runs: `##[error]Failed to CreateArtifact: Unable to make request: ECONNRESET`, with 0 `--- FAIL` lines in a log carrying 23,647 `--- PASS:` lines as the control. The sibling `Build macos-latest` run was success. The diff changes 0 Go files.
+- MERGEABLE/UNSTABLE, so not blocked. Squash-merged with `--match-head-commit` as `47b123139`.
+- Dev CI on the merge commit: **all 18 check-runs green** on `47b123139` (re-read at record time, 18/18 completed). Before that, `launchd drivers (bash 3.2)`, the job that runs these tests, reported **success** first; 14 other checks green, 0 red; `Build macos-latest` (two legs) was still running after a repo-wide macOS runner backlog (19 queued runs) held it 1 h+ in the queue. Two 30-minute polls expired on it and are recorded as such. A local `make test-launchd-drivers` on the merge commit hit its 1700 s alarm at load ~200, with only the four timing-ceiling arms of the unrelated `test_driver_notify.sh` failing (E1–E3 at 17 s against 14 s, plus the known hanging-gh-comment arm); the new suite passed 18/18 there. Its orphaned suite tree (pgid 8343, root ppid 1) was killed by group by the controller.
+- Closing-keyword scan: 0 hits in the commits and the PR body, and the control fired.
+- Ticket resolved: `ailang mission ticket resolve … --sha 47b123139` → "resolved …: 1 occurrence(s), replied to stapledon"; the open list went 28 → 27 and the signature is gone.
+
+**Ruled out**:
+- Killing by command line, cwd, pgid or session. These cannot prove ownership, and pi's tools already `setsid()`.
+- Editing the sandbox extension's group kill. That is a tool-behaviour change, F2 in the plan.
+- Extracting the driver's `_mc_kill_tree`, which would break three harnesses that extract it by awk range.
+- Treating the PR's macOS red as caused by this change: it is an artifact-upload ECONNRESET, its sibling leg is green, and the diff has no Go.
+
+**Observations (not ticketed — the fleet does not self-source)**:
+- (a) A `claude -p` executor killed by its alarm leaves its running tool shell orphaned (ppid 1). This is the same class as this ticket, one layer up: the controller's recipe, not the pi runner.
+- (b) The self-notice watermark form has returned rc 2 on thirteen consecutive fires; the `--since` form still works around it.
+- (c) The 1800 s executor cap was too short for a three-milestone runner change on haiku: round 1 committed all three milestones but did not finish its report.
+- (d) The controller's own `perl -e 'alarm 1700; exec make …'` bound killed `make` and orphaned the `run-suites.sh` tree under it (pgid 8343, root ppid 1, still running 30 min later). Together with (a), that is two instances in one iteration of an alarm-wrapped command that kills its leader and leaves its tree. Both came from the controller's wrapper choice, not from a skill recipe, so this records the observation and makes no skill edit.
+
+**Retro lane**: no skill edit. Observations (a) and (d) share one root cause, a leader-only kill from the controller's own `alarm` wrapper. The skill's recipes prescribe a `date +%s` deadline and do not cause it, so this is not a skill gap. The remedy is the same ancestry reap this ticket landed, aimed at the wrapper. Recorded for a ticket from any filing mission.
+
+**Progress**: 27 open tickets after resolution (28 before). Clause 2 moved: filed 12:41Z and resolved 4.2 h (filed 12:41:53Z, resolved 16:54Z) later, against the 48 h bar. Clause 1 UNMEASURED, 3 MET, 4 met by its letter, 5 preserved (done-gate run). Harness share: 8/20 (log headlines 90–109; the fleet works harness tickets by charter).
+
+**Validation**: darwin/arm64.
+- The planner's claims were re-checked first-party.
+- `make test-launchd-drivers` passed 58/58, and the healthy and degraded dry-runs passed.
+- PR CI: 24 green and 1 infra red, attributed.
+- Dev CI on the merge commit as recorded in Gate 3b.
+
+**Budget**: metered **$0**. All tokens were subscription:
+- planner opus 173,777 tok;
+- evaluator sonnet 103,109 tok (round 1) and 125,226 tok cumulative (round 2);
+- executor haiku via claude-sub: round 1 not reported (killed by SIGALRM); round 2 65,024 output tokens and 7.6 M cache-read tokens over 67 turns, CLI self-report $0.49, not billed;
+- controller: not reported;
+- designer: not spawned.
+
+**Next**: any ruling on D-FLEET-16..45, or a new ticket.
+
+**Routing evidence**: base=4b9fda4bf6069e1df5dfa985f131c4919cf013f0@2026-11-12T13:37:55Z (Gate-1 read; re-measured SAME at worktree creation).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5 declared:provider-pin`. **Not spawned**: a mechanical runner fix whose spec is the ticket plus the repro. A routing outcome, not a spawn failure. Rotation pointer unchanged.
+- Planner: `derive-planner-lane.sh` → `opus fail-closed:env-pin`; resolver `agent-tool opus fail-closed:env-pin` → Agent tool `model=opus`, `MISSION-ROLE: planner`, foreground: 173,777 tok, 49 tool uses, 942 s.
+- Executor: resolver `recipe claude:claude-haiku-5-5 declared:provider-pin` → `claude-sub -p --model claude-haiku-5-5 --permission-mode bypassPermissions` (probe rc 0; billing CLEAN):
+  - round 1 rc 142 (SIGALRM at 1800 s, 3 commits landed);
+  - round 2 rc 0, 67 turns.
+- Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground: round 1 103,109 tok / 16 tool uses; round 2 (SendMessage resume) 125,226 tok / 6 tool uses. Judge independence: cross-model (executor haiku, planner and controller opus, judge sonnet; same vendor).
+- Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
