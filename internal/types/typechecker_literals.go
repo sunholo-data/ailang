@@ -7,6 +7,12 @@ import (
 	"github.com/sunholo-data/ailang/internal/typedast"
 )
 
+// SetLiteralLambdas marks the lambdas that are function literals (#2238): their
+// parameter annotations are enforced as equalities, not seeded (inferLambda).
+func (tc *CoreTypeChecker) SetLiteralLambdas(ids map[uint64]bool) {
+	tc.literalLambdas = ids
+}
+
 // literalParamType is the type of an annotated parameter of a function literal
 // (#2238): a fresh variable equal to the annotation, enforced as a let
 // annotation is, rather than the annotation itself (see

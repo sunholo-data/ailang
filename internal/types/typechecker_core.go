@@ -95,8 +95,7 @@ type CoreTypeChecker struct {
 	// missing = nullary. Passed to the Unifier so `Box[int]` instantiates its body.
 	aliasParams   map[string][]string
 	aliasCaptures map[string]string // M-TYPE-NAME-SHADOW (alias_capture.go)
-	// M-FIX-FLOAT-OP: Parameter type annotations from function declarations
-	// Maps Lambda NodeID -> parameter types to preserve float annotations through elaboration
+	// M-FIX-FLOAT-OP: Lambda NodeID -> parameter annotations (keeps float annotations through elaboration)
 	paramTypeAnnots map[uint64][]Type
 	literalLambdas  map[uint64]bool // #2238: function literals, annotations enforced as equalities
 	// M-TYPE-LIST-ELEMENT-SOUNDNESS: core.Let NodeID -> annotation, so `let xs: [string] = [42]` is checked
@@ -422,12 +421,6 @@ func (tc *CoreTypeChecker) SetEffectAnnotationsFull(annots map[uint64][]ast.Effe
 // M-FIX-FLOAT-OP: This preserves float parameter annotations through elaboration
 func (tc *CoreTypeChecker) SetParamTypeAnnotations(annots map[uint64][]Type) {
 	tc.paramTypeAnnots = annots
-}
-
-// SetLiteralLambdas marks the lambdas that are function literals (#2238): their
-// parameter annotations are enforced as equalities, not seeded (inferLambda).
-func (tc *CoreTypeChecker) SetLiteralLambdas(ids map[uint64]bool) {
-	tc.literalLambdas = ids
 }
 
 // SetReturnTypeAnnotations sets return type annotations from elaboration
