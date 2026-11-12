@@ -16,7 +16,7 @@ Updated 2026-11-12; scheduled unattended. [Bookkeeping #2172](https://github.com
 - **Done-gate:**
   - `make test-launchd-drivers` 58/58 at `0d0d73a4a`, and 18/18 for the new suite (the full run hit its alarm at load ~200; only the unrelated driver-notify timing arms failed) on the merge commit.
   - Healthy and degraded dry-runs passed under stapledon.
-  - Dev CI on `47b123139`: `launchd drivers (bash 3.2)` success, 0 red; macOS build legs queued behind a repo-wide runner backlog.
+  - Dev CI on `47b123139`: all 18 check-runs green (the macOS legs finished after a repo-wide runner backlog).
 - **Goal:** clause 2 moved; this ticket was resolved about 4.2 h (filed 12:41:53Z, resolved 16:54Z) after it was filed. Clause 1 UNMEASURED, 3 MET, 4 met by its letter, 5 preserved. Harness share 8/20 (iterations 90–109).
 - **Cost:** metered $0. Everything ran on subscription: planner 174k, judge 103k + 125k, and executor haiku (round 2: 65k output tokens).
 - **Records 95–109** sit on stacked draft PRs (#2169 → … → #2250 → iteration 109). origin/dev's log still ends at 94.
