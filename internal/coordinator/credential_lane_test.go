@@ -9,20 +9,9 @@ import (
 )
 
 func TestCredentialLane(t *testing.T) {
-	cases := []struct {
-		agent    *AgentConfig
-		provider string
-		want     string
-	}{
-		{&AgentConfig{ID: "sprint-planner"}, "codex", laneCodexSubscription},
-		{nil, "codex", laneCodexSubscription},
-		{&AgentConfig{ID: "metered", AuthMode: "apikey"}, "codex", ""},
-		{&AgentConfig{ID: "doc"}, "claude", ""},
-		{&AgentConfig{ID: "doc"}, "pi", ""},
-	}
-	for _, c := range cases {
-		if got := credentialLane(c.agent, c.provider); got != c.want {
-			t.Errorf("credentialLane(%+v, %q) = %q, want %q", c.agent, c.provider, got, c.want)
+	for provider, want := range map[string]string{"codex": laneCodexSubscription, "claude": "", "pi": ""} {
+		if got := credentialLane(provider); got != want {
+			t.Errorf("credentialLane(%q) = %q, want %q", provider, got, want)
 		}
 	}
 }

@@ -235,7 +235,7 @@ comes from the fallback the description names. The `DEBUG_*` compiler knobs are 
 
 | Variable | Default | What it does |
 |---|---|---|
-| `AILANG_CODEX_AUTH_SECRET` | — | Secret Manager secret holding a ChatGPT-subscription codex auth.json. Cloud codex jobs install it as ~/.codex/auth.json (subscription billing) and write refreshed tokens back as a new version; without it and without AILANG_AUTH_MODE=apikey the job fails loudly. |
+| `AILANG_CODEX_AUTH_SECRET` | — | Secret Manager secret holding a ChatGPT-subscription codex auth.json. Cloud codex jobs install it as ~/.codex/auth.json (subscription billing) and write refreshed tokens back as a new version; without it the job fails loudly (there is no metered codex fallback). |
 | `ANTHROPIC_API_KEY` | — | Anthropic API key (METERED); the in-process client resolves it first, and the claude executor requires it under AILANG_AUTH_MODE=apikey (the guarded credit lane). |
 | `ANTHROPIC_AUTH_TOKEN` | — | Anthropic OAuth access token from a Claude subscription profile (SUBSCRIPTION QUOTA); the in-process client resolves it after ANTHROPIC_API_KEY, matching the official SDKs. |
 | `ANTHROPIC_BASE_URL` | — | Claude Messages API origin; the guarded credit lane requires the authenticated HTTPS budget gateway and refuses alternate provider routes. |
@@ -245,7 +245,7 @@ comes from the fallback the description names. The `DEBUG_*` compiler knobs are 
 | `GITHUB_TOKEN` | — | GitHub token for PR creation, docs search and read-only API calls; falls back to `gh auth token` where a command can shell out. |
 | `GOOGLE_API_KEY` | — | Google API key: the Gemini provider's credential variable and the Gemini embedder's key. |
 | `OLLAMA_API_KEY` | — | Ollama Cloud API key; the mission admission policy observes quota with it. |
-| `OPENAI_API_KEY` | — | OpenAI API key (METERED); a cloud codex job bootstraps an api-key auth.json from it ONLY under AILANG_AUTH_MODE=apikey. |
+| `OPENAI_API_KEY` | — | OpenAI API key (METERED), for the in-process OpenAI client and embedder. a cloud codex job never turns it into an auth.json; it runs only on the subscription credential (AILANG_CODEX_AUTH_SECRET). |
 | `OPENROUTER_API_KEY` | — | OpenRouter API key; required by motoko smoke runs and the OpenRouter quota observer. |
 | `OPENROUTER_API_KEY_SHADOW` | — | OpenRouter key for shadow runs only (M-AILANG-LANE-EXECUTOR-SHADOW D7), with its own monthly cap: a shadow job puts it in OPENROUTER_API_KEY before the agent starts, and refuses to run without it rather than spend the fleet's key. |
 | `TYPESAFE_API_KEY` | — | TypeSafe direct API key (System One decision model, Jev): read by the sunholo/decisions package's TypeSafeDirect transport via std/env; the OpenRouter transport uses OPENROUTER_API_KEY instead. No Go code reads it — the row exists so the variable is documented and gated like every other provider key. |

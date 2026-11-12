@@ -90,7 +90,7 @@ func (d *Daemon) dispatchShadow(primary *TaskRecord, agent *AgentConfig, primary
 		d.logger.Printf("Shadow: task %s not sampled (fraction %.4f >= rate %.4f)", primary.ID, shadowSampleFraction(primary.ID), s.SampleRate)
 		return
 	}
-	if lane := credentialLane(agent, s.Provider); lane != "" {
+	if lane := credentialLane(s.Provider); lane != "" {
 		d.logger.Printf("Shadow: task %s not shadowed: provider %s leases credential lane %s, which a shadow must not contend for", primary.ID, s.Provider, lane)
 		return
 	}

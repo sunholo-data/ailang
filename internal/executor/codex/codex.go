@@ -52,8 +52,8 @@ func New(cfg *executor.Config) (*CodexExecutor, error) {
 
 	// NOTE: constructing an executor deliberately does NOT materialise a
 	// credential. Writing ~/.codex/auth.json is a deployment action, not a
-	// library side effect — see EnsureAPIKeyAuth, called from the cloud job
-	// entry point where the job's own key is the intended credential.
+	// library side effect — see InstallSubscriptionAuth, called from the cloud
+	// job entry point.
 
 	return &CodexExecutor{
 		codexPath:      codexPath,
