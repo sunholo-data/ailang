@@ -1,16 +1,22 @@
 package effects
 
 import (
+	"bufio"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
+	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"runtime"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -39,7 +45,16 @@ type streamingOrigin struct {
 	// reported by the assertion instead of hanging httptest.Server.Close.
 	stop     chan struct{}
 	stopOnce sync.Once
+	// served admits exactly one request to the stream. The handler is
+	// single-use (one release verdict, one close of `closed`): a second
+	// request used to block forever on the verdict send, so the deferred
+	// httptest.Server.Close waited forever too — the 10-minute hang.
+	served atomic.Bool
 }
+
+// streamPath is the only path the origin streams on; the client under test
+// always requests it.
+const streamPath = "/sse"
 
 // streamingOriginHandler serves: "one"; wait (≤ releaseWait) for the client's
 // release; "two"; keepalives × `ka` every kaEvery; then, when holdOpen, hold
@@ -52,6 +67,14 @@ func newStreamingOrigin(releaseWait time.Duration, ka int, kaEvery time.Duration
 		stop:             make(chan struct{}),
 	}
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Anything else that reaches this loopback port (a foreign client —
+		// another test or process — whose old port the kernel handed to this
+		// listener) is not the stream under test and must not consume the
+		// single-use handler.
+		if r.URL.Path != streamPath || !o.served.CompareAndSwap(false, true) {
+			http.Error(w, "not the stream under test", http.StatusNotFound)
+			return
+		}
 		fl := w.(http.Flusher)
 		w.Header().Set("Content-Type", "text/event-stream")
 		w.WriteHeader(http.StatusOK)
@@ -113,11 +136,48 @@ func (o *streamingOrigin) released(t *testing.T) bool {
 // recordingProxy is a forward proxy for both modes. buffer=true makes the
 // absolute-form path read the whole upstream body before answering — the
 // misbehaving proxy the experiment must detect.
+//
+// It is credential-gated. Its listener is an ordinary 127.0.0.1 ephemeral
+// port, and under a parallel `make test` foreign clients (other tests or
+// processes) do reach such ports: a port they were using, or "reserved" by
+// listen-then-close, is handed to this listener. Before the gate, one such stray "GET /" was
+// recorded as a proxy observation and failed the exact-match assertion. Only
+// a request carrying this proxy's per-test Proxy-Authorization — which the
+// client under test sends because its proxy URL holds the credential — counts
+// as an observation; anything else is answered 407, kept in strays, and never
+// forwarded or tunnelled. Direct routing still produces zero observations.
 type recordingProxy struct {
 	mu       sync.Mutex
-	seen     []string
-	upstream string // origin listener address (host:port)
+	seen     []string // authenticated proxy requests: the client under test
+	strays   []string // everything else that reached the listener
+	upstream string   // origin listener address (host:port)
 	buffer   bool
+	auth     string // the Proxy-Authorization value the client must send
+}
+
+// newRecordingProxy starts a gated proxy for upstream and returns it, its
+// server (the caller closes it), and the credentialed proxy URL to hand to
+// the client under test.
+func newRecordingProxy(t *testing.T, upstream string, buffer bool) (*recordingProxy, *httptest.Server, *url.URL) {
+	t.Helper()
+	token := make([]byte, 16)
+	if _, err := rand.Read(token); err != nil {
+		t.Fatal(err)
+	}
+	user, pass := "stream-proxy-test", hex.EncodeToString(token)
+	p := &recordingProxy{
+		upstream: upstream,
+		buffer:   buffer,
+		auth:     "Basic " + base64.StdEncoding.EncodeToString([]byte(user+":"+pass)),
+	}
+	ps := httptest.NewServer(p)
+	pu, err := url.Parse(ps.URL)
+	if err != nil {
+		ps.Close()
+		t.Fatal(err)
+	}
+	pu.User = url.UserPassword(user, pass)
+	return p, ps, pu
 }
 
 func (p *recordingProxy) observed() []string {
@@ -126,13 +186,27 @@ func (p *recordingProxy) observed() []string {
 	return append([]string(nil), p.seen...)
 }
 
-func (p *recordingProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+func (p *recordingProxy) strayRequests() []string {
 	p.mu.Lock()
+	defer p.mu.Unlock()
+	return append([]string(nil), p.strays...)
+}
+
+func (p *recordingProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
+	line := r.Method + " " + r.URL.String()
 	if r.Method == http.MethodConnect {
-		p.seen = append(p.seen, "CONNECT "+r.Host)
-	} else {
-		p.seen = append(p.seen, r.Method+" "+r.URL.String())
+		line = "CONNECT " + r.Host
 	}
+	if r.Header.Get("Proxy-Authorization") != p.auth {
+		p.mu.Lock()
+		p.strays = append(p.strays, fmt.Sprintf("%s (from %s, User-Agent %q)", line, r.RemoteAddr, r.UserAgent()))
+		p.mu.Unlock()
+		w.Header().Set("Proxy-Authenticate", `Basic realm="stream-proxy-test"`)
+		http.Error(w, "not the client under test", http.StatusProxyAuthRequired)
+		return
+	}
+	p.mu.Lock()
+	p.seen = append(p.seen, line)
 	p.mu.Unlock()
 	if r.Method == http.MethodConnect {
 		p.tunnel(w)
@@ -140,6 +214,7 @@ func (p *recordingProxy) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	out, _ := http.NewRequestWithContext(r.Context(), r.Method, "http://"+p.upstream+r.URL.RequestURI(), r.Body)
 	out.Header = r.Header.Clone()
+	out.Header.Del("Proxy-Authorization") // hop-by-hop: never forwarded
 	resp, err := (&http.Transport{DisableKeepAlives: true}).RoundTrip(out)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusBadGateway)
@@ -271,7 +346,12 @@ func TestStreamSSEProxyBoundaryStreaming(t *testing.T) {
 	assertStreamed := func(t *testing.T, run streamRun, origin *streamingOrigin, proxy *recordingProxy, wantSeen string) {
 		t.Helper()
 		if got := proxy.observed(); len(got) != 1 || got[0] != wantSeen {
-			t.Fatalf("proxy observed %q, want exactly [%q] (direct routing produces zero observations)", got, wantSeen)
+			t.Fatalf("proxy observed %q, want exactly [%q] (direct routing produces zero observations); rejected strays: %q", got, wantSeen, proxy.strayRequests())
+		}
+		if strays := proxy.strayRequests(); len(strays) > 1 {
+			// Only the deliberate stray is expected; more is real-world
+			// traffic on a reused port, harmless now but worth seeing.
+			t.Logf("proxy rejected %d unauthenticated requests: %q", len(strays), strays)
 		}
 		if !origin.released(t) {
 			t.Fatal("event one was NOT observable before event two was released: the path buffered the stream")
@@ -297,46 +377,52 @@ func TestStreamSSEProxyBoundaryStreaming(t *testing.T) {
 	}
 
 	t.Run("absolute_form_unbuffered", func(t *testing.T) {
+		boundSubtest(t)
 		origin, h := newStreamingOrigin(15*time.Second, ka, kaEvery, true)
 		up := httptest.NewServer(h)
 		defer up.Close()
-		proxy := &recordingProxy{upstream: up.Listener.Addr().String()}
-		ps := httptest.NewServer(proxy)
+		proxy, ps, pu := newRecordingProxy(t, up.Listener.Addr().String(), false)
 		defer ps.Close()
 		defer origin.shutdown() // runs first: frees a held origin before the servers close
-		pu, _ := url.Parse(ps.URL)
-		run := runProxiedSSE(t, "http://stream.test/sse", pu, origin, nil, idle)
-		assertStreamed(t, run, origin, proxy, "GET http://stream.test/sse")
+		// The stray clients a parallel `make test` produced, made deterministic:
+		// one at the proxy, one at the origin, before the client connects.
+		sendStray(t, ps.Listener.Addr().String(), "407")
+		sendStray(t, up.Listener.Addr().String(), "404")
+		run := runProxiedSSE(t, "http://stream.test"+streamPath, pu, origin, nil, idle)
+		assertStreamed(t, run, origin, proxy, "GET http://stream.test"+streamPath)
 	})
 
 	t.Run("connect_tunnel_unbuffered", func(t *testing.T) {
+		boundSubtest(t)
 		origin, h := newStreamingOrigin(15*time.Second, ka, kaEvery, true)
 		up := httptest.NewTLSServer(h) // certificate covers example.com
 		defer up.Close()
 		pool := x509.NewCertPool()
 		pool.AddCert(up.Certificate())
-		proxy := &recordingProxy{upstream: up.Listener.Addr().String()}
-		ps := httptest.NewServer(proxy)
+		proxy, ps, pu := newRecordingProxy(t, up.Listener.Addr().String(), false)
 		defer ps.Close()
 		defer origin.shutdown() // runs first: frees a held origin before the servers close
-		pu, _ := url.Parse(ps.URL)
-		run := runProxiedSSE(t, "https://example.com/sse", pu, origin, &tls.Config{RootCAs: pool}, idle)
+		// The observed flake, made deterministic: a stray "GET /" at the proxy.
+		sendStray(t, ps.Listener.Addr().String(), "407")
+		run := runProxiedSSE(t, "https://example.com"+streamPath, pu, origin, &tls.Config{RootCAs: pool}, idle)
 		assertStreamed(t, run, origin, proxy, "CONNECT example.com:443")
 	})
 
 	t.Run("buffering_proxy_control", func(t *testing.T) {
+		boundSubtest(t)
 		// A proxy that buffers until EOF must make the experiment fail: the
 		// origin's wait for the client's release expires, so "one" was not
 		// observable before "two" — the condition the subtests above reject.
 		origin, h := newStreamingOrigin(500*time.Millisecond, 0, 0, false)
 		up := httptest.NewServer(h)
 		defer up.Close()
-		proxy := &recordingProxy{upstream: up.Listener.Addr().String(), buffer: true}
-		ps := httptest.NewServer(proxy)
+		proxy, ps, pu := newRecordingProxy(t, up.Listener.Addr().String(), true)
 		defer ps.Close()
 		defer origin.shutdown() // runs first: frees a held origin before the servers close
-		pu, _ := url.Parse(ps.URL)
-		run := runProxiedSSE(t, "http://stream.test/sse", pu, origin, nil, idle)
+		run := runProxiedSSE(t, "http://stream.test"+streamPath, pu, origin, nil, idle)
+		if got := proxy.observed(); len(got) != 1 {
+			t.Fatalf("buffering proxy observed %q, want exactly one request from the client under test", got)
+		}
 		if origin.released(t) {
 			t.Fatal("buffering proxy: the client released event two — the instrument cannot see buffering")
 		}
@@ -344,4 +430,48 @@ func TestStreamSSEProxyBoundaryStreaming(t *testing.T) {
 			t.Fatalf("buffering proxy still delivers everything at EOF: events = %q, want %q", got, "one two")
 		}
 	})
+}
+
+// subtestDeadline bounds one subtest. A healthy subtest takes about 2s; every
+// wait inside it is bounded well below this, so only a genuine hang (a held
+// handler, a blocked Server.Close, a stream that never ends) reaches it.
+const subtestDeadline = 45 * time.Second
+
+// boundSubtest makes a hang fail in seconds, naming the subtest and dumping
+// every goroutine, instead of reaching the 10-minute package timeout. A hang
+// cannot be failed from the test goroutine (it is the one stuck — often in a
+// deferred Close), so the watchdog panics, as the package timeout would.
+func boundSubtest(t *testing.T) {
+	t.Helper()
+	name := t.Name()
+	timer := time.AfterFunc(subtestDeadline, func() {
+		buf := make([]byte, 1<<20)
+		buf = buf[:runtime.Stack(buf, true)]
+		panic(fmt.Sprintf("%s did not finish within %v: hung (look for a blocked httptest.Server.Close, origin handler or stream read below)\n\n%s", name, subtestDeadline, buf))
+	})
+	t.Cleanup(func() { timer.Stop() }) // cleanups run after the subtest's defers
+}
+
+// sendStray plays a foreign client that reaches addr, a loopback port the
+// kernel reassigned: a plain origin-form "GET /". It asserts the status
+// the gate answers with, so a stray can neither count as an observation nor
+// consume the single-use origin.
+func sendStray(t *testing.T, addr, wantStatus string) {
+	t.Helper()
+	c, err := net.DialTimeout("tcp", addr, 5*time.Second)
+	if err != nil {
+		t.Fatalf("stray client: %v", err)
+	}
+	defer c.Close()
+	_ = c.SetDeadline(time.Now().Add(10 * time.Second))
+	if _, err := io.WriteString(c, "GET / HTTP/1.1\r\nHost: "+addr+"\r\nConnection: close\r\n\r\n"); err != nil {
+		t.Fatalf("stray client: %v", err)
+	}
+	status, err := bufio.NewReader(c).ReadString('\n')
+	if err != nil {
+		t.Fatalf("stray client got no status line from %s: %v", addr, err)
+	}
+	if f := strings.Fields(status); len(f) < 2 || f[1] != wantStatus {
+		t.Fatalf("stray GET / to %s answered %q, want %s", addr, strings.TrimSpace(status), wantStatus)
+	}
 }
