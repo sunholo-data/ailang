@@ -14,6 +14,9 @@ Workstream 1a of the v1.0 codebase-health handover
   `golang.org/x/crypto` goes from v0.58.0 to v0.59.0 (GO-2026-5932). `go mod tidy` also moves
   x/sync to v0.25.0, x/term to v0.48.0 and x/text to v0.44.0. All of these are indirect except
   x/term and x/text.
+- **docs (Scorecard Vulnerabilities).** `webpack-dev-middleware` goes from 7.4.5 to 7.4.6 in
+  `docs/package-lock.json` (GHSA-g84c-rxfj-3j2c). It is a dev-server dependency, and the lockfile
+  change is that one entry.
 - **Token permissions (Scorecard TokenPermissions, high).** `dependabot-automerge.yml` has a
   read-only top-level token now. `contents: write` and `pull-requests: write` move onto the one job
   that runs `gh pr merge --auto`.
