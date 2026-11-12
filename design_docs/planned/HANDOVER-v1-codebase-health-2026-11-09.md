@@ -164,5 +164,5 @@ allow-list and a router-wide regression test). Details are in the private ops re
 1. Fix path to prod for S: a v0.57.5 patch release, or a manual prod rollout of the dashboard image?
 2. Go on workstreams 1, 2, 3, 5?
 3. Was the 2026-10-22 prod browser session his, and does he use `localhost:1957` locally (local GETs are not logged, so local UI use is unmeasured)?
-4. Delete `headless-runner` (unlisted skill, 67 stale lines) or migrate it?
+4. Delete `headless-runner` (unlisted skill, 67 stale lines) or migrate it? **Decided: delete — Mark, 2026-11-12.**
 5. Enable GitHub secret scanning?

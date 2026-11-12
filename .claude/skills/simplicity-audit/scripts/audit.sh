@@ -105,8 +105,8 @@ echo "• skills citing an ailang command the binary does not have (count, comma
 # to grep `case "x"` in main.go, which has had no case labels since the reshape,
 # so every cited command read as missing (found 2026-11-09).
 # Scope is every *.md under .claude/skills (resources/ included — the skill body
-# links there, and headless-runner's resources held 67 retired `ailang agent`
-# calls the SKILL.md-only scan never saw). Only COMMAND-POSITION citations count:
+# links there, and the since-deleted headless-runner skill's resources held 67
+# retired `ailang agent` calls the SKILL.md-only scan never saw). Only COMMAND-POSITION citations count:
 # inline code (`ailang x`), line start / `$ ` prompt, `$(`, or after | ; & — so
 # prose ("the ailang repo") no longer needs a stop list. Honest "Planned" rows
 # (docs-sync feature_themes) still show; judge them, do not suppress them.
