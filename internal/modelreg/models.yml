@@ -1812,6 +1812,63 @@ models:
       vs Argon $0.135 (no cache recorded) — the gap is output+thinking, 131.7K vs 19.6K
       tokens (6.7x). Input dominates both; cache hit rate is a run condition, not the model.
 
+  # Google Gemini 4 Hydrogen (API-callable 2026-11-12) — the Gemini 4 efficiency tier.
+  gemini-4-hydrogen:
+    api_name: "gemini-4-hydrogen"
+    provider: "google"
+    default_thinking: "on"
+    description: "Gemini 4 Hydrogen - Nov 2026 fast/efficient Gemini 4 model; $1.50/$7.50, no intro schedule"
+    env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
+    # 65536 = the Developer API's declared outputTokenLimit (Argon/Carbon declare 32768).
+    # Vertex accepts and silently clamps any value (65537 / 131072 / 1,000,000 all 200 STOP,
+    # probed 2026-11-12), so the API cannot confirm a ceiling. If Vertex's non-streaming
+    # 32768 rule (documented for Argon) also applies here it clamps to that; asking for
+    # more is never worse. Check finish_reason=length on the placement run.
+    max_output_tokens: 65536
+    model_family: "gemini-4"
+    pricing:
+      input_per_1k: 0.0015         # $1.50 per 1M
+      output_per_1k: 0.0075        # $7.50 per 1M (incl. thinking)
+      cache_read_per_1k: 0.000075  # $0.075 per 1M (implicit caching only)
+    notes: |
+      Access VERIFIED 2026-11-12: Vertex global ailang-dev generateContent -> 200,
+      modelVersion "gemini-4-hydrogen"; controls gemini-4-argon -> 200,
+      gemini-4-hydrogen-zzz / -preview / gemini-hydrogen -> 404. Developer API list
+      (GEMINI_AGENTS_API_KEY): models/gemini-4-hydrogen in=1048576 out=65536.
+
+      Pricing from aistudio.google.com/docs/pricing (fetched 2026-11-12), Standard paid
+      tier: input $1.50, output incl. thinking $7.50, cached input $0.075 per 1M; NO
+      introductory schedule; no >200k tier; implicit caching only; Batch/Flex half.
+      That is exactly gemini-3-7-flash / gemini-3-8-flash's post-2027-01-01 rate, and
+      0.375x Argon/Carbon per token. Google: "speed and efficiency for everyday coding
+      and agentic workflows", "long-decode generation up to 1M tokens".
+
+      ⚠️  THINKING — ON BY DEFAULT and heavy, unlike Argon. thinkingBudget -> 400
+      ("Use thinking level instead"); thinkingLevel MINIMAL -> 400. LOW/MEDIUM/HIGH
+      accepted (strawberry: 79/139/219 thoughts). DO NOT set reasoning_effort /
+      reasoning_max_tokens on this row. Probes 2026-11-12, no reasoning params:
+        "prove infinitely many primes" -> 626 thoughts / 373 out, STOP
+        CSV-parser coding prompt       -> 2928 thoughts / 1487 out, STOP
+
+      PLACEMENT 2026-11-12 (standard, --trials 1, parallel 6, smoke..long-frontier, 81
+      benchmarks). Co-run with gemini-3-7-flash + gemini-3-8-flash in ONE command: they had
+      no anchored rating, and their only banked data was v0.34.0 (2026-09-02), so §5.5
+      case 2. Scratch binary first on PATH (no version skew). All 243 finish=stop.
+        3.8 Flash  77/81  ELO 2251.2  out+think 6323/run  $0.105/run uncached at 2027 list
+        Hydrogen   76/81  ELO 2178.9  out+think 5432/run  $0.094/run
+        3.7 Flash  75/81  ELO 2126.8  out+think 2816/run  $0.078/run
+      (Flash runs cost half until 2026-12-31.) Smoke 23/23 and core 23/23 for Hydrogen.
+      4 of Hydrogen's 5 failures are `import std/map (Map)` / `import std/array (Array)`
+      -> IMP010: std/set and std/option export their type, std/map and std/array do not,
+      so models import by analogy (3.8 Flash hit it twice). That is AILANG friction, not
+      model capability. The 5th is a gauntlet_10 parse error. N=1 and within 1-2 benchmarks:
+      a close call, NOT a replacement verdict. Vs Argon on its 49: 48/49 vs 49/49.
+      Wall-clock probe (same prompt, x3, under eval load): Hydrogen 21-39s at ~160 tok/s
+      vs 3.8/3.7 Flash 15-20s at ~105-145 tok/s — it thinks 2-4x more.
+      Opt-in, in NO suite: the Flash-seat decision is pending.
+
   # Google Gemini 3.5 Flash (released May 19, 2026 at Google I/O 2026)
   # ⚠️  EXCLUDED FROM STANDARD EVAL ROTATION (v0.22.0, 2026-05-20).
   # The Vertex Managed Agents API path is cost-prohibitive due to a documented
