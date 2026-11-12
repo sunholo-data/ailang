@@ -24,13 +24,8 @@
   fix: "tools/video/daneel_video.ail:240 — StreamEvent match gains `_ => true`"
   republish: []
   expires: v0.61.0
-- change: "match exhaustiveness: non-exhaustive match is TC_MATCH_002"
-  code: TC_MATCH_002
-  corpus: motoko-fork
-  max: 96
-  fix: "6 sites in 5 files: progress_contract_guard.ail (2), admission.ail, scripted_ports.ail, stream_parity_dst.ail, verify_herdr_orchestrator.ail"
-  republish: []
-  expires: v0.61.0
+# motoko-fork: fixed by sunholo-voight-kampff/motoko_agent#9 (merged 2026-11-12), so its
+# entry is removed: left in place it reads UNUSED and the gate exits 2.
 - change: "match exhaustiveness: non-exhaustive match is TC_MATCH_002"
   code: TC_MATCH_002
   corpus: ailang-packages
