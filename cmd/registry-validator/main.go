@@ -17,6 +17,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
@@ -34,6 +35,11 @@ import (
 )
 
 const cacheTTL = 5 * time.Minute
+
+// maxPublishBodyBytes caps a /publish request body: the tarball limit
+// (pkg.MaxTarballBytes, see internal/pkg/tarball_limits.go) plus 1 MiB for
+// the multipart envelope.
+const maxPublishBodyBytes = pkg.MaxTarballBytes + 1<<20
 
 func main() {
 	port := config.Port()
@@ -170,8 +176,18 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	// Step 1: Read tarball from multipart form
-	if err := r.ParseMultipartForm(50 << 20); err != nil { // 50MB max
+	// Step 1: Read tarball from multipart form. The body is capped before it
+	// is parsed: ParseMultipartForm's argument only bounds what it keeps in
+	// memory and spills the rest to /tmp, which on Cloud Run is memory too.
+	r.Body = http.MaxBytesReader(w, r.Body, maxPublishBodyBytes)
+	if err := r.ParseMultipartForm(maxPublishBodyBytes); err != nil {
+		var tooBig *http.MaxBytesError
+		if errors.As(err, &tooBig) {
+			jsonError(w, http.StatusRequestEntityTooLarge,
+				"publish request body exceeds %d bytes: the package tarball limit is %d MiB (pkg.MaxTarballBytes)",
+				maxPublishBodyBytes, pkg.MaxTarballBytes>>20)
+			return
+		}
 		jsonError(w, http.StatusBadRequest, "Failed to parse multipart form: %v", err)
 		return
 	}
@@ -183,9 +199,13 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 	}
 	defer file.Close()
 
-	tarballData, err := io.ReadAll(file)
+	tarballData, err := io.ReadAll(io.LimitReader(file, pkg.MaxTarballBytes+1))
 	if err != nil {
 		jsonError(w, http.StatusBadRequest, "Failed to read tarball: %v", err)
+		return
+	}
+	if err := pkg.CheckTarballSize(int64(len(tarballData))); err != nil {
+		jsonError(w, http.StatusRequestEntityTooLarge, "%v", err)
 		return
 	}
 
@@ -198,6 +218,12 @@ func (v *validator) handlePublish(w http.ResponseWriter, r *http.Request) {
 	defer os.RemoveAll(tempDir)
 
 	if err := pkg.ExtractTarball(tarballData, tempDir); err != nil {
+		var limitErr *pkg.TarballLimitError
+		if errors.As(err, &limitErr) {
+			log.Printf("publish refused: %v", err)
+			jsonError(w, http.StatusRequestEntityTooLarge, "%v", err)
+			return
+		}
 		jsonError(w, http.StatusBadRequest, "Invalid tarball: %v", err)
 		return
 	}
