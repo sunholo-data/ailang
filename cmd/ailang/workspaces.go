@@ -101,8 +101,7 @@ func workspacesList(args []string) error {
 	defer cancel()
 
 	ctx := context.Background()
-	workspacesConfig := coordinator.LoadWorkspacesConfig()
-	ws := auth.NewWorkspaceService(fsClient, workspacesConfig)
+	ws := auth.NewWorkspaceService(fsClient)
 
 	accessible, err := ws.ListAccessibleWorkspaces(ctx, email)
 	if err != nil {
@@ -263,8 +262,7 @@ func workspacesGrant(args []string) error {
 	defer cancel()
 
 	ctx := context.Background()
-	workspacesConfig := coordinator.LoadWorkspacesConfig()
-	ws := auth.NewWorkspaceService(fsClient, workspacesConfig)
+	ws := auth.NewWorkspaceService(fsClient)
 
 	err = ws.GrantAccess(ctx, email, id, role, "cli")
 	if err != nil {
@@ -314,8 +312,7 @@ func workspacesRevoke(args []string) error {
 	defer cancel()
 
 	ctx := context.Background()
-	workspacesConfig := coordinator.LoadWorkspacesConfig()
-	ws := auth.NewWorkspaceService(fsClient, workspacesConfig)
+	ws := auth.NewWorkspaceService(fsClient)
 
 	err = ws.RevokeAccess(ctx, email, id)
 	if err != nil {
@@ -374,8 +371,7 @@ func workspacesSetPublic(args []string) error {
 	defer cancel()
 
 	ctx := context.Background()
-	workspacesConfig := coordinator.LoadWorkspacesConfig()
-	ws := auth.NewWorkspaceService(fsClient, workspacesConfig)
+	ws := auth.NewWorkspaceService(fsClient)
 
 	err = ws.SetPublic(ctx, id, isPublic)
 	if err != nil {
@@ -421,8 +417,7 @@ func workspacesShow(args []string) error {
 	defer cancel()
 
 	ctx := context.Background()
-	workspacesConfig := coordinator.LoadWorkspacesConfig()
-	ws := auth.NewWorkspaceService(fsClient, workspacesConfig)
+	ws := auth.NewWorkspaceService(fsClient)
 
 	workspace, err := ws.GetWorkspace(ctx, id)
 	if err != nil {

@@ -290,9 +290,8 @@ func WithFirebaseAuth(projectID string) ServerOption {
 		s.tokenVerifier = auth.NewTokenVerifier(authClient)
 		s.accessControl = auth.NewAccessControlCache(fsClient)
 
-		// Initialize workspace service with Firestore and config
-		workspacesConfig := coordinator.LoadWorkspacesConfig()
-		s.workspaceService = auth.NewWorkspaceService(fsClient, workspacesConfig)
+		// Initialize workspace service with Firestore
+		s.workspaceService = auth.NewWorkspaceService(fsClient)
 
 		log.Printf("Firebase Auth initialized for project: %s", projectID)
 		log.Printf("  - Token verification: enabled")

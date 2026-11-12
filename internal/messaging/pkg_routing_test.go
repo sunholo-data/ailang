@@ -41,9 +41,6 @@ func TestFormatInboxAddresses(t *testing.T) {
 	if got := FormatWorkspaceInbox("docparse"); got != "workspace:docparse" {
 		t.Errorf("FormatWorkspaceInbox: got %q", got)
 	}
-	if got := FormatTeamInbox("core"); got != "team:core" {
-		t.Errorf("FormatTeamInbox: got %q", got)
-	}
 }
 
 func TestParseInboxAddressRoundTrip(t *testing.T) {

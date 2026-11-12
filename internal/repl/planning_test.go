@@ -1,8 +1,6 @@
 package repl
 
 import (
-	"os"
-	"path/filepath"
 	"testing"
 )
 
@@ -91,108 +89,5 @@ func TestParseScaffoldCommand_UnknownFlag(t *testing.T) {
 	_, _, _, err := ParseScaffoldCommand(":scaffold --from-plan test.json --unknown-flag")
 	if err == nil {
 		t.Error("expected error for unknown flag")
-	}
-}
-
-func TestCreateExamplePlan(t *testing.T) {
-	planJSON, err := CreateExamplePlan()
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	if len(planJSON) == 0 {
-		t.Error("expected non-empty plan JSON")
-	}
-
-	// Should be valid JSON
-	if planJSON[0] != '{' {
-		t.Error("expected JSON to start with '{'")
-	}
-}
-
-func TestSaveExamplePlan(t *testing.T) {
-	tmpFile := filepath.Join(t.TempDir(), "example_plan.json")
-
-	err := SaveExamplePlan(tmpFile)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// Check file was created
-	if _, err := os.Stat(tmpFile); os.IsNotExist(err) {
-		t.Error("example plan file was not created")
-	}
-
-	// Read and verify content
-	content, err := os.ReadFile(tmpFile)
-	if err != nil {
-		t.Fatalf("failed to read file: %v", err)
-	}
-
-	if len(content) == 0 {
-		t.Error("expected non-empty file content")
-	}
-}
-
-func TestValidatePlanJSON_Valid(t *testing.T) {
-	validJSON := []byte(`{
-		"schema": "ailang.plan/v1",
-		"goal": "Test",
-		"modules": [],
-		"types": [],
-		"functions": []
-	}`)
-
-	err := ValidatePlanJSON(validJSON)
-	if err != nil {
-		t.Errorf("unexpected error for valid JSON: %v", err)
-	}
-}
-
-func TestValidatePlanJSON_InvalidJSON(t *testing.T) {
-	invalidJSON := []byte(`{not valid json}`)
-
-	err := ValidatePlanJSON(invalidJSON)
-	if err == nil {
-		t.Error("expected error for invalid JSON")
-	}
-}
-
-func TestValidatePlanJSON_MissingSchema(t *testing.T) {
-	missingSchema := []byte(`{
-		"goal": "Test",
-		"modules": []
-	}`)
-
-	err := ValidatePlanJSON(missingSchema)
-	if err == nil {
-		t.Error("expected error for missing schema field")
-	}
-}
-
-func TestValidatePlanJSON_WrongSchema(t *testing.T) {
-	wrongSchema := []byte(`{
-		"schema": "wrong.schema/v1",
-		"goal": "Test",
-		"modules": [],
-		"types": [],
-		"functions": []
-	}`)
-
-	err := ValidatePlanJSON(wrongSchema)
-	if err == nil {
-		t.Error("expected error for wrong schema version")
-	}
-}
-
-func TestValidatePlanJSON_MissingRequiredFields(t *testing.T) {
-	missingFields := []byte(`{
-		"schema": "ailang.plan/v1",
-		"goal": "Test"
-	}`)
-
-	err := ValidatePlanJSON(missingFields)
-	if err == nil {
-		t.Error("expected error for missing required fields")
 	}
 }

@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"strings"
-	"time"
 )
 
 // EventsResponse is the JSON response for the events API endpoint.
@@ -236,16 +235,6 @@ func CountTurns(events []*TaskEventRecord) int {
 		}
 	}
 	return maxTurn
-}
-
-// GetTurnTimestamp returns the timestamp of the first event in a turn.
-func GetTurnTimestamp(events []*TaskEventRecord, turnNum int) *time.Time {
-	for _, event := range events {
-		if event.TurnNum == turnNum {
-			return &event.CreatedAt
-		}
-	}
-	return nil
 }
 
 // SummarizeEvents returns a brief summary of the events.

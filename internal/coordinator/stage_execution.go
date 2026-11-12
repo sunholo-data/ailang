@@ -274,100 +274,6 @@ func buildTemplateDirective(task *TaskRecord, agent *AgentConfig) string {
 	return result
 }
 
-// formatOutputMarkers formats the output markers for display in directives.
-func formatOutputMarkers(markers []string) string {
-	if len(markers) == 0 {
-		return ""
-	}
-	var sb strings.Builder
-	for _, marker := range markers {
-		sb.WriteString(fmt.Sprintf("- %s <value>\n", marker))
-	}
-	return sb.String()
-}
-
-// ParseOutputMarkers extracts values for configured markers from execution output.
-// This is the config-driven approach that replaces the hardcoded ParseStageOutput.
-//
-// It searches for each marker in the output and extracts the value that follows.
-// Markers should be in the format "MARKER_NAME:" (with or without trailing colon).
-//
-// Returns a map of marker name -> extracted value.
-// Returns empty map if no markers are found or markers slice is empty.
-//
-// For multi-value markers (comma-separated), the full comma-separated string is returned.
-// Use splitMarkerValues() to split into individual values if needed.
-func ParseOutputMarkers(output string, markers []string) map[string]string {
-	if len(markers) == 0 {
-		return make(map[string]string)
-	}
-
-	result := make(map[string]string)
-	for _, marker := range markers {
-		value := extractMarkerValue(output, marker)
-		if value != "" {
-			result[marker] = value
-		}
-	}
-	return result
-}
-
-// extractMarkerValue extracts the value for a single marker from output.
-// The marker can be specified with or without trailing colon.
-// Handles both plain text and markdown-formatted markers:
-//   - MARKER: value
-//   - MARKER:value
-//   - **MARKER**: value
-//   - **MARKER**: `value`
-func extractMarkerValue(output, marker string) string {
-	// Normalize marker to not have trailing colon for pattern building
-	markerBase := strings.TrimSuffix(marker, ":")
-
-	// Build pattern that handles optional ** (bold) and optional backticks
-	// Pattern: **?MARKER**?: `?value`?
-	pattern := fmt.Sprintf(`\*{0,2}%s\*{0,2}:\s*`+"`?"+`(.+?)`+"`?"+`(?:\n|$)`, regexp.QuoteMeta(markerBase))
-	re := regexp.MustCompile(pattern)
-
-	matches := re.FindStringSubmatch(output)
-	if len(matches) >= 2 {
-		value := strings.TrimSpace(matches[1])
-		// Remove any remaining backticks
-		value = strings.Trim(value, "`")
-		return value
-	}
-	return ""
-}
-
-// SplitMarkerValues splits a comma-separated marker value into individual values.
-// Useful for markers like "FILES_CREATED: file1.go, file2.go, file3.go".
-// Returns nil if value is empty or "none"/"None".
-func SplitMarkerValues(value string) []string {
-	value = strings.TrimSpace(value)
-	if value == "" || value == "none" || value == "None" {
-		return nil
-	}
-
-	parts := strings.Split(value, ",")
-	result := make([]string, 0, len(parts))
-	for _, p := range parts {
-		p = strings.TrimSpace(p)
-		if p != "" {
-			result = append(result, p)
-		}
-	}
-	return result
-}
-
-// HasMarkerValue checks if a specific marker value is present in output.
-// Useful for boolean markers like "IMPLEMENTATION_COMPLETE: true".
-func HasMarkerValue(output, marker, expectedValue string) bool {
-	markers := ParseOutputMarkers(output, []string{marker})
-	if val, ok := markers[marker]; ok {
-		return strings.EqualFold(strings.TrimSpace(val), expectedValue)
-	}
-	return false
-}
-
 // ParseStageOutput extracts structured artifacts from execution output.
 // Handles both plain text markers and markdown-formatted markers:
 //   - DESIGN_DOC_PATH: path.md
@@ -437,28 +343,6 @@ func extractListWithMarkdown(output, marker string) []string {
 		}
 	}
 	return result
-}
-
-// extractList extracts a comma-separated list from output
-func extractList(output, pattern string) []string {
-	re := regexp.MustCompile(pattern)
-	matches := re.FindStringSubmatch(output)
-	if len(matches) >= 2 {
-		raw := strings.TrimSpace(matches[1])
-		if raw == "" || raw == "none" || raw == "None" {
-			return nil
-		}
-		parts := strings.Split(raw, ",")
-		result := make([]string, 0, len(parts))
-		for _, p := range parts {
-			p = strings.TrimSpace(p)
-			if p != "" {
-				result = append(result, p)
-			}
-		}
-		return result
-	}
-	return nil
 }
 
 // ProcessStageCompletion handles the completion of a stage for GitHub-linked tasks.

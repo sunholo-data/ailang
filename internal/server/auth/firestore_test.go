@@ -11,7 +11,6 @@ import (
 func TestAccessControlCacheCreation(t *testing.T) {
 	cache := NewAccessControlCache(nil)
 	assert.NotNil(t, cache)
-	assert.Equal(t, 0, cache.CacheStats())
 }
 
 func TestWorkspaceRoleCreation(t *testing.T) {
@@ -26,47 +25,6 @@ func TestWorkspaceRoleCreation(t *testing.T) {
 	assert.Equal(t, "workspace-456", role.WorkspaceID)
 	assert.Equal(t, "Approver", role.Role)
 	assert.Len(t, role.Permissions, 2)
-}
-
-func TestAccessControlCacheInvalidateCache(t *testing.T) {
-	cache := NewAccessControlCache(nil)
-
-	// Manually add some entries to test cache clearing
-	cache.mutex.Lock()
-	cache.roles["test:workspace"] = &cachedRole{
-		role:      "Approver",
-		workspace: "workspace",
-		uid:       "test",
-	}
-	cache.mutex.Unlock()
-
-	assert.Equal(t, 1, cache.CacheStats())
-
-	cache.InvalidateCache()
-	assert.Equal(t, 0, cache.CacheStats())
-}
-
-func TestAccessControlCacheStats(t *testing.T) {
-	cache := NewAccessControlCache(nil)
-	assert.Equal(t, 0, cache.CacheStats())
-
-	// Manually add entries
-	cache.mutex.Lock()
-	cache.roles["user1:workspace1"] = &cachedRole{}
-	cache.roles["user2:workspace1"] = &cachedRole{}
-	cache.roles["user1:workspace2"] = &cachedRole{}
-	cache.mutex.Unlock()
-
-	assert.Equal(t, 3, cache.CacheStats())
-}
-
-func TestAddUserToWorkspaceValidation(t *testing.T) {
-	// Test that role validation works
-	cache := NewAccessControlCache(nil)
-
-	// With actual Firestore, this would fail because we pass nil
-	// We're testing the structure and logic
-	assert.NotNil(t, cache)
 }
 
 func TestWorkspaceRoleFields(t *testing.T) {
@@ -109,13 +67,6 @@ func TestCachedRoleStructure(t *testing.T) {
 	assert.Equal(t, "ws-123", cr.workspace)
 	assert.Equal(t, "user-456", cr.uid)
 	assert.NotNil(t, cr.expiresAt)
-}
-
-func TestAccessControlCacheInitialization(t *testing.T) {
-	cache := NewAccessControlCache(nil)
-
-	assert.NotNil(t, cache)
-	assert.Equal(t, 0, cache.CacheStats())
 }
 
 func TestWorkspaceRoleStructTags(t *testing.T) {

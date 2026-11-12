@@ -60,11 +60,6 @@ func FormatWorkspaceInbox(workspaceName string) string {
 	return "workspace:" + workspaceName
 }
 
-// FormatTeamInbox returns the canonical inbox address for a team.
-func FormatTeamInbox(teamName string) string {
-	return "team:" + teamName
-}
-
 // ListPackageInboxes returns distinct package-scoped inboxes from the store.
 func (s *Store) ListPackageInboxes() ([]string, error) {
 	return s.listInboxesByPrefix("pkg:%")

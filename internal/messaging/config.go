@@ -217,21 +217,3 @@ func LoadEmbeddingsConfig() (*EmbeddingsYAMLConfig, error) {
 	}
 	return config.Embeddings, nil
 }
-
-// ValidateGitHubConfig validates the GitHub configuration
-// Returns an error if required fields are missing
-func ValidateGitHubConfig(config *GitHubConfig) error {
-	if config == nil {
-		return fmt.Errorf("github configuration not found in ~/.ailang/config.yaml")
-	}
-
-	if config.ExpectedUser == "" {
-		return fmt.Errorf("github.expected_user is required in ~/.ailang/config.yaml")
-	}
-
-	if config.DefaultRepo == "" {
-		return fmt.Errorf("github.default_repo is required in ~/.ailang/config.yaml")
-	}
-
-	return nil
-}
