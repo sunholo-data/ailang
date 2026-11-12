@@ -55,6 +55,16 @@
 #      Of the three assertions the old recipe mandated, this is the only load-bearing one: `stopReason` is now known evadable
 #      in BOTH directions — `length` pre-2026-08-13, and a clean `stop` at 625 tokens
 #      post-fix — so it can neither confirm nor deny that work happened.
+#   6. Reaps what the role left behind, on EVERY outcome (ok included). An ANCESTRY LEDGER records
+#      (pid, birth) of each live descendant of this run every poll, and the reap signals those
+#      processes after the run, including ones reparented to pid 1. Reported as reaped_count and
+#      reaped in the verdict; the verdict name and rc do not change. It is NOT matched by pgid,
+#      session or command line: pi already setsid()s each tool (so a session reaches no tool
+#      descendant), a process can setpgrp away, and a command-line match would kill unrelated work
+#      on a shared rig. Each reaped row is { pid, pgid, signal, command }, where command is the EXECUTABLE
+#      NAME (ps comm=, 120 chars max), never argv: argv can carry secrets. Residual R1: a double-fork
+#      whose intermediate dies BETWEEN two polls escapes.
+#      See tools/launchd/lib/pi-run-reap.sh.
 #
 # EXIT CODES (the verdict is also written as JSON to --verdict)
 #   0  ok               — pi finished, and either the worktree content differs from its pre-launch
@@ -312,6 +322,8 @@ PREDIRTY_FILES=$(git -C "$WORKDIR" status --porcelain 2>/dev/null | wc -l | tr -
 # Each extension once: a worktree carrying .pi/extensions would otherwise load the global
 # and repo copies of the same tools, and pi exits rc=1 on the conflict (lib/pi-ext-args.sh).
 . "$RUNNER_ROOT/tools/launchd/lib/pi-ext-args.sh"
+# Ancestry-ledger reaper: see WHAT THIS SCRIPT DOES, item 6.
+. "$RUNNER_ROOT/tools/launchd/lib/pi-run-reap.sh"
 PI_EXT_ARGS=(); while IFS= read -r _l; do PI_EXT_ARGS+=("$_l"); done < <(_mc_pi_ext_args "$WORKDIR")
 set -m
 (
@@ -339,6 +351,9 @@ set -m
   echo "${PIPESTATUS[0]}" > "$STAGE/pi.rc"
 ) &
 RUNNER_PID=$!
+# Every poll adds the live descendants of the run to REAP_LEDGER (append-only). A child that outlives
+# its parent is still known after the parent is gone. Birth-stamped, so a reused pid cannot match.
+REAP_LEDGER="$STAGE/reap.ledger"; : > "$REAP_LEDGER"; RUNNER_BIRTH=$(_pr_birth "$RUNNER_PID")
 
 START=$(now)
 LAST_OUT_M=$(mtime_of "$OUT")
@@ -359,6 +374,7 @@ fi
 
 while :; do
   sleep "$POLL_SECONDS"
+  _pr_ledger_update "$REAP_LEDGER" "$RUNNER_PID" "$RUNNER_BIRTH"
 
   # Liveness is checked AFTER the sleep and BEFORE the stall arithmetic. The reverse
   # order reports a stall for any run that completes inside one poll interval.
@@ -411,6 +427,15 @@ if [ "$OUTCOME" != "finished" ]; then
   kill -KILL -"$RUNNER_PID" 2>/dev/null || kill -KILL "$RUNNER_PID" 2>/dev/null
 fi
 wait "$RUNNER_PID" 2>/dev/null
+# Reap on EVERY outcome, including ok: pi can leave a background child behind even when it finished
+# cleanly. Reaping changes neither the verdict nor the rc; it is reported as reaped_count and reaped.
+_pr_reap "$REAP_LEDGER" "$RUNNER_PID" "$RUNNER_BIRTH" 2 "$STAGE/reaped.tsv"
+REAPED_JSON=$(_pr_report_json "$STAGE/reaped.tsv" 2>/dev/null) || {
+  echo "WARNING: could not build the reaped report (jq failed); count is from the TSV, list is empty" >&2
+  REAPED_JSON="{\"count\":$(wc -l < "$STAGE/reaped.tsv" 2>/dev/null | tr -d ' ' || echo 0),\"list\":[]}"
+}
+REAPED_COUNT=$(printf '%s' "$REAPED_JSON" | jq -r .count 2>/dev/null) || REAPED_COUNT=0
+REAPED_LIST=$(printf '%s' "$REAPED_JSON" | jq -c .list 2>/dev/null) || REAPED_LIST="[]"
 PI_RC=$(cat "$STAGE/pi.rc" 2>/dev/null) || PI_RC=14
 case "$PI_RC" in ''|*[!0-9]*) PI_RC=14 ;; esac
 if [ -f "$READY_FILE" ]; then FENCED=true; else FENCED=false; fi
@@ -513,6 +538,8 @@ cat > "$VERDICT" <<EOF
   "provider_errors": ${PROVIDER_ERRORS:-0},
   "provider_error": $PROVIDER_ERROR_JSON,
   "agent_end_events": ${AGENT_END:-0},
+  "reaped_count": ${REAPED_COUNT:-0},
+  "reaped": $REAPED_LIST,
   "ndjson_bytes_filtered": ${OUT_BYTES:-0},
   "ndjson": "$OUT",
   "snapshot": "$SNAP",
@@ -525,4 +552,5 @@ echo "pi lane verdict: $VERDICT_NAME (rc=$RC) after ${ELAPSED}s — ${DIFF_LINES
 [ -n "$HUNG_TOOL" ] && echo "pi lane verdict: the MODEL did not stall — pi was waiting on a tool call that never returned (no-progress bound ${STALL_BOUND_APPLIED}s): $HUNG_TOOL" >&2
 [ "$RC" -eq 19 ] && echo "pi lane verdict: the PROVIDER refused on capacity — park the lane, not the model: $PROVIDER_ERROR" >&2
 [ "$RC" -ne 19 ] && [ "$PROVIDER_ERRORS" -gt 0 ] && echo "pi lane verdict: $PROVIDER_ERRORS provider error(s) during the run; last: $PROVIDER_ERROR" >&2
+[ "${REAPED_COUNT:-0}" -gt 0 ] && echo "pi lane verdict: reaped $REAPED_COUNT process(es) the role left behind — see reaped in the verdict JSON" >&2
 exit "$RC"

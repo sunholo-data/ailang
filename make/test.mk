@@ -77,6 +77,7 @@ LAUNCHD_SUITES := \
 	tools/launchd/test_driver_notify.sh \
 	tools/launchd/test_mission_workdir_sync.sh \
 	scripts/test_mission_pi_run.sh \
+	tools/launchd/test_mission_pi_run_orphan_reap.sh \
 	tools/launchd/test_pin_root.sh \
 	tools/launchd/test_mission_worktree.sh \
 	tools/launchd/test_skill_sync.sh \
