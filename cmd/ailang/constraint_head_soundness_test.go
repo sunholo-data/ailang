@@ -69,7 +69,36 @@ pure func sz[a](s: Stack[a]) -> int = match s { [] => 0, _ :: _ => 1 }
 export func main() -> () ! {IO} = println(show(sz(7)))`, "No instance for Num[list["},
 		{"alias_to_string_arith", `type Tagged[t] = string
 pure func dbl[t](x: Tagged[t]) -> Tagged[t] = x + x
-export func main() -> () ! {IO} = println(show(dbl("a")))`, "No instance for Num[string]"},
+export func main() -> () ! {IO} = println(show(dbl("a")))`, "No instance for Num[Tagged[t]]"},
+		// An alias body that names a type variable it does not bind (a typo, or
+		// `type Any = a`) must not turn a ground constraint into a deferred one:
+		// expanding Num[Count] to Num[integer] made it a constraint on a fresh
+		// variable, which the top-level boundary dropped, so inc("x") checked
+		// and crashed (#2285 second review, v01-v06).
+		{"free_var_alias", `type Any = a
+pure func inc(x: Any) -> Any = x + 1
+export func main() -> () ! {IO} = println(show(inc(41)))`, "No instance for Num[Any]"},
+		{"free_var_alias_str", `type Any = a
+pure func inc(x: Any) -> Any = x + 1
+pure func useS(s: string) -> string = s
+export func main() -> () ! {IO} = println(useS(inc("s")))`, "No instance for Num[Any]"},
+		{"free_var_alias_lt", `type Any = a
+pure func lt(x: Any, y: Any) -> bool = x < y
+export func main() -> () ! {IO} = println(show(lt(\u. u, \u. u)))`, "No instance for Ord[Any]"},
+		{"phantom_param_unused_var", `type Any2[b] = c
+pure func lt(x: Any2[int], y: Any2[int]) -> bool = x < y
+export func main() -> () ! {IO} = println(show(lt(Some(1), Some(2))))`, "No instance for Ord[Any2[int]]"},
+		{"typo_alias", `type Count = integer
+pure func inc(c: Count) -> Count = c + 1
+pure func tag(s: string) -> string = s
+export func main() -> () ! {IO} = { println(show(inc(41))); println(tag(inc("x"))) }`, "No instance for Num[Count]"},
+		{"typo_alias_eq_fn", `type Handler = handler
+pure func same(a: Handler, b: Handler) -> bool = a == b
+export func main() -> () ! {IO} = println(show(same(\u. u + 1, \u. u + 1)))`, "No instance for Eq[Handler]"},
+		// A self-referential alias is reported as written, not unfolded.
+		{"self_referential_alias", `type L[a] = [L[a]]
+pure func f(x: L[int]) -> bool = x == x
+export func main() -> () ! {IO} = println("hi")`, "No instance for Eq[L[int]] in scope"},
 	}
 	for _, c := range cases {
 		t.Run(c.module, func(t *testing.T) {
@@ -82,8 +111,12 @@ export func main() -> () ! {IO} = println(show(dbl("a")))`, "No instance for Num
 			if code == 0 {
 				t.Fatalf("check must reject %s, passed:\n%s", c.module, stdout)
 			}
-			if out := stdout + stderr; !strings.Contains(out, c.want) {
+			out := stdout + stderr
+			if !strings.Contains(out, c.want) {
 				t.Errorf("want %q in the diagnostic, got:\n%s", c.want, out)
+			}
+			if strings.Contains(out, "list[list[list[") {
+				t.Errorf("diagnostic must name the alias as written, not unfold it:\n%s", out)
 			}
 		})
 	}
@@ -217,6 +250,37 @@ func TestConstraintAliasControls(t *testing.T) {
 		"42", "42", "42", "true", "true", "false", "true", "42", "3.0", "false", "true", "5",
 	}, "\n")
 	assertBothEngines(t, want, file, func(args ...string) (string, string, int) {
+		return runAilangBin(t, bin, args...)
+	})
+}
+
+// A record alias resolves Eq through the record's declared name, on both
+// engines: `deriving (Eq)` on a record alias crashed the evaluator
+// ("derived Eq for P: expected TaggedValue") and an alias of it (`type Q = P`)
+// was rejected (#2285 second review, r02 and r07).
+const constraintRecordAliasControls = `module constraint_record_alias_controls
+type P = {x: int} deriving (Eq)
+type Q = P
+pure func sameP(p: P, q: P) -> bool = p == q
+pure func sameQ(p: Q, q: Q) -> bool = p == q
+export func main() -> () ! {IO} = {
+  println(show(sameP({x: 1}, {x: 1})));
+  println(show(sameP({x: 1}, {x: 2})));
+  println(show(sameQ({x: 1}, {x: 1})));
+  println(show(sameQ({x: 1}, {x: 3})))
+}
+`
+
+func TestConstraintRecordAliasControls(t *testing.T) {
+	bin := buildAilang(t)
+	file := filepath.Join(t.TempDir(), "constraint_record_alias_controls.ail")
+	if err := os.WriteFile(file, []byte(constraintRecordAliasControls), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if stdout, stderr, code := runAilangBin(t, bin, "check", file); code != 0 {
+		t.Fatalf("record alias controls must check:\n%s%s", stdout, stderr)
+	}
+	assertBothEngines(t, "true\nfalse\ntrue\nfalse", file, func(args ...string) (string, string, int) {
 		return runAilangBin(t, bin, args...)
 	})
 }
