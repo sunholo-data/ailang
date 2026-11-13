@@ -40,4 +40,8 @@ variable (`TC_UNBOUND_TYPE_002`) carries that reading in the error too.
   `func Ident(x int64) int64` and is now `func Ident(x interface{}) interface{}`. Go code calling
   such a wrapper with a typed value still compiles; code that relied on the `int64` result type
   needs a type assertion.
-- Measured: MEASURED_PLACEHOLDER. Known gaps are listed in docs/LIMITATIONS.md.
+- Measured (base = dev 5db322d71): 4 of 11,168 banked passing AI solutions newly fail, all wrong
+  or over-general annotations (the row, literal and contract rules add none); 0 of 700 passing repo
+  `.ail` files; `.stdlib-golden` unchanged. Downstream: ailang-packages `agui` 0.2.2 and `discord`
+  0.5.1 and the motoko fork's `src/core` (71 files) check as before; the one site found earlier
+  (`agui` `decodeAll[f, b](f: f, …)`) was fixed upstream. Known gaps are listed in docs/LIMITATIONS.md.
