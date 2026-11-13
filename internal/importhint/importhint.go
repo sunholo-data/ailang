@@ -189,6 +189,10 @@ func lenDiff(a, b string) int {
 	}
 }
 
+// EditDistance is the Levenshtein distance between a and b, for callers that
+// rank their own candidates (the elaborator's type-name suggestions).
+func EditDistance(a, b string) int { return levenshtein(a, b) }
+
 func levenshtein(a, b string) int {
 	if a == b {
 		return 0
