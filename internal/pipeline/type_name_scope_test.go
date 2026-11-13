@@ -133,7 +133,7 @@ func typeNameScopeCases() []tnCase {
 			"q/prime.ail": "module q/prime\nexport pure func main() -> int = 1\n",
 			"q/bad.ail":   "module q/bad\nexport type Any = a\nexport pure func one() -> int = 1\n",
 			"q/main.ail":  "module q/main\nimport q/bad (one)\nexport pure func main() -> int = one()\n"},
-			types.TC_UNBOUND_TYPE_003, "q/bad.ail"),
+			types.TC_UNBOUND_TYPE_003, "bad.ail:2:"), // the file name only: Windows separators
 		c("control: declarations using parameters, local (forward) and imported lowercase types", shapes(
 			"module q/main\nimport q/shapes (point, label, px)\n"+
 				"type seg2 = {a: pt, b: point}\ntype Tagged[t] = T(t, label) | N\ntype pt = {x: int, y: int}\n"+
@@ -177,7 +177,7 @@ func typeNameScopeCases() []tnCase {
 			"q/prime.ail": "module q/prime\nexport pure func main() -> int = 1\n",
 			"q/cyc.ail":   "module q/cyc\nexport type L = [L]\nexport pure func one() -> int = 1\n",
 			"q/main.ail":  "module q/main\nimport q/cyc (one)\nexport pure func main() -> int = one()\n"},
-			types.TC_TYPE_ALIAS_CYCLE_001, "q/cyc.ail"),
+			types.TC_TYPE_ALIAS_CYCLE_001, "cyc.ail:2:"), // the file name only: Windows separators
 		c("control: recursive ADT, aliases and records over it, a self-referential record", shapes(
 			"module q/main\nimport q/shapes (px)\nimport std/list (length)\n"+
 				"type Tree[a] = Leaf | Node(Tree[a], a, Tree[a])\ntype Forest = [Tree[int]]\n"+
