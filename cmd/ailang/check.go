@@ -621,6 +621,9 @@ func checkDirectoryWithContext(ctx context.Context, dir string, strictSyntax boo
 	// Track results
 	var passed, failed int
 	var errors []string
+	// causes[i] is the structured error behind errors[i], when there is one
+	// (a parse error keeps its PAR_ code and position for --json).
+	causes := map[int]error{}
 
 	// Parse timeout once if specified
 	var timeoutDuration time.Duration
@@ -683,6 +686,7 @@ func checkDirectoryWithContext(ctx context.Context, dir string, strictSyntax boo
 
 		if checkErr != nil {
 			errors = append(errors, fmt.Sprintf("%s: %v", file, checkErr))
+			causes[len(errors)-1] = checkErr
 			failed++
 			continue
 		}
@@ -707,11 +711,8 @@ func checkDirectoryWithContext(ctx context.Context, dir string, strictSyntax boo
 	if jsonFlag {
 		// JSON output for directory check
 		jsonErrors := make([]checkJSONError, 0, len(errors))
-		for _, e := range errors {
-			jsonErrors = append(jsonErrors, checkJSONError{
-				Code:    jsonErrorCode(e),
-				Message: e,
-			})
+		for i, e := range errors {
+			jsonErrors = append(jsonErrors, errorEntryFor(e, causes[i]))
 		}
 		outputCheckJSON(checkJSONOutput{
 			File:       dir,

@@ -67,6 +67,73 @@ func TestCheckJSON_ParseErrorCodes(t *testing.T) {
 	}
 }
 
+// When the FIRST parser error carries no code, --json reports it as it is
+// ("ERROR", no position) rather than borrowing a later error's code: code,
+// position and message describe one error (#2330 review, pe/e08).
+func TestCheckJSON_FirstParseErrorUncoded(t *testing.T) {
+	bin := buildAilang(t)
+	file := filepath.Join(t.TempDir(), "pe8.ail")
+	src := "module pe8\nexport func main() -> () ! {IO} {\n  let f = func(x: int) { x };\n  println(show(f(1) +))\n}\n"
+	if err := os.WriteFile(file, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	stdout, _, _ := runWithStdin(t, bin, "", "check", "--json", file)
+	var out struct {
+		Errors []struct {
+			Code    string `json:"code"`
+			Line    int    `json:"line"`
+			Message string `json:"message"`
+		} `json:"errors"`
+	}
+	if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+		t.Fatalf("check --json: %v\n%s", err, stdout)
+	}
+	// The fixture's first parser error is uncoded, and later ones are coded.
+	if len(out.Errors) != 1 || !strings.Contains(out.Errors[0].Message, "PAR_UNEXPECTED_TOKEN") {
+		t.Fatalf("fixture no longer has a coded later error:\n%s", stdout)
+	}
+	if out.Errors[0].Code != "ERROR" || out.Errors[0].Line != 0 {
+		t.Errorf("want the first (uncoded) error as ERROR with no line, got %+v", out.Errors[0])
+	}
+}
+
+// check --package --json and directory check --json carry a file's parse
+// error structure too: its PAR_ code and position (#2330 review).
+func TestCheckJSON_PackageAndDirParseErrorCodes(t *testing.T) {
+	bin := buildAilang(t)
+	dir := t.TempDir()
+	manifest := "[package]\nname = \"pevendor/pepkg\"\nversion = \"0.1.0\"\nedition = \"1\"\n\n[exports]\nmodules = [\"pevendor/pepkg/bad\"]\n"
+	if err := os.WriteFile(filepath.Join(dir, "ailang.toml"), []byte(manifest), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "bad.ail"), []byte("module pevendor/pepkg/bad\ntype float = float\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, args := range [][]string{{"check", "--package", "--json", dir}, {"check", "--json", dir}} {
+		stdout, _, code := runWithStdin(t, bin, "", args...)
+		var out struct {
+			Errors []struct {
+				Code    string `json:"code"`
+				Line    int    `json:"line"`
+				Column  int    `json:"column"`
+				Message string `json:"message"`
+			} `json:"errors"`
+		}
+		if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+			t.Fatalf("%v: %v\n%s", args, err, stdout)
+		}
+		found := false
+		for _, e := range out.Errors {
+			if e.Code == "PAR_TYPE_DECL_BUILTIN" && e.Line == 2 && e.Column == 6 && strings.Contains(e.Message, "bad.ail") {
+				found = true
+			}
+		}
+		if code == 0 || !found {
+			t.Errorf("%v: want PAR_TYPE_DECL_BUILTIN at 2:6, exit %d:\n%s", args, code, stdout)
+		}
+	}
+}
+
 // TC_UNBOUND_TYPE_002 (#2211) reaches every output channel of `ailang check`,
 // on a cold and on a warm compile cache, and the program still checks.
 func TestTypeNameWarningCheckOutputs(t *testing.T) {

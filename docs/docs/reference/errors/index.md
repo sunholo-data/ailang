@@ -185,7 +185,7 @@ TC004: occurs check failed: α1 occurs in { self: α1 } (an infinite type)
 TC_UNBOUND_TYPE_001: type 'zz' is not in scope: no type constructor 'zz' is declared here, imported by name, or exported by an import.
 ```
 
-**`TC_UNBOUND_TYPE_003` — a type declaration whose body names a type variable that is not its parameter.** A function signature quantifies an undeclared lowercase name implicitly (the caller supplies it); a type declaration cannot, so in the body of a `type` declaration — alias, constructor fields, record fields — a lowercase name must be one of the declaration's own `[..]` parameters or a type in scope. Otherwise the type would silently stand for any type. Fix: add the parameter, or write the type you meant; the message suggests the built-in a name from another language means (`str` → `string`, `number`/`double` → `float`, `integer` → `int`, `boolean` → `bool`), a type differing only by case, a prefix, or one edit away (two for names of six letters or more), or the import when an imported module exports the type but it is not imported by name; with nothing close there is no suggestion.
+**`TC_UNBOUND_TYPE_003` — a type declaration whose body names a type variable that is not its parameter.** A function signature quantifies an undeclared lowercase name implicitly (the caller supplies it); a type declaration cannot, so in the body of a `type` declaration — alias, constructor fields, record fields — a lowercase name must be one of the declaration's own `[..]` parameters or a type in scope. Otherwise the type would silently stand for any type. Fix: add the parameter, or write the type you meant; the message suggests the built-in a name from another language means (`str` → `string`, `number`/`double` → `float`, `integer` → `int`, `boolean` → `bool`), a type differing only by case, or one edit away (two when both names have six letters or more), or the import when an imported module exports the type but it is not imported by name; with nothing close there is no suggestion.
 
 ```
 TC_UNBOUND_TYPE_003: type variable 'integer' is not a parameter of Count: write `type Count[integer] = …` to make it a parameter, or did you mean the type `int`?
@@ -205,7 +205,7 @@ TC_UNBOUND_TYPE_002 at app.ail:3:18
   Fix: import it by name, import std/sem (namespace), if you meant the type; otherwise rename the type variable
 ```
 
-**`PAR_TYPE_DECL_BUILTIN` — a type declaration named like a built-in type (parse error).** A built-in name always means the built-in, so `type float = float` or `type string = int` declares a type nothing can refer to (the second used to be silently ignored at every use). Fix: name the type something else (`type Meters = float`) and use that name.
+**`PAR_TYPE_DECL_BUILTIN` — a type declaration named like a built-in type (parse error).** A built-in name always means the built-in, so `type float = float` or `type string = int` declares a type nothing can refer to (the second used to be silently ignored at every use). Fix: give the type its own name (`type Meters = float`, `type Name = string`) and use that name.
 
 **`PAR_TYPE_PARAM_BUILTIN` — a type parameter named like a built-in type (parse error).** A built-in (`int`, `string`, `float`, `bool`, `unit`, `char`, `bytes`) is never a type variable, so `type Result[int] = Ok(int) | Err(string)` or `func f[string](x: string)` declares a parameter that nothing can refer to. Fix: rename the parameter (`[a]`, `[T]`) and use that name in the declaration.
 

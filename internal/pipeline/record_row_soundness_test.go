@@ -348,13 +348,16 @@ export pure func use() -> int = f({x: 1, z: "a"}, {y: 2, w: true})
 	}
 }
 
-// rowLib exports two functions over an OPEN record row: its parameter is an
-// implicit type variable (`frame`), so each signature is inferred from what
-// the body reads. (These guards used std/sem until #2211 made sem_frame a
-// closed declared record: there they only checked a closed-record mismatch.)
+// rowLib exports two functions over an OPEN record row: the parameter is
+// unannotated, so each signature is inferred from what the body reads.
+// (These guards used std/sem until #2211 made sem_frame a closed declared
+// record: there they only checked a closed-record mismatch. An annotation is
+// avoided on purpose: `f: frame` is a signature type variable, which rigid
+// signature variables (#2304) reject in the library once the body needs a
+// record, and `f: {id: string | r}` declares fewer fields than the body reads.)
 const rowLib = "module q/rowlib\n" +
-	"export pure func enc(f: frame) -> string = \"${f.id}:${show(f.ver)}:${f.content}\"\n" +
-	"export pure func bump(f: frame) -> frame = {f | ver: f.ver + 1}\n"
+	"export pure func enc(f) -> string = \"${f.id}:${show(f.ver)}:${f.content}\"\n" +
+	"export pure func bump(f) = {f | ver: f.ver + 1}\n"
 
 // Why #2221 part 4 (defaulting's own free-variable walk) is not changed here:
 // with the shared walk, an exported `bump` becomes `({ver: b, ...a}) -> ...`

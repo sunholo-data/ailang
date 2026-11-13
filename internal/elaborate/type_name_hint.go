@@ -20,10 +20,11 @@ var typeSynonyms = map[string]string{
 // meant, or "" when nothing is close — a wrong hint is worse than none. In
 // order: a synonym from another language (str → string, integer → int);
 // the same name up to case (point → Point, option → Option); then, for names
-// of four letters or more, a candidate one is a prefix of (integer ↔ int,
-// both at least three letters), else one within edit distance 1 (2 for names
-// of six letters or more: on a short name, two edits reach unrelated words —
-// point → int). The declaration's own name and the unit type are never
+// of four letters or more, a candidate within edit distance 1, or 2 when both
+// names have six letters or more (strings → string). On a short name two edits
+// reach unrelated words (point → int, charge → char), and a shared prefix is
+// no evidence at all (interval → int, stream → StreamConn), so neither is
+// suggested. The declaration's own name and the unit type are never
 // suggested.
 func closestTypeName(name, declName string, cands []string) string {
 	keep := make([]string, 0, len(cands))
@@ -44,29 +45,13 @@ func closestTypeName(name, declName string, cands []string) string {
 		return ""
 	}
 	lower := strings.ToLower(name)
-	best, bestDiff := "", 0
+	best, bestDist := "", 0
 	for _, c := range keep {
-		lc := strings.ToLower(c)
-		short, long := lc, lower
-		if len(short) > len(long) {
-			short, long = long, short
+		limit := 1
+		if len(name) >= 6 && len(c) >= 6 {
+			limit = 2
 		}
-		if len(short) >= 3 && strings.HasPrefix(long, short) {
-			if d := len(long) - len(short); best == "" || d < bestDiff {
-				best, bestDiff = c, d
-			}
-		}
-	}
-	if best != "" {
-		return best
-	}
-	limit := 1
-	if len(name) >= 6 {
-		limit = 2
-	}
-	bestDist := limit + 1
-	for _, c := range keep {
-		if d := importhint.EditDistance(lower, strings.ToLower(c)); d < bestDist {
+		if d := importhint.EditDistance(lower, strings.ToLower(c)); d <= limit && (best == "" || d < bestDist) {
 			best, bestDist = c, d
 		}
 	}

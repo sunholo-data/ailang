@@ -18,6 +18,13 @@ import (
 //   record_type    := "{" field ("," field)* ","? "}"
 //   field          := LIdent ":" type_expr
 
+// builtinDeclExample is the example name PAR_TYPE_DECL_BUILTIN's fix offers
+// for a declaration named like each built-in.
+var builtinDeclExample = map[string]string{
+	"int": "Count", "float": "Meters", "string": "Name", "bool": "Flag",
+	"unit": "Done", "char": "Letter", "bytes": "Payload",
+}
+
 func (p *Parser) parseTypeDeclaration(exported bool) ast.Node {
 	startPos := p.curPos()
 
@@ -43,7 +50,7 @@ func (p *Parser) parseTypeDeclaration(exported bool) ast.Node {
 	if ast.IsBuiltinTypeName(name) {
 		p.errors = append(p.errors, NewParserError("PAR_TYPE_DECL_BUILTIN", p.curPos(), p.curToken,
 			fmt.Sprintf("type '%s' has the name of the built-in type %s, which a declaration cannot redefine", name, name),
-			nil, "Name the type something else (e.g. Meters for a float measure), and use that name where you meant this type"))
+			nil, fmt.Sprintf("Give the type its own name (e.g. type %s = %s) and use that name where you meant this type", builtinDeclExample[name], name)))
 	}
 	p.nextToken()
 

@@ -11,6 +11,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/elaborate"
 	ailerrors "github.com/sunholo-data/ailang/internal/errors"
+	"github.com/sunholo-data/ailang/internal/loader"
 	"github.com/sunholo-data/ailang/internal/parser"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/types"
@@ -151,15 +152,7 @@ func errorToCheckJSONError(err error, filename string) checkJSONError {
 		}
 		return entry
 	}
-	// A parse error keeps its structure through the module-load path
-	// (loader.ParseErrors unwraps to each *parser.ParserError): report the
-	// first one's PAR_ code and position.
-	var pe *parser.ParserError
-	if errors.As(err, &pe) && pe.Code != "" {
-		entry := checkJSONError{Code: pe.Code, Message: err.Error(), File: filename, Line: pe.Pos.Line, Column: pe.Pos.Column}
-		if pe.Pos.File != "" {
-			entry.File = pe.Pos.File
-		}
+	if entry, ok := parseErrorEntry(err, err.Error(), filename); ok {
 		return entry
 	}
 	// Fallback for non-Report errors
@@ -168,6 +161,39 @@ func errorToCheckJSONError(err error, filename string) checkJSONError {
 		Message: err.Error(),
 		File:    filename,
 	}
+}
+
+// parseErrorEntry is the --json entry of a module that does not parse
+// (loader.ParseErrors keeps the parser's errors through the module-load
+// path): the FIRST parser error as it is — its PAR_ code and position, or
+// "ERROR" with no position when that first error carries no code — never a
+// later error's code, so code, position and message describe one error.
+// message is the entry's text (callers prefix the file in directory and
+// package checks).
+func parseErrorEntry(err error, message, filename string) (checkJSONError, bool) {
+	var pes *loader.ParseErrors
+	if err == nil || !errors.As(err, &pes) || len(pes.Errs) == 0 {
+		return checkJSONError{}, false
+	}
+	entry := checkJSONError{Code: "ERROR", Message: message, File: filename}
+	var pe *parser.ParserError
+	if errors.As(pes.Errs[0], &pe) && pe.Code != "" {
+		entry.Code, entry.Line, entry.Column = pe.Code, pe.Pos.Line, pe.Pos.Column
+		if pe.Pos.File != "" {
+			entry.File = pe.Pos.File
+		}
+	}
+	return entry, true
+}
+
+// errorEntryFor is the --json entry of one flattened error message, using its
+// structured cause when there is one (a parse error) and the message's inline
+// code otherwise.
+func errorEntryFor(message string, cause error) checkJSONError {
+	if entry, ok := parseErrorEntry(cause, message, ""); ok {
+		return entry
+	}
+	return checkJSONError{Code: jsonErrorCode(message), Message: message}
 }
 
 // jsonErrorCode is the --json code of an error that is not a structured

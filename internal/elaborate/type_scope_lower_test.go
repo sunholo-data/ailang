@@ -94,6 +94,9 @@ func TestTypeDeclVars_Paths(t *testing.T) {
 func TestClosestTypeName(t *testing.T) {
 	cands := []string{"int", "float", "bool", "string", "()", "Count", "Point", "Handler", "Option", "Map"}
 	noPoint := []string{"int", "float", "bool", "string", "()", "Option", "Map"}
+	// Every name a real scope offers: the built-ins plus the moduleless,
+	// prelude and builtin-home types (StreamConn, ...).
+	allTypes := append(ast.BuiltinTypeNames(), types.NewTypeScope("m").Names()...)
 	for _, c := range []struct {
 		name, decl, want string
 		cands            []string
@@ -117,8 +120,16 @@ func TestClosestTypeName(t *testing.T) {
 		{"map", "", "Map", cands},
 		{"point", "X", "", noPoint},       // two edits from int: no hint
 		{"flaot", "X", "", noPoint},       // two edits on a short name: no hint
-		{"stringg", "X", "string", cands}, // prefix
+		{"stringg", "X", "string", cands}, // one edit
+		{"strings", "X", "string", cands}, // one edit
 		{"Stirngs", "X", "", noPoint},     // three edits: no hint
+		// No shared-prefix rule (#2330 review): a prefix is no evidence.
+		{"interval", "X", "", allTypes},
+		{"integral", "X", "", allTypes},
+		{"charge", "X", "", allTypes},
+		{"bytesize", "X", "", allTypes},
+		{"boolish", "X", "", allTypes},
+		{"stream", "X", "", allTypes},
 	} {
 		cands := c.cands
 		if got := closestTypeName(c.name, c.decl, cands); got != c.want {

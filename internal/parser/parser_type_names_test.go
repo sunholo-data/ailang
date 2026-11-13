@@ -236,6 +236,12 @@ func TestTypeNames_DeclBuiltinRejected(t *testing.T) {
 		if len(msgs) != 1 || !strings.Contains(msgs[0], "PAR_TYPE_DECL_BUILTIN") || !strings.Contains(msgs[0], "type '"+name+"'") {
 			t.Errorf("type %s = int: want one PAR_TYPE_DECL_BUILTIN, got %v", name, msgs)
 		}
+		// The fix's example fits the built-in (#2330 review: not "Meters"
+		// for a string).
+		ex := builtinDeclExample[name]
+		if ex == "" || len(msgs) == 0 || !strings.Contains(msgs[0], "type "+ex+" = "+name) {
+			t.Errorf("type %s: the fix must suggest `type <Name> = %s`, got %v", name, name, msgs)
+		}
 	}
 	_, p := parseTypeNamesFile(t, "type Float = float\ntype floaty = float")
 	AssertNoErrors(t, p)
