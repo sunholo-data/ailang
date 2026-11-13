@@ -56,9 +56,10 @@ input: an attended change of direction should flip or add a ledger row. Ticket:
     iterations or the headline pattern missed; check the log before quoting the figure.
     **Why not the index** (fleet iterations 110 and 111): the prescribed
     `grep -c '\[HARNESS\]' <index>` counted the whole file, not the last 20, and inside the last
-    20 index rows it found 1 HARNESS row where the log headlines carried 6. The three HARNESS
-    rows it missed are truncated to `...` before the tag. So the one-third alarm below could
-    not fire from it.
+    20 index rows it found 1 HARNESS row where the log headlines carried 6. The five it missed
+    (93, 96, 97, 105, 109) are truncated to `...` before the tag (`indexLine` cuts titles over
+    150 runes), and the index is newest-first, so its `tail -20` row count took the OLDEST rows.
+    So the one-third alarm below could not fire from it.
     Under the attended-only rule (Gate 2) this share should now trend to ZERO for loop-authored
     work — a non-zero figure means either an escalation was recorded (correct) or the rule was
     breached (report it as a breach, by row).
