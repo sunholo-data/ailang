@@ -25,10 +25,11 @@ variable (`TC_UNBOUND_TYPE_002`) carries that reading in the error too.
   equalities on fresh variables, as before (#2289), so `let id = func(y: t) -> t { y }` stays
   let-polymorphic.
 - Contract clauses see the parameters at their rigid types: `ident[a](x: a)` with
-  `requires { x + 1 > 0 }` is `TC_CONTRACT_001` carrying `TC_RIGID_001`. So is a clause that needs
-  a class the body does not (`idc[a](x: a) -> a ensures { result == x } { x }`): callers are not held
-  to it, so `idc(inc)` checked and failed under `--verify-contracts`. Neither the repo's 117
-  contract files nor 651 banked contract programs have such a clause.
+  `requires { x + 1 > 0 }` is `TC_CONTRACT_001` carrying `TC_RIGID_001`, and so is
+  `ensures { x == "s" || true }`. A clause that only needs a class the body does not
+  (`idc[a](x: a) -> a ensures { result == x } { x }`) is still accepted, as before: callers are not
+  held to it, and there is no syntax to declare it (#2337; neither the repo's 117 contract files nor
+  651 banked contract programs have such a clause).
 - A generic body (a signature's `a`, an unannotated function, a let-bound lambda) is compiled
   once at its defaulted type (`Num a` ⇒ `int`, #2333); the evaluator and the VM now give it the
   run-time value's answer everywhere: `show` stays dynamic on defaulted nodes and `mod_Int` is

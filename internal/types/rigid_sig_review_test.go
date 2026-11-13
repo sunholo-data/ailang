@@ -191,11 +191,13 @@ func TestRigidSignature_Contracts(t *testing.T) {
 		{"requires uses a literal at a", "pure func ident2[a](x: a) -> a\n  requires { x + 1 > 0 }\n{ x }", true},
 		{"ensures compares a with a string", "pure func ident3[a](x: a) -> a\n  ensures { x == \"s\" || true }\n{ x }", true},
 		{"ensures x == x where the body needs Eq a", "pure func same[a](x: a, y: a) -> bool\n  ensures { x == x }\n{ x == y }", false},
-		// A class the clause needs and the body does not: callers would not be
-		// held to it (review round 2, k4/k5).
-		{"ensures result == x where the body needs nothing", "pure func ident[a](x: a) -> a\n  ensures { result == x }\n{ x }", true},
-		{"ensures with Ord the body does not need", "pure func pick[a](x: a, y: a) -> a\n  ensures { result <= x || result >= x }\n{ y }", true},
-		{"ensures == where the body's + already implies it", "pure func add[a](x: a, y: a) -> a\n  ensures { result == x + y }\n{ x + y }", false},
+		// A clause that needs only a class on `a` (no concrete type) is accepted,
+		// as on dev: there is no syntax to declare the constraint, and callers
+		// are not held to it (the gap is tracked in #2337).
+		{"ensures result == x where the body needs nothing", "pure func ident[a](x: a) -> a\n  ensures { result == x }\n{ x }", false},
+		{"ensures with Ord the body does not need", "pure func pick[a](x: a, y: a) -> a\n  ensures { result <= x || result >= x }\n{ y }", false},
+		{"ensures == on the body's numeric result", "pure func add[a](x: a, y: a) -> a\n  ensures { result == x + y }\n{ x + y }", false},
+		{"requires makes a equal to b", "pure func two[a, b](x: a, y: b) -> a\n  requires { x == y }\n{ x }", true},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			err := checkRigid(t, c.decls)

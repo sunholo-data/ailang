@@ -1,10 +1,6 @@
 package types
 
 import (
-	"fmt"
-	"sort"
-	"strings"
-
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/typedast"
 )
@@ -117,75 +113,11 @@ func (tc *CoreTypeChecker) DefaultedNodes() map[uint64]bool { return tc.defaulte
 // clause over a declaration's parameters bound at its rigid types (sig): the
 // clause may not specialise them (#2273 for #2232/#2248's contract check).
 // A nil sig is plain InferPredicate.
-func (tc *CoreTypeChecker) InferPredicateRigid(expr core.CoreExpr, env *TypeEnv, sig *RigidSig, body *Scheme) (Type, error) {
-	prev, prevBody := tc.extraRigid, tc.extraRigidBody
-	tc.extraRigid, tc.extraRigidBody = sig, body
-	defer func() { tc.extraRigid, tc.extraRigidBody = prev, prevBody }()
+func (tc *CoreTypeChecker) InferPredicateRigid(expr core.CoreExpr, env *TypeEnv, sig *RigidSig) (Type, error) {
+	prev := tc.extraRigid
+	tc.extraRigid = sig
+	defer func() { tc.extraRigid = prev }()
 	return tc.InferPredicate(expr, env)
-}
-
-// entailedClasses is cls and the classes every type with an instance of cls
-// also has: the numeric types (int, float) are the only Num instances and have
-// Eq, Ord and Show; Ord's instances all have Eq. So a body needing `+` already
-// holds callers to `==` and `<`.
-func entailedClasses(cls string) []string {
-	switch cls {
-	case "Fractional":
-		return []string{"Fractional", "Num", "Eq", "Ord", "Show"}
-	case "Num":
-		return []string{"Num", "Eq", "Ord", "Show"}
-	case "Ord":
-		return []string{"Ord", "Eq"}
-	}
-	return []string{cls}
-}
-
-// contractOnlyClasses returns the class constraints a contract clause needs on
-// a signature variable that the declaration's own scheme (body) does not carry,
-// as "Class[a]" strings in the written names, sorted.
-func contractOnlyClasses(sig *RigidSig, sub Substitution, unsolved []ClassConstraint, body *Scheme) []string {
-	if sig == nil {
-		return nil
-	}
-	written := map[string]string{} // resolved variable -> written name
-	for _, v := range sig.Vars {
-		if v.Row {
-			continue
-		}
-		if tv, ok := ApplySubstitution(sub, &TVar2{Name: v.Name, Kind: Star}).(*TVar2); ok {
-			written[tv.Name] = v.Display
-		}
-	}
-	have := map[string]bool{}
-	if body != nil {
-		for _, c := range body.Constraints {
-			if tv, ok := c.Type.(*TVar2); ok {
-				for _, cls := range entailedClasses(c.Class) {
-					have[cls+"["+WrittenTypeVarNames(tv.Name)+"]"] = true
-				}
-			}
-		}
-	}
-	seen := map[string]bool{}
-	var out []string
-	for _, c := range unsolved {
-		tv, ok := ApplySubstitution(sub, c.Type).(*TVar2)
-		if !ok || c.IntLiteral {
-			continue
-		}
-		name, rigid := written[tv.Name]
-		if !rigid {
-			continue
-		}
-		key := c.Class + "[" + name + "]"
-		if have[key] || seen[key] {
-			continue
-		}
-		seen[key] = true
-		out = append(out, key)
-	}
-	sort.Strings(out)
-	return out
 }
 
 // pushRigidGroup records letrec's binding names as the group being inferred
@@ -232,13 +164,6 @@ func (tc *CoreTypeChecker) solveDeclConstraintsRigid(ctx *InferenceContext) (Sub
 	if err := ctx.checkExtraRigid(tc.extraRigid, sub, unsolved); err != nil {
 		return nil, nil, err
 	}
-	// A class a clause needs on a signature variable that the body does not:
-	// callers are not held to it (there is no syntax to declare it), so a
-	// caller may pass a type without it and the contract fails at run time
-	// (`idc[a](x: a) -> a ensures { result == x }` called with a function).
-	if extra := contractOnlyClasses(tc.extraRigid, sub, unsolved, tc.extraRigidBody); len(extra) > 0 && tc.extraRigidBody != nil {
-		return nil, nil, contractClassError(tc.extraRigid, extra)
-	}
 	return sub, unsolved, nil
 }
 
@@ -258,15 +183,4 @@ func (ctx *InferenceContext) checkExtraRigid(sig *RigidSig, sub Substitution, un
 	}
 	v.clause = true
 	return v.toError(sig)
-}
-
-// contractClassError is TC_RIGID_001 (kind "contract-class"): a clause needs a
-// class of a signature variable that nothing in the declaration requires.
-func contractClassError(sig *RigidSig, extra []string) error {
-	msg := fmt.Sprintf("the clause needs %s, but nothing in the body of `%s` requires it, so a caller may pass a type without it and the contract would fail at run time; AILANG cannot declare a class constraint in a signature",
-		strings.Join(extra, ", "), sig.Func)
-	fix := fmt.Sprintf("write a concrete type in the signature of `%s`, or drop the clause (a generic contract cannot be proved by `ailang verify` either)", sig.Func)
-	err := newRigidSigError(sig.Pos, msg, fix, map[string]any{"function": sig.Func, "kind": "contract-class", "classes": extra})
-	err.kind = "contract-class"
-	return err
 }

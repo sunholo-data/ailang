@@ -211,8 +211,8 @@ Still open:
     is rejected, naming the call, rather than allowed;
   - class constraints are inferred, not declared (there is no syntax for them), so a signature
     cannot promise `Num a` or forbid it. A contract clause that needs a class the body does not
-    (`idc[a](x: a) -> a ensures { result == x } { x }`) is therefore rejected: callers would not
-    be held to it. An integer literal written at a signature variable is rejected, but one
+    (`idc[a](x: a) -> a ensures { result == x } { x }`) is accepted, but callers are not held to
+    it: `idc(inc)` checks, and the clause fails under `--verify-contracts` (#2337). An integer literal written at a signature variable is rejected, but one
     reached through an unannotated helper is not: `pure func incH(x) = x + 1` then
     `func inc[a](x: a) -> a = incH(x)` checks, and `inc(2.5)` still fails at run time
     ("received an int and a float");

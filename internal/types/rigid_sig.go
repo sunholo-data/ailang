@@ -127,8 +127,6 @@ type rigidState struct {
 	// extraRigid: the signature InferWithRigid checks the current expression
 	// against (rigid_sig_hook.go); nil otherwise.
 	extraRigid *RigidSig
-	// extraRigidBody: the declaration's own scheme, for contract-only classes.
-	extraRigidBody *Scheme
 	// defaulted: nodes whose type top-level defaulting pinned (markDefaulted);
 	// declNodes: the nodes the current declaration typed (setCoreTI).
 	defaulted map[uint64]bool

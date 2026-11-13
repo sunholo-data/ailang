@@ -54,7 +54,7 @@ func typeCheckContracts(prog *core.Program, tc *types.CoreTypeChecker, moduleTyp
 			contractEnv := contractEnvFor(funcName, funcParams, moduleTypeEnv, contract.Kind == core.EnsuresKind, sig)
 			// Populates CoreTI for op-lowering (M-CONTRACT-OPLOWERING-FIX) and
 			// is the contract's type check: an error fails the module.
-			if _, err := tc.InferPredicateRigid(contract.Expr, contractEnv, sig, declScheme(moduleTypeEnv, funcName)); err != nil {
+			if _, err := tc.InferPredicateRigid(contract.Expr, contractEnv, sig); err != nil {
 				return nil, contractError(funcName, contract, err)
 			}
 			tc.FillOperatorMethods(contract.Expr)
@@ -67,16 +67,6 @@ func typeCheckContracts(prog *core.Program, tc *types.CoreTypeChecker, moduleTyp
 // contractEnvFor is the module env plus the function's parameters (names from
 // its Core lambda, types from its inferred signature) and, for an ensures
 // clause only, `result`: a precondition is checked before there is one.
-// declScheme is the scheme the module environment holds for funcName, or nil.
-func declScheme(env *types.TypeEnv, funcName string) *types.Scheme {
-	b, err := env.Lookup(funcName)
-	if err != nil {
-		return nil
-	}
-	s, _ := b.(*types.Scheme)
-	return s
-}
-
 func contractEnvFor(funcName string, funcParams map[string][]string, moduleTypeEnv *types.TypeEnv, withResult bool, sig *types.RigidSig) *types.TypeEnv {
 	env := moduleTypeEnv
 	binding, err := moduleTypeEnv.Lookup(funcName)
