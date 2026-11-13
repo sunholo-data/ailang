@@ -15,9 +15,10 @@ import (
 // folded, so no consumer sees the field twice. Before, `h` below exported
 // `(())->{x: int, ...<*types.Row>}`: interface_hash v2 hashes that rendered
 // string, so every concrete row hashed alike.
+//
+// (The module had an `f` whose body read p.x through r; since #2273 a signature
+// row is rigid, so that body is TC_RIGID_001 and f is gone from the fixture.)
 const dupexpLib = `module lib/dupexp
-
-export func f(p: {y: int | r}, q: {x: int | r}) -> string = p.x
 
 export func g(p: {y: int | r}, q: {x: int | r}) -> {x: int | r} = q
 
@@ -28,8 +29,6 @@ export func k() -> int = h().x
 
 // The same module with h's return type written out.
 const dupexpAnnotated = `module lib/dupexp
-
-export func f(p: {y: int | r}, q: {x: int | r}) -> string = p.x
 
 export func g(p: {y: int | r}, q: {x: int | r}) -> {x: int | r} = q
 
@@ -84,9 +83,7 @@ func TestRecordRows_AgreeingDuplicateIsFoldedInTheInterface(t *testing.T) {
 	if got := types["h"]; got != "(())->{x: int}" {
 		t.Fatalf("h renders %q, want (())->{x: int}", got)
 	}
-	// f is uncallable (its q has x as int and, through r, as string): that
-	// duplicate is never unified, so it stays unfolded and must still render
-	// structurally, not as <*types.Row>.
+	// No rendered type may leak a Go type name (<*types.Row>).
 	if strings.Contains(string(data), "<*types.") {
 		t.Fatalf("interface leaks a Go type name:\n%s", data)
 	}
@@ -142,7 +139,7 @@ func TestRecordRows_DuplicateExportColdAndWarm(t *testing.T) {
 func TestRecordRows_DuplicateInParamAndResultPositions(t *testing.T) {
 	lib := `module lib/dup2
 
-export func g3(p: {y: int | r}, q: {x: int | r}) -> {x: int | r} = { let a = p.x + 1; q }
+export func g3(p: {y: int | r}, q: {x: int | r}) -> {x: int | r} = q
 `
 	ok := `module app/two
 

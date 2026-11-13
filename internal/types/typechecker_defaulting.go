@@ -10,6 +10,21 @@ func (tc *CoreTypeChecker) defaultAmbiguities(
 	monotype Type,
 	constraints []ClassConstraint,
 ) (Substitution, Type, []ClassConstraint, error) {
+	return tc.defaultAmbiguitiesKeeping(monotype, constraints, nil)
+}
+
+// defaultAmbiguitiesKeeping is defaultAmbiguities that never defaults a
+// variable of keep. A variable free in the environment of an inner `let` (an
+// enclosing parameter's type, a rigid signature variable) is not ambiguous
+// there: the enclosing binding decides it. Defaulting it at the inner `let`
+// pinned it to int in CoreTI behind the enclosing scheme's back, so
+// `label[a](x: a, y: a) -> string { let big = x * y; … }` exported `(a, a)`
+// while its body was compiled at int (#2273 review).
+func (tc *CoreTypeChecker) defaultAmbiguitiesKeeping(
+	monotype Type,
+	constraints []ClassConstraint,
+	keep map[string]bool,
+) (Substitution, Type, []ClassConstraint, error) {
 
 	if !tc.defaultingConfig.Enabled {
 		return make(Substitution), monotype, constraints, nil
@@ -26,7 +41,7 @@ func (tc *CoreTypeChecker) defaultAmbiguities(
 
 	ambiguousVars := make(map[string]bool)
 	for v := range constraintVars {
-		if !monotypeVars[v] {
+		if !monotypeVars[v] && !keep[v] {
 			ambiguousVars[v] = true
 		}
 	}

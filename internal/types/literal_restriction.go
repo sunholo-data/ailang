@@ -32,7 +32,9 @@ import "github.com/sunholo-data/ailang/internal/core"
 // withholding there would need cross-declaration plumbing; they keep full
 // generalization, and an integer literal inside a generic top-level function
 // used at Float is still a runtime error (now a loud, specific one — see
-// eval.checkMixedNumericDictArgs).
+// eval.checkMixedNumericDictArgs) when its generality is inferred; when a
+// signature declares the variable (`incG[a](x: a) -> a`) the literal is
+// TC_RIGID_001 at check time (#2273, rigid_sig.go).
 
 // literalWithhold returns the type variables the let (or letrec) `binder`
 // must not generalize: every free variable of an integer literal's Num

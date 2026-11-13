@@ -99,13 +99,22 @@ func (e *Elaborator) typeCon(name string, pos ast.Pos) *types.TCon {
 // types.TypeScope.ReadsAsTypeVar, shared with the interface builder; its
 // comment states the contract for passes that collect type variables.
 func (e *Elaborator) simpleType(name string, pos ast.Pos) types.Type {
-	if e.typeScope == nil {
-		e.ensureTypeScope(nil)
-	}
-	if e.typeScope.ReadsAsTypeVar(name) {
+	if e.simpleTypeIsVar(name) {
+		if unique, ok := e.lookupSigTyvar(name); ok {
+			return &types.TVar2{Name: unique, Kind: types.Star} // #2273: rigid
+		}
 		return &types.TVar2{Name: name, Kind: types.Star}
 	}
 	return e.typeCon(name, pos)
+}
+
+// simpleTypeIsVar reports whether a bare SimpleType is a type variable here
+// (types.TypeScope.ReadsAsTypeVar).
+func (e *Elaborator) simpleTypeIsVar(name string) bool {
+	if e.typeScope == nil {
+		e.ensureTypeScope(nil)
+	}
+	return e.typeScope.ReadsAsTypeVar(name)
 }
 
 // latchTypeErr records the first annotation error, located at pos.

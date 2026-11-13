@@ -497,6 +497,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	// too. See internal/pipeline/show_normalize.go.
 	{
 		normalizer := NewShowNormalizer(&typeChecker.CoreTI)
+		normalizer.Generic = typeChecker.DefaultedNodes() // #2273
 		normalized, err := normalizer.Normalize(coreProg)
 		if err != nil {
 			return result, fmt.Errorf("show normalization failed: %w", err)

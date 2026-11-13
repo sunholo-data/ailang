@@ -1,0 +1,10 @@
+-- #2332: a generic body is emitted at its defaulted type (int), so `x == y`
+-- on two strings compares toInt64 of each and says they are equal.
+module harness/kf/generic_string_eq
+
+export pure func same[a](x: a, y: a) -> bool = x == y
+
+export pure func summary() -> string {
+  let r = same("p", "q")
+  "eq=${show(r)}"
+}

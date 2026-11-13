@@ -196,12 +196,32 @@ Still open:
   checked against the constructor (#2243, pre-existing).
 - Type variables are told from types by scope, not case (#2211, #2240): a name an enclosing
   `[T]` list binds is a variable, a lowercase name the module declares or imports by name is
-  that type, and any other lowercase name is an implicitly quantified variable. That last rule
-  is the residual hole: a misspelled or miscased type name (`state` for `State`) or a value
-  name in type position (`-> (stack, int)`) is silently a fresh type variable, and because
-  annotated type variables are not rigid (`func f[a](x: a) -> a = x + 1` is accepted as
-  `int -> int`, and so, since #2240, is `func toInt[T](x: T) -> int = x`; #2273), such an
-  annotation constrains nothing (in a function signature only: a type declaration with a free
-  variable is `TC_UNBOUND_TYPE_003`). Two such readings warn `TC_UNBOUND_TYPE_002`: a lowercase type
+  that type, and any other lowercase name is an implicitly quantified variable. A
+  misspelled or miscased type name (`state` for `State`) or a value name in type position
+  (`-> (stack, int)`) is therefore a type variable; since #2273 it is rigid, so a body that
+  needs a specific type there is `TC_RIGID_001` (a type declaration with a free variable is
+  `TC_UNBOUND_TYPE_003`). Two such readings warn `TC_UNBOUND_TYPE_002`: a lowercase type
   an import exports but the module does not import by name, and a value imported by name used
   as a type.
+- Signature type variables are rigid (#2273, `TC_RIGID_001`) — explicit `[a]`, implicit `a`,
+  named record rows `| r` (an anonymous `...` stays a flexible wildcard), in the body and in
+  `requires`/`ensures` clauses — with these known gaps:
+  - calls within a recursive group are monomorphic, so calling `f[a]` at another type from
+    inside its own group (polymorphic recursion, or a mutually recursive `g` calling `f(n, n)`)
+    is rejected, naming the call, rather than allowed;
+  - class constraints are inferred, not declared (there is no syntax for them), so a signature
+    cannot promise `Num a` or forbid it. A contract clause that needs a class the body does not
+    (`idc[a](x: a) -> a ensures { result == x } { x }`) is accepted, but callers are not held to
+    it: `idc(inc)` checks, and the clause fails under `--verify-contracts` (#2337). An integer literal written at a signature variable is rejected, but one
+    reached through an unannotated helper is not: `pure func incH(x) = x + 1` then
+    `func inc[a](x: a) -> a = incH(x)` checks, and `inc(2.5)` still fails at run time
+    ("received an int and a float");
+  - a generic body is compiled once, at its defaulted type (`Num a` ⇒ `int`, #2333). The
+    evaluator and the VM correct for it (the class methods and `%` from the run-time values,
+    `show` left dynamic), but **`compile --emit-go` does not (#2332)**: the emitted Go panics
+    when a generic numeric function is called with floats, and gives wrong answers with strings
+    (`x == y` on two different strings is `true`; a generic `max` or `sortBy` comparator picks the
+    wrong element); a generic export's Go wrapper is typed at the defaulted type
+    (`Add(x int64, y int64) int64`).
+
+  Effect row variables (`! {e}`) were already enforced by the effect checker.

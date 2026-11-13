@@ -150,6 +150,13 @@ TC_MATCH_005 at app.ail:6:45
   Fix: add a `JInt(i) => …` arm (intToFloat(i) gives a float), or read numbers with asNumber/getNumber/getInt, which accept both
 ```
 
+**`TC_RIGID_001` — a signature promises more generality than the body keeps.** A type variable written in a top-level `func`'s signature — listed in `[a]` or used implicitly (`func f(x: elem) -> elem`) — means *any type*, and the body must work for every one. Emitted when the body makes it a specific type (`func toInt[a](x: a) -> int = x`), makes two of them the same type (`func pick[a, b](x: a, y: b) -> a = y`), or uses an integer literal at it (`func bump[a](x: a) -> a = x + 1` — a literal has no value of an arbitrary type, and the runtime would give it an `int`). Class constraints are still inferred and attached (`func add[a](x: a, y: a) -> a = x + y` is fine): AILANG has no syntax for writing one. When the variable is probably a typo for a type in scope (`state` for `State`, `strng` for `string`) or the name of a parameter (`-> (stack, int)`), the message says so. Fix: write the concrete type in the signature, use one variable where the body needs one type, or make the body generic. Through v0.60.x such signatures were silently narrowed to whatever the body needed.
+
+```
+TC_RIGID_001: the signature of `step` says `state` is any type, but the body requires `state` to be `{n: int | r}` (field access). Did you mean the type `State`? A lowercase name in a signature that is not a declared or imported type is a type variable
+  Suggestion: write `State` instead of `state`
+```
+
 **`TC_NOMINAL_001` — two different types that share a name.** A nominal type (an ADT) is its defining module plus its name, so `q/a`'s `type T` and `q/b`'s `type T` are different types. Emitted where a value of one is used where the other is expected; both modules are named. Until v0.60.0 such programs type-checked and failed at run time. See [tc_nominal_001.md](tc_nominal_001.md).
 
 ```

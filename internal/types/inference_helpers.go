@@ -379,3 +379,12 @@ func findFreeVarsHelper(expr ast.Expr, freeVars map[string]bool, bound map[strin
 	default: // conservatively assume no free variables
 	}
 }
+
+// getMapKeys returns the keys of a map for debugging
+func getMapKeys(m map[uint64][]Type) []uint64 {
+	keys := make([]uint64, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
+}

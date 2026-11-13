@@ -25,12 +25,12 @@ func registerArithmetic() {
 		}
 		return a / b, nil
 	}), "Divide two integers (errors on division by zero)", []string{"math", "arithmetic", "divide"})
-	registerBuiltinWithMeta("mod_Int", 2, true, intIntToIntErr(func(a, b int) (int, error) {
+	registerBuiltinWithMeta("mod_Int", 2, true, genericModInt(intIntToIntErr(func(a, b int) (int, error) {
 		if err := ailerrors.CheckIntDivisor(ailerrors.OpModulo, int64(b)); err != nil {
 			return 0, err
 		}
 		return a % b, nil
-	}), "Integer modulo operation (errors on modulo by zero)", []string{"math", "arithmetic", "modulo", "remainder"})
+	})), "Integer modulo operation (errors on modulo by zero)", []string{"math", "arithmetic", "modulo", "remainder"})
 	registerBuiltinWithMeta("neg_Int", 1, true, intToInt(func(a int) int { return -a }),
 		"Negate an integer", []string{"math", "arithmetic", "negate", "negative"})
 	registerBuiltinWithMeta("double_Int", 1, true, intToInt(func(a int) int { return a * 2 }),
@@ -49,6 +49,25 @@ func registerArithmetic() {
 		"Float modulo operation (returns NaN for modulo by zero, IEEE 754)", []string{"math", "arithmetic", "modulo", "float"})
 	registerBuiltinWithMeta("neg_Float", 1, true, floatNegFloat,
 		"Negate a float", []string{"math", "arithmetic", "negate", "negative", "float"})
+}
+
+// genericModInt corrects mod_Int from its run-time arguments, as evalDictApp
+// (M-POLY-ARITH) corrects the Num methods: `%` is no class method, so OpLowering
+// picks mod_Int from the recorded type, and a generic body (`m[a](x: a, y: a)
+// -> a = x % y`) is compiled once at its defaulted type, int. Called with floats
+// it is float modulo; the type checker gives a monomorphic `%` the operands its
+// type says (#2273 review).
+func genericModInt(intMod func(*effects.EffContext, []eval.Value) (eval.Value, error)) func(*effects.EffContext, []eval.Value) (eval.Value, error) {
+	return func(ctx *effects.EffContext, args []eval.Value) (eval.Value, error) {
+		if len(args) == 2 {
+			_, lf := args[0].(*eval.FloatValue)
+			_, rf := args[1].(*eval.FloatValue)
+			if lf && rf {
+				return floatModFloat(ctx, args)
+			}
+		}
+		return intMod(ctx, args)
+	}
 }
 
 // floatDivFloat: division with IEEE 754 behavior (returns Inf for div-by-zero)

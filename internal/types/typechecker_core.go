@@ -102,6 +102,7 @@ type CoreTypeChecker struct {
 	letTypeAnnots map[uint64]Type
 	matchState                  // M-V1-MATCH-EXHAUSTIVENESS state (match_exhaustiveness.go)
 	predicateRoot core.CoreExpr // #2248: InferPredicate's root, which must type as bool
+	rigidState                  // M-V1-RIGID-SIGNATURES (#2273) state (rigid_sig.go)
 	// M-DX11: Debug sink for type inference events
 	DebugSink TypeDebugSink
 	// M-PERF-DOCPARSE: Deferred CoreTI substitution — accumulated during inference,
@@ -493,8 +494,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		finalType = &TCon{Name: "Unknown"}
 	}
 
-	// Solve constraints and apply defaulting (proper way)
-	sub, unsolved, err := ctx.solveDeclConstraints()
+	sub, unsolved, err := tc.solveDeclConstraintsRigid(ctx) // solve (+ #2273's InferWithRigid check), then default
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -504,8 +504,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("defaulting failed: %w", err)
 	}
-
-	// Compose substitutions if defaulting was applied
+	tc.markDefaulted(sub, defaultingSub) // #2273: the nodes defaulting pins in a generic body
 	if len(defaultingSub) > 0 {
 		sub = composeSubstitutions(defaultingSub, sub)
 		finalType = defaultedType
@@ -777,7 +776,7 @@ func (tc *CoreTypeChecker) inferCore(ctx *InferenceContext, expr core.CoreExpr) 
 		// Get the inferred type from the typed node
 		if inferredType, ok := typedNode.GetType().(Type); ok {
 			// Store mapping: Core NodeID → Type (principal type after inference)
-			tc.CoreTI.Set(expr.ID(), inferredType)
+			tc.setCoreTI(expr.ID(), inferredType)
 		}
 	}
 

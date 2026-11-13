@@ -187,13 +187,9 @@ export func main() -> () ! {IO} {
 // is not implemented.) Before, which x a later access saw depended on which map
 // was read first: d3 typed `.x + 1` against int while r said string.
 func TestRecordRows_RowBoundToAFieldTheRecordHasIsAnError(t *testing.T) {
+	// d1 (`= p.x`, reading x through r) is rejected at the definition since
+	// #2273: a signature's row is rigid (TestRecordRows_RigidRowReadIsRejected).
 	cases := map[string]string{
-		"d1_access": `module m
-
-func f(p: {y: int | r}, q: {x: int | r}) -> string = p.x
-
-export func main() -> () ! {IO} = println(f({y: 1, x: "s"}, {x: 2}))
-`,
 		"d3_return": `module m
 
 func f(p: {y: int | r}, q: {x: int | r}) -> {x: int | r} = q
@@ -216,6 +212,18 @@ export func main() -> () ! {IO} = println(show(f({y: 1, x: 5}, {x: 2}).x + 1))
 	if err := checkModule(t, ok); err != nil {
 		t.Fatalf("agreeing duplicate rejected: %v", err)
 	}
+}
+
+// #2273: reading a field through a signature's row variable is TC_RIGID_001 at
+// the definition — the signature says `| r` is any further fields.
+func TestRecordRows_RigidRowReadIsRejected(t *testing.T) {
+	src := `module m
+
+func f(p: {y: int | r}, q: {x: int | r}) -> string = p.x
+
+export func main() -> () ! {IO} = println(f({y: 1, x: "s"}, {x: 2}))
+`
+	wantCode(t, checkModule(t, src), types.TC_RIGID_001, "uses the field(s) `x`")
 }
 
 // #2221 part 3: a user-written `| r` no longer meets the checker's own "r"

@@ -48,10 +48,13 @@ func typeCheckContracts(prog *core.Program, tc *types.CoreTypeChecker, moduleTyp
 			if contract.Expr == nil {
 				continue
 			}
-			contractEnv := contractEnvFor(funcName, funcParams, moduleTypeEnv, contract.Kind == core.EnsuresKind)
+			// #2273: the parameters are bound at the declaration's rigid types,
+			// so a clause cannot specialise its type variables either.
+			sig := tc.RigidSignatureOf(funcName)
+			contractEnv := contractEnvFor(funcName, funcParams, moduleTypeEnv, contract.Kind == core.EnsuresKind, sig)
 			// Populates CoreTI for op-lowering (M-CONTRACT-OPLOWERING-FIX) and
 			// is the contract's type check: an error fails the module.
-			if _, err := tc.InferPredicate(contract.Expr, contractEnv); err != nil {
+			if _, err := tc.InferPredicateRigid(contract.Expr, contractEnv, sig); err != nil {
 				return nil, contractError(funcName, contract, err)
 			}
 			tc.FillOperatorMethods(contract.Expr)
@@ -64,11 +67,14 @@ func typeCheckContracts(prog *core.Program, tc *types.CoreTypeChecker, moduleTyp
 // contractEnvFor is the module env plus the function's parameters (names from
 // its Core lambda, types from its inferred signature) and, for an ensures
 // clause only, `result`: a precondition is checked before there is one.
-func contractEnvFor(funcName string, funcParams map[string][]string, moduleTypeEnv *types.TypeEnv, withResult bool) *types.TypeEnv {
+func contractEnvFor(funcName string, funcParams map[string][]string, moduleTypeEnv *types.TypeEnv, withResult bool, sig *types.RigidSig) *types.TypeEnv {
 	env := moduleTypeEnv
 	binding, err := moduleTypeEnv.Lookup(funcName)
 	if err != nil {
 		return env
+	}
+	if scheme, ok := binding.(*types.Scheme); ok && sig != nil {
+		binding = sig.Instantiate(scheme) // the signature's variables at their rigid names
 	}
 	paramTypes, retType := extractFuncSignature(binding)
 	for i, paramName := range funcParams[funcName] {

@@ -204,10 +204,11 @@ func errorEntryFor(message string, cause error) checkJSONError {
 // TC_AMBIGUOUS_CTOR_001 whose cause carries TC_NOMINAL_001) the first in the
 // message is the error's own. Other inline TC_* codes keep "ERROR", as before,
 // so existing consumers see no change. The body checks of #2232/#2248
-// (TC_TEST_001, TC_CONTRACT_001) are reports, coded here too.
+// (TC_TEST_001, TC_CONTRACT_001) are reports, coded here too, and so is a
+// signature variable the body does not keep general (#2273, TC_RIGID_001).
 func jsonErrorCode(msg string) string {
 	best, at := "ERROR", -1
-	codes := append(append(types.NominalIdentityCodes(), types.RecordRowCodes()...), elaborate.CodeTestBody, pipeline.CodeContract, types.TC_FORALL_001)
+	codes := append(append(types.NominalIdentityCodes(), types.RecordRowCodes()...), elaborate.CodeTestBody, pipeline.CodeContract, types.TC_FORALL_001, types.TC_RIGID_001)
 	for _, code := range codes {
 		if i := strings.Index(msg, code); i >= 0 && (at < 0 || i < at) {
 			best, at = code, i

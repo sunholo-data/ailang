@@ -96,7 +96,7 @@ func TestTyvarHygiene_ImportedOpenRecordIsPolymorphic(t *testing.T) {
 	files := map[string]string{
 		"lib.ail": `module lib
 
-export pure func newer(a: t, b: t) -> bool = a.ver > b.ver
+export pure func newer(a, b) = a.ver > b.ver
 `,
 		"use2.ail": `module use2
 import lib (newer)
@@ -146,7 +146,7 @@ export pure func managerEmail(dir, wanted: string) {
 func TestTyvarHygiene_RowEffectExportKeepsRecordRowQuantified(t *testing.T) {
 	src := `module rowe
 
-export func applyX(r: t, f: (int) -> int ! {e}) -> int ! {e} = f(r.x)
+export func applyX(r, f: (int) -> int ! {e}) -> int ! {e} = f(r.x)
 `
 	res, err := writeAndCheck(t, map[string]string{"rowe.ail": src}, "rowe.ail")
 	if err != nil {
@@ -327,12 +327,15 @@ func TestTyvarHygiene_ImportedInstantiationIsFresh(t *testing.T) {
 	}
 }
 
+// The return types are inferred, not written: an undeclared lowercase name in a
+// signature (`-> rec_t`, `(a: t)`) is a rigid variable since #2273, so the
+// fixtures that once used one to reach these shapes leave the annotation out.
 const ndFixture = `module nd
 import std/option (Option, Some, None)
 
-export pure func mk(n: int) -> rec_t = {p: None, q: None, s: None, n: n}
+export pure func mk(n: int) = {p: None, q: None, s: None, n: n}
 
-export pure func mkAgain(n: int) -> rec_t = mk(n)
+export pure func mkAgain(n: int) = mk(n)
 `
 
 // T1: building the same interface repeatedly in one process gives one digest and
@@ -437,7 +440,7 @@ func TestIfaceDeterminism_PrivateDeclarationDoesNotMoveDigest(t *testing.T) {
 	const tmpl = `module offm
 import std/option (Option, Some, None)
 %s
-export pure func mk(n: int) -> rec_t = {p: None, n: n}
+export pure func mk(n: int) = {p: None, n: n}
 `
 	digest := func(extra string) string {
 		res, err := writeAndCheck(t, map[string]string{"offm.ail": fmt.Sprintf(tmpl, extra)}, "offm.ail")
