@@ -58,7 +58,7 @@ export func main() -> () ! {IO} {
   let f = \p. let g = \u. {p | name: p.name} in concat([show(g(1).name + 1), g(2).name]);
   println(f({name: 5}))
 }
-`, "cannot unify"},
+`, "Num[string]"},
 	{"closed record", `module m
 
 export func f(p: {name: a}) -> int {
