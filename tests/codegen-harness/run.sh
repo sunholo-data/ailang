@@ -110,6 +110,17 @@ while IFS="$TAB" read -r kcase mode issue expect; do
 		else
 			fail "$kcase ($issue) fails DIFFERENTLY — expected \"$expect\"; evaluator: $PARITY_EVAL; Go: $PARITY_GO"
 		fi ;;
+	emit)
+		# The generated Go builds and summary() may even match, but the emitted
+		# source still contains the recorded defect (e.g. a wrapper that panics
+		# only when a Go caller invokes it, which summary() never does).
+		if ! "$AILANG" compile --emit-go --package-name "k_$kcase" --out "$out" $files > "$out.log" 2>&1; then
+			fail "$kcase ($issue) no longer EMITS — expected emitted Go containing \"$expect\":"; grep -E 'codegen:|Error' "$out.log" | head -5 | sed 's/^/      /'
+		elif grep -rqF -- "$expect" "$out"; then
+			say "  ✓ $kcase still emits as recorded ($issue)"
+		else
+			fail "$kcase ($issue) no longer emits \"$expect\" — the bug looks fixed: remove it from known_failures.tsv (and its directory), and add a parity case calling the exported function"
+		fi ;;
 	*) fail "$kcase: unknown mode '$mode'" ;;
 	esac
 done < "$HARNESS/known_failures/known_failures.tsv"

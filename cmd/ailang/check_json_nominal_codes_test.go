@@ -27,6 +27,7 @@ func TestCheckJSON_NominalIdentityCodesAppearAsThemselves(t *testing.T) {
 		types.TC_UNBOUND_TYPE_003: "module q/main\nimport q/a (mka)\ntype Count = integer\nexport pure func run() -> int = 0\n",
 		// A type alias that refers to itself.
 		types.TC_TYPE_ALIAS_CYCLE_001: "module q/main\nimport q/a (mka)\ntype L = [L]\nexport pure func run() -> int = 0\n",
+		types.TC_NEWTYPE_001:          "module q/main\ntype W = W({ x: int })\npure func f(w: W) -> int = 0\nexport pure func run() -> int = f({ x: 1 })\n",
 	}
 	for want, main := range cases {
 		t.Run(want, func(t *testing.T) {

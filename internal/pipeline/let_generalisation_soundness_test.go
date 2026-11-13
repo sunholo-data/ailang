@@ -87,7 +87,9 @@ export func main() -> () ! {IO} {
   let f = \p. let g = \u. {name: p.name} in concat([show(g(1).name + 1), g(2).name]);
   println(f({name: 5}))
 }
-`, "Num[string]"},
+`, "string"}, // #2239: g carries the access to p.name, so each use re-links its
+	// field type to p's — the conflict is reported at the field ("string vs
+	// int") rather than as Num[string]; either way the program is rejected.
 }
 
 func TestLetGeneralisation_EnclosingParameterVariablesStayMonomorphic(t *testing.T) {

@@ -446,6 +446,12 @@ type Scheme struct {
 	RowVars     []string     // Quantified row variables
 	Constraints []Constraint // Type class constraints
 	Type        Type
+	// fieldAccesses: field accesses on quantified variables still undecided
+	// when a let was generalised (#2239, field_access_deferred.go); each use
+	// re-emits them instantiated. Only local lets carry any: a declaration
+	// settles its accesses before generalising, so exported and cached
+	// schemes never do (unexported, so no codec sees it).
+	fieldAccesses []*fieldAccess
 }
 
 func (s *Scheme) String() string {
@@ -535,6 +541,14 @@ func (s *Scheme) Instantiate(fresh func(Kind) Type) Type {
 // at the use site lets the normal ground-constraint resolver reject `Num[string]`,
 // exactly as the scalar `needStr(42)` path already does.
 func (s *Scheme) InstantiateWithConstraints(fresh func(Kind) Type) (Type, []Constraint) {
+	typ, cs, _ := s.instantiate(fresh, nil)
+	return typ, cs
+}
+
+// instantiate is InstantiateWithConstraints that also returns the scheme's
+// undecided field accesses under the same fresh variables (#2239); use is
+// appended to their diagnostic path.
+func (s *Scheme) instantiate(fresh func(Kind) Type, use []string) (Type, []Constraint, []*fieldAccess) {
 	subs := make(map[string]Type)
 
 	// Fresh type variables
@@ -548,6 +562,9 @@ func (s *Scheme) InstantiateWithConstraints(fresh func(Kind) Type) (Type, []Cons
 	if len(s.RowVars) > 0 {
 		recordRows := map[string]bool{}
 		recordRowNames(s.Type, recordRows)
+		for _, fa := range s.fieldAccesses { // #2239: rows quantified only there
+			recordRowNames(&TTuple{Elements: []Type{fa.recv, fa.expected()}}, recordRows)
+		}
 		for _, v := range s.RowVars {
 			if recordRows[v] {
 				subs[v] = fresh(RecordRow)
@@ -557,8 +574,9 @@ func (s *Scheme) InstantiateWithConstraints(fresh func(Kind) Type) (Type, []Cons
 		}
 	}
 
+	accesses := s.instantiateFieldAccesses(subs, use)
 	if len(s.Constraints) == 0 {
-		return s.Type.Substitute(subs), nil
+		return s.Type.Substitute(subs), nil, accesses
 	}
 
 	instConstraints := make([]Constraint, len(s.Constraints))
@@ -568,7 +586,7 @@ func (s *Scheme) InstantiateWithConstraints(fresh func(Kind) Type) (Type, []Cons
 			Type:  c.Type.Substitute(subs),
 		}
 	}
-	return s.Type.Substitute(subs), instConstraints
+	return s.Type.Substitute(subs), instConstraints, accesses
 }
 
 // Helper functions

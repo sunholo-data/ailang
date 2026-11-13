@@ -206,7 +206,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 	// silently breaking downstream pattern-match cross-checks. See the
 	// design doc m-scheme-import-preserve-adt-head.md and bug report
 	// msg_20260520_111521_44c38751.
-	sub, unsolvedConstraints, err := ctx.SolveConstraints()
+	sub, unsolvedConstraints, err := ctx.solveConstraintsAt(let) // #2239: settles accesses at the declaration
 	if err != nil {
 		return nil, ctx.env, err
 	}
@@ -244,7 +244,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		defaultedType = tc.closeDeclaredEffectRowForBinding(let.Value.ID(), defaultedType)
 		defaultedType = ctx.closeOpenedTailsForGeneralization(sub, defaultedType, ctx.env, ctx.baseEnv) // #1958
 
-		binding = tc.generalizeWithConstraints(defaultedType, valueEffects, nonGroundConstraints, sub, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints))
+		binding = tc.generalizeCarrying(ctx, defaultingSub, defaultedType, valueEffects, nonGroundConstraints, sub, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints)) // #2239
 	} else {
 		binding = defaultedType
 	}
@@ -336,7 +336,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 	// substitution to every binding's valueType and typed node before
 	// defaulting + generalization. See sibling fix in inferLet above and
 	// the design doc m-scheme-import-preserve-adt-head.md for context.
-	sub, unsolvedConstraints, err := ctx.SolveConstraints()
+	sub, unsolvedConstraints, err := ctx.solveConstraintsAt(letrec) // #2239: settles accesses at the declaration
 	if err != nil {
 		return nil, oldEnv, err
 	}
@@ -347,7 +347,9 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		}
 	}
 
-	// Apply defaulting to the entire mutual block (once per SCC)
+	// Apply defaulting to the entire mutual block (once per SCC). Each binding's
+	// defaulting also reaches its carried field accesses, as in inferLet (#2239).
+	defaulting := make([]Substitution, len(letrec.Bindings))
 	for i, binding := range letrec.Bindings {
 		valueType := allValueTypes[i]
 		valueNode := allValueNodes[i]
@@ -358,7 +360,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 			return nil, oldEnv, fmt.Errorf("defaulting failed for letrec binding %s: %w", binding.Name, err)
 		}
 
-		// Apply defaulting substitution everywhere if any defaults were applied
+		defaulting[i] = defaultingSub
 		if len(defaultingSub) > 0 {
 			defaultedType, _, valueNode, _ = tc.ApplySubstEverywhere(
 				defaultingSub, defaultedType, defaultedConstraints, valueNode, nil, binding.Name)
@@ -405,11 +407,10 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		valueType = tc.closeDeclaredEffectRowForBinding(binding.Value.ID(), valueType)
 		valueType = ctx.closeOpenedTailsForGeneralization(reSub, valueType, oldEnv, ctx.baseEnv) // #1958
 
-		// Generalize for recursion. Use the *outer* env (oldEnv) as currentEnv:
-		// the recursive bindings' own fresh vars live only in newEnv, so they
-		// remain generalizable, while any enclosing lambda params (free in
-		// oldEnv but not in the decl's base env) are correctly withheld.
-		scheme := tc.generalizeWithConstraints(valueType, getEffectRow(valueNode), nonGroundConstraints, reSub, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, letrec, nonGroundConstraints))
+		// Generalize for recursion with the *outer* env (oldEnv) as currentEnv:
+		// the bindings' own fresh vars live only in newEnv, so they remain
+		// generalizable; enclosing lambda params (free in oldEnv) are withheld.
+		scheme := tc.generalizeCarrying(ctx, defaulting[i], valueType, getEffectRow(valueNode), nonGroundConstraints, reSub, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, letrec, nonGroundConstraints)) // #2239
 
 		typedBindings[i] = typedast.TypedRecBinding{
 			Name:   binding.Name,

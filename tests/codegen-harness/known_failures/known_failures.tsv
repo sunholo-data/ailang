@@ -16,3 +16,4 @@ nominal_same_name	build	#2260	undefined: NewTB
 zip_tuples	parity	#2263	[[1, 3], [2, 4]]
 curried_lambda	parity	#2264	interface conversion
 contains_records	parity	#2241	comparing uncomparable type
+export_record_return	emit	#2307	.(struct{})

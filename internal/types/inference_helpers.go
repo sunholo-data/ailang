@@ -192,39 +192,16 @@ func (ctx *InferenceContext) solveLocalEqualities(from int) (Substitution, error
 // Folding a suffix into the result of its prefix equals folding the whole, so
 // callers may extend a cached solve incrementally (#1958 unionEffects).
 func (ctx *InferenceContext) solveEqualitiesInto(sub Substitution, cs []TypeConstraint) (Substitution, error) {
-	for _, c := range cs {
-		switch constraint := c.(type) {
-		case TypeEq:
-			var err error
-			sub, err = ctx.unifier.Unify(
-				ApplySubstitution(sub, constraint.Left),
-				ApplySubstitution(sub, constraint.Right),
-				sub,
-			)
-			if err != nil {
-				return nil, ctx.unifyFailure(constraint, sub, err)
-			}
-		case RowEq:
-			var err error
-			sub, err = ctx.unifier.rowUnifier.UnifyRows(
-				constraint.Left,
-				constraint.Right,
-				sub,
-			)
-			if err != nil {
-				return nil, fmt.Errorf("row unification failed at %v: %w", constraint.Path, err)
-			}
-		}
-	}
-	return sub, nil
+	sub, _, err := ctx.solveEqualitiesPending(sub, cs)
+	return sub, err
 }
 
-// SolveConstraints solves all collected constraints
-func (ctx *InferenceContext) SolveConstraints() (Substitution, []ClassConstraint, error) {
-	sub := make(Substitution)
-
-	// Phase 1: Solve all equality constraints first to build up substitution
-	for _, c := range ctx.constraints {
+// solveEqualitiesPending is solveEqualitiesInto that also folds every field
+// access (field_access_deferred.go) whose receiver the equalities decide, and
+// returns the accesses still undecided.
+func (ctx *InferenceContext) solveEqualitiesPending(sub Substitution, cs []TypeConstraint) (Substitution, []*fieldAccess, error) {
+	var pending []*fieldAccess
+	for _, c := range cs {
 		switch constraint := c.(type) {
 		case TypeEq:
 			var err error
@@ -236,7 +213,6 @@ func (ctx *InferenceContext) SolveConstraints() (Substitution, []ClassConstraint
 			if err != nil {
 				return nil, nil, ctx.unifyFailure(constraint, sub, err)
 			}
-
 		case RowEq:
 			var err error
 			sub, err = ctx.unifier.rowUnifier.UnifyRows(
@@ -247,12 +223,37 @@ func (ctx *InferenceContext) SolveConstraints() (Substitution, []ClassConstraint
 			if err != nil {
 				return nil, nil, fmt.Errorf("row unification failed at %v: %w", constraint.Path, err)
 			}
+		case *fieldAccess:
+			next, decided, err := ctx.solveFieldAccess(constraint, sub)
+			if err != nil {
+				return nil, nil, err
+			}
+			if !decided {
+				pending = append(pending, constraint)
+				continue
+			}
+			sub = next
 		}
 	}
+	// A later equality may have decided a receiver an earlier access met unknown.
+	return ctx.retryFieldAccesses(sub, pending)
+}
 
-	// Phase 1b (M-V1-NOMINAL-TYPE-IDENTITY): resolve the deferred
-	// constructor choices the equalities now decide (ambiguous_ctor.go).
-	sub, err := ctx.resolveCtorChoices(sub)
+// SolveConstraints solves all collected constraints
+func (ctx *InferenceContext) SolveConstraints() (Substitution, []ClassConstraint, error) {
+	sub := make(Substitution)
+
+	// Phase 1: Solve all equality constraints first to build up substitution,
+	// with the field accesses they decide (field_access_deferred.go).
+	sub, pending, err := ctx.solveEqualitiesPending(sub, ctx.constraints)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Phase 1b (M-V1-NOMINAL-TYPE-IDENTITY, #2239): resolve the deferred
+	// constructor choices and field accesses the equalities now decide
+	// (ambiguous_ctor.go, field_access_deferred.go).
+	sub, err = ctx.solveDeferred(sub, pending)
 	if err != nil {
 		return nil, nil, err
 	}

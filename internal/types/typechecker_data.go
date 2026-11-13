@@ -123,17 +123,16 @@ func (tc *CoreTypeChecker) inferRecordAccess(ctx *InferenceContext, acc *core.Re
 	fieldType := ctx.freshTypeVar()
 	rowVar := ctx.freshRecordRow()
 
-	// Expected record type with field - use TRecordOpen for subsumption
-	// This allows {id:int} to unify with {id:int, email:string}
-	expectedRecord := &TRecordOpen{
-		Fields: map[string]Type{acc.Field: fieldType},
-		Row:    rowVar, // Mark as open for unknown fields
-	}
-
-	ctx.addConstraint(TypeEq{
-		Left:  getType(recordNode),
-		Right: expectedRecord,
-		Path:  []string{"field access at " + acc.Span().String()},
+	// The receiver must have the field: `recv ~ {f: α | r}` for a record
+	// (TRecordOpen, so {id:int} unifies with {id:int, email:string}), or the
+	// field of the record a newtype-record ADT wraps (#2239). Deferred until
+	// the receiver's type is known (field_access_deferred.go).
+	ctx.addConstraint(&fieldAccess{
+		recv:      getType(recordNode),
+		field:     acc.Field,
+		fieldType: fieldType,
+		row:       rowVar,
+		path:      []string{"field access at " + acc.Span().String()},
 	})
 
 	return &typedast.TypedRecordAccess{

@@ -175,6 +175,8 @@ TC_REC_004: field 'x' would have two types, int and string: a row variable share
 TC004: occurs check failed: α1 occurs in { self: α1 } (an infinite type)
 ```
 
+**`TC_NEWTYPE_001` — a single-constructor type is not its record.** `type W = W({ x: int })` is an ADT, not the record `{ x: int }` (that would be the record alias `type W = { x: int }`). Field access `w.x` works on a `W`; anywhere else a `W` meeting a record type — a bare record passed as a `W`, a `W` passed as a record, a record update on a `W` — is this error. Until v0.60.2 the two converted silently, so a record was accepted as a `W` and two such types over the same record could reach each other. See [tc_newtype_001.md](tc_newtype_001.md).
+
 **`TC_AMBIGUOUS_TYPE_001` — a type name two modules both declare.** A bare type name that is not declared in the module, not imported by name, not a built-in or prelude name, and that two or more imported modules export — or, when no imported module exports it, that two or more modules reached only indirectly (marked "(indirect)") declare. A module an import reaches indirectly never competes with a name an imported module exports. The candidates are listed in module order; the fix is to import the one you mean by name. It used to mean whichever module happened to come first.
 
 **`TC_AMBIGUOUS_CTOR_001` — a constructor two imported modules both offer.** The constructor auto-import brings every constructor of a selectively imported module into scope; when two modules offer the same name and neither is imported by name, a pattern is resolved by the scrutinee's type once inference has decided it (a deferred choice, independent of the order of the code; the pattern's own number of arguments narrows the candidates first). The error is reported, at the pattern or expression, for an expression; for a pattern whose scrutinee's type nothing in the enclosing top-level declaration decides (fix: import the constructor by name, or annotate the value matched); for a pattern whose argument count fits another candidate than the type matched (fix: the argument count); and as the cause of a conflict it creates — a let-bound function matching the constructor stays monomorphic while the choice is open, so using it at two types (`Box[int]` and `Box[string]`) fails; the message names the function and the conflict. Fix for expressions and conflicts: `import M (C)` from the module you mean.
@@ -237,5 +239,6 @@ These codes are inline diagnostic codes, like `TC_MATCH_005`; they are not entri
 - [RT001 — Integer division or modulo by zero](rt001.md)
 - RT002 — no arm of a `match` matched, with the match's position (defence in depth: a checked program cannot reach it, except through a checker bug)
 - RT010 — `unreachable(msg)` was evaluated: `RT010: unreachable code reached: <msg>`
+- [TC_NEWTYPE_001 — A single-constructor type is not its record](tc_newtype_001.md)
 - [TC_NOMINAL_001 — Two different types that share a name](tc_nominal_001.md)
 - [Effect row mismatch](typ_effect_row_mismatch.md)

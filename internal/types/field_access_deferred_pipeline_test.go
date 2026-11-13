@@ -1,0 +1,175 @@
+package types_test
+
+import (
+	"strings"
+	"testing"
+
+	"github.com/sunholo-data/ailang/internal/types"
+)
+
+// #2239: a newtype-record ADT (`type W = W({ x: int })`) is nominal. It never
+// unifies with a record — neither a bare record where a W is expected nor a W
+// where a record is — so two same-shaped newtypes cannot reach each other
+// through a record-typed value. Field access `w.x` keeps working: it is a
+// projection decided once the receiver's type is known
+// (field_access_deferred.go), not a conversion. Seen through the pipeline so
+// the deferred access, its scheme copies and TC_NEWTYPE_001 are exercised in
+// this package; the cross-module rows (cold and warm cache) are in
+// internal/pipeline/newtype_record_test.go.
+
+const ntHdr = "module m/main\nimport std/list (map, foldl, length)\n" +
+	"type W = W({ x: int, y: int })\ntype V = V({ x: int, y: int })\n" +
+	"pure func getw(w: W) -> int = match w { W(r) => r.x * 3 }\n"
+
+func TestNewtypeRecord_FieldAccessIsAProjection(t *testing.T) {
+	reject := types.TC_NEWTYPE_001
+	for _, c := range []struct {
+		name, body, want string // want "" = must check
+	}{
+		// --- the issue's repros and the holes the old expansion left ---
+		{"pnt3: a bare record where a W is expected",
+			"export func main() -> () ! {IO} = println(show(getw({ x: 5, y: 1 })))\n", reject},
+		{"pnt2: V reaches W through a record-typed function",
+			"pure func launder(r: { x: int, y: int }) -> { x: int, y: int } = r\n" +
+				"export func main() -> () ! {IO} = println(show(getw(launder(V({ x: 1000, y: 0 })))))\n", reject},
+		{"a W returned as its record",
+			"pure func toRec(w: W) -> { x: int, y: int } = w\nexport pure func main() -> int = toRec(W({ x: 1, y: 2 })).x\n", reject},
+		{"a let annotated W bound to a record",
+			"export pure func main() -> int { let w: W = { x: 1, y: 2 }; w.x }\n", reject},
+		{"a lambda that reads a field and passes its argument as a W, called with a record",
+			"export pure func main() -> int { let f = \\r. { let _ = r.x; getw(r) }; f({ x: 5, y: 1 }) }\n", reject},
+		{"a field-reading lambda applied to a V and a W",
+			"export pure func main() -> int { let pick = \\a b. if a.x > 0 then a else b; getw(pick(V({ x: 1, y: 2 }), W({ x: 3, y: 4 }))) }\n",
+			"V vs W"},
+		{"a let-bound field reader returning its argument launders a record into a W",
+			"export pure func main() -> int { let f = \\r. { let _ = r.x; r }; getw(f({ x: 5, y: 1 })) }\n", reject},
+		{"a let-bound field reader keeps its access at every use (a string has no field)",
+			"export pure func main() -> int { let gx = \\t. t.x; gx(W({ x: 1, y: 2 })) + gx(\"s\") }\n", "field access at"},
+		{"record update on a W (crashed at run time on both engines)",
+			"export pure func main() -> int { let w = W({ x: 1, y: 2 }); let w2 = { w | x: 9 }; w2.x }\n", reject},
+		{"a field the newtype's record does not have",
+			"export pure func main() -> int = W({ x: 1, y: 2 }).z\n", "field `z` of W"},
+		// --- controls: field access on a newtype keeps working ---
+		{"field access on an annotated W",
+			"pure func sumw(w: W) -> int = w.x + w.y\nexport pure func main() -> int = sumw(W({ x: 3, y: 4 }))\n", ""},
+		{"field access on a let-bound W",
+			"export pure func main() -> int { let w = W({ x: 1, y: 2 }); w.x + w.y }\n", ""},
+		{"prompt example: map(\\t. t.x, ws)",
+			"export func main() -> () ! {IO} = println(show(map(\\t. t.x, [W({ x: 1, y: 2 }), W({ x: 3, y: 4 })])))\n", ""},
+		{"a let-bound field reader used twice at W",
+			"export func main() -> () ! {IO} { let gx = \\t. t.x; println(show(map(gx, [W({ x: 1, y: 2 })]))); println(show(gx(W({ x: 7, y: 0 })))) }\n", ""},
+		{"a let-bound field reader stays polymorphic over records and newtypes",
+			"export pure func main() -> int { let gx = \\t. t.x; gx(W({ x: 1, y: 2 })) + gx({ x: 3, z: true }) + gx(V({ x: 5, y: 0 })) }\n", ""},
+		{"foldl picking the best W by a field",
+			"export pure func main() -> int { let best = foldl(\\acc w. if w.x > acc.x then w else acc, W({ x: 0, y: 0 }), [W({ x: 2, y: 1 }), W({ x: 5, y: 1 })]); getw(best) }\n", ""},
+		{"match W(r) and the record inside",
+			"export pure func main() -> int = getw(W({ x: 5, y: 1 }))\n", ""},
+		{"records and record aliases stay structural",
+			"type P = { x: int, y: int }\npure func gp(p: P) -> int = p.x\n" +
+				"export pure func main() -> int { let r = \\q. q.x + q.y; gp({ x: 1, y: 2 }) + r({ x: 3, y: 4 }) }\n", ""},
+		{"a field reader at a top-level declaration is still a record reader",
+			"pure func getx(r: { x: int, y: int }) -> int = r.x\nexport pure func main() -> int = getx({ x: 1, y: 2 })\n", ""},
+		{"an unannotated field reader in its own declaration is settled as a record reader",
+			"export pure func main() -> int { let k = 1; let f = \\r. r.y + k; f({ y: 2 }) }\n", ""},
+		// --- review of #2284, item 1: a let-bound record reader stays polymorphic
+		// when the field's type is not in the reader's own type (it is quantified
+		// with the carried access, and its class constraint travels with it) ---
+		{"r05: show of a field at int and at string",
+			"export pure func main() -> string { let describe = \\p. show(p.x); \"${describe({ x: 1 })} ${describe({ x: \"s\" })}\" }\n", ""},
+		{"r09: == on two fields at int and at string",
+			"export pure func main() -> bool { let same = \\p. p.a == p.b; same({ a: 1, b: 1 }) && same({ a: \"x\", b: \"y\" }) }\n", ""},
+		{"r06: length of a list field at [int] and at [string]",
+			"export pure func main() -> int { let count = \\r. length(r.items); count({ items: [1, 2] }) + count({ items: [\"a\"] }) }\n", ""},
+		{"r01: chain r.a.b at two field types",
+			"export pure func main() -> string { let f = \\r. r.a.b; \"${show(f({ a: { b: 1 } }))} ${f({ a: { b: \"s\" } })}\" }\n", ""},
+		{"r07: two fields of a nested record, extra field at one use",
+			"export pure func main() -> int { let f = \\r. r.a.x + r.a.y; f({ a: { x: 1, y: 2 } }) + f({ a: { x: 1, y: 2, z: 3 } }) }\n", ""},
+		{"r14: letrec reader at int and at string",
+			"export pure func main() -> string { letrec describe = \\p. \\n. if n <= 0 then show(p.x) else describe(p)(n - 1); \"${describe({ x: 1 })(2)} ${describe({ x: \"s\" })(1)}\" }\n", ""},
+		{"a chain inside show at two field types (the middle access shares nothing with the type)",
+			"export pure func main() -> string { let f = \\r. show(r.a.b); \"${f({ a: { b: 1 } })} ${f({ a: { b: \"s\" } })}\" }\n", ""},
+		{"a chained access the type does not mention still constrains every use",
+			"export pure func main() -> string { let f = \\r. show(r.a.b + 1); f({ a: { b: \"s\" } }) }\n", "string"},
+		// --- second review of #2284: settling in dependency order (n01–n14) ---
+		// Settling the `s.g` reads decides that `t` is a W; the result must not
+		// depend on the order the accesses were recorded in.
+		{"n12: a settled read decides a W used through a let",
+			"export pure func main() -> int { let f = \\s. { let t = s.g; getw(s.g) + t.x }; f({ g: W({ x: 7, y: 0 }) }) }\n", ""},
+		{"n12 with the operands swapped",
+			"export pure func main() -> int { let f = \\s. { let t = s.g; t.x + getw(s.g) }; f({ g: W({ x: 7, y: 0 }) }) }\n", ""},
+		{"n12 with the W use first",
+			"export pure func main() -> int { let f = \\s. { let u = getw(s.g); let t = s.g; u + t.x }; f({ g: W({ x: 7, y: 0 }) }) }\n", ""},
+		{"n12 with the field read bound before the W use",
+			"export pure func main() -> int { let f = \\s. { let t = s.g; let v = t.x; v + getw(s.g) }; f({ g: W({ x: 7, y: 0 }) }) }\n", ""},
+		{"n12 with the W use inside a nested let",
+			"export pure func main() -> int { let f = \\s. { let t = s.g; let v = { let q = getw(s.g); q + t.x }; v }; f({ g: W({ x: 7, y: 0 }) }) }\n", ""},
+		{"n12 two levels down",
+			"export pure func main() -> int { let f = \\s. { let t = s.a.g; t.x + getw(s.a.g) }; f({ a: { g: W({ x: 7, y: 0 }) } }) }\n", ""},
+		{"n14: a W-annotated let decides the read",
+			"export pure func main() -> int { let f = \\s. { let t = s.g; let w: W = s.g; t.x + getw(w) }; f({ g: W({ x: 7, y: 0 }) }) }\n", ""},
+		{"n02: the same in a top-level function",
+			"pure func f(s) -> int { let t = s.g; getw(s.g) + t.x }\nexport pure func main() -> int = f({ g: W({ x: 7, y: 0 }) })\n", ""},
+		{"a field W does not have, read through the settled value",
+			"export pure func main() -> int { let f = \\s. { let t = s.g; getw(s.g) + t.z }; f({ g: W({ x: 7, y: 0 }) }) }\n", "z"},
+		// --- second review: N2 (closure order) and letrec defaulting ---
+		{"n10: an access recorded before the one that links it to the type",
+			"export pure func main() -> string { let outer = \\r. { let kk = if true then \\x. show(x.f + 1) else \\x. show(x.f + 2); kk(r.g) }; \"${outer({ g: { f: 1 } })} ${outer({ g: { f: \"s\" } })}\" }\n", "string"},
+		{"l10: letrec, an integer literal fixes the field type",
+			"export pure func main() -> string { letrec f = \\r. \\k. if k <= 0 then show(r.n + 1) else f(r)(k - 1); \"${f({ n: 2.5 })(1)} ${f({ n: 1 })(1)}\" }\n", "Fractional[int]"},
+		{"l11: letrec, the same with the uses reversed",
+			"export pure func main() -> string { letrec f = \\r. \\k. if k <= 0 then show(r.n * 2) else f(r)(k - 1); \"${f({ n: 7 })(0)} ${f({ n: 1.5 })(0)} ${f({ n: 3 })(0)}\" }\n", "Fractional[int]"},
+		{"l12: letrec, division at an int and a float",
+			"export pure func main() -> string { letrec half = \\r. \\k. if k <= 0 then show(r.n / 2) else half(r)(k - 1); \"${half({ n: 7 })(0)} ${half({ n: 7.0 })(0)}\" }\n", "Fractional[int]"},
+		// --- second review: a W in a shared row (i03) ---
+		{"i03: two records sharing their other fields, a W in one and a record in the other",
+			"pure func both(a: { k: int | r }, b: { k: int | r }) -> int = a.k + b.k\nexport pure func main() -> int = both({ k: 1, w: W({ x: 1, y: 0 }) }, { k: 2, w: { x: 3, y: 0 } })\n", reject},
+		{"i03b: the same with a W in both",
+			"pure func both(a: { k: int | r }, b: { k: int | r }) -> int = a.k + b.k\nexport pure func main() -> int = both({ k: 1, w: W({ x: 1, y: 0 }) }, { k: 2, w: W({ x: 3, y: 0 }) })\n", ""},
+		{"a shared row bound to a field the other record has (W vs record): TC_REC_004 around the newtype mismatch",
+			"pure func f(p: { y: int | r }, q: { x: { x: int, y: int } | r }) -> int = p.y\nexport pure func main() -> int = f({ y: 1, x: W({ x: 1, y: 0 }) }, { x: { x: 2, y: 0 } })\n", "TC_REC_004"},
+		// --- with #2210/#2221's record rows (fresh per access, bound to fields) ---
+		{"a W given to a `| r` parameter",
+			"pure func f(p: { x: int | r }) -> int = p.x\nexport pure func main() -> int = f(W({ x: 1, y: 2 }))\n", reject},
+		{"a let-bound updater given a W (crashed at run time on dev)",
+			"export pure func main() -> int { let bump = \\p. { p | x: p.x + 1 }; match bump(W({ x: 1, y: 2 })) { W(q) => q.x } }\n", reject},
+		{"a let-bound updater on records with different other fields",
+			"export pure func main() -> int { let bump = \\p. { p | x: p.x + 1 }; bump({ x: 1, m: \"a\" }).x + bump({ x: 1, y: 2 }).y }\n", ""},
+		{"a W inside a shared row is TC_REC_004, not a coercion",
+			"pure func f(p: { y: int | r }, q: { x: int | r }) -> int = p.y\nexport pure func main() -> int = f({ y: 1, x: W({ x: 1, y: 2 }) }, { x: 2 })\n", "TC_REC_004"},
+		{"a chained access is checked at every use (the receiver of .b is not in the type)",
+			"export pure func main() -> string { let f = \\r. show(r.a.b); f({ a: 5 }) }\n", "int"},
+		{"a let-bound reader applied to an open-row annotated parameter",
+			"export pure func main() -> int { let gx = \\t. t.x; let h = func(p: { x: int | rest }) -> int { gx(p) }; h({ x: 1, y: 2 }) }\n", ""},
+		{"d09c: Eq and Ord on fields at two types",
+			"export pure func main() -> bool { let lt = \\r. r.a < r.b; lt({ a: 1, b: 2 }) && lt({ a: \"b\", b: \"a\" }) }\n", ""},
+		{"r11: an integer literal still fixes the field type (one reader, int and float uses)",
+			"export pure func main() -> string { let f = \\r. show(r.n * 2); \"${f({ n: 7 })} ${f({ n: 1.5 })}\" }\n", "Fractional[int]"},
+		{"r13: a defaulted field type is not re-generalised in the access",
+			"export pure func main() -> string { let half = \\r. show(r.n / 2); let x: float = 7.0; \"${half({ n: 7 })} ${half({ n: x })}\" }\n", "half"},
+		// --- review of #2284, item 3 (M10): a receiver that is an alias of a
+		// newtype is expanded to the newtype before the access is decided ---
+		{"q01: field access through type V = W",
+			"type V2 = W\npure func getv(v: V2) -> int = v.x + 1000\nexport pure func main() -> int { let f = \\t. t.x; let v: V2 = W({ x: 2, y: 0 }); getv(W({ x: 1, y: 0 })) + f(v) }\n", ""},
+		// --- review of #2284, item 2: a TOP-LEVEL reader with an inferred
+		// parameter is a record reader (its scheme is exported); a W passed to it
+		// gets its own message ---
+		{"d13: a W passed to a top-level reader with an inferred parameter",
+			"pure func getx(r) = r.x\nexport pure func main() -> int = getx({ x: 1 }) + getx(W({ x: 2, y: 0 }))\n", "annotate it (or the parameter it comes from) as W"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			err := checkModules(t, map[string]string{"m/main.ail": ntHdr + c.body})
+			if c.want == "" {
+				if err != nil {
+					t.Fatalf("must type-check: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatalf("accepted; want an error containing %q", c.want)
+			}
+			if !strings.Contains(err.Error(), c.want) {
+				t.Fatalf("error must contain %q:\n%v", c.want, err)
+			}
+		})
+	}
+}

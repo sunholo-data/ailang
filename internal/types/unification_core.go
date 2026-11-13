@@ -19,9 +19,9 @@ type Unifier struct {
 	aliasEnv map[string]Type
 	// newtypes: aliasEnv keys that are single-constructor ADTs wrapping a
 	// record (M-STREAM-DX/M4), registered as aliases only for field access.
-	// They expand only against a record type, never against another TCon or
-	// a type variable, so the ADT keeps its nominal identity
-	// (M-V1-NOMINAL-TYPE-IDENTITY hard case h4c).
+	// They never expand: the ADT keeps its nominal identity against other
+	// TCons (M-V1-NOMINAL-TYPE-IDENTITY hard case h4c) and against records
+	// (#2239). Field access projects through aliasEnv (newtypeBody).
 	newtypes map[string]bool
 	// aliasParams maps parameterized-alias names to their ordered param names
 	// (M-XMOD-ALIAS-POLY). Missing entry = nullary alias. Used by expandAlias to
@@ -113,15 +113,8 @@ func (u *Unifier) SetDebugSink(sink TypeDebugSink) {
 	}
 }
 
-// expandAlias expands a type alias to its underlying type if applicable
-// M-BUGFIX: Handles type aliases like `type Coord = {x: int, y: int}`
-// M-CROSS-MODULE: When expanding TCon to TRecord, preserve the type name
-func (u *Unifier) expandAlias(t Type) Type {
-	return u.expandAliasMode(t, true)
-}
-
-// isRecordish reports whether t is a record type, the only kind of type a
-// newtype ADT may be expanded against.
+// isRecordish reports whether t is a record type (TC_NEWTYPE_001 names a
+// newtype ADT meeting one).
 func isRecordish(t Type) bool {
 	switch t.(type) {
 	case *TRecord, *TRecordOpen, *TRecord2:
@@ -133,9 +126,12 @@ func isRecordish(t Type) bool {
 // SetNewtypes installs the set of newtype-ADT alias keys.
 func (u *Unifier) SetNewtypes(n map[string]bool) { u.newtypes = n }
 
-// expandAliasMode expands aliases; a newtype ADT is expanded only when
-// withNewtypes is set (see Unifier.newtypes).
-func (u *Unifier) expandAliasMode(t Type, withNewtypes bool) Type {
+// expandAlias expands a type alias to its underlying type if applicable
+// M-BUGFIX: Handles type aliases like `type Coord = {x: int, y: int}`
+// M-CROSS-MODULE: When expanding TCon to TRecord, preserve the type name
+// A newtype-record ADT is registered in aliasEnv (for its field projection and
+// cross-module interfaces) but is never expanded: it is nominal (#2239).
+func (u *Unifier) expandAlias(t Type) Type {
 	if u.aliasEnv == nil && u.aliasCaptures == nil {
 		return t
 	}
@@ -203,8 +199,8 @@ func (u *Unifier) expandAliasMode(t Type, withNewtypes bool) Type {
 			u.latchAliasCapture(conKey) // M-TYPE-NAME-SHADOW
 			return t
 		}
-		if !withNewtypes && u.newtypes[conKey] {
-			return t // a newtype ADT stays nominal unless matched against a record
+		if u.newtypes[conKey] {
+			return t // a newtype ADT stays nominal (#2239)
 		}
 		if seen[conKey] {
 			return t // cycle detected — stop expanding
@@ -273,17 +269,14 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 
 	// M-BUGFIX: Expand type aliases before unification
 	// This allows `type Coord = {x: int, y: int}` to unify with {x: int, y: int}
-	// M-V1-NOMINAL-TYPE-IDENTITY: real aliases expand on both sides; a newtype
-	// ADT expands only against a record (field access), so two same-shaped
-	// newtypes from different modules — or a newtype and a sum type of the same
-	// name — never meet as records.
-	t1 = u.expandAliasMode(t1, false)
-	t2 = u.expandAliasMode(t2, false)
-	if isRecordish(t2) {
-		t1 = u.expandAliasMode(t1, true)
-	}
-	if isRecordish(t1) {
-		t2 = u.expandAliasMode(t2, true)
+	// M-V1-NOMINAL-TYPE-IDENTITY / #2239: real aliases expand on both sides; a
+	// newtype-record ADT never does — it is not its record. Field access on one
+	// is a projection decided by the deferred field-access constraint
+	// (field_access_deferred.go), never a unification with a record.
+	t1 = u.expandAlias(t1)
+	t2 = u.expandAlias(t2)
+	if err := u.newtypeRecordMismatch(t1, t2); err != nil {
+		return nil, err
 	}
 
 	// M-XMOD-ALIAS-POLY: surface a latched arity diagnostic from expandAlias

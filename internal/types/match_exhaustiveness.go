@@ -608,7 +608,7 @@ func (v *matchVerifier) scrutineeName(m *core.Match) string {
 	if v.unif == nil {
 		v.unif = v.tc.aliasUnifier()
 	}
-	if exp := v.unif.expandAliasMode(t, false); exp.String() != t.String() {
+	if exp := v.unif.expandAlias(t); exp.String() != t.String() {
 		return t.String() + " (= " + exp.String() + ")"
 	}
 	return t.String()
