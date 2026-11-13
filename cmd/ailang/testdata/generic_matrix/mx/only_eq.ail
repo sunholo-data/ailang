@@ -3,9 +3,15 @@ import std/option (Option, Some, None)
 import std/list (sortBy)
 import std/io (print)
 
-export pure func gen[a](x: a, y: a) -> bool { let e = x == y; e }
+export pure func genR[a](x: a, y: a) -> bool { let e = x == y; e }
+export pure func genU(x, y) { let e = x == y; e }
+export pure func genL[a](x: a, y: a) -> bool { let k = \pp qq. { let e = pp == qq; e }; k(x, y) }
+export pure func genF[a](x: a, y: a) -> bool { let k = func(pp: a, qq: a) -> bool { { let e = pp == qq; e } }; k(x, y) }
 export pure func twinI(x: int, y: int) -> bool { let e = x == y; e }
+export pure func twinLI(x: int, y: int) -> bool { let k = \pp qq. { let e = pp == qq; e }; k(x, y) }
 export pure func twinF(x: float, y: float) -> bool { let e = x == y; e }
+export pure func twinLF(x: float, y: float) -> bool { let k = \pp qq. { let e = pp == qq; e }; k(x, y) }
 export pure func twinS(x: string, y: string) -> bool { let e = x == y; e }
-export pure func summary() -> string = "genI=${show(gen(3, 4))}\n twinI=${show(twinI(3, 4))}\n genF=${show(gen(1.5, 2.25))}\n twinF=${show(twinF(1.5, 2.25))}\n genS=${show(gen("p", "q"))}\n twinS=${show(twinS("p", "q"))}\n"
+export pure func twinLS(x: string, y: string) -> bool { let k = \pp qq. { let e = pp == qq; e }; k(x, y) }
+export pure func summary() -> string = "genRI=${show(genR(3, 4))}\ngenUI=${show(genU(3, 4))}\ngenLI=${show(genL(3, 4))}\ngenFI=${show(genF(3, 4))}\ntwinI=${show(twinI(3, 4))}\ntwinLI=${show(twinLI(3, 4))}\ngenRF=${show(genR(1.5, 2.25))}\ngenUF=${show(genU(1.5, 2.25))}\ngenLF=${show(genL(1.5, 2.25))}\ngenFF=${show(genF(1.5, 2.25))}\ntwinF=${show(twinF(1.5, 2.25))}\ntwinLF=${show(twinLF(1.5, 2.25))}\ngenRS=${show(genR("p", "q"))}\ngenUS=${show(genU("p", "q"))}\ngenLS=${show(genL("p", "q"))}\ngenFS=${show(genF("p", "q"))}\ntwinS=${show(twinS("p", "q"))}\ntwinLS=${show(twinLS("p", "q"))}\n"
 export func main() -> () ! {IO} = print(summary())
