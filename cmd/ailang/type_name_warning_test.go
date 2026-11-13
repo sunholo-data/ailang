@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"os"
 	"path/filepath"
 	"strings"
 	"testing"
@@ -27,6 +28,42 @@ func TestPrimitiveAliasOperators(t *testing.T) {
 				t.Errorf("%s %v: exit %d\nstdout:\n%s\nstderr:\n%s", run, backend, code, stdout, stderr)
 			}
 		}
+	}
+}
+
+// A parse error on the module-load path reaches `check --json` with its own
+// PAR_ code and position, not "ERROR" (loader.ParseErrors unwraps to each
+// *parser.ParserError). Covered for three codes from different parser paths.
+func TestCheckJSON_ParseErrorCodes(t *testing.T) {
+	bin := buildAilang(t)
+	for _, c := range []struct{ code, body string }{
+		{"PAR_TYPE_DECL_BUILTIN", "type float = float\n"},
+		{"PAR_TYPE_PARAM_APPLIED", "pure func same[m](x: m[int]) -> int = 0\n"},
+		{"PAR_TYPE_PARAM_BUILTIN", "type Res[int] = Ok(int) | Err(string)\n"},
+	} {
+		t.Run(c.code, func(t *testing.T) {
+			file := filepath.Join(t.TempDir(), "pe.ail")
+			src := "module pe\n" + c.body + "export func main() -> () ! {IO} = println(\"x\")\n"
+			if err := os.WriteFile(file, []byte(src), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			stdout, _, code := runWithStdin(t, bin, "", "check", "--json", file)
+			var out struct {
+				Passed bool `json:"passed"`
+				Errors []struct {
+					Code    string `json:"code"`
+					Line    int    `json:"line"`
+					Message string `json:"message"`
+				} `json:"errors"`
+			}
+			if err := json.Unmarshal([]byte(stdout), &out); err != nil {
+				t.Fatalf("check --json: %v\n%s", err, stdout)
+			}
+			if code == 0 || out.Passed || len(out.Errors) == 0 || out.Errors[0].Code != c.code || out.Errors[0].Line != 2 ||
+				!strings.Contains(out.Errors[0].Message, c.code) {
+				t.Errorf("want %s at line 2, got exit %d:\n%s", c.code, code, stdout)
+			}
+		})
 	}
 }
 

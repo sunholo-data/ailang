@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"fmt"
+
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/lexer"
 )
@@ -34,6 +36,15 @@ func (p *Parser) parseTypeDeclaration(exported bool) ast.Node {
 	}
 
 	name := p.curToken.Literal
+	// A built-in name is never a declared type (parser_type_names.go rule 2):
+	// `type float = float` used to pass, `type string = int` was silently
+	// ignored at every use. Reported, then the declaration is still parsed so
+	// one mistake gives one error.
+	if ast.IsBuiltinTypeName(name) {
+		p.errors = append(p.errors, NewParserError("PAR_TYPE_DECL_BUILTIN", p.curPos(), p.curToken,
+			fmt.Sprintf("type '%s' has the name of the built-in type %s, which a declaration cannot redefine", name, name),
+			nil, "Name the type something else (e.g. Meters for a float measure), and use that name where you meant this type"))
+	}
 	p.nextToken()
 
 	// Parse optional type parameters [a, b, ...]

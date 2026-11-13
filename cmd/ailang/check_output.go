@@ -11,6 +11,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/elaborate"
 	ailerrors "github.com/sunholo-data/ailang/internal/errors"
+	"github.com/sunholo-data/ailang/internal/parser"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/types"
 )
@@ -147,6 +148,17 @@ func errorToCheckJSONError(err error, filename string) checkJSONError {
 		}
 		if rep.Fix != nil {
 			entry.Suggestion = rep.Fix.Suggestion
+		}
+		return entry
+	}
+	// A parse error keeps its structure through the module-load path
+	// (loader.ParseErrors unwraps to each *parser.ParserError): report the
+	// first one's PAR_ code and position.
+	var pe *parser.ParserError
+	if errors.As(err, &pe) && pe.Code != "" {
+		entry := checkJSONError{Code: pe.Code, Message: err.Error(), File: filename, Line: pe.Pos.Line, Column: pe.Pos.Column}
+		if pe.Pos.File != "" {
+			entry.File = pe.Pos.File
 		}
 		return entry
 	}
