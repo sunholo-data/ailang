@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 111 | 2026-11-13 | pick NONE (inputs byte-identical to iteration 110, independent sonnet judge NONE); Gate 5 skill fix LANDED: harness share counts log headlines (#23... |
 | 110 | 2026-11-13 | idle: inputs byte-identical to iteration 108 (iteration 109's one new ticket resolved); all 27 tickets ruling-gated, independent sonnet judge NONE;... |
 | 109 | 2026-11-12 | `orphan:pi-runner:own-pgid-children-survive-role-exit` LANDED: #2267 → `47b123139`, independent sonnet judge PASS 86 then PASS 91; ticket resolved ... |
 | 108 | 2026-11-12 | idle: inputs byte-identical to iteration 107; all 27 tickets ruling-gated, independent sonnet judge NONE; nothing designed, planned, built or merge... |
