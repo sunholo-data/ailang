@@ -4,4 +4,7 @@ module harness/kf/generic_string_eq
 
 export pure func same[a](x: a, y: a) -> bool = x == y
 
-export pure func summary() -> string = "eq=${show(same(\"p\", \"q\"))}"
+export pure func summary() -> string {
+  let r = same("p", "q")
+  "eq=${show(r)}"
+}
