@@ -842,3 +842,14 @@ No VERIFIED, no ⚖ action, no comments/labels/closes on items, no approve/rejec
 **Routing evidence**: verifiers claude:claude-haiku-5-5 (4 foreground Agent-tool batches, role token). Judge: openrouter:minimax/minimax-m3 via pi `--no-tools` (rc=0), a different vendor from the verifier as the operator required; resolve-role-spawn.sh evaluator returned `sonnet` (same vendor), which was not used. The judge saw only quoted evidence. Five items already attested at the same head (#2136 #2138 #2140 #2155 #2159) were not re-judged.
 **Findings routed to the digest, not fixed**: #2264/#2263 Go codegen P1; #2149 doc carries a future date.
 **Not done**: evidence comments on report-only PRs; T4 landed-card dry run; labels.
+
+## 42 — 2026-11-13 — five judged closes, seven P0 labels, #2282 held [ADMIN]
+
+**Picked**: 43 items (2 PRs and 41 issues new since iteration 41; no head moved on a verified PR); 25 PRs excluded (Dependabot/fleet/triage); #2172 and the bookkeeping thread #2069 reported only; the 56 pending cards are unchanged and were not re-verified. Open ledger rows: 0, so the moot and decompose sweeps had nothing to do. Packet: not due (no OPEN row, no card ready to approve).
+**Reality check**: origin/dev `0d7f07e83` at Gate 1, `bfb1e6b75d97e563b7596de866c60274812c36df` by verification (#2330 merged); CI green. All skill files byte-identical to origin from the resolved symlink target.
+**Shipped**: closed #2327, #2313, #2277, #2275 (fixed) and #2309 (duplicate of #2308), each with an evidence comment read back +1 first; `priority:P0` on #2308 #2293 #2303 #2291 #2290 #2273 #2326; `needs-decision` on #2282. 43 shadow rows appended. No attestations, approvals, rejections or merges.
+**Judge**: sonnet (Agent tool) over haiku verifiers; same vendor, so the closes were taken before the operator's different-vendor requirement was met. A MiniMax m3 pass via pi `--no-tools` (rc=0) then re-judged the five closes from quoted evidence: 5/5 CONCUR. Had it dissented the closes would have been reopened. Next iteration: run the cross-vendor judge BEFORE any close. #2282: weak CONCUR, held.
+**Routing evidence**: executor `claude:claude-haiku-5-5` (3 foreground Agent batches); evaluator resolver returned `sonnet`. First spawn attempt denied by the spawn hook: the role token must be exactly `MISSION-ROLE: executor` with nothing after the role name.
+**Findings routed to the digest, not fixed**: the #2273/#2290/#2291 soundness cluster; #2326 WASM registry loader skips effect validation; #2304 needs rebase.
+**Not done**: T4 landed-card dry run; card re-verification (the approval-authority module fails to elaborate in this session, `@deprecated` unknown in the pinned `std/list`).
+**Next**: re-verify #2304 after rebase; Mark rules on #2282.
