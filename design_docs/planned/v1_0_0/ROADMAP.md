@@ -229,7 +229,7 @@ CI missed.**
 
 **Soundness fixes (2026-11-12/13).** Each PR written by one Opus agent, reviewed by another that had
 not seen it, sent back until clean. Every first review found a defect the author's tests and green CI
-had missed; #2285 took five rounds.
+had missed; #2285 took five rounds. All ten original soundness issues plus #2273 are fixed on `dev`.
 
 | PR | Issues | State |
 |---|---|---|
@@ -239,8 +239,9 @@ had missed; #2285 took five rounds.
 | #2285 | #2247 class constraints on applied types; primitive aliases | Merged (8797bd79e) |
 | #2283 | #2232, #2248 contracts and test bodies type-checked | Merged (287222440) |
 | #2286 | #2211, #2240 type names by scope; two declaration rules | Merged (5db322d71) |
-| #2284 | #2239 newtype records | In review (third round) |
-| #2304 | #2273 signature type variables are binding | Rebasing after first review |
+| #2284 | #2239 newtype records | Merged (0d7f07e83) |
+| #2304 | #2273, #2305 signature type variables are binding; generic bodies correct on evaluator and VM | Merged (2fab55c65) |
+| #2330 | follow-ups to #2286 (builtin type names, hints, parse-error codes in `--json`) | Merged (bfb1e6b75) |
 
 **Rulings (Mark, 2026-11-12):** `==` on a type without `deriving (Eq)` is an error in contracts, as in
 bodies; an ill-typed contract in a dependency is fatal for importers (a dependency's ill-typed TEST is
@@ -256,9 +257,9 @@ docparse and daneel pin bumps for the republished packages; motoko fixtures that
 package agents (ailang-packages #200–#202) delete or weaken contracts and should be closed.
 
 **Found and filed during this stretch, unowned:** #2290, #2303 (VM picks the first loaded ADT for a
-by-name match at an unfixed type: silent wrong answer), #2272, #2305, #2312, #2318, #2322–#2327, #2329,
-#2308/#2309; Go emitter: #2241, #2259–#2264, #2274, #2292, #2293 (silent wrong answer), #2294, #2299,
-#2307, #2317.
+by-name match at an unfixed type: silent wrong answer), #2272, #2312, #2318, #2322–#2327, #2329, #2333 (generic bodies are defaulted to int; each consumer compensates),
+#2334, #2337, #2308 (a 1 KB file drives `check` to 50 GiB); Go emitter: #2241, #2259–#2264, #2274, #2292, #2293 (silent wrong answer), #2294, #2299,
+#2307, #2317, #2332 (silent wrong answers for generic functions at string).
 
 **Not started:** integer overflow trap; callback
 effect rule; capability-grant changes and Internal command moves; help text; docs rewrites (284
