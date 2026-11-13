@@ -2,7 +2,6 @@ package elaborate
 
 import (
 	"fmt"
-	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
@@ -190,20 +189,6 @@ func (e *Elaborator) rigidHintCandidates() []string {
 	return out
 }
 
-// isAnonymousRow reports whether a record row name is the parser's name for an
-// anonymous `...` (parser.freshRowVarName: `_r` and a counter).
-func isAnonymousRow(name string) bool {
-	if !strings.HasPrefix(name, "_r") || len(name) == 2 {
-		return false
-	}
-	for _, c := range name[2:] {
-		if c < '0' || c > '9' {
-			return false
-		}
-	}
-	return true
-}
-
 // collectSigTypeVars appends every type variable occurrence of t (record row
 // variables included, and also named in rowVars), in source order: the
 // TypeVar nodes and each SimpleType that reads as a type variable.
@@ -241,7 +226,7 @@ func (e *Elaborator) collectSigTypeVars(t ast.Type, out *[]*ast.TypeVar, rowVars
 		}
 		// An anonymous `...` ("some other fields, unnamed") is a flexible
 		// wildcard, as before #2273; only a named `| r` is a signature variable.
-		if typ.Row != nil && !isAnonymousRow(typ.Row.Name) {
+		if typ.Row != nil && !typ.Row.Anonymous {
 			*out = append(*out, typ.Row)
 			if rowVars != nil {
 				rowVars[typ.Row.Name] = true

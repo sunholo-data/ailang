@@ -95,8 +95,10 @@ func (v *rigidViolation) toError(sig *RigidSig) error {
 		fix = fmt.Sprintf("write `%s` instead of `%s`", v.v.Suggest, name)
 	}
 	if v.clause {
-		msg = strings.Replace(msg, "but the body", "but the clause", 1)
-		fix = strings.Replace(fix, "make the body work", "make the clause work", 1)
+		// Every wording names "the body"; here the clause broke the promise,
+		// in the message and in the fix ("keep values … apart in the clause").
+		msg = strings.ReplaceAll(msg, "the body", "the clause")
+		fix = strings.ReplaceAll(fix, "the body", "the clause")
 	}
 	data := map[string]any{"function": sig.Func, "type_var": name, "kind": v.kind}
 	if v.v.Suggest != "" && !v.v.Explicit && v.typoOK {
