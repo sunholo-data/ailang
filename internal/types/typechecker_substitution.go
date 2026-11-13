@@ -37,12 +37,6 @@ func (tc *CoreTypeChecker) ApplySubstEverywhere(
 			Constraints: scheme.Constraints,
 			Type:        ApplySubstitution(sub, scheme.Type),
 		}
-		for _, fa := range scheme.fieldAccesses { // #2239: same variables as Type
-			newScheme.fieldAccesses = append(newScheme.fieldAccesses, &fieldAccess{
-				recv: ApplySubstitution(sub, fa.recv), field: fa.field, fieldType: ApplySubstitution(sub, fa.fieldType),
-				row: fa.row, path: fa.path,
-			})
-		}
 		newEnvEntry = newScheme
 	} else if typ, ok := envEntry.(Type); ok {
 		newEnvEntry = ApplySubstitution(sub, typ)

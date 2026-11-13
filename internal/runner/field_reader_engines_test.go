@@ -33,6 +33,9 @@ func TestFieldReaders_OutputEqualsBase(t *testing.T) {
 		{"d09c", "let same = \\r. r.a == r.b;\n  let lt = \\r. r.a < r.b;\n  println(\"${show(same({ a: 3, b: 3 }))} ${show(same({ a: \"p\", b: \"q\" }))} ${show(lt({ a: 1, b: 2 }))} ${show(lt({ a: \"b\", b: \"a\" }))}\")", "true false true false\n", true},
 		{"d03", "let f = \\r. r.a.b.c;\n  let rr = { a: { b: { c: 1 } } };\n  let rw = { a: M({ b: I({ c: 2 }) }) };\n  let mixed = { a: { b: I({ c: 3 }) } };\n  println(\"${show(f(rr))} ${show(f(rw))} ${show(f(mixed))} ${show(rw.a.b.c)}\")", "1 2 3 2\n", false},
 		{"q01", "let f = \\t. t.x;\n  let v: V = W({ x: 2 });\n  println(\"${show(getv(W({ x: 1 })))} ${show(f(v))}\")", "1001 2\n", false},
+		// Second review of #2284 (n12): settling `s.g` decides that `t` is a W.
+		{"n12", "let f = \\s. { let t = s.g; getv(s.g) + t.x };\n  println(show(f({ g: W({ x: 7 }) })))", "1014\n", false},
+		{"n12-reordered", "let f = \\s. { let t = s.g; let v = t.x; v + getv(s.g) };\n  println(show(f({ g: W({ x: 7 }) })))", "1014\n", false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			root := t.TempDir()

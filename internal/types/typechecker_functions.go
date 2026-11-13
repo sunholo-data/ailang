@@ -347,7 +347,9 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		}
 	}
 
-	// Apply defaulting to the entire mutual block (once per SCC)
+	// Apply defaulting to the entire mutual block (once per SCC). Each binding's
+	// defaulting also reaches its carried field accesses, as in inferLet (#2239).
+	defaulting := make([]Substitution, len(letrec.Bindings))
 	for i, binding := range letrec.Bindings {
 		valueType := allValueTypes[i]
 		valueNode := allValueNodes[i]
@@ -358,7 +360,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 			return nil, oldEnv, fmt.Errorf("defaulting failed for letrec binding %s: %w", binding.Name, err)
 		}
 
-		// Apply defaulting substitution everywhere if any defaults were applied
+		defaulting[i] = defaultingSub
 		if len(defaultingSub) > 0 {
 			defaultedType, _, valueNode, _ = tc.ApplySubstEverywhere(
 				defaultingSub, defaultedType, defaultedConstraints, valueNode, nil, binding.Name)
@@ -405,11 +407,10 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		valueType = tc.closeDeclaredEffectRowForBinding(binding.Value.ID(), valueType)
 		valueType = ctx.closeOpenedTailsForGeneralization(reSub, valueType, oldEnv, ctx.baseEnv) // #1958
 
-		// Generalize for recursion. Use the *outer* env (oldEnv) as currentEnv:
-		// the recursive bindings' own fresh vars live only in newEnv, so they
-		// remain generalizable, while any enclosing lambda params (free in
-		// oldEnv but not in the decl's base env) are correctly withheld.
-		scheme := tc.generalizeCarrying(ctx, nil, valueType, getEffectRow(valueNode), nonGroundConstraints, reSub, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, letrec, nonGroundConstraints)) // #2239
+		// Generalize for recursion with the *outer* env (oldEnv) as currentEnv:
+		// the bindings' own fresh vars live only in newEnv, so they remain
+		// generalizable; enclosing lambda params (free in oldEnv) are withheld.
+		scheme := tc.generalizeCarrying(ctx, defaulting[i], valueType, getEffectRow(valueNode), nonGroundConstraints, reSub, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, letrec, nonGroundConstraints)) // #2239
 
 		typedBindings[i] = typedast.TypedRecBinding{
 			Name:   binding.Name,

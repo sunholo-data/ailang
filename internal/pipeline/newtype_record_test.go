@@ -47,7 +47,7 @@ func newtypeRecordCases() []nominalCase {
 				"x2/prime.ail": "module x2/prime\nimport x2/a (getx, W)\nexport pure func main() -> int = 1\n",
 			},
 			entry: "x2/main.ail", prime: "x2/prime.ail",
-			reject: []string{types.TC_NEWTYPE_001, "annotate that parameter as W"},
+			reject: []string{types.TC_NEWTYPE_001, "annotate it (or the parameter it comes from) as W"},
 		},
 		{
 			name: "an imported W's fields through an inferred lambda (cross-module)",

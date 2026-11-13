@@ -96,6 +96,22 @@ func (ctx *InferenceContext) solveFieldAccess(fa *fieldAccess, sub Substitution)
 
 // retryFieldAccesses folds every access of pending whose receiver sub now
 // decides, until no more progress is made, and returns the ones still open.
+//
+// The repeat-until-no-progress here, and the call at the end of
+// solveEqualitiesPending, only make a solve fold MORE accesses sooner; no
+// verdict depends on them (mutation review of #2284, M7/M9):
+//   - SolveConstraints passes what solveEqualitiesPending leaves pending to
+//     solveDeferred, which calls this function again until nothing changes,
+//     so the global substitution is the same fixpoint either way.
+//   - The two LOCAL solves, inferApp's solveLocalEqualities
+//     (typechecker_functions.go) and unionFrame.solve
+//     (typechecker_effect_union.go), go through solveEqualitiesInto, which
+//     discards the pending list. Their substitutions only refine the effect
+//     operands of one application or union; the constraints stay in
+//     ctx.constraints and the global solve replays them. They already meet
+//     accesses they cannot decide (a receiver fixed outside their suffix), so
+//     an access left unfolded there is a case they handle by construction: the
+//     operand keeps a row variable that the global solve binds.
 func (ctx *InferenceContext) retryFieldAccesses(sub Substitution, pending []*fieldAccess) (Substitution, []*fieldAccess, error) {
 	for progress := true; progress && len(pending) > 0; {
 		progress = false
@@ -119,9 +135,9 @@ func (ctx *InferenceContext) retryFieldAccesses(sub Substitution, pending []*fie
 // solveDeferred decides the constructor choices and field accesses the
 // equalities leave open, each possibly deciding the other, to a fixpoint.
 // When ctx.settleFieldAccesses is set, accesses still undecided at the
-// fixpoint are settled as record accesses (permanently) and solving
-// continues. The accesses left open are recorded in ctx.pendingAccesses for
-// let-generalisation (withFieldAccesses).
+// fixpoint are settled as record accesses (permanently) in dependency order
+// (settleRoots) and solving continues. The accesses left open are recorded in
+// ctx.pendingAccesses for let-generalisation (generalizeCarrying).
 func (ctx *InferenceContext) solveDeferred(sub Substitution, pending []*fieldAccess) (Substitution, error) {
 	for {
 		var err error
@@ -138,12 +154,57 @@ func (ctx *InferenceContext) solveDeferred(sub Substitution, pending []*fieldAcc
 		if len(pending) == 0 || !ctx.settleFieldAccesses {
 			break
 		}
+		settleRoots(pending, sub)
+	}
+	ctx.pendingAccesses = pending
+	return sub, nil
+}
+
+// settleRoots marks as record accesses the pending accesses whose receiver is
+// a ROOT: not reachable through the field type of another pending access. The
+// caller re-solves before settling more. Settling an access binds its receiver
+// to a record whose field type is that of the access, and that can decide an
+// access on the field: in `\s. { let t = s.g; useW(s.g) + t.x }` settling the
+// two `s.g` reads unifies their field types, so `t` is the W `useW` requires
+// and `t.x` is a projection. Settling every pending access at once forced
+// `t.x` to the record equation first and rejected that program (second review
+// of #2284, n01–n14). Roots first makes the result independent of the order
+// the accesses were recorded in: a root's receiver occurs in no other pending
+// access's field type, so settling it can only decide accesses below it — never
+// another root, which is why settling the roots together or one per round
+// gives the same substitution (mutant M13 of that review). When
+// every pending access is below another (a cycle, which the occurs check then
+// reports), all of them are settled.
+func settleRoots(pending []*fieldAccess, sub Substitution) {
+	below := map[string]bool{}
+	for _, fa := range pending {
+		for v := range allTypeVars(ApplySubstitution(sub, fa.fieldType)) {
+			below[v] = true
+		}
+	}
+	settled := false
+	for _, fa := range pending {
+		if !receiverIsBelow(ApplySubstitution(sub, fa.recv), below) {
+			fa.defaulted, settled = true, true
+		}
+	}
+	if !settled {
 		for _, fa := range pending {
 			fa.defaulted = true
 		}
 	}
-	ctx.pendingAccesses = pending
-	return sub, nil
+}
+
+// receiverIsBelow reports whether an undecided receiver (a type variable under
+// sub) is one of the variables in below.
+func receiverIsBelow(recv Type, below map[string]bool) bool {
+	switch r := recv.(type) {
+	case *TVar2:
+		return below[r.Name]
+	case *TVar:
+		return below[r.Name]
+	}
+	return false
 }
 
 // generalizeCarrying is generalizeWithConstraints for a let (or letrec)
@@ -307,15 +368,19 @@ func (u *Unifier) newtypeRecordMismatch(t1, t2 Type) error {
 	}
 	shown, open := diagRecord(rec)
 	if open {
-		// The record side is a row-polymorphic record: typically the parameter
-		// of a top-level function whose type was inferred from `.f` reads
-		// (`pure func getx(r) = r.x`). An undecided access is read as a record
-		// access at its declaration (it must not reach an exported scheme), so
-		// such a function takes records, not a W (review of #2284, item 2).
-		return fmt.Errorf("%s: cannot unify %s with the record type %s: a function whose parameter type was inferred from field reads takes a record; "+
+		// The record side is open: a `| r` annotation, or a value whose type
+		// was only ever read with `.f` — the parameter of a top-level function
+		// inferred from field reads (`pure func getx(r) = r.x`): an access
+		// still undecided at its declaration is read as a record access (it
+		// must not reach an exported scheme), so that function takes records.
+		// The text names both sources and no particular function (second
+		// review of #2284: it named a function where none was involved).
+		return fmt.Errorf("%s: cannot unify %s with the record type %s: that type is an open record — from a `| r` annotation, or "+
+			"inferred from field reads on a value whose type nothing else fixed (a top-level function's parameter read only with `.f` takes records); "+
 			"%s is a type with one constructor wrapping the record %s, not a record.\n"+
-			"  Suggestion: annotate that parameter as %s (field access works on a %s), or pass the record inside: match v { %s(r) => … r … }.",
-			TC_NEWTYPE_001, describeTCon(c), shown, c.Name, diagRecordString(body), c.Name, c.Name, ctor)
+			"  Suggestion: if that value is meant to be a %s, annotate it (or the parameter it comes from) as %s — field access works on a %s — "+
+			"or pass the record inside: match v { %s(r) => … r … }.",
+			TC_NEWTYPE_001, describeTCon(c), shown, c.Name, diagRecordString(body), c.Name, c.Name, c.Name, ctor)
 	}
 	return fmt.Errorf("%s: cannot unify %s with the record type %s: %s is a type with one constructor wrapping the record %s, "+
 		"not that record, and the two do not convert implicitly.\n"+
