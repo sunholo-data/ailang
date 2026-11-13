@@ -2,8 +2,8 @@
 
 **Rig answer (since 2026-10-27):** evals run `/Users/voightkampff/dev/mk-20261027`, branch
 `sunholo/main-dst-20261027` @ `597a6fbf` (§17, since 2026-11-10 ~07:10) — upstream `main` 97244396 + our commits
-+ the #1958 test-fixture annotations of §14/§15 + the #1443 `pure`-row migration (fork #6), the same commit the
-Docker source pin names. 2026-11-04..11-10 it ran `083ef437` (§16). Before 11-04 the rig ran
++ the #1958 test-fixture annotations of §14/§15 + the #1443 `pure`-row migration (fork #6). The Docker pin moved
+ahead to the branch tip `2c2f9c8d` on 2026-11-13 (§18); the rig must follow before it installs ≥ v0.60.3. 2026-11-04..11-10 it ran `083ef437` (§16). Before 11-04 the rig ran
 `835c738b` (§13), which the v0.57.0 compiler rejects. 2026-10-19..10-27: `mk-20261019` / `sunholo/main-dst-20261019` @ `907dd78e` (§12), now
 the rollback. 2026-10-15..10-19: `mk-20261015` / `sunholo/main-dst-20261015` @
 `965f2ec5` (§11). 2026-10-08..10-15: `mk-20261002` (§10). Before that (2026-09-28..10-07):
@@ -441,3 +441,22 @@ before). **Not yet verified:** a banked motoko eval row on this commit, and the 
 
 **Rollback:** `git -C ~/dev/mk-20261027 reset --hard 083ef437` together with an AILANG binary older than
 #2184 (v0.57.4 or earlier).
+
+## 18. Docker pin moved to `2c2f9c8d` (2026-11-13); rig NOT moved
+
+**Why:** v0.60.3 makes a non-exhaustive `match` an error (AILANG #2246, `TC_MATCH_002`). At `597a6fbf`,
+`packages/motoko-ext-progress-contract-guard/progress_contract_guard.ail:258` failed it. That broke
+`build-agent-motoko` in the v0.60.3 release build (Cloud Build `76c14535`), so v0.60.3 never reached
+test and cannot be promoted. Fork PRs #7–#10 (merged 2026-11-10..12) had already fixed it on
+`sunholo/main-dst-20261027`, but nobody moved the pin.
+
+**What:** `docker/Dockerfile.agent-motoko` `MOTOKO_COMMIT` → `2c2f9c8d2afdf1290fdb1aa544b28f507a421dab`
+(the branch tip). Shipped in v0.60.4.
+
+**Verified:** a fresh clone at `2c2f9c8d`, `ailang lock` then `ailang check src/core/supervisor.ail` with
+a v0.60.3 binary reports no errors. That is the same check the image's warm step runs. **Not verified:**
+`gmake check_core`, a banked eval row on this commit.
+
+**Rig:** `~/dev/mk-20261027` is still at `597a6fbf`. It fails the same check once the rig installs
+≥ v0.60.3. Fast-forward it (`git merge --ff-only 2c2f9c8d`, clean tree, no motoko run live) before or
+with that install. That is left to the motoko owner.

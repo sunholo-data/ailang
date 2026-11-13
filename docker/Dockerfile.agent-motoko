@@ -10,7 +10,7 @@
 # subscription OAuth from anything but Claude Code (429, measured 2026-10-02).
 
 ARG PROJECT
-ARG MOTOKO_COMMIT=597a6fbf95ee136beb87f4de9bc8d45127ac2fc8
+ARG MOTOKO_COMMIT=2c2f9c8d2afdf1290fdb1aa544b28f507a421dab
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 
 # motoko_agent setup (NOT a single binary like pi/opencode — it's a bun TUI
@@ -34,7 +34,9 @@ RUN curl -fsSL https://bun.sh/install | bash -s "bun-v1.3.14" \
     && mv /root/.bun/bin/bun /usr/local/bin/bun \
     && chmod +x /usr/local/bin/bun
 
-# Check out our pinned fork merge 597a6fbf (MOTOKO.md §17): fork PR #6 drops
+# Check out our pinned fork commit 2c2f9c8d (MOTOKO.md §18): fork PRs #7-#10 on top of
+# 597a6fbf make every match exhaustive (AILANG #2246 TC_MATCH_002, an error from v0.60.3)
+# and derive Eq where contracts compare enums (#2283). Before that, merge 597a6fbf (§17): fork PR #6 drops
 # `pure` from 106 functions whose effect row is non-empty (AILANG #1443/#2184,
 # `pure` now means the empty row), on top of fork merge 083ef437 (§15):
 # sunholo/main-dst-20261027 base 835c738b = upstream main 97244396
