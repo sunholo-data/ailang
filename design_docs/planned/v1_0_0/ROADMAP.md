@@ -227,10 +227,43 @@ CI missed.**
 | Stdlib renames with `@deprecated` aliases, re-tiering, remaining behaviour fixes | m-v1-stdlib-surface-polish | **Merged** 2026-11-12 (#2230, e52ee05fd). Cache key v12, prompt v0.16.14. Broke scoring for a running eval: a binary run from the repo root loads `./std`, so pin `AILANG_STDLIB_PATH` before merging `std/` changes |
 | Non-exhaustive match as an error, `unreachable` | m-v1-match-exhaustiveness | **Merged** 2026-11-12 (#2246, 9eaf0b65e) after a final review of the rebuild. Cache key v13, prompt v0.16.16. Follow-up #2272. 8 downstream sites in 3 repos: motoko fork patched (PR 9 merged); daneel #421 and ailang-packages #195 open — both must merge before any release that contains this |
 
+**Soundness fixes (2026-11-12/13).** Each PR written by one Opus agent, reviewed by another that had
+not seen it, sent back until clean. Every first review found a defect the author's tests and green CI
+had missed; #2285 took five rounds.
+
+| PR | Issues | State |
+|---|---|---|
+| #2287 | #2244 match on an alias of an ADT | Merged (d5580243a) |
+| #2288 | #2210, #2221 parts 1–3: record rows, occurs check | Merged (5ed4b3a0b); part 4 is #2312 |
+| #2289 | #2238 function-literal annotations, `! {}` | Merged (3cef3da7c) |
+| #2285 | #2247 class constraints on applied types; primitive aliases | Merged (8797bd79e) |
+| #2283 | #2232, #2248 contracts and test bodies type-checked | Merged (287222440) |
+| #2286 | #2211, #2240 type names by scope; two declaration rules | Merged (5db322d71) |
+| #2284 | #2239 newtype records | In review (third round) |
+| #2304 | #2273 signature type variables are binding | Rebasing after first review |
+
+**Rulings (Mark, 2026-11-12):** `==` on a type without `deriving (Eq)` is an error in contracts, as in
+bodies; an ill-typed contract in a dependency is fatal for importers (a dependency's ill-typed TEST is
+not). **Awaiting a ruling:** a `constraints` field in `iface` output to fix #2290 (class constraints lost
+across modules; fix on branch `fix/soundness-exported-constraints`); whether a root module's own
+ill-typed test should stop `run`/`serve-api`; pure functions that build an effectful closure (#2322,
+checker contradicts the prompt).
+
+**Downstream state.** v0.60.3 (2026-11-12) shipped #2246. Patched: motoko fork (PRs 9, 10), ailang-packages
+(#195, #198; eight packages republished). Open: daneel #421; ailang-world #565 (needs world/core 0.1.2);
+docparse and daneel pin bumps for the republished packages; motoko fixtures that `check` now rejects
+(3 from #2288, 21 from #2289) must move to the fork's compiler-rejected group. The cascade PRs opened by
+package agents (ailang-packages #200–#202) delete or weaken contracts and should be closed.
+
+**Found and filed during this stretch, unowned:** #2290, #2303 (VM picks the first loaded ADT for a
+by-name match at an unfixed type: silent wrong answer), #2272, #2305, #2312, #2318, #2322–#2327, #2329,
+#2308/#2309; Go emitter: #2241, #2259–#2264, #2274, #2292, #2293 (silent wrong answer), #2294, #2299,
+#2307, #2317.
+
 **Not started:** integer overflow trap; callback
 effect rule; capability-grant changes and Internal command moves; help text; docs rewrites (284
 baselined samples) and the migration, security-model and support-window pages; rest of the rc
-pipeline; then close-out steps 16–19. Unowned soundness issues from review: #2210, #2211, #2221, #2232, #2238, #2239, #2240, #2244, #2247, #2248 (#2243 is fixed by #2246). **All ten are in progress since 2026-11-12**, six agents grouped by cause, each PR independently reviewed. Go emitter bugs found by the new harness (#2265): #2241, #2259–#2264.
+pipeline; then close-out steps 16–19.
 
 ### What the waves changed in the plan
 
