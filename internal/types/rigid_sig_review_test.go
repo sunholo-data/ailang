@@ -48,6 +48,41 @@ func TestRigidSignature_ReviewCases(t *testing.T) {
 			decls: "pure func both[a, b](xs: [a], ys: [b]) -> int = _list_length(xs) + _list_length(ys)"},
 		{name: "a builtin use does not pin another declaration's variable",
 			decls: "pure func f[a](x: a, ys) -> a {\n  let n = _list_length(ys);\n  x\n}\npure func g[b](x: b, ys) -> (b, int) = (x, _list_length(ys))\npure func use() -> int = f(1, [\"s\"])"},
+		// #2286: a lowercase name is a type by scope. What is still a variable is rigid.
+		{name: "g3: a type an import exports, not imported by name, is a rigid variable",
+			decls: "import std/sem (has_embedding)\npure func f[b](x: b, y: namespace) -> b = y",
+			kind:  "equal", want: []string{"std/sem exports a type 'namespace', which is not imported by name"}},
+		{name: "g6: the same name used at a concrete type",
+			decls: "import std/sem (has_embedding)\npure func g(x: namespace) -> int = x + 1",
+			kind:  "concrete", want: []string{"requires `namespace` to be `int`", "not imported by name"}},
+		{name: "g8: a value imported by name, used as a type, is a rigid variable",
+			decls: "import std/list (map)\npure func f(x: map) -> int = x",
+			kind:  "concrete", want: []string{"'map' is treated as a type variable here; it is imported by name from std/list, but as a value"}},
+		{name: "g9: ... and is independent of the signature's other variables",
+			decls: "import std/list (map)\npure func pick[a](x: a, y: map) -> a = y",
+			kind:  "equal", want: []string{"`a` and `map` are independent", "imported by name from std/list"}},
+		{name: "a declared lowercase type is a type, not a variable",
+			decls: "import std/string (length)\ntype namespace = string\npure func v(ns: namespace) -> int = length(ns)"},
+		// #2289: one rule for annotations inside a declaration.
+		{name: "a literal's annotation naming the enclosing variable is that rigid variable",
+			decls: "pure func fa[a](x: a) -> int {\n  let g = func(y: a) -> int { y + 0 };\n  g(x)\n}",
+			kind:  "concrete", line: 4},
+		{name: "a literal's own new variable is flexible (an equality, like a let annotation)",
+			decls: "pure func fb(n: int) -> int {\n  let g = func(y: t) -> t { y + 1 };\n  g(n)\n}\npure func fc() -> string {\n  let id = func(y: t) -> t { y };\n  \"${show(id(1))}${id(\"s\")}\"\n}"},
+		{name: "a literal keeping the enclosing variable general",
+			decls: "pure func fd[a](x: a) -> a {\n  let g = func(y: a) -> a { y };\n  g(x)\n}"},
+		// #2288: record rows are bound by unification now, so `| r` is enforced.
+		{name: "a field the signature's open record does not list",
+			decls: "pure func nick(p: {name: string | r}) -> string = p.nick",
+			kind:  "concrete", want: []string{"uses the field(s) `nick`", "add `nick` to the record type"}},
+		{name: "a closed record returned for an open one",
+			decls: "pure func reset(p: {name: string | r}) -> {name: string | r} = {name: \"x\"}",
+			kind:  "concrete", want: []string{"no further fields"}},
+		{name: "two open rows made one",
+			decls: "pure func ren(p: {name: string | r}, q: {name: string | s}) -> {name: string | r} = q",
+			kind:  "equal", want: []string{"`| r` and `| s`"}},
+		{name: "an open record passed through keeps its row",
+			decls: "pure func pass[a](p: {v: a | r}) -> {v: a | r} = p"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			err := checkRigid(t, c.decls)
@@ -114,5 +149,36 @@ func TestRigidSignature_NoInternalNamesInErrors(t *testing.T) {
 		if strings.Contains(err.Error(), "@{") {
 			t.Errorf("internal name in: %v", err)
 		}
+	}
+}
+
+// #2283's contract check binds the parameters at the declaration's rigid
+// types (InferPredicateRigid), so a clause cannot specialise them; clauses that
+// keep them general still check.
+func TestRigidSignature_Contracts(t *testing.T) {
+	for _, c := range []struct {
+		name, decls string
+		reject      bool
+	}{
+		{"requires uses a literal at a", "pure func ident2[a](x: a) -> a\n  requires { x + 1 > 0 }\n{ x }", true},
+		{"ensures compares a with a string", "pure func ident3[a](x: a) -> a\n  ensures { x == \"s\" || true }\n{ x }", true},
+		{"ensures x == x where the body needs Eq a", "pure func same[a](x: a, y: a) -> bool\n  ensures { x == x }\n{ x == y }", false},
+		{"ensures result == x", "pure func ident[a](x: a) -> a\n  ensures { result == x }\n{ x }", false},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			err := checkRigid(t, c.decls)
+			if !c.reject {
+				if err != nil {
+					t.Fatalf("rejected: %v", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), "TC_CONTRACT_001") || !strings.Contains(err.Error(), types.TC_RIGID_001) {
+				t.Fatalf("want TC_CONTRACT_001 carrying TC_RIGID_001, got %v", err)
+			}
+			if !strings.Contains(err.Error(), "but the clause") {
+				t.Errorf("the message should blame the clause: %v", err)
+			}
+		})
 	}
 }

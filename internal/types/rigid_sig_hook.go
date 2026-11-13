@@ -1,6 +1,8 @@
 package types
 
 import (
+	"strings"
+
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/typedast"
 )
@@ -64,6 +66,65 @@ func FreeTypeVarNames(t Type) []string {
 	return vars
 }
 
+// markRigidDefaulted records the nodes whose type top-level defaulting is about
+// to pin through a rigid signature variable (`a@{f}` with Num a := int). The
+// body of a generic function is compiled once, at the defaulted type, and the
+// arithmetic dictionaries are corrected from the run-time values; `show` is
+// not — ShowNormalizer would turn `show(x * y)` into intToStr and a float call
+// crashed (#2273 review: `label[a](x: a, y: a) -> string`). ShowNormalizer
+// leaves show on these nodes, so it renders the run-time value.
+func (tc *CoreTypeChecker) markRigidDefaulted(sub, defaulting Substitution) {
+	if len(defaulting) == 0 {
+		return
+	}
+	// The variables defaulting binds that stand for a rigid variable: a rigid
+	// name may be bound to a flexible representative by unification.
+	pinned := map[string]bool{}
+	for _, t := range tc.CoreTI {
+		for _, v := range FreeTypeVarNames(t) {
+			if !isRigidName(v) {
+				continue
+			}
+			if rep, ok := ApplySubstitution(sub, &TVar2{Name: v, Kind: Star}).(*TVar2); ok && defaulting[rep.Name] != nil {
+				pinned[rep.Name] = true
+			}
+		}
+	}
+	if len(pinned) == 0 {
+		return
+	}
+	if tc.rigidDefaulted == nil {
+		tc.rigidDefaulted = make(map[uint64]bool)
+	}
+	for id, t := range tc.CoreTI {
+		for _, v := range FreeTypeVarNames(ApplySubstitution(sub, t)) {
+			if pinned[v] {
+				tc.rigidDefaulted[id] = true
+				break
+			}
+		}
+	}
+}
+
+// RigidDefaultedNodes is the set markRigidDefaulted built: nodes typed through a
+// rigid signature variable that top-level defaulting pinned.
+func (tc *CoreTypeChecker) RigidDefaultedNodes() map[uint64]bool { return tc.rigidDefaulted }
+
+// isRigidName reports whether a type variable name is a signature's rigid
+// variable (RigidTypeVarName).
+func isRigidName(name string) bool { return strings.Contains(name, "@{") }
+
+// InferPredicateRigid is InferPredicate (a contract clause, typed bool) for a
+// clause over a declaration's parameters bound at its rigid types (sig): the
+// clause may not specialise them (#2273 for #2232/#2248's contract check).
+// A nil sig is plain InferPredicate.
+func (tc *CoreTypeChecker) InferPredicateRigid(expr core.CoreExpr, env *TypeEnv, sig *RigidSig) (Type, error) {
+	prev := tc.extraRigid
+	tc.extraRigid = sig
+	defer func() { tc.extraRigid = prev }()
+	return tc.InferPredicate(expr, env)
+}
+
 // pushRigidGroup records letrec's binding names as the group being inferred
 // and returns the function that restores the previous group.
 func (ctx *InferenceContext) pushRigidGroup(letrec *core.LetRec) func() {
@@ -125,5 +186,6 @@ func (ctx *InferenceContext) checkExtraRigid(sig *RigidSig, sub Substitution, un
 	if v.kind == "concrete" || v.kind == "equal" {
 		v.at = ctx.rigidCulprit(sig, v, false)
 	}
+	v.clause = true
 	return v.toError(sig)
 }

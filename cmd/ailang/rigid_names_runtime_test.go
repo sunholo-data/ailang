@@ -42,6 +42,41 @@ func TestRigidNames_OneDeclarationsDefaultingStaysItsOwn(t *testing.T) {
 	}
 }
 
+// A generic body is compiled at its defaulted type (Num a := int); show of a
+// value typed through the signature's `a` must still render the run-time
+// value. It printed with intToStr and crashed on a float (#2273 review: e7).
+func TestRigidNames_ShowOfAGenericNumericValue(t *testing.T) {
+	bin := buildAilang(t)
+	file := filepath.Join(t.TempDir(), "label.ail")
+	src := `module label
+export pure func label[a](x: a, y: a) -> string {
+  let big = x * y;
+  let msg = "product=${show(big)}";
+  msg
+}
+export pure func f[a](x: a) -> a { let s = show(x + x); x }
+export func main() -> () ! {IO} {
+  println(label(3, 4));
+  println(label(1.5, 2.0));
+  println(show(f(1.25)))
+}
+`
+	if err := os.WriteFile(file, []byte(src), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	for _, engine := range [][]string{nil, {"--strict-bytecode"}} {
+		args := append([]string{"run", "--quiet"}, engine...)
+		args = append(args, "--caps", "IO", "--entry", "main", file)
+		out, stderr, code := runAilangBin(t, bin, args...)
+		if code != 0 {
+			t.Fatalf("%v: exit %d: %s", engine, code, stderr)
+		}
+		if want := "product=12\nproduct=3.0\n1.25"; strings.TrimSpace(out) != want {
+			t.Errorf("%v: output %q, want %q", engine, strings.TrimSpace(out), want)
+		}
+	}
+}
+
 func TestRigidNames_GoWrapperOfAGenericExportStaysGeneric(t *testing.T) {
 	bin := buildAilang(t)
 	dir := t.TempDir()

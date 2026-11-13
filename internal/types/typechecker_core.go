@@ -494,8 +494,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		finalType = &TCon{Name: "Unknown"}
 	}
 
-	// Solve constraints and apply defaulting (proper way)
-	sub, unsolved, err := tc.solveDeclConstraintsRigid(ctx) // #2273: InferWithRigid's check
+	sub, unsolved, err := tc.solveDeclConstraintsRigid(ctx) // solve (+ #2273's InferWithRigid check), then default
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -505,9 +504,9 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("defaulting failed: %w", err)
 	}
-
-	// Compose substitutions if defaulting was applied
+	// Compose substitutions if defaulting was applied (#2273: noting rigid variables it pins)
 	if len(defaultingSub) > 0 {
+		tc.markRigidDefaulted(sub, defaultingSub)
 		sub = composeSubstitutions(defaultingSub, sub)
 		finalType = defaultedType
 		unsolved = defaultedConstraints

@@ -49,6 +49,10 @@ type RigidVar struct {
 	// only by case, or by one or two edits), "" when there is none. Set only for
 	// implicit variables: an explicit [a] was meant to be a variable.
 	Suggest string
+	// ScopeNote: the module also knows the name as something else (a value
+	// imported by name, a type an import exports) — #2286's TC_UNBOUND_TYPE_002
+	// reading, repeated because that warning is not shown when a module fails.
+	ScopeNote string
 	// ParamName marks an implicit variable spelled like one of the
 	// declaration's parameters (`-> (stack, int)`): a value name used as a type.
 	ParamName bool
@@ -120,6 +124,9 @@ type rigidState struct {
 	// extraRigid: the signature InferWithRigid checks the current expression
 	// against (rigid_sig_hook.go); nil otherwise.
 	extraRigid *RigidSig
+	// rigidDefaulted: nodes typed through a rigid variable that top-level
+	// defaulting pinned (markRigidDefaulted).
+	rigidDefaulted map[uint64]bool
 }
 
 // SetRigidSignatures installs the elaborator's rigid signature variables
@@ -187,6 +194,8 @@ type rigidViolation struct {
 	typoOK bool
 	// group: the recursive group whose monomorphic call decided it, if one did.
 	group []string
+	// clause: found in a contract clause (InferPredicateRigid), not the body.
+	clause bool
 }
 
 // CheckRigidVars reports the first signature variable of sig that resolve

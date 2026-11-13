@@ -203,10 +203,8 @@ Still open:
   `TC_UNBOUND_TYPE_003`). Two such readings warn `TC_UNBOUND_TYPE_002`: a lowercase type
   an import exports but the module does not import by name, and a value imported by name used
   as a type.
-- Signature type variables are rigid (#2273, `TC_RIGID_001`), with these known gaps:
-  - a record row variable (`{name: string | r}`) is checked, but record unification can drop the
-    field a body adds (`p.nick` on that parameter still checks — #2210/#2221), so it is not yet
-    enforced in practice;
+- Signature type variables are rigid (#2273, `TC_RIGID_001`) — explicit `[a]`, implicit `a`,
+  record rows `| r`, in the body and in `requires`/`ensures` clauses — with these known gaps:
   - calls within a recursive group are monomorphic, so calling `f[a]` at another type from
     inside its own group (polymorphic recursion, or a mutually recursive `g` calling `f(n, n)`)
     is rejected, naming the call, rather than allowed;
@@ -215,12 +213,11 @@ Still open:
     rejected, but one reached through an unannotated helper is not:
     `pure func incH(x) = x + 1` then `func inc[a](x: a) -> a = incH(x)` checks, and `inc(2.5)`
     still fails at run time ("received an int and a float");
-  - a generic function whose variable carries `Num` is compiled at `int` (its body's numeric
-    dictionaries come from top-level defaulting); arithmetic is corrected from the run-time
-    values, but `show` is not, so `func f[a](x: a, y: a) -> string = show(x * y)` called at
-    `float` fails at run time with "intToStr: expected int" (pre-existing; the signature is
-    honest, the back end is not);
-  - contracts are not yet checked against rigid parameters: `ident[a](x: a)` with
-    `requires { x + 1 > 0 }` checks until #2283 calls `InferWithRigid`.
+  - a generic function's body is compiled once, at its defaulted type (`Num a` ⇒ `int`):
+    arithmetic is corrected from the run-time values, and `show` of a value typed through a
+    signature variable stays dynamic; but `show` in an *unannotated* generic function
+    (`func f(x, y) = show(x * y)` called with floats) still fails at run time with
+    "intToStr: expected int", and a generic export's `compile --emit-go` wrapper is typed at
+    the defaulted type (`Add(x int64, y int64) int64`).
 
   Effect row variables (`! {e}`) were already enforced by the effect checker.

@@ -330,6 +330,19 @@ func (s *TypeScope) Con(name string) *TCon {
 	return &TCon{Name: r.Name, Module: r.Module}
 }
 
+// ExportedBy lists the modules this module imports that export a type named
+// name (step 5), sorted.
+func (s *TypeScope) ExportedBy(name string) []string {
+	if s == nil {
+		return nil
+	}
+	var out []string
+	for _, r := range s.direct[name] {
+		out = append(out, r.Module)
+	}
+	return out
+}
+
 // preludeTypes are the types the implicit prelude provides (step 4).
 var preludeTypes = map[string]string{"Option": "std/option", "Result": "std/result"}
 

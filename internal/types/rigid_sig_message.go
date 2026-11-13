@@ -53,6 +53,12 @@ func (v *rigidViolation) toError(sig *RigidSig) error {
 		msg, fix = v.concreteWording(sig, where)
 	case "equal":
 		other := v.other.Display
+		if v.v.Row {
+			msg = fmt.Sprintf("the signature of `%s` says `| %s` and `| %s` stand for independent further record fields, but the body requires them to be the same%s",
+				sig.Func, name, other, where)
+			fix = fmt.Sprintf("either use one row variable for both in the signature of `%s`, or keep the records apart in the body", sig.Func)
+			break
+		}
 		msg = fmt.Sprintf("the signature of `%s` says `%s` and `%s` are independent types, but the body requires them to be the same type%s",
 			sig.Func, name, other, where)
 		fix = fmt.Sprintf("either use one type variable for both in the signature of `%s`, or keep values of `%s` and `%s` apart in the body",
@@ -72,11 +78,21 @@ func (v *rigidViolation) toError(sig *RigidSig) error {
 			sig.Func, backtickList(v.group), name)
 		fix = fmt.Sprintf("call `%s` at its own type `%s` within the group, move the call out of the group, or write the type the call needs instead of `%s`", sig.Func, name, name)
 	}
+	if v.v.ScopeNote != "" {
+		msg += ". " + v.v.ScopeNote
+	}
+	if v.kind == "equal" && v.other.ScopeNote != "" {
+		msg += ". " + v.other.ScopeNote
+	}
 	if !v.v.Explicit && v.v.ParamName {
 		msg += fmt.Sprintf(". `%s` is the name of a parameter of `%s`, not a type: in a signature, a lowercase name that is not a declared or imported type is a type variable", name, sig.Func)
 	} else if !v.v.Explicit && v.v.Suggest != "" && v.typoOK {
 		msg += fmt.Sprintf(". Did you mean the type `%s`? A lowercase name in a signature that is not a declared or imported type is a type variable", v.v.Suggest)
 		fix = fmt.Sprintf("write `%s` instead of `%s`", v.v.Suggest, name)
+	}
+	if v.clause {
+		msg = strings.Replace(msg, "but the body", "but the clause", 1)
+		fix = strings.Replace(fix, "make the body work", "make the clause work", 1)
 	}
 	data := map[string]any{"function": sig.Func, "type_var": name, "kind": v.kind}
 	if v.v.Suggest != "" && !v.v.Explicit && v.typoOK {
@@ -93,10 +109,7 @@ func (v *rigidViolation) concreteWording(sig *RigidSig, where string) (msg, fix 
 	name := v.v.Display
 	got, exact := neededTypeText(v.got, sig)
 	if v.v.Row {
-		msg = fmt.Sprintf("the signature of `%s` says `| %s` stands for any further record fields, but the body requires those fields to include `%s`%s",
-			sig.Func, name, got, where)
-		fix = fmt.Sprintf("list every field the body uses in the record type of the signature of `%s`, before `| %s`", sig.Func, name)
-		return msg, fix
+		return rowWording(sig, name, v.got, where)
 	}
 	if !exact {
 		msg = fmt.Sprintf("the signature of `%s` says `%s` is any type, but the body requires `%s` to have the form `%s`%s",
@@ -122,6 +135,41 @@ func dropBinder(v RigidVar) string {
 		return ""
 	}
 	return fmt.Sprintf(" and drop `%s` from its `[...]` list", v.Display)
+}
+
+// rowWording words a record row variable (`| r`) the body pins: to extra
+// fields it uses, or to no further fields at all (a closed record).
+func rowWording(sig *RigidSig, name string, got Type, where string) (msg, fix string) {
+	fields := rowLabels(got)
+	if len(fields) == 0 {
+		msg = fmt.Sprintf("the signature of `%s` says `| %s` stands for any further record fields, but the body requires the record to have no further fields%s",
+			sig.Func, name, where)
+		fix = fmt.Sprintf("drop `| %s` from the signature of `%s` (a closed record type), or keep the caller's other fields (update the record instead of building a new one)", name, sig.Func)
+		return msg, fix
+	}
+	msg = fmt.Sprintf("the signature of `%s` says `| %s` stands for any further record fields, but the body uses the field(s) %s, which the record type does not list%s",
+		sig.Func, name, backtickList(fields), where)
+	fix = fmt.Sprintf("add %s to the record type in the signature of `%s`, before `| %s`", backtickList(fields), sig.Func, name)
+	return msg, fix
+}
+
+// rowLabels returns the sorted field names a record row resolved to.
+func rowLabels(t Type) []string {
+	var m map[string]Type
+	switch r := t.(type) {
+	case *Row:
+		m = r.Labels
+	case *TRecordOpen:
+		m = r.Fields
+	case *TRecord:
+		m = r.Fields
+	}
+	out := make([]string, 0, len(m))
+	for k := range m {
+		out = append(out, k)
+	}
+	sort.Strings(out)
+	return out
 }
 
 func backtickList(names []string) string {
@@ -319,8 +367,9 @@ func SuggestTypeForVar(name string, candidates []string, distance func(a, b stri
 		return ""
 	}
 	norm := func(s string) string { return strings.ReplaceAll(strings.ToLower(s), "_", "") }
-	sorted := append([]string(nil), candidates...)
-	sort.Strings(sorted)
+	// Candidates are taken in the order given (callers list the primitives
+	// first), so `strng` meets `string` before the module-less `String`.
+	sorted := candidates
 	for _, c := range sorted {
 		if c != name && norm(c) == norm(name) {
 			return c

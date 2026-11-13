@@ -96,6 +96,7 @@ func (e *Elaborator) openSignature(fn *ast.FuncDecl) *types.RigidSig {
 				candidates = e.rigidHintCandidates()
 			}
 			v.Suggest = types.SuggestTypeForVar(name, candidates, importhint.EditDistance)
+			v.ScopeNote = e.typeNameNote(name)
 		}
 		sig.Vars = append(sig.Vars, v)
 	}
@@ -123,6 +124,24 @@ func (e *Elaborator) closeSignature(sig *types.RigidSig, lam core.CoreExpr) {
 // variables (Lambda NodeID -> signature), for CoreTypeChecker.SetRigidSignatures.
 func (e *Elaborator) GetRigidSignatures() map[uint64]*types.RigidSig {
 	return e.rigidSigs
+}
+
+// typeNameNote says why a lowercase name is a type variable when the module
+// also knows it as something else: a value imported by name, or a type an
+// import exports but the module does not import by name. These are #2286's
+// TC_UNBOUND_TYPE_002 readings; the warning is not printed when the module
+// fails, so TC_RIGID_001 carries the same words.
+func (e *Elaborator) typeNameNote(name string) string {
+	if ref, ok := e.globalEnv[name]; ok && e.simpleTypeIsVar(name) {
+		return fmt.Sprintf("'%s' is treated as a type variable here; it is imported by name from %s, but as a value, not a type", name, ref.Module)
+	}
+	if e.typeScope != nil {
+		if mods := e.typeScope.ExportedBy(name); len(mods) > 0 {
+			return fmt.Sprintf("'%s' is treated as a type variable here; %s exports a type '%s', which is not imported by name (import %s (%s) if you meant it)",
+				name, mods[0], name, mods[0], name)
+		}
+	}
+	return ""
 }
 
 // rigidHintCandidates is every type name a misspelled or miscased signature
