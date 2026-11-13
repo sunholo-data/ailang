@@ -155,6 +155,8 @@ func typeCheckAndLowerModule(
 		typeChecker.SetParamTypeAnnotations(paramAnnots)
 	}
 	typeChecker.SetLiteralLambdas(elaborator.GetLiteralLambdas()) // #2238
+	// M-V1-RIGID-SIGNATURES (#2273): signature type variables are rigid.
+	typeChecker.SetRigidSignatures(elaborator.GetRigidSignatures())
 
 	// M-FIX-FLOAT-OP: Pass return type annotations to type checker
 	// This ensures PI() -> float ACTUALLY constrains inference to return float

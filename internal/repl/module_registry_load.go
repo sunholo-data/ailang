@@ -292,6 +292,8 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 		typeChecker.SetParamTypeAnnotations(paramAnnots)
 	}
 	typeChecker.SetLiteralLambdas(elaborator.GetLiteralLambdas()) // #2238
+	// M-V1-RIGID-SIGNATURES (#2273): signature type variables are rigid.
+	typeChecker.SetRigidSignatures(elaborator.GetRigidSignatures())
 	if returnAnnots := elaborator.GetReturnTypeAnnotations(); len(returnAnnots) > 0 {
 		typeChecker.SetReturnTypeAnnotations(returnAnnots)
 	}

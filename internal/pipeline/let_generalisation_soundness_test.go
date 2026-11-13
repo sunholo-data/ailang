@@ -15,6 +15,12 @@ import (
 // prelude::Num::String::add", "_str_join: expected string, got int").
 // The open-record forms were newly accepted by the PR; the closed-record,
 // Option and lambda-parameter forms were already accepted on dev.
+//
+// Since #2273 the parameter's `a` is a rigid signature variable, so the error is
+// TC_RIGID_001 at `f` (the body makes `a` an int), not the old "cannot unify" at
+// the call. The rows still guard generalisation: if the inner `let` generalised
+// `a`, the body's `+ 1` would bind a fresh copy, `f` would stay general, and
+// the program would type-check.
 var letGeneralisationUnsound = []struct {
 	name, src, want string
 }{
@@ -26,7 +32,7 @@ export func f(p: {name: a, ...}) -> int {
 }
 
 export func main() -> () ! {IO} = println(show(f({name: "s", z: 1})))
-`, "cannot unify"},
+`, "TC_RIGID_001"},
 	{"open record, `| r`", `module m
 
 export func f(p: {name: a | r}) -> int {
@@ -35,7 +41,7 @@ export func f(p: {name: a | r}) -> int {
 }
 
 export func main() -> () ! {IO} = println(show(f({name: "s"})))
-`, "cannot unify"},
+`, "TC_RIGID_001"},
 	{"open record, update in a lambda", `module m
 
 export func f(p: {name: a | r}) -> int {
@@ -44,7 +50,7 @@ export func f(p: {name: a | r}) -> int {
 }
 
 export func main() -> () ! {IO} = println(show(f({name: "s"})))
-`, "cannot unify"},
+`, "TC_RIGID_001"},
 	{"unannotated parameter, record update", `module m
 import std/string (concat)
 
@@ -61,7 +67,7 @@ export func f(p: {name: a}) -> int {
 }
 
 export func main() -> () ! {IO} = println(show(f({name: "s"})))
-`, "cannot unify"},
+`, "TC_RIGID_001"},
 	{"closed record, update in a lambda", `module m
 
 export func f(p: {name: a, age: int}) -> int {
@@ -70,7 +76,7 @@ export func f(p: {name: a, age: int}) -> int {
 }
 
 export func main() -> () ! {IO} = println(show(f({name: "s", age: 1})))
-`, "cannot unify"},
+`, "TC_RIGID_001"},
 	{"type application", `module m
 
 export func f(p: Option[a]) -> int {
@@ -79,7 +85,7 @@ export func f(p: Option[a]) -> int {
 }
 
 export func main() -> () ! {IO} = println(show(f(Some("s"))))
-`, "cannot unify"},
+`, "TC_RIGID_001"},
 	{"unannotated parameter, closed record built from its field", `module m
 import std/string (concat)
 

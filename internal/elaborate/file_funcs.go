@@ -11,7 +11,11 @@ import (
 )
 
 // funcToLambda converts function to lambda
-func (e *Elaborator) funcToLambda(f *FuncSig) (core.CoreExpr, error) {
+func (e *Elaborator) funcToLambda(f *FuncSig) (lam core.CoreExpr, err error) {
+	// #2273: the signature's type variables are in scope (and rigid) for the
+	// body and the annotations below.
+	sig := e.openSignature(f.FuncDecl)
+	defer func() { e.closeSignature(sig, lam) }()
 	// Parameters are in scope for the body (#1467).
 	e.pushScope(f.Params...)
 	body, err := e.elaborateExpr(f.Body)
@@ -238,7 +242,7 @@ func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error
 }
 
 // elaborateFuncDecl handles function declarations
-func (e *Elaborator) elaborateFuncDecl(fn *ast.FuncDecl) (core.CoreExpr, error) {
+func (e *Elaborator) elaborateFuncDecl(fn *ast.FuncDecl) (decl core.CoreExpr, err error) {
 	// Debug trace entry
 	if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
 		fmt.Fprintf(os.Stderr, "[DEBUG] elaborateFuncDecl called for %s, params=%d\n", fn.Name, len(fn.Params))
@@ -253,7 +257,12 @@ func (e *Elaborator) elaborateFuncDecl(fn *ast.FuncDecl) (core.CoreExpr, error) 
 		Pos:     fn.Pos,
 	}
 
-	value, err := e.normalizeLambda(lambda)
+	// #2273: the signature's type variables are in scope (and rigid) for the
+	// body and the annotations below.
+	sig := e.openSignature(fn)
+	var value core.CoreExpr
+	defer func() { e.closeSignature(sig, value) }()
+	value, err = e.normalizeLambda(lambda)
 	if err != nil {
 		return nil, err
 	}
@@ -307,6 +316,10 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 	case *ast.TypeVar:
 		// M-FIX-FLOAT-OP: Handle type variables in function type annotations
 		// e.g., in `func map[a,b](f: (a) -> b, ...)` the `a` and `b` are TypeVars
+		// #2273: a variable of an enclosing signature is that (rigid) variable.
+		if unique, ok := e.lookupSigTyvar(typ.Name); ok {
+			return &types.TVar2{Name: unique, Kind: types.Star}
+		}
 		return &types.TVar2{Name: typ.Name, Kind: types.Star}
 
 	case *ast.RecordType:
@@ -322,7 +335,11 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 			// type), so a user-written `| r` met the checker's own record row
 			// as "r has kind Row Record, but r has kind Row Record", and the
 			// interface cache could not marshal the kind (#2221).
-			rowVar := &types.RowVar{Name: typ.Row.Name, Kind: types.RecordRow}
+			rowName := typ.Row.Name
+			if unique, ok := e.lookupSigTyvar(rowName); ok {
+				rowName = unique // #2273: an enclosing signature's row variable
+			}
+			rowVar := &types.RowVar{Name: rowName, Kind: types.RecordRow}
 			return &types.TRecordOpen{Fields: fields, Row: rowVar}
 		}
 		return &types.TRecord{Fields: fields}

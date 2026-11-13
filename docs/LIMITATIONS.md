@@ -196,12 +196,31 @@ Still open:
   checked against the constructor (#2243, pre-existing).
 - Type variables are told from types by scope, not case (#2211, #2240): a name an enclosing
   `[T]` list binds is a variable, a lowercase name the module declares or imports by name is
-  that type, and any other lowercase name is an implicitly quantified variable. That last rule
-  is the residual hole: a misspelled or miscased type name (`state` for `State`) or a value
-  name in type position (`-> (stack, int)`) is silently a fresh type variable, and because
-  annotated type variables are not rigid (`func f[a](x: a) -> a = x + 1` is accepted as
-  `int -> int`, and so, since #2240, is `func toInt[T](x: T) -> int = x`; #2273), such an
-  annotation constrains nothing (in a function signature only: a type declaration with a free
-  variable is `TC_UNBOUND_TYPE_003`). Two such readings warn `TC_UNBOUND_TYPE_002`: a lowercase type
+  that type, and any other lowercase name is an implicitly quantified variable. A
+  misspelled or miscased type name (`state` for `State`) or a value name in type position
+  (`-> (stack, int)`) is therefore a type variable; since #2273 it is rigid, so a body that
+  needs a specific type there is `TC_RIGID_001` (a type declaration with a free variable is
+  `TC_UNBOUND_TYPE_003`). Two such readings warn `TC_UNBOUND_TYPE_002`: a lowercase type
   an import exports but the module does not import by name, and a value imported by name used
   as a type.
+- Signature type variables are rigid (#2273, `TC_RIGID_001`), with these known gaps:
+  - a record row variable (`{name: string | r}`) is checked, but record unification can drop the
+    field a body adds (`p.nick` on that parameter still checks — #2210/#2221), so it is not yet
+    enforced in practice;
+  - calls within a recursive group are monomorphic, so calling `f[a]` at another type from
+    inside its own group (polymorphic recursion, or a mutually recursive `g` calling `f(n, n)`)
+    is rejected, naming the call, rather than allowed;
+  - class constraints are inferred, not declared (there is no syntax for them), so a signature
+    cannot promise `Num a` or forbid it. An integer literal written at a signature variable is
+    rejected, but one reached through an unannotated helper is not:
+    `pure func incH(x) = x + 1` then `func inc[a](x: a) -> a = incH(x)` checks, and `inc(2.5)`
+    still fails at run time ("received an int and a float");
+  - a generic function whose variable carries `Num` is compiled at `int` (its body's numeric
+    dictionaries come from top-level defaulting); arithmetic is corrected from the run-time
+    values, but `show` is not, so `func f[a](x: a, y: a) -> string = show(x * y)` called at
+    `float` fails at run time with "intToStr: expected int" (pre-existing; the signature is
+    honest, the back end is not);
+  - contracts are not yet checked against rigid parameters: `ident[a](x: a)` with
+    `requires { x + 1 > 0 }` checks until #2283 calls `InferWithRigid`.
+
+  Effect row variables (`! {e}`) were already enforced by the effect checker.

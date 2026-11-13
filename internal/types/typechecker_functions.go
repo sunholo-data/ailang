@@ -9,15 +9,6 @@ import (
 	"github.com/sunholo-data/ailang/internal/typedast"
 )
 
-// getMapKeys returns the keys of a map for debugging
-func getMapKeys(m map[uint64][]Type) []uint64 {
-	keys := make([]uint64, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
 // inferLambda infers type of lambda with linear capture analysis
 func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) (*typedast.TypedLambda, *TypeEnv, error) {
 	// Fresh type variables for parameters
@@ -216,7 +207,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 	}
 
 	// Apply defaulting at this generalization boundary
-	defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguities(valueType, unsolvedConstraints)
+	defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguitiesKeeping(valueType, unsolvedConstraints, ctx.envOwnedVars(sub, ctx.env))
 	if err != nil {
 		return nil, ctx.env, fmt.Errorf("defaulting failed for let binding %s: %w", let.Name, err)
 	}
@@ -244,7 +235,10 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		defaultedType = tc.closeDeclaredEffectRowForBinding(let.Value.ID(), defaultedType)
 		defaultedType = ctx.closeOpenedTailsForGeneralization(sub, defaultedType, ctx.env, ctx.baseEnv) // #1958
 
-		binding = tc.generalizeCarrying(ctx, defaultingSub, defaultedType, valueEffects, nonGroundConstraints, sub, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints)) // #2239
+		scheme := tc.generalizeCarrying(ctx, defaultingSub, defaultedType, valueEffects, nonGroundConstraints, sub, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints)) // #2239
+		if binding, err = tc.rigidScheme(ctx, let.Value, scheme, nonGroundConstraints, sub, defaultingSub); err != nil { // #2273
+			return nil, ctx.env, err
+		}
 	} else {
 		binding = defaultedType
 	}
@@ -311,6 +305,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 	}
 	popSelfTypes := ctx.pushSelfTypes(selfTypes)
 	defer popSelfTypes()
+	defer ctx.pushRigidGroup(letrec)() // #2273
 	var allValueNodes []typedast.TypedNode
 	var allValueTypes []Type
 	for _, binding := range letrec.Bindings {
@@ -355,7 +350,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		valueNode := allValueNodes[i]
 
 		// Apply defaulting at this generalization boundary
-		defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguities(valueType, unsolvedConstraints)
+		defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguitiesKeeping(valueType, unsolvedConstraints, ctx.envOwnedVars(sub, oldEnv))
 		if err != nil {
 			return nil, oldEnv, fmt.Errorf("defaulting failed for letrec binding %s: %w", binding.Name, err)
 		}
@@ -410,7 +405,10 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		// Generalize for recursion with the *outer* env (oldEnv) as currentEnv:
 		// the bindings' own fresh vars live only in newEnv, so they remain
 		// generalizable; enclosing lambda params (free in oldEnv) are withheld.
-		scheme := tc.generalizeCarrying(ctx, defaulting[i], valueType, getEffectRow(valueNode), nonGroundConstraints, reSub, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, letrec, nonGroundConstraints)) // #2239
+		scheme, err := tc.rigidScheme(ctx, binding.Value, tc.generalizeCarrying(ctx, defaulting[i], valueType, getEffectRow(valueNode), nonGroundConstraints, reSub, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, letrec, nonGroundConstraints)), nonGroundConstraints, sub, defaulting[i], reSub) // #2239, #2273
+		if err != nil {
+			return nil, oldEnv, err
+		}
 
 		typedBindings[i] = typedast.TypedRecBinding{
 			Name:   binding.Name,

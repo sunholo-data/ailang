@@ -55,6 +55,9 @@ type InferenceContext struct {
 	// (#1958 F-A1/F-A2); see typechecker_effect_union.go.
 	unionFrames []*unionFrame
 	selfTypes   []Type
+	// rigidGroup: the binding names of the let-rec group being inferred, for
+	// the TC_RIGID_001 culprit search (rigid_sig.go).
+	rigidGroup map[string]bool
 	// openedLambdaTails are fresh tails given to unannotated closed lambda rows
 	// (#1958 F-B); see typechecker_lambda_open.go.
 	openedLambdaTails map[string]bool

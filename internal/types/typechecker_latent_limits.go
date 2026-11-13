@@ -29,12 +29,14 @@ func recoverLatentDataDepth(err *error) {
 
 // InferWithConstraints infers a Core expression, refusing incomplete latent rows.
 func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv) (node typedast.TypedNode, updated *TypeEnv, typ Type, constraints []Constraint, err error) {
+	defer func() { err = withWrittenNames(err) }() // #2273: never show `a@{f}`
 	defer recoverLatentDataDepth(&err)
 	return tc.inferWithConstraints(expr, env)
 }
 
 // CheckCoreExpr checks a Core expression with the same latent traversal boundary.
 func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (node typedast.TypedNode, updated *TypeEnv, err error) {
+	defer func() { err = withWrittenNames(err) }() // #2273: never show `a@{f}`
 	defer recoverLatentDataDepth(&err)
 	return tc.checkCoreExpr(expr, env)
 }

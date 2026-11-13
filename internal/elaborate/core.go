@@ -77,6 +77,12 @@ type Elaborator struct {
 	// checkBodies: the test-only bodies of the last ElaborateFile (#2232,
 	// check_bodies.go), type-checked by the module pipeline, never compiled.
 	checkBodies []CheckBody
+	// M-V1-RIGID-SIGNATURES (#2273, rigid_sig.go): the open signature scopes
+	// (written type-variable name -> unique name), the rigid variables of each
+	// declaration's lambda, and how often each unique base name was issued.
+	sigTyvars   []sigTyvarScope
+	rigidSigs   map[uint64]*types.RigidSig
+	rigidIssued map[string]int
 }
 
 // DerivedEqField is one field a `deriving (Eq)` declaration needs Eq for.

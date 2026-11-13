@@ -102,6 +102,7 @@ type CoreTypeChecker struct {
 	letTypeAnnots map[uint64]Type
 	matchState                  // M-V1-MATCH-EXHAUSTIVENESS state (match_exhaustiveness.go)
 	predicateRoot core.CoreExpr // #2248: InferPredicate's root, which must type as bool
+	rigidState                  // M-V1-RIGID-SIGNATURES (#2273) state (rigid_sig.go)
 	// M-DX11: Debug sink for type inference events
 	DebugSink TypeDebugSink
 	// M-PERF-DOCPARSE: Deferred CoreTI substitution — accumulated during inference,
@@ -494,7 +495,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	}
 
 	// Solve constraints and apply defaulting (proper way)
-	sub, unsolved, err := ctx.solveDeclConstraints()
+	sub, unsolved, err := tc.solveDeclConstraintsRigid(ctx) // #2273: InferWithRigid's check
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
