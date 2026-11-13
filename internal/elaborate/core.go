@@ -81,6 +81,8 @@ type Elaborator struct {
 	// (written type-variable name -> unique name), the rigid variables of each
 	// declaration's lambda, and how often each unique base name was issued.
 	sigTyvars   []sigTyvarScope
+	sigOcc      []map[ast.Pos]bool // per open signature: its own type-variable positions
+	rigidNested map[string]ast.Pos // rigid name -> first body annotation that names it
 	rigidSigs   map[uint64]*types.RigidSig
 	rigidIssued map[string]int
 }

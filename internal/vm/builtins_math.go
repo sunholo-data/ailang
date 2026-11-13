@@ -87,6 +87,14 @@ func builtinModInt(args []bytecode.Value) (bytecode.Value, error) {
 	if len(args) != 2 {
 		return bytecode.Value{}, fmt.Errorf("_mod_Int: expected 2 args, got %d", len(args))
 	}
+	// A generic body is compiled at its defaulted type, int; called with
+	// floats it is float modulo (as the evaluator's mod_Int, #2273 review).
+	if args[0].Tag == bytecode.TagFloat && args[1].Tag == bytecode.TagFloat {
+		if args[1].Flt == 0 {
+			return bytecode.NewFloat(math.NaN()), nil
+		}
+		return bytecode.NewFloat(math.Mod(args[0].Flt, args[1].Flt)), nil
+	}
 	if args[0].Tag != bytecode.TagInt || args[1].Tag != bytecode.TagInt {
 		return bytecode.Value{}, fmt.Errorf("_mod_Int: expected ints")
 	}

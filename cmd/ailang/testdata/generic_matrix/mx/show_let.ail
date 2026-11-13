@@ -1,0 +1,10 @@
+module mx/show_let
+import std/option (Option, Some, None)
+import std/list (sortBy)
+import std/io (print)
+
+export pure func gen[a](x: a, y: a) -> string { let z = x * y; let s = show(z); s }
+export pure func twinI(x: int, y: int) -> string { let z = x * y; let s = show(z); s }
+export pure func twinF(x: float, y: float) -> string { let z = x * y; let s = show(z); s }
+export pure func summary() -> string = "genI=${gen(3, 4)}\n twinI=${twinI(3, 4)}\n genF=${gen(1.5, 2.25)}\n twinF=${twinF(1.5, 2.25)}\n"
+export func main() -> () ! {IO} = print(summary())

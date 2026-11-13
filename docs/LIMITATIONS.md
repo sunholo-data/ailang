@@ -204,20 +204,24 @@ Still open:
   an import exports but the module does not import by name, and a value imported by name used
   as a type.
 - Signature type variables are rigid (#2273, `TC_RIGID_001`) — explicit `[a]`, implicit `a`,
-  record rows `| r`, in the body and in `requires`/`ensures` clauses — with these known gaps:
+  named record rows `| r` (an anonymous `...` stays a flexible wildcard), in the body and in
+  `requires`/`ensures` clauses — with these known gaps:
   - calls within a recursive group are monomorphic, so calling `f[a]` at another type from
     inside its own group (polymorphic recursion, or a mutually recursive `g` calling `f(n, n)`)
     is rejected, naming the call, rather than allowed;
   - class constraints are inferred, not declared (there is no syntax for them), so a signature
-    cannot promise `Num a` or forbid it. An integer literal written at a signature variable is
-    rejected, but one reached through an unannotated helper is not:
-    `pure func incH(x) = x + 1` then `func inc[a](x: a) -> a = incH(x)` checks, and `inc(2.5)`
-    still fails at run time ("received an int and a float");
-  - a generic function's body is compiled once, at its defaulted type (`Num a` ⇒ `int`):
-    arithmetic is corrected from the run-time values, and `show` of a value typed through a
-    signature variable stays dynamic; but `show` in an *unannotated* generic function
-    (`func f(x, y) = show(x * y)` called with floats) still fails at run time with
-    "intToStr: expected int", and a generic export's `compile --emit-go` wrapper is typed at
-    the defaulted type (`Add(x int64, y int64) int64`).
+    cannot promise `Num a` or forbid it. A contract clause that needs a class the body does not
+    (`idc[a](x: a) -> a ensures { result == x } { x }`) is therefore rejected: callers would not
+    be held to it. An integer literal written at a signature variable is rejected, but one
+    reached through an unannotated helper is not: `pure func incH(x) = x + 1` then
+    `func inc[a](x: a) -> a = incH(x)` checks, and `inc(2.5)` still fails at run time
+    ("received an int and a float");
+  - a generic body is compiled once, at its defaulted type (`Num a` ⇒ `int`, #2333). The
+    evaluator and the VM correct for it (the class methods and `%` from the run-time values,
+    `show` left dynamic), but **`compile --emit-go` does not (#2332)**: the emitted Go panics
+    when a generic numeric function is called with floats, and gives wrong answers with strings
+    (`x == y` on two different strings is `true`; a generic `max` or `sortBy` comparator picks the
+    wrong element); a generic export's Go wrapper is typed at the defaulted type
+    (`Add(x int64, y int64) int64`).
 
   Effect row variables (`! {e}`) were already enforced by the effect checker.

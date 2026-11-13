@@ -318,6 +318,7 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 		// e.g., in `func map[a,b](f: (a) -> b, ...)` the `a` and `b` are TypeVars
 		// #2273: a variable of an enclosing signature is that (rigid) variable.
 		if unique, ok := e.lookupSigTyvar(typ.Name); ok {
+			e.noteNestedUse(unique, typ.Pos)
 			return &types.TVar2{Name: unique, Kind: types.Star}
 		}
 		return &types.TVar2{Name: typ.Name, Kind: types.Star}

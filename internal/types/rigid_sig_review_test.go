@@ -83,6 +83,34 @@ func TestRigidSignature_ReviewCases(t *testing.T) {
 			kind:  "equal", want: []string{"`| r` and `| s`"}},
 		{name: "an open record passed through keeps its row",
 			decls: "pure func pass[a](p: {v: a | r}) -> {v: a | r} = p"},
+		// Review round 2: an anonymous `...` is a flexible wildcard, as on dev;
+		// only a named row is rigid.
+		{name: "g22: anonymous rows in parameter and result are one flexible row",
+			decls: "pure func f(r: {x: int, ...}) -> {x: int, ...} = {r | x: r.x + 1}\npure func use() -> string = f({x: 1, y: \"a\"}).y"},
+		{name: "g22b: the named twin keeps its row",
+			decls: "pure func f(r: {x: int | s}) -> {x: int | s} = {r | x: r.x + 1}\npure func use() -> string = f({x: 1, y: \"a\"}).y"},
+		{name: "c08: an anonymous row nested in a named one",
+			decls: "pure func f(p: {y: int | r}, q: {x: {k: int, ...} | r}) -> {x: {k: int, ...} | r} = q\npure func use() -> string = f({y: 1, x: {k: 1, m: \"a\"}}, {x: {k: 2, m: \"b\"}}).x.m"},
+		// #2284: field access is a deferred constraint, settled at the same
+		// boundary where the rule runs.
+		{name: "a rigid variable constrained only by a deferred field access",
+			decls: "pure func getN[a](p: a) -> int = p.n",
+			kind:  "concrete", want: []string{"requires `a` to be `{n: int | r}`"}},
+		{name: "a rigid variable a match pins to a newtype",
+			decls: "type W = W({n: int, m: string})\npure func viaW[a](p: a) -> int {\n  let k = p.n;\n  match p { W(r) => r.n + k }\n}",
+			kind:  "concrete", want: []string{"requires `a` to be `W`"}},
+		{name: "a rigid row read through a let-bound copy",
+			decls: "pure func carried(p: {n: int | r}) -> string {\n  let q = p;\n  q.m\n}",
+			kind:  "concrete", want: []string{"uses the field(s) `m`"}},
+		// Message: a literal reusing the enclosing variable's name is told so.
+		{name: "a literal's annotation reusing the enclosing variable is pointed at",
+			decls: "pure func f[a](x: a) -> int { let g = func(y: a) -> a { y + 1 }; g(3) }",
+			kind:  "concrete", want: []string{"is also written in an annotation inside `f`"}},
+		// Message: #2286's note about a declared lowercase type is not attached
+		// to a TC_RIGID_001 about other names.
+		{name: "no unrelated declared-type note",
+			decls: "import std/list (map)\ntype point = {x: int, y: int}\npure func mixbad(p: point, e: elem, m: map) -> elem = m",
+			kind:  "equal", not: []string{"'point'", "_r0", "_r1"}},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			err := checkRigid(t, c.decls)
@@ -163,7 +191,11 @@ func TestRigidSignature_Contracts(t *testing.T) {
 		{"requires uses a literal at a", "pure func ident2[a](x: a) -> a\n  requires { x + 1 > 0 }\n{ x }", true},
 		{"ensures compares a with a string", "pure func ident3[a](x: a) -> a\n  ensures { x == \"s\" || true }\n{ x }", true},
 		{"ensures x == x where the body needs Eq a", "pure func same[a](x: a, y: a) -> bool\n  ensures { x == x }\n{ x == y }", false},
-		{"ensures result == x", "pure func ident[a](x: a) -> a\n  ensures { result == x }\n{ x }", false},
+		// A class the clause needs and the body does not: callers would not be
+		// held to it (review round 2, k4/k5).
+		{"ensures result == x where the body needs nothing", "pure func ident[a](x: a) -> a\n  ensures { result == x }\n{ x }", true},
+		{"ensures with Ord the body does not need", "pure func pick[a](x: a, y: a) -> a\n  ensures { result <= x || result >= x }\n{ y }", true},
+		{"ensures == where the body's + already implies it", "pure func add[a](x: a, y: a) -> a\n  ensures { result == x + y }\n{ x + y }", false},
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			err := checkRigid(t, c.decls)
@@ -176,7 +208,7 @@ func TestRigidSignature_Contracts(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), "TC_CONTRACT_001") || !strings.Contains(err.Error(), types.TC_RIGID_001) {
 				t.Fatalf("want TC_CONTRACT_001 carrying TC_RIGID_001, got %v", err)
 			}
-			if !strings.Contains(err.Error(), "but the clause") {
+			if !strings.Contains(err.Error(), "the clause") {
 				t.Errorf("the message should blame the clause: %v", err)
 			}
 		})

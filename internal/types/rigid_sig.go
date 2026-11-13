@@ -49,6 +49,9 @@ type RigidVar struct {
 	// only by case, or by one or two edits), "" when there is none. Set only for
 	// implicit variables: an explicit [a] was meant to be a variable.
 	Suggest string
+	// NestedAt: the first annotation inside the body (a `let`, a function
+	// literal) that names this variable — the enclosing one, not a new one.
+	NestedAt ast.Pos
 	// ScopeNote: the module also knows the name as something else (a value
 	// imported by name, a type an import exports) — #2286's TC_UNBOUND_TYPE_002
 	// reading, repeated because that warning is not shown when a module fails.
@@ -124,9 +127,12 @@ type rigidState struct {
 	// extraRigid: the signature InferWithRigid checks the current expression
 	// against (rigid_sig_hook.go); nil otherwise.
 	extraRigid *RigidSig
-	// rigidDefaulted: nodes typed through a rigid variable that top-level
-	// defaulting pinned (markRigidDefaulted).
-	rigidDefaulted map[uint64]bool
+	// extraRigidBody: the declaration's own scheme, for contract-only classes.
+	extraRigidBody *Scheme
+	// defaulted: nodes whose type top-level defaulting pinned (markDefaulted);
+	// declNodes: the nodes the current declaration typed (setCoreTI).
+	defaulted map[uint64]bool
+	declNodes []uint64
 }
 
 // SetRigidSignatures installs the elaborator's rigid signature variables
@@ -394,6 +400,15 @@ func (ctx *InferenceContext) rigidCulprit(sig *RigidSig, v *rigidViolation, grou
 		case RowEq:
 			path = eq.Path
 			sub, err = ctx.unifier.rowUnifier.UnifyRows(eq.Left, eq.Right, sub)
+		case *fieldAccess:
+			// A deferred field access (#2239) whose receiver is still the
+			// signature variable is what settles it as a record.
+			if name, ok := rigidVarResolution(v.v, at); ok {
+				if r, isVar := ApplySubstitution(sub, eq.recv).(*TVar2); isVar && r.Name == name {
+					return eq.path
+				}
+			}
+			continue
 		default:
 			continue
 		}

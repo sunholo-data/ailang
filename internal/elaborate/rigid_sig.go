@@ -2,6 +2,7 @@ package elaborate
 
 import (
 	"fmt"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
@@ -22,6 +23,26 @@ import (
 
 // sigTyvarScope is one declaration's written-name -> unique-name frame.
 type sigTyvarScope map[string]string
+
+// noteNestedUse records the first place a body annotation (a `let x: a`, a
+// function literal's `(y: a)`) names an enclosing signature variable: an
+// author who meant a new variable there gets told it is the enclosing one.
+func (e *Elaborator) noteNestedUse(unique string, pos ast.Pos) {
+	if n := len(e.sigOcc); n > 0 && e.sigOcc[n-1][pos] {
+		return // the signature itself
+	}
+	for _, occ := range e.sigOcc {
+		if occ[pos] {
+			return
+		}
+	}
+	if e.rigidNested == nil {
+		e.rigidNested = map[string]ast.Pos{}
+	}
+	if _, seen := e.rigidNested[unique]; !seen {
+		e.rigidNested[unique] = pos
+	}
+}
 
 // lookupSigTyvar returns the unique name a written type variable denotes in
 // the open signature scopes, innermost first.
@@ -53,6 +74,11 @@ func (e *Elaborator) openSignature(fn *ast.FuncDecl) *types.RigidSig {
 		e.collectSigTypeVars(p.Type, &occ, rowVars)
 	}
 	e.collectSigTypeVars(fn.ReturnType, &occ, rowVars)
+	sigPos := map[ast.Pos]bool{}
+	for _, tv := range occ {
+		sigPos[tv.Pos] = true
+	}
+	e.sigOcc = append(e.sigOcc, sigPos)
 	// Only variables that occur in the parameter and return types are rigid: an
 	// explicit parameter used only as an effect row (`[a, e]` with `! {e}`) or
 	// not at all has no type position to keep general.
@@ -110,6 +136,16 @@ func (e *Elaborator) openSignature(fn *ast.FuncDecl) *types.RigidSig {
 // lambda the declaration elaborated to.
 func (e *Elaborator) closeSignature(sig *types.RigidSig, lam core.CoreExpr) {
 	e.sigTyvars = e.sigTyvars[:len(e.sigTyvars)-1]
+	if n := len(e.sigOcc); n > 0 && len(e.sigOcc) > len(e.sigTyvars) {
+		e.sigOcc = e.sigOcc[:n-1]
+	}
+	if sig != nil {
+		for i := range sig.Vars {
+			if pos, ok := e.rigidNested[sig.Vars[i].Name]; ok {
+				sig.Vars[i].NestedAt = pos
+			}
+		}
+	}
 	l, ok := lam.(*core.Lambda)
 	if sig == nil || !ok {
 		return
@@ -154,6 +190,20 @@ func (e *Elaborator) rigidHintCandidates() []string {
 	return out
 }
 
+// isAnonymousRow reports whether a record row name is the parser's name for an
+// anonymous `...` (parser.freshRowVarName: `_r` and a counter).
+func isAnonymousRow(name string) bool {
+	if !strings.HasPrefix(name, "_r") || len(name) == 2 {
+		return false
+	}
+	for _, c := range name[2:] {
+		if c < '0' || c > '9' {
+			return false
+		}
+	}
+	return true
+}
+
 // collectSigTypeVars appends every type variable occurrence of t (record row
 // variables included, and also named in rowVars), in source order: the
 // TypeVar nodes and each SimpleType that reads as a type variable.
@@ -189,7 +239,9 @@ func (e *Elaborator) collectSigTypeVars(t ast.Type, out *[]*ast.TypeVar, rowVars
 		for _, f := range typ.Fields {
 			e.collectSigTypeVars(f.Type, out, rowVars)
 		}
-		if typ.Row != nil {
+		// An anonymous `...` ("some other fields, unnamed") is a flexible
+		// wildcard, as before #2273; only a named `| r` is a signature variable.
+		if typ.Row != nil && !isAnonymousRow(typ.Row.Name) {
 			*out = append(*out, typ.Row)
 			if rowVars != nil {
 				rowVars[typ.Row.Name] = true

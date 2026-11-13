@@ -1,0 +1,11 @@
+module mx/only_eq
+import std/option (Option, Some, None)
+import std/list (sortBy)
+import std/io (print)
+
+export pure func gen[a](x: a, y: a) -> bool { let e = x == y; e }
+export pure func twinI(x: int, y: int) -> bool { let e = x == y; e }
+export pure func twinF(x: float, y: float) -> bool { let e = x == y; e }
+export pure func twinS(x: string, y: string) -> bool { let e = x == y; e }
+export pure func summary() -> string = "genI=${show(gen(3, 4))}\n twinI=${show(twinI(3, 4))}\n genF=${show(gen(1.5, 2.25))}\n twinF=${show(twinF(1.5, 2.25))}\n genS=${show(gen("p", "q"))}\n twinS=${show(twinS("p", "q"))}\n"
+export func main() -> () ! {IO} = print(summary())

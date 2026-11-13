@@ -504,9 +504,8 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("defaulting failed: %w", err)
 	}
-	// Compose substitutions if defaulting was applied (#2273: noting rigid variables it pins)
+	tc.markDefaulted(sub, defaultingSub) // #2273: the nodes defaulting pins in a generic body
 	if len(defaultingSub) > 0 {
-		tc.markRigidDefaulted(sub, defaultingSub)
 		sub = composeSubstitutions(defaultingSub, sub)
 		finalType = defaultedType
 		unsolved = defaultedConstraints
@@ -777,7 +776,7 @@ func (tc *CoreTypeChecker) inferCore(ctx *InferenceContext, expr core.CoreExpr) 
 		// Get the inferred type from the typed node
 		if inferredType, ok := typedNode.GetType().(Type); ok {
 			// Store mapping: Core NodeID → Type (principal type after inference)
-			tc.CoreTI.Set(expr.ID(), inferredType)
+			tc.setCoreTI(expr.ID(), inferredType)
 		}
 	}
 

@@ -235,8 +235,8 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		defaultedType = tc.closeDeclaredEffectRowForBinding(let.Value.ID(), defaultedType)
 		defaultedType = ctx.closeOpenedTailsForGeneralization(sub, defaultedType, ctx.env, ctx.baseEnv) // #1958
 
-		scheme := tc.generalizeCarrying(ctx, defaultingSub, defaultedType, valueEffects, nonGroundConstraints, sub, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints)) // #2239
-		if binding, err = tc.rigidScheme(ctx, let.Value, scheme, nonGroundConstraints, sub, defaultingSub); err != nil { // #2273
+		scheme := tc.generalizeCarrying(ctx, defaultingSub, defaultedType, valueEffects, nonGroundConstraints, sub, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints)) // #2239; rigidScheme: #2273
+		if binding, err = tc.rigidScheme(ctx, let.Value, scheme, nonGroundConstraints, sub, defaultingSub); err != nil {
 			return nil, ctx.env, err
 		}
 	} else {

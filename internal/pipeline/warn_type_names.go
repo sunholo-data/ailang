@@ -1,6 +1,7 @@
 package pipeline
 
 import (
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -180,10 +181,17 @@ func withLowerTypeNote(err error, file *ast.File) error {
 			}
 		}
 	}
+	// A TC_RIGID_001 names the variables it is about; a note on another name
+	// would point the author at the wrong place (#2273 review).
+	var rigid *types.RigidSigError
+	isRigid := errors.As(err, &rigid)
 	var notes []string
 	seen := map[string]bool{}
 	for _, ref := range file.LowerTypeNames {
 		if ref.Kind != ast.LowerLocal || !hasVar[ref.Decl] || seen[ref.Name] {
+			continue
+		}
+		if isRigid && !strings.Contains(rigid.Message, "`"+ref.Name+"`") {
 			continue
 		}
 		seen[ref.Name] = true

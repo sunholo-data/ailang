@@ -1,6 +1,8 @@
 package types
 
 import (
+	"fmt"
+	"sort"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/core"
@@ -66,63 +68,124 @@ func FreeTypeVarNames(t Type) []string {
 	return vars
 }
 
-// markRigidDefaulted records the nodes whose type top-level defaulting is about
-// to pin through a rigid signature variable (`a@{f}` with Num a := int). The
-// body of a generic function is compiled once, at the defaulted type, and the
-// arithmetic dictionaries are corrected from the run-time values; `show` is
-// not — ShowNormalizer would turn `show(x * y)` into intToStr and a float call
-// crashed (#2273 review: `label[a](x: a, y: a) -> string`). ShowNormalizer
-// leaves show on these nodes, so it renders the run-time value.
-func (tc *CoreTypeChecker) markRigidDefaulted(sub, defaulting Substitution) {
+// markDefaulted records the nodes of the current declaration whose type
+// top-level defaulting is about to pin (a `Num a` variable := int). A generic
+// body — a signature's rigid `a`, a let-bound lambda's own variable, an
+// unannotated function's parameter — is compiled once, at that defaulted type.
+// The class methods are corrected from the run-time values (evalDictApp's
+// M-POLY-ARITH), but a consumer that picks an implementation from the recorded
+// type is not: ShowNormalizer turned `show(x * y)` into intToStr, and a float
+// call crashed (#2273 review: `label[a](x: a, y: a) -> string`). The consumers
+// ask DefaultedNodes and stay dynamic there (ShowNormalizer.Generic).
+func (tc *CoreTypeChecker) markDefaulted(sub, defaulting Substitution) {
+	nodes := tc.declNodes
+	tc.declNodes = tc.declNodes[:0]
 	if len(defaulting) == 0 {
 		return
 	}
-	// The variables defaulting binds that stand for a rigid variable: a rigid
-	// name may be bound to a flexible representative by unification.
-	pinned := map[string]bool{}
-	for _, t := range tc.CoreTI {
-		for _, v := range FreeTypeVarNames(t) {
-			if !isRigidName(v) {
-				continue
-			}
-			if rep, ok := ApplySubstitution(sub, &TVar2{Name: v, Kind: Star}).(*TVar2); ok && defaulting[rep.Name] != nil {
-				pinned[rep.Name] = true
-			}
+	for _, id := range nodes {
+		t, ok := tc.CoreTI[id]
+		if !ok {
+			continue
 		}
-	}
-	if len(pinned) == 0 {
-		return
-	}
-	if tc.rigidDefaulted == nil {
-		tc.rigidDefaulted = make(map[uint64]bool)
-	}
-	for id, t := range tc.CoreTI {
 		for _, v := range FreeTypeVarNames(ApplySubstitution(sub, t)) {
-			if pinned[v] {
-				tc.rigidDefaulted[id] = true
+			if defaulting[v] != nil {
+				if tc.defaulted == nil {
+					tc.defaulted = make(map[uint64]bool)
+				}
+				tc.defaulted[id] = true
 				break
 			}
 		}
 	}
 }
 
-// RigidDefaultedNodes is the set markRigidDefaulted built: nodes typed through a
-// rigid signature variable that top-level defaulting pinned.
-func (tc *CoreTypeChecker) RigidDefaultedNodes() map[uint64]bool { return tc.rigidDefaulted }
+// setCoreTI records a node's inferred type, and the node as one this
+// declaration typed (markDefaulted).
+func (tc *CoreTypeChecker) setCoreTI(id uint64, t Type) {
+	tc.CoreTI.Set(id, t)
+	if tc.declNodes != nil {
+		tc.declNodes = append(tc.declNodes, id)
+	}
+}
 
-// isRigidName reports whether a type variable name is a signature's rigid
-// variable (RigidTypeVarName).
-func isRigidName(name string) bool { return strings.Contains(name, "@{") }
+// DefaultedNodes is the set markDefaulted built: nodes whose recorded type is
+// a default standing in for a type variable of a generic body.
+func (tc *CoreTypeChecker) DefaultedNodes() map[uint64]bool { return tc.defaulted }
 
 // InferPredicateRigid is InferPredicate (a contract clause, typed bool) for a
 // clause over a declaration's parameters bound at its rigid types (sig): the
 // clause may not specialise them (#2273 for #2232/#2248's contract check).
 // A nil sig is plain InferPredicate.
-func (tc *CoreTypeChecker) InferPredicateRigid(expr core.CoreExpr, env *TypeEnv, sig *RigidSig) (Type, error) {
-	prev := tc.extraRigid
-	tc.extraRigid = sig
-	defer func() { tc.extraRigid = prev }()
+func (tc *CoreTypeChecker) InferPredicateRigid(expr core.CoreExpr, env *TypeEnv, sig *RigidSig, body *Scheme) (Type, error) {
+	prev, prevBody := tc.extraRigid, tc.extraRigidBody
+	tc.extraRigid, tc.extraRigidBody = sig, body
+	defer func() { tc.extraRigid, tc.extraRigidBody = prev, prevBody }()
 	return tc.InferPredicate(expr, env)
+}
+
+// entailedClasses is cls and the classes every type with an instance of cls
+// also has: the numeric types (int, float) are the only Num instances and have
+// Eq, Ord and Show; Ord's instances all have Eq. So a body needing `+` already
+// holds callers to `==` and `<`.
+func entailedClasses(cls string) []string {
+	switch cls {
+	case "Fractional":
+		return []string{"Fractional", "Num", "Eq", "Ord", "Show"}
+	case "Num":
+		return []string{"Num", "Eq", "Ord", "Show"}
+	case "Ord":
+		return []string{"Ord", "Eq"}
+	}
+	return []string{cls}
+}
+
+// contractOnlyClasses returns the class constraints a contract clause needs on
+// a signature variable that the declaration's own scheme (body) does not carry,
+// as "Class[a]" strings in the written names, sorted.
+func contractOnlyClasses(sig *RigidSig, sub Substitution, unsolved []ClassConstraint, body *Scheme) []string {
+	if sig == nil {
+		return nil
+	}
+	written := map[string]string{} // resolved variable -> written name
+	for _, v := range sig.Vars {
+		if v.Row {
+			continue
+		}
+		if tv, ok := ApplySubstitution(sub, &TVar2{Name: v.Name, Kind: Star}).(*TVar2); ok {
+			written[tv.Name] = v.Display
+		}
+	}
+	have := map[string]bool{}
+	if body != nil {
+		for _, c := range body.Constraints {
+			if tv, ok := c.Type.(*TVar2); ok {
+				for _, cls := range entailedClasses(c.Class) {
+					have[cls+"["+WrittenTypeVarNames(tv.Name)+"]"] = true
+				}
+			}
+		}
+	}
+	seen := map[string]bool{}
+	var out []string
+	for _, c := range unsolved {
+		tv, ok := ApplySubstitution(sub, c.Type).(*TVar2)
+		if !ok || c.IntLiteral {
+			continue
+		}
+		name, rigid := written[tv.Name]
+		if !rigid {
+			continue
+		}
+		key := c.Class + "[" + name + "]"
+		if have[key] || seen[key] {
+			continue
+		}
+		seen[key] = true
+		out = append(out, key)
+	}
+	sort.Strings(out)
+	return out
 }
 
 // pushRigidGroup records letrec's binding names as the group being inferred
@@ -169,6 +232,13 @@ func (tc *CoreTypeChecker) solveDeclConstraintsRigid(ctx *InferenceContext) (Sub
 	if err := ctx.checkExtraRigid(tc.extraRigid, sub, unsolved); err != nil {
 		return nil, nil, err
 	}
+	// A class a clause needs on a signature variable that the body does not:
+	// callers are not held to it (there is no syntax to declare it), so a
+	// caller may pass a type without it and the contract fails at run time
+	// (`idc[a](x: a) -> a ensures { result == x }` called with a function).
+	if extra := contractOnlyClasses(tc.extraRigid, sub, unsolved, tc.extraRigidBody); len(extra) > 0 && tc.extraRigidBody != nil {
+		return nil, nil, contractClassError(tc.extraRigid, extra)
+	}
 	return sub, unsolved, nil
 }
 
@@ -188,4 +258,15 @@ func (ctx *InferenceContext) checkExtraRigid(sig *RigidSig, sub Substitution, un
 	}
 	v.clause = true
 	return v.toError(sig)
+}
+
+// contractClassError is TC_RIGID_001 (kind "contract-class"): a clause needs a
+// class of a signature variable that nothing in the declaration requires.
+func contractClassError(sig *RigidSig, extra []string) error {
+	msg := fmt.Sprintf("the clause needs %s, but nothing in the body of `%s` requires it, so a caller may pass a type without it and the contract would fail at run time; AILANG cannot declare a class constraint in a signature",
+		strings.Join(extra, ", "), sig.Func)
+	fix := fmt.Sprintf("write a concrete type in the signature of `%s`, or drop the clause (a generic contract cannot be proved by `ailang verify` either)", sig.Func)
+	err := newRigidSigError(sig.Pos, msg, fix, map[string]any{"function": sig.Func, "kind": "contract-class", "classes": extra})
+	err.kind = "contract-class"
+	return err
 }

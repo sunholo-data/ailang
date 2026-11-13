@@ -1,0 +1,11 @@
+module mx/cmp_show
+import std/option (Option, Some, None)
+import std/list (sortBy)
+import std/io (print)
+
+export pure func gen[a](x: a, y: a) -> string { let m = if x < y then y else x; show(m) }
+export pure func twinI(x: int, y: int) -> string { let m = if x < y then y else x; show(m) }
+export pure func twinF(x: float, y: float) -> string { let m = if x < y then y else x; show(m) }
+export pure func twinS(x: string, y: string) -> string { let m = if x < y then y else x; show(m) }
+export pure func summary() -> string = "genI=${gen(3, 4)}\n twinI=${twinI(3, 4)}\n genF=${gen(1.5, 2.25)}\n twinF=${twinF(1.5, 2.25)}\n genS=${gen("p", "q")}\n twinS=${twinS("p", "q")}\n"
+export func main() -> () ! {IO} = print(summary())

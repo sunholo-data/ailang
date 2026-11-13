@@ -81,6 +81,10 @@ func (v *rigidViolation) toError(sig *RigidSig) error {
 	if v.v.ScopeNote != "" {
 		msg += ". " + v.v.ScopeNote
 	}
+	if v.v.NestedAt.Line > 0 && v.kind != "equal" {
+		msg += fmt.Sprintf(". `%s` is also written in an annotation inside `%s` at %s: there it is `%s`'s own `%s`, not a new type variable — give that annotation another name if it meant its own type",
+			name, sig.Func, v.v.NestedAt, sig.Func, name)
+	}
 	if v.kind == "equal" && v.other.ScopeNote != "" {
 		msg += ". " + v.other.ScopeNote
 	}

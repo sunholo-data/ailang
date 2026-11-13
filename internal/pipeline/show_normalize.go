@@ -55,9 +55,10 @@ type ShowNormalizer struct {
 	// that sends readers hunting a call the source does not contain.
 	residueByFunc map[string][]core.ShowResidueNote
 
-	// Generic: nodes whose `int` type came from defaulting a rigid signature
-	// variable (#2273, CoreTypeChecker.RigidDefaultedNodes). The function runs
-	// at any type there, so show stays in place and renders the run-time value.
+	// Generic: nodes whose `int` type is a default standing in for a type
+	// variable of a generic body (#2273, CoreTypeChecker.DefaultedNodes). The
+	// body runs at any type there, so show stays in place and renders the
+	// run-time value.
 	Generic map[uint64]bool
 }
 
