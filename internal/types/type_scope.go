@@ -294,7 +294,15 @@ const TC_UNBOUND_TYPE_001 = "TC_UNBOUND_TYPE_001"
 
 // UnboundLowerTypeError is TC_UNBOUND_TYPE_001 for a lowercase name applied
 // to type arguments (`m[int]`) that names no type constructor in scope.
-func UnboundLowerTypeError(name string) error {
+//
+// suggest, when not empty, is the type the name most likely meant
+// (`option` → Option).
+func UnboundLowerTypeError(name, suggest string) error {
+	if suggest != "" {
+		return fmt.Errorf("%s: type '%s' is not in scope: no type constructor '%s' is declared here, imported by name, or exported by an import.\n"+
+			"  Suggestion: did you mean the type `%s`?",
+			TC_UNBOUND_TYPE_001, name, name, suggest)
+	}
 	return fmt.Errorf("%s: type '%s' is not in scope: no type constructor '%s' is declared here, imported by name, or exported by an import.\n"+
 		"  Suggestion: declare it, import it by name (import <module> (%s)), or write the type you mean (a type variable cannot be applied to arguments).",
 		TC_UNBOUND_TYPE_001, name, name, name)

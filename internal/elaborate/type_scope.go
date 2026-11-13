@@ -84,7 +84,7 @@ func (e *Elaborator) typeCon(name string, pos ast.Pos) *types.TCon {
 	// Only an installed scope knows the imports; a file-derived one cannot
 	// tell an imported type from a value, so it reports nothing.
 	if err == nil && e.typeScopeImports && isLowerName(name) && !e.typeScope.Declares(name) {
-		err = types.UnboundLowerTypeError(name)
+		err = types.UnboundLowerTypeError(name, closestTypeName(name, "", append(ast.BuiltinTypeNames(), e.typeScope.Names()...)))
 	}
 	e.latchTypeErr(pos, err)
 	return &types.TCon{Name: r.Name, Module: r.Module}

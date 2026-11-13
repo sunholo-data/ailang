@@ -138,11 +138,8 @@ func checkPackageWithContext(dir string, strictSyntax bool, relaxModules bool, t
 	// Output results
 	if jsonFlag {
 		jsonErrors := make([]checkJSONError, 0, len(allErrors)+len(warnings))
-		for _, e := range allErrors {
-			jsonErrors = append(jsonErrors, checkJSONError{
-				Code:    jsonErrorCode(e),
-				Message: e,
-			})
+		for i, e := range allErrors {
+			jsonErrors = append(jsonErrors, errorEntryFor(e, report.ErrorCauses[i]))
 		}
 		for _, w := range warnings {
 			jsonErrors = append(jsonErrors, checkJSONError{

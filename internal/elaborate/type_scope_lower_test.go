@@ -92,17 +92,46 @@ func TestTypeDeclVars_Paths(t *testing.T) {
 }
 
 func TestClosestTypeName(t *testing.T) {
-	cands := []string{"int", "string", "()", "Count", "Point", "Handler"}
-	for _, c := range []struct{ name, decl, want string }{
-		{"integer", "Count", "int"}, // prefix
-		{"strng", "X", "string"},    // edit distance 1
-		{"point", "Seg", "Point"},   // case only
-		{"handler", "Handler", ""},  // never the declaration itself
-		{"a", "Any", ""},            // too short for an edit distance (not "()")
-		{"cnt", "X", ""},            // too short
-		{"COUNT", "X", "Count"},     // case only, short names too
-		{"zzzzzz", "X", ""},         // nothing close
+	cands := []string{"int", "float", "bool", "string", "()", "Count", "Point", "Handler", "Option", "Map"}
+	noPoint := []string{"int", "float", "bool", "string", "()", "Option", "Map"}
+	// Every name a real scope offers: the built-ins plus the moduleless,
+	// prelude and builtin-home types (StreamConn, ...).
+	allTypes := append(ast.BuiltinTypeNames(), types.NewTypeScope("m").Names()...)
+	for _, c := range []struct {
+		name, decl, want string
+		cands            []string
+	}{
+		{"integer", "Count", "int", cands}, // synonym
+		{"strng", "X", "string", cands},    // edit distance 1
+		{"point", "Seg", "Point", cands},   // case only
+		{"handler", "Handler", "", cands},  // never the declaration itself
+		{"a", "Any", "", cands},            // too short for an edit distance (not "()")
+		{"cnt", "X", "", cands},            // too short
+		{"COUNT", "X", "Count", cands},     // case only, short names too
+		{"zzzzzz", "X", "", cands},         // nothing close
+		// Review of #2286 (probes z/t01..t11): synonyms a newcomer means,
+		// case for applied names, and no hint two edits away on a short name.
+		{"str", "X", "string", cands},
+		{"text", "X", "string", cands},
+		{"number", "X", "float", cands},
+		{"double", "X", "float", cands},
+		{"boolean", "X", "bool", cands},
+		{"option", "", "Option", cands},
+		{"map", "", "Map", cands},
+		{"point", "X", "", noPoint},       // two edits from int: no hint
+		{"flaot", "X", "", noPoint},       // two edits on a short name: no hint
+		{"stringg", "X", "string", cands}, // one edit
+		{"strings", "X", "string", cands}, // one edit
+		{"Stirngs", "X", "", noPoint},     // three edits: no hint
+		// No shared-prefix rule (#2330 review): a prefix is no evidence.
+		{"interval", "X", "", allTypes},
+		{"integral", "X", "", allTypes},
+		{"charge", "X", "", allTypes},
+		{"bytesize", "X", "", allTypes},
+		{"boolish", "X", "", allTypes},
+		{"stream", "X", "", allTypes},
 	} {
+		cands := c.cands
 		if got := closestTypeName(c.name, c.decl, cands); got != c.want {
 			t.Errorf("closestTypeName(%q, %q) = %q, want %q", c.name, c.decl, got, c.want)
 		}

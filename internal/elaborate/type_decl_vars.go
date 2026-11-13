@@ -5,7 +5,6 @@ import (
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
-	"github.com/sunholo-data/ailang/internal/importhint"
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
@@ -57,8 +56,7 @@ func (e *Elaborator) checkTypeDeclVars(decl *ast.TypeDecl) error {
 
 // typeDeclVarError builds the TC_UNBOUND_TYPE_003 message: the parameter fix,
 // and the type the name most likely meant (an import of it when an imported
-// module exports it but it is not imported by name, else a built-in or a type
-// in scope within edit distance 2 or differing only by case).
+// module exports it but it is not imported by name, else closestTypeName).
 func (e *Elaborator) typeDeclVarError(decl *ast.TypeDecl, name string) error {
 	params := append(append([]string{}, decl.TypeParams...), name)
 	fix := fmt.Sprintf("write `type %s[%s] = …` to make it a parameter", decl.Name, strings.Join(params, ", "))
@@ -74,28 +72,6 @@ func (e *Elaborator) typeDeclVarError(decl *ast.TypeDecl, name string) error {
 	}
 	return fmt.Errorf("%s: type variable '%s' is not a parameter of %s: %s%s",
 		types.TC_UNBOUND_TYPE_003, name, decl.Name, fix, hint)
-}
-
-// closestTypeName picks the type a misspelt name most likely meant: the same
-// name up to case, else (for names of four or more letters, where an edit
-// distance means something) importhint.Closest. The declaration's own name
-// and the unit type are never suggested.
-func closestTypeName(name, declName string, cands []string) string {
-	keep := make([]string, 0, len(cands))
-	for _, c := range cands {
-		if c != declName && c != "()" {
-			keep = append(keep, c)
-		}
-	}
-	for _, c := range keep {
-		if c != name && strings.EqualFold(c, name) {
-			return c
-		}
-	}
-	if len(name) < 4 {
-		return ""
-	}
-	return importhint.Closest(name, keep)
 }
 
 // walkDeclTypes calls f on every type node in a type declaration's body:

@@ -1,6 +1,8 @@
 package parser
 
 import (
+	"fmt"
+
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/lexer"
 )
@@ -15,6 +17,13 @@ import (
 //   variant        := UIdent ("(" type_expr ("," type_expr)* ")")?
 //   record_type    := "{" field ("," field)* ","? "}"
 //   field          := LIdent ":" type_expr
+
+// builtinDeclExample is the example name PAR_TYPE_DECL_BUILTIN's fix offers
+// for a declaration named like each built-in.
+var builtinDeclExample = map[string]string{
+	"int": "Count", "float": "Meters", "string": "Name", "bool": "Flag",
+	"unit": "Done", "char": "Letter", "bytes": "Payload",
+}
 
 func (p *Parser) parseTypeDeclaration(exported bool) ast.Node {
 	startPos := p.curPos()
@@ -34,6 +43,15 @@ func (p *Parser) parseTypeDeclaration(exported bool) ast.Node {
 	}
 
 	name := p.curToken.Literal
+	// A built-in name is never a declared type (parser_type_names.go rule 2):
+	// `type float = float` used to pass, `type string = int` was silently
+	// ignored at every use. Reported, then the declaration is still parsed so
+	// one mistake gives one error.
+	if ast.IsBuiltinTypeName(name) {
+		p.errors = append(p.errors, NewParserError("PAR_TYPE_DECL_BUILTIN", p.curPos(), p.curToken,
+			fmt.Sprintf("type '%s' has the name of the built-in type %s, which a declaration cannot redefine", name, name),
+			nil, fmt.Sprintf("Give the type its own name (e.g. type %s = %s) and use that name where you meant this type", builtinDeclExample[name], name)))
+	}
 	p.nextToken()
 
 	// Parse optional type parameters [a, b, ...]

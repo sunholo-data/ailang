@@ -138,6 +138,22 @@ func typeNameScopeCases() []tnCase {
 			"module q/main\nimport q/shapes (point, label, px)\n"+
 				"type seg2 = {a: pt, b: point}\ntype Tagged[t] = T(t, label) | N\ntype pt = {x: int, y: int}\n"+
 				"export pure func main() -> int = match T(1, \"s\") { T(n, _) => n, N => 0 }\n")),
+		// ---- follow-ups from the #2286 review ----
+		c("a lowercase applied builtin suggests its type (map -> Map)", solo(
+			"module q/main\ntype X = map[string, int]\nexport pure func main() -> int = 0\n"),
+			types.TC_UNBOUND_TYPE_001, "did you mean the type `Map`?"),
+		c("a lowercase applied prelude type suggests it (option -> Option)", solo(
+			"module q/main\npure func f(x: option[int]) -> int = 0\nexport pure func main() -> int = 0\n"),
+			types.TC_UNBOUND_TYPE_001, "did you mean the type `Option`?"),
+		c("a foreign type name suggests the built-in a newcomer means (number -> float)", solo(
+			"module q/main\ntype X = number\nexport pure func main() -> int = 0\n"),
+			types.TC_UNBOUND_TYPE_003, "did you mean the type `float`?"),
+		c("a type may not be named like a built-in (type float = float)", solo(
+			"module q/main\ntype float = float\nexport pure func main() -> int = 0\n"),
+			"PAR_TYPE_DECL_BUILTIN", "type 'float' has the name of the built-in type float"),
+		c("a type may not be named like a built-in (type string = int)", solo(
+			"module q/main\ntype string = int\npure func f(s: string) -> int = 0\nexport pure func main() -> int = f(\"a\")\n"),
+			"PAR_TYPE_DECL_BUILTIN", "type 'string'"),
 		// ---- with #2288 (record rows) and #2289 (literal annotations) ----
 		c("2211+2288: a lowercase record type rejects a missing field like an uppercase one", solo(
 			"module q/main\ntype point = {x: int, y: int}\npure func mk() -> point = {x: 1}\nexport pure func main() -> int = mk().x\n"),

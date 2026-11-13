@@ -1,6 +1,9 @@
 package types
 
-import "testing"
+import (
+	"strings"
+	"testing"
+)
 
 // ReadsAsTypeVar is the one decision for a bare SimpleType that is a type
 // variable (#2211): a lowercase name the scope does not declare.
@@ -29,6 +32,20 @@ func TestTypeScope_ReadsAsTypeVar(t *testing.T) {
 	}
 	if names := s.Names(); len(names) == 0 || !hasName(names, "point") || !hasName(names, "state") || !hasName(names, "int") {
 		t.Errorf("Names misses scope or built-in names: %v", names)
+	}
+}
+
+// TC_UNBOUND_TYPE_001 names the suggested type when there is one, and the
+// generic fix otherwise.
+func TestUnboundLowerTypeError_Suggestion(t *testing.T) {
+	with := UnboundLowerTypeError("option", "Option").Error()
+	if !strings.Contains(with, TC_UNBOUND_TYPE_001) || !strings.Contains(with, "did you mean the type `Option`?") {
+		t.Errorf("with a suggestion: %s", with)
+	}
+	without := UnboundLowerTypeError("zz", "").Error()
+	if !strings.Contains(without, "type 'zz' is not in scope") || strings.Contains(without, "did you mean") ||
+		!strings.Contains(without, "import <module> (zz)") {
+		t.Errorf("without a suggestion: %s", without)
 	}
 }
 

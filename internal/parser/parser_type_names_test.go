@@ -223,3 +223,26 @@ func TestTypeNames_LocalBeatsImport(t *testing.T) {
 		t.Errorf("got %+v", file.LowerTypeNames)
 	}
 }
+
+// A type declaration named like a built-in is PAR_TYPE_DECL_BUILTIN (the
+// declaration could never be used: the name always means the built-in).
+func TestTypeNames_DeclBuiltinRejected(t *testing.T) {
+	for _, name := range ast.BuiltinTypeNames() {
+		_, p := parseTypeNamesFile(t, "type "+name+" = int")
+		var msgs []string
+		for _, e := range p.Errors() {
+			msgs = append(msgs, e.Error())
+		}
+		if len(msgs) != 1 || !strings.Contains(msgs[0], "PAR_TYPE_DECL_BUILTIN") || !strings.Contains(msgs[0], "type '"+name+"'") {
+			t.Errorf("type %s = int: want one PAR_TYPE_DECL_BUILTIN, got %v", name, msgs)
+		}
+		// The fix's example fits the built-in (#2330 review: not "Meters"
+		// for a string).
+		ex := builtinDeclExample[name]
+		if ex == "" || len(msgs) == 0 || !strings.Contains(msgs[0], "type "+ex+" = "+name) {
+			t.Errorf("type %s: the fix must suggest `type <Name> = %s`, got %v", name, name, msgs)
+		}
+	}
+	_, p := parseTypeNamesFile(t, "type Float = float\ntype floaty = float")
+	AssertNoErrors(t, p)
+}

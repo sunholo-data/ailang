@@ -348,44 +348,63 @@ export pure func use() -> int = f({x: 1, z: "a"}, {y: 2, w: true})
 	}
 }
 
+// rowLib exports two functions over an OPEN record row: the parameter is
+// unannotated, so each signature is inferred from what the body reads.
+// (These guards used std/sem until #2211 made sem_frame a closed declared
+// record: there they only checked a closed-record mismatch. An annotation is
+// avoided on purpose: `f: frame` is a signature type variable, which rigid
+// signature variables (#2304) reject in the library once the body needs a
+// record, and `f: {id: string | r}` declares fewer fields than the body reads.)
+const rowLib = "module q/rowlib\n" +
+	"export pure func enc(f) -> string = \"${f.id}:${show(f.ver)}:${f.content}\"\n" +
+	"export pure func bump(f) = {f | ver: f.ver + 1}\n"
+
 // Why #2221 part 4 (defaulting's own free-variable walk) is not changed here:
-// with the shared walk, std/sem's bump_version becomes `{ver: b, ...}` and its
-// Num constraint does not reach an importer, so this program would pass check
-// and fail at run time. Defaulting to int is what keeps it rejected.
+// with the shared walk, an exported `bump` becomes `({ver: b, ...a}) -> ...`
+// and its Num constraint does not reach an importer, so a call with every
+// field present but `ver` a string would pass check and fail at run time.
+// Defaulting `ver` to int is what keeps it rejected: the error is about the
+// TYPE of `ver`, not about a missing field.
 func TestRecordRows_BumpVersionRejectsStringVer(t *testing.T) {
-	src := `module m
-
-import std/sem (bump_version)
-
-export func main() -> () ! {IO} {
-  println(bump_version({ver: "s", id: "x"}).ver)
-}
-`
-	err := checkModule(t, src)
+	_, err := writeAndCheck(t, map[string]string{
+		"q/rowlib.ail": rowLib,
+		"q/m.ail": "module q/m\nimport q/rowlib (bump)\n" +
+			"export func main() -> () ! {IO} = println(bump({ver: \"s\", id: \"x\"}).id)\n",
+	}, "q/m.ail")
 	if err == nil {
-		t.Fatal("bump_version accepted a string ver; it fails at run time")
+		t.Fatal("bump accepted a string ver; it fails at run time")
+	}
+	if !strings.Contains(err.Error(), "string") || strings.Contains(err.Error(), "not found in record") {
+		t.Fatalf("bump({ver: \"s\", id}) must fail on the type of ver, not on a missing field: %v", err)
+	}
+	// Control: the same call with an int ver checks.
+	if _, err := writeAndCheck(t, map[string]string{
+		"q/rowlib.ail": rowLib,
+		"q/m.ail": "module q/m\nimport q/rowlib (bump)\n" +
+			"export func main() -> () ! {IO} = println(bump({ver: 1, id: \"x\"}).id)\n",
+	}, "q/m.ail"); err != nil {
+		t.Fatalf("bump({ver: 1, id}) must check: %v", err)
 	}
 }
 
-// std/sem's encode_frame reads eight fields. Its exported type named only
-// `id` (the shared row hid the rest), so a one-field record type-checked and
-// failed at run time with `record has no field: ver`.
+// An exported open-row signature demands, across the interface, every field
+// its body reads: `enc` reads id, ver and content, so a one-field record is
+// TC_REC_001 at the importer (it used to name only `id` and fail at run time
+// with `record has no field: ver`).
 func TestRecordRows_EncodeFrameRequiresEveryField(t *testing.T) {
-	src := `module m
-
-import std/sem (encode_frame)
-
-export func main() -> () ! {IO} {
-  println(encode_frame({id: "x"}))
-}
-`
-	// Since #2211 encode_frame's parameter is std/sem's declared sem_frame
-	// (closed), not an open row, so the rejection is the closed-record
-	// mismatch naming every missing field.
-	err := checkModule(t, src)
-	if err == nil || !strings.Contains(err.Error(), "record field mismatch") ||
-		!strings.Contains(err.Error(), "missing fields:  content, embedding, embedding_dim, opaque, simhash, ts, ver") {
-		t.Fatalf("encode_frame({id}) must be rejected naming the missing fields, got: %v", err)
+	_, err := writeAndCheck(t, map[string]string{
+		"q/rowlib.ail": rowLib,
+		"q/m.ail": "module q/m\nimport q/rowlib (enc)\n" +
+			"export func main() -> () ! {IO} = println(enc({id: \"x\"}))\n",
+	}, "q/m.ail")
+	wantCode(t, err, types.TC_REC_001, "field 'content' not found in record {id} (also missing: 'ver')")
+	// Control: every field present (and one more, which the open row absorbs).
+	if _, err := writeAndCheck(t, map[string]string{
+		"q/rowlib.ail": rowLib,
+		"q/m.ail": "module q/m\nimport q/rowlib (enc)\n" +
+			"export func main() -> () ! {IO} = println(enc({id: \"x\", ver: 1, content: \"c\", extra: true}))\n",
+	}, "q/m.ail"); err != nil {
+		t.Fatalf("enc with every field must check: %v", err)
 	}
 }
 

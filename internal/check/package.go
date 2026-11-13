@@ -41,6 +41,9 @@ type FileResult struct {
 	// Errors are the messages appended to the package error list for this
 	// file, already prefixed with the file (Rel or Path) as the CLI prints them.
 	Errors []string
+	// Cause is the structured error behind Errors[0] when pipeline.Run
+	// failed (a parse error keeps its PAR_ code and position for --json).
+	Cause error
 }
 
 // PackageOptions configures CheckPackageFiles.
@@ -73,6 +76,9 @@ type PackageReport struct {
 	// `check --package` hid every deprecation from a package author.
 	CompileWarnings []elaborate.Warning
 	Files           []FileResult
+	// ErrorCauses maps an index of Errors to the structured error behind it,
+	// when there is one (FileResult.Cause).
+	ErrorCauses map[int]error
 }
 
 // CheckPackageFiles checks every source file of an AILANG package through the
@@ -106,6 +112,12 @@ func CheckPackageFiles(absDir string, manifest *pkg.PackageManifest, sourceFiles
 
 	record := func(fr FileResult) {
 		report.Files = append(report.Files, fr)
+		if fr.Cause != nil && len(fr.Errors) > 0 {
+			if report.ErrorCauses == nil {
+				report.ErrorCauses = map[int]error{}
+			}
+			report.ErrorCauses[len(report.Errors)] = fr.Cause
+		}
 		report.Errors = append(report.Errors, fr.Errors...)
 		if fr.Status == FilePassed {
 			report.Passed++
@@ -169,6 +181,7 @@ func CheckPackageFiles(absDir string, manifest *pkg.PackageManifest, sourceFiles
 		if checkErr != nil {
 			fr.Status = FileCompileError
 			fr.Errors = []string{fmt.Sprintf("%s: %v", rel, checkErr)}
+			fr.Cause = checkErr
 			record(fr)
 			continue
 		}

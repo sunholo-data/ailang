@@ -327,13 +327,7 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 		file.Path = fullPath
 	}
 	if len(p.Errors()) > 0 {
-		// Format each error individually to preserve custom .Error() methods
-		// (e.g., ParserError with suggestions)
-		var errorMsgs []string
-		for _, err := range p.Errors() {
-			errorMsgs = append(errorMsgs, err.Error())
-		}
-		return nil, fmt.Errorf("parse errors in %s:\n%s", path, strings.Join(errorMsgs, "\n\n"))
+		return nil, &ParseErrors{Path: path, Errs: p.Errors()}
 	}
 
 	// Extract imports from the file
@@ -775,3 +769,25 @@ func IsTempPath(path string) bool {
 
 	return false
 }
+
+// ParseErrors is the error of a module that does not parse: every parser
+// error, in order. Its text is unchanged ("parse errors in <path>:" and each
+// error, preserving custom .Error() methods such as ParserError's
+// suggestions), and it unwraps to the errors themselves, so errors.As finds
+// the first *parser.ParserError and `check --json` reports its PAR_ code
+// instead of the generic "ERROR".
+type ParseErrors struct {
+	Path string
+	Errs []error
+}
+
+func (e *ParseErrors) Error() string {
+	msgs := make([]string, len(e.Errs))
+	for i, err := range e.Errs {
+		msgs[i] = err.Error()
+	}
+	return fmt.Sprintf("parse errors in %s:\n%s", e.Path, strings.Join(msgs, "\n\n"))
+}
+
+// Unwrap exposes every parser error to errors.Is/As.
+func (e *ParseErrors) Unwrap() []error { return e.Errs }
