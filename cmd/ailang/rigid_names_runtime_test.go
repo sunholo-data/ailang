@@ -54,11 +54,15 @@ export pure func label[a](x: a, y: a) -> string {
   let msg = "product=${show(big)}";
   msg
 }
-export pure func f[a](x: a) -> a { let s = show(x + x); x }
+export pure func f[a](x: a) -> string {
+  let y = x + x;
+  let s = show(y);
+  s
+}
 export func main() -> () ! {IO} {
   println(label(3, 4));
   println(label(1.5, 2.0));
-  println(show(f(1.25)))
+  println(f(1.25))
 }
 `
 	if err := os.WriteFile(file, []byte(src), 0o644); err != nil {
@@ -71,7 +75,7 @@ export func main() -> () ! {IO} {
 		if code != 0 {
 			t.Fatalf("%v: exit %d: %s", engine, code, stderr)
 		}
-		if want := "product=12\nproduct=3.0\n1.25"; strings.TrimSpace(out) != want {
+		if want := "product=12\nproduct=3.0\n2.5"; strings.TrimSpace(out) != want {
 			t.Errorf("%v: output %q, want %q", engine, strings.TrimSpace(out), want)
 		}
 	}
