@@ -150,6 +150,11 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (prog *core.Program, err erro
 	e.typeAnnotationErr = nil
 	e.checkBodies = nil
 	e.ensureTypeScope(file)
+	// A type alias may not refer to itself (TC_TYPE_ALIAS_CYCLE_001): checked
+	// before any alias is registered or expanded.
+	if err := e.checkAliasCycles(file); err != nil {
+		return nil, err
+	}
 	defer func() {
 		if e.typeAnnotationErr != nil {
 			prog, err = nil, e.typeAnnotationErr

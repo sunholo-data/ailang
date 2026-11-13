@@ -43,6 +43,9 @@ func (p *Parser) ParseFile() (file *ast.File) {
 	file = &ast.File{
 		Pos: p.curPos(),
 	}
+	// Lowercase type declarations, wherever they are in the file, are types
+	// at every use (#2211).
+	p.declareLowerTypeNames()
 
 	// Optional module declaration
 	if p.curTokenIs(lexer.MODULE) {
@@ -65,6 +68,7 @@ func (p *Parser) ParseFile() (file *ast.File) {
 		imp := p.parseImportDecl()
 		if imp != nil {
 			file.Imports = append(file.Imports, imp)
+			p.importLowerTypeNames(imp)
 		}
 		p.nextToken()
 	}
@@ -92,6 +96,7 @@ func (p *Parser) ParseFile() (file *ast.File) {
 		}
 	}
 
+	file.LowerTypeNames = p.lowerRefs
 	return file
 }
 

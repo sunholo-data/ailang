@@ -379,7 +379,14 @@ export func main() -> () ! {IO} {
   println(encode_frame({id: "x"}))
 }
 `
-	wantCode(t, checkModule(t, src), types.TC_REC_001, "not found in record {id}")
+	// Since #2211 encode_frame's parameter is std/sem's declared sem_frame
+	// (closed), not an open row, so the rejection is the closed-record
+	// mismatch naming every missing field.
+	err := checkModule(t, src)
+	if err == nil || !strings.Contains(err.Error(), "record field mismatch") ||
+		!strings.Contains(err.Error(), "missing fields:  content, embedding, embedding_dim, opaque, simhash, ts, ver") {
+		t.Fatalf("encode_frame({id}) must be rejected naming the missing fields, got: %v", err)
+	}
 }
 
 // The interface of a module that exports an annotated open record is written

@@ -302,6 +302,8 @@ func (st *modulePipelineState) compileAllAndFinalize() error {
 	// Needs every unit at once: the deprecation lives in the defining module,
 	// the use in another.
 	st.result.Warnings = append(st.result.Warnings, DetectDeprecatedUses(st.compiledUnits)...)
+	// Needs the imported modules' interfaces, restored on a cache hit too.
+	st.result.Warnings = append(st.result.Warnings, DetectTypeNameWarnings(st.compiledUnits, st.modLinker.GetIface)...)
 
 	link.RegisterAdtModule(st.modLinker)
 	st.saveCacheAndReportStats()
@@ -420,7 +422,7 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 
 	compileResult, err := typeCheckAndLowerModule(unit, modID, st.rootCanonical, imports, elaborator, st.cfg, st.checksTestBodies(modID))
 	if err != nil {
-		return err
+		return withLowerTypeNote(err, mod.File)
 	}
 
 	st.result.Warnings = append(st.result.Warnings, compileResult.Warnings...)

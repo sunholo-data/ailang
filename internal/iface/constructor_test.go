@@ -194,9 +194,25 @@ func TestAstTypeToInternalType_TypeVar(t *testing.T) {
 			wantKind: "TVar2",
 		},
 		{
-			name:     "SimpleType lowercase 'a' becomes TVar2",
-			input:    &ast.SimpleType{Name: "a"},
-			wantName: "a",
+			// #2211: a SimpleType is a type whatever its case (the parser
+			// makes type variables TypeVars); `type point = ...` is a TCon.
+			name:     "SimpleType lowercase 'point' declared in scope becomes TCon",
+			input:    &ast.SimpleType{Name: "point"},
+			wantName: "point",
+			wantKind: "TCon",
+		},
+		{
+			// #2211: a lowercase name imported by name that is a value (not a
+			// type in scope) keeps its pre-#2211 meaning, a type variable.
+			name:     "SimpleType lowercase 'map' not a type in scope becomes TVar2",
+			input:    &ast.SimpleType{Name: "map"},
+			wantName: "map",
+			wantKind: "TVar2",
+		},
+		{
+			name:     "TypeVar uppercase 'T' becomes TVar2",
+			input:    &ast.TypeVar{Name: "T"},
+			wantName: "T",
 			wantKind: "TVar2",
 		},
 		{
@@ -221,7 +237,9 @@ func TestAstTypeToInternalType_TypeVar(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result := astTypeToInternalType(nil, tt.input)
+			scope := types.NewTypeScope("m")
+			scope.BindLocal("point")
+			result := astTypeToInternalType(scope, tt.input)
 			switch tt.wantKind {
 			case "TVar2":
 				tv, ok := result.(*types.TVar2)

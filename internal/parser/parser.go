@@ -41,6 +41,14 @@ type Parser struct {
 	seenModule      bool
 	firstModulePos  ast.Pos
 	firstModulePath string
+
+	// Type-name scope (parser_type_names.go, #2211/#2240): the enclosing
+	// type-parameter lists, innermost last, and the lowercase names the file
+	// declares or imports by name as types.
+	typeParamScopes []map[string]bool
+	lowerTypeNames  map[string]ast.LowerTypeNameKind
+	lowerRefs       []ast.LowerTypeName // uses resolved by rule 3 or 4, in source order
+	curDecl         string              // the top-level declaration being parsed
 }
 
 type (

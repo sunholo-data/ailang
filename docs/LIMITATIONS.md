@@ -189,5 +189,14 @@ Still open:
   indirect dependency adds the name, and an added import that exports the name re-points it (as
   on dev); import the type by name to pin it. A constructor pattern's argument count is not
   checked against the constructor (#2243, pre-existing).
-- An uppercase name in a type-parameter list (`func id[T](x: T)`) is not a type variable: `T`
-  is a type constructor (#2240).
+- Type variables are told from types by scope, not case (#2211, #2240): a name an enclosing
+  `[T]` list binds is a variable, a lowercase name the module declares or imports by name is
+  that type, and any other lowercase name is an implicitly quantified variable. That last rule
+  is the residual hole: a misspelled or miscased type name (`state` for `State`) or a value
+  name in type position (`-> (stack, int)`) is silently a fresh type variable, and because
+  annotated type variables are not rigid (`func f[a](x: a) -> a = x + 1` is accepted as
+  `int -> int`, and so, since #2240, is `func toInt[T](x: T) -> int = x`; #2273), such an
+  annotation constrains nothing (in a function signature only: a type declaration with a free
+  variable is `TC_UNBOUND_TYPE_003`). Two such readings warn `TC_UNBOUND_TYPE_002`: a lowercase type
+  an import exports but the module does not import by name, and a value imported by name used
+  as a type.

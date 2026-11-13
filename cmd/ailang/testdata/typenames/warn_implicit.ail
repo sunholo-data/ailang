@@ -1,0 +1,6 @@
+-- TC_UNBOUND_TYPE_002 fixture (#2211): `namespace` is a type std/sem exports,
+-- but it is not imported by name, so here it is a type variable; check warns.
+module cmd/ailang/testdata/typenames/warn_implicit
+import std/sem (validate_namespace)
+
+export pure func tag(n: namespace, x: int) -> (namespace, int) = (n, x)

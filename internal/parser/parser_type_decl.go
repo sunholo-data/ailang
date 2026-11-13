@@ -9,7 +9,7 @@ import (
 // EBNF:
 //   type_decl      := export? "type" UIdent type_params? "=" type_body
 //   type_params    := "[" type_param ("," type_param)* "]"
-//   type_param     := LIdent
+//   type_param     := Ident   (a type variable in the body, any case; not a built-in name — #2240)
 //   type_body      := type_alias | sum_type | record_type
 //   sum_type       := variant ("|" variant)*
 //   variant        := UIdent ("(" type_expr ("," type_expr)* ")")?
@@ -41,6 +41,10 @@ func (p *Parser) parseTypeDeclaration(exported bool) ast.Node {
 	if p.curTokenIs(lexer.LBRACKET) {
 		typeParams = p.parseTypeParams()
 	}
+	// The parameters scope over the body (#2240): `type Box[T] = Box(T)`.
+	p.pushTypeParams(typeParams)
+	defer p.popTypeParams()
+	defer p.enterDecl(name)()
 
 	// Expect '='
 	if !p.curTokenIs(lexer.ASSIGN) {

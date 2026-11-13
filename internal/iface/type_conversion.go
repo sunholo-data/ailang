@@ -31,8 +31,12 @@ func astTypeToInternalType(scope *types.TypeScope, t ast.Type) types.Type {
 		case "bytes":
 			return types.TBytes
 		default:
-			// Type variable or constructor
-			if len(typ.Name) > 0 && typ.Name[0] >= 'a' && typ.Name[0] <= 'z' {
+			// The parser makes a type variable a TypeVar, so a SimpleType is a
+			// type whatever its case (#2211 — a lowercase declared type used to
+			// become a fresh variable here). The one exception mirrors the
+			// elaborator (elaborate.simpleType): a lowercase name imported by
+			// name that is not a type in scope is a type variable, as before.
+			if scope.ReadsAsTypeVar(typ.Name) {
 				return &types.TVar2{Name: typ.Name, Kind: types.Star}
 			}
 			return scope.Con(typ.Name)

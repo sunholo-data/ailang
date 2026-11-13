@@ -292,17 +292,20 @@ func TestTyvarHygiene_ImportedInstantiationIsFresh(t *testing.T) {
 	t.Setenv("AILANG_NO_CACHE", "1")
 	root := repoRoot(t)
 	t.Chdir(root)
-	res, err := Run(Config{Mode: ModeCheck}, Source{Filename: "std/sem.ail"})
+	// std/list.foldl is polymorphic by declaration (`[a, b]`). This used to
+	// read std/sem.is_newer, which was polymorphic only because its lowercase
+	// declared type sem_frame was a type variable (#2211); it is now the record.
+	res, err := Run(Config{Mode: ModeCheck}, Source{Filename: "std/list.ail"})
 	if err != nil {
 		t.Fatal(err)
 	}
-	item := res.Interface.Exports["is_newer"]
+	item := res.Interface.Exports["foldl"]
 	if item == nil {
-		t.Fatal("std/sem.is_newer not exported")
+		t.Fatal("std/list.foldl not exported")
 	}
 	stored := schemeVarNames(item.Type)
-	if len(item.Type.TypeVars) == 0 {
-		t.Fatalf("is_newer exported with no quantified type variables: %v", item.Type)
+	if len(item.Type.TypeVars) < 2 {
+		t.Fatalf("foldl exported with fewer than two quantified type variables: %v", item.Type)
 	}
 	counter := 0
 	fresh := func(k types.Kind) types.Type {

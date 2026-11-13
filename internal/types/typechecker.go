@@ -206,10 +206,8 @@ func (tc *TypeChecker) astTypeToType(t ast.Type) Type {
 		case "char":
 			return &TCon{Name: "char"}
 		default:
-			// Type variable or constructor
-			if isLowerCase(typ.Name) {
-				return &TVar2{Name: typ.Name, Kind: Star}
-			}
+			// A SimpleType is always a type constructor, whatever its case:
+			// the parser makes a type variable a TypeVar (#2211).
 			return &TCon{Name: typ.Name}
 		}
 
@@ -296,10 +294,6 @@ func (tc *TypeChecker) astTypeToType(t ast.Type) Type {
 		// No silent fallback — fail loudly per CLAUDE.md Section 2
 		panic(fmt.Sprintf("astTypeToType: unhandled ast.Type variant: %T", t))
 	}
-}
-
-func isLowerCase(s string) bool {
-	return len(s) > 0 && s[0] >= 'a' && s[0] <= 'z'
 }
 
 // TypedProgram represents a type-checked program

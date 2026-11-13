@@ -64,6 +64,9 @@ type Elaborator struct {
 	// from the module's imports (SetTypeScope); otherwise ElaborateFile builds a
 	// local one from the file's own declarations (type_scope.go).
 	typeScope *types.TypeScope
+	// typeScopeImports: typeScope was installed by the pipeline (SetTypeScope)
+	// and so binds the module's imports, not only its own declarations.
+	typeScopeImports bool
 	// newtypeADTs: local single-constructor ADTs wrapping a record that are
 	// registered as aliases for field access (M-STREAM-DX/M4); they must stay
 	// nominal everywhere else.

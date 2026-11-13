@@ -26,6 +26,8 @@ func (p *Parser) parseType() ast.Type {
 
 		// Check for type application: List[int], Array[T], Option[a], etc.
 		if p.peekTokenIs(lexer.LBRACKET) {
+			// A type parameter cannot be applied (no higher-kinded types).
+			p.checkTypeParamNotApplied(name, startPos)
 			p.nextToken() // consume IDENT
 			p.nextToken() // consume LBRACKET
 
@@ -62,30 +64,9 @@ func (p *Parser) parseType() ast.Type {
 			goto checkArrow
 		}
 
-		// Check if it's a built-in type (lowercase but not type vars).
-		// The canonical list lives in ast so the parser and the type
-		// converters cannot drift (a missing entry made `bytes` a TypeVar).
-		if ast.IsBuiltinTypeName(name) {
-			typ = &ast.SimpleType{
-				Name: name,
-				Pos:  startPos,
-			}
-			goto checkArrow
-		}
-
-		// Check if it's a type variable (lowercase single letter) or type constructor (uppercase)
-		if len(name) > 0 && name[0] >= 'a' && name[0] <= 'z' {
-			typ = &ast.TypeVar{
-				Name: name,
-				Pos:  startPos,
-			}
-			goto checkArrow
-		}
-
-		typ = &ast.SimpleType{
-			Name: name,
-			Pos:  startPos,
-		}
+		// A type variable or a type: decided by scope, not by case
+		// (parser_type_names.go, #2211/#2240).
+		typ = p.typeNameNode(name, startPos)
 		goto checkArrow
 
 	case lexer.UNIT:
