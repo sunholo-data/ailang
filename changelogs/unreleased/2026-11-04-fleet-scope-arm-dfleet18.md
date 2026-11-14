@@ -1,0 +1,3 @@
+### Changed — Fleet scope guard: two Motoko probe support paths (PROPOSED, D-FLEET-18 A)
+
+PROPOSED, pending Mark's ruling on D-FLEET-18. The fleet support allowlist admits exactly `tools/eval/motoko_connection_probe.sh` and `tools/eval/test_motoko_connection_probe.sh`; product missions retain access, and other `tools/eval/` paths remain refused. Guard arm only, with Authority documentation and regression tests. No probe changes or flake fixes are included; those follow only after the ruling and this arm lands on the pinned `origin/dev` copy (iteration-16 rule). See `design_docs/fleet-mission.md`, D-FLEET-18.

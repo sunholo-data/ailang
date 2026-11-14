@@ -82,6 +82,7 @@ Clause map: **1** UNMEASURED, goal unmoved; **2** UNMET (nothing resolved; media
   `scripts/test_mission_*` (D-FLEET-5), its own
   `design_docs/fleet-mission*`), plus support paths (`design_docs/**`, `changelogs/**`,
   `CHANGELOG.md`, `docs/**`, `.ailang/state/sprints/**`, `internal/config/mission.go`, `make/test.mk`,
+  `tools/eval/motoko_connection_probe.sh`, `tools/eval/test_motoko_connection_probe.sh` (D-FLEET-18),
   `tools/pi-extensions/sandbox/**` (D-FLEET-6)).
   **Anything else is refused**, including CI workflows, `go.mod`, the server, the UI and non-mission
   commands. A fix that genuinely needs one of those parks for Mark.
