@@ -1157,12 +1157,18 @@ RUNTIME_QUOTA_REWALKS="${MISSION_RUNTIME_QUOTA_REWALKS:-4}"
 
 TRANSIENT_RETRIES="${MISSION_TRANSIENT_RETRIES:-3}"   # total attempts incl. the first
 TRANSIENT_BACKOFF="${MISSION_TRANSIENT_BACKOFF:-45}"  # base seconds, ×attempt (45s,90s)
-TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_error|API Error: 5[0-9][0-9]|API Error: Internal|API Error: Connection|API Error: Request timed out|Provider finish_reason: error"
+TRANSIENT_SIG="API Error: Overloaded|socket connection was closed|overloaded_error|API Error: 5[0-9][0-9]|API Error: Internal|API Error: Connection|API Error: Request timed out|Provider finish_reason: error|^ERROR: Selected model is at capacity"
 # `Provider finish_reason: error` is OpenRouter's mid-stream upstream failure as pi prints
 # it. pi's own retry list (pi-ai isRetryableAssistantError) does NOT match it, so pi exits
 # rc=1 on the first one: stapledon 2026-09-29 00:52Z lost an iteration on turn 76 to a
 # single occurrence. A pi controller retry RESUMES the same session (see MC_PI_SESSION_ID),
 # so it continues from that turn rather than re-running the gates.
+# `^ERROR: Selected model is at capacity` is codex exec's capacity stop. Per the ticket
+# (codex:server-capacity-error-crashes-finished-iteration) codex printed it twice, then rc=1; codex
+# writes server errors as `ERROR: ` at column 0 (codex-cli 0.164.0, measured on a rejected model).
+# World iteration 219 (2026-10-02) finished, hit it, and read CRASHED at gate-3. Line-anchored:
+# ledger and ticket quote it mid-line, and codex echoes what it reads into this log.
+# D-FLEET-26 = A, D-FLEET-11's narrow scope.
 
 # PER-ROLE MODEL ROUTING (2026-07-15, m-mission-agentic-provider-routing M1): the charter's routing
 # table was never enforced — every inner role ran on the controller's single session --model, so with
