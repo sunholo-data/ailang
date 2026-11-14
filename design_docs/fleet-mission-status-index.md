@@ -12,6 +12,8 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 93 | 2026-11-07 | D-FLEET-25’s remaining mechanism proposed in draft #2165; one GLM revision, re-quorum BLOCKED and independent MiniMax judge NEEDS-HUMAN-REVIEW; pla... |
+| 92 | 2026-11-06 | idle — no buildable step; all 25 open tickets are ruling-gated and an independent sonnet idle-screen judge ruled NONE, as iteration 90 predicted; n... |
 | 91 | 2026-11-06 | `driver:idle-fire-writes-full-block-report` LANDED and resolved — #2160 → `d08031597`, dev CI + Build and Release green (18/18): product missions n... |
 | 90 | 2026-11-06 | D-FLEET-42 A's M3 built as a proposed diff — draft PR #2150 (`26b713887`), stacked on #2143, unmerged pending your ruling; a pinned dry-run now pro... |
 | 89 | 2026-11-06 | D-FLEET-42 A's M2 wiring built as a proposed diff — draft PR #2143 (`7f1e13d5f`), stacked on #2141, unmerged pending your ruling; controller childr... |

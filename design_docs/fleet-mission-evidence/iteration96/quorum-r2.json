@@ -1,0 +1,63 @@
+{
+  "doc": "design_docs/planned/m-fleet-role-artifact-contract.md",
+  "iso_ts": "2026-11-08T02:45:14Z",
+  "reviewers": [
+    {
+      "model": "gpt6-1-sol",
+      "cost_usd": 0.016078,
+      "tokens_in": 6664,
+      "tokens_out": 275,
+      "present": true,
+      "result": {
+        "verdict": "reject",
+        "strongest_objection": "The claimed standing-policy gap is not verified. R10 searches only for 'identity' in one recipe, which cannot establish that broad HOME/session discovery was permitted by every standing rule or that no preventive discovery restriction already exists. This leaves both the central premise and the conflict surface with existing read/discovery policies unresolved.",
+        "catch": "The Problem Statement and Before example claim the original directive was 'conformant with every standing rule.' The documented checks do not examine the applicable policy chain, including the CLAUDE.md preamble explicitly required by the evaluator handshake. A restriction need not contain the word 'identity' to prohibit the observed sweep.",
+        "proposed_fix": "Replace the blanket conformity claims with: 'The original directive invited identity research, and the observed run performed a HOME metadata sweep. Whether that sweep complied with all applicable standing policies is not yet verified.' Add bounded verification-log rows reading the applicable instruction hierarchy and relevant recipe sections for filesystem scope, discovery, session-store access, and missing-input handling. Add a conflict-surface paragraph identifying any existing restrictions and explaining whether this block merely specializes them or changes them, including precedence. If no restriction exists, limit the gap claim to the explicitly inspected policy surface."
+      },
+      "landed": null
+    },
+    {
+      "model": "gemini-4-argon",
+      "cost_usd": 0.033836000000000005,
+      "tokens_in": 7224,
+      "tokens_out": 247,
+      "present": true,
+      "result": {
+        "verdict": "pass",
+        "strongest_objection": "The pointer placement at '~line 355' of `.claude/skills/mission-control/resources/gate-3-route.md` is an unverified approximation with no Verification Log entry confirming the exact content, markers, or structure around line 355.",
+        "catch": "Verification Log skips R2 (jumps from R1 to R3) and lacks a verification row reading `.claude/skills/mission-control/resources/gate-3-route.md` around line 355 to anchor the proposed pointer sentence.",
+        "proposed_fix": "Add a Verification Log row `R2` (or `R17`) that runs `sed -n '345,365p' .claude/skills/mission-control/resources/gate-3-route.md` to verify the exact section header and line number for the real-run pointer insertion, replacing `~line 355` with the exact verified line range and context."
+      },
+      "landed": null
+    },
+    {
+      "model": "claude-sonnet-5@claude-p",
+      "cost_usd": 0,
+      "tokens_in": 0,
+      "tokens_out": 0,
+      "present": false,
+      "absent_reason": "quota",
+      "error": "Anthropic bucket blocked by the mission ration: Anthropic usage endpoint returned HTTP 429; CLI fallback also failed (no \"Current session\" line in `claude -p /usage` output)",
+      "landed": null
+    }
+  ],
+  "controller_in_session": {
+    "verdict": "pass",
+    "note": "Technical instruction-only direction is reviewable: synthetic checker and population guarantee removed, identity provenance explicit, original named inputs and N1 correlation corrected, P2 fully deferred. This is NOT design approval: strict Duplicate/Coverage gate remains unresolved and explicit attended approval still required before planning. Both Kimi and GLM coauthor vendors excluded from this pool. Independently assess remaining technical claims."
+  },
+  "synthesis": {
+    "verdict": "blocked",
+    "blocking_objections": [
+      "gpt6-1-sol: The claimed standing-policy gap is not verified. R10 searches only for 'identity' in one recipe, which cannot establish that broad HOME/session discovery was permitted by every standing rule or that no preventive discovery restriction already exists. This leaves both the central premise and the conflict surface with existing read/discovery policies unresolved."
+    ],
+    "absent_reviewers": [
+      {
+        "model": "claude-sonnet-5@claude-p",
+        "reason": "quota"
+      }
+    ],
+    "total_cost_usd": 0.049914,
+    "total_tokens_in": 13888,
+    "total_tokens_out": 522
+  }
+}

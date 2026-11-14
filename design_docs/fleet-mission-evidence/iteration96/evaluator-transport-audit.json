@@ -1,0 +1,1039 @@
+{
+  "kind": "bridge transport audit; raw judge artifacts preserved",
+  "model": "openrouter/minimax/minimax-m3",
+  "ack_tool_events": [
+    {
+      "type": "tool_execution_end",
+      "toolCallId": "call_function_s5ryshpsqadx_1",
+      "toolName": "session_protocol_ack",
+      "result": {
+        "content": [
+          {
+            "type": "text",
+            "text": "Session protocol acknowledged \u2014 mutating tools unlocked for this session. Work routing per AGENTS.md still applies."
+          }
+        ],
+        "details": {
+          "acked": true,
+          "at": "2026-11-08T02:07:58.679Z"
+        }
+      },
+      "isError": false
+    }
+  ],
+  "mandatory_full_read_coverage": [
+    {
+      "path": "CLAUDE.md",
+      "line_count": 152,
+      "missing_lines": [],
+      "full_exact_byte_coverage": true
+    },
+    {
+      "path": ".claude/skills/sprint-evaluator/SKILL.md",
+      "line_count": 357,
+      "missing_lines": [],
+      "full_exact_byte_coverage": true
+    },
+    {
+      "path": ".claude/skills/sprint-evaluator/resources/scoring_rubric.md",
+      "line_count": 178,
+      "missing_lines": [],
+      "full_exact_byte_coverage": true
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "line_count": 879,
+      "missing_lines": [],
+      "full_exact_byte_coverage": true
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/codex-lane-false-greens.md",
+      "line_count": 158,
+      "missing_lines": [],
+      "full_exact_byte_coverage": true
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "line_count": 408,
+      "missing_lines": [],
+      "full_exact_byte_coverage": true
+    }
+  ],
+  "read_events": [
+    {
+      "path": "CLAUDE.md",
+      "offset": 1,
+      "requested_end": 152,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_u2i2kzcryn7u_1",
+      "exact_visible_prefix_lines": 152
+    },
+    {
+      "path": ".claude/skills/sprint-evaluator/SKILL.md",
+      "offset": 1,
+      "requested_end": 357,
+      "exact_requested_bytes_visible": false,
+      "isError": false,
+      "toolCallId": "call_function_osb6no46w2zx_2",
+      "exact_visible_prefix_lines": 26
+    },
+    {
+      "path": ".claude/skills/sprint-evaluator/SKILL.md",
+      "offset": 1,
+      "requested_end": 70,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_ccd3euit8fot_1",
+      "exact_visible_prefix_lines": 70
+    },
+    {
+      "path": ".claude/skills/sprint-evaluator/SKILL.md",
+      "offset": 71,
+      "requested_end": 140,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_ccd3euit8fot_2",
+      "exact_visible_prefix_lines": 70
+    },
+    {
+      "path": ".claude/skills/sprint-evaluator/SKILL.md",
+      "offset": 141,
+      "requested_end": 210,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_i7k4od5m6mer_1",
+      "exact_visible_prefix_lines": 70
+    },
+    {
+      "path": ".claude/skills/sprint-evaluator/SKILL.md",
+      "offset": 211,
+      "requested_end": 280,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_i7k4od5m6mer_2",
+      "exact_visible_prefix_lines": 70
+    },
+    {
+      "path": ".claude/skills/sprint-evaluator/resources/scoring_rubric.md",
+      "offset": 1,
+      "requested_end": 90,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_tjnadxvg2pbf_2",
+      "exact_visible_prefix_lines": 90
+    },
+    {
+      "path": ".claude/skills/sprint-evaluator/SKILL.md",
+      "offset": 281,
+      "requested_end": 357,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_tjnadxvg2pbf_1",
+      "exact_visible_prefix_lines": 77
+    },
+    {
+      "path": ".claude/skills/sprint-evaluator/resources/scoring_rubric.md",
+      "offset": 91,
+      "requested_end": 178,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_cqnwtfeauhbo_1",
+      "exact_visible_prefix_lines": 88
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/codex-lane-false-greens.md",
+      "offset": 1,
+      "requested_end": 85,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_cqnwtfeauhbo_2",
+      "exact_visible_prefix_lines": 85
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/codex-lane-false-greens.md",
+      "offset": 86,
+      "requested_end": 158,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_udzn2okyxm16_1",
+      "exact_visible_prefix_lines": 73
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 1,
+      "requested_end": 100,
+      "exact_requested_bytes_visible": false,
+      "isError": false,
+      "toolCallId": "call_function_udzn2okyxm16_2",
+      "exact_visible_prefix_lines": 17
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 1,
+      "requested_end": 40,
+      "exact_requested_bytes_visible": false,
+      "isError": false,
+      "toolCallId": "call_function_bb0h4v1d9cs9_1",
+      "exact_visible_prefix_lines": 17
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 41,
+      "requested_end": 80,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_bb0h4v1d9cs9_2",
+      "exact_visible_prefix_lines": 40
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 81,
+      "requested_end": 100,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_ztdw8aarrlil_1",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 141,
+      "requested_end": 160,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_ztdw8aarrlil_4",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 101,
+      "requested_end": 120,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_ztdw8aarrlil_2",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 121,
+      "requested_end": 140,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_ztdw8aarrlil_3",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 1,
+      "requested_end": 20,
+      "exact_requested_bytes_visible": false,
+      "isError": false,
+      "toolCallId": "call_function_ef6bry95mpjc_1",
+      "exact_visible_prefix_lines": 17
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 21,
+      "requested_end": 40,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_ef6bry95mpjc_2",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 161,
+      "requested_end": 180,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_ef6bry95mpjc_3",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 181,
+      "requested_end": 200,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_ef6bry95mpjc_4",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 21,
+      "requested_end": 28,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_xg8wl0m9ucep_2",
+      "exact_visible_prefix_lines": 8
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 13,
+      "requested_end": 20,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_xg8wl0m9ucep_1",
+      "exact_visible_prefix_lines": 8
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 221,
+      "requested_end": 240,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_xg8wl0m9ucep_4",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 201,
+      "requested_end": 220,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_xg8wl0m9ucep_3",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 241,
+      "requested_end": 260,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_btamdwatdx8k_2",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 261,
+      "requested_end": 280,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_btamdwatdx8k_3",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 9,
+      "requested_end": 12,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_btamdwatdx8k_1",
+      "exact_visible_prefix_lines": 4
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 281,
+      "requested_end": 300,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_btamdwatdx8k_4",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 301,
+      "requested_end": 320,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_4h8n9pqoti33_1",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 321,
+      "requested_end": 340,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_4h8n9pqoti33_2",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 341,
+      "requested_end": 360,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_4h8n9pqoti33_3",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 361,
+      "requested_end": 380,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_4h8n9pqoti33_4",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 381,
+      "requested_end": 400,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_xem6yvchjeau_1",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 401,
+      "requested_end": 420,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_xem6yvchjeau_2",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 441,
+      "requested_end": 460,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_xem6yvchjeau_4",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 421,
+      "requested_end": 440,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_xem6yvchjeau_3",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 461,
+      "requested_end": 480,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_74v020lfunzs_1",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 521,
+      "requested_end": 540,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_74v020lfunzs_4",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 501,
+      "requested_end": 520,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_74v020lfunzs_3",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 481,
+      "requested_end": 500,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_74v020lfunzs_2",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 561,
+      "requested_end": 580,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_91jcyql4d24j_2",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 541,
+      "requested_end": 560,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_91jcyql4d24j_1",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 601,
+      "requested_end": 620,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_91jcyql4d24j_4",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 581,
+      "requested_end": 600,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_91jcyql4d24j_3",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 621,
+      "requested_end": 640,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_l8d6rvessuu8_1",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 641,
+      "requested_end": 660,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_l8d6rvessuu8_2",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 661,
+      "requested_end": 680,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_l8d6rvessuu8_3",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 681,
+      "requested_end": 700,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_l8d6rvessuu8_4",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 701,
+      "requested_end": 720,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_1xmd2sh3rr2q_1",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 721,
+      "requested_end": 740,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_1xmd2sh3rr2q_2",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 761,
+      "requested_end": 780,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_1xmd2sh3rr2q_4",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 741,
+      "requested_end": 760,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_1xmd2sh3rr2q_3",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 781,
+      "requested_end": 800,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_nxkktjkpsn61_1",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 801,
+      "requested_end": 820,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_nxkktjkpsn61_2",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 821,
+      "requested_end": 840,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_nxkktjkpsn61_3",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 841,
+      "requested_end": 860,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_nxkktjkpsn61_4",
+      "exact_visible_prefix_lines": 20
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 1,
+      "requested_end": 60,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_fy8ydyhpodto_2",
+      "exact_visible_prefix_lines": 60
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 861,
+      "requested_end": 879,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_fy8ydyhpodto_1",
+      "exact_visible_prefix_lines": 19
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 121,
+      "requested_end": 180,
+      "exact_requested_bytes_visible": false,
+      "isError": false,
+      "toolCallId": "call_function_36o1aduqg1uc_2",
+      "exact_visible_prefix_lines": 24
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 61,
+      "requested_end": 120,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_36o1aduqg1uc_1",
+      "exact_visible_prefix_lines": 60
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 141,
+      "requested_end": 146,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_eppq686a9w5i_1",
+      "exact_visible_prefix_lines": 6
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 147,
+      "requested_end": 152,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_eppq686a9w5i_2",
+      "exact_visible_prefix_lines": 6
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 153,
+      "requested_end": 158,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_eppq686a9w5i_3",
+      "exact_visible_prefix_lines": 6
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 159,
+      "requested_end": 164,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_eppq686a9w5i_4",
+      "exact_visible_prefix_lines": 6
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 165,
+      "requested_end": 168,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_397cubgg5q6j_1",
+      "exact_visible_prefix_lines": 4
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 173,
+      "requested_end": 176,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_397cubgg5q6j_3",
+      "exact_visible_prefix_lines": 4
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 169,
+      "requested_end": 172,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_397cubgg5q6j_2",
+      "exact_visible_prefix_lines": 4
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 177,
+      "requested_end": 180,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_397cubgg5q6j_4",
+      "exact_visible_prefix_lines": 4
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 181,
+      "requested_end": 183,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_bb8e47dccpr5_1",
+      "exact_visible_prefix_lines": 3
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 184,
+      "requested_end": 186,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_bb8e47dccpr5_2",
+      "exact_visible_prefix_lines": 3
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 187,
+      "requested_end": 189,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_bb8e47dccpr5_3",
+      "exact_visible_prefix_lines": 3
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 190,
+      "requested_end": 219,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_veckvu954ty4_1",
+      "exact_visible_prefix_lines": 30
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 220,
+      "requested_end": 249,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_veckvu954ty4_2",
+      "exact_visible_prefix_lines": 30
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 250,
+      "requested_end": 279,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_35zluzc53yl0_1",
+      "exact_visible_prefix_lines": 30
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 280,
+      "requested_end": 309,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_35zluzc53yl0_2",
+      "exact_visible_prefix_lines": 30
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 340,
+      "requested_end": 369,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_8xn8bnbt4hrl_2",
+      "exact_visible_prefix_lines": 30
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 310,
+      "requested_end": 339,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_8xn8bnbt4hrl_1",
+      "exact_visible_prefix_lines": 30
+    },
+    {
+      "path": "design_docs/fleet-mission.md",
+      "offset": 370,
+      "requested_end": 408,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_a1zchrppmgf8_1",
+      "exact_visible_prefix_lines": 39
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-2-pick.md",
+      "offset": 49,
+      "requested_end": 78,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_8zmyfma2k0es_1",
+      "exact_visible_prefix_lines": 30
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/input-manifest.json",
+      "offset": 1,
+      "requested_end": 9,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_6ybzo4w755ok_1",
+      "exact_visible_prefix_lines": 9
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-probe-usage.json",
+      "offset": 1,
+      "requested_end": 37,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_6ybzo4w755ok_2",
+      "exact_visible_prefix_lines": 37
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration95/new-ticket-first-attempt.json",
+      "offset": 1,
+      "requested_end": 23,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_6ybzo4w755ok_3",
+      "exact_visible_prefix_lines": 23
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration95/new-ticket-open-tool.json",
+      "offset": 1,
+      "requested_end": 8,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_6ybzo4w755ok_4",
+      "exact_visible_prefix_lines": 8
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration95/new-ticket-retry.json",
+      "offset": 1,
+      "requested_end": 23,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_gf9ge17ctgcx_1",
+      "exact_visible_prefix_lines": 23
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/current-external-capture.json",
+      "offset": 1,
+      "requested_end": 94,
+      "exact_requested_bytes_visible": false,
+      "isError": false,
+      "toolCallId": "call_function_gf9ge17ctgcx_2",
+      "exact_visible_prefix_lines": 1
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-input-tickets.json",
+      "offset": 1,
+      "requested_end": 30,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_apigh5ju0yi4_1",
+      "exact_visible_prefix_lines": 30
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-input-tickets.json",
+      "offset": 31,
+      "requested_end": 60,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_apigh5ju0yi4_2",
+      "exact_visible_prefix_lines": 30
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-input-tickets.json",
+      "offset": 121,
+      "requested_end": 180,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_urqaojl10ewx_2",
+      "exact_visible_prefix_lines": 60
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-input-tickets.json",
+      "offset": 61,
+      "requested_end": 120,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_urqaojl10ewx_1",
+      "exact_visible_prefix_lines": 60
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-input-tickets.json",
+      "offset": 241,
+      "requested_end": 300,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_sexcl929j8nf_2",
+      "exact_visible_prefix_lines": 60
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-input-tickets.json",
+      "offset": 181,
+      "requested_end": 240,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_sexcl929j8nf_1",
+      "exact_visible_prefix_lines": 60
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-input-tickets.json",
+      "offset": 301,
+      "requested_end": 360,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_6u4wu99qdw40_1",
+      "exact_visible_prefix_lines": 60
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-input-tickets.json",
+      "offset": 361,
+      "requested_end": 420,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_6u4wu99qdw40_2",
+      "exact_visible_prefix_lines": 60
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-input-tickets.json",
+      "offset": 421,
+      "requested_end": 480,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_3i4sjlhua04e_1",
+      "exact_visible_prefix_lines": 60
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-input-tickets.json",
+      "offset": 481,
+      "requested_end": 540,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_3i4sjlhua04e_2",
+      "exact_visible_prefix_lines": 60
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-input-tickets.json",
+      "offset": 541,
+      "requested_end": 577,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_8ft1bepcy3ik_1",
+      "exact_visible_prefix_lines": 37
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration95/new-ticket-triage.md",
+      "offset": 181,
+      "requested_end": 9,
+      "exact_requested_bytes_visible": false,
+      "isError": true,
+      "toolCallId": "call_function_8ft1bepcy3ik_2",
+      "exact_visible_prefix_lines": 0
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration95/new-ticket-triage.md",
+      "offset": 1,
+      "requested_end": 9,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_s5kexzbkfwae_1",
+      "exact_visible_prefix_lines": 9
+    },
+    {
+      "path": "tools/pi-extensions/controller-bash-cap.ts",
+      "offset": 1,
+      "requested_end": 60,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_ryrf3tws33m2_2",
+      "exact_visible_prefix_lines": 60
+    },
+    {
+      "path": "scripts/mission_pi_run.sh",
+      "offset": 140,
+      "requested_end": 199,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_ryrf3tws33m2_1",
+      "exact_visible_prefix_lines": 60
+    },
+    {
+      "path": "scripts/mission_pi_run.sh",
+      "offset": 200,
+      "requested_end": 274,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_q8srx2xr40gr_1",
+      "exact_visible_prefix_lines": 75
+    },
+    {
+      "path": "tools/pi-extensions/sandbox/sandbox.mission.json",
+      "offset": 1,
+      "requested_end": 22,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_lei41g41o3un_1",
+      "exact_visible_prefix_lines": 22
+    },
+    {
+      "path": "scripts/mission_pi_run.sh",
+      "offset": 395,
+      "requested_end": 434,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_5mbcvc125ekc_1",
+      "exact_visible_prefix_lines": 40
+    },
+    {
+      "path": ".claude/skills/mission-control/resources/gate-3-route.md",
+      "offset": 37,
+      "requested_end": 41,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_w4jbf2v9f8kb_1",
+      "exact_visible_prefix_lines": 5
+    },
+    {
+      "path": "tools/pi-extensions/controller-bash-cap.ts",
+      "offset": 60,
+      "requested_end": 70,
+      "exact_requested_bytes_visible": true,
+      "isError": false,
+      "toolCallId": "call_function_w4jbf2v9f8kb_2",
+      "exact_visible_prefix_lines": 11
+    }
+  ],
+  "raw_ndjson_sha256": "d09cd48d4d7f21ba4c2edd0712ae08b6ae8c1de74973e4e8a25662842b1a1e53",
+  "raw_ndjson_local_path": "/tmp/fleet-i96-evaluator/run.ndjson",
+  "report_sha256": "fb567a832bced7549b14db880fdc5ed399c951bdea4f162c331561902595cfbe",
+  "read_audit_sha256": "585b76e5ad5e034e408b879b2e3a77be6ef9b9a0a6777e2b9047bf7488d50a7c",
+  "source_mutation_permission": "none; report-only shared tree; no tests/mutations claimed",
+  "notes": [
+    "Raw ack tool result has structured details.acked=true even though judge text-only representation did not show literal acked=true.",
+    "Controller reports ledger_sha256 hashes marker-delimited ledger, not whole charter; judge full-file hash discrepancy is scope mismatch.",
+    "AGENTS friction-twice fasttrack applies specifically .pi/extensions; judge generalized authorization claim is not adopted.",
+    "P2 changes role command runtime behavior and requires separate policy/behavioral-band review; no production implementation authorized by this report."
+  ],
+  "coverage_method": "Count complete exact requested ranges plus complete original lines visible in exact common prefix before any quality-monitor elision; no generic matching of repeated lines."
+}

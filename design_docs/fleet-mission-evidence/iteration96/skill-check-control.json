@@ -1,0 +1,5 @@
+{
+  "all_28_file_comparisons": "MATCH (controller tool transcript)",
+  "positive_changed_byte_control_detected": true,
+  "source_sha256": "95a740b11cc44e9f31c7dc606e565f9f55c8d03b0c5d059e97d04e7c369fac89"
+}

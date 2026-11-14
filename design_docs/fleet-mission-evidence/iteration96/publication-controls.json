@@ -1,0 +1,11 @@
+{
+  "closing_keyword_scan": [
+    "commit message",
+    "PR title",
+    "PR body"
+  ],
+  "bad_control_fired": true,
+  "all_three_clean": true,
+  "draft_only": true,
+  "no_automerge": true
+}

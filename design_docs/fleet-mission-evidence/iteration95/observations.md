@@ -1,0 +1,13 @@
+# Fleet iteration 95 observations
+
+Scheduled unattended fire, 2026-11-07. Gate-1 base 252680e1beb4e6cf1709a010cc1c45838b91b9f8@2026-11-07T19:45:00Z; Gate-4 base unchanged, read 19:49:17Z. Authoritative runtime SKILL.md and all 13 resources match origin in both pinned and resolved user-skill copies; 28/28 byte comparisons, changed-byte control fired.
+
+Armed; bot GitHub identity correct; billing tripwire CLEAN. Source pin clean. Main checkout has eight unrelated dirty paths, preserved. Historical incomplete checkout and role reports are untouched; no inherited work adopted. Nine own draft PRs remain parked (2065, 2067, 2082, 2108, 2110, 2141, 2143, 2150, 2165). Newest canonical record is iteration 94, merged by PR2168. No newer fleet record PR exists. No branch switched or dirty work discarded.
+
+Issue 2039 is OPEN, created 2026-11-02T08:20:15Z, 22 comments, zero allowlisted directives; no rotation due. Current watermark absent, so all comments read by the directive helper. Previous watermark present: self-notice instrument degraded to 1/2 watermarks. Zero crash notices, positive control 852:10. Three historical transcript notices already reported (fires fleet-1793845378-59113, fleet-1793898974-52315, fleet-1793950362-22335); no new notice. No exposure values or paths inspected; no message read/ack or directive mark.
+
+Dev CI and Build and Release are completed success at the full base SHA; 18/18 check-runs acceptable, two workflow runs present. Latest Docs deploy is success on8fa7e8ab1eddee99a84b447b8eaaa4ee12308051; this record touches no deploy-filtered path. Current-source canonical selected tests and four documentation guards passed on the record base on darwin/arm64; no compiler behavior checked and no shared binary rebuilt.
+
+Ledger valid: 42 rows, 26 OPEN. Ledger block byte-identical to iteration 94 input. Full ticket enumeration: 26, compared with 25 in iteration 94; new signature tool-hang:triage-judge:home-metadata-search, filed 2026-11-07T12:34:46Z by triage iteration33. Reporting recurrence now 19. Controller initially repeated 25 from prior status and corrected it after full structured set comparison; original designer/planner instructions and resulting screens cannot certify this new ticket. No ticket consumed or resolved.
+
+Independent evaluator transport exhausted: sonnet and remaining opus subscription probes each rc1, HTTP429 usage_limit_reached, reset 2026-11-09 06:00 Europe/Copenhagen (05:00Z); earlier driver MiniMax rc75 not revisited. No actual judge, no verdict, no score. Do not reuse iteration 94 NONE as current evidence. All substantive work stays unjudged.

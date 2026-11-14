@@ -1,0 +1,22 @@
+{
+  "role": "executor",
+  "requested_lane": "codex:gpt-6.1-sol",
+  "resolver": "recipe codex:gpt-6.1-sol declared:provider-pin",
+  "model": "gpt-6.1-sol",
+  "subscription_only": true,
+  "sandbox": "workspace-write",
+  "probe_rc": 0,
+  "run_rc": 0,
+  "start_epoch": 1794081056,
+  "end_epoch": 1794081277,
+  "usage": [
+    {
+      "input_tokens": 1881924,
+      "cached_input_tokens": 1754624,
+      "cache_write_input_tokens": 0,
+      "output_tokens": 8722,
+      "reasoning_output_tokens": 2387
+    }
+  ],
+  "final_report": "/tmp/fleet-i95-executor-o4jjii0q/executor-screen.md"
+}

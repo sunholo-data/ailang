@@ -1,0 +1,70 @@
+{
+  "role": "designer",
+  "lane": "codex:gpt-6.1-sol",
+  "route": "recipe codex:gpt-6.1-sol declared:provider-pin",
+  "report": "design_docs/fleet-mission-evidence/iteration96/designer-screen.md",
+  "report_sha256": "f853961df493716aa683105864db523141a1fb1c980277de4cb8f0e3e8918a89",
+  "phases": [
+    {
+      "role": "designer",
+      "lane": "codex:gpt-6.1-sol",
+      "phase": "probe",
+      "rc": 0,
+      "elapsed_seconds": 3.75,
+      "log": "/tmp/fleet-i96-designer-probe.log",
+      "args": [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-6.1-sol",
+        "-c",
+        "features.multi_agent_v2.expose_spawn_agent_model_overrides=false",
+        "reply with exactly: ok"
+      ],
+      "quota_tokens": 23348,
+      "model_banner_verified": true
+    },
+    {
+      "role": "designer",
+      "lane": "codex:gpt-6.1-sol",
+      "reason": "declared:provider-pin",
+      "phase": "run",
+      "rc": 0,
+      "elapsed_seconds": 343.72,
+      "log": "/tmp/fleet-i96-designer-run.log",
+      "final": "/tmp/fleet-i96-designer-final.txt",
+      "directive": "/tmp/fleet-i96-designer-directive.txt",
+      "directive_bytes": 43106,
+      "args_without_prompt": [
+        "codex",
+        "exec",
+        "--model",
+        "gpt-6.1-sol",
+        "-c",
+        "features.multi_agent_v2.expose_spawn_agent_model_overrides=false",
+        "--sandbox",
+        "workspace-write",
+        "--add-dir",
+        "/Users/voightkampff/Library/Caches/go-build",
+        "--add-dir",
+        "/Users/voightkampff/go/pkg/mod",
+        "-C",
+        "/Users/voightkampff/.ailang-worktrees/fleet-i96",
+        "-o",
+        "/tmp/fleet-i96-designer-final.txt"
+      ],
+      "stdin": "/dev/null",
+      "cap_seconds": 1800,
+      "quota_tokens": 222197,
+      "model_banner_verified": true
+    }
+  ],
+  "quota_bucket": "codex",
+  "quota_tokens": 245545,
+  "metered_usd": 0,
+  "billing_evidence": "codex login status: Logged in using ChatGPT (rc0)",
+  "independence": "designer screen only; not evaluator",
+  "production_rotation_consumed": false,
+  "procedure_deviation": "Exact-model child recorded one initial ledger read above 15-row bound; subsequently reread bounded chunks. Raw report preserved.",
+  "external_inventory_note": "Controller authoritative fresh metadata separately in iteration96/current-external-capture.json; report raw retains stated historical/remote scope. No amendment solely for metadata refresh."
+}

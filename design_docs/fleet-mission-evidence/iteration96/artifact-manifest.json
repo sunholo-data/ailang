@@ -1,0 +1,260 @@
+{
+  "scope": "iteration96 files excluding this self-referential manifest; bulk named NDJSON stays local",
+  "files": [
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/controller-errata.md",
+      "bytes": 3607,
+      "sha256": "7d5e376134c4ef45d4ac43e45bf0379e9d1911d011cfe37b4d2257eb5c7b9bd1"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/current-external-capture.json",
+      "bytes": 3715,
+      "sha256": "6f0d410e2713725c37daf0952c1f589ff491a40d961f427d524f4c6298376f16"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/design-disposition.md",
+      "bytes": 1843,
+      "sha256": "a7e5b17e94417ea179d58c750e5bd79762aea9e237e27d8e8356e24d734d39dc"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/design-judge-probe-usage.json",
+      "bytes": 678,
+      "sha256": "1e3db4f01b8783765e2511d980ada4743b1b1e53dda9eddf109f5cb48e857cbe"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/design-judge-read-audit.json",
+      "bytes": 11999,
+      "sha256": "4c439cf2c55903eb04e80d02d8515ef35a82dc3bdbb665b0579103289ed56eec"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/design-judge-terminal.md",
+      "bytes": 1543,
+      "sha256": "24f45189bb36fb19ae6a12a42633df67e845348ab4580dac4fa408f9d6380c48"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/design-judge-transport-audit.json",
+      "bytes": 16530,
+      "sha256": "1c278aa6e811b75e07a90135d726ad9a5091e83521451da540e1f2a5333f75c8"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/design-judge-transport.json",
+      "bytes": 716,
+      "sha256": "0f2515fc66a2a277d1e22eb623e3f55728c959725a81fd32ba16f93a583c911a"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/design-judge-usage.json",
+      "bytes": 12761,
+      "sha256": "3d201657bf19c934b5d4026a66cb8ef9820007b91c40a866876bb9bdf2863295"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/design-judge.md",
+      "bytes": 14321,
+      "sha256": "cb51dc1dcb52575bf518e3461eb1bec50b32661782959ea29392b777ed4eb280"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/designer-screen.md",
+      "bytes": 25576,
+      "sha256": "f853961df493716aa683105864db523141a1fb1c980277de4cb8f0e3e8918a89"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/designer-usage.json",
+      "bytes": 2431,
+      "sha256": "dfb6d55ee0f3905af03d82330b8ff908c84550c2f07230665433428b21c4f8ad"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-input-tickets.json",
+      "bytes": 39774,
+      "sha256": "7202f65133a674d6779b245110eb14813baeeba414e89df1d163c3846884a228"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-probe-usage.json",
+      "bytes": 716,
+      "sha256": "68a308e671b9963b3cac07270ef1b61cfde667c95502f44900144ef42c17f23c"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-read-audit.json",
+      "bytes": 16507,
+      "sha256": "585b76e5ad5e034e408b879b2e3a77be6ef9b9a0a6777e2b9047bf7488d50a7c"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-report.md",
+      "bytes": 34857,
+      "sha256": "fb567a832bced7549b14db880fdc5ed399c951bdea4f162c331561902595cfbe"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-terminal.md",
+      "bytes": 4506,
+      "sha256": "4885345a8332840fbe681aca34eb094802196ab4219e2fdbb67811ba1b2b83e8"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-transport-audit.json",
+      "bytes": 33991,
+      "sha256": "4bf0503c18b930a858407b10c98f3fa80101e41c6666a107c1ac920ab4726c64"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-transport.json",
+      "bytes": 708,
+      "sha256": "ff5d5f8180b5ce7eb4abd61cb92c6d3c3716f17eea574c32b97e5a5ba0abe9ee"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/evaluator-usage.json",
+      "bytes": 20954,
+      "sha256": "c8266073ecd7aaecfec30fe52496f48a15cbdc70cf9deb43390c88347a51a2bc"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/executor-screen.md",
+      "bytes": 9124,
+      "sha256": "423c99ebf5557130f9687f7569b12aa92e3e50823c52dd49d0af367c0cb53a18"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/executor-usage.json",
+      "bytes": 2543,
+      "sha256": "b3cc160bd7633cc2138a409c2fc0be2a47d8f34ce587f7972c2c967234ede6cb"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/gate4-base.json",
+      "bytes": 255,
+      "sha256": "ae3c60ba3c3d72cb5b3f87f5273b6e0db12214022c9c4335c72f44e2a98c1c5d"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/input-manifest.json",
+      "bytes": 341,
+      "sha256": "d85fa4983d11ec558d26db40ee5558da8b502c86853bef8d6c26a63d617b7203"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/iteration-chain.json",
+      "bytes": 3512,
+      "sha256": "421d967472dbcacdf7a70131388e2e1517b473d9f200a0ef534c5195774fac8b"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/observations.md",
+      "bytes": 3606,
+      "sha256": "f20c48c34cf8087832f01f187700a8a2fe74ab72ec6f1523042d7bfe8d69a374"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/open-decisions.md",
+      "bytes": 45037,
+      "sha256": "7e75d5c53e1c85bb1c9c8c0131493a4c941de978827f8a2182128a4a26a35ab2"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/original-directive-excerpts.json",
+      "bytes": 4752,
+      "sha256": "113a609f218a4c15f44e52b136d185ce43dbb35e3a1375e7d116c937b1225837"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/original-retry-report-manifest.json",
+      "bytes": 445,
+      "sha256": "e618257122710af9014bed300da80cb952483c2bf91bd7825f3f466248c3eb97"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/planner-screen.md",
+      "bytes": 25813,
+      "sha256": "dda238909cdb5b4c99329f849e1cb51e6facf8c28906274f5f013f9b71c10878"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/planner-usage.json",
+      "bytes": 1650,
+      "sha256": "5f921310204d07569fc154ae42bd360d32e80593d6ac7a57c6468d886178f26d"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/production-designer-continuation-usage.json",
+      "bytes": 9273,
+      "sha256": "56d0c1fbc7d4fab8d97c7ab1e822ea7a204a6d897a150ae25738f80152832031"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/production-designer-draft-r1.md",
+      "bytes": 46781,
+      "sha256": "14ebe03cd1a3281dfb1303baffb414cf2b5bb21a0c2aa7b05c13de6a46e7366c"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/production-designer-draft-r2-quota-partial.md",
+      "bytes": 23490,
+      "sha256": "422bed66b4da5a128f253a2f98be327c954dd27c9ec588cbf3c9135e81a9c12d"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/production-designer-r1-search-capture.json",
+      "bytes": 6239,
+      "sha256": "357b642704483ebd2dbfcf96b953de6f8058d6c9bb373b878eb7d93f41564c5f"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/production-designer-revision-usage.json",
+      "bytes": 8883,
+      "sha256": "45dcc192b708c7317823d23a1c0d8ea1a35137602a741793bf16cf870004f679"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/production-designer-usage.json",
+      "bytes": 9109,
+      "sha256": "ba0f83e93993048473570e847fc66cf620e2bb0ef8b5e7deef9561bafbdec258"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/publication-controls.json",
+      "bytes": 190,
+      "sha256": "dee529b33eb4116594cec1dbe15e74289d1189570100c34f3c6f8db9bbf01c19"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/quorum-r1-command.json",
+      "bytes": 935,
+      "sha256": "5944fd80ee491f851929a756b4755f736e64f42512220a2c874e68f491aaea86"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/quorum-r1-controller-proofs.json",
+      "bytes": 2729,
+      "sha256": "5607e4646ae0b1f76a7d4c7c0851225969abe9f702bdf641841485b7bbac451d"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/quorum-r1.json",
+      "bytes": 11604,
+      "sha256": "68ab300a0b11cb2af375375c192723afc0cb0b930143f0ec878f7242e42f2a46"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/quorum-r2-command.json",
+      "bytes": 1228,
+      "sha256": "890e964d91417e089d42229d511ddda639b184ee8e618f2732228d60bc42cef2"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/quorum-r2.json",
+      "bytes": 4447,
+      "sha256": "02c2293f5b71af9f03301e7f807468bceed0d9eb3ab4161497ad3b83b66ced65"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/recent-class-mix.json",
+      "bytes": 7003,
+      "sha256": "b4adee38df5d167b3ab4f650e0b3a2597499820089f319110641fa548207e7e5"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/record-checks.md",
+      "bytes": 2477,
+      "sha256": "2cdb6d454a197ce746f4bb039bb3515ab08cc3283c342a6b0e7cc80b0867eb7c"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/record-structure.json",
+      "bytes": 461,
+      "sha256": "812f8b23bcabd38ae5e36b594cc80ca2cf70f76ccc560c4a8abc1c02b0c4e309"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/role-usage.json",
+      "bytes": 73464,
+      "sha256": "0495dfc4d2c1ae104a6676dc4bec67824282050e573070823cd288dcf7efadfc"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/runner-tests.log",
+      "bytes": 3365,
+      "sha256": "6e37b201bdf31c1192489b4a8a142489f58d7cac97ddee5b4a2c285c44671279"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/skill-check-control.json",
+      "bytes": 207,
+      "sha256": "c1e0af1a2f5a228262e924d2023220c18375ed55f6845edbf60ebb3b32a3a750"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/spend-ledger.json",
+      "bytes": 1149,
+      "sha256": "8325f810696667aa8a4c68dd135fddd857f4f061c10732e9a8bfcec9c5e21137"
+    },
+    {
+      "path": "design_docs/fleet-mission-evidence/iteration96/tickets.json",
+      "bytes": 39769,
+      "sha256": "b6da43037691769889ace62586e3c86aeadaab62f3c5f6f84893a42ea8af94e8"
+    }
+  ]
+}

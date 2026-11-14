@@ -1,0 +1,37 @@
+{
+  "lane": "pi:openrouter/minimax/minimax-m3",
+  "transport": {
+    "command": [
+      "pi",
+      "--mode",
+      "json",
+      "--no-session",
+      "--no-tools",
+      "--no-extensions",
+      "--model",
+      "openrouter/minimax/minimax-m3",
+      "-p",
+      "reply with exactly: ok"
+    ],
+    "rc": 0,
+    "elapsed_seconds": 1.76
+  },
+  "provider_usage": [
+    {
+      "input": 1979,
+      "output": 135,
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "reasoning": 154,
+      "totalTokens": 2114,
+      "cost": {
+        "input": 0.0005937,
+        "output": 0.00016199999999999998,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 0.0007557
+      }
+    }
+  ],
+  "cost_usd": 0.0007557
+}
