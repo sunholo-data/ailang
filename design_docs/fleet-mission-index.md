@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 95 | 2026-11-07 | new triage command-hang ticket captured; independent evaluator exhausted; PARKED-ON-LANE, no judge verdict or substantive landing [HARNESS] |
 | 94 | 2026-11-07 | idle: no authorized buildable step; all 25 open tickets ruling-gated, fresh independent MiniMax judge NONE; nine drafts preserved, no implementatio... |
 | 93 | 2026-11-07 | D-FLEET-25's remaining mechanism drafted; independent MiniMax pick judge overturned NONE; proposal parked for design approval, no implementation or... |
 | 92 | 2026-11-06 | idle: no buildable step; all 25 open tickets ruling-gated, independent sonnet idle-screen judge ruled NONE; nothing built or merged; new ask D-FLEE... |

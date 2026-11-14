@@ -1,0 +1,17 @@
+{
+  "roles": {
+    "designer": "recipe codex:gpt-6.1-sol declared:provider-pin",
+    "planner": "recipe codex:gpt-6.1-sol declared:planner-lane-default-pin",
+    "executor": "recipe codex:gpt-6.1-sol declared:provider-pin",
+    "evaluator": "recipe claude:claude-sonnet-4-6 declared:provider-pin"
+  },
+  "driver": {
+    "MISSION_ROUTING_NOTE": "lanes degraded: ; `designer`: **anthropic** lane `claude-opus-5-5` unusable (probe rc=`1` \u2014 quota-limited) \u2192 handed to `codex:gpt-6.1-sol`; `evaluator`: **anthropic** lane `sonnet` unusable (probe rc=`1` \u2014 quota-limited) \u2192 handed to `pi:openrouter/minimax/minimax-m3`; `evaluator`: **pi** lane `openrouter/minimax/minimax-m3` unusable (probe rc=`75`) \u2192 advanced to `claude:claude-sonnet-4-6`",
+    "MISSION_FIRE_ID": "fleet-1794080648-18691",
+    "MISSION_DESIGNER_MODEL": "codex:gpt-6.1-sol",
+    "MISSION_PLANNER_MODEL": "codex:gpt-6.1-sol",
+    "MISSION_EXECUTOR_MODEL": "codex:gpt-6.1-sol",
+    "MISSION_EVALUATOR_MODEL": "claude:claude-sonnet-4-6",
+    "MISSION_EVALUATOR_CHAIN_REMAINING": "opus"
+  }
+}

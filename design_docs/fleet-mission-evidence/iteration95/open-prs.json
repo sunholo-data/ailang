@@ -1,0 +1,74 @@
+[
+  {
+    "headRefName": "fleet/i93-rulings-ledger",
+    "headRefOid": "985aa01615b44f49359a4c3d916ba88d63a1c395",
+    "isDraft": true,
+    "number": 2165,
+    "title": "docs(fleet): propose rulings ledger and bounded doctor check",
+    "updatedAt": "2026-11-07T06:06:12Z"
+  },
+  {
+    "headRefName": "fleet/i90-dfleet42-m3",
+    "headRefOid": "26b713887adefc742f5fbc7832a76a11cee56863",
+    "isDraft": true,
+    "number": 2150,
+    "title": "feat(fleet): secrets-scope M3 dry-run preview for D-FLEET-42 A (PROPOSED, draft, stacked on #2143, pending ruling)",
+    "updatedAt": "2026-11-06T08:51:47Z"
+  },
+  {
+    "headRefName": "fleet/i89-dfleet42-m2",
+    "headRefOid": "7f1e13d5f39454544b4beda5133182c6f209a2c0",
+    "isDraft": true,
+    "number": 2143,
+    "title": "feat(fleet): secrets-scope M2 wiring for D-FLEET-42 A (PROPOSED, draft, stacked on #2141, pending ruling)",
+    "updatedAt": "2026-11-06T01:11:40Z"
+  },
+  {
+    "headRefName": "fleet/i88-dfleet42-secrets-scope",
+    "headRefOid": "4ea46f05e374eff8ad7d98db0fae9ac96f7fcd6f",
+    "isDraft": true,
+    "number": 2141,
+    "title": "feat(fleet): per-lane secrets scope library + zshenv host line for D-FLEET-42 A (PROPOSED, draft, pending ruling)",
+    "updatedAt": "2026-11-05T18:12:19Z"
+  },
+  {
+    "headRefName": "fleet/i83-dfleet18-scope-arm",
+    "headRefOid": "875581f46bcde225f4007862513ae2e356146432",
+    "isDraft": true,
+    "number": 2110,
+    "title": "fix(fleet): scope guard arm for D-FLEET-18 A \u2014 two motoko probe files (PROPOSED, draft, pending ruling)",
+    "updatedAt": "2026-11-04T05:16:33Z"
+  },
+  {
+    "headRefName": "fleet/i82-dfleet36-38-scope-arm",
+    "headRefOid": "261fb3b64034a8b660c3c59e583a33ea6032ff78",
+    "isDraft": true,
+    "number": 2108,
+    "title": "fix(fleet): scope guard arm for D-FLEET-36 A + D-FLEET-38 A (PROPOSED, draft \u2014 two independent commits)",
+    "updatedAt": "2026-11-03T22:18:58Z"
+  },
+  {
+    "headRefName": "fleet/i81-dfleet25-world-fork-comment",
+    "headRefOid": "399cf799b21a1a4b26bf9c0e9741fe1361557a3e",
+    "isDraft": true,
+    "number": 2082,
+    "title": "fix(fleet): correct stale \"World is a fork\" claims + repair reach check (D-FLEET-25 shared sub-item, PROPOSED \u2014 awaiting ruling)",
+    "updatedAt": "2026-11-03T14:53:32Z"
+  },
+  {
+    "headRefName": "fleet/i80-dfleet21-gate3b-poll-cap",
+    "headRefOid": "bdaad282558236dc141598bbcd36017d5e470973",
+    "isDraft": true,
+    "number": 2067,
+    "title": "skill(mission-control): Gate 3b CI poll cap 1800 s \u2192 3600 s \u2014 D-FLEET-21 A (proposed, draft)",
+    "updatedAt": "2026-11-03T07:49:54Z"
+  },
+  {
+    "headRefName": "fleet/i79-dfleet26-capacity-transient",
+    "headRefOid": "edb0993710c8f32e1d74d506ed64498fb329121f",
+    "isDraft": true,
+    "number": 2065,
+    "title": "fix(launchd): codex capacity stop is transient \u2014 PROPOSED, D-FLEET-26 A (do not merge)",
+    "updatedAt": "2026-11-03T00:46:31Z"
+  }
+]
