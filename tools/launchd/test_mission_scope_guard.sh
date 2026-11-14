@@ -50,6 +50,26 @@ check v1 scripts/test_mission_pi_run.sh refuse
 check fleet tools/pi-extensions/sandbox/index.ts allow
 check fleet tools/pi-extensions/ailang-exec/index.ts refuse
 check v1 tools/pi-extensions/sandbox/index.ts allow
+# D-FLEET-36: both mirrors, including nested files.
+for side in .claude .agents; do
+  check fleet "$side/skills/design-doc-creator/scripts/create_planned_doc.sh" allow # kills: delete this side's design-doc-creator pattern
+  check v1 "$side/skills/design-doc-creator/scripts/create_planned_doc.sh" allow # kills: move the pattern into _scope_is_harness
+done
+check fleet .claude/skills/design-doc-creator-x/SKILL.md refuse # kills: design-doc-creator/* -> design-doc-creator*
+check fleet .agents/skills/design-doc-creator-x/SKILL.md refuse # kills: design-doc-creator/* -> design-doc-creator*
+check fleet .claude/skills/use-ailang/SKILL.md refuse # kills: widen to .claude/skills/*
+# D-FLEET-38: every enumerated arm, product loops unaffected, no over-widening.
+for skill in benchmark-runner builtin-developer cloud-cascade-debug collaboration-hub \
+  coordinator-helper eval-analyzer eval-gap-finder gemini-cli-helper github-issue-triage \
+  local-model-onboarding local-ollama-eval parser-developer pr-monitor prompt-manager \
+  trace-debugger use-ailang; do
+  check fleet ".agents/skills/$skill/SKILL.md" allow # kills: delete this skill's arm
+  check v1 ".agents/skills/$skill/SKILL.md" allow # kills: move this skill's arm into _scope_is_harness
+  check fleet ".agents/skills/$skill-x/SKILL.md" refuse # kills: drop this arm's / boundary (<name>* admits siblings)
+done
+check fleet .agents/skills/model-manager/SKILL.md refuse # kills: replace the arms with .agents/skills/*
+check fleet .agents/skills/use-ailang-extra/SKILL.md refuse # kills: use-ailang/* -> use-ailang*
+check fleet .claude/skills/use-ailang/SKILL.md refuse # kills: also admit .claude/skills/use-ailang/*
 echo 'PASS scope verdicts: product loops refused on harness paths (incl. the fleet charter), fleet held to its allowlist, attended unaffected'
 
 # End to end: git must actually run the hook when core.hooksPath comes ONLY from env.

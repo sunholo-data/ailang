@@ -28,9 +28,27 @@ _scope_is_harness() {
 # server, the UI, other commands) is refused rather than silently allowed.
 _scope_is_fleet_support() {
   case "$1" in
+    .claude/skills/design-doc-creator/*|.agents/skills/design-doc-creator/*) return 0 ;;   # support, not harness (D-FLEET-36)
     design_docs/*|changelogs/*|CHANGELOG.md|docs/*|.ailang/state/sprints/*) return 0 ;;
     internal/config/mission.go|make/test.mk) return 0 ;;
     tools/pi-extensions/sandbox/*) return 0 ;;   # the pi sandbox fail-closed fix (D-FLEET-6); the eval harness shares the rest of tools/pi-extensions
+    # Exactly the 16 rename-only .agents skill mirrors; support, not harness (D-FLEET-38).
+    .agents/skills/benchmark-runner/*) return 0 ;;
+    .agents/skills/builtin-developer/*) return 0 ;;
+    .agents/skills/cloud-cascade-debug/*) return 0 ;;
+    .agents/skills/collaboration-hub/*) return 0 ;;
+    .agents/skills/coordinator-helper/*) return 0 ;;
+    .agents/skills/eval-analyzer/*) return 0 ;;
+    .agents/skills/eval-gap-finder/*) return 0 ;;
+    .agents/skills/gemini-cli-helper/*) return 0 ;;
+    .agents/skills/github-issue-triage/*) return 0 ;;
+    .agents/skills/local-model-onboarding/*) return 0 ;;
+    .agents/skills/local-ollama-eval/*) return 0 ;;
+    .agents/skills/parser-developer/*) return 0 ;;
+    .agents/skills/pr-monitor/*) return 0 ;;
+    .agents/skills/prompt-manager/*) return 0 ;;
+    .agents/skills/trace-debugger/*) return 0 ;;
+    .agents/skills/use-ailang/*) return 0 ;;
   esac
   return 1
 }

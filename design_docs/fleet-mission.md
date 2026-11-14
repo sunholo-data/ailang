@@ -81,7 +81,16 @@ Clause map: **1** UNMEASURED, goal unmoved; **2** UNMET (nothing resolved; media
   `.claude/skills/sprint-*/**`, `.agents/skills/mission-*/**`, `.agents/skills/sprint-*/**`, `.pi/extensions/**`, `scripts/hooks/**`, `scripts/mission_*`,
   `scripts/test_mission_*` (D-FLEET-5), its own
   `design_docs/fleet-mission*`), plus support paths (`design_docs/**`, `changelogs/**`,
+  `.agents/skills/benchmark-runner/**`, `.agents/skills/builtin-developer/**`,
+  `.agents/skills/cloud-cascade-debug/**`, `.agents/skills/collaboration-hub/**`,
+  `.agents/skills/coordinator-helper/**`, `.agents/skills/eval-analyzer/**`,
+  `.agents/skills/eval-gap-finder/**`, `.agents/skills/gemini-cli-helper/**`,
+  `.agents/skills/github-issue-triage/**`, `.agents/skills/local-model-onboarding/**`,
+  `.agents/skills/local-ollama-eval/**`, `.agents/skills/parser-developer/**`,
+  `.agents/skills/pr-monitor/**`, `.agents/skills/prompt-manager/**`,
+  `.agents/skills/trace-debugger/**`, `.agents/skills/use-ailang/**` (D-FLEET-38),
   `CHANGELOG.md`, `docs/**`, `.ailang/state/sprints/**`, `internal/config/mission.go`, `make/test.mk`,
+  `.claude/skills/design-doc-creator/**`, `.agents/skills/design-doc-creator/**` (D-FLEET-36),
   `tools/pi-extensions/sandbox/**` (D-FLEET-6)).
   **Anything else is refused**, including CI workflows, `go.mod`, the server, the UI and non-mission
   commands. A fix that genuinely needs one of those parks for Mark.
