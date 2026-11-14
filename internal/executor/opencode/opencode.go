@@ -17,6 +17,7 @@ package opencode
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"os/exec"
@@ -423,6 +424,41 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 		done <- cmd.Wait()
 	}()
 
+	// timeoutResult builds the banked row of a run this harness killed at a
+	// time bound (hard / prefill / idle) or saw cancelled. Every spend field
+	// already known at kill time is carried: before 2026-11-03 these paths
+	// returned DurationMS=0 with no FinishReason and no turn/tool tally, so a
+	// wall-clock timeout banked as api_error or — with zero turns reported —
+	// as non_agentic (the 2026-10-20..11-03 os-rolling rotation: opencode
+	// cp_60166 rows read "non_agentic 2 + api_error 2" for what were timeouts),
+	// and the real elapsed time never reached the banked row. Spend, not a
+	// grade: Success stays false.
+	timeoutResult := func(errMsg, finishReason string) *executor.Result {
+		costUSD, costProv := opencodeRunCost(task, e.getModel(task), inputTokens, outputTokens, reasonTokens, cacheReadTokens, cacheWriteTokens)
+		return &executor.Result{
+			Success:                  false,
+			Error:                    errMsg,
+			FinishReason:             finishReason,
+			DurationMS:               int(time.Since(startTime).Milliseconds()),
+			InputTokens:              inputTokens,
+			OutputTokens:             outputTokens,
+			ReasonTokens:             reasonTokens,
+			CacheReadInputTokens:     cacheReadTokens,
+			CacheCreationInputTokens: cacheWriteTokens,
+			CostUSD:                  costUSD,
+			CostProvenance:           costProv,
+			NumTurns:                 numSteps,
+			ToolCallCount:            toolCallCount,
+			ToolCalls:                toolCalls,
+			SessionID:                lastSessionID,
+			CostKilledAt:             task.Budget.KilledAt(),
+			ThrashKilledAt:           thrashKilledAtTokens,
+			FirstAttemptMs:           firstAttemptMs,
+			SuccessAtMs:              -1,
+			TokensPerSec:             computeTokensPerSec(outputTokens, firstStreamEventAt),
+		}
+	}
+
 	for {
 		select {
 		case err := <-done:
@@ -511,64 +547,33 @@ func (e *OpenCodeExecutor) ExecuteStreaming(ctx context.Context, task *executor.
 		case <-hardTimer.C:
 			proctree.Kill(cmd)
 			span.SetStatus(codes.Error, "hard timeout")
-			return &executor.Result{
-				Success:                  false,
-				Error:                    fmt.Sprintf("opencode exceeded hard timeout (%v)", timeout),
-				InputTokens:              inputTokens,
-				OutputTokens:             outputTokens,
-				ReasonTokens:             reasonTokens,
-				CacheReadInputTokens:     cacheReadTokens,
-				CacheCreationInputTokens: cacheWriteTokens,
-				CostKilledAt:             task.Budget.KilledAt(),
-				FirstAttemptMs:           firstAttemptMs,
-				SuccessAtMs:              -1,
-			}, nil
+			return timeoutResult(fmt.Sprintf("opencode exceeded hard timeout (%v)", timeout), executor.FinishTimeout), nil
 
 		case <-ttftTimer.C:
 			proctree.Kill(cmd)
 			span.SetStatus(codes.Error, "ttft timeout")
-			return &executor.Result{
-				Success:        false,
-				Error:          fmt.Sprintf("opencode produced no output within %v (prefill timeout)", ttftTimeout),
-				FirstAttemptMs: -1,
-				SuccessAtMs:    -1,
-			}, nil
+			return timeoutResult(fmt.Sprintf("opencode produced no output within %v (prefill timeout)", ttftTimeout), executor.FinishTimeout), nil
 
 		case <-idleCheck.C:
 			since := time.Since(time.Unix(0, lastActivity.Load()))
 			if since > idleTimeout {
 				proctree.Kill(cmd)
 				span.SetStatus(codes.Error, "generation idle timeout")
-				return &executor.Result{
-					Success:                  false,
-					Error:                    fmt.Sprintf("opencode idle for %v mid-generation (no output)", since),
-					InputTokens:              inputTokens,
-					OutputTokens:             outputTokens,
-					ReasonTokens:             reasonTokens,
-					CacheReadInputTokens:     cacheReadTokens,
-					CacheCreationInputTokens: cacheWriteTokens,
-					CostKilledAt:             task.Budget.KilledAt(),
-					FirstAttemptMs:           firstAttemptMs,
-					SuccessAtMs:              -1,
-				}, nil
+				return timeoutResult(fmt.Sprintf("opencode idle for %v mid-generation (no output)", since), executor.FinishTimeout), nil
 			}
 			idleCheck.Reset(idleTimeout - since)
 
 		case <-ctx.Done():
 			proctree.Kill(cmd)
 			span.SetStatus(codes.Error, ctx.Err().Error())
-			return &executor.Result{
-				Success:                  false,
-				Error:                    fmt.Sprintf("opencode cancelled: %v", ctx.Err()),
-				InputTokens:              inputTokens,
-				OutputTokens:             outputTokens,
-				ReasonTokens:             reasonTokens,
-				CacheReadInputTokens:     cacheReadTokens,
-				CacheCreationInputTokens: cacheWriteTokens,
-				CostKilledAt:             task.Budget.KilledAt(),
-				FirstAttemptMs:           firstAttemptMs,
-				SuccessAtMs:              -1,
-			}, nil
+			// A deadline-driven cancellation is a timeout by another name; a
+			// caller-driven abort is not (same distinction as pi's
+			// piCancelFinishReason).
+			cancelReason := executor.FinishError
+			if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+				cancelReason = executor.FinishTimeout
+			}
+			return timeoutResult(fmt.Sprintf("opencode cancelled: %v", ctx.Err()), cancelReason), nil
 		}
 	}
 }
