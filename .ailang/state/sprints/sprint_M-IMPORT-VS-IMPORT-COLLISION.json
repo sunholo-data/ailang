@@ -1,0 +1,149 @@
+{
+  "sprint_id": "M-IMPORT-VS-IMPORT-COLLISION",
+  "status": "not_started",
+  "created": "2026-11-03T15:14:01.664682+00:00",
+  "design_doc": "design_docs/planned/v0_54_20/m-import-vs-import-collision.md",
+  "related_design_docs": [
+    "design_docs/planned/v0_55_0/m-import-alias-collision.md"
+  ],
+  "sprint_plan": "design_docs/planned/sprint-plan-import-vs-import-collision.md",
+  "github_issues": [
+    1980
+  ],
+  "velocity": {
+    "target_loc_per_day": 325,
+    "estimated_total_loc": 650,
+    "estimated_days": 2
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Classify all explicit namespaces and establish fixtures",
+      "estimated_loc": 150,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Type-only, ctor-only and dual type/value exports produce the intended independent bindings.",
+        "Existing MOD015 import/local behavior and local type precedence remain unchanged.",
+        "Focused elaborate tests pass; failing collision expectations are introduced with M2, keeping this milestone green."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Reject explicit type and constructor ambiguity",
+      "estimated_loc": 180,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Original Leg repro fails with MOD015 naming both imports in both orders; structured span is second import.",
+        "Explicit constructor duplicates fail; same-module different-export aliases collide.",
+        "Identical repeated export, disambiguated aliases, independent namespaces, and local type winner remain legal.",
+        "MOD007 precedes import/local MOD015, which precedes import/import MOD015; three-source results are stable in source order.",
+        "Focused elaborate tests pass, including applying the proposed alias fix and rechecking."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "Diagnose values at bare resolution",
+      "estimated_loc": 150,
+      "dependencies": [
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Bare ambiguous imported value reports MOD015 at the use, naming both imports.",
+        "Qualified calls from both modules, unused duplicate values, same-export repetition and lexical binders remain legal.",
+        "Uses nested in lambda, record and match bodies fail consistently; successive files do not leak ambiguity state.",
+        "Existing synthesized-builtin and nullary-constructor lookup precedence remains intact; focused elaborate tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4",
+      "description": "Front-door diagnostics and passing showcase",
+      "estimated_loc": 100,
+      "dependencies": [
+        "M3"
+      ],
+      "acceptance_criteria": [
+        "Single-file and `check --package .` fronts reject both import orders and accept aliased fixes.",
+        "CLI JSON/report code MOD015, phase elaborate, data.name and both import sites survive wrapping; LSP spans second import for type/ctor and bare use for value.",
+        "Passing showcase checks and its inline test passes with the checkout binary.",
+        "Targeted pipeline, LSP and diagnostic-fixture tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5",
+      "description": "Corpus compatibility and documentation",
+      "estimated_loc": 70,
+      "dependencies": [
+        "M4"
+      ],
+      "acceptance_criteria": [
+        "Baseline and changed checkout binaries check the same enumerated tracked .ail corpus; record actual count and compare verdicts, with only new negative fixtures excluded. Do not assume the old 778 count is current.",
+        "Existing examples/alias_body_closure/main.ail and tools/motoko/r8_headroom_band.ail retain their baseline verdicts.",
+        "Focused gates pass: make test-changed (base pinned to pre-sprint HEAD), make check-file-sizes, make check-changelog, make verify-examples and make verify-stdlib.",
+        "Changed Go files are gofmt-clean; no unrelated compiler or resolution changes."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Search import: no results; diagnostic: sunholo/ail_diag inspected with info/docs. It parses emitted CLI text and cannot enforce Go compiler import resolution; reuse internal MOD015 machinery and existing fixtures/docs."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Search import: no results; diagnostic: sunholo/ail_diag inspected with info/docs. It parses emitted CLI text and cannot enforce Go compiler import resolution; reuse internal MOD015 machinery and existing fixtures/docs."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Search import: no results; diagnostic: sunholo/ail_diag inspected with info/docs. It parses emitted CLI text and cannot enforce Go compiler import resolution; reuse internal MOD015 machinery and existing fixtures/docs."
+    },
+    {
+      "milestone": "M4",
+      "package": null,
+      "action": "none",
+      "reason": "Search import: no results; diagnostic: sunholo/ail_diag inspected with info/docs. It parses emitted CLI text and cannot enforce Go compiler import resolution; reuse internal MOD015 machinery and existing fixtures/docs."
+    },
+    {
+      "milestone": "M5",
+      "package": null,
+      "action": "none",
+      "reason": "Search import: no results; diagnostic: sunholo/ail_diag inspected with info/docs. It parses emitted CLI text and cannot enforce Go compiler import resolution; reuse internal MOD015 machinery and existing fixtures/docs."
+    }
+  ],
+  "human_decision_gates": [
+    {
+      "id": "D1",
+      "source": "design_docs/planned/v0_54_20/m-import-vs-import-collision.md opening duplicate-gate note",
+      "status": "open",
+      "decision": "Select full-class MOD015 with second-import type/ctor spans and bare-use value spans versus sibling types-only MOD016.",
+      "on_unresolved": "STOP: commit current work, report BLOCKED: duplicate-design ruling required (MOD015 full-class versus MOD016 types-only), and end the run."
+    }
+  ]
+}
