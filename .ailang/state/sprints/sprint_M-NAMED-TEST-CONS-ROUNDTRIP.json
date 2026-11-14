@@ -1,0 +1,89 @@
+{
+  "sprint_id": "M-NAMED-TEST-CONS-ROUNDTRIP",
+  "status": "not_started",
+  "created": "2026-10-20T18:47:26.210501+00:00",
+  "design_doc": "design_docs/planned/v0_54_17/m-named-test-cons-roundtrip.md",
+  "sprint_plan": "design_docs/planned/v0_54_17/m-named-test-cons-roundtrip-sprint-plan.md",
+  "github_issues": [
+    1915
+  ],
+  "registry_reuse": [
+    {
+      "milestone": "M1",
+      "package": null,
+      "action": "none",
+      "reason": "Registry search 'test source printer' returned no packages; private Go harness printer and existing local test infrastructure require no package dependency."
+    },
+    {
+      "milestone": "M2",
+      "package": null,
+      "action": "none",
+      "reason": "Registry search 'test source printer' returned no packages; private Go harness printer and existing local test infrastructure require no package dependency."
+    },
+    {
+      "milestone": "M3",
+      "package": null,
+      "action": "none",
+      "reason": "Registry search 'test source printer' returned no packages; private Go harness printer and existing local test infrastructure require no package dependency."
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 300,
+    "estimated_total_loc": 300,
+    "estimated_days": 1
+  },
+  "features": [
+    {
+      "id": "M1",
+      "description": "Printer fix and AST tripwire",
+      "estimated_loc": 100,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "Printed two-argument cons uses parenthesised infix; output reparses to equivalent cons structure with the same operands.",
+        "Ordinary calls, zero-argument calls and wrong-arity cons retain their existing output.",
+        "Existing assert tripwire and focused PrintAILANGSource tests pass."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2",
+      "description": "Named-test and property regression matrix",
+      "estimated_loc": 120,
+      "dependencies": [
+        "M1"
+      ],
+      "acceptance_criteria": [
+        "Every new fixture body passes; successful shared execution records no NamedBatchFailures and compiles once.",
+        "Forced per-body and standalone property execution pass, independently of the shared batch path.",
+        "Cons forall property passes all configured cases with a fixed seed.",
+        "Existing mixed/assert/property fixtures retain expected verdicts."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3",
+      "description": "CLI engine parity and release evidence",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M1",
+        "M2"
+      ],
+      "acceptance_criteria": [
+        "Exact reporter reproduction succeeds in all three execution modes with identical verdicts and no parse/fallback diagnostic.",
+        "Focused cmd/ailang regression tests and make test-changed pass.",
+        "make check-file-sizes and make check-changelog pass; changed Go files are gofmt clean.",
+        "Release fragment explains named-test/property restoration; final report identifies downstream sim/similar_test.ail restore and deferred strict-syntax issue without closing historical #590/#1821."
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
