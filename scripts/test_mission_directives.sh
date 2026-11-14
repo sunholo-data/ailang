@@ -101,7 +101,7 @@ EOF
 	fi
 }
 
-# ── arm 1b: raw --since mode is UNCHANGED (world fork depends on it) ────────────────────────
+# ── arm 1b: raw --since mode is UNCHANGED (deprecated mode kept for hand-written watermarks) ────────────────────────
 # Exclusive at the boundary, no ids, stdout byte-for-byte as before #981, one deprecation line.
 arm_raw_since_unchanged() {
 	local d="$SCRATCH/a1b" out want
