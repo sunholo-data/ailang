@@ -110,7 +110,6 @@ func TestUnresolvedByNameCtorPatternRejectedOnEveryPath(t *testing.T) {
 				t.Errorf("check --json: first error %+v, want TC_MATCH_007", e)
 			}
 			paths := [][]string{
-				{"check", r.file},
 				{"run", "--quiet", "--entry", "summary", r.file},
 				{"run", "--quiet", "--bytecode", "--entry", "summary", r.file},
 				{"run", "--quiet", "--strict-bytecode", "--entry", "summary", r.file},
@@ -189,47 +188,55 @@ func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 	sort.Strings(libs)
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			file := c.module + ".ail"
 			for _, flags := range [][]string{nil, {"--bytecode"}, {"--strict-bytecode"}} {
-				args := append(append([]string{"run", "--quiet"}, flags...), "--entry", "summary", file)
+				args := append(append([]string{"run", "--quiet"}, flags...), "--entry", "summary", c.module+".ail")
 				stdout, stderr, code := testutil.RunBounded(t, dir, 90*time.Second, bin, args...)
 				if got := strings.TrimSpace(stdout); code != 0 || got != c.want || strings.Contains(stderr, "falling back") {
 					t.Errorf("run %v: exit %d, got %q, want %q\n%s", flags, code, got, c.want, stderr)
 				}
 			}
-			if c.module == "ok6" {
-				return
-			}
-			emit := func(out string) string {
-				args := append([]string{"compile", "--emit-go", "--package-name", c.module, "--out", out, file}, libs...)
-				if stdout, stderr, code := testutil.RunBounded(t, dir, 90*time.Second, bin, args...); code != 0 {
-					t.Fatalf("compile --emit-go: exit %d\n%s\n%s", code, stdout, stderr)
-				}
-				return filepath.Join(out, c.module)
-			}
-			gen := emit(filepath.Join(t.TempDir(), "go"))
-			if c.module == "ok2" {
-				// The bare-name lookup this replaced iterated a Go map, and so
-				// did the gathering of imported type declarations (#2359).
-				first := goSources(t, gen)
-				for i := 0; i < 32; i++ {
-					if again := goSources(t, emit(filepath.Join(t.TempDir(), "go"))); again != first {
-						t.Fatalf("emit %d differs from the first", i+1)
-					}
-				}
-			}
-			if err := os.WriteFile(filepath.Join(gen, "go.mod"), []byte("module "+c.module+"\n\ngo 1.21\n"), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			test := "package " + c.module + "\nimport \"testing\"\nfunc TestSummary(t *testing.T) {\n if got := " + c.module +
-				"__Summary(); got != " + quoteGo(c.want) + " { t.Fatalf(\"generated Go: %v\", got) }\n}\n"
-			if err := os.WriteFile(filepath.Join(gen, "summary_test.go"), []byte(test), 0o644); err != nil {
-				t.Fatal(err)
-			}
-			if stdout, stderr, code := testutil.RunBounded(t, gen, 120*time.Second, "go", "test", "-count=1", "."); code != 0 {
-				t.Errorf("generated Go disagrees with the evaluator or does not build: exit %d\n%s\n%s", code, stdout, stderr)
-			}
 		})
+	}
+
+	// Emitted Go: every control but ok6 in ONE package (one emit, one go
+	// build — the cmd/ailang package runs close to its CI time budget), built
+	// and run against the same answers.
+	emitFiles := []string{}
+	test := "package byname\nimport \"testing\"\nfunc TestSummaries(t *testing.T) {\n"
+	for _, c := range cases {
+		if c.module == "ok6" {
+			continue
+		}
+		emitFiles = append(emitFiles, c.module+".ail")
+		test += " if got := " + c.module + "__Summary(); got != " + quoteGo(c.want) +
+			" { t.Errorf(\"" + c.module + ": generated Go: %v\", got) }\n"
+	}
+	test += "}\n"
+	emitFiles = append(emitFiles, libs...)
+	emit := func(out string) string {
+		args := append([]string{"compile", "--emit-go", "--package-name", "byname", "--out", out}, emitFiles...)
+		if stdout, stderr, code := testutil.RunBounded(t, dir, 90*time.Second, bin, args...); code != 0 {
+			t.Fatalf("compile --emit-go: exit %d\n%s\n%s", code, stdout, stderr)
+		}
+		return filepath.Join(out, "byname")
+	}
+	gen := emit(filepath.Join(t.TempDir(), "go"))
+	// The bare-name lookup this replaced iterated a Go map, and so did the
+	// gathering of imported type declarations (#2359): 32 emits, one output.
+	first := goSources(t, gen)
+	for i := 0; i < 32; i++ {
+		if again := goSources(t, emit(filepath.Join(t.TempDir(), "go"))); again != first {
+			t.Fatalf("emit %d differs from the first", i+1)
+		}
+	}
+	if err := os.WriteFile(filepath.Join(gen, "go.mod"), []byte("module byname\n\ngo 1.21\n"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(gen, "summary_test.go"), []byte(test), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if stdout, stderr, code := testutil.RunBounded(t, gen, 120*time.Second, "go", "test", "-count=1", "."); code != 0 {
+		t.Errorf("generated Go disagrees with the evaluator or does not build: exit %d\n%s\n%s", code, stdout, stderr)
 	}
 }
 
