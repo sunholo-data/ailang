@@ -288,15 +288,12 @@ func (ctx *InferenceContext) resolveChoicesIn(sub Substitution, cs []TypeConstra
 			if idx < 0 && choice.byName {
 				// The value's type is fixed and is no candidate the pattern's
 				// arity fits: a wrong-arity or foreign constructor, which the
-				// match check reports (TC_MATCH_006 for the type it is — the
-				// stamp says which — TC_MATCH_007 for a foreign one).
+				// match check reports from that type (TC_MATCH_006 against
+				// its declaration, TC_MATCH_007 when it has no such one).
 				if dry != nil {
 					dry[choice] = true
 				} else {
 					choice.resolved = true
-					if c, ok := candidateOf(choice.all, head); ok {
-						choice.pattern.TypeName, choice.pattern.TypeModule = c.TypeName, c.Module
-					}
 				}
 				continue
 			}

@@ -154,6 +154,10 @@ func TestUnresolvedByNameCtorPatternRejectedOnEveryPath(t *testing.T) {
 			"module r9\n" + head + "export pure func summary() -> string = show(cc(0))\n\n" +
 				"test \"by-name in a test body\" {\n  let k = \\v. match v { Red => 1, _ => 0 };\n  assert k(cc(0)) == 1 && k(ll(1)) == 1\n}\n",
 			7, "Red", "TC_AMBIGUOUS_CTOR_001", twoUses},
+		{"by-name constructor with arguments, unannotated parameter", "r11.ail",
+			"module r11\nimport lib/api (bc)\n\npure func boxed(x) -> int = match x { MkBox(c) => 1, _ => 0 }\n\n" +
+				"export pure func summary() -> string = show(boxed(bc(0)))\n",
+			4, "MkBox", "TC_MATCH_007", unfixed},
 		// #2353: the variables a by-name pattern binds have their real type
 		// (before: check passed and every engine crashed at run time).
 		{"a by-name pattern's variable used at the wrong type", "r10.ail",
