@@ -1,13 +1,17 @@
 package runner
 
 import (
-	"context"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
 )
+
+// workerExitProbeBudget is one probe's own deadline. The harness bounds its
+// own steps — 12s for the worker to acknowledge startup, 4s each for the
+// host's exit and output — so a probe that passes needs at most ~21s plus
+// interpreter start-up; a passing probe takes 0.2-1.4s locally.
+const workerExitProbeBudget = 30 * time.Second
 
 // Exact-PID CLI/batch controls exercise the original ownership failure after
 // acknowledged child startup. Child sleep is a provider-free Clock effect.
@@ -19,18 +23,7 @@ func TestWorkerCLIProcessExitLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	root, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	binary := filepath.Join(t.TempDir(), "ailang")
-	ctx, cancel := context.WithTimeout(t.Context(), 120*time.Second)
-	defer cancel()
-	build := exec.CommandContext(ctx, "go", "build", "-o", binary, "./cmd/ailang")
-	build.Dir = root
-	if output, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build: %v\n%s", err, output)
-	}
+	binary, root := ailangCLIBinary(t)
 	for _, worker := range []string{"managed", "async"} {
 		for _, backend := range []string{"eval", "strict"} {
 			for _, scenario := range []string{"normal", "exit", "error", "budget", "sigint", "sigterm", "batch-normal", "batch-exit", "batch-error"} {
@@ -38,25 +31,21 @@ func TestWorkerCLIProcessExitLifecycle(t *testing.T) {
 					continue
 				} // VM explicitly rejects annotated budget frames.
 				t.Run(worker+"/"+backend+"/"+scenario, func(t *testing.T) {
-					probeCtx, stop := context.WithTimeout(t.Context(), 30*time.Second)
-					defer stop()
-					cmd := exec.CommandContext(probeCtx, python, "-c", workerExitPIDHarness, binary, root, worker, backend, scenario)
-					if output, err := cmd.CombinedOutput(); err != nil {
+					output, err := runCLIProbe(t, workerExitProbeBudget, nil, python, "-c", workerExitPIDHarness, binary, root, worker, backend, scenario)
+					if err != nil {
 						t.Fatalf("worker exit: %v\n%s", err, output)
-					} else {
-						t.Log(string(output))
 					}
+					t.Log(string(output))
 				})
 			}
 		}
 	}
 	t.Run("original-select-handler-false", func(t *testing.T) {
-		cmd := exec.CommandContext(ctx, python, "-c", workerExitPIDHarness, binary, root, "async", "eval", "select")
-		if output, err := cmd.CombinedOutput(); err != nil {
+		output, err := runCLIProbe(t, workerExitProbeBudget, nil, python, "-c", workerExitPIDHarness, binary, root, "async", "eval", "select")
+		if err != nil {
 			t.Fatalf("original async: %v\n%s", err, output)
-		} else {
-			t.Log(string(output))
 		}
+		t.Log(string(output))
 	})
 }
 
