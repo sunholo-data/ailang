@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 113 | 2026-11-16 | idle: inputs byte-identical to iteration 112 after three capacity-paused days; all 27 tickets ruling-gated; independent minimax judge PICK (D-FLEET... |
 | 112 | 2026-11-13 | idle: inputs byte-identical to iteration 111; all 27 tickets ruling-gated, independent sonnet judge NONE; nothing designed, planned, built or merge... |
 | 111 | 2026-11-13 | pick NONE (inputs byte-identical to iteration 110, independent sonnet judge NONE); Gate 5 skill fix LANDED: harness share counts log headlines (#23... |
 | 110 | 2026-11-13 | idle: inputs byte-identical to iteration 108 (iteration 109's one new ticket resolved); all 27 tickets ruling-gated, independent sonnet judge NONE;... |
