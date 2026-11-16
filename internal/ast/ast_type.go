@@ -50,6 +50,10 @@ func (s *SimpleType) typeNode()      {}
 type TypeVar struct {
 	Name string
 	Pos  Pos
+	// Anonymous marks the row variable the parser synthesises for `...` in a
+	// record type ({a: T, ...}). It is a flexible wildcard, not a signature
+	// variable (#2273); a row the author names, even `_r1`, is not anonymous.
+	Anonymous bool
 }
 
 func (t *TypeVar) String() string { return t.Name }

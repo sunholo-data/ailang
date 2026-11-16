@@ -287,7 +287,7 @@ downstream as "PROCEED at N-1, `<model>` absent (`<reason>`)" (a second invalid:
 "PROCEED at N-1, `<model>` absent (invalid)") — never a bare "quorum passed".
 **The author's vendor sits out (Mark, attended 2026-09-25).** Always pass the designer lane that
 wrote the doc: `ailang design-quorum <doc> --author "<designer lane>" ...` (e.g.
-`claude:claude-opus-5-5`, `codex:gpt-6.1-sol`). Reviewers come from a POOL — `gpt6-1-sol`,
+`claude:claude-opus-5-5`, `codex:gpt-6.1-sol`). Reviewers come from a POOL — `codex:gpt-6.1-sol` (OpenAI, ChatGPT subscription since 2026-11-16, D-FLEET-20),
 `gemini-4-argon` (Google seat since 2026-10-13), `oc-glm-5-3`, `oc-kimi-k3`, `claude-sonnet-5@claude-p` (Anthropic, subscription) —
 three seats per doc, the same three on every round of that doc, an absent seat replaced from the pool,
 and the author's vendor is benched: opus designs → Claude does not review; astra designs → OpenAI is

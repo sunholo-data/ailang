@@ -3,8 +3,13 @@ import std/option (Option, Some, None)
 import std/list (sortBy)
 import std/io (print)
 
-export pure func gen[a](x: a, y: a) -> a = -x + y
+export pure func genR[a](x: a, y: a) -> a = -x + y
+export pure func genU(x, y) = -x + y
+export pure func genL[a](x: a, y: a) -> a { let k = \pp qq. -pp + qq; k(x, y) }
+export pure func genF[a](x: a, y: a) -> a { let k = func(pp: a, qq: a) -> a { -pp + qq }; k(x, y) }
 export pure func twinI(x: int, y: int) -> int = -x + y
+export pure func twinLI(x: int, y: int) -> int { let k = \pp qq. -pp + qq; k(x, y) }
 export pure func twinF(x: float, y: float) -> float = -x + y
-export pure func summary() -> string = "genI=${show(gen(3, 4))}\n twinI=${show(twinI(3, 4))}\n genF=${show(gen(1.5, 2.25))}\n twinF=${show(twinF(1.5, 2.25))}\n"
+export pure func twinLF(x: float, y: float) -> float { let k = \pp qq. -pp + qq; k(x, y) }
+export pure func summary() -> string = "genRI=${show(genR(3, 4))}\ngenUI=${show(genU(3, 4))}\ngenLI=${show(genL(3, 4))}\ngenFI=${show(genF(3, 4))}\ntwinI=${show(twinI(3, 4))}\ntwinLI=${show(twinLI(3, 4))}\ngenRF=${show(genR(1.5, 2.25))}\ngenUF=${show(genU(1.5, 2.25))}\ngenLF=${show(genL(1.5, 2.25))}\ngenFF=${show(genF(1.5, 2.25))}\ntwinF=${show(twinF(1.5, 2.25))}\ntwinLF=${show(twinLF(1.5, 2.25))}\n"
 export func main() -> () ! {IO} = print(summary())

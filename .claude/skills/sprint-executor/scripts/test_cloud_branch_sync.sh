@@ -79,25 +79,19 @@ refspec_once() {
 }
 published() { eq "$(remote_sha)" "$(head_sha)" && eq "$(tracking_sha)" "$(head_sha)"; }
 # Step 5b, cmd/ailang/coordinator_cloud_task.go; branchNeedsPush in coordinator_cloud_branch.go.
-# Keep this production decision verbatim, including the bare branch fallback and separate stderr.
+# Keep this production decision verbatim (remoteBranchHead in coordinator_cloud_git.go).
 wrapper_simulation() {
-logOutput=$(git log "origin/${B}..HEAD" --oneline 2>"${fixture}/log.err")
-logRC=$?
-newBranch=false
-lsRC=not-run
-if [ "$logRC" -ne 0 ]; then
-    git ls-remote --exit-code origin "$B" >"${fixture}/ls.out" 2>"${fixture}/ls.err"
-    lsRC=$?
-    if [ "$lsRC" -ne 0 ]; then
-        newBranch=true
-    fi
-fi
-# branchNeedsPush: newBranch || len(strings.TrimSpace(logOutput)) > 0
+head=$(head_sha)
+# remoteBranchHead: the REMOTE's refs/heads/<branch>, never the tracking ref (D-FLEET-23).
+lsOut=$(git ls-remote origin "refs/heads/$B" 2>"${fixture}/ls.err")
+lsRC=$?
+remoteHead=${lsOut%%[[:space:]]*}
+# branchNeedsPush: remoteHead != head
 unpushed=false
-if [ "$newBranch" = true ] || [ -n "$(printf '%s' "$logOutput" | tr -d '[:space:]')" ]; then
+if [ "$remoteHead" != "$head" ]; then
     unpushed=true
 fi
-    echo "WRAPPER logRC=$logRC lsRC=$lsRC newBranch=$newBranch unpushed=$unpushed HEAD=$(head_sha) tracking=$(tracking_sha) remote=$(remote_sha)"
+    echo "WRAPPER lsRC=$lsRC remoteHead=$remoteHead unpushed=$unpushed HEAD=$head tracking=$(tracking_sha) remote=$(remote_sha)"
 }
 # Every shim logs the real interception; production has no test bypass.
 shim() {
@@ -172,14 +166,14 @@ A08() {
     fixture_new A08 && commit_work milestone-1 && invoke push && verdict pushed || return 1
     local first; first=$(head_sha)
     commit_work milestone-2 && wrapper_simulation || return 1
-    eq "$logRC" 0 && contains "$logOutput" milestone-2 && eq "$lsRC" not-run && eq "$newBranch" false && eq "$unpushed" true && eq "$(remote_sha)" "$first" && eq "$(tracking_sha)" "$first"
+    eq "$lsRC" 0 && eq "$remoteHead" "$first" && eq "$unpushed" true && eq "$(remote_sha)" "$first" && eq "$(tracking_sha)" "$first"
 }
 A09() {
     fixture_new A09 && commit_work milestone-1 || return 1
     git push -q origin HEAD:"refs/heads/$B" || return 1
     local first; first=$(head_sha)
     commit_work milestone-2 && wrapper_simulation || return 1
-    eq "$logRC" 128 && eq "$logOutput" '' && eq "$lsRC" 0 && eq "$newBranch" false && eq "$unpushed" false && eq "$(remote_sha)" "$first" && eq "$(tracking_sha)" absent && check test "$(head_sha)" != "$first"
+    eq "$lsRC" 0 && eq "$remoteHead" "$first" && eq "$unpushed" true && eq "$(remote_sha)" "$first" && eq "$(tracking_sha)" absent && check test "$(head_sha)" != "$first"
 }
 A10() {
     fixture_new A10 && commit_work unpublished || return 1
@@ -370,14 +364,16 @@ LYING
     cat "$root/mutation-A01-lying.log"
     # A09 deliberately never calls the helper: a helper-only mutant MUST survive
     # this negative control. Independently mutate a disposable simulator copy to
-    # show that A09 rejects a corrected/always-true interpretation of Step 5b.
+    # show that A09 rejects a Step 5b that reports nothing to push after the
+    # agent's own push (the pre-D-FLEET-23 outcome).
     sim="$root/simulator-mutant.sh"
-    sed 's/^unpushed=false$/unpushed=true/' "$TEST_FILE" > "$sim"
+    sed 's/^    unpushed=true$/    unpushed=false/' "$TEST_FILE" > "$sim"
+    ! cmp -s "$TEST_FILE" "$sim" || { echo "MUTATION A09 simulator ERROR unchanged"; exit 1; }
     CLOUD_BRANCH_SYNC_HELPER="$HELPER" CLOUD_BRANCH_SYNC_ARM=A09 \
         /bin/bash "$sim" > "$root/mutation-A09-simulator.log" 2>&1
     sim_rc=$?
-    if [ "$sim_rc" -ne 0 ]; then echo "MUTATION A09 simulator-always-true KILLED rc=$sim_rc"
-    else echo "MUTATION A09 simulator-always-true SURVIVED rc=$sim_rc"; fi
+    if [ "$sim_rc" -ne 0 ]; then echo "MUTATION A09 simulator-never-push KILLED rc=$sim_rc"
+    else echo "MUTATION A09 simulator-never-push SURVIVED rc=$sim_rc"; fi
     cat "$root/mutation-A09-simulator.log"
     echo "Helper mutations: $killed KILLED, $survived SURVIVED; simulator rc=$sim_rc"
     [ "$killed" -eq 21 ] && [ "$survived" -eq 1 ] && [ "$sim_rc" -ne 0 ] && [ "$lying_rc" -ne 0 ]

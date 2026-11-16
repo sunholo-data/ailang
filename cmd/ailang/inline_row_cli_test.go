@@ -91,7 +91,14 @@ tests [ (2, 2) ]
 	if denied.exitCode != 1 {
 		t.Fatalf("without caps: %+v", denied)
 	}
-	if !strings.Contains(denied.stdout+denied.stderr, "requires capability") {
+	// The purity gate refuses an effectful function before its body runs:
+	// inline tests have no capabilities, so the effect is denied up front
+	// rather than at the first effect op.
+	out := denied.stdout + denied.stderr
+	if !strings.Contains(out, "cannot test 'echo': it has effects [IO]") {
 		t.Fatalf("capability gate changed: %+v", denied)
+	}
+	if strings.Contains(out, "hello") {
+		t.Fatalf("effectful body ran without capabilities: %+v", denied)
 	}
 }
