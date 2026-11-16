@@ -101,3 +101,17 @@ func TestByNameCtorChoice_Pipeline(t *testing.T) {
 		})
 	}
 }
+
+// #2371: a library matching its own (unimported) Maybe.None by name gets the
+// prelude's None; the foreign-constructor error names the import that fixes it.
+func TestPreludeShadowedNoneNamesTheImport_Pipeline(t *testing.T) {
+	err := checkModules(t, map[string]string{
+		"m/st.ail":   "module m/st\nexport type Maybe = Just(int) | None\nexport pure func mb(i: int) -> Maybe = if i > 0 then Just(i) else None\n",
+		"m/w.ail":    "module m/w\nimport m/st (mb)\nexport pure func wm(i: int) = mb(i)\n",
+		"m/main.ail": "module m/main\nimport m/w (wm)\nexport pure func f(i: int) -> int = match wm(i) { Just(v) => v, None => 0 }\n",
+	})
+	if err == nil || !strings.Contains(err.Error(), "belongs to ADT 'Option', not 'Maybe'") ||
+		!strings.Contains(err.Error(), "if you mean m/st's Maybe.None, import it: import m/st (Maybe, Just, None)") {
+		t.Fatalf("want the foreign-constructor error with the import hint, got %v", err)
+	}
+}

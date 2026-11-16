@@ -240,6 +240,11 @@ They have the lowest precedence:
   `type Opt = Some(int) | Nil`) does not get that prelude module at all (`None` is then not in
   scope unless it declares it).
 
+A library that matches, without importing its type, a constructor of another module's type that
+happens to be called `Ok`, `Err`, `None` or `Some` gets the prelude's constructor instead (an
+arity or foreign-constructor error). The error names the fix — import that type with its
+constructors, e.g. `import lib/st (Status, Err, Ok, Pending)`.
+
 ## Exports
 
 ### Exporting Functions

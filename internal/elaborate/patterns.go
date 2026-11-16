@@ -108,7 +108,8 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 			}
 			// Bare non-nullary constructor (e.g. `Some` without arguments):
 			// previously this silently became a catch-all VarPattern named "Some".
-			return nil, fmt.Errorf("constructor %s in pattern expects %d argument(s) — write %s(...) with %d pattern(s), or use a lowercase name for a variable binding", p.Name, ctorInfo.Arity, p.Name, ctorInfo.Arity)
+			return nil, fmt.Errorf("constructor %s in pattern expects %d argument(s) — write %s(...) with %d pattern(s), or use a lowercase name for a variable binding%s",
+				p.Name, ctorInfo.Arity, p.Name, ctorInfo.Arity, e.arityImportHint(p.Name, ctorInfo.Module, ctorInfo.TypeName, 0))
 		}
 		// Uppercase identifier = constructor by language convention (the parser
 		// enforces UpperCamelCase at declaration: PAR_VARIANT_NEEDS_UIDENT).

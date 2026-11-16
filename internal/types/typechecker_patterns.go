@@ -196,11 +196,17 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 				if scrutADT := tc.scrutineeADTName(scrutType); scrutADT != "" && scrutADT != adtTypeName {
 					ctorList := tc.lookupADTConstructors(adtTypeName)
 					scrutList := tc.lookupADTConstructors(scrutADT)
-					return nil, nil, NewMatchForeignConstructorError(
+					err := NewMatchForeignConstructorError(
 						p.Name, adtTypeName, scrutADT, writtenAlias(scrutType, scrutADT),
 						ctorList, scrutList,
 						[]string{fmt.Sprintf("constructor pattern %s", p.Name)},
 					)
+					// #2371: the scrutinee's own type declares the name too
+					// (a library's unimported Maybe.None vs the prelude's).
+					if hint := tc.foreignCtorHint(p.Name, adtTypeName, scrutADT); hint != "" {
+						err.Suggestion = hint
+					}
+					return nil, nil, err
 				}
 				// M-TAPP-FIX: Check if ADT has type parameters
 				// If so, create TApp with fresh type vars, not just TCon
