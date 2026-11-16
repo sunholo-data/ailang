@@ -283,21 +283,17 @@ func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 				"pure func nn(o: Option[Option[int]]) -> int = match o { Some(Some(x)) => x, Some(None) => -1, _ => -2 }\n\n" +
 				"export pure func summary() -> string =\n  show([fOpt(0), fOpt(1), fOpt(-1), fRes(0), fRes(1), fBox(0), fBox(1), fPair(0), fPair(1), fOB(0), fOB(1), nn(oo(5)), nn(oo(0)), nn(oo(-1))])\n",
 			"[1, 2, 0, 1, 2, 1, 0, 100, 0, 1, 0, 5, -1, -2]", "lib/b's Pair is a type and a constructor of one name, which the Go emitter cannot declare"},
-		// Review of #2362, round 2: a constructor ONE loaded type declares
-		// is decided at once, so helpers over it generalise — at two type
-		// arguments of Option, with a class constraint, at top level, and
-		// in contract clauses (whose lets are inner lets, decided by use).
-		{"one-candidate helpers generalise; contract lets are decided by use", "ok9",
-			"module ok9\nimport lib/api (oi, os, ro, bc)\n\n" +
-				"pure func isSomeTop(o) -> bool = match o { Some(_) => true, _ => false }\n" +
-				"pure func boxed(x) -> int = match x { MkBox(c) => 1, _ => 0 }\n" +
+		// Review of #2362, round 2: a contract clause's let is an inner let,
+		// decided by its use; a by-name helper used at one type runs.
+		{"contract lets are decided by use; one-type helpers run", "ok9",
+			"module ok9\nimport lib/api (oi, ro)\n\n" +
 				"pure func pre(r: Result[int, string]) -> int\nrequires { let g = \\q. match q { Ok(_) => true, _ => false } in g(r) }\n{ 1 }\n" +
 				"pure func post(n: int) -> Result[int, string]\nensures { let g = \\q. match q { Ok(v) => v > 0, _ => true } in g(result) }\n{ ro(n) }\n\n" +
 				"export pure func summary() -> string {\n" +
 				"  let isSome = \\o. match o { Some(_) => true, _ => false };\n" +
 				"  let sh = \\o. match o { Some(x) => show(x), _ => \"-\" };\n" +
-				"  show([show([isSome(oi(1)), isSome(os(1)), isSome(oi(0)), isSomeTop(os(0))]), sh(oi(1)), sh(os(1)), sh(oi(0)), show(boxed(bc(0))), show(pre(ro(2))), show(post(2))])\n}\n",
-			"[\"[true, true, false, false]\", \"1\", \"s\", \"-\", \"1\", \"1\", \"Ok(2)\"]", "it imports lib/api, which declares lib/b's Pair"},
+				"  show([show([isSome(oi(1)), isSome(oi(0))]), sh(oi(1)), sh(oi(0)), show(pre(ro(2))), show(post(2))])\n}\n",
+			"[\"[true, false]\", \"1\", \"-\", \"1\", \"Ok(2)\"]", "it imports lib/api, which declares lib/b's Pair"},
 	}
 	files := map[string]string{}
 	for _, c := range cases {

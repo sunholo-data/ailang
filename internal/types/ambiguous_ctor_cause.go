@@ -99,9 +99,15 @@ func (ctx *InferenceContext) explainCtorFailure(eq TypeEq, sub Substitution, fai
 			if n.binder != "" {
 				what = fmt.Sprintf("`%s`", n.binder)
 			}
-			return &AmbiguousCtorError{Name: n.pattern.Name, Candidates: n.all, Where: patternWhere(n.pattern), Cause: failure,
-				Detail: fmt.Sprintf("constructor '%s' belongs to %s, and which one this pattern means is not yet decided where %s is defined, so %s cannot be generic: all its uses must have one type — they do not.",
-					n.pattern.Name, candidateList(n.all), what, what)}
+			detail := fmt.Sprintf("constructor '%s' belongs to %s, and which one this pattern means is not yet decided where %s is defined, so %s cannot be generic: all its uses must have one type — they do not.",
+				n.pattern.Name, candidateList(n.all), what, what)
+			if len(n.all) == 1 {
+				// One candidate (a constructor matched by name, #2353): there
+				// is no "which one", only a choice its uses must make.
+				detail = fmt.Sprintf("constructor '%s' (%s) is matched by name and not imported, so the type of the value it matches is decided by the uses of %s, and %s cannot be generic: all its uses must have one type — they do not.",
+					n.pattern.Name, candidateList(n.all), what, what)
+			}
+			return &AmbiguousCtorError{Name: n.pattern.Name, Candidates: n.all, Where: patternWhere(n.pattern), Cause: failure, Detail: detail}
 		}
 		if n.chosen != nil && heads[NominalKey(n.chosen.Module, n.chosen.TypeName)] {
 			for _, c := range n.all {

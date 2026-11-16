@@ -42,15 +42,16 @@ func TestByNameCtorChoice_Pipeline(t *testing.T) {
 		{"a let-bound lambda used at two types",
 			"export pure func f(i: int) -> int {\n  let k = \\v. match v { Green => 10, _ => 20 };\n  k(cc(i)) + k(ll(i))\n}\n",
 			types.TC_AMBIGUOUS_CTOR_001, "cannot be generic"},
-		// Review of #2362: a constructor one loaded type declares is decided
-		// at once, so a let-bound helper over it generalises — at two type
-		// arguments of Option, with a class constraint on the argument too.
+		// A by-name constructor stays a deferred choice even with ONE
+		// candidate type: deciding it from the candidates would make the
+		// verdict depend on what else the import closure declares (#2362
+		// review). So a helper over it is monomorphic (known limitation for
+		// by-name Option/Result in library modules; the message never says
+		// "which one" for a single candidate) ...
 		{"a one-candidate helper at two type arguments",
-			"export pure func f(i: int) -> bool {\n  let isSome = \\o. match o { Some(_) => true, _ => false };\n  isSome(oi(i)) && isSome(os(i))\n}\n", "", ""},
-		{"a one-candidate helper with a class constraint",
-			"export pure func f(i: int) -> string {\n  let sh = \\o. match o { Some(x) => show(x), _ => \"-\" };\n  \"${sh(oi(i))}${sh(os(i))}\"\n}\n", "", ""},
-		{"a one-candidate top-level helper",
-			"pure func isSome(o) -> bool = match o { Some(_) => true, _ => false }\nexport pure func f(i: int) -> bool = isSome(oi(i)) && isSome(os(i))\n", "", ""},
+			"export pure func f(i: int) -> bool {\n  let isSome = \\o. match o { Some(_) => true, _ => false };\n  isSome(oi(i)) && isSome(os(i))\n}\n",
+			types.TC_AMBIGUOUS_CTOR_001, "(std/option's Option) is matched by name and not imported, so the type of the value it matches is decided by the uses of `isSome`"},
+		{"a one-candidate helper at one type", "export pure func f(i: int) -> bool {\n  let isSome = \\o. match o { Some(_) => true, _ => false };\n  isSome(oi(i)) && isSome(oi(i + 1))\n}\n", "", ""},
 		// ... and a contract clause's let is an inner let, decided by its use.
 		{"a let-bound helper in a requires clause",
 			"pure func f(r: Result[int, string]) -> int\nrequires { let g = \\q. match q { Ok(_) => true, _ => false } in g(r) }\n{ 1 }\nexport pure func h() -> int = f(ro(1))\n", "", ""},

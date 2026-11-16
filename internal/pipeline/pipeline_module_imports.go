@@ -106,13 +106,21 @@ func resolveModuleImports(
 	}
 
 	// M-MATCH-XCHECK-ERROR-QUALITY: collect a diagnostic-only Constructor → ADT
-	// map from every transitively-loaded interface. Deps compile before their
-	// importers (topo order), so by the time the root module type-checks, every
-	// transitive ADT (e.g. Option, imported by std/json but not by the user) is
-	// registered here. Used ONLY for error-message constructor enumeration —
-	// these constructors are NOT in scope.
+	// map from every interface in this module's transitive import closure
+	// (`reach`). Deps compile before their importers (topo order), so by the
+	// time the module type-checks every transitive ADT (e.g. Option, imported
+	// by std/json but not by the user) is registered here. These constructors
+	// are NOT in scope, but they are the candidates of a constructor matched
+	// by name (#2353), the arity rule and the #1478 foreign-constructor check,
+	// so they come from the import closure only: every module compiled so far
+	// included siblings outside it, which made a library's verdict, and its
+	// error, depend on the root's import order and on what else the program
+	// loads — none of which its compile-cache key covers (#2362 review).
 	for _, loadedIface := range modLinker.GetLoadedModules() {
 		if loadedIface == nil {
+			continue
+		}
+		if reach != nil && !reach[loadedIface.Module] && loadedIface.Module != "$builtin" {
 			continue
 		}
 		addIfaceToMatchUniverse(imports.MatchUniverse, loadedIface)
