@@ -12,6 +12,12 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 113 | 2026-11-16 | idle — inputs byte-identical to iteration 112 after three capacity-paused days; all 27 tickets ruling-gated; independent minimax judge PICK (D-FLEE... |
+| 112 | 2026-11-13 | idle — inputs byte-identical to iteration 111; all 27 tickets ruling-gated; independent sonnet judge NONE; nothing built or merged [ADMIN] |
+| 111 | 2026-11-13 | pick NONE (inputs byte-identical to iteration 110; independent sonnet judge NONE); Gate 5 skill fix LANDED — harness share counts log headlines, #2... |
+| 110 | 2026-11-13 | idle — inputs byte-identical to iteration 108 (iteration 109's one new ticket resolved); all 27 tickets ruling-gated; independent sonnet judge NONE... |
+| 109 | 2026-11-12 | `orphan:pi-runner:own-pgid-children-survive-role-exit` LANDED — #2267 → `47b123139`, independent sonnet judge PASS 86 then PASS 91; ticket resolved... |
+| 108 | 2026-11-12 | idle — inputs byte-identical to iteration 107; all 27 tickets ruling-gated; independent sonnet judge NONE; nothing built or merged [ADMIN] |
 | 107 | 2026-11-12 | idle — inputs byte-identical to iteration 106; all 27 tickets ruling-gated; independent sonnet judge NONE; nothing built or merged [ADMIN] |
 | 106 | 2026-11-11 | idle — inputs byte-identical to iteration 104 (iteration 105's one new ticket resolved); all 27 tickets ruling-gated; independent sonnet judge NONE... |
 | 105 | 2026-11-11 | `tool-hang:pi-evaluator:stall-bound-below-single-test-run` LANDED — #2235 → `956af1ae6`, independent sonnet judge FAIL 68 then PASS 82; ticket reso... |

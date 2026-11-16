@@ -1339,3 +1339,92 @@ Each replied to its filer.
 - Executor: resolver `recipe claude:claude-haiku-5-5 declared:provider-pin` → `claude-sub -p --model claude-haiku-5-5`, probe rc 0, rc 0, 559 s (tok: 37,256 output).
 - Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, 71,965 tok. Judge independence: cross-model (executor haiku, planner and controller opus, judge sonnet; same vendor).
 - Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
+
+## 116 — 2026-11-16 — D-FLEET-18 A guard arm LANDED via #2382 → `97e792147` (sonnet PASS 94); fleet scope guard admits exactly the two motoko probe files; #2110 closed as superseded; #13 stays open for the probe work [HARNESS]
+
+**Pick**: queue row 13, `ci:launchd-suite-flakes-openrouter-peer-and-gh-hang`, step 1 of D-FLEET-18 A. This follows iteration 115's **Next** and Mark's groom order: row 13 ranks above rows 33 and 34. Mark ruled A in his 11-16 attended session ("add exactly … the guard arm ships alone first, then #13 is worked on both live signatures"). That session's own claims (D-17, 19, 20, 22, 23, 28, 29, 35, 39–41, D-42's key rotation) do not include D-18. Already-landed check: `git grep motoko_connection_probe origin/dev -- tools/launchd/githooks/pre-push` returned 0. The top ticket by slots (`reporting:daneel-reports-not-declared-triage`, 20) is D-22, which the attended session owns (prod config rolled out), so it was not this fire's. A controlplane CLAIM was sent before routing (`inbox_1794861141646_885500e1`).
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN.
+- Skill drift: the resolved skill and the pin copy each matched origin/dev per file (14/14 in each tree).
+- #2341: 0 allowlisted directives (3 comments, all from the fleet account).
+- Gate 0 self-notice: watermark form rc 2 (twentieth fire; neither watermark file exists). Not a verdict either way.
+- Gate 1 base `b7941bbb5bd003e1f01b159cb1be403ae3f0e401@2026-11-16T20:30:57Z`. Dev CI on it: `CI`, `Build and Release` and `Docs-Deploy` success; 22 check-runs, 0 not green.
+- Records 95–115 sit on the stacked record PRs (newest #2370, MERGEABLE/CLEAN). This record stacks on it.
+- Orphans: none newer than `.fleet-i115-record`. `.wt-fleet-iter83` holds #2110's branch, clean.
+
+**Did** (generator ≠ judge):
+- **Designer**: not spawned. The ruling plus #2110's diff is the spec (precedent: iterations 105, 109 and 115). This is a routing outcome, not a spawn failure.
+- **Planner**, opus (Agent tool, `MISSION-ROLE: planner`, foreground, 83,040 tok, 22 tool uses, 207 s): wrote [plan](fleet-mission-evidence/iteration116/plan.md).
+  - The arm still applies. `git log aebc3dcbb..origin/dev` shows 0 commits on `pre-push` or `test_mission_scope_guard.sh`. The Authority block is byte-identical. A throwaway cherry-pick gave rc 0.
+  - Verdict table via `_scope_verdict`: fleet goes refuse→allow on exactly the two paths. v1, motoko, docs and attended stay allow→allow. `qwen38-motoko-rerun.sh` stays refused.
+  - The pinned guard admits all 4 diff paths for fleet.
+  - **New finding**: 3 of its 15 mutants survived the draft's ten arms: `tools/eval/*test_motoko…`, `*/motoko…` and `*/test_motoko…`. It wrote 3 refuse arms that kill them.
+- **Executor**, `claude:claude-haiku-5-5` via `claude-sub` (probe rc 0 in 5 s; billing CLEAN; bounded 1800 s; rc 0 in 142 s; 26 turns; 27,161 output tok): commit `48ba7ed54` on a fresh `fleet/i116-dfleet18-scope-arm` from origin/dev. [Report](fleet-mission-evidence/iteration116/executor-r1.md).
+  - 4 paths changed: `pre-push` +1, suite +14, charter Authority +1, changelog fragment re-dated 2026-11-16 and no longer PROPOSED.
+  - Suite rc 0. 15/15 planned mutants killed. It discarded two earlier drill passes in which bash 3.2 quoting turned the mutants into syntax errors.
+  - It flagged committing with `-c core.hooksPath=/dev/null`. The configured hooksPath holds only `pre-push`, so nothing was skipped (the controller and the judge both checked).
+- **Controller checks**:
+  - Suite rc 0 first-party.
+  - Hand mutant `tools/eval/*motoko_connection_probe.sh)` replacing both paths: rc 1, killed by `xmotoko_connection_probe.sh refuse`. Restored, `cmp` silent.
+  - `make test-launchd-drivers` at head: rc 0, 421 s, 455 PASS lines and 0 FAIL lines. The hand mutant ran for about 1 s in the same worktree while the suite was starting, and the suite still passed.
+  - Driver dry-runs under `MISSION_PROFILE=triage` (idle, armed), `AILANG_DRIVER_PINNED=48ba7ed54…`: healthy rc 0; degraded `codex:bogus-model-i116` rc 0, with the executor falling back to `claude:claude-haiku-5-5`. No pidfile residue.
+  - The driver is unchanged, so the dry-run cannot see this change. The post-merge reach check is the real one. See [gates](fleet-mission-evidence/iteration116/gates.md).
+- **Judge round 1**, sonnet (Agent tool, `MISSION-ROLE: evaluator`, foreground, 50,471 tok, 54 s, inputs only): [**PASS 94**](fleet-mission-evidence/iteration116/judge-r1.md), 0 blocking.
+  - It ran 8 of its own mutants in a throwaway worktree: 6 killed, 2 survived (`[mM]` on the first letter, `?` for `.`). Each survivor widens the allowlist by one filename that does not exist.
+  - Strongest objection: the suite pins a fixed negative list, so single-character widenings go uncaught. A table-driven per-character check would close that. Non-blocking.
+- **Landing**: `git push -u` of the new branch went through the pinned guard with `MISSION_NAME=fleet`, rc 0. Opened as #2382. Closing-keyword scan of the PR body: 0.
+
+**Gate 3b**:
+- #2382 head `48ba7ed54`: 24/24 check-runs complete. The 5 required checks (`test`, `lint`, `build`, `docs-gate`, `checks`) passed.
+- One non-required red: `Build macos-latest` on `TestRuntimeNestedStopUsesRemainingDeadline` (`process_runtime_lifetime_test.go:288`, "stalled nested cleanup reported success"). That is the same test and line as iteration 115's inherited dev red. It is a Go runtime test, and this diff is shell and docs. The job log has 24,694 PASS lines and 1 FAIL. The sibling macOS job in the same run passed.
+- MERGEABLE/UNSTABLE. Squash-merged with `--match-head-commit` as `97e792147`.
+- Reach: `_scope_verdict fleet` against `git show origin/dev:tools/launchd/githooks/pre-push`, i.e. the guard the next fire's pin installs:
+  - `tools/eval/motoko_connection_probe.sh` → allow
+  - `tools/eval/test_motoko_connection_probe.sh` → allow
+  - `tools/eval/qwen38-motoko-rerun.sh` → refuse (outside allowlist)
+  - `internal/types/unify.go` → refuse (language core)
+- #2110 closed as superseded. The comment was posted first and asserted (0 → 1).
+- Dev CI on `97e792147`: 18/18 check-runs complete, 0 red (`Build macos-latest` passed here). LANDED.
+
+**Ruled out**:
+- Rebasing and force-pushing #2110: the guard diffs from the old remote SHA and would refuse about 684 dev commits, language core included (planner finding 5).
+- Bundling any probe change into this PR: the iteration-16 rule says the arm ships alone, and a `tools/eval/` edit would have been refused by the pre-merge pinned guard anyway.
+- Treating the macOS red as this diff's: it is the same test and line as iteration 115's inherited red, and the code is unrelated.
+- Resolving the ticket: the arm only makes #13 workable. Neither probe signature is fixed yet.
+
+**Observations (not ticketed; the fleet does not self-source)**:
+- (a) `TestRuntimeNestedStopUsesRemainingDeadline` has now gone red on macOS on at least three commits (iteration 115's parent `6998e97e0`, its merge, and this PR head) while dev HEAD `b7941bbb5` was green. That looks like a flake, not a regression. It is V1/attended territory (language runtime), so it is handed over here, not worked.
+- (b) The judge's two survivors suggest a table-driven per-character negative check for exact-path allowlist arms. That would be a test-strength upgrade to the scope suite, not a defect.
+- (c) Self-notice watermark form: rc 2, twentieth consecutive fire (iteration 115 (d)).
+
+**Retro lane**: none this fire. The groom order was followed and no skill rule misfired.
+
+**Progress**: 22 → 22 open tickets. Clause 2 not moved this fire: no resolution. #13 is now inside fleet scope, so the next fire can work both live signatures. Clause 1 UNMEASURED; 3 MET; 4 met by its letter; 5 preserved (done-gate run). Harness share 6/20, tagged 20/20 (log headlines 97–116).
+
+**Validation**: darwin/arm64.
+- Planner claims re-checked first-party: the diff, the verdicts on the merged guard, and the cherry-pick.
+- Suite run three times (executor, controller, judge).
+- 15 executor mutants, 1 controller mutant, 8 judge mutants.
+- `make test-launchd-drivers` rc 0.
+- Healthy and degraded dry-runs.
+- PR CI 24/24 complete, required 5/5 green.
+- Post-merge reach on origin/dev's guard.
+- Record checks: `mission_decisions.sh --check`, STATUS rotation arithmetic (charter net 0 lines; archive grep for ITERATION 113 = 1), `mission_routing_models_check.sh` on entry 116, and index regeneration against this worktree's registry.
+
+**Budget**: metered **$0**.
+- Planner opus: 83,040 tok (subscription).
+- Executor haiku via `claude-sub`: 27,161 output tok over 26 turns; CLI self-report $0.05, not billed.
+- Evaluator sonnet: 50,471 tok.
+- Controller `claude:claude-opus-5-5`: tok not reported.
+- Designer not spawned.
+
+**Next**: row 13's two live signatures, now in scope. A is the OpenRouter peer in `tools/eval/motoko_connection_probe.sh:79`. The second is the timer flake `bound measurement refuses an unsuccessfully terminated timer` in `tools/eval/test_motoko_connection_probe.sh`. Re-measure both on dev first (the D-FLEET-18 row's last readings are from October). Then row 33 (D-FLEET-25 A; drafts #2165, #2082), row 41 (D-33 A), rows 51/53 (D-36/38 A, draft #2108), and D-42's fleet half (drafts #2141–#2150). Each refreshed draft goes on a fresh branch.
+
+**Routing evidence**: base=b7941bbb5bd003e1f01b159cb1be403ae3f0e401@2026-11-16T20:30:57Z (Gate-1 read; landing → `97e792147`, this fire's own merge).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5 declared:provider-pin`. **Not spawned**: the spec is the ruling plus an existing diff. A routing outcome, not a spawn failure. Rotation pointer unchanged.
+- Planner: resolver `agent-tool opus fail-closed:env-pin`; `derive-planner-lane.sh` → `opus fail-closed:env-pin`. Agent tool `model=opus`, `MISSION-ROLE: planner`, foreground, 83,040 tok.
+- Executor: resolver `recipe claude:claude-haiku-5-5 declared:provider-pin` → `claude-sub -p --model claude-haiku-5-5`, probe rc 0, rc 0, 142 s (tok: 27,161 output).
+- Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, 50,471 tok. Judge independence: cross-model (executor haiku, planner and controller opus, judge sonnet; same vendor).
+- Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
