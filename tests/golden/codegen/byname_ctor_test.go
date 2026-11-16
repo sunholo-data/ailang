@@ -1,4 +1,4 @@
-package main
+package codegen_golden_test
 
 import (
 	"encoding/json"
@@ -24,6 +24,17 @@ import (
 // type IS fixed — by an annotation, an import, the value matched, a deferred
 // constructor choice (#2228) or an alias (#2244) — run identically on the
 // evaluator, both VMs and emitted Go.
+
+// checkJSON is the part of `check --json` these tests read.
+type checkJSON struct {
+	Passed bool `json:"passed"`
+	Errors []struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	} `json:"errors"`
+}
+
+func quoteGo(s string) string { return "\"" + strings.ReplaceAll(s, "\"", "\\\"") + "\"" }
 
 var byNameLibs = map[string]string{
 	"lib/x.ail": "module lib/x\nexport type Color = Red | Green | Blue\n" +
@@ -58,7 +69,7 @@ func writeByNameFixture(t *testing.T, files map[string]string) string {
 
 func TestUnresolvedByNameCtorPatternRejectedOnEveryPath(t *testing.T) {
 	t.Setenv("AILANG_CACHE_DIR", t.TempDir())
-	bin := buildAilang(t)
+	bin := ailangBin
 	const head = "import lib/w (cc, ll)\n\n"
 	routes := []struct {
 		name, file, src, at string // at: "file:line:" of the TC_MATCH_007
@@ -102,7 +113,7 @@ func TestUnresolvedByNameCtorPatternRejectedOnEveryPath(t *testing.T) {
 	for _, r := range routes {
 		t.Run(r.name, func(t *testing.T) {
 			stdout, _, code := testutil.RunBounded(t, dir, 90*time.Second, bin, "check", "--json", r.file)
-			var out checkJSONOutput
+			var out checkJSON
 			if err := json.Unmarshal([]byte(stdout), &out); err != nil || code != 1 || out.Passed || len(out.Errors) == 0 {
 				t.Fatalf("check --json: exit %d, %v\n%s", code, err, stdout)
 			}
@@ -131,7 +142,7 @@ func TestUnresolvedByNameCtorPatternRejectedOnEveryPath(t *testing.T) {
 // and run), and the Go emitted for them is the same on every emit.
 func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 	t.Setenv("AILANG_CACHE_DIR", t.TempDir())
-	bin := buildAilang(t)
+	bin := ailangBin
 	cases := []struct {
 		name, module, src, want string
 	}{
@@ -199,8 +210,7 @@ func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 	}
 
 	// Emitted Go: every control but ok6 in ONE package (one emit, one go
-	// build — the cmd/ailang package runs close to its CI time budget), built
-	// and run against the same answers.
+	// build), built and run against the same answers.
 	emitFiles := []string{}
 	test := "package byname\nimport \"testing\"\nfunc TestSummaries(t *testing.T) {\n"
 	for _, c := range cases {
