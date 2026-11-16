@@ -347,7 +347,7 @@ func (ml *ModuleLoader) Load(path string) (*LoadedModule, error) {
 	// LoadedModule.Imports) pick up the implicit deps from this single call-site.
 	// Every module but std's (#2371; entry modules only before), lowest
 	// precedence, deduped against the user's own imports.
-	imports = injectEntryPreludeImports(file, canonicalID, sourceText, imports)
+	imports = injectPreludeImports(file, canonicalID, sourceText, imports)
 
 	// Build export table
 	exports := ml.buildExports(file)

@@ -211,10 +211,34 @@ the prelude already guarantees for `println`, but TYPE shadowing must be explici
 
 ---
 
+## Amendment (#2371): library modules get the six names too
+
+The entry-only decision (step 4 above, and the Non-Goal below) is reversed. It did not keep
+library code explicit: a library that wrote `Some` without an import did not get an error, it got
+`Some` **matched by name** (#323) — the constructor of whichever loaded type declared it. That path
+is the source of #2303 (the VMs guessed the first loaded ADT), #2272 and #2353 (by-name arguments
+were untyped), and it made the same source mean different things depending on whether the file
+had a `main`.
+
+The boundary, approved by the maintainer and implemented in `internal/loader/prelude_imports.go`:
+
+- **Exactly six names:** `Option`, `Some`, `None`, `Result`, `Ok`, `Err`. Helper functions (`map`,
+  `getOrElse`, …) still need an import, and no other module is implicit.
+- **Every module outside `std/`:** entry modules always; a library module when its code names one
+  of a module's three (pay for use: a module that names none loads neither module, so its cache
+  key and program image are unchanged). A file of top-level expressions is excluded (#2372).
+- **`println` stays entry-only** — nothing effectful is widened.
+- **Local definitions win**, exactly as in entry modules: a module's own `type Option`/`type Result`
+  or a local or explicitly imported `Some`/`Ok` shadows the prelude; `import std/option (Option,
+  Some, None)` stays valid without a warning. `std/` modules are unchanged.
+
+---
+
 ## Non-Goals
 
 - Auto-importing arbitrary stdlib modules (only Option/Result — the near-universal ones)
-- Injecting Option/Result into LIBRARY modules (entry-only, like println — keeps libs explicit)
+- ~~Injecting Option/Result into LIBRARY modules (entry-only, like println — keeps libs explicit)~~
+  **Reversed by #2371** — see the amendment below.
 - Adding Option/Result *helper functions* (map, filter, etc.) to the prelude — those still
   need `import std/option (map)`. Only the type + constructors are prelude.
 

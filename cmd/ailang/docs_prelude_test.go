@@ -45,22 +45,22 @@ func TestPreludeDocs_ReverseDrift(t *testing.T) {
 }
 
 // TestPreludeDocs_ImplicitModulesFromLoader asserts the implicit-import section is
-// sourced from the loader's single source of truth (EntryPreludeModules +
-// EntryPreludeSymbols), not a copied table — adding a module/symbol there changes
+// sourced from the loader's single source of truth (PreludeModules +
+// PreludeSymbols), not a copied table — adding a module/symbol there changes
 // the page automatically.
 func TestPreludeDocs_ImplicitModulesFromLoader(t *testing.T) {
-	mods := loader.EntryPreludeModules()
+	mods := loader.PreludeModules()
 	if len(mods) == 0 {
-		t.Fatal("EntryPreludeModules() returned nothing")
+		t.Fatal("PreludeModules() returned nothing")
 	}
 	for _, m := range mods {
-		syms := loader.EntryPreludeSymbols(m)
+		syms := loader.PreludeSymbols(m)
 		if len(syms) == 0 {
-			t.Errorf("EntryPreludeSymbols(%q) returned no symbols", m)
+			t.Errorf("PreludeSymbols(%q) returned no symbols", m)
 		}
 	}
 	// std/option and std/result are the current implicit prelude modules.
-	if loader.EntryPreludeSymbols("std/option") == nil {
+	if loader.PreludeSymbols("std/option") == nil {
 		t.Error("expected std/option to be an implicit-prelude module")
 	}
 }
@@ -145,7 +145,7 @@ func TestPreludeDocs_Render(t *testing.T) {
 	if strings.Contains(got, "not found") {
 		t.Fatalf("docs prelude still errors instead of rendering:\n%s", got)
 	}
-	for _, want := range []string{"println", "show", "std/option", "std/result", "every module outside std/", "Silent shadowing"} {
+	for _, want := range []string{"println", "show", "std/option", "std/result", "every module outside std/", "Exactly six names", "ENTRY modules only", "Silent shadowing"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("docs prelude missing %q, got:\n%s", want, got)
 		}

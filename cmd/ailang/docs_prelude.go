@@ -77,9 +77,11 @@ func schemeSignatureString(s *types.Scheme) string {
 // binding via a mechanism changes this page automatically.
 func renderPreludeDocs() {
 	fmt.Println("# prelude")
-	fmt.Println("The functions are available without import in ENTRY modules (a module with an")
-	fmt.Println("exported `main`); library modules import them. The Option/Result types and")
-	fmt.Println("constructors are available without import in EVERY module outside std/.")
+	fmt.Println("println is available without import in ENTRY modules only (a module with an")
+	fmt.Println("exported `main`); library modules import it (`import std/io (println)`). show is")
+	fmt.Println("a builtin, available everywhere.")
+	fmt.Println("The six implicit names (Option, Some, None, Result, Ok, Err) are available")
+	fmt.Println("without import in EVERY module outside std/.")
 	fmt.Println()
 
 	fmt.Println("## Functions")
@@ -98,16 +100,17 @@ func renderPreludeDocs() {
 	// here automatically.
 	fmt.Println("## Implicit imports (lowest precedence, every module outside std/)")
 	fmt.Println()
-	for _, modPath := range loader.EntryPreludeModules() {
-		syms := loader.EntryPreludeSymbols(modPath)
+	for _, modPath := range loader.PreludeModules() {
+		syms := loader.PreludeSymbols(modPath)
 		fmt.Printf("  %s -- %s\n", modPath, strings.Join(syms, ", "))
 	}
 	fmt.Println()
 
 	fmt.Println("## Scope notes")
 	fmt.Println()
-	fmt.Println("  - Every module: library modules get the implicit imports too (since #2371); std/ modules")
-	fmt.Println("    do not, nor does a file of top-level expressions. The functions above are entry-only.")
+	fmt.Println("  - Exactly six names, every module: library modules get them too (since #2371); std/")
+	fmt.Println("    modules do not, nor does a file of top-level expressions. Helpers (map, getOrElse, ...)")
+	fmt.Println("    still need an import, and println stays entry-only.")
 	fmt.Println("  - Lowest precedence: the implicit imports are registered first, so your own imports win.")
 	fmt.Println("  - Silent shadowing: your own definitions (e.g. `type Option`, or a constructor named")
 	fmt.Println("    `Some`) drop that prelude module, no warning; an import from std/option or std/result")
