@@ -177,9 +177,11 @@ type Pair[a] = (a, a)
 type W[b] = Pair[b]
 type Q0[a] = a
 type Q1[a] = (Q0[a], Q0[a])
+type V[b] = Pair[(b, b)]
 pure func secretSrc(raw: string) -> string<secret> { raw }
 pure func sink(p: (W[string], W[string{not secret}])) -> int { 0 }
 pure func sinkQ(p: (Q1[string], Q1[string{not secret}])) -> int { 0 }
+pure func sinkV(p: (V[string], V[string{not secret}])) -> int { 0 }
 `
 	for _, tc := range []struct {
 		name, body string
@@ -187,6 +189,8 @@ pure func sinkQ(p: (Q1[string], Q1[string{not secret}])) -> int { 0 }
 	}{
 		{"secret in the refined argument", `{ let s = secretSrc("x"); sink((("a", "b"), (s, s))) }`, false},
 		{"secret in the refined chain argument", `{ let s = secretSrc("x"); sinkQ((("a", "b"), (s, s))) }`, false},
+		{"secret under a composite pass-through argument", `{ let s = secretSrc("x"); sinkV(((("a", "b"), ("c", "d")), ((s, s), (s, s)))) }`, false},
+		{"plain strings under the composite argument (control)", `sinkV(((("a", "b"), ("c", "d")), (("e", "f"), ("g", "h"))))`, true},
 		{"plain strings (control)", `sink((("a", "b"), ("c", "d")))`, true},
 		{"plain strings through the chain (control)", `sinkQ((("a", "b"), ("c", "d")))`, true},
 	} {

@@ -194,6 +194,10 @@ func TestUnify_NonEquivalentAliasesStillFail(t *testing.T) {
 		if _, err := u.Unify(two("Ab"), two("Ba"), Substitution{}); err == nil {
 			t.Error("(a, b) and (b, a) at (int, string) unified: parameters matched out of order")
 		}
+		one := func(h string, arg Type) Type { return &TApp{Constructor: &TCon{Name: h}, Args: []Type{arg, arg}} }
+		if _, err := u.Unify(one("Ab", TInt), one("Ab", TString), Substitution{}); err == nil {
+			t.Error("one alias at int and at string unified: the arguments were not compared")
+		}
 	})
 	if u.aliasesEquivalent("D39", "E39") || u.aliasesEquivalent("Ab", "Ba") {
 		t.Fatal("non-equivalent aliases recorded as equivalent")

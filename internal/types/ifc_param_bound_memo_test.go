@@ -33,6 +33,11 @@ pure func p4(x: (L[string<s>], L[string<s>]<e>)) -> int { 0 }
 pure func p5(x: (X[string<s>], Y[string<s>]<e>)) -> int { 0 }
 pure func p6(x: (Y[string], X[string]<s>, Z[string]<e>)) -> int { 0 }
 pure func p7(x: (Pair[W[string<s>]], W[Pair[string{not k}]])) -> int { 0 }
+type V[b] = Pair[(b, b)]
+pure func p8(x: (V[string<s>], V[string{not k}]<e>)) -> int { 0 }
+type X2[a] = MkX2(Y2[a]<s>, a) | NilX2
+type Y2[a] = MkY2(Y2[X2[a]], a) | NilY2
+pure func p9(x: X2[Y2[[string]]]<s>) -> int { 0 }
 `
 	p := parser.New(lexer.New(src, "memo_test.ail"))
 	file := p.ParseFile()
@@ -60,8 +65,27 @@ pure func p7(x: (Pair[W[string<s>]], W[Pair[string{not k}]])) -> int { 0 }
 			checked++
 		}
 	}
-	if checked != 7 {
-		t.Fatalf("checked %d parameters, want 7", checked)
+	if checked != 9 {
+		t.Fatalf("checked %d parameters, want 9", checked)
+	}
+}
+
+// What one walk retains is capped (#2363 review: a walk whose keys never
+// matched kept every entry and reached 3 GB where the unshared walk used
+// 59 MB). Past the cap nothing more is remembered and every argument gets a
+// number of its own, so nothing is shared that was not proved equal.
+func TestIFCParamBound_MemoIsCapped(t *testing.T) {
+	w := &ifcBoundWalk{done: map[ifcBoundKey]bool{}, scopes: map[string]map[string]ifcTypeArg{},
+		canon: map[ifcCanonKey]int{}, interned: map[string]int{}}
+	for i := 0; i < ifcBoundMemoLimit; i++ {
+		w.done[ifcBoundKey{params: uintptr(i + 1)}] = true
+	}
+	if w.retain() {
+		t.Fatal("a walk at the cap still retains")
+	}
+	a := ifcTypeArg{t: &ast.SimpleType{Name: "int"}}
+	if x, y := w.canonical(a), w.canonical(a); x == y || len(w.canon) != 0 {
+		t.Fatalf("past the cap an argument was numbered %d then %d and %d entries kept", x, y, len(w.canon))
 	}
 }
 

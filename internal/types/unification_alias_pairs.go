@@ -44,13 +44,17 @@ func (u *Unifier) sameAliasApplication(t1, t2 Type) bool {
 // aliasApplication reads an alias head and its arguments (none for a nullary
 // alias). A newtype is nominal and never expands, so it is not an alias here.
 func (u *Unifier) aliasApplication(t Type) (string, []Type, bool) {
-	if u.aliasEnv == nil {
+	if len(u.aliasEnv) == 0 {
 		return "", nil, false
 	}
 	var head Type = t
 	var args []Type
 	if app, ok := t.(*TApp); ok {
-		head, args = decomposeApp(app)
+		if con, direct := app.Constructor.(*TCon); direct {
+			head, args = con, app.Args // the common case: no allocation
+		} else {
+			head, args = decomposeApp(app)
+		}
 	}
 	con, ok := head.(*TCon)
 	if !ok {

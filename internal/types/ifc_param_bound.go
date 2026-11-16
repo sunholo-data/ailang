@@ -277,23 +277,17 @@ func (ts *ifcTypes) addName(b *ifcBound, name string, args []ifcTypeArg, path if
 }
 
 // scope binds a module-local declaration's type parameters to args. Within a
-// walk the map is interned by the declaration and the identity of each
-// argument, so the memo sees one application reached along two paths as one.
+// walk the map is interned by the declaration and the canonical number of each
+// argument (canonical), so the memo sees one application reached along two
+// paths, or written twice with the same meaning, as one.
 func (b *ifcBound) scope(td *ast.TypeDecl, args []ifcTypeArg) map[string]ifcTypeArg {
 	if len(td.TypeParams) == 0 {
 		return nil
 	}
-	// A pass-through argument (`Q1[a] = (Q0[a], Q0[a])`) is a different AST
-	// node in every alias body, so the arguments are first resolved through
-	// their bindings to what they stand for: both Q0[a] then share one map.
-	resolved := make([]ifcTypeArg, len(args))
-	for i, a := range args {
-		resolved[i] = resolveTypeArg(a)
-	}
 	var key strings.Builder
 	if b.walk != nil {
 		key.WriteString(td.Name)
-		for _, a := range resolved {
+		for _, a := range args {
 			fmt.Fprintf(&key, "|%d", b.walk.canonical(a))
 		}
 		if m, ok := b.walk.scopes[key.String()]; ok {
@@ -302,8 +296,8 @@ func (b *ifcBound) scope(td *ast.TypeDecl, args []ifcTypeArg) map[string]ifcType
 	}
 	bound := make(map[string]ifcTypeArg, len(td.TypeParams))
 	for i, p := range td.TypeParams {
-		if i < len(resolved) {
-			bound[p] = resolved[i]
+		if i < len(args) {
+			bound[p] = args[i]
 		} else {
 			bound[p] = ifcTypeArg{} // unapplied: an unknown leaf
 		}
