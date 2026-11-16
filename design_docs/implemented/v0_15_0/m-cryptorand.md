@@ -307,7 +307,7 @@ $ ailang run --replay=trace.json --crypto-harness=file:fixture.bin mint_keys.ail
 
 ## Non-Goals
 
-- **Parameterised effects syntax.** `!{Rand[mode=...]}` is deferred to [M-EFFECT-REFINEMENT](../v1_0_0/m-effect-refinement.md). This milestone uses the plain `!{CryptoRand}` form and only *proves* forward-compatibility via a prototype alias.
+- **Parameterised effects syntax.** `!{Rand[mode=...]}` is deferred to [M-EFFECT-REFINEMENT](../../planned/v1_1_0/m-effect-refinement.md). This milestone uses the plain `!{CryptoRand}` form and only *proves* forward-compatibility via a prototype alias.
 - **Capability scoping.** `!{CryptoRand[scope=identity|session|test-denied]}` is also deferred to M-EFFECT-REFINEMENT. This milestone introduces one unscoped `CryptoRand` capability.
 - **Removing or deprecating `rand_seed()`.** It is the correct API for Tier A (seeded simulation, replay-critical RNG).
 - **Audit sweep of other "convenience defaults"** in `Clock`, FS fixtures, etc. That's a separate sit-rep follow-on item.
@@ -345,7 +345,7 @@ $ ailang run --replay=trace.json --crypto-harness=file:fixture.bin mint_keys.ail
 - [design_docs/planned/rand-determinism-sitrep.md](../rand-determinism-sitrep.md) — full analysis; this doc operationalises its §7, §9, §11, §12
 
 **Follow-on:**
-- [design_docs/planned/v1_0_0/m-effect-refinement.md](../v1_0_0/m-effect-refinement.md) — generalises parameterised effects + replay contracts across Rand, Clock, Net, FS; this milestone must forward-compose with it
+- [design_docs/planned/v1_1_0/m-effect-refinement.md](../../planned/v1_1_0/m-effect-refinement.md) — generalises parameterised effects + replay contracts across Rand, Clock, Net, FS; this milestone must forward-compose with it
 
 **Integrates with:**
 - [design_docs/planned/v1_0_0/m-entropy-budgets.md](../v1_0_0/m-entropy-budgets.md) — behavioural entropy axis, randomness source declaration

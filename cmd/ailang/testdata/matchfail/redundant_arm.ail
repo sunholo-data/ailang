@@ -1,0 +1,11 @@
+module cmd/ailang/testdata/matchfail/redundant_arm
+
+-- An exhaustive match whose last arm no value can reach: `ailang check`
+-- passes with warning TC_MATCH_003. Asserted by check_warnings_test.go.
+type Phase = Idle | Running(int) | Done
+
+pure func label(p: Phase) -> string = match p {
+  Running(n) => "running",
+  other => "other",
+  Idle => "idle"
+}

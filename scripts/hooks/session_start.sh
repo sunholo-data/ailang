@@ -41,7 +41,9 @@
 # Hook install runs FIRST, for every session including frozen stages: it adds nothing to the
 # context (stderr only, silent when already installed) and stages push too. The pre-push hook
 # refuses a dev push whose std/ interfaces drift from .stdlib-golden/ (#1274, #1318 reached dev
-# by direct push, where PR CI never ran).
+# by direct push, where PR CI never ran). A refusal here goes to stderr, which no session reads;
+# git_health.sh (same SessionStart group) surfaces it as one line via `install_hooks.sh --check`
+# for attended sessions, so it is reported once, by the hook whose job is reporting.
 ( cd "$(dirname "$0")/../.." 2>/dev/null && bash scripts/hooks/install_hooks.sh >&2 ) || true
 # Coordinator tasks (AILANG_TASK_ID, set by the cloud dispatcher and the local provider script)
 # are unattended for the same reason: 2026-09-28 two sprint-executor jobs read the unread-inbox

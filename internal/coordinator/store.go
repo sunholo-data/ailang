@@ -2,6 +2,7 @@ package coordinator
 
 import (
 	"context"
+	"fmt"
 	"time"
 )
 
@@ -162,8 +163,30 @@ type TaskFilter struct {
 	Until     *time.Time
 	Limit     int
 	Offset    int
-	OrderBy   string // "created_at", "priority", "started_at"
+	OrderBy   string // one of taskOrderColumns; "" means created_at
 	OrderDesc bool
+}
+
+// taskOrderColumns are the columns ListTasks may sort on. The SQLite store
+// writes the column into the ORDER BY clause, where a placeholder cannot go,
+// so the name is checked against this list rather than trusted.
+var taskOrderColumns = map[string]bool{
+	"created_at": true, "priority": true, "started_at": true,
+	"completed_at": true, "queued_at": true,
+}
+
+// OrderColumn returns the column to sort on: OrderBy, or created_at when it is
+// empty. A name not in taskOrderColumns is an error, not a fallback to the
+// default, because a caller asking for an order it does not get would read a
+// silently mis-sorted list.
+func (f *TaskFilter) OrderColumn() (string, error) {
+	if f.OrderBy == "" {
+		return "created_at", nil
+	}
+	if !taskOrderColumns[f.OrderBy] {
+		return "", fmt.Errorf("task filter: cannot order by %q", f.OrderBy)
+	}
+	return f.OrderBy, nil
 }
 
 // DetailedStats provides cost/token breakdown for a provider or workspace

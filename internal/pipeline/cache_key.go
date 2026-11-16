@@ -36,7 +36,37 @@ import (
 // v7 -> v8 (M-IFC-CROSS-MODULE): iface v2 requires complete IFC summaries,
 // including canonical forbidden arrays and reserved applied labels; pre-IFC
 // verdicts must miss. Preserve the v7 CoreTI shared-DAG codec.
-const cacheKeyVersion = "v8"
+// v8 -> v9 (M-TRACE-LABEL-AWARE): core.App gained a gob-encoded TraceRedact
+// label. A v8 blob decodes with none, so a cached module would trace its
+// labelled values verbatim again; v8 entries must miss.
+// Also v9 (M-PURE-ROW-AND-IFACE-PURITY, #1443, same unreleased window): export
+// purity is derived from checked effect rows. v8 interfaces carrying always-true
+// stub metadata must miss; same-version builds across the two changes are already
+// separated by compilerIdentity (the build commit is in the key).
+// v9 -> v10 (M-IFC-CROSS-MODULE M3, #1134): callers are checked against their
+// imports' IFC contracts, and export summaries see the module's own imports
+// (transitive intrinsic taint). A cache hit skips the IFC gate, so a v9 caller
+// verdict — reached without imported contracts — must never be served.
+// v10 -> v11 (M-V1-NOMINAL-TYPE-IDENTITY M2): a nominal type is its defining
+// module plus its name. types.TCon gained Module (carried by the iface type
+// JSON, the CoreTI DAG codec and gob), constructor factories are named
+// make_<T>_<C>@<module>, and the interface digest renders qualified refs. A v10
+// blob decodes every nominal type with no module, which no longer unifies with
+// a qualified one, so v10 entries must miss.
+// v11 -> v12 (M-V1-STDLIB-SURFACE-POLISH M1): the cached iface.json gained
+// Tier (module and per function), ReplacedBy and DeprecationNote. A v11 entry
+// decodes with none, so `ailang iface` served from it would drop `"tier"` from
+// a std golden (measured: a warm run printed list.json with no tier); v11
+// (and older) entries must miss. (TC_DEPRECATED_001 itself reads the defining
+// module's parsed source, which is never cached, so it survives either way.)
+// v12 -> v13
+// (M-V1-MATCH-EXHAUSTIVENESS M2): a non-exhaustive match is an error
+// (TC_MATCH_002) and a constructor pattern of the wrong arity is TC_MATCH_006.
+// A cache hit skips type checking, so a module cached by an earlier compiler —
+// which passed with such a match — must miss, or `check` would pass it warm
+// and fail it cold. Modules also carry a fifth artifact, match_warnings.json
+// (TC_MATCH_003, replayed on a hit).
+const cacheKeyVersion = "v13"
 
 // ModuleCacheKey computes a deterministic cache key for a module.
 // The key incorporates:

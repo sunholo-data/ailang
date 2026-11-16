@@ -1,0 +1,14 @@
+module bare_mixed_assert
+
+-- #604 ordinal interaction: bare checks and asserts are numbered together,
+-- left to right. The failing assert is the SECOND check, so it reports
+-- ordinal 2 (before the fix the bare check was discarded and it was 1).
+
+export pure func add_one(n: int) -> int {
+  n + 1
+}
+
+test "bare check then failing assert" {
+  add_one(1) == 2;
+  assert add_one(3) == 99
+}

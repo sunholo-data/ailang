@@ -96,6 +96,8 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 		proto := &bytecode.FuncPrototype{
 			Name:      canonical,
 			NumParams: uint8(len(fd.Params)),
+			File:      fd.File,
+			Line:      fd.Line,
 		}
 		idx := img.AddPrototype(proto)
 		funcIdx[canonical] = idx

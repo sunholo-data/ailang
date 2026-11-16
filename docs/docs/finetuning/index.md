@@ -43,16 +43,23 @@ decay. See [Training data](./data.md).
 |---|---|
 | [Baseline](./baseline.md) (size ladder, speed, parallelism) | done 2026-11-05; target picked: **Gemma 4 12B** |
 | [Training data](./data.md) (corpus, rules, mix) | pilot-1 mix built; examples expansion under way |
-| [Pilot-1](./pilot-1.md) (12B LoRA, weekend run on the rig) | trained 2026-11-06; held-out A/B running |
-| Pilot-2 (habit-weighted data, deeper LoRA) | planned |
+| [Pilot-1](./pilot-1.md) (12B LoRA) | negative, causes found (session gate, thinking format, context) |
+| [Pilot-2](./pilot-2.md) (served format, habit episodes) | agent protocol fixed (0 protocol misses), 3× fewer tokens, but 4/24 against base's 6/13 |
+| [Pilot-3](./pilot-3.md) (its own mistakes, repaired) | **10/24** with the slim prompt (pilot-2: 4/24); 6 newly pass, none newly fail. Left behind: dropped runaway writes, long loops |
+| [Pilot-4](./pilot-4.md) (second round, short writes, loop-breaking) | **5/23**, below pilot-3. Two diagnostic arms: the untrained model with the slim prompt scores 9/23, level with the best fine-tune (10/23); base with the full prompt scores 16/23 |
+| On-policy repair line | **stopped 2026-11-16** ([D-FT-18](./decisions.md)): three rounds of training added nothing measurable over the slim prompt alone. Next: stop runaway responses in the agent harness and re-measure the untrained model |
 | Published fine-tunes | per release, from an artifact bucket linked here ([D-FT-2](./decisions.md)) |
 
 ## Pages
 
+- [Field notes](./field-notes.md): what fine-tuning is like day to day, drawn from what happened here.
 - [Decision log](./decisions.md): every decision with its date, owner and reason.
 - [Baseline](./baseline.md): which model size knows enough AILANG to be worth tuning.
 - [Training data](./data.md): where the data comes from, the rules, and coverage gaps.
 - [Pilot-1](./pilot-1.md): the recipe, the training curve, the traps, and the A/B result.
+- [Pilot-2](./pilot-2.md): training in the served format, and what it fixed and did not.
+- [Pilot-3](./pilot-3.md): training on the model's own mistakes, and the habit of looking things up.
+- [Pilot-4](./pilot-4.md): a second round, short writes, and breaking loops.
 - [Serving costs](./costs.md): rig against Cloud Run, Vertex and per-token hosts.
 
 The working design doc, with the full detail, is

@@ -1,0 +1,13 @@
+module bare_all_pass
+
+-- #604: a body of bare checks that all hold passes (sentinel 0).
+
+export pure func add_one(n: int) -> int {
+  n + 1
+}
+
+test "every bare check holds" {
+  add_one(1) == 2
+  add_one(2) == 3
+  add_one(3) == 4
+}

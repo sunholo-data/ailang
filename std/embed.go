@@ -9,3 +9,9 @@ import "embed"
 //
 //go:embed *.ail ai/*.ail stream/*.ail
 var FS embed.FS
+
+// Stability is std/STABILITY.toml: the tier (stable|experimental|internal) of
+// every std module. internal/iface reads it to stamp `"tier"` on interfaces.
+//
+//go:embed STABILITY.toml
+var Stability []byte

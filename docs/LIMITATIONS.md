@@ -11,7 +11,7 @@ reviewBy: 2027-03-08
 > dates.
 
 **All entries below were live-verified at AILANG `v0.33.1-72-g4b46bb97e` on 2026-08-17.** Per the
-[M-V1-STABILITY-PROMISE](design_docs/planned/v1_0_0/m-v1-stability-promise.md) entry policy, every
+[M-V1-STABILITY-PROMISE](design_docs/implemented/v0_29_0/m-v1-stability-promise.md) entry policy, every
 open limitation is a reproducible artifact with a verified-at date, and fixed items move to a
 dated "Resolved" list — this file is no longer allowed to freeze at a past version.
 
@@ -33,6 +33,9 @@ workarounds. Verified open at v0.33.1 (2026-08-17):
 | **Native terminal platform / mid-call `std/ai.step()` abort** | Platform and cancellation gaps | `std/terminal` supports scoped native input on macOS/Linux with host lifecycle integration; Windows/WASM return `Unsupported`. Interrupting an in-flight AI request remains separate. |
 | **Regex backreferences / lookaround** | Design constraint (RE2 linear-time guarantee) | `std/regex` wraps Go's RE2 engine → **no backreferences, no lookahead/lookbehind**. `regex.compile("(a)\\1")` / `compile("(?=x)")` return `Err(message)` (never panic). This is the deliberate price of the linear-time, no-catastrophic-backtracking guarantee. |
 | **Strict `take` after `flatMap` / allocating `map` bounds results, not peak memory** | Design constraint (strict evaluation) | Use `takeFlatMap(n, f, xs)` or, when `f` allocates, `takeMap(n, f, xs)`; [canonical entry](docs/docs/reference/limitations.md#strict-evaluation-taken-flatmapf-xs-bounds-the-result-not-the-peak) has the v0.33.0 repro and remaining bounds. |
+| **JSON integers outside int64 are floats** | Design constraint (no big integers) | `std/json.decode` gives an exact `JInt(int)` for an integer literal that fits int64; a larger one (`9223372036854775808`) decodes as `JNumber` with the nearest float, so its low digits are rounded, and `getInt` returns `None` for it. `asNumber`/`getNumber` on a `JInt` above 2^53 also round (use `getInt` or match `JInt(n)`). Keep ids outside int64 as JSON strings. Through JSON text the numeric value round-trips, the constructor does not: `encode` prints a whole-number `JNumber` as `3`, so `decode(encode(jnum(3.0)))` is `Ok(JInt(3))`, not `Ok(JNumber(3.0))` (ruled 2026-11-10; compare numbers with `asNumber`/`getInt`). Replaces the old "all JSON numbers are floats, integers above 2^53 lose precision" behaviour (v0.58.x). Added 2026-11-10. |
+| **A `requires` clause is an unchecked assumption by default** | Verifier and runtime scope | The verifier assumes a function's precondition while proving that function's `ensures` and never checks it where the function is called; `ailang run` checks it only with `--verify-contracts`. A `VERIFIED` result means "ensures holds whenever requires holds"; nothing stops a caller passing an argument that breaks the `requires`. Guard inputs in code where it matters. Added 2026-11-10. |
+| **Runtime contracts: evaluator only, off by default, not in named tests** | Runtime coverage gap | `run --bytecode --verify-contracts` is refused (CTR004, exit 2; it used to run unchecked, #1956). `run` without `--verify-contracts` checks nothing, and a `test "…" { … }` body does not check the contracts of the functions it calls. See the canonical page. Added 2026-11-10. |
 | **Contract verification treats floats as real numbers** | Verifier model gap (runtime unaffected) | `ailang verify` / `ai-check` encode `float` as an SMT real, which has no NaN, so the solver can prove `x == x` for a value that is NaN at runtime. Runtime `==` is IEEE (NaN ≠ NaN, #1274), and so are `<` `<=` `>` `>=` (false with a NaN operand, #1419). Don't rely on a verified float-equality or float-ordering contract when NaN is possible; guard with `std/math.isNaN`. Added 2026-09-25. |
 | **Go codegen derived `Eq` on NaN-holding values** | Go-codegen only (interpreter and VM unaffected) | `--emit-go` derives Eq with `reflect.DeepEqual`, which treats a slice as equal to itself even when it holds NaN. `ailang run` gives the IEEE answer. Not exercised end-to-end. Added 2026-09-25. |
 | **Go codegen user float arithmetic may fuse on arm64** | Go-codegen only (interpreter and VM unaffected) | `ailang run` (interpreter and `--strict-bytecode`) and every `std/math` function return identical bits on every CPU (#1465). A compiled program's own `x * y + z` is emitted as the Go expression `x*y + z`, which the Go compiler may fuse into one FMA on arm64, so `--emit-go` output can differ in the last bit from `ailang run` and between arm64 and amd64. Added 2026-10-02. |
@@ -41,8 +44,11 @@ workarounds. Verified open at v0.33.1 (2026-08-17):
 | **`Map.insert` / `Set.insert` / `Array.set` copy the whole structure (O(n) per update)** | Runtime representation (persistent structures planned) | `std/set` and structured keys (tuples, records, ADTs) work since 2026-10-28, but every single-element update copies: 20,000 sequential `Set.insert`s of `(int, int)` take 5.6 s on the evaluator and 6.5 s on `--strict-bytecode` (×4 per doubling). Build with `fromList` / `updateMany` / `accumulate` (one copy) where the elements are known up front; a search loop that inserts once per visited state is O(n²) until the persistent Map/Set phase of [m-persistent-collections](design_docs/planned/v0_55_0/m-persistent-collections.md) lands. Added 2026-10-28. |
 | **Module-qualified type names do not parse (`S.Set[int]`)** | Parser papercut (type syntax has no qualified names) | With `import std/set as S`, both `let e: S.Set[int] = S.empty()` and `func f(s: S.Set[int])` fail with `PAR_UNEXPECTED_TOKEN … got . instead`; calls such as `S.insert(...)` are fine. Import the type by name alongside the alias: `import std/set as S` plus `import std/set (Set)`, then write `Set[(int, int)]` (see `examples/runnable/visited_set_bfs.ail`). The same holds for any module-exported type. Added 2026-10-28. |
 | **`--bytecode` is ~1.8× slower than the evaluator on copy-bound list building** | Runtime performance (representation width) | `foldl(\acc x. x :: acc, [], xs)` at 40,000 elements: 0.75 s evaluator, 1.35 s VM (bench/vm_hof_callbacks). Each `::` copies the whole list, and a VM value is 40 bytes against the evaluator's 16-byte interface, so the VM allocates 2.5× the bytes and runs more GC cycles. The profile is in [m-foldl-cons-cost-model](design_docs/implemented/v0_52_0/m-foldl-cons-cost-model.md#phase-3-profile-2026-10-02). Per-callback cost is not the cause: O(1)-step `foldl`/`map`/`filter` run 20–30× faster on the VM than on the evaluator. Build lists with `map`/`filter`/`mapAccumL`; the copy itself goes away only with the cons representation fix (D-19). Added 2026-10-02. |
+| **Go codegen cannot emit some std functions** | Go-codegen only (interpreter and VM unaffected) | `ailang compile --emit-go` fails (`undefined: NthOr` and similar) for std functions written in AILANG rather than mapped to a Go helper, and for some Rand/IO/FS ops. Among the renamed std names this is `headOr`/`head_or`, `lastOr`/`last_or`, `nthOr`/`nth_or`, `charAtOr`/`charAt_or`, `randBool`/`rand_bool`, `randSeed`/`rand_seed`, `walkWithSuffix`/`glob` and `eprint`/`printErr` — the old and the new spelling alike (pre-existing; the rename made none of them worse). Every other renamed name compiles under both spellings, and `list.contains` has compiled since 2026-11-11 (`TestStdlibRenamePairsGoEmitter`). Added 2026-11-11. |
+| **Go codegen: `contains`/`member` panic on record or list elements** | Go-codegen only (interpreter and VM unaffected) | In emitted Go, `list.contains` and `list.member` compare elements with Go `==`, so on a list of records or a list of lists the generated code panics (`comparing uncomparable type map[string]interface {}`); the evaluator gives the right answer. Scalar element types (int, float, string, bool) are correct. Pre-existing for `member`; `contains` shares its helper since 2026-11-11. Tracked in [#2241](https://github.com/sunholo-data/ailang/issues/2241). Added 2026-11-11. |
+| **Go codegen: more emitter gaps, pinned by the codegen harness** | Go-codegen only (interpreter and VM unaffected) | Found by `make test-codegen`, each pinned in `tests/codegen-harness/known_failures/known_failures.tsv` (the harness fails when one is fixed): `std/string.length` emits `utf8.` without importing it ([#2261](https://github.com/sunholo-data/ailang/issues/2261)); a module-level `let` passed to a mapped std helper does not build ([#2262](https://github.com/sunholo-data/ailang/issues/2262)); `list.zip` returns pairs as lists, so `show` differs and tuple patterns panic ([#2263](https://github.com/sunholo-data/ailang/issues/2263)); a curried lambda `\a. \b. …` passed to `foldl` panics (use `\a b. …`, [#2264](https://github.com/sunholo-data/ailang/issues/2264)); two modules' same-named types become one Go type ([#2260](https://github.com/sunholo-data/ailang/issues/2260)); `zipWith`, like the functions in the row above, emits an undefined helper ([#2259](https://github.com/sunholo-data/ailang/issues/2259)). Added 2026-11-12. |
 | **Go codegen has no tail-call elimination** | Go-codegen only (interpreter and VM unaffected) | `--emit-go` output for a 10M-step tail-recursive loop dies with `fatal error: stack overflow`. `ailang run --strict-bytecode` runs it at constant depth. Values are boxed as `interface{}`. Added 2026-10-28. |
-| **`--bytecode` silently falls back; VM ~2× slower than CPython** | Runtime coverage and performance | 18 of 205 evaluator-passing `examples/runnable` files fall back to the evaluator without a warning (61 before #1989, which made prelude `println`, local `letrec` and module-level value `let` native). The rest are unwired effectful builtins, contract-module ADTs, and user ADTs or closures passed to evaluator-only functions; use `--strict-bytecode` to fail instead. `fib(32)`: VM 0.33 s (0.50 s before M-VM-QUICK-WINS), CPython 0.14 s. See [M-VM-COVERAGE](design_docs/planned/v0_55_0/m-vm-coverage-letrec-prelude-bridge.md). Added 2026-10-28. |
+| **`--bytecode` falls back to the evaluator; VM ~2× slower than CPython** | Runtime coverage and performance | 18 of 205 evaluator-passing `examples/runnable` files fall back to the evaluator (61 before #1989, which made prelude `println`, local `letrec` and module-level value `let` native). The rest are unwired effectful builtins, contract-module ADTs, and user ADTs or closures passed to evaluator-only functions. Since 2026-11-09 the fallback is no longer silent: `--bytecode` prints a stderr warning naming the bridged functions, and `ailang check --strict-bytecode` reports each one as [BC001](docs/docs/reference/errors/bc001.md); `--strict-bytecode` on `run`/`test` fails before dispatch. `fib(32)`: VM 0.33 s (0.50 s before M-VM-QUICK-WINS), CPython 0.14 s. See [M-VM-COVERAGE](design_docs/planned/v0_55_0/m-vm-coverage-letrec-prelude-bridge.md). Added 2026-10-28. |
 | **`--bytecode` recomputes a module-level value at each reference** | Runtime performance (no VM globals yet) | `let table = buildTable()` is evaluated once on the evaluator but once per reference on the VM, which calls the binding's initialiser wherever it is read. The answer is the same, because module-level bindings cannot carry effects, but an expensive initialiser read inside a hot loop is repeated. Bind it to a local in the function that loops, or pass it as a parameter. Once-only image globals are planned in [m-vm-coverage-letrec-prelude-bridge](design_docs/planned/v0_55_0/m-vm-coverage-letrec-prelude-bridge.md) (Phase 2b). Added 2026-10-28. |
 | **VM list views retain backing storage** | Memory retention (shared slices since v0.54.10) | A small live tail/take/drop view can retain its whole source backing allocation. Capacity caps prevent append writes into the source but do not release storage. See the [canonical entry](docs/docs/reference/limitations.md#vm-list-views-retain-backing-storage). |
 
@@ -138,11 +144,84 @@ design constraint.
 
 ## Same-named types across imports
 
-Nonrecursive nullary alias bodies, exported function types and constructor fields
-are closed in their defining module. Importing an unrelated `Item` or `Planet`
-therefore cannot change a name nested inside another module's exported type.
-Applied parameterized alias heads and recursive references remain unresolved;
-nominal ADT names are not module-qualified. Local capture of residual names retains
-`TC_TYPE_SHADOW_001`. When the importer itself writes an ambiguous bare type name,
-explicit imports still use last-wins and bulk alias imports first-wins behavior.
-Import ambiguity diagnostics and REPL/WASM/SMT top-level name merging are deferred.
+Since M-V1-NOMINAL-TYPE-IDENTITY (M2) a nominal type is its **defining module plus its
+name**: `q/a`'s `type T` and `q/b`'s `type T` are different types, and mixing them is
+`TC_NOMINAL_001` at `check` (it used to type-check and fail at run time). A local `type T`
+no longer captures an imported `T`, an imported alias body keeps the types it names, and a
+module may declare its own `Map`, `List`, `Json`, … (its own wins over the built-in).
+Using the two types disjointly (`Ma.desc(Ma.mk())`, `Mb.desc(Mb.mk())`) is fine.
+A bare name never depends on import order: two explicit imports of one type or constructor
+name are `MOD015`; a type name two imported modules export is `TC_AMBIGUOUS_TYPE_001` unless it
+is declared locally, imported by name, a built-in or a prelude name; a name no imported module
+exports may be resolved through a module reached indirectly (one candidate), and is ambiguous
+when two such modules declare it; a constructor two imported modules offer is resolved in a
+pattern by the scrutinee's type (once inference has decided it, whatever the order of the code),
+and is `TC_AMBIGUOUS_CTOR_001` where nothing decides it and in an expression. While undecided, a
+let-bound function matching it is not generic: using it at two types is `TC_AMBIGUOUS_CTOR_001`
+(import the constructor by name). A built-in name (`Map`, `List`, `Bytes`, …)
+means the built-in unless the module declares or imports its own: a module that writes `Map`
+meaning a dependency's `Map` must import it by name (`import dep (Map)`); the `TC_NOMINAL_001`
+diagnostic says so. The implicit prelude (`Option`, `Result`, `Some`, `None`, `Ok`, `Err`) is
+the lowest-precedence binding: a module's own declaration or import of any of them wins.
+The REPL/WASM module registry follows the same rules, except that it has no import closure:
+every loaded module is reachable, and a constructor offered by exactly one directly imported
+module is used before the other loaded modules are considered.
+
+Still open:
+
+- An undeclared type name is still an opaque type of the module that writes it rather
+  than `TC_UNBOUND_TYPE_001` (#1485); duplicate funcs/types/constructors in one module
+  are not yet `MOD007` (#1278).
+- Three back-end tables key by bare type name: the bytecode VM's ADT tables (two same-named
+  ADTs with *different* constructors used in one program fail under `--strict-bytecode` with
+  `BC001`; the evaluator runs them), the SMT encoder behind `check --verify`, and the Go
+  emitter (`--emit-go`), which strips the module and names Go types by bare name.
+- Records are structural, so a record type's `==` is decided by its declared name: if any
+  imported module declares a record of the same name with `deriving (Eq)`, a same-shaped
+  record of another module gets `==` too. The comparison is structurally correct, and a record
+  with a field that has no `==` (a function) is still rejected.
+- A single-constructor ADT wrapping a record (`type W = W({x: int})`) is a nominal type, not
+  its record (`TC_NEWTYPE_001`, #2239); field access `w.x` works on it. A let-bound or inline
+  field reader (`let getx = \r. r.x`, `map(\t. t.name, items)`) accepts records and `W`s alike,
+  but a **top-level** function whose parameter type is inferred from field reads
+  (`pure func getx(r) = r.x`) is a record reader: its scheme is exported, so the read is
+  settled as a record access there, and `getx(W({x: 1}))` is `TC_NEWTYPE_001` with a hint to
+  annotate the parameter as `W` (it worked by accident before #2239). Only the evaluator runs
+  newtype field access: `--strict-bytecode` fails with `_record_get: arg 0 must be record, got
+  ADT` (`--bytecode` falls back to the evaluator), and `--emit-go` emits two Go types of the
+  one name. Both pre-existing.
+- A bare type name resolved only through an indirect dependency can become ambiguous when another
+  indirect dependency adds the name, and an added import that exports the name re-points it (as
+  on dev); import the type by name to pin it. A constructor pattern's argument count is not
+  checked against the constructor (#2243, pre-existing).
+- Type variables are told from types by scope, not case (#2211, #2240): a name an enclosing
+  `[T]` list binds is a variable, a lowercase name the module declares or imports by name is
+  that type, and any other lowercase name is an implicitly quantified variable. A
+  misspelled or miscased type name (`state` for `State`) or a value name in type position
+  (`-> (stack, int)`) is therefore a type variable; since #2273 it is rigid, so a body that
+  needs a specific type there is `TC_RIGID_001` (a type declaration with a free variable is
+  `TC_UNBOUND_TYPE_003`). Two such readings warn `TC_UNBOUND_TYPE_002`: a lowercase type
+  an import exports but the module does not import by name, and a value imported by name used
+  as a type.
+- Signature type variables are rigid (#2273, `TC_RIGID_001`) — explicit `[a]`, implicit `a`,
+  named record rows `| r` (an anonymous `...` stays a flexible wildcard), in the body and in
+  `requires`/`ensures` clauses — with these known gaps:
+  - calls within a recursive group are monomorphic, so calling `f[a]` at another type from
+    inside its own group (polymorphic recursion, or a mutually recursive `g` calling `f(n, n)`)
+    is rejected, naming the call, rather than allowed;
+  - class constraints are inferred, not declared (there is no syntax for them), so a signature
+    cannot promise `Num a` or forbid it. A contract clause that needs a class the body does not
+    (`idc[a](x: a) -> a ensures { result == x } { x }`) is accepted, but callers are not held to
+    it: `idc(inc)` checks, and the clause fails under `--verify-contracts` (#2337). An integer literal written at a signature variable is rejected, but one
+    reached through an unannotated helper is not: `pure func incH(x) = x + 1` then
+    `func inc[a](x: a) -> a = incH(x)` checks, and `inc(2.5)` still fails at run time
+    ("received an int and a float");
+  - a generic body is compiled once, at its defaulted type (`Num a` ⇒ `int`, #2333). The
+    evaluator and the VM correct for it (the class methods and `%` from the run-time values,
+    `show` left dynamic), but **`compile --emit-go` does not (#2332)**: the emitted Go panics
+    when a generic numeric function is called with floats, and gives wrong answers with strings
+    (`x == y` on two different strings is `true`; a generic `max` or `sortBy` comparator picks the
+    wrong element); a generic export's Go wrapper is typed at the defaulted type
+    (`Add(x int64, y int64) int64`).
+
+  Effect row variables (`! {e}`) were already enforced by the effect checker.

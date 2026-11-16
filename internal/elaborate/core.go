@@ -22,8 +22,6 @@ type Elaborator struct {
 	filePath          string                      // Current file path for relative imports
 	globalEnv         map[string]core.GlobalRef   // Global environment for imports (name -> GlobalRef)
 	constructors      map[string]*ConstructorInfo // Available constructors (name -> info)
-	warnings          []*ExhaustivenessWarning    // Accumulated warnings
-	exChecker         *ExhaustivenessChecker      // Exhaustiveness checker
 	// typeAliases stores type aliases for expansion during type checking
 	// M-BUGFIX: Maps alias names to their underlying types (e.g., "Coord" -> {x: int, y: int})
 	typeAliases map[string]types.Type
@@ -39,6 +37,11 @@ type Elaborator struct {
 	// M-FIX-FLOAT-OP: Return type annotations from function declarations
 	// Maps Lambda NodeID -> return type (ensures PI() -> float is actually float)
 	returnTypeAnnots map[uint64]types.Type
+	// literalLambdas: Lambda NodeIDs of function literals (`func(x: T) -> R {…}`,
+	// `func(x: T) => e`) whose annotations were recorded (#2238). The checker
+	// enforces a literal's parameter annotations as equalities, the way it
+	// enforces a let annotation, rather than seeding the parameter's type.
+	literalLambdas map[uint64]bool
 	// M-TYPE-LIST-ELEMENT-SOUNDNESS: let-binding type annotations.
 	// Maps the resulting core.Let NodeID -> the annotated type, so that
 	// `let xs: [string] = [42]` actually constrains inference (otherwise the
@@ -56,6 +59,32 @@ type Elaborator struct {
 	// scope is the stack of local-binder frames open at the current
 	// normalization point (scope.go, #1467).
 	scope []map[string]bool
+	// typeScope resolves a bare type name to its defining module
+	// (M-V1-NOMINAL-TYPE-IDENTITY §4.3). The module pipeline installs one built
+	// from the module's imports (SetTypeScope); otherwise ElaborateFile builds a
+	// local one from the file's own declarations (type_scope.go).
+	typeScope *types.TypeScope
+	// typeScopeImports: typeScope was installed by the pipeline (SetTypeScope)
+	// and so binds the module's imports, not only its own declarations.
+	typeScopeImports bool
+	// newtypeADTs: local single-constructor ADTs wrapping a record that are
+	// registered as aliases for field access (M-STREAM-DX/M4); they must stay
+	// nominal everywhere else.
+	newtypeADTs map[string]bool
+	// ambiguousCtors: auto-imported constructor names two or more modules
+	// offer (ambiguous_ctor.go).
+	ambiguousCtors map[string][]types.CtorCandidate
+	// checkBodies: the test-only bodies of the last ElaborateFile (#2232,
+	// check_bodies.go), type-checked by the module pipeline, never compiled.
+	checkBodies []CheckBody
+	// M-V1-RIGID-SIGNATURES (#2273, rigid_sig.go): the open signature scopes
+	// (written type-variable name -> unique name), the rigid variables of each
+	// declaration's lambda, and how often each unique base name was issued.
+	sigTyvars   []sigTyvarScope
+	sigOcc      []map[ast.Pos]bool // per open signature: its own type-variable positions
+	rigidNested map[string]ast.Pos // rigid name -> first body annotation that names it
+	rigidSigs   map[uint64]*types.RigidSig
+	rigidIssued map[string]int
 }
 
 // DerivedEqField is one field a `deriving (Eq)` declaration needs Eq for.
@@ -67,6 +96,7 @@ type DerivedEqField struct {
 // ConstructorInfo holds information about an available constructor
 type ConstructorInfo struct {
 	TypeName       string       // The ADT type name (e.g., "Option")
+	Module         string       // The ADT's defining module (M-V1-NOMINAL-TYPE-IDENTITY)
 	CtorName       string       // Constructor name (e.g., "Some")
 	Arity          int          // Number of fields
 	IsImported     bool         // Whether this constructor is imported
@@ -85,8 +115,6 @@ func NewElaborator() *Elaborator {
 		freshVarNum:      0,
 		globalEnv:        make(map[string]core.GlobalRef),
 		constructors:     make(map[string]*ConstructorInfo),
-		warnings:         []*ExhaustivenessWarning{},
-		exChecker:        NewExhaustivenessChecker(),
 		typeAliases:      make(map[string]types.Type),   // M-BUGFIX: Initialize type aliases
 		paramTypeAnnots:  make(map[uint64][]types.Type), // M-FIX-FLOAT-OP: Initialize param annotations
 		returnTypeAnnots: make(map[uint64]types.Type),   // M-FIX-FLOAT-OP: Initialize return annotations
@@ -108,8 +136,6 @@ func NewElaboratorWithPath(filePath string) *Elaborator {
 		filePath:         filePath,
 		globalEnv:        make(map[string]core.GlobalRef),
 		constructors:     make(map[string]*ConstructorInfo),
-		warnings:         []*ExhaustivenessWarning{},
-		exChecker:        NewExhaustivenessChecker(),
 		typeAliases:      make(map[string]types.Type),   // M-BUGFIX: Initialize type aliases
 		paramTypeAnnots:  make(map[uint64][]types.Type), // M-FIX-FLOAT-OP: Initialize param annotations
 		returnTypeAnnots: make(map[uint64]types.Type),   // M-FIX-FLOAT-OP: Initialize return annotations
@@ -164,8 +190,10 @@ func (e *Elaborator) RegisterConstructor(typeName, ctorName string, arity int, i
 // M-POLY-ADT: Stores field types to correctly build constructor type schemes
 // This fixes the bug where Err(string) in Result[a] was incorrectly typed as ∀a. a -> Result[a]
 func (e *Elaborator) RegisterConstructorWithFields(typeName, ctorName string, arity int, isImported bool, typeParamCount int, typeParamNames []string, fieldTypes []types.Type) {
+	delete(e.ambiguousCtors, ctorName) // a declared constructor is not ambiguous
 	e.constructors[ctorName] = &ConstructorInfo{
 		TypeName:       typeName,
+		Module:         e.ModuleID(),
 		CtorName:       ctorName,
 		Arity:          arity,
 		IsImported:     isImported,
@@ -180,7 +208,9 @@ func (e *Elaborator) RegisterConstructorWithFields(typeName, ctorName string, ar
 // "Nada" while CtorName stays "None", so patterns and expressions written with
 // the alias elaborate to the canonical constructor (#1478). Unaliased imports
 // pass key == canonical.
-func (e *Elaborator) RegisterImportedConstructorAs(key, canonical, typeName string, arity, typeParamCount int) {
+//
+// module is the ADT's defining module (M-V1-NOMINAL-TYPE-IDENTITY).
+func (e *Elaborator) RegisterImportedConstructorAs(key, canonical, module, typeName string, arity, typeParamCount int) {
 	if canonical == "" {
 		canonical = key
 	}
@@ -189,6 +219,7 @@ func (e *Elaborator) RegisterImportedConstructorAs(key, canonical, typeName stri
 	// clash an alias exists to avoid), and must not be overwritten.
 	e.constructors[key] = &ConstructorInfo{
 		TypeName:       typeName,
+		Module:         module,
 		CtorName:       canonical,
 		Arity:          arity,
 		IsImported:     true,
@@ -271,6 +302,12 @@ func (e *Elaborator) GetReturnTypeAnnotations() map[uint64]types.Type {
 	return e.returnTypeAnnots
 }
 
+// GetLiteralLambdas returns the Lambda NodeIDs of annotated function literals
+// (#2238); the type checker enforces their parameter annotations as equalities.
+func (e *Elaborator) GetLiteralLambdas() map[uint64]bool {
+	return e.literalLambdas
+}
+
 // GetLetTypeAnnotations returns all let-binding type annotations (Let NodeID -> annotated type)
 // M-TYPE-LIST-ELEMENT-SOUNDNESS: Used so `let xs: [string] = [42]` is actually
 // checked instead of having its annotation silently dropped during elaboration.
@@ -303,16 +340,6 @@ func (e *Elaborator) recordDerivedEqField(typeName, where string, t types.Type) 
 		e.derivedEqFields = make(map[string][]DerivedEqField)
 	}
 	e.derivedEqFields[typeName] = append(e.derivedEqFields[typeName], DerivedEqField{Where: where, Type: t})
-}
-
-// GetWarnings returns accumulated exhaustiveness warnings
-func (e *Elaborator) GetWarnings() []*ExhaustivenessWarning {
-	return e.warnings
-}
-
-// ClearWarnings clears accumulated warnings
-func (e *Elaborator) ClearWarnings() {
-	e.warnings = []*ExhaustivenessWarning{}
 }
 
 // GetSurfaceSpan retrieves the original surface span for a Core node ID

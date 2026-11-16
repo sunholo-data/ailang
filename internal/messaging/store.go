@@ -4,10 +4,8 @@ import (
 	"crypto/rand"
 	"database/sql"
 	"fmt"
-	"os"
 	"time"
 
-	"github.com/sunholo-data/ailang/internal/sqliteopen"
 	"github.com/sunholo-data/ailang/internal/statedir"
 	"github.com/sunholo-data/ailang/internal/telemetry"
 )
@@ -57,26 +55,6 @@ func (s *Store) DB() *sql.DB {
 	return s.db
 }
 
-// DatabaseExists checks if the collaboration database exists at the given path.
-func DatabaseExists(dbPath string) bool {
-	if _, err := os.Stat(dbPath); os.IsNotExist(err) {
-		return false
-	}
-
-	// Verify it's a valid SQLite database with our schema. Read-only: an
-	// existence check must not create the file it is asking about.
-	db, err := sqliteopen.Open(dbPath, sqliteopen.Options{ReadOnly: true})
-	if err != nil {
-		return false
-	}
-	defer db.Close()
-
-	// Check if schema_version table exists
-	var version string
-	err = db.QueryRow("SELECT version FROM schema_version LIMIT 1").Scan(&version)
-	return err == nil
-}
-
 // GetDefaultDatabasePath returns the default path for the collaboration
 // database: collaboration.db under statedir.Dir(). When no state directory
 // resolves it returns "", which OpenStore refuses — never a relative
@@ -87,23 +65,6 @@ func GetDefaultDatabasePath() string {
 		return ""
 	}
 	return p
-}
-
-// EnsureDatabase creates the database if it doesn't exist.
-// Returns true if database was created, false if it already exists.
-func EnsureDatabase(dbPath string) (bool, error) {
-	// If database already exists, nothing to do
-	if DatabaseExists(dbPath) {
-		return false, nil
-	}
-
-	// Create new database
-	db, err := InitDB(dbPath)
-	if err != nil {
-		return false, fmt.Errorf("failed to initialize database: %w", err)
-	}
-	db.Close()
-	return true, nil
 }
 
 // generateRandomID generates a random hex string of the given length using crypto/rand

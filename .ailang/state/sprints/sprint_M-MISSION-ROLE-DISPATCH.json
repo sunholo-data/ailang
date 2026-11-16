@@ -3,7 +3,7 @@
   "status": "completed",
   "created": "2026-09-07",
   "design_doc": "design_docs/planned/m-mission-runtime-contract.md",
-  "sprint_plan": "design_docs/planned/m-mission-role-dispatch-sprint-plan.md",
+  "sprint_plan": "design_docs/implemented/v0_35_2/m-mission-role-dispatch-sprint-plan.md",
   "authorization": "Mark attended 2026-09-07: git commit and get work up and running; first slice only",
   "github_issues": [],
   "features": [

@@ -34,7 +34,7 @@ func registerIOCodegenSpecs() {
 		{"_fs_readFile", "std/fs", "readFile", "ReadFile", "FS", 1},
 		{"_fs_writeFile", "std/fs", "writeFile", "WriteFile", "FS", 2},
 		{"_fs_exists", "std/fs", "fileExists", "FileExists", "FS", 1},
-		{"_fs_readFileBytes", "std/fs", "readFileBytes", "ReadFileBytes", "FS", 1},
+		{"_fs_readFileBytes", "std/fs", "readFileBase64", "ReadFileBytes", "FS", 1},
 		{"_fs_mkdir", "std/fs", "mkdir", "Mkdir", "FS", 1},
 		{"_fs_mkdirAll", "std/fs", "mkdirAll", "MkdirAll", "FS", 1},
 		{"_fs_isDir", "std/fs", "isDir", "IsDir", "FS", 1},

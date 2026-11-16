@@ -100,6 +100,10 @@ func checkFile(filename string, strictSyntax bool, relaxModules bool, timeout st
 	}
 
 	if info.IsDir() {
+		if checkStrictBytecode {
+			fmt.Fprintf(os.Stderr, "%s: --strict-bytecode checks one file at a time; '%s' is a directory\n", red("Error"), filename)
+			os.Exit(1)
+		}
 		span.SetAttributes(attribute.Bool("is_directory", true))
 		checkDirectoryWithContext(ctx, filename, strictSyntax, relaxModules, timeout, debugCompile, jsonFlag, quietFlag)
 		return
@@ -173,6 +177,9 @@ func runCheckWithContext(ctx context.Context, cfg pipeline.Config, src pipeline.
 	defer resultSpan.End()
 
 	result, err := pipeline.Run(cfg, src)
+	if err == nil {
+		addStrictBytecodeErrors(&result)
+	}
 	if err != nil {
 		resultSpan.SetAttributes(
 			attribute.Bool("passed", false),
@@ -181,11 +188,12 @@ func runCheckWithContext(ctx context.Context, cfg pipeline.Config, src pipeline.
 		resultSpan.RecordError(err)
 		resultSpan.SetStatus(codes.Error, err.Error())
 		if jsonFlag {
+			errs := pipelineErrorsToCheckJSON(err, filename)
 			outputCheckJSON(checkJSONOutput{
 				File:       filename,
 				Passed:     false,
-				ErrorCount: 1,
-				Errors:     []checkJSONError{errorToCheckJSONError(err, filename)},
+				ErrorCount: len(errs),
+				Errors:     errs,
 			})
 		} else {
 			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
@@ -210,6 +218,7 @@ func runCheckWithContext(ctx context.Context, cfg pipeline.Config, src pipeline.
 				Passed:     false,
 				ErrorCount: len(result.Errors),
 				Errors:     jsonErrors,
+				Warnings:   checkWarningsJSON(result.Warnings, filename),
 			})
 		} else {
 			for _, e := range result.Errors {
@@ -235,6 +244,7 @@ func runCheckWithContext(ctx context.Context, cfg pipeline.Config, src pipeline.
 			Passed:     true,
 			ErrorCount: 0,
 			Errors:     []checkJSONError{},
+			Warnings:   checkWarningsJSON(result.Warnings, filename),
 		})
 	} else if !quietFlag {
 		printCheckWarnings(result.Warnings)
@@ -272,6 +282,9 @@ func runCheckWithTimeoutAndContext(ctx context.Context, cfg pipeline.Config, src
 
 	go func() {
 		result, err := pipeline.Run(cfg, src)
+		if err == nil {
+			addStrictBytecodeErrors(&result)
+		}
 		done <- checkResult{result, err}
 	}()
 
@@ -285,11 +298,12 @@ func runCheckWithTimeoutAndContext(ctx context.Context, cfg pipeline.Config, src
 			resultSpan.RecordError(r.err)
 			resultSpan.SetStatus(codes.Error, r.err.Error())
 			if jsonFlag {
+				errs := pipelineErrorsToCheckJSON(r.err, filename)
 				outputCheckJSON(checkJSONOutput{
 					File:       filename,
 					Passed:     false,
-					ErrorCount: 1,
-					Errors:     []checkJSONError{errorToCheckJSONError(r.err, filename)},
+					ErrorCount: len(errs),
+					Errors:     errs,
 				})
 			} else {
 				fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), r.err)
@@ -312,6 +326,7 @@ func runCheckWithTimeoutAndContext(ctx context.Context, cfg pipeline.Config, src
 					Passed:     false,
 					ErrorCount: len(r.result.Errors),
 					Errors:     jsonErrors,
+					Warnings:   checkWarningsJSON(r.result.Warnings, filename),
 				})
 			} else {
 				for _, e := range r.result.Errors {
@@ -335,6 +350,7 @@ func runCheckWithTimeoutAndContext(ctx context.Context, cfg pipeline.Config, src
 				Passed:     true,
 				ErrorCount: 0,
 				Errors:     []checkJSONError{},
+				Warnings:   checkWarningsJSON(r.result.Warnings, filename),
 			})
 		} else if !quietFlag {
 			printCheckWarnings(r.result.Warnings)
@@ -498,8 +514,10 @@ func compactInterface(jsonBytes []byte) (string, error) {
 			Alias string   `json:"alias"`
 		} `json:"types"`
 		Funcs []struct {
-			Name string `json:"name"`
-			Type string `json:"type"`
+			Name       string `json:"name"`
+			Type       string `json:"type"`
+			Tier       string `json:"tier"`
+			ReplacedBy string `json:"replaced_by"`
 		} `json:"funcs"`
 	}
 	if err := json.Unmarshal(jsonBytes, &iface); err != nil {
@@ -517,7 +535,29 @@ func compactInterface(jsonBytes []byte) (string, error) {
 			fmt.Fprintf(&b, "type %s\n", t.Name)
 		}
 	}
+	// A wholly Experimental module (std/ai, ...) is not marked line by line.
+	mixedTiers := false
 	for _, f := range iface.Funcs {
+		if f.Tier != "experimental" {
+			mixedTiers = true
+			break
+		}
+	}
+	for _, f := range iface.Funcs {
+		// Mark what an agent should not reach for: a deprecated name (with
+		// its replacement) and an Experimental function in a module whose
+		// other exports are not.
+		var marks []string
+		if f.ReplacedBy != "" {
+			marks = append(marks, "deprecated: use "+f.ReplacedBy)
+		}
+		if f.Tier == "experimental" && mixedTiers {
+			marks = append(marks, "experimental")
+		}
+		if len(marks) > 0 {
+			fmt.Fprintf(&b, "%s : %s  -- %s\n", f.Name, f.Type, strings.Join(marks, "; "))
+			continue
+		}
 		fmt.Fprintf(&b, "%s : %s\n", f.Name, f.Type)
 	}
 	return b.String(), nil
@@ -581,6 +621,9 @@ func checkDirectoryWithContext(ctx context.Context, dir string, strictSyntax boo
 	// Track results
 	var passed, failed int
 	var errors []string
+	// causes[i] is the structured error behind errors[i], when there is one
+	// (a parse error keeps its PAR_ code and position for --json).
+	causes := map[int]error{}
 
 	// Parse timeout once if specified
 	var timeoutDuration time.Duration
@@ -643,6 +686,7 @@ func checkDirectoryWithContext(ctx context.Context, dir string, strictSyntax boo
 
 		if checkErr != nil {
 			errors = append(errors, fmt.Sprintf("%s: %v", file, checkErr))
+			causes[len(errors)-1] = checkErr
 			failed++
 			continue
 		}
@@ -667,11 +711,8 @@ func checkDirectoryWithContext(ctx context.Context, dir string, strictSyntax boo
 	if jsonFlag {
 		// JSON output for directory check
 		jsonErrors := make([]checkJSONError, 0, len(errors))
-		for _, e := range errors {
-			jsonErrors = append(jsonErrors, checkJSONError{
-				Code:    "ERROR",
-				Message: e,
-			})
+		for i, e := range errors {
+			jsonErrors = append(jsonErrors, errorEntryFor(e, causes[i]))
 		}
 		outputCheckJSON(checkJSONOutput{
 			File:       dir,

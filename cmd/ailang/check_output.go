@@ -2,13 +2,19 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"os"
 	"regexp"
 	"strconv"
 	"strings"
 
+	"github.com/sunholo-data/ailang/internal/elaborate"
 	ailerrors "github.com/sunholo-data/ailang/internal/errors"
+	"github.com/sunholo-data/ailang/internal/loader"
+	"github.com/sunholo-data/ailang/internal/parser"
+	"github.com/sunholo-data/ailang/internal/pipeline"
+	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // checkJSONOutput represents the JSON output format for ailang check --json
@@ -17,6 +23,9 @@ type checkJSONOutput struct {
 	Passed     bool             `json:"passed"`
 	ErrorCount int              `json:"error_count"`
 	Errors     []checkJSONError `json:"errors"`
+	// Warnings are non-blocking pipeline warnings, same shape as errors;
+	// omitted when there are none (check_warnings.go).
+	Warnings []checkJSONError `json:"warnings,omitempty"`
 }
 
 // checkJSONError represents a single error in JSON check output
@@ -60,10 +69,14 @@ func outputCheckJSON(out checkJSONOutput) {
 func outputCheckAgent(out checkJSONOutput) {
 	if out.Passed {
 		fmt.Printf("ok: %s\n", out.File)
-		return
+	} else {
+		for _, e := range out.Errors {
+			fmt.Println(distillAgentLine(e, out.File))
+		}
 	}
-	for _, e := range out.Errors {
-		fmt.Println(distillAgentLine(e, out.File))
+	// Warnings follow the verdict, so a reader of the first line is unaffected.
+	for _, w := range out.Warnings {
+		fmt.Println(agentWarnLine(w, out.File))
 	}
 }
 
@@ -107,6 +120,21 @@ func distillAgentLine(e checkJSONError, fallbackFile string) string {
 	return out
 }
 
+// pipelineErrorsToCheckJSON converts a pipeline error to its JSON entries:
+// one per error when the error carries several (every TC_MATCH_* error of a
+// module, so an author can fix them in one pass), else one.
+func pipelineErrorsToCheckJSON(err error, filename string) []checkJSONError {
+	var many types.MatchErrors
+	if errors.As(err, &many) && len(many) > 1 {
+		out := make([]checkJSONError, len(many))
+		for i, e := range many {
+			out[i] = errorToCheckJSONError(e, filename)
+		}
+		return out
+	}
+	return []checkJSONError{errorToCheckJSONError(err, filename)}
+}
+
 // errorToCheckJSONError converts an error to a structured JSON error entry
 func errorToCheckJSONError(err error, filename string) checkJSONError {
 	if rep, ok := ailerrors.AsReport(err); ok {
@@ -124,10 +152,67 @@ func errorToCheckJSONError(err error, filename string) checkJSONError {
 		}
 		return entry
 	}
+	if entry, ok := parseErrorEntry(err, err.Error(), filename); ok {
+		return entry
+	}
 	// Fallback for non-Report errors
 	return checkJSONError{
-		Code:    "ERROR",
+		Code:    jsonErrorCode(err.Error()),
 		Message: err.Error(),
 		File:    filename,
 	}
+}
+
+// parseErrorEntry is the --json entry of a module that does not parse
+// (loader.ParseErrors keeps the parser's errors through the module-load
+// path): the FIRST parser error as it is — its PAR_ code and position, or
+// "ERROR" with no position when that first error carries no code — never a
+// later error's code, so code, position and message describe one error.
+// message is the entry's text (callers prefix the file in directory and
+// package checks).
+func parseErrorEntry(err error, message, filename string) (checkJSONError, bool) {
+	var pes *loader.ParseErrors
+	if err == nil || !errors.As(err, &pes) || len(pes.Errs) == 0 {
+		return checkJSONError{}, false
+	}
+	entry := checkJSONError{Code: "ERROR", Message: message, File: filename}
+	var pe *parser.ParserError
+	if errors.As(pes.Errs[0], &pe) && pe.Code != "" {
+		entry.Code, entry.Line, entry.Column = pe.Code, pe.Pos.Line, pe.Pos.Column
+		if pe.Pos.File != "" {
+			entry.File = pe.Pos.File
+		}
+	}
+	return entry, true
+}
+
+// errorEntryFor is the --json entry of one flattened error message, using its
+// structured cause when there is one (a parse error) and the message's inline
+// code otherwise.
+func errorEntryFor(message string, cause error) checkJSONError {
+	if entry, ok := parseErrorEntry(cause, message, ""); ok {
+		return entry
+	}
+	return checkJSONError{Code: jsonErrorCode(message), Message: message}
+}
+
+// jsonErrorCode is the --json code of an error that is not a structured
+// report: the nominal-identity code its message carries
+// (M-V1-NOMINAL-TYPE-IDENTITY: TC_NOMINAL_001, TC_AMBIGUOUS_TYPE_001,
+// TC_AMBIGUOUS_CTOR_001) or record unification (#2210/#2221: TC_REC_001, TC_REC_004,
+// TC_REC_003, TC004), else the generic "ERROR". When several appear (a
+// TC_AMBIGUOUS_CTOR_001 whose cause carries TC_NOMINAL_001) the first in the
+// message is the error's own. Other inline TC_* codes keep "ERROR", as before,
+// so existing consumers see no change. The body checks of #2232/#2248
+// (TC_TEST_001, TC_CONTRACT_001) are reports, coded here too, and so is a
+// signature variable the body does not keep general (#2273, TC_RIGID_001).
+func jsonErrorCode(msg string) string {
+	best, at := "ERROR", -1
+	codes := append(append(types.NominalIdentityCodes(), types.RecordRowCodes()...), elaborate.CodeTestBody, pipeline.CodeContract, types.TC_FORALL_001, types.TC_RIGID_001)
+	for _, code := range codes {
+		if i := strings.Index(msg, code); i >= 0 && (at < 0 || i < at) {
+			best, at = code, i
+		}
+	}
+	return best
 }

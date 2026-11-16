@@ -1,0 +1,9 @@
+-- #2260: two modules each declare a type T; the emitter makes one Go type T
+-- and q/b's constructor is left undefined (undefined: NewTB).
+module a
+
+export type T = A(int)
+
+export pure func mk() -> T = A(1)
+
+export pure func get(t: T) -> int = match t { A(n) => n }

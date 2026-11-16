@@ -1,0 +1,76 @@
+-- Evaluator vs emitted Go: summary() calls std functions through the Go
+-- emitter and must return the same string under `ailang run --entry summary`
+-- and from the generated Go (tests/codegen-harness/run.sh). One check per
+-- function below; summary() prints one "name=value" line per check.
+module harness/parity/stdlib_parity
+import std/list (map, filter, foldl, reverse, take, drop, any, concat, length, range, contains, flatMap, dedup)
+import std/string (trim, toUpper, toLower, split, join, substring, repeat, chars)
+import std/math (sqrt, pow, floor, ceil, absInt, absFloat)
+import std/option (Option, Some, None)
+
+pure func showOpt(o: Option[int]) -> string = match o {
+  Some(n) => "Some(${show(n)})",
+  None => "None"
+}
+
+pure func firstPositive(xs: [int]) -> Option[int] = match filter(\x. x > 0, xs) {
+  [] => None,
+  y :: _ => Some(y)
+}
+
+pure func cMap() -> string = "map=${show(map(\x. x * 2, [1, 2, 3]))}"
+
+pure func cFilter() -> string = "filter=${show(filter(\x. x > 1, [1, 2, 3]))}"
+
+pure func cFoldl() -> string = "foldl=${show(foldl(\acc x. acc + x, 0, [1, 2, 3, 4]))}"
+
+pure func cReverse() -> string = "reverse=${show(reverse([1, 2, 3]))}"
+
+pure func cTake() -> string = "take=${show(take(2, [5, 6, 7]))}"
+
+pure func cDrop() -> string = "drop=${show(drop(1, [5, 6, 7]))}"
+
+pure func cAny() -> string = "any=${show(any(\x. x > 2, [1, 3]))}"
+
+pure func cConcat() -> string = "concat=${show(concat([1], [2, 3]))}"
+
+pure func cLength() -> string = "length=${show(length([1, 2, 3]))}"
+
+pure func cRange() -> string = "range=${show(range(1, 4))}"
+
+pure func cContains() -> string = "contains=${show(contains([1, 2, 3], 2))}"
+
+pure func cFlatMap() -> string = "flatMap=${show(flatMap(\x. [x, x], [1, 2]))}"
+
+pure func cDedup() -> string = "dedup=${show(dedup([1, 1, 2]))}"
+
+pure func cTrim() -> string = "trim=[${trim("  hi  ")}]"
+
+pure func cUpper() -> string = "upper=${toUpper("abc")}"
+
+pure func cLower() -> string = "lower=${toLower("ABC")}"
+
+pure func cSplit() -> string = "split=${show(split("a,b,c", ","))}"
+
+pure func cSubstring() -> string = "substring=${substring("hello", 1, 3)}"
+
+pure func cRepeat() -> string = "repeat=${repeat("ab", 3)}"
+
+pure func cChars() -> string = "chars=${show(chars("abc"))}"
+
+pure func cSqrt() -> string = "sqrt=${show(sqrt(16.0))}"
+
+pure func cPow() -> string = "pow=${show(pow(2.0, 10.0))}"
+
+pure func cFloor() -> string = "floor=${show(floor(2.7))}"
+
+pure func cCeil() -> string = "ceil=${show(ceil(2.1))}"
+
+pure func cAbsInt() -> string = "absInt=${show(absInt(0 - 3))}"
+
+pure func cAbsFloat() -> string = "absFloat=${show(absFloat(0.0 - 2.5))}"
+
+pure func cOption() -> string = "option=${showOpt(firstPositive([0 - 1, 4, 5]))},${showOpt(firstPositive([]))}"
+
+export pure func summary() -> string =
+  join("\n", [cMap(), cFilter(), cFoldl(), cReverse(), cTake(), cDrop(), cAny(), cConcat(), cLength(), cRange(), cContains(), cFlatMap(), cDedup(), cTrim(), cUpper(), cLower(), cSplit(), cSubstring(), cRepeat(), cChars(), cSqrt(), cPow(), cFloor(), cCeil(), cAbsInt(), cAbsFloat(), cOption()])

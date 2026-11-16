@@ -21,6 +21,8 @@ func BytecodeToEval(v bytecode.Value) (eval.Value, error) {
 // becomes a TaggedValue that carries only its constructor name, which is all
 // TaggedValue.String() reads (#1453). Never hand the result to the
 // evaluator; it has no type or module, so a match on it would be unsound.
+// The runner no longer prints through it (it uses vm.Show directly); the
+// parity tests use it to compare a VM result with the evaluator's.
 func BytecodeToEvalForDisplay(v bytecode.Value) (eval.Value, error) {
 	return bytecodeToEval(v, true)
 }

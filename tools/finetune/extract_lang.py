@@ -106,7 +106,7 @@ def check_eval_program(code: str) -> tuple[bool, str]:
 
 def load_heldout():
     h = json.load(open(os.path.join(HERE, "heldout.json")))
-    return set(h["core"] + h["stretch"])
+    return set(h["core"] + h["stretch"] + h.get("retired_excluded", []))
 
 
 def task_prompt(bid: str) -> str:

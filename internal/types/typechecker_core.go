@@ -80,11 +80,14 @@ type CoreTypeChecker struct {
 	// their body effects. M-EFFECT-ROW-SHOW-INTERP (#386).
 	declaredLambdaEffects map[uint64]*Row
 	applicationEffects    map[uint64]ApplicationEffects
-	returnTypeAnnots      map[uint64]Type   // Return type annotations from elaboration (Lambda NodeID → return type)
-	CoreTI                CoreTypeInfo      // Core NodeID → inferred types (principal types for lowering)
-	constructorTypes      map[string]string // M-DX25.4: Constructor name → ADT type name (e.g., "Up" → "Direction")
-	diagnosticCtorTypes   map[string]string // M-MATCH-XCHECK-ERROR-QUALITY: transitively-known Constructor → ADT (diagnostics ONLY, never in scope)
-	adtTypeParams         map[string]int    // M-TAPP-FIX: ADT type name → number of type params (e.g., "Option" → 1)
+	returnTypeAnnots      map[uint64]Type            // Return type annotations from elaboration (Lambda NodeID → return type)
+	CoreTI                CoreTypeInfo               // Core NodeID → inferred types (principal types for lowering)
+	constructorTypes      map[string]string          // M-DX25.4: Constructor name → ADT type name (e.g., "Up" → "Direction")
+	diagnosticCtorTypes   map[string]string          // M-MATCH-XCHECK-ERROR-QUALITY: transitively-known Constructor → ADT (diagnostics ONLY, never in scope)
+	adtTypeParams         map[string]int             // M-TAPP-FIX: ADT NominalKey → number of type params (e.g., "std/option::Option" → 1)
+	ctorADTModule         map[string]string          // constructor → its ADT's defining module (typechecker_nominal.go)
+	newtypes              map[string]bool            // aliasEnv keys that are newtype ADTs (typechecker_nominal.go)
+	ambiguousCtors        map[string][]CtorCandidate // constructors two imports offer (ambiguous_ctor.go)
 	// aliasEnv maps type alias names to their underlying types
 	// M-BUGFIX: Used for alias expansion during unification
 	aliasEnv map[string]Type
@@ -92,12 +95,14 @@ type CoreTypeChecker struct {
 	// missing = nullary. Passed to the Unifier so `Box[int]` instantiates its body.
 	aliasParams   map[string][]string
 	aliasCaptures map[string]string // M-TYPE-NAME-SHADOW (alias_capture.go)
-	// M-FIX-FLOAT-OP: Parameter type annotations from function declarations
-	// Maps Lambda NodeID -> parameter types to preserve float annotations through elaboration
+	// M-FIX-FLOAT-OP: Lambda NodeID -> parameter annotations (keeps float annotations through elaboration)
 	paramTypeAnnots map[uint64][]Type
-	// M-TYPE-LIST-ELEMENT-SOUNDNESS: let-binding type annotations from elaboration
-	// Maps core.Let NodeID -> annotated type so `let xs: [string] = [42]` is checked
+	literalLambdas  map[uint64]bool // #2238: function literals, annotations enforced as equalities
+	// M-TYPE-LIST-ELEMENT-SOUNDNESS: core.Let NodeID -> annotation, so `let xs: [string] = [42]` is checked
 	letTypeAnnots map[uint64]Type
+	matchState                  // M-V1-MATCH-EXHAUSTIVENESS state (match_exhaustiveness.go)
+	predicateRoot core.CoreExpr // #2248: InferPredicate's root, which must type as bool
+	rigidState                  // M-V1-RIGID-SIGNATURES (#2273) state (rigid_sig.go)
 	// M-DX11: Debug sink for type inference events
 	DebugSink TypeDebugSink
 	// M-PERF-DOCPARSE: Deferred CoreTI substitution — accumulated during inference,
@@ -270,7 +275,7 @@ func (tc *CoreTypeChecker) SetDebugSink(sink TypeDebugSink) {
 }
 
 // RegisterTypeAlias registers a type alias for expansion during unification
-// M-BUGFIX: This allows `type Coord = {x: int, y: int}` to work with ADT variants
+// M-BUGFIX: This allows `type Coord = {x: int, y: int}` to work with ADT variants (name: NominalKey).
 func (tc *CoreTypeChecker) RegisterTypeAlias(name string, target Type) {
 	if tc.aliasEnv == nil {
 		tc.aliasEnv = make(map[string]Type)
@@ -373,7 +378,7 @@ func (tc *CoreTypeChecker) lookupADTConstructors(adtName string) []string {
 	return out
 }
 
-// SetADTTypeParams sets the ADT type → number of type parameters mapping.
+// SetADTTypeParams sets ADT NominalKey(module, name) → number of type parameters.
 // M-TAPP-FIX: Used to generate proper TApp types in pattern matching.
 func (tc *CoreTypeChecker) SetADTTypeParams(params map[string]int) {
 	tc.adtTypeParams = params
@@ -442,6 +447,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		// M-XMOD-ALIAS-POLY: param env so applied aliases (`Box[int]`) instantiate.
 		unifier = NewUnifierWithAliasesAndParams(tc.aliasEnv, tc.aliasParams)
 		unifier.SetAliasCaptures(tc.aliasCaptures)
+		unifier.SetNewtypes(tc.newtypes)
 	} else {
 		unifier = NewUnifier()
 	}
@@ -472,13 +478,12 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		unifier.SetConstructorTypes(tc.constructorTypes)
 	}
 
-	// Infer type (returns updated env)
+	// Infer type (returns updated env); a predicate root must type as bool (#2248)
 	typedNode, updatedEnv, err := tc.inferCore(ctx, expr)
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
-
-	// Get the inferred type
+	tc.constrainPredicateRoot(ctx, expr, typedNode)
 	inferredType := typedNode.GetType()
 
 	// Apply substitution if we have one
@@ -489,8 +494,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		finalType = &TCon{Name: "Unknown"}
 	}
 
-	// Solve constraints and apply defaulting (proper way)
-	sub, unsolved, err := ctx.SolveConstraints()
+	sub, unsolved, err := tc.solveDeclConstraintsRigid(ctx) // solve (+ #2273's InferWithRigid check), then default
 	if err != nil {
 		return nil, nil, nil, nil, err
 	}
@@ -500,8 +504,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("defaulting failed: %w", err)
 	}
-
-	// Compose substitutions if defaulting was applied
+	tc.markDefaulted(sub, defaultingSub) // #2273: the nodes defaulting pins in a generic body
 	if len(defaultingSub) > 0 {
 		sub = composeSubstitutions(defaultingSub, sub)
 		finalType = defaultedType
@@ -602,7 +605,7 @@ func (tc *CoreTypeChecker) checkCoreExpr(expr core.CoreExpr, env *TypeEnv) (type
 	}
 
 	// Solve type equality constraints first
-	sub, unsolved, err := ctx.SolveConstraints()
+	sub, unsolved, err := ctx.solveDeclConstraints()
 	if err != nil {
 		return nil, env, err
 	}
@@ -764,8 +767,8 @@ func (tc *CoreTypeChecker) inferCore(ctx *InferenceContext, expr core.CoreExpr) 
 	case *core.Intrinsic:
 		typedNode, env, err = tc.inferIntrinsic(ctx, e)
 
-	default:
-		return nil, ctx.env, fmt.Errorf("type inference not implemented for %T", expr)
+	default: // core.Forall (#2248), else an inference error
+		typedNode, env, err = tc.inferCoreOther(ctx, expr)
 	}
 
 	// If inference succeeded, store the type in CoreTI for operator lowering
@@ -773,7 +776,7 @@ func (tc *CoreTypeChecker) inferCore(ctx *InferenceContext, expr core.CoreExpr) 
 		// Get the inferred type from the typed node
 		if inferredType, ok := typedNode.GetType().(Type); ok {
 			// Store mapping: Core NodeID → Type (principal type after inference)
-			tc.CoreTI.Set(expr.ID(), inferredType)
+			tc.setCoreTI(expr.ID(), inferredType)
 		}
 	}
 

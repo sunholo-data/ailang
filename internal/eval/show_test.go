@@ -9,7 +9,8 @@ import (
 // which quoted strings and spelled floats with %g, so `show({a: "x"})` was
 // {a: "x"} in the REPL but {a: x} under `ailang run`. They now call Show, the
 // renderer the `show` builtin and the bytecode VM share (#1453 cleanup). The
-// renderer's own cases live in internal/builtins/show_test.go.
+// renderer's own cases live in internal/vm/show_engines_test.go (spec table,
+// both engines) and internal/runner/show_engines_test.go (whole programs).
 func TestEnvShowIsTheCanonicalRenderer(t *testing.T) {
 	env := NewEnvironment()
 	registerBuiltins(env, nil)
@@ -27,14 +28,14 @@ func TestEnvShowIsTheCanonicalRenderer(t *testing.T) {
 		v    Value
 		want string
 	}{
-		{&RecordValue{Fields: map[string]Value{"a": &StringValue{Value: "x"}}}, "{a: x}"},
+		{&RecordValue{Fields: map[string]Value{"a": &StringValue{Value: "x"}}}, `{a: "x"}`},
 		{&FloatValue{Value: 1e20}, "100000000000000000000.0"},
 		{&StringValue{Value: `say "hi"`}, `say "hi"`},
 		{&BuiltinFunction{Name: "print"}, "<function>"},
 		{&TaggedValue{CtorName: "Some", Fields: []Value{&FloatValue{Value: 2}}}, "Some(2.0)"},
 		{&ListValue{Elements: []Value{&ListValue{Elements: []Value{&ListValue{Elements: []Value{
-			&ListValue{Elements: []Value{&ListValue{Elements: []Value{&IntValue{Value: 1}}}}}}}}}}}, "[[[[...]]]]"},
-		{&ListValue{Elements: long}, "[0, 1, 2, 3, 4, 5, 6... 35, 36, 37, 38, 39]"},
+			&ListValue{Elements: []Value{&ListValue{Elements: []Value{&IntValue{Value: 1}}}}}}}}}}}, "[[[[[1]]]]]"},
+		{&ListValue{Elements: long}, "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39]"},
 	}
 	for _, c := range cases {
 		if got := Show(c.v); got != c.want {
@@ -51,6 +52,6 @@ func TestEnvShowIsTheCanonicalRenderer(t *testing.T) {
 		}
 	}
 	if strings.Contains(Show(&StringValue{Value: "a"}), `"`) {
-		t.Error("show must not quote strings")
+		t.Error("show must not quote a top-level string")
 	}
 }

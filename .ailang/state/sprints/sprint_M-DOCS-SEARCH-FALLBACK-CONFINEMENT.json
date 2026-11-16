@@ -48,7 +48,7 @@
         "internal/pkg/authority.go",
         "internal/docsearch/github",
         "internal/policytool/cli_ops.go",
-        "design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md"
+        "design_docs/implemented/v0_35_2/m-dx27-docs-search-github-fallback.md"
       ],
       "reason": "Reuse canonical pkg.Require/ConfinedError, existing GitHub backend and existing bounded Go test/process tools. A registry dependency cannot interpose before host credentials/cache/HTTP or enforce direct Go callers; no registry package, contribution, publish or external search is needed."
     },
@@ -62,7 +62,7 @@
         "internal/pkg/authority.go",
         "internal/docsearch/github",
         "internal/policytool/cli_ops.go",
-        "design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md"
+        "design_docs/implemented/v0_35_2/m-dx27-docs-search-github-fallback.md"
       ],
       "reason": "Reuse canonical pkg.Require/ConfinedError, existing GitHub backend and existing bounded Go test/process tools. A registry dependency cannot interpose before host credentials/cache/HTTP or enforce direct Go callers; no registry package, contribution, publish or external search is needed."
     },
@@ -76,7 +76,7 @@
         "internal/pkg/authority.go",
         "internal/docsearch/github",
         "internal/policytool/cli_ops.go",
-        "design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md"
+        "design_docs/implemented/v0_35_2/m-dx27-docs-search-github-fallback.md"
       ],
       "reason": "Reuse canonical pkg.Require/ConfinedError, existing GitHub backend and existing bounded Go test/process tools. A registry dependency cannot interpose before host credentials/cache/HTTP or enforce direct Go callers; no registry package, contribution, publish or external search is needed."
     },
@@ -90,7 +90,7 @@
         "internal/pkg/authority.go",
         "internal/docsearch/github",
         "internal/policytool/cli_ops.go",
-        "design_docs/planned/v0_29_0/m-dx27-docs-search-github-fallback.md"
+        "design_docs/implemented/v0_35_2/m-dx27-docs-search-github-fallback.md"
       ],
       "reason": "Reuse canonical pkg.Require/ConfinedError, existing GitHub backend and existing bounded Go test/process tools. A registry dependency cannot interpose before host credentials/cache/HTTP or enforce direct Go callers; no registry package, contribution, publish or external search is needed."
     }

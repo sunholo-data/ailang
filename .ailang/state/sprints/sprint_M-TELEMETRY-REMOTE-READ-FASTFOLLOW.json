@@ -4,7 +4,7 @@
   "created_by": "sprint-planner (mission iteration 195)",
   "baseline_commit": "644cf178ac3c6054f8039938abf122b0695f9891",
   "design_doc": "design_docs/planned/v0_33_2/m-mission-loop-unified-telemetry.md",
-  "sprint_plan": "design_docs/planned/v0_33_2/m-telemetry-remote-read-fastfollow-sprint-plan.md",
+  "sprint_plan": "design_docs/implemented/v0_33_2/m-telemetry-remote-read-fastfollow-sprint-plan.md",
   "prior_sprint": "M-MISSION-LOOP-UNIFIED-TELEMETRY",
   "github_issues": [
     698

@@ -71,9 +71,9 @@ func TestCreditRegistryBudgetLeavesLegacyLanesUnchanged(t *testing.T) {
 		if err := yaml.Unmarshal([]byte("auth_mode: "+mode+"\ncredit_max_cost_usd: 2"), &agent); err != nil {
 			t.Fatal(err)
 		}
-		p := DispatchParams{Provider: "claude", AuthMode: mode, MaxCostUSD: 150, APIKey: "existing-request-key"}
+		p := DispatchParams{Provider: "claude", AuthMode: mode, MaxCostUSD: 150}
 		applyCloudCreditAgentConfig(&p, &agent)
-		if p.MaxCostUSD != 150 || p.APIKey != "existing-request-key" || p.AuthMode != mode {
+		if p.MaxCostUSD != 150 || p.AuthMode != mode {
 			t.Fatalf("legacy lane changed: %+v", p)
 		}
 	}

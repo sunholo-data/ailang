@@ -77,6 +77,7 @@ LAUNCHD_SUITES := \
 	tools/launchd/test_driver_notify.sh \
 	tools/launchd/test_mission_workdir_sync.sh \
 	scripts/test_mission_pi_run.sh \
+	tools/launchd/test_mission_pi_run_orphan_reap.sh \
 	tools/launchd/test_pin_root.sh \
 	tools/launchd/test_mission_worktree.sh \
 	tools/launchd/test_skill_sync.sh \
@@ -90,6 +91,7 @@ LAUNCHD_SUITES := \
 	tools/launchd/test_mission_pi_run_commits.sh \
 	tools/launchd/test_mission_pi_run_sandbox.sh \
 	tools/launchd/test_mission_pi_run_provider_quota.sh \
+	tools/launchd/test_mission_pi_run_tool_stall.sh \
 	scripts/test_mission_gate0_self_notices.sh \
 	scripts/test_mission_directives.sh \
 	scripts/test_mission_routing_models_check.sh \
@@ -124,6 +126,8 @@ LAUNCHD_SUITES := \
 	scripts/hooks/test_stage_isolation.sh \
 	scripts/hooks/test_pre_push.sh \
 	scripts/hooks/test_git_health.sh \
+	scripts/hooks/test_install_hooks.sh \
+	tools/ci/test_require_checks.sh \
 	scripts/test_worktree_sweep.sh \
 	tools/launchd/test_evaluator_skill_lane.sh
 LAUNCHD_SERIAL_SUITES := \
@@ -138,6 +142,7 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@/bin/bash -n .claude/skills/sprint-planner/scripts/test_create_sprint_json.sh
 	@/bin/bash -n scripts/worktree_sweep.sh
 	@/bin/bash -n scripts/hooks/git_health.sh
+	@/bin/bash -n tools/ci/require_checks.sh
 	@for f in tools/launchd/*.sh tools/launchd/lib/*.sh; do /bin/bash -n "$$f" || exit 1; done
 	@/bin/bash -n tools/eval/motoko_connection_probe.sh
 	@/bin/bash -n tools/eval/test_motoko_connection_probe.sh

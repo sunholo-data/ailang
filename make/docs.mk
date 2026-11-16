@@ -5,7 +5,7 @@
 .PHONY: docs docs-install docs-serve docs-build docs-preview docs-clean docs-restart
 .PHONY: sync-prompts sync-versions generate-llms-txt docs-env
 .PHONY: doctor doc
-.PHONY: check-doc-review test-check-doc-review docs-review-overdue
+.PHONY: check-doc-review test-check-doc-review docs-review-overdue check-doc-samples test-check-doc-samples
 
 # Documentation generation
 docs: sync-prompts sync-versions generate-llms-txt docs-env ## Generate all documentation
@@ -97,3 +97,25 @@ test-check-doc-review: ## Run the doc-review gate's own self-test (bash 3.2)
 
 docs-review-overdue: ## List overdue docs pages, oldest due first (docs mission backlog)
 	@bash scripts/check_doc_review.sh --list-overdue
+
+# Doc-sample gate (M-V1-DOCS-FOR-1-0 §A, ROADMAP D-67 ruling 7): every fenced AILANG
+# block on the site, in README.md, docs/LIMITATIONS.md and the active teaching prompt
+# must pass `ailang check` or be tagged (parse / sketch / repl / error=CODE /
+# file=path.ail; grammar in .claude/rules/docs-review.md). Known failures are listed in
+# the shrink-only scripts/doc_samples_baseline.txt. The binary is ALWAYS one built
+# from this checkout: unset DOC_SAMPLES_AILANG builds bin/ailang first; CI passes the
+# binary its `make install` step just built. Never the developer's installed ailang.
+DOC_SAMPLES_AILANG ?=
+DOC_SAMPLES_ARGS ?=
+ifeq ($(strip $(DOC_SAMPLES_AILANG)),)
+check-doc-samples test-check-doc-samples: build
+DOC_SAMPLES_BIN = $(CURDIR)/$(BUILD_DIR)/$(BINARY)
+else
+DOC_SAMPLES_BIN = $(abspath $(DOC_SAMPLES_AILANG))
+endif
+
+check-doc-samples: ## Every AILANG block in the docs passes `ailang check` or is tagged; baseline only shrinks (CI gate)
+	@go run ./tools/docsamples -ailang "$(DOC_SAMPLES_BIN)" $(DOC_SAMPLES_ARGS)
+
+test-check-doc-samples: ## Run the doc-sample gate's own control tests against this commit's binary
+	@DOCSAMPLES_AILANG="$(DOC_SAMPLES_BIN)" go test -count=1 ./tools/docsamples/

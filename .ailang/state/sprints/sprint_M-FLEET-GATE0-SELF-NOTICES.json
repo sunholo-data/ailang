@@ -1,8 +1,8 @@
 {
   "sprint_id": "M-FLEET-GATE0-SELF-NOTICES",
   "status": "completed",
-  "design_doc": "design_docs/planned/sprint-plan-gate0-self-notices.md",
-  "sprint_plan": "design_docs/planned/sprint-plan-gate0-self-notices.md",
+  "design_doc": "design_docs/implemented/v0_53_1/sprint-plan-gate0-self-notices.md",
+  "sprint_plan": "design_docs/implemented/v0_53_1/sprint-plan-gate0-self-notices.md",
   "source_design": "ailang-world origin/dev:design_docs/implemented/w-gate0-blind-to-its-own-crash-notices.md",
   "ticket": "gate0:driver-crash-notices-invisible",
   "github_issues": [

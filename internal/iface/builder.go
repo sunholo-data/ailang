@@ -15,6 +15,15 @@ type Builder struct {
 	module  string
 	typeEnv *types.TypeEnv
 	imports map[string]*types.ImportedIFCSig
+	scope   *types.TypeScope // M-V1-NOMINAL-TYPE-IDENTITY: the module's type-name resolver
+}
+
+// WithTypeScope installs the module's type-name resolver, the one the
+// elaborator used, so the types this builder re-reads from the AST carry the
+// same defining modules (M-V1-NOMINAL-TYPE-IDENTITY).
+func (b *Builder) WithTypeScope(s *types.TypeScope) *Builder {
+	b.scope = s
+	return b
 }
 
 // extractLabel returns the IFC label declared on an AST type, or ⊥ if none.
@@ -232,6 +241,13 @@ func BuildInterfaceWithTypesAndConstructors(module string, prog *core.Program, t
 func (b *Builder) Build(prog *core.Program, constructors map[string]*ConstructorInfo, astFile interface{}) (*Iface, error) {
 	iface := NewIface(b.module)
 
+	// The module's default tier (std/STABILITY.toml); "" outside the manifest.
+	modTier, err := ModuleTier(b.module)
+	if err != nil {
+		return nil, err
+	}
+	iface.Tier = modTier
+
 	// Extract exportable bindings from the program
 	exports, err := b.extractExports(prog)
 	if err != nil {
@@ -254,7 +270,7 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 	}
 
 	// Process each export
-	for name, binding := range exports {
+	for name := range exports {
 		// Get the type from the environment
 		typ, err := b.typeEnv.Lookup(name)
 		if err != nil {
@@ -287,12 +303,21 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 			// functions with concrete outer effects, e.g. std/sem's `! {SharedMem}`,
 			// into "same row variable with different extensions").
 			if hasRowVarEffects(fd.Effects) {
-				scheme.RowVars = types.FreeEffectRowVarNames(scheme.Type)
+				// Record rows are not effect rows: keep their quantifiers (#2157).
+				scheme.RowVars = append(types.FreeEffectRowVarNames(scheme.Type), types.QuantifiedRecordRows(scheme)...)
 			}
 		}
 
-		// Determine purity (for now, assume pure unless marked otherwise)
-		purity := b.determinePurity(binding)
+		// M-V1-TYVAR-HYGIENE (#2076, #2157): the scheme that crosses the module
+		// boundary carries canonical names, never the raw names of this module's
+		// inference context. iface.json and the digest are then byte-identical
+		// across runs and unaffected by unrelated declarations. Free variables
+		// (an unclosed scheme) are renamed into their own namespace; making them
+		// an error is decision D-1 and is not taken here.
+		scheme, _ = types.CanonicalizeScheme(scheme)
+
+		// Publish purity from the checked outer row after restoration.
+		purity := derivePurity(scheme, funcDecls[name])
 
 		// Create interface item
 		summary := summaries[name]
@@ -308,9 +333,32 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 				Module: b.module,
 				Name:   name,
 			},
+			Tier: FuncTier(modTier, funcDecls[name]),
+		}
+		if fd := funcDecls[name]; fd != nil {
+			if repl, note, ok := fd.Deprecation(); ok {
+				item.ReplacedBy, item.DeprecationNote = repl, note
+			}
 		}
 
 		iface.Exports[name] = item
+	}
+
+	// M-V1-NOMINAL-TYPE-IDENTITY: the module's type scope (installed by the
+	// pipeline, else built from the file's own declarations) stamps every type
+	// name this builder reads back from the AST.
+	scope := b.scope
+	if scope == nil {
+		scope = types.NewTypeScope(b.module)
+		if file, ok := astFile.(*ast.File); ok {
+			for _, list := range [][]ast.Node{file.Decls, file.Statements} {
+				for _, d := range list {
+					if td, ok := d.(*ast.TypeDecl); ok {
+						scope.BindLocal(td.Name)
+					}
+				}
+			}
+		}
 	}
 
 	// Add constructors to interface if provided
@@ -327,11 +375,11 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 				typeArgs[i] = &types.TVar2{Name: fmt.Sprintf("t%d", i), Kind: types.Star}
 			}
 			resultType = &types.TApp{
-				Constructor: &types.TCon{Name: ctorInfo.TypeName},
+				Constructor: &types.TCon{Name: ctorInfo.TypeName, Module: b.module},
 				Args:        typeArgs,
 			}
 		} else {
-			resultType = &types.TCon{Name: ctorInfo.TypeName}
+			resultType = &types.TCon{Name: ctorInfo.TypeName, Module: b.module}
 		}
 
 		// Create placeholder field types (will be refined by type checker)
@@ -363,7 +411,7 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 						// M-FIX-RECORD-UPDATE: Add type alias for record types
 						// This allows cross-module record update to expand type names to their underlying structure
 						if recordType, ok := typeDecl.Definition.(*ast.RecordType); ok {
-							internalType := astTypeToInternalType(recordType)
+							internalType := astTypeToInternalType(scope, recordType)
 							iface.AddTypeAlias(typeDecl.Name, internalType)
 							// M-XMOD-ALIAS-POLY: carry param names cross-module so
 							// importers can instantiate `Box[int]`.
@@ -380,7 +428,7 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 						// nominal newtypes (`type Gen = Gen(int)`) are *ast.AlgebraicType and are
 						// intentionally NOT matched here, so they stay nominal.
 						if aliasType, ok := typeDecl.Definition.(*ast.TypeAlias); ok {
-							if internalType := astTypeToInternalType(aliasType.Target); internalType != nil {
+							if internalType := astTypeToInternalType(scope, aliasType.Target); internalType != nil {
 								iface.AddTypeAlias(typeDecl.Name, internalType)
 								// M-XMOD-ALIAS-POLY: carry param names cross-module
 								// (e.g. `Ident[a]`, `Pair[a,b]`).
@@ -396,7 +444,7 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 								// Convert AST field types to internal types
 								fieldTypes := make([]types.Type, len(ctor.Fields))
 								for i, field := range ctor.Fields {
-									fieldTypes[i] = astTypeToInternalType(field.Type)
+									fieldTypes[i] = astTypeToInternalType(scope, field.Type)
 								}
 
 								// M-TAPP-FIX: Build TApp for parameterized ADTs
@@ -407,11 +455,11 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 										typeArgs[i] = &types.TVar2{Name: param, Kind: types.Star}
 									}
 									resultType = &types.TApp{
-										Constructor: &types.TCon{Name: typeDecl.Name},
+										Constructor: &types.TCon{Name: typeDecl.Name, Module: b.module},
 										Args:        typeArgs,
 									}
 								} else {
-									resultType = &types.TCon{Name: typeDecl.Name}
+									resultType = &types.TCon{Name: typeDecl.Name, Module: b.module}
 								}
 
 								// Update/add constructor with actual field types (overwriting placeholders)
@@ -425,7 +473,7 @@ func (b *Builder) Build(prog *core.Program, constructors map[string]*Constructor
 								singleCtor := algType.Constructors[0]
 								if len(singleCtor.Fields) == 1 && singleCtor.Fields[0].Type != nil {
 									if _, isRecord := singleCtor.Fields[0].Type.(*ast.RecordType); isRecord {
-										recordType := astTypeToInternalType(singleCtor.Fields[0].Type)
+										recordType := astTypeToInternalType(scope, singleCtor.Fields[0].Type)
 										if recordType != nil {
 											iface.AddTypeAlias(typeDecl.Name, recordType)
 										}
@@ -546,31 +594,21 @@ func (b *Builder) generalizeType(typ interface{}, name string) (*types.Scheme, e
 	return nil, fmt.Errorf("unexpected type kind for export %s: %T", name, typ)
 }
 
-// canonicalizeScheme ensures deterministic representation of a scheme
+// canonicalizeScheme copies a scheme for export. Class constraints are not
+// exported (unchanged behaviour). Canonical variable naming happens in Build,
+// after IFC label restoration, via types.CanonicalizeScheme.
 func (b *Builder) canonicalizeScheme(scheme *types.Scheme) (*types.Scheme, error) {
-	// Sort quantified variables for deterministic ordering
 	typeVars := make([]string, len(scheme.TypeVars))
 	copy(typeVars, scheme.TypeVars)
-	sort.Strings(typeVars)
 
 	rowVars := make([]string, len(scheme.RowVars))
 	copy(rowVars, scheme.RowVars)
-	sort.Strings(rowVars)
 
-	// TODO: Alpha-normalize the type to ensure consistent variable naming
-	// For now, just return with sorted quantifiers
 	return &types.Scheme{
 		TypeVars: typeVars,
 		RowVars:  rowVars,
 		Type:     scheme.Type,
 	}, nil
-}
-
-// determinePurity analyzes an expression to determine if it's pure.
-// TODO: implement real analysis — currently returns true unconditionally
-// (the type-class/row-effect system is the actual source of purity info).
-func (b *Builder) determinePurity(_ core.CoreExpr) bool {
-	return true
 }
 
 // schemeToString converts a type scheme to a deterministic string representation

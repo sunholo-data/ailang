@@ -1,10 +1,10 @@
 -- Build and parse a small binary packet with std/bytes: a 4-byte ASCII magic
 -- tag, a 1-byte version, a 2-byte big-endian payload length and the UTF-8
--- payload. Parsing uses slice and byteAt, which return Option, so a
+-- payload. Parsing uses sliceLen and byteAt, which return Option, so a
 -- truncated packet is reported instead of crashing. Demonstrates fromString,
--- fromInts, concatList, length, slice, byteAt and toString.
+-- fromInts, concatList, length, sliceLen, byteAt and toString.
 module examples/runnable/stdlib/bytes_packet_parse
-import std/bytes (fromString, fromInts, concatList, length, slice, byteAt, toString)
+import std/bytes (fromString, fromInts, concatList, length, sliceLen, byteAt, toString)
 import std/option (Option, Some, None)
 
 func encode(version: int, payload: string) -> bytes {
@@ -14,8 +14,8 @@ func encode(version: int, payload: string) -> bytes {
 }
 
 -- Option chaining by match: any missing piece makes the whole parse None
-func decode(pkt: bytes) -> Option[string] = match (slice(pkt, 0, 4), byteAt(pkt, 4), byteAt(pkt, 5), byteAt(pkt, 6)) {
-  (Some(magic), Some(ver), Some(hi), Some(lo)) => if toString(magic) != "AILP" then None else match slice(pkt, 7, hi * 256 + lo) {
+func decode(pkt: bytes) -> Option[string] = match (sliceLen(pkt, 0, 4), byteAt(pkt, 4), byteAt(pkt, 5), byteAt(pkt, 6)) {
+  (Some(magic), Some(ver), Some(hi), Some(lo)) => if toString(magic) != "AILP" then None else match sliceLen(pkt, 7, hi * 256 + lo) {
     Some(body) => Some("v${show(ver)} ${show(hi * 256 + lo)} bytes: ${toString(body)}"),
     None => None
   },
@@ -31,7 +31,7 @@ export func main() -> () ! {IO} {
   let pkt = encode(2, "héllo, world")
   println("packet size: ${show(length(pkt))} bytes")
   report("full", pkt)
-  match slice(pkt, 0, 10) {
+  match sliceLen(pkt, 0, 10) {
     Some(cut) => report("truncated", cut),
     None => println("slice out of range")
   }

@@ -6,8 +6,8 @@
   "iteration": 38,
   "role": "planner",
   "verified_at": "58decf4f2f42bfc20eb267fc0b2368462cc32231",
-  "design_doc": "design_docs/planned/m-quorum-artifact-dir-stable.md",
-  "sprint_plan": "design_docs/planned/sprint-plan-quorum-artifact-dir.md",
+  "design_doc": "design_docs/implemented/v0_54_12/m-quorum-artifact-dir-stable.md",
+  "sprint_plan": "design_docs/implemented/v0_54_12/sprint-plan-quorum-artifact-dir.md",
   "github_issues": [],
   "tickets": [
     "quorum:artifact-dir-cwd-relative"

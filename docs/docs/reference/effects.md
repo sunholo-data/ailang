@@ -37,7 +37,7 @@ def process_data():
 
 **AILANG makes effects explicit:**
 
-```typescript
+```ailang
 -- AILANG - effects declared in signature
 func processData() -> Data ! {IO, FS} {
   println("Processing...");
@@ -58,7 +58,7 @@ func processData() -> Data ! {IO, FS} {
 
 Console input/output operations.
 
-```typescript
+```ailang
 import std/io (println, print, readLine)
 
 func greet(name: string) -> () ! {IO} {
@@ -102,7 +102,7 @@ An error from native activation must be handled explicitly by the application.
 which runs *other* programs), needs only `--caps IO`, never returns, and flushes
 telemetry/traces before the process ends. Shipped v0.10.1 (M-EXIT-CODE).
 
-```typescript
+```ailang
 import std/io (println, exit)
 
 export func main() -> () ! {IO} {
@@ -130,7 +130,7 @@ reason before exiting.
 
 File system operations.
 
-```typescript
+```ailang
 import std/fs (readFile, writeFile, exists)
 
 func copyFile(src: string, dst: string) -> () ! {FS} {
@@ -166,14 +166,14 @@ AILANG_FS_SANDBOX=/tmp/sandbox ailang run --caps FS --entry main program.ail
 
 When set, all file paths are resolved relative to the sandbox root:
 
-```typescript
+```ailang
 -- With AILANG_FS_SANDBOX=/tmp/sandbox:
 readFile("data.txt")       -- reads /tmp/sandbox/data.txt
 writeFile("out.txt", s)    -- writes /tmp/sandbox/out.txt
 listDir("subdir")          -- lists /tmp/sandbox/subdir
 ```
 
-This applies to **every** FS builtin (`readFile`, `writeFile`, `readFileBytes`, `writeFileBytes`, `appendFile`, `appendFileBytes`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`) and all `std/zip` operations. It also sets the working directory for `std/process` `exec`.
+This applies to **every** FS builtin (`readFile`, `writeFile`, `readFileBase64`, `writeFileBytes`, `appendFile`, `appendFileBytes`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`) and all `std/zip` operations. It also sets the working directory for `std/process` `exec`.
 
 If unset (the default), paths resolve normally from the process working directory.
 
@@ -187,7 +187,7 @@ If unset (the default), paths resolve normally from the process working director
 
 Time operations with deterministic mode support.
 
-```typescript
+```ailang
 import std/clock (now, sleep)
 
 func timedOperation() -> int ! {Clock, IO} {
@@ -261,6 +261,25 @@ func fetchJson(url: string) -> Result[Json, string] ! {Net} =
 - Private IP blocking (10.x.x.x, 192.168.x.x, etc.)
 - HTTPS enforcement (configurable)
 
+**Proxies (`HTTP_PROXY` / `HTTPS_PROXY` / `NO_PROXY`):** Net requests, and the HTTP Stream
+operations (`sseConnect`, `ssePost`, NDJSON POST), follow Go's standard proxy environment, chosen
+per request (redirect hops included). The `Net`/`Stream` capability, the protocol and domain
+allowlist checks, redirect limits, timeouts and the body-size cap apply either way. What changes is
+the IP guarantee:
+
+| Route | Target IP check |
+|-------|-----------------|
+| No proxy, or the host matches `NO_PROXY` | Resolved once, every answer validated, and the socket dials exactly that IP (pinned). |
+| Proxy, literal-IP target (`http://10.0.0.5/`) | Validated with no DNS; a blocked IP is refused before anything is dialed. |
+| Proxy, hostname target | Not resolved locally. The proxy picks the IP, so the pinned-IP guarantee does not hold. |
+
+A configured proxy is an operator trust decision. If a destination needs the pinned-IP guarantee,
+add it to `NO_PROXY` or leave the proxy unset for that process. Restricted policy mode
+(`ailang run --policy`) refuses a proxy outright with `E_NET_PROXY_REFUSED` /
+`E_STREAM_PROXY_REFUSED` instead of sending the request unpinned. WebSocket `connect` never uses a
+proxy. A proxy that buffers responses or cuts idle tunnels can delay or end SSE/NDJSON streams;
+the existing idle timeout and maximum duration still apply.
+
 **CLI Flags:**
 
 | Flag | Meaning |
@@ -276,7 +295,7 @@ func fetchJson(url: string) -> Result[Json, string] ! {Net} =
 
 Environment variable access.
 
-```typescript
+```ailang
 import std/env (getEnv)
 
 func getConfig() -> string ! {Env} {
@@ -299,7 +318,7 @@ Execute external commands with capability-based security. (This effect runs *oth
 programs. To set *this* program's own exit code — a CLI that must fail non-zero — use
 `exit(code)` from **`std/io`**, under the IO effect; see [Exit code](#exit-code) below.)
 
-```typescript
+```ailang
 import std/process (exec)
 import std/bytes (toString)
 
@@ -374,13 +393,13 @@ ailang run --caps IO,Process --process-max-output 5242880 --entry main module.ai
 
 Runnable example: [`examples/runnable/process_subcmd_allowlist.ail`](https://github.com/sunholo-data/ailang/blob/dev/examples/runnable/process_subcmd_allowlist.ail).
 
-The allowlist is a property of the **invocation**, not of the program's signature — run the `.ail` without the flag and it may exec anything. Signature-level narrowing (`! {Process[scope=...]}`) is tracked under [M-EFFECT-REFINEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md).
+The allowlist is a property of the **invocation**, not of the program's signature — run the `.ail` without the flag and it may exec anything. Signature-level narrowing (`! {Process[scope=...]}`) is tracked under [M-EFFECT-REFINEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-refinement.md).
 
 ### Stream Effect
 
 Real-time streaming I/O: WebSocket, SSE, and multi-source event multiplexing.
 
-```typescript
+```ailang
 import std/stream (connect, transmit, onEvent, runEventLoop, disconnect,
                    sourceOfConn, asyncReadStdinLines, asyncExecProcess, selectEvents,
                    StreamEvent, Message, Closed, StreamError, SourceText, SourceBytes)
@@ -428,7 +447,7 @@ ailang run --caps Stream,Process,IO --process-allowlist "echo,ffmpeg" --entry ma
 
 Effects are declared after the return type with `!`:
 
-```typescript
+```ailang sketch
 -- Single effect
 func greet() -> () ! {IO} { ... }
 
@@ -441,6 +460,13 @@ func add(x: int, y: int) -> int { x + y }
 -- Explicit pure annotation
 pure func factorial(n: int) -> int { ... }
 ```
+
+`pure` means exactly `! {}`. A `pure func` may omit the row or write `! {}`; a
+`pure func` that also declares a non-empty or open row (`! {IO}`, `! {Declassify}`,
+`! {e}`) is a type error — drop `pure` to keep the row, or drop the row. `ailang iface`
+derives each export's `"pure"` flag from its checked effect row in the same way: a
+labelled or declared-open outer row reports `false`. A `! {Declassify}` function is
+written as a plain `func`; `ailang verify` still admits it into the SMT fragment.
 
 ### Callback Function Types
 
@@ -464,7 +490,7 @@ are a breaking soundness correction targeting v0.56.0.
 
 Effects from called functions are combined:
 
-```typescript
+```ailang
 func helper() -> () ! {IO} {
   println("Helper called")
 }
@@ -480,7 +506,7 @@ func main() -> () ! {IO, FS} {
 
 Functions can be called in contexts with additional effects:
 
-```typescript
+```ailang
 func pureCalc(x: int) -> int { x * 2 }
 
 func effectful() -> int ! {IO} {
@@ -519,12 +545,12 @@ especially for capability-constrained (auditable/sandboxed) programs:
 
 | stdlib module | Capability | Notes |
 |---------------|-----------|-------|
-| `std/io` | `IO` | `print`, `println`, `readLine`, `writeBytes`, `flush`, `printErr`/`eprintln` |
+| `std/io` | `IO` | `print`, `println`, `readLine`, `writeBytes`, `flush`, `eprint`/`eprintln` |
 | `std/fs` | `FS` | file read/write |
 | `std/clock` | `Clock` | `now`, `sleep` (use a seed for deterministic time) |
 | `std/datetime` | `Clock` | `now()` is effectful; formatting/arithmetic are pure |
 | `std/net` | `Net` | HTTP; also needs `--net-allow-*` flags |
-| `std/rand` | `Rand` | `rand_int`, `rand_float`, `rand_bool`, `rand_seed`, `uuid4` |
+| `std/rand` | `Rand` | `randInt`, `randFloat`, `randBool`, `randSeed`, `uuid4` |
 | `std/env` | `Env` | environment variables (with an allowlist) |
 | `std/process` | `Process` | spawn external commands |
 | `std/ai` | `AI` | model calls |
@@ -538,7 +564,7 @@ requires `Rand`).
 
 You can limit how many times a function can perform an effect using **capability budgets**:
 
-```typescript
+```ailang
 -- Function limited to 5 IO operations (maximum)
 func rateLimited() -> () ! {IO @limit=5} {
   println("Call 1");  -- Uses 1/5 budget
@@ -618,7 +644,7 @@ ailang run --caps IO --no-budgets --entry main program.ail
 
 The type checker verifies effect declarations:
 
-```typescript
+```ailang
 -- Error: readFile requires FS but not declared
 func badFunction() -> string ! {IO} {
   readFile("data.txt")  -- Compile error!
@@ -629,7 +655,7 @@ func badFunction() -> string ! {IO} {
 
 Even if you declare an effect, you must grant it:
 
-```typescript
+```ailang
 func main() -> () ! {FS} {
   writeFile("output.txt", "data")
 }
@@ -647,7 +673,7 @@ ailang run --caps IO --entry main program.ail
 
 Functions can work with any effect set:
 
-```typescript
+```ailang
 -- Works with any effects
 func twice[e](f: () -> () ! {e}) -> () ! {e} {
   f();
@@ -670,7 +696,7 @@ capability grants are still required for concrete effects.
 
 Use pattern matching to handle effect boundaries:
 
-```typescript
+```ailang
 func maybeLog(verbose: bool, msg: string) -> () ! {IO} {
   if verbose then println(msg) else ()
 }
@@ -680,7 +706,7 @@ func maybeLog(verbose: bool, msg: string) -> () ! {IO} {
 
 Keep business logic pure, effects at boundaries:
 
-```typescript
+```ailang
 -- Pure business logic
 pure func calculateTax(amount: float) -> float {
   amount * 0.2
@@ -699,7 +725,7 @@ func processInvoice(id: string) -> () ! {IO, FS} {
 
 ### Mocking Effects (Planned)
 
-```typescript
+```ailang
 -- Future: Mock effects for testing
 test "file processing" with {
   FS.mock({
@@ -715,7 +741,7 @@ test "file processing" with {
 
 Use inline tests for pure functions:
 
-```typescript
+```ailang
 pure func double(x: int) -> int
   tests [
     (0, 0),

@@ -10,6 +10,21 @@ func (tc *CoreTypeChecker) defaultAmbiguities(
 	monotype Type,
 	constraints []ClassConstraint,
 ) (Substitution, Type, []ClassConstraint, error) {
+	return tc.defaultAmbiguitiesKeeping(monotype, constraints, nil)
+}
+
+// defaultAmbiguitiesKeeping is defaultAmbiguities that never defaults a
+// variable of keep. A variable free in the environment of an inner `let` (an
+// enclosing parameter's type, a rigid signature variable) is not ambiguous
+// there: the enclosing binding decides it. Defaulting it at the inner `let`
+// pinned it to int in CoreTI behind the enclosing scheme's back, so
+// `label[a](x: a, y: a) -> string { let big = x * y; … }` exported `(a, a)`
+// while its body was compiled at int (#2273 review).
+func (tc *CoreTypeChecker) defaultAmbiguitiesKeeping(
+	monotype Type,
+	constraints []ClassConstraint,
+	keep map[string]bool,
+) (Substitution, Type, []ClassConstraint, error) {
 
 	if !tc.defaultingConfig.Enabled {
 		return make(Substitution), monotype, constraints, nil
@@ -26,7 +41,7 @@ func (tc *CoreTypeChecker) defaultAmbiguities(
 
 	ambiguousVars := make(map[string]bool)
 	for v := range constraintVars {
-		if !monotypeVars[v] {
+		if !monotypeVars[v] && !keep[v] {
 			ambiguousVars[v] = true
 		}
 	}
@@ -290,6 +305,22 @@ func collectConstraintVars(t Type, vars map[string]bool) {
 
 // collectFreeVars collects all free type variables from a type.
 // Uses internal cycle detection via visited set.
+//
+// KNOWN DIVERGENCE (PR #2209 review): unlike typeVarOccurrences (free_vars.go),
+// this walk skips open records, a closed record's row, TRecord2 and labelled
+// types. Defaulting therefore treats a constrained variable under an open-record
+// field as ambiguous and defaults it. Routing it through typeVarOccurrences
+// changes std/sem's exported `bump_version` from `({ver: int, ...a})` to
+// `({ver: b, ...a})`, with the Num constraint dropped at the boundary, so it
+// waits for its own decision rather than riding on a soundness fix.
+//
+// Measured on the #2210/#2221 branch: routing it through collectFreeTypeVars
+// makes `bump_version({ver: "s", id: "x"})` from another module pass `check`
+// and fail at run time (`missing dictionary method: prelude::Num::String::add`),
+// because an exported scheme's class constraints do not reach the importer —
+// `export pure func inc(x: a) -> a = x + 1` has the same hole today. Defaulting
+// here is what keeps bump_version sound, so this walk stays until constraints
+// cross the module boundary.
 //
 // NOTE: Code outside the types package should use traverse.CollectFreeVars
 // which provides the same cycle-safe behavior with a cleaner API.

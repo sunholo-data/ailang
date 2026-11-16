@@ -361,6 +361,8 @@ let results = _sharedindex_find_by_embedding("items", query_emb, 10, 500, true)
 Combine both tiers for best results:
 
 ```ailang
+import std/sem (search_result)
+
 func hybrid_search(ns: string, query: string, top_k: int) -> list[search_result] ! {IO, SharedIndex} {
   -- Tier 1: Fast SimHash pre-filter (get top 100 candidates)
   let simhash_results = _sharedindex_find_simhash(ns, _simhash(query), 100, 1000, true)

@@ -269,11 +269,3 @@ func TestHandleGitHubWebhookLabeledNoWatcher(t *testing.T) {
 		t.Errorf("no watcher: got status %d, want %d", w.Code, http.StatusOK)
 	}
 }
-
-func TestFormatWebhookSetupCommand(t *testing.T) {
-	got := FormatWebhookSetupCommand("sunholo-data/ailang", "https://coordinator.example.com", "s3cr3t")
-	want := `gh webhook create --repo sunholo-data/ailang --events issues --url "https://coordinator.example.com/github/webhook" --secret "s3cr3t"`
-	if got != want {
-		t.Errorf("FormatWebhookSetupCommand() =\n  %s\nwant:\n  %s", got, want)
-	}
-}

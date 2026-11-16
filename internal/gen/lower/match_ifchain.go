@@ -49,7 +49,9 @@ func lowerIfChainMatch(m *core.Match, cti types.CoreTypeInfo) stmt.Stmt {
 	flag := fmt.Sprintf("$matched%d", m.ID())
 	needFlag := false
 
-	var rest []stmt.Stmt // statements implementing arms[i+1:]
+	// statements implementing arms[i+1:]; past the last arm, the RT002 trap
+	// (an unguarded irrefutable arm replaces it — nothing follows it).
+	rest := []stmt.Stmt{matchFailStmt(m, scrutinee)}
 	for i := len(m.Arms) - 1; i >= 0; i-- {
 		arm := m.Arms[i]
 		cond := patternCond(scrutinee, scrutType, arm.Pattern)
@@ -76,14 +78,10 @@ func lowerIfChainMatch(m *core.Match, cti types.CoreTypeInfo) stmt.Stmt {
 			}
 			armThen := append(append(binds, guardStmts...), guarded)
 			armStmt := stmt.IfStmt{Cond: cond, Then: armThen}
-			next := []stmt.Stmt{armStmt}
-			if len(rest) > 0 {
-				next = append(next, stmt.IfStmt{
-					Cond: stmt.UnOp{Op: stmt.OpNot, Operand: stmt.VarRef{Name: flag}},
-					Then: rest,
-				})
-			}
-			rest = next
+			rest = []stmt.Stmt{armStmt, stmt.IfStmt{
+				Cond: stmt.UnOp{Op: stmt.OpNot, Operand: stmt.VarRef{Name: flag}},
+				Then: rest,
+			}}
 			continue
 		}
 

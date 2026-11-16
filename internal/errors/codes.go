@@ -117,6 +117,27 @@ const (
 	MOD015 = "MOD015"
 
 	// ============================================================================
+	// Bytecode Errors (BC###)
+	// ============================================================================
+
+	// BC001 indicates a function the bytecode compiler tagged evaluator-only
+	// (EvalOnly) is reachable under --strict-bytecode, where no evaluator
+	// bridge is wired. Reported by `ailang check --strict-bytecode` and by a
+	// strict run or test before dispatch, instead of a mid-run VM CALL trap
+	// (M-BYTECODE-STRICT-256-REG-CEILING Phase A).
+	BC001 = "BC001"
+
+	// ============================================================================
+	// Contract Errors (CTR###)
+	// ============================================================================
+
+	// CTR004 refuses `run --verify-contracts` together with `--bytecode` or
+	// `--strict-bytecode` (including under --batch): the VM does not enforce
+	// contracts yet, so the combination used to run unchecked and exit 0
+	// (#1956, M-RUNTIME-CONTRACT-PARITY M1). Lifted when the VM enforces them.
+	CTR004 = "CTR004"
+
+	// ============================================================================
 	// Loader Errors (LDR###)
 	// ============================================================================
 
@@ -126,14 +147,20 @@ const (
 	// LDR002 indicates circular module dependency detected
 	LDR002 = "LDR002"
 
-	// LDR003 indicates duplicate module definition
+	// LDR003 indicates duplicate module definition: one module file loaded
+	// under two identities in one build (M1b, canonical module identity)
 	LDR003 = "LDR003"
 
 	// LDR004 indicates import of non-existent export
 	LDR004 = "LDR004"
 
-	// LDR005 indicates ambiguous import (multiple modules export same name)
+	// LDR005 indicates ambiguous import (multiple modules export same name, or
+	// two declared dependencies provide one module_prefix spelling)
 	LDR005 = "LDR005"
+
+	// LDR006 indicates an import satisfied only by a package the importing
+	// package does not declare (or a dependency importing the root package)
+	LDR006 = "LDR006"
 
 	// ============================================================================
 	// Import Errors (IMP###)
@@ -294,12 +321,19 @@ var ErrorRegistry = map[string]ErrorInfo{
 	MOD007: {MOD007, "module", "namespace", "Duplicate module-scope binding (let/func same name)"},
 	MOD015: {MOD015, "module", "namespace", "Imported name collides with a module-level definition or another import"},
 
+	// Bytecode errors
+	BC001: {BC001, "bytecode", "coverage", "Function is evaluator-only under --strict-bytecode"},
+
+	// Contract errors
+	CTR004: {CTR004, "runtime", "contract", "--verify-contracts is not enforced on the bytecode VM"},
+
 	// Loader errors
 	LDR001: {LDR001, "loader", "resolution", "Module not found"},
 	LDR002: {LDR002, "loader", "dependency", "Circular dependency"},
 	LDR003: {LDR003, "loader", "namespace", "Duplicate module"},
 	LDR004: {LDR004, "loader", "resolution", "Import not exported"},
 	LDR005: {LDR005, "loader", "resolution", "Ambiguous import"},
+	LDR006: {LDR006, "loader", "resolution", "Import from an undeclared package"},
 
 	// Import errors
 	IMP001: {IMP001, "import", "syntax", "Invalid import syntax"},
@@ -361,6 +395,7 @@ var ErrorRegistry = map[string]ErrorInfo{
 	RT007: {RT007, "runtime", "memory", "Out of memory"},
 	RT008: {RT008, "runtime", "timeout", "Timeout exceeded"},
 	RT009: {RT009, "runtime", "cycle", "Value initialization cycle detected"},
+	RT010: {RT010, "runtime", "unreachable", "unreachable(msg) was evaluated"},
 }
 
 // GetErrorInfo returns information about an error code

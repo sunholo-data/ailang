@@ -39,9 +39,9 @@ func (tc *CoreTypeChecker) checkCtorPatternScope(p *core.ConstructorPattern, scr
 	if adt, ok := tc.diagnosticCtorTypes[name]; ok {
 		// adt == "" marks a name defined by two different ADTs across loaded
 		// modules; which one is meant is unknowable here, so accept.
-		if scrutADT := extractADTName(scrutType); adt != "" && scrutADT != "" && scrutADT != adt {
+		if scrutADT := tc.scrutineeADTName(scrutType); adt != "" && scrutADT != "" && scrutADT != adt {
 			return NewMatchForeignConstructorError(
-				name, adt, scrutADT,
+				name, adt, scrutADT, writtenAlias(scrutType, scrutADT),
 				tc.lookupADTConstructors(adt), tc.lookupADTConstructors(scrutADT),
 				path,
 			)
@@ -55,12 +55,16 @@ func (tc *CoreTypeChecker) checkCtorPatternScope(p *core.ConstructorPattern, scr
 // elaborator resolved in scope (exact even when two in-scope ADTs share the
 // constructor name, e.g. an aliased import next to a local declaration), else
 // the name-keyed registry.
-func (tc *CoreTypeChecker) patternADT(p *core.ConstructorPattern) (string, bool) {
+//
+// The returned TypeRef carries the ADT's defining module
+// (M-V1-NOMINAL-TYPE-IDENTITY): the elaborator's TypeModule, else the
+// module registered with the constructor (SetConstructorModules).
+func (tc *CoreTypeChecker) patternADT(p *core.ConstructorPattern) (TypeRef, bool) {
 	if p.TypeName != "" {
-		return p.TypeName, true
+		return TypeRef{Module: p.TypeModule, Name: p.TypeName}, true
 	}
 	adt, ok := tc.constructorTypes[p.Name]
-	return adt, ok
+	return TypeRef{Module: tc.ctorADTModule[p.Name], Name: adt}, ok
 }
 
 // newUnknownConstructorError builds the TC_MATCH_001 diagnostic. The
@@ -68,7 +72,7 @@ func (tc *CoreTypeChecker) patternADT(p *core.ConstructorPattern) (string, bool)
 // otherwise the closest known constructor name.
 func (tc *CoreTypeChecker) newUnknownConstructorError(name string, scrutType Type, path []string) *TypeCheckError {
 	var suggestion string
-	if scrutADT := extractADTName(scrutType); scrutADT != "" {
+	if scrutADT := tc.scrutineeADTName(scrutType); scrutADT != "" {
 		if ctors := tc.lookupADTConstructors(scrutADT); len(ctors) > 0 {
 			sort.Strings(ctors)
 			if best := importhint.Closest(name, ctors); best != "" {

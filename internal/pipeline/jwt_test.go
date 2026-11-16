@@ -29,8 +29,8 @@ func TestJWT_DecodeExample(t *testing.T) {
 	// Verify each expected output line
 	expected := []string{
 		"JWT decoded successfully!",
-		"Subject: Some(1234567890)",
-		"Name: Some(Test User)",
+		`Subject: Some("1234567890")`,
+		`Name: Some("Test User")`,
 		"Expired at 1700000000: false",
 		"Issuer matches: true",
 		"Audience matches: true",

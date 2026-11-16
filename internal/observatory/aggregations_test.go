@@ -192,7 +192,6 @@ func TestRecalculateAggregates(t *testing.T) {
 	}
 	defer backend.Close()
 	ctx := context.Background()
-	db := backend.store.DB()
 
 	// Create workspace
 	ws := &Workspace{
@@ -251,7 +250,7 @@ func TestRecalculateAggregates(t *testing.T) {
 	})
 
 	// Recalculate aggregates
-	err = RecalculateTaskAggregates(ctx, db, "task-recalc")
+	err = backend.RecalculateTaskAggregates(ctx, "task-recalc")
 	if err != nil {
 		t.Fatalf("RecalculateTaskAggregates failed: %v", err)
 	}

@@ -219,7 +219,8 @@ func (g *Generator) isNullaryADTConstructor(vg *core.VarGlobal) bool {
 	if vg.Ref.Module == "$adt" && strings.HasPrefix(vg.Ref.Name, "make_") {
 		// M-CODEGEN-ADT-DOUBLE-PAREN: Parse the pattern and look up actual field count.
 		// Don't assume ALL $adt.make_* are nullary!
-		parts := strings.SplitN(vg.Ref.Name[5:], "_", 2) // Skip "make_"
+		base, _ := core.SplitADTFactoryModule(vg.Ref.Name) // M-V1-NOMINAL-TYPE-IDENTITY
+		parts := strings.SplitN(base[5:], "_", 2)          // Skip "make_"
 		if len(parts) == 2 {
 			typeName := parts[0]
 			ctorName := parts[1]

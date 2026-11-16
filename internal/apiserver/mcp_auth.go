@@ -184,8 +184,6 @@ func (s *Server) ValidateMCPConnectOnly() error {
 	switch {
 	case !s.mcpEnabled:
 		return errors.New("--mcp-connect-only needs --mcp-http")
-	case s.a2aEnabled:
-		return errors.New("--mcp-connect-only cannot be combined with --a2a: A2A skills are not behind the Bearer gate")
 	case s.oauthIssuer == "":
 		return errors.New("--mcp-connect-only needs --oauth-issuer")
 	}
@@ -235,15 +233,7 @@ func (ms *MCPServer) verifyToken(ctx context.Context, token string) (bool, error
 // verifier the gate also stamps identityHeader and applies the per-subject
 // limit (mcp_identity.go).
 func (ms *MCPServer) gatedHandler(next http.Handler, maxBody int64) http.Handler {
-	identity := ms.verifier != nil && ms.verifier.identity
-	var gate *protocol.BearerGate
-	var limit *IPRateLimiter
-	if identity {
-		gate = protocol.NewIdentityGate(ms.verifyIdentity, listedMetadataURL, 0, 0)
-		limit = ms.server.subjectLimit.limiter()
-	} else {
-		gate = protocol.NewBearerGate(ms.verifyToken, listedMetadataURL, 0, 0)
-	}
+	gate, identity, limit := ms.newGate()
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost || len(ms.gated) == 0 {
 			next.ServeHTTP(w, r)
@@ -266,6 +256,41 @@ func (ms *MCPServer) gatedHandler(next http.Handler, maxBody int64) http.Handler
 			}
 		}
 		if gatedCalls > 0 && !admitGated(gate, identity, limit, gatedCalls, w, r, firstID) {
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+// newGate builds the Bearer gate on the service's verifier: an identity gate
+// with the per-subject limit when the verifier returns an identity.
+func (ms *MCPServer) newGate() (*protocol.BearerGate, bool, *IPRateLimiter) {
+	if ms.verifier != nil && ms.verifier.identity {
+		return protocol.NewIdentityGate(ms.verifyIdentity, listedMetadataURL, 0, 0), true, ms.server.subjectLimit.limiter()
+	}
+	return protocol.NewBearerGate(ms.verifyToken, listedMetadataURL, 0, 0), false, nil
+}
+
+// a2aGatedHandler puts the Bearer gate in front of every /a2a/ request
+// (M-EXECUTOR-GE-A2A M2). Unlike the MCP gate there is no open method to let
+// through: every A2A call runs the service's code, and a message handler may
+// call a model. The agent card is mounted outside it, because a registry
+// reads the card before anyone signs in. One admit per request, so the
+// per-subject limit counts each message once.
+func (ms *MCPServer) a2aGatedHandler(next http.Handler, maxBody int64) http.Handler {
+	gate, identity, limit := ms.newGate()
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		body, err := io.ReadAll(http.MaxBytesReader(w, r.Body, maxBody))
+		if err != nil {
+			http.Error(w, "request body too large", http.StatusRequestEntityTooLarge)
+			return
+		}
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		var req struct {
+			ID json.RawMessage `json:"id"`
+		}
+		_ = json.Unmarshal(body, &req)
+		if !admitGated(gate, identity, limit, 1, w, r, req.ID) {
 			return
 		}
 		next.ServeHTTP(w, r)
@@ -350,7 +375,14 @@ func (s *Server) mountMCP(mux *http.ServeMux) {
 		// Outermost: a client-sent identity header never reaches the gate,
 		// a tool or a _headers binding.
 		h = withoutIdentityHeader(h)
-		if len(listed.gated) > 0 {
+		// Under --mcp-connect-only /a2a/ is gated like the listed tools; its
+		// 401 names the same resource metadata.
+		gateA2A := s.mcpConnectOnly && s.a2aEnabled
+		if gateA2A {
+			a2a := listed.a2aGatedHandler(s.corsWrap(s.handleA2ATask), s.maxUploadSize)
+			mux.Handle("/a2a/", withoutIdentityHeader(a2a))
+		}
+		if len(listed.gated) > 0 || gateA2A {
 			mux.HandleFunc(protectedResourceRoot, s.handleProtectedResource)
 			mux.HandleFunc(protectedResourcePath, s.handleProtectedResource)
 			mux.HandleFunc(protectedResourcePathBare, s.handleProtectedResource)

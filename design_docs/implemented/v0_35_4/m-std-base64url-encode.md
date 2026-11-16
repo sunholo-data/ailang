@@ -466,7 +466,7 @@ Single sitting, ~3 hours:
 - [design_docs/planned/v0_36_0/m-cache-module-id-encoding.md](../v0_36_0/m-cache-module-id-encoding.md)
   (0.36, neural) — "encoding" in the module-cache-key sense, unrelated to byte codecs.
 - [design_docs/planned/v0_29_0/m-stdlib-html-streaming.md](../v0_29_0/m-stdlib-html-streaming.md) (0.32, neural)
-- [design_docs/planned/m-prompt-version-freeze-on-first-bank.md](../m-prompt-version-freeze-on-first-bank.md)
+- [design_docs/implemented/v0_35_0/m-prompt-version-freeze-on-first-bank.md](../m-prompt-version-freeze-on-first-bank.md)
   — governs Phase 3. Not yet implemented, but its rule is what the new-version-not-in-place-edit
   decision anticipates.
 

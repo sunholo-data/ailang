@@ -22,8 +22,13 @@ export func readFile(path: string) -> string ! {FS} = _fs_readFile(path)
 -- "hi" on disk comes back as Ok("aGk="), not the bytes. Decode with std/bytes.fromBase64,
 -- or call readFileRaw to get Result[bytes, string] directly.
 -- @requires FS capability
+-- (Named readFileBase64, not readFileBytes: it returns base64 text, not bytes.)
 -- @sandbox Respects AILANG_FS_SANDBOX
-export func readFileBytes(path: string) -> Result[string, string] ! {FS} = _fs_readFileBytes(path)
+export func readFileBase64(path: string) -> Result[string, string] ! {FS} = _fs_readFileBytes(path)
+
+-- Deprecated spelling (renamed before 1.0): warns TC_DEPRECATED_001, removed before the v1.0.0 soak.
+@deprecated("readFileBase64")
+export func readFileBytes(path: string) -> Result[string, string] ! {FS} = readFileBase64(path)
 
 -- File writing
 -- Writes string content to file (truncates if exists)
@@ -161,7 +166,7 @@ export func mkdirResult(path: string) -> Result[(), string] ! {FS} = _fs_mkdirRe
 export func removeDirResult(path: string) -> Result[(), string] ! {FS} = _fs_removeDirResult(path)
 
 -- Read a file's raw bytes, returning Result instead of panicking (since v0.51.1)
--- The bytes come back unchanged: no base64 (unlike readFileBytes) and no UTF-8 decoding.
+-- The bytes come back unchanged: no base64 (unlike readFileBase64) and no UTF-8 decoding.
 -- @example match readFileRaw("image.png") { Ok(b) => length(b), Err(_) => 0 }
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
@@ -189,7 +194,7 @@ export func renameFileResult(oldPath: string, newPath: string) -> Result[(), str
 -- ============================================================================
 -- Composed from listDir/isDir/isFile — no Go builtin. Before this, every
 -- shell-less agent task hand-rolled the same walker (docs/sprint-retros,
--- 2026-09-16); walk/glob make "find every .ail under a tree" a one-liner.
+-- 2026-09-16); walk/walkWithSuffix make "find every .ail under a tree" a one-liner.
 
 -- walk: every regular FILE under root, recursively, sorted (std/string compare).
 -- Paths are "${root}/${name}" joins relative to how root was given — walk("src")
@@ -201,12 +206,18 @@ export func renameFileResult(oldPath: string, newPath: string) -> Result[(), str
 -- @sandbox Respects AILANG_FS_SANDBOX
 export func walk(root: string) -> [string] ! {FS} = sortBy(compare, walkDir(root))
 
--- glob: walk(root) filtered to paths ending in suffix. Suffix matching only
--- (".ail", "_test.go", "/README.md") — this is NOT fnmatch; "*.ail" matches nothing.
--- @example glob("examples", ".ail")
+-- walkWithSuffix: walk(root) filtered to paths ending in suffix. Suffix matching only
+-- (".ail", "_test.go", "/README.md") — this is NOT a glob; "*.ail" matches nothing.
+-- @example walkWithSuffix("examples", ".ail")
 -- @requires FS capability
 -- @sandbox Respects AILANG_FS_SANDBOX
-export func glob(root: string, suffix: string) -> [string] ! {FS} = filter(\p. endsWith(p, suffix), walk(root))
+export func walkWithSuffix(root: string, suffix: string) -> [string] ! {FS} = filter(\p. endsWith(p, suffix), walk(root))
+
+-- Deprecated spelling: it was never a glob. Warns TC_DEPRECATED_001, removed before the
+-- v1.0.0 soak, and the name stays retired for all of 1.x so it cannot return with a
+-- pattern meaning that would silently change old programs.
+@deprecated("walkWithSuffix")
+export func glob(root: string, suffix: string) -> [string] ! {FS} = walkWithSuffix(root, suffix)
 
 -- walkDir: unsorted file paths under one directory (listDir order, depth-first)
 func walkDir(dir: string) -> [string] ! {FS} = walkEntries(dir, listDir(dir))

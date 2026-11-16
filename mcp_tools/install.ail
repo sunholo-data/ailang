@@ -18,6 +18,8 @@ import std/json (Json)
 -- Empty harness returns ALL harnesses + the remote_mcp config block.
 @route("POST", "/api/mcp/install_guide")
 @mcp_name("install_guide")
+@mcp_title("AILANG install guide")
+@mcp_hints("readOnly", "idempotent")
 export func installGuide(harness: string, platform: string) -> Json ! {Env, FS} =
   -- The AILANG-side filtering by harness/platform is deferred to v2 (would
   -- require parsing the wrapped {harnesses: {...}} record); for v1 we return

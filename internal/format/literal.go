@@ -3,73 +3,25 @@ package format
 import (
 	"fmt"
 	"strconv"
-	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/strutil"
 )
 
-// literal.go holds the single canonical escaping routine for string payloads.
-// Every string emitter routes through escapeString so escaping is uniform and
-// precedence-safe. Character literals are parsed as single-char ast.StringLit
-// (parser_literals.go: "Treat chars as single-char strings for now"), so they
-// share the same escaping path; there is no separate ast.CharLit kind to print.
-// The AST stores the DECODED payload (the lexer resolves \n, \u{...}, etc.), so
-// the formatter re-escapes canonically rather than echoing source bytes. Debug
-// String() methods are never used as a fallback (design non-negotiable).
+// literal.go renders literals to canonical source. String payloads go through
+// strutil.Quote, the one escaper shared with `show` (M-V1-SHOW-TOTAL), so
+// escaping is uniform and precedence-safe. Character literals are parsed as
+// single-char ast.StringLit (parser_literals.go: "Treat chars as single-char
+// strings for now"), so they share the same escaping path; there is no
+// separate ast.CharLit kind to print. The AST stores the DECODED payload (the
+// lexer resolves \n, \u{...}, etc.), so the formatter re-escapes canonically
+// rather than echoing source bytes. Debug String() methods are never used as a
+// fallback (design non-negotiable).
 
 // escapeString renders a decoded string payload as a canonical double-quoted
-// AILANG string literal. It emits the minimal, round-trip-safe escape set that
-// the lexer's readEscape accepts (\n \t \r \\ \" plus \u{...} for other
-// control/non-graphic runes). A literal "${" is escaped as "\${" so the
-// re-lexer does not treat it as an interpolation start.
-func escapeString(s string) string {
-	var b strings.Builder
-	b.WriteByte('"')
-	runes := []rune(s)
-	for i := 0; i < len(runes); i++ {
-		r := runes[i]
-		switch r {
-		case '"':
-			b.WriteString(`\"`)
-		case '\\':
-			b.WriteString(`\\`)
-		case '\n':
-			b.WriteString(`\n`)
-		case '\t':
-			b.WriteString(`\t`)
-		case '\r':
-			b.WriteString(`\r`)
-		case '$':
-			// Only "${" would be misread as interpolation; escape the '$' there.
-			if i+1 < len(runes) && runes[i+1] == '{' {
-				b.WriteString(`\$`)
-			} else {
-				b.WriteRune('$')
-			}
-		default:
-			if isPrintableRune(r) {
-				b.WriteRune(r)
-			} else {
-				fmt.Fprintf(&b, `\u{%X}`, r)
-			}
-		}
-	}
-	b.WriteByte('"')
-	return b.String()
-}
-
-// isPrintableRune reports whether a rune can be emitted verbatim inside a
-// literal. Space is printable; other ASCII control characters and non-graphic
-// Unicode runes are escaped.
-func isPrintableRune(r rune) bool {
-	if r == ' ' {
-		return true
-	}
-	if r < 0x20 || r == 0x7f {
-		return false
-	}
-	return strconv.IsPrint(r)
-}
+// AILANG string literal: the minimal, round-trip-safe escape set the lexer's
+// readEscape accepts. See strutil.Quote for the table.
+func escapeString(s string) string { return strutil.Quote(s) }
 
 // literalString renders any ast.Literal to canonical source, or errors on an
 // unsupported/malformed payload. Integer and float literals reuse the lexer's

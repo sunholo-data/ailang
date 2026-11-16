@@ -12,7 +12,7 @@
  *     (V10 getBranch reconstruction pattern).
  *
  * Fail-open register (F1–F8) and platform-claim verification log live in
- * design_docs/planned/v0_35_0/m-dx-session-protocol-gate.md.
+ * design_docs/implemented/v0_35_0/m-dx-session-protocol-gate.md.
  * Tested against pi 0.84.3. Distribution: git (project-local extension).
  */
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";

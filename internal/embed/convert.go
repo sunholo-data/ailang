@@ -367,6 +367,7 @@ func IsUnit(v eval.Value) bool {
 //	JNull         → nil
 //	JBool(b)      → bool
 //	JNumber(x)    → float64
+//	JInt(n)       → int64 (exact; encoding/json prints every digit)
 //	JString(s)    → string
 //	JArray(xs)    → []interface{}            (recursive)
 //	JObject(kvs)  → map[string]interface{}   (recursive)
@@ -403,6 +404,16 @@ func jsonTaggedToGo(val *eval.TaggedValue) (interface{}, error) {
 		default:
 			return nil, fmt.Errorf("JNumber: expected FloatValue or IntValue, got %T", val.Fields[0])
 		}
+
+	case "JInt":
+		if len(val.Fields) != 1 {
+			return nil, fmt.Errorf("JInt: expected 1 field, got %d", len(val.Fields))
+		}
+		iv, ok := val.Fields[0].(*eval.IntValue)
+		if !ok {
+			return nil, fmt.Errorf("JInt: expected IntValue, got %T", val.Fields[0])
+		}
+		return int64(iv.Value), nil
 
 	case "JString":
 		if len(val.Fields) != 1 {

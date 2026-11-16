@@ -19,18 +19,20 @@ type moduleCompileResult struct {
 	TypeChecker   *types.CoreTypeChecker
 	DebugSink     *types.VerboseDebugSink
 	Warnings      []elaborate.Warning
-	ModuleTypeEnv *types.TypeEnv // Accumulated type environment for interface building
+	MatchWarnings []*types.MatchWarning // TC_MATCH_003, also in Warnings; cached with the module
+	ModuleTypeEnv *types.TypeEnv        // Accumulated type environment for interface building
 }
 
 // buildConstructorFactoryTypes creates $adt factory type schemes for a module's
 // locally-defined constructors and adds them to the external types map.
 // This allows the type checker to know about constructor factories.
 func buildConstructorFactoryTypes(
+	modID string,
 	constructors map[string]*ConstructorInfo,
 	externalTypes map[string]*types.Scheme,
 ) {
 	for ctorName, ctorInfo := range constructors {
-		factoryKey := fmt.Sprintf("$adt.make_%s_%s", ctorInfo.TypeName, ctorName)
+		factoryKey := core.ADTFactoryKey(modID, ctorInfo.TypeName, ctorName)
 
 		// M-POLY-ADT / M-TAPP-FIX / M-TYPE-LIST-SOUND round 3: build the factory
 		// scheme via the shared helper, which remaps declared param vars to the
@@ -38,6 +40,7 @@ func buildConstructorFactoryTypes(
 		// keeps compound fields ([a], (a,a), Option[a]) tied to the result type
 		// instead of leaking an orphaned free var that unified with anything.
 		externalTypes[factoryKey] = types.BuildConstructorFactoryScheme(
+			modID,
 			ctorInfo.TypeName,
 			ctorInfo.Arity,
 			ctorInfo.TypeParamCount,
@@ -57,6 +60,7 @@ func typeCheckAndLowerModule(
 	imports *moduleImports,
 	elaborator *elaborate.Elaborator,
 	cfg Config,
+	checkTestBodies bool, // #2232: the root module's only (checksTestBodies)
 ) (*moduleCompileResult, error) {
 	result := &moduleCompileResult{}
 
@@ -90,26 +94,35 @@ func typeCheckAndLowerModule(
 	// M-DX25.4: Pass constructor -> ADT type mappings to type checker
 	// This enables correct type inference for pattern matching on ADTs
 	ctorTypes := make(map[string]string)
-	adtTypeParams := make(map[string]int) // M-TAPP-FIX: Track type param counts
+	ctorModules := make(map[string]string) // M-V1-NOMINAL-TYPE-IDENTITY: ctor -> ADT's module
+	adtTypeParams := make(map[string]int)  // M-TAPP-FIX: keyed by types.NominalKey(module, ADT)
 
 	// M-TAPP-FIX: First add imported constructors (from depIface.GetConstructor)
 	for ctorName, typeName := range imports.ImportedCtorTypes {
 		ctorTypes[ctorName] = typeName
+		ctorModules[ctorName] = imports.ImportedCtorModules[ctorName]
 	}
-	for typeName, paramCount := range imports.ImportedADTTypeParams {
-		adtTypeParams[typeName] = paramCount
+	for adtKey, paramCount := range imports.ImportedADTTypeParams {
+		adtTypeParams[adtKey] = paramCount
 	}
 
 	// Then add local constructors (may override imports if same name)
 	for ctorName, ctorInfo := range unit.Constructors {
 		ctorTypes[ctorName] = ctorInfo.TypeName
+		ctorModules[ctorName] = modID
 		// M-TAPP-FIX: Only set if not already set (first ctor wins, all should have same count)
-		if _, exists := adtTypeParams[ctorInfo.TypeName]; !exists {
-			adtTypeParams[ctorInfo.TypeName] = ctorInfo.TypeParamCount
+		if adtKey := types.NominalKey(modID, ctorInfo.TypeName); true {
+			if _, exists := adtTypeParams[adtKey]; !exists {
+				adtTypeParams[adtKey] = ctorInfo.TypeParamCount
+			}
 		}
 	}
 	typeChecker.SetConstructorTypes(ctorTypes)
+	typeChecker.SetConstructorModules(ctorModules)
+	typeChecker.SetAmbiguousConstructors(imports.AmbiguousCtors)
 	typeChecker.SetADTTypeParams(adtTypeParams) // M-TAPP-FIX
+	// M-V1-MATCH-EXHAUSTIVENESS: every visible ADT's full constructor list.
+	typeChecker.SetMatchUniverse(moduleMatchUniverse(imports.MatchUniverse, modID, unit.Constructors))
 
 	// M-MATCH-XCHECK-ERROR-QUALITY: diagnostic-only registry of ALL transitively-
 	// loaded constructors, so foreign-constructor errors can enumerate an ADT's
@@ -119,29 +132,20 @@ func typeCheckAndLowerModule(
 
 	// M-FIX-RECORD-UPDATE: Pass type aliases to type checker for expansion during unification
 	// This enables `type NPC = { pos: Pos, name: string }` to work with record update
-	elabAliases := elaborator.GetTypeAliases()
-	for name, target := range elabAliases {
-		typeChecker.RegisterTypeAlias(name, target)
+	// M-FIX-RECORD-UPDATE / M-XMOD-ALIAS-POLY: local and imported aliases (with
+	// their params) expand during unification. M-V1-NOMINAL-TYPE-IDENTITY:
+	// every key is types.NominalKey(defining module, name), so an alias expands
+	// only its own module's TCon, and newtype ADTs stay nominal except against
+	// a record (field access).
+	aliasEnv := qualifiedAliasEnv(modID, imports, elaborator)
+	for key, target := range aliasEnv.Bodies {
+		typeChecker.RegisterTypeAlias(key, target)
 	}
-	// M-XMOD-ALIAS-POLY: register local parameterized-alias params so applied
-	// uses (`Box[int]`) instantiate their body during unification.
-	for name, params := range elaborator.GetTypeAliasParams() {
-		typeChecker.RegisterTypeAliasParams(name, params)
+	for key, params := range aliasEnv.Params {
+		typeChecker.RegisterTypeAliasParams(key, params)
 	}
-
-	// M-FIX-RECORD-UPDATE: Also register type aliases from imported modules
-	// This enables cross-module record update (e.g., { npc | pos: ... } where NPC is imported)
-	for name, target := range imports.ImportedTypeAliases {
-		typeChecker.RegisterTypeAlias(name, target)
-	}
-	// M-XMOD-ALIAS-POLY: register imported parameterized-alias params (cross-module).
-	for name, params := range imports.ImportedAliasParams {
-		typeChecker.RegisterTypeAliasParams(name, params)
-	}
-	// M-TYPE-NAME-SHADOW: imported aliases a local type name would capture are
-	// withheld above; using one is a loud error naming both definitions.
-	for name, msg := range imports.CapturedAliases {
-		typeChecker.RegisterAliasCapture(name, msg)
+	for key := range aliasEnv.Newtypes {
+		typeChecker.RegisterNewtypeADT(key)
 	}
 
 	// M-FIX-FLOAT-OP: Pass parameter type annotations to type checker
@@ -150,6 +154,9 @@ func typeCheckAndLowerModule(
 	if len(paramAnnots) > 0 {
 		typeChecker.SetParamTypeAnnotations(paramAnnots)
 	}
+	typeChecker.SetLiteralLambdas(elaborator.GetLiteralLambdas()) // #2238
+	// M-V1-RIGID-SIGNATURES (#2273): signature type variables are rigid.
+	typeChecker.SetRigidSignatures(elaborator.GetRigidSignatures())
 
 	// M-FIX-FLOAT-OP: Pass return type annotations to type checker
 	// This ensures PI() -> float ACTUALLY constrains inference to return float
@@ -174,8 +181,8 @@ func typeCheckAndLowerModule(
 
 	// M-DX19 + M-EQ-DERIVE-CONTAINERS: register `deriving (Eq)` instances and
 	// require Eq of every field
-	if err := registerDerivedEq(cfg, elaborator, imports.ImportedTypeAliases); err != nil {
-		return nil, fmt.Errorf("type error in %s: %w", modID, err)
+	if err := registerDerivedEq(cfg, modID, elaborator, aliasEnv.Bodies); err != nil {
+		return nil, fmt.Errorf("type error in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
 	}
 
 	// #327 interim diagnostic: record this module's function names so the type
@@ -201,8 +208,18 @@ func typeCheckAndLowerModule(
 		var err error
 		_, moduleTypeEnv, _, _, err = typeChecker.InferWithConstraints(decl, moduleTypeEnv)
 		if err != nil {
-			return nil, fmt.Errorf("type error in %s (decl %d): %w", modID, i, err)
+			return nil, fmt.Errorf("type error in %s (decl %d): %w", loader.DeclaredModuleDisplay(modID, unit.Surface), i, err)
 		}
+	}
+
+	// #2232: test blocks, properties and inline rows type-check against the
+	// module, though they are never compiled into it (check_bodies.go).
+	var checkBodies []elaborate.CheckBody
+	if checkTestBodies {
+		checkBodies = elaborator.CheckBodies()
+	}
+	if err := typeCheckTestBodies(checkBodies, typeChecker, moduleTypeEnv); err != nil {
+		return nil, fmt.Errorf("type error in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
 	}
 
 	// M-PERF-DOCPARSE: Apply all deferred CoreTI substitutions in one pass
@@ -215,16 +232,35 @@ func typeCheckAndLowerModule(
 	// `let r = step(); r.field` shape that the early gate in
 	// inferRecordAccess can't catch (receiver is still a TVar at that point).
 	if err := typeChecker.VerifyTaggedUnionFieldAccesses(); err != nil {
-		return nil, fmt.Errorf("type error in %s: %w", modID, err)
+		return nil, fmt.Errorf("type error in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
+	}
+
+	if err := checkTestBodyEffects(unit.Surface, checkBodies, typeChecker); err != nil {
+		return nil, fmt.Errorf("type error in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
+	}
+
+	// M-V1-MATCH-EXHAUSTIVENESS: a match whose unguarded arms miss a value of
+	// the scrutinee's type is an error (TC_MATCH_002) naming the missing
+	// pattern; an arm no value can reach is a warning (TC_MATCH_003). Runs on
+	// the finalised types, before any pass copies or rewrites matches. The
+	// test-only bodies' matches are checked the same way (#2232).
+	matchWarnings, err := typeChecker.VerifyMatchExhaustiveness(append(append([]core.CoreExpr{}, unit.Core.Decls...), checkBodyExprs(checkBodies)...)...)
+	if err != nil {
+		return nil, err
 	}
 
 	// M-SECRET-EFFECT (M5): static information-flow-control enforcement.
 	// A <secret> (or any <label>) value reaching a {not label} sink without an
 	// intervening ! {Declassify} step is a compile-time error. This is a
-	// self-contained surface-AST analysis (CheckModuleIFC) that reads only
-	// unit.Surface and never injects TLabelled types into CoreTI/codegen.
-	if ifcErrs := types.CheckModuleIFC(unit.Surface); len(ifcErrs) > 0 {
-		return nil, fmt.Errorf("type error in %s: %w", modID, ifcErrs[0])
+	// surface-AST analysis that reads unit.Surface plus the imported exports'
+	// IFC summaries (M-IFC-CROSS-MODULE, #1134: a library's sink refinements,
+	// parameter labels and return labels bind its importers), and never injects
+	// TLabelled types into CoreTI/codegen.
+	// The same walk reports the labelled call sites the trace must redact
+	// (M-TRACE-LABEL-AWARE); they are stamped on the final Core below.
+	ifcErrs, traceSites := types.CheckModuleIFCWithImportsAndTraceSites(unit.Surface, imports.IFC)
+	if len(ifcErrs) > 0 {
+		return nil, fmt.Errorf("type error in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), ifcErrs[0])
 	}
 
 	// Fill operator methods (resolve operators to type class methods)
@@ -233,54 +269,22 @@ func typeCheckAndLowerModule(
 		typeChecker.FillOperatorMethods(decl)
 	}
 
-	// M-CONTRACT-OPLOWERING-FIX: Type-check contract expressions to populate CoreTI.
-	// Without this, OpLowering hits CoreTI misses for operators in ensures/requires clauses,
-	// causing comparison ops to be deferred as raw Intrinsic nodes that fail at runtime.
-	if unit.Core.Meta != nil {
-		// Build a map of function name -> Lambda params for contract env construction
-		funcParams := extractFuncParams(unit.Core)
+	// M-CONTRACT-OPLOWERING-FIX + #2248: type-check every contract clause as a
+	// bool predicate. It populates CoreTI for op-lowering, and an inference
+	// error is TC_CONTRACT_001 (it used to be swallowed: check_bodies.go).
+	checkedContracts, err := typeCheckContracts(unit.Core, typeChecker, moduleTypeEnv)
+	if err != nil {
+		return nil, fmt.Errorf("type error in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
+	}
 
-		for funcName, meta := range unit.Core.Meta {
-			if len(meta.Contracts) == 0 {
-				continue
-			}
-
-			// Build contract environment: module env + function params + result
-			contractEnv := moduleTypeEnv
-
-			// Bind function parameters from the function's type signature
-			if binding, err := moduleTypeEnv.Lookup(funcName); err == nil {
-				paramTypes, retType := extractFuncSignature(binding)
-
-				// Bind parameters by name (from Core Lambda) with types (from type env)
-				if params, ok := funcParams[funcName]; ok {
-					for i, paramName := range params {
-						if i < len(paramTypes) {
-							contractEnv = contractEnv.Extend(paramName, paramTypes[i])
-						}
-					}
-				}
-
-				// Bind "result" for ensures clauses
-				if retType != nil {
-					contractEnv = contractEnv.Extend("result", retType)
-				}
-			}
-
-			for _, contract := range meta.Contracts {
-				if contract.Expr == nil {
-					continue
-				}
-				// Infer types for contract expression — populates CoreTI as side effect.
-				// Errors are non-fatal: contract type-checking is best-effort for CoreTI population.
-				_, _, _, _, inferErr := typeChecker.InferWithConstraints(contract.Expr, contractEnv)
-				if inferErr != nil && cfg.DebugCompile {
-					fmt.Fprintf(os.Stderr, "[DEBUG] Contract type inference for %s: %v\n", funcName, inferErr)
-				}
-				// Also fill operator methods for contract expressions
-				typeChecker.FillOperatorMethods(contract.Expr)
-			}
+	// The contracts' matches (every clause is now inferred, so every one is
+	// checked; VerifyMatchExhaustiveness sorts its errors).
+	if len(checkedContracts) > 0 {
+		ws, err := typeChecker.VerifyMatchExhaustiveness(checkedContracts...)
+		if err != nil {
+			return nil, err
 		}
+		matchWarnings = append(matchWarnings, ws...)
 	}
 
 	// M-DX23: Capture type info for codegen
@@ -290,9 +294,13 @@ func typeCheckAndLowerModule(
 	if err := runPostTypeCheckPhases(unit, modID, typeChecker, cfg); err != nil {
 		return nil, err
 	}
+	if unmatched := core.MarkTraceRedactions(unit.Core, traceSites); cfg.DebugCompile && len(traceSites) > 0 {
+		fmt.Fprintf(os.Stderr, "[DEBUG] trace redaction for %s: %d labelled call sites, %d with no Core call %v\n", modID, len(traceSites), len(unmatched), unmatched)
+	}
 
-	// Collect exhaustiveness warnings
-	for _, w := range elaborator.GetWarnings() {
+	// TC_MATCH_003: unreachable match arms
+	result.MatchWarnings = matchWarnings
+	for _, w := range matchWarnings {
 		result.Warnings = append(result.Warnings, w)
 	}
 	result.ModuleTypeEnv = moduleTypeEnv
@@ -339,7 +347,7 @@ func runPostTypeCheckPhases(
 	// Validate effects (M-SOUNDNESS)
 	// Compare declared effects from Surface AST with required effects from Core AST
 	if err := ValidateEffectsWithCalls(unit.Surface, unit.Core, typeChecker.CoreTI, typeChecker.ApplicationEffects, typeChecker.DeclaredLambdaEffectRow, typeChecker.EffectValueType); err != nil {
-		return fmt.Errorf("effect checking failed in %s: %w", modID, err)
+		return fmt.Errorf("effect checking failed in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
 	}
 
 	// Perform monomorphization unless explicitly disabled
@@ -386,6 +394,7 @@ func runPostTypeCheckPhases(
 	// too. See internal/pipeline/show_normalize.go.
 	{
 		normalizer := NewShowNormalizer(&typeChecker.CoreTI)
+		normalizer.Generic = typeChecker.DefaultedNodes() // #2273
 		normalized, err := normalizer.Normalize(unit.Core)
 		if err != nil {
 			return fmt.Errorf("show normalization failed in %s: %w", modID, err)
@@ -521,26 +530,28 @@ func buildAndRegisterInterface(
 	modID string,
 	moduleTypeEnv *types.TypeEnv,
 	modLinker *link.ModuleLinker,
-	importedAliases map[string]types.Type,
-	localAliases map[string]types.Type,
-	aliasParams map[string][]string,
+	scope *types.TypeScope,
+	aliases *aliasTables,
 	derivedEq []string,
+	ifcImports types.IFCImports,
 ) error {
 	// Convert pipeline constructors to iface constructors
 	ifaceCtors := convertToIfaceConstructors(unit.Constructors)
-	unitIface, err := iface.BuildInterfaceWithTypesAndConstructors(modID, unit.Core, moduleTypeEnv, unit.Surface, ifaceCtors)
+	// The export summaries see this module's imports, so a wrapper over an
+	// imported secret producer exports that taint (transitive libraries, #1134).
+	// The type scope qualifies every type name the interface re-reads from the
+	// AST (constructor fields, alias bodies) exactly as the elaborator did.
+	unitIface, err := iface.NewBuilder(modID, moduleTypeEnv).WithIFCImports(ifcImports.Sigs).WithTypeScope(scope).Build(unit.Core, ifaceCtors, unit.Surface)
 	if err != nil {
 		return fmt.Errorf("interface build error in %s: %w", modID, err)
 	}
 
-	closeInterfaceTypes(unitIface, importedAliases, localAliases, aliasParams)
+	closeInterfaceTypes(unitIface, aliases)
 
 	// M-TYPE-ALIAS: Embed transitive type aliases referenced in exported function signatures.
 	// When Package B exports getUsage() -> Result[Usage, string] and Usage is defined in
 	// Package A, we need Usage in B's interface so Package C can resolve it transitively.
-	if len(importedAliases) > 0 {
-		embedTransitiveAliases(unitIface, importedAliases)
-	}
+	embedTransitiveAliases(unitIface, aliases)
 
 	// SetDerivedEq also finalizes the digest after closure and transitive embedding.
 	if err := unitIface.SetDerivedEq(derivedEq); err != nil {
@@ -554,67 +565,89 @@ func buildAndRegisterInterface(
 
 // embedTransitiveAliases adds imported type aliases to a module's interface when they are
 // referenced in the module's exported function signatures or constructor types.
-func embedTransitiveAliases(ifc *iface.Iface, importedAliases map[string]types.Type) {
-	// Collect all TCon names referenced in exported signatures
+//
+// M-V1-NOMINAL-TYPE-IDENTITY: an embedded alias is defined by ANOTHER module,
+// so it is stored under its NominalKey ("module::name"); the interface's own
+// aliases keep their bare names (ifaceAliasKey reads both).
+func embedTransitiveAliases(ifc *iface.Iface, aliases *aliasTables) {
+	// Collect all TCon keys referenced in exported signatures
 	referenced := make(map[string]bool)
 	for _, item := range ifc.Exports {
 		if item.Type != nil {
-			collectTConNames(item.Type.Type, referenced)
+			collectTConKeys(item.Type.Type, referenced)
 		}
 	}
 	for _, ctor := range ifc.Constructors {
 		for _, ft := range ctor.FieldTypes {
-			collectTConNames(ft, referenced)
+			collectTConKeys(ft, referenced)
 		}
-		collectTConNames(ctor.ResultType, referenced)
+		collectTConKeys(ctor.ResultType, referenced)
 	}
 
 	// Add imported aliases that are referenced but not already in the interface
-	for name := range referenced {
-		if _, exists := ifc.TypeAliases[name]; !exists {
-			if alias, ok := importedAliases[name]; ok {
-				ifc.AddTypeAlias(name, alias)
+	for key := range referenced {
+		module, _ := types.SplitNominalKey(key)
+		if module == ifc.Module || module == "" {
+			continue // the module's own aliases are already in the interface
+		}
+		if _, exists := ifc.TypeAliases[key]; exists {
+			continue
+		}
+		if alias, ok := aliases.Bodies[key]; ok {
+			ifc.AddTypeAlias(key, alias)
+			if params := aliases.Params[key]; len(params) > 0 {
+				ifc.AddTypeAliasParams(key, params)
 			}
 		}
 	}
 }
 
-// collectTConNames recursively collects all type constructor names from a type.
-func collectTConNames(t types.Type, names map[string]bool) {
+// collectTConKeys collects the NominalKey of every type constructor in t.
+func collectTConKeys(t types.Type, keys map[string]bool) {
+	collectTConRefs(t, func(c *types.TCon) { keys[c.KeyOf()] = true })
+}
+
+// collectTConRefs calls visit on every type constructor of a type.
+func collectTConRefs(t types.Type, visit func(*types.TCon)) {
 	if t == nil {
 		return
 	}
 	switch ty := t.(type) {
 	case *types.TCon:
-		names[ty.Name] = true
+		visit(ty)
 	case *types.TApp:
-		collectTConNames(ty.Constructor, names)
+		collectTConRefs(ty.Constructor, visit)
 		for _, arg := range ty.Args {
-			collectTConNames(arg, names)
+			collectTConRefs(arg, visit)
 		}
 	case *types.TFunc2:
 		for _, p := range ty.Params {
-			collectTConNames(p, names)
+			collectTConRefs(p, visit)
 		}
-		collectTConNames(ty.Return, names)
+		collectTConRefs(ty.Return, visit)
 	case *types.TRecord:
 		for _, ft := range ty.Fields {
-			collectTConNames(ft, names)
+			collectTConRefs(ft, visit)
 		}
-		collectTConNames(ty.Row, names)
+		collectTConRefs(ty.Row, visit)
 	case *types.TList:
-		collectTConNames(ty.Element, names)
+		collectTConRefs(ty.Element, visit)
 	case *types.TArray:
-		collectTConNames(ty.Element, names)
+		collectTConRefs(ty.Element, visit)
 	case *types.TMap:
-		collectTConNames(ty.Key, names)
-		collectTConNames(ty.Value, names)
+		collectTConRefs(ty.Key, visit)
+		collectTConRefs(ty.Value, visit)
 	case *types.TTuple:
 		for _, e := range ty.Elements {
-			collectTConNames(e, names)
+			collectTConRefs(e, visit)
 		}
 	}
 	// TVar2, TInt, TString, etc. — no TCon names to collect
+}
+
+// collectTConNames recursively collects all type constructor names from a type.
+func collectTConNames(t types.Type, names map[string]bool) {
+	collectTConRefs(t, func(c *types.TCon) { names[c.Name] = true })
 }
 
 // assembleModuleResult converts compiled units into LoadedModule entries

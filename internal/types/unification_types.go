@@ -184,6 +184,14 @@ func (u *Unifier) unifyTypeApps(t1 *TApp, t2 Type, sub Substitution) (Substituti
 
 		// Require same head constructor
 		if !equalHead(h1, h2) {
+			c1, ok1 := h1.(*TCon)
+			c2, ok2 := h2.(*TCon)
+			if ok1 && ok2 && c1.Name == c2.Name {
+				if err := checkNominalPair(c1, c2); err != nil {
+					return nil, err
+				}
+				return nil, fmt.Errorf("%s", nominalMismatchMsg(c2, c1))
+			}
 			return nil, fmt.Errorf("type constructor mismatch: %s vs %s", h1.String(), h2.String())
 		}
 
@@ -238,7 +246,7 @@ func (u *Unifier) unifyTypeApps(t1 *TApp, t2 Type, sub Substitution) (Substituti
 	// But we provide a better error message
 	if t2Con, ok := t2.(*TCon); ok {
 		h1, a1 := decomposeApp(t1)
-		if h1Con, ok := h1.(*TCon); ok && h1Con.Name == t2Con.Name {
+		if h1Con, ok := h1.(*TCon); ok && NominalSame(h1Con, t2Con) {
 			// Same constructor name but different application
 			return nil, fmt.Errorf("type %s expects %d type argument(s), but got 0 (did you mean %s?)",
 				t2Con.Name, len(a1), t1.String())
@@ -287,7 +295,7 @@ func equalHead(h1, h2 Type) bool {
 	con2, ok2 := h2.(*TCon)
 
 	if ok1 && ok2 {
-		return con1.Name == con2.Name
+		return NominalSame(con1, con2)
 	}
 
 	// Fallback: use Equals for other cases (e.g., type variables)

@@ -3,7 +3,7 @@
   "status": "completed",
   "created": "2026-10-08T20:13:49.298915+00:00",
   "design_doc": "design_docs/planned/ailang-core-triage/run-policy-worker-cache-dir.md",
-  "sprint_plan": "design_docs/planned/v0_52_6/run-policy-worker-cache-dir-sprint-plan.md",
+  "sprint_plan": "design_docs/implemented/v0_54_6/run-policy-worker-cache-dir-sprint-plan.md",
   "github_issues": [
     1547
   ],
@@ -103,7 +103,7 @@
     "home_isolation": "passed",
     "full_make_test": "not run, per user constraint"
   },
-  "implementation_report": "design_docs/planned/v0_52_6/run-policy-worker-cache-dir-implementation.md",
+  "implementation_report": "design_docs/implemented/v0_54_6/run-policy-worker-cache-dir-implementation.md",
   "pr_body_closure": "Closes #1547",
   "evaluation": {
     "result": "pass",

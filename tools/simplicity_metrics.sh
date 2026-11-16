@@ -14,6 +14,14 @@
 #   tools/simplicity_metrics.sh --json          # JSON only, no table
 #   tools/simplicity_metrics.sh --out <file>    # bank to <file> instead of
 #                                               #   .ailang/state/simplicity/<date>.json
+#   tools/simplicity_metrics.sh --offline       # skip the external-service rows
+#                                               #   (recorded null + reason, never 0)
+#   tools/simplicity_metrics.sh --services      # also the Cloud Run used-or-not check
+#                                               #   (gcloud, read-only, takes minutes)
+#
+# The external-service rows (SonarCloud, GitHub security, Cloud Run usage) come
+# from tools/simplicity_external.sh: optional, offline-safe, null with a reason
+# when the service or credential is missing.
 #
 # bash 3.2 compatible (the rig has no bash 4): no associative arrays, no ${v,,}.
 # macOS awk counts bytes under a UTF-8 locale; every size here is bytes on purpose.
@@ -27,12 +35,14 @@ MODULE="github.com/sunholo-data/ailang"
 RUN_TEST=1
 JSON_ONLY=0
 OUT=""
+EXT_FLAGS=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --no-test) RUN_TEST=0 ;;
     --json) JSON_ONLY=1 ;;
     --out) shift; OUT="$1" ;;
-    -h|--help) sed -n '2,20p' "$0"; exit 0 ;;
+    --offline|--services) EXT_FLAGS="$EXT_FLAGS $1" ;;
+    -h|--help) sed -n '2,28p' "$0"; exit 0 ;;
     *) echo "unknown flag: $1" >&2; exit 64 ;;
   esac
   shift
@@ -95,6 +105,51 @@ loc_of() { find "$@" -name '*.go' ! -name '*_test.go' -print0 2>/dev/null | xarg
 internal_loc="$(loc_of internal)"
 cmd_loc="$(loc_of cmd/ailang)"
 cmd_files="$(find cmd/ailang -name '*.go' ! -name '*_test.go' | wc -l | tr -d ' ')"
+
+# Language core vs platform, tracked non-test Go under internal/ (the handover
+# 2026-11-09 §2a split: 70% of production Go was platform). The core list is
+# READ from .claude/rules/architecture.md so the two cannot drift; if that line
+# moves, this stops loudly rather than splitting by a stale list.
+core_list="$(sed -n 's/^- \*\*core\*\* (compiler\/runtime): `internal\/{\([a-z,]*\)}`.*/\1/p' .claude/rules/architecture.md | head -1)"
+if [ -z "$core_list" ]; then
+  echo "simplicity_metrics: cannot read the core package list from .claude/rules/architecture.md" >&2
+  echo "  (the '- **core** (compiler/runtime): \`internal/{...}\`' line moved). Fix the parser." >&2
+  exit 1
+fi
+core_re="^internal/($(printf '%s' "$core_list" | tr ',' '|'))/"
+prod_go="$(git ls-files -- 'internal/*.go' | grep -v '_test\.go$' || true)"
+lines_of_list() { tr '\n' '\0' | xargs -0 cat 2>/dev/null | wc -l | tr -d ' '; }
+core_loc="$({ printf '%s\n' "$prod_go" | grep -E "$core_re" || true; } | lines_of_list)"
+platform_loc="$({ printf '%s\n' "$prod_go" | grep -vE "$core_re" | grep . || true; } | lines_of_list)"
+platform_loc_pct=$((platform_loc * 100 / (core_loc + platform_loc)))
+
+# ---- unreachable code ------------------------------------------------------
+# deadcode over every binary under cmd/, test files excluded from the roots
+# (-test=false), vendored third_party/ counted separately (goopus is 348 of them
+# and is not ours to delete). It CANNOT see reflection or data coupling and it
+# counts test-only helpers as dead: the number tracks direction, it is not a
+# deletion list (.claude/rules/coding-standards.md). A run that cannot fetch the
+# pinned tool records null with a reason; it is never reported as 0.
+DEADCODE="golang.org/x/tools/cmd/deadcode@v0.28.0"
+unreachable=null; unreachable_tp=null; unreachable_detail=""; unreachable_reason=""
+dead_out="$(mktemp -t deadcode.XXXXXX)"
+if go run "$DEADCODE" -test=false ./cmd/... >"$dead_out" 2>"$dead_out.err"; then
+  dead_total="$(grep -c 'unreachable func' "$dead_out" || true)"
+  if [ "$dead_total" -eq 0 ]; then
+    unreachable_reason="deadcode reported 0 unreachable funcs over ./cmd/... — the instrument is blind, not the code clean"
+  else
+    unreachable_tp="$(grep 'unreachable func' "$dead_out" | grep -c '^third_party/' || true)"
+    unreachable=$((dead_total - unreachable_tp))
+    # top packages; awk NR<= rather than head, so no writer dies of SIGPIPE under pipefail
+    unreachable_detail="$({ grep 'unreachable func' "$dead_out" | grep -v '^third_party/' || true; } \
+      | sed -E 's#^(.*)/[^/]+\.go:.*#\1#; s#^internal/##' | sort | uniq -c | sort -rn \
+      | awk 'NR <= 12 {printf "%s%s=%s", sep, $2, $1; sep=" "}')"
+  fi
+else
+  unreachable_reason="go run $DEADCODE failed: $(head -1 "$dead_out.err" | cut -c1-160)"
+fi
+rm -f "$dead_out" "$dead_out.err"
+[ -n "$unreachable_reason" ] && echo "simplicity_metrics: WARNING unreachable_funcs unmeasured: $unreachable_reason" >&2
 
 # ---- CLI surface -----------------------------------------------------------
 # The top-level command count is what an agent SEES at the top level: the rows
@@ -317,6 +372,17 @@ if [ "$RUN_TEST" -eq 1 ]; then
   fi
 fi
 
+# ---- external services -----------------------------------------------------
+# Optional and offline-safe by contract (null + reason, never 0, never a failed
+# run). A CRASH of that script is a bug in our code, not a missing network, so
+# it stops this run loudly instead of silently dropping the rows.
+# shellcheck disable=SC2086 # word-splitting the flag list is intended
+if ! ext_json="$(/bin/bash tools/simplicity_external.sh $EXT_FLAGS)" \
+   || ! printf '%s' "$ext_json" | jq -e 'type == "object"' >/dev/null; then
+  echo "simplicity_metrics: tools/simplicity_external.sh crashed or printed no JSON object" >&2
+  exit 1
+fi
+
 # ---- emit ------------------------------------------------------------------
 date_tag="$(date +%Y-%m-%d)"
 commit="$(git rev-parse --short HEAD)"
@@ -343,7 +409,13 @@ jq -n \
   --argjson tracked_files "$tracked_files" --argjson root_entries "$root_entries" --argjson root_sprint_files "$root_sprint_files" \
   --argjson planned_docs "$planned_docs" \
   --argjson test_core_seconds "$test_core_seconds" \
-  '{
+  --argjson core_loc "$core_loc" --argjson platform_loc "$platform_loc" --argjson platform_loc_pct "$platform_loc_pct" \
+  --arg core_list "$core_list" \
+  --argjson unreachable "$unreachable" --argjson unreachable_tp "$unreachable_tp" \
+  --arg unreachable_detail "$unreachable_detail" --arg unreachable_reason "$unreachable_reason" \
+  --argjson ext "$ext_json" \
+  'def why($r): if $r == "" then {} else {reason: $r} end;
+  {
     date: $date, commit: $commit,
     metrics: {
       closure_internal_packages: {value: $closure_internal, gate: null, dir: "le", how: "go list -deps over the language roots (leaves included)"},
@@ -356,6 +428,11 @@ jq -n \
       internal_loc:              {value: $internal_loc, gate: null, dir: "le", how: "non-test Go lines under internal/"},
       cmd_ailang_loc:            {value: $cmd_loc, gate: null, dir: "le", how: "non-test Go lines under cmd/ailang"},
       cmd_ailang_files:          {value: $cmd_files, gate: null, dir: "le", how: "non-test Go files under cmd/ailang"},
+      prod_loc_core:             {value: $core_loc, gate: null, dir: "le", how: ("tracked non-test Go lines in the language core internal/{" + $core_list + "} (list read from .claude/rules/architecture.md)")},
+      prod_loc_platform:         {value: $platform_loc, gate: null, dir: "le", how: "tracked non-test Go lines in every other internal/ package"},
+      prod_loc_platform_pct:     {value: $platform_loc_pct, gate: null, dir: "le", how: "platform share of tracked non-test internal/ Go, percent — informational"},
+      unreachable_funcs:         ({value: $unreachable, gate: 1301, dir: "le", detail: $unreachable_detail, how: "go run golang.org/x/tools/cmd/deadcode@v0.28.0 -test=false ./cmd/..., third_party/ excluded; a RATCHET at the 2026-11-12 count — counts test-only helpers and cannot see reflection, so never a deletion list on its own"} + why($unreachable_reason)),
+      unreachable_funcs_third_party: ({value: $unreachable_tp, gate: null, dir: "le", how: "same deadcode run, vendored third_party/ only (goopus)"} + why($unreachable_reason)),
       commands_top_level:        {value: $commands_top_level, gate: 20, dir: "le", how: "visible command rows in the dispatch table, as rendered into ailang --help (hidden dev/ops rows and folded aliases excluded)"},
       help_exit0_rate:           {value: $help_exit0_rate, gate: 100, dir: "ge", detail: (($help_total|tostring) + " routes probed" + (if $help_failed == "" then "" else "; failing:" + $help_failed end)), how: "share of visible commands, groups and group members whose `--help` exits 0 — bare names read out of the generated help of the binary itself, validated against ^[a-z][a-z0-9-]*$, then probed"},
       flag_names_distinct:       {value: $flag_names, gate: null, dir: "le", how: "distinct FlagSet definition names in cmd/ailang non-test sources — a CENSUS; D1 keeps superseded spellings registered, so a convergence release cannot lower it (see output_format_spellings)"},
@@ -376,7 +453,7 @@ jq -n \
       planned_design_docs:       {value: $planned_docs, gate: null, dir: "le", how: "markdown files under design_docs/planned"},
       test_core_seconds:         {value: $test_core_seconds, gate: 15, dir: "le", how: "wall time of make test-core"}
     }
-  }' > "$OUT"
+  } | .metrics += $ext' > "$OUT"
 
 if [ "$JSON_ONLY" -eq 1 ]; then cat "$OUT"; exit 0; fi
 
@@ -390,3 +467,9 @@ jq -r '
   (if $e.value.gate == null then "" elif ($e.value.value|type) != "number" then "?"
    elif ($e.value.dir == "le" and $e.value.value <= $e.value.gate) or ($e.value.dir == "ge" and $e.value.value >= $e.value.gate) then "ok" else "OPEN" end) as $s |
   [$e.key, $v, $g, $s] | @tsv' "$OUT" | awk -F'\t' 'BEGIN{printf "%-40s %10s %8s  %s\n","metric","value","gate",""} {printf "%-40s %10s %8s  %s\n",$1,$2,$3,$4}'
+unmeasured_rows="$(jq -r '.metrics | to_entries[] | select(.value.value == null and .value.reason != null) | "  \(.key): \(.value.reason)"' "$OUT")"
+if [ -n "$unmeasured_rows" ]; then
+  echo
+  echo "unmeasured (null, not 0):"
+  printf '%s\n' "$unmeasured_rows"
+fi

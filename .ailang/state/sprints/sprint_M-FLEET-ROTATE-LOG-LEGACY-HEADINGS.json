@@ -3,8 +3,8 @@
   "created": "2026-10-20T00:00:00Z",
   "estimated_duration_days": 1,
   "correlation_id": "sprint_M-FLEET-ROTATE-LOG-LEGACY-HEADINGS_fleet51_20261020",
-  "design_doc": "design_docs/planned/sprint-plan-rotate-log-legacy-headings.md",
-  "markdown_plan": "design_docs/planned/sprint-plan-rotate-log-legacy-headings.md",
+  "design_doc": "design_docs/implemented/v0_54_17/sprint-plan-rotate-log-legacy-headings.md",
+  "markdown_plan": "design_docs/implemented/v0_54_17/sprint-plan-rotate-log-legacy-headings.md",
   "github_issues": [],
   "registry_reuse": [
     {

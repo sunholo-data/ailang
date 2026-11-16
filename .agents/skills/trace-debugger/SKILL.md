@@ -51,9 +51,9 @@ export GOOGLE_CLOUD_PROJECT=your-project-id
 docker run -d -p 16686:16686 -p 4318:4318 jaegertracing/all-in-one
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 
-# Option 3: AILANG Observatory Dashboard (local UI)
+# Option 3: AILANG Observatory (local dashboard API, no UI)
 ailang server  # Starts server on localhost:1957
-# View traces at http://localhost:1957 → Observatory tab
+# Read traces with: ailang chains dashboard traces
 
 # Verify configuration
 ailang trace status
@@ -61,7 +61,7 @@ ailang trace status
 
 ## Observatory Dashboard Setup (v0.6.3+)
 
-The Observatory provides a local dashboard for viewing traces from Codex, Gemini CLI, and AILANG.
+The Observatory provides a local dashboard for viewing traces from Claude Code, Gemini CLI, and AILANG.
 
 ### Start the Server
 
@@ -70,9 +70,9 @@ ailang server
 # Or: make services-start
 ```
 
-### Configure Codex
+### Configure Claude Code
 
-Add to `~/.Codex/settings.json`:
+Add to `~/.claude/settings.json`:
 
 ```json
 {
@@ -87,7 +87,7 @@ Add to `~/.Codex/settings.json`:
 }
 ```
 
-**What Codex sends:** Events via OTLP logs (token counts, costs, model, session info)
+**What Claude Code sends:** Events via OTLP logs (token counts, costs, model, session info)
 
 ### Configure Gemini CLI
 
@@ -117,10 +117,10 @@ Add to `~/.gemini/settings.json`:
 
 ### Environment Variables Reference
 
-**Codex** (direct OTLP export to Observatory):
+**Claude Code** (direct OTLP export to Observatory):
 | Variable | Purpose | Example |
 |----------|---------|---------|
-| `CLAUDE_CODE_ENABLE_TELEMETRY` | Enable Codex telemetry | `1` |
+| `CLAUDE_CODE_ENABLE_TELEMETRY` | Enable Claude Code telemetry | `1` |
 | `OTEL_LOGS_EXPORTER` | Log export protocol | `otlp` |
 | `OTEL_METRICS_EXPORTER` | Metrics export protocol | `otlp` |
 | `OTEL_EXPORTER_OTLP_PROTOCOL` | Transport protocol | `http/json` |
@@ -138,7 +138,7 @@ Add to `~/.gemini/settings.json`:
 
 The Observatory receives data on:
 - `/v1/traces` - Trace spans (Gemini CLI, AILANG)
-- `/v1/logs` - Log records (Codex events)
+- `/v1/logs` - Log records (Claude Code events)
 - `/v1/metrics` - Metrics data
 
 Both protobuf and JSON formats are supported.
@@ -146,9 +146,9 @@ Both protobuf and JSON formats are supported.
 ### Verify Telemetry is Working
 
 1. Ensure `ailang server` is running
-2. Run a Codex or Gemini CLI command
-3. Open http://localhost:1957 → Observatory tab
-4. New traces should appear automatically
+2. Run a Claude Code or Gemini CLI command
+3. Run `ailang chains dashboard traces`
+4. New traces should appear
 
 **Note:** If server is not running, OTLP exports fail silently (no impact on CLI tools).
 
@@ -160,13 +160,13 @@ Quick check for recent traces with optional filtering.
 **Usage:**
 ```bash
 # Check last hour of traces
-.Codex/skills/trace-debugger/scripts/check_traces.sh
+.claude/skills/trace-debugger/scripts/check_traces.sh
 
 # Check last 4 hours, filter by eval
-.Codex/skills/trace-debugger/scripts/check_traces.sh 4 "eval.suite"
+.claude/skills/trace-debugger/scripts/check_traces.sh 4 "eval.suite"
 
 # Check compilation traces
-.Codex/skills/trace-debugger/scripts/check_traces.sh 1 "compile"
+.claude/skills/trace-debugger/scripts/check_traces.sh 1 "compile"
 ```
 
 ### `scripts/analyze_compilation.sh <file.ail>`
@@ -175,7 +175,7 @@ Run a file with tracing and analyze compilation phases.
 **Usage:**
 ```bash
 # Analyze compilation timing
-.Codex/skills/trace-debugger/scripts/analyze_compilation.sh examples/runnable/factorial.ail
+.claude/skills/trace-debugger/scripts/analyze_compilation.sh examples/runnable/factorial.ail
 ```
 
 ## Workflow

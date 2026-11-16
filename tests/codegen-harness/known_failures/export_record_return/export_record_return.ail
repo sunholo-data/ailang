@@ -1,0 +1,18 @@
+-- #2307: an exported function with a closed record return type gets a public
+-- Go wrapper returning struct{} that type-asserts the implementation's result
+-- to struct{} — it panics when a Go caller invokes it. summary() calls the
+-- implementation directly, so it matches; the defect is in the emitted source.
+module harness/kf/export_record_return
+import std/list (foldl)
+
+export func bestMatch(docs: [{ label: string, v: float }]) -> { label: string, score: float } {
+  foldl(\acc doc. {
+    let s = doc.v * 2.0
+    if s > acc.score then { label: doc.label, score: s } else acc
+  }, { label: "(none)", score: -1.0 }, docs)
+}
+
+export pure func summary() -> string {
+  let best = bestMatch([{ label: "cat", v: 1.0 }, { label: "dog", v: 3.0 }])
+  "${best.label} ${show(best.score)}"
+}

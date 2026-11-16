@@ -1,0 +1,33 @@
+module cmd/ailang/testdata/verify_bounded/q3
+
+-- Three recursive functions whose clauses are GENUINELY false. Under bounded
+-- unrolling the verifier cannot vouch for any sat model (the witness may be an
+-- invented frontier value), so all three are reported inconclusive. This is
+-- the design's declared conservative direction: a real bug on a recursive
+-- function degrades to "could not decide", never a false violation.
+
+export type SList = SNil | SCons(int, SList)
+
+export pure func lenAtLeast1(xs: SList) -> int
+ensures { result >= 1 } {
+  match xs {
+    SNil => 0,
+    SCons(_, rest) => 1 + lenAtLeast1(rest)
+  }
+}
+
+export pure func sumNonNeg(xs: SList) -> int
+ensures { result >= 0 } {
+  match xs {
+    SNil => 0,
+    SCons(x, rest) => x + sumNonNeg(rest)
+  }
+}
+
+export pure func lenAtMost2(xs: SList) -> int
+ensures { result <= 2 } {
+  match xs {
+    SNil => 0,
+    SCons(_, rest) => 1 + lenAtMost2(rest)
+  }
+}

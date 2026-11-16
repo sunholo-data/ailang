@@ -238,52 +238,28 @@ func TestDispatchWithoutPluginRepo(t *testing.T) {
 	}
 }
 
-func TestDispatchAPIKeyMode(t *testing.T) {
-	mock := &mockJobRunner{}
-	d := newDispatcherWithClient(mock, "proj-1", "europe-west1", "ailang")
-
-	params := coordinator.DispatchParams{
-		TaskID:   "task-apikey-1",
-		AgentID:  "external-agent",
-		AuthMode: "apikey",
-		APIKey:   "sk-ant-test-key-123",
-	}
-
-	err := d.Dispatch(context.Background(), params)
-	if err != nil {
-		t.Fatalf("unexpected error: %v", err)
-	}
-
-	// Should select the apikey job template
-	expectedJob := "projects/proj-1/locations/europe-west1/jobs/ailang-agent-executor-apikey"
-	if mock.lastReq.Name != expectedJob {
-		t.Errorf("job name = %q, want %q", mock.lastReq.Name, expectedJob)
-	}
-
-	// Should include AILANG_AUTH_MODE and ANTHROPIC_API_KEY in env overrides
-	envVars := mock.lastReq.Overrides.ContainerOverrides[0].Env
-	foundAuthMode := false
-	foundAPIKey := false
-	for _, env := range envVars {
-		val, _ := env.Values.(*runpb.EnvVar_Value)
-		switch env.Name {
-		case "AILANG_AUTH_MODE":
-			foundAuthMode = true
-			if val.Value != "apikey" {
-				t.Errorf("AILANG_AUTH_MODE = %q, want %q", val.Value, "apikey")
+// TestDispatchRefusesRetiredAPIKeyJobs: auth_mode "apikey" without a credit
+// account once selected a *-apikey job. Those jobs were retired 2026-11-10, so
+// dispatch must fail permanently, naming the retirement, before reaching the
+// Cloud Run API, rather than launch the OAuth job with an API-key marker.
+func TestDispatchRefusesRetiredAPIKeyJobs(t *testing.T) {
+	for _, variant := range []string{"", "go", "codex", "opencode", "pi"} {
+		t.Run("variant="+variant, func(t *testing.T) {
+			runner := &countingRunner{}
+			d := newDispatcherWithClient(runner, "proj-1", "europe-west1", "ailang")
+			err := d.Dispatch(context.Background(), coordinator.DispatchParams{
+				TaskID: "task-apikey-1", AgentID: "external-agent", AuthMode: "apikey", ExecutorVariant: variant,
+			})
+			if !errors.Is(err, coordinator.ErrDispatchPermanent) {
+				t.Fatalf("want ErrDispatchPermanent, got %v", err)
 			}
-		case "ANTHROPIC_API_KEY":
-			foundAPIKey = true
-			if val.Value != "sk-ant-test-key-123" {
-				t.Errorf("ANTHROPIC_API_KEY = %q, want %q", val.Value, "sk-ant-test-key-123")
+			if !strings.Contains(err.Error(), "retired") {
+				t.Errorf("error must name the retirement, got: %v", err)
 			}
-		}
-	}
-	if !foundAuthMode {
-		t.Error("AILANG_AUTH_MODE env var not found")
-	}
-	if !foundAPIKey {
-		t.Error("ANTHROPIC_API_KEY env var not found")
+			if runner.calls != 0 {
+				t.Errorf("Cloud Run API reached %d times for a retired job", runner.calls)
+			}
+		})
 	}
 }
 
@@ -318,41 +294,37 @@ func TestDispatchOAuthModeDefault(t *testing.T) {
 
 func TestJobSuffixForVariant(t *testing.T) {
 	tests := []struct {
-		variant  string
-		authMode string
-		want     string
-		wantErr  bool
+		variant string
+		want    string
+		wantErr bool
 	}{
-		{"", "oauth", "agent-executor", false},
-		{"", "apikey", "agent-executor-apikey", false},
-		{"default", "oauth", "agent-executor", false},
-		{"default", "apikey", "agent-executor-apikey", false},
-		{"go", "oauth", "agent-executor-go", false},
-		{"go", "apikey", "agent-executor-go-apikey", false},
-		{"gemini", "oauth", "", true},    // retired 2026-10-01: Gemini CLI gone since v0.22.0
-		{"gemini-go", "oauth", "", true}, //   ditto
-		{"codex", "oauth", "agent-executor-codex", false},
-		{"codex-go", "oauth", "agent-executor-codex-go", false},
-		{"opencode", "oauth", "agent-executor-opencode", false},
-		{"eval", "oauth", "agent-executor-eval", false},
-		{"eval-go", "oauth", "agent-executor-eval-go", false},
-		{"unknown-xyz", "oauth", "", true},
-		{"aider", "oauth", "", true},
+		{"", "agent-executor", false},
+		{"default", "agent-executor", false},
+		{"go", "agent-executor-go", false},
+		{"gemini", "", true},    // retired 2026-10-01: Gemini CLI gone since v0.22.0
+		{"gemini-go", "", true}, //   ditto
+		{"codex", "agent-executor-codex", false},
+		{"codex-go", "agent-executor-codex-go", false},
+		{"opencode", "agent-executor-opencode", false},
+		{"eval", "agent-executor-eval", false},
+		{"eval-go", "agent-executor-eval-go", false},
+		{"unknown-xyz", "", true},
+		{"aider", "", true},
 	}
 	for _, tt := range tests {
-		t.Run(tt.variant+"/"+tt.authMode, func(t *testing.T) {
-			got, err := jobSuffixForVariant(tt.variant, tt.authMode)
+		t.Run(tt.variant, func(t *testing.T) {
+			got, err := jobSuffixForVariant(tt.variant)
 			if tt.wantErr {
 				if err == nil {
-					t.Errorf("jobSuffixForVariant(%q, %q): expected error, got %q", tt.variant, tt.authMode, got)
+					t.Errorf("jobSuffixForVariant(%q): expected error, got %q", tt.variant, got)
 				}
 				return
 			}
 			if err != nil {
-				t.Fatalf("jobSuffixForVariant(%q, %q): unexpected error: %v", tt.variant, tt.authMode, err)
+				t.Fatalf("jobSuffixForVariant(%q): unexpected error: %v", tt.variant, err)
 			}
 			if got != tt.want {
-				t.Errorf("jobSuffixForVariant(%q, %q) = %q, want %q", tt.variant, tt.authMode, got, tt.want)
+				t.Errorf("jobSuffixForVariant(%q) = %q, want %q", tt.variant, got, tt.want)
 			}
 		})
 	}

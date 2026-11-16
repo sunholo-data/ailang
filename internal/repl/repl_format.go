@@ -72,13 +72,15 @@ func formatTyped(expr typedast.TypedNode, indent string) string {
 	}
 }
 
-// formatValue formats evaluation result
+// formatValue formats an evaluation result. An AILANG value is spelled exactly
+// as `show` spells it (M-V1-SHOW-TOTAL M4), so the REPL echo, `run --print`
+// and test messages agree with program output.
 func formatValue(val interface{}) string {
 	switch v := val.(type) {
 	case int64:
 		return fmt.Sprintf("%d", v)
 	case float64:
-		return fmt.Sprintf("%g", v)
+		return eval.Show(&eval.FloatValue{Value: v})
 	case bool:
 		if v {
 			return "true"
@@ -87,7 +89,7 @@ func formatValue(val interface{}) string {
 	case string:
 		return v
 	case eval.Value:
-		return v.String()
+		return eval.Show(v)
 	default:
 		return fmt.Sprintf("%v", v)
 	}

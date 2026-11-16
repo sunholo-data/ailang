@@ -18,11 +18,16 @@ func extractOk(result eval.Value) eval.Value {
 	return ctor.Fields[0]
 }
 
-// Streaming Builder Tests
+// decodeJSONForTest runs the shared decoder (eval.DecodeJSON) with the
+// evaluator sink — the walk jsonDecodeImpl uses.
+func decodeJSONForTest(s string) (eval.Value, error) {
+	return eval.DecodeJSON[eval.Value](s, eval.TaggedJSONSink{})
+}
+
+// Decoder tests (shared walk; the three former decoders are one)
 
 func TestJSONBuilder_Null(t *testing.T) {
-	builder := newJSONBuilder("null")
-	result, err := builder.build()
+	result, err := decodeJSONForTest("null")
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
@@ -32,8 +37,7 @@ func TestJSONBuilder_Null(t *testing.T) {
 }
 
 func TestJSONBuilder_True(t *testing.T) {
-	builder := newJSONBuilder("true")
-	result, err := builder.build()
+	result, err := decodeJSONForTest("true")
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
@@ -47,8 +51,7 @@ func TestJSONBuilder_True(t *testing.T) {
 }
 
 func TestJSONBuilder_False(t *testing.T) {
-	builder := newJSONBuilder("false")
-	result, err := builder.build()
+	result, err := decodeJSONForTest("false")
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
@@ -62,23 +65,21 @@ func TestJSONBuilder_False(t *testing.T) {
 }
 
 func TestJSONBuilder_Integer(t *testing.T) {
-	builder := newJSONBuilder("42")
-	result, err := builder.build()
+	result, err := decodeJSONForTest("42")
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
 	require.True(t, ok)
-	assert.Equal(t, "JNumber", ctor.CtorName)
+	assert.Equal(t, "JInt", ctor.CtorName)
 	require.Len(t, ctor.Fields, 1)
 
-	floatVal, ok := ctor.Fields[0].(*eval.FloatValue)
+	intVal, ok := ctor.Fields[0].(*eval.IntValue)
 	require.True(t, ok)
-	assert.Equal(t, 42.0, floatVal.Value)
+	assert.Equal(t, 42, intVal.Value)
 }
 
 func TestJSONBuilder_Float(t *testing.T) {
-	builder := newJSONBuilder("3.14")
-	result, err := builder.build()
+	result, err := decodeJSONForTest("3.14")
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
@@ -92,8 +93,7 @@ func TestJSONBuilder_Float(t *testing.T) {
 }
 
 func TestJSONBuilder_Scientific(t *testing.T) {
-	builder := newJSONBuilder("1.5e10")
-	result, err := builder.build()
+	result, err := decodeJSONForTest("1.5e10")
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
@@ -107,8 +107,7 @@ func TestJSONBuilder_Scientific(t *testing.T) {
 }
 
 func TestJSONBuilder_String(t *testing.T) {
-	builder := newJSONBuilder(`"hello"`)
-	result, err := builder.build()
+	result, err := decodeJSONForTest(`"hello"`)
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
@@ -136,8 +135,7 @@ func TestJSONBuilder_StringEscapes(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			builder := newJSONBuilder(tt.input)
-			result, err := builder.build()
+			result, err := decodeJSONForTest(tt.input)
 			require.NoError(t, err)
 
 			ctor, ok := result.(*eval.TaggedValue)
@@ -152,8 +150,7 @@ func TestJSONBuilder_StringEscapes(t *testing.T) {
 }
 
 func TestJSONBuilder_EmptyArray(t *testing.T) {
-	builder := newJSONBuilder("[]")
-	result, err := builder.build()
+	result, err := decodeJSONForTest("[]")
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
@@ -167,8 +164,7 @@ func TestJSONBuilder_EmptyArray(t *testing.T) {
 }
 
 func TestJSONBuilder_ArraySingle(t *testing.T) {
-	builder := newJSONBuilder("[1]")
-	result, err := builder.build()
+	result, err := decodeJSONForTest("[1]")
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
@@ -181,12 +177,11 @@ func TestJSONBuilder_ArraySingle(t *testing.T) {
 
 	elem, ok := listVal.Elements[0].(*eval.TaggedValue)
 	require.True(t, ok)
-	assert.Equal(t, "JNumber", elem.CtorName)
+	assert.Equal(t, "JInt", elem.CtorName)
 }
 
 func TestJSONBuilder_ArrayMultiple(t *testing.T) {
-	builder := newJSONBuilder("[1,2,3]")
-	result, err := builder.build()
+	result, err := decodeJSONForTest("[1,2,3]")
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
@@ -199,8 +194,7 @@ func TestJSONBuilder_ArrayMultiple(t *testing.T) {
 }
 
 func TestJSONBuilder_ArrayNested(t *testing.T) {
-	builder := newJSONBuilder("[[1],[2]]")
-	result, err := builder.build()
+	result, err := decodeJSONForTest("[[1],[2]]")
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
@@ -218,8 +212,7 @@ func TestJSONBuilder_ArrayNested(t *testing.T) {
 }
 
 func TestJSONBuilder_EmptyObject(t *testing.T) {
-	builder := newJSONBuilder("{}")
-	result, err := builder.build()
+	result, err := decodeJSONForTest("{}")
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
@@ -233,8 +226,7 @@ func TestJSONBuilder_EmptyObject(t *testing.T) {
 }
 
 func TestJSONBuilder_ObjectSingle(t *testing.T) {
-	builder := newJSONBuilder(`{"a":1}`)
-	result, err := builder.build()
+	result, err := decodeJSONForTest(`{"a":1}`)
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
@@ -255,12 +247,11 @@ func TestJSONBuilder_ObjectSingle(t *testing.T) {
 
 	valCtor, ok := kvRec.Fields["value"].(*eval.TaggedValue)
 	require.True(t, ok)
-	assert.Equal(t, "JNumber", valCtor.CtorName)
+	assert.Equal(t, "JInt", valCtor.CtorName)
 }
 
 func TestJSONBuilder_ObjectMultiple(t *testing.T) {
-	builder := newJSONBuilder(`{"a":1,"b":2}`)
-	result, err := builder.build()
+	result, err := decodeJSONForTest(`{"a":1,"b":2}`)
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
@@ -274,8 +265,7 @@ func TestJSONBuilder_ObjectMultiple(t *testing.T) {
 
 func TestJSONBuilder_ObjectKeyOrder(t *testing.T) {
 	// Order preservation is critical for deterministic round-trip
-	builder := newJSONBuilder(`{"z":1,"a":2,"m":3}`)
-	result, err := builder.build()
+	result, err := decodeJSONForTest(`{"z":1,"a":2,"m":3}`)
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
@@ -300,8 +290,7 @@ func TestJSONBuilder_ObjectKeyOrder(t *testing.T) {
 }
 
 func TestJSONBuilder_ObjectNested(t *testing.T) {
-	builder := newJSONBuilder(`{"a":{"b":1}}`)
-	result, err := builder.build()
+	result, err := decodeJSONForTest(`{"a":{"b":1}}`)
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
@@ -322,8 +311,7 @@ func TestJSONBuilder_ObjectNested(t *testing.T) {
 }
 
 func TestJSONBuilder_Mixed(t *testing.T) {
-	builder := newJSONBuilder(`[{"a":[1,2]},{"b":null}]`)
-	result, err := builder.build()
+	result, err := decodeJSONForTest(`[{"a":[1,2]},{"b":null}]`)
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
@@ -332,8 +320,7 @@ func TestJSONBuilder_Mixed(t *testing.T) {
 }
 
 func TestJSONBuilder_DeeplyNested(t *testing.T) {
-	builder := newJSONBuilder(`{"a":{"b":{"c":{"d":{"e":1}}}}}`)
-	result, err := builder.build()
+	result, err := decodeJSONForTest(`{"a":{"b":{"c":{"d":{"e":1}}}}}`)
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
@@ -360,22 +347,19 @@ func TestJSONBuilder_InvalidSyntax(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			builder := newJSONBuilder(tt.input)
-			_, err := builder.build()
+			_, err := decodeJSONForTest(tt.input)
 			assert.Error(t, err, "Expected error for invalid JSON")
 		})
 	}
 }
 
 func TestJSONBuilder_WhitespaceOnly(t *testing.T) {
-	builder := newJSONBuilder("   \n\t  ")
-	_, err := builder.build()
+	_, err := decodeJSONForTest("   \n\t  ")
 	assert.Error(t, err, "Expected error for whitespace-only input")
 }
 
 func TestJSONBuilder_UnicodeEmoji(t *testing.T) {
-	builder := newJSONBuilder(`{"emoji":"🎉"}`)
-	result, err := builder.build()
+	result, err := decodeJSONForTest(`{"emoji":"🎉"}`)
 	require.NoError(t, err)
 
 	ctor, ok := result.(*eval.TaggedValue)
@@ -396,7 +380,8 @@ func TestJSONDecodeBuiltin_ValidJSON(t *testing.T) {
 		{"null", "null", "JNull"},
 		{"true", "true", "JBool"},
 		{"false", "false", "JBool"},
-		{"integer", "42", "JNumber"},
+		{"integer", "42", "JInt"},
+		{"integral float", "42.0", "JNumber"},
 		{"float", "3.14", "JNumber"},
 		{"string", `"hello"`, "JString"},
 		{"array", "[1,2,3]", "JArray"},

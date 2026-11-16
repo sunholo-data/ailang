@@ -5,6 +5,13 @@ on:
     tags:
       - 'v*'
       - '!v*-*'  # ignore pre-release tags (e.g. v0.24.1-rc1) — no CLI release/binaries for those
+  # Dry run of the release gate ONLY (m-v1-release-gates §1.5): runs `ci-gate` against `sha`;
+  # every build/publish job is skipped, nothing is tagged or released.
+  workflow_dispatch:
+    inputs:
+      sha:
+        description: 'Commit SHA to judge (dry run: gate only, nothing is built or published)'
+        required: true
 
 # Least-privilege default. Only `create-release` escalates to
 # `contents: write` (publish release) + `id-token: write` (cosign).
@@ -14,18 +21,67 @@ permissions:
   contents: read
 
 jobs:
+  # Release test gate (m-v1-release-gates §1). Nothing is built, signed or drafted unless every
+  # check-run named in tools/ci/release_required_checks.txt concluded `success` on the tagged SHA
+  # (all runs per name). Queries the recorded checks — it does not re-run the suite. Pending or
+  # missing checks are polled for up to 90 min (a tag pushed with its commit waits for CI; build.yml's per-OS jobs have
+  # taken 45–77 min on a busy queue), then
+  # fail closed. A known flake: re-run the failed job, then re-run this workflow. Emergency: an
+  # annotated tag carrying `release-gate-override: <issue-url> <reason>` waives the red checks and
+  # is printed at the top of the release notes.
+  ci-gate:
+    name: CI gate (required checks green on the tagged SHA)
+    runs-on: ubuntu-latest
+    timeout-minutes: 100
+    permissions:
+      contents: read
+      checks: read
+    outputs:
+      override: ${{ steps.gate.outputs.override }}
+      waived: ${{ steps.gate.outputs.waived }}
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+    - name: Fetch the annotated tag object (override marker)
+      # actions/checkout may materialise the tag without its annotation; fetch the tag object
+      # itself so `git cat-file -t` sees an annotated tag as one.
+      if: github.event_name == 'push'
+      env:
+        TAG: ${{ github.ref_name }}
+      run: git fetch --no-tags --force origin "+refs/tags/${TAG}:refs/tags/${TAG}"
+
+    - name: Require the release checks
+      id: gate
+      env:
+        GH_TOKEN: ${{ github.token }}
+        EVENT: ${{ github.event_name }}
+        TAG: ${{ github.ref_name }}
+        TAG_SHA: ${{ github.sha }}
+        DRY_RUN_SHA: ${{ inputs.sha }}
+      run: |
+        set -euo pipefail
+        if [ "$EVENT" = workflow_dispatch ]; then
+          echo "Dry run: judging $DRY_RUN_SHA (nothing will be built or published)"
+          bash tools/ci/require_checks.sh "$DRY_RUN_SHA"
+        else
+          bash tools/ci/require_checks.sh --tag "$TAG" "$TAG_SHA"
+        fi
+
   build-wasm:
     name: Build WASM Binary
+    needs: [ci-gate]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Setup Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version: '1.26.10'
+        go-version: '1.26.11'
 
     - name: Get dependencies
       run: go mod download
@@ -97,23 +153,25 @@ jobs:
         echo "::endgroup::"
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: ailang-wasm
         path: bin/ailang-wasm.tar.gz
 
   build-bootstrap-content:
     name: Build Bootstrap Content Bundle
+    needs: [ci-gate]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Setup Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version: '1.26.10'
+        go-version: '1.26.11'
 
     - name: Get dependencies
       run: go mod download
@@ -122,18 +180,20 @@ jobs:
       run: make bootstrap-content
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: bootstrap-content
         path: bin/bootstrap-content.tar.gz
 
   build-examples:
     name: Build Examples Bundle
+    needs: [ci-gate]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Create examples.zip
       run: |
@@ -145,13 +205,15 @@ jobs:
         ls -lh examples.zip
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: examples
         path: examples.zip
 
   build-release:
     name: Build Release ${{ matrix.os }}
+    needs: [ci-gate]
+    if: github.event_name == 'push'
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     strategy:
@@ -187,12 +249,12 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Setup Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version: '1.26.10'
+        go-version: '1.26.11'
 
     - name: Get dependencies
       run: go mod download
@@ -224,30 +286,32 @@ jobs:
 
     - name: Upload artifact (Unix)
       if: matrix.os != 'windows-latest'
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: ${{ matrix.artifact_name }}
         path: ${{ matrix.artifact_name }}.tar.gz
 
     - name: Upload artifact (Windows)
       if: matrix.os == 'windows-latest'
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: ${{ matrix.artifact_name }}
         path: ${{ matrix.artifact_name }}.zip
 
   build-error-codes:
     name: Generate error_codes.json
+    needs: [ci-gate]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Setup Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version: '1.26.10'
+        go-version: '1.26.11'
 
     - name: Get dependencies
       run: go mod download
@@ -256,14 +320,15 @@ jobs:
       run: make error-codes
 
     - name: Upload artifact
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: error-codes
         path: dist/error_codes.json
 
   create-release:
     name: Create GitHub Release
-    needs: [build-release, build-wasm, build-bootstrap-content, build-examples, build-error-codes]
+    needs: [ci-gate, build-release, build-wasm, build-bootstrap-content, build-examples, build-error-codes]
+    if: github.event_name == 'push'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     # id-token: write is required for cosign keyless signing — the job
@@ -284,10 +349,10 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Download all artifacts
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         path: ./artifacts
 
@@ -330,7 +395,7 @@ jobs:
         echo "hashes=$(base64 -w0 < SHA256SUMS)" >> "$GITHUB_OUTPUT"
 
     - name: Install cosign
-      uses: sigstore/cosign-installer@6f9f17788090df1f26f669e9d70d6ae9567deba6 # v4.1.2
+      uses: sigstore/cosign-installer@756fe2d284c7292c4e9b62c8a28f1e5629c59532 # v4.1.3
       with:
         cosign-release: 'v2.4.1'
 
@@ -362,8 +427,21 @@ jobs:
 
     - name: Generate changelog
       id: changelog
+      env:
+        # Set only when ci-gate passed on a release-gate-override marker (m-v1-release-gates §1.3).
+        GATE_OVERRIDE: ${{ needs.ci-gate.outputs.override }}
+        GATE_WAIVED: ${{ needs.ci-gate.outputs.waived }}
       run: |
-        echo "## What's Changed" > changelog.md
+        : > changelog.md
+        if [ -n "$GATE_OVERRIDE" ]; then
+          {
+            echo "> **Released with a CI-gate override:** $GATE_OVERRIDE"
+            echo ">"
+            echo "> Required checks that were NOT green on this commit: $GATE_WAIVED"
+            echo ""
+          } >> changelog.md
+        fi
+        echo "## What's Changed" >> changelog.md
         echo "" >> changelog.md
         git log --pretty=format:"* %s (%h)" $(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")..HEAD >> changelog.md || echo "* Initial release" >> changelog.md
         echo "" >> changelog.md
@@ -414,7 +492,7 @@ jobs:
       # with "Cannot upload assets to an immutable release". The
       # finalize-release job below flips draft=false after provenance
       # uploads its attestation.
-      uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3
+      uses: softprops/action-gh-release@8a0cd651e5b2365bd640854a3fa5dfc70e4875f3 # v3
       with:
         name: AILANG ${{ steps.get_version.outputs.VERSION }}
         body_path: changelog.md
@@ -470,7 +548,7 @@ jobs:
       contents: write
     steps:
       - name: Download signed provenance from this run
-        uses: actions/download-artifact@v8
+        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
         with:
           name: multiple.intoto.jsonl
           path: provenance
@@ -497,3 +575,17 @@ jobs:
           jq -e 'any(.assets[]; .name == "multiple.intoto.jsonl" and .size > 0)' complete.json
           gh api --method PATCH "$endpoint" -F draft=false > published.json
           jq -e --arg tag "$TAG" '.tag_name == $tag and .draft == false' published.json
+
+  # The hosted executor and docs MCP servers in the official MCP Registry
+  # (registry/*/server.json). Remote-only listings: the URL is the prod
+  # service, so publishing on release is safe before promote-to-prod.
+  mcp-registry:
+    name: Publish to MCP Registry
+    needs: [finalize-release]
+    if: github.event_name == 'push'
+    permissions:
+      id-token: write
+      contents: read
+    uses: ./.github/workflows/publish-mcp-registry.yml
+    with:
+      version: ${{ github.ref_name }}

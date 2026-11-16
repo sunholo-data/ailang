@@ -372,6 +372,7 @@ type ContractSpec struct {
 	Expr     interface{} // The contract expression (ast.Expr or core.CoreExpr)
 	Message  string      // Auto-generated message from source (e.g., "limit > 0")
 	Location string      // Source location for error messages (e.g., "api.ail:15")
+	Function string      // Declaring function, named in violation messages and trace events
 }
 
 // FunctionValue represents a function value

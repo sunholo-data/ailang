@@ -457,7 +457,7 @@ immediately before committing, and keep the M2→M3 gap short (a concurrent sess
 | `TestGateLint_Repo` | **manual falsification drill (AC8)**: create `internal/pipeline/scratch_gatelint_test.go` containing `testing.Short()` → `TestGateLint_Repo` FAILs naming that path → delete the file → PASS | **`grep -c 'testing.Short()' internal/pipeline/scratch_gatelint_test.go` → 1 before the failing run, and `ls` → No such file after.** The drill's rc means nothing without both |
 | AC10(a) | point the probe transport at a live proxy instead of `127.0.0.1:9` | `git diff` on the sentinel constant |
 | AC10(b) | make the poison intercept loopback (add `127.0.0.1` removal from `NO_PROXY`) | `git diff` on the test's env setup |
-| AC10(d) | set the effects transport proxy to `http.ProxyFromEnvironment` | `git diff` on the effects client constructor; the residual half turns red while the control remains denied |
+| AC10(d) | set the effects transport proxy to `http.ProxyFromEnvironment` | `git diff` on the effects client constructor; the residual half turns red while the control remains denied. *Superseded 2026-11-09: this drill could not execute — (d) built its own transport and never read the effects constructor; (d) was retired by m-net-effect-proxy-boundary, whose production-constructor tests and `TestProxyAudit_Repo` replace it.* |
 
 **Acceptance (M3)**
 ```bash

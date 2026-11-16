@@ -1,0 +1,36 @@
+-- Evaluator vs emitted Go (#2244): a match on a value whose type is an alias
+-- of an ADT. The Go switch and the if-chain (a guard forces it) must test the
+-- ADT's constructors, never the alias's (which has no Kind constants). Light
+-- declares Red and Green too, in the other order (Color's, declared later,
+-- are the ones in scope).
+module harness/parity/adt_alias_parity
+import std/option (Option, Some, None)
+
+type Light = Green | Red | Amber
+type Color = Red | Green | Blue
+type Hue = Color
+type Tint = Hue
+type IntOpt = Option[int]
+
+pure func sw(t: Tint) -> int = match t {
+  Red => 1,
+  Green => 2,
+  Blue => 3
+}
+
+pure func chain(h: Hue, n: int) -> int = match h {
+  Red if n > 100 => 100,
+  Red => 1,
+  Green => 2,
+  Blue => 3
+}
+
+pure func opt(o: IntOpt) -> int = match o {
+  Some(n) => n + 1,
+  None => 0
+}
+
+pure func amber() -> Light = Amber
+
+export pure func summary() -> string =
+  "sw=${show(sw(Red))},${show(sw(Green))},${show(sw(Blue))}\nchain=${show(chain(Red, 0))},${show(chain(Red, 101))},${show(chain(Green, 0))},${show(chain(Blue, 0))}\nopt=${show(opt(Some(41)))},${show(opt(None))}\nlight=${show(amber())}"

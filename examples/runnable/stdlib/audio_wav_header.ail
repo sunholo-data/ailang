@@ -6,7 +6,7 @@
 -- durationMs and floatsToPcm16.
 module examples/runnable/stdlib/audio_wav_header
 import std/audio (wavHeader, wavHeaderChecked, wavFromPcm, wavInfo, durationMs, floatsToPcm16, RejectOutOfRange)
-import std/bytes (concat, slice, toString, length, toInts)
+import std/bytes (concat, sliceLen, toString, length, toInts)
 import std/array as A
 import std/list (map, range)
 
@@ -24,7 +24,7 @@ export func main() -> () ! {IO} {
     Ok(pcm) => {
       let header = wavHeader(length(pcm), 8000, 1, 16)
       println("pcm bytes: ${show(length(pcm))}, header bytes: ${show(length(header))}")
-      match slice(header, 0, 4) {
+      match sliceLen(header, 0, 4) {
         Some(magic) => println("magic: ${toString(magic)}"),
         None => println("header too short")
       }

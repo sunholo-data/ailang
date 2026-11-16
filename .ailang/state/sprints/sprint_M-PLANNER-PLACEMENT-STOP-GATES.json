@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-PLANNER-PLACEMENT-STOP-GATES",
-  "design_doc": "design_docs/planned/sprint-plan-planner-placement-stop-gates.md",
+  "design_doc": "design_docs/implemented/v0_55_0/sprint-plan-planner-placement-stop-gates.md",
   "ticket": "sprint-planner:template-make-test-changelog-filesize",
   "status": "planned",
   "features": [

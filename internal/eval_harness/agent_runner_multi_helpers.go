@@ -3,15 +3,17 @@ package eval_harness
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/config"
+	"github.com/sunholo-data/ailang/internal/eval_harness/langreg"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/modelreg"
 )
 
 // Helpers split out of agent_runner_multi.go at the 800-line gate: the traps
-// card, token-usage projection and row provenance.
+// card, token-usage projection, row provenance and workspace setup.
 
 // maybePrependTrapsCard front-loads the compact "dialect traps" card into the
 // turn-1 task message — a tiny, un-buryable reminder of the highest-frequency
@@ -114,4 +116,63 @@ func withProvenance(row *AgentBenchmarkResult, res *executor.Result) *AgentBench
 	row.PolicyDigest = res.PolicyDigest
 	row.EnvNamesDigest = res.EnvNamesDigest
 	return row
+}
+
+// prepareAgentWorkspace writes every file the agent starts with into an
+// existing workspace — the minimal .git folder, the benchmark's input files,
+// the fmt-hook settings (ON arm only) and the solution placeholder — and
+// returns the solution path. It is the live agent-mode workspace setup
+// (RunAgentBenchmarkWithExecutor), so it is what the hidden-test leak guard
+// (TestHiddenTests_NeverReachPromptOrWorkspace) drives.
+func prepareAgentWorkspace(workspace string, spec *BenchmarkSpec, fmtHook FmtHookMode, language string) (string, error) {
+	if err := os.MkdirAll(filepath.Join(workspace, ".git"), 0755); err != nil {
+		return "", fmt.Errorf("failed to create .git folder: %w", err)
+	}
+
+	// Seed benchmark input files so the agent can actually run/test its solution
+	// (e.g. cli_args reads numbers.txt). Mirrors the standard-runner layout.
+	if err := seedInputFiles(workspace, spec); err != nil {
+		return "", err
+	}
+
+	// Fmt-hook A/B (M-EVAL-FMT-WEAKMODEL-AB): this is the ACTIVE executor path.
+	// When ON, write a workspace .claude/settings.json registering the LANDED
+	// format_ail.sh PostToolUse hook. The claude executor sets cmd.Dir = workspace
+	// and loads .claude/settings.json naturally (see internal/executor/claude:165),
+	// so no --settings flag is needed here — writing the file IS the wiring. When
+	// OFF, nothing is written: byte-identical to today's path. This is the ONLY
+	// per-arm difference in the experiment.
+	fmtSettingsPath, fmtSettingsJSON, fmtErr := fmtHook.Apply(workspace)
+	if fmtErr != nil {
+		return "", fmt.Errorf("fmt-hook setup failed: %w", fmtErr)
+	}
+	if fmtSettingsPath != "" {
+		fmt.Fprintf(os.Stderr, "[FMT-HOOK] on (executor path): %s\n%s\n", fmtSettingsPath, string(fmtSettingsJSON))
+	}
+
+	// Create solution file placeholder
+	var solutionPath, placeholder string
+	if language == "ailang" {
+		benchmarkDir := filepath.Join(workspace, "benchmark")
+		if err := os.MkdirAll(benchmarkDir, 0755); err != nil {
+			return "", fmt.Errorf("failed to create benchmark dir: %w", err)
+		}
+		solutionPath = filepath.Join(benchmarkDir, "solution.ail")
+		placeholder = `module benchmark/solution
+// DO NOT CHANGE THE MODULE DECLARATION ABOVE!
+// TODO: Add your solution code below
+
+`
+	} else {
+		lang, langErr := langreg.Get(language)
+		if langErr != nil {
+			return "", fmt.Errorf("unknown language %q: %w", language, langErr)
+		}
+		solutionPath = filepath.Join(workspace, lang.SolutionFilename())
+		placeholder = "# TODO: Write your solution here\n"
+	}
+	if err := os.WriteFile(solutionPath, []byte(placeholder), 0644); err != nil {
+		return "", fmt.Errorf("failed to create solution placeholder: %w", err)
+	}
+	return solutionPath, nil
 }

@@ -12,6 +12,18 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 42 | 2026-11-13 | five judged closes (#2327 #2313 #2277 #2275, #2309 dup of #2308), seven P0 labels, #2282 held; cross-vendor judge pass [ADMIN] |
+| 41 | 2026-11-12 | eight judged attestations (#2135 #2126 #2105 #2104 #2097 #2139 #2148 #2149); #2265/#1914 dissents downgraded [ADMIN] |
+| 40 | 2026-11-12 | two judged attestations (#2099 #1978), #604 closed, #1914/#1436 downgraded by T2/T3 [ADMIN] |
+| 39 | 2026-11-11 | five judged attestations, two duplicate closes, #1278 dissent downgraded [ADMIN] |
+| 34 | 2026-11-08 | independent judge preserves readiness reports and holds an unsupported population verdict [HARNESS] [ADMIN] |
+| 33 | 2026-11-07 | independent judge refreshes three reports and corrects a baseline population claim [HARNESS] [ADMIN] |
+| 32 | 2026-11-07 | independent judge clears prior lane park and exposes three concrete decisions [HARNESS] [ADMIN] |
+| 31 | 2026-11-06 | required independent judge timeouts park all eight proposals [HARNESS] [ADMIN] |
+| 30 | 2026-11-05 | independent review exposes aged green stalls and holds unauthorized handoff [HARNESS] [ADMIN] |
+| 29 | 2026-11-05 | independent verification splits concrete choices and attests one triage artifact [HARNESS] [ADMIN] |
+| 28 | 2026-11-04 | independent review reproduces SCC gap, corrects readiness and routes refusal design [HARNESS] [ADMIN] |
+| 27 | 2026-11-04 | red dev routed (skill-mirror sync), one attestation, two orphan-PR dispositions for Mark [HARNESS] [ADMIN] |
 | 26 | 2026-11-03 | independent queue refresh holds human freezes and competing work [HARNESS] [ADMIN] |
 | 25 | 2026-11-03 | independent review corrects readiness, closes helper verification issue and restores missing holds [HARNESS] [ADMIN] |
 | 21 | 2026-10-30 | quiet fire: new design PR #2030 and issue #2029 held for decision, cross-vendor judge dissents [ADMIN] |

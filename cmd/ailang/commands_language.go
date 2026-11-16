@@ -10,6 +10,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	ailangTesting "github.com/sunholo-data/ailang/internal/testing"
+	"github.com/sunholo-data/ailang/internal/verification"
 )
 
 // languageCommands are the commands a user or agent runs to work WITH AILANG.
@@ -376,6 +377,8 @@ func runCheckCommand(args []string) error {
 	formatCheck := checkFS.String("format", "human", "Output format: human, json, or agent (compact one-line diagnostics for AI agent context)")
 	quietCheck := checkFS.Bool("quiet", false, "Suppress progress lines, only output errors")
 	packageCheck := checkFS.Bool("package", false, "Check entire package (reads ailang.toml for module discovery)")
+	strictBytecodeCheck := checkFS.Bool("strict-bytecode", false,
+		"Also compile to bytecode; fail with BC001 for each function the strict VM would refuse (evaluator-only)")
 
 	// --verify is the `ai-check` absorption (S5 M2, Phase 3 item 2). The two
 	// verification flags are spelled --verify-timeout and
@@ -393,14 +396,35 @@ func runCheckCommand(args []string) error {
 		"With --verify: per-function Z3 timeout (hard backstop adds 2s grace)")
 	verifyDepthCheck := checkFS.Int("verify-recursive-depth", aiCheckDefaultRecursiveDepth,
 		"With --verify: bounded recursion unrolling depth (1-10, 0 to disable)")
+	// The two lanes of the shared exit contract (verification.ExitCode) that a
+	// caller may move. Spelled as on `ailang verify` and `ailang ai-check`, so
+	// one gate reads the same on every command; refused without --verify.
+	verifyStrictCheck := checkFS.Bool("strict", false, "With --verify: "+strictFlagHelp)
+	allowInconclusiveCheck := checkFS.Bool("allow-inconclusive", false, "With --verify: "+allowInconclusiveFlagHelp)
 
-	_ = checkFS.Parse(args)
+	// Flags may follow the file (`check f.ail --verify`): they used to be read
+	// as further positionals and dropped. A second file still only checks the
+	// first outside --verify (pre-existing; refused under --verify below).
+	parseInterspersed(checkFS, args)
+	if (*verifyStrictCheck || *allowInconclusiveCheck) && !*verifyCheck {
+		fmt.Fprintf(os.Stderr, "%s: --strict and --allow-inconclusive apply to contract verification; add --verify\n", red("Error"))
+		os.Exit(2) // a usage error, like every contradictory flag combination
+	}
+	refuseContradictoryPolicy(verification.ExitPolicy{Strict: *verifyStrictCheck, AllowInconclusive: *allowInconclusiveCheck})
 
 	// Resolve output format (M-AILANG-SEMANTIC-CONTEXT R1). --json is the
 	// back-compat alias for --format=json. Both json and agent are "machine"
 	// formats that reuse the structured-error path; agent is the compact,
 	// token-lean one-line rendering for AI agent loops.
 	checkAgentFormat = (*formatCheck == "agent")
+	checkStrictBytecode = *strictBytecodeCheck
+	// The strict-bytecode gate is single-file only for now: --verify prints
+	// a different report and --package / directory checks have their own
+	// loops. Refuse the combination rather than silently ignore the flag.
+	if checkStrictBytecode && (*verifyCheck || *packageCheck) {
+		fmt.Fprintf(os.Stderr, "%s: --strict-bytecode cannot be combined with --verify or --package (check one file at a time)\n", red("Error"))
+		os.Exit(1)
+	}
 	machineFormat := *jsonCheck || *formatCheck == "json" || *formatCheck == "agent"
 
 	// --verify: the unified check+verify report, which `ailang ai-check` also
@@ -409,12 +433,14 @@ func runCheckCommand(args []string) error {
 	// Phase 3 item 2 names, and it yields the same bytes. runAICheckReport
 	// never returns.
 	if *verifyCheck {
-		if checkFS.NArg() < 1 {
+		file := verificationFileArg(checkFS, "check --verify")
+		if file == "" {
 			fmt.Fprintf(os.Stderr, "%s: missing file argument\n", red("Error"))
 			fmt.Println("Usage: ailang check --verify [options] <file.ail>")
 			os.Exit(1)
 		}
-		runAICheckReport(checkFS.Arg(0), *verifyTimeoutCheck, *verifyDepthCheck, *relaxModulesCheck)
+		runAICheckReport(file, *verifyTimeoutCheck, *verifyDepthCheck, *relaxModulesCheck,
+			verification.ExitPolicy{Strict: *verifyStrictCheck, AllowInconclusive: *allowInconclusiveCheck}, false)
 		return nil
 	}
 
@@ -441,6 +467,7 @@ func runCheckCommand(args []string) error {
 		fmt.Println("  --format <fmt>     Output format: human (default), json, or agent (compact one-line diagnostics)")
 		fmt.Println("  --quiet            Suppress progress lines, only output errors")
 		fmt.Println("  --package          Check entire package (reads ailang.toml)")
+		fmt.Println("  --strict-bytecode  Also compile to bytecode; BC001 for each evaluator-only function")
 		fmt.Println()
 		fmt.Println("If a directory is given, all .ail files are checked recursively.")
 		os.Exit(1)

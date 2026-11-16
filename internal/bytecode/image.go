@@ -59,6 +59,12 @@ type FuncPrototype struct {
 	// the file is unknown (e.g. hand-built test prototypes).
 	File string
 
+	// Line is the source line of the function's declaration (0 = unknown).
+	// Unlike LineInfo it survives the EvalOnly rollback, so the strict-VM
+	// coverage report (EvalOnlyReachable) can position a BC001 diagnostic
+	// for a function the compiler never emitted a body for.
+	Line int
+
 	// EvalOnly marks this prototype as a stub: the function exists in the
 	// program but the bytecode compiler couldn't compile it (or chose not to)
 	// and the VM must trap to the evaluator via VM.Interop on every call.
@@ -390,6 +396,17 @@ func (img *BytecodeImage) validateInstruction(p *FuncPrototype, protoIdx, ip int
 		}
 		if uint16(inst.A())+uint16(inst.C()) >= uint16(p.NumRegs) {
 			return fmt.Errorf("bytecode: %s: effect args overflow registers", loc())
+		}
+		return nil
+	case OpMatchFail:
+		if err := checkReg(inst.A(), "scrutinee"); err != nil {
+			return err
+		}
+		if err := checkLocalConst(inst.Bx()); err != nil {
+			return err
+		}
+		if pos, _ := p.LookupConstant(int(inst.Bx()), img); pos.Tag != TagString {
+			return fmt.Errorf("bytecode: %s: match position constant is %s, not String", loc(), pos.Tag)
 		}
 		return nil
 	case OpBuiltinCall, OpBuiltinTrap, OpEffectTrap:

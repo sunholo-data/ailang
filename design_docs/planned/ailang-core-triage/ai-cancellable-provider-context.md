@@ -2,8 +2,8 @@
 
 - **Date**: 2026-10-03
 - **Class**: feature
-- **Recommend**: design-doc (revise `planned/v0_29_0/m-agent-step-cancellation.md` instead of writing a new milestone)
-- **Searched**: `AIHandler v2`, `cancellable provider context`, `IncompleteStream`, `context.Context`, `StepWithStream`, `Cancelled`, `#231`, `#578` across `design_docs/`. Found: `planned/v0_29_0/m-agent-step-cancellation.md` (#231, Status PLANNED, never started), `implemented/v0_32_0/m-recorded-stream-api.md:538,790` (defers both the cancellable context and an `IncompleteStream` code to "S2"). No doc specifies the interface change.
+- **Recommend**: design-doc (revise `planned/v1_1_0/m-agent-step-cancellation.md` instead of writing a new milestone)
+- **Searched**: `AIHandler v2`, `cancellable provider context`, `IncompleteStream`, `context.Context`, `StepWithStream`, `Cancelled`, `#231`, `#578` across `design_docs/`. Found: `planned/v1_1_0/m-agent-step-cancellation.md` (#231, Status PLANNED, never started), `implemented/v0_32_0/m-recorded-stream-api.md:538,790` (defers both the cancellable context and an `IncompleteStream` code to "S2"). No doc specifies the interface change.
 - **Estimate**: omitted (design-doc)
 
 **The two issues need the same missing piece.** #231 (motoko_explore, P2) wants Ctrl+C or a stdin `{"type":"abort"}` to stop an in-flight `std/ai.step`. #578 (from PR #577) wants the runtime to cancel the provider stream after a latched `unencodable stream chunk` failure, and @arniwesth's comment adds a live case: free-tier OpenRouter accepting a request and never streaming, which hangs the loop forever. All three need a `context.Context` that reaches the HTTP request.

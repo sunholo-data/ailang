@@ -14,7 +14,15 @@ type Unifier struct {
 	rowVarCounter int // M-FIX-NESTED-RECORD-LIST: Counter for generating unique row variable names
 	// aliasEnv maps type alias names to their underlying types
 	// M-BUGFIX: Used to expand aliases during unification (e.g., Coord -> {x: int, y: int})
+	// Keyed by NominalKey(defining module, name) (M-V1-NOMINAL-TYPE-IDENTITY):
+	// an alias expands only the TCon of its own module.
 	aliasEnv map[string]Type
+	// newtypes: aliasEnv keys that are single-constructor ADTs wrapping a
+	// record (M-STREAM-DX/M4), registered as aliases only for field access.
+	// They never expand: the ADT keeps its nominal identity against other
+	// TCons (M-V1-NOMINAL-TYPE-IDENTITY hard case h4c) and against records
+	// (#2239). Field access projects through aliasEnv (newtypeBody).
+	newtypes map[string]bool
 	// aliasParams maps parameterized-alias names to their ordered param names
 	// (M-XMOD-ALIAS-POLY). Missing entry = nullary alias. Used by expandAlias to
 	// instantiate an APPLIED alias (`Box[int]`) via Body.Substitute(param->arg),
@@ -105,9 +113,24 @@ func (u *Unifier) SetDebugSink(sink TypeDebugSink) {
 	}
 }
 
+// isRecordish reports whether t is a record type (TC_NEWTYPE_001 names a
+// newtype ADT meeting one).
+func isRecordish(t Type) bool {
+	switch t.(type) {
+	case *TRecord, *TRecordOpen, *TRecord2:
+		return true
+	}
+	return false
+}
+
+// SetNewtypes installs the set of newtype-ADT alias keys.
+func (u *Unifier) SetNewtypes(n map[string]bool) { u.newtypes = n }
+
 // expandAlias expands a type alias to its underlying type if applicable
 // M-BUGFIX: Handles type aliases like `type Coord = {x: int, y: int}`
 // M-CROSS-MODULE: When expanding TCon to TRecord, preserve the type name
+// A newtype-record ADT is registered in aliasEnv (for its field projection and
+// cross-module interfaces) but is never expanded: it is nominal (#2239).
 func (u *Unifier) expandAlias(t Type) Type {
 	if u.aliasEnv == nil && u.aliasCaptures == nil {
 		return t
@@ -132,12 +155,13 @@ func (u *Unifier) expandAlias(t Type) Type {
 			if !isCon {
 				return t
 			}
-			body, isAlias := u.aliasEnv[headCon.Name]
+			headKey := headCon.KeyOf()
+			body, isAlias := u.aliasEnv[headKey]
 			if !isAlias {
-				u.latchAliasCapture(headCon.Name) // M-TYPE-NAME-SHADOW
-				return t                          // not an alias head → real ADT / type application, stay nominal
+				u.latchAliasCapture(headKey) // M-TYPE-NAME-SHADOW
+				return t                     // not an alias head → real ADT / type application, stay nominal
 			}
-			params := u.aliasParams[headCon.Name] // nil for a nullary alias
+			params := u.aliasParams[headKey] // nil for a nullary alias
 			if len(args) != len(params) {
 				// Arity mismatch: applied a k-arg alias with the wrong count
 				// (includes applying a nullary alias with any args). Latch a
@@ -145,13 +169,13 @@ func (u *Unifier) expandAlias(t Type) Type {
 				u.aliasArityErr = fmt.Errorf("%s", aliasArityMismatchMsg(headCon.Name, len(params), len(args)))
 				return t
 			}
-			if seen[headCon.Name] {
+			if seen[headKey] {
 				return t // cycle detected (e.g. `type A[x] = A[x]`) — stop expanding
 			}
 			if seen == nil {
 				seen = make(map[string]bool)
 			}
-			seen[headCon.Name] = true
+			seen[headKey] = true
 			// Substitute params[i] -> args[i] throughout the body via the
 			// Type.Substitute(map) method (TVar2.Substitute keys by name), which
 			// recurses through record/tuple/function bodies. Continue the fixpoint
@@ -169,18 +193,22 @@ func (u *Unifier) expandAlias(t Type) Type {
 		if !ok {
 			return t
 		}
-		target, exists := u.aliasEnv[con.Name]
+		conKey := con.KeyOf()
+		target, exists := u.aliasEnv[conKey]
 		if !exists {
-			u.latchAliasCapture(con.Name) // M-TYPE-NAME-SHADOW
+			u.latchAliasCapture(conKey) // M-TYPE-NAME-SHADOW
 			return t
 		}
-		if seen[con.Name] {
+		if u.newtypes[conKey] {
+			return t // a newtype ADT stays nominal (#2239)
+		}
+		if seen[conKey] {
 			return t // cycle detected — stop expanding
 		}
 		if seen == nil {
 			seen = make(map[string]bool)
 		}
-		seen[con.Name] = true
+		seen[conKey] = true
 
 		// M-CROSS-MODULE: If target is a TRecord, set its TypeName so the
 		// nominal type identity is preserved through unification. A record is
@@ -241,8 +269,15 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 
 	// M-BUGFIX: Expand type aliases before unification
 	// This allows `type Coord = {x: int, y: int}` to unify with {x: int, y: int}
+	// M-V1-NOMINAL-TYPE-IDENTITY / #2239: real aliases expand on both sides; a
+	// newtype-record ADT never does — it is not its record. Field access on one
+	// is a projection decided by the deferred field-access constraint
+	// (field_access_deferred.go), never a unification with a record.
 	t1 = u.expandAlias(t1)
 	t2 = u.expandAlias(t2)
+	if err := u.newtypeRecordMismatch(t1, t2); err != nil {
+		return nil, err
+	}
 
 	// M-XMOD-ALIAS-POLY: surface a latched arity diagnostic from expandAlias
 	// (an applied alias with the wrong number of type arguments). Clear it so a
@@ -252,6 +287,9 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 		u.aliasArityErr = nil
 		return nil, err
 	}
+
+	noteNominal(t1)
+	noteNominal(t2)
 
 	// Check if already equal with cycle detection
 	if SafeEquals(t1, t2) {
@@ -268,7 +306,7 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 	case *TVar2:
 		// Type variable unification
 		if u.occurs(t1.Name, t2, t1.Kind) {
-			return nil, fmt.Errorf("occurs check failed: %s occurs in %s", t1.Name, t2.String())
+			return nil, fmt.Errorf("%s: occurs check failed: %s occurs in %s (an infinite type)", TC_OCCURS, t1.Name, t2.String())
 		}
 		if !u.kindsCompatible(t1.Kind, GetKind(t2)) {
 			return nil, fmt.Errorf("kind mismatch: variable %s has kind %s, but %s has kind %s",
@@ -282,7 +320,7 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 	case *RowVar:
 		// Row variable unification
 		if u.occurs(t1.Name, t2, t1.Kind) {
-			return nil, fmt.Errorf("occurs check failed: row variable %s occurs in %s", t1.Name, t2.String())
+			return nil, fmt.Errorf("%s: occurs check failed: row variable %s occurs in %s (an infinite type)", TC_OCCURS, t1.Name, t2.String())
 		}
 		if !u.kindsCompatible(t1.Kind, GetKind(t2)) {
 			return nil, fmt.Errorf("kind mismatch: row variable %s has kind %s, but %s has kind %s",
@@ -310,13 +348,19 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 				return u.Unify(t2Var, t1, sub)
 			}
 		}
-		return nil, fmt.Errorf("cannot unify row with %T", t2)
+		return nil, fmt.Errorf("cannot unify row with %s", t2)
 
 	case *TCon:
 		// Type constructor unification
 		if t2Con, ok := t2.(*TCon); ok {
-			if t1.Name == t2Con.Name {
+			if NominalSame(t1, t2Con) {
 				return sub, nil
+			}
+			if err := checkNominalPair(t1, t2Con); err != nil {
+				return nil, err
+			}
+			if t1.Name == t2Con.Name {
+				return nil, fmt.Errorf("%s", nominalMismatchMsg(t2Con, t1))
 			}
 			return nil, fmt.Errorf("cannot unify type constructors: %s vs %s", t1.Name, t2Con.Name)
 		}
@@ -348,7 +392,7 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 		if recOpen, ok := t2.(*TRecordOpen); ok && isTaggedUnion(t1, u.constructorTypes) {
 			return nil, makeUnificationTaggedUnionError(t1, recOpen, u.constructorTypes)
 		}
-		return nil, fmt.Errorf("cannot unify type constructor %s with %T", t1.Name, t2)
+		return nil, fmt.Errorf("cannot unify %s with %s", describeTCon(t1), t2)
 
 	case *TFunc2:
 		return u.unifyFunctions(t1, t2, sub)

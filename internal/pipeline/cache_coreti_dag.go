@@ -51,6 +51,7 @@ const (
 type coreTINode struct {
 	Tag        uint8
 	Name       string
+	Module     string // TCon.Module, the nominal identity (M-V1-NOMINAL-TYPE-IDENTITY)
 	Kind       types.Kind
 	A, B       int32
 	Kids       []int32
@@ -184,7 +185,7 @@ func (e *coreTIEncoder) node(t types.Type) (coreTINode, error) {
 	var err error
 	switch t := t.(type) {
 	case *types.TCon:
-		return coreTINode{Tag: ctiTagCon, Name: t.Name}, nil
+		return coreTINode{Tag: ctiTagCon, Name: t.Name, Module: t.Module}, nil
 	case *types.TVar:
 		return coreTINode{Tag: ctiTagVar, Name: t.Name}, nil
 	case *types.TVar2:
@@ -279,6 +280,10 @@ func (n *coreTINode) key() string {
 	b.WriteString(strconv.Itoa(int(n.Tag)))
 	b.WriteByte('|')
 	b.WriteString(strconv.Quote(n.Name))
+	if n.Module != "" {
+		b.WriteString("|m")
+		b.WriteString(strconv.Quote(n.Module))
+	}
 	fmt.Fprintf(&b, "|%#v|%d|%d|%d|%v|%q", n.Kind, n.A, n.B, n.Flags, n.Kids, n.Keys)
 	if n.Label != nil {
 		fmt.Fprintf(&b, "|L%q", n.Label)
@@ -415,7 +420,7 @@ func (d *coreTIDecoder) build(n *coreTINode, self int32) (types.Type, error) {
 	var err error
 	switch n.Tag {
 	case ctiTagCon:
-		return &types.TCon{Name: n.Name}, nil
+		return &types.TCon{Name: n.Name, Module: n.Module}, nil
 	case ctiTagVar:
 		return &types.TVar{Name: n.Name}, nil
 	case ctiTagVar2:

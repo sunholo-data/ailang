@@ -518,6 +518,9 @@ func rewriteStmt(s stmt.Stmt, funcModule map[string]string, locals map[string]bo
 	case stmt.ExprStmt:
 		s.Value = rewriteExpr(s.Value, funcModule, locals)
 		return s
+	case stmt.MatchFail:
+		s.Scrutinee = rewriteExpr(s.Scrutinee, funcModule, locals)
+		return s
 	case stmt.IfStmt:
 		s.Cond = rewriteExpr(s.Cond, funcModule, locals)
 		s.Then = rewriteStmts(s.Then, funcModule, locals)
@@ -651,6 +654,8 @@ func walkExprsInStmt(s stmt.Stmt, visit func(stmt.Expr)) {
 		walkExpr(s.Value, visit)
 	case stmt.ExprStmt:
 		walkExpr(s.Value, visit)
+	case stmt.MatchFail:
+		walkExpr(s.Scrutinee, visit)
 	case stmt.IfStmt:
 		walkExpr(s.Cond, visit)
 		for _, ts := range s.Then {

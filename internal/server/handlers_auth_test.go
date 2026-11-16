@@ -174,37 +174,6 @@ func TestRequireApproverMiddlewareNotApprover(t *testing.T) {
 	assert.Equal(t, http.StatusForbidden, w.Code)
 }
 
-// Note: RequireWorkspaceAccessMiddleware tests require a full Server with WorkspaceService.
-// These are covered by integration tests in handlers_workspace_test.go.
-
-func TestWorkspaceAccessInfo(t *testing.T) {
-	// Test WorkspaceAccessInfo struct
-	info := WorkspaceAccessInfo{
-		RequestedWorkspace:   "test-workspace",
-		AccessibleWorkspaces: []string{"workspace-1", "workspace-2"},
-		Role:                 "Approver",
-		IsPublicOnly:         false,
-	}
-
-	assert.Equal(t, "test-workspace", info.RequestedWorkspace)
-	assert.Len(t, info.AccessibleWorkspaces, 2)
-	assert.Equal(t, "Approver", info.Role)
-	assert.False(t, info.IsPublicOnly)
-}
-
-func TestWorkspaceAccessInfoPublicOnly(t *testing.T) {
-	// Test unauthenticated user (public only)
-	info := WorkspaceAccessInfo{
-		RequestedWorkspace:   "",
-		AccessibleWorkspaces: []string{"public-workspace"},
-		Role:                 "",
-		IsPublicOnly:         true,
-	}
-
-	assert.True(t, info.IsPublicOnly)
-	assert.Len(t, info.AccessibleWorkspaces, 1)
-}
-
 func TestErrorResponseFields(t *testing.T) {
 	resp := ErrorResponse{
 		Error:   "test_error",

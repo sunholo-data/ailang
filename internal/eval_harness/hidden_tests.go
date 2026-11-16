@@ -14,7 +14,7 @@ import (
 // sample, not an oracle: in the 2026-10-28 competitive-programming spike, 14 AILANG
 // harness passes became 3 once re-graded against the problems' own hidden tests.
 // Hidden tests are graded after the visible test passes and are never shown to the
-// model. See design_docs/planned/v0_55_0/m-eval-hidden-tests.md.
+// model. See design_docs/implemented/v0_55_0/m-eval-hidden-tests.md.
 
 // HiddenTest is one held-out stdin/expected-stdout pair, loaded from
 // <hidden_tests_dir>/<Name>.in and <Name>.ans.

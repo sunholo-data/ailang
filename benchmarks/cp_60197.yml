@@ -1,4 +1,4 @@
-# M-EVAL-HIDDEN-TESTS pack (design_docs/planned/v0_55_0/m-eval-hidden-tests.md).
+# M-EVAL-HIDDEN-TESTS pack (design_docs/implemented/v0_55_0/m-eval-hidden-tests.md).
 # Generated from AetherCode v1_2024; regenerate rather than hand-edit the prompt.
 id: cp_60197
 description: 'AetherCode v1_2024 problem 60197 (The 2024 ICPC Asia Hangzhou Regional Contest, Easy; CC-BY-4.0, see benchmarks/hidden_tests/AETHERCODE.md). Tracks: unattributed speed: Haiku AILANG timed out in 3 of 3 trials (30 of 35 small); Python passed 3 of 3.'

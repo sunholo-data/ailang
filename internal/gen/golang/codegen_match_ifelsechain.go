@@ -89,11 +89,11 @@ func (g *Generator) generateMatchIfElse(match *core.Match) error {
 
 	// No wildcard - add panic
 	if first {
-		g.writef("panic(\"non-exhaustive match\")\n")
+		g.writef("panic(%q)\n", noMatchPanicText(match))
 	} else {
 		g.writef("} else {\n")
 		g.indent++
-		g.writef("panic(\"non-exhaustive match\")\n")
+		g.writef("panic(%q)\n", noMatchPanicText(match))
 		g.indent--
 		g.writef("}\n")
 	}
@@ -190,7 +190,7 @@ func (g *Generator) generateMatchIfElseWithGuards(match *core.Match) error {
 	}
 
 	// No matching arm - panic
-	g.writef("panic(\"non-exhaustive match\")\n")
+	g.writef("panic(%q)\n", noMatchPanicText(match))
 	g.indent--
 	g.write("}()")
 	return nil

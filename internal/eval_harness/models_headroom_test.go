@@ -72,6 +72,7 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		"claude-opus-5":   64000, "claude-opus-4-8": 64000, "claude-opus-4-7": 64000,
 		"claude-opus-4-6": 64000, "claude-opus-4-5": 64000, "claude-fable-5": 64000,
 		"claude-fable-5-1":  64000,
+		"claude-fable-5-2":  64000,
 		"claude-sonnet-5-5": 64000,
 		"claude-sonnet-5":   64000, "claude-sonnet-4-6": 64000, "claude-sonnet-4-5": 64000,
 		"claude-haiku-5-5": 64000,
@@ -91,6 +92,9 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		// Vertex clamps silently (1,000,000 returns 200), so the API cannot
 		// confirm this; it is docs-sourced, see the models.yml row.
 		"gemini-4-argon": 32768,
+		// Gemini 4 Carbon (API-callable 2026-11-10): same Vertex non-streaming
+		// ceiling as Argon; 65537 also returned 200 STOP (silent clamp).
+		"gemini-4-carbon": 32768,
 		// TypeSafe Jev is a text->decisions model (M-AI-DECIDE-SYSTEM-ONE M2):
 		// it never generates a completion, so output headroom is meaningless.
 		// 28800 is the value /endpoints reports (2026-09-17 endpoint); the row
@@ -139,6 +143,12 @@ func TestModels_CloudHeadroomEqualised(t *testing.T) {
 		// Same pi harness clamp, for the executor fallback's metered rung from 2026-09-25
 		// (deepseek-v4.1-flash replaced 0731). Same openai-compat lane as pi-or-deepseek-v4-flash.
 		"pi-or-deepseek-v4-1-flash": 32000,
+		// D-FLEET-35 A (Mark, attended 2026-11-16): the driver's designer rung
+		// pi:openrouter/z-ai/glm-5.3, at the 32000 the rig's installed pi config has carried
+		// since 10-07. Wire check 2026-11-16 on pi 0.85.1 (scripts/check_pi_wire_budget.sh):
+		// kimi-k3 and minimax-m3 sent max_completion_tokens 32000 with maxTokens 32000
+		// installed. That shows the installed cap is honoured; it does not prove the clamp.
+		"pi-or-glm-5-3": 32000,
 
 		// ONE WIRE CONFIG PER MODEL (Mark, 2026-10-16: option A). Every
 		// z-ai/glm-5.3-flash row, whatever the harness, declares the hosts' 131072

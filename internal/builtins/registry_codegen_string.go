@@ -164,6 +164,12 @@ func registerStringCodegenSpecs() {
 		Imports:    []string{"strings"},
 		StdlibName: "replace", StdlibModule: "std/string",
 	})
+	// showPreview: ShowPreview lives in the always-emitted show runtime
+	// (internal/gen/golang/codegen_runtime_show.go), beside Show.
+	registerIfMissing("_show_preview", 2, true, &GoCodegenSpec{
+		Inline:     `ShowPreview({{arg0}}, {{arg1}})`,
+		StdlibName: "showPreview", StdlibModule: "std/string",
+	})
 	registerIfMissing("_str_repeat", 2, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{
 			FuncName:  "Repeat",

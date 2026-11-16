@@ -192,11 +192,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		return result, elabErr
 	}
 
-	// Collect exhaustiveness warnings
 	result.Warnings = nil
-	for _, w := range elaborator.GetWarnings() {
-		result.Warnings = append(result.Warnings, w)
-	}
 
 	// M-DX-SPLIT-ARG: same-typed-arg swap warnings on the elaborated Core
 	// (before lowering). In the single-file/REPL pipeline imports are not
@@ -260,31 +256,46 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 
 	// M-DX25.4: Pass constructor → ADT type mappings to type checker
 	// This enables correct type inference for pattern matching on ADTs
+	// M-V1-NOMINAL-TYPE-IDENTITY: this file's types are declared in the
+	// elaborator's module identity; every type-keyed table uses it.
+	singleModID := elaborator.ModuleID()
 	elabCtors := elaborator.GetConstructors()
 	if len(elabCtors) > 0 {
 		ctorTypes := make(map[string]string)
-		adtTypeParams := make(map[string]int) // M-TAPP-FIX: Track type param counts
+		ctorModules := make(map[string]string)
+		adtTypeParams := make(map[string]int) // M-TAPP-FIX: keyed by types.NominalKey
 		for ctorName, ctorInfo := range elabCtors {
 			ctorTypes[ctorName] = ctorInfo.TypeName
+			ctorModules[ctorName] = ctorInfo.Module
 			// M-TAPP-FIX: Only set if not already set (first ctor wins, all should have same count)
-			if _, exists := adtTypeParams[ctorInfo.TypeName]; !exists {
-				adtTypeParams[ctorInfo.TypeName] = ctorInfo.TypeParamCount
+			if adtKey := types.NominalKey(ctorInfo.Module, ctorInfo.TypeName); true {
+				if _, exists := adtTypeParams[adtKey]; !exists {
+					adtTypeParams[adtKey] = ctorInfo.TypeParamCount
+				}
 			}
 		}
 		typeChecker.SetConstructorTypes(ctorTypes)
+		typeChecker.SetConstructorModules(ctorModules)
 		typeChecker.SetADTTypeParams(adtTypeParams) // M-TAPP-FIX
 	}
+	// Only the file's own ADTs: this path loads no interfaces, and the
+	// elaborator's imported entries are the constructors in scope, not whole
+	// types. A match on any other ADT needs a catch-all arm here.
+	typeChecker.SetMatchUniverse(elaboratorMatchUniverse(elabCtors))
 
 	// M-BUGFIX: Pass type aliases to type checker for expansion during unification
 	// This enables `type Coord = {x: int, y: int}` to work with ADT variants
-	elabAliases := elaborator.GetTypeAliases()
-	for name, target := range elabAliases {
-		typeChecker.RegisterTypeAlias(name, target)
-	}
 	// M-XMOD-ALIAS-POLY: register parameterized-alias params so applied uses
 	// (`Box[int]`) instantiate their body during unification.
-	for name, params := range elaborator.GetTypeAliasParams() {
-		typeChecker.RegisterTypeAliasParams(name, params)
+	singleAliases := qualifiedAliasEnv(singleModID, &moduleImports{}, elaborator)
+	for key, target := range singleAliases.Bodies {
+		typeChecker.RegisterTypeAlias(key, target)
+	}
+	for key, params := range singleAliases.Params {
+		typeChecker.RegisterTypeAliasParams(key, params)
+	}
+	for key := range singleAliases.Newtypes {
+		typeChecker.RegisterNewtypeADT(key)
 	}
 
 	// M-FIX-FLOAT-OP: Pass parameter type annotations to type checker
@@ -293,6 +304,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	if len(paramAnnots) > 0 {
 		typeChecker.SetParamTypeAnnotations(paramAnnots)
 	}
+	typeChecker.SetLiteralLambdas(elaborator.GetLiteralLambdas()) // #2238
 
 	// M-FIX-FLOAT-OP: Pass return type annotations to type checker
 	// This ensures PI() -> float ACTUALLY constrains inference to return float
@@ -317,7 +329,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 
 	// M-DX19 + M-EQ-DERIVE-CONTAINERS: register `deriving (Eq)` instances and
 	// require Eq of every field
-	if err := registerDerivedEq(cfg, elaborator, nil); err != nil {
+	if err := registerDerivedEq(cfg, singleModID, elaborator, singleAliases.Bodies); err != nil {
 		return result, err
 	}
 
@@ -348,6 +360,20 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 		typeSpan.End()
 		pipelineSpan.RecordError(typeErr)
 		return result, typeErr
+	}
+
+	// M-V1-MATCH-EXHAUSTIVENESS: the same verdict as the module pipeline, on
+	// the one declaration this path type-checks.
+	matchWarnings, err := typeChecker.VerifyMatchExhaustiveness(coreExpr)
+	if err != nil {
+		typeSpan.RecordError(err)
+		typeSpan.SetStatus(codes.Error, "match exhaustiveness")
+		typeSpan.End()
+		pipelineSpan.RecordError(err)
+		return result, err
+	}
+	for _, w := range matchWarnings {
+		result.Warnings = append(result.Warnings, w)
 	}
 
 	// Record type inference stats on span
@@ -471,6 +497,7 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	// too. See internal/pipeline/show_normalize.go.
 	{
 		normalizer := NewShowNormalizer(&typeChecker.CoreTI)
+		normalizer.Generic = typeChecker.DefaultedNodes() // #2273
 		normalized, err := normalizer.Normalize(coreProg)
 		if err != nil {
 			return result, fmt.Errorf("show normalization failed: %w", err)

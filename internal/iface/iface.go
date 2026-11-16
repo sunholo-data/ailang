@@ -20,6 +20,10 @@ type Iface struct {
 	DerivedEq    []string                      // Types this module declares `deriving (Eq)`, sorted; importers need their Eq instances
 	Schema       string                        // Schema version, e.g., SchemaVersion
 	Digest       string                        // Deterministic digest of interface
+	// Tier is the module's default tier from std/STABILITY.toml ("" outside the
+	// manifest). Every exported type carries it; a function carries its own
+	// IfaceItem.Tier (M-V1-STDLIB-SURFACE-POLISH §6.1). Not hashed.
+	Tier string
 }
 
 // TypeExport represents an exported type name
@@ -35,6 +39,12 @@ type IfaceItem struct {
 	Type   *types.Scheme         // Generalized type scheme
 	Purity bool                  // Whether the function is pure
 	Ref    core.GlobalRef        // Global reference to this item
+	// Tier: the module default, or "experimental" under @experimental.
+	Tier string
+	// ReplacedBy / DeprecationNote come from @deprecated("replacement", "note").
+	// Informational: neither changes the type, the digest or interface_hash.
+	ReplacedBy      string
+	DeprecationNote string
 }
 
 // ConstructorScheme represents the type scheme of an ADT constructor
@@ -114,6 +124,23 @@ func (i *Iface) GetType(name string) (*TypeExport, bool) {
 // This is used for record type aliases like `type NPC = { pos: Pos, name: string }`
 func (i *Iface) AddTypeAlias(name string, target types.Type) {
 	i.TypeAliases[name] = target
+}
+
+// TypeAliasFor returns the alias a type constructor names, read from this
+// interface (M-V1-NOMINAL-TYPE-IDENTITY): the interface's own aliases are
+// stored under their bare name, aliases it embeds from another module under
+// types.NominalKey(module, name). A TCon of another module is never expanded
+// through a same-named alias of this one.
+func (i *Iface) TypeAliasFor(con *types.TCon) (types.Type, bool) {
+	if con == nil {
+		return nil, false
+	}
+	if con.Module == "" || con.Module == i.Module {
+		t, ok := i.TypeAliases[con.Name]
+		return t, ok
+	}
+	t, ok := i.TypeAliases[con.KeyOf()]
+	return t, ok
 }
 
 // GetTypeAlias retrieves a type alias expansion (M-FIX-RECORD-UPDATE)

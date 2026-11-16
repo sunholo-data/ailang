@@ -32,7 +32,7 @@ providers reject image generation with a clear error.`
 // imageRefsDoc documents the refs parameter of the WithRefs variants.
 const imageRefsDoc = `refs is a list of ImagePart records {source, mime}: source is a base64
 payload or a data-URI; mime is required for raw base64 (e.g. "image/png").
-std/fs.readFileBytes returns base64 suitable for source. Gemini sends refs as
+std/fs.readFileBase64 returns base64 suitable for source. Gemini sends refs as
 inlineData parts, OpenRouter as image_url content parts; other providers fail
 loudly rather than ignoring them. An empty list behaves like the non-refs call.`
 
@@ -169,7 +169,7 @@ Returns the output path on success. Requires both AI and FS capabilities.`,
 			Examples: []Example{
 				{Code: `AI.callImageWithRefs("Same person, smiling", [{source: b64, mime: "image/png"}], "smile.png", "{}")`, Description: "Condition on one identity reference"},
 			},
-			SeeAlso:   []string{"std/ai.callImage", "std/ai.callImageBase64WithRefs", "std/fs.readFileBytes"},
+			SeeAlso:   []string{"std/ai.callImage", "std/ai.callImageBase64WithRefs", "std/fs.readFileBase64"},
 			Since:     "v0.51.1",
 			Stability: StabilityExperimental,
 			Tags:      []string{"ai", "image", "generation", "reference", "edit"},

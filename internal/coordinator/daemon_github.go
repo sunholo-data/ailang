@@ -86,6 +86,14 @@ func (d *Daemon) syncAllRepos(repos []RepoSyncConfig) {
 
 // syncRepoIssues imports GitHub issues from a specific repo as messages using the ailang CLI.
 func (d *Daemon) syncRepoIssues(repo RepoSyncConfig) {
+	// The repo reaches this subprocess's argv from config AND from the signed
+	// webhook payload (an unconfigured repo gets an ad-hoc import), so it must
+	// be an exact owner/repo before it is passed on. Refusing is logged: an
+	// import that silently did nothing would look like "no new issues".
+	if err := messaging.ValidateInputRepo(repo.Repo); err != nil {
+		d.logger.Printf("GitHub sync REFUSED: %s", SanitizeLog(err.Error()))
+		return
+	}
 	d.logger.Printf("Syncing GitHub issues from %s...", SanitizeLog(repo.Repo))
 
 	// Build the command: ailang messages import-github --repo <repo> [--inbox target] [--labels label1,label2]

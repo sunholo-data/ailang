@@ -9,7 +9,7 @@ import (
 	"testing"
 )
 
-var bytesCodegenExports = []string{"fromInts", "toInts", "length", "slice", "byteAt", "concat", "fromString", "toString"}
+var bytesCodegenExports = []string{"fromInts", "toInts", "length", "sliceLen", "byteAt", "concat", "fromString", "toString"}
 
 func TestBytesCodegenSpecCoverage(t *testing.T) {
 	for _, name := range bytesCodegenExports {
@@ -27,6 +27,12 @@ func TestBytesCodegenSpecCoverage(t *testing.T) {
 		if spec == nil || spec.StdlibName != "" || spec.StdlibModule != "" {
 			t.Errorf("legacy alias %s must remain directly available without a qualified claim", oldName)
 		}
+	}
+	// The deprecated spelling std/bytes.slice resolves through the rename
+	// alias to the same helper as sliceLen, without a qualified claim of its
+	// own (M-V1-STDLIB-SURFACE-POLISH M2).
+	if got, want := StdlibIndex[StdlibKey{Module: "std/bytes", Name: "slice"}], StdlibIndex[StdlibKey{Module: "std/bytes", Name: "sliceLen"}]; got == "" || got != want {
+		t.Errorf("deprecated std/bytes.slice resolves to %q, want sliceLen's %q", got, want)
 	}
 	for _, name := range bytesCodegenExports {
 		claims := 0

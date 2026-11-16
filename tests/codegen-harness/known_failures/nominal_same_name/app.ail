@@ -1,0 +1,6 @@
+module app
+
+import a as A
+import b as B
+
+export pure func summary() -> string = "${show(A.get(A.mk()))},${B.get(B.mk())}"

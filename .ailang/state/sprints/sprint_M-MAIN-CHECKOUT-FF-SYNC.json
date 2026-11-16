@@ -3,7 +3,7 @@
   "status": "planned",
   "created": "2026-10-08",
   "design_doc": "design_docs/fleet-mission.md",
-  "sprint_plan": "design_docs/planned/sprint-plan-main-checkout-ff-sync.md",
+  "sprint_plan": "design_docs/implemented/v0_53_1/sprint-plan-main-checkout-ff-sync.md",
   "github_issues": [],
   "metadata": {
     "mission": "fleet",

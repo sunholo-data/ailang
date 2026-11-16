@@ -176,12 +176,15 @@ type AgentBenchmarkResult struct {
 	SessionJSONLPath string `json:"session_jsonl_path,omitempty"`
 
 	// Contract verification results (M-CONTRACT-EVAL)
-	VerifyOk        bool   `json:"verify_ok"`             // All contracts verified
-	VerifyVerified  int    `json:"verify_verified"`       // Count of verified functions
-	VerifyCounterex int    `json:"verify_counterexample"` // Count of counterexamples
-	VerifySkipped   int    `json:"verify_skipped"`        // Count of skipped functions
-	VerifyErrors    int    `json:"verify_errors"`         // Count of Z3 errors
-	VerifyJSON      string `json:"verify_json,omitempty"` // Full ai-check JSON output
+	VerifyOk        bool `json:"verify_ok"`             // All contracts verified
+	VerifyVerified  int  `json:"verify_verified"`       // Count of verified functions
+	VerifyCounterex int  `json:"verify_counterexample"` // Count of counterexamples
+	// VerifyInconclusive counts bounded-unrolling sats: attempted, undecided —
+	// neither a violation nor a proof.
+	VerifyInconclusive int    `json:"verify_inconclusive"`
+	VerifySkipped      int    `json:"verify_skipped"`        // Count of skipped functions
+	VerifyErrors       int    `json:"verify_errors"`         // Count of Z3 errors
+	VerifyJSON         string `json:"verify_json,omitempty"` // Full ai-check JSON output
 
 	// Cost-and-speed budget metrics (M-EVAL-COST-AND-SPEED-BUDGETS, v0.15.1).
 	// Populated from executor.Result. Zero values mean "not measured".

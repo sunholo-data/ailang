@@ -163,4 +163,4 @@ Delegated to the executor: helper/fixture layout and how outbound notices are st
 
 ## Related documents
 
-- [Fleet charter, HD-2a](../fleet-mission.md) · [Quota rationing/routing](m-quota-rationing-routing.md) · [Role-runner provider quota sprint](sprint-plan-pi-runner-provider-quota.md) · [Mission-loop-change skill](../../.claude/skills/mission-loop-change/SKILL.md)
+- [Fleet charter, HD-2a](../fleet-mission.md) · [Quota rationing/routing](m-quota-rationing-routing.md) · [Role-runner provider quota sprint](../implemented/v0_50_0/sprint-plan-pi-runner-provider-quota.md) · [Mission-loop-change skill](../../.claude/skills/mission-loop-change/SKILL.md)

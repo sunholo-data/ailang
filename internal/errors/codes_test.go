@@ -21,6 +21,9 @@ func TestErrorCodeTaxonomy(t *testing.T) {
 		{"MOD003", MOD003, "module", "feature"},
 		{"MOD004", MOD004, "module", "namespace"},
 
+		// Bytecode errors
+		{"BC001", BC001, "bytecode", "coverage"},
+
 		// Loader errors
 		{"LDR001", LDR001, "loader", "resolution"},
 		{"LDR002", LDR002, "loader", "dependency"},
@@ -112,8 +115,10 @@ func TestAllErrorCodesInRegistry(t *testing.T) {
 		PAR001, PAR002, PAR003, PAR004, PAR005, PAR006, PAR007, PAR008, PAR009, PAR010,
 		// Module
 		MOD001, MOD002, MOD003, MOD004, MOD005, MOD007, MOD015,
+		// Bytecode
+		BC001,
 		// Loader
-		LDR001, LDR002, LDR003, LDR004, LDR005,
+		LDR001, LDR002, LDR003, LDR004, LDR005, LDR006,
 		// Desugar
 		DSG001, DSG002, DSG003,
 		// Type checking
@@ -125,7 +130,7 @@ func TestAllErrorCodesInRegistry(t *testing.T) {
 		// Evaluation
 		EVA001, EVA002, EVA003, EVA004, EVA005,
 		// Runtime
-		RT001, RT002, RT003, RT004, RT005, RT006, RT007, RT008, RT009,
+		RT001, RT002, RT003, RT004, RT005, RT006, RT007, RT008, RT009, RT010,
 	}
 
 	for _, code := range allCodes {
@@ -161,7 +166,7 @@ func TestErrorInfoConsistency(t *testing.T) {
 		validPhases := map[string]bool{
 			"parser": true, "module": true, "loader": true, "desugar": true,
 			"typecheck": true, "elaborate": true, "link": true,
-			"eval": true, "runtime": true, "import": true,
+			"eval": true, "runtime": true, "import": true, "bytecode": true,
 		}
 		if !validPhases[info.Phase] {
 			t.Errorf("Invalid phase for %s: %s", code, info.Phase)

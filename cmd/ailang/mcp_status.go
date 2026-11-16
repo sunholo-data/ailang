@@ -48,7 +48,7 @@ func printMCPHelp() {
 Subcommands:
   status      Show MCP endpoint reachability + drift vs embedded prompt
   check URL   Check an MCP endpoint against the Anthropic/OpenAI directory
-              requirements (--target anthropic|openai|both, --json; exit 1 on FAIL)
+              requirements (--target anthropic|openai|both|copilot|all, --json; exit 1 on FAIL)
   help        Show this help
 
 Environment:

@@ -60,7 +60,7 @@ func registerBytesCodegenSpecs() {
 	copy(out, b[int(s):int(s+n)])
 	return NewOptionSome(out)`,
 		},
-		StdlibName: "slice", StdlibModule: "std/bytes",
+		StdlibName: "sliceLen", StdlibModule: "std/bytes",
 	})
 	registerIfMissing("_bytes_byte_at", 2, true, &GoCodegenSpec{
 		Helper: &GoHelperSpec{

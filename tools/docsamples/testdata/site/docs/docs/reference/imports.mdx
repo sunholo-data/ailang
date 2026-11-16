@@ -1,0 +1,19 @@
+---
+title: Imported examples fixture
+---
+
+import CodeBlock from '@theme/CodeBlock';
+import Good from '!!raw-loader!@site/../examples/fixture/good.ail';
+import Bad from '!!raw-loader!@site/../examples/fixture/bad.ail';
+import Missing from '!!raw-loader!@site/../examples/fixture/missing.ail';
+
+This page sits under reference/ on purpose: the gate must scan every docs directory.
+
+<CodeBlock language="ailang">{Good}</CodeBlock>
+
+<CodeBlock language="typescript">{Bad}</CodeBlock>
+
+```ailang
+-- marker: reference-page-block
+export func inReference() -> int = undefinedInReference
+```

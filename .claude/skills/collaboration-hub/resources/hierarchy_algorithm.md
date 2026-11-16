@@ -80,7 +80,7 @@ Claude Code emits telemetry (api_request, user_prompt, tool events) in separate 
 
 ## Task ID Correlation
 
-When clicking an event in the UI, we find its traces:
+Given an event (for example from `ailang chains dashboard`), we find its traces:
 
 ```typescript
 // Priority order for finding task ID:
@@ -181,11 +181,3 @@ Claude Code does NOT propagate TRACEPARENT to Bash tool subprocess environments.
 | `internal/observatory/api.go` | REST API handlers |
 | `internal/observatory/backend.go` | Backend interface |
 | `internal/observatory/store.go` | SQLite implementation |
-
-## Frontend Files
-
-| File | Purpose |
-|------|---------|
-| `ui/src/features/controlplane/ControlPlane.tsx` | Event click handling |
-| `ui/src/features/controlplane/hooks/useTraceData.ts` | Spans via hierarchy API |
-| `ui/src/features/controlplane/components/TraceWaterfall.tsx` | Visualization |

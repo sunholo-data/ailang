@@ -166,6 +166,16 @@ type anthropicOutputTokensDetails struct {
 	ThinkingTokens int `json:"thinking_tokens"`
 }
 
+// answerTokens is output_tokens with the thinking share removed — the shape
+// ai.Response.OutputTokens requires (disjoint from ReasonTokens, as the OpenAI,
+// OpenRouter and Gemini clients already report it). Callers bill
+// OutputTokens+ReasonTokens, so passing the raw merged figure double-billed every
+// thinking token: Fable 5.2's legal_obligation_engine banked $0.81 for a call
+// Anthropic billed $0.48 (2026-11-09).
+func (u anthropicUsage) answerTokens() int {
+	return max(u.OutputTokens-u.OutputTokensDetails.ThinkingTokens, 0)
+}
+
 // messagesResponse represents the response from the Messages API.
 type messagesResponse struct {
 	ID           string         `json:"id"`
@@ -367,7 +377,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	return &ai.Response{
 		Text:         text,
 		InputTokens:  result.Usage.InputTokens,
-		OutputTokens: result.Usage.OutputTokens,
+		OutputTokens: result.Usage.answerTokens(),
 		TotalTokens:  result.Usage.InputTokens + result.Usage.OutputTokens,
 		// FinishReason makes truncation visible on the standard-eval path
 		// (M-EVAL-TOKEN-HEADROOM). Without it a run cut off at max_tokens banks
@@ -386,8 +396,9 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 		// core+frontier run, which read as 0 reasoning tokens for an always-on
 		// thinking model.
 		//
-		// Cost math is unaffected either way: thinking is billed INSIDE
-		// OutputTokens, so this decomposes that figure rather than adding to it.
+		// Thinking is billed INSIDE the wire's output_tokens; OutputTokens above
+		// has it subtracted (answerTokens) so the pair is disjoint, which is what
+		// every cost caller assumes when it sums them.
 		ReasonTokens: result.Usage.OutputTokensDetails.ThinkingTokens,
 		FinishReason: mapStopReason(result.StopReason),
 		Model:        result.Model,

@@ -4,29 +4,27 @@
 -- carries its own ailang_version field so callers can filter as needed.
 module mcp_tools/benchmarks
 
-import mcp_tools/lib (readUnscopedOrError, errorJson)
-import std/json (Json)
+import mcp_tools/lib (readUnscopedOrError, readUnscopedJson, errorJson)
+import mcp_tools/live (safePath)
+import std/json (Json, jo, kv, js, jnum, getNumber, getObject)
+import std/option (getOrElse)
+import std/result (Result, Ok, Err)
+import std/string (replace)
 
 -- List benchmark suites and runs, optionally filtered to a since_version cutoff.
 @route("POST", "/api/mcp/benchmarks_list")
 @mcp_name("benchmarks_list")
+@mcp_title("List benchmark runs")
+@mcp_hints("readOnly", "idempotent")
 export func benchmarksList(sinceVersion: string) -> Json ! {Env, FS} =
   readUnscopedOrError("benchmarks_index.json")
-
--- One run's full result (code, compile_ok, runtime_ok, stdout_ok, cost, tokens).
-@route("POST", "/api/mcp/benchmark_run")
-@mcp_name("benchmark_run")
-export func benchmarkRun(runId: string) -> Json ! {Env, FS} =
-  if runId == "" then
-    errorJson("missing_field", "run_id is required")
-  else
-    let suffix = "benchmarks/runs/${runId}.json" in
-    readUnscopedOrError(suffix)
 
 -- Where does a given model pass/fail? Optional version filter.
 -- Output: {passes: [...], fails_by_category: {...}, total_cost}
 @route("POST", "/api/mcp/benchmarks_for_model")
 @mcp_name("benchmarks_for_model")
+@mcp_title("Benchmarks for a model")
+@mcp_hints("readOnly", "idempotent")
 export func benchmarksForModel(model: string, version: string) -> Json ! {Env, FS} =
   if model == "" then
     errorJson("missing_field", "model is required")
@@ -34,14 +32,38 @@ export func benchmarksForModel(model: string, version: string) -> Json ! {Env, F
     let suffix = "benchmarks/by_model/${model}.json" in
     readUnscopedOrError(suffix)
 
--- Pairwise model comparison.
--- Output: {a_only_passes, b_only_passes, both, neither}
+-- Two models side by side across every banked run: passes, runs, pass rate,
+-- cost and failures by category. Model names are as benchmarks_list gives them.
 @route("POST", "/api/mcp/benchmarks_compare")
 @mcp_name("benchmarks_compare")
-export func benchmarksCompare(modelA: string, modelB: string, version: string) -> Json ! {Env, FS} =
-  if modelA == "" then
-    errorJson("missing_field", "model_a is required")
-  else if modelB == "" then
-    errorJson("missing_field", "model_b is required")
-  else
-    readUnscopedOrError("benchmarks_compare_index.json")
+@mcp_title("Compare two models on benchmarks")
+@mcp_hints("readOnly", "idempotent")
+export func benchmarksCompare(modelA: string, modelB: string) -> Result[Json, string] ! {Env, FS} =
+  if modelA == "" || modelB == "" then Err("model_a and model_b are both required; benchmarks_list lists the models")
+  else match modelSummary(modelA) {
+    Err(reason) => Err(reason),
+    Ok(a) => match modelSummary(modelB) {
+      Err(reason) => Err(reason),
+      Ok(b) => Ok(jo([kv("model_a", a), kv("model_b", b)]))
+    }
+  }
+
+-- The snapshot names each model's file as tools/build-snapshot does: "/" and
+-- " " become "_".
+func modelSummary(model: string) -> Result[Json, string] ! {Env, FS} =
+  let file = replace(replace(model, "/", "_"), " ", "_") in
+  if !safePath(file) then Err("not a model name: ${model}")
+  else match readUnscopedJson("benchmarks/by_model/${file}.json") {
+    Err(_) => Err("no benchmark runs for model '${model}'; benchmarks_list lists the models"),
+    Ok(m) =>
+      let passes = getOrElse(getNumber(m, "passes"), 0.0) in
+      let runs = getOrElse(getNumber(m, "total_runs"), 0.0) in
+      Ok(jo([
+        kv("model", js(model)),
+        kv("passes", jnum(passes)),
+        kv("total_runs", jnum(runs)),
+        kv("pass_rate", jnum(if runs > 0.0 then passes / runs else 0.0)),
+        kv("total_cost_usd", jnum(getOrElse(getNumber(m, "total_cost_usd"), 0.0))),
+        kv("fails_by_category", getOrElse(getObject(m, "fails_by_category"), jo([])))
+      ]))
+  }

@@ -91,8 +91,14 @@ func registerJSONCodegenSpecs() {
 	if IsNone(opt).(bool) { return NewOptionNone() }
 	val := OptionGetOrElse(opt, nil)
 	json := val.(*Json)
+	if json.Kind == JsonKindJInt {
+		return NewOptionSome(json.JInt.Value0)
+	}
 	if json.Kind == JsonKindJNumber {
-		return NewOptionSome(int64(json.JNumber.Value0))
+		f := json.JNumber.Value0
+		if f >= -9223372036854775808.0 && f < 9223372036854775808.0 && f == float64(int64(f)) {
+			return NewOptionSome(int64(f))
+		}
 	}
 	return NewOptionNone()`,
 		}, "Json"},
@@ -123,6 +129,7 @@ func registerJSONCodegenSpecs() {
 			FuncName: "AsNumber", Signature: "func AsNumber(j interface{}) interface{}",
 			Body: `json := j.(*Json)
 	if json.Kind == JsonKindJNumber { return NewOptionSome(json.JNumber.Value0) }
+	if json.Kind == JsonKindJInt { return NewOptionSome(float64(json.JInt.Value0)) }
 	return NewOptionNone()`,
 		}, "Json"},
 		{"_json_asBool", "asBool", 1, &GoHelperSpec{

@@ -220,6 +220,37 @@ Supersedes §"Data extraction" and §R4 where they conflict. The binding constra
 5. **Tool mapping:** every trajectory is converted to **pi's tool schema** (the harness it will run in). Claude Code Edit/Write/Bash, opencode and motoko tools are mapped to pi equivalents, and unmappable turns are dropped.
 6. **No teaching prompt in training inputs.** The point is a model that does not need it; a slim prompt (G4) may be included as the system turn.
 
+### Held-out amendment (2026-11-11)
+
+**Approved by Mark 2026-11-11, to be recorded as D-FT-17** (made in PR #2229, M-V1-SHOW-TOTAL; no
+pilot data, config or run touched). Reasons: under total `show` the old task's natural solution no
+longer prints its expected output, so it would grade the format change rather than the model; and
+both earlier pilots failed the old task (a compile error and the 1-hour limit), so no existing paired
+comparison is affected. Pilot-4 is compared with earlier pilots on the 23 shared tasks, with
+`run_length_encode_v2` reported separately.
+
+`run_length_encode` was retired to `benchmarks/retired/`: its expected output was the old lossy
+`show` of a `[(int, string)]`. Its replacement `run_length_encode_v2` is the same task with an
+explicit output format. Left alone, that broke the held-out set both ways: the pilot scripts pass
+core + stretch to `--benchmarks`, which loads `benchmarks/<id>.yml`, so the old id no longer loads;
+and the exclusion matched exact ids, so v2 solutions (a near-duplicate of a held-out task) could
+enter training.
+
+Change: `tools/finetune/heldout.json` stretch now names `run_length_encode_v2`; a new key,
+`retired_excluded: ["run_length_encode"]`, keeps the old id's banked solutions out of training.
+Who reads `heldout.json`, and for what:
+- TRAINING exclusion (core + stretch + retired_excluded): `extract_lang.load_heldout` (one added
+  term), used by onpolicy_pairs, stale_fix, probe_after_read, synth_episodes and now
+  `extract_traj.py` (which re-read the file itself before); the inline guard in
+  `collect_onpolicy.sh` (one added term).
+- EVAL list (core + stretch, unchanged): `pilot*_run.sh`, `weekend_pilot.sh`, and
+  `summarize_pilot.py` (core only).
+
+Tests in `internal/eval_harness/finetune_heldout_test.go` run each training reader's real entry
+point against a fixture (network, model and compiler calls stubbed, the held-out filter not) and
+fail if any admits a held-out, retired or successor id; they also fail if a retired id is in the
+eval list or any version (`_vN`) of a held-out task is missing from the exclusion.
+
 ### Generation (only where the inventory has gaps)
 
 - **G1, nothing for protocol or repairs.** Existing trajectories and repairs cover them.
@@ -489,6 +520,74 @@ arms on a broken adapter, the rest of the weekend grant.
   lr 2e-5 (was 1e-4), LoRA scale 10 (was 20) and warmup 100.
 - To restart once the diverged process is stopped:
   `cp tools/finetune/pilot2b.yaml tools/finetune/pilot2.yaml && nohup tools/finetune/pilot2_run.sh train serve eval_B eval_C eval_A eval_A2 summary > ~/models/finetune/pilot2.nohup 2>&1 &`
+
+### Pilot-2b restart (2026-11-07, attended approval from Mark)
+
+Mark approved stopping the diverged trainer and restarting with the cooled config, including
+stopping the replacement if it clearly diverges. Mark subsequently reaffirmed: "please babysit
+it and see it through - and do stop it if it needs to be again, we dont have to wait again like
+this time." **This supersedes the old check-in's no-kill instruction: stop a clearly diverged
+replacement immediately without requesting confirmation again.** At stop, train loss was 5.850 at step 1700;
+latest validation was 6.660 at step 1600, versus 0.592 initially. SIGTERM to trainer PID 94523
+made runner PID 78493 exit and release the lock. The complete old run, original config and
+trainer/runner snapshots are preserved at `~/models/finetune/pilot2-diverged-20261107T092059Z/`.
+
+`pilot2.yaml` now matches `pilot2b.yaml`: LR 2e-5, scale 10, warmup 100, cosine floor 1e-7;
+same data, all layers, rank 32 and 2368 steps. **Warmup is in optimizer updates** (about 400
+training steps with accumulation 4), not training iterations. This is a candidate correction,
+not a validated fix; training starts from the base with an empty adapter/state directory.
+
+A detached, run-specific supervisor (`~/models/finetune/pilot2/supervise.py`, PID 36354)
+started at 09:22Z. It uses the existing runner one stage at a time, initially waiting for
+Daneel's lock rather than interrupting it. Runner PID 36360 acquired the lock and started
+training at **09:23:50Z**; the new log confirms LR 2e-5, all layers and rank 32.
+Initial validation completed at 09:34Z: **0.592**, matching the original base starting point;
+this is a clean-start check, not yet evidence that the replacement has learned successfully.
+Status: `pilot2/supervisor-status.json`; events:
+`pilot2/supervisor.log`; training: `pilot2/train.log` (paths under `~/models/finetune/`).
+**Do not launch a second runner or use the old unconditional restart command while this
+supervisor is alive.** The old Claude check-in is quota-paused; supervision needs no model calls.
+
+- Check losses every 15 seconds. Stop on non-finite loss, validation exceeding both 2x initial
+  and 1.0, or two consecutive validation increases above 10%.
+- Serve only after successful training with final validation present and no worse than initial.
+- Run held-out arms **B, A, C, A2**, prioritizing the decisive B/A comparison; incomplete arms
+  cannot establish the promotion criterion. No cloud/API spend or prompt-version changes.
+- The cutoff remains **Sunday 2026-11-08 22:00 Copenhagen = 21:00Z**. No new stage starts then;
+  training/serving stops if still active; an already-running eval arm may finish.
+- On termination/completion, release only the unchanged weekend `os-rotation-filler` hold and
+  bootstrap that job; retain Mark's separate `nightly-eval` hold. Expected training is roughly
+  21–23 h; all four arms (up to 5 h each) are not guaranteed within the remaining window.
+
+## Pilot-2 results (2026-11-07/08; written up 2026-11-09)
+
+The run was restarted on `pilot2b.yaml` (lr 2e-5, LoRA scale 10, warmup 100) after the first attempt
+diverged; the stages then ran one at a time.
+- **Train:** 2026-11-07 09:23Z → 11-08 06:13Z. Val loss 0.191 (step 200) → **0.175** (step 2368),
+  minimum 0.169 at step 1200.
+- **Serve:** sampling PARAMETERs set.
+- **Arms:** lean profile, agent mode, held-out 24, each under a 5 h wall cap.
+
+| arm | pass | core | stretch | failures | median out-tok/pass | min/success |
+|---|---|---|---|---|---|---|
+| A_lean (base, v0.16.12) | 6/13 | 6/10 | 0/3 | 3 compile, 3 timeout, 1 runtime | 9,869 | 22 |
+| B_lean (ft2, ft-slim-v1) | 4/24 | 3/12 | 1/12 | 16 compile, 3 logic, 1 runtime | 3,097 | 67 |
+| C_lean (ft2, ft-none) | 4/19 | 2/9 | 2/10 | 11 compile, 2 logic, 1 runtime, 1 timeout | 2,185 | 59 |
+| A2_lean (base, ft-slim-v1) | not run (the weekend window closed) | | | | | |
+
+- **Paired** on the 10 benchmarks all three arms reached: A 5, B 1, C 2.
+- **The kill criterion fails** (B 0.17 < A 0.46).
+- **Findings:**
+  1. **Protocol fixed:** zero protocol misses, against pilot-1's 0/24 on format.
+  2. **~3× fewer output tokens per pass than base.**
+  3. **Accuracy limited by language knowledge:** compile errors dominate.
+- **Pilot-3 candidates (undecided):**
+  - ft + full teaching prompt (habits from training, language from the prompt);
+  - repo-program agent episodes for language breadth;
+  - base-12B self-distillation;
+  - complete all arms (lift the 5 h cap, or run A2).
+- **The weekend window closed** after C_lean (Sun 21:17Z). The os-rotation-filler hold was released
+  and the nightly-eval hold (09-27) kept.
 
 ## Pilot-1 results (2026-11-06)
 

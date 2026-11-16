@@ -6,8 +6,8 @@
   "iteration": 36,
   "role": "planner",
   "verified_at": "4c5070c5010ebc15abadb7cb5de6edc7d036b7f1",
-  "design_doc": "design_docs/planned/m-quorum-salvage-retry.md",
-  "sprint_plan": "design_docs/planned/sprint-plan-quorum-salvage.md",
+  "design_doc": "design_docs/implemented/v0_54_12/m-quorum-salvage-retry.md",
+  "sprint_plan": "design_docs/implemented/v0_54_12/sprint-plan-quorum-salvage.md",
   "github_issues": [941],
   "tickets": [
     "quorum:invalid-absent-on-quoted-literals",
@@ -55,7 +55,7 @@
         "internal/mission/quorum/run.go",
         "internal/mission/quorum/reviewer.go",
         "internal/mission/quorum/claude_reviewer.go",
-        "design_docs/planned/sprint-plan-quorum-salvage.md",
+        "design_docs/implemented/v0_54_12/sprint-plan-quorum-salvage.md",
         ".ailang/state/sprints/sprint_M-FLEET-QUORUM-SALVAGE.json"
       ],
       "acceptance_criteria": [
@@ -86,7 +86,7 @@
         "internal/mission/quorum/artifact.go",
         "internal/mission/quorum/salvage_test.go",
         "internal/mission/quorum/reviewer_test.go",
-        "design_docs/planned/sprint-plan-quorum-salvage.md",
+        "design_docs/implemented/v0_54_12/sprint-plan-quorum-salvage.md",
         ".ailang/state/sprints/sprint_M-FLEET-QUORUM-SALVAGE.json"
       ],
       "acceptance_criteria": [
@@ -116,7 +116,7 @@
         ".claude/skills/mission-control/resources/gate-2-pick.md",
         ".agents/skills/mission-control/resources/gate-2-pick.md",
         "changelogs/unreleased/2026-10-14-quorum-salvage-verdict.md",
-        "design_docs/planned/sprint-plan-quorum-salvage.md",
+        "design_docs/implemented/v0_54_12/sprint-plan-quorum-salvage.md",
         ".ailang/state/sprints/sprint_M-FLEET-QUORUM-SALVAGE.json"
       ],
       "acceptance_criteria": [

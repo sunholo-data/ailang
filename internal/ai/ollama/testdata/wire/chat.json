@@ -1,0 +1,249 @@
+{
+  "bad_tool_schema_json": {
+    "requests": null,
+    "error": "[ToolsNotSupported] ollama: invalid JSON-Schema parameters for tool \"bad\": unexpected end of JSON input",
+    "error_code": "ToolsNotSupported"
+  },
+  "bad_tool_schema_type": {
+    "requests": null,
+    "error": "[ToolsNotSupported] ollama: invalid JSON-Schema parameters for tool \"bad\": json: cannot unmarshal number into Go struct field ToolFunctionParameters.properties.type of type []string",
+    "error_code": "ToolsNotSupported"
+  },
+  "err_400_json": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/chat",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "2581",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"system\",\"content\":\"system \\u003crules\\u003e \\u0026 more\"},{\"role\":\"user\",\"content\":\"look at these\",\"images\":[\"UE5HLUJZVEVT\",\"SlBFRy1CWVRFUw==\"]},{\"role\":\"assistant\",\"content\":\"calling\",\"tool_calls\":[{\"function\":{\"index\":0,\"name\":\"write_file\",\"arguments\":{\"b\":1,\"a\":{\"x\":1,\"y\":2},\"c\":\"\\u003c\\u003e\\u0026\",\"n\":1,\"big\":12345678901234567000}}},{\"function\":{\"index\":0,\"name\":\"empty_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"null_args\",\"arguments\":null}},{\"function\":{\"index\":0,\"name\":\"array_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"garbage_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"dup_args\",\"arguments\":{\"k\":3,\"j\":2}}},{\"function\":{\"index\":0,\"name\":\"escaped_args\",\"arguments\":{\"café\":\"x\",\"tab\\tkey\":1,\"bs\\u0008key\":2,\"lt\\u003c\":3}}},{\"function\":{\"index\":0,\"name\":\"string_args\",\"arguments\":{}}}]},{\"role\":\"tool\",\"content\":\"wrote 3 bytes\",\"tool_call_id\":\"c1\"},{\"role\":\"USER\",\"content\":\"and now?\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"write_file\",\"description\":\"Write \\u003ca\\u003e file \\u0026 stuff\",\"parameters\":{\"type\":\"object\",\"required\":[\"path\",\"content\"],\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"file \\u003cpath\\u003e\"},\"content\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"shapes\",\"parameters\":{\"type\":\"object\",\"properties\":{\"mode\":{\"type\":[\"string\",\"null\"],\"enum\":[\"a\",\"b\",1,null,{\"a\":2,\"z\":1}]},\"opts\":{\"type\":\"object\",\"properties\":{\"z\":{\"type\":\"integer\"},\"a\":{\"type\":\"boolean\"}},\"required\":[\"z\"]},\"list\":{\"type\":\"array\",\"items\":{\"b\":2,\"properties\":{\"k\":{\"type\":\"string\"}},\"type\":\"object\"}},\"either\":{\"anyOf\":[{\"type\":\"string\"},{\"type\":\"number\",\"description\":\"n\"}]},\"single\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"empty\",\"parameters\":{\"type\":\"\",\"properties\":null}}},{\"type\":\"function\",\"function\":{\"name\":\"no_params\",\"parameters\":{\"type\":\"\",\"properties\":null}}},{\"type\":\"function\",\"function\":{\"name\":\"defs\",\"parameters\":{\"type\":\"object\",\"$defs\":{\"X\":{\"a\":2,\"type\":\"string\",\"z\":1}},\"items\":{\"b\":[3,1],\"q\":1},\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"null_props\",\"parameters\":{\"type\":\"object\",\"properties\":null}}},{\"type\":\"function\",\"function\":{\"name\":\"dupes\",\"parameters\":{\"type\":\"object\",\"properties\":{\"b\":{\"type\":\"number\"},\"a\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"escaped_keys\",\"parameters\":{\"type\":\"object\",\"properties\":{\"café\":{\"type\":\"string\"},\"a\\u003cb\\u003e\\u0026c\":{\"type\":\"string\"},\"tab\\tkey\":{\"type\":\"string\"},\"bs\\u0008key\":{\"type\":\"string\"}}}}}],\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "error": "[Internal] 400 Bad Request: registry.ollama.ai/library/qwen3:8b does not support tools",
+    "error_code": "Internal"
+  },
+  "err_503_text": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/chat",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "1012",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"system\",\"content\":\"system \\u003crules\\u003e \\u0026 more\"},{\"role\":\"user\",\"content\":\"look at these\",\"images\":[\"UE5HLUJZVEVT\",\"SlBFRy1CWVRFUw==\"]},{\"role\":\"assistant\",\"content\":\"calling\",\"tool_calls\":[{\"function\":{\"index\":0,\"name\":\"write_file\",\"arguments\":{\"b\":1,\"a\":{\"x\":1,\"y\":2},\"c\":\"\\u003c\\u003e\\u0026\",\"n\":1,\"big\":12345678901234567000}}},{\"function\":{\"index\":0,\"name\":\"empty_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"null_args\",\"arguments\":null}},{\"function\":{\"index\":0,\"name\":\"array_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"garbage_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"dup_args\",\"arguments\":{\"k\":3,\"j\":2}}},{\"function\":{\"index\":0,\"name\":\"escaped_args\",\"arguments\":{\"café\":\"x\",\"tab\\tkey\":1,\"bs\\u0008key\":2,\"lt\\u003c\":3}}},{\"function\":{\"index\":0,\"name\":\"string_args\",\"arguments\":{}}}]},{\"role\":\"tool\",\"content\":\"wrote 3 bytes\",\"tool_call_id\":\"c1\"},{\"role\":\"USER\",\"content\":\"and now?\"}],\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "error": "[Internal] 503 Service Unavailable: Service Unavailable",
+    "error_code": "Internal"
+  },
+  "err_args_as_string": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/chat",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "2581",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"system\",\"content\":\"system \\u003crules\\u003e \\u0026 more\"},{\"role\":\"user\",\"content\":\"look at these\",\"images\":[\"UE5HLUJZVEVT\",\"SlBFRy1CWVRFUw==\"]},{\"role\":\"assistant\",\"content\":\"calling\",\"tool_calls\":[{\"function\":{\"index\":0,\"name\":\"write_file\",\"arguments\":{\"b\":1,\"a\":{\"x\":1,\"y\":2},\"c\":\"\\u003c\\u003e\\u0026\",\"n\":1,\"big\":12345678901234567000}}},{\"function\":{\"index\":0,\"name\":\"empty_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"null_args\",\"arguments\":null}},{\"function\":{\"index\":0,\"name\":\"array_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"garbage_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"dup_args\",\"arguments\":{\"k\":3,\"j\":2}}},{\"function\":{\"index\":0,\"name\":\"escaped_args\",\"arguments\":{\"café\":\"x\",\"tab\\tkey\":1,\"bs\\u0008key\":2,\"lt\\u003c\":3}}},{\"function\":{\"index\":0,\"name\":\"string_args\",\"arguments\":{}}}]},{\"role\":\"tool\",\"content\":\"wrote 3 bytes\",\"tool_call_id\":\"c1\"},{\"role\":\"USER\",\"content\":\"and now?\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"write_file\",\"description\":\"Write \\u003ca\\u003e file \\u0026 stuff\",\"parameters\":{\"type\":\"object\",\"required\":[\"path\",\"content\"],\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"file \\u003cpath\\u003e\"},\"content\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"shapes\",\"parameters\":{\"type\":\"object\",\"properties\":{\"mode\":{\"type\":[\"string\",\"null\"],\"enum\":[\"a\",\"b\",1,null,{\"a\":2,\"z\":1}]},\"opts\":{\"type\":\"object\",\"properties\":{\"z\":{\"type\":\"integer\"},\"a\":{\"type\":\"boolean\"}},\"required\":[\"z\"]},\"list\":{\"type\":\"array\",\"items\":{\"b\":2,\"properties\":{\"k\":{\"type\":\"string\"}},\"type\":\"object\"}},\"either\":{\"anyOf\":[{\"type\":\"string\"},{\"type\":\"number\",\"description\":\"n\"}]},\"single\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"empty\",\"parameters\":{\"type\":\"\",\"properties\":null}}},{\"type\":\"function\",\"function\":{\"name\":\"no_params\",\"parameters\":{\"type\":\"\",\"properties\":null}}},{\"type\":\"function\",\"function\":{\"name\":\"defs\",\"parameters\":{\"type\":\"object\",\"$defs\":{\"X\":{\"a\":2,\"type\":\"string\",\"z\":1}},\"items\":{\"b\":[3,1],\"q\":1},\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"null_props\",\"parameters\":{\"type\":\"object\",\"properties\":null}}},{\"type\":\"function\",\"function\":{\"name\":\"dupes\",\"parameters\":{\"type\":\"object\",\"properties\":{\"b\":{\"type\":\"number\"},\"a\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"escaped_keys\",\"parameters\":{\"type\":\"object\",\"properties\":{\"café\":{\"type\":\"string\"},\"a\\u003cb\\u003e\\u0026c\":{\"type\":\"string\"},\"tab\\tkey\":{\"type\":\"string\"},\"bs\\u0008key\":{\"type\":\"string\"}}}}}],\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "error": "[Internal] Value looks like object, but can't find closing '}' symbol",
+    "error_code": "Internal"
+  },
+  "err_midstream": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/chat",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "1012",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"system\",\"content\":\"system \\u003crules\\u003e \\u0026 more\"},{\"role\":\"user\",\"content\":\"look at these\",\"images\":[\"UE5HLUJZVEVT\",\"SlBFRy1CWVRFUw==\"]},{\"role\":\"assistant\",\"content\":\"calling\",\"tool_calls\":[{\"function\":{\"index\":0,\"name\":\"write_file\",\"arguments\":{\"b\":1,\"a\":{\"x\":1,\"y\":2},\"c\":\"\\u003c\\u003e\\u0026\",\"n\":1,\"big\":12345678901234567000}}},{\"function\":{\"index\":0,\"name\":\"empty_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"null_args\",\"arguments\":null}},{\"function\":{\"index\":0,\"name\":\"array_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"garbage_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"dup_args\",\"arguments\":{\"k\":3,\"j\":2}}},{\"function\":{\"index\":0,\"name\":\"escaped_args\",\"arguments\":{\"café\":\"x\",\"tab\\tkey\":1,\"bs\\u0008key\":2,\"lt\\u003c\":3}}},{\"function\":{\"index\":0,\"name\":\"string_args\",\"arguments\":{}}}]},{\"role\":\"tool\",\"content\":\"wrote 3 bytes\",\"tool_call_id\":\"c1\"},{\"role\":\"USER\",\"content\":\"and now?\"}],\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "error": "[Internal] context length exceeded",
+    "error_code": "Internal"
+  },
+  "err_refused": {
+    "requests": null,
+    "error": "[ConnectionFailed] Post \"http://SERVER/api/chat\": dial tcp SERVER: connect: connection refused",
+    "error_code": "ConnectionFailed"
+  },
+  "err_stall_deadline": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/chat",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "1012",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"system\",\"content\":\"system \\u003crules\\u003e \\u0026 more\"},{\"role\":\"user\",\"content\":\"look at these\",\"images\":[\"UE5HLUJZVEVT\",\"SlBFRy1CWVRFUw==\"]},{\"role\":\"assistant\",\"content\":\"calling\",\"tool_calls\":[{\"function\":{\"index\":0,\"name\":\"write_file\",\"arguments\":{\"b\":1,\"a\":{\"x\":1,\"y\":2},\"c\":\"\\u003c\\u003e\\u0026\",\"n\":1,\"big\":12345678901234567000}}},{\"function\":{\"index\":0,\"name\":\"empty_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"null_args\",\"arguments\":null}},{\"function\":{\"index\":0,\"name\":\"array_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"garbage_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"dup_args\",\"arguments\":{\"k\":3,\"j\":2}}},{\"function\":{\"index\":0,\"name\":\"escaped_args\",\"arguments\":{\"café\":\"x\",\"tab\\tkey\":1,\"bs\\u0008key\":2,\"lt\\u003c\":3}}},{\"function\":{\"index\":0,\"name\":\"string_args\",\"arguments\":{}}}]},{\"role\":\"tool\",\"content\":\"wrote 3 bytes\",\"tool_call_id\":\"c1\"},{\"role\":\"USER\",\"content\":\"and now?\"}],\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "error": "[Timeout] context deadline exceeded",
+    "error_code": "Timeout"
+  },
+  "json_no_schema": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/chat",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "1028",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"system\",\"content\":\"system \\u003crules\\u003e \\u0026 more\"},{\"role\":\"user\",\"content\":\"look at these\",\"images\":[\"UE5HLUJZVEVT\",\"SlBFRy1CWVRFUw==\"]},{\"role\":\"assistant\",\"content\":\"calling\",\"tool_calls\":[{\"function\":{\"index\":0,\"name\":\"write_file\",\"arguments\":{\"b\":1,\"a\":{\"x\":1,\"y\":2},\"c\":\"\\u003c\\u003e\\u0026\",\"n\":1,\"big\":12345678901234567000}}},{\"function\":{\"index\":0,\"name\":\"empty_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"null_args\",\"arguments\":null}},{\"function\":{\"index\":0,\"name\":\"array_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"garbage_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"dup_args\",\"arguments\":{\"k\":3,\"j\":2}}},{\"function\":{\"index\":0,\"name\":\"escaped_args\",\"arguments\":{\"café\":\"x\",\"tab\\tkey\":1,\"bs\\u0008key\":2,\"lt\\u003c\":3}}},{\"function\":{\"index\":0,\"name\":\"string_args\",\"arguments\":{}}}]},{\"role\":\"tool\",\"content\":\"wrote 3 bytes\",\"tool_call_id\":\"c1\"},{\"role\":\"USER\",\"content\":\"and now?\"}],\"format\":\"json\",\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "result": {
+      "text": "All \u003cdone\u003e \u0026 dusted.",
+      "model": "ollama/qwen3:8b",
+      "finish_reason": "stop",
+      "input_tokens": 10,
+      "output_tokens": 5,
+      "total_tokens": 15
+    }
+  },
+  "multiturn_no_tools": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/chat",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "1012",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"system\",\"content\":\"system \\u003crules\\u003e \\u0026 more\"},{\"role\":\"user\",\"content\":\"look at these\",\"images\":[\"UE5HLUJZVEVT\",\"SlBFRy1CWVRFUw==\"]},{\"role\":\"assistant\",\"content\":\"calling\",\"tool_calls\":[{\"function\":{\"index\":0,\"name\":\"write_file\",\"arguments\":{\"b\":1,\"a\":{\"x\":1,\"y\":2},\"c\":\"\\u003c\\u003e\\u0026\",\"n\":1,\"big\":12345678901234567000}}},{\"function\":{\"index\":0,\"name\":\"empty_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"null_args\",\"arguments\":null}},{\"function\":{\"index\":0,\"name\":\"array_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"garbage_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"dup_args\",\"arguments\":{\"k\":3,\"j\":2}}},{\"function\":{\"index\":0,\"name\":\"escaped_args\",\"arguments\":{\"café\":\"x\",\"tab\\tkey\":1,\"bs\\u0008key\":2,\"lt\\u003c\":3}}},{\"function\":{\"index\":0,\"name\":\"string_args\",\"arguments\":{}}}]},{\"role\":\"tool\",\"content\":\"wrote 3 bytes\",\"tool_call_id\":\"c1\"},{\"role\":\"USER\",\"content\":\"and now?\"}],\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "result": {
+      "text": "All \u003cdone\u003e \u0026 dusted.",
+      "model": "ollama/qwen3:8b",
+      "finish_reason": "stop",
+      "input_tokens": 10,
+      "output_tokens": 5,
+      "total_tokens": 15
+    }
+  },
+  "native_tools_text_reply_temperature_env": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/chat",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "2617",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"system\",\"content\":\"system \\u003crules\\u003e \\u0026 more\"},{\"role\":\"user\",\"content\":\"look at these\",\"images\":[\"UE5HLUJZVEVT\",\"SlBFRy1CWVRFUw==\"]},{\"role\":\"assistant\",\"content\":\"calling\",\"tool_calls\":[{\"function\":{\"index\":0,\"name\":\"write_file\",\"arguments\":{\"b\":1,\"a\":{\"x\":1,\"y\":2},\"c\":\"\\u003c\\u003e\\u0026\",\"n\":1,\"big\":12345678901234567000}}},{\"function\":{\"index\":0,\"name\":\"empty_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"null_args\",\"arguments\":null}},{\"function\":{\"index\":0,\"name\":\"array_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"garbage_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"dup_args\",\"arguments\":{\"k\":3,\"j\":2}}},{\"function\":{\"index\":0,\"name\":\"escaped_args\",\"arguments\":{\"café\":\"x\",\"tab\\tkey\":1,\"bs\\u0008key\":2,\"lt\\u003c\":3}}},{\"function\":{\"index\":0,\"name\":\"string_args\",\"arguments\":{}}}]},{\"role\":\"tool\",\"content\":\"wrote 3 bytes\",\"tool_call_id\":\"c1\"},{\"role\":\"USER\",\"content\":\"and now?\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"write_file\",\"description\":\"Write \\u003ca\\u003e file \\u0026 stuff\",\"parameters\":{\"type\":\"object\",\"required\":[\"path\",\"content\"],\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"file \\u003cpath\\u003e\"},\"content\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"shapes\",\"parameters\":{\"type\":\"object\",\"properties\":{\"mode\":{\"type\":[\"string\",\"null\"],\"enum\":[\"a\",\"b\",1,null,{\"a\":2,\"z\":1}]},\"opts\":{\"type\":\"object\",\"properties\":{\"z\":{\"type\":\"integer\"},\"a\":{\"type\":\"boolean\"}},\"required\":[\"z\"]},\"list\":{\"type\":\"array\",\"items\":{\"b\":2,\"properties\":{\"k\":{\"type\":\"string\"}},\"type\":\"object\"}},\"either\":{\"anyOf\":[{\"type\":\"string\"},{\"type\":\"number\",\"description\":\"n\"}]},\"single\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"empty\",\"parameters\":{\"type\":\"\",\"properties\":null}}},{\"type\":\"function\",\"function\":{\"name\":\"no_params\",\"parameters\":{\"type\":\"\",\"properties\":null}}},{\"type\":\"function\",\"function\":{\"name\":\"defs\",\"parameters\":{\"type\":\"object\",\"$defs\":{\"X\":{\"a\":2,\"type\":\"string\",\"z\":1}},\"items\":{\"b\":[3,1],\"q\":1},\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"null_props\",\"parameters\":{\"type\":\"object\",\"properties\":null}}},{\"type\":\"function\",\"function\":{\"name\":\"dupes\",\"parameters\":{\"type\":\"object\",\"properties\":{\"b\":{\"type\":\"number\"},\"a\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"escaped_keys\",\"parameters\":{\"type\":\"object\",\"properties\":{\"café\":{\"type\":\"string\"},\"a\\u003cb\\u003e\\u0026c\":{\"type\":\"string\"},\"tab\\tkey\":{\"type\":\"string\"},\"bs\\u0008key\":{\"type\":\"string\"}}}}}],\"options\":{\"num_ctx\":131072,\"num_predict\":4096,\"seed\":42,\"temperature\":0.25}}"
+      }
+    ],
+    "result": {
+      "text": "All \u003cdone\u003e \u0026 dusted.",
+      "model": "ollama/qwen3:8b",
+      "finish_reason": "stop",
+      "input_tokens": 10,
+      "output_tokens": 5,
+      "total_tokens": 15
+    }
+  },
+  "native_tools_toolcall_reply": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/chat",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "2581",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"system\",\"content\":\"system \\u003crules\\u003e \\u0026 more\"},{\"role\":\"user\",\"content\":\"look at these\",\"images\":[\"UE5HLUJZVEVT\",\"SlBFRy1CWVRFUw==\"]},{\"role\":\"assistant\",\"content\":\"calling\",\"tool_calls\":[{\"function\":{\"index\":0,\"name\":\"write_file\",\"arguments\":{\"b\":1,\"a\":{\"x\":1,\"y\":2},\"c\":\"\\u003c\\u003e\\u0026\",\"n\":1,\"big\":12345678901234567000}}},{\"function\":{\"index\":0,\"name\":\"empty_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"null_args\",\"arguments\":null}},{\"function\":{\"index\":0,\"name\":\"array_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"garbage_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"dup_args\",\"arguments\":{\"k\":3,\"j\":2}}},{\"function\":{\"index\":0,\"name\":\"escaped_args\",\"arguments\":{\"café\":\"x\",\"tab\\tkey\":1,\"bs\\u0008key\":2,\"lt\\u003c\":3}}},{\"function\":{\"index\":0,\"name\":\"string_args\",\"arguments\":{}}}]},{\"role\":\"tool\",\"content\":\"wrote 3 bytes\",\"tool_call_id\":\"c1\"},{\"role\":\"USER\",\"content\":\"and now?\"}],\"tools\":[{\"type\":\"function\",\"function\":{\"name\":\"write_file\",\"description\":\"Write \\u003ca\\u003e file \\u0026 stuff\",\"parameters\":{\"type\":\"object\",\"required\":[\"path\",\"content\"],\"properties\":{\"path\":{\"type\":\"string\",\"description\":\"file \\u003cpath\\u003e\"},\"content\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"shapes\",\"parameters\":{\"type\":\"object\",\"properties\":{\"mode\":{\"type\":[\"string\",\"null\"],\"enum\":[\"a\",\"b\",1,null,{\"a\":2,\"z\":1}]},\"opts\":{\"type\":\"object\",\"properties\":{\"z\":{\"type\":\"integer\"},\"a\":{\"type\":\"boolean\"}},\"required\":[\"z\"]},\"list\":{\"type\":\"array\",\"items\":{\"b\":2,\"properties\":{\"k\":{\"type\":\"string\"}},\"type\":\"object\"}},\"either\":{\"anyOf\":[{\"type\":\"string\"},{\"type\":\"number\",\"description\":\"n\"}]},\"single\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"empty\",\"parameters\":{\"type\":\"\",\"properties\":null}}},{\"type\":\"function\",\"function\":{\"name\":\"no_params\",\"parameters\":{\"type\":\"\",\"properties\":null}}},{\"type\":\"function\",\"function\":{\"name\":\"defs\",\"parameters\":{\"type\":\"object\",\"$defs\":{\"X\":{\"a\":2,\"type\":\"string\",\"z\":1}},\"items\":{\"b\":[3,1],\"q\":1},\"properties\":{}}}},{\"type\":\"function\",\"function\":{\"name\":\"null_props\",\"parameters\":{\"type\":\"object\",\"properties\":null}}},{\"type\":\"function\",\"function\":{\"name\":\"dupes\",\"parameters\":{\"type\":\"object\",\"properties\":{\"b\":{\"type\":\"number\"},\"a\":{\"type\":\"string\"}}}}},{\"type\":\"function\",\"function\":{\"name\":\"escaped_keys\",\"parameters\":{\"type\":\"object\",\"properties\":{\"café\":{\"type\":\"string\"},\"a\\u003cb\\u003e\\u0026c\":{\"type\":\"string\"},\"tab\\tkey\":{\"type\":\"string\"},\"bs\\u0008key\":{\"type\":\"string\"}}}}}],\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "result": {
+      "text": "",
+      "model": "ollama/qwen3:8b",
+      "finish_reason": "tool_calls",
+      "tool_calls": [
+        {
+          "ID": "",
+          "Name": "write_file",
+          "Arguments": "{\"path\":\"a.ail\",\"content\":\"x \\u003cy\\u003e \\u0026 z\",\"n\":1,\"f\":1.5e+300,\"big\":12345678901234567000,\"nested\":{\"a\":[1,\"two\",null,true],\"z\":1}}"
+        },
+        {
+          "ID": "",
+          "Name": "shapes",
+          "Arguments": "null"
+        },
+        {
+          "ID": "",
+          "Name": "empty",
+          "Arguments": "{}"
+        },
+        {
+          "ID": "",
+          "Name": "dupes",
+          "Arguments": "{\"k\":3,\"j\":2,\"café\":\"\\u2028\",\"e\":{}}"
+        }
+      ],
+      "input_tokens": 10,
+      "output_tokens": 5,
+      "total_tokens": 15
+    }
+  },
+  "system_in_messages_json_schema": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/chat",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "1061",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"messages\":[{\"role\":\"system\",\"content\":\"inline system\"},{\"role\":\"user\",\"content\":\"look at these\",\"images\":[\"UE5HLUJZVEVT\",\"SlBFRy1CWVRFUw==\"]},{\"role\":\"assistant\",\"content\":\"calling\",\"tool_calls\":[{\"function\":{\"index\":0,\"name\":\"write_file\",\"arguments\":{\"b\":1,\"a\":{\"x\":1,\"y\":2},\"c\":\"\\u003c\\u003e\\u0026\",\"n\":1,\"big\":12345678901234567000}}},{\"function\":{\"index\":0,\"name\":\"empty_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"null_args\",\"arguments\":null}},{\"function\":{\"index\":0,\"name\":\"array_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"garbage_args\",\"arguments\":{}}},{\"function\":{\"index\":0,\"name\":\"dup_args\",\"arguments\":{\"k\":3,\"j\":2}}},{\"function\":{\"index\":0,\"name\":\"escaped_args\",\"arguments\":{\"café\":\"x\",\"tab\\tkey\":1,\"bs\\u0008key\":2,\"lt\\u003c\":3}}},{\"function\":{\"index\":0,\"name\":\"string_args\",\"arguments\":{}}}]},{\"role\":\"tool\",\"content\":\"wrote 3 bytes\",\"tool_call_id\":\"c1\"},{\"role\":\"USER\",\"content\":\"and now?\"}],\"format\":{\"type\":\"object\",\"properties\":{\"b\":{},\"a\":{}}},\"options\":{\"num_predict\":77,\"seed\":42,\"temperature\":0.9}}"
+      }
+    ],
+    "result": {
+      "text": "All \u003cdone\u003e \u0026 dusted.",
+      "model": "ollama/qwen3:8b",
+      "finish_reason": "stop",
+      "input_tokens": 10,
+      "output_tokens": 5,
+      "total_tokens": 15
+    }
+  }
+}

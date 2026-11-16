@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/sunholo-data/ailang/internal/core"
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
@@ -95,7 +96,16 @@ func (g *Generator) generateMatch(match *core.Match) error {
 		// ADT constructor matching - use Kind-based switch
 		// M-DX22: First try to get ADT type from scrutinee's type info (avoids constructor name collisions)
 		var adtTypeName string
-		if g.matchScrutineeAILANGType != nil {
+		// #2244: the ADT the elaborator resolved the constructors to comes
+		// first — the scrutinee's type may be written as an alias
+		// (`type Hue = Color`), which has no Kind constants of its own.
+		for _, arm := range match.Arms {
+			if cp, ok := arm.Pattern.(*core.ConstructorPattern); ok && cp.TypeName != "" {
+				adtTypeName = cp.TypeName
+				break
+			}
+		}
+		if adtTypeName == "" && g.matchScrutineeAILANGType != nil {
 			adtTypeName = g.extractADTTypeName(g.matchScrutineeAILANGType)
 		}
 		// Fallback: find the ADT type from constructor patterns (legacy behavior)
@@ -136,7 +146,7 @@ func (g *Generator) generateMatch(match *core.Match) error {
 		if !hasDefault {
 			g.writef("default:\n")
 			g.indent++
-			g.writef("panic(\"non-exhaustive match\")\n")
+			g.writef("panic(%q)\n", noMatchPanicText(match))
 			g.indent--
 		}
 	} else {
@@ -170,7 +180,7 @@ func (g *Generator) generateMatch(match *core.Match) error {
 		if !hasDefault {
 			g.writef("default:\n")
 			g.indent++
-			g.writef("panic(\"non-exhaustive match\")\n")
+			g.writef("panic(%q)\n", noMatchPanicText(match))
 			g.indent--
 		}
 	}
@@ -179,4 +189,20 @@ func (g *Generator) generateMatch(match *core.Match) error {
 	g.indent--
 	g.write("}()")
 	return nil
+}
+
+// noMatchPanicText is the panic message for a generated match with no
+// catch-all: the same RT002 text both interpreters raise, with the match's
+// source position (M-V1-MATCH-EXHAUSTIVENESS M0). The scrutinee's shape is a
+// run-time fact the static text does not carry.
+func noMatchPanicText(match *core.Match) string {
+	mf := &ailerrors.MatchFailureError{}
+	p := match.OriginalSpan()
+	if p.Line == 0 {
+		p = match.Span()
+	}
+	if p.Line > 0 {
+		mf.Pos = p.String()
+	}
+	return mf.Error()
 }

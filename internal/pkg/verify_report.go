@@ -21,12 +21,14 @@ type PackageVerifyReport struct {
 	Verified       int                             `json:"verified"`
 	Total          int                             `json:"total"`
 	Counterexample int                             `json:"counterexample"`
-	Skipped        int                             `json:"skipped"`
-	Errors         int                             `json:"errors"`
-	Uncontracted   int                             `json:"uncontracted"`
-	WallSeconds    float64                         `json:"wall_seconds"`
-	WallCapHit     bool                            `json:"wall_cap_hit,omitempty"`
-	Modules        []ModuleVerifyReport            `json:"modules"`
+	// Inconclusive: bounded-unrolling sats — attempted, undecided; not refuted.
+	Inconclusive int                  `json:"inconclusive"`
+	Skipped      int                  `json:"skipped"`
+	Errors       int                  `json:"errors"`
+	Uncontracted int                  `json:"uncontracted"`
+	WallSeconds  float64              `json:"wall_seconds"`
+	WallCapHit   bool                 `json:"wall_cap_hit,omitempty"`
+	Modules      []ModuleVerifyReport `json:"modules"`
 }
 
 // ModuleVerifyReport is one exported module's verification outcome.
@@ -37,6 +39,7 @@ type ModuleVerifyReport struct {
 	File           string                          `json:"file"`
 	Verified       int                             `json:"verified"`
 	Counterexample int                             `json:"counterexample"`
+	Inconclusive   int                             `json:"inconclusive"`
 	Skipped        int                             `json:"skipped"`
 	Errors         int                             `json:"errors"`
 	Uncontracted   int                             `json:"uncontracted"`
@@ -84,8 +87,9 @@ func (r *PackageVerifyReport) Add(m ModuleVerifyReport) {
 	}
 	r.Verified += m.Verified
 	r.Counterexample += m.Counterexample
+	r.Inconclusive += m.Inconclusive
 	r.Skipped += m.Skipped
 	r.Errors += m.Errors
 	r.Uncontracted += m.Uncontracted
-	r.Total = r.Verified + r.Counterexample + r.Skipped + r.Errors
+	r.Total = r.Verified + r.Counterexample + r.Inconclusive + r.Skipped + r.Errors
 }

@@ -136,14 +136,24 @@ func isTarPathTraversal(name string) bool {
 }
 
 // ExtractTarball extracts a tar.gz to a destination directory.
+//
+// It refuses, with a *TarballLimitError, any tarball over the limits in
+// tarball_limits.go: compressed size, entry count, per-entry size, total
+// extracted size and decompressed stream size. A refusal can leave a partial
+// extraction in destDir; callers extract into a fresh directory.
 func ExtractTarball(data []byte, destDir string) error {
+	if err := CheckTarballSize(int64(len(data))); err != nil {
+		return err
+	}
 	gr, err := gzip.NewReader(bytes.NewReader(data))
 	if err != nil {
 		return fmt.Errorf("failed to decompress tarball: %w", err)
 	}
 	defer gr.Close()
 
-	tr := tar.NewReader(gr)
+	tr := tar.NewReader(&cappedReader{r: gr, max: maxTarballStreamBytes})
+	var entries int
+	var total int64
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -152,6 +162,11 @@ func ExtractTarball(data []byte, destDir string) error {
 		if err != nil {
 			return fmt.Errorf("failed to read tarball entry: %w", err)
 		}
+		entries++
+		if err := checkEntryLimits(hdr, entries, total); err != nil {
+			return err
+		}
+		total += hdr.Size
 
 		// Security: reject path-traversal and absolute entry names outright.
 		if isTarPathTraversal(hdr.Name) {
@@ -190,16 +205,63 @@ func ExtractTarball(data []byte, destDir string) error {
 			return err
 		}
 
-		data, err := io.ReadAll(tr)
-		if err != nil {
-			return fmt.Errorf("failed to read %s: %w", hdr.Name, err)
-		}
-
-		if err := os.WriteFile(destPath, data, 0o644); err != nil {
-			return fmt.Errorf("failed to write %s: %w", destPath, err)
+		if err := writeTarEntry(tr, hdr, destPath); err != nil {
+			return err
 		}
 	}
 
+	return nil
+}
+
+// checkEntryLimits refuses an entry that would take the archive past the
+// entry-count, per-entry or total-size limit. It runs on every entry, skipped
+// types included: archive/tar reads and discards the body of an entry type we
+// skip, so an unchecked one would still cost its declared size in decompression.
+func checkEntryLimits(hdr *tar.Header, entries int, totalSoFar int64) error {
+	if entries > MaxTarballEntries {
+		return &TarballLimitError{
+			Limit: "entry count", Const: "pkg.MaxTarballEntries", Max: MaxTarballEntries,
+			Observed: fmt.Sprintf("entry %d (%s)", entries, hdr.Name),
+		}
+	}
+	if hdr.Size > MaxTarballEntryBytes {
+		return &TarballLimitError{
+			Limit: "per-entry size", Const: "pkg.MaxTarballEntryBytes", Max: MaxTarballEntryBytes,
+			Observed: fmt.Sprintf("entry %s declares %d bytes", hdr.Name, hdr.Size),
+		}
+	}
+	if totalSoFar+hdr.Size > MaxTarballTotalBytes {
+		return &TarballLimitError{
+			Limit: "total extracted size", Const: "pkg.MaxTarballTotalBytes", Max: MaxTarballTotalBytes,
+			Observed: fmt.Sprintf("entry %s brings the total to %d bytes", hdr.Name, totalSoFar+hdr.Size),
+		}
+	}
+	return nil
+}
+
+// writeTarEntry streams one regular-file entry to destPath. archive/tar never
+// yields more than hdr.Size bytes, which checkEntryLimits has bounded; the
+// LimitReader is defence in depth, and a body longer than declared is refused.
+func writeTarEntry(tr *tar.Reader, hdr *tar.Header, destPath string) error {
+	f, err := os.OpenFile(destPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, 0o644)
+	if err != nil {
+		return fmt.Errorf("failed to write %s: %w", destPath, err)
+	}
+	n, err := io.Copy(f, io.LimitReader(tr, MaxTarballEntryBytes+1))
+	if cerr := f.Close(); err == nil {
+		err = cerr
+	}
+	if err != nil {
+		_ = os.Remove(destPath)
+		return fmt.Errorf("failed to extract %s: %w", hdr.Name, err)
+	}
+	if n > MaxTarballEntryBytes {
+		_ = os.Remove(destPath) // never leave a truncated file behind
+		return &TarballLimitError{
+			Limit: "per-entry size", Const: "pkg.MaxTarballEntryBytes", Max: MaxTarballEntryBytes,
+			Observed: fmt.Sprintf("entry %s yielded more than %d bytes", hdr.Name, int64(MaxTarballEntryBytes)),
+		}
+	}
 	return nil
 }
 

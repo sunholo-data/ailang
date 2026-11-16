@@ -1,0 +1,6 @@
+-- #2263: zip returns pairs as Go slices, so show prints lists.
+module harness/kf/zip_tuples
+
+import std/list (zip)
+
+export pure func summary() -> string = show(zip([1, 2], [3, 4]))

@@ -20,7 +20,7 @@
 
 module examples/runnable/ai_image_generation
 import std/ai as AI
-import std/fs (readFileBytes)
+import std/fs (readFileBase64)
 import std/io (println)
 
 export func main() -> string ! {AI, FS, IO} =
@@ -39,7 +39,7 @@ export func main() -> string ! {AI, FS, IO} =
   -- Reference-conditioned generation with a per-call image model
   let _ = println("") in
   let _ = println("3. Generating a variation of image 1 (reference image + per-call model)...") in
-  let variation = match readFileBytes(path) {
+  let variation = match readFileBase64(path) {
     Ok(ref) => AI.callImageWithRefs("The same pattern, recoloured in green", [{ source: ref, mime: "image/png" }], "/tmp/ailang_demo_variation.png", "{\"model\": \"google/gemini-3-pro-image\"}"),
     Err(e) => "reference unreadable: ${e}"
   } in

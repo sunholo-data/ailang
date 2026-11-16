@@ -30,7 +30,6 @@ Test cases for AILANG features. These files test specific language behavior, edg
 - `test_guard_debug.ail` - Guard debugging
 - `test_single_guard.ail` - Single guard pattern
 - `test_exhaustive_bool_complete.ail` - Complete bool matching
-- `test_exhaustive_bool_incomplete.ail` - Incomplete matching (should error)
 - `test_exhaustive_wildcard.ail` - Wildcard patterns
 
 ### Type System & Core Operations

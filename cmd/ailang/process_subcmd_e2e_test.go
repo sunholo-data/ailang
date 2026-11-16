@@ -50,7 +50,7 @@ export func main() -> () ! {IO, Process} {
 	if strings.Contains(stdout, "LEAK") {
 		t.Errorf("echo bye ran under echo:hello\nstdout:\n%s", stdout)
 	}
-	if !strings.Contains(stdout, "refused: NotAllowed(echo bye)") {
+	if !strings.Contains(stdout, `refused: NotAllowed("echo bye")`) {
 		t.Errorf("refusal should name the subcommand\nstdout:\n%s", stdout)
 	}
 }

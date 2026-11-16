@@ -1,6 +1,6 @@
 {
   "id": "M-FLEET-PI-SANDBOX-WIRING",
-  "design_doc": "design_docs/planned/sprint-plan-pi-runner-sandbox-wiring.md",
+  "design_doc": "design_docs/implemented/v0_47_2/sprint-plan-pi-runner-sandbox-wiring.md",
   "milestones": [
     {
       "id": "M1",

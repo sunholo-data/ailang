@@ -1,0 +1,15 @@
+module bare_first_fails
+
+-- #604 regression: a NON-FINAL false bare check must fail the test.
+-- Before the fix the first expression was bound to a dead `_seq` and its value
+-- discarded, so this body reported "All tests passed!" with exit 0.
+-- Every top-level bare expression in a named test body is a check.
+
+export pure func add_one(n: int) -> int {
+  n + 1
+}
+
+test "non-final bare check fails" {
+  add_one(1) == 99
+  add_one(1) == 2
+}

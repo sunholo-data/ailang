@@ -52,6 +52,9 @@ build/snapshot/
 
 # Generated Go code from compiler (root-level only, not internal/gen/)
 /gen/
+# Codegen harness: run.sh compiles into a temp dir; never commit its cache or output
+tests/codegen-harness/.ailang/
+tests/codegen-harness/gen/
 
 # CI/CD generated files
 examples_report.json
@@ -117,7 +120,6 @@ __pycache__/
 # ...and the perf-sweep snapshots (M-V1-MEMORY-FOOTPRINT): same reason, monthly.
 !/.ailang/state/perf/
 !/.ailang/state/perf/*.json
-/ui/node_modules
 internal/executor/opencode/plugins/node_modules
 internal/executor/opencode/plugins/coverage
 
@@ -128,7 +130,6 @@ temp_data/
 eval_results/
 !eval_results/baselines/
 !eval_results/performance_tables/
-ui/.env.local
 code-harness-skills/
 # Stray compiled binary (build output lands in repo root)
 /registry-validator
@@ -163,3 +164,6 @@ design_docs/research/*.pdf
 /gen/
 /.eval_workspace/
 _namedtest_body_*.ail
+
+# Scratch compile caches a sweep script once wrote into the tree (#2230 review).
+cache_tbsweep/

@@ -12,7 +12,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/executor"
 )
 
-// M-EVAL-HIDDEN-TESTS. See design_docs/planned/v0_55_0/m-eval-hidden-tests.md.
+// M-EVAL-HIDDEN-TESTS. See design_docs/implemented/v0_55_0/m-eval-hidden-tests.md.
 
 func writeHiddenFixture(t *testing.T, files map[string]string, specExtra string) string {
 	t.Helper()
@@ -206,13 +206,34 @@ func TestValidateSolution_HiddenTests_Python(t *testing.T) {
 }
 
 // The prompts and workspace the model sees must not contain any hidden test.
+//
+// This drives the LIVE path — the two calls RunAgentBenchmarkWithExecutor makes
+// before handing the agent its task: prepareAgentWorkspace (every file the agent
+// starts with) and GenerateAgentPromptsWithSystemPrompt (system prompt + task
+// prompt, sent with the traps card prepended). It used to drive
+// GenerateAgentPrompt / PrepareWorkspaceWithSyntax, a path no eval had called
+// since 2025-10-28, so the live path had no leak guard at all.
+//
+// Run from the repo root, as evals are, so the real task templates, teaching
+// prompts and fmt hook load instead of their hardcoded fallbacks. Every
+// condition is covered because each one substitutes a different set of spec
+// fields into the prompt.
 func TestHiddenTests_NeverReachPromptOrWorkspace(t *testing.T) {
 	spec, err := LoadSpec(writeHiddenFixture(t, map[string]string{
 		"01.in": "HIDDEN_STDIN_7781\n", "01.ans": "HIDDEN_EXPECTED_9934\n",
-	}, ""))
+	}, "input_files:\n  numbers.txt: \"1 2 3\\n\"\ncontract_spec: \"ensures { result >= 0 }\"\nz3_hints: \"x=0 is the trap\"\n"))
 	if err != nil {
 		t.Fatal(err)
 	}
+	if len(spec.HiddenTests) != 1 || len(spec.InputFiles) != 1 {
+		t.Fatalf("fixture did not load its hidden test and input file: %+v", spec)
+	}
+	root, err := findRepoRoot()
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Chdir(root)
+
 	secrets := []string{"HIDDEN_STDIN_7781", "HIDDEN_EXPECTED_9934"}
 	check := func(where, text string) {
 		for _, s := range secrets {
@@ -224,20 +245,48 @@ func TestHiddenTests_NeverReachPromptOrWorkspace(t *testing.T) {
 
 	for _, lang := range []string{"python", "ailang"} {
 		check("standard prompt ("+lang+")", spec.PromptForLanguage(lang))
-		check("agent prompt ("+lang+")", GenerateAgentPrompt(spec, DefaultAgentConfig(), "", lang))
-	}
 
-	ws := t.TempDir()
-	if err := PrepareWorkspaceWithSyntax(ws, spec, ""); err != nil {
-		t.Fatal(err)
-	}
-	_ = filepath.WalkDir(ws, func(p string, d os.DirEntry, err error) error {
-		if err == nil && !d.IsDir() {
-			b, _ := os.ReadFile(p)
-			check("workspace file "+filepath.Base(p), string(b))
+		for _, fmtHook := range []FmtHookMode{FmtHookModeOff, FmtHookModeOn} {
+			ws := t.TempDir()
+			solutionPath, err := prepareAgentWorkspace(ws, spec, fmtHook, lang)
+			if err != nil {
+				t.Fatalf("prepareAgentWorkspace(%s, fmt=%s): %v", lang, fmtHook, err)
+			}
+			var files int
+			_ = filepath.WalkDir(ws, func(p string, d os.DirEntry, err error) error {
+				if err == nil && !d.IsDir() {
+					b, _ := os.ReadFile(p)
+					rel, _ := filepath.Rel(ws, p)
+					check("workspace file "+rel+" ("+lang+", fmt="+string(fmtHook)+")", string(b))
+					files++
+				}
+				return nil
+			})
+			// The walk must actually see the workspace: the solution
+			// placeholder and the seeded input file, at minimum.
+			if files < 2 {
+				t.Errorf("walked %d workspace files (%s, fmt=%s), want >= 2", files, lang, fmtHook)
+			}
+
+			for _, cond := range append([]string{""}, ValidConditionNames...) {
+				cfg := DefaultAgentConfig()
+				cfg.Condition = ResolveCondition(cond, true, true)
+				cfg.Verify = true
+				cfg.DevtoolsPrompt = "devtools prompt"
+				cfg.AgentPromptContent = "compact agent prompt"
+				where := "(" + lang + ", condition=" + cond + ")"
+				sys, task, _, err := GenerateAgentPromptsWithSystemPrompt(spec, cfg, lang, "", solutionPath)
+				if err != nil {
+					t.Fatalf("GenerateAgentPromptsWithSystemPrompt %s: %v", where, err)
+				}
+				if !strings.Contains(task, spec.ExpectedOut) {
+					t.Fatalf("task prompt %s lacks the visible expected output — the template did not load", where)
+				}
+				check("system prompt "+where, sys)
+				check("task prompt "+where, maybePrependTrapsCard(task))
+			}
 		}
-		return nil
-	})
+	}
 }
 
 // stdinRunner answers each run from the stdin of the spec it was built for, so a

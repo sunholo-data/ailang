@@ -27,7 +27,7 @@ var arrayKernelCases = []struct{ name, body, want string }{
 	{"no input mutation", `{ let x = fromList([1.0, 2.0]); let y = axpy(1.0, x, x); show(x) }`, "#[1.0, 2.0]"},
 	{"updateMany", `show(updateMany(make(3, 0.0), [(0, 1.0), (2, 5.0)]))`, "#[1.0, 0.0, 5.0]"},
 	{"updateMany later wins", `show(updateMany(make(2, 0.0), [(1, 1.0), (1, 2.0)]))`, "#[0.0, 2.0]"},
-	{"updateMany any type", `show(updateMany(fromList(["a", "b"]), [(1, "z")]))`, `#[a, z]`},
+	{"updateMany any type", `show(updateMany(fromList(["a", "b"]), [(1, "z")]))`, `#["a", "z"]`},
 	{"scatterAdd", `show(scatterAdd(make(3, 0.0), [0, 0, 2], [1.0, 2.0, 5.0]))`, "#[3.0, 0.0, 5.0]"},
 }
 

@@ -139,6 +139,9 @@ func sendInteraction(
 func defaultHTTPClient() *http.Client {
 	return &http.Client{
 		Transport: &http.Transport{
+			// Honor the process egress policy (HTTP(S)_PROXY / NO_PROXY), like
+			// every other first-party client — m-net-effect-proxy-boundary M2.
+			Proxy:                 http.ProxyFromEnvironment,
 			ResponseHeaderTimeout: 60 * time.Second, // initial headers
 			IdleConnTimeout:       90 * time.Second,
 		},

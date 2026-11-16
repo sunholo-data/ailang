@@ -44,7 +44,7 @@ func TestShowParityVMvsInterpreter(t *testing.T) {
 		"someInt": "Some(40)",
 		"none":    "None",
 		"nested":  "Some(Ok(40))",
-		"err":     "Err(bad)",
+		"err":     `Err("bad")`,
 		"user":    "[Circle(1.5), Rect(2.0, 3.0), Dot]",
 		"retSome": "Some(40)",
 		"retList": "[Some(2.0), None]",

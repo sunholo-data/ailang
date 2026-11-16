@@ -221,7 +221,6 @@ type ChatContext struct {
 	AssistantResponse string `json:"assistant_response,omitempty"` // First 500 chars of response
 	HasThinking       bool   `json:"has_thinking"`
 	TurnNumber        int    `json:"turn_number,omitempty"`
-	FullChatURL       string `json:"full_chat_url,omitempty"` // Link to full conversation
 }
 
 // AttributesJSON returns attributes as a JSON string for storage.

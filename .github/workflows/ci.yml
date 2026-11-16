@@ -35,7 +35,7 @@ jobs:
       code: ${{ steps.classify.outputs.code }}
       shell: ${{ steps.classify.outputs.shell }}
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         fetch-depth: 0
 
@@ -79,7 +79,7 @@ jobs:
         # the paths below (every REPO_ROOT-relative file its suite reads, plus
         # this workflow and the make target), so other PRs skip it. Pushes to
         # dev still run it: the non-PR branch above sets shell=true.
-        if echo "$files" | grep -qE '^(tools/launchd/|tools/pi-extensions/|scripts/hooks/|scripts/[^/]*mission[^/]*\.sh$|scripts/(test_)?worktree_sweep\.sh$|\.claude/skills/mission-control/|\.claude/settings\.json$|design_docs/v1-mission\.md$|make/test\.mk$|\.github/workflows/ci\.yml$)'; then
+        if echo "$files" | grep -qE '^(tools/launchd/|tools/pi-extensions/|tools/ci/(test_)?require_checks\.sh$|tools/ci/release_required_checks\.txt$|scripts/hooks/|scripts/[^/]*mission[^/]*\.sh$|scripts/(test_)?worktree_sweep\.sh$|\.claude/skills/mission-control/|\.claude/settings\.json$|design_docs/v1-mission\.md$|make/test\.mk$|\.github/workflows/ci\.yml$)'; then
           echo "shell=true" >> "$GITHUB_OUTPUT"
           echo "-> rig-shell lane (launchd bash 3.2 job runs)"
         else
@@ -98,16 +98,16 @@ jobs:
     timeout-minutes: 45
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         # SonarCloud needs full history to attribute blame and compute
         # "new code" metrics correctly. Shallow clones break both.
         fetch-depth: 0
 
     - name: Set up Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version: '1.26.10'
+        go-version: '1.26.11'
         cache: true
 
     # uv pins the Python runtime for eval-harness tests (and the weekly eval
@@ -164,7 +164,7 @@ jobs:
       run: go build -o "$RUNNER_TEMP/headroom" ./tools/ci/headroom
 
     # -timeout 416s is a DERIVED, PROVISIONAL operational budget (right-censored
-    # input — see design_docs/planned/v0_36_0/m-coordinator-windows-package-timeout-headroom.md):
+    # input — see design_docs/implemented/v0_35_3/m-coordinator-windows-package-timeout-headroom.md):
     #   budget = worst steady-state package x runner variance x safety factor
     #          = 172.5s (cmd/ailang, slowest pkg on non-failing dev run e5a325a20)
     #          x 1.80x  (runner variance: aggregate package-seconds 599.7 -> 1080.3,
@@ -272,7 +272,7 @@ jobs:
     # continue-on-error keeps CI green if the secret is missing or the scan
     # service has a hiccup — Sonar is a reporting layer, not a gate.
     - name: SonarCloud scan
-      uses: SonarSource/sonarqube-scan-action@4d1dc0c91ee400dcf8a6dddf2f705ac36542e304 # v7
+      uses: SonarSource/sonarqube-scan-action@59202af334b4ba7b5db01b701b8e79f8b3bef0f4 # v7
       continue-on-error: true
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
@@ -298,16 +298,16 @@ jobs:
     timeout-minutes: 45
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         # Full history: the autoclose gate scans the pushed commit range and the
         # prompt-freeze gate diffs against `git merge-base HEAD origin/dev`.
         fetch-depth: 0
 
     - name: Set up Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version: '1.26.10'
+        go-version: '1.26.11'
         cache: true
 
     # uv pins the Python runtime for eval-harness tests (and the weekly eval
@@ -523,6 +523,50 @@ jobs:
     - name: Check frozen prompt immutability and mirror agreement
       run: make check-prompt-freeze
 
+    # Doc-sample gate (M-V1-DOCS-FOR-1-0 §A): every AILANG block on the site, in
+    # README.md, docs/LIMITATIONS.md, the active prompt, docs/src and every .ail file
+    # the docs import must pass `ailang check` with the binary `make install` built
+    # above from THIS commit, or be tagged. It runs on every PR and push, not only on
+    # docs changes: a compiler change can break a sample, which is the point.
+    #
+    # -base-ref is the shrink-only ratchet on scripts/doc_samples_{baseline,unchecked}.txt
+    # (a SET rule). Its base must be the state BEFORE this change: the PR's base commit,
+    # or on a push the previous tip (`before`). origin/dev is wrong on a push — it IS the
+    # commit just pushed, so the ratchet would compare the lists with themselves. A new
+    # branch (all-zero `before`) uses its merge-base with origin/dev; a force-push's
+    # `before` is fetched by SHA; anything unresolvable fails the job.
+    - name: Resolve the doc-sample ratchet base
+      id: docsamples-base
+      env:
+        EVENT: ${{ github.event_name }}
+        PR_BASE: ${{ github.event.pull_request.base.sha }}
+        BEFORE: ${{ github.event.before }}
+      run: |
+        set -euo pipefail
+        case "$EVENT" in
+          pull_request) base="$PR_BASE" ;;
+          push)
+            if [ -z "$BEFORE" ] || [ "$BEFORE" = "0000000000000000000000000000000000000000" ]; then
+              base=$(git merge-base HEAD origin/dev)
+            else
+              base="$BEFORE"
+            fi ;;
+          *) base=$(git rev-parse HEAD~1) ;;
+        esac
+        if ! git cat-file -e "${base}^{commit}" 2>/dev/null; then
+          git fetch --no-tags origin "$base" || true
+        fi
+        git cat-file -e "${base}^{commit}" 2>/dev/null \
+          || { echo "::error::doc-sample ratchet base $base ($EVENT) cannot be resolved; failing closed"; exit 1; }
+        echo "doc-sample ratchet base: $base ($EVENT)"
+        echo "base=$base" >> "$GITHUB_OUTPUT"
+
+    - name: Check documentation code samples
+      run: make check-doc-samples DOC_SAMPLES_AILANG="$(go env GOPATH)/bin/ailang" DOC_SAMPLES_ARGS="-github -base-ref ${{ steps.docsamples-base.outputs.base }}"
+
+    - name: Doc-sample gate self-test
+      run: make test-check-doc-samples DOC_SAMPLES_AILANG="$(go env GOPATH)/bin/ailang"
+
     # M-V1-SIMPLIFY-S5 M3/M6: the devtools prompt may only teach routes the
     # binary accepts, and the generated CLI reference must match the dispatch
     # table. Both are gate-shaped make targets; cihygiene's
@@ -532,6 +576,14 @@ jobs:
 
     - name: Check the CLI reference matches the dispatch table
       run: make check-cli-docs
+
+    # The docs deploy publishes the committed llms.txt; it must embed the
+    # active teaching prompt (it sat two versions stale until 2026-11-11).
+    - name: Check llms.txt embeds the active teaching prompt
+      run: make check-llms-txt
+
+    - name: Self-test the llms.txt gate
+      run: make test-check-llms-txt
 
     - name: Check golden drift protection (M-P2)
       run: make check-golden-drift
@@ -604,7 +656,7 @@ jobs:
 
     - name: Upload cycle analysis (M-DX11)
       if: always()
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: cycle-analysis
         path: cycles.json
@@ -639,7 +691,7 @@ jobs:
     timeout-minutes: 25
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
       with:
         # Avoid CRLF rewrites on test fixtures and golden files.
         # PowerShell + git autocrlf can otherwise mutate bytes between
@@ -651,9 +703,9 @@ jobs:
       run: git config --global core.autocrlf false
 
     - name: Set up Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version: '1.26.10'
+        go-version: '1.26.11'
         cache: true
 
     - name: Set up uv (provides Python for eval-harness Python runner tests)
@@ -714,7 +766,7 @@ jobs:
       # -timeout 600s: Windows-specific DERIVED PROVISIONAL budget. The Linux
       # budget (172.5s worst steady-state package x 1.80x runner variance x 1.34x
       # safety factor = 416.1s; derivation in the test job's comment and
-      # design_docs/planned/v0_36_0/m-coordinator-windows-package-timeout-headroom.md)
+      # design_docs/implemented/v0_35_3/m-coordinator-windows-package-timeout-headroom.md)
       # no longer fits windows-latest: cmd/ailang measured 331s, 389s, then hit
       # the hang guard at 399s of 416s (2026-10-07/08, right-censored). Windows
       # budget = 399s observed x 1.34x safety factor = 535s, rounded up to 600s
@@ -769,19 +821,19 @@ jobs:
     if: needs.changes.outputs.code == 'true'
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Set up Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version: '1.26.10'
+        go-version: '1.26.11'
         cache: true
 
     - name: Build binary
       run: make build
 
     - name: Upload binary artifact
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: ailang-binary
         path: bin/ailang
@@ -792,7 +844,7 @@ jobs:
     if: github.event_name == 'push' && github.ref == 'refs/heads/dev'
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Sync prompts/ to docs/prompts/
       run: ./docs/scripts/sync-prompts.sh
@@ -815,12 +867,12 @@ jobs:
     timeout-minutes: 15
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Set up Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version: '1.26.10'
+        go-version: '1.26.11'
         cache: true
 
     - name: Check code formatting
@@ -870,7 +922,7 @@ jobs:
     timeout-minutes: 15
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Confirm /bin/bash really is 3.2 (guard against a silent runner upgrade)
       run: |
@@ -905,11 +957,11 @@ jobs:
     runs-on: ubuntu-24.04-arm
     timeout-minutes: 15
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
     - name: Set up Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version: '1.26.10'
+        go-version: '1.26.11'
         cache: true
     - name: Golden-bit and portable-math tests
       run: |
@@ -926,12 +978,12 @@ jobs:
     # allowlist entry past its expires date — forces re-review rather
     # than letting suppressions float forever.
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Set up Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version: '1.26.10'
+        go-version: '1.26.11'
 
     - name: Install govulncheck
       # Pinned (was @latest): govulncheck v1.4.0 started crashing on `./...`
@@ -948,6 +1000,16 @@ jobs:
         set -o pipefail
         govulncheck -format json ./... | ./bin/govulncheck-filter
 
+  # Feeds GitHub's dependency graph (and so Dependabot's Go alerts) the module
+  # list of this push. This used actions/go-dependency-submission, which threw
+  # "expected no more than one package in cache with namespace+name" on every
+  # push (upstream #74, still in v2.0.3) behind `continue-on-error: true`; the
+  # graph kept a stale snapshot for months (it still listed ollama v0.13.4 after
+  # #2206 removed it). The script builds the snapshot from `go list -deps all` +
+  # `go mod graph` and POSTs it under the action's detector name and correlator,
+  # so it supersedes the stale one. NO continue-on-error: a submission that fails
+  # turns this job red. Not a required or release-gate check, so a red here never
+  # blocks a merge or a release; it only stops being silent.
   dependency-submission:
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -956,13 +1018,14 @@ jobs:
     if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/dev')
 
     steps:
-    - uses: actions/checkout@v7
+    - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Set up Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version: '1.26.10'
+        go-version: '1.26.11'
 
-    - name: Go Dependency Submission
-      uses: actions/go-dependency-submission@v2.0.3
-      continue-on-error: true  # Known upstream bug: duplicate namespace assertion with multi-module deps
+    - name: Submit Go dependency snapshot
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: tools/ci/go_dependency_snapshot.sh --submit

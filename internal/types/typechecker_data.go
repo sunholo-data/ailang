@@ -2,6 +2,8 @@ package types
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
@@ -14,7 +16,10 @@ func (tc *CoreTypeChecker) inferRecord(ctx *InferenceContext, rec *core.Record) 
 	fieldTypes := make(map[string]Type)
 	var allEffects []*Row
 
-	for name, value := range rec.Fields {
+	// Sorted, not map order: inference allocates fresh variables, and their
+	// names must not depend on Go's map iteration (#2076).
+	for _, name := range slices.Sorted(maps.Keys(rec.Fields)) {
+		value := rec.Fields[name]
 		valueNode, _, err := tc.inferCore(ctx, value)
 		if err != nil {
 			return nil, ctx.env, err
@@ -103,21 +108,31 @@ func (tc *CoreTypeChecker) inferRecordAccess(ctx *InferenceContext, acc *core.Re
 		}
 	}
 
-	// Create fresh type variable for field
+	// Create fresh type variable for the field, and a fresh record row for the
+	// rest of the record.
+	//
+	// #2210/#2221: the rest used to be one literal row "r" shared by every
+	// access and update in a module. While record rows were never bound that
+	// was harmless; once the shim's row is bound to the record's remaining
+	// fields (unification_record_rows.go), a shared row would force `p.x` and
+	// `q.y` on two different records to have the same remaining fields, and it
+	// collided with a user-written `| r`. It changes the rendered interface of
+	// an export over two shim records — `({x: b, ...a}, {y: b, ...a})` becomes
+	// `({x: b, ...a}, {y: b, ...c})` — which is the correct type: the old one
+	// claimed both records share their other fields.
 	fieldType := ctx.freshTypeVar()
-	rowVar := &RowVar{Name: "r", Kind: RecordRow}
+	rowVar := ctx.freshRecordRow()
 
-	// Expected record type with field - use TRecordOpen for subsumption
-	// This allows {id:int} to unify with {id:int, email:string}
-	expectedRecord := &TRecordOpen{
-		Fields: map[string]Type{acc.Field: fieldType},
-		Row:    rowVar, // Mark as open for unknown fields
-	}
-
-	ctx.addConstraint(TypeEq{
-		Left:  getType(recordNode),
-		Right: expectedRecord,
-		Path:  []string{"field access at " + acc.Span().String()},
+	// The receiver must have the field: `recv ~ {f: α | r}` for a record
+	// (TRecordOpen, so {id:int} unifies with {id:int, email:string}), or the
+	// field of the record a newtype-record ADT wraps (#2239). Deferred until
+	// the receiver's type is known (field_access_deferred.go).
+	ctx.addConstraint(&fieldAccess{
+		recv:      getType(recordNode),
+		field:     acc.Field,
+		fieldType: fieldType,
+		row:       rowVar,
+		path:      []string{"field access at " + acc.Span().String()},
 	})
 
 	return &typedast.TypedRecordAccess{
@@ -146,14 +161,17 @@ func (tc *CoreTypeChecker) inferRecordUpdate(ctx *InferenceContext, upd *core.Re
 	baseType := getType(baseNode)
 
 	// 2. Create fresh type variables for each field being updated
+	// Sorted, not map order, so fresh names are deterministic (#2076).
+	updateFields := slices.Sorted(maps.Keys(upd.Updates))
 	fieldTypes := make(map[string]Type)
-	for fieldName := range upd.Updates {
+	for _, fieldName := range updateFields {
 		fieldTypes[fieldName] = ctx.freshTypeVar()
 	}
 
-	// 3. Create row variable for other fields (row polymorphism)
-	// Using "r" as the name matches the pattern in inferRecordAccess
-	rowVar := &RowVar{Name: "r", Kind: RecordRow}
+	// 3. Create row variable for other fields (row polymorphism): a fresh row,
+	// as in inferRecordAccess. Unification binds it to the base record's other
+	// fields, so the result (the base type) keeps them (#2221).
+	rowVar := ctx.freshRecordRow()
 
 	// 4. Create constraint: base must be a record with at least these fields
 	// Using TRecordOpen allows the base to have additional fields
@@ -169,7 +187,8 @@ func (tc *CoreTypeChecker) inferRecordUpdate(ctx *InferenceContext, upd *core.Re
 
 	// 5. Type check updated field values
 	updatedFields := make(map[string]typedast.TypedNode)
-	for fieldName, fieldValue := range upd.Updates {
+	for _, fieldName := range updateFields {
+		fieldValue := upd.Updates[fieldName]
 		valueNode, _, err := tc.inferCore(ctx, fieldValue)
 		if err != nil {
 			return nil, ctx.env, err

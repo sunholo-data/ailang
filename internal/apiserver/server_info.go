@@ -16,6 +16,11 @@ type ServerIdentity struct {
 	Name    string // MCP serverInfo.name
 	Title   string // MCP serverInfo.title; "" = not sent
 	Version string // MCP serverInfo.version, A2A card version, OpenAPI info.version
+	// Icon: the A2A card's iconUrl. A path ("/icon.png") is resolved against
+	// the host the caller reached, so one flag serves every deployment and the
+	// icon stays on the card's own host (Gemini Enterprise fetches it from
+	// there); otherwise an https URL. "" = no icon.
+	Icon string
 }
 
 // defaultServerName is the unbranded name `ailang mcp check` warns about.
@@ -32,7 +37,7 @@ func DefaultServerInfo() ServerIdentity {
 	return ServerIdentity{Name: defaultServerName, Version: v}
 }
 
-// ParseServerInfo reads --server-info "name=parse,title=AILANG Parse,version=0.43.0".
+// ParseServerInfo reads --server-info "name=parse,title=AILANG Parse,version=0.43.0,icon=/icon.png".
 // Keys may be given in any order and any subset; a key left out keeps its
 // default. Values cannot contain a comma or a control character, a key may
 // appear once, and an unknown key is an error: a typo must not ship an
@@ -47,7 +52,7 @@ func ParseServerInfo(s string) (ServerIdentity, error) {
 		key, val, ok := strings.Cut(part, "=")
 		key, val = strings.TrimSpace(key), strings.TrimSpace(val)
 		if !ok || key == "" {
-			return ServerIdentity{}, fmt.Errorf("--server-info: %q is not key=value (keys: name, title, version)", part)
+			return ServerIdentity{}, fmt.Errorf("--server-info: %q is not key=value (keys: name, title, version, icon)", part)
 		}
 		if seen[key] {
 			return ServerIdentity{}, fmt.Errorf("--server-info: %s given twice", key)
@@ -66,8 +71,13 @@ func ParseServerInfo(s string) (ServerIdentity, error) {
 			id.Title = val
 		case "version":
 			id.Version = val
+		case "icon":
+			if !strings.HasPrefix(val, "/") && !strings.HasPrefix(val, "https://") {
+				return ServerIdentity{}, fmt.Errorf("--server-info: icon must be a path on this server (/icon.png) or an https URL, got %q", val)
+			}
+			id.Icon = val
 		default:
-			return ServerIdentity{}, fmt.Errorf("--server-info: unknown key %q (keys: name, title, version)", key)
+			return ServerIdentity{}, fmt.Errorf("--server-info: unknown key %q (keys: name, title, version, icon)", key)
 		}
 	}
 	return id, nil

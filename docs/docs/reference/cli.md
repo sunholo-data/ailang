@@ -44,6 +44,20 @@ Two commands parse `--format` by hand rather than registering it, so they do **n
 `ailang doctor managed_agents --format=json`. Both need the `=` form. Converging them is a
 follow-up, not a documentation problem.
 
+## Contract verification flags
+
+`ailang check --verify`, `ailang ai-check` and `ailang verify` share one exit rule
+([contracts guide](/docs/guides/contracts#exit-codes)) and the flags that move it:
+
+| Flag | On | Effect | Tier |
+|---|---|---|---|
+| `--strict` | all three (`check` only with `--verify`) | a skipped or inconclusive obligation fails | as the command (Stable on `check --verify`) |
+| `--allow-inconclusive` | all three | an inconclusive result exits 0, even when it is the only obligation (nothing proved); `outcome` stays `inconclusive` | as the command (Stable on `check --verify`) |
+| `--no-verify` | `ai-check` | type check only: the verifier does not run, `outcome` is `not_requested` (or `no_obligations`) | Experimental |
+
+`--strict` with `--allow-inconclusive`, `--no-verify` with either, and `check --strict` without
+`--verify` are usage errors (exit 2). Each command checks one file; a second file is a usage error.
+
 ## Groups are a drawer, not a rename
 
 `ailang messages list` and `ailang ops messages list` are the same route. A group exists

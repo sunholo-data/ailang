@@ -12,8 +12,8 @@
 
 module examples/runnable/std_audio_brief
 import std/audio (wavFromPcm, durationMs, encode, Codec, OggOpus)
-import std/bytes (fromInts, concatList, fromBase64, length, slice, toString)
-import std/fs (readFileBytes, writeFileBytes)
+import std/bytes (fromInts, concatList, fromBase64, length, sliceLen, toString)
+import std/fs (readFileBase64, writeFileBytes)
 import std/env (getArgs)
 import std/io (println)
 import std/option (Option, Some, None)
@@ -45,7 +45,7 @@ export func main() -> () ! {IO} {
   println("duration: ${show(durationMs(length(pcm), 24000, 1, 16))} ms")
   match encode(pcm, 24000, 1, OggOpus(24000)) {
     Ok(ogg) => {
-      let magic = match slice(ogg, 0, 4) {
+      let magic = match sliceLen(ogg, 0, 4) {
         Some(m) => toString(m),
         None => "?"
       }
@@ -62,7 +62,7 @@ export func main() -> () ! {IO} {
 
 export func convert() -> () ! {IO, FS, Env} {
   match getArgs() {
-    path :: stem :: _ => match readFileBytes(path) {
+    path :: stem :: _ => match readFileBase64(path) {
       Ok(b64) => match fromBase64(b64) {
         Some(pcm) => match saveBrief(pcm, stem) {
           Ok(ms) => println("wrote ${stem}.wav and ${stem}.ogg (${show(ms)} ms)"),

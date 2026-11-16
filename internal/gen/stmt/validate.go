@@ -104,6 +104,11 @@ func validateStmt(s Stmt) error {
 		return validateExpr(s.Value)
 	case ExprStmt:
 		return validateExpr(s.Value)
+	case MatchFail:
+		if s.Scrutinee == nil {
+			return fmt.Errorf("MatchFail has nil scrutinee")
+		}
+		return validateExpr(s.Scrutinee)
 	default:
 		return fmt.Errorf("unknown statement type %T", s)
 	}

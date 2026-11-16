@@ -5,30 +5,35 @@
       "name": "Codec",
       "ctors": [
         "OggOpus(int)"
-      ]
+      ],
+      "tier": "experimental"
     },
     {
       "name": "Pcm16Quantization",
       "ctors": [
         "ClipOutOfRange",
         "RejectOutOfRange"
-      ]
+      ],
+      "tier": "experimental"
     },
     {
       "name": "PcmLayout",
       "ctors": [
         "Interleaved"
-      ]
+      ],
+      "tier": "experimental"
     },
     {
       "name": "WavEncoding",
       "ctors": [
         "IntegerPcm"
-      ]
+      ],
+      "tier": "experimental"
     },
     {
       "name": "WavInfo",
-      "alias": "{blockAlign: int, byteRate: int, channels: int, containerBits: int, dataBytes: int, dataOffset: int, encoding: WavEncoding, frames: int, layout: PcmLayout, rate: int, validBits: int}"
+      "alias": "{blockAlign: int, byteRate: int, channels: int, containerBits: int, dataBytes: int, dataOffset: int, encoding: WavEncoding, frames: int, layout: PcmLayout, rate: int, validBits: int}",
+      "tier": "experimental"
     }
   ],
   "funcs": [
@@ -98,7 +103,8 @@
       "name": "durationMs",
       "type": "(int,int,int,int)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -166,7 +172,8 @@
       "name": "encode",
       "type": "(bytes,int,int,Codec)-\u003eResult[bytes,string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -222,7 +229,8 @@
       "name": "floatsToPcm16",
       "type": "(Array[float],int,Pcm16Quantization)-\u003eResult[bytes,string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -290,7 +298,8 @@
       "name": "pcm16ToFloats",
       "type": "(bytes,int,int,int)-\u003eResult[Array[float],string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -358,7 +367,8 @@
       "name": "wavFromPcm",
       "type": "(bytes,int,int,int)-\u003ebytes",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -426,7 +436,8 @@
       "name": "wavFromPcmChecked",
       "type": "(bytes,int,int,int)-\u003eResult[bytes,string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -494,7 +505,8 @@
       "name": "wavHeader",
       "type": "(int,int,int,int)-\u003ebytes",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -562,7 +574,8 @@
       "name": "wavHeaderChecked",
       "type": "(int,int,int,int)-\u003eResult[bytes,string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -594,7 +607,8 @@
       "name": "wavInfo",
       "type": "(bytes)-\u003eResult[WavInfo,string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

@@ -65,52 +65,15 @@ func registerFromSpecRegistry(ml *ModuleLinker) {
 	ml.RegisterIface(builtinIface)
 }
 
-// extractTypeVars extracts all type variables from a type
-// This handles polymorphic types like forall a. (a, List[a]) -> List[a]
+// extractTypeVars returns every type variable of typ, sorted: the variables a
+// builtin's scheme quantifies. It uses the type checker's one free-variable
+// walk (types.FreeTypeVarNames). The hand-written walk it replaces had no case
+// for type applications, so `_list_length : list[a] -> int` and 27 other
+// builtins left `a` (or `b`, `k`, `v`) free, shared by every use (#2305).
 func extractTypeVars(typ types.Type) []string {
-	vars := make(map[string]bool)
-	collectTypeVars(typ, vars)
-
-	// Convert to sorted slice for deterministic output
-	result := make([]string, 0, len(vars))
-	for v := range vars {
-		result = append(result, v)
-	}
+	result := types.FreeTypeVarNames(typ)
 	sort.Strings(result)
 	return result
-}
-
-// collectTypeVars recursively collects type variables from a type
-func collectTypeVars(typ types.Type, vars map[string]bool) {
-	if typ == nil {
-		return
-	}
-
-	switch t := typ.(type) {
-	case *types.TVar:
-		vars[t.Name] = true
-	case *types.TVar2:
-		vars[t.Name] = true
-	case *types.TList:
-		collectTypeVars(t.Element, vars)
-	case *types.TFunc2:
-		// Collect from parameters
-		for _, param := range t.Params {
-			collectTypeVars(param, vars)
-		}
-		// Collect from return type
-		collectTypeVars(t.Return, vars)
-	case *types.TTuple:
-		for _, elem := range t.Elements {
-			collectTypeVars(elem, vars)
-		}
-	case *types.TRecord:
-		// Records with row polymorphism
-		for _, fieldType := range t.Fields {
-			collectTypeVars(fieldType, vars)
-		}
-		// For simple types (TInt, TString, etc.), no type vars
-	}
 }
 
 // computeBuiltinDigest computes a deterministic digest for the $builtin module

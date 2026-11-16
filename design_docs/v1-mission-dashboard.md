@@ -2,38 +2,71 @@
 
 _Snapshot, overwritten every iteration. History: `v1-mission.md` (STATUS) + `v1-mission-log.md`._
 
-**Last iteration:** 354 · 2026-09-14 · HARNESS · LANDED · **Goal distance:** N=12 docs before v1.0.0 (±0)
-**Latest release:** v0.38.5 (2026-09-13). Second fire since the six-day kill switch.
+**Last update:** 2026-11-09 · ATTENDED re-cut (`D-64`) · **Goal distance:** **N = 1 open bar-v3 gate item** (was 7; G1+G3 closed by `D-65`, G4 closed on the prod domain, G2 closed by #2184 + #2185) — only G5 remains, at release (unit changed from D-51's "design docs remaining", last N = 12 on 2026-09-14)
+**Latest release:** v0.57.4. The V1 launchd loop has been PAUSED since 2026-09-08 (`~/.ailang/state/mission-control.disabled`) and stays paused; the attended session is the orchestrator and dispatches the work to subagents.
 
-## Just landed
-`m-pin-drift-blind-under-sha-pin` — PR #1166 → `266cf23a2`, 22 checks zero not-green. `PIN_DRIFT` read 0 under
-any ancestor SHA pin (the 09-07 pin was 266 behind `origin/dev`); the driver now also reports **`PIN_AGE`**
-(target vs an origin/dev SHA captured once), own state file + threshold 25 + dedupe-until-doubling + `pin-age`
-notice, old-helper handshake. Pin suite 81→117, notify 50→82, 22-mutant audit. Judge `sonnet` r1 PASS 96 / r2 PASS 100.
-Also: dev's REQUIRED `test` context went red mid-iteration from a concurrent commit (`7423434b4`,
-`pi-or-minimax-m3` without a `ceilingLimited` entry) — fixed forward first as #1165 → `fd44be9ee`.
-**Watch next fire:** the driver log should print `driver pin age: 0 below warning threshold 25`.
+## `JInt` on `dev` (#2223, 2026-11-10) — downstream census CLEAN, fixes merged the same day
 
-## Next picks
-1. `m-weekly-sweep-orphans-2026-09-14` — 7 orphans of 85 (triage-lite; 4 daneel issues already have docs).
-2. `m-approval-poll-production-defaults-unexercised` · `m-ratelimit-window-default-unpinned` — small, judge-measured.
-3. `m-gate0-self-crash-notice-read` **[world-DEMAND]** — Gate 0 is blind to the driver's own rc=143 notices (real on V1: #1072).
-4. `m-sonar-dev-branch-security-rating-c-on-new-code` — standing SonarCloud branch red.
-5. `m-codex-quota-admission-test-reads-live-ledger` — rig-only red; the suite reads the live quota ledger.
+Integer JSON literals now decode as `JInt`; a `match` with a `JNumber` arm and no `JInt` arm stops
+seeing integers, and `check` still passes (warning `TC_MATCH_005`), so `make downstream-check` is blind
+to it. A sweep of every downstream corpus with a `dev` compiler found 17 real sites; all are fixed with
+`asNumber`/`getNumber`, which exist since v0.54.14 and accept both constructors, so no release ordering
+was needed:
 
-## Loop health
-- **pi executor 30-min cap < plan-sized milestone, 3rd instance** (347 M3, 354 M1, 354 M2): both fallback links
-  spent, end-of-chain opus spawn is hook-denied → controller finished the arms. Gate-5 skill edit: cap is now a
-  per-run `--max-seconds`, 3600 for milestones the plan sizes >150 LOC. deepseek promotion count reset (rc=13).
-- `scripts/mission_pi_run.sh` does NOT load the two `-e` sandbox extensions the recipe calls mandatory (unfixed, 1 reading).
-- All three pi lanes: first probe silent past 110 s, immediate retry rc=0 (cold start) — three readings today.
-- Skill copies: `gate-1-observe.md` differs — origin has iter-353's rule, the main checkout does not (worktree-committed edit).
-- Ledger 63 rows, **ZERO open**. No directives on #1163 / #1072.
+| Repo | Sites | Fix |
+|---|---|---|
+| ailang-packages | 9 (audio, maintenance-bench, specstore, terminal-ui, crew-lab) + 4 task-pack fixtures | #187 merged; task pack re-frozen in #188 (Mark's ruling) |
+| motoko fork | 3 | #8 merged |
+| world | 1 | #545 **open** — the one site still unfixed on a default branch |
+| ailang examples + std, ailang-parse, docparse, email-parse, daneel | 0 | — |
 
-## Routing / cost
-designer `codex:gpt-6-astra` (1 doc + 1 revision; sol substituted into the quorum) · quorum r1/r2 blocked → carve-out r3 ·
-planner `pi:kimi-k3` ok (4th consecutive) · executor `pi:deepseek` wall_timeout → `pi:openrouter/deepseek` wall_timeout →
-controller · evaluator `sonnet` ×2. Metered **$0.29** of $5.
+Upstream motoko has a fourth site of its own (`src/core/process_limits.ail:92`); the fix is posted on
+arniwesth/motoko_agent#323. **Before installing or promoting a release with `JInt`:** world #545 merged.
+Not caught by the warning, so read for them when touching JSON code: `getInt` returns `None` for a
+fraction (it used to truncate); a decoded integer is not `==` to `JNumber` of the same value; `show` of
+a decoded integer prints `JInt(…)`. Published package versions that carry the old match cannot be
+changed (maintenance_bench 0.1.0, audio 0.3–0.6.0, terminal_ui 0.2/0.3.0); their fixed versions are
+not yet published. Missing instrument: count `TC_MATCH_005` in `make downstream-check`.
+
+Also live on merge: **teaching prompt v0.16.13** is the active prompt for every binary built from `dev`.
+
+## Roadmap accepted 2026-11-10 (`D-66`) — v1.0.0 is NOT the next tag
+An independent readiness review found work bar v3 does not count: type-soundness holes, a prover/runtime
+mismatch on integer overflow, a lossy `show`, and stdlib names that cannot change after the promise.
+Mark accepted the roadmap: **v0.58.x is the last breaking window → soak ≥ 7 days → rc.1 → v1.0.0.**
+All ten roadmap decisions are ruled (`D-66`, `D-67`). Order and the ten design docs: [planned/v1_0_0/ROADMAP.md](planned/v1_0_0/ROADMAP.md).
+The N below still counts bar-v3 items only; re-cutting the unit to cover the roadmap is not yet ruled.
+
+## The bar (v3, "1.0 = a promise we can keep")
+| Gate | Open | What closes it |
+|---|---|---|
+| G1 Stability promise ratified | 0 ✓ | re-draft `stability.md` against today's surface → Mark ratifies |
+| G2 Zero open P0s | 0 ✓ | #1443 (`pure func` + effect row), #1134 (IFC labels across modules) |
+| G3 Packages in the promise | 0 ✓ | Packages tier section + one published package as the worked example |
+| G4 Cloud exec MCP Stable | 0 ✓ | tool surface listed Stable; prod on a custom domain (docparse precedent) |
+| G5 Simplification Phase 5 | 1 | metrics diff fragment for the v1.0.0 release notes |
+
+Tiering (D-64): `ailang messages` **Experimental**; coordinator / missions / approvals / dashboards / eval tooling **Internal**.
+Published at release, not gated: fleet-tier pass rates, cost-per-verified-success baseline.
+
+## In flight (2026-11-09)
+| Gate | PR | State |
+|---|---|---|
+| G1+G3 | #2182 stability re-draft | **CLOSED** — merged `71ec9bd36`, ratified by Mark (`D-65`) |
+| G2 #1443 | #2184 `pure` ⇒ empty row (BREAKING) | **CLOSED** — merged `8d582b976`; teaching surfaces verified clean (active prompt v0.16.12) |
+| G2 #1134 | #2185 cross-module IFC (BREAKING) | **CLOSED** — merged `bdbeebfea` (cache key v10; structural list/record/tuple label checks); IFC sites fixed: email-parse#43 merged, ✓ email 0.10.2 published; ✓ email-parse#44 merged, ✓ eparse 1.11.3 published — #2185 downstream DONE; follow-ups #2187, #2196 (P1) |
+| G4 | multivac#12 issuer → `executor.ailang.sunholo.com` | **CLOSED** — promoted dev→test→prod `e752cc2`, metadata names the host, `ailang mcp check` auth/transport PASS. Not gated: 22 docs tools lack `title` + read-only hints (A7, directory readiness) |
+| docs | #2181 runbook, #2183 stale sweep | MERGED (`d79a5d3be`, `5bda6c3eb`); charter links re-pointed after #2186's moves |
+
+**Cache-key collision:** #2184 and #2185 both bump the compile-cache key v8→v9; the second to merge must go to v10.
+
+**#2184 release order** (measured old-vs-new binary across downstream repos; merging is safe, RELEASING is not):
+1. ✓ ailang-packages#183 merged `685490732` → ✓ published `sunholo/specstore` 0.3.1
+2. ✓ email-parse#40 merged `d7b0669be` → ✓ published `sunholo/email` 0.10.1 → ✓ email-parse#41 → ✓ published eparse 1.11.2; ✓ daneel#417 merged `0d6e67025`
+3. ✓ docparse#263 merged `7950010ee` (before docparse's `AILANG_VERSION` pin, now v0.57.1, moves past a #2184 release)
+4. ✓ motoko fork#6 merged `597a6fbf9` (106 breaks → 0; its 2 red CI jobs pre-date it — base red since fork#4/#5: stale `CostRates` in `scripts/verify_skills_startup.ail:133`, hook-scope yield pin at 20 vs 21 extensions, 5 moved session.ail clock anchors) → fast-forward `~/dev/mk-20261027` + cloud `MOTOKO_COMMIT` — BEFORE the rig binary moves to a #2184 release
+5. then #2184 merges and ships. Upstream arniwesth/motoko_agent has the same 36 sites — tell Arni.
+
+**#2185 IFC sites (email-parse, owner decides, not auto-fixed):** `packages/email/api.ail:66` (`<arg> ⊔ <sqlsafe>` into `sqlEscape`), `packages/eparse/attachments.ail:604` (already-escaped value re-escaped). daneel: 0 IFC breaks.
 
 ## Parked on Mark
-none.

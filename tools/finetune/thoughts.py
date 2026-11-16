@@ -37,8 +37,14 @@ FIXES = [
     (r"undefined variable: print\b", "use `println`, since `print` is not in the prelude (or import `std/io (print)`)"),
     (r"undefined variable: (\w+).*add `import ([^`]+)`", "add the import the error names: `import {1}`"),
     (r"undefined variable: (\w+)", "import `{0}` from the module the error names (or use the right name)"),
-    (r"MOD010.*module '([^']+)'.*canonical path '([^']+)'", "rename the module to match the file: `module {1}`"),
+    (r"MOD010.*module '([^']+)'.*(?:canonical|file) path '([^']+)'", "rename the module to match the file: `module {1}`"),
     (r"PAR015|bare assignment", "bind with `let`, since there is no assignment"),
+    (r"PAR017|only valid inside", "use one style: `let x = e in ...` in an expression body, or a `{{ ...; ... }}` block body"),
+    (r"PAR_MATCH_ARROW|next token to be =>", "write each match arm as `pattern => body`, with commas between arms"),
+    (r"lambda parameter", "write the lambda as `\\x. body` (or `\\a b. body`)"),
+    (r"INTERP_END", "keep only a plain expression inside `${{...}}`"),
+    (r"in expression: as\b", "convert with `intToFloat`/`floatToInt` from `std/math`, since there is no `as` cast"),
+    (r"Fractional\[int\]", "use integer division `/` on ints only, or convert with `intToFloat` first"),
     (r"PAR_UNEXPECTED_TOKEN at [^:]+:(\d+)", "fix the syntax at line {0}"),
     (r"PAR_NO_PREFIX_PARSE at [^:]+:(\d+)", "fix the expression at line {0}"),
     (r"type unification failed", "fix the type mismatch the checker reports"),
@@ -46,7 +52,15 @@ FIXES = [
 ]
 
 
+SPECIFIC = re.compile(r"\b(PAR[_A-Z0-9]*|TC_[A-Z0-9_]+|IMP\d+|MOD\d+)\b at |type error|undefined variable|effect checking failed|"
+                      r"No instance|`\+\+`")
+
+
 def first_error(text):
+    # The specific line, not the "module loading error: failed to load ..." wrapper above it.
+    for ln in text.splitlines():
+        if SPECIFIC.search(ln) and "module loading error" not in ln:
+            return re.sub(r"\s+", " ", ln.strip())[:200]
     for ln in text.splitlines():
         if "Error" in ln or "error" in ln or "PAR" in ln or "MOD0" in ln:
             return re.sub(r"\s+", " ", ln.strip())[:200]
@@ -87,14 +101,67 @@ def plan_thought(code, task):
     return lead + body + tail
 
 
+def is_rewrite(steps, i):
+    """A write that keeps under half of the previous file's lines: a rewrite, not a targeted fix."""
+    c = steps[i]["call"]
+    if c["name"] != "write":
+        return False
+    for s in reversed(steps[:i]):
+        if s["call"]["name"] == "write":
+            old, new = s["call"]["args"].get("content", ""), c["args"].get("content", "")
+            return difflib.SequenceMatcher(None, old.splitlines(), new.splitlines(), autojunk=False).ratio() < 0.5
+        if s["call"]["name"] == "edit":
+            return False
+    return False
+
+
+BUILD = ["This program is long; write the helpers first with `main` as a stub, and check them before adding the rest.",
+         "Build it in two steps: helpers and a stub `main` now, checked, then the rest. One huge write is easy to get wrong.",
+         "Write the first part (helpers, `main` stubbed out) and type-check it before writing more."]
+BUILD_REST = ["The helpers check cleanly. Now replace the stub `main` with the remaining helpers and the real `main`.",
+              "That part compiles; add the rest of the program in place of the stub `main`."]
+REWRITE = ["The attempt has too many errors to patch one by one; rewrite it cleanly, using only forms the reference shows.",
+           "Too much of this is wrong to fix line by line; rewrite the program in plain, checked AILANG forms."]
+
+
 def add_thoughts(ep, rnd):
     steps, out = ep["steps"], []
     for i, s in enumerate(steps):
         c, a = s["call"], s["call"]["args"]
         prev = steps[i - 1]["result"] if i else ""
         prev_call = steps[i - 1]["call"] if i else {}
-        if c["name"] == "read":
+        if s.get("habit") == "build":  # pilot-4: a long file is built in steps, never one huge write
+            t = rnd.choice(BUILD)
+        elif s.get("habit") == "build_rest":
+            t = rnd.choice(BUILD_REST)
+        elif i > 1 and not s.get("no_loss") and is_rewrite(steps, i):
+            t = rnd.choice(REWRITE)
+        elif c["name"] == "read":
             t = rnd.choice(READ)
+        elif s.get("habit") == "reference":  # pilot-3, habit 5: look up instead of guessing again
+            err = s.get("about") or first_error(prev)
+            n_failed = s.get("after_failed", 0)
+            where = (f"the exact signature of `{s['lookup']}`" if s.get("lookup_kind") == "signature"
+                     else f"the \"{s['lookup']}\" section of the AILANG reference")
+            if s.get("lookup_kind") == "signature" and n_failed >= 2:
+                t = (f"That is {n_failed} fixes in a row for the same kind of error, and it still fails: {err} "
+                     f"Patching again will not help. Check {where} and rewrite the call to match it.")
+            elif s.get("lookup_kind") == "signature":
+                t = f"The checker says: {err} Check {where} instead of guessing how to call it."
+            elif n_failed >= 2:  # pilot-4: a loop. Stop patching; read, then rewrite the failing part
+                t = (f"That is {n_failed} fixes in a row for the same kind of error, and it still fails: {err} "
+                     f"Patching again will not help. Read the \"{s['lookup']}\" section of the AILANG reference "
+                     f"and rewrite the failing part the way it shows.")
+            elif any(x.get("failed_fix") for x in steps[:i]):
+                t = (f"Still failing after my fix: {err} Guessing again will not help; read the "
+                     f"\"{s['lookup']}\" section of the AILANG reference first.")
+            else:
+                t = f"The checker says: {err} Check the \"{s['lookup']}\" section of the AILANG reference before fixing it."
+        elif c["name"] in ("write", "edit") and prev_call.get("name") == "bash" and \
+                prev_call["args"].get("command", "").startswith(("ailang prompt", "ailang docs")) and \
+                steps[i - 1].get("habit") == "reference":
+            err = steps[i - 1].get("about") or ""
+            t = f"The reference shows the correct form. So I'll {fix_phrase(err)}, following it exactly."
         elif c["name"] in ("write", "edit") and prev_call.get("name") == "bash" and \
                 "ailang check" in prev_call["args"].get("command", "") and re.search(r"Error|PAR\w+|MOD0", prev):
             err = first_error(prev)

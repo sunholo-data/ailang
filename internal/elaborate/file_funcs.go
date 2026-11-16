@@ -11,7 +11,11 @@ import (
 )
 
 // funcToLambda converts function to lambda
-func (e *Elaborator) funcToLambda(f *FuncSig) (core.CoreExpr, error) {
+func (e *Elaborator) funcToLambda(f *FuncSig) (lam core.CoreExpr, err error) {
+	// #2273: the signature's type variables are in scope (and rigid) for the
+	// body and the annotations below.
+	sig := e.openSignature(f.FuncDecl)
+	defer func() { e.closeSignature(sig, lam) }()
 	// Parameters are in scope for the body (#1467).
 	e.pushScope(f.Params...)
 	body, err := e.elaborateExpr(f.Body)
@@ -26,41 +30,8 @@ func (e *Elaborator) funcToLambda(f *FuncSig) (core.CoreExpr, error) {
 		Body:     body,
 	}
 
-	// M-FIX-FLOAT-OP: Preserve parameter type annotations for the type checker
-	// This ensures float annotations aren't lost during elaboration
-	if f.FuncDecl != nil && len(f.FuncDecl.Params) > 0 {
-		paramTypes := make([]types.Type, len(f.FuncDecl.Params))
-		hasAnnotations := false
-		for i, param := range f.FuncDecl.Params {
-			if param.Type != nil {
-				paramTypes[i] = e.astTypeToInternalType(param.Type)
-				hasAnnotations = true
-				if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
-					fmt.Fprintf(os.Stderr, "[DEBUG] funcToLambda %s: param %s has type %v\n",
-						f.Name, param.Name, paramTypes[i])
-				}
-			}
-		}
-		if hasAnnotations {
-			e.paramTypeAnnots[lambda.ID()] = paramTypes
-			if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
-				fmt.Fprintf(os.Stderr, "[DEBUG] Stored param annotations for Lambda ID %d, func %s: %v\n",
-					lambda.ID(), f.Name, paramTypes)
-			}
-		}
-	}
-
-	// M-FIX-FLOAT-OP: Preserve return type annotations for the type checker
-	// This ensures PI() -> float ACTUALLY constrains inference to return float
-	if f.FuncDecl != nil && f.FuncDecl.ReturnType != nil {
-		returnType := e.astTypeToInternalType(f.FuncDecl.ReturnType)
-		if returnType != nil {
-			e.returnTypeAnnots[lambda.ID()] = returnType
-			if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
-				fmt.Fprintf(os.Stderr, "[DEBUG] funcToLambda %s: stored return type annotation %v for Lambda ID %d\n",
-					f.Name, returnType, lambda.ID())
-			}
-		}
+	if f.FuncDecl != nil {
+		e.recordSignatureAnnots(lambda, f.FuncDecl.Params, f.FuncDecl.ReturnType, false)
 	}
 
 	// M-CAPABILITY-BUDGETS: Preserve effect annotations for the type checker
@@ -150,6 +121,11 @@ func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error
 	// Extract type name
 	typeName := decl.Name
 
+	// A lowercase name in the body must be a parameter or a type (#2211).
+	if err := e.checkTypeDeclVars(decl); err != nil {
+		return nil, err
+	}
+
 	// M-DX19: Check for deriving (Eq) clause
 	hasDerivingEq := false
 	for _, d := range decl.Deriving {
@@ -208,6 +184,12 @@ func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error
 					recordType := e.astTypeToInternalType(ctor.Fields[0].Type)
 					if recordType != nil {
 						e.RegisterTypeAlias(typeName, recordType)
+						// Only for field access: the ADT stays nominal
+						// (M-V1-NOMINAL-TYPE-IDENTITY hard case h4c).
+						if e.newtypeADTs == nil {
+							e.newtypeADTs = make(map[string]bool)
+						}
+						e.newtypeADTs[typeName] = true
 					}
 				}
 			}
@@ -260,7 +242,7 @@ func (e *Elaborator) elaborateTypeDecl(decl *ast.TypeDecl) (core.CoreExpr, error
 }
 
 // elaborateFuncDecl handles function declarations
-func (e *Elaborator) elaborateFuncDecl(fn *ast.FuncDecl) (core.CoreExpr, error) {
+func (e *Elaborator) elaborateFuncDecl(fn *ast.FuncDecl) (decl core.CoreExpr, err error) {
 	// Debug trace entry
 	if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
 		fmt.Fprintf(os.Stderr, "[DEBUG] elaborateFuncDecl called for %s, params=%d\n", fn.Name, len(fn.Params))
@@ -275,49 +257,20 @@ func (e *Elaborator) elaborateFuncDecl(fn *ast.FuncDecl) (core.CoreExpr, error) 
 		Pos:     fn.Pos,
 	}
 
-	value, err := e.normalizeLambda(lambda)
+	// #2273: the signature's type variables are in scope (and rigid) for the
+	// body and the annotations below.
+	sig := e.openSignature(fn)
+	var value core.CoreExpr
+	defer func() { e.closeSignature(sig, value) }()
+	value, err = e.normalizeLambda(lambda)
 	if err != nil {
 		return nil, err
 	}
 
-	// M-FIX-FLOAT-OP: Preserve parameter type annotations for the type checker
-	// This ensures float annotations aren't lost during elaboration
-	if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
-		fmt.Fprintf(os.Stderr, "[DEBUG] value type: %T\n", value)
-	}
+	// normalizeLambda recorded the parameter annotations; the return type is
+	// not part of ast.Lambda, so record the full signature here.
 	if coreLambda, ok := value.(*core.Lambda); ok {
-		paramTypes := make([]types.Type, len(fn.Params))
-		hasAnnotations := false
-		for i, param := range fn.Params {
-			if param.Type != nil {
-				paramTypes[i] = e.astTypeToInternalType(param.Type)
-				hasAnnotations = true
-				if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
-					fmt.Fprintf(os.Stderr, "[DEBUG]   param %s has type annotation: %v\n", param.Name, paramTypes[i])
-				}
-			}
-		}
-		if hasAnnotations {
-			e.paramTypeAnnots[coreLambda.ID()] = paramTypes
-			// Debug trace
-			if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
-				fmt.Fprintf(os.Stderr, "[DEBUG] Stored param annotations for Lambda ID %d, func %s: %v\n",
-					coreLambda.ID(), fn.Name, paramTypes)
-			}
-		}
-
-		// M-FIX-FLOAT-OP: Preserve return type annotations for the type checker
-		// This ensures PI() -> float ACTUALLY constrains inference to return float
-		if fn.ReturnType != nil {
-			returnType := e.astTypeToInternalType(fn.ReturnType)
-			if returnType != nil {
-				e.returnTypeAnnots[coreLambda.ID()] = returnType
-				if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
-					fmt.Fprintf(os.Stderr, "[DEBUG] elaborateFuncDecl %s: stored return type annotation %v for Lambda ID %d\n",
-						fn.Name, returnType, coreLambda.ID())
-				}
-			}
-		}
+		e.recordSignatureAnnots(coreLambda, fn.Params, fn.ReturnType, false)
 	}
 
 	// Wrap in let rec if recursive
@@ -355,13 +308,19 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 			if alias, ok := e.typeAliases[typ.Name].(*types.TFunc2); ok {
 				return alias
 			}
-			// Type constructor (e.g., user-defined ADT)
-			return &types.TCon{Name: typ.Name}
+			// Type constructor (e.g., user-defined ADT), qualified by the module
+			// that declares it (M-V1-NOMINAL-TYPE-IDENTITY §4.3).
+			return e.simpleType(typ.Name, typ.Pos)
 		}
 
 	case *ast.TypeVar:
 		// M-FIX-FLOAT-OP: Handle type variables in function type annotations
 		// e.g., in `func map[a,b](f: (a) -> b, ...)` the `a` and `b` are TypeVars
+		// #2273: a variable of an enclosing signature is that (rigid) variable.
+		if unique, ok := e.lookupSigTyvar(typ.Name); ok {
+			e.noteNestedUse(unique, typ.Pos)
+			return &types.TVar2{Name: unique, Kind: types.Star}
+		}
 		return &types.TVar2{Name: typ.Name, Kind: types.Star}
 
 	case *ast.RecordType:
@@ -372,7 +331,16 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 		}
 		// M-GAP4: If row variable present, create open record type
 		if typ.Row != nil {
-			rowVar := &types.RowVar{Name: typ.Row.Name, Kind: &types.KRow{ElemKind: &types.KRecord{}}}
+			// types.RecordRow, the value kind every other record row carries.
+			// A *KRow here did not Equal it (KRow.Equals matches the value
+			// type), so a user-written `| r` met the checker's own record row
+			// as "r has kind Row Record, but r has kind Row Record", and the
+			// interface cache could not marshal the kind (#2221).
+			rowName := typ.Row.Name
+			if unique, ok := e.lookupSigTyvar(rowName); ok {
+				rowName = unique // #2273: an enclosing signature's row variable
+			}
+			rowVar := &types.RowVar{Name: rowName, Kind: types.RecordRow}
 			return &types.TRecordOpen{Fields: fields, Row: rowVar}
 		}
 		return &types.TRecord{Fields: fields}
@@ -438,7 +406,7 @@ func (e *Elaborator) astTypeToInternalType(t ast.Type) types.Type {
 			args[i] = e.astTypeToInternalType(arg)
 		}
 		return &types.TApp{
-			Constructor: &types.TCon{Name: typ.Constructor},
+			Constructor: e.typeCon(typ.Constructor, typ.Pos),
 			Args:        args,
 		}
 

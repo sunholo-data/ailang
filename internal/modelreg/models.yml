@@ -618,8 +618,10 @@ models:
       inflated by the zero-loss record — trust the order, not the gap).
       ROLES since 2026-09-30 (Mark, attended): planner + executor head, controller Sol rung,
       designer codex rung (replacing both gpt6-sol and gpt6-astra), and the design-quorum
-      OpenAI reviewer seat (#1412) — that seat calls the METERED API, so it stays absent
-      until the OpenAI org is topped up. Not in any standard suite until placed.
+      OpenAI reviewer seat (#1412). That seat called the METERED API through this row and was
+      absent on every quorum (org out of credit); since 2026-11-16 (D-FLEET-20 A) the quorum
+      seats `codex:gpt-6.1-sol` on the ChatGPT subscription instead, so this row is no longer
+      the quorum's default. Not in any standard suite until placed.
       Uses max_completion_tokens instead of max_tokens.
 
   gpt6-luna:
@@ -1243,7 +1245,8 @@ models:
       Eval policy: STANDARD eval only, mirroring claude-fable-5 — NOT in agent_suite
       (agent multi-turn loops are cost-prohibitive at $10/$50 per 1M).
       No smoke tier (smoke is the local OS-model iteration loop; cloud rows run core,stretch).
-      SUITE MEMBERSHIP: took claude-fable-5's extended_suite seat 2026-09-02 on Mark's
+      SUITE MEMBERSHIP: RETIRED to opt-in 2026-11-09 — claude-fable-5-2 took the seat
+      ($8/$40, cheaper). History: took claude-fable-5's extended_suite seat 2026-09-02 on Mark's
       attended directive ("lets replace fable 5 with 5.1 in our suite evals executor etc").
       Pricing is IDENTICAL ($10/$50 per 1M), so this is a same-cost generational refresh
       rather than a contested promotion — the usual match-or-beat-the-incumbent bar exists
@@ -1277,6 +1280,60 @@ models:
       output_tokens, and the arithmetic reconciles exactly
       ($5.58699 = 14,979 in x $10/M + 108,744 out x $50/M). A re-run would
       populate the split at a cost of ~$5.59 and would not change pass/fail.
+
+  # Anthropic Claude Fable 5.2 (released November 9, 2026)
+  claude-fable-5-2:
+    api_name: "claude-fable-5-2"
+    provider: "anthropic"
+    default_thinking: "always_on"  # probed 2026-11-09: bare request → content blocks
+      # ["thinking","text"], thinking_tokens=18 of 22 output; {type:"disabled"} → 400
+      # "thinking.type.disabled is not supported for this model".
+    description: "Claude Fable 5.2 - most capable widely released model (Nov 2026)"
+    env_var: "ANTHROPIC_API_KEY"
+    agent_cli: "claude"
+    agent_model_name: "claude-fable-5-2"  # explicit id, never the "fable" alias (alias trap,
+      # see claude-opus-5). Verified 2026-11-09: `claude -p --model claude-fable-5-2` (CLI
+      # 2.1.321, ANTHROPIC_API_KEY stripped = subscription lane) → modelUsage keys
+      # ["claude-fable-5-2"]. Negative control claude-fable-9-zzz → "unrecognized_model".
+    model_family: "claude-fable-5-2"
+    max_output_tokens: 64000  # Anthropic family cap for the non-streaming Messages API
+      # (vendor declares 128K) — equal headroom with every sibling Claude row.
+    pricing:
+      input_per_1k: 0.008          # $8 per million — 20% BELOW Fable 5.1's $10
+      output_per_1k: 0.040         # $40 per million — 20% BELOW Fable 5.1's $50
+      cache_read_per_1k: 0.0002    # $0.20/M = 0.025x input (same multiplier as 5.1)
+      cache_write_per_1k: 0.010    # $10/M = 1.25x input — 5-minute cache write rate
+    notes: |
+      Anthropic's most capable widely released model (November 9, 2026). Successor to
+      Claude Fable 5.1 at a LOWER price: $8/$40 per 1M vs $10/$50. Cache hits $0.20/M
+      (0.025x input), 5m writes $10/M, 1h writes $16/M. Batch 50% off.
+      Adaptive thinking ALWAYS ON, default effort "high" (same as 5.1, unlike Opus 5.5's
+      "medium"). Registered {Adaptive:true, CanDisable:false} in reasoning_anthropic.go.
+      1M context, 128K vendor max output (this row caps at 64000, above).
+      Same tokenizer as Fable 5 / 5.1 (Opus 4.7+), so token counts compare directly.
+      Minimum cacheable prefix 512 (prompt-caching docs; cache.go's "claude-fable-5"
+      substring already resolves it). Retirement: not sooner than 2027-11-09.
+      Available on Claude API, Bedrock (anthropic.claude-fable-5-2), Google Cloud,
+      Microsoft Foundry, Claude Platform on AWS.
+      Model id + limits verified 2026-11-09 via the Models API (max_input_tokens
+      1000000, max_tokens 128000; negative control claude-fable-9-zzz → not_found) and
+      a live Messages call (stop=end_turn). Pricing from platform.claude.com pricing
+      page, fetched 2026-11-09.
+      Eval policy: STANDARD eval only, mirroring claude-fable-5-1 — NOT in agent_suite.
+      SUITE MEMBERSHIP: took claude-fable-5-1's extended_suite seat 2026-11-09 (Mark,
+      attended: "add to suite", replace chosen over add-alongside).
+      PLACEMENT 2026-11-09 — standard, metered key, candidate ALONE, N=1,
+      --tier long-frontier,stretch,frontier (35 benchmarks):
+        35/35 PASS, every finish_reason=stop (no truncation). Includes gauntlet_10,
+        commonmark_emphasis, legal_obligation_engine, quine.
+        Anchored ELO 2924.5 (banked) — a FLOOR: a perfect run has no upper bound,
+        same caveat as claude-opus-5-5 2871.9 / gemini-4-argon 2778.2.
+        Cost $6.83 true (25,896 in / 165,598 out, of which 119,551 thinking = 72%).
+        BANKED cost_usd reads $11.61 — the run predates the Anthropic thinking
+        double-bill fix (same day): recompute as in x $8/M + output x $40/M.
+      VS claude-fable-5-1 on the 6 benchmarks both have run (both pass all 6):
+        $3.40 vs $4.51 (0.75x). Output tokens within ~5% except gauntlet_10
+        (56.6K vs 63.2K) — the saving is the 20% price cut plus a leaner gauntlet.
 
   # Anthropic Claude Opus 5.5 (launched 2026-09-22)
   claude-opus-5-5:
@@ -1698,6 +1755,121 @@ models:
       Still opt-in, in NO suite: promotion is a separate call.
       Agent mode: via the gemini-agents-argon row (gemini_agents executor, pinned
       through agent_config on the Developer API; Vertex cannot pin, 2026-10-21).
+
+  # Google Gemini 4 Carbon (announced 2026-10-28 cyber/Fairwind-gated; API-callable 2026-11-10).
+  gemini-4-carbon:
+    api_name: "gemini-4-carbon"
+    provider: "google"
+    default_thinking: "on"
+    description: "Gemini 4 Carbon - Google's most capable reasoning model (Nov 2026); list $4/$20 (intro $2/$10 to 2026-11-30)"
+    env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
+    # 32768: the same Vertex non-streaming ceiling as gemini-4-argon (see that row).
+    # maxOutputTokens 65537 returned 200 STOP (probed 2026-11-10), so Vertex clamps
+    # silently here too. Thinking shares the cap.
+    max_output_tokens: 32768
+    model_family: "gemini-4"
+    pricing:
+      # Registered at the post-intro list price, following gemini-4-argon, whose
+      # "introductory $2/$10 through 2026-11-30" was never billed (every Argon SKU line
+      # in the billing export is $4/$20/$0.20). Carbon's own billed rate is NOT yet
+      # verified against the export; re-check once its SKU lines appear.
+      input_per_1k: 0.004          # $4.00 per 1M
+      output_per_1k: 0.02          # $20.00 per 1M (incl. thinking)
+      cache_read_per_1k: 0.0002    # $0.20 per 1M (implicit caching only)
+    notes: |
+      Announced 2026-10-28, gated to selected cyber defenders then Fairwind partners.
+      On 2026-10-29 it was NOT callable (Vertex 404; absent from the Developer API list).
+
+      Access VERIFIED 2026-11-10: Vertex global ailang-dev generateContent -> 200,
+      modelVersion "gemini-4-carbon"; controls gemini-4-argon -> 200, gemini-4-carbon-zzz
+      -> 404 (as do -preview and gemini-carbon). The Developer API list
+      (GEMINI_AGENTS_API_KEY) now shows models/gemini-4-carbon next to models/gemini-4-argon.
+
+      Pricing from aistudio.google.com/docs/pricing (fetched 2026-11-10), Standard paid tier:
+      identical to Argon. Input $2.00 through 2026-11-30, then $4.00; output incl. thinking
+      $10.00, then $20.00; cached input $0.10, then $0.20; implicit caching only; no >200k
+      tier; not on the free tier. Google calls it "our most capable reasoning model" and
+      Argon the efficient one, with "lower token spend per turn".
+
+      ⚠️  THINKING — ADAPTIVE, like Argon. thinkingConfig.thinkingBudget -> 400
+      "Thinking budget is not supported for this model. Use thinking level instead."
+      DO NOT set reasoning_effort / reasoning_max_tokens on this row.
+      Probes 2026-11-10, no reasoning params:
+        "prove infinitely many primes" -> 446 thoughts / 447 out, STOP
+        CSV-parser coding prompt       -> no thoughts / 1215 out, STOP
+      Yet in eval it thinks on nearly everything: 79 of 81 placement runs had thinking tokens.
+
+      PLACEMENT 2026-11-10 (standard, candidate ALONE, --trials 1, parallel 6,
+      --tier smoke,core,frontier,stretch,long-frontier): 81/81, anchored ELO 2969.0 (banked;
+      a FLOOR, like fable-5-2 2924.5 / opus-5-5 2871.9 / argon 2778.2 — perfect runs are
+      not ranked against each other). First pass read 77/81: all four failures were
+      "unknown Json constructor: JInt" — VERSION SKEW, not the model. eval-suite built the
+      prompt from a dev scratch binary (teaches JInt) but ran the generated code with the
+      `ailang` on PATH (installed, pre-JInt). Re-run with the scratch binary first on PATH:
+      4/4 pass. One retry was a Vertex 429 "TPM quota exhausted" on ailang-dev at parallel 4.
+      Cost at list ($4/$20/$0.20): $10.47 as run (84% implicit-cache hits), $19.53 uncached.
+      Per-run on the 49 benchmarks Argon also ran: Carbon $0.084 cached / $0.190 uncached
+      vs Argon $0.135 (no cache recorded) — the gap is output+thinking, 131.7K vs 19.6K
+      tokens (6.7x). Input dominates both; cache hit rate is a run condition, not the model.
+
+  # Google Gemini 4 Hydrogen (API-callable 2026-11-12) — the Gemini 4 efficiency tier.
+  gemini-4-hydrogen:
+    api_name: "gemini-4-hydrogen"
+    provider: "google"
+    default_thinking: "on"
+    description: "Gemini 4 Hydrogen - Nov 2026 fast/efficient Gemini 4 model; $1.50/$7.50, no intro schedule"
+    env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
+    # 65536 = the Developer API's declared outputTokenLimit (Argon/Carbon declare 32768).
+    # Vertex accepts and silently clamps any value (65537 / 131072 / 1,000,000 all 200 STOP,
+    # probed 2026-11-12), so the API cannot confirm a ceiling. If Vertex's non-streaming
+    # 32768 rule (documented for Argon) also applies here it clamps to that; asking for
+    # more is never worse. Check finish_reason=length on the placement run.
+    max_output_tokens: 65536
+    model_family: "gemini-4"
+    pricing:
+      input_per_1k: 0.0015         # $1.50 per 1M
+      output_per_1k: 0.0075        # $7.50 per 1M (incl. thinking)
+      cache_read_per_1k: 0.000075  # $0.075 per 1M (implicit caching only)
+    notes: |
+      Access VERIFIED 2026-11-12: Vertex global ailang-dev generateContent -> 200,
+      modelVersion "gemini-4-hydrogen"; controls gemini-4-argon -> 200,
+      gemini-4-hydrogen-zzz / -preview / gemini-hydrogen -> 404. Developer API list
+      (GEMINI_AGENTS_API_KEY): models/gemini-4-hydrogen in=1048576 out=65536.
+
+      Pricing from aistudio.google.com/docs/pricing (fetched 2026-11-12), Standard paid
+      tier: input $1.50, output incl. thinking $7.50, cached input $0.075 per 1M; NO
+      introductory schedule; no >200k tier; implicit caching only; Batch/Flex half.
+      That is exactly gemini-3-7-flash / gemini-3-8-flash's post-2027-01-01 rate, and
+      0.375x Argon/Carbon per token. Google: "speed and efficiency for everyday coding
+      and agentic workflows", "long-decode generation up to 1M tokens".
+
+      ⚠️  THINKING — ON BY DEFAULT and heavy, unlike Argon. thinkingBudget -> 400
+      ("Use thinking level instead"); thinkingLevel MINIMAL -> 400. LOW/MEDIUM/HIGH
+      accepted (strawberry: 79/139/219 thoughts). DO NOT set reasoning_effort /
+      reasoning_max_tokens on this row. Probes 2026-11-12, no reasoning params:
+        "prove infinitely many primes" -> 626 thoughts / 373 out, STOP
+        CSV-parser coding prompt       -> 2928 thoughts / 1487 out, STOP
+
+      PLACEMENT 2026-11-12 (standard, --trials 1, parallel 6, smoke..long-frontier, 81
+      benchmarks). Co-run with gemini-3-7-flash + gemini-3-8-flash in ONE command: they had
+      no anchored rating, and their only banked data was v0.34.0 (2026-09-02), so §5.5
+      case 2. Scratch binary first on PATH (no version skew). All 243 finish=stop.
+        3.8 Flash  77/81  ELO 2251.2  out+think 6323/run  $0.105/run uncached at 2027 list
+        Hydrogen   76/81  ELO 2178.9  out+think 5432/run  $0.094/run
+        3.7 Flash  75/81  ELO 2126.8  out+think 2816/run  $0.078/run
+      (Flash runs cost half until 2026-12-31.) Smoke 23/23 and core 23/23 for Hydrogen.
+      4 of Hydrogen's 5 failures are `import std/map (Map)` / `import std/array (Array)`
+      -> IMP010: std/set and std/option export their type, std/map and std/array do not,
+      so models import by analogy (3.8 Flash hit it twice). That is AILANG friction, not
+      model capability. The 5th is a gauntlet_10 parse error. N=1 and within 1-2 benchmarks:
+      a close call, NOT a replacement verdict. Vs Argon on its 49: 48/49 vs 49/49.
+      Wall-clock probe (same prompt, x3, under eval load): Hydrogen 21-39s at ~160 tok/s
+      vs 3.8/3.7 Flash 15-20s at ~105-145 tok/s — it thinks 2-4x more.
+      Opt-in, in NO suite: the Flash-seat decision is pending.
 
   # Google Gemini 3.5 Flash (released May 19, 2026 at Google I/O 2026)
   # ⚠️  EXCLUDED FROM STANDARD EVAL ROTATION (v0.22.0, 2026-05-20).
@@ -4107,6 +4279,44 @@ models:
       input_per_1k: 0.0
       output_per_1k: 0.0
 
+  pi-gemma4-12b-ft3:
+    api_name: "gemma4-12b-ailang-ft3"
+    provider: "ollama-rig"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Gemma 4 12B + AILANG LoRA pilot-3 via pi+Ollama (agent mode)"
+    env_var: ""
+    agent_cli: "pi"
+    agent_model_name: "ollama-rig/gemma4-12b-ailang-ft3"
+    model_family: "gemma-4"
+    max_output_tokens: 32000  # PI_WIRE_CLAMP
+    ttft_timeout: 1800
+    generation_timeout: 3600
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+
+  pi-gemma4-12b-ft4:
+    api_name: "gemma4-12b-ailang-ft4"
+    provider: "ollama-rig"
+    default_thinking: "unknown"  # NOT VERIFIED — do not read this row's token counts as efficiency data
+    description: "Gemma 4 12B + AILANG LoRA pilot-4 via pi+Ollama (agent mode)"
+    env_var: ""
+    agent_cli: "pi"
+    agent_model_name: "ollama-rig/gemma4-12b-ailang-ft4"
+    model_family: "gemma-4"
+    max_output_tokens: 32000  # PI_WIRE_CLAMP
+    ttft_timeout: 1800
+    generation_timeout: 3600
+    budgets:
+      max_tokens_per_bench: 3000000
+      hard_timeout_secs: 3600
+    pricing:
+      input_per_1k: 0.0
+      output_per_1k: 0.0
+
   # FINE-TUNE PHASE 0 cloud rungs (2026-11-05): open-weight models only (the
   # first-party-via-OpenRouter rule allows gemma). Reference = or-qwen3-8-27b,
   # Gemma 26B MoE = or-gemma-4-26b (both pre-existing).
@@ -4749,6 +4959,38 @@ models:
       rung. The pi sibling of motoko-cloud-deepseek-v4-flash.
 
       Not referenced by any role chain — see the Phase 0 note above.
+
+  pi-or-glm-5-3:
+    api_name: "z-ai/glm-5.3"
+    provider: "openrouter"
+    default_thinking: "always_on"  # as or-glm-5-3: reasoning is mandatory on this endpoint
+    description: "GLM-5.3 via pi on OpenRouter — the driver's designer fallback rung pi:openrouter/z-ai/glm-5.3"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "openrouter/z-ai/glm-5.3"
+    model_family: "glm-5"
+    max_output_tokens: 32000  # D-FLEET-35 A: the cap the rig's installed pi config has carried
+                              # since the 10-07 attended workaround for the uncapped-request
+                              # 402. or-glm-5-3 declares 65536, so this api_name is listed in
+                              # unequalWireBudgets (wire_budget_test.go) beside its kimi-k3 and
+                              # minimax-m3 siblings, pending the same wire decision.
+    pricing:
+      input_per_1k: 0.0014    # $1.40 per 1M — transcribed from or-glm-5-3
+      output_per_1k: 0.0044   # $4.40 per 1M
+      # cache_read_per_1k deliberately NOT declared — no metered pi run on this model
+      # exists to derive it from (same reasoning as pi-or-kimi-k3).
+    budgets:
+      max_cost_usd: 1.00      # a long authoring role, as pi-or-kimi-k3
+      hard_timeout_secs: 3600
+    notes: |
+      D-FLEET-35 A (Mark, attended 2026-11-16). tools/launchd/mission-control.sh routes
+      `pi:openrouter/z-ai/glm-5.3` as a designer fallback rung, and its output cap lived only
+      in the rig's installed ~/.pi/agent/models.json. Without this row nothing held it:
+      config_preflight.go checks the installed config only for tasks carrying registry
+      settings, and TestPiModelsConfigMatchesRegistry checks only slugs with a pi row. The
+      canonical entry is in tools/pi-extensions/models.mission.json.
+
+      Not referenced by any role chain; it exists so the registry can express the driver's rung.
 
   pi-or-kimi-k3:
     api_name: "moonshotai/kimi-k3"
@@ -6559,19 +6801,11 @@ extended_suite:
     # v0.32.0 rows (frontier 6/8 vs 3/8, a strict superset; core 7/7 vs 6/7 comparable).
     # See the benchmark_suite annotation for the full record.
     # Standard eval only, NEVER agent_suite (cost).
-  - "claude-fable-5-1"  # Anthropic most-capable (Sep 2026) — REPLACED claude-fable-5 2026-09-02
-    # (Mark, attended directive). Same-price generational swap: $10/$50 per 1M is UNCHANGED,
-    # so the usual "does it beat the incumbent on core" bar is not what decided this — a
-    # newer generation at an identical rate is the default-better choice, and 5.1's vendor
-    # gains are concentrated in agentic coding / long-horizon work. ⚠️ The core-tier
-    # head-to-head was NOT run: eval-suite routes anthropic rows to the built-in x-api-key
-    # client and ANTHROPIC_API_KEY is unset here. (Standard-mode OAuth IS possible via a
-    # config-driven [[ai_provider]]; it is simply not wired into eval-suite yet.) Run it
-    # once either a key or that wiring exists:
-    #   ailang eval-suite --models claude-fable-5-1 --tier core,frontier --langs ailang \
-    #     --output /tmp/cf_fable_5_1 --parallel 4
-    # then place it against the banked series (anchored) — do NOT re-run claude-fable-5 as a
-    # comparator (M-EVAL-ROLLING-ELO; see model-manager skill §5.5).
+  - "claude-fable-5-2"  # Anthropic most-capable (Nov 2026) — REPLACED claude-fable-5-1 2026-11-09
+    # (Mark, attended). Newer generation at a LOWER price ($8/$40 vs $10/$50 per 1M), so
+    # the "tie at equal-or-lower cost favours the newer generation" rule decides the seat.
+    # Placement: candidate ALONE, --tier long-frontier,stretch,frontier --trials 1 (anchored
+    # series; 5.1 NOT re-run as a comparator) — result recorded on the claude-fable-5-2 row.
     # Standard eval only, NEVER agent_suite (cost).
   - "claude-opus-5"     # Anthropic flagship (Jul 2026) — REPLACED claude-opus-4-8 2026-07-27 on a
     # core N=3 sweep: 57/57 (100%) vs 4.8's 53/57 (93.0%), at $13.35 vs $13.59. See the
@@ -6586,6 +6820,10 @@ extended_suite:
   - "claude-sonnet-4-6" # Anthropic previous-gen, kept as longitudinal anchor (Feb 2026)
   - "gemini-4-argon"     # Google flagship (Oct 2026) — REPLACED gemini-3-1-pro 2026-10-13 (Mark);
     # gate record on the benchmark_suite entry. 3.1 Pro kept opt-in for longitudinal compare.
+  - "gemini-4-carbon"    # Google reasoning flagship — ADDED 2026-11-10 (Mark), alongside Argon, not
+    # replacing it: Google positions Argon as the low-token-spend model. Placement run alone,
+    # --trials 1, smoke+core+frontier+stretch+long-frontier: 81/81, anchored ELO 2969 (a floor).
+    # Same list price as Argon but 6.7x its output+thinking tokens; full record on the row.
   - "gemini-3-7-flash"  # Google newest Flash (Aug 2026) — REPLACED gemini-3-6-flash 2026-08-13
     # (per Mark), three weeks after 3.6 took the same slot from 3.5. Matched head-to-head, same
     # command, same day, thinking-inclusive, N=1 unless noted:
@@ -6737,6 +6975,10 @@ local_models:
 #                               # at equal cost). Kept opt-in for longitudinal comparison; it is the last
 #                               # Anthropic flagship whose omitted `thinking` field meant NO thinking, which
 #                               # makes it a useful thinking-off reference point against Opus 5 / Sonnet 5.
+# - claude-fable-5-1            # RETIRED from extended_suite 2026-11-09 (Mark, attended), displaced by
+#                               # claude-fable-5-2 at a LOWER price ($8/$40 vs $10/$50 per 1M). Kept opt-in
+#                               # as the longitudinal anchor: 29/31 core+frontier, anchored ELO 2554.4
+#                               # (2026-09-02, v0.34.0).
 # - claude-fable-5              # RETIRED from extended_suite 2026-09-02 (Mark, attended), displaced by
 #                               # claude-fable-5-1 at IDENTICAL pricing ($10/$50 per 1M). Kept opt-in as the
 #                               # longitudinal anchor for the Fable generation — it holds the only banked

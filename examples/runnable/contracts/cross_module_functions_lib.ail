@@ -6,6 +6,12 @@
 --   sumTo      — recursive; verifier falls back to contract-as-spec
 --
 -- Part of M-SMT-CROSS-MODULE-FUNCTIONS (v0.15.0).
+--
+-- Verifying this file on its own: double is VERIFIED; sumTo has an unbounded
+-- input, so bounded unrolling cannot decide it at any depth (INCONCLUSIVE),
+-- and `ailang verify` exits 1 on an inconclusive result. Its contract is true
+-- and callers rely on it as a spec, so accept that explicitly:
+--   ailang verify --allow-inconclusive examples/runnable/contracts/cross_module_functions_lib.ail
 
 module examples/runnable/contracts/cross_module_functions_lib
 

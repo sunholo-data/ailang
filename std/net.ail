@@ -27,7 +27,7 @@ export type HttpResponse = {
   ok: bool                               -- true if status 200-299
 }
 
--- HTTP GET request (deprecated: use httpRequest for status codes/headers)
+-- HTTP GET request (body only; use httpRequest when you need status codes or headers)
 --
 -- Fetches content from an HTTP/HTTPS URL.
 -- Implemented as a wrapper around httpRequest for backward compatibility.
@@ -163,10 +163,10 @@ export func httpRequest(
 --   Result[HttpResponse, NetError] — resp.bodyBytes has the raw response payload
 --
 -- Example (LinkedIn-style image upload):
---   import std/fs (readFileBytes)
+--   import std/fs (readFileBase64)
 --   import std/bytes (fromBase64)
 --
---   match readFileBytes("photo.png") {
+--   match readFileBase64("photo.png") {
 --     Ok(b64) => match fromBase64(b64) {
 --       Some(imgBytes) => match httpRequestBytes("PUT", uploadUrl, [], imgBytes) {
 --         Ok(resp) => if resp.ok then "uploaded" else "status: ${show(resp.status)}",

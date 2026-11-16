@@ -5,14 +5,18 @@ ARG PROJECT
 FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent:latest
 
 # Go toolchain — matches go.mod version in the ailang repo
-COPY --from=golang:1.26.10-bookworm /usr/local/go /usr/local/go
+COPY --from=golang:1.26.11-bookworm /usr/local/go /usr/local/go
 ENV PATH="/usr/local/go/bin:${PATH}"
 ENV GOPATH="/home/ailang/go"
 
 # Website workloads use the guarded Claude Go lane as well as Go workloads.
 # Match the existing Pi website tools, then restore the runtime user.
+# make, gcc and libc6-dev: build prerequisites for make targets and CGO-backed
+# SQLite tests — the same three #1753 gave codex-go. The cloud sprint-evaluator
+# runs on this image and could not run cgo tests without them (D-FLEET-41).
 USER root
 RUN apt-get update && apt-get install -y --no-install-recommends \
+    make gcc libc6-dev \
     python3 python-is-python3 python3-yaml python3-venv \
     chromium fonts-liberation fonts-noto-color-emoji \
     && rm -rf /var/lib/apt/lists/* \

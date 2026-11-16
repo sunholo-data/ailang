@@ -1,0 +1,6 @@
+-- #2241: contains compares elements with Go ==, which panics on records.
+module harness/kf/contains_records
+
+import std/list (contains)
+
+export pure func summary() -> string = show(contains([{ x: 1 }, { x: 2 }], { x: 2 }))

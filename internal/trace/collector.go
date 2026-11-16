@@ -33,6 +33,11 @@ type Collector struct {
 	// valueMode decides whether values are recorded at all. Orthogonal to tier.
 	valueMode ValueMode
 
+	// labelScopes is the stack of IFC labels whose dynamic extent is being
+	// evaluated (M-TRACE-LABEL-AWARE, label_scope.go). Non-empty means no
+	// value is recorded, whatever site rendered it.
+	labelScopes []string
+
 	// maxValueBytes bounds each rendered argument/result. This is what turns a
 	// recursion over a growing accumulator from O(n^2) into O(n): every call
 	// still gets its event, but no single value can be arbitrarily large.

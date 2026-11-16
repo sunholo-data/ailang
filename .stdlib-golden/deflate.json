@@ -44,7 +44,8 @@
       "name": "deflate",
       "type": "(string,int)-\u003eResult[string,string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -88,7 +89,8 @@
       "name": "deflateZlib",
       "type": "(string,int)-\u003eResult[string,string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -120,7 +122,8 @@
       "name": "inflate",
       "type": "(string)-\u003eResult[string,string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -152,7 +155,8 @@
       "name": "inflateZlib",
       "type": "(string)-\u003eResult[string,string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

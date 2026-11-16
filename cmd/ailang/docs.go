@@ -268,6 +268,14 @@ func parseModuleFile(stdlib fs.FS, fileName string) moduleDoc {
 			continue
 		}
 
+		// An annotation (@experimental, @deprecated("x"), @verify(...)) sits
+		// between an export's doc comment and its declaration; it must not
+		// end the pending comment block. The marks themselves are read from
+		// the parsed declaration (docs_tiers.go), not from this line.
+		if strings.HasPrefix(trimmed, "@") {
+			continue
+		}
+
 		// A blank line ends a comment block, so a section banner cannot leak
 		// its text onto the next export.
 		if trimmed == "" {
@@ -383,9 +391,17 @@ func showModuleDocs(stdlib fs.FS, moduleName string, showExamples bool) {
 		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
 		os.Exit(1)
 	}
+	marks, modTier, err := parseExportMarks(stdlib, fileName)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+		os.Exit(1)
+	}
 
 	// Print module header
 	fmt.Printf("# %s\n", mod.Name)
+	if modTier != "" {
+		fmt.Printf("Tier: %s (see docs/reference/stability)\n", modTier)
+	}
 	if len(mod.Header) > 0 {
 		for _, line := range mod.Header {
 			fmt.Println(line)
@@ -427,6 +443,9 @@ func showModuleDocs(stdlib fs.FS, moduleName string, showExamples bool) {
 			sig, ok := astSigs[exp.Name]
 			if !ok {
 				sig = formatExportSignature(exp.Signature)
+			}
+			if tag := marks[exp.Name].tag(modTier); tag != "" {
+				sig += "  " + tag
 			}
 			fmt.Printf("  %s\n", sig)
 			if exp.DocLine != "" {

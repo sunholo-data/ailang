@@ -42,7 +42,9 @@ func TestHashProjection_ExcludesAlias(t *testing.T) {
 }
 
 func TestHashProjection_Deterministic(t *testing.T) {
-	want := `{"module":"example/shapes","types":[{"name":"Color","ctors":["Blue","Red"]},{"name":"Shape","params":["a"],"ctors":["Circle(float)","Rectangle(float, float)"]}],"funcs":[{"name":"area","type":"Shape[a] -\u003e float","effects":["IO","State"],"pure":false},{"name":"paint","type":"(Shape[a], Color) -\u003e Shape[a]","effects":[],"pure":true}],"schema":"ailang.iface/v1"}`
+	// "area" has "pure":false in the input; the projection hashes purity as the constant
+	// true (see HashProjection), so the golden carries true.
+	want := `{"module":"example/shapes","types":[{"name":"Color","ctors":["Blue","Red"]},{"name":"Shape","params":["a"],"ctors":["Circle(float)","Rectangle(float, float)"]}],"funcs":[{"name":"area","type":"Shape[a] -\u003e float","effects":["IO","State"],"pure":true},{"name":"paint","type":"(Shape[a], Color) -\u003e Shape[a]","effects":[],"pure":true}],"schema":"ailang.iface/v1"}`
 
 	for i := 0; i < 128; i++ {
 		typesByName := map[string]TypeJSON{

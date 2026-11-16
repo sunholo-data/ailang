@@ -1,8 +1,8 @@
 -- fs_bytes_roundtrip.ail - Raw bytes through std/fs with Result-returning I/O
--- readFileRaw returns the file's bytes; readFileBytes returns them as BASE64 TEXT.
+-- readFileRaw returns the file's bytes; readFileBase64 returns them as BASE64 TEXT.
 -- writeFileBytesResult reports failure as Err where writeFileBytes would panic.
 module examples/runnable/fs_bytes_roundtrip
-import std/fs (mkdirAll, readFileRaw, readFileBytes, writeFileBytesResult)
+import std/fs (mkdirAll, readFileRaw, readFileBase64, writeFileBytesResult)
 import std/bytes (fromInts, toInts, length)
 import std/io (println)
 
@@ -29,7 +29,7 @@ export func main() -> () ! {IO, FS} {
   let path = "${base}/blob.bin"
   let _ = println("write: ${describeWrite(writeFileBytesResult(path, data))}")
   let _ = println("readFileRaw: ${describeRead(readFileRaw(path))}")
-  let _ = println("readFileBytes: ${describeB64(readFileBytes(path))}")
+  let _ = println("readFileBase64: ${describeB64(readFileBase64(path))}")
   let badWrite = writeFileBytesResult("${base}/no/such/dir/x.bin", data)
   let _ = println("missing parent: ${describeWrite(badWrite)}")
   let badRead = readFileRaw("${base}/absent.bin")

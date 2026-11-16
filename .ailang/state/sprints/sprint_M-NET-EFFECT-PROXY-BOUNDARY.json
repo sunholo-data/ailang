@@ -1,10 +1,10 @@
 {
   "sprint_id": "M-NET-EFFECT-PROXY-BOUNDARY",
-  "status": "not_started",
+  "status": "completed",
   "created": "2026-08-06T21:44:36Z",
   "planned_at_head": "945f36727",
-  "design_doc": "design_docs/planned/v0_33_1/m-net-effect-proxy-boundary.md",
-  "sprint_plan": "design_docs/planned/v0_33_1/m-net-effect-proxy-boundary-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_57_5/m-net-effect-proxy-boundary.md",
+  "sprint_plan": "design_docs/implemented/v0_57_5/m-net-effect-proxy-boundary-sprint-plan.md",
   "github_issues": [],
   "github_issues_note": "INTENTIONALLY EMPTY. The scaffold auto-linked #612, which was REMOVED: #612 is the go/packages AST analyzer follow-up filed under human ruling D-6 = Option A and is EXPLICITLY OUT OF SCOPE for this sprint. A 'Fixes #612' in a final commit would wrongly auto-close a follow-up this sprint does not implement. Reference #612 only in the M4 source-comment link (refs, never Fixes).",
   "risk_level": "medium-high",

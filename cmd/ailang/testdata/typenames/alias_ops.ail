@@ -1,0 +1,31 @@
+-- Lowercase and uppercase aliases of primitives keep their instances (#2211):
+-- ==, <, + on an int alias and / on a float alias, local and imported.
+module cmd/ailang/testdata/typenames/alias_ops
+import cmd/ailang/testdata/typenames/alias_lib (amount, Ratio)
+
+type cnt = int
+
+type Cnt = int
+
+type num2 = float
+
+pure func eqc(a: cnt, b: cnt) -> bool = a == b
+
+pure func ltc(a: Cnt, b: Cnt) -> bool = a < b
+
+pure func inc(a: cnt) -> cnt = a + 1
+
+pure func half(x: num2) -> num2 = x / 2.0
+
+pure func addAmt(a: amount, b: amount) -> amount = a + b
+
+pure func ratio(x: Ratio) -> Ratio = x / 4.0
+
+export func main() -> () ! {IO} {
+  println(show(eqc(1, 1)))
+  println(show(ltc(1, 2)))
+  println(show(inc(41)))
+  println(show(half(3.0)))
+  println(show(addAmt(2, 3) < 6))
+  println(show(ratio(1.0)))
+}

@@ -1,6 +1,6 @@
 .ailang/state/sprints/sprint_M-NAMED-TEST-EFFECTFUL-HELPER.json
-design_docs/planned/v0_53_0/m-named-test-effectful-helper-sprint-plan.md
-design_docs/planned/v0_53_0/m-named-test-effectful-helper.md
+design_docs/implemented/v0_53_1/m-named-test-effectful-helper-sprint-plan.md
+design_docs/implemented/v0_53_1/m-named-test-effectful-helper.md
 docs/docs/guides/testing.md
 docs/docs/reference/limitations.md
 examples/manifest.json

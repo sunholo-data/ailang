@@ -1,0 +1,5 @@
+module cmd/ailang/testdata/verify_exit/nocontracts
+
+-- M-V1-VERIFICATION-HONESTY M1 fixture: no contracts, so nothing needs a
+-- solver — it passes with or without Z3.
+export pure func dbl(x: int) -> int = x + x

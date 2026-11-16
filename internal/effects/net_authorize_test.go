@@ -71,6 +71,10 @@ func hookCtx(t *testing.T, stream bool, resolve func(string) ([]net.IP, error), 
 		ctx.Stream.AllowHTTP = true
 		ctx.Stream.lookupIP = resolve
 		ctx.Stream.dialContext = dial
+		// These tables exercise the DIRECT (pinned) route. Stream honors the
+		// process proxy now (m-net-effect-proxy-boundary M2), so pin the
+		// route exactly as the Net branch does with forceNoProxy.
+		ctx.Stream.proxySelector = func(*http.Request) (*url.URL, error) { return nil, nil }
 		t.Cleanup(ctx.Stream.CloseAll)
 		// wsConnect needs a registered transport; a fake that records the dial
 		// through the supplied dialer is enough for these tables.
@@ -250,6 +254,26 @@ func TestDestinationPolicy_RefuseProxy_NoFallback(t *testing.T) {
 	}
 	if dials.Load() != 0 || resolves.Load() != 0 {
 		t.Errorf("a refused proxy must neither dial (%d) nor resolve (%d) — no direct fallback", dials.Load(), resolves.Load())
+	}
+
+	// The HTTP Stream entrypoints honor the proxy too (m-net-effect-proxy-
+	// boundary M2), so restricted mode refuses it for them the same way.
+	sctx := hookCtx(t, true, func(string) ([]net.IP, error) { resolves.Add(1); return []net.IP{net.ParseIP("203.0.113.10")}, nil }, "", &dials)
+	sctx.Stream.RefuseProxy = true
+	sctx.Stream.proxySelector = func(*http.Request) (*url.URL, error) { return proxyURL, nil }
+	for _, ep := range netEntrypoints[4:7] {
+		t.Run(ep.name, func(t *testing.T) {
+			res, err := ep.call(sctx, "https://public.example/")
+			if !denied(res, err) {
+				t.Fatalf("expected refusal, got %v %v", res, err)
+			}
+			if msg := res.(*eval.TaggedValue).Fields[0].(*eval.TaggedValue).Fields[0].(*eval.StringValue).Value; !strings.Contains(msg, "E_STREAM_PROXY_REFUSED") {
+				t.Errorf("refusal must be named E_STREAM_PROXY_REFUSED, got %q", msg)
+			}
+		})
+	}
+	if dials.Load() != 0 || resolves.Load() != 0 {
+		t.Errorf("a refused Stream proxy must neither dial (%d) nor resolve (%d) — no direct fallback", dials.Load(), resolves.Load())
 	}
 }
 

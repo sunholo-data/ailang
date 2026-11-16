@@ -1,14 +1,17 @@
 # M-TRACE-LABEL-AWARE: the tracer is below the type system, so IFC labels do not reach it
 
-**Status**: Planned — **unblocked**. Its main open question (does the label propagate?) is
-resolved favourably, and the IFC hole it would have inherited is fixed (`1af9f5f30`). M0 (the
-`std/secret` doc correction) has shipped. The remaining unknowns are higher-order call sites and
-the conservative-redaction policy, both stated below.
+**Status**: M1–M3 IMPLEMENTED 2026-11-09 (branch `fix/trace-label-aware`) — **stays in planned/**
+because one documented gap remains: a labelled value returned by a function in another *user*
+module is not redacted in the importer (the per-module IFC gap; closes with
+`m-ifc-cross-module-labels`, which must pass imports through `CheckModuleIFCWithTraceSites`).
+See [Implementation notes](#implementation-notes-2026-11-09) for how the design changed.
+Measured: the `string<secret>` repro below went from 4 verbatim copies at `deep` to **0**; the
+reporter's OAuth shape from 30 (`deep`) / 1 (`standard`, a `writeFile` body) to **0**.
 **Target**: v0.36.0
 **Priority**: P0 — `std/secret` documents a guarantee the runtime does not provide. A user who
 follows the documentation exactly still writes their credential to disk.
 **Estimated**: 3–4 days (M0 is a ~30-minute doc correction that should land immediately)
-**Dependencies**: [m-trace-tier-not-enforced](m-trace-tier-not-enforced.md) — **that doc's M1
+**Dependencies**: [m-trace-tier-not-enforced](../../implemented/v0_36_0/m-trace-tier-not-enforced.md) — **that doc's M1
 closes the DEFAULT case; this one is what makes `deep` usable.** See [Layering](#layering-what-each-doc-fixes).
 **Author**: design-doc-creator role, attended session 2026-09-09, at `dev` = `d7bb689b8`
 **Source**: `fb_5c0baeb1ee5ae1eb` (mcp-public, 2026-09-08), with `fb_b023726953f2ee5a` as the
@@ -106,7 +109,7 @@ that still has both the values and a compile-time identity for the call.
 
 These are two changes at the same seam, and they are not substitutes.
 
-| | [m-trace-tier-not-enforced](m-trace-tier-not-enforced.md) | this doc |
+| | [m-trace-tier-not-enforced](../../implemented/v0_36_0/m-trace-tier-not-enforced.md) | this doc |
 |---|---|---|
 | Fixes | `standard` (the **default**) records per-call values at all | `deep` records **labelled** values |
 | After it ships | Secure by default; per-call observability unavailable at `standard` | Per-call observability available with labelled values redacted |
@@ -274,6 +277,40 @@ submitting with four live unknowns invites a reject that tells us what we alread
 
 ---
 
+## Implementation notes (2026-11-09)
+
+Re-derived against `dev` before implementing; three points in the plan above were stale:
+
+- **The IFC pass is a surface-AST analysis that runs AFTER elaboration**
+  (`pipeline_module_compile.go`), not part of the typechecker, so it cannot write flags onto
+  Core during typing. It now reports sites keyed by `FuncCall.Pos`
+  (`types.CheckModuleIFCWithTraceSites`), and `core.MarkTraceRedactions` stamps
+  `App.TraceRedact` on the *final* Core by `OrigSpan`, after dictionary elaboration, mono and
+  lowering. Compile-cache key bumped `v8` → `v9` (the field is gob-encoded).
+- **The render sites moved**: `eval_operations.go:118` is now `eval_apply.go`
+  (`applyFunctionValue`, the tail-call loop), and effect rendering goes through
+  `EffContext.RenderTraceValue` (`context_trace.go`), not `context.go`.
+- **`standard` no longer records function values** (m-trace-tier-not-enforced M1 shipped), so
+  the remaining default-tier leak was effect args only — reproduced: a `writeFile` body.
+
+Design change — **per-call flags became a dynamic label scope.** Per-argument flags at the
+call site (the plan above) leave Open Questions 2 and 3: a label-transparent helper
+(`forward(x: string) = inner(x)`) cannot know statically that its caller passed a secret, so
+`inner(x)` would render it. Instead, a marked call opens a label scope on the collector for its
+whole dynamic extent; inside it nothing records a value (`Collector.record` → `boundValues`
+backstop, and `RenderTraceValue` skips rendering). Q2 and Q3 are therefore closed by
+construction rather than by a conservative-type-variable policy, and no runtime value
+representation (Q4) is needed. Trade-off, the safe direction: unlabelled values computed
+inside a labelled call are withheld too. A labelled tail call opens its scope once per loop,
+so TCE stays constant-space.
+
+Engines: the bytecode VM does not carry the marks; a traced run of a program with marks is
+refused there (`--bytecode` falls back to the evaluator, `--strict-bytecode` errors). The WASM
+REPL load path (`repl/module_registry_load.go`) stamps marks too, but has no end-to-end test.
+OTEL effect-span enrichment (`fs.path`, `net.url`, `process.command`) sees markers inside a
+scope. Not redacted: `RecordError`/contract-failure *messages* (no measured leak; not a value
+render site). Overhead: within noise on a 30k-iteration loop (off/standard/deep).
+
 ## Non-Goals
 
 - **Exporter behavior.** What leaves the machine is `fb_b0237`'s axis (V6).
@@ -305,7 +342,7 @@ submitting with four live unknowns invites a reject that tells us what we alread
 
 ## Related Documents
 
-- [m-trace-tier-not-enforced](m-trace-tier-not-enforced.md) — the paired fix; ship first
+- [m-trace-tier-not-enforced](../../implemented/v0_36_0/m-trace-tier-not-enforced.md) — the paired fix; ship first
 - [m-list-cons-quadratic](../m-list-cons-quadratic.md) — cited only for the cost of touching the
   runtime value representation (Open Question 4)
 - [m-trace-feedback](../v1_1_0/m-trace-feedback.md) (neural 0.46) — **distinct**: a *consumer* of

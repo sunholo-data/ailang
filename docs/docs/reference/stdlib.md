@@ -15,6 +15,8 @@ ailang run --caps IO,Net,Clock examples/runnable/myprogram.ail
 
 See [Effects](/docs/reference/effects) for how the capability system works, [Modules](/docs/reference/modules) for import syntax, and [Browse Packages](/docs/packages) for third-party modules published to the registry.
 
+**Tiers.** Which modules — and which functions inside them — the 1.x promise covers is on the [Stability Promise](/docs/reference/stability#stdlib-surface) page; `ailang docs std/<module>` and `ailang iface std/<module>` show each function's tier. In `std/array`, the numeric kernels (`dot`, `axpy`, `scale`, `add`, `sub`, `mul`, `sum`, `argmax`, `scatterAdd`, `accumulate` and the `F64LE`/`F32LE` codecs) are Experimental inside a Stable module. Sixteen names were renamed before 1.0 (`head_or` → `headOr`, `rand_int` → `randInt`, `readFileBytes` → `readFileBase64`, …); the old names still work but warn `TC_DEPRECATED_001` — see [Deprecated stdlib names](/docs/reference/stability#deprecated-stdlib-names).
+
 ## Data & Collections
 
 | Module | Purpose | Capability |
@@ -66,7 +68,7 @@ See [the runnable formatter example](https://github.com/sunholo-data/ailang/blob
 
 | Module | Purpose | Capability |
 |---|---|---|
-| `std/json` | JSON encode/decode; `decodeFloatArray` parses a flat number array straight into an `Array[float]` with no `Json` tree | — |
+| `std/json` | JSON encode/decode. Integer literals that fit int64 decode as exact `JInt(int)`, other numbers as `JNumber(float)`; `decode` rejects trailing data. Through text the numeric value round-trips, the constructor does not: a whole-number `JNumber` encodes as `3`, so `decode(encode(jnum(3.0)))` is `Ok(JInt(3))`; `decodeFloatArray` parses a flat number array straight into an `Array[float]` with no `Json` tree | — |
 | `std/yaml` | [Decode YAML into the same `Json` ADT as `std/json`](./std-yaml) via a pure, WASM-portable YAML→JSON bridge (`yamlToJson`, `decode`) and encode ordered, quoted block YAML (`encode`) | — |
 | `std/xml` | Parse XML strings into `XmlNode` trees, query elements. v0.21.0+ also ships [tree-walk performance builtins](./std-xml) (`foldChildren`, `getAttrMap`, `nodeKind`). | — |
 | `std/html` | Lenient HTML5 parse (WHATWG-spec) into the same `XmlNode` ADT as `std/xml` | — |

@@ -27,6 +27,9 @@ type TypeJSON struct {
 	// rendered as a bare `type TableCell`, so an agent couldn't build/destructure the record
 	// from the compact iface and fell back to cat-ing the full source.
 	Alias string `json:"alias,omitempty"`
+	// Tier is the module's default tier (stable|experimental|internal) from
+	// std/STABILITY.toml: present on every std type, omitted outside std.
+	Tier string `json:"tier,omitempty"`
 }
 
 // FuncJSON represents an exported function in normalized form
@@ -36,6 +39,14 @@ type FuncJSON struct {
 	Type    string                `json:"type"`
 	Effects []string              `json:"effects"`
 	Pure    bool                  `json:"pure"`
+	// Tier (M-V1-STDLIB-SURFACE-POLISH §6.1): the module default, or
+	// "experimental" for an @experimental function. Present on every std
+	// function; outside std only when @experimental sets it.
+	Tier string `json:"tier,omitempty"`
+	// ReplacedBy and DeprecationNote mirror @deprecated("replacement", "note").
+	// Deprecation is not a tier: a deprecated Stable function stays stable.
+	ReplacedBy      string `json:"replaced_by,omitempty"`
+	DeprecationNote string `json:"deprecation_note,omitempty"`
 }
 
 // ToNormalizedJSON converts an Iface to normalized JSON
@@ -90,6 +101,7 @@ func (i *Iface) ToNormalizedJSON() ([]byte, error) {
 			Name:   name,
 			Params: params,
 			Ctors:  typeToCtors[name], // Already sorted
+			Tier:   i.Tier,
 		}
 
 		// M-IFACE-RECORD-FIELDS: a record/type alias has no constructors; render its underlying
@@ -118,11 +130,14 @@ func (i *Iface) ToNormalizedJSON() ([]byte, error) {
 		effects := extractEffects(export.Type)
 
 		funcJSON := FuncJSON{
-			IFC:     export.IFC,
-			Name:    name,
-			Type:    typeStr,
-			Effects: effects,
-			Pure:    export.Purity,
+			IFC:             export.IFC,
+			Name:            name,
+			Type:            typeStr,
+			Effects:         effects,
+			Pure:            export.Purity,
+			Tier:            export.Tier,
+			ReplacedBy:      export.ReplacedBy,
+			DeprecationNote: export.DeprecationNote,
 		}
 
 		result.Funcs = append(result.Funcs, funcJSON)
@@ -277,17 +292,7 @@ func formatTypeCanonicalDepth(t types.Type, getCanonName func(string) string, de
 		for name, ft := range typ.Fields {
 			merged[name] = ft
 		}
-		openTail := ""
-		if row, ok := typ.Row.(*types.Row); ok {
-			for name, ft := range row.Labels {
-				merged[name] = ft
-			}
-			if row.Tail != nil {
-				openTail = "..." + getCanonName(row.Tail.Name)
-			}
-		} else if typ.Row != nil {
-			openTail = "..." + formatTypeCanonicalDepth(typ.Row, getCanonName, depth+1)
-		}
+		openTail := mergeRecordRow(merged, typ.Row, getCanonName, depth)
 		return formatRecordCanonical(merged, openTail, getCanonName, depth)
 	case *types.TRecord2:
 		// #1374: the row-based record (e.g. std/ai's AIError inside Result[...])
@@ -302,11 +307,15 @@ func formatTypeCanonicalDepth(t types.Type, getCanonName func(string) string, de
 		return formatRecordCanonical(typ.Row.Labels, openTail, getCanonName, depth)
 	case *types.TRecordOpen:
 		// Field-access shim record ({x: a | r}); same rendering as an open TRecord.
-		openTail := ""
-		if typ.Row != nil {
-			openTail = "..." + formatTypeCanonicalDepth(typ.Row, getCanonName, depth+1)
+		// Its row can be a concrete *types.Row (a duplicate label not yet
+		// unified, #2288 review): it renders structurally, never as `<*types.Row>`,
+		// which interface_hash v2 would hash as the same string for any row.
+		merged := make(map[string]types.Type, len(typ.Fields))
+		for name, ft := range typ.Fields {
+			merged[name] = ft
 		}
-		return formatRecordCanonical(typ.Fields, openTail, getCanonName, depth)
+		openTail := mergeRecordRow(merged, typ.Row, getCanonName, depth)
+		return formatRecordCanonical(merged, openTail, getCanonName, depth)
 	case *types.TTuple:
 		elems := make([]string, len(typ.Elements))
 		for i, e := range typ.Elements {
@@ -386,4 +395,26 @@ func extractEffects(scheme *types.Scheme) []string {
 	}
 
 	return []string{}
+}
+
+// mergeRecordRow adds a record row's labels to merged (the record's own fields
+// win, as in the checker's recordShape.extend) and returns the "...<rowvar>"
+// suffix, empty for a closed record.
+func mergeRecordRow(merged map[string]types.Type, row types.Type, getCanonName func(string) string, depth int) string {
+	switch r := row.(type) {
+	case nil:
+		return ""
+	case *types.Row:
+		for name, ft := range r.Labels {
+			if _, has := merged[name]; !has {
+				merged[name] = ft
+			}
+		}
+		if r.Tail != nil {
+			return "..." + getCanonName(r.Tail.Name)
+		}
+		return ""
+	default:
+		return "..." + formatTypeCanonicalDepth(row, getCanonName, depth+1)
+	}
 }

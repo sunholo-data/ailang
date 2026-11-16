@@ -54,8 +54,14 @@ func (t *TVar) Substitute(subs map[string]Type) Type {
 }
 
 // TCon represents a type constructor (int, bool, string, etc.)
+//
+// Module is the defining module of a nominal type (M-V1-NOMINAL-TYPE-IDENTITY):
+// two TCons denote the same type only when Name AND Module agree. It is empty
+// only for module-less names (primitives, structural heads); see nominal.go.
+// String() renders the bare Name, so display and interface hashes are unchanged.
 type TCon struct {
-	Name string
+	Name   string
+	Module string
 }
 
 func (t *TCon) String() string {
@@ -64,7 +70,7 @@ func (t *TCon) String() string {
 
 func (t *TCon) Equals(other Type) bool {
 	if o, ok := other.(*TCon); ok {
-		return t.Name == o.Name
+		return NominalSame(t, o)
 	}
 	return false
 }
@@ -185,13 +191,31 @@ type TRecord struct {
 }
 
 func (t *TRecord) String() string {
-	fields := sortedFieldStrings(t.Fields)
+	return fmt.Sprintf("{ %s }", strings.Join(recordFieldStrings(t.Fields, t.Row, "..."), ", "))
+}
 
-	if t.Row != nil {
-		fields = append(fields, fmt.Sprintf("...%s", t.Row.String()))
+// recordFieldStrings renders a record's fields and then its row. A concrete
+// row contributes only the labels the fields do not already have, then its
+// tail: a closed record literal carries its fields again in a tail-less Row,
+// and printing that rendered `{ self: α1, ...{self: α1} }`; an agreeing or
+// not-yet-unified duplicate printed the field twice (#2221/#2288 reviews).
+func recordFieldStrings(fieldTypes map[string]Type, row Type, tailMark string) []string {
+	if r, ok := row.(*Row); ok {
+		all := rowSuffixLabels(r, fieldTypes)
+		for name, typ := range fieldTypes {
+			all[name] = typ
+		}
+		fields := sortedFieldStrings(all)
+		if r.Tail != nil {
+			fields = append(fields, tailMark+r.Tail.String())
+		}
+		return fields
 	}
-
-	return fmt.Sprintf("{ %s }", strings.Join(fields, ", "))
+	fields := sortedFieldStrings(fieldTypes)
+	if row != nil {
+		fields = append(fields, tailMark+row.String())
+	}
+	return fields
 }
 
 // sortedFieldStrings renders record fields as "name: type" in label order.
@@ -258,11 +282,7 @@ type TRecordOpen struct {
 }
 
 func (t *TRecordOpen) String() string {
-	fields := sortedFieldStrings(t.Fields)
-	if t.Row != nil {
-		fields = append(fields, fmt.Sprintf("| %s", t.Row.String()))
-	}
-	return fmt.Sprintf("{ %s }", strings.Join(fields, ", "))
+	return fmt.Sprintf("{ %s }", strings.Join(recordFieldStrings(t.Fields, t.Row, "| "), ", "))
 }
 
 func (t *TRecordOpen) Equals(other Type) bool {
@@ -299,7 +319,8 @@ func (t *TRecordOpen) Substitute(subs map[string]Type) Type {
 		row = t.Row.Substitute(subs)
 	}
 
-	return &TRecordOpen{Fields: fields, Row: row}
+	// A row bound to fields folds into them (unification_record_rows.go).
+	return recordWithRow(fields, row)
 }
 
 // TApp represents type application (e.g., Maybe[int])

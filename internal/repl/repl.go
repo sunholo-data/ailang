@@ -200,11 +200,6 @@ func (r *REPL) getPrompt() string {
 	return fmt.Sprintf("λ[%s]> ", strings.Join(caps, ","))
 }
 
-// Start begins the REPL session (backward compatible wrapper)
-func (r *REPL) Start(in io.Reader, out io.Writer) {
-	r.StartWithContext(context.Background(), in, out)
-}
-
 // StartWithContext begins the REPL session with OpenTelemetry context
 func (r *REPL) StartWithContext(ctx context.Context, in io.Reader, out io.Writer) {
 	r.effContext.GoCtx = ctx

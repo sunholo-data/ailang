@@ -179,6 +179,9 @@ func runTestFile(filename string, cfg ailangTesting.TestConfig) *ailangTesting.S
 		return result
 	}
 
+	// Deprecated names used anywhere in the file, test blocks included.
+	printTestDeprecationWarnings(filename)
+
 	// Use the built-in test runner
 	result, err := ailangTesting.RunTestsFromFileWithConfig(filename, file, cfg)
 	if err != nil {

@@ -47,6 +47,9 @@ func HashProjection(j *InterfaceJSON) ([]byte, error) {
 		if t.Alias != "" {
 			out.Alias = ""
 		}
+		// Tiers are promise metadata, not interface: re-tiering a module must
+		// not change its packages' identity (M-V1-STDLIB-SURFACE-POLISH §6.1).
+		out.Tier = ""
 		projection.Types = append(projection.Types, out)
 	}
 	sort.Slice(projection.Types, func(a, b int) bool {
@@ -65,11 +68,23 @@ func HashProjection(j *InterfaceJSON) ([]byte, error) {
 		if out.IFC.IsUnlabelled() {
 			out.IFC = nil
 		}
+		// @experimental / @deprecated mark a function without changing it:
+		// marking one must leave interface_hash unchanged (§6.1 item 4).
+		out.Tier, out.ReplacedBy, out.DeprecationNote = "", "", ""
 		projection.Funcs = append(projection.Funcs, out)
 	}
 	sort.Slice(projection.Funcs, func(a, b int) bool {
 		return projection.Funcs[a].Name < projection.Funcs[b].Name
 	})
+	// Purity is hashed as the constant every identity was computed with. Before
+	// M-PURE-ROW-AND-IFACE-PURITY (#1443) the published flag was a stub reporting
+	// true for every export; it is now derived from the export's effect row and
+	// type, which this projection already hashes through "effects" and "type".
+	// Hashing the derived flag would change the identity of every package with an
+	// effectful export without any interface change, and PUB005 refuses that skew.
+	for i := range projection.Funcs {
+		projection.Funcs[i].Pure = true
+	}
 
 	return json.Marshal(projection)
 }

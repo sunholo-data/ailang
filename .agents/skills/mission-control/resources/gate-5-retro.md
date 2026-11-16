@@ -40,11 +40,26 @@ input: an attended change of direction should flip or add a ledger row. Ticket:
 2b. **COUNT THE HARNESS SHARE — the Gate-2 admissibility cap is only real if something reads it.**
 
     ```bash
-    grep -c '\[HARNESS\]' design_docs/${MISSION_NAME}-mission-index.md
-    grep -oE '^\| [0-9]+ \|' design_docs/${MISSION_NAME}-mission-index.md | tail -20 | wc -l
+    # Count LOG headlines, never the index: the regenerated index truncates long headlines
+    # before the trailing [CLASS] tag, and its HARNESS grep spanned the whole file.
+    HS="/tmp/harness-share-${MISSION_NAME}.txt"
+    cat "design_docs/${MISSION_NAME}-mission-log-archive.md" "design_docs/${MISSION_NAME}-mission-log.md" 2>/dev/null \
+      | grep -E '^## [0-9]+ — ' | sort -t' ' -k2,2n | tail -20 > "$HS"
+    wc -l < "$HS"                                                       # rows; the control, expect 20
+    grep -c '\[HARNESS\]' "$HS"                                         # harness rows
+    grep -cE '\[(PRODUCT|HARNESS|ADMIN|REFUTATION)\]' "$HS"             # tagged rows
     ```
 
-    Report the share over the last 20 iterations in the digest, one figure, every time.
+    Report the share over the last 20 iterations in the digest, one figure, every time, as
+    `harness/tagged` (e.g. `6/20`). An untagged row is unmeasured, not ADMIN: if tagged is below
+    rows, say how many rows are untagged. Rows below 20 means the log is younger than 20
+    iterations or the headline pattern missed; check the log before quoting the figure.
+    **Why not the index** (fleet iterations 110 and 111): the prescribed
+    `grep -c '\[HARNESS\]' <index>` counted the whole file, not the last 20, and inside the last
+    20 index rows it found 1 HARNESS row where the log headlines carried 6. The five it missed
+    (93, 96, 97, 105, 109) are truncated to `...` before the tag (`indexLine` cuts titles over
+    150 runes), and the index is newest-first, so its `tail -20` row count took the OLDEST rows.
+    So the one-third alarm below could not fire from it.
     Under the attended-only rule (Gate 2) this share should now trend to ZERO for loop-authored
     work — a non-zero figure means either an escalation was recorded (correct) or the rule was
     breached (report it as a breach, by row).

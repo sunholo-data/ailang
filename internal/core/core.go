@@ -142,6 +142,11 @@ type App struct {
 	CoreNode
 	Func CoreExpr
 	Args []CoreExpr // All must be atomic in ANF
+	// TraceRedact names the IFC labels ("secret", "pii,secret") a value
+	// entering or leaving this call carries; "" when none. Set by
+	// MarkTraceRedactions after the static IFC pass. The evaluator records no
+	// trace value for the dynamic extent of a marked call (M-TRACE-LABEL-AWARE).
+	TraceRedact string
 }
 
 func (a *App) coreExpr() {}
@@ -365,6 +370,12 @@ type ConstructorPattern struct {
 	// typechecker tell apart same-named constructors of different ADTs, e.g.
 	// `import M (Arrived as TripArrived)` next to a local Arrived (#1478).
 	TypeName string
+	// TypeModule is the defining module of TypeName (M-V1-NOMINAL-TYPE-IDENTITY):
+	// the pattern's ADT is the nominal type (TypeModule, TypeName).
+	TypeModule string
+	// Pos is the pattern's source position, for diagnostics only (the
+	// typechecker's TC_AMBIGUOUS_CTOR_001 points at the pattern).
+	Pos ast.Pos
 }
 
 func (c *ConstructorPattern) patternNode() {}

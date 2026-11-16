@@ -1,5 +1,5 @@
 ---
-sidebar_position: 3
+sidebar_position: 4
 title: Baseline (Phase 0)
 description: Size ladder of open-weight models on AILANG, agent-mode failure analysis, rig speed and parallel-decoding measurements.
 reviewed: 2026-11-06

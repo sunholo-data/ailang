@@ -638,6 +638,8 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("BUILTIN_TRAP: %s not yet wired (Phase 2E)", name), inst)
 		case bytecode.OpEffectTrap:
 			return bytecode.Value{}, vm.errAt(frame, "EFFECT_TRAP not implemented in Phase 2B", inst)
+		case bytecode.OpMatchFail:
+			return bytecode.Value{}, vm.matchFail(frame, inst)
 
 		default:
 			return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("unknown opcode %d", op), inst)

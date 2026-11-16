@@ -2,8 +2,8 @@
   "sprint_id": "M-STDLIB-ROOT-RESOLUTION",
   "status": "completed",
   "created": "2026-09-26T00:00:00Z",
-  "design_doc": "design_docs/planned/v0_44_0/m-stdlib-root-resolution.md",
-  "sprint_plan": "design_docs/planned/v0_44_0/m-stdlib-root-resolution-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_45_0/m-stdlib-root-resolution.md",
+  "sprint_plan": "design_docs/implemented/v0_45_0/m-stdlib-root-resolution-sprint-plan.md",
   "github_issues": [
     1131
   ],

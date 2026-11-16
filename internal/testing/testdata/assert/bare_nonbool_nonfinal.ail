@@ -1,0 +1,14 @@
+module bare_nonbool_nonfinal
+
+-- #604 breaking change: a non-final bare expression is a check, so it must be
+-- bool. This int-valued one passed before the fix (its value was discarded);
+-- now it is a loud type error. To keep a value, bind it: `let _ignored = e;`.
+
+export pure func add_one(n: int) -> int {
+  n + 1
+}
+
+test "non-bool non-final expression" {
+  add_one(1)
+  add_one(1) == 2
+}

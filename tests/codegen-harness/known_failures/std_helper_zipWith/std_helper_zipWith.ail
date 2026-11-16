@@ -1,0 +1,6 @@
+-- #2259 (same class): zipWith is defined in AILANG; undefined: ZipWith.
+module harness/kf/std_helper_zipWith
+
+import std/list (zipWith)
+
+export pure func summary() -> string = show(zipWith(\a b. a + b, [1, 2], [10, 20]))

@@ -64,6 +64,7 @@ var crossModuleCodegenExemptions = map[StdlibKey]crossModuleCodegenExemption{
 	{"std/stream", "asyncReadStdinLines"}: {"_process_asyncReadStdinLines", "stdin streaming is implemented by the process bridge"},
 	{"std/string", "floatToStr"}:          {"_string_floatToStr", "legacy numeric formatting builtin predates the canonical string family spelling"},
 	{"std/string", "intToStr"}:            {"_string_intToStr", "legacy numeric formatting builtin predates the canonical string family spelling"},
+	{"std/string", "showPreview"}:         {"_show_preview", "bounded sibling of the $builtin show renderer (M-V1-SHOW-TOTAL), not a string operation"},
 	{"std/string", "stringToFloat"}:       {"_stringToFloat", "legacy numeric parsing builtin predates the canonical string family spelling"},
 	{"std/string", "stringToInt"}:         {"_stringToInt", "legacy numeric parsing builtin predates the canonical string family spelling"},
 }

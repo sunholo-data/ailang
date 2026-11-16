@@ -1,0 +1,7 @@
+module b
+
+export type T = B(string)
+
+export pure func mk() -> T = B("x")
+
+export pure func get(t: T) -> string = match t { B(s) => s }

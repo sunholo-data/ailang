@@ -1,0 +1,55 @@
+-- Every `match` must cover every value of what it matches: `ailang check`
+-- rejects one that misses a case (TC_MATCH_002) and names the missing pattern.
+-- Teaches: covering every constructor, catch-all arms, guards (which never
+-- count toward coverage), and `unreachable("why")` for a case that cannot
+-- happen. The rejected twin is examples/expected_fail/match_nonexhaustive_bool.ail.
+module examples/runnable/match_exhaustiveness
+
+type Light = Red | Amber | Green
+
+-- One arm per constructor.
+pure func next(l: Light) -> Light = match l {
+  Red => Green,
+  Green => Amber,
+  Amber => Red
+}
+
+-- int and string have infinitely many values: end with a catch-all.
+pure func name(n: int) -> string = match n {
+  0 => "zero",
+  1 => "one",
+  _ => "many"
+}
+
+-- A guarded arm may not fire, so it does not cover its pattern: the
+-- unguarded arm after it does.
+pure func sign(n: int) -> string = match n {
+  k if k < 0 => "negative",
+  0 => "zero",
+  _ => "positive"
+}
+
+-- Lists: [] and a non-empty pattern cover every list.
+pure func firstOr(xs: [int], d: int) -> int = match xs {
+  [] => d,
+  [h, ..._] => h
+}
+
+-- Nested patterns are checked too: Some(Ok(_)), Some(Err(_)) and None.
+pure func code(r: Option[Result[int, string]]) -> int = match r {
+  Some(Ok(n)) => n,
+  Some(Err(_)) => -1,
+  None => 0
+}
+
+-- A case the caller rules out: say so with unreachable, which stops the
+-- program with RT010 if it is ever reached, instead of a dummy value.
+pure func head(xs: [int]) -> int = match xs {
+  [] => unreachable("head is only called on a non-empty list"),
+  [h, ..._] => h
+}
+
+export func main() -> () ! {IO} {
+  println("${show(next(Red))} ${name(7)} ${sign(-3)}")
+  println(show(firstOr([], 9) + code(Some(Ok(4))) + head([5, 6])))
+}

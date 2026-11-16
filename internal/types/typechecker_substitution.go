@@ -75,6 +75,10 @@ func (tc *CoreTypeChecker) FinalizeSubstitutions() {
 // M-TYPENAME-NESTED-PROPAGATION: Also propagates TypeName from type aliases
 func (tc *CoreTypeChecker) applySubstitutionToCoreTI(sub Substitution) {
 	tc.substituteApplicationRows(sub)
+	// Not tc.substituteCtorPatternTypes: this path carries only the numeric
+	// defaulting of let boundaries (α ↦ int/float), which never decides the
+	// ADT head a constructor pattern takes its identity from. The full
+	// per-declaration substitution reaches them (applyApplicationSubstitution).
 	if tc.CoreTI == nil {
 		return
 	}
@@ -116,7 +120,9 @@ func (tc *CoreTypeChecker) propagateTypeNameToCoreTI() {
 	// Build a map of field signatures → TypeName from type aliases
 	// Track ambiguous signatures (multiple types with same fields)
 	fieldSigToTypeNames := make(map[string][]string) // sig → [typeName1, typeName2, ...]
-	for aliasName, aliasType := range tc.aliasEnv {
+	for aliasKey, aliasType := range tc.aliasEnv {
+		// aliasEnv is keyed by NominalKey; TRecord.TypeName is the bare name.
+		_, aliasName := SplitNominalKey(aliasKey)
 		if rec, ok := aliasType.(*TRecord); ok {
 			sig := recordFieldSignature(rec)
 			fieldSigToTypeNames[sig] = append(fieldSigToTypeNames[sig], aliasName)
@@ -334,10 +340,15 @@ func (tc *CoreTypeChecker) partitionConstraints(constraints []ClassConstraint) (
 // partitionAndReduce is partitionConstraints for a top-level boundary, where a
 // non-ground constraint would otherwise leave unchecked: each non-ground Eq is
 // decomposed (M-EQ-DERIVE-CONTAINERS R-D7), so a closure can never reach the
-// runtime comparator behind a residual type variable.
+// runtime comparator behind a residual type variable, and every other class
+// with a constructor at its head must be solved by an instance (#2247), so
+// Num[Box[α]] is "no instance", not a silently dropped constraint.
+//
+// Aliases are expanded first (constraint_alias.go): Num[Id[a]] with
+// `type Id[a] = int` is Num[int], and must be judged as such.
 func (tc *CoreTypeChecker) partitionAndReduce(constraints []ClassConstraint) (ground, nonGround []ClassConstraint, err error) {
-	ground, nonGround = tc.partitionConstraints(constraints)
-	nonGround, err = tc.instanceEnv.ReduceEqConstraints(nonGround)
+	ground, nonGround = tc.partitionConstraints(tc.expandConstraintAliases(constraints))
+	nonGround, err = tc.instanceEnv.ReduceConstraints(nonGround)
 	return ground, nonGround, err
 }
 
@@ -348,7 +359,7 @@ func (tc *CoreTypeChecker) partitionAndReduce(constraints []ClassConstraint) (gr
 // lists, tuples and functions, so Eq[[α]] used to be "resolved" and rejected
 // while Eq[Option[α]] was generalized — `[] == []` failed, `None == None`
 // passed, and generic `xs == ys` on [a] could never compile. A non-ground Eq is
-// then decomposed by ReduceEqConstraints, which still rejects functions.
+// then decomposed by ReduceConstraints, which still rejects functions.
 //
 // Every other class keeps isGround: their instances all have primitive heads,
 // so Num[int -> β] can never be satisfied, and resolving it now is what makes

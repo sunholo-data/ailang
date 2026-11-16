@@ -429,7 +429,7 @@ The executor may decide these without escalating:
 
 ## Related Documents
 
-- [m-mission-slot-heartbeat.md](../v1_0_0/m-mission-slot-heartbeat.md) (neural 0.36) — the D-52 slot-verdict instrument. Directly relevant: its extracted-block test seam is what hid `START_EPOCH` for ~10 iterations, and this doc's anti-vacuity rule is drawn from that failure. Distinct topic: that doc is about slot verdicts, this one about the human channel.
+- [m-mission-slot-heartbeat.md](../../implemented/v0_35_0/m-mission-slot-heartbeat.md) (neural 0.36) — the D-52 slot-verdict instrument. Directly relevant: its extracted-block test seam is what hid `START_EPOCH` for ~10 iterations, and this doc's anti-vacuity rule is drawn from that failure. Distinct topic: that doc is about slot verdicts, this one about the human channel.
 - [m-mission-elo-routing.md](../m-mission-elo-routing.md) (neural 0.33) — mission routing. Distinct: routing policy, not comms.
 - [m-ailang-native-harness.md](../m-ailang-native-harness.md) — the "move work into the binary" thesis at the *coding harness* level. This doc is the same instinct applied to mission infrastructure. Distinct surface, no overlap.
 - [m-driver-pin-rollout.md](../m-driver-pin-rollout.md) — the pin mechanism this migration cuts over through.

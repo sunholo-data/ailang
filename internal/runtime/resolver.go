@@ -174,20 +174,29 @@ func newModuleGlobalResolver(inst *ModuleInstance, rt *ModuleRuntime) eval.Globa
 //   - For non-nullary: A BuiltinFunction that creates TaggedValues
 //   - Error if constructor not found or ambiguous
 func (r *moduleGlobalResolver) resolveAdtFactory(ref core.GlobalRef) (eval.Value, error) {
-	// Parse "make_Option_Some" → TypeName="Option", CtorName="Some"
+	// Parse "make_Option_Some@std/option" → TypeName="Option", CtorName="Some",
+	// defining module "std/option" (M-V1-NOMINAL-TYPE-IDENTITY).
 	if !strings.HasPrefix(ref.Name, "make_") {
 		return nil, fmt.Errorf("invalid $adt factory name: %s", ref.Name)
 	}
-
-	parts := strings.SplitN(ref.Name[5:], "_", 2) // Remove "make_" prefix
-	if len(parts) != 2 {
+	declModule, typeName, ctorName, ok := core.ParseADTFactoryName(ref.Name)
+	if !ok {
 		return nil, fmt.Errorf("invalid $adt factory format: %s (expected make_Type_Ctor)", ref.Name)
 	}
 
-	typeName, ctorName := parts[0], parts[1]
-
-	// Find constructor across current module + all imports
+	// Find constructor across current module + all imports. A qualified
+	// factory names its defining module, so two imported modules that each
+	// declare `type T = A(...)` are no longer ambiguous (hard case h2).
 	matches := r.findConstructorMatches(typeName, ctorName)
+	if declModule != "" {
+		var own []constructorMatch
+		for _, m := range matches {
+			if m.ModulePath == declModule {
+				own = append(own, m)
+			}
+		}
+		matches = own
+	}
 
 	switch len(matches) {
 	case 0:
@@ -228,7 +237,7 @@ func (r *moduleGlobalResolver) resolveAdtFactory(ref core.GlobalRef) (eval.Value
 	modPath := match.ModulePath  // Capture for closure
 	expectedArity := match.Arity // Capture arity for closure
 	return &eval.BuiltinFunction{
-		Name: ref.Name,
+		Name: core.ADTFactoryDisplayName(ref.Name),
 		Fn: func(args []eval.Value) (eval.Value, error) {
 			if len(args) != expectedArity {
 				return nil, fmt.Errorf("constructor %s.%s expects %d arguments, got %d",

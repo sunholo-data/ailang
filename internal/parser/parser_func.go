@@ -59,6 +59,11 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 		// For generic functions: func name[T](params), we're at (
 		// No need to peek - we're already positioned correctly
 	}
+	// The type parameters scope over the signature, contracts, tests and
+	// body: there, each one is a type variable whatever its case (#2240).
+	p.pushTypeParams(fn.TypeParams)
+	defer p.popTypeParams()
+	defer p.enterDecl(fn.Name)()
 
 	// Parse parameters
 	hasTypeParams := len(fn.TypeParams) > 0

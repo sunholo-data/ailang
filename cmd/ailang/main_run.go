@@ -115,7 +115,7 @@ func runCommand() {
 	budgetReportFlag := fs.String("budget-report", "", "Print budget report after execution (flat, json)")
 
 	// Contract verification flag (M-VERIFY-CONTRACTS)
-	verifyContractsFlag := fs.Bool("verify-contracts", false, "Enable runtime contract validation (requires/ensures)")
+	verifyContractsFlag := fs.Bool("verify-contracts", false, "Enable runtime contract validation (requires/ensures). Off by default: run does not check contracts without it. Evaluator only; refused with --bytecode/--strict-bytecode (CTR004)")
 
 	// Release mode flag (M-DEBUG-ERASURE)
 	releaseFlag := fs.Bool("release", false, "Release mode: erase Debug ghost effect (zero-cost)")

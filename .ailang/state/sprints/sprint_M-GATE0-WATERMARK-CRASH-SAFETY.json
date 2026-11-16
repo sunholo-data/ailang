@@ -2,8 +2,8 @@
   "sprint_id": "M-GATE0-WATERMARK-CRASH-SAFETY",
   "status": "completed",
   "created": "2026-10-26T00:00:00Z",
-  "design_doc": "design_docs/planned/m-gate0-watermark-crash-safety.md",
-  "sprint_plan": "design_docs/planned/sprint-plan-gate0-watermark-crash-safety.md",
+  "design_doc": "design_docs/implemented/v0_56_0/m-gate0-watermark-crash-safety.md",
+  "sprint_plan": "design_docs/implemented/v0_56_0/sprint-plan-gate0-watermark-crash-safety.md",
   "github_issues": [
     981
   ],

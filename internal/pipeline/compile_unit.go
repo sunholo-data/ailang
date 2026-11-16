@@ -27,6 +27,9 @@ type CompileUnit struct {
 	Iface        *iface.Iface                // Module interface
 	TypeEnv      interface{}                 // Type environment (placeholder)
 	Constructors map[string]*ConstructorInfo // ADT constructors defined in this module
+	// MatchWarnings: TC_MATCH_003 (unreachable match arms), kept with the unit
+	// so a compile-cache hit reports them too.
+	MatchWarnings []*types.MatchWarning
 }
 
 // GetCore returns the Core AST (implements link.CompileUnit interface)
