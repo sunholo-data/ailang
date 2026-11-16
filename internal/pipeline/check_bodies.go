@@ -122,6 +122,9 @@ func resultNote(k core.ContractKind) string {
 // declarations, as the harness's entry for it would be inferred.
 func typeCheckTestBodies(bodies []elaborate.CheckBody, tc *types.CoreTypeChecker, moduleTypeEnv *types.TypeEnv) error {
 	for _, b := range bodies {
+		// A test body is a Lambda (test, property) or an If (inline row),
+		// never a let, so it never takes the declaration exemption that
+		// InferBody exists to avoid (contract clauses: InferPredicate).
 		if _, _, _, _, err := tc.InferWithConstraints(b.Expr, moduleTypeEnv); err != nil {
 			return elaborate.TestBodyError(b, err)
 		}

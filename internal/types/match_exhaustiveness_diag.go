@@ -150,6 +150,8 @@ func newUnresolvedCtorError(matchPos ast.Pos, err error) *MatchError {
 	// Each fix is one step that decides the pattern's type.
 	var fix string
 	switch {
+	case e.fixedType != "":
+		fix = "remove the arm"
 	case e.scrutinee != "" && len(e.ctors) > 0:
 		_, name := SplitNominalKey(e.scrutinee)
 		fix = fmt.Sprintf("remove the arm, or match one of %s's constructors: %s", name, strings.Join(e.ctors, ", "))
@@ -171,7 +173,7 @@ func newUnresolvedCtorError(matchPos ast.Pos, err error) *MatchError {
 		fix = "import the type that declares " + e.pattern.Name
 	}
 	var notes []string
-	if e.scrutinee == "" && e.rigid == "" && len(described) > 0 {
+	if e.scrutinee == "" && e.rigid == "" && e.fixedType == "" && len(described) > 0 {
 		notes = append(notes, fmt.Sprintf("Loaded types declaring %s: %s. A catch-all arm does not decide which one is meant.", e.pattern.Name, strings.Join(described, ", ")))
 	}
 	return newMatchError(TC_MATCH_007, pos, e.Error(), fix, notes,

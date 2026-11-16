@@ -49,7 +49,7 @@ func forallOutsideContract(fa *core.Forall) error {
 func (tc *CoreTypeChecker) InferPredicate(expr core.CoreExpr, env *TypeEnv) (Type, error) {
 	tc.predicateRoot = expr
 	defer func() { tc.predicateRoot = nil }()
-	_, _, typ, _, err := tc.InferWithConstraints(expr, env)
+	_, _, typ, _, err := tc.InferBody(expr, env) // a clause is not a declaration
 	return typ, err
 }
 

@@ -191,6 +191,13 @@ Still open:
   newtype field access: `--strict-bytecode` fails with `_record_get: arg 0 must be record, got
   ADT` (`--bytecode` falls back to the evaluator), and `--emit-go` emits two Go types of the
   one name. Both pre-existing.
+- A constructor matched by name (neither it nor its type imported; its candidates are the types
+  in the module's own import closure that declare it) is decided only by the value's type, never
+  by the candidate set — even one candidate — so a let-bound or top-level helper matching it is
+  not generic: `let isSome = \o. match o { Some(_) => true, _ => false }` in a library module
+  without `import std/option` cannot be used at `Option[int]` and `Option[string]`
+  (`TC_AMBIGUOUS_CTOR_001` / `TC_MATCH_007`). Import the type
+  (`import std/option (Option, Some, None)`) to make it generic. Before #2362 such helpers ran.
 - A bare type name resolved only through an indirect dependency can become ambiguous when another
   indirect dependency adds the name, and an added import that exports the name re-points it (as
   on dev); import the type by name to pin it. A constructor pattern's argument count is not

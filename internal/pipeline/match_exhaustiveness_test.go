@@ -78,6 +78,8 @@ func itoa(n int) string {
 
 const rigidPing = "constructor Ping cannot be matched against a value of type a: a is a type variable of the signature, so the value can have any type"
 
+const rigidA = "constructor A cannot be matched against a value of type a: a is a type variable of the signature, so the value can have any type"
+
 // onInt: the let-bound lambda's by-name pattern is decided by its one use,
 // h(x) with x: int (#2353) — a value no constructor builds.
 func onInt(ctor string) string {
@@ -107,11 +109,24 @@ func TestMatchExhaustivenessAcrossModules(t *testing.T) {
 			// type variable, so no type can be named for Ping: TC_MATCH_007 at
 			// the pattern, and a catch-all does not change that (#2303: the VM
 			// tested the ordinal of the first loaded ADT declaring the name).
+			// Msg being the one type in the closure declaring Ping does not
+			// decide it (#2362 review: no verdict from the candidate set).
 			name: "by-name constructors on a value nothing types",
 			src: "module main\n\nimport lib/hold (one)\n\n" +
 				"export pure func g[a](x: a) -> int = match x {\n  Ping => 1,\n  Message(_) => 2\n}\n\n" +
 				"export pure func h[a](x: a) -> int = match x {\n  Ping => 1,\n  _ => 2\n}\n",
 			want: []string{"6:TC_MATCH_007:" + rigidPing, "11:TC_MATCH_007:" + rigidPing},
+		},
+		{
+			// A is declared by lib/a's T and lib/b's T (both loaded, neither
+			// imported): nothing says which, so TC_MATCH_007 at the pattern, a
+			// catch-all notwithstanding (#2303: the VM tested the ordinal of
+			// the first loaded ADT declaring the name).
+			name: "two-candidate by-name constructors on a value nothing types",
+			src: "module main\n\nimport lib/hold (one)\nimport lib/holdb (two)\n\n" +
+				"export pure func g[a](x: a) -> int = match x {\n  A => 1,\n  A => 2\n}\n\n" +
+				"export pure func h[a](x: a) -> int = match x {\n  A => 1,\n  _ => 2\n}\n",
+			want: []string{"7:TC_MATCH_007:" + rigidA, "12:TC_MATCH_007:" + rigidA},
 		},
 		{
 			// The design's in-scope registry trap: importing ONE constructor
@@ -189,6 +204,15 @@ func TestMatchExhaustivenessAcrossModules(t *testing.T) {
 			want: []string{"6:TC_MATCH_007:" + onInt("Ping")},
 		},
 		{
+			// With two loaded types declaring A, the lambda's one use decides
+			// the value is an int (#2353): A is a constructor of no type an int
+			// could be.
+			name: "two-candidate by-name pattern decided as an int",
+			src: "module main\n\nimport lib/hold (one)\nimport lib/holdb (two)\n\n" +
+				"export pure func g(x: int) -> int {\n  let h = \\e. match e { A => 1, _ => 3 };\n  h(x)\n}\n",
+			want: []string{"7:TC_MATCH_007:" + onInt("A")},
+		},
+		{
 			// #2353 / review p01: Some and A are both matched by name (this
 			// module imports neither std/option nor lib/a); nth(ts(), i) is
 			// an Option[T], so Some is Option's and A, nested in it, is T's —
@@ -225,8 +249,9 @@ func TestMatchExhaustivenessAcrossModules(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			errs, _, err := checkMatchModules(t, map[string]string{
 				"lib/a.ail": msgModule, "lib/b.ail": otherT, "main.ail": c.src,
-				"lib/hold.ail": "module lib/hold\n\nimport lib/a (T)\n\nexport pure func one() -> int = 1\n",
-				"lib/mk.ail":   "module lib/mk\n\nimport lib/a (T, A, B)\n\nexport pure func ts() -> [T] = [A, B]\n",
+				"lib/hold.ail":  "module lib/hold\n\nimport lib/a (T)\n\nexport pure func one() -> int = 1\n",
+				"lib/mk.ail":    "module lib/mk\n\nimport lib/a (T, A, B)\n\nexport pure func ts() -> [T] = [A, B]\n",
+				"lib/holdb.ail": "module lib/holdb\n\nimport lib/b (T)\n\nexport pure func two() -> int = 2\n",
 			}, "main.ail")
 			if err != nil && errs == nil {
 				t.Fatalf("check failed with a non-match error: %v", err)

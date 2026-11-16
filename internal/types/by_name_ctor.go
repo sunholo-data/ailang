@@ -17,7 +17,9 @@ import (
 // TC_MATCH_007 rejected it although the value's type was annotated).
 //
 // It is now a deferred constructor choice (ambiguous_ctor.go) whose
-// candidates are the loaded types declaring the name: once the equalities
+// candidates are the types declaring the name in the module's own import
+// closure (pipeline: resolveModuleImports reads only `reach`, never the
+// siblings a program happens to load): once the equalities
 // fix the value's type, the choice picks that type's constructor and adds its
 // equalities — the value's type is the constructor's result, each argument
 // pattern's type the matching field at the value's type arguments — so the

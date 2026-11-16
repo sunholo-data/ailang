@@ -17,10 +17,13 @@ func TestByNameCtorChoice_Pipeline(t *testing.T) {
 			"m/x.ail": "module m/x\nexport type Color = Red | Green | Blue | Shade(int)\n" +
 				"export pure func mkc(i: int) -> Color = if i == 0 then Red else if i == 1 then Green else Blue\n",
 			"m/y.ail": "module m/y\nexport type Light = Green | Red\nexport pure func mkl(i: int) -> Light = if i == 0 then Green else Red\n",
-			"m/w.ail": "module m/w\nimport m/x (mkc)\nimport m/y (mkl)\nimport std/option (Option, Some, None)\n" +
+			"m/w.ail": "module m/w\nimport m/x (mkc)\nimport m/y (mkl)\nimport std/option (Option, Some, None)\nimport std/result (Result, Ok, Err)\n" +
 				"export pure func cc(i: int) = mkc(i)\nexport pure func ll(i: int) = mkl(i)\n" +
-				"export pure func oc(i: int) -> Option[Color] = if i < 0 then None else Some(mkc(i))\n",
-			"m/main.ail": "module m/main\nimport std/list (nth)\nimport m/w (cc, ll, oc)\n" + body,
+				"export pure func oc(i: int) -> Option[Color] = if i < 0 then None else Some(mkc(i))\n" +
+				"export pure func oi(i: int) -> Option[int] = if i > 0 then Some(i) else None\n" +
+				"export pure func os(i: int) -> Option[string] = if i > 0 then Some(\"s\") else None\n" +
+				"export pure func ro(i: int) -> Result[int, string] = if i > 0 then Ok(i) else Err(\"neg\")\n",
+			"m/main.ail": "module m/main\nimport std/list (nth)\nimport m/w (cc, ll, oc, oi, os, ro)\n" + body,
 		}
 	}
 	for _, c := range []struct {
@@ -39,6 +42,30 @@ func TestByNameCtorChoice_Pipeline(t *testing.T) {
 		{"a let-bound lambda used at two types",
 			"export pure func f(i: int) -> int {\n  let k = \\v. match v { Green => 10, _ => 20 };\n  k(cc(i)) + k(ll(i))\n}\n",
 			types.TC_AMBIGUOUS_CTOR_001, "cannot be generic"},
+		// A by-name constructor stays a deferred choice even with ONE
+		// candidate type: deciding it from the candidates would make the
+		// verdict depend on what else the import closure declares (#2362
+		// review). So a helper over it is monomorphic (known limitation for
+		// by-name Option/Result in library modules; the message never says
+		// "which one" for a single candidate) ...
+		{"a one-candidate helper at two type arguments",
+			"export pure func f(i: int) -> bool {\n  let isSome = \\o. match o { Some(_) => true, _ => false };\n  isSome(oi(i)) && isSome(os(i))\n}\n",
+			types.TC_AMBIGUOUS_CTOR_001, "(std/option's Option) is matched by name and not imported, so the type of the value it matches is decided by the uses of `isSome`"},
+		{"a one-candidate helper at one type", "export pure func f(i: int) -> bool {\n  let isSome = \\o. match o { Some(_) => true, _ => false };\n  isSome(oi(i)) && isSome(oi(i + 1))\n}\n", "", ""},
+		// ... and a contract clause's let is an inner let, decided by its use.
+		{"a let-bound helper in a requires clause",
+			"pure func f(r: Result[int, string]) -> int\nrequires { let g = \\q. match q { Ok(_) => true, _ => false } in g(r) }\n{ 1 }\nexport pure func h() -> int = f(ro(1))\n", "", ""},
+		{"a let-bound helper in an ensures clause",
+			"pure func f(n: int) -> Result[int, string]\nensures { let g = \\q. match q { Ok(v) => v > 0, _ => true } in g(result) }\n{ ro(n) }\n", "", ""},
+		{"a two-candidate helper in a contract used at two types",
+			"pure func f(n: int) -> int\nrequires { let k = \\v. match v { Green => true, _ => false } in k(cc(n)) || k(ll(n)) }\n{ 1 }\n",
+			types.TC_AMBIGUOUS_CTOR_001, "cannot be generic"},
+		{"a record value", "export pure func f(r: {a: int}) -> int = match r { Red => 1, _ => 0 }\n",
+			types.TC_MATCH_007, "against a value of type { a: int }, which is not built from constructors here"},
+		{"a list value", "export pure func f(r: [int]) -> int = match r { Red => 1, _ => 0 }\n",
+			types.TC_MATCH_007, "against a value of type [int], which is not built from constructors here"},
+		{"a function value", "export pure func f(r: (int) -> int) -> int = match r { Red => 1, _ => 0 }\n",
+			types.TC_MATCH_007, "against a value of type int -> int, which is not built from constructors here"},
 		{"a signature type variable", "export pure func f[a](x: a) -> int = match x { Red => 1, _ => 0 }\n",
 			types.TC_MATCH_007, "a is a type variable of the signature"},
 		{"an unannotated top-level parameter", "export pure func f(x) -> int = match x { Red => 1, _ => 0 }\n",

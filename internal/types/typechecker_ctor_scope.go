@@ -96,7 +96,7 @@ func (tc *CoreTypeChecker) newUnknownConstructorError(name string, scrutType Typ
 	return &TypeCheckError{
 		Kind: MatchUnknownConstructorError,
 		Path: path,
-		Message: fmt.Sprintf("%s: constructor pattern '%s' does not name any constructor in scope (no local declaration, import, or loaded module defines it), so this arm could never match",
+		Message: fmt.Sprintf("%s: constructor pattern '%s' does not name any constructor in scope (no local declaration, import, or module this one imports, directly or not, defines it), so this arm could never match",
 			TC_MATCH_001, name),
 		Suggestion: suggestion,
 	}

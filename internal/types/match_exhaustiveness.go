@@ -3,6 +3,7 @@ package types
 import (
 	"errors"
 	"fmt"
+	"regexp"
 	"sort"
 	"strings"
 
@@ -240,10 +241,13 @@ type unresolvedCtorError struct {
 	known     bool     // scrutinee has a constructor universe
 	ctors     []string // scrutinee's constructors (known only)
 	rigid     string   // the signature type variable the value has, as written
+	fixedType string   // the value's fixed type when it has no nominal head (a record, a tuple, ...)
 }
 
 func (e *unresolvedCtorError) Error() string {
 	switch {
+	case e.fixedType != "":
+		return fmt.Sprintf("constructor %s is matched by name against a value of type %s, which is not built from constructors here, so this arm can never match", e.pattern.Name, e.fixedType)
 	case e.scrutinee != "":
 		_, name := SplitNominalKey(e.scrutinee)
 		if !e.known {
@@ -254,6 +258,47 @@ func (e *unresolvedCtorError) Error() string {
 		return fmt.Sprintf("constructor %s cannot be matched against a value of type %s: %s is a type variable of the signature, so the value can have any type", e.pattern.Name, e.rigid, e.rigid)
 	}
 	return fmt.Sprintf("cannot tell which type %s belongs to here: it is matched by name (neither its type nor the constructor is imported here), and nothing fixes the type of the value matched", e.pattern.Name)
+}
+
+// isTypeVar reports whether t is a type variable (nothing fixes it).
+func isTypeVar(t Type) bool {
+	switch t.(type) {
+	case *TVar, *TVar2:
+		return true
+	}
+	return false
+}
+
+// describeType renders a fixed type for a message, with signature variables
+// as written and an alias with what it expands to: "P (= {a: int})".
+func (v *matchVerifier) describeType(t Type) string {
+	if v.unif == nil {
+		v.unif = v.tc.aliasUnifier()
+	}
+	s, exp := writtenType(t), writtenType(v.unif.expandAlias(t))
+	if exp != s {
+		return s + " (= " + exp + ")"
+	}
+	return s
+}
+
+// openRowOnly is a function type's effect row that is only an open tail
+// (" ! {...ε3}"): inference bookkeeping, not something the author wrote.
+var openRowOnly = regexp.MustCompile(` ! \{\.\.\.[^{}\s,]*\}`)
+
+// writtenType renders t for a message as the author would write it:
+// signature variables as written, a list as [T], no bare open effect rows.
+// The rendering itself is displayType's, bounded (#2363).
+func writtenType(t Type) string {
+	switch l := t.(type) {
+	case *TList:
+		return "[" + writtenType(l.Element) + "]"
+	case *TApp:
+		if c, ok := l.Constructor.(*TCon); ok && strings.EqualFold(c.Name, "list") && len(l.Args) == 1 {
+			return "[" + writtenType(l.Args[0]) + "]"
+		}
+	}
+	return openRowOnly.ReplaceAllString(WrittenTypeVarNames(displayType(t)), "")
 }
 
 // rigidVarName is t's name as written when t is a signature type variable
@@ -501,8 +546,14 @@ func (v *matchVerifier) ctorUniverse(p *core.ConstructorPattern) (string, []exha
 		key = NominalKey(p.TypeModule, p.TypeName)
 	case checked:
 		head := v.head(t)
-		if head == nil {
-			return "", nil, &unresolvedCtorError{pattern: p, cands: v.byName[p.Name], rigid: rigidVarName(t)}
+		if head == nil || v.tc.matchUniverse[head.KeyOf()] == nil && !isTypeVar(t) {
+			e := &unresolvedCtorError{pattern: p, cands: v.byName[p.Name], rigid: rigidVarName(t)}
+			if !isTypeVar(t) {
+				// Fixed, and not a type built from constructors (a record,
+				// tuple, list, function, a primitive, or an alias of one).
+				e.fixedType = v.describeType(t)
+			}
+			return "", nil, e
 		}
 		key = head.KeyOf()
 	default:
