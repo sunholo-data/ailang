@@ -6,25 +6,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/core"
 	ailerrors "github.com/sunholo-data/ailang/internal/errors"
-	"github.com/sunholo-data/ailang/internal/types"
 )
-
-// extractADTTypeName extracts the ADT type name from an AILANG type.
-// M-DX22: Used to determine the correct ADT type when constructor names collide.
-// Returns empty string if the type is not an ADT or type name cannot be determined.
-func (g *Generator) extractADTTypeName(typ types.Type) string {
-	switch t := typ.(type) {
-	case *types.TCon:
-		// Simple ADT type like SpectralType
-		return t.Name
-	case *types.TApp:
-		// Generic ADT type like Option[T]
-		if con, ok := t.Constructor.(*types.TCon); ok {
-			return con.Name
-		}
-	}
-	return ""
-}
 
 // generateMatch generates a Go switch statement for pattern matching.
 // M-DX25.5: Uses typed IIFE return based on CoreTypeInfo.
@@ -93,35 +75,21 @@ func (g *Generator) generateMatch(match *core.Match) error {
 	needsTypeSwitch := g.patternsNeedTypeSwitch(match.Arms)
 
 	if needsTypeSwitch {
-		// ADT constructor matching - use Kind-based switch
-		// M-DX22: First try to get ADT type from scrutinee's type info (avoids constructor name collisions)
+		// ADT constructor matching - use Kind-based switch, on the ADT the
+		// type checker stamped on the constructor patterns (#2244: never the
+		// scrutinee's written type, which may be an alias with no Kind
+		// constants; #2303: never the first registered ADT declaring the
+		// constructor name, whose Kind constants belong to another type).
 		var adtTypeName string
-		// #2244: the ADT the elaborator resolved the constructors to comes
-		// first — the scrutinee's type may be written as an alias
-		// (`type Hue = Color`), which has no Kind constants of its own.
 		for _, arm := range match.Arms {
-			if cp, ok := arm.Pattern.(*core.ConstructorPattern); ok && cp.TypeName != "" {
-				adtTypeName = cp.TypeName
+			if cp, ok := arm.Pattern.(*core.ConstructorPattern); ok {
+				info, err := g.patternCtor(cp)
+				if err != nil {
+					return err
+				}
+				adtTypeName = info.TypeName
 				break
 			}
-		}
-		if adtTypeName == "" && g.matchScrutineeAILANGType != nil {
-			adtTypeName = g.extractADTTypeName(g.matchScrutineeAILANGType)
-		}
-		// Fallback: find the ADT type from constructor patterns (legacy behavior)
-		if adtTypeName == "" {
-			for _, arm := range match.Arms {
-				if cp, ok := arm.Pattern.(*core.ConstructorPattern); ok {
-					// M-DX22: Use LookupADTConstructor for backwards-compatible lookup
-					if info, ok := g.LookupADTConstructor("", cp.Name); ok {
-						adtTypeName = info.TypeName
-						break
-					}
-				}
-			}
-		}
-		if adtTypeName == "" {
-			return fmt.Errorf("cannot determine ADT type for match expression")
 		}
 
 		// Assert scrutinee to ADT pointer type and switch on Kind
@@ -189,6 +157,22 @@ func (g *Generator) generateMatch(match *core.Match) error {
 	g.indent--
 	g.write("}()")
 	return nil
+}
+
+// patternCtor returns the registered constructor a constructor pattern
+// tests: the one of the ADT the type checker stamped on the pattern
+// (TypeName). A pattern with no stamp, or a stamp no registered ADT matches,
+// is an error, never a lookup by the constructor name alone — two ADTs may
+// declare that name (#2303).
+func (g *Generator) patternCtor(p *core.ConstructorPattern) (*ADTConstructorInfo, error) {
+	if p.TypeName == "" {
+		return nil, fmt.Errorf("codegen: constructor pattern %s has no type: the type checker resolves every constructor pattern to its type (TC_MATCH_007 otherwise), so this is a compiler bug", p.Name)
+	}
+	info, ok := g.LookupADTConstructorByQualifiedName(p.TypeName + "." + p.Name)
+	if !ok {
+		return nil, fmt.Errorf("codegen: constructor pattern %s.%s names no registered constructor", p.TypeName, p.Name)
+	}
+	return info, nil
 }
 
 // noMatchPanicText is the panic message for a generated match with no

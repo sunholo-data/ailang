@@ -10,8 +10,9 @@ import (
 
 // #2244: a constructor test names the pattern's own ADT — never the
 // scrutinee's written type, which may be an alias (Hue) that declares no
-// tags — at the top of a switch and at any depth of an if-chain. Only a
-// pattern carrying no ADT falls back to the scrutinee's type.
+// tags — at the top of a switch and at any depth of an if-chain. #2303: a
+// pattern carrying no ADT names none (the bytecode compiler refuses it),
+// whatever the scrutinee's type.
 func TestLowerMatch_DispatchesOnPatternADT(t *testing.T) {
 	hue := &types.TCon{Name: "Hue", Module: "m"}
 	color := func(name string, args ...core.CorePattern) *core.ConstructorPattern {
@@ -32,7 +33,7 @@ func TestLowerMatch_DispatchesOnPatternADT(t *testing.T) {
 
 	// Some(Red): the outer pattern is Option's, the nested one Color's.
 	some := &core.ConstructorPattern{Name: "Some", TypeName: "Option", TypeModule: "std/option", Args: []core.CorePattern{color("Red")}}
-	cond := patternCond(stmt.VarRef{Name: "o"}, &types.TApp{Constructor: &types.TCon{Name: "Opt", Module: "m"}, Args: []types.Type{hue}}, some)
+	cond := patternCond(stmt.VarRef{Name: "o"}, some)
 	var tags []stmt.ADTTagEq
 	var collect func(e stmt.Expr)
 	collect = func(e stmt.Expr) {
@@ -49,11 +50,17 @@ func TestLowerMatch_DispatchesOnPatternADT(t *testing.T) {
 		t.Errorf("nested tag tests = %+v, want Option then Color", tags)
 	}
 
-	// No ADT on the pattern: the scrutinee's type is all there is.
-	if got := patternADTName(&core.ConstructorPattern{Name: "Red"}, &types.TCon{Name: "Color", Module: "m"}); got != "Color" {
-		t.Errorf("unstamped pattern: %q, want the scrutinee's Color", got)
-	}
-	if got := patternADTName(&core.ConstructorPattern{Name: "Red"}, nil); got != "" {
-		t.Errorf("unstamped pattern, no type: %q, want \"\"", got)
+	// No ADT on the pattern: none is made up, neither from the scrutinee's
+	// type nor from the constructor name.
+	unstamped := LowerMatchStmt(&core.Match{
+		CoreNode:  core.CoreNode{NodeID: 5},
+		Scrutinee: coreVar(6, "c"),
+		Arms: []core.MatchArm{
+			{Pattern: &core.ConstructorPattern{Name: "Red"}, Body: litInt(7, 1)},
+			{Pattern: &core.WildcardPattern{}, Body: litInt(8, 0)},
+		},
+	}, makeCTI(map[uint64]types.Type{6: &types.TCon{Name: "Color", Module: "m"}}))
+	if s, ok := unstamped.(stmt.SwitchStmt); !ok || s.ADTName != "" {
+		t.Errorf("unstamped pattern: got %#v, want a switch with no ADTName", unstamped)
 	}
 }

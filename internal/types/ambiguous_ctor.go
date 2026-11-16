@@ -117,6 +117,12 @@ type ctorChoice struct {
 	schemes  []*Scheme       // factory scheme of each candidate (nil if unavailable)
 	path     []string
 	resolved bool
+	// byName: a constructor matched by name (#323, by_name_ctor.go), not an
+	// ambiguous import. Its candidates are the loaded types declaring the
+	// name; one still open at the end of the declaration is not an error
+	// here — the match check reports it (TC_MATCH_007), and a head that is
+	// no fitting candidate is left to the match check too (TC_MATCH_006/007).
+	byName bool
 }
 
 func (c *ctorChoice) constraint() {}
@@ -170,7 +176,15 @@ func (tc *CoreTypeChecker) checkAmbiguousCtorPattern(p *core.ConstructorPattern,
 	}
 	choice := &ctorChoice{pattern: p, scrut: scrutType, cands: fit, all: cands,
 		path: []string{fmt.Sprintf("constructor pattern %s", p.Name)}}
-	for _, c := range fit {
+	return tc.deferCtorChoice(choice, ctx)
+}
+
+// deferCtorChoice types a pattern whose ADT is decided later by choice: each
+// argument against a fresh variable the choice ties to the chosen
+// constructor's field, and the choice joins the constraints.
+func (tc *CoreTypeChecker) deferCtorChoice(choice *ctorChoice, ctx *InferenceContext) (map[string]Type, typedast.TypedPattern, error) {
+	p := choice.pattern
+	for _, c := range choice.cands {
 		choice.schemes = append(choice.schemes, tc.globalTypes[core.ADTFactoryKey(c.Module, c.TypeName, p.Name)])
 	}
 	bindings := make(map[string]Type)
@@ -271,6 +285,18 @@ func (ctx *InferenceContext) resolveChoicesIn(sub Substitution, cs []TypeConstra
 					idx = i
 				}
 			}
+			if idx < 0 && choice.byName {
+				// The value's type is fixed and is no candidate the pattern's
+				// arity fits: a wrong-arity or foreign constructor, which the
+				// match check reports from that type (TC_MATCH_006 against
+				// its declaration, TC_MATCH_007 when it has no such one).
+				if dry != nil {
+					dry[choice] = true
+				} else {
+					choice.resolved = true
+				}
+				continue
+			}
 			if idx < 0 {
 				if c, ok := candidateOf(choice.all, head); ok {
 					return nil, arityError(choice.pattern, c, choice.all, nil)
@@ -284,7 +310,9 @@ func (ctx *InferenceContext) resolveChoicesIn(sub Substitution, cs []TypeConstra
 				choice.resolved = true
 				cand := choice.cands[idx]
 				choice.pattern.TypeName, choice.pattern.TypeModule = cand.TypeName, cand.Module
-				ObserveAmbiguity(AmbiguityEvent{Kind: "ctor-pattern-resolved", Name: choice.pattern.Name, Candidates: candidateRefs(choice.cands)})
+				if !choice.byName {
+					ObserveAmbiguity(AmbiguityEvent{Kind: "ctor-pattern-resolved", Name: choice.pattern.Name, Candidates: candidateRefs(choice.cands)})
+				}
 			}
 			var eqs []TypeConstraint
 			if scheme := choice.schemes[idx]; scheme != nil {
@@ -375,12 +403,14 @@ func (ctx *InferenceContext) openCtorChoiceError() error {
 	if !nominalAmbiguityIsError {
 		return nil
 	}
-	open := ctx.openChoices()
-	if len(open) == 0 {
-		return nil
+	for _, c := range ctx.openChoices() {
+		if c.byName {
+			continue // the match check's TC_MATCH_007
+		}
+		ObserveAmbiguity(AmbiguityEvent{Kind: "ctor-pattern-unresolved", Name: c.pattern.Name, Candidates: candidateRefs(c.cands)})
+		return &AmbiguousCtorError{Name: c.pattern.Name, Candidates: c.cands, Where: patternWhere(c.pattern)}
 	}
-	ObserveAmbiguity(AmbiguityEvent{Kind: "ctor-pattern-unresolved", Name: open[0].pattern.Name, Candidates: candidateRefs(open[0].cands)})
-	return &AmbiguousCtorError{Name: open[0].pattern.Name, Candidates: open[0].cands, Where: patternWhere(open[0].pattern)}
+	return nil
 }
 
 // solveDeclConstraints is SolveConstraints at the end of a top-level

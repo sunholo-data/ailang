@@ -22,7 +22,8 @@ import (
 // A constructor pattern's ADT is its NOMINAL identity (defining module, name):
 // the elaborator's stamp (TypeModule, TypeName), else — for a constructor
 // matched by name (#323) — the head of the type the checker matched it
-// against, else the only loaded ADT that declares the name. Its universe is
+// against, which the check then stamps on the pattern; a pattern with
+// neither is TC_MATCH_007 (#2303), never a guess. Its universe is
 // that ADT's complete constructor list (SetMatchUniverse), never "the
 // constructors in scope": a module that imports one constructor of a type
 // still has to cover all of them.
@@ -34,6 +35,8 @@ import (
 //   - wrong constructor arity -> TC_MATCH_006 (error): the evaluator never
 //     matches such a pattern while the VM binds a prefix of the fields (#2243),
 //     so its coverage is not one thing
+//   - a constructor pattern whose type cannot be named -> TC_MATCH_007
+//     (error), a catch-all notwithstanding (#2303)
 //
 // Anything the check cannot decide (no universe for a type, a pattern that is
 // not one of its type's constructors) is an error too, unless an unguarded
@@ -45,6 +48,7 @@ const (
 	TC_MATCH_003 = "TC_MATCH_003" // unreachable (redundant) arm — warning
 	TC_MATCH_004 = "TC_MATCH_004" // step budget exceeded
 	TC_MATCH_006 = "TC_MATCH_006" // constructor pattern with the wrong number of arguments
+	TC_MATCH_007 = "TC_MATCH_007" // constructor pattern whose type cannot be named (#2303)
 )
 
 // matchVerdictIsError makes the check's errors errors. Only the run-time
@@ -223,34 +227,71 @@ func (v *matchVerifier) walkAll(es []core.CoreExpr) {
 // errUndecidable marks a pattern the check cannot place in a universe.
 var errUndecidable = errors.New("cannot be checked for exhaustiveness")
 
-// byNameUnfixedError: a constructor matched by name (#323) — its type is
-// neither imported nor declared here — against a value whose type nothing
-// fixes. A by-name pattern constrains nothing, so other values can reach the
-// match. types lists the loaded ADTs that declare the name (NominalKeys).
-type byNameUnfixedError struct {
-	ctor  string
-	types []string
+// unresolvedCtorError (TC_MATCH_007, #2303): a constructor matched by name
+// (#323) — neither its type nor the constructor is imported or declared
+// here — whose type the check cannot name. Either nothing fixes the type of
+// the value matched (scrutinee == ""), or that type, scrutinee, has no
+// constructor of the name. cands lists the loaded ADTs that declare the
+// name (NominalKeys, sorted), for the suggestion only.
+type unresolvedCtorError struct {
+	pattern   *core.ConstructorPattern
+	cands     []string
+	scrutinee string   // NominalKey of the value's type when it is fixed
+	known     bool     // scrutinee has a constructor universe
+	ctors     []string // scrutinee's constructors (known only)
+	rigid     string   // the signature type variable the value has, as written
 }
 
-func (e *byNameUnfixedError) Error() string {
-	return fmt.Sprintf("constructor %s is matched by name and nothing fixes the type of the value matched", e.ctor)
+func (e *unresolvedCtorError) Error() string {
+	switch {
+	case e.scrutinee != "":
+		_, name := SplitNominalKey(e.scrutinee)
+		if !e.known {
+			return fmt.Sprintf("constructor %s is matched by name against a value of type %s, which is not built from constructors here, so this arm can never match", e.pattern.Name, name)
+		}
+		return fmt.Sprintf("constructor %s is matched by name against a value of type %s, which has no constructor %s, so this arm can never match", e.pattern.Name, name, e.pattern.Name)
+	case e.rigid != "":
+		return fmt.Sprintf("constructor %s cannot be matched against a value of type %s: %s is a type variable of the signature, so the value can have any type", e.pattern.Name, e.rigid, e.rigid)
+	}
+	return fmt.Sprintf("cannot tell which type %s belongs to here: it is matched by name (neither its type nor the constructor is imported here), and nothing fixes the type of the value matched", e.pattern.Name)
+}
+
+// rigidVarName is t's name as written when t is a signature type variable
+// (#2273: rigid, named "a@{f}"), else "".
+func rigidVarName(t Type) string {
+	var name string
+	switch tv := t.(type) {
+	case *TVar:
+		name = tv.Name
+	case *TVar2:
+		name = tv.Name
+	}
+	if !strings.Contains(name, "@{") {
+		return ""
+	}
+	return WrittenTypeVarNames(name)
 }
 
 // check decides one match.
 func (v *matchVerifier) check(m *core.Match) {
 	pos := matchPosition(m)
+	// Every constructor pattern names ONE type before anything else is
+	// decided, a catch-all notwithstanding (#2303): the back ends test a
+	// value's tag against the ordinal of the pattern's own type, and a
+	// pattern no type was fixed for has no ordinal to test.
+	for _, arm := range m.Arms {
+		if err := v.resolvePatterns(arm.Pattern); err != nil {
+			v.errs = append(v.errs, newUnresolvedCtorError(pos, err))
+			return
+		}
+	}
 	// A constructor pattern with the wrong number of arguments is an error
 	// whatever else the match says, a catch-all included: the evaluator
 	// never matches it and the VM binds a prefix of the fields (#2243).
 	for _, arm := range m.Arms {
 		var ae *patternArityError
-		var amb *ambiguousArityError
-		switch err := v.arityOf(arm.Pattern); {
-		case errors.As(err, &ae):
+		if err := v.arityOf(arm.Pattern); errors.As(err, &ae) {
 			v.errs = append(v.errs, newPatternArityError(pos, ae))
-			return
-		case errors.As(err, &amb):
-			v.errs = append(v.errs, newAmbiguousArityError(pos, amb))
 			return
 		}
 	}
@@ -267,13 +308,9 @@ func (v *matchVerifier) check(m *core.Match) {
 	if err == nil {
 		res, err = exhaust.Check(arms, exhaust.StaticUniverse(v.tc.matchUniverse), exhaust.Options{MaxWitnesses: shownWitnesses + 1})
 	}
-	var unfixed *byNameUnfixedError
 	switch {
 	case err != nil && hasCatchAll(m):
 		m.Exhaustive = true // an unguarded `_` covers everything, whatever the rest says
-		return
-	case errors.As(err, &unfixed):
-		v.errs = append(v.errs, newByNameUnfixedError(pos, unfixed))
 		return
 	case errors.Is(err, exhaust.ErrBudget):
 		v.errs = append(v.errs, newBudgetError(pos, err))
@@ -292,10 +329,9 @@ func (v *matchVerifier) check(m *core.Match) {
 }
 
 // arityOf finds a constructor pattern, at any depth, whose argument count
-// fits no declaration of its name: the pattern's own ADT when it is known,
-// otherwise every loaded ADT declaring a constructor of that name. It runs
-// before, and independently of, the coverage check, so a pattern whose ADT
-// cannot be placed is still checked.
+// differs from its ADT's declaration of the constructor. It runs after
+// resolvePatterns, so every pattern names its ADT, and before, independently
+// of, the coverage check.
 func (v *matchVerifier) arityOf(p core.CorePattern) error {
 	switch p := p.(type) {
 	case *core.ConstructorPattern:
@@ -320,63 +356,21 @@ func (v *matchVerifier) arityOf(p core.CorePattern) error {
 	return nil
 }
 
-// ctorArity checks one constructor pattern's argument count. With its ADT
-// resolved, against that ADT's declaration. Unresolved (matched by name, the
-// value's type not fixed), against every loaded ADT declaring the name, in
-// sorted order: when they all agree, against that arity; when they disagree
-// the pattern's meaning is undecided — the evaluator matches by tag and field
-// count, the VM by tag alone — so it is an error whatever its own count.
+// ctorArity checks one constructor pattern's argument count against its
+// ADT's declaration. A pattern whose ADT has no universe (one the elaborator
+// stamped with a type no loaded declaration lists) has nothing to check
+// against.
 func (v *matchVerifier) ctorArity(p *core.ConstructorPattern) error {
-	if _, sigs, err := v.ctorUniverse(p); err == nil {
-		for _, a := range sigArities(sigs, p.Name) {
-			if a != len(p.Args) {
-				return &patternArityError{pattern: p, arity: a}
-			}
-		}
+	_, sigs, err := v.ctorUniverse(p)
+	if err != nil {
 		return nil
 	}
-	var cands []arityCandidate
-	for _, key := range v.byName[p.Name] {
-		for _, a := range sigArities(v.tc.matchUniverse[key], p.Name) {
-			cands = append(cands, arityCandidate{key: key, arity: a})
+	for _, a := range sigArities(sigs, p.Name) {
+		if a != len(p.Args) {
+			return &patternArityError{pattern: p, arity: a}
 		}
-	}
-	if len(cands) == 0 {
-		return nil
-	}
-	for _, c := range cands[1:] {
-		if c.arity != cands[0].arity {
-			return &ambiguousArityError{pattern: p, cands: cands}
-		}
-	}
-	if cands[0].arity != len(p.Args) {
-		return &patternArityError{pattern: p, arity: cands[0].arity}
 	}
 	return nil
-}
-
-// arityCandidate is one loaded ADT declaring a constructor name, with that
-// constructor's arity.
-type arityCandidate struct {
-	key   string // NominalKey of the ADT
-	arity int
-}
-
-// ambiguousArityError: a constructor matched by name whose ADT is not
-// resolved, declared by two or more loaded ADTs with different arities.
-type ambiguousArityError struct {
-	pattern *core.ConstructorPattern
-	cands   []arityCandidate // sorted by key
-}
-
-func (e *ambiguousArityError) Error() string {
-	parts := make([]string, len(e.cands))
-	for i, c := range e.cands {
-		mod, name := SplitNominalKey(c.key)
-		parts[i] = fmt.Sprintf("%s's %s takes %d", mod, name, c.arity)
-	}
-	return fmt.Sprintf("constructor pattern %s is matched by name, the type of the value it matches is not fixed, and the loaded types declaring %s disagree on its arguments (%s)",
-		e.pattern.Name, e.pattern.Name, strings.Join(parts, ", "))
 }
 
 func (v *matchVerifier) arityOfAll(ps []core.CorePattern) error {
@@ -436,7 +430,6 @@ func (v *matchVerifier) pattern(p core.CorePattern) (exhaust.Pattern, error) {
 		if err != nil {
 			return nil, err
 		}
-		v.stamp(p, key)
 		args, err := v.patterns(p.Args)
 		if err != nil {
 			return nil, err
@@ -495,61 +488,91 @@ func (v *matchVerifier) patterns(ps []core.CorePattern) ([]exhaust.Pattern, erro
 //   - An unstamped pattern (a constructor matched by name, #323) constrains
 //     nothing, so its ADT is the head of the type the checker matched it
 //     against — and only that: a by-name constructor of ANOTHER type, or one
-//     matched against a type nothing fixes (a type variable), would let the
-//     check call a match exhaustive that a value of the real type falls
-//     through. Both fail closed.
-//   - Only a pattern the type checker never saw falls back to the scope
-//     registry and then to the one loaded ADT declaring the name.
+//     matched against a type nothing fixes (a type variable), is an
+//     *unresolvedCtorError (#2303). Which loaded types happen to declare the
+//     name never decides it: under separate compilation a caller can pass a
+//     value of a type this module never loaded.
+//   - A pattern the type checker never saw takes the ADT its constructor
+//     names in this module's scope (local declarations and imports), or none.
 func (v *matchVerifier) ctorUniverse(p *core.ConstructorPattern) (string, []exhaust.CtorSig, error) {
-	var cands []string
+	var key string
 	switch t, checked := v.tc.ctorPatternTypes[p]; {
 	case p.TypeName != "":
-		cands = append(cands, NominalKey(p.TypeModule, p.TypeName))
+		key = NominalKey(p.TypeModule, p.TypeName)
 	case checked:
 		head := v.head(t)
 		if head == nil {
-			return "", nil, &byNameUnfixedError{ctor: p.Name, types: v.byName[p.Name]}
+			return "", nil, &unresolvedCtorError{pattern: p, cands: v.byName[p.Name], rigid: rigidVarName(t)}
 		}
-		cands = append(cands, head.KeyOf())
+		key = head.KeyOf()
 	default:
-		if ref, ok := v.tc.patternADT(p); ok {
-			cands = append(cands, NominalKey(ref.Module, ref.Name))
+		ref, ok := v.tc.patternADT(p)
+		if !ok {
+			return "", nil, &unresolvedCtorError{pattern: p, cands: v.byName[p.Name]}
 		}
-		if keys := v.byName[p.Name]; len(keys) == 1 {
-			cands = append(cands, keys[0])
+		key = NominalKey(ref.Module, ref.Name)
+	}
+	sigs := v.tc.matchUniverse[key]
+	for _, s := range sigs {
+		if s.Name == p.Name {
+			return key, sigs, nil
 		}
 	}
-	for _, key := range cands {
-		sigs := v.tc.matchUniverse[key]
+	if p.TypeName == "" {
+		e := &unresolvedCtorError{pattern: p, cands: v.byName[p.Name], scrutinee: key, known: sigs != nil}
 		for _, s := range sigs {
-			if s.Name == p.Name {
-				return key, sigs, nil
-			}
+			e.ctors = append(e.ctors, s.Name)
 		}
+		return "", nil, e
 	}
-	if len(cands) == 0 {
-		return "", nil, fmt.Errorf("%w: the type of constructor %s is unknown", errUndecidable, p.Name)
-	}
-	_, name := SplitNominalKey(cands[0])
+	_, name := SplitNominalKey(key)
 	return "", nil, fmt.Errorf("%w: constructor %s is not a known constructor of %s", errUndecidable, p.Name, name)
 }
 
-// stamp records on a constructor matched by name (#323) the ADT this check
-// resolved it to from the type the checker matched it against — the nominal
-// head after alias expansion (#2244). The back ends dispatch on the stamp, so
-// none of them has to resolve a type name, an alias above all, on its own:
-// before the stamp, the VM and the Go emitter dispatched on the scrutinee's
-// written type (`Hue`), which declares no tags, and a nested by-name pattern
-// carried no type at all, so the VM took the first loaded ADT declaring the
-// tag. A pattern the checker never saw keeps no stamp: its ADT is a guess.
-func (v *matchVerifier) stamp(p *core.ConstructorPattern, key string) {
-	if p.TypeName != "" {
-		return
+// resolvePatterns stamps every constructor pattern in p, at any depth, with
+// the ADT ctorUniverse resolves it to — for a constructor matched by name
+// (#323), the nominal head of the type the checker matched it against, after
+// alias expansion (#2244). The back ends dispatch on the stamp alone, so none
+// of them resolves a type name, an alias above all, on its own. A pattern
+// that cannot be resolved is an *unresolvedCtorError, whatever the other
+// arms are: before #2303 a catch-all let such a pattern through unstamped,
+// and the VM and the Go emitter tested it against the first loaded ADT that
+// declared the name — a different ordinal for a different type.
+func (v *matchVerifier) resolvePatterns(p core.CorePattern) error {
+	switch p := p.(type) {
+	case *core.ConstructorPattern:
+		if p.TypeName == "" {
+			key, _, err := v.ctorUniverse(p)
+			if err != nil {
+				return err
+			}
+			p.TypeModule, p.TypeName = SplitNominalKey(key)
+		}
+		return v.resolveAll(p.Args)
+	case *core.TuplePattern:
+		return v.resolveAll(p.Elements)
+	case *core.ListPattern:
+		if err := v.resolveAll(p.Elements); err != nil || p.Tail == nil {
+			return err
+		}
+		return v.resolvePatterns(*p.Tail)
+	case *core.RecordPattern:
+		for _, f := range sortedPatternFields(p.Fields) {
+			if err := v.resolvePatterns(p.Fields[f]); err != nil {
+				return err
+			}
+		}
 	}
-	if _, checked := v.tc.ctorPatternTypes[p]; !checked {
-		return
+	return nil
+}
+
+func (v *matchVerifier) resolveAll(ps []core.CorePattern) error {
+	for _, p := range ps {
+		if err := v.resolvePatterns(p); err != nil {
+			return err
+		}
 	}
-	p.TypeModule, p.TypeName = SplitNominalKey(key)
+	return nil
 }
 
 // crossCheckRoot: the scrutinee's own type and its patterns' constructors
