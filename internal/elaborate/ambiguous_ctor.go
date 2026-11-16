@@ -24,6 +24,30 @@ func (e *Elaborator) MarkAmbiguousConstructor(name string, candidates []types.Ct
 	e.constructors[name] = &ConstructorInfo{CtorName: name, Arity: -1, IsImported: true}
 }
 
+// SetClosureConstructors records, for diagnostics only, the constructors of
+// every type in the module's import closure. It brings nothing into scope.
+func (e *Elaborator) SetClosureConstructors(u types.MatchUniverse) {
+	e.closureUniverse = u
+	e.closureCtors = types.ClosureCtorCandidates(u)
+}
+
+// arityImportHint is " — if you mean M's T.C, import it: import M (T)" when a
+// closure type other than (module, typeName) declares a constructor called
+// name with arity fields, else "". #2371: a library's unimported
+// `type Status = Ok | …` now loses `Ok` to the prelude's Ok(a).
+func (e *Elaborator) arityImportHint(name, module, typeName string, arity int) string {
+	var match []types.CtorCandidate
+	for _, c := range e.closureCtors[name] {
+		if c.Arity == arity && (c.Module != module || c.TypeName != typeName) {
+			match = append(match, c)
+		}
+	}
+	if len(match) == 0 {
+		return ""
+	}
+	return " — " + types.ImportCtorHints(e.closureUniverse, name, match)
+}
+
 // anyNullaryCandidate reports whether some candidate of an ambiguous
 // constructor takes no fields (so a bare `C` in a pattern can mean it).
 func anyNullaryCandidate(cands []types.CtorCandidate) bool {

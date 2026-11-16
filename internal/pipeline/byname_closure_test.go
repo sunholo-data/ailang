@@ -152,6 +152,24 @@ func TestByNameOrphanSameResultUnderEveryRootAndCache(t *testing.T) {
 	}
 }
 
+// Review shape hop3: the import closure is TRANSITIVE. probe imports lib/w,
+// which imports lib/m only as a namespace (M), which declares `type Sh =
+// Shape` over lib/s: the value's type is lib/s's Shape, three hops away, so
+// Circle and Rect are its constructors by name. A closure of direct imports
+// only rejected this (TC_MATCH_001) and narrowed the cache-key closure;
+// nothing with three hops tested it.
+func TestByNameClosureIsTransitive(t *testing.T) {
+	check := byNameFixture(t, map[string]string{
+		"lib/s.ail": bnShape,
+		"lib/m.ail": "module lib/m\nimport lib/s (Shape, mks)\nexport type Sh = Shape\nexport pure func mm(i: int) -> Sh = mks(i)\n",
+		"lib/w.ail": "module lib/w\nimport lib/m as M\nexport pure func ww(i: int) = M.mm(i)\n",
+		"probe.ail": "module probe\nimport lib/w (ww)\npure func f(i: int) -> int = match ww(i) { Circle(r) => r, Rect(a, b) => a * b, _ => -1 }\nexport pure func summary() -> string = show([f(0), f(1), f(2)])\n",
+	})
+	if got := check("probe.ail"); got != "ok" {
+		t.Fatalf("a by-name match three imports away must check, got %s", got)
+	}
+}
+
 // Review shape n1_multi (kills the mutant that drops a deferred choice's
 // argument equalities): Wrap(int) in lib/a, Wrap(string) in lib/b, neither
 // imported; ga returns lib/a's A, so v is an int and `v ++ ["x"]` is a type

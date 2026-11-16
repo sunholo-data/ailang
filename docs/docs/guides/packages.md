@@ -585,6 +585,6 @@ import pkg/sunholo/linkedin/types (Profile)
 ```
 Forms 1 and 2 work even before `ailang lock` runs — useful while authoring a fresh multi-module package. External dependencies (any `pkg/<other-vendor>/...` import) still require `ailang.lock`. See [`examples/intra_package_imports/`](https://github.com/sunholo-data/ailang/tree/dev/examples/intra_package_imports) for a runnable example.
 
-**4. `Ok`/`Err` are in the prelude**: every module outside `std/` gets `Result`/`Ok`/`Err` and `Option`/`Some`/`None` without an import (#2371; entry modules only before). Their helpers (`map`, `mapErr`, …) still need `import std/result (...)`.
+**4. `Ok`/`Err` are in the prelude**: every module outside `std/` gets `Result`/`Ok`/`Err` and `Option`/`Some`/`None` without an import (#2371; entry modules only before). Their helpers (`map`, `mapErr`, …) still need `import std/result (...)`. A package whose library modules rely on that — they use `Some`, `Ok`, `Option`, … without importing `std/option`/`std/result` — does not check on v0.60.5 or older, so set its minimum to the release after v0.60.5, the first that carries #2371: `ailang = ">=0.60.6"` in `[package]` (only `>=X.Y.Z` is accepted; whatever number that release gets, it satisfies this). Importing the names explicitly keeps the package working on older releases too.
 
 **5. Run `ailang lock` after changing dependencies**: The lockfile must be regenerated whenever `[dependencies]` changes.

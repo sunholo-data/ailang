@@ -411,6 +411,7 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 	for ctorName, cands := range imports.AmbiguousCtors {
 		elaborator.MarkAmbiguousConstructor(ctorName, cands)
 	}
+	elaborator.SetClosureConstructors(imports.MatchUniverse) // diagnostics only
 
 	var err error
 	unit.Core, err = elaborator.ElaborateFile(mod.File)
