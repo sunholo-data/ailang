@@ -20,10 +20,6 @@ func (m *moonbitLang) FileExt() string     { return ".mbt" }
 
 func (m *moonbitLang) SolutionFilename() string { return "solution.mbt" }
 
-func (m *moonbitLang) PromptTemplatePath() string {
-	return ""
-}
-
 func (m *moonbitLang) TaskTemplatePath() string {
 	return "internal/eval_harness/templates/agent_task_moonbit.txt"
 }

@@ -384,6 +384,13 @@ while :; do
   fi
 
   T=$(now)
+  # Tool state BEFORE the output clock. Read the other way round, a tool that closes between the
+  # two reads pairs a stale clock (idle past the stall bound) with a closed tool (stall bound
+  # applies) and kills a healthy run as stream_dead. In this order any write that changes the
+  # state also moves the clock, so it reads as progress. Only grepped once idle could reach the
+  # smaller bound; progress then resets IDLE, otherwise IDLE is the value tested here.
+  TOOL_IS_OPEN=false
+  if [ $((T - PROGRESS_AT)) -ge "$MIN_BOUND" ] && tool_open; then TOOL_IS_OPEN=true; fi
   OUT_M=$(mtime_of "$OUT")
   SNAP_M=$(mtime_of "$SNAP")
 
@@ -396,12 +403,11 @@ while :; do
     SNAP_AT_PROGRESS="$SNAP_M"
   fi
 
-  # Only look for an open tool once idle time could reach the smaller bound, so the grep does not
-  # run on every poll. An open tool gets --tool-stall-seconds; silent model output gets the stall bound.
+  # An open tool gets --tool-stall-seconds; silent model output gets the stall bound.
   IDLE=$((T - PROGRESS_AT))
   if [ "$IDLE" -ge "$MIN_BOUND" ]; then
     BOUND="$STALL_SECONDS"
-    if tool_open; then BOUND="$TOOL_STALL_SECONDS"; fi
+    if [ "$TOOL_IS_OPEN" = true ]; then BOUND="$TOOL_STALL_SECONDS"; fi
     if [ "$IDLE" -ge "$BOUND" ]; then
       STALL_BOUND_APPLIED="$BOUND"
       if [ "$SNAP_M" != "$SNAP_AT_PROGRESS" ]; then
