@@ -76,9 +76,6 @@ func fakeRepo(t *testing.T, root string) (*httptest.Server, func() []string) {
 }
 
 func TestDocsTools_EveryToolSucceeds(t *testing.T) {
-	if testing.Short() {
-		t.Skip("builds the docs snapshot")
-	}
 	if runtime.GOOS == "windows" {
 		t.Skip("tools/build-snapshot links versioned/latest with a symlink")
 	}
