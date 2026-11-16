@@ -1,6 +1,7 @@
 package types
 
 import (
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -52,14 +53,23 @@ func TestDataArrows_ExpansionChargesTheWorkBudget(t *testing.T) {
 	}
 }
 
-// Past its memo cap the scan forgets finished nodes instead of growing, and
-// still finds every arrow: 2^16 distinct applications, within the floor.
+// Past its memo cap the scan forgets finished nodes and builds no more keys,
+// and still finds every arrow: 2^17 distinct applications, within the floor.
+// It allocates about 44 MB; keying every application regardless of the cap
+// allocated 137 MB.
 func TestDataArrows_MemoCapStillFindsTheArrows(t *testing.T) {
 	fn := latentArrow("e")
 	var arrows []*TFunc2
+	var before, after runtime.MemStats
+	runtime.GC()
+	runtime.ReadMemStats(&before)
 	within(t, 10*time.Second, func() {
-		arrows = dataArrowsWith(&TApp{Constructor: &TCon{Name: "G"}, Args: []Type{TInt}}, distinctExpansion(fn, 16), nil)
+		arrows = dataArrowsWith(&TApp{Constructor: &TCon{Name: "G"}, Args: []Type{TInt}}, distinctExpansion(fn, 17), nil)
 	})
+	runtime.ReadMemStats(&after)
+	if alloc := after.TotalAlloc - before.TotalAlloc; alloc > 80<<20 {
+		t.Errorf("the scan allocated %d MB (budget 80 MB): its memo grows past the cap", alloc>>20)
+	}
 	if len(arrows) == 0 {
 		t.Fatal("no arrow found")
 	}

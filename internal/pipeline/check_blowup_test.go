@@ -80,7 +80,7 @@ func checkBounded(t *testing.T, src string, limit time.Duration, allocBudget uin
 }
 
 // checkBoundedHeap is checkBounded with an explicit bound on the live heap,
-// sampled every 100 ms, for checks that allocate a lot but must hold little.
+// sampled every 5 ms, for checks that allocate a lot but must hold little.
 func checkBoundedHeap(t *testing.T, src string, limit time.Duration, allocBudget, heapBudget uint64) error {
 	t.Helper()
 	t.Setenv("AILANG_NO_CACHE", "1")
@@ -107,7 +107,7 @@ func checkBoundedHeap(t *testing.T, src string, limit time.Duration, allocBudget
 	// since a timed-out check goroutine cannot be cancelled. A live heap over
 	// the heap budget (but not so far over) fails the test.
 	var peak uint64
-	tick := time.NewTicker(100 * time.Millisecond)
+	tick := time.NewTicker(5 * time.Millisecond)
 	defer tick.Stop()
 	deadline := time.After(limit)
 	for {
@@ -331,15 +331,22 @@ func TestCheckBlowup_SmallInstancesStillCheck(t *testing.T) {
 
 // darrChain is the #2363 round-3 shape: each alias uses the one below twice
 // with differently built arguments, so its n levels expand to 2^n distinct
-// applications, which no memo can share.
-func darrChain(n int) string {
+// applications, which no memo can share. With bound, the value is a parameter
+// in scope at an unrelated call, which only the scan of the environment's
+// bindings (implicitRowsAbove) meets.
+func darrChain(n int, bound bool) string {
 	var b strings.Builder
 	b.WriteString("module m\ntype P0[a, b] = (a, b)\n")
 	for i := 1; i <= n; i++ {
 		fmt.Fprintf(&b, "type P%d[a, b] = (P%d[(a, b), b], P%d[a, (b, a)])\n", i, i-1, i-1)
 	}
 	fmt.Fprintf(&b, "pure func use(x: P%d[int, int]) -> int = 0\n", n)
-	b.WriteString("export func main() -> () ! {IO} = println(show(use(unreachable(\"x\"))))\n")
+	if bound {
+		fmt.Fprintf(&b, "pure func inc(x: int) -> int = x + 1\npure func relay(v: P%d[int, int]) -> int = inc(1)\n", n)
+		b.WriteString("export func main() -> () ! {IO} = println(show(relay(unreachable(\"x\"))))\n")
+	} else {
+		b.WriteString("export func main() -> () ! {IO} = println(show(use(unreachable(\"x\"))))\n")
+	}
 	return b.String()
 }
 
@@ -347,15 +354,19 @@ func darrChain(n int) string {
 // the argument's aliases. Its memo grew with every distinct application
 // (darr n=22: killed at 3 GB after 7 s); it is now capped like the IFC memo
 // and charges the declaration's work budget, so the shape ends in
-// TC_TYPE_WORK_001 holding little memory. A small instance still checks.
+// TC_TYPE_WORK_001 holding little memory, at the declaration (the budget is
+// the declaration's, not one per scan). A small instance still checks.
 func TestCheckBlowup_DistinctArgumentsAtEveryLevel(t *testing.T) {
-	if err := checkBoundedHeap(t, darrChain(10), blowupLimit, blowupAlloc, 64<<20); err != nil {
-		t.Fatalf("darr n=10 rejected: %v", err)
-	}
-	for _, n := range []int{16, 22} {
-		err := checkBoundedHeap(t, darrChain(n), blowupLimit, 2<<30, 128<<20)
-		if err == nil || !strings.Contains(err.Error(), "TC_TYPE_WORK_001") || !strings.Contains(err.Error(), "expanding type aliases") {
-			t.Fatalf("darr n=%d: want TC_TYPE_WORK_001 from the scan, got %v", n, err)
+	for _, bound := range []bool{false, true} {
+		if err := checkBoundedHeap(t, darrChain(10, bound), blowupLimit, blowupAlloc, 64<<20); err != nil {
+			t.Fatalf("darr n=10 (bound %v) rejected: %v", bound, err)
+		}
+		for _, n := range []int{16, 22} {
+			err := checkBoundedHeap(t, darrChain(n, bound), blowupLimit, 2<<30, 128<<20)
+			if err == nil || !strings.Contains(err.Error(), "TC_TYPE_WORK_001: checking this declaration at m.ail:") ||
+				!strings.Contains(err.Error(), "expanding type aliases") {
+				t.Fatalf("darr n=%d (bound %v): want TC_TYPE_WORK_001 from the scan at the declaration, got %v", n, bound, err)
+			}
 		}
 	}
 }
