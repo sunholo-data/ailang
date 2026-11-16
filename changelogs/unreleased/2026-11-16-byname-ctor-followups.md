@@ -10,14 +10,15 @@ typed as that type's constructor at once, at fresh type arguments, so helpers ov
 (with a class constraint such as `Some(x) => show(x)` too, also as an exported top-level
 function). Only a constructor two or more loaded types declare is still a deferred choice.
 
-### Fixed — a `let` in a contract clause or test body is checked like a `let` in a function body
+### Fixed — a `let` in a contract clause is checked like a `let` in a function body
 
-A contract clause (and a test body) was inferred as if it were a module declaration, so a `let`
-at its root was generalised as the declaration's own binding: `requires { let g = \q. match q {
-Ok(_) => true, _ => false } in g(r) }` left the by-name `Ok` undecided (`TC_MATCH_007`, "nothing
-fixes the type") although `r: Result[int, string]` is annotated. Contract clauses and test bodies
-are now inferred as bodies (`CoreTypeChecker.InferBody`): their lets follow the same rules as a
-let inside a function body.
+A contract clause was inferred as if it were a module declaration, so a `let` at its root was
+generalised as the declaration's own binding: `requires { let g = \q. match q { Ok(_) => true,
+_ => false } in g(r) }` with a constructor two loaded types declare left it undecided, and the
+same exemption applied to the integer-literal restriction and undecided field accesses. Contract
+clauses are now inferred as bodies (`CoreTypeChecker.InferBody`): their lets follow the same
+rules as a let inside a function body. (Test bodies already did: they are a lambda or an `if`,
+never a `let`.)
 
 ### Fixed — `TC_MATCH_007` on a value that is not built from constructors
 

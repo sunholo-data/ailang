@@ -26,8 +26,8 @@ func (tc *CoreTypeChecker) SetModuleDeclarationMode(on bool) {
 }
 
 // InferBody infers a body that is NOT a module-level declaration although
-// the module pipeline checks it with this checker — a test body, or (through
-// InferPredicate) a contract clause. A `let` at its root is an inner let:
+// the module pipeline checks it with this checker — a contract clause
+// (through InferPredicate). A `let` at its root is an inner let:
 // generalised under the same rules as a let in a function body (the
 // integer-literal restriction, an open constructor choice, an undecided
 // field access), never exempted as the declaration's own binding. Before,
