@@ -145,7 +145,7 @@ func TestPreludeDocs_Render(t *testing.T) {
 	if strings.Contains(got, "not found") {
 		t.Fatalf("docs prelude still errors instead of rendering:\n%s", got)
 	}
-	for _, want := range []string{"println", "show", "std/option", "std/result", "Entry-only", "Silent shadowing"} {
+	for _, want := range []string{"println", "show", "std/option", "std/result", "every module outside std/", "Silent shadowing"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("docs prelude missing %q, got:\n%s", want, got)
 		}

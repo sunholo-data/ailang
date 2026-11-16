@@ -3,6 +3,7 @@ package types_test
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 
@@ -13,11 +14,13 @@ import (
 // checkModules writes files under a temp root and checks m/main.ail.
 func checkModules(t *testing.T, files map[string]string) error {
 	t.Helper()
-	repo, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatal(err)
+	// From this file's location: a second call in one test runs in the
+	// first call's temp dir (t.Chdir below), where "../.." is not the repo.
+	_, self, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("cannot locate ambiguous_ctor_pipeline_test.go")
 	}
-	t.Setenv("AILANG_STDLIB_PATH", filepath.Join(repo, "std"))
+	t.Setenv("AILANG_STDLIB_PATH", filepath.Join(filepath.Dir(self), "..", "..", "std"))
 	root := t.TempDir()
 	t.Chdir(root)
 	for rel, src := range files {
@@ -29,7 +32,7 @@ func checkModules(t *testing.T, files map[string]string) error {
 			t.Fatal(err)
 		}
 	}
-	_, err = pipeline.Run(pipeline.Config{Mode: pipeline.ModeCheck, NoCache: true}, pipeline.Source{Filename: "m/main.ail"})
+	_, err := pipeline.Run(pipeline.Config{Mode: pipeline.ModeCheck, NoCache: true}, pipeline.Source{Filename: "m/main.ail"})
 	return err
 }
 

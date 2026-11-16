@@ -91,12 +91,10 @@ export func main() -> () ! {IO} {
 }`,
 		},
 		{
-			// A library module (no exported main) must STILL require an explicit
-			// import — the injection is entry-only.
-			name: "library_module_requires_import",
+			// #2371: a library module (no exported main) gets the prelude too.
+			name: "library_module_gets_prelude",
 			src: `module m
 export func wrap(x: int) -> Option[int] { Some(x) }`,
-			wantError: true,
 		},
 	}
 

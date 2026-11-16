@@ -15,15 +15,17 @@ func TestByNameCtorChoice_Pipeline(t *testing.T) {
 	files := func(body string) map[string]string {
 		return map[string]string{
 			"m/x.ail": "module m/x\nexport type Color = Red | Green | Blue | Shade(int)\n" +
-				"export pure func mkc(i: int) -> Color = if i == 0 then Red else if i == 1 then Green else Blue\n",
+				"export pure func mkc(i: int) -> Color = if i == 0 then Red else if i == 1 then Green else Blue\n" +
+				"export type Box[a] = MkBox(a) | NoBox\nexport pure func box[a](x: a) -> Box[a] = MkBox(x)\n",
 			"m/y.ail": "module m/y\nexport type Light = Green | Red\nexport pure func mkl(i: int) -> Light = if i == 0 then Green else Red\n",
-			"m/w.ail": "module m/w\nimport m/x (mkc)\nimport m/y (mkl)\nimport std/option (Option, Some, None)\nimport std/result (Result, Ok, Err)\n" +
+			"m/w.ail": "module m/w\nimport m/x (mkc, box)\nimport m/y (mkl)\nimport std/option (Option, Some, None)\nimport std/result (Result, Ok, Err)\n" +
 				"export pure func cc(i: int) = mkc(i)\nexport pure func ll(i: int) = mkl(i)\n" +
+				"export pure func bi(i: int) = box(i)\nexport pure func bs(i: int) = box(\"s\")\n" +
 				"export pure func oc(i: int) -> Option[Color] = if i < 0 then None else Some(mkc(i))\n" +
 				"export pure func oi(i: int) -> Option[int] = if i > 0 then Some(i) else None\n" +
 				"export pure func os(i: int) -> Option[string] = if i > 0 then Some(\"s\") else None\n" +
 				"export pure func ro(i: int) -> Result[int, string] = if i > 0 then Ok(i) else Err(\"neg\")\n",
-			"m/main.ail": "module m/main\nimport std/list (nth)\nimport m/w (cc, ll, oc, oi, os, ro)\n" + body,
+			"m/main.ail": "module m/main\nimport std/list (nth)\nimport m/w (cc, ll, oc, oi, os, ro, bi, bs)\n" + body,
 		}
 	}
 	for _, c := range []struct {
@@ -45,12 +47,14 @@ func TestByNameCtorChoice_Pipeline(t *testing.T) {
 		// A by-name constructor stays a deferred choice even with ONE
 		// candidate type: deciding it from the candidates would make the
 		// verdict depend on what else the import closure declares (#2362
-		// review). So a helper over it is monomorphic (known limitation for
-		// by-name Option/Result in library modules; the message never says
-		// "which one" for a single candidate) ...
+		// review). So a helper over it is monomorphic (the message never
+		// says "which one" for a single candidate) ...
 		{"a one-candidate helper at two type arguments",
-			"export pure func f(i: int) -> bool {\n  let isSome = \\o. match o { Some(_) => true, _ => false };\n  isSome(oi(i)) && isSome(os(i))\n}\n",
-			types.TC_AMBIGUOUS_CTOR_001, "(std/option's Option) is matched by name and not imported, so the type of the value it matches is decided by the uses of `isSome`"},
+			"export pure func f(i: int) -> bool {\n  let isBox = \\o. match o { MkBox(_) => true, _ => false };\n  isBox(bi(i)) && isBox(bs(i))\n}\n",
+			types.TC_AMBIGUOUS_CTOR_001, "(m/x's Box) is matched by name and not imported, so the type of the value it matches is decided by the uses of `isBox`"},
+		// ... but Some is the prelude's in every module (#2371), not by name.
+		{"a prelude Some helper at two type arguments",
+			"export pure func f(i: int) -> bool {\n  let isSome = \\o. match o { Some(_) => true, _ => false };\n  isSome(oi(i)) && isSome(os(i))\n}\n", "", ""},
 		{"a one-candidate helper at one type", "export pure func f(i: int) -> bool {\n  let isSome = \\o. match o { Some(_) => true, _ => false };\n  isSome(oi(i)) && isSome(oi(i + 1))\n}\n", "", ""},
 		// ... and a contract clause's let is an inner let, decided by its use.
 		{"a let-bound helper in a requires clause",

@@ -264,19 +264,7 @@ export pure func mainRoute() -> string = aRoute()
 	_ = mainPath
 
 	// Find stdlib (same dance as testServer).
-	stdlibPath := os.Getenv("AILANG_STDLIB_PATH")
-	if stdlibPath == "" {
-		cwd, _ := os.Getwd()
-		for dir := cwd; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
-			if _, err := os.Stat(filepath.Join(dir, "stdlib")); err == nil {
-				stdlibPath = dir
-				break
-			}
-		}
-	}
-	if stdlibPath != "" {
-		os.Setenv("AILANG_STDLIB_PATH", stdlibPath)
-	}
+	useRepoStdlib(t)
 
 	srv := New(tmpDir, Config{Port: "0", CORS: true})
 	// Load via the directory path so EACH .ail file goes through
@@ -349,19 +337,7 @@ export pure func leafRoute() -> string = "leaked"
 `)
 
 	// Find stdlib (same dance as testServer/newColdStartTestServer).
-	stdlibPath := os.Getenv("AILANG_STDLIB_PATH")
-	if stdlibPath == "" {
-		cwd, _ := os.Getwd()
-		for dir := cwd; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
-			if _, err := os.Stat(filepath.Join(dir, "stdlib")); err == nil {
-				stdlibPath = dir
-				break
-			}
-		}
-	}
-	if stdlibPath != "" {
-		os.Setenv("AILANG_STDLIB_PATH", stdlibPath)
-	}
+	useRepoStdlib(t)
 
 	srv := New(tmpDir, Config{Port: "0", CORS: true})
 	defer srv.Close()

@@ -77,8 +77,9 @@ func schemeSignatureString(s *types.Scheme) string {
 // binding via a mechanism changes this page automatically.
 func renderPreludeDocs() {
 	fmt.Println("# prelude")
-	fmt.Println("Available without import in ENTRY modules (a module with an exported `main`).")
-	fmt.Println("Library modules must import these explicitly.")
+	fmt.Println("The functions are available without import in ENTRY modules (a module with an")
+	fmt.Println("exported `main`); library modules import them. The Option/Result types and")
+	fmt.Println("constructors are available without import in EVERY module outside std/.")
 	fmt.Println()
 
 	fmt.Println("## Functions")
@@ -95,7 +96,7 @@ func renderPreludeDocs() {
 	// Implicit whole-module imports (std/option, std/result) — rendered from the
 	// loader's single source of truth, so a module/symbol added there appears
 	// here automatically.
-	fmt.Println("## Implicit imports (lowest precedence, entry modules only)")
+	fmt.Println("## Implicit imports (lowest precedence, every module outside std/)")
 	fmt.Println()
 	for _, modPath := range loader.EntryPreludeModules() {
 		syms := loader.EntryPreludeSymbols(modPath)
@@ -105,7 +106,10 @@ func renderPreludeDocs() {
 
 	fmt.Println("## Scope notes")
 	fmt.Println()
-	fmt.Println("  - Entry-only: only modules with an exported `main` get these; library modules must import.")
+	fmt.Println("  - Every module: library modules get the implicit imports too (since #2371); std/ modules")
+	fmt.Println("    do not, nor does a file of top-level expressions. The functions above are entry-only.")
 	fmt.Println("  - Lowest precedence: the implicit imports are registered first, so your own imports win.")
-	fmt.Println("  - Silent shadowing: your own definitions (e.g. `type Option`) shadow the prelude, no warning.")
+	fmt.Println("  - Silent shadowing: your own definitions (e.g. `type Option`, or a constructor named")
+	fmt.Println("    `Some`) drop that prelude module, no warning; an import from std/option or std/result")
+	fmt.Println("    replaces its implicit import.")
 }

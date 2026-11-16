@@ -6,9 +6,26 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
+
+// useRepoStdlib points AILANG_STDLIB_PATH at this repository's std/ for the
+// test. The walk it replaces looked for a directory named "stdlib", found the
+// Go package internal/stdlib and set the variable to internal/ (leaking it
+// via os.Setenv) — harmless only while the test modules loaded no std module,
+// which stopped holding when every module got the Option/Result prelude
+// (#2371). The path comes from this file's location, not the working
+// directory, which some fixtures change first.
+func useRepoStdlib(t *testing.T) {
+	t.Helper()
+	_, self, _, ok := runtime.Caller(0)
+	if !ok {
+		t.Fatal("cannot locate server_test.go")
+	}
+	t.Setenv("AILANG_STDLIB_PATH", filepath.Join(filepath.Dir(self), "..", "..", "std"))
+}
 
 // testServer creates an API server loaded with a test module, CORS any-origin.
 func testServer(t *testing.T) *Server {
@@ -47,21 +64,7 @@ export pure func tags() -> [string] =
 	}
 
 	// Need stdlib available
-	stdlibPath := os.Getenv("AILANG_STDLIB_PATH")
-	if stdlibPath == "" {
-		// Try to find stdlib relative to test
-		cwd, _ := os.Getwd()
-		// Walk up to find project root
-		for dir := cwd; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
-			if _, err := os.Stat(filepath.Join(dir, "stdlib")); err == nil {
-				stdlibPath = dir
-				break
-			}
-		}
-	}
-	if stdlibPath != "" {
-		os.Setenv("AILANG_STDLIB_PATH", stdlibPath)
-	}
+	useRepoStdlib(t)
 
 	srv := New(tmpDir, cfg)
 

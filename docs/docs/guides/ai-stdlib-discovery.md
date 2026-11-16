@@ -57,15 +57,15 @@ the live module list catches near-misses like `std/lst → std/list`.
 
 ## `ailang docs prelude`
 
-Shows exactly what is callable **without any import** in an entry module (a module with
-an exported `main`): `println`, the `show` builtin, and the implicit `std/option` /
-`std/result` types and constructors — with the scope rules (entry-only, lowest
-precedence, silent shadowing).
+Shows exactly what is callable **without any import**: in an entry module (a module with
+an exported `main`) `println` and the `show` builtin, and in every module outside `std/`
+the implicit `std/option` / `std/result` types and constructors — with the scope rules
+(lowest precedence, silent shadowing).
 
 ```bash
 ailang docs prelude
 ailang docs --list        # footer points at `ailang docs prelude`
 ```
 
-Library modules (no `main`) do **not** get the prelude, so they must import
-`Option`/`Result` explicitly.
+Library modules (no `main`) get the `Option`/`Result` types and constructors too (#2371);
+`println` stays entry-only (`import std/io (println)` elsewhere).

@@ -3,6 +3,7 @@ package loader
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 )
@@ -19,7 +20,9 @@ var preludeModuleSymbols = map[string][]string{
 }
 
 // EntryPreludeModules lists the stdlib modules whose types + data constructors
-// are made implicitly available (no explicit `import`) in ENTRY modules.
+// are made implicitly available (no explicit `import`) in every module outside
+// the standard library (see preludeEligible). The name predates #2371, when
+// only ENTRY modules received them.
 //
 // M-PRELUDE-OPTION-RESULT: Option/Some/None and Result/Ok/Err are near-universal
 // in AI-authored code (they are in the standard prelude of Haskell, Rust, OCaml,
@@ -34,8 +37,10 @@ var preludeModuleSymbols = map[string][]string{
 // call-site — keeps compile + runtime in lockstep (guard the call-site, not a
 // helper the call-site might forget to use).
 //
-// Entry-only: library modules are NOT touched, so library code stays
-// self-documenting and must import Option/Result explicitly.
+// #2371: every module, not only entry modules. Entry-only made the same source
+// mean different things depending on whether the file had a `main`: in a
+// library module `Some` was matched by name (#323), and a helper over it could
+// not be used at Option[int] and Option[string] (TC_AMBIGUOUS_CTOR_001).
 func EntryPreludeModules() []string {
 	return []string{"std/option", "std/result"}
 }
@@ -54,11 +59,12 @@ func EntryPreludeSymbols(modPath string) []string {
 	return append([]string(nil), syms...)
 }
 
-// injectEntryPreludeImports mutates an entry module's AST + import list so that
+// injectEntryPreludeImports mutates a module's AST + import list so that
 // EntryPreludeModules() are implicitly imported.
 //
 // It is:
-//   - Entry-only: no-op unless isEntryModuleFile(file) is true.
+//   - Every module but the standard library's: no-op unless
+//     preludeEligible(file, modID).
 //   - Deduped: a prelude module the user ALREADY imports (explicitly, in any
 //     form — whole-module or selective) is skipped, so there is no double-load
 //     and no duplicate constructor registration / ambiguity.
@@ -67,8 +73,8 @@ func EntryPreludeSymbols(modPath string) []string {
 //     or an explicit import shadows them cleanly downstream.
 //
 // Returns the (possibly extended) import-path slice for LoadedModule.Imports.
-func injectEntryPreludeImports(file *ast.File, importPaths []string) []string {
-	if file == nil || !isEntryModuleFile(file) {
+func injectEntryPreludeImports(file *ast.File, modID string, importPaths []string) []string {
+	if !preludeEligible(file, modID) {
 		return importPaths
 	}
 
@@ -112,7 +118,7 @@ func injectEntryPreludeImports(file *ast.File, importPaths []string) []string {
 	}
 
 	if os.Getenv("DEBUG_PRELUDE") != "" {
-		fmt.Fprintf(os.Stderr, "prelude: entry module — injecting implicit imports %v\n", syntheticPaths)
+		fmt.Fprintf(os.Stderr, "prelude: %s — injecting implicit imports %v\n", modID, syntheticPaths)
 	}
 
 	// PREPEND so implicit imports are lowest precedence (registered first;
@@ -154,6 +160,32 @@ func preludeModuleShadowed(modPath string, localTypes, localCtors map[string]boo
 		}
 	}
 	return false
+}
+
+// preludeEligible reports whether file (module modID) receives the implicit
+// Option/Result prelude (#2371): an entry module always does, as before; any
+// other module does unless it is
+//   - a standard-library module (std/option and std/result cannot import
+//     themselves, and std modules import what they use — unchanged), or
+//   - a file with a top-level expression: such a file is type-checked only
+//     while it has no imports (#2372), so an injected import would stop its
+//     expression being checked. Before #2371 it had no prelude either.
+func preludeEligible(file *ast.File, modID string) bool {
+	if file == nil {
+		return false
+	}
+	if isEntryModuleFile(file) {
+		return true
+	}
+	if strings.HasPrefix(modID, "std/") || (file.Module != nil && strings.HasPrefix(file.Module.Path, "std/")) {
+		return false
+	}
+	for _, st := range file.Statements {
+		if _, isExpr := st.(ast.Expr); isExpr {
+			return false
+		}
+	}
+	return true
 }
 
 // isEntryModuleFile reports whether the AST file is an entry module: it declares

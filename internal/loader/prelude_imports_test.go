@@ -29,7 +29,7 @@ func hasImport(file *ast.File, path string) bool {
 
 func TestInjectEntryPreludeImports_EntryGetsBothModules(t *testing.T) {
 	file := entryMainFile(nil, nil)
-	out := injectEntryPreludeImports(file, nil)
+	out := injectEntryPreludeImports(file, "main", nil)
 
 	for _, want := range []string{"std/option", "std/result"} {
 		if !hasImport(file, want) {
@@ -56,14 +56,35 @@ func TestInjectEntryPreludeImports_EntryGetsBothModules(t *testing.T) {
 	}
 }
 
-func TestInjectEntryPreludeImports_LibraryModuleUntouched(t *testing.T) {
-	// A file with no exported main is NOT an entry module.
-	file := &ast.File{Decls: []ast.Node{
-		&ast.FuncDecl{Name: "helper", IsExport: true},
-	}}
-	injectEntryPreludeImports(file, nil)
-	if hasImport(file, "std/option") || hasImport(file, "std/result") {
-		t.Error("library module must not receive implicit prelude imports")
+// #2371: a library module (no exported main) gets the prelude too.
+func TestInjectEntryPreludeImports_LibraryModuleGetsPrelude(t *testing.T) {
+	helper := &ast.FuncDecl{Name: "helper", IsExport: true}
+	file := &ast.File{Module: &ast.ModuleDecl{Path: "lib/x"}, Decls: []ast.Node{helper}, Funcs: []*ast.FuncDecl{helper}}
+	out := injectEntryPreludeImports(file, "lib/x", nil)
+	if !hasImport(file, "std/option") || !hasImport(file, "std/result") || len(out) != 2 {
+		t.Errorf("library module must receive the implicit prelude imports, got %v", out)
+	}
+}
+
+// The standard library is unchanged: std/option cannot import itself, and std
+// modules import what they use.
+func TestInjectEntryPreludeImports_StdModuleUntouched(t *testing.T) {
+	for _, id := range []string{"std/list", "std/option", "std/result"} {
+		helper := &ast.FuncDecl{Name: "helper", IsExport: true}
+		file := &ast.File{Module: &ast.ModuleDecl{Path: id}, Decls: []ast.Node{helper}, Funcs: []*ast.FuncDecl{helper}}
+		if out := injectEntryPreludeImports(file, id, nil); len(out) != 0 || len(file.Imports) != 0 {
+			t.Errorf("%s must not receive implicit prelude imports, got %v", id, out)
+		}
+	}
+}
+
+// A file with a top-level expression keeps no prelude: with any import its
+// expression would not be type-checked (#2372).
+func TestInjectEntryPreludeImports_TopLevelExpressionUntouched(t *testing.T) {
+	expr := &ast.Identifier{Name: "x"}
+	file := &ast.File{Module: &ast.ModuleDecl{Path: "probe"}, Decls: []ast.Node{expr}, Statements: []ast.Node{expr}}
+	if out := injectEntryPreludeImports(file, "probe", nil); len(out) != 0 {
+		t.Errorf("a top-level-expression file must not receive implicit prelude imports, got %v", out)
 	}
 }
 
@@ -72,7 +93,7 @@ func TestInjectEntryPreludeImports_DedupExplicitImport(t *testing.T) {
 	file := entryMainFile([]*ast.ImportDecl{
 		{Path: "std/option", Symbols: []string{"Some", "None"}},
 	}, nil)
-	injectEntryPreludeImports(file, nil)
+	injectEntryPreludeImports(file, "main", nil)
 
 	optCount := 0
 	for _, imp := range file.Imports {
@@ -100,7 +121,7 @@ func TestInjectEntryPreludeImports_LocalTypeShadows(t *testing.T) {
 		}},
 	}
 	file := entryMainFile(nil, []*ast.TypeDecl{localOption})
-	injectEntryPreludeImports(file, nil)
+	injectEntryPreludeImports(file, "main", nil)
 
 	if hasImport(file, "std/option") {
 		t.Error("local type Option must shadow the prelude: std/option must NOT be injected")
@@ -121,7 +142,7 @@ func TestInjectEntryPreludeImports_LocalResultDifferentCtorsShadows(t *testing.T
 		}},
 	}
 	file := entryMainFile(nil, []*ast.TypeDecl{localResult})
-	injectEntryPreludeImports(file, nil)
+	injectEntryPreludeImports(file, "main", nil)
 
 	if hasImport(file, "std/result") {
 		t.Error("local type Result must shadow the prelude: std/result must NOT be injected")
@@ -140,7 +161,7 @@ func TestInjectEntryPreludeImports_LocalCtorNameCollisionShadows(t *testing.T) {
 			{Name: "Some"}, {Name: "Nothing"},
 		}},
 	}})
-	injectEntryPreludeImports(file, nil)
+	injectEntryPreludeImports(file, "main", nil)
 	if hasImport(file, "std/option") {
 		t.Error("local constructor Some must shadow std/option (ctor-name collision)")
 	}

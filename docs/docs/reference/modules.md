@@ -215,6 +215,21 @@ export func main() -> () ! {IO, FS} {
 failed to resolve global std/fs.fileExists: module std/fs not imported
 ```
 
+### The implicit Option/Result prelude
+
+One exception: `Option`, `Some`, `None` (from `std/option`) and `Result`, `Ok`, `Err` (from
+`std/result`) are in scope in **every** module without an import — library modules too since
+#2371, entry modules since v0.30.0. Standard-library modules (`std/*`) and a file of top-level
+expressions do not get them. They have the lowest precedence:
+
+- an import from `std/option` or `std/result` replaces that implicit import, so
+  `import std/option (Option, Some, None)` remains valid and changes nothing;
+- an explicit import of another type's constructor (`import lib/q (Q, Some)`) wins for that name;
+- a module that declares a prelude type or constructor itself (`type Opt = Some(int) | Nil`)
+  does not get that prelude module at all (`None` is then not in scope either).
+
+Their helper functions (`map`, `getOrElse`, `mapErr`, …) still need an import.
+
 **Fix:** Add the missing import to your module. See the [Imports section](#imports) above for syntax examples.
 
 ## Exports

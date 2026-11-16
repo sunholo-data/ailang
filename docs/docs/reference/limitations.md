@@ -199,6 +199,8 @@ the host and reload:
 
 2. **Extract a helper** that does one match and returns a record:
    ```ailang
+   type Score = { x: float, y: float }
+
    pure func unpack(r: Result[Score, string]) -> { has: bool, x: float, y: float } =
      match r {
        Ok(s)  => { has: true,  x: s.x, y: s.y },

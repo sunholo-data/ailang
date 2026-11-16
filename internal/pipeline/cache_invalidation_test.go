@@ -34,7 +34,9 @@ func diskChangeAfterLoadPreservesKey(t *testing.T) {
 	root := t.TempDir()
 	t.Chdir(root)
 	t.Setenv("AILANG_CACHE_DIR", filepath.Join(root, "cache"))
-	source := "module answer\nexport pure func value() -> int = 7\n"
+	// noPreludeDecl shadows the Option/Result prelude (#2371), so the module
+	// has no dependencies and its key is the source's alone.
+	source := "module answer\n" + noPreludeDecl + "export pure func value() -> int = 7\n"
 	if err := os.WriteFile("answer.ail", []byte(source), 0o644); err != nil {
 		t.Fatalf("write source: %v", err)
 	}
@@ -56,6 +58,11 @@ func diskChangeAfterLoadPreservesKey(t *testing.T) {
 		t.Fatalf("cache key = %q, want retained-source key %q", entry.CacheKey, want)
 	}
 }
+
+// noPreludeDecl declares None and Err, which shadows both implicit prelude
+// imports (std/option, std/result) exactly as in an entry module: a fixture
+// whose cache key must not depend on any other module uses it.
+const noPreludeDecl = "type NoPrelude = None | Err\n"
 
 // nilBypassAndKnownEmptyCacheable contrasts the two nil-vs-empty snapshot arms:
 // a nil SourceContent must bypass BOTH lookup and publication (never touching
@@ -144,7 +151,7 @@ func assertKnownEmptySourceCacheable(t *testing.T) {
 	emptyRoot := t.TempDir()
 	t.Chdir(emptyRoot)
 	t.Setenv("AILANG_CACHE_DIR", filepath.Join(emptyRoot, "cache"))
-	if err := os.WriteFile("answer.ail", []byte("module answer\nexport pure func value() -> int = 42\n"), 0o644); err != nil {
+	if err := os.WriteFile("answer.ail", []byte("module answer\n"+noPreludeDecl+"export pure func value() -> int = 42\n"), 0o644); err != nil {
 		t.Fatalf("write known-empty fixture: %v", err)
 	}
 	var warnings bytes.Buffer

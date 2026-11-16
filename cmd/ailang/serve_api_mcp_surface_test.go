@@ -591,13 +591,19 @@ func readCompileManifestEntry(t *testing.T, cacheRoot string) (moduleID, cacheKe
 	if err := json.Unmarshal(data, &manifest); err != nil {
 		t.Fatal(err)
 	}
-	if len(manifest.Entries) != 1 {
-		t.Fatalf("manifest entries = %d, want 1: %s", len(manifest.Entries), data)
-	}
+	// The fixture's own module is the one non-std entry; std/option and
+	// std/result are cached too, as its implicit prelude imports (#2371).
+	found := 0
 	for id, entry := range manifest.Entries {
-		return id, entry.CacheKey, entry.Timestamp
+		if !strings.HasPrefix(id, "std/") {
+			found++
+			moduleID, cacheKey, timestamp = id, entry.CacheKey, entry.Timestamp
+		}
 	}
-	panic("unreachable")
+	if found != 1 {
+		t.Fatalf("non-std manifest entries = %d, want 1: %s", found, data)
+	}
+	return moduleID, cacheKey, timestamp
 }
 
 func compileArtifactDir(cacheRoot, moduleID string) string {
