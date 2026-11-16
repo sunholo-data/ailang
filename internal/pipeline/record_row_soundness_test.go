@@ -367,12 +367,11 @@ const rowLib = "module q/rowlib\n" +
 	"export pure func enc(f) -> string = \"${f.id}:${show(f.ver)}:${f.content}\"\n" +
 	"export pure func bump(f) = {f | ver: f.ver + 1}\n"
 
-// Why #2221 part 4 (defaulting's own free-variable walk) is not changed here:
-// with the shared walk, an exported `bump` becomes `({ver: b, ...a}) -> ...`
-// and its Num constraint does not reach an importer, so a call with every
-// field present but `ver` a string would pass check and fail at run time.
-// Defaulting `ver` to int is what keeps it rejected: the error is about the
-// TYPE of `ver`, not about a missing field.
+// `bump({ver: "s", id})` from another module must fail on the TYPE of `ver`,
+// not on a missing field. Defaulting now uses the shared walk (#2312), but a
+// module declaration's integer literal under an open record is still defaulted
+// (defaultAmbiguitiesKeeping's literalAtDecl), so `ver` stays int; were it
+// generalised, the exported Num constraint (#2290) would reject the string.
 func TestRecordRows_BumpVersionRejectsStringVer(t *testing.T) {
 	_, err := writeAndCheck(t, map[string]string{
 		"q/rowlib.ail": rowLib,

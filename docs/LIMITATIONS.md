@@ -26,6 +26,7 @@ workarounds. Verified open at v0.33.1 (2026-08-17):
 | **Y-combinator / recursive lambdas** | Design constraint (Hindley-Milner occurs-check) | `let Y = \f. (\x. f(x(x)))(\x. f(x(x)))` → `occurs check failed`. Use named `func` recursion. |
 | **If-else multi-statement branches need braces** | Design constraint (no layout-sensitive parsing) | bare `let` in an `else` → "if-else branches require explicit braces". Wrap in `{ … }`. |
 | **Duplicate record types with identical fields** | Go-codegen only (interpreter unaffected) | `--emit-go` may pick the first structurally-matching struct. `ailang run` returns the correct value. |
+| **Type size bounds: TC_TYPE_SIZE_001** | Design constraint (`check` must stay bounded on any input) | A type that doubles at every step (`let t1 = (t0, t0)` repeated, or an exported alias DAG) is rejected once its tree passes 65,536 nodes, as is a declaration whose types nest more than 1,000 deep, and a declaration whose unification, or whose alias expansion while scanning an argument for callbacks, takes more work than its size allows is TC_TYPE_WORK_001 (2,097,152 steps plus 32 per node squared). An alias whose two uses build different arguments at every level (`P1[a, b] = (P0[(a, b), b], P0[a, (b, a)])`) is rejected from 13 levels on. A record of 40 fields each holding the same 40-field record of 40-field records (65,641 nodes) is just over the limit. The largest real type seen is 107 nodes and 10 levels deep (#2308, #2329); a long list literal or `::`/`++` chain is a deep expression, not a deep type. Wrap the repeated part in a data type. Checking is still polynomial in expression nesting depth, which no type bound sees: a 2,000-term `++` chain runs over two minutes and a 300-deep nested record literal 17 s ([#2361](https://github.com/sunholo-data/ailang/issues/2361)). Added 2026-11-16. |
 | **WASM type-checker depth limit** | WASM-host only (CLI unaffected) | deeply-recursive or pathologically-slow type structure trips a 2 s wall-clock budget; structured `budget exceeded` error. |
 | **`?` error-propagation operator** | Not yet implemented (planned) | `r?` → `PAR_NO_PREFIX_PARSE: unexpected token in expression: ?`. Use explicit `match` on `Result`. |
 | **Typed quasiquotes** | Not yet implemented (planned) | quasiquote syntax not accepted. Use `"${expr}"` interpolation / `concat([..])`. |
@@ -210,7 +211,9 @@ Still open:
     inside its own group (polymorphic recursion, or a mutually recursive `g` calling `f(n, n)`)
     is rejected, naming the call, rather than allowed;
   - class constraints are inferred, not declared (there is no syntax for them), so a signature
-    cannot promise `Num a` or forbid it. A contract clause that needs a class the body does not
+    cannot promise `Num a` or forbid it. The inferred ones are part of the exported scheme
+    (`ailang iface` lists them) and a caller in another module is held to them
+    (`TC_CONSTRAINT_001`, #2290). A contract clause that needs a class the body does not
     (`idc[a](x: a) -> a ensures { result == x } { x }`) is accepted, but callers are not held to
     it: `idc(inc)` checks, and the clause fails under `--verify-contracts` (#2337). An integer literal written at a signature variable is rejected, but one
     reached through an unannotated helper is not: `pure func incH(x) = x + 1` then

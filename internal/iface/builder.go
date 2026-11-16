@@ -594,9 +594,10 @@ func (b *Builder) generalizeType(typ interface{}, name string) (*types.Scheme, e
 	return nil, fmt.Errorf("unexpected type kind for export %s: %T", name, typ)
 }
 
-// canonicalizeScheme copies a scheme for export. Class constraints are not
-// exported (unchanged behaviour). Canonical variable naming happens in Build,
-// after IFC label restoration, via types.CanonicalizeScheme.
+// canonicalizeScheme copies a scheme for export, with its class constraints:
+// an importer must check them at each use exactly as a same-module caller
+// does (#2290). Canonical variable naming happens in Build, after IFC label
+// restoration, via types.CanonicalizeScheme.
 func (b *Builder) canonicalizeScheme(scheme *types.Scheme) (*types.Scheme, error) {
 	typeVars := make([]string, len(scheme.TypeVars))
 	copy(typeVars, scheme.TypeVars)
@@ -604,10 +605,17 @@ func (b *Builder) canonicalizeScheme(scheme *types.Scheme) (*types.Scheme, error
 	rowVars := make([]string, len(scheme.RowVars))
 	copy(rowVars, scheme.RowVars)
 
+	var constraints []types.Constraint
+	if len(scheme.Constraints) > 0 {
+		constraints = make([]types.Constraint, len(scheme.Constraints))
+		copy(constraints, scheme.Constraints)
+	}
+
 	return &types.Scheme{
-		TypeVars: typeVars,
-		RowVars:  rowVars,
-		Type:     scheme.Type,
+		TypeVars:    typeVars,
+		RowVars:     rowVars,
+		Constraints: constraints,
+		Type:        scheme.Type,
 	}, nil
 }
 
@@ -627,12 +635,26 @@ func (b *Builder) schemeToString(scheme *types.Scheme) string {
 		quantifiers = append(quantifiers, scheme.RowVars...)
 	}
 
+	// Class constraints are part of the interface (#2290): an importer's
+	// verdict depends on them, so they must move the digest its cache key
+	// carries. Rendered only when present, so an unconstrained export's
+	// digest is unchanged.
+	body := scheme.Type.String()
+	if len(scheme.Constraints) > 0 {
+		cs := make([]string, len(scheme.Constraints))
+		for i, c := range scheme.Constraints {
+			cs[i] = c.Class + "[" + c.Type.String() + "]"
+		}
+		sort.Strings(cs)
+		body = strings.Join(cs, ", ") + " => " + body
+	}
+
 	if len(quantifiers) > 0 {
 		return fmt.Sprintf("∀%s. %s",
 			strings.Join(quantifiers, " "),
-			scheme.Type.String())
+			body)
 	}
-	return scheme.Type.String()
+	return body
 }
 
 // contains checks if a string slice contains a value

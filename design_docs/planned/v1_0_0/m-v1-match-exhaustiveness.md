@@ -557,6 +557,26 @@ error naming it a compiler bug. It has not fired on any corpus.
 - *By-name constructors on an untyped value* have their own message and fix: import the
   constructor's type (`import bn/a (Ev)`), which brings the constructors into scope so the
   pattern fixes the value's type.
+- *Superseded by #2303 (`TC_MATCH_007`).* A catch-all used to let such a pattern through
+  unstamped, and the back ends guessed its type (the VM: the first loaded ADT declaring the
+  name; the Go emitter: Go map order), so `isRed[a](x: a) = match x { Red => 1, _ => 0 }` called
+  on two ADTs that both declare `Red` at different ordinals printed different lists on the
+  evaluator and the VM. Every constructor pattern must now name one type when the check runs —
+  the elaborator's, the deferred choice's (#2228), or the head of the type it was matched
+  against, stamped on the pattern — or it is `TC_MATCH_007`, whatever the other arms; the VM
+  lowering, the bytecode compiler and the Go emitter take the type from the stamp only and
+  refuse a pattern without one. The by-name arity rule above (candidates = every loaded ADT,
+  #2272's action at a distance) is gone with it. 0 of 12,153 check-passing programs (repo +
+  banked) had such a pattern.
+- *#2353, from the review of #2362.* A by-name pattern is a deferred constructor choice (the
+  #2228 machinery) whose candidates are the loaded types declaring the name: once the value's
+  type is fixed it adds that constructor's equalities, so the variables it binds get their real
+  types (before: fresh variables tied to nothing — check passed, every engine crashed) and a
+  by-name pattern nested in one is decided from the outer one (`Some(Red)` in a module importing
+  neither type). An open by-name choice is `TC_MATCH_007` from the match check; a let-bound
+  function using one is decided by its uses (two conflicting uses: `TC_AMBIGUOUS_CTOR_001`).
+  #2272's own program (`\o. match o { Some(x) => x, _ => 0 }` applied to an Option, with an
+  unrelated `Some(int, int)` loaded) is accepted and runs the same on every engine.
 - *A module-level definition or import named `unreachable`* is `TC_BUILTIN_SHADOW_001`: a builtin
   wins over a module-level name, so it would otherwise be silently replaced. The check reads the
   parsed file before the compile-cache lookup, so it holds on a cache hit. None exists in the eval or

@@ -120,6 +120,17 @@ func resolveModuleImports(
 			if ctorScheme == nil {
 				continue
 			}
+			// #2353: a constructor matched by name has its arguments typed
+			// from its factory once the value's type picks it, so every
+			// loaded constructor's factory scheme is known (under its
+			// module-qualified $adt key, which no source name can reach).
+			cname := ctorScheme.CtorName
+			if cname == "" {
+				cname = ctorName
+			}
+			if key := core.ADTFactoryKey(loadedIface.Module, ctorScheme.TypeName, cname); imports.ExternalTypes[key] == nil {
+				imports.ExternalTypes[key] = constructorFactoryScheme(ctorScheme)
+			}
 			// A name two different ADTs define is recorded as "" (ambiguous):
 			// last-wins would let the typechecker's transitive foreign-ADT
 			// check (#1478) reject a correct arm depending on map order.
@@ -397,6 +408,27 @@ func importIfaceAlias(imports *moduleImports, ifc *iface.Iface, name string, tar
 	return key
 }
 
+// constructorFactoryScheme is the type scheme of a dependency constructor's
+// factory: its result type when nullary, else fields -> result, generalised
+// over the result type's variables (Option[a] -> ["a"]).
+func constructorFactoryScheme(ctor *iface.ConstructorScheme) *types.Scheme {
+	var factoryType types.Type
+	if ctor.Arity == 0 {
+		factoryType = ctor.ResultType
+	} else {
+		factoryType = &types.TFunc2{
+			Params:    ctor.FieldTypes,
+			EffectRow: nil, // Pure constructor
+			Return:    ctor.ResultType,
+		}
+	}
+	var typeVars []string
+	if ctor.ResultType != nil {
+		typeVars = extractTypeVarsFromType(ctor.ResultType)
+	}
+	return &types.Scheme{TypeVars: typeVars, Type: factoryType}
+}
+
 // resolveConstructorImport adds a single constructor from a dependency to the import set.
 //
 // module is the ADT's defining module (the exporting interface's module; an
@@ -417,31 +449,7 @@ func resolveConstructorImport(
 	}
 
 	// CRITICAL FIX: Also add to externalTypes so type checker knows the signature
-	// Build the factory type scheme from the constructor info
-	var factoryType types.Type
-	if ctor.Arity == 0 {
-		// Nullary constructor: just the result type
-		factoryType = ctor.ResultType
-	} else {
-		// Constructor with fields: FieldTypes -> ResultType
-		factoryType = &types.TFunc2{
-			Params:    ctor.FieldTypes,
-			EffectRow: nil, // Pure constructor
-			Return:    ctor.ResultType,
-		}
-	}
-
-	// Extract type variables from result type for polymorphism
-	var typeVars []string
-	if ctor.ResultType != nil {
-		// Extract type vars from result type (e.g., Option[a] -> ["a"])
-		typeVars = extractTypeVarsFromType(ctor.ResultType)
-	}
-
-	imports.ExternalTypes[key] = &types.Scheme{
-		TypeVars: typeVars,
-		Type:     factoryType,
-	}
+	imports.ExternalTypes[key] = constructorFactoryScheme(ctor)
 
 	// DEBUG: fmt.Printf("DEBUG: Import constructor %s -> %s with type scheme (vars: %v)\n", sym, key, typeVars)
 	if cfg.TraceDefaulting {

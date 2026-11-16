@@ -469,6 +469,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	}
 	// M-DX11-PHASE2: Wire debugSink to Unifier for OnSubstitute events
 	unifier.SetDebugSink(tc.DebugSink)
+	unifier.work = tc.newDeclWork(expr.Span()) // #2329: work bounded by size
 	// M-TYPECHECK-NO-AUTO-UNWRAP-RESULT (v0.20.0): wire the constructor →
 	// ADT-name registry so the unifier can produce the prescriptive
 	// match-discipline error when a tagged-union ADT fails to unify with
@@ -511,8 +512,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		unsolved = defaultedConstraints
 	}
 
-	// M-TVAR-COLLISION-FIX: Save freshCounter back so next InferWithConstraints call
-	// starts from a unique counter, preventing TVar name collisions across declarations.
+	// M-TVAR-COLLISION-FIX: the next declaration starts from a unique counter (no TVar name collisions).
 	tc.inferFreshCounter = ctx.freshCounter
 
 	// M-DX4 FIX: Apply FULL substitution (unification + defaulting) to CoreTypeInfo
@@ -520,6 +520,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	// Must apply the composed substitution to resolve chains (e.g., α37 → α38 → Float).
 	sub = ctx.closeOpenedLambdaTails(sub) // #1958 F-B
 	tc.applyApplicationSubstitution(sub)
+	tc.guardDeclarationSizes(expr, tc.declNodes) // #2308/#2329: before anything walks them
 
 	// Apply final substitution to typed node
 	typedNode = tc.applySubstitutionToTyped(sub, typedNode)

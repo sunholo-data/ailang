@@ -179,7 +179,7 @@ func (u *Unifier) unifyRecordTypes(t1, t2 Type, sub Substitution) (Substitution,
 	s1, ok1 := recordShapeOf(t1, sub)
 	s2, ok2 := recordShapeOf(t2, sub)
 	if !ok1 || !ok2 {
-		return nil, fmt.Errorf("cannot unify record %s with %s", t1, t2)
+		return nil, fmt.Errorf("cannot unify record %s with %s", displayType(t1), displayType(t2))
 	}
 	return u.unifyRecordShapes(s1, s2, sub)
 }
@@ -210,7 +210,7 @@ func (u *Unifier) unifyDuplicates(s1, s2 recordShape, sub Substitution) (Substit
 		next, err := u.Unify(d.first, d.more, sub)
 		if err != nil {
 			return nil, fmt.Errorf("%s: field '%s' would have two types, %s and %s: a row variable shared by two records was bound to a field one of them already has: %w",
-				TC_REC_004, d.name, ApplySubstitution(sub, d.first), ApplySubstitution(sub, d.more), err)
+				TC_REC_004, d.name, displayType(ApplySubstitution(sub, d.first)), displayType(ApplySubstitution(sub, d.more)), err)
 		}
 		sub = next
 	}
@@ -309,7 +309,7 @@ func (u *Unifier) bindRecordTail(tail *RowVar, row *Row, sub Substitution) (Subs
 	}
 	resolved := &Row{Kind: RecordRow, Labels: labels, Tail: row.Tail}
 	if u.occurs(tail.Name, resolved, RecordRow) {
-		return nil, fmt.Errorf("%s: occurs check failed: record row %s occurs in %s (an infinite type)", TC_REC_003, tail.Name, resolved)
+		return nil, fmt.Errorf("%s: occurs check failed: record row %s occurs in %s (an infinite type)", TC_REC_003, tail.Name, displayType(resolved))
 	}
 	sub[tail.Name] = resolved
 	u.debugSink.OnSubstitute(tail, resolved)

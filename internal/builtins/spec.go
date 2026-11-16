@@ -27,6 +27,12 @@ type BuiltinSpec struct {
 	Type    func() types.Type // Type signature constructor (must return non-nil)
 	Impl    EffectImpl        // Implementation function
 
+	// EqVars names the type variables of Type whose values the implementation
+	// compares with ==. The builtin's scheme carries Eq on each, so a use at a
+	// type without Eq (a function) is a type error, as `==` itself is (#2291:
+	// `contains([\x. x + 1], \x. x + 1)` passed check and returned false).
+	EqVars []string
+
 	// === Enhanced Metadata (v0.3.15+ - Optional) ===
 	// All fields in Metadata are optional for backward compatibility.
 	// See internal/builtins/metadata.go for field documentation.

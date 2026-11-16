@@ -163,6 +163,13 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 		if err := tc.checkCtorPatternScope(p, scrutType); err != nil {
 			return nil, nil, err
 		}
+		// #2353: matched by name, its type is decided by the value matched,
+		// and its arguments are typed from that type's constructor.
+		if _, inScope := tc.patternADT(p); !inScope && p.TypeName == "" {
+			if bindings, typed, ok, err := tc.checkByNameCtorPattern(p, scrutType, ctx); ok || err != nil {
+				return bindings, typed, err
+			}
+		}
 		// M-DX25.4: Look up constructor's ADT type and add constraint
 		// This ensures pattern matching on ADTs infers the correct ADT type for the scrutinee
 		if tc.constructorTypes != nil {

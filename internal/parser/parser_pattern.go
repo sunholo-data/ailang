@@ -59,9 +59,10 @@ func (p *Parser) parseBasePattern() ast.Pattern {
 		// Could be a variable pattern or constructor
 		name := p.curToken.Literal
 		if p.peekTokenIs(lexer.LPAREN) {
-			// Constructor with arguments
+			// Constructor with arguments, located at its name (not the `(`).
+			namePos := p.curPos()
 			p.nextToken()
-			return p.parseConstructorPattern(name)
+			return p.parseConstructorPattern(name, namePos)
 		}
 		return &ast.Identifier{
 			Name: name,
@@ -86,8 +87,9 @@ func (p *Parser) parseBasePattern() ast.Pattern {
 		// See internal/elaborate/patterns.go for elaboration to ListPattern (not ConstructorPattern!)
 		name := "::"
 		if p.peekTokenIs(lexer.LPAREN) {
+			namePos := p.curPos()
 			p.nextToken() // move to LPAREN
-			return p.parseConstructorPattern(name)
+			return p.parseConstructorPattern(name, namePos)
 		}
 		// :: without arguments is invalid (must be ::(head, tail) or use infix x :: xs)
 		p.report("PAT_INVALID_CONS", ":: constructor requires arguments in pattern", "Use ::(head, tail) or x :: xs pattern")
@@ -108,10 +110,12 @@ func (p *Parser) parseBasePattern() ast.Pattern {
 	return nil
 }
 
-func (p *Parser) parseConstructorPattern(name string) ast.Pattern {
+// parseConstructorPattern parses `name(args)` with the cursor at `(`; pos is
+// the constructor name's position, which diagnostics about the pattern use.
+func (p *Parser) parseConstructorPattern(name string, pos ast.Pos) ast.Pattern {
 	constructor := &ast.ConstructorPattern{
 		Name:     name,
-		Pos:      p.curPos(),
+		Pos:      pos,
 		Patterns: []ast.Pattern{},
 	}
 

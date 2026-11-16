@@ -120,7 +120,16 @@ The same code, with "this match cannot be checked for exhaustiveness", is report
 
 **`TC_MATCH_004` — a match too large to check.** The check stops after 10^6 steps per match rather than guess. No program in the measured corpora comes near it. Fix: add a final `_ =>` arm.
 
-**`TC_MATCH_006` — a constructor pattern with the wrong number of arguments.** `C(n)` against `type U = C(int, int) | E`. Such a pattern never matched on the evaluator while the bytecode VM bound the first field (#2243), so its coverage was not one thing; it is now an error located at the pattern, with the right shape as the fix (`write C(_, _)`), whatever the other arms are — a catch-all does not hide it. A constructor matched by name against a value whose type nothing fixes, when two loaded types declare that name with different arities (`ar/x`'s `Msg(string)` and `ar/y`'s `Msg(string, int)`), is the same error whatever its own count: the engines would disagree on which values it matches. The message names every candidate; the fix is to import the type you mean.
+**`TC_MATCH_006` — a constructor pattern with the wrong number of arguments.** `C(n)` against `type U = C(int, int) | E`. Such a pattern never matched on the evaluator while the bytecode VM bound the first field (#2243), so its coverage was not one thing; it is now an error located at the pattern, with the right shape as the fix (`write C(_, _)`), whatever the other arms are — a catch-all does not hide it. A constructor whose type cannot be named is `TC_MATCH_007` instead, before its arity is compared with anything.
+
+**`TC_MATCH_007` — a constructor pattern whose type cannot be named.** A constructor can be matched by name without importing it or its type (a library module that uses `Some` without `import std/option`, say). Its type is then the type of the value matched: `match nth(xs, 0) { Some(v) => … }` is Option's `Some`, `v` has the list's element type, and a constructor nested in it (`Some(Red)`) is decided the same way. When nothing fixes the value's type — a generic parameter `x: a`, an unannotated top-level parameter, a pattern in a lambda passed to a generic function — the pattern names no type, and a catch-all does not change that: two types can both declare `Red`, at different positions. Through v0.60.x such a match was accepted under a catch-all and the bytecode VM and the Go emitter guessed the type (the VM took the first loaded type declaring the name), so the same program printed different answers on the evaluator and the VM (#2303). The error is located at the constructor. Its fix is one step: for a signature type variable, write the value's type instead of the variable (and import it); otherwise import the type you mean — its constructors are then in scope and fix the value's type. The same code covers a constructor matched by name against a value whose type has no such constructor, an arm that can never match. (A let-bound function matching by name is decided by its uses; used at two types it is `TC_AMBIGUOUS_CTOR_001`.)
+
+```text
+probe.ail:5:3: TC_MATCH_007: constructor Red cannot be matched against a value of type a: a is a type variable of the signature, so the value can have any type
+  Suggestion: write the value's type instead of a, and import it: import lib/x (Color) or import lib/y (Light)
+probe.ail:4:40: TC_MATCH_007: cannot tell which type Red belongs to here: it is matched by name (neither its type nor the constructor is imported here), and nothing fixes the type of the value matched
+  Suggestion: import the type you mean: import lib/x (Color) or import lib/y (Light)
+```
 
 **`TC_BUILTIN_SHADOW_001` — a module-level definition or an import named `unreachable`.** A builtin wins over a module-level name, so a program defining its own `unreachable`, or importing something under that name (`import std/string (trim as unreachable)`), would silently call the builtin (`RT010`) instead. Rename the definition or the import; a local `let unreachable = …` is unaffected.
 
@@ -155,6 +164,12 @@ TC_MATCH_005 at app.ail:6:45
 ```
 TC_RIGID_001: the signature of `step` says `state` is any type, but the body requires `state` to be `{n: int | r}` (field access). Did you mean the type `State`? A lowercase name in a signature that is not a declared or imported type is a type variable
   Suggestion: write `State` instead of `state`
+```
+
+**`TC_CONSTRAINT_001` — a call breaks an imported function's class constraint.** An exported function's scheme carries the class constraints its body needs (`func add[a](x: a, y: a) -> a = x + y` exports `Num[a]`; `ailang iface` lists them under `constraints`), and a call from another module is checked against them exactly as a call in the defining module is. Emitted at the call when it instantiates the constrained variable at a type without that instance: `add("s", "t")`, `eqq(f, g)` on two functions, `lt(None, None)`, `contains([\x. x + 1], f)` (`std/list`'s `contains`, `member`, `dedup`, `union`, `intersect` and `difference` need `Eq` on the element type). The message names the function and its module, then the missing instance with the usual fix. Through v0.60.x the constraint was dropped at the module boundary, so such a call passed `check` and failed at run time, or (`==` on two functions, on the VM) answered `false`.
+
+```
+TC_CONSTRAINT_001: `add` from lib/boxes requires Num for the type it is used at here: No instance for Num[string] in scope.
 ```
 
 **`TC_NOMINAL_001` — two different types that share a name.** A nominal type (an ADT) is its defining module plus its name, so `q/a`'s `type T` and `q/b`'s `type T` are different types. Emitted where a value of one is used where the other is expected; both modules are named. Until v0.60.0 such programs type-checked and failed at run time. See [tc_nominal_001.md](tc_nominal_001.md).

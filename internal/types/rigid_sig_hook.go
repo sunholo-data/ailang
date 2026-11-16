@@ -74,8 +74,7 @@ func FreeTypeVarNames(t Type) []string {
 // call crashed (#2273 review: `label[a](x: a, y: a) -> string`). The consumers
 // ask DefaultedNodes and stay dynamic there (ShowNormalizer.Generic).
 func (tc *CoreTypeChecker) markDefaulted(sub, defaulting Substitution) {
-	nodes := tc.declNodes
-	tc.declNodes = tc.declNodes[:0]
+	nodes := tc.declNodes // reset per declaration by InferWithConstraints; the size guard reads them after
 	if len(defaulting) == 0 {
 		return
 	}

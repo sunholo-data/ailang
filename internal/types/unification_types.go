@@ -78,7 +78,7 @@ func (u *Unifier) unifyFunctions(t1 *TFunc2, t2 Type, sub Substitution) (Substit
 		// Swap and retry
 		return u.Unify(t2Var, t1, sub)
 	}
-	return nil, fmt.Errorf("cannot unify function type with %s", t2.String())
+	return nil, fmt.Errorf("cannot unify function type with %s", displayType(t2))
 }
 
 // unifyLists unifies two list types
@@ -103,9 +103,9 @@ func (u *Unifier) unifyLists(t1 *TList, t2 Type, sub Substitution) (Substitution
 			return nil, fmt.Errorf("type mismatch: cannot use list where string expected")
 		}
 		// Other TCon cases fail as before
-		return nil, fmt.Errorf("cannot unify list type %s with %s", t1.String(), t2.String())
+		return nil, fmt.Errorf("cannot unify list type %s with %s", displayType(t1), displayType(t2))
 	}
-	return nil, fmt.Errorf("cannot unify list type %s with %s", t1.String(), t2.String())
+	return nil, fmt.Errorf("cannot unify list type %s with %s", displayType(t1), displayType(t2))
 }
 
 // unifyArrays unifies two array types
@@ -124,7 +124,7 @@ func (u *Unifier) unifyArrays(t1 *TArray, t2 Type, sub Substitution) (Substituti
 		// Swap and retry
 		return u.Unify(t2Var, t1, sub)
 	}
-	return nil, fmt.Errorf("cannot unify array type %s with %s", t1.String(), t2.String())
+	return nil, fmt.Errorf("cannot unify array type %s with %s", displayType(t1), displayType(t2))
 }
 
 // unifyMaps unifies two map types
@@ -150,7 +150,7 @@ func (u *Unifier) unifyMaps(t1 *TMap, t2 Type, sub Substitution) (Substitution, 
 	if t2Var, ok := t2.(*TVar2); ok {
 		return u.Unify(t2Var, t1, sub)
 	}
-	return nil, fmt.Errorf("cannot unify map type %s with %s", t1.String(), t2.String())
+	return nil, fmt.Errorf("cannot unify map type %s with %s", displayType(t1), displayType(t2))
 }
 
 // unifyTuples unifies two tuple types
@@ -172,7 +172,7 @@ func (u *Unifier) unifyTuples(t1 *TTuple, t2 Type, sub Substitution) (Substituti
 		// Swap and retry
 		return u.Unify(t2Var, t1, sub)
 	}
-	return nil, fmt.Errorf("cannot unify tuple type %s with %s", t1.String(), t2.String())
+	return nil, fmt.Errorf("cannot unify tuple type %s with %s", displayType(t1), displayType(t2))
 }
 
 // unifyTypeApps unifies two type applications
@@ -192,12 +192,12 @@ func (u *Unifier) unifyTypeApps(t1 *TApp, t2 Type, sub Substitution) (Substituti
 				}
 				return nil, fmt.Errorf("%s", nominalMismatchMsg(c2, c1))
 			}
-			return nil, fmt.Errorf("type constructor mismatch: %s vs %s", h1.String(), h2.String())
+			return nil, fmt.Errorf("type constructor mismatch: %s vs %s", displayType(h1), displayType(h2))
 		}
 
 		// Arity check
 		if len(a1) != len(a2) {
-			return nil, fmt.Errorf("arity mismatch: %s expects %d args, got %d", h1.String(), len(a1), len(a2))
+			return nil, fmt.Errorf("arity mismatch: %s expects %d args, got %d", displayType(h1), len(a1), len(a2))
 		}
 
 		// Unify each pair of args in order
@@ -249,9 +249,9 @@ func (u *Unifier) unifyTypeApps(t1 *TApp, t2 Type, sub Substitution) (Substituti
 		if h1Con, ok := h1.(*TCon); ok && NominalSame(h1Con, t2Con) {
 			// Same constructor name but different application
 			return nil, fmt.Errorf("type %s expects %d type argument(s), but got 0 (did you mean %s?)",
-				t2Con.Name, len(a1), t1.String())
+				t2Con.Name, len(a1), displayType(t1))
 		}
-		return nil, fmt.Errorf("cannot unify %s with %s", t1.String(), t2Con.Name)
+		return nil, fmt.Errorf("cannot unify %s with %s", displayType(t1), t2Con.Name)
 	}
 	// M-TYPECHECK-NO-AUTO-UNWRAP-RESULT (v0.20.0): if t1 is a parameterized
 	// tagged-union ADT (Result[T, E], Option[T], ...) and t2 is TRecordOpen,
@@ -260,7 +260,7 @@ func (u *Unifier) unifyTypeApps(t1 *TApp, t2 Type, sub Substitution) (Substituti
 	if recOpen, ok := t2.(*TRecordOpen); ok && isTaggedUnion(t1, u.constructorTypes) {
 		return nil, makeUnificationTaggedUnionError(t1, recOpen, u.constructorTypes)
 	}
-	return nil, fmt.Errorf("cannot unify type application %s with %s", t1.String(), t2.String())
+	return nil, fmt.Errorf("cannot unify type application %s with %s", displayType(t1), displayType(t2))
 }
 
 // decomposeApp decomposes a type application into (head constructor, args)

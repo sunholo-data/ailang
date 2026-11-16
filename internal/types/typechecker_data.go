@@ -40,14 +40,7 @@ func (tc *CoreTypeChecker) inferRecord(ctx *InferenceContext, rec *core.Record) 
 			},
 		}
 	} else {
-		recordType = &TRecord{
-			Fields: fieldTypes,
-			Row: &Row{
-				Kind:   RecordRow,
-				Labels: fieldTypes,
-				Tail:   nil, // Closed record for now
-			},
-		}
+		recordType = &TRecord{Fields: fieldTypes}
 	}
 
 	return &typedast.TypedRecord{

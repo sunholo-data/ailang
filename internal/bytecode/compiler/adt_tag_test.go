@@ -38,16 +38,56 @@ func TestCompile_ADTTagEq(t *testing.T) {
 	}{
 		{"named type, match", some, "Opt", "Some", true},
 		{"named type, miss", none, "Opt", "Some", false},
-		{"inferred type, match", none, "", "None", true},
-		{"inferred type, miss", some, "", "None", false},
-		// A type name the compiler has no TypeDecl for (e.g. an alias) falls
-		// back to tag inference rather than failing.
-		{"unknown type name, inferred", some, "Alias", "Some", true},
 	}
 	for _, c := range cases {
 		got := runProgram(t, adtTagProgram(c.value, c.typeName, c.tag), "probe", nil)
 		if got.Bool != c.want {
 			t.Errorf("%s: got %v, want %v", c.name, got.Bool, c.want)
+		}
+	}
+}
+
+// A tag check with no type, or a type the program does not declare, is a
+// loud compile error (EvalOnly), never an ordinal inferred from the tag:
+// two ADTs may declare the tag at different ordinals (#2303).
+func TestCompile_ADTTagEq_NoTypeIsLoud(t *testing.T) {
+	some := stmt.ADTConstructor{TypeName: "Opt", Tag: "Some", Args: []stmt.Expr{stmt.LitInt{Value: 1}}}
+	for typeName, want := range map[string]string{"": "has no ADT", "Alias": `unknown ADT "Alias"`} {
+		img, err := Compile(adtTagProgram(some, typeName, "Some"))
+		if err != nil {
+			t.Fatalf("type %q: per-function failures tag EvalOnly, not fail the image: %v", typeName, err)
+		}
+		if proto := img.Prototypes[0]; !proto.EvalOnly || !strings.Contains(proto.EvalReason, want) {
+			t.Errorf("type %q: want EvalOnly with %q, got EvalOnly=%v reason=%q", typeName, want, proto.EvalOnly, proto.EvalReason)
+		}
+	}
+}
+
+// The switch path refuses a missing or unknown ADT the same way: two ADTs
+// declare Some here, at different ordinals, so a tag-based guess could pick
+// either (#2303).
+func TestCompile_SwitchNoTypeIsLoud(t *testing.T) {
+	for typeName, want := range map[string]string{"": "has no ADT", "Alias": `unknown ADT "Alias"`} {
+		prog := adtTagProgram(stmt.LitInt{Value: 0}, "Opt", "Some")
+		prog.TypeDecls = append(prog.TypeDecls, stmt.TypeDecl{Name: "Other", Kind: stmt.ADTDecl{Variants: []stmt.ADTVariant{{Tag: "None"}, {Tag: "Some"}}}})
+		prog.FuncDecls[0] = stmt.FuncDecl{
+			Name:   "probe",
+			Params: []stmt.Param{{Name: "o", Type: stmt.NamedType{Name: "Opt"}}},
+			Body: []stmt.Stmt{stmt.SwitchStmt{
+				Scrutinee: stmt.VarRef{Name: "o"},
+				ADTName:   typeName,
+				Cases:     []stmt.SwitchCase{{Tag: "Some", Body: []stmt.Stmt{stmt.ReturnStmt{Value: stmt.LitBool{Value: true}}}}},
+				Default:   []stmt.Stmt{stmt.ReturnStmt{Value: stmt.LitBool{Value: false}}},
+			}},
+			Return:   stmt.LitBool{Value: false},
+			Exported: true,
+		}
+		img, err := Compile(prog)
+		if err != nil {
+			t.Fatalf("type %q: per-function failures tag EvalOnly, not fail the image: %v", typeName, err)
+		}
+		if proto := img.Prototypes[0]; !proto.EvalOnly || !strings.Contains(proto.EvalReason, want) {
+			t.Errorf("type %q: want EvalOnly with %q, got EvalOnly=%v reason=%q", typeName, want, proto.EvalOnly, proto.EvalReason)
 		}
 	}
 }

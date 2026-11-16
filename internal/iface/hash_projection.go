@@ -119,7 +119,14 @@ func SignatureSet(j *InterfaceJSON) []string {
 			effects = append(effects, escapeSigField(e))
 		}
 		sort.Strings(effects)
-		sigs = append(sigs, fmt.Sprintf("%s:func:%s:%s:%s", mod, escapeSigField(f.Name), escapeSigField(f.Type), strings.Join(effects, ",")))
+		// A class constraint is part of the signature (#2290): adding one
+		// rejects callers that passed, so it must read as RETYPED, not as an
+		// unchanged export. Unconstrained exports keep their signature.
+		typ := f.Type
+		if len(f.Constraints) > 0 {
+			typ = strings.Join(f.Constraints, ", ") + " => " + typ
+		}
+		sigs = append(sigs, fmt.Sprintf("%s:func:%s:%s:%s", mod, escapeSigField(f.Name), escapeSigField(typ), strings.Join(effects, ",")))
 	}
 	for _, t := range j.Types {
 		sigs = append(sigs, fmt.Sprintf("%s:type:%s/%d", mod, escapeSigField(t.Name), len(t.Params)))

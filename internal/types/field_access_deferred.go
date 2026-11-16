@@ -413,7 +413,7 @@ func diagRecord(t Type) (string, bool) {
 		switch fields[n].(type) {
 		case *TVar2, *TVar:
 		default:
-			ft = fields[n].String()
+			ft = displayType(fields[n])
 		}
 		parts = append(parts, n+": "+ft)
 	}

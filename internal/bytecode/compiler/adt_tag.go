@@ -55,20 +55,32 @@ func (fc *funcCompiler) compileADTTagEq(e stmt.ADTTagEq) (uint8, error) {
 	return dst, nil
 }
 
-// resolveTagOrdinal maps (typeName, tag) to the tag's declaration ordinal.
-// An empty or unknown typeName falls back to inferADTFromTags, which scans
-// ADTs in declaration order (never Go map order — ailang#1355). A tag no
-// registered ADT declares is a loud compile error, which tags the function
-// EvalOnly rather than guessing.
+// resolveTagOrdinal maps (typeName, tag) to the tag's declaration ordinal in
+// typeName, the ADT the type checker stamped on the pattern. A missing or
+// unknown typeName, or a tag it does not declare, is a loud compile error
+// (which tags the function EvalOnly): an ordinal is only meaningful in its
+// own type, so it is never looked up by the tag alone (#2303 — two ADTs can
+// declare the same tag at different ordinals).
 func (fc *funcCompiler) resolveTagOrdinal(typeName, tag string) (int, error) {
-	if info, ok := fc.adtTypes[typeName]; ok {
-		if ord, ok := info.tagOrdinal[tag]; ok {
-			return ord, nil
-		}
-		return 0, fmt.Errorf("compiler: unknown tag %s.%s in tag check", typeName, tag)
+	info, err := fc.adtInfo(typeName, "tag check of "+tag)
+	if err != nil {
+		return 0, err
 	}
-	if _, info, ok := fc.inferADTFromTags([]string{tag}); ok {
-		return info.tagOrdinal[tag], nil
+	if ord, ok := info.tagOrdinal[tag]; ok {
+		return ord, nil
 	}
-	return 0, fmt.Errorf("compiler: no ADT declares constructor %q (tag check, type %q)", tag, typeName)
+	return 0, fmt.Errorf("compiler: unknown tag %s.%s in tag check", typeName, tag)
+}
+
+// adtInfo returns the registered ADT typeName for a tag test (what names the
+// test, for the error).
+func (fc *funcCompiler) adtInfo(typeName, what string) (adtTypeInfo, error) {
+	if typeName == "" {
+		return adtTypeInfo{}, fmt.Errorf("compiler: %s has no ADT: a constructor pattern reached the back end without the type the type checker resolves it to (a compiler bug: such a pattern is TC_MATCH_007)", what)
+	}
+	info, ok := fc.adtTypes[typeName]
+	if !ok {
+		return adtTypeInfo{}, fmt.Errorf("compiler: unknown ADT %q in %s", typeName, what)
+	}
+	return info, nil
 }

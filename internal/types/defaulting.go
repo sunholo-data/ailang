@@ -39,7 +39,7 @@ func (tc *CoreTypeChecker) logDefaulting(trace DefaultingTrace) {
 		fmt.Printf("[default] %s under %s → %s at %s\n",
 			trace.TypeVar,
 			trace.ClassName,
-			trace.Default.String(),
+			displayType(trace.Default),
 			trace.Location,
 		)
 	}
@@ -67,7 +67,7 @@ func FormatDefaultingTraces(traces []DefaultingTrace) string {
 			trace.Location,
 			trace.ClassName,
 			trace.TypeVar,
-			trace.Default.String(),
+			displayType(trace.Default),
 		))
 	}
 

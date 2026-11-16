@@ -204,26 +204,20 @@ func (g *Generator) generatePatternCondition(p core.CorePattern, scrutinee strin
 		// nested literal patterns (e.g., Some("heading"), Some("text")).
 		// Generate: _adt := scrutinee.(*ADT); _adt.Kind == KindSome && _adt.Some.Field0 == "heading"
 
-		// Find ADT type name from constructor. The pattern's own ADT (the
-		// elaborator's, or the type checker's for a constructor matched by
-		// name) selects among ADTs sharing the constructor name (#2244);
-		// without it the bare-name lookup takes any of them.
-		adtTypeName := ""
-		if info, ok := g.LookupADTConstructor(pat.TypeName, pat.Name); ok {
-			adtTypeName = info.TypeName
+		// The pattern's own ADT (the elaborator's, or the type checker's for
+		// a constructor matched by name) selects among ADTs sharing the
+		// constructor name (#2244, #2303).
+		info, err := g.patternCtor(pat)
+		if err != nil {
+			return "", nil, err
 		}
-		if adtTypeName == "" {
-			adtTypeName = "Option" // fallback for common case
-		}
+		adtTypeName := info.TypeName
 
 		kindConstName := ToKindConstName(adtTypeName, pat.Name)
 		variantFieldName := ToPascalCase(pat.Name)
 
 		// Get constructor field info
-		var ctorFieldNames []string
-		if info, ok := g.LookupADTConstructor(pat.TypeName, pat.Name); ok && len(info.FieldNames) > 0 {
-			ctorFieldNames = info.FieldNames
-		}
+		ctorFieldNames := info.FieldNames
 
 		// Condition: check Kind
 		adtVar := fmt.Sprintf("_adt_%d", g.varCounter)

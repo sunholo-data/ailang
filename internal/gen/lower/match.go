@@ -125,14 +125,10 @@ func lowerConstructorMatch(m *core.Match, cti types.CoreTypeInfo) stmt.Stmt {
 
 	// switchEligible guarantees a constructor arm; the type checker that
 	// every constructor arm names the scrutinee's ADT.
-	var scrutType types.Type
-	if m.Scrutinee != nil {
-		scrutType = cti[m.Scrutinee.ID()]
-	}
 	adtName := ""
 	for _, arm := range m.Arms {
 		if p, ok := arm.Pattern.(*core.ConstructorPattern); ok {
-			adtName = patternADTName(p, scrutType)
+			adtName = patternADTName(p)
 			break
 		}
 	}
@@ -193,34 +189,16 @@ func armBodyStmts(arm core.MatchArm, cti types.CoreTypeInfo) []stmt.Stmt {
 	return body
 }
 
-// patternADTName names the ADT a constructor pattern tests: the ADT the
-// elaborator resolved the constructor to, else the head of the type of the
-// value it is matched against (a constructor matched by name, #323). The
-// stamp comes first because the value's type may be written as an alias
-// (`type Hue = Color`, #2244), a name no back end declares an ADT under.
-func patternADTName(p *core.ConstructorPattern, t types.Type) string {
-	if p.TypeName != "" {
-		return p.TypeName
-	}
-	return extractADTName(t)
-}
-
-// extractADTName gets the ADT type name from a types.Type.
-func extractADTName(t types.Type) string {
-	switch t := t.(type) {
-	case *types.TCon:
-		// Skip primitives.
-		switch t.Name {
-		case "int", "float", "bool", "string", "()", "unit", "bytes":
-			return ""
-		}
-		return t.Name
-	case *types.TApp:
-		if con, ok := t.Constructor.(*types.TCon); ok {
-			return con.Name
-		}
-	}
-	return ""
+// patternADTName names the ADT a constructor pattern tests: its stamp — the
+// ADT the elaborator resolved the constructor to, or, for a constructor
+// matched by name (#323), the one the type checker's match check resolved it
+// to (types.VerifyMatchExhaustiveness, which rejects a pattern it cannot
+// resolve: TC_MATCH_007). Never the value's written type, which may be an
+// alias (`type Hue = Color`, #2244), and never a guess from the constructor
+// name: two ADTs may declare it with different ordinals (#2303). An
+// unstamped pattern lowers with no ADT and the bytecode compiler refuses it.
+func patternADTName(p *core.ConstructorPattern) string {
+	return p.TypeName
 }
 
 func lowerLitPatternCond(scrutinee stmt.Expr, p *core.LitPattern) stmt.Expr {
