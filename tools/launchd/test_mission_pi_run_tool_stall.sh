@@ -77,6 +77,28 @@ arm 2_raised 0 ok - --stall-seconds 10 --tool-stall-seconds 30
 if [ "$(field "$ARM_VF" tool_stall_seconds)" = 30 ]; then ok "2_raised verdict records tool_stall_seconds=30"
 else bad "2_raised verdict records tool_stall_seconds=30"; fi
 
+# Arm 2b — the tool closes INSIDE a poll, between two of the runner's reads. A `grep` shim makes
+# that land deterministically: the first time the runner asks whether a tool is open, the shim
+# appends the tool_execution_end before answering. The runner must count that write as progress.
+# Reading the output clock BEFORE the tool state paired an old clock (idle >= 10) with a closed
+# tool (bound 10) and killed a healthy run as stream_dead — the 2_raised CI flake, 2026-11-10/13.
+REAL_GREP=$(command -v grep)
+CLOSED="$TMP/2b.closed"
+cat > "$TMP/bin/grep" <<EOF
+#!/bin/bash
+case "\$*" in *tool_execution_start*)
+  if [ ! -e "$CLOSED" ]; then : > "$CLOSED"; for f; do :; done; printf '{"type":"tool_execution_end"}\n' >> "\$f"; fi ;;
+esac
+exec "$REAL_GREP" "\$@"
+EOF
+chmod +x "$TMP/bin/grep"
+stub "$TOOL_OPEN; i=0; while [ ! -e '$CLOSED' ] && [ \$i -lt 250 ]; do sleep 0.1; i=\$((i+1)); done
+echo changed > f.txt; printf '{\"type\":\"agent_end\"}\n'"
+arm 2b_close_mid_poll 0 ok - --stall-seconds 10 --tool-stall-seconds 30
+rm -f "$TMP/bin/grep"; hash -r
+if [ -e "$CLOSED" ]; then ok "2b_close_mid_poll shim fired (the runner asked for the tool state while idle)"
+else bad "2b_close_mid_poll shim never fired: the arm proved nothing"; fi
+
 # Arm 3 — model silence with no open tool: the stall bound (10) applies even though the tool
 # bound is 30. Must be stream_dead at 10 s; a sleep of 20 s would survive if the tool bound leaked.
 stub 'printf "{\"type\":\"turn_start\"}\n"; sleep 20'
