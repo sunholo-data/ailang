@@ -288,7 +288,7 @@ func TestVerifyMatchExhaustivenessCatchAllRescuesOnlyCoverage(t *testing.T) {
 	tc = newMatchTC()
 	m = matchOn(4, 8, &TVar2{Name: "t1"}, tc, arm(unfixedViolet(tc)))
 	_, err = tc.VerifyMatchExhaustiveness(m)
-	if !errors.As(err, &me) || me.Code != TC_MATCH_007 || me.Suggestion != "import n (Color), or annotate the value matched with that type" ||
+	if !errors.As(err, &me) || me.Code != TC_MATCH_007 || me.Suggestion != "import n (Color)" ||
 		strings.Contains(me.Message, "t1") || !strings.Contains(me.Message, "cannot tell which type Violet belongs to here") {
 		t.Fatalf("by-name on an untyped value: %v (suggestion %q)", err, me.Suggestion)
 	}
@@ -326,7 +326,7 @@ func TestVerifyMatchExhaustivenessUnresolvedByNameCandidates(t *testing.T) {
 			_, err := tc.VerifyMatchExhaustiveness(matchOn(1, 6, &TVar2{Name: "t1"}, tc, arm(p), wildArm()))
 			var me *MatchError
 			if !errors.As(err, &me) || me.Code != TC_MATCH_007 || me.Message != want ||
-				me.Suggestion != "import the type you mean: import ar/x (Ev) or import ar/y (Pkt), or annotate the value matched with that type" ||
+				me.Suggestion != "import the type you mean: import ar/x (Ev) or import ar/y (Pkt)" ||
 				len(me.Notes) != 1 || me.Notes[0] != "Loaded types declaring Msg: ar/x's Ev, ar/y's Pkt. A catch-all arm does not decide which one is meant." {
 				t.Fatalf("run %d, %d args: %v (suggestion %q)", run, n, err, me.Suggestion)
 			}

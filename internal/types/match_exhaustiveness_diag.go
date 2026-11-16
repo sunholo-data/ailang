@@ -147,24 +147,31 @@ func newUnresolvedCtorError(matchPos ast.Pos, err error) *MatchError {
 		imports[i] = fmt.Sprintf("import %s (%s)", mod, name)
 		described[i] = fmt.Sprintf("%s's %s", mod, name)
 	}
+	// Each fix is one step that decides the pattern's type.
 	var fix string
 	switch {
+	case e.scrutinee != "" && len(e.ctors) > 0:
+		_, name := SplitNominalKey(e.scrutinee)
+		fix = fmt.Sprintf("remove the arm, or match one of %s's constructors: %s", name, strings.Join(e.ctors, ", "))
 	case e.scrutinee != "":
-		fix = fmt.Sprintf("match a value of the type that declares %s, or remove the arm", e.pattern.Name)
+		fix = "remove the arm"
+	case e.rigid != "" && len(described) == 1:
+		fix = fmt.Sprintf("write the value's type instead of %s, %s, and import it: %s", e.rigid, described[0], imports[0])
+	case e.rigid != "" && len(described) > 1:
+		fix = fmt.Sprintf("write the value's type instead of %s, and import it: %s", e.rigid, strings.Join(imports, " or "))
+	case e.rigid != "":
+		fix = fmt.Sprintf("write the value's type instead of %s, and import it", e.rigid)
 	case len(imports) == 1:
+		// Imported, the type's constructors are in scope and the pattern
+		// itself fixes the value's type.
 		fix = imports[0]
 	case len(imports) > 1:
 		fix = "import the type you mean: " + strings.Join(imports, " or ")
 	default:
 		fix = "import the type that declares " + e.pattern.Name
 	}
-	if e.scrutinee == "" {
-		// Imported, its constructors are in scope and the pattern itself
-		// fixes the value's type; an annotation needs the import too.
-		fix += ", or annotate the value matched with that type"
-	}
 	var notes []string
-	if e.scrutinee == "" && len(described) > 0 {
+	if e.scrutinee == "" && e.rigid == "" && len(described) > 0 {
 		notes = append(notes, fmt.Sprintf("Loaded types declaring %s: %s. A catch-all arm does not decide which one is meant.", e.pattern.Name, strings.Join(described, ", ")))
 	}
 	return newMatchError(TC_MATCH_007, pos, e.Error(), fix, notes,

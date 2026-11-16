@@ -2,6 +2,7 @@ package codegen_golden_test
 
 import (
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"sort"
@@ -19,11 +20,12 @@ import (
 // yielded. With lib/x's `Color = Red | Green | Blue` and lib/y's
 // `Light = Green | Red`, `isRed[a](x: a) = match x { Red => 1, _ => 0 }`
 // printed [1, 0, 0, 1] on the evaluator, [1, 0, 1, 0] on both VMs (exit 0)
-// and panicked in emitted Go. Such a pattern is now TC_MATCH_007 on every
-// path, by every route that leaves the value's type unfixed; patterns whose
-// type IS fixed — by an annotation, an import, the value matched, a deferred
-// constructor choice (#2228) or an alias (#2244) — run identically on the
-// evaluator, both VMs and emitted Go.
+// and panicked in emitted Go. Such a pattern is now an error on every path,
+// by every route that leaves the value's type unfixed. #2353: a by-name
+// pattern's type is decided by the value matched, and its arguments are typed
+// from that type's constructor — so a pattern nested in one is decided too,
+// and the variables it binds have their real types. Patterns whose type IS
+// fixed run identically on the evaluator, both VMs and emitted Go.
 
 // checkJSON is the part of `check --json` these tests read.
 type checkJSON struct {
@@ -48,7 +50,22 @@ var byNameLibs = map[string]string{
 		"export pure func isRedZ(x) -> int = match x { Red => 1, _ => 0 }\n",
 	"lib/r.ail": "module lib/r\nimport std/result (Result, Ok, Err)\n" +
 		"export pure func parse(s: string) -> Result[int, string] = if s == \"1\" then Ok(1) else Err(s)\n",
+	// The independent review's nested shapes (PR #2362).
+	"lib/b.ail": "module lib/b\nimport lib/x (Color, Red)\nexport type Box[a] = MkBox(a)\nexport type Pair = Pair(Color, int)\n" +
+		"export pure func mkbox(c: Color) -> Box[Color] = MkBox(c)\nexport pure func mkpair(c: Color, n: int) -> Pair = Pair(c, n)\n",
+	"lib/api.ail": "module lib/api\nimport lib/x (Color, mkc)\nimport std/option (Option, Some, None)\nimport std/result (Result, Ok, Err)\n" +
+		"import lib/b (Box, Pair, mkbox, mkpair)\n" +
+		"export pure func oc(i: int) -> Option[Color] = if i < 0 then None else Some(mkc(i))\n" +
+		"export pure func rc(i: int) -> Result[Color, string] = if i < 0 then Err(\"neg\") else Ok(mkc(i))\n" +
+		"export pure func bc(i: int) -> Box[Color] = mkbox(mkc(i))\n" +
+		"export pure func pc(i: int) -> Pair = mkpair(mkc(i), i)\n" +
+		"export pure func obc(i: int) -> Option[Box[Color]] = Some(mkbox(mkc(i)))\n" +
+		"export pure func oo(i: int) -> Option[Option[int]] = if i > 0 then Some(Some(i)) else if i == 0 then Some(None) else None\n",
 }
+
+// goLibs are the libraries the Go controls need (lib/b's Pair is both a type
+// and a constructor, which the Go emitter cannot declare: pre-existing).
+var goLibs = []string{"lib/r.ail", "lib/w.ail", "lib/x.ail", "lib/y.ail"}
 
 func writeByNameFixture(t *testing.T, files map[string]string) string {
 	t.Helper()
@@ -67,44 +84,92 @@ func writeByNameFixture(t *testing.T, files map[string]string) string {
 	return dir
 }
 
+// at renders "file:line:col" of the first `ctor` on line of file's source
+// (the error is located at the constructor), or "file:line:" for ctor "".
+func at(file, src string, line int, ctor string) string {
+	if ctor == "" {
+		return fmt.Sprintf("%s:%d:", file, line)
+	}
+	l := strings.Split(src, "\n")[line-1]
+	ident := func(b byte) bool {
+		return b == '_' || b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z'
+	}
+	for i := 0; i+len(ctor) <= len(l); i++ {
+		end := i + len(ctor)
+		if l[i:end] == ctor && (i == 0 || !ident(l[i-1])) && (end == len(l) || !ident(l[end])) {
+			return fmt.Sprintf("%s:%d:%d:", file, line, i+1)
+		}
+	}
+	return fmt.Sprintf("%s:%d: (%s not found)", file, line, ctor)
+}
+
 func TestUnresolvedByNameCtorPatternRejectedOnEveryPath(t *testing.T) {
 	t.Setenv("AILANG_CACHE_DIR", t.TempDir())
 	bin := ailangBin
 	const head = "import lib/w (cc, ll)\n\n"
+	const (
+		rigid   = "is a type variable of the signature"
+		unfixed = "cannot tell which type"
+		twoUses = "cannot be generic: all its uses must have one type"
+	)
 	routes := []struct {
-		name, file, src, at string // at: "file:line:" of the TC_MATCH_007
+		name, file, src string
+		line            int
+		ctor            string // the constructor the error points at ("" = line only)
+		code, msg       string
 	}{
 		{"rigid type variable (the issue's program)", "r1.ail",
 			"module r1\n" + head + "pure func isRed[a](x: a) -> int = match x { Red => 1, _ => 0 }\n\n" +
-				"export pure func summary() -> string = show([isRed(cc(0)), isRed(cc(1)), isRed(ll(0)), isRed(ll(1))])\n", "r1.ail:4:"},
+				"export pure func summary() -> string = show([isRed(cc(0)), isRed(cc(1)), isRed(ll(0)), isRed(ll(1))])\n",
+			4, "Red", "TC_MATCH_007", rigid},
 		{"unannotated parameter", "r2.ail",
 			"module r2\n" + head + "pure func isRed(x) -> int = match x { Red => 1, _ => 0 }\n\n" +
-				"export pure func summary() -> string = show([isRed(cc(0)), isRed(ll(1))])\n", "r2.ail:4:"},
-		{"let-bound lambda", "r3.ail",
-			"module r3\n" + head + "export pure func summary() -> string {\n  let k = \\v. match v { Green => 10, _ => 20 };\n  show([k(cc(1)), k(ll(0))])\n}\n", "r3.ail:5:"},
-		{"function literal", "r4.ail",
-			"module r4\n" + head + "export pure func summary() -> string {\n  let k = func(v) -> int { match v { Green => 10, _ => 20 } };\n  show([k(cc(1)), k(ll(0))])\n}\n", "r4.ail:5:"},
+				"export pure func summary() -> string = show([isRed(cc(0)), isRed(ll(1))])\n",
+			4, "Red", "TC_MATCH_007", unfixed},
+		// A let-bound function whose by-name pattern its uses decide stays
+		// monomorphic (as for an ambiguous import, #2228): used at two types
+		// it is an error naming the constructor; at one it runs (ok7 below).
+		{"let-bound lambda used at two types", "r3.ail",
+			"module r3\n" + head + "export pure func summary() -> string {\n  let k = \\v. match v { Green => 10, _ => 20 };\n  show([k(cc(1)), k(ll(0))])\n}\n",
+			5, "Green", "TC_AMBIGUOUS_CTOR_001", twoUses},
+		{"function literal used at two types", "r4.ail",
+			"module r4\n" + head + "export pure func summary() -> string {\n  let k = func(v) -> int { match v { Green => 10, _ => 20 } };\n  show([k(cc(1)), k(ll(0))])\n}\n",
+			5, "Green", "TC_AMBIGUOUS_CTOR_001", twoUses},
 		{"nested in a tuple pattern", "r5.ail",
 			"module r5\n" + head + "pure func firstRed(p) -> int = match p { (Red, n) => n, _ => 0 }\n\n" +
-				"export pure func summary() -> string = show([firstRed((cc(0), 1)), firstRed((ll(1), 4))])\n", "r5.ail:4:"},
-		{"lambda passed to a HOF", "r6.ail",
+				"export pure func summary() -> string = show([firstRed((cc(0), 1)), firstRed((ll(1), 4))])\n",
+			4, "Red", "TC_MATCH_007", unfixed},
+		{"lambda passed to a HOF on a type variable", "r6.ail",
 			"module r6\nimport std/list (filter, length)\n" + head +
 				"pure func countRed[a](xs: [a]) -> int = length(filter(\\v. match v { Red => true, _ => false }, xs))\n\n" +
-				"export pure func summary() -> string = show([countRed([cc(0), cc(1)]), countRed([ll(0), ll(1)])])\n", "r6.ail:5:"},
-		{"another module's function", "r7.ail",
-			"module r7\nimport lib/w (cc, ll)\nimport lib/z (isRedZ)\n\n" +
-				"export pure func summary() -> string = show([isRedZ(cc(0)), isRedZ(ll(1))])\n", "lib/z.ail:3:"},
+				"export pure func summary() -> string = show([countRed([cc(0), cc(1)]), countRed([ll(0), ll(1)])])\n",
+			5, "Red", "TC_MATCH_007", rigid},
+		{"another module's function", "lib/z.ail",
+			byNameLibs["lib/z.ail"], 3, "Red", "TC_MATCH_007", unfixed},
 		{"contract clause", "r8.ail",
 			"module r8\n" + head + "pure func keep[a](x: a) -> int\nrequires { match x { Red => true, _ => false } }\n{ 1 }\n\n" +
-				"export pure func summary() -> string = show(keep(cc(0)))\n", "r8.ail:5:"},
+				"export pure func summary() -> string = show(keep(cc(0)))\n",
+			5, "Red", "TC_MATCH_007", rigid},
 		{"test body", "r9.ail",
 			"module r9\n" + head + "export pure func summary() -> string = show(cc(0))\n\n" +
-				"test \"by-name in a test body\" {\n  let k = \\v. match v { Red => 1, _ => 0 };\n  assert k(cc(0)) == 1\n}\n", "r9.ail:7:"},
+				"test \"by-name in a test body\" {\n  let k = \\v. match v { Red => 1, _ => 0 };\n  assert k(cc(0)) == 1 && k(ll(1)) == 1\n}\n",
+			7, "Red", "TC_AMBIGUOUS_CTOR_001", twoUses},
+		// #2353: the variables a by-name pattern binds have their real type
+		// (before: check passed and every engine crashed at run time).
+		{"a by-name pattern's variable used at the wrong type", "r10.ail",
+			"module r10\nimport std/list (nth)\n\n" +
+				"export pure func summary() -> string {\n  let r: string = match nth([1, 2], 0) { Some(v) => v, None => \"\" };\n  r\n}\n",
+			5, "", "", "No instance for Num[string]"}, // the literals 1, 2 meet v: string
 	}
 	files := map[string]string{}
 	for _, r := range routes {
-		files[r.file] = r.src
+		if r.file != "lib/z.ail" {
+			files[r.file] = r.src
+		}
 	}
+	// The cross-module route is reached through an importer.
+	files["r7.ail"] = "module r7\nimport lib/w (cc, ll)\nimport lib/z (isRedZ)\n\n" +
+		"export pure func summary() -> string = show([isRedZ(cc(0)), isRedZ(ll(1))])\n"
 	dir := writeByNameFixture(t, files)
 	run := func(args ...string) (string, int) {
 		stdout, stderr, code := testutil.RunBounded(t, dir, 90*time.Second, bin, args...)
@@ -112,25 +177,30 @@ func TestUnresolvedByNameCtorPatternRejectedOnEveryPath(t *testing.T) {
 	}
 	for _, r := range routes {
 		t.Run(r.name, func(t *testing.T) {
-			stdout, _, code := testutil.RunBounded(t, dir, 90*time.Second, bin, "check", "--json", r.file)
+			entry, loc := r.file, at(r.file, r.src, r.line, r.ctor)
+			if entry == "lib/z.ail" {
+				entry = "r7.ail"
+			}
+			stdout, _, code := testutil.RunBounded(t, dir, 90*time.Second, bin, "check", "--json", entry)
 			var out checkJSON
 			if err := json.Unmarshal([]byte(stdout), &out); err != nil || code != 1 || out.Passed || len(out.Errors) == 0 {
 				t.Fatalf("check --json: exit %d, %v\n%s", code, err, stdout)
 			}
-			if e := out.Errors[0]; e.Code != "TC_MATCH_007" || !strings.Contains(e.Message, "cannot tell which type") {
-				t.Errorf("check --json: first error %+v, want TC_MATCH_007", e)
+			if e := out.Errors[0]; (r.code != "" && e.Code != r.code && !strings.Contains(e.Message, r.code)) || !strings.Contains(e.Message, r.msg) {
+				t.Errorf("check --json: first error %+v, want %s %q", e, r.code, r.msg)
 			}
 			paths := [][]string{
-				{"run", "--quiet", "--entry", "summary", r.file},
-				{"run", "--quiet", "--bytecode", "--entry", "summary", r.file},
-				{"run", "--quiet", "--strict-bytecode", "--entry", "summary", r.file},
-				{"compile", "--emit-go", "--out", t.TempDir(), r.file},
+				{"check", entry},
+				{"run", "--quiet", "--entry", "summary", entry},
+				{"run", "--quiet", "--bytecode", "--entry", "summary", entry},
+				{"run", "--quiet", "--strict-bytecode", "--entry", "summary", entry},
+				{"compile", "--emit-go", "--out", t.TempDir(), entry},
 			}
 			for _, args := range paths {
 				all, code := run(args...)
-				if code == 0 || !strings.Contains(all, r.at) || !strings.Contains(all, "TC_MATCH_007") ||
+				if code == 0 || !strings.Contains(all, loc) || !strings.Contains(all, r.code) || !strings.Contains(all, r.msg) ||
 					strings.Contains(all, "panic:") {
-					t.Errorf("%s: exit %d, want TC_MATCH_007 at %s before anything runs:\n%s", strings.Join(args, " "), code, r.at, all)
+					t.Errorf("%s: exit %d, want %s %q at %s before anything runs:\n%s", strings.Join(args, " "), code, r.code, r.msg, loc, all)
 				}
 			}
 		})
@@ -145,13 +215,14 @@ func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 	bin := ailangBin
 	cases := []struct {
 		name, module, src, want string
+		noGo                    string // why the emitted Go is not run ("" = it is)
 	}{
 		{"the issue's shape with the type imported", "ok1",
 			"module ok1\nimport lib/w (cc, ll)\nimport lib/x (Color)\n\n" +
 				"pure func isRed(x) -> int = match x { Red => 1, _ => 0 }\n\n" +
 				"export pure func summary() -> string {\n  let k = \\v. match v { Green => 10, _ => 20 };\n" +
-				"  show([isRed(cc(0)), isRed(cc(1)), k(cc(1)), k(cc(0))])\n}\n", "[1, 0, 10, 20]"},
-		{"by-name on a fixed type: top level, tuple, Option, guard", "ok2",
+				"  show([isRed(cc(0)), isRed(cc(1)), k(cc(1)), k(cc(0))])\n}\n", "[1, 0, 10, 20]", ""},
+		{"by-name on a fixed type: top level, inside Some, guard", "ok2",
 			"module ok2\nimport std/list (nth)\nimport std/option (Option, Some, None)\nimport lib/w (cc, ll)\n\n" +
 				"export pure func summary() -> string {\n" +
 				"  let a = match cc(0) { Red => 1, _ => 0 };\n" +
@@ -160,43 +231,49 @@ func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 				"  let e = match nth([ll(1)], 0) { Some(Red) => 1, Some(_) => 2, None => 3 };\n" +
 				"  let f = match cc(0) { Red if a == 0 => 9, Red => 1, _ => 0 };\n" +
 				"  let g = match ll(1) { Red if a == 0 => 9, Red => 1, _ => 0 };\n" +
-				"  show([a, b, c, e, f, g])\n}\n", "[1, 1, 2, 1, 1, 1]"},
-		// A by-name constructor inside a tuple pattern, on a fixed type. The
-		// emitted Go does not build for any constructor in a tuple (#2358,
-		// pre-existing), so this one runs on the evaluator and the VMs only.
-		{"by-name in a tuple on a fixed type (no Go: #2358)", "ok6",
+				"  show([a, b, c, e, f, g])\n}\n", "[1, 1, 2, 1, 1, 1]", ""},
+		{"by-name in a tuple on a fixed type", "ok6",
 			"module ok6\nimport lib/w (cc, ll)\n\n" +
 				"export pure func summary() -> string = show([match (cc(1), 5) { (Green, n) => n, _ => 0 }, match (ll(0), 6) { (Green, n) => n, _ => 0 }])\n",
-			"[5, 6]"},
+			"[5, 6]", "a constructor in a tuple pattern does not build as Go (#2358)"},
 		{"deferred constructor choice (#2228)", "ok3",
 			"module ok3\nimport lib/x (Color, mkc)\nimport lib/y (Light, mkl)\n\n" +
 				"pure func f(c: Color) -> int = match c { Red => 1, _ => 0 }\n" +
 				"pure func g(l: Light) -> int = match l { Red => 1, _ => 0 }\n\n" +
-				"export pure func summary() -> string = show([f(mkc(0)), f(mkc(1)), g(mkl(0)), g(mkl(1))])\n", "[1, 0, 0, 1]"},
+				"export pure func summary() -> string = show([f(mkc(0)), f(mkc(1)), g(mkl(0)), g(mkl(1))])\n", "[1, 0, 0, 1]", ""},
 		{"alias of an ADT (#2244)", "ok4",
 			"module ok4\nimport lib/x (Color, mkc)\n\ntype Hue = Color\n\n" +
 				"pure func f(h: Hue) -> int = match h { Red => 1, Green => 2, Blue => 3 }\n\n" +
-				"export pure func summary() -> string = show([f(mkc(0)), f(mkc(1)), f(mkc(2))])\n", "[1, 2, 3]"},
+				"export pure func summary() -> string = show([f(mkc(0)), f(mkc(1)), f(mkc(2))])\n", "[1, 2, 3]", ""},
 		{"prelude Option and Result by name, from library modules", "ok5",
 			"module ok5\nimport std/list (nth)\nimport lib/r (parse)\n\n" +
 				"export pure func summary() -> string {\n" +
-				"  let a = match nth([1, 2], 1) { Some(v) => v, None => 0 };\n" +
+				"  let a = match nth([1, 2], 1) { Some(v) => v + 1, None => 0 };\n" +
 				"  let b = match parse(\"1\") { Ok(n) => n, Err(_) => 0 };\n" +
-				"  let c = match parse(\"x\") { Ok(n) => n, Err(_) => 7 };\n" +
-				"  show([a, b, c])\n}\n", "[2, 1, 7]"},
+				"  let c = match parse(\"x\") { Ok(n) => n, Err(e) => if e == \"x\" then 7 else 8 };\n" +
+				"  show([a, b, c])\n}\n", "[3, 1, 7]", ""},
+		{"let-bound lambda used at one type", "ok7",
+			"module ok7\nimport lib/w (cc, ll)\n\n" +
+				"export pure func summary() -> string {\n  let k = \\v. match v { Green => 10, _ => 20 };\n  show([k(cc(1)), k(cc(0))])\n}\n",
+			"[10, 20]", ""},
+		// The review's over-rejection rows (PR #2362): nested by-name
+		// constructors whose type the value's annotated type fixes.
+		{"nested by-name constructors (review p01/p02)", "ok8",
+			"module ok8\nimport lib/api (oc, rc, bc, pc, obc, oo)\n\n" +
+				"pure func fOpt(i: int) -> int = match oc(i) { Some(Red) => 1, Some(_) => 2, _ => 0 }\n" +
+				"pure func fRes(i: int) -> int = match rc(i) { Ok(Red) => 1, Ok(_) => 2, _ => 0 }\n" +
+				"pure func fBox(i: int) -> int = match bc(i) { MkBox(Red) => 1, _ => 0 }\n" +
+				"pure func fPair(i: int) -> int = match pc(i) { Pair(Red, n) => 100 + n, _ => 0 }\n" +
+				"pure func fOB(i: int) -> int = match obc(i) { Some(MkBox(Red)) => 1, _ => 0 }\n" +
+				"pure func nn(o: Option[Option[int]]) -> int = match o { Some(Some(x)) => x, Some(None) => -1, _ => -2 }\n\n" +
+				"export pure func summary() -> string =\n  show([fOpt(0), fOpt(1), fOpt(-1), fRes(0), fRes(1), fBox(0), fBox(1), fPair(0), fPair(1), fOB(0), fOB(1), nn(oo(5)), nn(oo(0)), nn(oo(-1))])\n",
+			"[1, 2, 0, 1, 2, 1, 0, 100, 0, 1, 0, 5, -1, -2]", "lib/b's Pair is a type and a constructor of one name, which the Go emitter cannot declare"},
 	}
 	files := map[string]string{}
 	for _, c := range cases {
 		files[c.module+".ail"] = c.src
 	}
 	dir := writeByNameFixture(t, files)
-	libs := make([]string, 0, len(byNameLibs))
-	for p := range byNameLibs {
-		if p != "lib/z.ail" { // the cross-module route: rejected
-			libs = append(libs, p)
-		}
-	}
-	sort.Strings(libs)
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
 			for _, flags := range [][]string{nil, {"--bytecode"}, {"--strict-bytecode"}} {
@@ -209,12 +286,12 @@ func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 		})
 	}
 
-	// Emitted Go: every control but ok6 in ONE package (one emit, one go
+	// Emitted Go: every control that builds, in ONE package (one emit, one go
 	// build), built and run against the same answers.
 	emitFiles := []string{}
 	test := "package byname\nimport \"testing\"\nfunc TestSummaries(t *testing.T) {\n"
 	for _, c := range cases {
-		if c.module == "ok6" {
+		if c.noGo != "" {
 			continue
 		}
 		emitFiles = append(emitFiles, c.module+".ail")
@@ -222,7 +299,7 @@ func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 			" { t.Errorf(\"" + c.module + ": generated Go: %v\", got) }\n"
 	}
 	test += "}\n"
-	emitFiles = append(emitFiles, libs...)
+	emitFiles = append(emitFiles, goLibs...)
 	emit := func(out string) string {
 		args := append([]string{"compile", "--emit-go", "--package-name", "byname", "--out", out}, emitFiles...)
 		if stdout, stderr, code := testutil.RunBounded(t, dir, 90*time.Second, bin, args...); code != 0 {
@@ -247,6 +324,28 @@ func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 	}
 	if stdout, stderr, code := testutil.RunBounded(t, gen, 120*time.Second, "go", "test", "-count=1", "."); code != 0 {
 		t.Errorf("generated Go disagrees with the evaluator or does not build: exit %d\n%s\n%s", code, stdout, stderr)
+	}
+
+	// The Statement IR emitter (--emit-go-v2) gathers the imported modules'
+	// types the same way (#2359): with only the root file given, Color and
+	// Light both come from the loaded-module map. On dev about 1 emit in 8
+	// differed.
+	emitV2 := func() string {
+		out := filepath.Join(t.TempDir(), "v2")
+		if stdout, stderr, code := testutil.RunBounded(t, dir, 90*time.Second, bin,
+			"compile", "--emit-go", "--emit-go-v2", "--no-verify-go", "--package-name", "v2", "--out", out, "ok3.ail"); code != 0 {
+			t.Fatalf("compile --emit-go-v2: exit %d\n%s\n%s", code, stdout, stderr)
+		}
+		return goSources(t, out)
+	}
+	firstV2 := emitV2()
+	if !strings.Contains(firstV2, "Light") || !strings.Contains(firstV2, "Color") {
+		t.Fatalf("--emit-go-v2 output lacks the imported types:\n%s", firstV2)
+	}
+	for i := 0; i < 32; i++ {
+		if emitV2() != firstV2 {
+			t.Fatalf("--emit-go-v2 emit %d differs from the first", i+1)
+		}
 	}
 }
 

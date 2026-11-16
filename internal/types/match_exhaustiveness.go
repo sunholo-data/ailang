@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
@@ -235,19 +236,40 @@ var errUndecidable = errors.New("cannot be checked for exhaustiveness")
 type unresolvedCtorError struct {
 	pattern   *core.ConstructorPattern
 	cands     []string
-	scrutinee string // NominalKey of the value's type when it is fixed
-	known     bool   // scrutinee has a constructor universe
+	scrutinee string   // NominalKey of the value's type when it is fixed
+	known     bool     // scrutinee has a constructor universe
+	ctors     []string // scrutinee's constructors (known only)
+	rigid     string   // the signature type variable the value has, as written
 }
 
 func (e *unresolvedCtorError) Error() string {
-	if e.scrutinee != "" {
+	switch {
+	case e.scrutinee != "":
 		_, name := SplitNominalKey(e.scrutinee)
 		if !e.known {
-			return fmt.Sprintf("constructor %s is matched by name against a value of type %s, whose constructors are not known here", e.pattern.Name, name)
+			return fmt.Sprintf("constructor %s is matched by name against a value of type %s, which is not built from constructors here, so this arm can never match", e.pattern.Name, name)
 		}
 		return fmt.Sprintf("constructor %s is matched by name against a value of type %s, which has no constructor %s, so this arm can never match", e.pattern.Name, name, e.pattern.Name)
+	case e.rigid != "":
+		return fmt.Sprintf("constructor %s cannot be matched against a value of type %s: %s is a type variable of the signature, so the value can have any type", e.pattern.Name, e.rigid, e.rigid)
 	}
 	return fmt.Sprintf("cannot tell which type %s belongs to here: it is matched by name (neither its type nor the constructor is imported here), and nothing fixes the type of the value matched", e.pattern.Name)
+}
+
+// rigidVarName is t's name as written when t is a signature type variable
+// (#2273: rigid, named "a@{f}"), else "".
+func rigidVarName(t Type) string {
+	var name string
+	switch tv := t.(type) {
+	case *TVar:
+		name = tv.Name
+	case *TVar2:
+		name = tv.Name
+	}
+	if !strings.Contains(name, "@{") {
+		return ""
+	}
+	return WrittenTypeVarNames(name)
 }
 
 // check decides one match.
@@ -480,7 +502,7 @@ func (v *matchVerifier) ctorUniverse(p *core.ConstructorPattern) (string, []exha
 	case checked:
 		head := v.head(t)
 		if head == nil {
-			return "", nil, &unresolvedCtorError{pattern: p, cands: v.byName[p.Name]}
+			return "", nil, &unresolvedCtorError{pattern: p, cands: v.byName[p.Name], rigid: rigidVarName(t)}
 		}
 		key = head.KeyOf()
 	default:
@@ -497,7 +519,11 @@ func (v *matchVerifier) ctorUniverse(p *core.ConstructorPattern) (string, []exha
 		}
 	}
 	if p.TypeName == "" {
-		return "", nil, &unresolvedCtorError{pattern: p, cands: v.byName[p.Name], scrutinee: key, known: sigs != nil}
+		e := &unresolvedCtorError{pattern: p, cands: v.byName[p.Name], scrutinee: key, known: sigs != nil}
+		for _, s := range sigs {
+			e.ctors = append(e.ctors, s.Name)
+		}
+		return "", nil, e
 	}
 	_, name := SplitNominalKey(key)
 	return "", nil, fmt.Errorf("%w: constructor %s is not a known constructor of %s", errUndecidable, p.Name, name)

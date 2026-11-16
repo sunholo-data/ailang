@@ -103,6 +103,7 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 					TypeName:   ctorInfo.TypeName,
 					TypeModule: ctorInfo.Module,
 					Args:       nil, // Empty args for nullary constructor
+					Pos:        p.Pos,
 				}, nil
 			}
 			// Bare non-nullary constructor (e.g. `Some` without arguments):
@@ -122,6 +123,7 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 			return &core.ConstructorPattern{
 				Name: p.Name,
 				Args: nil,
+				Pos:  p.Pos, // diagnostics point at the constructor (#2303)
 			}, nil
 		}
 		// Otherwise, it's a variable pattern

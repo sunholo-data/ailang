@@ -76,7 +76,13 @@ func itoa(n int) string {
 	return string(b)
 }
 
-const unresolvedPing = "cannot tell which type Ping belongs to here: it is matched by name (neither its type nor the constructor is imported here), and nothing fixes the type of the value matched"
+const rigidPing = "constructor Ping cannot be matched against a value of type a: a is a type variable of the signature, so the value can have any type"
+
+// onInt: the let-bound lambda's by-name pattern is decided by its one use,
+// h(x) with x: int (#2353) — a value no constructor builds.
+func onInt(ctor string) string {
+	return "constructor " + ctor + " is matched by name against a value of type int, which is not built from constructors here, so this arm can never match"
+}
 
 const msgModule = "module lib/a\n\nexport type Msg = Message(string) | Ping\nexport type T = A | B | C\n"
 const otherT = "module lib/b\n\nexport type T = A | Z\n"
@@ -97,15 +103,15 @@ func TestMatchExhaustivenessAcrossModules(t *testing.T) {
 				"export pure func f(xs: [int]) -> int =\n  (\\o. match o { None => 0, Some(v) => v })(nth(xs, 0))\n",
 		},
 		{
-			// Msg is loaded only through lib/hold. Nothing fixes x's type, so
-			// no type can be named for Ping: TC_MATCH_007, and a catch-all
-			// does not change that (#2303: the VM tested the ordinal of the
-			// first loaded ADT declaring the name).
+			// Msg is loaded only through lib/hold. x's type is a signature
+			// type variable, so no type can be named for Ping: TC_MATCH_007 at
+			// the pattern, and a catch-all does not change that (#2303: the VM
+			// tested the ordinal of the first loaded ADT declaring the name).
 			name: "by-name constructors on a value nothing types",
 			src: "module main\n\nimport lib/hold (one)\n\n" +
 				"export pure func g[a](x: a) -> int = match x {\n  Ping => 1,\n  Message(_) => 2\n}\n\n" +
 				"export pure func h[a](x: a) -> int = match x {\n  Ping => 1,\n  _ => 2\n}\n",
-			want: []string{"5:TC_MATCH_007:" + unresolvedPing, "10:TC_MATCH_007:" + unresolvedPing},
+			want: []string{"6:TC_MATCH_007:" + rigidPing, "11:TC_MATCH_007:" + rigidPing},
 		},
 		{
 			// The design's in-scope registry trap: importing ONE constructor
@@ -169,18 +175,34 @@ func TestMatchExhaustivenessAcrossModules(t *testing.T) {
 			// Review probes t9/t8 (#2243): a by-name constructor in a let-bound
 			// lambda, whose ADT cannot be placed, with the wrong arity and a
 			// catch-all (the evaluator printed 4, the strict VM crashed in
-			// GET_FIELD). Unplaced, it is TC_MATCH_007 before its arity can
-			// be checked against anything (#2303).
+			// GET_FIELD). Its one use decides the value is an int (#2353), so
+			// the first by-name arm is a constructor of no type it could be.
 			name: "wrong arity on an unplaced by-name pattern, first arm",
 			src: "module main\n\nimport lib/hold (one)\n\n" +
 				"export pure func g(x: int) -> int {\n  let h = \\e. match e { Message(a, b) => 2, Ping => 1, _ => 3 };\n  h(x)\n}\n",
-			want: []string{"6:TC_MATCH_007:cannot tell which type Message belongs to here: it is matched by name (neither its type nor the constructor is imported here), and nothing fixes the type of the value matched"},
+			want: []string{"6:TC_MATCH_007:" + onInt("Message")},
 		},
 		{
 			name: "wrong arity on an unplaced by-name pattern, later arm",
 			src: "module main\n\nimport lib/hold (one)\n\n" +
 				"export pure func g(x: int) -> int {\n  let h = \\e. match e { Ping => 1, Message(a, b) => 2, _ => 3 };\n  h(x)\n}\n",
-			want: []string{"6:TC_MATCH_007:" + unresolvedPing},
+			want: []string{"6:TC_MATCH_007:" + onInt("Ping")},
+		},
+		{
+			// #2353 / review p01: Some and A are both matched by name (this
+			// module imports neither std/option nor lib/a); nth(ts(), i) is
+			// an Option[T], so Some is Option's and A, nested in it, is T's —
+			// decided from the outer pattern, never TC_MATCH_007.
+			name: "nested by-name constructors on a typed value",
+			src: "module main\n\nimport std/list (nth)\nimport lib/mk (ts)\n\n" +
+				"export pure func f(i: int) -> int = match nth(ts(), i) {\n  Some(A) => 1,\n  Some(_) => 2,\n  None => 3\n}\n",
+		},
+		{
+			// ... and the nested pattern's type has its full universe.
+			name: "nested by-name constructors, coverage",
+			src: "module main\n\nimport std/list (nth)\nimport lib/mk (ts)\n\n" +
+				"export pure func f(i: int) -> int = match nth(ts(), i) {\n  Some(A) => 1,\n  None => 3\n}\n",
+			want: []string{"6:TC_MATCH_002:Some(B), Some(C)"},
 		},
 		{
 			// The same lambda with its parameter annotated: placed, so the
@@ -204,6 +226,7 @@ func TestMatchExhaustivenessAcrossModules(t *testing.T) {
 			errs, _, err := checkMatchModules(t, map[string]string{
 				"lib/a.ail": msgModule, "lib/b.ail": otherT, "main.ail": c.src,
 				"lib/hold.ail": "module lib/hold\n\nimport lib/a (T)\n\nexport pure func one() -> int = 1\n",
+				"lib/mk.ail":   "module lib/mk\n\nimport lib/a (T, A, B)\n\nexport pure func ts() -> [T] = [A, B]\n",
 			}, "main.ail")
 			if err != nil && errs == nil {
 				t.Fatalf("check failed with a non-match error: %v", err)
@@ -351,11 +374,11 @@ func TestBuiltinShadowRefused(t *testing.T) {
 }
 
 // Review probes a2/a11/a3: two loaded types declare `Msg` with different
-// arities and the pattern's type is not fixed (a let-bound lambda, neither
-// type imported). Whichever arity the pattern has — one candidate's, the
-// other's, or neither — it is TC_MATCH_007 naming both candidates, under a
-// catch-all too (#2303; before, TC_MATCH_006, a verdict that depended on
-// which other modules were loaded, #2272); importing the type decides it.
+// arities, neither imported, matched in a let-bound lambda whose one use
+// (map over xs(): [Ev]) decides its parameter is an Ev (#2353). The verdict
+// depends on that type alone, not on which other modules are loaded (#2272):
+// Ev's Msg(string) is matched; with two or three arguments it is
+// TC_MATCH_006 against Ev's declaration, whatever ar/y declares.
 func TestMatchAmbiguousArityByName(t *testing.T) {
 	files := map[string]string{
 		"ar/x.ail":  "module ar/x\n\nexport type Ev = Msg(string) | Done\n\nexport pure func evs() -> [Ev] = [Msg(\"a\"), Done]\n",
@@ -367,12 +390,15 @@ func TestMatchAmbiguousArityByName(t *testing.T) {
 		return "module main\n\nimport ar/hx (xs)\nimport ar/hy (ys)\nimport std/list (map)\n" + imports + "\n" +
 			"export pure func f() -> [string] {\n  let h = \\e. match e { " + pat + " => \"m\", _ => \"other\" };\n  map(h, xs())\n}\n"
 	}
-	want := "cannot tell which type Msg belongs to here: it is matched by name (neither its type nor the constructor is imported here), and nothing fixes the type of the value matched"
-	for _, pat := range []string{"Msg(a)", "Msg(a, b)", "Msg(a, b, c)"} {
+	files["main.ail"] = main("", "Msg(a)")
+	if errs, _, err := checkMatchModules(t, files, "main.ail"); err != nil {
+		t.Errorf("Msg(a) on an Ev: %v %v", errs, err)
+	}
+	for pat, n := range map[string]int{"Msg(a, b)": 2, "Msg(a, b, c)": 3} {
 		files["main.ail"] = main("", pat)
 		errs, _, err := checkMatchModules(t, files, "main.ail")
-		if len(errs) != 1 || errs[0].Code != types.TC_MATCH_007 || errs[0].Message != want ||
-			errs[0].Suggestion != "import the type you mean: import ar/x (Ev) or import ar/y (Pkt), or annotate the value matched with that type" {
+		want := "constructor pattern Msg has " + itoa(n) + " argument(s), but Msg takes 1"
+		if len(errs) != 1 || errs[0].Code != types.TC_MATCH_006 || errs[0].Message != want {
 			t.Errorf("%s: got %v", pat, err)
 		}
 	}
