@@ -83,8 +83,11 @@ type ifcBoundWalk struct {
 	scopes   map[string]map[string]ifcTypeArg
 	canon    map[ifcCanonKey]int // canonical argument numbers (canonical)
 	interned map[string]int
-	fresh    int // numbers handed out past the memo cap: never shared
-	cuts     int // recursive occurrences cut so far (addName)
+	fresh    int   // numbers handed out past the memo cap: never shared
+	cuts     int   // recursive occurrences cut so far (addName)
+	steps    int64 // addBound calls so far (the work budget, ifc_param_bound_work.go)
+	limit    int64
+	size     int // the written size the budget was set from
 }
 
 type ifcBoundKey struct {
@@ -152,8 +155,10 @@ func (b ifcBound) forbidden() []string {
 
 // paramBound is the demand declared parameter type t places on its argument.
 func (ts *ifcTypes) paramBound(t ast.Type) ifcBound {
-	b := ifcBound{walk: &ifcBoundWalk{done: map[ifcBoundKey]bool{}, scopes: map[string]map[string]ifcTypeArg{},
-		canon: map[ifcCanonKey]int{}, interned: map[string]int{}}}
+	w := &ifcBoundWalk{done: map[ifcBoundKey]bool{}, scopes: map[string]map[string]ifcTypeArg{},
+		canon: map[ifcCanonKey]int{}, interned: map[string]int{}}
+	w.size, w.limit = ts.boundWork(t)
+	b := ifcBound{walk: w}
 	ts.addBound(&b, t, ifcPath{}, nil, map[string]bool{}, 0)
 	b.walk = nil
 	if b.has && b.cover == nil {
@@ -180,6 +185,7 @@ func (ts *ifcTypes) addBound(b *ifcBound, t ast.Type, path ifcPath, params map[s
 		panic(ifcAnalysisLimit{reason: "parameter type nesting"})
 	}
 	if t != nil && b.walk != nil {
+		b.walk.step()
 		key := ifcBoundKey{t: t, params: bindingsID(params), path: path}
 		if b.walk.done[key] {
 			return
@@ -284,8 +290,10 @@ func (b *ifcBound) scope(td *ast.TypeDecl, args []ifcTypeArg) map[string]ifcType
 	if len(td.TypeParams) == 0 {
 		return nil
 	}
+	// Past the memo cap nothing is interned, so no key is built either: the
+	// walk then costs what it does with no memo (#2363 review).
 	var key strings.Builder
-	if b.walk != nil {
+	if b.walk.retain() {
 		key.WriteString(td.Name)
 		for _, a := range args {
 			fmt.Fprintf(&key, "|%d", b.walk.canonical(a))

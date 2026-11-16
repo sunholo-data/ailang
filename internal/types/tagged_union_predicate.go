@@ -112,7 +112,7 @@ func buildTufaMessage(field string, recvType Type, ctors []string, adtName strin
 		ctorList = tufaNoCtorsLabel
 	}
 	template := buildTufaTemplate(ctors, field, adtName)
-	return fmt.Sprintf(tufaMessageFormat, field, recvType.String(), adtName, ctorList, template)
+	return fmt.Sprintf(tufaMessageFormat, field, recvType, adtName, ctorList, template)
 }
 
 // VerifyTaggedUnionFieldAccesses runs the deferred-field-access pass

@@ -92,7 +92,9 @@ func TestTypeSizer_CountsTheTreeInDAGTime(t *testing.T) {
 // its 1024 leaves takes over 2000 steps to unify with a ground doubling).
 func TestUnifyWork_BudgetIsADiagnostic(t *testing.T) {
 	u := NewUnifier()
-	u.work = &unifyWork{limit: 1000}
+	nodes := 3
+	u.work = newUnifyWork(ast.Pos{}, func() int { return nodes })
+	u.work.floor, u.work.next = 1000, 1000
 	leaves := 0
 	var tree func(int) Type
 	tree = func(n int) Type {
@@ -108,17 +110,41 @@ func TestUnifyWork_BudgetIsADiagnostic(t *testing.T) {
 		_, err = u.Unify(a, b, Substitution{})
 		return err
 	}()
-	if err == nil || !strings.Contains(err.Error(), TC_TYPE_SIZE_001) || !strings.Contains(err.Error(), "more than 1000 steps") {
-		t.Fatalf("want %s on the step budget, got %v", TC_TYPE_SIZE_001, err)
+	// The limit at 3 nodes is the floor plus 32 x 3^2: the message names it
+	// and the size, and says what was exceeded (work, not a type's size).
+	if err == nil || !strings.Contains(err.Error(), TC_TYPE_WORK_001) || !strings.Contains(err.Error(), "more than 1,288 steps for 3 nodes") ||
+		!strings.Contains(err.Error(), "too much unification work for its size") {
+		t.Fatalf("want %s on the work budget, got %v", TC_TYPE_WORK_001, err)
 	}
-	if newUnifyWork(ast.Pos{}).limit != maxUnifySteps {
-		t.Fatal("a declaration's unifier is not bounded by maxUnifySteps")
+	// A declaration that grows while it is checked earns more work: the same
+	// unification passes once 10 nodes are typed (1,000 + 32 x 100).
+	u2 := NewUnifier()
+	u2.work = newUnifyWork(ast.Pos{}, func() int { return 10 })
+	u2.work.floor, u2.work.next = 1000, 1000
+	if _, err := u2.Unify(doublingTuple(TInt, 10), tree(10), Substitution{}); err != nil {
+		t.Fatalf("a larger declaration was refused the same work: %v", err)
 	}
-	// Pinned: 46x the largest declaration measured in the corpora (365,050
-	// steps). Raising it makes the backstop slower to fire; lowering it
-	// narrows the margin. Re-measure before changing it.
-	if maxUnifySteps != 1<<24 {
-		t.Fatalf("maxUnifySteps = %d, want 1<<24 (re-measure the corpora and update this pin)", maxUnifySteps)
+}
+
+// Pinned: the work budget formula. The constants were measured over both
+// corpora and generated long code (type_work.go); re-measure before changing.
+func TestWorkBudget_FormulaPinned(t *testing.T) {
+	if workFloor != 1<<21 || workPerNode2 != 32 {
+		t.Fatalf("work budget constants changed (floor %d, per node² %d): re-measure the corpora and update this pin", workFloor, workPerNode2)
+	}
+	for _, c := range []struct {
+		n    int
+		want int64
+	}{{0, 1 << 21}, {100, 1<<21 + 320_000}, {5000, 1<<21 + 800_000_000}} {
+		if got := workBudget(c.n); got != c.want {
+			t.Errorf("workBudget(%d) = %d, want %d", c.n, got, c.want)
+		}
+	}
+	if workBudget(1<<30) != 1<<62 {
+		t.Error("an absurd size did not saturate the budget")
+	}
+	if newUnifyWork(ast.Pos{}, nil).floor != workFloor {
+		t.Fatal("a declaration's unifier is not bounded by the work budget")
 	}
 }
 

@@ -52,6 +52,7 @@ type Unifier struct {
 	// aliasEquiv memoises which pairs of aliases expand to the same type
 	// (unification_alias_pairs.go).
 	aliasEquiv map[[2]string]bool
+	canon      *typeCanon // structural argument numbers (sameArgument)
 }
 
 // SetConstructorTypes wires the ADT registry the unifier needs to
@@ -329,7 +330,7 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 		}
 		if !u.kindsCompatible(t1.Kind, GetKind(t2)) {
 			return nil, fmt.Errorf("kind mismatch: variable %s has kind %s, but %s has kind %s",
-				t1.Name, t1.Kind, t2.String(), GetKind(t2))
+				t1.Name, t1.Kind, displayType(t2), GetKind(t2))
 		}
 		sub[t1.Name] = t2
 		// M-DX11-PHASE2: Emit OnSubstitute event when type variable is bound
@@ -343,7 +344,7 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 		}
 		if !u.kindsCompatible(t1.Kind, GetKind(t2)) {
 			return nil, fmt.Errorf("kind mismatch: row variable %s has kind %s, but %s has kind %s",
-				t1.Name, t1.Kind, t2.String(), GetKind(t2))
+				t1.Name, t1.Kind, displayType(t2), GetKind(t2))
 		}
 		sub[t1.Name] = t2
 		// M-DX11-PHASE2: Emit OnSubstitute event when row variable is bound

@@ -27,6 +27,8 @@ type ifcTypes struct {
 	decls map[string]*ast.TypeDecl // type name -> declaration
 	ctors map[string]*ast.TypeDecl // ADT constructor name -> owning declaration
 	deep  map[string]Label         // memoised deepLabel of a declared type name
+	// written is the written size of the declarations (boundWork), 0 = unset.
+	written int
 }
 
 func newIFCTypes(file *ast.File) *ifcTypes {

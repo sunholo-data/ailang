@@ -29,7 +29,8 @@ import (
 //     node types (inferWithConstraints), or a module interface once its
 //     aliases are closed (pipeline checkInterfaceTypeSizes) — before any later
 //     traversal walks it;
-//   - a declaration whose unifications take more than maxUnifySteps.
+//   - a declaration whose unification takes more work than its size allows
+//     (TC_TYPE_WORK_001, type_work.go).
 //
 // The size is of the type as held: an alias application counts as written
 // (`P0[int]` is two nodes however large its expansion), because the traversals
@@ -45,7 +46,7 @@ const TC_TYPE_SIZE_001 = "TC_TYPE_SIZE_001"
 
 // TypeSizeCodes lists the inline codes of this file; `check --json` reports
 // each as itself.
-func TypeSizeCodes() []string { return []string{TC_TYPE_SIZE_001} }
+func TypeSizeCodes() []string { return []string{TC_TYPE_SIZE_001, TC_TYPE_WORK_001} }
 
 // TypeTooLargeError is the kind of TC_TYPE_SIZE_001.
 const TypeTooLargeError TypeErrorKind = "type_too_large"
@@ -56,36 +57,6 @@ const TypeTooLargeError TypeErrorKind = "type_too_large"
 // over 600x the largest real type (the deepest is 10 levels). One traversal
 // walks a tree this size in milliseconds.
 const maxTypeTreeNodes int64 = 1 << 16
-
-// maxUnifySteps bounds the unification steps (Unify calls, each node pair
-// one step) of one declaration. A large type is caught by size where it is
-// held; this catches a walk over an expansion that never is held: two
-// separately declared alias DAGs that the equivalence check cannot see
-// through (unification_alias_pairs.go; a function type inside, say), unified
-// with each other. Measured 2026-11-16: the most steps any declaration takes is
-// 42,564 in the repository's .ail files and 365,050 in the 14,779 banked
-// passing solutions, so the bound is 46x the largest real declaration; it
-// fires after about 7 s of unification (a loaded 16-core Mac).
-const maxUnifySteps = 1 << 24
-
-// unifyWork counts the unification steps of one declaration.
-type unifyWork struct {
-	steps int
-	limit int     // maxUnifySteps; smaller only in tests
-	pos   ast.Pos // the declaration, for the diagnostic
-}
-
-func newUnifyWork(pos ast.Pos) *unifyWork { return &unifyWork{limit: maxUnifySteps, pos: pos} }
-
-func (w *unifyWork) step() {
-	if w == nil {
-		return
-	}
-	if w.steps++; w.steps > w.limit {
-		panic(typeTooLarge{what: "this declaration", pos: positionString(w.pos),
-			detail: fmt.Sprintf("unifying its types took more than %d steps", w.limit)})
-	}
-}
 
 // typeTooLarge unwinds inference when a type exceeds the bound; the
 // declaration boundary (recoverLatentDataDepth) turns it into the coded error.

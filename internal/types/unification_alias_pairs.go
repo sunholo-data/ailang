@@ -34,7 +34,7 @@ func (u *Unifier) sameAliasApplication(t1, t2 Type) bool {
 		return false
 	}
 	for i := range args1 {
-		if !sameArgument(args1[i], args2[i]) {
+		if !u.sameArgument(args1[i], args2[i]) {
 			return false
 		}
 	}
@@ -67,11 +67,18 @@ func (u *Unifier) aliasApplication(t Type) (string, []Type, bool) {
 	return key, args, true
 }
 
-// sameArgument is a cheap identity test: the same node, the same type
-// constructor, or the same variable.
-func sameArgument(a, b Type) bool {
+// sameArgument reports whether two arguments are the same type: the same
+// node, constructor or variable, or structurally equal (typeCanon: an
+// argument such as `(a, a)` is rebuilt by every expansion).
+func (u *Unifier) sameArgument(a, b Type) bool {
 	if a == b {
 		return true
+	}
+	if isStructuralArg(a) && isStructuralArg(b) {
+		if u.canon == nil {
+			u.canon = newTypeCanon()
+		}
+		return u.canon.id(a) == u.canon.id(b)
 	}
 	switch x := a.(type) {
 	case *TCon:
@@ -173,7 +180,10 @@ func (u *Unifier) sameShape(a, b Type, params map[[2]string]bool) bool {
 		return ok && u.sameShape(x.Constructor, y.Constructor, params) && all(x.Args, y.Args)
 	case *TRecord:
 		y, ok := b.(*TRecord)
-		if !ok || x.Row != nil || y.Row != nil || x.TypeName != y.TypeName || len(x.Fields) != len(y.Fields) {
+		// TypeName is the alias name a record body carries; unification does not
+		// compare it, so neither does equivalence (twin record aliases are
+		// equivalent). A row, which aliases never write, is not compared.
+		if !ok || x.Row != nil || y.Row != nil || len(x.Fields) != len(y.Fields) {
 			return false
 		}
 		for name, f := range x.Fields {

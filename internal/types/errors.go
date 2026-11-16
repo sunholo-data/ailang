@@ -508,7 +508,7 @@ func NewRowOccursError(rowVar string, inType Type, position string) *TypeCheckEr
 	return &TypeCheckError{
 		Kind:       OccursCheckError,
 		Position:   position,
-		Message:    fmt.Sprintf("%s: Row variable '%s' occurs in %s (infinite type)", TC_REC_003, rowVar, inType.String()),
+		Message:    fmt.Sprintf("%s: Row variable '%s' occurs in %s (infinite type)", TC_REC_003, rowVar, inType),
 		Actual:     inType,
 		Suggestion: "This would create an infinite type. Check your type annotations.",
 	}

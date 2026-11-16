@@ -38,9 +38,12 @@ func dataArrowsWith(t Type, expand func(Type) Type) []*TFunc2 {
 	const onPath, walked = 1, 2
 	seen := make(map[Type]uint8)
 	// An alias expands to fresh nodes each time, so its applications are
-	// also remembered by head and argument identity: two `Q19[int]` written
-	// in one body expand to the same type (allocated on the first expansion).
+	// also remembered by head and arguments, compared by structure (a
+	// `(a, a)` argument is a fresh tuple in every expansion): two applications
+	// of one alias to equal arguments expand to the same type, which is walked
+	// once. Allocated on the first alias met.
 	var expanded map[string]bool
+	var canon *typeCanon
 	var walk func(Type, int)
 	walk = func(t Type, depth int) {
 		if t == nil || seen[t] != 0 {
@@ -53,6 +56,15 @@ func dataArrowsWith(t Type, expand func(Type) Type) []*TFunc2 {
 		defer func(node Type) { seen[node] = walked }(t)
 		if expand != nil {
 			original := t
+			var key string
+			if expanded != nil {
+				if k, ok := aliasApplicationKey(original, canon); ok {
+					if expanded[k] {
+						return
+					}
+					key = k
+				}
+			}
 			t = expand(t)
 			if t == nil {
 				return
@@ -61,13 +73,11 @@ func dataArrowsWith(t Type, expand func(Type) Type) []*TFunc2 {
 				if seen[t] != 0 {
 					return
 				}
-				if key, ok := aliasApplicationKey(original); ok {
-					if expanded[key] {
-						return
-					}
-					if expanded == nil {
-						expanded = map[string]bool{}
-					}
+				if expanded == nil {
+					expanded, canon = map[string]bool{}, newTypeCanon()
+					key, _ = aliasApplicationKey(original, canon)
+				}
+				if key != "" {
 					expanded[key] = true
 				}
 				seen[t] = onPath
@@ -112,10 +122,10 @@ func dataArrowsWith(t Type, expand func(Type) Type) []*TFunc2 {
 	return out
 }
 
-// aliasApplicationKey identifies an alias application by its head and the
-// identity of its arguments (expansion passes argument nodes through
-// unchanged, so equal applications reached by two paths share a key).
-func aliasApplicationKey(t Type) (string, bool) {
+// aliasApplicationKey identifies an application by its head and the canonical
+// numbers of its arguments (typeCanon), so equal applications reached by two
+// paths, or rebuilt by two expansions, share a key.
+func aliasApplicationKey(t Type, c *typeCanon) (string, bool) {
 	switch x := t.(type) {
 	case *TCon:
 		return x.KeyOf(), true
@@ -128,7 +138,7 @@ func aliasApplicationKey(t Type) (string, bool) {
 		var b strings.Builder
 		b.WriteString(con.KeyOf())
 		for _, a := range args {
-			fmt.Fprintf(&b, "|%p", a)
+			fmt.Fprintf(&b, "|%d", c.id(a))
 		}
 		return b.String(), true
 	}

@@ -25,6 +25,8 @@ func recoverLatentDataDepth(err *error) {
 			*err = limit
 		case typeTooLarge:
 			*err = &TypeCheckError{Kind: TypeTooLargeError, Message: limit.Error()}
+		case typeWorkExceeded:
+			*err = &TypeCheckError{Kind: TypeTooLargeError, Message: limit.Error()}
 		default:
 			panic(failure)
 		}

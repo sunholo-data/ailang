@@ -249,7 +249,7 @@ func (u *Unifier) unifyTypeApps(t1 *TApp, t2 Type, sub Substitution) (Substituti
 		if h1Con, ok := h1.(*TCon); ok && NominalSame(h1Con, t2Con) {
 			// Same constructor name but different application
 			return nil, fmt.Errorf("type %s expects %d type argument(s), but got 0 (did you mean %s?)",
-				t2Con.Name, len(a1), t1.String())
+				t2Con.Name, len(a1), displayType(t1))
 		}
 		return nil, fmt.Errorf("cannot unify %s with %s", displayType(t1), t2Con.Name)
 	}
