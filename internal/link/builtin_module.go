@@ -2,6 +2,7 @@ package link
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/sunholo-data/ailang/internal/builtins"
@@ -41,8 +42,9 @@ func registerFromSpecRegistry(ml *ModuleLinker) {
 		typ := spec.Type()
 		typeVars := extractTypeVars(typ)
 		typeScheme := &types.Scheme{
-			TypeVars: typeVars,
-			Type:     typ,
+			TypeVars:    typeVars,
+			Constraints: builtinEqConstraints(spec, typeVars),
+			Type:        typ,
 		}
 
 		builtinIface.Exports[name] = &iface.IfaceItem{
@@ -63,6 +65,23 @@ func registerFromSpecRegistry(ml *ModuleLinker) {
 
 	// Register the interface
 	ml.RegisterIface(builtinIface)
+}
+
+// builtinEqConstraints is Eq on each of spec.EqVars (#2291). A name that is
+// not one of the scheme's type variables is a registration bug: it panics at
+// startup rather than leave the comparison unconstrained.
+func builtinEqConstraints(spec *builtins.BuiltinSpec, typeVars []string) []types.Constraint {
+	if len(spec.EqVars) == 0 {
+		return nil
+	}
+	out := make([]types.Constraint, 0, len(spec.EqVars))
+	for _, v := range spec.EqVars {
+		if !slices.Contains(typeVars, v) {
+			panic(fmt.Sprintf("builtin %s: EqVars names %q, which is not a type variable of its type", spec.Name, v))
+		}
+		out = append(out, types.Constraint{Class: "Eq", Type: &types.TVar2{Name: v, Kind: types.KStar{}}})
+	}
+	return out
 }
 
 // extractTypeVars returns every type variable of typ, sorted: the variables a

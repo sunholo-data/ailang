@@ -24,6 +24,7 @@ func registerListMember() {
 	err := RegisterEffectBuiltin(BuiltinSpec{
 		Module:  "$builtin",
 		Name:    "_list_member",
+		EqVars:  []string{"a"},
 		NumArgs: 2,
 		IsPure:  true,
 		Effect:  "",
@@ -73,6 +74,7 @@ func registerListDedup() {
 	err := RegisterEffectBuiltin(BuiltinSpec{
 		Module:  "$builtin",
 		Name:    "_list_dedup",
+		EqVars:  []string{"a"},
 		NumArgs: 1,
 		IsPure:  true,
 		Effect:  "",
@@ -129,6 +131,7 @@ func registerListIntersect() {
 	err := RegisterEffectBuiltin(BuiltinSpec{
 		Module:  "$builtin",
 		Name:    "_list_intersect",
+		EqVars:  []string{"a"},
 		NumArgs: 2,
 		IsPure:  true,
 		Effect:  "",
@@ -196,6 +199,7 @@ func registerListUnion() {
 	err := RegisterEffectBuiltin(BuiltinSpec{
 		Module:  "$builtin",
 		Name:    "_list_union",
+		EqVars:  []string{"a"},
 		NumArgs: 2,
 		IsPure:  true,
 		Effect:  "",
@@ -262,6 +266,7 @@ func registerListDifference() {
 	err := RegisterEffectBuiltin(BuiltinSpec{
 		Module:  "$builtin",
 		Name:    "_list_difference",
+		EqVars:  []string{"a"},
 		NumArgs: 2,
 		IsPure:  true,
 		Effect:  "",

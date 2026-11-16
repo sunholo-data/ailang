@@ -133,6 +133,9 @@
       },
       "name": "contains",
       "type": "(list[a],a)-\u003ebool",
+      "constraints": [
+        "Eq[a]"
+      ],
       "effects": [],
       "pure": true,
       "tier": "stable"
@@ -166,6 +169,9 @@
       },
       "name": "dedup",
       "type": "(list[a])-\u003elist[a]",
+      "constraints": [
+        "Eq[a]"
+      ],
       "effects": [],
       "pure": true,
       "tier": "stable"
@@ -211,6 +217,9 @@
       },
       "name": "difference",
       "type": "(list[a],list[a])-\u003elist[a]",
+      "constraints": [
+        "Eq[a]"
+      ],
       "effects": [],
       "pure": true,
       "tier": "stable"
@@ -866,6 +875,9 @@
       },
       "name": "intersect",
       "type": "(list[a],list[a])-\u003elist[a]",
+      "constraints": [
+        "Eq[a]"
+      ],
       "effects": [],
       "pure": true,
       "tier": "stable"
@@ -1314,6 +1326,9 @@
       },
       "name": "member",
       "type": "(a,list[a])-\u003ebool",
+      "constraints": [
+        "Eq[a]"
+      ],
       "effects": [],
       "pure": true,
       "tier": "stable",
@@ -1935,6 +1950,9 @@
       },
       "name": "union",
       "type": "(list[a],list[a])-\u003elist[a]",
+      "constraints": [
+        "Eq[a]"
+      ],
       "effects": [],
       "pure": true,
       "tier": "stable"
