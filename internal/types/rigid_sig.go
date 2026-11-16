@@ -131,6 +131,8 @@ type rigidState struct {
 	// declNodes: the nodes the current declaration typed (setCoreTI).
 	defaulted map[uint64]bool
 	declNodes []uint64
+	// declWork: the current declaration's work budget (type_work.go).
+	declWork *unifyWork
 }
 
 // SetRigidSignatures installs the elaborator's rigid signature variables

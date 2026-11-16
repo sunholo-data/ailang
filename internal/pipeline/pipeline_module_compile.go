@@ -547,6 +547,10 @@ func buildAndRegisterInterface(
 	}
 
 	closeInterfaceTypes(unitIface, aliases)
+	// Before anything walks the closed types as trees (#2329).
+	if err := checkInterfaceTypeSizes(unitIface); err != nil {
+		return fmt.Errorf("interface build error in %s: %w", modID, err)
+	}
 
 	// M-TYPE-ALIAS: Embed transitive type aliases referenced in exported function signatures.
 	// When Package B exports getUsage() -> Result[Usage, string] and Usage is defined in

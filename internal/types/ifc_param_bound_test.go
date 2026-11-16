@@ -118,3 +118,95 @@ export pure func q(xs: [string<sqlsafe>], gs: [(string{not email}, int)], plain:
 		t.Errorf("plain list exported a demand: %+v", ps[2])
 	}
 }
+
+// #2329: the bound walk shares repeated work by (type node, bindings, path).
+// Each key part is load-bearing: one alias body reached under two labels, and
+// one generic alias applied to two different arguments, must each still
+// contribute both paths (dropping either would reject these accepted calls).
+func TestIFCParamBoundSharedWorkKeepsEveryPath(t *testing.T) {
+	decls := `module app
+type Str = string
+type Pair[a] = (a, a)
+pure func trusted(raw: string) -> string<sqlsafe> { raw }
+pure func email(raw: string) -> string<email> { raw }
+pure func src(raw: string) -> string<arg> { raw }
+pure func twoPaths(r: { a: Str<sqlsafe>, b: Str<email> }) -> int { 0 }
+pure func twoArgs(p: (Pair[string<sqlsafe>], Pair[string<email>])) -> int { 0 }
+type W[b] = Pair[b]
+type Q0[a] = a
+type Q1[a] = (Q0[a], Q0[a])
+type Q2[a] = (Q1[a], Q1[a])
+pure func viaW(p: (W[string<sqlsafe>], W[string<email>])) -> int { 0 }
+pure func viaQ(p: Q2[string<sqlsafe>]) -> int { 0 }
+`
+	for _, tc := range []struct {
+		name, body string
+		ok         bool
+	}{
+		{"one alias body under two labels", `twoPaths({ a: trusted("x"), b: email("y") })`, true},
+		{"one generic alias at two arguments", `twoArgs(((trusted("x"), trusted("x")), (email("y"), email("y"))))`, true},
+		{"two labels, foreign label (control)", `twoPaths({ a: src("x"), b: email("y") })`, false},
+		{"two arguments, foreign label (control)", `twoArgs(((src("x"), trusted("x")), (email("y"), email("y"))))`, false},
+		// A parameter passed through an alias (W[b] = Pair[b]): each W gets
+		// its own argument, though both bodies are the one Pair node.
+		{"pass-through alias at two arguments", `viaW(((trusted("x"), trusted("x")), (email("y"), email("y"))))`, true},
+		{"pass-through alias, foreign label (control)", `viaW(((src("x"), trusted("x")), (email("y"), email("y"))))`, false},
+		{"doubling chain through a parameter", `viaQ(((trusted("x"), trusted("x")), (trusted("y"), trusted("y"))))`, true},
+		{"doubling chain, foreign label (control)", `viaQ(((trusted("x"), trusted("x")), (trusted("y"), src("y"))))`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			errs := types.CheckModuleIFC(parseIFC(t, decls+"export func main() -> int { "+tc.body+" }\n"))
+			if tc.ok && len(errs) != 0 {
+				t.Fatalf("accepted call rejected: %v", errs)
+			}
+			if !tc.ok && (len(errs) != 1 || errs[0].Kind != types.ParamLabelCoverError) {
+				t.Fatalf("want one %s, got %v", types.ParamLabelCoverError, errs)
+			}
+		})
+	}
+}
+
+// Security-relevant (#2363 review): a refinement written on one argument of a
+// pass-through alias must reach that argument only. If the shared walk keyed
+// the two W applications alike (dropping the arguments' bindings), the
+// {not secret} demand of the second would be lost and a <secret> value
+// accepted at the sink.
+func TestIFCParamBoundRefinementThroughPassThroughAlias(t *testing.T) {
+	decls := `module app
+type Pair[a] = (a, a)
+type W[b] = Pair[b]
+type Q0[a] = a
+type Q1[a] = (Q0[a], Q0[a])
+type V[b] = Pair[(b, b)]
+pure func secretSrc(raw: string) -> string<secret> { raw }
+pure func sink(p: (W[string], W[string{not secret}])) -> int { 0 }
+pure func sinkQ(p: (Q1[string], Q1[string{not secret}])) -> int { 0 }
+pure func sinkV(p: (V[string], V[string{not secret}])) -> int { 0 }
+pure func emailSrc(raw: string) -> string<email> { raw }
+pure func sinkTwo(p: (W[string{not email}], W[string{not secret}])) -> int { 0 }
+`
+	for _, tc := range []struct {
+		name, body string
+		ok         bool
+	}{
+		{"secret in the refined argument", `{ let s = secretSrc("x"); sink((("a", "b"), (s, s))) }`, false},
+		{"secret in the refined chain argument", `{ let s = secretSrc("x"); sinkQ((("a", "b"), (s, s))) }`, false},
+		{"secret at the second of two refinements (tworef)", `{ let s = secretSrc("x"); sinkTwo((("a", "b"), (s, s))) }`, false},
+		{"email at the first of two refinements (tworef)", `{ let s = emailSrc("x"); sinkTwo(((s, s), ("c", "d"))) }`, false},
+		{"plain strings at two refinements (control)", `sinkTwo((("a", "b"), ("c", "d")))`, true},
+		{"secret under a composite pass-through argument", `{ let s = secretSrc("x"); sinkV(((("a", "b"), ("c", "d")), ((s, s), (s, s)))) }`, false},
+		{"plain strings under the composite argument (control)", `sinkV(((("a", "b"), ("c", "d")), (("e", "f"), ("g", "h"))))`, true},
+		{"plain strings (control)", `sink((("a", "b"), ("c", "d")))`, true},
+		{"plain strings through the chain (control)", `sinkQ((("a", "b"), ("c", "d")))`, true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			errs := types.CheckModuleIFC(parseIFC(t, decls+"export func main() -> int { "+tc.body+" }\n"))
+			if tc.ok && len(errs) != 0 {
+				t.Fatalf("accepted call rejected: %v", errs)
+			}
+			if !tc.ok && (len(errs) != 1 || errs[0].Kind != types.SinkRefinementError) {
+				t.Fatalf("want one %s, got %v", types.SinkRefinementError, errs)
+			}
+		})
+	}
+}

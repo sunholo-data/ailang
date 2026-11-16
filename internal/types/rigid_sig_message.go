@@ -272,11 +272,12 @@ func (p *sourcePrinter) print(t Type, depth int) string {
 	case *TRecordOpen:
 		return p.record(tt.Fields, tt.Row, depth)
 	}
-	if strings.ContainsAny(t.String(), "αβρε@") {
+	s := displayType(t)
+	if strings.ContainsAny(s, "αβρε@") {
 		p.exact = false
 		return "_"
 	}
-	return t.String()
+	return s
 }
 
 // record writes a record type with sorted fields and, when it is open, its

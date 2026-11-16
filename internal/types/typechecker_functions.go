@@ -205,6 +205,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		valueType = ApplySubstitution(sub, valueType)
 		valueNode = tc.applySubstitutionToTyped(sub, valueNode)
 	}
+	guardTypeSize(valueType, letBindingWhat(let.Name), let.Span())
 
 	// Apply defaulting at this generalization boundary
 	defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguitiesKeeping(valueType, unsolvedConstraints, ctx.envOwnedVars(sub, ctx.env), tc.declLiteralVars(ctx, let, unsolvedConstraints))

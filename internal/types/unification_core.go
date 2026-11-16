@@ -46,6 +46,13 @@ type Unifier struct {
 	// but unhelpful. With it: a `match { Ok(x) => ..., Err(e) => ... }`
 	// template using actual constructor names.
 	constructorTypes map[string]string
+	// work bounds the unifications of one declaration (type_size.go); nil
+	// leaves this unifier unbounded.
+	work *unifyWork
+	// aliasEquiv memoises which pairs of aliases expand to the same type
+	// (unification_alias_pairs.go).
+	aliasEquiv map[[2]string]bool
+	canon      *typeCanon // structural argument numbers (sameArgument)
 }
 
 // SetConstructorTypes wires the ADT registry the unifier needs to
@@ -237,14 +244,21 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 		return nil, err
 	}
 
+	u.work.step()
+
 	// Depth check to catch infinite recursion
 	u.depth++
 	defer func() { u.depth-- }()
 
 	if u.depth > maxUnifyDepth {
-		// Panic with useful debug info instead of hanging forever
-		panic(fmt.Sprintf("unification depth exceeded %d - likely cyclic types:\n  t1: %T\n  t2: %T\n  substitution size: %d",
-			maxUnifyDepth, t1, t2, len(sub)))
+		// A type nested this deep — written so (a 1100-deep list annotation,
+		// #2327's sibling), or cyclic — is TC_TYPE_SIZE_001 at the declaration
+		// boundary (recoverLatentDataDepth), not a crash of check or the LSP.
+		w := typeTooLarge{what: "this declaration", detail: fmt.Sprintf("its types nest more than %d deep (unifying %T with %T)", maxUnifyDepth, t1, t2)}
+		if u.work != nil {
+			w.pos = positionString(u.work.pos)
+		}
+		panic(w)
 	}
 
 	// Apply current substitution with cycle detection
@@ -265,6 +279,12 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 	}
 	if _, isLabelled := t2.(*TLabelled); isLabelled {
 		return u.Unify(t1, StripLabel(t2), sub)
+	}
+
+	// #2329: equivalent aliases applied to the same arguments expand to the
+	// same type, which unifies with itself and binds nothing.
+	if u.sameAliasApplication(t1, t2) {
+		return sub, nil
 	}
 
 	// M-BUGFIX: Expand type aliases before unification
@@ -306,11 +326,11 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 	case *TVar2:
 		// Type variable unification
 		if u.occurs(t1.Name, t2, t1.Kind) {
-			return nil, fmt.Errorf("%s: occurs check failed: %s occurs in %s (an infinite type)", TC_OCCURS, t1.Name, t2.String())
+			return nil, fmt.Errorf("%s: occurs check failed: %s occurs in %s (an infinite type)", TC_OCCURS, t1.Name, displayType(t2))
 		}
 		if !u.kindsCompatible(t1.Kind, GetKind(t2)) {
 			return nil, fmt.Errorf("kind mismatch: variable %s has kind %s, but %s has kind %s",
-				t1.Name, t1.Kind, t2.String(), GetKind(t2))
+				t1.Name, t1.Kind, displayType(t2), GetKind(t2))
 		}
 		sub[t1.Name] = t2
 		// M-DX11-PHASE2: Emit OnSubstitute event when type variable is bound
@@ -320,11 +340,11 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 	case *RowVar:
 		// Row variable unification
 		if u.occurs(t1.Name, t2, t1.Kind) {
-			return nil, fmt.Errorf("%s: occurs check failed: row variable %s occurs in %s (an infinite type)", TC_OCCURS, t1.Name, t2.String())
+			return nil, fmt.Errorf("%s: occurs check failed: row variable %s occurs in %s (an infinite type)", TC_OCCURS, t1.Name, displayType(t2))
 		}
 		if !u.kindsCompatible(t1.Kind, GetKind(t2)) {
 			return nil, fmt.Errorf("kind mismatch: row variable %s has kind %s, but %s has kind %s",
-				t1.Name, t1.Kind, t2.String(), GetKind(t2))
+				t1.Name, t1.Kind, displayType(t2), GetKind(t2))
 		}
 		sub[t1.Name] = t2
 		// M-DX11-PHASE2: Emit OnSubstitute event when row variable is bound
@@ -348,7 +368,7 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 				return u.Unify(t2Var, t1, sub)
 			}
 		}
-		return nil, fmt.Errorf("cannot unify row with %s", t2)
+		return nil, fmt.Errorf("cannot unify row with %s", displayType(t2))
 
 	case *TCon:
 		// Type constructor unification
@@ -392,7 +412,7 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 		if recOpen, ok := t2.(*TRecordOpen); ok && isTaggedUnion(t1, u.constructorTypes) {
 			return nil, makeUnificationTaggedUnionError(t1, recOpen, u.constructorTypes)
 		}
-		return nil, fmt.Errorf("cannot unify %s with %s", describeTCon(t1), t2)
+		return nil, fmt.Errorf("cannot unify %s with %s", describeTCon(t1), displayType(t2))
 
 	case *TFunc2:
 		return u.unifyFunctions(t1, t2, sub)

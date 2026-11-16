@@ -631,10 +631,11 @@ func (v *matchVerifier) scrutineeName(m *core.Match) string {
 	if v.unif == nil {
 		v.unif = v.tc.aliasUnifier()
 	}
-	if exp := v.unif.expandAlias(t); exp.String() != t.String() {
-		return t.String() + " (= " + exp.String() + ")"
+	name := displayType(t) // bounded: the expansion can be exponential (#2363)
+	if exp := displayType(v.unif.expandAlias(t)); exp != name {
+		return name + " (= " + exp + ")"
 	}
-	return t.String()
+	return name
 }
 
 func hasCatchAll(m *core.Match) bool {

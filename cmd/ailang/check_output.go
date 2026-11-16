@@ -210,7 +210,7 @@ func errorEntryFor(message string, cause error) checkJSONError {
 // TC_CONSTRAINT_001).
 func jsonErrorCode(msg string) string {
 	best, at := "ERROR", -1
-	codes := append(append(types.NominalIdentityCodes(), types.RecordRowCodes()...), elaborate.CodeTestBody, pipeline.CodeContract, types.TC_FORALL_001, types.TC_RIGID_001, types.TC_CONSTRAINT_001)
+	codes := append(append(append(types.NominalIdentityCodes(), types.RecordRowCodes()...), types.TypeSizeCodes()...), elaborate.CodeTestBody, pipeline.CodeContract, types.TC_FORALL_001, types.TC_RIGID_001, types.TC_CONSTRAINT_001)
 	for _, code := range codes {
 		if i := strings.Index(msg, code); i >= 0 && (at < 0 || i < at) {
 			best, at = code, i

@@ -580,5 +580,5 @@ type UnificationError struct {
 }
 
 func (e *UnificationError) Error() string {
-	return fmt.Sprintf("%s: cannot unify %s with %s", e.Pos, e.Type1.String(), e.Type2.String())
+	return fmt.Sprintf("%s: cannot unify %s with %s", e.Pos, e.Type1, e.Type2)
 }

@@ -141,7 +141,7 @@ func safeTypeStringWithDepth(t Type, depth int, visited map[Type]bool) string {
 	default:
 		// For unknown types, use the standard String() method
 		// This is safe as a fallback since we've already checked depth
-		return t.String()
+		return displayType(t)
 	}
 }
 
