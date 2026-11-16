@@ -1,10 +1,16 @@
 -- mcp_tools/design.ail — design-doc and roadmap MCP tools.
 --
--- These are UNSCOPED (historical record, not current language facts).
+-- These are UNSCOPED (historical record, not current language facts). The
+-- list comes from the snapshot; a document and the roadmap are read live from
+-- the repository's dev branch (mcp_tools/live), so they are current, not as of
+-- the last release.
 module mcp_tools/design
-
-import mcp_tools/lib (readUnscopedOrError, errorJson)
-import std/json (Json)
+import mcp_tools/lib (readUnscopedOrError, readUnscopedJson)
+import mcp_tools/live (fetchFile, movingRef, latestVersion, browseUrl, stripFrontMatter, clip, clipped, safePath)
+import std/json (Json, jo, kv, js, jb, getArray, getString)
+import std/option (Option, Some, None, getOrElse)
+import std/result (Result, Ok, Err)
+import std/list (filter)
 
 -- List planned/implemented/rejected design docs, optionally filtered by version.
 -- state = "planned" | "implemented" | "rejected" | ""; empty = all.
@@ -15,22 +21,52 @@ import std/json (Json)
 export func designDocsList(state: string, version: string) -> Json ! {Env, FS} =
   readUnscopedOrError("design_docs_index.json")
 
--- Full design doc by slug (e.g. "m-agent-mcp-website").
+-- The index entry for a slug, if any.
+func docEntry(slug: string) -> Option[Json] ! {Env, FS} = match readUnscopedJson("design_docs_index.json") {
+  Err(_) => None,
+  Ok(idx) => match filter(\d. getOrElse(getString(d, "slug"), "") == slug, getOrElse(getArray(idx, "docs"), [])) {
+    [] => None,
+    d :: _ => Some(d)
+  }
+}
+
+-- A document at dev; if it has moved or gone since the index was built, the
+-- copy at this server's release.
+func fetchDoc(path: string) -> Result[{ ref: string, body: string }, string] ! {Env, FS, Net} =
+  match fetchFile(movingRef(), path) {
+    Ok(body) => Ok({ ref: movingRef(), body: body }),
+    Err(first) => let tag = "v${latestVersion()}" in match fetchFile(tag, path) {
+      Ok(body) => Ok({ ref: tag, body: body }),
+      Err(_) => Err(first)
+    }
+  }
+
+-- Full design doc by slug (e.g. "m-agent-mcp-website"), as markdown. Long
+-- documents are cut at 30,000 characters and say so; url opens the whole one.
 @route("POST", "/api/mcp/design_doc")
 @mcp_name("design_doc")
 @mcp_title("Read a design doc")
 @mcp_hints("readOnly", "idempotent")
-export func designDoc(slug: string) -> Json ! {Env, FS} =
-  if slug == "" then
-    errorJson("missing_field", "slug is required")
-  else
-    let suffix = "design_docs/${slug}.json" in
-    readUnscopedOrError(suffix)
+export func designDoc(slug: string) -> Result[Json, string] ! {Env, FS, Net} =
+  if slug == "" then Err("slug is required; design_docs_list lists them") else if !safePath(slug) then Err("not a design doc slug: ${slug}") else match docEntry(slug) {
+    None => Err("no design doc with slug '${slug}'; design_docs_list lists them"),
+    Some(d) => let path = getOrElse(getString(d, "path"), "") in match fetchDoc(path) {
+      Err(reason) => Err(reason),
+      Ok(got) => let md = stripFrontMatter(got.body) in
+      Ok(jo([kv("slug", js(slug)), kv("title", js(getOrElse(getString(d, "title"), slug))), kv("state", js(getOrElse(getString(d, "state"), ""))), kv("path", js(path)), kv("url", js(browseUrl(got.ref, path))), kv("truncated", jb(clipped(md))), kv("markdown", js(clip(md)))]))
+    }
+  }
 
--- What's shipping next, what's been rejected and why.
+-- What's shipping next, what's been rejected and why: the roadmap page of the
+-- AILANG site, generated from the planned design docs, as markdown.
 @route("POST", "/api/mcp/roadmap")
 @mcp_name("roadmap")
 @mcp_title("AILANG roadmap")
 @mcp_hints("readOnly", "idempotent")
-export func roadmap() -> Json ! {Env, FS} =
-  readUnscopedOrError("roadmap.json")
+export func roadmap() -> Result[Json, string] ! {Env, Net} =
+  let path = "docs/docs/roadmap/index.md" in
+  match fetchFile(movingRef(), path) {
+    Err(reason) => Err(reason),
+    Ok(body) => let md = stripFrontMatter(body) in
+    Ok(jo([kv("url", js("https://ailang.sunholo.com/docs/roadmap")), kv("truncated", jb(clipped(md))), kv("markdown", js(clip(md)))]))
+  }

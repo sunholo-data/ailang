@@ -353,7 +353,7 @@ mcp-local: build snapshot
 	@echo "$(BOLD)Starting MCP server on http://localhost:8080/mcp/ ...$(RESET)"
 	@MCP_SNAPSHOT_DIR=$$(pwd)/build/snapshot AILANG_RELAX_MODULES=1 \
 		./bin/ailang serve-api --mcp-http --routes-only \
-		--caps FS,Env --port 8080 ./mcp_tools/
+		--caps FS,Env,Net --port 8080 ./mcp_tools/
 
 # =============================================================================
 # DEFAULT TARGET

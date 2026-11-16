@@ -575,7 +575,6 @@ metadata name that host. Raw `*.run.app` URLs, including the dev deployment's, a
 | Tool | Source | Why Experimental |
 |------|--------|------------------|
 | `benchmarks_list` | `mcp_tools/benchmarks.ail` | ⚠ close call — eval data (D-64 makes eval tooling Internal); the record shape follows the eval schema |
-| `benchmark_run` | `mcp_tools/benchmarks.ail` | ⚠ close call — as above |
 | `benchmarks_for_model` | `mcp_tools/benchmarks.ail` | ⚠ close call — as above |
 | `benchmarks_compare` | `mcp_tools/benchmarks.ail` | ⚠ close call — as above |
 | `submit_feedback` | built-in (`internal/apiserver/feedback_tool.go`) | ⚠ close call — the only write tool; rate-limited, and egress depends on deployment configuration |

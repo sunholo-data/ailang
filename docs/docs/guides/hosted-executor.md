@@ -30,7 +30,7 @@ page is built with `serve-api` and `sunholo/mcp_oauth`, as described in
 | | `ailang_run` | Run a program in the sandbox and return its output |
 | | `ailang_eval` | Evaluate one expression |
 | | `ailang_builtins` | Search the builtin functions |
-| **Docs** | `docs_search`, `docs_nav`, `stdlib_modules`, `stdlib_module`, `stdlib_search`, `effects_catalog`, `limitations_list`, `examples_list`, `example_get`, `example_for_concept`, `prompt_get`, `changelog_for_version`, `ailang_versions`, `install_guide`, `onboarding_guide`, `roadmap`, `design_docs_list`, `design_doc`, `benchmarks_list`, `benchmark_run`, `benchmarks_for_model`, `benchmarks_compare` | The AILANG documentation, versioned. These are the tools of the open docs server `https://mcp.ailang.sunholo.com/mcp/`, which needs no sign-in |
+| **Docs** | `docs_search`, `docs_nav`, `stdlib_modules`, `stdlib_module`, `stdlib_search`, `effects_catalog`, `limitations_list`, `examples_list`, `example_get`, `example_for_concept`, `prompt_get`, `changelog_for_version`, `ailang_versions`, `install_guide`, `onboarding_guide`, `roadmap`, `design_docs_list`, `design_doc`, `benchmarks_list`, `benchmarks_for_model`, `benchmarks_compare` | The AILANG documentation, versioned. These are the tools of the open docs server `https://mcp.ailang.sunholo.com/mcp/`, which needs no sign-in |
 | **Account** | `executor_whoami` | The account and OAuth client the call was made as |
 | | `submit_feedback` | Report a bug or a missing feature to the AILANG team (no sign-in needed) |
 

@@ -67,4 +67,6 @@ ENTRYPOINT ["/usr/local/bin/ailang", "serve-api", \
             "--port", "8080"]
 # The IAM-only service. Flags must come before the dirs (Go flag parsing stops
 # at the first positional), so per-service flags live here, not in ENTRYPOINT.
-CMD ["--caps", "Clock,FS,Env,Process,Rand", "mcp_tools/", "executor_tools/"]
+# Net is for the docs tools that read the public repository live
+# (mcp_tools/live); code run by ailang_run is a child under its own policy.
+CMD ["--caps", "Clock,FS,Env,Net,Process,Rand", "mcp_tools/", "executor_tools/"]

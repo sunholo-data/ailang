@@ -6,7 +6,8 @@
 module mcp_tools/language
 
 import mcp_tools/lib (readOrError, readUnscopedOrError, errorJson, envelope, resolveVersion, readVersionedJson, unknownVersionError)
-import std/json (jo, kv, js, ja, getArray, getString, getOr, jn)
+import std/json (Json, jo, kv, js, ja, getArray, getString, getOr, jn)
+import std/result (Result, Ok, Err)
 import std/option (getOrElse)
 import std/list (filter, take, map)
 import std/string (toLower, contains)
@@ -20,15 +21,24 @@ export func ailangVersions() -> Json ! {Env, FS} =
   readUnscopedOrError("versions_index.json")
 
 -- Fetch the canonical teaching prompt for a version.
--- kind = "agent" | "devtools" | "compact" (full prompt = empty).
+-- kind = "" (the full prompt) | "agent" | "devtools".
 @route("POST", "/api/mcp/prompt_get")
 @mcp_name("prompt_get")
 @mcp_title("Get an AILANG teaching prompt")
 @mcp_hints("readOnly", "idempotent")
-export func promptGet(forVersion: string, kind: string) -> Json ! {Env, FS} =
+export func promptGet(forVersion: string, kind: string) -> Result[Json, string] ! {Env, FS} =
   let chosen = if kind == "" then "full" else kind in
-  let suffix = "prompts/${chosen}.json" in
-  readOrError(forVersion, suffix)
+  if chosen != "full" && chosen != "agent" && chosen != "devtools" then
+    Err("unknown prompt kind '${kind}': use \"\" for the full prompt, \"agent\" or \"devtools\"")
+  else
+    let resolved = resolveVersion(forVersion) in
+    if resolved == "unknown" then
+      -- The code leads: ailang mcp status classifies the reply by it.
+      Err("unknown_version: no prompt for '${forVersion}' on this server; ailang_versions lists the versions it serves")
+    else match readVersionedJson(resolved, "prompts/${chosen}.json") {
+      Ok(data) => Ok(envelope(resolved, data)),
+      Err(_) => Err("no ${chosen} prompt for version ${resolved}")
+    }
 
 -- List stdlib modules available in this AILANG version with one-line summaries.
 @route("POST", "/api/mcp/stdlib_modules")

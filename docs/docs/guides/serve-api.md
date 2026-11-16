@@ -1825,6 +1825,12 @@ Functions that return `Result[T, E]` types get automatic HTTP status code mappin
 | `Err({_status: 404, message: "not found"})` | 404 | `{"error": {"message": "not found"}, ...}` |
 | Non-Result types | 200 | The value as-is |
 
+**Over MCP** the same type means the same thing: `Ok(value)` answers with the inner value, and
+`Err(value)` is a tool error (`isError: true`) whose text is the payload: a string as itself, anything
+else as JSON. Before v0.60.5 a `Result` crossed MCP as a successful `{"__tag": "Err", ...}` object, so
+a client could not tell a refusal from an answer. A tool that must refuse a call should return
+`Result`; returning a JSON object with an `error` key still reads as success to MCP clients.
+
 ### Default behavior
 
 When a function returns `Err(value)`, the HTTP status defaults to **400 Bad Request**. The error payload is included in the response body.
