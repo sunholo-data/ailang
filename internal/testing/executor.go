@@ -502,34 +502,13 @@ func (e *Executor) CompareValues(actual, expected eval.Value) bool {
 	return equalValues(actual, expected)
 }
 
-// EvaluateInlineTestsWithCluster evaluates inline tests for a function with cross-function dependencies.
+// EvaluateInlineTestsWithCluster evaluates inline tests for a function with
+// cross-function dependencies. The cluster must come from
+// ExtractPureClusterForFunction, which is where purity is enforced.
 func (e *Executor) EvaluateInlineTestsWithCluster(
-	functionName string,
+	cluster *PureCluster,
 	tests []TestCase,
-	coreProg *core.Program,
 ) (*eval.TupleValue, error) {
-	g := BuildCallGraph(coreProg)
-	sccs := ComputeSCCs(g)
-	closure := GetDependencyClosure(g, sccs, functionName)
-	if closure == nil {
-		return nil, fmt.Errorf("function '%s' not found in call graph", functionName)
-	}
-
-	bindings := make([]core.RecBinding, 0, len(closure))
-	names := make(map[string]bool)
-	for _, name := range closure {
-		if binding, ok := g.Bindings[name]; ok {
-			bindings = append(bindings, *binding)
-			names[name] = true
-		}
-	}
-
-	cluster := &PureCluster{
-		FuncName: functionName,
-		Bindings: bindings,
-		Names:    names,
-	}
-
 	harnessExpr, err := BuildClusterTestHarness(cluster, tests)
 	if err != nil {
 		return nil, err
@@ -553,14 +532,15 @@ func (e *Executor) EvaluateInlineTestsWithCluster(
 	return tupleResult, nil
 }
 
-// ExtractPureClusterForFunction extracts the pure dependency cluster for a function from source code.
-func (e *Executor) ExtractPureClusterForFunction(
-	functionName string,
-	sourceFile *ast.File,
-) (*PureCluster, *core.Program, error) {
+// ExtractPureClusterForFunction compiles the module and extracts the pure
+// dependency cluster for functionName via ExtractPureCluster, the single
+// implementation of the purity gate. A *PurityError means the function under
+// test is effectful: inline tests run without capabilities, so the caller must
+// report it rather than fall back to another harness.
+func (e *Executor) ExtractPureClusterForFunction(functionName string) (*PureCluster, error) {
 	sourceCode, err := os.ReadFile(e.modulePath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read source file: %w", err)
+		return nil, fmt.Errorf("failed to read source file: %w", err)
 	}
 
 	cfg := pipeline.Config{
@@ -583,37 +563,22 @@ func (e *Executor) ExtractPureClusterForFunction(
 	// harness).
 	result, err := e.runInlineCompile("cluster", cfg, src)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to elaborate source: %w", err)
+		return nil, fmt.Errorf("failed to elaborate source: %w", err)
 	}
 
 	if result.Artifacts.Core == nil {
-		return nil, nil, fmt.Errorf("pipeline did not produce Core program")
+		return nil, fmt.Errorf("pipeline did not produce Core program")
 	}
 
 	e.cacheModules(&result)
 
+	if result.Artifacts.CoreTI == nil {
+		// Without type info every binding would read as pure (IsPure).
+		return nil, fmt.Errorf("pipeline did not produce Core type info; cannot check purity of '%s'", functionName)
+	}
+
 	coreProg := result.Artifacts.Core
 	g := BuildCallGraph(coreProg)
 	sccs := ComputeSCCs(g)
-	closure := GetDependencyClosure(g, sccs, functionName)
-	if closure == nil {
-		return nil, nil, fmt.Errorf("function '%s' not found in call graph", functionName)
-	}
-
-	bindings := make([]core.RecBinding, 0, len(closure))
-	names := make(map[string]bool)
-	for _, name := range closure {
-		if binding, ok := g.Bindings[name]; ok {
-			bindings = append(bindings, *binding)
-			names[name] = true
-		}
-	}
-
-	cluster := &PureCluster{
-		FuncName: functionName,
-		Bindings: bindings,
-		Names:    names,
-	}
-
-	return cluster, coreProg, nil
+	return ExtractPureCluster(functionName, g, sccs, result.Artifacts.CoreTI)
 }

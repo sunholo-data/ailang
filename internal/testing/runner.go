@@ -1,6 +1,7 @@
 package testing
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"path/filepath"
@@ -143,10 +144,21 @@ func (r *Runner) runTest(testCase TestCase) TestResult {
 		// Check if function has cross-function dependencies
 		// If so, use cluster evaluation to include all dependencies
 		var actualsTuple *eval.TupleValue
-		cluster, coreProg, clusterErr := r.executor.ExtractPureClusterForFunction(testCase.FunctionCtx, r.executor.sourceFile)
+		cluster, clusterErr := r.executor.ExtractPureClusterForFunction(testCase.FunctionCtx)
+		var purityErr *PurityError
+		if errors.As(clusterErr, &purityErr) {
+			// The function under test is effectful. Inline tests run
+			// without capabilities, so this is the test's failure — never a
+			// fallback to the single-binding harness, which would only die
+			// later on the missing capability.
+			result.Status = StatusFail
+			result.Error = purityErr.Error()
+			result.Duration = time.Since(start)
+			return result
+		}
 		if clusterErr == nil && cluster != nil && cluster.HasDependencies() {
 			// Function has dependencies - use cluster harness
-			actualsTuple, err = r.executor.EvaluateInlineTestsWithCluster(testCase.FunctionCtx, []TestCase{testCase}, coreProg)
+			actualsTuple, err = r.executor.EvaluateInlineTestsWithCluster(cluster, []TestCase{testCase})
 			if err != nil {
 				result.Status = StatusFail
 				result.Error = fmt.Sprintf("cluster harness evaluation failed: %v", err)
