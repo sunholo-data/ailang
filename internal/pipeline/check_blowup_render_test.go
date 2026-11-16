@@ -55,3 +55,35 @@ func TestCheckBlowup_SmallTypeDiagnosticsUnchanged(t *testing.T) {
 		t.Fatalf("want the full type %s in the message, got %v", want, err)
 	}
 }
+
+// Shapes no sharing can make linear end in a diagnostic within the budget
+// (#2363 review, round 2): twin chains through a function type (the
+// equivalence check does not compare functions) stop at the size-relative
+// unification budget, TC_TYPE_WORK_001; an alias whose two uses build
+// different arguments at every level stops the IFC bound walk at the same
+// budget.
+func TestCheckBlowup_ExponentialArgumentsHitTheBudget(t *testing.T) {
+	chain := func(x, body, base, params string, n int) string {
+		var b strings.Builder
+		fmt.Fprintf(&b, "type %s0%s = %s\n", x, params, base)
+		for i := 1; i <= n; i++ {
+			fmt.Fprintf(&b, "type %s%d%s = %s\n", x, i, params, strings.ReplaceAll(body, "X", fmt.Sprintf("%s%d", x, i-1)))
+		}
+		return b.String()
+	}
+	// The work runs to the budget, so it allocates (and frees) about 700 bytes
+	// per unification step: bounded, but well above the other cases.
+	const workAlloc = 4 << 30
+	main := "export func main() -> () ! {IO} = println(\"x\")\n"
+	ufun := "module m\n" + chain("P", "(X[a]) -> X[a]", "a", "[a]", 24) + chain("Q", "(X[a]) -> X[a]", "a", "[a]", 24) +
+		"pure func g(u: int) -> P24[int] = unreachable(\"x\")\npure func f(u: int) -> Q24[int] = g(u)\n" + main
+	err := checkBounded(t, ufun, blowupLimit, workAlloc)
+	if err == nil || !strings.Contains(err.Error(), "TC_TYPE_WORK_001") || !strings.Contains(err.Error(), "too much unification work for its size") {
+		t.Fatalf("twin function chains: want TC_TYPE_WORK_001, got %v", err)
+	}
+	ucap := "module m\n" + chain("P", "(X[(a, b), b], X[a, (b, a)])", "(a, b)", "[a, b]", 20) + "pure func f(x: P20[int, string]) -> int = 0\n" + main
+	err = checkBounded(t, ucap, blowupLimit, workAlloc)
+	if err == nil || !strings.Contains(err.Error(), "parameter type work") {
+		t.Fatalf("distinct arguments at every level: want the IFC work limit, got %v", err)
+	}
+}
