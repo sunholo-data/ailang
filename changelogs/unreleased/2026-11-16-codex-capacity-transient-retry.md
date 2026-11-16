@@ -1,11 +1,5 @@
-### Fixed — codex "Selected model is at capacity" now retries instead of crashing the iteration (2026-11-03)
+### Fixed — codex "Selected model is at capacity" now retries instead of crashing the iteration (2026-11-16)
 
-When a codex controller exited rc=1 after `ERROR: Selected model is at capacity. Please try a
-different model.`, the mission driver recorded the slot as CRASHED. That happened to World iteration
-219 (2026-10-02), which had already finished its work. `TRANSIENT_SIG` in
-`tools/launchd/mission-control.sh` now carries the line-anchored `^ERROR: Selected model is at
-capacity`, so this gets the same bounded same-model retry with backoff as Anthropic overloads. The
-anchor is there so that prose quoting the string mid-line does not trigger a retry. New cases
-`codex-capacity-is-transient`, `prose-codex-capacity-not-transient` and
-`codex-other-error-not-transient` in `tools/launchd/test_controller_capacity.sh`; the last keeps
-every other column-0 codex `ERROR:` a crash. Decision D-FLEET-26 (option A).
+A codex controller that exited rc=1 after codex's capacity stop was recorded as CRASHED, even when the iteration had already finished its work. World iteration 219 (2026-10-02) was the case that surfaced it. The stop reaches the driver in two renderings, and both are now matched. The live controller runs `ailang mission codex-exec` in daemon mode (since 2026-10-09), which prints `Error: Codex daemon turn failed: Selected model is at capacity. Please try a different model.`. Raw `codex exec` prints `ERROR: Selected model is at capacity. Please try a different model.`. `TRANSIENT_SIG` in `tools/launchd/mission-control.sh` now carries the line-anchored alternative `^(ERROR|Error: Codex daemon turn failed): Selected model is at capacity`, and the grep stays case-insensitive. The stop gets the same bounded same-model retry with backoff as Anthropic overloads. It does not demote the rung or re-walk the chain. The anchor is there so that prose quoting the string mid-line does not trigger a retry, and nothing widens beyond the literal. Other codex errors, including the daemon-form 400 `model_not_found`, stay crashes.
+
+Tests are in `tools/launchd/test_controller_capacity.sh`. New cases are `codex-daemon-capacity-is-transient` (daemon form retries) and `codex-daemon-other-error-not-transient` (the byte-exact daemon 400 stays a crash). `codex-capacity-is-transient` covers the exec form, and `codex-other-error-not-transient` keeps the exec-form 400 a crash. `prose-codex-capacity-not-transient` now also quotes the daemon form mid-line and indented, and both must stay CRASHED. Decision D-FLEET-26, option A, ruled 2026-11-16.
