@@ -66,7 +66,7 @@ jobs:
     # Keep this request in sync with PinnedPythonVersion in python.go.
     - name: Prefetch Python for offline eval-harness tests
       timeout-minutes: 5
-      run: uv python install 3.12
+      run: uv python install 3.14
 
     - name: Get dependencies
       run: go mod download all

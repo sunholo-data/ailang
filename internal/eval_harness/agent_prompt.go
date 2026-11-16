@@ -9,27 +9,6 @@ import (
 	"github.com/sunholo-data/ailang/internal/eval_harness/langreg"
 )
 
-// loadPythonPrompt loads the Python teaching prompt and substitutes the
-// runtime version placeholder so the prompt advertises the same Python
-// version that the grader will actually invoke.
-//
-// NOTE (2026-11-16): nothing on the live path calls this. Both live Python
-// prompt paths — LoadSystemPromptForLanguage (agent mode) and
-// BenchmarkSpec.PromptForLanguage (standard mode) — load prompts/python.md via
-// langreg and send {{PYTHON_VERSION}} unsubstituted, so TestPythonPromptEndToEnd
-// guards this function, not what the model is shown. Kept until that is fixed
-// on the live path (a prompt change, so a baseline decision).
-func loadPythonPrompt() (string, error) {
-	// Python prompt is in prompts/ (same location as AILANG prompts)
-	pythonPromptPath := "prompts/python.md"
-	data, err := os.ReadFile(pythonPromptPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read python prompt: %w", err)
-	}
-
-	return strings.ReplaceAll(string(data), "{{PYTHON_VERSION}}", DetectedPythonVersion()), nil
-}
-
 // LoadSystemPromptForLanguage loads the versioned teaching prompt for a language
 // This is used with Claude CLI's --system-prompt flag
 func LoadSystemPromptForLanguage(language string, promptVersion string) (string, string, error) {
@@ -37,7 +16,11 @@ func LoadSystemPromptForLanguage(language string, promptVersion string) (string,
 	if err != nil {
 		return "", "", fmt.Errorf("unsupported language: %s", language)
 	}
-	return lang.LoadSyntaxRef(promptVersion)
+	content, version, err := lang.LoadSyntaxRef(promptVersion)
+	if err != nil {
+		return "", "", err
+	}
+	return substituteRuntimePlaceholders(content), version, nil
 }
 
 // LoadTaskPromptTemplate loads the generic .txt template for the initial agent prompt
@@ -147,7 +130,7 @@ func GenerateAgentPromptsWithSystemPrompt(spec *BenchmarkSpec, config AgentBench
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{CAPS}}", strings.Join(spec.Caps, ","))
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{TIMEOUT}}", fmt.Sprintf("%d", config.TimeoutSeconds))
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{SOLUTION_PATH}}", solutionPath)
-	taskPrompt = strings.ReplaceAll(taskPrompt, "{{PYTHON_VERSION}}", DetectedPythonVersion())
+	taskPrompt = substituteRuntimePlaceholders(taskPrompt)
 
 	// Resolve condition: use explicit condition if set, otherwise fall back to legacy Verify flag
 	// cond was already set to config.Condition at function start

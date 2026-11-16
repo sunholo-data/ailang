@@ -370,8 +370,8 @@ func (s *BenchmarkSpec) PromptPartsForLanguage(lang string) (base, task string) 
 	// Replace <LANG> placeholder in BOTH parts. Doing it per-part rather than on
 	// the joined string is equivalent here because the placeholder never spans
 	// the boundary — the boundary is a literal "\n\n## Task\n\n" we just built.
-	return replaceAll(basePrompt, "<LANG>", langName),
-		replaceAll(taskSection, "<LANG>", langName)
+	return substituteRuntimePlaceholders(replaceAll(basePrompt, "<LANG>", langName)),
+		substituteRuntimePlaceholders(replaceAll(taskSection, "<LANG>", langName))
 }
 
 // getDefaultPrompt returns a minimal default prompt for a language
