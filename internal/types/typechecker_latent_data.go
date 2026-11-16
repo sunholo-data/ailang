@@ -26,22 +26,23 @@ const maxDataArrowDepth = 1000
 // Record fields are visited in sorted order so the result is deterministic.
 func dataArrowsWith(t Type, expand func(Type) Type) []*TFunc2 {
 	var out []*TFunc2
-	active := make(map[Type]bool)
-	// done holds the nodes already walked to the end: a repeated node (a type
-	// shared by substitution or alias expansion, `(t, t)`) adds only arrows
-	// already in out, and the callers union their rows. Without it a DAG
-	// was walked once per path, 2^n for n doublings (#2308/#2329).
-	done := make(map[Type]bool)
+	// seen: onPath while a node is being walked, walked once it is done. A
+	// walked node (a type shared by substitution or alias expansion, `(t, t)`)
+	// adds only arrows already in out, and the callers union their rows.
+	// Without it a DAG was walked once per path, 2^n for n doublings
+	// (#2308/#2329). One map, so the scan allocates no more than before.
+	const onPath, walked = 1, 2
+	seen := make(map[Type]uint8)
 	var walk func(Type, int)
 	walk = func(t Type, depth int) {
-		if t == nil || active[t] || done[t] {
+		if t == nil || seen[t] != 0 {
 			return
 		}
 		if depth > maxDataArrowDepth {
 			panic(latentDataDepthExceeded{})
 		}
-		active[t] = true
-		defer func(node Type) { delete(active, node); done[node] = true }(t)
+		seen[t] = onPath
+		defer func(node Type) { seen[node] = walked }(t)
 		if expand != nil {
 			original := t
 			t = expand(t)
@@ -49,11 +50,11 @@ func dataArrowsWith(t Type, expand func(Type) Type) []*TFunc2 {
 				return
 			}
 			if t != original {
-				if active[t] {
+				if seen[t] != 0 {
 					return
 				}
-				active[t] = true
-				defer delete(active, t)
+				seen[t] = onPath
+				defer func(node Type) { seen[node] = walked }(t)
 			}
 		}
 		switch x := t.(type) {

@@ -52,9 +52,9 @@ const TypeTooLargeError TypeErrorKind = "type_too_large"
 
 // maxTypeTreeNodes bounds the tree size of any one type. Measured 2026-11-16
 // at every guard point: the largest type in the repository's .ail files is
-// 115 nodes, and in the 14,778 banked passing solutions 292, so the bound is
-// over 200x the largest real type. One traversal walks a tree this size in
-// milliseconds.
+// 107 nodes, and in the 14,779 banked passing solutions 100, so the bound is
+// over 600x the largest real type (the deepest is 10 levels). One traversal
+// walks a tree this size in milliseconds.
 const maxTypeTreeNodes int64 = 1 << 16
 
 // maxUnifySteps bounds the unification steps (Unify calls, each node pair
@@ -63,7 +63,7 @@ const maxTypeTreeNodes int64 = 1 << 16
 // separately declared alias DAGs with variables in them unified with each
 // other (ground ones share their pairs, unification_alias_pairs.go). Measured
 // 2026-11-16: the most steps any declaration takes is 42,564 in the
-// repository's .ail files and 365,050 in the 14,778 banked passing solutions,
+// repository's .ail files and 365,050 in the 14,779 banked passing solutions,
 // so the bound is over 180x the largest real declaration.
 const maxUnifySteps = 1 << 26
 

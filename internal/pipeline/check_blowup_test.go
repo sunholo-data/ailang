@@ -219,7 +219,10 @@ func TestCheckBlowup_SmallInstancesStillCheck(t *testing.T) {
 		"alias chain used":         blowupAliasChain(12, "export pure func f(x: P0[int]) -> P0[int] = x\npure func g(x: P0[int]) -> bool = match f(x) { Some(_) => true, None => false }"),
 		"alias DAG used":           blowupAliasDAG(12, "export pure func f(x: DLAST) -> DLAST = x\npure func g(x: DLAST) -> DLAST = f(f(x))"),
 		"two alias DAGs unified":   blowupTwinDAGs(12),
-		"nested record pair":       "module m\nexport func main() -> () ! {IO} {\n  let r0 = {v: \"s\"};\n  let r1 = {a: r0, b: r0};\n  let r2 = {a: r1, b: r1};\n  println(r2.a.b.v)\n}\n",
+		// A long expression is not a deep type: 5,000 list elements are one
+		// [int], however long the literal (the 1,000-deep bound is on types).
+		"5,000-element list literal": "module m\nexport func main() -> () ! {IO} {\n  let xs = [" + strings.TrimSuffix(strings.Repeat("1, ", 5000), ", ") + "];\n  println(show(xs))\n}\n",
+		"nested record pair":         "module m\nexport func main() -> () ! {IO} {\n  let r0 = {v: \"s\"};\n  let r1 = {a: r0, b: r0};\n  let r2 = {a: r1, b: r1};\n  println(r2.a.b.v)\n}\n",
 	}
 	for name, src := range cases {
 		t.Run(name, func(t *testing.T) {
