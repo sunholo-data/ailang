@@ -20,7 +20,8 @@ import (
 // controller's own review is IN-SESSION (not an API call) and can be folded in
 // via flags.
 //
-// Reviewer POOL (Mark, attended 2026-09-25; OpenAI seat -> gpt6-1-sol 2026-09-30; Google seat -> gemini-4-argon 2026-10-13): gpt6-1-sol (OpenAI), gemini-4-argon
+// Reviewer POOL (Mark, attended 2026-09-25; OpenAI seat -> gpt6-1-sol 2026-09-30; Google seat -> gemini-4-argon 2026-10-13;
+// OpenAI seat onto the codex subscription lane 2026-11-16, D-FLEET-20): codex:gpt-6.1-sol (OpenAI), gemini-4-argon
 // (Google), oc-glm-5-3 (Z-AI), oc-kimi-k3 (Moonshot) and claude-sonnet-5@claude-p
 // (Anthropic, subscription); three seats per doc, rotated per doc, distinct
 // vendors preferred, absent seats replaced from the pool. The AUTHOR'S vendor
@@ -30,8 +31,10 @@ import (
 // astra's turn" workaround, which still had OpenAI reviewing OpenAI.
 //
 // History: OpenAI seat gpt5-6-sol -> gpt6-astra (2026-09-05) -> gpt6-1-sol (2026-09-30,
-// Mark: "6.1 sol also replaces the quorum review slot"); Z-AI seat oc-glm-5-2 -> oc-glm-5-3
-// (2026-09-25).
+// Mark: "6.1 sol also replaces the quorum review slot") -> codex:gpt-6.1-sol (2026-11-16,
+// D-FLEET-20 A: the gpt6-1-sol row bills the metered API, whose org has no credits, so the
+// seat was ABSENT on every quorum; the same model now runs on the ChatGPT subscription via
+// `codex exec`, as the mission roles do); Z-AI seat oc-glm-5-2 -> oc-glm-5-3 (2026-09-25).
 func runDesignQuorum() {
 	fs := flag.NewFlagSet("design-quorum", flag.ExitOnError)
 	reviewers := fs.String("reviewers", defaultQuorumPool, "comma-separated reviewer POOL (models.yml ids, or "+quorum.ClaudeReviewerID+"); --seats of them review each doc")
@@ -86,7 +89,7 @@ func runDesignQuorum() {
 		authorID, csvOrNone(sel.Primary), csvOrNone(sel.Reserve), csvOrNone(sel.Benched))
 
 	isoTS := time.Now().UTC().Format(time.RFC3339)
-	result := quorum.RunSeatedQuorum(docPath, docBody, isoTS, sel, *seats, *maxCost, controller, quorumSeatRunner)
+	result := quorum.RunSeatedQuorum(docPath, docBody, isoTS, sel, *seats, *maxCost, controller, quorumSeatRouter)
 	for _, o := range result.Reviewers {
 		if o.Tier == quorum.TierAuthorVendor {
 			fmt.Fprintf(os.Stderr, "design-quorum: every independent reviewer was absent — recalled the author's vendor (%s), labelled same-vendor\n", o.Model)
@@ -141,7 +144,7 @@ USAGE:
   ailang design-quorum --author codex:gpt-6.1-sol < doc.md
 
 FLAGS:
-  --reviewers <csv>          reviewer POOL (default gpt6-1-sol,gemini-4-argon,oc-glm-5-3,
+  --reviewers <csv>          reviewer POOL (default codex:gpt-6.1-sol,gemini-4-argon,oc-glm-5-3,
                              oc-kimi-k3,claude-sonnet-5@claude-p)
   --seats <n>                reviewers per doc, drawn from the pool (default 3)
   --max-cost-usd <n>         per-reviewer budget cap in USD (default 0.30)
@@ -166,7 +169,10 @@ BEHAVIOR:
   AUTHOR'S VENDOR SITS OUT: pass --author (or MISSION_DESIGN_AUTHOR) with the
   model that wrote the doc. Reviewers from that vendor are benched, and come
   back — labelled same-vendor — only if nobody else in the pool answers. With no
-  author given, a Claude author is assumed. The Anthropic seat
+  author given, a Claude author is assumed. The OpenAI seat (codex:gpt-6.1-sol)
+  runs "codex exec" on the ChatGPT subscription, never the API key, read-only
+  in an empty directory; it is absent (quota) when the Codex bucket is blocked.
+  A "codex:<model>" pool entry takes that lane. The Anthropic seat
   (claude-sonnet-5@claude-p) runs "claude -p" on the subscription, never the
   API key, with tools, settings and MCP off; it is absent (quota) when the
   Anthropic bucket is over its mission ration.
@@ -180,7 +186,7 @@ SEE ALSO:
 
 // defaultQuorumPool is the reviewer pool, one model per vendor. --seats of them
 // review each doc; the author's vendor sits out. Extend the pool here.
-const defaultQuorumPool = "gpt6-1-sol,gemini-4-argon,oc-glm-5-3,oc-kimi-k3," + quorum.ClaudeReviewerID
+const defaultQuorumPool = quorum.CodexReviewerID + ",gemini-4-argon,oc-glm-5-3,oc-kimi-k3," + quorum.ClaudeReviewerID
 
 // quorumSeatRunner runs one seat: the Anthropic seat over the subscription (unless
 // the Anthropic bucket is over its mission ration — the ration is what keeps
