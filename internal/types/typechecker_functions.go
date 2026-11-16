@@ -342,9 +342,6 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 			allValueNodes[i] = tc.applySubstitutionToTyped(sub, allValueNodes[i])
 		}
 	}
-	for i, binding := range letrec.Bindings {
-		guardTypeSize(allValueTypes[i], letBindingWhat(binding.Name), letrec.Span())
-	}
 
 	// Apply defaulting to the entire mutual block (once per SCC). Each binding's
 	// defaulting also reaches its carried field accesses, as in inferLet (#2239).

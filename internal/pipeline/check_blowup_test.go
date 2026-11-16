@@ -95,15 +95,29 @@ func checkBounded(t *testing.T, src string, limit time.Duration, allocBudget uin
 		runtime.ReadMemStats(&after)
 		done <- outcome{err, after.TotalAlloc - before.TotalAlloc}
 	}()
-	select {
-	case o := <-done:
-		if o.alloc > allocBudget {
-			t.Fatalf("check allocated %d MB (budget %d MB)", o.alloc>>20, allocBudget>>20)
+	// A regression grows the live heap by GiB a second (the #2308 shape reached
+	// 6 GB in 15 s): stop the whole test binary before it exhausts the machine,
+	// since a timed-out check goroutine cannot be cancelled.
+	tick := time.NewTicker(100 * time.Millisecond)
+	defer tick.Stop()
+	deadline := time.After(limit)
+	for {
+		select {
+		case o := <-done:
+			if o.alloc > allocBudget {
+				t.Fatalf("check allocated %d MB (budget %d MB)", o.alloc>>20, allocBudget>>20)
+			}
+			return o.err
+		case <-deadline:
+			t.Fatalf("check did not finish within %s", limit)
+			return nil
+		case <-tick.C:
+			var m runtime.MemStats
+			runtime.ReadMemStats(&m)
+			if m.HeapAlloc > 8*allocBudget {
+				panic(fmt.Sprintf("check holds %d MB of live heap (allocation budget %d MB): stopping before it exhausts memory", m.HeapAlloc>>20, allocBudget>>20))
+			}
 		}
-		return o.err
-	case <-time.After(limit):
-		t.Fatalf("check did not finish within %s", limit)
-		return nil
 	}
 }
 

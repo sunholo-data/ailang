@@ -25,7 +25,7 @@ import (
 // file is the backstop for what remains, with one code, TC_TYPE_SIZE_001:
 //
 //   - a type whose tree exceeds maxTypeTreeNodes, raised where it first
-//     appears — a let binding (inferLet, inferLetRec), a declaration's final
+//     appears — a let binding (inferLet), a declaration's final
 //     node types (inferWithConstraints), or a module interface once its
 //     aliases are closed (pipeline checkInterfaceTypeSizes) — before any later
 //     traversal walks it;
