@@ -145,7 +145,19 @@ export pure func internalSecret() -> string = "secret"
 		t.Fatal(err)
 	}
 
-	useRepoStdlib(t)
+	stdlibPath := os.Getenv("AILANG_STDLIB_PATH")
+	if stdlibPath == "" {
+		cwd, _ := os.Getwd()
+		for dir := cwd; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
+			if _, err := os.Stat(filepath.Join(dir, "stdlib")); err == nil {
+				stdlibPath = dir
+				break
+			}
+		}
+	}
+	if stdlibPath != "" {
+		os.Setenv("AILANG_STDLIB_PATH", stdlibPath)
+	}
 
 	srv := New(tmpDir, Config{Port: "0", CORS: true})
 	if err := srv.LoadModules([]string{modPath}); err != nil {

@@ -31,7 +31,18 @@ export pure func helper() -> string = "helper"
 	if err := os.WriteFile(modPath, []byte(content), 0644); err != nil {
 		t.Fatal(err)
 	}
-	useRepoStdlib(t)
+	if os.Getenv("AILANG_STDLIB_PATH") == "" {
+		cwd, err := os.Getwd()
+		if err != nil {
+			t.Fatal(err)
+		}
+		for dir := cwd; dir != filepath.Dir(dir); dir = filepath.Dir(dir) {
+			if _, err := os.Stat(filepath.Join(dir, "stdlib")); err == nil {
+				t.Setenv("AILANG_STDLIB_PATH", dir)
+				break
+			}
+		}
+	}
 	srv := New(filepath.Dir(filepath.Dir(apiDir)), cfg)
 	if err := srv.LoadModules([]string{modPath}); err != nil {
 		srv.Close()

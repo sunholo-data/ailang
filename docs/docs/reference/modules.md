@@ -220,7 +220,8 @@ failed to resolve global std/fs.fileExists: module std/fs not imported
 One exception: `Option`, `Some`, `None` (from `std/option`) and `Result`, `Ok`, `Err` (from
 `std/result`) are in scope in **every** module without an import — library modules too since
 #2371, entry modules since v0.30.0. Standard-library modules (`std/*`) and a file of top-level
-expressions do not get them. They have the lowest precedence:
+expressions do not get them, and a library module that never writes any of these names does not
+load `std/option`/`std/result` at all. They have the lowest precedence:
 
 - an import from `std/option` or `std/result` replaces that implicit import, so
   `import std/option (Option, Some, None)` remains valid and changes nothing;

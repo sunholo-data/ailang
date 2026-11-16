@@ -16,8 +16,11 @@ The rules are the entry-module rules, unchanged (`internal/loader/prelude_import
 - the type names `Option` and `Result` are in scope, as in entry modules;
 - `println` (the other prelude binding) stays entry-only.
 
+Pay for use: a library module gets each implicit import only when its source mentions one of
+that module's names (a whole-word textual match, comments and strings included, so a use is never
+missed). A name a module never writes cannot be observed in scope; a module that writes none of
+the six keeps its dependencies, compile-cache key and program image exactly as before. Entry
+modules still get both unconditionally.
+
 Not changed: `std/*` modules, and a file of top-level expressions — with any import such a file's
-expression is not type-checked (#2372), so it gets no implicit import, as before. A library
-module now depends on `std/option` and `std/result`, so its compile-cache key includes their
-interfaces, and a project's library modules need a usable stdlib (a bogus
-`AILANG_STDLIB_PATH` now fails for them as it already did for entry modules).
+expression is not type-checked (#2372), so it gets no implicit import, as before.

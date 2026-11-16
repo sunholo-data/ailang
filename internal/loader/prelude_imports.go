@@ -65,6 +65,13 @@ func EntryPreludeSymbols(modPath string) []string {
 // It is:
 //   - Every module but the standard library's: no-op unless
 //     preludeEligible(file, modID).
+//   - Pay-for-use outside entry modules: a library module gets a prelude
+//     module only when its source mentions one of that module's names
+//     (mentionsAny). A name a module never writes cannot be observed in scope,
+//     so the scope is the entry module's for every name it uses, while a module
+//     that uses none keeps its dependencies, cache key and program image
+//     exactly as before (#2371). The match is textual and conservative — a
+//     mention in a comment or string counts — so it never misses a use.
 //   - Deduped: a prelude module the user ALREADY imports (explicitly, in any
 //     form — whole-module or selective) is skipped, so there is no double-load
 //     and no duplicate constructor registration / ambiguity.
@@ -73,10 +80,11 @@ func EntryPreludeSymbols(modPath string) []string {
 //     or an explicit import shadows them cleanly downstream.
 //
 // Returns the (possibly extended) import-path slice for LoadedModule.Imports.
-func injectEntryPreludeImports(file *ast.File, modID string, importPaths []string) []string {
+func injectEntryPreludeImports(file *ast.File, modID, source string, importPaths []string) []string {
 	if !preludeEligible(file, modID) {
 		return importPaths
 	}
+	entry := isEntryModuleFile(file)
 
 	// Collect paths the user already imports (dedupe key = canonical module path).
 	existing := make(map[string]bool, len(file.Imports))
@@ -99,6 +107,9 @@ func injectEntryPreludeImports(file *ast.File, modID string, importPaths []strin
 		}
 		if preludeModuleShadowed(modPath, localTypes, localCtors) {
 			continue // user defines a colliding type/constructor locally — shadow
+		}
+		if !entry && !mentionsAny(source, preludeModuleSymbols[modPath]) {
+			continue // a library module that never writes Option/Some/None (or Result/Ok/Err)
 		}
 		// Selective import naming the type + constructors, exactly as a user
 		// would write `import std/option (Option, Some, None)`. This routes
@@ -125,6 +136,31 @@ func injectEntryPreludeImports(file *ast.File, modID string, importPaths []strin
 	// later user imports / local decls override on same-name collisions).
 	file.Imports = append(synthetic, file.Imports...)
 	return append(syntheticPaths, importPaths...)
+}
+
+// mentionsAny reports whether source contains any of names as a whole word
+// (not part of a longer identifier: `Some` in `SomeType` or `isSome` does not
+// count). Comments and string literals count too: over-inclusion only injects
+// an import a module may not need, which is what entry modules always get.
+func mentionsAny(source string, names []string) bool {
+	for _, name := range names {
+		for i := 0; ; {
+			j := strings.Index(source[i:], name)
+			if j < 0 {
+				break
+			}
+			start, end := i+j, i+j+len(name)
+			if (start == 0 || !isIdentByte(source[start-1])) && (end == len(source) || !isIdentByte(source[end])) {
+				return true
+			}
+			i = start + 1
+		}
+	}
+	return false
+}
+
+func isIdentByte(b byte) bool {
+	return b == '_' || b >= '0' && b <= '9' || b >= 'a' && b <= 'z' || b >= 'A' && b <= 'Z'
 }
 
 // collectLocalTypesAndCtors returns the set of type names and constructor names

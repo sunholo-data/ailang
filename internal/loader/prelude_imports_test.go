@@ -1,6 +1,7 @@
 package loader
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/ast"
@@ -29,7 +30,7 @@ func hasImport(file *ast.File, path string) bool {
 
 func TestInjectEntryPreludeImports_EntryGetsBothModules(t *testing.T) {
 	file := entryMainFile(nil, nil)
-	out := injectEntryPreludeImports(file, "main", nil)
+	out := injectEntryPreludeImports(file, "main", "", nil)
 
 	for _, want := range []string{"std/option", "std/result"} {
 		if !hasImport(file, want) {
@@ -60,9 +61,37 @@ func TestInjectEntryPreludeImports_EntryGetsBothModules(t *testing.T) {
 func TestInjectEntryPreludeImports_LibraryModuleGetsPrelude(t *testing.T) {
 	helper := &ast.FuncDecl{Name: "helper", IsExport: true}
 	file := &ast.File{Module: &ast.ModuleDecl{Path: "lib/x"}, Decls: []ast.Node{helper}, Funcs: []*ast.FuncDecl{helper}}
-	out := injectEntryPreludeImports(file, "lib/x", nil)
+	out := injectEntryPreludeImports(file, "lib/x", "f(o: Option[int]) = Ok(1)", nil)
 	if !hasImport(file, "std/option") || !hasImport(file, "std/result") || len(out) != 2 {
 		t.Errorf("library module must receive the implicit prelude imports, got %v", out)
+	}
+}
+
+// A library module gets a prelude module only when it writes one of that
+// module's names; one that writes none keeps its imports (and its cache key
+// and program image) as before.
+func TestInjectEntryPreludeImports_LibraryPaysForUse(t *testing.T) {
+	for _, c := range []struct {
+		source string
+		want   []string
+	}{
+		{"export pure func f() -> int = 1", nil},
+		{"pure func isSomeThing(SomeType: int) -> int = 1 -- isSome, Okay, Errs", nil}, // not whole words
+		{"pure func f(x: int) = Some(x)", []string{"std/option"}},
+		{"pure func f(r) = match r { Err(e) => e, _ => 0 }", []string{"std/result"}},
+		{"-- returns None or Ok\nexport pure func f() -> int = 1", []string{"std/option", "std/result"}}, // a comment counts
+	} {
+		helper := &ast.FuncDecl{Name: "f", IsExport: true}
+		file := &ast.File{Module: &ast.ModuleDecl{Path: "lib/x"}, Decls: []ast.Node{helper}, Funcs: []*ast.FuncDecl{helper}}
+		out := injectEntryPreludeImports(file, "lib/x", c.source, nil)
+		if strings.Join(out, ",") != strings.Join(c.want, ",") {
+			t.Errorf("%q: injected %v, want %v", c.source, out, c.want)
+		}
+	}
+	// An entry module always gets both, as before.
+	file := entryMainFile(nil, nil)
+	if out := injectEntryPreludeImports(file, "main", "", nil); len(out) != 2 {
+		t.Errorf("entry module: injected %v, want both", out)
 	}
 }
 
@@ -72,7 +101,7 @@ func TestInjectEntryPreludeImports_StdModuleUntouched(t *testing.T) {
 	for _, id := range []string{"std/list", "std/option", "std/result"} {
 		helper := &ast.FuncDecl{Name: "helper", IsExport: true}
 		file := &ast.File{Module: &ast.ModuleDecl{Path: id}, Decls: []ast.Node{helper}, Funcs: []*ast.FuncDecl{helper}}
-		if out := injectEntryPreludeImports(file, id, nil); len(out) != 0 || len(file.Imports) != 0 {
+		if out := injectEntryPreludeImports(file, id, "Option Some None Result Ok Err", nil); len(out) != 0 || len(file.Imports) != 0 {
 			t.Errorf("%s must not receive implicit prelude imports, got %v", id, out)
 		}
 	}
@@ -83,7 +112,7 @@ func TestInjectEntryPreludeImports_StdModuleUntouched(t *testing.T) {
 func TestInjectEntryPreludeImports_TopLevelExpressionUntouched(t *testing.T) {
 	expr := &ast.Identifier{Name: "x"}
 	file := &ast.File{Module: &ast.ModuleDecl{Path: "probe"}, Decls: []ast.Node{expr}, Statements: []ast.Node{expr}}
-	if out := injectEntryPreludeImports(file, "probe", nil); len(out) != 0 {
+	if out := injectEntryPreludeImports(file, "probe", "Some(1)", nil); len(out) != 0 {
 		t.Errorf("a top-level-expression file must not receive implicit prelude imports, got %v", out)
 	}
 }
@@ -93,7 +122,7 @@ func TestInjectEntryPreludeImports_DedupExplicitImport(t *testing.T) {
 	file := entryMainFile([]*ast.ImportDecl{
 		{Path: "std/option", Symbols: []string{"Some", "None"}},
 	}, nil)
-	injectEntryPreludeImports(file, "main", nil)
+	injectEntryPreludeImports(file, "main", "", nil)
 
 	optCount := 0
 	for _, imp := range file.Imports {
@@ -121,7 +150,7 @@ func TestInjectEntryPreludeImports_LocalTypeShadows(t *testing.T) {
 		}},
 	}
 	file := entryMainFile(nil, []*ast.TypeDecl{localOption})
-	injectEntryPreludeImports(file, "main", nil)
+	injectEntryPreludeImports(file, "main", "", nil)
 
 	if hasImport(file, "std/option") {
 		t.Error("local type Option must shadow the prelude: std/option must NOT be injected")
@@ -142,7 +171,7 @@ func TestInjectEntryPreludeImports_LocalResultDifferentCtorsShadows(t *testing.T
 		}},
 	}
 	file := entryMainFile(nil, []*ast.TypeDecl{localResult})
-	injectEntryPreludeImports(file, "main", nil)
+	injectEntryPreludeImports(file, "main", "", nil)
 
 	if hasImport(file, "std/result") {
 		t.Error("local type Result must shadow the prelude: std/result must NOT be injected")
@@ -161,7 +190,7 @@ func TestInjectEntryPreludeImports_LocalCtorNameCollisionShadows(t *testing.T) {
 			{Name: "Some"}, {Name: "Nothing"},
 		}},
 	}})
-	injectEntryPreludeImports(file, "main", nil)
+	injectEntryPreludeImports(file, "main", "", nil)
 	if hasImport(file, "std/option") {
 		t.Error("local constructor Some must shadow std/option (ctor-name collision)")
 	}

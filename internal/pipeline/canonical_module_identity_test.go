@@ -6,7 +6,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/loader"
 	"github.com/sunholo-data/ailang/internal/testutil/prefixpkg"
 )
@@ -79,16 +78,7 @@ func TestCanonicalModuleIdentity_DependencyReachedByTwoSpellings(t *testing.T) {
 	if area == nil {
 		t.Fatalf("area not loaded under its canonical ID; modules: %v", sortedKeys(result.Modules))
 	}
-	var imp *ast.ImportDecl // the first written import (the prelude's are prepended, #2371)
-	for _, i := range area.File.Imports {
-		if !i.Implicit {
-			imp = i
-			break
-		}
-	}
-	if imp == nil {
-		t.Fatal("area has no written import")
-	}
+	imp := area.File.Imports[0]
 	if imp.Path != prefixpkg.Canonical || imp.WrittenPath != prefixpkg.PrefixSpelling {
 		t.Fatalf("area's import = (Path %q, WrittenPath %q), want (%q, %q)",
 			imp.Path, imp.WrittenPath, prefixpkg.Canonical, prefixpkg.PrefixSpelling)
