@@ -83,7 +83,8 @@ func TestQuorumRoleAuthorVendor(t *testing.T) {
 
 func TestQuorumDefaultPoolControl(t *testing.T) {
 	// Frozen CLI default literal; do not import or change design_quorum.go.
-	defaults := []string{"gpt6-1-sol", "gemini-4-argon", "oc-glm-5-3", "oc-kimi-k3", ClaudeReviewerID}
+	// OpenAI seat gpt6-1-sol -> codex:gpt-6.1-sol 2026-11-16 (D-FLEET-20).
+	defaults := []string{"codex:gpt-6.1-sol", "gemini-4-argon", "oc-glm-5-3", "oc-kimi-k3", ClaudeReviewerID}
 	for _, author := range []string{"opus", "codex:gpt-6.1-sol", "gemini-4-argon", "oc-glm-5-3", "oc-kimi-k3", "unknown"} {
 		for doc := 0; doc < 20; doc++ {
 			for _, seats := range []int{0, 1, 3, 6} {
