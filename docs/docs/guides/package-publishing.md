@@ -159,6 +159,13 @@ signature-sensitive `interface_hash_v2` and the exported `interface_signatures`.
 `PUB005` naming both — upgrade the publisher. A package whose v2 identity cannot be built
 gets a badge today (shadow mode); `GET /api/stats` reports `v2_clean_streak`.
 
+The v2 hash covers each export's class constraints (`Eq[a]`, `Num[a]`, as `ailang iface`
+lists them) since the release that carries constraints across modules (#2290). A package
+with a constrained export therefore has a different v2 hash under that release than under
+the one before, and a publisher and a validator on either side of it disagree (`PUB005`):
+deploy the validator in step with that release. The lockfile's `interface_hash` (v1) is
+computed from the manifest alone and does not change.
+
 ### The package inbox
 
 Every published package has an agent inbox, `pkg:<vendor>/<name>`, derived from

@@ -23,7 +23,38 @@ export pure func lt[a](x: a, y: a) -> bool = x < y
 export pure func eqq[a](x: a, y: a) -> bool = x == y
 export pure func addU(x, y) = x + y
 export pure func addv(p, q) = {p | v: p.v + q.v}
+export pure func pick(c, x) = if c then x else 0.5
 `
+
+// An imported function's Fractional constraint now types the caller's numeric
+// literals, as it always did in one module: `pick(c, x)` returns x or 0.5, so
+// `pick(true, 3)` is a float. Before #2290 the importer saw `(bool, a) -> a`
+// with no constraint, the literals stayed int, and this printed `3 4 3`
+// (integer division) where the same code in one module printed `3.0 4.0 3.5`.
+// A silent change of output, so it is pinned on both engines.
+func TestExportedConstraintsTypeCallerLiterals(t *testing.T) {
+	run := writeExportedConstraintCase(t, `module main
+import lib/boxes (pick)
+export func main() -> () ! {IO} = {
+  println(show(pick(true, 3)));
+  println(show(pick(true, 3) + 1));
+  println(show(pick(true, 7) / 2))
+}
+`)
+	for _, engine := range [][]string{
+		{"run", "--quiet", "--caps", "IO", "main.ail"},
+		{"run", "--quiet", "--caps", "IO", "--bytecode", "--strict-bytecode", "main.ail"},
+	} {
+		stdout, stderr, code := run(engine...)
+		if code != 0 {
+			t.Errorf("%v: exit %d\n%s", engine, code, stderr)
+			continue
+		}
+		if got := strings.TrimSpace(stdout); got != "3.0\n4.0\n3.5" {
+			t.Errorf("%v: got %q, want 3.0 / 4.0 / 3.5 (the in-module answer)", engine, got)
+		}
+	}
+}
 
 func writeExportedConstraintCase(t *testing.T, main string) func(args ...string) (string, string, int) {
 	t.Helper()

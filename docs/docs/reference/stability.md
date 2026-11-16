@@ -447,7 +447,7 @@ the [Package System guide](/docs/guides/packages) and the
 | **Authority: run-time grant** | A package gets no capability unless it is granted at run time (`run --caps`, or `[bin].caps`, which defaults to `auto` = the entry's declared effects). Declaring an effect does not grant it |
 | Manifest `[stability].level` | `experimental` / `stable` / `frozen`: the package's own declared maturity |
 | Lockfile `ailang.lock` | JSON with `schema: "ailang.lock/v1"`. Each package entry has `name`, `version`, `source` (`path`/`git`/`registry`), `content_hash`, `interface_hash`, `effects`, `exports` and the source locator. It is portable: path dependencies are recorded relative with forward slashes, and cache paths are resolved at run time. An unchanged resolution rewrites byte-identically, and `ailang lock --check` detects drift without writing |
-| Dual hash model | `content_hash` changes with any source change. `interface_hash` changes only when exports (names, types, class constraints) or effects change, so internal refactors do not cascade |
+| Dual hash model | `content_hash` changes with any source change. `interface_hash` changes only when exports or effects change, so internal refactors do not cascade |
 | Import form | `import pkg/vendor/name/module (…)` resolves against the lockfile, never the local filesystem |
 | Registry resolution | Default registry `https://storage.googleapis.com/ailang-registry` (`AILANG_REGISTRY` overrides it), read through `index.json`. `install x` / `x@latest` resolves once and writes the **exact** version into `ailang.toml`. A published version is immutable, and duplicate versions are rejected |
 
@@ -458,7 +458,7 @@ the [Package System guide](/docs/guides/packages) and the
 | `[bin]` commands (`module`, `entry`, `caps`, `run_flags`) | ⚠ close call — shipped in v0.40.0, used by `sunholo/email` / `eparse`; promote once the shim layout is settled |
 | `[release].kind` and the `CHANGELOG.md` `## <version>` requirement | ⚠ close call — publish has required them since v0.41.0; part of the quality ladder that is still growing |
 | Publish validator gates (`PUBnnn`, `ailang pkg quality`) | gates may tighten in a minor |
-| Interface identity v2 hashing algorithm | ⚠ close call — the *meaning* of `interface_hash` is Stable, but the algorithm behind it may be re-versioned |
+| Interface identity v2 hashing algorithm | ⚠ close call — the *meaning* of `interface_hash` is Stable, but the algorithm behind it may be re-versioned. The v2 hash covers exports' class constraints since #2290, so it differs across that release for a package with a constrained export, and a publisher and validator on either side of it disagree (`PUB005`): the validator is deployed in step with the release. The lockfile `interface_hash` (v1, manifest-only) is unaffected |
 | Confined-agent authority (`AILANG_AGENT_POLICY`, `AILANG_PACKAGE_ROOT`) | ⚠ close call — under an agent policy, package verbs refuse network and `~/.ailang` writes with a `confined by AILANG_AGENT_POLICY` error (#1720); landed 2026-10-26 |
 | `[dependencies_dev]` | undocumented in the package guide |
 | `[ai_provider]`, `[extensions]`, `[assets]`, `[smoke]` | extension and provider wiring, still changing |

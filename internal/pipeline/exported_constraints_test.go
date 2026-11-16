@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/sunholo-data/ailang/internal/iface"
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
@@ -283,5 +284,67 @@ export func main() -> () ! {IO} = {
 `
 	if err := checkModule(t, ok); err != nil {
 		t.Fatalf("element types with Eq must check: %v", err)
+	}
+}
+
+// ifaceJSONOf checks one library module and returns its normalized interface.
+func ifaceJSONOf(t *testing.T, src string) *iface.InterfaceJSON {
+	t.Helper()
+	res, err := writeAndCheck(t, map[string]string{"q/c.ail": src}, "q/c.ail")
+	if err != nil {
+		t.Fatal(err)
+	}
+	data, err := res.Interface.ToNormalizedJSON()
+	if err != nil {
+		t.Fatal(err)
+	}
+	var j iface.InterfaceJSON
+	if err := json.Unmarshal(data, &j); err != nil {
+		t.Fatal(err)
+	}
+	return &j
+}
+
+// The registry's v2 identity (HashProjection) of a real module moves when an
+// export gains a constraint with its type unchanged, and stays put for a body
+// change that keeps the constraints (#2290).
+func TestExportedConstraints_HashProjectionOfCheckedModule(t *testing.T) {
+	project := func(src string) string {
+		t.Helper()
+		b, err := iface.HashProjection(ifaceJSONOf(t, src))
+		if err != nil {
+			t.Fatal(err)
+		}
+		return string(b)
+	}
+	noEq := project("module q/c\nexport pure func eqq[a](x: a, y: a) -> bool = true\n")
+	withEq := project("module q/c\nexport pure func eqq[a](x: a, y: a) -> bool = x == y\n")
+	swapped := project("module q/c\nexport pure func eqq[a](x: a, y: a) -> bool = y == x\n")
+	if noEq == withEq {
+		t.Fatalf("gaining Eq[a] must change the hash projection: %s", withEq)
+	}
+	if withEq != swapped {
+		t.Errorf("a body change that keeps the constraints must not change it:\n%s\n%s", withEq, swapped)
+	}
+	if !strings.Contains(withEq, `"constraints":["Eq[a]"]`) || strings.Contains(noEq, "constraints") {
+		t.Errorf("projection must carry exactly the export's constraints:\n%s\n%s", noEq, withEq)
+	}
+}
+
+// literalAtDecl (typechecker_defaulting.go): a module declaration's integer
+// literal under an open record keeps its old defaulting, so the export is
+// monomorphic in that field, while the same shape without a literal is generic
+// and carries its constraint.
+func TestDefaulting_LiteralAtDeclExportShape(t *testing.T) {
+	j := ifaceJSONOf(t, "module q/c\nexport pure func bump(p) = {p | x: p.x + 1}\nexport pure func twice(p) = {p | x: p.x + p.x}\n")
+	got := map[string]string{}
+	for _, f := range j.Funcs {
+		got[f.Name] = strings.TrimSpace(f.Type + " " + strings.Join(f.Constraints, " "))
+	}
+	if want := "({x: int, ...a})->{x: int, ...a}"; got["bump"] != want {
+		t.Errorf("bump (literal under an open row) must stay defaulted: got %q, want %q", got["bump"], want)
+	}
+	if want := "({x: b, ...a})->{x: b, ...a} Num[b]"; got["twice"] != want {
+		t.Errorf("twice (no literal) must be generic with Num[b]: got %q, want %q", got["twice"], want)
 	}
 }

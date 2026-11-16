@@ -47,6 +47,17 @@ func (tc *CoreTypeChecker) declLiteralVars(ctx *InferenceContext, binder core.Co
 // function is used at float. A literal variable that only the shared walk sees
 // (under an open record) is still defaulted there, as before, so
 // `bump({ver: 1.5})` stays a check error instead of becoming that run-time one.
+//
+// The boundary is exactly "only the shared walk sees it". Minimal pair:
+//
+//	func f(p) = {p | x: p.x + 1}   -- x under the open row: defaulted to int,
+//	                               -- f({x: 1.5}) is a check error (Fractional[int])
+//	func f(p) = {x: p.x * 1}       -- x in a closed record the old walk sees: not
+//	                               -- defaulted, generic, so f({x: 1.5}) passes check
+//	                               -- and fails at run time ("received an int and a float")
+//
+// The second is the general hole of an integer literal in a generic top-level
+// function (#2378), unchanged here; fixing that removes the need for this case.
 func (tc *CoreTypeChecker) defaultAmbiguitiesKeeping(
 	monotype Type,
 	constraints []ClassConstraint,

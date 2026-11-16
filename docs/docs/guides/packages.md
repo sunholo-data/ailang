@@ -468,7 +468,7 @@ When multiple AI agents work on a project (or across projects), the registry pro
 
 - **Effect ceilings** — An agent can inspect `[effects].max` to know exactly what authority a package has. A package with `max = ["IO"]` cannot access the network, filesystem, or environment. This lets agents reason about trust boundaries without reading source code.
 
-- **Interface hashes** — The interface hash changes only when exports or effects change. An internal refactor (same exports, same effects) produces a new content hash but the same interface hash. Downstream agents can skip re-verification when only content changes.
+- **Interface hashes** — The interface hash changes only when exports or effects change. (The registry's signature-sensitive v2 hash also covers export types and class constraints, so it changes across the release that exports constraints (#2290) for a package with a constrained export; see [Interface identity (v2)](package-publishing.md#interface-identity-v2).) An internal refactor (same exports, same effects) produces a new content hash but the same interface hash. Downstream agents can skip re-verification when only content changes.
 
 - **AGENT.md discovery** — Each package can include an `AGENT.md` — a structured guide written for AI consumption, not human prose. The registry indexes whether a package has one (`has_agent_doc: true`), and `ailang pkg-docs vendor/name` serves it directly.
 

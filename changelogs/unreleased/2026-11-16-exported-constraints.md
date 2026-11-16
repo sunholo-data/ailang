@@ -15,11 +15,24 @@ lambdas printed `false`. The same calls inside the defining module were rejected
   includes calls that ran correctly by accident: `eqq({a: 1}, {a: 1})` on an anonymous record,
   or `eqq([Full(1)], …)` on an ADT without `deriving (Eq)`, are rejected exactly as they are
   when `eqq` is declared in the calling module.
+- **BREAKING, silent:** an imported function's `Num`/`Fractional` constraint now types the
+  caller's numeric literals, so a program that already passed `check` can **print different
+  numbers with no diagnostic**. With `export pure func pick(c, x) = if c then x else 0.5` in a
+  library, an importer's `show(pick(true, 3))`, `pick(true, 3) + 1` and `pick(true, 7) / 2`
+  printed `3 4 3` and now print `3.0 4.0 3.5` on every engine: `x` is `Fractional`, so the
+  literals are floats and the last `/` is float division, not integer division. This is what
+  the same code already printed when `pick` was declared in the calling module.
 - **Interface surface:** `ailang iface` gains `"constraints": ["Eq[a]"]` on an export that has
-  any (omitted otherwise; variable names as in `"type"`). The interface digest and the package
-  `interface_hash` include them, so **`interface_hash` changes for every export with a
-  constraint**, and an importer's compile-cache key moves when a dependency gains or loses
-  one. Exports without constraints hash exactly as before.
+  any (omitted otherwise; variable names as in `"type"`). The module interface digest (an
+  importer's compile-cache key moves when a dependency gains or loses a constraint) and the
+  registry's signature-sensitive **v2 interface hash** (`interface_hash_v2`, `pkg quality`,
+  `HashProjection`) and signature set include them, so **the v2 hash changes for a package
+  with a constrained export**. The lockfile `interface_hash` (v1) is computed from the
+  manifest alone and does **not** change. Exports without constraints hash exactly as before.
+  Operational: a publisher and a registry validator on different AILANG versions (either side
+  of this change) disagree on the v2 hash of such a package and the publish is refused with
+  `PUB005`, so the validator must be deployed in step with this release. Measured: no package
+  in sunholo-data/ailang-packages or the motoko fork has a constrained export.
 - **#2291:** `std/list`'s `contains`, `member`, `dedup`, `union`, `intersect` and `difference`
   compare elements with `==` but carried no `Eq`, so `contains([\x. x + 1], \x. x + 1)` passed
   `check` and returned `false`. Their builtins now carry `Eq` on the element type
