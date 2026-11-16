@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 	"strings"
 
@@ -13,7 +14,7 @@ import (
 // suggestCatchAll is the fix when no single arm is the answer.
 const suggestCatchAll = "add a final catch-all arm: _ => ..."
 
-// MatchError is one TC_MATCH_002/004/006 diagnostic. It unwraps to a
+// MatchError is one TC_MATCH_002/004/006/007 diagnostic. It unwraps to a
 // structured ailerrors.Report, so `check --json` and `--format agent` carry
 // its code, file:line:col and one-line suggestion.
 type MatchError struct {
@@ -123,20 +124,51 @@ func newNonExhaustiveError(pos ast.Pos, typeName string, missing []exhaust.Patte
 	return newMatchError(TC_MATCH_002, pos, msg, suggestion, notes, map[string]any{"missing": rendered})
 }
 
-// newByNameUnfixedError is TC_MATCH_002 for a constructor matched by name
-// against a value nothing types. The fix that works is to import the type:
-// its constructors then come into scope and the pattern fixes the value's
-// type.
-func newByNameUnfixedError(pos ast.Pos, e *byNameUnfixedError) *MatchError {
-	imp := "import the constructor's type from the module that declares it"
-	if len(e.types) == 1 {
-		mod, name := SplitNominalKey(e.types[0])
-		imp = fmt.Sprintf("import %s (%s)", mod, name)
+// newUnresolvedCtorError is TC_MATCH_007 (#2303), located at the pattern
+// when it has a position. The fix that works is to import the type — its
+// constructors then come into scope and the pattern fixes the value's type —
+// or to annotate the value matched.
+func newUnresolvedCtorError(matchPos ast.Pos, err error) *MatchError {
+	var e *unresolvedCtorError
+	if !errors.As(err, &e) {
+		return newUndecidedError(matchPos, err)
 	}
-	msg := fmt.Sprintf("this match cannot be checked for exhaustiveness: %s is matched by name (neither its type nor the constructor is imported here), and nothing fixes the type of the value it matches, so other values can reach the match", e.ctor)
-	return newMatchError(TC_MATCH_002, pos, msg, imp,
-		[]string{"Or annotate the type of the value matched; a final `_ =>` arm also closes the match, but hides missing cases."},
-		map[string]any{"constructor": e.ctor})
+	pos := matchPos
+	if e.pattern.Pos.Line > 0 {
+		pos = e.pattern.Pos
+		if pos.File == "" {
+			pos.File = matchPos.File
+		}
+	}
+	imports := make([]string, len(e.cands))
+	described := make([]string, len(e.cands))
+	for i, key := range e.cands {
+		mod, name := SplitNominalKey(key)
+		imports[i] = fmt.Sprintf("import %s (%s)", mod, name)
+		described[i] = fmt.Sprintf("%s's %s", mod, name)
+	}
+	var fix string
+	switch {
+	case e.scrutinee != "":
+		fix = fmt.Sprintf("match a value of the type that declares %s, or remove the arm", e.pattern.Name)
+	case len(imports) == 1:
+		fix = imports[0]
+	case len(imports) > 1:
+		fix = "import the type you mean: " + strings.Join(imports, " or ")
+	default:
+		fix = "import the type that declares " + e.pattern.Name
+	}
+	if e.scrutinee == "" {
+		// Imported, its constructors are in scope and the pattern itself
+		// fixes the value's type; an annotation needs the import too.
+		fix += ", or annotate the value matched with that type"
+	}
+	var notes []string
+	if e.scrutinee == "" && len(described) > 0 {
+		notes = append(notes, fmt.Sprintf("Loaded types declaring %s: %s. A catch-all arm does not decide which one is meant.", e.pattern.Name, strings.Join(described, ", ")))
+	}
+	return newMatchError(TC_MATCH_007, pos, e.Error(), fix, notes,
+		map[string]any{"constructor": e.pattern.Name, "candidates": described})
 }
 
 // newBudgetError is TC_MATCH_004.
@@ -184,25 +216,6 @@ func newPatternArityError(matchPos ast.Pos, e *patternArityError) *MatchError {
 		fix += "(" + strings.Join(holes, ", ") + ")"
 	}
 	return newMatchError(TC_MATCH_006, pos, e.Error(), "write "+fix, nil, nil)
-}
-
-// newAmbiguousArityError is TC_MATCH_006 for a by-name constructor whose
-// candidate ADTs disagree on its arity: it leads with the fix that decides it.
-func newAmbiguousArityError(matchPos ast.Pos, e *ambiguousArityError) *MatchError {
-	pos := matchPos
-	if e.pattern.Pos.Line > 0 {
-		pos = e.pattern.Pos
-		if pos.File == "" {
-			pos.File = matchPos.File
-		}
-	}
-	imports := make([]string, len(e.cands))
-	for i, c := range e.cands {
-		mod, name := SplitNominalKey(c.key)
-		imports[i] = fmt.Sprintf("import %s (%s)", mod, name)
-	}
-	return newMatchError(TC_MATCH_006, pos, e.Error(),
-		"import the type you mean, "+strings.Join(imports, " or "), nil, nil)
 }
 
 // MatchWarning is TC_MATCH_003: an arm no value can reach, because the

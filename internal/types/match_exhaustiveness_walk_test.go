@@ -7,6 +7,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 	"github.com/sunholo-data/ailang/internal/types/exhaust"
 )
 
@@ -140,27 +141,60 @@ func TestVerifyMatchExhaustivenessByNameIdentity(t *testing.T) {
 		t.Fatalf("substituted identity: %v", err)
 	}
 
-	// Still a type variable: nothing fixes the value's type — fail closed.
-	tc = newMatchTC()
-	p = byName()
-	tc.recordCtorPatternType(p, &TVar2{Name: "t9"})
-	_, err := tc.VerifyMatchExhaustiveness(matchOn(2, 3, &TVar2{Name: "t9"}, tc, arm(p)))
-	if err == nil || !strings.Contains(err.Error(), "nothing fixes the type") {
-		t.Fatalf("want fail-closed, got %v", err)
+	if p.TypeName != "Color" || p.TypeModule != "n" {
+		t.Errorf("substituted identity not stamped: %s/%s", p.TypeModule, p.TypeName)
 	}
 
-	// Never type-checked (no record): the one loaded ADT that declares it.
+	// Still a type variable: nothing fixes the value's type — TC_MATCH_007,
+	// with a catch-all too (#2303).
+	for _, catchAll := range []bool{false, true} {
+		tc = newMatchTC()
+		p = byName()
+		tc.recordCtorPatternType(p, &TVar2{Name: "t9"})
+		arms := []core.MatchArm{arm(p)}
+		if catchAll {
+			arms = append(arms, wildArm())
+		}
+		_, err := tc.VerifyMatchExhaustiveness(matchOn(2, 3, &TVar2{Name: "t9"}, tc, arms...))
+		var me *MatchError
+		if !errors.As(err, &me) || me.Code != TC_MATCH_007 || p.TypeName != "" {
+			t.Fatalf("catch-all %v: want TC_MATCH_007 and no stamp, got %v (stamp %q)", catchAll, err, p.TypeName)
+		}
+	}
+
+	// Never type-checked (no record) and not in this module's scope: no
+	// guess from the one loaded ADT that declares it.
 	tc = newMatchTC()
-	m = matchOn(3, 4, &TVar2{Name: "t2"}, tc, arm(byName()), arm(&core.ConstructorPattern{Name: "Red", TypeName: "Color", TypeModule: "n"}))
-	if _, err := tc.VerifyMatchExhaustiveness(m); err != nil {
-		t.Fatalf("unique name fallback: %v", err)
+	unseen := byName()
+	m = matchOn(3, 4, &TVar2{Name: "t2"}, tc, arm(unseen), wildArm())
+	if _, err := tc.VerifyMatchExhaustiveness(m); err == nil || !strings.Contains(err.Error(), "TC_MATCH_007") || unseen.TypeName != "" {
+		t.Fatalf("unseen, out of scope: want TC_MATCH_007, got %v (stamp %q)", err, unseen.TypeName)
+	}
+	// Never type-checked, in scope: the ADT its name denotes here, stamped.
+	tc = newMatchTC()
+	tc.constructorTypes = map[string]string{"Violet": "Color"}
+	tc.ctorADTModule = map[string]string{"Violet": "n"}
+	unseen = byName()
+	m = matchOn(3, 4, &TVar2{Name: "t2"}, tc, arm(unseen), wildArm())
+	if _, err := tc.VerifyMatchExhaustiveness(m); err != nil || unseen.TypeName != "Color" || unseen.TypeModule != "n" {
+		t.Fatalf("unseen, in scope: %v (stamp %s/%s)", err, unseen.TypeModule, unseen.TypeName)
 	}
 
 	// No candidate at all.
 	tc = newMatchTC()
-	_, err = tc.VerifyMatchExhaustiveness(matchOn(4, 5, TInt, tc, arm(&core.ConstructorPattern{Name: "Nowhere"})))
-	if err == nil || !strings.Contains(err.Error(), "the type of constructor Nowhere is unknown") {
-		t.Fatalf("want unknown-type error, got %v", err)
+	_, err := tc.VerifyMatchExhaustiveness(matchOn(4, 5, TInt, tc, arm(&core.ConstructorPattern{Name: "Nowhere"})))
+	if err == nil || !strings.Contains(err.Error(), "TC_MATCH_007: cannot tell which type Nowhere belongs to") ||
+		!strings.Contains(err.Error(), "import the type that declares Nowhere") {
+		t.Fatalf("want TC_MATCH_007 with no candidates, got %v", err)
+	}
+
+	// Fixed to a type that has no such constructor: the arm can never match.
+	tc = newMatchTC()
+	p = byName()
+	tc.recordCtorPatternType(p, &TCon{Name: "Color", Module: "m"})
+	_, err = tc.VerifyMatchExhaustiveness(matchOn(5, 6, &TCon{Name: "Color", Module: "m"}, tc, arm(p), wildArm()))
+	if err == nil || !strings.Contains(err.Error(), "TC_MATCH_007: constructor Violet is matched by name against a value of type Color, which has no constructor Violet") {
+		t.Fatalf("foreign by-name constructor: %v", err)
 	}
 
 	// A stamped pattern is never recorded.
@@ -203,9 +237,10 @@ func TestMatchDiagnosticShapes(t *testing.T) {
 }
 
 // A catch-all rescues a match whose coverage cannot be decided — but never a
-// wrong-arity constructor pattern (#2243: the engines disagree on the arm),
-// even when that pattern's own ADT cannot be placed, nested or not, and
-// never a scrutinee/pattern disagreement (a checker bug).
+// constructor pattern whose type cannot be named (#2303: the back ends test
+// the ordinal of the pattern's own type), at any depth, never a wrong-arity
+// pattern (#2243: the engines disagree on the arm), and never a
+// scrutinee/pattern disagreement (a checker bug).
 func TestVerifyMatchExhaustivenessCatchAllRescuesOnlyCoverage(t *testing.T) {
 	arm := func(p core.CorePattern) core.MatchArm { return core.MatchArm{Pattern: p, Body: &core.Lit{}} }
 	unfixedViolet := func(tc *CoreTypeChecker, args ...core.CorePattern) *core.ConstructorPattern {
@@ -215,30 +250,46 @@ func TestVerifyMatchExhaustivenessCatchAllRescuesOnlyCoverage(t *testing.T) {
 	}
 	two := []core.CorePattern{&core.VarPattern{Name: "a"}, &core.VarPattern{Name: "b"}}
 
+	// Placed (stamped) and wrong arity, under a catch-all.
 	tc := newMatchTC()
-	m := matchOn(1, 5, &TVar2{Name: "t1"}, tc, arm(unfixedViolet(tc, two...)), wildArm())
+	placed := &core.ConstructorPattern{Name: "Violet", TypeName: "Color", TypeModule: "n", Args: two, Pos: ast.Pos{Line: 5, Column: 9}}
+	m := matchOn(1, 5, &TCon{Name: "Color", Module: "n"}, tc, arm(placed), wildArm())
 	_, err := tc.VerifyMatchExhaustiveness(m)
 	var me *MatchError
 	if !errors.As(err, &me) || me.Code != TC_MATCH_006 || me.Suggestion != "write Violet" {
-		t.Fatalf("unplaced wrong-arity pattern under a catch-all: %v", err)
+		t.Fatalf("wrong-arity pattern under a catch-all: %v", err)
 	}
 
-	tc = newMatchTC()
-	nested := &core.TuplePattern{Elements: []core.CorePattern{unfixedViolet(tc, two[0]), &core.WildcardPattern{}}}
-	m = matchOn(2, 6, &TTuple{Elements: []Type{&TVar2{Name: "t1"}, TInt}}, tc, arm(nested), wildArm())
-	if _, err := tc.VerifyMatchExhaustiveness(m); !errors.As(err, &me) || me.Code != TC_MATCH_006 {
-		t.Fatalf("nested wrong-arity pattern under a catch-all: %v", err)
+	// Unplaced, top level and nested, right arity or not, under a catch-all.
+	for _, c := range []struct {
+		name string
+		pat  func(tc *CoreTypeChecker) core.CorePattern
+	}{
+		{"right arity", func(tc *CoreTypeChecker) core.CorePattern { return unfixedViolet(tc) }},
+		{"wrong arity", func(tc *CoreTypeChecker) core.CorePattern { return unfixedViolet(tc, two...) }},
+		{"nested in a tuple", func(tc *CoreTypeChecker) core.CorePattern {
+			return &core.TuplePattern{Elements: []core.CorePattern{unfixedViolet(tc, two[0]), &core.WildcardPattern{}}}
+		}},
+		{"nested in a stamped constructor", func(tc *CoreTypeChecker) core.CorePattern {
+			return &core.ConstructorPattern{Name: "Red", TypeName: "Color", TypeModule: "n", Args: []core.CorePattern{unfixedViolet(tc)}}
+		}},
+	} {
+		tc = newMatchTC()
+		m = matchOn(2, 6, &TVar2{Name: "t1"}, tc, arm(c.pat(tc)), wildArm())
+		if _, err := tc.VerifyMatchExhaustiveness(m); !errors.As(err, &me) || me.Code != TC_MATCH_007 || m.Exhaustive {
+			t.Fatalf("%s, unplaced, under a catch-all: %v", c.name, err)
+		}
+		if me.Pos.Line != 5 || me.Pos.Column != 9 || me.Pos.File != "m.ail" {
+			t.Errorf("%s: located at %v, want the pattern m.ail:5:9", c.name, me.Pos)
+		}
 	}
 
+	// Without a catch-all, the same code and the fix that decides it.
 	tc = newMatchTC()
-	m = matchOn(3, 7, &TVar2{Name: "t1"}, tc, arm(unfixedViolet(tc)), wildArm())
-	if _, err := tc.VerifyMatchExhaustiveness(m); err != nil || !m.Exhaustive {
-		t.Fatalf("a right-arity unplaced pattern is closed by the catch-all: %v", err)
-	}
 	m = matchOn(4, 8, &TVar2{Name: "t1"}, tc, arm(unfixedViolet(tc)))
 	_, err = tc.VerifyMatchExhaustiveness(m)
-	if !errors.As(err, &me) || me.Suggestion != "import n (Color)" || strings.Contains(me.Message, "t1") ||
-		!strings.Contains(me.Message, "Violet is matched by name") {
+	if !errors.As(err, &me) || me.Code != TC_MATCH_007 || me.Suggestion != "import n (Color), or annotate the value matched with that type" ||
+		strings.Contains(me.Message, "t1") || !strings.Contains(me.Message, "cannot tell which type Violet belongs to here") {
 		t.Fatalf("by-name on an untyped value: %v (suggestion %q)", err, me.Suggestion)
 	}
 
@@ -249,14 +300,14 @@ func TestVerifyMatchExhaustivenessCatchAllRescuesOnlyCoverage(t *testing.T) {
 	}
 }
 
-// A by-name constructor whose type is not fixed, declared by two loaded types
-// with different arities, is undecided whatever its own argument count — the
-// evaluator matches tag and field count, the VM the tag alone. The message
-// names every candidate, sorted, so it is the same on every run (the
-// candidates come from a map).
-func TestVerifyMatchExhaustivenessAmbiguousArity(t *testing.T) {
+// A by-name constructor whose type is not fixed is TC_MATCH_007 whatever its
+// argument count and whatever the loaded types declaring it agree on (#2303,
+// which also retires #2272's arity verdict that depended on them). The
+// suggestion names every candidate, sorted, so it is the same on every run
+// (the candidates come from a map).
+func TestVerifyMatchExhaustivenessUnresolvedByNameCandidates(t *testing.T) {
 	arm := func(p core.CorePattern) core.MatchArm { return core.MatchArm{Pattern: p, Body: &core.Lit{}} }
-	want := "constructor pattern Msg is matched by name, the type of the value it matches is not fixed, and the loaded types declaring Msg disagree on its arguments (ar/x's Ev takes 1, ar/y's Pkt takes 2)"
+	want := "cannot tell which type Msg belongs to here: it is matched by name (neither its type nor the constructor is imported here), and nothing fixes the type of the value matched"
 	for run := 0; run < 50; run++ {
 		for _, n := range []int{1, 2, 3} {
 			tc := NewCoreTypeChecker()
@@ -274,13 +325,14 @@ func TestVerifyMatchExhaustivenessAmbiguousArity(t *testing.T) {
 			tc.recordCtorPatternType(p, &TVar2{Name: "t1"})
 			_, err := tc.VerifyMatchExhaustiveness(matchOn(1, 6, &TVar2{Name: "t1"}, tc, arm(p), wildArm()))
 			var me *MatchError
-			if !errors.As(err, &me) || me.Code != TC_MATCH_006 || me.Message != want ||
-				me.Suggestion != "import the type you mean, import ar/x (Ev) or import ar/y (Pkt)" {
+			if !errors.As(err, &me) || me.Code != TC_MATCH_007 || me.Message != want ||
+				me.Suggestion != "import the type you mean: import ar/x (Ev) or import ar/y (Pkt), or annotate the value matched with that type" ||
+				len(me.Notes) != 1 || me.Notes[0] != "Loaded types declaring Msg: ar/x's Ev, ar/y's Pkt. A catch-all arm does not decide which one is meant." {
 				t.Fatalf("run %d, %d args: %v (suggestion %q)", run, n, err, me.Suggestion)
 			}
 		}
 	}
-	// Candidates that agree: the ordinary arity check, against that arity.
+	// Candidates that agree on the arity: the same error, not an arity one.
 	tc := NewCoreTypeChecker()
 	tc.CoreTI = CoreTypeInfo{}
 	tc.SetMatchUniverse(MatchUniverse{NominalKey("a", "T"): {{Name: "K", Arity: 2}}, NominalKey("b", "U"): {{Name: "K", Arity: 2}}})
@@ -288,8 +340,13 @@ func TestVerifyMatchExhaustivenessAmbiguousArity(t *testing.T) {
 	tc.recordCtorPatternType(p, &TVar2{Name: "t1"})
 	_, err := tc.VerifyMatchExhaustiveness(matchOn(2, 3, &TVar2{Name: "t1"}, tc, arm(p), wildArm()))
 	var me *MatchError
-	if !errors.As(err, &me) || me.Code != TC_MATCH_006 || me.Suggestion != "write K(_, _)" {
+	if !errors.As(err, &me) || me.Code != TC_MATCH_007 {
 		t.Fatalf("agreeing candidates: %v", err)
+	}
+	// The structured report carries the code and the candidates.
+	rep, ok := ailerrors.AsReport(err)
+	if !ok || rep.Code != TC_MATCH_007 || rep.Data["constructor"] != "K" {
+		t.Fatalf("report: %+v", rep)
 	}
 }
 

@@ -146,12 +146,13 @@ func TestVerifyMatchThroughAliasStampsByNamePatterns(t *testing.T) {
 		t.Errorf("partial match on Hue: %v", err)
 	}
 
-	// A pattern the checker never saw keeps no stamp: its ADT is a guess (here
-	// the only loaded ADT declaring Blue).
+	// A pattern the checker never saw, whose constructor is not in scope, is
+	// never resolved by a guess (here the only loaded ADT declaring Blue):
+	// TC_MATCH_007, a catch-all notwithstanding (#2303).
 	unseen := &core.ConstructorPattern{Name: "Blue"}
 	m := matchOn(3, 30, &TCon{Name: "Color", Module: "m"}, tc, core.MatchArm{Pattern: unseen, Body: &core.Lit{}}, wildArm())
-	if _, err := tc.VerifyMatchExhaustiveness(m); err != nil {
-		t.Fatalf("unseen pattern: %v", err)
+	if _, err := tc.VerifyMatchExhaustiveness(m); err == nil || !strings.Contains(err.Error(), TC_MATCH_007) {
+		t.Fatalf("unseen pattern: want TC_MATCH_007, got %v", err)
 	}
 	if unseen.TypeName != "" {
 		t.Errorf("an unseen pattern was stamped %q", unseen.TypeName)

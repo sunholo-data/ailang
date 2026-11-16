@@ -66,18 +66,13 @@ func (g *Generator) generateMatchArmADT(arm *core.MatchArm, adtTypeName string) 
 		// e.g., for MovementPattern.PatternRandomWalk, field is "PatternRandomWalk" not "MovementPatternPatternRandomWalk"
 		if len(p.Args) > 0 {
 			variantFieldName := ToPascalCase(p.Name)
-			// Look up field names and types from registered constructor info
-			var ctorFieldNames []string
-			var ctorFieldTypes []string
-			// M-DX22: Use LookupADTConstructor for backwards-compatible lookup
-			if info, ok := g.LookupADTConstructor("", p.Name); ok {
-				if len(info.FieldNames) > 0 {
-					ctorFieldNames = info.FieldNames
-				}
-				if len(info.FieldTypes) > 0 {
-					ctorFieldTypes = info.FieldTypes
-				}
+			// Field names and types of the pattern's own ADT's constructor
+			// (#2303: not the first registered ADT declaring the name).
+			info, err := g.patternCtor(p)
+			if err != nil {
+				return err
 			}
+			ctorFieldNames, ctorFieldTypes := info.FieldNames, info.FieldTypes
 
 			// M-DX29: Extract type arguments from generic scrutinee type (e.g., Option[InteractableID])
 			// This allows us to add type assertions when extracting ADT values from generic containers

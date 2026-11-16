@@ -24,15 +24,17 @@ func TestGenerateMatch_ConstructorPattern(t *testing.T) {
 						Arms: []core.MatchArm{
 							{
 								Pattern: &core.ConstructorPattern{
-									Name: "Some",
-									Args: []core.CorePattern{&core.VarPattern{Name: "v"}},
+									Name:     "Some",
+									TypeName: "Option",
+									Args:     []core.CorePattern{&core.VarPattern{Name: "v"}},
 								},
 								Body: &core.Var{Name: "v"},
 							},
 							{
 								Pattern: &core.ConstructorPattern{
-									Name: "None",
-									Args: []core.CorePattern{},
+									Name:     "None",
+									TypeName: "Option",
+									Args:     []core.CorePattern{},
 								},
 								Body: &core.Lit{Kind: core.IntLit, Value: int64(0)},
 							},
@@ -92,7 +94,8 @@ func TestGenerateMatch_NestedBoolFromADT(t *testing.T) {
 						Arms: []core.MatchArm{
 							{
 								Pattern: &core.ConstructorPattern{
-									Name: "ContentStarfield",
+									Name:     "ContentStarfield",
+									TypeName: "Content",
 									Args: []core.CorePattern{
 										&core.VarPattern{Name: "d"},
 										&core.VarPattern{Name: "s"}, // s is bool from ADT field
@@ -148,7 +151,7 @@ func TestGenerateMatch_NestedBoolFromADT(t *testing.T) {
 
 // TestGenerateMatch_ADTConstructorCollision tests M-DX22: when two ADT types share
 // constructor names (e.g., SpectralType.O and SpectralClass.O), the correct ADT type
-// should be determined from the scrutinee's type info, not by constructor name lookup.
+// is the one the type checker stamped on the patterns, not a constructor name lookup.
 func TestGenerateMatch_ADTConstructorCollision(t *testing.T) {
 	// Simulates:
 	// let specType: SpectralType = O
@@ -174,11 +177,11 @@ func TestGenerateMatch_ADTConstructorCollision(t *testing.T) {
 						Exhaustive: true,
 						Arms: []core.MatchArm{
 							{
-								Pattern: &core.ConstructorPattern{Name: "O", Args: []core.CorePattern{}},
+								Pattern: &core.ConstructorPattern{Name: "O", TypeName: "SpectralClass", Args: []core.CorePattern{}},
 								Body:    &core.Lit{Kind: core.StringLit, Value: "O type"},
 							},
 							{
-								Pattern: &core.ConstructorPattern{Name: "B", Args: []core.CorePattern{}},
+								Pattern: &core.ConstructorPattern{Name: "B", TypeName: "SpectralClass", Args: []core.CorePattern{}},
 								Body:    &core.Lit{Kind: core.StringLit, Value: "B type"},
 							},
 							{
@@ -244,10 +247,10 @@ func TestGenerateMatch_ADTConstructorCollision(t *testing.T) {
 	}
 }
 
-// TestGenerateMatch_ADTConstructorCollision_NoTypeInfo tests that when type info is missing,
-// constructor lookup is used as fallback (backward compatibility).
-func TestGenerateMatch_ADTConstructorCollision_NoTypeInfo(t *testing.T) {
-	// Same setup but WITHOUT CoreTypeInfo - should fall back to constructor lookup
+// TestGenerateMatch_ADTConstructorCollision_Unstamped: a constructor pattern
+// with no type stamp is refused, never resolved to the first registered ADT
+// declaring the name (#2303) — with or without the scrutinee's type info.
+func TestGenerateMatch_ADTConstructorCollision_Unstamped(t *testing.T) {
 	scrutineeNodeID := uint64(300)
 	matchNodeID := uint64(301)
 
@@ -278,27 +281,38 @@ func TestGenerateMatch_ADTConstructorCollision_NoTypeInfo(t *testing.T) {
 		},
 	}
 
-	gen := New("test")
-
-	// Register SpectralType first - will be found by constructor lookup
-	gen.RegisterADTConstructor("SpectralType", "O", 0)
-	gen.RegisterADTConstructor("SpectralClass", "O", 0) // Same constructor name
-
-	// NO CoreTypeInfo - should use constructor lookup fallback
-	// (This is the legacy behavior that can cause collisions)
-
-	code, err := gen.Generate(prog)
-	if err != nil {
-		t.Fatalf("Generate failed: %v", err)
+	for _, withTypeInfo := range []bool{false, true} {
+		gen := New("test")
+		gen.RegisterADTConstructor("SpectralType", "O", 0)
+		gen.RegisterADTConstructor("SpectralClass", "O", 0) // Same constructor name
+		if withTypeInfo {
+			gen.SetCoreTypeInfo(types.CoreTypeInfo{scrutineeNodeID: &types.TCon{Name: "SpectralClass"}})
+		}
+		code, err := gen.Generate(prog)
+		if err == nil || !strings.Contains(err.Error(), "constructor pattern O has no type") {
+			t.Errorf("type info %v: want the unstamped pattern refused, got err=%v\n%s", withTypeInfo, err, code)
+		}
 	}
+}
 
-	codeStr := string(code)
-
-	// Without type info, will use first registered (SpectralType)
-	// This demonstrates the collision problem when type info is missing
-	if !strings.Contains(codeStr, "*SpectralType") && !strings.Contains(codeStr, "*SpectralClass") {
-		t.Errorf("Expected either SpectralType or SpectralClass in output.\n"+
-			"Got:\n%s", codeStr)
+// A stamp no registered ADT matches is refused too, not looked up by name.
+func TestGenerateMatch_UnknownStampRefused(t *testing.T) {
+	prog := &core.Program{Decls: []core.CoreExpr{&core.Let{
+		Name: "f",
+		Value: &core.Lambda{Params: []string{"x"}, Body: &core.Match{
+			Scrutinee:  &core.Var{Name: "x"},
+			Exhaustive: true,
+			Arms: []core.MatchArm{
+				{Pattern: &core.ConstructorPattern{Name: "O", TypeName: "Nowhere"}, Body: &core.Lit{Kind: core.IntLit, Value: int64(1)}},
+				{Pattern: &core.WildcardPattern{}, Body: &core.Lit{Kind: core.IntLit, Value: int64(0)}},
+			},
+		}},
+		Body: &core.Var{Name: "f"},
+	}}}
+	gen := New("test")
+	gen.RegisterADTConstructor("SpectralType", "O", 0)
+	if _, err := gen.Generate(prog); err == nil || !strings.Contains(err.Error(), "Nowhere.O names no registered constructor") {
+		t.Errorf("want the unknown stamp refused, got %v", err)
 	}
 }
 
@@ -373,7 +387,8 @@ func TestGenerateMatch_OptionNestedADT(t *testing.T) {
 						Arms: []core.MatchArm{
 							{
 								Pattern: &core.ConstructorPattern{
-									Name: "Some",
+									Name:     "Some",
+									TypeName: "Option",
 									Args: []core.CorePattern{
 										&core.VarPattern{Name: "interactable"},
 									},
@@ -385,7 +400,8 @@ func TestGenerateMatch_OptionNestedADT(t *testing.T) {
 									Arms: []core.MatchArm{
 										{
 											Pattern: &core.ConstructorPattern{
-												Name: "InteractConsole",
+												Name:     "InteractConsole",
+												TypeName: "InteractableID",
 												Args: []core.CorePattern{
 													&core.VarPattern{Name: "station"},
 												},
@@ -401,8 +417,9 @@ func TestGenerateMatch_OptionNestedADT(t *testing.T) {
 							},
 							{
 								Pattern: &core.ConstructorPattern{
-									Name: "None",
-									Args: []core.CorePattern{},
+									Name:     "None",
+									TypeName: "Option",
+									Args:     []core.CorePattern{},
 								},
 								Body: &core.Lit{Kind: core.IntLit, Value: int64(0)},
 							},

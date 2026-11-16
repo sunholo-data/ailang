@@ -41,11 +41,6 @@ func lowerIfChainMatch(m *core.Match, cti types.CoreTypeInfo) stmt.Stmt {
 		pre = append(pre, stmt.VarDecl{Name: name, Value: scrutinee})
 		scrutinee = stmt.VarRef{Name: name}
 	}
-	var scrutType types.Type
-	if m.Scrutinee != nil {
-		scrutType = cti[m.Scrutinee.ID()]
-	}
-
 	flag := fmt.Sprintf("$matched%d", m.ID())
 	needFlag := false
 
@@ -54,7 +49,7 @@ func lowerIfChainMatch(m *core.Match, cti types.CoreTypeInfo) stmt.Stmt {
 	rest := []stmt.Stmt{matchFailStmt(m, scrutinee)}
 	for i := len(m.Arms) - 1; i >= 0; i-- {
 		arm := m.Arms[i]
-		cond := patternCond(scrutinee, scrutType, arm.Pattern)
+		cond := patternCond(scrutinee, arm.Pattern)
 		binds := patternBindings(scrutinee, arm.Pattern)
 		body := armBodyStmts(arm, cti)
 
