@@ -33,9 +33,10 @@ import (
 // check of every declaration in the repository's .ail files, the 14,780
 // banked passing solutions, and generated straight-line code (800 to 5,000
 // generic-call lets, a 2,000-line state machine, a 1,000-arm match): the
-// largest (steps - workFloor/50) / nodes² anywhere is 0.14 (the state machine),
-// so with workPerNode2 = 32 every declaration stays at least 50x below its
-// budget at every point (over 230x once its size dominates). No declaration
+// largest (steps - workFloor/50) / nodes² anywhere is 0.16 (the state machine;
+// re-measured with the latent data scan's steps counted, round 3), so with
+// workPerNode2 = 32 every declaration stays at least 50x below its budget at
+// every point (about 200x once its size dominates). No declaration
 // came near the floor with few nodes typed.
 const (
 	workFloor    = 1 << 21 // 2,097,152 steps: about a second of unification
