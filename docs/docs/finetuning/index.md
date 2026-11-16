@@ -46,7 +46,8 @@ decay. See [Training data](./data.md).
 | [Pilot-1](./pilot-1.md) (12B LoRA) | negative, causes found (session gate, thinking format, context) |
 | [Pilot-2](./pilot-2.md) (served format, habit episodes) | agent protocol fixed (0 protocol misses), 3× fewer tokens, but 4/24 against base's 6/13 |
 | [Pilot-3](./pilot-3.md) (its own mistakes, repaired) | **10/24** with the slim prompt (pilot-2: 4/24); 6 newly pass, none newly fail. Left behind: dropped runaway writes, long loops |
-| [Pilot-4](./pilot-4.md) (second round, short writes, loop-breaking) | in progress: round-2 collection running |
+| [Pilot-4](./pilot-4.md) (second round, short writes, loop-breaking) | **5/23**, below pilot-3. Two diagnostic arms: the untrained model with the slim prompt scores 9/23, level with the best fine-tune (10/23); base with the full prompt scores 16/23 |
+| On-policy repair line | **stopped 2026-11-16** ([D-FT-18](./decisions.md)): three rounds of training added nothing measurable over the slim prompt alone. Next: stop runaway responses in the agent harness and re-measure the untrained model |
 | Published fine-tunes | per release, from an artifact bucket linked here ([D-FT-2](./decisions.md)) |
 
 ## Pages

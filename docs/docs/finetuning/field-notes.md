@@ -129,3 +129,36 @@ The GPU rig also serves nightly evals and other agents. Jobs take a lock, hand i
 a gateway refuses long GPU calls from anyone not holding it. During pilot-3, the gateway correctly
 refused one of our own diagnostic probes while the eval held the lock; the probe ran later, under its
 own lock. The rules are only useful if they are followed when they are inconvenient.
+
+## 11. Run the no-training control first
+
+For three pilots we compared each fine-tune with the one before it, and with the base model on the
+full teaching prompt. We never ran the base model on the slim prompt the fine-tunes used. When we
+did, it passed 9 of 23 held-out tasks, level with our best fine-tune at 10. Three rounds of data
+collection and about 40 hours of training had added nothing we could measure. That control costs
+one day of GPU and no training, and it belonged before pilot-1.
+
+## 12. A quick check can measure the wrong thing
+
+Pilot-4 passed a 30-minute behaviour check before its evals: only 1 response in 1,075 was a dropped
+tool call. It then scored 5 of 24, with 13 runs ended by a dropped call. The check counted drops per
+response, on training tasks. What ends a run is a drop per run, and pilot-4's runs were about 100
+responses long, so a 0.5% chance per response became roughly 40% per run. Check the thing that
+fails, in the unit it fails in.
+
+## 13. Freeze every input of a long eval
+
+An eval arm takes most of a day, and the repository kept moving under it. Midway through one arm a
+merge renamed standard-library functions, the checkout updated itself, and scoring began loading
+library files the installed compiler could not parse. Pinning the binary had not been enough: the
+library and the benchmark files were read from the live checkout. The arms now run from a
+directory holding a snapshot of both.
+
+## 14. A negative result is a result
+
+The stop rule was written before the first pilot: a fine-tune with the slim prompt must match the
+base model with the full prompt. It failed every time, and the control in note 11 removed the reason
+to expect another round to pass it, so the line was stopped. What it bought is specific: the gap is
+language knowledge the full prompt carries, worth 7 tasks, and most of the untrained model's
+failures are single runaway responses that the harness could cut off.
+
