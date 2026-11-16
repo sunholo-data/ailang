@@ -194,10 +194,11 @@ Still open:
 - A constructor matched by name (neither it nor its type imported; its candidates are the types
   in the module's own import closure that declare it) is decided only by the value's type, never
   by the candidate set — even one candidate — so a let-bound or top-level helper matching it is
-  not generic: `let isSome = \o. match o { Some(_) => true, _ => false }` in a library module
-  without `import std/option` cannot be used at `Option[int]` and `Option[string]`
-  (`TC_AMBIGUOUS_CTOR_001` / `TC_MATCH_007`). Import the type
-  (`import std/option (Option, Some, None)`) to make it generic. Before #2362 such helpers ran.
+  not generic: `let isBox = \o. match o { MkBox(_) => true, _ => false }`, with `Box` declared
+  in a module this one reaches only through another, cannot be used at `Box[int]` and
+  `Box[string]` (`TC_AMBIGUOUS_CTOR_001` / `TC_MATCH_007`). Import the type
+  (`import lib/box (Box, MkBox)`) to make it generic. `Some`/`None`/`Ok`/`Err` are never matched
+  by name outside `std/`: they are the prelude's in every module (#2371).
 - A bare type name resolved only through an indirect dependency can become ambiguous when another
   indirect dependency adds the name, and an added import that exports the name re-points it (as
   on dev); import the type by name to pin it. A constructor pattern's argument count is not

@@ -17,8 +17,8 @@ import (
 // read from the prelude definition itself.
 func TestNominalIdentity_UserBindingBeatsThePrelude(t *testing.T) {
 	var names []string
-	for _, mod := range loader.EntryPreludeModules() {
-		names = append(names, loader.EntryPreludeSymbols(mod)...)
+	for _, mod := range loader.PreludeModules() {
+		names = append(names, loader.PreludeSymbols(mod)...)
 	}
 	if len(names) < 6 {
 		t.Fatalf("prelude names not read: %v", names)

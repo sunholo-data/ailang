@@ -158,9 +158,7 @@ docs/docs/reference/effects.md 89c600b84b74 TC_UNDEFINED_VAR
 docs/docs/reference/effects.md 90739edae386 TC_UNDEFINED_VAR
 docs/docs/reference/effects.md 99d9848243a6 TC_UNDEFINED_VAR
 docs/docs/reference/effects.md b595552ad902 TC_UNDEFINED_VAR
-docs/docs/reference/effects.md d15aaf245cb0 TC_MATCH_001
 docs/docs/reference/effects.md d3caf0e74d13 PAR_UNEXPECTED_TOKEN
-docs/docs/reference/effects.md dec561561da7 TC_UNDEFINED_VAR
 docs/docs/reference/effects.md eb0de484f803 MOD014
 docs/docs/reference/errors/mod007.md 3fc51e1e0d02 MOD007
 docs/docs/reference/errors/mod007.md 650bc961972b MOD007
@@ -183,7 +181,6 @@ docs/docs/reference/limitations.md 54e188aca768 PAR017
 docs/docs/reference/limitations.md 55089f20949f PAR017
 docs/docs/reference/limitations.md 69c8542ed654 PAR_NO_PREFIX_PARSE
 docs/docs/reference/limitations.md 7a15ae5b2ded TC_UNDEFINED_VAR
-docs/docs/reference/limitations.md c201e87fa2c1 TC_MATCH_001
 docs/docs/reference/limitations.md c6fc82456ae5 PAR_NO_PREFIX_PARSE
 docs/docs/reference/limitations.md caf8db55cd35 TC_UNDEFINED_VAR
 docs/docs/reference/modules.md 1f9e9198bbd2 PAR_IMPORT_PLACEMENT

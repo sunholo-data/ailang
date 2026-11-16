@@ -3,8 +3,10 @@ package loader
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/lexer"
 )
 
 // preludeModuleSymbols maps each implicit-prelude module to the type +
@@ -18,35 +20,51 @@ var preludeModuleSymbols = map[string][]string{
 	"std/result": {"Result", "Ok", "Err"},
 }
 
-// EntryPreludeModules lists the stdlib modules whose types + data constructors
-// are made implicitly available (no explicit `import`) in ENTRY modules.
+// PreludeModules lists the stdlib modules whose types + data constructors are
+// implicitly available (no explicit `import`) — see the boundary below.
 //
 // M-PRELUDE-OPTION-RESULT: Option/Some/None and Result/Ok/Err are near-universal
 // in AI-authored code (they are in the standard prelude of Haskell, Rust, OCaml,
 // F#, Swift, ...). Models routinely write idiomatically-correct AILANG that uses
 // them but omit `import std/option` / `import std/result`. Rather than re-teach
-// every model, we inject these two modules as implicit dependencies of entry
-// modules — reusing the ENTIRE existing constructor-import machinery.
+// every model, these two modules are implicit dependencies — reusing the ENTIRE
+// existing constructor-import machinery.
+//
+// THE BOUNDARY (#2371, maintainer-approved):
+//   - Exactly six names: Option, Some, None (std/option) and Result, Ok, Err
+//     (std/result) — preludeModuleSymbols. No helper function (map, getOrElse,
+//     … still need `import std/option (map)`), and no other module.
+//   - Every module outside std/: entry modules always; a library module when
+//     its code names one of a module's three (see injectPreludeImports). The
+//     effectful prelude (`println`, pipeline.InjectPrelude) stays ENTRY-ONLY.
+//   - Lowest precedence: a module's own declaration of a prelude type or
+//     constructor drops that prelude module, an import from std/option or
+//     std/result replaces the implicit one (so `import std/option (Option,
+//     Some, None)` stays valid, without warning), and an explicit import of
+//     another type's Some/Ok wins for that name.
+//   - std/ modules are untouched.
+//
+// Until #2371 library modules got none of the six ("library code stays
+// self-documenting"), so a library's Some fell back to matching by name
+// (#323) — the source of #2303, #2272 and #2353 — and the same source meant
+// different things depending on whether the file had a `main`.
 //
 // This is the single source of truth shared by the compile pipeline and the
 // runtime: both consume the loader's `LoadedModule.Imports` (string paths) and
 // `LoadedModule.File.Imports` (AST decls), so injecting here — at the one loader
 // call-site — keeps compile + runtime in lockstep (guard the call-site, not a
 // helper the call-site might forget to use).
-//
-// Entry-only: library modules are NOT touched, so library code stays
-// self-documenting and must import Option/Result explicitly.
-func EntryPreludeModules() []string {
+func PreludeModules() []string {
 	return []string{"std/option", "std/result"}
 }
 
-// EntryPreludeSymbols returns the type + constructor symbols brought into scope
-// by the implicit prelude import of modPath (e.g. "std/option" -> Option, Some,
+// PreludeSymbols returns the type + constructor symbols brought into scope by
+// the implicit prelude import of modPath (e.g. "std/option" -> Option, Some,
 // None), or nil if modPath is not an implicit-prelude module. Exported accessor
 // over preludeModuleSymbols (the single source of truth) so `ailang docs prelude`
 // can render the implicit-prelude surface WITHOUT copying the symbol list — a
 // symbol added here appears in the docs page automatically (M-DX-AI-DISCOVERY M4).
-func EntryPreludeSymbols(modPath string) []string {
+func PreludeSymbols(modPath string) []string {
 	syms := preludeModuleSymbols[modPath]
 	if syms == nil {
 		return nil
@@ -54,11 +72,19 @@ func EntryPreludeSymbols(modPath string) []string {
 	return append([]string(nil), syms...)
 }
 
-// injectEntryPreludeImports mutates an entry module's AST + import list so that
-// EntryPreludeModules() are implicitly imported.
+// injectPreludeImports mutates a module's AST + import list so that
+// PreludeModules() are implicitly imported.
 //
 // It is:
-//   - Entry-only: no-op unless isEntryModuleFile(file) is true.
+//   - Every module but the standard library's: no-op unless
+//     preludeEligible(file, modID).
+//   - Pay-for-use outside entry modules: a library module gets a prelude
+//     module only when its code names one of that module's names (namesIn: an
+//     identifier token, so not a comment or a string's text, but code inside
+//     `${…}`). A name a module never writes cannot be observed in scope, so
+//     the scope is the entry module's for every name it uses, while a module
+//     that uses none keeps its dependencies, cache key and program image
+//     exactly as before (#2371).
 //   - Deduped: a prelude module the user ALREADY imports (explicitly, in any
 //     form — whole-module or selective) is skipped, so there is no double-load
 //     and no duplicate constructor registration / ambiguity.
@@ -67,9 +93,14 @@ func EntryPreludeSymbols(modPath string) []string {
 //     or an explicit import shadows them cleanly downstream.
 //
 // Returns the (possibly extended) import-path slice for LoadedModule.Imports.
-func injectEntryPreludeImports(file *ast.File, importPaths []string) []string {
-	if file == nil || !isEntryModuleFile(file) {
+func injectPreludeImports(file *ast.File, modID, source string, importPaths []string) []string {
+	if !preludeEligible(file, modID) {
 		return importPaths
+	}
+	entry := isEntryModuleFile(file)
+	var used map[string]bool
+	if !entry {
+		used = namesIn(source)
 	}
 
 	// Collect paths the user already imports (dedupe key = canonical module path).
@@ -87,12 +118,15 @@ func injectEntryPreludeImports(file *ast.File, importPaths []string) []string {
 
 	var synthetic []*ast.ImportDecl
 	var syntheticPaths []string
-	for _, modPath := range EntryPreludeModules() {
+	for _, modPath := range PreludeModules() {
 		if existing[modPath] {
 			continue // user already imports it — leave their import untouched
 		}
 		if preludeModuleShadowed(modPath, localTypes, localCtors) {
 			continue // user defines a colliding type/constructor locally — shadow
+		}
+		if !entry && !usesAny(used, preludeModuleSymbols[modPath]) {
+			continue // a library module whose code never names Option/Some/None (resp. Result/Ok/Err)
 		}
 		// Selective import naming the type + constructors, exactly as a user
 		// would write `import std/option (Option, Some, None)`. This routes
@@ -112,13 +146,36 @@ func injectEntryPreludeImports(file *ast.File, importPaths []string) []string {
 	}
 
 	if os.Getenv("DEBUG_PRELUDE") != "" {
-		fmt.Fprintf(os.Stderr, "prelude: entry module — injecting implicit imports %v\n", syntheticPaths)
+		fmt.Fprintf(os.Stderr, "prelude: %s — injecting implicit imports %v\n", modID, syntheticPaths)
 	}
 
 	// PREPEND so implicit imports are lowest precedence (registered first;
 	// later user imports / local decls override on same-name collisions).
 	file.Imports = append(synthetic, file.Imports...)
 	return append(syntheticPaths, importPaths...)
+}
+
+// namesIn returns the identifiers source's code uses, from its tokens: a name
+// in a comment or in a string's text does not count, a name inside a `${…}`
+// interpolation does (the lexer emits interpolated code as tokens).
+func namesIn(source string) map[string]bool {
+	names := make(map[string]bool)
+	l := lexer.New(source, "")
+	for tok := l.NextToken(); tok.Type != lexer.EOF; tok = l.NextToken() {
+		if tok.Type == lexer.IDENT {
+			names[tok.Literal] = true
+		}
+	}
+	return names
+}
+
+func usesAny(used map[string]bool, names []string) bool {
+	for _, n := range names {
+		if used[n] {
+			return true
+		}
+	}
+	return false
 }
 
 // collectLocalTypesAndCtors returns the set of type names and constructor names
@@ -154,6 +211,32 @@ func preludeModuleShadowed(modPath string, localTypes, localCtors map[string]boo
 		}
 	}
 	return false
+}
+
+// preludeEligible reports whether file (module modID) receives the implicit
+// Option/Result prelude (#2371): an entry module always does, as before; any
+// other module does unless it is
+//   - a standard-library module (std/option and std/result cannot import
+//     themselves, and std modules import what they use — unchanged), or
+//   - a file with a top-level expression: such a file is type-checked only
+//     while it has no imports (#2372), so an injected import would stop its
+//     expression being checked. Before #2371 it had no prelude either.
+func preludeEligible(file *ast.File, modID string) bool {
+	if file == nil {
+		return false
+	}
+	if isEntryModuleFile(file) {
+		return true
+	}
+	if strings.HasPrefix(modID, "std/") || (file.Module != nil && strings.HasPrefix(file.Module.Path, "std/")) {
+		return false
+	}
+	for _, st := range file.Statements {
+		if _, isExpr := st.(ast.Expr); isExpr {
+			return false
+		}
+	}
+	return true
 }
 
 // isEntryModuleFile reports whether the AST file is an entry module: it declares

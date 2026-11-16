@@ -300,8 +300,8 @@ import std/env (getEnv)
 
 func getConfig() -> string ! {Env} {
   match getEnv("CONFIG_PATH") {
-    Some(path) => path,
-    None => "/etc/default.conf"
+    Ok(path) => path,
+    Err(_) => "/etc/default.conf"
   }
 }
 ```
