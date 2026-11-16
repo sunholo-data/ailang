@@ -46,8 +46,9 @@ func (tc *CoreTypeChecker) byNameCandidates(name string) []CtorCandidate {
 	return out
 }
 
-// checkByNameCtorPattern types a constructor pattern matched by name as a
-// deferred choice. ok is false when no loaded type declares the name: the
+// checkByNameCtorPattern types a constructor pattern matched by name: at
+// once when one loaded type declares it, else as a deferred choice between
+// the types that do. ok is false when no loaded type declares the name: the
 // pattern is then typed as before (its arguments against fresh variables).
 // A pattern whose arity no candidate has is still a choice, with no fitting
 // candidate: the value's type, once fixed, is stamped on it and the match
@@ -63,8 +64,58 @@ func (tc *CoreTypeChecker) checkByNameCtorPattern(p *core.ConstructorPattern, sc
 			fit = append(fit, c)
 		}
 	}
+	// One loaded type declares the name: nothing is undecided, so it is
+	// typed as that type's constructor at once — its equalities at fresh
+	// type arguments, which a let generalises like any other (a helper over
+	// Some is usable at Option[int] and Option[string]). A wrong argument
+	// count is the match check's TC_MATCH_006 against that type. Only a
+	// choice between two or more types is deferred, and only that keeps a
+	// let-bound helper monomorphic until a use decides it.
+	if len(all) == 1 {
+		if scheme := tc.globalTypes[core.ADTFactoryKey(all[0].Module, all[0].TypeName, p.Name)]; scheme != nil {
+			p.TypeName, p.TypeModule = all[0].TypeName, all[0].Module
+			bindings, typed, err := tc.checkCtorPatternAt(p, scheme, scrutType, ctx)
+			return bindings, typed, true, err
+		}
+	}
 	choice := &ctorChoice{pattern: p, scrut: scrutType, cands: fit, all: all, byName: true,
 		path: []string{fmt.Sprintf("constructor pattern %s", p.Name)}}
 	bindings, typed, err := tc.deferCtorChoice(choice, ctx)
 	return bindings, typed, true, err
+}
+
+// checkCtorPatternAt types p as the constructor whose factory scheme is
+// scheme, instantiated at fresh type arguments: the value matched has the
+// factory's result type and each argument pattern the matching field type.
+func (tc *CoreTypeChecker) checkCtorPatternAt(p *core.ConstructorPattern, scheme *Scheme, scrutType Type, ctx *InferenceContext) (map[string]Type, typedast.TypedPattern, error) {
+	path := []string{fmt.Sprintf("constructor pattern %s", p.Name)}
+	var fields []Type
+	switch t := scheme.Instantiate(ctx.freshType).(type) {
+	case *TFunc2:
+		fields = t.Params
+		ctx.addConstraint(TypeEq{Left: scrutType, Right: t.Return, Path: path})
+	default:
+		ctx.addConstraint(TypeEq{Left: scrutType, Right: t, Path: path})
+	}
+	bindings := make(map[string]Type)
+	typedArgs := make([]typedast.TypedPattern, len(p.Args))
+	for i, argPat := range p.Args {
+		argType := ctx.freshTypeVar()
+		if i < len(fields) {
+			argType = fields[i]
+		}
+		argBindings, typedArg, err := tc.checkPattern(argPat, argType, ctx)
+		if err != nil {
+			return nil, nil, err
+		}
+		for name, typ := range argBindings {
+			if existing, ok := bindings[name]; ok {
+				ctx.addConstraint(TypeEq{Left: existing, Right: typ, Path: []string{fmt.Sprintf("pattern variable %s", name)}})
+			} else {
+				bindings[name] = typ
+			}
+		}
+		typedArgs[i] = typedArg
+	}
+	return bindings, typedast.TypedConstructorPattern{Name: p.Name, Args: typedArgs}, nil
 }

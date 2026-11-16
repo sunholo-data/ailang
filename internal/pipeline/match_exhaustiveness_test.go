@@ -76,7 +76,7 @@ func itoa(n int) string {
 	return string(b)
 }
 
-const rigidPing = "constructor Ping cannot be matched against a value of type a: a is a type variable of the signature, so the value can have any type"
+const rigidA = "constructor A cannot be matched against a value of type a: a is a type variable of the signature, so the value can have any type"
 
 // onInt: the let-bound lambda's by-name pattern is decided by its one use,
 // h(x) with x: int (#2353) — a value no constructor builds.
@@ -89,10 +89,11 @@ const otherT = "module lib/b\n\nexport type T = A | Z\n"
 
 func TestMatchExhaustivenessAcrossModules(t *testing.T) {
 	cases := []struct {
-		name  string
-		src   string
-		want  []string // "line:CODE:missing"; empty = the check passes
-		other error
+		name string
+		src  string
+		want []string // "line:CODE:missing"; empty = the check passes
+		// typeErr: the check fails with a (non-match) type error containing it.
+		typeErr string
 	}{
 		{
 			// A by-name pattern constrains nothing: here only the application
@@ -103,15 +104,24 @@ func TestMatchExhaustivenessAcrossModules(t *testing.T) {
 				"export pure func f(xs: [int]) -> int =\n  (\\o. match o { None => 0, Some(v) => v })(nth(xs, 0))\n",
 		},
 		{
-			// Msg is loaded only through lib/hold. x's type is a signature
-			// type variable, so no type can be named for Ping: TC_MATCH_007 at
-			// the pattern, and a catch-all does not change that (#2303: the VM
-			// tested the ordinal of the first loaded ADT declaring the name).
-			name: "by-name constructors on a value nothing types",
+			// Msg is loaded only through lib/hold, and is the only loaded type
+			// declaring Ping: the pattern is Msg's, so a signature variable
+			// matched by it is TC_RIGID_001, as with an imported constructor.
+			name: "by-name constructor of one loaded type on a signature variable",
 			src: "module main\n\nimport lib/hold (one)\n\n" +
-				"export pure func g[a](x: a) -> int = match x {\n  Ping => 1,\n  Message(_) => 2\n}\n\n" +
-				"export pure func h[a](x: a) -> int = match x {\n  Ping => 1,\n  _ => 2\n}\n",
-			want: []string{"6:TC_MATCH_007:" + rigidPing, "11:TC_MATCH_007:" + rigidPing},
+				"export pure func g[a](x: a) -> int = match x {\n  Ping => 1,\n  Message(_) => 2\n}\n",
+			typeErr: "TC_RIGID_001",
+		},
+		{
+			// A is declared by lib/a's T and lib/b's T (both loaded, neither
+			// imported): nothing says which, so TC_MATCH_007 at the pattern, a
+			// catch-all notwithstanding (#2303: the VM tested the ordinal of
+			// the first loaded ADT declaring the name).
+			name: "by-name constructors on a value nothing types",
+			src: "module main\n\nimport lib/hold (one)\nimport lib/holdb (two)\n\n" +
+				"export pure func g[a](x: a) -> int = match x {\n  A => 1,\n  A => 2\n}\n\n" +
+				"export pure func h[a](x: a) -> int = match x {\n  A => 1,\n  _ => 2\n}\n",
+			want: []string{"7:TC_MATCH_007:" + rigidA, "12:TC_MATCH_007:" + rigidA},
 		},
 		{
 			// The design's in-scope registry trap: importing ONE constructor
@@ -175,18 +185,34 @@ func TestMatchExhaustivenessAcrossModules(t *testing.T) {
 			// Review probes t9/t8 (#2243): a by-name constructor in a let-bound
 			// lambda, whose ADT cannot be placed, with the wrong arity and a
 			// catch-all (the evaluator printed 4, the strict VM crashed in
-			// GET_FIELD). Its one use decides the value is an int (#2353), so
-			// the first by-name arm is a constructor of no type it could be.
+			// GET_FIELD). Ping is Msg's (the one loaded type declaring it), so
+			// h takes a Msg and h(x) with x: int is a type error.
 			name: "wrong arity on an unplaced by-name pattern, first arm",
 			src: "module main\n\nimport lib/hold (one)\n\n" +
 				"export pure func g(x: int) -> int {\n  let h = \\e. match e { Message(a, b) => 2, Ping => 1, _ => 3 };\n  h(x)\n}\n",
-			want: []string{"6:TC_MATCH_007:" + onInt("Message")},
+			typeErr: "cannot unify type constructors: Msg vs int",
 		},
 		{
 			name: "wrong arity on an unplaced by-name pattern, later arm",
 			src: "module main\n\nimport lib/hold (one)\n\n" +
 				"export pure func g(x: int) -> int {\n  let h = \\e. match e { Ping => 1, Message(a, b) => 2, _ => 3 };\n  h(x)\n}\n",
-			want: []string{"6:TC_MATCH_007:" + onInt("Ping")},
+			typeErr: "cannot unify type constructors: Msg vs int",
+		},
+		{
+			// With two loaded types declaring A, the lambda's one use decides
+			// the value is an int (#2353): A is a constructor of no type an int
+			// could be.
+			name: "two-candidate by-name pattern decided as an int",
+			src: "module main\n\nimport lib/hold (one)\nimport lib/holdb (two)\n\n" +
+				"export pure func g(x: int) -> int {\n  let h = \\e. match e { A => 1, _ => 3 };\n  h(x)\n}\n",
+			want: []string{"7:TC_MATCH_007:" + onInt("A")},
+		},
+		{
+			// A one-candidate helper generalises (review of #2362): usable at
+			// two type arguments of one type.
+			name: "one-candidate let-bound helper at two type arguments",
+			src: "module main\n\nimport std/list (nth)\n\n" +
+				"export pure func g(xs: [int], ys: [string]) -> bool {\n  let isSome = \\o. match o { Some(_) => true, _ => false };\n  isSome(nth(xs, 0)) && isSome(nth(ys, 0))\n}\n",
 		},
 		{
 			// #2353 / review p01: Some and A are both matched by name (this
@@ -225,9 +251,16 @@ func TestMatchExhaustivenessAcrossModules(t *testing.T) {
 		t.Run(c.name, func(t *testing.T) {
 			errs, _, err := checkMatchModules(t, map[string]string{
 				"lib/a.ail": msgModule, "lib/b.ail": otherT, "main.ail": c.src,
-				"lib/hold.ail": "module lib/hold\n\nimport lib/a (T)\n\nexport pure func one() -> int = 1\n",
-				"lib/mk.ail":   "module lib/mk\n\nimport lib/a (T, A, B)\n\nexport pure func ts() -> [T] = [A, B]\n",
+				"lib/hold.ail":  "module lib/hold\n\nimport lib/a (T)\n\nexport pure func one() -> int = 1\n",
+				"lib/mk.ail":    "module lib/mk\n\nimport lib/a (T, A, B)\n\nexport pure func ts() -> [T] = [A, B]\n",
+				"lib/holdb.ail": "module lib/holdb\n\nimport lib/b (T)\n\nexport pure func two() -> int = 2\n",
 			}, "main.ail")
+			if c.typeErr != "" {
+				if err == nil || errs != nil || !strings.Contains(err.Error(), c.typeErr) {
+					t.Fatalf("want a type error containing %q, got %v", c.typeErr, err)
+				}
+				return
+			}
 			if err != nil && errs == nil {
 				t.Fatalf("check failed with a non-match error: %v", err)
 			}

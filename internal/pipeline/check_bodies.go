@@ -122,7 +122,7 @@ func resultNote(k core.ContractKind) string {
 // declarations, as the harness's entry for it would be inferred.
 func typeCheckTestBodies(bodies []elaborate.CheckBody, tc *types.CoreTypeChecker, moduleTypeEnv *types.TypeEnv) error {
 	for _, b := range bodies {
-		if _, _, _, _, err := tc.InferWithConstraints(b.Expr, moduleTypeEnv); err != nil {
+		if _, _, _, _, err := tc.InferBody(b.Expr, moduleTypeEnv); err != nil {
 			return elaborate.TestBodyError(b, err)
 		}
 	}

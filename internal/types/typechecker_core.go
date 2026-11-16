@@ -129,7 +129,8 @@ type CoreTypeChecker struct {
 	// syntactic position — the interim truth-telling diagnostic for #327
 	// (record-update-local-resolution). Retired when the real fix ships.
 	moduleFuncNames map[string]bool
-	moduleDeclMode  bool // see SetModuleDeclarationMode
+	moduleDeclMode  bool          // see SetModuleDeclarationMode
+	notDeclRoot     core.CoreExpr // see InferBody
 }
 
 // deferredFieldAccess records a single `expr.field` site for post-
@@ -466,6 +467,9 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		baseEnvFreeVars: env.ownedVars().types, // memoised, never modified
 		baseEnv:         env,
 		declRoot:        expr,
+	}
+	if tc.notDeclRoot != nil && tc.notDeclRoot == expr {
+		ctx.declRoot = nil // InferBody: a test body or contract clause, not a declaration
 	}
 	// M-DX11-PHASE2: Wire debugSink to Unifier for OnSubstitute events
 	unifier.SetDebugSink(tc.DebugSink)

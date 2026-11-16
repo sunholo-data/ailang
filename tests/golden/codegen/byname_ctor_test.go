@@ -60,7 +60,14 @@ var byNameLibs = map[string]string{
 		"export pure func bc(i: int) -> Box[Color] = mkbox(mkc(i))\n" +
 		"export pure func pc(i: int) -> Pair = mkpair(mkc(i), i)\n" +
 		"export pure func obc(i: int) -> Option[Box[Color]] = Some(mkbox(mkc(i)))\n" +
-		"export pure func oo(i: int) -> Option[Option[int]] = if i > 0 then Some(Some(i)) else if i == 0 then Some(None) else None\n",
+		"export pure func oo(i: int) -> Option[Option[int]] = if i > 0 then Some(Some(i)) else if i == 0 then Some(None) else None\n" +
+		"export pure func oi(i: int) -> Option[int] = if i > 0 then Some(i) else None\n" +
+		"export pure func os(i: int) -> Option[string] = if i > 0 then Some(\"s\") else None\n" +
+		"export pure func ro(i: int) -> Result[int, string] = if i > 0 then Ok(i) else Err(\"neg\")\n",
+	// Pick is declared by two loaded types (lib/q's Q1, lib/q2's Q2).
+	"lib/q.ail":  "module lib/q\nexport type Q1 = Pick(int) | Q1none\nexport pure func q1() -> Q1 = Pick(1)\n",
+	"lib/q2.ail": "module lib/q2\nexport type Q2 = Pick(string)\nexport pure func q2() -> Q2 = Pick(\"a\")\n",
+	"lib/qq.ail": "module lib/qq\nimport lib/q (q1)\nimport lib/q2 (q2)\nexport pure func a1() = q1()\nexport pure func a2() = q2()\n",
 }
 
 // goLibs are the libraries the Go controls need (lib/b's Pair is both a type
@@ -154,10 +161,14 @@ func TestUnresolvedByNameCtorPatternRejectedOnEveryPath(t *testing.T) {
 			"module r9\n" + head + "export pure func summary() -> string = show(cc(0))\n\n" +
 				"test \"by-name in a test body\" {\n  let k = \\v. match v { Red => 1, _ => 0 };\n  assert k(cc(0)) == 1 && k(ll(1)) == 1\n}\n",
 			7, "Red", "TC_AMBIGUOUS_CTOR_001", twoUses},
-		{"by-name constructor with arguments, unannotated parameter", "r11.ail",
-			"module r11\nimport lib/api (bc)\n\npure func boxed(x) -> int = match x { MkBox(c) => 1, _ => 0 }\n\n" +
-				"export pure func summary() -> string = show(boxed(bc(0)))\n",
-			4, "MkBox", "TC_MATCH_007", unfixed},
+		{"by-name constructor with arguments, two candidate types, unannotated parameter", "r11.ail",
+			"module r11\nimport lib/qq (a1, a2)\n\npure func picked(x) -> int = match x { Pick(c) => 1, _ => 0 }\n\n" +
+				"export pure func summary() -> string = show(picked(a1()))\n",
+			4, "Pick", "TC_MATCH_007", unfixed},
+		{"a record value (review of #2362: the wording)", "r12.ail",
+			"module r12\n" + head + "pure func f(r: {a: int}) -> int = match r { Red => 1, _ => 0 }\n\n" +
+				"export pure func summary() -> string = show(f({a: 1}))\n",
+			4, "Red", "TC_MATCH_007", "against a value of type { a: int }, which is not built from constructors here"},
 		// #2353: the variables a by-name pattern binds have their real type
 		// (before: check passed and every engine crashed at run time).
 		{"a by-name pattern's variable used at the wrong type", "r10.ail",
@@ -272,6 +283,21 @@ func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 				"pure func nn(o: Option[Option[int]]) -> int = match o { Some(Some(x)) => x, Some(None) => -1, _ => -2 }\n\n" +
 				"export pure func summary() -> string =\n  show([fOpt(0), fOpt(1), fOpt(-1), fRes(0), fRes(1), fBox(0), fBox(1), fPair(0), fPair(1), fOB(0), fOB(1), nn(oo(5)), nn(oo(0)), nn(oo(-1))])\n",
 			"[1, 2, 0, 1, 2, 1, 0, 100, 0, 1, 0, 5, -1, -2]", "lib/b's Pair is a type and a constructor of one name, which the Go emitter cannot declare"},
+		// Review of #2362, round 2: a constructor ONE loaded type declares
+		// is decided at once, so helpers over it generalise — at two type
+		// arguments of Option, with a class constraint, at top level, and
+		// in contract clauses (whose lets are inner lets, decided by use).
+		{"one-candidate helpers generalise; contract lets are decided by use", "ok9",
+			"module ok9\nimport lib/api (oi, os, ro, bc)\n\n" +
+				"pure func isSomeTop(o) -> bool = match o { Some(_) => true, _ => false }\n" +
+				"pure func boxed(x) -> int = match x { MkBox(c) => 1, _ => 0 }\n" +
+				"pure func pre(r: Result[int, string]) -> int\nrequires { let g = \\q. match q { Ok(_) => true, _ => false } in g(r) }\n{ 1 }\n" +
+				"pure func post(n: int) -> Result[int, string]\nensures { let g = \\q. match q { Ok(v) => v > 0, _ => true } in g(result) }\n{ ro(n) }\n\n" +
+				"export pure func summary() -> string {\n" +
+				"  let isSome = \\o. match o { Some(_) => true, _ => false };\n" +
+				"  let sh = \\o. match o { Some(x) => show(x), _ => \"-\" };\n" +
+				"  show([show([isSome(oi(1)), isSome(os(1)), isSome(oi(0)), isSomeTop(os(0))]), sh(oi(1)), sh(os(1)), sh(oi(0)), show(boxed(bc(0))), show(pre(ro(2))), show(post(2))])\n}\n",
+			"[\"[true, true, false, false]\", \"1\", \"s\", \"-\", \"1\", \"1\", \"Ok(2)\"]", "it imports lib/api, which declares lib/b's Pair"},
 	}
 	files := map[string]string{}
 	for _, c := range cases {
