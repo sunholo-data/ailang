@@ -15,13 +15,17 @@ func (latentDataDepthExceeded) Error() string {
 	return fmt.Sprintf("latent callback type nesting exceeds limit %d", maxDataArrowDepth)
 }
 
-// recoverLatentDataDepth converts only this bounded traversal failure to a
-// compile error. Compiler invariant panics retain their original behavior.
+// recoverLatentDataDepth converts only the bounded traversal failures to a
+// compile error: this one and the type-size backstop (TC_TYPE_SIZE_001,
+// type_size.go). Compiler invariant panics retain their original behavior.
 func recoverLatentDataDepth(err *error) {
 	if failure := recover(); failure != nil {
-		if limit, ok := failure.(latentDataDepthExceeded); ok {
+		switch limit := failure.(type) {
+		case latentDataDepthExceeded:
 			*err = limit
-		} else {
+		case typeTooLarge:
+			*err = &TypeCheckError{Kind: TypeTooLargeError, Message: limit.Error()}
+		default:
 			panic(failure)
 		}
 	}

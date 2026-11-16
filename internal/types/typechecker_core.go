@@ -50,6 +50,7 @@ package types
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
@@ -469,6 +470,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	}
 	// M-DX11-PHASE2: Wire debugSink to Unifier for OnSubstitute events
 	unifier.SetDebugSink(tc.DebugSink)
+	unifier.work = newUnifyWork(expr.Span()) // #2329: bounded per declaration
 	// M-TYPECHECK-NO-AUTO-UNWRAP-RESULT (v0.20.0): wire the constructor →
 	// ADT-name registry so the unifier can produce the prescriptive
 	// match-discipline error when a tagged-union ADT fails to unify with
@@ -504,7 +506,8 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("defaulting failed: %w", err)
 	}
-	tc.markDefaulted(sub, defaultingSub) // #2273: the nodes defaulting pins in a generic body
+	declNodes := slices.Clone(tc.declNodes) // markDefaulted consumes them
+	tc.markDefaulted(sub, defaultingSub)    // #2273: the nodes defaulting pins in a generic body
 	if len(defaultingSub) > 0 {
 		sub = composeSubstitutions(defaultingSub, sub)
 		finalType = defaultedType
@@ -520,6 +523,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	// Must apply the composed substitution to resolve chains (e.g., α37 → α38 → Float).
 	sub = ctx.closeOpenedLambdaTails(sub) // #1958 F-B
 	tc.applyApplicationSubstitution(sub)
+	tc.guardDeclarationSizes(expr, declNodes) // #2308/#2329: before anything walks them
 
 	// Apply final substitution to typed node
 	typedNode = tc.applySubstitutionToTyped(sub, typedNode)

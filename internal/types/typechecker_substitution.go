@@ -3,6 +3,8 @@ package types
 import (
 	"fmt"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/typedast"
@@ -145,49 +147,84 @@ func (tc *CoreTypeChecker) propagateTypeNameToCoreTI() {
 	}
 
 	// Now iterate through CoreTI and set TypeName where it matches (unique signatures only)
-	for nodeID, typ := range tc.CoreTI {
-		tc.propagateTypeNameRecursively(typ, fieldSigToTypeName, nodeID)
+	p := &typeNamePropagation{sigs: fieldSigToTypeName, names: map[string]bool{}, seen: map[Type]bool{}}
+	for _, aliasType := range tc.aliasEnv {
+		if rec, ok := aliasType.(*TRecord); ok {
+			if _, unique := fieldSigToTypeName[recordFieldSignature(rec)]; unique {
+				p.names[recordFieldNames(rec)] = true
+			}
+		}
+	}
+	for _, typ := range tc.CoreTI {
+		p.walk(typ)
 	}
 }
 
-// propagateTypeNameRecursively walks through a type and sets TypeName on any TRecords
-// that match a known type alias signature.
-func (tc *CoreTypeChecker) propagateTypeNameRecursively(t Type, fieldSigToTypeName map[string]string, nodeID uint64) {
+// typeNamePropagation sets TypeName on the records in CoreTI that match a
+// type alias signature. Each node is visited once across all of CoreTI (a type
+// shared by many nodes, or by two positions of one type, was walked per path),
+// and a record's signature — which renders every field type, so its cost is
+// the size of the whole record — is computed only when its field names are
+// some unique alias's names. Before both, a record nested n deep cost O(n^2)
+// per CoreTI entry and a shared record DAG 2^n (#2308).
+type typeNamePropagation struct {
+	sigs  map[string]string // field signature -> alias name (unique signatures only)
+	names map[string]bool   // field-name sets of those aliases
+	seen  map[Type]bool
+}
+
+// walk sets TypeName on any TRecord in t that matches a known signature.
+// Cycle-safe: a node is entered once.
+func (p *typeNamePropagation) walk(t Type) {
+	if t == nil || p.seen[t] {
+		return
+	}
+	p.seen[t] = true
 	switch typ := t.(type) {
 	case *TRecord:
 		// If this record doesn't have a TypeName, try to match by field signature
-		if typ.TypeName == "" {
-			sig := recordFieldSignature(typ)
-			if typeName, ok := fieldSigToTypeName[sig]; ok {
+		if typ.TypeName == "" && p.names[recordFieldNames(typ)] {
+			if typeName, ok := p.sigs[recordFieldSignature(typ)]; ok {
 				typ.TypeName = typeName
 			}
 		}
 		// Recursively process field types
 		for _, fieldType := range typ.Fields {
-			tc.propagateTypeNameRecursively(fieldType, fieldSigToTypeName, nodeID)
+			p.walk(fieldType)
 		}
 
 	case *TList:
-		tc.propagateTypeNameRecursively(typ.Element, fieldSigToTypeName, nodeID)
+		p.walk(typ.Element)
 
 	case *TArray:
-		tc.propagateTypeNameRecursively(typ.Element, fieldSigToTypeName, nodeID)
+		p.walk(typ.Element)
 
 	case *TMap:
-		tc.propagateTypeNameRecursively(typ.Key, fieldSigToTypeName, nodeID)
-		tc.propagateTypeNameRecursively(typ.Value, fieldSigToTypeName, nodeID)
+		p.walk(typ.Key)
+		p.walk(typ.Value)
 
 	case *TTuple:
 		for _, elem := range typ.Elements {
-			tc.propagateTypeNameRecursively(elem, fieldSigToTypeName, nodeID)
+			p.walk(elem)
 		}
 
 	case *TFunc2:
 		for _, param := range typ.Params {
-			tc.propagateTypeNameRecursively(param, fieldSigToTypeName, nodeID)
+			p.walk(param)
 		}
-		tc.propagateTypeNameRecursively(typ.Return, fieldSigToTypeName, nodeID)
+		p.walk(typ.Return)
 	}
+}
+
+// recordFieldNames is a record's sorted field names: the part of its
+// signature that can be compared without rendering a field type.
+func recordFieldNames(rec *TRecord) string {
+	names := make([]string, 0, len(rec.Fields))
+	for name := range rec.Fields {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return strings.Join(names, ",")
 }
 
 // recordFieldSignature creates a canonical string representation of a TRecord's fields.

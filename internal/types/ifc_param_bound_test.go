@@ -118,3 +118,38 @@ export pure func q(xs: [string<sqlsafe>], gs: [(string{not email}, int)], plain:
 		t.Errorf("plain list exported a demand: %+v", ps[2])
 	}
 }
+
+// #2329: the bound walk shares repeated work by (type node, bindings, path).
+// Each key part is load-bearing: one alias body reached under two labels, and
+// one generic alias applied to two different arguments, must each still
+// contribute both paths (dropping either would reject these accepted calls).
+func TestIFCParamBoundSharedWorkKeepsEveryPath(t *testing.T) {
+	decls := `module app
+type Str = string
+type Pair[a] = (a, a)
+pure func trusted(raw: string) -> string<sqlsafe> { raw }
+pure func email(raw: string) -> string<email> { raw }
+pure func src(raw: string) -> string<arg> { raw }
+pure func twoPaths(r: { a: Str<sqlsafe>, b: Str<email> }) -> int { 0 }
+pure func twoArgs(p: (Pair[string<sqlsafe>], Pair[string<email>])) -> int { 0 }
+`
+	for _, tc := range []struct {
+		name, body string
+		ok         bool
+	}{
+		{"one alias body under two labels", `twoPaths({ a: trusted("x"), b: email("y") })`, true},
+		{"one generic alias at two arguments", `twoArgs(((trusted("x"), trusted("x")), (email("y"), email("y"))))`, true},
+		{"two labels, foreign label (control)", `twoPaths({ a: src("x"), b: email("y") })`, false},
+		{"two arguments, foreign label (control)", `twoArgs(((src("x"), trusted("x")), (email("y"), email("y"))))`, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			errs := types.CheckModuleIFC(parseIFC(t, decls+"export func main() -> int { "+tc.body+" }\n"))
+			if tc.ok && len(errs) != 0 {
+				t.Fatalf("accepted call rejected: %v", errs)
+			}
+			if !tc.ok && (len(errs) != 1 || errs[0].Kind != types.ParamLabelCoverError) {
+				t.Fatalf("want one %s, got %v", types.ParamLabelCoverError, errs)
+			}
+		})
+	}
+}

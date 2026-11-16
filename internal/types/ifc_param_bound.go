@@ -2,7 +2,9 @@ package types
 
 import (
 	"fmt"
+	"reflect"
 	"sort"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 )
@@ -63,6 +65,34 @@ type ifcBound struct {
 	cover  Label // join of the labels some labelled path admits; meaningful only when has
 	has    bool  // some covariant data position writes a positive label
 	forbid map[string]bool
+	walk   *ifcBoundWalk // memo of one paramBound walk; nil once the walk is done
+}
+
+// ifcBoundWalk shares work within one paramBound walk (#2329). A bound only
+// accumulates (a join of labels, a set of forbids, a flag), so walking the
+// same type node under the same parameter bindings along the same path a
+// second time adds nothing. Without the memo an alias chain that doubles its
+// argument (`type P0[a] = P1[(a, a)]`, ...) or a dense DAG of aliases (each a
+// tuple of the previous five) was walked once per root-to-leaf path: 2^n.
+//
+// A node's key uses the identity of its bindings map, so the bindings of a
+// module-local declaration are interned by (declaration, argument
+// identities): one application reached along two paths gets one map.
+type ifcBoundWalk struct {
+	done   map[ifcBoundKey]bool
+	scopes map[string]map[string]ifcTypeArg
+	cuts   int // recursive occurrences cut so far (addName)
+}
+
+type ifcBoundKey struct {
+	t      ast.Type
+	params uintptr
+	path   ifcPath
+}
+
+// bindingsID is the identity of a bindings map (0 for nil).
+func bindingsID(m map[string]ifcTypeArg) uintptr {
+	return reflect.ValueOf(m).Pointer()
 }
 
 // ifcPath is the conjunction of positive labels along one path: none, one
@@ -119,8 +149,9 @@ func (b ifcBound) forbidden() []string {
 
 // paramBound is the demand declared parameter type t places on its argument.
 func (ts *ifcTypes) paramBound(t ast.Type) ifcBound {
-	var b ifcBound
+	b := ifcBound{walk: &ifcBoundWalk{done: map[ifcBoundKey]bool{}, scopes: map[string]map[string]ifcTypeArg{}}}
 	ts.addBound(&b, t, ifcPath{}, nil, map[string]bool{}, 0)
+	b.walk = nil
 	if b.has && b.cover == nil {
 		b.cover = LabelBottom() // every labelled path contradictory: only ⊥ passes
 	}
@@ -143,6 +174,20 @@ func (ts *ifcTypes) demandOf(name string, t ast.Type) ifcDemand {
 func (ts *ifcTypes) addBound(b *ifcBound, t ast.Type, path ifcPath, params map[string]ifcTypeArg, visiting map[string]bool, depth int) {
 	if depth > ifcAnalysisDepth {
 		panic(ifcAnalysisLimit{reason: "parameter type nesting"})
+	}
+	if t != nil && b.walk != nil {
+		key := ifcBoundKey{t: t, params: bindingsID(params), path: path}
+		if b.walk.done[key] {
+			return
+		}
+		// A walk that cut a recursive occurrence depends on what was on the
+		// path; only a walk that cut nothing is the node's whole contribution.
+		cuts := b.walk.cuts
+		defer func() {
+			if b.walk.cuts == cuts {
+				b.walk.done[key] = true
+			}
+		}()
 	}
 	switch tt := t.(type) {
 	case nil, *ast.FuncType:
@@ -217,10 +262,33 @@ func (ts *ifcTypes) addName(b *ifcBound, name string, args []ifcTypeArg, path if
 	// can only drop admitted labels, the conservative direction (has is set by
 	// any label the walk meets).
 	if visiting[name] {
+		if b.walk != nil {
+			b.walk.cuts++
+		}
 		return
 	}
 	visiting[name] = true
 	defer delete(visiting, name)
+	ts.addAll(b, declBodyTypes(td), path, b.scope(td, args), visiting, depth)
+}
+
+// scope binds a module-local declaration's type parameters to args. Within a
+// walk the map is interned by the declaration and the identity of each
+// argument, so the memo sees one application reached along two paths as one.
+func (b *ifcBound) scope(td *ast.TypeDecl, args []ifcTypeArg) map[string]ifcTypeArg {
+	if len(td.TypeParams) == 0 {
+		return nil
+	}
+	var key strings.Builder
+	if b.walk != nil {
+		key.WriteString(td.Name)
+		for _, a := range args {
+			fmt.Fprintf(&key, "|%p/%x", a.t, bindingsID(a.params))
+		}
+		if m, ok := b.walk.scopes[key.String()]; ok {
+			return m
+		}
+	}
 	bound := make(map[string]ifcTypeArg, len(td.TypeParams))
 	for i, p := range td.TypeParams {
 		if i < len(args) {
@@ -229,7 +297,10 @@ func (ts *ifcTypes) addName(b *ifcBound, name string, args []ifcTypeArg, path if
 			bound[p] = ifcTypeArg{} // unapplied: an unknown leaf
 		}
 	}
-	ts.addAll(b, declBodyTypes(td), path, bound, visiting, depth)
+	if b.walk != nil {
+		b.walk.scopes[key.String()] = bound
+	}
+	return bound
 }
 
 // topLabel is the positive label written at the top of t, if any. It is the

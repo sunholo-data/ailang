@@ -1,6 +1,9 @@
 package pipeline
 
 import (
+	"maps"
+	"slices"
+
 	"github.com/sunholo-data/ailang/internal/iface"
 	"github.com/sunholo-data/ailang/internal/types"
 )
@@ -128,6 +131,36 @@ func (c *aliasBodyCloser) walk(t types.Type) types.Type {
 		// Unknown types remain opaque, rather than guessing at their semantics.
 		return t
 	}
+}
+
+// checkInterfaceTypeSizes bounds the closed interface types (TC_TYPE_SIZE_001,
+// #2329). Closing shares each alias body (memo), so a dense DAG of nullary
+// aliases (each a tuple of the previous five) closes into a few hundred nodes,
+// but the digest and the cache serialise the interface as a tree: exponential
+// in the number of aliases. This is where that expansion first materialises.
+func checkInterfaceTypeSizes(ifc *iface.Iface) error {
+	check := types.NewTypeSizeCheck()
+	for _, name := range sortedTypeKeys(ifc.TypeAliases) {
+		if err := check.Check(ifc.TypeAliases[name], "exported type "+name); err != nil {
+			return err
+		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(ifc.Exports)) {
+		if item := ifc.Exports[name]; item.Type != nil {
+			if err := check.Check(item.Type.Type, "exported "+name); err != nil {
+				return err
+			}
+		}
+	}
+	for _, name := range slices.Sorted(maps.Keys(ifc.Constructors)) {
+		ctor := ifc.Constructors[name]
+		for _, t := range append(slices.Clone(ctor.FieldTypes), ctor.ResultType) {
+			if err := check.Check(t, "exported constructor "+name); err != nil {
+				return err
+			}
+		}
+	}
+	return nil
 }
 
 // closeInterfaceTypes operates on copies of shared schemes/constructor entries.

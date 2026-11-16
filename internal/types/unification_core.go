@@ -46,6 +46,13 @@ type Unifier struct {
 	// but unhelpful. With it: a `match { Ok(x) => ..., Err(e) => ... }`
 	// template using actual constructor names.
 	constructorTypes map[string]string
+	// work bounds the unifications of one declaration (type_size.go); nil
+	// leaves this unifier unbounded.
+	work *unifyWork
+	// aliasPairs and aliasGround share the unification of ground nullary
+	// aliases (unification_alias_pairs.go).
+	aliasPairs  map[[2]string]bool
+	aliasGround map[string]bool
 }
 
 // SetConstructorTypes wires the ADT registry the unifier needs to
@@ -237,14 +244,21 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 		return nil, err
 	}
 
+	u.work.step()
+
 	// Depth check to catch infinite recursion
 	u.depth++
 	defer func() { u.depth-- }()
 
 	if u.depth > maxUnifyDepth {
-		// Panic with useful debug info instead of hanging forever
-		panic(fmt.Sprintf("unification depth exceeded %d - likely cyclic types:\n  t1: %T\n  t2: %T\n  substitution size: %d",
-			maxUnifyDepth, t1, t2, len(sub)))
+		// A type nested this deep — written so (a 1100-deep list annotation,
+		// #2327's sibling), or cyclic — is TC_TYPE_SIZE_001 at the declaration
+		// boundary (recoverLatentDataDepth), not a crash of check or the LSP.
+		w := typeTooLarge{what: "this declaration", detail: fmt.Sprintf("its types nest more than %d deep (unifying %T with %T)", maxUnifyDepth, t1, t2)}
+		if u.work != nil {
+			w.pos = positionString(u.work.pos)
+		}
+		panic(w)
 	}
 
 	// Apply current substitution with cycle detection
@@ -265,6 +279,18 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 	}
 	if _, isLabelled := t2.(*TLabelled); isLabelled {
 		return u.Unify(t1, StripLabel(t2), sub)
+	}
+
+	// #2329: two ground nullary aliases unified once are unified for good.
+	if pair, ok := u.groundAliasPair(t1, t2); ok {
+		if u.aliasPairs[pair] {
+			return sub, nil
+		}
+		next, err := u.Unify(u.expandAlias(t1), u.expandAlias(t2), sub)
+		if err == nil {
+			u.aliasPairs[pair] = true
+		}
+		return next, err
 	}
 
 	// M-BUGFIX: Expand type aliases before unification

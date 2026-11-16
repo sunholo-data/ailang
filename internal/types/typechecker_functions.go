@@ -205,6 +205,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		valueType = ApplySubstitution(sub, valueType)
 		valueNode = tc.applySubstitutionToTyped(sub, valueNode)
 	}
+	guardTypeSize(valueType, letBindingWhat(let.Name), let.Span())
 
 	// Apply defaulting at this generalization boundary
 	defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguitiesKeeping(valueType, unsolvedConstraints, ctx.envOwnedVars(sub, ctx.env), tc.declLiteralVars(ctx, let, unsolvedConstraints))
@@ -340,6 +341,9 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 			allValueTypes[i] = ApplySubstitution(sub, allValueTypes[i])
 			allValueNodes[i] = tc.applySubstitutionToTyped(sub, allValueNodes[i])
 		}
+	}
+	for i, binding := range letrec.Bindings {
+		guardTypeSize(allValueTypes[i], letBindingWhat(binding.Name), letrec.Span())
 	}
 
 	// Apply defaulting to the entire mutual block (once per SCC). Each binding's
