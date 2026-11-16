@@ -1,11 +1,13 @@
 package coordinator
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/executor"
@@ -195,12 +197,12 @@ func (d *Daemon) dispatchTasksCloud() error {
 			holder, err := d.credentialLaneHolder(d.ctx, lane, task.ID, claimedLanes)
 			if err != nil {
 				d.logger.Printf("Task %s: cannot check credential lane %s, leaving it pending: %v", task.ID, lane, err)
-				_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)
+				d.requeueClaimedTask(task.ID)
 				continue
 			}
 			if holder != "" {
 				d.logger.Printf("Task %s: credential lane %s is held by %s; leaving it pending", task.ID, lane, holder)
-				_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)
+				d.requeueClaimedTask(task.ID)
 				continue
 			}
 			claimedLanes[lane] = task.ID
@@ -209,7 +211,7 @@ func (d *Daemon) dispatchTasksCloud() error {
 		// Publish task to Pub/Sub for audit trail / event streaming.
 		if err := d.pubsubPublisher.PublishTask(d.ctx, task.ID, task.AgentID, task.Workspace, provider); err != nil {
 			d.logger.Printf("Failed to publish task %s to Pub/Sub: %v", task.ID, err)
-			_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)
+			d.requeueClaimedTask(task.ID)
 			continue
 		}
 
@@ -441,7 +443,29 @@ func (d *Daemon) handleDispatchError(task *TaskRecord, err error) {
 		return
 	}
 	d.logger.Printf("Failed to dispatch task %s to Cloud Run Job: %v", task.ID, err)
-	_ = d.taskStore.ResetTaskToPending(d.ctx, task.ID)
+	d.requeueClaimedTask(task.ID)
+}
+
+// requeueTimeout bounds a re-queue that must outlive the daemon's context.
+const requeueTimeout = 10 * time.Second
+
+// requeueClaimedTask returns a task this tick claimed (MarkTaskQueued) but did
+// not dispatch to pending, on a context that survives shutdown.
+//
+// It used to run on d.ctx, which SIGTERM cancels. A dispatch that lost its
+// context mid-tick failed on that cancellation, and the re-queue failed on the
+// SAME cancelled context, silently (`_ =`). The task was left queued with no
+// job behind it — and in the cloud, queued is what a dispatched task looks
+// like, so only the 3-h stale detector noticed: task-d82dc6c8 (10-01) and
+// task-18a82186 (10-16) logged "Failed to publish task … context canceled"
+// microseconds after "Received signal: terminated" and were failed at 3h0m
+// and 4h56m (D-FLEET-40).
+func (d *Daemon) requeueClaimedTask(taskID string) {
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(d.ctx), requeueTimeout)
+	defer cancel()
+	if err := d.taskStore.ResetTaskToPending(ctx, taskID); err != nil {
+		d.logger.Printf("ERROR: task %s was claimed but not dispatched, and returning it to pending failed: %v (it stays queued until the stale detector fails it)", taskID, err)
+	}
 }
 
 // postDispatchFailureCompletion posts a failed completion to the agent's inbox
