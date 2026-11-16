@@ -8,7 +8,7 @@ reviewBy: 2027-02-16
 
 # Pilot-5 plan: teach the language first
 
-**Status: proposed on 2026-11-16, not yet approved.** Nothing in this plan has been run.
+**Status: approved by Mark on 2026-11-16 ([D-FT-19](./decisions.md)). Stage 0 is running.**
 
 ## Why a new plan
 
@@ -66,7 +66,7 @@ runs in minutes, so that every data and training choice can be checked.
 
 - **The test:** give the model a task description and ask for one complete program, with no tools.
   Score whether it compiles and whether its output is right.
-- **The tasks:** the 23 held-out tasks, five samples each, and about 150 repository programs set
+- **The tasks:** the held-out tasks, three samples each, and about 150 repository programs set
   aside before any training data is built, so the test also covers code that looks like our real
   applications.
 - **The baseline:** the untrained model with no prompt, with the slim prompt and with the full
@@ -160,7 +160,7 @@ These are estimates made before any measurement.
 
 | Stage | Work | Time | GPU |
 |---|---|---|---|
-| 0 | Build the single-shot test, run three baseline arms | 1 day | about an hour |
+| 0 | Build the single-shot test, run three baseline arms | 1 day | about 6 hours |
 | 1 | Descriptions, splitting, repairs, de-duplication, checks | 3 days | none |
 | 2 | Small run, two adapter sizes | 1 day | 6 to 10 hours |
 | 3 | Full run, both gates | 3 to 4 days | 2 to 3 days |
@@ -172,3 +172,11 @@ The GPU time for Stage 3 is scaled from pilot-4, which trained on 5.6 million to
 Money cost is zero: descriptions use the Claude subscription and training runs on the rig. The real
 costs are subscription quota for 3,000 to 4,000 description requests and the rig's GPU for about
 three days, during which other local evals wait.
+
+## Log
+
+| Date | Step | Result |
+|---|---|---|
+| 2026-11-16 | Single-shot test built | It is the existing standard mode of `ailang eval-suite` with self-repair off, run from the frozen eval folder with the pinned compiler (`tools/finetune/pilot5_baseline.sh`). No new harness was needed |
+| 2026-11-16 | Time per sample measured | One sample takes 1.5 to 2 minutes, because the model thinks for 3,000 to 6,000 tokens before it answers. The plan's "about an hour" for the baseline was wrong. Three samples per task over three arms is about 6 hours, so the test uses three samples, not five |
+| 2026-11-16 | Baseline started | Untrained Gemma 4 12B, 24 held-out tasks, three samples each, with no prompt, the slim prompt and the full prompt |
