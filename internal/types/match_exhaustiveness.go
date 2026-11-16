@@ -275,7 +275,7 @@ func (v *matchVerifier) describeType(t Type) string {
 	if v.unif == nil {
 		v.unif = v.tc.aliasUnifier()
 	}
-	s, exp := displayType(t), displayType(v.unif.expandAlias(t))
+	s, exp := writtenType(t), writtenType(v.unif.expandAlias(t))
 	if exp != s {
 		return s + " (= " + exp + ")"
 	}
@@ -286,18 +286,19 @@ func (v *matchVerifier) describeType(t Type) string {
 // (" ! {...ε3}"): inference bookkeeping, not something the author wrote.
 var openRowOnly = regexp.MustCompile(` ! \{\.\.\.[^{}\s,]*\}`)
 
-// displayType renders t for a message: signature variables as written, a
-// list as [T], no bare open effect rows.
-func displayType(t Type) string {
+// writtenType renders t for a message as the author would write it:
+// signature variables as written, a list as [T], no bare open effect rows.
+// The rendering itself is displayType's, bounded (#2363).
+func writtenType(t Type) string {
 	switch l := t.(type) {
 	case *TList:
-		return "[" + displayType(l.Element) + "]"
+		return "[" + writtenType(l.Element) + "]"
 	case *TApp:
 		if c, ok := l.Constructor.(*TCon); ok && strings.EqualFold(c.Name, "list") && len(l.Args) == 1 {
-			return "[" + displayType(l.Args[0]) + "]"
+			return "[" + writtenType(l.Args[0]) + "]"
 		}
 	}
-	return openRowOnly.ReplaceAllString(WrittenTypeVarNames(t.String()), "")
+	return openRowOnly.ReplaceAllString(WrittenTypeVarNames(displayType(t)), "")
 }
 
 // rigidVarName is t's name as written when t is a signature type variable

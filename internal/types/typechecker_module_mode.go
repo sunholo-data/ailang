@@ -9,6 +9,12 @@ import (
 // REPL's module registry) call InferWithConstraints once per module-level
 // declaration and tell the checker so through these setters.
 
+// moduleMode is the module-mode state embedded in CoreTypeChecker.
+type moduleMode struct {
+	moduleDeclMode bool          // see SetModuleDeclarationMode
+	notDeclRoot    core.CoreExpr // see InferBody
+}
+
 // SetModuleFuncNames records the module-level function names of the current
 // module. Consumed ONLY by inferVar's undefined-variable diagnostic to detect
 // the #327 shape (a local function that resolves as "undefined variable" in a

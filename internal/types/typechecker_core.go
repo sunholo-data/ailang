@@ -129,8 +129,7 @@ type CoreTypeChecker struct {
 	// syntactic position — the interim truth-telling diagnostic for #327
 	// (record-update-local-resolution). Retired when the real fix ships.
 	moduleFuncNames map[string]bool
-	moduleDeclMode  bool          // see SetModuleDeclarationMode
-	notDeclRoot     core.CoreExpr // see InferBody
+	moduleMode      // moduleDeclMode, notDeclRoot: typechecker_module_mode.go
 }
 
 // deferredFieldAccess records a single `expr.field` site for post-
