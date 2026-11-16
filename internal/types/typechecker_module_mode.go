@@ -40,3 +40,12 @@ func (tc *CoreTypeChecker) InferBody(expr core.CoreExpr, env *TypeEnv) (typedast
 	defer func() { tc.notDeclRoot = prev }()
 	return tc.InferWithConstraints(expr, env)
 }
+
+// declRootFor is the declaration root of an inference started on expr: expr
+// itself, or nil when InferBody marked expr as a body (a contract clause).
+func (tc *CoreTypeChecker) declRootFor(expr core.CoreExpr) core.CoreExpr {
+	if tc.notDeclRoot != nil && tc.notDeclRoot == expr {
+		return nil
+	}
+	return expr
+}
