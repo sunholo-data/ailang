@@ -25,20 +25,42 @@ func assertRemoteMatchesHead(ctx context.Context, workDir, branchName string) er
 	}
 	head := strings.TrimSpace(string(headOut))
 
-	lsOut, err := gitexec.CommandContext(ctx, "-C", workDir, "ls-remote", "origin", "refs/heads/"+branchName).Output()
+	remote, err := remoteBranchHead(ctx, workDir, branchName)
 	if err != nil {
 		return fmt.Errorf("cannot read origin/%s to verify the push: %w", branchName, err)
 	}
-	fields := strings.Fields(string(lsOut))
-	if len(fields) == 0 {
+	if remote == "" {
 		return fmt.Errorf("push reported success but origin/%s does not exist — the work is at %s locally and was NOT published", branchName, head)
 	}
-	if remote := fields[0]; remote != head {
+	if remote != head {
 		return fmt.Errorf("push reported success but origin/%s is %s, not the HEAD we built (%s) — the work was NOT published to that branch",
 			branchName, remote, head)
 	}
 	fmt.Printf("execute-job: verified origin/%s is at %s\n", branchName, head)
 	return nil
+}
+
+// remoteBranchHead asks the REMOTE where refs/heads/<branchName> points: the
+// SHA, or "" when the branch does not exist there.
+//
+// Not the tracking ref. The job clones `--depth 1 --branch <base>`, which is
+// single-branch, so its only fetch refspec is the base branch and a push by
+// the agent itself never creates refs/remotes/origin/<branch>. Step 5b used to
+// read `git log origin/<branch>..HEAD`, which then exits 128; the fallback saw
+// the branch on the remote and concluded "nothing to push". Commits the agent
+// made after its own push were silently never published, and the
+// assertRemoteMatchesHead check was skipped with them (D-FLEET-23, measured at
+// fleet iteration 49).
+func remoteBranchHead(ctx context.Context, workDir, branchName string) (string, error) {
+	out, err := gitexec.CommandContext(ctx, "-C", workDir, "ls-remote", "origin", "refs/heads/"+branchName).Output()
+	if err != nil {
+		return "", err
+	}
+	fields := strings.Fields(string(out))
+	if len(fields) == 0 {
+		return "", nil
+	}
+	return fields[0], nil
 }
 
 // configureGitAuthor sets the commit author for this task's checkout.

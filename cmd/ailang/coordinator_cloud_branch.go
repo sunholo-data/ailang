@@ -1,7 +1,5 @@
 package main
 
-import "strings"
-
 // Branch decisions for execute-job: what to push, and whether a PR makes sense.
 
 // pushRefspec sends whatever HEAD is to the named branch.
@@ -18,8 +16,13 @@ func pushRefspec(branchName string) string {
 // It answers ONLY that. It used to be the same test that decided whether to
 // open a PR, which meant an agent that pushed its own branch got no PR at all
 // (task-389b7a51). Pushing and reviewing are separate questions.
-func branchNeedsPush(newBranch bool, logOutput string) bool {
-	return newBranch || len(strings.TrimSpace(logOutput)) > 0
+//
+// remoteHead is what origin's refs/heads/<branch> points at ("" when absent or
+// unreadable), from remoteBranchHead. Anything other than HEAD itself means
+// the published branch is not the work, so push: a branch the agent pushed and
+// then committed past is exactly that case (D-FLEET-23).
+func branchNeedsPush(remoteHead, head string) bool {
+	return remoteHead != head
 }
 
 // branchWantsPR reports whether there is a head/base pair to open a PR between.
