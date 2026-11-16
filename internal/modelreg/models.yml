@@ -4958,6 +4958,38 @@ models:
 
       Not referenced by any role chain — see the Phase 0 note above.
 
+  pi-or-glm-5-3:
+    api_name: "z-ai/glm-5.3"
+    provider: "openrouter"
+    default_thinking: "always_on"  # as or-glm-5-3: reasoning is mandatory on this endpoint
+    description: "GLM-5.3 via pi on OpenRouter — the driver's designer fallback rung pi:openrouter/z-ai/glm-5.3"
+    env_var: "OPENROUTER_API_KEY"
+    agent_cli: "pi"
+    agent_model_name: "openrouter/z-ai/glm-5.3"
+    model_family: "glm-5"
+    max_output_tokens: 32000  # D-FLEET-35 A: the cap the rig's installed pi config has carried
+                              # since the 10-07 attended workaround for the uncapped-request
+                              # 402. or-glm-5-3 declares 65536, so this api_name is listed in
+                              # unequalWireBudgets (wire_budget_test.go) beside its kimi-k3 and
+                              # minimax-m3 siblings, pending the same wire decision.
+    pricing:
+      input_per_1k: 0.0014    # $1.40 per 1M — transcribed from or-glm-5-3
+      output_per_1k: 0.0044   # $4.40 per 1M
+      # cache_read_per_1k deliberately NOT declared — no metered pi run on this model
+      # exists to derive it from (same reasoning as pi-or-kimi-k3).
+    budgets:
+      max_cost_usd: 1.00      # a long authoring role, as pi-or-kimi-k3
+      hard_timeout_secs: 3600
+    notes: |
+      D-FLEET-35 A (Mark, attended 2026-11-16). tools/launchd/mission-control.sh routes
+      `pi:openrouter/z-ai/glm-5.3` as a designer fallback rung, and its output cap lived only
+      in the rig's installed ~/.pi/agent/models.json. Without this row nothing held it:
+      config_preflight.go checks the installed config only for tasks carrying registry
+      settings, and TestPiModelsConfigMatchesRegistry checks only slugs with a pi row. The
+      canonical entry is in tools/pi-extensions/models.mission.json.
+
+      Not referenced by any role chain; it exists so the registry can express the driver's rung.
+
   pi-or-kimi-k3:
     api_name: "moonshotai/kimi-k3"
     provider: "openrouter"

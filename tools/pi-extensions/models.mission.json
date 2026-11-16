@@ -264,6 +264,68 @@
           }
         },
         {
+          "id": "z-ai/glm-5.3",
+          "maxTokens": 32000,
+          "contextWindow": 1048576,
+          "reasoning": true,
+          "input": ["text"],
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "low": "low",
+            "medium": null,
+            "high": "high",
+            "xhigh": null,
+            "max": "max"
+          },
+          "cost": {
+            "input": 1.4,
+            "output": 4.4,
+            "cacheRead": 0.14,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "moonshotai/kimi-k3",
+          "maxTokens": 32000,
+          "contextWindow": 1048576,
+          "reasoning": true,
+          "input": ["text", "image"],
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "low": "low",
+            "medium": null,
+            "high": "high",
+            "xhigh": null,
+            "max": "max"
+          },
+          "cost": {
+            "input": 3,
+            "output": 15,
+            "cacheRead": 0.3,
+            "cacheWrite": 0
+          }
+        },
+        {
+          "id": "minimax/minimax-m3",
+          "maxTokens": 32000,
+          "contextWindow": 524288,
+          "reasoning": true,
+          "input": ["text", "image"],
+          "thinkingLevelMap": {
+            "off": null,
+            "minimal": null,
+            "xhigh": null
+          },
+          "cost": {
+            "input": 0.3,
+            "output": 1.2,
+            "cacheRead": 0.06,
+            "cacheWrite": 0
+          }
+        },
+        {
           "id": "deepseek/deepseek-v4.1-flash:floor",
           "maxTokens": 32000,
           "contextWindow": 1048576,
