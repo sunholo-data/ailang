@@ -135,7 +135,7 @@ own lock. The rules are only useful if they are followed when they are inconveni
 For three pilots we compared each fine-tune with the one before it, and with the base model on the
 full teaching prompt. We never ran the base model on the slim prompt the fine-tunes used. When we
 did, it passed 9 of 23 held-out tasks, level with our best fine-tune at 10. Three rounds of data
-collection and about 40 hours of training had added nothing we could measure. That control costs
+collection and training had added nothing we could measure. That control costs
 one day of GPU and no training, and it belonged before pilot-1.
 
 ## 12. A quick check can measure the wrong thing
