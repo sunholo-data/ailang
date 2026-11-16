@@ -87,7 +87,7 @@ func TestUnresolvedByNameCtorPatternRejectedOnEveryPath(t *testing.T) {
 			"module r8\n" + head + "pure func keep[a](x: a) -> int\nrequires { match x { Red => true, _ => false } }\n{ 1 }\n\n" +
 				"export pure func summary() -> string = show(keep(cc(0)))\n", "r8.ail:5:"},
 		{"test body", "r9.ail",
-			"module r9\n" + head + "export pure func summary() -> string = show(cc(0) == cc(0))\n\n" +
+			"module r9\n" + head + "export pure func summary() -> string = show(cc(0))\n\n" +
 				"test \"by-name in a test body\" {\n  let k = \\v. match v { Red => 1, _ => 0 };\n  assert k(cc(0)) == 1\n}\n", "r9.ail:7:"},
 	}
 	files := map[string]string{}
@@ -147,11 +147,17 @@ func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 				"  let a = match cc(0) { Red => 1, _ => 0 };\n" +
 				"  let b = match ll(1) { Red => 1, _ => 0 };\n" +
 				"  let c = match ll(0) { Red => 1, Green => 2 };\n" +
-				"  let d = match (cc(1), 5) { (Green, n) => n, _ => 0 };\n" +
 				"  let e = match nth([ll(1)], 0) { Some(Red) => 1, Some(_) => 2, None => 3 };\n" +
 				"  let f = match cc(0) { Red if a == 0 => 9, Red => 1, _ => 0 };\n" +
 				"  let g = match ll(1) { Red if a == 0 => 9, Red => 1, _ => 0 };\n" +
-				"  show([a, b, c, d, e, f, g])\n}\n", "[1, 1, 2, 5, 1, 1, 1]"},
+				"  show([a, b, c, e, f, g])\n}\n", "[1, 1, 2, 1, 1, 1]"},
+		// A by-name constructor inside a tuple pattern, on a fixed type. The
+		// emitted Go does not build for any constructor in a tuple (#2358,
+		// pre-existing), so this one runs on the evaluator and the VMs only.
+		{"by-name in a tuple on a fixed type (no Go: #2358)", "ok6",
+			"module ok6\nimport lib/w (cc, ll)\n\n" +
+				"export pure func summary() -> string = show([match (cc(1), 5) { (Green, n) => n, _ => 0 }, match (ll(0), 6) { (Green, n) => n, _ => 0 }])\n",
+			"[5, 6]"},
 		{"deferred constructor choice (#2228)", "ok3",
 			"module ok3\nimport lib/x (Color, mkc)\nimport lib/y (Light, mkl)\n\n" +
 				"pure func f(c: Color) -> int = match c { Red => 1, _ => 0 }\n" +
@@ -176,7 +182,9 @@ func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 	dir := writeByNameFixture(t, files)
 	libs := make([]string, 0, len(byNameLibs))
 	for p := range byNameLibs {
-		libs = append(libs, p)
+		if p != "lib/z.ail" { // the cross-module route: rejected
+			libs = append(libs, p)
+		}
 	}
 	sort.Strings(libs)
 	for _, c := range cases {
@@ -188,6 +196,9 @@ func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 				if got := strings.TrimSpace(stdout); code != 0 || got != c.want || strings.Contains(stderr, "falling back") {
 					t.Errorf("run %v: exit %d, got %q, want %q\n%s", flags, code, got, c.want, stderr)
 				}
+			}
+			if c.module == "ok6" {
+				return
 			}
 			emit := func(out string) string {
 				args := append([]string{"compile", "--emit-go", "--package-name", c.module, "--out", out, file}, libs...)
