@@ -618,8 +618,10 @@ models:
       inflated by the zero-loss record — trust the order, not the gap).
       ROLES since 2026-09-30 (Mark, attended): planner + executor head, controller Sol rung,
       designer codex rung (replacing both gpt6-sol and gpt6-astra), and the design-quorum
-      OpenAI reviewer seat (#1412) — that seat calls the METERED API, so it stays absent
-      until the OpenAI org is topped up. Not in any standard suite until placed.
+      OpenAI reviewer seat (#1412). That seat called the METERED API through this row and was
+      absent on every quorum (org out of credit); since 2026-11-16 (D-FLEET-20 A) the quorum
+      seats `codex:gpt-6.1-sol` on the ChatGPT subscription instead, so this row is no longer
+      the quorum's default. Not in any standard suite until placed.
       Uses max_completion_tokens instead of max_tokens.
 
   gpt6-luna:

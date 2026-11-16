@@ -251,8 +251,11 @@ func TestExtractPureCluster_MutualRecursion(t *testing.T) {
 	}
 }
 
+// The gate reads the function under test's effect row. A dependency's effects
+// do not reject the cluster on their own: a pure function may reference an
+// effectful one without calling it (the effect system would otherwise have put
+// the effect in the caller's row).
 func TestExtractPureCluster_EffectfulDependency(t *testing.T) {
-	// main -> effectful (main is pure, effectful has IO)
 	effectfulBody := makeLambda([]string{"x"}, &core.Lit{Value: int64(0)})
 	mainBody := makeLambda([]string{"x"}, makeApp(makeVar("effectful"), makeVar("x")))
 
@@ -263,29 +266,37 @@ func TestExtractPureCluster_EffectfulDependency(t *testing.T) {
 	g := BuildCallGraph(prog)
 	sccs := ComputeSCCs(g)
 
-	cti := makeMockCoreTypeInfo()
-	setTypePure(cti, g.Bindings["main"])
-	setTypeEffectful(cti, g.Bindings["effectful"], []string{"IO"})
+	t.Run("pure root keeps effectful dependency as an inert binding", func(t *testing.T) {
+		cti := makeMockCoreTypeInfo()
+		setTypePure(cti, g.Bindings["main"])
+		setTypeEffectful(cti, g.Bindings["effectful"], []string{"IO"})
 
-	_, err := ExtractPureCluster("main", g, sccs, cti)
-	if err == nil {
-		t.Fatal("Expected error for effectful dependency")
-	}
+		cluster, err := ExtractPureCluster("main", g, sccs, cti)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if !cluster.Names["main"] || !cluster.Names["effectful"] {
+			t.Errorf("cluster = %v, want main and effectful", cluster.Names)
+		}
+	})
 
-	purityErr, ok := err.(*PurityError)
-	if !ok {
-		t.Fatalf("Expected PurityError, got %T: %v", err, err)
-	}
+	t.Run("effectful root is rejected", func(t *testing.T) {
+		cti := makeMockCoreTypeInfo()
+		setTypeEffectful(cti, g.Bindings["main"], []string{"IO"})
+		setTypeEffectful(cti, g.Bindings["effectful"], []string{"IO"})
 
-	if purityErr.FuncUnderTest != "main" {
-		t.Errorf("Expected FuncUnderTest 'main', got '%s'", purityErr.FuncUnderTest)
-	}
-	if purityErr.EffectfulFunc != "effectful" {
-		t.Errorf("Expected EffectfulFunc 'effectful', got '%s'", purityErr.EffectfulFunc)
-	}
-	if len(purityErr.Effects) != 1 || purityErr.Effects[0] != "IO" {
-		t.Errorf("Expected effects [IO], got %v", purityErr.Effects)
-	}
+		cluster, err := ExtractPureCluster("main", g, sccs, cti)
+		purityErr, ok := err.(*PurityError)
+		if !ok {
+			t.Fatalf("Expected PurityError, got cluster=%v err=%T %v", cluster, err, err)
+		}
+		if purityErr.FuncUnderTest != "main" {
+			t.Errorf("Expected FuncUnderTest 'main', got '%s'", purityErr.FuncUnderTest)
+		}
+		if len(purityErr.Effects) != 1 || purityErr.Effects[0] != "IO" {
+			t.Errorf("Expected effects [IO], got %v", purityErr.Effects)
+		}
+	})
 }
 
 func TestExtractPureCluster_NotFound(t *testing.T) {
@@ -301,14 +312,9 @@ func TestExtractPureCluster_NotFound(t *testing.T) {
 }
 
 func TestPurityError_String(t *testing.T) {
-	err := &PurityError{
-		FuncUnderTest: "myFunc",
-		EffectfulFunc: "badDep",
-		Effects:       []string{"IO", "FS"},
-	}
-
-	msg := err.Error()
-	if msg != "cannot test 'myFunc': dependency 'badDep' has effects [IO FS]" {
+	err := &PurityError{FuncUnderTest: "myFunc", Effects: []string{"FS", "IO"}}
+	want := "cannot test 'myFunc': it has effects [FS IO] (inline tests run without capabilities; only pure functions can be tested inline)"
+	if msg := err.Error(); msg != want {
 		t.Errorf("Unexpected error message: %s", msg)
 	}
 }

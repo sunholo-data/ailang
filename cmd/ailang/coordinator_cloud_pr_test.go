@@ -13,14 +13,14 @@ import "testing"
 // the split.
 
 func TestBranchNeedsPush_OnlyAnswersAboutPushing(t *testing.T) {
-	if !branchNeedsPush(true, "") {
-		t.Error("a branch absent from the remote must be pushed, even with no log output — git log exits 128 there")
+	if !branchNeedsPush("", "bbb") {
+		t.Error("a branch absent from the remote must be pushed")
 	}
-	if !branchNeedsPush(false, "abc123 do the thing\n") {
-		t.Error("local commits ahead of origin must be pushed")
+	if !branchNeedsPush("aaa", "bbb") {
+		t.Error("a remote branch that is not HEAD must be pushed")
 	}
-	if branchNeedsPush(false, "   \n") {
-		t.Error("nothing ahead of origin means nothing to push")
+	if branchNeedsPush("bbb", "bbb") {
+		t.Error("origin already at HEAD means nothing to push")
 	}
 }
 

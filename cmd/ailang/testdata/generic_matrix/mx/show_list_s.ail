@@ -1,0 +1,17 @@
+module mx/show_list_s
+import std/option (Option, Some, None)
+import std/list (sortBy)
+import std/io (print)
+
+export pure func genR[a](x: a, y: a) -> string = show([y, x])
+export pure func genU(x, y) = show([y, x])
+export pure func genL[a](x: a, y: a) -> string { let k = \pp qq. show([qq, pp]); k(x, y) }
+export pure func genF[a](x: a, y: a) -> string { let k = func(pp: a, qq: a) -> string { show([qq, pp]) }; k(x, y) }
+export pure func twinI(x: int, y: int) -> string = show([y, x])
+export pure func twinLI(x: int, y: int) -> string { let k = \pp qq. show([qq, pp]); k(x, y) }
+export pure func twinF(x: float, y: float) -> string = show([y, x])
+export pure func twinLF(x: float, y: float) -> string { let k = \pp qq. show([qq, pp]); k(x, y) }
+export pure func twinS(x: string, y: string) -> string = show([y, x])
+export pure func twinLS(x: string, y: string) -> string { let k = \pp qq. show([qq, pp]); k(x, y) }
+export pure func summary() -> string = "genRI=${genR(3, 4)}\ngenUI=${genU(3, 4)}\ngenLI=${genL(3, 4)}\ngenFI=${genF(3, 4)}\ntwinI=${twinI(3, 4)}\ntwinLI=${twinLI(3, 4)}\ngenRF=${genR(1.5, 2.25)}\ngenUF=${genU(1.5, 2.25)}\ngenLF=${genL(1.5, 2.25)}\ngenFF=${genF(1.5, 2.25)}\ntwinF=${twinF(1.5, 2.25)}\ntwinLF=${twinLF(1.5, 2.25)}\ngenRS=${genR("p", "q")}\ngenUS=${genU("p", "q")}\ngenLS=${genL("p", "q")}\ngenFS=${genF("p", "q")}\ntwinS=${twinS("p", "q")}\ntwinLS=${twinLS("p", "q")}\n"
+export func main() -> () ! {IO} = print(summary())

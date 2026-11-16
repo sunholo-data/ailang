@@ -1,4 +1,8 @@
--- #2264: a curried lambda passed to foldl panics in the generated Go.
+-- #2264: a curried lambda passed to foldl is wrong in the generated Go. It
+-- used to panic (interface conversion); since #2273 summary() returns
+-- `<function>` while the evaluator prints 6 — a silent wrong answer. The
+-- expect in known_failures.tsv is that exact output inside the harness's
+-- <<< >>> markers, so any other answer fails the harness.
 module harness/kf/curried_lambda
 
 import std/list (foldl)

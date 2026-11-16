@@ -22,9 +22,6 @@ type Language interface {
 	FileExt() string
 	// SolutionFilename returns the expected output filename ("solution.py", "solution.ail").
 	SolutionFilename() string
-	// PromptTemplatePath returns the agent_prompt template file path.
-	// Empty string means use the AILANG fallback template.
-	PromptTemplatePath() string
 	// TaskTemplatePath returns the agent_task template file path.
 	TaskTemplatePath() string
 	// LoadSyntaxRef loads the teaching / syntax reference prompt.
