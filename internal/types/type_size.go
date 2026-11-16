@@ -92,6 +92,7 @@ type typeTooLarge struct {
 	what   string // what the type belongs to, e.g. "let binding t"
 	pos    string // source position, when known
 	detail string // the bound exceeded; "" = the type-node bound
+	size   int64  // the measured tree size, for the type-node bound
 }
 
 func (e typeTooLarge) Error() string {
@@ -103,9 +104,22 @@ func (e typeTooLarge) Error() string {
 		return fmt.Sprintf("%s: type too large to check (%s%s): %s. Simplify or split the types involved",
 			TC_TYPE_SIZE_001, e.what, where, e.detail)
 	}
-	return fmt.Sprintf("%s: type too large to check (%s%s): more than %d type nodes. "+
-		"A type that repeats a part at every step doubles in size each time; wrap the repeated part in a data type or restructure the value",
-		TC_TYPE_SIZE_001, e.what, where, maxTypeTreeNodes)
+	return fmt.Sprintf("%s: type too large to check (%s%s): its type has %s nodes when written out in full, over the limit of %s. "+
+		"A type that holds the same part twice at every step doubles each time (`let t1 = (t0, t0)`, an alias `type P0[a] = P1[(a, a)]`); "+
+		"wrap the repeated part in a data type (`type Pair = Pair(T, T)`), which is never expanded, or restructure the value",
+		TC_TYPE_SIZE_001, e.what, where, groupDigits(e.size), groupDigits(maxTypeTreeNodes))
+}
+
+// sizeCap saturates the size count: a doubling of 62 levels already reaches it.
+const sizeCap int64 = 1 << 62
+
+// groupDigits writes n with thousands separators (65,536).
+func groupDigits(n int64) string {
+	s := fmt.Sprint(n)
+	for i := len(s) - 3; i > 0; i -= 3 {
+		s = s[:i] + "," + s[i:]
+	}
+	return s
 }
 
 func positionString(pos ast.Pos) string {
@@ -154,10 +168,13 @@ func (c *TypeSizeCheck) Check(t Type, what string) error {
 	if t == nil || c.s.size(t) <= c.s.limit {
 		return nil
 	}
-	return &TypeCheckError{Kind: TypeTooLargeError, Message: typeTooLarge{what: what}.Error()}
+	return &TypeCheckError{Kind: TypeTooLargeError, Message: typeTooLarge{what: what, size: c.s.size(t)}.Error()}
 }
 
-// typeSizer measures tree sizes, saturating just above limit.
+// typeSizer measures tree sizes exactly (saturating at sizeCap, far above any
+// limit), so the diagnostic can name the size it measured. Each node is
+// counted once and its subtree size memoised, so the cost is the size of the
+// DAG, however large the tree.
 //
 // Cycle-safe: a node met again on the current path counts 1 and is not
 // re-entered (cyclic graphs exist transiently, see safeSubstitute).
@@ -173,7 +190,7 @@ func newTypeSizer() *typeSizer {
 
 func (s *typeSizer) guard(t Type, what string, pos ast.Pos) {
 	if t != nil && s.size(t) > s.limit {
-		panic(typeTooLarge{what: what, pos: positionString(pos)})
+		panic(typeTooLarge{what: what, pos: positionString(pos), size: s.size(t)})
 	}
 }
 
@@ -190,8 +207,8 @@ func (s *typeSizer) size(t Type) int64 {
 	s.active[t] = true
 	n := s.measure(t)
 	delete(s.active, t)
-	if n > s.limit {
-		n = s.limit + 1
+	if n > sizeCap {
+		n = sizeCap
 	}
 	s.memo[t] = n
 	return n
@@ -201,10 +218,11 @@ func (s *typeSizer) measure(t Type) int64 {
 	n := int64(1)
 	add := func(ts ...Type) {
 		for _, c := range ts {
-			if n > s.limit {
-				return
+			if m := s.size(c); m > sizeCap-n {
+				n = sizeCap
+			} else {
+				n += m
 			}
-			n += s.size(c)
 		}
 	}
 	switch x := t.(type) {

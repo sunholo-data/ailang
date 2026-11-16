@@ -81,8 +81,8 @@ func TestTypeSizer_CountsTheTreeInDAGTime(t *testing.T) {
 	}
 	var n int64
 	within(t, 5*time.Second, func() { n = newTypeSizer().size(doublingTuple(TInt, 40)) })
-	if n != maxTypeTreeNodes+1 {
-		t.Fatalf("size(40 doublings) = %d, want saturated at %d", n, maxTypeTreeNodes+1)
+	if n != 1<<41-1 {
+		t.Fatalf("size(40 doublings) = %d, want %d counted in DAG time", n, int64(1<<41-1))
 	}
 }
 
@@ -148,6 +148,10 @@ func TestTypeSizeCheck_ReportsTheCode(t *testing.T) {
 		t.Fatalf("a type at the bound was rejected: %v", err)
 	}
 	err := c.Check(doublingTuple(TInt, 16), "exported f")
+	// The author is told the measured size against the limit, and what to do.
+	if err == nil || !strings.Contains(err.Error(), "131,071 nodes") || !strings.Contains(err.Error(), "limit of 65,536") || !strings.Contains(err.Error(), "wrap the repeated part") {
+		t.Fatalf("diagnostic does not name the measured size, the limit and the remedy: %v", err)
+	}
 	if err == nil || !strings.Contains(err.Error(), TC_TYPE_SIZE_001) || !strings.Contains(err.Error(), "exported f") {
 		t.Fatalf("want %s naming exported f, got %v", TC_TYPE_SIZE_001, err)
 	}
