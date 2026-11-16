@@ -169,7 +169,8 @@ BEHAVIOR:
   author given, a Claude author is assumed. The Anthropic seat
   (claude-sonnet-5@claude-p) runs "claude -p" on the subscription, never the
   API key, with tools, settings and MCP off; it is absent (quota) when the
-  Anthropic bucket is over its mission ration.
+  Anthropic bucket is measurably over its mission ration, and still runs when
+  the quota cannot be read (an unreadable quota is not an exhausted one).
 
 EXIT CODES:
   0 = proceed   3 = blocked   1/2 = IO or usage error
@@ -183,13 +184,13 @@ SEE ALSO:
 const defaultQuorumPool = "gpt6-1-sol,gemini-4-argon,oc-glm-5-3,oc-kimi-k3," + quorum.ClaudeReviewerID
 
 // quorumSeatRunner runs one seat: the Anthropic seat over the subscription (unless
-// the Anthropic bucket is over its mission ration — the ration is what keeps
-// attended sessions' headroom), every other seat through models.yml.
+// the Anthropic bucket is measurably over its mission ration — the ration is what
+// keeps attended sessions' headroom), every other seat through models.yml.
 func quorumSeatRunner(model, docPath, docBody string, maxCostUSD float64) *quorum.ReviewerOutcome {
 	if !strings.HasSuffix(model, quorum.ClaudeReviewerSuffix) {
 		return quorum.RunReviewer(model, docPath, docBody, maxCostUSD)
 	}
-	if a := mission.ObserveAnthropicQuota(time.Now()); a.Blocked() {
+	if a := mission.ObserveAnthropicQuota(time.Now()); anthropicSeatRefused(a) {
 		return &quorum.ReviewerOutcome{
 			Model:        model,
 			AbsentReason: quorum.ReasonQuota,
@@ -197,6 +198,21 @@ func quorumSeatRunner(model, docPath, docBody string, maxCostUSD float64) *quoru
 		}
 	}
 	return quorum.RunClaudeSubscriptionReviewer(strings.TrimSuffix(model, quorum.ClaudeReviewerSuffix), docPath, docBody)
+}
+
+// anthropicSeatRefused reports whether the Anthropic seat sits out on this quota reading.
+//
+// AN UNREADABLE QUOTA IS NOT AN EXHAUSTED ONE (D-FLEET-28, Mark, attended 2026-11-16).
+// Blocked() is true for "unknown" as well as "over"; with the usage endpoint answering
+// 429 and the `claude -p /usage` fallback dead, gating on Blocked() kept the seat absent
+// on every quorum. The driver's tested rule is the opposite (tools/launchd/lib/
+// lane-probe.sh, test_anthropic_quota_admission.sh): "unknown" runs, because a
+// subscription call costs nothing metered and a genuinely exhausted bucket fails the
+// call itself, which records the seat absent anyway. Every MEASURED refusal still
+// refuses: "over", and "expired" (a stale window, which the driver also refuses).
+// Blocked() itself is unchanged — it drives admission and `mission quota --over` (HD-2a).
+func anthropicSeatRefused(a mission.AnthropicQuotaObservation) bool {
+	return a.Blocked() && a.State != "unknown"
 }
 
 func csvOrNone(xs []string) string {
