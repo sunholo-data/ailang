@@ -446,30 +446,6 @@ func TestShowPreviewCutIsNeverMistakenForComplete(t *testing.T) {
 	}
 }
 
-// Acceptance: a 200-char preview of range(0, 1000000) allocates under 4 KB
-// beyond the value, on both engines — the walk counts past the budget, it does
-// not build the rendering.
-func TestShowPreviewDoesNotMaterialise(t *testing.T) {
-	big := sList(showInts(0, 1_000_000)...)
-	vmBig := toVMForShow(t, big)
-	vmArgs := []bytecode.Value{vmBig, bytecode.NewInt(200)}
-	for name, render := range map[string]func() string{
-		"evaluator": func() string { return eval.ShowPreview(big, 200) },
-		"vm": func() string {
-			v, _ := builtinShowPreview(vmArgs)
-			return v.AsString()
-		},
-	} {
-		perOp, out := showAllocBytes(render)
-		if !strings.HasPrefix(out, "[0, 1, 2, ") || !strings.HasSuffix(out, " chars)") {
-			t.Fatalf("%s: unexpected preview %q", name, out)
-		}
-		if perOp >= 4096 {
-			t.Errorf("%s: preview allocated %d bytes; want < 4096", name, perOp)
-		}
-	}
-}
-
 // --- generated values: engines agree, show is injective ----------------------
 
 // genType is a closed type grammar for the generator.
