@@ -89,6 +89,17 @@ func TestRigidSignature_ReviewCases(t *testing.T) {
 			decls: "pure func f(r: {x: int, ...}) -> {x: int, ...} = {r | x: r.x + 1}\npure func use() -> string = f({x: 1, y: \"a\"}).y"},
 		{name: "g22b: the named twin keeps its row",
 			decls: "pure func f(r: {x: int | s}) -> {x: int | s} = {r | x: r.x + 1}\npure func use() -> string = f({x: 1, y: \"a\"}).y"},
+		// Follow-up review (u1/u2): anonymity is the parser's mark on the row it
+		// synthesises for `...`, not the name, so a row the author names `_r1`
+		// is as rigid as `_rest`.
+		{name: "u1: a row the author names _r1 is a named row",
+			decls: "pure func f(p: {x: int | _r1}) -> {x: int | _r1} = {x: 1}",
+			kind:  "concrete", want: []string{"`| _r1` stands for any further record fields", "no further fields"}},
+		{name: "u2: so is _rest",
+			decls: "pure func f(p: {x: int | _rest}) -> {x: int | _rest} = {x: 1}",
+			kind:  "concrete", want: []string{"`| _rest` stands for any further record fields"}},
+		{name: "u3: the `...` twin stays a flexible wildcard",
+			decls: "pure func f(p: {x: int, ...}) -> {x: int, ...} = {x: 1}"},
 		{name: "c08: an anonymous row nested in a named one",
 			decls: "pure func f(p: {y: int | r}, q: {x: {k: int, ...} | r}) -> {x: {k: int, ...} | r} = q\npure func use() -> string = f({y: 1, x: {k: 1, m: \"a\"}}, {x: {k: 2, m: \"b\"}}).x.m"},
 		// #2284: field access is a deferred constraint, settled at the same
@@ -101,7 +112,16 @@ func TestRigidSignature_ReviewCases(t *testing.T) {
 			kind:  "concrete", want: []string{"requires `a` to be `W`"}},
 		{name: "a rigid row read through a let-bound copy",
 			decls: "pure func carried(p: {n: int | r}) -> string {\n  let q = p;\n  q.m\n}",
-			kind:  "concrete", want: []string{"uses the field(s) `m`"}},
+			kind:  "concrete", line: 5, want: []string{"uses the field(s) `m`", "(field access)"}},
+		// Follow-up review (b5, b8): the culprit replay folds deferred accesses
+		// as the solver does, so an access applied to the rigid value is named,
+		// and a type an access passes on is blamed where it is pinned.
+		{name: "b8: a reader applied to the rigid value is the culprit",
+			decls: "pure func t[a](x: a, y: {n: int}) -> int {\n  let get = \\r. r.n;\n  let k = get(y);\n  get(x) + k\n}",
+			kind:  "concrete", line: 4, want: []string{"requires `a` to be `{n: int | r}` (field access)"}},
+		{name: "b5: a type an access passes on is blamed where it is pinned",
+			decls: "pure func k[a](p: {v: a, w: int}) -> int {\n  let get = \\r. r.v;\n  let z = get(p);\n  z + 1\n}",
+			kind:  "concrete", line: 3, want: []string{"requires `a` to be `int` (return type annotation)"}},
 		// Message: a literal reusing the enclosing variable's name is told so.
 		{name: "a literal's annotation reusing the enclosing variable is pointed at",
 			decls: "pure func f[a](x: a) -> int { let g = func(y: a) -> a { y + 1 }; g(3) }",
@@ -210,8 +230,8 @@ func TestRigidSignature_Contracts(t *testing.T) {
 			if err == nil || !strings.Contains(err.Error(), "TC_CONTRACT_001") || !strings.Contains(err.Error(), types.TC_RIGID_001) {
 				t.Fatalf("want TC_CONTRACT_001 carrying TC_RIGID_001, got %v", err)
 			}
-			if !strings.Contains(err.Error(), "the clause") {
-				t.Errorf("the message should blame the clause: %v", err)
+			if !strings.Contains(err.Error(), "the clause") || strings.Contains(err.Error(), "the body") {
+				t.Errorf("the message and its suggestion should name the clause, not the body: %v", err)
 			}
 		})
 	}

@@ -14,7 +14,7 @@ string_length	build	#2261	undefined: utf8
 let_into_helper	build	#2262	is not an interface
 nominal_same_name	build	#2260	undefined: NewTB
 zip_tuples	parity	#2263	[[1, 3], [2, 4]]
-curried_lambda	parity	#2264	function
+curried_lambda	parity	#2264	<<<<function>>>>
 contains_records	parity	#2241	comparing uncomparable type
 export_record_return	emit	#2307	.(struct{})
 generic_string_eq	parity	#2332	eq=true

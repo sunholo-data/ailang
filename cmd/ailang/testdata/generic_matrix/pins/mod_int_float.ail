@@ -1,0 +1,7 @@
+module pins/mod_int_float
+
+-- An int and a float reach `%` (the literal 2 stays an int in a generic body
+-- compiled at its defaulted type, #2333). This must fail loudly, not compute.
+pure func h(x) = x % 2
+
+export func main() -> () ! {IO} = println(show(h(7.5)))
