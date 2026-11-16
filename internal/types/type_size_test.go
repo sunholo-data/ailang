@@ -45,7 +45,7 @@ func within(t *testing.T, limit time.Duration, f func()) {
 func TestDataArrows_SharedNodeVisitedOnce(t *testing.T) {
 	fn := &TFunc2{Params: []Type{TInt}, Return: TInt, EffectRow: &Row{Kind: EffectRow, Labels: map[string]Type{}, Tail: &RowVar{Name: "e", Kind: EffectRow}}}
 	var arrows []*TFunc2
-	within(t, 5*time.Second, func() { arrows = dataArrowsWith(doublingTuple(fn, 40), nil) })
+	within(t, 5*time.Second, func() { arrows = dataArrowsWith(doublingTuple(fn, 40), nil, nil) })
 	if len(arrows) != 1 || arrows[0] != fn {
 		t.Fatalf("want the one arrow once, got %d", len(arrows))
 	}

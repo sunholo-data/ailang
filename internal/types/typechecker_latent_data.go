@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"sort"
 	"strings"
+
+	"github.com/sunholo-data/ailang/internal/ast"
 )
 
 // M-EFFECT-LATENT-NESTED-CALLBACKS (#1718, #1826): ONE answer to "what does
@@ -28,13 +30,20 @@ const maxDataArrowDepth = 1000
 // Finite data nesting is fully visited up to the defensive traversal limit;
 // exceeding that limit raises a typed failure returned by inference as an error.
 // Record fields are visited in sorted order so the result is deterministic.
-func dataArrowsWith(t Type, expand func(Type) Type) []*TFunc2 {
+//
+// work is the declaration's budget (type_work.go): every node visited is a
+// step, so an alias whose expansion is exponentially larger than its source
+// ends in TC_TYPE_WORK_001 (nil: a budget of its own, at the floor).
+func dataArrowsWith(t Type, expand func(Type) Type, work *unifyWork) []*TFunc2 {
+	if work == nil {
+		work = newUnifyWork(ast.Pos{}, nil)
+	}
 	var out []*TFunc2
 	// seen: onPath while a node is being walked, walked once it is done. A
 	// walked node (a type shared by substitution or alias expansion, `(t, t)`)
 	// adds only arrows already in out, and the callers union their rows.
 	// Without it a DAG was walked once per path, 2^n for n doublings
-	// (#2308/#2329). One map, so the scan allocates no more than before.
+	// (#2308/#2329).
 	const onPath, walked = 1, 2
 	seen := make(map[Type]uint8)
 	// An alias expands to fresh nodes each time, so its applications are
@@ -42,8 +51,27 @@ func dataArrowsWith(t Type, expand func(Type) Type) []*TFunc2 {
 	// `(a, a)` argument is a fresh tuple in every expansion): two applications
 	// of one alias to equal arguments expand to the same type, which is walked
 	// once. Allocated on the first alias met.
+	//
+	// What the scan remembers is capped like the IFC memo (65,536 entries):
+	// past the cap no key is built and a finished node is forgotten (only the
+	// path is kept, for cycles), so an expansion that defeats sharing costs
+	// time against the budget, not memory.
 	var expanded map[string]bool
 	var canon *typeCanon
+	retain := func() bool {
+		n := len(seen) + len(expanded)
+		if canon != nil {
+			n += len(canon.ids) + len(canon.intern)
+		}
+		return n < ifcBoundMemoLimit
+	}
+	done := func(node Type) {
+		if retain() {
+			seen[node] = walked
+		} else {
+			delete(seen, node)
+		}
+	}
 	var walk func(Type, int)
 	walk = func(t Type, depth int) {
 		if t == nil || seen[t] != 0 {
@@ -52,12 +80,13 @@ func dataArrowsWith(t Type, expand func(Type) Type) []*TFunc2 {
 		if depth > maxDataArrowDepth {
 			panic(latentDataDepthExceeded{})
 		}
+		work.expandStep()
 		seen[t] = onPath
-		defer func(node Type) { seen[node] = walked }(t)
+		defer done(t)
 		if expand != nil {
 			original := t
 			var key string
-			if expanded != nil {
+			if expanded != nil && retain() {
 				if k, ok := aliasApplicationKey(original, canon); ok {
 					if expanded[k] {
 						return
@@ -81,7 +110,7 @@ func dataArrowsWith(t Type, expand func(Type) Type) []*TFunc2 {
 					expanded[key] = true
 				}
 				seen[t] = onPath
-				defer func(node Type) { seen[node] = walked }(t)
+				defer done(t)
 			}
 		}
 		switch x := t.(type) {
@@ -156,7 +185,7 @@ func sortedTypeKeys(m map[string]Type) []string {
 
 // dataArrows is dataArrowsWith expanding alias heads at every level.
 func (tc *CoreTypeChecker) dataArrows(t Type) []*TFunc2 {
-	return dataArrowsWith(t, tc.effectAliasHead)
+	return dataArrowsWith(t, tc.effectAliasHead, tc.declWork)
 }
 
 // isLatentCallback reports an arrow whose effects are the CALLER's to pay at a

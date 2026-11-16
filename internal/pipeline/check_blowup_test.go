@@ -76,6 +76,13 @@ func blowupLetDoubling(n int) string {
 // timeout or when the check allocated more than allocBudget bytes.
 func checkBounded(t *testing.T, src string, limit time.Duration, allocBudget uint64) error {
 	t.Helper()
+	return checkBoundedHeap(t, src, limit, allocBudget, 8*allocBudget)
+}
+
+// checkBoundedHeap is checkBounded with an explicit bound on the live heap,
+// sampled every 100 ms, for checks that allocate a lot but must hold little.
+func checkBoundedHeap(t *testing.T, src string, limit time.Duration, allocBudget, heapBudget uint64) error {
+	t.Helper()
 	t.Setenv("AILANG_NO_CACHE", "1")
 	dir := t.TempDir()
 	if err := os.WriteFile(filepath.Join(dir, "m.ail"), []byte(src), 0o644); err != nil {
@@ -97,7 +104,9 @@ func checkBounded(t *testing.T, src string, limit time.Duration, allocBudget uin
 	}()
 	// A regression grows the live heap by GiB a second (the #2308 shape reached
 	// 6 GB in 15 s): stop the whole test binary before it exhausts the machine,
-	// since a timed-out check goroutine cannot be cancelled.
+	// since a timed-out check goroutine cannot be cancelled. A live heap over
+	// the heap budget (but not so far over) fails the test.
+	var peak uint64
 	tick := time.NewTicker(100 * time.Millisecond)
 	defer tick.Stop()
 	deadline := time.After(limit)
@@ -107,6 +116,9 @@ func checkBounded(t *testing.T, src string, limit time.Duration, allocBudget uin
 			if o.alloc > allocBudget {
 				t.Fatalf("check allocated %d MB (budget %d MB)", o.alloc>>20, allocBudget>>20)
 			}
+			if peak > heapBudget {
+				t.Fatalf("check held %d MB of live heap (budget %d MB)", peak>>20, heapBudget>>20)
+			}
 			return o.err
 		case <-deadline:
 			t.Fatalf("check did not finish within %s", limit)
@@ -114,7 +126,8 @@ func checkBounded(t *testing.T, src string, limit time.Duration, allocBudget uin
 		case <-tick.C:
 			var m runtime.MemStats
 			runtime.ReadMemStats(&m)
-			if m.HeapAlloc > 8*allocBudget {
+			peak = max(peak, m.HeapAlloc)
+			if m.HeapAlloc > 8*allocBudget || m.HeapAlloc > 8*heapBudget {
 				panic(fmt.Sprintf("check holds %d MB of live heap (allocation budget %d MB): stopping before it exhausts memory", m.HeapAlloc>>20, allocBudget>>20))
 			}
 		}
@@ -313,5 +326,55 @@ func TestCheckBlowup_SmallInstancesStillCheck(t *testing.T) {
 				t.Fatalf("valid program rejected: %v", err)
 			}
 		})
+	}
+}
+
+// darrChain is the #2363 round-3 shape: each alias uses the one below twice
+// with differently built arguments, so its n levels expand to 2^n distinct
+// applications, which no memo can share.
+func darrChain(n int) string {
+	var b strings.Builder
+	b.WriteString("module m\ntype P0[a, b] = (a, b)\n")
+	for i := 1; i <= n; i++ {
+		fmt.Fprintf(&b, "type P%d[a, b] = (P%d[(a, b), b], P%d[a, (b, a)])\n", i, i-1, i-1)
+	}
+	fmt.Fprintf(&b, "pure func use(x: P%d[int, int]) -> int = 0\n", n)
+	b.WriteString("export func main() -> () ! {IO} = println(show(use(unreachable(\"x\"))))\n")
+	return b.String()
+}
+
+// The scan for callbacks inside an argument's data (dataArrowsWith) expands
+// the argument's aliases. Its memo grew with every distinct application
+// (darr n=22: killed at 3 GB after 7 s); it is now capped like the IFC memo
+// and charges the declaration's work budget, so the shape ends in
+// TC_TYPE_WORK_001 holding little memory. A small instance still checks.
+func TestCheckBlowup_DistinctArgumentsAtEveryLevel(t *testing.T) {
+	if err := checkBoundedHeap(t, darrChain(10), blowupLimit, blowupAlloc, 64<<20); err != nil {
+		t.Fatalf("darr n=10 rejected: %v", err)
+	}
+	for _, n := range []int{16, 22} {
+		err := checkBoundedHeap(t, darrChain(n), blowupLimit, 2<<30, 128<<20)
+		if err == nil || !strings.Contains(err.Error(), "TC_TYPE_WORK_001") || !strings.Contains(err.Error(), "expanding type aliases") {
+			t.Fatalf("darr n=%d: want TC_TYPE_WORK_001 from the scan, got %v", n, err)
+		}
+	}
+}
+
+// The work budget grows with the declaration (workBudget: floor + 32 n²). A
+// long, honest function of generic calls needs more than the floor: this one
+// takes about 2.6 million unification steps over about 5,600 typed nodes, so
+// it checks only because of the size term.
+func TestCheckBlowup_LongHonestFunctionNeedsTheSizeTerm(t *testing.T) {
+	const lets = 280
+	var b strings.Builder
+	b.WriteString("module m\npure func pair(a: x, b: y) -> (x, y) = (a, b)\n")
+	b.WriteString("pure func fst(p: (x, y)) -> x = match p { (a, _) => a }\n")
+	b.WriteString("export func main() -> () ! {IO} {\n  let t0 = 0;\n")
+	for i := 1; i <= lets; i++ {
+		fmt.Fprintf(&b, "  let t%d = fst(pair(t%d + 1, {v: \"s%d\", w: [%d]}));\n", i, i-1, i, i)
+	}
+	fmt.Fprintf(&b, "  println(show(t%d))\n}\n", lets)
+	if err := checkBounded(t, b.String(), 90*time.Second, 4<<30); err != nil {
+		t.Fatalf("long honest function rejected: %v", err)
 	}
 }

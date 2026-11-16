@@ -523,7 +523,7 @@ func NewFieldTypeMismatchError(field string, expected, actual Type, position str
 		Expected: expected,
 		Actual:   actual,
 		Suggestion: fmt.Sprintf("Field '%s' expects %s, but got %s",
-			field, expected.String(), actual.String()),
+			field, displayType(expected), displayType(actual)),
 	}
 }
 

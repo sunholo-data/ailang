@@ -48,7 +48,7 @@ func TestDataArrows_Positions(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := arrowTails(dataArrowsWith(tt.typ, nil))
+			got := arrowTails(dataArrowsWith(tt.typ, nil, nil))
 			if len(got) != len(tt.want) {
 				t.Fatalf("got %v, want %v", got, tt.want)
 			}
@@ -71,7 +71,7 @@ func TestDataArrows_AliasExpansionAndCycles(t *testing.T) {
 	if got := arrowTails(tc.dataArrows(&TList{Element: &TCon{Name: "R"}})); len(got) != 1 || got[0] != "a" {
 		t.Fatalf("alias not expanded per level: %v", got)
 	}
-	if got := dataArrowsWith(&TCon{Name: "R"}, nil); len(got) != 0 {
+	if got := dataArrowsWith(&TCon{Name: "R"}, nil, nil); len(got) != 0 {
 		t.Fatalf("nil expander must not expand aliases: %v", got)
 	}
 	if got := tc.dataArrows(&TCon{Name: "Loop"}); len(got) != 0 {

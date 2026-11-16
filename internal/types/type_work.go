@@ -23,7 +23,9 @@ import (
 //
 // where n is the size of the declaration — for unification, the Core nodes
 // the checker has typed so far; for the IFC parameter-bound walk, the written
-// size of the parameter type and the module's type declarations. An
+// size of the parameter type and the module's type declarations. The scan for
+// callbacks inside an argument's data (dataArrowsWith), which expands aliases
+// outside unification, charges the declaration's unification budget. An
 // exponential shape is tiny in source, so it gets about workFloor steps and
 // is stopped in a second or two; long code gets a budget that grows with it.
 //
@@ -60,12 +62,20 @@ type typeWorkExceeded struct {
 	pos          string
 	steps, limit int64
 	nodes        int
+	expanding    bool // the latent data scan, not unification, crossed it
 }
 
 func (e typeWorkExceeded) Error() string {
 	where := ""
 	if e.pos != "" {
 		where = " at " + e.pos
+	}
+	if e.expanding {
+		return fmt.Sprintf("%s: checking this declaration%s takes too much work expanding type aliases for its size: "+
+			"more than %s steps for %s nodes (the limit at that size). An alias that uses the alias below it twice, "+
+			"with different arguments, expands to a type exponentially larger than its source; give the repeated part "+
+			"a data type (`type Pair = Pair(T, T)`), which is never expanded, or split the declaration",
+			TC_TYPE_WORK_001, where, groupDigits(e.limit), groupDigits(int64(e.nodes)))
 	}
 	return fmt.Sprintf("%s: checking this declaration%s takes too much unification work for its size: "+
 		"more than %s steps for %s nodes (the limit at that size). Two type aliases that expand to the same large type "+
@@ -74,7 +84,9 @@ func (e typeWorkExceeded) Error() string {
 		TC_TYPE_WORK_001, where, groupDigits(e.limit), groupDigits(int64(e.nodes)))
 }
 
-// unifyWork counts the unification steps of one declaration.
+// unifyWork counts the unification steps of one declaration, and the steps of
+// its latent data scans (dataArrowsWith), which expand aliases outside
+// unification.
 type unifyWork struct {
 	steps int64
 	next  int64      // steps at which the budget is next consulted
@@ -87,22 +99,39 @@ func newUnifyWork(pos ast.Pos, typed func() int) *unifyWork {
 	return &unifyWork{typed: typed, floor: workFloor, next: workFloor, pos: pos}
 }
 
+// newDeclWork starts the current declaration's budget, which its unifier and
+// its latent data scans (dataArrows) share.
+func (tc *CoreTypeChecker) newDeclWork(pos ast.Pos) *unifyWork {
+	tc.declWork = newUnifyWork(pos, func() int { return len(tc.declNodes) })
+	return tc.declWork
+}
+
 // step counts one unification step. The budget is consulted only when the
 // steps pass the last limit seen, so ordinary declarations never compute it.
 func (w *unifyWork) step() {
 	if w == nil {
 		return
 	}
-	if w.steps++; w.steps <= w.next {
-		return
+	if w.steps++; w.steps > w.next {
+		w.consult(false)
 	}
+}
+
+// expandStep counts one node of a latent data scan.
+func (w *unifyWork) expandStep() {
+	if w.steps++; w.steps > w.next {
+		w.consult(true)
+	}
+}
+
+func (w *unifyWork) consult(expanding bool) {
 	n := 0
 	if w.typed != nil {
 		n = w.typed()
 	}
 	limit := workBudget(n) - workFloor + w.floor
 	if w.steps > limit {
-		panic(typeWorkExceeded{pos: positionString(w.pos), steps: w.steps, limit: limit, nodes: n})
+		panic(typeWorkExceeded{pos: positionString(w.pos), steps: w.steps, limit: limit, nodes: n, expanding: expanding})
 	}
 	w.next = limit
 }

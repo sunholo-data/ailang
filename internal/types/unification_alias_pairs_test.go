@@ -62,3 +62,28 @@ func TestUnify_EquivalenceOnlyForComparedForms(t *testing.T) {
 		t.Errorf("twin record aliases did not unify: %v", err)
 	}
 }
+
+// Arguments are compared by structure, and a constructor's structure is its
+// module as well as its name (#2363 review, round 3): two aliases that pass
+// [m1.Box] and [m2.Box] to the same alias are not equivalent. Numbering
+// constructors by name alone would unify X1[int] with X2[int] and accept
+// `f(x: X1[int]) -> X2[int] = x` across two modules' Box types.
+func TestUnify_EquivalentAliasesCompareConstructorModules(t *testing.T) {
+	a := &TVar2{Name: "a", Kind: Star}
+	box1 := &TCon{Name: "Box", Module: "m1"}
+	box2 := &TCon{Name: "Box", Module: "m2"}
+	aliases := map[string]Type{
+		"W":  &TTuple{Elements: []Type{a, TInt}},
+		"X1": &TTuple{Elements: []Type{aliasApp("W", &TList{Element: box1}), a}},
+		"X2": &TTuple{Elements: []Type{aliasApp("W", &TList{Element: box2}), a}},
+	}
+	params := map[string][]string{"W": {"a"}, "X1": {"a"}, "X2": {"a"}}
+	u := NewUnifierWithAliasesAndParams(aliases, params)
+	if u.aliasesEquivalent("X1", "X2") {
+		t.Error("X1 and X2 taken as equivalent: their W arguments are different modules' Box")
+	}
+	_, err := u.Unify(aliasApp("X1", TInt), aliasApp("X2", TInt), Substitution{})
+	if err == nil || !strings.Contains(err.Error(), TC_NOMINAL_001) {
+		t.Errorf("X1[int] against X2[int]: want %s, got %v", TC_NOMINAL_001, err)
+	}
+}

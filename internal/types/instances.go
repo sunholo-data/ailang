@@ -115,7 +115,7 @@ func withoutFreeEffectTails(t Type) Type {
 // R1b: the diagnostic should tell the agent how to FIX it, not just that it's wrong, so
 // it can recover from the message alone instead of grinding (the residual failure class).
 func actionableInstanceHint(class string, typ Type) string {
-	ts := typ.String()
+	ts := displayType(typ)
 	switch class {
 	case "Num":
 		switch ts {
