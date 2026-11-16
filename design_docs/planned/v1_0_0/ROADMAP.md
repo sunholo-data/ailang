@@ -245,21 +245,40 @@ had missed; #2285 took five rounds. All ten original soundness issues plus #2273
 
 **Rulings (Mark, 2026-11-12):** `==` on a type without `deriving (Eq)` is an error in contracts, as in
 bodies; an ill-typed contract in a dependency is fatal for importers (a dependency's ill-typed TEST is
-not). **Awaiting a ruling:** a `constraints` field in `iface` output to fix #2290 (class constraints lost
-across modules; fix on branch `fix/soundness-exported-constraints`); whether a root module's own
-ill-typed test should stop `run`/`serve-api`; pure functions that build an effectful closure (#2322,
-checker contradicts the prompt).
+not). **Ruling (Mark, 2026-11-16):** `Option`, `Some`, `None`, `Result`, `Ok`, `Err` are in scope in
+every non-std module, not only entry modules; exactly those six names, `println` stays entry-only, local
+definitions and explicit imports win. **Awaiting a ruling:** whether a root module's own ill-typed test
+should stop `run`/`serve-api`; pure functions that build an effectful closure (#2322, checker contradicts
+the prompt); how much of the Go emitter is promised at 1.0.
 
-**Downstream state.** v0.60.3 (2026-11-12) shipped #2246. Patched: motoko fork (PRs 9, 10), ailang-packages
-(#195, #198; eight packages republished). Open: daneel #421; ailang-world #565 (needs world/core 0.1.2);
-docparse and daneel pin bumps for the republished packages; motoko fixtures that `check` now rejects
-(3 from #2288, 21 from #2289) must move to the fork's compiler-rejected group. The cascade PRs opened by
-package agents (ailang-packages #200–#202) delete or weaken contracts and should be closed.
+**Follow-up fixes (2026-11-16).** Same method; every first review again found something.
 
-**Found and filed during this stretch, unowned:** #2290, #2303 (VM picks the first loaded ADT for a
-by-name match at an unfixed type: silent wrong answer), #2272, #2312, #2318, #2322–#2327, #2329, #2333 (generic bodies are defaulted to int; each consumer compensates),
-#2334, #2337, #2308 (a 1 KB file drives `check` to 50 GiB); Go emitter: #2241, #2259–#2264, #2274, #2292, #2293 (silent wrong answer), #2294, #2299,
-#2307, #2317, #2332 (silent wrong answers for generic functions at string).
+| PR | Issues | State |
+|---|---|---|
+| #2338 | follow-ups to #2304 | Merged (64c566081) |
+| #2356 | three flaky CI tests (macOS memprobe RSS, Windows showPreview bound, worker 120 s budget) | Merged (6998e97e0) after one review round |
+| #2364 | #2290 class constraints cross the module boundary (`TC_CONSTRAINT_001`), #2291 `Eq` on six `std/list` functions, #2312 | Merged (0555fc3cb). An imported `Num`/`Fractional` constraint now types the caller's literals: output can change silently (`3` → `3.0`). The registry v2 interface hash changes for a constrained export: deploy the validator with the release |
+| #2362 | #2303, #2272, #2353, #2359: a constructor pattern is typed from the value matched; back ends never guess (`TC_MATCH_007`) | Merged (38ef5dc95) after two reviews |
+| #2363 | #2308, #2329, #2327: `check` no longer exponential; `TC_TYPE_SIZE_001`, `TC_TYPE_WORK_001` (budget relative to declaration size); bounded type rendering | Merged (b7941bbb5) after three reviews |
+| #2380 | by-name candidates come from the import closure only; contract clauses are checked like bodies | Merged (fbc7197fd). A first version made verdicts depend on the set of loaded modules and was rejected in review |
+| #2381 | #2371 prelude names in every module | Merged (60a2c52fd) |
+
+**Downstream state (2026-11-16).** The breaking soundness changes SHIPPED in v0.60.4 (2026-11-13); v0.60.5
+is the latest release. docparse, daneel, ailang-packages, ailang-parse, email-parse and ailang-world all
+check cleanly on `dev` (other sessions had already patched them). motoko fork: PR 11 merged (35ea06602;
+GitHub still shows the PR open after a 502). ailang-packages cascade PRs #200–#202 closed. Open:
+`world/core` 0.1.2 needs Mark's attended publish (0.1.1 fails on v0.60.4+). Measured blast radius of the
+release: #2283 188 files, #2289 30 (24 deliberate fixtures), #2288 3 (fixtures), #2304 3, others 0.
+
+**Unowned, in priority order:** #2375 (VM: a `let` in a block that shadows an outer name overwrites it:
+silent wrong answer), #2378 (integer literal in a generic top-level function passes `check`, fails at run
+time), Go emitter silent wrong answers #2369, #2332, #2293 (plus #2360 map-order output, #2358), #2361
+(`check` polynomial in expression depth and `let` count), `==` on a record alias without `deriving (Eq)`
+accepted across modules (not filed), #2337, #2322, #2333, #2354, #2355, #2372, #2376, #2377, #2379.
+
+**Teaching-prompt edits queued for ONE new version:** contracts are type-checked and enum `==` needs
+`deriving (Eq)`; `TC_MATCH_007` row; `dedup` removes all duplicates, and the six list functions need `==`;
+library modules no longer need to import Option/Result (lines listed in #2381's body); v0.16.16:455 vs #2322.
 
 **Not started:** integer overflow trap; callback
 effect rule; capability-grant changes and Internal command moves; help text; docs rewrites (284
