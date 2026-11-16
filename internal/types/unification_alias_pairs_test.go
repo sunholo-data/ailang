@@ -30,9 +30,9 @@ func TestUnify_EquivalenceOnlyForComparedForms(t *testing.T) {
 		// Cyclic aliases (rejected at their declaration, but never assumed equal).
 		"Y1": &TTuple{Elements: []Type{&TCon{Name: "Y1"}, TInt}},
 		"Y2": &TTuple{Elements: []Type{&TCon{Name: "Y2"}, TInt}},
-		// Different arities.
+		// Different arities, same body (the second never uses its b).
 		"N1": &TTuple{Elements: []Type{a, a}},
-		"N2": &TTuple{Elements: []Type{a, &TVar2{Name: "b", Kind: Star}}},
+		"N2": &TTuple{Elements: []Type{a, a}},
 		// Record bodies carry their alias names; unification ignores them.
 		"T1": &TRecord{Fields: map[string]Type{"l": a, "r": a}, TypeName: "T1"},
 		"T2": &TRecord{Fields: map[string]Type{"l": a, "r": a}, TypeName: "T2"},
