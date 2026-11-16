@@ -488,8 +488,8 @@ rendered to strings and retained. Two consequences worth planning around:
   args/results become `<redacted:secret>`, while names, arity and the span tree are kept.
   This applies at every tier, including effect spans at `standard`. It over-redacts by
   design — an unlabelled value computed *inside* a labelled call is withheld too.
-  **Not covered yet:** a labelled value returned by a function in *another user module*
-  (the single-module IFC gap, `m-ifc-cross-module-labels`). The bytecode VM does not
+  This holds across user modules: a labelled value a library returns is redacted in the
+  importer's trace too (`m-ifc-cross-module-labels`). **Not covered yet:** the bytecode VM does not
   carry the marks, so a traced labelled program falls back from `--bytecode` to the
   evaluator, and `--strict-bytecode` refuses it. For a guarantee that does not depend on
   the checker, use `AILANG_TRACE_VALUES=off` (below).
