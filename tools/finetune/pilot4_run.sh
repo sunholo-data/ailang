@@ -39,6 +39,11 @@ export AILANG_STDLIB_PATH=$FT/std-ft3/std
 # a stdlib, and a flag beats the env. So the suite runs from a directory with no std/, holding a
 # snapshot of benchmarks/ (rsync -a benchmarks/ $FT/evalroot/benchmarks/), which also freezes the tasks.
 EVALROOT=$FT/evalroot
+# The agent's own ailang calls and the scoring run resolve `ailang` through PATH, and the installed
+# one is reinstalled by other sessions. $PINNED holds a build of 6d28e1ad5, the commit arms A2 and D
+# ran against: git archive 6d28e1ad5 | tar -x -C $FT/src-6d28; go build -o $PINNED/ailang ./cmd/ailang
+PINNED=$FT/bin/pinned
+[ -x "$PINNED/ailang" ] || { echo "pinned ailang missing: $PINNED/ailang" >&2; exit 1; }
 [ -d "$EVALROOT/benchmarks" ] && [ ! -e "$EVALROOT/std" ] || { echo "bad eval root: $EVALROOT" >&2; exit 1; }
 in_evalroot(){ ( cd "$EVALROOT" && "$@" ); }
 PY=$FT/.venv/bin/python
@@ -142,6 +147,10 @@ EOF
 import json,os,sys
 p=os.path.expanduser("~/.pi/agent/models.json"); d=json.load(open(p)); m=sys.argv[1]
 prov=d["providers"]["ollama-trace"]
+# ollama /v1 ignores max_completion_tokens (pi's default) and honours max_tokens; without this
+# a runaway response has no cap at all and runs to the suite's one-hour timeout (2026-11-16).
+if prov.get("compat",{}).get("maxTokensField")!="max_tokens":
+    prov.setdefault("compat",{})["maxTokensField"]="max_tokens"; json.dump(d,open(p,"w"),indent=2)
 if m not in [x["id"] for x in prov["models"]]:
     tpl=dict(next(x for x in prov["models"] if x["id"].startswith("gemma4"))); tpl["id"]=m
     if "name" in tpl: tpl["name"]=m
@@ -185,12 +194,12 @@ EOF
   [ "${PIPESTATUS[0]}" = 0 ] || die "behaviour gate failed: see $LOG (override: touch $STATE/gate.done)"
 }
 
-run_arm(){ # name lane prompt_version traps(on/off)
-  local name=$1 lane=$2 pv=$3 traps=$4
+run_arm(){ # name lane prompt_version traps(on/off) [benchmarks]
+  local name=$1 lane=$2 pv=$3 traps=$4 benches=${5:-$HELD}
   trace_models
   ( [ "$traps" = off ] && export AILANG_EVAL_TRAPS_CARD=off
-    with_proxy "$OUT/$name.trace.jsonl" in_evalroot env AILANG_MODELS_PATH="$P4/models.trace.yml" \
-      "$BIN" eval-suite --agent --models "$lane" --benchmarks "$HELD" --langs ailang --trials 1 --parallel 1 \
+    with_proxy "$OUT/$name.trace.jsonl" in_evalroot env AILANG_MODELS_PATH="$P4/models.trace.yml" PATH="$PINNED:$PATH" \
+      "$BIN" eval-suite --agent --models "$lane" --benchmarks "$benches" --langs ailang --trials 1 --parallel 1 \
       --skip-existing --tool-policy lean --prompt-version "$pv" --output "$OUT/$name" ) > "$OUT/$name.log" 2>&1
   python3 -I - "$OUT/$name" "$pv" "$name" <<'EOF2' | tee -a "$LOG"
 import json,glob,sys,collections
@@ -211,6 +220,9 @@ stage_eval_A(){ need_disk eval_A 5; run_arm A pi-gemma4-12b-trace v0.16.12 on; }
 #   A2: base + slim prompt  -> how much of a fine-tune's slim-prompt score is the training?
 #   D:  pilot-3 + full prompt -> did training damage the model, or just fail to replace the prompt?
 stage_eval_A2(){ need_disk eval_A2 5; run_arm A2 pi-gemma4-12b-trace ft-slim-v1 off; }
+# A2's eleven one-hour timeouts again, now that the output cap reaches ollama.
+A2_TIMEOUTS=api_call_json,binary_strings_1e18,bytecode_vm_trace,contract_roman_numeral,cp_60149,dep_resolver_backtrack,graph_bfs,parse_prec_climb,pipeline,prompt_injection,tree_transformation_pipeline
+stage_eval_A2cap(){ need_disk eval_A2cap 5; run_arm A2cap pi-gemma4-12b-trace ft-slim-v1 off "$A2_TIMEOUTS"; }
 stage_eval_D(){ need_disk eval_D 5; run_arm D pi-gemma4-12b-ft3-trace v0.16.12 on; }
 stage_summary(){ grep -E "^(A|A2|B|D)[ :]|GATE" "$LOG" | tail -8; }
 
