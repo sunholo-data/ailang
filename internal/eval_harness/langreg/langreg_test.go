@@ -119,9 +119,6 @@ func TestPython_Fields(t *testing.T) {
 	if got := py.DisplayName(); got != "Python 3" {
 		t.Errorf("DisplayName() = %q, want 'Python 3'", got)
 	}
-	if got := py.PromptTemplatePath(); got == "" {
-		t.Error("PromptTemplatePath() returned empty string for python")
-	}
 }
 
 // TestAILANG_Fields verifies AILANG descriptor values match the harness constants.
@@ -136,7 +133,6 @@ func TestAILANG_Fields(t *testing.T) {
 	if got := al.DisplayName(); got != "AILANG" {
 		t.Errorf("DisplayName() = %q, want AILANG", got)
 	}
-	// AILANG uses empty string for PromptTemplatePath (falls back to default template).
 	// TaskTemplatePath must be non-empty.
 	if got := al.TaskTemplatePath(); got == "" {
 		t.Error("TaskTemplatePath() returned empty string for ailang")

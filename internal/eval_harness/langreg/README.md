@@ -27,9 +27,8 @@ func (j *jsLang) Name() string        { return "javascript" }
 func (j *jsLang) DisplayName() string { return "JavaScript" }
 func (j *jsLang) FileExt() string     { return ".js" }
 
-func (j *jsLang) SolutionFilename() string  { return "solution.js" }
-func (j *jsLang) PromptTemplatePath() string { return "internal/eval_harness/templates/agent_prompt_js.txt" }
-func (j *jsLang) TaskTemplatePath() string   { return "internal/eval_harness/templates/agent_task_js.txt" }
+func (j *jsLang) SolutionFilename() string { return "solution.js" }
+func (j *jsLang) TaskTemplatePath() string { return "internal/eval_harness/templates/agent_task_js.txt" }
 
 func (j *jsLang) LoadSyntaxRef(_ string) (string, string, error) {
     return j.DefaultPrompt(), "default", nil
@@ -51,10 +50,10 @@ var newJSRunner func(spec interface{}) interface{}
 func SetJSRunnerFactory(f func(spec interface{}) interface{}) { newJSRunner = f }
 ```
 
-### 2. Add template files
+### 2. Add the task template
 
-Create `internal/eval_harness/templates/agent_prompt_js.txt` and
-`agent_task_js.txt` following the existing Python/AILANG templates.
+Create `internal/eval_harness/templates/agent_task_js.txt` following the
+existing Python/AILANG task templates.
 
 ### 3. Implement a runner
 
