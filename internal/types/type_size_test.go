@@ -114,31 +114,89 @@ func TestUnifyWork_BudgetIsADiagnostic(t *testing.T) {
 	if newUnifyWork(ast.Pos{}).limit != maxUnifySteps {
 		t.Fatal("a declaration's unifier is not bounded by maxUnifySteps")
 	}
+	// Pinned: 46x the largest declaration measured in the corpora (365,050
+	// steps). Raising it makes the backstop slower to fire; lowering it
+	// narrows the margin. Re-measure before changing it.
+	if maxUnifySteps != 1<<24 {
+		t.Fatalf("maxUnifySteps = %d, want 1<<24 (re-measure the corpora and update this pin)", maxUnifySteps)
+	}
 }
 
-// Two ground nullary aliases unify once per pair (#2329); a pair with a
-// variable in its expansion is never shared.
-func TestUnify_GroundAliasPairsShared(t *testing.T) {
-	aliases := map[string]Type{}
-	for _, side := range []string{"D", "E"} {
-		aliases[side+"0"] = TInt
-		for i := 1; i < 60; i++ {
-			var elems []Type
-			for j := max(0, i-5); j < i; j++ {
-				elems = append(elems, &TCon{Name: fmt.Sprintf("%s%d", side, j)})
-			}
-			aliases[fmt.Sprintf("%s%d", side, i)] = &TTuple{Elements: append(elems, TInt)}
+// twinDAG declares a dense alias DAG over side: X0 = leaf, Xi = a tuple of the
+// previous five (plus int while i < 2).
+func twinDAG(aliases map[string]Type, side string, n int, leaf Type) {
+	aliases[side+"0"] = leaf
+	for i := 1; i < n; i++ {
+		var elems []Type
+		for j := max(0, i-5); j < i; j++ {
+			elems = append(elems, &TCon{Name: fmt.Sprintf("%s%d", side, j)})
 		}
+		aliases[fmt.Sprintf("%s%d", side, i)] = &TTuple{Elements: append(elems, TInt)}
 	}
-	aliases["V"] = &TList{Element: &TVar2{Name: "a", Kind: Star}}
-	u := NewUnifierWithAliases(aliases)
+}
+
+// twinChain declares X0[a] = a, Xi[a] = (X{i-1}[a], X{i-1}[a]).
+func twinChain(aliases map[string]Type, params map[string][]string, side string, n int) {
+	a := &TVar2{Name: "a", Kind: Star}
+	aliases[side+"0"] = a
+	params[side+"0"] = []string{"a"}
+	for i := 1; i < n; i++ {
+		prev := &TApp{Constructor: &TCon{Name: fmt.Sprintf("%s%d", side, i-1)}, Args: []Type{a}}
+		aliases[fmt.Sprintf("%s%d", side, i)] = &TTuple{Elements: []Type{prev, prev}}
+		params[fmt.Sprintf("%s%d", side, i)] = []string{"a"}
+	}
+}
+
+// Equivalent aliases applied to the same arguments unify at once (#2329):
+// a nullary DAG and its twin, and a doubling chain passing a parameter
+// through and its twin. Without the shortcut each is 2^n pairs.
+func TestUnify_EquivalentAliasesUnifyOnce(t *testing.T) {
+	aliases, params := map[string]Type{}, map[string][]string{}
+	twinDAG(aliases, "D", 60, TInt)
+	twinDAG(aliases, "E", 60, TInt)
+	twinChain(aliases, params, "P", 60)
+	twinChain(aliases, params, "Q", 60)
+	u := NewUnifierWithAliasesAndParams(aliases, params)
+	app := func(head string, arg Type) Type { return &TApp{Constructor: &TCon{Name: head}, Args: []Type{arg}} }
 	within(t, 5*time.Second, func() {
 		if _, err := u.Unify(&TCon{Name: "D59"}, &TCon{Name: "E59"}, Substitution{}); err != nil {
-			t.Errorf("isomorphic alias DAGs did not unify: %v", err)
+			t.Errorf("twin alias DAGs did not unify: %v", err)
+		}
+		if _, err := u.Unify(app("P59", TInt), app("Q59", &TCon{Name: "int"}), Substitution{}); err != nil {
+			t.Errorf("twin doubling chains at int did not unify: %v", err)
+		}
+		v := &TVar2{Name: "b", Kind: Star}
+		sub, err := u.Unify(app("P59", v), app("Q59", v), Substitution{})
+		if err != nil || len(sub) != 0 {
+			t.Errorf("twin chains at one variable: err=%v, bound %v (want no binding)", err, sub)
 		}
 	})
-	if _, ok := u.groundAliasPair(&TCon{Name: "V"}, &TCon{Name: "V"}); ok {
-		t.Fatal("an alias with a variable in its expansion was treated as ground")
+}
+
+// The shortcut never decides a different outcome: aliases that differ at a
+// leaf, or that use their parameters in another order, are not equivalent,
+// and unification fails as it would by expansion. A shortcut that took any
+// pair for equivalent would accept these.
+func TestUnify_NonEquivalentAliasesStillFail(t *testing.T) {
+	aliases, params := map[string]Type{}, map[string][]string{}
+	twinDAG(aliases, "D", 40, TInt)
+	twinDAG(aliases, "E", 40, TString) // differs only at the bottom
+	a, b := &TVar2{Name: "a", Kind: Star}, &TVar2{Name: "b", Kind: Star}
+	aliases["Ab"] = &TTuple{Elements: []Type{a, b}}
+	aliases["Ba"] = &TTuple{Elements: []Type{b, a}}
+	params["Ab"], params["Ba"] = []string{"a", "b"}, []string{"a", "b"}
+	u := NewUnifierWithAliasesAndParams(aliases, params)
+	within(t, 5*time.Second, func() {
+		if _, err := u.Unify(&TCon{Name: "D39"}, &TCon{Name: "E39"}, Substitution{}); err == nil {
+			t.Error("alias DAGs that differ at a leaf unified")
+		}
+		two := func(h string) Type { return &TApp{Constructor: &TCon{Name: h}, Args: []Type{TInt, TString}} }
+		if _, err := u.Unify(two("Ab"), two("Ba"), Substitution{}); err == nil {
+			t.Error("(a, b) and (b, a) at (int, string) unified: parameters matched out of order")
+		}
+	})
+	if u.aliasesEquivalent("D39", "E39") || u.aliasesEquivalent("Ab", "Ba") {
+		t.Fatal("non-equivalent aliases recorded as equivalent")
 	}
 }
 

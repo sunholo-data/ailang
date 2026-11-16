@@ -166,6 +166,75 @@ func TestCheckBlowup_2329_TwinAliasDAGsUnified(t *testing.T) {
 	}
 }
 
+// paramChain declares X0[a] = a, Xi[a] = (X{i-1}[a], X{i-1}[a]): a doubling
+// chain that passes its parameter through.
+func paramChain(x string, n int) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "type %s0[a] = a\n", x)
+	for i := 1; i <= n; i++ {
+		fmt.Fprintf(&b, "type %s%d[a] = (%s%d[a], %s%d[a])\n", x, i, x, i-1, x, i-1)
+	}
+	return b.String()
+}
+
+// paramDAG declares X0[a] = a, Xi[a] = a tuple of the previous five, each
+// applied to a.
+func paramDAG(x string, n int) string {
+	var b strings.Builder
+	fmt.Fprintf(&b, "type %s0[a] = a\n", x)
+	for i := 1; i < n; i++ {
+		var parts []string
+		for j := max(0, i-5); j < i; j++ {
+			parts = append(parts, fmt.Sprintf("%s%d[a]", x, j))
+		}
+		if len(parts) < 2 {
+			parts = append(parts, "a")
+		}
+		fmt.Fprintf(&b, "type %s%d[a] = (%s)\n", x, i, strings.Join(parts, ", "))
+	}
+	return b.String()
+}
+
+// #2363 review: aliases that pass a type parameter through. Each body writes
+// its own `a`, so a walk keyed on AST identity never shared them (the IFC
+// bound walk reached 3 GB at n=22), and unifying two such twins was 2^n pairs
+// (n=22: 23 s; n=24: rejected by the step budget only after a minute).
+func TestCheckBlowup_ParameterPassingAliases(t *testing.T) {
+	main := "export func main() -> () ! {IO} = println(\"x\")\n"
+	cases := map[string]string{
+		"doubling chain in a signature (qbin)": "module m\n" + paramChain("Q", 30) + "pure func f(x: Q30[int]) -> int = 0\n" + main,
+		"dense DAG at int (pdag1)":             "module m\n" + paramDAG("D", 60) + "pure func f(x: D59[int]) -> int = 0\n" + main,
+		"dense DAG at a variable (pdag1v)":     "module m\n" + paramDAG("D", 60) + "pure func f(x: D59[b]) -> int = 0\n" + main,
+		"twin dense DAGs unified (pdag2)":      "module m\n" + paramDAG("D", 60) + paramDAG("E", 60) + "pure func f(x: D59[b]) -> E59[b] = x\n" + main,
+		"twin chains unified at int (ubin)": "module m\n" + paramChain("P", 30) + paramChain("Q", 30) +
+			"pure func g(u: int) -> P30[int] = unreachable(\"x\")\npure func f(u: int) -> Q30[int] = g(u)\n" + main,
+	}
+	for name, src := range cases {
+		t.Run(name, func(t *testing.T) {
+			if err := checkBounded(t, src, blowupLimit, blowupAlloc); err != nil {
+				t.Fatalf("valid program rejected: %v", err)
+			}
+		})
+	}
+}
+
+// #2363 review: a type error through a doubling alias rendered the expanded
+// type in full while the message was built (~900 MB at n=24, over 3 GB at
+// n=30). Diagnostics render a large type in part.
+func TestCheckBlowup_TypeErrorThroughDoublingAliasIsBounded(t *testing.T) {
+	src := blowupAliasChain(30, "pure func f(x: P0[int]) -> int = x")
+	err := checkBounded(t, src, blowupLimit, blowupAlloc)
+	if err == nil {
+		t.Fatal("a mismatch through the alias was accepted")
+	}
+	if len(err.Error()) > 16<<10 {
+		t.Fatalf("diagnostic is %d bytes: the expanded type was written out", len(err.Error()))
+	}
+	if !strings.Contains(err.Error(), "shown in part") {
+		t.Fatalf("diagnostic does not say the type is shown in part: %.300s", err.Error())
+	}
+}
+
 // blowupTwinDAGs declares the dense alias DAG twice (D and E) and unifies
 // the two: both sides stay single alias names while unification walks their
 // expansions pairwise.

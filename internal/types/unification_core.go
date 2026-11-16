@@ -49,10 +49,9 @@ type Unifier struct {
 	// work bounds the unifications of one declaration (type_size.go); nil
 	// leaves this unifier unbounded.
 	work *unifyWork
-	// aliasPairs and aliasGround share the unification of ground nullary
-	// aliases (unification_alias_pairs.go).
-	aliasPairs  map[[2]string]bool
-	aliasGround map[string]bool
+	// aliasEquiv memoises which pairs of aliases expand to the same type
+	// (unification_alias_pairs.go).
+	aliasEquiv map[[2]string]bool
 }
 
 // SetConstructorTypes wires the ADT registry the unifier needs to
@@ -281,16 +280,10 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 		return u.Unify(t1, StripLabel(t2), sub)
 	}
 
-	// #2329: two ground nullary aliases unified once are unified for good.
-	if pair, ok := u.groundAliasPair(t1, t2); ok {
-		if u.aliasPairs[pair] {
-			return sub, nil
-		}
-		next, err := u.Unify(u.expandAlias(t1), u.expandAlias(t2), sub)
-		if err == nil {
-			u.aliasPairs[pair] = true
-		}
-		return next, err
+	// #2329: equivalent aliases applied to the same arguments expand to the
+	// same type, which unifies with itself and binds nothing.
+	if u.sameAliasApplication(t1, t2) {
+		return sub, nil
 	}
 
 	// M-BUGFIX: Expand type aliases before unification
@@ -332,7 +325,7 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 	case *TVar2:
 		// Type variable unification
 		if u.occurs(t1.Name, t2, t1.Kind) {
-			return nil, fmt.Errorf("%s: occurs check failed: %s occurs in %s (an infinite type)", TC_OCCURS, t1.Name, t2.String())
+			return nil, fmt.Errorf("%s: occurs check failed: %s occurs in %s (an infinite type)", TC_OCCURS, t1.Name, displayType(t2))
 		}
 		if !u.kindsCompatible(t1.Kind, GetKind(t2)) {
 			return nil, fmt.Errorf("kind mismatch: variable %s has kind %s, but %s has kind %s",
@@ -346,7 +339,7 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 	case *RowVar:
 		// Row variable unification
 		if u.occurs(t1.Name, t2, t1.Kind) {
-			return nil, fmt.Errorf("%s: occurs check failed: row variable %s occurs in %s (an infinite type)", TC_OCCURS, t1.Name, t2.String())
+			return nil, fmt.Errorf("%s: occurs check failed: row variable %s occurs in %s (an infinite type)", TC_OCCURS, t1.Name, displayType(t2))
 		}
 		if !u.kindsCompatible(t1.Kind, GetKind(t2)) {
 			return nil, fmt.Errorf("kind mismatch: row variable %s has kind %s, but %s has kind %s",
@@ -374,7 +367,7 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 				return u.Unify(t2Var, t1, sub)
 			}
 		}
-		return nil, fmt.Errorf("cannot unify row with %s", t2)
+		return nil, fmt.Errorf("cannot unify row with %s", displayType(t2))
 
 	case *TCon:
 		// Type constructor unification
@@ -418,7 +411,7 @@ func (u *Unifier) Unify(t1, t2 Type, sub Substitution) (Substitution, error) {
 		if recOpen, ok := t2.(*TRecordOpen); ok && isTaggedUnion(t1, u.constructorTypes) {
 			return nil, makeUnificationTaggedUnionError(t1, recOpen, u.constructorTypes)
 		}
-		return nil, fmt.Errorf("cannot unify %s with %s", describeTCon(t1), t2)
+		return nil, fmt.Errorf("cannot unify %s with %s", describeTCon(t1), displayType(t2))
 
 	case *TFunc2:
 		return u.unifyFunctions(t1, t2, sub)

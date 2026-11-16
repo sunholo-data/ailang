@@ -1,6 +1,10 @@
 package types
 
-import "sort"
+import (
+	"fmt"
+	"sort"
+	"strings"
+)
 
 // M-EFFECT-LATENT-NESTED-CALLBACKS (#1718, #1826): ONE answer to "what does
 // calling the function values inside this value cost?". The callee mask, the
@@ -33,6 +37,10 @@ func dataArrowsWith(t Type, expand func(Type) Type) []*TFunc2 {
 	// (#2308/#2329). One map, so the scan allocates no more than before.
 	const onPath, walked = 1, 2
 	seen := make(map[Type]uint8)
+	// An alias expands to fresh nodes each time, so its applications are
+	// also remembered by head and argument identity: two `Q19[int]` written
+	// in one body expand to the same type (allocated on the first expansion).
+	var expanded map[string]bool
 	var walk func(Type, int)
 	walk = func(t Type, depth int) {
 		if t == nil || seen[t] != 0 {
@@ -52,6 +60,15 @@ func dataArrowsWith(t Type, expand func(Type) Type) []*TFunc2 {
 			if t != original {
 				if seen[t] != 0 {
 					return
+				}
+				if key, ok := aliasApplicationKey(original); ok {
+					if expanded[key] {
+						return
+					}
+					if expanded == nil {
+						expanded = map[string]bool{}
+					}
+					expanded[key] = true
 				}
 				seen[t] = onPath
 				defer func(node Type) { seen[node] = walked }(t)
@@ -93,6 +110,29 @@ func dataArrowsWith(t Type, expand func(Type) Type) []*TFunc2 {
 	}
 	walk(t, 0)
 	return out
+}
+
+// aliasApplicationKey identifies an alias application by its head and the
+// identity of its arguments (expansion passes argument nodes through
+// unchanged, so equal applications reached by two paths share a key).
+func aliasApplicationKey(t Type) (string, bool) {
+	switch x := t.(type) {
+	case *TCon:
+		return x.KeyOf(), true
+	case *TApp:
+		head, args := decomposeApp(x)
+		con, ok := head.(*TCon)
+		if !ok {
+			return "", false
+		}
+		var b strings.Builder
+		b.WriteString(con.KeyOf())
+		for _, a := range args {
+			fmt.Fprintf(&b, "|%p", a)
+		}
+		return b.String(), true
+	}
+	return "", false
 }
 
 func sortedTypeKeys(m map[string]Type) []string {

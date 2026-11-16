@@ -92,7 +92,7 @@ func (e *TypeCheckError) Error() string {
 	parts = append(parts, e.Message)
 
 	if e.Expected != nil && e.Actual != nil {
-		parts = append(parts, fmt.Sprintf("\n  Expected: %s\n  Actual:   %s", e.Expected, e.Actual))
+		parts = append(parts, fmt.Sprintf("\n  Expected: %s\n  Actual:   %s", displayType(e.Expected), displayType(e.Actual)))
 	}
 
 	if e.Suggestion != "" {

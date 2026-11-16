@@ -22,7 +22,7 @@ func (u *Unifier) unifyRecord2(t1 *TRecord2, t2 Type, sub Substitution) (Substit
 		return u.Unify(t2, t1, sub)
 
 	default:
-		return nil, fmt.Errorf("cannot unify record %s with %s", t1, t2)
+		return nil, fmt.Errorf("cannot unify record %s with %s", displayType(t1), displayType(t2))
 	}
 }
 
@@ -62,7 +62,7 @@ func (u *Unifier) unifyRecord(t1 *TRecord, t2 Type, sub Substitution) (Substitut
 		// Can't expand - might be an ADT or unknown type
 		return nil, fmt.Errorf("cannot unify record with unexpandable type constructor %s", t2Con.Name)
 	}
-	return nil, fmt.Errorf("cannot unify record %s with %s", t1, t2)
+	return nil, fmt.Errorf("cannot unify record %s with %s", displayType(t1), displayType(t2))
 }
 
 // unifyRecordOpen unifies TRecordOpen (open record for subsumption)
@@ -91,7 +91,7 @@ func (u *Unifier) unifyRecordOpen(t1 *TRecordOpen, t2 Type, sub Substitution) (S
 		if isTaggedUnion(t2, u.constructorTypes) {
 			return nil, makeUnificationTaggedUnionError(t2, t1, u.constructorTypes)
 		}
-		return nil, fmt.Errorf("cannot unify open record %s with %s", t1, t2)
+		return nil, fmt.Errorf("cannot unify open record %s with %s", displayType(t1), displayType(t2))
 	}
 }
 

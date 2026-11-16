@@ -79,9 +79,12 @@ type ifcBound struct {
 // module-local declaration are interned by (declaration, argument
 // identities): one application reached along two paths gets one map.
 type ifcBoundWalk struct {
-	done   map[ifcBoundKey]bool
-	scopes map[string]map[string]ifcTypeArg
-	cuts   int // recursive occurrences cut so far (addName)
+	done     map[ifcBoundKey]bool
+	scopes   map[string]map[string]ifcTypeArg
+	canon    map[ifcCanonKey]int // canonical argument numbers (canonical)
+	interned map[string]int
+	fresh    int // numbers handed out past the memo cap: never shared
+	cuts     int // recursive occurrences cut so far (addName)
 }
 
 type ifcBoundKey struct {
@@ -149,7 +152,8 @@ func (b ifcBound) forbidden() []string {
 
 // paramBound is the demand declared parameter type t places on its argument.
 func (ts *ifcTypes) paramBound(t ast.Type) ifcBound {
-	b := ifcBound{walk: &ifcBoundWalk{done: map[ifcBoundKey]bool{}, scopes: map[string]map[string]ifcTypeArg{}}}
+	b := ifcBound{walk: &ifcBoundWalk{done: map[ifcBoundKey]bool{}, scopes: map[string]map[string]ifcTypeArg{},
+		canon: map[ifcCanonKey]int{}, interned: map[string]int{}}}
 	ts.addBound(&b, t, ifcPath{}, nil, map[string]bool{}, 0)
 	b.walk = nil
 	if b.has && b.cover == nil {
@@ -184,7 +188,7 @@ func (ts *ifcTypes) addBound(b *ifcBound, t ast.Type, path ifcPath, params map[s
 		// path; only a walk that cut nothing is the node's whole contribution.
 		cuts := b.walk.cuts
 		defer func() {
-			if b.walk.cuts == cuts {
+			if b.walk.cuts == cuts && b.walk.retain() {
 				b.walk.done[key] = true
 			}
 		}()
@@ -279,11 +283,18 @@ func (b *ifcBound) scope(td *ast.TypeDecl, args []ifcTypeArg) map[string]ifcType
 	if len(td.TypeParams) == 0 {
 		return nil
 	}
+	// A pass-through argument (`Q1[a] = (Q0[a], Q0[a])`) is a different AST
+	// node in every alias body, so the arguments are first resolved through
+	// their bindings to what they stand for: both Q0[a] then share one map.
+	resolved := make([]ifcTypeArg, len(args))
+	for i, a := range args {
+		resolved[i] = resolveTypeArg(a)
+	}
 	var key strings.Builder
 	if b.walk != nil {
 		key.WriteString(td.Name)
-		for _, a := range args {
-			fmt.Fprintf(&key, "|%p/%x", a.t, bindingsID(a.params))
+		for _, a := range resolved {
+			fmt.Fprintf(&key, "|%d", b.walk.canonical(a))
 		}
 		if m, ok := b.walk.scopes[key.String()]; ok {
 			return m
@@ -291,16 +302,124 @@ func (b *ifcBound) scope(td *ast.TypeDecl, args []ifcTypeArg) map[string]ifcType
 	}
 	bound := make(map[string]ifcTypeArg, len(td.TypeParams))
 	for i, p := range td.TypeParams {
-		if i < len(args) {
-			bound[p] = args[i]
+		if i < len(resolved) {
+			bound[p] = resolved[i]
 		} else {
 			bound[p] = ifcTypeArg{} // unapplied: an unknown leaf
 		}
 	}
-	if b.walk != nil {
+	if b.walk.retain() {
 		b.walk.scopes[key.String()] = bound
 	}
 	return bound
+}
+
+// canonical numbers an argument by its structure as the bound walk reads it,
+// resolved through its bindings: two arguments with one number contribute the
+// same demand. A pass-through `a`, or a `(a, a)` written once in each of two
+// alias bodies, is a different AST node every time, so identity alone would
+// never share a bindings map between them. Memoised per (node, bindings), so
+// numbering costs the written size of the declarations, not their expansion.
+func (w *ifcBoundWalk) canonical(a ifcTypeArg) int {
+	a = resolveTypeArg(a)
+	ck := ifcCanonKey{t: a.t, params: bindingsID(a.params)}
+	if id, ok := w.canon[ck]; ok {
+		return id
+	}
+	if !w.retain() {
+		w.fresh--
+		return w.fresh // past the cap: unique, so nothing is shared (as with no memo)
+	}
+	sub := func(t ast.Type) string { return fmt.Sprint(w.canonical(ifcTypeArg{t: t, params: a.params})) }
+	var s strings.Builder
+	switch t := a.t.(type) {
+	case nil:
+		s.WriteString("nil")
+	case *ast.FuncType:
+		s.WriteString("fn") // a leaf to the bound walk, whatever its signature
+	case *ast.SimpleType:
+		s.WriteString("n:" + t.Name)
+	case *ast.TypeVar:
+		s.WriteString("n:" + t.Name)
+	case *ast.ListType:
+		s.WriteString("[" + sub(t.Element) + "]")
+	case *ast.ArrayType:
+		s.WriteString("A[" + sub(t.Element) + "]")
+	case *ast.TupleType:
+		s.WriteString("(")
+		for _, e := range t.Elements {
+			s.WriteString(sub(e) + ",")
+		}
+	case *ast.RecordType:
+		s.WriteString("{")
+		for _, f := range t.Fields {
+			if f != nil {
+				s.WriteString(f.Name + ":" + sub(f.Type) + ",")
+			}
+		}
+	case *ast.TypeApp:
+		s.WriteString(t.Constructor + "[")
+		for _, e := range t.Args {
+			s.WriteString(sub(e) + ",")
+		}
+	case *ast.LabelledType:
+		if t.Label != nil {
+			s.WriteString("<" + t.Label.Name + ">")
+		}
+		if t.Refinement != nil {
+			s.WriteString("{not " + t.Refinement.NotLabel + "}")
+		}
+		s.WriteString(sub(t.Base))
+	default:
+		fmt.Fprintf(&s, "?%p/%x", a.t, ck.params) // unknown form: only itself
+	}
+	id, ok := w.interned[s.String()]
+	if !ok {
+		id = len(w.interned) + 1
+		w.interned[s.String()] = id
+	}
+	w.canon[ck] = id
+	return id
+}
+
+type ifcCanonKey struct {
+	t      ast.Type
+	params uintptr
+}
+
+// resolveTypeArg follows an argument that is itself a bound type parameter to
+// what that parameter is bound to. Walking either reaches the same type under
+// the same bindings (addName resolves a bound name exactly so), so the two are
+// one argument. Bounded: a parameter bound to itself stops the chase.
+func resolveTypeArg(a ifcTypeArg) ifcTypeArg {
+	for steps := 0; steps < ifcAnalysisDepth; steps++ {
+		var name string
+		switch t := a.t.(type) {
+		case *ast.TypeVar:
+			name = t.Name
+		case *ast.SimpleType:
+			name = t.Name
+		default:
+			return a
+		}
+		next, ok := a.params[name]
+		if !ok || next.t == a.t {
+			return a
+		}
+		a = next
+	}
+	return a
+}
+
+// ifcBoundMemoLimit caps what one walk retains (memoised nodes and interned
+// bindings maps together). A walk whose shape defeats sharing then stops
+// growing its memo and costs what it did with no memo: time, never memory
+// beyond this cap.
+const ifcBoundMemoLimit = 1 << 16
+
+// retain reports whether the walk may remember one more entry.
+func (w *ifcBoundWalk) retain() bool {
+	return w != nil && len(w.done)+len(w.scopes)+len(w.canon) < ifcBoundMemoLimit
 }
 
 // topLabel is the positive label written at the top of t, if any. It is the

@@ -59,13 +59,14 @@ const maxTypeTreeNodes int64 = 1 << 16
 
 // maxUnifySteps bounds the unification steps (Unify calls, each node pair
 // one step) of one declaration. A large type is caught by size where it is
-// held; this catches a walk over an expansion that never is held, such as two
-// separately declared alias DAGs with variables in them unified with each
-// other (ground ones share their pairs, unification_alias_pairs.go). Measured
-// 2026-11-16: the most steps any declaration takes is 42,564 in the
-// repository's .ail files and 365,050 in the 14,779 banked passing solutions,
-// so the bound is over 180x the largest real declaration.
-const maxUnifySteps = 1 << 26
+// held; this catches a walk over an expansion that never is held: two
+// separately declared alias DAGs that the equivalence check cannot see
+// through (unification_alias_pairs.go; a function type inside, say), unified
+// with each other. Measured 2026-11-16: the most steps any declaration takes is
+// 42,564 in the repository's .ail files and 365,050 in the 14,779 banked
+// passing solutions, so the bound is 46x the largest real declaration; it
+// fires after about 7 s of unification (a loaded 16-core Mac).
+const maxUnifySteps = 1 << 24
 
 // unifyWork counts the unification steps of one declaration.
 type unifyWork struct {
