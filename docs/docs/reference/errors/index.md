@@ -157,6 +157,12 @@ TC_RIGID_001: the signature of `step` says `state` is any type, but the body req
   Suggestion: write `State` instead of `state`
 ```
 
+**`TC_CONSTRAINT_001` — a call breaks an imported function's class constraint.** An exported function's scheme carries the class constraints its body needs (`func add[a](x: a, y: a) -> a = x + y` exports `Num[a]`; `ailang iface` lists them under `constraints`), and a call from another module is checked against them exactly as a call in the defining module is. Emitted at the call when it instantiates the constrained variable at a type without that instance: `add("s", "t")`, `eqq(f, g)` on two functions, `lt(None, None)`, `contains([\x. x + 1], f)` (`std/list`'s `contains`, `member`, `dedup`, `union`, `intersect` and `difference` need `Eq` on the element type). The message names the function and its module, then the missing instance with the usual fix. Through v0.60.x the constraint was dropped at the module boundary, so such a call passed `check` and failed at run time, or (`==` on two functions, on the VM) answered `false`.
+
+```
+TC_CONSTRAINT_001: `add` from lib/boxes requires Num for the type it is used at here: No instance for Num[string] in scope.
+```
+
 **`TC_NOMINAL_001` — two different types that share a name.** A nominal type (an ADT) is its defining module plus its name, so `q/a`'s `type T` and `q/b`'s `type T` are different types. Emitted where a value of one is used where the other is expected; both modules are named. Until v0.60.0 such programs type-checked and failed at run time. See [tc_nominal_001.md](tc_nominal_001.md).
 
 ```

@@ -330,6 +330,7 @@ func registerListContains() {
 	err := RegisterEffectBuiltin(BuiltinSpec{
 		Module:  "$builtin",
 		Name:    "_list_contains",
+		EqVars:  []string{"a"},
 		NumArgs: 2,
 		IsPure:  true,
 		Effect:  "",

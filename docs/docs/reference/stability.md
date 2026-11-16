@@ -118,8 +118,9 @@ interface without a re-freeze. The two subdirectory modules, `std/ai/streaming` 
 importable module appears exactly once.
 
 For a **Stable** module, the promise covers the interface that the golden file records: export
-names, types and effect rows. Changing a Stable module's golden in a way that is not additive is a
-breaking change.
+names, types, class constraints (`"constraints": ["Eq[a]"]`, listed only when an export has any,
+with the type's variable names) and effect rows. Changing a Stable module's golden in a way that is
+not additive is a breaking change; adding a constraint to an export is not additive.
 
 **Where tiers are recorded.** One source per fact: the tier of every module is in
 [`std/STABILITY.toml`](https://github.com/sunholo-data/ailang/blob/dev/std/STABILITY.toml), and a
@@ -446,7 +447,7 @@ the [Package System guide](/docs/guides/packages) and the
 | **Authority: run-time grant** | A package gets no capability unless it is granted at run time (`run --caps`, or `[bin].caps`, which defaults to `auto` = the entry's declared effects). Declaring an effect does not grant it |
 | Manifest `[stability].level` | `experimental` / `stable` / `frozen`: the package's own declared maturity |
 | Lockfile `ailang.lock` | JSON with `schema: "ailang.lock/v1"`. Each package entry has `name`, `version`, `source` (`path`/`git`/`registry`), `content_hash`, `interface_hash`, `effects`, `exports` and the source locator. It is portable: path dependencies are recorded relative with forward slashes, and cache paths are resolved at run time. An unchanged resolution rewrites byte-identically, and `ailang lock --check` detects drift without writing |
-| Dual hash model | `content_hash` changes with any source change. `interface_hash` changes only when exports or effects change, so internal refactors do not cascade |
+| Dual hash model | `content_hash` changes with any source change. `interface_hash` changes only when exports (names, types, class constraints) or effects change, so internal refactors do not cascade |
 | Import form | `import pkg/vendor/name/module (…)` resolves against the lockfile, never the local filesystem |
 | Registry resolution | Default registry `https://storage.googleapis.com/ailang-registry` (`AILANG_REGISTRY` overrides it), read through `index.json`. `install x` / `x@latest` resolves once and writes the **exact** version into `ailang.toml`. A published version is immutable, and duplicate versions are rejected |
 

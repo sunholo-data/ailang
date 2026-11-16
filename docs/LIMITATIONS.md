@@ -210,7 +210,9 @@ Still open:
     inside its own group (polymorphic recursion, or a mutually recursive `g` calling `f(n, n)`)
     is rejected, naming the call, rather than allowed;
   - class constraints are inferred, not declared (there is no syntax for them), so a signature
-    cannot promise `Num a` or forbid it. A contract clause that needs a class the body does not
+    cannot promise `Num a` or forbid it. The inferred ones are part of the exported scheme
+    (`ailang iface` lists them) and a caller in another module is held to them
+    (`TC_CONSTRAINT_001`, #2290). A contract clause that needs a class the body does not
     (`idc[a](x: a) -> a ensures { result == x } { x }`) is accepted, but callers are not held to
     it: `idc(inc)` checks, and the clause fails under `--verify-contracts` (#2337). An integer literal written at a signature variable is rejected, but one
     reached through an unannotated helper is not: `pure func incH(x) = x + 1` then
