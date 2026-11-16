@@ -2,8 +2,10 @@ package main
 
 import (
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
@@ -53,7 +55,9 @@ func compileV2(
 			prog.TypeDecls = append(prog.TypeDecls, lower.LowerTypeDecl(td))
 		}
 		// Also check imported modules for cross-module ADT support.
-		for _, mod := range res.Modules {
+		// In module-path order, never map order (#2359).
+		for _, path := range slices.Sorted(maps.Keys(res.Modules)) {
+			mod := res.Modules[path]
 			if mod.File == nil {
 				continue
 			}

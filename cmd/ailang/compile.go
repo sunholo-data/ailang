@@ -3,9 +3,11 @@ package main
 import (
 	"flag"
 	"fmt"
+	"maps"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
@@ -171,7 +173,11 @@ func compileCommand() {
 		if file != nil && file.Module != nil {
 			currentModPath = file.Module.Path
 		}
-		for _, mod := range result.Modules {
+		// In module-path order: result.Modules is a map, and ranging it made
+		// the emitted type declarations (and which of two same-named types
+		// is kept) differ from run to run (#2359).
+		for _, path := range slices.Sorted(maps.Keys(result.Modules)) {
+			mod := result.Modules[path]
 			if mod.File != nil {
 				if mod.File.Module != nil && mod.File.Module.Path == currentModPath {
 					continue

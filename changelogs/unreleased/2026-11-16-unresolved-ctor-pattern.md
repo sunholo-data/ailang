@@ -30,3 +30,10 @@ closure); such a pattern is `TC_MATCH_007` before its arity is compared with any
 Measured: 0 of 12,153 programs that pass `check` on dev (983 tracked `.ail` files and 14,813
 banked passing eval solutions, 12,153 of which check) contain such a pattern; bytecode
 disassembly is identical for every one of them.
+
+### Fixed — `compile --emit-go` emitted imported type declarations in Go map order (#2359)
+
+The Go emitter (and the experimental `--emit-go-v2` path) gathered the type declarations of
+imported modules by ranging a map of loaded modules, so the emitted `types.go` — and which of two
+same-named types was kept — could differ from one run to the next. They are now gathered in
+module-path order. Other map-ordered output in the Go emitter (record literals) is #2360.

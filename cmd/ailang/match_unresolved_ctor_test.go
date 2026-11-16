@@ -209,9 +209,8 @@ func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 			}
 			gen := emit(filepath.Join(t.TempDir(), "go"))
 			if c.module == "ok2" {
-				// The bare-name lookup this replaced iterated a Go map. The
-				// functions are compared; types.go is not: imported modules'
-				// type declarations are still emitted in map order (#2359).
+				// The bare-name lookup this replaced iterated a Go map, and so
+				// did the gathering of imported type declarations (#2359).
 				first := goSources(t, gen)
 				for i := 0; i < 32; i++ {
 					if again := goSources(t, emit(filepath.Join(t.TempDir(), "go"))); again != first {
@@ -234,13 +233,12 @@ func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 	}
 }
 
-// goSources concatenates the .go files under dir in name order, all but
-// types.go (#2359).
+// goSources concatenates the .go files under dir in name order.
 func goSources(t *testing.T, dir string) string {
 	t.Helper()
 	var names []string
 	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err == nil && strings.HasSuffix(p, ".go") && filepath.Base(p) != "types.go" {
+		if err == nil && strings.HasSuffix(p, ".go") {
 			names = append(names, p)
 		}
 		return nil
