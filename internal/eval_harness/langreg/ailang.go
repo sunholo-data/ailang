@@ -17,11 +17,6 @@ func (a *ailangLang) FileExt() string     { return ".ail" }
 
 func (a *ailangLang) SolutionFilename() string { return "solution.ail" }
 
-func (a *ailangLang) PromptTemplatePath() string {
-	// AILANG uses the default template (empty string = use fallback).
-	return ""
-}
-
 func (a *ailangLang) TaskTemplatePath() string {
 	return "internal/eval_harness/templates/agent_task_ailang.txt"
 }
