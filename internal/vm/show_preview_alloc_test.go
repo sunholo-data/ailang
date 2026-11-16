@@ -25,6 +25,14 @@ import (
 // would have to be half a preview to matter. Measured mutations: building the
 // full rendering and cutting it reads ~200x; one 8-byte allocation per
 // element past the budget reads ~98x.
+//
+// A ratio cannot see a cost that does not grow: rendering a FIXED 16k-char
+// prefix before cutting (review mutant S2) costs ~70 KB per preview at both
+// sizes, ratio 1.00. So each preview must also stay under an absolute
+// ceiling, previewAllocCeiling — 4x the ~4 KB constant, far clear of the
+// 232 B of noise that made the old bound flake.
+const previewAllocCeiling = 16 << 10
+
 func TestShowPreviewDoesNotMaterialise(t *testing.T) {
 	const budget = 200
 	small, big := sList(showInts(0, 10_000)...), sList(showInts(0, 1_000_000)...)
@@ -63,6 +71,15 @@ func TestShowPreviewDoesNotMaterialise(t *testing.T) {
 		if ratio > 1.5 {
 			t.Errorf("%s: a preview of a 100x larger value allocated %.1fx as much (%d B vs %d B); want <= 1.5x — showPreview must not build the rendering it cuts",
 				e.name, ratio, bigBytes, smallBytes)
+		}
+		for _, m := range []struct {
+			size  string
+			bytes int64
+		}{{"10k", smallBytes}, {"1M", bigBytes}} {
+			if m.bytes >= previewAllocCeiling {
+				t.Errorf("%s: a %d-char preview of %s elements allocated %d B; want < %d — the preview must cost about its budget, not a rendering",
+					e.name, budget, m.size, m.bytes, previewAllocCeiling)
+			}
 		}
 	}
 }

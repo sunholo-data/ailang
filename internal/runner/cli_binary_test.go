@@ -7,6 +7,8 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -46,7 +48,11 @@ func ailangCLIBinary(t *testing.T) (binary, root string) {
 			cliBinary.err = err
 			return
 		}
-		dir, err := os.MkdirTemp("", "runner-ailang-*")
+		// TestMain removes the build, but a package -timeout panic skips
+		// TestMain's cleanup; so the dir carries this process's pid and every
+		// first build sweeps the dirs of processes that are gone.
+		sweepStaleCLIBuilds(os.TempDir())
+		dir, err := os.MkdirTemp("", fmt.Sprintf("%s%d-", cliBuildPrefix, os.Getpid()))
 		if err != nil {
 			cliBinary.err = err
 			return
@@ -80,6 +86,31 @@ func removeCLIBinary() {
 	}
 }
 
+const cliBuildPrefix = "runner-ailang-"
+
+// sweepStaleCLIBuilds removes <tmp>/runner-ailang-<pid>-* dirs whose process
+// no longer exists, so builds left by a timed-out run cannot accumulate. A
+// live process's dir is never touched; a recycled pid only delays a sweep.
+// A name without a pid (the first version of this helper made those) goes
+// once it is a day old.
+func sweepStaleCLIBuilds(tmp string) {
+	matches, _ := filepath.Glob(filepath.Join(tmp, cliBuildPrefix+"*"))
+	for _, dir := range matches {
+		rest := strings.TrimPrefix(filepath.Base(dir), cliBuildPrefix)
+		pidText, _, _ := strings.Cut(rest, "-")
+		pid, err := strconv.Atoi(pidText)
+		switch {
+		case err == nil && (pid == os.Getpid() || processAlive(pid)):
+			continue
+		case err != nil:
+			if st, statErr := os.Stat(dir); statErr != nil || time.Since(st.ModTime()) < 24*time.Hour {
+				continue
+			}
+		}
+		_ = os.RemoveAll(dir)
+	}
+}
+
 // runCLIProbe runs one subprocess under the calling subtest's OWN deadline:
 // need, capped by what is left of the package -timeout. When that deadline
 // kills the probe, the failure names this subtest, its budget and how long it
@@ -100,8 +131,13 @@ func runCLIProbe(t *testing.T, need time.Duration, configure func(*exec.Cmd), na
 	start := time.Now()
 	out, err := cmd.CombinedOutput()
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
+		elapsed := time.Since(start).Round(time.Millisecond)
+		if budget < need {
+			t.Fatalf("%s was killed after %s at the package -timeout, not by its own budget: it may need %s but only %s was left (the PACKAGE outgrew its go test -timeout; %s remain); output so far:\n%s",
+				t.Name(), elapsed, need, budget.Round(time.Millisecond), timeLeft(t), out)
+		}
 		t.Fatalf("%s overran its own %s budget: killed after %s (the package -timeout leaves %s); output so far:\n%s",
-			t.Name(), budget, time.Since(start).Round(time.Millisecond), timeLeft(t), out)
+			t.Name(), budget, elapsed, timeLeft(t), out)
 	}
 	return out, err
 }
