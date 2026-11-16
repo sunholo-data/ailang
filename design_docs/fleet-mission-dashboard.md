@@ -1,19 +1,20 @@
-# Fleet mission dashboard — iteration 114
+# Fleet mission dashboard — iteration 115
 
-Updated 2026-11-16; scheduled unattended. [Bookkeeping #2341](https://github.com/sunholo-data/ailang/issues/2341) (predecessor #2172, closed this fire).
+Updated 2026-11-16; scheduled unattended. [Bookkeeping #2341](https://github.com/sunholo-data/ailang/issues/2341).
 
-- **Outcome: idle [ADMIN].** All 27 open tickets are gated by an OPEN decision row, a scope boundary or a draft PR. Inputs byte-identical to iteration 113.
-  - The independent sonnet idle-screen judge (Agent tool, inputs only, told to argue against idling) returned **NONE** at 75%. It rejected its strongest candidate, D-FLEET-43 A, on the ticket-driven-only guardrail alone: no ticket concerns the fleet's own idle skip.
-  - Its strongest objection is the same wording gap flagged at 101 and 113: the all-gated screen never states an originating-ticket condition, so iteration 113's structural reading (minimax, PICK) is defensible. Reported, not edited.
-- **Weekly sweep:** 0 harness-scope issues of 109 open. The 49 filed since 11-09 are language/codegen/stdlib/docs work for V1 and triage.
-- **Inputs:** 27 tickets; ledger 44 rows, 28 OPEN (D-FLEET-16..23, 25..29, 31..45), unchanged. 0 directives on #2172.
-- **Last landing:** iteration 111, the Gate 5 harness-share skill fix → #2336 / `1a2876877`. Last ticket resolved: iteration 109, #2267 / `47b123139`.
-- **Routing:** opus controller this fire; judge sonnet via the Agent tool. Codex lanes probe rc 75 (quota unreadable) → planner opus, executor haiku. Designer, planner and executor not spawned (no pick).
-- **Dev @ `563c6c936`** (Release v0.60.4): 55 check-runs, 0 not green; zero commits since iteration 112.
-- **Goal:** clause 1 UNMEASURED, 2 UNMET this fire (last moved at iteration 109), 3 MET, 4 met by its letter, 5 preserved. Harness share 6/20, tagged 20/20 (iterations 95–114).
-- **Cost:** metered $0 (judge sonnet 90,904 tok on subscription).
-- **Records 95–114** sit on stacked draft PRs (#2169 → … → #2340 → this fire). origin/dev's log still ends at 94. The stack stays unmerged: #2171 carries iteration 96's design parked for human review.
-- **Gate 0 self-notice:** the watermark form returned rc 2 for the eighteenth fire in a row. The `--since` form found 0 crash notices.
-- **Parked on Mark:** 28 OPEN rows, D-FLEET-16..45. Any one ruling unblocks a ticket; a D-FLEET-43 ruling either way also moots the screen-rule ambiguity.
-- **Next:** any ruling on D-FLEET-16..45, or a new ticket. Without either, the next fire repeats this screen.
-- **Evidence:** [log](fleet-mission-log.md), [iteration 114](fleet-mission-evidence/iteration114/).
+- **Outcome: LANDED [HARNESS].** D-FLEET-26 A: a codex capacity stop is now a transient retry in both renderings → #2368 / `89a28a09c` (judge sonnet PASS 88, 0 blocking). Plus four ticket resolutions the rulings directed with no build (D-FLEET-31 A, 32 B, 34 B, 37 A).
+  - Iteration 79's draft (#2065) matched only raw `codex exec` output. Controllers have run `ailang mission codex-exec` (daemon) since 10-09, so it would never have fired. The planner caught it; the fix matches both renderings.
+- **Input that changed:** Mark's attended rulings (`a82f0180a`, 11-16 07:26Z) resolved D-FLEET-16..43 on dev, after iteration 114 recorded. Adopted as attended (session transcript corroborates; the provenance script reads `fleet` on this rig regardless). Merged into the record stack row by row (`37b284157`).
+- **Attended session owns:** D-17, 19, 20, 22, 23(3), 28, 29, 35, 39, 40, 41 and the key rotation in D-42 (PRs #2343–#2349). The fleet has the rest.
+- **Tickets:** 27 → 22 open. Ledger 44 rows, 2 OPEN (D-FLEET-44, 45, stack-only).
+- **Pick-order miss:** Mark's queue order ranks row 13 (D-FLEET-18, guard-arm draft #2110) and row 33 (D-FLEET-25) above row 34. This fire picked 34 by impact; next fire returns to the groom order.
+- **Guard gap seen:** the pre-push scope guard refuses a force-push of a rebased fleet branch (it diffs from the old remote SHA). Workaround used: fresh branch + new PR. Every draft refreshed onto dev will hit it.
+- **Routing:** opus controller; planner opus (Agent); executor haiku via `claude-sub` (rc 0, 559 s); judge sonnet (Agent). Codex lanes probe rc 75 (quota unreadable).
+- **Dev @ `89a28a09c`:** see the log entry for the merge-commit CI verdict.
+- **Goal:** clause 2 moved (5 tickets resolved); clause 1 UNMEASURED, 3 MET, 4 met by its letter, 5 preserved (done-gate run).
+- **Cost:** metered $0.
+- **Records 95–115** sit on stacked draft PRs (#2169 → … → #2342 → this fire). origin/dev's log still ends at 94.
+- **Gate 0 self-notice:** watermark form rc 2 (nineteenth fire); `--since` form 0 crash notices.
+- **Parked on Mark:** D-FLEET-44, D-FLEET-45 (unchanged).
+- **Next:** row 13, `ci:launchd-suite-flakes-openrouter-peer-and-gh-hang` (D-FLEET-18 A): land guard-arm draft #2110 alone first. Then row 33 (D-FLEET-25 A, drafts #2165/#2082).
+- **Evidence:** [log](fleet-mission-log.md), [iteration 115](fleet-mission-evidence/iteration115/).
