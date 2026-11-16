@@ -1,14 +1,14 @@
 ---
 sidebar_position: 9
 title: Pilot-4 (a second round, short writes, breaking loops)
-description: The fourth AILANG fine-tune, in progress. A second round of the model's own mistakes, pooled with the first, plus fixes for the two failures pilot-3 left behind - runaway writes and long loops.
+description: The fourth AILANG fine-tune, which ended the on-policy repair line with a negative result. A second round of the model's own mistakes, pooled with the first, plus fixes for the two failures pilot-3 left behind - runaway writes and long loops.
 reviewed: 2026-11-10
 reviewBy: 2027-02-10
 ---
 
 # Pilot-4: a second round, short writes, breaking loops
 
-**Status: in progress.** Like [pilot-3](./pilot-3.md), this page is written as the work happens.
+**Status: finished, with a negative result.** Pilot-4 scored below pilot-3, and two diagnostic arms showed that the untrained model with the slim prompt does as well as the best fine-tune. The on-policy repair line stops here (D-FT-18). Like [pilot-3](./pilot-3.md), this page was written as the work happened.
 
 ## Where pilot-3 left us
 
@@ -122,3 +122,5 @@ twice: 110 of them end a loop of 3 or 4 failed attempts.
 | 2026-11-12 | **Arm A2: base 12B + slim prompt: 9/23** (the swapped `run_length_encode` task is left out of every comparison from here, see D-FT-17) | On the same 23 tasks pilot-3 passed 10, pilot-4 passed 5 and base + full prompt passed 16. Paired against pilot-3: A2 alone passed 1, pilot-3 alone passed 2. **Training has not added anything measurable over the slim prompt on an untrained model.** 11 of A2's 14 failures were one-hour timeouts; 3 of 983 responses were dropped tool calls |
 | 2026-11-12 | What the full prompt is worth to the base model | Base + full prompt alone passed 7 tasks that base + slim prompt failed, and the reverse never happened (sign test p = 0.016). That gap of 7 tasks is the knowledge a fine-tune has to carry for the slim prompt to be enough, and three pilots have not moved it |
 | 2026-11-13 | **Arm D: pilot-3 + full prompt: 1/23** | Pilot-3 with the slim prompt alone passed 9 tasks that this arm failed, and the reverse never happened (p = 0.004). 11 runs ended on a dropped tool call and most of the rest handed in code with parse errors after a few minutes. The fine-tune was trained with the slim prompt and does not work with the full one, so adding the prompt back is not a way to rescue it |
+| 2026-11-16 | What the one-hour timeouts are | In arm A2, 9 of the 11 timed-out runs show traced activity for only 4 to 28 minutes; the rest of the hour is a single response that never finished, so it never reached the trace. Two were real long loops (57 and 63 minutes of steady work). Arm A has the same shape in 3 of its 4 timeouts. Most of the base model's failures with the slim prompt are therefore one runaway response that nothing cut off, not a lack of AILANG knowledge |
+| 2026-11-16 | **Mark stopped the on-policy repair line** | D-FT-18. The next step is outside training: cap and retry runaway responses in the agent harness, then re-measure the untrained model |
