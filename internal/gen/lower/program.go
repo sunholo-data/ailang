@@ -294,6 +294,10 @@ func bindingToFuncDecl(
 	if da, ok := value.(*core.DictAbs); ok {
 		value = da.Body
 	}
+	// One flat name space per function from here on: make local names
+	// unique first, so a shadowing binder cannot overwrite the binding it
+	// shadows (#2375).
+	value = uniqueLocals(value)
 
 	lam, ok := value.(*core.Lambda)
 	if !ok {

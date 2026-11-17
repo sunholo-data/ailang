@@ -169,3 +169,21 @@ func copyBindings(bindings map[string]core.CoreExpr) map[string]core.CoreExpr {
 	}
 	return newBindings
 }
+
+// shadowNames removes names from (already copied) env and bindings: a binder
+// that introduces them (a lambda parameter, a pattern variable, a letrec
+// member) hides any outer binding of the same name in its scope.
+func shadowNames(env map[string]types.Type, bindings map[string]core.CoreExpr, names []string) {
+	for _, n := range names {
+		delete(env, n)
+		delete(bindings, n)
+	}
+}
+
+func recNames(bs []core.RecBinding) []string {
+	names := make([]string, len(bs))
+	for i, b := range bs {
+		names[i] = b.Name
+	}
+	return names
+}

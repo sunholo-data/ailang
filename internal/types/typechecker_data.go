@@ -380,6 +380,20 @@ func isCoreValue(expr core.CoreExpr) bool {
 			}
 		}
 		return true
+	case *core.Let:
+		// ML's non-expansive rule: `let x = v1 in v2` is a value when both
+		// parts are. A let the program wrote inside a binding's value stays
+		// nested there (#2388), so `let f = (let k = 1 in \x. x)` and
+		// `let f = { let k = 1; \x. x }` generalise like `let f = \x. x`,
+		// while `let f = (let c = g(0) in \x. ...)` (a call) does not.
+		return isCoreValue(e.Value) && isCoreValue(e.Body)
+	case *core.LetRec:
+		for _, b := range e.Bindings {
+			if !isCoreValue(b.Value) {
+				return false
+			}
+		}
+		return isCoreValue(e.Body)
 	default:
 		return false
 	}
