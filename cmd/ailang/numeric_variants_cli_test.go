@@ -1,6 +1,7 @@
 package main
 
 import (
+	"slices"
 	"strings"
 	"testing"
 )
@@ -10,12 +11,19 @@ import (
 // operator shapes are the generic matrix's lit_* modules; these are the rules
 // around them.
 
+// runBoth runs file on the evaluator and on the strict VM; want must be a
+// whole line of the output (a prefix would let "7.5 7" pass for "7.5 7.0").
 func runBoth(t *testing.T, bin, dir, file, want string, extra ...string) {
 	t.Helper()
+	want = strings.TrimSuffix(want, "\n")
 	for _, engine := range [][]string{nil, {"--strict-bytecode"}} {
 		args := append([]string{"run", "--quiet", "--caps", "IO", "--entry", "main"}, extra...)
 		args = append(append(args, engine...), file)
-		ailangIn(t, bin, dir, args...).want(t, file+" "+strings.Join(engine, ""), 0, want)
+		r := ailangIn(t, bin, dir, args...)
+		r.want(t, file+" "+strings.Join(engine, ""), 0)
+		if !slices.Contains(strings.Split(strings.ReplaceAll(r.out, "\r", ""), "\n"), want) {
+			t.Fatalf("%s %v: no output line is %q:\n%s", file, engine, want, r.out)
+		}
 	}
 }
 
