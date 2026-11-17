@@ -68,15 +68,3 @@ func unreachableImpl(_ *effects.EffContext, args []eval.Value) (eval.Value, erro
 	}
 	return nil, &ailerrors.UnreachableError{Msg: msg.Value}
 }
-
-// registerUnreachableCodegenSpec: generated Go panics with the RT010 text the
-// interpreters raise.
-func registerUnreachableCodegenSpec() {
-	registerIfMissing("unreachable", 1, true, &GoCodegenSpec{
-		Helper: &GoHelperSpec{
-			FuncName:  "Unreachable",
-			Signature: "func Unreachable(msg interface{}) interface{}",
-			Body:      `panic("RT010: unreachable code reached: " + msg.(string))`,
-		},
-	})
-}
