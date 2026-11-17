@@ -85,4 +85,36 @@ so a literal-free generic is unchanged.
   v2 hash of such a package, and the publish is refused with `PUB005`. Deploy the validator in
   step with this release.
 
-Measured against origin/dev: MEASUREMENTS.
+Measured against origin/dev 651979e6b:
+- **14,857 banked eval programs:** the `check` verdict and error code are identical on all of
+  them. 11,328 pass on both; 0 are newly rejected or newly accepted; 0 hit `TC_NUMVAR_001` or
+  the single-value error.
+- **Output:** the 361 passing programs a #2378 rule touches print byte-identical output on the
+  evaluator and on `--strict-bytecode`. So do 400 random untouched ones, which also compile to
+  identical bytecode.
+- **The 340-program defaulting sweep** (102 groups of top-level, let and cross-module forms):
+  - 277 print the same output;
+  - 24 that crashed now run;
+  - 18 are newly accepted;
+  - 0 are newly rejected;
+  - 21 now print an int use of a let-bound function as an int (`7`, `7 / 2` is `3`), where dev
+    retyped it to float (`7.0`, `3.5`). The top-level and cross-module forms always printed
+    the int.
+
+  All three forms agree in 102 of 102 groups, against 81 before. The same uses at int and float
+  in one program, compared across the top-level, let, block-bound and imported forms, agree in
+  33 of 33 groups, against 12 before.
+- **1,005 tracked `.ail` files:** 0 verdict or interface changes. The 606 that have a `main`
+  print the same output; the only differences are timings, export-list order and one fresh
+  type-variable number.
+- **`ailang iface` over std, the tracked modules and 621 ailang-packages files** (1,626 files):
+  0 diffs. No export there carries a literal-carrying variable or a narrowed type.
+- **Performance**, median of 5 on a loaded machine:
+  - an `int` loop through generic helpers takes as long as before: 4.95 s → 4.82 s on the
+    evaluator, 504 → 511 ms on the VM;
+  - the same loop at float takes as long as a hand-written float twin: 5.01 s vs 5.07 s, and
+    499 ms vs 496 ms.
+- **Size:** an exported literal-free generic compiles exactly as before. A module of 200 such
+  functions has the same cache size and run time; so does a module whose bindings are not
+  exported. A module exporting 200 functions over four literal-carrying variables each holds a
+  copy per variant: its cache grows from 1.2 to 7.6 MB, and `check` from 0.13 to 0.28 s.
