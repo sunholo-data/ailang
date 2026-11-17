@@ -2,8 +2,8 @@
   "sprint_id": "M-FLEET-RULINGS-LEDGER",
   "status": "not_started",
   "created": "2026-11-17T13:58:28Z",
-  "design_doc": "design_docs/planned/m-fleet-rulings-ledger.md",
-  "sprint_plan": "design_docs/planned/m-fleet-rulings-ledger-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_60_6/m-fleet-rulings-ledger.md",
+  "sprint_plan": "design_docs/implemented/v0_60_6/m-fleet-rulings-ledger-sprint-plan.md",
   "github_issues": [],
   "registry_reuse": [
     {

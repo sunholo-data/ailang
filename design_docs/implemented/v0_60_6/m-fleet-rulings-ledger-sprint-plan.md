@@ -432,7 +432,7 @@ mission-control skill link to it. `ailang mission doctor` now prints `note` find
 mission-skill text that contains a literal retired by an active ruling (`ruling-contradiction`), plus
 `ruling-link-missing`, `rulings-malformed`, `rulings-ledger-absent`, `ruling-file-unreadable` and `rulings-skipped`.
 Notes never change the exit code. The doctor now prints `N mission(s): no drift` whenever nothing drifted, after any notes.
-Design: `design_docs/planned/m-fleet-rulings-ledger.md`.
+Design: `design_docs/implemented/v0_60_6/m-fleet-rulings-ledger.md`.
 ```
 
 **Acceptance:**
