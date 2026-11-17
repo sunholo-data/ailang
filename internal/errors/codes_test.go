@@ -115,6 +115,8 @@ func TestAllErrorCodesInRegistry(t *testing.T) {
 		PAR001, PAR002, PAR003, PAR004, PAR005, PAR006, PAR007, PAR008, PAR009, PAR010,
 		// Module
 		MOD001, MOD002, MOD003, MOD004, MOD005, MOD007, MOD015,
+		// Extern
+		EXT004,
 		// Bytecode
 		BC001,
 		// Loader

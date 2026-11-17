@@ -1,0 +1,5 @@
+module testdata/externdecl/main
+
+extern func hostAdd(x: int, y: int) -> int
+
+export func main() -> () ! {IO} = println("ok")

@@ -502,10 +502,19 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 		p.errors = append(p.errors, err)
 		return nil
 	case lexer.EXTERN:
-		// Handle extern function declaration (Go-implemented functions)
+		// `extern [pure] func` parses so the elaborator can reject it with
+		// EXT004 at the declaration (#2390): no engine runs extern functions.
+		externPos := p.curPos() // EXT004 points at the 'extern' keyword
 		if p.peekTokenIs(lexer.FUNC) {
 			p.nextToken() // consume 'extern'
-			return p.parseExternFunctionDeclaration()
+			return p.parseExternFunctionDeclaration(externPos, false)
+		}
+		if p.peekTokenIs(lexer.PURE) {
+			p.nextToken() // consume 'extern'
+			if p.peekTokenIs(lexer.FUNC) {
+				p.nextToken() // consume 'pure'
+				return p.parseExternFunctionDeclaration(externPos, true)
+			}
 		}
 		// Error: extern must be followed by func
 		err := NewParserError(
@@ -514,7 +523,7 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 			p.curToken,
 			"extern must be followed by 'func'",
 			[]lexer.TokenType{lexer.FUNC},
-			"Use 'extern func name(params) -> ReturnType'",
+			"extern functions are not supported (no engine runs them): write the function in AILANG with 'func', or use a std function or an effect",
 		)
 		p.errors = append(p.errors, err)
 		return nil
