@@ -151,7 +151,7 @@ so the `DoctorWith` signature does not change.
 
 **Call site, exactly.** `DoctorWith` runs from `doctor.go:154` to `:297`. Its per-mission loop closes at `:294`,
 then `:295` sorts `rep.Rows` and `:296` returns (V22). One line goes between `:294` and `:295`:
-`rep.Findings = append(rep.Findings, CheckRulings(reg.Missions)...)`. Every caller gets it, because `Doctor`
+`rep.Findings = append(CheckRulings(reg.Missions), rep.Findings...)` — ruling notes go FIRST (planner P8b, i118, reproduced by the judge: `mission-lane-check.sh:49-50` shows the LAST output line, so on a drift exit an appended note would replace the drift reason in the `config dead` cell). Every caller gets it, because `Doctor`
 is `DoctorWith(reg, p, nil)` (`:151`). The callers, each enumerated with its effect (V23):
 
 - `mission_cmd.go:251` (`mission doctor`): prints the notes.
@@ -258,7 +258,7 @@ judge-independence question beyond D-62's literal retired wording is not encoded
 | # | Step | Files |
 |---|---|---|
 | 1 | Parser + `CheckRulings` (+ supersession, bounds incl. the 64-line cap, scopes, `rulingsRoot`, charter location rule) | `internal/mission/rulings.go` (~250 lines) |
-| 2 | One line between `doctor.go:294` and `:295`: `rep.Findings = append(rep.Findings, CheckRulings(reg.Missions)...)` | `internal/mission/doctor.go` (1 line) |
+| 2 | One line between `doctor.go:294` and `:295`: `rep.Findings = append(CheckRulings(reg.Missions), rep.Findings...)` (notes first; planner P8b) | `internal/mission/doctor.go` (1 line) |
 | 3 | Summary line printed whenever `!HasDrift()`; help text names the ruling check | `cmd/ailang/mission_cmd.go` |
 | 4 | Ledger with the two seed rows + three detectors | `design_docs/fleet-rulings.md` |
 | 5 | Link line in five in-repo charters | `design_docs/{v1,fleet,docs,motoko,triage}-mission.md` |
@@ -301,7 +301,7 @@ Each test is mutation-checked once by hand (revert the guarded branch in a scrat
 ## Success criteria
 
 - [ ] `scripts/mission_decisions.sh --check --file design_docs/fleet-rulings.md` → `decision ledger valid: 2 rows`.
-- [ ] `ailang mission doctor` on the rig: exit code unchanged from the baseline recorded on the same rig immediately before installing the change (V27 recorded rc=1 from 6 unrelated `env-source-drift` DRIFT rows on 2026-11-17; re-record at build time, because drift moves). With #2396 unmerged it prints exactly one `ruling-contradiction` (`world.toml:3`) and two `ruling-link-missing` (world, stapledon). With #2396 merged, one fewer.
+- [ ] `ailang mission doctor` on the rig: exit code unchanged from the baseline recorded on the same rig immediately before installing the change (V27 recorded rc=1 from 6 unrelated `env-source-drift` DRIFT rows on 2026-11-17; re-record at build time, because drift moves). #2396 merged as `ad1fdac57` (2026-11-17), so it prints zero `ruling-contradiction` and two `ruling-link-missing` (world, stapledon) (judge F2, i118).
 - [ ] **Live-run gate.** Before this doc moves to `implemented/`, the PR or sprint record carries the full output and rc of one live `ailang mission doctor` run from a binary built with the change. Its ruling-finding counts by kind must match the line above. If they do not match, this doc is corrected to what was measured, with the run cited, before the move. A predicted count never ships as verified.
 - [ ] T1–T11 (incl. T4b, T7a/T7b) green; `go test ./internal/mission/` green; zero-finding doctor output byte-identical.
 - [ ] Five in-repo charters carry the link line; both Gate 0 mirrors are byte-identical.

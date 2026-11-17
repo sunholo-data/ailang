@@ -412,8 +412,8 @@ D-FR-2 forbid skills "generator≠judge guard (HARD"
    `mkdir -p internal/mission/testdata/rulings`;
    `git show 349e311b9^:.claude/skills/mission-control/resources/gate-3-route.md | sed -n '240,245p' > internal/mission/testdata/rulings/gate-3-route.pre-349e311b9.md`;
    `sed -n '255,260p' .claude/skills/mission-control/resources/gate-3-route.md > internal/mission/testdata/rulings/gate-3-route.current.md`;
-   `cp missions/world.toml internal/mission/testdata/rulings/world.pre-2396.toml`;
-   `git show c34c409c3:missions/world.toml > internal/mission/testdata/rulings/world.post-2396.toml`.
+   `git show 950a0cc54:missions/world.toml > internal/mission/testdata/rulings/world.pre-2396.toml` (judge F1, i118: #2396 merged as `ad1fdac57`, so the working-tree `world.toml` no longer carries the literal; a `cp` would yield a 0-hit "pre" snapshot);
+   `git show ad1fdac57:missions/world.toml > internal/mission/testdata/rulings/world.post-2396.toml` (the merged post-#2396 file; byte-identical content to `c34c409c3`'s). Assert both: `grep -cF 'WORLD IS A FORK'` = 1 on pre, 0 on post.
    If `c34c409c3` is missing: `git fetch origin pull/2396/head:refs/i118/pr2396` (a read), then use `refs/i118/pr2396`.
 5. **`rulings_live_test.go`:**
 
@@ -460,7 +460,7 @@ Design: `design_docs/planned/m-fleet-rulings-ledger.md`.
      a. *Doctor layer (exercises this change).* `mkdir -p /tmp/i118-build && go build -o /tmp/i118-build/ailang ./cmd/ailang`.
         Healthy: from the worktree root, `ailang mission doctor world > /tmp/i118-gate/doc-base.txt 2>&1; echo rc=$?` (installed binary = baseline), then
         `/tmp/i118-build/ailang mission doctor world > /tmp/i118-gate/doc-new.txt 2>&1; echo rc=$?`. Expect: the same rc, the same per-mission lines, plus ruling notes
-        (`ruling-contradiction … missions/world.toml:3` while #2396 is unmerged, and `ruling-link-missing` for world), and a last line equal to the baseline's last line when rc ≠ 0.
+        (#2396 merged as `ad1fdac57` 2026-11-17, so 0 `ruling-contradiction`; `ruling-link-missing` for world), and a last line equal to the baseline's last line when rc ≠ 0.
         Degraded: `D=$(mktemp -d) && cp -R missions "$D/missions" && mkdir -p "$D/design_docs" && sed 's/forbid skills/forbid skill/' design_docs/fleet-rulings.md > "$D/design_docs/fleet-rulings.md" && AILANG_MISSION_REGISTRY="$D/missions" /tmp/i118-build/ailang mission doctor world; echo rc=$?`
         → exactly one `rulings-malformed` note naming the bad line, **zero** `ruling-contradiction`, and the same rc as the healthy run.
      b. *Driver layer (the charter's mission-loop-change pre-flight, `design_docs/fleet-mission.md:105-124`).* The driver is untouched, so this only proves no regression.
@@ -471,7 +471,7 @@ Design: `design_docs/planned/m-fleet-rulings-ledger.md`.
 3. **Live-run gate (design Success criteria).** Immediately before, record the baseline: `ailang mission doctor > /tmp/i118-gate/live-base.txt 2>&1; echo rc=$?`.
    Then `/tmp/i118-build/ailang mission doctor > /tmp/i118-gate/live-new.txt 2>&1; echo rc=$?`.
    Count ruling kinds: `grep -oE '(ruling-contradiction|ruling-link-missing|rulings-malformed|rulings-ledger-absent|ruling-file-unreadable|rulings-skipped)' /tmp/i118-gate/live-new.txt | sort | uniq -c`.
-   **Predicted** (design §Success): rc equal to the baseline rc; `1 ruling-contradiction` (`missions/world.toml:3`) while #2396 is unmerged, else 0; `2 ruling-link-missing` (world, stapledon); no other ruling kind.
+   **Predicted** (design §Success): rc equal to the baseline rc; 0 `ruling-contradiction` (#2396 merged as `ad1fdac57`, judge F2); `2 ruling-link-missing` (world, stapledon); no other ruling kind.
    Add **V34** to the design doc's Verification Log: binary (`/tmp/i118-build/ailang`, `git rev-parse --short HEAD`), both rcs, the kind counts, and the full `live-new.txt` in a fenced block.
    **If the counts differ from the prediction**, correct the design doc's Success-criteria line to what was measured, citing V34. A predicted count never ships as verified.
 4. **Move:** set the design doc Status to `Implemented — <date>, sprint M-FLEET-RULINGS-LEDGER (V34 live run)`. Compute the version directory:
