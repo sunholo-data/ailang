@@ -594,3 +594,11 @@ func printDocsHelp() {
 	fmt.Println("  ailang docs io                        Short form (same as std/io)")
 	fmt.Println("  ailang docs --examples gzip           Show std/gzip docs + runnable examples")
 }
+
+// capitalize makes the first letter uppercase.
+func capitalize(s string) string {
+	if len(s) == 0 {
+		return s
+	}
+	return strings.ToUpper(s[:1]) + s[1:]
+}
