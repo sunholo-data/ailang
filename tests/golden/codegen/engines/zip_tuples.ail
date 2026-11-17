@@ -1,0 +1,8 @@
+-- Engine parity fixture (engines_test.go): evaluator, --bytecode and --strict-bytecode
+-- must print the same summary(). Recovered from the Go emitter's known_failures (#2389); the issue below was emitter-only.
+-- #2263: zip returns pairs as Go slices, so show prints lists.
+module harness/kf/zip_tuples
+
+import std/list (zip)
+
+export pure func summary() -> string = show(zip([1, 2], [3, 4]))
