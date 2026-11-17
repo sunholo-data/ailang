@@ -214,12 +214,23 @@ Still open:
     (`ailang iface` lists them) and a caller in another module is held to them
     (`TC_CONSTRAINT_001`, #2290). A contract clause that needs a class the body does not
     (`idc[a](x: a) -> a ensures { result == x } { x }`) is accepted, but callers are not held to
-    it: `idc(inc)` checks, and the clause fails under `--verify-contracts` (#2337). An integer literal written at a signature variable is rejected, but one
-    reached through an unannotated helper is not: `pure func incH(x) = x + 1` then
-    `func inc[a](x: a) -> a = incH(x)` checks, and `inc(2.5)` still fails at run time
-    ("received an int and a float");
-  - a generic body is compiled once, at its defaulted type (`Num a` ⇒ `int`, #2333). The
-    evaluator and the VM correct for it (the class methods and `%` from the run-time values,
-    `show` left dynamic).
+    it: `idc(inc)` checks, and the clause fails under `--verify-contracts` (#2337). An integer
+    literal written at a signature variable is still rejected (`TC_RIGID_001`), though one reached
+    through an unannotated helper is fine: `pure func incH(x) = x + 1` then
+    `func inc[a](x: a) -> a = incH(x)`, and `inc(2.5)` is `3.5` (#2378);
+  - a top-level binding generic over `Num a` is compiled once per instance of `a` (#2378): as
+    written for `int`, and as a variant typed at `float` (`inc$numF`) that a float use calls, in
+    the module and from importers. So `func inc(x) = x + 1` gives `inc(2.5) == 3.5` and
+    `inc(2) == 3`, and an integer literal in such a body takes the type of the use. Two limits:
+    a binding generic over more than 4 independent numeric types (a record constant of 9 integer
+    fields) gets only the variants its own module uses, so another module may use it only at int
+    (`TC_NUMVAR_001` at that use); and a **let-bound** lambda inside a declaration is one value,
+    so a literal (or a use of a generic top-level binding) keeps it monomorphic: its uses decide
+    its type, and uses at both int and float are a type error. Inline test rows (`tests [...]`)
+    are run by an untyped harness that calls the int body, so a float row of a generic function
+    fails under `ailang test` although `check` accepts it (#2392).
+  - a let-bound generic lambda's body is still compiled once, at its defaulted type (`Num a` ⇒
+    `int`, #2333). The evaluator and the VM correct for it (the class methods and `%` from the
+    run-time values, `show` left dynamic).
 
   Effect row variables (`! {e}`) were already enforced by the effect checker.

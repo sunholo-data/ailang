@@ -316,6 +316,13 @@ func runPostTypeCheckPhases(
 	typeChecker *types.CoreTypeChecker,
 	cfg Config,
 ) error {
+	// #2378: the numeric variants of this module's generic bindings, copied
+	// from the type-checked program; installed after the effect checks below.
+	variants, err := planNumericVariants(unit.Core, typeChecker)
+	if err != nil {
+		return fmt.Errorf("type error in %s: %w", modID, err)
+	}
+
 	// Phase 3.4: Dictionary Elaboration (M-POLY-B)
 	// Transform operators (BinOp, UnOp) to dictionary applications (DictApp)
 	resolved := typeChecker.GetResolvedConstraints()
@@ -348,6 +355,14 @@ func runPostTypeCheckPhases(
 	// Compare declared effects from Surface AST with required effects from Core AST
 	if err := ValidateEffectsWithCalls(unit.Surface, unit.Core, typeChecker.CoreTI, typeChecker.ApplicationEffects, typeChecker.DeclaredLambdaEffectRow, typeChecker.EffectValueType); err != nil {
 		return fmt.Errorf("effect checking failed in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
+	}
+
+	// #2378: insert the numeric variants (each declaration checked above is
+	// also each variant's: they differ only in numeric types) and rename the
+	// uses at float to them. Before the uniquifier, so the copies get unique
+	// local names too.
+	if unit.Core, err = variants.install(unit.Core, typeChecker); err != nil {
+		return fmt.Errorf("type error in %s: %w", modID, err)
 	}
 
 	// Local names unique per declaration from here on (see pipeline_single.go,

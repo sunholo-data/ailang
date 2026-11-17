@@ -117,6 +117,11 @@ type ClassConstraint struct {
 	// literalConstrainedVars): the runtime has no fromInt dispatch, so a
 	// polymorphic literal would evaluate to an Int at every instantiation.
 	IntLiteral bool
+	// PolyNumeric marks the Num constraint re-emitted at a use of a binding
+	// with numeric variants (numeric_variants.go). Like an integer literal's,
+	// its variable is never let-generalized: the use's variant is chosen from
+	// that variable, so the enclosing let's own uses must decide it.
+	PolyNumeric bool
 }
 
 func (c ClassConstraint) constraint()    {}

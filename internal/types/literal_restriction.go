@@ -28,17 +28,20 @@ import "github.com/sunholo-data/ailang/internal/core"
 // silently-Int float.
 //
 // Exemption: a module declaration's own binding (a top-level `func` or
-// `let`). Module declarations are checked one at a time and exported, so
-// withholding there would need cross-declaration plumbing; they keep full
-// generalization, and an integer literal inside a generic top-level function
-// used at Float is still a runtime error (now a loud, specific one — see
-// eval.checkMixedNumericDictArgs) when its generality is inferred; when a
-// signature declares the variable (`incG[a](x: a) -> a`) the literal is
+// `let`). It keeps full generalization, because it is compiled once per
+// numeric instance of its Num variables (numeric_variants.go, #2378): `func
+// inc(x) = x + 1` runs at int and at float, and each use picks its variant.
+// When a signature declares the variable (`incG[a](x: a) -> a`) the literal is
 // TC_RIGID_001 at check time (#2273, rigid_sig.go).
+//
+// A use of such a binding inside a let is restricted like a literal
+// (PolyNumeric): `let g = \y. inc(y)` is one run-time value, so its uses
+// decide which variant of inc it calls.
 
 // literalWithhold returns the type variables the let (or letrec) `binder`
 // must not generalize: every free variable of an integer literal's Num
-// constraint, unless binder is the module declaration being checked.
+// constraint (or a PolyNumeric one), unless binder is the module declaration
+// being checked.
 func (tc *CoreTypeChecker) literalWithhold(ctx *InferenceContext, binder core.CoreExpr, constraints []ClassConstraint) map[string]bool {
 	if ctx == nil {
 		return nil
@@ -62,11 +65,12 @@ func (tc *CoreTypeChecker) literalWithhold(ctx *InferenceContext, binder core.Co
 }
 
 // literalConstrainedVars returns the free type variables of every integer
-// literal's Num constraint in constraints (nil when there are none).
+// literal's Num constraint, and every PolyNumeric one, in constraints (nil
+// when there are none).
 func literalConstrainedVars(constraints []ClassConstraint) map[string]bool {
 	var out map[string]bool
 	for _, c := range constraints {
-		if !c.IntLiteral {
+		if !c.IntLiteral && !c.PolyNumeric {
 			continue
 		}
 		vars := make(map[string]bool)

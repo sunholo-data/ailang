@@ -103,8 +103,7 @@ type CoreTypeChecker struct {
 	matchState                  // M-V1-MATCH-EXHAUSTIVENESS state (match_exhaustiveness.go)
 	predicateRoot core.CoreExpr // #2248: InferPredicate's root, which must type as bool
 	rigidState                  // M-V1-RIGID-SIGNATURES (#2273) state (rigid_sig.go)
-	// M-DX11: Debug sink for type inference events
-	DebugSink TypeDebugSink
+	DebugSink     TypeDebugSink // M-DX11: debug sink for type inference events
 	// M-PERF-DOCPARSE: Deferred CoreTI substitution — accumulated during inference,
 	// applied once at the end via FinalizeSubstitutions(). Eliminates O(N*M) overhead
 	// where N=CoreTI entries and M=let-bindings.
@@ -128,8 +127,9 @@ type CoreTypeChecker struct {
 	// genuine module-level function that the resolver failed to bind in a given
 	// syntactic position — the interim truth-telling diagnostic for #327
 	// (record-update-local-resolution). Retired when the real fix ships.
-	moduleFuncNames map[string]bool
-	moduleMode      // moduleDeclMode, notDeclRoot: typechecker_module_mode.go
+	moduleFuncNames     map[string]bool
+	moduleMode          // moduleDeclMode, notDeclRoot: typechecker_module_mode.go
+	numericVariantState // #2378: numeric_variants.go
 }
 
 // deferredFieldAccess records a single `expr.field` site for post-
@@ -505,7 +505,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	if err != nil {
 		return nil, nil, nil, nil, fmt.Errorf("defaulting failed: %w", err)
 	}
-	tc.markDefaulted(sub, defaultingSub) // #2273: the nodes defaulting pins in a generic body
+	tc.markDefaulted(sub, defaultingSub, unsolved) // #2273: the nodes defaulting pins in a generic body
 	if len(defaultingSub) > 0 {
 		sub = composeSubstitutions(defaultingSub, sub)
 		finalType = defaultedType

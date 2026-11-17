@@ -72,8 +72,10 @@ func FreeTypeVarNames(t Type) []string {
 // M-POLY-ARITH), but a consumer that picks an implementation from the recorded
 // type is not: ShowNormalizer turned `show(x * y)` into intToStr, and a float
 // call crashed (#2273 review: `label[a](x: a, y: a) -> string`). The consumers
-// ask DefaultedNodes and stay dynamic there (ShowNormalizer.Generic).
-func (tc *CoreTypeChecker) markDefaulted(sub, defaulting Substitution) {
+// ask DefaultedNodes and stay dynamic there (ShowNormalizer.Generic). It also
+// snapshots the generic body for numeric variants (#2378, snapshotGeneric).
+func (tc *CoreTypeChecker) markDefaulted(sub, defaulting Substitution, unsolved []ClassConstraint) {
+	tc.snapshotGeneric(sub, defaulting, unsolved)
 	nodes := tc.declNodes // reset per declaration by InferWithConstraints; the size guard reads them after
 	if len(defaulting) == 0 {
 		return

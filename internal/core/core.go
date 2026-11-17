@@ -450,6 +450,11 @@ type DeclMeta struct {
 	SID         string      // Source ID for tracing
 	Contracts   []*Contract // M-VERIFY: Contract clauses (requires/ensures)
 	VerifyDepth int         // Per-function SMT verify depth override (0 = use global default)
+	// VariantOf names the binding this one is a numeric variant of (#2378,
+	// pipeline/numeric_variants.go): the same declaration compiled with some
+	// of its Num type variables at float. Its contracts are that binding's, so
+	// a verifier counts and proves them once, on the binding itself.
+	VariantOf string
 
 	// ShowResidue lists the `show` calls ShowNormalizer deliberately left in
 	// this function because the argument type has no encodable equivalent

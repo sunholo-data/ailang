@@ -208,7 +208,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 	guardTypeSize(valueType, letBindingWhat(let.Name), let.Span())
 
 	// Apply defaulting at this generalization boundary
-	defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguitiesKeeping(valueType, unsolvedConstraints, ctx.envOwnedVars(sub, ctx.env), tc.declLiteralVars(ctx, let, unsolvedConstraints))
+	defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguitiesKeeping(valueType, unsolvedConstraints, ctx.envOwnedVars(sub, ctx.env))
 	if err != nil {
 		return nil, ctx.env, fmt.Errorf("defaulting failed for let binding %s: %w", let.Name, err)
 	}
@@ -240,6 +240,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		if binding, err = tc.rigidScheme(ctx, let.Value, scheme, nonGroundConstraints, sub, defaultingSub); err != nil {
 			return nil, ctx.env, err
 		}
+		tc.noteNumericDecl(ctx, let, let.Name, binding) // #2378
 	} else {
 		binding = defaultedType
 	}
@@ -351,7 +352,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		valueNode := allValueNodes[i]
 
 		// Apply defaulting at this generalization boundary
-		defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguitiesKeeping(valueType, unsolvedConstraints, ctx.envOwnedVars(sub, oldEnv), tc.declLiteralVars(ctx, letrec, unsolvedConstraints))
+		defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguitiesKeeping(valueType, unsolvedConstraints, ctx.envOwnedVars(sub, oldEnv))
 		if err != nil {
 			return nil, oldEnv, fmt.Errorf("defaulting failed for letrec binding %s: %w", binding.Name, err)
 		}
@@ -410,7 +411,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		if err != nil {
 			return nil, oldEnv, err
 		}
-
+		tc.noteNumericDecl(ctx, letrec, binding.Name, scheme) // #2378
 		typedBindings[i] = typedast.TypedRecBinding{
 			Name:   binding.Name,
 			Scheme: scheme,

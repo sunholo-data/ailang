@@ -1,0 +1,16 @@
+module mx/lit_option
+import std/option (Option, Some, None)
+import std/io (print)
+
+-- #2378: an integer literal in a generic body; genU must print what the twin
+-- of its argument's type prints, on every engine.
+export pure func genU(x) = if x > 0 then Some(x - 1) else None
+export pure func gen(x) = genU(x)
+export pure func twinI(x: int) = if x > 0 then Some(x - 1) else None
+export pure func twinF(x: float) = if x > 0.0 then Some(x - 1.0) else None
+export pure func summary() -> string {
+  let r1 = genU(3); let r2 = gen(3); let r3 = twinI(3);
+  let f1 = genU(2.5); let f2 = gen(2.5); let f3 = twinF(2.5);
+  "genUI=${show(r1)}\ngenI=${show(r2)}\ntwinI=${show(r3)}\ngenUF=${show(f1)}\ngenF=${show(f2)}\ntwinF=${show(f3)}\n"
+}
+export func main() -> () ! {IO} = print(summary())
