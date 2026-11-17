@@ -495,8 +495,7 @@ semantics. `std/stream.asyncReadStdinLines` supplies concurrent line events.
 | **Scoped native single keypress and resize** | macOS/Linux evaluator and native VM | `std/terminal`, IO, host lifecycle integration |
 | **Abort an in-flight `std/ai.step()`** | Separate cancellation work | [#231](https://github.com/sunholo-data/ailang/issues/231) |
 
-Windows/WASM native operations return typed `Unsupported`. Go code generation
-rejects terminal operations at compile time. Budget-annotated terminal package
+Windows/WASM native operations return typed `Unsupported`. Budget-annotated terminal package
 adapters currently run through the evaluator; pure package tests and core terminal
 operations have strict bytecode coverage. Input ownership excludes competing line
 readers and preserves unread buffered data; handles expire with their scope.

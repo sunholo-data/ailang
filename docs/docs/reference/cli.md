@@ -170,7 +170,6 @@ caller keeps working; new code should use the canonical spelling.
 |---|---|---|
 | `ailang add` | `ailang pkg add` | Add a dependency (--path, --git or --registry) |
 | `ailang bin` | `ailang pkg bin` | List or uninstall the [bin] command shims (list, uninstall \<name\>) |
-| `ailang compile` | — | Removed: the Go emitter; use `ailang run` (--bytecode for the VM) |
 | `ailang dashboard` | `ailang chains dashboard` | Dashboard operations for task visualization |
 | `ailang eval-chains` | `ailang chains eval` | Link eval runs to their execution chains |
 | `ailang install` | `ailang pkg install` | Install a package (omit the version for latest); [bin] commands go on PATH |
@@ -183,6 +182,15 @@ caller keeps working; new code should use the canonical spelling.
 | `ailang trace` | `ailang chains trace` | Distributed trace management |
 | `ailang tree` | `ailang pkg tree` | Show the dependency tree |
 | `ailang unpublish` | `ailang pkg unpublish` | Remove a package version from the registry |
+
+## Removed commands
+
+Routes whose feature was removed. They are still accepted only so an old caller
+gets a message naming the replacement (in the summary); every invocation but --help exits 1.
+
+| Route | Use instead | What it does |
+|---|---|---|
+| `ailang compile` | — | Removed: the Go emitter; use `ailang run` (--bytecode for the VM) |
 
 ## Documentation search
 

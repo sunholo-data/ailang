@@ -165,7 +165,8 @@ the transitional warning under row 4. **Rows 6–10 are RULED (`D-67`)**, with t
 
 Sub-rulings carried by `D-67`: a release candidate is never promotable to prod; the syntax reference
 page is normative; the support window is the latest 1.x minor, plus 90 days of security fixes for
-v0.58.x; `runtime/` and `third_party/goopus` move under `internal/`; `check --json` emits real error codes.
+v0.58.x; `runtime/` and `third_party/goopus` move under `internal/` (`runtime/` was instead deleted with the
+Go emitter, #2389); `check --json` emits real error codes.
 
 | # | Decision | Recommendation | Unblocks |
 |---|---|---|---|

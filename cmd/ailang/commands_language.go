@@ -132,6 +132,7 @@ func languageCommands() []Command {
 			Group:    groupDev,
 			Language: true,
 			Hidden:   true,
+			Removed:  true,
 			Summary:  "Removed: the Go emitter; use `ailang run` (--bytecode for the VM)",
 			Run:      compileRemoved,
 		},

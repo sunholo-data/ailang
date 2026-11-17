@@ -1,6 +1,6 @@
 -- adt_list_fields.ail - ADT Record Types with List Fields (v0.6.6+)
--- Demonstrates record types containing list fields for Go codegen
--- Issue #116: Fix for *List undefined type in generated Go code
+-- Demonstrates record types containing list fields
+-- (Issue #116 was a Go-emitter bug; the emitter has since been removed)
 
 module examples/runnable/adt_list_fields
 import std/io (println)
