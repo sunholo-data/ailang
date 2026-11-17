@@ -6,7 +6,7 @@
 .PHONY: test-import-errors test-recursion test-iface-determinism test-builtin-freeze
 .PHONY: test-operator-assertions test-regression-guards test-builtin-consistency
 .PHONY: test-stdlib-canaries test-row-properties test-golden-types test-repl-smoke
-.PHONY: test-sim-stub test-stdlib-freeze verify-no-shim verify-lowering
+.PHONY: test-stdlib-freeze verify-no-shim verify-lowering
 .PHONY: test-nightly-classifier test-launchd-drivers test-fmt-check test-shellcheck-autopush test-check-changelog test-check-protocol-closure test-check-autoclose test-check-referenced-paths
 
 # Core tests. Depends on build so integration tests that shell out to the
@@ -286,10 +286,6 @@ test-golden-types: ## Test builtin type golden snapshots
 
 test-repl-smoke: ## REPL smoke tests (:type command)
 	@$(GOTEST) -v ./internal/repl -run TestREPLSmoke
-
-test-sim-stub: install ## Test Go codegen pipeline (sim_stub example)
-	@echo "Testing sim_stub example..."
-	@cd examples/sim_stub && make clean && make test
 
 # Stdlib freeze — historical name, kept because v0.2.0 acceptance docs and the
 # sprint-executor skill reference it. The live gate is verify-stdlib

@@ -198,7 +198,7 @@ jobs:
     - name: Create examples.zip
       run: |
         cd examples
-        zip -r ../examples.zip . -i '*.ail' '*.json' -x 'sim_stub/*'
+        zip -r ../examples.zip . -i '*.ail' '*.json'
         cd ..
         echo "Contents:"
         unzip -l examples.zip | tail -5

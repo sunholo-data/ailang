@@ -1,7 +1,0 @@
--- #2241: contains compares elements with Go ==, which panics on uncomparable
--- types. Anonymous records have no Eq, so contains on them is a type error
--- since #2291; list elements (which have Eq) still reach the Go ==.
-module harness/kf/contains_records
-import std/list (contains)
-
-export pure func summary() -> string = show(contains([[1], [2]], [2]))
