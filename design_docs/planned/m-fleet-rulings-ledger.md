@@ -1,10 +1,10 @@
 # Fleet-Wide Rulings Ledger + `mission doctor` Contradiction Report
 
-**Status**: Planned — revision R4 (verification-completeness pass on R3 `c9145df5c`; R3's design unchanged. R1, R2, R3 all BLOCKED by quorum)
+**Status**: Planned — revision R4.1 (R4 `fe339ae76` + reviewers' verbatim round-4 fixes, narrow-refinement carve-out; R3's design unchanged. R1, R2, R3 BLOCKED; R4 BLOCKED 1 pass / 2 reject, both rejects narrow, measured and answered — § Quorum Revision Log Round 4)
 **Target**: next patch (doc unversioned in `planned/`)
 **Priority**: P2 (Medium)
 **Estimated**: 1.5 days at 2x (parser + check ~0.5d raw, tests ~0.25d raw)
-**Dependencies**: none blocking. Sibling: **PR #2396** (OPEN, not draft, head `c34c409c3`, V24) corrects the
+**Dependencies**: none blocking. Merge-order condition (quorum R4, oc-glm-5-3, verbatim): 'this PR rebases onto post-#2396 dev and re-runs V23 on that base before merge.' Sibling: **PR #2396** (OPEN, not draft, head `c34c409c3`, V24) corrects the
 World-fork text in `missions/world.toml` and the doctor note. It is the refresh onto dev of draft #2082, which
 is **superseded** (still OPEN as a draft at `399cf799b`, V18; no longer the sibling of record). The fix is
 **already handled separately and is not re-planned here**; it only decides whether seed ruling D-FR-1 reports
@@ -26,7 +26,7 @@ is **superseded** (still OPEN as a draft at `399cf799b`, V18; no longer the sibl
 
 | Axiom | Score | Justification |
 |-------|-------|---------------|
-| A1 Determinism | +1 | Byte-exact substring match over a fixed, sorted file list; ruling findings sorted before they are appended. Same tree → same report. |
+| A1 Determinism | +1 | Byte-exact substring match over a fixed, sorted file list; ruling findings sorted before they are appended. same tree plus same registered workdir contents → same report (the charters scope reads two cross-repo workdirs whose state can change without the checkout changing). |
 | A2 Replayability | 0 | No traces touched. |
 | A3 Effect Legibility | 0 | Read-only file reads; no new effects, no git, no network. |
 | A4 Explicit Authority | +1 | Authority is stated as what it is: reviewed PRs + git history. The doctor never resolves, activates, edits or blocks anything. |
@@ -156,7 +156,7 @@ is `DoctorWith(reg, p, nil)` (`:151`). The callers, each enumerated with its eff
 
 - `mission_cmd.go:251` (`mission doctor`): prints the notes.
 - `mission_cmd.go:220` (`mission list`): reads only `rep.Rows`, so its output is unchanged.
-- `golden_live_test.go:330`: logs every finding and asserts only named kinds; it skips off-rig.
+- `golden_live_test.go:330`: logs every finding and asserts only named kinds; it skips off-rig. The only kind assertions are by-name lookups — `:337` `for _, f := range findingsOfKind(rep, "env-source-drift") {`, `:361` `for _, f := range findingsOfKind(rep, "path-no-sysctl") {`, `:380` `if len(findingsOfKind(rep, "driver-fork")) != 0 {` — and `findingsOfKind` (`doctor_test.go:77-83`) filters `f.Kind == kind`; there is no closed-set or total-count assertion, so the six new kinds cannot fail it (V32).
 - `doctor_test.go:75` (`fakeFleet.run`) and `doctor_test.go:307,332,356,370,394`: these use hand-built
   missions with no root. They now receive one `rulings-skipped` `Note`. None of them asserts a total
   finding count; they assert `HasDrift`/`ExitCode`/`findingsOfKind` (V23). A `Note` changes neither.
@@ -165,7 +165,7 @@ is `DoctorWith(reg, p, nil)` (`:151`). The callers, each enumerated with its eff
 |---|---|---|
 | `ruling-contradiction` | an active detector's literal is on a line in its scope; detail = `D-FR-n` + `file:line` + literal; ≤ 20 per detector, then one `… N more` | owning mission (charters/registry) or `rulings` for skills (not `fleet`: that is a mission name) |
 | `ruling-link-missing` | a charter has no `fleet-rulings.md` outside its decision-ledger block | that mission |
-| `rulings-malformed` | any detector line fails the grammar, names an unknown ID, a scope not in the table, a literal out of bounds, or a `supersedes` cycle/forward reference; **or the detector block has more than 64 detector lines**; or the file lacks exactly one of each block; detail lists **every** bad line number | `rulings` |
+| `rulings-malformed` | any detector line fails the grammar, names an unknown ID, a scope not in the table, a literal out of bounds, or a `supersedes` cycle/forward reference; **or the detector block has more than 64 detector lines**; or the file lacks exactly one of each block; or a row-table line inside the ledger markers is not a 4-column row with status OPEN|RESOLVED (a row that does not parse fails the whole ledger; it never reads as silently non-RESOLVED); detail lists **every** bad line number | `rulings` |
 | `rulings-ledger-absent` | `root/design_docs/fleet-rulings.md` does not exist | `rulings` |
 | `ruling-file-unreadable` | a scoped file cannot be read or is > 4 MiB; detail names it | owning mission |
 | `rulings-skipped` | no root could be derived (empty registry, or no mission carries one) or missions disagree on root (§ 2); detail names the cause and every distinct root | `rulings` |
@@ -275,7 +275,7 @@ judge-independence question beyond D-62's literal retired wording is not encoded
 `design_docs/triage-mission.md` · `.claude/skills/mission-control/resources/gate-0-preflight.md` ·
 `.agents/skills/mission-control/resources/gate-0-preflight.md` · `changelogs/unreleased/<fragment>.md` ·
 `design_docs/planned/m-fleet-rulings-ledger.md` (moved to `design_docs/implemented/…`).
-Not touched: `missions/*.toml` (sibling #2396 owns `world.toml`), `internal/mission/doctor_test.go` (V23), every `scripts/mission_*.sh`,
+Not touched: `missions/*.toml` (sibling #2396 owns `world.toml`), `internal/mission/doctor_test.go` (V23, V31), every `scripts/mission_*.sh`,
 `tools/launchd/**`, world/stapledon repos.
 
 ## Tests (`rulings_test.go`, fixtures built via `LoadFile` in `t.TempDir()` so `root` is set)
@@ -285,7 +285,7 @@ Not touched: `missions/*.toml` (sibling #2396 owns `world.toml`), `internal/miss
 | T1 | Active forbid literal on a skill line → exactly one `ruling-contradiction` naming `D-FR-n`, file and line | matcher always-false |
 | T2 | Same literal, ruling OPEN → zero findings; ruling RESOLVED but superseded by a RESOLVED later ruling → zero; superseder OPEN → finding returns | supersession ignored / inverted |
 | T3 | Literal inside a charter's decision-ledger block → zero; same line moved outside → one | exclusion missing / over-broad |
-| T4 | Malformed line (bad ID, unknown scope, 7-byte literal, forward `supersedes`) → one `rulings-malformed` listing every bad line number, and **zero** contradictions even where a valid detector would hit | silent skip / partial evaluation |
+| T4 | Malformed line (bad ID, unknown scope, 7-byte literal, forward `supersedes`; and, as a separate case, a ledger row inside the markers with 3 columns or status `PARKED`) → one `rulings-malformed` listing every bad line number, and **zero** contradictions even where a valid detector would hit | silent skip / partial evaluation |
 | T4b | 65 otherwise-valid detector lines (one of which would hit) → exactly one `rulings-malformed` whose detail names line 65, and zero contradictions; 64 lines → no malformed finding (boundary) | cap not enforced / off-by-one |
 | T5 | No ledger file → exactly one `rulings-ledger-absent` `Note`; `ExitCode()==0` | absent ledger as Drift (B4) |
 | T6 | Every ruling finding has `Severity == Note`; a fleet with only ruling findings exits 0 | severity regressed to Drift |
@@ -357,6 +357,19 @@ Judge non-blocking refinements: `review_packet.go` precedent and the `sprint-pla
 compatibility condition no longer apply (no git reads, no helper). The in-repo charter links sit in
 `design_docs/**`, so the fleet adds them (§ 6). `except` is dropped (§ 1).
 
+### Round 4 (R4 `fe339ae76` → R4.1, controller-applied under the narrow-refinement carve-out)
+
+Synthesis BLOCKED: `gemini-4-argon` **pass** (non-blocking: `**` globs need `filepath.WalkDir`, not `filepath.Glob`); `oc-glm-5-3` and `oc-kimi-k3` reject. Both rejects land on ONE surface — existing tests' tolerance of the new finding kinds — neither disputes the direction, and each carries a concrete `proposed_fix`. The controller measured both premises first (V31, V32; rule 3f): neither is a defect at HEAD. The reviewers' fixes were then applied verbatim; no designer run (Fable/designer diet: one doc = initial + one revision, both spent).
+
+| Objection | Surface | R4.1 disposition |
+|---|---|---|
+| oc-glm-5-3: `doctor_test.go` "Not touched" rests on V23 measured before #2396; #2396's test hunks never read | existing-test tolerance | **Measured (V31)**: comment-only hunks, no assertion change. Merge-order condition added to Dependencies verbatim. |
+| oc-glm-5-3 (same objection): step 5's charter edits need a V-row for the write scope | write scope | **Measured (V33)**. |
+| oc-glm-5-3 (same objection): A1 should read "same tree plus same registered workdir contents" | determinism claim | **Applied verbatim** to the A1 row. |
+| oc-kimi-k3: `golden_live_test.go:330` assertion never quoted; new kinds may fail it | existing-test tolerance | **Measured (V32)**: by-name lookups only; §3 bullet now quotes the lines (kimi's open-set branch). |
+| oc-kimi-k3 (same objection): a malformed ledger row must fail the whole ledger, never read as non-RESOLVED | parser | **Applied verbatim** to the `rulings-malformed` row; T4 gains the matching case. |
+| gemini-4-argon (pass, non-blocking): `**` glob unsupported by `filepath.Glob` | implementation detail | Carried to the planner: enumerate `skills` with `filepath.WalkDir` over each `mission-*` directory and sort. |
+
 ## Verification Log (worktree `fleet/i118-rulings-ledger`; V1–V21 @ `663429dba`, V22–V30 @ `c9145df5c`, 2026-11-17)
 
 | # | Claim | Command | Observed |
@@ -391,6 +404,9 @@ compatibility condition no longer apply (no git reads, no helper). The in-repo c
 | V28 | Gate 0 file exists in both mirrors | `ls -l {.claude,.agents}/skills/mission-control/resources/gate-0-preflight.md`; `cmp` them; control `ls` of a nonexistent sibling | both exist, 27779 bytes each; `cmp` rc 0 (byte-identical today); control: "No such file or directory" |
 | V29 | Charter `doc` values are relative; ledger blocks | `grep -nE '^(name\|repo\|workdir\|doc) *=' missions/*.toml`; `grep -c 'decision-ledger:start'` over all 7 charters | 7 `doc = "design_docs/<name>-mission.md"` (relative); 5 `repo = "sunholo-data/ailang"` with workdirs `~/dev/sunholo-data/ailang{,-fleet,-docs,-motoko,-triage}`; 1 block in each of 7 |
 | V30 | Every `file:line` citation in this doc re-printed | `sed -n 'Np'` on each cited line/range | All match **except two R3 errors, now fixed**: `doctor.go:136` (constant, not a branch) and `doctor.go:154` (start, not end) — the two the quorum named. Two more found: `mission_answer.sh:136` is the `status != "OPEN"` check and the quoted message is on `:137`; `mission_cmd.go:256` is the print, the `len(rep.Findings) == 0` guard is `:255`. Confirmed as cited: `mission-lane-check.sh:30,49-50,156-157`, `mission-arm.sh:30-36`, `test_mission_lane_check.sh:70,80`, `mission_answer.sh:44-48,107-108,131`, `registry.go:90,251,271`, `render.go:179-188`, `doctor_test.go:59`, `doctor.go:118`, `fleet-mission.md:173`, `v1-mission.md:129-130`, `world.toml:3`, `gate-3-route.md:257` (both mirrors), `mission_decisions.sh` = 39 lines |
+| V31 | #2396's test-file hunks (quorum R4 glm) | `gh pr diff 2396 \| awk '/^diff --git a\/internal\/mission\/(doctor_test\|driver_agreement_test)\.go/{p=1;print;next} /^diff --git/{p=0} p' \| grep -E '^[+-][^+-]'`; control: `gh pr diff 2396 \| grep -cE '^-# ⚠ WORLD IS A FORK'` | Exactly 3 removed / 4 added lines, all comments: `// unpinned, exactly like the real world mission` → `// deliberately unpinned fixture`; `// while world's fork is still on disk (measured: it is).` → two comment lines. **No assertion on `rep.Findings` count or kind is added or changed**, so `doctor_test.go` stays Not touched. Control = 1 (the instrument sees #2396's diff). Measured by the controller, iteration 118. |
+| V32 | `golden_live_test.go` kind assertions (quorum R4 kimi) | `grep -n 'findingsOfKind(\|\.Kind' internal/mission/golden_live_test.go`; `grep -n 'func findingsOfKind' -A6 internal/mission/*_test.go` | `:337` env-source-drift, `:361` path-no-sysctl, `:380` driver-fork — all by-name; `.Kind` 0 hits in the file; `findingsOfKind` at `doctor_test.go:77` filters `f.Kind == kind`. Open set: new kinds cannot fail it. Measured by the controller, iteration 118. |
+| V33 | Fleet write scope covers the five in-repo charters (quorum R4 glm) | `grep -n 'design_docs/\*\*' design_docs/fleet-mission.md`; `sed -n 29,36p tools/launchd/githooks/pre-push` | Charter Authority `fleet-mission.md:83` lists support path `design_docs/**`; the enforcing guard `_scope_is_fleet_support` matches `design_docs/*` (`pre-push:31`). Step 5's charter edits are inside the scope the pre-push guard enforces. Measured by the controller, iteration 118. |
 
 **Not verified (and gated):** the post-change ruling counts can only come from a binary that has the
 change. The pre-change baseline was run (V27). The counts in Success criteria are predictions from V11–V15
