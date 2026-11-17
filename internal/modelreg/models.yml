@@ -657,6 +657,128 @@ models:
       Suite promotion: PENDING a decision — not in any suite yet.
       Uses max_completion_tokens instead of max_tokens.
 
+  # OpenAI GPT-6.1 Terra (API model object created 2026-10-13; on OpenRouter 2026-10-26).
+  # The GPT-6.1 generation's efficient tier, between gpt-6.1-sol ($2/$10) and gpt-6-luna
+  # ($0.10/$0.50). 1.05M context (922K max input), 128K max output, cutoff 2026-06-01.
+  # reasoning.effort none/low/medium(DEFAULT)/high/xhigh/max per the docs — "none" accepted,
+  # "minimal" 400s (probed 2026-11-17). >272K-token prompts bill 2x input/cache and 1.5x
+  # output for the WHOLE request. Tool calling requires the Responses API.
+  # Source: developers.openai.com/api/docs/models/gpt-6.1-terra (fetched 2026-11-17).
+  gpt6-1-terra:
+    api_name: "gpt-6.1-terra"
+    provider: "openai"
+    default_thinking: "on"  # probed 2026-11-17: primes proof → reasoning_tokens=64 of 177
+                            # completion, finish=stop (adaptive, default effort medium)
+    description: "GPT-6.1 Terra - GPT-6.1 efficient tier (Oct 2026)"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "codex"  # codex-cli 0.169.0 verified 2026-11-17 — see notes
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM convention; declared ceiling is 128000
+    pricing:
+      input_per_1k: 0.001     # $1.00 per 1M = $0.001 per 1K
+      output_per_1k: 0.005    # $5.00 per 1M = $0.005 per 1K
+    budgets:
+      # WORK GATE (2026-07-31 convention): shared 3.0M blended-token ceiling. $3.60 =
+      # 3.0M x 1.2 x the $1/M input rate, so the TOKEN gate binds first (the GPT-6 rows'
+      # 2026-09-30 lesson: no budgets block → default $0.50 cap cost-kills codex runs).
+      max_tokens_per_bench: 3000000
+      max_cost_usd: 3.60
+      hard_timeout_secs: 600
+    notes: |
+      GPT-6.1 Terra — "a fast, efficient model for visual reasoning, precise computer use,
+      and clear, natural writing" (vendor positioning). $1/$5 per 1M: half of gpt6-1-sol,
+      10x gpt6-luna. Cached input $0.05/M, cache writes $1.25/M (30-min), batch/flex 50% off,
+      fast 2x. Also on Bedrock (openai.gpt-6.1-terra) and Vertex (private preview).
+      NAME TRAP: gpt6-1-terra (GPT-6.1) is NOT gpt5-6-terra (GPT-5.6, $2/$12).
+      API access VERIFIED 2026-11-17 (chat/completions, max_completion_tokens,
+      finish_reason=stop). Negative control gpt-9-nonexistent-zzz → "does not exist".
+      ✅ CODEX SUBSCRIPTION LANE verified 2026-11-17 on codex-cli 0.169.0 (OPENAI_API_KEY
+      stripped): rc=0, prints `model: gpt-6.1-terra`; gpt-9-nonexistent-zzz still 400s
+      "not supported when using Codex with a ChatGPT account" (control holds).
+      ⏳ NOT PLACED — standard placement (§5.5, candidate alone) pending.
+      Suite promotion: PENDING — not in any suite yet.
+      Uses max_completion_tokens instead of max_tokens.
+
+  # OpenAI GPT-6.2 Astra + Sol (API model objects created 2026-10-31 / 2026-11-02; on
+  # OpenRouter 2026-11-17). Point release of the GPT-6 flagship and mid tier. Both: 1.05M
+  # context (922K max input), 128K max output. reasoning_effort low/medium(DEFAULT)/high/xhigh
+  # ONLY — the API's own 400 lists those four; "none" and "minimal" are rejected (probed
+  # 2026-11-17). Unlike gpt-6-astra/6.1-sol, the 400 does NOT list "max". >272K-token
+  # prompts bill 2x input/cache and 1.5x output for the WHOLE request. Batch 50% off, fast
+  # 2x, ultrafast 3x (6x from 2027-03-01). Chat Completions + Responses both supported.
+  # Source: developers.openai.com/api/docs/models/gpt-6.2-astra, .../gpt-6.2-sol (fetched 2026-11-17).
+  gpt6-2-astra:
+    api_name: "gpt-6.2-astra"
+    provider: "openai"
+    default_thinking: "on"  # probed 2026-11-17: modular-arithmetic prompt → reasoning_tokens=17
+                            # of 27 (effort medium, the default), finish=stop. Adaptive and
+                            # light; a trivial "Reply OK" / primes proof reported 0.
+    description: "GPT-6.2 Astra - GPT-6.2 flagship (Oct 2026)"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "codex"  # codex-cli 0.169.0 verified 2026-11-17 — see notes
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM convention; declared ceiling is 128000
+    pricing:
+      input_per_1k: 0.008     # $8.00 per 1M = $0.008 per 1K
+      output_per_1k: 0.040    # $40.00 per 1M = $0.040 per 1K
+    budgets:
+      # WORK GATE (2026-07-31 convention): shared 3.0M blended-token ceiling. $28.80 =
+      # 3.0M x 1.2 x the $8/M input rate, so the TOKEN gate binds first.
+      # Subscription lane — not spend.
+      max_tokens_per_bench: 3000000
+      max_cost_usd: 28.80
+      hard_timeout_secs: 600
+    notes: |
+      GPT-6.2 Astra — "our most capable model for your hardest projects" (vendor). Knowledge
+      cutoff 2026-05-18. $8/$40 per 1M: 20% CHEAPER than gpt6-astra ($10/$50). Cached input
+      $0.40/M (gpt6-astra: $1/M), cache writes $10/M (30-min) or $20/M (12-hour).
+      NAME TRAP: gpt6-2-astra (GPT-6.2) vs gpt6-astra (GPT-6).
+      API access VERIFIED 2026-11-17 (chat/completions + responses, max_completion_tokens,
+      finish_reason=stop). Negative control gpt-9-nonexistent-zzz → "does not exist".
+      ✅ CODEX SUBSCRIPTION LANE verified 2026-11-17 on codex-cli 0.169.0 (OPENAI_API_KEY
+      stripped): rc=0, prints `model: gpt-6.2-astra`; gpt-9-nonexistent-zzz still 400s
+      (control holds). Metered pricing above does NOT apply on that lane.
+      ⏳ NOT PLACED — standard placement (§5.5, candidate alone) pending. Incumbent to
+      beat: gpt6-astra, anchored 2554.4 (2026-09-05, 29/31 core+frontier).
+      Suite promotion: PENDING — gpt6-astra keeps its benchmark_suite/extended_suite seat
+      until a placement says otherwise.
+      Uses max_completion_tokens instead of max_tokens.
+
+  gpt6-2-sol:
+    api_name: "gpt-6.2-sol"
+    provider: "openai"
+    default_thinking: "on"  # probed 2026-11-17: modular-arithmetic prompt → reasoning_tokens=27
+                            # of 37 (effort medium, the default), finish=stop. Adaptive.
+    description: "GPT-6.2 Sol - GPT-6.2 mid tier (Nov 2026)"
+    env_var: "OPENAI_API_KEY"
+    agent_cli: "codex"  # codex-cli 0.169.0 verified 2026-11-17 — see notes
+    max_output_tokens: 65536  # M-EVAL-TOKEN-HEADROOM convention; declared ceiling is 128000
+    pricing:
+      input_per_1k: 0.002     # $2.00 per 1M = $0.002 per 1K
+      output_per_1k: 0.010    # $10.00 per 1M = $0.010 per 1K
+    budgets:
+      # WORK GATE (2026-07-31 convention): shared 3.0M blended-token ceiling. $7.20 =
+      # 3.0M x 1.2 x the $2/M input rate, so the TOKEN gate binds first.
+      # Subscription lane — not spend.
+      max_tokens_per_bench: 3000000
+      max_cost_usd: 7.20
+      hard_timeout_secs: 600
+    notes: |
+      GPT-6.2 Sol — "our go-to model for everyday work, from coding to powering agents at
+      scale" (vendor). Knowledge cutoff 2026-06-01. $2/$10 per 1M, same list as gpt6-sol and
+      gpt6-1-sol. Cached input $0.10/M, cache writes $2.50/M (30-min) or $5/M (12-hour).
+      NAME TRAP: gpt6-2-sol (GPT-6.2) vs gpt6-1-sol (GPT-6.1) vs gpt6-sol (GPT-6) vs
+      gpt5-6-sol (GPT-5.6). Read both digits.
+      API access VERIFIED 2026-11-17 (chat/completions + responses, max_completion_tokens,
+      finish_reason=stop). Negative control gpt-9-nonexistent-zzz → "does not exist".
+      ✅ CODEX SUBSCRIPTION LANE verified 2026-11-17 on codex-cli 0.169.0 (OPENAI_API_KEY
+      stripped): rc=0, prints `model: gpt-6.2-sol`; gpt-9-nonexistent-zzz still 400s
+      (control holds).
+      ⏳ NOT PLACED — standard placement (§5.5, candidate alone) pending. gpt6-1-sol (the
+      incumbent planner/executor head, quorum seat via codex) was never standard-placed
+      either (org was out of credit 2026-09-30), so there is no anchored Sol-tier number
+      to beat; its agent-mode pool (30/31) is the only reference.
+      Roles: NONE changed — gpt6-1-sol stays planner/executor head and quorum seat.
+      Uses max_completion_tokens instead of max_tokens.
+
   # OpenAI GPT-5.4 (released March 5, 2026)
   gpt5-4:
     api_name: "gpt-5.4"
