@@ -1,5 +1,7 @@
 # Docs Mission — the published AILANG website tells the truth about AILANG, concisely
 
+> **Fleet-wide rulings:** [fleet-rulings.md](fleet-rulings.md). Every RESOLVED, unsuperseded ruling there binds this mission, and nothing in this charter overrides one. If this charter disagrees with it, the ledger wins and the disagreement is a bug to report.
+
 **Type**: Long-running mission (peer of [v1-mission.md](v1-mission.md)); advanced by a scheduled
 outer loop on the always-on rig.
 **North star**: A reader arriving at the website gets an accurate, current, and *non-redundant*

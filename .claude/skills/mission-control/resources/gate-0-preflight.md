@@ -4,6 +4,8 @@ First action: `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT
 abort, run `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp abort <reason> ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac` with a short reason token.
 Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd)" before the first stamp; the stamp refuses an unset, empty or relative root.
 
+**Fleet-wide rulings:** `design_docs/fleet-rulings.md` binds every mission. Every RESOLVED, unsuperseded ruling there binds this mission, and nothing in its charter or in this skill overrides one. If either disagrees with it, the ledger wins and the disagreement is a bug to report (`ailang mission doctor` lists known contradictions as notes).
+
 **Read the environment by NAME, never by value** (fleet iterations 51 and 52 each printed
 `CLAUDE_CODE_OAUTH_TOKEN` into the transcript, via `env | grep -v -i key` and then
 `env | grep -E '^(MISSION|AILANG|CLAUDE_CODE)' | grep -v -i key`; a key-only filter misses
