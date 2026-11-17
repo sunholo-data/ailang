@@ -102,7 +102,7 @@ func TestRulingsCharterPath_Location(t *testing.T) {
 	}
 }
 
-func TestRulingSkillFiles_WalkDirDepthAndFilter(t *testing.T) {
+func TestRulingsSkillFiles_WalkDirDepthAndFilter(t *testing.T) {
 	f := newRulingsFixture(t)
 	want := []string{
 		f.write(".claude/skills/mission-a/SKILL.md", "x"),
