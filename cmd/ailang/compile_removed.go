@@ -15,12 +15,16 @@ var errGoEmitterRemoved = errors.New("`ailang compile` and the Go emitter (--emi
 	"See https://ailang.sunholo.com/docs/reference/stability")
 
 // compileRemoved fails every invocation with errGoEmitterRemoved, whatever
-// its flags. A bare --help is answered with the same text on stdout and exit
-// 0, as --help is everywhere (TestCLI_HelpExitsZeroEverywhere).
+// its flags. A help flag anywhere in the arguments (`compile --emit-go
+// --help` included) is answered with the same text on stdout and exit 0, as
+// --help is everywhere (TestCLI_HelpExitsZeroEverywhere).
 func compileRemoved(args []string) error {
-	if wantsHelp(args) {
-		fmt.Println(errGoEmitterRemoved)
-		return nil
+	for _, a := range args {
+		switch a {
+		case "-h", "--h", "-help", "--help":
+			fmt.Println(errGoEmitterRemoved)
+			return nil
+		}
 	}
 	return errGoEmitterRemoved
 }

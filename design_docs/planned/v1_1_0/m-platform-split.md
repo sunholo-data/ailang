@@ -1,3 +1,5 @@
+> **Superseded in part:** the Go emitter (`ailang compile --emit-go`, `internal/gen/golang`) was removed in #2389; anything below that plans for or depends on it no longer applies.
+
 # M-PLATFORM-SPLIT: put the Internal tier behind a boundary the build can see
 
 **Status**: Planned (draft for Mark's decisions; see Design Freeze). D4 decided 2026-11-12 (post-1.0, v1.1); D1–D3 open until v1.1 starts

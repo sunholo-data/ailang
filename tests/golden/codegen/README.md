@@ -26,6 +26,11 @@ The Go tests in this directory:
 
 - `golden_test.go`: builds `ailang` from this checkout and runs the `show_differential*.ail`
   fixtures on the evaluator, `--bytecode` and `--strict-bytecode`. Output must be identical.
+- `engines_test.go`: every program under `engines/` must print the same `summary()` on the
+  evaluator, `--bytecode` and `--strict-bytecode`, pinned to its expected output. These are
+  the programs the removed Go emitter's codegen harness ran (a 27-call std parity program,
+  an ADT-alias parity program, ten known-failure programs), plus the audio probe. The
+  `nominal_same_name` case is pinned as a known `--strict-bytecode` BC001 (#2260).
 - `byname_ctor_test.go` and `byname_closure_test.go`: constructor patterns matched by name.
   Programs that leave the type unfixed are rejected on every path. Programs that fix it run
   identically on the evaluator and both VMs.

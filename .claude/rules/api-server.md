@@ -24,8 +24,8 @@ The parser has a hardcoded switch on annotation names. If a new annotation isn't
 - [ ] `internal/parser/route_attr_test.go` — add parser test for new annotation
 - [ ] `internal/apiserver/` — implement runtime behavior
 - [ ] `docs/docs/guides/serve-api.md` — document the annotation
-- [ ] `prompts/devtools/v0.8.0.md` + compact variant — update annotation reference
-- [ ] `cmd/ailang/prompts/devtools/v0.8.0.md` + compact variant — same (embedded copy)
+- [ ] the active devtools prompt (`prompts/devtools/versions.json` `active`, v0.8.1.md) + compact variant — update annotation reference
+- [ ] `cmd/ailang/prompts/devtools/` — same (embedded copy, synced by `make prepare-embed`)
 
 ## Endpoint Filtering
 

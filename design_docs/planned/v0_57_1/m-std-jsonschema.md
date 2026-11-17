@@ -1,3 +1,5 @@
+> **Superseded in part:** the Go emitter (`ailang compile --emit-go`, `internal/gen/golang`) was removed in #2389; anything below that plans for or depends on it no longer applies.
+
 # M-STD-JSONSCHEMA: validate a Json against a JSON Schema (Draft 2020-12) in the stdlib
 
 **Status**: Planned (DOC-READY)

@@ -17,7 +17,7 @@ func TestCompileRemovedFailsWithTheRemovalMessage(t *testing.T) {
 		{"compile", "--emit-go-v2", "--out", t.TempDir(), "missing.ail"},
 		{"compile", "-emit-go", "-out", t.TempDir(), "missing.ail"},
 		{"compile"},
-		{"compile", "--emit-go", "--help"},
+		{"compile", "--emit-go", "--out", "gen", "missing.ail"},
 		{"dev", "compile", "--emit-go", "missing.ail"},
 	} {
 		stdout, stderr, code := runAilangBin(t, bin, args...)
@@ -38,10 +38,19 @@ func TestCompileRemovedFailsWithTheRemovalMessage(t *testing.T) {
 			}
 		}
 	}
-	// A bare --help is answered (exit 0, as everywhere) with the same text.
-	stdout, stderr, code := runAilangBin(t, bin, "compile", "--help")
-	if code != 0 || !strings.Contains(stdout, "Go emitter") || !strings.Contains(stdout, "ailang run") {
-		t.Errorf("compile --help: exit %d, stdout %q, stderr %q", code, stdout, stderr)
+	// A help flag anywhere in the arguments is answered (exit 0, as
+	// everywhere) with the same text on stdout.
+	for _, args := range [][]string{
+		{"compile", "--help"},
+		{"compile", "-h"},
+		{"compile", "--emit-go", "--help"},
+		{"compile", "--emit-go-v2", "--out", "gen", "x.ail", "-help"},
+		{"dev", "compile", "--emit-go", "-h"},
+	} {
+		stdout, stderr, code := runAilangBin(t, bin, args...)
+		if code != 0 || !strings.Contains(stdout, "Go emitter") || !strings.Contains(stdout, "ailang run") {
+			t.Errorf("%v: exit %d, stdout %q, stderr %q", args, code, stdout, stderr)
+		}
 	}
 }
 
@@ -51,8 +60,23 @@ func TestCompileRemovedIsHidden(t *testing.T) {
 	if !ok {
 		t.Fatal("the compile row is gone: old scripts would get \"unknown command\" instead of the removal message")
 	}
-	if !c.Hidden {
-		t.Error("the compile row is not Hidden")
+	if !c.Hidden || !c.Removed {
+		t.Errorf("the compile row is Hidden=%v Removed=%v, want both", c.Hidden, c.Removed)
+	}
+	// A removed row must be hidden, and the CLI reference must list it as
+	// removed, never as a compatibility spelling that keeps working.
+	for i := range allCommands {
+		if allCommands[i].Removed && !allCommands[i].Hidden {
+			t.Errorf("row %q is Removed but not Hidden", allCommands[i].Name)
+		}
+	}
+	page := string(renderCLIReference())
+	compat, removed, ok := strings.Cut(page, "## Removed commands")
+	if !ok || !strings.Contains(removed, "`ailang compile`") {
+		t.Error("the CLI reference has no Removed commands section listing compile")
+	}
+	if strings.Contains(compat, "`ailang compile`") {
+		t.Error("the CLI reference still lists compile before the Removed commands section (as a compatibility spelling)")
 	}
 	var help bytes.Buffer
 	printGroupHelp(&help, groupDev)

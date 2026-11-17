@@ -1,3 +1,5 @@
+> **Superseded in part:** the Go emitter (`ailang compile --emit-go`, `internal/gen/golang`) was removed in #2389; anything below that plans for or depends on it no longer applies.
+
 # M-V1-NOMINAL-TYPE-IDENTITY: a type is its name *and* its module, and a name must resolve to exactly one thing
 
 **Status**: In progress — M0 spike done (result in §9, from draft PR #2205, not merged); M1b canonical module identity done (§9); M2 + resolver half of M3 implemented (§9)

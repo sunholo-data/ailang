@@ -1,0 +1,9 @@
+-- Engine parity fixture (engines_test.go): evaluator, --bytecode and --strict-bytecode
+-- must print the same summary(). Recovered from the Go emitter's known_failures (#2389); the VM half of #2260 is still open.
+module b
+
+export type T = B(string)
+
+export pure func mk() -> T = B("x")
+
+export pure func get(t: T) -> string = match t { B(s) => s }

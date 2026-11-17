@@ -1,3 +1,5 @@
+> **Superseded in part:** the Go emitter (`ailang compile --emit-go`, `internal/gen/golang`) was removed in #2389; anything below that plans for or depends on it no longer applies.
+
 # M-V1-PUBLIC-SURFACE-HYGIENE: what a stranger sees, and what becomes a promise by accident
 
 **Status**: Planned
@@ -70,7 +72,7 @@ the promise covers, and every capability grant is visible before it takes effect
 | `[bin]` grants pinned at install; widening needs `--grant-new-caps` | Changes the meaning of `[bin].caps = auto` (Stable package surface) | **human** | v0.58.x | high |
 | `run` refuses before execution when the entry declares an effect that was not granted | Rejects runs that work today (§5.3) | **human** | v0.58.x | high |
 | `auto` never grants `Process` | Narrows `--caps auto` | **human** | v0.58.x | med |
-| Go API declared outside the promise; `runtime/` and `third_party/goopus` move under `internal/` | Go semver binds on the tag | **human** | before tag | low |
+| Go API declared outside the promise; `runtime/` and `third_party/goopus` move under `internal/` (`runtime/` was deleted with the Go emitter instead, #2389) | Go semver binds on the tag | **human** | before tag | low |
 | `eval_results/` moves to a bucket with a tracked index; no history rewrite | 164 MB; one CI gate and the MCP image read it | **human** | before tag | med |
 
 **Design freeze** (tick before M4/M5/M9 start):
@@ -556,7 +558,7 @@ per-route pre-flight; publisher signatures; renaming a Stable command; a history
    legitimate cases.
 3. **D3: `auto` never grants `Process`.** Recommend **yes**: `Process` escapes the FS sandbox (review §6).
 4. **D4: state that the Go API is Internal; move `runtime/` and `goopus` under `internal/`.** Recommend **yes**.
-   World is unaffected.
+   World is unaffected. (Update: `runtime/` was deleted with the Go emitter in #2389, not moved; only `goopus` remains.)
 5. **D5: move `eval_results/` to a bucket plus a tracked index, with no history rewrite before 1.0.** Recommend
    **yes**.
 6. **D6: enable secret scanning and push protection.** Recommend **yes, now**. It is a repo setting that takes

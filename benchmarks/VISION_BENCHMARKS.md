@@ -84,9 +84,9 @@ ailang check-effects generated.ail --verify-signatures
 
 **Enhanced eval**:
 ```bash
-# Compile generated code, verify exhaustiveness warnings:
-ailang compile generated.ail --check-exhaustiveness
-# Should report: "Pattern match on Status is exhaustive"
+# Check generated code; a non-exhaustive match is a compile error:
+ailang check generated.ail
+# A match on Status that misses a case fails with TC_MATCH_002
 ```
 
 **Metrics**:
@@ -110,7 +110,7 @@ ailang compile generated.ail --check-exhaustiveness
 # Test with intentionally broken code:
 # Replace: user.profile.city
 # With:    user.profile.country (doesn't exist)
-ailang compile broken.ail
+ailang check broken.ail
 # Should fail with: "Field 'country' not found in Profile record"
 ```
 

@@ -163,6 +163,13 @@ func renderCLIReference() []byte {
 		writeCLITable(&b, "Route", "Use instead", rows)
 	}
 
+	if rows := removedRows(); len(rows) > 0 {
+		b.WriteString("\n## Removed commands\n\n")
+		b.WriteString("Routes whose feature was removed. They are still accepted only so an old caller\n")
+		b.WriteString("gets a message naming the replacement (in the summary); every invocation but --help exits 1.\n\n")
+		writeCLITable(&b, "Route", "Use instead", rows)
+	}
+
 	b.WriteString(cliReferenceFooter)
 	writeLanguageCommandLine(&b)
 	return b.Bytes()
@@ -215,12 +222,31 @@ func compatibilityRows() []cliReferenceRow {
 	var rows []cliReferenceRow
 	for i := range allCommands {
 		c := &allCommands[i]
-		if !c.Hidden || isGroupName(c.Name) {
+		if !c.Hidden || c.Removed || isGroupName(c.Name) {
 			continue
 		}
 		rows = append(rows, cliReferenceRow{
 			spelling:  "`ailang " + c.Name + "`" + aliasSuffix(c),
 			alsoKnown: compatibilityReplacement(c),
+			summary:   c.Summary,
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].spelling < rows[j].spelling })
+	return rows
+}
+
+// removedRows are the rows whose feature is gone (Command.Removed): listed on
+// their own so the page never calls them a spelling that keeps working.
+func removedRows() []cliReferenceRow {
+	var rows []cliReferenceRow
+	for i := range allCommands {
+		c := &allCommands[i]
+		if !c.Removed {
+			continue
+		}
+		rows = append(rows, cliReferenceRow{
+			spelling:  "`ailang " + c.Name + "`" + aliasSuffix(c),
+			alsoKnown: "—", // the summary names the replacement
 			summary:   c.Summary,
 		})
 	}

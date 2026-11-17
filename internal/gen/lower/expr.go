@@ -251,8 +251,7 @@ func lowerApp(e *core.App, cti types.CoreTypeInfo) stmt.Expr {
 
 	// Direct builtin calls: a $builtin.<name> reference becomes a BuiltinCall.
 	// This is required for the bytecode VM, which has no notion of stdlib
-	// globals — it dispatches builtins through its own table. The Go emitter
-	// is unaffected because it never inspects BuiltinCall vs Call indirection.
+	// globals — it dispatches builtins through its own table.
 	if vg, ok := e.Func.(*core.VarGlobal); ok && vg.Ref.Module == "$builtin" {
 		args := make([]stmt.Expr, len(e.Args))
 		for i, a := range e.Args {

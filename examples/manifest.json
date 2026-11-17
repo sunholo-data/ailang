@@ -1783,7 +1783,7 @@
         "codegen",
         "types"
       ],
-      "description": "ADT record types with list fields for Go codegen (Issue #116)",
+      "description": "ADT record types with list fields (Issue #116)",
       "modules": [
         "std/io",
         "std/list"

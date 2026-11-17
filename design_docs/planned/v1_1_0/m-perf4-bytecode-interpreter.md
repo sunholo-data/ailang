@@ -1,3 +1,5 @@
+> **Superseded in part:** the Go emitter (`ailang compile --emit-go`, `internal/gen/golang`) was removed in #2389; anything below that plans for or depends on it no longer applies.
+
 # M-PERF4: Bytecode Interpreter (Stretch Goal)
 
 **Status**: SUPERSEDED (2026-10-28). The bytecode VM shipped through M-BYTECODE-VM
