@@ -440,6 +440,13 @@ func runSingleWithContext(ctx context.Context, cfg Config, src Source) (Result, 
 	validateSpan.SetAttributes(attribute.Bool("validation.passed", true))
 	validateSpan.End()
 
+	// Local names unique per declaration from here on: monomorphisation
+	// copies let-bound lambda bodies to their call sites and resolves
+	// variables by name, which is only capture-free when no binder shadows
+	// another (#2401). Type checking and its diagnostics are done, so users
+	// still see their own names there.
+	coreProg = core.UniqueProgramLocals(coreProg)
+
 	// Perform monomorphization unless explicitly disabled
 	var specializationStats SpecializationStats
 	if !cfg.DisableMonomorphization {

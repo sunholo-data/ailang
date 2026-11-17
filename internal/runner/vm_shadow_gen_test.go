@@ -194,7 +194,25 @@ func (g *shadowGen) inner(k int, cur shBinding) string {
 	return fmt.Sprintf(`ap(\%s. (%s) * 7 + %s, %s)`, z, sh(), z, u)
 }
 
-var shadowShapes = []string{"block", "ifarm", "matchpat", "matcharm", "lamparam", "lambody", "tuplepat", "recpat", "letin", "seqrebind", "letrec", "guardpat", "guardouter", "guardnested"}
+var shadowShapes = []string{"block", "ifarm", "matchpat", "matcharm", "lamparam", "lambody", "tuplepat", "recpat", "letin", "seqrebind", "letrec", "guardpat", "guardouter", "guardnested",
+	"callfLet", "callfParam", "callfPat", "callfAlias"}
+
+// callf builds a let-bound lambda that reads the OUTER binding (its argument
+// is unused, so the lambda is polymorphic and monomorphisation copies it to
+// its call site) and returns its name and definition.
+func (g *shadowGen) callf(outer shBinding) (string, string) {
+	f, z := g.fresh("f"), g.fresh("z")
+	return f, fmt.Sprintf(`let %s = \%s. %s`, f, z, g.use(outer))
+}
+
+// helperName names a helper the program binds twice in the callfAlias shape:
+// the same name when shadowing, distinct names in the twin.
+func (g *shadowGen) helperName(base string, second bool) string {
+	if second && g.twin {
+		return base + "b"
+	}
+	return base
+}
 
 // shadow is an int expression that rebinds the name to its level-k value.
 func (g *shadowGen) shadow(k int, outer shBinding) string {
@@ -254,6 +272,29 @@ func (g *shadowGen) shadow(k int, outer shBinding) string {
 		z, nb, g2 := g.fresh("z"), g.bind(), g.bind()
 		return fmt.Sprintf("match Some(%s) { Some(%s) if %s > 0 => { let %s = %s; %s }, Some(%s) => %s * 3, None => 0 }",
 			val, z, g.use(outer), nb.name, z, g.inner(k, nb), g2.name, g.use(g2))
+	case "callfLet":
+		// A lambda reading the outer binding, called inside a let that
+		// shadows it (#2401: the copied body read the inner one).
+		f, def := g.callf(outer)
+		nb := g.bind()
+		return fmt.Sprintf("{ %s; let %s = %s; %s(0) * 7 + %s }", def, nb.name, val, f, g.inner(k, nb))
+	case "callfParam":
+		f, def := g.callf(outer)
+		h, nb := g.fresh("h"), g.bind()
+		return fmt.Sprintf(`{ %s; let %s = \%s. %s(0) * 7 + %s; %s(%s) }`, def, h, nb.name, f, g.inner(k, nb), h, val)
+	case "callfPat":
+		f, def := g.callf(outer)
+		nb := g.bind()
+		return fmt.Sprintf("{ %s; match Some(%s) { Some(%s) => %s(0) * 7 + %s, None => 0 } }", def, val, nb.name, f, g.inner(k, nb))
+	case "callfAlias":
+		// An alias of a lambda, then the original name rebound: the alias
+		// still calls the first lambda.
+		base := g.fresh("q")
+		a, z, z2 := g.fresh("a"), g.fresh("z"), g.fresh("z")
+		nb := g.bind()
+		return fmt.Sprintf(`{ let %s = \%s. %s; let %s = %s; let %s = \%s. 4000; let %s = %s; %s(0) * 7 + %s(0) + %s }`,
+			g.helperName(base, false), z, g.use(outer), a, g.helperName(base, false),
+			g.helperName(base, true), z2, nb.name, val, a, g.helperName(base, true), g.inner(k, nb))
 	case "guardnested":
 		// A match inside the guard binds the name again.
 		nb, g2 := g.bind(), g.bind()
@@ -419,7 +460,11 @@ func shadowModule(module string, cases []shadowCase, twin bool) string {
 // loop (in its body or in the recursive call's arguments), a let-in body, over
 // a top-level function of the same name, in an escaping closure, and in a
 // generic function whose pattern variable and lambda parameter of a type
-// parameter share the name of a concrete local and are compared.
+// parameter share the name of a concrete local and are compared; and a
+// let-bound lambda that reads the outer binding, called where a let, a
+// lambda parameter or a pattern variable shadows it, or through an alias
+// whose original name is rebound (monomorphisation copies such a body to its
+// call site, #2401).
 //
 // The oracle is each program's twin, generated from the same random stream
 // with every binder renamed apart, run on the evaluator: it has no shadowing,

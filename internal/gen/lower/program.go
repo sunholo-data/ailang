@@ -297,7 +297,7 @@ func bindingToFuncDecl(
 	// One flat name space per function from here on: make local names
 	// unique first, so a shadowing binder cannot overwrite the binding it
 	// shadows (#2375).
-	value = uniqueLocals(value)
+	value = core.UniqueLocals(value)
 
 	lam, ok := value.(*core.Lambda)
 	if !ok {

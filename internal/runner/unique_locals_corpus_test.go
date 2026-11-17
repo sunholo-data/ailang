@@ -5,6 +5,7 @@ import (
 	"sort"
 	"testing"
 
+	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/gen/lower"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/types"
@@ -57,6 +58,16 @@ func checkLoweredUnique(t *testing.T, label string, res pipeline.Result, done ma
 			continue
 		}
 		done[id] = true
+		// The Core the pipeline produced (after monomorphisation and the
+		// name-keyed passes) keeps the invariant core.UniqueProgramLocals
+		// established before them (#2401).
+		for _, decl := range mod.Core.Decls {
+			for _, v := range declValues(decl) {
+				if err := core.CheckNoShadowing(v); err != nil {
+					t.Errorf("%s (module %s): Core: %v", label, id, err)
+				}
+			}
+		}
 		cti, _ := mod.CoreTI.(types.CoreTypeInfo)
 		prog, err := lower.LowerProgram(mod.Core, cti, mod.File, "p")
 		if err != nil {
@@ -71,4 +82,19 @@ func checkLoweredUnique(t *testing.T, label string, res pipeline.Result, done ma
 		}
 	}
 	return funcs
+}
+
+// declValues lists the values a top-level declaration binds.
+func declValues(decl core.CoreExpr) []core.CoreExpr {
+	switch d := decl.(type) {
+	case *core.Let:
+		return []core.CoreExpr{d.Value}
+	case *core.LetRec:
+		out := make([]core.CoreExpr, len(d.Bindings))
+		for i, b := range d.Bindings {
+			out[i] = b.Value
+		}
+		return out
+	}
+	return []core.CoreExpr{decl}
 }

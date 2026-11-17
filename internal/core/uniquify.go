@@ -1,37 +1,35 @@
-package lower
+package core
 
 import (
 	"fmt"
 	"sort"
-
-	"github.com/sunholo-data/ailang/internal/core"
 )
 
-// uniqueLocals renames the local binders of one top-level declaration so
+// UniqueLocals renames the local binders of one top-level declaration so
 // that, within it, no two binders share a name and no binder shares a name
 // with a free (top-level or prelude) reference.
 //
-// Why: the Statement IR this package produces has one flat name space per
-// function. FlattenBlock and flattenValue hoist the bindings of a nested
-// let-chain (`let s = { let r = 2; r * 10 }`) into the enclosing statement
-// list, the bytecode compiler maps each name to one register per function
-// frame, and lambda capture analysis (freeVarsLambda) treats a name as bound
-// from its first declaration on. Lexical scope is therefore only preserved
-// when names are unique: with `let r = 1` outside the block, the hoisted
-// inner `r` overwrote the outer one and every later read of `r` — including
-// a closure capture and a call of a top-level function `r` — saw the inner
-// value (#2375, a silent wrong answer on the VM only; the evaluator scopes
-// Core directly).
+// Every pass after type checking that moves code or resolves a variable by
+// NAME relies on it:
+//   - monomorphisation copies a let-bound lambda's body to its call site, so
+//     the body's free names are re-resolved there (#2401: `let f = \x. k`
+//     called inside `match … { Some(k) => f(0) }` read the pattern's k), and
+//     follows aliases (`let f = g`) by name;
+//   - the VM lowering hoists nested let-chains into one flat name space per
+//     function and captures closures by name (#2375).
 //
-// Renaming at the Core level makes every consumer of the flat name space
-// correct at once: block lets, letrec groups, match-pattern variables,
-// lambda parameters and captures. A binder keeps its name unless an earlier
-// binder of the function (or a free reference anywhere in it) already uses
-// that name, so code without shadowing lowers exactly as before.
+// With unique names, every binder a moved body or an alias refers to encloses
+// the place it moves to and nothing in between can rebind the name, so these
+// passes are capture-free by construction. UniqueProgramLocals runs it once
+// per declaration right after type checking (diagnostics and interfaces still
+// see the source names); the VM lowering runs it again, which is a no-op
+// except on bodies monomorphisation copied.
 //
-// The input is never mutated (the evaluator runs the same Core); changed
-// nodes are copied with their NodeID, so CoreTypeInfo lookups still hit.
-func uniqueLocals(e core.CoreExpr) core.CoreExpr {
+// A binder keeps its name unless an earlier binder of the declaration (or a
+// free reference anywhere in it) already uses that name, so code without
+// shadowing is returned as the same pointers. The input is never mutated;
+// changed nodes are copied with their NodeID, so CoreTypeInfo lookups hit.
+func UniqueLocals(e CoreExpr) CoreExpr {
 	if e == nil {
 		return nil
 	}
@@ -41,6 +39,73 @@ func uniqueLocals(e core.CoreExpr) core.CoreExpr {
 	// Pass 2: rename binders that collide with an earlier binder or a free name.
 	rename := &uniquifier{taken: collect.free}
 	return rename.expr(e, nil)
+}
+
+// UniqueProgramLocals applies UniqueLocals to the value of every top-level
+// binding of prog. Top-level names are never renamed. The program is copied
+// only when a declaration changed.
+func UniqueProgramLocals(prog *Program) *Program {
+	if prog == nil {
+		return nil
+	}
+	var decls []CoreExpr
+	for i, d := range prog.Decls {
+		nd := uniqueDeclLocals(d)
+		if nd != d && decls == nil {
+			decls = append([]CoreExpr(nil), prog.Decls...)
+		}
+		if decls != nil {
+			decls[i] = nd
+		}
+	}
+	if decls == nil {
+		return prog
+	}
+	out := *prog
+	out.Decls = decls
+	return &out
+}
+
+// uniqueDeclLocals renames inside one element of Program.Decls. A module
+// declaration is `let name = value in name` (Let) or a letrec group with a
+// unit body: only the values are renamed, so the declared names stay. Any
+// other element is a top-level expression (a REPL input, `let k = 10 in …`),
+// renamed as a whole.
+func uniqueDeclLocals(d CoreExpr) CoreExpr {
+	switch x := d.(type) {
+	case *Let:
+		if v, ok := x.Body.(*Var); !ok || v.Name != x.Name {
+			return UniqueLocals(d)
+		}
+		v := UniqueLocals(x.Value)
+		if v == x.Value {
+			return x
+		}
+		n := *x
+		n.Value = v
+		return &n
+	case *LetRec:
+		if _, unit := x.Body.(*Lit); x.Body != nil && !unit {
+			return UniqueLocals(d)
+		}
+		var bs []RecBinding
+		for i, b := range x.Bindings {
+			v := UniqueLocals(b.Value)
+			if v != b.Value && bs == nil {
+				bs = append([]RecBinding(nil), x.Bindings...)
+			}
+			if bs != nil {
+				bs[i].Value = v
+			}
+		}
+		if bs == nil {
+			return x
+		}
+		n := *x
+		n.Bindings = bs
+		return &n
+	}
+	return UniqueLocals(d)
 }
 
 // scopeEnv is a persistent map from a source name to the name it lowers to.
@@ -109,12 +174,12 @@ func (u *uniquifier) bindAll(names []string, env *scopeEnv) ([]string, *scopeEnv
 	return out, env, changed
 }
 
-func (u *uniquifier) exprs(es []core.CoreExpr, env *scopeEnv) ([]core.CoreExpr, bool) {
-	var out []core.CoreExpr
+func (u *uniquifier) exprs(es []CoreExpr, env *scopeEnv) ([]CoreExpr, bool) {
+	var out []CoreExpr
 	for i, e := range es {
 		ne := u.expr(e, env)
 		if ne != e && out == nil {
-			out = append([]core.CoreExpr(nil), es...)
+			out = append([]CoreExpr(nil), es...)
 		}
 		if out != nil {
 			out[i] = ne
@@ -128,8 +193,8 @@ func (u *uniquifier) exprs(es []core.CoreExpr, env *scopeEnv) ([]core.CoreExpr, 
 
 // fields visits a record's field values in sorted key order, so the names
 // chosen for binders inside them do not depend on map iteration order.
-func (u *uniquifier) fields(m map[string]core.CoreExpr, env *scopeEnv) (map[string]core.CoreExpr, bool) {
-	var out map[string]core.CoreExpr
+func (u *uniquifier) fields(m map[string]CoreExpr, env *scopeEnv) (map[string]CoreExpr, bool) {
+	var out map[string]CoreExpr
 	for _, k := range sortedKeys(m) {
 		v := m[k]
 		nv := u.expr(v, env)
@@ -137,7 +202,7 @@ func (u *uniquifier) fields(m map[string]core.CoreExpr, env *scopeEnv) (map[stri
 			continue
 		}
 		if out == nil {
-			out = make(map[string]core.CoreExpr, len(m))
+			out = make(map[string]CoreExpr, len(m))
 			for k2, v2 := range m {
 				out[k2] = v2
 			}
@@ -153,14 +218,14 @@ func (u *uniquifier) fields(m map[string]core.CoreExpr, env *scopeEnv) (map[stri
 // expr returns e with references and binders renamed under env. It returns
 // e itself when nothing in it changed. An unknown node type panics: a
 // silently skipped subtree would keep a stale name and reintroduce the
-// capture this pass exists to prevent (lowerTopLevelDeclSafe turns the panic
+// capture this pass exists to prevent (the VM lowering's recovery turns the panic
 // into an evaluator-only function).
-func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
+func (u *uniquifier) expr(e CoreExpr, env *scopeEnv) CoreExpr {
 	if e == nil {
 		return nil
 	}
 	switch x := e.(type) {
-	case *core.Var:
+	case *Var:
 		to, ok := env.lookup(x.Name)
 		if !ok {
 			if u.free != nil {
@@ -175,10 +240,10 @@ func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
 		n.Name = to
 		return &n
 
-	case *core.VarGlobal, *core.Lit, *core.DictRef:
+	case *VarGlobal, *Lit, *DictRef:
 		return x
 
-	case *core.Lambda:
+	case *Lambda:
 		params, inner, pc := u.bindAll(x.Params, env)
 		body := u.expr(x.Body, inner)
 		if !pc && body == x.Body {
@@ -188,7 +253,7 @@ func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
 		n.Params, n.Body = params, body
 		return &n
 
-	case *core.Let:
+	case *Let:
 		val := u.expr(x.Value, env)
 		name, inner := u.bind(x.Name, env)
 		body := u.expr(x.Body, inner)
@@ -199,14 +264,14 @@ func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
 		n.Value, n.Name, n.Body = val, name, body
 		return &n
 
-	case *core.LetRec:
+	case *LetRec:
 		names := make([]string, len(x.Bindings))
 		for i, b := range x.Bindings {
 			names[i] = b.Name
 		}
 		// Every member is in scope in every member's value and in the body.
 		renamed, inner, changed := u.bindAll(names, env)
-		values := make([]core.CoreExpr, len(x.Bindings))
+		values := make([]CoreExpr, len(x.Bindings))
 		for i, b := range x.Bindings {
 			values[i] = u.expr(b.Value, inner)
 			changed = changed || values[i] != b.Value
@@ -215,15 +280,15 @@ func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
 		if !changed && body == x.Body {
 			return x
 		}
-		bindings := make([]core.RecBinding, len(x.Bindings))
+		bindings := make([]RecBinding, len(x.Bindings))
 		for i := range x.Bindings {
-			bindings[i] = core.RecBinding{Name: renamed[i], Value: values[i]}
+			bindings[i] = RecBinding{Name: renamed[i], Value: values[i]}
 		}
 		n := *x
 		n.Bindings, n.Body = bindings, body
 		return &n
 
-	case *core.App:
+	case *App:
 		fn := u.expr(x.Func, env)
 		args, ac := u.exprs(x.Args, env)
 		if fn == x.Func && !ac {
@@ -233,7 +298,7 @@ func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
 		n.Func, n.Args = fn, args
 		return &n
 
-	case *core.If:
+	case *If:
 		c, t, el := u.expr(x.Cond, env), u.expr(x.Then, env), u.expr(x.Else, env)
 		if c == x.Cond && t == x.Then && el == x.Else {
 			return x
@@ -242,10 +307,10 @@ func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
 		n.Cond, n.Then, n.Else = c, t, el
 		return &n
 
-	case *core.Match:
+	case *Match:
 		return u.match(x, env)
 
-	case *core.BinOp:
+	case *BinOp:
 		l, r := u.expr(x.Left, env), u.expr(x.Right, env)
 		if l == x.Left && r == x.Right {
 			return x
@@ -254,7 +319,7 @@ func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
 		n.Left, n.Right = l, r
 		return &n
 
-	case *core.UnOp:
+	case *UnOp:
 		o := u.expr(x.Operand, env)
 		if o == x.Operand {
 			return x
@@ -263,7 +328,7 @@ func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
 		n.Operand = o
 		return &n
 
-	case *core.Intrinsic:
+	case *Intrinsic:
 		args, ac := u.exprs(x.Args, env)
 		if !ac {
 			return x
@@ -272,7 +337,7 @@ func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
 		n.Args = args
 		return &n
 
-	case *core.Record:
+	case *Record:
 		fs, fc := u.fields(x.Fields, env)
 		if !fc {
 			return x
@@ -281,7 +346,7 @@ func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
 		n.Fields = fs
 		return &n
 
-	case *core.RecordAccess:
+	case *RecordAccess:
 		r := u.expr(x.Record, env)
 		if r == x.Record {
 			return x
@@ -290,7 +355,7 @@ func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
 		n.Record = r
 		return &n
 
-	case *core.RecordUpdate:
+	case *RecordUpdate:
 		b := u.expr(x.Base, env)
 		ups, uc := u.fields(x.Updates, env)
 		if b == x.Base && !uc {
@@ -300,7 +365,7 @@ func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
 		n.Base, n.Updates = b, ups
 		return &n
 
-	case *core.List:
+	case *List:
 		els, c := u.exprs(x.Elements, env)
 		if !c {
 			return x
@@ -309,7 +374,7 @@ func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
 		n.Elements = els
 		return &n
 
-	case *core.Array:
+	case *Array:
 		els, c := u.exprs(x.Elements, env)
 		if !c {
 			return x
@@ -318,7 +383,7 @@ func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
 		n.Elements = els
 		return &n
 
-	case *core.Tuple:
+	case *Tuple:
 		els, c := u.exprs(x.Elements, env)
 		if !c {
 			return x
@@ -327,7 +392,7 @@ func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
 		n.Elements = els
 		return &n
 
-	case *core.DictAbs:
+	case *DictAbs:
 		inner := env
 		for _, p := range x.Params {
 			inner = u.bindKeep(p.Name, inner)
@@ -340,7 +405,7 @@ func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
 		n.Body = body
 		return &n
 
-	case *core.DictApp:
+	case *DictApp:
 		d := u.expr(x.Dict, env)
 		args, ac := u.exprs(x.Args, env)
 		if d == x.Dict && !ac {
@@ -350,7 +415,7 @@ func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
 		n.Dict, n.Args = d, args
 		return &n
 
-	case *core.Forall:
+	case *Forall:
 		lo, hi := u.expr(x.Lo, env), u.expr(x.Hi, env)
 		body := u.expr(x.Body, u.bindKeep(x.Var, env))
 		if lo == x.Lo && hi == x.Hi && body == x.Body {
@@ -360,19 +425,19 @@ func (u *uniquifier) expr(e core.CoreExpr, env *scopeEnv) core.CoreExpr {
 		n.Lo, n.Hi, n.Body = lo, hi, body
 		return &n
 	}
-	panic(fmt.Sprintf("lower: uniqueLocals: unhandled Core expression type %T", e))
+	panic(fmt.Sprintf("core: UniqueLocals: unhandled Core expression type %T", e))
 }
 
 // match renames each arm's pattern variables; they scope over the guard and
 // the body of that arm only.
-func (u *uniquifier) match(x *core.Match, env *scopeEnv) core.CoreExpr {
+func (u *uniquifier) match(x *Match, env *scopeEnv) CoreExpr {
 	scrut := u.expr(x.Scrutinee, env)
 	changed := scrut != x.Scrutinee
-	arms := make([]core.MatchArm, len(x.Arms))
+	arms := make([]MatchArm, len(x.Arms))
 	for i, arm := range x.Arms {
 		inner := env
 		pat := u.pattern(arm.Pattern, &inner)
-		arms[i] = core.MatchArm{Pattern: pat, Guard: u.expr(arm.Guard, inner), Body: u.expr(arm.Body, inner)}
+		arms[i] = MatchArm{Pattern: pat, Guard: u.expr(arm.Guard, inner), Body: u.expr(arm.Body, inner)}
 		changed = changed || pat != arm.Pattern || arms[i].Guard != arm.Guard || arms[i].Body != arm.Body
 	}
 	if !changed {
@@ -384,20 +449,20 @@ func (u *uniquifier) match(x *core.Match, env *scopeEnv) core.CoreExpr {
 }
 
 // pattern renames the variables p binds, extending *env with each.
-func (u *uniquifier) pattern(p core.CorePattern, env **scopeEnv) core.CorePattern {
+func (u *uniquifier) pattern(p CorePattern, env **scopeEnv) CorePattern {
 	switch x := p.(type) {
 	case nil:
 		return nil
-	case *core.VarPattern:
+	case *VarPattern:
 		to, next := u.bind(x.Name, *env)
 		*env = next
 		if to == x.Name {
 			return x
 		}
-		return &core.VarPattern{Name: to}
-	case *core.LitPattern, *core.WildcardPattern:
+		return &VarPattern{Name: to}
+	case *LitPattern, *WildcardPattern:
 		return x
-	case *core.ConstructorPattern:
+	case *ConstructorPattern:
 		args, c := u.patterns(x.Args, env)
 		if !c {
 			return x
@@ -405,13 +470,13 @@ func (u *uniquifier) pattern(p core.CorePattern, env **scopeEnv) core.CorePatter
 		n := *x
 		n.Args = args
 		return &n
-	case *core.TuplePattern:
+	case *TuplePattern:
 		els, c := u.patterns(x.Elements, env)
 		if !c {
 			return x
 		}
-		return &core.TuplePattern{Elements: els}
-	case *core.ListPattern:
+		return &TuplePattern{Elements: els}
+	case *ListPattern:
 		els, c := u.patterns(x.Elements, env)
 		tail := x.Tail
 		if x.Tail != nil {
@@ -423,19 +488,19 @@ func (u *uniquifier) pattern(p core.CorePattern, env **scopeEnv) core.CorePatter
 		if !c {
 			return x
 		}
-		return &core.ListPattern{Elements: els, Tail: tail}
-	case *core.RecordPattern:
+		return &ListPattern{Elements: els, Tail: tail}
+	case *RecordPattern:
 		// Field order is irrelevant to scoping (one name per field, all
 		// distinct), but renaming must be deterministic: visit sorted keys.
 		keys := sortedKeys(x.Fields)
-		var out map[string]core.CorePattern
+		var out map[string]CorePattern
 		for _, k := range keys {
 			np := u.pattern(x.Fields[k], env)
 			if np == x.Fields[k] {
 				continue
 			}
 			if out == nil {
-				out = make(map[string]core.CorePattern, len(x.Fields))
+				out = make(map[string]CorePattern, len(x.Fields))
 				for k2, v2 := range x.Fields {
 					out[k2] = v2
 				}
@@ -445,9 +510,9 @@ func (u *uniquifier) pattern(p core.CorePattern, env **scopeEnv) core.CorePatter
 		if out == nil {
 			return x
 		}
-		return &core.RecordPattern{Fields: out, Rest: x.Rest}
+		return &RecordPattern{Fields: out, Rest: x.Rest}
 	}
-	panic(fmt.Sprintf("lower: uniqueLocals: unhandled Core pattern type %T", p))
+	panic(fmt.Sprintf("core: UniqueLocals: unhandled Core pattern type %T", p))
 }
 
 func sortedKeys[V any](m map[string]V) []string {
@@ -459,12 +524,12 @@ func sortedKeys[V any](m map[string]V) []string {
 	return keys
 }
 
-func (u *uniquifier) patterns(ps []core.CorePattern, env **scopeEnv) ([]core.CorePattern, bool) {
-	var out []core.CorePattern
+func (u *uniquifier) patterns(ps []CorePattern, env **scopeEnv) ([]CorePattern, bool) {
+	var out []CorePattern
 	for i, p := range ps {
 		np := u.pattern(p, env)
 		if np != p && out == nil {
-			out = append([]core.CorePattern(nil), ps...)
+			out = append([]CorePattern(nil), ps...)
 		}
 		if out != nil {
 			out[i] = np
