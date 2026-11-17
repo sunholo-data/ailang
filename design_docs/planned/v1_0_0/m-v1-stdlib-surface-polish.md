@@ -1,3 +1,5 @@
+> **Superseded in part:** the Go emitter (`ailang compile --emit-go`, `internal/gen/golang`) was removed in #2389; anything below that plans for or depends on it no longer applies.
+
 # M-V1-STDLIB-SURFACE-POLISH: the last cheap fixes to the Stable stdlib before it freezes
 
 **Status**: M1–M5 implemented (M3+M4 in PR #2223; M1, M2, M5 in branch `v1/stdlib-surface-polish`); M6 (alias removal) is roadmap step 16

@@ -1,3 +1,5 @@
+> **Superseded in part:** the Go emitter (`ailang compile --emit-go`, `internal/gen/golang`) was removed in #2389; anything below that plans for or depends on it no longer applies.
+
 # M-V1-PUBLIC-SURFACE-HYGIENE: what a stranger sees, and what becomes a promise by accident
 
 **Status**: Planned

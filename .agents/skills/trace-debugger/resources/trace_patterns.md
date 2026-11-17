@@ -276,27 +276,7 @@ Based on analysis of implemented design docs and actual bugs encountered:
 - Whether type aliases were properly imported
 - Module dependency ordering issues
 
-### Priority 3: Codegen Tracing (MEDIUM VALUE)
-
-**Why:** Codegen fallbacks hide bugs:
-- **Codegen Bug Pattern**: Silent fallback to `map[string]interface{}` (v0.5.10)
-- **M-CODEGEN-CROSS-MODULE-IMPL**: Wrong function suffix generation
-- **DEBUG_CODEGEN=1** already exists but is verbose
-
-**Proposed spans:**
-
-| Span | Description | Key Attributes |
-|------|-------------|----------------|
-| `codegen.decl` | Declaration code generation | `decl_type`, `name`, `output_type` |
-| `codegen.type_lookup` | CoreTypeInfo lookup | `node_id`, `found`, `type_name`, `fallback_used` |
-| `codegen.record` | Record type generation | `typed_struct` or `generic_map`, `typename` |
-
-**Debug value:** Would immediately show:
-- When fallbacks are triggered (catch issues before runtime)
-- Which declarations used generic vs typed codegen
-- Type metadata preservation through pipeline
-
-### Priority 4: Pattern Matching Tracing (LOW VALUE - FUTURE)
+### Priority 3: Pattern Matching Tracing (LOW VALUE - FUTURE)
 
 **Why:** Less frequent but complex when it happens:
 - **M-P5 Pattern Matching**: Pattern matching in function bodies (v0.2.0)
@@ -316,8 +296,7 @@ Based on bug frequency and debugging time saved:
 
 1. **types.unify + types.substitute** (4+ hours debugging saved per incident)
 2. **modules.resolve** (1-2 hours saved per incident, common user issue)
-3. **codegen.type_lookup** (catches issues before Go compile)
-4. **match.compile** (rare but complex when needed)
+3. **match.compile** (rare but complex when needed)
 
 ## When to Add More Traces
 
@@ -386,65 +365,3 @@ func shallowHead(t types.Type) string {
     }
 }
 ```
-
-## Tracing Scope: Tooling vs Generated Code
-
-**Important:** Current OTEL tracing only covers AILANG tooling operations (compile, eval, messages). It does NOT trace the generated Go code at runtime.
-
-### What IS Traced (AILANG Tooling)
-
-```
-User runs: ailang compile foo.ail
-           ↓
-    ┌──────────────────────────────────────────┐
-    │  TRACED: compile.pipeline                │
-    │    ├── compile.parse                     │
-    │    ├── compile.elaborate                 │
-    │    ├── compile.typecheck  ← bugs hide   │
-    │    ├── compile.validate                  │
-    │    └── compile.lower                     │
-    └──────────────────────────────────────────┘
-           ↓
-    Generated: foo_generated.go
-           ↓
-    User runs: go build && ./foo
-           ↓
-    ┌──────────────────────────────────────────┐
-    │  NOT TRACED: Generated Go runtime        │
-    │    (unless you add tracing manually)     │
-    └──────────────────────────────────────────┘
-```
-
-### Debugging Generated Go Code
-
-For issues in the generated Go (runtime panics, wrong output):
-
-1. **`DEBUG_CODEGEN=1`** - See exactly what Go code is generated
-2. **`go tool pprof`** - Standard Go profiling
-3. **Add prints to codegen templates** - `internal/codegen/templates/`
-4. **Manual OTEL in generated code** - Modify templates to emit spans
-
-### Future: Runtime Tracing in Generated Code
-
-If we wanted runtime tracing, we'd need to:
-
-1. **Add OTEL to codegen templates:**
-   ```go
-   // In internal/codegen/templates/function.go.tmpl
-   func {{.Name}}({{.Params}}) {{.ReturnType}} {
-       ctx, span := tracer.Start(ctx, "ailang.{{.ModuleName}}.{{.Name}}")
-       defer span.End()
-       // ... generated body ...
-   }
-   ```
-
-2. **Thread context through:**
-   - All functions would need `ctx context.Context` parameter
-   - Breaks current pure functional model
-
-3. **Emit spans for:**
-   - Function calls
-   - Pattern match branches taken
-   - Effect invocations
-
-**Trade-off:** Runtime tracing adds overhead and complexity. Current approach (trace compilation, not execution) is lightweight.

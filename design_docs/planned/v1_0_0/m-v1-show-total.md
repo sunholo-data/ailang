@@ -1,3 +1,5 @@
+> **Superseded in part:** the Go emitter (`ailang compile --emit-go`, `internal/gen/golang`) was removed in #2389; anything below that plans for or depends on it no longer applies.
+
 # M-V1-SHOW-TOTAL: make `show` total and unambiguous before it is frozen
 
 **Status**: Implemented on branch `v1/show-total` (M1–M5), in review. See [Implementation](#implementation-2026-11-11)

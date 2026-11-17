@@ -1,3 +1,5 @@
+> **Superseded in part:** the Go emitter (`ailang compile --emit-go`, `internal/gen/golang`) was removed in #2389; anything below that plans for or depends on it no longer applies.
+
 # M-BYTECODE-STRAIGHTLINE-REG-REUSE — strict-VM register exhaustion in long straight-line functions: root-frame bindings (sequential lets and every elaborated `$tmp` of a long string interpolation) are pinned for the function's entire lifetime; there is no release after last use
 
 **Status**: Planned

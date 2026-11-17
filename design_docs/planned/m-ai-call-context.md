@@ -1,3 +1,5 @@
+> **Superseded in part:** the Go emitter (`ailang compile --emit-go`, `internal/gen/golang`) was removed in #2389; anything below that plans for or depends on it no longer applies.
+
 # M-AI-CALL-CONTEXT: a cancellable, deadline-carrying context for every AI provider call
 
 **Status**: Planned

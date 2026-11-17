@@ -1,3 +1,5 @@
+> **Superseded in part:** the Go emitter (`ailang compile --emit-go`, `internal/gen/golang`) was removed in #2389; anything below that plans for or depends on it no longer applies.
+
 # M-V1-MATCH-EXHAUSTIVENESS: Non-exhaustive `match` is a compile error, with a witness
 
 **Status**: Implemented — M0, M1, M3 warnings in #2207; M2, M3 (TC_MATCH_003), M4 in the PR recorded in §14

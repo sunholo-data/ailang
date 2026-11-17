@@ -335,21 +335,3 @@ Suggested addition:
 
 This helps continuously improve AILANG's observability based on real debugging needs.
 
-### Tracing Scope Limitation
-
-**Traces only cover AILANG tooling, NOT generated Go code!**
-
-| What IS Traced | What is NOT Traced |
-|----------------|-------------------|
-| `ailang compile` phases | Generated Go binary execution |
-| `ailang run` (AILANG interpreter) | Go code after `go build` |
-| `ailang eval-suite` benchmarks | The actual AI-generated code running |
-| `ailang messages` operations | User application runtime |
-
-**To debug generated Go code:**
-- Use Go's standard profiling (`go tool pprof`)
-- Add your own tracing in generated code templates
-- Use `DEBUG_CODEGEN=1` to see what code is generated
-- Add `log.Printf` to `internal/codegen/templates/` if needed
-
-**Future possibility:** Generate OTEL spans INTO Go code for runtime tracing (not implemented)
