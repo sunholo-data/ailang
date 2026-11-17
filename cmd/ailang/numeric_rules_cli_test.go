@@ -25,16 +25,19 @@ let rec0 = {plus: add, times: mul}
 func getOps() = (add, mul)
 func pick(b) = if b then Some(add) else None
 func mk() = \x. x + 1
+func inc(x) = x + 1
+func incs() = (inc, {f: inc})
 export func main() -> () ! {IO} {
   match ops { (f, g) => println("tuple ${show(f(1.5, 2.0))} ${show(g(2, 3))}") };
   println("list ${show(map(\h. h(1.5, 2.0), fns))}");
   println("rec ${show(rec0.plus(1.5, 2.0))} ${show(rec0.times(2, 3))}");
   match getOps() { (f, g) => println("getOps ${show(f(1.5, 2.0))} ${show(g(2, 3))}") };
   match pick(true) { Some(f) => println("pick ${show(f(1.5, 2.0))}"), None => () };
-  println("mk ${show(mk()(2))} ${show(mk()(2.5))}")
+  println("mk ${show(mk()(2))} ${show(mk()(2.5))}");
+  match incs() { (f, r) => println("incs ${show(f(2.5))} ${show(r.f(2.5))}") }
 }
 `})
-	for _, want := range []string{"tuple 3.5 6", "list [3.5, 3.0]", "rec 3.5 6", "getOps 3.5 6", "pick 3.5", "mk 3 3.5"} {
+	for _, want := range []string{"tuple 3.5 6", "list [3.5, 3.0]", "rec 3.5 6", "getOps 3.5 6", "pick 3.5", "mk 3 3.5", "incs 3.5 3.5\n"} {
 		runBoth(t, bin, dir, "t1.ail", want)
 	}
 }
