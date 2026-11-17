@@ -587,8 +587,8 @@ func (v *matchVerifier) ctorUniverse(p *core.ConstructorPattern) (string, []exha
 // of them resolves a type name, an alias above all, on its own. A pattern
 // that cannot be resolved is an *unresolvedCtorError, whatever the other
 // arms are: before #2303 a catch-all let such a pattern through unstamped,
-// and the VM and the Go emitter tested it against the first loaded ADT that
-// declared the name — a different ordinal for a different type.
+// and the VM (and the since-removed Go emitter) tested it against the first
+// loaded ADT that declared the name — a different ordinal for a different type.
 func (v *matchVerifier) resolvePatterns(p core.CorePattern) error {
 	switch p := p.(type) {
 	case *core.ConstructorPattern:

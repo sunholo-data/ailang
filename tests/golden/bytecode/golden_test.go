@@ -264,11 +264,10 @@ func tryCompileAILFile(name string) (*bytecode.BytecodeImage, error) {
 		return nil, err
 	}
 	prog.FuncDecls = append(prog.FuncDecls, fileProg.FuncDecls...)
-	// Note: we deliberately do NOT call lower.QualifyFuncRefs here. That helper
-	// rewrites bare function references for the Go emitter (which capitalizes
-	// exported names and prefixes with module). The bytecode compiler uses the
-	// original FuncDecl.Name for lookup, so any rewrite breaks recursive calls
-	// like `factorial(n - 1)` → `Factorial(...)`.
+	// No name rewriting here: the bytecode compiler looks functions up by the
+	// original FuncDecl.Name, so recursive calls like `factorial(n - 1)` resolve
+	// as written. (The Go emitter's QualifyFuncRefs pass, which capitalised and
+	// module-prefixed them, was removed with the emitter.)
 	return compiler.Compile(prog)
 }
 

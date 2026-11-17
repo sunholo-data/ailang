@@ -450,8 +450,8 @@ func astFuncToSig(f *ast.FuncDecl) *FuncSig {
 func collectFuncSigs(file *ast.File) []*FuncSig {
 	var funcs []*FuncSig
 	for _, f := range file.Funcs {
-		// Skip extern functions - they have no body to elaborate
-		// Extern functions are handled separately in codegen (extern_stubs.go)
+		// Skip extern functions - they have no body to elaborate. No engine
+		// implements them since the Go emitter was removed (#2390).
 		if f.IsExtern {
 			continue
 		}

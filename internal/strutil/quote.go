@@ -9,7 +9,7 @@ import (
 // escaper behind both `ailang fmt` (canonical literals, internal/format) and
 // `show` of a string nested inside a value (internal/eval/show.go), so the two
 // can never spell the same string differently (M-V1-SHOW-TOTAL). The rule
-// itself is QuoteTo (quote_rule.go), which the Go emitter copies verbatim.
+// itself is QuoteTo (quote_rule.go).
 //
 // Escapes, and nothing else is escaped:
 //
