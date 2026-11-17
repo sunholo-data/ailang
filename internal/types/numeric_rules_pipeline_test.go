@@ -83,7 +83,7 @@ func TestNumericRules_LetBoundBindings(t *testing.T) {
 		{"imported literal-free callee: generic", "export func main() -> string {\n  let h = if true then \\u. add(u, u) else \\u. u;\n  \"${show(h(2))} ${show(h(2.5))}\"\n}\n", nil, nil},
 		{"expansive value at int and float", "export func main() -> string {\n  let h = if true then \\u. inc(u) else \\u. u;\n  let n: int = 2;\n  \"${show(h(n))} ${show(h(2.5))}\"\n}\n",
 			[]string{"`h` is a single value, not a function", "m/main.ail:4:3", "need different ones (int and float)"}, nil},
-		{"expansive value, one call wrong by itself", "export func main() -> string {\n  let h = if true then \\u. inc(u) else \\u. u;\n  let n: int = 2;\n  show(h(n) * 0.5)\n}\n",
+		{"expansive value, one call wrong by itself", "export func main() -> string {\n  let h = if true then \\u. inc(u) else \\u. u;\n  let n: int = 2;\n  \"${show(h(n) * 0.5)} ${show(h(n))}\"\n}\n",
 			[]string{"Fractional[int]"}, []string{"single value"}},
 	} {
 		wantNumericCheck(t, c.name, map[string]string{"m/l.ail": lib, "m/main.ail": "module m/main\nimport m/l (add, inc)\n" + c.body}, c.want, c.notWant)
