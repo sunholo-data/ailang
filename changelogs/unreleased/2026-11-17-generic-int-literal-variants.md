@@ -47,7 +47,7 @@ literal is written `3.0`, or by an annotation).
   own variable is one value: used at both int and float it is a type error at `check` (the float
   call failed at run time before).
 
-Measured against origin/dev (950a0cc54):
+Measured against origin/dev 35f5ad6d6; the numbers were identical against 950a0cc54:
 - 14,857 banked eval programs: the `check` verdict and error code are identical on all of them.
   11,328 pass on both, 0 are newly rejected, and 0 hit `TC_NUMVAR_001`.
 - 136 passing programs are touched by the change, and a random control of 400 is not. Both sets
