@@ -34,7 +34,7 @@ Rename the parameter and all of its uses before checking again.
 | `module` | Module declaration. |
 | `import` | Import declaration. |
 | `export` | Export marker. |
-| `extern` | External declaration. |
+| `extern` | Reserved. `extern func` still parses, but every declaration is `EXT004`: extern functions were implemented only by the removed Go emitter, and no engine runs them. Write the function in AILANG, or use a std function or an effect. |
 | `forall` | Universal type quantification. |
 | `exists` | Reserved for existential type quantification; the type-system lane must consume or release it at syntax freeze. |
 | `test` | Contextual named test marker; also a legal identifier. |
