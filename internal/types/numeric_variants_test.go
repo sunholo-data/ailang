@@ -72,3 +72,45 @@ func TestMatchSchemeVarsReadsRecordFields(t *testing.T) {
 		t.Fatalf("a bound to %v, want float", got)
 	}
 }
+
+// Every structure a Num variable can sit under is read positionally (records
+// by field name, in any representation), through a label on either side.
+func TestMatchSchemeVarsReadsEveryStructure(t *testing.T) {
+	v := func(n string) Type { return &TVar2{Name: n, Kind: Star} }
+	opt := &TCon{Name: "Option"}
+	scheme := &TFunc2{
+		Params: []Type{
+			&TArray{Element: v("a")},
+			&TMap{Key: TString, Value: v("b")},
+			&TTuple{Elements: []Type{TInt, v("c")}},
+			&TApp{Constructor: opt, Args: []Type{v("d")}},
+			&TRecord2{Row: &Row{Kind: RecordRow, Labels: map[string]Type{"e": v("e")}}},
+			&TLabelled{Inner: v("f")},
+		},
+		Return:    &TRecord{Fields: map[string]Type{}, Row: &Row{Kind: RecordRow, Labels: map[string]Type{"g": v("g")}}},
+		EffectRow: EmptyEffectRow(),
+	}
+	inst := &TFunc2{
+		Params: []Type{
+			&TArray{Element: TFloat},
+			&TMap{Key: TString, Value: TFloat},
+			&TTuple{Elements: []Type{TInt, TFloat}},
+			&TApp{Constructor: opt, Args: []Type{TFloat}},
+			&TRecordOpen{Fields: map[string]Type{"e": TFloat}},
+			&TLabelled{Inner: TFloat},
+		},
+		Return:    &TRecord2{Row: &Row{Kind: RecordRow, Labels: map[string]Type{"g": TFloat}}},
+		EffectRow: EmptyEffectRow(),
+	}
+	want := map[string]bool{}
+	for _, n := range []string{"a", "b", "c", "d", "e", "f", "g"} {
+		want[n] = true
+	}
+	bound := map[string]Type{}
+	matchSchemeVars(scheme, inst, want, bound, 0)
+	for n := range want {
+		if got := bound[n]; got == nil || NormalizeTypeName(got) != "Float" {
+			t.Errorf("%s bound to %v, want float", n, got)
+		}
+	}
+}

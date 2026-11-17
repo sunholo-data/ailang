@@ -13,6 +13,7 @@ import (
 // named for the variant's instance.
 
 // variantCloner copies a declaration for the variant sigma (variable → float).
+// The first error is kept (err) and returned by decl or meta.
 type variantCloner struct {
 	tc    *types.CoreTypeChecker
 	sigma types.Substitution
@@ -20,6 +21,13 @@ type variantCloner struct {
 	group map[string]string // the declaration's members → their names here
 	// use names a copied use of a binding with variants (variantPlanner.use).
 	use func(ref types.NumericRef, floats []bool) (string, error)
+	err error
+}
+
+func (c *variantCloner) fail(err error) {
+	if c.err == nil {
+		c.err = err
+	}
 }
 
 // decl copies a top-level declaration: its members named by names, keeping
@@ -28,12 +36,9 @@ type variantCloner struct {
 func (c *variantCloner) decl(decl core.CoreExpr, names map[string]string, keep []string) (core.CoreExpr, error) {
 	switch d := decl.(type) {
 	case *core.Let:
-		value, err := c.expr(d.Value, nil)
-		if err != nil {
-			return nil, err
-		}
+		value := c.expr(d.Value, nil)
 		body := &core.Var{CoreNode: c.node(d.Body), Name: names[d.Name]}
-		return &core.Let{CoreNode: c.node(d), Name: names[d.Name], Value: value, Body: body}, nil
+		return &core.Let{CoreNode: c.node(d), Name: names[d.Name], Value: value, Body: body}, c.err
 	case *core.LetRec:
 		c.group = names
 		kept := map[string]bool{}
@@ -42,23 +47,14 @@ func (c *variantCloner) decl(decl core.CoreExpr, names map[string]string, keep [
 		}
 		out := &core.LetRec{CoreNode: c.node(d)}
 		for _, b := range d.Bindings {
-			if !kept[b.Name] {
-				continue
+			if kept[b.Name] {
+				out.Bindings = append(out.Bindings, core.RecBinding{Name: names[b.Name], Value: c.expr(b.Value, nil)})
 			}
-			value, err := c.expr(b.Value, nil)
-			if err != nil {
-				return nil, err
-			}
-			out.Bindings = append(out.Bindings, core.RecBinding{Name: names[b.Name], Value: value})
 		}
 		// The body names a member (or is unit); the name it takes here is
 		// defined by this copy, the original or an earlier variant.
-		body, err := c.expr(d.Body, nil)
-		if err != nil {
-			return nil, err
-		}
-		out.Body = body
-		return out, nil
+		out.Body = c.expr(d.Body, nil)
+		return out, c.err
 	}
 	return nil, fmt.Errorf("numeric variant: unexpected declaration %T", decl)
 }
@@ -72,20 +68,13 @@ func (c *variantCloner) meta(m *core.DeclMeta, name string) (*core.DeclMeta, err
 	out.VariantOf = m.Name
 	out.Contracts = nil
 	for _, k := range m.Contracts {
-		if k == nil {
-			continue
+		if k != nil {
+			kk := *k
+			kk.Expr = c.expr(k.Expr, nil)
+			out.Contracts = append(out.Contracts, &kk)
 		}
-		kk := *k
-		if k.Expr != nil {
-			e, err := c.expr(k.Expr, nil)
-			if err != nil {
-				return nil, err
-			}
-			kk.Expr = e
-		}
-		out.Contracts = append(out.Contracts, &kk)
 	}
-	return &out, nil
+	return &out, c.err
 }
 
 // node returns a fresh node for old, with old's type and resolved constraint
@@ -108,31 +97,23 @@ func (c *variantCloner) node(old core.CoreExpr) core.CoreNode {
 	return core.CoreNode{NodeID: id, CoreSpan: old.Span(), OrigSpan: old.OriginalSpan()}
 }
 
-func (c *variantCloner) exprs(xs []core.CoreExpr, bound map[string]bool) ([]core.CoreExpr, error) {
+func (c *variantCloner) exprs(xs []core.CoreExpr, bound map[string]bool) []core.CoreExpr {
 	if xs == nil {
-		return nil, nil
+		return nil
 	}
 	out := make([]core.CoreExpr, len(xs))
 	for i, x := range xs {
-		y, err := c.expr(x, bound)
-		if err != nil {
-			return nil, err
-		}
-		out[i] = y
+		out[i] = c.expr(x, bound)
 	}
-	return out, nil
+	return out
 }
 
-func (c *variantCloner) fields(m map[string]core.CoreExpr, bound map[string]bool) (map[string]core.CoreExpr, error) {
+func (c *variantCloner) fields(m map[string]core.CoreExpr, bound map[string]bool) map[string]core.CoreExpr {
 	out := make(map[string]core.CoreExpr, len(m))
 	for _, k := range sortedExprKeys(m) {
-		y, err := c.expr(m[k], bound)
-		if err != nil {
-			return nil, err
-		}
-		out[k] = y
+		out[k] = c.expr(m[k], bound)
 	}
-	return out, nil
+	return out
 }
 
 // binding returns bound plus names (a scope that shadows group members).
@@ -147,199 +128,91 @@ func binding(bound map[string]bool, names ...string) map[string]bool {
 	return out
 }
 
-// useName is the name a copied use of name (node old) takes in this variant.
-func (c *variantCloner) useName(old core.CoreExpr, name string, bound map[string]bool) (string, error) {
+// useName is the name a copied use of name (node old) takes in this variant:
+// the variant its instantiation names when it uses a binding with variants,
+// a group member's name in this copy when it is the declaration's own
+// (recursive) use, else name.
+func (c *variantCloner) useName(old core.CoreExpr, name string, bound map[string]bool) string {
 	if ref, ok := c.tc.NumericRefs()[old.ID()]; ok {
 		floats, err := c.tc.NumericRefInstance(old.ID(), c.sigma)
-		if err != nil {
-			return "", err
+		if err == nil {
+			name, err = c.use(ref, floats)
 		}
-		return c.use(ref, floats)
+		c.fail(err)
+		return name
 	}
 	if n, ok := c.group[name]; ok && !bound[name] {
-		return n, nil
+		return n
 	}
-	return name, nil
+	return name
 }
 
-func (c *variantCloner) expr(e core.CoreExpr, bound map[string]bool) (core.CoreExpr, error) {
+func (c *variantCloner) expr(e core.CoreExpr, bound map[string]bool) core.CoreExpr {
 	if e == nil {
-		return nil, nil
+		return nil
 	}
-	var err error
 	switch n := e.(type) {
 	case *core.Var:
-		name, err := c.useName(n, n.Name, bound)
-		if err != nil {
-			return nil, err
-		}
-		return &core.Var{CoreNode: c.node(n), Name: name}, nil
+		return &core.Var{CoreNode: c.node(n), Name: c.useName(n, n.Name, bound)}
 	case *core.VarGlobal:
 		ref := n.Ref
-		if _, ok := c.tc.NumericRefs()[n.ID()]; ok {
-			if ref.Name, err = c.useName(n, ref.Name, bound); err != nil {
-				return nil, err
-			}
+		if _, ok := c.tc.NumericRefs()[n.ID()]; ok { // never a group member: another module's
+			ref.Name = c.useName(n, ref.Name, bound)
 		}
-		return &core.VarGlobal{CoreNode: c.node(n), Ref: ref}, nil
+		return &core.VarGlobal{CoreNode: c.node(n), Ref: ref}
 	case *core.Lit:
-		return &core.Lit{CoreNode: c.node(n), Kind: n.Kind, Value: n.Value}, nil
+		return &core.Lit{CoreNode: c.node(n), Kind: n.Kind, Value: n.Value}
 	case *core.Lambda:
-		node := c.node(n)
-		body, err := c.expr(n.Body, binding(bound, n.Params...))
-		if err != nil {
-			return nil, err
-		}
-		return &core.Lambda{CoreNode: node, Params: n.Params, Body: body}, nil
+		return &core.Lambda{CoreNode: c.node(n), Params: n.Params, Body: c.expr(n.Body, binding(bound, n.Params...))}
 	case *core.Let:
-		node := c.node(n)
-		value, err := c.expr(n.Value, bound)
-		if err != nil {
-			return nil, err
-		}
-		body, err := c.expr(n.Body, binding(bound, n.Name))
-		if err != nil {
-			return nil, err
-		}
-		return &core.Let{CoreNode: node, Name: n.Name, Value: value, Body: body}, nil
+		return &core.Let{CoreNode: c.node(n), Name: n.Name, Value: c.expr(n.Value, bound), Body: c.expr(n.Body, binding(bound, n.Name))}
 	case *core.LetRec:
-		node := c.node(n)
+		out := &core.LetRec{CoreNode: c.node(n)}
 		names := make([]string, len(n.Bindings))
 		for i, b := range n.Bindings {
 			names[i] = b.Name
 		}
 		inner := binding(bound, names...)
-		out := &core.LetRec{CoreNode: node}
 		for _, b := range n.Bindings {
-			value, err := c.expr(b.Value, inner)
-			if err != nil {
-				return nil, err
-			}
-			out.Bindings = append(out.Bindings, core.RecBinding{Name: b.Name, Value: value})
+			out.Bindings = append(out.Bindings, core.RecBinding{Name: b.Name, Value: c.expr(b.Value, inner)})
 		}
-		if out.Body, err = c.expr(n.Body, inner); err != nil {
-			return nil, err
-		}
-		return out, nil
+		out.Body = c.expr(n.Body, inner)
+		return out
 	case *core.App:
-		node := c.node(n)
-		fn, err := c.expr(n.Func, bound)
-		if err != nil {
-			return nil, err
-		}
-		args, err := c.exprs(n.Args, bound)
-		if err != nil {
-			return nil, err
-		}
-		return &core.App{CoreNode: node, Func: fn, Args: args, TraceRedact: n.TraceRedact}, nil
+		return &core.App{CoreNode: c.node(n), Func: c.expr(n.Func, bound), Args: c.exprs(n.Args, bound), TraceRedact: n.TraceRedact}
 	case *core.If:
-		node := c.node(n)
-		xs, err := c.exprs([]core.CoreExpr{n.Cond, n.Then, n.Else}, bound)
-		if err != nil {
-			return nil, err
-		}
-		return &core.If{CoreNode: node, Cond: xs[0], Then: xs[1], Else: xs[2]}, nil
+		return &core.If{CoreNode: c.node(n), Cond: c.expr(n.Cond, bound), Then: c.expr(n.Then, bound), Else: c.expr(n.Else, bound)}
 	case *core.Match:
-		node := c.node(n)
-		scrut, err := c.expr(n.Scrutinee, bound)
-		if err != nil {
-			return nil, err
-		}
-		out := &core.Match{CoreNode: node, Scrutinee: scrut, Exhaustive: n.Exhaustive}
+		out := &core.Match{CoreNode: c.node(n), Scrutinee: c.expr(n.Scrutinee, bound), Exhaustive: n.Exhaustive}
 		for _, a := range n.Arms {
 			inner := binding(bound, patternBoundVars(a.Pattern)...)
-			guard, err := c.expr(a.Guard, inner)
-			if err != nil {
-				return nil, err
-			}
-			body, err := c.expr(a.Body, inner)
-			if err != nil {
-				return nil, err
-			}
-			out.Arms = append(out.Arms, core.MatchArm{Pattern: a.Pattern, Guard: guard, Body: body})
+			out.Arms = append(out.Arms, core.MatchArm{Pattern: a.Pattern, Guard: c.expr(a.Guard, inner), Body: c.expr(a.Body, inner)})
 		}
-		return out, nil
+		return out
 	case *core.BinOp:
-		node := c.node(n)
-		xs, err := c.exprs([]core.CoreExpr{n.Left, n.Right}, bound)
-		if err != nil {
-			return nil, err
-		}
-		return &core.BinOp{CoreNode: node, Op: n.Op, Left: xs[0], Right: xs[1]}, nil
+		return &core.BinOp{CoreNode: c.node(n), Op: n.Op, Left: c.expr(n.Left, bound), Right: c.expr(n.Right, bound)}
 	case *core.UnOp:
-		node := c.node(n)
-		x, err := c.expr(n.Operand, bound)
-		if err != nil {
-			return nil, err
-		}
-		return &core.UnOp{CoreNode: node, Op: n.Op, Operand: x}, nil
+		return &core.UnOp{CoreNode: c.node(n), Op: n.Op, Operand: c.expr(n.Operand, bound)}
 	case *core.Intrinsic:
-		node := c.node(n)
-		args, err := c.exprs(n.Args, bound)
-		if err != nil {
-			return nil, err
-		}
-		return &core.Intrinsic{CoreNode: node, Op: n.Op, Args: args}, nil
+		return &core.Intrinsic{CoreNode: c.node(n), Op: n.Op, Args: c.exprs(n.Args, bound)}
 	case *core.Record:
-		node := c.node(n)
-		fs, err := c.fields(n.Fields, bound)
-		if err != nil {
-			return nil, err
-		}
-		return &core.Record{CoreNode: node, Fields: fs}, nil
+		return &core.Record{CoreNode: c.node(n), Fields: c.fields(n.Fields, bound)}
 	case *core.RecordAccess:
-		node := c.node(n)
-		r, err := c.expr(n.Record, bound)
-		if err != nil {
-			return nil, err
-		}
-		return &core.RecordAccess{CoreNode: node, Record: r, Field: n.Field}, nil
+		return &core.RecordAccess{CoreNode: c.node(n), Record: c.expr(n.Record, bound), Field: n.Field}
 	case *core.RecordUpdate:
-		node := c.node(n)
-		base, err := c.expr(n.Base, bound)
-		if err != nil {
-			return nil, err
-		}
-		us, err := c.fields(n.Updates, bound)
-		if err != nil {
-			return nil, err
-		}
-		return &core.RecordUpdate{CoreNode: node, Base: base, Updates: us}, nil
+		return &core.RecordUpdate{CoreNode: c.node(n), Base: c.expr(n.Base, bound), Updates: c.fields(n.Updates, bound)}
 	case *core.List:
-		node := c.node(n)
-		xs, err := c.exprs(n.Elements, bound)
-		if err != nil {
-			return nil, err
-		}
-		return &core.List{CoreNode: node, Elements: xs}, nil
+		return &core.List{CoreNode: c.node(n), Elements: c.exprs(n.Elements, bound)}
 	case *core.Array:
-		node := c.node(n)
-		xs, err := c.exprs(n.Elements, bound)
-		if err != nil {
-			return nil, err
-		}
-		return &core.Array{CoreNode: node, Elements: xs}, nil
+		return &core.Array{CoreNode: c.node(n), Elements: c.exprs(n.Elements, bound)}
 	case *core.Tuple:
-		node := c.node(n)
-		xs, err := c.exprs(n.Elements, bound)
-		if err != nil {
-			return nil, err
-		}
-		return &core.Tuple{CoreNode: node, Elements: xs}, nil
+		return &core.Tuple{CoreNode: c.node(n), Elements: c.exprs(n.Elements, bound)}
 	case *core.Forall:
-		node := c.node(n)
-		xs, err := c.exprs([]core.CoreExpr{n.Lo, n.Hi}, bound)
-		if err != nil {
-			return nil, err
-		}
-		body, err := c.expr(n.Body, binding(bound, n.Var))
-		if err != nil {
-			return nil, err
-		}
-		return &core.Forall{CoreNode: node, Var: n.Var, Lo: xs[0], Hi: xs[1], Body: body}, nil
+		return &core.Forall{CoreNode: c.node(n), Var: n.Var, Lo: c.expr(n.Lo, bound), Hi: c.expr(n.Hi, bound), Body: c.expr(n.Body, binding(bound, n.Var))}
 	}
 	// Dictionary nodes do not exist before dictionary elaboration; anything
 	// else is a Core form this copy does not know, and copying it by reference
 	// would share node ids (types) between variants.
-	return nil, fmt.Errorf("numeric variant: cannot copy Core node %T", e)
+	c.fail(fmt.Errorf("numeric variant: cannot copy Core node %T", e))
+	return e
 }
