@@ -7,19 +7,28 @@ import (
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
-// VerifyANF checks that a Core program is in A-Normal Form.
-// In ANF:
-// - Complex expressions must be let-bound
-// - Arguments to functions and operators must be atomic
-// - Scrutinees of if/match must be atomic
-// - Fields in record construction must be atomic
-// - Elements in list construction must be atomic
+// VerifyANF checks that a Core program has the shape the elaborator produces.
 //
-// Returns nil if valid ANF, error describing violation otherwise.
+// Operands are atomic (Var, VarGlobal, Lit, Lambda, DictRef): the arguments
+// of a call, an operator, an intrinsic or a dictionary method, the elements
+// of a list, array or tuple, the fields of a record (literal, access or
+// update), the condition of an if and the scrutinee of a match. Anything
+// else is let-bound, and a let's value may be any expression of this shape:
+// a call, a constructor, an if, a match, or another let-chain. Since #2388
+// ANF completion floats only its own temporaries, so a let the program
+// wrote inside a value (`{ let a = 1; a } + 2`, `let s = (let q = 2 in q)
+// in s`) stays nested as the value of the temporary or of the binding; the
+// block form produced the same shape before. Lambda bodies, if branches,
+// match guards and bodies, and let bodies are checked the same way.
+//
+// Returns nil if the program has that shape, an error naming the first
+// violation otherwise. The REPL runs it after dictionary elaboration (#2407:
+// the old description rejected every let, if, match and tuple used as a
+// let's value).
 func VerifyANF(prog *core.Program) error {
 	verifier := &anfVerifier{}
 	for i, decl := range prog.Decls {
-		if err := verifier.verifyExpr(decl, true); err != nil {
+		if err := verifier.verifyExpr(decl); err != nil {
 			return fmt.Errorf("declaration %d: %w", i, err)
 		}
 	}
@@ -28,313 +37,132 @@ func VerifyANF(prog *core.Program) error {
 
 type anfVerifier struct{}
 
-// verifyExpr checks that an expression follows ANF discipline.
-// topLevel indicates if this expression is at a binding position (can be complex)
-func (v *anfVerifier) verifyExpr(expr core.CoreExpr, topLevel bool) error {
+// atomic checks that every operand is atomic, naming the first that is not.
+func (v *anfVerifier) atomic(what string, operands ...core.CoreExpr) error {
+	for i, o := range operands {
+		if !core.IsAtomic(o) {
+			return fmt.Errorf("%s operand %d must be atomic, got %T", what, i, o)
+		}
+	}
+	return nil
+}
+
+func (v *anfVerifier) atomicFields(what string, fields map[string]core.CoreExpr) error {
+	for name, value := range fields {
+		if !core.IsAtomic(value) {
+			return fmt.Errorf("%s field '%s' must be atomic, got %T", what, name, value)
+		}
+	}
+	return nil
+}
+
+// verifyExpr checks one expression in a binding position (a declaration, a
+// let's value or body, a branch, an arm, a lambda body).
+func (v *anfVerifier) verifyExpr(expr core.CoreExpr) error {
 	if expr == nil {
 		return nil
 	}
 
 	switch e := expr.(type) {
-	// Atomic expressions - always valid
-	case *core.Var, *core.Lit, *core.Lambda, *core.DictRef:
+	case *core.Var, *core.VarGlobal, *core.Lit, *core.DictRef:
 		return nil
 
-	// Let bindings - value can be complex, body must be verified
+	case *core.Lambda:
+		if err := v.verifyExpr(e.Body); err != nil {
+			return fmt.Errorf("lambda body: %w", err)
+		}
+		return nil
+
 	case *core.Let:
-		// Value can be a simple call or atomic
-		if err := v.verifySimpleOrAtomic(e.Value); err != nil {
+		if err := v.verifyExpr(e.Value); err != nil {
 			return fmt.Errorf("let binding '%s' value: %w", e.Name, err)
 		}
-		// Body continues verification
-		return v.verifyExpr(e.Body, topLevel)
+		return v.verifyExpr(e.Body)
 
 	case *core.LetRec:
-		// Each binding value must be simple or atomic (usually lambdas)
 		for _, binding := range e.Bindings {
-			if err := v.verifySimpleOrAtomic(binding.Value); err != nil {
+			if err := v.verifyExpr(binding.Value); err != nil {
 				return fmt.Errorf("let rec binding '%s': %w", binding.Name, err)
 			}
 		}
-		// Body continues verification
-		return v.verifyExpr(e.Body, topLevel)
+		return v.verifyExpr(e.Body)
 
-	// Complex expressions - must be at top level or let-bound
 	case *core.App:
-		if !topLevel {
-			return fmt.Errorf("function application must be let-bound in ANF")
+		if err := v.atomic("function application", e.Func); err != nil {
+			return err
 		}
-		// Function must be atomic
-		if !core.IsAtomic(e.Func) {
-			return fmt.Errorf("function in application must be atomic, got %T", e.Func)
-		}
-		// All arguments must be atomic
-		for i, arg := range e.Args {
-			if !core.IsAtomic(arg) {
-				return fmt.Errorf("argument %d in application must be atomic, got %T", i, arg)
-			}
-		}
-		return nil
+		return v.atomic("function application", e.Args...)
 
 	case *core.BinOp:
-		if !topLevel {
-			return fmt.Errorf("binary operation '%s' must be let-bound in ANF", e.Op)
-		}
-		// Both operands must be atomic
-		if !core.IsAtomic(e.Left) {
-			return fmt.Errorf("left operand of '%s' must be atomic, got %T", e.Op, e.Left)
-		}
-		if !core.IsAtomic(e.Right) {
-			return fmt.Errorf("right operand of '%s' must be atomic, got %T", e.Op, e.Right)
-		}
-		return nil
+		return v.atomic("binary operation '"+e.Op+"'", e.Left, e.Right)
 
 	case *core.UnOp:
-		if !topLevel {
-			return fmt.Errorf("unary operation '%s' must be let-bound in ANF", e.Op)
+		return v.atomic("unary operation '"+e.Op+"'", e.Operand)
+
+	case *core.Intrinsic:
+		return v.atomic("intrinsic", e.Args...)
+
+	case *core.DictApp:
+		if err := v.atomic("dictionary application", e.Dict); err != nil {
+			return err
 		}
-		// Operand must be atomic
-		if !core.IsAtomic(e.Operand) {
-			return fmt.Errorf("operand of unary '%s' must be atomic, got %T", e.Op, e.Operand)
-		}
-		return nil
+		return v.atomic("dictionary application", e.Args...)
 
 	case *core.If:
-		// If can appear anywhere but condition must be atomic
-		if !core.IsAtomic(e.Cond) {
-			return fmt.Errorf("if condition must be atomic, got %T", e.Cond)
+		if err := v.atomic("if condition", e.Cond); err != nil {
+			return err
 		}
-		// Branches are verified at top level
-		if err := v.verifyExpr(e.Then, true); err != nil {
+		if err := v.verifyExpr(e.Then); err != nil {
 			return fmt.Errorf("if then branch: %w", err)
 		}
-		if err := v.verifyExpr(e.Else, true); err != nil {
+		if err := v.verifyExpr(e.Else); err != nil {
 			return fmt.Errorf("if else branch: %w", err)
 		}
 		return nil
 
 	case *core.Match:
-		// Match can appear anywhere but scrutinee must be atomic
-		if !core.IsAtomic(e.Scrutinee) {
-			return fmt.Errorf("match scrutinee must be atomic, got %T", e.Scrutinee)
+		if err := v.atomic("match scrutinee", e.Scrutinee); err != nil {
+			return err
 		}
-		// Each arm body is verified at top level
 		for i, arm := range e.Arms {
-			if err := v.verifyExpr(arm.Body, true); err != nil {
+			if err := v.verifyExpr(arm.Guard); err != nil {
+				return fmt.Errorf("match arm %d guard: %w", i, err)
+			}
+			if err := v.verifyExpr(arm.Body); err != nil {
 				return fmt.Errorf("match arm %d: %w", i, err)
 			}
 		}
 		return nil
 
 	case *core.Record:
-		if !topLevel {
-			return fmt.Errorf("record construction must be let-bound in ANF")
-		}
-		// All field values must be atomic
-		for name, value := range e.Fields {
-			if !core.IsAtomic(value) {
-				return fmt.Errorf("record field '%s' must be atomic, got %T", name, value)
-			}
-		}
-		return nil
+		return v.atomicFields("record", e.Fields)
 
 	case *core.RecordAccess:
-		if !topLevel {
-			return fmt.Errorf("record field access must be let-bound in ANF")
-		}
-		// Record must be atomic
-		if !core.IsAtomic(e.Record) {
-			return fmt.Errorf("record in field access must be atomic, got %T", e.Record)
-		}
-		return nil
+		return v.atomic("record field access", e.Record)
 
 	case *core.RecordUpdate:
-		if !topLevel {
-			return fmt.Errorf("record update must be let-bound in ANF")
+		if err := v.atomic("record update", e.Base); err != nil {
+			return err
 		}
-		// Base must be atomic
-		if !core.IsAtomic(e.Base) {
-			return fmt.Errorf("base record in update must be atomic, got %T", e.Base)
-		}
-		// All update values must be atomic
-		for name, value := range e.Updates {
-			if !core.IsAtomic(value) {
-				return fmt.Errorf("record update field '%s' must be atomic, got %T", name, value)
-			}
-		}
-		return nil
+		return v.atomicFields("record update", e.Updates)
 
 	case *core.List:
-		if !topLevel {
-			return fmt.Errorf("list construction must be let-bound in ANF")
-		}
-		// All elements must be atomic
-		for i, elem := range e.Elements {
-			if !core.IsAtomic(elem) {
-				return fmt.Errorf("list element %d must be atomic, got %T", i, elem)
-			}
-		}
-		return nil
+		return v.atomic("list", e.Elements...)
 
 	case *core.Array:
-		if !topLevel {
-			return fmt.Errorf("array construction must be let-bound in ANF")
-		}
-		// All elements must be atomic
-		for i, elem := range e.Elements {
-			if !core.IsAtomic(elem) {
-				return fmt.Errorf("array element %d must be atomic, got %T", i, elem)
-			}
-		}
-		return nil
+		return v.atomic("array", e.Elements...)
 
-	// Dictionary nodes
+	case *core.Tuple:
+		return v.atomic("tuple", e.Elements...)
+
 	case *core.DictAbs:
-		// Body continues verification
-		return v.verifyExpr(e.Body, true)
+		return v.verifyExpr(e.Body)
 
-	case *core.DictApp:
-		if !topLevel {
-			return fmt.Errorf("dictionary application must be let-bound in ANF")
-		}
-		// Dictionary must be atomic (usually a Var)
-		if !core.IsAtomic(e.Dict) {
-			return fmt.Errorf("dictionary in DictApp must be atomic, got %T", e.Dict)
-		}
-		// All arguments must be atomic
-		for i, arg := range e.Args {
-			if !core.IsAtomic(arg) {
-				return fmt.Errorf("argument %d in DictApp must be atomic, got %T", i, arg)
-			}
-		}
-		return nil
-
-	case *core.Intrinsic:
-		if !topLevel {
-			return fmt.Errorf("intrinsic operation must be let-bound in ANF")
-		}
-		// All arguments must be atomic
-		for i, arg := range e.Args {
-			if !core.IsAtomic(arg) {
-				return fmt.Errorf("argument %d in Intrinsic must be atomic, got %T", i, arg)
-			}
-		}
-		return nil
+	case *core.Forall:
+		return v.verifyExpr(e.Body)
 
 	default:
 		return fmt.Errorf("unknown expression type in ANF verification: %T", expr)
-	}
-}
-
-// verifySimpleOrAtomic checks that an expression is either atomic or a simple call
-// Simple calls are: App, BinOp, UnOp, Record, List, RecordAccess, DictApp
-func (v *anfVerifier) verifySimpleOrAtomic(expr core.CoreExpr) error {
-	if core.IsAtomic(expr) {
-		return nil
-	}
-
-	// Check if it's a simple call with atomic arguments
-	switch e := expr.(type) {
-	case *core.App:
-		if !core.IsAtomic(e.Func) {
-			return fmt.Errorf("function must be atomic in simple call")
-		}
-		for i, arg := range e.Args {
-			if !core.IsAtomic(arg) {
-				return fmt.Errorf("argument %d must be atomic in simple call", i)
-			}
-		}
-		return nil
-
-	case *core.BinOp:
-		if !core.IsAtomic(e.Left) {
-			return fmt.Errorf("left operand must be atomic")
-		}
-		if !core.IsAtomic(e.Right) {
-			return fmt.Errorf("right operand must be atomic")
-		}
-		return nil
-
-	case *core.UnOp:
-		if !core.IsAtomic(e.Operand) {
-			return fmt.Errorf("operand must be atomic")
-		}
-		return nil
-
-	case *core.Record:
-		for name, value := range e.Fields {
-			if !core.IsAtomic(value) {
-				return fmt.Errorf("field '%s' must be atomic", name)
-			}
-		}
-		return nil
-
-	case *core.List:
-		for i, elem := range e.Elements {
-			if !core.IsAtomic(elem) {
-				return fmt.Errorf("element %d must be atomic", i)
-			}
-		}
-		return nil
-
-	case *core.Array:
-		for i, elem := range e.Elements {
-			if !core.IsAtomic(elem) {
-				return fmt.Errorf("array element %d must be atomic", i)
-			}
-		}
-		return nil
-
-	case *core.RecordAccess:
-		if !core.IsAtomic(e.Record) {
-			return fmt.Errorf("record must be atomic")
-		}
-		return nil
-
-	case *core.RecordUpdate:
-		if !core.IsAtomic(e.Base) {
-			return fmt.Errorf("base record must be atomic")
-		}
-		for name, value := range e.Updates {
-			if !core.IsAtomic(value) {
-				return fmt.Errorf("update field '%s' must be atomic", name)
-			}
-		}
-		return nil
-
-	case *core.DictApp:
-		if !core.IsAtomic(e.Dict) {
-			return fmt.Errorf("dictionary must be atomic")
-		}
-		for i, arg := range e.Args {
-			if !core.IsAtomic(arg) {
-				return fmt.Errorf("argument %d must be atomic", i)
-			}
-		}
-		return nil
-
-	case *core.Intrinsic:
-		for i, arg := range e.Args {
-			if !core.IsAtomic(arg) {
-				return fmt.Errorf("argument %d must be atomic", i)
-			}
-		}
-		return nil
-
-	// If and Match are control flow, not simple calls
-	case *core.If, *core.Match:
-		return fmt.Errorf("control flow expressions are not simple calls")
-
-	// Let forms are not simple calls
-	case *core.Let, *core.LetRec:
-		return fmt.Errorf("let bindings are not simple calls")
-
-	// DictAbs is not a simple call
-	case *core.DictAbs:
-		return fmt.Errorf("dictionary abstraction is not a simple call")
-
-	default:
-		return fmt.Errorf("expression %T is not atomic or simple call", expr)
 	}
 }
 

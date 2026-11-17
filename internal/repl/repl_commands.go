@@ -11,6 +11,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/lexer"
 	"github.com/sunholo-data/ailang/internal/parser"
+	"github.com/sunholo-data/ailang/internal/pipeline"
 	"github.com/sunholo-data/ailang/internal/schema"
 	"github.com/sunholo-data/ailang/internal/test"
 	"github.com/sunholo-data/ailang/internal/types"
@@ -109,8 +110,14 @@ func (r *REPL) HandleCommand(cmd string, out io.Writer) {
 			return
 		}
 		r.effContext.BindWorkerScope()
-		r.env = eval.NewEnvironment()
-		r.typeEnv = types.NewTypeEnvWithBuiltins() // Reload builtins on reset
+		// A fresh child of the evaluator's own environment, used by the
+		// evaluator too: before, only r.env was replaced, so the evaluator
+		// kept the old bindings and every `let` after the reset was lost.
+		r.env = r.baseEnv.NewChildEnvironment()
+		r.evaluator.SetEnv(r.env)
+		// Builtins and the prelude, as a new REPL starts with them (println
+		// was undefined after a reset).
+		r.typeEnv = pipeline.InjectPrelude(types.NewTypeEnvWithBuiltins())
 		r.instEnv = types.NewInstanceEnv()
 		// Re-import prelude after reset
 		r.importModule("std/prelude", io.Discard)

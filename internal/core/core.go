@@ -111,7 +111,7 @@ func (l *Lambda) String() string {
 type Let struct {
 	CoreNode
 	Name  string
-	Value CoreExpr // In ANF: atomic or simple call
+	Value CoreExpr // Any expression with atomic operands, including a nested let (#2388); see elaborate.VerifyANF
 	Body  CoreExpr
 }
 
@@ -177,7 +177,7 @@ type Match struct {
 
 type MatchArm struct {
 	Pattern CorePattern
-	Guard   CoreExpr // Optional, must be atomic
+	Guard   CoreExpr // Optional; any expression with atomic operands, like a body
 	Body    CoreExpr
 }
 

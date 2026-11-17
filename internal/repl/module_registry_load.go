@@ -362,6 +362,12 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	// Without this, polymorphic functions remain unspecialized and operator
 	// lowering can't determine concrete types for dictionary dispatch.
 	// This fixes: import shadowing (Bug 1) and eq_Int dispatch in helper lambdas (Bug 2).
+	// Local names unique per declaration first, as in the native pipelines
+	// (#2401): monomorphisation copies let-bound lambda bodies to their call
+	// sites and resolves aliases by name, which is only capture-free when no
+	// binder shadows another. Without it, a module loaded here (the wasm
+	// playground's ailangLoadModule, the REPL's :import) kept the capture.
+	elaboratedProg = core.UniqueProgramLocals(elaboratedProg)
 	specializer := pipeline.NewSpecializer(&typeChecker.CoreTI)
 	specializedProg, err := specializer.Specialize(elaboratedProg)
 	if err != nil {
