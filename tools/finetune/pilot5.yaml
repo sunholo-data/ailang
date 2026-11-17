@@ -1,0 +1,28 @@
+# Pilot-5 stage 2 (docs/docs/finetuning/pilot-5.md): a FRESH adapter on the untrained model,
+# single-turn language examples. __ITERS__/__UPDATES__/__RANK__ are filled by pilot5_run.sh.
+# Rate: 5e-5, between pilot-1's 1e-4 (too hot at scale 20) and pilot-2's cooled 2e-5; this run
+# has to add knowledge, not adjust habits. Rank is the variable under test (32 vs 128).
+train: true
+fine_tune_type: lora
+mask_prompt: true
+num_layers: -1
+batch_size: 1
+grad_accumulation_steps: 4
+iters: __ITERS__
+learning_rate: 5.0e-5
+lr_schedule:
+  name: cosine_decay
+  warmup: 100
+  warmup_init: 1.0e-6
+  arguments: [5.0e-5, __UPDATES__, 1.0e-6]
+lora_parameters:
+  rank: __RANK__
+  scale: 10.0
+  dropout: 0.05
+max_seq_length: 12288
+grad_checkpoint: true
+steps_per_report: 20
+steps_per_eval: 300
+val_batches: 80
+save_every: 500
+seed: 17

@@ -30,12 +30,17 @@ LOG=$OUT/run.log
 log(){ echo "[$(date -u +%FT%TZ)] $*" | tee -a "$LOG"; }
 pv(){ case $1 in none) echo ft-none;; slim) echo ft-slim-v1;; full) echo v0.16.12;; *) echo "bad arm $1" >&2; exit 1;; esac; }
 
-source tools/launchd/rig-lock.sh
-rig_lock_acquire wait finetune-pilot5 || { log "FATAL: rig lock acquire failed"; exit 1; }
-rig_lock_clear_yield finetune-pilot5
-log "rig lock held: $(cat "$RIG_LOCK_DIR/holder"); disk $(df -g "$HOME" | awk 'NR==2{print $4}') GiB free"
-parent=$$
-( while kill -0 "$parent" 2>/dev/null; do sleep 300; [ -d "$RIG_LOCK_DIR" ] && touch "$RIG_LOCK_DIR"; done ) &
+if [ "${AILANG_RIG_LOCK_HELD:-}" = 1 ]; then
+  log "rig lock held by the caller"
+else
+  source tools/launchd/rig-lock.sh
+  rig_lock_request_yield finetune-pilot5 1800 || log "another handoff in force; waiting normally"
+  rig_lock_acquire wait finetune-pilot5 || { log "FATAL: rig lock acquire failed"; exit 1; }
+  rig_lock_clear_yield finetune-pilot5
+  log "rig lock held: $(cat "$RIG_LOCK_DIR/holder"); disk $(df -g "$HOME" | awk 'NR==2{print $4}') GiB free"
+  parent=$$
+  ( while kill -0 "$parent" 2>/dev/null; do sleep 300; [ -d "$RIG_LOCK_DIR" ] && touch "$RIG_LOCK_DIR"; done ) &
+fi
 
 for arm in $ARMS; do
   v=$(pv "$arm") || exit 1
