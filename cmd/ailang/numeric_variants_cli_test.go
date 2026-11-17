@@ -127,9 +127,22 @@ export func main() -> () ! {IO} {
   println("ints=${show(a)} n=${show(a / 4)} f=${show(b)}")
 }
 `,
+		// A lambda under a block (#2388 generalises it) is not copied per use: a
+		// literal-free callee leaves it generic, a literal-carrying one makes it
+		// one value, here used at float only.
+		"block.ail": `module block
+pure func dbl(x) = x + x
+pure func inc(x) = x + 1
+export func main() -> () ! {IO} {
+  let f = { let k = 1; \u. dbl(u) };
+  let g = { let k = 1; \u. inc(u) };
+  println("${show(f(2))} ${show(f(2.5))} ${show(g(2.5))}")
+}
+`,
 	})
 	runBoth(t, bin, dir, "inner.ail", "3 3.5 3 [1.5] (7.0, 4.0) (6, 4)")
 	runBoth(t, bin, dir, "free.ail", "ints=42 n=10 f=0.5")
+	runBoth(t, bin, dir, "block.ail", "4 5.0 3.5")
 }
 
 // A contract on a generic function is checked at the type of the call: the

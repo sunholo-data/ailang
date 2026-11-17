@@ -455,6 +455,10 @@ func (tc *CoreTypeChecker) VariantResolved(id uint64, sigma Substitution) *Resol
 		name = StructuralEqTypeName
 	}
 	out.Type = &TCon{Name: name}
+	// Num → Fractional at Float, exactly as resolveGroundConstraints writes a
+	// monomorphic float body's constraints, so a variant's dictionary
+	// references match its twin's. (Mutation-tested equivalent: Num[float]
+	// and Fractional[float] register the same add/sub/mul/div/neg/abs/fromInt.)
 	if name == "Float" && out.ClassName == "Num" {
 		out.ClassName = "Fractional"
 	}

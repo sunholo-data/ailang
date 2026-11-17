@@ -122,6 +122,30 @@ func TestNumericVariants_WideBindingFromAnotherModule(t *testing.T) {
 	}
 }
 
+// A binding no other module can see gets a variant only when this module uses
+// it at that type; an exported one gets all of them, since an importer may.
+func TestNumericVariants_PrivateBindingsAreGeneratedOnUse(t *testing.T) {
+	res, err := writeAndCheck(t, map[string]string{"m.ail": "module m\n" +
+		"pure func priv(x) = x + 1\n" +
+		"pure func used(x) = x + 2\n" +
+		"export pure func pub(x) = x + 3\n" +
+		"export func main() -> () ! {IO} = println(\"${show(priv(1))} ${show(used(1.5))}\")\n"}, "m.ail")
+	if err != nil {
+		t.Fatalf("must check: %v", err)
+	}
+	defined := map[string]bool{}
+	for _, d := range res.Artifacts.Core.Decls {
+		if x, ok := d.(*core.Let); ok {
+			defined[x.Name] = true
+		}
+	}
+	for name, want := range map[string]bool{"priv$numF": false, "used$numF": true, "pub$numF": true} {
+		if defined[name] != want {
+			t.Errorf("declaration %s defined = %v, want %v; have %v", name, defined[name], want, keys(defined))
+		}
+	}
+}
+
 func keys(m map[string]bool) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
