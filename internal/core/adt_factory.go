@@ -29,7 +29,7 @@ func ADTFactoryKey(module, typeName, ctor string) string {
 // SplitADTFactoryModule splits the "@<module>" qualifier off a factory name:
 // "make_T_C@q/a" -> ("make_T_C", "q/a"). A name without one is returned
 // unchanged with module "". Back ends that only need the ADT and constructor
-// names (bytecode lowering, Go codegen, SMT) strip it and keep their own split.
+// names (bytecode lowering, SMT) strip it and keep their own split.
 func SplitADTFactoryModule(name string) (base, module string) {
 	if i := strings.Index(name, "@"); i >= 0 {
 		return name[:i], name[i+1:]

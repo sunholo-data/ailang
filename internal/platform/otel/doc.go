@@ -8,7 +8,7 @@
 // this package installs a provider.
 //
 // Rule: nothing under the language closure (pipeline, eval, effects, builtins,
-// format, repl, prompt, loader, link, lsp, vm, gen/golang, smt) may import this
+// format, repl, prompt, loader, link, lsp, vm, smt) may import this
 // package — internal/diag/closure_test.go enforces it. The directory is named
 // otel after the design doc; the package is otelplatform so call sites that
 // also import go.opentelemetry.io/otel need no alias.

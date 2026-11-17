@@ -14,8 +14,7 @@ import (
 
 // nfc_tables.go is generated from golang.org/x/text/unicode/norm (the
 // normaliser the loader uses, lexer.Normalize) so that the quoting rule can be
-// decided with the standard library alone — strutil.QuoteTo and the Go
-// emitter's copy of it (internal/gen/golang) share these tables.
+// decided with the standard library alone (strutil.QuoteTo reads these tables).
 //
 //	go test ./internal/strutil -run TestNFCTablesUpToDate -update-nfc
 var updateNFC = flag.Bool("update-nfc", false, "rewrite nfc_tables.go from golang.org/x/text")
@@ -193,8 +192,7 @@ func TestNFCTablesUpToDate(t *testing.T) {
 	if !bytes.Equal(bytes.ReplaceAll(got, []byte("\r\n"), []byte("\n")), want) {
 		t.Fatalf("%s is stale: the loader's normaliser (golang.org/x/text/unicode/norm) is Unicode %s with this x/text AND this Go toolchain "+
 			"(x/text switches to newer Unicode tables under newer Go, e.g. 17.0.0 from go1.27). Regenerate: "+
-			"go test ./internal/strutil -run TestNFCTablesUpToDate -update-nfc, then "+
-			"go test ./internal/gen/golang -run TestEmittedQuoteRuntimeUpToDate -update-quote", nfcTablesFile, norm.Version)
+			"go test ./internal/strutil -run TestNFCTablesUpToDate -update-nfc", nfcTablesFile, norm.Version)
 	}
 	if nfcUnicodeVersion != norm.Version {
 		t.Fatalf("tables are Unicode %s but the loader normalises with Unicode %s (Go toolchain or x/text bump): regenerate with -update-nfc", nfcUnicodeVersion, norm.Version)

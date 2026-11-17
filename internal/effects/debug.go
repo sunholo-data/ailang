@@ -31,7 +31,7 @@ type DebugContext struct {
 	// every Debug.log line of a run was held until the final flush — a logging
 	// loop grew without bound — and --log-level was applied at flush time, so a
 	// below-threshold DEBUG line was formatted, retained and then discarded.
-	// Hosts that never attach a sink (game engines, WASM, generated Go) keep
+	// Hosts that never attach a sink (game engines, WASM) keep
 	// the collect-then-flush contract exactly.
 	sink     *DebugSink
 	minLevel int

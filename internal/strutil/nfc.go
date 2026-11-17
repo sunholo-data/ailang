@@ -25,9 +25,8 @@ import (
 // plus the Stream-Safe Text Format limit x/text applies (a run of more than
 // 30 non-starters gets a U+034F inserted).
 //
-// Standard library only on purpose: the Go emitter copies this file,
-// quote_rule.go and the tables into every compiled program that uses show
-// (internal/gen/golang, emittedQuoteRuntime).
+// Standard library only: the Go emitter (since removed) copied this file,
+// quote_rule.go and the tables into every compiled program that used show.
 
 const (
 	hangulSBase  = 0xAC00

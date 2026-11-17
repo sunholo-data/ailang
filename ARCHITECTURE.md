@@ -158,18 +158,18 @@ behavioral dependency on the evaluator. If `embed` ever re-exports its own
 `Value` alias, `eval` should be added back to the deny-list.
 
 <!-- BEGIN GENERATED: language closure (scripts/gen_architecture_closure.sh) -->
-### Language closure (generated 2026-11-11 @ 2d4d8dece)
+### Language closure (generated 2026-11-17 @ f2744e72d)
 
 What `ailang run / check / fmt / prompt / repl` link, measured with `go list -deps`
-over the language roots. **54** of the internal packages are in the closure; the
-full binary links **142**. The gate is `internal/diag/closure_test.go`; the numbers
+over the language roots. **52** of the internal packages are in the closure; the
+full binary links **139**. The gate is `internal/diag/closure_test.go`; the numbers
 are banked by `make simplicity-metrics`. Regenerate this section with
 `scripts/gen_architecture_closure.sh` (CI runs it with `--check`).
 
 **Language roots** (`tools/simplicity_metrics.sh` LANGUAGE_ROOTS):
-`internal/pipeline` `internal/eval` `internal/effects` `internal/builtins` `internal/format` `internal/repl` `internal/prompt` `internal/loader` `internal/link` `internal/lsp` `internal/vm` `internal/gen/golang` `internal/smt` 
+`internal/pipeline` `internal/eval` `internal/effects` `internal/builtins` `internal/format` `internal/repl` `internal/prompt` `internal/loader` `internal/link` `internal/lsp` `internal/vm` `internal/smt` 
 
-**In the closure** (54 packages):
+**In the closure** (52 packages):
 
 - `internal/ai`
 - `internal/ai/ollama/wire`
@@ -185,8 +185,6 @@ are banked by `make simplicity-metrics`. Regenerate this section with
 - `internal/eval`
 - `internal/fileguard`
 - `internal/format`
-- `internal/gen/block`
-- `internal/gen/golang`
 - `internal/gitexec`
 - `internal/iface`
 - `internal/importhint`
