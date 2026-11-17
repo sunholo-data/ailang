@@ -59,10 +59,10 @@ func TestNumericRules_WhatIsGeneric(t *testing.T) {
 			"  show(a + b + c + d + mk()(2.5) + intToFloat(mk()(2) + K()))\n}\n"), nil, nil)
 	wantNumericCheck(t, "a constant's literal is an int, and the error names it", map[string]string{
 		"m/main.ail": "module m/main\nlet N = 3\nexport func main() -> string = show(N * 0.5)\n"},
-		[]string{"`N` is an int: its integer literal (at m/main.ail:2:9)", "write that literal as a float (3.0)"}, nil)
+		[]string{"`N` is an int: its integer literal (at m", "main.ail:2:9)", "write that literal as a float (3.0)"}, nil)
 	wantNumericCheck(t, "a result-only literal is an int", map[string]string{
 		"m/main.ail": "module m/main\nfunc one(x) = 1\nexport func main() -> string = show(one(2.5) * 0.5)\n"},
-		[]string{"`one` is an int: its integer literal (at m/main.ail:2:15)"}, nil)
+		[]string{"`one` is an int: its integer literal (at m", "main.ail:2:15)"}, nil)
 	wantNumericCheck(t, "no literal, no literal note", map[string]string{
 		"m/main.ail": "module m/main\nfunc k(n: int) -> int = n\nexport func main() -> string = show(k(2) * 0.5)\n"},
 		[]string{"Fractional[int]"}, []string{"integer literal (at", "single value"})
@@ -82,7 +82,7 @@ func TestNumericRules_LetBoundBindings(t *testing.T) {
 		{"recursive, own literal", "export func main() -> string {\n  letrec s = \\n. if n <= 0 then 0 else n + s(n - 1);\n  let n: int = 3;\n  \"${show(s(n))} ${show(s(2.5))}\"\n}\n", nil, nil},
 		{"imported literal-free callee: generic", "export func main() -> string {\n  let h = if true then \\u. add(u, u) else \\u. u;\n  \"${show(h(2))} ${show(h(2.5))}\"\n}\n", nil, nil},
 		{"expansive value at int and float", "export func main() -> string {\n  let h = if true then \\u. inc(u) else \\u. u;\n  let n: int = 2;\n  \"${show(h(n))} ${show(h(2.5))}\"\n}\n",
-			[]string{"`h` is a single value, not a function", "m/main.ail:4:3", "need different ones (int and float)"}, nil},
+			[]string{"`h` is a single value, not a function", "main.ail:4:3:", "need different ones (int and float)"}, nil},
 		{"expansive value, one call wrong by itself", "export func main() -> string {\n  let h = if true then \\u. inc(u) else \\u. u;\n  let n: int = 2;\n  \"${show(h(n) * 0.5)} ${show(h(n))}\"\n}\n",
 			[]string{"Fractional[int]"}, []string{"single value"}},
 	} {

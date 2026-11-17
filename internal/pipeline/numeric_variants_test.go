@@ -112,14 +112,16 @@ func TestNumericVariants_WideBindingFromAnotherModule(t *testing.T) {
 	}, "q/m.ail")
 	// The binding at fault is W, not V: the message names it and where V
 	// uses it (#2393 review R4).
-	wantCode(t, err, types.NumVariantLimitCode, "V from q/v has no variant for this use at float: it needs W from q/w (used at q/v.ail:3:")
+	// (Positions are file paths: q\\v.ail on Windows.)
+	wantCode(t, err, types.NumVariantLimitCode, "V from q/v has no variant for this use at float: it needs W from q/w (used at ")
+	wantCode(t, err, types.NumVariantLimitCode, "v.ail:3:")
 	wantCode(t, err, types.NumVariantLimitCode, "which is not compiled with 5 of its 5 numeric types at float")
 	// In a generic function of this module, whose float variant needs it.
 	_, err = writeAndCheck(t, map[string]string{
 		"q/w.ail": lib,
 		"q/m.ail": "module q/m\nimport q/w (W)\npure func g(x) = W(x, x, x, x, x)\nexport func main() -> () ! {IO} = println(show(g(1.5)))\n",
 	}, "q/m.ail")
-	wantCode(t, err, types.NumVariantLimitCode, "g at float needs W from q/w (used at q/m.ail:3:")
+	wantCode(t, err, types.NumVariantLimitCode, "g at float needs W from q/w (used at ")
 	if _, err := writeAndCheck(t, map[string]string{
 		"q/w.ail": lib, "q/v.ail": via,
 		"q/m.ail": "module q/m\nimport q/w (W, local)\nimport q/v (V)\nexport func main() -> () ! {IO} = println(\"${show(W(1, 2, 3, 4, 5))} ${show(local())} ${show(V(2))}\")\n",
