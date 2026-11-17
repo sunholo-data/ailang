@@ -231,7 +231,8 @@ Still open:
     literal is one value whose uses decide its type (`let f = \x. x + 1` used as `f(2.5)` and
     `f(2)` makes the `2` a float, as before), while one that only calls a generic top-level
     binding gets a copy per use (`let h = \u. inc(u)`: `h(2) == 3`, `h(2.5) == 3.5`); a
-    let-bound recursive lambda (`letrec`) calling a literal-carrying binding is one value too.
+    let-bound recursive lambda (`letrec`) calling a literal-carrying binding is one value too,
+    and so is a lambda under a block (`let g = { let k = 1; \u. inc(u) }`).
     Inline test rows (`tests [...]`) are run by an untyped harness that calls the int body, so
     a float row of a generic function fails under `ailang test` although `check` accepts it
     (#2392). A contract clause that needs `Num` where the body does not (`g(x) requires { inc(x)
