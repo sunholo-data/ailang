@@ -68,6 +68,8 @@ func pairs(ps: [(float, float)], qs: [(int, int)]) -> string {
 export func main() -> () ! {IO} = println(pairs([], []))
 `,
 		"use.ail": "module use\nimport lib/ar (add)\nexport func main() -> () ! {IO} = println(show(add(1.5, 2.0)))\n",
+		// A function over an imported literal-free generic carries no literal.
+		"lib/two.ail": "module lib/two\nimport lib/ar (add, inc)\nexport func dbl(x) = add(x, x)\nexport func inc2(x) = inc(inc(x))\n",
 	})
 	runBoth(t, bin, dir, "x1.ail", "42 10 0.5")
 	runBoth(t, bin, dir, "x3.ail", "25.0 25")
@@ -75,6 +77,11 @@ export func main() -> () ! {IO} = println(pairs([], []))
 	r.want(t, "iface", 0)
 	if n := strings.Count(r.out, `"literals"`); n != 1 || !strings.Contains(r.out, `"literals": [`) {
 		t.Errorf("only inc carries a literal; iface has %d literals fields:\n%s", n, r.out)
+	}
+	r = ailangIn(t, bin, dir, "iface", "lib/two.ail")
+	r.want(t, "iface two", 0)
+	if n := strings.Count(r.out, `"literals"`); n != 1 {
+		t.Errorf("only inc2 (over the imported inc's literal) carries one; iface has %d literals fields:\n%s", n, r.out)
 	}
 	// The dependency gains a literal, then loses it: each warm run must
 	// agree with the cold one (the importer calls add$numF, then add).
