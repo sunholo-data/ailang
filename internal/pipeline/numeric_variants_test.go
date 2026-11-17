@@ -146,6 +146,43 @@ func TestNumericVariants_PrivateBindingsAreGeneratedOnUse(t *testing.T) {
 	}
 }
 
+// A let-bound lambda that calls a literal-carrying generic binding is copied
+// per use: the declaration holding it is replaced by a copy that binds the
+// float copy next to the lambda, and the float use calls it. A literal-free
+// callee leaves the lambda alone.
+func TestNumericVariants_LetBoundLambdaIsCopiedPerUse(t *testing.T) {
+	res, err := writeAndCheck(t, map[string]string{"m.ail": "module m\n" +
+		"pure func inc(x) = x + 1\n" +
+		"pure func add(a, b) = a + b\n" +
+		"export func main() -> () ! {IO} {\n" +
+		"  let h = \\u. inc(u);\n" +
+		"  let d = \\u. add(u, u);\n" +
+		"  println(\"${show(h(2))} ${show(h(2.5))} ${show(d(2))} ${show(d(0.5))}\")\n" +
+		"}\n"}, "m.ail")
+	if err != nil {
+		t.Fatalf("must check: %v", err)
+	}
+	bound, used := map[string]bool{}, map[string]bool{}
+	for _, d := range res.Artifacts.Core.Decls {
+		walkCoreExprs(d, func(e core.CoreExpr) {
+			switch x := e.(type) {
+			case *core.Let:
+				bound[x.Name] = true
+			case *core.Var:
+				used[x.Name] = true
+			}
+		})
+	}
+	for _, want := range []string{"h", "h$numF", "d"} {
+		if !bound[want] || !used[want] {
+			t.Errorf("%s: bound %v, used %v; bound %v", want, bound[want], used[want], keys(bound))
+		}
+	}
+	if bound["d$numF"] {
+		t.Errorf("a lambda calling a literal-free binding must not be copied; bound %v", keys(bound))
+	}
+}
+
 func keys(m map[string]bool) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
