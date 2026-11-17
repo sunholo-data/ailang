@@ -1201,3 +1201,85 @@ Each replied to its filer.
 - Executor: resolver `recipe claude:claude-haiku-5-5 declared:provider-pin` → `claude-sub -p --model claude-haiku-5-5`, probe rc 0. Runs M1–M8 rc 0; one M7 launch failed before starting (empty directive, controller error). 184,243 output tok.
 - Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 3 spawns plus 1 resume (63,776 / 114,748 / 88,872 + 97,412 tok). Judge independence: cross-model (designer and planner opus, executor haiku, judge sonnet; same vendor).
 - Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
+
+## 119 — 2026-11-17 — D-FLEET-33 A BUILT, not landed: pi `unowned-dirty` relative-path fix on #2411 (judge sonnet PASS 93); merge waits on the attended `make pi-assets` sync, which CI's required `checks` enforces, and on dev's unrelated required `test` red [HARNESS]
+
+**Pick**: queue row 41, `pi:unowned-dirty-absolute-vs-relative-paths` (D-FLEET-33, ruled A by Mark attended 2026-11-16: "the fleet lands the `.pi/extensions/**` diff, and the `cmd/ailang/pi_assets` sync goes to V1 or an attended session"). This is iteration 118's **Next**. There were 0 allowlisted directives on #2341 (6 comments) and 0 on the previous issue #2172 (31 comments). A CLAIM was sent before routing (`inbox_1794954969312_f875b1d5`). Already-landed check: the only commits touching `.pi/extensions/` since the iteration-66 measurement are `0e8351a89` (pre-measurement) and `5dc3ba42b` (session-protocol-gate, not this file). No open PR names it; #1996 was the iteration-66 record.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN.
+- Skill drift: the resolved skill matched origin/dev per file, 14/14 (SKILL.md plus 13 resources). The pin is origin/dev by construction (driver drift 0).
+- Gate 0 self-notice: watermark form rc 2 (twenty-third fire; neither watermark file exists). Not a verdict.
+- Gate 1 base `022f68f1a8fd29f501df52a772db4710b9802cee@2026-11-17T22:34:09Z`.
+- **Dev CI on it is RED**: `CI` failure, `Build and Release` failure, Docs-Deploy success. 21 check-runs, 6 not green (`test`, `test-windows`, and all four `Build *`).
+  - Every red is the same single test, `internal/coordinator/agents_fixture_test.go:151` `TestCloudAgents_RegistryMatchesTheDeletedRoutingTable`: "registry says gpt-6.2-sol … expected gpt-6.1-sol after ratified migrations". Logs were fetched ANSI-stripped and sized: 123 KB, 82 KB with 169 `ok` package lines, and 5.1 MB with 24,471 PASS lines.
+  - Introduced by attended `8e04a29c5` (gpt-6.2-sol defaults). It did not add the `"gpt-6.1-sol": "gpt-6.2-sol"` hop to `ratifiedRoleMigrations`. Grandparent `5cf3088a0` has 22 checks and 0 failures; parent `6df452df6` had no run (an intra-push commit).
+  - The scope guard refuses `internal/coordinator/**` for the fleet (control: `tools/launchd/mission-control.sh` allows). V1 is disabled. Under D-FLEET-17 A (attended fixes reds outside fleet scope), the red was **handed to the attended `user` inbox** with the one-line fix (`inbox_1794954978696_a8a90505`). It was not worked.
+- Records 95–118 sit on the stacked record PRs (newest #2405, MERGEABLE/CLEAN). This record stacks on it.
+
+**Did** (generator ≠ judge):
+- **Reality check (controller)**: the defect is still at HEAD (`:42`, `:78` absolute). The iteration-66 diff `git apply --check`s clean, the existing test passes 3/3, and `cmd/ailang/pi_assets/unowned-dirty.ts` is byte-identical to the source.
+- **Load-bearing finding (controller)**: CI's REQUIRED `checks` job runs `make verify-pi-assets` (`.github/workflows/ci.yml:426`), which diffs `.pi/extensions` against `cmd/ailang/pi_assets`. So the ruling's split (fleet half now, pi_assets later) cannot merge as two sequential landings without reddening dev. The fleet half alone fails a required check, and the guard refuses the sync path.
+- **Designer**: not spawned. The diff was specified and judged at iteration 66, and the ruling approves it. A routing outcome, not a spawn failure. Rotation pointer unchanged.
+- **Planner**, opus (Agent tool, `MISSION-ROLE: planner`, foreground, 83,154 tok, 30 tool uses, 210 s): [plan](https://github.com/sunholo-data/ailang/blob/fleet/i119-unowned-dirty/design_docs/fleet-mission-evidence/iteration119/plan.md).
+  - It found the iteration-66 tests miss the handler: undoing the call-site fix (M3), dropping `.trim()` (M4) and inverting the early return (M5) all stay 5/5. It added a handler-level test with a fake `pi`/`ctx`.
+  - It confirmed no CI job runs the `.pi/extensions` node tests, and that pi 0.85.1 `--mode json` binds a no-op `notify` (eval scores unaffected).
+  - It refuted one controller suggestion: a full-diff `apply -R` check fails by design once the handler patch is applied.
+- **Executor r1**, `claude:claude-haiku-5-5` via `claude-sub` (probe rc 0, 8 s; billing CLEAN; bash deadline watchdog, 1500 s cap). rc 0 in 61 s, 16 turns, 9,569 output tok.
+  - Commit `1feb66036`: both patches applied with `git apply`, plus the changelog fragment.
+  - G1 6/6, G2 `make test-pi-extensions` rc 0, G3/G4 rc 0, G5 `verify-pi-assets` rc 2 as predicted, G6 nothing under `cmd/`. Mutants M1–M6 6/6 killed.
+- **Controller checks**: node test 6/6 first-party. Hand mutant (drop the `startsWith` filter in `relativeTo`): fail 2. Scope guard: all 5 changed paths allow; control `cmd/ailang/pi_assets/unowned-dirty.ts` refuses.
+- **Judge round 1**, sonnet (Agent tool, `MISSION-ROLE: evaluator`, foreground, own detached worktree at `1feb66036`, 61,179 tok): **PASS 90**, 0 blocking.
+  - It reproduced the defect and ran the new handler against real git in 7 cwd cases.
+  - Its own mutants: 15, 12 killed. Survivors: m7 (handler does not realpath own paths), a real gap, confirmed first-party by the controller (6/6 pass under it); m8 (no realpath of `top`), near-equivalent; m10 (no non-repo early return), equivalent in output.
+  - Non-blocking: porcelain collapses wholly untracked directories, so an own new file there is still reported. This predates the change.
+- **Executor r2 (fix round)**, haiku via `claude-sub`, rc 0 in 35 s, 9 turns, 5,799 output tok. Commit `27ba6e487`: two handler tests (symlinked cwd; non-repo cwd asserts only `rev-parse` runs). Tests only; source unchanged. 8/8; m7 and m10 killed; original M1–M6 still killed.
+- **Controller re-check of r2**: 8/8; m7 → fail 1; m10 (line deleted by perl) → fail 1.
+- **Judge delta review** (same judge, resumed, 65,521 tok): source byte-identical, 8/8, m7 and m10 killed, both tests non-vacuous. **PASS 93**. [Evaluation](https://github.com/sunholo-data/ailang/blob/fleet/i119-unowned-dirty/design_docs/fleet-mission-evidence/iteration119/judge-r1.md).
+- **PR**: branch pushed through the pinned guard (rc 0), opened as **#2411**, head `ae3930792`. The body carries the attended step and 0 closing keywords.
+
+**Gate 3b**:
+- #2411 head `ae3930792`, read while 5 Build/Windows jobs were still pending. `checks` **failure** at step "Verify embedded pi assets are in sync" (`DRIFT: cmd/ailang/pi_assets is stale`), as predicted. 46 later steps in that job were skipped behind it, so those gates have NOT run on this head; the attended push re-runs them.
+- `test` **failure** on `TestCloudAgents_RegistryMatchesTheDeletedRoutingTable`, inherited from base `022f68f1a` (same test, same message). This diff has no Go.
+- **NOT LANDED.** The ticket stays open. Park class: an attended action already assigned by D-FLEET-33 A, plus an attended dev-red fix. Neither is a new decision, so neither goes in DECISIONS.
+
+**Ruled out**:
+- Landing the fleet half alone: it reds the required `checks` on dev, a fleet-caused red.
+- Running `make pi-assets` in the fleet branch: the guard refuses the path, and D-FLEET-33 chose A over B (widen scope to that file).
+- Working the dev `test` red: outside fleet scope; D-FLEET-17 A routes it to attended.
+- Auto-merge: the PR is red now, and Gate 3b forbids ending behind an armed auto-merge.
+- Treating the judge's PASS agreement as a second measurement: m7 and m10 were reproduced by the controller by a separate route.
+
+**Observations (not ticketed; the fleet does not self-source)**:
+- (a) Any `.pi/extensions/**` ruling of the form "fleet lands, attended syncs pi_assets" is unlandable as two merges while `verify-pi-assets` gates `checks`. Future such rulings need the sync on the same branch. Reported for Mark.
+- (b) The `.pi/extensions` node tests run in no CI job (`make test-pi-extensions` is local only), so this PR's 8 tests guard only local runs.
+- (c) Dev's required `test` red blocks every PR to dev, including the stacked record PRs.
+- (d) Self-notice watermark form rc 2, twenty-third consecutive fire.
+
+**Retro lane**: no skill edit this fire. One friction, at its first instance: the routing-table upgrade commit `8e04a29c5` touched the fleet's own routing surfaces, but its ratification row lives in `internal/coordinator`, outside fleet scope. So a fleet-titled change can red dev in a file the fleet may not fix.
+
+**Progress**: 19 open tickets, unchanged (built, not resolved). Clause 2 not moved this fire; the ticket is ~46 days old. Clause 1 UNMEASURED; 3 MET; 4 met by its letter; 5 preserved (no harness path changed, so no done-gate dry-run was owed).
+
+**Validation**: darwin/arm64, node v26.13.0.
+- Defect reproduced at HEAD three times (planner, executor, judge).
+- `node --test` 8/8 (executor, controller, judge). `make test-pi-extensions` rc 0 (executor).
+- Mutants: executor 6/6; judge 15 (12 killed r1, then m7 and m10 killed r2); controller 3/3 hand mutants.
+- PR CI as above.
+- Record checks: `mission_decisions.sh --check`, STATUS rotation arithmetic plus an archive grep, `mission_routing_models_check.sh` on entry 119 (rc 0 with origin/dev's script; this stacked branch's older copy predates `8e04a29c5` and flags `gpt-6.2-sol`, version skew, not a finding), `go test ./internal/mission/ -run Canonical`.
+
+**Budget**: metered **$0** (subscription lanes).
+- Planner opus 83,154 tok.
+- Executor haiku 9,569 + 5,799 output tok (CLI self-report $0.024 + $0.016, not billed).
+- Evaluator sonnet 61,179 + 65,521 tok.
+- Controller `claude:claude-opus-5-5`: tok not reported.
+- No quorum (no new doc).
+
+**Next**: when the attended pi_assets sync lands on #2411 and dev's `test` is green, verify the merge on dev and resolve row 41's ticket. Otherwise row 51/53 (D-36/38 A, draft #2108), then D-42's fleet half (drafts #2141–#2150), each on a fresh branch. Any build PR waits on dev's `test` red first. Row 58 stays open (retire-or-own not ruled).
+
+**Routing evidence**: base=022f68f1a8fd29f501df52a772db4710b9802cee@2026-11-17T22:48:00Z (Gate-4 read; equal to the Gate-1 read).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5 declared:provider-pin`. **Not spawned**: the diff was pre-specified and ruled; a routing outcome, not a spawn failure. Rotation pointer unchanged (`claude:claude-opus-5-5`).
+- Planner: `derive-planner-lane.sh` → `opus fail-closed:env-pin`; resolver `agent-tool opus fail-closed:env-pin`. Agent tool `model=opus`, `MISSION-ROLE: planner`, foreground, 83,154 tok.
+- Executor: resolver `recipe claude:claude-haiku-5-5 declared:provider-pin` → `claude-sub -p --model claude-haiku-5-5`, probe rc 0. r1 rc 0 (9,569 output tok), r2 rc 0 (5,799 output tok).
+- Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 1 spawn plus 1 resume (61,179 + 65,521 tok). Judge independence: cross-model (planner and controller opus, executor haiku, judge sonnet; same vendor).
+- Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
