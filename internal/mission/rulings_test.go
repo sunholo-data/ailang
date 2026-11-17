@@ -242,3 +242,226 @@ func TestRulings_OutputIsSorted(t *testing.T) {
 		t.Fatalf("nondeterministic output:\n%+v\n%+v", first, second)
 	}
 }
+
+// M-FLEET-RULINGS-LEDGER M4: scope behaviour of CheckRulings, end to end, and the DoctorWith wiring.
+
+// kindCount counts the findings of one kind.
+func kindCount(fs []Finding, kind string) int {
+	n := 0
+	for _, f := range fs {
+		if f.Kind == kind {
+			n++
+		}
+	}
+	return n
+}
+
+// linkOnlyInBlock is a charter whose only link sits inside its decision-ledger block.
+const linkOnlyInBlock = "# C\n\n<!-- decision-ledger:start -->\n> **Fleet-wide rulings:** [fleet-rulings.md](fleet-rulings.md).\n<!-- decision-ledger:end -->\n"
+
+func TestRulings_LinkMissing(t *testing.T) {
+	f := newRulingsFixture(t)
+	f.ledger(rowResolved1, "")
+	m := f.inRepoMission("a")
+
+	f.write("design_docs/a.md", "# C\n\nno link here\n")
+	got := CheckRulings([]*Mission{m})
+	if kindCount(got, "ruling-link-missing") != 1 {
+		t.Fatalf("no link: want one ruling-link-missing, got %+v", got)
+	}
+	for _, g := range got {
+		if g.Kind == "ruling-link-missing" && g.Mission != "a" {
+			t.Fatalf("ruling-link-missing must name mission a, got %+v", g)
+		}
+	}
+
+	f.write("design_docs/a.md", linkOnlyInBlock)
+	got = CheckRulings([]*Mission{m})
+	if kindCount(got, "ruling-link-missing") != 1 {
+		t.Fatalf("link only inside the ledger block: want still one ruling-link-missing, got %+v", got)
+	}
+
+	f.write("design_docs/a.md", linkedCharter)
+	got = CheckRulings([]*Mission{m})
+	if kindCount(got, "ruling-link-missing") != 0 {
+		t.Fatalf("link outside the block: want none, got %+v", got)
+	}
+}
+
+func TestRulings_PerMissionScope(t *testing.T) {
+	f := newRulingsFixture(t)
+	const rows = rowResolved1 + "\n" + rowResolved2 + "\n| D-FR-3 | RESOLVED | ruling three | evidence three |"
+	f.ledger(rows, strings.Join([]string{
+		`D-FR-1 forbid charters "` + rulingLiteral + `"`,
+		`D-FR-2 forbid registry "` + rulingLiteral + `"`,
+		`D-FR-3 forbid skills "` + rulingLiteral + `"`,
+	}, "\n"))
+	wdA, wdB := filepath.Join(f.root, "wd", "a"), filepath.Join(f.root, "wd", "b")
+	a := f.mission("a", sharedDriverRepo, wdA, "design_docs/a.md", "# "+rulingLiteral)
+	b := f.mission("b", sharedDriverRepo, wdB, "design_docs/b.md", "# "+rulingLiteral)
+	f.write("design_docs/a.md", linkedCharter+rulingLiteral+"\n")
+	f.write("design_docs/b.md", linkedCharter+rulingLiteral+"\n")
+	f.write(".claude/skills/mission-a/resources/g.md", rulingLiteral+"\n")
+
+	owners := func(fs []Finding) map[string]int {
+		out := map[string]int{}
+		for _, c := range contradictions(fs) {
+			out[c.Mission]++
+		}
+		return out
+	}
+
+	// Only a: a's charter and a's TOML carry hits; b's do not; the skills hit is still reported.
+	got := owners(CheckRulings([]*Mission{a}))
+	if got["a"] != 2 || got["b"] != 0 {
+		t.Fatalf("slice {a}: want a=2 (charter+toml) b=0, got %v", got)
+	}
+	if got[rulingsMission] != 1 {
+		t.Fatalf("slice {a}: want the skills hit (1), got %v", got)
+	}
+
+	// Both: each mission's charter and TOML report.
+	got = owners(CheckRulings([]*Mission{a, b}))
+	if got["a"] != 2 || got["b"] != 2 || got[rulingsMission] != 1 {
+		t.Fatalf("slice {a,b}: want a=2 b=2 skills=1, got %v", got)
+	}
+}
+
+func TestRulings_RootDerivationEndToEnd(t *testing.T) {
+	if got := CheckRulings(nil); len(got) != 1 || got[0].Kind != "rulings-skipped" {
+		t.Fatalf("nil missions: want exactly one rulings-skipped, got %+v", got)
+	}
+
+	hand := &Mission{Name: "a"}
+	if got := CheckRulings([]*Mission{hand}); len(got) != 1 || got[0].Kind != "rulings-skipped" {
+		t.Fatalf("hand-built mission: want exactly one rulings-skipped, got %+v", got)
+	}
+
+	f1, f2 := newRulingsFixture(t), newRulingsFixture(t)
+	m1 := f1.mission("a", sharedDriverRepo, filepath.Join(f1.root, "wd", "a"), "doc.md", "")
+	m2 := f2.mission("b", sharedDriverRepo, filepath.Join(f2.root, "wd", "b"), "doc.md", "")
+	got := CheckRulings([]*Mission{m1, m2})
+	if len(got) != 1 || got[0].Kind != "rulings-skipped" {
+		t.Fatalf("two roots: want exactly one rulings-skipped, got %+v", got)
+	}
+	if !strings.Contains(got[0].Detail, f1.root) || !strings.Contains(got[0].Detail, f2.root) {
+		t.Fatalf("two roots: detail must name both roots: %q", got[0].Detail)
+	}
+
+	// A one-mission slice from a loaded mission runs the check.
+	f := newRulingsFixture(t)
+	f.ledger(rowResolved1, `D-FR-1 forbid skills "`+rulingLiteral+`"`)
+	f.write(".claude/skills/mission-a/resources/g.md", rulingLiteral+"\n")
+	m := f.mission("a", sharedDriverRepo, filepath.Join(f.root, "wd", "a"), "design_docs/a.md", "")
+	f.write("design_docs/a.md", linkedCharter)
+	got = CheckRulings([]*Mission{m})
+	if kindCount(got, "rulings-skipped") != 0 || len(contradictions(got)) < 1 {
+		t.Fatalf("loaded one-mission slice: want the check to run and hit, got %+v", got)
+	}
+}
+
+func TestRulings_CharterLocationEndToEnd(t *testing.T) {
+	const detector = `D-FR-1 forbid charters "` + rulingLiteral + `"`
+
+	// In-repo mission: the charter is read from the registry root, never the workdir.
+	f := newRulingsFixture(t)
+	f.ledger(rowResolved1, detector)
+	wd := filepath.Join(f.root, "wd", "a")
+	m := f.mission("a", sharedDriverRepo, wd, "design_docs/a.md", "")
+	f.write("design_docs/a.md", linkedCharter+rulingLiteral+"\n")
+	f.write(filepath.Join("wd", "a", "design_docs", "a.md"), linkedCharter)
+	got := contradictions(CheckRulings([]*Mission{m}))
+	if len(got) != 1 || !strings.Contains(got[0].Detail, "design_docs/a.md:") || strings.Contains(got[0].Detail, "/wd/") {
+		t.Fatalf("root copy hits: want one hit under the root, got %+v", got)
+	}
+
+	// Swapped: the root copy is clean, the workdir copy has the literal. Zero hits.
+	f2 := newRulingsFixture(t)
+	f2.ledger(rowResolved1, detector)
+	m2 := f2.mission("a", sharedDriverRepo, filepath.Join(f2.root, "wd", "a"), "design_docs/a.md", "")
+	f2.write("design_docs/a.md", linkedCharter)
+	f2.write(filepath.Join("wd", "a", "design_docs", "a.md"), linkedCharter+rulingLiteral+"\n")
+	if got := contradictions(CheckRulings([]*Mission{m2})); len(got) != 0 {
+		t.Fatalf("workdir-only hit must not count for an in-repo mission, got %+v", got)
+	}
+
+	// Foreign mission: the charter is read from its workdir; the root copy is ignored.
+	f3 := newRulingsFixture(t)
+	f3.ledger(rowResolved1, detector)
+	m3 := f3.mission("x", "other/repo", filepath.Join(f3.root, "wd", "x"), "design_docs/x.md", "")
+	f3.write("design_docs/x.md", linkedCharter)
+	f3.write(filepath.Join("wd", "x", "design_docs", "x.md"), linkedCharter+rulingLiteral+"\n")
+	if got := contradictions(CheckRulings([]*Mission{m3})); len(got) != 1 {
+		t.Fatalf("foreign mission with workdir hit: want 1, got %+v", got)
+	}
+
+	// Foreign mission with no charter in its workdir: unreadable, attributed to that mission.
+	f4 := newRulingsFixture(t)
+	f4.ledger(rowResolved1, detector)
+	m4 := f4.mission("y", "other/repo", filepath.Join(f4.root, "wd", "y"), "design_docs/y.md", "")
+	f4.write("design_docs/y.md", linkedCharter+rulingLiteral+"\n")
+	got = CheckRulings([]*Mission{m4})
+	if kindCount(got, "ruling-file-unreadable") != 1 {
+		t.Fatalf("missing foreign charter: want one ruling-file-unreadable, got %+v", got)
+	}
+	for _, g := range got {
+		if g.Kind == "ruling-file-unreadable" && g.Mission != "y" {
+			t.Fatalf("ruling-file-unreadable must name mission y, got %+v", g)
+		}
+	}
+}
+
+func TestDoctor_RulingFindingsPrecedeMissionFindings(t *testing.T) {
+	f := newFleet(t)
+	installed := "MISSION_NAME=docs\nMISSION_REPO=sunholo-data/ailang\nMISSION_DOC=d.md\n" +
+		`MISSION_PLANNER_ALLOWLIST="tools/*|docs/*"` + "\n"
+	m := f.addMission("docs", sharedDriverRepo, Schedule{Mode: ModeInterval, IntervalSeconds: 21600}, installed, "", true)
+	m.Workdir = filepath.Join(f.root, "repos", "docs-moved")
+	if err := os.MkdirAll(filepath.Join(m.Workdir, "tools", "launchd"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(m.Workdir, "tools", "launchd", "mission-control.sh"),
+		[]byte("#!/bin/bash\n"+pinSentinel+"\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rep := f.run()
+	if len(rep.Findings) < 2 {
+		t.Fatalf("want ruling note plus mission findings, got %+v", findingStrings(rep))
+	}
+	if rep.Findings[0].Kind != "rulings-skipped" {
+		t.Fatalf("ruling notes must PRECEDE mission findings (P8b): first is %+v", rep.Findings[0])
+	}
+	if last := rep.Findings[len(rep.Findings)-1]; last.Severity != Drift {
+		t.Fatalf("last finding must stay the drift reason (lane-check reads it): %+v", last)
+	}
+	if rep.ExitCode() != 1 {
+		t.Fatalf("drift must still fail the run: ExitCode=%d", rep.ExitCode())
+	}
+}
+
+func TestDoctor_RulingCheckRunsForLoadedMission(t *testing.T) {
+	f := newFleet(t)
+	dir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(dir, "missions"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	body := "name = \"loaded\"\nrepo = \"" + sharedDriverRepo + "\"\nworkdir = \"" + dir + "\"\ndoc = \"d.md\"\n" +
+		"[schedule]\nmode = \"keepalive\"\nthrottle_seconds = 60\nboot_offset = 60\n"
+	path := filepath.Join(dir, "missions", "loaded.toml")
+	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	m, err := LoadFile(path)
+	if err != nil {
+		t.Fatalf("LoadFile: %v", err)
+	}
+	f.reg.Missions = append(f.reg.Missions, m)
+
+	rep := DoctorWith(f.reg, f.p, nil)
+	if got := findingsOfKind(rep, "rulings-ledger-absent"); len(got) != 1 {
+		t.Fatalf("loaded mission: want exactly one rulings-ledger-absent, got %+v", findingStrings(rep))
+	}
+	if got := findingsOfKind(rep, "rulings-skipped"); len(got) != 0 {
+		t.Fatalf("loaded mission must have a root: unexpected rulings-skipped %+v", got)
+	}
+}

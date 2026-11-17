@@ -151,7 +151,7 @@ so the `DoctorWith` signature does not change.
 
 **Call site, exactly.** `DoctorWith` runs from `doctor.go:154` to `:297`. Its per-mission loop closes at `:294`,
 then `:295` sorts `rep.Rows` and `:296` returns (V22). One line goes between `:294` and `:295`:
-`rep.Findings = append(CheckRulings(reg.Missions), rep.Findings...)` — ruling notes go FIRST (planner P8b, i118, reproduced by the judge: `mission-lane-check.sh:49-50` shows the LAST output line, so on a drift exit an appended note would replace the drift reason in the `config dead` cell). Every caller gets it, because `Doctor`
+`rep.Findings = append(CheckRulings(reg.Missions), rep.Findings...)`. Prepended, not appended: `mission-lane-check.sh:49-50` puts the last output line into the `config dead` cell, and an appended note would replace the drift reason there (sprint plan P8b). Ruling notes go FIRST (planner P8b, i118, reproduced by the judge: `mission-lane-check.sh:49-50` shows the LAST output line, so on a drift exit an appended note would replace the drift reason in the `config dead` cell). Every caller gets it, because `Doctor`
 is `DoctorWith(reg, p, nil)` (`:151`). The callers, each enumerated with its effect (V23):
 
 - `mission_cmd.go:251` (`mission doctor`): prints the notes.
