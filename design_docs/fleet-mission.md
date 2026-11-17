@@ -1,5 +1,7 @@
 # Fleet Mission — the loop harness is fixed by one loop, so the product loops never have to
 
+> **Fleet-wide rulings:** [fleet-rulings.md](fleet-rulings.md). Every RESOLVED, unsuperseded ruling there binds this mission, and nothing in this charter overrides one. If this charter disagrees with it, the ledger wins and the disagreement is a bug to report.
+
 <!--
   From design_docs/mission-charter-TEMPLATE.md. Design: design_docs/planned/m-harness-mission-loop.md
   (HD-1..HD-6 ratified by Mark 2026-09-26). Iteration 0 = ratify this charter with Mark, attended.

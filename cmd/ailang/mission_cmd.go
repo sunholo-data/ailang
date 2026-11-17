@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
@@ -124,6 +125,7 @@ func printMissionHelp() {
   ailang mission list              which missions exist, and how each is wired
   ailang mission doctor [<name>]   does what is installed match what was reviewed?
                                    exit 0 clean, 1 drift, 2 registry error
+                                   also notes text contradicting design_docs/fleet-rulings.md (never fails)
   ailang mission install <name>    render this mission's artifacts to *.staged
   ailang mission apply <name>      promote the staged artifacts, then reload launchd
   ailang mission quota [--bucket B] [--json] [--consolidate] [--over]
@@ -249,14 +251,21 @@ func missionDoctor(args []string) error {
 		reg = &mission.Registry{Missions: []*mission.Mission{m}}
 	}
 	rep := mission.DoctorWith(reg, mission.DefaultPaths(), mission.NewLaunchCtl())
-	for _, f := range rep.Findings {
-		fmt.Println(f)
-	}
-	if len(rep.Findings) == 0 {
-		fmt.Printf("%d mission(s): no drift\n", len(rep.Rows))
-	}
+	printDoctorReport(os.Stdout, rep)
 	os.Exit(rep.ExitCode())
 	return nil
+}
+
+// printDoctorReport writes every finding, then the summary line whenever nothing DRIFTED (notes alone keep it).
+// Ruling notes come first (DoctorWith prepends them), so the LAST line is the summary on exit 0 and a
+// per-mission finding on exit 1 — the line mission-lane-check.sh:49-50 puts in its config row.
+func printDoctorReport(w io.Writer, rep *mission.Report) {
+	for _, f := range rep.Findings {
+		fmt.Fprintln(w, f)
+	}
+	if !rep.HasDrift() {
+		fmt.Fprintf(w, "%d mission(s): no drift\n", len(rep.Rows))
+	}
 }
 
 func missionInstall(args []string) error {

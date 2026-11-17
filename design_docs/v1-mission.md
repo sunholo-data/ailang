@@ -1,5 +1,7 @@
 # V1 Mission — work the backlog to a v1.0.0 release
 
+> **Fleet-wide rulings:** [fleet-rulings.md](fleet-rulings.md). Every RESOLVED, unsuperseded ruling there binds this mission, and nothing in this charter overrides one. If this charter disagrees with it, the ledger wins and the disagreement is a bug to report.
+
 **Type**: Long-running mission (peer of [motoko-mission.md](motoko-mission.md)); advanced by a
 scheduled outer loop on the always-on rig, coordinated by Anthropic with a Codex Sol subscription
 fallback when the Anthropic quota is unavailable.

@@ -1,5 +1,7 @@
 # Triage Mission — every card, PR and issue the fleet opens reaches a decision
 
+> **Fleet-wide rulings:** [fleet-rulings.md](fleet-rulings.md). Every RESOLVED, unsuperseded ruling there binds this mission, and nothing in this charter overrides one. If this charter disagrees with it, the ledger wins and the disagreement is a bug to report.
+
 <!--
   From design_docs/mission-charter-TEMPLATE.md. Design: design_docs/planned/m-triage-mission.md
   (drafted attended 2026-10-15). Iteration 0 = ratify this charter with Mark, attended.
