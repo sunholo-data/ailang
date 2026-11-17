@@ -1,6 +1,7 @@
 package elaborate
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/ast"
@@ -191,39 +192,52 @@ func TestNodeIDAssignment(t *testing.T) {
 	}
 }
 
+func coreLetChain(names []string, body core.CoreExpr) core.CoreExpr {
+	out := body
+	for i := len(names) - 1; i >= 0; i-- {
+		out = &core.Let{Name: names[i], Value: &core.Lit{Kind: core.IntLit, Value: int64(i)}, Body: out}
+	}
+	return out
+}
+
 func TestExtractLetBindings(t *testing.T) {
-	// Test the extractLetBindings helper function used for ANF completion
-
-	// Create nested Let expressions: Let x = 1 in Let y = 2 in Let z = 3 in body
-	innerBody := &ast.Literal{Kind: ast.IntLit, Value: int64(42)}
-	let3 := &ast.Let{Name: "z", Value: &ast.Literal{Kind: ast.IntLit, Value: int64(3)}, Body: innerBody}
-	let2 := &ast.Let{Name: "y", Value: &ast.Literal{Kind: ast.IntLit, Value: int64(2)}, Body: let3}
-	let1 := &ast.Let{Name: "x", Value: &ast.Literal{Kind: ast.IntLit, Value: int64(1)}, Body: let2}
-
-	elab := NewElaborator()
-	coreExpr, err := elab.ElaborateExpr(let1)
-	if err != nil {
-		t.Fatalf("elaboration error: %v", err)
+	// Elaborator temporaries move out, outermost first.
+	body := &core.Lit{Kind: core.IntLit, Value: int64(42)}
+	bindings, rest := extractLetBindings(coreLetChain([]string{"$tmp1", "$tmp2", "$tmp3"}, body))
+	var got []string
+	for _, b := range bindings {
+		got = append(got, b.Name)
 	}
-
-	// Extract bindings from the elaborated expression
-	bindings, body := extractLetBindings(coreExpr)
-
-	// Should have 3 bindings: x, y, z (in that order - outermost first)
-	if len(bindings) != 3 {
-		t.Errorf("expected 3 bindings, got %d", len(bindings))
+	if strings.Join(got, ",") != "$tmp1,$tmp2,$tmp3" {
+		t.Errorf("extracted %v, want [$tmp1 $tmp2 $tmp3]", got)
 	}
+	if rest != core.CoreExpr(body) {
+		t.Errorf("rest = %s, want the innermost body", rest)
+	}
+}
 
-	expectedNames := []string{"x", "y", "z"}
-	for i, b := range bindings {
-		if b.Name != expectedNames[i] {
-			t.Errorf("binding %d: expected name %q, got %q", i, expectedNames[i], b.Name)
+// Only the names freshVar makes count as elaborator temporaries.
+func TestIsElaboratorTemp(t *testing.T) {
+	e := NewElaborator()
+	fresh := e.freshVar()
+	for name, want := range map[string]bool{fresh: true, "$tmp12": true, "r": false, "tmp1": false, "$valTmp3": false, "": false} {
+		if got := isElaboratorTemp(name); got != want {
+			t.Errorf("isElaboratorTemp(%q) = %v, want %v", name, got, want)
 		}
 	}
+}
 
-	// Body should be the innermost expression (literal 42)
-	if body == nil {
-		t.Error("expected non-nil body")
+// A binder the program named stops extraction: moving it outward would put
+// the enclosing expression's other reads of that name inside its scope
+// (#2388: add({ let r = 2; r * 10 }, r) read the inner r twice).
+func TestExtractLetBindingsStopsAtSourceBinder(t *testing.T) {
+	body := &core.Lit{Kind: core.IntLit, Value: int64(42)}
+	bindings, rest := extractLetBindings(coreLetChain([]string{"$tmp1", "r", "$tmp2"}, body))
+	if len(bindings) != 1 || bindings[0].Name != "$tmp1" {
+		t.Fatalf("extracted %v, want only $tmp1", bindings)
+	}
+	if let, ok := rest.(*core.Let); !ok || let.Name != "r" {
+		t.Fatalf("rest = %s, want the chain from `let r` on, still nested", rest)
 	}
 }
 

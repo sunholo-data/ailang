@@ -3,6 +3,7 @@ package elaborate
 import (
 	"fmt"
 	"path/filepath"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/builtins"
@@ -371,10 +372,19 @@ func (e *Elaborator) makeNode(pos ast.Pos) core.CoreNode {
 	}
 }
 
+// elaboratorTempPrefix starts every name freshVar makes. Source identifiers
+// cannot contain `$`, so a name with this prefix is never one the program wrote.
+const elaboratorTempPrefix = "$tmp"
+
 // freshVar generates a fresh variable name
 func (e *Elaborator) freshVar() string {
 	e.freshVarNum++
-	return fmt.Sprintf("$tmp%d", e.freshVarNum)
+	return fmt.Sprintf("%s%d", elaboratorTempPrefix, e.freshVarNum)
+}
+
+// isElaboratorTemp reports whether name was made by freshVar.
+func isElaboratorTemp(name string) bool {
+	return strings.HasPrefix(name, elaboratorTempPrefix)
 }
 
 // normalizeToAtomic ensures expression is atomic, introducing let bindings if needed
@@ -423,11 +433,20 @@ func (e *Elaborator) wrapWithBindings(expr core.CoreExpr, bindings []binding) co
 	return result
 }
 
-// extractLetBindings extracts top-level Let bindings from an expression.
-// This is used for ANF completion - ensuring no Let appears as a let RHS.
+// extractLetBindings extracts the leading Let bindings of an expression that
+// ANF completion may move outward, so the caller can bind them before the
+// enclosing expression instead of nesting a Let in a let RHS.
 //
-// For input: Let x = e1 in Let y = e2 in body
-// Returns:   ([{x,e1}, {y,e2}], body)
+// For input: Let $tmp1 = e1 in Let $tmp2 = e2 in body
+// Returns:   ([{$tmp1,e1}, {$tmp2,e2}], body)
+//
+// Only elaborator temporaries move ($tmpN, unique per elaborator: no source
+// name can be captured by them, nor can they capture one). Extraction stops
+// at the first binder the program named: moving `let r = 2` out of
+// `add({ let r = 2; r * 10 }, r)` put the sibling read of r inside its scope,
+// a wrong answer on every engine (#2388). That Let stays nested and becomes
+// the value of the caller's binding; the evaluator, the type checker and the
+// VM lowering all accept a Let there (block statements always produced it).
 //
 // The returned bindings are in correct order: outermost Let first.
 // This function does NOT descend into lambda bodies, LetRec, or other subexpressions.
@@ -437,8 +456,8 @@ func extractLetBindings(expr core.CoreExpr) ([]binding, core.CoreExpr) {
 	current := expr
 	for {
 		letExpr, ok := current.(*core.Let)
-		if !ok {
-			// Not a Let - we've reached the innermost body
+		if !ok || !isElaboratorTemp(letExpr.Name) {
+			// Not a Let, or a binder the program named: the rest stays nested.
 			break
 		}
 

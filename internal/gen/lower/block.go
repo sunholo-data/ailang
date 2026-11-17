@@ -180,10 +180,15 @@ func flattenValue(e core.CoreExpr, cti types.CoreTypeInfo) ([]stmt.Stmt, stmt.Ex
 			innerStmts, innerExpr := flattenValue(let.Value, cti)
 			stmts = append(stmts, innerStmts...)
 			varType := resolveVarType(let, cti)
+			// The source line, as FlattenBlock records it: a let the
+			// elaborator leaves nested in a value (#2388) must not lose the
+			// line its runtime errors and traces report.
+			_, line := spanOf(let)
 			stmts = append(stmts, stmt.VarDecl{
 				Name:  let.Name,
 				Type:  varType,
 				Value: innerExpr,
+				Line:  line,
 			})
 			cur = let.Body
 		}
