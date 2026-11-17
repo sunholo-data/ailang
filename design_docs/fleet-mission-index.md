@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 117 | 2026-11-17 | row 13's two live probe flakes FIXED via #2385 → `b1942b7f9` (sonnet PASS 88); timer arm lost a SIGTERM before exec, lsof stub turned an empty lane... |
 | 116 | 2026-11-16 | D-FLEET-18 A guard arm LANDED via #2382 → `97e792147` (sonnet PASS 94); fleet scope guard admits exactly the two motoko probe files; #2110 closed a... |
 | 115 | 2026-11-16 | D-FLEET-26 A LANDED via #2368 → `89a28a09c` (sonnet PASS 88); draft #2065 never matched the live daemon path; four ruling-directed ticket resolutio... |
 | 114 | 2026-11-16 | idle: inputs byte-identical to iteration 113; all 27 tickets ruling-gated; independent sonnet judge NONE on the no-originating-ticket ground; weekl... |

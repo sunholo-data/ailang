@@ -1428,3 +1428,98 @@ Each replied to its filer.
 - Executor: resolver `recipe claude:claude-haiku-5-5 declared:provider-pin` → `claude-sub -p --model claude-haiku-5-5`, probe rc 0, rc 0, 142 s (tok: 27,161 output).
 - Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, 50,471 tok. Judge independence: cross-model (executor haiku, planner and controller opus, judge sonnet; same vendor).
 - Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
+
+## 117 — 2026-11-17 — row 13's two live probe flakes FIXED via #2385 → `b1942b7f9` (sonnet PASS 88); timer arm lost a SIGTERM before exec, lsof stub turned an empty lane read into an OpenRouter peer; both pinned by forced guards [HARNESS]
+
+**Pick**: queue row 13, `ci:launchd-suite-flakes-openrouter-peer-and-gh-hang` (D-FLEET-18 A, ruled 11-16): "then #13 is worked on both live signatures". This follows iteration 116's **Next** and Mark's groom order. Row 19, `ci:motoko-probe-refusing-live-path-unexpected-success`, is the same arm in the same file, so it rides along. The only new input since iteration 116 is that iteration's own landing. 0 allowlisted directives on #2341 (4 comments). A controlplane CLAIM was sent before routing (`inbox_1794886251539_8071453b`). Already-landed check: 0 commits on either probe file since `97e792147`, and 0 open PRs naming it.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN.
+- Skill drift: the resolved skill and the pin copy each matched origin/dev per file (14/14 in each tree, 28/28).
+- Gate 0 self-notice: watermark form rc 2 (twenty-first fire; neither watermark file exists). Not a verdict either way.
+- Gate 1 base `22a72e7c57e28f658f17269ff97444dd982564f6@2026-11-17T03:21:17Z`. Dev CI on it: `CI`, `Build and Release` and `Docs-Deploy` success; 22 check-runs, 0 not green.
+- Records 95–116 sit on the stacked record PRs (newest #2383, MERGEABLE/CLEAN). This record stacks on it.
+- Orphans: none newer than `.fleet-i116-record`.
+
+**Re-measure first** (the row's last readings were from October), across 799 unique dev CI runs 2026-10-08..11-17. Every failed `launchd drivers (bash 3.2)` job log was fetched and ANSI-stripped, with a PASS line as the positive control. 28 failed jobs, 8 carrying a probe signature:
+- timer arm 5× (10-10, 10-12 ×2, 10-19, 11-02);
+- refusing-live-path arm 3× (10-15, 10-16 ×2, one with `treatment peer set contains OpenRouter endpoint: 203.0.113.8:443`).
+- None in the last 300 runs, so the flakes are low-rate, not gone.
+- The other 20 reds are mirror-sync suites (10-27..11-09) and `test_mission_pi_run_tool_stall.sh` (3×, 11-12/13). Not ticketed.
+- Table: [gates](fleet-mission-evidence/iteration117/gates.md).
+
+**Did** (generator ≠ judge):
+- **Designer**: not spawned. A mechanical test-fixture fix; the ticket and the ruling are the spec. A routing outcome, not a spawn failure.
+- **Planner**, opus (Agent tool, `MISSION-ROLE: planner`, foreground, 219,368 tok, 87 tool uses, 4,498 s). It was handed the controller's two hypotheses labelled UNVERIFIED and wrote the [plan](fleet-mission-evidence/iteration117/plan.md). Both mechanisms were confirmed by reproduction:
+  - **T**: the suite's `trap … EXIT` makes `/bin/bash` 3.2 hold a deferred SIGTERM handler in the timer child until `execve`, so a TERM sent just after the fork is dropped and `sleep` exits 0. With the suite's own functions: SIGTERM 39/3631 (1.07%), SIGKILL 0/8415, and 0/6736 for TERM with no EXIT trap. Fix: `kill -KILL`. Guard: the arm runs with TERM ignored, so a revert to TERM reds 20/20 with the CI signature.
+  - **R**: the `lsof` stub mapped any lane that was not `treatment`, including an empty read while the driver creates or deletes its lane file, to the OpenRouter peer. There are two windows, create-then-write and the `rm` between `-f` and `cat`. It was reproduced only by forcing a window (0/125 naturally), and the forced runs give both CI signatures line for line. Fix: fail closed. Guard: a new arm holds each lane file empty until `lsof` has read it, with an ack count as the anti-vacuity check.
+  - The probe itself is unchanged.
+- **Executor**, `claude:claude-haiku-5-5` via `claude-sub` (probe rc 0, 10 s; billing CLEAN; bounded 3400 s; rc 0 in 1,968 s; 23 turns; 16,861 output tok). The first launch died rc 127 before starting, because the rig has no `timeout`. It was relaunched under a bash deadline watchdog.
+  - Commits `85c446d61` (fix, changelog, plan) and `34176f228` (report).
+  - Suite 3/3 rc 0, `PASS: 61`. `make test-launchd-drivers` rc 0 (58/58).
+  - M-T1, M-R1 and M-R3 red at the named arms. Its first M-T1 run was void (wrong `PROBE_UNDER_TEST`), and it discarded and re-ran it. [Report](fleet-mission-evidence/iteration117/executor-r1.md).
+- **Controller checks**:
+  - The changed lines are byte-identical to the plan's diff (59 lines).
+  - Scope guard: all 4 paths allow; controls `internal/types/unify.go` and `tools/eval/qwen38-motoko-rerun.sh` refuse.
+  - Suite rc 0 first-party (77 s, 61 arms, `mode=timer rc=73`).
+  - Hand mutant, not in the executor's set: unknown lane → OpenRouter peer. rc 1 at the new arm with the exact CI line.
+  - `make test-launchd-drivers` at `34176f228`: rc 0, 373 s, 58/58.
+  - Dry-runs: the triage profile exits at its idle fingerprint before lane resolution, so it was not counted. Under stapledon (armed, idle): healthy rc 0, and degraded `codex:bogus-model-i117` rc 0 with the executor falling back to haiku. No pidfile residue.
+- **Judge round 1**, sonnet (Agent tool, `MISSION-ROLE: evaluator`, foreground, own worktree at `34176f228`, 70,888 tok, 21 tool uses, 3,040 s): [**PASS 88**](fleet-mission-evidence/iteration117/judge-r1.md), 0 blocking.
+  - It re-derived T itself (EXIT trap + TERM 2/150 and 1/150 survive; no trap 0/150; KILL 0/150) and agreed on R from the code.
+  - It found no probe defect the fail-closed stub could hide: the probe treats `lsof` rc 1 as "no peers this tick".
+  - Of its 11 own mutants, 5 were killed. The survivors are 2 equivalent, 3 guard-direction (the TERM-ignore guard only protects against a revert to TERM, which is its job), and 1 real gap: the vanishing-file window has no forced arm (m9). Non-blocking.
+  - Strongest objection: R is pinned only for the empty-file window.
+  - Changelog findings, adjudicated: "inferred stated as fact" was reproduced and fixed in `4b92d7ed9`. "1 in 100 vs 1 in 160" was refuted: the first is both signatures combined (8 runs), the second T alone (5).
+  - The controller then found its own run count wrong (819 counted the 11-04 overlap twice; 799 unique) and fixed it in `a27223a12` before CI finished, killing the superseded poller first.
+- **Landing**: a new branch, pushed through the pinned guard with `MISSION_NAME=fleet`, rc 0. Opened as #2385. Closing-keyword scan of the PR body: 0.
+
+**Gate 3b**:
+- #2385 head `a27223a12`: 23 check-runs. `launchd drivers (bash 3.2)` was **skipped**: the PR `changes` filter's rig-shell regex (`.github/workflows/ci.yml`) has no `tools/eval/` arm, so a PR that edits only the probe suite never runs it. Pushes to dev always do.
+- Required `test` red. It is `cmd/ailang`'s own hang guard ("this PACKAGE has outgrown its go test -timeout budget"), across the `TestSeedE2E_*`/`TestTestCommand*`/`TestContractDomain_*` family at 0.00 s. Negative control: dev run 43872823883 (11-16 13:07, iteration 115's parent) carries the same guard 129×. This diff has no Go.
+- Re-ran the failed job: attempt 2 `completed success`; then 24/24 check-runs complete, 0 not green, MERGEABLE/CLEAN..
+- Squash-merged with `--match-head-commit a27223a12` as `b1942b7f9`.
+- Dev CI on `b1942b7f9`: 18/18 complete. `launchd drivers (bash 3.2)` **success**, and its log shows the fixed suite ran: `──── PASS tools/eval/test_motoko_connection_probe.sh (79s, rc=0)`, `ok 33 - the empty lane-file window was sampled in both lanes`, `mode=timer rc=73`, `PASS: 61`, `run-suites: all 58 suites passed`. One non-required red: `Build macos-latest` (job 133874987550) on `TestRuntimeNestedStopUsesRemainingDeadline`, the inherited Go runtime flake from iterations 115/116, now seen on a fourth commit. Its log has 24,755 PASS lines and the sibling macOS job passed; the parent `22a72e7c5` macOS was green. LANDED.
+- Resolved, each SHA asserted an ancestor of origin/dev first: `ci:launchd-suite-flakes-openrouter-peer-and-gh-hang` (replied to `attended`) and `ci:motoko-probe-refusing-live-path-unexpected-success` (replied to `triage`). Open tickets 22 → 20.
+
+**Ruled out**:
+- Reading the PR's green `launchd drivers` as evidence: it was skipped. The fix's CI proof is the dev merge run.
+- Treating the `test` red as this diff's: shell and docs only, and the same hang guard is on dev without a fleet diff.
+- Resolving `eval:motoko-connection-probe-orphaned` (row 58) on the strength of D-FLEET-18 A. The ruling widened the allowlist so the flakes could be fixed; it did not say "the fleet owns the probe" in those words. Inferring ownership would be resolving a question by code landing. Left open and reported.
+- Widening the CI `changes` filter: `.github/workflows/` is refused by the guard. Reported.
+
+**Observations (not ticketed; the fleet does not self-source)**:
+- (a) The CI `changes` filter (`ci.yml`) does not route `tools/eval/motoko_connection_probe.sh` or its test to the rig-shell lane, so PRs touching only them never run the suite on a PR. Outside fleet scope (CI workflows).
+- (b) `cmd/ailang`'s hang guard has reddened `test` on dev (11-16) and on #2385. That is V1/attended territory, handed over.
+- (c) `test_mission_pi_run_tool_stall.sh` failed 3× on dev on 11-12/13, after iteration 105's resolution. It is in fleet scope but has no ticket. Recorded, not worked.
+- (d) Self-notice watermark form: rc 2, twenty-first consecutive fire.
+
+**Retro lane**: none this fire. Two frictions are recorded but not ruled: the executor recipe's `timeout` call (rc 127, the rig has none; Gate 3b's text already says so, and the claude recipe does not), and triage-profile dry-runs that cannot show a degraded lane once triage idles. Each is one instance.
+
+**Progress**: 22 → 20 open tickets. Clause 2 moved: 2 tickets resolved. #13 was filed 2026-09-29, so it is far past the 48 h target; this closes a long-standing item rather than improving turnaround. Clause 1 UNMEASURED; 3 MET; 4 met by its letter; 5 preserved (done-gate run). Harness share 6/20, tagged 20/20 (log headlines 98–117).
+
+**Validation**: darwin/arm64.
+- Planner reproductions.
+- Suite runs: 6 planner, 3 executor, 1 controller, 2 judge.
+- Mutants: 5 planner, 3 executor, 1 controller, 11 judge.
+- `make test-launchd-drivers` rc 0 twice (executor, controller).
+- Dry-runs healthy and degraded.
+- PR CI and the dev merge run (below).
+- Record checks: `mission_decisions.sh --check`, STATUS rotation arithmetic plus an archive grep, `mission_routing_models_check.sh` on entry 117, index regeneration against this worktree's registry.
+
+**Budget**: metered **$0**.
+- Planner opus: 219,368 tok (subscription).
+- Executor haiku via `claude-sub`: 16,861 output tok over 23 turns; CLI self-report $0.04, not billed.
+- Evaluator sonnet: 70,888 tok.
+- Controller `claude:claude-opus-5-5`: tok not reported.
+- Designer not spawned.
+
+**Next**: row 33 (D-FLEET-25 A; drafts #2165, #2082), then row 41 (D-33 A), rows 51/53 (D-36/38 A, draft #2108), and D-42's fleet half (drafts #2141–#2150). Each refreshed draft goes on a fresh branch. Row 58 (`eval:motoko-connection-probe-orphaned`) stays open: the retire-or-own question was not ruled in those words.
+
+**Routing evidence**: base=22a72e7c57e28f658f17269ff97444dd982564f6@2026-11-17T03:21:17Z (Gate-1 read; worktree snap equal).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5 declared:provider-pin`. **Not spawned**: a mechanical test fix specified by the ticket and the ruling. A routing outcome, not a spawn failure. Rotation pointer unchanged.
+- Planner: resolver `agent-tool opus fail-closed:env-pin`; `derive-planner-lane.sh` → `opus fail-closed:env-pin`. Agent tool `model=opus`, `MISSION-ROLE: planner`, foreground, 219,368 tok.
+- Executor: resolver `recipe claude:claude-haiku-5-5 declared:provider-pin` → `claude-sub -p --model claude-haiku-5-5`, probe rc 0. Attempt 1 rc 127 (`timeout` absent, never started); attempt 2 rc 0 in 1,968 s (tok: 16,861 output).
+- Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 70,888 tok. Judge independence: cross-model (executor haiku, planner and controller opus, judge sonnet; same vendor).
+- Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.1-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
