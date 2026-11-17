@@ -772,11 +772,18 @@ models:
       ✅ CODEX SUBSCRIPTION LANE verified 2026-11-17 on codex-cli 0.169.0 (OPENAI_API_KEY
       stripped): rc=0, prints `model: gpt-6.2-sol`; gpt-9-nonexistent-zzz still 400s
       (control holds).
-      ⏳ NOT PLACED — standard placement (§5.5, candidate alone) pending. gpt6-1-sol (the
-      incumbent planner/executor head, quorum seat via codex) was never standard-placed
-      either (org was out of credit 2026-09-30), so there is no anchored Sol-tier number
-      to beat; its agent-mode pool (30/31) is the only reference.
-      Roles: NONE changed — gpt6-1-sol stays planner/executor head and quorum seat.
+      PLACEMENT 2026-11-17: `--tier long-frontier,stretch,frontier --trials 3`, candidate
+      alone per §5.5 → 102/105, anchored standard ELO 2432.4 (banked 2433.3, 104 trials),
+      $9.22 list-price metered (dry-run estimated $2.24 — 25/35 pairs had no history).
+      Misses: gauntlet_10 2/3 (compile_error + logic_error, both finish=stop with 2,305 /
+      983 reasoning tokens — capability, not truncation) and one lfu_cache_trace api_error
+      (infrastructure; dropped from the fit). For scale: gpt6-sol 2288.7, claude-sonnet-5-5
+      2295.8 (both on the 29-benchmark core+frontier panel, 2026-09). gpt6-1-sol was never
+      standard-placed (org out of credit 2026-09-30), so there is no 6.1 number to diff.
+      ROLES since 2026-11-17 (Mark, attended: "upgrade our defaults to these"): planner +
+      executor head, controller/designer codex rung, design-quorum OpenAI seat
+      (codex:gpt-6.2-sol), benchmark_suite seat — all moved from gpt6-1-sol.
+      Needs codex-cli >= 0.169.0 on the subscription lane (0.159.2 400s it).
       Uses max_completion_tokens instead of max_tokens.
 
   # OpenAI GPT-5.4 (released March 5, 2026)
@@ -6804,7 +6811,7 @@ roles:
   # and evaluator rows: it is the route these roles actually ran, so it stays reachable for
   # comparison.
   designer:  [pi-or-kimi-k3, opencode-or-kimi-k3]
-  planner:   [gpt6-1-sol, pi-or-kimi-k3, opencode-or-kimi-k3]
+  planner:   [gpt6-2-sol, pi-or-kimi-k3, opencode-or-kimi-k3]
   # executor gains a pi rung (2026-09-14), same defect and same fix as evaluator above.
   # Measured: with codex over ration, `mission iterate` reported "no available candidate" —
   # gpt5-6-sol blocked on quota, and opencode-or-deepseek-v4-flash refused with "executor
@@ -6824,7 +6831,7 @@ roles:
   # cost per solved benchmark; replaying four merged sprint-executor tasks it completed 3 and
   # finished M1 of the 4th (it stopped at the skill's pause points — see the sprint-executor
   # skill's "Unattended runs"). Sonnet stays the next rung.
-  executor:  [gpt6-1-sol, claude-haiku-5-5, claude-sonnet-5-5, pi-or-deepseek-v4-flash-bare, opencode-or-deepseek-v4-flash]
+  executor:  [gpt6-2-sol, claude-haiku-5-5, claude-sonnet-5-5, pi-or-deepseek-v4-flash-bare, opencode-or-deepseek-v4-flash]
   # evaluator leads with pi, not opencode (changed 2026-09-14). The binary mission path is
   # the only LaneLocal consumer of this row; the coordinator's retry chain reads it on
   # LaneCloud but short-circuits first for any agent carrying an explicit model
@@ -6835,7 +6842,7 @@ roles:
   evaluator: [pi-or-minimax-m3, pi-claude-sonnet-4-6, opencode-or-minimax-m3]
 
 benchmark_suite:
-  - "gpt6-astra"       # OpenAI GPT-6 flagship (Aug 2026) — PROMOTED 2026-09-05 (Mark) on a clean
+  - "gpt6-2-astra"     # UPGRADED from gpt6-astra 2026-11-17 (Mark: "upgrade our defaults to these"; $8/$40, 20% cheaper; NOT yet placed — gpt6-astra stays in extended_suite). Previous seat record: OpenAI GPT-6 flagship (Aug 2026) — PROMOTED 2026-09-05 (Mark) on a clean
     # win over gpt5-6-sol, measured against sol's banked v0.32.0 baseline rows (the same corpus
     # the ELO anchor was fitted from — no comparator re-run, per M-EVAL-ROLLING-ELO / §5.5):
     #   frontier  astra 6/8  vs sol 3/8  — a STRICT SUPERSET: astra additionally passes
@@ -6851,7 +6858,7 @@ benchmark_suite:
     # ⚠️ Costs 2x sol ($10/$50 vs $5/$30) — it is the expensive seat in this suite, so trim it
     # first if a run needs to shrink. sol is KEPT below as the cost-effective longitudinal
     # anchor rather than being retired (the claude-sonnet-5 / sonnet-4-6 precedent).
-  - "gpt6-1-sol"       # OpenAI cheaper reference — gpt6-1-sol SUPERSEDES gpt6-sol (Mark, 2026-10-08: "we
+  - "gpt6-2-sol"       # UPGRADED from gpt6-1-sol 2026-11-17 (Mark: "upgrade our defaults to these"; same $2/$10). Previous seat record: OpenAI cheaper reference — gpt6-1-sol SUPERSEDES gpt6-sol (Mark, 2026-10-08: "we
     # should supersede to sol 6.1"), same $2/$10. gpt6-sol had briefly replaced gpt5-6-sol the
     # same day (the seat's job: the cheaper OpenAI reference next to astra). gpt6-1-sol is
     # already executor rung 1 and agent core 23/23 (v0.51.0); its standard placement is still
@@ -6914,6 +6921,10 @@ extended_suite:
     # Gate: core 23/26 at $0.73, LOST to gpt5-4-mini (25/26, $0.55) — in suite for longitudinal
     # visibility only; dev_models/lang_harness_suite keep mini. Revisit both at next OpenAI gen.
   - "gpt5-4-mini"       # OpenAI cheap (Mar 2026)
+  - "gpt6-2-astra"      # OpenAI GPT-6.2 flagship — ADDED 2026-11-17 (Mark: "upgrade our defaults to these").
+    # $8/$40, 20% below gpt6-astra. NOT yet placed; gpt6-astra below stays for longitudinal compare.
+  - "gpt6-2-sol"        # OpenAI GPT-6.2 mid tier — ADDED 2026-11-17 (same ruling). $2/$10.
+  - "gpt6-1-terra"      # OpenAI GPT-6.1 efficient tier — ADDED 2026-11-17 (same ruling). $1/$5. NOT placed.
   - "gpt6-astra"        # OpenAI GPT-6 generation (Aug 2026) — added 2026-09-05 for new-release
     # tracking, the same basis as terra/luna. Placement N=2 (identical both runs): core 23/23,
     # frontier 6/8, anchored standard ELO 2554.4. Only frontier docx_reimplement (runtime_error)

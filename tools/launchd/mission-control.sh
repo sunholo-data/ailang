@@ -16,7 +16,7 @@
 # GPU-touching sprint steps take it per-step inside the session).
 #
 # MODEL SELECTION (fleet Phase A, 2026-07-14): ordered preference probing.
-# MISSION_MODEL_PREFS (default "claude-opus-5-5,codex:gpt-6.1-sol"
+# MISSION_MODEL_PREFS (default "claude-opus-5-5,codex:gpt-6.2-sol"
 # — Opus 5 first since 2026-07-27 (Mark); the 4.8 rung was dropped 2026-08-26 — OPUS-FIRST
 # since 2026-07-16, Mark: Fable is reserved for high-cognition ROLES — design
 # synthesis + evaluation, both bounded pinned sub-agents — never the long
@@ -903,7 +903,10 @@ _mc_mem_ok() {
 # Needs codex-cli >= 0.159.2 (earlier builds, and the model list before 2026-09-30 09:05Z,
 # reject it as "not supported when using Codex with a ChatGPT account"). Probed rc=0 on the
 # subscription lane 2026-09-30. List price $2/$10 per 1M, same as 6.0 Sol, 1/5 of Astra.
-PREFS="${MISSION_MODEL_PREFS:-claude-opus-5-5,codex:gpt-6.1-sol}"
+# UPGRADE 2026-11-17 (Mark, attended: "upgrade our defaults to these"): every codex:gpt-6.1-sol
+# default -> codex:gpt-6.2-sol. Same $2/$10 list. Needs codex-cli >= 0.169.0 — 0.159.2 400s
+# gpt-6.2-sol on the ChatGPT account exactly like a nonexistent model (probed 2026-11-17).
+PREFS="${MISSION_MODEL_PREFS:-claude-opus-5-5,codex:gpt-6.2-sol}"
 # CONTROLLER_FALLBACK is an ordered COMMA CHAIN walked left to right (Mark, attended
 # 2026-08-31: "a longer chain of redundancies after codex", explicitly NOT a new default —
 # codex keeps its rung; the pi rungs exist so a simultaneous Anthropic+codex dry-out no
@@ -1371,7 +1374,7 @@ fi
 # untouched (astra = ChatGPT subscription, deepseek = flat-rate pi). Quorum independence
 # is enforced by design-quorum itself since 2026-09-25: the skill passes the designer as
 # --author, that vendor sits out, and three seats are drawn from the pool (defaultQuorumPool in
-# cmd/ailang/design_quorum.go: codex:gpt-6.1-sol, gemini-4-argon, oc-glm-5-3, oc-kimi-k3,
+# cmd/ailang/design_quorum.go: codex:gpt-6.2-sol, gemini-4-argon, oc-glm-5-3, oc-kimi-k3,
 # claude-sonnet-5@claude-p), so on this Anthropic turn Claude does not review the doc.
 #
 # Worth knowing rather than acting on: the CONTROLLER is also claude-opus-5-5 as of today,
@@ -1397,7 +1400,7 @@ export MISSION_DESIGNER_MODEL="${MISSION_DESIGNER_MODEL:-claude:claude-opus-5-5}
 # one does.
 # 2026-09-25 (Mark, attended): the rotation is opus -> astra -> GLM 5.3 -> Kimi K3 (deepseek-v4-flash
 # retired), so this chain follows it: flat-rate ollama rungs first, OpenRouter metered after.
-export MISSION_DESIGNER_FALLBACK="${MISSION_DESIGNER_FALLBACK:-codex:gpt-6.1-sol,pi:ollama/glm-5.3:cloud,pi:ollama/kimi-k3:cloud,pi:openrouter/z-ai/glm-5.3,pi:openrouter/moonshotai/kimi-k3}"
+export MISSION_DESIGNER_FALLBACK="${MISSION_DESIGNER_FALLBACK:-codex:gpt-6.2-sol,pi:ollama/glm-5.3:cloud,pi:ollama/kimi-k3:cloud,pi:openrouter/z-ai/glm-5.3,pi:openrouter/moonshotai/kimi-k3}"
 # Per-iteration METERED-spend ceiling (2026-07-18, Mark: "make sure costs don't go crazy"):
 # the sum of all metered-API spend (codex $ + gemini $) within ONE iteration must stay under
 # this. Enforced by the skill's Gate-3 metered ledger; quota-bucket (subscription) spend is
@@ -1435,7 +1438,7 @@ export MISSION_METERED_BUDGET_USD="${MISSION_METERED_BUDGET_USD:-5}"
 # earlier edit): astra goes IN THE CHAIN, it does not replace sol. Sol keeps the
 # planner primary it has held since iteration 136 — months of track record in this
 # specific role, against astra's one fizzbuzz round-trip and an rc=0 probe.
-export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-codex:gpt-6.1-sol}"
+export MISSION_PLANNER_MODEL="${MISSION_PLANNER_MODEL:-codex:gpt-6.2-sol}"
 # MISSION_PLANNER_ALLOWLIST (M-DOCS-MISSION, 2026-08-28 docs iteration 1): the per-mission
 # env files (~/.config/ailang/mission-<name>.env) set this WITHOUT `export`, so sourcing
 # them only defines a local shell variable in THIS script's process — it never reached the
@@ -1455,7 +1458,7 @@ export MISSION_PLANNER_ALLOWLIST="${MISSION_PLANNER_ALLOWLIST:-tools/launchd/*|.
 # ASTRA IS NOT THE PRIMARY (Mark, attended 2026-09-05). Sol keeps the executor
 # primary; the ratified chain "codex as default, deepseek the replacement when
 # codex is out, opus last" (Mark 2026-08-06) is restored exactly as it was.
-export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-6.1-sol}"
+export MISSION_EXECUTOR_MODEL="${MISSION_EXECUTOR_MODEL:-codex:gpt-6.2-sol}"
 # EXECUTOR FALLBACK CHAIN — ailang#611 (2026-08-11).
 #
 # RATIFIED SEMANTICS (Mark 2026-08-06, restated attended 2026-08-10 and 2026-08-11):
@@ -1514,7 +1517,7 @@ export MISSION_PLANNER_FALLBACK="${MISSION_PLANNER_FALLBACK:-pi:ollama/kimi-k3:c
 # has proved the Anthropic subscription unavailable, use Codex Sol rather than
 # wedging or silently inheriting the failed controller. derive-planner-lane.sh
 # applies this only when MISSION_ANTHROPIC_AVAILABLE=0.
-export MISSION_PLANNER_ANTHROPIC_FALLBACK="${MISSION_PLANNER_ANTHROPIC_FALLBACK:-codex:gpt-6.1-sol}"
+export MISSION_PLANNER_ANTHROPIC_FALLBACK="${MISSION_PLANNER_ANTHROPIC_FALLBACK:-codex:gpt-6.2-sol}"
 # evaluator default = sonnet (2026-07-16, Mark directive on #399: "default can be gemini (if able
 # to git clone the codebase etc)? otherwise sonnet-5"). gemini managed_agents is NOT viable as the
 # evaluator today — VERIFIED iteration 38: (1) architecturally the request body carries only

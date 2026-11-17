@@ -39,7 +39,7 @@ func runDesignQuorum() {
 	fs := flag.NewFlagSet("design-quorum", flag.ExitOnError)
 	reviewers := fs.String("reviewers", defaultQuorumPool, "comma-separated reviewer POOL (models.yml ids, or "+quorum.ClaudeReviewerID+"); --seats of them review each doc")
 	seats := fs.Int("seats", quorum.DefaultSeats, "independent reviewers per doc, drawn from the pool")
-	author := fs.String("author", config.MissionDesignAuthor(), "model or lane that WROTE the doc (e.g. claude:claude-opus-5-5, codex:gpt-6.1-sol); its vendor sits out")
+	author := fs.String("author", config.MissionDesignAuthor(), "model or lane that WROTE the doc (e.g. claude:claude-opus-5-5, codex:gpt-6.2-sol); its vendor sits out")
 	maxCost := fs.Float64("max-cost-usd", quorum.DefaultMaxCostUSD, "per-reviewer budget cap in USD")
 	artifactDir := fs.String("artifact-dir", quorum.ArtifactDir, "directory for the machine JSON artifact")
 	logPath := fs.String("mission-log", "", "optional mission log path to append the markdown block")
@@ -141,10 +141,10 @@ const designQuorumHelp = `ailang design-quorum — N-reviewer quorum verdict on 
 
 USAGE:
   ailang design-quorum <doc.md> [flags]
-  ailang design-quorum --author codex:gpt-6.1-sol < doc.md
+  ailang design-quorum --author codex:gpt-6.2-sol < doc.md
 
 FLAGS:
-  --reviewers <csv>          reviewer POOL (default codex:gpt-6.1-sol,gemini-4-argon,oc-glm-5-3,
+  --reviewers <csv>          reviewer POOL (default codex:gpt-6.2-sol,gemini-4-argon,oc-glm-5-3,
                              oc-kimi-k3,claude-sonnet-5@claude-p)
   --seats <n>                reviewers per doc, drawn from the pool (default 3)
   --max-cost-usd <n>         per-reviewer budget cap in USD (default 0.30)
@@ -169,7 +169,7 @@ BEHAVIOR:
   AUTHOR'S VENDOR SITS OUT: pass --author (or MISSION_DESIGN_AUTHOR) with the
   model that wrote the doc. Reviewers from that vendor are benched, and come
   back — labelled same-vendor — only if nobody else in the pool answers. With no
-  author given, a Claude author is assumed. The OpenAI seat (codex:gpt-6.1-sol)
+  author given, a Claude author is assumed. The OpenAI seat (codex:gpt-6.2-sol)
   runs "codex exec" on the ChatGPT subscription, never the API key, read-only
   in an empty directory; it is absent (quota) when the Codex bucket is blocked.
   A "codex:<model>" pool entry takes that lane. The Anthropic seat

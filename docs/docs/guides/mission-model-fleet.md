@@ -75,7 +75,7 @@ assigning a role, prefer generous headroom for anything that must reason over a 
 | Planner | `gpt-5.6-sol` → `kimi-k3` *(flat)* → `kimi-k3` *(metered)* → `opus` | OpenAI, Moonshot, Anthropic |
 | Executor | `gpt-5.6-sol` → `deepseek-v4-flash` *(flat)* → *(metered)* → `opus` | OpenAI, DeepSeek, Anthropic |
 | Evaluator | `sonnet` → `minimax-m3` *(flat)* → `minimax-m3` *(metered)* | Anthropic, MiniMax |
-| Quorum | 3 seats drawn from `gpt-6.1-sol`, `gemini-4-argon`, `glm-5.3`, `kimi-k3`, `sonnet-5`; the author's vendor sits out | OpenAI, Google, Z-AI, Moonshot, Anthropic |
+| Quorum | 3 seats drawn from `gpt-6.2-sol`, `gemini-4-argon`, `glm-5.3`, `kimi-k3`, `sonnet-5`; the author's vendor sits out | OpenAI, Google, Z-AI, Moonshot, Anthropic |
 
 Every role names **at least two vendors**. That is a hard rule, not an aspiration: a role reliant
 on one provider is a role that stops when that provider does.

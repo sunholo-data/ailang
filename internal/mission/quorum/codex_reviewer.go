@@ -36,7 +36,8 @@ import (
 const CodexReviewerPrefix = "codex:"
 
 // CodexReviewerModel is the model the OpenAI seat runs (D-FLEET-12's OpenAI rung).
-const CodexReviewerModel = "gpt-6.1-sol"
+// gpt-6.1-sol -> gpt-6.2-sol 2026-11-17 (Mark, attended); needs codex-cli >= 0.169.0.
+const CodexReviewerModel = "gpt-6.2-sol"
 
 // CodexReviewerID is the roster id of the OpenAI seat.
 const CodexReviewerID = CodexReviewerPrefix + CodexReviewerModel
