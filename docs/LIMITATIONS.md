@@ -221,14 +221,22 @@ Still open:
   - a top-level binding generic over `Num a` is compiled once per instance of `a` (#2378): as
     written for `int`, and as a variant typed at `float` (`inc$numF`) that a float use calls, in
     the module and from importers. So `func inc(x) = x + 1` gives `inc(2.5) == 3.5` and
-    `inc(2) == 3`, and an integer literal in such a body takes the type of the use. Two limits:
-    a binding generic over more than 4 independent numeric types (a record constant of 9 integer
-    fields) gets only the variants its own module uses, so another module may use it only at int
-    (`TC_NUMVAR_001` at that use); and a **let-bound** lambda inside a declaration is one value,
-    so a literal (or a use of a generic top-level binding) keeps it monomorphic: its uses decide
-    its type, and uses at both int and float are a type error. Inline test rows (`tests [...]`)
-    are run by an untyped harness that calls the int body, so a float row of a generic function
-    fails under `ailang test` although `check` accepts it (#2392).
+    `inc(2) == 3`, and an integer literal in such a body takes the type of the use. Only a
+    numeric type that occurs in a **parameter** type is generic: a constant (`let K = 3`,
+    `func cfg() = {lo: 1}`) or a result-only literal (`func sign(x) = if x > 0 then 1 else -1`
+    returns an `int`) is an `int` (a `float` when written `3.0`), and `K * 0.5` is a check
+    error located at the use. Limits: a binding over more than 4 parameter-borne numeric types
+    gets only the variants its own module compiles, so another module's use at another
+    combination is `TC_NUMVAR_001` at that use; a **let-bound** lambda with its own integer
+    literal is one value whose uses decide its type (`let f = \x. x + 1` used as `f(2.5)` and
+    `f(2)` makes the `2` a float, as before), while one that only calls a generic top-level
+    binding gets a copy per use (`let h = \u. inc(u)`: `h(2) == 3`, `h(2.5) == 3.5`); a
+    let-bound recursive lambda (`letrec`) calling a literal-carrying binding is one value too.
+    Inline test rows (`tests [...]`) are run by an untyped harness that calls the int body, so
+    a float row of a generic function fails under `ailang test` although `check` accepts it
+    (#2392). A contract clause that needs `Num` where the body does not (`g(x) requires { inc(x)
+    > 0 } = x`) is #2337 above: the function has no float variant, and the clause fails under
+    `--verify-contracts` at float.
   - a let-bound generic lambda's body is still compiled once, at its defaulted type (`Num a` ⇒
     `int`, #2333). The evaluator and the VM correct for it (the class methods and `%` from the
     run-time values, `show` left dynamic).

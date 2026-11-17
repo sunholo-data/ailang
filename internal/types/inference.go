@@ -118,9 +118,9 @@ type ClassConstraint struct {
 	// polymorphic literal would evaluate to an Int at every instantiation.
 	IntLiteral bool
 	// PolyNumeric marks the Num constraint re-emitted at a use of a binding
-	// with numeric variants (numeric_variants.go). Like an integer literal's,
-	// its variable is never let-generalized: the use's variant is chosen from
-	// that variable, so the enclosing let's own uses must decide it.
+	// with numeric variants (numeric_variants.go) at a variable whose int body
+	// is wrong at float (a literal there). A let-bound lambda carrying one is
+	// copied per use; any other let is kept monomorphic, as for a literal.
 	PolyNumeric bool
 }
 

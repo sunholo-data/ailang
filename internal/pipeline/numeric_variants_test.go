@@ -59,8 +59,9 @@ func TestNumericVariants_EveryFormIsCopied(t *testing.T) {
 			}
 		}
 	}
-	// ev and od are generic in n and, independently, in their result.
-	for _, want := range []string{"inc", "inc$numF", "shapes", "shapes$numF", "ev", "od", "ev$numFI", "od$numFI", "ev$numFF", "ev$numIF"} {
+	// ev and od are generic in n; their result occurs in no parameter, so it
+	// is an int (the #2378 rule), not a second variable.
+	for _, want := range []string{"inc", "inc$numF", "shapes", "shapes$numF", "ev", "od", "ev$numF", "od$numF"} {
 		if !defined[want] {
 			t.Errorf("no declaration %s; have %v", want, keys(defined))
 		}
@@ -84,38 +85,40 @@ func TestNumericVariants_EveryFormIsCopied(t *testing.T) {
 		t.Errorf("main must call shapes and shapes$numF; uses %v", keys(used))
 	}
 	// The contract is the binding's, copied for the variant and marked as such.
-	if m := prog.Meta["ev$numFI"]; m == nil || m.VariantOf != "ev" || len(m.Contracts) != 1 || m.IsExport {
-		t.Errorf("ev$numFI's metadata: %+v", m)
+	if m := prog.Meta["ev$numF"]; m == nil || m.VariantOf != "ev" || len(m.Contracts) != 1 || m.IsExport {
+		t.Errorf("ev$numF's metadata: %+v", m)
 	}
 }
 
-// A float use, from another module, of a binding generic over more numeric
-// types than its variants are compiled for eagerly is TC_NUMVAR_001 there; the
-// int use, and a float use in its own module, check.
+// A binding generic over more parameter-borne numeric types than its variants
+// are compiled for eagerly has only the variants its module needs. Another
+// module's use at a missing one is TC_NUMVAR_001 located at that use; a
+// library whose generic function uses it compiles, and its int use checks.
 func TestNumericVariants_WideBindingFromAnotherModule(t *testing.T) {
-	lib := "module q/w\nexport pure func W(x, y) = {a: x + 1, b: y + 0, c: 0, d: 0, e: 1}\n" +
-		"export pure func local() -> float = W(1.5, 2.5).a\n"
+	lib := "module q/w\nexport pure func W(a, b, c, d, e) = (a + 1, b + 1, c + 1, d + 1, e + 1)\n" +
+		"export pure func local() = W(1.5, 1, 1, 1, 1)\n"
+	via := "module q/v\nimport q/w (W)\nexport pure func V(x) = W(x, x, x, x, x)\n"
 	_, err := writeAndCheck(t, map[string]string{
 		"q/w.ail": lib,
-		"q/m.ail": "module q/m\nimport q/w (W)\nexport func main() -> () ! {IO} = println(show(W(1.5, 2).a))\n",
+		"q/m.ail": "module q/m\nimport q/w (W)\nexport func main() -> () ! {IO} = println(show(W(2, 1.5, 2, 2, 2)))\n",
 	}, "q/m.ail")
-	wantCode(t, err, types.NumVariantLimitCode, "this use needs one of them at float")
+	wantCode(t, err, types.NumVariantLimitCode, "W from q/w is not compiled with 1 of its 5 numeric types at float")
+	_, err = writeAndCheck(t, map[string]string{
+		"q/w.ail": lib, "q/v.ail": via,
+		"q/m.ail": "module q/m\nimport q/v (V)\nexport func main() -> () ! {IO} = println(show(V(2.5)))\n",
+	}, "q/m.ail")
+	wantCode(t, err, types.NumVariantLimitCode, "V from q/v")
+	// In a generic function of this module, whose float variant needs it.
 	_, err = writeAndCheck(t, map[string]string{
 		"q/w.ail": lib,
-		"q/m.ail": "module q/m\nimport q/w (W)\nexport func main() -> () ! {IO} = println(show(W(1.5, 2.5).b))\n",
+		"q/m.ail": "module q/m\nimport q/w (W)\npure func g(x) = W(x, x, x, x, x)\nexport func main() -> () ! {IO} = println(show(g(1.5)))\n",
 	}, "q/m.ail")
-	wantCode(t, err, types.NumVariantLimitCode, "this use needs 2 of them at float")
-	// Also from inside a generic function, whose float variant needs it.
-	_, err = writeAndCheck(t, map[string]string{
-		"q/w.ail": lib,
-		"q/m.ail": "module q/m\nimport q/w (W)\npure func g(x) = W(x, 2).a\nexport func main() -> () ! {IO} = println(show(g(1.5)))\n",
-	}, "q/m.ail")
-	wantCode(t, err, types.NumVariantLimitCode, "W from q/w")
+	wantCode(t, err, types.NumVariantLimitCode, "g at float needs a variant that cannot be compiled")
 	if _, err := writeAndCheck(t, map[string]string{
-		"q/w.ail": lib,
-		"q/m.ail": "module q/m\nimport q/w (W, local)\nexport func main() -> () ! {IO} = println(\"${show(W(1, 2).a)} ${show(local())}\")\n",
+		"q/w.ail": lib, "q/v.ail": via,
+		"q/m.ail": "module q/m\nimport q/w (W, local)\nimport q/v (V)\nexport func main() -> () ! {IO} = println(\"${show(W(1, 2, 3, 4, 5))} ${show(local())} ${show(V(2))}\")\n",
 	}, "q/m.ail"); err != nil {
-		t.Fatalf("the int use and the library's own float use must check: %v", err)
+		t.Fatalf("the int uses and the library's own float use must check: %v", err)
 	}
 }
 

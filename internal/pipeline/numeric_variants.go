@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"sort"
 
+	"github.com/sunholo-data/ailang/internal/ast"
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
+
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/elaborate"
 	"github.com/sunholo-data/ailang/internal/types"
@@ -28,25 +31,33 @@ import (
 const numVariantIDBase uint64 = 1 << 40
 
 // numericVariants is the plan for one module: the variant declarations to
-// insert after each original one (still unelaborated), and the renames of the
-// original program's uses.
+// insert after each original one, the declarations to replace by a copy (one
+// holding a let-bound lambda copied per use), all still unelaborated, and the
+// renames of the original program's uses.
 type numericVariants struct {
 	after   map[int][]core.CoreExpr // index in Decls → variant declarations
+	replace map[int]core.CoreExpr   // index in Decls → its copy
 	meta    map[string]*core.DeclMeta
 	renames map[uint64]string // use node id → variant name
 }
+
+// importedBinding reports whether module (another one) defines a binding
+// named name; known is false when the module's compiled program is not at hand.
+type importedBinding func(module, name string) (has, known bool)
 
 // planNumericVariants builds the variants of every binding of prog that has
 // them, records their node types and resolved constraints in tc, and computes
 // the renames of prog's uses. It runs on the type-checked, unelaborated
 // program; nil when the module has no binding with variants and uses none.
 //
-// A declaration over at most types.NumVariantEager variables gets every
-// variant, so any importer finds the one it names. One over more (a record
-// constant of nine integer fields) gets the variants that this module's own
-// uses, and its variants' uses, name: another module may use it only at int,
-// and is told so at its use (TC_NUMVAR_001).
-func planNumericVariants(prog *core.Program, tc *types.CoreTypeChecker) (*numericVariants, error) {
+// An exported declaration over at most types.NumVariantEager variables gets
+// every variant, so an importer finds the one it names. Any other gets the
+// variants a use names: a use in this program, or in a variant generated for
+// one. A variant that cannot be compiled (it needs another module's variant
+// that does not exist) is an error only at a use in this program that needs
+// it, located there (TC_NUMVAR_001); generating it eagerly never fails the
+// module, and an importer that needs it is told at its own use.
+func planNumericVariants(prog *core.Program, tc *types.CoreTypeChecker, imported importedBinding) (*numericVariants, error) {
 	decls, refs := tc.NumericDecls(), tc.NumericRefs()
 	if len(decls) == 0 && len(refs) == 0 {
 		return nil, nil
@@ -54,23 +65,31 @@ func planNumericVariants(prog *core.Program, tc *types.CoreTypeChecker) (*numeri
 	p := &variantPlanner{
 		tc:       tc,
 		meta:     prog.Meta,
-		plan:     &numericVariants{after: map[int][]core.CoreExpr{}, meta: map[string]*core.DeclMeta{}, renames: map[uint64]string{}},
+		imported: imported,
+		plan: &numericVariants{after: map[int][]core.CoreExpr{}, replace: map[int]core.CoreExpr{},
+			meta: map[string]*core.DeclMeta{}, renames: map[uint64]string{}},
 		byMember: map[string]*variantGroup{},
 		next:     numVariantIDBase,
 	}
+	var eager []variantDemand
 	for i, decl := range prog.Decls {
 		g := newVariantGroup(i, decl, decls)
 		if g == nil {
 			continue
 		}
+		exported := false
 		for _, m := range g.members {
 			p.byMember[m] = g
+			exported = exported || (prog.Meta[m] != nil && prog.Meta[m].IsExport)
 		}
-		if len(g.vars) <= types.NumVariantEager {
+		if exported && len(g.vars) <= types.NumVariantEager {
 			for mask := 1; mask < 1<<len(g.vars); mask++ {
-				p.queue = append(p.queue, variantDemand{g, mask})
+				eager = append(eager, variantDemand{g, mask})
 			}
 		}
+	}
+	for _, d := range eager {
+		_ = p.ensure(d.group, d.mask) // a variant that cannot be built is simply absent
 	}
 	ids := make([]uint64, 0, len(refs))
 	for id := range refs {
@@ -78,30 +97,68 @@ func planNumericVariants(prog *core.Program, tc *types.CoreTypeChecker) (*numeri
 	}
 	sort.Slice(ids, func(a, b int) bool { return ids[a] < ids[b] })
 	for _, id := range ids {
-		if id >= numVariantIDBase {
-			continue // a variant's own use, named when it was copied
-		}
 		ref := refs[id]
+		if id >= numVariantIDBase || ref.InnerLet != 0 {
+			continue // a copy's own use, or a let-bound lambda's: named when copied
+		}
 		floats, err := tc.NumericRefInstance(id, nil)
 		if err != nil {
 			return nil, err
 		}
 		name, err := p.use(ref, floats)
 		if err != nil {
-			return nil, err
+			return nil, err // a use in this program: report it
 		}
 		if name != ref.Name {
 			p.plan.renames[id] = name
 		}
 	}
-	for len(p.queue) > 0 {
-		d := p.queue[0]
-		p.queue = p.queue[1:]
-		if err := p.generate(d.group, d.mask); err != nil {
+	// A declaration holding a let-bound lambda copied per use is replaced by
+	// its own copy, which adds the lambda's copies its uses need.
+	for i, decl := range prog.Decls {
+		if !p.holdsInnerLet(decl) {
+			continue
+		}
+		names := map[string]string{}
+		for _, m := range declBindingNames(decl) {
+			names[m] = m
+		}
+		c := &variantCloner{tc: tc, sigma: types.Substitution{}, next: &p.next, use: p.use}
+		cp, err := c.decl(decl, names, declBindingNames(decl))
+		if err != nil {
 			return nil, err
+		}
+		if c.innerCopies > 0 {
+			p.plan.replace[i] = cp
 		}
 	}
 	return p.plan, nil
+}
+
+// declBindingNames lists every binding of decl (all are kept in a same-name copy).
+func declBindingNames(decl core.CoreExpr) []string {
+	switch d := decl.(type) {
+	case *core.Let:
+		return []string{d.Name}
+	case *core.LetRec:
+		out := make([]string, len(d.Bindings))
+		for i, b := range d.Bindings {
+			out[i] = b.Name
+		}
+		return out
+	}
+	return nil
+}
+
+// holdsInnerLet reports whether decl contains a let-bound lambda copied per use.
+func (p *variantPlanner) holdsInnerLet(decl core.CoreExpr) bool {
+	found := false
+	walkCoreExprs(decl, func(e core.CoreExpr) {
+		if l, ok := e.(*core.Let); ok && p.tc.InnerLetVars(l.ID()) != nil {
+			found = true
+		}
+	})
+	return found
 }
 
 // variantGroup is one top-level declaration with numeric variants: a Let, or
@@ -111,12 +168,13 @@ type variantGroup struct {
 	decl    core.CoreExpr
 	members []string
 	vars    []string     // the union of the members' variables, in order
-	done    map[int]bool // masks over vars already generated
+	done    map[int]bool // masks over vars already generated (or being)
+	failed  map[int]error
 	emitted map[string]bool
 }
 
 func newVariantGroup(idx int, decl core.CoreExpr, numDecls map[string][]string) *variantGroup {
-	g := &variantGroup{idx: idx, decl: decl, done: map[int]bool{}, emitted: map[string]bool{}}
+	g := &variantGroup{idx: idx, decl: decl, done: map[int]bool{}, failed: map[int]error{}, emitted: map[string]bool{}}
 	switch d := decl.(type) {
 	case *core.Let:
 		g.members = []string{d.Name}
@@ -147,27 +205,29 @@ type variantDemand struct {
 	mask  int
 }
 
-// variantPlanner generates a module's variants, eagerly or on demand.
+// variantPlanner generates a module's variants.
 type variantPlanner struct {
 	tc       *types.CoreTypeChecker
 	meta     map[string]*core.DeclMeta
+	imported importedBinding
 	plan     *numericVariants
 	byMember map[string]*variantGroup
-	queue    []variantDemand
 	next     uint64
 }
 
-// use returns the name a use of ref at floats takes, and asks for that
-// variant when this module generates it on demand.
+// use returns the name a use of ref at floats takes, generating that variant
+// when this module defines it; an error when the variant does not exist.
 func (p *variantPlanner) use(ref types.NumericRef, floats []bool) (string, error) {
 	name := types.NumVariantName(ref.Name, floats)
 	if name == ref.Name {
 		return name, nil
 	}
 	if ref.Module != "" {
-		if n := len(types.NumVariantVars(ref.Scheme)); n > types.NumVariantEager {
-			return "", fmt.Errorf("%s: at %s: %s from %s is generic over %d numeric types, and a binding generic over more than %d is compiled for other modules only at int, but this use needs %s at float. Annotate its numeric types in %s (x: float, or a field `v: float`)",
-				types.NumVariantLimitCode, ref.Where, ref.Name, ref.Module, n, types.NumVariantEager, floatCount(floats), ref.Module)
+		if p.imported != nil {
+			if has, known := p.imported(ref.Module, name); known && !has {
+				return "", numVarError(ref, fmt.Sprintf("%s from %s is not compiled with %s of its %d numeric types at float: its module compiles every combination only for a binding over at most %d of them, and otherwise the ones it can and uses itself",
+					ref.Name, ref.Module, floatCount(floats), len(floats), types.NumVariantEager), ref.Module)
+			}
 		}
 		return name, nil
 	}
@@ -175,10 +235,25 @@ func (p *variantPlanner) use(ref types.NumericRef, floats []bool) (string, error
 	if g == nil {
 		return "", fmt.Errorf("numeric variant: %s at %s names no declaration of this module", ref.Name, ref.Where)
 	}
-	if mask := g.maskFor(ref.Name, floats, p.tc.NumericDecls()); mask != 0 && !g.done[mask] {
-		p.queue = append(p.queue, variantDemand{g, mask})
+	if mask := g.maskFor(ref.Name, floats, p.tc.NumericDecls()); mask != 0 {
+		if err := p.ensure(g, mask); err != nil {
+			return "", numVarError(ref, fmt.Sprintf("%s at float needs a variant that cannot be compiled: %v", ref.Name, err), "this module")
+		}
 	}
 	return name, nil
+}
+
+// numVarError is TC_NUMVAR_001 located at the use ref.
+func numVarError(ref types.NumericRef, why, where string) error {
+	return ailerrors.WrapReport(&ailerrors.Report{
+		Schema:  "ailang.error/v1",
+		Code:    types.NumVariantLimitCode,
+		Phase:   "typecheck",
+		Message: fmt.Sprintf("at %s: %s", ref.Where, why),
+		Span:    &ast.Span{Start: ref.Pos, End: ref.Pos},
+		Data:    map[string]any{"binding": ref.Name, "module": ref.Module},
+		Fix:     &ailerrors.Fix{Suggestion: "annotate the numeric parameter types of " + ref.Name + " in " + where + " (x: float), or call it at int"},
+	})
 }
 
 func floatCount(floats []bool) string {
@@ -188,10 +263,7 @@ func floatCount(floats []bool) string {
 			n++
 		}
 	}
-	if n == 1 {
-		return "one of them"
-	}
-	return fmt.Sprintf("%d of them", n)
+	return fmt.Sprintf("%d", n)
 }
 
 // maskFor is the mask over g.vars that member's variant floats names.
@@ -210,14 +282,26 @@ func (g *variantGroup) maskFor(member string, floats []bool, numDecls map[string
 	return mask
 }
 
-// generate copies g's declaration for the variant mask (its variables of mask
-// at float), each member named for its own variables; a member whose variant
-// another mask already produced is not copied again.
-func (p *variantPlanner) generate(g *variantGroup, mask int) error {
+// ensure generates g's variant for mask once, and returns why it could not be
+// generated. A mask being generated counts as done: a use of the declaration
+// inside its own copy names its group member, not ensure.
+func (p *variantPlanner) ensure(g *variantGroup, mask int) error {
 	if g.done[mask] {
-		return nil
+		return g.failed[mask]
 	}
 	g.done[mask] = true
+	err := p.generate(g, mask)
+	if err != nil {
+		g.failed[mask] = err
+	}
+	return err
+}
+
+// generate copies g's declaration for the variant mask (its variables of mask
+// at float), each member named for its own variables; a member whose variant
+// another mask already produced is not copied again. Nothing is recorded when
+// the copy fails.
+func (p *variantPlanner) generate(g *variantGroup, mask int) error {
 	numDecls := p.tc.NumericDecls()
 	sigma := types.Substitution{}
 	for k, v := range g.vars {
@@ -235,7 +319,6 @@ func (p *variantPlanner) generate(g *variantGroup, mask int) error {
 		}
 		names[m] = types.NumVariantName(m, floats)
 		if names[m] != m && !g.emitted[names[m]] {
-			g.emitted[names[m]] = true
 			fresh = append(fresh, m)
 		}
 	}
@@ -247,32 +330,47 @@ func (p *variantPlanner) generate(g *variantGroup, mask int) error {
 	if err != nil {
 		return err
 	}
-	p.plan.after[g.idx] = append(p.plan.after[g.idx], v)
+	metas := map[string]*core.DeclMeta{}
 	for _, m := range fresh {
 		if mm := p.meta[m]; mm != nil {
 			vm, err := c.meta(mm, names[m])
 			if err != nil {
 				return err
 			}
-			p.plan.meta[names[m]] = vm
+			metas[names[m]] = vm
 		}
 	}
+	for _, m := range fresh {
+		g.emitted[names[m]] = true
+	}
+	for k, vm := range metas {
+		p.plan.meta[k] = vm
+	}
+	p.plan.after[g.idx] = append(p.plan.after[g.idx], v)
 	return nil
 }
 
 // install elaborates the variants' dictionaries, inserts each after its
-// original declaration, and renames the original program's uses. prog is the
-// dictionary-elaborated program; its Var nodes are the type-checked ones
-// (ElaborateWithDictionaries keeps atoms), so the renames apply by node id.
+// original declaration (or its copy), and renames the original program's
+// uses. prog is the dictionary-elaborated program; its Var nodes are the
+// type-checked ones (ElaborateWithDictionaries keeps atoms), so the renames
+// apply by node id.
 func (p *numericVariants) install(prog *core.Program, tc *types.CoreTypeChecker) (*core.Program, error) {
 	if p == nil {
 		return prog, nil
 	}
 	renameUses(prog, p.renames)
-	if len(p.after) == 0 {
+	if len(p.after) == 0 && len(p.replace) == 0 {
 		return prog, nil
 	}
 	resolved := tc.GetResolvedConstraints()
+	elab := func(ds []core.CoreExpr) ([]core.CoreExpr, error) {
+		el, err := elaborate.ElaborateWithDictionaries(&core.Program{Decls: ds}, resolved)
+		if err != nil {
+			return nil, fmt.Errorf("numeric variant: %w", err)
+		}
+		return el.Decls, nil
+	}
 	out := &core.Program{Meta: prog.Meta, Flags: prog.Flags}
 	if len(p.meta) > 0 {
 		out.Meta = make(map[string]*core.DeclMeta, len(prog.Meta)+len(p.meta))
@@ -282,17 +380,23 @@ func (p *numericVariants) install(prog *core.Program, tc *types.CoreTypeChecker)
 	}
 	var added []core.CoreExpr
 	for i, decl := range prog.Decls {
+		if cp, ok := p.replace[i]; ok {
+			ds, err := elab([]core.CoreExpr{cp})
+			if err != nil {
+				return nil, err
+			}
+			decl = ds[0]
+			added = append(added, decl)
+		}
 		out.Decls = append(out.Decls, decl)
-		vs := p.after[i]
-		if len(vs) == 0 {
-			continue
+		if vs := p.after[i]; len(vs) > 0 {
+			ds, err := elab(vs)
+			if err != nil {
+				return nil, err
+			}
+			out.Decls = append(out.Decls, ds...)
+			added = append(added, ds...)
 		}
-		el, err := elaborate.ElaborateWithDictionaries(&core.Program{Decls: vs}, resolved)
-		if err != nil {
-			return nil, fmt.Errorf("numeric variant: %w", err)
-		}
-		out.Decls = append(out.Decls, el.Decls...)
-		added = append(added, el.Decls...)
 	}
 	if len(p.meta) > 0 {
 		el, err := elaborate.ElaborateWithDictionaries(&core.Program{Meta: p.meta}, resolved)

@@ -34,9 +34,11 @@ import "github.com/sunholo-data/ailang/internal/core"
 // When a signature declares the variable (`incG[a](x: a) -> a`) the literal is
 // TC_RIGID_001 at check time (#2273, rigid_sig.go).
 //
-// A use of such a binding inside a let is restricted like a literal
-// (PolyNumeric): `let g = \y. inc(y)` is one run-time value, so its uses
-// decide which variant of inc it calls.
+// A let-bound lambda that calls such a binding at its own variable, where the
+// binding's int body is wrong at float (PolyNumeric: a literal there, directly
+// or through a callee), is copied per use instead (numeric_variants.go):
+// `let g = \y. inc(y)` is generic, g(2) == 3 and g(2.5) == 3.5. Any other let
+// with such a use (a letrec, a non-lambda value) is restricted like a literal.
 
 // literalWithhold returns the type variables the let (or letrec) `binder`
 // must not generalize: every free variable of an integer literal's Num
@@ -50,6 +52,12 @@ func (tc *CoreTypeChecker) literalWithhold(ctx *InferenceContext, binder core.Co
 		return nil
 	}
 	vars := literalConstrainedVars(constraints)
+	if specialisableLet(binder) {
+		// A let-bound lambda that calls a literal-carrying binding at its own
+		// variable is copied per use (#2378), so only its own literals keep it
+		// monomorphic.
+		vars = intLiteralVars(constraints)
+	}
 	// M-V1-NOMINAL-TYPE-IDENTITY: a variable an open constructor choice still
 	// depends on stays monomorphic too, so a later use can decide the choice.
 	// Recorded, so a conflict between two uses names the constructor as its
@@ -80,6 +88,20 @@ func literalConstrainedVars(constraints []ClassConstraint) map[string]bool {
 				out = make(map[string]bool)
 			}
 			out[v] = true
+		}
+	}
+	return out
+}
+
+// intLiteralVars is literalConstrainedVars for integer literals only.
+func intLiteralVars(constraints []ClassConstraint) map[string]bool {
+	var out map[string]bool
+	for _, c := range constraints {
+		if c.IntLiteral {
+			if out == nil {
+				out = make(map[string]bool)
+			}
+			collectFreeVars(c.Type, out)
 		}
 	}
 	return out

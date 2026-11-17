@@ -2,6 +2,7 @@ package pipeline
 
 import (
 	"fmt"
+	"sort"
 
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/types"
@@ -22,6 +23,10 @@ type variantCloner struct {
 	// use names a copied use of a binding with variants (variantPlanner.use).
 	use func(ref types.NumericRef, floats []bool) (string, error)
 	err error
+	// frames: for each let-bound lambda copied per use (let node id), a stack
+	// of the variants its uses name, one entry per copy of the let being made.
+	frames      map[uint64][]map[string][]bool
+	innerCopies int // copies of let-bound lambdas made
 }
 
 func (c *variantCloner) fail(err error) {
@@ -133,6 +138,20 @@ func binding(bound map[string]bool, names ...string) map[string]bool {
 // a group member's name in this copy when it is the declaration's own
 // (recursive) use, else name.
 func (c *variantCloner) useName(old core.CoreExpr, name string, bound map[string]bool) string {
+	if ref, ok := c.tc.NumericRefs()[old.ID()]; ok && ref.InnerLet != 0 {
+		floats, err := c.tc.NumericRefInstance(old.ID(), c.sigma)
+		if err != nil {
+			c.fail(err)
+			return name
+		}
+		v := types.NumVariantName(name, floats)
+		if stack := c.frames[ref.InnerLet]; v != name && len(stack) > 0 {
+			stack[len(stack)-1][v] = floats
+		} else if v != name {
+			c.fail(fmt.Errorf("numeric variant: a use of %s at %s outside its let", name, ref.Where))
+		}
+		return v
+	}
 	if ref, ok := c.tc.NumericRefs()[old.ID()]; ok {
 		floats, err := c.tc.NumericRefInstance(old.ID(), c.sigma)
 		if err == nil {
@@ -165,6 +184,9 @@ func (c *variantCloner) expr(e core.CoreExpr, bound map[string]bool) core.CoreEx
 	case *core.Lambda:
 		return &core.Lambda{CoreNode: c.node(n), Params: n.Params, Body: c.expr(n.Body, binding(bound, n.Params...))}
 	case *core.Let:
+		if vars := c.tc.InnerLetVars(n.ID()); vars != nil {
+			return c.innerLet(n, vars, bound)
+		}
 		return &core.Let{CoreNode: c.node(n), Name: n.Name, Value: c.expr(n.Value, bound), Body: c.expr(n.Body, binding(bound, n.Name))}
 	case *core.LetRec:
 		out := &core.LetRec{CoreNode: c.node(n)}
@@ -215,4 +237,44 @@ func (c *variantCloner) expr(e core.CoreExpr, bound map[string]bool) core.CoreEx
 	// would share node ids (types) between variants.
 	c.fail(fmt.Errorf("numeric variant: cannot copy Core node %T", e))
 	return e
+}
+
+// innerLet copies a let-bound lambda that is copied per use: its body first,
+// collecting the variants its uses name, then the lambda once as written and
+// once per variant, each bound right after it (`let h = … in let h$numF = … in
+// body`), so every use is in scope of the copy it names. A variant's value is
+// the lambda's with its own numeric variables at float on top of this copy's.
+func (c *variantCloner) innerLet(n *core.Let, vars []string, bound map[string]bool) core.CoreExpr {
+	if c.frames == nil {
+		c.frames = map[uint64][]map[string][]bool{}
+	}
+	c.frames[n.ID()] = append(c.frames[n.ID()], map[string][]bool{})
+	node := c.node(n)
+	value := c.expr(n.Value, bound)
+	body := c.expr(n.Body, binding(bound, n.Name))
+	stack := c.frames[n.ID()]
+	need := stack[len(stack)-1]
+	c.frames[n.ID()] = stack[:len(stack)-1]
+	names := make([]string, 0, len(need))
+	for v := range need {
+		names = append(names, v)
+	}
+	sort.Strings(names)
+	for i := len(names) - 1; i >= 0; i-- {
+		sigma := make(types.Substitution, len(c.sigma)+len(vars))
+		for k, t := range c.sigma {
+			sigma[k] = t
+		}
+		for k, f := range need[names[i]] {
+			if f && k < len(vars) {
+				sigma[vars[k]] = types.TFloat
+			}
+		}
+		inner := &variantCloner{tc: c.tc, sigma: sigma, next: c.next, group: c.group, use: c.use, frames: c.frames}
+		v := inner.expr(n.Value, bound)
+		c.fail(inner.err)
+		c.innerCopies += inner.innerCopies + 1
+		body = &core.Let{CoreNode: c.node(n), Name: names[i], Value: v, Body: body}
+	}
+	return &core.Let{CoreNode: node, Name: n.Name, Value: value, Body: body}
 }

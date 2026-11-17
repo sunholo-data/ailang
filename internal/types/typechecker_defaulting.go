@@ -10,7 +10,7 @@ func (tc *CoreTypeChecker) defaultAmbiguities(
 	monotype Type,
 	constraints []ClassConstraint,
 ) (Substitution, Type, []ClassConstraint, error) {
-	return tc.defaultAmbiguitiesKeeping(monotype, constraints, nil)
+	return tc.defaultAmbiguitiesKeeping(monotype, constraints, nil, nil)
 }
 
 // defaultAmbiguitiesKeeping is defaultAmbiguities that never defaults a
@@ -35,10 +35,16 @@ func (tc *CoreTypeChecker) defaultAmbiguities(
 // and `func f(p) = {x: p.x * 1}` both run at float. (#2364 kept the first
 // defaulted to int, a check error at float, because the second then failed at
 // run time.)
+//
+// force names variables defaulted although the type mentions them: at a module
+// declaration, a numeric variable that occurs in no parameter type (a
+// constant's, or a result-only literal's) has no argument to carry its type at
+// a call, so it is not generic (#2378; declResultOnlyVars).
 func (tc *CoreTypeChecker) defaultAmbiguitiesKeeping(
 	monotype Type,
 	constraints []ClassConstraint,
 	keep map[string]bool,
+	force map[string]bool,
 ) (Substitution, Type, []ClassConstraint, error) {
 
 	if !tc.defaultingConfig.Enabled {
@@ -59,7 +65,7 @@ func (tc *CoreTypeChecker) defaultAmbiguitiesKeeping(
 		if keep[v] {
 			continue
 		}
-		if !monotypeVars[v] {
+		if !monotypeVars[v] || force[v] {
 			ambiguousVars[v] = true
 		}
 	}

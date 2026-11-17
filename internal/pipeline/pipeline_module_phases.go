@@ -421,6 +421,7 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 	unit.Constructors = convertConstructors(elaborator.GetConstructors())
 	buildConstructorFactoryTypes(modID, unit.Constructors, imports.ExternalTypes)
 
+	unit.importedHas = st.importedHas // #2378: which numeric variants a dependency compiled
 	compileResult, err := typeCheckAndLowerModule(unit, modID, st.rootCanonical, imports, elaborator, st.cfg, st.checksTestBodies(modID))
 	if err != nil {
 		return withLowerTypeNote(err, mod.File)
@@ -515,4 +516,28 @@ func (st *modulePipelineState) evaluateAndAssemble() error {
 	st.result.DictReg = st.cfg.DictReg
 
 	return nil
+}
+
+// importedHas reports whether the compiled module defines a top-level binding
+// named name; known is false when the module is not compiled in this run.
+func (st *modulePipelineState) importedHas(module, name string) (has, known bool) {
+	unit := st.compiledUnits[module]
+	if unit == nil || unit.Core == nil {
+		return false, false
+	}
+	for _, d := range unit.Core.Decls {
+		switch x := d.(type) {
+		case *core.Let:
+			if x.Name == name {
+				return true, true
+			}
+		case *core.LetRec:
+			for _, b := range x.Bindings {
+				if b.Name == name {
+					return true, true
+				}
+			}
+		}
+	}
+	return false, true
 }

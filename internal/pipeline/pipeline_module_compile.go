@@ -318,7 +318,7 @@ func runPostTypeCheckPhases(
 ) error {
 	// #2378: the numeric variants of this module's generic bindings, copied
 	// from the type-checked program; installed after the effect checks below.
-	variants, err := planNumericVariants(unit.Core, typeChecker)
+	variants, err := planNumericVariants(unit.Core, typeChecker, unit.importedHas)
 	if err != nil {
 		return fmt.Errorf("type error in %s: %w", modID, err)
 	}
