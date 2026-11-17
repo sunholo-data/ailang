@@ -44,6 +44,7 @@ export pure func K() = 3
 export pure func cfg() = {lo: 1, hi: 10}
 export pure func W(x) = {a: x + 1, b: 0}
 export pure func sign(x) = if x > 0 then 1 else -1
+export pure func loop0() = loop0() + loop0()
 `,
 		"ok.ail": `module ok
 import lib/c (K, cfg, W, sign)
@@ -60,7 +61,7 @@ export func main() -> () ! {IO} = println(show(N * 0.5))
 	ailangIn(t, bin, dir, "check", "bad.ail").want(t, "check bad", 1, "bad.ail:3", "this value is an int", "`N` is an int: its integer literal (at bad.ail:2:9)", "write that literal as a float (3.0)")
 	r := ailangIn(t, bin, dir, "iface", "lib/c.ail")
 	r.want(t, "iface", 0)
-	for _, want := range []string{`"(())-\u003eint"`, `"(())-\u003e{hi: int, lo: int}"`, `"(a)-\u003e{a: a, b: int}"`, `"(a)-\u003eint"`} {
+	for _, want := range []string{`"(())-\u003eint"`, `"(())-\u003e{hi: int, lo: int}"`, `"(a)-\u003e{a: a, b: int}"`, `"(a)-\u003eint"`, `"(())-\u003ea"`} {
 		if !strings.Contains(r.out, want) {
 			t.Errorf("iface lacks %s:\n%s", want, r.out)
 		}
