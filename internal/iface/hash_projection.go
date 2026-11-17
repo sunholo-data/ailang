@@ -126,6 +126,11 @@ func SignatureSet(j *InterfaceJSON) []string {
 		if len(f.Constraints) > 0 {
 			typ = strings.Join(f.Constraints, ", ") + " => " + typ
 		}
+		// Which variables carry a literal decides which compiled variants an
+		// importer calls (#2378): a change must read as RETYPED.
+		if len(f.Literals) > 0 {
+			typ += " literal[" + strings.Join(f.Literals, ", ") + "]"
+		}
 		sigs = append(sigs, fmt.Sprintf("%s:func:%s:%s:%s", mod, escapeSigField(f.Name), escapeSigField(typ), strings.Join(effects, ",")))
 	}
 	for _, t := range j.Types {

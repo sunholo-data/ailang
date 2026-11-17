@@ -25,20 +25,24 @@ import (
 //
 // The type checker supplies three things here:
 //   - which module declarations have variants, over which variables, in a
-//     fixed order (NumVariantVars) an importer recomputes from the exported
-//     scheme alone, so the interface does not change;
+//     fixed order (NumVariantVars): the Num variables that carry an integer
+//     literal, directly or through a callee (Constraint.Literal). The flag is
+//     exported with the scheme, so an importer computes the same variables;
+//     a literal-free generic (`add(a, b) = a + b`) has none, its one body
+//     being right at every instance;
 //   - every reference to such a binding, in-module or imported (NumericRefs),
 //     whose instantiation picks the variant (NumericRefInstance);
 //   - the type each node of a defaulted generic body had before defaulting
 //     (VariantType, VariantConstraint), from which a variant's node types and
 //     dictionaries are read.
 //
-// A let-bound lambda inside a declaration is one run-time value. One that is
-// literal-free keeps that value, corrected from its run-time values as before.
-// One that calls a binding whose int body is wrong at float, at its own
-// variable, gets a copy per use, as a top-level binding does
-// (noteNumericDecl). A variable that occurs in no parameter type is not
-// generic at all (declResultOnlyVars).
+// A let-bound function (a non-expansive value ending in a lambda, the values
+// the generaliser generalises) follows the same rule as a top-level one: its
+// literal-carrying parameter variables get a copy per use (noteNumericDecl).
+// A literal-carrying variable that occurs in no parameter position of the
+// binding's type is not generic at all: defaulted to int at a module
+// declaration (declResultOnlyVars), decided by its uses at an inner let
+// (literalWithhold).
 
 // NumVariantEager bounds the variables a binding gets every variant over
 // (2^k - 1 copies of its body). A binding over more (a top-level record of
@@ -51,9 +55,8 @@ type numericVariantState struct {
 	numSchemes map[*Scheme]string    // module declaration's scheme → its name
 	numDecls   map[string][]string   // module declaration → NumVariantVars, as its body names them
 	numRefs    map[uint64]NumericRef // reference node → the binding it uses
-	// numLit: a binding's literal-carrying numeric variables (scheme names);
-	// innerSchemes / innerVars: let-bound lambdas copied per use (let node id).
-	numLit       map[*Scheme]map[string]bool
+	// innerSchemes / innerVars: let-bound functions copied per use (node id of
+	// their let or letrec).
 	innerSchemes map[*Scheme]uint64
 	innerVars    map[uint64][]string
 	// genericTI / genericRC: a defaulted node's type, and its class
@@ -70,6 +73,29 @@ type numericVariantState struct {
 	// to another variable, which defaulting then replaced: the variant of the
 	// first is the variant of the second.
 	renamed map[string][]string
+	// forcedPending / forcedSchemes: declarations whose literal-carrying
+	// variable was defaulted to int, and where the literal is; declForcedUses:
+	// those the declaration being checked uses (numeric_diagnostics.go).
+	forcedPending  map[string]string
+	forcedSchemes  map[*Scheme]forcedLiteral
+	declForcedUses []forcedLiteral
+	// variantsPlanned: the caller compiles numeric variants, let-bound
+	// functions' per-use copies included (SetNumericVariants).
+	variantsPlanned bool
+}
+
+// SetNumericVariants tells the checker that its caller compiles numeric
+// variants (the module pipeline does). Only then is a let-bound function with
+// a literal-carrying parameter variable generalised and copied per use; any
+// other caller (expression mode, the REPL, a contract body) keeps it at one
+// type decided by its uses, so it never runs an int body at float.
+func (tc *CoreTypeChecker) SetNumericVariants(on bool) { tc.variantsPlanned = on }
+
+// copiesPerUse reports whether binder is a let-bound function this check
+// copies per use (specialisableLet, inside a module declaration of a caller
+// that compiles variants).
+func (tc *CoreTypeChecker) copiesPerUse(ctx *InferenceContext, binder core.CoreExpr) bool {
+	return tc.variantsPlanned && tc.moduleDeclMode && ctx != nil && ctx.declRoot != nil && specialisableLet(binder)
 }
 
 // NumericRef is the binding a reference node uses, when that binding has
@@ -83,12 +109,13 @@ type NumericRef struct {
 	InnerLet uint64  // the let node, for a let-bound lambda copied per use
 }
 
-// NumVariantVars returns the quantified variables of s that a Num constraint,
-// and no Fractional one, ranges over, in first-appearance order in s's type.
-// These are the variables a binding has numeric variants over (Fractional has
-// one instance, float, which is already its default). The exporting and the
-// importing module both compute it from the scheme, so they agree on a
-// variant's name without the interface naming it.
+// NumVariantVars returns the quantified variables of s that a Literal Num
+// constraint, and no Fractional one, ranges over, in first-appearance order in
+// s's type. These are the variables a binding has numeric variants over: its
+// int body is wrong at float there (Fractional has one instance, float, which
+// is already its default; a literal-free variable's body is right at both).
+// The exporting and the importing module both compute it from the scheme, the
+// flag included, so they agree on a variant's name.
 func NumVariantVars(s *Scheme) []string {
 	if s == nil || len(s.Constraints) == 0 || len(s.TypeVars) == 0 {
 		return nil
@@ -105,7 +132,9 @@ func NumVariantVars(s *Scheme) []string {
 		}
 		switch c.Class {
 		case "Num":
-			num[v] = true
+			if c.Literal {
+				num[v] = true
+			}
 		case "Fractional":
 			frac[v] = true
 		}
@@ -157,17 +186,16 @@ func IsNumVariantOf(binding, name string) bool {
 }
 
 // noteNumericDecl records a binding that has numeric variants: a module
-// declaration's, or a let-bound lambda's that needs them. constraints are the
-// binding's own at generalisation; the variables carrying an integer literal,
-// or a use of another binding's literal-carrying variable (PolyNumeric), are
-// the ones whose int body is wrong at float.
+// declaration's, or a let-bound function's. Its variables are the scheme's
+// Literal ones (NumVariantVars), whose int body is wrong at float.
 //
-// A let-bound lambda is recorded only for those variables: a literal-free one
-// is corrected from its run-time values as before (M-POLY-ARITH), and keeps
-// exactly the code it had. One that calls a literal-carrying binding at its
-// own variable is copied per use instead (pipeline/numeric_variants_clone.go),
-// so `let h = \u. inc(u)` runs as h(2) == 3 and h(2.5) == 3.5.
-func (tc *CoreTypeChecker) noteNumericDecl(ctx *InferenceContext, binder core.CoreExpr, name string, binding interface{}, constraints []ClassConstraint) {
+// A let-bound function is copied per use over them, as a top-level one is
+// compiled per instance (pipeline/numeric_variants_clone.go): `let h = \u.
+// u + 1` and `let g = \u. inc(u)` run as h(2) == 3 and h(2.5) == 3.5. A
+// literal-free one is one run-time value, corrected from its run-time values
+// as before (M-POLY-ARITH), and keeps exactly the code it had.
+func (tc *CoreTypeChecker) noteNumericDecl(ctx *InferenceContext, binder core.CoreExpr, name string, binding interface{}) {
+	tc.registerForced(name, binding)
 	s, ok := binding.(*Scheme)
 	if !ok || ctx == nil || s == nil || binder == nil {
 		return
@@ -177,7 +205,7 @@ func (tc *CoreTypeChecker) noteNumericDecl(ctx *InferenceContext, binder core.Co
 		return
 	}
 	declared := tc.moduleDeclMode && ctx.declRoot == binder
-	if !declared && !specialisableLet(binder) {
+	if !declared && !tc.copiesPerUse(ctx, binder) {
 		return
 	}
 	// A signature variable is written in the scheme as the author wrote it
@@ -203,42 +231,51 @@ func (tc *CoreTypeChecker) noteNumericDecl(ctx *InferenceContext, binder core.Co
 			}
 		}
 	}
-	litBody := literalConstrainedVars(constraints)
-	lit := map[string]bool{}
-	for i, v := range vars {
-		if litBody[body[i]] || litBody[v] {
-			lit[v] = true
-		}
-	}
 	if tc.numSchemes == nil {
 		tc.numSchemes = make(map[*Scheme]string)
 		tc.numDecls = make(map[string][]string)
-		tc.numLit = make(map[*Scheme]map[string]bool)
 		tc.innerSchemes = make(map[*Scheme]uint64)
 		tc.innerVars = make(map[uint64][]string)
 	}
-	tc.numLit[s] = lit
 	if declared {
 		tc.numSchemes[s] = name
 		tc.numDecls[name] = body
 		return
 	}
-	if len(lit) == 0 {
-		return // literal-free: one run-time value, corrected from its values
-	}
 	tc.innerSchemes[s] = binder.ID()
 	tc.innerVars[binder.ID()] = body
 }
 
-// specialisableLet reports whether binder is a let whose value is a lambda:
-// the let-bound bindings a use can be given its own copy of.
+// specialisableLet reports whether binder binds a let-bound function a use can
+// be given its own copy of: a let whose value is non-expansive (isCoreValue,
+// the values the generaliser generalises) and ends in a lambda (`\u. …`, or a
+// block of values ending in one), or a letrec of one such binding. An
+// expansive value (`if … then \u. … else …`, a call) is one run-time value.
 func specialisableLet(binder core.CoreExpr) bool {
-	let, ok := binder.(*core.Let)
-	if !ok {
-		return false
+	switch b := binder.(type) {
+	case *core.Let:
+		return isCoreValue(b.Value) && endsInLambda(b.Value)
+	case *core.LetRec:
+		return len(b.Bindings) == 1 && isCoreValue(b.Bindings[0].Value) && endsInLambda(b.Bindings[0].Value)
 	}
-	_, isLam := let.Value.(*core.Lambda)
-	return isLam
+	return false
+}
+
+// endsInLambda reports whether e is a lambda, or lets whose body is one.
+func endsInLambda(e core.CoreExpr) bool {
+	for depth := 0; depth < 256; depth++ {
+		switch x := e.(type) {
+		case *core.Lambda:
+			return true
+		case *core.Let:
+			e = x.Body
+		case *core.LetRec:
+			e = x.Body
+		default:
+			return false
+		}
+	}
+	return false
 }
 
 // InnerLetVars returns the numeric variables a let-bound lambda (node id of
@@ -250,36 +287,27 @@ func (tc *CoreTypeChecker) InnerLetVars(id uint64) []string { return tc.innerVar
 const NumVariantLimitCode = "TC_NUMVAR_001"
 
 // noteNumericRef records that reference node id uses the binding scheme
-// belongs to, when that binding has numeric variants, and returns the scheme
-// variables whose int body is wrong at float (a use at one of them keeps an
-// enclosing let monomorphic, PolyNumeric, unless that let is copied per use).
-// module is the binding's module ("" for this module's own). For another
-// module's binding the literal-carrying variables are not exported, so every
-// numeric one is taken to carry one.
-func (tc *CoreTypeChecker) noteNumericRef(id uint64, module, name string, pos ast.Pos, s *Scheme) map[string]bool {
+// belongs to, when that binding has numeric variants. module is the binding's
+// module ("" for this module's own); another module's binding has variants
+// over the variables its exported scheme flags Literal.
+func (tc *CoreTypeChecker) noteNumericRef(id uint64, module, name string, pos ast.Pos, s *Scheme) {
 	ref := NumericRef{Module: module, Name: name, Scheme: s, Where: pos.String(), Pos: pos}
-	var lit map[string]bool
 	switch {
 	case module != "":
 		if module == "$builtin" || module == "$adt" || strings.HasPrefix(name, "_") || len(NumVariantVars(s)) == 0 {
-			return nil
-		}
-		lit = map[string]bool{}
-		for _, v := range NumVariantVars(s) {
-			lit[v] = true
+			return
 		}
 	case tc.numSchemes[s] != "":
-		ref.Name, lit = tc.numSchemes[s], tc.numLit[s]
+		ref.Name = tc.numSchemes[s]
 	case tc.innerSchemes[s] != 0:
-		ref.InnerLet, lit = tc.innerSchemes[s], tc.numLit[s]
+		ref.InnerLet = tc.innerSchemes[s]
 	default:
-		return nil
+		return
 	}
 	if tc.numRefs == nil {
 		tc.numRefs = make(map[uint64]NumericRef)
 	}
 	tc.numRefs[id] = ref
-	return lit
 }
 
 // NumericDecls returns this module's bindings that have numeric variants,
@@ -650,40 +678,91 @@ func NumVariantBase(name string) (string, bool) {
 }
 
 // declResultOnlyVars returns, when binder is the module declaration being
-// checked, the variables of its value's type that occur in no parameter type:
-// a constant's (`let K = 3`, `func cfg() = {lo: 1}`) or a result-only one
-// (`func sign(x) = if x > 0 then 1 else -1`). A numeric one has no argument to
-// tell a call its type, so defaulting settles it (int, or float for `3.0`)
-// instead of generalising it (the #2378 rule). A variable inside a parameter
-// type at any depth, including a curried result's parameters, stays generic;
-// in a recursive group, a parameter of any member's. nil for any other binder.
-// Cycle-safety: function types are acyclic; the curried walk is bounded.
-func (tc *CoreTypeChecker) declResultOnlyVars(ctx *InferenceContext, binder core.CoreExpr, valueTypes ...Type) map[string]bool {
+// checked, the numeric variables defaulting settles instead of generalising
+// (the #2378 rule): those that BOTH carry an integer literal (directly, or
+// through a callee's literal-carrying variable: IntLiteral or PolyNumeric) AND
+// occur in no parameter position of any function type anywhere in the
+// binding's type (paramPositionVars). Such a variable has no argument to tell
+// a call its type (`let K = 3`, `func cfg() = {lo: 1}`, `func one(x) = 1`'s
+// result), so it is int (float for `3.0`). Everything else stays generic as
+// it was: a literal-free variable (`let ops = (add, mul)`) and one that a
+// function in the result takes (`func mk() = \x. x + 1`). In a recursive
+// group, a parameter position of any member's. nil for any other binder.
+func (tc *CoreTypeChecker) declResultOnlyVars(ctx *InferenceContext, binder core.CoreExpr, sub Substitution, constraints []ClassConstraint, valueTypes ...Type) map[string]bool {
 	if ctx == nil || !tc.moduleDeclMode || binder == nil || ctx.declRoot != binder {
 		return nil
 	}
-	params, all := map[string]bool{}, map[string]bool{}
-	for _, valueType := range valueTypes {
-		collectFreeTypeVars(valueType, all)
-		for t, depth := StripLabel(valueType), 0; depth < 64; depth++ {
-			f, ok := t.(*TFunc2)
-			if !ok {
-				break
-			}
-			for _, p := range f.Params {
-				collectFreeTypeVars(p, params)
-			}
-			t = StripLabel(f.Return)
+	lit := map[string]string{} // variable → where its first literal is
+	for _, c := range constraints {
+		if c.Class != "Num" || (!c.IntLiteral && !c.PolyNumeric) {
+			continue
 		}
+		vars := map[string]bool{}
+		collectFreeTypeVars(ApplySubstitution(sub, c.Type), vars)
+		for v := range vars {
+			if _, ok := lit[v]; !ok && len(c.Path) > 0 {
+				lit[v] = c.Path[0]
+			}
+		}
+	}
+	if len(lit) == 0 {
+		return nil
+	}
+	params, all := map[string]bool{}, map[string]bool{}
+	for _, t := range valueTypes {
+		collectFreeTypeVars(t, all)
+		paramPositionVars(t, params, 0)
 	}
 	var out map[string]bool
 	for v := range all {
-		if !params[v] {
+		if where, ok := lit[v]; ok && !params[v] {
 			if out == nil {
 				out = map[string]bool{}
 			}
 			out[v] = true
+			tc.noteForcedLiteral(binder, where)
 		}
 	}
 	return out
+}
+
+// paramPositionVars adds to out the type variables occurring in a parameter
+// type of any function type within t: the spine's, and those of functions in
+// tuples, lists, records, options, results and other functions' parameters or
+// results. Cycle-safety: types are finite trees after substitution; depth
+// bounds a malformed one.
+func paramPositionVars(t Type, out map[string]bool, depth int) {
+	if t == nil || depth > 64 {
+		return
+	}
+	switch x := t.(type) {
+	case *TLabelled:
+		paramPositionVars(x.Inner, out, depth+1)
+	case *TFunc2:
+		for _, p := range x.Params {
+			collectFreeTypeVars(p, out)
+			paramPositionVars(p, out, depth+1)
+		}
+		paramPositionVars(x.Return, out, depth+1)
+	case *TList:
+		paramPositionVars(x.Element, out, depth+1)
+	case *TArray:
+		paramPositionVars(x.Element, out, depth+1)
+	case *TMap:
+		paramPositionVars(x.Key, out, depth+1)
+		paramPositionVars(x.Value, out, depth+1)
+	case *TTuple:
+		for _, e := range x.Elements {
+			paramPositionVars(e, out, depth+1)
+		}
+	case *TApp:
+		paramPositionVars(x.Constructor, out, depth+1)
+		for _, a := range x.Args {
+			paramPositionVars(a, out, depth+1)
+		}
+	case *TRecord, *TRecordOpen, *TRecord2, *Row:
+		for _, ft := range recordFieldsOf(t) {
+			paramPositionVars(ft, out, depth+1)
+		}
+	}
 }

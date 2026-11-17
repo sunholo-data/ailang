@@ -440,6 +440,10 @@ type Program struct {
 	Decls []CoreExpr           // Top-level declarations
 	Meta  map[string]*DeclMeta // Metadata for top-level declarations
 	Flags ProgramFlags         // Compilation state flags
+	// NumVariantMissing: an exported binding's numeric variant this module
+	// could not compile, by name, and why (#2378, pipeline/numeric_variants.go),
+	// so an importer that needs it can name the actual cause.
+	NumVariantMissing map[string]string
 }
 
 // DeclMeta contains metadata for top-level declarations

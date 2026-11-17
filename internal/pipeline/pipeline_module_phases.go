@@ -520,24 +520,24 @@ func (st *modulePipelineState) evaluateAndAssemble() error {
 
 // importedHas reports whether the compiled module defines a top-level binding
 // named name; known is false when the module is not compiled in this run.
-func (st *modulePipelineState) importedHas(module, name string) (has, known bool) {
+func (st *modulePipelineState) importedHas(module, name string) (has, known bool, why string) {
 	unit := st.compiledUnits[module]
 	if unit == nil || unit.Core == nil {
-		return false, false
+		return false, false, ""
 	}
 	for _, d := range unit.Core.Decls {
 		switch x := d.(type) {
 		case *core.Let:
 			if x.Name == name {
-				return true, true
+				return true, true, ""
 			}
 		case *core.LetRec:
 			for _, b := range x.Bindings {
 				if b.Name == name {
-					return true, true
+					return true, true, ""
 				}
 			}
 		}
 	}
-	return false, true
+	return false, true, unit.Core.NumVariantMissing[name]
 }

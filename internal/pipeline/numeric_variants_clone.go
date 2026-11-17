@@ -189,6 +189,9 @@ func (c *variantCloner) expr(e core.CoreExpr, bound map[string]bool) core.CoreEx
 		}
 		return &core.Let{CoreNode: c.node(n), Name: n.Name, Value: c.expr(n.Value, bound), Body: c.expr(n.Body, binding(bound, n.Name))}
 	case *core.LetRec:
+		if vars := c.tc.InnerLetVars(n.ID()); vars != nil && len(n.Bindings) == 1 {
+			return c.innerLetRec(n, vars, bound)
+		}
 		out := &core.LetRec{CoreNode: c.node(n)}
 		names := make([]string, len(n.Bindings))
 		for i, b := range n.Bindings {
@@ -239,42 +242,101 @@ func (c *variantCloner) expr(e core.CoreExpr, bound map[string]bool) core.CoreEx
 	return e
 }
 
-// innerLet copies a let-bound lambda that is copied per use: its body first,
-// collecting the variants its uses name, then the lambda once as written and
-// once per variant, each bound right after it (`let h = … in let h$numF = … in
-// body`), so every use is in scope of the copy it names. A variant's value is
-// the lambda's with its own numeric variables at float on top of this copy's.
+// innerLet copies a let-bound function that is copied per use: its body
+// first, collecting the variants its uses name, then the value once as written
+// and once per variant, each bound right after it (`let h = … in let h$numF =
+// … in body`), so every use is in scope of the copy it names. A variant's
+// value is the function's with its own numeric variables at float on top of
+// this copy's.
 func (c *variantCloner) innerLet(n *core.Let, vars []string, bound map[string]bool) core.CoreExpr {
+	node := c.node(n)
+	c.pushFrame(n.ID())
+	value := c.expr(n.Value, bound)
+	body := c.expr(n.Body, binding(bound, n.Name))
+	need := c.popFrame(n.ID())
+	for _, name := range sortedNeeds(need) {
+		inner := c.innerCloner(vars, need[name], nil)
+		v := inner.expr(n.Value, bound)
+		c.fail(inner.err)
+		c.innerCopies += inner.innerCopies + 1
+		body = &core.Let{CoreNode: c.node(n), Name: name, Value: v, Body: body}
+	}
+	return &core.Let{CoreNode: node, Name: n.Name, Value: value, Body: body}
+}
+
+// innerLetRec is innerLet for a let-bound recursive function (a letrec of one
+// binding): each variant is its own letrec, whose recursive calls name it.
+func (c *variantCloner) innerLetRec(n *core.LetRec, vars []string, bound map[string]bool) core.CoreExpr {
+	node := c.node(n)
+	b := n.Bindings[0]
+	inner := binding(bound, b.Name)
+	c.pushFrame(n.ID())
+	value := c.expr(b.Value, inner)
+	body := c.expr(n.Body, inner)
+	need := c.popFrame(n.ID())
+	for _, name := range sortedNeeds(need) {
+		vc := c.innerCloner(vars, need[name], map[string]string{b.Name: name})
+		without := make(map[string]bool, len(bound))
+		for k := range bound {
+			if k != b.Name {
+				without[k] = true
+			}
+		}
+		v := vc.expr(b.Value, without)
+		c.fail(vc.err)
+		c.innerCopies += vc.innerCopies + 1
+		body = &core.LetRec{CoreNode: c.node(n), Bindings: []core.RecBinding{{Name: name, Value: v}}, Body: body}
+	}
+	return &core.LetRec{CoreNode: node, Bindings: []core.RecBinding{{Name: b.Name, Value: value}}, Body: body}
+}
+
+func (c *variantCloner) pushFrame(id uint64) {
 	if c.frames == nil {
 		c.frames = map[uint64][]map[string][]bool{}
 	}
-	c.frames[n.ID()] = append(c.frames[n.ID()], map[string][]bool{})
-	node := c.node(n)
-	value := c.expr(n.Value, bound)
-	body := c.expr(n.Body, binding(bound, n.Name))
-	stack := c.frames[n.ID()]
+	c.frames[id] = append(c.frames[id], map[string][]bool{})
+}
+
+func (c *variantCloner) popFrame(id uint64) map[string][]bool {
+	stack := c.frames[id]
 	need := stack[len(stack)-1]
-	c.frames[n.ID()] = stack[:len(stack)-1]
+	c.frames[id] = stack[:len(stack)-1]
+	return need
+}
+
+// sortedNeeds lists a frame's variant names in reverse order, the order the
+// copies are wrapped around the body (so they read sorted).
+func sortedNeeds(need map[string][]bool) []string {
 	names := make([]string, 0, len(need))
 	for v := range need {
 		names = append(names, v)
 	}
-	sort.Strings(names)
-	for i := len(names) - 1; i >= 0; i-- {
-		sigma := make(types.Substitution, len(c.sigma)+len(vars))
-		for k, t := range c.sigma {
-			sigma[k] = t
-		}
-		for k, f := range need[names[i]] {
-			if f && k < len(vars) {
-				sigma[vars[k]] = types.TFloat
-			}
-		}
-		inner := &variantCloner{tc: c.tc, sigma: sigma, next: c.next, group: c.group, use: c.use, frames: c.frames}
-		v := inner.expr(n.Value, bound)
-		c.fail(inner.err)
-		c.innerCopies += inner.innerCopies + 1
-		body = &core.Let{CoreNode: c.node(n), Name: names[i], Value: v, Body: body}
+	sort.Sort(sort.Reverse(sort.StringSlice(names)))
+	return names
+}
+
+// innerCloner copies a let-bound function's value for one of its variants:
+// its variables vars at float where floats says, on top of this copy's sigma;
+// rename maps a recursive binding to the variant's name.
+func (c *variantCloner) innerCloner(vars []string, floats []bool, rename map[string]string) *variantCloner {
+	sigma := make(types.Substitution, len(c.sigma)+len(vars))
+	for k, t := range c.sigma {
+		sigma[k] = t
 	}
-	return &core.Let{CoreNode: node, Name: n.Name, Value: value, Body: body}
+	for k, f := range floats {
+		if f && k < len(vars) {
+			sigma[vars[k]] = types.TFloat
+		}
+	}
+	group := c.group
+	if len(rename) > 0 {
+		group = make(map[string]string, len(c.group)+len(rename))
+		for k, v := range c.group {
+			group[k] = v
+		}
+		for k, v := range rename {
+			group[k] = v
+		}
+	}
+	return &variantCloner{tc: c.tc, sigma: sigma, next: c.next, group: group, use: c.use, frames: c.frames}
 }

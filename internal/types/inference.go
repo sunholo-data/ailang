@@ -55,6 +55,9 @@ type InferenceContext struct {
 	// (#1958 F-A1/F-A2); see typechecker_effect_union.go.
 	unionFrames []*unionFrame
 	selfTypes   []Type
+	// singleValues: let-bound bindings kept at one numeric type for all their
+	// uses (numeric_diagnostics.go, #2378).
+	singleValues []singleValueNote
 	// rigidGroup: the binding names of the let-rec group being inferred, for
 	// the TC_RIGID_001 culprit search (rigid_sig.go).
 	rigidGroup map[string]bool

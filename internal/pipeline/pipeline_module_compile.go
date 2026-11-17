@@ -203,6 +203,7 @@ func typeCheckAndLowerModule(
 	// Each decl's own binding keeps full generalization under the
 	// integer-literal restriction (M-SOUND-NUMERIC-LITERALS).
 	typeChecker.SetModuleDeclarationMode(true)
+	typeChecker.SetNumericVariants(true) // #2378: planNumericVariants below
 	for i, decl := range unit.Core.Decls {
 		// InferWithConstraints returns the updated env with new bindings
 		var err error
@@ -489,6 +490,11 @@ func runPostTypeCheckPhases(
 			eraser := &DebugEraser{}
 			unit.Core = eraser.Erase(unit.Core)
 		}
+	}
+	// #2378: why an exported binding's variant is missing, for importers (set
+	// on the final program, which the passes above rebuild).
+	if variants != nil && len(variants.missing) > 0 && unit.Core != nil {
+		unit.Core.NumVariantMissing = variants.missing
 	}
 
 	return nil

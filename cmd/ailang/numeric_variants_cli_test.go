@@ -57,7 +57,7 @@ export func main() -> () ! {IO} = println(show(N * 0.5))
 `,
 	})
 	runBoth(t, bin, dir, "ok.ail", "6 1.5 3 10 2.5 0 -1")
-	ailangIn(t, bin, dir, "check", "bad.ail").want(t, "check bad", 1, "bad.ail:3", "this value is an int", "write it as a float (3.0)")
+	ailangIn(t, bin, dir, "check", "bad.ail").want(t, "check bad", 1, "bad.ail:3", "this value is an int", "`N` is an int: its integer literal (at bad.ail:2:9)", "write that literal as a float (3.0)")
 	r := ailangIn(t, bin, dir, "iface", "lib/c.ail")
 	r.want(t, "iface", 0)
 	for _, want := range []string{`"(())-\u003eint"`, `"(())-\u003e{hi: int, lo: int}"`, `"(a)-\u003e{a: a, b: int}"`, `"(a)-\u003eint"`} {
@@ -140,7 +140,9 @@ export func main() -> () ! {IO} {
 }
 `,
 	})
-	runBoth(t, bin, dir, "inner.ail", "3 3.5 3 [1.5] (7.0, 4.0) (6, 4)")
+	// gen's h is copied per use: h(1) is an int use, and gen's second
+	// component, occurring in no parameter, is an int.
+	runBoth(t, bin, dir, "inner.ail", "3 3.5 3 [1.5] (7.0, 4) (6, 4)")
 	runBoth(t, bin, dir, "free.ail", "ints=42 n=10 f=0.5")
 	runBoth(t, bin, dir, "block.ail", "4 5.0 3.5")
 }

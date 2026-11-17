@@ -218,27 +218,31 @@ Still open:
     literal written at a signature variable is still rejected (`TC_RIGID_001`), though one reached
     through an unannotated helper is fine: `pure func incH(x) = x + 1` then
     `func inc[a](x: a) -> a = incH(x)`, and `inc(2.5)` is `3.5` (#2378);
-  - a top-level binding generic over `Num a` is compiled once per instance of `a` (#2378): as
-    written for `int`, and as a variant typed at `float` (`inc$numF`) that a float use calls, in
-    the module and from importers. So `func inc(x) = x + 1` gives `inc(2.5) == 3.5` and
-    `inc(2) == 3`, and an integer literal in such a body takes the type of the use. Only a
-    numeric type that occurs in a **parameter** type is generic: a constant (`let K = 3`,
-    `func cfg() = {lo: 1}`) or a result-only literal (`func sign(x) = if x > 0 then 1 else -1`
-    returns an `int`) is an `int` (a `float` when written `3.0`), and `K * 0.5` is a check
-    error located at the use. Limits: a binding over more than 4 parameter-borne numeric types
-    gets only the variants its own module compiles, so another module's use at another
-    combination is `TC_NUMVAR_001` at that use; a **let-bound** lambda with its own integer
-    literal is one value whose uses decide its type (`let f = \x. x + 1` used as `f(2.5)` and
-    `f(2)` makes the `2` a float, as before), while one that only calls a generic top-level
-    binding gets a copy per use (`let h = \u. inc(u)`: `h(2) == 3`, `h(2.5) == 3.5`); a
-    let-bound recursive lambda (`letrec`) calling a literal-carrying binding is one value too,
-    and so is a lambda under a block (`let g = { let k = 1; \u. inc(u) }`).
+  - a function generic over a numeric type `a` that carries an integer literal (its own, or a
+    callee's) is compiled once per instance of `a` (#2378): as written for `int`, and as a
+    variant typed at `float` (`inc$numF`) that a float use calls, in the module and from
+    importers (`ailang iface` lists such variables under `literals`). So `func inc(x) = x + 1`
+    gives `inc(2.5) == 3.5` and `inc(2) == 3`. A literal-free generic has one body, right at
+    every instance. A let-bound function (a lambda, a block ending in one, a one-binding
+    `letrec`) follows the same rule, one copy per use: `let f = \x. x + 1` gives `f(2) == 3` and
+    `f(2.5) == 3.5`, as `func f(x) = x + 1` does. A variable that carries a literal and occurs in
+    no parameter position of the binding's type is an `int` (a `float` when written `3.0`): a
+    top-level constant (`let K = 3`, `func cfg() = {lo: 1}`) or result-only literal
+    (`func one(x) = 1`), so `K * 0.5` is a check error naming `K`'s literal. Inside a function,
+    such a constant (`let w = 70`) and a computed binding (`let h = if c then \u. u + 1 else
+    \u. u`) are single values whose uses decide their type; calling a computed one at int and at
+    float is a check error that says so. Limits: a function over more than 4 literal-carrying
+    numeric types gets only the variants its own module uses, so another module's use at
+    another combination is `TC_NUMVAR_001` at that use, naming the function at fault; a
+    `letrec` group of two or more let-bound functions is kept at one type; and the REPL's
+    module loader and expression mode (a bare expression, not a module) compile no variants, so there a let-bound
+    function with its own literal keeps one type decided by its uses, as before.
     Inline test rows (`tests [...]`) are run by an untyped harness that calls the int body, so
     a float row of a generic function fails under `ailang test` although `check` accepts it
     (#2392). A contract clause that needs `Num` where the body does not (`g(x) requires { inc(x)
     > 0 } = x`) is #2337 above: the function has no float variant, and the clause fails under
     `--verify-contracts` at float.
-  - a let-bound generic lambda's body is still compiled once, at its defaulted type (`Num a` ⇒
+  - a literal-free generic lambda's body is compiled once, at its defaulted type (`Num a` ⇒
     `int`, #2333). The evaluator and the VM correct for it (the class methods and `%` from the
     run-time values, `show` left dynamic).
 

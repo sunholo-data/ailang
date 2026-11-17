@@ -582,8 +582,9 @@ func (s *Scheme) instantiate(fresh func(Kind) Type, use []string) (Type, []Const
 	instConstraints := make([]Constraint, len(s.Constraints))
 	for i, c := range s.Constraints {
 		instConstraints[i] = Constraint{
-			Class: c.Class,
-			Type:  c.Type.Substitute(subs),
+			Class:   c.Class,
+			Type:    c.Type.Substitute(subs),
+			Literal: c.Literal,
 		}
 	}
 	return s.Type.Substitute(subs), instConstraints, accesses

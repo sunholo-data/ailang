@@ -208,7 +208,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 	guardTypeSize(valueType, letBindingWhat(let.Name), let.Span())
 
 	// Apply defaulting at this generalization boundary
-	defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguitiesKeeping(valueType, unsolvedConstraints, ctx.envOwnedVars(sub, ctx.env), tc.declResultOnlyVars(ctx, let, valueType))
+	defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguitiesKeeping(valueType, unsolvedConstraints, ctx.envOwnedVars(sub, ctx.env), tc.declResultOnlyVars(ctx, let, sub, unsolvedConstraints, valueType))
 	if err != nil {
 		return nil, ctx.env, fmt.Errorf("defaulting failed for let binding %s: %w", let.Name, err)
 	}
@@ -236,13 +236,13 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		defaultedType = tc.closeDeclaredEffectRowForBinding(let.Value.ID(), defaultedType)
 		defaultedType = ctx.closeOpenedTailsForGeneralization(sub, defaultedType, ctx.env, ctx.baseEnv) // #1958
 
-		scheme := tc.generalizeCarrying(ctx, defaultingSub, defaultedType, valueEffects, nonGroundConstraints, sub, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints)) // #2239; rigidScheme: #2273
+		scheme := tc.generalizeCarrying(ctx, defaultingSub, defaultedType, valueEffects, nonGroundConstraints, sub, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints, defaultedType, sub)) // #2239; rigidScheme: #2273
 		if binding, err = tc.rigidScheme(ctx, let.Value, scheme, nonGroundConstraints, sub, defaultingSub); err != nil {
 			return nil, ctx.env, err
 		}
-		tc.noteNumericDecl(ctx, let, let.Name, binding, nonGroundConstraints) // #2378
+		tc.noteNumericDecl(ctx, let, let.Name, binding) // #2378
 	} else {
-		binding = defaultedType
+		binding = tc.singleValue(ctx, let, sub, defaultedType) // #2378: an expansive value is one value
 	}
 
 	// Extend environment
@@ -352,7 +352,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		valueNode := allValueNodes[i]
 
 		// Apply defaulting at this generalization boundary
-		defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguitiesKeeping(valueType, unsolvedConstraints, ctx.envOwnedVars(sub, oldEnv), tc.declResultOnlyVars(ctx, letrec, allValueTypes...))
+		defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguitiesKeeping(valueType, unsolvedConstraints, ctx.envOwnedVars(sub, oldEnv), tc.declResultOnlyVars(ctx, letrec, sub, unsolvedConstraints, allValueTypes...))
 		if err != nil {
 			return nil, oldEnv, fmt.Errorf("defaulting failed for letrec binding %s: %w", binding.Name, err)
 		}
@@ -407,11 +407,11 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		// Generalize for recursion with the *outer* env (oldEnv) as currentEnv:
 		// the bindings' own fresh vars live only in newEnv, so they remain
 		// generalizable; enclosing lambda params (free in oldEnv) are withheld.
-		scheme, err := tc.rigidScheme(ctx, binding.Value, tc.generalizeCarrying(ctx, defaulting[i], valueType, getEffectRow(valueNode), nonGroundConstraints, reSub, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, letrec, nonGroundConstraints)), nonGroundConstraints, sub, defaulting[i], reSub) // #2239, #2273
+		scheme, err := tc.rigidScheme(ctx, binding.Value, tc.generalizeCarrying(ctx, defaulting[i], valueType, getEffectRow(valueNode), nonGroundConstraints, reSub, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, letrec, nonGroundConstraints, valueType, composeSubstitutions(reSub, sub))), nonGroundConstraints, sub, defaulting[i], reSub) // #2239, #2273
 		if err != nil {
 			return nil, oldEnv, err
 		}
-		tc.noteNumericDecl(ctx, letrec, binding.Name, scheme, nonGroundConstraints) // #2378
+		tc.noteNumericDecl(ctx, letrec, binding.Name, scheme) // #2378
 		typedBindings[i] = typedast.TypedRecBinding{
 			Name:   binding.Name,
 			Scheme: scheme,

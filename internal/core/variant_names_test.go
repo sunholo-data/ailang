@@ -8,7 +8,10 @@ func TestDisplayFuncName(t *testing.T) {
 		"inc$numF":       "inc",
 		"qi$numFI":       "qi",
 		"f$numF$lambda3": "f$lambda3",
-		"h$numF$s2":      "h$s2",
+		"h$numF$s2":      "h",
+		"h$s2":           "h",
+		"go$s10$lambda4": "go$lambda4",
+		"cost$sum":       "cost$sum",
 		"f$lambda1":      "f$lambda1",
 		"number":         "number",
 	} {

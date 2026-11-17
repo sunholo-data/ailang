@@ -482,7 +482,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	// Infer type (returns updated env); a predicate root must type as bool (#2248)
 	typedNode, updatedEnv, err := tc.inferCore(ctx, expr)
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, tc.explainNumericFailure(ctx, err) // #2378
 	}
 	tc.constrainPredicateRoot(ctx, expr, typedNode)
 	inferredType := typedNode.GetType()
@@ -497,7 +497,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 
 	sub, unsolved, err := tc.solveDeclConstraintsRigid(ctx) // solve (+ #2273's InferWithRigid check), then default
 	if err != nil {
-		return nil, nil, nil, nil, err
+		return nil, nil, nil, nil, tc.explainNumericFailure(ctx, err) // #2378
 	}
 
 	// Apply defaulting to unsolved constraints
@@ -531,7 +531,7 @@ func (tc *CoreTypeChecker) inferWithConstraints(expr core.CoreExpr, env *TypeEnv
 		return nil, updatedEnv, nil, nil, err
 	}
 	if err := tc.resolveGroundConstraints(ground, expr); err != nil {
-		return nil, updatedEnv, nil, nil, err
+		return nil, updatedEnv, nil, nil, tc.explainNumericFailure(ctx, err) // #2378
 	}
 
 	// Fill in operator methods

@@ -129,12 +129,10 @@ func actionableInstanceHint(class string, typ Type) string {
 		}
 	case "Fractional":
 		if ts == "int" {
-			// #2378: since a module constant and a result-only literal are
-			// ints (`let K = 3`, `func sign(x) = if x > 0 then 1 else -1`),
-			// this is also how `K * 0.5` reads.
-			return "A float is needed here (a float literal such as 0.5, or float division), but this value is an int. " +
-				"An integer literal in a module constant or a function's result is an int (`let K = 3`): write it as a float (3.0), " +
-				"annotate it (`let K: float = 3`), or convert with intToFloat(x)."
+			// When a #2378 rule made the value an int, the type checker
+			// appends which binding and where (numeric_diagnostics.go).
+			return "A float is needed here (a float literal such as 0.5, or float division), but this value is an int: " +
+				"convert it with intToFloat(x), or make it a float where it comes from."
 		}
 		return fmt.Sprintf("Float division (/) needs floats; %s is not Fractional. Convert ints with intToFloat, e.g. intToFloat(x) / intToFloat(y).", ts)
 	case "Ord":

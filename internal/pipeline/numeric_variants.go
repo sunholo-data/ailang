@@ -39,11 +39,13 @@ type numericVariants struct {
 	replace map[int]core.CoreExpr   // index in Decls → its copy
 	meta    map[string]*core.DeclMeta
 	renames map[uint64]string // use node id → variant name
+	missing map[string]string // exported variants not compiled → why
 }
 
 // importedBinding reports whether module (another one) defines a binding
-// named name; known is false when the module's compiled program is not at hand.
-type importedBinding func(module, name string) (has, known bool)
+// named name; known is false when the module's compiled program is not at
+// hand; why says why the module could not compile it, when it recorded that.
+type importedBinding func(module, name string) (has, known bool, why string)
 
 // planNumericVariants builds the variants of every binding of prog that has
 // them, records their node types and resolved constraints in tc, and computes
@@ -67,7 +69,7 @@ func planNumericVariants(prog *core.Program, tc *types.CoreTypeChecker, imported
 		meta:     prog.Meta,
 		imported: imported,
 		plan: &numericVariants{after: map[int][]core.CoreExpr{}, replace: map[int]core.CoreExpr{},
-			meta: map[string]*core.DeclMeta{}, renames: map[uint64]string{}},
+			meta: map[string]*core.DeclMeta{}, renames: map[uint64]string{}, missing: map[string]string{}},
 		byMember: map[string]*variantGroup{},
 		next:     numVariantIDBase,
 	}
@@ -89,7 +91,13 @@ func planNumericVariants(prog *core.Program, tc *types.CoreTypeChecker, imported
 		}
 	}
 	for _, d := range eager {
-		_ = p.ensure(d.group, d.mask) // a variant that cannot be built is simply absent
+		// A variant that cannot be built is simply absent; an importer that
+		// needs it is told why (NumVariantMissing).
+		if err := p.ensure(d.group, d.mask); err != nil {
+			for _, m := range d.group.members {
+				p.plan.missing[types.NumVariantName(m, d.group.floatsOf(m, d.mask, p.tc.NumericDecls()))] = d.group.causes[d.mask]
+			}
+		}
 	}
 	ids := make([]uint64, 0, len(refs))
 	for id := range refs {
@@ -154,7 +162,7 @@ func declBindingNames(decl core.CoreExpr) []string {
 func (p *variantPlanner) holdsInnerLet(decl core.CoreExpr) bool {
 	found := false
 	walkCoreExprs(decl, func(e core.CoreExpr) {
-		if l, ok := e.(*core.Let); ok && p.tc.InnerLetVars(l.ID()) != nil {
+		if (isLetOrLetRec(e)) && p.tc.InnerLetVars(e.ID()) != nil {
 			found = true
 		}
 	})
@@ -170,11 +178,12 @@ type variantGroup struct {
 	vars    []string     // the union of the members' variables, in order
 	done    map[int]bool // masks over vars already generated (or being)
 	failed  map[int]error
+	causes  map[int]string // why a failed mask failed: the binding at fault and the chain to it
 	emitted map[string]bool
 }
 
 func newVariantGroup(idx int, decl core.CoreExpr, numDecls map[string][]string) *variantGroup {
-	g := &variantGroup{idx: idx, decl: decl, done: map[int]bool{}, failed: map[int]error{}, emitted: map[string]bool{}}
+	g := &variantGroup{idx: idx, decl: decl, done: map[int]bool{}, failed: map[int]error{}, causes: map[int]string{}, emitted: map[string]bool{}}
 	switch d := decl.(type) {
 	case *core.Let:
 		g.members = []string{d.Name}
@@ -213,6 +222,9 @@ type variantPlanner struct {
 	plan     *numericVariants
 	byMember map[string]*variantGroup
 	next     uint64
+	// cause: the last missing imported variant a use ran into, phrased as the
+	// binding at fault and the chain to it (use).
+	cause string
 }
 
 // use returns the name a use of ref at floats takes, generating that variant
@@ -224,8 +236,16 @@ func (p *variantPlanner) use(ref types.NumericRef, floats []bool) (string, error
 	}
 	if ref.Module != "" {
 		if p.imported != nil {
-			if has, known := p.imported(ref.Module, name); known && !has {
-				return "", numVarError(ref, fmt.Sprintf("%s from %s is not compiled with %s of its %d numeric types at float: its module compiles every combination only for a binding over at most %d of them, and otherwise the ones it can and uses itself",
+			if has, known, why := p.imported(ref.Module, name); known && !has {
+				if why != "" {
+					// The variant exists in principle; compiling it needed
+					// another binding's missing variant: name that one.
+					p.cause = fmt.Sprintf("%s from %s (used at %s), whose float copy needs %s", ref.Name, ref.Module, ref.Where, why)
+					return "", numVarError(ref, fmt.Sprintf("%s from %s has no variant for this use at float: it needs %s", ref.Name, ref.Module, why), ref.Module)
+				}
+				p.cause = fmt.Sprintf("%s from %s (used at %s), which is not compiled with %s of its %d numeric types at float: a binding over more than %d of them gets only the variants its own module uses",
+					ref.Name, ref.Module, ref.Where, floatCount(floats), len(floats), types.NumVariantEager)
+				return "", numVarError(ref, fmt.Sprintf("%s from %s is not compiled with %s of its %d numeric types at float: a binding over more than %d of them gets only the variants its own module uses",
 					ref.Name, ref.Module, floatCount(floats), len(floats), types.NumVariantEager), ref.Module)
 			}
 		}
@@ -237,6 +257,10 @@ func (p *variantPlanner) use(ref types.NumericRef, floats []bool) (string, error
 	}
 	if mask := g.maskFor(ref.Name, floats, p.tc.NumericDecls()); mask != 0 {
 		if err := p.ensure(g, mask); err != nil {
+			if c := g.causes[mask]; c != "" {
+				p.cause = fmt.Sprintf("%s (used at %s), whose float copy needs %s", ref.Name, ref.Where, c)
+				return "", numVarError(ref, fmt.Sprintf("%s at float needs %s", ref.Name, c), "this module")
+			}
 			return "", numVarError(ref, fmt.Sprintf("%s at float needs a variant that cannot be compiled: %v", ref.Name, err), "this module")
 		}
 	}
@@ -290,11 +314,27 @@ func (p *variantPlanner) ensure(g *variantGroup, mask int) error {
 		return g.failed[mask]
 	}
 	g.done[mask] = true
+	p.cause = ""
 	err := p.generate(g, mask)
 	if err != nil {
 		g.failed[mask] = err
+		g.causes[mask] = p.cause
 	}
 	return err
+}
+
+// floatsOf is member's variant flags for the group mask.
+func (g *variantGroup) floatsOf(member string, mask int, numDecls map[string][]string) []bool {
+	own := numDecls[member]
+	floats := make([]bool, len(own))
+	for k, v := range own {
+		for i, gv := range g.vars {
+			if gv == v && mask&(1<<i) != 0 {
+				floats[k] = true
+			}
+		}
+	}
+	return floats
 }
 
 // generate copies g's declaration for the variant mask (its variables of mask
@@ -516,4 +556,13 @@ func sortedExprKeys(m map[string]core.CoreExpr) []string {
 	}
 	sort.Strings(keys)
 	return keys
+}
+
+// isLetOrLetRec reports whether e binds a let-bound function (a let or a letrec).
+func isLetOrLetRec(e core.CoreExpr) bool {
+	switch e.(type) {
+	case *core.Let, *core.LetRec:
+		return true
+	}
+	return false
 }

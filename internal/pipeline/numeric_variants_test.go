@@ -50,18 +50,21 @@ func TestNumericVariants_EveryFormIsCopied(t *testing.T) {
 	}
 	defined := map[string]bool{}
 	for _, d := range prog.Decls {
-		switch x := d.(type) {
-		case *core.Let:
-			defined[x.Name] = true
-		case *core.LetRec:
-			for _, b := range x.Bindings {
-				defined[b.Name] = true
+		walkCoreExprs(d, func(e core.CoreExpr) {
+			switch x := e.(type) {
+			case *core.Let:
+				defined[x.Name] = true
+			case *core.LetRec:
+				for _, b := range x.Bindings {
+					defined[b.Name] = true
+				}
 			}
-		}
+		})
 	}
 	// ev and od are generic in n; their result occurs in no parameter, so it
-	// is an int (the #2378 rule), not a second variable.
-	for _, want := range []string{"inc", "inc$numF", "shapes", "shapes$numF", "ev", "od", "ev$numF", "od$numF"} {
+	// is an int (the #2378 rule), not a second variable. shapes' `let k =
+	// \y. y * 2` is copied per use: the float copy of shapes calls k$numF.
+	for _, want := range []string{"inc", "inc$numF", "shapes", "shapes$numF", "ev", "od", "ev$numF", "od$numF", "k$numF"} {
 		if !defined[want] {
 			t.Errorf("no declaration %s; have %v", want, keys(defined))
 		}
@@ -107,13 +110,16 @@ func TestNumericVariants_WideBindingFromAnotherModule(t *testing.T) {
 		"q/w.ail": lib, "q/v.ail": via,
 		"q/m.ail": "module q/m\nimport q/v (V)\nexport func main() -> () ! {IO} = println(show(V(2.5)))\n",
 	}, "q/m.ail")
-	wantCode(t, err, types.NumVariantLimitCode, "V from q/v")
+	// The binding at fault is W, not V: the message names it and where V
+	// uses it (#2393 review R4).
+	wantCode(t, err, types.NumVariantLimitCode, "V from q/v has no variant for this use at float: it needs W from q/w (used at q/v.ail:3:")
+	wantCode(t, err, types.NumVariantLimitCode, "which is not compiled with 5 of its 5 numeric types at float")
 	// In a generic function of this module, whose float variant needs it.
 	_, err = writeAndCheck(t, map[string]string{
 		"q/w.ail": lib,
 		"q/m.ail": "module q/m\nimport q/w (W)\npure func g(x) = W(x, x, x, x, x)\nexport func main() -> () ! {IO} = println(show(g(1.5)))\n",
 	}, "q/m.ail")
-	wantCode(t, err, types.NumVariantLimitCode, "g at float needs a variant that cannot be compiled")
+	wantCode(t, err, types.NumVariantLimitCode, "g at float needs W from q/w (used at q/m.ail:3:")
 	if _, err := writeAndCheck(t, map[string]string{
 		"q/w.ail": lib, "q/v.ail": via,
 		"q/m.ail": "module q/m\nimport q/w (W, local)\nimport q/v (V)\nexport func main() -> () ! {IO} = println(\"${show(W(1, 2, 3, 4, 5))} ${show(local())} ${show(V(2))}\")\n",
@@ -180,6 +186,46 @@ func TestNumericVariants_LetBoundLambdaIsCopiedPerUse(t *testing.T) {
 	}
 	if bound["d$numF"] {
 		t.Errorf("a lambda calling a literal-free binding must not be copied; bound %v", keys(bound))
+	}
+}
+
+// A literal-free generic has one body right at every instance, so even an
+// exported one gets no variants (#2393 review R2); a literal-carrying one gets
+// every variant. A let-bound recursive function with its own literal is copied
+// per use, its float copy calling itself (R3).
+func TestNumericVariants_OnlyLiteralCarryingVariables(t *testing.T) {
+	res, err := writeAndCheck(t, map[string]string{"m.ail": "module m\n" +
+		"export func add4(a, b, c, d) = (a + a, b + b, c + c, d + d)\n" +
+		"export func inc(x) = x + 1\n" +
+		"export func main() -> () ! {IO} {\n" +
+		"  letrec s = \\n. if n <= 0 then 0 else n + s(n - 1);\n" +
+		"  println(\"${show(s(3))} ${show(s(2.5))} ${show(add4(1, 1.5, 2, 2.5))}\")\n" +
+		"}\n"}, "m.ail")
+	if err != nil {
+		t.Fatalf("must check: %v", err)
+	}
+	bound := map[string]bool{}
+	for _, d := range res.Artifacts.Core.Decls {
+		walkCoreExprs(d, func(e core.CoreExpr) {
+			switch x := e.(type) {
+			case *core.Let:
+				bound[x.Name] = true
+			case *core.LetRec:
+				for _, b := range x.Bindings {
+					bound[b.Name] = true
+				}
+			}
+		})
+	}
+	for name, want := range map[string]bool{"inc$numF": true, "s": true, "s$numF": true} {
+		if bound[name] != want {
+			t.Errorf("%s bound = %v, want %v; bound %v", name, bound[name], want, keys(bound))
+		}
+	}
+	for name := range bound {
+		if strings.HasPrefix(name, "add4$num") {
+			t.Errorf("a literal-free generic must have no variants, found %s", name)
+		}
 	}
 }
 

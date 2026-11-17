@@ -531,6 +531,12 @@ type Instance struct {
 type Constraint struct {
 	Class string
 	Type  Type
+	// Literal marks a Num constraint whose variable carries an integer
+	// literal, directly or through a callee's literal-carrying variable
+	// (#2378): the binding's int body is wrong at float there, so it has a
+	// numeric variant over that variable. Exported with the scheme, so an
+	// importer knows which of an imported binding's variables have variants.
+	Literal bool
 }
 
 func (c *Constraint) String() string {

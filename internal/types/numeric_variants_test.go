@@ -37,16 +37,19 @@ func TestNumVariantNames(t *testing.T) {
 }
 
 // NumVariantVars: the Num-only quantified variables, in first-appearance order
-// of the type; a Fractional variable (one instance, float) has no variants,
-// and neither has an unconstrained one.
+// of the type, among those whose Num constraint carries a literal; a
+// Fractional variable (one instance, float) has no variants, and neither has
+// an unconstrained or a literal-free one (#2378 review: its one body is right
+// at every instance).
 func TestNumVariantVars(t *testing.T) {
 	a, b, c, d := &TVar2{Name: "a", Kind: Star}, &TVar2{Name: "b", Kind: Star}, &TVar2{Name: "c", Kind: Star}, &TVar2{Name: "d", Kind: Star}
 	s := &Scheme{
 		TypeVars: []string{"a", "b", "c", "d"},
 		Constraints: []Constraint{
-			{Class: "Num", Type: a}, {Class: "Ord", Type: a},
-			{Class: "Num", Type: b},
-			{Class: "Num", Type: c}, {Class: "Fractional", Type: c},
+			{Class: "Num", Type: a, Literal: true}, {Class: "Ord", Type: a},
+			{Class: "Num", Type: b, Literal: true},
+			{Class: "Num", Type: c, Literal: true}, {Class: "Fractional", Type: c},
+			{Class: "Num", Type: d},
 		},
 		// (b, {x: a | ...}, c, d) -> b
 		Type: &TFunc2{Params: []Type{b, &TRecordOpen{Fields: map[string]Type{"x": a}}, c, d}, Return: b, EffectRow: EmptyEffectRow()},
@@ -111,6 +114,59 @@ func TestMatchSchemeVarsReadsEveryStructure(t *testing.T) {
 	for n := range want {
 		if got := bound[n]; got == nil || NormalizeTypeName(got) != "Float" {
 			t.Errorf("%s bound to %v, want float", n, got)
+		}
+	}
+}
+
+// The literal flag survives the scheme codec the compile cache uses and
+// canonicalisation (#2378): an importer served from cache names the same
+// variants as a cold one.
+func TestSchemeLiteralFlagRoundTrips(t *testing.T) {
+	a := &TVar2{Name: "a", Kind: Star}
+	s := &Scheme{TypeVars: []string{"a"}, Constraints: []Constraint{{Class: "Num", Type: a, Literal: true}, {Class: "Ord", Type: a}},
+		Type: &TFunc2{Params: []Type{a}, Return: a, EffectRow: EmptyEffectRow()}}
+	data, err := MarshalScheme(s)
+	if err != nil {
+		t.Fatal(err)
+	}
+	back, err := UnmarshalScheme(data)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(back.Constraints) != 2 || !back.Constraints[0].Literal || back.Constraints[1].Literal {
+		t.Fatalf("round trip lost the flag: %+v", back.Constraints)
+	}
+	if v := NumVariantVars(back); len(v) != 1 || v[0] != "a" {
+		t.Errorf("NumVariantVars after the round trip = %v", v)
+	}
+	canon, _ := CanonicalizeScheme(back)
+	if len(NumVariantVars(canon)) != 1 {
+		t.Errorf("canonicalisation lost the flag: %+v", canon.Constraints)
+	}
+}
+
+// A parameter position is any function type's parameter, anywhere in the
+// type: the spine's, a returned function's, one inside a tuple, list, record
+// or type application. A variable only in a result is not one (#2393 R1).
+func TestParamPositionVars(t *testing.T) {
+	v := func(n string) Type { return &TVar2{Name: n, Kind: Star} }
+	fn := func(p []Type, r Type) Type { return &TFunc2{Params: p, Return: r, EffectRow: EmptyEffectRow()} }
+	typ := fn([]Type{v("a")}, &TTuple{Elements: []Type{
+		fn([]Type{v("b"), v("b")}, v("b")),
+		&TList{Element: fn([]Type{v("c")}, v("d"))},
+		&TRecord{Fields: map[string]Type{"f": fn([]Type{&TApp{Constructor: &TCon{Name: "Option"}, Args: []Type{v("e")}}}, v("g"))}},
+		v("h"),
+	}})
+	got := map[string]bool{}
+	paramPositionVars(typ, got, 0)
+	for _, n := range []string{"a", "b", "c", "e"} {
+		if !got[n] {
+			t.Errorf("%s is in a parameter position", n)
+		}
+	}
+	for _, n := range []string{"d", "g", "h"} {
+		if got[n] {
+			t.Errorf("%s is only in a result", n)
 		}
 	}
 }
