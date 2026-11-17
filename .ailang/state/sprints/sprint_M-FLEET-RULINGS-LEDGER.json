@@ -1,0 +1,187 @@
+{
+  "sprint_id": "M-FLEET-RULINGS-LEDGER",
+  "status": "not_started",
+  "created": "2026-11-17T13:58:28Z",
+  "design_doc": "design_docs/planned/m-fleet-rulings-ledger.md",
+  "sprint_plan": "design_docs/planned/m-fleet-rulings-ledger-sprint-plan.md",
+  "github_issues": [],
+  "registry_reuse": [
+    {
+      "milestone": "M1_LEDGER_PARSER",
+      "package": null,
+      "action": "none",
+      "reason": "Go code inside internal/mission (doctor internals) plus Markdown; ailang pkg search ledger/lint found nothing applicable (only sunholo/relativity)"
+    },
+    {
+      "milestone": "M2_CORPUS",
+      "package": null,
+      "action": "none",
+      "reason": "Go code inside internal/mission (doctor internals) plus Markdown; ailang pkg search ledger/lint found nothing applicable (only sunholo/relativity)"
+    },
+    {
+      "milestone": "M3_CHECK_RULINGS",
+      "package": null,
+      "action": "none",
+      "reason": "Go code inside internal/mission (doctor internals) plus Markdown; ailang pkg search ledger/lint found nothing applicable (only sunholo/relativity)"
+    },
+    {
+      "milestone": "M4_DOCTOR_WIRE",
+      "package": null,
+      "action": "none",
+      "reason": "Go code inside internal/mission (doctor internals) plus Markdown; ailang pkg search ledger/lint found nothing applicable (only sunholo/relativity)"
+    },
+    {
+      "milestone": "M5_CLI_SUMMARY",
+      "package": null,
+      "action": "none",
+      "reason": "Go code inside internal/mission (doctor internals) plus Markdown; ailang pkg search ledger/lint found nothing applicable (only sunholo/relativity)"
+    },
+    {
+      "milestone": "M6_LEDGER_CONTENT",
+      "package": null,
+      "action": "none",
+      "reason": "Go code inside internal/mission (doctor internals) plus Markdown; ailang pkg search ledger/lint found nothing applicable (only sunholo/relativity)"
+    },
+    {
+      "milestone": "M7_DONE_GATE",
+      "package": null,
+      "action": "none",
+      "reason": "Go code inside internal/mission (doctor internals) plus Markdown; ailang pkg search ledger/lint found nothing applicable (only sunholo/relativity)"
+    }
+  ],
+  "velocity": {
+    "target_loc_per_day": 815,
+    "estimated_total_loc": 1630,
+    "estimated_days": 2
+  },
+  "executor": {
+    "model": "claude-haiku-5-5",
+    "one_milestone_per_run": true
+  },
+  "planner_findings": [
+    "P8b: design appends ruling findings; on doctor exit 1 mission-lane-check.sh:49-50 then shows a ruling note instead of the drift reason in the config dead cell (measured with stubs). Plan prepends instead (M4) and corrects design section 3."
+  ],
+  "features": [
+    {
+      "id": "M1_LEDGER_PARSER",
+      "description": "Ledger parser for design_docs/fleet-rulings.md: rows, forbid/supersedes detectors, 8-200 byte literals, 64-line cap, whole-ledger failure listing every bad line (internal/mission/rulings_parse.go)",
+      "estimated_loc": 380,
+      "dependencies": [],
+      "acceptance_criteria": [
+        "go test ./internal/mission/ -run 'TestRulings' -count=1 -v: 8 parser tests PASS (SeedShapeIsValid, MalformedDetectorsListEveryLine, MalformedRowFailsWholeLedger, DetectorCap, LiteralBytes, BlockStructure, Active_Supersession, SupersedesOrderAndDuplicates)",
+        "gofmt -l internal/mission empty; go vet ./internal/mission/ and golangci-lint run ./internal/mission/... rc 0; rulings_parse.go <= 300 lines",
+        "Mutants killed and recorded: cap >=64 off-by-one; rune-count literal; stop-at-first-error; supersession ignored; any status accepted"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M2_CORPUS",
+      "description": "Corpus helpers: rulingsRoot (all-agree / none / disagree -> rulings-skipped), charterPath (in-repo -> root, foreign -> workdir), rulingSkillFiles via filepath.WalkDir over each mission-* dir then sort, literalHits with ledger-block exclusion; rulingsFixture test helper (internal/mission/rulings_corpus.go)",
+      "estimated_loc": 280,
+      "dependencies": [
+        "M1_LEDGER_PARSER"
+      ],
+      "acceptance_criteria": [
+        "go test ./internal/mission/ -run 'TestRuling' -count=1 -v: M1 + 5 corpus tests PASS",
+        "gofmt/vet/golangci-lint clean",
+        "Mutants killed: filepath.Glob one-level; first-root-wins; charterPath always workdir; literalHits ignores charter flag"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M3_CHECK_RULINGS",
+      "description": "CheckRulings(missions []*Mission) []Finding: ledger absent/unreadable/malformed short-circuits, link check, active forbid detectors over registry/skills/charters, 20-hit cap + overflow line, all Note, sorted (internal/mission/rulings.go)",
+      "estimated_loc": 430,
+      "dependencies": [
+        "M2_CORPUS"
+      ],
+      "acceptance_criteria": [
+        "go test ./internal/mission/ -run 'TestRuling' -count=1 -v: 9 CheckRulings tests PASS (T1, T2, T3, T4, T4b, T5, T6, hit cap, sorted)",
+        "go test ./internal/mission/ -count=1 ok; rulings.go <= 300 lines; lint clean",
+        "Mutants killed: Drift severity; malformed falls through; cap removed; Forbids instead of activeForbids; charters scope without ledger exclusion"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M4_DOCTOR_WIRE",
+      "description": "Prepend CheckRulings into DoctorWith between doctor.go:294 and :295 (P8b: lane-check dead cell keeps the drift reason); scope tests T8-T11 end-to-end; ordering + wiring tests; correct design doc section 3 call-site sentence",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M3_CHECK_RULINGS"
+      ],
+      "acceptance_criteria": [
+        "go test ./internal/mission/ -count=1 ok with doctor_test.go unchanged (git diff --stat empty)",
+        "doctor.go diff is exactly 1 added line: rep.Findings = append(CheckRulings(reg.Missions), rep.Findings...)",
+        "TestDoctor_RulingFindingsPrecedeMissionFindings and TestDoctor_RulingCheckRunsForLoadedMission PASS; T8-T11 PASS",
+        "Mutants killed: append instead of prepend; wiring line removed; charters scope leak via Load(); charterPath branches swapped"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M5_CLI_SUMMARY",
+      "description": "cmd/ailang: extract printDoctorReport(w, rep); print 'N mission(s): no drift' whenever !HasDrift(); help line naming the ruling check",
+      "estimated_loc": 80,
+      "dependencies": [
+        "M4_DOCTOR_WIRE"
+      ],
+      "acceptance_criteria": [
+        "go test ./cmd/ailang/ -run 'TestMissionDoctorPrint' -count=1 -v: 3 PASS incl. ZeroFindingsByteIdentical",
+        "go test ./cmd/ailang/ -run TestCLIReference ok; bash tools/launchd/test_mission_lane_check.sh rc 0",
+        "Mutants killed: len(Findings)==0 guard restored; guard removed"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M6_LEDGER_CONTENT",
+      "description": "design_docs/fleet-rulings.md (2 seed rows, 3 detectors), link line in 5 in-repo charters + charter template, Gate 0 sentence + .agents mirror via tools/launchd/sync-agents-skills.sh, T7a/T7b live tests with testdata snapshots, changelog fragment",
+      "estimated_loc": 200,
+      "dependencies": [
+        "M5_CLI_SUMMARY"
+      ],
+      "acceptance_criteria": [
+        "bash scripts/mission_decisions.sh --check --file design_docs/fleet-rulings.md -> 'decision ledger valid: 2 rows'",
+        "each in-repo charter has exactly 1 fleet-rulings.md mention outside its ledger block and still validates",
+        "bash tools/launchd/sync-agents-skills.sh --check rc 0; gate-0 mirrors cmp rc 0",
+        "TestRulingsLiveLedgerParses and TestRulingsSeedQuietOnActivation PASS; make check-changelog rc 0"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    },
+    {
+      "id": "M7_DONE_GATE",
+      "description": "Fleet done-gate (go test Mission|Doctor|Ruling, make test-launchd-drivers, dry-run healthy+degraded at doctor and driver layer), focused gates, live-run gate recorded as V34, move design doc + plan to design_docs/implemented/v0_60_6/",
+      "estimated_loc": 60,
+      "dependencies": [
+        "M6_LEDGER_CONTENT"
+      ],
+      "acceptance_criteria": [
+        "go test ./internal/mission/ ./cmd/ailang/ -run 'Mission|Doctor|Ruling' -count=1 rc 0; make test-launchd-drivers rc 0",
+        "doctor healthy run rc == installed-binary baseline rc; degraded scratch-registry run shows exactly one rulings-malformed and zero ruling-contradiction",
+        "driver MISSION_DRY_RUN=1 healthy lanes=ok and degraded lanes=DEGRADED( recorded with profile",
+        "make check-file-sizes, make check-changelog, make test-changed rc 0",
+        "V34 live run (full output, rc, kind counts) in design doc; counts match prediction or doc corrected; docs moved to implemented/"
+      ],
+      "passes": null,
+      "started": null,
+      "completed": null,
+      "notes": null
+    }
+  ]
+}
