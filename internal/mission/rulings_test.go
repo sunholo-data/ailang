@@ -445,7 +445,8 @@ func TestDoctor_RulingCheckRunsForLoadedMission(t *testing.T) {
 	if err := os.MkdirAll(filepath.Join(dir, "missions"), 0o750); err != nil {
 		t.Fatal(err)
 	}
-	body := "name = \"loaded\"\nrepo = \"" + sharedDriverRepo + "\"\nworkdir = \"" + dir + "\"\ndoc = \"d.md\"\n" +
+	// Forward slashes: a Windows temp dir with backslashes is an invalid TOML basic-string escape.
+	body := "name = \"loaded\"\nrepo = \"" + sharedDriverRepo + "\"\nworkdir = \"" + filepath.ToSlash(dir) + "\"\ndoc = \"d.md\"\n" +
 		"[schedule]\nmode = \"keepalive\"\nthrottle_seconds = 60\nboot_offset = 60\n"
 	path := filepath.Join(dir, "missions", "loaded.toml")
 	if err := os.WriteFile(path, []byte(body), 0o600); err != nil {

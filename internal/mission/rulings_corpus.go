@@ -125,14 +125,16 @@ func literalHits(lines []string, lit string, charter bool) []int {
 	return hits
 }
 
-// displayPath: absolute p under root → filepath.Rel(root, p); otherwise p unchanged.
+// displayPath: absolute p under root → filepath.Rel(root, p), slash-separated; a relative p is returned slash-separated;
+// an absolute p outside root is returned unchanged (native separators, it is not repo-relative).
+// Slash form keeps finding details identical on every OS (Windows Rel yields backslashes).
 func displayPath(root, p string) string {
 	if !filepath.IsAbs(p) {
-		return p
+		return filepath.ToSlash(p)
 	}
 	rel, err := filepath.Rel(root, p)
 	if err != nil || rel == ".." || strings.HasPrefix(rel, ".."+string(filepath.Separator)) {
 		return p
 	}
-	return rel
+	return filepath.ToSlash(rel)
 }

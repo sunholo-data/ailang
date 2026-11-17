@@ -82,8 +82,9 @@ func TestRulingsRoot_Derivation(t *testing.T) {
 }
 
 func TestRulingsCharterPath_Location(t *testing.T) {
-	root := filepath.Join(string(filepath.Separator), "reg")
-	wd := filepath.Join(string(filepath.Separator), "wd")
+	// t.TempDir() gives roots with a volume on Windows; a bare "/reg" is not absolute there.
+	root := t.TempDir()
+	wd := filepath.Join(t.TempDir(), "wd")
 
 	inRepo := &Mission{Repo: sharedDriverRepo, Workdir: wd, Doc: "design_docs/x.md"}
 	if got, want := charterPath(root, inRepo), filepath.Join(root, "design_docs/x.md"); got != want {
@@ -95,7 +96,7 @@ func TestRulingsCharterPath_Location(t *testing.T) {
 		t.Fatalf("foreign charter: got %q want %q", got, want)
 	}
 
-	abs := filepath.Join(string(filepath.Separator), "abs", "c.md")
+	abs := filepath.Join(t.TempDir(), "abs", "c.md")
 	absolute := &Mission{Repo: sharedDriverRepo, Workdir: wd, Doc: abs}
 	if got := charterPath(root, absolute); got != abs {
 		t.Fatalf("absolute doc must be unchanged: got %q want %q", got, abs)
@@ -172,16 +173,22 @@ func TestRulingsLiteralHits_ByteExactCaseSensitive(t *testing.T) {
 }
 
 func TestRulingsDisplayPath(t *testing.T) {
-	root := filepath.Join(string(filepath.Separator), "reg")
+	root := t.TempDir()
 	in := filepath.Join(root, ".claude", "skills", "mission-a", "SKILL.md")
-	if got, want := displayPath(root, in), filepath.Join(".claude", "skills", "mission-a", "SKILL.md"); got != want {
+	// Slash-separated on every OS: details must not depend on the platform separator.
+	if got, want := displayPath(root, in), ".claude/skills/mission-a/SKILL.md"; got != want {
 		t.Fatalf("under root: got %q want %q", got, want)
 	}
-	out := filepath.Join(string(filepath.Separator), "elsewhere", "x.md")
+	out := filepath.Join(t.TempDir(), "elsewhere", "x.md")
 	if got := displayPath(root, out); got != out {
-		t.Fatalf("outside root: got %q want %q", got, out)
+		t.Fatalf("outside root: got %q want %q (absolute out-of-root stays native)", got, out)
 	}
 	if got := displayPath(root, "rel.md"); got != "rel.md" {
 		t.Fatalf("relative unchanged: got %q", got)
+	}
+	// Mutation guard: a native-separator path built with filepath.Join must still render with "/".
+	native := filepath.Join(root, "design_docs", "x.md")
+	if got := displayPath(root, native); strings.Contains(got, `\`) || got != "design_docs/x.md" {
+		t.Fatalf("OS-independent: got %q want design_docs/x.md", got)
 	}
 }
