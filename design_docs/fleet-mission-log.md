@@ -1239,7 +1239,7 @@ Each replied to its filer.
 - **PR**: branch pushed through the pinned guard (rc 0), opened as **#2411**, head `ae3930792`. The body carries the attended step and 0 closing keywords.
 
 **Gate 3b**:
-- #2411 head `ae3930792`, read while 5 Build/Windows jobs were still pending. `checks` **failure** at step "Verify embedded pi assets are in sync" (`DRIFT: cmd/ailang/pi_assets is stale`), as predicted. 46 later steps in that job were skipped behind it, so those gates have NOT run on this head; the attended push re-runs them.
+- #2411 head `ae3930792`: 23/23 check-runs complete, 7 not green. `test-windows` and all four `Build *` fail ONLY on `TestCloudAgents_RegistryMatchesTheDeletedRoutingTable`, the inherited base red. Three job logs were fetched ANSI-stripped and sized, with 168–169 `ok` packages each. `checks` **failure** at step "Verify embedded pi assets are in sync" (`DRIFT: cmd/ailang/pi_assets is stale`), as predicted. 46 later steps in that job were skipped behind it, so those gates have NOT run on this head; the attended push re-runs them.
 - `test` **failure** on `TestCloudAgents_RegistryMatchesTheDeletedRoutingTable`, inherited from base `022f68f1a` (same test, same message). This diff has no Go.
 - **NOT LANDED.** The ticket stays open. Park class: an attended action already assigned by D-FLEET-33 A, plus an attended dev-red fix. Neither is a new decision, so neither goes in DECISIONS.
 
