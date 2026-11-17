@@ -63,3 +63,46 @@ test("handler: a relative edit/write path is not reported unowned on a sweeping 
 	assert.equal(notes.length, 1);
 	assert.match(notes[0], /may sweep 1 dirty file\(s\)[^:]*: theirs\.go\./);
 });
+
+test("handler: own edit through a symlinked cwd matches git's physical toplevel", async () => {
+	const base = realOrSelf(mkdtempSync(join(tmpdir(), "ud-hs-")));
+	const top = join(base, "repo");
+	mkdirSync(top);
+	writeFileSync(join(top, "mine.ts"), "");
+	symlinkSync(top, join(base, "link"));
+	const handlers: Record<string, Function> = {};
+	const notes: string[] = [];
+	const fakePi = {
+		on: (name: string, fn: Function) => { handlers[name] = fn; },
+		exec: async (_cmd: string, args: string[]) =>
+			args[0] === "rev-parse"
+				? { code: 0, stdout: `${top}\n` } // git reports the PHYSICAL toplevel
+				: { code: 0, stdout: " M mine.ts\n M theirs.go\n" },
+	};
+	const ctx = { cwd: join(base, "link"), ui: { notify: async (msg: string) => { notes.push(msg); } } };
+	unownedDirtyExtension(fakePi as never);
+	await handlers.tool_call({ toolName: "edit", input: { path: "mine.ts" } }, ctx);
+	await handlers.tool_call({ toolName: "bash", input: { command: "git add -A" } }, ctx);
+	assert.equal(notes.length, 1);
+	assert.match(notes[0], /may sweep 1 dirty file\(s\)[^:]*: theirs\.go\./);
+});
+
+test("handler: outside a git repo it neither reads git status nor warns", async () => {
+	const handlers: Record<string, Function> = {};
+	const notes: string[] = [];
+	const calls: string[] = [];
+	const fakePi = {
+		on: (name: string, fn: Function) => { handlers[name] = fn; },
+		exec: async (_cmd: string, args: string[]) => {
+			calls.push(args[0]);
+			return args[0] === "rev-parse"
+				? { code: 128, stdout: "" }
+				: { code: 0, stdout: " M theirs.go\n" };
+		},
+	};
+	const ctx = { cwd: "/nonexistent-ud", ui: { notify: async (msg: string) => { notes.push(msg); } } };
+	unownedDirtyExtension(fakePi as never);
+	await handlers.tool_call({ toolName: "bash", input: { command: "git add -A" } }, ctx);
+	assert.deepEqual(calls, ["rev-parse"]);
+	assert.equal(notes.length, 0);
+});
