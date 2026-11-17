@@ -17,7 +17,7 @@ func TestCompileRemovedFailsWithTheRemovalMessage(t *testing.T) {
 		{"compile", "--emit-go-v2", "--out", t.TempDir(), "missing.ail"},
 		{"compile", "-emit-go", "-out", t.TempDir(), "missing.ail"},
 		{"compile"},
-		{"compile", "--emit-go", "--help"},
+		{"compile", "--emit-go", "--out", "gen", "missing.ail"},
 		{"dev", "compile", "--emit-go", "missing.ail"},
 	} {
 		stdout, stderr, code := runAilangBin(t, bin, args...)
@@ -38,10 +38,19 @@ func TestCompileRemovedFailsWithTheRemovalMessage(t *testing.T) {
 			}
 		}
 	}
-	// A bare --help is answered (exit 0, as everywhere) with the same text.
-	stdout, stderr, code := runAilangBin(t, bin, "compile", "--help")
-	if code != 0 || !strings.Contains(stdout, "Go emitter") || !strings.Contains(stdout, "ailang run") {
-		t.Errorf("compile --help: exit %d, stdout %q, stderr %q", code, stdout, stderr)
+	// A help flag anywhere in the arguments is answered (exit 0, as
+	// everywhere) with the same text on stdout.
+	for _, args := range [][]string{
+		{"compile", "--help"},
+		{"compile", "-h"},
+		{"compile", "--emit-go", "--help"},
+		{"compile", "--emit-go-v2", "--out", "gen", "x.ail", "-help"},
+		{"dev", "compile", "--emit-go", "-h"},
+	} {
+		stdout, stderr, code := runAilangBin(t, bin, args...)
+		if code != 0 || !strings.Contains(stdout, "Go emitter") || !strings.Contains(stdout, "ailang run") {
+			t.Errorf("%v: exit %d, stdout %q, stderr %q", args, code, stdout, stderr)
+		}
 	}
 }
 
