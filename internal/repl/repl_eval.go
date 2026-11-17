@@ -192,8 +192,17 @@ func (r *REPL) ProcessExpression(input string, out io.Writer) {
 		// Re-evaluate just the RHS to get the value
 		val, err := r.evaluator.Eval(letExpr.Value)
 		if err == nil {
-			// Add VALUE binding to both REPL env and evaluator env (they're the same reference)
-			r.env.Set(letExpr.Name, val)
+			// Bind the VALUE in a new child environment, shared by the REPL and
+			// the evaluator. Setting it in the session environment itself let a
+			// closure made earlier see the later binding: after `let k = 10`,
+			// `let f = \x. k`, `let k = 99`, `f(3)` printed 99, not 10 (the
+			// session-level form of the by-name capture of #2401). A closure
+			// keeps the environment it was made in, so a later `let k` now
+			// shadows k for later inputs only.
+			child := r.env.NewChildEnvironment()
+			child.Set(letExpr.Name, val)
+			r.env = child
+			r.evaluator.SetEnv(child)
 
 			// TODO: Add TYPE binding persistence for let
 			// Currently, type annotations are lost during Surface → Core elaboration,
