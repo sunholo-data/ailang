@@ -143,7 +143,7 @@ func classify(b *Block) {
 		case strings.HasPrefix(w, "error="):
 			code := strings.TrimPrefix(w, "error=")
 			if !realCode.MatchString(code) || pseudoCode.MatchString(code) {
-				b.Class, b.BadTag = ClassBadTag, w+" (error= names a code the binary prints, e.g. PAR015 or EXT002)"
+				b.Class, b.BadTag = ClassBadTag, w+" (error= names a code the binary prints, e.g. PAR015 or EXT004)"
 				return
 			}
 			b.Class, b.WantCode, classWords = ClassError, code, classWords+1

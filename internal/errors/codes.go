@@ -117,6 +117,17 @@ const (
 	MOD015 = "MOD015"
 
 	// ============================================================================
+	// Extern Errors (EXT###)
+	// ============================================================================
+
+	// EXT004 indicates an `extern func` declaration. Extern functions were
+	// implemented only in Go emitted by `ailang compile --emit-go`, which was
+	// removed (#2389); no engine can run one, so the declaration itself is an
+	// error, called or not (#2390). EXT001-EXT003 were the parser's shape
+	// checks for the same declaration and are retired with it.
+	EXT004 = "EXT004"
+
+	// ============================================================================
 	// Bytecode Errors (BC###)
 	// ============================================================================
 
@@ -320,6 +331,9 @@ var ErrorRegistry = map[string]ErrorInfo{
 	MOD006: {MOD006, "module", "validation", "Export of private (underscore) name"},
 	MOD007: {MOD007, "module", "namespace", "Duplicate module-scope binding (let/func same name)"},
 	MOD015: {MOD015, "module", "namespace", "Imported name collides with a module-level definition or another import"},
+
+	// Extern errors
+	EXT004: {EXT004, "elaborate", "removed", "extern func is not supported (the Go emitter that implemented it was removed)"},
 
 	// Bytecode errors
 	BC001: {BC001, "bytecode", "coverage", "Function is evaluator-only under --strict-bytecode"},

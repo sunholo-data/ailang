@@ -155,6 +155,11 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (prog *core.Program, err erro
 	if err := e.checkAliasCycles(file); err != nil {
 		return nil, err
 	}
+	// EXT004 (#2390): no engine runs an extern function. Checked before the
+	// module-less branch below, which would otherwise drop file.Funcs silently.
+	if err := checkNoExternFuncs(file); err != nil {
+		return nil, err
+	}
 	defer func() {
 		if e.typeAnnotationErr != nil {
 			prog, err = nil, e.typeAnnotationErr
@@ -450,11 +455,7 @@ func astFuncToSig(f *ast.FuncDecl) *FuncSig {
 func collectFuncSigs(file *ast.File) []*FuncSig {
 	var funcs []*FuncSig
 	for _, f := range file.Funcs {
-		// Skip extern functions - they have no body to elaborate
-		// Extern functions are handled separately in codegen (extern_stubs.go)
-		if f.IsExtern {
-			continue
-		}
+		// No extern reaches here: ElaborateFile rejects them first (EXT004).
 		funcs = append(funcs, astFuncToSig(f))
 	}
 	return funcs

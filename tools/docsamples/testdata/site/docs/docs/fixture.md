@@ -54,9 +54,9 @@ export func alsoBroken() -> int = stillUndefined
 export func noLoops2() -> int { loop { 2 } }
 ```
 
-```ailang error=PAR_UNEXPECTED_TOKEN
--- marker: error-second-code (EXT002 comes first; PAR_UNEXPECTED_TOKEN only second)
-extern func identity[T](x: T) -> T
+```ailang error=PAR_NO_PREFIX_PARSE
+-- marker: error-second-code (MOD006 comes first; PAR_NO_PREFIX_PARSE only second)
+export func _hidden() -> int = 1
 ```
 
 ```ailang error=OTHER

@@ -237,11 +237,15 @@ func (p *Parser) parseFunctionDeclaration(isPure bool, isExport bool) *ast.FuncD
 	return fn
 }
 
-// parseExternFunctionDeclaration parses an extern func declaration (Go-implemented function)
-// Syntax: extern func name(params) -> ReturnType
-// Extern functions have no body - they are implemented in Go
-func (p *Parser) parseExternFunctionDeclaration() *ast.FuncDecl {
-	startPos := p.curPos()
+// parseExternFunctionDeclaration parses an extern func declaration.
+// Syntax: extern [pure] func name[TypeParams](params) [-> ReturnType] [! {Effects}]
+//
+// Extern functions were implemented only by the removed Go emitter (#2389): no
+// engine can run one, so the elaborator rejects every declaration with EXT004
+// (#2390). The parser therefore accepts the whole declaration, without the shape
+// checks the emitter needed (the retired EXT001-EXT003), so that what an author
+// sees is that one clear error at the declaration and not a parse cascade.
+func (p *Parser) parseExternFunctionDeclaration(startPos ast.Pos, isPure bool) *ast.FuncDecl {
 
 	if !p.curTokenIs(lexer.FUNC) {
 		p.peekError(lexer.FUNC)
@@ -250,6 +254,7 @@ func (p *Parser) parseExternFunctionDeclaration() *ast.FuncDecl {
 
 	fn := &ast.FuncDecl{
 		IsExtern: true,
+		IsPure:   isPure,
 		Pos:      startPos,
 		Origin:   "extern_func_decl",
 	}
@@ -259,62 +264,39 @@ func (p *Parser) parseExternFunctionDeclaration() *ast.FuncDecl {
 	}
 	fn.Name = p.curToken.Literal
 
-	// Validate: extern functions cannot use underscore-prefixed names
-	if strings.HasPrefix(fn.Name, "_") {
-		p.errors = append(p.errors, NewParserError(
-			"EXT001",
-			p.curPos(),
-			p.curToken,
-			fmt.Sprintf("extern function '%s' cannot have underscore-prefix (reserved for builtins)", fn.Name),
-			nil,
-			"Use a public name without leading underscore"))
-		return nil
-	}
-
-	// Extern functions cannot have type parameters (must be monomorphic)
 	if p.peekTokenIs(lexer.LBRACKET) {
-		p.errors = append(p.errors, NewParserError(
-			"EXT002",
-			p.curPos(),
-			p.curToken,
-			"extern functions cannot be polymorphic (no type parameters)",
-			nil,
-			"Extern functions must use concrete types like int, float, string"))
-		return nil
+		p.nextToken()
+		fn.TypeParams = p.parseTypeParams() // leaves us AT the token after ]
 	}
+	p.pushTypeParams(fn.TypeParams)
+	defer p.popTypeParams()
 
-	// Parse parameters
-	if p.peekTokenIs(lexer.UNIT) {
-		// Zero-arg extern: extern func name()
+	// Parameters, with the same unit-param convention as parseFunctionDeclaration.
+	hasTypeParams := len(fn.TypeParams) > 0
+	switch {
+	case hasTypeParams && p.curTokenIs(lexer.UNIT):
+		fn.Params = []*ast.Param{newUnitParam(p.curPos())}
+	case hasTypeParams && p.curTokenIs(lexer.LPAREN):
+		fn.Params = p.parseParams()
+	case !hasTypeParams && p.peekTokenIs(lexer.UNIT):
 		p.nextToken()
 		fn.Params = []*ast.Param{newUnitParam(p.curPos())}
-	} else {
+	default:
 		if !p.expectPeek(lexer.LPAREN) {
 			return nil
 		}
 		fn.Params = p.parseParams()
-		if len(fn.Params) == 0 {
-			// #962: same whitespace rule as parseFunctionDeclaration —
-			// `extern func name(   )` is unit-param, like `extern func name()`.
-			fn.Params = []*ast.Param{newUnitParam(p.curPos())}
-		}
+	}
+	if len(fn.Params) == 0 {
+		// #962: `extern func name(   )` is unit-param, like `extern func name()`.
+		fn.Params = []*ast.Param{newUnitParam(p.curPos())}
 	}
 
-	// Extern functions must have explicit return type
-	if !p.peekTokenIs(lexer.ARROW) {
-		p.errors = append(p.errors, NewParserError(
-			"EXT003",
-			p.curPos(),
-			p.curToken,
-			"extern functions must have explicit return type",
-			[]lexer.TokenType{lexer.ARROW},
-			"Add '-> ReturnType' after parameters"))
-		return nil
+	if p.peekTokenIs(lexer.ARROW) {
+		p.nextToken() // move to ARROW
+		p.nextToken() // move past ARROW to start of type
+		fn.ReturnType = p.parseType()
 	}
-
-	p.nextToken() // move to ARROW
-	p.nextToken() // move past ARROW to start of type
-	fn.ReturnType = p.parseType()
 
 	// Parse effects if present: ! {IO, FS}
 	if p.peekTokenIs(lexer.BANG) {
