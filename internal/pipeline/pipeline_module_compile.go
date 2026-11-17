@@ -350,6 +350,11 @@ func runPostTypeCheckPhases(
 		return fmt.Errorf("effect checking failed in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
 	}
 
+	// Local names unique per declaration from here on (see pipeline_single.go,
+	// #2401): monomorphisation and the name-keyed passes after it are only
+	// capture-free when no binder shadows another.
+	unit.Core = core.UniqueProgramLocals(unit.Core)
+
 	// Perform monomorphization unless explicitly disabled
 	if !cfg.DisableMonomorphization {
 		specializer := NewSpecializer(&typeChecker.CoreTI)

@@ -188,3 +188,75 @@ func TestSpecializerLetRecGroupShadowsOuter(t *testing.T) {
 		t.Fatalf("the call of group member a was rewritten into %s", body.Func)
 	}
 }
+
+// #2401: monomorphisation copies a let-bound lambda's body to its call site;
+// the pipeline makes local names unique first, so the copy's free k is still
+// the k it was written against, and an alias does not follow a rebinding.
+const monoCaptureSource = `module main
+
+func viaPattern(k: int) -> int {
+  let f = \x. k;
+  match Some(5) { Some(k) => f(0), None => 0 }
+}
+
+export pure func main() -> string {
+  let k = 10;
+  let f = \x. k;
+  let g = \k. f(3);
+  let a = \x. x;
+  let b = a;
+  let a = \x. 7;
+  "${show(g(99))} ${show({ let k = 99; f(3) })} ${show(viaPattern(1))} ${show(b(3))} ${show(a(3))}"
+}
+`
+
+func TestMonomorphisationCopiesDoNotCapture(t *testing.T) {
+	t.Chdir(t.TempDir())
+	if err := os.WriteFile("main.ail", []byte(monoCaptureSource), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	result, err := Run(Config{Mode: ModeCheck, NoCache: true}, Source{Filename: "main.ail"})
+	if err != nil || len(result.Errors) > 0 {
+		t.Fatalf("compile: %v %v", err, result.Errors)
+	}
+	if got, want := executePipelineMain(t, result), "10 10 1 3 7"; got != want {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+	for id, mod := range result.Modules {
+		for _, decl := range mod.Core.Decls {
+			var values []core.CoreExpr
+			switch d := decl.(type) {
+			case *core.Let:
+				values = []core.CoreExpr{d.Value}
+			case *core.LetRec:
+				for _, b := range d.Bindings {
+					values = append(values, b.Value)
+				}
+			}
+			for _, v := range values {
+				if err := core.CheckNoShadowing(v); err != nil {
+					t.Errorf("module %s: %v", id, err)
+				}
+			}
+		}
+	}
+}
+
+// The single-file/REPL pipeline makes names unique before monomorphisation
+// too (#2401): the copy of f's body must read the k it was written against.
+func TestMonomorphisationCopiesDoNotCapture_REPL(t *testing.T) {
+	for code, want := range map[string]string{
+		`let k = 10 in let f = \x. k in let g = \k. f(3) in g(99)`:        "10",
+		`let k = 10 in let f = \x. k in (let k = 99 in f(3))`:             "10",
+		`let a = \x. x in let b = a in let a = \x. 7 in b(3)`:             "3",
+		`let k = 10 in let f = \x. k in match (99, 0) { (k, z) => f(3) }`: "10",
+	} {
+		result, err := Run(Config{Mode: ModeEval}, Source{Code: code, Filename: ""})
+		if err != nil {
+			t.Fatalf("%s: %v", code, err)
+		}
+		if got := result.Value.String(); got != want {
+			t.Errorf("%s = %s, want %s", code, got, want)
+		}
+	}
+}
