@@ -1,6 +1,6 @@
 ---
 name: mission-loop-change
-description: Change or add a mission loop safely — routing/lanes, schedule and cadence, driver code, plists, and adding a whole new mission. Use when editing tools/launchd/mission-control.sh, any dev.ailang.mission-* plist or mission-*.env, changing a mission's models/fallbacks/interval, porting a fix to the world fork, bootstrapping a new mission loop (e.g. for ailang-parse), or when asked why a mission-loop change "didn't take". Covers reach, live-edit hazards, drought simulation and reload.
+description: Change or add a mission loop safely — routing/lanes, schedule and cadence, driver code, plists, and adding a whole new mission. Use when editing tools/launchd/mission-control.sh, any dev.ailang.mission-* plist or mission-*.env, changing a mission's models/fallbacks/interval, checking which driver a mission's plist runs, bootstrapping a new mission loop (e.g. for ailang-parse), or when asked why a mission-loop change "didn't take". Covers reach, live-edit hazards, drought simulation and reload.
 ---
 
 # Changing a Mission Loop
@@ -24,7 +24,7 @@ anything. Before editing, decide which one you need:
 | Driver logic (probes, gates, chains) | `tools/launchd/mission-control.sh` in **the ailang repo** | the driver pin — committed `origin/dev`, so **it must be pushed** |
 | A mission's models / lanes / allowlist | `~/.config/ailang/mission-<name>.env` | sourced per fire. The repo copy under `tools/launchd/mission-env/` is **reviewable, not deployed** |
 | Schedule / PATH / env | `~/Library/LaunchAgents/dev.ailang.mission-<name>.plist` | requires copy + reload. Installed plists are **copies, not symlinks** |
-| Anything on `world` | the **`ailang-world` repo** | world runs a FORK and no pin — see Gate 2 |
+| Driver changes for `world` | `tools/launchd/mission-control.sh` in **the ailang repo** | World runs the shared driver via the driver pin (de-forked 2026-09-06, rechecked 2026-11-03); no separate port — see Gate 2 |
 
 **The trap, measured 2026-09-05:** the versioned `mission-docs.env` widened the planner
 allowlist and its own comment declared itself "the sprint's only deployment surface". It was
@@ -41,44 +41,36 @@ done
 
 ## Gate 1 — Does the change reach the mission you mean?
 
-A mission runs the driver its plist's `ProgramArguments` points at. Three of four re-exec from
-the driver pin (committed `origin/dev` of *their own clone's* repo); world does not.
+A mission runs the driver its installed plist's `ProgramArguments` points at. Inspect each
+installed plist and that driver's pin helper source line rather than keeping a clone map.
 
 ```bash
-for m in v1:ailang docs:ailang-docs motoko:ailang-motoko world:ailang-world; do
-  n=${m%%:*}; P=~/dev/sunholo-data/${m##*:}/tools/launchd/mission-control.sh
-  printf "%-7s re-execs-from-pin=%s\n" "$n" \
-    "$(grep -c '^\s*\. "\$REPO/tools/launchd/lib/pin-root.sh"' $P 2>/dev/null | sed 's/^0$/NO/;s/^[1-9].*/YES/')"
+for p in ~/Library/LaunchAgents/dev.ailang.mission-*.plist; do
+  P=$(plutil -extract ProgramArguments.1 raw "$p" 2>/dev/null) || continue
+  case "$P" in */mission-control.sh) ;; *) continue ;; esac
+  printf "%-34s %s re-execs-from-pin=%s\n" "$(basename "$p" .plist)" "$P" \
+    "$(grep -cE '^[[:space:]]*\. "\$(MC_DRIVER_ROOT|REPO)/tools/launchd/lib/pin-root\.sh"' "$P" 2>/dev/null | sed 's/^0$/NO/;s/^[1-9].*/YES/')"
 done
 ```
 
 - `YES` → the clone's own contents are irrelevant; it runs committed `origin/dev`. **Push or it
   does not ship.** A "N behind" line about the source clone is expected and harmless.
-- `NO` (world) → it runs the working tree directly. Committing is not enough and not required;
-  the file on disk is what executes.
+- `NO` → a driver that does not source `pin-root.sh` runs its working tree directly.
+  Committing is not enough and not required; the file on disk is what executes.
 
-## Gate 2 — World is a fork
+Use `ailang mission list` and `ailang mission doctor` to inspect the registry and driver reach.
 
-`world` lives in a separate GitHub repo with its own ~1000-line copy of the driver and no
-`pin-root.sh`. It has silently missed every routing fix landed in `sunholo-data/ailang`.
+## Gate 2 — World runs the shared driver (de-forked 2026-09-06)
 
-- Any driver change you make for the fleet **must be made twice** until the de-fork lands.
-- Port **verbatim**, then prove it:
-
-```bash
-for fn in _mc_set_controller select_model; do
-  diff <(sed -n "/^${fn}()/,/^}/p" ~/dev/sunholo-data/ailang/tools/launchd/mission-control.sh) \
-       <(sed -n "/^${fn}()/,/^}/p" ~/dev/sunholo-data/ailang-world/tools/launchd/mission-control.sh) \
-    >/dev/null && echo "$fn: identical" || echo "$fn: DIFFERS"
-done
-```
-
-Byte-identical is what lets you claim the upstream suite covers the port. Anything else and you
-owe world its own tests.
+World works in `sunholo-data/ailang-world`, but its installed plist runs the shared driver in
+`sunholo-data/ailang` through the origin/dev pin (rechecked 2026-11-03). A driver change ships to
+World like any other mission and needs no separate port. The de-fork is recorded in
+`internal/mission/golden_live_test.go:367`; `internal/mission/doctor.go:281` sets fork status from
+an explicit `driver` key. `missions/world.toml` has no such key, so doctor reports no fork.
 
 ## Gate 3 — Never edit a driver that is executing
 
-World executes its driver straight from the working tree, and **bash reads a script
+For any driver running from a working tree rather than the pin, **bash reads a script
 incrementally** — truncating it under a live interpreter feeds it garbage mid-iteration.
 
 ```bash
@@ -145,8 +137,8 @@ Then prove it with the drought simulation above. Do not reason about it.
 make test-launchd-drivers        # must be exit 0; bash 3.2, the rig has no 4.x
 ```
 
-The suites are grep-based structural assertions over `$HERE/mission-control.sh`, so **copying a
-suite into another repo tests that repo's driver** — that is how world gets coverage today.
+The suites are grep-based structural assertions over `$HERE/mission-control.sh`. World is
+covered by the upstream suites because it runs the shared driver.
 
 Two suites were orphaned (present but absent from `make/test.mk`) and CI never ran them. When
 you add a suite, wire it — one line in `LAUNCHD_SUITES` (suites run 4 at a time, so keep its
@@ -233,7 +225,7 @@ session (no `MISSION_NAME`) is unaffected and can still make changes like these 
 Before claiming a mission-loop change is done:
 
 - [ ] Edited the surface that actually runs (Gate 0), and repo/installed copies match
-- [ ] Confirmed reach — pushed if pinned; on disk if not (Gate 1); ported to world if fleet-wide (Gate 2)
+- [ ] Confirmed reach — pushed if pinned; on disk if not (Gate 1); World gets it through the shared driver (Gate 2)
 - [ ] Dry-ran healthy **and** degraded (Gate 4); any new gate proven non-vacuous
 - [ ] `make test-launchd-drivers` exit 0, new suites wired (Gate 6)
 - [ ] Reloaded and verified state, with nothing mid-iteration (Gates 3, 7)
