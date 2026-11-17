@@ -126,11 +126,14 @@ func languageCommands() []Command {
 			Run:      noArgs(verifyCommand),
 		},
 		{
+			// Removed with the Go emitter; hidden, and kept only so the old
+			// spelling fails with a message naming what to use instead.
 			Name:     "compile",
 			Group:    groupDev,
 			Language: true,
-			Summary:  "Compile AILANG to Go (emit-go; not a speed path, no tail calls)",
-			Run:      noArgs(compileCommand),
+			Hidden:   true,
+			Summary:  "Removed: the Go emitter; use `ailang run` (--bytecode for the VM)",
+			Run:      compileRemoved,
 		},
 		{
 			Name:     "disasm",

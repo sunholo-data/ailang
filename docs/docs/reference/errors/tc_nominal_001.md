@@ -99,9 +99,8 @@ export pure func toB(t: AT) -> BT = match t { AA(n) => BA(show(n)) }
 
 ## Not yet covered
 
-Type checking (`check`, `run`, the REPL/WASM module registry) uses module identity. Three
+Type checking (`check`, `run`, the REPL/WASM module registry) uses module identity. Two
 back-end tables still key by bare type name: the bytecode VM's ADT tables (two same-named ADTs
 with different constructors used in one program fail under `--strict-bytecode` with `BC001`;
-the evaluator runs them), the SMT encoder behind `check --verify`, and the Go emitter
-(`--emit-go`, not Stable), which strips the module from constructor factories and names Go types by bare name, so two same-named ADTs are not told apart. See
+the evaluator runs them) and the SMT encoder behind `check --verify`. See
 `docs/LIMITATIONS.md`.

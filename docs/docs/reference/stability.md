@@ -352,7 +352,7 @@ the JSON report it prints is Experimental ⚠ close call, because its shape is s
   `--bytecode`/`--strict-bytecode` that flag is refused (CTR004, exit 2) until the VM enforces contracts;
   lifting the refusal is additive.
 
-### Experimental CLI (23)
+### Experimental CLI (22)
 
 These may change in a 1.x minor, with a CHANGELOG entry.
 
@@ -375,12 +375,16 @@ These may change in a 1.x minor, with a CHANGELOG entry.
 | `mcp` | ops | — | `ailang mcp check` connector readiness |
 | `agent-prompt` | dev | — | ⚠ close call — the agent teaching prompt is versioned separately from `prompt` |
 | `axioms` | dev | — | axiom scorecard; still changing |
-| `compile` | dev | — | ⚠ close call — the emit-go backend is not a speed path and has no tail calls |
 | `editor` | dev | — | tooling convenience |
 | `export-training` | dev | — | depends on the trace format |
 | `replay` | dev | — | depends on the trace format |
 | `sandbox-check` | dev | — | close to diagnostics |
 | `watch` | dev | — | tooling convenience |
+
+**Removed: `compile`.** `ailang compile --emit-go` / `--emit-go-v2` (the Go emitter) was removed
+after v0.60.5, so that 1.x has two engines that agree: the evaluator and the bytecode VM. The
+`compile` route is still accepted, but only to fail (exit 1) with a message pointing at
+`ailang run`, plus `--bytecode` for the VM.
 
 ### Internal CLI (46)
 

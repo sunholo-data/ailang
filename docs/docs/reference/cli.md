@@ -28,7 +28,7 @@ and a suggestion on stderr and exits 1 — it does not dump the command list int
 |---|---|---|
 | Machine-readable output | `--json` | The one output-format flag. `ailang test --json`, not `--format json`. |
 | Which model | `--model` | `ailang eval-suite --models` is accepted as an alias of the same target. |
-| Where output goes | `--output` | Six of the eight sites. `ailang compile --out` and `ailang eval-publish --output-dir` are not converged yet. |
+| Where output goes | `--output` | Six of the seven sites. `ailang eval-publish --output-dir` is not converged yet. |
 | Gate a mutation | `--dry-run` | Audited at all 14 sites: the default **acts**, and `--dry-run` is the opt-out everywhere. No command inverts it. |
 
 Superseded spellings keep working — `ailang test --format json` still means `--json` —
@@ -99,7 +99,6 @@ Reachable as `ailang dev <command>` and, unchanged, as `ailang <command>`.
 | `ailang dev axioms` | `ailang axioms` | Design axiom compliance scorecard |
 | `ailang dev builtins` | `ailang builtins` | Inspect the builtin registry |
 | `ailang dev cache` | `ailang cache`, `ailang brain` | Project brain / semantic cache operations |
-| `ailang dev compile` | `ailang compile` | Compile AILANG to Go (emit-go; not a speed path, no tail calls) |
 | `ailang dev debug` | `ailang debug` | Debug AST and type information |
 | `ailang dev devtools-prompt` | `ailang devtools-prompt` | Display the AILANG dev tools reference (for AI agents) |
 | `ailang dev disasm` | `ailang disasm` | Disassemble compiled AILANG |
@@ -171,6 +170,7 @@ caller keeps working; new code should use the canonical spelling.
 |---|---|---|
 | `ailang add` | `ailang pkg add` | Add a dependency (--path, --git or --registry) |
 | `ailang bin` | `ailang pkg bin` | List or uninstall the [bin] command shims (list, uninstall \<name\>) |
+| `ailang compile` | — | Removed: the Go emitter; use `ailang run` (--bytecode for the VM) |
 | `ailang dashboard` | `ailang chains dashboard` | Dashboard operations for task visualization |
 | `ailang eval-chains` | `ailang chains eval` | Link eval runs to their execution chains |
 | `ailang install` | `ailang pkg install` | Install a package (omit the version for latest); [bin] commands go on PATH |
@@ -208,4 +208,4 @@ behind it (`cmd/ailang/commands_probe_test.go` counts the probes), not a present
 and it holds for a command's group spelling too: `ailang dev builtins` is as quiet as
 `ailang builtins`.
 
-The language commands are `ast-edit`, `builtins`, `check`, `compile`, `debug`, `devtools-prompt`, `disasm`, `docs`, `examples`, `export-training`, `fmt`, `help`, `iface`, `init`, `lsp`, `prompt`, `repl`, `replay`, `run`, `select-best`, `test`, `verify`, `version`, `watch`.
+The language commands are `ast-edit`, `builtins`, `check`, `debug`, `devtools-prompt`, `disasm`, `docs`, `examples`, `export-training`, `fmt`, `help`, `iface`, `init`, `lsp`, `prompt`, `repl`, `replay`, `run`, `select-best`, `test`, `verify`, `version`, `watch`.

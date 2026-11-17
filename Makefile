@@ -205,15 +205,6 @@ help-release: ## Show release workflow
 	@echo ""
 
 # =============================================================================
-# CODEGEN HARNESS
-# =============================================================================
-
-## test-codegen: Go emitter harness — build, evaluator-vs-Go parity, known failures (tests/codegen-harness/run.sh)
-test-codegen: build
-	@echo "$(BOLD)Running codegen harness test...$(RESET)"
-	@tests/codegen-harness/run.sh ./bin/ailang
-
-# =============================================================================
 # MICRO-RAG (μRAG) CORPUS INDEXER
 # =============================================================================
 

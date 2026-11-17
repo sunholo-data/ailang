@@ -13,6 +13,12 @@ import (
 
 const expectedDifferentialFixtureCount = 8
 
+// strictVMExempt are the show fixtures the strict VM refuses (BC001), with the
+// reason. They still run on the evaluator and on --bytecode.
+var strictVMExempt = map[string]string{
+	"show_differential_array": "array literals are evaluator-only on the VM (stmt.ArrayLit)",
+}
+
 // ailangBin is an ailang built from this checkout by TestMain, so these tests
 // compare the code under test, not whatever `ailang` is first on PATH.
 var ailangBin string
@@ -41,125 +47,13 @@ func TestMain(m *testing.M) {
 	os.Exit(code)
 }
 
-func TestTypedAggregateArrayGeneratedOutput(t *testing.T) {
-	outDir := t.TempDir()
-	fixture, err := filepath.Abs("show_differential_array_adt_field.ail")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cmd := exec.Command(ailangBin, "compile", "--emit-go", "--out", outDir,
-		"--package-name", "golden", "--relax-modules", "--no-verify-go", fixture)
-	if output, err := cmd.CombinedOutput(); err != nil {
-		t.Fatalf("ailang compile failed: %v\n%s", err, output)
-	}
-
-	goFiles, err := filepath.Glob(filepath.Join(outDir, "golden", "*.go"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	var generated strings.Builder
-	for _, goFile := range goFiles {
-		contents, err := os.ReadFile(goFile)
-		if err != nil {
-			t.Fatal(err)
-		}
-		generated.Write(contents)
-	}
-	source := generated.String()
-	for _, want := range []string{
-		"func NewBoxMkBox(v0 ArrayVal)",
-		"Items ArrayVal",
-		"Values []int64",
-		"Values: ConvertToInt64Slice(",
-		"Dirs []*Dir",
-		"Dirs: ConvertToDirSlice(",
-	} {
-		if !strings.Contains(source, want) {
-			t.Errorf("generated source missing %q", want)
-		}
-	}
-	for _, unwanted := range []string{
-		"NewBoxMkBox(ConvertToInt64Slice(",
-		"Items: ConvertToInt64Slice(",
-		"NewPlanMkPlan(ConvertToDirSlice(",
-	} {
-		if strings.Contains(source, unwanted) {
-			t.Errorf("generated source unexpectedly contains %q", unwanted)
-		}
-	}
-}
-
-// TestGoldenCompile verifies that each .ail golden test file compiles to Go
-// that passes `go build`. This is the primary acceptance test for the codegen
-// pipeline — the generated Go must be valid, not necessarily identical to baselines.
-func TestGoldenCompile(t *testing.T) {
-	// Find all .ail files in this directory
-	ailFiles, err := filepath.Glob("*.ail")
-	if err != nil {
-		t.Fatalf("failed to glob .ail files: %v", err)
-	}
-	if len(ailFiles) == 0 {
-		t.Fatal("no .ail golden test files found")
-	}
-
-	for _, ailFile := range ailFiles {
-		name := strings.TrimSuffix(ailFile, ".ail")
-		t.Run(name, func(t *testing.T) {
-			// Create temp dir for this test's output
-			outDir := t.TempDir()
-
-			// Compile .ail to Go using ailang CLI
-			absAil, _ := filepath.Abs(ailFile)
-			cmd := exec.Command(ailangBin, "compile", "--emit-go",
-				"--out", outDir,
-				"--package-name", "golden",
-				"--relax-modules",
-				"--no-verify-go",
-				absAil)
-			out, err := cmd.CombinedOutput()
-			if err != nil {
-				t.Fatalf("ailang compile failed for %s:\n%s", ailFile, string(out))
-			}
-
-			// Verify go build succeeds on generated code
-			pkgDir := filepath.Join(outDir, "golden")
-			if _, err := os.Stat(pkgDir); os.IsNotExist(err) {
-				t.Fatalf("expected output directory %s does not exist", pkgDir)
-			}
-
-			// Create go.mod for the generated package
-			goMod := filepath.Join(outDir, "go.mod")
-			if err := os.WriteFile(goMod, []byte("module golden\n\ngo 1.21\n"), 0644); err != nil {
-				t.Fatalf("failed to write go.mod: %v", err)
-			}
-
-			buildCmd := exec.Command("go", "build", "./golden/")
-			buildCmd.Dir = outDir
-			buildOut, err := buildCmd.CombinedOutput()
-			if err != nil {
-				t.Fatalf("go build failed for %s:\n%s", ailFile, string(buildOut))
-			}
-
-			// Verify go vet succeeds
-			vetCmd := exec.Command("go", "vet", "./golden/")
-			vetCmd.Dir = outDir
-			vetOut, err := vetCmd.CombinedOutput()
-			if err != nil {
-				t.Fatalf("go vet failed for %s:\n%s", ailFile, string(vetOut))
-			}
-		})
-	}
-}
-
-// TestInterpreterCompiledDifferential executes the same fixtures through both
-// runtimes. This catches semantic drift that compile-only golden tests cannot.
-func TestInterpreterCompiledDifferential(t *testing.T) {
+// TestShowDifferentialEvaluatorVsVM runs each show fixture on the evaluator
+// and on the VM and requires the same stdout byte for byte. (Before the Go
+// emitter was removed the second leg was the compiled Go binary.)
+func TestShowDifferentialEvaluatorVsVM(t *testing.T) {
 	fixtures, err := filepath.Glob("show_differential*.ail")
 	if err != nil {
 		t.Fatalf("failed to glob differential fixtures: %v", err)
-	}
-	if len(fixtures) == 0 {
-		t.Fatal("no run-vs-compiled differential fixtures found")
 	}
 	if len(fixtures) != expectedDifferentialFixtureCount {
 		t.Fatalf("differential fixture count = %d, want exactly %d; update the literal deliberately when changing coverage",
@@ -167,53 +61,42 @@ func TestInterpreterCompiledDifferential(t *testing.T) {
 	}
 
 	for _, fixture := range fixtures {
-		fixture := fixture
 		name := strings.TrimSuffix(filepath.Base(fixture), ".ail")
 		t.Run(name, func(t *testing.T) {
 			absFixture, err := filepath.Abs(fixture)
 			if err != nil {
 				t.Fatal(err)
 			}
-
-			interpreted := exec.Command(ailangBin, "run", "--quiet", "--caps", "IO", "--relax-modules", absFixture)
-			interpretedOut, err := interpreted.Output()
-			if err != nil {
-				t.Fatalf("ailang run failed for %s: %v", fixture, err)
+			run := func(flags ...string) []byte {
+				t.Helper()
+				args := append([]string{"run", "--quiet", "--caps", "IO", "--relax-modules"}, flags...)
+				cmd := exec.Command(ailangBin, append(args, absFixture)...)
+				var stderr bytes.Buffer
+				cmd.Stderr = &stderr
+				out, err := cmd.Output()
+				if err != nil {
+					t.Fatalf("ailang %v failed for %s: %v\n%s", flags, fixture, err, stderr.String())
+				}
+				return out
 			}
-
-			outDir := t.TempDir()
-			compile := exec.Command(ailangBin, "compile", "--emit-go", "--out", outDir,
-				"--package-name", "main", "--relax-modules", "--no-verify-go", absFixture)
-			if output, err := compile.CombinedOutput(); err != nil {
-				t.Fatalf("ailang compile failed for %s: %v\n%s", fixture, err, output)
+			evaluated := run()
+			if len(bytes.TrimSpace(evaluated)) == 0 {
+				t.Fatalf("%s printed nothing on the evaluator", fixture)
 			}
-			pkgDir := filepath.Join(outDir, "main")
-			driver := fmt.Sprintf("package main\n\nfunc main() { %s__Main() }\n", name)
-			if err := os.WriteFile(filepath.Join(pkgDir, "driver.go"), []byte(driver), 0644); err != nil {
-				t.Fatal(err)
+			legs := [][]string{{"--bytecode"}}
+			if _, exempt := strictVMExempt[name]; !exempt {
+				legs = append(legs, []string{"--strict-bytecode"})
 			}
-			if err := os.WriteFile(filepath.Join(outDir, "go.mod"), []byte("module differential\n\ngo 1.21\n"), 0644); err != nil {
-				t.Fatal(err)
-			}
-			// Windows requires the .exe suffix or exec cannot find the file it just built.
-			binaryName := "fixture-bin"
-			if runtime.GOOS == "windows" {
-				binaryName += ".exe"
-			}
-			binary := filepath.Join(outDir, binaryName)
-			build := exec.Command("go", "build", "-o", binary, "./main/")
-			build.Dir = outDir
-			if output, err := build.CombinedOutput(); err != nil {
-				t.Fatalf("go build failed for %s: %v\n%s", fixture, err, output)
-			}
-			compiledOut, err := exec.Command(binary).Output()
-			if err != nil {
-				t.Fatalf("compiled fixture failed for %s: %v", fixture, err)
-			}
-			if !bytes.Equal(interpretedOut, compiledOut) {
-				t.Fatalf("interpreter/compiled stdout differs for %s\ninterpreter:\n%s\ncompiled:\n%s",
-					fixture, interpretedOut, compiledOut)
+			for _, flags := range legs {
+				if vm := run(flags...); !bytes.Equal(evaluated, vm) {
+					t.Fatalf("evaluator/%v stdout differs for %s\nevaluator:\n%s\nvm:\n%s", flags, fixture, evaluated, vm)
+				}
 			}
 		})
+	}
+	for name := range strictVMExempt {
+		if _, err := os.Stat(name + ".ail"); err != nil {
+			t.Errorf("stale strictVMExempt entry %s: %v", name, err)
+		}
 	}
 }

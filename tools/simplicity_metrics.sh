@@ -54,7 +54,7 @@ command -v go >/dev/null || { echo "go is required" >&2; exit 69; }
 # ---- the language closure -------------------------------------------------
 # What `run/check/fmt/prompt/repl` need. Phase 1's closure test asserts on the
 # same roots; keep the two lists identical (the test reads this file's list).
-LANGUAGE_ROOTS="internal/pipeline internal/eval internal/effects internal/builtins internal/format internal/repl internal/prompt internal/loader internal/link internal/lsp internal/vm internal/gen/golang internal/smt"
+LANGUAGE_ROOTS="internal/pipeline internal/eval internal/effects internal/builtins internal/format internal/repl internal/prompt internal/loader internal/link internal/lsp internal/vm internal/smt"
 # Third-party roots a language binary must not link. Specific on purpose
 # (amended 2026-09-15): the OTel API and cloud.google.com/go/auth are legitimate
 # for internal/trace and the gemini client; the SDK/exporters and firestore/
@@ -278,7 +278,7 @@ output_format_spellings="$(grep -rhoE '\.(String|Bool|StringVar|BoolVar)\("(json
 
 # ---- configuration routes --------------------------------------------------
 # A call, not a string literal: a line where an unclosed `"` precedes the call
-# (internal/gen/golang/effects.go's ExampleDoc text) is documentation, not a read.
+# (documentation text quoting a call) is documentation, not a read.
 getenv_all="$(grep -rnE 'os\.(Getenv|LookupEnv)\(' --include='*.go' internal cmd 2>/dev/null | grep -v '_test\.go:' | grep -vE '^[^:]*:[0-9]+:[^"]*"[^"]*os\.(Getenv|LookupEnv)\(' || true)"
 getenv_sites_total="$(printf '%s\n' "$getenv_all" | grep -c . || true)"
 # internal/testutil is test infrastructure (AILANG_LIVE_NET, AILANG_TEST_FAST_LOOP):

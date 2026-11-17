@@ -28,7 +28,7 @@ All implemented features are documented in [Design Documents](/docs/design-docs)
 | **Effects** | Complete | IO, FS, Net, Clock, Rand, DB, AI, Process |
 | **Modules** | Complete | Imports, exports, cross-module calls |
 | **Bytecode VM** | Partial | `run --bytecode`, ~40× faster than the evaluator; 142 of 205 runnable examples run fully on the VM, the rest fall back to the evaluator (`--strict-bytecode` fails instead) |
-| **Go Codegen** | Partial | `compile --emit-go`: values boxed as `interface{}`, no tail-call elimination; `--emit-go-v2` is frozen |
+| **Go Codegen** | Removed | `compile --emit-go` / `--emit-go-v2` were removed after v0.60.5; run with `ailang run` (`--bytecode` for the VM) |
 
 ### AI-First Features (Complete)
 

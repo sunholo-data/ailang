@@ -2,7 +2,6 @@ package builtins
 
 import (
 	"errors"
-	"strings"
 	"testing"
 
 	ailerrors "github.com/sunholo-data/ailang/internal/errors"
@@ -10,8 +9,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
-// unreachable : ∀α. string -> α, pure; RT010 on the evaluator; generated Go
-// panics with the same text.
+// unreachable : ∀α. string -> α, pure; RT010 on the evaluator.
 func TestUnreachableBuiltin(t *testing.T) {
 	fn, ok := makeUnreachableType().(*types.TFunc2)
 	if !ok || len(fn.Params) != 1 || fn.Params[0] != types.TString {
@@ -27,9 +25,5 @@ func TestUnreachableBuiltin(t *testing.T) {
 	}
 	if _, err := unreachableImpl(nil, []eval.Value{&eval.IntValue{Value: 1}}); err == nil || errors.As(err, &ue) {
 		t.Fatalf("a non-string argument is an internal error, not RT010: %v", err)
-	}
-	spec := GetCodegenSpec("unreachable")
-	if spec == nil || spec.Helper == nil || !strings.Contains(spec.Helper.Body, `panic("RT010: unreachable code reached: "`) {
-		t.Fatalf("Go codegen spec = %+v", spec)
 	}
 }

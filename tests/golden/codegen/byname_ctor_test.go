@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"sort"
 	"strings"
 	"testing"
 	"time"
@@ -16,16 +15,15 @@ import (
 // #2303: a constructor matched by name (#323: neither its type nor the
 // constructor is imported) against a value whose type nothing fixes was
 // accepted under a catch-all, and the back ends guessed its type: the VM took
-// the first loaded ADT declaring the name, the Go emitter whichever its map
-// yielded. With lib/x's `Color = Red | Green | Blue` and lib/y's
+// the first loaded ADT declaring the name. With lib/x's `Color = Red | Green | Blue` and lib/y's
 // `Light = Green | Red`, `isRed[a](x: a) = match x { Red => 1, _ => 0 }`
-// printed [1, 0, 0, 1] on the evaluator, [1, 0, 1, 0] on both VMs (exit 0)
-// and panicked in emitted Go. Such a pattern is now an error on every path,
+// printed [1, 0, 0, 1] on the evaluator and [1, 0, 1, 0] on both VMs (exit 0).
+// Such a pattern is now an error on every path,
 // by every route that leaves the value's type unfixed. #2353: a by-name
 // pattern's type is decided by the value matched, and its arguments are typed
 // from that type's constructor — so a pattern nested in one is decided too,
 // and the variables it binds have their real types. Patterns whose type IS
-// fixed run identically on the evaluator, both VMs and emitted Go.
+// fixed run identically on the evaluator and both VMs.
 
 // checkJSON is the part of `check --json` these tests read.
 type checkJSON struct {
@@ -35,8 +33,6 @@ type checkJSON struct {
 		Message string `json:"message"`
 	} `json:"errors"`
 }
-
-func quoteGo(s string) string { return "\"" + strings.ReplaceAll(s, "\"", "\\\"") + "\"" }
 
 var byNameLibs = map[string]string{
 	"lib/x.ail": "module lib/x\nexport type Color = Red | Green | Blue\n" +
@@ -69,10 +65,6 @@ var byNameLibs = map[string]string{
 	"lib/q2.ail": "module lib/q2\nexport type Q2 = Pick(string)\nexport pure func q2() -> Q2 = Pick(\"a\")\n",
 	"lib/qq.ail": "module lib/qq\nimport lib/q (q1)\nimport lib/q2 (q2)\nexport pure func a1() = q1()\nexport pure func a2() = q2()\n",
 }
-
-// goLibs are the libraries the Go controls need (lib/b's Pair is both a type
-// and a constructor, which the Go emitter cannot declare: pre-existing).
-var goLibs = []string{"lib/r.ail", "lib/w.ail", "lib/x.ail", "lib/y.ail"}
 
 func writeByNameFixture(t *testing.T, files map[string]string) string {
 	t.Helper()
@@ -209,7 +201,6 @@ func TestUnresolvedByNameCtorPatternRejectedOnEveryPath(t *testing.T) {
 				{"run", "--quiet", "--entry", "summary", entry},
 				{"run", "--quiet", "--bytecode", "--entry", "summary", entry},
 				{"run", "--quiet", "--strict-bytecode", "--entry", "summary", entry},
-				{"compile", "--emit-go", "--out", t.TempDir(), entry},
 			}
 			for _, args := range paths {
 				all, code := run(args...)
@@ -223,20 +214,18 @@ func TestUnresolvedByNameCtorPatternRejectedOnEveryPath(t *testing.T) {
 }
 
 // Negative controls: by-name and imported constructor patterns whose type is
-// fixed give the same answer on the evaluator, both VMs and emitted Go (built
-// and run), and the Go emitted for them is the same on every emit.
+// fixed give the same answer on the evaluator and both VMs.
 func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 	t.Setenv("AILANG_CACHE_DIR", t.TempDir())
 	bin := ailangBin
 	cases := []struct {
 		name, module, src, want string
-		noGo                    string // why the emitted Go is not run ("" = it is)
 	}{
 		{"the issue's shape with the type imported", "ok1",
 			"module ok1\nimport lib/w (cc, ll)\nimport lib/x (Color)\n\n" +
 				"pure func isRed(x) -> int = match x { Red => 1, _ => 0 }\n\n" +
 				"export pure func summary() -> string {\n  let k = \\v. match v { Green => 10, _ => 20 };\n" +
-				"  show([isRed(cc(0)), isRed(cc(1)), k(cc(1)), k(cc(0))])\n}\n", "[1, 0, 10, 20]", ""},
+				"  show([isRed(cc(0)), isRed(cc(1)), k(cc(1)), k(cc(0))])\n}\n", "[1, 0, 10, 20]"},
 		{"by-name on a fixed type: top level, inside Some, guard", "ok2",
 			"module ok2\nimport std/list (nth)\nimport std/option (Option, Some, None)\nimport lib/w (cc, ll)\n\n" +
 				"export pure func summary() -> string {\n" +
@@ -246,31 +235,31 @@ func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 				"  let e = match nth([ll(1)], 0) { Some(Red) => 1, Some(_) => 2, None => 3 };\n" +
 				"  let f = match cc(0) { Red if a == 0 => 9, Red => 1, _ => 0 };\n" +
 				"  let g = match ll(1) { Red if a == 0 => 9, Red => 1, _ => 0 };\n" +
-				"  show([a, b, c, e, f, g])\n}\n", "[1, 1, 2, 1, 1, 1]", ""},
+				"  show([a, b, c, e, f, g])\n}\n", "[1, 1, 2, 1, 1, 1]"},
 		{"by-name in a tuple on a fixed type", "ok6",
 			"module ok6\nimport lib/w (cc, ll)\n\n" +
 				"export pure func summary() -> string = show([match (cc(1), 5) { (Green, n) => n, _ => 0 }, match (ll(0), 6) { (Green, n) => n, _ => 0 }])\n",
-			"[5, 6]", "a constructor in a tuple pattern does not build as Go (#2358)"},
+			"[5, 6]"},
 		{"deferred constructor choice (#2228)", "ok3",
 			"module ok3\nimport lib/x (Color, mkc)\nimport lib/y (Light, mkl)\n\n" +
 				"pure func f(c: Color) -> int = match c { Red => 1, _ => 0 }\n" +
 				"pure func g(l: Light) -> int = match l { Red => 1, _ => 0 }\n\n" +
-				"export pure func summary() -> string = show([f(mkc(0)), f(mkc(1)), g(mkl(0)), g(mkl(1))])\n", "[1, 0, 0, 1]", ""},
+				"export pure func summary() -> string = show([f(mkc(0)), f(mkc(1)), g(mkl(0)), g(mkl(1))])\n", "[1, 0, 0, 1]"},
 		{"alias of an ADT (#2244)", "ok4",
 			"module ok4\nimport lib/x (Color, mkc)\n\ntype Hue = Color\n\n" +
 				"pure func f(h: Hue) -> int = match h { Red => 1, Green => 2, Blue => 3 }\n\n" +
-				"export pure func summary() -> string = show([f(mkc(0)), f(mkc(1)), f(mkc(2))])\n", "[1, 2, 3]", ""},
+				"export pure func summary() -> string = show([f(mkc(0)), f(mkc(1)), f(mkc(2))])\n", "[1, 2, 3]"},
 		{"prelude Option and Result by name, from library modules", "ok5",
 			"module ok5\nimport std/list (nth)\nimport lib/r (parse)\n\n" +
 				"export pure func summary() -> string {\n" +
 				"  let a = match nth([1, 2], 1) { Some(v) => v + 1, None => 0 };\n" +
 				"  let b = match parse(\"1\") { Ok(n) => n, Err(_) => 0 };\n" +
 				"  let c = match parse(\"x\") { Ok(n) => n, Err(e) => if e == \"x\" then 7 else 8 };\n" +
-				"  show([a, b, c])\n}\n", "[3, 1, 7]", ""},
+				"  show([a, b, c])\n}\n", "[3, 1, 7]"},
 		{"let-bound lambda used at one type", "ok7",
 			"module ok7\nimport lib/w (cc, ll)\n\n" +
 				"export pure func summary() -> string {\n  let k = \\v. match v { Green => 10, _ => 20 };\n  show([k(cc(1)), k(cc(0))])\n}\n",
-			"[10, 20]", ""},
+			"[10, 20]"},
 		// The review's over-rejection rows (PR #2362): nested by-name
 		// constructors whose type the value's annotated type fixes.
 		{"nested by-name constructors (review p01/p02)", "ok8",
@@ -282,7 +271,7 @@ func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 				"pure func fOB(i: int) -> int = match obc(i) { Some(MkBox(Red)) => 1, _ => 0 }\n" +
 				"pure func nn(o: Option[Option[int]]) -> int = match o { Some(Some(x)) => x, Some(None) => -1, _ => -2 }\n\n" +
 				"export pure func summary() -> string =\n  show([fOpt(0), fOpt(1), fOpt(-1), fRes(0), fRes(1), fBox(0), fBox(1), fPair(0), fPair(1), fOB(0), fOB(1), nn(oo(5)), nn(oo(0)), nn(oo(-1))])\n",
-			"[1, 2, 0, 1, 2, 1, 0, 100, 0, 1, 0, 5, -1, -2]", "lib/b's Pair is a type and a constructor of one name, which the Go emitter cannot declare"},
+			"[1, 2, 0, 1, 2, 1, 0, 100, 0, 1, 0, 5, -1, -2]"},
 		// Review of #2362, round 2: a contract clause's let is an inner let,
 		// decided by its use; a by-name helper used at one type runs.
 		{"contract lets are decided by use; one-type helpers run", "ok9",
@@ -293,7 +282,7 @@ func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 				"  let isSome = \\o. match o { Some(_) => true, _ => false };\n" +
 				"  let sh = \\o. match o { Some(x) => show(x), _ => \"-\" };\n" +
 				"  show([show([isSome(oi(1)), isSome(oi(0))]), sh(oi(1)), sh(oi(0)), show(pre(ro(2))), show(post(2))])\n}\n",
-			"[\"[true, false]\", \"1\", \"-\", \"1\", \"Ok(2)\"]", "it imports lib/api, which declares lib/b's Pair"},
+			"[\"[true, false]\", \"1\", \"-\", \"1\", \"Ok(2)\"]"},
 	}
 	files := map[string]string{}
 	for _, c := range cases {
@@ -311,89 +300,4 @@ func TestFixedCtorPatternsAgreeOnEveryEngine(t *testing.T) {
 			}
 		})
 	}
-
-	// Emitted Go: every control that builds, in ONE package (one emit, one go
-	// build), built and run against the same answers.
-	emitFiles := []string{}
-	test := "package byname\nimport \"testing\"\nfunc TestSummaries(t *testing.T) {\n"
-	for _, c := range cases {
-		if c.noGo != "" {
-			continue
-		}
-		emitFiles = append(emitFiles, c.module+".ail")
-		test += " if got := " + c.module + "__Summary(); got != " + quoteGo(c.want) +
-			" { t.Errorf(\"" + c.module + ": generated Go: %v\", got) }\n"
-	}
-	test += "}\n"
-	emitFiles = append(emitFiles, goLibs...)
-	emit := func(out string) string {
-		args := append([]string{"compile", "--emit-go", "--package-name", "byname", "--out", out}, emitFiles...)
-		if stdout, stderr, code := testutil.RunBounded(t, dir, 90*time.Second, bin, args...); code != 0 {
-			t.Fatalf("compile --emit-go: exit %d\n%s\n%s", code, stdout, stderr)
-		}
-		return filepath.Join(out, "byname")
-	}
-	gen := emit(filepath.Join(t.TempDir(), "go"))
-	// The bare-name lookup this replaced iterated a Go map, and so did the
-	// gathering of imported type declarations (#2359): 32 emits, one output.
-	first := goSources(t, gen)
-	for i := 0; i < 32; i++ {
-		if again := goSources(t, emit(filepath.Join(t.TempDir(), "go"))); again != first {
-			t.Fatalf("emit %d differs from the first", i+1)
-		}
-	}
-	if err := os.WriteFile(filepath.Join(gen, "go.mod"), []byte("module byname\n\ngo 1.21\n"), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(gen, "summary_test.go"), []byte(test), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	if stdout, stderr, code := testutil.RunBounded(t, gen, 120*time.Second, "go", "test", "-count=1", "."); code != 0 {
-		t.Errorf("generated Go disagrees with the evaluator or does not build: exit %d\n%s\n%s", code, stdout, stderr)
-	}
-
-	// The Statement IR emitter (--emit-go-v2) gathers the imported modules'
-	// types the same way (#2359): with only the root file given, Color and
-	// Light both come from the loaded-module map. On dev about 1 emit in 8
-	// differed.
-	emitV2 := func() string {
-		out := filepath.Join(t.TempDir(), "v2")
-		if stdout, stderr, code := testutil.RunBounded(t, dir, 90*time.Second, bin,
-			"compile", "--emit-go", "--emit-go-v2", "--no-verify-go", "--package-name", "v2", "--out", out, "ok3.ail"); code != 0 {
-			t.Fatalf("compile --emit-go-v2: exit %d\n%s\n%s", code, stdout, stderr)
-		}
-		return goSources(t, out)
-	}
-	firstV2 := emitV2()
-	if !strings.Contains(firstV2, "Light") || !strings.Contains(firstV2, "Color") {
-		t.Fatalf("--emit-go-v2 output lacks the imported types:\n%s", firstV2)
-	}
-	for i := 0; i < 32; i++ {
-		if emitV2() != firstV2 {
-			t.Fatalf("--emit-go-v2 emit %d differs from the first", i+1)
-		}
-	}
-}
-
-// goSources concatenates the .go files under dir in name order.
-func goSources(t *testing.T, dir string) string {
-	t.Helper()
-	var names []string
-	_ = filepath.Walk(dir, func(p string, info os.FileInfo, err error) error {
-		if err == nil && strings.HasSuffix(p, ".go") {
-			names = append(names, p)
-		}
-		return nil
-	})
-	sort.Strings(names)
-	var b strings.Builder
-	for _, n := range names {
-		data, err := os.ReadFile(n)
-		if err != nil {
-			t.Fatal(err)
-		}
-		b.WriteString(strings.TrimPrefix(n, dir))
-		b.Write(data)
-	}
-	return b.String()
 }

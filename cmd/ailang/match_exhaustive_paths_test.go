@@ -11,10 +11,10 @@ import (
 // M-V1-MATCH-EXHAUSTIVENESS M2: a match that misses a case is a compile error,
 // TC_MATCH_002 with the missing pattern and the match's file:line:col, on
 // every path that compiles a program — `check` in its three output formats,
-// `run` on the evaluator, `run --bytecode`, `run --strict-bytecode` and
-// `compile --emit-go`. It is the type checker's verdict, so no path runs the
-// program first: nothing prints RT002 (before the check, each fixture below
-// reached RT002 at run time — or, on the VM, a Unit value).
+// `run` on the evaluator, `run --bytecode` and `run --strict-bytecode`. It is
+// the type checker's verdict, so no path runs the program first: nothing
+// prints RT002 (before the check, each fixture below reached RT002 at run
+// time — or, on the VM, a Unit value).
 //
 // The run-time RT002 path itself is covered in process, with the check
 // switched off (internal/vm TestMatchFailBothEngines).
@@ -68,14 +68,12 @@ func TestMatchNonExhaustiveRejectedOnEveryPath(t *testing.T) {
 		}
 	}
 
-	// Human output, and every engine and the Go emitter: the same verdict
-	// before anything runs.
+	// Human output, and every engine: the same verdict before anything runs.
 	paths := map[string][]string{
-		"check":           {"check"},
-		"run":             {"run", "--quiet", "--entry", "adt"},
-		"run --bytecode":  {"run", "--quiet", "--bytecode", "--entry", "adt"},
-		"run --strict":    {"run", "--quiet", "--strict-bytecode", "--entry", "adt"},
-		"compile emit-go": {"compile", "--emit-go", "--out", t.TempDir()},
+		"check":          {"check"},
+		"run":            {"run", "--quiet", "--entry", "adt"},
+		"run --bytecode": {"run", "--quiet", "--bytecode", "--entry", "adt"},
+		"run --strict":   {"run", "--quiet", "--strict-bytecode", "--entry", "adt"},
 	}
 	for name, args := range paths {
 		stdout, stderr, code := runWithStdin(t, bin, "", append(args, src)...)

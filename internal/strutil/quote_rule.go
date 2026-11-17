@@ -6,15 +6,12 @@ import (
 	"unicode/utf8"
 )
 
-// The quoting rule, shared byte for byte with the Go emitter: this file,
-// nfc.go and nfc_tables.go use only the standard library, and
-// internal/gen/golang embeds a copy of all three in every compiled program
-// (emittedQuoteRuntime, kept current by TestEmittedQuoteRuntimeUpToDate).
-// Change the rule here only.
+// The quoting rule. This file, nfc.go and nfc_tables.go use only the standard
+// library (the Go emitter, since removed, embedded a copy of all three in
+// every compiled program). Change the rule here only.
 
 // stringWriter is what QuoteTo writes to (strings.Builder, the show renderer's
-// bounded writer). Declared here rather than io.StringWriter so the copy in
-// compiled programs needs no extra import.
+// bounded writer).
 type stringWriter interface {
 	WriteString(s string) (int, error)
 }
