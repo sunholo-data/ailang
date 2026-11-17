@@ -1,22 +1,29 @@
-# Fleet mission dashboard — iteration 117
+# Fleet mission dashboard — iteration 118
 
 Updated 2026-11-17; scheduled unattended. [Bookkeeping #2341](https://github.com/sunholo-data/ailang/issues/2341).
 
-- **Outcome: LANDED [HARNESS].** Row 13 (D-FLEET-18 A probe work) and row 19: the two live `test_motoko_connection_probe.sh` flakes fixed → #2385 / `b1942b7f9` (judge sonnet PASS 88, 0 blocking). Both were defects in the test, not the probe.
-  - Timer arm: bash 3.2 dropped a SIGTERM sent before `exec` because of the suite's EXIT trap. Now SIGKILL, plus a TERM-ignored guard that reds 20/20 on a revert.
-  - Refusing live path / OpenRouter peer: the `lsof` stub turned an empty lane-file read into the OpenRouter peer. Now fail-closed, plus a forced empty-read arm. Reproduced only by forcing the window.
-  - Dev CI on the merge ran the fixed suite: `PASS: 61`, 58/58 suites.
-- **Measured first:** 8 probe-signature failures in 799 dev CI runs (10-08..11-17), none in the last 300.
-- **Tickets:** 22 → 20 open. `eval:motoko-connection-probe-orphaned` (row 58) left open: retire-or-own was not ruled in those words.
-- **Ledger:** 44 rows, 2 OPEN (D-FLEET-44, 45, stack-only).
-- **Routing:** opus controller. Planner opus (Agent). Executor haiku via `claude-sub` (attempt 1 rc 127, no `timeout` on the rig; attempt 2 rc 0). Judge sonnet (Agent, own worktree). Designer not needed (mechanical test fix). Codex lanes probe rc 75 (quota unreadable).
-- **CI:**
-  - PR: `launchd drivers` was **skipped**, because the `ci.yml` changes filter has no `tools/eval/` arm. Required `test` went red on `cmd/ailang`'s hang guard (the same as dev 11-16) and was green on rerun.
-  - Dev merge: `Build macos-latest` red on `TestRuntimeNestedStopUsesRemainingDeadline`, the inherited flake from iterations 115/116, now on a fourth commit. Handed to V1/attended.
-- **Goal:** clause 2 moved (2 resolutions). Clause 1 UNMEASURED, 3 MET, 4 met by its letter, 5 preserved (done-gate run).
-- **Cost:** metered $0.
-- **Records 95–117** sit on stacked draft PRs (#2169 → … → #2383 → this fire). origin/dev's log still ends at 94.
-- **Gate 0 self-notice:** watermark form rc 2 (twenty-first fire).
+- **Outcome: LANDED [HARNESS].** Row 33, D-FLEET-25 A, is built end to end.
+  - World-fork text: #2396 → `ad1fdac57` (judge PASS 93). Draft #2082 is closed.
+  - Fleet-wide rulings ledger `design_docs/fleet-rulings.md`, plus a report-only `ailang mission doctor` check: #2402 → `031941ada` (build judge PASS 91). Draft #2165 is closed.
+- **How the mechanism works:**
+  - Forbid-only literal detectors over three scopes (registry, mission skills, charters), with explicit `supersedes` between rulings.
+  - Every finding is a `note`, so the exit code, lane-check and arming are unchanged.
+  - Notes print first, so lane-check's last-line cell keeps the drift reason.
+  - Seeded with D-FR-1 (World is not a fork) and D-FR-2 (generator≠judge is a preference), both transcribed with their sources.
+- **Design path:**
+  - The GLM R2 draft was rewritten by the opus designer: 698 → 309 lines, with the provenance binding dropped.
+  - Quorum R3 blocked 0/3 on unverified citations. R4 blocked 1/3 on one narrow surface; both rejects were measured as non-defects and their fixes applied verbatim (R4.1 carve-out).
+  - The planner caught one false design claim (note ordering vs lane-check). The plan judge gave PASS 82.
+- **Build:** haiku did M1–M7 plus a Windows-path fix round. Mutants: 22/22 executor, 6/6 controller, 10/14 judge (survivors non-blocking).
+- **Tickets:** 20 → 19 open; `policy:fleet-rulings-not-propagated-to-charters-and-skill` is resolved.
+- **Attended follow-up:** link lines in the world and stapledon charters, which live in other repos. Doctor reports `ruling-link-missing` for both.
+- **Rig observation:** doctor shows `env-source-drift` on all 6 missions (`AILANG_CODEX_RUNTIME`, `AILANG_DRIVER_REF`, `CODEX_HOME`), so it exits 1 today. Pre-existing and not ticketed.
+- **Routing:**
+  - opus controller; designer opus via `claude-sub`; planner opus (Agent); executor haiku via `claude-sub`; judge sonnet (Agent, own worktrees).
+  - Codex lanes: probe rc 75 (quota unreadable).
+- **Cost:** metered $0 inner loop. Quorum self-reported $0.54.
+- **Records 95–118** sit on stacked draft PRs (#2169 → … → #2386 → this fire).
+- **Gate 0 self-notice:** watermark form rc 2 (twenty-second fire).
 - **Parked on Mark:** D-FLEET-44, D-FLEET-45 (unchanged).
-- **Next:** row 33 (D-FLEET-25 A, drafts #2165/#2082), row 41 (D-33 A), rows 51/53 (D-36/38 A, #2108), and D-42's fleet half (#2141–#2150).
-- **Evidence:** [log](fleet-mission-log.md), [iteration 117](fleet-mission-evidence/iteration117/).
+- **Next:** row 41 (D-33 A), rows 51/53 (D-36/38 A, #2108), D-42's fleet half (#2141–#2150).
+- **Evidence:** [log](fleet-mission-log.md), [iteration 118](fleet-mission-evidence/iteration118/).
