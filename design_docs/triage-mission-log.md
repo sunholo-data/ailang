@@ -853,3 +853,14 @@ No VERIFIED, no ⚖ action, no comments/labels/closes on items, no approve/rejec
 **Findings routed to the digest, not fixed**: the #2273/#2290/#2291 soundness cluster; #2326 WASM registry loader skips effect validation; #2304 needs rebase.
 **Not done**: T4 landed-card dry run; card re-verification (the approval-authority module fails to elaborate in this session, `@deprecated` unknown in the pinned `std/list`).
 **Next**: re-verify #2304 after rebase; Mark rules on #2282.
+
+## 45 — 2026-11-17 — one unsigned attestation (#2403), ten labels, #2393 held [ADMIN]
+
+**Picked**: 12 items (2 PRs and 6 issues new, 4 issues updated since their last verdict); no held verdicts; 29 Dependabot/mission PRs excluded; the 56 pending cards, #2069 and #2341 reported only. Open ledger rows: 0 (82 rows valid). Packet: not due (no OPEN row, no card ready to approve). Ledger rows for iterations 43 and 44 exist (2026-11-16, 2026-11-17) but no log entries reached `origin/dev`; this entry does not reconstruct them.
+**Reality check**: origin/dev `031941ada916a0c8d07c21b70e82ea30394682c4`; CI success, 22 checks, none red. Skill files byte-identical between the resolved symlink target and the pin worktree. No directives (0 allowlisted comments on #2069), no crash notices.
+**Shipped**: evidence comment on #2069 (read back 38 -> 39); unsigned attestation on #2403 at head `f5da38402dd2d8dfbb54530660131c8f8fbaa5fa` (read back 0 -> 1); `priority:P0` #2401, `priority:P1` #2399 #2323, `priority:P2` #2392 #2354 #2294 #2260, `priority:P3` #2400 #2391, `needs-decision` #2404. 12 shadow rows appended. No approvals, rejections, merges or closes.
+**Judge**: openrouter:minimax/minimax-m3 via pi `--no-tools` (rc=0), a different vendor from the haiku verifier, run BEFORE any action. CONCUR on all items. The judge saw quoted evidence only.
+**Routing evidence**: executor `claude:claude-haiku-5-5` (1 foreground Agent batch, `MISSION-ROLE: executor`); evaluator resolver returned `sonnet` (same vendor), not used, per the operator's standing request.
+**Findings routed to the digest, not fixed**: #2403 and #2393 both insert a pass before monomorphization in pipeline_module_compile.go (expect a conflict on whichever merges second); #2393 still has checks in progress.
+**Not done**: T4 landed-card dry run; card re-verification; no reproductions (PATH binary v0.60.5 is not dev).
+**Next**: re-verify #2393 once green; Mark approves or declines #2403.
