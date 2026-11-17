@@ -155,7 +155,6 @@ $ DEBUG_PARSER=1 ailang run test.ail
 | `DEBUG_MONO_VERBOSE=1` | Monomorphization tracing | Type issues | Specialization details |
 | `DEBUG_OPERATOR_LOWERING=1` | Operator resolution | Dispatch issues | Builtin selection |
 | `DEBUG_PARSER=1` | Token position tracing | Parser bugs | Token flow |
-| `DEBUG_CODEGEN=1` | Record type fallback warnings | Codegen issues | Fallback warnings |
 | `DEBUG_APPROVAL_WATCHER=1` | ApprovalWatcher polling | Coordinator approval flow | Poll tracing |
 | `DEBUG_CONCURRENCY=1` | Per-request evaluator Fork/Call/Done tracing | Concurrency issues | Goroutine IDs |
 | `DEBUG_AGENT=1` | Keep agent-eval workspaces after a run (skips cleanup) and trace the agent runner | Inspecting what an agent left behind | Workspace paths retained under the eval dir |

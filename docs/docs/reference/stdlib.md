@@ -34,7 +34,7 @@ See [Effects](/docs/reference/effects) for how the capability system works, [Mod
 
 `std/string.formatFixed(x, decimals)` returns a string with exactly the requested
 decimal places for finite values. Precision must be 0..1000; values outside that
-range fail in ordinary execution and generated Go, without requiring contract
+range fail at run time, without requiring contract
 flags. It follows Go strconv float64 formatting, including nearest-even ties,
 signed zero and visible `NaN`/`+Inf`/`-Inf`. More digits can expose binary-float
 representation: `formatFixed(0.1, 20)` is `"0.10000000000000000555"`. This is

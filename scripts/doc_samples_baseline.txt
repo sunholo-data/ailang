@@ -138,7 +138,6 @@ docs/docs/reference/arrays.md 2e2da630af21 TC_UNDEFINED_VAR
 docs/docs/reference/arrays.md 41d4b0ba8ab9 TC_UNDEFINED_VAR
 docs/docs/reference/arrays.md 5e858b1e676c TC_UNDEFINED_VAR
 docs/docs/reference/arrays.md 7471f261ba05 PAR_UNEXPECTED_TOKEN
-docs/docs/reference/arrays.md 799a47c31681 TC_UNDEFINED_VAR
 docs/docs/reference/arrays.md 955ce092c0f0 TC_UNDEFINED_VAR
 docs/docs/reference/arrays.md b078a2dd7a09 TC_UNDEFINED_VAR
 docs/docs/reference/arrays.md be108c059caa TC_UNDEFINED_VAR
@@ -181,7 +180,6 @@ docs/docs/reference/limitations.md 54e188aca768 PAR017
 docs/docs/reference/limitations.md 55089f20949f PAR017
 docs/docs/reference/limitations.md 69c8542ed654 PAR_NO_PREFIX_PARSE
 docs/docs/reference/limitations.md 7a15ae5b2ded TC_UNDEFINED_VAR
-docs/docs/reference/limitations.md c6fc82456ae5 PAR_NO_PREFIX_PARSE
 docs/docs/reference/limitations.md caf8db55cd35 TC_UNDEFINED_VAR
 docs/docs/reference/modules.md 1f9e9198bbd2 PAR_IMPORT_PLACEMENT
 docs/docs/reference/modules.md 218e28608c3a PAR017

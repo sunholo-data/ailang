@@ -226,40 +226,6 @@ the host and reload:
 
 ---
 
-### Duplicate Record Types with Identical Fields
-
-**Status**: Known limitation with workarounds
-**Since**: v0.5.10
-**Verified at**: v0.33.1 (2026-08-17 — **Go-codegen path only**; the first-match lookup is still present at `internal/gen/golang/codegen_record.go` (`GetRecordTypeByFields`). The interpreter is unaffected: `ailang run` on a duplicate-shaped record returns the correct field value)
-**Affects**: Go code generation when multiple record types share identical field structures
-
-When multiple record types declare the same field names and types, the Go
-codegen may pick the wrong struct because `GetRecordTypeByFields` returns the
-first match (the interpreter path is fine — this is a `--emit-go` codegen issue only):
-
-```ailang
--- starmap.ail
-export type Vec3 = { x: float, y: float, z: float }
-
--- celestial.ail
-export type SystemPos = { x: float, y: float, z: float }
-
-func initSystem() -> StarSystem {
-    { position: { x: 0.0, y: 0.0, z: 0.0 }, ... }
-    -- May generate &Vec3{} instead of &SystemPos{}
-}
-```
-
-**Workarounds**:
-
-1. **Merge duplicates** if semantically equivalent — keep one type and import it everywhere.
-2. **Rename to be unique** — `GalacticCoord` vs `SystemPos` instead of two `Vec3`-shaped types.
-3. **Add a discriminator field** — e.g. `_tag: string` — to break the structural tie.
-
-**See Also**: [implemented/v0_5_10/m-codegen-nested-record-type.md](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_10/m-codegen-nested-record-type.md)
-
----
-
 ## Parser Limitations
 
 ### If-Else Branches Require Explicit Braces
@@ -308,25 +274,6 @@ alive longer than needed.
 This improves list consumption; quadratic `::`/`++` construction remains parked
 on D-19. The checked [tail-walk benchmark](https://github.com/sunholo-data/ailang/tree/dev/bench/vm_tail_walk)
 compares equivalent range inputs and includes a separate construction contrast.
-
-### Go codegen has no tail-call elimination
-
-**Status**: Open
-**Verified at**: v0.54.19 (2026-10-28). `ailang compile --emit-go` on a tail-recursive
-`loop(i, n, acc)` produced Go that hit `fatal error: stack overflow` at 10,000,000 steps.
-`ailang run --strict-bytecode` ran the same function in 0.77–1.07 s at constant depth.
-**Affects**: `--emit-go` and `--emit-go-v2` output only. The evaluator and VM run tail calls at constant depth.
-
-The generated Go emits a self tail call as an ordinary Go call, so every iteration adds a
-Go stack frame. Long tail-recursive loops, which are idiomatic AILANG, overflow the
-goroutine stack. The generated code also boxes every value as `interface{}`. It is a typed
-Go API, not a speed path: `fib(32)` ran in 0.030 s as generated Go against 0.005 s for
-hand-written Go.
-
-**Workaround**: run the program with `ailang run --bytecode`, or use `foldl`/`map` instead of
-explicit recursion in code you compile to Go.
-
----
 
 ### Runtime contracts are checked only on the evaluator, and not in named tests
 
@@ -586,6 +533,11 @@ string-function check on the captured group replaces the backreference/lookaroun
 These limitations existed in earlier versions and are now fully resolved.
 Listed for users following older docs. All re-verified at v0.33.1, 2026-08-17, except
 where an entry gives its own date.
+
+- **Go-codegen-only limitations** — Gone with the Go emitter (removed after v0.60.5).
+  `ailang compile --emit-go` duplicated-record struct selection and the missing tail-call
+  elimination in generated Go no longer apply: AILANG runs on the evaluator and the
+  bytecode VM only.
 
 - **Effectful callbacks nested in data arguments** — Fixed for v0.55.0
   ([#1718](https://github.com/sunholo-data/ailang/issues/1718), design

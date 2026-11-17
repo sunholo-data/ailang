@@ -28,7 +28,7 @@ and a suggestion on stderr and exits 1 — it does not dump the command list int
 |---|---|---|
 | Machine-readable output | `--json` | The one output-format flag. `ailang test --json`, not `--format json`. |
 | Which model | `--model` | `ailang eval-suite --models` is accepted as an alias of the same target. |
-| Where output goes | `--output` | Six of the eight sites. `ailang compile --out` and `ailang eval-publish --output-dir` are not converged yet. |
+| Where output goes | `--output` | Six of the seven sites. `ailang eval-publish --output-dir` is not converged yet. |
 | Gate a mutation | `--dry-run` | Audited at all 14 sites: the default **acts**, and `--dry-run` is the opt-out everywhere. No command inverts it. |
 
 Superseded spellings keep working — `ailang test --format json` still means `--json` —

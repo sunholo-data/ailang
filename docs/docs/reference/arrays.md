@@ -263,58 +263,12 @@ func push[a](buf: RingBuffer[a], item: a) -> RingBuffer[a] {
 }
 ```
 
-## Go Codegen
-
-Arrays compile to Go slices with proper typing:
-
-**AILANG:**
-```ailang
-let scores: Array[int] = #[100, 95, 87, 92]
-let total = arrayFold(\acc x. acc + x, 0, scores)
-```
-
-**Generated Go:**
-```go
-scores := []int{100, 95, 87, 92}
-total := ArrayFold(func(acc, x int) int { return acc + x }, 0, scores)
-```
-
-### ADT Arrays in Go
-
-Arrays of ADTs compile to properly typed slices:
-
-**AILANG:**
-```ailang
-type Action = Move(int, int) | Attack(int) | Wait
-
-let actions: Array[Action] = #[
-  Move(1, 0),
-  Attack(5),
-  Wait
-]
-```
-
-**Generated Go:**
-```go
-type Action interface { isAction() }
-type Move struct { X, Y int }
-type Attack struct { Damage int }
-type Wait struct {}
-
-actions := []Action{
-  Move{1, 0},
-  Attack{5},
-  Wait{},
-}
-```
-
 ## Performance Considerations
 
 ### When to Use Arrays
 
 - **Fixed-size data**: Game boards, lookup tables
 - **Random access**: Frequent indexing operations
-- **Go interop**: Arrays map directly to Go slices
 - **Performance critical**: Contiguous memory layout
 
 ### When to Use Lists
@@ -340,6 +294,5 @@ actions := []Action{
 ## Related Resources
 
 - [Language Syntax](/docs/reference/language-syntax) - Complete syntax reference
-- [Go Codegen](/docs/guides/go-interop) - Compiling to Go
 - [Pattern Matching](/docs/reference/language-syntax) - ADTs and matching
 - [Roadmap](/docs/roadmap) - Planned features including execution profiles
