@@ -1,6 +1,6 @@
 ### Fixed — motoko connection probe self-test: two intermittent CI failures (2026-11-17)
 
-`tools/eval/test_motoko_connection_probe.sh` failed in 8 of about 819 dev CI runs
+`tools/eval/test_motoko_connection_probe.sh` failed in 8 of 799 dev CI runs
 (2026-10-08 to 2026-11-17) on the macOS "launchd drivers (bash 3.2)" job, with two signatures
 (timer 5, refusing live path 3). Both were defects in the test, not the probe.
 
