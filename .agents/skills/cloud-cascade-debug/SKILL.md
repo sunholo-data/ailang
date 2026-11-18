@@ -220,7 +220,7 @@ gcloud run jobs executions list --project "$PROJECT" \
 ## One-shot triage script
 
 ```bash
-.Codex/skills/cloud-cascade-debug/scripts/triage_cascade.sh \
+.claude/skills/cloud-cascade-debug/scripts/triage_cascade.sh \
   <vendor/name>@<version> [time-window-hours]
 ```
 

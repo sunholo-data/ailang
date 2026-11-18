@@ -95,7 +95,7 @@ those stay as **OpenRouter** ceiling references; they don't fit on-device.
 
 ```bash
 # Fit/shape verdict BEFORE spending rig time (estimate from the published size):
-.Codex/skills/local-model-onboarding/scripts/check_model_fit.sh --disk 24 --active 3
+.claude/skills/local-model-onboarding/scripts/check_model_fit.sh --disk 24 --active 3
 ```
 
 ### 2. Quality pre-screen via OpenRouter (cheap, zero rig time)
@@ -104,8 +104,8 @@ pull winners. Use `model-manager` to add a temporary `or-<model>` entry and run 
 small standard+agent pass on AILANG + the 4-lang set, then compare to incumbents.
 
 ```bash
-.Codex/skills/model-manager/scripts/test_model_access.sh <openrouter-id>     # access + pricing
-.Codex/skills/model-manager/scripts/find_model_info.sh  <openrouter-id>
+.claude/skills/model-manager/scripts/test_model_access.sh <openrouter-id>     # access + pricing
+.claude/skills/model-manager/scripts/find_model_info.sh  <openrouter-id>
 # add or-<model> to models.yml (model-manager), then:
 ailang eval-suite --models or-<model> --benchmarks <smoke set> --langs ailang,python --trials 3 --output /tmp/screen_<model>
 ```
@@ -114,8 +114,8 @@ If it doesn't clear the bar vs your current local models, stop here — no pull.
 ### 3. Pull to the rig + confirm it fits for real
 ```bash
 ollama pull <ollama-tag>
-.Codex/skills/local-ollama-eval/scripts/check_ollama_model.sh <ollama-tag>     # loads + sanity
-.Codex/skills/local-model-onboarding/scripts/check_model_fit.sh <ollama-tag>   # REAL resident VRAM verdict
+.claude/skills/local-ollama-eval/scripts/check_ollama_model.sh <ollama-tag>     # loads + sanity
+.claude/skills/local-model-onboarding/scripts/check_model_fit.sh <ollama-tag>   # REAL resident VRAM verdict
 ```
 Must come back GREEN/YELLOW. RED → pick a smaller quant (mxfp8 → nvfp4/Q4) or a
 lower-active variant.
