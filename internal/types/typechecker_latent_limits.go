@@ -38,6 +38,7 @@ func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv
 	defer func() { err = withWrittenNames(err) }() // #2273: never show `a@{f}`
 	defer recoverLatentDataDepth(&err)
 	tc.declNodes = make([]uint64, 0, 256) // markDefaulted reads this declaration's nodes
+	tc.declForcedUses = nil               // #2378: numeric_diagnostics.go
 	return tc.inferWithConstraints(expr, env)
 }
 

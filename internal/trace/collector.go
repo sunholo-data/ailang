@@ -5,6 +5,8 @@ import (
 	"encoding/hex"
 	"sync"
 	"time"
+
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 const traceVersion = "1.0"
@@ -242,7 +244,7 @@ func (c *Collector) RecordFunctionEnter(name string, args []string) {
 		SpanID:       spanID,
 		ParentSpanID: parentSpan,
 		Function: &FunctionEvent{
-			Name: name,
+			Name: core.DisplayFuncName(name), // #2378: as the author wrote it
 			Args: args,
 		},
 	}
@@ -268,7 +270,7 @@ func (c *Collector) RecordFunctionExit(name string, result string) {
 		TraceID:     c.traceID,
 		SpanID:      spanID,
 		Function: &FunctionEvent{
-			Name:       name,
+			Name:       core.DisplayFuncName(name),
 			Result:     result,
 			DurationNS: durationNS,
 		},

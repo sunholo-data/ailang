@@ -1,0 +1,15 @@
+module mx/lit_nested
+import std/io (print)
+
+-- #2378: an integer literal in a generic body; genU must print what the twin
+-- of its argument's type prints, on every engine.
+export pure func genU(x) = {outer: {inner: (x + 1, [x * 2])}}
+export pure func gen(x) = genU(x)
+export pure func twinI(x: int) = {outer: {inner: (x + 1, [x * 2])}}
+export pure func twinF(x: float) = {outer: {inner: (x + 1.0, [x * 2.0])}}
+export pure func summary() -> string {
+  let r1 = genU(3); let r2 = gen(3); let r3 = twinI(3);
+  let f1 = genU(2.5); let f2 = gen(2.5); let f3 = twinF(2.5);
+  "genUI=${show(r1.outer.inner)}\ngenI=${show(r2.outer.inner)}\ntwinI=${show(r3.outer.inner)}\ngenUF=${show(f1.outer.inner)}\ngenF=${show(f2.outer.inner)}\ntwinF=${show(f3.outer.inner)}\n"
+}
+export func main() -> () ! {IO} = print(summary())

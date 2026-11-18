@@ -334,6 +334,15 @@ func (rt *ModuleRuntime) evaluateModule(inst *ModuleInstance) error {
 			// Var references for imported names, not just VarGlobal).
 			parentEnv.Set(exportName, val)
 		}
+		// #2378: an exported binding's numeric variants (inc$numF) are exported
+		// with it; an importer's float use is renamed to one. The interface
+		// does not list them: they are derived from the exported type.
+		for name, val := range inst.Bindings {
+			if base, ok := types.NumVariantBase(name); ok && inst.Iface.Exports[base] != nil {
+				inst.Exports[name] = val
+				parentEnv.Set(name, val)
+			}
+		}
 	}
 
 	return nil
@@ -589,6 +598,9 @@ func (rt *ModuleRuntime) buildMinimalInterface(loaded *loader.LoadedModule) (*if
 // reads "ensures failed in half at …" (it read "failed in  at" — nothing set
 // the name outside tests).
 func attachContracts(fn *eval.FunctionValue, name string, contracts []*core.Contract) {
+	if base, ok := types.NumVariantBase(name); ok {
+		name = base // a numeric variant's contracts are its binding's (#2378)
+	}
 	for _, c := range contracts {
 		spec := &eval.ContractSpec{
 			Kind:     c.Kind.String(), // "requires", "ensures", or "invariant"

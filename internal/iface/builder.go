@@ -647,6 +647,18 @@ func (b *Builder) schemeToString(scheme *types.Scheme) string {
 		}
 		sort.Strings(cs)
 		body = strings.Join(cs, ", ") + " => " + body
+		// #2378: an importer calls the variants of the literal-carrying
+		// variables, so the flag moves the digest too.
+		var lits []string
+		for _, c := range scheme.Constraints {
+			if c.Literal && c.Class == "Num" {
+				lits = append(lits, c.Type.String())
+			}
+		}
+		if len(lits) > 0 {
+			sort.Strings(lits)
+			body += " literal[" + strings.Join(lits, ", ") + "]"
+		}
 	}
 
 	if len(quantifiers) > 0 {

@@ -186,12 +186,17 @@ func (tc *CoreTypeChecker) inferVar(ctx *InferenceContext, v *core.Var) (*typeda
 		// its `Num` obligation at the use site, so unifying `[a'] ~ [string]`
 		// silently accepts `needStrs([42])` (the soundness hole). Re-emitting
 		// `Num a'` lets the normal ground-constraint resolver reject `Num[string]`.
-		for _, c := range instConstraints {
+		// #2378: a use of a binding with numeric variants keeps an enclosing let
+		// monomorphic (PolyNumeric, literal_restriction.go).
+		tc.noteNumericRef(v.ID(), "", v.Name, v.Span(), scheme)
+		tc.recordForcedUse(scheme)
+		for i, c := range instConstraints {
 			ctx.addConstraint(ClassConstraint{
-				Class:  c.Class,
-				Type:   c.Type,
-				Path:   []string{fmt.Sprintf("use of %s at %v", v.Name, v.Span())},
-				NodeID: v.ID(),
+				Class:       c.Class,
+				Type:        c.Type,
+				Path:        []string{fmt.Sprintf("use of %s at %v", v.Name, v.Span())},
+				NodeID:      v.ID(),
+				PolyNumeric: c.Class == "Num" && scheme.Constraints[i].Literal,
 			})
 		}
 
@@ -247,12 +252,14 @@ func (tc *CoreTypeChecker) inferVarGlobal(ctx *InferenceContext, v *core.VarGlob
 	// same-module binding: an imported `eqq[a](x: a, y: a) = x == y` carries
 	// Eq[a], and `eqq(f, g)` on two functions must fail here, not at run time.
 	monotype, instConstraints := scheme.InstantiateWithConstraints(ctx.freshType)
-	for _, c := range instConstraints {
+	tc.noteNumericRef(v.ID(), v.Ref.Module, v.Ref.Name, v.Span(), scheme) // #2378
+	for i, c := range instConstraints {
 		ctx.addConstraint(ClassConstraint{
-			Class:  c.Class,
-			Type:   c.Type,
-			Path:   []string{globalUsePath(v, c.Class)},
-			NodeID: v.ID(),
+			Class:       c.Class,
+			Type:        c.Type,
+			Path:        []string{globalUsePath(v, c.Class)},
+			NodeID:      v.ID(),
+			PolyNumeric: c.Class == "Num" && scheme.Constraints[i].Literal,
 		})
 	}
 

@@ -1,0 +1,13 @@
+module mx/lit_match_rec
+import std/io (print)
+
+-- #2378: a literal in a match arm of a recursive generic function over a list.
+export pure func genU(xs) = match xs { [] => 0, [h, ...t] => h + genU(t) }
+export pure func twinI(xs: [int]) -> int = match xs { [] => 0, [h, ...t] => h + twinI(t) }
+export pure func twinF(xs: [float]) -> float = match xs { [] => 0.0, [h, ...t] => h + twinF(t) }
+export pure func summary() -> string {
+  let i = [1, 2, 3];
+  let f = [1.5, 2.0, 0.25];
+  "genUI=${show(genU(i))}\ntwinI=${show(twinI(i))}\ngenUF=${show(genU(f))}\ntwinF=${show(twinF(f))}\n"
+}
+export func main() -> () ! {IO} = print(summary())

@@ -16,8 +16,9 @@ func MarshalScheme(s *Scheme) ([]byte, error) {
 	}
 
 	type constraintJSON struct {
-		Class string          `json:"class"`
-		Type  json.RawMessage `json:"type"`
+		Class   string          `json:"class"`
+		Type    json.RawMessage `json:"type"`
+		Literal bool            `json:"literal,omitempty"` // #2378
 	}
 	constraints := make([]constraintJSON, len(s.Constraints))
 	for i, c := range s.Constraints {
@@ -25,7 +26,7 @@ func MarshalScheme(s *Scheme) ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		constraints[i] = constraintJSON{Class: c.Class, Type: ct}
+		constraints[i] = constraintJSON{Class: c.Class, Type: ct, Literal: c.Literal}
 	}
 
 	return json.Marshal(struct {
@@ -48,8 +49,9 @@ func UnmarshalScheme(data []byte) (*Scheme, error) {
 	}
 
 	type constraintJSON struct {
-		Class string          `json:"class"`
-		Type  json.RawMessage `json:"type"`
+		Class   string          `json:"class"`
+		Type    json.RawMessage `json:"type"`
+		Literal bool            `json:"literal,omitempty"` // #2378
 	}
 	var d struct {
 		TypeVars    []string         `json:"type_vars"`
@@ -72,7 +74,7 @@ func UnmarshalScheme(data []byte) (*Scheme, error) {
 		if err != nil {
 			return nil, err
 		}
-		constraints[i] = Constraint{Class: c.Class, Type: ct}
+		constraints[i] = Constraint{Class: c.Class, Type: ct, Literal: c.Literal}
 	}
 
 	return &Scheme{

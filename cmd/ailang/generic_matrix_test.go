@@ -28,6 +28,11 @@ import (
 //	genF  an annotated function literal inside a rigid function
 //	twinL a let-bound lambda inside the MONOMORPHIC function
 //
+// The lit_* modules (#2378) put an integer literal in the generic body (bare,
+// under a record, tuple, list, Option, nested, in recursion, through a rigid
+// signature, across modules): genU must print its argument type's twin, which
+// it does through the body's float variant (numeric_variants.go).
+//
 // The inner-lambda forms are the ones whose node types are recorded before the
 // declaration's substitution is applied (markDefaulted); a consumer, or a
 // recording, that misses them fails here (mutant MD2 of that review). A new
@@ -85,26 +90,23 @@ func TestGenericBodiesMatchTheirMonomorphicTwins(t *testing.T) {
 // evaluator's run path requires every intrinsic lowered, while a separate
 // dynamic builtin changes the frozen $builtin interface (iface.builtin_freeze)
 // and the positional bytecode builtin table (follow-up review of #2273, item 4).
-// What must stay loud is an int and a float meeting at `%`: this pins it on both
-// engines, so a change that makes it compute silently is noticed.
-func TestModIntWithAnIntAndAFloatFailsLoudly(t *testing.T) {
+//
+// The pin was an int and a float meeting at `%` (the literal 2 of a generic
+// body compiled at int), which had to fail loudly. Since #2378 that body has a
+// float variant whose literal is 2.0, so the program computes the float answer
+// on both engines; a change that brings the int literal back fails here.
+func TestModOfALiteralInAGenericBodyAtFloat(t *testing.T) {
 	bin := buildAilang(t)
 	dir, err := filepath.Abs(filepath.Join("testdata", "generic_matrix"))
 	if err != nil {
 		t.Fatal(err)
 	}
-	for _, c := range []struct {
-		engine []string
-		want   string
-	}{
-		{nil, "expected IntValue for arg 0, got *eval.FloatValue"},
-		{[]string{"--strict-bytecode"}, "_mod_Int: expected ints"},
-	} {
-		args := append([]string{"run", "--quiet"}, c.engine...)
+	for _, engine := range [][]string{nil, {"--strict-bytecode"}} {
+		args := append([]string{"run", "--quiet"}, engine...)
 		args = append(args, "--caps", "IO", "--entry", "main", "pins/mod_int_float.ail")
 		out, stderr, code := runAilangIn(t, bin, dir, args...)
-		if code == 0 || !strings.Contains(stderr, c.want) {
-			t.Errorf("%v: want a failure naming %q, got exit %d, stdout %q, stderr %q", c.engine, c.want, code, out, stderr)
+		if code != 0 || strings.TrimSpace(out) != "1.5" {
+			t.Errorf("%v: want 1.5 (7.5 %% 2.0), got exit %d, stdout %q, stderr %q", engine, code, out, stderr)
 		}
 	}
 }

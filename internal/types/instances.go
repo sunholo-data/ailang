@@ -128,6 +128,12 @@ func actionableInstanceHint(class string, typ Type) string {
 			return fmt.Sprintf("Arithmetic operators (+, -, *, /) need a Num type; %s is not numeric. Convert it (e.g. stringToInt, intToFloat); to join strings use \"${a}${b}\" interpolation.", ts)
 		}
 	case "Fractional":
+		if ts == "int" {
+			// When a #2378 rule made the value an int, the type checker
+			// appends which binding and where (numeric_diagnostics.go).
+			return "A float is needed here (a float literal such as 0.5, or float division), but this value is an int: " +
+				"convert it with intToFloat(x), or make it a float where it comes from."
+		}
 		return fmt.Sprintf("Float division (/) needs floats; %s is not Fractional. Convert ints with intToFloat, e.g. intToFloat(x) / intToFloat(y).", ts)
 	case "Ord":
 		return fmt.Sprintf("Comparisons (<, >, <=, >=) need an Ord instance; %s has none. Compare a supported type instead (int, float, string), e.g. a key field.", ts)

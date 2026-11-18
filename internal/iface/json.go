@@ -3,6 +3,7 @@ package iface
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -40,8 +41,13 @@ type FuncJSON struct {
 	// Constraints are the export's class constraints (#2290), e.g. "Ord[a]",
 	// with the same canonical variable names as Type. Omitted when none.
 	Constraints []string `json:"constraints,omitempty"`
-	Effects     []string `json:"effects"`
-	Pure        bool     `json:"pure"`
+	// Literals are the type variables (named as in Type) whose Num constraint
+	// carries an integer literal (#2378): the export is compiled once per
+	// numeric instance of them, and an importer names those variants from
+	// this. Omitted when none (a literal-free generic has one body for all).
+	Literals []string `json:"literals,omitempty"`
+	Effects  []string `json:"effects"`
+	Pure     bool     `json:"pure"`
 	// Tier (M-V1-STDLIB-SURFACE-POLISH §6.1): the module default, or
 	// "experimental" for an @experimental function. Present on every std
 	// function; outside std only when @experimental sets it.
@@ -127,7 +133,7 @@ func (i *Iface) ToNormalizedJSON() ([]byte, error) {
 		export := i.Exports[name]
 
 		// Format type with canonicalized variables
-		typeStr, constraints := canonicalizeSchemeParts(export.Type)
+		typeStr, constraints, literals := canonicalizeSchemeParts(export.Type)
 
 		// Extract and sort effects
 		effects := extractEffects(export.Type)
@@ -137,6 +143,7 @@ func (i *Iface) ToNormalizedJSON() ([]byte, error) {
 			Name:            name,
 			Type:            typeStr,
 			Constraints:     constraints,
+			Literals:        literals,
 			Effects:         effects,
 			Pure:            export.Purity,
 			Tier:            export.Tier,
@@ -207,10 +214,11 @@ func renderTypeAlias(target types.Type) string {
 // renamed a, b, c, … in order of appearance, and its class constraints with
 // the same naming, so "Ord[a]" names the a of the type (it replaces
 // canonicalizeType, which rendered the type alone). Constraints are sorted and
-// de-duplicated.
-func canonicalizeSchemeParts(scheme *types.Scheme) (string, []string) {
+// de-duplicated. The third result names the variables of Literal Num
+// constraints (#2378), sorted.
+func canonicalizeSchemeParts(scheme *types.Scheme) (string, []string, []string) {
 	if scheme == nil || scheme.Type == nil {
-		return "unknown", nil
+		return "unknown", nil, nil
 	}
 	varMap := make(map[string]string)
 	varCounter := 0
@@ -225,8 +233,17 @@ func canonicalizeSchemeParts(scheme *types.Scheme) (string, []string) {
 	}
 	typeStr := formatTypeCanonical(scheme.Type, getCanonName)
 	if len(scheme.Constraints) == 0 {
-		return typeStr, nil
+		return typeStr, nil, nil
 	}
+	var literals []string
+	for _, c := range scheme.Constraints {
+		if c.Literal && c.Class == "Num" {
+			if v := formatTypeCanonical(c.Type, getCanonName); !slices.Contains(literals, v) {
+				literals = append(literals, v)
+			}
+		}
+	}
+	sort.Strings(literals)
 	seen := make(map[string]bool, len(scheme.Constraints))
 	out := make([]string, 0, len(scheme.Constraints))
 	for _, c := range scheme.Constraints {
@@ -237,7 +254,7 @@ func canonicalizeSchemeParts(scheme *types.Scheme) (string, []string) {
 		}
 	}
 	sort.Strings(out)
-	return typeStr, out
+	return typeStr, out, literals
 }
 
 // maxTypeRenderDepth bounds formatTypeCanonical recursion so a cyclic types.Type

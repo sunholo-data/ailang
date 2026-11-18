@@ -242,7 +242,7 @@ func CanonicalizeScheme(s *Scheme) (*Scheme, []string) {
 	if len(s.Constraints) > 0 {
 		out.Constraints = make([]Constraint, len(cons))
 		for i, c := range cons {
-			out.Constraints[i] = Constraint{Class: c.Class, Type: renameSchemeVars(c.Type, rename)}
+			out.Constraints[i] = Constraint{Class: c.Class, Type: renameSchemeVars(c.Type, rename), Literal: c.Literal}
 		}
 		sort.SliceStable(out.Constraints, func(i, j int) bool {
 			a, b := out.Constraints[i], out.Constraints[j]

@@ -203,6 +203,7 @@ func typeCheckAndLowerModule(
 	// Each decl's own binding keeps full generalization under the
 	// integer-literal restriction (M-SOUND-NUMERIC-LITERALS).
 	typeChecker.SetModuleDeclarationMode(true)
+	typeChecker.SetNumericVariants(true) // #2378: planNumericVariants below
 	for i, decl := range unit.Core.Decls {
 		// InferWithConstraints returns the updated env with new bindings
 		var err error
@@ -316,6 +317,13 @@ func runPostTypeCheckPhases(
 	typeChecker *types.CoreTypeChecker,
 	cfg Config,
 ) error {
+	// #2378: the numeric variants of this module's generic bindings, copied
+	// from the type-checked program; installed after the effect checks below.
+	variants, err := planNumericVariants(unit.Core, typeChecker, unit.importedHas)
+	if err != nil {
+		return fmt.Errorf("type error in %s: %w", modID, err)
+	}
+
 	// Phase 3.4: Dictionary Elaboration (M-POLY-B)
 	// Transform operators (BinOp, UnOp) to dictionary applications (DictApp)
 	resolved := typeChecker.GetResolvedConstraints()
@@ -348,6 +356,17 @@ func runPostTypeCheckPhases(
 	// Compare declared effects from Surface AST with required effects from Core AST
 	if err := ValidateEffectsWithCalls(unit.Surface, unit.Core, typeChecker.CoreTI, typeChecker.ApplicationEffects, typeChecker.DeclaredLambdaEffectRow, typeChecker.EffectValueType); err != nil {
 		return fmt.Errorf("effect checking failed in %s: %w", loader.DeclaredModuleDisplay(modID, unit.Surface), err)
+	}
+
+	// #2378: insert the numeric variants (each declaration checked above is
+	// also each variant's: they differ only in numeric types) and rename the
+	// uses at float to them. This MUST run before the uniquifier: the copies
+	// are made from the type-checked names, and uniquifying first leaves a
+	// copy's shadowing locals unrenamed, so a use binds the wrong one and
+	// computes a wrong answer (`g(1.5)` gave 2.5, not 1.5; #2393 review 3).
+	// install refuses a uniquified program, so a reorder fails loudly.
+	if unit.Core, err = variants.install(unit.Core, typeChecker); err != nil {
+		return fmt.Errorf("type error in %s: %w", modID, err)
 	}
 
 	// Local names unique per declaration from here on (see pipeline_single.go,
@@ -474,6 +493,11 @@ func runPostTypeCheckPhases(
 			eraser := &DebugEraser{}
 			unit.Core = eraser.Erase(unit.Core)
 		}
+	}
+	// #2378: why an exported binding's variant is missing, for importers (set
+	// on the final program, which the passes above rebuild).
+	if variants != nil && len(variants.missing) > 0 && unit.Core != nil {
+		unit.Core.NumVariantMissing = variants.missing
 	}
 
 	return nil
