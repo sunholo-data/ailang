@@ -11,6 +11,7 @@ set -u
 REPO=/Users/voightkampff/dev/sunholo-data/ailang
 FT=$HOME/models/finetune
 RUN=${RUN:?set RUN}; RANK=${RANK:-32}; EPOCHS=${EPOCHS:-2}
+SCALE=${SCALE:-$(python3 -c "print(320/$RANK)")}
 MIX=${MIX:-$FT/mix-pilot5a}
 P5=$FT/pilot5/$RUN
 BASE=$HOME/models/gemma-4-12B-it-4bit
@@ -29,9 +30,16 @@ stage_train(){
   need_disk train 10
   local n iters upd rc
   n=$(wc -l < "$MIX/train.jsonl" | tr -d ' '); iters=$(( n * EPOCHS )); upd=$(( iters / 4 ))
-  sed -e "s/__ITERS__/$iters/" -e "s/__UPDATES__/$upd/" -e "s/__RANK__/$RANK/" tools/finetune/pilot5.yaml > "$P5/resolved.yaml"
-  log "train: $n samples x $EPOCHS epochs = $iters iterations, rank $RANK, mix $MIX"
-  "$PY" -I tools/finetune/train2.py -c "$P5/resolved.yaml" --model "$BASE" --data "$MIX" --adapter-path "$P5/adapters" > "$P5/train.log" 2>&1
+  sed -e "s/__ITERS__/$iters/" -e "s/__UPDATES__/$upd/" -e "s/__RANK__/$RANK/" -e "s/__SCALE__/$SCALE/" tools/finetune/pilot5.yaml > "$P5/resolved.yaml"
+  log "train: $n samples x $EPOCHS epochs = $iters iterations, rank $RANK, scale $SCALE, mix $MIX"
+  "$PY" -I tools/finetune/train2.py -c "$P5/resolved.yaml" --model "$BASE" --data "$MIX" --adapter-path "$P5/adapters" > "$P5/train.log" 2>&1 &
+  local tp=$!
+  # Divergence guard: run b sat at a loss of 7 for six hours before anyone looked (2026-11-18).
+  ( while kill -0 $tp 2>/dev/null; do sleep 300
+      l=$(sed 's/\x1b\[[0-9;]*m//g' "$P5/train.log" | tr '\r' '\n' | awk '$1+0>=100 && $2+0>0 {v=$2} END{print v+0}')
+      if awk -v l="$l" 'BEGIN{exit !(l>3)}'; then log "DIVERGED: training loss $l, stopping"; kill $tp; fi
+    done ) &
+  wait $tp
   rc=$?
   sed 's/\x1b\[[0-9;]*m//g' "$P5/train.log" | tr '\r' '\n' | grep -E " Val | val |Saved" | tail -8 | tee -a "$LOG"
   [ $rc = 0 ] && [ -f "$P5/adapters/adapters.safetensors" ] || die "training failed rc=$rc"
