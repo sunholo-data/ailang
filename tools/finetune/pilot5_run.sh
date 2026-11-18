@@ -5,7 +5,8 @@
 #
 #   train   train2.py, fresh adapter on the 4-bit base (GPU, rig lock)
 #   serve   fuse -> strip audio config -> ollama create gemma4-12b-ailang-p5$RUN
-#   test    single-shot language test, three prompts (pilot5_baseline.sh)
+#   indist  held-back repository tasks: does the answer compile? (indist_test.py; MODELS="name[:limit] ...")
+#   test    single-shot language test, three prompts (pilot5_baseline.sh; ARMS="none slim" to pick)
 set -u
 REPO=/Users/voightkampff/dev/sunholo-data/ailang
 FT=$HOME/models/finetune
@@ -51,6 +52,17 @@ EOP
   log "served: $NAME"
 }
 
+stage_indist(){
+  local spec m lim
+  for spec in ${MODELS:-$NAME}; do
+    m=${spec%%@*}; lim=0; case $spec in *@*) lim=${spec##*@};; esac
+    for pr in none slim; do
+      "$PY" -I tools/finetune/indist_test.py --desc "$FT/data-p5/desc.jsonl" --model "$m" --prompt "$pr" \
+        --prompts "$FT/evalroot/prompts" --out "$FT/pilot5/indist.$(echo "$m" | tr ':/' '__').$pr.jsonl" --limit "$lim" 2>&1 | tail -1 | tee -a "$LOG"
+    done
+  done
+}
+
 stage_test(){
   # The lane lives only in this run's models file: a copy of the untrained lane with the model swapped.
   "$PY" -I - "$REPO/internal/modelreg/models.yml" "$P5/models.yml" "$LANE" "$NAME" <<'EOP'
@@ -61,7 +73,7 @@ blk=s[i:j].replace("  ollama-gemma4-12b:",f"  {lane}:",1).replace('api_name: "ge
 k=s.index("\nmodels:\n")+len("\nmodels:\n")
 open(out,"w").write(s[:k]+blk+s[k:])
 EOP
-  AILANG_MODELS_PATH="$P5/models.yml" tools/finetune/pilot5_baseline.sh "$LANE" "${TRIALS:-3}" 2>&1 | tee -a "$LOG"
+  AILANG_MODELS_PATH="$P5/models.yml" tools/finetune/pilot5_baseline.sh "$LANE" "${TRIALS:-3}" "" "${ARMS:-none slim full}" 2>&1 | tee -a "$LOG"
 }
 
 # One lock for the whole run; the rotation filler is asked to step aside at its next checkpoint.
