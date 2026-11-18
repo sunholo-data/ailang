@@ -91,6 +91,15 @@ type numericVariantState struct {
 // type decided by its uses, so it never runs an int body at float.
 func (tc *CoreTypeChecker) SetNumericVariants(on bool) { tc.variantsPlanned = on }
 
+// isModuleDeclBinder reports whether binder is the module declaration being
+// checked, in a declaration's shape (core.IsModuleDecl). A top-level
+// expression (a module-less file's `let inc = \x. x + 1 in inc(2.5)`) is not
+// one: its lets are inner lets, copied per use inside it, since only the
+// expression itself is evaluated.
+func (tc *CoreTypeChecker) isModuleDeclBinder(ctx *InferenceContext, binder core.CoreExpr) bool {
+	return ctx != nil && tc.moduleDeclMode && binder != nil && ctx.declRoot == binder && core.IsModuleDecl(binder)
+}
+
 // copiesPerUse reports whether binder is a let-bound function this check
 // copies per use (specialisableLet, inside a module declaration of a caller
 // that compiles variants).
@@ -204,7 +213,7 @@ func (tc *CoreTypeChecker) noteNumericDecl(ctx *InferenceContext, binder core.Co
 	if len(vars) == 0 {
 		return
 	}
-	declared := tc.moduleDeclMode && ctx.declRoot == binder
+	declared := tc.isModuleDeclBinder(ctx, binder)
 	if !declared && !tc.copiesPerUse(ctx, binder) {
 		return
 	}
@@ -261,11 +270,14 @@ func specialisableLet(binder core.CoreExpr) bool {
 	return false
 }
 
-// endsInLambda reports whether e is a lambda, or lets whose body is one.
+// endsInLambda reports whether e is a lambda or a name (an alias of a
+// function: `let f = g`, `let f = inc`), or lets whose body is one. A name
+// that is not a function has no parameter positions, so treating it as one
+// changes nothing.
 func endsInLambda(e core.CoreExpr) bool {
 	for depth := 0; depth < 256; depth++ {
 		switch x := e.(type) {
-		case *core.Lambda:
+		case *core.Lambda, *core.Var, *core.VarGlobal:
 			return true
 		case *core.Let:
 			e = x.Body
@@ -689,7 +701,7 @@ func NumVariantBase(name string) (string, bool) {
 // function in the result takes (`func mk() = \x. x + 1`). In a recursive
 // group, a parameter position of any member's. nil for any other binder.
 func (tc *CoreTypeChecker) declResultOnlyVars(ctx *InferenceContext, binder core.CoreExpr, sub Substitution, constraints []ClassConstraint, valueTypes ...Type) map[string]bool {
-	if ctx == nil || !tc.moduleDeclMode || binder == nil || ctx.declRoot != binder {
+	if ctx == nil || !tc.isModuleDeclBinder(ctx, binder) {
 		return nil
 	}
 	lit := map[string]string{} // variable → where its first literal is

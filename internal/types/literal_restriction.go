@@ -52,7 +52,7 @@ func (tc *CoreTypeChecker) literalWithhold(ctx *InferenceContext, binder core.Co
 	if ctx == nil {
 		return nil
 	}
-	if tc.moduleDeclMode && binder != nil && ctx.declRoot == binder {
+	if tc.isModuleDeclBinder(ctx, binder) {
 		return nil
 	}
 	vars := literalConstrainedVars(constraints)

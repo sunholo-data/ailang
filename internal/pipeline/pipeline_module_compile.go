@@ -360,8 +360,11 @@ func runPostTypeCheckPhases(
 
 	// #2378: insert the numeric variants (each declaration checked above is
 	// also each variant's: they differ only in numeric types) and rename the
-	// uses at float to them. Before the uniquifier, so the copies get unique
-	// local names too.
+	// uses at float to them. This MUST run before the uniquifier: the copies
+	// are made from the type-checked names, and uniquifying first leaves a
+	// copy's shadowing locals unrenamed, so a use binds the wrong one and
+	// computes a wrong answer (`g(1.5)` gave 2.5, not 1.5; #2393 review 3).
+	// install refuses a uniquified program, so a reorder fails loudly.
 	if unit.Core, err = variants.install(unit.Core, typeChecker); err != nil {
 		return fmt.Errorf("type error in %s: %w", modID, err)
 	}

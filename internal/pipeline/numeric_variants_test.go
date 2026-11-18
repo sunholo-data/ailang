@@ -239,3 +239,19 @@ func keys(m map[string]bool) []string {
 	sort.Strings(out)
 	return out
 }
+
+// install runs on the type-checked names; a program core.UniqueProgramLocals
+// already renamed is refused, so a reordered pipeline fails loudly instead of
+// computing wrong answers (#2393 review 3).
+func TestNumericVariants_InstallRefusesUniquifiedProgram(t *testing.T) {
+	prog := core.UniqueProgramLocals(&core.Program{})
+	var none *numericVariants
+	for _, p := range []*numericVariants{none, {}} {
+		if _, err := p.install(prog, types.NewCoreTypeChecker()); err == nil || !strings.Contains(err.Error(), "before core.UniqueProgramLocals") {
+			t.Errorf("install on a uniquified program: %v", err)
+		}
+	}
+	if out, err := none.install(&core.Program{}, types.NewCoreTypeChecker()); err != nil || out == nil {
+		t.Errorf("install on a fresh program: %v", err)
+	}
+}

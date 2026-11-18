@@ -433,6 +433,9 @@ func (t *TuplePattern) String() string {
 type ProgramFlags struct {
 	Lowered bool // Set after OpLowering pass
 	Linked  bool // Set after linking
+	// LocalsUnique is set by UniqueProgramLocals. Passes that work on the
+	// type-checked names (numeric variants, #2378) must run before it.
+	LocalsUnique bool
 }
 
 // Program represents a Core program

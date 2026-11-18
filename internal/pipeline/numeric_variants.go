@@ -132,7 +132,14 @@ func planNumericVariants(prog *core.Program, tc *types.CoreTypeChecker, imported
 			names[m] = m
 		}
 		c := &variantCloner{tc: tc, sigma: types.Substitution{}, next: &p.next, use: p.use}
-		cp, err := c.decl(decl, names, declBindingNames(decl))
+		var cp core.CoreExpr
+		var err error
+		if core.IsModuleDecl(decl) {
+			cp, err = c.decl(decl, names, declBindingNames(decl))
+		} else {
+			// A top-level expression is copied whole, its body included.
+			cp, err = c.expr(decl, nil), c.err
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -396,6 +403,14 @@ func (p *variantPlanner) generate(g *variantGroup, mask int) error {
 // type-checked ones (ElaborateWithDictionaries keeps atoms), so the renames
 // apply by node id.
 func (p *numericVariants) install(prog *core.Program, tc *types.CoreTypeChecker) (*core.Program, error) {
+	// The plan names nodes and bindings as the type checker saw them; after
+	// core.UniqueProgramLocals a variant's copied body would keep the original
+	// (shadowing) local names inside a renamed program, and a use could bind
+	// to the wrong local: a wrong answer, not an error (#2393 review 3). So the
+	// order is enforced, not just documented.
+	if prog != nil && prog.Flags.LocalsUnique {
+		return nil, fmt.Errorf("numeric variant: internal error: variants must be installed before core.UniqueProgramLocals renames the program's locals")
+	}
 	if p == nil {
 		return prog, nil
 	}

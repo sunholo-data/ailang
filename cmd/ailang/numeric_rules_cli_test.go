@@ -149,7 +149,8 @@ export func main() -> () ! {IO} {
   println("${show(h(2))} ${show(h(2.5))}");
   println(show(dv(2)))
 }
-`, "ct.ail": `module ct
+`, "nomod.ail": "let inc = \\x. x + 1 in (inc(2.5), inc(inc(2.5)), inc(2))\n",
+		"ct.ail": `module ct
 func inc(x) requires { x > 0 } = x + 1
 export func main() -> () ! {IO} {
   let h = \u. inc(u);
@@ -163,6 +164,8 @@ export func main() -> () ! {IO} {
 		{"run", "--quiet", "--caps", "IO", "--entry", "main", "--strict-bytecode", "lk.ail"},
 		{"run", "--quiet", "--caps", "IO", "--entry", "main", "--verify-contracts", "ct.ail"},
 		{"run", "--quiet", "--caps", "IO", "--entry", "main", "--emit-trace", "jsonl", "--trace-tier", "deep", "ct.ail"},
+		{"run", "--quiet", "--caps", "IO", "nomod.ail"},
+		{"run", "--quiet", "--caps", "IO", "--strict-bytecode", "nomod.ail"},
 	} {
 		r := ailangIn(t, bin, dir, args...)
 		all = append(all, r.out)
@@ -171,9 +174,77 @@ export func main() -> () ! {IO} {
 		}
 	}
 	joined := strings.Join(all, "\n")
-	for _, want := range []string{"7 8.0", "division by zero", "requires failed in inc", `"name":"h"`, `"name":"inc"`} {
+	for _, want := range []string{"7 8.0", "division by zero", "requires failed in inc", `"name":"h"`, `"name":"inc"`, "(3.5, 4.5, 3)"} {
 		if !strings.Contains(joined, want) {
 			t.Errorf("expected %q in the outputs:\n%s", want, joined)
 		}
 	}
+}
+
+// runThree is runBoth plus the non-strict bytecode engine.
+func runThree(t *testing.T, bin, dir, file, want string) {
+	t.Helper()
+	runBoth(t, bin, dir, file, want)
+	runBoth(t, bin, dir, file, want, "--bytecode")
+}
+
+// #2393 review 3, item 1: numeric variants are installed before local names
+// are uniquified. In the other order a variant's copy keeps the type-checked
+// (shadowing) names inside a renamed program, and g(1.5) printed 2.5 and
+// h(2.5) 102.5 on every engine (pipeline_module_compile.go; install refuses a
+// uniquified program).
+func TestNumericRules_VariantsBeforeUniqueLocals(t *testing.T) {
+	bin := buildAilang(t)
+	dir := writeTree(t, map[string]string{"order.ail": `module order
+pure func g(k) = { let f = \x. k + 0; match Some(k + 1) { Some(k) => f(0), None => k } }
+pure func h(k) = { let f = \x. k * 1; let r = { let k = k + 100; f(1) }; r }
+export func main() -> () ! {IO} = println("${show(g(1))} ${show(g(1.5))} ${show(h(2))} ${show(h(2.5))}")
+`})
+	runThree(t, bin, dir, "order.ail", "1 1.5 2 2.5")
+}
+
+// Item 2: a file with no module line runs its expression, so a let-bound
+// function in it is copied per use inside the expression and gives the
+// module's answer (it named an unbound inc$numF before).
+func TestNumericRules_FileWithoutModule(t *testing.T) {
+	bin := buildAilang(t)
+	dir := writeTree(t, map[string]string{
+		"e1.ail": "let inc = \\x. x + 1 in (inc(6) / 2, inc(2.5), inc(inc(2.5)))\n",
+		"e2.ail": "let k = 3 in (k * 2, k * 0.5)\n",
+	})
+	for _, c := range [][2]string{{"e1.ail", "(3, 3.5, 4.5)"}, {"e2.ail", "(6.0, 1.5)"}} {
+		for _, engine := range [][]string{nil, {"--strict-bytecode"}} {
+			args := append(append([]string{"run", "--quiet", "--caps", "IO"}, engine...), c[0])
+			r := ailangIn(t, bin, dir, args...)
+			r.want(t, c[0], 0)
+			if strings.TrimSpace(r.out) != c[1] && !strings.Contains(r.out, "\n"+c[1]+"\n") {
+				t.Errorf("%s %v: want %s, got %q", c[0], engine, c[1], r.out)
+			}
+		}
+	}
+}
+
+// Item 3: a name for a function is that function. An alias of a top-level,
+// an imported or a let-bound function, directly or as the last expression of
+// a block of values, gets the per-use treatment, like the function itself.
+func TestNumericRules_AliasOfAFunction(t *testing.T) {
+	bin := buildAilang(t)
+	use := "println(\"${show(f(6))} ${show(f(6) / 2)} ${show(f(2.5))}\")"
+	files := map[string]string{"lib/u.ail": "module lib/u\nexport func inc(x) = x + 1\n"}
+	forms := map[string]string{
+		"top":      "let f = g",
+		"imported": "let f = inc",
+		"blockTop": "let f = { let k = 0; g }",
+		"blockLet": "let f = { let h = \\x. x + 1; h }",
+		"blockRec": "let f = { letrec h = \\x. if x > 100 then x else x + 1; h }",
+	}
+	for name, bind := range forms {
+		files[name+".ail"] = "module " + name + "\nimport lib/u (inc)\nfunc g(x) = x + 1\nexport func main() -> () ! {IO} {\n  " + bind + ";\n  " + use + "\n}\n"
+	}
+	files["typed.ail"] = "module typed\nfunc g(x) = x + 1\nexport func main() -> () ! {IO} {\n  let f = g;\n  let n: int = 6;\n  println(\"${show(f(n))} ${show(f(2.5))}\")\n}\n"
+	dir := writeTree(t, files)
+	for name := range forms {
+		runBoth(t, bin, dir, name+".ail", "7 3 3.5")
+	}
+	runBoth(t, bin, dir, "typed.ail", "7 3.5")
 }

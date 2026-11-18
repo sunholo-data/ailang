@@ -28,12 +28,25 @@ of values ending in a lambda, or a `letrec` of one such binding. Each use gets i
 whether the literal is the function's own or a callee's:
 - `let f = \x. x + 1` gives `f(2) == 3` and `f(2.5) == 3.5`;
 - `let g = { let k = 1; \u. inc(u) }` behaves the same way;
-- so does `letrec s = \n. if n <= 0 then 0 else n + s(n - 1)`.
+- so does `letrec s = \n. if n <= 0 then 0 else n + s(n - 1)`;
+- so does a name for a function: `let f = g`, `let f = inc` (imported), and
+  `let f = { let h = \x. x + 1; h }`.
+
+A file with no `module` line runs its expression the same way: `let inc = \x. x + 1 in inc(2.5)`
+is `3.5`, where it used to fail at run time.
 
 The same body now behaves the same as a top-level function, a let-bound lambda, a block-bound
-lambda, and when imported. A binding whose value is computed (`if … then \u. … else …`, a call)
-is a single value: its uses decide its one type. Calling it at both `int` and `float` is a
+lambda, an alias, and when imported.
+
+A binding whose value is computed is a single value whose uses decide its one type. That covers
+a partial application (`add(0)`), a function returned by a call, an `if` or `match` choosing a
+lambda, and a record or tuple holding one. Calling it with a typed `int` and with a `float` is a
 located check error that says exactly that, instead of a crash or a silently wrong number.
+LIMITATIONS lists these forms and the workaround (`let f = \y. add(0)(y)`).
+
+The REPL and the playground load modules through a second pipeline that does not compile
+variants yet (#2410). There, a top-level generic function with a literal still fails at float,
+as it did before.
 
 The exception #2364 kept is gone. It was `literalAtDecl`: `func f(p) = {p | x: p.x + 1}` used at
 float gave `No instance for Fractional[int]`. That function now runs at float.
