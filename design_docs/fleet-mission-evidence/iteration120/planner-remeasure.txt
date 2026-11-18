@@ -1,0 +1,43 @@
+CLAUDE-ONLY perf-sweep
+CLAUDE-ONLY simplicity-audit
+CONTENT agent-inbox residual=4
+CONTENT ailang-packages residual=43
+CONTENT benchmark-manager residual=20
+CONTENT cli-doc-maintainer residual=206
+CONTENT design-doc-creator residual=109
+CONTENT docs-sync residual=22
+CONTENT microrag residual=6
+CONTENT model-manager residual=32
+CONTENT motoko-analyzer residual=2
+CONTENT post-release residual=387
+IDENTICAL _shared
+IDENTICAL ailang-core-triage
+IDENTICAL cloud-setup
+IDENTICAL codebase-organizer
+IDENTICAL collaboration-hub
+IDENTICAL design-spec-auditor
+IDENTICAL mission-brief
+IDENTICAL mission-control
+IDENTICAL mission-loop-change
+IDENTICAL release-manager
+IDENTICAL sonarcloud-triage
+IDENTICAL sprint-evaluator
+IDENTICAL sprint-executor
+IDENTICAL sprint-planner
+IDENTICAL test-coverage-guardian
+IDENTICAL trace-debugger
+IDENTICAL wasm-debugger
+RENAME-ONLY benchmark-runner
+RENAME-ONLY builtin-developer
+RENAME-ONLY cloud-cascade-debug
+RENAME-ONLY coordinator-helper
+RENAME-ONLY eval-analyzer
+RENAME-ONLY eval-gap-finder
+RENAME-ONLY gemini-cli-helper
+RENAME-ONLY github-issue-triage
+RENAME-ONLY local-model-onboarding
+RENAME-ONLY local-ollama-eval
+RENAME-ONLY parser-developer
+RENAME-ONLY pr-monitor
+RENAME-ONLY prompt-manager
+RENAME-ONLY use-ailang

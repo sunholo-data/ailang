@@ -1283,3 +1283,96 @@ Each replied to its filer.
 - Executor: resolver `recipe claude:claude-haiku-5-5 declared:provider-pin` → `claude-sub -p --model claude-haiku-5-5`, probe rc 0. r1 rc 0 (9,569 output tok), r2 rc 0 (5,799 output tok).
 - Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 1 spawn plus 1 resume (61,179 + 65,521 tok). Judge independence: cross-model (planner and controller opus, executor haiku, judge sonnet; same vendor).
 - Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
+
+## 120 — 2026-11-18 — D-FLEET-36 A + D-FLEET-38 A guard arm BUILT, not landed: rebuilt fresh as #2413 (supersedes draft #2108; judge sonnet PASS 93); merge waits on dev's inherited required `test` red [HARNESS]
+
+**Pick**: queue rows 51/53 (`skill:design-doc-creator-grep-portability`, D-FLEET-36 A, and `skills:agents-copies-stale-non-mission`, D-FLEET-38 A; both ruled by Mark attended 2026-11-16). This is iteration 119's **Next**: its first branch (land #2411) was still blocked, since dev did not move and the attended pi_assets sync is not on the branch.
+- 0 allowlisted directives on #2341 (7 comments).
+- CLAIM sent before routing (`inbox_1794978645722_e8eeb66d`).
+- Already-landed check: since `007809894` the only commit touching `pre-push` or the scope test is `97e792147` (#2382, D-FLEET-18). No open PR other than draft #2108 names these rows.
+- Critical path: clause 2 is UNMET. Row 41 is attended-gated, so these are the next routable rows that move it.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN.
+- Skill drift: resolved copy and pin copy both match origin/dev on every file (silent per-file loop over SKILL.md + resources).
+- Gate 0 self-notice: watermark form rc 2 (twenty-fourth fire; neither watermark file exists). Not a verdict.
+- Gate 1 base `022f68f1a8fd29f501df52a772db4710b9802cee@2026-11-18T05:09:20Z`, the same as iteration 119.
+- Dev CI on it is unchanged: RED, 21 checks, 6 not green, all on `TestCloudAgents_RegistryMatchesTheDeletedRoutingTable` (attended `8e04a29c5`; handed to the `user` inbox by iteration 119). Not re-handed.
+- Tickets: 19 open, the same list as iteration 119.
+- Records 95–119 sit on the stacked record PRs (newest #2412). This record stacks on it.
+
+**Did** (generator ≠ judge):
+- **Reality check (controller)**: all 8 `grep -E "^\d+\."` sites are still at HEAD.
+  - The rename-only set was re-measured with iteration 74's normaliser over all 41 paired skills: 17 identical, 14 rename-only, 10 content.
+  - Of the ruling's 16, 14 are still rename-only. `collaboration-hub` and `trace-debugger` are now byte-identical (both copies edited by attended `a6868eecb`, 11-10). The arm keeps all 16, per "exactly those 16". An identical pair still needs the arm: once it is in the sync list, an edit to the `.claude` copy needs a re-sync push.
+  - `headless-runner` (a content-class skill) has been deleted; `microrag` is a new content-class pair.
+  - The cherry-pick of `bcf7f97ac` conflicts in the scope test and the charter, at #2382's lines.
+- **Designer**: not spawned. The diff was pre-specified (#2108) and ruled. A routing outcome, not a spawn failure. Rotation pointer unchanged.
+- **Planner**, opus (Agent tool, `MISSION-ROLE: planner`, foreground, 125,492 tok, 44 tool uses, 750 s): [plan](fleet-mission-evidence/iteration120/plan.md).
+  - Conflict resolution: keep #2382's D-FLEET-18 lines first.
+  - Five changes beyond the cherry-pick: changelogs re-dated and reworded "ruled A"; charter Authority lines after D-FLEET-18; pre-push comment "rename-only or identical"; one duplicate test label; a NEW loop asserting every other `.agents` skill stays refused, with a minimum count. #2108's own test let `agent-inbox`, `release-manager` and `codebase-organizer` through as a 17th arm.
+  - Mutants: 17/17 killed. `make test-launchd-drivers`: 58/58 (386 s).
+  - Corrected the controller's attribution of the identical pairs: the change is `a6868eecb`, not `f9ffb99c8`/`87f77e13e`.
+- **Executor**, `claude:claude-haiku-5-5` via `claude-sub` (probe rc 0, 11 s; billing CLEAN; bash deadline watchdog, 1500 s cap). rc 0 in 73 s, 10 turns, 7,219 output tok.
+  - Commit `8e78d4ad8`, applied with `git apply`.
+  - G1 scope test, G2 `mission_decisions.sh --check`, G3 `sync-agents-skills.sh --check` and G4 `git diff --check`: all rc 0.
+  - Mutants (a)/(b)/(c): 3/3 killed.
+- **Controller checks**: the commit's changed lines equal the patch's (sorted `cmp`). G1 rc 0. Hand mutants: drop the `eval-gap-finder` arm → rc 1; drop the D-FLEET-36 line → rc 1.
+- **Judge**, sonnet (Agent tool, `MISSION-ROLE: evaluator`, foreground, own detached worktree at `8e78d4ad8`, 62,578 tok, 458 s): **PASS 93**, 0 blocking. [Evaluation](fleet-mission-evidence/iteration120/judge-r1.md).
+  - Fidelity holds: `_scope_is_harness` is unchanged and v1 keeps all new paths.
+  - Charter Authority matches the guard (programmatic diff).
+  - Premise re-derived with its own normaliser: 16/16 have zero residual.
+  - origin/dev's pinned guard admits all 5 touched paths.
+  - `changelog_fold.sh --check` rc 0; `make test-launchd-drivers` 58/58 (401 s).
+  - 12/12 of its own mutants killed.
+- **PR**: branch pushed through the pinned guard (rc 0), opened as **#2413**, head `8e78d4ad8`, 0 closing keywords. Draft #2108 got a superseded comment (count 0 → 1) and is left open until #2413 merges.
+
+**Gate 3b**:
+- #2413 head `8e78d4ad8`: 23/23 check-runs complete (poll pinned to the SHA, 30 min cap).
+- Green: `launchd drivers (bash 3.2)` (the job that runs this change's tests), `checks`, `lint`, `build`, `docs-gate`, `govulncheck`, CodeQL, float determinism.
+- Red, 6 runs: `test`, `test-windows`, `Build ubuntu-latest`, `Build windows-latest`, 2× `Build macos-latest`. Every one fails ONLY on `TestCloudAgents_RegistryMatchesTheDeletedRoutingTable`.
+  - Logs were fetched ANSI-stripped and sized: 82 KB–5.8 MB.
+  - Control: 169 `ok` package lines in each test log, and 23–24k `--- PASS` lines in each Build log. The only `FAIL` package is `internal/coordinator`.
+  - This is the base red at `022f68f1a`. This diff has no Go.
+- **NOT LANDED.** Tickets stay open. Park class: dev's red is attended (D-FLEET-17 A) and already handed. Not a new decision, so it does not go in DECISIONS.
+
+**Ruled out**:
+- Cherry-picking #2108 verbatim: it conflicts with #2382, and its test let a 17th skill through.
+- Pushing the 8-site edit or the sync-list extension in the same PR: the iteration-16 rule (the pinned guard refuses those paths until this arm is on origin/dev).
+- Trimming the arm to 14: the ruling says "exactly those 16".
+- Working dev's `test` red: outside fleet scope (D-FLEET-17 A); already handed.
+- Closing #2108 now: it stays open until #2413 merges.
+- Re-handing the red: no new information.
+
+**Observations (not ticketed; the fleet does not self-source)**:
+- (a) `release-manager` is in `sync-agents-skills.sh`'s list (`95061c37f`), but the guard refuses `.agents/skills/release-manager` for the fleet. So a fleet re-sync of it cannot push. This came from the planner and is reported for Mark. No ruling admits it, so the new test keeps it refused.
+- (b) Dev's required `test` red now blocks three fleet PRs (#2411, #2413 and the record stack), unchanged since `8e04a29c5`.
+- (c) Self-notice watermark form rc 2, twenty-fourth consecutive fire.
+
+**Retro lane**: no skill edit this fire. Friction: the record-stack-behind-a-red pattern (iterations 119 and 120) is iteration 39's rule working as written. It is not a new gap.
+
+**Progress**: 19 open tickets, unchanged (built, not resolved). Clause 2 not moved this fire. Clause 1 UNMEASURED; 3 MET; 4 met by its letter; 5 preserved (the done-gate is owed at landing; `make test-launchd-drivers` already 58/58 ×2).
+
+**Validation**: darwin/arm64, bash 3.2.57 (`/bin/bash`).
+- `test_mission_scope_guard.sh` rc 0 (executor, controller, judge).
+- `make test-launchd-drivers` 58/58 (planner, judge).
+- Mutants: planner 17/17, executor 3/3, controller 2/2, judge 12/12.
+- PR CI as above.
+- Record checks: `mission_decisions.sh --check` (44 rows); STATUS rotation arithmetic 416 → 416 plus an archive grep (`ITERATION 117` → 1, control `ITERATION 116` → 1); `mission_routing_models_check.sh` on entry 120; `go test ./internal/mission/ -run Canonical`.
+
+**Budget**: metered **$0** (subscription lanes).
+- Planner opus 125,492 tok.
+- Executor haiku 7,219 output tok (CLI self-report $0.017, not billed).
+- Evaluator sonnet 62,578 tok.
+- Controller `claude:claude-opus-5-5`: tok not reported.
+- No quorum (no new doc).
+
+**Next**: when dev's `test` is green, land #2413 (then retire draft #2108) and #2411 (after the attended pi_assets sync). After #2413 is on origin/dev, push the 8-site `[0-9]` edit and the sync-list extension (`sync-agents-skills.sh` SKILLS + `test_agents_skills_sync.sh`) on a fresh branch. Run the done-gate, then resolve both tickets. Otherwise D-42's fleet half (drafts #2141–#2150). Row 58 stays open (retire-or-own not ruled).
+
+**Routing evidence**: base=022f68f1a8fd29f501df52a772db4710b9802cee@2026-11-18T05:52:15Z (Gate-4 read; equal to the Gate-1 read, drift rc 0).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5 declared:provider-pin`. **Not spawned**: the diff was pre-specified and ruled. Rotation pointer unchanged (`claude:claude-opus-5-5`).
+- Planner: `derive-planner-lane.sh` → `opus fail-closed:env-pin`; resolver `agent-tool opus fail-closed:env-pin`. Agent tool `model=opus`, `MISSION-ROLE: planner`, foreground, 125,492 tok.
+- Executor: resolver `recipe claude:claude-haiku-5-5 declared:provider-pin` → `claude-sub -p --model claude-haiku-5-5`, probe rc 0; run rc 0 (7,219 output tok).
+- Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 1 spawn (62,578 tok). Judge independence: cross-model (planner and controller opus, executor haiku, judge sonnet; same vendor).
+- Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `opus`; `executor`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`75` — quota UNREADABLE (not measured — the lane may be fine;  see `ailang mission quota`)) → handed to `claude:claude-haiku-5-5`
