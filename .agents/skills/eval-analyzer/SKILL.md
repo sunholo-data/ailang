@@ -14,7 +14,7 @@ Secondary: Analyze eval baseline results, compare model performance, track succe
 **Language gap analysis** (most valuable):
 ```bash
 # Find what stdlib/prompt improvements would help agents
-.Codex/skills/eval-analyzer/scripts/find_language_gaps.sh eval_results/baselines/v0.6.2
+.claude/skills/eval-analyzer/scripts/find_language_gaps.sh eval_results/baselines/v0.6.2
 
 # Output shows:
 # - Functions agents searched for but couldn't find
@@ -38,10 +38,10 @@ Secondary: Analyze eval baseline results, compare model performance, track succe
 **For agent evaluation analysis** (NEW - optimization focus):
 ```bash
 # Step 1: Get efficiency metrics (turns, tokens, cost)
-.Codex/skills/eval-analyzer/scripts/agent_kpis.sh eval_results/baselines/v0.3.24
+.claude/skills/eval-analyzer/scripts/agent_kpis.sh eval_results/baselines/v0.3.24
 
 # Step 2: Investigate expensive benchmarks
-.Codex/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/baselines/v0.3.24 simple_print
+.claude/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/baselines/v0.3.24 simple_print
 
 # Step 3: Compare Python vs AILANG
 ./tools/compare_agents.sh eval_results/baselines/v0.3.24
@@ -52,10 +52,10 @@ Secondary: Analyze eval baseline results, compare model performance, track succe
 **Tier- and tag-aware analysis (v0.14.0+):**
 ```bash
 # Per-tier pass rates + per-tag deltas + AILANG-only wins (one shot)
-.Codex/skills/eval-analyzer/scripts/category_analysis.sh eval_results/baselines/v0.13.0
+.claude/skills/eval-analyzer/scripts/category_analysis.sh eval_results/baselines/v0.13.0
 
 # Saturation + refusal detection + tier-promotion signal
-.Codex/skills/eval-analyzer/scripts/benchmark_health.sh eval_results/baselines/v0.13.0
+.claude/skills/eval-analyzer/scripts/benchmark_health.sh eval_results/baselines/v0.13.0
 
 # The primitives above wrap these CLI flags (added in M-EVAL-SUITE-PREP):
 ailang eval-matrix <dir> <ver> --by-tags         # per-tag AILANG vs Python delta
@@ -224,12 +224,12 @@ ailang eval-compare eval_results/baselines/v0.3.15 eval_results/baselines/v0.3.1
 **Use this for accurate version comparisons!** The `eval-compare` command may include duplicates or different model sets. This script normalizes data for apple-to-apples comparison.
 
 ```bash
-.Codex/skills/eval-analyzer/scripts/fair_comparison.py
+.claude/skills/eval-analyzer/scripts/fair_comparison.py
 ```
 
 **What it does:**
 - Deduplicates runs (keeps last run per benchmark+model)
-- Filters to dev models only (gpt5-mini, Codex-haiku-4-5, gemini-2-5-flash)
+- Filters to dev models only (gpt5-mini, claude-haiku-4-5, gemini-2-5-flash)
 - AILANG only (ignores Python results)
 - Shows net fixes vs regressions
 - Per-model breakdown
@@ -298,7 +298,7 @@ Agent eval captures full tool/chat data per executor:
 
 | Executor | Query | Data |
 |----------|-------|------|
-| **Codex** | `ailang chains view <id> --spans` | Full conversation via JSONL import (tool inputs, thinking, tool results) |
+| **Claude** | `ailang chains view <id> --spans` | Full conversation via JSONL import (tool inputs, thinking, tool results) |
 | **Gemini** | `ailang chains view <id> --spans` | Streaming tool capture (tool names, inputs, outputs) |
 
 ### Legacy File-Based Agent Analysis
@@ -310,7 +310,7 @@ For older agent eval results stored as JSON files (pre-v0.8.0):
 Shows efficiency metrics for agent runs - **key for optimizing language and prompts**.
 
 ```bash
-.Codex/skills/eval-analyzer/scripts/agent_kpis.sh eval_results/WITH_ALL_FIXES
+.claude/skills/eval-analyzer/scripts/agent_kpis.sh eval_results/WITH_ALL_FIXES
 ```
 
 **Goal**: Minimize agent turns and tokens → indicates clearer prompts and simpler language.
@@ -318,9 +318,9 @@ Shows efficiency metrics for agent runs - **key for optimizing language and prom
 ### 2. Agent Transcripts - View AILANG Conversations
 
 ```bash
-.Codex/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/WITH_ALL_FIXES
-.Codex/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/WITH_ALL_FIXES --failed-only
-.Codex/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/WITH_ALL_FIXES fizzbuzz
+.claude/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/WITH_ALL_FIXES
+.claude/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/WITH_ALL_FIXES --failed-only
+.claude/skills/eval-analyzer/scripts/agent_transcripts.sh eval_results/WITH_ALL_FIXES fizzbuzz
 ```
 
 ### 3. Python vs AILANG Comparison
@@ -373,7 +373,7 @@ jq -s 'map(select(.lang == "ailang")) |
 
 # Dev models only (useful for prompt testing)
 # Dev models are sourced from internal/eval_harness/models.yml — DO NOT hardcode.
-DEV_MODELS_JQ=$(. .Codex/skills/_shared/scripts/eval_lib.sh && \
+DEV_MODELS_JQ=$(. .claude/skills/_shared/scripts/eval_lib.sh && \
   dev_models_csv | awk -F, '{for(i=1;i<=NF;i++) printf "\"%s\"%s", $i, (i<NF?",":"")}')
 jq -s --argjson devs "[$DEV_MODELS_JQ]" \
   'map(select(.lang == "ailang" and (.model as $m | $devs | index($m)))) |
@@ -412,13 +412,13 @@ Use the provided helper scripts for detailed code inspection:
 
 ```bash
 # Failure analysis with error categorization
-.Codex/skills/eval-analyzer/scripts/analyze_failures.sh eval_results/baselines/v0.3.16
+.claude/skills/eval-analyzer/scripts/analyze_failures.sh eval_results/baselines/v0.3.16
 
 # Model performance comparison
-.Codex/skills/eval-analyzer/scripts/compare_models.sh eval_results/baselines/v0.3.16
+.claude/skills/eval-analyzer/scripts/compare_models.sh eval_results/baselines/v0.3.16
 
 # Examine specific benchmark failures
-.Codex/skills/eval-analyzer/scripts/examine_code.sh eval_results/baselines/v0.3.16 api_call_json
+.claude/skills/eval-analyzer/scripts/examine_code.sh eval_results/baselines/v0.3.16 api_call_json
 ```
 
 ### Step 4: Compare with Previous Version
@@ -518,7 +518,7 @@ The skill includes helper scripts in `scripts/` directory:
 Fast overview using eval-matrix.
 
 ```bash
-.Codex/skills/eval-analyzer/scripts/quick_summary.sh eval_results/baselines/v0.3.16
+.claude/skills/eval-analyzer/scripts/quick_summary.sh eval_results/baselines/v0.3.16
 ```
 
 **Output**: Overall stats, model performance, language breakdown, top error codes.
@@ -528,7 +528,7 @@ Fast overview using eval-matrix.
 Detailed failure analysis with error categorization.
 
 ```bash
-.Codex/skills/eval-analyzer/scripts/analyze_failures.sh eval_results/baselines/v0.3.16 ailang
+.claude/skills/eval-analyzer/scripts/analyze_failures.sh eval_results/baselines/v0.3.16 ailang
 ```
 
 **Output**: Overall statistics, error categories, top failing benchmarks, model performance, error codes.
@@ -538,7 +538,7 @@ Detailed failure analysis with error categorization.
 Model-by-model performance comparison.
 
 ```bash
-.Codex/skills/eval-analyzer/scripts/compare_models.sh eval_results/baselines/v0.3.16
+.claude/skills/eval-analyzer/scripts/compare_models.sh eval_results/baselines/v0.3.16
 ```
 
 **Output**: Success rates, first-attempt vs final, cost analysis, token usage, best model per benchmark.
@@ -548,8 +548,8 @@ Model-by-model performance comparison.
 Inspect generated code from specific benchmarks.
 
 ```bash
-.Codex/skills/eval-analyzer/scripts/examine_code.sh eval_results/baselines/v0.3.16 api_call_json
-.Codex/skills/eval-analyzer/scripts/examine_code.sh eval_results/baselines/v0.3.16 api_call_json gpt5
+.claude/skills/eval-analyzer/scripts/examine_code.sh eval_results/baselines/v0.3.16 api_call_json
+.claude/skills/eval-analyzer/scripts/examine_code.sh eval_results/baselines/v0.3.16 api_call_json gpt5
 ```
 
 **Output**: Generated code, compiler errors, success status, error codes for each model run.
@@ -559,7 +559,7 @@ Inspect generated code from specific benchmarks.
 View prompts used for specific benchmarks.
 
 ```bash
-.Codex/skills/eval-analyzer/scripts/examine_prompts.sh eval_results/baselines/v0.3.16 api_call_json
+.claude/skills/eval-analyzer/scripts/examine_prompts.sh eval_results/baselines/v0.3.16 api_call_json
 ```
 
 **Output**: System prompt, user prompt, success status for benchmark runs.
@@ -569,7 +569,7 @@ View prompts used for specific benchmarks.
 Check if prompt documentation matches actual implementation.
 
 ```bash
-.Codex/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh v0.3.16
+.claude/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh v0.3.16
 ```
 
 **Output**: Reports false limitations, undocumented features, and prompt-code mismatches.

@@ -68,7 +68,7 @@ make services-stop
 ```bash
 # Send a task
 ailang messages send coordinator "Fix the null pointer bug in parser.go" \
-  --title "Bug: Parser NPE" --from "Codex" --type bug
+  --title "Bug: Parser NPE" --from "claude-code" --type bug
 ```
 
 ### Monitoring & Approving
@@ -93,7 +93,7 @@ pending → queued → running → pending_approval → completed
                           ↘ rejected → [feedback] → pending (iteration 2) → running → ...
 ```
 
-**Feedback Loop (v0.6.4+):** When rejecting, the task can be re-triggered with feedback up to 3 iterations. Codex uses `--resume` to continue with full conversation context.
+**Feedback Loop (v0.6.4+):** When rejecting, the task can be re-triggered with feedback up to 3 iterations. Claude uses `--resume` to continue with full conversation context.
 
 ## Unified Approvals (v0.6.5+)
 
@@ -196,8 +196,8 @@ ailang coordinator pending
 
 | Type | Executor | Use Case |
 |------|----------|----------|
-| bug-fix | Codex | Code fixes |
-| feature | Codex | New functionality |
+| bug-fix | Claude Code | Code fixes |
+| feature | Claude Code | New functionality |
 | docs | Gemini | Documentation |
 | research | Gemini | Investigation |
 | script | Shell | Deterministic workflows (v0.6.4+) |
