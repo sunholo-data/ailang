@@ -874,3 +874,14 @@ No VERIFIED, no ⚖ action, no comments/labels/closes on items, no approve/rejec
 **Held**: #1980 fixed on dev (MOD015) but card task-364b77ab / PR #1984 still pending, so T2 forbids closing.
 **Not done**: T4 landed-card dry run; ledger agree/total score not computed; packet not due (05:36 UTC). #2393 not re-verified by build (verifier judged from CI and PR body).
 **Next**: re-verify #2393; confirm the red-dev fix landed; Mark rules on #2090 and the IFC F4 decision (#2187/#2196).
+
+## 47 — 2026-11-18 — red dev already fixed, #2415 superseded, #1485 close dissented [ADMIN]
+
+**Reality check**: origin/dev `8bfca4d03e93e87e2d2cf500f78e2aef16397caf`; CI success (3 latest runs green): the red routed in iteration 46 is fixed by `55788b010`. All 14 skill files byte-identical between origin/dev and the resolved symlink target. No directives (0 allowlisted comments on #2069), no crash notices.
+**Selection**: 2 changed (PR #2415 new, #2410 updated) + 1 held (#1980) + 8 stale >= 7d; skipped the rest. 11 items verified.
+**Shipped**: evidence comment on PR #2415 (read back 0 -> 1); `needs-decision` on #1485; 11 shadow rows. No closes, attestations, approvals, rejections or merges.
+**Judge**: `sonnet` Agent (`MISSION-ROLE: evaluator`), a different vendor from the codex verifier, run before any action. CONCUR on #1980 and #2415. DISSENT on #1485: the verifier cited 155a22828 (a lowercase-name follow-up), but docs/LIMITATIONS.md:166 and errors/index.md:215 say uppercase undeclared names are still not reported, so the close was downgraded to NEEDS-DECISION.
+**Routing evidence**: executor `codex:gpt-6-luna` (probe rc=0, one bounded background run, rc=0, 1 batch of 11); evaluator `sonnet` via the Agent tool. The Agent tool was not used for the verifier because the resolver returned `recipe codex:gpt-6-luna`.
+**Held**: #1980 fixed on dev (MOD015) but card task-364b77ab still pending, so T2 forbids closing. #2415 SUPERSEDED but closing a coordinator PR rejects its card for good, so it is Mark's.
+**Not done**: T4 landed-card dry run; ledger agree/total score; card re-verification. Packet not due (17:49 UTC, outside the 18:00-05:00 window).
+**Next**: Mark rules on #2415 and #1485; the record PR must go green and land.
