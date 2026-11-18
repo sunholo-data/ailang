@@ -864,3 +864,13 @@ No VERIFIED, no ⚖ action, no comments/labels/closes on items, no approve/rejec
 **Findings routed to the digest, not fixed**: #2403 and #2393 both insert a pass before monomorphization in pipeline_module_compile.go (expect a conflict on whichever merges second); #2393 still has checks in progress.
 **Not done**: T4 landed-card dry run; card re-verification; no reproductions (PATH binary v0.60.5 is not dev).
 **Next**: re-verify #2393 once green; Mark approves or declines #2403.
+
+## 46 — 2026-11-18 — red dev routed, #2221 and #1953 closed, #1980 held by T2 [ADMIN]
+**Reality check**: origin/dev `022f68f1a8fd29f501df52a772db4710b9802cee`; CI RED: `TestCloudAgents_RegistryMatchesTheDeletedRoutingTable` (`internal/coordinator/agents_fixture_test.go:151`, run 44158236421; registry says `gpt-6.2-sol`, fixture expects `gpt-6.1-sol`); first red `6df452df6`/`8e04a29c5`, parent `5cf3088a0` green. No directives (0 allowlisted comments on #2069). Skill files: every readable copy matched origin (no DRIFT printed).
+**Shipped**: digest on #2069; red routed to `design-doc-creator` (inbox_1794980838338_789cc5ef) plus `[urgent]` Daneel and user messages; closed #2221 and #1953 (comment read back 0 -> 1, 2 -> 3, state CLOSED); evidence comment on PR #2090 (1 -> 2); labels `priority:P1` + `area:runtime` on #2410, #2409. 26 shadow rows appended. No approvals, rejections or merges.
+**Selection**: 3 changed (#2393 new head, #2410, #2409 new) + 23 stale >= 7d (oldest 20 plus overflow); 0 held; skipped 124. 26 items verified.
+**Judge**: `sonnet` Agent (`MISSION-ROLE: evaluator`), different model from the haiku verifiers, run before any action. CONCUR on #2221, #1953, #1980, #2090 (nuance: #2090's foldl-specific report is not covered by the superseding doc).
+**Routing evidence**: executor `claude:claude-haiku-5-5` (2 foreground Agent batches, `MISSION-ROLE: executor`); evaluator `sonnet` (1 foreground Agent). A first spawn attempt was refused by the spawn-pin hook for lacking a `MISSION-ROLE:` first line; re-sent with the token. Codex lanes probed rc=75 (quota unreadable), unused.
+**Held**: #1980 fixed on dev (MOD015) but card task-364b77ab / PR #1984 still pending, so T2 forbids closing.
+**Not done**: T4 landed-card dry run; ledger agree/total score not computed; packet not due (05:36 UTC). #2393 not re-verified by build (verifier judged from CI and PR body).
+**Next**: re-verify #2393; confirm the red-dev fix landed; Mark rules on #2090 and the IFC F4 decision (#2187/#2196).
