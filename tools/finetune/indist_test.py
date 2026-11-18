@@ -14,7 +14,8 @@ from the test, so every scored task is known to be solvable in this setup.
   python3 -I tools/finetune/indist_test.py --desc desc.jsonl --model NAME --prompt none|slim \
       --prompts DIR --out FILE.jsonl [--limit N] [--no-think]
 
-Needs the rig (ollama). Resumable by task hash.
+Needs the rig lease: run it under rig_lock_acquire (it sends $AILANG_RIG_LEASE as X-Rig-Lease; the
+gateway answers 423 without it). Resumable by task hash.
 """
 import argparse
 import collections
@@ -54,7 +55,8 @@ def ask(model, content, think):
             "options": {"num_predict": 12000}}
     if not think:
         body["think"] = False
-    req = urllib.request.Request("http://127.0.0.1:11434/api/chat", json.dumps(body).encode(), {"Content-Type": "application/json"})
+    req = urllib.request.Request("http://127.0.0.1:11434/api/chat", json.dumps(body).encode(),
+                                 {"Content-Type": "application/json", "X-Rig-Lease": os.environ.get("AILANG_RIG_LEASE", "")})
     d = json.load(urllib.request.urlopen(req, timeout=1800))
     txt = (d.get("message") or {}).get("content") or ""
     blocks = re.findall(r"```[\w-]*\n(.*?)```", txt, re.S)
