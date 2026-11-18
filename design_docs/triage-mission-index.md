@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 46 | 2026-11-18 | red dev routed (gpt-6.2 fixture), #2221 and #1953 closed, #1980 held by T2 [ADMIN] |
 | 45 | 2026-11-17 | one unsigned attestation (#2403), ten priority/needs-decision labels, #2393 held; cross-vendor judge before action [ADMIN] |
 | 42 | 2026-11-13 | five judged closes (#2327 #2313 #2277 #2275, #2309 dup of #2308), seven P0 labels, #2282 held; cross-vendor judge pass [ADMIN] |
 | 41 | 2026-11-12 | eight judged attestations (#2135 #2126 #2105 #2104 #2097 #2139 #2148 #2149); #2265/#1914 dissents downgraded [ADMIN] |
