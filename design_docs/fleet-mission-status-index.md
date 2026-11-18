@@ -12,6 +12,11 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 119 | 2026-11-17 | D-FLEET-33 A BUILT, not landed — pi `unowned-dirty` relative-path fix on #2411 (judge sonnet PASS 93); merge waits on the attended `make pi-assets`... |
+| 118 | 2026-11-17 | D-FLEET-25 A BUILT and LANDED — World-fork text #2396 → `ad1fdac57` (judge PASS 93) and the fleet-wide rulings ledger + report-only `ailang mission... |
+| 117 | 2026-11-17 | row 13's two live probe flakes FIXED (#2385 → `b1942b7f9`, judge sonnet PASS 88); timer arm lost a SIGTERM before exec, lsof stub turned an empty l... |
+| 116 | 2026-11-16 | D-FLEET-18 A guard arm LANDED (#2382 → `97e792147`, judge sonnet PASS 94); the fleet scope guard now admits the two motoko probe files; #2110 close... |
+| 115 | 2026-11-16 | D-FLEET-26 A LANDED (#2368 → `89a28a09c`, judge PASS 88) after Mark's attended rulings; four ruling-directed ticket resolutions; record stack merge... |
 | 114 | 2026-11-16 | idle — inputs byte-identical to iteration 113; all 27 tickets ruling-gated; independent sonnet judge NONE on the no-originating-ticket ground; week... |
 | 113 | 2026-11-16 | idle — inputs byte-identical to iteration 112 after three capacity-paused days; all 27 tickets ruling-gated; independent minimax judge PICK (D-FLEE... |
 | 112 | 2026-11-13 | idle — inputs byte-identical to iteration 111; all 27 tickets ruling-gated; independent sonnet judge NONE; nothing built or merged [ADMIN] |

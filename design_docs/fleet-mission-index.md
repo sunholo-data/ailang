@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 122 | 2026-11-18 | D-FLEET-36 A + D-FLEET-38 A LANDED and RESOLVED: follow-up #2419 → `d2f2ec238` (fresh judge sonnet PASS 92; PR CI 24/24, dev CI 18/18 green); done-... |
 | 121 | 2026-11-18 | D-FLEET-36 A + D-FLEET-38 A guard arm LANDED (#2413 → `55d336df7`, dev CI 18/18 green); follow-up 8-site `[0-9]` edit + 16-skill sync BUILT and jud... |
 | 120 | 2026-11-18 | D-FLEET-36 A + D-FLEET-38 A guard arm BUILT, not landed: rebuilt fresh as #2413 (supersedes draft #2108; judge sonnet PASS 93); merge waits on dev'... |
 | 119 | 2026-11-17 | D-FLEET-33 A BUILT, not landed: pi `unowned-dirty` relative-path fix on #2411 (judge sonnet PASS 93); merge waits on the attended `make pi-assets` ... |

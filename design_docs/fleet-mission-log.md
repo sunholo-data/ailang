@@ -1457,3 +1457,83 @@ Each replied to its filer.
 - Executor: resolver `recipe claude:claude-haiku-5-5 declared:provider-pin` → `claude-sub -p --model claude-haiku-5-5`, probe rc 0; run rc 0 (5,831 output tok).
 - Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 1 spawn (74,004 tok). Judge independence: cross-model (planner and controller opus, executor haiku, judge sonnet; same vendor). The #2413 landing rests on iteration 120's sonnet PASS 93, with the merged diff checked byte-identical to the judged one.
 - Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`1`) → handed to `opus`; `executor`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`1`) → handed to `claude:claude-haiku-5-5`
+
+## 122 — 2026-11-18 — D-FLEET-36 A + D-FLEET-38 A LANDED and RESOLVED: follow-up #2419 → `d2f2ec238` (fresh judge sonnet PASS 92; PR CI 24/24, dev CI 18/18 green); done-gate run; tickets 21 → 19 [HARNESS]
+
+**Pick**: queue rows 51/53 (`skill:design-doc-creator-grep-portability`, D-FLEET-36 A; `skills:agents-copies-stale-non-mission`, D-FLEET-38 A). This was iteration 121's **Next**: push the judged follow-up `ae343722d` now that the pin carries #2413's guard arm.
+- 0 allowlisted directives on #2341 (9 comments) or on the previous issue #2172 (31 comments).
+- Already-landed check: no open or merged PR carried `fleet/i121-dfleet36-38-followup`, and the branch existed only locally (worktree `fleet-i121-wt`, clean, HEAD `ae343722d`).
+- Critical path: clause 2 is UNMET, and rows 51/53 are the routable rows that move it. Row 41 (#2411) is still attended-gated.
+- Two tickets have arrived since iteration 120 and neither was picked. Both rank below the attended list by `slots_lost`, and both are now queue rows 65/66 (untriaged).
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN.
+- Skill drift: the resolved symlink copy matches origin/dev on all 14 files (SKILL.md plus 13 resources), checked per file. The pin is at origin/dev.
+- Gate 0 self-notice: watermark form rc 2 (twenty-sixth fire; neither watermark file exists). Not a verdict. Stapledon has now ticketed it (row 66).
+- Gate 1 base `18e848db69a8d84cb4d50d9484ed0beb8e514224@2026-11-18T18:44:41Z`. Dev CI is green (`CI`, `Build and Release`, Docs all success; 18 check-runs, 0 not green).
+- Records 95–121 sit on the stacked draft record PRs (newest #2417), and this record stacks on that one.
+
+**Did** (generator ≠ judge):
+- **Pinned guard re-measured before push**: `tools/launchd/githooks/pre-push` at the pin (`18e848db6`) admitted all 19 paths under `MISSION_NAME=fleet` (rc 0). The `MISSION_NAME=v1` control returned rc 1 on the two `tools/launchd` scripts, which is the existing harness rule.
+- **Base check**: the branch's parent `41f55ffdc` is an ancestor of origin/dev, and none of origin/dev's 5 newer files intersect the 19 (the incoming list was the control). So the PR diff equals the judged diff, and nothing was re-applied.
+- **Pushed** through the pinned guard (rc 0) and opened **#2419**, with 0 closing keywords.
+- **Designer, planner, executor**: not spawned. The diff was planned (opus), executed (haiku) and judged (sonnet PASS 93) in iteration 121, and this fire only lands it. This is a routing outcome, not a spawn failure. The rotation pointer is unchanged.
+- **Judge**: sonnet (Agent tool, `MISSION-ROLE: evaluator`, foreground, own detached worktree at `ae343722d`, 71,016 tok, 12 tool uses, 416 s) scored **PASS 92** with 0 blocking. [Evaluation](fleet-mission-evidence/iteration122/judge-r1.md).
+  - Fidelity: exactly 8 sites and exactly 16 names, no wildcard, and design-doc-creator only in a comment.
+  - Data loss: none. There is no `.agents`-only file in any of the 16 at the parent. Every removed token is Codex rename wording, and all 16 directories are identical to `.claude` afterwards.
+  - Gates: sync test 7/7, `--check` 23 skills, `check-changelog`, `diff --check`, and `make test-launchd-drivers` 58/58 (5m31s), all rc 0.
+  - Mutants: 10/11 killed, each restored by sha256. The survivor, M11, deletes the changelog fragment, which nothing requires; that is pre-existing.
+  - Portability: BSD grep selects identical lines with `[0-9]` and `\d`, and the `^d+\.` control matches only literal-d lines. GNU grep remains unmeasured.
+  - Non-blocking: the site check is `>= 4` per copy, the changelog's list of still-differing skills names microrag where the ruling names headless-runner, and codex/pi now read `.claude` wording, which ruling A intends.
+- **Controller checks on the judge**: its worktree was clean afterwards at the same HEAD. A `^\d` grep found 0 lines in the `.claude` copy, and `[0-9]` counted 9 per copy (≥ 4).
+- **Merge**: PR CI 24/24 complete with 0 not green (SHA-pinned poll, 30 min cap; direct re-read checks=24, MERGEABLE CLEAN). It merged with `--match-head-commit ae343722d…` → **`d2f2ec238`**.
+- **Done-gate** at `d2f2ec238`, run in the judge worktree after moving it to the merge. [Gates](fleet-mission-evidence/iteration122/gates.md).
+  - The surface is the skills and sync script every mission runs from the pinned origin/dev, and it reached origin/dev by merge.
+  - Dry-runs: stapledon (fire started 2 min earlier) and world were mid-fire, triage idles out before lane resolution, and v1, docs and motoko are disabled. So the dry-runs used `MISSION_PROFILE=fleet` under a synthetic HOME (charter fallback, `AILANG_WORKTREE_SWEEP=0`, `AILANG_DRIVER_PINNED=d2f2ec238…`, `env -i`).
+    - Healthy: rc 0 (87 s), `lanes=DEGRADED(2)` natively.
+    - Degraded (`MISSION_EXECUTOR_MODEL=codex:bogus-model-i122`): rc 0 (93 s), executor → `claude:claude-haiku-5-5`.
+    - Pins were 40 before and 40 after (diff empty), and no pidfile was left.
+  - `make test-launchd-drivers`: rc 0, 330 s, 58/58.
+- **Resolved** both tickets with `ailang mission ticket resolve … --sha d2f2ec238550dd02f9b3912fc46249d86b658726`, and each replied to its filer (attended). Open tickets went 21 → 19, re-listed.
+
+**Gate 3b**:
+- #2419 head `ae343722d`: 24/24 complete, 0 not green.
+- Merge `d2f2ec238` on dev: 18/18 check-runs complete, 0 not green (poll pinned to the full SHA). `CI` and `Build and Release` both completed/success at `d2f2ec238`. The 4 docs-path checks are absent, as at `55d336df7`, because the diff touches no docs path.
+- **#2419 LANDED; rows 51/53 RESOLVED.**
+
+**Ruled out**:
+- Re-planning or re-executing the follow-up: the judged commit applied unchanged on a base already in origin/dev.
+- Folding in iteration 121's observations (the `sprint-planner/scripts/create_sprint_json.sh:204` `\d` site, and `release-manager` in the sync list while the guard refuses it): neither is ticketed, and the fleet does not self-source.
+- Waiting for stapledon to idle for the dry-run: its fire had just started. The synthetic-HOME fallback is the charter's prescribed alternative, and pins were checked before and after.
+- Working rows 65/66 this fire: one item per iteration.
+
+**Observations (not ticketed; the fleet does not self-source)**:
+- (a) **Every `codex:gpt-6.2-sol` probe fails `model_not_found`**: "The 'gpt-6.2-sol' model is not supported when using Codex with a ChatGPT account" (both dry-runs, verbatim in [gates.md](fleet-mission-evidence/iteration122/gates.md)). That is the cause of this fire's routing note (planner → opus, executor → haiku), and probably related to stapledon's row 65. Lane routing is HD-2a policy class, so it goes to Mark, not to a fleet fix.
+- (b) The self-notice rc 2 has now run 26 consecutive fires. It is row 66.
+- (c) Iteration 121's (a) and (b) still stand.
+- (d) `rm -f /tmp/…verdict*` under the Bash tool's zsh errored `no matches found`, a harmless no-op because the path was fresh. It is the documented zsh trap, and it is one more reason to keep pollers under `/bin/bash`.
+
+**Retro lane**: no skill edit this fire. No friction gap with ≥ 2 recorded instances that is not already ticketed.
+
+**Progress**: 21 → 19 open tickets. Clause 2 moved (2 resolutions). Both tickets were filed 2026-10-03, about 46 days ago, so this closes long-standing items rather than improving the median. Clause 1 UNMEASURED; 3 MET; 4 met by its letter; 5 preserved (done-gate run).
+
+**Validation**: darwin/arm64, bash 3.2.57 (`/bin/bash`).
+- PR #2419 CI 24/24 green; dev `d2f2ec238` 18/18 green.
+- Judge gates rc 0, including `make test-launchd-drivers` 58/58. The controller's done-gate run at the merge was 58/58.
+- Mutants: judge 10/11.
+- Record checks: `mission_decisions.sh --check`, STATUS rotation arithmetic (416 → 416) plus an archive grep (`ITERATION 119` = 1, control `ITERATION 118` = 1), `mission_routing_models_check.sh` on entry 122, and `go test ./internal/mission/ -run Canonical`.
+
+**Budget**: metered **$0** (subscription lanes).
+- Evaluator sonnet: 71,016 tok.
+- Controller `claude:claude-opus-5-5`: tok not reported.
+- No designer, planner or executor run, and no quorum (no new doc).
+
+**Next**: rows 65/66 by `slots_lost` (both 1 slot, blocking none). Row 65 (`quorum:codex-gpt-6.2-sol-not-allowlisted`) needs re-measurement against observation (a), and if the fix is lane routing it parks for Mark under HD-2a. Row 66 (`gate0:self-notices-rc2-no-watermark-file`) is a mechanical candidate in harness scope (`scripts/mission_gate0_self_notices.sh`). Land #2411 once the attended pi_assets sync lands. Otherwise D-42's fleet half (drafts #2141–#2150).
+
+**Routing evidence**: base=d2f2ec238550dd02f9b3912fc46249d86b658726@2026-11-18T19:05:09Z (Gate-3b read; drift from Gate 1 `18e848db6` is this iteration's own #2419 merge).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5 declared:provider-pin`. **Not spawned**: the diff was pre-specified by the rulings and already built. Rotation pointer unchanged.
+- Planner: resolver `agent-tool opus fail-closed:env-pin`. **Not spawned**: the plan was carried from iteration 121 (opus, 120,625 tok).
+- Executor: resolver `recipe claude:claude-haiku-5-5 declared:provider-pin`. **Not spawned**: the commit `ae343722d` was carried from iteration 121 (haiku, 5,831 output tok).
+- Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 1 spawn (71,016 tok). Judge independence: cross-model (controller opus, executor haiku, judge sonnet; same vendor). This is a fresh judge on the pushed head, on top of iteration 121's PASS 93.
+- Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`1`) → handed to `opus`; `executor`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`1`) → handed to `claude:claude-haiku-5-5`
