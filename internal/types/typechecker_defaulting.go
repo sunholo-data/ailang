@@ -2,8 +2,6 @@ package types
 
 import (
 	"fmt"
-
-	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // defaultAmbiguities applies spec-compliant numeric defaulting at generalization boundaries
@@ -13,16 +11,6 @@ func (tc *CoreTypeChecker) defaultAmbiguities(
 	constraints []ClassConstraint,
 ) (Substitution, Type, []ClassConstraint, error) {
 	return tc.defaultAmbiguitiesKeeping(monotype, constraints, nil, nil)
-}
-
-// declLiteralVars returns, when binder is the module declaration being
-// checked, the type variables of its integer literals' Num constraints (nil
-// otherwise). See defaultAmbiguitiesKeeping's literalAtDecl.
-func (tc *CoreTypeChecker) declLiteralVars(ctx *InferenceContext, binder core.CoreExpr, constraints []ClassConstraint) map[string]bool {
-	if ctx == nil || !tc.moduleDeclMode || binder == nil || ctx.declRoot != binder {
-		return nil
-	}
-	return literalConstrainedVars(constraints)
 }
 
 // defaultAmbiguitiesKeeping is defaultAmbiguities that never defaults a
@@ -41,28 +29,22 @@ func (tc *CoreTypeChecker) declLiteralVars(ctx *InferenceContext, binder core.Co
 // `Num[b] => ({v: b, ...a}, {v: b, ...c}) -> ...`, and an importer's
 // `addv({v: "s"}, …)` must meet that Num[b].
 //
-// literalAtDecl (declLiteralVars) keeps one old outcome. At a module
-// declaration the literal restriction does not apply (literal_restriction.go),
-// so an integer literal at a generalised variable is a run-time error when the
-// function is used at float. A literal variable that only the shared walk sees
-// (under an open record) is still defaulted there, as before, so
-// `bump({ver: 1.5})` stays a check error instead of becoming that run-time one.
+// A module declaration's integer literal at such a variable is generalised
+// like any other: the declaration is compiled once per numeric instance of
+// the variable (numeric_variants.go, #2378), so `func f(p) = {p | x: p.x + 1}`
+// and `func f(p) = {x: p.x * 1}` both run at float. (#2364 kept the first
+// defaulted to int, a check error at float, because the second then failed at
+// run time.)
 //
-// The boundary is exactly "only the shared walk sees it". Minimal pair:
-//
-//	func f(p) = {p | x: p.x + 1}   -- x under the open row: defaulted to int,
-//	                               -- f({x: 1.5}) is a check error (Fractional[int])
-//	func f(p) = {x: p.x * 1}       -- x in a closed record the old walk sees: not
-//	                               -- defaulted, generic, so f({x: 1.5}) passes check
-//	                               -- and fails at run time ("received an int and a float")
-//
-// The second is the general hole of an integer literal in a generic top-level
-// function (#2378), unchanged here; fixing that removes the need for this case.
+// force names variables defaulted although the type mentions them: at a module
+// declaration, a numeric variable that occurs in no parameter type (a
+// constant's, or a result-only literal's) has no argument to carry its type at
+// a call, so it is not generic (#2378; declResultOnlyVars).
 func (tc *CoreTypeChecker) defaultAmbiguitiesKeeping(
 	monotype Type,
 	constraints []ClassConstraint,
 	keep map[string]bool,
-	literalAtDecl map[string]bool,
+	force map[string]bool,
 ) (Substitution, Type, []ClassConstraint, error) {
 
 	if !tc.defaultingConfig.Enabled {
@@ -77,18 +59,13 @@ func (tc *CoreTypeChecker) defaultAmbiguitiesKeeping(
 
 	monotypeVars := make(map[string]bool)
 	collectFreeTypeVars(monotype, monotypeVars)
-	var shallowVars map[string]bool
-	if len(literalAtDecl) > 0 {
-		shallowVars = make(map[string]bool)
-		collectFreeVars(monotype, shallowVars)
-	}
 
 	ambiguousVars := make(map[string]bool)
 	for v := range constraintVars {
 		if keep[v] {
 			continue
 		}
-		if !monotypeVars[v] || (literalAtDecl[v] && !shallowVars[v]) {
+		if !monotypeVars[v] || force[v] {
 			ambiguousVars[v] = true
 		}
 	}
@@ -355,9 +332,8 @@ func collectConstraintVars(t Type, vars map[string]bool) {
 //
 // It skips open records, a closed record's row, TRecord2 and labelled types,
 // unlike the shared walk (collectFreeTypeVars, free_vars.go). Defaulting uses
-// the shared walk since #2312; it reads this one only for literalAtDecl
-// (defaultAmbiguitiesKeeping), to keep a module declaration's literal under an
-// open record defaulted as before.
+// the shared walk since #2312; the literal restriction and the rigid-signature
+// check read this one for a literal constraint's own type.
 //
 // NOTE: Code outside the types package should use traverse.CollectFreeVars
 // which provides the same cycle-safe behavior with a cleaner API.

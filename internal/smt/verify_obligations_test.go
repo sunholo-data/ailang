@@ -26,6 +26,12 @@ func TestCountObligations(t *testing.T) {
 	if got := CountObligations(prog); got != 1 {
 		t.Fatalf("CountObligations = %d, want 1 (only the function with an ensures)", got)
 	}
+	// #2378: a numeric variant (ensures$numF) carries its binding's contracts
+	// at float; they are one obligation, proved on the binding.
+	prog.Meta["ensures$numF"] = &core.DeclMeta{Name: "ensures$numF", VariantOf: "ensures", Contracts: []*core.Contract{{Kind: core.EnsuresKind}}}
+	if got := CountObligations(prog); got != 1 {
+		t.Fatalf("CountObligations = %d with a numeric variant, want 1", got)
+	}
 }
 
 // TestTallyResults_RowsToTally: the exit tally is computed from the result

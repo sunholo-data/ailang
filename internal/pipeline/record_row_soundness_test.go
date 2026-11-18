@@ -368,10 +368,9 @@ const rowLib = "module q/rowlib\n" +
 	"export pure func bump(f) = {f | ver: f.ver + 1}\n"
 
 // `bump({ver: "s", id})` from another module must fail on the TYPE of `ver`,
-// not on a missing field. Defaulting now uses the shared walk (#2312), but a
-// module declaration's integer literal under an open record is still defaulted
-// (defaultAmbiguitiesKeeping's literalAtDecl), so `ver` stays int; were it
-// generalised, the exported Num constraint (#2290) would reject the string.
+// not on a missing field. Since #2378 `ver` is generic (the declaration has a
+// float variant), and the exported Num constraint (#2290) rejects the string;
+// before, #2364's literalAtDecl defaulted it to int.
 func TestRecordRows_BumpVersionRejectsStringVer(t *testing.T) {
 	_, err := writeAndCheck(t, map[string]string{
 		"q/rowlib.ail": rowLib,
@@ -391,6 +390,14 @@ func TestRecordRows_BumpVersionRejectsStringVer(t *testing.T) {
 			"export func main() -> () ! {IO} = println(bump({ver: 1, id: \"x\"}).id)\n",
 	}, "q/m.ail"); err != nil {
 		t.Fatalf("bump({ver: 1, id}) must check: %v", err)
+	}
+	// And a float ver checks too (#2378): the importer calls bump's float variant.
+	if _, err := writeAndCheck(t, map[string]string{
+		"q/rowlib.ail": rowLib,
+		"q/m.ail": "module q/m\nimport q/rowlib (bump)\n" +
+			"export func main() -> () ! {IO} = println(bump({ver: 1.5, id: \"x\"}).id)\n",
+	}, "q/m.ail"); err != nil {
+		t.Fatalf("bump({ver: 1.5, id}) must check: %v", err)
 	}
 }
 

@@ -214,12 +214,48 @@ Still open:
     (`ailang iface` lists them) and a caller in another module is held to them
     (`TC_CONSTRAINT_001`, #2290). A contract clause that needs a class the body does not
     (`idc[a](x: a) -> a ensures { result == x } { x }`) is accepted, but callers are not held to
-    it: `idc(inc)` checks, and the clause fails under `--verify-contracts` (#2337). An integer literal written at a signature variable is rejected, but one
-    reached through an unannotated helper is not: `pure func incH(x) = x + 1` then
-    `func inc[a](x: a) -> a = incH(x)` checks, and `inc(2.5)` still fails at run time
-    ("received an int and a float");
-  - a generic body is compiled once, at its defaulted type (`Num a` ⇒ `int`, #2333). The
-    evaluator and the VM correct for it (the class methods and `%` from the run-time values,
-    `show` left dynamic).
+    it: `idc(inc)` checks, and the clause fails under `--verify-contracts` (#2337). An integer
+    literal written at a signature variable is still rejected (`TC_RIGID_001`), though one reached
+    through an unannotated helper is fine: `pure func incH(x) = x + 1` then
+    `func inc[a](x: a) -> a = incH(x)`, and `inc(2.5)` is `3.5` (#2378);
+  - a function generic over a numeric type `a` that carries an integer literal (its own, or a
+    callee's) is compiled once per instance of `a` (#2378): as written for `int`, and as a
+    variant typed at `float` (`inc$numF`) that a float use calls, in the module and from
+    importers (`ailang iface` lists such variables under `literals`). So `func inc(x) = x + 1`
+    gives `inc(2.5) == 3.5` and `inc(2) == 3`. A literal-free generic has one body, right at
+    every instance. A let-bound function follows the same rule, one copy per use: a lambda, a
+    block of values ending in one, a one-binding `letrec`, or a name for a function (`let f = g`,
+    `let f = inc` imported, `let f = { let g = \x. x + 1; g }`). So `let f = \x. x + 1` gives
+    `f(6) == 7`, `f(6) / 2 == 3` and `f(2.5) == 3.5`, as `func f(x) = x + 1` does, and so does a
+    file with no `module` line (`let inc = \x. x + 1 in inc(2.5)` is `3.5`). A variable that
+    carries a literal and occurs in no parameter position of the binding's type is an `int` (a
+    `float` when written `3.0`): a top-level constant (`let K = 3`, `func cfg() = {lo: 1}`) or
+    result-only literal (`func one(x) = 1`), so `K * 0.5` is a check error naming `K`'s literal.
+    Inside a function, such a constant (`let w = 70`) keeps one type decided by its uses.
+    Limits: a function over more than 4 literal-carrying numeric types gets only the variants its
+    own module uses, so another module's use at another combination is `TC_NUMVAR_001` at that
+    use, naming the function at fault; a `letrec` group of two or more let-bound functions is
+    kept at one type.
+    A let-bound value that is **computed** rather than written as a function is a single value
+    with one numeric type: a partial application (`let f = add(0)`), a function returned by a
+    call (`let f = mk()`), an `if` or `match` choosing a lambda, a record or tuple holding one
+    (`let r = {f: \x. x + 1}`), or a function bound by a pattern. An integer literal passed to
+    it takes that one type, so `f(6)` is `7.0` when `f` is also used at `2.5`. A typed int
+    argument together with a float use is a located check error (for a computed `let`: "`f` is
+    a single value, not a function"). The workaround is to bind a lambda instead:
+    `let f = \y. add(0)(y)`.
+    The REPL and the playground load modules through a second pipeline (#2410) that compiles no
+    numeric variants. There a **top-level** generic function with a literal fails at float with
+    the numeric-dictionary error, as it did everywhere before #2378: `func inc(x) = x + 1` then
+    `inc(2.5)` through wasm `ailangLoadModule` + `ailangCall` or the REPL's `:import`. A
+    let-bound function with its own literal keeps one type decided by its uses there.
+    Inline test rows (`tests [...]`) are run by an untyped harness that calls the int body, so
+    a float row of a generic function fails under `ailang test` although `check` accepts it
+    (#2392). A contract clause that needs `Num` where the body does not (`g(x) requires { inc(x)
+    > 0 } = x`) is #2337 above: the function has no float variant, and the clause fails under
+    `--verify-contracts` at float.
+  - a literal-free generic lambda's body is compiled once, at its defaulted type (`Num a` ⇒
+    `int`, #2333). The evaluator and the VM correct for it (the class methods and `%` from the
+    run-time values, `show` left dynamic).
 
   Effect row variables (`! {e}`) were already enforced by the effect checker.

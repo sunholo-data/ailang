@@ -1,7 +1,0 @@
-### Changed — OpenAI defaults move to GPT-6.2 Sol and GPT-6.2 Astra (2026-11-17)
-
-Mark ruled this attended on 2026-11-17: "upgrade our defaults to these". Every `codex:gpt-6.1-sol` default now reads `codex:gpt-6.2-sol`. That covers the mission driver (controller ladder, designer fallback, planner, executor, planner Anthropic fallback), the docs and triage mission env files, the `models.yml` planner and executor roles, the design-quorum OpenAI seat (`quorum.CodexReviewerModel`), and the mission-control skill routing tables. In `benchmark_suite`, `gpt6-astra` is replaced by `gpt6-2-astra` and `gpt6-1-sol` by `gpt6-2-sol`. `extended_suite` adds `gpt6-2-astra`, `gpt6-2-sol` and `gpt6-1-terra` and keeps `gpt6-astra` for longitudinal comparison. `AllowedOpenAIModels` still admits `gpt-6.1-sol`, because the deployed cloud codex images keep running it until they are rebuilt.
-
-The codex CLI pin in `docker/Dockerfile.agent-codex` and `docker/Dockerfile.agent-eval` moves from 0.159.2 to 0.169.0. Version 0.159.2 rejects `gpt-6.2-sol` and `gpt-6.2-astra` on the ChatGPT account with the same error it gives a nonexistent model. 0.169.0 accepts both.
-
-Placement for `gpt6-2-sol`: the hard tier (long-frontier, stretch and frontier) at 3 trials each passed 102/105. Its anchored standard ELO is 2432.4, against 2288.7 for `gpt6-sol` and 2295.8 for `claude-sonnet-5-5`. The rating is banked in the observatory. `gpt6-2-astra` has not been placed yet.

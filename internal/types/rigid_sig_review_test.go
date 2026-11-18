@@ -31,7 +31,9 @@ func TestRigidSignature_ReviewCases(t *testing.T) {
 			kind:  "concrete", want: []string{"requires `resutl` to be `int`"}, not: []string{"Did you mean", "Result"}},
 		{name: "an open record is suggested with one named rest",
 			decls: "pure func step(s: state) -> state = {s | n: s.n + 1}",
-			kind:  "concrete", want: []string{"write `{n: int | r}` instead of `state`"}, not: []string{"..."}},
+			// #2378: the literal no longer pins n to int (the field stays Num-generic),
+			// so the shape is suggested, still with one named rest.
+			kind: "concrete", want: []string{"a type of the form `{n: _ | r}`"}, not: []string{"..."}},
 		{name: "a type the body fixes only in shape is not offered for pasting",
 			decls: "pure func compose[a, b](f: a, g: b) -> b = \\x. g(f(x))",
 			kind:  "concrete", want: []string{"the form `(_) -> _`"}, not: []string{"α", "ρ"}},

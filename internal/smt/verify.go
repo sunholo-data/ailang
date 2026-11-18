@@ -162,7 +162,7 @@ func CountObligations(coreProg *core.Program) int {
 	}
 	n := 0
 	for _, meta := range coreProg.Meta {
-		if hasObligation(meta) {
+		if meta != nil && meta.VariantOf == "" && hasObligation(meta) { // a numeric variant's are its binding's
 			n++
 		}
 	}
@@ -335,7 +335,7 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 
 	// Process each function with contracts
 	for funcName, meta := range coreProg.Meta {
-		if meta == nil || len(meta.Contracts) == 0 {
+		if meta == nil || len(meta.Contracts) == 0 || meta.VariantOf != "" { // a numeric variant's are its binding's (#2378)
 			continue
 		}
 

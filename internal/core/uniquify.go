@@ -59,11 +59,37 @@ func UniqueProgramLocals(prog *Program) *Program {
 		}
 	}
 	if decls == nil {
+		prog.Flags.LocalsUnique = true
 		return prog
 	}
 	out := *prog
 	out.Decls = decls
+	out.Flags.LocalsUnique = true
 	return &out
+}
+
+// IsModuleDecl reports whether d, an element of Program.Decls, is a module
+// declaration — `let name = value in name`, or a letrec group whose body is
+// unit (or names a member) — rather than a top-level expression (a REPL input,
+// a module-less file's `let k = 10 in …`).
+func IsModuleDecl(d CoreExpr) bool {
+	switch x := d.(type) {
+	case *Let:
+		v, ok := x.Body.(*Var)
+		return ok && v.Name == x.Name
+	case *LetRec:
+		switch b := x.Body.(type) {
+		case nil, *Lit:
+			return true
+		case *Var:
+			for _, rb := range x.Bindings {
+				if rb.Name == b.Name {
+					return true
+				}
+			}
+		}
+	}
+	return false
 }
 
 // uniqueDeclLocals renames inside one element of Program.Decls. A module
@@ -74,7 +100,7 @@ func UniqueProgramLocals(prog *Program) *Program {
 func uniqueDeclLocals(d CoreExpr) CoreExpr {
 	switch x := d.(type) {
 	case *Let:
-		if v, ok := x.Body.(*Var); !ok || v.Name != x.Name {
+		if !IsModuleDecl(x) {
 			return UniqueLocals(d)
 		}
 		v := UniqueLocals(x.Value)

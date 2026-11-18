@@ -7,6 +7,7 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/core"
 	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 	"github.com/sunholo-data/ailang/internal/pipeline"
 )
@@ -78,7 +79,7 @@ func moduleProtoRoots(img *bytecode.BytecodeImage, entryModule string) []int {
 // diagnostic. The message carries the position too, because the human check
 // output prints only "CODE: message".
 func BC001Report(e bytecode.EvalOnlyEntry) error {
-	msg := fmt.Sprintf("function %s is evaluator-only under --strict-bytecode (%s)", e.Name, e.Reason)
+	msg := fmt.Sprintf("function %s is evaluator-only under --strict-bytecode (%s)", core.DisplayFuncName(e.Name), core.DisplayFuncName(e.Reason))
 	rep := &ailerrors.Report{
 		Schema:  "ailang.error/v1",
 		Code:    ailerrors.BC001,

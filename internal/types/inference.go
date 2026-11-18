@@ -55,6 +55,9 @@ type InferenceContext struct {
 	// (#1958 F-A1/F-A2); see typechecker_effect_union.go.
 	unionFrames []*unionFrame
 	selfTypes   []Type
+	// singleValues: let-bound bindings kept at one numeric type for all their
+	// uses (numeric_diagnostics.go, #2378).
+	singleValues []singleValueNote
 	// rigidGroup: the binding names of the let-rec group being inferred, for
 	// the TC_RIGID_001 culprit search (rigid_sig.go).
 	rigidGroup map[string]bool
@@ -117,6 +120,11 @@ type ClassConstraint struct {
 	// literalConstrainedVars): the runtime has no fromInt dispatch, so a
 	// polymorphic literal would evaluate to an Int at every instantiation.
 	IntLiteral bool
+	// PolyNumeric marks the Num constraint re-emitted at a use of a binding
+	// with numeric variants (numeric_variants.go) at a variable whose int body
+	// is wrong at float (a literal there). A let-bound lambda carrying one is
+	// copied per use; any other let is kept monomorphic, as for a literal.
+	PolyNumeric bool
 }
 
 func (c ClassConstraint) constraint()    {}

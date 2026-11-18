@@ -65,7 +65,7 @@ func TestExportKeepsConstraints(t *testing.T) {
 			}
 		}
 	}
-	if typ, cs := canonicalizeSchemeParts(nil); typ != "unknown" || cs != nil {
-		t.Errorf("nil scheme: got %q %v", typ, cs)
+	if typ, cs, lits := canonicalizeSchemeParts(nil); typ != "unknown" || cs != nil || lits != nil {
+		t.Errorf("nil scheme: got %q %v %v", typ, cs, lits)
 	}
 }
