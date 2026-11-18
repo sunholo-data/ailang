@@ -85,6 +85,15 @@ Clause map: **1** UNMEASURED, goal unmoved; **2** UNMET (nothing resolved; media
   `design_docs/fleet-mission*`), plus support paths (`design_docs/**`, `changelogs/**`,
   `CHANGELOG.md`, `docs/**`, `.ailang/state/sprints/**`, `internal/config/mission.go`, `make/test.mk`,
   `tools/eval/motoko_connection_probe.sh`, `tools/eval/test_motoko_connection_probe.sh` (D-FLEET-18),
+  `.claude/skills/design-doc-creator/**`, `.agents/skills/design-doc-creator/**` (D-FLEET-36),
+  `.agents/skills/benchmark-runner/**`, `.agents/skills/builtin-developer/**`,
+  `.agents/skills/cloud-cascade-debug/**`, `.agents/skills/collaboration-hub/**`,
+  `.agents/skills/coordinator-helper/**`, `.agents/skills/eval-analyzer/**`,
+  `.agents/skills/eval-gap-finder/**`, `.agents/skills/gemini-cli-helper/**`,
+  `.agents/skills/github-issue-triage/**`, `.agents/skills/local-model-onboarding/**`,
+  `.agents/skills/local-ollama-eval/**`, `.agents/skills/parser-developer/**`,
+  `.agents/skills/pr-monitor/**`, `.agents/skills/prompt-manager/**`,
+  `.agents/skills/trace-debugger/**`, `.agents/skills/use-ailang/**` (D-FLEET-38),
   `tools/pi-extensions/sandbox/**` (D-FLEET-6)).
   **Anything else is refused**, including CI workflows, `go.mod`, the server, the UI and non-mission
   commands. A fix that genuinely needs one of those parks for Mark.
