@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 123 | 2026-11-19 | `gate0:self-notices-rc2-no-watermark-file` LANDED and RESOLVED: #2421 → `cf540337e`; Gate 0 step 6a is a DEGRADED whole-issue read when no watermark f... |
 | 122 | 2026-11-18 | D-FLEET-36 A + D-FLEET-38 A LANDED and RESOLVED: follow-up #2419 → `d2f2ec238` (fresh judge sonnet PASS 92; PR CI 24/24, dev CI 18/18 green); done-... |
 | 121 | 2026-11-18 | D-FLEET-36 A + D-FLEET-38 A guard arm LANDED (#2413 → `55d336df7`, dev CI 18/18 green); follow-up 8-site `[0-9]` edit + 16-skill sync BUILT and jud... |
 | 120 | 2026-11-18 | D-FLEET-36 A + D-FLEET-38 A guard arm BUILT, not landed: rebuilt fresh as #2413 (supersedes draft #2108; judge sonnet PASS 93); merge waits on dev'... |
