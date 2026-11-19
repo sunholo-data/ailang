@@ -1728,3 +1728,96 @@ Each replied to its filer.
 - Executor: resolver `recipe claude:claude-haiku-5-5`. **Not spawned** (nothing to build).
 - Evaluator: resolver `agent-tool sonnet` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 1 spawn (79,110 tok). Judge independence: cross-model from the opus controller (same vendor, a preference under D-FR-2).
 - Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`1`) → handed to `opus`; `executor`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`1`) → handed to `claude:claude-haiku-5-5`
+
+## 125 — 2026-11-19 — `pi:unowned-dirty-absolute-vs-relative-paths` LANDED and RESOLVED: #2411 → `224f1257f` (D-FLEET-33 A; attended pi-assets sync `d2ee7dc03`, merged by the attended session at the judged head); independent judge sonnet PASS 90; PR CI 24/24, dev CI + Build and Release green; done-gate run; tickets 17 → 16 [HARNESS]
+
+**Pick**: queue row 41 (#2411, `pi:unowned-dirty-absolute-vs-relative-paths`, D-FLEET-33 A). This was iteration 124's **Next**, and its external predicate flipped: an attended session pushed the `make pi-assets` sync `d2ee7dc03` to the branch at 14:16Z, so the row became the pick (gate-2 blocked-predicate rule (d)).
+- 0 allowlisted directives on #2341 (12 comments). Self-notices rc 0 (DEGRADED whole-issue read, 0 crash notices, control 852:10).
+- No new tickets since iteration 124 (17 open at Gate 1). Not a Monday-rotation fire.
+- An attended session was active during this fire. Between 14:12Z and 15:42Z it merged #2067 (D-FLEET-21 A), #2425 (records 95–124 consolidated onto dev, plus the attended D-FLEET-47 A ruling), #2411 and #2141 (D-42 M1), and marked #2143 and #2150 ready. The fleet sent a controlplane CLAIM for #2411 and touched none of the others.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN.
+- Skill drift: the resolved symlink copy matches origin/dev on all 14 files, checked per file.
+- Gate 1 base `7d483e8f5a9ee5afc424836ab282906211c39c74@2026-11-19T15:08:57Z`. `CI` was in progress there with 24 check-runs and 0 red; `Build and Release` success.
+- Gate 1 read the record from the newest stacked PR (#2424, iteration 124). The consolidation #2425 merged mid-fire, so this record branches from origin/dev rather than stacking.
+
+**Reality check** (controller, first-party):
+- At PR head `d2ee7dc03`, the net diff against the merge-base is 8 files: the extension, its test, the `pi_assets` copy, the changelog and iteration 119 evidence. The `origin/dev` merge `5b22cfb16` added nothing of the PR's own.
+- `.pi/extensions/unowned-dirty.ts` is byte-identical to `cmd/ailang/pi_assets/unowned-dirty.ts` (4,631 B each). Dev's copy differed before the merge (control).
+- The required `checks` job, which runs `verify-pi-assets`, was SUCCESS. Dev's `test` red, named in iteration 119, was gone.
+
+**Did** (generator ≠ judge):
+- **Designer, planner, executor: not spawned.** The build was iteration 119's: judged PASS 93 then, and unchanged since except the attended sync and a merge. The gate-2 rule for an inherited build is *verify and land, not redo*. This is a routing outcome, not a spawn failure. Rotation pointer unchanged.
+- **Judge**: sonnet (Agent tool, `MISSION-ROLE: evaluator`, foreground, own detached worktree `fleet-i125-judge` at `d2ee7dc03`; 57,803 tok, 10 tool uses, 67 s). Verdict **PASS, 90/100**. [Report](fleet-mission-evidence/iteration125/judge-r1.md). The directive carried the ticket, the ruling and seven open questions, not the controller's findings.
+  - Real-git repro: at the base, 2 files are warned, including the session's own edit. At the head, 1 file is warned, the genuinely unowned one (that is the positive control).
+  - Tests: `node --test .unowned-dirty.test.ts` gives 8/8.
+  - Mutants: 5/5 killed (core fix, `realpathSync`, `top.code` guard, trailing slash, `realOrSelf` fallback).
+  - `make verify-pi-assets` rc 0; `go build ./cmd/ailang` and `go vet` clean.
+  - Strongest objection, non-blocking: no CI gate runs the `.pi/extensions` tests, and they mock `exec`.
+- **Controller checks on the judge.** The judge's run was fast (67 s), so its key claims were re-run first-party.
+  - 8/8 at `d2ee7dc03`.
+  - The core-fix mutation reproduced M1: rc 1, 2 fail. Restored rc 0, worktree clean.
+  - `make verify-pi-assets` rc 0.
+- **Fix-forward**: the judge flagged the changelog fragment's "Not yet synced" paragraph as false since `d2ee7dc03`. The controller corrected it as `05a2b065e`, pushed to the PR branch, and renamed the PR title (it still said "needs attended pi-assets sync"). That restarted PR CI.
+- **Merge**: the SHA-pinned PR poll read 24/24 complete, 0 not green, at 15:42:47Z. The **attended session merged it at 15:42:35Z**, at the same head `05a2b065e`, before the controller's merge step ran → **`224f1257f`**. The fleet did not press merge. The landing is the judged diff plus the controller's one-paragraph changelog edit.
+- **Resolved**: `ailang mission ticket resolve pi:unowned-dirty-absolute-vs-relative-paths --sha 224f1257f…`, with ancestry of origin/dev asserted first (control `8e04a29c5` is also an ancestor). Output: "1 occurrence(s), replied to interactive". Open tickets 17 → 16, re-listed (0 left matching `unowned-dirty`).
+
+**Gate 3b** at `224f1257f`: `CI` run 44557862889 completed success. `Build and Release` success. [Gates](fleet-mission-evidence/iteration125/gates.md).
+- **One non-required red: `ailang-core-dev (ailang-multivac-deploy)`.** Cloud Build `d377c0fd…`: every build and test step passed, including `test-agent-pi`. Only `deploy-services` failed, with `ABORTED: Conflict for resource 'ailang-dev-agent-executor-*': version … was specified but current version is …` on five Cloud Run jobs.
+- Its window, 15:42:39–15:53:58Z, overlaps the #2141 merge's build (`c5fd312a0`, 15:43:11–15:53:59Z, same failure). Two concurrent dev deploys raced. Negative control: the parent `f902e4abd` and three earlier merges are success.
+- This is not attributable to the diff, and the deploy pipeline is outside fleet scope. Reported, not ticketed. The dev plane's five executor jobs may sit at a mixed revision until the next clean dev deploy.
+
+**Done-gate** at `224f1257f` (judge worktree moved to the merge):
+- The surface is the pi extension every pinned checkout loads from `.pi/extensions`, plus the embedded copy. It reached origin/dev by merge.
+- Dry-runs used `MISSION_PROFILE=world`: armed, no pidfile, while v1, docs and motoko are disabled. `env -i`, `AILANG_WORKTREE_SWEEP=0`, `AILANG_DRIVER_PINNED=224f1257f…`.
+  - Healthy: rc 0 (85 s).
+  - Degraded (`MISSION_EXECUTOR_MODEL=codex:bogus-model-i125`): rc 0 (97 s). The executor fell back to `claude:claude-haiku-5-5`.
+  - Pins were 48 before and 48 after (diff empty). No world pidfile left.
+- `make test-launchd-drivers`: rc 0, 324 s, 58/58.
+- Reach caveat: `ailang pi setup` installs the fixed copy only from a binary built at or after `224f1257f` (the D-FLEET-29 class).
+
+**D-FLEET-47 smoke reading** (ruled A attended 2026-11-19, per iteration 124's **Next**):
+- The mission daemon `current` now points to codex-cli **0.169.1**, restarted 14:19:12Z.
+- This fire's driver probe of `codex:gpt-6.2-sol` passed. There is no `unusable` line, and the banner kept planner and executor on `codex:gpt-6.2-sol`, with `MISSION_ROUTING_NOTE` empty. Control: the 08:38Z fire logged `probe failed (rc=1)`.
+- Scope: one fleet probe through the driver's own function. The quorum seat and the sibling missions were not re-measured.
+
+**Ruled out**:
+- Redoing designer, planner or executor for an inherited, judged build.
+- Treating the deploy red as this diff's: all build and test steps passed, the error is a Cloud Run version conflict, and the build window overlaps #2141's identical failure.
+- Retrying the Cloud Build from the loop: it is a deploy-plane action outside fleet authority.
+- Touching the D-42 drafts the attended session was landing.
+
+**Observations (not ticketed; the fleet does not self-source)**:
+- (a) The `.pi/extensions` tests are run by no CI gate (judge's strongest objection).
+- (b) Concurrent dev merges race the `ailang-core-dev` deploy step. Two failed today, 32 s apart.
+- (c) The PATH `ailang` prints "Binary may be stale" on `mission ticket` commands. The resolve still succeeded.
+- (d) This controller printed the value of `AILANG_DASHBOARD_TOKEN` into its own session transcript at Gate 0. Its first `env | grep` filtered on prefix, not by name, which is the exact pattern SKILL.md line 13 forbids. Nothing was sent off-machine, but the transcript-scan notice for this fire should be expected. Flagged so the token can be rotated.
+
+**Retro lane**: no skill edit. The one friction, (d), is already covered verbatim by SKILL.md line 13 and Gate 0. It is one more instance of a rule the controller read *after* its first command, which is the ordering problem the rule's own text names. Two frictions would be needed for a skill edit, and this is the controller's own lapse, not a rule gap.
+
+**Progress**: 17 → 16 open tickets.
+- Clause 2: this was a policy-class ticket (D-FLEET-3 park), filed 10-02 and resolved 48 days later, so the non-policy median is unmoved.
+- Clause 1 UNMEASURED; 3 MET (16 open); 4 met by its letter; 5 preserved (done-gate run).
+
+**Validation**: darwin/arm64, bash 3.2.57 (`/bin/bash`).
+- PR #2411 CI 24/24 green.
+- Dev `224f1257f`: CI and Build and Release success.
+- Judge: 5/5 mutants. Controller re-checks: tests, M1 and verify-pi-assets.
+- Done-gate as above.
+- Record checks: `mission_decisions.sh --check`, STATUS rotation arithmetic plus an archive grep, `mission_routing_models_check.sh` on entry 125, `go test ./internal/mission/ -run Canonical`, and `git diff --check`.
+
+**Budget**: metered **$0** (subscription lanes).
+- Evaluator sonnet: 57,803 tok.
+- Controller `claude:claude-opus-5-5`: tok not reported.
+- No quorum, no codex runs.
+
+**Next**: no routable ticket is expected; 16 open, all ruling-gated or out of scope. D-FLEET-46 (resolve the seven attended-merged tickets) is the highest-yield ask. If the D-42 drafts #2143/#2150 land attended, verify them and check whether their tickets resolve.
+
+**Routing evidence**: base=`7d483e8f5a9ee5afc424836ab282906211c39c74`@2026-11-19T15:08:57Z (Gate 1). origin/dev moved during the fire to `c5fd312a0`, through the attended merges.
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5`. **Not spawned** (nothing to design). Rotation pointer unchanged.
+- Planner: resolver `agent-tool opus fail-closed:no-doc`. **Not spawned** (nothing to plan).
+- Executor: resolver `recipe codex:gpt-6.2-sol`. **Not spawned** (inherited build).
+- Evaluator: resolver `agent-tool sonnet` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 1 spawn (57,803 tok). Judge independence: cross-model from the opus controller, and the build was iteration 119's executor.
+- Driver routing note verbatim: (empty, as configured).
