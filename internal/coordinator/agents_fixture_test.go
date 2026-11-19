@@ -45,6 +45,8 @@ var ratifiedRoleMigrations = map[string]string{
 	"gpt-5.6-sol": "gpt-6-sol",
 	// 2026-09-30 (attended): GPT-6.1 Sol replaces GPT-6 Sol on the same heads.
 	"gpt-6-sol": "gpt-6.1-sol",
+	// 8e04a29c5 (2026-11-17, attended): GPT-6.2 Sol replaces GPT-6.1 Sol on the same heads.
+	"gpt-6.1-sol": "gpt-6.2-sol",
 }
 
 // expectedRoleHead is what a role must resolve to today: the deleted table's

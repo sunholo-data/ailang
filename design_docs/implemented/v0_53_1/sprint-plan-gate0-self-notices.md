@@ -42,6 +42,9 @@
    off the prev watermark (catches the rotate-then-die notice). Residual (declared, §7): a notice on
    the prev issue newer than the prev's final watermark is re-reported every fire of the `-prev`
    week; the rule makes the log credit idempotent by `url=`.
+   *Amended 2026-11-19 (fleet iteration 123):* #981 made `mission_directives.sh` create the file only on
+   `--mark`, so both files can be absent. Doing that used to hit the F9 floor (rc 2) on every fire. It is
+   now a DEGRADED whole-issue read since the epoch. F10 (present but invalid) is unchanged.
 2. **World's script carries the signature TWICE** — bash `SIG_TEXT` and a `\u`-escaped python `SIG`
    (World `scripts/gate0_self_notices.sh` lines `SIG_TEXT=…` and `SIG = "⚠️…"`). Its F8
    `--driver-src` grep guards only the bash copy; the python copy (the one that classifies) can drift

@@ -320,7 +320,7 @@ act on. Skipping the read is how a gate's rules silently stop applying.
    hard ceiling: a `date +%s` deadline OR a max-iteration counter. On expiry, FAIL LOUDLY and
    park/report — never keep sleeping. Forbidden: a bare `gh run watch`, `while true`, or
    `until COND; do sleep …; done` with no cutoff. A headless iteration has no human to notice, so
-   one unbounded wait burns the entire 6h slot. Default cap ≤30 min; treat expiry as a parkable
+   one unbounded wait burns the entire 6h slot. Default cap ≤30 min (exception: Gate 3b CI poll ≤60 min); treat expiry as a parkable
    failure, not an error to retry in place.
 7. **Every wait is ACTIVE — NEVER END YOUR TURN WHILE A BACKGROUND AGENT OR BACKGROUND `Bash` IS
    STILL RUNNING** (added 2026-08-08 V1 iteration 167; proposed by `mission-world` iter-65, which

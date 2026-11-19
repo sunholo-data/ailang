@@ -239,15 +239,14 @@ export func main() -> () ! {IO} {
 			}
 		})
 	}
-	// A module declaration's integer literal under an open record is still
-	// defaulted (literalAtDecl): generalised, it would be the run-time error of
-	// a literal in a generic top-level function used at float.
-	err := checkModule(t, `module m
+	// #2378: a module declaration's integer literal under an open record is
+	// generalised like any other (the declaration has a float variant), so
+	// used at float it checks; #2364 kept it defaulted, a Fractional[int] error.
+	if err := checkModule(t, `module m
 func g(p) = {p | x: p.x + 1}
 export func main() -> () ! {IO} = println(show(g({x: 1.5, z: 1}).x))
-`)
-	if err == nil || !strings.Contains(err.Error(), "Fractional[int]") {
-		t.Fatalf("a top-level literal field used at float must stay a check error, got %v", err)
+`); err != nil {
+		t.Fatalf("a top-level literal field used at float must check: %v", err)
 	}
 }
 
@@ -331,18 +330,18 @@ func TestExportedConstraints_HashProjectionOfCheckedModule(t *testing.T) {
 	}
 }
 
-// literalAtDecl (typechecker_defaulting.go): a module declaration's integer
-// literal under an open record keeps its old defaulting, so the export is
-// monomorphic in that field, while the same shape without a literal is generic
-// and carries its constraint.
-func TestDefaulting_LiteralAtDeclExportShape(t *testing.T) {
+// #2378: a module declaration's integer literal under an open record no longer
+// pins the field to int (#2364's literalAtDecl): the export is generic in the
+// field and carries its constraint, exactly as the same shape without a
+// literal.
+func TestDefaulting_LiteralUnderOpenRowExportShape(t *testing.T) {
 	j := ifaceJSONOf(t, "module q/c\nexport pure func bump(p) = {p | x: p.x + 1}\nexport pure func twice(p) = {p | x: p.x + p.x}\n")
 	got := map[string]string{}
 	for _, f := range j.Funcs {
 		got[f.Name] = strings.TrimSpace(f.Type + " " + strings.Join(f.Constraints, " "))
 	}
-	if want := "({x: int, ...a})->{x: int, ...a}"; got["bump"] != want {
-		t.Errorf("bump (literal under an open row) must stay defaulted: got %q, want %q", got["bump"], want)
+	if want := "({x: b, ...a})->{x: b, ...a} Num[b]"; got["bump"] != want {
+		t.Errorf("bump (literal under an open row) must be generic with Num[b]: got %q, want %q", got["bump"], want)
 	}
 	if want := "({x: b, ...a})->{x: b, ...a} Num[b]"; got["twice"] != want {
 		t.Errorf("twice (no literal) must be generic with Num[b]: got %q, want %q", got["twice"], want)

@@ -12,15 +12,20 @@
 #
 # Scope is the fleet's (ticket skills:agents-copies-stale): mission-* and sprint-*,
 # plus release-manager (2026-11-12: its .agents copy carried no .agents-only edits,
-# only the stale ".Codex/skills" rename and old job counts). Other skills carry
-# .agents-only edits (model-manager, design-doc-creator) and need a reconciliation,
-# not an overwrite. test_agents_skills_sync.sh enforces this list.
+# only the stale ".Codex/skills" rename and old job counts), plus the 16 skills of
+# D-FLEET-38 A (ruled 2026-11-16): their .agents copies differed only by the 2026-07-28
+# claude->Codex rename, or not at all, with no .agents-only file, so rsync --delete
+# loses nothing. Other skills carry .agents-only edits (model-manager,
+# design-doc-creator) and need a reconciliation, not an overwrite.
+# test_agents_skills_sync.sh enforces this list.
 #
 #   tools/launchd/sync-agents-skills.sh           copy
 #   tools/launchd/sync-agents-skills.sh --check   exit 1 if any copy differs
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SKILLS="mission-control mission-brief mission-loop-change sprint-planner sprint-executor sprint-evaluator release-manager"
+SKILLS="$SKILLS benchmark-runner builtin-developer cloud-cascade-debug collaboration-hub coordinator-helper eval-analyzer eval-gap-finder gemini-cli-helper"
+SKILLS="$SKILLS github-issue-triage local-model-onboarding local-ollama-eval parser-developer pr-monitor prompt-manager trace-debugger use-ailang"
 rc=0
 for s in $SKILLS; do
   src="$ROOT/.claude/skills/$s"; dst="$ROOT/.agents/skills/$s"

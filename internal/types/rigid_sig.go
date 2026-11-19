@@ -393,7 +393,7 @@ func displayRigidScheme(scheme *Scheme, value core.CoreExpr, sigs map[uint64]*Ri
 		out.TypeVars = append(out.TypeVars, v)
 	}
 	for _, c := range scheme.Constraints {
-		out.Constraints = append(out.Constraints, Constraint{Class: c.Class, Type: c.Type.Substitute(rename)})
+		out.Constraints = append(out.Constraints, Constraint{Class: c.Class, Type: c.Type.Substitute(rename), Literal: c.Literal})
 	}
 	return out
 }

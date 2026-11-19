@@ -361,8 +361,9 @@ func isCoreValue(expr core.CoreExpr) bool {
 	switch e := expr.(type) {
 	case *core.Lit, *core.Lambda:
 		return true
-	case *core.Var:
-		// Variables are values if bound to values
+	case *core.Var, *core.VarGlobal:
+		// Variables are values if bound to values; a reference to another
+		// module's binding is one too (#2393: `let f = inc` aliases it)
 		return true
 	case *core.Record:
 		// Record is value if all fields are values

@@ -175,6 +175,12 @@ TC_RIGID_001: the signature of `step` says `state` is any type, but the body req
 TC_CONSTRAINT_001: `add` from lib/boxes requires Num for the type it is used at here: No instance for Num[string] in scope.
 ```
 
+**`TC_NUMVAR_001` — an imported generic function is not compiled for this float use.** A function generic over a numeric type that carries an integer literal (`func inc(x) = x + 1`) is compiled once per numeric instance of it, so `inc(2.5)` runs its float copy (#2378; `ailang iface` lists such variables under `literals`). A function over more than 4 such variables gets only the copies its own module uses. Emitted at a use in another module that needs a copy that was not compiled. The message names the function that has too many numeric types, and the chain from the function you called to it. Fix it by annotating the numeric parameter types (`x: float`), or by calling at int. Before #2378 such a call passed `check` and failed at run time.
+
+```
+TC_NUMVAR_001: at bad3.ail:4:48: V2 from lib/v2 has no variant for this use at float: it needs W5 from lib/w (used at lib/v2.ail:3:32), which is not compiled with 1 of its 5 numeric types at float: a binding over more than 4 of them gets only the variants its own module uses
+```
+
 **`TC_NOMINAL_001` — two different types that share a name.** A nominal type (an ADT) is its defining module plus its name, so `q/a`'s `type T` and `q/b`'s `type T` are different types. Emitted where a value of one is used where the other is expected; both modules are named. Until v0.60.0 such programs type-checked and failed at run time. See [tc_nominal_001.md](tc_nominal_001.md).
 
 ```

@@ -433,6 +433,9 @@ func (t *TuplePattern) String() string {
 type ProgramFlags struct {
 	Lowered bool // Set after OpLowering pass
 	Linked  bool // Set after linking
+	// LocalsUnique is set by UniqueProgramLocals. Passes that work on the
+	// type-checked names (numeric variants, #2378) must run before it.
+	LocalsUnique bool
 }
 
 // Program represents a Core program
@@ -440,6 +443,10 @@ type Program struct {
 	Decls []CoreExpr           // Top-level declarations
 	Meta  map[string]*DeclMeta // Metadata for top-level declarations
 	Flags ProgramFlags         // Compilation state flags
+	// NumVariantMissing: an exported binding's numeric variant this module
+	// could not compile, by name, and why (#2378, pipeline/numeric_variants.go),
+	// so an importer that needs it can name the actual cause.
+	NumVariantMissing map[string]string
 }
 
 // DeclMeta contains metadata for top-level declarations
@@ -450,6 +457,11 @@ type DeclMeta struct {
 	SID         string      // Source ID for tracing
 	Contracts   []*Contract // M-VERIFY: Contract clauses (requires/ensures)
 	VerifyDepth int         // Per-function SMT verify depth override (0 = use global default)
+	// VariantOf names the binding this one is a numeric variant of (#2378,
+	// pipeline/numeric_variants.go): the same declaration compiled with some
+	// of its Num type variables at float. Its contracts are that binding's, so
+	// a verifier counts and proves them once, on the binding itself.
+	VariantOf string
 
 	// ShowResidue lists the `show` calls ShowNormalizer deliberately left in
 	// this function because the argument type has no encodable equivalent

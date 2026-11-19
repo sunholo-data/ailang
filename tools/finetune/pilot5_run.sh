@@ -5,11 +5,13 @@
 #
 #   train   train2.py, fresh adapter on the 4-bit base (GPU, rig lock)
 #   serve   fuse -> strip audio config -> ollama create gemma4-12b-ailang-p5$RUN
-#   test    single-shot language test, three prompts (pilot5_baseline.sh)
+#   indist  held-back repository tasks: does the answer compile? (indist_test.py; MODELS="name[:limit] ...")
+#   test    single-shot language test, three prompts (pilot5_baseline.sh; ARMS="none slim" to pick)
 set -u
 REPO=/Users/voightkampff/dev/sunholo-data/ailang
 FT=$HOME/models/finetune
 RUN=${RUN:?set RUN}; RANK=${RANK:-32}; EPOCHS=${EPOCHS:-2}
+SCALE=${SCALE:-$(python3 -c "print(320/$RANK)")}
 MIX=${MIX:-$FT/mix-pilot5a}
 P5=$FT/pilot5/$RUN
 BASE=$HOME/models/gemma-4-12B-it-4bit
@@ -28,9 +30,16 @@ stage_train(){
   need_disk train 10
   local n iters upd rc
   n=$(wc -l < "$MIX/train.jsonl" | tr -d ' '); iters=$(( n * EPOCHS )); upd=$(( iters / 4 ))
-  sed -e "s/__ITERS__/$iters/" -e "s/__UPDATES__/$upd/" -e "s/__RANK__/$RANK/" tools/finetune/pilot5.yaml > "$P5/resolved.yaml"
-  log "train: $n samples x $EPOCHS epochs = $iters iterations, rank $RANK, mix $MIX"
-  "$PY" -I tools/finetune/train2.py -c "$P5/resolved.yaml" --model "$BASE" --data "$MIX" --adapter-path "$P5/adapters" > "$P5/train.log" 2>&1
+  sed -e "s/__ITERS__/$iters/" -e "s/__UPDATES__/$upd/" -e "s/__RANK__/$RANK/" -e "s/__SCALE__/$SCALE/" tools/finetune/pilot5.yaml > "$P5/resolved.yaml"
+  log "train: $n samples x $EPOCHS epochs = $iters iterations, rank $RANK, scale $SCALE, mix $MIX"
+  "$PY" -I tools/finetune/train2.py -c "$P5/resolved.yaml" --model "$BASE" --data "$MIX" --adapter-path "$P5/adapters" > "$P5/train.log" 2>&1 &
+  local tp=$!
+  # Divergence guard: run b sat at a loss of 7 for six hours before anyone looked (2026-11-18).
+  ( while kill -0 $tp 2>/dev/null; do sleep 300
+      l=$(sed 's/\x1b\[[0-9;]*m//g' "$P5/train.log" | tr '\r' '\n' | awk '$1+0>=100 && $2+0>0 {v=$2} END{print v+0}')
+      if awk -v l="$l" 'BEGIN{exit !(l>3)}'; then log "DIVERGED: training loss $l, stopping"; kill $tp; fi
+    done ) &
+  wait $tp
   rc=$?
   sed 's/\x1b\[[0-9;]*m//g' "$P5/train.log" | tr '\r' '\n' | grep -E " Val | val |Saved" | tail -8 | tee -a "$LOG"
   [ $rc = 0 ] && [ -f "$P5/adapters/adapters.safetensors" ] || die "training failed rc=$rc"
@@ -51,6 +60,17 @@ EOP
   log "served: $NAME"
 }
 
+stage_indist(){
+  local spec m lim
+  for spec in ${MODELS:-$NAME}; do
+    m=${spec%%@*}; lim=0; case $spec in *@*) lim=${spec##*@};; esac
+    for pr in none slim; do
+      "$PY" -I tools/finetune/indist_test.py --desc "$FT/data-p5/desc.jsonl" --model "$m" --prompt "$pr" \
+        --prompts "$FT/evalroot/prompts" --out "$FT/pilot5/indist.$(echo "$m" | tr ':/' '__').$pr.jsonl" --limit "$lim" 2>&1 | tail -1 | tee -a "$LOG"
+    done
+  done
+}
+
 stage_test(){
   # The lane lives only in this run's models file: a copy of the untrained lane with the model swapped.
   "$PY" -I - "$REPO/internal/modelreg/models.yml" "$P5/models.yml" "$LANE" "$NAME" <<'EOP'
@@ -61,7 +81,7 @@ blk=s[i:j].replace("  ollama-gemma4-12b:",f"  {lane}:",1).replace('api_name: "ge
 k=s.index("\nmodels:\n")+len("\nmodels:\n")
 open(out,"w").write(s[:k]+blk+s[k:])
 EOP
-  AILANG_MODELS_PATH="$P5/models.yml" tools/finetune/pilot5_baseline.sh "$LANE" "${TRIALS:-3}" 2>&1 | tee -a "$LOG"
+  AILANG_MODELS_PATH="$P5/models.yml" tools/finetune/pilot5_baseline.sh "$LANE" "${TRIALS:-3}" "" "${ARMS:-none slim full}" 2>&1 | tee -a "$LOG"
 }
 
 # One lock for the whole run; the rotation filler is asked to step aside at its next checkpoint.

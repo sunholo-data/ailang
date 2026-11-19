@@ -68,6 +68,7 @@ func (tc *CoreTypeChecker) ApplySubstEverywhere(
 func (tc *CoreTypeChecker) FinalizeSubstitutions() {
 	if len(tc.pendingCoreTISub) > 0 {
 		tc.applySubstitutionToCoreTI(tc.pendingCoreTISub)
+		tc.finalizeGeneric(tc.pendingCoreTISub) // numeric_variants.go
 		tc.pendingCoreTISub = nil
 	}
 }
@@ -269,11 +270,12 @@ func (tc *CoreTypeChecker) applySubstitutionToConstraints(sub Substitution, cons
 	result := make([]ClassConstraint, len(constraints))
 	for i, c := range constraints {
 		result[i] = ClassConstraint{
-			Class:      c.Class,
-			Type:       ApplySubstitution(sub, c.Type), // Use cycle-safe substitution
-			Path:       c.Path,
-			NodeID:     c.NodeID,
-			IntLiteral: c.IntLiteral,
+			Class:       c.Class,
+			Type:        ApplySubstitution(sub, c.Type), // Use cycle-safe substitution
+			Path:        c.Path,
+			NodeID:      c.NodeID,
+			IntLiteral:  c.IntLiteral,
+			PolyNumeric: c.PolyNumeric,
 		}
 	}
 	return result

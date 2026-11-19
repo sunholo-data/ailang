@@ -2,6 +2,8 @@
 # single-turn language examples. __ITERS__/__UPDATES__/__RANK__ are filled by pilot5_run.sh.
 # Rate: 5e-5, between pilot-1's 1e-4 (too hot at scale 20) and pilot-2's cooled 2e-5; this run
 # has to add knowledge, not adjust habits. Rank is the variable under test (32 vs 128).
+# mlx-lm applies `scale` directly (it does not divide by rank), so the scale must fall as the rank
+# rises: rank 128 at scale 10 diverged at iteration 150 (2026-11-18). Keep scale x rank = 320.
 train: true
 fine_tune_type: lora
 mask_prompt: true
@@ -17,7 +19,7 @@ lr_schedule:
   arguments: [5.0e-5, __UPDATES__, 1.0e-6]
 lora_parameters:
   rank: __RANK__
-  scale: 10.0
+  scale: __SCALE__
   dropout: 0.05
 max_seq_length: 12288
 grad_checkpoint: true

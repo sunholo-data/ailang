@@ -1,0 +1,133 @@
+### Fixed — an integer literal in a generic function runs at the type of its argument (#2378, #2333)
+
+`func inc(x) = x + 1` has the type `Num a => a -> a`, and since #2364 an importer sees that type.
+But its body was compiled once, at the default `int`, so `inc(2.5)` passed `check` and then failed
+at run time:
+- the evaluator said "numeric dictionary method add received an int and a float";
+- the VM said "arith ADD: type mismatch Float vs Int".
+
+The same happened for a literal under a record, tuple, list, `Option` or nested structure, for
+`if x > 0 then x else 0`, `x % 3` and `x == 0` (the evaluator crashed, the VM answered `false`),
+and in recursion and mutual recursion.
+
+**Top-level functions.** A function whose numeric type variable carries an integer literal (its
+own, or a callee's) is now compiled once per instance of that variable: as written, for `int`,
+and as a variant typed at `float` throughout (`inc$numF`, whose literal is `1.0` and whose
+operators, `show` and `%` work at float).
+- Every use picks the variant its argument types name, in the module and from importers.
+- A use at `int` runs exactly the code it ran before: `inc(2)` is `3`, `show(1 + 1)` is `2`,
+  `10 / 4` is `2`.
+- A literal-free generic (`add(a, b) = a + b`) has one body that is right at every instance, so
+  it gets no variants and compiles exactly as before.
+- Results are the same on the evaluator, `--bytecode` and `--strict-bytecode`.
+- A contract on such a function is checked at the type of the call: every clause, `result`, and
+  clauses that call other generic functions. `ailang verify` counts it once.
+
+**Let-bound functions follow the same rule.** This covers a let whose value is a lambda, a block
+of values ending in a lambda, or a `letrec` of one such binding. Each use gets its own copy,
+whether the literal is the function's own or a callee's:
+- `let f = \x. x + 1` gives `f(2) == 3` and `f(2.5) == 3.5`;
+- `let g = { let k = 1; \u. inc(u) }` behaves the same way;
+- so does `letrec s = \n. if n <= 0 then 0 else n + s(n - 1)`;
+- so does a name for a function: `let f = g`, `let f = inc` (imported), and
+  `let f = { let h = \x. x + 1; h }`.
+
+A file with no `module` line runs its expression the same way: `let inc = \x. x + 1 in inc(2.5)`
+is `3.5`, where it used to fail at run time.
+
+The same body now behaves the same as a top-level function, a let-bound lambda, a block-bound
+lambda, an alias, and when imported.
+
+A binding whose value is computed is a single value whose uses decide its one type. That covers
+a partial application (`add(0)`), a function returned by a call, an `if` or `match` choosing a
+lambda, and a record or tuple holding one. Calling it with a typed `int` and with a `float` is a
+located check error that says exactly that, instead of a crash or a silently wrong number.
+LIMITATIONS lists these forms and the workaround (`let f = \y. add(0)(y)`).
+
+The REPL and the playground load modules through a second pipeline that does not compile
+variants yet (#2410). There, a top-level generic function with a literal still fails at float,
+as it did before.
+
+The exception #2364 kept is gone. It was `literalAtDecl`: `func f(p) = {p | x: p.x + 1}` used at
+float gave `No instance for Fractional[int]`. That function now runs at float.
+
+### Changed — BREAKING: a literal that no parameter carries is an `int` (#2378)
+
+A numeric type variable of a top-level binding defaults to `int` when **both** of these hold:
+- it carries an integer literal, directly or through a callee;
+- it occurs in no parameter position of any function type in the binding's type.
+
+It defaults to `float` instead when the literal is written `3.0`, or when an annotation says so.
+Such a variable has no argument to tell a call its type, so it cannot be generic. Every other
+variable keeps its generality.
+
+- **Now `int`:** `let K = 3`, `func K() = 3`, `func cfg() = {lo: 1, hi: 10}`, `func one(x) = 1`,
+  `len(xs)`, and the second component of `pairUp(x) = (h(x), h(1))`. `K * 0.5` is now a check
+  error at the use. The message names the binding and where its literal is, and says to write
+  `3.0`, to annotate it as float, or to convert. Before, it passed `check` and failed at run time.
+- **Still generic:**
+  - literal-free bindings, including containers of them: `let ops = (add, mul)`,
+    `[add, mul]`, `{plus: add}`, `func getOps() = (add, mul)`,
+    `func pick(b) = if b then Some(add) else None`;
+  - a function in a result, such as `func mk() = \x. x + 1`;
+  - a variable a parameter carries.
+- **Exported types narrow** where the rule applies:
+  - `func K() = 3` exports `() -> int` (it was `Num[a] => () -> a`);
+  - `cfg` exports `() -> {hi: int, lo: int}`;
+  - `W(x) = {a: x + 1, b: 0}` exports `Num[a] => (a) -> {a: a, b: int}`.
+- An exported function whose literal sits under an open record
+  (`export func bump(f) = {f | v: f.v + 1}`) now exports `Num[b] => ({v: b, ...a}) -> …` instead
+  of `({v: int, ...a}) -> …`.
+- **`TC_NUMVAR_001`:** a binding generic over more than 4 literal-carrying numeric types gets only
+  the variants its own module uses. A use from another module at a combination that was not
+  compiled is this check error (before, it failed at run time). It is located at that use and
+  names the binding that has too many types, and the chain to it:
+  "`V2` from lib/v2 has no variant for this use at float: it needs `W5` from lib/w (used at …),
+  which is not compiled with 1 of its 5 numeric types at float".
+
+**Interface surface.** `ailang iface` gains `"literals": ["a"]` on an export, listing the type
+variables (named as in `"type"`) whose `Num` constraint carries an integer literal. These are
+the variables the export has compiled variants over. The field is omitted when there are none,
+so a literal-free generic is unchanged.
+- The module interface digest includes the field, so an importer's compile-cache key moves
+  when a dependency gains or loses a literal.
+- The registry's v2 interface hash (`HashProjection`) and the signature set include it, so **the
+  v2 hash changes for a package with a literal-carrying generic export**.
+- The lockfile `interface_hash` (v1) is computed from the manifest alone and does not change.
+- Operational: a publisher and a registry validator on different AILANG versions disagree on the
+  v2 hash of such a package, and the publish is refused with `PUB005`. Deploy the validator in
+  step with this release.
+
+Measured against origin/dev 651979e6b:
+- **14,857 banked eval programs:** the `check` verdict and error code are identical on all of
+  them. 11,328 pass on both; 0 are newly rejected or newly accepted; 0 hit `TC_NUMVAR_001` or
+  the single-value error.
+- **Output:** the 361 passing programs a #2378 rule touches print byte-identical output on the
+  evaluator and on `--strict-bytecode`. So do 400 random untouched ones, which also compile to
+  identical bytecode.
+- **The 340-program defaulting sweep** (102 groups of top-level, let and cross-module forms):
+  - 277 print the same output;
+  - 24 that crashed now run;
+  - 18 are newly accepted;
+  - 0 are newly rejected;
+  - 21 now print an int use of a let-bound function as an int (`7`, `7 / 2` is `3`), where dev
+    retyped it to float (`7.0`, `3.5`). The top-level and cross-module forms always printed
+    the int.
+
+  All three forms agree in 102 of 102 groups, against 81 before. The same uses at int and float
+  in one program, compared across the top-level, let, block-bound and imported forms, agree in
+  33 of 33 groups, against 12 before.
+- **1,005 tracked `.ail` files:** 0 verdict or interface changes. The 606 that have a `main`
+  print the same output; the only differences are timings, export-list order and one fresh
+  type-variable number.
+- **`ailang iface` over std, the tracked modules and 621 ailang-packages files** (1,626 files):
+  0 diffs. No export there carries a literal-carrying variable or a narrowed type.
+- **Performance**, median of 5 on a loaded machine:
+  - an `int` loop through generic helpers takes as long as before: 4.95 s → 4.82 s on the
+    evaluator, 504 → 511 ms on the VM;
+  - the same loop at float takes as long as a hand-written float twin: 5.01 s vs 5.07 s, and
+    499 ms vs 496 ms.
+- **Size:** an exported literal-free generic compiles exactly as before. A module of 200 such
+  functions has the same cache size and run time; so does a module whose bindings are not
+  exported. A module exporting 200 functions over four literal-carrying variables each holds a
+  copy per variant: its cache grows from 1.2 to 7.6 MB, and `check` from 0.13 to 0.28 s.

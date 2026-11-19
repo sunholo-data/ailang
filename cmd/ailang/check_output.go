@@ -208,10 +208,12 @@ func errorEntryFor(message string, cause error) checkJSONError {
 // signature variable the body does not keep general (#2273, TC_RIGID_001), and
 // a call that breaks an imported function's class constraint (#2290,
 // TC_CONSTRAINT_001). An extern declaration (#2390, EXT004) is coded too: in
-// package and directory checks it reaches here as flattened text.
+// package and directory checks it reaches here as flattened text. So is a
+// use of another module's binding at numeric types its variants do not cover
+// (#2378, TC_NUMVAR_001).
 func jsonErrorCode(msg string) string {
 	best, at := "ERROR", -1
-	codes := append(append(append(types.NominalIdentityCodes(), types.RecordRowCodes()...), types.TypeSizeCodes()...), elaborate.CodeTestBody, pipeline.CodeContract, types.TC_FORALL_001, types.TC_RIGID_001, types.TC_CONSTRAINT_001, ailerrors.EXT004)
+	codes := append(append(append(types.NominalIdentityCodes(), types.RecordRowCodes()...), types.TypeSizeCodes()...), elaborate.CodeTestBody, pipeline.CodeContract, types.TC_FORALL_001, types.TC_RIGID_001, types.TC_CONSTRAINT_001, ailerrors.EXT004, types.NumVariantLimitCode)
 	for _, code := range codes {
 		if i := strings.Index(msg, code); i >= 0 && (at < 0 || i < at) {
 			best, at = code, i

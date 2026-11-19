@@ -864,3 +864,35 @@ No VERIFIED, no ⚖ action, no comments/labels/closes on items, no approve/rejec
 **Findings routed to the digest, not fixed**: #2403 and #2393 both insert a pass before monomorphization in pipeline_module_compile.go (expect a conflict on whichever merges second); #2393 still has checks in progress.
 **Not done**: T4 landed-card dry run; card re-verification; no reproductions (PATH binary v0.60.5 is not dev).
 **Next**: re-verify #2393 once green; Mark approves or declines #2403.
+
+## 46 — 2026-11-18 — red dev routed, #2221 and #1953 closed, #1980 held by T2 [ADMIN]
+**Reality check**: origin/dev `022f68f1a8fd29f501df52a772db4710b9802cee`; CI RED: `TestCloudAgents_RegistryMatchesTheDeletedRoutingTable` (`internal/coordinator/agents_fixture_test.go:151`, run 44158236421; registry says `gpt-6.2-sol`, fixture expects `gpt-6.1-sol`); first red `6df452df6`/`8e04a29c5`, parent `5cf3088a0` green. No directives (0 allowlisted comments on #2069). Skill files: every readable copy matched origin (no DRIFT printed).
+**Shipped**: digest on #2069; red routed to `design-doc-creator` (inbox_1794980838338_789cc5ef) plus `[urgent]` Daneel and user messages; closed #2221 and #1953 (comment read back 0 -> 1, 2 -> 3, state CLOSED); evidence comment on PR #2090 (1 -> 2); labels `priority:P1` + `area:runtime` on #2410, #2409. 26 shadow rows appended. No approvals, rejections or merges.
+**Selection**: 3 changed (#2393 new head, #2410, #2409 new) + 23 stale >= 7d (oldest 20 plus overflow); 0 held; skipped 124. 26 items verified.
+**Judge**: `sonnet` Agent (`MISSION-ROLE: evaluator`), different model from the haiku verifiers, run before any action. CONCUR on #2221, #1953, #1980, #2090 (nuance: #2090's foldl-specific report is not covered by the superseding doc).
+**Routing evidence**: executor `claude:claude-haiku-5-5` (2 foreground Agent batches, `MISSION-ROLE: executor`); evaluator `sonnet` (1 foreground Agent). A first spawn attempt was refused by the spawn-pin hook for lacking a `MISSION-ROLE:` first line; re-sent with the token. Codex lanes probed rc=75 (quota unreadable), unused.
+**Held**: #1980 fixed on dev (MOD015) but card task-364b77ab / PR #1984 still pending, so T2 forbids closing.
+**Not done**: T4 landed-card dry run; ledger agree/total score not computed; packet not due (05:36 UTC). #2393 not re-verified by build (verifier judged from CI and PR body).
+**Next**: re-verify #2393; confirm the red-dev fix landed; Mark rules on #2090 and the IFC F4 decision (#2187/#2196).
+
+## 47 — 2026-11-18 — red dev already fixed, #2415 superseded, #1485 close dissented [ADMIN]
+
+**Reality check**: origin/dev `8bfca4d03e93e87e2d2cf500f78e2aef16397caf`; CI success (3 latest runs green): the red routed in iteration 46 is fixed by `55788b010`. All 14 skill files byte-identical between origin/dev and the resolved symlink target. No directives (0 allowlisted comments on #2069), no crash notices.
+**Selection**: 2 changed (PR #2415 new, #2410 updated) + 1 held (#1980) + 8 stale >= 7d; skipped the rest. 11 items verified.
+**Shipped**: evidence comment on PR #2415 (read back 0 -> 1); `needs-decision` on #1485; 11 shadow rows. No closes, attestations, approvals, rejections or merges.
+**Judge**: `sonnet` Agent (`MISSION-ROLE: evaluator`), a different vendor from the codex verifier, run before any action. CONCUR on #1980 and #2415. DISSENT on #1485: the verifier cited 155a22828 (a lowercase-name follow-up), but docs/LIMITATIONS.md:166 and errors/index.md:215 say uppercase undeclared names are still not reported, so the close was downgraded to NEEDS-DECISION.
+**Routing evidence**: executor `codex:gpt-6-luna` (probe rc=0, one bounded background run, rc=0, 1 batch of 11); evaluator `sonnet` via the Agent tool. The Agent tool was not used for the verifier because the resolver returned `recipe codex:gpt-6-luna`.
+**Held**: #1980 fixed on dev (MOD015) but card task-364b77ab still pending, so T2 forbids closing. #2415 SUPERSEDED but closing a coordinator PR rejects its card for good, so it is Mark's.
+**Not done**: T4 landed-card dry run; ledger agree/total score; card re-verification. Packet not due (17:49 UTC, outside the 18:00-05:00 window).
+**Next**: Mark rules on #2415 and #1485; the record PR must go green and land.
+
+## 48 — 2026-11-19 — three docs re-attested, #1985 and #1980 judge dissents, three orphan PRs superseded [ADMIN]
+
+**Reality check**: origin/dev `cf540337ede442443011db75c4cd9bf2776f7d33`; CI success (4 latest runs green). Directives: 0 allowlisted comments on #2069; no crash notices (the watermark file for #2069 is absent, so the read was whole-issue DEGRADED, rc=0). The decision ledger has no OPEN rows on this checkout, so the moot and decompose sweeps had nothing to act on.
+**Selection**: 1 changed (#2341, fleet bookkeeping, skipped) + 1 held (#1980) + 27 stale >= 7d, of which 33 items went to verifiers (9 PRs, 24 issues). Skipped fleet/* records, #2357, #2018, #2411, Dependabot.
+**Shipped**: 3 fresh unsigned attestations (PRs #2099, #2009, #1978 against this dev); evidence comments on PRs #1894, #1939, #1934, #1759 (each read back +1); `needs-decision` on #1980; digest comment; 33 shadow rows. No closes, approvals, rejections or merges.
+**Judge**: `sonnet` Agent (`MISSION-ROLE: evaluator`), a different vendor from the codex verifier, run before any action. CONCUR on the three VERIFIED, #1894, the three SUPERSEDED orphans and #2415. DISSENT on #1985 (govulncheck is moot because dev resolved #1980 by MOD015, so close the plan, not fix it) and on #1980 (verifier KEEP, judge says MOD015 in `internal/pipeline/import_ambiguity.go` fixes it). Both became NEEDS-DECISION. T2 still forbids closing #1980 while card task-364b77ab is pending.
+**Routing evidence**: executor `codex:gpt-6-luna` (probe rc=0, two bounded background runs read-only, rc=0, 17 and 16 items); evaluator `sonnet` via the Agent tool. Verifiers had no network, so issue/PR data was prefetched; 9 issue snapshots came back empty, so their KEEPs rest on design-doc references. No reproductions ran.
+**Ledger score**: 25/28 agree (#1980 CLOSE-FIXED still open; #2197, #2228 NEEDS-FIX later merged).
+**Not done**: T4 landed-card dry run; card re-verification; the six PR-less cards were not re-read. Packet not due (06:14 UTC, outside the 18:00-05:00 window).
+**Next**: Mark rules on #1985/task-364b77ab, #2415/task-789cc5ef and the three superseded orphans; approvals for #2099, #2009, #1978 are ready.

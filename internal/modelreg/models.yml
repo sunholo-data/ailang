@@ -2000,6 +2000,55 @@ models:
       vs 3.8/3.7 Flash 15-20s at ~105-145 tok/s — it thinks 2-4x more.
       Opt-in, in NO suite: the Flash-seat decision is pending.
 
+  # Google Gemini 4 Neon (API-callable 2026-11-19) — between Hydrogen and Argon/Carbon on price.
+  gemini-4-neon:
+    api_name: "gemini-4-neon"
+    provider: "google"
+    default_thinking: "on"
+    description: "Gemini 4 Neon - Nov 2026 frontier-level Gemini 4 model, fast end-to-end task completion; $3/$15, no intro schedule"
+    env_var: ""  # Eval harness uses Vertex AI ADC (gcloud auth application-default login).
+    gcp_project: "ailang-dev"
+    gcp_location: "global"
+    # 65536 = the Developer API's declared outputTokenLimit (same as Hydrogen; Argon/Carbon
+    # declare 32768). Vertex silently clamps: maxOutputTokens 65537 -> 200 STOP (probed
+    # 2026-11-19), so the API cannot confirm a ceiling. Check finish_reason=length.
+    max_output_tokens: 65536
+    model_family: "gemini-4"
+    pricing:
+      input_per_1k: 0.003          # $3.00 per 1M
+      output_per_1k: 0.015         # $15.00 per 1M (incl. thinking)
+      cache_read_per_1k: 0.00015   # $0.15 per 1M (implicit caching only)
+    notes: |
+      Access VERIFIED 2026-11-19: Vertex global ailang-dev generateContent -> 200,
+      modelVersion "gemini-4-neon"; controls gemini-4-hydrogen -> 200,
+      gemini-4-neon-zzz / -preview / gemini-neon -> 404. Developer API
+      (GEMINI_AGENTS_API_KEY): models/gemini-4-neon version 3.0, in=1048576 out=65536,
+      thinking=true, generateContent/countTokens/batchGenerateContent.
+
+      Pricing from aistudio.google.com/docs/pricing (fetched 2026-11-19), Standard paid
+      tier: input $3.00, output incl. thinking $15.00, cached input $0.15 per 1M; NO
+      introductory schedule; no >200k tier; implicit caching only; NOT on the free tier;
+      Batch/Flex half ($1.50/$7.50/$0.075); Priority $5.40/$27.00/$0.27. That is 2x
+      Hydrogen and 0.75x Argon/Carbon's post-2026-12-01 list rate. Google: "frontier-level
+      intelligence with fast end-to-end task completion across complex software engineering".
+
+      ⚠️  THINKING — ON BY DEFAULT and heavy, like Hydrogen. thinkingBudget -> 400
+      ("Use thinking level instead"); thinkingLevel MINIMAL -> 400. DO NOT set
+      reasoning_effort / reasoning_max_tokens on this row. Probes 2026-11-19, no params:
+        "prove infinitely many primes" -> 775 thoughts / 452 out, STOP
+        CSV-parser coding prompt       -> 3900 thoughts / 409 out, STOP
+
+      PLACEMENT 2026-11-19 (standard, candidate ALONE, --trials 1, parallel 4,
+      --tier smoke,core,frontier,stretch,long-frontier, 81 benchmarks, scratch HEAD binary
+      first on PATH): 80/81, anchored ELO 2735.4 (banked). All 81 finish=stop, 81/81 thought.
+      Smoke and core clean. The one failure is contract_sorted_merge, wrong-output: it
+      printed `{1, 2, 3, 4, 5}` for the spec's `[1,2,3,4,5]` (spec-following, not syntax).
+      Cost $17.53 at list = $0.216/run (avg 35.7K in, 7.3K out+think); no implicit-cache
+      hits recorded on this run, so this is the uncached figure. Compare Hydrogen 76/81
+      ELO 2179 at ~$0.094/run, Carbon 81/81 ELO 2969 at $0.241/run uncached.
+      N=1: 2735 vs Argon's 2778 floor is a one-benchmark gap, not a ranking.
+      Opt-in, in NO suite: promotion is a separate call.
+
   # Google Gemini 3.5 Flash (released May 19, 2026 at Google I/O 2026)
   # ⚠️  EXCLUDED FROM STANDARD EVAL ROTATION (v0.22.0, 2026-05-20).
   # The Vertex Managed Agents API path is cost-prohibitive due to a documented

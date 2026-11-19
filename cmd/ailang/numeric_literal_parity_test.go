@@ -72,16 +72,16 @@ func TestNumericLiteralParityVMvsInterpreter(t *testing.T) {
 	}
 }
 
-// The residue the restriction does not reach: an integer literal inside a
-// generic TOP-LEVEL function instantiated at float. When the function's
-// generality is only inferred (no signature) it still fails at runtime, but
-// with a message naming the cause and the fix instead of "expected float
-// arguments". When a signature declares it generic (`incG[a](x: a) -> a`), the
-// literal at the rigid `a` is TC_RIGID_001 at check time (#2273).
-func TestNumericLiteralGenericResidueFailsLoudly(t *testing.T) {
+// An integer literal inside a generic TOP-LEVEL function instantiated at
+// float, which the literal restriction does not reach (a module declaration
+// is exempt). When the function's generality is inferred it runs, through the
+// function's float variant (#2378; it was a run-time error, "received an int
+// and a float"). When a signature declares it generic (`incG[a](x: a) -> a`),
+// the literal at the rigid `a` is TC_RIGID_001 at check time (#2273).
+func TestNumericLiteralInGenericTopLevelFunction(t *testing.T) {
 	bin := buildAilang(t)
 	for _, c := range []struct{ name, decl, want string }{
-		{"inferred generic: runtime error", "func incG(x) { x + 1 }", "received an int and a float"},
+		{"inferred generic: runs at float", "func incG(x) { x + 1 }", ""},
 		{"declared generic: check-time TC_RIGID_001", "func incG[a](x: a) -> a { x + 1 }", "TC_RIGID_001"},
 	} {
 		t.Run(c.name, func(t *testing.T) {
@@ -90,7 +90,13 @@ func TestNumericLiteralGenericResidueFailsLoudly(t *testing.T) {
 			if err := os.WriteFile(file, []byte(src), 0o644); err != nil {
 				t.Fatal(err)
 			}
-			_, stderr, code := runAilangBin(t, bin, "run", "--quiet", "--entry", "run", "--args-json", "2.5", file)
+			out, stderr, code := runAilangBin(t, bin, "run", "--quiet", "--entry", "run", "--args-json", "2.5", file)
+			if c.want == "" {
+				if code != 0 || strings.TrimSpace(out) != "3.5" {
+					t.Fatalf("incG(2.5): want 3.5, got exit %d, stdout %q, stderr %s", code, out, stderr)
+				}
+				return
+			}
 			if code == 0 {
 				t.Fatalf("expected an error for an int literal at a generic float instantiation")
 			}

@@ -1,0 +1,14 @@
+module mx/lit_xmod
+import std/io (print)
+import std/list (map, foldl)
+import mx/lit_add (genU as addOne)
+import mx/lit_rec_open (genU as bump)
+
+-- #2378 across modules: an imported generic function with an integer literal,
+-- called at int and at float, directly and through a higher-order function.
+export pure func genU(x) = addOne(addOne(x))
+export pure func gen(x) = foldl(\acc y. acc + bump({v: y, w: 0}).v, 0, map(addOne, [x]))
+export pure func twinI(x: int) -> int = x + 2
+export pure func twinF(x: float) -> float = x + 2.0
+export pure func summary() -> string = "genUI=${show(genU(3))}\ngenI=${show(gen(3))}\ntwinI=${show(twinI(3))}\ngenUF=${show(genU(2.5))}\ngenF=${show(gen(2.5))}\ntwinF=${show(twinF(2.5))}\n"
+export func main() -> () ! {IO} = print(summary())

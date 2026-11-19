@@ -166,6 +166,11 @@ the one before, and a publisher and a validator on either side of it disagree (`
 deploy the validator in step with that release. The lockfile's `interface_hash` (v1) is
 computed from the manifest alone and does not change.
 
+The same holds for the `literals` an export lists (#2378): the type variables whose `Num`
+constraint carries an integer literal, over which the export is compiled once per numeric
+instance. A package with such an export has a different v2 hash under the release that adds
+the field, and the validator is deployed in step with it.
+
 ### The package inbox
 
 Every published package has an agent inbox, `pkg:<vendor>/<name>`, derived from

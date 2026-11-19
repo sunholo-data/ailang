@@ -100,6 +100,7 @@ func (tc *CoreTypeChecker) substituteApplicationRows(sub Substitution) {
 }
 
 func (tc *CoreTypeChecker) applyApplicationSubstitution(sub Substitution) {
+	tc.closeGeneric(sub) // #2378: the numeric-variant snapshot of the generic body too
 	tc.CoreTI.ApplySubstitution(sub)
 	tc.substituteApplicationRows(sub)
 	tc.substituteCtorPatternTypes(sub)

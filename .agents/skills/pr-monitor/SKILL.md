@@ -41,7 +41,7 @@ GitHub puts PR activity in **three** endpoints. **Each event lives in only one.*
 ### 1. Audit — "what's the current state of PR N?"
 
 ```bash
-.Codex/skills/pr-monitor/scripts/audit_pr.sh <owner>/<repo> <pr-number>
+.claude/skills/pr-monitor/scripts/audit_pr.sh <owner>/<repo> <pr-number>
 ```
 
 Outputs: latest activity on all 3 endpoints, unresolved thread count, CI check status, merge state, review decision. Use this BEFORE asking the user "anything new?" or before posting a closeout reply.
@@ -49,7 +49,7 @@ Outputs: latest activity on all 3 endpoints, unresolved thread count, CI check s
 ### 2. Monitor — "watch the PR(s) and notify me on changes"
 
 ```bash
-.Codex/skills/pr-monitor/scripts/monitor_pr.sh <owner>/<repo> <pr-number> [<pr-number>...]
+.claude/skills/pr-monitor/scripts/monitor_pr.sh <owner>/<repo> <pr-number> [<pr-number>...]
 ```
 
 Long-running. Polls `/notifications?all=true` every 60s. Emits one line per new event, drilling into the `subject.latest_comment_url` to surface the actual content. Exits when **all** monitored PRs reach a terminal state (`MERGED` or `CLOSED`). Designed to be wrapped with the `Monitor` tool.
@@ -57,7 +57,7 @@ Long-running. Polls `/notifications?all=true` every 60s. Emits one line per new 
 ### 3. Reply to a CR thread (triggers auto-resolve)
 
 ```bash
-.Codex/skills/pr-monitor/scripts/reply_to_thread.sh <owner>/<repo> <pr-number> <thread-comment-id> <commit-sha> "<reply body>"
+.claude/skills/pr-monitor/scripts/reply_to_thread.sh <owner>/<repo> <pr-number> <thread-comment-id> <commit-sha> "<reply body>"
 ```
 
 Posts an inline reply with the structure CodeRabbit's auto-resolution detector looks for:
@@ -69,7 +69,7 @@ This is **the only way** to get CR threads to auto-close after a fix. Commit mes
 ### 4. Budget check — "should I keep iterating on this PR?"
 
 ```bash
-.Codex/skills/pr-monitor/scripts/pr_budget.sh <owner>/<repo> <pr-number>
+.claude/skills/pr-monitor/scripts/pr_budget.sh <owner>/<repo> <pr-number>
 ```
 
 Reports total iteration cost (commits, review waves, our replies), severity histogram of CR findings (🔴 / 🟠 / 🟡 / 🔵), and a verdict heuristic flagging when wave count ≥ 3 indicates diminishing returns. **Run before responding to a new CR wave on a PR that's already had 2+ cycles** — the cost-benefit may have flipped.

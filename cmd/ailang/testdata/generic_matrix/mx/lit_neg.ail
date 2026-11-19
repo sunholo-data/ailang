@@ -1,0 +1,15 @@
+module mx/lit_neg
+import std/io (print)
+
+-- #2378: an integer literal in a generic body; genU must print what the twin
+-- of its argument's type prints, on every engine.
+export pure func genU(x) = x * -1 - 1
+export pure func gen(x) = genU(x)
+export pure func twinI(x: int) = x * -1 - 1
+export pure func twinF(x: float) = x * -1.0 - 1.0
+export pure func summary() -> string {
+  let r1 = genU(3); let r2 = gen(3); let r3 = twinI(3);
+  let f1 = genU(2.5); let f2 = gen(2.5); let f3 = twinF(2.5);
+  "genUI=${show(r1)}\ngenI=${show(r2)}\ntwinI=${show(r3)}\ngenUF=${show(f1)}\ngenF=${show(f2)}\ntwinF=${show(f3)}\n"
+}
+export func main() -> () ! {IO} = print(summary())

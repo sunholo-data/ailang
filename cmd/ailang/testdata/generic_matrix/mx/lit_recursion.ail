@@ -1,0 +1,14 @@
+module mx/lit_recursion
+import std/io (print)
+import std/list (foldl)
+
+-- #2378: a literal in a recursive, a mutually recursive and a folding generic
+-- function; each copy at float calls its own copies.
+export pure func genU(n) = if n <= 1 then 1 else n * genU(n - 1)
+pure func evenProd(n) = if n <= 1 then 1 else n * oddProd(n - 1)
+pure func oddProd(n) = if n <= 1 then 1 else n * evenProd(n - 1)
+export pure func gen(n) = evenProd(n) + foldl(\acc x. acc + x, 0, [n, 0 - n])
+export pure func twinI(n: int) -> int = if n <= 1 then 1 else n * twinI(n - 1)
+export pure func twinF(n: float) -> float = if n <= 1.0 then 1.0 else n * twinF(n - 1.0)
+export pure func summary() -> string = "genUI=${show(genU(5))}\ntwinI=${show(twinI(5))}\ngenUF=${show(genU(5.0))}\ntwinF=${show(twinF(5.0))}\ngenI=${show(gen(5))}\ngenF=${show(gen(5.0))}\n"
+export func main() -> () ! {IO} = print(summary())

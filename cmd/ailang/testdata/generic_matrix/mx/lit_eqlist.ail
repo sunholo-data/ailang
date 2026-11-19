@@ -1,0 +1,10 @@
+module mx/lit_eqlist
+import std/io (print)
+
+-- #2378: an integer literal under a structural == (list, tuple, Option); the
+-- float variant must compare with the structural dictionary at float.
+export pure func genU(x) = [x + 1] == [1 + x] && (x, 1) == (x, 1) && Some(x * 2) == Some(2 * x)
+export pure func twinI(x: int) = [x + 1] == [1 + x] && (x, 1) == (x, 1) && Some(x * 2) == Some(2 * x)
+export pure func twinF(x: float) = [x + 1.0] == [1.0 + x] && (x, 1.0) == (x, 1.0) && Some(x * 2.0) == Some(2.0 * x)
+export pure func summary() -> string = "genUI=${show(genU(3))}\ntwinI=${show(twinI(3))}\ngenUF=${show(genU(1.5))}\ntwinF=${show(twinF(1.5))}\n"
+export func main() -> () ! {IO} = print(summary())
