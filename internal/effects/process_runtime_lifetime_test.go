@@ -269,12 +269,16 @@ func TestRuntimeNestedStopUsesRemainingDeadline(t *testing.T) {
 	}
 	defer mp.Close()
 	deadline := time.Now().Add(5 * time.Second)
+	// Each helper writes its marker after Bind. The nested marker alone
+	// does not establish that the outer helper has bound its cleanup.
 	for {
-		if _, err := os.Stat(marker + ".nested"); err == nil {
+		_, outerErr := os.Stat(marker)
+		_, nestedErr := os.Stat(marker + ".nested")
+		if outerErr == nil && nestedErr == nil {
 			break
 		}
 		if time.Now().After(deadline) {
-			t.Fatal("nested runtime not ready")
+			t.Fatalf("runtime helpers not ready (outer: %v, nested: %v)", outerErr, nestedErr)
 		}
 		time.Sleep(time.Millisecond)
 	}
