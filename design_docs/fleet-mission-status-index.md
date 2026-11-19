@@ -12,7 +12,8 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
-| 120 | 2026-11-18 | D-FLEET-36 A + D-FLEET-38 A guard arm BUILT, not landed — rebuilt fresh as #2413 (supersedes draft #2108; judge sonnet PASS 93); merge waits on dev's ... |
+| 121 | 2026-11-18 | D-FLEET-36 A + D-FLEET-38 A guard arm LANDED — #2413 → `55d336df7` (dev CI 18/18 green; iteration-120 judge PASS 93, merged diff byte-identical); f... |
+| 120 | 2026-11-18 | D-FLEET-36 A + D-FLEET-38 A guard arm BUILT, not landed — rebuilt fresh as #2413 (supersedes draft #2108; judge sonnet PASS 93); merge waits on dev... |
 | 119 | 2026-11-17 | D-FLEET-33 A BUILT, not landed — pi `unowned-dirty` relative-path fix on #2411 (judge sonnet PASS 93); merge waits on the attended `make pi-assets`... |
 | 118 | 2026-11-17 | D-FLEET-25 A BUILT and LANDED — World-fork text #2396 → `ad1fdac57` (judge PASS 93) and the fleet-wide rulings ledger + report-only `ailang mission... |
 | 117 | 2026-11-17 | row 13's two live probe flakes FIXED (#2385 → `b1942b7f9`, judge sonnet PASS 88); timer arm lost a SIGTERM before exec, lsof stub turned an empty l... |

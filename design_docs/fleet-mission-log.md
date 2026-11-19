@@ -1643,3 +1643,88 @@ Each replied to its filer.
 - Executor: resolver `recipe claude:claude-haiku-5-5 declared:provider-pin` → Agent tool `model=haiku`, `MISSION-ROLE: executor` (the spawn-pin hook's `allow:same-model-alias` for a `claude:` pin), foreground, 1 spawn (90,778 tok). Same model as the recipe lane, reached through the Agent tool at the operator's standing request for this run.
 - Evaluator: resolver `agent-tool sonnet declared:alias-pin` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 1 spawn (66,764 tok). Judge independence: cross-model (planner and controller opus, executor haiku, judge sonnet; same vendor, a preference under D-FR-2).
 - Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`1`) → handed to `opus`; `executor`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`1`) → handed to `claude:claude-haiku-5-5`
+
+## 124 — 2026-11-19 — `quorum:codex-gpt-6.2-sol-not-allowlisted` RESOLVED as a ghost of `8e04a29c5` (stale rig binary); the seat still fails because the mission codex daemon is codex-cli 0.162.1, which 400s `gpt-6.2-sol` (measured), so that residual is new ask D-FLEET-47; independent judge sonnet RESOLVE-WITH-RESIDUAL-ESCALATED 72 [HARNESS]
+
+**Pick**: queue row 65 (`quorum:codex-gpt-6.2-sol-not-allowlisted`, stapledon 98, 1 slot, blocking none). This was iteration 123's **Next**.
+- Critical path: clause 2 is UNMET. Row 65 was filed 2026-11-18 06:00Z, so resolving it now is inside 48 h.
+- Every other open ticket is ruling-gated, out of scope, or waiting on an attended step: #2411 is still red on the attended `make pi-assets` sync, its head unchanged since 11-17.
+- 0 allowlisted directives on #2341 (11 comments) or #2172 (31). The self-notices read was rc 0: DEGRADED whole-issue read, 0 crash notices, control 852:10. No new tickets since iteration 123; 18 open.
+- Not a Monday-rotation fire, so no weekly sweep.
+
+**Preflight / observe**:
+- Armed; gh `sunholo-voight-kampff`; billing CLEAN.
+- Skill drift: the resolved symlink copy matches origin/dev on all 14 files, checked per file.
+- Gate 1 base `93e6e46040f65812a91da92d3d7b9e821673a59a@2026-11-19T08:40:08Z`. Dev CI green: `CI` and `Build and Release` success at `93e6e4604`, 18 check-runs, 0 not green.
+- Records 95–123 sit on stacked PRs (newest #2422), and this record stacks on that one.
+
+**Reality check** (controller, first-party, at `93e6e4604`):
+- **Literal defect gone.** `8e04a29c5` (2026-11-17 18:55Z, ancestor of origin/dev) put `gpt-6.2-sol` into `AllowedOpenAIModels` (`internal/mission/quorum/rolemodels.go:21`), `CodexReviewerModel` and the `design-quorum` default pool and `--help`.
+- An overlay probe (`go test -overlay`, tree untouched) shows `ModelAllowed("codex:gpt-6.2-sol")=true`. `SelectReviewers` seats it as primary with `refused=[]`. The negative control `codex:gpt-6.3-bogus` reads `false`.
+- **Why stapledon saw it:** its 04:42Z run used a PATH `ailang` built before `8e04a29c5`. The `--help` it quoted still named 6.1, and that is a string `8e04a29c5` changed. The current `~/go/bin/ailang` (`9828cda4a`, 11-18 09:03Z) has the fix as an ancestor. This is the D-FLEET-29 class (fleet Go fixes reach loops only when the PATH binary is rebuilt), which iteration 56 resolved the same way.
+- **Guard exists.** An overlay mutation dropping `gpt-6.2-sol` from the allowlist fails `TestCodexReviewerID_IsAnAllowlistedOpenAISeat` and `TestRoutingScriptAllowlistParity`. The unmutated package passes (control).
+- **The ticket's effect persists, by a different mechanism.**
+  - The quorum's OpenAI reviewer takes `codex_reviewer.go`'s `daemon` branch, because the stapledon and world envs set `CODEX_HOME=~/.codex-missions` and `AILANG_CODEX_RUNTIME=daemon`.
+  - That daemon is `dev.ailang.codex-mission-owner`, pid 2752, up since 11-02. It runs `~/.codex-missions/packages/app-server-daemon/current/bin/codex`, and `current` → **0.162.1**.
+  - The driver logs show **0 successes in 42** `gpt-6.2-sol` probes since 11-18 10:38Z (fleet 12, world 16, stapledon 8, triage 6). The probes fail through the daemon with 400 `model_not_found` ("not supported when using Codex with a ChatGPT account").
+- **The 2×2 isolated the client version as the cause** (`CODEX_HOME=~/.codex-missions`, one ChatGPT account; outputs in [codex-probes.md](fleet-mission-evidence/iteration124/codex-probes.md)):
+  - 0.162.1 with 6.2: rc 1, 400 `model_not_found`.
+  - 0.162.1 with 6.1: rc 0, `OK`.
+  - 0.169.0 with 6.2: rc 0, `OK`.
+
+  So account entitlement is ruled out. `8e04a29c5`'s message already says gpt-6.2 needs codex-cli ≥ 0.169.0. The defaults moved and the mission daemon did not.
+- Two earlier probe runs were instrument failures, not verdicts: `codex exec` blocked on stdin (rc 142, killed by the alarm), and zsh did not word-split the arm list, so `--model` was empty. Both were re-run correctly.
+
+**Did** (generator ≠ judge):
+- **Designer, planner, executor**: not spawned. There was nothing to build: the literal fix is on origin/dev with a guard, and the residual is rig ops outside fleet scope. This is a routing outcome, not a spawn failure. Rotation pointer unchanged.
+- **Judge** sonnet (Agent tool, `MISSION-ROLE: evaluator`, foreground, own detached worktree `fleet-i124-judge` at `93e6e4604`, 79,110 tok, 28 tool uses, 634 s): **RESOLVE-WITH-RESIDUAL-ESCALATED, 72/100**. [Report](fleet-mission-evidence/iteration124/judge-r1.md). The directive carried the ticket and five open questions, and neither the controller's findings nor its method (gate-2 rule (c)).
+  - It independently found the stale 0.162.1 mission daemon, and reproduced the daemon-path 400 with a 6.1 positive control.
+  - Mutants 1/3 killed: the allowlist revert was killed; the default-seat revert and the `--help` revert (out-of-scope file) survived.
+  - It did not run the version-isolation arm, so it left account entitlement open. The controller's 2×2 had already closed that by another route.
+- **Controller checks on the judge**: M1 matches the controller's own overlay mutation (same two tests). The judge's worry that a mission-home probe could rotate the shared refresh token was measured: the controller's probes (08:48–08:49Z) preceded the judge's daemon-path 6.1 control, which returned OK. The 11-18 07:49–07:58Z refresh errors in `mission-owner.log` predate this fire. M2 and M3 stay non-blocking: reverting the seat to 6.1 would *restore* a working seat on 0.162.1, which is not this defect, and M3 is out of scope.
+- **Resolved**: `ailang mission ticket resolve quorum:codex-gpt-6.2-sol-not-allowlisted --sha 8e04a29c54a902522cd09143d4451bb09f859d5d` (ancestor of origin/dev asserted first; control `1ffb79aae` also an ancestor). Output: "1 occurrence(s), replied to stapledon". The resolution text tells stapledon the seat will read absent as `model_not_found` until the daemon is upgraded, and names D-FLEET-47. Open tickets went 18 → 17, re-listed.
+
+**Gate 3b**: not applicable. No code was pushed.
+
+**Done-gate**: not applicable. No harness file changed: the resolution cites a fix already on origin/dev (iteration 56 precedent). Nothing was reloaded or installed, and no codex daemon, launchd service or `~/.codex*` file was modified.
+
+**Ruled out**:
+- Account entitlement as the cause of the 6.2 400: same mission home, 0.169.0 → OK.
+- Keeping the ticket open until the daemon upgrade: its stated defect (`not-allowlisted`, the 6.1 `--help`) is fixed and guarded. The residual has a different root cause and a different owner, and keeping the ticket open would hide that behind a wrong signature. The judge reached the same disposition independently.
+- Upgrading or restarting the mission daemon from the loop: `tools/attended/` rig ops, outside fleet authority, and a live-service reload mid-fire (the guardrail "nothing reloaded mid-iteration").
+- Pointing the defaults back to 6.1: a routing change (HD-2a), asked as D-FLEET-47 B.
+- An in-scope probe guard that names "daemon version < 0.169.0" as its own lane reason (the judge's suggestion): self-sourced, not ticketed. Noted only.
+
+**Observations (not ticketed; the fleet does not self-source)**:
+- (a) **Iteration 123's observation (d) was wrong.** `scripts/mission_routing_models_check.sh` at HEAD already carries `ALLOWED_OPENAI='gpt-6.2-sol gpt-6.1-sol gpt-6-luna'` (since `8e04a29c5`), and `--entry 123` on iteration 123's log gives **rc 0**. Its rc 1 came from an older copy.
+- (b) **Every `codex:gpt-6.2-sol` lane on every mission has been degraded since 11-17**, not only the quorum seat. Planner and executor fall back each fire, and the designer rotation's Sol slot and the controller fallback are dead. That is D-FLEET-47's subject.
+- (c) The judge flagged that `seating_test.go` and `seating_rolemodels_test.go` fixtures still use 6.1 ids, so a seat-default revert is unguarded. That is non-blocking for this ticket.
+
+**Retro lane**: no skill edit. Frictions were the controller's own two probe instrument failures (stdin, zsh word-splitting). Both are already named in memory and the skill (rule 3o, the bash-3.2/zsh notes), and both were caught by reading the output rather than the rc.
+
+**Decisions**: new **D-FLEET-47** (upgrade the mission codex daemon; recommendation A, B is the 6.1 rollback, default no change). D-FLEET-44, 45 and 46 unchanged and OPEN. Ledger 46 rows.
+
+**Progress**: 18 → 17 open tickets. Clause 2 moved: row 65 resolved about 27 h after filing. Clause 1 UNMEASURED; 3 MET; 4 met by its letter; 5 preserved (no harness change).
+
+**Validation**: darwin/arm64.
+- `go test ./internal/mission/quorum/` ok (control).
+- The overlay mutation fails the two named tests.
+- The overlay probe seats 6.2 with `refused=[]`.
+- Controller 2×2 probe outputs are banked.
+- Record checks: `mission_decisions.sh --check` (46 rows valid); STATUS rotation arithmetic (charter 419 → 420 = +4 stamp −4 rotated +1 ledger row; archive 744 → 748); archive grep `ITERATION 121:` = 1 (control `ITERATION 120:` = 1); queue heading present; stamp regex; `go test ./internal/mission/ -run Canonical`; `make check-no-personal-email`; `git diff --check`.
+
+**Budget**: metered **$0** (subscription lanes).
+- Evaluator sonnet 79,110 tok.
+- Six tiny controller `codex exec` probes (subscription), two of them instrument failures.
+- Controller `claude:claude-opus-5-5`: tok not reported.
+- No quorum.
+
+**Next**: no routable ticket is expected. #2411 lands once the attended `make pi-assets` sync lands. Otherwise D-42's fleet half (drafts #2141–#2150). If Mark answers D-FLEET-47 A, smoke-test `gpt-6.2-sol` through the mission daemon at the next fire.
+
+**Routing evidence**: base=93e6e46040f65812a91da92d3d7b9e821673a59a@2026-11-19T09:02:38Z (Gate 4; Gate 1 read the same SHA at 08:40:08Z).
+- Controller `claude:claude-opus-5-5` (session; tok: not reported).
+- Designer: resolver `recipe claude:claude-opus-5-5`. **Not spawned** (nothing to design). Rotation pointer unchanged.
+- Planner: resolver `agent-tool opus`. **Not spawned** (nothing to build).
+- Executor: resolver `recipe claude:claude-haiku-5-5`. **Not spawned** (nothing to build).
+- Evaluator: resolver `agent-tool sonnet` → Agent tool `model=sonnet`, `MISSION-ROLE: evaluator`, foreground, own worktree, 1 spawn (79,110 tok). Judge independence: cross-model from the opus controller (same vendor, a preference under D-FR-2).
+- Driver routing note verbatim: lanes degraded: ; `planner`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`1`) → handed to `opus`; `executor`: **codex** lane `gpt-6.2-sol` unusable (probe rc=`1`) → handed to `claude:claude-haiku-5-5`
