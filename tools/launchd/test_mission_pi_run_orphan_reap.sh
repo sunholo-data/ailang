@@ -14,6 +14,11 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SUT="$ROOT/scripts/mission_pi_run.sh"
 LIB="$ROOT/tools/launchd/lib/pi-run-reap.sh"
 TMP=$(mktemp -d)
+# Role scope must only inspect a fresh synthetic HOME, including startup controls.
+export HOME="$TMP/home" ZDOTDIR="$TMP/home/zdot" CODEX_HOME="$TMP/home/.codex"
+unset BASH_ENV ENV AILANG_SECRETS_LANE
+mkdir -p "$HOME/.config/ailang" "$ZDOTDIR" "$CODEX_HOME"
+: > "$HOME/.config/ailang/secrets.env"
 FIXDIR="$TMP/fix"; mkdir -p "$FIXDIR"
 FIX="$TMP/fix.pl"
 export FIXDIR FIX
