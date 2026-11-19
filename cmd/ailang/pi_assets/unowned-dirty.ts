@@ -5,6 +5,7 @@
  * warn when the operation may sweep files this session did not write. Never blocks;
  * output names itself a heuristic. Shared checkouts have multiple agents (observed).
  */
+import { realpathSync } from "node:fs";
 import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
 
 export interface DirtyFile {
@@ -23,6 +24,23 @@ export function parsePorcelain(out: string): DirtyFile[] {
 /** Pure: files dirty in the tree that this session did not write. */
 export function unownedDirty(all: DirtyFile[], ownFiles: Set<string>): string[] {
 	return all.map((f) => f.path).filter((p) => !ownFiles.has(p));
+}
+
+/** Pure: absolute paths under `top` as repo-relative, as porcelain prints them.
+ *  Same contract as tools/claude-mods/unowned-dirty/hooks/register.ts relativeTo(). */
+export function relativeTo(top: string, paths: Iterable<string>): Set<string> {
+	const prefix = top.endsWith("/") ? top : `${top}/`;
+	return new Set([...paths].filter((p) => p.startsWith(prefix)).map((p) => p.slice(prefix.length)));
+}
+
+/** Resolve symlinks so a cwd under a symlink (macOS /var -> /private/var) matches git's
+ *  physical --show-toplevel. A path that no longer exists keeps its spelling. */
+export function realOrSelf(p: string): string {
+	try {
+		return realpathSync(p);
+	} catch {
+		return p;
+	}
 }
 
 /** Pure: does this bash command perform a sweeping git operation? */
@@ -47,9 +65,12 @@ export default function (pi: ExtensionAPI) {
 		if (!isSweepingGitOp(command)) return;
 
 		// Authority is git, not command parsing: what is ACTUALLY dirty right now?
+		const top = await pi.exec("git", ["rev-parse", "--show-toplevel"], { timeout: 10_000 });
+		if (top.code !== 0) return; // not a repo: nothing to sweep, nothing to warn about
 		const res = await pi.exec("git", ["status", "--porcelain"], { timeout: 10_000 });
 		const all = parsePorcelain(res.stdout ?? "");
-		const unowned = unownedDirty(all, ownFiles).filter(
+		// ownFiles are absolute; porcelain paths are repo-relative. Compare like with like.
+		const unowned = unownedDirty(all, relativeTo(realOrSelf((top.stdout ?? "").trim()), [...ownFiles].map(realOrSelf))).filter(
 			(f) => !/^(internal\/ai\/)?ollama/.test(f), // placeholder-free filter; kept simple
 		);
 		if (unowned.length > 0) {
