@@ -8,7 +8,7 @@ dirty file(s) this session did not write" warning. The handler now resolves `git
 contract as the Claude Code port's `relativeTo` (tools/claude-mods/unowned-dirty).
 Ticket `pi:unowned-dirty-absolute-vs-relative-paths`, ruling D-FLEET-33 A.
 
-**Not yet synced:** the embedded copy `cmd/ailang/pi_assets/unowned-dirty.ts` is NOT updated in this
-commit: the fleet's push scope excludes `cmd/ailang/pi_assets/**`. An attended session must run
-`make pi-assets` and commit the result before merge, or `make verify-pi-assets` (CI `checks`) fails.
-Until then `ailang pi setup` installs the old extension.
+**Embedded copy synced:** `cmd/ailang/pi_assets/unowned-dirty.ts` was synced by an attended
+session (`make pi-assets`, commit `d2ee7dc03`) because the fleet's push scope excludes
+`cmd/ailang/pi_assets/**`; `make verify-pi-assets` (CI `checks`) passes, so `ailang pi setup`
+installs the fixed extension.
