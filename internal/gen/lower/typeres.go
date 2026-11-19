@@ -3,8 +3,6 @@
 // This is a PROJECTION, not a translation: information is deliberately lost
 // (type variables, effects, row polymorphism) because target languages cannot
 // express these concepts. The loss is explicit and controlled.
-//
-// No file in this package may import internal/gen/golang/.
 package lower
 
 import (

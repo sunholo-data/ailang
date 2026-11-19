@@ -39,8 +39,15 @@ type AICheckVerifyResult struct {
 	Available      bool `json:"available"`
 	Verified       int  `json:"verified"`
 	Counterexample int  `json:"counterexample"`
-	Skipped        int  `json:"skipped"`
-	Errors         int  `json:"errors"`
+	// Inconclusive counts obligations the verifier attempted but could not
+	// decide: a sat found under bounded recursion unrolling, whose model may
+	// rest on an invented value for the frontier stub. It is NOT a violation
+	// (VerifyOk stays true) and NOT a proof (isVerifiedSuccess requires it be
+	// zero). Absent from older binaries' JSON, so it parses as 0.
+	// M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE.
+	Inconclusive int `json:"inconclusive"`
+	Skipped      int `json:"skipped"`
+	Errors       int `json:"errors"`
 }
 
 // RunAICheck executes `ailang ai-check <file>` and parses the JSON output.
@@ -139,10 +146,21 @@ func applyAgentVerification(out *AgentBenchmarkResult, config AgentBenchmarkConf
 
 	out.VerifyVerified = result.Verify.Verified
 	out.VerifyCounterex = result.Verify.Counterexample
+	out.VerifyInconclusive = result.Verify.Inconclusive
 	out.VerifySkipped = result.Verify.Skipped
 	out.VerifyErrors = result.Verify.Errors
-	out.VerifyOk = result.Verify.Available && result.Verify.Counterexample == 0 && result.Verify.Errors == 0
+	out.VerifyOk = verifyOk(result)
 	out.VerifyJSON = rawJSON
+}
+
+// verifyOk is the ONE "no violation was found" predicate both eval modes bank.
+// It requires check.passed: since M-V1-VERIFICATION-HONESTY M1 `available`
+// means "solver found" on every lane, including a failed check, so it no
+// longer implies that verification ran. Inconclusive stays outside it on
+// purpose (isVerifiedSuccess requires inconclusive == 0 separately).
+func verifyOk(result *AICheckResult) bool {
+	return result.Check.Passed && result.Verify.Available &&
+		result.Verify.Counterexample == 0 && result.Verify.Errors == 0
 }
 
 // PopulateVerifyMetrics fills verify fields in RunMetrics from an AICheckResult
@@ -152,8 +170,9 @@ func PopulateVerifyMetrics(metrics *RunMetrics, result *AICheckResult, rawJSON s
 	}
 	metrics.VerifyVerified = result.Verify.Verified
 	metrics.VerifyCounterex = result.Verify.Counterexample
+	metrics.VerifyInconclusive = result.Verify.Inconclusive
 	metrics.VerifySkipped = result.Verify.Skipped
 	metrics.VerifyErrors = result.Verify.Errors
-	metrics.VerifyOk = result.Verify.Available && result.Verify.Counterexample == 0 && result.Verify.Errors == 0
+	metrics.VerifyOk = verifyOk(result)
 	metrics.VerifyJSON = rawJSON
 }

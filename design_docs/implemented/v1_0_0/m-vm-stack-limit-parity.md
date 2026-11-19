@@ -3,7 +3,7 @@
 Refs [#1576](https://github.com/sunholo-data/ailang/issues/1576).
 
 **Status**: Implemented (PR #1729); independent evaluation passed 96/100 (round 2, 2026-10-09). See [implementation verification](m-vm-stack-limit-parity-verification.md).
-**Target**: v1.0.0 (clause-2 soundness residue; sibling of [m-bytecode-vm-parity-bugs.md](../../planned/v1_0_0/m-bytecode-vm-parity-bugs.md) Lane B, same carve-out as [m-bytecode-pattern-arity-fix.md](../../planned/v1_0_0/m-bytecode-pattern-arity-fix.md))
+**Target**: v1.0.0 (clause-2 soundness residue; sibling of [m-bytecode-vm-parity-bugs.md](../../planned/v1_0_0/m-bytecode-vm-parity-bugs.md) Lane B, same carve-out as [m-bytecode-pattern-arity-fix.md](../v0_33_1/m-bytecode-pattern-arity-fix.md))
 **Priority**: **P1** (per the issue's `priority:P1` label) — silent wrong result: truncated stdout, exit 0, stderr silent under default flags.
 **Estimated**: ~0.5 day (root cause settled below; the production fix is two lines plus wiring plus regression tests — not investigation).
 **Dependencies**: none. Explicitly does NOT depend on the parent doc's parked A2 second design round — that question is about the *parity harness's* classification scheme, not program correctness (the same carve-out that unblocked m-bytecode-pattern-arity-fix.md). The **residual** defect this issue exposes — the VM→evaluator fallback silently re-running a program after committed IO — is the parent doc's **B4** and stays parked there; this doc fixes the *limit divergence* that makes evaluator-legal programs fall into it.
@@ -164,7 +164,7 @@ Single milestone, ~0.5 day (F1+F2+F3+tests). Every AC names a file that can fail
 ## Related Documents
 
 - [m-bytecode-vm-parity-bugs.md](../../planned/v1_0_0/m-bytecode-vm-parity-bugs.md) — parent doc; owns **B4** (the unsafe-replay fallback this issue exposes in the wild) and the A2 second design round; addendum records #1576
-- [m-bytecode-pattern-arity-fix.md](../../planned/v1_0_0/m-bytecode-pattern-arity-fix.md) — the sibling carve-out precedent (#505, ready-to-sprint VM soundness fix independent of the parked A2 round)
+- [m-bytecode-pattern-arity-fix.md](../v0_33_1/m-bytecode-pattern-arity-fix.md) — the sibling carve-out precedent (#505, ready-to-sprint VM soundness fix independent of the parked A2 round)
 - [design_docs/implemented/v0_11_0/m-bytecode-vm.md](../v0_11_0/m-bytecode-vm.md) — VM master design (no design rationale for the 1000 cap exists there; it was a Phase 2B constant whose comment claims parity it never had)
 - [design_docs/implemented/v0_52_0/m-iterative-list-remaining.md](../v0_52_0/m-iterative-list-remaining.md) — the v0.52.0 stdlib rewrite that worked around this same VM cap per-helper (the per-case fix this doc replaces at the root)
 - `internal/testing/engine_parity_test.go` / `internal/testing/bytecode_engine.go` — the already-shipped, already-tested statement of the contract F1+F2 productionize
@@ -183,7 +183,7 @@ Single milestone, ~0.5 day (F1+F2+F3+tests). Every AC names a file that can fail
 
 ## Sizing
 
-~0.5 day: F1 (1 line + comment), F2 (3 lines), F3 (one paragraph), AC1–AC4 test file (~150 LOC), AC7 harness run + reconciliation. Fits the standard sprint box; pair with [m-bytecode-pattern-arity-fix.md](../../planned/v1_0_0/m-bytecode-pattern-arity-fix.md)'s sprint if the planner wants one bytecode-soundness pass.
+~0.5 day: F1 (1 line + comment), F2 (3 lines), F3 (one paragraph), AC1–AC4 test file (~150 LOC), AC7 harness run + reconciliation. Fits the standard sprint box; pair with [m-bytecode-pattern-arity-fix.md](../v0_33_1/m-bytecode-pattern-arity-fix.md)'s sprint if the planner wants one bytecode-soundness pass.
 
 ---
 

@@ -3,6 +3,7 @@ package eval
 import (
 	"fmt"
 
+	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/dtree"
 )
@@ -94,7 +95,7 @@ func (e *CoreEvaluator) walkTree(scrutinee Value, tree dtree.DecisionTree, arms 
 			if node.Default != nil {
 				return e.walkTree(scrutinee, node.Default, arms, bindings, tail)
 			}
-			return nil, fmt.Errorf("no matching case in switch node")
+			return nil, matchFailure(ast.Pos{}, scrutinee)
 		}
 
 		// Look up the case
@@ -107,11 +108,11 @@ func (e *CoreEvaluator) walkTree(scrutinee Value, tree dtree.DecisionTree, arms 
 			return e.walkTree(scrutinee, node.Default, arms, bindings, tail)
 		}
 
-		return nil, fmt.Errorf("no matching case in switch node for key: %v", key)
+		return nil, matchFailure(ast.Pos{}, scrutinee)
 
 	case *dtree.FailNode:
 		// Reached a fail node - non-exhaustive match
-		return nil, fmt.Errorf("no pattern matched in match expression")
+		return nil, matchFailure(ast.Pos{}, scrutinee)
 
 	default:
 		return nil, fmt.Errorf("unknown decision tree node type: %T", node)

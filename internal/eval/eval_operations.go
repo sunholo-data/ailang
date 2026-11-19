@@ -51,6 +51,17 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App, tail bool) (retVal Value, err
 		}
 		log.Printf("[DEBUG_EVAL_APP] Apply %s to %v", funcDesc, argStrs)
 	}
+	// M-TRACE-LABEL-AWARE: a call the IFC pass marked runs inside a label
+	// scope, so nothing in its dynamic extent records a value. A tail call
+	// hands the label to the applyFunctionValue loop instead, which owns the
+	// extent from then on.
+	if app.TraceRedact != "" {
+		if fn, ok := fnVal.(*FunctionValue); !ok || !tail || len(args) != len(fn.Params) {
+			if closeScope := e.enterTraceLabelScope(app.TraceRedact); closeScope != nil {
+				defer closeScope()
+			}
+		}
+	}
 	switch fn := fnVal.(type) {
 	case *FunctionValue:
 		// M-DOCPARSE-DX M1: Auto-curry support.
@@ -117,7 +128,7 @@ func (e *CoreEvaluator) evalCoreApp(app *core.App, tail bool) (retVal Value, err
 		// M-EVAL-TAIL-CALLS (#1486): in tail position, hand the call back to
 		// the enclosing applyFunctionValue loop instead of nesting a frame.
 		if tail {
-			return &tailCall{fn: fn, args: args, name: funcName}, nil
+			return &tailCall{fn: fn, args: args, name: funcName, redact: app.TraceRedact}, nil
 		}
 		return e.applyFunctionValue(fn, args, funcName, appFrame)
 

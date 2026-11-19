@@ -72,7 +72,7 @@ func TestEffectTraceRenderDoesNotMaterialiseLargeResults(t *testing.T) {
 	if last == nil {
 		t.Fatal("no readFileResult effect event recorded at standard tier")
 	}
-	if len(last.Result) > 2048 || !strings.HasPrefix(last.Result, "Ok(qqq") || !strings.Contains(last.Result, "bytes elided") {
+	if len(last.Result) > 2048 || !strings.HasPrefix(last.Result, `Ok("qqq`) || !strings.Contains(last.Result, "bytes elided") {
 		t.Fatalf("recorded result not the bounded rendering: len %d, %.60q", len(last.Result), last.Result)
 	}
 }

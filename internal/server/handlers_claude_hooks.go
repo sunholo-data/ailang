@@ -55,15 +55,7 @@ func (s *Server) handleClaudeHooks(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Hook token authentication: when configured, require Bearer token.
-	// When no token is set (local mode), all requests pass through.
-	if s.hookToken != "" {
-		auth := r.Header.Get("Authorization")
-		if auth == "" || auth != "Bearer "+s.hookToken {
-			http.Error(w, "Unauthorized", http.StatusUnauthorized)
-			return
-		}
-	}
+	// Authentication (AILANG_HUB_TOKEN) is the ingest gate's, ingest_auth.go.
 
 	if s.obsBackend == nil {
 		http.Error(w, "Observatory not configured", http.StatusServiceUnavailable)

@@ -84,6 +84,16 @@ func (l *OpLowerer) Lower(prog *core.Program) (*core.Program, error) {
 			return nil, fmt.Errorf("failed to lower declaration %d", i)
 		}
 		lowered.Decls[i] = loweredDecl
+		// A top-level name stays visible to the declarations after it (a
+		// local binding is scoped to its body, see lowerExpr).
+		switch d := decl.(type) {
+		case *core.Let:
+			l.bindings[d.Name] = d.Value
+		case *core.LetRec:
+			for _, b := range d.Bindings {
+				l.bindings[b.Name] = b.Value
+			}
+		}
 	}
 
 	// M-CONTRACTS-OPLOWERING: Also lower contract expressions in Meta.
@@ -118,6 +128,32 @@ func (l *OpLowerer) Lower(prog *core.Program) (*core.Program, error) {
 	return lowered, nil
 }
 
+// shadow hides the tracked bindings of names (a binder that introduces them
+// hides any outer binding of the same name) until the returned func restores
+// them.
+func (l *OpLowerer) shadow(names ...string) func() {
+	type saved struct {
+		name string
+		val  core.CoreExpr
+		had  bool
+	}
+	prev := make([]saved, 0, len(names))
+	for _, n := range names {
+		v, had := l.bindings[n]
+		prev = append(prev, saved{n, v, had})
+		delete(l.bindings, n)
+	}
+	return func() {
+		for i := len(prev) - 1; i >= 0; i-- {
+			if prev[i].had {
+				l.bindings[prev[i].name] = prev[i].val
+			} else {
+				delete(l.bindings, prev[i].name)
+			}
+		}
+	}
+}
+
 // lowerExpr recursively lowers expressions
 func (l *OpLowerer) lowerExpr(expr core.CoreExpr) core.CoreExpr {
 	if expr == nil {
@@ -129,17 +165,27 @@ func (l *OpLowerer) lowerExpr(expr core.CoreExpr) core.CoreExpr {
 		return l.lowerIntrinsic(e)
 
 	case *core.Let:
-		// Track bindings before lowering (for type inference of concat)
+		// The value is lowered in the enclosing scope; the binding is
+		// tracked (for type inference of concat and comparisons) for the
+		// body only, and the outer binding of the name comes back after it.
+		// It used to be set before the value and never removed, so a lambda
+		// parameter or pattern variable named like ANY earlier let, even in
+		// another declaration, took that let's type (#2375 review: `let x = 1;
+		// match o { Some(x) => x == k }` lowered == to eq_Int on strings).
+		value := l.lowerExpr(e.Value)
+		restore := l.shadow(e.Name)
 		l.bindings[e.Name] = e.Value
-
+		body := l.lowerExpr(e.Body)
+		restore()
 		return &core.Let{
 			CoreNode: e.CoreNode,
 			Name:     e.Name,
-			Value:    l.lowerExpr(e.Value),
-			Body:     l.lowerExpr(e.Body),
+			Value:    value,
+			Body:     body,
 		}
 
 	case *core.LetRec:
+		restore := l.shadow(recNames(e.Bindings)...)
 		var bindings []core.RecBinding
 		for _, b := range e.Bindings {
 			bindings = append(bindings, core.RecBinding{
@@ -147,17 +193,22 @@ func (l *OpLowerer) lowerExpr(expr core.CoreExpr) core.CoreExpr {
 				Value: l.lowerExpr(b.Value),
 			})
 		}
+		body := l.lowerExpr(e.Body)
+		restore()
 		return &core.LetRec{
 			CoreNode: e.CoreNode,
 			Bindings: bindings,
-			Body:     l.lowerExpr(e.Body),
+			Body:     body,
 		}
 
 	case *core.Lambda:
+		restore := l.shadow(e.Params...)
+		body := l.lowerExpr(e.Body)
+		restore()
 		return &core.Lambda{
 			CoreNode: e.CoreNode,
 			Params:   e.Params,
-			Body:     l.lowerExpr(e.Body),
+			Body:     body,
 		}
 
 	case *core.App:
@@ -176,17 +227,20 @@ func (l *OpLowerer) lowerExpr(expr core.CoreExpr) core.CoreExpr {
 		}
 
 	case *core.Match:
+		scrutinee := l.lowerExpr(e.Scrutinee)
 		var arms []core.MatchArm
 		for _, arm := range e.Arms {
+			restore := l.shadow(patternBoundVars(arm.Pattern)...)
 			arms = append(arms, core.MatchArm{
 				Pattern: arm.Pattern,
 				Guard:   l.lowerExpr(arm.Guard),
 				Body:    l.lowerExpr(arm.Body),
 			})
+			restore()
 		}
 		return &core.Match{
 			CoreNode:   e.CoreNode,
-			Scrutinee:  l.lowerExpr(e.Scrutinee),
+			Scrutinee:  scrutinee,
 			Arms:       arms,
 			Exhaustive: e.Exhaustive,
 		}

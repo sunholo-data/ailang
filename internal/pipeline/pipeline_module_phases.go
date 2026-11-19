@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"sort"
+	"strings"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/core"
@@ -196,6 +197,7 @@ func (st *modulePipelineState) loadModules() error {
 		st.pipelineSpan.RecordError(loadErr)
 		return loadErr
 	}
+	emitScopeWarnings(modLoader.ScopeWarnings())
 	if len(st.afterLoad) > 0 && st.afterLoad[0] != nil {
 		st.afterLoad[0](st.modules)
 	}
@@ -233,6 +235,19 @@ func (st *modulePipelineState) validateAndSort() error {
 		topoSpan.End()
 		st.pipelineSpan.RecordError(topoErr)
 		return topoErr
+	}
+
+	// One module file, one identity (M1b): checked here, after the cycle check,
+	// because an entry file imported back by its own closure is a second
+	// identity AND a cycle, and the cycle is the error worth reading.
+	if conflicts := st.modLoader.IdentityConflicts(); len(conflicts) > 0 {
+		idErr := fmt.Errorf("LDR003: %s; import it by one spelling — its published path pkg/<vendor>/<name>/<module>, "+
+			"its module_prefix form, or (in the root package) its path — not through a symlink or a second path to the same file",
+			strings.Join(conflicts, "; "))
+		topoSpan.RecordError(idErr)
+		topoSpan.End()
+		st.pipelineSpan.RecordError(idErr)
+		return idErr
 	}
 
 	topoSpan.SetAttributes(attribute.Int("modules.sorted", len(sortedModules)))
@@ -280,9 +295,15 @@ func (st *modulePipelineState) compileAllAndFinalize() error {
 	for _, modID := range argOrderModIDs {
 		st.result.Warnings = append(st.result.Warnings, DetectArgOrderWarnings(st.compiledUnits[modID].Core)...)
 		st.result.Warnings = append(st.result.Warnings, DetectTakeAfterFlatMap(st.compiledUnits[modID].Core)...)
+		st.result.Warnings = append(st.result.Warnings, DetectJSONIntArm(st.compiledUnits[modID])...)
 		st.result.Warnings = append(st.result.Warnings,
 			DetectStrictFallbacks(st.compiledUnits[modID].Surface, st.compiledUnits[modID].Core)...)
 	}
+	// Needs every unit at once: the deprecation lives in the defining module,
+	// the use in another.
+	st.result.Warnings = append(st.result.Warnings, DetectDeprecatedUses(st.compiledUnits)...)
+	// Needs the imported modules' interfaces, restored on a cache hit too.
+	st.result.Warnings = append(st.result.Warnings, DetectTypeNameWarnings(st.compiledUnits, st.modLinker.GetIface)...)
 
 	link.RegisterAdtModule(st.modLinker)
 	st.saveCacheAndReportStats()
@@ -331,11 +352,28 @@ func (st *modulePipelineState) compileOneModule(modID link.ModuleID, unit *Compi
 			return err
 		}
 	}
+	// Before the cache lookup, so a cached module is refused too.
+	if err := checkBuiltinShadow(mod.File); err != nil {
+		return err
+	}
+	recordTypeDeclSites(st.cfg.InstEnv, modID, mod.File)
 	key, cacheable := st.prepareCacheLookup(mod, string(modID))
 	if cacheable && st.serveFromCache(mod, unit, key) {
 		return nil
 	}
 	return st.compileFreshModule(mod, string(modID), unit, key)
+}
+
+// checksTestBodies reports whether modID's test blocks, properties and inline
+// rows are type-checked (#2232): only for the module being checked, run or
+// tested as the root. They are not part of any program, so a dependency's
+// ill-typed test never fails its importers; `check` of the dependency itself
+// (or `check --package`, which checks every file as a root) reports it.
+//
+// The test harness's own compiles (SkipTestRowValidation) skip it too: the
+// harness compiles each body itself and fails that test alone.
+func (st *modulePipelineState) checksTestBodies(modID string) bool {
+	return !st.cfg.SkipTestRowValidation && (modID == st.rootCanonical || modID == st.src.Filename)
 }
 
 // isTransientRoot reports whether modID is the root of a TransientRoot run,
@@ -349,18 +387,31 @@ func (st *modulePipelineState) isTransientRoot(modID string) bool {
 // typechecking/lowering, interface construction, fresh artifact publication
 // and unit registration.
 func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modID string, unit *CompileUnit, cacheKey string) error {
-	imports := resolveModuleImports(mod.File.Imports, modID, st.modLinker, st.cfg, st.depClosure(modID))
-	// M-TYPE-NAME-SHADOW: the module's own type declarations win over any
-	// same-named type from its imports (direct or transitive).
-	shadowLocalTypeNames(imports, mod.File, modID)
+	reach := st.depClosure(modID)
+	imports := resolveModuleImports(mod.File, modID, st.modLinker, st.cfg, reach)
+	if len(imports.Collisions) > 0 {
+		return imports.Collisions[0]
+	}
+	// M-V1-NOMINAL-TYPE-IDENTITY: one resolver decides which declaration every
+	// bare type name of this module denotes (local first, then explicit
+	// imports, prelude, direct dependencies, the import closure). It replaces
+	// M-TYPE-NAME-SHADOW's name-keyed shadowing: every imported table is keyed
+	// by defining module, so a local `Row` and an imported `Row` never share an
+	// entry and an imported alias body can no longer be captured.
+	scope := buildTypeScope(mod.File, modID, imports, st.modLinker, reach)
 
 	elaborator := elaborate.NewElaboratorWithPath(modID)
+	elaborator.SetTypeScope(scope)
 	elaborator.SetGlobalEnv(imports.GlobalRefs)
 	elaborator.SetModuleLoader(st.modLoader)
 	elaborator.AddBuiltinsToGlobalEnv()
 	for ctorName, info := range imports.ImportedCtorInfos {
-		elaborator.RegisterImportedConstructorAs(ctorName, info.CanonicalName, info.TypeName, info.Arity, info.TypeParamCount)
+		elaborator.RegisterImportedConstructorAs(ctorName, info.CanonicalName, info.Module, info.TypeName, info.Arity, info.TypeParamCount)
 	}
+	for ctorName, cands := range imports.AmbiguousCtors {
+		elaborator.MarkAmbiguousConstructor(ctorName, cands)
+	}
+	elaborator.SetClosureConstructors(imports.MatchUniverse) // diagnostics only
 
 	var err error
 	unit.Core, err = elaborator.ElaborateFile(mod.File)
@@ -368,28 +419,27 @@ func (st *modulePipelineState) compileFreshModule(mod *loader.LoadedModule, modI
 		return err
 	}
 	unit.Constructors = convertConstructors(elaborator.GetConstructors())
-	buildConstructorFactoryTypes(unit.Constructors, imports.ExternalTypes)
+	buildConstructorFactoryTypes(modID, unit.Constructors, imports.ExternalTypes)
 
-	compileResult, err := typeCheckAndLowerModule(unit, modID, st.rootCanonical, imports, elaborator, st.cfg)
+	unit.importedHas = st.importedHas // #2378: which numeric variants a dependency compiled
+	compileResult, err := typeCheckAndLowerModule(unit, modID, st.rootCanonical, imports, elaborator, st.cfg, st.checksTestBodies(modID))
 	if err != nil {
-		return err
+		return withLowerTypeNote(err, mod.File)
 	}
 
 	st.result.Warnings = append(st.result.Warnings, compileResult.Warnings...)
+	unit.MatchWarnings = compileResult.MatchWarnings
 
 	if compileResult.TypeChecker != nil {
 		st.rootTypeChecker = compileResult.TypeChecker
 		st.rootDebugSink = compileResult.DebugSink
 	}
 
-	aliasParams := make(map[string][]string)
-	for name, params := range imports.ImportedAliasParams {
-		aliasParams[name] = params
+	aliases := qualifiedAliasEnv(modID, imports, elaborator)
+	if err := buildAndRegisterInterface(unit, modID, compileResult.ModuleTypeEnv, st.modLinker, scope, aliases, elaborator.GetDerivedEqTypes(), imports.IFC); err != nil {
+		return err
 	}
-	for name, params := range elaborator.GetTypeAliasParams() {
-		aliasParams[name] = params
-	}
-	if err := buildAndRegisterInterface(unit, modID, compileResult.ModuleTypeEnv, st.modLinker, imports.ImportedTypeAliases, elaborator.GetTypeAliases(), aliasParams, elaborator.GetDerivedEqTypes()); err != nil {
+	if err := validateDeprecationTargets(mod.File, unit.Iface, st.modLinker.GetIface); err != nil {
 		return err
 	}
 
@@ -424,13 +474,16 @@ func (st *modulePipelineState) registerResolver() error {
 // ModeEval, and assembles the result.
 func (st *modulePipelineState) evaluateAndAssemble() error {
 	start := time.Now()
-	rootUnit := st.compiledUnits[st.rootCanonical]
+	rootKey := st.rootCanonical
+	rootUnit := st.compiledUnits[rootKey]
 	if rootUnit == nil {
-		rootUnit = st.compiledUnits[st.src.Filename]
+		rootKey = st.src.Filename
+		rootUnit = st.compiledUnits[rootKey]
 		if rootUnit == nil {
 			return fmt.Errorf("root module not found: %s (canonical: %s)", st.src.Filename, st.rootCanonical)
 		}
 	}
+	st.result.RootModuleKey = rootKey
 
 	coreEval := eval.NewCoreEvaluator()
 	coreEval.SetGlobalResolver(st.resolver)
@@ -463,4 +516,28 @@ func (st *modulePipelineState) evaluateAndAssemble() error {
 	st.result.DictReg = st.cfg.DictReg
 
 	return nil
+}
+
+// importedHas reports whether the compiled module defines a top-level binding
+// named name; known is false when the module is not compiled in this run.
+func (st *modulePipelineState) importedHas(module, name string) (has, known bool, why string) {
+	unit := st.compiledUnits[module]
+	if unit == nil || unit.Core == nil {
+		return false, false, ""
+	}
+	for _, d := range unit.Core.Decls {
+		switch x := d.(type) {
+		case *core.Let:
+			if x.Name == name {
+				return true, true, ""
+			}
+		case *core.LetRec:
+			for _, b := range x.Bindings {
+				if b.Name == name {
+					return true, true, ""
+				}
+			}
+		}
+	}
+	return false, true, unit.Core.NumVariantMissing[name]
 }

@@ -10,8 +10,8 @@ import (
 	"strings"
 	"time"
 
-	ollamaapi "github.com/ollama/ollama/api"
 	"github.com/sunholo-data/ailang/internal/ai"
+	"github.com/sunholo-data/ailang/internal/ai/ollama/wire"
 	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/riglock"
 	"github.com/sunholo-data/ailang/internal/strutil"
@@ -38,7 +38,7 @@ const (
 
 // Client implements ai.Provider for local Ollama models.
 type Client struct {
-	client         *ollamaapi.Client
+	client         *wire.Client
 	endpoint       string
 	frozenEndpoint bool
 }
@@ -84,11 +84,16 @@ func NewClient(opts ...ClientOption) (*Client, error) {
 		c.endpoint = envEndpoint
 	}
 
-	// The resolved endpoint is handed to the SDK client explicitly. Before
+	// The resolved endpoint is handed to the wire client explicitly. Before
 	// M-V1-SIMPLIFY-S4 M4 it was exported as OLLAMA_HOST for the whole
-	// process and read back through ollamaapi.ClientFromEnvironment — a
-	// process-wide side effect of constructing one client.
-	c.client = ollamaapi.NewClient(parseHost(c.endpoint), riglock.WithLease(http.DefaultClient))
+	// process and read back through the SDK's ClientFromEnvironment — a
+	// process-wide side effect of constructing one client. The endpoint is
+	// taken verbatim (no quote stripping), as it always was on this path.
+	wc, err := wire.NewClient(wire.ParseHost(c.endpoint), riglock.WithLease(http.DefaultClient))
+	if err != nil {
+		return nil, err
+	}
+	c.client = wc
 	return c, nil
 }
 
@@ -169,7 +174,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 
 	// Build generate request (strip any "ollama:"/"ollama/" routing prefix —
 	// Ollama rejects the prefixed form as an invalid model name).
-	genReq := &ollamaapi.GenerateRequest{
+	genReq := &wire.GenerateRequest{
 		Model:   bareModel(req.Model),
 		Prompt:  req.FullUserPrompt(),
 		System:  req.SystemPrompt,
@@ -192,7 +197,7 @@ func (c *Client) Generate(ctx context.Context, req *ai.Request) (*ai.Response, e
 	start := time.Now()
 	var ttft time.Duration
 	firstChunk := true
-	err := c.client.Generate(ctx, genReq, func(resp ollamaapi.GenerateResponse) error {
+	err := c.client.Generate(ctx, genReq, func(resp wire.GenerateResponse) error {
 		if firstChunk {
 			ttft = time.Since(start)
 			firstChunk = false

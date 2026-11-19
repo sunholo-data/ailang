@@ -1,6 +1,6 @@
 ---
 name: gemini-cli-helper
-description: Run Gemini CLI commands from Codex with correct Node version. Use when user asks to run Gemini CLI, test Gemini traces, or debug Gemini telemetry.
+description: Run Gemini CLI commands from Claude with correct Node version. Use when user asks to run Gemini CLI, test Gemini traces, or debug Gemini telemetry.
 ---
 
 # Gemini CLI Helper
@@ -11,12 +11,12 @@ Run Gemini CLI commands with the correct Node.js version and configuration.
 
 **Run a Gemini prompt:**
 ```bash
-.Codex/skills/gemini-cli-helper/scripts/gemini_run.sh "Your prompt here"
+.claude/skills/gemini-cli-helper/scripts/gemini_run.sh "Your prompt here"
 ```
 
 **Check Gemini CLI status:**
 ```bash
-.Codex/skills/gemini-cli-helper/scripts/gemini_status.sh
+.claude/skills/gemini-cli-helper/scripts/gemini_status.sh
 ```
 
 ## When to Use This Skill
@@ -36,13 +36,13 @@ Run a Gemini CLI prompt with correct Node version.
 **Usage:**
 ```bash
 # Simple prompt
-.Codex/skills/gemini-cli-helper/scripts/gemini_run.sh "Say hello"
+.claude/skills/gemini-cli-helper/scripts/gemini_run.sh "Say hello"
 
 # With JSON output
-.Codex/skills/gemini-cli-helper/scripts/gemini_run.sh "Say hello" --json
+.claude/skills/gemini-cli-helper/scripts/gemini_run.sh "Say hello" --json
 
 # Complex prompt with quotes
-.Codex/skills/gemini-cli-helper/scripts/gemini_run.sh "List 3 things about AILANG"
+.claude/skills/gemini-cli-helper/scripts/gemini_run.sh "List 3 things about AILANG"
 ```
 
 ### `scripts/gemini_status.sh`
@@ -50,7 +50,7 @@ Check Gemini CLI installation and configuration status.
 
 **Usage:**
 ```bash
-.Codex/skills/gemini-cli-helper/scripts/gemini_status.sh
+.claude/skills/gemini-cli-helper/scripts/gemini_status.sh
 ```
 
 **Output:**
@@ -163,12 +163,12 @@ Traces appear in:
 
 ### 1. Check Status First
 ```bash
-.Codex/skills/gemini-cli-helper/scripts/gemini_status.sh
+.claude/skills/gemini-cli-helper/scripts/gemini_status.sh
 ```
 
 ### 2. Run Prompt
 ```bash
-.Codex/skills/gemini-cli-helper/scripts/gemini_run.sh "Your prompt"
+.claude/skills/gemini-cli-helper/scripts/gemini_run.sh "Your prompt"
 ```
 
 ### 3. Verify Traces (Optional)

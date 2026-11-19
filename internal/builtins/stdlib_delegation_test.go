@@ -14,14 +14,11 @@ import (
 const stdlibSourceDir = "../../std"
 
 // listDelegationExemptions records, for every registered _list_* builtin with no
-// call site in std/*.ail, WHY that is acceptable. Runtime and codegen registries
-// describe different execution paths: a codegen helper is not callable by the
-// interpreter. Categories are therefore machine-checked against AllNames(), the
-// runtime registry, rather than trusted as prose.
-//
-// In particular, the entries previously described as "delegation candidates" are
-// blocked on a MISSING INTERPRETER IMPLEMENTATION, not on their std/list forms
-// being recursive. Their codegen helpers run only in generated Go programs.
+// call site in std/*.ail, WHY that is acceptable. Categories are machine-checked
+// against AllNames(), the runtime registry, rather than trusted as prose.
+// (The NoRuntimeImpl entries were Go-emitter helpers with no interpreter
+// implementation; they went with the emitter. The category stays for the next
+// builtin registered without one.)
 //
 // _list_reverse is deliberately ABSENT: std/list.reverse delegates to it, and that
 // absence is the fixture proving this gate is live. _list_any, _list_findIndex and
@@ -41,34 +38,24 @@ type listDelegationExemption struct {
 }
 
 var listDelegationExemptions = map[string]listDelegationExemption{
-	"_list_extract":  {NotNeeded, true, "std/list exposes no extract operation to delegate"},
-	"_list_filterE":  {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.filterE can delegate"},
-	"_list_flatMapE": {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.flatMapE can delegate"},
-	"_list_foldlE":   {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.foldlE can delegate"},
-	"_list_forEachE": {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.forEachE can delegate"},
-	"_list_head":     {NotNeeded, true, "std/list.head is already O(1) through list pattern matching"},
-	"_list_last":     {NotNeeded, false, "codegen-only helper is unnecessary in the interpreter because std/list.last composes _list_length and _list_nth"},
-	"_list_mapE":     {NoRuntimeImpl, false, "codegen-only: the interpreter has no implementation to which std/list.mapE can delegate"},
-	"_list_tail":     {NotNeeded, false, "codegen-only helper is unnecessary in the interpreter because std/list.tail is O(1) pattern matching"},
+	"_list_extract": {NotNeeded, true, "std/list exposes no extract operation to delegate"},
+	"_list_head":    {NotNeeded, true, "std/list.head is already O(1) through list pattern matching"},
 }
 
-// registeredListBuiltins reads the LIVE registries rather than parsing source.
+// registeredListBuiltins reads the LIVE registry rather than parsing source.
 //
 // An earlier form of this gate AST-parsed internal/builtins/*.go for `Name:` string
 // literals. That was measurably incomplete: a builtin registered with
 // `Name: someConstant` (an *ast.Ident, not a *ast.BasicLit) was invisible, so it
-// needed neither a call site nor an exemption and the gate passed. The two live
-// registries are complete by construction — nothing can be a builtin without
-// registering — but NEITHER IS COMPLETE ALONE: measured on this tree, specRegistry
-// (AllNames) holds 18 _list_* names and the metadata Registry (GetBuiltinNames)
-// holds 26, disjointly enough that only their UNION reaches all 31.
+// needed neither a call site nor an exemption and the gate passed. The live
+// registry (AllNames) is complete by construction: nothing can be a builtin
+// without registering. A second, metadata-only registry once held the Go
+// emitter's helper names; it was removed with the emitter.
 func registeredListBuiltins() []string {
 	seen := map[string]struct{}{}
-	for _, src := range [][]string{AllNames(), GetBuiltinNames()} {
-		for _, name := range src {
-			if strings.HasPrefix(name, "_list_") {
-				seen[name] = struct{}{}
-			}
+	for _, name := range AllNames() {
+		if strings.HasPrefix(name, "_list_") {
+			seen[name] = struct{}{}
 		}
 	}
 	out := make([]string, 0, len(seen))

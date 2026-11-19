@@ -1,7 +1,7 @@
 # Cloud release and promotion — the full picture
 
 On-demand companion to `SKILL.md` §7.6–7.7. Design:
-`design_docs/planned/v0_35_0/m-unified-release-model.md` (supersedes
+`design_docs/implemented/v0_35_0/m-unified-release-model.md` (supersedes
 `design_docs/implemented/v0_24_1/m-release-gate.md` steps 4–5).
 
 ## What a `v*` tag does (`cloudbuild-release.yaml`, trigger `ailang-core-release`)
@@ -18,7 +18,8 @@ On-demand companion to `SKILL.md` §7.6–7.7. Design:
                 scripts/cloudbuild-lib.sh (cloned at run time; the one copy of the
                 roll / job→image logic, mirroring terraform/cloud_run_jobs.tf).
 (3) smoke gate  MCP serves exactly the tag (GATE 1 — hence std/VERSION must equal
-                it), docs_search answers, coordinator + dashboard /health.
+                it), docs_search answers, coordinator /health, and the dashboard API
+                smoke (scripts/dashboard_smoke.sh: status codes only).
 ```
 
 It **stops there**. The 17 images: coordinator, dashboard, mcp, executor-mcp, ntfy,
@@ -59,7 +60,7 @@ version, `crane tag … latest` in prod, digest assertion, and a roll with `:lat
 which is what Terraform pins by string, so the next apply sees no drift while the
 registry records which version is live. Rollback: `promote core v<previous>`.
 
-Sets: `core` (every `AILANG_IMAGES` image + the core services + 15 jobs), `agents`, `agent`, `agent-pi`,
+Sets: `core` (every `AILANG_IMAGES` image + the core services + 10 jobs), `agents`, `agent`, `agent-pi`,
 `coordinator`, `dashboard`, `mcp`; `docparse`/`billing` and `website-builder` are
 promoted by their own repos' versions. There is no `all`.
 
@@ -77,6 +78,6 @@ expose the digest only on executions (`gcloud run jobs executions describe …
 
 ## Break-glass caveat
 
-`cloudbuild-dev.yaml` submitted at prod builds all 17 images and rolls 15 jobs but tags
+`cloudbuild-dev.yaml` submitted at prod builds all 17 images and rolls 10 jobs but tags
 `:latest` only, bypassing promote-by-version: the registry will not record which version
 prod runs. Re-promote a real version afterwards.

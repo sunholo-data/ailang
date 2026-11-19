@@ -204,10 +204,45 @@ func TestAuthenticate(t *testing.T) {
 		t.Errorf("garbage key: want 403, got %v", aerr)
 	}
 
-	// query param form still works
-	r := httptest.NewRequest("POST", "/publish?api_key="+key, nil)
+}
+
+// A key in the query string is refused with a 400 naming the header — even a
+// valid key, and even alongside a valid header, because the URL is logged.
+func TestAuthenticate_QueryParamKeyRefused(t *testing.T) {
+	v, key := scopedValidator(t, "daneel/*")
+	ctx := context.Background()
+
+	alone := httptest.NewRequest("POST", "/publish?api_key="+key, nil)
+	withHeader := httptest.NewRequest("POST", "/publish?api_key="+key, nil)
+	withHeader.Header.Set("X-API-Key", key)
+	for name, r := range map[string]*http.Request{"query only": alone, "query plus header": withHeader} {
+		_, aerr := v.authenticate(ctx, r)
+		if aerr == nil || aerr.status != http.StatusBadRequest {
+			t.Errorf("%s: want 400, got %v", name, aerr)
+			continue
+		}
+		if !strings.Contains(aerr.msg, "X-API-Key") || strings.Contains(aerr.msg, key) {
+			t.Errorf("%s: message must name the header and never echo the key: %q", name, aerr.msg)
+		}
+	}
+
+	// The same key in the header alone is accepted.
+	r := httptest.NewRequest("POST", "/publish", nil)
+	r.Header.Set("X-API-Key", key)
 	if p, aerr := v.authenticate(ctx, r); aerr != nil || p.Owner != "daneel" {
-		t.Errorf("query-param key: got %+v, %v", p, aerr)
+		t.Errorf("header key: got %+v, %v", p, aerr)
+	}
+}
+
+// The refusal reaches the wire from /publish before the body is read.
+func TestPublish_QueryParamKeyIs400(t *testing.T) {
+	v, key := scopedValidator(t, "daneel/*")
+	req := publishReq(t, "daneel/x", "")
+	req.URL.RawQuery = "api_key=" + key
+	w := httptest.NewRecorder()
+	v.handlePublish(w, req)
+	if w.Code != http.StatusBadRequest || !strings.Contains(errBody(t, w), "X-API-Key") {
+		t.Fatalf("want 400 naming X-API-Key, got %d %q", w.Code, errBody(t, w))
 	}
 }
 

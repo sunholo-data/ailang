@@ -86,7 +86,7 @@ replace the heatmap selection dependency. Work/chains, approvals, timeline/chat
 and raw evidence inspection remain. UI 147 tests and build pass; minified JS falls
 from 1,265.62kB to 720.26kB. Checked-in embedded assets refreshed; **not deployed**.
 Browser interactions and production data stability remain unverified.
-See [deletion sprint record](planned/m-dashboard-delete-analytics-sprint-plan.md).
+See [deletion sprint record](implemented/v0_35_3/m-dashboard-delete-analytics-sprint-plan.md).
 
 ### Next bounded sequence
 

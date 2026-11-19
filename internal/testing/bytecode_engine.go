@@ -159,6 +159,13 @@ func (e *Executor) runVMEntry(img *bytecode.BytecodeImage, proto *bytecode.FuncP
 	if proto.EvalOnly {
 		return nil, fmt.Errorf("test body is evaluator-only (%s)", proto.EvalReason)
 	}
+	// Strict mode wires no bridge, so an evaluator-only helper the body
+	// reaches would trap mid-run; name every one (BC001) before running.
+	if e.strictBytecode {
+		if helpers := img.EvalOnlyReachable([]int{img.ProtoIndex(proto)}); len(helpers) > 0 {
+			return nil, runner.StrictEvalOnlyError("the test body", helpers)
+		}
+	}
 
 	machine := vm.NewVM(img)
 	machine.MaxStack = defaultVMMaxStack

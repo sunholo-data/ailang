@@ -29,7 +29,10 @@ func DecodeJSON(jsonStr string, expectedType types.Type) (eval.Value, error) {
 
 // AliasLookup expands a named type (`type Args = {…}`) to its definition.
 // The entry module's interface provides it (iface.GetTypeAlias).
-type AliasLookup func(name string) (types.Type, bool)
+//
+// It is handed the TCon, not a bare name: the alias a name expands to is the
+// one its defining module declares (M-V1-NOMINAL-TYPE-IDENTITY).
+type AliasLookup func(con *types.TCon) (types.Type, bool)
 
 // DecodeJSONWithAliases is DecodeJSON for a parameter type that may name type
 // aliases, at the top level or nested in records and lists. Without the
@@ -58,7 +61,7 @@ func (d decoder) expand(t types.Type) types.Type {
 		if !ok || d.aliases == nil {
 			return t
 		}
-		target, ok := d.aliases(con.Name)
+		target, ok := d.aliases(con)
 		if !ok {
 			return t
 		}

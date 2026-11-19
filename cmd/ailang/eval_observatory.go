@@ -68,7 +68,7 @@ func createEvalTask(taskID, assignmentID string, models, benchmarks, langs []str
 		return
 	}
 
-	resp, err := http.Post(
+	resp, err := dashboardPost(
 		endpoint+"/api/observatory/tasks",
 		"application/json",
 		bytes.NewReader(taskJSON),
@@ -125,7 +125,7 @@ func createEvalAgentAssignment(endpoint, taskID, assignmentID string, models []s
 		return
 	}
 
-	resp, err := http.Post(
+	resp, err := dashboardPost(
 		endpoint+"/api/observatory/agents",
 		"application/json",
 		bytes.NewReader(assignmentJSON),
@@ -162,7 +162,7 @@ func completeEvalTask(taskID string, success bool) {
 	}
 	req.Header.Set("Content-Type", "application/json")
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := dashboardDo(http.DefaultClient, req)
 	if err != nil {
 		return
 	}
@@ -172,7 +172,7 @@ func completeEvalTask(taskID string, success bool) {
 // lookupWorkspaceID finds the workspace ID for a given path by querying the Observatory API.
 // Returns empty string if no workspace found or API unavailable.
 func lookupWorkspaceID(endpoint, path string) string {
-	resp, err := http.Get(endpoint + "/api/observatory/workspaces")
+	resp, err := dashboardGet(http.DefaultClient, endpoint+"/api/observatory/workspaces")
 	if err != nil {
 		return ""
 	}

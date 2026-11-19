@@ -1,0 +1,39 @@
+-- Compute a shopping-basket total with immutable let bindings, written once in
+-- block style ({ } with one statement per line) and once in expression style (= with `in`).
+-- Teaches: let in blocks vs expression bodies, shadowing, nested blocks as values.
+module examples/runnable/stdlib/lang_let_bindings
+
+-- Block body: `{` opens the block, one `let` per line, the last line is the value.
+pure func totalBlock(price: int, qty: int, discount: int) -> int {
+  let gross = price * qty
+  let off = gross * discount / 100
+  gross - off
+}
+
+-- Expression body: `=` then `let ... in ...`; no braces, every let needs its `in`.
+pure func totalExpr(price: int, qty: int, discount: int) -> int =
+  let gross = price * qty in
+  let off = gross * discount / 100 in
+  gross - off
+
+-- A block is an expression, so it can be the value of a let.
+pure func shipping(total: int) -> int {
+  let fee = {
+    let base = 5
+    if total >= 100 then 0 else base
+  }
+  fee
+}
+
+export func main() -> () ! {IO} {
+  let a = totalBlock(25, 4, 10)
+  let b = totalExpr(25, 4, 10)
+  println("block style: ${show(a)}")
+  println("expression style: ${show(b)}")
+  -- bindings use let; there is no `x = x + 1` assignment, so rebind with a new let
+  let count = 1
+  let count = count + 1
+  println("shadowed count: ${show(count)}")
+  println("shipping on 90: ${show(shipping(90))}")
+  println("shipping on 120: ${show(shipping(120))}")
+}

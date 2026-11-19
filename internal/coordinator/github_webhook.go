@@ -5,7 +5,6 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
-	"fmt"
 	"io"
 	"net/http"
 	"strings"
@@ -270,13 +269,4 @@ func computeHMACSHA256(message, key []byte) []byte {
 	mac := hmac.New(sha256.New, key)
 	mac.Write(message)
 	return mac.Sum(nil)
-}
-
-// FormatWebhookSetupCommand returns the gh CLI command to configure a webhook
-// for the given repo and coordinator URL.
-func FormatWebhookSetupCommand(repo, coordinatorURL, secret string) string {
-	return fmt.Sprintf(
-		"gh webhook create --repo %s --events issues --url %q --secret %q",
-		repo, coordinatorURL+"/github/webhook", secret,
-	)
 }

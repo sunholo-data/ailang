@@ -84,6 +84,9 @@ func TestGroups_HiddenRowsAreDeliberate(t *testing.T) {
 		// M-PKG-BIN-ENTRYPOINTS: `ailang bin` is the spelling the shims' own
 		// regenerate hints and the package docs use; canonical is `pkg bin`.
 		"bin",
+		// The Go emitter was removed; the row only answers old scripts with
+		// the removal message (compile_removed.go).
+		"compile",
 	}
 	var got []string
 	for i := range allCommands {

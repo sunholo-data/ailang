@@ -12,6 +12,13 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 91 | 2026-11-06 | `driver:idle-fire-writes-full-block-report` LANDED and resolved — #2160 → `d08031597`, dev CI + Build and Release green (18/18): product missions n... |
+| 90 | 2026-11-06 | D-FLEET-42 A's M3 built as a proposed diff — draft PR #2150 (`26b713887`), stacked on #2143, unmerged pending your ruling; a pinned dry-run now pro... |
+| 89 | 2026-11-06 | D-FLEET-42 A's M2 wiring built as a proposed diff — draft PR #2143 (`7f1e13d5f`), stacked on #2141, unmerged pending your ruling; controller childr... |
+| 88 | 2026-11-05 | D-FLEET-42 A's first step built as a proposed diff — draft PR #2141 (`4ea46f05e`), unmerged pending your ruling; a per-lane `secrets.env` scope lib... |
+| 87 | 2026-11-05 | Gate 0's self-notice read now reports the driver's transcript-scan notices — #2132 → `7e9e9192b`; both public wordings are recognised, rows carry o... |
+| 86 | 2026-11-05 | the transcript scan now matches only bytes written in the fire window — #2127 → `9ea8adcf4`; a byte-size baseline taken before the controller spawn... |
+| 85 | 2026-11-04 | the transcript secret detector LANDED — #2122 → `26b35b081`; every legacy controller fire now scans the session files it wrote for `secrets.env` va... |
 | 84 | 2026-11-04 | dev's required checks green again — the `.agents` mission-control mirror of `gate-3-triage.md` re-synced via #2116 → `981028c46`; ticket `ci:skill-... |
 | 83 | 2026-11-04 | D-FLEET-18 A's guard step built as a proposed diff — draft PR #2110 (`875581f46`), unmerged pending your ruling; the fleet scope guard would admit ... |
 | 82 | 2026-11-03 | D-FLEET-36 A and D-FLEET-38 A's shared first step built as a proposed diff — draft PR #2108, two independent commits (`bcf7f97ac`, `261fb3b64`), un... |

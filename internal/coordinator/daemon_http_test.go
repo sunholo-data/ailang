@@ -440,6 +440,42 @@ func TestHandlePostMessage_MissingFields(t *testing.T) {
 	}
 }
 
+// TestHandlePostMessage_RefusesRetiredAnthropicAPIKey: per-request API keys
+// (M-CLOUD-DUAL-AUTH) were retired 2026-11-10. A client still sending one must
+// get a loud 400 naming the retirement, and nothing may be stored: silently
+// dropping the key would run the sender's task on our credentials instead.
+func TestHandlePostMessage_RefusesRetiredAnthropicAPIKey(t *testing.T) {
+	for name, key := range map[string]string{"key": `"sk-ant-api03-test"`, "empty": `""`} {
+		t.Run(name, func(t *testing.T) {
+			d := newTestDaemonWithMsgStore(t)
+			body := `{"inbox":"user","title":"T","content":"C","from":"ext","anthropic_api_key":` + key + `}`
+			req := httptest.NewRequest(http.MethodPost, "/api/messages", strings.NewReader(body))
+			req.Header.Set("Content-Type", "application/json")
+			rec := httptest.NewRecorder()
+
+			d.handlePostMessage(rec, req)
+
+			if rec.Code != http.StatusBadRequest {
+				t.Fatalf("expected 400, got %d: %s", rec.Code, rec.Body.String())
+			}
+			var resp map[string]string
+			if err := json.NewDecoder(rec.Body).Decode(&resp); err != nil {
+				t.Fatal(err)
+			}
+			if !strings.Contains(resp["error"], "anthropic_api_key") || !strings.Contains(resp["error"], "retired") {
+				t.Errorf("error must name the field and the retirement, got %q", resp["error"])
+			}
+			msgs, err := d.msgStore.ListInboxMessages(messaging.InboxListOptions{Inbox: "user", Limit: 10})
+			if err != nil {
+				t.Fatal(err)
+			}
+			if len(msgs) != 0 {
+				t.Errorf("a refused request stored %d message(s)", len(msgs))
+			}
+		})
+	}
+}
+
 func TestHandleMessages_MethodDispatch(t *testing.T) {
 	d := newTestDaemonWithMsgStore(t)
 

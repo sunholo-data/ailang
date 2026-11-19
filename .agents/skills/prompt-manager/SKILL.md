@@ -30,7 +30,7 @@ Invoke when user mentions:
 |---------|---------|----------|----------|------|
 | `ailang prompt` | Language **syntax** (how to write .ail files) | 0-shot code generation | `prompts/versions.json` | ~1600 lines |
 | `ailang devtools-prompt` | **Toolchain** (how to debug, test, trace, monitor) | Developers & agents using CLI tools | `prompts/devtools/versions.json` | ~600 lines |
-| `ailang agent-prompt` | **Agent coding guide** (minimal syntax + iterative workflow) | Iterative agentic coders (Codex, Gemini CLI) | `prompts/agent/versions.json` | ~180 lines |
+| `ailang agent-prompt` | **Agent coding guide** (minimal syntax + iterative workflow) | Iterative agentic coders (Claude Code, Gemini CLI) | `prompts/agent/versions.json` | ~180 lines |
 
 ### When to Use Which Prompt
 
@@ -108,7 +108,7 @@ ailang prompt | grep -A 20 "Quick Reference"
 vim prompts/v0.4.2.md
 
 # 2. Update the hash in versions.json (REQUIRED!)
-.Codex/skills/prompt-manager/scripts/update_hash.sh v0.4.2
+.claude/skills/prompt-manager/scripts/update_hash.sh v0.4.2
 
 # 3. Verify downstream users see the change
 ailang prompt --version v0.4.2 | head -20
@@ -134,37 +134,37 @@ ailang prompt | head -20
 
 ### Create New Version
 ```bash
-.Codex/skills/prompt-manager/scripts/create_prompt_version.sh <new_version> <base_version> "<description>"
+.claude/skills/prompt-manager/scripts/create_prompt_version.sh <new_version> <base_version> "<description>"
 ```
 Creates versioned prompt file, computes hash, updates versions.json
 
 ### Update Hash
 ```bash
-.Codex/skills/prompt-manager/scripts/update_hash.sh <version>
+.claude/skills/prompt-manager/scripts/update_hash.sh <version>
 ```
 Recomputes SHA256 after edits
 
 ### Verify Accuracy
 ```bash
-.Codex/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh <version>
+.claude/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh <version>
 ```
 Catches prompt-code mismatches, false limitations
 
 ### Check Examples Coverage
 ```bash
-.Codex/skills/prompt-manager/scripts/check_examples_coverage.sh <version>
+.claude/skills/prompt-manager/scripts/check_examples_coverage.sh <version>
 ```
 Verifies that features used in working examples are documented in prompt
 
 ### Analyze Size & Optimization Opportunities
 ```bash
-.Codex/skills/prompt-manager/scripts/analyze_prompt_size.sh prompts/v0.3.17.md
+.claude/skills/prompt-manager/scripts/analyze_prompt_size.sh prompts/v0.3.17.md
 ```
 Shows: word count, section sizes, code blocks, tables, optimization opportunities
 
 ### Test Prompt Effectiveness
 ```bash
-.Codex/skills/prompt-manager/scripts/test_prompt.sh v0.3.18
+.claude/skills/prompt-manager/scripts/test_prompt.sh v0.3.18
 ```
 Runs AILANG-only eval (no Python) with dev models to test prompt effectiveness
 
@@ -172,7 +172,7 @@ Runs AILANG-only eval (no Python) with dev models to test prompt effectiveness
 
 ### 1. Analyze Current Prompt
 ```bash
-.Codex/skills/prompt-manager/scripts/analyze_prompt_size.sh prompts/v0.3.16.md
+.claude/skills/prompt-manager/scripts/analyze_prompt_size.sh prompts/v0.3.16.md
 ```
 
 **Sample output:**
@@ -197,7 +197,7 @@ Top sections by size:
 
 ### 2. Create Optimized Version
 ```bash
-.Codex/skills/prompt-manager/scripts/create_prompt_version.sh v0.3.17 v0.3.16 "Optimize for conciseness (-50% tokens)"
+.claude/skills/prompt-manager/scripts/create_prompt_version.sh v0.3.17 v0.3.16 "Optimize for conciseness (-50% tokens)"
 ```
 
 ### 3. Apply Optimization Strategies
@@ -223,23 +223,23 @@ Top sections by size:
 # 1. CHECK ALL CODE EXAMPLES (NEW REQUIREMENT!)
 # Extract and test every AILANG code block in the prompt
 # This catches syntax errors that cause regressions
-.Codex/skills/prompt-manager/scripts/validate_all_code.sh prompts/v0.3.17.md
+.claude/skills/prompt-manager/scripts/validate_all_code.sh prompts/v0.3.17.md
 
 # 2. Check new size
-.Codex/skills/prompt-manager/scripts/analyze_prompt_size.sh prompts/v0.3.17.md
+.claude/skills/prompt-manager/scripts/analyze_prompt_size.sh prompts/v0.3.17.md
 
 # 3. Verify accuracy (no false limitations)
-.Codex/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh v0.3.17
+.claude/skills/eval-analyzer/scripts/verify_prompt_accuracy.sh v0.3.17
 
 # 4. Check examples coverage (NEW - v0.4.1+)
-.Codex/skills/prompt-manager/scripts/check_examples_coverage.sh v0.3.17
+.claude/skills/prompt-manager/scripts/check_examples_coverage.sh v0.3.17
 # Ensures working examples are documented in prompt
 
 # 5. Update hash
-.Codex/skills/prompt-manager/scripts/update_hash.sh v0.3.17
+.claude/skills/prompt-manager/scripts/update_hash.sh v0.3.17
 
 # 6. TEST PROMPT EFFECTIVENESS (CRITICAL!)
-.Codex/skills/prompt-manager/scripts/test_prompt.sh v0.3.17
+.claude/skills/prompt-manager/scripts/test_prompt.sh v0.3.17
 # This runs AILANG-only eval (no Python baseline) with dev models
 # Target: >40% AILANG success rate
 ```

@@ -1,0 +1,35 @@
+-- Compute min, max and mean of a list in one pass by returning a tuple, then
+-- unpack tuples with match and zip two lists into pairs.
+-- Teaches: tuple construction, tuple types, destructuring tuples with match.
+module examples/runnable/stdlib/lang_tuples
+import std/list (foldl, zip, map, length)
+
+-- A tuple type is written (int, int, int); a tuple value is (a, b, c).
+pure func step(acc: (int, int, int), v: int) -> (int, int, int) = match acc {
+  (lo, hi, sum) => (if v < lo then v else lo, if v > hi then v else hi, sum + v)
+}
+
+pure func stats(xs: [int]) -> (int, int, int) = match xs {
+  [] => (0, 0, 0),
+  x :: _ => foldl(step, (x, x, 0), xs)
+}
+
+pure func swap(p: (string, int)) -> (int, string) = match p {
+  (s, n) => (n, s)
+}
+
+export func main() -> () ! {IO} {
+  let xs = [4, 9, 1, 7, 4]
+  -- there is no `let (a, b) = t`; destructure a tuple with match
+  match stats(xs) {
+    (lo, hi, sum) => println("min ${show(lo)} max ${show(hi)} mean ${show(sum / length(xs))}")
+  }
+  let pairs = zip(["a", "b", "c"], [1, 2, 3])
+  println("pairs: ${show(pairs)}")
+  println("swapped: ${show(map(swap, pairs))}")
+  let labelled = map(\p. match p {
+    (k, v) => "${k}=${show(v)}"
+  }, pairs)
+  println("labelled: ${show(labelled)}")
+  println("equal: ${show((1, "x") == (1, "x"))}")
+}

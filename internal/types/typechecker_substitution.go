@@ -3,6 +3,8 @@ package types
 import (
 	"fmt"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/typedast"
@@ -66,6 +68,7 @@ func (tc *CoreTypeChecker) ApplySubstEverywhere(
 func (tc *CoreTypeChecker) FinalizeSubstitutions() {
 	if len(tc.pendingCoreTISub) > 0 {
 		tc.applySubstitutionToCoreTI(tc.pendingCoreTISub)
+		tc.finalizeGeneric(tc.pendingCoreTISub) // numeric_variants.go
 		tc.pendingCoreTISub = nil
 	}
 }
@@ -75,6 +78,10 @@ func (tc *CoreTypeChecker) FinalizeSubstitutions() {
 // M-TYPENAME-NESTED-PROPAGATION: Also propagates TypeName from type aliases
 func (tc *CoreTypeChecker) applySubstitutionToCoreTI(sub Substitution) {
 	tc.substituteApplicationRows(sub)
+	// Not tc.substituteCtorPatternTypes: this path carries only the numeric
+	// defaulting of let boundaries (α ↦ int/float), which never decides the
+	// ADT head a constructor pattern takes its identity from. The full
+	// per-declaration substitution reaches them (applyApplicationSubstitution).
 	if tc.CoreTI == nil {
 		return
 	}
@@ -116,7 +123,9 @@ func (tc *CoreTypeChecker) propagateTypeNameToCoreTI() {
 	// Build a map of field signatures → TypeName from type aliases
 	// Track ambiguous signatures (multiple types with same fields)
 	fieldSigToTypeNames := make(map[string][]string) // sig → [typeName1, typeName2, ...]
-	for aliasName, aliasType := range tc.aliasEnv {
+	for aliasKey, aliasType := range tc.aliasEnv {
+		// aliasEnv is keyed by NominalKey; TRecord.TypeName is the bare name.
+		_, aliasName := SplitNominalKey(aliasKey)
 		if rec, ok := aliasType.(*TRecord); ok {
 			sig := recordFieldSignature(rec)
 			fieldSigToTypeNames[sig] = append(fieldSigToTypeNames[sig], aliasName)
@@ -139,49 +148,84 @@ func (tc *CoreTypeChecker) propagateTypeNameToCoreTI() {
 	}
 
 	// Now iterate through CoreTI and set TypeName where it matches (unique signatures only)
-	for nodeID, typ := range tc.CoreTI {
-		tc.propagateTypeNameRecursively(typ, fieldSigToTypeName, nodeID)
+	p := &typeNamePropagation{sigs: fieldSigToTypeName, names: map[string]bool{}, seen: map[Type]bool{}}
+	for _, aliasType := range tc.aliasEnv {
+		if rec, ok := aliasType.(*TRecord); ok {
+			if _, unique := fieldSigToTypeName[recordFieldSignature(rec)]; unique {
+				p.names[recordFieldNames(rec)] = true
+			}
+		}
+	}
+	for _, typ := range tc.CoreTI {
+		p.walk(typ)
 	}
 }
 
-// propagateTypeNameRecursively walks through a type and sets TypeName on any TRecords
-// that match a known type alias signature.
-func (tc *CoreTypeChecker) propagateTypeNameRecursively(t Type, fieldSigToTypeName map[string]string, nodeID uint64) {
+// typeNamePropagation sets TypeName on the records in CoreTI that match a
+// type alias signature. Each node is visited once across all of CoreTI (a type
+// shared by many nodes, or by two positions of one type, was walked per path),
+// and a record's signature — which renders every field type, so its cost is
+// the size of the whole record — is computed only when its field names are
+// some unique alias's names. Before both, a record nested n deep cost O(n^2)
+// per CoreTI entry and a shared record DAG 2^n (#2308).
+type typeNamePropagation struct {
+	sigs  map[string]string // field signature -> alias name (unique signatures only)
+	names map[string]bool   // field-name sets of those aliases
+	seen  map[Type]bool
+}
+
+// walk sets TypeName on any TRecord in t that matches a known signature.
+// Cycle-safe: a node is entered once.
+func (p *typeNamePropagation) walk(t Type) {
+	if t == nil || p.seen[t] {
+		return
+	}
+	p.seen[t] = true
 	switch typ := t.(type) {
 	case *TRecord:
 		// If this record doesn't have a TypeName, try to match by field signature
-		if typ.TypeName == "" {
-			sig := recordFieldSignature(typ)
-			if typeName, ok := fieldSigToTypeName[sig]; ok {
+		if typ.TypeName == "" && p.names[recordFieldNames(typ)] {
+			if typeName, ok := p.sigs[recordFieldSignature(typ)]; ok {
 				typ.TypeName = typeName
 			}
 		}
 		// Recursively process field types
 		for _, fieldType := range typ.Fields {
-			tc.propagateTypeNameRecursively(fieldType, fieldSigToTypeName, nodeID)
+			p.walk(fieldType)
 		}
 
 	case *TList:
-		tc.propagateTypeNameRecursively(typ.Element, fieldSigToTypeName, nodeID)
+		p.walk(typ.Element)
 
 	case *TArray:
-		tc.propagateTypeNameRecursively(typ.Element, fieldSigToTypeName, nodeID)
+		p.walk(typ.Element)
 
 	case *TMap:
-		tc.propagateTypeNameRecursively(typ.Key, fieldSigToTypeName, nodeID)
-		tc.propagateTypeNameRecursively(typ.Value, fieldSigToTypeName, nodeID)
+		p.walk(typ.Key)
+		p.walk(typ.Value)
 
 	case *TTuple:
 		for _, elem := range typ.Elements {
-			tc.propagateTypeNameRecursively(elem, fieldSigToTypeName, nodeID)
+			p.walk(elem)
 		}
 
 	case *TFunc2:
 		for _, param := range typ.Params {
-			tc.propagateTypeNameRecursively(param, fieldSigToTypeName, nodeID)
+			p.walk(param)
 		}
-		tc.propagateTypeNameRecursively(typ.Return, fieldSigToTypeName, nodeID)
+		p.walk(typ.Return)
 	}
+}
+
+// recordFieldNames is a record's sorted field names: the part of its
+// signature that can be compared without rendering a field type.
+func recordFieldNames(rec *TRecord) string {
+	names := make([]string, 0, len(rec.Fields))
+	for name := range rec.Fields {
+		names = append(names, name)
+	}
+	sort.Strings(names)
+	return strings.Join(names, ",")
 }
 
 // recordFieldSignature creates a canonical string representation of a TRecord's fields.
@@ -226,11 +270,12 @@ func (tc *CoreTypeChecker) applySubstitutionToConstraints(sub Substitution, cons
 	result := make([]ClassConstraint, len(constraints))
 	for i, c := range constraints {
 		result[i] = ClassConstraint{
-			Class:      c.Class,
-			Type:       ApplySubstitution(sub, c.Type), // Use cycle-safe substitution
-			Path:       c.Path,
-			NodeID:     c.NodeID,
-			IntLiteral: c.IntLiteral,
+			Class:       c.Class,
+			Type:        ApplySubstitution(sub, c.Type), // Use cycle-safe substitution
+			Path:        c.Path,
+			NodeID:      c.NodeID,
+			IntLiteral:  c.IntLiteral,
+			PolyNumeric: c.PolyNumeric,
 		}
 	}
 	return result
@@ -334,10 +379,15 @@ func (tc *CoreTypeChecker) partitionConstraints(constraints []ClassConstraint) (
 // partitionAndReduce is partitionConstraints for a top-level boundary, where a
 // non-ground constraint would otherwise leave unchecked: each non-ground Eq is
 // decomposed (M-EQ-DERIVE-CONTAINERS R-D7), so a closure can never reach the
-// runtime comparator behind a residual type variable.
+// runtime comparator behind a residual type variable, and every other class
+// with a constructor at its head must be solved by an instance (#2247), so
+// Num[Box[α]] is "no instance", not a silently dropped constraint.
+//
+// Aliases are expanded first (constraint_alias.go): Num[Id[a]] with
+// `type Id[a] = int` is Num[int], and must be judged as such.
 func (tc *CoreTypeChecker) partitionAndReduce(constraints []ClassConstraint) (ground, nonGround []ClassConstraint, err error) {
-	ground, nonGround = tc.partitionConstraints(constraints)
-	nonGround, err = tc.instanceEnv.ReduceEqConstraints(nonGround)
+	ground, nonGround = tc.partitionConstraints(tc.expandConstraintAliases(constraints))
+	nonGround, err = tc.instanceEnv.ReduceConstraints(nonGround)
 	return ground, nonGround, err
 }
 
@@ -348,7 +398,7 @@ func (tc *CoreTypeChecker) partitionAndReduce(constraints []ClassConstraint) (gr
 // lists, tuples and functions, so Eq[[α]] used to be "resolved" and rejected
 // while Eq[Option[α]] was generalized — `[] == []` failed, `None == None`
 // passed, and generic `xs == ys` on [a] could never compile. A non-ground Eq is
-// then decomposed by ReduceEqConstraints, which still rejects functions.
+// then decomposed by ReduceConstraints, which still rejects functions.
 //
 // Every other class keeps isGround: their instances all have primitive heads,
 // so Num[int -> β] can never be satisfied, and resolving it now is what makes

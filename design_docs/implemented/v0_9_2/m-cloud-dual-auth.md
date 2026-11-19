@@ -1,5 +1,7 @@
 # M-CLOUD-DUAL-AUTH: OAuth vs API Key Cloud Run Jobs
 
+> **Retired 2026-11-10 (Mark): lane removed, see PR "Retire the per-request API-key lane" (`changelogs/unreleased/2026-11-10-retire-apikey-lane.md`).** The rest of this document is history.
+
 **Status**: Implemented
 **Target**: v0.9.2
 **Implemented**: 2026-03-13 (KMS encryption deployed, confirmed by ailang-multivac audit)

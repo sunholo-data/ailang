@@ -196,8 +196,8 @@ before_agent_start ──►
 ## Related Documents
 
 - [M-EVAL-SEMANTIC-CONTEXT](../v0_29_0/m-ailang-semantic-context.md) — compaction telemetry (A1–A3 land in the harness; the rig zero-window measurement (V5) is cited here; its Branch-B tool-result truncation is generalized per-mechanism by m-dx-quality-monitor Q3 — coordinate, do not double-sprint)
-- [m-dx-quality-monitor](m-dx-quality-monitor.md) + [m-dx-microrag-context](m-dx-microrag-context.md) — sibling extensions sharing the appendEntry state pattern; combined e2e required
-- [M-MODEL-REGISTRY-SINGLE-SOURCE](m-model-registry-single-source.md) — registration rider for the V5 trigger
+- [m-dx-quality-monitor](../../implemented/v0_35_0/m-dx-quality-monitor.md) + [m-dx-microrag-context](../../implemented/v0_35_0/m-dx-microrag-context.md) — sibling extensions sharing the appendEntry state pattern; combined e2e required
+- [M-MODEL-REGISTRY-SINGLE-SOURCE](../../implemented/v0_35_0/m-model-registry-single-source.md) — registration rider for the V5 trigger
 - [M-DX-PI-HARNESS](m-dx-pi-harness.md) — suite, distribution, State Management pattern
 - [M-MISSION-CONTROL](../../.agents/skills/mission-control/SKILL.md) — long-iteration controller this protects sessions for; parked-state example today (V11)
 - External: little-coder compaction watchdog + `evidence`/`evidence-compact` design — precedent measurements (#59, #68, #73), not a code dependency

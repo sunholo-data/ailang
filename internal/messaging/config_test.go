@@ -66,57 +66,6 @@ github:
 	}
 }
 
-func TestValidateGitHubConfig(t *testing.T) {
-	tests := []struct {
-		name      string
-		config    *GitHubConfig
-		wantError bool
-	}{
-		{
-			name:      "nil config",
-			config:    nil,
-			wantError: true,
-		},
-		{
-			name: "missing expected_user",
-			config: &GitHubConfig{
-				DefaultRepo: "owner/repo",
-			},
-			wantError: true,
-		},
-		{
-			name: "missing default_repo",
-			config: &GitHubConfig{
-				ExpectedUser: "user",
-			},
-			wantError: true,
-		},
-		{
-			name: "valid config",
-			config: &GitHubConfig{
-				DefaultRepo:  "owner/repo",
-				ExpectedUser: "user",
-			},
-			wantError: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			err := ValidateGitHubConfig(tt.config)
-			if tt.wantError {
-				if err == nil {
-					t.Error("expected error, got nil")
-				}
-			} else {
-				if err != nil {
-					t.Errorf("unexpected error: %v", err)
-				}
-			}
-		})
-	}
-}
-
 func TestIsAutoImportEnabled(t *testing.T) {
 	// Default (nil) should be true
 	config := &GitHubConfig{}

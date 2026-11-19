@@ -113,8 +113,8 @@ func verifyOneModule(absDir string, manifest *pkg.PackageManifest, modulePath st
 		RecursiveDepth: opts.RecursiveDepth,
 		Verbose:        opts.Verbose,
 	})
-	mr.Verified, mr.Counterexample, mr.Skipped, mr.Errors, mr.Uncontracted =
-		vr.Verified, vr.Counterexample, vr.Skipped, vr.Errors, vr.Uncontracted
+	mr.Verified, mr.Counterexample, mr.Inconclusive, mr.Skipped, mr.Errors, mr.Uncontracted =
+		vr.Verified, vr.Counterexample, vr.Inconclusive, vr.Skipped, vr.Errors, vr.Uncontracted
 	for _, r := range vr.Results {
 		mr.Results = append(mr.Results, packageVerifyItem(r))
 		if r.ReasonCode != "" {
@@ -143,10 +143,10 @@ func printPackageVerifyHuman(report *pkg.PackageVerifyReport) {
 			fmt.Printf("  %s %s — %s\n", red("✗"), m.Module, m.CompileError)
 		case m.Counterexample > 0:
 			fmt.Printf("  %s %s — %d verified, %d counterexample\n", red("✗"), m.Module, m.Verified, m.Counterexample)
-		case m.Verified == 0 && m.Skipped == 0 && m.Errors == 0 && m.Uncontracted > 0:
+		case m.Verified == 0 && m.Inconclusive == 0 && m.Skipped == 0 && m.Errors == 0 && m.Uncontracted > 0:
 			fmt.Printf("  %s %s — no contracts (%d exported)\n", yellow("·"), m.Module, m.Uncontracted)
 		default:
-			fmt.Printf("  %s %s — %d/%d verified\n", green("✓"), m.Module, m.Verified, m.Verified+m.Counterexample+m.Skipped+m.Errors)
+			fmt.Printf("  %s %s — %d/%d verified\n", green("✓"), m.Module, m.Verified, m.Verified+m.Counterexample+m.Inconclusive+m.Skipped+m.Errors)
 		}
 		for _, r := range m.Results {
 			if r.ReasonCode != "" || r.BoundedDepth > 0 {
@@ -167,8 +167,8 @@ func printPackageVerifyHuman(report *pkg.PackageVerifyReport) {
 			fmt.Printf("    module issue [%s]: %s\n", issue.ReasonCode, issue.Reason)
 		}
 	}
-	fmt.Printf("\n%d verified, %d counterexample, %d skipped, %d errors, %d uncontracted (%.1fs)\n",
-		report.Verified, report.Counterexample, report.Skipped, report.Errors, report.Uncontracted, report.WallSeconds)
+	fmt.Printf("\n%d verified, %d counterexample, %d inconclusive, %d skipped, %d errors, %d uncontracted (%.1fs)\n",
+		report.Verified, report.Counterexample, report.Inconclusive, report.Skipped, report.Errors, report.Uncontracted, report.WallSeconds)
 	if report.WallCapHit {
 		fmt.Printf("%s package wall cap hit — remaining modules skipped\n", yellow("⚠"))
 	}

@@ -1,9 +1,11 @@
 package eval
 
 import (
+	"errors"
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/core"
+	ailerrors "github.com/sunholo-data/ailang/internal/errors"
 )
 
 // TestGuards_BasicTrue tests a guard that evaluates to true
@@ -213,9 +215,14 @@ func TestGuards_AllFail(t *testing.T) {
 		t.Fatal("Expected error for non-exhaustive match")
 	}
 
-	// Check error message contains "no pattern matched"
-	if !containsString(err.Error(), "no pattern matched") {
-		t.Errorf("Expected 'no pattern matched' error, got: %v", err)
+	// All-guards-failed is a run-time no-match: RT002, shape only (an int,
+	// never its value — scrutinees can be secrets).
+	var mf *ailerrors.MatchFailureError
+	if !errors.As(err, &mf) {
+		t.Fatalf("Expected RT002 *MatchFailureError, got %T: %v", err, err)
+	}
+	if mf.Shape != "int" || containsString(err.Error(), "5") {
+		t.Errorf("Expected shape-only RT002 text, got: %v", err)
 	}
 }
 

@@ -9,9 +9,9 @@
 # synthetic arm can accidentally satisfy a snapshot assertion.
 #
 # Row-90 property: each arm greps only the fields its behaviour owns. Classification arms
-# (1-5) grep `crash:` lines by `at=` + one token; floor arms (7-14, 21, 22, 23, 24) their own
+# (1-5) grep `crash:` lines by `at=` + one token; floor arms (7-14, 22, 23, 24) their own
 # message, rc, argv-log emptiness where stated; report/transcript arms check verdicts; snapshots
-# a full `issue:` line and `control:`; watermark arms (19-22) `watermark:`/`since:` only.
+# a full `issue:` line and `control:`; watermark arms (19-22) `watermark:`/`since:` (21 also its verdict).
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
 SCRIPT_UT="${G0_SCRIPT_UT:-scripts/mission_gate0_self_notices.sh}"
@@ -514,17 +514,37 @@ EOF
   [ "$rc" -eq 0 ] || { notok "watermark-degraded rc=$rc"; return; }
   /usr/bin/grep -q "watermark: $d/wm_absent ABSENT — DEGRADED: single-watermark read (iter-52 rule wants two)" "$d/out" && ok "watermark-degraded ABSENT" || notok "watermark-degraded ABSENT line"
   /usr/bin/grep -q '^since: 2026-09-08T06:19:00Z (older of 1 readable watermark(s) of 2)' "$d/out" && ok "watermark-degraded since" || notok "watermark-degraded since"
+  /usr/bin/grep -q '^watermark: DEGRADED — no watermark' "$d/out" && notok "watermark-degraded whole-issue line" || ok "watermark-degraded no whole-issue line"
 }
 
-# ── arm 21: watermark-unavailable (AC-M1-15) ──────────────────────────────────
-arm_watermark_unavailable() {
-  local d out err rc
+# ── arm 21: watermark-all-absent — every file ABSENT is a DEGRADED whole-issue read, not F9 ──
+arm_watermark_all_absent() {
+  local d rc deg
   d="$SCRATCH/a21"; mkdir -p "$d"
+  deg="watermark: DEGRADED — no watermark file exists among 2 given ($d/p1 $d/p2): reading the WHOLE of each issue since 1970-01-01T00:00:00Z"
+  make_json "$d/5.json" <<EOF
+{"comments":[{"author":{"login":"sunholo-voight-kampff"},"createdAt":"2026-09-01T00:00:00Z","url":"https://x/5#1","body":"${SIG}143 — died"}]}
+EOF
+  printf '{"comments": 1}\n' > "$d/5.meta.json"
+  make_json "$d/6.json" <<EOF
+{"comments":[{"author":{"login":"sunholo-voight-kampff"},"createdAt":"2026-09-01T00:00:00Z","url":"https://x/6#1","body":"plain"}]}
+EOF
+  printf '{"comments": 1}\n' > "$d/6.meta.json"
   make_stub_gh "$d/stub" "$d" "$d/argv.log"
-  run_instr "$d/out" "$d/err" --issue 5 --repo test/test --self sunholo-voight-kampff \
-    --watermark-file "$d/p1" --watermark-file "$d/p2" --control 5:0 --gh-bin "$d/stub"; rc=$?
-  /usr/bin/grep -q "✗ watermark channel unavailable: no readable watermark among 2 file(s): $d/p1 $d/p2" "$d/err" && [ "$rc" -eq 2 ] && ok "watermark-unavailable F9 rc2" || notok "watermark-unavailable rc=$rc"
-  if [ ! -s "$d/argv.log" ]; then ok "watermark-unavailable empty argv"; else notok "watermark-unavailable argv non-empty"; fi
+  # (a) both absent + one crash notice -> rc 1, the notice is in-window
+  run_instr "$d/oa" "$d/ea" --issue 5 --repo test/test --self sunholo-voight-kampff \
+    --watermark-file "$d/p1" --watermark-file "$d/p2" --control 5:1 --gh-bin "$d/stub"; rc=$?
+  [ "$rc" -eq 1 ] && ok "watermark-all-absent crash rc1" || notok "watermark-all-absent crash rc=$rc"
+  /usr/bin/grep -q '^crash: issue=5 at=2026-09-01T00:00:00Z rc=143 in-window=yes url=https://x/5#1$' "$d/oa" && ok "watermark-all-absent crash in-window" || notok "watermark-all-absent crash line"
+  /usr/bin/grep -qF "$deg" "$d/oa" && ok "watermark-all-absent DEGRADED line" || notok "watermark-all-absent DEGRADED line"
+  /usr/bin/grep -q '^since: 1970-01-01T00:00:00Z (no watermark among 2 file(s): whole of each issue)$' "$d/oa" && ok "watermark-all-absent since" || notok "watermark-all-absent since"
+  /usr/bin/grep -q '^verdict: 1 crash notice(s) since 1970-01-01T00:00:00Z on #5 — A FIRE DIED .*watermarks 0/2, all absent: whole-issue read\]' "$d/oa" && ok "watermark-all-absent verdict" || notok "watermark-all-absent verdict"
+  /usr/bin/grep -q 'channel unavailable' "$d/ea" && notok "watermark-all-absent old F9 text" || ok "watermark-all-absent no F9 text"
+  # (b) both absent + no notices -> rc 0, still DEGRADED
+  run_instr "$d/ob" "$d/eb" --issue 6 --repo test/test --self sunholo-voight-kampff \
+    --watermark-file "$d/p1" --watermark-file "$d/p2" --control 6:0 --gh-bin "$d/stub"; rc=$?
+  [ "$rc" -eq 0 ] && /usr/bin/grep -qF "$deg" "$d/ob" && ok "watermark-all-absent quiet rc0 DEGRADED" || notok "watermark-all-absent quiet rc=$rc"
+  /usr/bin/grep -q '^verdict: 0 crash notice(s) since 1970-01-01T00:00:00Z on #6 ' "$d/ob" && ok "watermark-all-absent quiet verdict" || notok "watermark-all-absent quiet verdict"
 }
 
 # ── arm 22: watermark-invalid (AC-M1-15) ──────────────────────────────────────
@@ -542,6 +562,10 @@ arm_watermark_invalid() {
   run_instr "$d/ob" "$d/eb" --issue 5 --repo test/test --self sunholo-voight-kampff \
     --watermark-file "$d/wm_a" --watermark-file "$d/wm_bad" --control 5:0 --gh-bin "$d/stub"; rc=$?
   /usr/bin/grep -q "✗ watermark invalid: $d/wm_bad (not-ISO8601 'not-a-date')" "$d/eb" && [ "$rc" -eq 2 ] && ok "watermark-invalid not-ISO8601" || notok "watermark-invalid not-ISO8601 rc=$rc"
+  # (b2) absent beside malformed — absent never excuses an invalid file
+  run_instr "$d/ob2" "$d/eb2" --issue 5 --repo test/test --self sunholo-voight-kampff \
+    --watermark-file "$d/wm_absent" --watermark-file "$d/wm_bad" --control 5:0 --gh-bin "$d/stub"; rc=$?
+  /usr/bin/grep -q "✗ watermark invalid: $d/wm_bad (not-ISO8601 'not-a-date')" "$d/eb2" && [ "$rc" -eq 2 ] && ok "watermark-invalid absent+bad F10" || notok "watermark-invalid absent+bad rc=$rc"
   # (c) unreadable
   printf '2026-09-08T06:19:00Z' > "$d/wm_unreadable"
   chmod 000 "$d/wm_unreadable"
@@ -746,7 +770,7 @@ run_arm() {
     snapshot-129) arm_snapshot_129 ;;
     watermark-older) arm_watermark_older ;;
     watermark-degraded) arm_watermark_degraded ;;
-    watermark-unavailable) arm_watermark_unavailable ;;
+    watermark-all-absent) arm_watermark_all_absent ;;
     watermark-invalid) arm_watermark_invalid ;;
     watermark-strict) arm_watermark_strict ;;
     watermark-parser-control) arm_watermark_parser_control ;;
@@ -774,7 +798,7 @@ else
   for arm in anchored-signature rc-extract since-window self-filter prev-issue no-bodies \
              usage gh-missing gh-timeout gh-failed malformed truncated control-required \
              control-mismatch signature-source report snapshot-107 snapshot-129 \
-             watermark-older watermark-degraded watermark-unavailable watermark-invalid \
+             watermark-older watermark-degraded watermark-all-absent watermark-invalid \
              watermark-strict watermark-parser-control \
              driver-literal single-literal control-auto snapshot-1380 $(transcript_arms); do
     run_arm "$arm"

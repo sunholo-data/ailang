@@ -247,10 +247,10 @@ func (a *API) enrichSpansWithChat(ctx context.Context, spans []*Span) []*Span {
 			continue
 		}
 
-		// Build ChatContext from messages
-		chatCtx := &ChatContext{
-			FullChatURL: "/api/claude-history/db/session/" + sessionID,
-		}
+		// Build ChatContext from messages. (It used to carry a full_chat_url link
+		// to /api/claude-history/db/session/<id>, a route only the removed UI
+		// called; the full conversation is `ailang chains chat`.)
+		chatCtx := &ChatContext{}
 
 		for _, msg := range messages {
 			if msg.Role == "user" && chatCtx.UserPrompt == "" {

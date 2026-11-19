@@ -12,6 +12,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/builtins"
 	"github.com/sunholo-data/ailang/internal/executor"
 	_ "github.com/sunholo-data/ailang/internal/executor/managed_agents"
+	"github.com/sunholo-data/ailang/internal/importhint"
 	"sort"
 )
 
@@ -256,6 +257,11 @@ func printBuiltinVerbose(spec *builtins.BuiltinSpec, indent string) {
 	if strings.HasPrefix(spec.Name, "_") && spec.Module != "" && spec.Module != "$builtin" {
 		// Convert _rand_int -> rand_int for the public name
 		publicName := strings.TrimPrefix(spec.Name, "_")
+		// A renamed std export is shown by its current name, not the
+		// deprecated spelling the builtin's name still mirrors.
+		if r, ok := importhint.Renamed(spec.Module, publicName); ok {
+			publicName = r.New
+		}
 		fmt.Printf("%s  Usage: import %s (%s)\n", indent, spec.Module, publicName)
 	}
 

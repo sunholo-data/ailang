@@ -1,0 +1,40 @@
+-- Task: reconcile two replicas of the same cached document — attach a packed
+-- float32 embedding to one copy, bump the other's version after an edit, then
+-- pick the newer replica, report which copies carry an embedding, and compare
+-- SimHash fingerprints to see whether the edit changed the content materially.
+-- Demonstrates std/sem make_frame_at, with_embedding, has_embedding,
+-- get_simhash, is_newer, bump_version and is_similar.
+module examples/runnable/stdlib/sem_frame_replicas
+import std/sem (sem_frame, make_frame_at, with_embedding, has_embedding, get_simhash, is_newer, bump_version, is_similar)
+import std/embedding (encodeF32LE)
+import std/bytes (fromString)
+import std/simhash (hammingDistance)
+
+pure func describe(label: string, f: sem_frame) -> string =
+  "${label}: id=${f.id} ver=${show(f.ver)} embedding=${show(has_embedding(f))} dim=${show(f.embedding_dim)}"
+
+-- Last-writer-wins by version; ties keep the left replica.
+pure func pickNewer(a: sem_frame, b: sem_frame) -> sem_frame = if is_newer(b, a) then b else a
+
+pure func compareFingerprints(a: sem_frame, b: sem_frame) -> string =
+  "simhash distance ${show(hammingDistance(get_simhash(a), get_simhash(b)))}, same document (threshold 10): ${show(is_similar(a, b, 10))}"
+
+export func main() -> () ! {IO} {
+  let meta = fromString("{\"lang\":\"en\"}")
+  let original = make_frame_at("faq-42", "How do I reset my password from the login page", meta, 1700000000)
+  -- Replica A: an indexer attached a 4-d embedding but kept the text.
+  let replicaA = with_embedding(original, encodeF32LE([0.12, 0.85, 0.03, 0.4]), 4)
+  -- Replica B: an editor reworded the text, so its version moves on.
+  let replicaB = bump_version(make_frame_at("faq-42", "How can I reset my password from the login page", meta, 1700000600))
+  println(describe("original", original))
+  println(describe("replica A", replicaA))
+  println(describe("replica B", replicaB))
+  println("B newer than A: ${show(is_newer(replicaB, replicaA))}")
+  println("A newer than B: ${show(is_newer(replicaA, replicaB))}")
+  let winner = pickNewer(replicaA, replicaB)
+  println("winner: ver=${show(winner.ver)} content=${winner.content}")
+  -- The winner lost A's embedding, so it must be re-embedded before indexing.
+  println("winner needs re-embedding: ${show(not has_embedding(winner))}")
+  println("A kept the original fingerprint: ${show(get_simhash(replicaA) == get_simhash(original))}")
+  println(compareFingerprints(replicaA, replicaB))
+}

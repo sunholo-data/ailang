@@ -565,7 +565,7 @@ All rows were measured at base `7d29031ea` with binaries built from scratch copi
 - [M-EFFECT-ROW-VAR-UNIFICATION](../v1_0_0/m-effect-row-var-unification.md): declared `! {e}` soundness that Phase 0 relies on.
 - [M-EFFECT-LATENT-NESTED-CALLBACKS](m-effect-latent-nested-callbacks.md): #1718/#1826; first recorded this defect as U1.
 - [M-TYPE-EFFECT-ROW regression (v0.9.4)](../v0_9_4/m-type-effect-row-regression.md): the earlier closed-row regression in this area.
-- `design_docs/planned/v0_53_0/m-pure-row-and-iface-purity-sprint-plan.md`: PR #1790.
+- `design_docs/implemented/v1_0_0/m-pure-row-and-iface-purity-sprint-plan.md`: PR #1790.
 
 ## References
 

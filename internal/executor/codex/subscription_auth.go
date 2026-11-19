@@ -20,6 +20,13 @@ import (
 // caller writes a refreshed file back to Secret Manager (see NewerRefresh) or the
 // stored copy goes stale and every job after it fails auth.
 
+// Codex reads its credential from a FILE (~/.codex/auth.json, written by
+// `codex login`), never from OPENAI_API_KEY — probe-verified 2026-07-30, and the
+// reason authLane reads the file rather than the environment.
+
+// authFileMode keeps the credential owner-only.
+const authFileMode = 0o600
+
 // subscriptionAuth is the part of a ChatGPT auth.json this package inspects.
 type subscriptionAuth struct {
 	AuthMode    string `json:"auth_mode"`

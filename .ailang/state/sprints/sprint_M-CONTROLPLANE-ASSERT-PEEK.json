@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-CONTROLPLANE-ASSERT-PEEK",
   "title": "Preserve unread controlplane digests during Gate-5 artifact assertion",
-  "design_doc": "design_docs/planned/sprint-plan-controlplane-assert-peek.md",
+  "design_doc": "design_docs/implemented/v0_55_0/sprint-plan-controlplane-assert-peek.md",
   "status": "completed",
   "ticket": "gate5:controlplane-assert-marks-read",
   "registry_reuse": [

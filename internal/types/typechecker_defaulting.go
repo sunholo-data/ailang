@@ -10,6 +10,42 @@ func (tc *CoreTypeChecker) defaultAmbiguities(
 	monotype Type,
 	constraints []ClassConstraint,
 ) (Substitution, Type, []ClassConstraint, error) {
+	return tc.defaultAmbiguitiesKeeping(monotype, constraints, nil, nil)
+}
+
+// defaultAmbiguitiesKeeping is defaultAmbiguities that never defaults a
+// variable of keep. A variable free in the environment of an inner `let` (an
+// enclosing parameter's type, a rigid signature variable) is not ambiguous
+// there: the enclosing binding decides it. Defaulting it at the inner `let`
+// pinned it to int in CoreTI behind the enclosing scheme's back, so
+// `label[a](x: a, y: a) -> string { let big = x * y; … }` exported `(a, a)`
+// while its body was compiled at int (#2273 review).
+//
+// A variable is ambiguous when no free-variable walk of the type finds it. The
+// walk is the shared one (collectFreeTypeVars, free_vars.go), which sees a
+// variable under an open record (#2312, #2221 part 4): `\p. {p | x: p.x + 1}`
+// used at a float field no longer has its field defaulted to int. That walk
+// was waiting on #2290: an exported `addv(p, q) = {p | v: p.v + q.v}` is now
+// `Num[b] => ({v: b, ...a}, {v: b, ...c}) -> ...`, and an importer's
+// `addv({v: "s"}, …)` must meet that Num[b].
+//
+// A module declaration's integer literal at such a variable is generalised
+// like any other: the declaration is compiled once per numeric instance of
+// the variable (numeric_variants.go, #2378), so `func f(p) = {p | x: p.x + 1}`
+// and `func f(p) = {x: p.x * 1}` both run at float. (#2364 kept the first
+// defaulted to int, a check error at float, because the second then failed at
+// run time.)
+//
+// force names variables defaulted although the type mentions them: at a module
+// declaration, a numeric variable that occurs in no parameter type (a
+// constant's, or a result-only literal's) has no argument to carry its type at
+// a call, so it is not generic (#2378; declResultOnlyVars).
+func (tc *CoreTypeChecker) defaultAmbiguitiesKeeping(
+	monotype Type,
+	constraints []ClassConstraint,
+	keep map[string]bool,
+	force map[string]bool,
+) (Substitution, Type, []ClassConstraint, error) {
 
 	if !tc.defaultingConfig.Enabled {
 		return make(Substitution), monotype, constraints, nil
@@ -22,11 +58,14 @@ func (tc *CoreTypeChecker) defaultAmbiguities(
 	}
 
 	monotypeVars := make(map[string]bool)
-	collectFreeVars(monotype, monotypeVars)
+	collectFreeTypeVars(monotype, monotypeVars)
 
 	ambiguousVars := make(map[string]bool)
 	for v := range constraintVars {
-		if !monotypeVars[v] {
+		if keep[v] {
+			continue
+		}
+		if !monotypeVars[v] || force[v] {
 			ambiguousVars[v] = true
 		}
 	}
@@ -290,6 +329,11 @@ func collectConstraintVars(t Type, vars map[string]bool) {
 
 // collectFreeVars collects all free type variables from a type.
 // Uses internal cycle detection via visited set.
+//
+// It skips open records, a closed record's row, TRecord2 and labelled types,
+// unlike the shared walk (collectFreeTypeVars, free_vars.go). Defaulting uses
+// the shared walk since #2312; the literal restriction and the rigid-signature
+// check read this one for a literal constraint's own type.
 //
 // NOTE: Code outside the types package should use traverse.CollectFreeVars
 // which provides the same cycle-safe behavior with a cleaner API.

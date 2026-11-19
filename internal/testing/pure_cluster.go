@@ -11,7 +11,12 @@ import (
 	"github.com/sunholo-data/ailang/internal/types"
 )
 
-// PureCluster represents a set of pure functions that can be tested together.
+// PureCluster is a pure function under test plus every binding it references,
+// bound together so the harness can call it. "Pure" is a property of running
+// the harness, which only ever calls FuncName: FuncName's inferred effect row
+// is empty, and the effect system puts every effect a call can perform into
+// that row. A dependency may still carry effects when it is only referenced as
+// a value (stored in a record, say) and never called; binding it is inert.
 type PureCluster struct {
 	// FuncName is the function under test
 	FuncName string
@@ -21,20 +26,18 @@ type PureCluster struct {
 	Names map[string]bool
 }
 
-// PurityError is returned when a function depends on an effectful function.
+// PurityError is returned when the function under test has effects.
 type PurityError struct {
 	// FuncUnderTest is the function being tested
 	FuncUnderTest string
-	// EffectfulFunc is the function that has effects
-	EffectfulFunc string
-	// Effects is the list of effects the function has
+	// Effects is its sorted effect labels
 	Effects []string
 }
 
 func (e *PurityError) Error() string {
 	return fmt.Sprintf(
-		"cannot test '%s': dependency '%s' has effects %v",
-		e.FuncUnderTest, e.EffectfulFunc, e.Effects,
+		"cannot test '%s': it has effects %v (inline tests run without capabilities; only pure functions can be tested inline)",
+		e.FuncUnderTest, e.Effects,
 	)
 }
 
@@ -97,8 +100,16 @@ func GetEffectNames(binding *core.RecBinding, coreTypeInfo types.CoreTypeInfo) [
 	return effects
 }
 
-// ExtractPureCluster extracts the pure cluster for a function.
-// Returns error if any dependency has effects.
+// ExtractPureCluster extracts the pure cluster for a function: the function
+// plus its transitive dependency closure, in dependency order. It is the one
+// implementation of the purity gate; the live path reaches it through
+// Executor.ExtractPureClusterForFunction. Returns *PurityError if the function
+// under test has effects.
+//
+// The gate reads the function under test's effect row, not every dependency's
+// (see PureCluster): requiring the whole closure to be pure rejects a pure
+// function that merely stores an effectful one, e.g.
+// examples/runnable/explicit_empty_callback_contracts.ail.
 func ExtractPureCluster(
 	funcName string,
 	g *CallGraph,
@@ -111,20 +122,10 @@ func ExtractPureCluster(
 		return nil, fmt.Errorf("function '%s' not found in call graph", funcName)
 	}
 
-	// Check that all functions in the closure are pure
-	for _, name := range closure {
-		binding, ok := g.Bindings[name]
-		if !ok {
-			continue // Skip missing bindings (shouldn't happen)
-		}
-
-		if !IsPure(binding, coreTypeInfo) {
-			effects := GetEffectNames(binding, coreTypeInfo)
-			return nil, &PurityError{
-				FuncUnderTest: funcName,
-				EffectfulFunc: name,
-				Effects:       effects,
-			}
+	if root, ok := g.Bindings[funcName]; ok && !IsPure(root, coreTypeInfo) {
+		return nil, &PurityError{
+			FuncUnderTest: funcName,
+			Effects:       GetEffectNames(root, coreTypeInfo),
 		}
 	}
 

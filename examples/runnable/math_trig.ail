@@ -3,7 +3,7 @@
 
 module examples/runnable/math_trig
 import std/io (println)
-import std/math (sin, cos, tan, sqrt, atan2, PI, E, pow, exp, log, floor, ceil, round, abs_Float, abs_Int)
+import std/math (sin, cos, tan, sqrt, atan2, PI, E, pow, exp, log, floor, ceil, round, absFloat, absInt)
 
 -- Calculate distance between two points using natural arithmetic
 -- (M-FIX-FLOAT-OP: Float operators now work correctly in pure functions)
@@ -47,7 +47,7 @@ export func main() -> () ! {IO} {
   println("round(3.5) = ${show(round(3.5))}")
   println("")
   println("=== Absolute Value ===")
-  println("abs_Float(-3.14) = ${show(abs_Float(0.0 - 3.14))}")
-  println("abs_Int(-42) = ${show(abs_Int(0 - 42))}")
+  println("absFloat(-3.14) = ${show(absFloat(0.0 - 3.14))}")
+  println("absInt(-42) = ${show(absInt(0 - 42))}")
   println("Done!")
 }

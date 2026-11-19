@@ -2,27 +2,73 @@ package coordinator
 
 import (
 	"context"
+	"errors"
 	"io"
 	"log"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 )
 
-func TestCredentialLane(t *testing.T) {
-	cases := []struct {
-		agent    *AgentConfig
-		provider string
-		want     string
-	}{
-		{&AgentConfig{ID: "sprint-planner"}, "codex", laneCodexSubscription},
-		{nil, "codex", laneCodexSubscription},
-		{&AgentConfig{ID: "metered", AuthMode: "apikey"}, "codex", ""},
-		{&AgentConfig{ID: "doc"}, "claude", ""},
-		{&AgentConfig{ID: "doc"}, "pi", ""},
+// failTaskAt fails a task as a completion would and backdates the failure.
+func failTaskAt(t *testing.T, s *SQLiteStore, id string, ago time.Duration) {
+	t.Helper()
+	if err := s.MarkTaskFailed(context.Background(), id, errors.New("executor failed: codex task failed: signal: killed")); err != nil {
+		t.Fatal(err)
 	}
-	for _, c := range cases {
-		if got := credentialLane(c.agent, c.provider); got != c.want {
-			t.Errorf("credentialLane(%+v, %q) = %q, want %q", c.agent, c.provider, got, c.want)
+	if _, err := s.db.Exec("UPDATE tasks SET completed_at = ? WHERE id = ?", time.Now().Add(-ago), id); err != nil {
+		t.Fatal(err)
+	}
+}
+
+// The 2026-10-16 shape (D-FLEET-39): attempt 0 of task-d61964fa published
+// `failed` and released the lease, the Cloud Run retry took it again, and the
+// planner handoff dispatched 3m47s later died on "credential already owned".
+// The failed task must keep the lane while its retry can still be running.
+func TestCodexTaskWaitsWhileAFailedTasksRetryMayHoldTheLane(t *testing.T) {
+	d, s := laneTestDaemon(t,
+		&TaskRecord{ID: "d61964fa", AgentID: "sprint-executor", Title: "x", Content: "x", Status: TaskStatusQueued},
+		&TaskRecord{ID: "handoff", AgentID: "sprint-planner", Title: "y", Content: "y", Status: TaskStatusPending},
+	)
+	failTaskAt(t, s, "d61964fa", 3*time.Minute+47*time.Second)
+	if err := d.dispatchTasksCloud(); err != nil {
+		t.Fatal(err)
+	}
+	got, err := s.GetTask(d.ctx, "handoff")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Status != TaskStatusPending {
+		t.Fatalf("handoff status = %s, want pending while the failed task's retry may hold the codex lane", got.Status)
+	}
+}
+
+func TestFailedTaskHoldsTheLaneOnlyForItsRetryWindow(t *testing.T) {
+	d, s := laneTestDaemon(t,
+		// Pending, so it occupies nothing until it fails below.
+		&TaskRecord{ID: "codex-recent", AgentID: "sprint-executor", Title: "a", Content: "a", Status: TaskStatusPending},
+		&TaskRecord{ID: "codex-old", AgentID: "sprint-executor", Title: "b", Content: "b", Status: TaskStatusQueued},
+		&TaskRecord{ID: "claude-recent", AgentID: "designer", Title: "c", Content: "c", Status: TaskStatusQueued},
+	)
+	// sprint-executor declares no timeout here, so its window is the default + grace.
+	window := (*AgentConfig)(nil).GetEffectiveTimeout() + credentialLaneRetryGrace
+	failTaskAt(t, s, "codex-old", window+time.Minute)
+	failTaskAt(t, s, "claude-recent", time.Minute)
+	if h, err := d.credentialLaneHolder(d.ctx, laneCodexSubscription, "self", map[string]string{}); err != nil || h != "" {
+		t.Fatalf("holder = %q, %v; want free: one codex failure is past its retry window, the other failure is not on the lane", h, err)
+	}
+	failTaskAt(t, s, "codex-recent", window-time.Minute)
+	h, err := d.credentialLaneHolder(d.ctx, laneCodexSubscription, "self", map[string]string{})
+	if err != nil || !strings.HasPrefix(h, "codex-recent ") {
+		t.Fatalf("holder = %q, %v; want codex-recent, failed inside its retry window", h, err)
+	}
+}
+
+func TestCredentialLane(t *testing.T) {
+	for provider, want := range map[string]string{"codex": laneCodexSubscription, "claude": "", "pi": ""} {
+		if got := credentialLane(provider); got != want {
+			t.Errorf("credentialLane(%q) = %q, want %q", provider, got, want)
 		}
 	}
 }

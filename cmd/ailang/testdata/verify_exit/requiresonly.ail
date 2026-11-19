@@ -1,0 +1,11 @@
+module cmd/ailang/testdata/verify_exit/requiresonly
+
+-- M-V1-VERIFICATION-HONESTY review fix 2: a requires-only function is not a
+-- proof obligation. The verifier assumes a precondition while proving the
+-- function's own ensures and does not check it at call sites, so there is
+-- nothing to prove here: no_obligations with or without a solver, and it
+-- passes --strict.
+export pure func safeDiv(a: int, b: int) -> int
+requires { b != 0 } {
+  a / b
+}

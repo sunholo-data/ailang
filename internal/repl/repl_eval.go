@@ -3,6 +3,7 @@ package repl
 import (
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/elaborate"
@@ -54,6 +55,14 @@ func (r *REPL) ProcessExpression(input string, out io.Writer) {
 	// Step 3: Type check with constraints
 	typeChecker := types.NewCoreTypeCheckerWithInstances(r.instEnv)
 	typeChecker.EnableTraceDefaulting(r.config.TraceDefaulting)
+	// The annotations the elaborator recorded, as the pipelines pass them
+	// (#2238 review): without them the prompt checked `let f: int -> int = \x. 0
+	// in f("s")` and every annotated function literal as if unannotated.
+	typeChecker.SetParamTypeAnnotations(elaborator.GetParamTypeAnnotations())
+	typeChecker.SetReturnTypeAnnotations(elaborator.GetReturnTypeAnnotations())
+	typeChecker.SetLetTypeAnnotations(elaborator.GetLetTypeAnnotations())
+	typeChecker.SetLiteralLambdas(elaborator.GetLiteralLambdas())
+	typeChecker.SetEffectAnnotationsFull(elaborator.GetEffectAnnotationsFull())
 
 	typedNode, updatedEnv, qualType, constraints, err := typeChecker.InferWithConstraints(coreExpr, r.typeEnv)
 	if err != nil {
@@ -121,8 +130,13 @@ func (r *REPL) ProcessExpression(input string, out io.Writer) {
 
 	// Step 5.4.5: Validate effects (M-SOUNDNESS)
 	// Note: REPL doesn't preserve Surface AST, so we pass nil
-	// Effect validation is primarily for module files where explicit declarations matter
-	if err := pipeline.ValidateEffects(nil, elaboratedProg, typeChecker.CoreTI); err != nil {
+	// Effect validation is primarily for module files where explicit declarations matter.
+	// The same call as the file pipelines (#2238 review): the declared-lambda
+	// lookup enables the literal-annotation pass, so a literal's `! {}` holds at
+	// the prompt as in a file, and the application records give that pass each
+	// call's settled row (without them it read raw callee types and reported a
+	// valid row-polymorphic call as an unresolved tail).
+	if err := pipeline.ValidateEffectsWithCalls(nil, elaboratedProg, typeChecker.CoreTI, typeChecker.ApplicationEffects, typeChecker.DeclaredLambdaEffectRow, typeChecker.EffectValueType); err != nil {
 		fmt.Fprintf(out, "%s: %v\n", red("Effect checking error"), err)
 		return
 	}
@@ -178,8 +192,17 @@ func (r *REPL) ProcessExpression(input string, out io.Writer) {
 		// Re-evaluate just the RHS to get the value
 		val, err := r.evaluator.Eval(letExpr.Value)
 		if err == nil {
-			// Add VALUE binding to both REPL env and evaluator env (they're the same reference)
-			r.env.Set(letExpr.Name, val)
+			// Bind the VALUE in a new child environment, shared by the REPL and
+			// the evaluator. Setting it in the session environment itself let a
+			// closure made earlier see the later binding: after `let k = 10`,
+			// `let f = \x. k`, `let k = 99`, `f(3)` printed 99, not 10 (the
+			// session-level form of the by-name capture of #2401). A closure
+			// keeps the environment it was made in, so a later `let k` now
+			// shadows k for later inputs only.
+			child := r.env.NewChildEnvironment()
+			child.Set(letExpr.Name, val)
+			r.env = child
+			r.evaluator.SetEnv(child)
 
 			// TODO: Add TYPE binding persistence for let
 			// Currently, type annotations are lost during Surface → Core elaboration,
@@ -377,13 +400,13 @@ func (r *REPL) initBuiltins() {
 		Methods: map[string]interface{}{
 			"eq": &eval.BuiltinFunction{Name: "eq", Fn: wrapFloatCmp2(func(a, b float64) bool {
 				// Law-compliant: reflexive for NaN
-				if a != a && b != b {
+				if math.IsNaN(a) && math.IsNaN(b) {
 					return true
 				}
 				return a == b
 			})},
 			"neq": &eval.BuiltinFunction{Name: "neq", Fn: wrapFloatCmp2(func(a, b float64) bool {
-				if a != a && b != b {
+				if math.IsNaN(a) && math.IsNaN(b) {
 					return false
 				}
 				return a != b

@@ -1,0 +1,32 @@
+-- Write a fold over a list that can stop early: the handler returns
+-- Continue(acc) to keep going or Stop(acc) to finish, using std/iter's
+-- FoldStep with isStop and fromFoldStep. Use it to sum a budget-limited
+-- prefix of costs and to collect words up to a "STOP" marker.
+module examples/runnable/stdlib/iter_early_exit_fold
+import std/iter (FoldStep, Continue, Stop, isStop, fromFoldStep)
+import std/list (reverse)
+
+-- Apply the handler to each element; a Stop ends the walk without touching the rest.
+func foldSteps[a, b](f: (b, a) -> FoldStep[b], acc: b, xs: [a]) -> FoldStep[b] = match xs {
+  [] => Continue(acc),
+  x :: rest => {
+    let step = f(acc, x)
+    if isStop(step) then step else foldSteps(f, fromFoldStep(step), rest)
+  }
+}
+
+func describe(label: string, s: FoldStep[int]) -> string =
+  if isStop(s) then "${label}: stopped early at ${show(fromFoldStep(s))}" else "${label}: finished with ${show(fromFoldStep(s))}"
+
+export func main() -> () ! {IO} {
+  let costs = [40, 25, 30, 50, 10]
+  -- Stop before the running total would exceed the budget
+  let underBudget = \limit. \total cost. if total + cost > limit then Stop(total) else Continue(total + cost)
+  println(describe("budget 100", foldSteps(underBudget(100), 0, costs)))
+  println(describe("budget 500", foldSteps(underBudget(500), 0, costs)))
+  -- Collect words until a marker; cons onto the accumulator, reverse once at the end
+  let words = ["alpha", "beta", "STOP", "gamma"]
+  let collected = foldSteps(\acc w. if w == "STOP" then Stop(acc) else Continue(w :: acc), [], words)
+  println("words before STOP: ${show(reverse(fromFoldStep(collected)))}")
+  println("hit marker: ${show(isStop(collected))}")
+}

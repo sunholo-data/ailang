@@ -1,0 +1,13 @@
+module mx/lit_rigid
+import std/io (print)
+
+-- #2378: a rigid signature cannot hold a literal at its variable (TC_RIGID_001),
+-- but it can call an unannotated helper that does; its float variant must
+-- call the helper's.
+pure func helper(x) = x * 2 + 1
+export pure func genR[a](x: a) -> a = helper(x)
+export pure func genU(x) = genR(x)
+export pure func twinI(x: int) -> int = x * 2 + 1
+export pure func twinF(x: float) -> float = x * 2.0 + 1.0
+export pure func summary() -> string = "genRI=${show(genR(3))}\ngenUI=${show(genU(3))}\ntwinI=${show(twinI(3))}\ngenRF=${show(genR(2.5))}\ngenUF=${show(genU(2.5))}\ntwinF=${show(twinF(2.5))}\n"
+export func main() -> () ! {IO} = print(summary())

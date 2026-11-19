@@ -34,6 +34,9 @@ type cvsStageSpec struct {
 	counterex   int
 	skipped     int
 	errors      int
+	// inconclusive: obligations the verifier attempted but could not decide
+	// (a bounded-unrolling sat — M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE).
+	inconclusive int
 }
 
 // bankCohort creates one eval chain with the given source_ref and banks every
@@ -59,18 +62,19 @@ func bankCohort(t *testing.T, store *Store, sourceRef string, specs []cvsStageSp
 			t.Fatalf("failed to create stage %d: %v", i, err)
 		}
 		assessment := &EvalAssessment{
-			BenchmarkID:     s.benchmarkID,
-			Model:           s.model,
-			Language:        "ailang",
-			EvalMode:        "agent",
-			CompileOk:       s.compileOk,
-			RuntimeOk:       s.runtimeOk,
-			StdoutOk:        s.stdoutOk,
-			VerifyOk:        s.verifyOk,
-			VerifyVerified:  s.verified,
-			VerifyCounterex: s.counterex,
-			VerifySkipped:   s.skipped,
-			VerifyErrors:    s.errors,
+			BenchmarkID:        s.benchmarkID,
+			Model:              s.model,
+			Language:           "ailang",
+			EvalMode:           "agent",
+			CompileOk:          s.compileOk,
+			RuntimeOk:          s.runtimeOk,
+			StdoutOk:           s.stdoutOk,
+			VerifyOk:           s.verifyOk,
+			VerifyVerified:     s.verified,
+			VerifyCounterex:    s.counterex,
+			VerifySkipped:      s.skipped,
+			VerifyErrors:       s.errors,
+			VerifyInconclusive: s.inconclusive,
 		}
 		if err := store.UpdateStageEvalAssessment(ctx, stage.ID, assessment); err != nil {
 			t.Fatalf("failed to bank assessment %d: %v", i, err)
@@ -177,6 +181,25 @@ func TestCostPerVerifiedSuccess_Table(t *testing.T) {
 			spec: cvsStageSpec{benchmarkID: "b", model: "claude-sonnet-4-5", cost: 0.10,
 				compileOk: true, runtimeOk: true, stdoutOk: true,
 				verifyOk: true, verified: 1, errors: 1},
+			isVerifiedSuccess: false, isUnverifiedPass: false, isVerifyFailure: true,
+		},
+		{
+			// AC-8 / AC-13 (the D-30 skew detector): the NEW emitter reports a
+			// bounded-unrolling sat as inconclusive, so counterexample drops to 0
+			// and verify_ok is true. A reader blind to verify_inconclusive sees
+			// verified>0 with every failure counter zero and scores a verified
+			// success — silent KPI inflation. Undecided is never verified.
+			name: "inconclusive obligation alongside a proved one (verification failure, never success)",
+			spec: cvsStageSpec{benchmarkID: "b", model: "claude-sonnet-4-5", cost: 0.10,
+				compileOk: true, runtimeOk: true, stdoutOk: true,
+				verifyOk: true, verified: 1, inconclusive: 1},
+			isVerifiedSuccess: false, isUnverifiedPass: false, isVerifyFailure: true,
+		},
+		{
+			name: "inconclusive only (verification failure)",
+			spec: cvsStageSpec{benchmarkID: "b", model: "claude-sonnet-4-5", cost: 0.10,
+				compileOk: true, runtimeOk: true, stdoutOk: true,
+				verifyOk: true, inconclusive: 2},
 			isVerifiedSuccess: false, isUnverifiedPass: false, isVerifyFailure: true,
 		},
 	}
@@ -422,6 +445,7 @@ func TestEvalAssessment_VerifyFieldsRoundTrip(t *testing.T) {
 		BenchmarkID: "b", Model: "claude-sonnet-4-5", Language: "ailang", EvalMode: "agent",
 		CompileOk: true, RuntimeOk: true, StdoutOk: true,
 		VerifyOk: true, VerifyVerified: 3, VerifyCounterex: 1, VerifySkipped: 2, VerifyErrors: 4,
+		VerifyInconclusive: 5,
 	}
 	if err := store.UpdateStageEvalAssessment(ctx, stage.ID, in); err != nil {
 		t.Fatalf("bank: %v", err)
@@ -430,7 +454,7 @@ func TestEvalAssessment_VerifyFieldsRoundTrip(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read: %v", err)
 	}
-	if got.VerifyVerified != 3 || got.VerifyCounterex != 1 || got.VerifySkipped != 2 || got.VerifyErrors != 4 || !got.VerifyOk {
+	if got.VerifyVerified != 3 || got.VerifyCounterex != 1 || got.VerifySkipped != 2 || got.VerifyErrors != 4 || got.VerifyInconclusive != 5 || !got.VerifyOk {
 		t.Errorf("verify fields did not round-trip: %+v", got)
 	}
 }
@@ -458,5 +482,37 @@ func TestEvalAssessment_HistoricalRowIsVerificationMissing(t *testing.T) {
 	}
 	if res.UnverifiedPasses != 1 {
 		t.Errorf("expected 1 unverified pass, got %d", res.UnverifiedPasses)
+	}
+}
+
+// TestCostPerVerifiedSuccess_InconclusiveIsANamedBucket pins Mark's D-32
+// ruling (2026-08-26): inconclusive obligations stay STRICT — in the
+// denominator, out of the numerator — but must be published as their own
+// named bucket, not pooled silently with verification failures, so the
+// encoder-capability signal stays visible.
+func TestCostPerVerifiedSuccess_InconclusiveIsANamedBucket(t *testing.T) {
+	db, store := setupTestDB(t)
+	defer db.Close()
+	pass := func(bench string) cvsStageSpec {
+		return cvsStageSpec{benchmarkID: bench, model: "claude-sonnet-4-5", cost: 0.10,
+			compileOk: true, runtimeOk: true, stdoutOk: true, verifyOk: true}
+	}
+	inc := pass("inc")
+	inc.inconclusive = 1
+	cex := pass("cex")
+	cex.verified, cex.counterex = 1, 1
+	bankCohort(t, store, "v1.0/agent/baseline", []cvsStageSpec{aVerified("ok", 0.10), inc, cex})
+
+	res, err := computeCostPerVerifiedSuccess(context.Background(), store, CostPerVerifiedSuccessOptions{
+		BaselineID: "v1.0", SourceRef: "v1.0/",
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if res.VerifiedSuccesses != 1 || res.VerificationFailures != 2 {
+		t.Fatalf("strict buckets moved: verified=%d failures=%d", res.VerifiedSuccesses, res.VerificationFailures)
+	}
+	if res.VerificationInconclusive != 1 {
+		t.Fatalf("verification_inconclusive = %d, want 1 (the D-32 named bucket)", res.VerificationInconclusive)
 	}
 }

@@ -225,41 +225,6 @@ func TestEmitEffectWideningWarning(t *testing.T) {
 	}
 }
 
-func TestEmitFromLockfileDiff(t *testing.T) {
-	store := newTestStore(t)
-
-	oldPkgs := []PackageVersionInfo{
-		{Name: "sunholo/auth", Version: "0.1.0", InterfaceHash: "sha256:a1", ContentHash: "sha256:c1", Effects: []string{"io"}},
-		{Name: "sunholo/json", Version: "0.3.0", InterfaceHash: "sha256:j1", ContentHash: "sha256:j1"},
-	}
-	newPkgs := []PackageVersionInfo{
-		{Name: "sunholo/auth", Version: "0.2.0", InterfaceHash: "sha256:a2", ContentHash: "sha256:c2", Effects: []string{"io", "net"}},
-		{Name: "sunholo/json", Version: "0.3.0", InterfaceHash: "sha256:j1", ContentHash: "sha256:j1"},     // unchanged
-		{Name: "sunholo/config", Version: "0.1.0", InterfaceHash: "sha256:cfg", ContentHash: "sha256:cfg"}, // new dep
-	}
-
-	count, err := EmitFromLockfileDiff(store, oldPkgs, newPkgs, "docparse")
-	if err != nil {
-		t.Fatalf("failed: %v", err)
-	}
-	if count != 1 {
-		t.Errorf("expected 1 upgrade message (auth changed), got %d", count)
-	}
-
-	// Verify messages exist for the workspace
-	msgs, err := store.ListInboxMessages(InboxListOptions{
-		Inbox: "workspace:docparse",
-		Limit: 20,
-	})
-	if err != nil {
-		t.Fatalf("list failed: %v", err)
-	}
-	// Should have: upgrade-available + interface-change-notice + effect-widening-warning
-	if len(msgs) != 3 {
-		t.Errorf("expected 3 messages (upgrade + interface + effect), got %d", len(msgs))
-	}
-}
-
 func TestClassifyChange_BothLegacy_UnchangedBehaviour(t *testing.T) {
 	tests := []struct {
 		name     string

@@ -34,6 +34,7 @@ func BuildEvalExecutorTask(spec *BenchmarkSpec, config *MultiExecutorConfig, mod
 		MaxTokensPerBench:      config.MaxTokensPerBench,        // M-EVAL-OS-LONGITUDINAL Phase 1
 		MaxOutputTokens:        modelMaxOutputTokens(modelName), // M-OLLAMA-PER-MODEL-MAX-TOKENS
 		EvalShellGuard:         true,                            // per-command limit + no whole-disk find (2026-10-02)
+		EvalRun:                true,                            // attended-session guards stand down (2026-11-06)
 	}
 	// A lane run executes under its OWN policy: fs_sandbox = this run's
 	// workspace (executor.MaterializeRunPolicy). Passing the operator's file
@@ -55,6 +56,7 @@ func BuildEvalExecutorTask(spec *BenchmarkSpec, config *MultiExecutorConfig, mod
 			return nil, fmt.Errorf("tool-policy: %w", err)
 		}
 		task.AllowedTools = tools
+		task.MinimalHarnessContext = config.ToolPolicy == executor.ToolProfileLean
 	}
 	// config.PolicyPath reaches the agent as AILANG_AGENT_POLICY through
 	// task.PolicyPath (set above): BuildEnvironment derives it, and ExtraEnv

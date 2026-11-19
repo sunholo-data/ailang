@@ -69,7 +69,7 @@ func dashboardSpansCommand() {
 		endpoint = "spans/enriched"
 	}
 	apiURL := fmt.Sprintf("%s/api/observatory/%s?%s", baseURL, endpoint, params.Encode())
-	resp, err := dashboardHTTPClient.Get(apiURL)
+	resp, err := dashboardGet(dashboardHTTPClient, apiURL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error connecting to dashboard: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Is the server running? Start with: ailang serve\n")
@@ -223,7 +223,7 @@ func dashboardInboxCommand() {
 	params.Set("limit", fmt.Sprintf("%d", *limit))
 
 	apiURL := fmt.Sprintf("%s/api/inbox?%s", baseURL, params.Encode())
-	resp, err := http.Get(apiURL)
+	resp, err := dashboardGet(http.DefaultClient, apiURL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error connecting to dashboard: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Is the server running? Start with: ailang serve\n")
@@ -339,7 +339,7 @@ func dashboardTracesCommand() {
 	params.Set("limit", fmt.Sprintf("%d", *limit))
 
 	apiURL := fmt.Sprintf("%s/api/observatory/traces?%s", baseURL, params.Encode())
-	resp, err := http.Get(apiURL)
+	resp, err := dashboardGet(http.DefaultClient, apiURL)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error connecting to dashboard: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Is the server running? Start with: ailang serve\n")

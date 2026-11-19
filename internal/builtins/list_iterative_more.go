@@ -13,8 +13,8 @@ import (
 // were `[x] ++ recursive-call`. Lists are flat arrays, so each `++` copies: those
 // bodies were O(n) deep and O(n²) in allocation (sortBy over 84k strings peaked
 // at 99.7 GB and failed RT_REC_003 at 20k under the default limit). Before this,
-// the three names below had Go codegen helpers only (registry_codegen_list.go),
-// which the interpreter cannot call.
+// the three names below had only Go-emitter helpers (removed with the
+// emitter), which the interpreter could not call.
 
 // effectPolyRow is shared by a callback's effect row and the builtin's own, so
 // the builtin carries exactly the callback's effects — the same polymorphism the

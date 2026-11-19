@@ -1,0 +1,158 @@
+{
+  "err_200_bad_modified_at": {
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/api/tags",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": ""
+      }
+    ],
+    "error": "ollama error: Ollama not running at http://SERVER: parsing time \"soon\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"soon\" as \"2006\"\n\nTo start Ollama:\n  1. Install: https://ollama.ai/download\n  2. Start:   ollama serve\n  3. Pull:    ollama pull codellama:7b",
+    "error_code": "Internal"
+  },
+  "err_200_garbage": {
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/api/tags",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": ""
+      }
+    ],
+    "error": "ollama error: Ollama not running at http://SERVER: invalid character 'o' in literal null (expecting 'u')\n\nTo start Ollama:\n  1. Install: https://ollama.ai/download\n  2. Start:   ollama serve\n  3. Pull:    ollama pull codellama:7b",
+    "error_code": "Internal"
+  },
+  "err_401": {
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/api/tags",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": ""
+      }
+    ],
+    "error": "ollama error: Ollama not running at http://SERVER: something went wrong, please see the ollama server logs for details\n\nTo start Ollama:\n  1. Install: https://ollama.ai/download\n  2. Start:   ollama serve\n  3. Pull:    ollama pull codellama:7b",
+    "error_code": "Internal"
+  },
+  "err_401_status_field": {
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/api/tags",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": ""
+      }
+    ],
+    "error": "ollama error: Ollama not running at http://SERVER: 401 nope\n\nTo start Ollama:\n  1. Install: https://ollama.ai/download\n  2. Start:   ollama serve\n  3. Pull:    ollama pull codellama:7b",
+    "error_code": "Internal"
+  },
+  "err_500_json": {
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/api/tags",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": ""
+      }
+    ],
+    "error": "ollama error: Ollama not running at http://SERVER: boom\n\nTo start Ollama:\n  1. Install: https://ollama.ai/download\n  2. Start:   ollama serve\n  3. Pull:    ollama pull codellama:7b",
+    "error_code": "Internal"
+  },
+  "err_500_status_field": {
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/api/tags",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": ""
+      }
+    ],
+    "error": "ollama error: Ollama not running at http://SERVER: odd: e\n\nTo start Ollama:\n  1. Install: https://ollama.ai/download\n  2. Start:   ollama serve\n  3. Pull:    ollama pull codellama:7b",
+    "error_code": "Internal"
+  },
+  "err_500_text": {
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/api/tags",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": ""
+      }
+    ],
+    "error": "ollama error: Ollama not running at http://SERVER: plain failure\n\nTo start Ollama:\n  1. Install: https://ollama.ai/download\n  2. Start:   ollama serve\n  3. Pull:    ollama pull codellama:7b",
+    "error_code": "Internal"
+  },
+  "err_refused": {
+    "requests": null,
+    "error": "ollama error: Ollama not running at http://SERVER: Get \"http://SERVER/api/tags\": dial tcp SERVER: connect: connection refused\n\nTo start Ollama:\n  1. Install: https://ollama.ai/download\n  2. Start:   ollama serve\n  3. Pull:    ollama pull codellama:7b",
+    "error_code": "ConnectionFailed"
+  },
+  "ok": {
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/api/tags",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": ""
+      }
+    ],
+    "result": "ok"
+  },
+  "ok_empty_body": {
+    "requests": [
+      {
+        "method": "GET",
+        "path": "/api/tags",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": ""
+      }
+    ],
+    "result": "ok"
+  }
+}

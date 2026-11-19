@@ -15,7 +15,10 @@ import (
 // 2026-10-15, routes its read-only verifiers to codex:gpt-6-luna (the docs
 // mission pinned it 2026-09-30). The conflict is D-FLEET-27, for Mark to confirm.
 // Registration does not authorize a mission role.
-var AllowedOpenAIModels = []string{"gpt-6.1-sol", "gpt-6-luna"}
+// 2026-11-17 (Mark, attended: "upgrade our defaults to these"): the Sol rung moves to
+// gpt-6.2-sol. gpt-6.1-sol stays allowed while the cloud codex images (codex-cli 0.159.2,
+// which 400s gpt-6.2-sol) still run it; drop it once the 0.169.0 image is deployed.
+var AllowedOpenAIModels = []string{"gpt-6.2-sol", "gpt-6.1-sol", "gpt-6-luna"}
 
 // SpawnOverrideKey hides native child-model overrides so children inherit the parent.
 const SpawnOverrideKey = "features.multi_agent_v2.expose_spawn_agent_model_overrides"

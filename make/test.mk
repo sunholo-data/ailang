@@ -6,7 +6,7 @@
 .PHONY: test-import-errors test-recursion test-iface-determinism test-builtin-freeze
 .PHONY: test-operator-assertions test-regression-guards test-builtin-consistency
 .PHONY: test-stdlib-canaries test-row-properties test-golden-types test-repl-smoke
-.PHONY: test-sim-stub test-stdlib-freeze verify-no-shim verify-lowering
+.PHONY: test-stdlib-freeze verify-no-shim verify-lowering
 .PHONY: test-nightly-classifier test-launchd-drivers test-fmt-check test-shellcheck-autopush test-check-changelog test-check-protocol-closure test-check-autoclose test-check-referenced-paths
 
 # Core tests. Depends on build so integration tests that shell out to the
@@ -77,6 +77,7 @@ LAUNCHD_SUITES := \
 	tools/launchd/test_driver_notify.sh \
 	tools/launchd/test_mission_workdir_sync.sh \
 	scripts/test_mission_pi_run.sh \
+	tools/launchd/test_mission_pi_run_orphan_reap.sh \
 	tools/launchd/test_pin_root.sh \
 	tools/launchd/test_mission_worktree.sh \
 	tools/launchd/test_skill_sync.sh \
@@ -90,6 +91,7 @@ LAUNCHD_SUITES := \
 	tools/launchd/test_mission_pi_run_commits.sh \
 	tools/launchd/test_mission_pi_run_sandbox.sh \
 	tools/launchd/test_mission_pi_run_provider_quota.sh \
+	tools/launchd/test_mission_pi_run_tool_stall.sh \
 	scripts/test_mission_gate0_self_notices.sh \
 	scripts/test_mission_directives.sh \
 	scripts/test_mission_routing_models_check.sh \
@@ -117,12 +119,15 @@ LAUNCHD_SUITES := \
 	tools/launchd/test_codex_controller_env.sh \
 	tools/launchd/test_mission_fleet_idle.sh \
 	tools/launchd/test_mission_triage_idle.sh \
+	tools/launchd/test_mission_idle_fingerprint.sh \
 	tools/launchd/test_mission_prompt_role.sh \
 	tools/launchd/test_ollama_quota_admission.sh \
 	tools/launchd/test_anthropic_quota_admission.sh \
 	scripts/hooks/test_stage_isolation.sh \
 	scripts/hooks/test_pre_push.sh \
 	scripts/hooks/test_git_health.sh \
+	scripts/hooks/test_install_hooks.sh \
+	tools/ci/test_require_checks.sh \
 	scripts/test_worktree_sweep.sh \
 	tools/launchd/test_secrets_scope.sh \
 	tools/launchd/test_evaluator_skill_lane.sh
@@ -138,6 +143,7 @@ test-launchd-drivers: ## Run launchd driver tests (pin-root + routing + notices 
 	@/bin/bash -n .claude/skills/sprint-planner/scripts/test_create_sprint_json.sh
 	@/bin/bash -n scripts/worktree_sweep.sh
 	@/bin/bash -n scripts/hooks/git_health.sh
+	@/bin/bash -n tools/ci/require_checks.sh
 	@for f in tools/launchd/*.sh tools/launchd/lib/*.sh; do /bin/bash -n "$$f" || exit 1; done
 	@/bin/bash -n tools/eval/motoko_connection_probe.sh
 	@/bin/bash -n tools/eval/test_motoko_connection_probe.sh
@@ -281,10 +287,6 @@ test-golden-types: ## Test builtin type golden snapshots
 
 test-repl-smoke: ## REPL smoke tests (:type command)
 	@$(GOTEST) -v ./internal/repl -run TestREPLSmoke
-
-test-sim-stub: install ## Test Go codegen pipeline (sim_stub example)
-	@echo "Testing sim_stub example..."
-	@cd examples/sim_stub && make clean && make test
 
 # Stdlib freeze — historical name, kept because v0.2.0 acceptance docs and the
 # sprint-executor skill reference it. The live gate is verify-stdlib

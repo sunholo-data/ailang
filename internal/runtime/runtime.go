@@ -334,6 +334,15 @@ func (rt *ModuleRuntime) evaluateModule(inst *ModuleInstance) error {
 			// Var references for imported names, not just VarGlobal).
 			parentEnv.Set(exportName, val)
 		}
+		// #2378: an exported binding's numeric variants (inc$numF) are exported
+		// with it; an importer's float use is renamed to one. The interface
+		// does not list them: they are derived from the exported type.
+		for name, val := range inst.Bindings {
+			if base, ok := types.NumVariantBase(name); ok && inst.Iface.Exports[base] != nil {
+				inst.Exports[name] = val
+				parentEnv.Set(name, val)
+			}
+		}
 	}
 
 	return nil
@@ -367,7 +376,7 @@ func (rt *ModuleRuntime) extractBindings(inst *ModuleInstance, expr core.CoreExp
 			// M-VERIFY-CONTRACTS: Attach contracts to FunctionValues
 			if fn, ok := val.(*eval.FunctionValue); ok && inst.Core != nil && inst.Core.Meta != nil {
 				if meta, ok := inst.Core.Meta[name]; ok && len(meta.Contracts) > 0 {
-					attachContracts(fn, meta.Contracts)
+					attachContracts(fn, name, meta.Contracts)
 				}
 			}
 			inst.Bindings[name] = val
@@ -390,7 +399,7 @@ func (rt *ModuleRuntime) extractBindings(inst *ModuleInstance, expr core.CoreExp
 		// M-VERIFY-CONTRACTS: Attach contracts to FunctionValues
 		if fn, ok := val.(*eval.FunctionValue); ok && inst.Core != nil && inst.Core.Meta != nil {
 			if meta, ok := inst.Core.Meta[e.Name]; ok && len(meta.Contracts) > 0 {
-				attachContracts(fn, meta.Contracts)
+				attachContracts(fn, e.Name, meta.Contracts)
 			}
 		}
 
@@ -554,11 +563,13 @@ func (rt *ModuleRuntime) buildMinimalInterface(loaded *loader.LoadedModule) (*if
 			var resultType types.Type
 			if typeParamCount > 0 {
 				resultType = &types.TApp{
-					Constructor: &types.TCon{Name: typeName},
+					Constructor: &types.TCon{Name: typeName, Module: loaded.Path},
 					Args:        adtTypeVars,
 				}
 			} else {
-				resultType = &types.TCon{Name: typeName}
+				// M-V1-NOMINAL-TYPE-IDENTITY: the run-time twin of the
+				// pipeline's factory scheme carries the defining module too.
+				resultType = &types.TCon{Name: typeName, Module: loaded.Path}
 			}
 
 			constructors[ctorName] = &iface.ConstructorScheme{
@@ -583,13 +594,20 @@ func (rt *ModuleRuntime) buildMinimalInterface(loaded *loader.LoadedModule) (*if
 // attachContracts attaches contract specifications to a FunctionValue
 // M-VERIFY-CONTRACTS: Called during module evaluation to connect
 // contracts from core.DeclMeta to the FunctionValue at runtime.
-func attachContracts(fn *eval.FunctionValue, contracts []*core.Contract) {
+// name is the declaring function: it is carried on every spec so a violation
+// reads "ensures failed in half at …" (it read "failed in  at" — nothing set
+// the name outside tests).
+func attachContracts(fn *eval.FunctionValue, name string, contracts []*core.Contract) {
+	if base, ok := types.NumVariantBase(name); ok {
+		name = base // a numeric variant's contracts are its binding's (#2378)
+	}
 	for _, c := range contracts {
 		spec := &eval.ContractSpec{
 			Kind:     c.Kind.String(), // "requires", "ensures", or "invariant"
 			Expr:     c.Expr,
 			Message:  c.Message,
 			Location: c.Location,
+			Function: name,
 		}
 		switch c.Kind {
 		case core.RequiresKind:

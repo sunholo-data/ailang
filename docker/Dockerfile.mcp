@@ -15,7 +15,7 @@
 # Cloud Run overrides at runtime.
 
 # ── Build the ailang binary AND the snapshot in one Go stage ──────────────
-FROM golang:1.26.10-bookworm AS builder
+FROM golang:1.26.11-bookworm AS builder
 
 WORKDIR /build
 
@@ -78,16 +78,20 @@ WORKDIR /srv
 EXPOSE 8080
 
 # Entrypoint: serve MCP over Streamable HTTP. --routes-only filters registration
-# to only @mcp_name/@route exports (no helper leakage). --caps FS,Env restricts
-# the runtime to filesystem reads (snapshot) + env var reads (snapshot dir
-# config). Net is added in M7 when submit_feedback publishes to Pub/Sub.
+# to only @mcp_name/@route exports (no helper leakage). --caps FS,Env,Net:
+# filesystem reads (the snapshot), env reads (its config), and Net for the tools
+# that read the public repository live (mcp_tools/live: examples at the release
+# tag, design docs and the roadmap on dev; ailang#2271).
 # Pass mcp_tools/ as a relative path (matches CWD=/srv) so the loader
 # discovers sibling modules cleanly. --bind 0.0.0.0 is explicit because
 # serve-api binds 127.0.0.1 unless PORT is set, and a local
 # `docker run -p 8080:8080` (no -e PORT) must still be reachable.
+# --server-info names the listing (MCP serverInfo); version is left out so it
+# stays the binary's own, stamped from std/VERSION above.
 ENTRYPOINT ["/usr/local/bin/ailang", "serve-api", \
             "--bind", "0.0.0.0", \
             "--mcp-http", "--routes-only", \
-            "--caps", "FS,Env", \
+            "--server-info", "name=ailang-docs,title=AILANG Docs", \
+            "--caps", "FS,Env,Net", \
             "--port", "8080", \
             "mcp_tools/"]

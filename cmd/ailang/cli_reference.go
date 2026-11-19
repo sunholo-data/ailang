@@ -74,7 +74,7 @@ and a suggestion on stderr and exits 1 — it does not dump the command list int
 |---|---|---|
 | Machine-readable output | ` + "`--json`" + ` | The one output-format flag. ` + "`ailang test --json`" + `, not ` + "`--format json`" + `. |
 | Which model | ` + "`--model`" + ` | ` + "`ailang eval-suite --models`" + ` is accepted as an alias of the same target. |
-| Where output goes | ` + "`--output`" + ` | Six of the eight sites. ` + "`ailang compile --out`" + ` and ` + "`ailang eval-publish --output-dir`" + ` are not converged yet. |
+| Where output goes | ` + "`--output`" + ` | Six of the seven sites. ` + "`ailang eval-publish --output-dir`" + ` is not converged yet. |
 | Gate a mutation | ` + "`--dry-run`" + ` | Audited at all 14 sites: the default **acts**, and ` + "`--dry-run`" + ` is the opt-out everywhere. No command inverts it. |
 
 Superseded spellings keep working — ` + "`ailang test --format json`" + ` still means ` + "`--json`" + ` —
@@ -90,7 +90,7 @@ Two commands parse ` + "`--format`" + ` by hand rather than registering it, so t
 ` + "`ailang doctor managed_agents --format=json`" + `. Both need the ` + "`=`" + ` form. Converging them is a
 follow-up, not a documentation problem.
 
-## Groups are a drawer, not a rename
+` + cliVerificationFlagsSection + `## Groups are a drawer, not a rename
 
 ` + "`ailang messages list`" + ` and ` + "`ailang ops messages list`" + ` are the same route. A group exists
 so ` + "`ailang --help`" + ` fits on one screen; **every grouped command keeps its own top-level
@@ -163,6 +163,13 @@ func renderCLIReference() []byte {
 		writeCLITable(&b, "Route", "Use instead", rows)
 	}
 
+	if rows := removedRows(); len(rows) > 0 {
+		b.WriteString("\n## Removed commands\n\n")
+		b.WriteString("Routes whose feature was removed. They are still accepted only so an old caller\n")
+		b.WriteString("gets a message naming the replacement (in the summary); every invocation but --help exits 1.\n\n")
+		writeCLITable(&b, "Route", "Use instead", rows)
+	}
+
 	b.WriteString(cliReferenceFooter)
 	writeLanguageCommandLine(&b)
 	return b.Bytes()
@@ -215,12 +222,31 @@ func compatibilityRows() []cliReferenceRow {
 	var rows []cliReferenceRow
 	for i := range allCommands {
 		c := &allCommands[i]
-		if !c.Hidden || isGroupName(c.Name) {
+		if !c.Hidden || c.Removed || isGroupName(c.Name) {
 			continue
 		}
 		rows = append(rows, cliReferenceRow{
 			spelling:  "`ailang " + c.Name + "`" + aliasSuffix(c),
 			alsoKnown: compatibilityReplacement(c),
+			summary:   c.Summary,
+		})
+	}
+	sort.Slice(rows, func(i, j int) bool { return rows[i].spelling < rows[j].spelling })
+	return rows
+}
+
+// removedRows are the rows whose feature is gone (Command.Removed): listed on
+// their own so the page never calls them a spelling that keeps working.
+func removedRows() []cliReferenceRow {
+	var rows []cliReferenceRow
+	for i := range allCommands {
+		c := &allCommands[i]
+		if !c.Removed {
+			continue
+		}
+		rows = append(rows, cliReferenceRow{
+			spelling:  "`ailang " + c.Name + "`" + aliasSuffix(c),
+			alsoKnown: "—", // the summary names the replacement
 			summary:   c.Summary,
 		})
 	}
@@ -323,3 +349,18 @@ func escapeSummary(s string) string {
 	s = strings.ReplaceAll(s, ">", `\>`)
 	return s
 }
+
+// cliVerificationFlagsSection documents the flags that move the shared
+// verification exit contract (M-V1-VERIFICATION-HONESTY), with each flag's
+// stability tier. An interpreted string because the prose is full of
+// backquotes.
+const cliVerificationFlagsSection = "## Contract verification flags\n\n" +
+	"`ailang check --verify`, `ailang ai-check` and `ailang verify` share one exit rule\n" +
+	"([contracts guide](/docs/guides/contracts#exit-codes)) and the flags that move it:\n\n" +
+	"| Flag | On | Effect | Tier |\n" +
+	"|---|---|---|---|\n" +
+	"| `--strict` | all three (`check` only with `--verify`) | a skipped or inconclusive obligation fails | as the command (Stable on `check --verify`) |\n" +
+	"| `--allow-inconclusive` | all three | an inconclusive result exits 0, even when it is the only obligation (nothing proved); `outcome` stays `inconclusive` | as the command (Stable on `check --verify`) |\n" +
+	"| `--no-verify` | `ai-check` | type check only: the verifier does not run, `outcome` is `not_requested` (or `no_obligations`) | Experimental |\n\n" +
+	"`--strict` with `--allow-inconclusive`, `--no-verify` with either, and `check --strict` without\n" +
+	"`--verify` are usage errors (exit 2). Each command checks one file; a second file is a usage error.\n\n"

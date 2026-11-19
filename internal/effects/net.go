@@ -306,9 +306,9 @@ func NetHTTPRequest(ctx *EffContext, args []eval.Value) (eval.Value, error) {
 //
 // Example AILANG code:
 //
-//	import std/fs (readFileBytes)
+//	import std/fs (readFileBase64)
 //	import std/bytes (fromBase64)
-//	let Ok(b64) = readFileBytes("photo.png")
+//	let Ok(b64) = readFileBase64("photo.png")
 //	let Some(bytes) = fromBase64(b64)
 //	httpRequestBytes("PUT", uploadUrl, [], bytes)
 func NetHTTPRequestBytes(ctx *EffContext, args []eval.Value) (eval.Value, error) {

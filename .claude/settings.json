@@ -15,7 +15,6 @@
       "Bash(.claude/skills/docs-sync/scripts/:*)",
       "Bash(.claude/skills/eval-analyzer/scripts/:*)",
       "Bash(.claude/skills/github-issue-triage/scripts/:*)",
-      "Bash(.claude/skills/headless-runner/scripts/:*)",
       "Bash(.claude/skills/model-manager/scripts/:*)",
       "Bash(.claude/skills/parser-developer/scripts/:*)",
       "Bash(.claude/skills/perf-reviewer/scripts/:*)",

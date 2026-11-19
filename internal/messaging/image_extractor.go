@@ -10,11 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
-	"time"
 )
-
-// currentTime returns the current time. Can be overridden for testing.
-var currentTime = time.Now
 
 // imageMarkdownRegex matches markdown image syntax: ![alt](url)
 var imageMarkdownRegex = regexp.MustCompile(`!\[([^\]]*)\]\(([^)]+)\)`)
@@ -244,53 +240,4 @@ func truncateURL(url string) string {
 		return url
 	}
 	return url[:40] + "..." + url[len(url)-37:]
-}
-
-// CleanupImageCache removes cached images for a list of paths.
-func CleanupImageCache(imagePaths []string) error {
-	for _, path := range imagePaths {
-		if err := os.Remove(path); err != nil && !os.IsNotExist(err) {
-			return fmt.Errorf("failed to remove %s: %w", path, err)
-		}
-	}
-	return nil
-}
-
-// CleanupOldImages removes cached images older than the specified duration.
-// Returns the number of files removed.
-func CleanupOldImages(olderThanDays int) (int, error) {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		return 0, err
-	}
-
-	cacheDir := filepath.Join(homeDir, ".ailang", "cache", "images")
-
-	if _, err := os.Stat(cacheDir); os.IsNotExist(err) {
-		return 0, nil // No cache directory
-	}
-
-	removed := 0
-	cutoff := int64(olderThanDays * 24 * 60 * 60) // Convert days to seconds
-	now := currentTime().Unix()
-
-	err = filepath.Walk(cacheDir, func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return nil // Skip errors
-		}
-		if info.IsDir() {
-			return nil
-		}
-
-		// Check if file is older than cutoff
-		age := now - info.ModTime().Unix()
-		if age > cutoff {
-			if err := os.Remove(path); err == nil {
-				removed++
-			}
-		}
-		return nil
-	})
-
-	return removed, err
 }

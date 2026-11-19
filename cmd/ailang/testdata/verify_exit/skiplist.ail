@@ -1,0 +1,13 @@
+module cmd/ailang/testdata/verify_exit/skiplist
+
+-- M-V1-VERIFICATION-HONESTY review fix 1 (the reviewer's probe): a FALSE
+-- contract (len([]) is 0) on a function the verifier skips (a match on list
+-- patterns is outside the encodable fragment). Nothing is proved, so every
+-- spelling must exit 1 with outcome "unproved" — not 0 as "partial".
+export pure func len(xs: [int]) -> int
+ensures { result >= 5 } {
+  match xs {
+    [] => 0,
+    _ :: rest => 1 + len(rest)
+  }
+}

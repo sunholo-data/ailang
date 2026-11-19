@@ -42,7 +42,7 @@ var graderArtifact = map[string]bool{
 
 // harnessArtifact: benchmarks whose standard-mode difficulty is a KNOWN harness
 // defect, not task difficulty — input_files never reaches standard-mode prompts
-// (design_docs/planned/v0_33_1/m-eval-standard-mode-input-files-gap.md), so the
+// (design_docs/implemented/v0_35_3/m-eval-standard-mode-input-files-gap.md), so the
 // whole fleet fails them for reasons unrelated to capability. Anchoring them
 // would hand every model a rating windfall the day the harness bug is fixed.
 // When that fix lands, regenerate as anchor_v2 (re-anchor protocol, design D1).

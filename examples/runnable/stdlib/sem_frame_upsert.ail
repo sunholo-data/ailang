@@ -1,0 +1,41 @@
+-- Task: keep a cached per-user "recent searches" note in shared memory —
+-- the first write creates the frame, every later write appends the new query
+-- and bumps the version through a compare-and-swap update, and an update with
+-- no retries left is reported as a conflict instead of silently dropped.
+-- Demonstrates std/sem create_or_update_frame, make_frame_at, bump_version,
+-- load_frame and update_frame (CASSuccess / CASConflict).
+module examples/runnable/stdlib/sem_frame_upsert
+import std/sem (sem_frame, make_frame_at, bump_version, create_or_update_frame, update_frame, load_frame, UpdateResult, CASSuccess, CASConflict)
+import std/bytes (fromString)
+import std/option (Some, None)
+import std/list (forEachE)
+
+pure func outcome(r: UpdateResult) -> string = match r {
+  CASSuccess => "ok",
+  CASConflict => "conflict"
+}
+
+-- Append a query to the note and advance the version so readers see the change.
+pure func appendQuery(q: string) -> sem_frame -> sem_frame = \f. bump_version({ f | content: "${f.content} | ${q}" })
+
+func record(key: string, q: string) -> () ! {IO, SharedMem} {
+  let first = make_frame_at(key, q, fromString("searches"), 1700000000)
+  println("record \"${q}\": ${outcome(create_or_update_frame(key, first, appendQuery(q), 3))}")
+}
+
+func report(key: string) -> () ! {IO, SharedMem} = match load_frame(key) {
+  Some(f) => println("${key} v${show(f.ver)}: ${f.content}"),
+  None => println("${key}: not cached")
+}
+
+export func main() -> () ! {IO, SharedMem} {
+  forEachE(\q. record("recent:ana", q), ["rust lifetimes", "borrow checker", "async traits"])
+  record("recent:ben", "sourdough starter")
+  report("recent:ana")
+  report("recent:ben")
+  -- update_frame never creates: a missing key is a conflict.
+  println("update missing key: ${outcome(update_frame("recent:cat", appendQuery("x"), 3))}")
+  -- With zero retries the swap is never attempted, so nothing changes.
+  println("update with 0 retries: ${outcome(update_frame("recent:ben", appendQuery("rye"), 0))}")
+  report("recent:ben")
+}

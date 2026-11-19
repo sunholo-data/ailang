@@ -44,7 +44,8 @@
       "name": "any",
       "type": "((a)-\u003ebool,list[a])-\u003ebool",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -88,7 +89,8 @@
       "name": "concat",
       "type": "(list[a],list[a])-\u003e[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -131,8 +133,12 @@
       },
       "name": "contains",
       "type": "(list[a],a)-\u003ebool",
+      "constraints": [
+        "Eq[a]"
+      ],
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -163,8 +169,12 @@
       },
       "name": "dedup",
       "type": "(list[a])-\u003elist[a]",
+      "constraints": [
+        "Eq[a]"
+      ],
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -207,8 +217,12 @@
       },
       "name": "difference",
       "type": "(list[a],list[a])-\u003elist[a]",
+      "constraints": [
+        "Eq[a]"
+      ],
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -252,7 +266,8 @@
       "name": "drop",
       "type": "(int,list[a])-\u003elist[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -296,7 +311,8 @@
       "name": "filter",
       "type": "((a)-\u003ebool,list[a])-\u003elist[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -340,7 +356,8 @@
       "name": "filterE",
       "type": "((a)-\u003ebool,list[a])-\u003e[a]",
       "effects": [],
-      "pure": true
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -384,7 +401,8 @@
       "name": "findIndex",
       "type": "((a)-\u003ebool,list[a])-\u003eOption[int]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -428,7 +446,8 @@
       "name": "flatMap",
       "type": "((a)-\u003elist[b],list[a])-\u003elist[b]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -472,7 +491,8 @@
       "name": "flatMapE",
       "type": "((a)-\u003elist[b],list[a])-\u003e[b]",
       "effects": [],
-      "pure": true
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -528,7 +548,8 @@
       "name": "foldl",
       "type": "((a,b)-\u003ea,a,list[b])-\u003ea",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -584,7 +605,8 @@
       "name": "foldlE",
       "type": "((a,b)-\u003ea,a,list[b])-\u003ea",
       "effects": [],
-      "pure": true
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -640,7 +662,8 @@
       "name": "foldr",
       "type": "((a,b)-\u003eb,b,list[a])-\u003eb",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -684,7 +707,8 @@
       "name": "forEachE",
       "type": "((a)-\u003e(),list[a])-\u003e()",
       "effects": [],
-      "pure": true
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -716,7 +740,53 @@
       "name": "head",
       "type": "(list[a])-\u003eOption[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "xs",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "default",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "headOr",
+      "type": "(list[a],a)-\u003ea",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -760,7 +830,9 @@
       "name": "head_or",
       "type": "(list[a],a)-\u003ea",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable",
+      "replaced_by": "headOr"
     },
     {
       "ifc": {
@@ -803,8 +875,12 @@
       },
       "name": "intersect",
       "type": "(list[a],list[a])-\u003elist[a]",
+      "constraints": [
+        "Eq[a]"
+      ],
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -836,7 +912,53 @@
       "name": "last",
       "type": "(list[a])-\u003eOption[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "xs",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "default",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "lastOr",
+      "type": "(list[a],a)-\u003ea",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -880,7 +1002,9 @@
       "name": "last_or",
       "type": "(list[a],a)-\u003ea",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable",
+      "replaced_by": "lastOr"
     },
     {
       "ifc": {
@@ -912,7 +1036,8 @@
       "name": "length",
       "type": "(list[a])-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -956,7 +1081,8 @@
       "name": "map",
       "type": "((a)-\u003eb,list[a])-\u003elist[b]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1012,7 +1138,8 @@
       "name": "mapAccumL",
       "type": "((a,b)-\u003e(c,a),a,list[b])-\u003e(list[c],a)",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1056,7 +1183,8 @@
       "name": "mapE",
       "type": "((a)-\u003eb,list[a])-\u003e[b]",
       "effects": [],
-      "pure": true
+      "pure": false,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1088,7 +1216,8 @@
       "name": "maximumFloat",
       "type": "(list[float])-\u003eOption[float]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1120,7 +1249,8 @@
       "name": "maximumInt",
       "type": "(list[int])-\u003eOption[int]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1152,7 +1282,8 @@
       "name": "maximumString",
       "type": "(list[string])-\u003eOption[string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1195,8 +1326,14 @@
       },
       "name": "member",
       "type": "(a,list[a])-\u003ebool",
+      "constraints": [
+        "Eq[a]"
+      ],
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable",
+      "replaced_by": "contains",
+      "deprecation_note": "arguments swap: member(x, xs) becomes contains(xs, x)"
     },
     {
       "ifc": {
@@ -1228,7 +1365,8 @@
       "name": "minimumFloat",
       "type": "(list[float])-\u003eOption[float]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1260,7 +1398,8 @@
       "name": "minimumInt",
       "type": "(list[int])-\u003eOption[int]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1292,7 +1431,8 @@
       "name": "minimumString",
       "type": "(list[string])-\u003eOption[string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1336,7 +1476,65 @@
       "name": "nth",
       "type": "(list[a],int)-\u003eOption[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
+    },
+    {
+      "ifc": {
+        "params": [
+          {
+            "name": "xs",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "idx",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          },
+          {
+            "name": "default",
+            "label": {
+              "constants": [],
+              "variables": []
+            },
+            "forbidden": [],
+            "applied": {
+              "constants": [],
+              "variables": []
+            }
+          }
+        ],
+        "return": {
+          "constants": [],
+          "variables": []
+        },
+        "has_return_label": false,
+        "intrinsic": {
+          "constants": [],
+          "variables": []
+        },
+        "declassify": []
+      },
+      "name": "nthOr",
+      "type": "(list[a],int,a)-\u003ea",
+      "effects": [],
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1392,7 +1590,9 @@
       "name": "nth_or",
       "type": "(list[a],int,a)-\u003ea",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable",
+      "replaced_by": "nthOr"
     },
     {
       "ifc": {
@@ -1436,7 +1636,8 @@
       "name": "range",
       "type": "(int,int)-\u003elist[int]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1468,7 +1669,8 @@
       "name": "reverse",
       "type": "(list[a])-\u003elist[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1512,7 +1714,8 @@
       "name": "sortBy",
       "type": "((a,a)-\u003eint,list[a])-\u003elist[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1544,7 +1747,8 @@
       "name": "tail",
       "type": "(list[a])-\u003e[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1588,7 +1792,8 @@
       "name": "take",
       "type": "(int,list[a])-\u003elist[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1644,7 +1849,8 @@
       "name": "takeFlatMap",
       "type": "(int,(a)-\u003elist[b],list[a])-\u003elist[b]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -1700,7 +1906,8 @@
       "name": "takeMap",
       "type": "(int,(a)-\u003eb,list[a])-\u003elist[b]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -1743,8 +1950,12 @@
       },
       "name": "union",
       "type": "(list[a],list[a])-\u003elist[a]",
+      "constraints": [
+        "Eq[a]"
+      ],
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1788,7 +1999,8 @@
       "name": "zip",
       "type": "(list[a],list[b])-\u003elist[(a,b)]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -1844,7 +2056,8 @@
       "name": "zipWith",
       "type": "((a,b)-\u003ec,list[a],list[b])-\u003elist[c]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     }
   ],
   "schema": "ailang.iface/v2"

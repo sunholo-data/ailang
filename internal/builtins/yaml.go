@@ -151,6 +151,14 @@ func writeOrderedYAMLJSON(out *bytes.Buffer, n *yaml.Node) error {
 		if err := n.Decode(&value); err != nil {
 			return err
 		}
+		// A YAML float (resolved !!float: "1.0", "1e3", "!!float 3") keeps
+		// float syntax, so std/json reads JNumber; json.Marshal would print
+		// a whole float as "1" and it would come back as JInt. YAML's own
+		// !!int stays digits (JInt when it fits int64).
+		if f, ok := value.(float64); ok {
+			out.WriteString(eval.FormatFloatSyntax(f))
+			return nil
+		}
 		scalar, err := json.Marshal(value)
 		if err != nil {
 			return err

@@ -22,7 +22,7 @@ import (
 //     arm on failure. See lowerIfChainMatch.
 func LowerMatchStmt(m *core.Match, cti types.CoreTypeInfo) stmt.Stmt {
 	if len(m.Arms) == 0 {
-		return stmt.ExprStmt{Value: stmt.LitUnit{}}
+		return matchFailStmt(m, lowerExpr(m.Scrutinee, cti))
 	}
 	if switchEligible(m.Arms) {
 		return lowerConstructorMatch(m, cti)
@@ -123,15 +123,20 @@ func switchEligible(arms []core.MatchArm) bool {
 func lowerConstructorMatch(m *core.Match, cti types.CoreTypeInfo) stmt.Stmt {
 	scrutinee := lowerExpr(m.Scrutinee, cti)
 
+	// switchEligible guarantees a constructor arm; the type checker that
+	// every constructor arm names the scrutinee's ADT.
 	adtName := ""
-	if m.Scrutinee != nil {
-		if t, ok := cti[m.Scrutinee.ID()]; ok {
-			adtName = extractADTName(t)
+	for _, arm := range m.Arms {
+		if p, ok := arm.Pattern.(*core.ConstructorPattern); ok {
+			adtName = patternADTName(p)
+			break
 		}
 	}
 
-	// The catch-all, if present, is the final arm (switchEligible).
-	var defaultBody []stmt.Stmt
+	// The catch-all, if present, is the final arm (switchEligible). Without
+	// one, Default — and a failed guard, which falls back to Default — is
+	// the RT002 trap: no other arm can match a tag already dispatched.
+	defaultBody := []stmt.Stmt{matchFailStmt(m, scrutinee)}
 	last := m.Arms[len(m.Arms)-1]
 	if _, isCtor := last.Pattern.(*core.ConstructorPattern); !isCtor {
 		defaultBody = append(patternBindings(scrutinee, last.Pattern), armBodyStmts(last, cti)...)
@@ -184,22 +189,16 @@ func armBodyStmts(arm core.MatchArm, cti types.CoreTypeInfo) []stmt.Stmt {
 	return body
 }
 
-// extractADTName gets the ADT type name from a types.Type.
-func extractADTName(t types.Type) string {
-	switch t := t.(type) {
-	case *types.TCon:
-		// Skip primitives.
-		switch t.Name {
-		case "int", "float", "bool", "string", "()", "unit", "bytes":
-			return ""
-		}
-		return t.Name
-	case *types.TApp:
-		if con, ok := t.Constructor.(*types.TCon); ok {
-			return con.Name
-		}
-	}
-	return ""
+// patternADTName names the ADT a constructor pattern tests: its stamp — the
+// ADT the elaborator resolved the constructor to, or, for a constructor
+// matched by name (#323), the one the type checker's match check resolved it
+// to (types.VerifyMatchExhaustiveness, which rejects a pattern it cannot
+// resolve: TC_MATCH_007). Never the value's written type, which may be an
+// alias (`type Hue = Color`, #2244), and never a guess from the constructor
+// name: two ADTs may declare it with different ordinals (#2303). An
+// unstamped pattern lowers with no ADT and the bytecode compiler refuses it.
+func patternADTName(p *core.ConstructorPattern) string {
+	return p.TypeName
 }
 
 func lowerLitPatternCond(scrutinee stmt.Expr, p *core.LitPattern) stmt.Expr {
@@ -223,4 +222,16 @@ func lowerLitPatternCond(scrutinee stmt.Expr, p *core.LitPattern) stmt.Expr {
 		Left:  scrutinee,
 		Right: litExpr,
 	}
+}
+
+// matchFailStmt is the RT002 trap that ends a match whose arms are not closed
+// by an unguarded catch-all (M-V1-MATCH-EXHAUSTIVENESS M0). Control reaches it
+// only when no arm matched; without it the match fell off its end and yielded
+// Unit, which failed later at an unrelated site.
+func matchFailStmt(m *core.Match, scrutinee stmt.Expr) stmt.Stmt {
+	p := m.OriginalSpan()
+	if p.Line == 0 {
+		p = m.Span()
+	}
+	return stmt.MatchFail{Scrutinee: scrutinee, File: p.File, Line: p.Line, Col: p.Column}
 }

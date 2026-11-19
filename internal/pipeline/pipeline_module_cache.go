@@ -41,6 +41,11 @@ func (st *modulePipelineState) prepareCacheLookup(mod *loader.LoadedModule, modI
 	// calls — so the mode is part of the compiler identity: without it a
 	// --release compile was served to normal runs (all Debug output gone)
 	// and vice versa (M-DEBUG-SINK-STRUCTURED-LINES, measured 2026-09-11).
+	// #2232: a root module's test-only bodies are type-checked, a
+	// dependency's are not, so the two verdicts must not share an entry.
+	if st.checksTestBodies(modID) && hasTestOnlyBodies(mod.File) {
+		depDigests["$test-bodies"] = "checked"
+	}
 	identity, err := currentCompilerIdentity(st.cfg)
 	if err != nil {
 		// No per-build identity: a commit-only key would serve another
@@ -136,9 +141,13 @@ func (st *modulePipelineState) serveFromCache(mod *loader.LoadedModule, unit *Co
 	unit.CoreTI = cached.CoreTI
 	unit.Iface = cached.Iface
 	unit.Constructors = cached.Constructors
+	unit.MatchWarnings = cached.MatchWarnings
+	for _, w := range cached.MatchWarnings {
+		st.result.Warnings = append(st.result.Warnings, w)
+	}
 	if unit.Iface != nil {
 		st.modLinker.RegisterIface(unit.Iface)
-		registerDerivedEqInstances(st.cfg, unit.Iface.DerivedEq)
+		registerDerivedEqInstances(st.cfg, unit.Iface.Module, unit.Iface.DerivedEq)
 	}
 	st.compiledUnits[unit.ID] = unit
 	return true
@@ -173,10 +182,11 @@ func (st *modulePipelineState) publishFreshModule(modID, cacheKey string, unit *
 		Timestamp:     time.Now(),
 	}
 	st.moduleCache.publish(modID, cacheKey, entry, &CachedModule{
-		Core:         unit.Core,
-		CoreTI:       unit.CoreTI,
-		Iface:        unit.Iface,
-		Constructors: unit.Constructors,
+		Core:          unit.Core,
+		CoreTI:        unit.CoreTI,
+		Iface:         unit.Iface,
+		Constructors:  unit.Constructors,
+		MatchWarnings: unit.MatchWarnings,
 	})
 }
 

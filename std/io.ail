@@ -33,9 +33,14 @@ export func writeBytes(data: bytes) -> () ! {IO} = _io_writeBytes(data)
 -- Example: print("\rWorking ${pct}%"); flush()
 export func flush() -> () ! {IO} = _io_flush()
 
--- printErr: Write to stderr without a newline (unbuffered).
+-- eprint: Write to stderr without a newline (unbuffered).
 -- Useful for progress/diagnostics that should not pollute a piped stdout.
-export func printErr(s: string) -> () ! {IO} = _io_printErr(s)
+-- print/println write stdout; eprint/eprintln write stderr.
+export func eprint(s: string) -> () ! {IO} = _io_printErr(s)
+
+-- Deprecated spelling (renamed before 1.0): warns TC_DEPRECATED_001, removed before the v1.0.0 soak.
+@deprecated("eprint")
+export func printErr(s: string) -> () ! {IO} = eprint(s)
 
 -- eprintln: Write to stderr with a newline (unbuffered).
 export func eprintln(s: string) -> () ! {IO} = _io_eprintln(s)

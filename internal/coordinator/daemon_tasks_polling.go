@@ -214,6 +214,7 @@ func (d *Daemon) pollAndProcessTasks() error {
 			SiteSlug:      siteSlug,               // M-HARNESS-COMMIT-CONTRACT
 			BriefID:       briefID,                // M-HARNESS-COMMIT-CONTRACT
 		}
+		task.copyCascadeEnvelope(msg) // M-CASCADE-ENVELOPE-HYDRATION: parity with the cloud site
 
 		// Check for duplicates
 		fingerprint := analyzed.Fingerprint
@@ -518,21 +519,11 @@ func (d *Daemon) pollAndProcessTasksCloud() error {
 			EstimatedCost: analyzed.EstimatedCost,
 			SiteSlug:      siteSlug, // M-HARNESS-COMMIT-CONTRACT
 			BriefID:       briefID,  // M-HARNESS-COMMIT-CONTRACT
-			// M-PKG-CASCADE-DETERMINISTIC-FIRST: propagate cascade envelope so
-			// the dispatcher can choose deterministic-bump vs AI-escalation
-			// without re-fetching from a separate store.
-			RootPackage:       msg.RootPackage,
-			RootChangeClass:   msg.RootChangeClass,
-			FromVersion:       msg.FromVersion,
-			ToVersion:         msg.ToVersion,
-			FromInterfaceHash: msg.FromInterfaceHash,
-			ToInterfaceHash:   msg.ToInterfaceHash,
-			FromContentHash:   msg.FromContentHash,
-			ToContentHash:     msg.ToContentHash,
-			EffectsWidened:    msg.EffectsWidened,
-			PrevEffectCeiling: msg.PrevEffectCeiling,
-			NewEffectCeiling:  msg.NewEffectCeiling,
 		}
+		// M-PKG-CASCADE-DETERMINISTIC-FIRST: propagate cascade envelope so the
+		// dispatcher can choose deterministic-bump vs AI-escalation without
+		// re-fetching from a separate store.
+		task.copyCascadeEnvelope(msg)
 
 		// Check for duplicates
 		fingerprint := analyzed.Fingerprint

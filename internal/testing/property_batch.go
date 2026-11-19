@@ -1,7 +1,7 @@
 package testing
 
 // forall properties run as compiled functions (#624; M-TEST-RUNNER-COMPILE-ONCE
-// Phase 2, design_docs/planned/v0_53_0/m-test-runner-compile-once.md).
+// Phase 2, design_docs/implemented/v0_52_2/m-test-runner-compile-once.md).
 //
 // A forall property used to be evaluated by splicing each generated value
 // into the predicate as a literal and compiling the result as a module-less

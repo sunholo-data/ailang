@@ -1,0 +1,40 @@
+-- Use a directory as a lock file: mkdirResult succeeds for exactly one
+-- caller and returns Err if the directory already exists, and
+-- removeDirResult releases it. Contrast with mkdirAllResult, which is Ok on
+-- an existing directory, and show that removeDirResult refuses a non-empty
+-- directory. Demonstrates mkdirResult, mkdirAllResult, removeDirResult,
+-- writeFileResult, removeFileResult and isDir.
+module examples/runnable/stdlib/fs_mkdir_lock
+import std/fs (mkdirResult, mkdirAllResult, removeDirResult, writeFileResult, removeFileResult, isDir)
+
+func okOrErr(r: Result[(), string]) -> string = match r {
+  Ok(_) => "Ok",
+  Err(_) => "Err"
+}
+
+func tryLock(who: string, lock: string) -> () ! {IO, FS} = match mkdirResult(lock) {
+  Ok(_) => println("${who}: acquired lock"),
+  Err(_) => println("${who}: lock busy")
+}
+
+export func main() -> () ! {IO, FS} {
+  let base = "ailang_example_fs_tmp_lock"
+  let lock = "${base}/job.lock"
+  println("mkdirAll base: ${okOrErr(mkdirAllResult(base))}")
+  println("mkdirAll base again: ${okOrErr(mkdirAllResult(base))}")
+  tryLock("worker A", lock)
+  tryLock("worker B", lock)
+  println("release: ${okOrErr(removeDirResult(lock))}")
+  tryLock("worker B", lock)
+  println("release: ${okOrErr(removeDirResult(lock))}")
+  -- mkdirResult creates ONE level: a missing parent is an error
+  let orphan = "${base}/no/such/parent"
+  println("mkdir with missing parent: ${okOrErr(mkdirResult(orphan))}")
+  -- removeDirResult is never recursive
+  let keep = "${base}/keep.txt"
+  let _ = writeFileResult(keep, "data")
+  println("rmdir non-empty: ${okOrErr(removeDirResult(base))}")
+  println("remove file: ${okOrErr(removeFileResult(keep))}")
+  println("rmdir empty: ${okOrErr(removeDirResult(base))}")
+  println("base still a dir: ${show(isDir(base))}")
+}

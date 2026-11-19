@@ -13,7 +13,7 @@ import (
 // #1318: std/string.repeat built its parts list with `s :: _repeat_list(s, n - 1)`
 // — one AILANG frame per copy and quadratic cons allocation — while its comment
 // claimed an O(n) single allocation. repeat("x", 25000) failed RT_REC_003 at the
-// default limit. _str_repeat had a Go codegen helper only; this is the
+// default limit. _str_repeat had only a Go-emitter helper; this is the
 // interpreter implementation std/string.repeat now delegates to.
 
 func init() {

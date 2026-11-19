@@ -1,0 +1,144 @@
+{
+  "chunked_average": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "6554",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"Paragraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\n\",\"options\":null}"
+      },
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "1354",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"Paragraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\n\",\"options\":null}"
+      }
+    ],
+    "result": [
+      2,
+      3
+    ]
+  },
+  "chunked_one_fails": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "6554",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"Paragraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\n\",\"options\":null}"
+      },
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "1354",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"Paragraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\nParagraph one is here.\\n\\n\",\"options\":null}"
+      }
+    ],
+    "result": [
+      3,
+      4
+    ]
+  },
+  "err_404": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "55",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"x\",\"options\":null}"
+      }
+    ],
+    "error": "ollama embed failed: model not found"
+  },
+  "err_empty": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "55",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"x\",\"options\":null}"
+      }
+    ],
+    "error": "no embeddings returned"
+  },
+  "err_refused": {
+    "requests": null,
+    "error": "ollama embed failed: Post \"http://SERVER/api/embed\": dial tcp SERVER: connect: connection refused"
+  },
+  "quoted_endpoint": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "55",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"q\",\"options\":null}"
+      }
+    ],
+    "result": [
+      1
+    ]
+  },
+  "single": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "77",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"hello \\u003cworld\\u003e\",\"options\":null}"
+      }
+    ],
+    "result": [
+      0.5,
+      -1.25,
+      3
+    ]
+  }
+}

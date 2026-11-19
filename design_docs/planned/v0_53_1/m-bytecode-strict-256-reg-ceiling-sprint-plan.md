@@ -3,7 +3,7 @@
 Fix large list literals and wide-record else-if chains on the strict VM, and report residual evaluator-only functions before VM dispatch.
 
 **Design:** [approved design](m-bytecode-strict-256-reg-ceiling.md)  
-**Status:** Planned; implementation has not started. Coordinator approval of this plan is the executor handoff gate.  
+**Status:** M2 (Phase A) landed 2026-11-09; M3/M4 landed earlier as Phases B1/B2 (v0.54.13/14). The M1 census ran post-B (see the census doc); M5 docs partially done (BC001 page, LIMITATIONS).  
 **Target:** v0.53.1 · **Duration:** 4 engineering days (32 hours, including 8 hours contingency) · **Risk:** medium  
 **Estimate:** 650 LOC: approximately 350 implementation, 250 tests, 50 documentation/census artifacts. Issue #1741 is linked by the design commit.
 

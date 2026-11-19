@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/core"
 )
 
 // Closure calls from Go (CallClosure, used by HOF builtins), and
@@ -60,12 +61,12 @@ func (vm *VM) CallClosure(closure bytecode.Value, args []bytecode.Value) (byteco
 	}
 	if int(proto.NumParams) != len(args) {
 		return bytecode.Value{}, fmt.Errorf("CallClosure: %s expects %d args, got %d",
-			proto.Name, proto.NumParams, len(args))
+			core.DisplayFuncName(proto.Name), proto.NumParams, len(args))
 	}
 	if proto.EvalOnly {
 		if vm.Interop == nil {
 			return bytecode.Value{}, fmt.Errorf("CallClosure: %s is evaluator-only (%s) but no interop bridge",
-				proto.Name, proto.EvalReason)
+				core.DisplayFuncName(proto.Name), core.DisplayFuncName(proto.EvalReason))
 		}
 		return vm.Interop.CallEvalFunc(proto.Name, args)
 	}

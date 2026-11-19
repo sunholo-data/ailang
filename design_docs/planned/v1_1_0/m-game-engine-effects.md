@@ -1,3 +1,5 @@
+> **Superseded in part:** the Go emitter (`ailang compile --emit-go`, `internal/gen/golang`) was removed in #2389; anything below that plans for or depends on it no longer applies.
+
 # M-GAME-ENGINE-EFFECTS: the game engine as typed effects — Stapledon's Voyage revived as v1.1's flagship
 
 **Status**: Planned (v1.1 arc spine — approved direction, Mark 2026-07-14; full design via

@@ -7,7 +7,7 @@ description: Run AILANG agent-mode evaluations against local Ollama models on a 
 
 Run AILANG agent-mode evals against **local Ollama models** (typically `gemma4:26b`) on a dedicated Apple Silicon rig with 64+ GB unified memory. This is the canonical workflow for cost-free continuous OS-model evaluation, replacing pay-per-token OpenRouter routing.
 
-Born from the M-EVAL-LOCAL-OLLAMA + M-EVAL-LOCAL-OBSERVABILITY milestones (v0.22.0). The user guide at [docs/docs/guides/evaluation/local-ollama.md](../../../docs/docs/guides/evaluation/local-ollama.md) is the human-facing reference; this skill is the Codex-facing operational checklist.
+Born from the M-EVAL-LOCAL-OLLAMA + M-EVAL-LOCAL-OBSERVABILITY milestones (v0.22.0). The user guide at [docs/docs/guides/evaluation/local-ollama.md](../../../docs/docs/guides/evaluation/local-ollama.md) is the human-facing reference; this skill is the Claude-facing operational checklist.
 
 ## Current State
 
@@ -29,16 +29,16 @@ Born from the M-EVAL-LOCAL-OLLAMA + M-EVAL-LOCAL-OBSERVABILITY milestones (v0.22
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:1957
 
 # Verify rig is ready
-.Codex/skills/local-ollama-eval/scripts/verify_setup.sh
+.claude/skills/local-ollama-eval/scripts/verify_setup.sh
 
 # Pre-warm the rig (saves 40-90s on the first benchmark trial — see "Warmup" below)
-.Codex/skills/local-ollama-eval/scripts/warmup_rig.sh
+.claude/skills/local-ollama-eval/scripts/warmup_rig.sh
 
 # Run smoke tier on gemma4:26b
-.Codex/skills/local-ollama-eval/scripts/run_smoke.sh opencode-gemma4-26b
+.claude/skills/local-ollama-eval/scripts/run_smoke.sh opencode-gemma4-26b
 
 # Watch progress in another terminal/turn
-.Codex/skills/local-ollama-eval/scripts/watch_active.sh
+.claude/skills/local-ollama-eval/scripts/watch_active.sh
 ```
 
 ### Warmup (avoiding the 40-90s first-call tax)
@@ -79,7 +79,7 @@ Invoke when the user says any of:
 - "Add Qwen3 to the local rotation"
 - Anything mentioning `ollama-*` or `opencode-gemma4-*` model names
 
-Do NOT use this skill when the user is talking about cloud OS models (those route via OpenRouter — see [model-manager](../model-manager/SKILL.md)) or about cloud-only Codex/GPT/Gemini evaluation.
+Do NOT use this skill when the user is talking about cloud OS models (those route via OpenRouter — see [model-manager](../model-manager/SKILL.md)) or about cloud-only Claude/GPT/Gemini evaluation.
 
 ## Setup Checklist (one-time, per rig)
 
@@ -147,7 +147,7 @@ In `~/.config/opencode/opencode.jsonc`, add a `permission.bash` block that denie
 ### Smoke tier (17 benchmarks)
 
 ```bash
-.Codex/skills/local-ollama-eval/scripts/run_smoke.sh opencode-gemma4-26b
+.claude/skills/local-ollama-eval/scripts/run_smoke.sh opencode-gemma4-26b
 ```
 
 Expected: ~80 minutes wall clock at `-parallel 2`, 12–14/17 pass rate (was 7/17 before the timeout bumps; was thrashing-prone at `-parallel 4`).
@@ -155,7 +155,7 @@ Expected: ~80 minutes wall clock at `-parallel 2`, 12–14/17 pass rate (was 7/1
 ### Single benchmark (~1–10 min)
 
 ```bash
-.Codex/skills/local-ollama-eval/scripts/run_smoke.sh opencode-gemma4-26b fizzbuzz
+.claude/skills/local-ollama-eval/scripts/run_smoke.sh opencode-gemma4-26b fizzbuzz
 ```
 
 Use for: quick sanity check, debugging a specific benchmark, validating env setup.
@@ -268,7 +268,7 @@ The 109k-token prefill cost looks like it should be addressable by progressive c
 |---|---|---|
 | μRAG `PreToolUse` injection on `.ail` files | **DISABLED** ([ADR-002](../../../design_docs/decisions/ADR-002-pretooluse-microrag-disabled.md), 2026-04-27) | Embedding cosine averages over tokens — generic words like `import`/`module`/`! {IO}` dominate the vector, and a 1-char anti-pattern can't surface a relevant chunk |
 | `ailang prompt` / `ailang docs` self-discovery | Encouraged in agent prompt | **Not used in practice** — the [v0.8.2 prompt notes](../../../cmd/ailang/prompts/agent/versions.json) record "0/63 agents use runtime discovery". The 13KB prompt embeds the stdlib reference directly because that observation was overwhelming |
-| AILANG MCP server (`mcp.ailang.sunholo.com`) | Active for [Codex / Cursor / Continue](../../../docs/docs/guides/agent-mcp.md) | **Not used by opencode** — opencode doesn't run our MCP server as a tool source. The eval rig's agent path goes through opencode subprocess, never touches the MCP |
+| AILANG MCP server (`mcp.ailang.sunholo.com`) | Active for [Claude Code / Cursor / Continue](../../../docs/docs/guides/agent-mcp.md) | **Not used by opencode** — opencode doesn't run our MCP server as a tool source. The eval rig's agent path goes through opencode subprocess, never touches the MCP |
 | PostToolUse `micro-rag lint-builtin` | Active | Surface "first use of a builtin" reminders. Tight scope, works fine |
 
 The honest reading: the bulk of the 109k tokens are **opencode's own framework prompt**, not ours (we contribute ~3k). Shrinking our 3k buys little. The leverage is in:
@@ -296,7 +296,7 @@ If progressive disclosure becomes worth revisiting, the best fit per ADR-002 is 
 
 ```bash
 # 1. Check Ollama library has the model
-.Codex/skills/local-ollama-eval/scripts/check_ollama_model.sh <tag>
+.claude/skills/local-ollama-eval/scripts/check_ollama_model.sh <tag>
 
 # 2. Pull it (warning: multi-GB download)
 ollama pull <tag>
@@ -309,10 +309,10 @@ ollama pull <tag>
 #    Use the recommended timeouts above (ttft 900, gen 1200, budget 2400).
 
 # 5. Smoke test the new model
-.Codex/skills/local-ollama-eval/scripts/run_smoke.sh opencode-<new-model> fizzbuzz
+.claude/skills/local-ollama-eval/scripts/run_smoke.sh opencode-<new-model> fizzbuzz
 
 # 6. If it passes, run full smoke tier
-.Codex/skills/local-ollama-eval/scripts/run_smoke.sh opencode-<new-model>
+.claude/skills/local-ollama-eval/scripts/run_smoke.sh opencode-<new-model>
 ```
 
 See [`resources/candidate_models.md`](resources/candidate_models.md) for the curated rotation candidate list (verified from Ollama library).

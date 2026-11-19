@@ -1,0 +1,57 @@
+-- Task: gzip an access log at several compression levels and print the size
+-- each produces, then save the best one as a .gz file, read it back with
+-- decompressFile and confirm the text survived, deleting the file afterwards.
+-- Demonstrates std/gzip compress, decompress and decompressFile with std/fs and std/bytes.
+module examples/runnable/stdlib/gzip_levels_file
+import std/gzip (compress, decompress, decompressFile)
+import std/fs (writeFileBytesResult, removeFileResult)
+import std/bytes (fromString, toString, toBase64, fromBase64, length)
+import std/string (repeat, join)
+import std/list (map)
+
+pure func byteSize(b64: string) -> int = match fromBase64(b64) {
+  Some(b) => length(b),
+  None => -1
+}
+
+-- Level 0 stores the data uncompressed; 1 is fastest; 9 is smallest.
+pure func sizeAt(input: string, level: int) -> string = match compress(input, level) {
+  Ok(gz) => "level ${show(level)}: ${show(byteSize(gz))} bytes",
+  Err(e) => "level ${show(level)}: ${e}"
+}
+
+pure func decodeText(r: Result[string, string]) -> string = match r {
+  Ok(b64) => match fromBase64(b64) {
+    Some(b) => toString(b),
+    None => "<bad base64>"
+  },
+  Err(e) => "<error: ${e}>"
+}
+
+export func main() -> () ! {IO, FS} {
+  let entry = "10.0.0.7 - - \"GET /index.html HTTP/1.1\" 200 5120\n"
+  let log = repeat(entry, 25)
+  let input = toBase64(fromString(log))
+  println("plain: ${show(length(fromString(log)))} bytes")
+  println(join("\n", map(\l. sizeAt(input, l), [0, 1, 6, 9])))
+  match compress(input, 9) {
+    Err(e) => println("compress failed: ${e}"),
+    Ok(gz) => {
+      println("in-memory round trip: ${show(decodeText(decompress(gz)) == log)}")
+      let path = "gzip_levels_file_example.log.gz"
+      match fromBase64(gz) {
+        None => println("bad base64"),
+        Some(raw) => match writeFileBytesResult(path, raw) {
+          Err(e) => println("write failed: ${e}"),
+          Ok(_) => {
+            println("file round trip: ${show(decodeText(decompressFile(path)) == log)}")
+            match removeFileResult(path) {
+              Ok(_) => println("cleaned up ${path}"),
+              Err(e) => println("cleanup failed: ${e}")
+            }
+          }
+        }
+      }
+    }
+  }
+}

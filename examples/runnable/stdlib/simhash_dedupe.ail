@@ -1,0 +1,41 @@
+-- Task: de-duplicate a feed of news headlines — fingerprint each with SimHash,
+-- compare every pair by Hamming distance, report the near-duplicate pairs and
+-- keep only the first headline of each duplicate group.
+-- Demonstrates std/simhash simhash and hammingDistance with std/list.
+module examples/runnable/stdlib/simhash_dedupe
+import std/simhash (simhash, hammingDistance)
+import std/list (map, flatMap, filter, length, any, zipWith, range)
+import std/string (join)
+
+type Doc = { id: int, text: string, print: int }
+
+-- Unrelated headlines land about 30 of 64 bits apart; light rewording stays near 10.
+pure func threshold() -> int = 12
+
+pure func headlines() -> [string] =
+  ["Central bank raises interest rates by a quarter point to fight inflation", "Central bank raises interest rates by a quarter point to fight high inflation", "Local team wins the championship after a dramatic overtime victory", "Central bank lifts interest rates by a quarter point to fight inflation", "New study finds coffee drinkers live slightly longer on average", "CENTRAL BANK RAISES INTEREST RATES BY A QUARTER POINT TO FIGHT INFLATION!"]
+
+pure func toDoc(id: int, text: string) -> Doc = { id: id, text: text, print: simhash(text) }
+
+pure func distance(a: Doc, b: Doc) -> int = hammingDistance(a.print, b.print)
+
+pure func pairLine(a: Doc, b: Doc) -> string = "  #${show(a.id)} ~ #${show(b.id)} (distance ${show(distance(a, b))})"
+
+-- Every unordered pair (a, b) with a before b that is within the threshold.
+pure func nearPairs(docs: [Doc]) -> [string] =
+  flatMap(\a. map(\b. pairLine(a, b), filter(\b. b.id > a.id && distance(a, b) <= threshold(), docs)), docs)
+
+-- A document survives unless an earlier document is a near-duplicate of it.
+pure func keep(docs: [Doc]) -> [Doc] = filter(\d. not any(\e. e.id < d.id && distance(e, d) <= threshold(), docs), docs)
+
+pure func showDoc(d: Doc) -> string = "  #${show(d.id)} ${d.text}"
+
+export func main() -> () ! {IO} {
+  let texts = headlines()
+  let docs = zipWith(toDoc, range(1, length(texts) + 1), texts)
+  println("near-duplicate pairs (distance <= ${show(threshold())}):")
+  println(join("\n", nearPairs(docs)))
+  let unique = keep(docs)
+  println("kept ${show(length(unique))} of ${show(length(docs))}:")
+  println(join("\n", map(showDoc, unique)))
+}

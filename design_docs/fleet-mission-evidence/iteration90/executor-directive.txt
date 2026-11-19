@@ -1,0 +1,63 @@
+You are the EXECUTOR for fleet-mission iteration 90 (sunholo-data/ailang). Your working tree is the current directory, a git worktree on branch fleet/i90-dfleet42-m3, stacked on draft PR #2143 (D-FLEET-42 option A, milestone M2, already built at 7f1e13d5f) which is itself stacked on #2141 (M1). M1+M2 built: tools/launchd/lib/secrets-scope.sh, tools/launchd/lib/secrets-scope-zshenv.sh, scripts/mission_scoped_run.sh, the controller-child wiring in tools/launchd/mission-control.sh, the pi runner change in scripts/mission_pi_run.sh, tools/launchd/test_secrets_scope.sh (with a --mutations mode), design_docs/planned/m-fleet-secrets-scope-per-lane.md, changelogs/unreleased/2026-11-05-secrets-scope-per-lane.md.
+
+THIS IS A PROPOSED DRAFT. It will NOT merge; it waits for Mark's ruling on D-FLEET-42. Build milestone M3's CODE half only: the scoped dry-run preview/probe path and its tests. The controller (not you) will run the six live dry-runs outside the sandbox afterwards, because they need real provider auth.
+
+## The spec
+The approved sprint plan is /Users/voightkampff/.ailang-driver-pin/fleet/design_docs/fleet-mission-evidence/iteration88/plan.md. Read these parts of it fully: the arm table rows "Dry-run preview" and "Dry-run failure", and the section "Healthy and degraded dry-runs per controller lane" (including "Required evidence in each log"). Then read the M3 section of design_docs/planned/m-fleet-secrets-scope-per-lane.md in this worktree, and M1/M2's code. Plan line anchors refer to 9c7e997e0 and have MOVED: the dry-run branch is now `if [ "${MISSION_DRY_RUN:-0}" = "1" ]; then` at about tools/launchd/mission-control.sh:2024, ending with the `DRY RUN ok:` log line and `exit 0` at about :2034. `select_model` (about :1001) does NOT probe when MISSION_MODEL is set (an env pin is accepted without a probe), so the preview must call the provider probe itself. The existing probe functions are `_mc_probe` (claude CLI), `_mc_probe_codex <model>` and `_mc_probe_pi <model>`; find them and read their return-code semantics before using them.
+
+After EACH sub-milestone, copy every file created or modified so far (cumulative, full content, same relative paths) into .snap/M3a/ and .snap/M3b/ respectively.
+
+M3a, the preview path (tools/launchd/mission-control.sh, inside the existing dry-run branch, BEFORE the existing `DRY RUN ok:` line, in a clearly marked `# --- SECRETS SCOPE DRY RUN START/END ---` block):
+- If MISSION_MODEL is set, derive the preview provider from it the same way `_mc_set_controller` parses it (codex:*, pi:*, claude:* or bare = claude). Lane = `<provider>-controller`.
+- In a SUBSHELL (the parent driver environment must stay unchanged), export AILANG_SECRETS_LANE=<lane> and MISSION_DRIVER_ROOT exactly as the real controller child does, apply the scope with the same library call the real spawn uses, then run that provider's existing bounded probe for the pinned model. Reuse M2's helpers rather than duplicating spawn logic.
+- Emit exactly these log lines (via the driver's `log`), names and counts only, never a value:
+  `DRY RUN secrets-scope: lane=<lane> marker=ok controller-probe=ok`
+  or on probe failure `DRY RUN secrets-scope: lane=<lane> marker=ok controller-probe=failed rc=<n>`.
+  If the scope apply itself fails: `DRY RUN secrets-scope: lane=<lane> marker=failed rc=<n>`.
+  The kept/stripped inventory line that M1's library already emits (`secrets-scope: lane=... kept=... stripped=...`) must appear in the dry-run log too.
+- For codex additionally build the forwarded argument list with M2's codex-env-args path for that scoped child and report `DRY RUN secrets-scope: codex-marker-forward=ok driver-root-forward=ok` (or `=failed`), checking that the AILANG_SECRETS_LANE marker and MISSION_DRIVER_ROOT are present in the forwarded list (check names, never print values).
+- A failed marker or failed controller probe makes the dry-run exit NON-ZERO (after still printing the existing `DRY RUN ok:`-style summary is NOT allowed: print `DRY RUN failed: secrets-scope ...` instead and exit with a non-zero code). Healthy behaviour otherwise unchanged: `DRY RUN ok: ... lanes=...` and exit 0.
+- If MISSION_MODEL is unset: print `DRY RUN secrets-scope: preview=skipped reason=no-env-pin` and leave everything else unchanged (exit code unchanged). Do NOT move or change normal controller selection; do NOT add any side job, background process, pidfile write, notice, worktree sweep or state-file write.
+- Keep every existing dry-run line byte-for-byte.
+
+M3b, tests:
+- Add arms to tools/launchd/test_secrets_scope.sh (or a new suite registered in make/test.mk LAUNCHD_SUITES) that extract and execute the REAL dry-run block from mission-control.sh with fake provider probes (PATH stubs or stubbed probe functions; a synthetic mktemp HOME with SYNTHETIC fake secret values):
+  "Dry-run preview": scoped probe and preview run, the fake probe child sees the correct marker and does NOT see a stripped synthetic key; the controller body never runs. Killing mutation: remove the scope call from the dry-run path.
+  "Dry-run failure": a fake auth failure prints `controller-probe=failed rc=<n>` and the block returns non-zero. Killing mutation: force the probe status to zero.
+  "Dry-run parent env": the parent environment is unchanged after the preview. Killing mutation: apply scope in the parent instead of the subshell.
+  "Dry-run codex forward": codex preview reports marker and root forwarded. Killing mutation: drop the marker from the forwarded list.
+  "Dry-run no pin": with MISSION_MODEL unset the skip line appears and rc is unchanged.
+- Each new arm must have a killing mutation in the suite's --mutations mode, and the mutation bank must report each mutant's arm and the failing assertion.
+- Update design_docs/planned/m-fleet-secrets-scope-per-lane.md ("M3 remaining — NOT YET BUILT" becomes an "M3 built — proposed draft only" section saying the preview path and tests are built, and that the six live dry-runs are the controller's evidence step), and add an M3 paragraph to the changelog fragment changelogs/unreleased/2026-11-05-secrets-scope-per-lane.md.
+
+OUT OF SCOPE, do NOT build:
+- any change under cmd/, internal/, tools/pi-extensions/, .pi/extensions/, .github/, go.mod;
+- any host file (~/.zshenv etc.);
+- any change to normal (non-dry-run) controller selection, routing, lane order or the billing unsets.
+
+## Hard safety rules
+1. NO git write operations of any kind (no add, commit, stash, checkout, reset, branch). The controller builds the commits from your .snap/ snapshots.
+2. Do NOT read, cat, grep, source or print: ~/.config/ailang/secrets.env, ~/.zshenv, ~/.codex*/config.toml, ~/.codex*/auth.json, ~/.claude*, or any session transcript. Every test uses a fresh mktemp HOME with SYNTHETIC fake values. Never print an environment variable's value; test presence with [ -n "$X" ] && echo SET || echo UNSET.
+3. NO writes outside this worktree, including from tests (use mktemp -d with a trap for scratch; do not set TMPDIR inside the repo). A test proving something is unchanged must OBSERVE it (sha and line count before and after, with "absent" a legitimate reading). It must never seed-write a real path under $HOME or ~/.ailang/state.
+4. Do NOT run the real driver dry-run (tools/launchd/mission-control.sh with MISSION_DRY_RUN=1) against real providers or the real HOME. Tests run only extracted blocks with fakes.
+5. bash 3.2 compatibility for every .sh (no declare -A, no ${v,,}, no mapfile).
+6. Any gate that fails because the sandbox denies something (sockets, ps, nested sandbox, network, a path outside the worktree) must be labelled UNINFORMATIVE UNDER SANDBOX, never PASS or FAIL. The controller re-runs every gate outside the sandbox.
+7. A gate that is red at base is a finding to REPORT, not something to work around. At base (7f1e13d5f) the controller measured the suites below.
+
+## Gates to run (record the rc of each)
+- /bin/bash -n on every changed .sh
+- /bin/bash tools/launchd/test_secrets_scope.sh, and the same with --mutations
+- make test-launchd-drivers (the full launchd suite list; it includes tests that pin skill prose and driver blocks; label sandbox-denied ones UNINFORMATIVE)
+- shellcheck on new files (must be rc 0); for changed files, no NEW findings versus base 7f1e13d5f
+- /bin/bash tools/launchd/sync-agents-skills.sh --check
+- make check-changelog
+- git diff --check (read-only; allowed)
+
+## Final message (written to the -o file)
+1. Which sub-milestones are done.
+2. The full list of files changed.
+3. Each gate with its rc and whether it was informative.
+4. The mutation table: mutant, arm, killed yes/no.
+5. Anything you deliberately left out, and any deviation from the plan with its reason.
+6. Every remaining risk, including any state the real probes may write during a dry-run.
+Do not end your turn announcing that you are waiting for something. Finish the work, then report.

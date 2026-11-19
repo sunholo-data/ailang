@@ -13,7 +13,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/sunholo-data/ailang/internal/eval_harness/langreg"
 	"github.com/sunholo-data/ailang/internal/executor"
 	"github.com/sunholo-data/ailang/internal/proctree"
 
@@ -120,12 +119,6 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		return nil, fmt.Errorf("failed to create workspace: %w", err)
 	}
 
-	// Create minimal .git folder
-	gitDir := filepath.Join(workspace, ".git")
-	if err := os.MkdirAll(gitDir, 0755); err != nil {
-		return nil, fmt.Errorf("failed to create .git folder: %w", err)
-	}
-
 	// Only cleanup workspace if DEBUG_AGENT is not set
 	if os.Getenv("DEBUG_AGENT") == "" {
 		defer os.RemoveAll(workspace)
@@ -145,59 +138,19 @@ func RunAgentBenchmarkWithExecutor(spec *BenchmarkSpec, config MultiExecutorConf
 		}
 	}()
 
-	// Seed benchmark input files so the agent can actually run/test its solution
-	// (e.g. cli_args reads numbers.txt). Mirrors the standard-runner layout.
-	if err := seedInputFiles(workspace, spec); err != nil {
+	// Every file the agent can read in its workspace is written by
+	// prepareAgentWorkspace, and everything it is told comes from
+	// GenerateAgentPromptsWithSystemPrompt below. TestHiddenTests_NeverReachPromptOrWorkspace
+	// drives exactly these two calls: they are the hidden-test leak guard's surface.
+	solutionPath, err := prepareAgentWorkspace(workspace, spec, config.FmtHook, language)
+	if err != nil {
 		return nil, err
 	}
 
-	// Fmt-hook A/B (M-EVAL-FMT-WEAKMODEL-AB): this is the ACTIVE executor path.
-	// When ON, write a workspace .claude/settings.json registering the LANDED
-	// format_ail.sh PostToolUse hook. The claude executor sets cmd.Dir = workspace
-	// and loads .claude/settings.json naturally (see internal/executor/claude:165),
-	// so no --settings flag is needed here — writing the file IS the wiring. When
-	// OFF, nothing is written: byte-identical to today's path. This is the ONLY
-	// per-arm difference in the experiment.
-	fmtSettingsPath, fmtSettingsJSON, fmtErr := config.FmtHook.Apply(workspace)
-	if fmtErr != nil {
-		return nil, fmt.Errorf("fmt-hook setup failed: %w", fmtErr)
-	}
-	if fmtSettingsPath != "" {
-		fmt.Fprintf(os.Stderr, "[FMT-HOOK] on (executor path): %s\n%s\n", fmtSettingsPath, string(fmtSettingsJSON))
-	}
-
-	// Create solution file placeholder
-	var solutionPath string
-	var placeholder string
-
-	if language == "ailang" {
-		benchmarkDir := filepath.Join(workspace, "benchmark")
-		if err := os.MkdirAll(benchmarkDir, 0755); err != nil {
-			return nil, fmt.Errorf("failed to create benchmark dir: %w", err)
-		}
-		solutionPath = filepath.Join(benchmarkDir, "solution.ail")
-		placeholder = `module benchmark/solution
-// DO NOT CHANGE THE MODULE DECLARATION ABOVE!
-// TODO: Add your solution code below
-
-`
-	} else {
-		lang, langErr := langreg.Get(language)
-		if langErr != nil {
-			return nil, fmt.Errorf("unknown language %q: %w", language, langErr)
-		}
-		solutionPath = filepath.Join(workspace, lang.SolutionFilename())
-		placeholder = "# TODO: Write your solution here\n"
-	}
-
 	// Generate prompts
-	systemPrompt, taskPrompt, promptVersion, err := GenerateAgentPromptsWithSystemPrompt(spec, config.AgentBenchmarkConfig, language, "", solutionPath)
+	systemPrompt, taskPrompt, promptVersion, err := GenerateAgentPromptsWithSystemPrompt(spec, config.AgentBenchmarkConfig, language, config.AgentBenchmarkConfig.PromptVersion, solutionPath)
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate prompts: %w", err)
-	}
-
-	if err := os.WriteFile(solutionPath, []byte(placeholder), 0644); err != nil {
-		return nil, fmt.Errorf("failed to create solution placeholder: %w", err)
 	}
 
 	// Detect executors that run the agent in an isolated sandbox without

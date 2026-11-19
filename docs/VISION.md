@@ -187,27 +187,29 @@ Results come from this repo's own eval harness, published at [static/benchmarks/
 
 ---
 
-## Next Horizons — v0.13 and v1.0
+## Next Horizons — v1.0 and v1.1
 
-The v0.3–v0.4 roadmap items in earlier drafts of this doc (deterministic tooling, total recursion, polymorphic safety, effect sugar) shipped between v0.4 and v0.10. Current focus sits on two tracks:
+The v0.3–v0.4 roadmap items in earlier drafts of this doc (deterministic tooling, total recursion, polymorphic safety, effect sugar) shipped between v0.4 and v0.10.
 
-### Near-term — v0.13 (Eval Expansion)
+### v1.0 — a promise we can keep
 
-**Goal:** Broaden the evidence base for the claims above.
+`1.0.0` answers *"what do we promise not to break?"*, not *"will people choose AILANG?"*. Its
+gates (bar v3, ratified 2026-11-09) are: the [stability promise](docs/reference/stability.md)
+re-drafted against today's surface and ratified; zero open `priority:P0` issues; package
+manifest/lockfile/registry semantics written down as Stable; the cloud executor MCP tool surface
+listed Stable and served on a stable domain; and the simplification metrics published in the
+release notes. Fleet-tier pass rates and cost-per-verified-success are **published** at release,
+not gated. No date is attached — 1.0 ships when the gates are closed.
 
-- **[M-EVAL-EXPAND](../design_docs/planned/v0_13_0/m-eval-expand-harnesses-languages.md)** — Add cross-language harnesses (Python, TypeScript), open-source model coverage (Ollama, local Llama/Qwen variants), and a proper like-for-like language baseline so the "no Python baseline" gap in the benchmark section above can be closed.
-- **[M-WASM-TRACE](../design_docs/planned/v0_13_0/m-wasm-trace.md)** — Structured traces available in browser / WASM targets.
-
-### Longer-term — v1.0 (AI-Native Platform)
+### Longer-term — v1.1+ (AI-Native Platform)
 
 **Goal:** Move from "good language for AI to write" to "platform AI agents run on."
 
-- **[M-AGENT](../design_docs/planned/v1_0_0/m-agent-orchestration.md)** — `std/agent` with an explicit `! {Agent}` effect, capability-bounded AI invocation, cost/turn budgets.
-- **[M-ENTROPY](../design_docs/planned/v1_0_0/m-entropy-budgets.md)** — Entropy budgets as a first-class concept: permitted ambiguity × designated resolver × collapse deadline.
-- **[M-CSP / Session Types](../design_docs/planned/v1_0_0/m-csp-session-types.md)** — Static effect-typed task graphs replacing ad-hoc concurrency.
-- **[M-EFFECT-REFINEMENT](../design_docs/planned/v1_0_0/m-effect-refinement.md)** — Tighter effect rows (e.g. separating reproducible PRNG from security-grade `CryptoRand` — see [rand-determinism-sitrep](../design_docs/planned/rand-determinism-sitrep.md)).
-- **[M-TYPE-V2](../design_docs/planned/v1_0_0/m-type-v2-migration.md)** — Type system refresh.
-- **[Global Collaboration Hub](../design_docs/planned/v1_0_0/global-collaboration-hub.md)** — Cross-machine agent collaboration with IAM-scoped message buses.
+- **[M-AGENT](../design_docs/planned/v1_1_0/m-agent-orchestration.md)** — `std/agent` with an explicit `! {Agent}` effect, capability-bounded AI invocation, cost/turn budgets.
+- **[M-ENTROPY](../design_docs/planned/v1_1_0/m-entropy-budgets.md)** — Entropy budgets as a first-class concept: permitted ambiguity × designated resolver × collapse deadline.
+- **[M-CSP / Session Types](../design_docs/planned/v1_1_0/m-csp-session-types.md)** — Static effect-typed task graphs replacing ad-hoc concurrency.
+- **[M-EFFECT-REFINEMENT](../design_docs/planned/v1_1_0/m-effect-refinement.md)** — The remaining parameterised-effect sprints (Clock/Net/FS modes, capability-scoping parameters); `Rand`/`AI` modes and replay contracts already shipped (see [rand-determinism-sitrep](../design_docs/archive/rand-determinism-sitrep.md) for the original motivation).
+- **[Global Collaboration Hub](../design_docs/planned/v1_1_0/global-collaboration-hub.md)** — Cross-machine agent collaboration with IAM-scoped message buses.
 
 **The result:** Programs that don't just explain themselves — they coordinate, budget themselves, and make their uncertainty negotiable.
 
@@ -215,7 +217,7 @@ The v0.3–v0.4 roadmap items in earlier drafts of this doc (deterministic tooli
 
 ## Future Horizons — Multi-Agent Coordination
 
-> **Aspirational.** The capabilities used in the sketch below (`reflectEffect`, `normalize`, `checkBehavioralEquivalence`) are not yet shipped. They depend on [M-AGENT](../design_docs/planned/v1_0_0/m-agent-orchestration.md) and the type/effect work in [M-TYPE-V2](../design_docs/planned/v1_0_0/m-type-v2-migration.md) / [M-EFFECT-REFINEMENT](../design_docs/planned/v1_0_0/m-effect-refinement.md). Treat this section as design intent, not a feature list.
+> **Aspirational.** The capabilities used in the sketch below (`reflectEffect`, `normalize`, `checkBehavioralEquivalence`) are not yet shipped. They depend on [M-AGENT](../design_docs/planned/v1_1_0/m-agent-orchestration.md) and the type/effect work in [M-TYPE-V2](../design_docs/implemented/v0_10_0/m-type-v2-migration.md) / [M-EFFECT-REFINEMENT](../design_docs/planned/v1_1_0/m-effect-refinement.md). Treat this section as design intent, not a feature list.
 
 ### Example: Two AIs Refactor a Module
 
@@ -277,7 +279,7 @@ Targets used to gate public milestones. Current status pulled from [latest.json]
 | **Benchmark Count** | ≥50 | 46 ⚠️ (expanding in v0.13) |
 | **Cross-language Baseline** | published | not yet (planned in M-EVAL-EXPAND) |
 
-The ⚠️ rows are active work — tracked by [M-EVAL-EXPAND](../design_docs/planned/v0_13_0/m-eval-expand-harnesses-languages.md).
+The ⚠️ rows are active work — tracked by [M-EVAL-EXPAND](../design_docs/deferred/m-eval-expand-harnesses-languages.md).
 
 ---
 
@@ -285,8 +287,9 @@ The ⚠️ rows are active work — tracked by [M-EVAL-EXPAND](../design_docs/pl
 
 Roadmap lives in [design_docs/planned/](../design_docs/planned/), not in this file. The earlier versions of this doc hardcoded a v0.3→v0.4 week-by-week schedule that has long since shipped. For current planned work:
 
-- **Near-term sprints**: [design_docs/planned/v0_13_0/](../design_docs/planned/v0_13_0/)
-- **v1.0 track**: [design_docs/planned/v1_0_0/](../design_docs/planned/v1_0_0/)
+- **All planned work, by target version**: the generated [roadmap page](docs/roadmap/index.md)
+- **v1.0 gates**: the stability promise and its bar — [docs/reference/stability.md](docs/reference/stability.md)
+- **v1.1 track**: [design_docs/planned/v1_1_0/](../design_docs/planned/v1_1_0/)
 - **Recent releases**: see [CHANGELOG.md](../CHANGELOG.md)
 
 ---
@@ -296,7 +299,7 @@ Roadmap lives in [design_docs/planned/](../design_docs/planned/), not in this fi
 AILANG deliberately excludes features designed for human convenience:
 
 - ❌ **LSP/IDE servers** — AIs use CLI/API, not text editors
-- ❌ **Unstructured concurrency** — no threads / goroutines / async-await. Concurrency arrives via static effect-typed task graphs and session types ([M-CSP](../design_docs/planned/v1_0_0/m-csp-session-types.md)).
+- ❌ **Unstructured concurrency** — no threads / goroutines / async-await. Concurrency arrives via static effect-typed task graphs and session types ([M-CSP](../design_docs/planned/v1_1_0/m-csp-session-types.md)).
 - ❌ **Implicit behaviors** — all effects, imports, and types are explicit
 - ❌ **Multiple syntaxes** — one canonical way to express each concept
 

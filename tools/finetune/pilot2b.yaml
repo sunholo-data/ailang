@@ -1,0 +1,42 @@
+# PILOT-2b (2026-11-06 21:47Z): pilot2.yaml DIVERGED. Train loss 0.31 -> 10.18 at step 80 (end of
+# warmup), val 0.592 -> 6.762 at step 200, train flat ~6.0 through step 360. Same mix, same blocks
+# and rank; the update is cooled: lr 1e-4 -> 2e-5, LoRA scale 20 -> 10, warmup 30 -> 100 iterations.
+# Use: cp tools/finetune/pilot2b.yaml tools/finetune/pilot2.yaml (only once the diverged run is stopped).
+# Fine-tune pilot-2 LoRA config (m-eval-finetuning-data-pipeline §Pilot-2; D-FT-8/9).
+# Trainer: tools/finetune/train2.py (whole-episode samples, loss on every assistant turn,
+# rendered thinking ON in the LEAN pi wire format). Paths come from the command line.
+#
+# Mix (mix-pilot2, 2026-11-06): 1,184 train / 50 valid episodes; 4.6M tokens, 1.3M trained;
+# median 3.7k tokens, p95 5.7k, max 12,288 (7 longer episodes dropped, not truncated).
+#
+# DRY RUN (2026-11-06 15:30-16:01Z, 20 steps, all blocks, rank 32): 37 TRAINED tok/s (the
+# tok/s column counts loss tokens, as pilot-1's ~70/s did), ~28 s/step, peak memory 30.4 GB.
+# Measured while Mark ran other GPU work, so likely pessimistic. 2 epochs x 1.32M trained
+# tokens / 37 = ~19.8 h (+ ~2 h validation) <= the 20 h rule: recipe KEPT unchanged.
+# (was) PROVISIONAL until the dry run measures speed and memory on these sequences:
+#   num_layers / iters below assume ~200 tok/s (pilot-1's 16-layer rate) -> ~6.5 h per epoch.
+#   Changes vs pilot-1: all transformer blocks (pilot-1: top 16), rank 32 (16), 2 epochs (1).
+train: true
+fine_tune_type: lora
+mask_prompt: true
+num_layers: -1                      # all blocks
+batch_size: 1
+grad_accumulation_steps: 4
+iters: 2368                         # 2 epochs x 1,184 episodes at batch 1
+learning_rate: 2.0e-5
+lr_schedule:
+  name: cosine_decay
+  warmup: 100
+  warmup_init: 1.0e-6
+  arguments: [2.0e-5, 592, 1.0e-7]  # decay over the 592 optimizer updates
+lora_parameters:
+  rank: 32
+  scale: 10.0
+  dropout: 0.05
+max_seq_length: 12288
+grad_checkpoint: true
+steps_per_report: 20
+steps_per_eval: 200
+val_batches: 50
+save_every: 200
+seed: 11

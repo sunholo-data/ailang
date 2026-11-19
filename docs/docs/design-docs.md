@@ -36,6 +36,193 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-VM-STACK-LIMIT-PARITY implementation verification](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-vm-stack-limit-parity-verification.md)
 - [M-VM-STACK-LIMIT-PARITY — the bytecode VM's 1000-frame cap diverges from the evaluator's 10,000 recursion limit: evaluator-legal deep recursion silently truncates service handlers under `--bytecode`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v1_0_0/m-vm-stack-limit-parity.md)
 
+## v0.57.5
+
+- [M-CASCADE-ENVELOPE-HYDRATION: close the inbox→task cascade envelope-loss routes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_5/m-cascade-envelope-hydration.md)
+- [Sprint Plan — M-NET-EFFECT-PROXY-BOUNDARY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_5/m-net-effect-proxy-boundary-sprint-plan.md)
+- [m-net-effect-proxy-boundary — bring AILANG's Net effect inside the egress boundary (D5 Option B)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_5/m-net-effect-proxy-boundary.md)
+- [M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE: A bounded-unrolling `sat` is not a violation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_5/m-verify-bounded-unrolling-false-counterexample.md)
+
+## v0.57.3
+
+- [M-SERVE-API-TYPED-ARG-BINDER implementation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_3/m-serve-api-typed-arg-binder-implementation.md)
+- [Sprint Plan: M-SERVE-API-TYPED-ARG-BINDER](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_3/m-serve-api-typed-arg-binder-sprint-plan.md)
+- [M-SERVE-API-TYPED-ARG-BINDER: One Declared-Type Argument Binder for MCP, A2A, and REST](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_3/m-serve-api-typed-arg-binder.md)
+
+## v0.57.2
+
+- [Sprint Plan: M-SCC-SHADOW-AWARE-CALLGRAPH](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_2/m-scc-shadow-aware-callgraph-sprint-plan.md)
+- [M-SCC-SHADOW-AWARE-CALLGRAPH: binder-shadowed names must not create call-graph edges (#2078)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_2/m-scc-shadow-aware-callgraph.md)
+
+## v0.57.1
+
+- [M-SMT-FLOAT-DIV-MOD-SORT-DISPATCH: encode Float `/` and `%` by operand sort in the SMT verifier, not as truncating Int division](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_1/m-smt-float-div-mod-sort-dispatch.md)
+- [Sprint plan: resync mission-control mirror after the gate-3-triage edit](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_1/sprint-plan-gate3-triage-mirror-sync.md)
+
+## v0.57.0
+
+- [Sprint Plan: M-EFFECT-ROW-OPEN-CLOSED-RELAND (#1958 M2 re-land)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_0/m-effect-row-open-closed-reland-sprint-plan.md)
+- [M-TYPECHECK-ENV-SCAN-COST: stop re-walking the whole type environment on every application](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_0/m-typecheck-env-scan-cost.md)
+- [Sprint Plan: M-TYPECHECK-ENV-SCAN-COST](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_57_0/sprint-plan-m-typecheck-env-scan-cost.md)
+
+## v0.56.0
+
+- [Sprint Plan: M-DOCS-SEARCH-FALLBACK-CONFINEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-docs-search-fallback-confinement-sprint-plan.md)
+- [M-DOCS-SEARCH-FALLBACK-CONFINEMENT — executor evidence](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-docs-search-fallback-confinement-validation.md)
+- [M-DOCS-SEARCH-FALLBACK-CONFINEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-docs-search-fallback-confinement.md)
+- [M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT: independent evaluation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-effect-explicit-empty-callback-contract-evaluation-initial.md)
+- [M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT: independent evaluation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-effect-explicit-empty-callback-contract-evaluation.md)
+- [Sprint Plan: M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-effect-explicit-empty-callback-contract-sprint-plan.md)
+- [Explicit-empty callback contract execution evidence](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-effect-explicit-empty-callback-contract-validation.md)
+- [M-EFFECT-EXPLICIT-EMPTY-CALLBACK-CONTRACT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-effect-explicit-empty-callback-contract.md)
+- [#2008 alias ownership follow-up — independent evaluation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-effect-latent-alias-ownership-evaluation.md)
+- [Alias ownership review repair validation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-effect-latent-alias-ownership-validation.md)
+- [Post-merge #1963 consumer classification — resolved by accepted explicit-empty contracts](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-effect-latent-nested-callbacks-consumer-followup.md)
+- [PR #1963 independent sprint evaluation — PASS 93/100](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-effect-latent-nested-callbacks-evaluation.md)
+- [Sprint Plan — M-EFFECT-LATENT-NESTED-CALLBACKS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-effect-latent-nested-callbacks-sprint-plan.md)
+- [M-EFFECT-LATENT-NESTED-CALLBACKS — Charge function values nested in data arguments, and close concrete-annotation tails wherever a function's row is read](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-effect-latent-nested-callbacks.md)
+- [M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS: independent evaluation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness-evaluation-initial.md)
+- [M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS: independent evaluation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness-evaluation.md)
+- [Sprint Plan: M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS (#1958)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness-sprint-plan.md)
+- [M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS validation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness-validation.md)
+- [M-EFFECT-ROW-OPEN-CLOSED-SOUNDNESS — An open row must not lose its labels when it meets a closed row](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-effect-row-open-closed-soundness.md)
+- [Gate-0 Watermark Crash Safety](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-gate0-watermark-crash-safety.md)
+- [#2007 independent evaluation — PASS 90/100](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-ifc-function-value-sinks-evaluation.md)
+- [M-IFC-FUNCTION-VALUE-SINKS — completed sprint](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-ifc-function-value-sinks-sprint-plan.md)
+- [M-IFC-FUNCTION-VALUE-SINKS validation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-ifc-function-value-sinks-validation.md)
+- [M-IFC-FUNCTION-VALUE-SINKS — Sink requirements travel with the function value](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-ifc-function-value-sinks.md)
+- [Independent sprint evaluation — PR #1849, round 2](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-pkg-asset-lock-resolution-evaluation-round2.md)
+- [PR #1849 — final independent evaluation, round 3](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-pkg-asset-lock-resolution-evaluation-round3.md)
+- [Sprint Plan: M-PKG-ASSET-LOCK-RESOLUTION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-pkg-asset-lock-resolution-sprint-plan.md)
+- [M-PKG-ASSET-LOCK-RESOLUTION: lockfile-driven, semver-correct asset resolution for std/package.assetPath](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-pkg-asset-lock-resolution.md)
+- [Sprint Plan: M-PKG-AUTHORITY-CHOKEPOINT (#1720)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-pkg-authority-chokepoint-sprint-plan.md)
+- [M-PKG-AUTHORITY-CHOKEPOINT: route every package network and `$HOME` write through one confinement gate, and make a bypass fail a test](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-pkg-authority-chokepoint.md)
+- [Sprint Plan: M-PKG-SMOKE-STAGED-LOCK](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-pkg-smoke-staged-lock-sprint-plan.md)
+- [M-PKG-SMOKE-STAGED-LOCK: stage the *published* view (manifest + lock) for the temp-dir smoke](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-pkg-smoke-staged-lock.md)
+- [Sprint plan: M-PUBLISH-PROTECTED-KEY-FILE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-publish-protected-key-file-sprint-plan.md)
+- [M-PUBLISH-PROTECTED-KEY-FILE implementation validation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-publish-protected-key-file-validation.md)
+- [M-PUBLISH-PROTECTED-KEY-FILE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-publish-protected-key-file.md)
+- [M-VM-ENTRY-MODULE-SHADOWING: `ailang run --bytecode --entry main` resolves an imported module's `main`, not the entry module's](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/m-vm-entry-module-shadowing.md)
+- [Sprint plan — M-GATE0-WATERMARK-CRASH-SAFETY (#981)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/sprint-plan-gate0-watermark-crash-safety.md)
+- [Sprint plan: pi controller session-protocol note](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/sprint-plan-pi-controller-protocol-note.md)
+- [Sprint Plan: M-FLEET-PI-PROVIDER-ERROR-RETRY-SEAM](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_56_0/sprint-plan-pi-provider-error-retry-seam.md)
+
+## v0.55.0
+
+- [M-EVAL-HIDDEN-TESTS: Held-Out Tests and a Per-Benchmark Exec Timeout](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_55_0/m-eval-hidden-tests.md)
+- [M-VM-QUICK-WINS Sprint Plan: Phases 0–1 (runtime-only)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_55_0/m-vm-quick-wins-sprint-plan.md)
+- [Sprint plan: repair sprint-evaluator mirror drift](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_55_0/sprint-plan-agents-mirror-sync-red.md)
+- [M-CONTROLPLANE-ASSERT-PEEK](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_55_0/sprint-plan-controlplane-assert-peek.md)
+- [Sprint plan: scope mission-control's prescribed message commands to the prod store](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_55_0/sprint-plan-controlplane-store-scope.md)
+- [Sprint: planner lane fence parsing — fleet iteration 65](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_55_0/sprint-plan-planner-lane-fences.md)
+- [Sprint plan: planner placement and human-decision STOP gates](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_55_0/sprint-plan-planner-placement-stop-gates.md)
+- [M-SWEEP-ACCOUNT-HOME — fleet iteration 67](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_55_0/sprint-plan-sweep-account-home.md)
+
+## v0.54.19
+
+- [M-CLOUD-NATIVE-SESSION-JSONL Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_19/m-cloud-native-session-jsonl-sprint-plan.md)
+- [Cloud Executors: Persist Every Provider's Native Session JSONL](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_19/m-cloud-native-session-jsonl.md)
+- [M-QUORUM-REVIEWER-CAP-HIT-LOUD — a reviewer that spends its whole output budget is a truncation, not "malformed JSON"](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_19/m-quorum-reviewer-cap-hit-loud.md)
+- [Sprint Plan: M-QUORUM-REVIEWER-CAP-HIT-LOUD](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_19/sprint-plan-quorum-reviewer-cap-hit-loud.md)
+- [M-FLEET-ZSH-SAFE-MISSION-LIBS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_19/sprint-plan-zsh-safe-mission-libs.md)
+
+## v0.54.18
+
+- [M-AUDIO-RELEASE: audio boundaries and trustworthy reports](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_18/m-audio-release-sprint-plan.md)
+- [Sprint: M-BENCHMARK-PERFORMANCE-REFRESH](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_18/m-benchmark-performance-refresh-sprint-plan.md)
+- [Benchmark performance refresh: verification and publication record](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_18/m-benchmark-performance-refresh-verification.md)
+- [M-BENCHMARK-PERFORMANCE-REFRESH](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_18/m-benchmark-performance-refresh.md)
+- [M-SMT-PARAMETRIC-ADT: typed error payload verification](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_18/m-smt-parametric-adt-declarations-sprint-plan.md)
+- [M-SMT-PARAMETRIC-ADT-DECLARATIONS: retain concrete error payload types](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_18/m-smt-parametric-adt-declarations.md)
+- [M-STD-AUDIO-WAV-READ: validated WAV metadata and packed PCM conversion](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_18/m-std-audio-wav-read.md)
+- [M-STD-AUDIO-WAV-WRITE-CHECKED: valid RIFF output and ordinary input guards](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_18/m-std-audio-wav-write-checked.md)
+- [M-STD-STRING-FORMAT-FIXED: bounded fixed-decimal reporting](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_18/m-std-string-format-fixed.md)
+- [Sprint Plan: Routing evidence heading shapes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_18/sprint-plan-routing-check-heading-shapes.md)
+- [Sprint Plan: M-FLEET-STALL-OWN-TRANSCRIPT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_18/sprint-plan-stall-own-session-transcript.md)
+
+## v0.54.17
+
+- [M-GO-TOOLCHAIN-BUMP-1-26-10: Bounded Go toolchain patch bump 1.26.9 → 1.26.10 to clear GO-2026-6809](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_17/m-go-toolchain-bump-1-26-10.md)
+- [Sprint: OpenAI mission-role allowlist](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_17/sprint-plan-openai-role-allowlist.md)
+- [Sprint plan: quota opencode is not a pool](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_17/sprint-plan-quota-opencode-not-a-pool.md)
+- [Sprint plan: rotate-log legacy headings](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_17/sprint-plan-rotate-log-legacy-headings.md)
+- [Sprint plan: mission-control skill pi extension discovery](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_17/sprint-plan-skill-pi-probe-no-extensions.md)
+- [Sprint plan: sprint-executor cloud push per milestone](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_17/sprint-plan-sprint-executor-cloud-push.md)
+
+## v0.54.16
+
+- [Sprint plan — `rotate-log:status-archive-structural-header` (fleet iteration 46)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_16/sprint-plan-rotate-log-status-archive-structural-header.md)
+
+## v0.54.15
+
+- [Sprint plan: M-FLEET-GATE4-STATUS-STAMP-SHAPE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_15/sprint-plan-gate4-status-stamp-shape.md)
+- [Sprint Plan: M-FLEET-INDEX-REGENERATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_15/sprint-plan-mission-index-regenerate.md)
+
+## v0.54.14
+
+- [Examples Manifest Statistics Sync — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_14/examples-manifest-stat-sync-sprint-plan.md)
+- [Examples Manifest Statistics Sync — close the stale-stats and unmanifested-example holes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_14/examples-manifest-stat-sync.md)
+- [M-RUN-ENTRY-NO-EXPORTS-FAIL-LOUD: `ailang run` on a module with no exports must fail loudly, not exit 0](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_14/m-run-entry-no-exports-fail-loud.md)
+- [M-VM-LIST-TAIL-SHARE — residual sprint plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_14/m-vm-list-tail-share-sprint-plan.md)
+- [M-VM-LIST-TAIL-SHARE: O(1) list-tail binding on the bytecode VM (cons-pattern walks are O(n²))](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_14/m-vm-list-tail-share.md)
+
+## v0.54.13
+
+- [Sprint Plan: M-NAMEDTEST-STRIP-STRING-BLIND-BRACES](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_13/m-namedtest-strip-string-blind-braces-sprint-plan.md)
+- [Named-test source strip: parse-time block ends replace the string-blind brace scan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_13/m-namedtest-strip-string-blind-braces.md)
+- [M-SHAREDINDEX-MAXSCAN-DETERMINISM: Strict-mode bounded scans must be deterministic](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_13/m-sharedindex-maxscan-determinism.md)
+- [Sprint Plan: M-TEST-PACKAGE-SOURCE-CHECK](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_13/m-test-package-source-check-sprint-plan.md)
+- [m-test-package-source-check — `test --package` type-checks every source module](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_13/m-test-package-source-check.md)
+- [Sprint Plan: M-TEST-STRIP-BRACE-LITERALS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_13/m-test-strip-brace-literals-sprint-plan.md)
+- [m-test-strip-brace-literals — Stop brace-counting raw text to find test-block ends](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_13/m-test-strip-brace-literals.md)
+- [source_strip test skip-range scan miscounts braces inside string literals](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_13/source-strip-string-brace-skip-ranges.md)
+- [Sprint Plan: Gate 3b CI poll background discipline](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_13/sprint-plan-gate3b-ci-poll-background.md)
+
+## v0.54.12
+
+- [M-QUORUM-ARTIFACT-DIR-STABLE: Durable, Repo-Scoped Quorum Evidence](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_12/m-quorum-artifact-dir-stable.md)
+- [M-QUORUM-SALVAGE — Never Discard a Reviewer's Reject; Locate the Parse Break](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_12/m-quorum-salvage-retry.md)
+- [M-FLEET-WORKTREE-WRITER-DEATH — terminal verdict after a writer dies](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_12/sprint-plan-mission-worktree-writer-death.md)
+- [Sprint Plan: M-FLEET-QUORUM-ARTIFACT-DIR](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_12/sprint-plan-quorum-artifact-dir.md)
+- [Sprint plan: M-FLEET-QUORUM-SALVAGE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_12/sprint-plan-quorum-salvage.md)
+- [M-FLEET-SLOT-UNCLASSIFIED — reachable unknown-label verdict](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_12/sprint-plan-slot-verdict-unclassified.md)
+
+## v0.54.10
+
+- [Sprint Plan: spawnProcessResult](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_10/spawn-process-result-sprint-plan.md)
+- [spawnProcessResult: a Result-returning process spawn](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_10/spawn-process-result.md)
+
+## v0.54.9
+
+- [M-FLEET-GATE0-LEDGER-PROVENANCE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_9/sprint-plan-gate0-ledger-provenance.md)
+
+## v0.54.7
+
+- [Sprint Plan: M-CORETI-SHARED-ENCODING](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_7/m-coreti-shared-encoding-sprint-plan.md)
+- [CoreTypeInfo cache blob: subtree-shared encoding (motoko `session.ail` 188 MB → under 1 MB)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_7/m-coreti-shared-encoding.md)
+- [Sprint plan: exit-path notices bounded (fleet iteration 33)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_7/sprint-plan-exit-path-notices-bounded.md)
+- [Sprint report: exit-path notices bounded (fleet iteration 33)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_7/sprint-report-exit-path-notices-bounded.md)
+- [Stapledon's Voyage v0.54.6 Bump: Workaround Register & Retirement Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_7/stapledon-v0-54-6-workarounds.md)
+- [Sprint Plan: Stapledon Workaround Retirement](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_7/stapledon-workarounds-sprint-plan.md)
+
+## v0.54.6
+
+- [Quorum External Zero-Signal Guard](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_6/m-quorum-external-zero-signal-guard.md)
+- [Restricted worker compile-cache isolation: implementation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_6/run-policy-worker-cache-dir-implementation.md)
+- [Sprint Plan: Restricted worker compile-cache isolation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_6/run-policy-worker-cache-dir-sprint-plan.md)
+- [Sprint Plan — M-QUORUM-ZERO-SIGNAL: Quorum external zero-signal guard](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_6/sprint-plan-quorum-zero-signal-guard.md)
+
+## v0.54.5
+
+- [Sprint M-WORKER-FOLLOWUP](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_5/m-worker-policy-and-lazy-ai-sprint-plan.md)
+- [M-WORKER-FOLLOWUP: Policy Worker Lifetime and Keyless CLI Startup](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_5/m-worker-policy-and-lazy-ai.md)
+
+## v0.54.4
+
+- [Sprint Plan: M-BACKGROUND-WORKER-LIFECYCLE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_4/m-background-worker-lifecycle-sprint-plan.md)
+- [M-BACKGROUND-WORKER-LIFECYCLE validation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_4/m-background-worker-lifecycle-validation.md)
+- [M-BACKGROUND-WORKER-LIFECYCLE: Owned Subprocess Shutdown and Cancellation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_4/m-background-worker-lifecycle.md)
+
 ## v0.54.1
 
 - [Claude credit gateway: CLI compatibility evidence](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_1/m-cloud-claude-api-credit-guard-cli-contract.md)
@@ -47,18 +234,45 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.54.0
 
+- [Sprint Plan: M-IO-READLINE-EOF-OPTION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_0/m-io-readline-eof-option-sprint-plan.md)
+- [M-IO-READLINE-EOF-OPTION — `readLineOpt() -> Option[string]`: EOF is `None`, not `""`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_0/m-io-readline-eof-option.md)
 - [Sprint Plan: M-SERVEAPI-RESPONSE-HEADERS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_0/m-serveapi-response-headers-sprint-plan.md)
 - [serve-api Response Headers: Security Headers on `--static` + Hyphenated Route Headers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_0/m-serveapi-response-headers.md)
 - [Sprint Plan: M-TERMINAL-UI-NATIVE-INPUT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_0/m-terminal-ui-native-input-sprint-plan.md)
 - [Native terminal sprint validation and delivery](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_0/m-terminal-ui-native-input-validation.md)
 - [M-TERMINAL-UI-NATIVE-INPUT — Enable the existing terminal UI package](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_54_0/m-terminal-ui-native-input.md)
 
+## v0.53.1
+
+- [M-ALIAS-BODY-CLOSURE implementation evidence](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/m-alias-body-closure-implementation-report.md)
+- [Sprint Plan: M-ALIAS-BODY-CLOSURE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/m-alias-body-closure-sprint-plan.md)
+- [M-ALIAS-BODY-CLOSURE: interface alias bodies and schemes must be closed over their defining module](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/m-alias-body-closure.md)
+- [M-AUTO-MERGE-CODE-PRS implementation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/m-auto-merge-code-prs-implementation.md)
+- [Sprint Plan: M-AUTO-MERGE-CODE-PRS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/m-auto-merge-code-prs-sprint-plan.md)
+- [Per-Agent Auto-Merge for Code PRs (check-gated, non-author approver)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/m-auto-merge-code-prs.md)
+- [M-CODEX-OAUTH-PROFILES sprint](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/m-codex-oauth-profiles-sprint-plan.md)
+- [M-EFFECT-LATENT-FUNCTION-VALUES sprint plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/m-effect-latent-function-values-sprint-plan.md)
+- [M-EFFECT-LATENT-FUNCTION-VALUES execution validation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/m-effect-latent-function-values-validation.md)
+- [Sprint Plan: M-MCPHTTP-TYPED-HOST-ERRORS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/m-mcphttp-typed-host-errors-sprint-plan.md)
+- [M-MCPHTTP-TYPED-HOST-ERRORS: a host can return a typed JSON-RPC error from Invoke (#1602)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/m-mcphttp-typed-host-errors.md)
+- [Sprint Plan: M-NAMED-TEST-EFFECTFUL-HELPER](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/m-named-test-effectful-helper-sprint-plan.md)
+- [Named Test Effectful Helper Honesty (strip policy + truthful diagnostics)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/m-named-test-effectful-helper.md)
+- [Sprint Plan: M-SKILL-FEATURE-DISCOVERABILITY-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/m-skill-feature-discoverability-gate-sprint-plan.md)
+- [M-SKILL-FEATURE-DISCOVERABILITY-GATE: a mandatory prompt-load step before agents write .ail](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/m-skill-feature-discoverability-gate.md)
+- [Sprint Plan: codex controller role-env delivery](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/sprint-plan-codex-controller-role-env.md)
+- [Sprint plan — M-FLEET-GATE0-SELF-NOTICES: port World's Gate-0 self-notice read into the shared harness](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/sprint-plan-gate0-self-notices.md)
+- [Sprint plan: M-MAIN-CHECKOUT-FF-SYNC](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_1/sprint-plan-main-checkout-ff-sync.md)
+
 ## v0.53.0
 
+- [Sprint Plan: M-FS-DENY-WRITE-DIR-RENAME](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-fs-deny-write-dir-rename-sprint-plan.md)
+- [M-FS-DENY-WRITE-DIR-RENAME: Deny patterns must protect their ancestor directories](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-fs-deny-write-dir-rename.md)
 - [Sprint Plan: M-IFC-AUTHORITY-SCOPING](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-ifc-authority-scoping-sprint-plan.md)
 - [M-IFC-AUTHORITY-SCOPING — Narrowing IFC Authority Primitives (Scoped Declassify + Call-Site Positive-Label Enforcement)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-ifc-authority-scoping.md)
 - [Sprint Plan: Inline-test expected values](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-inline-test-expected-values-sprint-plan.md)
 - [Inline-Test Expected Values: lists and ADTs evaluate; `check` rejects what `test` cannot run](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-inline-test-expected-values.md)
+- [Sprint Plan: M-PKG-REGISTRY-CONFINEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-pkg-registry-confinement-sprint-plan.md)
+- [M-PKG-REGISTRY-CONFINEMENT: a policy-confined agent cannot fetch from the registry, write the registry cache, or have its planted copy trusted — and hosts get a read-only package root](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-pkg-registry-confinement.md)
 - [Sprint Plan: M-RUN-POLICY-RESULT-UNFORGEABLE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-run-policy-result-unforgeable-sprint-plan.md)
 - [M-RUN-POLICY-RESULT-UNFORGEABLE: the confined program cannot forge the supervisor's `policy-result:` line (#1548)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-run-policy-result-unforgeable.md)
 - [Sprint Plan: M-STD-YAML-ENCODE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_53_0/m-std-yaml-encode-sprint-plan.md)
@@ -75,9 +289,24 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [Sprint Plan: M-TASK-INPUTS — Typed cloud task inputs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_6/m-task-inputs-sprint-plan.md)
 - [M-TASK-INPUTS: Typed Task Inputs — Fetch a Named `{repo, ref, path}` Into the Workspace Before the Agent Runs](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_6/m-task-inputs.md)
 
+## v0.52.2
+
+- [Sprint Plan: M-MISSION-HEARTBEAT-DRIVER-ROOT (Rev 5.2)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_2/m-mission-heartbeat-driver-root-sprint-plan.md)
+- [M-MISSION-HEARTBEAT-DRIVER-ROOT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_2/m-mission-heartbeat-driver-root.md)
+- [Sprint plan: M-MISSION-ROTATE-LOG-SAFE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_2/m-mission-rotate-log-safe-sprint-plan.md)
+- [M-MISSION-ROTATE-LOG-SAFE: Resolve the Registry Once and Name Archive Mutation Explicitly](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_2/m-mission-rotate-log-safe.md)
+- [M-TEST-RUNNER-COMPILE-ONCE: `ailang test` compiles a test file once, not once per named test](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_2/m-test-runner-compile-once.md)
+- [Sprint plan: pi-runner pre-dirty verdict (fleet iteration 20)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_2/sprint-plan-pi-runner-predirty.md)
+
+## v0.52.1
+
+- [Sprint evaluation — M-CONTROLLER-CAPACITY-ADMISSION (iteration 15)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_1/sprint-eval-controller-capacity-admission.md)
+- [Sprint plan: controller classifies HTTP 402 as capacity (M-CONTROLLER-CAPACITY-ADMISSION)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_1/sprint-plan-controller-capacity-admission.md)
+
 ## v0.52.0
 
 - [M-BYTECODE-NESTED-PATTERN-LOWERING — pattern lowering is flat-only: nested patterns (`a :: b :: rest`) become evaluator-only, and literal/nested sub-patterns match too permissively on the strict VM (silent wrong results)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-bytecode-nested-pattern-lowering.md)
+- [Sprint Plan: M-CLAUDE-CODE-MODS (Phases 0–2)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-claude-code-mods-sprint-plan.md)
 - [M-CROSS-ARCH-FLOAT-DETERMINISM: std/math transcendental results (exp, log, sin, …) differ by 1 ulp between arm64 and x86_64 — all three backends delegate to host-Go `math`, which is not bit-stable across GOARCH](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-cross-arch-float-determinism.md)
 - [M-CTOR-PATTERN-ALIAS-AND-SCOPE: constructor import aliases are never bound (patterns silently never match; expressions fail "undefined variable"), and a constructor pattern naming an unknown constructor compiles clean and never matches](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-ctor-pattern-alias-and-scope.md)
 - [M-ELABORATOR-LEXICAL-SCOPE: The elaborator resolves identifiers with no lexical scope — imports, builtins, and ADT constructors pre-empt every local binder](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-elaborator-lexical-scope.md)
@@ -86,11 +315,15 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-FLOAT-ORD-ONE-SEMANTICS — one answer to ordered float comparisons with NaN, on every path](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-float-ord-one-semantics.md)
 - [M-FOLDL-CONS-COST-MODEL: the documented-safe list-building path — `foldl` with a consing step, and "prepend then reverse" — is O(n²); std/list's cost claims must say so, the language needs one linear stateful-accumulate primitive, and the VM runs the shape ~2.4× slower than the interpreter](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-foldl-cons-cost-model.md)
 - [M-FULLWIDTH-INT-LITERALS-AND-LOGICAL-SHIFT: Hex/binary/octal int literals above 2^63−1 do not parse (u64 hash constants unwritable), pattern literals silently misparse, and there is no logical right shift](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-fullwidth-int-literals-and-logical-shift.md)
+- [Sprint Plan: M-IFC-DECLARED-RECORD-LABELS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-ifc-declared-record-labels-sprint-plan.md)
+- [M-IFC-DECLARED-RECORD-LABELS — labels written inside a type are label sources](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-ifc-declared-record-labels.md)
 - [Sprint Plan: M-INT-DIV-ZERO-ERROR](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-int-div-zero-error-sprint-plan.md)
 - [M-INT-DIV-ZERO-ERROR: integer division and modulo by zero raise RT001, not a Go panic](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-int-div-zero-error.md)
 - [M-INTERPRETER-TAIL-CALL-ELIMINATION: The Tree-Walking Interpreter Diverges From the VM on Tail Calls (RT_REC_003 at 10k Where the VM Runs in Constant Stack)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-interpreter-tail-call-elimination.md)
 - [M-ITERATIVE-LIST-REMAINING: complete M-ITERATIVE-LIST — `any`/`findIndex` (O(n²) on the VM, RT_REC_003 on the interpreter) and `foldr` + the `maximum`/`minimum` family (O(n²) + frame caps) delegate to iterative builtins; the Go-codegen engine already runs them iteratively](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-iterative-list-remaining.md)
 - [M-JSON-NUMBER-ROUNDTRIP: std/json float numbers do not round-trip — −0.0 sign loss, ≥1e21 integer-digit expansion, ≥2^63 decode saturation, silent ±Inf on out-of-range literals](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-json-number-roundtrip.md)
+- [Sprint Plan: M-MCP-OAUTH-PACKAGE (`sunholo/mcp_oauth` 0.1.0)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-mcp-oauth-package-sprint-plan.md)
+- [M-MCP-OAUTH-PACKAGE: `sunholo/mcp_oauth`, an OAuth 2.1 authorization server for MCP services, in AILANG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-mcp-oauth-package.md)
 - [M-NAMEDTEST-TEMPFILE-LEAK — Interrupted `ailang test` leaves `_namedtest_body_*.ail` in the package; pkg quality/publish/git ship it](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-namedtest-tempfile-leak.md)
 - [Sprint plan: M-NET-SCOPE-PUBLIC (#1522)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-net-scope-public-sprint-plan.md)
 - [M-NET-SCOPE-PUBLIC: redirect-hop containment + `Net[scope=public]` (#1522, S0)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_52_0/m-net-scope-public.md)
@@ -104,13 +337,37 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.51.0
 
+- [Sprint Plan: M-SERVEAPI-DIRECTORY-READY, Phase A (Anthropic)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_51_0/m-serveapi-directory-ready-sprint-plan.md)
 - [Sprint Plan: M-VM-PURE-BUILTIN-COVERAGE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_51_0/m-vm-pure-builtin-coverage-sprint-plan.md)
 - [M-VM-PURE-BUILTIN-COVERAGE: pure builtins run on the strict VM, and the gap is measured](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_51_0/m-vm-pure-builtin-coverage.md)
+
+## v0.50.0
+
+- [M-EXECUTOR-ENV-HARDENING: A Typed Environment Boundary for the Agent Executor Fleet](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_50_0/m-executor-env-hardening.md)
+- [Sprint plan: mission-base derives the default branch (ticket `mission-base:hardcoded-origin-dev`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_50_0/sprint-plan-mission-base-default-branch.md)
+- [Sprint plan: pi runner types a provider quota refusal (ticket `pi-runner:quota-429-reported-as-empty-worktree`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_50_0/sprint-plan-pi-runner-provider-quota.md)
+
+## v0.49.0
+
+- [Sprint plan: stall watchdog descendant progress](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_49_0/sprint-plan-stall-descendant-progress.md)
 
 ## v0.48.0
 
 - [M-MOTOKO-DST-MIGRATION: Adopt Arni's phase-core/DST refactor and re-prove our fork's improvements](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_48_0/m-motoko-dst-refactor-migration.md)
 - [Motoko fork disposition — iteration 1](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_48_0/m-motoko-fork-disposition.md)
+- [M-PACKAGE-AUTHORING: Offline guidance and evidence inventory](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_48_0/m-package-authoring-discovery.md)
+- [Sprint Plan: M-PKG-REGISTRY-DISCOVERABILITY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_48_0/m-pkg-registry-discoverability-sprint-plan.md)
+- [M-PKG-REGISTRY-DISCOVERABILITY — the registry as the first stop](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_48_0/m-pkg-registry-discoverability.md)
+- [Sprint Plan: M-VM-DETERMINISM](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_48_0/m-vm-determinism-sprint-plan.md)
+- [M-VM-DETERMINISM: Bytecode VM nondeterminism — Go map iteration order selects record types/field indices at compile time](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_48_0/m-vm-determinism.md)
+
+## v0.47.2
+
+- [M-BYTECODE-GETFIELD-SLOT-RESOLUTION — GET_FIELD compiles the wrong slot index when two record types share a field name at different positions (silent wrong reads under `--bytecode`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_47_2/m-bytecode-getfield-slot-resolution.md)
+- [Sprint plan: M-SERVEAPI-SDK-FREE-MCP (#885)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_47_2/m-serveapi-sdk-free-mcp-dispatch-sprint-plan.md)
+- [M-SERVEAPI-SDK-FREE-MCP: a stdlib-only MCP dispatcher inside `serveapi` (#885)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_47_2/m-serveapi-sdk-free-mcp-dispatch.md)
+- [M-UI-VITE8-MIGRATION: Modernize the Dashboard UI toolchain to Vite 8](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_47_2/m-ui-vite8-migration.md)
+- [Sprint plan: M-FLEET-PI-SANDBOX-WIRING](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_47_2/sprint-plan-pi-runner-sandbox-wiring.md)
 
 ## v0.47.0
 
@@ -124,6 +381,13 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [Sprint plan: M-SERVEAPI-OPERATOR-SURFACE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_46_0/m-serveapi-operator-surface-sprint-plan.md)
 - [M-SERVEAPI-OPERATOR-SURFACE: what serve-api exposes is the operator's choice](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_46_0/m-serveapi-operator-surface.md)
 - [M-SMT-NULLARY-CALLEE — sprint plan (no design doc)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_46_0/m-smt-nullary-callee-sprint-plan.md)
+
+## v0.45.0
+
+- [Sprint plan: reap descendants when a fleet slot is killed](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_45_0/m-fleet-slot-kill-reaps-descendants-sprint-plan.md)
+- [M-SERVER-ORIGIN-POLICY: `ailang server` becomes same-origin by default, and its WebSocket checks Origin](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_45_0/m-server-origin-policy.md)
+- [Sprint plan: M-STDLIB-ROOT-RESOLUTION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_45_0/m-stdlib-root-resolution-sprint-plan.md)
+- [M-STDLIB-ROOT-RESOLUTION: one stdlib root for every command (`ailang docs std/<module>` fails outside a project root)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_45_0/m-stdlib-root-resolution.md)
 
 ## v0.44.0
 
@@ -158,6 +422,7 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.40.0
 
+- [HANDOVER — auto-provisioning an agent inbox when a package appears on the registry](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_40_0/HANDOVER-package-agent-autoprovision.md)
 - [Sprint Plan: M-PKG-QUALITY-LADDER — Sprint 1 "measure" (M1–M5)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_40_0/m-pkg-quality-ladder-sprint-plan.md)
 
 ## v0.39.3
@@ -173,6 +438,7 @@ This page is automatically generated from the [design_docs/implemented](https://
 ## v0.38.7
 
 - [M-PKG-MULTI-NAMESPACE-AUTH — Scoped registry keys (write-restricted, read-all)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_38_7/m-pkg-multi-namespace-auth.md)
+- [Sprint Plan: M-V1-SIMPLIFY-S1 — Measure, fix, delete, and fence the core](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_38_7/m-v1-simplification-s1-sprint-plan.md)
 
 ## v0.38.6
 
@@ -202,6 +468,7 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 - [Sprint Plan — M-SMT-INTERP-SHOW](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_36_0/m-smt-interp-show-sprint-plan.md)
 - [M-SMT-INTERP-SHOW: Type-directed `show` normalization — unblock Z3 verification of string-building functions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_36_0/m-smt-interp-show.md)
+- [M-TRACE-TIER-NOT-ENFORCED: the tracing tier is resolved, printed, and then ignored](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_36_0/m-trace-tier-not-enforced.md)
 
 ## v0.35.4
 
@@ -211,47 +478,94 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 - [Sprint Plan — M-COORDINATOR-TEST-PARALLELISM (executor-ready)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-coordinator-test-parallelism-sprint-plan.md)
 - [M-COORDINATOR-TEST-PARALLELISM: Attack the Four Timer-Bound Coordinator Tests by Injecting Their Timers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-coordinator-test-parallelism.md)
+- [SPRINT PLAN — M-COORDINATOR-WINDOWS-PACKAGE-TIMEOUT-HEADROOM](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-coordinator-windows-package-timeout-headroom-sprint-plan.md)
+- [M-COORDINATOR-WINDOWS-PACKAGE-TIMEOUT-HEADROOM: A Derived `-timeout` Budget and a Per-Package Headroom Instrument](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-coordinator-windows-package-timeout-headroom.md)
 - [Evaluation — M-DAEMON-TASK-EXEC-RUN-UNTESTED (v1 mission iteration 352, round 1)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-daemon-task-exec-run-untested-evaluation-r1.md)
 - [Mutation audit — M-DAEMON-TASK-EXEC-RUN-UNTESTED (V1 mission iteration 352)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-daemon-task-exec-run-untested-mutation-audit.md)
 - [Sprint plan — M-DAEMON-TASK-EXEC-RUN-UNTESTED (V1 mission iteration 352)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-daemon-task-exec-run-untested-sprint-plan.md)
 - [M-DAEMON-TASK-EXEC-RUN-UNTESTED — make `executeTask` executable under test](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-daemon-task-exec-run-untested.md)
+- [M-DASHBOARD-DELETE-ANALYTICS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-dashboard-delete-analytics-sprint-plan.md)
+- [Sprint Plan: M-EFFECT-PURE-ROW-OVERGENERALIZATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-effect-pure-row-overgeneralization-sprint-plan.md)
+- [M-EFFECT-PURE-ROW-OVERGENERALIZATION — a `pure func` must not export an effect-polymorphic row](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-effect-pure-row-overgeneralization.md)
+- [Sprint M-EVAL-STANDARD-MODE-INPUT-FILES-GAP: gate multi-file grading benchmarks out of standard mode](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-eval-standard-mode-input-files-gap-sprint-plan.md)
+- [M-EVAL-STANDARD-MODE-INPUT-FILES-GAP: gate multi-file grading benchmarks out of standard mode](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_3/m-eval-standard-mode-input-files-gap.md)
 
 ## v0.35.2
 
+- [Sprint Plan: M-CACHESRC-COGNITIVE-COMPLEXITY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_2/m-cachesrc-cognitive-complexity-sprint-plan.md)
+- [M-CACHESRC-COGNITIVE-COMPLEXITY — extract compile-cache orchestration and preserve its regression oracles](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_2/m-cachesrc-cognitive-complexity.md)
+- [M-CODEX-QUOTA-OBSERVATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_2/m-codex-quota-observation.md)
 - [Sprint Plan: M-COMPILE-CACHE-UNVERIFIED-ARTIFACTS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_2/m-compile-cache-unverified-artifacts-sprint-plan.md)
 - [M-COMPILE-CACHE-UNVERIFIED-ARTIFACTS — bind executable cache artifacts to their authorizing key](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_2/m-compile-cache-unverified-artifacts.md)
+- [M-DX27: GitHub Repository Search Fallback for `ailang docs search`](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_2/m-dx27-docs-search-github-fallback.md)
+- [M-GATE1-SHARED-CLONE-REF-DRIFT Sprint Plan — post-split recovery](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_2/m-gate1-shared-clone-ref-drift-sprint-plan.md)
+- [M-GATE1-SHARED-CLONE-REF-DRIFT: A shared `.git` makes `origin/dev` a moving floor, so every gate that reads it must record what it read, when](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_2/m-gate1-shared-clone-ref-drift.md)
+- [Sprint Plan — M-LAUNCHD-NOTIFY-SUBSHELL-OBSERVATION (V1 mission iteration 347)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_2/m-launchd-notify-subshell-observation-sprint-plan.md)
+- [M-LAUNCHD-NOTIFY-SUBSHELL-OBSERVATION: Restore Notification Test Observability and Bound Production Notification Calls](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_2/m-launchd-notify-subshell-observation.md)
+- [Sprint Plan: M-MISSION-LOOP-WORKBENCH — Phase 1](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_2/m-mission-loop-workbench-sprint-plan.md)
+- [M-MISSION-ROLE-DISPATCH — First Runtime Slice](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_2/m-mission-role-dispatch-sprint-plan.md)
 - [Sprint Plan: M-PI-EVALUATOR-SESSION-HANDSHAKE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_2/m-pi-evaluator-session-handshake-sprint-plan.md)
 - [M-PI-EVALUATOR-SESSION-HANDSHAKE — satisfy the judge's local protocol before review](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_2/m-pi-evaluator-session-handshake.md)
 
 ## v0.35.1
 
+- [Sprint Plan: m-autopush-gate-followups](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_1/m-autopush-gate-followups-sprint-plan.md)
 - [Sprint plan: M-MOTOKO-SUITE-BOUND-DERIVATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_1/m-motoko-suite-bound-derivation-sprint-plan.md)
 - [M-MOTOKO-SUITE-BOUND-DERIVATION: derive the suite's wall-clock and node-ceiling bounds from a stimulus measured in-test](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_1/m-motoko-suite-bound-derivation.md)
 
 ## v0.35.0
 
+- [Sprint Plan: docs-2 — docs-sync diagnostic sweep and drift register](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/docs-2-sprint-plan.md)
+- [Sprint Plan — M-COORDINATOR-EXECUTION-TRUST (M1a + M2 + M3)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-coordinator-execution-trust-sprint-plan.md)
+- [M-COORDINATOR-EXECUTION-TRUST: make "a job ran" mean "work was attempted, and we know the outcome"](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-coordinator-execution-trust.md)
+- [Sprint Plan: M-DX-MICRORAG-CONTEXT — μRAG as a first-class pi extension](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-dx-microrag-context-sprint-plan.md)
+- [M-DX-MICRORAG-CONTEXT — μRAG as a first-class pi extension: retrieval-triggered context injection + search tool](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-dx-microrag-context.md)
 - [Sprint Plan: M-DX-PI-HARNESS — pi dev-harness extensions (Streams A+B)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-dx-pi-harness-sprint-plan.md)
 - [Sprint Plan: M-DX-PI-HARNESS-P2 — Distribution v2: ailang pi install](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-dx-pi-harness-sprint-plan2.md)
 - [M-DX-PI-HARNESS — pi as a first-class development harness for AILANG (two streams)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-dx-pi-harness.md)
+- [Sprint Plan: M-DX-QUALITY-MONITOR — empty/looping-output detection + bounded excerpts](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-dx-quality-monitor-sprint-plan.md)
+- [M-DX-QUALITY-MONITOR — empty/looping-output detection with corrective steering + bounded tool-result excerpts](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-dx-quality-monitor.md)
+- [Sprint Plan: M-DX-SESSION-GATE — mechanical session-protocol gate for pi](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-dx-session-gate-sprint-plan.md)
+- [M-DX-SESSION-PROTOCOL-GATE — mechanical enforcement of the session protocol for pi sessions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-dx-session-protocol-gate.md)
+- [Sprint Plan: M-EVAL-ROLLING-ELO](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-eval-rolling-elo-sprint-plan.md)
+- [M-EVAL-ROLLING-ELO: one anchored rating series across models and AILANG versions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-eval-rolling-elo.md)
 - [M-EVAL-W8: harness errors must not be scored as capability failures](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-eval-w8-harness-errors-as-capability-failures.md)
 - [Sprint Plan — M-FMT-PRINTER-LINE-WIDTH-LIMIT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-fmt-printer-line-width-limit-sprint-plan.md)
 - [M-FMT-PRINTER-LINE-WIDTH-LIMIT: A Width Predicate for the Printer's Existing Multi-Line Layouts, Then the Second Corpus Reformat](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-fmt-printer-line-width-limit.md)
+- [Sprint Plan — `m-fmt-unpinned-hunks` (iteration 288)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-fmt-unpinned-hunks-sprint-plan.md)
+- [Sprint Plan: M-FS-RENAME — std/fs rename/move (atomic file publish)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-fs-rename-sprint-plan.md)
+- [M-FS-RENAME — std/fs rename/move: atomic file publish for pure AILANG](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-fs-rename.md)
+- [Sprint Plan: M-LYCEUM-PROVIDER](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-lyceum-provider-sprint-plan.md)
+- [M-LYCEUM-PROVIDER: Lyceum as an EU-Hosted Third Route for Open-Weight Models](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-lyceum-provider.md)
 - [Sprint Plan: M-MESSAGE-PLANE-FAIL-LOUD](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-message-plane-fail-loud-sprint-plan.md)
 - [M-MESSAGE-PLANE-FAIL-LOUD: the remaining silent seams](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-message-plane-fail-loud.md)
+- [Sprint Plan — M-MISSION-SLOT-HEARTBEAT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-mission-slot-heartbeat-sprint-plan.md)
+- [M-MISSION-SLOT-HEARTBEAT: Per-Gate Heartbeat for Mission Slot Death Attribution](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-mission-slot-heartbeat.md)
+- [Sprint Plan: M-MODEL-REGISTRY-SINGLE-SOURCE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-model-registry-single-source-sprint-plan.md)
+- [M-MODEL-REGISTRY-SINGLE-SOURCE: models.yml becomes the one place models are assigned](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-model-registry-single-source.md)
 - [Sprint plan — M-MOTOKO-CONNECTION-PROBE-RUN-LANE-HARNESS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-motoko-connection-probe-run-lane-harness-sprint-plan.md)
 - [M-MOTOKO-CONNECTION-PROBE-RUN-LANE-HARNESS: behavioral pin for production lane process-group kill](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-motoko-connection-probe-run-lane-harness.md)
 - [Sprint Plan: M-MOTOKO-DISCOVERY-ARM-DISCRIMINATING-REFUSAL](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-motoko-discovery-arm-discriminating-refusal-sprint-plan.md)
 - [M-MOTOKO-DISCOVERY-ARM-DISCRIMINATING-REFUSAL: make the real wall-clock discovery refusal observable and reachable](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-motoko-discovery-arm-discriminating-refusal.md)
+- [Sprint Plan: M-MOTOKO-STUB-REFUSAL-ARM](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-motoko-stub-refusal-arm-sprint-plan.md)
+- [M-MOTOKO-STUB-REFUSAL-ARM: pin the `(test stub)` refusal message behaviourally, symmetric with the other two branches](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-motoko-stub-refusal-arm.md)
 - [Sprint Plan: M-PI-HARNESS-UPGRADE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-pi-harness-upgrade-sprint-plan.md)
 - [M-PI-HARNESS-UPGRADE — move the fleet off abandoned pi 0.73.1, and make the boundary visible in the data](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-pi-harness-upgrade.md)
 - [Sprint Plan: M-PIPELINE-RECONCILIATION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-pipeline-reconciliation-sprint-plan.md)
 - [M-PIPELINE-RECONCILIATION: one pipeline definition, two execution lanes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-pipeline-reconciliation.md)
+- [Sprint Plan — M-PROMPT-FREEZE-MIRROR-ALL-VERSIONS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-prompt-freeze-mirror-all-versions-sprint-plan.md)
+- [M-PROMPT-FREEZE-MIRROR-ALL-VERSIONS: `prompt freeze --check` must refuse divergence, deletion and unenforceable hashes for ALL registry entries, not only frozen ones](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-prompt-freeze-mirror-all-versions.md)
+- [Sprint Plan — M-PROMPT-VERSION-FREEZE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-prompt-version-freeze-on-first-bank-sprint-plan.md)
+- [M-PROMPT-VERSION-FREEZE-ON-FIRST-BANK: Freeze a prompt version's bytes at first banked use](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-prompt-version-freeze-on-first-bank.md)
 - [Sprint Plan — M-SPAWN-PIN-ENFORCEMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-spawn-pin-enforcement-sprint-plan.md)
 - [M-SPAWN-PIN-ENFORCEMENT — Deterministic role-spawn path enforcement for mission-control](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-spawn-pin-enforcement.md)
+- [m unified release model](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_35_0/m-unified-release-model.md)
 
 ## v0.34.0
 
 - [LC-1 `m-list-repr-spike` — M6 report: full matrix, kill-criterion arithmetic, and the programme verdict](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_34_0/m-list-repr-spike-M6-report.md)
+- [Sprint plan — M-LIST-REPR-SPIKE (LC-1: list-representation benchmark spike)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_34_0/m-list-repr-spike-sprint-plan.md)
+- [M-LIST-REPR-SPIKE: LC-1 — List-Representation Benchmark Spike (Go/No-Go Gate for Cons Cells)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_34_0/m-list-repr-spike.md)
 - [M-OLLAMA-CLOUD-PROVIDER: Ollama Cloud as a Second Route for Open-Weight Models](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_34_0/m-ollama-cloud-provider.md)
 
 ## v0.33.4
@@ -269,13 +583,21 @@ This page is automatically generated from the [design_docs/implemented](https://
 ## v0.33.2
 
 - [HANDOVER — M-MISSION-LOOP-UNIFIED-TELEMETRY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_2/HANDOVER-mission-loop-unified-telemetry.md)
+- [Sprint Plan — M-ARRAY-SHOW-DIVERGES-RUN-VS-COMPILE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_2/m-array-show-diverges-run-vs-compile-sprint-plan.md)
+- [M-ARRAY-SHOW-DIVERGES-RUN-VS-COMPILE: `show` on arrays prints `#[…]` interpreted, `[…]` compiled](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_2/m-array-show-diverges-run-vs-compile.md)
 - [Sprint Plan: M-MISSION-LOOP-UNIFIED-TELEMETRY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_2/m-mission-loop-unified-telemetry-sprint-plan.md)
 - [M-MISSION-LOOP-UNIFIED-TELEMETRY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_2/m-mission-loop-unified-telemetry.md)
+- [Sprint Plan — M-SERVEAPI-PROTOCOL-ONLY (#764)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_2/m-serveapi-protocol-only-module-sprint-plan.md)
+- [M-SERVEAPI-PROTOCOL-ONLY: a protocol package with a stdlib-only closure (#764)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_2/m-serveapi-protocol-only-module.md)
+- [Sprint Plan: M-TELEMETRY-REMOTE-READ-FASTFOLLOW](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_2/m-telemetry-remote-read-fastfollow-sprint-plan.md)
 
 ## v0.33.1
 
+- [Sprint Plan: M-BYTECODE-PATTERN-ARITY-FIX](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_1/m-bytecode-pattern-arity-fix-sprint-plan.md)
+- [M-BYTECODE-PATTERN-ARITY-FIX — fixed-length list patterns match longer lists under `--bytecode` (silent wrong result)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_1/m-bytecode-pattern-arity-fix.md)
 - [Sprint Plan: M-CI-FLAKE-SYSTEMIC-FIX](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_1/m-ci-flake-systemic-fix-sprint-plan.md)
 - [M-CI-FLAKE-SYSTEMIC-FIX: One Gating Convention, Bounded Waits, a Default-Deny Egress Boundary, and a Known-Offender Lint for the Go Test Suite](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_1/m-ci-flake-systemic-fix.md)
+- [Sprint Plan — `m-named-test-assert-lowering` (make `test "…" { assert … }` execute)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_1/m-named-test-assert-lowering-sprint-plan.md)
 - [Sprint Plan — M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_1/m-ollama-v1-streaming-idle-timeout-sprint-plan.md)
 - [M-OLLAMA-V1-STREAMING-IDLE-TIMEOUT: Stream the ollama /v1 tool-calling path with a read-level idle timeout](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_1/m-ollama-v1-streaming-idle-timeout.md)
 - [Sprint Plan: M-OPENROUTER-BROADCAST-INGEST](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_1/m-openrouter-broadcast-ingest-sprint-plan.md)
@@ -287,9 +609,12 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [Sprint Plan: M-EVAL-STANDARD-CONFIDENCE-GATING](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_32_0/m-eval-standard-confidence-gating-sprint-plan.md)
 - [M-EVAL-STANDARD-CONFIDENCE-GATING: ELO Confidence Gating for the Cloud Standard Release Baseline](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_32_0/m-eval-standard-confidence-gating.md)
 - [M-FMT-DIALECT-ALIGNMENT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_32_0/m-fmt-dialect-alignment.md)
+- [Sprint Plan: M-NIGHTLY-SUSTAINED-FAILURE-LABEL](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_32_0/m-nightly-sustained-failure-label-sprint-plan.md)
+- [Sprint Plan: M-NIGHTLY-UNMEASURED-CATEGORY-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_32_0/m-nightly-unmeasured-category-gate-sprint-plan.md)
 - [PRE-READ: m-recorded-stream-api (ailang#546) — attended evaluation of the offered implementation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_32_0/m-recorded-stream-api-preread.md)
 - [Sprint Plan — M-RECORDED-STREAM-API (sprint 1 of 2)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_32_0/m-recorded-stream-api-sprint-plan.md)
 - [M-RECORDED-STREAM-API — Productionize the offered recorded `std/ai` stream](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_32_0/m-recorded-stream-api.md)
+- [Sprint Plan — `m-strip-decl-aware` (declaration-aware source stripping in `internal/testing`)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_32_0/m-strip-contract-awareness-sprint-plan.md)
 
 ## v0.31.0
 
@@ -310,6 +635,7 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-EVAL-MEASUREMENT-CONTRACT: Distinguish "Measured Badly" from "Failed to Measure"](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_31_0/m-eval-measurement-contract.md)
 - [M-EVAL-TOKEN-HEADROOM: Equal Headroom, Visible Truncation, Labelled Thinking State](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_31_0/m-eval-token-headroom.md)
 - [Sprint Plan: M-MCP-EXACT-TOOL-SURFACE — Lane A](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_31_0/m-mcp-exact-tool-surface-lane-a-sprint-plan.md)
+- [Sprint Plan: M-NIGHTLY-RUN-VALIDITY-GATE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_31_0/m-nightly-run-validity-gate-sprint-plan.md)
 - [Sprint Plan — M-PROPERTY-GENERATOR-COVERAGE **Lane A only**](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_31_0/m-property-generator-coverage-lane-a-sprint-plan.md)
 - [Sprint Plan — M-PROPERTY-GENERATOR-COVERAGE **Lane B1 only**](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_31_0/m-property-generator-coverage-lane-b1-sprint-plan.md)
 - [M-PROPERTY-GENERATOR-COVERAGE: Vacuous-Pass Honesty + Structural Generator Derivation for Contract Property Tests](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_31_0/m-property-generator-coverage.md)
@@ -344,6 +670,7 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-EFFECT-MODE-VALIDATION: Enforce the Closed Mode Set for Parameterised Effects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-effect-mode-validation.md)
 - [Sprint Plan: M-EFFECT-REPLAY-CONTRACTS (Rand pilot)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-effect-replay-contracts-sprint-plan.md)
 - [M-EFFECT-REPLAY-CONTRACTS: Replay Contract Registry + Mode-Aware Runtime Dispatch (Rand pilot)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-effect-replay-contracts.md)
+- [Sprint Plan: M-EFFECT-REPLAY-SUBSUMPTION](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-effect-replay-subsumption-sprint-plan.md)
 - [M-EFFECT-REPLAY-SUBSUMPTION: Validate-Path Effect-Mode Subsumption](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-effect-replay-subsumption.md)
 - [M-EVAL-ELO-PRIORITY-ROTATION: ELO-Driven Benchmark Prioritization for the OS Rotation Filler](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-eval-elo-priority-rotation.md)
 - [M-EVAL-LOCAL-CLOUD-UNIFY: local models in the same tables + rolling trends as cloud](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_30_0/m-eval-local-cloud-unify.md)
@@ -394,8 +721,10 @@ This page is automatically generated from the [design_docs/implemented](https://
 ## v0.29.0
 
 - [Ghost reconciliation — 2026-07-12 (v1.0 backlog triage)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/GHOSTS-RECONCILED-2026-07-12.md)
+- [M-BUDGET-SCOPING-BUG — Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-budget-scoping-bug-sprint-plan.md)
 - [m budget scoping bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-budget-scoping-bug.md)
 - [M-CLOUD-OBSERVATORY: Observatory Firestore Backend for Cloud Run](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-cloud-observatory.md)
+- [Sprint Plan: M-DEONTIC-PKG — sunholo/deontic extension package](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-contracts-as-code-sprint-plan.md)
 - [M-COORDINATOR-INBOX-WILDCARDS: glob-based inbox routing in the agent registry](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-coordinator-inbox-wildcards.md)
 - [M-DASHBOARD-PUBSUB-EVENTS: Dashboard Pub/Sub Event Subscriber](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-dashboard-pubsub-events.md)
 - [M-DIAGNOSTIC-COVERAGE: The footgun coverage table — error-time teaching with CI-enforced fix-carrying diagnostics (R1.1)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-diagnostic-coverage.md)
@@ -1176,11 +1505,9 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.7.0
 
-- [AILANG Dogfooding: Gaps Discovered](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/GAPS_DISCOVERED.md)
-- [M-EVAL-AGENT-QUEUE: Queue-Based Agent Evaluation Architecture](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/M-EVAL-AGENT-QUEUE.md)
-- [Retrospective: Observability Dashboard Development](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/RETROSPECTIVE-observability-dashboard.md)
 - [Concatenation Operator (`++`) Type Inference Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/concat-operator-type-inference-bug.md)
 - [Evaluation Dashboard Reliability](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/eval-dashboard-reliability.md)
+- [AILANG Dogfooding: Gaps Discovered](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/GAPS_DISCOVERED.md)
 - [M-AI-OLLAMA Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-ai-ollama-sprint-plan.md)
 - [M-AUTH Sprint Plan: Firebase Authentication & Dashboard Authorization](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-auth-dashboard-firebase-sprint-plan.md)
 - [M-AUTH: Firebase Authentication & Role-Based Authorization for Dashboard](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-auth-dashboard-firebase.md)
@@ -1215,6 +1542,7 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [Sprint Plan: M-DX24 - Developer Experience Improvements from BigQuery Connector Feedback](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-dx24-sprint-plan-implementation.md)
 - [M-DX24 Sprint Plan: Developer Experience Improvements](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-dx24-sprint-plan.md)
 - [M-EMBED: Generic AILANG Embedding API](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-embed-go-ailang-bridge.md)
+- [M-EVAL-AGENT-QUEUE: Queue-Based Agent Evaluation Architecture](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/M-EVAL-AGENT-QUEUE.md)
 - [M-AI-OLLAMA: Unified Ollama Provider for Local Models](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-eval-ollama-local-models.md)
 - [M-EXECUTOR-TEST: Comprehensive Test Coverage for Multi-Executor System](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-executor-test-coverage.md)
 - [M-GAP1: Fix Teaching Prompt Lambda Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-gap1-teaching-prompt-lambda-syntax.md)
@@ -1258,6 +1586,7 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [Sprint Plan: M-TRANSCRIPT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-transcript-sprint-plan.md)
 - [M-TRANSCRIPT: Unified Conversation History & Feedback Loop](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/m-transcript-unified-conversation-history.md)
 - [Observatory Architecture](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/observatory-architecture.md)
+- [Retrospective: Observability Dashboard Development](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/RETROSPECTIVE-observability-dashboard.md)
 - [AILANG v0.6.3 Bug Fixes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_7_0/v0_6_3-bug-fixes.md)
 
 ## v0.6.2
@@ -1446,7 +1775,12 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.5.0
 
+- [AILANG Consumer Contract v0.5.x](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/consumer-contract-v0.5.md)
+- [Consumer Contract Gap Analysis](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/contract-gap-analysis.md)
+- [gameengine](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/gameengine.md)
 - [M-AGENT-PROTOCOL: Agent-to-Agent Communication Protocol](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/M-AGENT-PROTOCOL.md)
+- [Sprint Plan: M-BUG-FIXES (TVar2 List Pattern + ADT Test Harness)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/m-bug-fixes-sprint-plan.md)
+- [M-BUG-NESTED-RECORD-ANF: ANF Completion for Let RHS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/m-bug-nested-record-anf.md)
 - [M-EVAL-AGENT: Multi-Agent Eval Benchmark Suite](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/M-EVAL-AGENT.md)
 - [M-GAME-A: Go Codegen Foundation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/M-GAME-A-go-codegen-foundation.md)
 - [M-GAME-B: Effects for Games](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/M-GAME-B-effects-for-games.md)
@@ -1455,11 +1789,6 @@ This page is automatically generated from the [design_docs/implemented](https://
 - [M-GAME-E1: Debug Effect (Foundational Trace Substrate)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/M-GAME-E1-debug-effect.md)
 - [M-GAME-E2: AI Effect (General-Purpose AI Oracle)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/M-GAME-E2-ai-effect.md)
 - [Sprint Plan: M-GAME-ENGINE - Game Support Enablement](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/M-GAME-ENGINE-sprint-plan.md)
-- [AILANG Consumer Contract v0.5.x](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/consumer-contract-v0.5.md)
-- [Consumer Contract Gap Analysis](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/contract-gap-analysis.md)
-- [gameengine](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/gameengine.md)
-- [Sprint Plan: M-BUG-FIXES (TVar2 List Pattern + ADT Test Harness)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/m-bug-fixes-sprint-plan.md)
-- [M-BUG-NESTED-RECORD-ANF: ANF Completion for Let RHS](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_0/m-bug-nested-record-anf.md)
 
 ## v0.4.8
 
@@ -1478,25 +1807,25 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.4.6
 
+- [M-DX10: Complete S-CALL0 and Unit-Argument Model](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_6/m-dx10-nullary-function-calls.md)
+- [M-DX11: String Split Builtin](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_6/m-dx11-string-split-builtin.md)
 - [String split() Implementation Summary (v0.4.6)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_6/M-DX11-STRING-SPLIT-IMPLEMENTATION-REPORT.md)
 - [M-LANG-CLI-ARGS Sprint Completion Report](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_6/M-LANG-CLI-ARGS-SPRINT-COMPLETION.md)
 - [Sprint Plan: M-LANG-CLI-ARGS (v0.4.6)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_6/M-LANG-CLI-ARGS-SPRINT-PLAN.md)
 - [M-LANG-CLI-ARGS: Command-Line Arguments Access](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_6/M-LANG-CLI-ARGS.md)
-- [M-DX10: Complete S-CALL0 and Unit-Argument Model](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_6/m-dx10-nullary-function-calls.md)
-- [M-DX11: String Split Builtin](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_6/m-dx11-string-split-builtin.md)
 - [UI Collaboration Hub - Human-AI Orchestration Interface](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_6/ui-collaboration-hub.md)
 
 ## v0.4.5
 
-- [Sprint Plan: M-BUG-NULLARY - Nullary Constructor Pattern Matching Fix](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_5/M-BUG-NULLARY-sprint-plan.md)
 - [Agent Execution Integration](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_5/agent-execution-integration.md)
+- [Sprint Plan: M-BUG-NULLARY - Nullary Constructor Pattern Matching Fix](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_5/M-BUG-NULLARY-sprint-plan.md)
 - [Nullary Constructor Pattern Matching Bug](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_5/nullary-constructor-pattern-matching-bug.md)
 
 ## v0.4.3
 
 - [M-SOUNDNESS Effect Checking Implementation - Completion Report](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_3/M-SOUNDNESS-COMPLETION-REPORT.md)
-- [Sprint Plan: M-SOUNDNESS Effect Checking Implementation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_3/SPRINT_PLAN_M-SOUNDNESS.md)
 - [M-SOUNDNESS: Effect Checking for Entry Module Prelude](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_3/m-soundness-effect-checking-prelude.md)
+- [Sprint Plan: M-SOUNDNESS Effect Checking Implementation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_4_3/SPRINT_PLAN_M-SOUNDNESS.md)
 
 ## v0.4.0
 
@@ -1523,9 +1852,9 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.3.18
 
+- [M-DX4: CoreTypeInfo Completeness & Type-Guided Lowering](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_18/m-dx4-coretypeinfo-completeness.md)
 - [M-DX4 Sprint Plan: CoreTypeInfo Completeness (REFINED)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_18/M-DX4-SPRINT-PLAN-REFINED.md)
 - [Sprint Plan: M-DX4 CoreTypeInfo Population Gaps](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_18/M-DX4-SPRINT-PLAN.md)
-- [M-DX4: CoreTypeInfo Completeness & Type-Guided Lowering](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_18/m-dx4-coretypeinfo-completeness.md)
 
 ## v0.3.17
 
@@ -1534,13 +1863,13 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.3.16
 
+- [Lambda Expressions Example Refactor](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_16/lambda-expressions-example-refactor.md)
+- [List Concatenation Operator Fix](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_16/list-concatenation-operator-fix.md)
 - [M-DX2: Operator Development Experience Improvements - COMPLETE ✅](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_16/M-DX2-COMPLETE.md)
 - [M-DX2 Milestone 1: Type-Guided Lowering - COMPLETE ✅](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_16/M-DX2-M1-COMPLETE.md)
 - [M-DX2 Milestone 2: Core IR Helpers - COMPLETE ✅](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_16/M-DX2-M2-COMPLETE.md)
 - [M-DX2 Milestone 3: Debug CLI - COMPLETE ✅](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_16/M-DX2-M3-COMPLETE.md)
 - [M-DX2 Milestone 4: Better Runtime Errors - COMPLETE ✅](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_16/M-DX2-M4-COMPLETE.md)
-- [Lambda Expressions Example Refactor](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_16/lambda-expressions-example-refactor.md)
-- [List Concatenation Operator Fix](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_16/list-concatenation-operator-fix.md)
 - [M-EVAL Round-Robin: Better Parallel Distribution Across Model Providers](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_16/m-eval-round-robin.md)
 
 ## v0.3.15
@@ -1549,22 +1878,22 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.3.14
 
-- [🛡️ Bulletproof Regression Guard System - COMPLETE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_14/BULLETPROOF_SUMMARY.md)
-- [M-LANG: JSON Decode Implementation (v0.3.14)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_14/M-LANG-JSON-DECODE.md)
-- [Agent Inbox - Quick Reference](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_14/QUICK_REFERENCE.md)
 - [Agent Inbox Message Acknowledgment System](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_14/agent-inbox-acknowledgment.md)
 - [SessionStart Hook for Agent Inbox](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_14/agent-inbox-sessionstart-hook.md)
+- [🛡️ Bulletproof Regression Guard System - COMPLETE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_14/BULLETPROOF_SUMMARY.md)
 - [List Pattern Spread Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_14/list_pattern_spread.md)
+- [M-LANG: JSON Decode Implementation (v0.3.14)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_14/M-LANG-JSON-DECODE.md)
+- [Agent Inbox - Quick Reference](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_14/QUICK_REFERENCE.md)
 - [Tier 0 Completion Summary - v0.3.14](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_14/tier0_completion_summary.md)
 
 ## v0.3.10
 
 - [M-DASH: Eval Dashboard Reliability](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_10/M-DASH.md)
 - [M-DX1: Developer Experience Improvements](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_10/M-DX1_developer_experience.md)
-- [M-EVAL-LOOP: Self-Improving AI Feedback Loop](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_10/M-EVAL-LOOP_self_improving_feedback.md)
 - [1. Rebuild (every time)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_10/m-dx1-builtin-migration.md)
 - [M-DX1 Day 3: Polish & Migration (v0.3.10+)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_10/m-dx1-day3-polish.md)
 - [M-DX1 Future Polish (v0.3.15+)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_10/m-dx1-future-polish.md)
+- [M-EVAL-LOOP: Self-Improving AI Feedback Loop](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_10/M-EVAL-LOOP_self_improving_feedback.md)
 - [M-LANG: Implement `show()` Builtin Function](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_10/m-lang-show-function.md)
 
 ## v0.3.9
@@ -1574,10 +1903,10 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.3.6
 
+- [Prompt suggested:](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_6/ai_usability_improvements_v0_3_6.md)
 - [Design Doc Deduplication: Implementation Summary](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_6/DEDUP_IMPLEMENTATION.md)
 - [Enhancement: Design Doc Deduplication & Merging](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_6/ENHANCEMENT_dedup_design_docs.md)
 - [AI Eval → Design Doc Generation: Implementation Summary](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_6/IMPLEMENTATION_SUMMARY.md)
-- [Prompt suggested:](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_6/ai_usability_improvements_v0_3_6.md)
 
 ## v0.3.5
 
@@ -1592,53 +1921,53 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.3.0
 
+- [M-EVAL: AI Usability Benchmarking Harness](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_0/m_eval_ai_benchmarking.md)
+- [M-EVAL-CAPS: Capability Specification in Benchmark YAML](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_0/m-eval-caps-capability-spec.md)
 - [M-R4: Recursion Support](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_0/M-R4_recursion.md)
 - [M-R5: Records & Row Polymorphism](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_0/M-R5_records.md)
 - [M-R7: Type System Fixes (Integral & Float Comparison)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_0/M-R7_type_fixes.md)
 - [M-R8: Block Expressions](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_0/M-R8_block_expressions.md)
-- [M-EVAL-CAPS: Capability Specification in Benchmark YAML](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_0/m-eval-caps-capability-spec.md)
-- [M-EVAL: AI Usability Benchmarking Harness](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_0/m_eval_ai_benchmarking.md)
 - [v0.3.0 Implementation Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3_0/v0_3_0_implementation_plan.md)
 
 ## v0.3
 
+- [v0.3.11 Critical Regression Fix Summary](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3/202510_regression_fix.md)
 - [AILANG v0.3.3: Float Equality OpLowering Fix](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3/20251010_float_equality_oplowering_fix.md)
 - [Add `letrec` Syntax for Recursive Lambdas](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3/20251013_letrec_surface_syntax.md)
-- [AILANG v0.3.4+ Strategic Direction - Implementation Audit](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3/20251013_next_steps_audit.md)
 - [Audit Report: 20251013_next_steps_audit.md Status](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3/20251013_next_steps_audit_COMPLETED.md)
+- [AILANG v0.3.4+ Strategic Direction - Implementation Audit](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3/20251013_next_steps_audit.md)
 - [Numeric Coercion for Mixed-Type Arithmetic](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3/20251013_numeric_coercion.md)
-- [v0.3.11 Critical Regression Fix Summary](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3/202510_regression_fix.md)
+- [Dashboard Workflow Improvements (v0.3.12)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3/dashboard-workflow-improvements.md)
 - [Float Equality Bug - Investigation & Resolution Report](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3/FLOAT_EQUALITY_INVESTIGATION_2025-10-10.md)
 - [M-R5b: Record Extension & Update Syntax](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3/M-R5b_record_extension.md)
 - [M-R6: Clock & Net Effects](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3/M-R6_clock_net_effects.md)
 - [M-REPL0: REPL Basic Stabilization](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3/M-REPL0_basic_stabilization.md)
-- [Dashboard Workflow Improvements (v0.3.12)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3/dashboard-workflow-improvements.md)
 - [PYTHON: Runtime Errors [RESOLVED]](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_3/python_runtime_errors_RESOLVED.md)
 
 ## v0.2.0
 
+- [AILANG v4.0: The AI-Enhanced Design](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/ai_enhanced_design.md)
+- [emits main.airun (signed), main.sbom.json, main.ledger.min.json](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/gpt-5-feedback.md)
+- [M-R1: Module Execution Runtime (v0.2.0)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/m_r1_module_execution.md)
+- [M-R2: Minimal Effect Runtime](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/m_r2_effect_system.md)
+- [M-R3: Pattern Matching Polish](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/m_r3_pattern_matching_20251002.md)
+- [M-R3: Pattern Matching Polish](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/m_r3_pattern_matching.md)
 - [M-P1: Parser Baseline - COMPLETED ✅](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/M-P1.md)
 - [M-P2 Implementation Progress Report](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/M-P2-progress.md)
 - [M-P2: ADT Syntax + Tuples - 5-Day Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/M-P2.md)
 - [M-P3: Pattern Matching Foundation (Phase 3.0)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/M-P3.md)
 - [M-P4: Effect System (Type-Level Only) - 4 Days](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/M-P4.md)
 - [M-P5: Pattern Matching in Function Bodies - Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/M-P5_PATTERN_MATCHING_FIX.md)
+- [M-S1 Current Status - Stdlib Implementation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/M-S1_CURRENT_STATUS.md)
+- [M-S1: Stdlib Implementation Status](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/M-S1_STDLIB_STATUS.md)
 - [M-S1B: Fix Export System & Builtin Visibility](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/M-S1-B.md)
 - [M-S1 Polish: Ship v0.1.0 in 72 Hours](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/M-S1-polish.md)
 - [M-S1: Stdlib Implementation Sprint Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/M-S1.md)
-- [M-S1 Current Status - Stdlib Implementation](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/M-S1_CURRENT_STATUS.md)
-- [M-S1: Stdlib Implementation Status](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/M-S1_STDLIB_STATUS.md)
-- [Parser Next Steps: Pattern Matching in Function Bodies](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/PARSER_NEXT_STEPS.md)
-- [AILANG v4.0: The AI-Enhanced Design](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/ai_enhanced_design.md)
-- [emits main.airun (signed), main.sbom.json, main.ledger.min.json](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/gpt-5-feedback.md)
-- [M-R1: Module Execution Runtime (v0.2.0)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/m_r1_module_execution.md)
-- [M-R2: Minimal Effect Runtime](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/m_r2_effect_system.md)
-- [M-R3: Pattern Matching Polish](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/m_r3_pattern_matching.md)
-- [M-R3: Pattern Matching Polish](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/m_r3_pattern_matching_20251002.md)
 - [milestonea2](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/milestonea2.md)
+- [Parser Next Steps: Pattern Matching in Function Bodies](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/PARSER_NEXT_STEPS.md)
 - [self improvement goal](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/self-improvement-goal.md)
-- [Sprint Plan: M-R1 Phase 5 - Function Invocation & stdlib Support](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/sprint_2025w40_m_r1_phase5.md)
 - [Sprint Plan: M-R1 Phase 5 - Function Invocation & stdlib Support (REFINED)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/sprint_2025w40_m_r1_phase5_refined.md)
+- [Sprint Plan: M-R1 Phase 5 - Function Invocation & stdlib Support](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/sprint_2025w40_m_r1_phase5.md)
 - [AILANG v0.1.0 MVP Roadmap](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/v0_1_0_mvp_roadmap.md)
 - [AILANG v0.2.0 Implementation Plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/v0_2_0_implementation_plan.md)
 - [when to switch from go](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_2_0/when-to-switch-from-go.md)
@@ -1653,11 +1982,11 @@ This page is automatically generated from the [design_docs/implemented](https://
 
 ## v0.0.3
 
-- [V0 0 3 IMPLEMENTATION REPORT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_0_3/V0_0_3_IMPLEMENTATION_REPORT.md)
 - [gpt 5 appendix](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_0_3/gpt-5-appendix.md)
 - [gpt5 reference code](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_0_3/gpt5-reference-code.md)
 - [AILANG: The AI-First Programming Language](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_0_3/initial_design.md)
+- [V0 0 3 IMPLEMENTATION REPORT](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_0_3/V0_0_3_IMPLEMENTATION_REPORT.md)
 
 ---
 
-*Generated at build time. 1191 design documents across 153 versions.*
+*Generated at build time. 1436 design documents across 181 versions.*

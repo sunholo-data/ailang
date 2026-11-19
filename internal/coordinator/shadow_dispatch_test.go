@@ -45,7 +45,7 @@ func primaryParams() DispatchParams {
 		Model: "openrouter/z-ai/glm-5.3-flash", Directive: "fix the parser", MaxCostUSD: 2,
 		PushBranch: "dev", AutoMerge: true, AutoMergeCode: true, AutoMergeRequiredChecks: []string{"ci"},
 		AutoMergeApproverSecret: "sec", AutoMergeApproverIdentity: "bot", PRLabels: []string{"needs-approval"},
-		MergeStarts: []string{"next"}, AuthMode: "apikey", APIKey: "user-key",
+		MergeStarts: []string{"next"}, AuthMode: "apikey",
 		ToolPolicy: "ailang_only", PolicyTOML: "[policy]", Inputs: []TaskInput{{Repo: "a/b", Ref: "main", Path: "x"}},
 	}
 }
@@ -91,8 +91,8 @@ func TestDispatchShadowEligible(t *testing.T) {
 		got.AutoMergeApproverSecret != "" || got.AutoMergeApproverIdentity != "" || got.PRLabels != nil || got.MergeStarts != nil {
 		t.Errorf("shadow kept a push/PR field: %+v", got)
 	}
-	if got.APIKey != "" || got.AuthMode != "" {
-		t.Errorf("shadow kept the user's key: auth=%q key set=%v", got.AuthMode, got.APIKey != "")
+	if got.AuthMode != "" {
+		t.Errorf("shadow kept the primary's auth mode %q, want the shadow agent's own", got.AuthMode)
 	}
 	if got.Directive != pp.Directive || got.ToolPolicy != pp.ToolPolicy || got.PolicyTOML != pp.PolicyTOML {
 		t.Errorf("shadow must run the same directive under the same policy: %+v", got)
@@ -210,9 +210,10 @@ func TestOrphanedShadowIsFailedNotDispatched(t *testing.T) {
 // The sampling decision is a pure function of the task ID: stable, and close to
 // the configured rate over many IDs.
 func TestShadowSamplingStableAndCalibrated(t *testing.T) {
+	first := shadowSampleFraction("task-abc123")
 	for i := 0; i < 20; i++ {
-		if shadowSampleFraction("task-abc123") != shadowSampleFraction("task-abc123") {
-			t.Fatal("sampling fraction is not stable")
+		if got := shadowSampleFraction("task-abc123"); got != first {
+			t.Fatalf("sampling fraction is not stable: %v then %v", first, got)
 		}
 	}
 	hits := 0

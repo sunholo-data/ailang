@@ -1,3 +1,5 @@
+> **Superseded in part:** the Go emitter (`ailang compile --emit-go`, `internal/gen/golang`) was removed in #2389; anything below that plans for or depends on it no longer applies.
+
 # Sprint Plan: M-STD-JSONSCHEMA
 
 Approved design: [m-std-jsonschema.md](m-std-jsonschema.md). Planning handoff: task-7802df55.

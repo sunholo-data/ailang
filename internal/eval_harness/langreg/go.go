@@ -20,10 +20,6 @@ func (g *goLang) FileExt() string     { return ".go" }
 
 func (g *goLang) SolutionFilename() string { return "solution.go" }
 
-func (g *goLang) PromptTemplatePath() string {
-	return ""
-}
-
 func (g *goLang) TaskTemplatePath() string {
 	return "internal/eval_harness/templates/agent_task_go.txt"
 }

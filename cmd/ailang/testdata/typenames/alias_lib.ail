@@ -1,0 +1,7 @@
+-- Primitive aliases exported for alias_ops.ail (#2211, with #2285's alias
+-- expansion before class constraints).
+module cmd/ailang/testdata/typenames/alias_lib
+
+export type amount = int
+
+export type Ratio = float

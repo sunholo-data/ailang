@@ -63,6 +63,19 @@ func buildPiArgsWithSession(model string, task *executor.Task, directive, sessio
 		args = append(args, "--no-context-files")
 	}
 
+	// The lean lane: a short fixed system prompt and no ambient discovery. The SAME
+	// text is the system turn the fine-tune is trained on (tools/finetune), so it is
+	// one constant, never assembled per run.
+	if task.MinimalHarnessContext {
+		args = append(args, "--system-prompt", LeanSystemPrompt, "--no-skills", "--no-prompt-templates")
+		if !task.IsolateFromAmbientContext {
+			args = append(args, "--no-context-files")
+		}
+		if !task.IsolateFromProjectExtensions {
+			args = append(args, "--no-extensions")
+		}
+	}
+
 	// Both flags or neither — see isolationArgs.
 	args = append(args, isolationArgs(task)...)
 

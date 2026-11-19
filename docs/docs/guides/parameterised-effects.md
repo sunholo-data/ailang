@@ -14,7 +14,7 @@ runtime is unchanged — Phase 1 is the language-feature scaffolding, not
 the dispatch refactor. Mode-aware runtime dispatch, capability scoping
 (`scope=...`), and the `Clock` / `Net` / `FS` / `AI` ports are tracked
 in [the parent M-EFFECT-REFINEMENT design
-doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md)
+doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-refinement.md)
 and ship in follow-up sprints.
 
 The point of doing the language-level work first is **back-compat
@@ -29,20 +29,20 @@ unifier treats the bare and explicit forms as equal. 332/332 example
 ```ailang
 module examples/modal_rand
 
-import std/rand (rand_int)
+import std/rand (randInt)
 import std/io (println)
 
 -- Bare !{Rand} — desugars to !{Rand[mode=os]} via the default-mode table.
-export func roll_d6() -> int ! {Rand} = rand_int(1, 6)
+export func roll_d6() -> int ! {Rand} = randInt(1, 6)
 
 -- Explicit !{Rand[mode=os]} — same effect signature as bare !{Rand}.
-export func roll_d20() -> int ! {Rand[mode=os]} = rand_int(1, 20)
+export func roll_d20() -> int ! {Rand[mode=os]} = randInt(1, 20)
 
 export func seeded_roll() -> int ! {Rand[mode=seeded]} =
-  rand_int(1, 100)
+  randInt(1, 100)
 
 export func crypto_roll() -> int ! {Rand[mode=crypto]} =
-  rand_int(1, 100)
+  randInt(1, 100)
 
 export func main() -> () ! {Rand, IO} = {
   let r1 = roll_d6(()) in println(concat_String("roll_d6 (bare Rand): ", show(show(r1))))
@@ -198,7 +198,7 @@ Only `Rand` (`mode ∈ {os, seeded, crypto}`), `AI`
 (`scope ∈ {public}`, v0.52.0) carry a parameter schema today; every other
 effect accepts its bare form only, and any explicit parameter is a hard
 error. Adding modes to `Clock`, `FS` and Net record/replay is tracked in
-[m-effect-clock-net-fs-modes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-clock-net-fs-modes.md).
+[m-effect-clock-net-fs-modes](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-clock-net-fs-modes.md).
 
 The closed set is deliberate:
 
@@ -212,19 +212,19 @@ The closed set is deliberate:
    change, gated by review and CI. New modes cannot land silently in
    third-party libraries.
 
-Open / user-extensible mode sets are tracked as a v1.0+ research
+Open / user-extensible mode sets are tracked as a post-1.0 research
 question in [the parent design
-doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md).
+doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-refinement.md).
 
 ## Trace and replay
 
-**Phase 3 (v1.0.0, M-EFFECT-REPLAY-CONTRACTS) makes the Rand modes
+**Phase 3 (v0.30.0, M-EFFECT-REPLAY-CONTRACTS) makes the Rand modes
 differ at runtime.** The three modes now dispatch to three different
 sources:
 
 | Mode | Runtime source | Replay contract |
 |------|----------------|-----------------|
-| `os` (default) | global OS-entropy PRNG, reseedable via `rand_seed` | re-sampleable |
+| `os` (default) | global OS-entropy PRNG, reseedable via `randSeed` | re-sampleable |
 | `seeded` | dedicated deterministic PRNG pinned by `AILANG_SEED` | deterministic |
 | `crypto` | `crypto/rand` CSPRNG draws | opaque |
 
@@ -238,9 +238,9 @@ re-sampleable, opaque}`, so replay tooling can dispatch pin / redraw /
 substitute on the contract rather than the raw effect token.
 
 **Seeding contract.** The `seeded` source is seeded ONLY by the
-dedicated explicit path (`AILANG_SEED`), never by `rand_seed`.
-`rand_seed` keeps its existing contract: it reseeds the **os** source
-(so bare-`!{Rand}` programs that call `rand_seed` for reproducible
+dedicated explicit path (`AILANG_SEED`), never by `randSeed`.
+`randSeed` keeps its existing contract: it reseeds the **os** source
+(so bare-`!{Rand}` programs that call `randSeed` for reproducible
 tests are byte-identical to before). A `seeded`-mode draw with no
 `AILANG_SEED` provided is a loud typed error (`RAND_SEEDED_NO_SEED`),
 never a silent random fallback. `crypto` entropy failure panics loudly.
@@ -292,7 +292,7 @@ all live in the parent doc:
   and now subsumes the runtime `--allow-routing` gate from
   M-AI-OPENROUTER (v0.16.0) as a type-level property — see [Modal AI
   in the parent
-  doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md#example-4-modal-ai).
+  doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-refinement.md#example-4-modal-ai).
   Clock, Net, and FS ports remain pending.
 - **Phase 6 — M-ENTROPY integration.** Envelope-level mode validation
   composes with the language-level rules.
@@ -309,7 +309,7 @@ template when writing parameterised-effect code.
 
 ## See also
 
-- [M-EFFECT-REFINEMENT (parent design, 8 phases)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-effect-refinement.md)
+- [M-EFFECT-REFINEMENT (parent design, 8 phases)](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-effect-refinement.md)
   — the canonical home for the full taxonomy and the deferred phases.
 - [M-EFFECT-REFINEMENT Phase 1 design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_15_x/m-effect-refinement-phase1.md)
   — the design behind v0.15.0's deliverable.

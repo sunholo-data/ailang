@@ -20,10 +20,6 @@ func (a *averLang) FileExt() string     { return ".av" }
 
 func (a *averLang) SolutionFilename() string { return "solution.av" }
 
-func (a *averLang) PromptTemplatePath() string {
-	return ""
-}
-
 func (a *averLang) TaskTemplatePath() string {
 	return "internal/eval_harness/templates/agent_task_aver.txt"
 }

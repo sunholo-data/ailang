@@ -127,10 +127,10 @@ func TestIFCDeclared_McpOauthIdioms(t *testing.T) {
 	src := `module test/mcp
 pure func asSecret(raw: string) -> string<secret> = raw
 pure func body(t: string<secret>) -> string = "{\"access_token\":\"${t}\"}"
-pure func digestOf(s: string<secret>) -> string ! {Declassify} = "digest"
+func digestOf(s: string<secret>) -> string ! {Declassify} = "digest"
 pure func audit(msg: string{not secret}) -> string = msg
-export pure func okDigest(raw: string) -> string = audit(digestOf(asSecret(raw)))
-export pure func okInline(raw: string) -> string { let r = { d: digestOf(asSecret(raw)) }; audit(r.d) }
+export func okDigest(raw: string) -> string ! {Declassify} = audit(digestOf(asSecret(raw)))
+export func okInline(raw: string) -> string ! {Declassify} { let r = { d: digestOf(asSecret(raw)) }; audit(r.d) }
 `
 	if errs := types.CheckModuleIFC(parseIFC(t, src)); len(errs) != 0 {
 		t.Fatalf("clean mcp_oauth idioms must check: %v", errs)

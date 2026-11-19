@@ -1,7 +1,7 @@
 module examples/runnable/yaml_roundtrip
 
 import std/yaml (decode, encode)
-import std/json (Json, JObject, JNumber)
+import std/json (Json, JObject, JInt)
 import std/list (map)
 import std/result (Ok, Err)
 import std/io (print)
@@ -11,7 +11,7 @@ pure func updateYear(j: Json) -> Json {
   match j {
     JObject(fields) => JObject(map(\field.
       if field.key == "year"
-      then {key: field.key, value: JNumber(2027.0)}
+      then {key: field.key, value: JInt(2027)}
       else field, fields)),
     _ => j
   }

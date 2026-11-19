@@ -15,7 +15,7 @@ All freeze items in those slices are approved by that instruction. The old
 coverage status split and D-29/D-30 remain parked; resampling is deferred.
 Design paths: m-std-audio-wav-read.md,
 m-std-string-format-fixed.md,
-m-std-audio-wav-write-checked.md, ../../planned/m-contract-verification-coverage.md (audio addendum only).
+m-std-audio-wav-write-checked.md, ../../planned/v1_1_0/m-contract-verification-coverage.md (audio addendum only).
 
 ## Registry audit and velocity
 

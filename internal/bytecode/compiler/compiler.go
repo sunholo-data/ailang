@@ -46,7 +46,6 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 	// Record types record their alphabetically-sorted field list.
 	recordTypes := make(map[string]recordTypeInfo)
 	adtTypes := make(map[string]adtTypeInfo)
-	var adtOrder []string          // ADT names in declaration order (see inferADTFromCases)
 	aliases := map[string]string{} // alias name → named target type
 	for _, td := range prog.TypeDecls {
 		switch k := td.Kind.(type) {
@@ -58,9 +57,6 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 			for i, v := range k.Variants {
 				info.tagOrdinal[v.Tag] = i
 				info.tagFields[v.Tag] = len(v.Fields)
-			}
-			if _, seen := adtTypes[td.Name]; !seen {
-				adtOrder = append(adtOrder, td.Name)
 			}
 			adtTypes[td.Name] = info
 		case stmt.RecordDecl:
@@ -96,6 +92,8 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 		proto := &bytecode.FuncPrototype{
 			Name:      canonical,
 			NumParams: uint8(len(fd.Params)),
+			File:      fd.File,
+			Line:      fd.Line,
 		}
 		idx := img.AddPrototype(proto)
 		funcIdx[canonical] = idx
@@ -131,7 +129,6 @@ func Compile(prog *stmt.Program) (*bytecode.BytecodeImage, error) {
 		fc.currentModule = fd.Module
 		fc.recordTypes = recordTypes
 		fc.adtTypes = adtTypes
-		fc.adtOrder = adtOrder
 		fc.decls = decls
 		fc.edges = map[int]bool{}
 		compileErr := fc.compile(fd)
@@ -240,7 +237,6 @@ type funcCompiler struct {
 	locals      *scopeStack // named local → register
 	recordTypes map[string]recordTypeInfo
 	adtTypes    map[string]adtTypeInfo
-	adtOrder    []string // adtTypes keys in declaration order
 
 	// currentModule is the module name of the function currently being
 	// compiled. Used to canonicalize bare VarRef lookups in funcIdx so that
@@ -278,7 +274,6 @@ func (fc *funcCompiler) child(proto *bytecode.FuncPrototype) *funcCompiler {
 	inner := newFuncCompiler(fc.img, proto, fc.funcIdx)
 	inner.recordTypes = fc.recordTypes
 	inner.adtTypes = fc.adtTypes
-	inner.adtOrder = fc.adtOrder
 	inner.currentModule = fc.currentModule
 	inner.currentLine = fc.currentLine
 	inner.decls = fc.decls

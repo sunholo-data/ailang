@@ -109,7 +109,7 @@ Search the repo, eval harness configs, and mission-control role env values for A
 
 ## Related Documents
 
-- [m-model-registry-single-source.md](v0_35_0/m-model-registry-single-source.md) — models come from the registry, defaults removed; this ruling removes the last executor-vocabulary prefix from the guesser.
+- [m-model-registry-single-source.md](../implemented/v0_35_0/m-model-registry-single-source.md) — models come from the registry, defaults removed; this ruling removes the last executor-vocabulary prefix from the guesser.
 - [m-exec-expand-codex-opencode.md](../implemented/v0_15_0/m-exec-expand-codex-opencode.md) — codex executor lane; `auth_bootstrap.go` / commit 7b444096 is the auth-materialization pattern.
 - CLAUDE.md §2 (no silent fallbacks) — the principle this ruling applies.
 - Issue #903 — source report.

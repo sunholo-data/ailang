@@ -522,7 +522,7 @@ only inside `ADTTagEq` compilation via the ADT registry — never by special-cas
   so its fix *requires* this doc's node at that site. Its depth-1 binding contract
   (Var/Wildcard OK, Lit/nested panic loudly) is adopted verbatim here for list-element
   constructor sub-patterns, so the two docs land a consistent interim boundary.
-- [m-bytecode-pattern-arity-fix.md](../v1_0_0/m-bytecode-pattern-arity-fix.md) — landed
+- [m-bytecode-pattern-arity-fix.md](../v0_33_1/m-bytecode-pattern-arity-fix.md) — landed
   sibling (`len == n`); its `Tail == nil ⟺ OpEq` invariant is untouched.
 
 **Distinctness note** (per the duplicate gate): the neural/simhash doc search found no

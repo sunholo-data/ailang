@@ -361,7 +361,9 @@ type Response struct {
 	// TotalTokens is InputTokens + OutputTokens
 	TotalTokens int
 
-	// ReasonTokens is the number of reasoning tokens (for o1/codex models)
+	// ReasonTokens is the number of reasoning/thinking tokens. It is DISJOINT
+	// from OutputTokens: providers that report a merged figure (OpenAI, OpenRouter,
+	// Anthropic) subtract it out, and cost callers bill OutputTokens+ReasonTokens.
 	ReasonTokens int
 
 	// CachedTokens is the number of cached input tokens (provider-specific).

@@ -44,7 +44,8 @@
       "name": "hammingDistance",
       "type": "(int,int)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -76,7 +77,8 @@
       "name": "simhash",
       "type": "(string)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     }
   ],
   "schema": "ailang.iface/v2"

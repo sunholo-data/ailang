@@ -63,10 +63,15 @@ export func main() -> () ! {IO, FS} = println(show(caller()))
 							args := []string{"run", "--quiet", "--caps", "IO,FS", "--entry", "main"}
 							if bytecode {
 								args = append(args, "--bytecode", "--verbose")
-								// std/fs.readFile is evaluator-only today. The normal
-								// bytecode entry supports that bridge; strict mode
-								// remains required for rejection and every other case.
-								if !(declared && effect == "FS" && field == "authority") {
+								// std/fs.readFile is evaluator-only today, and main
+								// reaches it through loud whichever field holds loud
+								// (the appraisal arm references it without calling
+								// it). Strict mode rejects any reachable evaluator-
+								// only function before dispatch (BC001), so the
+								// declared FS rows use the bridged entry; strict
+								// mode remains required for rejection and every
+								// other case.
+								if !(declared && effect == "FS") {
 									args = append(args, "--strict-bytecode")
 								}
 							}

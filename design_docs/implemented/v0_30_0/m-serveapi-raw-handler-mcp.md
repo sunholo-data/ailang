@@ -479,7 +479,7 @@ changelog, and `make ci`.
 - [design_docs/implemented/v0_10_0/m-serve-api-agent-enhancements-sprint-plan.md](design_docs/implemented/v0_10_0/m-serve-api-agent-enhancements-sprint-plan.md) (0.48) — original `@route`/`@raw` serve-api surface.
 
 **Planned (check for overlap):**
-- [design_docs/planned/v0_29_0/m-serve-api-live-tool-registry.md](design_docs/planned/v0_29_0/m-serve-api-live-tool-registry.md) (0.49) — dynamic tool registry. Distinct: that governs *which modules* register; this governs *whether an exposed export* becomes an MCP tool + how `@raw` binds. Complementary, non-overlapping.
+- [design_docs/planned/v1_1_0/m-serve-api-live-tool-registry.md](design_docs/planned/v1_1_0/m-serve-api-live-tool-registry.md) (0.49) — dynamic tool registry. Distinct: that governs *which modules* register; this governs *whether an exposed export* becomes an MCP tool + how `@raw` binds. Complementary, non-overlapping.
 
 ## References
 

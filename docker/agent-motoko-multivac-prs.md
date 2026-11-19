@@ -167,7 +167,7 @@ resource "google_cloud_run_v2_job" "agent_executor_motoko" {
 }
 ```
 
-If you also need the `-apikey` variant pattern (per other executors' user-API-key job), mirror the `agent_executor_pi_apikey` block with the same secret bindings.
+There is no `-apikey` variant: the per-request user-API-key jobs were retired 2026-11-10.
 
 ### Verification
 

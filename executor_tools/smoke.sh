@@ -9,7 +9,8 @@
 #
 # Checks: tools/list carries the five executor tools plus docs + submit_feedback;
 # ailang_run prints; an FS-using program is refused by policy; an infinite loop
-# is killed at the policy timeout; ailang_check reports a type error; ailang_eval
+# is killed at the policy timeout; ailang_check reports a type error and does
+# not name the per-request directory; ailang_eval
 # evaluates. Never calls submit_feedback (it writes to the message store).
 set -euo pipefail
 URL="${1:?usage: smoke.sh <mcp-url>}"
@@ -65,6 +66,11 @@ print(f"     (loop returned after {time.time() - t0:.1f}s)")
 bad = 'module main\nexport func f(x: int) -> string = x\n'
 r = call("ailang_check", {"code": bad})
 check("ailang_check reports a type error", not r.get("ok") and '"passed": false' in r.get("stdout", ""), r)
+# The per-request directory (<work>/<uuid>/) is an internal identifier: it must
+# not appear in a tool result (OpenAI data minimisation; the logs strip it too).
+import re
+leak = re.search(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/", json.dumps(r))
+check("ailang_check result does not name the request directory", leak is None, r)
 
 r = call("ailang_eval", {"expression": "1 + 2 * 3"})
 check("ailang_eval evaluates", r.get("stdout") == "7\n", r)

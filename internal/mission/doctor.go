@@ -292,6 +292,7 @@ func DoctorWith(reg *Registry, p Paths, lc LaunchCtl) *Report {
 		}
 		rep.Rows = append(rep.Rows, row)
 	}
+	rep.Findings = append(CheckRulings(reg.Missions), rep.Findings...) // prepended: lane-check shows the LAST line (P8b)
 	sort.Slice(rep.Rows, func(i, j int) bool { return rep.Rows[i].Name < rep.Rows[j].Name })
 	return rep
 }

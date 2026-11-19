@@ -15,13 +15,19 @@ func (latentDataDepthExceeded) Error() string {
 	return fmt.Sprintf("latent callback type nesting exceeds limit %d", maxDataArrowDepth)
 }
 
-// recoverLatentDataDepth converts only this bounded traversal failure to a
-// compile error. Compiler invariant panics retain their original behavior.
+// recoverLatentDataDepth converts only the bounded traversal failures to a
+// compile error: this one and the type-size backstop (TC_TYPE_SIZE_001,
+// type_size.go). Compiler invariant panics retain their original behavior.
 func recoverLatentDataDepth(err *error) {
 	if failure := recover(); failure != nil {
-		if limit, ok := failure.(latentDataDepthExceeded); ok {
+		switch limit := failure.(type) {
+		case latentDataDepthExceeded:
 			*err = limit
-		} else {
+		case typeTooLarge:
+			*err = &TypeCheckError{Kind: TypeTooLargeError, Message: limit.Error()}
+		case typeWorkExceeded:
+			*err = &TypeCheckError{Kind: TypeTooLargeError, Message: limit.Error()}
+		default:
 			panic(failure)
 		}
 	}
@@ -29,12 +35,16 @@ func recoverLatentDataDepth(err *error) {
 
 // InferWithConstraints infers a Core expression, refusing incomplete latent rows.
 func (tc *CoreTypeChecker) InferWithConstraints(expr core.CoreExpr, env *TypeEnv) (node typedast.TypedNode, updated *TypeEnv, typ Type, constraints []Constraint, err error) {
+	defer func() { err = withWrittenNames(err) }() // #2273: never show `a@{f}`
 	defer recoverLatentDataDepth(&err)
+	tc.declNodes = make([]uint64, 0, 256) // markDefaulted reads this declaration's nodes
+	tc.declForcedUses = nil               // #2378: numeric_diagnostics.go
 	return tc.inferWithConstraints(expr, env)
 }
 
 // CheckCoreExpr checks a Core expression with the same latent traversal boundary.
 func (tc *CoreTypeChecker) CheckCoreExpr(expr core.CoreExpr, env *TypeEnv) (node typedast.TypedNode, updated *TypeEnv, err error) {
+	defer func() { err = withWrittenNames(err) }() // #2273: never show `a@{f}`
 	defer recoverLatentDataDepth(&err)
 	return tc.checkCoreExpr(expr, env)
 }

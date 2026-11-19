@@ -56,7 +56,8 @@
       "name": "accumulate",
       "type": "(Array[a],list[(int,a)],(a,a)-\u003ea)-\u003eArray[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -100,7 +101,8 @@
       "name": "add",
       "type": "(Array[float],Array[float])-\u003eArray[float]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -144,7 +146,8 @@
       "name": "append",
       "type": "(Array[a],a)-\u003eArray[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -176,7 +179,8 @@
       "name": "argmax",
       "type": "(Array[float])-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -232,7 +236,8 @@
       "name": "axpy",
       "type": "(float,Array[float],Array[float])-\u003eArray[float]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -264,7 +269,8 @@
       "name": "decodeF32LE",
       "type": "(bytes)-\u003eResult[Array[float],string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -296,7 +302,8 @@
       "name": "decodeF64LE",
       "type": "(bytes)-\u003eResult[Array[float],string]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -340,7 +347,8 @@
       "name": "dot",
       "type": "(Array[float],Array[float])-\u003efloat",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -372,7 +380,8 @@
       "name": "empty",
       "type": "(())-\u003eArray[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -404,7 +413,8 @@
       "name": "encodeF32LE",
       "type": "(Array[float])-\u003ebytes",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -436,7 +446,8 @@
       "name": "encodeF64LE",
       "type": "(Array[float])-\u003ebytes",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -468,7 +479,8 @@
       "name": "fromList",
       "type": "(list[a])-\u003eArray[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -512,7 +524,8 @@
       "name": "get",
       "type": "(Array[a],int)-\u003ea",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -556,7 +569,8 @@
       "name": "getOpt",
       "type": "(Array[a],int)-\u003eOption[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -588,7 +602,8 @@
       "name": "length",
       "type": "(Array[a])-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -632,7 +647,8 @@
       "name": "make",
       "type": "(int,a)-\u003eArray[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -676,7 +692,8 @@
       "name": "mul",
       "type": "(Array[float],Array[float])-\u003eArray[float]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -720,7 +737,8 @@
       "name": "scale",
       "type": "(float,Array[float])-\u003eArray[float]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -776,7 +794,8 @@
       "name": "scatterAdd",
       "type": "(Array[float],list[int],list[float])-\u003eArray[float]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -832,7 +851,8 @@
       "name": "set",
       "type": "(Array[a],int,a)-\u003eArray[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -876,7 +896,8 @@
       "name": "sub",
       "type": "(Array[float],Array[float])-\u003eArray[float]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -908,7 +929,8 @@
       "name": "sum",
       "type": "(Array[float])-\u003efloat",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "experimental"
     },
     {
       "ifc": {
@@ -940,7 +962,8 @@
       "name": "toList",
       "type": "(Array[a])-\u003elist[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -984,7 +1007,10 @@
       "name": "unsafeGet",
       "type": "(Array[a],int)-\u003ea",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable",
+      "replaced_by": "get",
+      "deprecation_note": "identical behaviour; if get collides with an imported json.get, import it as `get as arrayGet`"
     },
     {
       "ifc": {
@@ -1028,7 +1054,8 @@
       "name": "updateMany",
       "type": "(Array[a],list[(int,a)])-\u003eArray[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     }
   ],
   "schema": "ailang.iface/v2"

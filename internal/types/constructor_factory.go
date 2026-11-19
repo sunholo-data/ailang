@@ -29,7 +29,11 @@ import (
 // Cycle-safety: field types come from the elaborator's astTypeToInternalType,
 // which produces finite trees; Substitute and collectFreeVars are both
 // cycle-safe regardless.
+//
+// typeModule is the ADT's defining module; the result type carries it as the
+// nominal identity (M-V1-NOMINAL-TYPE-IDENTITY).
 func BuildConstructorFactoryScheme(
+	typeModule string,
 	typeName string,
 	arity int,
 	typeParamCount int,
@@ -103,9 +107,9 @@ func BuildConstructorFactoryScheme(
 	// plain TCon for non-parameterized ones.
 	var resultType Type
 	if typeParamCount > 0 {
-		resultType = &TApp{Constructor: &TCon{Name: typeName}, Args: adtTypeVars}
+		resultType = &TApp{Constructor: &TCon{Name: typeName, Module: typeModule}, Args: adtTypeVars}
 	} else {
-		resultType = &TCon{Name: typeName}
+		resultType = &TCon{Name: typeName, Module: typeModule}
 	}
 
 	var factoryType Type

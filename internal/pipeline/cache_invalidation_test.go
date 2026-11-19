@@ -336,8 +336,7 @@ func newWarmHitInstrumentedDeps(depCoreReads, warmEncodes *int) cacheDependencie
 }
 
 func TestCacheArtifacts_Migration(t *testing.T) {
-
-	t.Run("v7_manifest_forces_current_publication", func(t *testing.T) {
+	t.Run("v8_manifest_forces_current_publication", func(t *testing.T) {
 		previousManifestForcesColdPublication(t)
 	})
 	t.Run("current_manifest_with_legacy_unstamped_blobs_misses", func(t *testing.T) {
@@ -346,8 +345,8 @@ func TestCacheArtifacts_Migration(t *testing.T) {
 }
 
 // previousManifestForcesColdPublication seeds a current cache, rewrites the
-// manifest to v7 (whose interfaces lacked the required IFC summaries), and asserts the
-// next run recompiles and re-publishes as a fresh current manifest and stamp (the
+// manifest to v8 (whose interfaces carried the always-true purity stub, #1443),
+// and asserts the next run recompiles and re-publishes as a fresh current manifest and stamp (the
 // migration boundary).
 func previousManifestForcesColdPublication(t *testing.T) {
 	root := t.TempDir()
@@ -361,13 +360,13 @@ func previousManifestForcesColdPublication(t *testing.T) {
 
 	manifestPath := filepath.Join(root, ".ailang", "cache", "compile", "manifest.json")
 	manifest := readCacheManifest(t, manifestPath)
-	manifest.Version = "v7"
+	manifest.Version = "v8"
 	writeCacheManifest(t, manifestPath, manifest)
 
 	var warnings bytes.Buffer
 	result, err := runModuleWithCacheDependencies(t.Context(), cfg, Source{Filename: "answer.ail"}, cacheDependencies{newStore: NewCacheStore, stderr: &warnings})
 	if err != nil || result.Interface == nil || result.Interface.Exports["main"] == nil {
-		t.Fatalf("v7 migration did not compile current source: iface=%v err=%v", result.Interface, err)
+		t.Fatalf("v8 migration did not compile current source: iface=%v err=%v", result.Interface, err)
 	}
 	migrated := readCacheManifest(t, manifestPath)
 	if migrated.Version != cacheKeyVersion {

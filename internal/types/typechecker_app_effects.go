@@ -100,8 +100,10 @@ func (tc *CoreTypeChecker) substituteApplicationRows(sub Substitution) {
 }
 
 func (tc *CoreTypeChecker) applyApplicationSubstitution(sub Substitution) {
+	tc.closeGeneric(sub) // #2378: the numeric-variant snapshot of the generic body too
 	tc.CoreTI.ApplySubstitution(sub)
 	tc.substituteApplicationRows(sub)
+	tc.substituteCtorPatternTypes(sub)
 	for id, record := range tc.applicationEffects {
 		record.finalized = true
 		tc.applicationEffects[id] = record
@@ -194,7 +196,7 @@ func (env *TypeEnv) effectRowsAbove(base *TypeEnv) map[string]bool {
 
 func (tc *CoreTypeChecker) publishApplicationWithCallee(id uint64, mask []bool, row *Row, ctx *InferenceContext, args []typedast.TypedNode) {
 	owned := ctx.env.effectRowsAbove(ctx.baseEnv)
-	implicitOwned := ctx.env.implicitRowsAbove(ctx.baseEnv, tc.effectAliasHead)
+	implicitOwned := ctx.env.implicitRowsAbove(ctx.baseEnv, tc.effectAliasHead, tc.declWork)
 	// Alias annotations remain named in the environment. Their implicit data
 	// arrows still belong to the enclosing binder, including during solver
 	// renaming: publication must re-anchor every tail we can erase.
@@ -233,7 +235,7 @@ func (tc *CoreTypeChecker) publishApplicationWithCallee(id uint64, mask []bool, 
 	}
 }
 
-func (env *TypeEnv) implicitRowsAbove(base *TypeEnv, expand func(Type) Type) map[string]bool {
+func (env *TypeEnv) implicitRowsAbove(base *TypeEnv, expand func(Type) Type, work *unifyWork) map[string]bool {
 	rows := make(map[string]bool)
 	for e := env; e != nil && e != base; e = e.parent {
 		for _, binding := range e.bindings {
@@ -245,7 +247,7 @@ func (env *TypeEnv) implicitRowsAbove(base *TypeEnv, expand func(Type) Type) map
 			// #1718: a binder that only CONTAINS the callback (Option, tuple, record)
 			// owns its tail too. Soundness: the mask charges the same data arrows
 			// at every call site (nestedLatentMask), so erase ⊆ charge.
-			for _, fn := range dataArrowsWith(typ, expand) {
+			for _, fn := range dataArrowsWith(typ, expand, work) {
 				if fn.ImplicitEffectContract && fn.EffectRow != nil && fn.EffectRow.Tail != nil {
 					rows[fn.EffectRow.Tail.Name] = true
 				}

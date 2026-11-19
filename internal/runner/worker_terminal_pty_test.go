@@ -1,14 +1,11 @@
 package runner
 
 import (
-	"context"
 	"os"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"strings"
 	"testing"
-	"time"
 )
 
 // Extend the existing actual-descriptor terminal controls with a live owned
@@ -22,18 +19,7 @@ func TestWorkerTerminalPTYLifecycle(t *testing.T) {
 	if err != nil {
 		t.Skip("python3 unavailable")
 	}
-	root, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	binary := filepath.Join(t.TempDir(), "ailang")
-	ctx, cancel := context.WithTimeout(t.Context(), 120*time.Second)
-	defer cancel()
-	build := exec.CommandContext(ctx, "go", "build", "-o", binary, "./cmd/ailang")
-	build.Dir = root
-	if out, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build: %v\n%s", err, out)
-	}
+	binary, root := ailangCLIBinary(t)
 	harness := strings.Replace(terminalPTYHarness, "with tempfile.TemporaryDirectory() as work:", `source = source.replace('import std/result', 'import std/process (spawnProcess, closeProcessStdin)\nimport std/result')
 source = source.replace('let result = withTerminal', 'let worker = spawnProcess(' + __import__('json').dumps(sys.executable) + ', ["worker.py"]); closeProcessStdin(worker); let result = withTerminal')
 with tempfile.TemporaryDirectory() as work:
@@ -75,10 +61,7 @@ with tempfile.TemporaryDirectory() as work:
 				continue
 			}
 			t.Run(backend+"/"+scenario, func(t *testing.T) {
-				childCtx, done := context.WithTimeout(t.Context(), 30*time.Second)
-				defer done()
-				command := exec.CommandContext(childCtx, python, "-c", harness, binary, root, backend, scenario, os.Args[0])
-				if out, err := command.CombinedOutput(); err != nil {
+				if out, err := runCLIProbe(t, terminalPTYBudget, nil, python, "-c", harness, binary, root, backend, scenario, os.Args[0]); err != nil {
 					t.Fatalf("worker PTY: %v\n%s", err, out)
 				}
 			})

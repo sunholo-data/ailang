@@ -254,8 +254,8 @@ D7-HTTP are recorded as open questions for a human).
 ## Related Documents
 
 - `design_docs/implemented/v0_20_0/m-serveapi-surface-drops.md` — the under-basePath fail-fast this doc's 2b stops tripping falsely
-- `design_docs/planned/v0_44_0/m-server-origin-policy.md` — the origin rule WS routes share
-- `design_docs/planned/v0_44_0/m-stdlib-root-resolution.md` — where `<embedded>/std/` paths come from
+- `design_docs/implemented/v0_45_0/m-server-origin-policy.md` — the origin rule WS routes share
+- `design_docs/implemented/v0_45_0/m-stdlib-root-resolution.md` — where `<embedded>/std/` paths come from
 
 ---
 

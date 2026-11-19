@@ -20,10 +20,6 @@ func (j *jsLang) FileExt() string     { return ".js" }
 
 func (j *jsLang) SolutionFilename() string { return "solution.js" }
 
-func (j *jsLang) PromptTemplatePath() string {
-	return ""
-}
-
 func (j *jsLang) TaskTemplatePath() string {
 	return "internal/eval_harness/templates/agent_task_javascript.txt"
 }

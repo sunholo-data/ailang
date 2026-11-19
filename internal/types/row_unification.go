@@ -235,11 +235,17 @@ func (ru *RowUnifier) canonicalizeRow(r *Row) *Row {
 	return r
 }
 
-// freshRowVar creates a fresh row variable
+// freshRowVar creates a fresh row variable.
+//
+// M-V1-TYVAR-HYGIENE: this counter is independent of the inference context's,
+// so it must not share the context's `ρN` spelling. `ρ7` from here (an effect
+// row) and `ρ7` from InferenceContext.freshRecordRow (an open record pattern, or
+// an instantiated record row) met in one substitution as one variable: "kind
+// mismatch: row variable ρ7 has kind Row Effect, but {…} has kind Row Record".
 func (ru *RowUnifier) freshRowVar(kind Kind) *RowVar {
 	ru.freshCounter++
 	return &RowVar{
-		Name: fmt.Sprintf("ρ%d", ru.freshCounter),
+		Name: fmt.Sprintf("ρu%d", ru.freshCounter),
 		Kind: kind,
 	}
 }

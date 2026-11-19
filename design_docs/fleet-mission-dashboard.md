@@ -1,21 +1,17 @@
-# Fleet mission — iteration 87, 2026-11-05
+# Fleet mission dashboard — iteration 94
 
-- Latest release: v0.57.3. Fleet work landed on dev since v0.57.1: #2122 (`26b35b081`, transcript secret detector), #2127 (`9ea8adcf4`, its byte-window fix), #2132 (`7e9e9192b`, Gate 0 reads its notices).
-- LANDED this fire: Gate 0's self-notice read now reports the driver's transcript-scan notices next to crash notices. Both public wordings are recognised. It prints only the count, hit count, fire id and URL, and exit codes are unchanged. Before this, World found its notices only by counting comments by hand. Judged PASS 92, 0 blocking. Ticket `gate0:self-notices-skip-transcript-scan-notice` resolved ~6 h after filing.
-- SEEN: 1 transcript-scan notice on #2039, for iteration 86's fire `fleet-1793845378-59113` (1 hit). That fire ran the pre-#2127 whole-file scan, so the hit is likely old history already counted under D-FLEET-42.
-- WATCH: `Build macos-latest` → `TestRuntimeNestedStopUsesRemainingDeadline` (`internal/effects`) failed on a fleet PR for the third time, each time on a shell/markdown-only diff and green on re-run. It is non-required and language-core (V1's territory; V1 is disabled).
-- PENDING ASK: **D-FLEET-42** (unchanged). Per-lane env strip at spawn (A, recommended), detection only (B, default), or strip all and re-add per recipe (C). Also: rotate the four exposed keys, and permission to redact.
-- PROPOSED, NOT MERGED (5 drafts, each waiting on your ruling):
-  - **D-FLEET-18 A guard step**, draft #2110 (`875581f46`). Judge PASS 93.
-  - **D-FLEET-36 A + D-FLEET-38 A guard step**, draft #2108. Judge PASS 92.
-  - **D-FLEET-25 shared sub-item**, draft #2082 (`399cf799b`). Judge PASS 94.
-  - **D-FLEET-21 A**, draft #2067: Gate 3b CI poll cap 1800 s → 3600 s. Judge PASS 90.
-  - **D-FLEET-26 A**, draft #2065: codex capacity error → transient. Judge PASS 94.
-- Dev: `7e9e9192b`. CI and Build and Release green, 18 check-runs, none red.
-- Roles this fire: planner and executor `codex:gpt-6.1-sol`, evaluator sonnet (Agent tool, cross-vendor). Designer not spawned.
-- NEXT: a ruling on D-FLEET-42; any new ticket; otherwise a ruling on any draft.
-- Decisions: 41 rows, 25 OPEN (D-FLEET-16 to -23, -25 to -29, -31 to -42). None new.
-- Cadence: 6h while tickets are open; 25 open. Bookkeeping thread #2039.
-- Quota: codex served this fire; metered $0.
-- Bar: clause 1 UNMEASURED (goal unmoved); clause 2 UNMET (one in-window resolution this fire, ~6 h); clause 3 MET; clause 4 prior evidence; clause 5 preserved.
-- Evidence: `fleet-mission-evidence/iteration87/`.
+Updated 2026-11-07; scheduled unattended fire. Bookkeeping: [#2039](https://github.com/sunholo-data/ailang/issues/2039).
+
+- Outcome: **idle / ADMIN**. Independent MiniMax round 2: **NONE**, idle-only, unscored; no implementation accepted or ticket resolved.
+- Queue: **25 open tickets**; ledger **42 rows / 26 OPEN**, unchanged. Nine fleet drafts remain parked.
+- Next: a new ticket or an attributable ruling; no first in-scope step without a diff was independently established.
+- D-FLEET-25: [draft #2165](https://github.com/sunholo-data/ailang/pull/2165) remains rejected by two quorums and judgment-gated. Final design approval precedes planning; execution/seed activation retain separate gates.
+- D-FLEET-43: default B, no change; do not draft the fleet idle exclusion change or record its idle fingerprint without A.
+- Other drafts: #2065, #2067, #2082, #2108, #2110, #2141 → #2143 → #2150; see their corresponding OPEN rows.
+- Goal: clause 1 UNMEASURED; clause 2 UNMET; clause 3 MET; clause 4 met by its letter; clause 5 preserved. **Goal unmoved.**
+- Cadence: every 6 h; zero-ticket fires skip before probes. All-ruling-gated fleet fires still run (D-FLEET-43).
+- Routing: all four Agent roles spawned as explicit CLI bridges; Codex gpt-6.1-sol designer/planner/executor screens, MiniMax-M3 independent judge. No actual design/plan/execution; author rotation unchanged (GLM last, Kimi next).
+- Quota posture: Anthropic unavailable; configured fallback pins worked. Known Codex CLI role tokens 639,645; controller/bridge usage not reported. Metered MiniMax **$0.87038232** of $5.
+- Review limits: round 1 unaccepted after truncated read/report-integrity findings; fresh round 2 read coverage checked. Raw reports plus factual/score errata preserved; no code quality score claimed.
+- Base: `8fa7e8ab1eddee99a84b447b8eaaa4ee12308051`, 22/22 checks green; final record CI is reported on the bookkeeping thread.
+- Full record: [entry 94](fleet-mission-log.md), [evidence](fleet-mission-evidence/iteration94/observations.md), [operative judge](fleet-mission-evidence/iteration94/idle-judge-r2.md), [complete OPEN asks](fleet-mission-evidence/iteration94/open-decisions.md).

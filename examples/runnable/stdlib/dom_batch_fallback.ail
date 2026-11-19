@@ -1,0 +1,36 @@
+-- Task: publish an agent's status panel as one all-or-nothing DOM batch
+-- (add a panel, a timeline, update one node and remove a stale one), and when
+-- no browser DOM handler is present — as under the CLI — fall back to printing
+-- the same patches as a plain-text log instead of crashing.
+-- Demonstrates std/dom applyBatchResult with the DOMPatch constructors
+-- AddPanel, AddTimeline, UpdateNode and RemoveNode.
+module examples/runnable/stdlib/dom_batch_fallback
+import std/dom (DOMPatch, AddPanel, AddTimeline, UpdateNode, RemoveNode, applyBatchResult)
+import std/result (Result, Ok, Err)
+import std/list (map, length)
+import std/string (join)
+
+pure func describe(p: DOMPatch) -> string = match p {
+  AddPanel(title, body) => "add panel \"${title}\": ${body}",
+  AddTimeline(title) => "add timeline \"${title}\"",
+  UpdateNode(id, body) => "update ${id}: ${body}",
+  RemoveNode(id) => "remove ${id}"
+}
+
+pure func statusPatches(done: int, total: int) -> [DOMPatch] =
+  [AddPanel("Indexer", "${show(done)}/${show(total)} documents embedded"), AddTimeline("Indexer events"), UpdateNode("progress-bar", "${show(done * 100 / total)}%"), RemoveNode("spinner")]
+
+-- Render into the agent's own region; the batch either fully applies or not at all.
+func publish(region: string, patches: [DOMPatch]) -> () ! {IO, DOM} = match applyBatchResult(region, patches) {
+  Ok(r) => println("rendered ${show(length(r.node_ids))} nodes, budget left ${show(r.budget_remaining)}"),
+  Err(e) => {
+    println("DOM unavailable (${e.code}); text fallback for region ${region}:")
+    println(join("\n", map(\p. "  - ${describe(p)}", patches)))
+  }
+}
+
+export func main() -> () ! {IO, DOM} {
+  publish("agent-indexer", statusPatches(30, 40))
+  -- The completion update is a second batch through the same path.
+  publish("agent-indexer", [UpdateNode("progress-bar", "100%"), AddPanel("Indexer", "done")])
+}

@@ -88,20 +88,6 @@ func Compare(baseline, new []*BenchmarkResult, baselineLabel, newLabel string) (
 	return report, nil
 }
 
-// CompareBaselines compares two baselines (with metadata)
-func CompareBaselines(baseline, new *Baseline) (*ComparisonReport, error) {
-	report, err := Compare(baseline.Results, new.Results, baseline.Version, new.Version)
-	if err != nil {
-		return nil, err
-	}
-
-	// Attach baseline metadata
-	report.Baseline = baseline
-	report.New = new
-
-	return report, nil
-}
-
 // FindRegressions returns only benchmarks that broke
 func FindRegressions(baseline, new []*BenchmarkResult) ([]*BenchmarkChange, error) {
 	report, err := Compare(baseline, new, "baseline", "new")

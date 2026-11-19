@@ -1,0 +1,38 @@
+-- Task: query an XML book catalogue in bulk — collect every title, every isbn
+-- attribute and the matching prices — and guard untrusted input with a node
+-- limit so an oversized document is rejected instead of fully built.
+-- Demonstrates std/xml parseWithLimit, findAllTexts, findAllAttrs, findAll and getAttr.
+module examples/runnable/stdlib/xml_bulk_query
+import std/xml (parseWithLimit, findAllTexts, findAllAttrs, findAll, getAttr)
+import std/list (zip, map, length)
+import std/string (join)
+
+export func main() -> () ! {IO} {
+  let catalogue = "<catalogue><book isbn=\"978-0262\" price=\"45.00\"><title>SICP</title></book><book isbn=\"978-0201\" price=\"60.50\"><title>TAOCP</title></book><book isbn=\"978-1593\"><title>Learn You a Haskell</title></book></catalogue>"
+  -- 3 books x (element + title element + text) + root = 10 nodes; 50 is ample.
+  match parseWithLimit(catalogue, 50) {
+    Err(e) => println("rejected: ${e}"),
+    Ok(doc) => {
+      let titles = findAllTexts(doc, "title")
+      let isbns = findAllAttrs(doc, "book", "isbn")
+      println("titles: ${join(" | ", titles)}")
+      println("isbns: ${join(", ", isbns)}")
+      -- findAllAttrs skips elements that lack the attribute, so its list can be
+      -- shorter than the element list. Pair per element when alignment matters.
+      println("price attrs found: ${show(length(findAllAttrs(doc, "book", "price")))} of ${show(length(findAll(doc, "book")))}")
+      let priced = map(\b. match getAttr(b, "price") {
+        Some(p) => p,
+        None => "n/a"
+      }, findAll(doc, "book"))
+      let pairs = map(\p. match p {
+        (i, pr) => "${i}=${pr}"
+      }, zip(isbns, priced))
+      println("prices: ${join(", ", pairs)}")
+    }
+  }
+  -- The same document under a tight limit is refused up front.
+  match parseWithLimit(catalogue, 5) {
+    Ok(_) => println("unexpectedly accepted"),
+    Err(e) => println("limit 5: ${e}")
+  }
+}

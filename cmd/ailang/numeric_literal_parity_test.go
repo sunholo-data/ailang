@@ -53,7 +53,7 @@ func TestNumericLiteralParityVMvsInterpreter(t *testing.T) {
 		"intsStayInts": "3",
 		// The int literal key is the float 1.0 / 2.0, so the map-key encoder
 		// (internal/pcoll) files it where a float lookup finds it.
-		"floatMapKey": "Some(x)",
+		"floatMapKey": `Some("x")`,
 		"tupleMapKey": "true",
 	}
 	for entry, w := range want {
@@ -72,25 +72,37 @@ func TestNumericLiteralParityVMvsInterpreter(t *testing.T) {
 	}
 }
 
-// The residue the restriction does not reach: an integer literal inside a
-// generic TOP-LEVEL function instantiated at float. It still fails at
-// runtime, but with a message naming the cause and the fix instead of
-// "expected float arguments".
-func TestNumericLiteralGenericResidueFailsLoudly(t *testing.T) {
+// An integer literal inside a generic TOP-LEVEL function instantiated at
+// float, which the literal restriction does not reach (a module declaration
+// is exempt). When the function's generality is inferred it runs, through the
+// function's float variant (#2378; it was a run-time error, "received an int
+// and a float"). When a signature declares it generic (`incG[a](x: a) -> a`),
+// the literal at the rigid `a` is TC_RIGID_001 at check time (#2273).
+func TestNumericLiteralInGenericTopLevelFunction(t *testing.T) {
 	bin := buildAilang(t)
-	file := filepath.Join(t.TempDir(), "numeric_residue.ail")
-	src := `module numeric_residue
-func incG[a](x: a) -> a { x + 1 }
-export pure func run(f: float) -> float = incG(f)
-`
-	if err := os.WriteFile(file, []byte(src), 0o644); err != nil {
-		t.Fatal(err)
-	}
-	_, stderr, code := runAilangBin(t, bin, "run", "--quiet", "--entry", "run", "--args-json", "2.5", file)
-	if code == 0 {
-		t.Fatalf("expected a runtime error for an int literal at a generic float instantiation")
-	}
-	if !strings.Contains(stderr, "received an int and a float") {
-		t.Errorf("error should name the int-literal-at-generic-type cause, got: %s", stderr)
+	for _, c := range []struct{ name, decl, want string }{
+		{"inferred generic: runs at float", "func incG(x) { x + 1 }", ""},
+		{"declared generic: check-time TC_RIGID_001", "func incG[a](x: a) -> a { x + 1 }", "TC_RIGID_001"},
+	} {
+		t.Run(c.name, func(t *testing.T) {
+			file := filepath.Join(t.TempDir(), "numeric_residue.ail")
+			src := "module numeric_residue\n" + c.decl + "\nexport pure func run(f: float) -> float = incG(f)\n"
+			if err := os.WriteFile(file, []byte(src), 0o644); err != nil {
+				t.Fatal(err)
+			}
+			out, stderr, code := runAilangBin(t, bin, "run", "--quiet", "--entry", "run", "--args-json", "2.5", file)
+			if c.want == "" {
+				if code != 0 || strings.TrimSpace(out) != "3.5" {
+					t.Fatalf("incG(2.5): want 3.5, got exit %d, stdout %q, stderr %s", code, out, stderr)
+				}
+				return
+			}
+			if code == 0 {
+				t.Fatalf("expected an error for an int literal at a generic float instantiation")
+			}
+			if !strings.Contains(stderr, c.want) {
+				t.Errorf("error should contain %q, got: %s", c.want, stderr)
+			}
+		})
 	}
 }

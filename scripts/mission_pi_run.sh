@@ -55,6 +55,16 @@
 #      Of the three assertions the old recipe mandated, this is the only load-bearing one: `stopReason` is now known evadable
 #      in BOTH directions — `length` pre-2026-08-13, and a clean `stop` at 625 tokens
 #      post-fix — so it can neither confirm nor deny that work happened.
+#   6. Reaps what the role left behind, on EVERY outcome (ok included). An ANCESTRY LEDGER records
+#      (pid, birth) of each live descendant of this run every poll, and the reap signals those
+#      processes after the run, including ones reparented to pid 1. Reported as reaped_count and
+#      reaped in the verdict; the verdict name and rc do not change. It is NOT matched by pgid,
+#      session or command line: pi already setsid()s each tool (so a session reaches no tool
+#      descendant), a process can setpgrp away, and a command-line match would kill unrelated work
+#      on a shared rig. Each reaped row is { pid, pgid, signal, command }, where command is the EXECUTABLE
+#      NAME (ps comm=, 120 chars max), never argv: argv can carry secrets. Residual R1: a double-fork
+#      whose intermediate dies BETWEEN two polls escapes.
+#      See tools/launchd/lib/pi-run-reap.sh.
 #
 # EXIT CODES (the verdict is also written as JSON to --verdict)
 #   0  ok               — pi finished, and either the worktree content differs from its pre-launch
@@ -89,6 +99,8 @@ MAX_SECONDS="${MISSION_PI_MAX_SECONDS:-1800}"
 STALL_SECONDS="${MISSION_PI_STALL_SECONDS:-600}"
 POLL_SECONDS="${MISSION_PI_POLL_SECONDS:-10}"
 SNAP_EVERY="${MISSION_PI_SNAP_EVERY:-50}"
+# Empty = not given: it then inherits the EFFECTIVE --stall-seconds (resolved after parsing).
+TOOL_STALL_SECONDS="${MISSION_PI_TOOL_STALL_SECONDS:-}"
 
 usage() {
   cat >&2 <<'EOF'
@@ -102,6 +114,9 @@ usage: mission_pi_run.sh --model M --directive FILE --workdir DIR --out NDJSON
   --verdict       path for the verdict JSON (default: <out>.verdict.json)
   --max-seconds   wall-clock cap        (default 1800, env MISSION_PI_MAX_SECONDS)
   --stall-seconds no-progress cap       (default 600,  env MISSION_PI_STALL_SECONDS)
+  --tool-stall-seconds no-progress cap while a tool call is OPEN (default = --stall-seconds, env MISSION_PI_TOOL_STALL_SECONDS)
+                  use it for a named long command; raising --stall-seconds also blinds the
+                  reasoning_stall/stream_dead detection.
 
 Deliberately generous stall default: a legitimate thinking turn on a hard sprint
 runs for minutes. This bound exists to catch a turn that never ENDS, not one that
@@ -118,7 +133,8 @@ while [ $# -gt 0 ]; do
     --verdict)       VERDICT="$2"; shift 2 ;;
     --max-seconds)   MAX_SECONDS="$2"; shift 2 ;;
     --stall-seconds) STALL_SECONDS="$2"; shift 2 ;;
-    -h|--help)       usage; exit 0 ;;
+    --tool-stall-seconds) TOOL_STALL_SECONDS="$2"; shift 2 ;;
+    -h|--help)     usage; exit 0 ;;
     *) echo "mission_pi_run.sh: unknown argument '$1'" >&2; usage; exit 14 ;;
   esac
 done
@@ -140,6 +156,19 @@ preflight_fail() { # rc verdict error
   echo "pi lane verdict: $2 (rc=$1): $3" >&2
   exit "$1"
 }
+# A bare JSON number for the verdict: digits only (else null), leading zeros dropped (JSON forbids them).
+json_num() { case "$1" in ''|*[!0-9]*) echo null ;; 0*) echo "$((10#$1))" ;; *) echo "$1" ;; esac; }
+# Validated only when GIVEN (flag or env). Unset, it inherits the effective STALL_SECONDS exactly,
+# so no existing caller's bound or verdict changes. `0*` also refuses leading zeros ($(( )) reads octal);
+# more than 9 digits would overflow the `[ -lt ]` comparisons below.
+if [ -n "$TOOL_STALL_SECONDS" ]; then
+  case "$TOOL_STALL_SECONDS" in *[!0-9]*|0*|??????????*) preflight_fail 14 launch_failed "--tool-stall-seconds must be a positive integer of at most 9 digits: '$TOOL_STALL_SECONDS'" ;; esac
+else
+  TOOL_STALL_SECONDS="$STALL_SECONDS"
+fi
+# The poll must observe the SMALLER of the two bounds in time (see the clamp below).
+MIN_BOUND="$STALL_SECONDS"
+[ "$TOOL_STALL_SECONDS" -lt "$MIN_BOUND" ] && MIN_BOUND="$TOOL_STALL_SECONDS"
 [ -f "$DIRECTIVE" ] || preflight_fail 14 launch_failed "directive file not found: $DIRECTIVE"
 [ -d "$WORKDIR" ] || preflight_fail 14 launch_failed "workdir not found: $WORKDIR"
 WORKDIR=$(cd "$WORKDIR" && pwd -P)
@@ -235,6 +264,14 @@ mtime_of() {
   stat -f %m "$1" 2>/dev/null || stat -c %Y "$1" 2>/dev/null || echo 0
 }
 now() { date +%s; }
+# "A tool is open": pi wrote more tool_execution_start than _end. ONE implementation, used by the
+# loop (which bound applies) and the post-loop relabel (tool_hang vs stream_dead).
+tool_open() {
+  local s e
+  s=$(grep -c '"type":"tool_execution_start"' "$OUT" 2>/dev/null)
+  e=$(grep -c '"type":"tool_execution_end"' "$OUT" 2>/dev/null)
+  [ "${s:-0}" -gt "${e:-0}" ]
+}
 
 # Content fingerprint of the worktree relative to its CURRENT HEAD: what porcelain lists,
 # the bytes of every tracked change, and the bytes of every untracked file. rc!=0 = no git.
@@ -289,6 +326,8 @@ PREDIRTY_FILES=$(git -C "$WORKDIR" status --porcelain 2>/dev/null | wc -l | tr -
 # Each extension once: a worktree carrying .pi/extensions would otherwise load the global
 # and repo copies of the same tools, and pi exits rc=1 on the conflict (lib/pi-ext-args.sh).
 . "$RUNNER_ROOT/tools/launchd/lib/pi-ext-args.sh"
+# Ancestry-ledger reaper: see WHAT THIS SCRIPT DOES, item 6.
+. "$RUNNER_ROOT/tools/launchd/lib/pi-run-reap.sh"
 PI_EXT_ARGS=(); while IFS= read -r _l; do PI_EXT_ARGS+=("$_l"); done < <(_mc_pi_ext_args "$WORKDIR")
 set -m
 (
@@ -321,6 +360,9 @@ set -m
   echo "${PIPESTATUS[0]}" > "$STAGE/pi.rc"
 ) &
 RUNNER_PID=$!
+# Every poll adds the live descendants of the run to REAP_LEDGER (append-only). A child that outlives
+# its parent is still known after the parent is gone. Birth-stamped, so a reused pid cannot match.
+REAP_LEDGER="$STAGE/reap.ledger"; : > "$REAP_LEDGER"; RUNNER_BIRTH=$(_pr_birth "$RUNNER_PID")
 
 START=$(now)
 LAST_OUT_M=$(mtime_of "$OUT")
@@ -331,15 +373,17 @@ PROGRESS_AT=$START
 # (and much noisier) question — it misses any snapshot cadence slower than the poll.
 SNAP_AT_PROGRESS=$(mtime_of "$SNAP")
 OUTCOME=""
+STALL_BOUND_APPLIED=0
 
-# Never poll slower than a third of the stall window, or the first observation can
+# Never poll slower than a third of the SMALLER stall window, or the first observation can
 # land past the bound and report a stall that never happened.
-if [ "$POLL_SECONDS" -gt $((STALL_SECONDS / 3)) ] && [ $((STALL_SECONDS / 3)) -gt 0 ]; then
-  POLL_SECONDS=$((STALL_SECONDS / 3))
+if [ "$POLL_SECONDS" -gt $((MIN_BOUND / 3)) ] && [ $((MIN_BOUND / 3)) -gt 0 ]; then
+  POLL_SECONDS=$((MIN_BOUND / 3))
 fi
 
 while :; do
   sleep "$POLL_SECONDS"
+  _pr_ledger_update "$REAP_LEDGER" "$RUNNER_PID" "$RUNNER_BIRTH"
 
   # Liveness is checked AFTER the sleep and BEFORE the stall arithmetic. The reverse
   # order reports a stall for any run that completes inside one poll interval.
@@ -349,6 +393,13 @@ while :; do
   fi
 
   T=$(now)
+  # Tool state BEFORE the output clock. Read the other way round, a tool that closes between the
+  # two reads pairs a stale clock (idle past the stall bound) with a closed tool (stall bound
+  # applies) and kills a healthy run as stream_dead. In this order any write that changes the
+  # state also moves the clock, so it reads as progress. Only grepped once idle could reach the
+  # smaller bound; progress then resets IDLE, otherwise IDLE is the value tested here.
+  TOOL_IS_OPEN=false
+  if [ $((T - PROGRESS_AT)) -ge "$MIN_BOUND" ] && tool_open; then TOOL_IS_OPEN=true; fi
   OUT_M=$(mtime_of "$OUT")
   SNAP_M=$(mtime_of "$SNAP")
 
@@ -361,13 +412,20 @@ while :; do
     SNAP_AT_PROGRESS="$SNAP_M"
   fi
 
-  if [ $((T - PROGRESS_AT)) -ge "$STALL_SECONDS" ]; then
-    if [ "$SNAP_M" != "$SNAP_AT_PROGRESS" ]; then
-      OUTCOME="reasoning_stall"   # thinking hard, emitting nothing usable
-    else
-      OUTCOME="stream_dead"       # nothing at all is arriving
+  # An open tool gets --tool-stall-seconds; silent model output gets the stall bound.
+  IDLE=$((T - PROGRESS_AT))
+  if [ "$IDLE" -ge "$MIN_BOUND" ]; then
+    BOUND="$STALL_SECONDS"
+    if [ "$TOOL_IS_OPEN" = true ]; then BOUND="$TOOL_STALL_SECONDS"; fi
+    if [ "$IDLE" -ge "$BOUND" ]; then
+      STALL_BOUND_APPLIED="$BOUND"
+      if [ "$SNAP_M" != "$SNAP_AT_PROGRESS" ]; then
+        OUTCOME="reasoning_stall"   # thinking hard, emitting nothing usable
+      else
+        OUTCOME="stream_dead"       # nothing at all is arriving
+      fi
+      break
     fi
-    break
   fi
 
   if [ $((T - START)) -ge "$MAX_SECONDS" ]; then
@@ -384,6 +442,15 @@ if [ "$OUTCOME" != "finished" ]; then
   kill -KILL -"$RUNNER_PID" 2>/dev/null || kill -KILL "$RUNNER_PID" 2>/dev/null
 fi
 wait "$RUNNER_PID" 2>/dev/null
+# Reap on EVERY outcome, including ok: pi can leave a background child behind even when it finished
+# cleanly. Reaping changes neither the verdict nor the rc; it is reported as reaped_count and reaped.
+_pr_reap "$REAP_LEDGER" "$RUNNER_PID" "$RUNNER_BIRTH" 2 "$STAGE/reaped.tsv"
+REAPED_JSON=$(_pr_report_json "$STAGE/reaped.tsv" 2>/dev/null) || {
+  echo "WARNING: could not build the reaped report (jq failed); count is from the TSV, list is empty" >&2
+  REAPED_JSON="{\"count\":$(wc -l < "$STAGE/reaped.tsv" 2>/dev/null | tr -d ' ' || echo 0),\"list\":[]}"
+}
+REAPED_COUNT=$(printf '%s' "$REAPED_JSON" | jq -r .count 2>/dev/null) || REAPED_COUNT=0
+REAPED_LIST=$(printf '%s' "$REAPED_JSON" | jq -c .list 2>/dev/null) || REAPED_LIST="[]"
 PI_RC=$(cat "$STAGE/pi.rc" 2>/dev/null) || PI_RC=14
 case "$PI_RC" in ''|*[!0-9]*) PI_RC=14 ;; esac
 if [ -f "$READY_FILE" ]; then FENCED=true; else FENCED=false; fi
@@ -419,8 +486,7 @@ OUT_BYTES=$(wc -c < "$OUT" 2>/dev/null | tr -d ' ')
 # was read off those verdicts; the lane never got to answer.
 HUNG_TOOL=""
 if [ "$OUTCOME" = "stream_dead" ]; then
-  _starts=$(grep -c '"type":"tool_execution_start"' "$OUT" 2>/dev/null | tr -d ' ')
-  if [ "${_starts:-0}" -gt "${TOOL_CALLS:-0}" ]; then
+  if tool_open; then
     HUNG_TOOL=$(grep '"type":"tool_execution_start"' "$OUT" | tail -1 | \
       jq -r '(.toolName // "tool") + ": " + ((.args.command // .args.path // "") | tostring | .[0:200])' 2>/dev/null)
     [ -n "$HUNG_TOOL" ] || HUNG_TOOL="(unparsed tool call)"
@@ -479,10 +545,16 @@ cat > "$VERDICT" <<EOF
   "head_after": "$HEAD_AFTER",
   "commits_since_start": $COMMITS,
   "tool_executions": ${TOOL_CALLS:-0},
+  "stall_seconds": $(json_num "$STALL_SECONDS"),
+  "tool_stall_seconds": $(json_num "$TOOL_STALL_SECONDS"),
+  "stall_bound_seconds": ${STALL_BOUND_APPLIED:-0},
+  "poll_seconds": $(json_num "$POLL_SECONDS"),
   "hung_tool": $HUNG_TOOL_JSON,
   "provider_errors": ${PROVIDER_ERRORS:-0},
   "provider_error": $PROVIDER_ERROR_JSON,
   "agent_end_events": ${AGENT_END:-0},
+  "reaped_count": ${REAPED_COUNT:-0},
+  "reaped": $REAPED_LIST,
   "ndjson_bytes_filtered": ${OUT_BYTES:-0},
   "ndjson": "$OUT",
   "snapshot": "$SNAP",
@@ -492,7 +564,8 @@ EOF
 rm -rf "$STAGE"
 
 echo "pi lane verdict: $VERDICT_NAME (rc=$RC) after ${ELAPSED}s — ${DIFF_LINES:-0} changed files, ${PREDIRTY_FILES:-0} pre-dirty, changed since start: $WORKTREE_CHANGED, ${TOOL_CALLS:-0} tool executions, $COMMITS commits" >&2
-[ -n "$HUNG_TOOL" ] && echo "pi lane verdict: the MODEL did not stall — pi was waiting on a tool call that never returned: $HUNG_TOOL" >&2
+[ -n "$HUNG_TOOL" ] && echo "pi lane verdict: the MODEL did not stall — pi was waiting on a tool call that never returned (no-progress bound ${STALL_BOUND_APPLIED}s): $HUNG_TOOL" >&2
 [ "$RC" -eq 19 ] && echo "pi lane verdict: the PROVIDER refused on capacity — park the lane, not the model: $PROVIDER_ERROR" >&2
 [ "$RC" -ne 19 ] && [ "$PROVIDER_ERRORS" -gt 0 ] && echo "pi lane verdict: $PROVIDER_ERRORS provider error(s) during the run; last: $PROVIDER_ERROR" >&2
+[ "${REAPED_COUNT:-0}" -gt 0 ] && echo "pi lane verdict: reaped $REAPED_COUNT process(es) the role left behind — see reaped in the verdict JSON" >&2
 exit "$RC"

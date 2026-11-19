@@ -1,0 +1,34 @@
+-- Task: recover truncated JSON (for example an LLM reply cut off mid-stream):
+-- try decode first, and only when it fails run repair to close unterminated
+-- strings, arrays and objects, then decode the repaired text and read fields.
+-- Demonstrates std/json decode, repair, encode, getString and getStringArrayOrEmpty.
+module examples/runnable/stdlib/json_repair_truncated
+import std/json (Json, decode, repair, encode, getString, getStringArrayOrEmpty)
+import std/list (forEachE)
+import std/string (join)
+
+-- Strict decode first; repair is a fallback, never the default path.
+func decodeOrRepair(raw: string) -> Result[Json, string] = match decode(raw) {
+  Ok(j) => Ok(j),
+  Err(_) => match repair(raw) {
+    Ok(fixed) => decode(fixed),
+    Err(e) => Err("unrepairable: ${e}")
+  }
+}
+
+func report(raw: string) -> () ! {IO} = match decodeOrRepair(raw) {
+  Ok(j) => {
+    let title = match getString(j, "title") {
+      Some(t) => t,
+      None => "<no title>"
+    }
+    let tags = getStringArrayOrEmpty(j, "tags")
+    println("ok    ${encode(j)} -> title=${title} tags=[${join(",", tags)}]")
+  },
+  Err(e) => println("error ${e}")
+}
+
+export func main() -> () ! {IO} {
+  let inputs = ["{\"title\": \"Complete\", \"tags\": [\"a\", \"b\"]}", "{\"title\": \"Cut off\", \"tags\": [\"x\", \"y\",", "{\"title\": \"Unterminated str", "{\"title\": \"Trailing comma\",}", "this is not json"]
+  forEachE(report, inputs)
+}

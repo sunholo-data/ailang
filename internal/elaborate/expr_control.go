@@ -153,6 +153,9 @@ func (e *Elaborator) normalizeLet(let *ast.Let) (core.CoreExpr, error) {
 		//
 		// Before flattening: Let npc = (Let $tmp1 = inner in outer) in body
 		// After flattening:  Let $tmp1 = inner in Let npc = outer in body
+		//
+		// Only elaborator temporaries move: `let s = (let r = 2 in r * 10) in
+		// r + s` keeps its inner let nested, or body's r would read 2 (#2388).
 		innerBindings, flattenedValue := extractLetBindings(value)
 
 		if len(innerBindings) == 0 {

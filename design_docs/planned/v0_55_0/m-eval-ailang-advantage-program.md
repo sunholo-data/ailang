@@ -4,7 +4,7 @@
 **Target**: Phases 0–2 v0.55.0; then once per release, open-ended
 **Priority**: P1
 **Estimated**: Phase 1 is 1.5 days, Phase 2 is 3 days (excluding model runs); later phases are scoped by their own docs
-**Dependencies**: [M-EVAL-HIDDEN-TESTS](m-eval-hidden-tests.md) (shipped to dev on 2026-10-28), the runtime docs in [Related Documents](#related-documents)
+**Dependencies**: [M-EVAL-HIDDEN-TESTS](../../implemented/v0_55_0/m-eval-hidden-tests.md) (shipped to dev on 2026-10-28), the runtime docs in [Related Documents](#related-documents)
 **Routing lane**: the eval harness and the teaching prompt. Language fixes this program finds are routed
 to the AILANG-fix lane as their own docs (PROGRAM.md §4). The program decides *what to fix next*;
 it does not fix the language itself.
@@ -328,7 +328,7 @@ The climb is **exploratory**, and the decision rule below stays **confirmatory**
     prompt already teaches `mapE`). A climb step run on dev now would measure the regression, not the prompt.
     Resume after #2074 lands, and re-run the baseline on that binary.
   - **S1 is a passing prefix, not a fraction.** `GradeHidden` stops at the first failing test
-    ([M-EVAL-HIDDEN-TESTS](m-eval-hidden-tests.md) D3, smallest input first), so `hidden_passed` counts the
+    ([M-EVAL-HIDDEN-TESTS](../../implemented/v0_55_0/m-eval-hidden-tests.md) D3, smallest input first), so `hidden_passed` counts the
     tests before the first failure. Two climb rows banked 1/22 pass 9/22 when every test is run. The prefix is
     still monotone, but one small edge-case failure hides the rest, which inflates the noise band. **For
     steering, re-score each step offline by replaying the banked code on every hidden test** (CPU only, no
@@ -490,7 +490,7 @@ The re-review guardrail is spent (one re-run). **Handed to the human** with thes
 
 ## Related Documents
 
-- [M-EVAL-HIDDEN-TESTS](m-eval-hidden-tests.md): the oracle and the CP pack this program measures with
+- [M-EVAL-HIDDEN-TESTS](../../implemented/v0_55_0/m-eval-hidden-tests.md): the oracle and the CP pack this program measures with
 - [M-VM-COVERAGE](m-vm-coverage-letrec-prelude-bridge.md), [M-PERSISTENT-COLLECTIONS](m-persistent-collections.md), [M-INT-OVERFLOW](m-int-overflow-trap-and-bigint.md): H4's fixes
 - [M-MAINTENANCE-EVAL-TASKPACK](../m-maintenance-eval-taskpack.md) and [real-world study](../m-real-world-language-maintenance-study.md): own H2
 - [Cost-per-verified-success KPI](../../implemented/v1_0_0/m-cost-per-success-kpi.md): S3

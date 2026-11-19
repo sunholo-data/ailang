@@ -1,0 +1,34 @@
+-- Build a small text-scoring pipeline from functions: pass named functions and
+-- lambdas to map/filter/foldl, return functions from functions, compose them,
+-- and partially apply a curried lambda.
+-- Teaches: lambdas (\x. body, \a b. body), function-typed parameters, closures, currying.
+module examples/runnable/stdlib/lang_higher_order
+import std/list (map, filter, foldl, sortBy)
+import std/string (length, join)
+
+pure func twice(f: int -> int, x: int) -> int = f(f(x))
+
+-- Returning a lambda: the result closes over `n`.
+pure func adder(n: int) -> int -> int = \x. x + n
+
+pure func compose(f: int -> int, g: int -> int) -> int -> int = \x. f(g(x))
+
+export func main() -> () ! {IO} {
+  let words = ["kiwi", "fig", "banana", "apple", "date"]
+  -- a multi-parameter func is called f(a, b); a curried lambda is called f(a)(b)
+  let lens = map(length, words)
+  let long = filter(\w. length(w) > 3, words)
+  let total = foldl(\acc w. acc + length(w), 0, words)
+  let byLen = sortBy(\a b. length(a) - length(b), words)
+  println("lengths: ${show(lens)}")
+  println("long: ${join(" ", long)}")
+  println("total chars: ${show(total)}")
+  println("by length: ${join(" ", byLen)}")
+  let addTen = adder(10)
+  let double = \x. x * 2
+  println("twice addTen 1: ${show(twice(addTen, 1))}")
+  println("compose: ${show(compose(double, addTen)(5))}")
+  let scale = \factor. \x. x * factor
+  let triple = scale(3)
+  println("curried: ${show(scale(2)(21))} ${show(map(triple, [1, 2, 3]))}")
+}

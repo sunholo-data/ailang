@@ -67,8 +67,10 @@ func stringToIntImpl(ctx *effects.EffContext, args []eval.Value) (eval.Value, er
 		return nil, fmt.Errorf("_stringToInt: expected String, got %T", args[0])
 	}
 
-	// Try to parse as int64
-	n, err := strconv.ParseInt(strVal.Value, 10, 64)
+	// Parse at the width of Go's int, which IntValue holds: on a 64-bit host
+	// this is the 64-bit range AILANG's Int promises, and on a narrower host an
+	// out-of-range string is None rather than a silently truncated number.
+	n, err := strconv.ParseInt(strVal.Value, 10, strconv.IntSize)
 	if err != nil {
 		// Return None
 		return &eval.TaggedValue{

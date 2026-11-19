@@ -2,8 +2,8 @@
   "sprint_id": "M-EFFECT-PURE-ROW",
   "status": "completed",
   "created": "2026-09-08T06:05:24Z",
-  "design_doc": "design_docs/planned/v0_35_3/m-effect-pure-row-overgeneralization.md",
-  "sprint_plan": "design_docs/planned/v0_35_3/m-effect-pure-row-overgeneralization-sprint-plan.md",
+  "design_doc": "design_docs/implemented/v0_35_3/m-effect-pure-row-overgeneralization.md",
+  "sprint_plan": "design_docs/implemented/v0_35_3/m-effect-pure-row-overgeneralization-sprint-plan.md",
   "base_commit": "3ee5bb177",
   "github_issues": [
     1091

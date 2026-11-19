@@ -1,0 +1,35 @@
+-- Process a batch of temperature readings, keeping the arithmetic pure and the
+-- printing in IO functions, and write a helper that runs a callback with
+-- whatever effects that callback has.
+-- Teaches: pure func vs ! {IO}, effect propagation to callers, effect row variables ! {e}.
+module examples/runnable/stdlib/lang_effects
+import std/list (map, forEachE, foldlE)
+
+-- pure: no effects allowed; calling println here would be a type error.
+pure func toFahrenheit(c: int) -> int = c * 9 / 5 + 32
+
+-- Any function that prints must say so with ! {IO}, and so must everything that calls it.
+func report(c: int) -> () ! {IO} = println("${show(c)}C = ${show(toFahrenheit(c))}F")
+
+-- `e` is an effect row variable: applyTwice has exactly the effects of `f`.
+func applyTwice(f: int -> int ! {e}, x: int) -> int ! {e} = f(f(x))
+
+func noisyInc(x: int) -> int ! {IO} {
+  println("  inc ${show(x)}")
+  x + 1
+}
+
+export func main() -> () ! {IO} {
+  let readings = [0, 25, 100, -40]
+  println("pure map: ${show(map(toFahrenheit, readings))}")
+  forEachE(report, readings)
+  -- foldlE runs an effectful step left to right
+  let total = foldlE(\acc c. {
+    println("  adding ${show(c)}")
+    acc + c
+  }, 0, readings)
+  println("total: ${show(total)}")
+  println("pure applyTwice: ${show(applyTwice(toFahrenheit, 10))}")
+  println("io applyTwice:")
+  println("result: ${show(applyTwice(noisyInc, 1))}")
+}

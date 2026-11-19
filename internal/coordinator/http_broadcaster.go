@@ -9,6 +9,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/websocket"
 )
 
@@ -76,7 +77,14 @@ func (h *HTTPBroadcaster) Broadcast(event *websocket.TaskStreamEvent) {
 
 	// Send to server
 	url := fmt.Sprintf("%s/api/coordinator/events", h.serverURL)
-	resp, err := h.httpClient.Post(url, "application/json", bytes.NewReader(jsonBody))
+	req, err := http.NewRequest(http.MethodPost, url, bytes.NewReader(jsonBody))
+	if err != nil {
+		h.logError("Failed to build event request", err)
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	config.AttachHubToken(req.Header) // hub-class ingest route
+	resp, err := h.httpClient.Do(req)
 	if err != nil {
 		h.logError("Failed to send event to server", err)
 		h.queueFailedEvent(event)

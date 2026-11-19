@@ -1,0 +1,271 @@
+{
+  "err_200_garbage": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "55",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"x\",\"options\":null}"
+      }
+    ],
+    "error": "_ollama_embed: Ollama embed failed: invalid character '\u003c' looking for beginning of value"
+  },
+  "err_400_empty": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "55",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"x\",\"options\":null}"
+      }
+    ],
+    "error": "_ollama_embed: Ollama embed failed: something went wrong, please see the ollama server logs for details"
+  },
+  "err_401": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "55",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"x\",\"options\":null}"
+      }
+    ],
+    "error": "_ollama_embed: Ollama embed failed: something went wrong, please see the ollama server logs for details"
+  },
+  "err_404_json": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "55",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"x\",\"options\":null}"
+      }
+    ],
+    "error": "_ollama_embed: Ollama embed failed: model \"nomic-embed-text\" not found, try pulling it first"
+  },
+  "err_500_text": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "55",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"x\",\"options\":null}"
+      }
+    ],
+    "error": "_ollama_embed: Ollama embed failed: kaput"
+  },
+  "err_float32_overflow": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "55",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"x\",\"options\":null}"
+      }
+    ],
+    "error": "_ollama_embed: Ollama embed failed: json: cannot unmarshal number 1e39 into Go struct field EmbedResponse.embeddings of type float32"
+  },
+  "err_no_embeddings": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "55",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"x\",\"options\":null}"
+      }
+    ],
+    "error": "_ollama_embed: no embeddings returned"
+  },
+  "err_null_embeddings": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "55",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"x\",\"options\":null}"
+      }
+    ],
+    "error": "_ollama_embed: no embeddings returned"
+  },
+  "err_refused": {
+    "requests": null,
+    "error": "_ollama_embed: Ollama embed failed: Post \"http://SERVER/api/embed\": dial tcp SERVER: connect: connection refused"
+  },
+  "media_map": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "108",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":{\"audio\":\"UklGRg==\",\"image\":\"UE5HAP8=\",\"text\":\"caption\"},\"options\":null}"
+      }
+    ],
+    "result": [
+      0.10000000149011612,
+      -0.25,
+      3.4028234663852886e+38,
+      0,
+      7
+    ]
+  },
+  "media_text_only": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "72",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":{\"text\":\"only text\"},\"options\":null}"
+      }
+    ],
+    "result": [
+      0.10000000149011612,
+      -0.25,
+      3.4028234663852886e+38,
+      0,
+      7
+    ]
+  },
+  "ok_200_empty_body": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "55",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"x\",\"options\":null}"
+      }
+    ],
+    "error": "_ollama_embed: no embeddings returned"
+  },
+  "quoted_host_env": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "55",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"q\",\"options\":null}"
+      }
+    ],
+    "result": [
+      0.10000000149011612,
+      -0.25,
+      3.4028234663852886e+38,
+      0,
+      7
+    ]
+  },
+  "text": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "91",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"hello \\u003cworld\\u003e \\u0026 \\u2028\",\"options\":null}"
+      }
+    ],
+    "result": [
+      0.10000000149011612,
+      -0.25,
+      3.4028234663852886e+38,
+      0,
+      7
+    ]
+  },
+  "two_embeddings_takes_first": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/embed",
+        "header": {
+          "Accept": "application/json",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "55",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"nomic-embed-text\",\"input\":\"x\",\"options\":null}"
+      }
+    ],
+    "result": [
+      1,
+      2
+    ]
+  }
+}

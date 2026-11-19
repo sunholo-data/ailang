@@ -1,0 +1,3 @@
+module examples/fixture/good
+
+export func main() -> () ! {IO} = println("imported and checked")

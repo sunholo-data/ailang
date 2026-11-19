@@ -189,7 +189,7 @@ Out of scope for this doc and any sprint shipping its items:
 - Full BYOK semantics (per-call key rotation, capability flow, audit logging) — separate design doc
 - AILANG-side `ai.complete(req)` / `openrouter.provider({...})` constructor — already tracked in [v0_17_0/m-ai-tool-loop.md](../v0_17_0/m-ai-tool-loop.md)
 - Streaming AI responses — Phase 1 of m-ai-tool-loop
-- Clock/Net/FS mode ports — Phase 5 of [parent doc](../v1_0_0/m-effect-refinement.md); each is its own sprint
+- Clock/Net/FS mode ports — Phase 5 of [parent doc](m-effect-refinement.md); each is its own sprint
 - M-ENTROPY integration for AI mode constraints — Phase 6 of parent doc
 - Subtyping or widening between AI modes — research question for v1.0+
 
@@ -202,7 +202,7 @@ Out of scope for this doc and any sprint shipping its items:
 
 **Adjacent / overlapping (planned):**
 - [M-AI-TOOL-LOOP](../v0_17_0/m-ai-tool-loop.md) — bigger AI runtime work; if it ships first, item 1 becomes free via the AIHandler interface extension
-- [M-EFFECT-REFINEMENT (v1.0.0)](../v1_0_0/m-effect-refinement.md) — parent doc with Phases 3-6
+- [M-EFFECT-REFINEMENT (v1.0.0)](m-effect-refinement.md) — parent doc with Phases 3-6
 
 **Evaluator report:**
 - [.ailang/state/evaluations/eval_M-AI-EFFECT-MODES_round_1.json](../../../.ailang/state/evaluations/eval_M-AI-EFFECT-MODES_round_1.json) — 91/100 pass; design-fidelity −5 for the deferred handler-side check (item 1 above)

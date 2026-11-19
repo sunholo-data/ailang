@@ -182,6 +182,7 @@ const sidebars = {
             'guides/wasm-ai-step-byo-key',
             'guides/serve-api',
             'guides/mcp-connectors',
+            'guides/hosted-executor',
           ],
         },
         {
@@ -244,6 +245,23 @@ const sidebars = {
             'benchmarks/codebase-stats',
           ],
         },
+      ],
+    },
+    {
+      type: 'category',
+      label: 'Fine-tuning Research',
+      link: { type: 'doc', id: 'finetuning/index' },
+      items: [
+        'finetuning/field-notes',
+        'finetuning/decisions',
+        'finetuning/baseline',
+        'finetuning/data',
+        'finetuning/pilot-1',
+        'finetuning/pilot-2',
+        'finetuning/pilot-3',
+        'finetuning/pilot-4',
+        'finetuning/pilot-5',
+        'finetuning/costs',
       ],
     },
     {

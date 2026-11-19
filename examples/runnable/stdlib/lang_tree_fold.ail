@@ -1,0 +1,33 @@
+-- Build a binary search tree from a list of ints, then sum, size, measure depth
+-- and list it in order by writing one generic fold over the tree.
+-- Teaches: recursive polymorphic ADTs (Tree[a]), structural recursion, folds.
+module examples/runnable/stdlib/lang_tree_fold
+import std/list (foldl)
+
+-- std/math has no max/min for ints, so define the helper locally.
+pure func maxInt(a: int, b: int) -> int = if a > b then a else b
+
+type Tree[a] = Leaf | Node(Tree[a], a, Tree[a])
+
+pure func insert(t: Tree[int], x: int) -> Tree[int] = match t {
+  Leaf => Node(Leaf, x, Leaf),
+  Node(l, v, r) => if x < v then Node(insert(l, x), v, r) else Node(l, v, insert(r, x))
+}
+
+-- The fold replaces Leaf with `base` and each Node with `f(leftResult, value, rightResult)`.
+pure func foldTree[a, b](f: (b, a, b) -> b, base: b, t: Tree[a]) -> b = match t {
+  Leaf => base,
+  Node(l, v, r) => f(foldTree(f, base, l), v, foldTree(f, base, r))
+}
+
+export func main() -> () ! {IO} {
+  let tree = foldl(insert, Leaf, [5, 3, 8, 1, 4, 9, 7])
+  let total = foldTree(\l v r. l + v + r, 0, tree)
+  let size = foldTree(\l v r. l + 1 + r, 0, tree)
+  let depth = foldTree(\l v r. 1 + maxInt(l, r), 0, tree)
+  let inorder = foldTree(\l v r. l ++ [v] ++ r, [], tree)
+  println("sum: ${show(total)}")
+  println("size: ${show(size)}")
+  println("depth: ${show(depth)}")
+  println("in order: ${show(inorder)}")
+}

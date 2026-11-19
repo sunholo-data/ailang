@@ -132,7 +132,7 @@ Running `ailang serve-api ./api/` auto-generates these endpoints:
 | GET | `/api/_meta/docs` | Swagger UI (interactive explorer) |
 | GET | `/api/_meta/redoc` | ReDoc (API reference) |
 | GET | `/api/_health` | Health check |
-| GET | `/.well-known/agent.json` | A2A Agent Card (requires `--a2a`) |
+| GET | `/.well-known/agent.json` | A2A Agent Card (requires `--a2a`); also `/.well-known/agent-card.json` |
 | POST | `/a2a/` | A2A JSON-RPC endpoint (requires `--a2a`) |
 
 ### URL Convention
@@ -422,6 +422,10 @@ comma. The same values set `serverInfo` on `/mcp/` and `/mcp/connect/` (and stdi
 the version is the AILANG binary's (for example `0.57.2`). An unknown key, a repeated key or an empty
 value is a startup error.
 
+`icon` sets the A2A card's `iconUrl`, which Gemini Enterprise shows next to the agent. Give a path
+served by this server (`icon=/icon.png`, resolved against the host the caller reached, so one flag
+works on every deployment and the icon stays on the card's host) or an `https://` URL.
+
 **MCP tool quality features:**
 
 - **Named parameter schemas** — `inputSchema` uses named parameters with JSON Schema types (e.g., `{"filepath": {"type": "string"}}`) instead of generic positional arrays. Types are mapped from AILANG: `string`→`"string"`, `int`→`"integer"`, `float`→`"number"`, `bool`→`"boolean"`, `Json`/records→`"object"`, lists→`"array"`.
@@ -437,7 +441,7 @@ value is a startup error.
 - **Header auth (`_headers` on MCP)** — A declared `_headers: Json` parameter binds the HTTP headers of the `tools/call` request, the same contract as the REST `@route` path. It is never advertised in `inputSchema`, and a `_headers` key in the client's arguments is ignored, so headers cannot be forged. Keys arrive canonicalized (`Authorization`, `X-Api-Key`). On stdio it binds to an empty object. Use it to take an API key from a header so the agent never holds the key in model context (MCP registries inject secrets only as headers).
 - **Optional parameters (`@optional`)** — `@optional("apiKey", ...)` drops the named params from the tool's `required` list; an absent or `null` value binds to the type's zero value (`""`, `0`, `false`, `[]`, `{}`) instead of being rejected. Names are checked at registration: a name that is not a parameter, is `_headers`, or has a type with no zero value (e.g. `Json`) is logged as an `ERROR` and the tool is not registered.
 
-  ```ailang
+  ```ailang sketch
   -- Key from the argument, else Authorization: Bearer, else X-API-Key
   @optional("apiKey")
   export func whoami(apiKey: string, _headers: Json) -> string { ... }
@@ -503,7 +507,9 @@ anonymous caller runs with `--mcp-connect-only`:
 - plain HTTP (dispatch, `@route`, OpenAPI, `_meta`) serves `@nomcp` exports only, which are the OAuth and sign-in routes.
 
 `tools/list` stays open, because directory clients list tools before signing in. Startup fails
-without `--mcp-http`, without `--oauth-issuer`, without an `@mcp_token_verifier`, or with `--a2a`.
+without `--mcp-http`, without `--oauth-issuer`, or without an `@mcp_token_verifier`. With `--a2a`,
+`/a2a/` sits behind the same gate (every A2A request needs a token; the agent card stays open), and
+an `--a2a-message` handler must be `@noexpose @nomcp`.
 The hosted AILANG executor's public service uses it (`executor_oauth/`).
 
 **The signed-in identity in a tool: `_auth`.** With an identity verifier, a tool that declares
@@ -646,10 +652,55 @@ and `ToolDescriptor.Auth`.
 
 ### A2A (Agent-to-Agent Protocol)
 
-Google's A2A protocol is enabled with the `--a2a` flag:
+Google's A2A protocol (v0.3) is enabled with the `--a2a` flag:
 
-- **Agent Card**: `GET /.well-known/agent.json` — lists all functions as skills
-- **Task endpoint**: `POST /a2a/` — JSON-RPC 2.0 for function invocation
+- **Agent Card**: `GET /.well-known/agent-card.json` (also `/.well-known/agent.json`):
+  `protocolVersion: "0.3.0"`, `preferredTransport: "JSONRPC"`, and `url` = this server's `/a2a/`
+  as the caller reached it (https behind a TLS proxy). Without a handler it lists every function as
+  a skill.
+- **Task endpoint**: `POST /a2a/` — JSON-RPC 2.0.
+
+#### An AILANG program as an A2A agent: `--a2a-message`
+
+A2A clients such as Gemini Enterprise send a person's request as **text**, not as a function call.
+`--a2a-message <fn | module/path.fn>` names the one export that answers it. It takes one `string`
+(the message's text parts, joined) and returns the answer:
+
+```bash
+ailang serve-api --a2a --a2a-message reply --server-info "name=echo,title=Echo agent" \
+  examples/runnable/serve_api_a2a_message.ail
+```
+
+The card then describes an agent: its name is the `--server-info` title, it has one skill (the
+handler) whose description is the handler's doc comment, which is what a client's model reads to
+decide when to delegate, `capabilities.streaming` is true, and the modes are `text/plain`.
+
+| Method | Answer |
+|---|---|
+| `message/send` | A `Task`: `completed` with one `answer` artifact, or `failed` with the handler's error as the status message |
+| `message/stream` | Server-sent events: the `Task` (`submitted`), a `status-update` (`working`), an SSE comment heartbeat at most every 15s while the handler runs, an `artifact-update` with the answer, and a final `status-update` (`completed` or `failed`, `final: true`) |
+| `tasks/get` | A task from the last hour, by `params.id` |
+
+The handler runs with the request's context, so a Net or AI call it makes stops when the caller
+disconnects. Its effects are the service's `--caps`; an agent loop needs `AI` and `--ai <model>`.
+The hosted executor's agent (`executor_tools/agent.ail`) is the worked example: a bounded
+`std/ai` `runTools` loop over the sandboxed `ailang_check` and `ailang_run`.
+
+Under `--mcp-connect-only`, `/a2a/` is behind the Bearer gate and the handler must be `@noexpose
+@nomcp`, so nothing but the signed-in `/a2a/` reaches it. The card then says so: with
+`--oauth-issuer` set it carries `securitySchemes.oauth` (an authorization-code flow with the
+issuer's `authorization_endpoint` and `token_endpoint`, read from its
+`/.well-known/oauth-authorization-server` and cached for an hour) and `security: [{"oauth": []}]`.
+If the issuer's metadata cannot be read or names another issuer, the card is served without them
+and the reason is logged.
+
+Every `/a2a/` request writes one JSON line to stderr: `event` `a2a_request`, the `method`, the
+`outcome` (`completed` or `failed`, or why no task ran: `invalid_params`, `not_found`,
+`unknown_method`, `bad_request`, `client_gone`), `duration_ms`, and for `message/stream` the number
+of `heartbeats`. It never holds the request text, the answer or the caller's identity. On Cloud
+Run, `jsonPayload.event="a2a_request"` finds them.
+
+`tasks/send` (below) is unchanged: it calls a function by `metadata.skill_id`.
 
 > **Tip:** To serve a custom agent card (e.g., with additional metadata or a different schema), use `@nowrap @route("GET", "/.well-known/agent.json")` on a function that returns your card as a record. The `@nowrap` annotation ensures the output matches the A2A spec exactly, without the `FunctionCallResponse` envelope.
 
@@ -772,7 +823,8 @@ Flags:
   --ws-pass-header H   Give @route("WS") handlers this request header in req.headers (repeatable)
   --no-feedback-tool   Suppress the built-in submit_feedback MCP tool (exact tool surface)
   --oauth-issuer URL   OAuth authorization server for @mcp_auth("oauth2") tools on /mcp/connect/
-  --server-info S      Service identity name=N,title=T,version=V: MCP serverInfo, A2A card version, OpenAPI info.version
+  --a2a-message FN     With --a2a: the export (one string param) answering A2A v0.3 message/send and message/stream
+  --server-info S      Service identity name=N,title=T,version=V,icon=I: MCP serverInfo, A2A card (name, version, iconUrl), OpenAPI info.version
   --mcp-connect-only   Tools only on /mcp/connect/, all behind the Bearer gate (no /mcp/; HTTP serves @nomcp routes only)
   --process-timeout D  Process exec timeout (default 30s; needs --caps Process)
   --process-allowlist L  Commands Process may exec: cmd or cmd:sub, comma-separated (default: any on PATH)
@@ -1560,7 +1612,7 @@ names them:
 ailang serve-api --caps Stream --bind 127.0.0.1 --ws-pass-header Tailscale-User-Login ./server/
 ```
 
-```ailang
+```ailang sketch
 @route("WS", "/live")
 export func live(client: StreamConn, req: {path: string, headers: [{name: string, value: string}]}) -> unit ! {Stream} = ...
 ```
@@ -1772,6 +1824,12 @@ Functions that return `Result[T, E]` types get automatic HTTP status code mappin
 | `Err("message")` | 400 | `{"error": "message", ...}` |
 | `Err({_status: 404, message: "not found"})` | 404 | `{"error": {"message": "not found"}, ...}` |
 | Non-Result types | 200 | The value as-is |
+
+**Over MCP** the same type means the same thing: `Ok(value)` answers with the inner value, and
+`Err(value)` is a tool error (`isError: true`) whose text is the payload: a string as itself, anything
+else as JSON. Before v0.60.5 a `Result` crossed MCP as a successful `{"__tag": "Err", ...}` object, so
+a client could not tell a refusal from an answer. A tool that must refuse a call should return
+`Result`; returning a JSON object with an `error` key still reads as success to MCP clients.
 
 ### Default behavior
 

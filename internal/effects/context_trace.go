@@ -37,6 +37,11 @@ func (ctx *EffContext) RenderTraceValue(v eval.Value) string {
 	if ctx.Trace == nil {
 		return eval.ShowTraceBounded(v, 0)
 	}
+	// M-TRACE-LABEL-AWARE: inside a labelled call the value is never
+	// rendered at all, so it is never materialised as a trace string.
+	if label := ctx.Trace.LabelScope(); label != "" {
+		return trace.LabelRedactedMarker(label)
+	}
 	budget, redacted := ctx.Trace.ValueBudget()
 	if redacted {
 		return trace.RedactedDescriptor(eval.RenderedLen(v))
@@ -45,6 +50,36 @@ func (ctx *EffContext) RenderTraceValue(v eval.Value) string {
 	// this is the one renderer effect, builtin and function-call trace
 	// sites share.
 	return eval.ShowTraceBounded(v, budget)
+}
+
+// PushTraceLabelScope opens an IFC label scope on the active collector for
+// the dynamic extent of a call the static IFC pass marked
+// (M-TRACE-LABEL-AWARE; eval.TraceLabelScoper). Returns nil when no enabled
+// collector is attached.
+func (ctx *EffContext) PushTraceLabelScope(label string) func() {
+	if ctx == nil || !ctx.HasTraceCollector() {
+		return nil
+	}
+	return ctx.Trace.PushLabelScope(label)
+}
+
+// traceSpanArgs is what an effect span wrapper may inspect for enrichment
+// (fs.path, net.url, process.command): the real args, or — inside a label
+// scope — markers of the same arity, so a labelled URL or path never becomes
+// a span attribute either.
+func (ctx *EffContext) traceSpanArgs(args []eval.Value) []eval.Value {
+	if ctx.Trace == nil {
+		return args
+	}
+	label := ctx.Trace.LabelScope()
+	if label == "" {
+		return args
+	}
+	out := make([]eval.Value, len(args))
+	for i := range args {
+		out[i] = &eval.StringValue{Value: trace.LabelRedactedMarker(label)}
+	}
+	return out
 }
 
 // RecordFunctionEnter delegates to trace collector if present.

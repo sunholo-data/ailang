@@ -1,0 +1,33 @@
+-- Engine parity fixture (engines_test.go): evaluator, --bytecode and --strict-bytecode
+-- must print the same summary(). The audio behaviours #2389's deleted test asserted only through emitted Go.
+module audio_probe
+import std/audio (wavInfo, wavFromPcm, wavHeaderChecked, pcm16ToFloats)
+import std/bytes (fromInts)
+import std/bytes as B
+import std/array as A
+import std/result (Ok, Err)
+export pure func main(xs: [int]) -> bool {
+ match wavInfo(fromInts(xs)) { Ok(_) => true, Err(_) => false }
+}
+export pure func legacy(pcm: bytes) -> bytes = wavFromPcm(pcm, 8000, 1, 16)
+export pure func arrayResult() -> Array[float] {
+ match pcm16ToFloats(fromInts([0,0]),0,1,1) {
+   Err(_) => A.fromList([0.0]),
+   Ok(xs) => xs
+ }
+}
+export pure func arraySet() -> float = A.get(A.set(arrayResult(),0,0.5),0)
+export pure func firstClassHeader() -> bool {
+ let header = wavHeaderChecked;
+ match header(0,8000,1,16) { Ok(_) => true, Err(_) => false }
+}
+export pure func firstClassDecode() -> bool {
+ let decode = pcm16ToFloats;
+ match decode(fromInts([0,0]),0,1,1) { Ok(xs) => A.length(xs) == 1, Err(_) => false }
+}
+export pure func recursiveTotal(n: int) -> int = if n <= 0 then 0 else n + recursiveTotal(n - 1)
+export pure func sin(x: float) -> float = x + 1.0
+export pure func trim(x: string) -> string = x
+export pure func topLevelNames() -> bool = sin(1.0) == 2.0 && trim(" value ") == " value "
+
+export pure func summary() -> string = "${show(A.get(arrayResult(), 0))} ${show(arraySet())} ${show(firstClassHeader())} ${show(firstClassDecode())} ${show(recursiveTotal(5))} ${show(topLevelNames())} ${show(B.length(legacy(fromInts([0, 0]))))}"
