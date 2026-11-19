@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 126 | 2026-11-20 | `driver:idle-fingerprint-head-ignores-design-docs-verification` LANDED and RESOLVED: #2431 → `ff08818ae` (idle pre-check excludes `design_docs/veri... |
 | 125 | 2026-11-19 | `pi:unowned-dirty-absolute-vs-relative-paths` LANDED and RESOLVED: #2411 → `224f1257f` (D-FLEET-33 A; attended pi-assets sync `d2ee7dc03`, merged b... |
 | 124 | 2026-11-19 | `quorum:codex-gpt-6.2-sol-not-allowlisted` RESOLVED as a ghost of `8e04a29c5` (stale rig binary); the seat still fails because the mission codex da... |
 | 123 | 2026-11-19 | `gate0:self-notices-rc2-no-watermark-file` LANDED and RESOLVED: #2421 → `cf540337e`; Gate 0 step 6a is a DEGRADED whole-issue read when no watermar... |
