@@ -12,6 +12,7 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 48 | 2026-11-19 | three docs re-attested, #1985/#1980 judge dissents, #1939 #1934 #1759 superseded [ADMIN] |
 | 47 | 2026-11-18 | red dev already fixed, #2415 superseded, #1485 close dissented [ADMIN] |
 | 46 | 2026-11-18 | red dev routed (gpt-6.2 fixture), #2221 and #1953 closed, #1980 held by T2 [ADMIN] |
 | 45 | 2026-11-17 | one unsigned attestation (#2403), ten priority/needs-decision labels, #2393 held; cross-vendor judge before action [ADMIN] |
