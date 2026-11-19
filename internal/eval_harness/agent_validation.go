@@ -154,7 +154,7 @@ func runPythonSolution(solutionPath string, spec *BenchmarkSpec) ValidationResul
 	}
 
 	// newPythonCommand is variadic — pass solution path + spec's CLI args
-	// in the same slice so they all land after `uv run --python 3.12 --`.
+	// in the same slice so they all land after `uv run --python 3.14 --`.
 	args := append([]string{solutionPath}, spec.CliArgs...)
 	cmd, uvErr := newPythonCommand(args...)
 	if uvErr != nil {

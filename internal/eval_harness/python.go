@@ -3,6 +3,7 @@ package eval_harness
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 	"sync"
 
 	"github.com/sunholo-data/ailang/internal/config"
@@ -12,15 +13,17 @@ import (
 // runtime (the interpreter `uv` resolves) and the prompt (what we tell the
 // model) are driven from this single constant so they can never drift.
 //
-// 3.12 is a modern production Python that supports structural pattern
-// matching (`match/case`, PEP 634) — so models are not penalised for
-// reaching for idiomatic constructs available in current stable Python.
+// 3.14 is the newest stable minor that `uv` resolves to a STABLE build on the
+// rig and in CI (2026-11-16). 3.15 is out upstream, but a uv that predates its
+// final release silently resolves `--python 3.15` to the 3.15.0b1 beta — so
+// moving to 3.15 needs a uv upgrade on every runner first. Changing this pin
+// changes the Python prompt and runtime: it starts a new Python baseline.
 const (
 	PinnedPythonMajor = 3
-	PinnedPythonMinor = 12
+	PinnedPythonMinor = 14
 )
 
-// PinnedPythonVersion returns "3.12".
+// PinnedPythonVersion returns "3.14".
 func PinnedPythonVersion() string {
 	return fmt.Sprintf("%d.%d", PinnedPythonMajor, PinnedPythonMinor)
 }
@@ -31,6 +34,17 @@ func PinnedPythonVersion() string {
 // returns the pin.
 func DetectedPythonVersion() string {
 	return PinnedPythonVersion()
+}
+
+// substituteRuntimePlaceholders fills the runtime tokens a prompt template may
+// carry ({{PYTHON_VERSION}}). It is the ONE place this happens, and every live
+// path that hands a prompt to a model calls it: the agent system prompt
+// (LoadSystemPromptForLanguage), the agent task prompt
+// (GenerateAgentPromptsWithSystemPrompt) and standard mode
+// (BenchmarkSpec.PromptPartsForLanguage). Until 2026-11-16 only the task
+// prompt did, and models were shown a literal {{PYTHON_VERSION}}.
+func substituteRuntimePlaceholders(s string) string {
+	return strings.ReplaceAll(s, "{{PYTHON_VERSION}}", DetectedPythonVersion())
 }
 
 // uvResolveOnce guarantees we only probe for uv and log the missing-uv error
