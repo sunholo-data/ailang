@@ -885,3 +885,14 @@ No VERIFIED, no ⚖ action, no comments/labels/closes on items, no approve/rejec
 **Held**: #1980 fixed on dev (MOD015) but card task-364b77ab still pending, so T2 forbids closing. #2415 SUPERSEDED but closing a coordinator PR rejects its card for good, so it is Mark's.
 **Not done**: T4 landed-card dry run; ledger agree/total score; card re-verification. Packet not due (17:49 UTC, outside the 18:00-05:00 window).
 **Next**: Mark rules on #2415 and #1485; the record PR must go green and land.
+
+## 48 — 2026-11-19 — three docs re-attested, #1985 and #1980 judge dissents, three orphan PRs superseded [ADMIN]
+
+**Reality check**: origin/dev `cf540337ede442443011db75c4cd9bf2776f7d33`; CI success (4 latest runs green). Directives: 0 allowlisted comments on #2069; no crash notices (the watermark file for #2069 is absent, so the read was whole-issue DEGRADED, rc=0). The decision ledger has no OPEN rows on this checkout, so the moot and decompose sweeps had nothing to act on.
+**Selection**: 1 changed (#2341, fleet bookkeeping, skipped) + 1 held (#1980) + 27 stale >= 7d, of which 33 items went to verifiers (9 PRs, 24 issues). Skipped fleet/* records, #2357, #2018, #2411, Dependabot.
+**Shipped**: 3 fresh unsigned attestations (PRs #2099, #2009, #1978 against this dev); evidence comments on PRs #1894, #1939, #1934, #1759 (each read back +1); `needs-decision` on #1980; digest comment; 33 shadow rows. No closes, approvals, rejections or merges.
+**Judge**: `sonnet` Agent (`MISSION-ROLE: evaluator`), a different vendor from the codex verifier, run before any action. CONCUR on the three VERIFIED, #1894, the three SUPERSEDED orphans and #2415. DISSENT on #1985 (govulncheck is moot because dev resolved #1980 by MOD015, so close the plan, not fix it) and on #1980 (verifier KEEP, judge says MOD015 in `internal/pipeline/import_ambiguity.go` fixes it). Both became NEEDS-DECISION. T2 still forbids closing #1980 while card task-364b77ab is pending.
+**Routing evidence**: executor `codex:gpt-6-luna` (probe rc=0, two bounded background runs read-only, rc=0, 17 and 16 items); evaluator `sonnet` via the Agent tool. Verifiers had no network, so issue/PR data was prefetched; 9 issue snapshots came back empty, so their KEEPs rest on design-doc references. No reproductions ran.
+**Ledger score**: 25/28 agree (#1980 CLOSE-FIXED still open; #2197, #2228 NEEDS-FIX later merged).
+**Not done**: T4 landed-card dry run; card re-verification; the six PR-less cards were not re-read. Packet not due (06:14 UTC, outside the 18:00-05:00 window).
+**Next**: Mark rules on #1985/task-364b77ab, #2415/task-789cc5ef and the three superseded orphans; approvals for #2099, #2009, #1978 are ready.
