@@ -1,0 +1,40 @@
+-- Task: verify a release manifest's detached RSA-SHA256 signature against the
+-- publisher's public key, and show that a modified manifest, a corrupted
+-- signature and a malformed key are each rejected.
+-- Demonstrates std/crypto rsaVerifyPKCS1v15 and sha256Bytes with std/bytes.
+module examples/runnable/stdlib/crypto_rsa_verify
+import std/crypto (rsaVerifyPKCS1v15, sha256Bytes)
+import std/bytes (fromString, fromBase64, fromInts, concat)
+
+-- Test-only 1024-bit public key (PKCS#8 "PUBLIC KEY" PEM); the private half is not shipped.
+pure func publisherKey() -> string =
+  "-----BEGIN PUBLIC KEY-----\nMIGfMA0GCSqGSIb3DQEBAQUAA4GNADCBiQKBgQDbkgzpQXsv6SQd8A8UiIgLypmC\nVJs5hIanrbhIcu5++ITr9iGs9bUQfnN+jKHM2RL9Y1v/tzBFLzusyW0vf0W6CdGY\nR/X0zFWXeajbb4aOOZbbpvmds8vR+XdkgfAKXEElov7eEjzEWCrqkbZ2hxaIqvvK\n4JP2aQp7yvWEKB7haQIDAQAB\n-----END PUBLIC KEY-----\n"
+
+-- Base64 signature produced with: openssl dgst -sha256 -sign priv.pem
+pure func signatureB64() -> string =
+  "YpElS3PahrvgVxLLd/LFQsWW1JC3vtohGVxjQaohEd7hwxZSnOz5nDejnmkHGa+CT0MJI9pV0vklV3lZBsftg6mclbLm8ntBxteBh/FvVdDCCgL21lECwI0+bVFG5REKCtcViWSLO1gQaMjHIWt7S/Yha0S/E14GZILRM4hlutw="
+
+-- Ok(true) = valid, Ok(false) = signature mismatch, Err = the key could not be parsed.
+pure func describe(r: Result[bool, string]) -> string = match r {
+  Ok(true) => "valid",
+  Ok(false) => "INVALID signature",
+  Err(e) => "key error (${e})"
+}
+
+export func main() -> () ! {IO} {
+  let manifest = fromString("release v1.2.3 sha256:abc123")
+  println("manifest digest: ${sha256Bytes(manifest)}")
+  match fromBase64(signatureB64()) {
+    None => println("signature is not base64"),
+    Some(sig) => {
+      println("genuine manifest: ${describe(rsaVerifyPKCS1v15(manifest, sig, publisherKey()))}")
+      let edited = fromString("release v1.2.4 sha256:abc123")
+      println("edited manifest: ${describe(rsaVerifyPKCS1v15(edited, sig, publisherKey()))}")
+      -- Appending one byte makes the signature the wrong length.
+      let badSig = concat(sig, fromInts([0]))
+      println("corrupted signature: ${describe(rsaVerifyPKCS1v15(manifest, badSig, publisherKey()))}")
+      let notAKey = "not a pem key"
+      println("malformed key: ${describe(rsaVerifyPKCS1v15(manifest, sig, notAKey))}")
+    }
+  }
+}

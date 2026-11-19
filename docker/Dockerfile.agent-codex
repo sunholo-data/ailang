@@ -8,7 +8,10 @@ FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 # at build time, so the 09-28 images carried 0.158.0 while the mission roles moved to
 # gpt-6.1-sol, which needs >= 0.159.2 (older CLIs 400 it exactly like a nonexistent
 # model). Bump deliberately; agent-codex-go inherits this image.
-ARG CODEX_VERSION=0.159.2
+# BUMPED 0.159.2 -> 0.169.0 2026-11-17: the mission Sol rung moved to gpt-6.2-sol, which 0.159.2
+# 400s on the ChatGPT account ("not supported" + "Model metadata not found", same as a
+# nonexistent model); 0.169.0 returns rc=0 for gpt-6.2-sol/gpt-6.2-astra/gpt-6.1-terra.
+ARG CODEX_VERSION=0.169.0
 USER root
 RUN npm install -g "@openai/codex@${CODEX_VERSION}" \
     && codex --version </dev/null | grep -qx "codex-cli ${CODEX_VERSION}" \

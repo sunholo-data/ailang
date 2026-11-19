@@ -142,3 +142,19 @@ func TestEnvSet_UnsetAndWindowsDriveEntries(t *testing.T) {
 		t.Fatalf("environ() = %q", got)
 	}
 }
+
+// The eval-run marker is harness-injected from Task.EvalRun (2026-11-06): the pi
+// session-protocol gate disarms on it, so an ordinary task must not get it, an
+// inherited value must not leak through, and ExtraEnv must not be able to set it.
+func TestBuildEnvironment_EvalRunMarker(t *testing.T) {
+	t.Setenv("AILANG_EVAL_RUN", "1") // inherited from the operator's shell: must not decide
+	if got, ok := mustBuild(t, EnvironmentOptions{Task: &Task{ID: "plain"}})["AILANG_EVAL_RUN"]; ok {
+		t.Errorf("non-eval task got AILANG_EVAL_RUN=%q", got)
+	}
+	if got := mustBuild(t, EnvironmentOptions{Task: &Task{ID: "eval", EvalRun: true}})["AILANG_EVAL_RUN"]; got != "1" {
+		t.Errorf("eval task AILANG_EVAL_RUN = %q, want 1", got)
+	}
+	if _, err := BuildEnvironment(EnvironmentOptions{Task: &Task{ExtraEnv: map[string]string{"AILANG_EVAL_RUN": "1"}}}); err == nil {
+		t.Fatal("ExtraEnv AILANG_EVAL_RUN must be refused: a task may not disarm session guards")
+	}
+}

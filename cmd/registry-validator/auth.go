@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"log"
 	"net/http"
 	"path"
 	"strings"
@@ -89,11 +90,30 @@ type authError struct {
 
 func (e *authError) Error() string { return e.msg }
 
-func requestAPIKey(r *http.Request) string {
-	if k := r.Header.Get("X-API-Key"); k != "" {
-		return k
+// apiKeyHeader is the only place the validator reads a key from.
+const apiKeyHeader = "X-API-Key"
+
+// errQueryAPIKey refuses a key sent as ?api_key=. A query string lands in
+// Cloud Run's request log and in any proxy's access log, so a key sent that
+// way is exposed whether or not we accept it; refusing stops a client from
+// depending on it. No released `ailang publish` / `unpublish` / `pkg keys`
+// ever sent it (they have used the header since v0.10.0, the release that
+// added auth), and the request log held no such request in the 30 days to
+// 2026-11-12, so this is a refusal, not a deprecation window.
+var errQueryAPIKey = &authError{http.StatusBadRequest,
+	"API keys in the query string (?api_key=) are refused: query strings are written to access logs. " +
+		"Send the key in the " + apiKeyHeader + " header instead. " +
+		"A key already sent in a URL should be treated as exposed and rotated."}
+
+// requestAPIKey returns the key from the X-API-Key header, or errQueryAPIKey
+// when the request carries an api_key query parameter (with or without the
+// header). The log line names the path only, never the query.
+func requestAPIKey(r *http.Request) (string, *authError) {
+	if r.URL.Query().Has("api_key") {
+		log.Printf("auth: refused api_key in the query string on %s %s", r.Method, r.URL.Path)
+		return "", errQueryAPIKey
 	}
-	return r.URL.Query().Get("api_key")
+	return r.Header.Get(apiKeyHeader), nil
 }
 
 func keyID(key string) string {
@@ -104,7 +124,10 @@ func keyID(key string) string {
 // authenticate resolves the request's key to a principal. It does not check
 // scopes — call principal.canWrite for that, or authorizeWrite for both.
 func (v *validator) authenticate(ctx context.Context, r *http.Request) (principal, *authError) {
-	provided := requestAPIKey(r)
+	provided, qerr := requestAPIKey(r)
+	if qerr != nil {
+		return principal{}, qerr
+	}
 	if provided == "" {
 		return principal{}, &authError{http.StatusForbidden, "Invalid or missing API key"}
 	}

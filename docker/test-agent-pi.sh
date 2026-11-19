@@ -92,8 +92,9 @@ have "policy outside the sandbox -> granted"              'grep -q "\"refusal\":
 have "ailang run --policy exists"                         'grep -q -- "-policy string" <<<"$RUN_HELP"'
 
 echo "=== 7. Z3 is in the image and ai-check uses it ==="
-# ai-check degrades to verify.available=false when z3 is absent — a pass
-# that proves nothing. Assert the binary AND that ai-check reports it.
+# Without z3, ai-check exits 1 (verify.outcome "unavailable") on any file
+# with contracts; this contract-free probe would still pass, so assert the
+# binary AND that ai-check reports it found the solver.
 Z3V="$(z3 --version 2>&1 || true)"
 have "z3 binary present" 'grep -q "Z3 version" <<<"$Z3V"'
 printf 'module probe\nexport func main() -> () ! {} = ()\n' > "$WS/probe.ail"

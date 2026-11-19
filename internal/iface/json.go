@@ -3,6 +3,7 @@ package iface
 import (
 	"encoding/json"
 	"fmt"
+	"slices"
 	"sort"
 	"strings"
 
@@ -27,15 +28,34 @@ type TypeJSON struct {
 	// rendered as a bare `type TableCell`, so an agent couldn't build/destructure the record
 	// from the compact iface and fell back to cat-ing the full source.
 	Alias string `json:"alias,omitempty"`
+	// Tier is the module's default tier (stable|experimental|internal) from
+	// std/STABILITY.toml: present on every std type, omitted outside std.
+	Tier string `json:"tier,omitempty"`
 }
 
 // FuncJSON represents an exported function in normalized form
 type FuncJSON struct {
-	IFC     *types.ImportedIFCSig `json:"ifc,omitempty"`
-	Name    string                `json:"name"`
-	Type    string                `json:"type"`
-	Effects []string              `json:"effects"`
-	Pure    bool                  `json:"pure"`
+	IFC  *types.ImportedIFCSig `json:"ifc,omitempty"`
+	Name string                `json:"name"`
+	Type string                `json:"type"`
+	// Constraints are the export's class constraints (#2290), e.g. "Ord[a]",
+	// with the same canonical variable names as Type. Omitted when none.
+	Constraints []string `json:"constraints,omitempty"`
+	// Literals are the type variables (named as in Type) whose Num constraint
+	// carries an integer literal (#2378): the export is compiled once per
+	// numeric instance of them, and an importer names those variants from
+	// this. Omitted when none (a literal-free generic has one body for all).
+	Literals []string `json:"literals,omitempty"`
+	Effects  []string `json:"effects"`
+	Pure     bool     `json:"pure"`
+	// Tier (M-V1-STDLIB-SURFACE-POLISH §6.1): the module default, or
+	// "experimental" for an @experimental function. Present on every std
+	// function; outside std only when @experimental sets it.
+	Tier string `json:"tier,omitempty"`
+	// ReplacedBy and DeprecationNote mirror @deprecated("replacement", "note").
+	// Deprecation is not a tier: a deprecated Stable function stays stable.
+	ReplacedBy      string `json:"replaced_by,omitempty"`
+	DeprecationNote string `json:"deprecation_note,omitempty"`
 }
 
 // ToNormalizedJSON converts an Iface to normalized JSON
@@ -90,6 +110,7 @@ func (i *Iface) ToNormalizedJSON() ([]byte, error) {
 			Name:   name,
 			Params: params,
 			Ctors:  typeToCtors[name], // Already sorted
+			Tier:   i.Tier,
 		}
 
 		// M-IFACE-RECORD-FIELDS: a record/type alias has no constructors; render its underlying
@@ -112,17 +133,22 @@ func (i *Iface) ToNormalizedJSON() ([]byte, error) {
 		export := i.Exports[name]
 
 		// Format type with canonicalized variables
-		typeStr := canonicalizeType(export.Type)
+		typeStr, constraints, literals := canonicalizeSchemeParts(export.Type)
 
 		// Extract and sort effects
 		effects := extractEffects(export.Type)
 
 		funcJSON := FuncJSON{
-			IFC:     export.IFC,
-			Name:    name,
-			Type:    typeStr,
-			Effects: effects,
-			Pure:    export.Purity,
+			IFC:             export.IFC,
+			Name:            name,
+			Type:            typeStr,
+			Constraints:     constraints,
+			Literals:        literals,
+			Effects:         effects,
+			Pure:            export.Purity,
+			Tier:            export.Tier,
+			ReplacedBy:      export.ReplacedBy,
+			DeprecationNote: export.DeprecationNote,
 		}
 
 		result.Funcs = append(result.Funcs, funcJSON)
@@ -184,18 +210,18 @@ func renderTypeAlias(target types.Type) string {
 	return formatTypeCanonical(target, getCanonName)
 }
 
-// canonicalizeType converts a Scheme to canonical string form
-// Type variables are renamed to a, b, c, ...
-func canonicalizeType(scheme *types.Scheme) string {
+// canonicalizeSchemeParts renders a scheme's type, with its type variables
+// renamed a, b, c, … in order of appearance, and its class constraints with
+// the same naming, so "Ord[a]" names the a of the type (it replaces
+// canonicalizeType, which rendered the type alone). Constraints are sorted and
+// de-duplicated. The third result names the variables of Literal Num
+// constraints (#2378), sorted.
+func canonicalizeSchemeParts(scheme *types.Scheme) (string, []string, []string) {
 	if scheme == nil || scheme.Type == nil {
-		return "unknown"
+		return "unknown", nil, nil
 	}
-
-	// Create variable mapping
 	varMap := make(map[string]string)
 	varCounter := 0
-
-	// Helper to get canonical name for type variable
 	getCanonName := func(original string) string {
 		if canon, ok := varMap[original]; ok {
 			return canon
@@ -205,9 +231,30 @@ func canonicalizeType(scheme *types.Scheme) string {
 		varCounter++
 		return canon
 	}
-
-	// Format the type with canonical variables
-	return formatTypeCanonical(scheme.Type, getCanonName)
+	typeStr := formatTypeCanonical(scheme.Type, getCanonName)
+	if len(scheme.Constraints) == 0 {
+		return typeStr, nil, nil
+	}
+	var literals []string
+	for _, c := range scheme.Constraints {
+		if c.Literal && c.Class == "Num" {
+			if v := formatTypeCanonical(c.Type, getCanonName); !slices.Contains(literals, v) {
+				literals = append(literals, v)
+			}
+		}
+	}
+	sort.Strings(literals)
+	seen := make(map[string]bool, len(scheme.Constraints))
+	out := make([]string, 0, len(scheme.Constraints))
+	for _, c := range scheme.Constraints {
+		r := c.Class + "[" + formatTypeCanonical(c.Type, getCanonName) + "]"
+		if !seen[r] {
+			seen[r] = true
+			out = append(out, r)
+		}
+	}
+	sort.Strings(out)
+	return typeStr, out, literals
 }
 
 // maxTypeRenderDepth bounds formatTypeCanonical recursion so a cyclic types.Type
@@ -277,17 +324,7 @@ func formatTypeCanonicalDepth(t types.Type, getCanonName func(string) string, de
 		for name, ft := range typ.Fields {
 			merged[name] = ft
 		}
-		openTail := ""
-		if row, ok := typ.Row.(*types.Row); ok {
-			for name, ft := range row.Labels {
-				merged[name] = ft
-			}
-			if row.Tail != nil {
-				openTail = "..." + getCanonName(row.Tail.Name)
-			}
-		} else if typ.Row != nil {
-			openTail = "..." + formatTypeCanonicalDepth(typ.Row, getCanonName, depth+1)
-		}
+		openTail := mergeRecordRow(merged, typ.Row, getCanonName, depth)
 		return formatRecordCanonical(merged, openTail, getCanonName, depth)
 	case *types.TRecord2:
 		// #1374: the row-based record (e.g. std/ai's AIError inside Result[...])
@@ -302,11 +339,15 @@ func formatTypeCanonicalDepth(t types.Type, getCanonName func(string) string, de
 		return formatRecordCanonical(typ.Row.Labels, openTail, getCanonName, depth)
 	case *types.TRecordOpen:
 		// Field-access shim record ({x: a | r}); same rendering as an open TRecord.
-		openTail := ""
-		if typ.Row != nil {
-			openTail = "..." + formatTypeCanonicalDepth(typ.Row, getCanonName, depth+1)
+		// Its row can be a concrete *types.Row (a duplicate label not yet
+		// unified, #2288 review): it renders structurally, never as `<*types.Row>`,
+		// which interface_hash v2 would hash as the same string for any row.
+		merged := make(map[string]types.Type, len(typ.Fields))
+		for name, ft := range typ.Fields {
+			merged[name] = ft
 		}
-		return formatRecordCanonical(typ.Fields, openTail, getCanonName, depth)
+		openTail := mergeRecordRow(merged, typ.Row, getCanonName, depth)
+		return formatRecordCanonical(merged, openTail, getCanonName, depth)
 	case *types.TTuple:
 		elems := make([]string, len(typ.Elements))
 		for i, e := range typ.Elements {
@@ -386,4 +427,26 @@ func extractEffects(scheme *types.Scheme) []string {
 	}
 
 	return []string{}
+}
+
+// mergeRecordRow adds a record row's labels to merged (the record's own fields
+// win, as in the checker's recordShape.extend) and returns the "...<rowvar>"
+// suffix, empty for a closed record.
+func mergeRecordRow(merged map[string]types.Type, row types.Type, getCanonName func(string) string, depth int) string {
+	switch r := row.(type) {
+	case nil:
+		return ""
+	case *types.Row:
+		for name, ft := range r.Labels {
+			if _, has := merged[name]; !has {
+				merged[name] = ft
+			}
+		}
+		if r.Tail != nil {
+			return "..." + getCanonName(r.Tail.Name)
+		}
+		return ""
+	default:
+		return "..." + formatTypeCanonicalDepth(row, getCanonName, depth+1)
+	}
 }

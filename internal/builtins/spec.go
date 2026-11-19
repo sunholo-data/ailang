@@ -27,6 +27,12 @@ type BuiltinSpec struct {
 	Type    func() types.Type // Type signature constructor (must return non-nil)
 	Impl    EffectImpl        // Implementation function
 
+	// EqVars names the type variables of Type whose values the implementation
+	// compares with ==. The builtin's scheme carries Eq on each, so a use at a
+	// type without Eq (a function) is a type error, as `==` itself is (#2291:
+	// `contains([\x. x + 1], \x. x + 1)` passed check and returned false).
+	EqVars []string
+
 	// === Enhanced Metadata (v0.3.15+ - Optional) ===
 	// All fields in Metadata are optional for backward compatibility.
 	// See internal/builtins/metadata.go for field documentation.
@@ -84,6 +90,13 @@ func RegisterEffectBuiltin(spec BuiltinSpec) error {
 	typ := spec.Type()
 	if typ == nil {
 		return fmt.Errorf("builtin %s: Type() returned nil", spec.Name)
+	}
+
+	// 3b. M-V1-NOMINAL-TYPE-IDENTITY: every nominal type in the signature has a
+	// defining module from the builtin home table; a missing entry would be a
+	// type no user-visible declaration could ever unify with.
+	if err := checkBuiltinHomes(spec.Name, typ); err != nil {
+		return err
 	}
 
 	// 4. Validate arity matches type signature
@@ -153,4 +166,14 @@ func Init() error {
 // IsFrozen returns whether the registry has been initialized
 func IsFrozen() bool {
 	return frozen
+}
+
+// checkBuiltinHomes rejects a builtin signature naming a nominal type the
+// builtin home table lacks (M-V1-NOMINAL-TYPE-IDENTITY): such a type has no
+// defining module and no user-visible declaration could ever unify with it.
+func checkBuiltinHomes(name string, typ types.Type) error {
+	if missing := types.MissingBuiltinHomes(typ); len(missing) > 0 {
+		return fmt.Errorf("builtin %s: type(s) %v have no home module: add them to builtinHomes (internal/types/nominal.go)", name, missing)
+	}
+	return nil
 }

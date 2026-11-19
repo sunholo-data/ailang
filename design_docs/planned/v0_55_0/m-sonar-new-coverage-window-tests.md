@@ -461,7 +461,7 @@ raw work, which includes reading each target file's uncovered branches.)
 **Planned (check for overlap):**
 - [m-vm-coverage-letrec-prelude-bridge](m-vm-coverage-letrec-prelude-bridge.md) — M-VM-COVERAGE G2 shipped `compiler/prelude.go`; its tests live in `internal/runner` (cross-package), which is why the file reads uncovered here
 - [m-vm-quick-wins](m-vm-quick-wins.md) — sibling in-window work; its `vm.go`/`closure_call.go` tails are this doc's contingency scope only
-- [m-contract-verification-coverage](../m-contract-verification-coverage.md) — language-level verification coverage (different meaning of "coverage"; checked for overlap, none)
+- [m-contract-verification-coverage](../v1_1_0/m-contract-verification-coverage.md) — language-level verification coverage (different meaning of "coverage"; checked for overlap, none)
 
 **Dedupe gate:** the create-script search (SimHash + neural) returned no
 matches ≥ 0.45 for this topic; the manual sweep above found no doc proposing

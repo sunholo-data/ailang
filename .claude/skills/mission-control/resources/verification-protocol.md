@@ -742,7 +742,7 @@ the Repo Profile above):
    `httptest.NewServer`), inside a drill protocol requiring that arm rc=0 as a control after EVERY
    mutant — so the milestone could not be executed in the lane it was routed to, however correct the
    work. V1's instance, same day: a scoped
-   `go test ./internal/gen/golang/... ./internal/eval_harness/...` baselined **rc=0** outside the
+   `go test ./internal/gen/golang/... ./internal/eval_harness/...` (the first package since removed) baselined **rc=0** outside the
    sandbox and shipped as gate G4 in a directive stating "every one rc=0 there", returned **rc=1**
    inside on a denied `httptest.NewServer` bind. It cost nothing only because the directive
    independently told the executor to label such results `UNINFORMATIVE UNDER SANDBOX`, and it did —

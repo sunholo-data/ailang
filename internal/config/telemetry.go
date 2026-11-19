@@ -43,7 +43,7 @@ var telemetryVars = []Var{
 	{EnvTaskID, "", AreaTelemetry, "Coordinator task id of this process, recorded on spans for cross-trace correlation."},
 	{EnvSessionID, "", AreaTelemetry, "Session id of this process, recorded on spans."},
 	{EnvParentTaskID, "", AreaTelemetry, "Task id of the parent that spawned this ailang process; inherited by check, run and exec for hierarchy linking."},
-	{EnvOTLPIngestToken, "", AreaTelemetry, "Shared secret the observatory's OTLP receiver requires from callers; empty disables ingest auth."},
+	{EnvOTLPIngestToken, "", AreaTelemetry, "Shared secret for the dashboard's OTLP receiver (/v1/traces, /v1/logs, /v1/metrics), sent as X-AILANG-Ingest-Token or Authorization: Bearer (senders: OTEL_EXPORTER_OTLP_HEADERS=x-ailang-ingest-token=<token>); checked on non-loopback binds per AILANG_INGEST_AUTH."},
 	{EnvWALCheckpointMB, strconv.FormatInt(DefaultWALCheckpointMB, 10), AreaTelemetry, "Observatory SQLite WAL size in MB that triggers a checkpoint; non-positive or malformed keeps the default."},
 	{EnvSpanFilterDisable, "false", AreaTelemetry, "true disables the observatory's span filter entirely."},
 	{EnvSpanFilterAllow, "", AreaTelemetry, "Comma-separated span-name patterns the observatory keeps."},
@@ -78,7 +78,7 @@ func SessionID() string { return get(EnvSessionID) }
 func ParentTaskID() string { return get(EnvParentTaskID) }
 
 // OTLPIngestToken returns the trimmed AILANG_OTLP_INGEST_TOKEN, "" when
-// ingest auth is off.
+// unset.
 func OTLPIngestToken() string { return strings.TrimSpace(get(EnvOTLPIngestToken)) }
 
 // WALCheckpointMB returns AILANG_OBSERVATORY_WAL_CHECKPOINT_MB as a

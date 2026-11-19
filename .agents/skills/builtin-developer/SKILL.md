@@ -50,7 +50,7 @@ Validate all builtins in the registry.
 
 **Usage:**
 ```bash
-.Codex/skills/builtin-developer/scripts/validate_builtins.sh
+.claude/skills/builtin-developer/scripts/validate_builtins.sh
 ```
 
 **What it checks:**
@@ -64,7 +64,7 @@ Run ailang doctor and list commands.
 
 **Usage:**
 ```bash
-.Codex/skills/builtin-developer/scripts/check_builtin_health.sh
+.claude/skills/builtin-developer/scripts/check_builtin_health.sh
 ```
 
 ## Workflow

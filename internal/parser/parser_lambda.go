@@ -173,13 +173,30 @@ func (p *Parser) parseParams() []*ast.Param {
 			continue
 		}
 		param := &ast.Param{Pos: p.curPos()}
-		if p.curTokenIs(lexer.IDENT) {
+		switch {
+		case p.curTokenIs(lexer.IDENT):
 			param.Name = p.curToken.Literal
 			if p.peekTokenIs(lexer.COLON) {
 				p.nextToken()
 				p.nextToken()
 				param.Type = p.parseType()
 			}
+		case p.curTokenIs(lexer.UNIT):
+			// `f(())` is the ignored unit parameter: the same node an empty
+			// parameter list gets (`_: ()`), not a pattern — AILANG has no
+			// pattern parameters (#2156). The lexer reads `()` as one UNIT token.
+			param = newUnitParam(p.curPos())
+		default:
+			// Any other token used to become a NAMELESS, UNTYPED parameter:
+			// `func f(5)` checked clean on v0.47 and `f("hello")` ran. A
+			// parameter is a name (M-V1-VERIFICATION-HONESTY M4, D7).
+			p.errors = append(p.errors, paramNameError(p.curToken))
+			p.syncReservedParam()
+			if p.curTokenIs(lexer.RPAREN) || p.curTokenIs(lexer.EOF) {
+				return params
+			}
+			p.nextToken() // synchronization owns the outer comma
+			continue
 		}
 		params = append(params, param)
 		if !p.peekTokenIs(lexer.COMMA) {

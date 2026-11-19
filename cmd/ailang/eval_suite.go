@@ -650,6 +650,7 @@ func runEvalSuite() {
 		verify:            *verify, verifyTimeout: *verifyTimeout,
 		browserProvider: *browserProvider, browserProfile: *browserProfile, browserArtifacts: *browserArtifacts,
 		browserRegion: *browserRegion, browserMCPVersion: *browserMCPVersion, outputDir: *outputDir,
+		promptVersion: *promptVersion,
 	})
 
 	// M-BRAIN-MICRORAG: For executor-based paths (claude/gemini via internal/executor),

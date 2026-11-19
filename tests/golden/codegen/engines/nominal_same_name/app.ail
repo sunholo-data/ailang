@@ -1,0 +1,8 @@
+-- Engine parity fixture (engines_test.go): evaluator, --bytecode and --strict-bytecode
+-- must print the same summary(). Recovered from the Go emitter's known_failures (#2389); the VM half of #2260 is still open.
+module app
+
+import a as A
+import b as B
+
+export pure func summary() -> string = "${show(A.get(A.mk()))},${B.get(B.mk())}"

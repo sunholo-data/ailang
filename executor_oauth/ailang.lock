@@ -1,7 +1,7 @@
 {
-  "ailang_version": "v0.54.9-14-gbf46845d7-dirty",
-  "generated_at": "2026-10-14T17:28:57.823364Z",
-  "generator": "ailang lock v0.54.9-14-gbf46845d7-dirty",
+  "ailang_version": "v0.60.3-16-g9b9c17039",
+  "generated_at": "2026-11-12T21:27:13.913598Z",
+  "generator": "ailang lock v0.60.3-16-g9b9c17039",
   "packages": [
     {
       "ailang": ">=0.12.1",
@@ -19,7 +19,7 @@
     },
     {
       "ailang": ">=0.12.1",
-      "content_hash": "sha256:90274d1aa8e7acc06124338bc95cc7bdec20f1171093ba9828a599c54d3b7320",
+      "content_hash": "sha256:1e14e96bfffe4ac77265b6581a0d04acc4317ab33f3f0d7cc7ca04635534e095",
       "effects": [
         "Env",
         "Net"
@@ -31,7 +31,7 @@
       "interface_hash": "sha256:b84e12ed614c65a3663cd85f633d5719596d8d0e7d94a158248e94750baa863d",
       "name": "sunholo/firebase_auth",
       "source": "registry",
-      "version": "0.1.2"
+      "version": "0.1.3"
     },
     {
       "ailang": ">=0.12.1",
@@ -69,8 +69,8 @@
       "version": "0.8.1"
     },
     {
-      "ailang": ">=0.52.0",
-      "content_hash": "sha256:7cba9b663efaa44eb6b1d3b4706d6bdbd47da22ae1358bed89e6f9ed4b5f54e6",
+      "ailang": ">=0.57.0",
+      "content_hash": "sha256:088da853ec0819ad3aebf5d827e7e864f6c5085b9816feaced75250ecb507633",
       "effects": [
         "Clock",
         "Declassify",
@@ -83,13 +83,14 @@
       ],
       "exports": [
         "sunholo/mcp_oauth/cimd",
+        "sunholo/mcp_oauth/clients",
         "sunholo/mcp_oauth/core",
         "sunholo/mcp_oauth/flow"
       ],
-      "interface_hash": "sha256:d739c96a9865897498c590c0e233af3fc1a67963d03522885991c507454a8d7c",
+      "interface_hash": "sha256:51a153ee47f1f4862d242a7df34c838d8364e26c6b2bd10fa56ed0038fcbc6ca",
       "name": "sunholo/mcp_oauth",
       "source": "registry",
-      "version": "0.1.2"
+      "version": "0.2.1"
     }
   ],
   "schema": "ailang.lock/v1",

@@ -1,0 +1,34 @@
+-- Task: process a list of exam records — keep the passing students, sort them
+-- by score (highest first, ties broken by name), print the top three, and
+-- report the class average, best score and whether anyone scored 100.
+-- Demonstrates std/list filter, sortBy, take, map, foldl, length, any,
+-- findIndex and maximumInt.
+module examples/runnable/stdlib/list_records_pipeline
+import std/list (filter, sortBy, take, map, foldl, length, any, findIndex, maximumInt, forEachE)
+import std/string (compare)
+
+type Student = { name: string, score: int }
+
+-- Comparator: negative when a sorts first. Higher score first, then A-Z name.
+pure func byScoreDesc(a: Student, b: Student) -> int =
+  if a.score != b.score then b.score - a.score else compare(a.name, b.name)
+
+export func main() -> () ! {IO} {
+  let students = [{ name: "Mia", score: 72 }, { name: "Ben", score: 45 }, { name: "Ava", score: 91 }, { name: "Leo", score: 91 }, { name: "Zoe", score: 58 }, { name: "Kai", score: 30 }]
+  let passing = filter(\s. s.score >= 50, students)
+  let ranked = sortBy(byScoreDesc, passing)
+  println("passed: ${show(length(passing))} of ${show(length(students))}")
+  forEachE(\s. println("  ${s.name} ${show(s.score)}"), take(3, ranked))
+  let scores = map(\s. s.score, students)
+  let total = foldl(\acc x. acc + x, 0, scores)
+  println("average: ${show(total / length(scores))}")
+  match maximumInt(scores) {
+    Some(best) => println("best: ${show(best)}"),
+    None => println("best: n/a")
+  }
+  println("perfect score: ${show(any(\x. x == 100, scores))}")
+  match findIndex(\s. s.score < 50, students) {
+    Some(i) => println("first fail at index ${show(i)}"),
+    None => println("nobody failed")
+  }
+}

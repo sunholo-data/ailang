@@ -1,7 +1,6 @@
 package runner
 
 import (
-	"context"
 	"os/exec"
 	"path/filepath"
 	"runtime"
@@ -10,22 +9,19 @@ import (
 	"time"
 )
 
+// Each fixture run and terminal probe gets its own deadline (they used to
+// share one 120s context with the build). A fixture is one short CLI run; the
+// terminal harness waits at most 12s for the prompt and 4s for the exit.
+const (
+	workerFixtureBudget  = 30 * time.Second
+	workerTerminalBudget = 30 * time.Second
+)
+
 func TestWorkerLifecycleExistingFixtures(t *testing.T) {
 	if runtime.GOOS != "darwin" && runtime.GOOS != "linux" {
 		t.Skip("POSIX process fixtures")
 	}
-	root, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	binary := filepath.Join(t.TempDir(), "ailang")
-	ctx, cancel := context.WithTimeout(t.Context(), 120*time.Second)
-	defer cancel()
-	build := exec.CommandContext(ctx, "go", "build", "-o", binary, "./cmd/ailang")
-	build.Dir = root
-	if output, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build: %v\n%s", err, output)
-	}
+	binary, root := ailangCLIBinary(t)
 	fixtures := []struct {
 		name, input string
 		expected    []string
@@ -37,10 +33,10 @@ func TestWorkerLifecycleExistingFixtures(t *testing.T) {
 	}
 	for _, fixture := range fixtures {
 		t.Run(fixture.name, func(t *testing.T) {
-			cmd := exec.CommandContext(ctx, binary, "run", "--stdlib-path", filepath.Join(root, "std"), "--quiet", "--caps", "IO,Stream,Process", filepath.Join("examples", "runnable", fixture.name+".ail"))
-			cmd.Dir = root
-			cmd.Stdin = strings.NewReader(fixture.input)
-			output, err := cmd.CombinedOutput()
+			output, err := runCLIProbe(t, workerFixtureBudget, func(cmd *exec.Cmd) {
+				cmd.Dir = root
+				cmd.Stdin = strings.NewReader(fixture.input)
+			}, binary, "run", "--stdlib-path", filepath.Join(root, "std"), "--quiet", "--caps", "IO,Stream,Process", filepath.Join("examples", "runnable", fixture.name+".ail"))
 			if err != nil {
 				t.Fatalf("fixture: %v\n%s", err, output)
 			}
@@ -58,8 +54,7 @@ func TestWorkerLifecycleExistingFixtures(t *testing.T) {
 	for _, backend := range []string{"eval", "strict"} {
 		for _, key := range []string{"q", "escape"} {
 			t.Run("terminal_keys/"+backend+"/"+key, func(t *testing.T) {
-				cmd := exec.CommandContext(ctx, python, "-c", workerTerminalFixtureHarness, binary, root, backend, key)
-				if output, err := cmd.CombinedOutput(); err != nil {
+				if output, err := runCLIProbe(t, workerTerminalBudget, nil, python, "-c", workerTerminalFixtureHarness, binary, root, backend, key); err != nil {
 					t.Fatalf("terminal fixture: %v\n%s", err, output)
 				}
 			})

@@ -1,6 +1,6 @@
 {
   "sprint_id": "M-QUORUM-REVIEWER-CAP-HIT-LOUD",
-  "design_doc": "design_docs/planned/m-quorum-reviewer-cap-hit-loud.md",
+  "design_doc": "design_docs/implemented/v0_54_19/m-quorum-reviewer-cap-hit-loud.md",
   "status": "planned",
   "milestones": [
     {

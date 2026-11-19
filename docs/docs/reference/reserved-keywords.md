@@ -34,7 +34,7 @@ Rename the parameter and all of its uses before checking again.
 | `module` | Module declaration. |
 | `import` | Import declaration. |
 | `export` | Export marker. |
-| `extern` | External declaration. |
+| `extern` | Reserved. `extern func` still parses, but every declaration is `EXT004`: extern functions were implemented only by the removed Go emitter, and no engine runs them. Write the function in AILANG, or use a std function or an effect. |
 | `forall` | Universal type quantification. |
 | `exists` | Reserved for existential type quantification; the type-system lane must consume or release it at syntax freeze. |
 | `test` | Contextual named test marker; also a legal identifier. |
@@ -74,7 +74,7 @@ unfrozen sketches, including function-form receive/send; they do not establish
 that those words need keyword status. At syntax freeze the lane must explicitly
 consume or release each listed word. The assertion/testing lane has the same
 obligation for its planned assertion builtin (see the
-[named-test assertion plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v0_33_1/m-named-test-assert-lowering-sprint-plan.md)).
+[named-test assertion plan](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_33_1/m-named-test-assert-lowering-sprint-plan.md)).
 No syntax-freeze decision is made here. Until its owner rules, each reservation
 remains. A release must update the keyword map, token enum, token strings,
 `IsKeyword`, and this reference together.

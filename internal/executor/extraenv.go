@@ -58,6 +58,7 @@ var extraEnvDeniedExact = map[string]string{
 	"AILANG_CHAIN_ID":           "harness-injected correlation ID",
 	"AILANG_STAGE_ID":           "harness-injected correlation ID",
 	"AILANG_MESSAGE_ID":         "harness-injected correlation ID",
+	config.EnvEvalRun:           "harness-injected eval-run marker (set Task.EvalRun; a task must not disarm session guards)",
 	"AILANG_STDLIB_PATH":        "harness-injected stdlib pin",
 	config.EnvRigLease:          "harness-injected rig lease",
 	"GOOGLE_CLOUD_PROJECT":      "harness-injected GCP project (use Task.GCPProject)",

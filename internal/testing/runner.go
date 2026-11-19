@@ -1,6 +1,7 @@
 package testing
 
 import (
+	"errors"
 	"fmt"
 	"math/rand"
 	"path/filepath"
@@ -79,6 +80,12 @@ func (r *Runner) RunSuite(suite *TestSuite) *SuiteResult {
 
 	// Run all tests. Named tests share one compile (named_batch.go).
 	r.executor.prepareNamedTests(suite.Tests, suite.Properties)
+	if len(suite.Tests)+len(suite.Properties) > 0 {
+		if msg := r.executor.moduleCompileFailure(hasInlineRows(suite)); msg != "" { // module_compile.go
+			result.AddTestResult(moduleCompileResult(r.executor.sourceFile, r.executor.modulePath, msg))
+			return result
+		}
+	}
 	for _, testCase := range suite.Tests {
 		testResult := r.runTest(testCase)
 		result.AddTestResult(testResult)
@@ -137,10 +144,21 @@ func (r *Runner) runTest(testCase TestCase) TestResult {
 		// Check if function has cross-function dependencies
 		// If so, use cluster evaluation to include all dependencies
 		var actualsTuple *eval.TupleValue
-		cluster, coreProg, clusterErr := r.executor.ExtractPureClusterForFunction(testCase.FunctionCtx, r.executor.sourceFile)
+		cluster, clusterErr := r.executor.ExtractPureClusterForFunction(testCase.FunctionCtx)
+		var purityErr *PurityError
+		if errors.As(clusterErr, &purityErr) {
+			// The function under test is effectful. Inline tests run
+			// without capabilities, so this is the test's failure — never a
+			// fallback to the single-binding harness, which would only die
+			// later on the missing capability.
+			result.Status = StatusFail
+			result.Error = purityErr.Error()
+			result.Duration = time.Since(start)
+			return result
+		}
 		if clusterErr == nil && cluster != nil && cluster.HasDependencies() {
 			// Function has dependencies - use cluster harness
-			actualsTuple, err = r.executor.EvaluateInlineTestsWithCluster(testCase.FunctionCtx, []TestCase{testCase}, coreProg)
+			actualsTuple, err = r.executor.EvaluateInlineTestsWithCluster(cluster, []TestCase{testCase})
 			if err != nil {
 				result.Status = StatusFail
 				result.Error = fmt.Sprintf("cluster harness evaluation failed: %v", err)
@@ -192,7 +210,7 @@ func (r *Runner) runTest(testCase TestCase) TestResult {
 			// Compare values
 			if !r.executor.CompareValues(actualValue, expectedValue) {
 				result.Status = StatusFail
-				result.Error = fmt.Sprintf("test %d: expected %v, got %v", i, expectedValue, actualValue)
+				result.Error = fmt.Sprintf("test %d: expected %s, got %s", i, eval.Show(expectedValue), eval.Show(actualValue))
 				result.Duration = time.Since(start)
 				return result
 			}
@@ -215,11 +233,15 @@ func (r *Runner) runTest(testCase TestCase) TestResult {
 //
 // The body runs as an entry of the file's one batched compile
 // (named_batch.go), or alone when the batch is unavailable. The body is a
-// sequence of expressions; the LAST expression must evaluate to bool true for
-// the test to pass. Earlier expressions are evaluated for side-effects only
-// (they are discarded — named test bodies are pure by contract).
+// sequence of `let` bindings, `assert`s and bare expressions, and every
+// top-level assert and bare expression is a check (#604; nested blocks are
+// not covered, #614). A body with an assert or a bare non-final expression is
+// lowered by FoldTestBody to an int sentinel, which the executor decodes into
+// bool true or a "check k failed" / "assertion k failed" error. Any other body
+// (one expression, or lets + a final expression) returns its final value, and
+// the contract below is what checks it.
 //
-// Pass contract: final expression evaluates to *eval.BoolValue{true}.
+// Pass contract: the body evaluates to *eval.BoolValue{true}.
 // false      → StatusFail, error = "expected true, got false"
 // non-bool   → StatusFail, error = "expected bool result, got <T>"
 // eval error → StatusFail, error = <error text>
@@ -362,7 +384,7 @@ func (r *Runner) runProperty(propCase PropertyCase) PropertyResult {
 		if !boolVal.Value {
 			counterexample := shrinkCounterexample(call, generatedValues, shrinkers)
 			result.Status = StatusFail
-			result.Error = fmt.Sprintf("property failed on input: %v", counterexample)
+			result.Error = "property failed on input: " + showValues(counterexample)
 			result.TestsRun = testNum + 1
 			result.Duration = time.Since(start)
 			return result
@@ -566,6 +588,13 @@ func (r *Runner) findLoweredContractPredicate(propCase PropertyCase, astKind ast
 	return nil
 }
 
+// showValues renders a list of values the way `show` renders a list of them,
+// for counterexample reporting (M-V1-SHOW-TOTAL M4: test messages spell values
+// as show does).
+func showValues(vs []eval.Value) string {
+	return eval.Show(&eval.ListValue{Elements: vs})
+}
+
 // formatEnsuresInputs renders generated parameter values as `name=value, ...` for counterexample reporting.
 func formatEnsuresInputs(params []*ast.Param, values []eval.Value) string {
 	parts := make([]string, len(values))
@@ -574,7 +603,7 @@ func formatEnsuresInputs(params []*ast.Param, values []eval.Value) string {
 		if i < len(params) && params[i] != nil {
 			name = params[i].Name
 		}
-		parts[i] = fmt.Sprintf("%s=%v", name, v)
+		parts[i] = name + "=" + eval.Show(v)
 	}
 	return strings.Join(parts, ", ")
 }

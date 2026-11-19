@@ -60,11 +60,35 @@ func TestVMJSONNumberRoundTrip(t *testing.T) {
 			t.Fatal(err)
 		}
 		assertResultOk(t, dec)
-		g := dec.AsADT().Fields[0].AsADT().Fields[0].Flt
+		// An integral float within int64 encodes with integer syntax ("0",
+		// "42") and decodes as JInt with the same value; re-encoding gives
+		// the same bytes either way.
+		g := vmJSONNumberValue(t, dec.AsADT().Fields[0])
 		if math.Float64bits(g) != math.Float64bits(f) {
 			t.Fatalf("round-trip %v -> %q -> %v", f, text, g)
 		}
+		again, err := builtinJsonEncode([]bytecode.Value{dec.AsADT().Fields[0]})
+		if err != nil {
+			t.Fatal(err)
+		}
+		if again.AsString() != text {
+			t.Fatalf("re-encode %q -> %q", text, again.AsString())
+		}
 	}
+}
+
+// vmJSONNumberValue reads a JInt or JNumber as a float64.
+func vmJSONNumberValue(t *testing.T, v bytecode.Value) float64 {
+	t.Helper()
+	adt := v.AsADT()
+	switch adt.Tag {
+	case jsonTagJInt:
+		return float64(adt.Fields[0].Int)
+	case jsonTagJNumber:
+		return adt.Fields[0].Flt
+	}
+	t.Fatalf("expected a number, got tag %d", adt.Tag)
+	return 0
 }
 
 func TestVMJSONDecodeLargeIntegersExact(t *testing.T) {

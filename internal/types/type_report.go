@@ -189,12 +189,12 @@ func (r TypeReport) String() string {
 
 	rawStr := "nil"
 	if r.Raw != nil {
-		rawStr = r.Raw.String()
+		rawStr = displayType(r.Raw)
 	}
 
 	resolvedStr := "nil"
 	if r.Resolved != nil {
-		resolvedStr = r.Resolved.String()
+		resolvedStr = displayType(r.Resolved)
 	}
 
 	result := "TypeReport{" +
@@ -217,12 +217,12 @@ func (r TypeReport) FormatDetailed() string {
 
 	rawStr := "nil"
 	if r.Raw != nil {
-		rawStr = r.Raw.String()
+		rawStr = displayType(r.Raw)
 	}
 
 	resolvedStr := "nil"
 	if r.Resolved != nil {
-		resolvedStr = r.Resolved.String()
+		resolvedStr = displayType(r.Resolved)
 	}
 
 	result := "NodeID " + itoa(r.NodeID) + ": " + resolvedStr + "\n" +

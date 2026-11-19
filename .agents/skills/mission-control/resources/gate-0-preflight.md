@@ -4,6 +4,8 @@ First action: `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT
 abort, run `case "${MISSION_DRIVER_ROOT:-}" in /*) bash "$MISSION_DRIVER_ROOT/tools/launchd/mission-heartbeat.sh" stamp abort <reason> ;; *) echo "MISSION_DRIVER_ROOT must be absolute (got: ${MISSION_DRIVER_ROOT:-})" >&2; false ;; esac` with a short reason token.
 Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd)" before the first stamp; the stamp refuses an unset, empty or relative root.
 
+**Fleet-wide rulings:** `design_docs/fleet-rulings.md` binds every mission. Every RESOLVED, unsuperseded ruling there binds this mission, and nothing in its charter or in this skill overrides one. If either disagrees with it, the ledger wins and the disagreement is a bug to report (`ailang mission doctor` lists known contradictions as notes).
+
 **Read the environment by NAME, never by value** (fleet iterations 51 and 52 each printed
 `CLAUDE_CODE_OAUTH_TOKEN` into the transcript, via `env | grep -v -i key` and then
 `env | grep -E '^(MISSION|AILANG|CLAUDE_CODE)' | grep -v -i key`; a key-only filter misses
@@ -269,6 +271,12 @@ non-secret values you need, e.g. `echo "$MISSION_PLANNER_MODEL"`. To test a secr
    in the log ONCE per `url=` (grep first). **rc 0** = no death signal (traces still run). **rc 2 =
    instrument failure** (named floor) — report it; NOT a verdict either way. A hit grants nothing:
    unparks nothing, picks nothing, never moves the watermark.
+   **No watermark file is NOT rc 2.** Since #981 `mission_directives.sh` creates
+   `mission-<issue>-last-seen` only on `--mark`, so a mission with no routed directive has none. When
+   both files are absent the script prints `watermark: DEGRADED` and reads the WHOLE of both issues:
+   an old crash notice then recurs every fire until its issue rotates out of `-prev`. That is the
+   once-per-`url=` rule's job, not a new death. A file that exists but is unreadable, empty or
+   invalid is still rc 2.
    An in-window transcript-scan notice reports exposure detected after the named fire: normally a
    write during that fire’s window, but the private controlplane notice identifies whole-file
    fallbacks whose write time is unknown. Report the notice count, hit counts, and fire IDs from

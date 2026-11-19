@@ -1,0 +1,19 @@
+module effectful_nonfinal_stays_error
+
+-- #604 assumption A-1: an effectful non-final expression in a named test body
+-- is a loud error, never a pass. Before the fix it was bound to a dead `_seq`
+-- and failed the pure-body effect check; after it, it is a check whose
+-- condition must be a pure bool. Either way the test must fail.
+--
+-- The import is load-bearing: without it the body fails as `undefined
+-- variable: println`, which would pin the wrong invariant.
+import std/io (println)
+
+export pure func add_one(n: int) -> int {
+  n + 1
+}
+
+test "effectful non-final expression" {
+  println("hi")
+  add_one(1) == 2
+}

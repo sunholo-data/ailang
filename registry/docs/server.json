@@ -1,0 +1,26 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.sunholo-data/ailang-docs",
+  "title": "AILANG Docs",
+  "description": "AILANG language reference, stdlib, examples and benchmarks for agents that write AILANG.",
+  "websiteUrl": "https://ailang.sunholo.com/",
+  "repository": {
+    "url": "https://github.com/sunholo-data/ailang",
+    "source": "github",
+    "id": "1064514521"
+  },
+  "icons": [
+    {
+      "src": "https://ailang.sunholo.com/img/connectors/ailang-icon-256.png",
+      "mimeType": "image/png",
+      "sizes": ["256x256"]
+    }
+  ],
+  "version": "0.0.0",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.ailang.sunholo.com/mcp/"
+    }
+  ]
+}

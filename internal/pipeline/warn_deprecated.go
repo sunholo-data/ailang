@@ -1,0 +1,385 @@
+package pipeline
+
+import (
+	"fmt"
+	"sort"
+	"strings"
+
+	"github.com/sunholo-data/ailang/internal/ast"
+	"github.com/sunholo-data/ailang/internal/core"
+	"github.com/sunholo-data/ailang/internal/elaborate"
+)
+
+// TC_DEPRECATED_001 — a use of a function marked @deprecated("replacement")
+// (M-V1-STDLIB-SURFACE-POLISH §6.1 item 2).
+//
+// The stdlib renames keep their old names as one-line forwarders, e.g.
+//
+//	@deprecated("headOr")
+//	export pure func head_or[a](xs: [a], default: a) -> a = headOr(xs, default)
+//
+// so 0.x programs keep compiling, while every use names the new spelling.
+//
+// The pass is keyed on identity, like the split-arg and TC_MATCH_005 passes:
+// a use is a Core VarGlobal{Module, Name} whose target declaration carries
+// @deprecated. Every VarGlobal is visited, not only call heads, so
+// `map(abs_Int, xs)` warns as well as `abs_Int(x)`. An import line is not a
+// use, and neither is the definition: a module's own references to its
+// top-level functions are not VarGlobals, so the defining module never warns
+// about itself.
+//
+// Warm cache: the deprecation set is read from each module's PARSED source
+// (CompileUnit.Surface), which the loader re-parses on every run, and the uses
+// from the unit's Core, which a cache hit restores. Nothing is read from the
+// cached interface, so the warning cannot be lost on a second run, and adding
+// @deprecated to a dependency warns at once even though it leaves the
+// dependency's interface digest unchanged.
+
+// CodeDeprecated is the stable diagnostic code of the warning.
+const CodeDeprecated = "TC_DEPRECATED_001"
+
+// DeprecatedUseWarning is a non-blocking warning: a deprecated function is
+// used.
+type DeprecatedUseWarning struct {
+	Location    ast.Pos // the use
+	Module      string  // module that defines the deprecated function
+	Name        string  // its name
+	Replacement string  // @deprecated's first argument
+	Note        string  // @deprecated's optional second argument
+	// ReplacementModule is the module that exports Replacement (the defining
+	// module unless the chain led elsewhere).
+	ReplacementModule string
+	// UnusedImport: the deprecated name is imported but never used in the
+	// file. It still breaks (IMP010) when the alias is removed, so the import
+	// itself warns — once — and Location is the name in the import list.
+	UnusedImport bool
+}
+
+var _ elaborate.Warning = (*DeprecatedUseWarning)(nil)
+
+// Position exposes the use's 1-indexed line/col.
+func (w *DeprecatedUseWarning) Position() (line, col int) {
+	return w.Location.Line, w.Location.Column
+}
+
+// Code returns the stable diagnostic code.
+func (w *DeprecatedUseWarning) Code() string { return CodeDeprecated }
+
+// WarningFile names the file holding the use (an imported module's file when
+// the use is there, not the checked file).
+func (w *DeprecatedUseWarning) WarningFile() string { return w.Location.File }
+
+// Message is the warning without its location and fix.
+func (w *DeprecatedUseWarning) Message() string {
+	if w.UnusedImport {
+		return fmt.Sprintf("%s.%s is deprecated; use %s (it is imported here and never used)", w.Module, w.Name, w.Replacement)
+	}
+	return fmt.Sprintf("%s.%s is deprecated; use %s", w.Module, w.Name, w.Replacement)
+}
+
+// Suggestion is the one-line fix.
+func (w *DeprecatedUseWarning) Suggestion() string {
+	if w.UnusedImport {
+		s := fmt.Sprintf("remove %s from the import list (or import %s if you need it); the import fails once the deprecated name is removed", w.Name, w.Replacement)
+		if w.Note != "" {
+			s += "; " + w.Note
+		}
+		return s
+	}
+	from := w.ReplacementModule
+	if from == "" {
+		from = w.Module
+	}
+	s := fmt.Sprintf("replace %s with %s (import it from %s)", w.Name, strings.TrimPrefix(w.Replacement, from+"."), from)
+	if w.Note != "" {
+		s += "; " + w.Note
+	}
+	return s
+}
+
+// String renders the warning for stderr.
+func (w *DeprecatedUseWarning) String() string {
+	return fmt.Sprintf("%s at %s\n  %s.\n  Fix: %s", CodeDeprecated, w.Location.String(), w.Message(), w.Suggestion())
+}
+
+// deprecation is one @deprecated export as a use site reports it.
+// replacement/replModule name the LIVE end of the replacement chain
+// (finalReplacement); note is the annotation's own note.
+type deprecation struct{ replacement, replModule, note string }
+
+// deprecatedIndex collects every exported @deprecated function of the units,
+// keyed by its global identity.
+func deprecatedIndex(units map[string]*CompileUnit) map[core.GlobalRef]deprecation {
+	raw := map[core.GlobalRef]deprecation{}
+	exported := map[core.GlobalRef]bool{}
+	for id, u := range units {
+		if u == nil || u.Surface == nil {
+			continue
+		}
+		for _, fd := range u.Surface.Funcs {
+			if fd == nil || !fd.IsExport {
+				continue
+			}
+			ref := core.GlobalRef{Module: id, Name: fd.Name}
+			exported[ref] = true
+			if repl, note, ok := fd.Deprecation(); ok {
+				raw[ref] = deprecation{replacement: repl, note: note}
+			}
+		}
+	}
+	idx := make(map[core.GlobalRef]deprecation, len(raw))
+	for ref, d := range raw {
+		final := finalReplacement(raw, exported, ref)
+		d.replModule = final.Module
+		d.replacement = final.Name
+		if final.Module != ref.Module {
+			d.replacement = final.Module + "." + final.Name
+		}
+		idx[ref] = d
+	}
+	return idx
+}
+
+// finalReplacement follows @deprecated targets from ref to the first function
+// that is not deprecated, so a use of head_or still says "use headOr" after
+// headOr is deprecated in turn. If the chain cycles, or reaches a name that is
+// not an export of a loaded module, it names the immediate replacement.
+//
+// It reads only the parsed sources of the units (CompileUnit.Surface), which
+// the loader parses on every run, never the compile cache, so its answer is
+// the same cold and warm (TestDeprecationDiagnosticsAreCacheStable).
+func finalReplacement(raw map[core.GlobalRef]deprecation, exported map[core.GlobalRef]bool, ref core.GlobalRef) core.GlobalRef {
+	next := func(from core.GlobalRef) core.GlobalRef {
+		mod, name, _ := splitDeprecationTarget(raw[from].replacement, from.Module)
+		return core.GlobalRef{Module: mod, Name: name}
+	}
+	immediate := next(ref)
+	visited := map[core.GlobalRef]bool{ref: true}
+	cur := immediate
+	for {
+		if visited[cur] || !exported[cur] {
+			return immediate
+		}
+		visited[cur] = true
+		if _, deprecated := raw[cur]; !deprecated {
+			return cur
+		}
+		cur = next(cur)
+	}
+}
+
+// DetectDeprecatedUses returns one warning per use site of a deprecated
+// function across the compiled units, in module order then source order.
+func DetectDeprecatedUses(units map[string]*CompileUnit) []elaborate.Warning {
+	idx := deprecatedIndex(units)
+	if len(idx) == 0 {
+		return nil
+	}
+	ids := make([]string, 0, len(units))
+	for id := range units {
+		ids = append(ids, id)
+	}
+	sort.Strings(ids)
+
+	pkgName := ""
+	if currentPackageManifest != nil {
+		pkgName = currentPackageManifest.Package.Name
+	}
+	var out []elaborate.Warning
+	for _, id := range ids {
+		u := units[id]
+		if u == nil || u.Core == nil {
+			continue
+		}
+		// A use inside an installed dependency (pkg/<other package>/...) is
+		// that package's to fix, and its own `check` reports it. Reporting it
+		// here buried a downstream project under warnings it cannot act on
+		// (measured: docparse got 15 sites from sunholo/ailang_parse, repeated
+		// in 21 files). The project's own modules and std still report.
+		if strings.HasPrefix(id, "pkg/") && !isOwnPackageModule(id, pkgName) {
+			continue
+		}
+		// One warning per use site: a node reachable twice (a shared subtree)
+		// must not report twice.
+		seen := map[string]bool{}
+		var found []*DeprecatedUseWarning
+		visit := func(e core.CoreExpr) {
+			vg, ok := e.(*core.VarGlobal)
+			if !ok || vg.Ref.Module == id {
+				return
+			}
+			d, ok := idx[vg.Ref]
+			if !ok {
+				return
+			}
+			pos := vg.OriginalSpan()
+			key := fmt.Sprintf("%s|%d|%d|%s|%s", pos.File, pos.Line, pos.Column, vg.Ref.Module, vg.Ref.Name)
+			if seen[key] {
+				return
+			}
+			seen[key] = true
+			found = append(found, &DeprecatedUseWarning{
+				Location: pos, Module: vg.Ref.Module, Name: vg.Ref.Name,
+				Replacement: d.replacement, ReplacementModule: d.replModule, Note: d.note,
+			})
+		}
+		for _, decl := range u.Core.Decls {
+			walkEveryCore(decl, visit)
+		}
+		for _, meta := range u.Core.Meta {
+			if meta == nil {
+				continue
+			}
+			for _, c := range meta.Contracts {
+				if c != nil {
+					walkEveryCore(c.Expr, visit)
+				}
+			}
+		}
+		// Test blocks, property blocks, inline tests and forall properties
+		// never reach Core; they are resolved from the parsed source
+		// (warn_deprecated_ast.go).
+		for _, w := range deprecatedUsesOutsideCore(u, idx) {
+			pos := w.Location
+			key := fmt.Sprintf("%s|%d|%d|%s|%s", pos.File, pos.Line, pos.Column, w.Module, w.Name)
+			if seen[key] {
+				continue
+			}
+			seen[key] = true
+			found = append(found, w)
+		}
+		found = append(found, unusedDeprecatedImports(u, idx, found)...)
+		sort.SliceStable(found, func(a, b int) bool {
+			pa, pb := found[a].Location, found[b].Location
+			if pa.File != pb.File {
+				return pa.File < pb.File
+			}
+			if pa.Line != pb.Line {
+				return pa.Line < pb.Line
+			}
+			return pa.Column < pb.Column
+		})
+		for _, w := range found {
+			out = append(out, w)
+		}
+	}
+	return out
+}
+
+// walkEveryCore visits every Core node, including the children walkCore
+// treats as atomic in ANF (tuple, array and record-update elements can still
+// hold a VarGlobal value such as `(abs_Int, 1)`), and contract quantifiers.
+func walkEveryCore(e core.CoreExpr, visit func(core.CoreExpr)) {
+	if e == nil {
+		return
+	}
+	visit(e)
+	switch n := e.(type) {
+	case *core.Let:
+		walkEveryCore(n.Value, visit)
+		walkEveryCore(n.Body, visit)
+	case *core.LetRec:
+		for _, b := range n.Bindings {
+			walkEveryCore(b.Value, visit)
+		}
+		walkEveryCore(n.Body, visit)
+	case *core.Lambda:
+		walkEveryCore(n.Body, visit)
+	case *core.App:
+		walkEveryCore(n.Func, visit)
+		for _, a := range n.Args {
+			walkEveryCore(a, visit)
+		}
+	case *core.If:
+		walkEveryCore(n.Cond, visit)
+		walkEveryCore(n.Then, visit)
+		walkEveryCore(n.Else, visit)
+	case *core.Match:
+		walkEveryCore(n.Scrutinee, visit)
+		for _, arm := range n.Arms {
+			walkEveryCore(arm.Guard, visit)
+			walkEveryCore(arm.Body, visit)
+		}
+	case *core.BinOp:
+		walkEveryCore(n.Left, visit)
+		walkEveryCore(n.Right, visit)
+	case *core.UnOp:
+		walkEveryCore(n.Operand, visit)
+	case *core.Intrinsic:
+		for _, a := range n.Args {
+			walkEveryCore(a, visit)
+		}
+	case *core.Record:
+		// Map order is irrelevant: findings are sorted by position.
+		for _, v := range n.Fields {
+			walkEveryCore(v, visit)
+		}
+	case *core.RecordAccess:
+		walkEveryCore(n.Record, visit)
+	case *core.RecordUpdate:
+		walkEveryCore(n.Base, visit)
+		for _, v := range n.Updates {
+			walkEveryCore(v, visit)
+		}
+	case *core.List:
+		for _, el := range n.Elements {
+			walkEveryCore(el, visit)
+		}
+	case *core.Array:
+		for _, el := range n.Elements {
+			walkEveryCore(el, visit)
+		}
+	case *core.Tuple:
+		for _, el := range n.Elements {
+			walkEveryCore(el, visit)
+		}
+	case *core.DictAbs:
+		walkEveryCore(n.Body, visit)
+	case *core.DictApp:
+		walkEveryCore(n.Dict, visit)
+		for _, a := range n.Args {
+			walkEveryCore(a, visit)
+		}
+	case *core.Forall:
+		walkEveryCore(n.Lo, visit)
+		walkEveryCore(n.Hi, visit)
+		walkEveryCore(n.Body, visit)
+	}
+}
+
+// unusedDeprecatedImports returns one warning per deprecated name a module
+// imports by name (selectively, or renamed with `as`) and never uses. A used
+// name already warns at each use; an unused one would otherwise compile clean
+// today and fail with IMP010 when the alias is removed.
+func unusedDeprecatedImports(u *CompileUnit, idx map[core.GlobalRef]deprecation, uses []*DeprecatedUseWarning) []*DeprecatedUseWarning {
+	if u == nil || u.Surface == nil {
+		return nil
+	}
+	used := map[core.GlobalRef]bool{}
+	for _, w := range uses {
+		used[core.GlobalRef{Module: w.Module, Name: w.Name}] = true
+	}
+	var out []*DeprecatedUseWarning
+	for _, imp := range u.Surface.Imports {
+		if imp == nil {
+			continue
+		}
+		for i, sym := range imp.Symbols {
+			ref := core.GlobalRef{Module: imp.Path, Name: sym}
+			d, ok := idx[ref]
+			if !ok || used[ref] {
+				continue
+			}
+			used[ref] = true // one warning even if imported twice
+			at := imp.Pos
+			if i < len(imp.SymbolPos) {
+				at = imp.SymbolPos[i] // the name in the import list, not `import`
+			}
+			out = append(out, &DeprecatedUseWarning{
+				Location: at, Module: ref.Module, Name: sym,
+				Replacement: d.replacement, ReplacementModule: d.replModule, Note: d.note, UnusedImport: true,
+			})
+		}
+	}
+	return out
+}

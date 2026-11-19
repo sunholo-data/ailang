@@ -3,8 +3,8 @@
   "created": "2026-10-21T00:00:00Z",
   "estimated_duration_days": 1,
   "correlation_id": "sprint_M-FLEET-QUOTA-OPENCODE-NOT-A-POOL_fleet52_20261021",
-  "design_doc": "design_docs/planned/sprint-plan-quota-opencode-not-a-pool.md",
-  "markdown_plan": "design_docs/planned/sprint-plan-quota-opencode-not-a-pool.md",
+  "design_doc": "design_docs/implemented/v0_54_17/sprint-plan-quota-opencode-not-a-pool.md",
+  "markdown_plan": "design_docs/implemented/v0_54_17/sprint-plan-quota-opencode-not-a-pool.md",
   "github_issues": [],
   "registry_reuse": [
     {

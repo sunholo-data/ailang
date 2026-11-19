@@ -6,7 +6,6 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/gen/stmt"
-	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // Recursive pattern lowering (m-vm-match-lowering).
@@ -37,9 +36,9 @@ import (
 // for those can only fail on ill-typed input.
 
 // patternCond returns the boolean "scrutinee s matches pat" expression, or
-// nil when the pattern always matches. t is s's type when known (nil
-// otherwise); it only feeds ADTTagEq.TypeName.
-func patternCond(s stmt.Expr, t types.Type, pat core.CorePattern) stmt.Expr {
+// nil when the pattern always matches. A constructor test names the
+// pattern's own ADT (patternADTName), at every depth.
+func patternCond(s stmt.Expr, pat core.CorePattern) stmt.Expr {
 	switch p := pat.(type) {
 	case *core.VarPattern, *core.WildcardPattern:
 		return nil
@@ -48,23 +47,23 @@ func patternCond(s stmt.Expr, t types.Type, pat core.CorePattern) stmt.Expr {
 		return lowerLitPatternCond(s, p)
 
 	case *core.ConstructorPattern:
-		cond := stmt.Expr(stmt.ADTTagEq{Value: s, TypeName: extractADTName(t), Tag: p.Name})
+		cond := stmt.Expr(stmt.ADTTagEq{Value: s, TypeName: patternADTName(p), Tag: p.Name})
 		for j, arg := range p.Args {
-			cond = andCond(cond, patternCond(ctorField(s, j), nil, arg))
+			cond = andCond(cond, patternCond(ctorField(s, j), arg))
 		}
 		return cond
 
 	case *core.TuplePattern:
 		var cond stmt.Expr
 		for i, el := range p.Elements {
-			cond = andCond(cond, patternCond(tupleField(s, i), tupleElemType(t, i), el))
+			cond = andCond(cond, patternCond(tupleField(s, i), el))
 		}
 		return cond
 
 	case *core.RecordPattern:
 		var cond stmt.Expr
 		for _, k := range sortedFieldNames(p) {
-			cond = andCond(cond, patternCond(recordField(s, k), recordFieldType(t, k), p.Fields[k]))
+			cond = andCond(cond, patternCond(recordField(s, k), p.Fields[k]))
 		}
 		return cond
 
@@ -77,12 +76,11 @@ func patternCond(s stmt.Expr, t types.Type, pat core.CorePattern) stmt.Expr {
 		} else if n > 0 {
 			cond = stmt.BinOp{Op: stmt.OpGte, Left: listLen(s), Right: stmt.LitInt{Value: n}}
 		}
-		et := listElemType(t)
 		for i, el := range p.Elements {
-			cond = andCond(cond, patternCond(listGet(s, i), et, el))
+			cond = andCond(cond, patternCond(listGet(s, i), el))
 		}
 		if p.Tail != nil {
-			cond = andCond(cond, patternCond(listTail(s, len(p.Elements)), t, *p.Tail))
+			cond = andCond(cond, patternCond(listTail(s, len(p.Elements)), *p.Tail))
 		}
 		return cond
 	}
@@ -199,32 +197,4 @@ func sortedFieldNames(p *core.RecordPattern) []string {
 	}
 	sort.Strings(keys)
 	return keys
-}
-
-// Type descent: best effort, nil when unknown. Only used to name the ADT in
-// a tag check; an unknown type falls back to the compiler's deterministic
-// tag→ADT inference.
-
-func listElemType(t types.Type) types.Type {
-	if l, ok := t.(*types.TList); ok {
-		return l.Element
-	}
-	return nil
-}
-
-func tupleElemType(t types.Type, i int) types.Type {
-	if tt, ok := t.(*types.TTuple); ok && i < len(tt.Elements) {
-		return tt.Elements[i]
-	}
-	return nil
-}
-
-func recordFieldType(t types.Type, k string) types.Type {
-	switch r := t.(type) {
-	case *types.TRecord:
-		return r.Fields[k]
-	case *types.TRecordOpen:
-		return r.Fields[k]
-	}
-	return nil
 }

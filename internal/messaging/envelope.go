@@ -152,15 +152,3 @@ func EnvelopeFromJSON(data string) *Envelope {
 	}
 	return &env
 }
-
-// DimensionMatch checks if two envelope vectors have compatible dimensions.
-// Returns an error if dimensions differ, nil if compatible or either is nil.
-func DimensionMatch(a, b *EnvelopeVector) error {
-	if a == nil || b == nil {
-		return nil
-	}
-	if a.Dimension != b.Dimension {
-		return fmt.Errorf("dimension mismatch: %d (%s) vs %d (%s)", a.Dimension, a.Model, b.Dimension, b.Model)
-	}
-	return nil
-}

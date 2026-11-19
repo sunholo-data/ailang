@@ -74,7 +74,9 @@ var anthropicThinkingStyles = map[string]AnthropicThinkingStyle{
 	// Fable 5 / Mythos 5: thinking is ALWAYS on. An explicit
 	// {type:"disabled"} is a 400 at any effort, so "off" is not expressible.
 	// Fable 5.1 (2026-09-01) keeps that surface unchanged — same generation,
-	// same always-on adaptive thinking, default effort "high".
+	// same always-on adaptive thinking, default effort "high". Fable 5.2
+	// (2026-11-09) likewise: {type:"disabled"} probed → 400.
+	"claude-fable-5-2":      {Adaptive: true, CanDisable: false},
 	"claude-fable-5-1":      {Adaptive: true, CanDisable: false},
 	"claude-fable-5":        {Adaptive: true, CanDisable: false},
 	"claude-mythos-5":       {Adaptive: true, CanDisable: false},

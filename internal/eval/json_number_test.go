@@ -131,9 +131,22 @@ func TestLegacyJSONNumberRoundTrip(t *testing.T) {
 		if tv.CtorName != "Ok" {
 			t.Fatalf("decode(%q) = %s", text, tv.Fields[0])
 		}
-		g := tv.Fields[0].(*TaggedValue).Fields[0].(*FloatValue).Value
+		num := tv.Fields[0].(*TaggedValue)
+		var g float64
+		if num.CtorName == "JInt" { // integral text ("0", "42") decodes as JInt
+			g = float64(num.Fields[0].(*IntValue).Value)
+		} else {
+			g = num.Fields[0].(*FloatValue).Value
+		}
 		if math.Float64bits(g) != math.Float64bits(f) {
 			t.Fatalf("round-trip %v -> %q -> %v", f, text, g)
+		}
+		again, err := encodeJSON(num)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if again != text {
+			t.Fatalf("re-encode %q -> %q", text, again)
 		}
 	}
 }

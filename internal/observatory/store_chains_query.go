@@ -142,10 +142,10 @@ func (s *Store) GetChainStats(ctx context.Context) (*ChainStats, error) {
 	err := s.db.QueryRowContext(ctx, `
 		SELECT
 			COUNT(*) as total_chains,
-			SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END) as active_chains,
-			SUM(CASE WHEN status = 'pending_approval' THEN 1 ELSE 0 END) as pending_approvals,
-			SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_chains,
-			SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_chains,
+			COALESCE(SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END), 0) as active_chains,
+			COALESCE(SUM(CASE WHEN status = 'pending_approval' THEN 1 ELSE 0 END), 0) as pending_approvals,
+			COALESCE(SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END), 0) as completed_chains,
+			COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0) as failed_chains,
 			COALESCE(SUM(total_cost), 0) as total_cost,
 			COALESCE(SUM(total_tokens), 0) as total_tokens,
 			COALESCE(AVG(stages_completed), 0) as avg_stages,
@@ -182,10 +182,10 @@ func (s *Store) GetChainStatusCounts(ctx context.Context, createdAfter *time.Tim
 	query := `
 		SELECT
 			COUNT(*) as total,
-			SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END),
-			SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END),
-			SUM(CASE WHEN status = 'pending_approval' THEN 1 ELSE 0 END),
-			SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END),
+			COALESCE(SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN status = 'active' THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN status = 'pending_approval' THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END), 0),
 			COALESCE(SUM(total_cost), 0),
 			COALESCE(SUM(total_tokens), 0)
 		FROM execution_chains

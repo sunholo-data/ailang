@@ -1,0 +1,30 @@
+# Fine-tune pilot-3 LoRA config (docs/docs/finetuning/pilot-3.md).
+# WARM START from the pilot-2 adapter: it already learned the protocol and the loop. Pilot-3 adds
+# on-policy repair episodes (its own mistakes, as no-loss context -> reference lookup -> verified
+# fix) plus a replay sample of pilot-2's data so the old habits are not forgotten.
+# One epoch. pilot3_run.sh fills in iters and the cosine-decay length from the built mix
+# (__ITERS__ / __UPDATES__), and the adapter path to resume from.
+train: true
+fine_tune_type: lora
+mask_prompt: true
+num_layers: -1                      # all blocks, as pilot-2 (the adapter shapes must match)
+batch_size: 1
+grad_accumulation_steps: 4
+iters: __ITERS__
+learning_rate: 1.0e-5               # half of pilot-2's 2e-5: continuing, not starting
+lr_schedule:
+  name: cosine_decay
+  warmup: 30
+  warmup_init: 1.0e-6
+  arguments: [1.0e-5, __UPDATES__, 1.0e-7]
+lora_parameters:
+  rank: 32                          # must equal pilot-2's
+  scale: 10.0
+  dropout: 0.05
+max_seq_length: 12288
+grad_checkpoint: true
+steps_per_report: 20
+steps_per_eval: 200
+val_batches: 50
+save_every: 200
+seed: 17

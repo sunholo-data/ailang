@@ -76,7 +76,15 @@ async function post(path, body) {
   try {
     const res = await fetch(`${cfg.url}${path}`, {
       method: "POST",
-      headers: { "content-type": "application/json" },
+      headers: {
+        "content-type": "application/json",
+        // Every route posted here is in the dashboard's hub ingest class
+        // (internal/server/ingest_auth.go). Absent when the token is unset,
+        // which a loopback or warn-mode dashboard still accepts.
+        ...(process.env.AILANG_HUB_TOKEN
+          ? { "X-AILANG-Ingest-Token": process.env.AILANG_HUB_TOKEN }
+          : {}),
+      },
       body: JSON.stringify(body),
       // Short, like the Go side's OTLP timeout: a slow dashboard must not
       // become a slow agent.

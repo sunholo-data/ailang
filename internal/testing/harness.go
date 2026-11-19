@@ -126,38 +126,24 @@ func buildFunctionCall(functionName string, inputExpr ast.Expr) (core.CoreExpr, 
 		Name: functionName,
 	}
 
-	// Check if input is a tuple (multi-arg function)
-	if tuple, ok := inputExpr.(*ast.Tuple); ok && len(tuple.Elements) > 1 {
-		// Multi-arg function: f(a, b, c) becomes App(f, [a, b, c])
-		// Convert all tuple elements to Core
-		args := make([]core.CoreExpr, len(tuple.Elements))
-		for i, elem := range tuple.Elements {
-			var err error
-			args[i], err = astExprToCore(elem)
-			if err != nil {
-				return nil, err
-			}
+	// The arguments: a tuple of two or more is a multi-argument call,
+	// f(a, b, c) = App(f, [a, b, c]); anything else is the one argument
+	// (ast.RowCallArgs, shared with the compiler's row check, #2232).
+	inputs := ast.RowCallArgs(inputExpr)
+	args := make([]core.CoreExpr, len(inputs))
+	for i, elem := range inputs {
+		var err error
+		args[i], err = astExprToCore(elem)
+		if err != nil {
+			return nil, err
 		}
-		return &core.App{
-			CoreNode: core.CoreNode{
-				NodeID: nextNodeID(),
-			},
-			Func: funcVar,
-			Args: args,
-		}, nil
-	}
-
-	// Single-arg function: f(a)
-	inputCore, err := astExprToCore(inputExpr)
-	if err != nil {
-		return nil, err
 	}
 	return &core.App{
 		CoreNode: core.CoreNode{
 			NodeID: nextNodeID(),
 		},
 		Func: funcVar,
-		Args: []core.CoreExpr{inputCore},
+		Args: args,
 	}, nil
 }
 

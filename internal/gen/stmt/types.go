@@ -7,7 +7,7 @@ import "fmt"
 // If a type variable is encountered, projection MUST error (no silent defaults).
 type ResolvedType interface {
 	resolvedType()
-	GoString() string // Go type representation (for the Go emitter)
+	GoString() string // the type spelled as Go would (IR debugging, %#v and lower's tests)
 }
 
 // PrimitiveType represents a basic type.

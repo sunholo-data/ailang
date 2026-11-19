@@ -9,6 +9,7 @@ import (
 	"github.com/sunholo-data/ailang/internal/eval"
 	"github.com/sunholo-data/ailang/internal/typedast"
 	"github.com/sunholo-data/ailang/internal/types"
+	"github.com/sunholo-data/ailang/internal/types/traverse"
 )
 
 // formatCore formats Core AST for display
@@ -72,13 +73,15 @@ func formatTyped(expr typedast.TypedNode, indent string) string {
 	}
 }
 
-// formatValue formats evaluation result
+// formatValue formats an evaluation result. An AILANG value is spelled exactly
+// as `show` spells it (M-V1-SHOW-TOTAL M4), so the REPL echo, `run --print`
+// and test messages agree with program output.
 func formatValue(val interface{}) string {
 	switch v := val.(type) {
 	case int64:
 		return fmt.Sprintf("%d", v)
 	case float64:
-		return fmt.Sprintf("%g", v)
+		return eval.Show(&eval.FloatValue{Value: v})
 	case bool:
 		if v {
 			return "true"
@@ -87,7 +90,7 @@ func formatValue(val interface{}) string {
 	case string:
 		return v
 	case eval.Value:
-		return v.String()
+		return eval.Show(v)
 	default:
 		return fmt.Sprintf("%v", v)
 	}
@@ -201,19 +204,29 @@ func (r *REPL) getFinalTypeAfterDefaulting(typedNode typedast.TypedNode, qualTyp
 	// }
 
 	// Strategy: Prefer concrete types over type variables, in this order:
-	// 1. Concrete TCon from typedNode.GetType() (if not a TVar)
-	// 2. Concrete type from resolved constraints for this node ID
-	// 3. Any concrete type from resolved constraints (from defaulting)
-	// 4. Fallback to qualType
+	// 1. qualType, then typedNode.GetType(), if it has no type variables
+	// 2. qualType if it is not a bare type variable
+	// 3. Concrete type from resolved constraints for this node ID
+	// 4. Any concrete type from resolved constraints (from defaulting)
+	// 5. Fallback to qualType
 
-	// First check if the typed node already has a concrete type
-	nodeType := typedNode.GetType()
-	if t, ok := nodeType.(types.Type); ok {
-		switch typ := t.(type) {
-		case *types.TCon:
-			// Already concrete - use it
-			return typ
+	// A ground type is shown as it is: the declaration's type after top-level
+	// defaulting (InferWithConstraints returns it), else the typed node's
+	// type, which has the declaration's substitution applied. Before, only a
+	// TCon was taken, and every other shape fell through to "any
+	// constraint's type" below, so `[1, 2]` and `(1, "a")` printed `:: Int`.
+	nodeType, _ := typedNode.GetType().(types.Type)
+	for _, t := range []types.Type{qualType, nodeType} {
+		if t != nil && !traverse.HasTypeVars(t) {
+			return t
 		}
+	}
+	// A structured type with variables left is shown as inferred; only a
+	// bare type variable takes a defaulted type from the constraints.
+	switch qualType.(type) {
+	case nil, *types.TVar, *types.TVar2:
+	default:
+		return qualType
 	}
 
 	// If we have resolved constraints, look for concrete types

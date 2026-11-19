@@ -1,13 +1,13 @@
 # M-COMPLETION-PATH-PARITY: a cloud task must end the same way a local task does
 
-**Status**: **M0, M0b, M1 (cloud half), M2, M3, M4, M5 LANDED on `dev` 2026-09-03.** Not yet deployed — this is a coordinator-image change and needs the dev → test → prod rollout. M1b (daemon consolidation) deliberately outstanding; see the sprint plan. Originally planned — attended, standalone critical-infrastructure work, sibling to [M-COORDINATOR-EXECUTION-TRUST](m-coordinator-execution-trust.md). Written 2026-09-03 after a live end-to-end trial (`task-88a9fa95`) showed the agent-to-agent handoff chain has **never fired in production**.
+**Status**: **M0, M0b, M1 (cloud half), M2, M3, M4, M5 LANDED on `dev` 2026-09-03.** Not yet deployed — this is a coordinator-image change and needs the dev → test → prod rollout. M1b (daemon consolidation) deliberately outstanding; see the sprint plan. Originally planned — attended, standalone critical-infrastructure work, sibling to [M-COORDINATOR-EXECUTION-TRUST](../implemented/v0_35_0/m-coordinator-execution-trust.md). Written 2026-09-03 after a live end-to-end trial (`task-88a9fa95`) showed the agent-to-agent handoff chain has **never fired in production**.
 **Revision**: **r14** (last completed full quorum: round 12 — blocked 3/3; rounds 0–12 blocked, one pass recorded in round 10)
 **Rulings**: **D2, D3 and D5 ruled by Mark 2026-09-03 (attended). Design freeze CLOSED; sprint may proceed.** D1 and D4 recorded below. See [the sprint plan](m-completion-path-parity-sprint-plan.md). — rounds 0–5 each blocked 3/3. Every objection accepted; none argued. Round 5 landed the most embarrassing finding of the series: **r6 verified the SQLite stores — the daemon path nobody runs — and asserted the Firestore ones, on a doc whose entire thesis is that the cloud path is the only one that matters.** Checked properly, Firestore differs from SQLite on two of three effects, and differs in a way that is **worse**, not better (V31fs, V34fs): it overwrites silently, so a redelivered completion would reset an already-resolved approval to `pending`.
 **Scope**: The coordinator has **two** task-completion paths. The daemon path performs ten side effects; the cloud path — the only one prod uses — performs two. Everything in the difference is dead in prod: agent handoffs, chain/stage progression, GitHub stage routing, and the approval record itself.
 **Target**: v0.35.0
 **Priority**: **P0.** This is the load-bearing link for unsupervised AILANG package-ecosystem work. The pipeline is designed, configured and coded — and has produced zero handoffs in four months.
 **Estimated**: ~5 days (M1–M3). 2d→3d→5d→4d→**5d**: r6 adds three idempotent store primitives (`CreateApprovalIfAbsent`, `PutMessageIfAbsent`, absolute metric setters) in both backends, because V31/V32/V34 showed none of them exists today. + ~0.5d reconciliation + rollout
-**Dependencies**: none blocking. Builds on [M-COORDINATOR-EXECUTION-TRUST](m-coordinator-execution-trust.md) M1a–M8, which made dispatch and execution trustworthy. This doc fixes the layer **after** execution.
+**Dependencies**: none blocking. Builds on [M-COORDINATOR-EXECUTION-TRUST](../implemented/v0_35_0/m-coordinator-execution-trust.md) M1a–M8, which made dispatch and execution trustworthy. This doc fixes the layer **after** execution.
 
 ---
 
@@ -153,7 +153,7 @@ r1 was blocked 3/3. Two of its load-bearing claims did not survive the work the 
 
 **Method note:** no reviewer caught r1's stage error. Both r1 errors surfaced from *acting on* the objections —
 the list-view number that anchored r1 was wrong, and only the detail endpoint disclosed it. This is
-[M-COORDINATOR-EXECUTION-TRUST](m-coordinator-execution-trust.md) V40 again — *verify the artefact,
+[M-COORDINATOR-EXECUTION-TRUST](../implemented/v0_35_0/m-coordinator-execution-trust.md) V40 again — *verify the artefact,
 not the aggregate* — and it cost a whole revision to relearn.
 
 ---
@@ -388,7 +388,7 @@ absence of failures here is not evidence of correctness.**
 - **D1 — author's recommendation stands** (orchestrator + explicitly-kinded strategy); no reviewer
   objected to the shape across thirteen rounds, only to its details, all of which are now fixed.
 - **D4 — deferred to the sibling doc.** Whether `sprint-*` agents take `work_tier: tier1` belongs to
-  [M-COORDINATOR-EXECUTION-TRUST](m-coordinator-execution-trust.md) M1a, which owns the tier model.
+  [M-COORDINATOR-EXECUTION-TRUST](../implemented/v0_35_0/m-coordinator-execution-trust.md) M1a, which owns the tier model.
 
 
 
@@ -469,7 +469,7 @@ no approval or handoff — i.e. "it ran, it cost money, it changed nothing, noth
 the author's reading of the sibling doc's intent, not a preserved behaviour. **Needs a ruling.**
 
 **D4 — Do the `sprint-*` pipeline agents get `work_tier: tier1`?**
-Cross-doc with [M-COORDINATOR-EXECUTION-TRUST](m-coordinator-execution-trust.md) M1a. A pipeline
+Cross-doc with [M-COORDINATOR-EXECUTION-TRUST](../implemented/v0_35_0/m-coordinator-execution-trust.md) M1a. A pipeline
 amplifies the intermittent-ack problem: four chances to stall instead of one. **Needs a ruling — may
 belong wholly to the sibling doc.**
 
@@ -748,7 +748,7 @@ Each arm fails RED before its fix.
 | **Unsupervised chain runs away** (C5) | `max_concurrent_tasks: 1` is already set on all three pipeline agents. A chain-level budget does **not** exist and is **not** scoped here (C5) — naming it as a mitigation would be false comfort; it is listed as a prerequisite for unsupervised operation instead |
 | **Extraction changes daemon behaviour** | The daemon path is the *working* one; M5 pins its current effect set **before** extraction, so the refactor is provably behaviour-preserving there |
 | **Silent backend swap erases chains** (C6, V20) | M5 asserts the configured backend implements chain writes |
-| Prod images lag the fix | Coordinator-side change, so it ships on the coordinator image — but per [M-COORDINATOR-EXECUTION-TRUST](m-coordinator-execution-trust.md) Rollout, verify the **deployed revision**, not the build status |
+| Prod images lag the fix | Coordinator-side change, so it ships on the coordinator image — but per [M-COORDINATOR-EXECUTION-TRUST](../implemented/v0_35_0/m-coordinator-execution-trust.md) Rollout, verify the **deployed revision**, not the build status |
 
 ---
 
@@ -891,7 +891,7 @@ safety argument; the third demanded verification of a matrix cell and surfaced a
 
 ## Related Documents
 
-- [M-COORDINATOR-EXECUTION-TRUST](m-coordinator-execution-trust.md) — the layer below; made execution
+- [M-COORDINATOR-EXECUTION-TRUST](../implemented/v0_35_0/m-coordinator-execution-trust.md) — the layer below; made execution
   trustworthy. This doc fixes what happens *after* a cloud task finishes.
 - [M-MESSAGE-PLANE-TRUST](m-message-plane-trust.md) — delivery, the layer below that.
 - [M-PACKAGE-PROTOCOL-MANIFESTS](m-package-protocol-manifests.md) — per-repo protocol declaration the

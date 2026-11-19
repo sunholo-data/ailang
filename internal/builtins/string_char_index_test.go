@@ -2,11 +2,7 @@ package builtins
 
 import (
 	"fmt"
-	"os"
-	"os/exec"
-	"path/filepath"
 	"runtime"
-	"slices"
 	"strings"
 	"testing"
 
@@ -78,7 +74,7 @@ func TestCharAtMatchesRuneSliceSemantics(t *testing.T) {
 				continue
 			}
 			// The message quotes the RUNE length; a byte length here would be
-			// the same class of bug as the codegen tier's.
+			// the same class of bug as byte indexing.
 			want := fmt.Sprintf("index %d out of bounds for string of length %d", idx, len([]rune(s)))
 			if !strings.Contains(err.Error(), want) {
 				t.Errorf("charAt(%q, %d) error = %q, want it to contain %q", s, idx, err.Error(), want)
@@ -174,114 +170,5 @@ func TestCharAtCostDoesNotScaleWithLength(t *testing.T) {
 	}
 	if large > 256 {
 		t.Errorf("charAt allocates %d bytes per call at len=%d, want a small constant", large, long)
-	}
-}
-
-// TestCodegenCharAtIsRuneIndexed runs the ACTUAL helper body the emit-go
-// backend ships, rather than re-deriving what it ought to do.
-//
-// Before ailang#688 that body indexed by BYTE: charAt("héllo", 1) returned
-// "Ã" compiled and "é" interpreted, and charAt("héllo", 5) returned "o"
-// compiled where the interpreter raises out-of-bounds. A compiled program
-// silently disagreed with the same source under the interpreter.
-func TestCodegenCharAtIsRuneIndexed(t *testing.T) {
-	// No -short gate and no LookPath skip: gatelint R1 rejects testing.Short as
-	// inert in CI, and a `go` binary is present by construction inside `go
-	// test`. A skip that can never legitimately fire is the vacuous pass this
-	// test exists to prevent, so this arm always runs and fails loudly.
-	spec := GetCodegenSpec("_str_charAt")
-	if spec == nil || spec.Helper == nil {
-		t.Fatal("instrument failure: no codegen spec/helper for _str_charAt")
-	}
-	// charCode had no codegen spec at all, so compiled programs using it failed
-	// with "undefined: CharCode". Emitted alongside charAt because they share
-	// the import constraint and the rune-vs-byte hazard.
-	ccSpec := GetCodegenSpec("_str_charCode")
-	if ccSpec == nil || ccSpec.Helper == nil {
-		t.Fatal("no codegen spec/helper for _str_charCode: compiled programs using charCode will not build")
-	}
-	for _, imp := range ccSpec.Imports {
-		if !slices.Contains([]string{"fmt", "reflect", "strings"}, imp) {
-			t.Errorf("charCode spec declares import %q, which runtime.go cannot emit for a Helper spec", imp)
-		}
-	}
-
-	// runtimeImports is what codegen.go actually emits at the top of
-	// runtime.go: a CLOSED allowlist. GoCodegenSpec.Imports is explicitly
-	// skipped for Helper specs (codegen_registry.go, "Don't track imports
-	// here"), so a helper body that reaches for anything outside this set
-	// emits Go that does not compile.
-	//
-	// The first draft of this test built its import block from spec.Imports
-	// and passed while the real pipeline failed with "undefined: utf8" — a
-	// test that verified its own arithmetic instead of the artifact. Rendering
-	// against the real allowlist is what makes it an artifact test.
-	runtimeImports := []string{"fmt", "reflect", "strings"}
-	for _, imp := range spec.Imports {
-		if !slices.Contains(runtimeImports, imp) {
-			t.Errorf("spec declares import %q, which runtime.go cannot emit for a Helper spec; "+
-				"the generated code will not compile", imp)
-		}
-	}
-	var imports strings.Builder
-	for _, imp := range runtimeImports {
-		fmt.Fprintf(&imports, "\t%q\n", imp)
-	}
-	prog := fmt.Sprintf(`package main
-
-import (
-%s)
-
-var _ = reflect.TypeOf
-var _ = strings.TrimSpace
-
-func toInt64(v interface{}) int64 { return v.(int64) }
-
-%s {
-%s
-}
-
-%s {
-%s
-}
-
-func main() {
-	defer func() {
-		if r := recover(); r != nil { fmt.Println("PANIC") }
-	}()
-	fmt.Println(CharAt("h\u00e9llo", int64(1)))
-	fmt.Println(CharAt("h\u00e9llo", int64(4)))
-	fmt.Println(CharCode("\u00e9"))
-	fmt.Println(CharCode("\U0001F600"))
-	fmt.Println(CharAt("h\u00e9llo", int64(5)))
-}
-`, imports.String(), spec.Helper.Signature, spec.Helper.Body, ccSpec.Helper.Signature, ccSpec.Helper.Body)
-
-	dir := t.TempDir()
-	if err := os.WriteFile(filepath.Join(dir, "main.go"), []byte(prog), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, "go.mod"), []byte("module cgcharat\n\ngo 1.21\n"), 0o600); err != nil {
-		t.Fatal(err)
-	}
-	cmd := exec.Command("go", "run", ".")
-	cmd.Dir = dir
-	out, err := cmd.CombinedOutput()
-	if err != nil {
-		t.Fatalf("generated CharAt helper did not build/run: %v\n%s\n--- program ---\n%s", err, out, prog)
-	}
-	got := strings.Split(strings.TrimRight(string(out), "\n"), "\n")
-	// "héllo" is 5 runes; index 4 is the last, index 5 is past the end.
-	// 233 = U+00E9, 128512 = U+1F600: both are RUNE code points, which a byte-
-	// or UTF-16-based implementation would not produce.
-	want := []string{"\u00e9", "o", "233", "128512", "PANIC"}
-	if len(got) != len(want) {
-		t.Fatalf("generated CharAt printed %d lines, want %d:\n%s", len(got), len(want), out)
-	}
-	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("generated CharAt line %d = %q, want %q (byte indexing returns %q for line 0)",
-				i, got[i], want[i], "\u00c3")
-		}
 	}
 }

@@ -417,7 +417,7 @@ The following are intentionally left open for the implementer (agent latitude):
 - [design_docs/implemented/v0_7_0/m-eval-ollama-local-models.md](../../implemented/v0_7_0/m-eval-ollama-local-models.md) — Precedent for new provider expanding eval coverage
 
 **Planned (check for overlap):**
-- [design_docs/planned/v1_0_0/m-effect-refinement.md](../v1_0_0/m-effect-refinement.md) — **Canonical home for the deferred type-level work.** M-EFFECT-REFINEMENT generalises `!{E[mode=...]}` across Rand, Clock, Net, FS, AI. The `!{AI[mode=routeable]}` / `mode=fixed` / `mode=replay-only` / `scope=byok` markers deferred from M3 land there; M-AI-OPENROUTER's runtime `--allow-routing` gate becomes the back-compat fallback. See [Example 4: Modal AI](../v1_0_0/m-effect-refinement.md#example-4-modal-ai).
+- [design_docs/planned/v1_1_0/m-effect-refinement.md](../../planned/v1_1_0/m-effect-refinement.md) — **Canonical home for the deferred type-level work.** M-EFFECT-REFINEMENT generalises `!{E[mode=...]}` across Rand, Clock, Net, FS, AI. The `!{AI[mode=routeable]}` / `mode=fixed` / `mode=replay-only` / `scope=byok` markers deferred from M3 land there; M-AI-OPENROUTER's runtime `--allow-routing` gate becomes the back-compat fallback. See [Example 4: Modal AI](../../planned/v1_1_0/m-effect-refinement.md#example-4-modal-ai).
 - [design_docs/planned/v0_13_0/m-arch1-ai-provider-base-class.md](../v0_13_0/m-arch1-ai-provider-base-class.md) — Provider base-class refactor; **not blocking**, but OpenRouter adapter should be written so it slots into the base class cleanly when M-ARCH1 lands
 - [design_docs/planned/v0_13_0/m-arch5-error-handling-strategy.md](../v0_13_0/m-arch5-error-handling-strategy.md) — Error-typing strategy that `AIError.RouteableProviderNotAllowed` should follow
 - [design_docs/planned/v1_0_0/m-agent-orchestration.md](../v1_0_0/m-agent-orchestration.md) — Agent orchestration may want to use `AI[mode=routeable]` for cost-aware routing
@@ -433,7 +433,7 @@ The following are intentionally left open for the implementer (agent latitude):
 
 ## Future Work
 
-- **Type-level mode markers (`AI[mode=routeable|fixed|replay-only]`, `AI[scope=byok]`)** — Lifted into the parameterised-effects design at [M-EFFECT-REFINEMENT](../v1_0_0/m-effect-refinement.md). That milestone is the single place where Rand, Clock, Net, FS, and AI all gain `[mode=...]`/`[scope=...]` parameters; AI is one row in the same table. M-AI-OPENROUTER's `--allow-routing` runtime gate continues to work as the back-compat fallback for programs that haven't adopted modes yet.
+- **Type-level mode markers (`AI[mode=routeable|fixed|replay-only]`, `AI[scope=byok]`)** — Lifted into the parameterised-effects design at [M-EFFECT-REFINEMENT](../../planned/v1_1_0/m-effect-refinement.md). That milestone is the single place where Rand, Clock, Net, FS, and AI all gain `[mode=...]`/`[scope=...]` parameters; AI is one row in the same table. M-AI-OPENROUTER's `--allow-routing` runtime gate continues to work as the back-compat fallback for programs that haven't adopted modes yet.
 - **`AI[mode=replay-only]`** — Forbids live calls; response must come from trace/cache. Useful for deterministic test runs and offline agent eval. Designed alongside the other modes in M-EFFECT-REFINEMENT.
 - **Other routing providers** — Together.ai, Replicate, Anyscale adapters using the same `AIRoutingPolicy` IR.
 - **Cost budgets** — AILANG-side `AIBudget` enforcement (halt or downgrade on exceed); trace already records cost so this is an additive layer.
@@ -490,7 +490,7 @@ coverage for the new packages: **openrouter 94.9%**, **trace 86.5%**,
 
 | Deferred work | Why | Tracked in |
 |---|---|---|
-| Type-level mode markers `!{AI[mode=routeable\|fixed\|replay-only]}`, `!{AI[scope=byok]}` | AILANG effects today are flat label-strings; parameterised rows need parser + AST + elaborator + typechecker work. The runtime `--allow-routing` gate carries the same explicit-opt-in intent meanwhile. | [M-EFFECT-REFINEMENT (v1.0.0)](../../planned/v1_0_0/m-effect-refinement.md) — Example 4: Modal AI |
+| Type-level mode markers `!{AI[mode=routeable\|fixed\|replay-only]}`, `!{AI[scope=byok]}` | AILANG effects today are flat label-strings; parameterised rows need parser + AST + elaborator + typechecker work. The runtime `--allow-routing` gate carries the same explicit-opt-in intent meanwhile. | [M-EFFECT-REFINEMENT (v1.0.0)](../../planned/v1_1_0/m-effect-refinement.md) — Example 4: Modal AI |
 | Replay-engine pin-to-resolved + `--reroute` flag | Replay engine is currently trace-naive (reruns source with a fresh AI handler). Trace data is captured so the engine has something to consume when implemented. | Future replay-engine refactor |
 | AILANG-side `ai.complete(req)` entry point + `stdlib/std/ai/providers/openrouter.ail` constructor | Needs new builtins for value-level provider construction; out of scope for the adapter milestone. | v0.17.0 follow-up |
 | Streaming responses | Phase 1 is request/response only. | Future provider work |

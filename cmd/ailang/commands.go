@@ -57,7 +57,14 @@ type Command struct {
 	// It is for routes that exist only so a caller keeps working:
 	// `internal-dump-iface` (which internal/pkg/iface_subprocess.go execs)
 	// and the bare pkg verbs that `ailang pkg <verb>` supersedes.
-	Hidden  bool
+	Hidden bool
+
+	// Removed marks a Hidden row whose feature is gone: the route answers
+	// only with a removal message and exit 1 (`compile`, the Go emitter).
+	// The CLI reference lists it under "Removed commands", never as a
+	// compatibility spelling that keeps working.
+	Removed bool
+
 	Summary string
 	Run     func(args []string) error
 

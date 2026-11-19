@@ -1,0 +1,37 @@
+-- deprecated_annotation.ail - @deprecated and @experimental on your own exports.
+--
+-- Rename an export without breaking its callers: keep the old name as a
+-- one-line forwarder marked @deprecated("newName"). Every use of the old name
+-- from ANOTHER module then warns TC_DEPRECATED_001 naming the replacement (on
+-- stderr, in `check --json` and in `check --format agent`), while the program
+-- keeps working. Uses inside the defining module (like main below) do not
+-- warn. @experimental marks a function's tier in `ailang iface`
+-- ("tier": "experimental").
+
+module examples/runnable/deprecated_annotation
+
+import std/io (println)
+
+-- The current name.
+export pure func clampTo(x: int, lo: int, hi: int) -> int =
+  if x < lo then lo else if x > hi then hi else x
+
+-- The 0.x spelling: same type, same behaviour, but importers are told to move.
+@deprecated("clampTo")
+export pure func clamp_to(x: int, lo: int, hi: int) -> int = clampTo(x, lo, hi)
+
+-- A deprecation note travels with the warning when the call must change too.
+@deprecated("clampTo", "arguments reorder: clampOld(lo, hi, x) becomes clampTo(x, lo, hi)")
+export pure func clampOld(lo: int, hi: int, x: int) -> int = clampTo(x, lo, hi)
+
+-- Shipped, but outside the module's stability promise.
+@experimental
+export pure func clampFloat(x: float, lo: float, hi: float) -> float =
+  if x < lo then lo else if x > hi then hi else x
+
+export func main() -> () ! {IO} {
+  println("clampTo(15, 0, 10) = ${show(clampTo(15, 0, 10))}")
+  println("clamp_to(-3, 0, 10) = ${show(clamp_to(0 - 3, 0, 10))}")
+  println("clampOld(0, 10, 7) = ${show(clampOld(0, 10, 7))}")
+  println("clampFloat(2.5, 0.0, 1.0) = ${show(clampFloat(2.5, 0.0, 1.0))}")
+}

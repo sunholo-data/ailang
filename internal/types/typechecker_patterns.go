@@ -2,6 +2,8 @@ package types
 
 import (
 	"fmt"
+	"maps"
+	"slices"
 
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/typedast"
@@ -15,8 +17,9 @@ func (tc *CoreTypeChecker) inferMatch(ctx *InferenceContext, match *core.Match) 
 		return nil, ctx.env, err
 	}
 
-	// Check exhaustiveness (simplified for now)
-	// TODO: Implement full exhaustiveness checking
+	// Exhaustiveness is decided after inference, on the finalised types
+	// (VerifyMatchExhaustiveness, match_exhaustiveness.go), which also sets
+	// match.Exhaustive.
 	exhaustive := match.Exhaustive
 
 	// Infer types of all arms
@@ -144,15 +147,34 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 		return nil, typedast.TypedWildcardPattern{}, nil
 
 	case *core.ConstructorPattern:
+		// M-V1-NOMINAL-TYPE-IDENTITY: a constructor two imported modules offer
+		// is resolved by the scrutinee's type, never by import order.
+		// The choice is deferred until the equalities fix the scrutinee's type
+		// (ambiguous_ctor.go), so it never depends on visit order.
+		if cands, amb := tc.ambiguousCtors[p.Name]; amb && p.TypeName == "" {
+			return tc.checkAmbiguousCtorPattern(p, cands, scrutType, ctx)
+		}
+		// M-V1-MATCH-EXHAUSTIVENESS: a pattern the elaborator could not
+		// stamp with its ADT (matched by name, #323) takes its type's
+		// identity from the value it is checked against.
+		tc.recordCtorPatternType(p, scrutType)
 		// #1478: a name outside direct scope is accepted only if a loaded
 		// module defines it (and it isn't provably a foreign ADT's).
 		if err := tc.checkCtorPatternScope(p, scrutType); err != nil {
 			return nil, nil, err
 		}
+		// #2353: matched by name, its type is decided by the value matched,
+		// and its arguments are typed from that type's constructor.
+		if _, inScope := tc.patternADT(p); !inScope && p.TypeName == "" {
+			if bindings, typed, ok, err := tc.checkByNameCtorPattern(p, scrutType, ctx); ok || err != nil {
+				return bindings, typed, err
+			}
+		}
 		// M-DX25.4: Look up constructor's ADT type and add constraint
 		// This ensures pattern matching on ADTs infers the correct ADT type for the scrutinee
 		if tc.constructorTypes != nil {
-			if adtTypeName, ok := tc.patternADT(p); ok {
+			if adtRef, ok := tc.patternADT(p); ok {
+				adtTypeName := adtRef.Name
 				// M-MATCH-ADT-XCHECK (v0.18.10): if the scrutinee's type
 				// is already concretely resolved to a different ADT,
 				// fail FAST with a structured error naming both ADTs
@@ -168,31 +190,40 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 				// returns "" for unresolved types, so the check is
 				// conservative and doesn't fire on legitimately
 				// polymorphic code.
-				if scrutADT := extractADTName(scrutType); scrutADT != "" && scrutADT != adtTypeName {
+				//
+				// #2244: the scrutinee's ADT is read after alias expansion
+				// (nominal_head.go) — `type Hue = Color` is Color.
+				if scrutADT := tc.scrutineeADTName(scrutType); scrutADT != "" && scrutADT != adtTypeName {
 					ctorList := tc.lookupADTConstructors(adtTypeName)
 					scrutList := tc.lookupADTConstructors(scrutADT)
-					return nil, nil, NewMatchForeignConstructorError(
-						p.Name, adtTypeName, scrutADT,
+					err := NewMatchForeignConstructorError(
+						p.Name, adtTypeName, scrutADT, writtenAlias(scrutType, scrutADT),
 						ctorList, scrutList,
 						[]string{fmt.Sprintf("constructor pattern %s", p.Name)},
 					)
+					// #2371: the scrutinee's own type declares the name too
+					// (a library's unimported Maybe.None vs the prelude's).
+					if hint := tc.foreignCtorHint(p.Name, adtTypeName, scrutADT); hint != "" {
+						err.Suggestion = hint
+					}
+					return nil, nil, err
 				}
 				// M-TAPP-FIX: Check if ADT has type parameters
 				// If so, create TApp with fresh type vars, not just TCon
 				var adtType Type
-				if paramCount, hasParams := tc.adtTypeParams[adtTypeName]; hasParams && paramCount > 0 {
+				if paramCount, hasParams := tc.adtTypeParams[NominalKey(adtRef.Module, adtRef.Name)]; hasParams && paramCount > 0 {
 					// ADT has type parameters - create TApp with fresh type vars
 					typeArgs := make([]Type, paramCount)
 					for i := 0; i < paramCount; i++ {
 						typeArgs[i] = ctx.freshTypeVar()
 					}
 					adtType = &TApp{
-						Constructor: &TCon{Name: adtTypeName},
+						Constructor: &TCon{Name: adtTypeName, Module: adtRef.Module},
 						Args:        typeArgs,
 					}
 				} else {
 					// No type parameters - use simple TCon
-					adtType = &TCon{Name: adtTypeName}
+					adtType = &TCon{Name: adtTypeName, Module: adtRef.Module}
 				}
 
 				// Add constraint: scrutinee type = ADT type
@@ -218,8 +249,8 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 		// over-tightening); if no factory scheme is registered we fall through to
 		// the old fresh-var behaviour (no worse than before).
 		var ctorFieldTypes []Type
-		if adtTypeName, ok := tc.patternADT(p); ok {
-			factoryKey := fmt.Sprintf("$adt.make_%s_%s", adtTypeName, p.Name)
+		if adtRef, ok := tc.patternADT(p); ok {
+			factoryKey := core.ADTFactoryKey(adtRef.Module, adtRef.Name, p.Name)
 			if scheme, ok := tc.globalTypes[factoryKey]; ok {
 				if fn, ok := scheme.Instantiate(ctx.freshType).(*TFunc2); ok {
 					ctorFieldTypes = fn.Params
@@ -428,7 +459,7 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 			//     passing extra fields is (correctly) rejected. This preserves the
 			//     M-SCHEME-IMPORT-PRESERVE-ADT-HEAD strictness — it must NOT reverse.
 			fieldTypes = make(map[string]Type)
-			for fieldName := range p.Fields {
+			for _, fieldName := range slices.Sorted(maps.Keys(p.Fields)) { // #2076: no map order
 				// This branch only runs when scrutType is NOT a *TRecord (the
 				// outer type-switch handled the resolved-record case above), so
 				// each matched field starts as a fresh type variable.
@@ -449,7 +480,8 @@ func (tc *CoreTypeChecker) checkPattern(pat core.CorePattern, scrutType Type, ct
 		bindings := make(map[string]Type)
 		typedFields := make(map[string]typedast.TypedPattern)
 
-		for fieldName, fieldPat := range p.Fields {
+		for _, fieldName := range slices.Sorted(maps.Keys(p.Fields)) { // #2076: no map order
+			fieldPat := p.Fields[fieldName]
 			fieldType, ok := fieldTypes[fieldName]
 			if !ok {
 				// Field not in scrutinee type - create fresh type variable

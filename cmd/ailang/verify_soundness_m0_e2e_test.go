@@ -64,6 +64,12 @@ func m0Verify(t *testing.T, name string, wants map[string]string) map[string]m0R
 	}
 	return got
 }
+
+// The recursive functions in these suites (total, lowBound, partial) are
+// bounded-unrolled, so a sat on them is "inconclusive", never "counterexample"
+// (M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE). Three of the four are TRUE
+// contracts that this suite used to pin as false counterexamples. The
+// soundness property these tests guard, that they are never VERIFIED, still holds.
 func TestVerifyM0_ArithmeticAndIdentity(t *testing.T) {
 	rows := m0Verify(t, "m0_int_divmod", map[string]string{"parity": "counterexample", "halfDown": "counterexample", "halfNonNeg": "verified", "parityBounded": "verified", "halfTowardZero": "verified", "remSign": "verified"})
 	for _, name := range []string{"parity", "halfDown"} {
@@ -82,7 +88,7 @@ func TestVerifyM0_ArithmeticAndIdentity(t *testing.T) {
 			t.Fatalf("%s: expected negative witness: %+v", name, rows[name])
 		}
 	}
-	rows = m0Verify(t, "m0_callee_identity", map[string]string{"gap": "counterexample", "selfGap": "verified", "sumBoth": "verified", "atLeast": "verified", "atLeastUnguarded": "counterexample", "total": "counterexample", "lowBound": "counterexample"})
+	rows = m0Verify(t, "m0_callee_identity", map[string]string{"gap": "counterexample", "selfGap": "verified", "sumBoth": "verified", "atLeast": "verified", "atLeastUnguarded": "counterexample", "total": "inconclusive", "lowBound": "inconclusive"})
 	for _, row := range rows {
 		for _, b := range row.Model {
 			if strings.HasPrefix(b.Name, "$spec_") {
@@ -93,11 +99,11 @@ func TestVerifyM0_ArithmeticAndIdentity(t *testing.T) {
 }
 func TestVerifyM0_LexicalHelpersAndSelectedPaths(t *testing.T) {
 	m0Verify(t, "m0_lexical_facts", map[string]string{"shadowFalse": "counterexample", "shadowTrue": "verified", "capturedTrue": "verified", "capturedFalse": "counterexample"})
-	m0Verify(t, "m0_helper_environment", map[string]string{"diamond": "verified", "diamondFalse": "counterexample", "boundShadow": "verified", "nestedBoundFalse": "counterexample", "nestedBoundTrue": "verified", "nullary": "error", "nullaryCaller": "verified", "nullaryFalse": "counterexample", "total": "counterexample"})
+	m0Verify(t, "m0_helper_environment", map[string]string{"diamond": "verified", "diamondFalse": "counterexample", "boundShadow": "verified", "nestedBoundFalse": "counterexample", "nestedBoundTrue": "verified", "nullary": "error", "nullaryCaller": "verified", "nullaryFalse": "counterexample", "total": "inconclusive"})
 	m0Verify(t, "m0_selected_paths", map[string]string{"andSkipped": "verified", "orFalseGoal": "counterexample", "predicateSkipped": "verified", "predicateFalse": "counterexample", "requiresSkipped": "counterexample", "matchUnmatched": "counterexample", "matchLater": "counterexample", "unreachableOpaque": "verified", "zeroOnly": "counterexample", "zeroSkipped": "verified"})
 }
 func TestVerifyM0_PartialCalleeNoGlobalAxiom(t *testing.T) {
-	m0Verify(t, "m0_partial_vacuity", map[string]string{"wrong": "counterexample", "partial": "counterexample"})
+	m0Verify(t, "m0_partial_vacuity", map[string]string{"wrong": "counterexample", "partial": "inconclusive"})
 	bin := buildAilang(t)
 	file := "cmd/ailang/testdata/verify_preflight/m0_partial_vacuity.ail"
 	for _, flags := range [][]string{nil, {"--bytecode", "--strict-bytecode"}} {

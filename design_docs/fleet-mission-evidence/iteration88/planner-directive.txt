@@ -1,0 +1,147 @@
+MISSION-ROLE: planner
+You are the SPRINT PLANNER for fleet-mission iteration 88 of the AILANG repo (sunholo-data/ailang).
+Working tree: the current directory (a detached git worktree at 9c7e997e0). You are in a READ-ONLY
+sandbox: do not try to edit files. Your FINAL MESSAGE is the plan; it is captured verbatim to a file.
+Do not run git write operations. Do not end your turn announcing a wait; there is nothing to wait for.
+
+SAFETY (non-negotiable; this sprint is ABOUT secret exposure):
+- NEVER print, cat, grep -A/-B/-C, head or tail ANY of: ~/.config/ailang/secrets.env, ~/.zshenv,
+  ~/.codex/config.toml, ~/.codex-missions/config.toml, ~/.pi/agent/models.json, any auth.json, any
+  session transcript (~/.claude/projects, ~/.codex*/sessions, ~/.pi/agent/sessions). The controller
+  has already measured what you need from them (below), by KEY NAME only.
+- Never run `env`, `printenv`, `set`, `export -p`, `declare -p` or `compgen -v` output unfiltered. If you
+  must test a variable, use `[ -n "${VAR-}" ] && echo SET || echo UNSET`. Never `${VAR:-...}` on a secret.
+- Read repository files only. No network.
+
+## Why this sprint exists (an idle-fire build, NOT a merge)
+Every open fleet ticket is ruling-gated. The charter's Guardrails say: "When every open ticket is
+ruling-gated, take the in-scope OPEN row whose recommendation is code and which has no proposed diff
+yet, and build that diff as a draft PR without merging it." That row is D-FLEET-42 (read it in
+`design_docs/fleet-mission.md`, search `| D-FLEET-42 |`). Its recommended option A:
+  "the fleet builds a per-lane allowlist strip at spawn (controller and each role recipe) as a proposed
+   diff, with a healthy and degraded dry-run per lane, and it merges only on your ruling."
+Default if unanswered is B (detection only). So the deliverable is a DRAFT PR that Mark can accept
+or reject. It must be honest about what it can and cannot achieve; see the measurements below.
+
+## Controller's first-party measurements (VERIFIED BY ME on the rig, 2026-11-05, names only)
+M1. `~/.config/ailang/secrets.env` exports exactly 7 keys: ANTHROPIC_API_KEY, CLAUDE_CODE_OAUTH_TOKEN,
+    GEMINI_AGENTS_API_KEY, GOOGLE_API_KEY, OLLAMA_API_KEY, OPENAI_API_KEY, OPENROUTER_API_KEY.
+M2. The driver sources it at `tools/launchd/mission-control.sh:119` and strips only
+    ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN OPENAI_API_KEY at `:171`.
+M3. **THE LOAD-BEARING FINDING: a spawn-time strip does NOT reach a zsh tool shell.** `~/.zshenv`
+    (rig config, NOT in this repo, outside fleet write scope) contains, in order:
+    line 14 `[ -f "$HOME/.config/ailang/secrets.env" ] && source "$HOME/.config/ailang/secrets.env"`
+    and line 22 `unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN`. zsh reads ~/.zshenv for EVERY
+    invocation, including non-interactive `zsh -c`.
+    - Claude controller (this fire, `claude -p`, driver had run the :171 unset): in the controller's
+      Bash-tool shell (`/bin/zsh`, ZSH_VERSION 5.9) OPENAI_API_KEY is SET (control:
+      ANTHROPIC_API_KEY UNSET), and CLAUDE_CODE_OAUTH_TOKEN, GEMINI_AGENTS_API_KEY, GOOGLE_API_KEY,
+      OLLAMA_API_KEY, OPENROUTER_API_KEY are SET. Agent-tool sub-agents (the sonnet evaluator) run
+      their Bash tool the same way.
+    - Codex lane: `~/.codex-missions/config.toml` (CODEX_HOME for missions) sets
+      `[shell_environment_policy] inherit = "core"`. A `codex exec --sandbox read-only` run of
+      `[ -n "$(printenv V)" ]` for each key printed: OPENROUTER, OLLAMA, GOOGLE, OPENAI,
+      CLAUDE_CODE_OAUTH_TOKEN all SET, ANTHROPIC_API_KEY UNSET, `$0=/bin/zsh`. inherit=core drops
+      every non-core variable, so the ONLY source of those values is ~/.zshenv:14.
+    - pi lane: `tools/pi-extensions/sandbox/index.ts:152` runs commands as `spawn("bash", ["-c", ...])`
+      (non-login, non-interactive bash) which does NOT read ~/.zshenv; and the sandbox policy denies
+      reads of secrets.env. So for pi, the shell env == the pi process env, and a spawn-time strip
+      DOES hold. (Re-check BASH_ENV handling in that file and say whether it matters.)
+    CONSEQUENCE: option A as worded is only effective for pi lanes unless ~/.zshenv honours a
+    marker the driver exports. Editing ~/.zshenv is Mark's step (outside the repo). The draft must
+    therefore ship (i) the repo half and (ii) the EXACT proposed ~/.zshenv lines as text for Mark,
+    and must say plainly that without (ii) the zsh lanes are unchanged.
+M4. Controller spawn sites: codex controller `mission-control.sh` ~2445-2452 (`mc_codex_exec` with
+    MC_CODEX_ENV_ARGS from `tools/launchd/lib/codex-env-args.sh`, which forwards only
+    MISSION_*/AILANG_DRIVER_*/a few AILANG_* names and DENIES any name matching
+    *KEY*|*TOKEN*|*SECRET*|*AUTH*...); pi controller ~2502; claude controller ~2504 (`claude -p`).
+    Role recipes are prose+shell in `.claude/skills/mission-control/resources/gate-3-route.md`
+    (codex role: `codex exec`; pi role: `scripts/mission_pi_run.sh`; claude role: `claude-sub`, a
+    wrapper at ~/.local/bin outside the repo; evaluator: Agent tool inside the claude controller).
+M5. Consumers of the keys (repo grep, non-test): CLAUDE_CODE_OAUTH_TOKEN — claude lanes, and
+    `internal/mission/anthropic_quota.go`; OLLAMA_API_KEY — `internal/mission/ollama_quota.go`,
+    `cmd/ailang/mission_quota_cmd.go`, `cmd/ailang/pi_assets/provider-quota.ts`; OPENROUTER_API_KEY —
+    `internal/mission/openrouter_quota.go`, `internal/ai/config.go`, `cmd/ailang/pi_assets/provider-quota.ts`;
+    GOOGLE_API_KEY — `internal/ai/config.go`, `internal/ai/factory/factory.go`; OPENAI_API_KEY —
+    `internal/mission/quorum/call.go`, `cmd/ailang/design_review.go`; GEMINI_AGENTS_API_KEY — only
+    `scripts/security/setup_gemini_agents_project.sh`. The design-quorum (run from the CONTROLLER's
+    shell) has seats gpt6-1-sol, gemini-4-argon, oc-glm-5-3, oc-kimi-k3, claude-sonnet-5@claude-p;
+    read `internal/mission/quorum/call.go` (~lines 80-130) and `internal/config/providers.go` to
+    derive which key each seat actually reads. pi models' OpenRouter key rides `~/.pi/agent/models.json`
+    (not env) per the skill — verify from repo code (`cmd/ailang/pi_assets/`, `tools/launchd/lib/lane-probe.sh`)
+    which env keys a pi run reads, if any.
+M6. The transcript detector that LANDED (#2122/#2127) scans session files for secrets.env VALUES; it
+    must keep working (it reads the file itself; do not route it through any strip).
+
+## Direction (refine; push back where wrong; do not widen beyond the draft)
+1. A sourced library `tools/launchd/lib/secrets-scope.sh` (bash 3.2 AND zsh-compatible, POSIX-ish,
+   pure functions, nothing runs at source time) that:
+   (a) maps a LANE (e.g. `claude-controller`, `codex-controller`, `pi-controller`, `codex-role`,
+       `pi-role`, `claude-role`) to an ALLOWLIST of secrets.env key names, derived from M5 by
+       measurement, each entry with a one-line reason in a comment (which consumer needs it);
+   (b) `mc_secrets_scope_apply <lane>`: unsets every secrets.env key NOT in that lane's allowlist,
+       reading the KEY NAMES of secrets.env (never its values) — parse `export NAME=` / `NAME=` lines
+       only; prints ONE summary line to stderr with kept/stripped NAMES and counts, never values;
+   (c) unknown lane => fail CLOSED (strip every secrets.env key) and say so loudly.
+2. Driver: before each controller spawn, export a NON-secret marker `AILANG_SECRETS_LANE=<lane>`
+   and apply the strip to the driver env for that lane. For the codex controller, forward the marker
+   through `mc_codex_env_args` (its name contains none of the denied substrings; check). Do NOT
+   remove the existing :171 billing unset (keep it; the strip is additive). Keep the driver diff
+   minimal and inside marked blocks like the existing `# --- ... START/END ---` style.
+3. The ~/.zshenv half, as TEXT for Mark (a file in the repo he can source, plus the one line he would
+   add to ~/.zshenv right after the secrets.env source): when `AILANG_SECRETS_LANE` is set, re-apply
+   the same allowlist. Decide how the zshenv line finds the library given that the driver runs from a
+   per-mission pin worktree (`~/.ailang-driver-pin/<mission>`; MISSION_DRIVER_ROOT is exported and
+   forwarded to codex shells as a MISSION_* name). It MUST fail closed (strip all secrets.env keys)
+   when the marker is set but the library cannot be read, and MUST be a no-op when the marker is
+   unset (Mark's interactive shells and every non-mission tool are unaffected). zsh word-splitting
+   differs from bash: no unquoted `$var` splitting; test under zsh explicitly.
+4. Role recipes: the smallest change that gives each provider-pinned role its own lane: e.g. the
+   codex role recipe passes `-c shell_environment_policy.set.AILANG_SECRETS_LANE="codex-role"`, and
+   `scripts/mission_pi_run.sh` applies `pi-role` to the pi child's env. Say which recipes need
+   prose edits in gate-3-route.md (keep edits short; the `.agents` mirror must be regenerated with
+   `tools/launchd/sync-agents-skills.sh`). If you judge role recipes too big for this draft, say so
+   and cut them to a named follow-up rather than half-doing them.
+5. Tests: a new suite `tools/launchd/test_secrets_scope.sh`, wired into `make/test.mk`
+   LAUNCHD_SUITES. EVERY arm uses a SYNTHETIC secrets file with fake values under a mktemp HOME
+   (`HOME=$(mktemp -d)`); no arm may read the real ~/.config, ~/.zshenv, ~/.codex*, or write
+   ~/.ailang/state. Arms must include, at minimum: each lane keeps exactly its allowlist; unknown
+   lane strips all; a value never appears in stdout/stderr (sentinel fake value asserted absent);
+   names-only parse ignores comments and a line whose VALUE contains `export X=`; the zshenv
+   snippet run under `/bin/zsh -c` with marker set strips, with marker unset is a no-op, with the
+   library path unreadable fails closed; the same under `/bin/bash` 3.2; driver dry-run arm(s)
+   showing the marker reaches the controller env and the codex `-c` forward list. Each arm names the
+   ONE-line mutation that kills it.
+6. Dry-runs per lane (done-gate): describe the exact command for healthy and degraded dry-runs per
+   controller lane using the driver's existing DRY RUN path (`AILANG_DRIVER_PINNED=<sha>`,
+   `MISSION_PROFILE=<idle armed mission>`, see the charter's done-gate prose near "Dry-run the
+   patched driver under an idle"), and what line in the dry-run log proves the strip ran.
+7. Changelog fragment `changelogs/unreleased/2026-11-05-secrets-scope-per-lane.md`, `### Added — ...`,
+   stating it is a proposed draft gated on D-FLEET-42 and that zsh lanes need the ~/.zshenv line.
+
+## Portability constraints (measured)
+- bash 3.2.57 on the rig and on CI's `launchd drivers (bash 3.2)` job: no `declare -A`, no `${v,,}`,
+  no `mapfile`, no `local -n`. The library is ALSO sourced by zsh (the ~/.zshenv path), so avoid
+  bash-only syntax there too (`[[ =~ ]]` captures, `${!name}` indirection) or isolate it per shell.
+- `tools/launchd/mission-control.sh` is 2787 lines; keep driver additions small.
+
+## Fleet write scope (pre-push guard)
+Allowed: `scripts/mission_*`, `scripts/test_mission_*`, `.claude/skills/mission-*/**`,
+`.agents/skills/mission-*/**`, `changelogs/**`, `design_docs/**`, `make/test.mk`, `tools/launchd/**`.
+Nothing else (in particular NOT `tools/pi-extensions/**`, `cmd/**`, `internal/**`).
+
+## Gates (controller runs on base, outside the sandbox; mark any you cannot run UNINFORMATIVE UNDER SANDBOX)
+- `/bin/bash -n` on every new/changed .sh; `zsh -n` on the zshenv snippet and the library.
+- `/bin/bash tools/launchd/test_secrets_scope.sh`
+- `shellcheck` on new files (rc 0 expected for NEW files) and no new findings on changed files vs base.
+- `make test-launchd-drivers` (the done-gate).
+- `make check-changelog`, `git diff --check`, `make check-file-sizes`.
+
+## Your deliverable (final message, markdown)
+- A short statement of what this draft does and does NOT protect, per lane, given M3.
+- Per-lane allowlist table with the consumer (file:line) that justifies every kept key.
+- Files to create/modify with exact paths and anchor lines at 9c7e997e0.
+- Design decisions for items 1-7 (accept / refine / reject, one line each).
+- Test arms, each with its killing mutation.
+- Exact gate commands for executor and controller, and the dry-run commands per lane.
+- Risks (including: a lane that loses a key it needed => auth break; how the dry-run would show it).

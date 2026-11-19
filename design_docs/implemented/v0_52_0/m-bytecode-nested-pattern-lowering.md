@@ -5,7 +5,7 @@
 **Target**: v0.49.1 → v0.51.2 → shipped v0.51.1 via m-vm-match-lowering
 **Priority**: P0 — two of the six confirmed variants are **silent wrong results** on `--strict-bytecode` (no error, no fallback, wrong value, exit 0); the other four degrade nested-pattern functions to evaluator-only, breaking strict-VM coverage.
 **Estimated**: ~2–3 days (root cause fully localized; the fix mirrors an existing, correct, recursive implementation — see Solution Design)
-**Dependencies**: none. Builds on [m-lower-fix.md](../implemented/v0_11_0/m-lower-fix.md) (landed) and is a sibling of [m-bytecode-pattern-arity-fix.md](../v1_0_0/m-bytecode-pattern-arity-fix.md) (the `len == n` check, already present at `internal/gen/lower/match.go:414-416` at HEAD). **Merge-order coordination required** (added 2026-10-02): three newer siblings — [m-vm-ifchain-tag-guard-lowering.md](../v0_51_2/m-vm-ifchain-tag-guard-lowering.md), [m-vm-var-pattern-default-arm.md](../v0_51_2/m-vm-var-pattern-default-arm.md), [m-vm-adt-tag-check-lowering.md](../v0_51_3/m-vm-adt-tag-check-lowering.md) — all touch `internal/gen/lower/match.go`, and two of them correct premises this doc originally relied on (see Design Freeze).
+**Dependencies**: none. Builds on [m-lower-fix.md](../implemented/v0_11_0/m-lower-fix.md) (landed) and is a sibling of [m-bytecode-pattern-arity-fix.md](../v0_33_1/m-bytecode-pattern-arity-fix.md) (the `len == n` check, already present at `internal/gen/lower/match.go:414-416` at HEAD). **Merge-order coordination required** (added 2026-10-02): three newer siblings — [m-vm-ifchain-tag-guard-lowering.md](../v0_51_2/m-vm-ifchain-tag-guard-lowering.md), [m-vm-var-pattern-default-arm.md](../v0_51_2/m-vm-var-pattern-default-arm.md), [m-vm-adt-tag-check-lowering.md](../v0_51_3/m-vm-adt-tag-check-lowering.md) — all touch `internal/gen/lower/match.go`, and two of them correct premises this doc originally relied on (see Design Freeze).
 
 ## Problem Statement
 
@@ -394,7 +394,7 @@ The following are intentionally left open for the implementer:
 - [m-bytecode-2d-parity.md](../implemented/v0_11_0/m-bytecode-2d-parity.md) — the parity program this belongs to.
 
 **Planned (check for overlap):**
-- [m-bytecode-pattern-arity-fix.md](../v1_0_0/m-bytecode-pattern-arity-fix.md) — SIBLING, distinct: fixed-length list `len == n` (its `OpEq` fix is present at HEAD, match.go:414-416); does NOT cover nesting, literal guards, tuple/record/sub-pattern conds. This doc preserves its `Tail == nil ⟺ OpEq` invariant (its V-I: exactly two `core.ListPattern` construction sites, re-verified below).
+- [m-bytecode-pattern-arity-fix.md](../v0_33_1/m-bytecode-pattern-arity-fix.md) — SIBLING, distinct: fixed-length list `len == n` (its `OpEq` fix is present at HEAD, match.go:414-416); does NOT cover nesting, literal guards, tuple/record/sub-pattern conds. This doc preserves its `Tail == nil ⟺ OpEq` invariant (its V-I: exactly two `core.ListPattern` construction sites, re-verified below).
 - [m-vm-ifchain-tag-guard-lowering.md](../v0_51_2/m-vm-ifchain-tag-guard-lowering.md) — SIBLING (2026-10-02): owns the guard-before-bindings ordering family (G) and ADT tag conds in if-chain positions (C); this doc adopts both corrections (Design Freeze items 2-3). That doc does not duplicate this one (its V-A1/V-B1 re-verified this doc's rows A1/B1 on v0.51.0) and recommended this promotion. Whichever lands second re-verifies the composed shapes (`a :: b :: _ if a > b`, `Some(x) :: rest`).
 - [m-vm-var-pattern-default-arm.md](../v0_51_2/m-vm-var-pattern-default-arm.md) — SIBLING: var/misplaced default arms in constructor matches; its depth-1 if-chain constructor addition is the depth-1 subset of this doc's corrected case 6 — whichever lands second generalizes rather than rewrites (its V26 and merge-collision risk row).
 - [m-vm-adt-tag-check-lowering.md](../v0_51_3/m-vm-adt-tag-check-lowering.md) — SIBLING, **prerequisite correction** (2026-10-02): the constructor tag check both older siblings originally built on is broken (strict-VM crash AND unbuildable `--emit-go-v2`); its `_adt_tag` node is the mechanism this doc's corrected case 6 now uses. Its depth-1 loud-boundary contract (Lit/nested args in if-chain constructor patterns panic → EvalOnly) is the stopgap this doc's recursive rewrite removes.
@@ -460,7 +460,7 @@ Row A1 was reported a **second time** through the coordinator (this task: `cons2
 
 - [Design Axioms](/docs/references/axioms) — A1/A11 drive the P0
 - Bug report: Stapledon mission iteration 5 (designer prototype), reproduced first-party by the controller — V1-V9 above
-- [m-bytecode-pattern-arity-fix.md](../v1_0_0/m-bytecode-pattern-arity-fix.md) — sibling landed fix whose `Tail == nil ⟺ OpEq` invariant this design preserves
+- [m-bytecode-pattern-arity-fix.md](../v0_33_1/m-bytecode-pattern-arity-fix.md) — sibling landed fix whose `Tail == nil ⟺ OpEq` invariant this design preserves
 - [m-lower-fix.md](../implemented/v0_11_0/m-lower-fix.md) — the prior one-level slice of this bug class (the incremental-special-casing anti-pattern this doc ends)
 - `internal/eval/eval_patterns.go` — reference semantics
 - `internal/gen/lower/match.go` — the module this doc rewrites

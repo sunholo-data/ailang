@@ -230,24 +230,6 @@ func TestCountTurns_DuplicateTurns(t *testing.T) {
 	}
 }
 
-func TestGetTurnTimestamp_MultipleEventsInTurn(t *testing.T) {
-	now := time.Now()
-	later := now.Add(time.Hour)
-	events := []*TaskEventRecord{
-		{TurnNum: 1, CreatedAt: now},
-		{TurnNum: 1, CreatedAt: later}, // Later timestamp in same turn
-	}
-
-	ts := GetTurnTimestamp(events, 1)
-	if ts == nil {
-		t.Fatal("expected timestamp, got nil")
-	}
-	// Should return FIRST timestamp in turn
-	if !ts.Equal(now) {
-		t.Errorf("expected first timestamp %v, got %v", now, ts)
-	}
-}
-
 func TestSummarizeEvents_NoEvents(t *testing.T) {
 	summary := SummarizeEvents([]*TaskEventRecord{})
 	expected := "0 turns, 0 tool calls, 0 chars of text"

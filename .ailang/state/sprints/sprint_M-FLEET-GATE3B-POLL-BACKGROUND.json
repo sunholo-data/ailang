@@ -4,7 +4,7 @@
   "created": "2026-10-16T11:51:30Z",
   "verified_at": "c4fab92c29ab7e208dc96325a925f053cf0417a9",
   "design_doc": null,
-  "sprint_plan": "design_docs/planned/sprint-plan-gate3b-ci-poll-background.md",
+  "sprint_plan": "design_docs/implemented/v0_54_13/sprint-plan-gate3b-ci-poll-background.md",
   "ticket": "skill:gate3b-ci-poll-exceeds-foreground-bash",
   "github_issues": [],
   "registry_reuse": [

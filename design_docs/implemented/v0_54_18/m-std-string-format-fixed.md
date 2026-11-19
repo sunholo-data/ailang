@@ -133,7 +133,7 @@ are display evidence, not validation of DSP inputs.
 ## Related documents
 
 - [WAV/PCM reader](m-std-audio-wav-read.md), the other half of #1930.
-- [Verification coverage](../../planned/m-contract-verification-coverage.md): separately
+- [Verification coverage](../../planned/v1_1_0/m-contract-verification-coverage.md): separately
   scoped reporting; no formatter dependency.
 - [Design axioms](../../../docs/docs/references/axioms.mdx).
 

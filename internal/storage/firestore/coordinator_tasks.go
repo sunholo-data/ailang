@@ -87,9 +87,9 @@ func (s *CoordinatorStore) ListTasks(ctx context.Context, filter *coordinator.Ta
 	}
 
 	// Ordering
-	orderBy := filter.OrderBy
-	if orderBy == "" {
-		orderBy = "created_at"
+	orderBy, err := filter.OrderColumn()
+	if err != nil {
+		return nil, err
 	}
 	dir := firestore.Asc
 	if filter.OrderDesc {

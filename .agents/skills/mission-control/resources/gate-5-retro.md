@@ -8,6 +8,28 @@ and Discord/Daneel only on its stated triggers). Its §8 fingerprint `--record` 
 report has been sent and before `stamp complete`.
 Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd)" before the first stamp; the stamp refuses an unset, empty or relative root.
 
+### IDLE RECORD — a no-pick fire records its inputs so the next identical fire costs nothing (product missions only)
+
+For missions other than fleet/triage, record ONLY when the pick was NONE because nothing
+is loop-routable without a human (all candidates ruling-gated / waiting on an OPEN decision),
+and NO item is PARKED-ON-LANE or otherwise waiting on a clock (standing rule 8).
+Never record if this iteration picked, built or landed anything, any lane park exists, or the
+fire degraded (a failed probe, a controller or role fallback, a gate you could not run).
+After every report has been sent and before `stamp complete`, run:
+
+```bash
+bash "$MISSION_DRIVER_ROOT/tools/launchd/lib/idle-fingerprint.sh" --record
+```
+
+It PROMOTES the snapshot the driver took before you started (keyed by `MISSION_FIRE_ID`); it
+never recomputes, so a ruling that lands while you run still wakes the next fire.
+rc≠0: say so in the report; do not retry or hand-write the fingerprint file.
+The next fire exits before any probe while {head outside record paths, ledger statuses,
+allowlisted directives, unread mission inbox, red checks on the branch tip} stays unchanged;
+a record older than 24 h forces a full fire. A charter edit that flips no ledger row is NOT an
+input: an attended change of direction should flip or add a ledger row. Ticket:
+`driver:idle-fire-writes-full-block-report`.
+
 1. Scan this iteration's friction (evaluator feedback, executor corrections, your own dead ends)
    plus unread `docs/sprint-retros/` material. Route each item to exactly ONE lane:
    - **skill fix** — edit the offending SKILL.md. Max ONE skill edit per iteration; requires ≥2
@@ -18,11 +40,26 @@ Attended setup: export MISSION_DRIVER_ROOT="$(cd /path/to/driver-checkout && pwd
 2b. **COUNT THE HARNESS SHARE — the Gate-2 admissibility cap is only real if something reads it.**
 
     ```bash
-    grep -c '\[HARNESS\]' design_docs/${MISSION_NAME}-mission-index.md
-    grep -oE '^\| [0-9]+ \|' design_docs/${MISSION_NAME}-mission-index.md | tail -20 | wc -l
+    # Count LOG headlines, never the index: the regenerated index truncates long headlines
+    # before the trailing [CLASS] tag, and its HARNESS grep spanned the whole file.
+    HS="/tmp/harness-share-${MISSION_NAME}.txt"
+    cat "design_docs/${MISSION_NAME}-mission-log-archive.md" "design_docs/${MISSION_NAME}-mission-log.md" 2>/dev/null \
+      | grep -E '^## [0-9]+ — ' | sort -t' ' -k2,2n | tail -20 > "$HS"
+    wc -l < "$HS"                                                       # rows; the control, expect 20
+    grep -c '\[HARNESS\]' "$HS"                                         # harness rows
+    grep -cE '\[(PRODUCT|HARNESS|ADMIN|REFUTATION)\]' "$HS"             # tagged rows
     ```
 
-    Report the share over the last 20 iterations in the digest, one figure, every time.
+    Report the share over the last 20 iterations in the digest, one figure, every time, as
+    `harness/tagged` (e.g. `6/20`). An untagged row is unmeasured, not ADMIN: if tagged is below
+    rows, say how many rows are untagged. Rows below 20 means the log is younger than 20
+    iterations or the headline pattern missed; check the log before quoting the figure.
+    **Why not the index** (fleet iterations 110 and 111): the prescribed
+    `grep -c '\[HARNESS\]' <index>` counted the whole file, not the last 20, and inside the last
+    20 index rows it found 1 HARNESS row where the log headlines carried 6. The five it missed
+    (93, 96, 97, 105, 109) are truncated to `...` before the tag (`indexLine` cuts titles over
+    150 runes), and the index is newest-first, so its `tail -20` row count took the OLDEST rows.
+    So the one-third alarm below could not fire from it.
     Under the attended-only rule (Gate 2) this share should now trend to ZERO for loop-authored
     work — a non-zero figure means either an escalation was recorded (correct) or the rule was
     breached (report it as a breach, by row).

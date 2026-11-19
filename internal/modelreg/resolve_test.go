@@ -200,6 +200,7 @@ func TestValidate_AliasCollisionsAreRejected(t *testing.T) {
 // overstatement on claude-fable-5-1 ($1.00/M declared vs $0.25/M billed).
 var anthropicCacheReadMultiplier = map[string]float64{
 	"claude-fable-5-1": 0.025,
+	"claude-fable-5-2": 0.025, // pricing page fetched 2026-11-09: $0.20/M on $8/M input
 	"claude-opus-5-5":  0.05,
 }
 

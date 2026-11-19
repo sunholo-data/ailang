@@ -7,9 +7,7 @@ import (
 	"net"
 	"net/http"
 	"os"
-	"os/exec"
 	"path/filepath"
-	"runtime"
 	"time"
 
 	"github.com/sunholo-data/ailang/internal/approvaltoken"
@@ -69,7 +67,8 @@ func serverCommand(args []string) error {
 		case "--help", "-h":
 			fmt.Println("Usage: ailang server [options]")
 			fmt.Println("")
-			fmt.Println("Start the AILANG Observatory and Collaboration Hub server")
+			fmt.Println("Start the AILANG dashboard API server (headless: telemetry ingest,")
+			fmt.Println("observatory and chains reads, approvals intake, /benchmarks/ data)")
 			fmt.Println("")
 			fmt.Println("Alias: 'ailang serve' also works (backward compatibility)")
 			fmt.Println("")
@@ -87,6 +86,11 @@ func serverCommand(args []string) error {
 			fmt.Println("  AILANG_CONFIG            Config file path (overrides ~/.ailang/config.yaml)")
 			fmt.Println("")
 			fmt.Println("Authentication:")
+			fmt.Println("  Bound to loopback (the default), every route is open to local processes.")
+			fmt.Println("  On any other bind (Cloud Run, --bind 0.0.0.0) every /api/ route except machine")
+			fmt.Println("  ingest, and /ws, require Authorization: Bearer $COORDINATOR_API_KEY (or a Firebase")
+			fmt.Println("  Viewer/Approver session); with neither configured they return 503. Clients send")
+			fmt.Println("  the key from AILANG_DASHBOARD_TOKEN.")
 			fmt.Println("  To enable Firebase authentication:")
 			fmt.Println("  1. Run 'gcloud auth application-default login' for ADC")
 			fmt.Println("  2. Use --firebase-project or set firebase.project_id in ~/.ailang/config.yaml")
@@ -96,8 +100,7 @@ func serverCommand(args []string) error {
 			fmt.Println("  ailang server --port 8080")
 			fmt.Println("  ailang server --firebase-project ailang-dev")
 			fmt.Println("")
-			fmt.Println("Endpoints:")
-			fmt.Println("  UI:          http://localhost:PORT/")
+			fmt.Println("Endpoints (headless API, no UI):")
 			fmt.Println("  WebSocket:   ws://localhost:PORT/ws")
 			fmt.Println("  REST API:    http://localhost:PORT/api/")
 			fmt.Println("  Health:      http://localhost:PORT/health")
@@ -134,18 +137,7 @@ func serverCommand(args []string) error {
 		// Port is in use - check if it's our server
 		healthURL := fmt.Sprintf("http://%s/health", httpAddr)
 		if checkServerHealth(healthURL) {
-			uiURL := fmt.Sprintf("http://%s/", httpAddr)
-			log.Printf("✓ AILANG server is already running on port %s", port)
-			log.Printf("")
-			log.Printf("Opening UI at: %s", uiURL)
-			log.Printf("")
-
-			// Open browser to UI
-			if err := openBrowser(uiURL); err != nil {
-				log.Printf("Could not open browser automatically: %v", err)
-				log.Printf("Please open %s manually", uiURL)
-			}
-
+			log.Printf("✓ AILANG server is already running on port %s (%s)", port, healthURL)
 			return nil
 		}
 
@@ -169,16 +161,21 @@ func serverCommand(args []string) error {
 		server.WithCORSOrigins(corsOrigins),
 	}
 
-	// Add hook token auth if configured (for cloud deployments)
-	if hookToken := config.HubToken(); hookToken != "" {
-		serverOpts = append(serverOpts, server.WithHookToken(hookToken))
-		log.Printf("Hook token authentication enabled for /api/hooks/*")
-	}
+	// Ingest auth (internal/server/ingest_auth.go): the shared secrets for the
+	// hook/exec/telemetry routes and OTLP /v1/*, and the warn|enforce|off
+	// rollout mode. Checked only on a non-loopback bind.
+	serverOpts = append(serverOpts,
+		server.WithHookToken(config.HubToken()),
+		server.WithOTLPIngestToken(config.OTLPIngestToken()),
+		server.WithIngestAuthMode(config.IngestAuthMode()),
+	)
 
-	// Add WebSocket token auth if configured (reuses COORDINATOR_API_KEY)
-	if wsToken := config.CoordinatorAPIKey(); wsToken != "" {
-		serverOpts = append(serverOpts, server.WithWebSocketToken(wsToken))
-		log.Printf("WebSocket token authentication enabled (external clients require ?token= parameter)")
+	// The dashboard's machine credential (COORDINATOR_API_KEY): on a
+	// non-loopback bind, /api/ reads and the WebSocket require it (or a
+	// Firebase Viewer/Approver session) — internal/server/read_auth.go.
+	if apiKey := config.CoordinatorAPIKey(); apiKey != "" {
+		serverOpts = append(serverOpts, server.WithAPIKey(apiKey))
+		log.Printf("API key authentication enabled (Authorization: Bearer for /api/, ?token= for /ws)")
 	}
 
 	// Add Firebase auth if configured
@@ -253,7 +250,6 @@ func serverCommand(args []string) error {
 		// Cloud mode: coordinator store already created
 		srv.SetTaskEventStore(backends.Coordinator)
 		srv.SetApprovalStore(backends.Coordinator)
-		srv.SetCoordinatorStore(&coordStoreAdapter{store: backends.Coordinator})
 		srv.SetCoordinatorStoreRaw(backends.Coordinator)
 	} else {
 		// Local mode: open SQLite coordinator store under the state dir
@@ -265,7 +261,6 @@ func serverCommand(args []string) error {
 		} else {
 			srv.SetTaskEventStore(coordStore)
 			srv.SetApprovalStore(coordStore)
-			srv.SetCoordinatorStore(&coordStoreAdapter{store: coordStore})
 			srv.SetCoordinatorStoreRaw(coordStore)
 			defer coordStore.Close()
 		}
@@ -287,19 +282,6 @@ func serverCommand(args []string) error {
 	log.Printf("AILANG Observatory & Collaboration Hub (v%s)", Version)
 	log.Printf("Collaboration DB: %s", dbPath)
 	log.Printf("")
-
-	// Auto-open browser after a short delay (server needs to start first)
-	uiURL := fmt.Sprintf("http://%s/", httpAddr)
-	go func() {
-		time.Sleep(500 * time.Millisecond)
-		log.Printf("")
-		log.Printf("Opening UI at: %s", uiURL)
-		log.Printf("")
-		if err := openBrowser(uiURL); err != nil {
-			log.Printf("Could not open browser automatically: %v", err)
-			log.Printf("Please open %s manually", uiURL)
-		}
-	}()
 
 	return srv.Start()
 }
@@ -327,54 +309,6 @@ func checkServerHealth(healthURL string) bool {
 	return resp.StatusCode == http.StatusOK
 }
 
-// openBrowser opens the default browser to the specified URL
-func openBrowser(url string) error {
-	var cmd *exec.Cmd
-
-	switch runtime.GOOS {
-	case "darwin":
-		cmd = exec.Command("open", url)
-	case "linux":
-		cmd = exec.Command("xdg-open", url)
-	case "windows":
-		cmd = exec.Command("cmd", "/c", "start", url)
-	default:
-		return fmt.Errorf("unsupported platform: %s", runtime.GOOS)
-	}
-
-	return cmd.Start()
-}
-
-// coordStoreAdapter adapts coordinator.Store to server.CoordinatorStore
-type coordStoreAdapter struct {
-	store coordinator.Store
-}
-
-// GetCoordinatorStats implements server.CoordinatorStore
-func (a *coordStoreAdapter) GetCoordinatorStats() (*server.CoordinatorStats, error) {
-	ctx := context.Background()
-	stats, err := a.store.GetTaskStats(ctx)
-	if err != nil {
-		return nil, err
-	}
-
-	return &server.CoordinatorStats{
-		Running:      true, // If we got here, coordinator store is available
-		TasksRun:     stats.CompletedTasks,
-		PendingTasks: stats.PendingTasks,
-		RunningTasks: stats.RunningTasks,
-		FailedTasks:  stats.FailedTasks,
-		TotalCost:    stats.TotalCost,
-		TotalTokens:  stats.TotalTokens,
-	}, nil
-}
-
-// GetCostByProvider implements server.CoordinatorStore
-func (a *coordStoreAdapter) GetCostByProvider() (map[string]float64, error) {
-	return a.store.GetCostByProvider()
-}
-
-// getFirebaseProjectFromConfig loads Firebase project ID from ~/.ailang/config.yaml
 func getFirebaseProjectFromConfig() string {
 	cfg := coordinator.LoadFirebaseConfig()
 	if cfg != nil {

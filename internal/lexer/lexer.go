@@ -43,6 +43,14 @@ func New(input string, filename string) *Lexer {
 	return l
 }
 
+// Rewind returns a new lexer at the start of the same (already normalized)
+// input, leaving l where it is. The parser uses it to pre-scan a file.
+func (l *Lexer) Rewind() *Lexer {
+	r := &Lexer{input: l.input, file: l.file, line: 1, column: 0}
+	r.readChar()
+	return r
+}
+
 // readChar reads the next character
 func (l *Lexer) readChar() {
 	if l.readPosition >= len(l.input) {

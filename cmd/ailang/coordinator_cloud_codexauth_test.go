@@ -25,35 +25,25 @@ func TestInstallCodexCredential_NonCodexProviderIsANoOp(t *testing.T) {
 	}
 }
 
-func TestInstallCodexCredential_NoSecretAndNoAPIKeyModeFailsLoudly(t *testing.T) {
-	home := t.TempDir()
-	testutil.SetHomeDir(t, home)
-	t.Setenv("AILANG_AUTH_MODE", "")
-	t.Setenv("AILANG_CODEX_AUTH_SECRET", "")
-	t.Setenv("OPENAI_API_KEY", "sk-must-not-be-used")
+// An explicit AILANG_AUTH_MODE=apikey is no way round the subscription secret:
+// the metered codex lane was retired with the *-apikey jobs (2026-11-10).
+func TestInstallCodexCredential_NoSecretFailsLoudly(t *testing.T) {
+	for _, mode := range []string{"", "apikey"} {
+		t.Run("auth_mode="+mode, func(t *testing.T) {
+			home := t.TempDir()
+			testutil.SetHomeDir(t, home)
+			t.Setenv("AILANG_AUTH_MODE", mode)
+			t.Setenv("AILANG_CODEX_AUTH_SECRET", "")
+			t.Setenv("OPENAI_API_KEY", "sk-must-not-be-used")
 
-	_, err := installCodexCredential(t.Context(), "codex", "proj")
-	if err == nil || !strings.Contains(err.Error(), "AILANG_CODEX_AUTH_SECRET") {
-		t.Fatalf("want a loud error naming AILANG_CODEX_AUTH_SECRET, got %v", err)
-	}
-	if _, statErr := os.Stat(filepath.Join(home, ".codex", "auth.json")); !os.IsNotExist(statErr) {
-		t.Fatal("an api-key auth.json was written from OPENAI_API_KEY — the silent metered fallback is back")
-	}
-}
-
-func TestInstallCodexCredential_APIKeyModeUsesTheKey(t *testing.T) {
-	home := t.TempDir()
-	testutil.SetHomeDir(t, home)
-	t.Setenv("AILANG_AUTH_MODE", "apikey")
-	t.Setenv("OPENAI_API_KEY", "sk-explicit-metered")
-
-	cred, err := installCodexCredential(t.Context(), "codex", "proj")
-	if err != nil || cred != nil {
-		t.Fatalf("apikey mode: got (%v, %v), want (nil, nil) — nothing to write back", cred, err)
-	}
-	data, err := os.ReadFile(filepath.Join(home, ".codex", "auth.json"))
-	if err != nil || !strings.Contains(string(data), `"apikey"`) {
-		t.Fatalf("apikey mode must write the api-key auth.json, got %q, %v", data, err)
+			_, err := installCodexCredential(t.Context(), "codex", "proj")
+			if err == nil || !strings.Contains(err.Error(), "AILANG_CODEX_AUTH_SECRET") {
+				t.Fatalf("want a loud error naming AILANG_CODEX_AUTH_SECRET, got %v", err)
+			}
+			if _, statErr := os.Stat(filepath.Join(home, ".codex", "auth.json")); !os.IsNotExist(statErr) {
+				t.Fatal("an api-key auth.json was written from OPENAI_API_KEY — the silent metered fallback is back")
+			}
+		})
 	}
 }
 

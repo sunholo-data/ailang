@@ -20,18 +20,14 @@ import (
 //
 // importedAliases carries the importing module's alias definitions so a field
 // naming an imported record alias is checked by that record's fields.
-func registerDerivedEq(cfg Config, elaborator *elaborate.Elaborator, importedAliases map[string]types.Type) error {
+//
+// aliases is the module's alias environment keyed by types.NominalKey; modID
+// is the module whose types derive Eq (M-V1-NOMINAL-TYPE-IDENTITY).
+func registerDerivedEq(cfg Config, modID string, elaborator *elaborate.Elaborator, aliases map[string]types.Type) error {
 	derivedEqTypes := elaborator.GetDerivedEqTypes()
 	sort.Strings(derivedEqTypes)
-	registerDerivedEqInstances(cfg, derivedEqTypes)
+	registerDerivedEqInstances(cfg, modID, derivedEqTypes)
 
-	aliases := make(map[string]types.Type, len(importedAliases))
-	for name, target := range importedAliases {
-		aliases[name] = target
-	}
-	for name, target := range elaborator.GetTypeAliases() {
-		aliases[name] = target
-	}
 	fields := elaborator.GetDerivedEqFields()
 	for _, typeName := range derivedEqTypes {
 		for _, f := range fields[typeName] {
@@ -54,11 +50,15 @@ func registerDerivedEq(cfg Config, elaborator *elaborate.Elaborator, importedAli
 // is never elaborated, so its interface's DerivedEq list is the only record
 // of these; without re-registering them an importer compiled in the same run
 // saw "No instance for Eq[T]" for a type that derives it.
-func registerDerivedEqInstances(cfg Config, typeNames []string) {
+//
+// The instance is keyed by the type's defining module, so two modules deriving
+// Eq on their own `Row` are two instances and a Row that does not derive Eq
+// cannot borrow another module's (M-V1-NOMINAL-TYPE-IDENTITY).
+func registerDerivedEqInstances(cfg Config, module string, typeNames []string) {
 	for _, typeName := range typeNames {
 		inst := &types.ClassInstance{
 			ClassName: "Eq",
-			TypeHead:  &types.TCon{Name: typeName},
+			TypeHead:  &types.TCon{Name: typeName, Module: module},
 			Dict: types.Dict{
 				"eq":  fmt.Sprintf("derived_eq_%s", typeName),
 				"neq": fmt.Sprintf("derived_neq_%s", typeName),

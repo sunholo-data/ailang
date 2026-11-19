@@ -14,6 +14,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/iface"
 	"github.com/sunholo-data/ailang/internal/types"
@@ -432,6 +433,7 @@ func testCachedModule(moduleID string, value int) *CachedModule {
 				CtorName: fmt.Sprintf("Fixture%d", value),
 			},
 		},
+		MatchWarnings: []*types.MatchWarning{{Pos: ast.Pos{File: "m.ail", Line: value, Column: 1}, Arm: 2, Pattern: "_"}},
 	}
 }
 
@@ -485,6 +487,8 @@ func injectEncodingFailure(codec *cacheArtifactCodec, name string) {
 		codec.encodeIface = func(*iface.Iface) ([]byte, error) { return fail() }
 	case artifactConstructorsName:
 		codec.encodeConstructors = func(map[string]*ConstructorInfo) ([]byte, error) { return fail() }
+	case artifactMatchWarningsName:
+		codec.encodeMatchWarns = func([]*types.MatchWarning) ([]byte, error) { return fail() }
 	}
 }
 

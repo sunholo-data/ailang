@@ -7,7 +7,6 @@ import (
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
-	"github.com/sunholo-data/ailang/internal/types"
 )
 
 // normalizeMatch handles pattern matching
@@ -41,29 +40,12 @@ func (e *Elaborator) normalizeMatch(match *ast.Match) (core.CoreExpr, error) {
 		})
 	}
 
+	// Exhaustiveness is a type checker verdict on the finished types
+	// (types.VerifyMatchExhaustiveness), not a guess made here.
 	result := &core.Match{
-		CoreNode:   e.makeNode(match.Position()),
-		Scrutinee:  scrutinee,
-		Arms:       arms,
-		Exhaustive: false, // Will be checked below
-	}
-
-	// Check exhaustiveness (without type info, use simple heuristic)
-	// For now, assume Bool type if we see boolean literals
-	scrutineeType := e.inferScrutineeType(arms)
-	if scrutineeType != nil {
-		exhaustive, missing := e.exChecker.CheckExhaustiveness(result, scrutineeType)
-		result.Exhaustive = exhaustive
-
-		if !exhaustive {
-			// Add warning with source location
-			pos := match.Position()
-			location := fmt.Sprintf("%s:%d:%d", e.filePath, pos.Line, pos.Column)
-			e.warnings = append(e.warnings, &ExhaustivenessWarning{
-				Location:       location,
-				MissingPattern: missing,
-			})
-		}
+		CoreNode:  e.makeNode(match.Position()),
+		Scrutinee: scrutinee,
+		Arms:      arms,
 	}
 
 	return e.wrapWithBindings(result, binds), nil
@@ -103,20 +85,31 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 		}
 		// Check if this identifier is a nullary constructor
 		// Nullary constructors appear as bare identifiers (e.g., "None", "Red")
+		if cands, amb := e.ambiguousCtors[p.Name]; amb {
+			// Two imported modules offer it: the typechecker chooses by the
+			// pattern's arity and the scrutinee's type (ambiguous_ctor.go).
+			if anyNullaryCandidate(cands) {
+				return &core.ConstructorPattern{Name: p.Name, Pos: p.Pos}, nil
+			}
+			return nil, fmt.Errorf("constructor %s in pattern expects argument(s) — write %s(...), or use a lowercase name for a variable binding", p.Name, p.Name)
+		}
 		if ctorInfo, ok := e.constructors[p.Name]; ok {
 			if ctorInfo.Arity == 0 {
 				// It's a nullary constructor - create ConstructorPattern with no args.
 				// Emit the CANONICAL name: for an aliased import (`None as Nada`)
 				// p.Name is the alias, and runtime matching compares tags (#1478).
 				return &core.ConstructorPattern{
-					Name:     ctorInfo.CtorName,
-					TypeName: ctorInfo.TypeName,
-					Args:     nil, // Empty args for nullary constructor
+					Name:       ctorInfo.CtorName,
+					TypeName:   ctorInfo.TypeName,
+					TypeModule: ctorInfo.Module,
+					Args:       nil, // Empty args for nullary constructor
+					Pos:        p.Pos,
 				}, nil
 			}
 			// Bare non-nullary constructor (e.g. `Some` without arguments):
 			// previously this silently became a catch-all VarPattern named "Some".
-			return nil, fmt.Errorf("constructor %s in pattern expects %d argument(s) — write %s(...) with %d pattern(s), or use a lowercase name for a variable binding", p.Name, ctorInfo.Arity, p.Name, ctorInfo.Arity)
+			return nil, fmt.Errorf("constructor %s in pattern expects %d argument(s) — write %s(...) with %d pattern(s), or use a lowercase name for a variable binding%s",
+				p.Name, ctorInfo.Arity, p.Name, ctorInfo.Arity, e.arityImportHint(p.Name, ctorInfo.Module, ctorInfo.TypeName, 0))
 		}
 		// Uppercase identifier = constructor by language convention (the parser
 		// enforces UpperCamelCase at declaration: PAR_VARIANT_NEEDS_UIDENT).
@@ -131,6 +124,7 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 			return &core.ConstructorPattern{
 				Name: p.Name,
 				Args: nil,
+				Pos:  p.Pos, // diagnostics point at the constructor (#2303)
 			}, nil
 		}
 		// Otherwise, it's a variable pattern
@@ -177,14 +171,16 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 		// Canonicalize an aliased constructor (`Some as S` → pattern S(v)
 		// matches tag Some). Unknown names keep the written name; the
 		// typechecker rejects names no loaded module defines (#1478).
-		name, typeName := p.Name, ""
+		name, typeName, typeModule := p.Name, "", ""
 		if ctorInfo, ok := e.constructors[p.Name]; ok && ctorInfo.CtorName != "" {
-			name, typeName = ctorInfo.CtorName, ctorInfo.TypeName
+			name, typeName, typeModule = ctorInfo.CtorName, ctorInfo.TypeName, ctorInfo.Module
 		}
 		return &core.ConstructorPattern{
-			Name:     name,
-			Args:     args,
-			TypeName: typeName,
+			Name:       name,
+			Args:       args,
+			TypeName:   typeName,
+			TypeModule: typeModule,
+			Pos:        p.Pos,
 		}, nil
 	case *ast.TuplePattern:
 		// Elaborate tuple element patterns
@@ -241,26 +237,4 @@ func (e *Elaborator) elaboratePattern(pat ast.Pattern) (core.CorePattern, error)
 	default:
 		return nil, fmt.Errorf("pattern elaboration not implemented for %T", pat)
 	}
-}
-
-// inferScrutineeType attempts to infer the type of a scrutinee from its patterns
-// This is a simple heuristic - returns Bool if we see boolean literals
-func (e *Elaborator) inferScrutineeType(arms []core.MatchArm) types.Type {
-	// Look at patterns to infer type
-	for _, arm := range arms {
-		if litPat, ok := arm.Pattern.(*core.LitPattern); ok {
-			switch litPat.Value.(type) {
-			case bool:
-				return &types.TCon{Name: "Bool"}
-			case int, int64:
-				return &types.TCon{Name: "Int"}
-			case float64:
-				return &types.TCon{Name: "Float"}
-			case string:
-				return &types.TCon{Name: "String"}
-			}
-		}
-	}
-	// Can't infer type - return nil
-	return nil
 }

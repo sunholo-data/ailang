@@ -1,0 +1,11 @@
+-- Engine parity fixture (engines_test.go): evaluator, --bytecode and --strict-bytecode
+-- must print the same summary(). Recovered from the Go emitter's known_failures (#2389); the VM half of #2260 is still open.
+-- #2260: two modules each declare a type T; the emitter makes one Go type T
+-- and q/b's constructor is left undefined (undefined: NewTB).
+module a
+
+export type T = A(int)
+
+export pure func mk() -> T = A(1)
+
+export pure func get(t: T) -> int = match t { A(n) => n }

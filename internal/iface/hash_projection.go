@@ -47,6 +47,9 @@ func HashProjection(j *InterfaceJSON) ([]byte, error) {
 		if t.Alias != "" {
 			out.Alias = ""
 		}
+		// Tiers are promise metadata, not interface: re-tiering a module must
+		// not change its packages' identity (M-V1-STDLIB-SURFACE-POLISH §6.1).
+		out.Tier = ""
 		projection.Types = append(projection.Types, out)
 	}
 	sort.Slice(projection.Types, func(a, b int) bool {
@@ -65,11 +68,23 @@ func HashProjection(j *InterfaceJSON) ([]byte, error) {
 		if out.IFC.IsUnlabelled() {
 			out.IFC = nil
 		}
+		// @experimental / @deprecated mark a function without changing it:
+		// marking one must leave interface_hash unchanged (§6.1 item 4).
+		out.Tier, out.ReplacedBy, out.DeprecationNote = "", "", ""
 		projection.Funcs = append(projection.Funcs, out)
 	}
 	sort.Slice(projection.Funcs, func(a, b int) bool {
 		return projection.Funcs[a].Name < projection.Funcs[b].Name
 	})
+	// Purity is hashed as the constant every identity was computed with. Before
+	// M-PURE-ROW-AND-IFACE-PURITY (#1443) the published flag was a stub reporting
+	// true for every export; it is now derived from the export's effect row and
+	// type, which this projection already hashes through "effects" and "type".
+	// Hashing the derived flag would change the identity of every package with an
+	// effectful export without any interface change, and PUB005 refuses that skew.
+	for i := range projection.Funcs {
+		projection.Funcs[i].Pure = true
+	}
 
 	return json.Marshal(projection)
 }
@@ -104,7 +119,19 @@ func SignatureSet(j *InterfaceJSON) []string {
 			effects = append(effects, escapeSigField(e))
 		}
 		sort.Strings(effects)
-		sigs = append(sigs, fmt.Sprintf("%s:func:%s:%s:%s", mod, escapeSigField(f.Name), escapeSigField(f.Type), strings.Join(effects, ",")))
+		// A class constraint is part of the signature (#2290): adding one
+		// rejects callers that passed, so it must read as RETYPED, not as an
+		// unchanged export. Unconstrained exports keep their signature.
+		typ := f.Type
+		if len(f.Constraints) > 0 {
+			typ = strings.Join(f.Constraints, ", ") + " => " + typ
+		}
+		// Which variables carry a literal decides which compiled variants an
+		// importer calls (#2378): a change must read as RETYPED.
+		if len(f.Literals) > 0 {
+			typ += " literal[" + strings.Join(f.Literals, ", ") + "]"
+		}
+		sigs = append(sigs, fmt.Sprintf("%s:func:%s:%s:%s", mod, escapeSigField(f.Name), escapeSigField(typ), strings.Join(effects, ",")))
 	}
 	for _, t := range j.Types {
 		sigs = append(sigs, fmt.Sprintf("%s:type:%s/%d", mod, escapeSigField(t.Name), len(t.Params)))

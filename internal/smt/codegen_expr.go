@@ -211,6 +211,7 @@ func encodeStringLiteral(s string) string {
 // stripConstructorPrefix removes the Core "make_TypeName_" prefix from constructor names.
 // Core represents ADT constructors as "make_Season_LOW_SEASON" but SMT-LIB uses "LOW_SEASON".
 func stripConstructorPrefix(name string) string {
+	name, _ = core.SplitADTFactoryModule(name) // M-V1-NOMINAL-TYPE-IDENTITY
 	if strings.HasPrefix(name, "make_") {
 		// Format: make_TypeName_ConstructorName
 		// Find second underscore to extract constructor name

@@ -1,20 +1,16 @@
-# Golden Test Corpus for Go Codegen
+# Golden program corpus (evaluator and VM)
 
-These files test the AILANG → Go compilation pipeline end-to-end.
+Small `.ail` programs, one language feature each. The directory name is historical: these were
+once compiled to Go by the Go emitter (`ailang compile --emit-go`), which has been removed. They
+stay here because other tests load them by this path. `tests/golden/bytecode` runs them on the
+bytecode VM (golden, probe and benchmark tests), so moving them would break that suite.
 
-## Structure
-
-Each test has:
-- `<name>.ail` — AILANG source input
-- `<name>.go.golden` — Baseline Go output captured from the old codegen (reference only)
-
-## Test Coverage
-
-| File | Features Tested |
-|------|----------------|
+| File | Features |
+|------|----------|
 | `literals.ail` | int, float, bool, string, unit literals |
 | `arithmetic.ail` | binary ops (+, *, >, &&), int/float arithmetic |
 | `functions.ail` | identity, higher-order, recursion, let-chain |
+| `fib.ail` | recursion (VM benchmark) |
 | `adt_simple.ail` | nullary constructors, single-arg ADT, match |
 | `adt_multiarg.ail` | multi-arg constructors, match with field extraction |
 | `records.ail` | record type, literal, field access, record update |
@@ -24,13 +20,17 @@ Each test has:
 | `let_bindings.ail` | nested lets, variable shadowing |
 | `string_ops.ail` | string concatenation (++), string equality |
 | `tuples.ail` | tuple creation, tuple pattern matching, wildcard |
+| `show_differential*.ail` | `show` output; `golden_test.go` requires the evaluator and the VM to print the same bytes |
 
-## Usage
+The Go tests in this directory:
 
-The golden files are **reference baselines** from the old codegen. The new pipeline does NOT
-need to produce identical output — it needs to produce Go that:
-1. Compiles with `go build`
-2. Passes `go vet`
-3. Has the same semantics (same function names, correct types)
-
-The golden files document what the old codegen produced for comparison/debugging.
+- `golden_test.go`: builds `ailang` from this checkout and runs the `show_differential*.ail`
+  fixtures on the evaluator, `--bytecode` and `--strict-bytecode`. Output must be identical.
+- `engines_test.go`: every program under `engines/` must print the same `summary()` on the
+  evaluator, `--bytecode` and `--strict-bytecode`, pinned to its expected output. These are
+  the programs the removed Go emitter's codegen harness ran (a 27-call std parity program,
+  an ADT-alias parity program, ten known-failure programs), plus the audio probe. The
+  `nominal_same_name` case is pinned as a known `--strict-bytecode` BC001 (#2260).
+- `byname_ctor_test.go` and `byname_closure_test.go`: constructor patterns matched by name.
+  Programs that leave the type unfixed are rejected on every path. Programs that fix it run
+  identically on the evaluator and both VMs.

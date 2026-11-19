@@ -74,7 +74,7 @@ export func main() -> Map[string, int] { fromList([("b", 2), ("a", 1)]) }
 			t.Fatal(err)
 		}
 		got, err := runMapModule(t, filename, mapResult, strict)
-		if err != nil || strings.TrimSpace(got) != `Map{a: 1, b: 2}` {
+		if err != nil || strings.TrimSpace(got) != `Map{"a": 1, "b": 2}` {
 			t.Fatalf("map entrypoint strict=%v: %q %v", strict, got, err)
 		}
 	}

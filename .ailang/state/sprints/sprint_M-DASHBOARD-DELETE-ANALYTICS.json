@@ -3,7 +3,7 @@
   "created": "2026-09-08T12:37:18.226032+00:00",
   "estimated_duration_days": 1,
   "design_doc": "design_docs/dashboard-recovery-plan-2026-09-08.md",
-  "markdown_plan": "design_docs/planned/m-dashboard-delete-analytics-sprint-plan.md",
+  "markdown_plan": "design_docs/implemented/v0_35_3/m-dashboard-delete-analytics-sprint-plan.md",
   "features": [
     {
       "id": "M1",

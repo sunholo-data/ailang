@@ -468,7 +468,7 @@ When multiple AI agents work on a project (or across projects), the registry pro
 
 - **Effect ceilings** — An agent can inspect `[effects].max` to know exactly what authority a package has. A package with `max = ["IO"]` cannot access the network, filesystem, or environment. This lets agents reason about trust boundaries without reading source code.
 
-- **Interface hashes** — The interface hash changes only when exports or effects change. An internal refactor (same exports, same effects) produces a new content hash but the same interface hash. Downstream agents can skip re-verification when only content changes.
+- **Interface hashes** — The interface hash changes only when exports or effects change. (The registry's signature-sensitive v2 hash also covers export types and class constraints, so it changes across the release that exports constraints (#2290) for a package with a constrained export; see [Interface identity (v2)](package-publishing.md#interface-identity-v2).) An internal refactor (same exports, same effects) produces a new content hash but the same interface hash. Downstream agents can skip re-verification when only content changes.
 
 - **AGENT.md discovery** — Each package can include an `AGENT.md` — a structured guide written for AI consumption, not human prose. The registry indexes whether a package has one (`has_agent_doc: true`), and `ailang pkg-docs vendor/name` serves it directly.
 
@@ -585,6 +585,6 @@ import pkg/sunholo/linkedin/types (Profile)
 ```
 Forms 1 and 2 work even before `ailang lock` runs — useful while authoring a fresh multi-module package. External dependencies (any `pkg/<other-vendor>/...` import) still require `ailang.lock`. See [`examples/intra_package_imports/`](https://github.com/sunholo-data/ailang/tree/dev/examples/intra_package_imports) for a runnable example.
 
-**4. `Ok`/`Err` not in prelude**: Every file that uses `Result` needs `import std/result (Ok, Err)`.
+**4. `Ok`/`Err` are in the prelude**: every module outside `std/` gets `Result`/`Ok`/`Err` and `Option`/`Some`/`None` without an import (#2371; entry modules only before). Their helpers (`map`, `mapErr`, …) still need `import std/result (...)`. A package whose library modules rely on that — they use `Some`, `Ok`, `Option`, … without importing `std/option`/`std/result` — does not check on v0.60.5 or older, so set its minimum to the release after v0.60.5, the first that carries #2371: `ailang = ">=0.60.6"` in `[package]` (only `>=X.Y.Z` is accepted; whatever number that release gets, it satisfies this). Importing the names explicitly keeps the package working on older releases too.
 
 **5. Run `ailang lock` after changing dependencies**: The lockfile must be regenerated whenever `[dependencies]` changes.

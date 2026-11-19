@@ -5,10 +5,8 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/sunholo-data/ailang/internal/coordinator"
 	"github.com/sunholo-data/ailang/internal/websocket"
@@ -21,9 +19,6 @@ type CoordinatorApprovalStore interface {
 	// Firestore coordinator stores already implement this.
 	CreateApprovalRequest(ctx context.Context, req *coordinator.ApprovalRequestRecord) error
 	GetApprovalRequest(ctx context.Context, id string) (*coordinator.ApprovalRequestRecord, error)
-	GetApprovalRequestByTaskAnyStatus(ctx context.Context, taskID string) (*coordinator.ApprovalRequestRecord, error) // #921: persisted-diff lookup for cross-lane tasks
-	ListPendingApprovals(ctx context.Context) ([]*coordinator.ApprovalRequestRecord, error)
-	ListResolvedApprovals(ctx context.Context, limit int) ([]*coordinator.ApprovalRequestRecord, error)
 	ResolveApprovalRequest(ctx context.Context, id string, status string, resolvedBy string) error
 }
 
@@ -35,7 +30,6 @@ func (s *Server) SetApprovalStore(store CoordinatorApprovalStore) {
 // CoordinatorTaskEventStore provides task event operations for historical replay
 type CoordinatorTaskEventStore interface {
 	GetTaskEvents(ctx context.Context, taskID string, limit int) ([]*coordinator.TaskEventRecord, error)
-	ListTasks(ctx context.Context, filter *coordinator.TaskFilter) ([]*coordinator.TaskRecord, error)
 	GetTask(ctx context.Context, id string) (*coordinator.TaskRecord, error)
 }
 
@@ -44,224 +38,9 @@ func (s *Server) SetTaskEventStore(store CoordinatorTaskEventStore) {
 	s.taskEventStore = store
 }
 
-// SetCoordinatorStore sets the coordinator store for statistics
-func (s *Server) SetCoordinatorStore(store CoordinatorStore) {
-	s.coordStore = store
-}
-
 // SetCoordinatorStoreRaw sets the raw coordinator store for Control Plane queries
 func (s *Server) SetCoordinatorStoreRaw(store coordinator.Store) {
 	s.coordStoreRaw = store
-}
-
-// handleCoordinatorRunningTasks returns the list of running/pending tasks
-// GET /api/coordinator/running
-func (s *Server) handleCoordinatorRunningTasks(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	if s.taskEventStore == nil {
-		// Return empty list if no store configured
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode([]interface{}{}); err != nil {
-			log.Printf("Failed to encode empty running tasks: %v", err)
-		}
-		return
-	}
-
-	ctx := r.Context()
-
-	// Fetch running and pending tasks
-	filter := &coordinator.TaskFilter{
-		Status:    []coordinator.TaskStatus{coordinator.TaskStatusRunning, coordinator.TaskStatusPending, coordinator.TaskStatusQueued},
-		OrderBy:   "created_at",
-		OrderDesc: true,
-		Limit:     50,
-	}
-
-	tasks, err := s.taskEventStore.ListTasks(ctx, filter)
-	if err != nil {
-		log.Printf("Failed to list running tasks: %v", err)
-		http.Error(w, "Failed to list tasks", http.StatusInternalServerError)
-		return
-	}
-
-	// Convert to JSON-friendly format
-	var result []map[string]interface{}
-	for _, t := range tasks {
-		task := map[string]interface{}{
-			"id":         t.ID,
-			"title":      t.Title,
-			"status":     t.Status,
-			"type":       t.Type,
-			"created_at": t.CreatedAt,
-		}
-		if t.Provider != "" {
-			task["provider"] = t.Provider
-		}
-		if t.ThreadID != "" {
-			task["thread_id"] = t.ThreadID
-		}
-		if t.StartedAt != nil {
-			task["started_at"] = t.StartedAt
-		}
-		result = append(result, task)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(result); err != nil {
-		log.Printf("Failed to encode running tasks: %v", err)
-	}
-}
-
-// handleCoordinatorApproval handles approve/reject requests for coordinator tasks
-// POST /api/coordinator/approve/{id}
-// POST /api/coordinator/reject/{id}
-func (s *Server) handleCoordinatorApproval(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	// Parse path: /api/coordinator/{action}/{id}
-	path := strings.TrimPrefix(r.URL.Path, "/api/coordinator/")
-	parts := strings.SplitN(path, "/", 2)
-	if len(parts) != 2 {
-		http.Error(w, "Invalid path: expected /api/coordinator/{action}/{id}", http.StatusBadRequest)
-		return
-	}
-
-	action := parts[0]
-	id := parts[1]
-
-	if action != "approve" && action != "reject" {
-		http.Error(w, "Invalid action: expected 'approve' or 'reject'", http.StatusBadRequest)
-		return
-	}
-
-	// Both stores are required: cmd/ailang/server.go always sets them together,
-	// and resolving the record with only approvalStore is the bug this route
-	// had — an approval that fires no handoff and merges nothing.
-	if s.approvalStore == nil || s.coordStoreRaw == nil {
-		http.Error(w, "Coordinator approval store not configured", http.StatusServiceUnavailable)
-		return
-	}
-
-	body, ok := decodeApprovalDecisionBody(w, r)
-	if !ok {
-		return
-	}
-
-	ctx := r.Context()
-
-	// Check if approval request exists
-	req, err := s.approvalStore.GetApprovalRequest(ctx, id)
-	if err != nil || req == nil {
-		log.Printf("Failed to get approval request %s: %v", id, err)
-		http.Error(w, "Approval request not found", http.StatusNotFound)
-		return
-	}
-
-	if req.Status != "pending" {
-		http.Error(w, "Approval request already resolved", http.StatusConflict)
-		return
-	}
-
-	// Secret approvals have no task behind them; they resolve on their own path.
-	if req.Type == "secret" {
-		s.resolveSecretApproval(w, r, req, action, "dashboard-user")
-		return
-	}
-
-	// The same processor the /api/approvals route uses — the only path that
-	// fires handoffs (M-V1-SIMPLIFY-S1 M3).
-	if _, err := s.processTaskApproval(ctx, req, action, body); err != nil {
-		http.Error(w, "Failed to resolve approval request: "+err.Error(), http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]interface{}{
-		"success":   true,
-		"action":    action,
-		"id":        id,
-		"timestamp": time.Now().Unix(),
-	}); err != nil {
-		log.Printf("Failed to encode approval response: %v", err)
-	}
-}
-
-// handleCoordinatorPendingApprovals lists pending approval requests with enriched task info
-// GET /api/coordinator/pending
-func (s *Server) handleCoordinatorPendingApprovals(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodGet {
-		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
-	if s.approvalStore == nil {
-		// Return empty list if no store configured
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode([]interface{}{}); err != nil {
-			log.Printf("Failed to encode empty pending approvals: %v", err)
-		}
-		return
-	}
-
-	ctx := r.Context()
-	pending, err := s.approvalStore.ListPendingApprovals(ctx)
-	if err != nil {
-		log.Printf("Failed to list pending approvals: %v", err)
-		http.Error(w, "Failed to list pending approvals", http.StatusInternalServerError)
-		return
-	}
-
-	// Enrich approvals with task info (worktree_path, files_changed)
-	var result []map[string]interface{}
-	for _, p := range pending {
-		approval := map[string]interface{}{
-			"id":          p.ID,
-			"task_id":     p.TaskID,
-			"type":        p.Type,
-			"description": p.Description,
-			"status":      p.Status,
-			"created_at":  p.CreatedAt,
-			"auto_reject": p.AutoReject,
-		}
-		if p.ContextJSON != "" {
-			approval["context_json"] = p.ContextJSON
-		}
-		if p.TimeoutAt != nil {
-			approval["timeout_at"] = p.TimeoutAt
-		}
-
-		// Get associated task for worktree info
-		if s.taskEventStore != nil {
-			task, err := s.taskEventStore.GetTask(ctx, p.TaskID)
-			if err == nil && task != nil {
-				if task.WorktreePath != "" {
-					approval["worktree_path"] = task.WorktreePath
-				}
-				if task.SessionID != "" {
-					approval["session_id"] = task.SessionID
-				}
-				approval["task_title"] = task.Title
-				approval["task_status"] = task.Status
-				if task.Provider != "" {
-					approval["provider"] = task.Provider
-				}
-			}
-		}
-
-		result = append(result, approval)
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(result); err != nil {
-		log.Printf("Failed to encode pending approvals: %v", err)
-	}
 }
 
 // TaskStreamEventRequest is the JSON body for task stream events
@@ -331,32 +110,22 @@ func (s *Server) handleCoordinatorTaskEvents(w http.ResponseWriter, r *http.Requ
 	}
 }
 
-// handleCoordinatorTaskEvents_ handles task-specific endpoints
-// GET /api/coordinator/tasks/{id}/events - fetch historical task events
-// GET /api/coordinator/tasks/{id}/diff - fetch git diff for task worktree
+// handleCoordinatorTaskEvents_ serves a task's recorded events.
+// GET /api/coordinator/tasks/{id}/events[?format=json|text|summary]
+// Read by `ailang coordinator` browse (cmd/ailang/coordinator_browse.go). The
+// .../diff action the UI's approval card used is gone; `ailang coordinator
+// approve <id>` shows the diff.
 func (s *Server) handleCoordinatorTaskEvents_(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodGet {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 		return
 	}
 
-	// Parse path: /api/coordinator/tasks/{id}/{action}
+	// Parse path: /api/coordinator/tasks/{id}/events
 	path := strings.TrimPrefix(r.URL.Path, "/api/coordinator/tasks/")
 	parts := strings.Split(path, "/")
-	if len(parts) < 2 {
-		http.Error(w, "Invalid path: expected /api/coordinator/tasks/{id}/{action}", http.StatusBadRequest)
-		return
-	}
-
-	action := parts[1]
-	if action != "events" && action != "diff" {
-		http.Error(w, "Invalid action: expected 'events' or 'diff'", http.StatusBadRequest)
-		return
-	}
-
-	// Route to specific handler
-	if action == "diff" {
-		s.handleTaskDiff(w, r, parts[0])
+	if len(parts) != 2 || parts[1] != "events" {
+		http.Error(w, "Invalid path: expected /api/coordinator/tasks/{id}/events", http.StatusNotFound)
 		return
 	}
 
@@ -505,115 +274,4 @@ func (s *Server) handleCoordinatorTaskEvents_(w http.ResponseWriter, r *http.Req
 // AILANG_DASHBOARD was unset, which in production was always.
 func countTurns(events []*coordinator.TaskEventRecord) (int, error) {
 	return GetAILANGBridge().CountTurns(events)
-}
-
-// handleTaskDiff returns the git diff for a task's worktree
-// GET /api/coordinator/tasks/{id}/diff
-func (s *Server) handleTaskDiff(w http.ResponseWriter, r *http.Request, taskID string) {
-	if taskID == "" {
-		http.Error(w, "Task ID required", http.StatusBadRequest)
-		return
-	}
-
-	if s.taskEventStore == nil {
-		http.Error(w, "Task store not configured", http.StatusServiceUnavailable)
-		return
-	}
-
-	ctx := r.Context()
-
-	// Get the task to find worktree path
-	task, err := s.taskEventStore.GetTask(ctx, taskID)
-	if err != nil {
-		log.Printf("Failed to get task %s: %v", taskID, err)
-		http.Error(w, "Task not found", http.StatusNotFound)
-		return
-	}
-
-	// #921: prefer the diff the OWNING coordinator persisted on the approval
-	// record at completion. This server may be on a different machine than the
-	// worktree (local-lane task, cloud dashboard) — the old behavior stat'd
-	// the path, found nothing, and answered "Worktree has been deleted", which
-	// the UI rendered as a confident "Files (0)" on the consent card.
-	servePersisted := func() bool {
-		if s.approvalStore == nil {
-			return false
-		}
-		rec, aerr := s.approvalStore.GetApprovalRequestByTaskAnyStatus(ctx, taskID)
-		if aerr != nil || rec == nil || rec.ContextJSON == "" {
-			return false
-		}
-		var cctx struct {
-			Diff     string `json:"diff"`
-			DiffStat string `json:"diff_stat"`
-		}
-		if err := json.Unmarshal([]byte(rec.ContextJSON), &cctx); err != nil || cctx.Diff == "" {
-			return false
-		}
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(map[string]interface{}{
-			"task_id":   taskID,
-			"diff":      cctx.Diff,
-			"diff_stat": cctx.DiffStat,
-			"source":    "persisted", // computed at completion by the owning coordinator
-		}); err != nil {
-			log.Printf("Failed to encode diff response: %v", err)
-		}
-		return true
-	}
-
-	if task.WorktreePath == "" {
-		if servePersisted() {
-			return
-		}
-		http.Error(w, "Task has no worktree", http.StatusNotFound)
-		return
-	}
-
-	// Worktree path not visible from THIS machine: cross-lane, or cleaned up
-	// after merge. The persisted diff is authoritative either way; only when
-	// none exists do we say so — and honestly, not as "deleted".
-	if _, err := os.Stat(task.WorktreePath); os.IsNotExist(err) {
-		if servePersisted() {
-			return
-		}
-		w.Header().Set("Content-Type", "application/json")
-		if err := json.NewEncoder(w).Encode(map[string]interface{}{
-			"task_id":       taskID,
-			"worktree_path": task.WorktreePath,
-			"diff":          "",
-			"error":         "Worktree is not on this machine (or was cleaned up) and no persisted diff exists for this task",
-		}); err != nil {
-			log.Printf("Failed to encode diff response: %v", err)
-		}
-		return
-	}
-
-	// Get the diff using coordinator's GetWorktreeDiff
-	// Pass task.BaseCommit (stable) and task.BaseBranch (fallback)
-	// BaseCommit is preferred as the branch may have moved since worktree creation
-	diff, err := coordinator.GetWorktreeDiff(ctx, task.WorktreePath, task.BaseBranch, task.BaseCommit)
-	if err != nil {
-		log.Printf("Failed to get diff for task %s: %v", taskID, err)
-		http.Error(w, "Failed to get diff", http.StatusInternalServerError)
-		return
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]interface{}{
-		"task_id":       taskID,
-		"worktree_path": task.WorktreePath,
-		"diff":          diff,
-	}); err != nil {
-		log.Printf("Failed to encode diff response: %v", err)
-	}
-}
-
-// handleTasksAlias provides a cleaner API path for task operations
-// GET /api/tasks/{id}/events -> /api/coordinator/tasks/{id}/events
-func (s *Server) handleTasksAlias(w http.ResponseWriter, r *http.Request) {
-	// Rewrite path from /api/tasks/{id}/events to /api/coordinator/tasks/{id}/events
-	path := strings.TrimPrefix(r.URL.Path, "/api/tasks/")
-	r.URL.Path = "/api/coordinator/tasks/" + path
-	s.handleCoordinatorTaskEvents_(w, r)
 }

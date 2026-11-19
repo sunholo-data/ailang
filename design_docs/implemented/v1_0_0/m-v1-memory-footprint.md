@@ -441,9 +441,9 @@ ratification of D-B..D-E plus the three round-2 fixes rather than grinding a thi
 ## Related Documents
 
 - [design_docs/planned/v0_31_0/m-mem-budget-runtime.md](../v0_31_0/m-mem-budget-runtime.md) (0.42) — a logical memory *budget* with a typed `MEM001`; unimplemented (V1). Distinct: that doc bounds usage, this one reduces it. M4's cgroup limit is the physical backstop that doc also describes.
-- [design_docs/planned/v0_36_0/m-trace-tier-not-enforced.md](../v0_36_0/m-trace-tier-not-enforced.md) (0.40) — M1+M3 shipped, M2 shipped as e4c42a7bf; this doc is its "honest limit" follow-up (peak, not retention).
+- [design_docs/implemented/v0_36_0/m-trace-tier-not-enforced.md](../v0_36_0/m-trace-tier-not-enforced.md) (0.40) — M1+M3 shipped, M2 shipped as e4c42a7bf; this doc is its "honest limit" follow-up (peak, not retention).
 - [design_docs/planned/m-list-cons-quadratic.md](../m-list-cons-quadratic.md) — F1, parked; the structural fix.
-- [design_docs/planned/m-list-repr-spike.md](../m-list-repr-spike.md) (0.37) — list representation spike feeding the above.
+- [design_docs/implemented/v0_34_0/m-list-repr-spike.md](../m-list-repr-spike.md) (0.37) — list representation spike feeding the above.
 - [design_docs/implemented/v0_9_2/m-docparse-dx.md](../../implemented/v0_9_2/m-docparse-dx.md) — the original 4.8 GB XML-tree finding and the streaming `parseElements` fix.
 - `docparse/design_docs/planned/xlsx_resource_tiers.md` (sibling repo) — the container-side measurements and the still-open parser fixes D2/D3.
 - Issues: [#676](https://github.com/sunholo-data/ailang/issues/676) (quadratic cons), [#617](https://github.com/sunholo-data/ailang/issues/617) (strict `take`/`flatMap`).

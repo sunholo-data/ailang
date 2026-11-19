@@ -151,8 +151,12 @@ func (s *Server) handleFunctionCall(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Delegate to shared function caller with param names for named binding
-	s.callFunction(w, r, modulePath, funcName, callOpts{ParamNames: foundExport.ParamNames, ParamTypes: foundExport.ParamTypes, ParamZeros: foundExport.ParamZeros, ParamSchemas: foundExport.ParamSchemas})
+	// Delegate to shared function caller with param names for named binding.
+	// The module path and function name handed on are the LOADED module's and
+	// export's own, not the URL's: they are equal by the lookups above, but only
+	// the loaded values are server-owned, so nothing a client typed reaches the
+	// engine's module loader (CodeQL go/path-injection).
+	s.callFunction(w, r, modInfo.Path, foundExport.Name, callOpts{ParamNames: foundExport.ParamNames, ParamTypes: foundExport.ParamTypes, ParamZeros: foundExport.ParamZeros, ParamSchemas: foundExport.ParamSchemas})
 }
 
 // camelToSnake converts a camelCase string to snake_case.

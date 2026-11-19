@@ -243,10 +243,14 @@ func TestMCPGate_RefusalCarriesWWWAuthenticateMeta(t *testing.T) {
 		}
 		res, _ := msg["result"].(map[string]any)
 		meta, _ := res["_meta"].(map[string]any)
-		got, _ := json.Marshal(meta["mcp/www_authenticate"])
-		want, _ := json.Marshal([]string{challenge})
-		if res["isError"] != true || string(got) != string(want) {
-			t.Errorf("token %q: result %s, want _meta challenge %s", token, body, want)
+		vals, _ := meta["mcp/www_authenticate"].([]any)
+		got := ""
+		if len(vals) == 1 {
+			got, _ = vals[0].(string)
+		}
+		if res["isError"] != true || !strings.HasPrefix(got, challenge) ||
+			!strings.Contains(got, "error=") || !strings.Contains(got, "error_description=") {
+			t.Errorf("token %q: result %s, want _meta challenge %s plus error and error_description", token, body, challenge)
 		}
 	}
 }

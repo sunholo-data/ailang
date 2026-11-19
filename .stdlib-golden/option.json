@@ -9,7 +9,8 @@
       "ctors": [
         "None",
         "Some(a)"
-      ]
+      ],
+      "tier": "stable"
     }
   ],
   "funcs": [
@@ -55,7 +56,8 @@
       "name": "filter",
       "type": "((a)-\u003ebool,Option[a])-\u003eOption[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -99,7 +101,8 @@
       "name": "flatMap",
       "type": "((a)-\u003eOption[b],Option[a])-\u003eOption[b]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -143,7 +146,8 @@
       "name": "getOrElse",
       "type": "(Option[a],a)-\u003ea",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -175,7 +179,8 @@
       "name": "isNone",
       "type": "(Option[a])-\u003ebool",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -207,7 +212,8 @@
       "name": "isSome",
       "type": "(Option[a])-\u003ebool",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -251,7 +257,8 @@
       "name": "map",
       "type": "((a)-\u003eb,Option[a])-\u003eOption[b]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     }
   ],
   "schema": "ailang.iface/v2"

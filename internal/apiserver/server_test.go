@@ -37,6 +37,9 @@ export pure func hello(name: string) -> string =
 
 export pure func add(x: int, y: int) -> int =
   x + y
+
+export pure func tags() -> [string] =
+  ["a, b", "c\"d"]
 `
 	modPath := filepath.Join(apiDir, "greet.ail")
 	if err := os.WriteFile(modPath, []byte(modContent), 0644); err != nil {
@@ -269,6 +272,26 @@ func TestFunctionCall(t *testing.T) {
 		}
 		if resultStr != "Hello, World!" {
 			t.Errorf("expected 'Hello, World!', got %q", resultStr)
+		}
+	})
+
+	// A result is structured JSON (embed.ToGo), never show text: nested
+	// strings stay JSON strings, so M-V1-SHOW-TOTAL's quoting cannot reach it.
+	t.Run("list of strings is JSON, not show text", func(t *testing.T) {
+		req := httptest.NewRequest("POST", "/api/test/api/greet/tags", strings.NewReader(`{}`))
+		req.Header.Set("Content-Type", "application/json")
+		w := httptest.NewRecorder()
+		mux.ServeHTTP(w, req)
+		if w.Code != http.StatusOK {
+			t.Fatalf("expected 200, got %d: %s", w.Code, w.Body.String())
+		}
+		var resp FunctionCallResponse
+		if err := json.NewDecoder(w.Body).Decode(&resp); err != nil {
+			t.Fatal(err)
+		}
+		list, ok := resp.Result.([]interface{})
+		if resp.Error != "" || !ok || len(list) != 2 || list[0] != "a, b" || list[1] != `c"d` {
+			t.Fatalf("result = %#v (error %q), want the JSON array [\"a, b\", \"c\\\"d\"]", resp.Result, resp.Error)
 		}
 	})
 

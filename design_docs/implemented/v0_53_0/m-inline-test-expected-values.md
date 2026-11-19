@@ -183,7 +183,7 @@ Route both row arms through the source-append + re-elaboration path named tests 
 
 - Rejected for now because it makes the **input** arm more capable than the expected arm
   fix requires, drags in the unresolved effectful-helper design
-  ([m-named-test-effectful-helper.md](../../planned/v0_53_0/m-named-test-effectful-helper.md): entries are
+  ([m-named-test-effectful-helper.md](../v0_53_1/m-named-test-effectful-helper.md): entries are
   `pure func`, effectful callees are refused — while inline tests on effectful functions
   retain capability denial, V6, and must not regress), and costs a batched compile per
   file on both legs. When input-side elaboration is ever designed (with effect honesty),
@@ -474,8 +474,8 @@ Overlap management, for the sprint planner:
 
 **Planned (check for overlap):**
 - [m-inline-test-multiarg-tuple-rows.md](../../planned/m-inline-test-multiarg-tuple-rows.md) — input-side row grammar (see §Relationship)
-- [m-test-runner-compile-once.md](../../planned/v0_53_0/m-test-runner-compile-once.md) — named-test one-compile batch; the named-body mechanism Option C defers to
-- [m-named-test-effectful-helper.md](../../planned/v0_53_0/m-named-test-effectful-helper.md) — effect honesty for batched entries (why Option C is deferred)
+- [m-test-runner-compile-once.md](../v0_52_2/m-test-runner-compile-once.md) — named-test one-compile batch; the named-body mechanism Option C defers to
+- [m-named-test-effectful-helper.md](../v0_53_1/m-named-test-effectful-helper.md) — effect honesty for batched entries (why Option C is deferred)
 - [m-package-test-discovery.md](../../planned/m-package-test-discovery.md) — inline tests under `ailang test --package` (gate must not depend on run mode)
 - [inline-test-per-case-recompile-1328.md](../../planned/ailang-core-triage/inline-test-per-case-recompile-1328.md) — inline compile memoization (V14)
 

@@ -1,0 +1,58 @@
+{
+  "controller": {
+    "lane": "codex:gpt-6.1-sol",
+    "instrument": "driver configured; controller token usage not reported",
+    "tokens": null
+  },
+  "designer": {
+    "lane": "codex:gpt-6.1-sol",
+    "scope": "screen only; no authoring",
+    "probe_rc": 0,
+    "run_rc": 0,
+    "cli_probe_tokens": 17034,
+    "cli_run_tokens": 200525,
+    "cli_total_tokens": 217559
+  },
+  "planner": {
+    "lane": "codex:gpt-6.1-sol",
+    "scope": "gate readiness only; no sprint planning",
+    "derivation": "anthropic-fallback:fail-closed:no-doc",
+    "probe_rc": 0,
+    "run_rc": 0,
+    "cli_probe_tokens": 15908,
+    "cli_run_tokens": 175427,
+    "cli_total_tokens": 191335
+  },
+  "executor": {
+    "lane": "codex:gpt-6.1-sol",
+    "scope": "readiness only; no implementation",
+    "probe_rc": 0,
+    "run_rc": 0,
+    "cli_probe_tokens": 15891,
+    "cli_run_tokens": 214860,
+    "cli_total_tokens": 230751
+  },
+  "evaluator": {
+    "lane": "pi:openrouter/minimax/minimax-m3",
+    "scope": "idle screen only; round1 unaccepted, round2 NONE unscored",
+    "probe_rcs": [
+      0,
+      0
+    ],
+    "run_rcs": [
+      0,
+      0
+    ],
+    "typed_verdicts": [
+      "ok",
+      "ok"
+    ],
+    "provider_total_tokens": 9568762,
+    "provider_metered_usd": 0.8703823199999999,
+    "usage_ledger": "evaluator-metered-ledger.json"
+  },
+  "agent_bridges": {
+    "tokens": null,
+    "note": "not reported; not zero"
+  }
+}

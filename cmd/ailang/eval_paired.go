@@ -10,6 +10,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/eval_analysis"
 	"github.com/sunholo-data/ailang/internal/eval_harness"
 	"github.com/sunholo-data/ailang/internal/modelreg"
@@ -123,11 +124,14 @@ func observatorySpanFetcher(base string) eval_analysis.SpanFetcher {
 		if err != nil {
 			return nil, err
 		}
-		resp, err := client.Do(req)
+		resp, err := dashboardDo(client, req)
 		if err != nil {
 			return nil, err
 		}
 		defer resp.Body.Close()
+		if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusServiceUnavailable {
+			return nil, fmt.Errorf("observatory returned %s — the dashboard requires a credential: set %s to its COORDINATOR_API_KEY", resp.Status, config.EnvDashboardToken)
+		}
 		if resp.StatusCode != http.StatusOK {
 			return nil, fmt.Errorf("observatory returned %s", resp.Status)
 		}

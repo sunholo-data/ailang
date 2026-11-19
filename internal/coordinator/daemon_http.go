@@ -398,9 +398,10 @@ type postMessageRequest struct {
 	GitHubIssue *int   `json:"github_issue,omitempty"`
 	GitHubRepo  string `json:"github_repo,omitempty"`
 
-	// M-CLOUD-DUAL-AUTH: Optional user-provided Anthropic API key.
-	// Stored in memory cache only (10min TTL), NEVER persisted to Firestore.
-	AnthropicAPIKey string `json:"anthropic_api_key,omitempty"`
+	// RetiredAnthropicAPIKey is decoded only so a client still sending a
+	// per-request Anthropic key is refused, not silently ignored: the
+	// M-CLOUD-DUAL-AUTH lane (and its *-apikey jobs) was retired 2026-11-10.
+	RetiredAnthropicAPIKey *string `json:"anthropic_api_key,omitempty"`
 
 	// M-COORD-MULTI-HOST-WORKERS (v0.22.0): list of worker tags this message
 	// requires. Routed to a worker whose advertised tags ⊇ this set. Empty
@@ -409,6 +410,11 @@ type postMessageRequest struct {
 	Requires []string    `json:"requires,omitempty"`
 	Inputs   []TaskInput `json:"inputs,omitempty"`
 }
+
+// errRetiredAnthropicAPIKey is the 400 body for a request that still carries
+// anthropic_api_key. Per-request API keys (M-CLOUD-DUAL-AUTH, v0.9.2) were
+// retired 2026-11-10; no task runs on a caller-supplied key any more.
+const errRetiredAnthropicAPIKey = "anthropic_api_key is no longer accepted: per-request API keys were retired on 2026-11-10. Remove the field and resend; the task runs on the coordinator's own credentials"
 
 // postMessageResponse is returned on successful message creation.
 type postMessageResponse struct {
@@ -424,6 +430,13 @@ func (d *Daemon) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 	var req postMessageRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
 		httpjson.Write(w, http.StatusBadRequest, map[string]string{"error": "invalid JSON: " + err.Error()})
+		return
+	}
+
+	// Refuse before storing anything: the sender expects its key to be used,
+	// and dropping it would run the task on our credentials instead.
+	if req.RetiredAnthropicAPIKey != nil {
+		httpjson.Write(w, http.StatusBadRequest, map[string]string{"error": errRetiredAnthropicAPIKey})
 		return
 	}
 
@@ -482,23 +495,6 @@ func (d *Daemon) handlePostMessage(w http.ResponseWriter, r *http.Request) {
 		d.logger.Printf("POST /api/messages: store error: %v", err)
 		httpjson.Write(w, http.StatusInternalServerError, map[string]string{"error": "failed to store message"})
 		return
-	}
-
-	// M-CLOUD-DUAL-AUTH: Encrypt and cache API key in memory (never persisted).
-	if req.AnthropicAPIKey != "" && d.apiKeyCache != nil {
-		apiKeyValue := req.AnthropicAPIKey
-		if d.kmsEncrypter != nil {
-			encrypted, err := d.kmsEncrypter.Encrypt(ctx, apiKeyValue)
-			if err != nil {
-				d.logger.Printf("POST /api/messages: KMS encrypt failed for %s: %v", msg.ID, err)
-				httpjson.Write(w, http.StatusInternalServerError, map[string]string{"error": "failed to encrypt API key"})
-				return
-			}
-			apiKeyValue = encrypted
-			d.logger.Printf("POST /api/messages: encrypted API key for message %s", msg.ID)
-		}
-		d.apiKeyCache.Store(msg.ID, apiKeyValue)
-		d.logger.Printf("POST /api/messages: cached API key for message %s (10min TTL)", msg.ID)
 	}
 
 	// Publish Pub/Sub notification (best-effort — message is already stored).

@@ -1,0 +1,18 @@
+-- Constructors used as values and NFC-sensitive nested strings: the compiled
+-- program must print what the interpreter prints (M-V1-SHOW-TOTAL review 2).
+module test/show_differential_ctor_nfc
+import std/io (println)
+import std/list (map)
+import std/option (Option, Some, None)
+import std/result (Result, Ok, Err)
+
+export func main() -> () ! {IO} {
+  let some = Some;
+  println(show(Some));
+  println(show(None));
+  println(show([Some, Some]));
+  println(show(some(1)));
+  println(show(map(Some, [1, 2])));
+  println(show(map(Err, ["e"])));
+  println(show(["e\u{301}", "\n\u{303}", "\u{212B}"]))
+}

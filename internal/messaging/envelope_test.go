@@ -252,25 +252,6 @@ func TestEnvelopeToJSONEmpty(t *testing.T) {
 	}
 }
 
-func TestDimensionMatch(t *testing.T) {
-	a := &EnvelopeVector{Vector: make([]float32, 768), Model: "ollama:x", Dimension: 768}
-	b := &EnvelopeVector{Vector: make([]float32, 768), Model: "ollama:y", Dimension: 768}
-	c := &EnvelopeVector{Vector: make([]float32, 1536), Model: "openai:z", Dimension: 1536}
-
-	if err := DimensionMatch(a, b); err != nil {
-		t.Errorf("same dimension should match: %v", err)
-	}
-	if err := DimensionMatch(a, c); err == nil {
-		t.Error("different dimensions should not match")
-	}
-	if err := DimensionMatch(nil, a); err != nil {
-		t.Error("nil should match anything")
-	}
-	if err := DimensionMatch(a, nil); err != nil {
-		t.Error("nil should match anything")
-	}
-}
-
 // --- Mock embedder for builder tests ---
 
 type mockEmbedder struct {

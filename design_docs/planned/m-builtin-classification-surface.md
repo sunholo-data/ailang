@@ -1,3 +1,5 @@
+> **Superseded in part:** the Go emitter (`ailang compile --emit-go`, `internal/gen/golang`) was removed in #2389; anything below that plans for or depends on it no longer applies. This design read purity and stdlib folding from `BuiltinMeta.IsPure` / `GoCodegen.StdlibName`, which were deleted with it: it needs a new data source.
+
 # M-BUILTIN-CLASSIFICATION-SURFACE: Producer-Visible Builtin Classification
 
 **Status**: Planned (tooling/interface surface — no language-semantics change)

@@ -28,7 +28,7 @@
 --   }
 
 module std/audio
-import std/bytes (slice, toInts, length)
+import std/bytes (sliceLen, toInts, length)
 import std/list (foldr)
 import std/option (Option, Some, None)
 import std/result (Result, Ok, Err)
@@ -74,9 +74,9 @@ type WavFormat = { rate: int, channels: int, bits: int, blockAlign: int, byteRat
 type WavData = { offset: int, size: int }
 
 -- Only 2/4-byte numeric fields become tiny lists, never audio payloads.
--- slice failure is propagated as Err rather than replaced by a numeric default.
+-- sliceLen failure is propagated as Err rather than replaced by a numeric default.
 pure func readWavLE(wav: bytes, at: int, count: int) -> Result[int, string] {
-  match slice(wav, at, count) {
+  match sliceLen(wav, at, count) {
     None => Err("audio.wavInfo: truncated numeric field"),
     Some(field) => Ok(foldr(\byte acc. byte + 256 * acc, 0, toInts(field)))
   }

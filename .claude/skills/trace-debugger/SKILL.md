@@ -51,9 +51,9 @@ export GOOGLE_CLOUD_PROJECT=your-project-id
 docker run -d -p 16686:16686 -p 4318:4318 jaegertracing/all-in-one
 export OTEL_EXPORTER_OTLP_ENDPOINT=http://localhost:4318
 
-# Option 3: AILANG Observatory Dashboard (local UI)
+# Option 3: AILANG Observatory (local dashboard API, no UI)
 ailang server  # Starts server on localhost:1957
-# View traces at http://localhost:1957 → Observatory tab
+# Read traces with: ailang chains dashboard traces
 
 # Verify configuration
 ailang trace status
@@ -147,8 +147,8 @@ Both protobuf and JSON formats are supported.
 
 1. Ensure `ailang server` is running
 2. Run a Claude Code or Gemini CLI command
-3. Open http://localhost:1957 → Observatory tab
-4. New traces should appear automatically
+3. Run `ailang chains dashboard traces`
+4. New traces should appear
 
 **Note:** If server is not running, OTLP exports fail silently (no impact on CLI tools).
 
@@ -335,21 +335,3 @@ Suggested addition:
 
 This helps continuously improve AILANG's observability based on real debugging needs.
 
-### Tracing Scope Limitation
-
-**Traces only cover AILANG tooling, NOT generated Go code!**
-
-| What IS Traced | What is NOT Traced |
-|----------------|-------------------|
-| `ailang compile` phases | Generated Go binary execution |
-| `ailang run` (AILANG interpreter) | Go code after `go build` |
-| `ailang eval-suite` benchmarks | The actual AI-generated code running |
-| `ailang messages` operations | User application runtime |
-
-**To debug generated Go code:**
-- Use Go's standard profiling (`go tool pprof`)
-- Add your own tracing in generated code templates
-- Use `DEBUG_CODEGEN=1` to see what code is generated
-- Add `log.Printf` to `internal/codegen/templates/` if needed
-
-**Future possibility:** Generate OTEL spans INTO Go code for runtime tracing (not implemented)

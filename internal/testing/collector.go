@@ -103,17 +103,9 @@ func (c *Collector) collectInlineTests(decl *ast.FuncDecl) {
 			// For single-arg functions: (input, expected)
 			// For multi-arg functions: ((arg1, arg2, ...), expected)
 
-			var inputExpr ast.Expr
-			if len(testCase.Inputs) == 1 {
-				// Single argument: use it directly
-				inputExpr = testCase.Inputs[0]
-			} else {
-				// Multiple arguments: wrap in tuple
-				inputExpr = &ast.Tuple{
-					Elements: testCase.Inputs,
-					Pos:      testCase.Pos,
-				}
-			}
+			// The single input, or all inputs as one tuple (ast.RowInput,
+			// shared with the compiler's row check).
+			inputExpr := ast.RowInput(testCase)
 
 			// Build tuple: (input, expected)
 			tupleExpr := &ast.Tuple{
@@ -146,9 +138,4 @@ func (c *Collector) collectInlineTests(decl *ast.FuncDecl) {
 			c.suite.Properties = append(c.suite.Properties, propCase)
 		}
 	}
-}
-
-// GetSuite returns the collected test suite.
-func (c *Collector) GetSuite() *TestSuite {
-	return &c.suite
 }

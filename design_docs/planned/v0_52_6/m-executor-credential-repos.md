@@ -4,7 +4,7 @@
 **Target**: v0.52.6
 **Priority**: P1 — Daneel's site publish route (M-DANEEL-SITE-PUBLISH, sunholo-data/daneel #335/#339/#344) blocks today on every request carrying a poster or photo; the two measured 8-Oct incidents below are the evidence
 **Estimated**: ~3–4 engineering days (executor seam ~1, registry+dispatch plumbing ~1, job fetch+secret ~0.5, docs/regression/Daneel entry ~1; planning estimate at 2× the raw guess)
-**Dependencies**: None hard. Composes with implemented [M-EXECUTOR-ENV-HARDENING](../v0_49_1/m-executor-env-hardening.md) D2 (this feature is one of the "narrowings" its D2 anticipated — the "one behaviour the inventory could not rule out"), planned [M-TASK-INPUTS](m-task-inputs.md) (#1600, ratified 2026-10-08), and planned [M-EXECUTOR-UID-SPLIT](../v0_49_1/m-executor-uid-split.md) (audit H-6).
+**Dependencies**: None hard. Composes with implemented [M-EXECUTOR-ENV-HARDENING](../../implemented/v0_50_0/m-executor-env-hardening.md) D2 (this feature is one of the "narrowings" its D2 anticipated — the "one behaviour the inventory could not rule out"), planned [M-TASK-INPUTS](m-task-inputs.md) (#1600, ratified 2026-10-08), and planned [M-EXECUTOR-UID-SPLIT](../v0_49_1/m-executor-uid-split.md) (audit H-6).
 **Routing**: AILANG fix under [PROGRAM](../../PROGRAM.md) — coordinator/harness Go only; no motoko core change, no language change.
 **Source**: coordinator directive (Daneel use case, 2026-10-08; task `task-d8a77278`), cross-referenced with the "task inputs" ask filed 2026-10-06 (inbox `inbox_1791279460926_c015f6d9` → issue #1600 → [M-TASK-INPUTS](m-task-inputs.md)).
 **Created / updated**: 2026-10-09
@@ -303,7 +303,7 @@ The following are intentionally left open for the implementer:
 ## Related Documents
 
 **Implemented (may inform design):**
-- [M-EXECUTOR-ENV-HARDENING](../v0_49_1/m-executor-env-hardening.md) (D1–D6, #1417/#PR-B) — owns the child env boundary and the D2 task-repo credential this feature extends; its "probe task per lane, then flip the default" note is exactly the narrowing this delivers
+- [M-EXECUTOR-ENV-HARDENING](../../implemented/v0_50_0/m-executor-env-hardening.md) (D1–D6, #1417/#PR-B) — owns the child env boundary and the D2 task-repo credential this feature extends; its "probe task per lane, then flip the default" note is exactly the narrowing this delivers
 - [M-EXECUTOR-POLICY-HARDENING](../../implemented/v0_41_0/m-executor-policy-hardening.md) (v0.41.0) — the program-runtime confinement below this seam
 - [M-AGENT-AILANG-ONLY-EXECUTION](../../implemented/v0_39_0/m-agent-ailang-only-execution.md) (v0.39.0) — the contained lane task-inputs targets for the site agent
 

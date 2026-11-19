@@ -106,7 +106,9 @@ func (s *Server) handleSecretApprovalIntake(w http.ResponseWriter, r *http.Reque
 		return
 	}
 
-	log.Printf("secret approval: %s created by %s (ref %s)", rec.ID, caller, body.Ref)
+	// %q: the ref is the caller's own JSON string, so a newline in it would
+	// otherwise forge a second log line.
+	log.Printf("secret approval: %s created by %s (ref %q)", rec.ID, caller, body.Ref)
 	s.publishSecretApprovalRequested(r.Context(), rec)
 
 	httpjson.Write(w, http.StatusCreated, map[string]string{"id": rec.ID})

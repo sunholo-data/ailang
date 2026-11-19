@@ -227,7 +227,12 @@ measure_fork_rate() {
   }
   sleep "$window" & timer=$!
   if [[ "${PROBE_SELFTEST_MEASUREMENT_FAILURE:-}" == timer ]]; then
-    kill -TERM "$timer" 2>/dev/null || true
+    # SIGKILL, not SIGTERM. The EXIT trap at the top of this file makes /bin/bash 3.2 install its
+    # deferred terminating-signal handler, and the timer child keeps that handler from fork until
+    # execve. A TERM that lands in that window only sets a flag that nothing reads before exec, so
+    # `sleep` runs the whole window and exits 0 (CI: rc=0 derived=1, about 1 run in 160). SIGKILL
+    # cannot be caught or ignored. The timer arm below starts with TERM ignored to pin this.
+    kill -KILL "$timer" 2>/dev/null || true
   fi
   while kill -0 "$timer" 2>/dev/null; do
     if "$stim" >/dev/null 2>&1; then
@@ -484,14 +489,20 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 lane_file="${PROBE_STUB_STATE}.${pid}"
-[[ -f "$lane_file" ]] || exit 1
-lane=$(cat "$lane_file")
+# FAIL CLOSED. The driver creates its lane file before writing the lane and deletes it as it
+# exits, so a sample can read nothing at either end of the driver's life. The old stub sent
+# every lane that was not "treatment" to the OpenRouter peer, so that read invented an
+# OpenRouter connection: on CI the refusal arm passed when it should have refused, and
+# 203.0.113.8:443 leaked into a treatment lane. A lane it cannot name now samples no peer.
+lane=$(cat "$lane_file" 2>/dev/null) || exit 1
+[[ -n "$lane" || -z "${PROBE_TEST_EMPTY_LANE_ACK:-}" ]] || : > "$PROBE_TEST_EMPTY_LANE_ACK.$pid"
+case "$lane" in
+  treatment) peer="127.0.0.1:51000->127.0.0.1:11434" ;;
+  control) peer="192.0.2.1:51000->203.0.113.8:443" ;;
+  *) exit 1 ;;
+esac
 echo "COMMAND PID USER FD TYPE DEVICE SIZE/OFF NODE NAME"
-if [[ "$lane" == treatment ]]; then
-  echo "stub $pid user 1u IPv4 0 0t0 TCP 127.0.0.1:51000->127.0.0.1:11434 (ESTABLISHED)"
-else
-  echo "stub $pid user 1u IPv4 0 0t0 TCP 192.0.2.1:51000->203.0.113.8:443 (ESTABLISHED)"
-fi
+echo "stub $pid user 1u IPv4 0 0t0 TCP $peer (ESTABLISHED)"
 EOF
 cat > "$live_bin/ailang-stub" <<'EOF'
 #!/bin/bash
@@ -502,6 +513,12 @@ while [[ $# -gt 0 ]]; do
   shift
 done
 [[ -z "${PROBE_TEST_MARKER:-}" ]] || printf 'ailang-stub lane=%s args=%s\n' "$lane" "$args" >> "$PROBE_TEST_MARKER"
+# Hold the lane file created-but-empty (the window above) until lsof has sampled it.
+# Bounded by the probe's lane deadline, which TERMs this untrapped stub.
+if [[ -n "${PROBE_TEST_EMPTY_LANE_ACK:-}" ]]; then
+  : > "${PROBE_STUB_STATE}.$$"
+  while [[ ! -e "$PROBE_TEST_EMPTY_LANE_ACK.$$" ]]; do sleep 0.05; done
+fi
 echo "$lane" > "${PROBE_STUB_STATE}.$$"
 echo "stub driver lane=$lane"
 # Shared by the bounded-termination arm and the tail SIGKILL-escalation fixture arm.
@@ -602,6 +619,25 @@ done
 # Same reason as above, and this is the load-bearing half: a lane that REFUSES is exactly the case
 # the retained log exists for.
 pass_arm "refusal path retains both lanes driver logs and lsof captures"
+
+# Pins the fail-closed lsof stub with a forced read rather than a 3-in-819 base rate: each driver
+# holds its lane file empty until lsof has read it empty, so both lanes are certain to take one
+# sample in the window. A stub that maps an unreadable lane to a peer puts 203.0.113.8:443 in the
+# treatment lane and the probe fails. The ack count proves the window was actually reached.
+empty_read_ack="$tmp_dir/empty-read-ack"
+expect_success "a lane file read before the driver writes it samples no peer" \
+  env PATH="$live_bin" AILANG_BIN=ailang-stub PROBE_TIMEOUT_SECS="$(bound_secs 4)" \
+    PROBE_STUB_STATE="$tmp_dir/lane-empty-read" PROBE_TEST_EMPTY_LANE_ACK="$empty_read_ack" \
+    /bin/bash "$probe" treatment control "$tmp_dir/empty-read.json"
+empty_read_acks=0
+for ack in "$empty_read_ack".*; do
+  [[ -e "$ack" ]] && empty_read_acks=$((empty_read_acks + 1))
+done
+if (( empty_read_acks != 2 )); then
+  echo "not ok - empty lane-file window reached in $empty_read_acks lanes, expected 2" >&2
+  exit 1
+fi
+pass_arm "the empty lane-file window was sampled in both lanes"
 
 unwritable="$tmp_dir/not-a-directory"
 : > "$unwritable"
@@ -1106,7 +1142,12 @@ fi
 pass_arm "bound drift classifier is loud only when the end rate needs a higher scale"
 
 assert_measurement_failure() {
-  local name=$1 mode=$2 expected_rc=$3 expected_text=$4 rc refusal_count derived_count
+  local name=$1 mode=$2 expected_rc=$3 expected_text=$4 rc refusal_count derived_count term=default
+  # timer mode runs the recursion with SIGTERM IGNORED, which every child inherits through fork
+  # and exec. That turns the rare CI loss described in measure_fork_rate into a certainty: an
+  # injection that relies on SIGTERM leaves `sleep` running and this arm reds every time with
+  # the CI signature (rc=0 derived=1); one that cannot be caught or ignored refuses with 73.
+  [[ "$mode" == timer ]] && term=ignored
   # The forced-rate overrides MUST be cleared for these arms. They are the one
   # PROBE_SELFTEST_* pair that SHORT-CIRCUITS the measurement rather than steering it, so an
   # ambient value makes measure_rate_or_refuse unreachable and the injected fault is never
@@ -1117,6 +1158,7 @@ assert_measurement_failure() {
   # these overrides are LEGITIMATE at suite scope for every other arm; only this recursion
   # must not inherit them.
   run_bounded "$tmp_dir/measurement-$mode.out" "$tmp_dir/measurement-$mode.err" "$ARM_CAP_SECS" -- \
+    /bin/bash -c '[[ "$1" == ignored ]] && trap "" TERM; shift; exec "$@"' term-disposition "$term" \
     env -u PROBE_SELFTEST_FORK_RATE -u PROBE_SELFTEST_REAL_OP_RATE \
       PROBE_UNDER_TEST="$probe" PROBE_SELFTEST_MEASUREMENT_FAILURE="$mode" \
       PROBE_SELFTEST_DERIVATION_ONLY=1 /bin/bash "$0"

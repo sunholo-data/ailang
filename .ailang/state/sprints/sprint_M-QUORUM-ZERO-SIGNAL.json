@@ -3,8 +3,8 @@
   "status": "completed",
   "created": "2026-10-12T00:00:00Z",
   "verified_at": "8d0d3de0e",
-  "design_doc": "design_docs/planned/m-quorum-external-zero-signal-guard.md",
-  "sprint_plan": "design_docs/planned/sprint-plan-quorum-zero-signal-guard.md",
+  "design_doc": "design_docs/implemented/v0_54_6/m-quorum-external-zero-signal-guard.md",
+  "sprint_plan": "design_docs/implemented/v0_54_6/sprint-plan-quorum-zero-signal-guard.md",
   "ticket": "quorum:zero-signal-guard-vacuous-with-controller-verdict",
   "github_issues": [
     651

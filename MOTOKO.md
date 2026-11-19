@@ -1,8 +1,9 @@
 # motoko_agent on this machine — the map
 
 **Rig answer (since 2026-10-27):** evals run `/Users/voightkampff/dev/mk-20261027`, branch
-`sunholo/main-dst-20261027` @ `083ef437` (§16, since 2026-11-04 ~14:10) — upstream `main` 97244396 + our commits
-+ the #1958 test-fixture annotations of §14/§15, the same commit the Docker source pin names. Before 11-04 the rig ran
+`sunholo/main-dst-20261027` @ `597a6fbf` (§17, since 2026-11-10 ~07:10) — upstream `main` 97244396 + our commits
++ the #1958 test-fixture annotations of §14/§15 + the #1443 `pure`-row migration (fork #6). The Docker pin moved
+ahead to the branch tip `2c2f9c8d` on 2026-11-13 (§18); the rig must follow before it installs ≥ v0.60.3. 2026-11-04..11-10 it ran `083ef437` (§16). Before 11-04 the rig ran
 `835c738b` (§13), which the v0.57.0 compiler rejects. 2026-10-19..10-27: `mk-20261019` / `sunholo/main-dst-20261019` @ `907dd78e` (§12), now
 the rollback. 2026-10-15..10-19: `mk-20261015` / `sunholo/main-dst-20261015` @
 `965f2ec5` (§11). 2026-10-08..10-15: `mk-20261002` (§10). Before that (2026-09-28..10-07):
@@ -413,3 +414,49 @@ boots. **Not yet verified:** a live canary + banked motoko row — the next fill
 
 **Rollback:** `git -C ~/dev/mk-20261027 reset --hard 835c738b` (only useful together with an AILANG
 binary older than v0.56.0).
+
+
+## 17. Rig + Docker pin moved to `597a6fbf` (2026-11-10)
+
+**Why:** AILANG #2184 (#1443, merged to dev 2026-11-09) makes `pure` mean the *empty* effect row, so a
+`pure` function whose row is non-empty no longer type-checks. Fork PR
+[#6](https://github.com/sunholo-voight-kampff/motoko_agent/pull/6) (`13beac74`, merged `597a6fbf`) drops
+`pure` from those functions: 11 files, 36 lines, annotation-only, no runtime, lockfile or Ports ABI change.
+Dropping `pure` is accepted by both the old and the new compiler, so the move is safe in either order;
+the release order put it before the rig took a #2184 binary. The rig's installed binary was already
+`v0.57.4-120-gb4e97cdbf-dirty` (contains #2184 and #2185) when this was done, so motoko on the rig had
+been checking `083ef437` against the new rule from that install until the fast-forward.
+
+**What:** `git merge --ff-only 597a6fbf9` in `~/dev/mk-20261027` (clean tree, no motoko run live), and
+`docker/Dockerfile.agent-motoko` `MOTOKO_COMMIT` → `597a6fbf95ee136beb87f4de9bc8d45127ac2fc8`. The cloud
+image picks the pin up at the next build that includes it (v0.58.0's test deploy).
+
+**Verified on `v0.57.4-120-gb4e97cdbf-dirty`:** `gmake check_core` exit 0 — 60/60 core files, 9/9
+extension boots, orchestrator 90/90 (the dagr contract leg skipped: no dagr binary on the rig, as
+before). **Not yet verified:** a banked motoko eval row on this commit, and the cloud image build.
+
+**Fork CI:** the fork's two red CI jobs predate #6 (base red since fork #4/#5: stale `CostRates` in
+`scripts/verify_skills_startup.ail:133`, a hook-scope yield pin at 20 vs 21 extensions, five moved
+`session.ail` clock anchors). Not claimed green.
+
+**Rollback:** `git -C ~/dev/mk-20261027 reset --hard 083ef437` together with an AILANG binary older than
+#2184 (v0.57.4 or earlier).
+
+## 18. Docker pin moved to `2c2f9c8d` (2026-11-13); rig NOT moved
+
+**Why:** v0.60.3 makes a non-exhaustive `match` an error (AILANG #2246, `TC_MATCH_002`). At `597a6fbf`,
+`packages/motoko-ext-progress-contract-guard/progress_contract_guard.ail:258` failed it. That broke
+`build-agent-motoko` in the v0.60.3 release build (Cloud Build `76c14535`), so v0.60.3 never reached
+test and cannot be promoted. Fork PRs #7–#10 (merged 2026-11-10..12) had already fixed it on
+`sunholo/main-dst-20261027`, but nobody moved the pin.
+
+**What:** `docker/Dockerfile.agent-motoko` `MOTOKO_COMMIT` → `2c2f9c8d2afdf1290fdb1aa544b28f507a421dab`
+(the branch tip). Shipped in v0.60.4.
+
+**Verified:** a fresh clone at `2c2f9c8d`, `ailang lock` then `ailang check src/core/supervisor.ail` with
+a v0.60.3 binary reports no errors. That is the same check the image's warm step runs. **Not verified:**
+`gmake check_core`, a banked eval row on this commit.
+
+**Rig:** `~/dev/mk-20261027` is still at `597a6fbf`. It fails the same check once the rig installs
+≥ v0.60.3. Fast-forward it (`git merge --ff-only 2c2f9c8d`, clean tree, no motoko run live) before or
+with that install. That is left to the motoko owner.

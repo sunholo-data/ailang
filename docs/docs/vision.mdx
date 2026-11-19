@@ -71,7 +71,7 @@ AILANG's design rests on five pillars that together form a coherent system for t
 - No semantic boundary between "pure logic" and "this talks to the database"
 
 **AILANG:**
-```
+```ailang
 -- The type signature constrains what this function CAN do
 let processUser: User -> ! {DB} UserRecord =
   \user. dbWrite(transformUser(user))
@@ -142,7 +142,7 @@ ailang run --emit-trace jsonl --quiet --caps IO --entry main program.ail 2>/dev/
 
 AILANG eliminates ambient authority. Every capability must be explicitly declared:
 
-```
+```ailang
 -- Declare: this function needs IO and FS, with bounded IO usage
 export func process(path: string) -> string ! {IO @limit=3, FS} =
   let data = readFile(path)      -- FS capability required

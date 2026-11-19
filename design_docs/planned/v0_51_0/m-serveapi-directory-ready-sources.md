@@ -32,6 +32,16 @@ re-check the decisions that cite it.
 | O9 | "To let ChatGPT pass files to a tool, list each top-level file input in `_meta["openai/fileParams"]`. Each listed field must resolve to a file object or an array of file objects." / "The Scan Tools step and plugin submission reject a file schema that omits any of the four properties, does not require `download_url` and `file_id`, marks either optional property as required, or requires a property other than `download_url` or `file_id`." | Plugins reference: https://developers.openai.com/plugins/reference |
 | O10 | `securitySchemes` is a top-level tool field: "`noauth`: The tool is callable anonymously" / "`oauth2`: The tool needs an OAuth 2.0 access token"; reference: "`_meta[\"securitySchemes\"]` — Back-compat mirror for clients that only read `_meta`." | same pages as O4 and O9 |
 
+## Microsoft Copilot (added 2026-11-10, read 2026-11-10)
+
+Used by `ailang mcp check --target copilot` (and `all`).
+
+| ID | Quote | Source |
+|----|-------|--------|
+| C1 | "If your MCP server supports dynamic client registration (DCR), you can instead select **OAuth (with dynamic registration)** … If your MCP server uses Microsoft Entra single sign-on (SSO) instead of OAuth, select **Entra SSO**"; with **OAuth (with static registration)** "Agents Toolkit prompts you for the client ID, client secret, and optional scopes". Copilot Studio: "Dynamic discovery", "Dynamic" (DCR) or "Manual" (client ID + secret). No client ID metadata documents in either | https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/build-mcp-plugins ; https://learn.microsoft.com/en-us/microsoft-copilot-studio/mcp-add-existing-server-to-agent |
+| C2 | Supported-capabilities table: `_meta["openai/fileParams"]` … ❌ | https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/plugin-mcp-apps |
+| C3 | "Copilot renders widget UI under an MCP server-specific host with the following URL: `{hashed-mcp-domain}.widget-renderer.usercontent.microsoft.com` … Both your MCP server and your identity provider must allow the following URLs" | https://learn.microsoft.com/en-us/microsoft-365/copilot/extensibility/plugin-mcp-apps |
+
 ## Not yet established
 
 - **V11:** whether ChatGPT acts on an HTTP 401 for `tools/call` the way Claude does (A3), or only

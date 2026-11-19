@@ -53,7 +53,7 @@ func safeEqualsWithVisited(t1, t2 Type, visited map[typePair]bool) bool {
 
 	case *TCon:
 		if typ2, ok := t2.(*TCon); ok {
-			return typ1.Name == typ2.Name
+			return NominalSame(typ1, typ2)
 		}
 		return false
 

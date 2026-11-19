@@ -77,6 +77,23 @@ func DefaultSolverConfig() SolverConfig {
 	}
 }
 
+// z3CommonPaths are the fixed locations FindZ3 tries after PATH.
+var z3CommonPaths = []string{
+	"/opt/homebrew/bin/z3", // macOS Homebrew (Apple Silicon)
+	"/usr/local/bin/z3",    // macOS Homebrew (Intel) / Linux
+	"/usr/bin/z3",          // Linux package manager
+	"/snap/bin/z3",         // Ubuntu snap
+}
+
+// Z3Lookup describes where FindZ3 looked, for a "solver not found" message
+// that names the actual search instead of assuming one platform's installer.
+func Z3Lookup() string {
+	if envPath := ailangconfig.Z3Path(); envPath != "" {
+		return fmt.Sprintf("%s=%s (no such file)", ailangconfig.EnvZ3Path, envPath)
+	}
+	return fmt.Sprintf("%s is unset; no z3 on PATH or at %s", ailangconfig.EnvZ3Path, strings.Join(z3CommonPaths, ", "))
+}
+
 // FindZ3 discovers the Z3 binary location.
 // Search order: AILANG_Z3_PATH env, PATH, common locations.
 func FindZ3() (string, error) {
@@ -94,13 +111,7 @@ func FindZ3() (string, error) {
 	}
 
 	// 3. Check common locations
-	commonPaths := []string{
-		"/opt/homebrew/bin/z3", // macOS Homebrew (Apple Silicon)
-		"/usr/local/bin/z3",    // macOS Homebrew (Intel) / Linux
-		"/usr/bin/z3",          // Linux package manager
-		"/snap/bin/z3",         // Ubuntu snap
-	}
-	for _, p := range commonPaths {
+	for _, p := range z3CommonPaths {
 		if _, err := os.Stat(p); err == nil {
 			return p, nil
 		}

@@ -143,6 +143,32 @@ type File struct {
 	Statements []Node        // Top-level statements/expressions
 	Path       string        // File path for validation
 	Pos        Pos
+	// LowerTypeNames records each bare lowercase name in type position that
+	// the parser resolved without a binder (rules 3 and 4 of
+	// parser_type_names.go), for diagnostics that need the module's imports,
+	// which the parser cannot see (#2211). Nothing reads it for typing.
+	LowerTypeNames []LowerTypeName
+}
+
+// LowerTypeNameKind says how the parser read a bare lowercase type name.
+type LowerTypeNameKind int
+
+const (
+	// LowerImplicitVar: undeclared here and not imported by name, so an
+	// implicitly quantified type variable.
+	LowerImplicitVar LowerTypeNameKind = iota
+	// LowerImported: imported by name (import M (x)), so read as that import.
+	LowerImported
+	// LowerLocal: declared as a type in this file (type x = ...).
+	LowerLocal
+)
+
+// LowerTypeName is one use of a bare lowercase name in type position.
+type LowerTypeName struct {
+	Name string
+	Pos  Pos
+	Kind LowerTypeNameKind
+	Decl string // the enclosing top-level declaration ("" if none)
 }
 
 // ModuleDecl represents a module declaration
@@ -156,14 +182,26 @@ type ModuleDecl struct {
 type ImportDecl struct {
 	Path          string            // Module path to import
 	Symbols       []string          // Selective imports (empty = whole module)
+	SymbolPos     []Pos             // Position of each Symbols entry (same index; empty if synthesized)
 	ModuleAlias   string            // Module alias: "import std/list as List" -> "List"
 	SymbolAliases map[string]string // Symbol aliases: original -> alias (e.g., "length" -> "stringLength")
 	IsPackage     bool              // True if import uses pkg/ prefix (external package)
 	PackageName   string            // Package name (vendor/name) extracted from pkg/ import path
 	IsRelative    bool              // True if import uses ./ prefix (intra-package sibling)
 	RelativePath  string            // Relative portion after ./ (e.g., "plan" from "./plan")
-	Pos           Pos
-	Span          Span
+	// WrittenPath is the spelling the author wrote when the loader replaced
+	// Path with the module's canonical identity (a module_prefix or bare
+	// self-import spelling becomes pkg/<vendor>/<name>/<module>). Empty when
+	// Path is what was written. Diagnostics name both (M1b, canonical module
+	// identity — one module file, one identity).
+	WrittenPath string
+	// Implicit marks an import the loader injected (the implicit prelude of an
+	// entry module), not one the user wrote. It is the lowest-precedence
+	// binding of its names (M-V1-NOMINAL-TYPE-IDENTITY) and carries no
+	// position, so no diagnostic may point at it.
+	Implicit bool
+	Pos      Pos
+	Span     Span
 }
 
 func (f *File) String() string {

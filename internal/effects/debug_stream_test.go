@@ -100,6 +100,9 @@ func TestCloneGivesEachRequestItsOwnDebugContext(t *testing.T) {
 	if !strings.Contains(buf.String(), "from clone") {
 		t.Fatalf("clone's sink not inherited: %q", buf.String())
 	}
+	if got := len(clone.Debug.Collect().Logs); got != 0 {
+		t.Fatalf("the clone streamed its line AND retained %d", got)
+	}
 	// Without a sink, the clone still gets its own accumulator.
 	plain := NewEffContext(nil)
 	plain.Debug = NewDebugContext()
@@ -107,5 +110,36 @@ func TestCloneGivesEachRequestItsOwnDebugContext(t *testing.T) {
 	pc.Debug.Log("only in clone", "t.ail:1")
 	if len(plain.Debug.Collect().Logs) != 0 || len(pc.Debug.Collect().Logs) != 1 {
 		t.Fatalf("clone accumulator not isolated")
+	}
+}
+
+// The CLI's entrypoint never runs on the context the runner attaches the sink
+// to: CallEntrypoint forks the evaluator, and Clone gives the fork a Fresh()
+// context that shares the sink. So "a context with a sink retains nothing"
+// must hold for that cloned context too, for lines above AND below the level.
+// TestDebugLogFiltersByLevelOnArrival covers only a directly attached sink;
+// the runner-level TestDebugLogDoesNotAccumulateDuringRun sees only what is
+// written, not what the clone keeps (review mutant D4b retained in the clone
+// only, streamed every line, and passed both).
+func TestClonedContextWithSinkRetainsNothing(t *testing.T) {
+	ctx := NewEffContext(nil)
+	d, buf := attachedSink(3) // ERROR
+	ctx.Debug = d
+	clone := ctx.Clone().(*EffContext)
+	clone.Debug.Log(`{"severity":"DEBUG","message":"below"}`, "t.ail:1")
+	clone.Debug.Log(`{"severity":"ERROR","message":"above"}`, "t.ail:2")
+	clone.Debug.Check(true, "passes", "t.ail:3")
+	clone.Debug.Check(false, "fails", "t.ail:4")
+	out := buf.String()
+	if strings.Contains(out, "below") || !strings.Contains(out, "above") || !strings.Contains(out, "[ASSERT FAIL] fails") {
+		t.Fatalf("clone did not stream through the shared sink at ERROR: %q", out)
+	}
+	got := clone.Debug.Collect()
+	if len(got.Logs) != 0 || cap(got.Logs) != 0 || len(got.Assertions) != 0 {
+		t.Fatalf("the cloned context retained %d log lines (cap %d) and %d checks; want none — the entrypoint runs on this context",
+			len(got.Logs), cap(got.Logs), len(got.Assertions))
+	}
+	if n := len(d.Collect().Logs); n != 0 {
+		t.Fatalf("the parent context retained %d lines", n)
 	}
 }

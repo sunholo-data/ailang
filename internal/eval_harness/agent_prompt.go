@@ -3,317 +3,11 @@ package eval_harness
 import (
 	"fmt"
 	"os"
-	"path/filepath"
 	"strings"
 
 	envcfg "github.com/sunholo-data/ailang/internal/config"
 	"github.com/sunholo-data/ailang/internal/eval_harness/langreg"
 )
-
-// GenerateAgentPrompt creates a comprehensive prompt for the agent
-// This version loads from a language-specific template file for easy editing
-func GenerateAgentPrompt(spec *BenchmarkSpec, config AgentBenchmarkConfig, syntaxRef string, language string) string {
-	// Determine template path based on language
-	templatePath := "internal/eval_harness/templates/agent_prompt.txt"
-	if lang, err := langreg.Get(language); err == nil {
-		if p := lang.PromptTemplatePath(); p != "" {
-			templatePath = p
-		}
-	}
-
-	// Try to load template from file
-	templateBytes, err := os.ReadFile(templatePath)
-
-	var template string
-	if err != nil {
-		// Fallback to hardcoded template if file not found
-		template = getDefaultPromptTemplate(language)
-	} else {
-		template = string(templateBytes)
-	}
-
-	// Replace placeholders.
-	// M-EVAL-NETWORK-MOCK-FIXTURE: for benchmarks that hit the local HTTP mock, the
-	// agent's own `ailang run --caps {{CAPS}} solution.ail` invocations must also
-	// enable plain-http + loopback (the {{CAPS}} token sits immediately before
-	// ` solution.ail`, so appending the flags here yields a valid command line).
-	// Without this the agent's in-loop verification of api_call_json fails forever
-	// (loopback blocked) and the run stalls.
-	capsValue := strings.Join(spec.Caps, ",")
-	if spec.NetAllowLocalhost {
-		capsValue += " --net-allow-http --net-allow-localhost"
-	}
-	template = strings.ReplaceAll(template, "{{CAPS}}", capsValue)
-	template = strings.ReplaceAll(template, "{{TIMEOUT}}", fmt.Sprintf("%d", config.TimeoutSeconds))
-	template = strings.ReplaceAll(template, "{{PYTHON_VERSION}}", DetectedPythonVersion())
-
-	return template
-}
-
-// getDefaultPromptTemplate returns a fallback template if file not found
-func getDefaultPromptTemplate(language string) string {
-	// Return language-specific default
-	if language == "python" {
-		return getDefaultPythonTemplate()
-	}
-	return getDefaultAILANGTemplate()
-}
-
-// getDefaultAILANGTemplate returns the AILANG template
-func getDefaultAILANGTemplate() string {
-	return `You are solving an AILANG benchmark in an isolated workspace.
-
-## Workspace Files
-
-- **README.md**: Problem description and expected output
-- **solution.ail**: Your implementation (currently empty - you will write this)
-- **syntax_reference.md**: Complete AILANG syntax reference
-
-## Your Task
-
-1. Read README.md to understand the problem and expected output
-2. Read syntax_reference.md for AILANG syntax (important!)
-3. Write your solution in solution.ail
-4. Type-check: Run 'ailang check solution.ail'
-5. Test: Run 'ailang run --entry main --caps {{CAPS}} solution.ail'
-6. Compare output with expected output from README.md
-7. If output doesn't match, iterate and fix
-8. Repeat steps 4-7 until output matches exactly
-
-## Success Criteria
-
-✓ solution.ail compiles without errors
-✓ solution.ail runs without runtime errors
-✓ Output matches expected output exactly (whitespace is trimmed)
-
-## Constraints
-
-- Timeout: {{TIMEOUT}} seconds
-- Solution must be in solution.ail (not inline or in comments)
-
-## Tools Available
-
-You have access to:
-- Bash: Run ailang commands, check files
-- Read: Read README.md, syntax_reference.md
-- Write: Create solution.ail
-- Edit: Modify solution.ail
-- Grep: Search for patterns in files
-
-## Tips
-
-- Start simple: Get basic structure working first
-- Use ailang check frequently to catch type errors early
-- If you get a type error, read the error message carefully
-- AILANG is functional - no mutable variables, use recursion or higher-order functions
-- All effects must be declared in function signatures (e.g., ! {IO})
-- Pattern matching is exhaustive - cover all cases
-
-Good luck!
-`
-}
-
-// LoadActiveSyntaxReference loads the active teaching prompt for a language
-func LoadActiveSyntaxReference(language string) (string, error) {
-	lang, err := langreg.Get(language)
-	if err != nil {
-		// Default to AILANG for unknown languages
-		lang = langreg.MustGet("ailang")
-	}
-	content, _, loadErr := lang.LoadSyntaxRef("")
-	return content, loadErr
-}
-
-// loadPythonPrompt loads the Python teaching prompt and substitutes the
-// runtime version placeholder so the prompt advertises the same Python
-// version that the grader will actually invoke.
-func loadPythonPrompt() (string, error) {
-	// Python prompt is in prompts/ (same location as AILANG prompts)
-	pythonPromptPath := "prompts/python.md"
-	data, err := os.ReadFile(pythonPromptPath)
-	if err != nil {
-		return "", fmt.Errorf("failed to read python prompt: %w", err)
-	}
-
-	return strings.ReplaceAll(string(data), "{{PYTHON_VERSION}}", DetectedPythonVersion()), nil
-}
-
-// PrepareWorkspaceWithSyntax creates workspace files with full AILANG syntax reference
-func PrepareWorkspaceWithSyntax(workspace string, spec *BenchmarkSpec, syntaxRef string) error {
-	// Create README.md with problem description
-	readme := fmt.Sprintf(`# %s
-
-%s
-
-## Task
-
-%s
-
-## Expected Output
-
-%s
-
-## Notes
-
-- Your implementation should go in solution.ail
-- Run 'ailang check solution.ail' to type-check
-- Run 'ailang run --entry main --caps %s solution.ail' to test
-- See syntax_reference.md for complete AILANG syntax
-`, spec.ID, spec.Description, spec.TaskPrompt, spec.ExpectedOut, strings.Join(spec.Caps, ","))
-
-	if err := os.WriteFile(filepath.Join(workspace, "README.md"), []byte(readme), 0644); err != nil {
-		return fmt.Errorf("failed to write README.md: %w", err)
-	}
-
-	// Create empty solution.ail stub with helpful comment
-	solutionStub := fmt.Sprintf(`// %s
-//
-// TODO: Implement your solution here
-//
-// Capabilities required: %s
-//
-// Quick start:
-// 1. Define your main function: func main(): <return-type> ! {%s} = ...
-// 2. Use pattern matching for complex logic: match expr { ... }
-// 3. Use recursion for loops
-// 4. Run 'ailang check solution.ail' to verify syntax
-// 5. Run 'ailang run --entry main --caps %s solution.ail' to test
-
-`, spec.ID, strings.Join(spec.Caps, ","), strings.Join(spec.Caps, ","), strings.Join(spec.Caps, ","))
-
-	if err := os.WriteFile(filepath.Join(workspace, "solution.ail"), []byte(solutionStub), 0644); err != nil {
-		return fmt.Errorf("failed to write solution.ail: %w", err)
-	}
-
-	// Create syntax_reference.md with full AILANG teaching prompt
-	if syntaxRef == "" {
-		syntaxRef = getDefaultSyntaxReference()
-	}
-
-	if err := os.WriteFile(filepath.Join(workspace, "syntax_reference.md"), []byte(syntaxRef), 0644); err != nil {
-		return fmt.Errorf("failed to write syntax_reference.md: %w", err)
-	}
-
-	return nil
-}
-
-// getDefaultSyntaxReference returns a minimal syntax reference if full prompt unavailable
-func getDefaultSyntaxReference() string {
-	return `# AILANG Syntax Reference (Minimal)
-
-## Basic Syntax
-
-**Functions:**
-func name(x: int): int = x + 1
-
-**Let bindings:**
-let x = 42 in x + 1
-
-**Lambdas:**
-\x. x + 1
-
-**Pattern matching:**
-match expr {
-  Some(x) => x,
-  None => 0
-}
-
-**Effects:**
-func read_file(path: string): string ! {IO, FS} = ...
-
-**Blocks:**
-{
-  let x = 1;
-  let y = 2;
-  x + y
-}
-
-## Common Builtins
-
-- print(s: string): unit ! {IO}
-- show(x: a): string (converts any value to string)
-- intToFloat(i: int): float
-- floatToInt(f: float): int
-
-## Tips
-
-- AILANG is pure functional - no mutable state
-- Use recursion instead of loops
-- All effects must be declared in function signatures
-- Pattern matching must be exhaustive
-
-For complete documentation, see the full AILANG teaching prompt.
-`
-}
-
-// EnhancedGenerateAgentPrompt is a wrapper that loads syntax and generates prompt
-// language parameter determines which teaching prompt to load (ailang, python, etc.)
-func EnhancedGenerateAgentPrompt(spec *BenchmarkSpec, config AgentBenchmarkConfig, language string) (string, string, error) {
-	// Load syntax reference for the specified language
-	syntaxRef, err := LoadActiveSyntaxReference(language)
-	if err != nil {
-		// Fall back to minimal reference
-		syntaxRef = getDefaultSyntaxReference()
-	}
-
-	// Generate prompt
-	prompt := GenerateAgentPrompt(spec, config, syntaxRef, language)
-
-	return prompt, syntaxRef, nil
-}
-
-// getDefaultPythonTemplate returns the Python template
-func getDefaultPythonTemplate() string {
-	return `You are solving a Python benchmark in an isolated workspace.
-
-## Workspace Files
-
-- **README.md**: Problem description and expected output
-- **solution.py**: Your implementation (currently empty - you will write this)
-- **syntax_reference.md**: Python language reference
-
-## Your Task
-
-1. Read README.md to understand the problem and expected output
-2. Read syntax_reference.md for Python syntax guidance
-3. Write your solution in solution.py (target Python {{PYTHON_VERSION}})
-4. Test: Run 'uv run --python {{PYTHON_VERSION}} solution.py'
-5. Compare output with expected output from README.md
-6. If output doesn't match, iterate and fix
-7. Repeat steps 4-6 until output matches exactly
-
-## Success Criteria
-
-✓ solution.py runs without errors
-✓ Output matches expected output exactly (whitespace is trimmed)
-
-## Constraints
-
-- Timeout: {{TIMEOUT}} seconds
-- Solution must be in solution.py (not inline or in comments)
-
-## Tools Available
-
-You have access to:
-- Bash: Run python3 commands, check files
-- Read: Read README.md, syntax_reference.md
-- Write: Create solution.py
-- Edit: Modify solution.py
-- Grep: Search for patterns in files
-
-## Tips
-
-- Start simple: Get basic structure working first
-- Test frequently with 'uv run --python {{PYTHON_VERSION}} solution.py'
-- Runtime is pinned to **Python {{PYTHON_VERSION}}** via uv — features up to {{PYTHON_VERSION}} (match/case, unions, PEP 695 type statement) are fair game; anything newer will SyntaxError
-- Use the Python standard library - no external packages needed
-- Follow PEP 8 style guidelines
-- Use type hints for clarity
-- Handle edge cases explicitly
-
-Good luck!
-`
-}
 
 // LoadSystemPromptForLanguage loads the versioned teaching prompt for a language
 // This is used with Claude CLI's --system-prompt flag
@@ -322,7 +16,11 @@ func LoadSystemPromptForLanguage(language string, promptVersion string) (string,
 	if err != nil {
 		return "", "", fmt.Errorf("unsupported language: %s", language)
 	}
-	return lang.LoadSyntaxRef(promptVersion)
+	content, version, err := lang.LoadSyntaxRef(promptVersion)
+	if err != nil {
+		return "", "", err
+	}
+	return substituteRuntimePlaceholders(content), version, nil
 }
 
 // LoadTaskPromptTemplate loads the generic .txt template for the initial agent prompt
@@ -432,7 +130,7 @@ func GenerateAgentPromptsWithSystemPrompt(spec *BenchmarkSpec, config AgentBench
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{CAPS}}", strings.Join(spec.Caps, ","))
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{TIMEOUT}}", fmt.Sprintf("%d", config.TimeoutSeconds))
 	taskPrompt = strings.ReplaceAll(taskPrompt, "{{SOLUTION_PATH}}", solutionPath)
-	taskPrompt = strings.ReplaceAll(taskPrompt, "{{PYTHON_VERSION}}", DetectedPythonVersion())
+	taskPrompt = substituteRuntimePlaceholders(taskPrompt)
 
 	// Resolve condition: use explicit condition if set, otherwise fall back to legacy Verify flag
 	// cond was already set to config.Condition at function start
@@ -595,6 +293,7 @@ func getToolAwareVerificationSteps(caps string) string {
    ` + "```" + `
    - If Z3 reports COUNTEREXAMPLE: fix your logic using the counterexample inputs
    - If Z3 reports VERIFIED: your function is correct for ALL inputs
+   - If Z3 reports INCONCLUSIVE (recursive functions): the verifier could not decide within its unrolling depth — this is NOT a bug report; do not change your logic because of it, and test the function by running it
    - Re-run ai-check after every fix
 
 3. **Run your solution:**

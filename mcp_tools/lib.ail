@@ -45,12 +45,14 @@ export func resolveVersion(forVersion: string) -> string ! {Env, FS} =
 
 -- readVersionedJson reads a JSON file under versioned/<resolved>/<suffix>.
 -- Returns Err with a structured reason when the file is missing or unparseable.
+-- The missing: detail names the file relative to the snapshot root, never the
+-- server's own path (a listed connector must not return internal paths).
 export func readVersionedJson(forVersion: string, suffix: string) -> Result[Json, string] ! {Env, FS} =
   let path = versionedPath(forVersion, suffix) in
   if fileExists(path) then
     decode(readFile(path))
   else
-    Err("missing:${path}")
+    Err("missing:versioned/${if forVersion == "" then "latest" else forVersion}/${suffix}")
 
 -- readUnscopedJson reads a JSON file under unscoped/<suffix>.
 export func readUnscopedJson(suffix: string) -> Result[Json, string] ! {Env, FS} =
@@ -58,7 +60,7 @@ export func readUnscopedJson(suffix: string) -> Result[Json, string] ! {Env, FS}
   if fileExists(path) then
     decode(readFile(path))
   else
-    Err("missing:${path}")
+    Err("missing:unscoped/${suffix}")
 
 -- envelope wraps a tool's payload with the {served_for, data} envelope used by
 -- every version-scoped tool, so callers can detect cross-version content leak.

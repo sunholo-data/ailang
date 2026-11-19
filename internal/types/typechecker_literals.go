@@ -3,9 +3,104 @@ package types
 import (
 	"fmt"
 
+	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/typedast"
 )
+
+// SetLiteralLambdas marks the lambdas that are function literals (#2238): their
+// parameter annotations are enforced as equalities, not seeded (inferLambda).
+func (tc *CoreTypeChecker) SetLiteralLambdas(ids map[uint64]bool) {
+	tc.literalLambdas = ids
+}
+
+// declaredEffectRow is the row a lambda's explicit effect annotation declares.
+// An empty annotation (a function literal's `! {}`, #2238) is the closed empty
+// row, not the "no annotation" sentinel ElaborateEffectRowWithBudgets returns.
+func declaredEffectRow(annots []ast.EffectAnnotation) (*Row, error) {
+	row, err := ElaborateEffectRowWithBudgets(annots)
+	if err == nil && row == nil {
+		row = EmptyEffectRow()
+	}
+	return row, err
+}
+
+// literalParamType is the type of an annotated parameter of a function literal
+// (#2238). Like a top-level func's, it is the annotation itself (seeded) —
+// except when the annotation contains a function type with a concrete effect
+// contract (`cb: (int) -> () ! {IO}`). Such a row carries an open
+// compatibility tail (elaborate.astTypeToInternalType), and seeding it lets the
+// tail leak into the enclosing function when the callback is passed on to an
+// effect-polymorphic callee (#2295, which top-level funcs share; measured: 60
+// motoko-fork files). For that parameter the annotation is instead an equality
+// on a fresh variable, emitted before the body, as a let annotation is enforced.
+//
+// Why not the equality for every parameter: while the parameter is still a
+// fresh variable, an application of it mints a fresh row, and unifying that row
+// with a NAMED annotation row (`g: int -> () ! {e}`) rebinds the named variable
+// to a fresh remainder (row unification of two bare tails) — rejecting
+// effect-polymorphic literals that top-level funcs accept (review of #2289,
+// probes d11e). Seeding keeps the callee's own row, as for top-level funcs.
+func (tc *CoreTypeChecker) literalParamType(ctx *InferenceContext, lam *core.Lambda, param string, annot Type) Type {
+	if !hasConcreteEffectContract(annot, 0) {
+		return annot
+	}
+	v := ctx.freshTypeVar()
+	ctx.addConstraint(TypeEq{Left: v, Right: annot,
+		Path: []string{fmt.Sprintf("parameter annotation %s at %s", param, lam.Span())}})
+	return v
+}
+
+// hasConcreteEffectContract reports whether an annotation type contains a
+// function type whose effect row is a concrete contract (explicit labels).
+// Cycle-safety: annotation types are built from the AST by the elaborator and
+// are acyclic; depth is still bounded.
+func hasConcreteEffectContract(t Type, depth int) bool {
+	if depth > 32 {
+		return false
+	}
+	switch x := t.(type) {
+	case *TFunc2:
+		if x.ConcreteEffectContract {
+			return true
+		}
+		for _, p := range x.Params {
+			if hasConcreteEffectContract(p, depth+1) {
+				return true
+			}
+		}
+		return hasConcreteEffectContract(x.Return, depth+1)
+	case *TList:
+		return hasConcreteEffectContract(x.Element, depth+1)
+	case *TArray:
+		return hasConcreteEffectContract(x.Element, depth+1)
+	case *TTuple:
+		for _, e := range x.Elements {
+			if hasConcreteEffectContract(e, depth+1) {
+				return true
+			}
+		}
+	case *TApp:
+		for _, a := range x.Args {
+			if hasConcreteEffectContract(a, depth+1) {
+				return true
+			}
+		}
+	case *TRecord:
+		for _, f := range x.Fields {
+			if hasConcreteEffectContract(f, depth+1) {
+				return true
+			}
+		}
+	case *TRecordOpen:
+		for _, f := range x.Fields {
+			if hasConcreteEffectContract(f, depth+1) {
+				return true
+			}
+		}
+	}
+	return false
+}
 
 // inferLit infers type of literal
 func (tc *CoreTypeChecker) inferLit(ctx *InferenceContext, lit *core.Lit) (*typedast.TypedLit, *TypeEnv, error) {
@@ -77,7 +172,13 @@ func (tc *CoreTypeChecker) inferVar(ctx *InferenceContext, v *core.Var) (*typeda
 		}
 
 		var instConstraints []Constraint
-		monotype, instConstraints = scheme.InstantiateWithConstraints(ctx.freshType)
+		var accesses []*fieldAccess
+		monotype, instConstraints, accesses = scheme.instantiate(ctx.freshType, []string{fmt.Sprintf("use of %s at %v", v.Name, v.Span())})
+		// #2239: a let-bound function whose field accesses were undecided when
+		// it was generalised decides them afresh at every use.
+		for _, fa := range accesses {
+			ctx.addConstraint(fa)
+		}
 
 		// M-TYPE-LIST-ELEMENT-SOUNDNESS: re-emit the scheme's class constraints
 		// as fresh wanted constraints on the instantiated type variables. Without
@@ -85,12 +186,17 @@ func (tc *CoreTypeChecker) inferVar(ctx *InferenceContext, v *core.Var) (*typeda
 		// its `Num` obligation at the use site, so unifying `[a'] ~ [string]`
 		// silently accepts `needStrs([42])` (the soundness hole). Re-emitting
 		// `Num a'` lets the normal ground-constraint resolver reject `Num[string]`.
-		for _, c := range instConstraints {
+		// #2378: a use of a binding with numeric variants keeps an enclosing let
+		// monomorphic (PolyNumeric, literal_restriction.go).
+		tc.noteNumericRef(v.ID(), "", v.Name, v.Span(), scheme)
+		tc.recordForcedUse(scheme)
+		for i, c := range instConstraints {
 			ctx.addConstraint(ClassConstraint{
-				Class:  c.Class,
-				Type:   c.Type,
-				Path:   []string{fmt.Sprintf("use of %s at %v", v.Name, v.Span())},
-				NodeID: v.ID(),
+				Class:       c.Class,
+				Type:        c.Type,
+				Path:        []string{fmt.Sprintf("use of %s at %v", v.Name, v.Span())},
+				NodeID:      v.ID(),
+				PolyNumeric: c.Class == "Num" && scheme.Constraints[i].Literal,
 			})
 		}
 
@@ -141,8 +247,21 @@ func (tc *CoreTypeChecker) inferVarGlobal(ctx *InferenceContext, v *core.VarGlob
 		}
 	}
 
-	// Instantiate the scheme
-	monotype := scheme.Instantiate(ctx.freshType)
+	// Instantiate the scheme, and re-emit its class constraints as wanted
+	// constraints at this use (#2290), exactly as inferVar does for a
+	// same-module binding: an imported `eqq[a](x: a, y: a) = x == y` carries
+	// Eq[a], and `eqq(f, g)` on two functions must fail here, not at run time.
+	monotype, instConstraints := scheme.InstantiateWithConstraints(ctx.freshType)
+	tc.noteNumericRef(v.ID(), v.Ref.Module, v.Ref.Name, v.Span(), scheme) // #2378
+	for i, c := range instConstraints {
+		ctx.addConstraint(ClassConstraint{
+			Class:       c.Class,
+			Type:        c.Type,
+			Path:        []string{globalUsePath(v, c.Class)},
+			NodeID:      v.ID(),
+			PolyNumeric: c.Class == "Num" && scheme.Constraints[i].Literal,
+		})
+	}
 
 	// Record instantiation after it happens
 	if tc.trackInstantiations {

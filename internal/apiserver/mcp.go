@@ -482,6 +482,10 @@ func (ms *MCPServer) makeToolHandler(modulePath string, export ExportInfo) mcp.T
 		// Convert result to Go value.
 		var goResult any
 		if callErr == nil {
+			var errRes *mcp.CallToolResult
+			if result, errRes = unwrapMCPResult(result); errRes != nil {
+				return errRes, nil
+			}
 			var err error
 			goResult, err = embed.ToGo(result)
 			if err != nil {
@@ -515,7 +519,7 @@ func (ms *MCPServer) RunStdio(ctx context.Context) error {
 // fresh temporary session, which means clients holding a stale session ID
 // (e.g. after a Cloud Run revision rolls) no longer get "session not found"
 // 4xx — they just transparently re-handshake. AILANG's MCP tools are all
-// read-only lookups (docs_search, stdlib_modules, benchmark_run, ...), so we
+// read-only lookups (docs_search, stdlib_modules, benchmarks_list, ...), so we
 // don't need server→client requests, which is the only feature stateless
 // mode disables.
 func (ms *MCPServer) HTTPHandler() http.Handler {

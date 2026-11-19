@@ -3,8 +3,8 @@
   "created": "2026-10-22T00:00:00Z",
   "estimated_duration_days": 1,
   "correlation_id": "sprint_M-FLEET-STALL-OWN-TRANSCRIPT_fleet55_20261022",
-  "design_doc": "design_docs/planned/sprint-plan-stall-own-session-transcript.md",
-  "markdown_plan": "design_docs/planned/sprint-plan-stall-own-session-transcript.md",
+  "design_doc": "design_docs/implemented/v0_54_18/sprint-plan-stall-own-session-transcript.md",
+  "markdown_plan": "design_docs/implemented/v0_54_18/sprint-plan-stall-own-session-transcript.md",
   "github_issues": [],
   "registry_reuse": [
     {
@@ -52,7 +52,7 @@
     "estimated_days": 1,
     "actual_days": null
   },
-  "last_session": "Fleet iteration 59 recovery reconciles already-merged PR #1937 without implementation replay. Controller owns terminal outside-sandbox make test-launchd-drivers evidence, independent acceptance, and actual recovery-completion UTC timestamp. Preserve the original plan and acceptance contract; see design_docs/planned/sprint-plan-stall-own-session-transcript.md recovery addendum and design_docs/fleet-mission-evidence/iteration59/recovery-evaluation.md. Historical start, effort and velocity are unmeasured.",
+  "last_session": "Fleet iteration 59 recovery reconciles already-merged PR #1937 without implementation replay. Controller owns terminal outside-sandbox make test-launchd-drivers evidence, independent acceptance, and actual recovery-completion UTC timestamp. Preserve the original plan and acceptance contract; see design_docs/implemented/v0_54_18/sprint-plan-stall-own-session-transcript.md recovery addendum and design_docs/fleet-mission-evidence/iteration59/recovery-evaluation.md. Historical start, effort and velocity are unmeasured.",
   "last_checkpoint": "2026-10-23T18:59:04Z",
   "status": "completed"
 }

@@ -6,7 +6,7 @@ it is deliberately concise and proposes no new subsystem.
 **Priority:** P1
 **Created:** 2026-09-10
 **Related:** [m-message-plane-trust.md](m-message-plane-trust.md) (send-means-ran),
-[m-coordinator-execution-trust.md](m-coordinator-execution-trust.md),
+[../implemented/v0_35_0/m-coordinator-execution-trust.md](../implemented/v0_35_0/m-coordinator-execution-trust.md),
 [message-plane-topology.md](../../docs/internal/message-plane-topology.md),
 `internal/coordinator/pubsub_completion_handler.go`,
 `internal/coordinator/agent_registry.go` (`OutputMarkers`, `DESIGN_DOC_PATH:`),

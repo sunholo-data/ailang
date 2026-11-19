@@ -1,0 +1,29 @@
+-- Compute renewal and anniversary dates from a fixed start date with
+-- addMonths and addYears, including what happens to month-end and Feb 29
+-- dates, and count the days between them with diffDays. Demonstrates
+-- makeDate, addMonths, addYears, diffDays, formatISODate,
+-- formatWeekdayFull and formatMonthShort.
+module examples/runnable/stdlib/datetime_anniversaries
+import std/datetime (makeDate, addMonths, addYears, diffDays, formatISODate, formatWeekdayFull, formatMonthShort)
+
+func describe(label: string, ts: int) -> string =
+  "${label}: ${formatISODate(ts)} (${formatWeekdayFull(ts)}, ${formatMonthShort(ts)})"
+
+export func main() -> () ! {IO} {
+  let signed = makeDate(2023, 1, 31)
+  println(describe("signed", signed))
+  -- Month arithmetic normalises overflow: Jan 31 + 1 month rolls into March
+  println(describe("+1 month", addMonths(signed, 1)))
+  println(describe("+12 months", addMonths(signed, 12)))
+  println(describe("+1 year", addYears(signed, 1)))
+  println(describe("-1 year", addYears(signed, -1)))
+  -- A leap-day birthday in a non-leap year lands on Mar 1
+  let leapDay = makeDate(2024, 2, 29)
+  println(describe("leap day +1 year", addYears(leapDay, 1)))
+  println(describe("leap day +4 years", addYears(leapDay, 4)))
+  -- Days in each contract year: 2024 is a leap year
+  let y1 = addYears(signed, 1)
+  let y2 = addYears(signed, 2)
+  println("days in year 1: ${show(diffDays(y1, signed))}")
+  println("days in year 2: ${show(diffDays(y2, y1))}")
+}

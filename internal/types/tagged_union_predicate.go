@@ -112,7 +112,7 @@ func buildTufaMessage(field string, recvType Type, ctors []string, adtName strin
 		ctorList = tufaNoCtorsLabel
 	}
 	template := buildTufaTemplate(ctors, field, adtName)
-	return fmt.Sprintf(tufaMessageFormat, field, recvType.String(), adtName, ctorList, template)
+	return fmt.Sprintf(tufaMessageFormat, field, recvType, adtName, ctorList, template)
 }
 
 // VerifyTaggedUnionFieldAccesses runs the deferred-field-access pass
@@ -152,7 +152,7 @@ func (tc *CoreTypeChecker) VerifyTaggedUnionFieldAccesses() error {
 func (tc *CoreTypeChecker) makeDeferredRecordAccessError(d deferredFieldAccess, recvType Type) error {
 	adtName := extractADTName(recvType)
 	if adtName == "" {
-		adtName = recvType.String()
+		adtName = displayType(recvType)
 	}
 	ctors := collectAndSortCtors(adtName, tc.constructorTypes)
 	return &TypeCheckError{
@@ -176,7 +176,7 @@ func (tc *CoreTypeChecker) makeDeferredRecordAccessError(d deferredFieldAccess, 
 func makeUnificationTaggedUnionError(taggedUnion Type, openRec *TRecordOpen, ctors map[string]string) error {
 	adtName := extractADTName(taggedUnion)
 	if adtName == "" {
-		adtName = taggedUnion.String()
+		adtName = displayType(taggedUnion)
 	}
 
 	// What field was the user trying to access? The TRecordOpen tells us
@@ -201,7 +201,7 @@ func makeUnificationTaggedUnionError(taggedUnion Type, openRec *TRecordOpen, cto
 func (tc *CoreTypeChecker) makeRecordAccessOnTaggedUnionError(acc *core.RecordAccess, recvType Type) error {
 	adtName := extractADTName(recvType)
 	if adtName == "" {
-		adtName = recvType.String()
+		adtName = displayType(recvType)
 	}
 	ctors := collectAndSortCtors(adtName, tc.constructorTypes)
 	return &TypeCheckError{

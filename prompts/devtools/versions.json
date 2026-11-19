@@ -22,9 +22,31 @@
         "compact"
       ],
       "notes": "Conservative 69% size reduction. Keeps: all command names with primary flags, one example per command, capabilities table, quick workflows table. Removes: extended examples, JSON schemas, WASM API, compilation/advanced section. For full reference: ailang devtools-prompt"
+    },
+    "v0.8.1": {
+      "file": "prompts/devtools/v0.8.1.md",
+      "hash": "f39f35a534099b3e201a4572fc99cb1e42105823b2bd442b2eeaee81d3d07761",
+      "description": "Comprehensive dev tools reference covering 18 sections: run/test (all flags), debug, static contract verification (ailang verify with Z3), replay, training export, AI self-improvement with traces, chains, coordinator (15 subcommands), messaging (full), eval (6 commands), stdlib, telemetry/observatory (11 subcommands), dashboard/server, web/API, exec, advanced (debug ast, axioms, examples), AI provider config, WebAssembly",
+      "created": "2026-11-17",
+      "tags": [
+        "production",
+        "latest"
+      ],
+      "notes": "v0.8.0 without the removed Go emitter: drops `ailang compile --emit-go` (section 14) and `DEBUG_CODEGEN=1` (only the emitter read it). Go emitter removed in #2389."
+    },
+    "v0.8.1-compact": {
+      "file": "prompts/devtools/v0.8.1-compact.md",
+      "hash": "fb727f52d62ae7aee4f9ba119f8874acfa599cecc5701a348db24318a31a7f7a",
+      "description": "Token-efficient compact dev tools reference (~8KB vs ~27KB full prompt)",
+      "created": "2026-11-17",
+      "tags": [
+        "production",
+        "compact"
+      ],
+      "notes": "v0.8.0-compact without `DEBUG_CODEGEN=1` (Go emitter removed in #2389). v0.8.0-compact stays: eval-suite's `full` condition / --devtools-prompt pins it (cmd/ailang/eval_suite_agent.go)."
     }
   },
-  "active": "v0.8.0",
+  "active": "v0.8.1",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default devtools prompt version",

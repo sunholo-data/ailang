@@ -1,5 +1,7 @@
 # <MISSION-NAME> Mission — <one-line north-star headline>
 
+> **Fleet-wide rulings:** [fleet-rulings.md](fleet-rulings.md). Every RESOLVED, unsuperseded ruling there binds this mission, and nothing in this charter overrides one. If this charter disagrees with it, the ledger wins and the disagreement is a bug to report.
+
 <!--
   M-MISSION-PORTABILITY M3 — mission charter TEMPLATE.
   Copy this file to design_docs/<mission-name>-mission.md and fill every <PLACEHOLDER>.

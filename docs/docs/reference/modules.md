@@ -13,7 +13,7 @@ AILANG uses a module system for code organization, with explicit imports and exp
 
 Every AILANG file should declare its module path:
 
-```typescript
+```ailang
 module examples/math
 
 -- Module contents follow...
@@ -64,7 +64,7 @@ import ./sub/helpers (validate)
 
 Import specific symbols from a module:
 
-```typescript
+```ailang
 import std/io (println, print)
 import std/fs (readFile, writeFile)
 
@@ -79,7 +79,7 @@ func main() -> () ! {IO, FS} {
 
 Rename modules on import to avoid conflicts:
 
-```typescript
+```ailang
 -- Module alias: qualified access
 import std/list as List
 
@@ -94,7 +94,7 @@ func main() -> () ! {IO} {
 
 Rename individual symbols on import:
 
-```typescript
+```ailang
 -- Symbol alias: direct access with new name
 import std/list (length as listLength, map as listMap)
 
@@ -110,7 +110,7 @@ modules' same-named constructors. The alias works in patterns and expressions
 and matches the original constructor; the original name stays available unless
 something else in scope already uses it:
 
-```typescript
+```ailang
 import std/option (Option, Some as S, None as Nada)
 
 func describe(x: Option[int]) -> int = match x { S(v) => v, Nada => 0 }
@@ -125,7 +125,7 @@ compiling to an arm that can never match.
 
 Use both module and symbol aliasing together:
 
-```typescript
+```ailang
 -- Module alias + specific symbols
 import std/list as L (map, filter)
 
@@ -145,7 +145,7 @@ func main() -> () ! {IO} {
 
 When two modules export the same name:
 
-```typescript
+```ailang
 -- Both modules have a 'parse' function
 import json/parser as JsonParser
 import xml/parser as XmlParser
@@ -168,7 +168,7 @@ definition can be a `func`, a `let`, or an ADT constructor. A bare `tick` would 
 ambiguous, so this is error [MOD015](errors/mod015.md) (the rule Haskell and Elm call
 "ambiguous occurrence", Rust's E0255). Up to v0.51.1 the import silently won.
 
-```typescript
+```ailang
 import std/list (map)
 func map(f: int -> int, xs: [int]) -> [int] = ...   -- Error MOD015
 
@@ -190,7 +190,7 @@ What is allowed:
 
 **Imports are NOT transitive in AILANG.** When module A imports module B, A does **not** automatically get access to B's imports.
 
-```typescript
+```ailang
 -- module myapp/db imports std/fs internally
 module myapp/db
 import std/fs (readFile)
@@ -217,13 +217,41 @@ failed to resolve global std/fs.fileExists: module std/fs not imported
 
 **Fix:** Add the missing import to your module. See the [Imports section](#imports) above for syntax examples.
 
+### The implicit Option/Result prelude
+
+One exception, and exactly six names: `Option`, `Some`, `None` (from `std/option`) and `Result`,
+`Ok`, `Err` (from `std/result`) are in scope in **every** module without an import — library
+modules too since #2371, entry modules since v0.30.0. Nothing else is implicit:
+
+- their helper functions (`map`, `getOrElse`, `mapErr`, …) still need an import
+  (`import std/option (map)`);
+- `println` is available without import in entry modules only; a library module that calls it
+  needs `import std/io (println)`;
+- standard-library modules (`std/*`) and a file of top-level expressions do not get the six;
+- a library module whose code names none of them (a comment or a string's text does not count)
+  does not load `std/option`/`std/result` at all.
+
+They have the lowest precedence:
+
+- an import from `std/option` or `std/result` replaces that implicit import, so
+  `import std/option (Option, Some, None)` remains valid and changes nothing (no warning);
+- an explicit import of another type's constructor (`import lib/q (Q, Some)`) wins for that name;
+- a module that declares a prelude type or constructor itself (`type Option[a] = Some(a) | None`,
+  `type Opt = Some(int) | Nil`) does not get that prelude module at all (`None` is then not in
+  scope unless it declares it).
+
+A library that matches, without importing its type, a constructor of another module's type that
+happens to be called `Ok`, `Err`, `None` or `Some` gets the prelude's constructor instead (an
+arity or foreign-constructor error). The error names the fix — import that type with its
+constructors, e.g. `import lib/st (Status, Err, Ok, Pending)`.
+
 ## Exports
 
 ### Exporting Functions
 
 Use `export` to make functions available to other modules:
 
-```typescript
+```ailang
 module math/utils
 
 -- Exported: available to importers
@@ -246,7 +274,7 @@ export func double(x: int) -> int {
 
 Export type definitions:
 
-```typescript
+```ailang
 module data/option
 
 -- Export type and constructors
@@ -265,7 +293,7 @@ export func map[a, b](f: a -> b, opt: Option[a]) -> Option[b] {
 
 Import and immediately re-export:
 
-```typescript
+```ailang
 module prelude
 
 -- Re-export common utilities
@@ -282,7 +310,7 @@ AILANG includes a standard library with common utilities:
 
 Console I/O operations.
 
-```typescript
+```ailang
 import std/io (println, print, readLine)
 
 func main() -> () ! {IO} {
@@ -296,7 +324,7 @@ func main() -> () ! {IO} {
 
 File system operations.
 
-```typescript
+```ailang
 import std/fs (readFile, writeFile, exists)
 
 func main() -> () ! {FS} {
@@ -312,7 +340,7 @@ func main() -> () ! {FS} {
 
 List operations.
 
-```typescript
+```ailang
 import std/list (map, filter, fold, length, head, tail)
 
 func main() -> () ! {IO} {
@@ -330,7 +358,7 @@ func main() -> () ! {IO} {
 
 ZIP archive reading operations (requires FS effect).
 
-```typescript
+```ailang
 import std/result (Result, Ok, Err)
 
 -- List all entries in a ZIP archive
@@ -363,7 +391,7 @@ func readBinary(path: string, entry: string) -> Result[string, string] ! {FS} {
 
 XML parsing operations (pure functions, no effect required).
 
-```typescript
+```ailang
 import std/result (Result, Ok, Err)
 import std/option (Option, Some, None)
 
@@ -401,7 +429,7 @@ let tag = _xml_getTag(node);
 
 Lenient HTML5 parsing (pure functions, no effect required). Wraps `golang.org/x/net/html` (WHATWG-spec). Returns the **same `XmlNode` ADT as `std/xml`**, so every `std/xml` query — `findAll`, `findFirst`, `getText`, `getAttr`, `getTag`, `getChildren` — works unchanged on HTML trees.
 
-```typescript
+```ailang
 import std/result (Result, Ok, Err)
 import std/html (parse, parseFragment)
 import std/xml (findAll, getText, getAttr)
@@ -438,7 +466,7 @@ Common utilities automatically available:
 
 Modules can define entry points:
 
-```typescript
+```ailang
 module examples/hello
 
 import std/io (println)
@@ -457,7 +485,7 @@ ailang run --caps IO --entry main examples/hello.ail
 
 Any exported function can be an entry point:
 
-```typescript
+```ailang
 module examples/calc
 
 export func factorial(n: int) -> int {
@@ -501,7 +529,7 @@ project/
 
 AILANG does not allow circular imports:
 
-```typescript
+```ailang
 -- module a
 import b (funcB)  -- OK
 export func funcA() = funcB()
@@ -519,7 +547,7 @@ export func funcB() = funcA()
 
 In the REPL, you can use imports interactively:
 
-```
+```ailang repl
 ailang> import std/list (map)
 ailang> map(\x. x * 2, [1, 2, 3])
 [2, 4, 6]
@@ -529,7 +557,7 @@ ailang> map(\x. x * 2, [1, 2, 3])
 
 Files require module declarations:
 
-```typescript
+```ailang
 module scratch/test
 
 import std/list (map)

@@ -7,7 +7,7 @@ Lifts M-AI-OPENROUTER's runtime `--allow-routing` gate into a type-level `!{AI[m
 **Sprint ID:** M-AI-EFFECT-MODES
 **Target Version:** v0.15.0 (alongside M-EFFECT-REFINEMENT-PHASE1)
 **Design Doc:** [m-ai-effect-modes.md](m-ai-effect-modes.md)
-**Parent Design:** [M-EFFECT-REFINEMENT (v1.0.0)](../v1_0_0/m-effect-refinement.md) — Phase 5, AI subset
+**Parent Design:** [M-EFFECT-REFINEMENT (v1.0.0)](../../planned/v1_1_0/m-effect-refinement.md) — Phase 5, AI subset
 **Duration:** 3-4 working days (~25-30 hours)
 **Dependencies:** M-EFFECT-REFINEMENT-PHASE1 (✅ shipped: a90ada21+320b2a6c+72859118+de7fe9a7), M-AI-OPENROUTER (✅ v0.16.0)
 **Risk Level:** Low-Medium (mechanism already validated on Rand; AI is the second pilot)

@@ -34,7 +34,8 @@ func TestBuiltinYamlEncode_MatchesEvaluatorEmitter(t *testing.T) {
 	if adt.Tag != resultTagOk {
 		t.Fatalf("expected Ok, got %s", adt.Fields[0].AsString())
 	}
-	want := "\"z\": 1\n\"a\":\n  - \"x\"\n  - true\n\"n\": null\n"
+	// A whole-number JNumber keeps float syntax, so YAML reads it back as a float.
+	want := "\"z\": 1.0\n\"a\":\n  - \"x\"\n  - true\n\"n\": null\n"
 	if s := adt.Fields[0].AsString(); s != want {
 		t.Errorf("yaml mismatch\n got: %q\nwant: %q", s, want)
 	}

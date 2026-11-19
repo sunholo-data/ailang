@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <!-- AILANG laptop sticker: the ailang-logo.svg hexagon, with the website
+       set inside the hex where the base accent bar sits. Hex geometry is
+       identical to ailang-logo.svg so it die-cuts to the same outline. -->
+  <defs>
+    <linearGradient id="g1" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#e73c17"/>
+      <stop offset="100%" stop-color="#c08015"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Outer hexagon -->
+  <polygon points="488,256 372,457 140,457 24,256 140,55 372,55" fill="url(#g1)"/>
+  <!-- Inner hexagon -->
+  <polygon points="456,256 356,429 156,429 56,256 156,83 356,83" fill="#0f1420"/>
+
+  <!-- Lambda: sized and optically centred (Georgia λ leans right) so lambda+URL sit centred in the inner hex -->
+  <text x="253.4" y="233.7" text-anchor="middle" dominant-baseline="central"
+        font-family="Georgia, 'Times New Roman', serif" font-size="215"
+        fill="#fff" opacity="0.95">&#x03BB;</text>
+
+  <!-- Website: white "ailang" + accent-orange domain, in place of the old base accent bar -->
+  <text x="256" y="366" text-anchor="middle" dominant-baseline="central"
+        font-family="'Fira Code', Menlo, monospace" font-size="17.38" font-weight="500"
+        ><tspan fill="#ffffff">ailang</tspan><tspan fill="#dd6b20">.sunholo.com</tspan></text>
+
+  <!-- Corner verification brackets -->
+  <path d="M 163 128 L 163 103 L 188 103" fill="none" stroke="#dd6b20" stroke-width="5" stroke-linecap="square" opacity="0.55"/>
+  <path d="M 349 128 L 349 103 L 324 103" fill="none" stroke="#dd6b20" stroke-width="5" stroke-linecap="square" opacity="0.55"/>
+</svg>

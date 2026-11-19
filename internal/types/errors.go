@@ -92,7 +92,7 @@ func (e *TypeCheckError) Error() string {
 	parts = append(parts, e.Message)
 
 	if e.Expected != nil && e.Actual != nil {
-		parts = append(parts, fmt.Sprintf("\n  Expected: %s\n  Actual:   %s", e.Expected, e.Actual))
+		parts = append(parts, fmt.Sprintf("\n  Expected: %s\n  Actual:   %s", displayType(e.Expected), displayType(e.Actual)))
 	}
 
 	if e.Suggestion != "" {
@@ -129,7 +129,10 @@ func NewKindMismatchError(expected, actual Kind, path []string) *TypeCheckError 
 //
 // M-MATCH-ADT-XCHECK (v0.18.10). See also:
 // design_docs/implemented/v0_18_10/m-match-adt-xcheck.md.
-func NewMatchForeignConstructorError(ctor, ctorADT, scrutADT string, ctorList, scrutList []string, path []string) *TypeCheckError {
+//
+// scrutAlias is the name the scrutinee's type was written with when that is
+// an alias of scrutADT (`type Hue = Color`, #2244), else "".
+func NewMatchForeignConstructorError(ctor, ctorADT, scrutADT, scrutAlias string, ctorList, scrutList []string, path []string) *TypeCheckError {
 	sort.Strings(ctorList)
 	sort.Strings(scrutList)
 	suggestion := ""
@@ -140,9 +143,13 @@ func NewMatchForeignConstructorError(ctor, ctorADT, scrutADT string, ctorList, s
 			suggestion = fmt.Sprintf("did you mean one of: %s?", strings.Join(scrutList, ", "))
 		}
 	}
+	written := ""
+	if scrutAlias != "" {
+		written = ", written as its alias " + scrutAlias
+	}
 	msg := fmt.Sprintf(
-		"match arm constructor '%s' belongs to ADT '%s', not '%s' (the scrutinee's type).\n  %s's constructors are: %s\n  %s's constructors are: %s",
-		ctor, ctorADT, scrutADT,
+		"match arm constructor '%s' belongs to ADT '%s', not '%s' (the scrutinee's type%s).\n  %s's constructors are: %s\n  %s's constructors are: %s",
+		ctor, ctorADT, scrutADT, written,
 		scrutADT, strings.Join(scrutList, ", "),
 		ctorADT, strings.Join(ctorList, ", "),
 	)
@@ -501,7 +508,7 @@ func NewRowOccursError(rowVar string, inType Type, position string) *TypeCheckEr
 	return &TypeCheckError{
 		Kind:       OccursCheckError,
 		Position:   position,
-		Message:    fmt.Sprintf("%s: Row variable '%s' occurs in %s (infinite type)", TC_REC_003, rowVar, inType.String()),
+		Message:    fmt.Sprintf("%s: Row variable '%s' occurs in %s (infinite type)", TC_REC_003, rowVar, inType),
 		Actual:     inType,
 		Suggestion: "This would create an infinite type. Check your type annotations.",
 	}
@@ -516,7 +523,7 @@ func NewFieldTypeMismatchError(field string, expected, actual Type, position str
 		Expected: expected,
 		Actual:   actual,
 		Suggestion: fmt.Sprintf("Field '%s' expects %s, but got %s",
-			field, expected.String(), actual.String()),
+			field, displayType(expected), displayType(actual)),
 	}
 }
 

@@ -1,0 +1,43 @@
+-- Task: scrape a real-world HTML page (unclosed tags, mixed-case markup) for its
+-- title, headings and links, then keep only the external https links.
+-- Demonstrates std/html parse with std/xml findFirst, getText, findAllTexts,
+-- findAll, getAttrMap and std/map lookup.
+module examples/runnable/stdlib/html_link_extract
+import std/html (parse)
+import std/xml (XmlNode, findFirst, getText, findAllTexts, findAll, getAttrMap)
+import std/map as M
+import std/list (map, filter, forEachE)
+import std/string (join, startsWith)
+
+func attrOr(attrs: Map[string, string], name: string, d: string) -> string = match M.lookup(attrs, name) {
+  Some(v) => v,
+  None => d
+}
+
+-- One link as {href, text, rel}; getAttrMap reads all attributes in one call.
+func toLink(a: XmlNode) -> { href: string, text: string, rel: string } {
+  let attrs = getAttrMap(a);
+  { href: attrOr(attrs, "href", ""), text: getText(a), rel: attrOr(attrs, "rel", "-") }
+}
+
+export func main() -> () ! {IO} {
+  let page = "<!DOCTYPE html><HTML><head><title>Release notes</title></head><body><H1>v2.0</H1><p>See the <a href=\"/docs\">docs</a><p>Source on <a href=\"https://github.com/example/repo\" rel=\"noopener\">GitHub</a><h2>Changes</h2><ul><li>Faster parser<li>New <a href=\"https://example.com/blog\">blog post</a></ul></body></HTML>"
+  match parse(page) {
+    Err(e) => println("parse error: ${e}"),
+    Ok(root) => {
+      match findFirst(root, "title") {
+        Some(t) => println("title: ${getText(t)}"),
+        None => println("title: <none>")
+      }
+      -- Tags are lower-cased by the HTML5 parser, so query "h1", not "H1".
+      println("h1: ${join(", ", findAllTexts(root, "h1"))}")
+      println("h2: ${join(", ", findAllTexts(root, "h2"))}")
+      -- Unclosed <li> tags still become separate list items.
+      println("items: ${join(" / ", findAllTexts(root, "li"))}")
+      let links = map(toLink, findAll(root, "a"))
+      forEachE(\l. println("link: ${l.text} -> ${l.href} (rel ${l.rel})"), links)
+      let external = filter(\l. startsWith(l.href, "https://"), links)
+      println("external: ${join(", ", map(\l. l.href, external))}")
+    }
+  }
+}

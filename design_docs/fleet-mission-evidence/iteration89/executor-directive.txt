@@ -1,0 +1,57 @@
+You are the EXECUTOR for fleet-mission iteration 89 (sunholo-data/ailang). Your working tree is the current directory, a git worktree on branch fleet/i89-dfleet42-m2, stacked on draft PR #2141 (D-FLEET-42 option A, milestone M1, already built: tools/launchd/lib/secrets-scope.sh, tools/launchd/lib/secrets-scope-zshenv.sh, tools/launchd/test_secrets_scope.sh, design_docs/planned/m-fleet-secrets-scope-per-lane.md, changelogs/unreleased/2026-11-05-secrets-scope-per-lane.md).
+
+THIS IS A PROPOSED DRAFT. It will NOT merge; it waits for Mark's ruling on D-FLEET-42. Build milestone M2 only.
+
+## The spec
+The approved sprint plan is at /Users/voightkampff/.ailang-driver-pin/fleet/design_docs/fleet-mission-evidence/iteration88/plan.md. Read it fully first, then read M1's code in this worktree. Line anchors in the plan refer to 9c7e997e0. The driver, runner and fixtures have NOT changed since then, so the anchors still hold. M2 per the plan = "Controller/role wiring, narrow Codex forwarding exception, pi startup clearing; actual spawn tests and fixture updates". Do it in this order, and after EACH sub-milestone copy every file created or modified so far (cumulative, full content, same relative paths) into .snap/M2a/, .snap/M2b/, .snap/M2c/ respectively:
+
+M2a, controller wiring:
+- In tools/launchd/mission-control.sh, source the library alongside the existing libraries (plan anchor :941-943). In each controller child subshell (codex :2445-2455, pi and claude :2502-2508), export AILANG_SECRETS_LANE=<provider>-controller and MISSION_DRIVER_ROOT, and apply mc_secrets_scope_apply. A non-zero apply refuses that child launch.
+- The parent driver's environment must stay unchanged across retries and provider switches.
+- For codex, the scope and marker must be applied BEFORE the forwarded argument list is built.
+- Keep every existing argument, the stdin handling, the session/watchdog behaviour, the transcript-scanner invocation, and the billing unset at :163-176 byte-for-byte as they are. Put the new driver code in clearly marked blocks.
+- For pi controller spawns, also clear BASH_ENV in the child.
+- In tools/launchd/lib/codex-env-args.sh: add the exact name AILANG_SECRETS_LANE to selection, and exempt it from the *SECRET* deny rule ONLY when its value is one of the six valid lanes. An invalid value refuses forwarding. Do not weaken the deny pattern for any other name (MISSION_X_SECRET and token-like names stay denied). Forward MISSION_DRIVER_ROOT through the existing MISSION_* route, TOML-encoded so a root containing spaces survives. For a marked invocation, an include_only policy must REFUSE rather than warn.
+- Update the existing fixtures that extract production spawn blocks (the plan's fixture table: test_codex_controller_env.sh, test_controller_capacity.sh, test_mission_kill_tree.sh, test_mission_stall.sh, test_pi_controller_note.sh, test_quorum_artifacts.sh) so the new helper reads only a synthetic HOME. Preserve every existing assertion; do not delete or weaken any.
+- Add arms to tools/launchd/test_secrets_scope.sh (or a new suite added to make/test.mk LAUNCHD_SUITES) from the plan's arm table: "Controller spawn x3", "Codex spawn ordering", "Retry/provider switch", "Codex marker/root", "Deny isolation", "Scoped include_only", "Root quoting", "Unknown marker", "Detector regression". Each arm must have a killing mutation in the suite's --mutations mode.
+
+M2b, role wiring:
+- Create scripts/mission_scoped_run.sh with the interface `mission_scoped_run.sh <lane> -- <command...>` from the plan's "Role recipe changes". It derives the root from its own location, exports the marker and root, applies the scope, and refuses on failure. For codex-role it appends the forwarded marker, root and permitted controls via the existing helper.
+- In scripts/mission_pi_run.sh: apply pi-role inside the pi child, before the plan's anchor :302; clear BASH_ENV there; and use the runner's own root for the helper (anchor :147).
+- Update the pi_run fixtures (scripts/test_mission_pi_run.sh, test_mission_pi_run_commits.sh, test_mission_pi_run_sandbox.sh, test_mission_pi_run_provider_quota.sh) to use a synthetic HOME, preserving their assertions.
+- Add the arms "Role wrapper x2", "Pi runner" and "Pi BASH_ENV", each with a killing mutation.
+
+M2c, recipe prose (only if time remains after M2a and M2b are green):
+- In .claude/skills/mission-control/resources/gate-3-route.md, make the codex role probe/run, the planner variant and the claude-sub invocation go through scripts/mission_scoped_run.sh. Correct the stale prose saying the codex executor needs OPENAI_API_KEY. Add one sentence that native Agent-tool subagents inherit controller scope.
+- Then run `/bin/bash tools/launchd/sync-agents-skills.sh` and `--check`. Only the mission-control mirror may change.
+- Update design_docs/planned/m-fleet-secrets-scope-per-lane.md and the changelog fragment to say M2 is built, listing what remains for M3.
+
+OUT OF SCOPE, do NOT build:
+- the dry-run preview/probe path (M3);
+- any change under cmd/, internal/, tools/pi-extensions/, .pi/extensions/, .github/, go.mod;
+- any host file (~/.zshenv etc.).
+
+## Hard safety rules
+1. NO git write operations of any kind (no add, commit, stash, checkout, reset, branch). The controller builds the commits from your .snap/ snapshots.
+2. Do NOT read, cat, grep, source or print: ~/.config/ailang/secrets.env, ~/.zshenv, ~/.codex*/config.toml, ~/.codex*/auth.json, ~/.claude*, or any session transcript. Every test uses a fresh mktemp HOME with SYNTHETIC fake values. Never print an environment variable's value; test presence with [ -n "$X" ] && echo SET || echo UNSET.
+3. NO writes outside this worktree, including from tests. A test proving something is unchanged must OBSERVE it (sha and line count before and after, with "absent" a legitimate reading). It must never seed-write a real path under $HOME or ~/.ailang/state.
+4. bash 3.2 compatibility for every .sh (no declare -A, no ${v,,}, no mapfile). The library and bridge must also stay zsh-safe.
+5. Any gate that fails because the sandbox denies something (sockets, ps, nested sandbox, a network or path outside the worktree) must be labelled UNINFORMATIVE UNDER SANDBOX, never PASS or FAIL. The controller re-runs every gate outside the sandbox.
+6. A gate that is red at base is a finding to REPORT, not something to work around. At base (4ea46f05e) every suite named here was measured green by the controller.
+
+## Gates to run (record the rc of each)
+- /bin/bash -n and /bin/zsh -n (zsh only for the two lib files) on every changed .sh
+- /bin/bash tools/launchd/test_secrets_scope.sh, and the same with --mutations
+- every fixture suite named above
+- shellcheck on new files (must be rc 0); for changed files, no NEW findings versus base (the plan's python comparator)
+- /bin/bash tools/launchd/sync-agents-skills.sh --check
+- git diff --check (read-only; allowed)
+
+## Final message (written to the -o file)
+1. Which sub-milestones are done.
+2. The full list of files changed.
+3. Each gate with its rc and whether it was informative.
+4. The mutation table: mutant, arm, killed yes/no.
+5. Anything you deliberately left out, and any deviation from the plan with its reason.
+6. Every remaining risk.
+Do not end your turn announcing that you are waiting for something. Finish the work, then report.

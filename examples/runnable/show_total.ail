@@ -1,0 +1,27 @@
+-- show_total.ail - `show` renders every value in full and never ambiguously.
+-- A top-level string is returned unchanged, so "${name}" and println(show(s)) print it bare.
+-- A string INSIDE a list, tuple, record, map or constructor is quoted and escaped,
+-- so ["a", "b, c"] and ["a", "b", "c"] can no longer print the same text.
+-- Nothing is elided: long lists and deep values render completely.
+-- For a bounded log line use std/string.showPreview(value, maxChars).
+module examples/runnable/show_total
+import std/io (println)
+import std/list (range)
+import std/string (showPreview, join)
+
+type Tree = Leaf | Node(Tree, int, Tree)
+
+func tree(n: int) -> Tree = if n <= 0 then Leaf else Node(tree(n - 1), n, Leaf)
+
+export func main() -> () ! {IO} {
+  let words = ["a", "b, c"];
+  println(show("top-level strings stay bare"));
+  println(show(words));
+  println(show(Some("x")));
+  println(show({name: "Ann \"A\"", tags: ["", "x"]}));
+  println("interpolated: ${words}");
+  println("joined explicitly: ${join(" | ", words)}");
+  println(show(tree(4)));
+  println(show(range(0, 30)));
+  println(showPreview(range(0, 1000), 20))
+}

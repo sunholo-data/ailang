@@ -41,31 +41,31 @@ eval via `dev_models_csv` when no eval_dir is supplied.
 
 ```bash
 # Analyse an existing baseline
-.Codex/skills/eval-gap-finder/scripts/run_gap_analysis.sh eval_results/baselines/v0.14.0
+.claude/skills/eval-gap-finder/scripts/run_gap_analysis.sh eval_results/baselines/v0.14.0
 
 # Or run a fresh core-tier eval against dev models resolved from models.yml
-.Codex/skills/eval-gap-finder/scripts/run_gap_analysis.sh --tier core
+.claude/skills/eval-gap-finder/scripts/run_gap_analysis.sh --tier core
 ```
 
 ### `scripts/identify_python_only.sh <eval_dir>`
 List benchmarks where Python passes but AILANG fails.
 
 ```bash
-.Codex/skills/eval-gap-finder/scripts/identify_python_only.sh eval_results/baselines/v0.14.0
+.claude/skills/eval-gap-finder/scripts/identify_python_only.sh eval_results/baselines/v0.14.0
 ```
 
 ### `scripts/categorize_errors.sh <eval_dir>`
 Categorize AILANG failures by error type.
 
 ```bash
-.Codex/skills/eval-gap-finder/scripts/categorize_errors.sh eval_results/baselines/v0.14.0
+.claude/skills/eval-gap-finder/scripts/categorize_errors.sh eval_results/baselines/v0.14.0
 ```
 
 ### `scripts/test_example.sh <code>`
 Test if an AILANG code example compiles and runs correctly.
 
 ```bash
-.Codex/skills/eval-gap-finder/scripts/test_example.sh /tmp/test.ail
+.claude/skills/eval-gap-finder/scripts/test_example.sh /tmp/test.ail
 ```
 
 ## Workflow
@@ -76,7 +76,7 @@ Dev models are resolved from `internal/eval_harness/models.yml` — never hardco
 
 ```bash
 # Source the shared helper to resolve dev models dynamically
-. .Codex/skills/_shared/scripts/eval_lib.sh
+. .claude/skills/_shared/scripts/eval_lib.sh
 
 # Core tier is the headline metric; run it first
 ailang eval-suite --models "$(dev_models_csv)" --tier core --output eval_results/gap-analysis
@@ -90,7 +90,7 @@ have mixed results and shouldn't drive prompt changes.
 
 ```bash
 ailang eval-summary eval_results/gap-analysis
-.Codex/skills/eval-gap-finder/scripts/identify_python_only.sh eval_results/gap-analysis
+.claude/skills/eval-gap-finder/scripts/identify_python_only.sh eval_results/gap-analysis
 ```
 
 Key Core-tier metrics (from `latest.json` aggregates or `ailang eval-matrix`):
@@ -157,7 +157,7 @@ After updates, re-run evals at the same tier used for analysis. Dev models come 
 `models.yml`, so the command stays stable as the roster evolves:
 
 ```bash
-(. .Codex/skills/_shared/scripts/eval_lib.sh && \
+(. .claude/skills/_shared/scripts/eval_lib.sh && \
   ailang eval-suite --models "$(dev_models_csv)" --tier core --output eval_results/gap-analysis-v2)
 ```
 
@@ -250,5 +250,5 @@ This skill loads information progressively:
 - Create design docs for language limitations
 - Update prompt hash in versions.json after changes
 - Dev models come from `internal/eval_harness/models.yml` via
-  `.Codex/skills/_shared/scripts/eval_lib.sh` — never hardcode model IDs
+  `.claude/skills/_shared/scripts/eval_lib.sh` — never hardcode model IDs
 - The eval suite is curated, not accumulated — see Benchmark Rotation Philosophy above

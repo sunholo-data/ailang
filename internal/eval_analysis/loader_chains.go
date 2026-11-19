@@ -74,64 +74,6 @@ func LoadResultsFromLatestEvalChain() ([]*BenchmarkResult, string, error) {
 	return results, chain.ID, nil
 }
 
-// LoadBaselineFromChain creates a Baseline from a chain's stages.
-func LoadBaselineFromChain(chainID string) (*Baseline, error) {
-	results, err := LoadResultsFromChain(chainID)
-	if err != nil {
-		return nil, err
-	}
-
-	store, err := observatory.OpenDefaultStore()
-	if err != nil {
-		return nil, fmt.Errorf("failed to open observatory: %w", err)
-	}
-
-	ctx := context.Background()
-	chain, err := store.GetChain(ctx, chainID, observatory.ChainReadOptions{})
-	if err != nil {
-		return nil, fmt.Errorf("failed to get chain: %w", err)
-	}
-
-	baseline := &Baseline{
-		Version:   chain.SourceRef,
-		Timestamp: chain.CreatedAt,
-		Results:   results,
-	}
-
-	// Calculate stats
-	baseline.TotalBenchmarks = len(results)
-	for _, r := range results {
-		if r.Passed() {
-			baseline.SuccessCount++
-		} else {
-			baseline.FailCount++
-		}
-	}
-
-	// Extract model and language info
-	models := map[string]bool{}
-	langs := map[string]bool{}
-	for _, r := range results {
-		models[r.Model] = true
-		langs[r.Lang] = true
-	}
-	if len(models) == 1 {
-		for m := range models {
-			baseline.Model = m
-		}
-	} else {
-		baseline.Model = fmt.Sprintf("%d models", len(models))
-	}
-	langList := []string{}
-	for l := range langs {
-		langList = append(langList, l)
-	}
-	sort.Strings(langList)
-	baseline.Languages = fmt.Sprintf("%v", langList)
-
-	return baseline, nil
-}
-
 // stageToResult converts a ChainStage with EvalAssessment to a BenchmarkResult.
 func stageToResult(stage *observatory.ChainStage) *BenchmarkResult {
 	a := stage.EvalAssessment

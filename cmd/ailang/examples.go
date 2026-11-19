@@ -465,20 +465,30 @@ func extractZip(zipPath, destDir string) error {
 			}
 		}
 
+		// Zip slip: an entry that names a path outside destDir fails the whole
+		// extraction. It used to be skipped silently, which turned a hostile or
+		// corrupt archive into a quietly partial examples tree.
+		if strings.Contains(name, "..") || !filepath.IsLocal(filepath.FromSlash(name)) {
+			return fmt.Errorf("zip entry %q escapes the destination directory", f.Name)
+		}
 		targetPath := filepath.Join(destDir, filepath.FromSlash(name))
 
-		// Ensure we don't write outside destDir (zip slip protection)
-		if !strings.HasPrefix(targetPath, filepath.Clean(destDir)+string(os.PathSeparator)) && targetPath != filepath.Clean(destDir) {
+		mode := f.FileInfo().Mode()
+		if mode.IsDir() {
+			if err := os.MkdirAll(targetPath, 0755); err != nil {
+				return fmt.Errorf("creating %s: %w", name, err)
+			}
 			continue
 		}
-
-		if f.FileInfo().IsDir() {
-			os.MkdirAll(targetPath, 0755)
-			continue
+		if !mode.IsRegular() {
+			// Symlinks and devices are refused, as internal/pkg refuses them in
+			// tarballs: a link written now could be followed by a later entry.
+			return fmt.Errorf("zip entry %q is not a regular file (mode %s)", f.Name, mode)
 		}
 
-		// Create parent directories
-		os.MkdirAll(filepath.Dir(targetPath), 0755)
+		if err := os.MkdirAll(filepath.Dir(targetPath), 0755); err != nil {
+			return fmt.Errorf("creating parent of %s: %w", name, err)
+		}
 
 		outFile, err := os.Create(targetPath)
 		if err != nil {

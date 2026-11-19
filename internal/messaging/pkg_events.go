@@ -145,54 +145,6 @@ func EmitEffectWideningWarning(store *Store, pkgName string, old, new PackageVer
 	return sendPackageMessage(store, env)
 }
 
-// EmitFromLockfileDiff compares two sets of locked packages and emits
-// upgrade-available messages for each changed dependency.
-// Returns the number of messages emitted.
-func EmitFromLockfileDiff(store *Store, oldPkgs, newPkgs []PackageVersionInfo, workspace string) (int, error) {
-	oldMap := make(map[string]PackageVersionInfo)
-	for _, p := range oldPkgs {
-		oldMap[p.Name] = p
-	}
-
-	recipient := FormatWorkspaceInbox(workspace)
-	count := 0
-
-	for _, newPkg := range newPkgs {
-		oldPkg, existed := oldMap[newPkg.Name]
-		if !existed {
-			// New dependency added — not an upgrade, skip
-			continue
-		}
-		if oldPkg.ContentHash == newPkg.ContentHash {
-			continue // No change
-		}
-
-		_, err := EmitUpgradeAvailable(store, oldPkg, newPkg, []string{recipient})
-		if err != nil {
-			return count, fmt.Errorf("failed to emit upgrade for %s: %w", newPkg.Name, err)
-		}
-		count++
-
-		// Also emit interface change notice if applicable
-		if oldPkg.InterfaceHash != newPkg.InterfaceHash {
-			_, err := EmitInterfaceChangeNotice(store, oldPkg, newPkg, []string{recipient})
-			if err != nil {
-				return count, fmt.Errorf("failed to emit interface change for %s: %w", newPkg.Name, err)
-			}
-		}
-
-		// Check for effect widening
-		if effectsWidened(oldPkg.Effects, newPkg.Effects) {
-			_, err := EmitEffectWideningWarning(store, newPkg.Name, oldPkg, newPkg, []string{recipient})
-			if err != nil {
-				return count, fmt.Errorf("failed to emit effect warning for %s: %w", newPkg.Name, err)
-			}
-		}
-	}
-
-	return count, nil
-}
-
 // classifyChange determines the change class from signature sets when both
 // sides have them, while preserving hash classification for legacy pairs.
 //

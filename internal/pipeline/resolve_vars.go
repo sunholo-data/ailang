@@ -41,6 +41,30 @@ func (r *VarResolver) Resolve(prog *core.Program) {
 	}
 }
 
+// shadow hides the entries of names until the returned func restores them.
+func (r *VarResolver) shadow(names ...string) func() {
+	type saved struct {
+		name string
+		typ  types.Type
+		had  bool
+	}
+	prev := make([]saved, 0, len(names))
+	for _, n := range names {
+		t, had := r.bindings[n]
+		prev = append(prev, saved{n, t, had})
+		delete(r.bindings, n)
+	}
+	return func() {
+		for i := len(prev) - 1; i >= 0; i-- {
+			if prev[i].had {
+				r.bindings[prev[i].name] = prev[i].typ
+			} else {
+				delete(r.bindings, prev[i].name)
+			}
+		}
+	}
+}
+
 // resolveExpr recursively resolves Var types
 func (r *VarResolver) resolveExpr(expr core.CoreExpr) {
 	if expr == nil {
@@ -65,6 +89,12 @@ func (r *VarResolver) resolveExpr(expr core.CoreExpr) {
 		// First, resolve the value
 		r.resolveExpr(e.Value)
 
+		// The binding shadows any outer entry of its name for the body, and
+		// the outer entry comes back afterwards. It used to be deleted, and
+		// a lambda parameter or pattern variable did not shadow it at all, so
+		// `let x = 1; match o { Some(x) => x == k }` gave the pattern's x the
+		// type int and lowered == to eq_Int on strings.
+		restore := r.shadow(e.Name)
 		// Check if value has a monomorphic type
 		if valueType, ok := r.coreTI.Get(e.Value.ID()); ok {
 			head := types.Head(valueType)
@@ -76,22 +106,25 @@ func (r *VarResolver) resolveExpr(expr core.CoreExpr) {
 
 		// Then resolve the body (where the Var may be used)
 		r.resolveExpr(e.Body)
-
-		// Clean up binding after body
-		delete(r.bindings, e.Name)
+		restore()
 
 	case *core.LetRec:
 		// LetRec is complex - for now, don't propagate (preserve polymorphism)
-		// Each binding might reference others, so we can't safely propagate
+		// Each binding might reference others, so we can't safely propagate.
+		// The group's names still shadow outer entries.
+		restore := r.shadow(recNames(e.Bindings)...)
 		for _, binding := range e.Bindings {
 			r.resolveExpr(binding.Value)
 		}
 		r.resolveExpr(e.Body)
+		restore()
 
 	case *core.Lambda:
 		// Lambda params: don't propagate unless call site is specialized (M-POLY-B)
-		// Just recurse into body
+		// They shadow outer entries in the body.
+		restore := r.shadow(e.Params...)
 		r.resolveExpr(e.Body)
+		restore()
 
 	case *core.App:
 		r.resolveExpr(e.Func)
@@ -107,7 +140,11 @@ func (r *VarResolver) resolveExpr(expr core.CoreExpr) {
 	case *core.Match:
 		r.resolveExpr(e.Scrutinee)
 		for _, arm := range e.Arms {
+			// Pattern variables shadow outer entries in the guard and body.
+			restore := r.shadow(patternBoundVars(arm.Pattern)...)
+			r.resolveExpr(arm.Guard)
 			r.resolveExpr(arm.Body)
+			restore()
 		}
 
 	case *core.Intrinsic:
@@ -145,6 +182,18 @@ func (r *VarResolver) resolveExpr(expr core.CoreExpr) {
 		for _, elem := range e.Elements {
 			r.resolveExpr(elem)
 		}
+
+	case *core.Array:
+		for _, elem := range e.Elements {
+			r.resolveExpr(elem)
+		}
+
+	case *core.Forall:
+		r.resolveExpr(e.Lo)
+		r.resolveExpr(e.Hi)
+		restore := r.shadow(e.Var)
+		r.resolveExpr(e.Body)
+		restore()
 
 	case *core.DictAbs:
 		r.resolveExpr(e.Body)

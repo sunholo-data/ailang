@@ -142,16 +142,13 @@ func (e *ClaudeExecutor) ExecuteStreaming(ctx context.Context, task *executor.Ta
 	span.SetAttributes(attribute.String("session.id", sessionID))
 	span.SetAttributes(attribute.Int("task.iteration", task.Iteration))
 
-	// M-CLOUD-DUAL-AUTH: Branch on auth mode.
-	// "apikey" mode: ANTHROPIC_API_KEY is already in env (set by cloud dispatcher).
+	// Branch on auth mode.
+	// "apikey" mode (the guarded credit lane): ANTHROPIC_API_KEY is already in
+	// env — the task-scoped gateway capability set by the cloud dispatcher.
 	// Claude Code reads it natively — no credentials file needed.
 	// Default (OAuth) mode: write credentials file from CLAUDE_CODE_OAUTH_TOKEN.
 	authMode := config.AuthMode()
 	if authMode == "apikey" {
-		// Decrypt KMS-encrypted API key if present (ENC: prefix).
-		if err := decryptAPIKeyIfNeeded(ctx); err != nil {
-			return nil, fmt.Errorf("claude-auth: %w", err)
-		}
 		if config.AnthropicAPIKey() == "" {
 			return nil, fmt.Errorf("AILANG_AUTH_MODE=apikey but ANTHROPIC_API_KEY not set")
 		}

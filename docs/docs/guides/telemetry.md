@@ -767,8 +767,8 @@ The AILANG Observatory provides a local dashboard for viewing traces, spans, and
 │   (full traces)                                       │              │
 │                                                       ▼              │
 │                                              ┌──────────────────┐    │
-│                                              │  Observatory UI  │    │
-│                                              │  /observatory    │    │
+│                                              │ observatory.db   │    │
+│                                              │ (ailang chains)  │    │
 │                                              └──────────────────┘    │
 └─────────────────────────────────────────────────────────────────────┘
 ```
@@ -800,9 +800,11 @@ Add to `~/.claude/settings.json`:
 }
 ```
 
-**3. View the dashboard:**
+**3. Inspect what arrived:**
 
-Open http://localhost:1957 and navigate to the Observatory tab.
+The server has no UI. Read the data with the CLI: `ailang chains` (execution chains),
+`ailang chains dashboard spans` and `ailang chains dashboard traces`, or the
+`/api/observatory/*` REST reads.
 
 ### What Gets Captured
 
@@ -851,15 +853,15 @@ Both protobuf and JSON formats are supported. Claude Code uses JSON (`http/json`
 To verify telemetry is working:
 1. Ensure `ailang server` is running
 2. Run a Claude Code command (or any AILANG command)
-3. Check the Observatory dashboard for new traces
+3. Check for new traces: `ailang chains dashboard traces`
 
 ### Filtering Noisy Traces
 
-The Observatory automatically filters out polling endpoints to reduce noise:
-- `/api/approvals`, `/api/hierarchy`, `/api/statistics`
-- `/api/observatory/*`, `/api/metrics/*`
-- `/assets/*`, `/v1/*` (OTLP endpoints themselves)
-- `/health`, `/ws`, `/ws/observatory`
+The server does not trace its own polling and ingest endpoints, to reduce noise:
+- `/api/approvals`, `/api/version`, `/api/inbox`, `/api/coordinator/events`
+- `/api/observatory/*`, `/api/controlplane/*`
+- `/v1/*` (OTLP endpoints themselves)
+- `/`, `/health`, `/ws`
 
 Only meaningful operations appear in the trace list.
 
@@ -950,6 +952,6 @@ Export errors and missing records must remain visible in operational checks.
 ## See Also
 
 - [Debugging Guide](/docs/guides/debugging) - Environment variables and CLI debug flags for troubleshooting
-- [Collaboration Hub](/docs/guides/collaboration-hub) - Real-time dashboard with Observatory integration
+- [Collaboration Hub](/docs/guides/collaboration-hub) - Coordinator and the headless dashboard API
 - [Coordinator Guide](/docs/guides/coordinator) - Task execution lifecycle with traced spans
 - [Evaluation Framework](/docs/guides/evaluation) - AI benchmarks with `eval.suite` and `eval.benchmark` traces

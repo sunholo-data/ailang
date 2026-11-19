@@ -314,7 +314,6 @@ func printHelp() {
 	fmt.Println("  DEBUG_STRICT=1               Fail loudly on unhandled cases (recommended for CI)")
 	fmt.Println("  DEBUG_MONO_VERBOSE=1         Trace monomorphization (type issues)")
 	fmt.Println("  DEBUG_PARSER=1               Token position tracing (parser bugs)")
-	fmt.Println("  DEBUG_CODEGEN=1              Warn on record fallback to map")
 	fmt.Println("  DEBUG_APPROVAL_WATCHER=1     Verbose GitHub label detection")
 	fmt.Println("  DEBUG_CONCURRENCY=1          serve-api per-request eval tracing with goroutine IDs")
 	fmt.Println()

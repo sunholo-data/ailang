@@ -3,6 +3,7 @@ package repl
 import (
 	"fmt"
 
+	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/elaborate"
 	"github.com/sunholo-data/ailang/internal/eval"
@@ -26,21 +27,38 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 		return nil, fmt.Errorf("parse error: %s", p.Errors()[0])
 	}
 
-	// #1114: enforce the same IFC gate the CLI enforces. CheckModuleIFC is a
-	// self-contained surface-AST analysis — the CLI runs it on every compile
-	// (pipeline_module_compile.go), but this path historically skipped it, so
-	// a module the CLI rejects with an information-flow violation loaded and
-	// published its exports in the browser WASM REPL.
+	// #1114: enforce the same IFC gate the CLI enforces — the CLI runs it on
+	// every compile (pipeline_module_compile.go), but this path historically
+	// skipped it, so a module the CLI rejects with an information-flow
+	// violation loaded and published its exports in the browser WASM REPL.
+	// #1134: imported exports' IFC contracts are in scope, exactly as in the CLI.
+	// The same walk reports the labelled call sites the trace must redact
+	// (M-TRACE-LABEL-AWARE); they are stamped on the lowered Core below.
+	ifcImports := mr.ifcImports(program.File)
+	var traceSites map[ast.Pos]string
 	if program.File != nil {
-		if ifcErrs := types.CheckModuleIFC(program.File); len(ifcErrs) > 0 {
+		var ifcErrs []*types.TypeCheckError
+		if ifcErrs, traceSites = types.CheckModuleIFCWithImportsAndTraceSites(program.File, ifcImports); len(ifcErrs) > 0 {
 			return nil, fmt.Errorf("information-flow violation in %s: %w", name, ifcErrs[0])
 		}
+	}
+	ifcSummaries, err := ifcExportSummaries(program.File, ifcImports)
+	if err != nil {
+		return nil, fmt.Errorf("information-flow analysis in %s: %w", name, err)
 	}
 
 	// Step 2: Elaborate to Core
 	// Use ElaborateFile for modules (has module declaration) to get proper Meta map with IsExport flags
 	// Use Elaborate for REPL-style code (bare expressions)
 	elaborator := elaborate.NewElaborator()
+	// M-V1-NOMINAL-TYPE-IDENTITY: this loader resolves type names with the same
+	// rules as the CLI pipeline (registry_type_scope.go); the module's own types
+	// are declared in module `name`.
+	scope, err := mr.typeScope(name, program.File)
+	if err != nil {
+		return nil, err
+	}
+	elaborator.SetTypeScope(scope)
 	// CRITICAL: Add builtins to global environment so stdlib wrappers can reference them
 	// Without this, calls like _string_intToStr are elaborated as Var instead of VarGlobal,
 	// causing "undefined variable" errors when the closure is later executed.
@@ -49,30 +67,25 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	// CRITICAL: Register constructors from previously loaded modules for import resolution
 	// Without this, imports like "import std/option (Option, Some, None)" fail because
 	// the elaborator doesn't know that None/Some are constructors (they become unresolved Var nodes).
+	// M-V1-NOMINAL-TYPE-IDENTITY: the table holds one entry per (module,
+	// constructor); constructorsInScope decides what each bare name means here
+	// with the CLI's rule, and marks a name two modules offer as ambiguous.
 	mr.mu.RLock()
-	for ctorName, ctor := range mr.constructors {
-		elaborator.RegisterConstructorWithFields(
-			ctor.TypeName,
-			ctorName,
-			ctor.Arity,
-			true, // isImported
-			ctor.TypeParamCount,
-			ctor.TypeParamNames,
-			ctor.FieldTypes,
-		)
+	chosenCtors, ambiguousCtors, err := mr.constructorsInScope(name, program.File)
+	if err != nil {
+		mr.mu.RUnlock()
+		return nil, err
 	}
-	// M-WASM-TYPECHECK-FLOAT-DIVERGENCE: Register type aliases from previously
-	// loaded modules so signatures like `st: CommonsState` resolve to the
-	// underlying record type when `CommonsState` is declared in an imported
-	// module. Without this, the elaborator/type-checker treats the alias as
-	// unknown and infers an open record from usage, producing free type
-	// variables that leak across modules. Mirrors pipeline_module_compile.go
-	// lines 201-205 (CLI path).
-	for _, mod := range mr.modules {
-		for aliasName, target := range mod.TypeAliases {
-			elaborator.RegisterTypeAlias(aliasName, target)
-		}
+	for bind, ctor := range chosenCtors {
+		elaborator.RegisterImportedConstructorAs(bind, ctor.CtorName, ctor.Module, ctor.TypeName, ctor.Arity, ctor.TypeParamCount)
 	}
+	for ctorName, cands := range ambiguousCtors {
+		elaborator.MarkAmbiguousConstructor(ctorName, cands)
+	}
+	// M-WASM-TYPECHECK-FLOAT-DIVERGENCE: aliases from previously loaded modules
+	// reach the TYPE CHECKER below (keyed by their defining module), not the
+	// elaborator: the elaborator's alias table is this module's own, and an
+	// imported alias registered there was re-exported as if declared here.
 	mr.mu.RUnlock()
 
 	// CRITICAL: Handle module aliases for qualified access (e.g., cache.get)
@@ -125,7 +138,6 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	}
 
 	var coreProg *core.Program
-	var err error
 	if program.File != nil && program.File.Module != nil {
 		// Module with explicit module declaration - use ElaborateFile for Meta population
 		coreProg, err = elaborator.ElaborateFile(program.File)
@@ -183,24 +195,26 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	// This mirrors the pattern in pipeline_module.go lines 407-504.
 	elabCtors := elaborator.GetConstructors()
 	ctorTypes := make(map[string]string)
+	ctorModules := make(map[string]string)
 	adtTypeParams := make(map[string]int)
 
 	// Helper function to build and register $adt factory type for a constructor
-	registerAdtFactory := func(ctorName string, typeName string, arity int, typeParamCount int, typeParamNames []string, fieldTypes []types.Type) {
-		// Track constructor -> ADT type mapping (for pattern matching)
-		ctorTypes[ctorName] = typeName
-		if _, exists := adtTypeParams[typeName]; !exists {
-			adtTypeParams[typeName] = typeParamCount
+	registerAdtFactory := func(module string, ctorName string, typeName string, arity int, typeParamCount int, typeParamNames []string, fieldTypes []types.Type) {
+		if adtKey := types.NominalKey(module, typeName); true {
+			if _, exists := adtTypeParams[adtKey]; !exists {
+				adtTypeParams[adtKey] = typeParamCount
+			}
 		}
 
-		// Build $adt.make_TypeName_CtorName factory type
-		factoryKey := fmt.Sprintf("$adt.make_%s_%s", typeName, ctorName)
+		// Build $adt.make_TypeName_CtorName@module factory type
+		factoryKey := core.ADTFactoryKey(module, typeName, ctorName)
 
 		// M-POLY-ADT / M-TAPP-FIX / M-TYPE-LIST-SOUND round 3: build the factory
 		// scheme via the shared helper, which remaps declared param vars to the
 		// ADT's result-type vars (t0, t1, ...) across the ENTIRE field type so
 		// compound fields ([a], (a,a), Option[a]) stay tied to the result type.
 		typeChecker.SetGlobalType(factoryKey, types.BuildConstructorFactoryScheme(
+			module,
 			typeName,
 			arity,
 			typeParamCount,
@@ -210,19 +224,30 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	}
 
 	// Register $adt factory types for IMPORTED constructors (from previously loaded modules)
+	// Every loaded module's factories are in scope under their own
+	// module-qualified keys; the bare-name tables below hold only the
+	// constructor each name means in this module.
 	mr.mu.RLock()
-	for ctorName, ctor := range mr.constructors {
-		registerAdtFactory(ctorName, ctor.TypeName, ctor.Arity, ctor.TypeParamCount, ctor.TypeParamNames, ctor.FieldTypes)
+	for _, ctor := range mr.constructors {
+		registerAdtFactory(ctor.Module, ctor.CtorName, ctor.TypeName, ctor.Arity, ctor.TypeParamCount, ctor.TypeParamNames, ctor.FieldTypes)
 	}
 	mr.mu.RUnlock()
+	for bind, ctor := range chosenCtors {
+		if _, amb := ambiguousCtors[bind]; !amb && bind == ctor.CtorName {
+			ctorTypes[bind], ctorModules[bind] = ctor.TypeName, ctor.Module
+		}
+	}
 
 	// Register $adt factory types for LOCAL constructors (from this module)
 	for ctorName, ctorInfo := range elabCtors {
-		registerAdtFactory(ctorName, ctorInfo.TypeName, ctorInfo.Arity, ctorInfo.TypeParamCount, ctorInfo.TypeParamNames, ctorInfo.FieldTypes)
+		registerAdtFactory(ctorInfo.Module, ctorName, ctorInfo.TypeName, ctorInfo.Arity, ctorInfo.TypeParamCount, ctorInfo.TypeParamNames, ctorInfo.FieldTypes)
+		ctorTypes[ctorName], ctorModules[ctorName] = ctorInfo.TypeName, ctorInfo.Module
 	}
 
 	// Set constructor types and ADT type params for pattern matching
 	typeChecker.SetConstructorTypes(ctorTypes)
+	typeChecker.SetConstructorModules(ctorModules)
+	typeChecker.SetAmbiguousConstructors(ambiguousCtors)
 	typeChecker.SetADTTypeParams(adtTypeParams)
 
 	// CRITICAL: Register type aliases for unification
@@ -230,21 +255,29 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	// "cannot unify type constructor Invoice with *types.TRecordOpen"
 	// This mirrors the pattern in pipeline_module.go lines 558-563.
 	elabAliases := elaborator.GetTypeAliases()
-	for name, target := range elabAliases {
-		typeChecker.RegisterTypeAlias(name, target)
+	for aliasName, target := range elabAliases {
+		typeChecker.RegisterTypeAlias(types.NominalKey(name, aliasName), target)
+	}
+	for aliasName := range elaborator.GetNewtypeADTs() {
+		typeChecker.RegisterNewtypeADT(types.NominalKey(name, aliasName))
 	}
 	// M-WASM-TYPECHECK-FLOAT-DIVERGENCE: Also register type aliases from
 	// previously loaded modules on the type-checker. The elaborator received
 	// them above (so signatures resolve in the AST); the type-checker needs
 	// them too so unification can expand the alias when comparing types.
 	// Mirrors pipeline_module_compile.go lines 201-205 (CLI path).
+	// M-V1-NOMINAL-TYPE-IDENTITY: keyed by defining module, so a local alias
+	// and a loaded module's same-named alias are two entries.
 	mr.mu.RLock()
-	for _, mod := range mr.modules {
+	for modName, mod := range mr.modules {
+		if modName == name {
+			continue // reloading this module: its own aliases are registered above
+		}
 		for aliasName, target := range mod.TypeAliases {
-			if _, alreadyLocal := elabAliases[aliasName]; alreadyLocal {
-				continue // local definition wins over imported
-			}
-			typeChecker.RegisterTypeAlias(aliasName, target)
+			typeChecker.RegisterTypeAlias(types.NominalKey(modName, aliasName), target)
+		}
+		for aliasName := range mod.Newtypes {
+			typeChecker.RegisterNewtypeADT(types.NominalKey(modName, aliasName))
 		}
 	}
 	mr.mu.RUnlock()
@@ -258,6 +291,9 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	if paramAnnots := elaborator.GetParamTypeAnnotations(); len(paramAnnots) > 0 {
 		typeChecker.SetParamTypeAnnotations(paramAnnots)
 	}
+	typeChecker.SetLiteralLambdas(elaborator.GetLiteralLambdas()) // #2238
+	// M-V1-RIGID-SIGNATURES (#2273): signature type variables are rigid.
+	typeChecker.SetRigidSignatures(elaborator.GetRigidSignatures())
 	if returnAnnots := elaborator.GetReturnTypeAnnotations(); len(returnAnnots) > 0 {
 		typeChecker.SetReturnTypeAnnotations(returnAnnots)
 	}
@@ -326,6 +362,12 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	// Without this, polymorphic functions remain unspecialized and operator
 	// lowering can't determine concrete types for dictionary dispatch.
 	// This fixes: import shadowing (Bug 1) and eq_Int dispatch in helper lambdas (Bug 2).
+	// Local names unique per declaration first, as in the native pipelines
+	// (#2401): monomorphisation copies let-bound lambda bodies to their call
+	// sites and resolves aliases by name, which is only capture-free when no
+	// binder shadows another. Without it, a module loaded here (the wasm
+	// playground's ailangLoadModule, the REPL's :import) kept the capture.
+	elaboratedProg = core.UniqueProgramLocals(elaboratedProg)
 	specializer := pipeline.NewSpecializer(&typeChecker.CoreTI)
 	specializedProg, err := specializer.Specialize(elaboratedProg)
 	if err != nil {
@@ -346,6 +388,7 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	if err != nil {
 		return nil, fmt.Errorf("op lowering error: %w", err)
 	}
+	core.MarkTraceRedactions(loweredProg, traceSites)
 
 	// Step 6: Link dictionaries
 	linker := link.NewLinker()
@@ -444,6 +487,7 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 					Name:   declName,
 					Value:  bindingVal,
 					Scheme: declTypes[declName],
+					IFC:    exportIFC(ifcSummaries, declName, declTypes[declName]),
 				}
 			}
 		}
@@ -459,16 +503,23 @@ func (mr *ModuleRegistry) LoadModule(name, sourceCode string) ([]string, error) 
 	for k, v := range elabAliases {
 		localAliases[k] = v
 	}
+	newtypes := make(map[string]bool)
+	for n := range elaborator.GetNewtypeADTs() {
+		newtypes[n] = true
+	}
 	mr.modules[name] = &RegisteredModule{
 		Name:        name,
 		Source:      sourceCode,
 		Exports:     exports,
 		TypeAliases: localAliases,
+		TypeNames:   elaborate.LocalTypeNames(program.File),
+		Newtypes:    newtypes,
 	}
 	// Cache constructors from this module for future import resolution
 	for ctorName, ctorInfo := range elabCtors {
-		mr.constructors[ctorName] = &CachedConstructor{
+		mr.constructors[ctorKey(ctorInfo.Module, ctorName)] = &CachedConstructor{
 			TypeName:       ctorInfo.TypeName,
+			Module:         ctorInfo.Module,
 			CtorName:       ctorInfo.CtorName,
 			Arity:          ctorInfo.Arity,
 			TypeParamCount: ctorInfo.TypeParamCount,

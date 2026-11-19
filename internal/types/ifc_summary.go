@@ -179,11 +179,14 @@ func AnalyzeModuleIFC(file *ast.File, imports map[string]*ImportedIFCSig) (out m
 		sig := c.sigs[fn.Name]
 		s := EmptyIFCSummary()
 		for _, p := range sig.params {
-			forbidden := []string{}
-			if p.hasNot {
-				forbidden = append(forbidden, p.notLabel)
+			// The exported Label is the parameter's Check C bound (its cover, top
+			// level and nested), and Forbidden every refinement in its data
+			// positions: importers enforce exactly the demand local callers do.
+			cover := LabelBottom()
+			if p.bound.has {
+				cover = p.bound.cover
 			}
-			s.Params = append(s.Params, IFCParam{Name: p.name, Label: EncodeIFCLabel(p.label), Forbidden: forbidden, Applied: EncodeIFCLabel(LabelBottom())})
+			s.Params = append(s.Params, IFCParam{Name: p.name, Label: EncodeIFCLabel(cover), Forbidden: p.bound.forbidden(), Applied: EncodeIFCLabel(LabelBottom())})
 		}
 		s.Return = EncodeIFCLabel(sig.returnLabel)
 		s.HasReturnLabel = sig.hasReturnLabel
@@ -193,7 +196,13 @@ func AnalyzeModuleIFC(file *ast.File, imports map[string]*ImportedIFCSig) (out m
 		s.Declassify = append(s.Declassify, sig.authorizedLabels...)
 		sort.Strings(s.Declassify)
 		if err := s.Validate(); err != nil {
-			return nil, fmt.Errorf("export %s: %w", fn.Name, err)
+			// Every function gets a summary, not only exports; naming a private
+			// function "export f" misdirected #2156.
+			kind := "function"
+			if fn.IsExport {
+				kind = "export"
+			}
+			return nil, fmt.Errorf("%s %s: %w", kind, fn.Name, err)
 		}
 		out[fn.Name] = s
 	}

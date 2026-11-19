@@ -38,7 +38,11 @@ func (e *CoreEvaluator) evalCoreMatch(match *core.Match, tail bool) (Value, erro
 	if useDecisionTree {
 		compiler := dtree.NewDecisionTreeCompiler(match.Arms)
 		tree := compiler.Compile()
-		return e.evalDecisionTree(scrutineeVal, tree, match.Arms, tail)
+		v, err := e.evalDecisionTree(scrutineeVal, tree, match.Arms, tail)
+		if err != nil {
+			attachMatchPos(err, matchPos(match.OriginalSpan(), match.Span()))
+		}
+		return v, err
 	}
 
 	// Linear evaluation (current default implementation)
@@ -98,7 +102,7 @@ func (e *CoreEvaluator) evalCoreMatch(match *core.Match, tail bool) (Value, erro
 		return result, err
 	}
 
-	return nil, fmt.Errorf("no pattern matched in match expression")
+	return nil, matchFailure(matchPos(match.OriginalSpan(), match.Span()), scrutineeVal)
 }
 
 // matchPattern attempts to match a pattern against a value

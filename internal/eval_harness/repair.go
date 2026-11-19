@@ -80,12 +80,7 @@ func (r *RepairRunner) Run(ctx context.Context, prompt string) (*RunMetrics, err
 		verifyResult, rawJSON, verifyErr := RunAICheck("", firstResult.RunResult.WorkspaceDir+"/benchmark/solution.ail", r.verifyTimeout)
 		if verifyErr == nil && verifyResult != nil {
 			PopulateVerifyMetrics(metrics, verifyResult, rawJSON)
-			if verifyResult.Verify.Counterexample > 0 {
-				// Z3 found counterexample — use it as the repair error
-				errCode = VERIFY_COUNTEREXAMPLE
-				hint = FormatZ3RepairHint(rawJSON)
-				repairStderr = rawJSON
-			}
+			errCode, hint, repairStderr = verifyRepairSignal(verifyResult, rawJSON)
 		}
 	}
 
@@ -378,4 +373,18 @@ func (r *RepairRunner) populateMetrics(metrics *RunMetrics, result *attemptResul
 	metrics.Stderr = result.RunResult.Stderr
 	metrics.ExpectedStdout = r.spec.ExpectedOut
 	metrics.Code = result.Code
+}
+
+// verifyRepairSignal decides whether an ai-check report earns a repair turn.
+// Only a genuine counterexample does: Z3 found an input that violates the
+// contract, and the hint feeds that input back to the model. An INCONCLUSIVE
+// obligation (a sat under bounded recursion unrolling) deliberately does not —
+// its model may rest on an invented frontier value, so "fix your logic using
+// these inputs" would coach the model to break correct code.
+// M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE.
+func verifyRepairSignal(result *AICheckResult, rawJSON string) (ErrCode, *RepairHint, string) {
+	if result == nil || result.Verify.Counterexample == 0 {
+		return "", nil, ""
+	}
+	return VERIFY_COUNTEREXAMPLE, FormatZ3RepairHint(rawJSON), rawJSON
 }

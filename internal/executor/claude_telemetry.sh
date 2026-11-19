@@ -30,6 +30,17 @@ EXEC_EVENTS_ENDPOINT="${OBSERVATORY_URL}/api/exec/events"
 EXEC_SESSIONS_ENDPOINT="${OBSERVATORY_URL}/api/exec/sessions"
 LOG_FILE="${HOME}/.ailang/state/telemetry_hooks.log"
 
+# All three endpoints are the dashboard's hub ingest class
+# (internal/server/ingest_auth.go): with AILANG_INGEST_AUTH=enforce a
+# non-loopback dashboard refuses a write without AILANG_HUB_TOKEN. Present it
+# when set; send no header when unset (what a loopback or warn-mode dashboard
+# accepts). Expanded as ${AUTH_HEADER[@]+...} because bash 3.2 under `set -u`
+# treats an empty array as unbound.
+AUTH_HEADER=()
+if [ -n "${AILANG_HUB_TOKEN:-}" ]; then
+    AUTH_HEADER=(-H "X-AILANG-Ingest-Token: ${AILANG_HUB_TOKEN}")
+fi
+
 # Ensure log directory exists
 mkdir -p "$(dirname "$LOG_FILE")"
 
@@ -172,7 +183,7 @@ esac
 # Use timeout to avoid blocking Claude Code
 # Capture error details for debugging
 CURL_OUTPUT=$(curl -s --max-time 2 -w "\n%{http_code}" -X POST "$HOOKS_ENDPOINT" \
-    -H "Content-Type: application/json" \
+    -H "Content-Type: application/json" ${AUTH_HEADER[@]+"${AUTH_HEADER[@]}"} \
     -d "$PAYLOAD" 2>&1)
 CURL_EXIT=$?
 HTTP_CODE=$(echo "$CURL_OUTPUT" | tail -n1)
@@ -207,7 +218,7 @@ case "$EVENT_NAME" in
                 message_id: (if $msg != "" then $msg else null end)
             }')
         curl -s --max-time 2 -X POST "$EXEC_SESSIONS_ENDPOINT" \
-            -H "Content-Type: application/json" \
+            -H "Content-Type: application/json" ${AUTH_HEADER[@]+"${AUTH_HEADER[@]}"} \
             -d "$EXEC_PAYLOAD" >/dev/null 2>&1 &
         log "Posted session_start to exec sessions endpoint"
         ;;
@@ -230,7 +241,7 @@ case "$EVENT_NAME" in
                 stage_id: (if $stage != "" then $stage else null end)
             }')
         curl -s --max-time 2 -X POST "$EXEC_EVENTS_ENDPOINT" \
-            -H "Content-Type: application/json" \
+            -H "Content-Type: application/json" ${AUTH_HEADER[@]+"${AUTH_HEADER[@]}"} \
             -d "$EXEC_PAYLOAD" >/dev/null 2>&1 &
         log "Posted tool_use to exec events endpoint"
         ;;
@@ -253,7 +264,7 @@ case "$EVENT_NAME" in
                 stage_id: (if $stage != "" then $stage else null end)
             }')
         curl -s --max-time 2 -X POST "$EXEC_EVENTS_ENDPOINT" \
-            -H "Content-Type: application/json" \
+            -H "Content-Type: application/json" ${AUTH_HEADER[@]+"${AUTH_HEADER[@]}"} \
             -d "$EXEC_PAYLOAD" >/dev/null 2>&1 &
         log "Posted tool_result to exec events endpoint"
         ;;

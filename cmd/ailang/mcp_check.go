@@ -17,7 +17,7 @@ import (
 // 2 = could not check (usage, unreachable, not MCP).
 func runMCPCheck(rawArgs []string) {
 	fs := flag.NewFlagSet("mcp check", flag.ExitOnError)
-	target := fs.String("target", "anthropic", "Directory to check against: anthropic, openai or both")
+	target := fs.String("target", "anthropic", "Directory to check against: anthropic, openai, both (anthropic + openai), copilot, or all")
 	asJSON := fs.Bool("json", false, "Emit findings as JSON")
 	probeID := fs.String("probe-client-id", "", "Pre-registered client_id for the consent-page framing probe, for an AS without CIMD (needs --probe-redirect-uri)")
 	probeRedirect := fs.String("probe-redirect-uri", "", "Registered redirect_uri of --probe-client-id; the probe never follows a redirect to it")
@@ -27,7 +27,7 @@ func runMCPCheck(rawArgs []string) {
 		"--probe-redirect-uri": true, "-probe-redirect-uri": true,
 	}))
 	if fs.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "Usage: ailang mcp check <mcp-url> [--target anthropic|openai|both] [--json]")
+		fmt.Fprintln(os.Stderr, "Usage: ailang mcp check <mcp-url> [--target anthropic|openai|both|copilot|all] [--json]")
 		fmt.Fprintln(os.Stderr, "                        [--probe-client-id ID --probe-redirect-uri URI]")
 		fmt.Fprintln(os.Stderr, "The consent-page framing probe presents "+mcpcheck.ProbeClientURL)
 		fmt.Fprintln(os.Stderr, "to a CIMD authorization server, or the --probe-client-id client otherwise (else it is skipped).")
@@ -45,9 +45,9 @@ func runMCPCheck(rawArgs []string) {
 		}
 	}
 	switch *target {
-	case "anthropic", "openai", "both":
+	case "anthropic", "openai", "both", "copilot", "all":
 	default:
-		fmt.Fprintf(os.Stderr, "%s: --target must be anthropic, openai or both (got %q)\n", red("Error"), *target)
+		fmt.Fprintf(os.Stderr, "%s: --target must be anthropic, openai, both, copilot or all (got %q)\n", red("Error"), *target)
 		os.Exit(2)
 	}
 

@@ -416,7 +416,7 @@ spending re-quorum rounds on objections nobody in-session can answer.
 
 ## Related Documents
 
-- [M-LYCEUM-PROVIDER](../m-lyceum-provider.md) — the provider template (V11)
+- [M-LYCEUM-PROVIDER](../../implemented/v0_35_0/m-lyceum-provider.md) — the provider template (V11)
 - [M-OLLAMA-CLOUD-PROVIDER](../../implemented/v0_34_0/m-ollama-cloud-provider.md) — subscription cost
   provenance, quota exhaustion, and the D2 precedent this doc follows
 - [m-eval-batch-api](../m-eval-batch-api.md) — deferred time-of-day pricing (V25); this doc is the

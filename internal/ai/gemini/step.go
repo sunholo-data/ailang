@@ -181,6 +181,7 @@ func buildStepRequest(req *ai.Request, reasoning ai.ReasoningDecision) (*generat
 						Name: tc.Name,
 						Args: args,
 					},
+					ThoughtSignature: splitToolCallID(tc.ID),
 				})
 			}
 			// Gemini requires at least one part on every content entry.
@@ -340,7 +341,7 @@ func parseStepResponse(req *ai.Request, body []byte) (*ai.Response, error) {
 					fmt.Sprintf("gemini: failed to re-encode tool args for %q: %v", p.FunctionCall.Name, marshalErr), false)
 			}
 			toolCalls = append(toolCalls, ai.ToolCall{
-				ID:        fmt.Sprintf("%d_%d", turnIndex, len(toolCalls)),
+				ID:        toolCallID(turnIndex, len(toolCalls), p.ThoughtSignature),
 				Name:      p.FunctionCall.Name,
 				Arguments: string(argsJSON),
 			})

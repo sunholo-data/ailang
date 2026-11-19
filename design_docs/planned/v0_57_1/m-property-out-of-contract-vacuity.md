@@ -594,7 +594,7 @@ throughout; file the numbers in the implementation report.
 - Triage rows `ailang-core-triage/imported-type-generator-skips-json.md` and `cross-file-property-generators-world-core.md` — same `ailang test` skip-classification neighborhood, different root cause (generator derivation for unreachable *types*, not unreachable *domains*); their suggested per-kind `skip_kind` split is a Non-Goal here.
 
 **Deliberately distinct (checked for overlap per the duplicate gate):**
-- [m-contract-verification-coverage.md](../m-contract-verification-coverage.md) — splits `verify_skipped` into `skipped` vs `not_applicable` for the **SMT verifier** (`ailang verify` / `ai-check`). Different subsystem, different counters, same data-integrity spirit. No overlap.
+- [m-contract-verification-coverage.md](../v1_1_0/m-contract-verification-coverage.md) — splits `verify_skipped` into `skipped` vs `not_applicable` for the **SMT verifier** (`ailang verify` / `ai-check`). Different subsystem, different counters, same data-integrity spirit. No overlap.
 - [m-property-seed-determinism.md](../../implemented/v0_31_0/m-property-seed-determinism.md) — seed derivation contract this design relies on (per-property deterministic streams); unchanged here.
 
 **References:**

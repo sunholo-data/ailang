@@ -9,6 +9,12 @@
 # is ever printed. Transcript notices require an anchored old/current prefix, a whitespace-free
 # fire ID, ASCII hit count and literal terminal period. Only extracted metadata is printed.
 #
+# Watermarks: the window is the OLDER of the readable --watermark-file values. A file that is
+# ABSENT is not corrupt: since #981 mission_directives.sh creates it only on --mark, so a mission
+# with no routed human directive has none. When EVERY given file is absent the read is a DEGRADED
+# whole-issue read (since the epoch, as mission_directives.sh reads an absent file) — it can only
+# over-report, never miss a notice. A file that exists but is unreadable, empty or invalid is F10.
+#
 # This is a bash-3.2 script (the rig's /bin/bash is 3.2.57). No associative arrays, no ${x,,},
 # no {n} intervals. The gh binary is the ONLY read seam (the stub in the suite shadows --gh-bin).
 set -uo pipefail
@@ -18,6 +24,7 @@ GH_TIMEOUT="5"
 SKEW=300
 TS_CTL="2026-09-08T06:19:00Z"
 TS_ARM=""
+WM_EPOCH="1970-01-01T00:00:00Z"   # the whole-issue window, as mission_directives.sh reads an absent file
 ISSUE=""; PREV_ISSUE=""; PREV_PASSED=0; REPO=""; SELF=""; SINCE_ARG=""; CONTROL=""; DRIVER_SRC=""
 WMFILES=()
 
@@ -33,6 +40,10 @@ AND previous bookkeeping issue, since the watermark. A crash says a fire died. T
 reporting is informational (notice counts, hit counts, fire IDs); it does not change exit codes.
 A hit grants nothing. No comment body is printed.
 
+Every --watermark-file ABSENT is not a floor: it is a DEGRADED read of the whole of each issue
+(since 1970-01-01T00:00:00Z), reported on a 'watermark: DEGRADED' line. A file that exists but
+is unreadable, empty or invalid is still a floor.
+
 --control auto resolves the control from a per-repo table keyed by --repo; an unknown repo
 is a floor (no fallback).
 
@@ -40,7 +51,7 @@ Exit codes:
   0  no in-window crash notice, controls ok
   1  one or more in-window crash notices (a controller must look; run Gate 2's traces (a)-(c))
   2  any floor F0-F10 (usage, binary, timeout, gh failure, malformed, truncated, control,
-     signature-source, watermark unavailable/invalid, timestamp parser unusable)
+     signature-source, watermark invalid, timestamp parser unusable)
 EOF
 }
 
@@ -237,10 +248,10 @@ fi
 # ── timestamp-parser control (pre-network) ───────────────────────────────────
 ts_resolve_arm
 
-# ── watermark disposition + F9/F10 + since ───────────────────────────────────
+# ── watermark disposition + all-absent DEGRADED + F10 + since ───────────────────────────────────
 echo "gate0_self_notices: repo=$REPO self=$SELF issues=$ISSUE${PREV_ISSUE:+,$PREV_ISSUE}"
 SELF_LC="$(printf '%s' "$SELF" | tr '[:upper:]' '[:lower:]')"
-READABLE=0; GIVEN=0; WMIN_LIST=""; WMPATHS=""
+READABLE=0; GIVEN=0; ABSENT=0; WMIN_LIST=""; WMPATHS=""
 if [ -n "$SINCE_ARG" ]; then
   validate_ts "$SINCE_ARG" "--since"
   SINCE="$SINCE_ARG"
@@ -251,6 +262,7 @@ else
     if [ -n "$WMPATHS" ]; then WMPATHS="$WMPATHS $wf"; else WMPATHS="$wf"; fi
     if [ ! -e "$wf" ]; then
       echo "watermark: $wf ABSENT — DEGRADED: single-watermark read (iter-52 rule wants two)"
+      ABSENT=$((ABSENT+1))
       continue
     fi
     if [ ! -r "$wf" ]; then
@@ -267,14 +279,23 @@ else
     WMIN_LIST="${WMIN_LIST:+$WMIN_LIST$'\n'}$v"
   done
   if [ "$READABLE" -eq 0 ]; then
-    echo "✗ watermark channel unavailable: no readable watermark among $GIVEN file(s): $WMPATHS" >&2; exit 2
+    # Every present file either counted as readable or exited F10 above, so 0 readable = all absent.
+    if [ "$ABSENT" -ne "$GIVEN" ]; then
+      echo "✗ internal: $GIVEN watermark file(s), $ABSENT absent, 0 readable" >&2; exit 2
+    fi
+    echo "watermark: DEGRADED — no watermark file exists among $GIVEN given ($WMPATHS): reading the WHOLE of each issue since $WM_EPOCH; absent is not corrupt (mission_directives.sh creates the file only on --mark), so the window widens and no notice is dropped"
+    SINCE="$WM_EPOCH"
+    WSMARK="watermarks 0/$GIVEN, all absent: whole-issue read"
+  else
+    SINCE="$(printf '%s\n' "$WMIN_LIST" | /usr/bin/sort | head -1)"
+    WSMARK="watermarks $READABLE/$GIVEN"
   fi
-  SINCE="$(printf '%s\n' "$WMIN_LIST" | /usr/bin/sort | head -1)"
-  WSMARK="watermarks $READABLE/$GIVEN"
 fi
 
 if [ -n "$SINCE_ARG" ]; then
   echo "since: $SINCE (--since literal)"
+elif [ "$READABLE" -eq 0 ]; then
+  echo "since: $SINCE (no watermark among $GIVEN file(s): whole of each issue)"
 else
   echo "since: $SINCE (older of $READABLE readable watermark(s) of $GIVEN)"
 fi

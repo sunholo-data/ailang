@@ -69,6 +69,43 @@ type Annotation struct {
 	Pos  Pos
 }
 
+// Annotation names with compiler-wide meaning (M-V1-STDLIB-SURFACE-POLISH §6).
+const (
+	// AnnotationDeprecated marks a function whose uses from other modules warn
+	// (TC_DEPRECATED_001), naming its replacement: @deprecated("new"[, "note"]).
+	AnnotationDeprecated = "deprecated"
+	// AnnotationExperimental puts one function in the Experimental tier.
+	AnnotationExperimental = "experimental"
+)
+
+// Deprecation returns the replacement and optional note of a
+// @deprecated("replacement"[, "note"]) annotation; ok is false when the
+// function is not deprecated.
+func (f *FuncDecl) Deprecation() (replacement, note string, ok bool) {
+	a := f.GetAnnotation(AnnotationDeprecated)
+	if a == nil || len(a.Args) == 0 {
+		return "", "", false
+	}
+	str := func(e Expr) string {
+		if lit, isLit := e.(*Literal); isLit {
+			if s, isStr := lit.Value.(string); isStr {
+				return s
+			}
+		}
+		return ""
+	}
+	replacement = str(a.Args[0])
+	if len(a.Args) > 1 {
+		note = str(a.Args[1])
+	}
+	return replacement, note, replacement != ""
+}
+
+// IsExperimental reports whether the function carries @experimental.
+func (f *FuncDecl) IsExperimental() bool {
+	return f.GetAnnotation(AnnotationExperimental) != nil
+}
+
 // GetAnnotation returns the first annotation with the given name, or nil.
 func (f *FuncDecl) GetAnnotation(name string) *Annotation {
 	for _, a := range f.Annotations {

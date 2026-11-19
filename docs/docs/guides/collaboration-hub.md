@@ -1,36 +1,27 @@
 ---
 sidebar_position: 13
 title: Collaboration Hub
-description: Human-AI collaboration via the web UI and coordinator daemon
+description: Human-AI collaboration via the coordinator daemon, the CLI and the headless dashboard API
 reviewBy: 2027-02-15
 ---
 
 # Collaboration Hub Guide
 
-The AILANG Collaboration Hub enables human-AI collaboration through a web UI and the coordinator daemon. It provides real-time visibility into autonomous agent execution, approval workflows, and multi-agent pipelines.
+The AILANG Collaboration Hub is the coordinator daemon plus the dashboard server (`ailang serve`).
+It provides visibility into autonomous agent execution, approval workflows, and multi-agent
+pipelines.
 
 ## Overview
 
-The Collaboration Hub consists of two interfaces:
+:::note The dashboard has no web UI
+Since November 2026 `ailang serve` is a **headless API**: telemetry ingest (OTLP, Claude Code
+hooks, exec sessions), observatory and chains reads, secret-approval intake, the `/benchmarks/`
+data the docs site reads, and `/health`. The React dashboard was removed
+([design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/m-dashboard-headless-api.md)).
+Use the CLI below, `ailang chains`, and `ailang chains dashboard` to inspect work.
+:::
 
-### Web Dashboard (React)
-
-The web dashboard provides real-time monitoring of agent execution with:
-- **Task Execution Panel** - Live streaming of agent activity
-- **Approval Queue** - Review and approve/reject agent work with git diff viewer
-- **Message Center** - Send directives and view results
-- **Work evidence** - Chain details, timeline and chat inspection, with direct date filters
-
-The simplified UI removes the optional activity/analytics panel and evolution-tree
-mode. Costs shown in retained evidence still depend on capture and backend coverage;
-a missing value is not proof of zero usage. The screenshot below shows the older
-layout and does not represent the simplified navigation.
-
-![AILANG Collaboration Hub - React Dashboard](/img/aitana-dashboard-react.png)
-
-### CLI Dashboard
-
-For terminal-based workflows, the CLI provides the same functionality:
+### CLI
 
 ```bash
 # View pending approvals
@@ -89,10 +80,9 @@ make services-stop
 ailang serve
 ```
 
-This opens [http://localhost:1957](http://localhost:1957) with:
-- **Messages tab** - Send directives to agents, see results
-- **Approvals tab** - Approve/reject capability requests
-- **Task Execution tab** - Watch real-time task progress from coordinator
+This starts the dashboard API on `http://127.0.0.1:1957` (no UI; `GET /health` answers when it
+is up). It receives telemetry from Claude Code hooks, the coordinator and eval runs, and serves
+the reads behind `ailang chains dashboard`.
 
 #### 2. Start the Coordinator Daemon
 
@@ -115,27 +105,21 @@ From the CLI:
 ailang messages send coordinator "Create a hello.go file" --title "New file"
 ```
 
-Or from the web UI:
-1. Click **New Thread**
-2. Type a directive: `Create a hello.go file that prints "Hello, World!"`
-3. Click **Send**
-
-Watch the coordinator execute in real-time!
+Follow it with `ailang chains` (or `ailang coordinator status`).
 
 ## Architecture
 
 ```mermaid
 flowchart TB
-    subgraph Browser["Browser (localhost:1957)"]
-        Messages["Messages Tab<br/>Send tasks, see results"]
-        Approvals["Approvals Tab<br/>Approve/reject requests"]
-        TaskExec["Task Execution<br/>Live progress streaming"]
+    subgraph Clients["Clients"]
+        CLI["ailang CLI<br/>chains, coordinator, messages"]
+        Hooks["Claude Code hooks,<br/>OTLP exporters"]
     end
 
     subgraph Server["ailang serve (:1957)"]
         HTTP["HTTP Server"]
         WS["WebSocket /ws"]
-        REST["REST API<br/>/api/threads, /api/thread-messages"]
+        REST["REST API<br/>/api/observatory/*, /api/chains/*"]
         CoordAPI["Coordinator API<br/>/api/coordinator/events"]
     end
 
@@ -150,7 +134,7 @@ flowchart TB
         AI["Claude Code"]
     end
 
-    Browser -->|"WebSocket + REST"| Server
+    Clients -->|"REST + OTLP"| Server
     Server --> DB
     Coordinator -->|"POST events"| CoordAPI
     Coordinator --> DB
@@ -165,7 +149,7 @@ When a directive requires special capabilities (like network access), the agent:
 
 1. **Detects capabilities** - Analyzes directive text for FS/Net/IO patterns
 2. **Requests approval** - Creates an approval request in the database
-3. **Waits for human** - The Approvals tab shows pending requests
+3. **Waits for human** - `ailang coordinator pending` lists pending requests
 4. **Proceeds or aborts** - After approval, executes; after rejection, cancels
 
 Example:
@@ -177,50 +161,31 @@ Agent: [Detected: Net capability required]
        [Created approval request]
        [Waiting 60s for approval...]
 
-UI: Shows approval card with:
+CLI: `ailang coordinator pending` shows the request:
     - Requested capability: Net
     - Target URL: api.example.com
     - Estimated cost: $0.05
-    - [Approve] [Reject] buttons
 
-User: [Clicks Approve]
+User: ailang coordinator approve <task-id>
 
 Agent: [Approval received]
        [Executing directive...]
-       [Done! Results sent to UI]
+       [Done! Results sent to the requester's inbox]
 ```
 
 ### Multi-Channel Approvals (v0.6.4+)
 
-Approvals can come from multiple sources, unified in the dashboard:
+Approvals can come from multiple sources:
 
-| Source | UI Indicator | How to Use |
-|--------|--------------|------------|
-| **Dashboard** | 🖥️ | Click Approve/Reject buttons |
-| **CLI** | ⌨️ | `ailang coordinator approve/reject <task-id>` |
-| **GitHub** | 🐙 | Add `ailang:approved` or `ailang:needs-revision` labels |
+| Source | How to Use |
+|--------|------------|
+| **CLI** | `ailang coordinator approve/reject <task-id>` (add `--remote gcp` for the cloud plane) |
+| **GitHub** | Add `ailang:approved` or `ailang:needs-revision` labels |
 
 #### Iteration Tracking
 
-When tasks are rejected with feedback, they're re-queued for another attempt. The UI shows:
-
-- **Iteration Badge**: "Iteration 2/3" on retriggered tasks
-- **Final Attempt Warning**: Orange badge on iteration 3
-- **Feedback Display**: Harvested feedback from previous rejections
-
-#### Approval Detail Modal
-
-The approval detail modal shows:
-
-1. **Header**: Task title, branch name, worktree path
-2. **Badges**: Type (merge/execute/cost), Iteration, Channel source
-3. **Tabs**: Files (diff viewer), Description, Logs
-4. **Footer**: Keyboard shortcuts (A=Approve, R=Reject, Esc=Close)
-
-When rejecting, the modal displays:
-- Harvested feedback from GitHub (if linked issue exists)
-- FeedbackInput with 1000 character limit
-- Character counter with over-limit warning
+When tasks are rejected with feedback, they're re-queued for another attempt (up to three
+iterations). The harvested feedback from previous rejections is passed to the next attempt.
 
 ## CLI Reference
 
@@ -236,22 +201,20 @@ ailang serve --port 8080
 # Custom database
 ailang serve --db /path/to/collab.db
 
-# Let a UI on another origin call the API and open the WebSocket (repeatable)
+# Let a page on another origin call the API and open the WebSocket (repeatable)
 ailang serve --cors-origin http://localhost:5173
 ```
 
 #### Cross-origin access (v0.44.x+)
 
-The server is **same-origin only** by default. The embedded dashboard, the Vite dev server
-(`cd ui && npm run dev`, which proxies `/api` and `/ws` without rewriting `Host`), CLIs, Claude
-Code hooks, OTLP exporters and other server-to-server callers (no `Origin` header) all keep
-working with no flag.
+The server is **same-origin only** by default. CLIs, Claude Code hooks, OTLP exporters and
+other server-to-server callers (no `Origin` header) all work with no flag.
 
 A page on any other origin:
 
 - gets **no `Access-Control-Allow-Origin`** on reads, so it cannot read the API;
 - gets **403 before dispatch** on any other method, including preflights and `text/plain` POSTs;
-- gets **403 on the WebSocket upgrade** (`/ws`, `/ws/observatory`), which blocks cross-site
+- gets **403 on the WebSocket upgrade** (`/ws`), which blocks cross-site
   WebSocket hijacking. A client holding the `COORDINATOR_API_KEY` token (`?token=`) is still
   admitted from any origin, as before.
 
@@ -421,128 +384,48 @@ When spans don't have `task_id` set (common with CLI tools), use `session.id` fr
 
 ## API Endpoints
 
-### Threads
-
-```bash
-# List threads
-curl http://localhost:1957/api/threads
-
-# Create thread
-curl -X POST http://localhost:1957/api/threads \
-  -H "Content-Type: application/json" \
-  -d '{"title": "Build a CLI tool"}'
-
-# Get thread
-curl http://localhost:1957/api/threads/{thread_id}
-```
-
-### Messages
-
-```bash
-# Get messages for thread (NOT /api/messages — that path is the coordinator
-# daemon's inbox-message REST API on port 8765, a different body and auth)
-curl http://localhost:1957/api/thread-messages?thread_id={thread_id}
-
-# Send message
-curl -X POST http://localhost:1957/api/thread-messages \
-  -H "Content-Type: application/json" \
-  -d '{
-    "thread_id": "...",
-    "from_type": "human",
-    "from_id": "user",
-    "to_type": "ailang_instance",
-    "to_id": "default",
-    "kind": "directive",
-    "content": "Create a hello.go file"
-  }'
-```
-
-### Approvals
-
-```bash
-# List pending approvals
-curl http://localhost:1957/api/approvals?status=pending
-
-# Approve
-curl -X POST http://localhost:1957/api/approvals/{id}/approve \
-  -H "Content-Type: application/json" \
-  -d '{"notes": "Looks safe"}'
-
-# Reject
-curl -X POST http://localhost:1957/api/approvals/{id}/reject \
-  -H "Content-Type: application/json" \
-  -d '{"notes": "Too risky"}'
-```
-
-### Coordinator API
-
-The coordinator daemon integrates with the Collaboration Hub for task management and approvals.
-
-#### Pending Approvals
-
-```bash
-# List pending approvals (enriched with task details)
-curl http://localhost:1957/api/coordinator/pending
-
-# Response includes task context:
-# {
-#   "id": "approval-123",
-#   "task_id": "task-456",
-#   "type": "task_completion",
-#   "status": "pending",
-#   "worktree_path": "/Users/.../.ailang/state/worktrees/coordinator/task-456",
-#   "session_id": "claude-session-abc",
-#   "task_title": "Fix parser bug",
-#   "task_status": "pending_approval",
-#   "provider": "claude-code"
-# }
-```
-
-#### Approve/Reject Tasks
-
-```bash
-# Approve changes (merges worktree to main branch)
-curl -X POST http://localhost:1957/api/coordinator/approve/approval-123
-
-# Reject changes (preserves worktree for inspection)
-curl -X POST http://localhost:1957/api/coordinator/reject/approval-123
-```
-
-#### Task Diff
-
-```bash
-# Get git diff for a task's worktree
-curl http://localhost:1957/api/coordinator/tasks/task-456/diff
-
-# Returns git diff output showing all changes made by the agent
-```
-
-#### Task Events
-
-```bash
-# Get execution events for a task (tool calls, output, etc.)
-curl http://localhost:1957/api/coordinator/tasks/task-456/events
-```
-
-#### Coordinator Events (Internal)
-
-```bash
-# POST events from coordinator daemon (used internally)
-curl -X POST http://localhost:1957/api/coordinator/events \
-  -H "Content-Type: application/json" \
-  -d '{
-    "task_id": "...",
-    "stream_type": "status",
-    "status": "running"
-  }'
-```
+The dashboard serves only routes with a caller outside it. The full table — route, method, auth
+class and the client that calls it — is in the
+[design doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/m-dashboard-headless-api.md).
+On a non-loopback bind every `/api/` read needs `Authorization: Bearer $AILANG_DASHBOARD_TOKEN`
+(the server's `COORDINATOR_API_KEY`); a loopback server is exempt.
 
 ### Health Check
 
 ```bash
 curl http://localhost:1957/health
-# {"status":"healthy","connections":1,"timestamp":1732888800}
+# {"status":"healthy","version":"...","connections":1,"timestamp":1732888800}
 ```
+
+### Task Events
+
+```bash
+# A task's recorded events (json | text | summary)
+curl "http://localhost:1957/api/coordinator/tasks/task-456/events?format=summary"
+```
+
+### Coordinator Events (Internal)
+
+```bash
+# POST events from coordinator daemon (used internally; rebroadcast on /ws)
+curl -X POST http://localhost:1957/api/coordinator/events \
+  -H "Content-Type: application/json" \
+  -d '{"task_id": "task-123", "stream_type": "text", "text": "Working..."}'
+```
+
+### Approvals
+
+Coordinator task approvals are decided with the CLI — `ailang coordinator pending`,
+`ailang coordinator approve <task-id>`, `ailang coordinator reject <task-id> -f "..."` (add
+`--remote gcp` for the cloud plane). The dashboard's `/api/approvals` routes serve **secret**
+approvals only: intake and status poll for cloud jobs, and the signed Approve/Deny links in the
+ntfy push (see [Secret approvals](/docs/guides/secret-approvals)).
+
+### Reads
+
+`/api/observatory/*` (spans, traces, tasks, sessions), `/api/chains/*`, `/api/inbox`,
+`/api/controlplane/exec-hierarchy` and `/api/controlplane/stats/breakdown` — the reads behind
+`ailang chains dashboard`.
 
 ## Troubleshooting
 
@@ -571,7 +454,7 @@ make services-restart
 
 ### Streaming not working
 
-If events aren't appearing in the dashboard:
+If events aren't reaching the dashboard API (`ailang chains` shows nothing new):
 
 ```bash
 # 1. Verify server is running
@@ -642,11 +525,11 @@ See [Coordinator Guide](/docs/guides/coordinator) for full configuration referen
 
 ### Approval Gates
 
-When `auto_approve_handoffs: false`, the dashboard shows approval requests before triggering the next agent:
+When `auto_approve_handoffs: false`, an approval request is created before the next agent is triggered:
 
 1. Agent completes task → Approval request created
-2. Dashboard shows pending approval with:
-   - Worktree path (click to inspect changes)
+2. `ailang coordinator pending` lists it, and `ailang coordinator approve <task-id>` shows:
+   - Worktree path
    - Git diff viewer
    - Session ID for continuity
 3. Human reviews and approves/rejects
@@ -660,7 +543,7 @@ The Collaboration Hub is functional with the coordinator daemon providing real-t
 :::
 
 **Completed:**
-- Real-time task streaming to dashboard
+- Task event streaming to the dashboard API
 - Service management via Make targets
 - Coordinator daemon with auto-retry queue
 - Multi-agent workflows with approval gates
@@ -668,12 +551,11 @@ The Collaboration Hub is functional with the coordinator daemon providing real-t
 - Session continuity across agent handoffs
 
 **Planned improvements:**
-- Agent status indicator in UI
 - Cloud storage backends (Firestore, DynamoDB)
 
 ## See Also
 
-- [Telemetry & Tracing](/docs/guides/telemetry) - Observatory dashboard integration and distributed tracing
+- [Telemetry & Tracing](/docs/guides/telemetry) - Observatory integration and distributed tracing
 - [Coordinator Guide](/docs/guides/coordinator) - Multi-agent workflows with approval gates
 - [Coordinator Setup](/docs/guides/coordinator-setup) - External project configuration
 - [Agent Messaging](/docs/guides/agent-messaging) - CLI-based messaging between projects

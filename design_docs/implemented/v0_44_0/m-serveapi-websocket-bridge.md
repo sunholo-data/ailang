@@ -573,7 +573,7 @@ All in-repo claims were checked at `dev` = `62608138d`, 2026-09-25, `ailang v0.4
 - [M-STREAM-BIDI](../v0_8_1/m-stream-bidi-primitives.md): dispatch model, block backpressure, budget keys (reused); server-side WS was its explicit non-goal (`:964`)
 - [M-WASM-STREAM-BRIDGE](../v0_8_1/m-wasm-stream-bridge.md): the browser-side AILANG stream bridge. Orthogonal: it runs AILANG **in** the browser, whereas here the browser is a thin client and policy runs on the Studio
 - [M-ASYNC-IO](../v0_9_0/m-async-io-stream.md): `selectEvents` merge rules reused by the bridge loop
-- [m-serveapi-protocol-only-module](../../planned/m-serveapi-protocol-only-module.md): Go-packaging split of the `serveapi` facade. **Overlap:** the new WS code must stay in `internal/apiserver` and `internal/platform/streamws` and add nothing to the protocol-only package's closure. The facade may later expose a `WS` option, which is out of scope here
+- [m-serveapi-protocol-only-module](../v0_33_2/m-serveapi-protocol-only-module.md): Go-packaging split of the `serveapi` facade. **Overlap:** the new WS code must stay in `internal/apiserver` and `internal/platform/streamws` and add nothing to the protocol-only package's closure. The facade may later expose a `WS` option, which is out of scope here
 - [m-serveapi-bind-host-cors](m-serveapi-bind-host-cors.md): **prerequisite** (written in parallel)
 - [m-trace-label-aware](../../planned/v0_36_0/m-trace-label-aware.md): the general trace/label fix. This design avoids depending on it
 

@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math"
 	"strconv"
+	"strings"
 )
 
 // FormatJSONNumber is the single source of truth for the JSON text of a
@@ -42,6 +43,19 @@ func FormatJSONNumber(f float64) string {
 		s = s[:n-2] + s[n-1:]
 	}
 	return s
+}
+
+// FormatFloatSyntax is FormatJSONNumber, but a whole number keeps float syntax
+// ("1.0", "1000.0", "1e+21"), so a reader that tells integers from floats by
+// syntax (YAML's !!int/!!float, std/json's JInt/JNumber) reads a float back.
+// Used where the int/float distinction must survive text: the YAML bridge and
+// the YAML encoder. NaN/Inf stay "null" (callers reject them first).
+func FormatFloatSyntax(f float64) string {
+	s := FormatJSONNumber(f)
+	if s == "null" || strings.ContainsAny(s, ".eE") {
+		return s
+	}
+	return s + ".0"
 }
 
 // ParseJSONNumber converts a grammar-validated JSON number token to float64.

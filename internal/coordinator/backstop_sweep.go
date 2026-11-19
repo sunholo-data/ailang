@@ -169,6 +169,18 @@ func (s *BackstopSweep) SweepOnce(_ context.Context) {
 		len(recoverable), s.mode)
 
 	for _, m := range recoverable {
+		// M-CASCADE-ENVELOPE-HYDRATION: a stored dependency-bump row has no
+		// Source and no cascade envelope — those travel only on the cascade
+		// topic. Re-enqueued, it became a task whose cascade template rendered
+		// blank, and the agent filed an EMPTY-dispatch bug report: 627 of them
+		// on the test plane, 2026-08-31..09-02, from this loop. The sweep has no
+		// redelivery to bound a retry and no evidence to rebuild the envelope
+		// from, so it leaves the row unread for triage and says so every pass.
+		if cascadeShaped(m.MessageType, m.Payload) {
+			s.logger.Printf("backstop sweep: WITHHOLDING %s (inbox=%s, title=%q): a cascade bump request with no cascade envelope cannot be dispatched from the stored row; re-trigger from the original publish",
+				m.ID, m.ToInbox, truncateForLog(m.Title))
+			continue
+		}
 		if s.mode == BackstopReport {
 			s.logger.Printf("backstop sweep: WOULD recover %s (inbox=%s, from=%s, title=%q)",
 				m.ID, m.ToInbox, m.FromAgent, truncateForLog(m.Title))

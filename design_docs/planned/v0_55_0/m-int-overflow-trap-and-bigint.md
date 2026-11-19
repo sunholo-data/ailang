@@ -1,3 +1,5 @@
+> **Superseded in part:** the Go emitter (`ailang compile --emit-go`, `internal/gen/golang`) was removed in #2389; anything below that plans for or depends on it no longer applies.
+
 # M-INT-OVERFLOW-TRAP-AND-BIGINT: integer overflow fails loudly; exact big integers are a library
 
 **Status**: Planned. Quorum round 1 BLOCKED; both objections accepted and revised in; round 2 pending. Design-freeze items F1–F3 need a human ruling before the sprint.

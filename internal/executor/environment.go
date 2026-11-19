@@ -157,6 +157,16 @@ func injectHarnessEnv(env *envSet, opts EnvironmentOptions) {
 		env.setEntries(GitCredentialEnv(opts.Task.GitCredentialFile, opts.Task.GitCredentialScopes))
 	}
 
+	// Eval-run marker (Task.EvalRun): attended-session guards such as the pi
+	// session-protocol gate disarm on it. Harness-owned: ExtraEnv may not name it.
+	// Unset otherwise, so a value inherited from the operator's shell cannot
+	// disarm the guards of a non-eval child.
+	if opts.Task != nil && opts.Task.EvalRun {
+		env.set(config.EnvEvalRun, "1")
+	} else {
+		env.unset(config.EnvEvalRun)
+	}
+
 	// The program policy the ailang_only lane's tools are gated by. Derived
 	// from Task.PolicyPath — never from ExtraEnv, which may not name it.
 	if opts.Task != nil && opts.Task.PolicyPath != "" {

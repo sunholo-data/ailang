@@ -32,13 +32,31 @@ func (f *fakeSubscriber) Subscribe(ctx context.Context, subName string, handler 
 	return nil
 }
 
+// handlerWait bounds how long deliver waits for the daemon to subscribe. The tests
+// start d.Run in a goroutine and used to sleep a fixed 20 ms before delivering; on a
+// loaded CI runner the subscriber had not registered yet and the test died with "no
+// handler registered" (macOS, 2026-11-10, twice in one day on unrelated PRs). Waiting
+// on the condition itself removes the race; the bound only turns a daemon that never
+// subscribes into a failure instead of a hang.
+const handlerWait = 10 * time.Second
+
+func (f *fakeSubscriber) handler(subName string) (MessageHandler, bool) {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	h, ok := f.handlers[subName]
+	return h, ok
+}
+
 func (f *fakeSubscriber) deliver(t *testing.T, subName string, data []byte, attrs map[string]string) error {
 	t.Helper()
-	f.mu.Lock()
-	h, ok := f.handlers[subName]
-	f.mu.Unlock()
+	deadline := time.Now().Add(handlerWait)
+	h, ok := f.handler(subName)
+	for !ok && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+		h, ok = f.handler(subName)
+	}
 	if !ok {
-		t.Fatalf("no handler registered for %q", subName)
+		t.Fatalf("no handler registered for %q within %s", subName, handlerWait)
 	}
 	return h(context.Background(), data, attrs)
 }
@@ -512,5 +530,27 @@ func TestDaemon_GracefulShutdown(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("daemon did not shut down within 2s of context cancel")
+	}
+}
+
+// The subscriber may register AFTER the test asks to deliver: deliver must wait for it
+// rather than assume a sleep was long enough.
+func TestFakeSubscriber_DeliverWaitsForLateSubscription(t *testing.T) {
+	sub := newFakeSubscriber()
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	got := make(chan string, 1)
+	go func() {
+		time.Sleep(150 * time.Millisecond) // far longer than the old fixed 20 ms
+		_ = sub.Subscribe(ctx, "late-topic", func(_ context.Context, data []byte, _ map[string]string) error {
+			got <- string(data)
+			return nil
+		})
+	}()
+	if err := sub.deliver(t, "late-topic", []byte("payload"), nil); err != nil {
+		t.Fatalf("deliver: %v", err)
+	}
+	if v := <-got; v != "payload" {
+		t.Fatalf("handler got %q", v)
 	}
 }

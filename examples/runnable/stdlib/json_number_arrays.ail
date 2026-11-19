@@ -1,0 +1,40 @@
+-- Task: read numeric arrays from a JSON sensor payload and compute the mean of
+-- each series, choosing between strict extraction (reject a series with any
+-- non-number) and permissive extraction (skip bad entries, or [] when missing).
+-- Demonstrates std/json decode, getNumberArrayStrict, getNumberArray,
+-- getNumberArrayOrEmpty and getStringArrayStrict.
+module examples/runnable/stdlib/json_number_arrays
+import std/json (Json, decode, getNumberArrayStrict, getNumberArray, getNumberArrayOrEmpty, getStringArrayStrict)
+import std/list (foldl, length, forEachE)
+import std/math (intToFloat)
+import std/string (join)
+
+func mean(xs: [float]) -> string =
+  if length(xs) == 0 then "n/a" else show(foldl(\acc x. acc + x, 0.0, xs) / intToFloat(length(xs)))
+
+func showOpt(o: Option[[float]]) -> string = match o {
+  Some(xs) => "mean ${mean(xs)} of ${show(length(xs))}",
+  None => "None"
+}
+
+export func main() -> () ! {IO} {
+  let payload = "{\"units\": [\"C\", \"C\"], \"temp\": [20.5, 21.5, 22.5], \"humidity\": [40, \"err\", 44], \"labels\": [\"a\", 1]}"
+  match decode(payload) {
+    Err(e) => println("parse error: ${e}"),
+    Ok(j) => {
+      let series = ["temp", "humidity", "pressure"]
+      -- Strict: one bad element rejects the whole series.
+      forEachE(\k. println("strict     ${k}: ${showOpt(getNumberArrayStrict(j, k))}"), series)
+      -- Permissive: non-numbers are skipped; a missing key is None.
+      forEachE(\k. println("permissive ${k}: ${showOpt(getNumberArray(j, k))}"), series)
+      -- OrEmpty: never fails, so a missing series simply has no data.
+      forEachE(\k. println("or-empty   ${k}: ${mean(getNumberArrayOrEmpty(j, k))}"), series)
+      -- The same strict/permissive split exists for strings.
+      match getStringArrayStrict(j, "units") {
+        Some(us) => println("units: ${join(",", us)}"),
+        None => println("units: rejected")
+      }
+      println("labels strict: ${show(getStringArrayStrict(j, "labels"))}")
+    }
+  }
+}

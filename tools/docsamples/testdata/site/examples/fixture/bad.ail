@@ -1,0 +1,3 @@
+module examples/fixture/bad
+
+export func main() -> () ! {IO} = print("print needs an import")

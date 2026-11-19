@@ -16,8 +16,14 @@ jobs:
   build:
     name: Build ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    # 45, matching ci.yml's `test` job. At 30 the job was cancelled mid-suite with no
+    # failing test: dev runs take 9-18 min but have reached 27, and one package alone
+    # may use the 900 s test budget below (2026-11-11: #2229 twice, #2230 once).
+    timeout-minutes: 45
     strategy:
+      # One OS failing or flaking must not cancel the others: the release gate reads
+      # each OS's job separately, and a cancelled leg reads as "not green".
+      fail-fast: false
       matrix:
         include:
           - os: ubuntu-latest
@@ -43,12 +49,12 @@ jobs:
 
     steps:
     - name: Checkout code
-      uses: actions/checkout@v7
+      uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
     - name: Setup Go
-      uses: actions/setup-go@v7
+      uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
       with:
-        go-version: '1.26.10'
+        go-version: '1.26.11'
 
     # uv pins the Python runtime for eval-harness tests. The harness invokes
     # `uv run --python <PinnedPythonVersion>` and fails loudly if uv is missing
@@ -60,7 +66,7 @@ jobs:
     # Keep this request in sync with PinnedPythonVersion in python.go.
     - name: Prefetch Python for offline eval-harness tests
       timeout-minutes: 5
-      run: uv python install 3.12
+      run: uv python install 3.14
 
     - name: Get dependencies
       run: go mod download all
@@ -80,7 +86,13 @@ jobs:
         [[ "$HTTPS_PROXY" == "http://127.0.0.1:9" ]] || { echo "::error::HTTPS_PROXY poison is not configured"; exit 1; }
         [[ "$NO_PROXY" == "localhost,127.0.0.1" ]] || { echo "::error::NO_PROXY loopback bypass is not configured"; exit 1; }
         [[ "$GOPROXY" == "off" ]] || { echo "::error::GOPROXY is not disabled"; exit 1; }
-        go test -v $(go list ./... | grep -v /scripts | grep -v /examples/agents)
+        # -timeout 900s: the same DERIVED PROVISIONAL budget as ci.yml's test-windows job
+        # (derivation in the comment on its "Run Go test suite" step). This step used Go's
+        # default 600s, which cmd/ailang outgrew on windows-latest: it measured 451s and
+        # 485s on dev, then 600s and 590s on one PR (2026-11-10) whose own new tests take
+        # about 2s — the hang guard refused the package's last tests both times. The two
+        # workflows had drifted; keep them in step. The durable fix is a faster cmd/ailang.
+        go test -v -timeout 900s $(go list ./... | grep -v /scripts | grep -v /examples/agents)
 
     - name: Build binary
       env:
@@ -108,14 +120,14 @@ jobs:
 
     - name: Upload artifact (Unix)
       if: matrix.os != 'windows-latest'
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: ${{ matrix.artifact_name }}
         path: ${{ matrix.artifact_name }}.tar.gz
 
     - name: Upload artifact (Windows)
       if: matrix.os == 'windows-latest'
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: ${{ matrix.artifact_name }}
         path: ${{ matrix.artifact_name }}.zip
@@ -129,7 +141,7 @@ jobs:
     
     steps:
     - name: Download all artifacts
-      uses: actions/download-artifact@v8
+      uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
       with:
         path: ./artifacts
 
@@ -143,7 +155,7 @@ jobs:
         cd bundle && tar -czf ../ailang-all-platforms.tar.gz *
 
     - name: Upload combined bundle
-      uses: actions/upload-artifact@v7
+      uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
       with:
         name: ailang-all-platforms
         path: ailang-all-platforms.tar.gz

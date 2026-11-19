@@ -1,0 +1,34 @@
+-- Instrument a small order-pricing pipeline with std/trace: wrap each stage
+-- in spanStart/spanEnd and record inputs with event, while the program's
+-- own stdout stays the same. Run with --caps IO,Trace; add
+-- --emit-trace jsonl to see the events (spans need AILANG_TRACE=deep).
+module examples/runnable/stdlib/trace_spans
+import std/trace (spanStart, spanEnd, event)
+import std/list (foldl)
+
+-- Every span is closed on the same path that opened it
+func subtotal(prices: [int]) -> int ! {Trace} {
+  spanStart("subtotal")
+  event("items", show(prices))
+  let total = foldl(\acc p. acc + p, 0, prices)
+  spanEnd("subtotal")
+  total
+}
+
+func applyDiscount(total: int, percent: int) -> int ! {Trace} {
+  spanStart("discount")
+  event("percent", show(percent))
+  let discounted = total - total * percent / 100
+  spanEnd("discount")
+  discounted
+}
+
+export func main() -> () ! {IO, Trace} {
+  spanStart("price_order")
+  let gross = subtotal([1200, 450, 350])
+  let net = applyDiscount(gross, 10)
+  event("net", show(net))
+  spanEnd("price_order")
+  println("gross: ${show(gross)}")
+  println("net after 10%: ${show(net)}")
+}

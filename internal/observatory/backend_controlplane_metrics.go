@@ -95,7 +95,7 @@ func (b *SQLiteBackend) GetFilteredMetricsSummary(ctx context.Context, filter *C
 				NULLIF(CAST(COUNT(*) AS REAL), 0) as success_rate,
 			COALESCE(SUM(cache_read_tokens), 0) as total_cache_read_tokens,
 			COALESCE(SUM(cache_creation_tokens), 0) as total_cache_creation_tokens,
-			SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END) as error_count
+			COALESCE(SUM(CASE WHEN status = 'error' THEN 1 ELSE 0 END), 0) as error_count
 		FROM spans
 		%s
 	`, whereClause)

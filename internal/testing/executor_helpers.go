@@ -90,15 +90,17 @@ func (r *CombinedResolver) resolveAdtFactory(factoryName string) (eval.Value, er
 	if !strings.HasPrefix(factoryName, "make_") {
 		return nil, fmt.Errorf("invalid $adt factory name: %s", factoryName)
 	}
-	parts := strings.SplitN(factoryName[5:], "_", 2)
-	if len(parts) != 2 {
+	declModule, typeName, ctorName, ok := core.ParseADTFactoryName(factoryName)
+	if !ok {
 		return nil, fmt.Errorf("invalid $adt factory format: %s (expected make_TypeName_CtorName)", factoryName)
 	}
-	typeName, ctorName := parts[0], parts[1]
 
 	for _, mod := range r.Modules {
 		if mod == nil || mod.Iface == nil || mod.Iface.Constructors == nil {
 			continue
+		}
+		if declModule != "" && mod.Iface.Module != declModule {
+			continue // M-V1-NOMINAL-TYPE-IDENTITY: the factory names its module
 		}
 		ctor, ok := mod.Iface.Constructors[ctorName]
 		if !ok || ctor.TypeName != typeName {
@@ -293,6 +295,10 @@ func PrintAILANGSource(expr ast.Expr) string {
 						buf.WriteString(`\\`)
 					case '"':
 						buf.WriteString(`\"`)
+					case '$':
+						// A literal "${" would re-lex as an interpolation; `\$` is
+						// the lexer's escape for a plain dollar sign.
+						buf.WriteString(`\$`)
 					case '\n':
 						buf.WriteString(`\n`)
 					case '\t':
@@ -307,19 +313,35 @@ func PrintAILANGSource(expr ast.Expr) string {
 				return buf.String()
 			}
 		}
+		// A negative int literal only comes from a hex/binary/octal literal
+		// (`-7` parses as a unary minus), and its decimal spelling either
+		// re-parses as a UnaryOp or, for the minimum int, not at all. Print the
+		// two's-complement hex form, which parses back to the same literal.
+		if e.Kind == ast.IntLit {
+			if v, ok := e.Value.(int64); ok && v < 0 {
+				return fmt.Sprintf("0x%x", uint64(v))
+			}
+		}
 		return e.String() // bool, int, float: ast.Literal.String() spells each re-parseably (#1448)
 	case *ast.Identifier:
 		return e.Name
 	case *ast.BinaryOp:
 		return fmt.Sprintf("(%s %s %s)",
-			PrintAILANGSource(e.Left), e.Op, PrintAILANGSource(e.Right))
+			printOperand(e.Left), e.Op, printOperand(e.Right))
 	case *ast.UnaryOp:
-		return fmt.Sprintf("(%s %s)", e.Op, PrintAILANGSource(e.Expr))
+		return fmt.Sprintf("(%s %s)", e.Op, printOperand(e.Expr))
 	case *ast.FuncCall:
 		// Produce "f(arg1, arg2)" — the standard AILANG call syntax.
 		// Special case: f(()) — a call with a single unit literal — should print
 		// as f() because that is how zero-arg functions are called in AILANG source.
-		funcStr := PrintAILANGSource(e.Func)
+		funcStr := printOperand(e.Func)
+		// The parser desugars `x :: xs` to FuncCall{::, [x, xs]}, and the prefix
+		// spelling `::(x, xs)` does not parse as an expression (only as a
+		// pattern), so a cons must go back out infix (#1914). Parenthesised like
+		// BinaryOp, so precedence never depends on the surrounding expression.
+		if id, ok := e.Func.(*ast.Identifier); ok && id.Name == "::" && len(e.Args) == 2 {
+			return fmt.Sprintf("(%s :: %s)", printOperand(e.Args[0]), printOperand(e.Args[1]))
+		}
 		if len(e.Args) == 0 {
 			return funcStr + "()"
 		}
@@ -394,7 +416,7 @@ func PrintAILANGSource(expr ast.Expr) string {
 		}
 		return "{ " + strings.Join(fields, ", ") + " }"
 	case *ast.RecordAccess:
-		return fmt.Sprintf("%s.%s", PrintAILANGSource(e.Record), e.Field)
+		return fmt.Sprintf("%s.%s", printOperand(e.Record), e.Field)
 	case *ast.RecordUpdate:
 		fields := make([]string, len(e.Fields))
 		for i, f := range e.Fields {
@@ -424,6 +446,9 @@ func PrintAILANGSource(expr ast.Expr) string {
 		if e.ReturnType != nil {
 			retStr = fmt.Sprintf(" -> %s", e.ReturnType)
 		}
+		if effects := ast.FormatEffects(e.Effects); effects != "" {
+			retStr += " " + effects // dropping `! {IO}` changed the literal's type
+		}
 		return fmt.Sprintf("func(%s)%s { %s }", strings.Join(params, ", "), retStr, PrintAILANGSource(e.Body))
 	case *ast.Error:
 		return fmt.Sprintf("<printer-error: unrepresentable *ast.Error node: %s>", e.Msg)
@@ -450,6 +475,22 @@ func PrintAILANGSource(expr ast.Expr) string {
 		// Unknown variant: return a descriptive error string.
 		// The pipeline will fail with a parse error (test FAIL), not a process crash.
 		return fmt.Sprintf("<printer-error: unhandled ast.Expr type %T>", expr)
+	}
+}
+
+// printOperand prints an expression that sits where a lower-precedence form
+// would capture its neighbours: an operand of a binary or unary operator, or
+// the callee of a call. `if`, `let`, `match` and lambdas extend as far right
+// as they can, so `(if c then a else b) ++ ys` printed bare re-parsed as
+// `if c then a else (b ++ ys)`, and `(\f. f)(g)` as `\f. f(g)`. Those forms are
+// parenthesised; everything else already prints as an atom or parenthesises
+// itself.
+func printOperand(expr ast.Expr) string {
+	switch expr.(type) {
+	case *ast.If, *ast.Let, *ast.LetRec, *ast.Match, *ast.Lambda, *ast.FuncLit:
+		return "(" + PrintAILANGSource(expr) + ")"
+	default:
+		return PrintAILANGSource(expr)
 	}
 }
 

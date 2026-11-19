@@ -32,6 +32,7 @@ func serveAPICommand(args []string) error {
 	mcpFlag := fs.Bool("mcp", false, "Run as MCP stdio server (for Claude Desktop, Cursor, etc.)")
 	mcpHTTPFlag := fs.Bool("mcp-http", false, "Enable MCP HTTP endpoint at /mcp/")
 	a2aFlag := fs.Bool("a2a", false, "Enable A2A protocol endpoints (/.well-known/agent.json, /a2a/)")
+	a2aMessageFlag := fs.String("a2a-message", "", "With --a2a: the export (fn or module/path.fn, one string param) that answers A2A v0.3 message/send and message/stream")
 	maxUploadFlag := fs.Int64("max-upload-size", 0, "Maximum upload size in bytes (default: 50MB)")
 	apiKeyHeaderFlag := fs.String("api-key-header", "", "HTTP header name for API key authentication")
 	apiKeyEnvFlag := fs.String("api-key-env", "", "Environment variable containing the expected API key")
@@ -40,7 +41,7 @@ func serveAPICommand(args []string) error {
 	staticCacheFlag := fs.String("static-cache", "", "Cache-Control for --static files: 'immutable' (public, max-age=31536000, immutable) or a max-age in seconds")
 	noFeedbackToolFlag := fs.Bool("no-feedback-tool", false, "Suppress the built-in submit_feedback MCP tool (exact tool surface)")
 	oauthIssuerFlag := fs.String("oauth-issuer", "", "OAuth authorization server for @mcp_auth(\"oauth2\") tools on /mcp/connect/")
-	serverInfoFlag := fs.String("server-info", "", "Service identity for MCP serverInfo, the A2A card version and OpenAPI info.version: name=N,title=T,version=V (default name ailang-api, version = this binary)")
+	serverInfoFlag := fs.String("server-info", "", "Service identity for MCP serverInfo, the A2A card and OpenAPI info.version: name=N,title=T,version=V,icon=/path-or-https-URL (default name ailang-api, version = this binary)")
 	mcpConnectOnlyFlag := fs.Bool("mcp-connect-only", false, "Serve tools only on /mcp/connect/, each behind the OAuth Bearer gate: no /mcp/, and plain HTTP serves @nomcp routes only")
 	mcpSubjectRPMFlag := fs.Int("mcp-subject-rpm", 0, "Gated /mcp/connect/ tool calls allowed per verified subject per minute (429 + Retry-After beyond it; needs an identity @mcp_token_verifier). 0 = off")
 	mcpSubjectBurstFlag := fs.Int("mcp-subject-burst", 0, "Burst for --mcp-subject-rpm (default: the rpm value)")
@@ -199,6 +200,7 @@ func serveAPICommand(args []string) error {
 		MCP:            *mcpHTTPFlag,
 		MCPOnly:        *mcpFlag,
 		A2A:            *a2aFlag,
+		A2AMessage:     *a2aMessageFlag,
 		MaxUploadSize:  *maxUploadFlag,
 		APIKeyHeader:   *apiKeyHeaderFlag,
 		APIKeyEnv:      *apiKeyEnvFlag,
@@ -283,6 +285,9 @@ func printServeAPIHelp() {
 	fmt.Println("  --mcp                Run as MCP stdio server (for Claude Desktop, Cursor)")
 	fmt.Println("  --mcp-http           Enable MCP HTTP endpoint at /mcp/")
 	fmt.Println("  --a2a                Enable A2A protocol (/.well-known/agent.json, /a2a/)")
+	fmt.Println("  --a2a-message FN     With --a2a: the export (one string param) answering A2A v0.3")
+	fmt.Println("                       message/send and message/stream: the caller's text in, the answer out.")
+	fmt.Println("                       Makes the card an agent with one streamed skill (Gemini Enterprise).")
 	fmt.Println("  --max-upload-size N  Maximum file upload size in bytes (default: 50MB)")
 	fmt.Println("  --api-key-header H   HTTP header name for API key authentication")
 	fmt.Println("  --api-key-env VAR    Environment variable containing the expected API key")
@@ -296,9 +301,10 @@ func printServeAPIHelp() {
 	fmt.Println("  --mcp-subject-burst N  Burst for --mcp-subject-rpm (default: the rpm value)")
 	fmt.Println("  --process-timeout D  Process exec timeout (default 30s; needs --caps Process)")
 	fmt.Println("  --process-allowlist L  Commands Process may exec: cmd or cmd:sub, comma-separated (default: any on PATH)")
-	fmt.Println("  --server-info S      Service identity: name=N,title=T,version=V (any subset; values without commas).")
-	fmt.Println("                       Sets MCP serverInfo on /mcp/ and /mcp/connect/, the A2A card version and")
-	fmt.Println("                       OpenAPI info.version. Default: name ailang-api, version = this binary")
+	fmt.Println("  --server-info S      Service identity: name=N,title=T,version=V,icon=I (any subset; values without commas).")
+	fmt.Println("                       Sets MCP serverInfo on /mcp/ and /mcp/connect/, the A2A card (icon = its")
+	fmt.Println("                       iconUrl: a /path on this server or an https URL) and OpenAPI info.version.")
+	fmt.Println("                       Default: name ailang-api, version = this binary")
 	fmt.Println("  --net-max-bytes N    Cap on each Net response body, e.g. 50MB (default 5MB, or AILANG_NET_MAX_BYTES;")
 	fmt.Println("                       needs --caps Net). Bodies are buffered whole: budget >= 2x N per in-flight fetch")
 	printServeAPIWSHelp()

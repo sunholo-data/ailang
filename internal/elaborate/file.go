@@ -148,6 +148,18 @@ func collectModuleLets(file *ast.File) []*ModuleLet {
 // ElaborateFile transforms a complete file with module structure to Core ANF
 func (e *Elaborator) ElaborateFile(file *ast.File) (prog *core.Program, err error) {
 	e.typeAnnotationErr = nil
+	e.checkBodies = nil
+	e.ensureTypeScope(file)
+	// A type alias may not refer to itself (TC_TYPE_ALIAS_CYCLE_001): checked
+	// before any alias is registered or expanded.
+	if err := e.checkAliasCycles(file); err != nil {
+		return nil, err
+	}
+	// EXT004 (#2390): no engine runs an extern function. Checked before the
+	// module-less branch below, which would otherwise drop file.Funcs silently.
+	if err := checkNoExternFuncs(file); err != nil {
+		return nil, err
+	}
 	defer func() {
 		if e.typeAnnotationErr != nil {
 			prog, err = nil, e.typeAnnotationErr
@@ -174,6 +186,11 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (prog *core.Program, err erro
 					return nil, err
 				}
 				coreDecls = append(coreDecls, coreExpr)
+			}
+		}
+		if file.Module != nil { // a module of test blocks only (#2232)
+			if err := e.elaborateCheckBodies(file); err != nil {
+				return nil, err
 			}
 		}
 		return &core.Program{Decls: coreDecls, Meta: make(map[string]*core.DeclMeta)}, nil
@@ -216,7 +233,7 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (prog *core.Program, err erro
 		for _, imp := range file.Imports {
 			// Selective imports only: `import M as L` binds no bare names.
 			for _, sym := range imp.Symbols {
-				decl, err := e.moduleLoader.GetExport(imp.Path, sym)
+				decl, err := e.moduleLoader.GetImportExport(imp, sym)
 				if err != nil {
 					// Preserve structured error reports without wrapping
 					return nil, err
@@ -395,6 +412,11 @@ func (e *Elaborator) ElaborateFile(file *ast.File) (prog *core.Program, err erro
 		}
 	}
 
+	// #2232: test blocks, properties and inline rows, for type checking only.
+	if err := e.elaborateCheckBodies(file); err != nil {
+		return nil, err
+	}
+
 	return &core.Program{Decls: coreDecls, Meta: meta}, nil
 }
 
@@ -433,11 +455,7 @@ func astFuncToSig(f *ast.FuncDecl) *FuncSig {
 func collectFuncSigs(file *ast.File) []*FuncSig {
 	var funcs []*FuncSig
 	for _, f := range file.Funcs {
-		// Skip extern functions - they have no body to elaborate
-		// Extern functions are handled separately in codegen (extern_stubs.go)
-		if f.IsExtern {
-			continue
-		}
+		// No extern reaches here: ElaborateFile rejects them first (EXT004).
 		funcs = append(funcs, astFuncToSig(f))
 	}
 	return funcs

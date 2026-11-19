@@ -23,17 +23,12 @@ func (fc *funcCompiler) compileSwitch(s stmt.SwitchStmt) error {
 	}
 	scrutIsTemp := !fc.isPinned(scrutReg)
 
-	// Get the ADT info to translate tag names to ordinals.
-	adtName := s.ADTName
-	info, ok := fc.adtTypes[adtName]
-	if !ok && adtName == "" {
-		// The lower pass couldn't determine the ADT type (e.g., unresolved type
-		// variable). Infer from the case constructor tags by scanning adtTypes
-		// for a type that contains all tags used in the switch.
-		adtName, info, ok = fc.inferADTFromCases(s.Cases)
-	}
-	if !ok {
-		return fmt.Errorf("compiler: unknown ADT %q in switch", adtName)
+	// Get the ADT info to translate tag names to ordinals. The ADT is the
+	// one the type checker stamped on the case patterns (lower.patternADTName);
+	// a missing or unknown one is refused, never inferred from the tags (#2303).
+	info, err := fc.adtInfo(s.ADTName, "switch")
+	if err != nil {
+		return err
 	}
 
 	// Compute the tag once.
@@ -123,44 +118,4 @@ func (fc *funcCompiler) compileSwitch(s stmt.SwitchStmt) error {
 		fc.regs.freeTemp(scrutReg)
 	}
 	return nil
-}
-
-// inferADTFromCases scans the registered ADT types to find one whose tag set
-// contains all constructor tags used in the switch cases. Returns the ADT name,
-// info, and true if found. This is a fallback for when the lower pass couldn't
-// determine the ADT type (e.g., unresolved type variable in scrutinee).
-//
-// Candidates are tried in declaration order (fc.adtOrder), never Go map
-// order, so the choice is the same on every compile (ailang#1355). When two
-// ADTs share all the case tags the first declared wins — deterministic, but
-// not a soundness guarantee; tag identity at runtime is future work.
-func (fc *funcCompiler) inferADTFromCases(cases []stmt.SwitchCase) (string, adtTypeInfo, bool) {
-	tags := make([]string, len(cases))
-	for i, c := range cases {
-		tags[i] = c.Tag
-	}
-	return fc.inferADTFromTags(tags)
-}
-
-// inferADTFromTags is the tag-list core of inferADTFromCases, shared with
-// the ADTTagEq tag check (adt_tag.go) so the switch path and the if-chain
-// path resolve a tag to an ADT by one rule.
-func (fc *funcCompiler) inferADTFromTags(tags []string) (string, adtTypeInfo, bool) {
-	if len(tags) == 0 {
-		return "", adtTypeInfo{}, false
-	}
-	for _, name := range fc.adtOrder {
-		info := fc.adtTypes[name]
-		allMatch := true
-		for _, tag := range tags {
-			if _, ok := info.tagOrdinal[tag]; !ok {
-				allMatch = false
-				break
-			}
-		}
-		if allMatch {
-			return name, info, true
-		}
-	}
-	return "", adtTypeInfo{}, false
 }

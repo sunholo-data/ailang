@@ -1,0 +1,14 @@
+module lets_only_legacy
+
+-- #604 legacy-path guard: lets + a final expression has no non-final bare
+-- expression, so it keeps the byte-identical legacy fold and keeps passing.
+
+export pure func add_one(n: int) -> int {
+  n + 1
+}
+
+test "lets then final check" {
+  let x = add_one(1)
+  let y = add_one(x)
+  y == 3
+}

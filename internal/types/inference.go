@@ -55,12 +55,35 @@ type InferenceContext struct {
 	// (#1958 F-A1/F-A2); see typechecker_effect_union.go.
 	unionFrames []*unionFrame
 	selfTypes   []Type
+	// singleValues: let-bound bindings kept at one numeric type for all their
+	// uses (numeric_diagnostics.go, #2378).
+	singleValues []singleValueNote
+	// rigidGroup: the binding names of the let-rec group being inferred, for
+	// the TC_RIGID_001 culprit search (rigid_sig.go).
+	rigidGroup map[string]bool
 	// openedLambdaTails are fresh tails given to unannotated closed lambda rows
 	// (#1958 F-B); see typechecker_lambda_open.go.
 	openedLambdaTails map[string]bool
+	// pendingCtorVars: variables an open constructor choice depends on, as of
+	// the last SolveConstraints; withheld from let-generalisation (ambiguous_ctor.go).
+	pendingCtorVars map[string]bool
+	// pendingAccesses: the field accesses still undecided after the last
+	// SolveConstraints; a let that generalises over one carries it in its
+	// scheme (field_access_deferred.go). settleFieldAccesses makes a solve
+	// settle the undecided accesses as record accesses (the declaration).
+	pendingAccesses     []*fieldAccess
+	settleFieldAccesses bool
+	// ctorNotes record where an ambiguous constructor shaped inference (a let
+	// kept monomorphic, a pattern read by its arity), so a later unification
+	// failure can name it as the cause (ambiguous_ctor_cause.go).
+	ctorNotes []*ctorNote
+	// derivedEqs are the indices in constraints of equalities a resolved
+	// choice added (a diagnostic dry run re-derives them).
+	derivedEqs []int
 }
 
-// TypeConstraint represents a constraint to be solved
+// TypeConstraint represents a constraint to be solved (TypeEq, RowEq,
+// ClassConstraint, or a deferred constructor choice, ambiguous_ctor.go)
 type TypeConstraint interface {
 	constraint()
 	String() string
@@ -97,6 +120,11 @@ type ClassConstraint struct {
 	// literalConstrainedVars): the runtime has no fromInt dispatch, so a
 	// polymorphic literal would evaluate to an Int at every instantiation.
 	IntLiteral bool
+	// PolyNumeric marks the Num constraint re-emitted at a use of a binding
+	// with numeric variants (numeric_variants.go) at a variable whose int body
+	// is wrong at float (a literal there). A let-bound lambda carrying one is
+	// copied per use; any other let is kept monomorphic, as for a literal.
+	PolyNumeric bool
 }
 
 func (c ClassConstraint) constraint()    {}

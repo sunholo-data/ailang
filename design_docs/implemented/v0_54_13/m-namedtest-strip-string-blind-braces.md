@@ -510,7 +510,7 @@ The following are intentionally left open for the implementer:
 - `design_docs/planned/ailang-core-triage/ai-deadline-and-named-test-roundtrip.md` — independently reproduced the same mechanism (a later sibling's `"a{b"` fails the first test) and classified it duplicate-of the row above
 
 **Planned (adjacent, not overlapping):**
-- `design_docs/planned/v0_53_0/m-test-runner-compile-once.md` — the batch compile built on this strip; its D1 fallback and harness-bug notice are how this bug now announces itself
+- `design_docs/implemented/v0_52_2/m-test-runner-compile-once.md` — the batch compile built on this strip; its D1 fallback and harness-bug notice are how this bug now announces itself
 
 **Implemented (context):**
 - `design_docs/implemented/v0_29_0/m-named-test-blocks.md` — the test-block lowering pipeline this strip feeds

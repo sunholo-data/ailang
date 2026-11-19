@@ -39,7 +39,7 @@ Traditional capability systems are binary: either you can perform an effect or y
 
 Add `@limit=N` to set a maximum budget, or `@min=N` to require a minimum usage:
 
-<CodeBlock language="typescript" title="examples/reference/budget_basic.ail">
+<CodeBlock language="ailang" title="examples/reference/budget_basic.ail">
   {BudgetBasic}
 </CodeBlock>
 
@@ -50,7 +50,7 @@ ailang run --caps IO --entry main examples/reference/budget_basic.ail
 
 ### Syntax Rules
 
-```typescript
+```ailang sketch
 -- Maximum limit: can use at most 5 IO operations
 func f() -> () ! {IO @limit=5} { ... }
 
@@ -77,7 +77,7 @@ func unlimited() -> () ! {IO} { ... }
 
 Each function **call** gets a fresh budget. The budget is not shared across calls:
 
-<CodeBlock language="typescript" title="examples/reference/budget_per_invocation.ail">
+<CodeBlock language="ailang" title="examples/reference/budget_per_invocation.ail">
   {BudgetPerInvocation}
 </CodeBlock>
 
@@ -101,7 +101,7 @@ All three calls succeed because each gets its own budget of 2.
 
 When a function exceeds its budget, it fails with a `BudgetExhaustedError`:
 
-<CodeBlock language="typescript" title="examples/reference/budget_exhausted.ail">
+<CodeBlock language="ailang" title="examples/reference/budget_exhausted.ail">
   {BudgetExhausted}
 </CodeBlock>
 
@@ -124,7 +124,7 @@ The error includes:
 
 Sometimes you need to **verify that an effect actually occurred** rather than being skipped or cached. The `@min=N` annotation enforces that a function performs at least N operations:
 
-<CodeBlock language="typescript" title="examples/reference/budget_minimum.ail">
+<CodeBlock language="ailang" title="examples/reference/budget_minimum.ail">
   {BudgetMinimum}
 </CodeBlock>
 
@@ -150,7 +150,7 @@ Hint: Ensure the function actually performs at least 1 IO operation(s)
 
 Use both annotations to specify a valid range:
 
-```typescript
+```ailang
 -- Must call API at least once, but no more than 5 times
 func fetchWithRetry(url: string) -> string ! {Net @min=1 @limit=5} {
   -- At least 1 call required, up to 5 allowed for retries
@@ -167,7 +167,7 @@ This is particularly useful for:
 
 This example demonstrates unlimited functions, limited functions, and per-invocation semantics all together:
 
-<CodeBlock language="typescript" title="examples/reference/capability_budgets.ail">
+<CodeBlock language="ailang" title="examples/reference/capability_budgets.ail">
   {CapabilityBudgets}
 </CodeBlock>
 
@@ -214,7 +214,7 @@ Budgets reset on each function call for several reasons:
 
 Global budgets (shared across all calls) are harder to reason about:
 
-```typescript
+```ailang error=PAR_EFF005_BUDGET
 -- Hypothetical global budget (NOT how AILANG works)
 func a() -> () ! {IO @global=5} { println("A"); () }
 func b() -> () ! {IO @global=5} { println("B"); () }
@@ -248,7 +248,7 @@ ailang run --caps IO --entry main program.ail
 
 Add budgets when you identify specific resource concerns:
 
-```typescript
+```ailang sketch
 -- Start with unlimited
 func process() -> () ! {IO} { ... }
 
@@ -260,7 +260,7 @@ func process() -> () ! {IO @limit=100} { ... }
 
 Choose limits based on actual requirements:
 
-```typescript
+```ailang sketch
 -- Too restrictive
 func fetchAll() -> () ! {Net @limit=1} { ... }  -- Only 1 request?
 
@@ -272,7 +272,7 @@ func fetchAll() -> () ! {Net @limit=50} { ... }  -- Batch of 50
 
 Add comments explaining why the limit exists:
 
-```typescript
+```ailang sketch
 -- Rate limited to respect API quota (100 requests/minute)
 func apiCall() -> () ! {Net @limit=100} { ... }
 ```

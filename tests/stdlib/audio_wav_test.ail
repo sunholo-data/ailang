@@ -2,7 +2,7 @@
 -- Run: ailang test tests/stdlib/audio_wav_test.ail
 module tests/stdlib/audio_wav_test
 import std/audio (wavHeader, wavFromPcm, durationMs, wavHeaderChecked, wavFromPcmChecked, wavInfo)
-import std/bytes (fromInts, toInts, length, slice, byteAt, concat, concatList)
+import std/bytes (fromInts, toInts, length, sliceLen, byteAt, concat, concatList)
 import std/list (length as listLength, any, range, map)
 import std/result (Ok, Err)
 import std/option (Option, Some, None)
@@ -29,7 +29,7 @@ pure func wavLength(xs: [int]) -> int
 
 pure func pcmSurvives(xs: [int]) -> bool tests [([1, 2, 3, 4], true), ([255, 0], true), ([], true)] {
   let wav = wavFromPcm(fromInts(xs), 24000, 1, 16)
-  match slice(wav, 44, length(wav) - 44) {
+  match sliceLen(wav, 44, length(wav) - 44) {
     Some(b) => toInts(b) == xs,
     None => false
   }

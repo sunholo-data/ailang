@@ -29,7 +29,7 @@ function stubObservatory() {
       try {
         body = JSON.parse(Buffer.concat(chunks).toString());
       } catch {}
-      posts.push({ url: req.url, body });
+      posts.push({ url: req.url, body, token: req.headers["x-ailang-ingest-token"] });
       res.writeHead(200, { "content-type": "application/json" });
       res.end(JSON.stringify({ task_id: "exec-abc12345", status: "created" }));
     });
@@ -199,6 +199,37 @@ describe("observatory session reporting", () => {
     assert.equal(pre?.tool_use_id, "c1");
     assert.ok(hooks.find((h) => h.event === "PostToolUse"), "no PostToolUse");
     assert.ok(hooks.find((h) => h.event === "Stop"), "a session that never stops is a session still running");
+  });
+
+  it("presents AILANG_HUB_TOKEN on every hub route, and no header when it is unset", async () => {
+    // All three routes are the dashboard's hub ingest class
+    // (internal/server/ingest_auth.go): once AILANG_INGEST_AUTH=enforce, a
+    // write without the token to a non-loopback dashboard is refused.
+    const o = await import(`${obsPath}?case=token`);
+    o.configure({ url });
+    const saved = process.env.AILANG_HUB_TOKEN;
+    try {
+      process.env.AILANG_HUB_TOKEN = "hub-test-token";
+      fresh();
+      const run = o.startRun({ sessionId: "t-token", workspace: "/w", provider: "pi" });
+      run.event({ type: "tool_execution_start", toolName: "bash", toolCallId: "c1" });
+      await run.finish({ ok: true });
+      const routes = new Set(obs.posts.map((p) => p.url));
+      for (const r of ["/api/exec/sessions", "/api/exec/events", "/api/observatory/hooks"]) {
+        assert.ok(routes.has(r), `${r} was not posted`);
+      }
+      for (const p of obs.posts) assert.equal(p.token, "hub-test-token", `${p.url} sent no token`);
+
+      delete process.env.AILANG_HUB_TOKEN;
+      fresh();
+      const bare = o.startRun({ sessionId: "t-notoken", workspace: "/w", provider: "pi" });
+      await bare.finish({ ok: true });
+      assert.ok(obs.posts.length > 0);
+      for (const p of obs.posts) assert.equal(p.token, undefined, `${p.url} sent a token header with none set`);
+    } finally {
+      if (saved === undefined) delete process.env.AILANG_HUB_TOKEN;
+      else process.env.AILANG_HUB_TOKEN = saved;
+    }
   });
 
   it("survives an observatory that is not there, and says so ONCE", async () => {

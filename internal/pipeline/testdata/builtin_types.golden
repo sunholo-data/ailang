@@ -253,6 +253,7 @@ _sharedmem_delete : string -> () ! {SharedMem}
 _sharedmem_get : string -> Option[bytes] ! {SharedMem}
 _sharedmem_keys : () -> list[string] ! {SharedMem}
 _sharedmem_put : (string, bytes) -> () ! {SharedMem}
+_show_preview : (α, int) -> string
 _simhash : string -> int
 _str_charAt : (string, int) -> string
 _str_charCode : string -> int
@@ -410,3 +411,4 @@ shiftRight_Int : (int, int) -> int
 show : α -> string
 sub_Float : (float, float) -> float
 sub_Int : (int, int) -> int
+unreachable : string -> α

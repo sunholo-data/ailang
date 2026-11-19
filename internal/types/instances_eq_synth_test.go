@@ -6,10 +6,13 @@ import (
 	"testing"
 )
 
-func listOf(t Type) Type   { return &TApp{Constructor: &TCon{Name: "list"}, Args: []Type{t}} }
-func optionOf(t Type) Type { return &TApp{Constructor: &TCon{Name: "Option"}, Args: []Type{t}} }
+func listOf(t Type) Type { return &TApp{Constructor: &TCon{Name: "list"}, Args: []Type{t}} }
+
+// The prelude's Option and Result carry their defining modules
+// (M-V1-NOMINAL-TYPE-IDENTITY); only those are structurally comparable.
+func optionOf(t Type) Type { return &TApp{Constructor: BuiltinCon("Option"), Args: []Type{t}} }
 func resultOf(t, e Type) Type {
-	return &TApp{Constructor: &TCon{Name: "Result"}, Args: []Type{t, e}}
+	return &TApp{Constructor: BuiltinCon("Result"), Args: []Type{t, e}}
 }
 
 var intToInt = &TFunc2{Params: []Type{TInt}, Return: TInt}
@@ -17,13 +20,13 @@ var intToInt = &TFunc2{Params: []Type{TInt}, Return: TInt}
 // TestEqSynthesis pins which shapes get a synthesized, structural Eq.
 func TestEqSynthesis(t *testing.T) {
 	env := LoadBuiltinInstances()
-	if err := env.AddDerivedEqForADT("Color"); err != nil {
+	if err := env.AddDerivedEqForADT("m", "Color"); err != nil {
 		t.Fatal(err)
 	}
-	if err := env.AddDerivedEqForADT("Point"); err != nil {
+	if err := env.AddDerivedEqForADT("m", "Point"); err != nil {
 		t.Fatal(err)
 	}
-	color := &TCon{Name: "Color"}
+	color := &TCon{Name: "Color", Module: "m"}
 	point := &TRecord{Fields: map[string]Type{"x": TInt, "y": TInt}, TypeName: "Point"}
 
 	cases := []struct {
@@ -138,7 +141,7 @@ func TestReduceEqConstraints(t *testing.T) {
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			out, err := env.ReduceEqConstraints([]ClassConstraint{{Class: "Eq", Type: c.typ, Path: []string{"here"}}})
+			out, err := env.ReduceConstraints([]ClassConstraint{{Class: "Eq", Type: c.typ, Path: []string{"here"}}})
 			if !c.ok {
 				if err == nil {
 					t.Fatalf("Eq[%s] must be rejected, reduced to %v", c.typ, out)
@@ -178,7 +181,7 @@ func TestReduceEqConstraintsDepthCap(t *testing.T) {
 	for i := 0; i < eqSynthDepthCap+1; i++ {
 		deep = &TList{Element: deep}
 	}
-	_, err := env.ReduceEqConstraints([]ClassConstraint{{Class: "Eq", Type: deep, Path: []string{"here"}}})
+	_, err := env.ReduceConstraints([]ClassConstraint{{Class: "Eq", Type: deep, Path: []string{"here"}}})
 	if err == nil || !strings.Contains(err.Error(), "E_EQ_SYNTH_DEPTH") {
 		t.Fatalf("depth %d residual Eq: want E_EQ_SYNTH_DEPTH, got %v", eqSynthDepthCap+1, err)
 	}

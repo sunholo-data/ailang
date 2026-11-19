@@ -66,19 +66,22 @@ func (b *Builder) Var(name string) Type {
 // Constructor type constructors
 
 // Con creates a type constructor (e.g., "Result", "Option", "List")
+//
+// The TCon is stamped with the name's defining module from the builtin home
+// table (M-V1-NOMINAL-TYPE-IDENTITY D4), so a builtin's `Option` is std/option's.
 func (b *Builder) Con(name string) Type {
-	return &TCon{Name: name}
+	return BuiltinCon(name)
 }
 
 // App creates a type application (e.g., List<String>, Result<T, E>)
 // For higher-kinded types like Result<Response, NetError>
 func (b *Builder) App(con string, args ...Type) Type {
 	if len(args) == 0 {
-		return &TCon{Name: con}
+		return BuiltinCon(con)
 	}
 
 	return &TApp{
-		Constructor: &TCon{Name: con},
+		Constructor: BuiltinCon(con),
 		Args:        args,
 	}
 }

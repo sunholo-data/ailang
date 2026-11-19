@@ -1,0 +1,60 @@
+ok 55 - bound measurement refuses a stimulus that exits nonzero
+ok 56 - bound measurement refuses a non-executable stimulus
+ok 57 - bound measurement refuses an unsuccessfully terminated timer
+ok 58 - refusal-branch count still matches the set this suite covers (28)
+ok 59 - wall-clock literal census preserves fixed timeout/node pins and scaled capacity bounds
+  192s  ok    tools/launchd/test_driver_notify.sh
+   81s  ok    tools/launchd/test_skill_sync.sh
+   71s  ok    tools/launchd/test_mission_workdir_sync.sh
+   71s  ok    tools/eval/test_motoko_connection_probe.sh
+   70s  ok    scripts/test_mission_pi_run.sh
+   65s  ok    tools/launchd/test_pin_root.sh
+   47s  ok    tools/launchd/test_mission_worktree.sh
+   28s  ok    tools/launchd/test_transcript_secret_scan.sh
+   26s  ok    .claude/skills/sprint-executor/scripts/test_cloud_branch_sync.sh
+   25s  ok    tools/launchd/test_secrets_scope.sh
+   15s  ok    scripts/test_mission_gate0_self_notices.sh
+   13s  ok    tools/launchd/test_mission_pi_run_provider_quota.sh
+   11s  ok    tools/launchd/test_mission_pi_run_commits.sh
+   11s  ok    tools/launchd/test_mission_heartbeat.sh
+   11s  ok    tools/launchd/test_hook_stdout.sh
+   11s  ok    scripts/hooks/test_git_health.sh
+   10s  ok    tools/launchd/test_controller_capacity.sh
+   10s  ok    scripts/test_mission_directives.sh
+    8s  ok    tools/launchd/test_suite_env.sh
+    8s  ok    tools/launchd/test_codex_auth_profiles.sh
+    8s  ok    scripts/test_mission_ledger_provenance.sh
+    7s  ok    tools/launchd/test_mission_pi_run_sandbox.sh
+    6s  ok    tools/launchd/test_pi_controller_note.sh
+    6s  ok    tools/launchd/test_mission_kill_tree.sh
+    5s  ok    tools/launchd/test_cron_kicker.sh
+    5s  ok    tools/launchd/test_codex_controller_env.sh
+    4s  ok    tools/launchd/test_mission_stall.sh
+    4s  ok    scripts/test_worktree_sweep.sh
+    4s  ok    scripts/hooks/test_stage_isolation.sh
+    3s  ok    tools/launchd/test_mission_lane_check.sh
+    3s  ok    scripts/hooks/test_pre_push.sh
+    2s  ok    tools/launchd/test_spawn_pin_hook.sh
+    2s  ok    tools/launchd/test_mission_triage_idle.sh
+    2s  ok    tools/launchd/test_mission_routing.sh
+    2s  ok    tools/launchd/test_mission_base.sh
+    2s  ok    tools/attended/test_codex_oauth_profiles.sh
+    2s  ok    .claude/skills/sprint-planner/scripts/test_create_sprint_json.sh
+    2s  ok    .claude/skills/sprint-evaluator/scripts/test_ci_gate.sh
+    1s  ok    tools/launchd/test_quorum_artifacts.sh
+    1s  ok    tools/launchd/test_mission_scope_guard.sh
+    1s  ok    tools/launchd/test_mission_iteration.sh
+    1s  ok    tools/launchd/test_agents_skills_sync.sh
+    0s  ok    tools/launchd/test_pi_ext_args.sh
+    0s  ok    tools/launchd/test_ollama_quota_admission.sh
+    0s  ok    tools/launchd/test_mission_registry_env.sh
+    0s  ok    tools/launchd/test_mission_prompt_role.sh
+    0s  ok    tools/launchd/test_mission_memgate.sh
+    0s  ok    tools/launchd/test_mission_fleet_idle.sh
+    0s  ok    tools/launchd/test_evaluator_skill_lane.sh
+    0s  ok    tools/launchd/test_controller_chain.sh
+    0s  ok    tools/launchd/test_codex_spawn_override.sh
+    0s  ok    tools/launchd/test_codex_quota_admission.sh
+    0s  ok    tools/launchd/test_anthropic_quota_admission.sh
+    0s  ok    scripts/test_mission_routing_models_check.sh
+run-suites: all 54 suites passed

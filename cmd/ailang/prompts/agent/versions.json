@@ -17,13 +17,23 @@
       "description": "Fix Stream capability: correct function names (transmit, onEvent, selectEvents, asyncExecProcess)",
       "created": "2026-03-08",
       "tags": [
+        "production"
+      ],
+      "notes": "Fixed Stream capability row: changed wrong 'connect, send, receive' to correct 'connect, transmit, onEvent, selectEvents, asyncExecProcess'. All other content identical to v0.8.2."
+    },
+    "v0.9.1": {
+      "file": "prompts/agent/v0.9.1.md",
+      "hash": "cf837f3028c99f1c42de85884847e0fe57b325d0ca5fac52e4ccc3df5e2fb1fd",
+      "description": "Correct prelude claims: print/readLine/getArgs need imports; int_to_float/float_to_int do not exist (std/math intToFloat/floatToInt); no ** or int max/min",
+      "created": "2026-11-06",
+      "tags": [
         "production",
         "latest"
       ],
-      "notes": "Fixed Stream capability row: changed wrong 'connect, send, receive' to correct 'connect, transmit, onEvent, selectEvents, asyncExecProcess'. All other content identical to v0.8.2."
+      "notes": "Verified with ailang check at v0.57.4: print, readLine, getArgs, int_to_float, float_to_int are all undefined without import (the last two do not exist). Found while building fine-tune training examples (m-eval-finetuning-data-pipeline D-FT-5)."
     }
   },
-  "active": "v0.9.0",
+  "active": "v0.9.1",
   "notes": [
     "Hash is SHA256 of the prompt file contents",
     "Use 'active' field to specify default agent prompt version",
