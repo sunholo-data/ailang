@@ -1,0 +1,24 @@
+{
+  "iteration": 95,
+  "record_pr": "https://github.com/sunholo-data/ailang/pull/2169",
+  "record_state": "OPEN draft; no merge; independent review unavailable",
+  "controlplane_message_id": "inbox_1794081691775_e8b85310",
+  "message_body_verified_exact": true,
+  "message_peek_kept_unread": true,
+  "pubsub_notification": "published",
+  "bookkeeping": {
+    "comments": 23,
+    "url": "https://github.com/sunholo-data/ailang/issues/2039#issuecomment-6712335446",
+    "state": "OPEN"
+  },
+  "triage_reply": {
+    "comments_before": 19,
+    "comments_after": 20,
+    "url": "https://github.com/sunholo-data/ailang/issues/2069#issuecomment-6712338048"
+  },
+  "iteration_chain": "d46ad5af-e88c-46e0-b7aa-eebb7ddaba70",
+  "ci": "PR checks were in progress at reporting; no remote green or substantive landing claimed",
+  "judge": "Unavailable; no verdict, no score, no controller substitute",
+  "new_ticket": "PARKED-ON-LANE; existing decisions unchanged",
+  "idle_fingerprint": "not recorded: fleet excluded, picked ticket and degraded evaluator"
+}

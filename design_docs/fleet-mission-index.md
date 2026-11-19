@@ -12,6 +12,36 @@ confidently and wrongly is worse than none.
 
 | # | date | what happened |
 |---|---|---|
+| 124 | 2026-11-19 | `quorum:codex-gpt-6.2-sol-not-allowlisted` RESOLVED as a ghost of `8e04a29c5` (stale rig binary); the seat still fails because the mission codex da... |
+| 123 | 2026-11-19 | `gate0:self-notices-rc2-no-watermark-file` LANDED and RESOLVED: #2421 → `cf540337e`; Gate 0 step 6a is a DEGRADED whole-issue read when no watermar... |
+| 122 | 2026-11-18 | D-FLEET-36 A + D-FLEET-38 A LANDED and RESOLVED: follow-up #2419 → `d2f2ec238` (fresh judge sonnet PASS 92; PR CI 24/24, dev CI 18/18 green); done-... |
+| 121 | 2026-11-18 | D-FLEET-36 A + D-FLEET-38 A guard arm LANDED (#2413 → `55d336df7`, dev CI 18/18 green); follow-up 8-site `[0-9]` edit + 16-skill sync BUILT and jud... |
+| 120 | 2026-11-18 | D-FLEET-36 A + D-FLEET-38 A guard arm BUILT, not landed: rebuilt fresh as #2413 (supersedes draft #2108; judge sonnet PASS 93); merge waits on dev'... |
+| 119 | 2026-11-17 | D-FLEET-33 A BUILT, not landed: pi `unowned-dirty` relative-path fix on #2411 (judge sonnet PASS 93); merge waits on the attended `make pi-assets` ... |
+| 118 | 2026-11-17 | D-FLEET-25 A BUILT and LANDED: World-fork text #2396 → `ad1fdac57` (judge PASS 93) and the fleet-wide rulings ledger + report-only doctor check #24... |
+| 117 | 2026-11-17 | row 13's two live probe flakes FIXED via #2385 → `b1942b7f9` (sonnet PASS 88); timer arm lost a SIGTERM before exec, lsof stub turned an empty lane... |
+| 116 | 2026-11-16 | D-FLEET-18 A guard arm LANDED via #2382 → `97e792147` (sonnet PASS 94); fleet scope guard admits exactly the two motoko probe files; #2110 closed a... |
+| 115 | 2026-11-16 | D-FLEET-26 A LANDED via #2368 → `89a28a09c` (sonnet PASS 88); draft #2065 never matched the live daemon path; four ruling-directed ticket resolutio... |
+| 114 | 2026-11-16 | idle: inputs byte-identical to iteration 113; all 27 tickets ruling-gated; independent sonnet judge NONE on the no-originating-ticket ground; weekl... |
+| 113 | 2026-11-16 | idle: inputs byte-identical to iteration 112 after three capacity-paused days; all 27 tickets ruling-gated; independent minimax judge PICK (D-FLEET... |
+| 112 | 2026-11-13 | idle: inputs byte-identical to iteration 111; all 27 tickets ruling-gated, independent sonnet judge NONE; nothing designed, planned, built or merge... |
+| 111 | 2026-11-13 | pick NONE (inputs byte-identical to iteration 110, independent sonnet judge NONE); Gate 5 skill fix LANDED: harness share counts log headlines (#23... |
+| 110 | 2026-11-13 | idle: inputs byte-identical to iteration 108 (iteration 109's one new ticket resolved); all 27 tickets ruling-gated, independent sonnet judge NONE;... |
+| 109 | 2026-11-12 | `orphan:pi-runner:own-pgid-children-survive-role-exit` LANDED: #2267 → `47b123139`, independent sonnet judge PASS 86 then PASS 91; ticket resolved ... |
+| 108 | 2026-11-12 | idle: inputs byte-identical to iteration 107; all 27 tickets ruling-gated, independent sonnet judge NONE; nothing designed, planned, built or merge... |
+| 107 | 2026-11-12 | idle: inputs byte-identical to iteration 106; all 27 tickets ruling-gated, independent sonnet judge NONE; nothing designed, planned, built or merge... |
+| 106 | 2026-11-11 | idle: inputs byte-identical to iteration 104 after iteration 105's resolution; all 27 tickets ruling-gated, independent sonnet judge NONE after rea... |
+| 105 | 2026-11-11 | `tool-hang:pi-evaluator:stall-bound-below-single-test-run` LANDED: #2235 → `956af1ae6`, independent sonnet judge FAIL 68 then PASS 82; ticket resol... |
+| 104 | 2026-11-11 | idle: inputs byte-identical to iteration 103; all 27 tickets ruling-gated, independent sonnet judge NONE after a first-party ticket-to-row re-deriv... |
+| 103 | 2026-11-10 | idle: inputs byte-identical to iteration 102; all 27 tickets ruling-gated, independent sonnet judge NONE; nothing designed, planned, built or merge... |
+| 102 | 2026-11-10 | idle: inputs byte-identical to iteration 101; all 27 tickets ruling-gated, independent sonnet judge NONE; nothing designed, planned, built or merge... |
+| 101 | 2026-11-10 | idle: inputs byte-identical to iteration 100; all 27 tickets ruling-gated, independent sonnet judge NONE; D-FLEET-43 exclusion grounded in the char... |
+| 100 | 2026-11-10 | idle: inputs byte-identical to iteration 99; all 27 tickets ruling-gated, independent sonnet judge NONE; nothing designed, planned, built or merged... |
+| 99 | 2026-11-09 | idle: inputs byte-identical to iteration 98; all 27 tickets ruling-gated, independent sonnet judge NONE after a resumed first-party re-derivation; ... |
+| 98 | 2026-11-09 | idle: inputs unchanged since iteration 97; all 27 tickets ruling-gated, independent sonnet judge NONE; nothing designed, planned, built or merged [... |
+| 97 | 2026-11-09 | World's idle-record degraded-bar ticket: design blocked by quorum twice, independent sonnet judge PARK-UPHELD, D-FLEET-45 parks it; nothing planned... |
+| 96 | 2026-11-08 | HOME-search incident gets a concrete instruction-only design; final quorum BLOCKED, independent final judge FAIL (score N/A); no implementation [HA... |
+| 95 | 2026-11-07 | new triage command-hang ticket captured; independent evaluator exhausted; PARKED-ON-LANE, no judge verdict or substantive landing [HARNESS] |
 | 94 | 2026-11-07 | idle: no authorized buildable step; all 25 open tickets ruling-gated, fresh independent MiniMax judge NONE; nine drafts preserved, no implementatio... |
 | 93 | 2026-11-07 | D-FLEET-25's remaining mechanism drafted; independent MiniMax pick judge overturned NONE; proposal parked for design approval, no implementation or... |
 | 92 | 2026-11-06 | idle: no buildable step; all 25 open tickets ruling-gated, independent sonnet idle-screen judge ruled NONE; nothing built or merged; new ask D-FLEE... |

@@ -1,0 +1,157 @@
+{
+  "role": "designer",
+  "purpose": "actual production design authoring after independent MiniMax pick",
+  "declared_lane": "pi:ollama/kimi-k3:cloud",
+  "resolver_command": [
+    "env",
+    "MISSION_DESIGNER_MODEL=pi:ollama/kimi-k3:cloud",
+    "tools/launchd/resolve-role-spawn.sh",
+    "designer"
+  ],
+  "resolver_output": "recipe pi:ollama/kimi-k3:cloud declared:provider-pin",
+  "rotation_prior": "pi:ollama/glm-5.3:cloud",
+  "rotation_selected": "pi:ollama/kimi-k3:cloud",
+  "rotation_write_owner": "controller; delegate has not updated state",
+  "probe": {
+    "role": "designer",
+    "lane": "pi:ollama/kimi-k3:cloud",
+    "phase": "probe",
+    "rc": 0,
+    "elapsed_seconds": 1.71,
+    "out": "/tmp/fleet-i96-production-designer-probe.ndjson",
+    "stderr": "/tmp/fleet-i96-production-designer-probe.stderr",
+    "args": [
+      "pi",
+      "--mode",
+      "json",
+      "--no-session",
+      "--no-tools",
+      "--no-extensions",
+      "--model",
+      "ollama/kimi-k3:cloud",
+      "-p",
+      "reply with exactly: ok"
+    ]
+  },
+  "run_command": [
+    "bash",
+    "scripts/mission_pi_run.sh",
+    "--model",
+    "ollama/kimi-k3:cloud",
+    "--directive",
+    "/tmp/fleet-i96-production-designer-directive.txt",
+    "--workdir",
+    "/Users/voightkampff/.ailang-worktrees/fleet-i96",
+    "--out",
+    "/tmp/fleet-i96-production-designer.ndjson",
+    "--verdict",
+    "/tmp/fleet-i96-production-designer-verdict.json",
+    "--max-seconds",
+    "1800",
+    "--stall-seconds",
+    "600"
+  ],
+  "directive_bytes": 8532,
+  "verdict": {
+    "verdict": "ok",
+    "rc": 0,
+    "fenced": true,
+    "model": "ollama/kimi-k3:cloud",
+    "pi_rc": 0,
+    "elapsed_seconds": 386,
+    "worktree_changed_files": 2,
+    "predirty_files": 1,
+    "worktree_changed_since_start": true,
+    "base_head": "2249a1923a02be2e4f3ce2f1dcb96239484a237b",
+    "head_after": "2249a1923a02be2e4f3ce2f1dcb96239484a237b",
+    "commits_since_start": 0,
+    "tool_executions": 86,
+    "hung_tool": "",
+    "provider_errors": 0,
+    "provider_error": "",
+    "agent_end_events": 1,
+    "ndjson_bytes_filtered": 2358379,
+    "ndjson": "/tmp/fleet-i96-production-designer.ndjson",
+    "snapshot": "/tmp/fleet-i96-production-designer.ndjson.snapshot.ndjson",
+    "stderr": "/tmp/fleet-i96-production-designer.ndjson.stderr"
+  },
+  "phases": [
+    {
+      "phase": "probe",
+      "out": "/tmp/fleet-i96-production-designer-probe.ndjson",
+      "sha256": "84e752da04832df9b0b6a6e2d42cdbb841a0375e164b3f35766255aef0bb4a3c",
+      "turns": 1,
+      "provider_usage": {
+        "input": 1952,
+        "output": 68,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 2020
+      },
+      "reported_metered_usd": 0,
+      "observed_response_metadata": [
+        {
+          "provider": "ollama",
+          "model": "kimi-k3:cloud",
+          "responseModel": "kimi-k3"
+        }
+      ],
+      "session_protocol_ack": [],
+      "write_edit_target_paths": [],
+      "last_text_response": "ok"
+    },
+    {
+      "phase": "author",
+      "out": "/tmp/fleet-i96-production-designer.ndjson",
+      "sha256": "6b4a3be8cc57b4b9679a1577997f655e25231c26bb9489e56c862199dcc7a97c",
+      "turns": 65,
+      "provider_usage": {
+        "input": 128138,
+        "output": 39849,
+        "cacheRead": 4113658,
+        "cacheWrite": 0,
+        "reasoning": 0,
+        "totalTokens": 4281645
+      },
+      "reported_metered_usd": 0,
+      "observed_response_metadata": [
+        {
+          "provider": "ollama",
+          "model": "kimi-k3:cloud",
+          "responseModel": "kimi-k3"
+        }
+      ],
+      "session_protocol_ack": [
+        {
+          "acked": true,
+          "at": "2026-11-08T02:18:00.834Z"
+        }
+      ],
+      "write_edit_target_paths": [
+        "design_docs/planned/m-fleet-role-artifact-contract.md"
+      ],
+      "last_text_response": "All checks pass. The work is complete. Final report:\n\n**DESIGN_DOC_PATH: design_docs/planned/m-fleet-role-artifact-contract.md**\n\n## What was authored (1 file, nothing else)\n\n- `design_docs/planned/m-fleet-role-artifact-contract.md` \u2014 new, uncommitted (git status: untracked; zero tracked-file modifications, no staging). Scaffolded with `create_planned_doc.sh`, then fully authored. The sibling untracked `iteration96/` evidence drop is the controller's, untouched.\n\n## Design content summary\n\n- **P1 only**: a marked **Role Artifact Contract** block in `.claude/skills/mission-control/resources/gate-3-route.md` (after the handshake block, line 522) \u2014 named input artifacts, named output artifacts, worktree+SHA context, transport-verified identity disposition, a precisely-defined broad-discovery prohibition (with scoped `rg`/`git`/exact-path reads explicitly preserved), and a missing-input rule (missing INPUT \u2260 empty-success; absent OUTPUT is expected) \u2014 plus a MUST-sentence on the existing rc18 clause (ONE same-lane retry preserved verbatim; retry directive MUST name the literal hung command, sanitized `$HOME`-literal shape allowed) + verbatim `.agents` mirror via existing sync + one new driver test suite + 1 line in `make/test.mk`. Four changed paths, all Authority-allowlisted.\n- **P2 deferred** as a clearly separate optional proposal requiring attended choice, with its risks enumerated: the evaluator's \"nothing policy-class moves\" claim is **not established**; code inspection of the runner's awk filter + first-party event counts (232 `tool_execution_update` in the incident stream) shows \"every >stall command already dies\" is mechanically false \u2014 silence kills, duration doesn't \u2014 so the `(cap, stall]` band can truncate chatty commands that complete today (D-FLEET-17's real 395s `go test` cited); the unmodified extension's controller-wording in a role lane is called non-behavior-neutral; no cap value/wiring chosen.\n- Measured motivation with provenance held honestly: 1119s rc18 first attempt, 274s rc0 single retry, JUDGE_REPORT.json shape-only-verified (5 items/6 aux), **no claim each item was substantively judged**; class history cited with the lane caveat (role-runner gap N=1). 27-row Verification Log with command/observed/control per claim, incl. negative-existence rows. No AGENTS friction-carve-out authority invoked; no ledger-hash claim. All 12 axioms scored, net +5, hard gates clean. **Planner-Lane: opus-required** \u2014 measured: fleet does not widen `MISSION_PLANNER_ALLOWLIST` (default excludes `mission-control/resources/**`), so codex-ok criteria are not met.\n\n## Strongest objection (for the quorum to weigh)\n\nN=1 on this lane, the remedy already worked, and directive prose is unenforced \u2014 the next model could ignore it, making this a no-op dressed as a fix. The doc's answer: the measured cause was a directive *defect* (identity not supplied \u2192 research invitation), the one controlled replay with that defect repaired succeeded, and the AC pins conformance of generated directives and wording existence \u2014 not model obedience, which the doc explicitly disclaims.\n\n## Remaining gates (all controller-run)\n\ndesign-quorum (mandatory unattended, not invoked by me) \u2192 attended design approval \u2192 sprint-planner \u2192 executor \u2192 independent evaluator \u2192 controller's final commit. Ticket stays open; no resolution claimed.\n\n## Scope/verification gaps\n\n1. **One named artifact missing**: `scripts/test_agents_skills_sync.sh` (directive's path list) does not exist; bounded grep located the real suite at `tools/launchd/test_agents_skills_sync.sh` (wired in `LAUNCHD_SUITES`). Reported in-doc (V20), no broad discovery used.\n2. Retry report substance remains unjudged by these artifacts (shape verified only); token/cost extraction for this run is **unavailable** to my tools \u2014 deferred to the transport delegate's NDJSON path.\n3. Neural duplicate-gate scores (\u22650.90 on three unrelated docs) were keyword noise; distinctness established by reading all top matches."
+    }
+  ],
+  "quota_bucket": "ollama",
+  "quota_tokens": 4283665,
+  "metered_usd": 0,
+  "identity_limit": "Configured provider/model pin and observed pi response metadata recorded separately; neither is cryptographic attestation of backend weights. No ambient identity discovery.",
+  "prior_screen_preserved": "designer-usage.json remains separate and unchanged",
+  "remaining_gates": [
+    "strict duplicate/coverage gate assessment",
+    "mandatory design quorum",
+    "attended design approval",
+    "sprint-planner",
+    "execute authorization",
+    "independent evaluator"
+  ],
+  "controller_review_flags": [
+    "Scaffold search high similarity scores dismissed as noise in raw author text; strict duplicate gate may remain blocked.",
+    "Synthetic conformance suite cannot prove every real composed directive obeys contract; stated100percent success metric overclaims scope.",
+    "Normative transport-verified identity wording needs configured versus observed distinction.",
+    "N=1 recovered retry does not establish deterministic causal prevention."
+  ],
+  "status": "authored draft; not approved or implemented"
+}

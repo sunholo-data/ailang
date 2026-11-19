@@ -1,0 +1,58 @@
+TEST 1: happy path -> ok (rc 0)
+  PASS: happy path (rc=0 verdict=ok)
+TEST 2: pi succeeds but changes nothing -> empty_worktree (rc 10)
+  PASS: empty worktree (rc=10 verdict=empty_worktree)
+TEST 3: reasoning-only stream -> reasoning_stall (rc 11)
+  PASS: reasoning stall (rc=11 verdict=reasoning_stall)
+  PASS: message_update filtered (banked=0B) and snapshot bounded (37 line)
+TEST 4: silent stream -> stream_dead (rc 12)
+  PASS: stream dead (rc=12 verdict=stream_dead)
+TEST 4b: silent while a tool call is OPEN -> tool_hang (rc 18), not stream_dead
+  PASS: tool hang (rc=18 verdict=tool_hang)
+  PASS: verdict names the hung command
+TEST 5: progress keeps the clock alive past the stall bound (no false positive)
+  PASS: slow-but-working run survives (rc=0 verdict=ok)
+TEST 5b: pi children run as an unattended mission stage
+  PASS: pi child sees AILANG_MISSION_STAGE=1
+TEST 6: pi runs INSIDE --workdir, not the caller's cwd
+  PASS: pi ran in the worktree (/private/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/tmp.fOU3t1dnbN/wt7)
+  PASS: worktree write is seen by the verdict (rc=0 verdict=ok)
+TEST 7: bad arguments -> launch_failed (rc 14)
+  PASS: missing directive rejected
+TEST 8.1: pre-dirty + no-op pi -> empty_worktree (rc 10)
+  PASS: pre-dirty no-op (rc=10 verdict=empty_worktree)
+  PASS: pre-dirty no-op predirty_files (predirty_files=1)
+  PASS: pre-dirty no-op changed_since_start (worktree_changed_since_start=false)
+TEST 8.2: pre-dirty + new untracked file -> ok
+  PASS: pre-dirty new file (rc=0 verdict=ok)
+  PASS: pre-dirty new file changed_since_start (worktree_changed_since_start=true)
+TEST 8.3: pre-dirty + further edit to the already-dirty file -> ok
+  PASS: pre-dirty further edit (rc=0 verdict=ok)
+  PASS: J: arm 1 predirty_files (predirty_files=1)
+  PASS: J: arm 3 predirty_files (predirty_files=1)
+  PASS: J: arm 3 changed_since_start (worktree_changed_since_start=true)
+TEST 8.4: clean + no-op pi (control) -> empty_worktree
+  PASS: clean no-op (rc=10 verdict=empty_worktree)
+  PASS: clean no-op predirty_files (predirty_files=0)
+TEST 8.5: clean + committing pi (control) -> ok via commits
+  PASS: clean commit (rc=0 verdict=ok)
+  PASS: clean commit commits_since_start (commits_since_start=1)
+  PASS: clean commit changed_since_start (worktree_changed_since_start=false)
+TEST 8.6: pre-dirty untracked file edited in place -> ok
+  PASS: untracked edit (rc=0 verdict=ok)
+TEST 8.7: pre-dirty + pi reverts the dirty edit -> ok (decision: the tree did change)
+  PASS: revert of pre-dirty edit (rc=0 verdict=ok)
+  PASS: revert worktree_changed_files (worktree_changed_files=0)
+  PASS: revert predirty_files (predirty_files=1)
+TEST 8.8: unhashable untracked entry + in-place edit of a later untracked file -> ok
+  PASS: unhashable symlink + edit (rc=0 verdict=ok)
+  PASS: unhashable symlink changed_since_start (worktree_changed_since_start=true)
+TEST 8.9: unhashable untracked entry + no-op pi (control) -> empty_worktree
+  PASS: unhashable symlink no-op (rc=10 verdict=empty_worktree)
+  PASS: unhashable symlink no-op changed_since_start (worktree_changed_since_start=false)
+TEST 8.10: nested repo entry + in-place edit of a later untracked file -> ok
+  PASS: nested repo + edit (rc=0 verdict=ok)
+TEST 8.11: nested repo entry + no-op pi (control) -> empty_worktree
+  PASS: nested repo no-op (rc=10 verdict=empty_worktree)
+
+passed=36 failed=0

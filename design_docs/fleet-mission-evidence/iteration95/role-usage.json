@@ -1,0 +1,46 @@
+{
+  "controller": {
+    "model": "Codex API session",
+    "tokens": "not reported"
+  },
+  "Agent_bridges": {
+    "tokens": "not reported"
+  },
+  "designer": {
+    "model": "codex:gpt-6.1-sol",
+    "probe_cli_display_tokens": 16165,
+    "run_provider_input_tokens": 3623342,
+    "run_cached_input_tokens": 3438976,
+    "run_output_tokens": 16001,
+    "quota_tokens_posted": 3655508,
+    "metered_usd": 0
+  },
+  "planner": {
+    "model": "codex:gpt-6.1-sol",
+    "probe_cli_display_tokens": 23463,
+    "run_cli_display_tokens": 147489,
+    "quota_tokens_posted": 170952,
+    "metered_usd": 0
+  },
+  "executor": {
+    "model": "codex:gpt-6.1-sol",
+    "probe_provider_input_tokens": 24164,
+    "probe_provider_cached_input_tokens": 7168,
+    "probe_provider_output_tokens": 5,
+    "run_provider_input_tokens": 1881924,
+    "run_cached_input_tokens": 1754624,
+    "run_output_tokens": 8722,
+    "quota_tokens_posted": 1914815,
+    "metered_usd": 0
+  },
+  "evaluator": {
+    "model": "claude:claude-sonnet-4-6 -> opus",
+    "probes_rc": [
+      1,
+      1
+    ],
+    "provider_tokens": 0,
+    "metered_usd": 0
+  },
+  "limits": "Designer/executor JSON usage includes cached input; planner tokens are CLI displayed totals. No comparable cross-role aggregate is asserted. Subscription usage is not dollar spend; bridge/controller tokens are unknown, not zero."
+}

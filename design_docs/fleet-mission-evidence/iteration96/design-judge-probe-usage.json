@@ -1,0 +1,36 @@
+{
+  "transport": {
+    "command": [
+      "pi",
+      "--mode",
+      "json",
+      "--no-session",
+      "--no-tools",
+      "--no-extensions",
+      "--model",
+      "openrouter/minimax/minimax-m3",
+      "-p",
+      "reply with exactly: ok"
+    ],
+    "rc": 0,
+    "elapsed_seconds": 1.57
+  },
+  "provider_usage": [
+    {
+      "input": 1979,
+      "output": 59,
+      "cacheRead": 0,
+      "cacheWrite": 0,
+      "reasoning": 59,
+      "totalTokens": 2038,
+      "cost": {
+        "input": 0.0005937,
+        "output": 7.08e-05,
+        "cacheRead": 0,
+        "cacheWrite": 0,
+        "total": 0.0006644999999999999
+      }
+    }
+  ],
+  "cost_usd": 0.0006644999999999999
+}

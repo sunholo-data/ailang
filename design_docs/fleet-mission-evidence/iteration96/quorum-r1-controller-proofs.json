@@ -1,0 +1,18 @@
+{
+  "quorum_cost_usd": 0.1508914,
+  "running_metered_usd": 0.65264362,
+  "corrected_metadata_probe": {
+    "only_change": "standalone Planner-Lane opus-required in scratch copy, canonical draft unchanged",
+    "rc": 0,
+    "stdout": "codex:gpt-6.1-sol anthropic-fallback:declared:opus-required",
+    "stderr": ""
+  },
+  "handshake_identity_metadata_text": {
+    "identity_mentions": 0,
+    "metadata_mentions": 0,
+    "content": "\n### PI EVALUATOR SESSION HANDSHAKE\n\nEvery pi evaluator attempt MUST use `scripts/mission_pi_run.sh`, whose child invocation supplies\n`AILANG_MISSION_STAGE=1` (an unattended stage: the session-protocol gate does not require an inbox\ncall) together with `AILANG_STORAGE_MESSAGING=gcp` and `AILANG_MESSAGES_PROJECT=ailang-multivac`, and\nleaves `AILANG_STORAGE` unchanged. The delivered directive begins with the exact preamble below; do not\nprepend controller triage or other startup prose. The evaluator does NOT check the inbox: inbox triage\nis the controller's Gate 0, and inside the sandbox the message store is unreachable \u2014 the inbox step\nthis handshake used to require timed out on every pi evaluator after the sandbox landed, sending each\none to the fallback judge (World iter-207). Protocol acknowledgement is not inbox-message\nacknowledgement.\n\n```text\nMISSION-ROLE: evaluator\nComplete this handshake in YOUR OWN pi session before judge work or report/mutation writes.\n1. Use the read tool to read CLAUDE.md completely in the evaluator worktree.\n2. Classify this task as independent evaluation under the supplied approved design and sprint plan. This is an unattended mission stage: do not run `ailang messages`.\n3. Call the session_protocol_ack tool with {} and verify its result reports acked=true.\n4. Only after that success, perform the supplied independent evaluation and write its report.\nController-provided triage is context, not evidence that this session completed the protocol.\nIf a prerequisite or acknowledgement fails, report the exact missing step or tool error and stop this attempt. This is a role transport failure for the existing fallback route, never a judge verdict. Do not loop on denied writes, remove extensions, or bypass the guard.\n```\n\nAppend the task-specific design and plan paths, reviewed commit, isolated evaluator worktree,\nverification commands, mutation matrix, and report path only after this preamble. A missing canonical\nlauncher configuration, or a missing/false protocol acknowledgement, stops the attempt and enters the\nexisting fallback chain; it never becomes PASS or FAIL.\n"
+  },
+  "slot_kill_shared_make_test_rows": [
+    "- `make/test.mk`: invoke the new test with `/bin/bash` in `test-launchd-drivers`."
+  ]
+}

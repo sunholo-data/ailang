@@ -1,0 +1,145 @@
+{
+  "files": [
+    {
+      "path": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/skills/mission-control/SKILL.md",
+      "sha256": "95a740b11cc44e9f31c7dc606e565f9f55c8d03b0c5d059e97d04e7c369fac89",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/skills/mission-control/resources/ci-health.md",
+      "sha256": "808beca1d0ddf6933da9bfa4889866d4dbc97b69f57b1e06a5c7eecdf57cf949",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/skills/mission-control/resources/codex-lane-false-greens.md",
+      "sha256": "fce81ea64a500f1707c3730d535fc56a9dba9b455aaf07fd9d18a461b806ff0c",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/skills/mission-control/resources/gate-0-preflight.md",
+      "sha256": "bd10904feba1601f8ba01db18a11852974fbaeffe3b99d61ca857d0a166b092f",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/skills/mission-control/resources/gate-1-observe.md",
+      "sha256": "aaa1e994991c09131de19df32b8f81c255fdfdf5960b542aaa6ec793df1e49bb",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/skills/mission-control/resources/gate-2-pick.md",
+      "sha256": "544b8d249ea011d6ad8fbcc1b142f72793d73c24ae0227a3b611a45eafde064a",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/skills/mission-control/resources/gate-3-route.md",
+      "sha256": "3d6cde1a7051e11c29ffcea3ca23b0b26b1e976796dc32c2b279ba1eddf71d53",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/skills/mission-control/resources/gate-3-triage.md",
+      "sha256": "20fd9a2069e20e38b26ed6daf475a5264f231f0cef3b4eca41b55bc9e490b6fc",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/skills/mission-control/resources/gate-3b-ci-green.md",
+      "sha256": "3ed63ae13f2852f9d73da154f7a7385b27cf67eeda498b3a49a6d001eaca9827",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/skills/mission-control/resources/gate-4-record.md",
+      "sha256": "c0ddb2f021872734a35970765a265c4e4f55032c47decfde8f563bb898944dbd",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/skills/mission-control/resources/gate-5-retro.md",
+      "sha256": "b57fe1853e492cb40132dd43188f670e9815c66e02ab0d1b5ff058e38511e1b6",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/skills/mission-control/resources/ref-drift.md",
+      "sha256": "efc6679c9f8ae9d2fe259b1961ab367b4dcd59b29d77ecf405b521d18adb244b",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/skills/mission-control/resources/role-spawn-routing.md",
+      "sha256": "7b613d244fb3ff0a2be96725e1832d0cd0cde5d27503dbd9a78e4712b758d6f0",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/dev/sunholo-data/ailang/.claude/skills/mission-control/resources/verification-protocol.md",
+      "sha256": "94f2abc0443f91d56834418b4fee99c4ef8cb6ada50b1abd27059955b8238556",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/.ailang-driver-pin/fleet/.claude/skills/mission-control/SKILL.md",
+      "sha256": "95a740b11cc44e9f31c7dc606e565f9f55c8d03b0c5d059e97d04e7c369fac89",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/.ailang-driver-pin/fleet/.claude/skills/mission-control/resources/ci-health.md",
+      "sha256": "808beca1d0ddf6933da9bfa4889866d4dbc97b69f57b1e06a5c7eecdf57cf949",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/.ailang-driver-pin/fleet/.claude/skills/mission-control/resources/codex-lane-false-greens.md",
+      "sha256": "fce81ea64a500f1707c3730d535fc56a9dba9b455aaf07fd9d18a461b806ff0c",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/.ailang-driver-pin/fleet/.claude/skills/mission-control/resources/gate-0-preflight.md",
+      "sha256": "bd10904feba1601f8ba01db18a11852974fbaeffe3b99d61ca857d0a166b092f",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/.ailang-driver-pin/fleet/.claude/skills/mission-control/resources/gate-1-observe.md",
+      "sha256": "aaa1e994991c09131de19df32b8f81c255fdfdf5960b542aaa6ec793df1e49bb",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/.ailang-driver-pin/fleet/.claude/skills/mission-control/resources/gate-2-pick.md",
+      "sha256": "544b8d249ea011d6ad8fbcc1b142f72793d73c24ae0227a3b611a45eafde064a",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/.ailang-driver-pin/fleet/.claude/skills/mission-control/resources/gate-3-route.md",
+      "sha256": "3d6cde1a7051e11c29ffcea3ca23b0b26b1e976796dc32c2b279ba1eddf71d53",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/.ailang-driver-pin/fleet/.claude/skills/mission-control/resources/gate-3-triage.md",
+      "sha256": "20fd9a2069e20e38b26ed6daf475a5264f231f0cef3b4eca41b55bc9e490b6fc",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/.ailang-driver-pin/fleet/.claude/skills/mission-control/resources/gate-3b-ci-green.md",
+      "sha256": "3ed63ae13f2852f9d73da154f7a7385b27cf67eeda498b3a49a6d001eaca9827",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/.ailang-driver-pin/fleet/.claude/skills/mission-control/resources/gate-4-record.md",
+      "sha256": "c0ddb2f021872734a35970765a265c4e4f55032c47decfde8f563bb898944dbd",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/.ailang-driver-pin/fleet/.claude/skills/mission-control/resources/gate-5-retro.md",
+      "sha256": "b57fe1853e492cb40132dd43188f670e9815c66e02ab0d1b5ff058e38511e1b6",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/.ailang-driver-pin/fleet/.claude/skills/mission-control/resources/ref-drift.md",
+      "sha256": "efc6679c9f8ae9d2fe259b1961ab367b4dcd59b29d77ecf405b521d18adb244b",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/.ailang-driver-pin/fleet/.claude/skills/mission-control/resources/role-spawn-routing.md",
+      "sha256": "7b613d244fb3ff0a2be96725e1832d0cd0cde5d27503dbd9a78e4712b758d6f0",
+      "matches_origin": true
+    },
+    {
+      "path": "/Users/voightkampff/.ailang-driver-pin/fleet/.claude/skills/mission-control/resources/verification-protocol.md",
+      "sha256": "94f2abc0443f91d56834418b4fee99c4ef8cb6ada50b1abd27059955b8238556",
+      "matches_origin": true
+    }
+  ],
+  "changed_byte_control_fired": true
+}

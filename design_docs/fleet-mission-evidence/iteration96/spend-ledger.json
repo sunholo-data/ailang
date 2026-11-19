@@ -1,0 +1,28 @@
+{
+  "updated_utc": "2026-11-08T02:54:16.892131+00:00",
+  "cap_usd": 5,
+  "actual_reported_usd": 1.03984416,
+  "completed_calls": {
+    "independent_pick_judge": 0.50175222,
+    "quorum_r1": 0.1508914,
+    "designer_glm_quota_continuation": 0.14416052,
+    "quorum_r2": 0.049914,
+    "final_independent_design_judge": 0.19312602
+  },
+  "quota_calls": {
+    "designer_codex_screen": 245545,
+    "planner_codex_screen": 160396,
+    "executor_codex_screen": 855621,
+    "designer_kimi_initial": 4283665,
+    "designer_kimi_revision_failed_rc19": 4306406
+  },
+  "authorized_estimates_usd": {
+    "same_revision_glm_continuation": 1.25,
+    "quorum_r2_3_seats_at_0_10": 0.3,
+    "fresh_minimax_design_judge": 0.75
+  },
+  "worst_reserved_total_usd": 2.95264362,
+  "limits": "Estimates, not provider ceilings for pi; check actual after terminal runs. No unreported controller/bridge usage treated as zero.",
+  "first_quorum_cap_deviation": "r1 omitted --max-cost-usd and used CLI default0.30 rather than skill0.10. Actual reviewers cost0.02631,0.058852,0.0657294, each below0.10. r2 explicitly passes0.10.",
+  "status": "terminal; no further model calls"
+}

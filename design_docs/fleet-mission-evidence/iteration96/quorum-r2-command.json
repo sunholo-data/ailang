@@ -1,0 +1,23 @@
+{
+  "command": [
+    "/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/fleet-i96-current-cli-e89ss4dx/ailang",
+    "design-quorum",
+    "design_docs/planned/m-fleet-role-artifact-contract.md",
+    "--author",
+    "pi:openrouter/z-ai/glm-5.3",
+    "--reviewers",
+    "gpt6-1-sol,gemini-4-argon,claude-sonnet-5@claude-p",
+    "--seats",
+    "3",
+    "--max-cost-usd",
+    "0.10",
+    "--controller-verdict",
+    "pass",
+    "--controller-note",
+    "Technical instruction-only direction is reviewable: synthetic checker and population guarantee removed, identity provenance explicit, original named inputs and N1 correlation corrected, P2 fully deferred. This is NOT design approval: strict Duplicate/Coverage gate remains unresolved and explicit attended approval still required before planning. Both Kimi and GLM coauthor vendors excluded from this pool. Independently assess remaining technical claims.",
+    "--json"
+  ],
+  "doc_sha256": "df93fee6c072bbdc19850126963049a50ff7df7cd3db13cc573a08e4fd859998",
+  "started_utc": "2026-11-08T02:45:13.912738+00:00",
+  "independence": "Both Moonshot and Z-AI coauthor vendors excluded; OpenAI+Google+Anthropic only. No author-vendor recall permitted to satisfy independent signal."
+}

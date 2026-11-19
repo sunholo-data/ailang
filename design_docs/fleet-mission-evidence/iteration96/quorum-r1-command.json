@@ -1,0 +1,16 @@
+{
+  "command": [
+    "/var/folders/kr/h0wr2sj94vd6ljtmsxv8jkt00000gn/T/fleet-i96-current-cli-e89ss4dx/ailang",
+    "design-quorum",
+    "design_docs/planned/m-fleet-role-artifact-contract.md",
+    "--author",
+    "pi:ollama/kimi-k3:cloud",
+    "--controller-verdict",
+    "reject",
+    "--controller-note",
+    "P1 direction is a reviewable instruction proposal; approval is not granted. Reject current claims: synthetic directives do not prove 100% conformance of real composed directives; configured identity must be distinguished from observed metadata; checked human freeze boxes cannot imply human resolution; original directive already named inputs/outputs, so N=1 recovery is correlation rather than isolated causal proof. Preserve P2 deferral and normal approval gate.",
+    "--json"
+  ],
+  "doc_sha256": "14ebe03cd1a3281dfb1303baffb414cf2b5bb21a0c2aa7b05c13de6a46e7366c",
+  "started_utc": "2026-11-08T02:25:28.632309+00:00"
+}
