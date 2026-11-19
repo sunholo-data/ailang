@@ -17,9 +17,16 @@ func NewAPI(backend Backend) *API {
 	return &API{backend: backend}
 }
 
+// Router is the part of *http.ServeMux that route registration needs. It is an
+// interface so the dashboard server can record every pattern it registers and
+// hold each one to its default-deny read-auth table (internal/server/routes.go).
+type Router interface {
+	HandleFunc(pattern string, handler func(http.ResponseWriter, *http.Request))
+}
+
 // RegisterRoutes registers all observatory routes on the given mux.
 // All routes are prefixed with /api/observatory/
-func (a *API) RegisterRoutes(mux *http.ServeMux) {
+func (a *API) RegisterRoutes(mux Router) {
 	// Workspace endpoints
 	mux.HandleFunc("GET /api/observatory/workspaces", a.handleListWorkspaces)
 	mux.HandleFunc("POST /api/observatory/workspaces", a.handleCreateWorkspace)

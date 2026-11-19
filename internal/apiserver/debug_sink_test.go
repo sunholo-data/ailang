@@ -36,11 +36,24 @@ func captureStderr(t *testing.T, fn func()) string {
 		_, _ = io.Copy(&buf, r)
 		done <- buf.String()
 	}()
+	restore := func() string {
+		os.Stderr = oldStderr
+		log.SetOutput(oldStderr)
+		_ = w.Close()
+		return <-done
+	}
+	// A t.Fatal inside fn exits this goroutine without returning here. Restore
+	// anyway, so later tests do not write into a closed-over pipe, and show what
+	// the failing test logged: the capture is otherwise the only copy.
+	finished := false
+	defer func() {
+		if !finished {
+			t.Logf("stderr captured before the failure:\n%s", restore())
+		}
+	}()
 	fn()
-	os.Stderr = oldStderr
-	log.SetOutput(oldStderr)
-	_ = w.Close()
-	return <-done
+	finished = true
+	return restore()
 }
 
 func newDebugTestServer(t *testing.T, effCtx *effects.EffContext) *Server {

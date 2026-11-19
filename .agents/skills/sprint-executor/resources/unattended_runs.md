@@ -32,8 +32,9 @@ Immediately after **each** milestone commit, run
 `/bin/bash .claude/skills/sprint-executor/scripts/cloud_branch_sync.sh push`.
 The 2026-10-08 ticket `crash:sprint-executor:sigbus-ram-tmp-full-make-test`
 showed that SIGBUS/timeout before the wrapper's final push loses unpublished work.
-Shallow single-branch clones lack the task tracking ref, so the wrapper can miss
-later commits unless the exact fetch refspec is installed before the first agent push.
+Shallow single-branch clones lack the task tracking ref. The wrapper's final push
+asks the remote (`ls-remote`) since D-FLEET-23, but `start`'s resume still needs
+the exact fetch refspec installed before the first agent push.
 
 The helper acts only when a nonempty `AILANG_TASK_ID` matches the current branch
 exactly as `coordinator/<taskID>`; attended/mission, live/direct-push, wrong-task,

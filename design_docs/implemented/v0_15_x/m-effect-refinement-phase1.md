@@ -12,7 +12,7 @@
 
 > **Phase 1 ships the language-feature scaffolding for parameterised effects: the syntax `!{E[mode=X]}` parses, the AST gains an effect-parameter representation, the row algebra and unification rules accept parameters, and `type CryptoRand = Rand[mode=crypto]` validates zero-diff against existing v0.13.x M-CRYPTORAND programs. Clock/Net/FS/AI ports, replay contract registry, capability scoping, and M-ENTROPY integration are deferred to follow-up sprints.**
 
-This is a **Phase-1 carve-out** from the canonical [M-EFFECT-REFINEMENT (v1.0.0)](../v1_0_0/m-effect-refinement.md) design doc, which covers parameterised effects across Rand/Clock/Net/FS/AI plus replay contract registry, capability scoping, and M-ENTROPY integration. Phase 1 ships the syntax, row algebra, unification, and one pilot effect (Rand) with the M-CRYPTORAND alias as the load-bearing validation. Other phases stay tracked in the parent doc.
+This is a **Phase-1 carve-out** from the canonical [M-EFFECT-REFINEMENT (v1.0.0)](../../planned/v1_1_0/m-effect-refinement.md) design doc, which covers parameterised effects across Rand/Clock/Net/FS/AI plus replay contract registry, capability scoping, and M-ENTROPY integration. Phase 1 ships the syntax, row algebra, unification, and one pilot effect (Rand) with the M-CRYPTORAND alias as the load-bearing validation. Other phases stay tracked in the parent doc.
 
 ## Axiom Compliance
 
@@ -353,7 +353,7 @@ The following are intentionally left open for the implementer (agent latitude):
 ## Related Documents
 
 **Parent design (canonical, multi-phase):**
-- [design_docs/planned/v1_0_0/m-effect-refinement.md](../v1_0_0/m-effect-refinement.md) — full M-EFFECT-REFINEMENT covering 8 phases. This Phase-1 doc carves out the v0.15.0-deliverable subset (Phases 1, 2, 7, partial 8).
+- [design_docs/planned/v1_1_0/m-effect-refinement.md](../../planned/v1_1_0/m-effect-refinement.md) — full M-EFFECT-REFINEMENT covering 8 phases. This Phase-1 doc carves out the v0.15.0-deliverable subset (Phases 1, 2, 7, partial 8).
 
 **Validation targets (zero-diff):**
 - [design_docs/implemented/v0_13_0/m-cryptorand.md](../../implemented/v0_13_0/m-cryptorand.md) — M-CRYPTORAND, the back-compat alias target; load-bearing validation for Phase 1
@@ -376,7 +376,7 @@ The following are intentionally left open for the implementer (agent latitude):
 
 ## Future Work (deferred from this sprint, tracked elsewhere)
 
-All future work is captured in the parent [M-EFFECT-REFINEMENT (v1.0.0)](../v1_0_0/m-effect-refinement.md):
+All future work is captured in the parent [M-EFFECT-REFINEMENT (v1.0.0)](../../planned/v1_1_0/m-effect-refinement.md):
 
 - **Replay contract registry** (Phase 3 of parent) — likely a v0.15.x or v0.16.x follow-up sprint
 - **Capability scoping `scope=...`** (Phase 4) — independent later sprint
@@ -456,12 +456,12 @@ M2: 565, M3: 58, M4: ~310 docs/no Go).
 
 | Deferred work | Why | Tracked in |
 |---|---|---|
-| Replay contract registry / mode-aware runtime dispatch | Phase 1 ships syntax + types only. Runtime treats all `Rand` modes identically (all dispatch to the same `_rand_int` / `_rand_float` / `_rand_bool` builtins). Runtime dispatch is a follow-up sprint. | [M-EFFECT-REFINEMENT (v1.0.0) — Phase 3](../../planned/v1_0_0/m-effect-refinement.md) |
-| Capability scoping `scope=...` | Beyond mode parameters; scope parameters extend to FS sandboxing / Net recording. Independent design. | [M-EFFECT-REFINEMENT — Phase 4](../../planned/v1_0_0/m-effect-refinement.md) |
-| Clock / Net / FS port | Each adds one row to `defaultEffectModes` and ports its stdlib. Ships per-effect as separate sprints. | [M-EFFECT-REFINEMENT — Phase 5](../../planned/v1_0_0/m-effect-refinement.md) |
-| AI port `!{AI[mode=routeable\|fixed\|replay-only]}`, `!{AI[scope=byok]}` | Subsumes [M-AI-OPENROUTER](../v0_16_x/m-ai-openrouter-provider.md)'s runtime `--allow-routing` gate as a type-level marker. Phase 1 unblocks the work but does not yet port AI to modes. | [M-EFFECT-REFINEMENT — Phase 5](../../planned/v1_0_0/m-effect-refinement.md), [Example 4: Modal AI](../../planned/v1_0_0/m-effect-refinement.md#example-4-modal-ai) |
-| M-ENTROPY mode constraints | Envelope-level mode validation composes with the language-level rules. Ships with M-ENTROPY itself. | [M-ENTROPY](../../planned/v1_0_0/m-entropy-budgets.md), [M-EFFECT-REFINEMENT — Phase 6](../../planned/v1_0_0/m-effect-refinement.md) |
-| Open / user-extensible mode sets | Phase 1 closed-set decision was deliberate (auditable, simpler unification, compiler-enforced rollouts). User-extensible modes are a v1.0+ research question. | [M-EFFECT-REFINEMENT (v1.0.0)](../../planned/v1_0_0/m-effect-refinement.md) |
+| Replay contract registry / mode-aware runtime dispatch | Phase 1 ships syntax + types only. Runtime treats all `Rand` modes identically (all dispatch to the same `_rand_int` / `_rand_float` / `_rand_bool` builtins). Runtime dispatch is a follow-up sprint. | [M-EFFECT-REFINEMENT (v1.0.0) — Phase 3](../../planned/v1_1_0/m-effect-refinement.md) |
+| Capability scoping `scope=...` | Beyond mode parameters; scope parameters extend to FS sandboxing / Net recording. Independent design. | [M-EFFECT-REFINEMENT — Phase 4](../../planned/v1_1_0/m-effect-refinement.md) |
+| Clock / Net / FS port | Each adds one row to `defaultEffectModes` and ports its stdlib. Ships per-effect as separate sprints. | [M-EFFECT-REFINEMENT — Phase 5](../../planned/v1_1_0/m-effect-refinement.md) |
+| AI port `!{AI[mode=routeable\|fixed\|replay-only]}`, `!{AI[scope=byok]}` | Subsumes [M-AI-OPENROUTER](../v0_16_x/m-ai-openrouter-provider.md)'s runtime `--allow-routing` gate as a type-level marker. Phase 1 unblocks the work but does not yet port AI to modes. | [M-EFFECT-REFINEMENT — Phase 5](../../planned/v1_1_0/m-effect-refinement.md), [Example 4: Modal AI](../../planned/v1_1_0/m-effect-refinement.md#example-4-modal-ai) |
+| M-ENTROPY mode constraints | Envelope-level mode validation composes with the language-level rules. Ships with M-ENTROPY itself. | [M-ENTROPY](../../planned/v1_0_0/m-entropy-budgets.md), [M-EFFECT-REFINEMENT — Phase 6](../../planned/v1_1_0/m-effect-refinement.md) |
+| Open / user-extensible mode sets | Phase 1 closed-set decision was deliberate (auditable, simpler unification, compiler-enforced rollouts). User-extensible modes are a v1.0+ research question. | [M-EFFECT-REFINEMENT (v1.0.0)](../../planned/v1_1_0/m-effect-refinement.md) |
 | CryptoRand alias zero-diff | `CryptoRand` doesn't exist as an effect token in this codebase (M-CRYPTORAND landed at the stdlib level rather than as a new effect). Default-mode desugar gives the same back-compat property. | Not re-tracked (scope-reduction; not a deferral) |
 
 ### Success-criteria status

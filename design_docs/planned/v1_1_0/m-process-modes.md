@@ -5,7 +5,7 @@
 **Priority**: P2 — Low (extends an already-shipped effect; unblocks deterministic-test workflows)
 **Estimated**: ~36 hours (~1–2 sprints)
 **Dependencies**:
-  - [M-EFFECT-REFINEMENT](../v1_0_0/m-effect-refinement.md) — must land first; this doc plugs Process into that framework's `[mode=...]` parameter and replay-contract taxonomy
+  - [M-EFFECT-REFINEMENT](m-effect-refinement.md) — must land first; this doc plugs Process into that framework's `[mode=...]` parameter and replay-contract taxonomy
   - [M-PROCESS-EXEC](../../implemented/v0_8_1/m-process-exec.md) (✅ implemented v0.8.1) — the existing Process effect; this milestone parameterises it, doesn't replace it
 
 ## Axiom Compliance
@@ -45,7 +45,7 @@ The Process effect ships in v0.8.1 with full security plumbing (allowlist, timeo
 > "Full replay requires `--replay-trace` mode that returns recorded outputs without spawning processes (not in v1, but structure supports it)."
 > — [M-PROCESS-EXEC §Axiom Scoring (A2)](../../implemented/v0_8_1/m-process-exec.md)
 
-[M-EFFECT-REFINEMENT](../v1_0_0/m-effect-refinement.md) introduces the framework that closes this gap: parameterised effects (`!{E[mode=...]}`) with a three-element replay-contract taxonomy `{deterministic, re-sampleable, opaque}`. M-EFFECT-REFINEMENT's worked examples target Rand, Clock, Net, and FS. **This doc adds Process as the fifth axis under that framework.**
+[M-EFFECT-REFINEMENT](m-effect-refinement.md) introduces the framework that closes this gap: parameterised effects (`!{E[mode=...]}`) with a three-element replay-contract taxonomy `{deterministic, re-sampleable, opaque}`. M-EFFECT-REFINEMENT's worked examples target Rand, Clock, Net, and FS. **This doc adds Process as the fifth axis under that framework.**
 
 A note on adjacent surfaces:
 
@@ -281,7 +281,7 @@ A module under this envelope that contains `! {Process[mode=live]}` fails to com
 - [design_docs/implemented/v0_6_2/m-capability-budgets.md](../../implemented/v0_6_2/m-capability-budgets.md) — capability discipline that `recorded` mode may extend
 
 **Planned (load-bearing):**
-- [design_docs/planned/v1_0_0/m-effect-refinement.md](../v1_0_0/m-effect-refinement.md) — parent framework; **must land before this milestone**
+- [design_docs/planned/v1_1_0/m-effect-refinement.md](m-effect-refinement.md) — parent framework; **must land before this milestone**
 - [design_docs/planned/v0_13_0/m-cryptorand.md](../v0_13_0/m-cryptorand.md) — pilot of mode-aware effects (Rand)
 - [design_docs/planned/v0_16_0/m-taint-types.md](../v0_16_0/m-taint-types.md) — adjacent (effects vs labels orthogonality applies; Process modes don't introduce labels)
 
@@ -292,7 +292,7 @@ A module under this envelope that contains `! {Process[mode=live]}` fails to com
 
 - [Design Axioms](/docs/references/axioms) — The 12 non-negotiable principles
 - [M-PROCESS-EXEC §Axiom Scoring (A2)](../../implemented/v0_8_1/m-process-exec.md) — the original A2 = +0.5 score that this milestone closes to +1
-- [M-EFFECT-REFINEMENT §Replay contract taxonomy](../v1_0_0/m-effect-refinement.md) — the framework table this milestone extends with a Process row
+- [M-EFFECT-REFINEMENT §Replay contract taxonomy](m-effect-refinement.md) — the framework table this milestone extends with a Process row
 
 ## Future Work
 

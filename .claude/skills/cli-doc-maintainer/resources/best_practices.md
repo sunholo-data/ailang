@@ -81,7 +81,7 @@ fmt.Printf("  %s    # Comment\n", cyan("ailang command --flag value"))
 
 **Debug flags:**
 - Format: `DEBUG_<COMPONENT>=1`
-- Examples: `DEBUG_PARSER`, `DEBUG_STRICT`, `DEBUG_CODEGEN`
+- Examples: `DEBUG_PARSER`, `DEBUG_STRICT`, `DEBUG_MONO_VERBOSE`
 - Boolean only (presence = enabled)
 
 **Configuration:**

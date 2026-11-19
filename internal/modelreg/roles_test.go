@@ -104,7 +104,7 @@ func TestResolveRole_DesignerAndPlannerAreDeliberatelyPiBacked(t *testing.T) {
 			{"opencode-or-kimi-k3", "opencode"},
 		},
 		"planner": {
-			{"gpt6-1-sol", "codex"},
+			{"gpt6-2-sol", "codex"},
 			{"pi-or-kimi-k3", "pi"},
 			{"opencode-or-kimi-k3", "opencode"},
 		},
@@ -260,7 +260,7 @@ func TestResolveRole_ExecutorHasAnAdmissibleNonCodexRung(t *testing.T) {
 		t.Fatalf("InitModelsConfig: %v", err)
 	}
 	want := []struct{ friendly, executor string }{
-		{"gpt6-1-sol", "codex"},
+		{"gpt6-2-sol", "codex"},
 		{"claude-haiku-5-5", "claude"},  // rung 2 since 2026-10-08 (Mark)
 		{"claude-sonnet-5-5", "claude"}, // rung 3; rung 2 2026-09-29..10-08 (admitted by role-run)
 		{"pi-or-deepseek-v4-flash-bare", "pi"},

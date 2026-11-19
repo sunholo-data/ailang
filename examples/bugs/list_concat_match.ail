@@ -1,6 +1,6 @@
 -- Example: List Concatenation and Match Pattern Variables (M-DX17)
 -- Demonstrates ++ operator on lists and pattern variables in block expressions.
--- Note: This example type-checks correctly; M-DX17 fixes Go codegen for these patterns.
+-- Note: This example type-checks and runs correctly (M-DX17 was a Go-emitter fix; the emitter is removed).
 
 module examples/runnable/list_concat_match
 import std/io (println)

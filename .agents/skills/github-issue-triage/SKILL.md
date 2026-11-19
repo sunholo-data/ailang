@@ -27,7 +27,7 @@ This repo is worked as **`sunholo-voight-kampff`**, the bot account; `check_auth
 ### 2. Starting-point report
 
 ```bash
-.Codex/skills/github-issue-triage/scripts/triage_report.sh --output <scratchpad>/triage.md
+.claude/skills/github-issue-triage/scripts/triage_report.sh --output <scratchpad>/triage.md
 ```
 
 It gives counts, **close candidates (unverified)**, issues missing a priority label, `needs-decision`, doc references and stale issues. All of it is read from `origin/dev`, never the working tree, because a worktree may sit on an old branch.

@@ -1,0 +1,29 @@
+-- Compute an average score and a percentage from integer counts: convert between
+-- int and float, compare integer and float division, round, and print fixed decimals.
+-- Teaches: intToFloat / floatToInt, / and % on ints vs floats, round/floor, formatFixed.
+module examples/runnable/stdlib/lang_numbers
+import std/math (intToFloat, floatToInt, round, floor, sqrt, pow)
+import std/string (formatFixed, stringToFloat)
+import std/list (foldl, length)
+import std/option (getOrElse)
+
+export func main() -> () ! {IO} {
+  let scores = [72, 85, 90, 64]
+  let total = foldl(\acc x. acc + x, 0, scores)
+  let n = length(scores)
+  -- int / int truncates; convert with intToFloat before dividing for a fractional result
+  println("int mean: ${show(total / n)} remainder ${show(total % n)}")
+  let mean = intToFloat(total) / intToFloat(n)
+  println("float mean: ${show(mean)}")
+  println("2 decimals: ${formatFixed(mean, 2)}")
+  println("rounded: ${show(floatToInt(round(mean)))} floored: ${show(floatToInt(floor(mean)))}")
+  let passed = 3
+  let pct = 100.0 * intToFloat(passed) / intToFloat(n)
+  println("pass rate: ${formatFixed(pct, 1)}%")
+  -- floatToInt truncates toward zero
+  println("truncate -2.7: ${show(floatToInt(-2.7))}")
+  -- there is no ** operator; use pow on floats
+  println("pow: ${show(pow(2.0, 10.0))} sqrt: ${formatFixed(sqrt(2.0), 4)}")
+  let parsed = getOrElse(stringToFloat("19.5"), 0.0)
+  println("parsed + 0.5: ${show(parsed + 0.5)}")
+}

@@ -1,0 +1,36 @@
+-- Validate user-supplied age strings: parse with Option, turn failures into
+-- Result errors with messages, chain checks with flatMap, and print each outcome.
+-- Teaches: Option[a] and Result[a, e] pattern matching, getOrElse, flatMap chaining.
+module examples/runnable/stdlib/lang_option_result
+import std/string (stringToInt, trim)
+import std/option (getOrElse)
+import std/result (flatMap)
+import std/list (forEachE)
+
+-- stringToInt returns Option[int], never a bare int: match it or use getOrElse.
+pure func parseAge(s: string) -> Result[int, string] = match stringToInt(trim(s)) {
+  Some(n) => Ok(n),
+  None => Err("not a number: '${s}'")
+}
+
+pure func checkRange(n: int) -> Result[int, string] =
+  if n < 0 then Err("negative: ${show(n)}") else if n > 130 then Err("too large: ${show(n)}") else Ok(n)
+
+pure func validate(s: string) -> Result[int, string] = flatMap(checkRange, parseAge(s))
+
+pure func render(s: string) -> string = match validate(s) {
+  Ok(age) => "ok ${show(age)}",
+  Err(msg) => "error ${msg}"
+}
+
+export func main() -> () ! {IO} {
+  forEachE(\s. println(render(s)), ["42", " 7 ", "abc", "-3", "200"])
+  let fallback = getOrElse(stringToInt("oops"), 0)
+  println("fallback: ${show(fallback)}")
+  let firstAdult = match stringToInt("19") {
+    Some(n) if n >= 18 => "adult",
+    Some(_) => "minor",
+    None => "unknown"
+  }
+  println("19 is: ${firstAdult}")
+}

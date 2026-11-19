@@ -49,11 +49,14 @@ ck "gate worktree cleaned up" "$(git worktree list | wc -l | tr -d ' ')" 1
 Q1=$(commit design_docs/x.md);          ck "design doc skips ci-quick"            "$(bash "$HOOK" --needs-quick "$H6" "$Q1")" no
 Q2=$(commit .ailang/state/x.json);      ck "state file skips ci-quick"            "$(bash "$HOOK" --needs-quick "$Q1" "$Q2")" no
 ck "docs-only change skips ci-quick"    "$(bash "$HOOK" --needs-quick "$BASE" "$H")" no
-ck "std/ .ail change alone skips ci-quick" "$(bash "$HOOK" --needs-quick "$H" "$H2")" no
+ck "std/ .ail change needs ci-quick (doc samples)" "$(bash "$HOOK" --needs-quick "$H" "$H2")" yes
 ck "Go change needs ci-quick"           "$(bash "$HOOK" --needs-quick "$H3" "$H4")" yes
 Q3=$(commit examples/manifest.json);    ck "examples change needs ci-quick"       "$(bash "$HOOK" --needs-quick "$Q2" "$Q3")" yes
 Q4=$(commit changelogs/v1-current.md);  ck "changelog change needs ci-quick"      "$(bash "$HOOK" --needs-quick "$Q3" "$Q4")" yes
 Q5=$(commit docs/docs/reference/cli.md); ck "cli reference change needs ci-quick" "$(bash "$HOOK" --needs-quick "$Q4" "$Q5")" yes
+Q6=$(commit docs/docs/guides/x.md);    ck "docs page change needs ci-quick (doc samples)" "$(bash "$HOOK" --needs-quick "$Q5" "$Q6")" yes
+Q7=$(commit README.md);                ck "README change needs ci-quick (doc samples)" "$(bash "$HOOK" --needs-quick "$Q6" "$Q7")" yes
+Q8=$(commit scripts/doc_samples_baseline.txt); ck "doc-sample list change needs ci-quick" "$(bash "$HOOK" --needs-quick "$Q7" "$Q8")" yes
 ck "unknown base with no origin/dev fails closed (ci-quick)" "$(bash "$HOOK" --needs-quick "" "$Q1")" yes
 # A Go-only push to dev reaches the ci-quick gate; the unbuildable tree must be REFUSED
 # with the ci-quick fix named (not the stdlib one).

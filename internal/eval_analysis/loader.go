@@ -101,22 +101,6 @@ func LoadArmForPairing(dir string) ([]*BenchmarkResult, error) {
 	return LoadResultsFromDirs(dir)
 }
 
-// LoadResult loads a single benchmark result file, including an invalid one
-// (a single-row read is an inspection, not a rate).
-func LoadResult(path string) (*BenchmarkResult, error) {
-	rows, stats, err := eval_harness.LoadRowFiles([]string{path}, eval_harness.LoadOptions{IncludeInvalid: true})
-	if err != nil {
-		return nil, err
-	}
-	if len(stats.ParseErrors) > 0 {
-		return nil, fmt.Errorf("%s", stats.ParseErrors[0])
-	}
-	if len(rows) != 1 {
-		return nil, fmt.Errorf("expected one row in %s, got %d", path, len(rows))
-	}
-	return annotate(rows[0]), nil
-}
-
 // LoadBaseline loads a baseline from a directory
 // Expects baseline.json metadata + result JSON files
 func LoadBaseline(dir string) (*Baseline, error) {
@@ -224,20 +208,6 @@ func ListBaselines() ([]string, error) {
 	return versions, nil
 }
 
-// GetLatestBaseline returns the most recent baseline version
-func GetLatestBaseline() (*Baseline, error) {
-	versions, err := ListBaselines()
-	if err != nil {
-		return nil, err
-	}
-
-	if len(versions) == 0 {
-		return nil, fmt.Errorf("no baselines available")
-	}
-
-	return LoadBaselineByVersion(versions[0])
-}
-
 // FilterResults returns results matching the given criteria
 type ResultFilter struct {
 	Model        string
@@ -245,34 +215,6 @@ type ResultFilter struct {
 	Benchmark    string
 	SuccessOnly  bool
 	FailuresOnly bool
-}
-
-// Filter applies the filter to results
-func Filter(results []*BenchmarkResult, filter ResultFilter) []*BenchmarkResult {
-	var filtered []*BenchmarkResult
-
-	for _, r := range results {
-		// Apply filters
-		if filter.Model != "" && r.Model != filter.Model {
-			continue
-		}
-		if filter.Lang != "" && r.Lang != filter.Lang {
-			continue
-		}
-		if filter.Benchmark != "" && r.ID != filter.Benchmark {
-			continue
-		}
-		if filter.SuccessOnly && !r.Passed() {
-			continue
-		}
-		if filter.FailuresOnly && r.Passed() {
-			continue
-		}
-
-		filtered = append(filtered, r)
-	}
-
-	return filtered
 }
 
 // Helper functions

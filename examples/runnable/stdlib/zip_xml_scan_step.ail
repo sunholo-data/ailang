@@ -1,0 +1,60 @@
+-- Task: preview a large spreadsheet-style ZIP without reading all of it —
+-- stream the <row> elements of an XML entry and stop after the first three,
+-- then search for the first row over a threshold and stop there, comparing
+-- how many rows each scan visited with a full count.
+-- Demonstrates std/zip scanFoldStep, scanFold and createArchive with std/iter Continue/Stop.
+module examples/runnable/stdlib/zip_xml_scan_step
+import std/zip (createArchive, scanFold, scanFoldStep)
+import std/xml (XmlNode, getAttr, getText)
+import std/iter (FoldStep, Continue, Stop)
+import std/fs (removeFile)
+import std/list (map, range, length, reverse)
+import std/string (join, stringToInt)
+
+pure func rowXml(i: int) -> string = "<row r=\"${show(i)}\"><v>${show(i * 37 % 101)}</v></row>"
+
+pure func sheetXml() -> string = "<sheetData>${join("", map(rowXml, range(1, 201)))}</sheetData>"
+
+pure func rowId(node: XmlNode) -> string = match getAttr(node, "r") {
+  Some(r) => r,
+  None => "?"
+}
+
+-- Collect rows until three are held, then Stop: the rest of the entry is never parsed.
+pure func preview(acc: [string], node: XmlNode) -> FoldStep[[string]] {
+  let next = "${rowId(node)}=${getText(node)}" :: acc
+  if length(next) >= 3 then Stop(next) else Continue(next)
+}
+
+pure func firstOver(limit: int) -> ({ seen: int, hit: string }, XmlNode) -> FoldStep[{ seen: int, hit: string }] =
+  \acc node. {
+    let seen = acc.seen + 1
+    match stringToInt(getText(node)) {
+      Some(v) => if v > limit then Stop({ seen: seen, hit: "row ${rowId(node)} (value ${show(v)})" }) else Continue({ seen: seen, hit: acc.hit }),
+      None => Continue({ seen: seen, hit: acc.hit })
+    }
+  }
+
+export func main() -> () ! {IO, FS} {
+  let path = "zip_xml_scan_step_book.zip"
+  let entry = "xl/worksheets/sheet1.xml"
+  match createArchive(path, [{ name: entry, content: sheetXml() }]) {
+    Err(e) => println("create failed: ${e}"),
+    Ok(_) => {
+      match scanFoldStep(path, entry, "row", [], preview) {
+        Ok(rows) => println("preview: ${join(", ", reverse(rows))}"),
+        Err(e) => println("preview failed: ${e}")
+      }
+      match scanFoldStep(path, entry, "row", { seen: 0, hit: "none" }, firstOver(95)) {
+        Ok(r) => println("first value over 95: ${r.hit} after ${show(r.seen)} rows"),
+        Err(e) => println("search failed: ${e}")
+      }
+      -- scanFold has no early exit, so it visits every row.
+      match scanFold(path, entry, "row", 0, \n _. n + 1) {
+        Ok(n) => println("full scan visited: ${show(n)} rows"),
+        Err(e) => println("count failed: ${e}")
+      }
+      removeFile(path)
+    }
+  }
+}

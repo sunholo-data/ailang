@@ -100,7 +100,7 @@ func TestInstallPath_ShimRunsFromAnyCwd(t *testing.T) {
 		t.Errorf("shim stderr must be empty (a MOD010 warning here means the package-layout check failed and only the temp-path relaxation saved the run): %q", stderr)
 	}
 	stdout, stderr, code = testutil.RunBounded(t, elsewhere, 60*time.Second, filepath.Join(binDir, "greet-args"), "a", "--b=c")
-	if code != 0 || strings.TrimSpace(stdout) != "[a, --b=c]" {
+	if code != 0 || strings.TrimSpace(stdout) != `["a", "--b=c"]` {
 		t.Fatalf("greet-args: exit %d stdout %q stderr %q", code, stdout, stderr)
 	}
 

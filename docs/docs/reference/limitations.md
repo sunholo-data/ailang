@@ -14,7 +14,7 @@ For features that have been implemented, see [Design Documents](/docs/design-doc
 **All entries below were live-verified at AILANG `v0.33.1-72-g4b46bb97e` on 2026-08-17** with
 `ailang check` / `ailang run` transcripts. Each open entry carries a **Verified at** date; fixed
 items are listed under [Recently Resolved](#recently-resolved). This is the entry policy from
-[M-V1-STABILITY-PROMISE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-v1-stability-promise.md):
+[M-V1-STABILITY-PROMISE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_29_0/m-v1-stability-promise.md):
 every remaining limitation is a reproducible artifact, not lore.
 
 ---
@@ -199,6 +199,8 @@ the host and reload:
 
 2. **Extract a helper** that does one match and returns a record:
    ```ailang
+   type Score = { x: float, y: float }
+
    pure func unpack(r: Result[Score, string]) -> { has: bool, x: float, y: float } =
      match r {
        Ok(s)  => { has: true,  x: s.x, y: s.y },
@@ -221,40 +223,6 @@ the host and reload:
 **Headless smoke test**: [demos/scripts/wasm-loadmodule-harness.js](https://github.com/sunholo-data/ailang-demos/blob/main/scripts/wasm-loadmodule-harness.js) runs the actual WASM in Node and exits with code 4 when this limit fires (vs 0 for clean modules). CI-friendly.
 
 **Future improvement**: Converting the type-checker to iterative work-stack passes would remove the limit entirely. Tracked in [M-WASM-TYPECHECK-ITERATIVE](https://github.com/sunholo-data/ailang/blob/dev/design_docs/deferred/m-wasm-typecheck-iterative.md) (deferred — high-risk refactor for a low-frequency cliff).
-
----
-
-### Duplicate Record Types with Identical Fields
-
-**Status**: Known limitation with workarounds
-**Since**: v0.5.10
-**Verified at**: v0.33.1 (2026-08-17 — **Go-codegen path only**; the first-match lookup is still present at `internal/gen/golang/codegen_record.go` (`GetRecordTypeByFields`). The interpreter is unaffected: `ailang run` on a duplicate-shaped record returns the correct field value)
-**Affects**: Go code generation when multiple record types share identical field structures
-
-When multiple record types declare the same field names and types, the Go
-codegen may pick the wrong struct because `GetRecordTypeByFields` returns the
-first match (the interpreter path is fine — this is a `--emit-go` codegen issue only):
-
-```ailang
--- starmap.ail
-export type Vec3 = { x: float, y: float, z: float }
-
--- celestial.ail
-export type SystemPos = { x: float, y: float, z: float }
-
-func initSystem() -> StarSystem {
-    { position: { x: 0.0, y: 0.0, z: 0.0 }, ... }
-    -- May generate &Vec3{} instead of &SystemPos{}
-}
-```
-
-**Workarounds**:
-
-1. **Merge duplicates** if semantically equivalent — keep one type and import it everywhere.
-2. **Rename to be unique** — `GalacticCoord` vs `SystemPos` instead of two `Vec3`-shaped types.
-3. **Add a discriminator field** — e.g. `_tag: string` — to break the structural tie.
-
-**See Also**: [implemented/v0_5_10/m-codegen-nested-record-type.md](https://github.com/sunholo-data/ailang/blob/dev/design_docs/implemented/v0_5_10/m-codegen-nested-record-type.md)
 
 ---
 
@@ -307,22 +275,22 @@ This improves list consumption; quadratic `::`/`++` construction remains parked
 on D-19. The checked [tail-walk benchmark](https://github.com/sunholo-data/ailang/tree/dev/bench/vm_tail_walk)
 compares equivalent range inputs and includes a separate construction contrast.
 
-### Go codegen has no tail-call elimination
+### Runtime contracts are checked only on the evaluator, and not in named tests
 
 **Status**: Open
-**Verified at**: v0.54.19 (2026-10-28). `ailang compile --emit-go` on a tail-recursive
-`loop(i, n, acc)` produced Go that hit `fatal error: stack overflow` at 10,000,000 steps.
-`ailang run --strict-bytecode` ran the same function in 0.77–1.07 s at constant depth.
-**Affects**: `--emit-go` and `--emit-go-v2` output only. The evaluator and VM run tail calls at constant depth.
+**Verified at**: dev, 2026-11-10 (M-V1-VERIFICATION-HONESTY M2). A `half(x) = x - 100` with
+`ensures { result >= 0 }`, called as `half(5)`:
+- `ailang run --verify-contracts` → `contract violation: ensures failed in half at k1.ail:5:11`, exit 1.
+- `ailang run --bytecode --verify-contracts` → `CTR004: --verify-contracts is not enforced on the
+  bytecode VM yet`, exit 2 (it used to print `-95` and exit 0, [#1956](https://github.com/sunholo-data/ailang/issues/1956)).
+- `ailang run` without the flag → `-95`, exit 0. Contracts are off by default.
+- `test "half five" { half(5) == -95 }` passes: named-test bodies do not check contracts. Contracts
+  reach `ailang test` only as the generated property tests.
 
-The generated Go emits a self tail call as an ordinary Go call, so every iteration adds a
-Go stack frame. Long tail-recursive loops, which are idiomatic AILANG, overflow the
-goroutine stack. The generated code also boxes every value as `interface{}`. It is a typed
-Go API, not a speed path: `fib(32)` ran in 0.030 s as generated Go against 0.005 s for
-hand-written Go.
+**Affects**: run-time contract checking. `ailang verify` and `check --verify` (static) are unaffected.
 
-**Workaround**: run the program with `ailang run --bytecode`, or use `foldl`/`map` instead of
-explicit recursion in code you compile to Go.
+**Workaround**: check contracts on the evaluator (`run --verify-contracts`, no `--bytecode`), and
+assert the property directly in a named test. Design: [M-RUNTIME-CONTRACT-PARITY](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/m-runtime-contract-parity.md).
 
 ---
 
@@ -491,7 +459,7 @@ match readFile(path) {
 
 ### Typed Quasiquotes
 
-**Status**: Planned — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-quasi-typed-quasiquotes.md)
+**Status**: Planned — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-quasi-typed-quasiquotes.md)
 **Verified at**: v0.33.1 (2026-08-17 — backtick template syntax lexes as `ILLEGAL`; no quasiquote surface in the parser)
 
 Typed quasiquotes for deterministic AST templates and secure string templating
@@ -502,10 +470,10 @@ v0.12.1+) or `concat([..])` for now.
 
 ### CSP Concurrency
 
-**Status**: Deferred — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_0_0/m-csp-session-types.md)
+**Status**: Deferred — [Design Doc](https://github.com/sunholo-data/ailang/blob/dev/design_docs/planned/v1_1_0/m-csp-session-types.md)
 **Verified at**: v0.33.1 (2026-08-17 — no channel/session-type surface in the parser; `chan` is just an identifier)
 
-CSP-style concurrency with channels and session types is deferred to v1.0.0+.
+CSP-style concurrency with channels and session types is deferred to the v1.1 track or later.
 AILANG currently focuses on deterministic, single-threaded execution. The
 runtime does support effect-level concurrency primitives in some contexts (see
 the `Concurrency` effect), but full CSP with session types remains future work.
@@ -527,8 +495,7 @@ semantics. `std/stream.asyncReadStdinLines` supplies concurrent line events.
 | **Scoped native single keypress and resize** | macOS/Linux evaluator and native VM | `std/terminal`, IO, host lifecycle integration |
 | **Abort an in-flight `std/ai.step()`** | Separate cancellation work | [#231](https://github.com/sunholo-data/ailang/issues/231) |
 
-Windows/WASM native operations return typed `Unsupported`. Go code generation
-rejects terminal operations at compile time. Budget-annotated terminal package
+Windows/WASM native operations return typed `Unsupported`. Budget-annotated terminal package
 adapters currently run through the evaluator; pure package tests and core terminal
 operations have strict bytecode coverage. Input ownership excludes competing line
 readers and preserves unread buffered data; handles expire with their scope.
@@ -565,6 +532,11 @@ string-function check on the captured group replaces the backreference/lookaroun
 These limitations existed in earlier versions and are now fully resolved.
 Listed for users following older docs. All re-verified at v0.33.1, 2026-08-17, except
 where an entry gives its own date.
+
+- **Go-codegen-only limitations** — Gone with the Go emitter (removed after v0.60.5).
+  `ailang compile --emit-go` duplicated-record struct selection and the missing tail-call
+  elimination in generated Go no longer apply: AILANG runs on the evaluator and the
+  bytecode VM only.
 
 - **Effectful callbacks nested in data arguments** — Fixed for v0.55.0
   ([#1718](https://github.com/sunholo-data/ailang/issues/1718), design

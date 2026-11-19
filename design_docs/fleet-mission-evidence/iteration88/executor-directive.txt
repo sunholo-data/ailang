@@ -1,0 +1,124 @@
+MISSION-ROLE: executor
+You are the SPRINT EXECUTOR for fleet-mission iteration 88 of the AILANG repo (sunholo-data/ailang).
+Working tree: the current directory, a git worktree on branch fleet/i88-dfleet42-secrets-scope at
+78104fab6. Sandbox: workspace-write. You do NOT do any git write operation (no add/commit/stash/
+checkout/reset); the controller commits. Do not end your turn announcing a wait: if you start
+anything long, poll its output file inside a bounded `date +%s` loop and finish in-turn.
+
+SAFETY (non-negotiable; this sprint is ABOUT secret exposure):
+- NEVER read, cat, grep, head or tail: ~/.config/ailang/secrets.env, ~/.zshenv, ~/.codex*/config.toml,
+  ~/.pi/agent/models.json, any auth.json, any session transcript. Never run `env`, `printenv`, `set`,
+  `export -p`, `declare -p`. Every test uses a SYNTHETIC secrets file with FAKE values under a fresh
+  `HOME=$(mktemp -d)` (and ZDOTDIR pointed into it). No test may read the real $HOME or write
+  ~/.ailang/state. Assert by observation; never seed a write into a real path.
+
+## Scope: milestone M1 ONLY of the attached plan
+Read the plan in full first: /tmp/fleet_i88/plan_last.txt (planner codex gpt-6.1-sol, iteration 88,
+for decision row D-FLEET-42 in design_docs/fleet-mission.md). This is a PROPOSED DRAFT for a
+decision Mark has not ruled on; it will NOT be merged by this loop.
+The controller has CUT this iteration to M1. Build ONLY:
+ 1. `tools/launchd/lib/secrets-scope.sh` (new) — pure functions, nothing runs at source time, must
+    work when SOURCED by bash 3.2.57 AND by zsh 5.9 (no `declare -A`, `${v,,}`, `mapfile`, `local -n`,
+    `${!name}`, `[[ =~ ]]` captures, no reliance on word-splitting of unquoted vars — zsh does not
+    split). Functions (names are a suggestion; keep the `mc_` prefix house style):
+    - `mc_secrets_scope_lane_valid <lane>`: rc 0 iff lane is one of claude-controller,
+      codex-controller, pi-controller, claude-role, codex-role, pi-role.
+    - `mc_secrets_scope_allow <lane>`: prints that lane's allowlisted NAMES one per line; rc 64 on
+      unknown lane (prints nothing). Allowlists EXACTLY as the plan's table:
+        claude-controller, codex-controller, pi-controller: CLAUDE_CODE_OAUTH_TOKEN OLLAMA_API_KEY
+          OPENROUTER_API_KEY OPENAI_API_KEY
+        claude-role: CLAUDE_CODE_OAUTH_TOKEN
+        codex-role: (none)
+        pi-role: OLLAMA_API_KEY OPENROUTER_API_KEY
+      One comment line per kept key citing its consumer (use the plan's file:line evidence C/O/R/Q/P).
+      Controller-verified (do not re-derive): the quorum's gemini-4-argon seat pins Vertex ADC
+      (`internal/modelreg/models.yml` gemini-4-argon: env_var "", gcp_project "ailang-dev";
+      `internal/ai/factory/factory.go` ~207-231), so GOOGLE_API_KEY is not kept;
+      GEMINI_AGENTS_API_KEY is only the managed-agents executor lane, which no fleet chain routes to.
+    - `mc_secrets_scope_names <file>`: prints the deduplicated variable NAMES assigned in the file —
+      anchored records only, `^[ \t]*(export[ \t]+)?NAME=` with NAME a valid shell identifier; never
+      sources/evaluates the file, never prints values; rc 78 if the file is unreadable.
+    - `mc_secrets_scope_apply <lane> [<file>]` (default file `$HOME/.config/ailang/secrets.env`):
+      in the CALLING shell (not a subshell/pipeline), unset every parsed name not in the lane's
+      allowlist; then print ONE stderr line `secrets-scope: lane=<lane> kept=<n>[<names>]
+      stripped=<n>[<names>]` (kept means exempted from unset, not proof the var exists). rc 0.
+      Unknown lane: strip ALL parsed names, print a FAIL-CLOSED line, rc 64. Unreadable file or a
+      failed unset: unset the seven measured names (ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN
+      GEMINI_AGENTS_API_KEY GOOGLE_API_KEY OLLAMA_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY) as an
+      emergency floor, print a FAIL-CLOSED line, rc 78. Use `while IFS= read -r name ... done < <(…)`
+      (works in bash 3.2 and zsh) so unsets happen in the caller. Do not leave helper variables set.
+ 2. `tools/launchd/lib/secrets-scope-zshenv.sh` (new) — the bridge Mark's ~/.zshenv line sources:
+    if `AILANG_SECRETS_LANE` is unset/empty → return 0 having touched nothing; else source
+    `$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope.sh` and call apply for that lane; return
+    the apply rc (non-zero on any failure). Never falls back to another checkout.
+ 3. `design_docs/planned/m-fleet-secrets-scope-per-lane.md` (new) — the design record: what the
+    draft does and does NOT protect per lane (the plan's opening paragraphs + the M3 measurement:
+    zsh tool shells of claude and codex lanes re-source secrets.env from ~/.zshenv:14, so without
+    Mark's host line they are unchanged; pi's bash -c path does not read ~/.zshenv), the allowlist
+    table with evidence, the quorum-seat auth table, the EXACT host line inside a fenced block
+    delimited by the HTML comments `<!-- SECRETS-SCOPE HOST LINE START -->` and
+    `<!-- SECRETS-SCOPE HOST LINE END -->` (the suite extracts it from there — single source), the
+    install instruction (one line, immediately after the secrets.env source in ~/.zshenv, BEFORE
+    the existing Anthropic unset), M2 (driver + codex-env-args forwarding incl. the
+    AILANG_SECRETS_LANE-contains-SECRET exception, role wrapper scripts/mission_scoped_run.sh,
+    pi runner + BASH_ENV clearing, existing-harness fixture updates) and M3 (dry-runs per lane,
+    mutations, evaluation) as NOT-YET-BUILT follow-ups, and Risks. Status header: `Proposed —
+    draft for D-FLEET-42 option A; not merged; gated on Mark's ruling`. Keep it under ~250 lines,
+    plain prose, no war stories. Cite measurements by name only (never values).
+    The host line: start from the plan's single-line version, but you may simplify it. Requirements:
+    no-op with no file access when the marker is unset/empty; when set and the bridge sources and
+    applies OK, continue; otherwise unset the seven names AND every name the awk parser finds in
+    secrets.env, print one FAIL-CLOSED line to stderr and `exit 78` (refusing the mission shell is
+    intended). It must be valid and behave identically under zsh 5.9 and bash 3.2.
+ 4. `tools/launchd/test_secrets_scope.sh` (new, run as `/bin/bash tools/launchd/test_secrets_scope.sh`),
+    house style of the other tools/launchd/test_*.sh suites (read two of them first, e.g.
+    test_pi_ext_args.sh and test_codex_controller_env.sh): `N passed, M failed` summary, rc 1 on any
+    failure. Arms (each comment names its ONE-line killing mutation):
+    source-only (sourcing changes no var and prints nothing, both shells); six lane arms (each keeps
+    exactly its allowlist, strips the rest, run under BOTH /bin/bash and /bin/zsh); unknown lane
+    (all stripped, rc 64); future key (an extra synthetic NAME in the file is stripped); assignment
+    forms (plain, export, indented) each counted once; dedup; comment/decoy (a `#` line and a value
+    containing `export X=` add no name); no-eval (a value `$(touch <sentinel>)` / backticks causes no
+    sentinel file); no-disclosure (every fake value string asserted absent from stdout+stderr of
+    every arm — collect all output); parent mutation (after apply, a disallowed name is gone in the
+    CALLING shell); missing file (emergency floor, rc 78); bridge marker-unset no-op (and the bridge
+    never reads the library: point MISSION_DRIVER_ROOT at a nonexistent dir); host line extracted from the
+    design doc (assert extraction non-empty and exactly one line): under `/bin/zsh -c` and
+    `/bin/bash -c`, with a synthetic `.zshenv`-ordering (source synthetic secrets, then the host
+    line, then `unset ANTHROPIC_API_KEY ANTHROPIC_AUTH_TOKEN`, then the command body): marker set +
+    good root → correct strip and body runs; marker unset/empty → env unchanged and body runs;
+    marker set + missing library/root → all fixture keys removed, body does NOT run, rc 78;
+    multiple disallowed keys all stripped under zsh. A missing /bin/zsh is reported UNINFORMATIVE
+    and counted as a failure of the suite run, never as a pass.
+    `--mutations` mode: applies each named mutation to a SCRATCH COPY of the library/bridge/host
+    line (never edits the checkout), runs the arm that names it, and reports killed/survived per
+    mutant; rc 1 if any non-equivalent mutant survives. Bank the per-mutant results in your report.
+ 5. `make/test.mk`: add `tools/launchd/test_secrets_scope.sh` to LAUNCHD_SUITES (respect the
+    slowest-first comment; it is fast, so near the end is fine).
+ 6. `changelogs/unreleased/2026-11-05-secrets-scope-per-lane.md`: `### Added — Per-lane mission
+    secret scope (proposed)`; say it is a draft gated on D-FLEET-42, that M1 ships the library,
+    bridge and host-line text only, and that zsh lanes change only once Mark installs the host line.
+    Read changelogs/unreleased/README.md for the format.
+DO NOT touch tools/launchd/mission-control.sh, tools/launchd/lib/codex-env-args.sh,
+scripts/mission_pi_run.sh, any existing test, or any skill file — those are M2.
+
+## Fleet write scope (pre-push guard refuses anything else)
+`scripts/mission_*`, `scripts/test_mission_*`, `.claude/skills/mission-*/**`,
+`.agents/skills/mission-*/**`, `changelogs/**`, `design_docs/**`, `make/test.mk`, `tools/launchd/**`.
+
+## Gates (the controller ran them on base 78104fab6, outside any sandbox: all rc 0)
+- `/bin/bash -n` and `/bin/zsh -n` on both new library files; `/bin/bash -n` on the suite
+- `/bin/bash tools/launchd/test_secrets_scope.sh` and `... --mutations`
+- `shellcheck tools/launchd/lib/secrets-scope.sh tools/launchd/lib/secrets-scope-zshenv.sh
+  tools/launchd/test_secrets_scope.sh` → rc 0 required for these NEW files (use a
+  `# shellcheck shell=bash` directive in the libraries; justify any disable inline)
+- `make check-changelog`, `git diff --check`, `make check-file-sizes` (800-line limit per file)
+- `make test-launchd-drivers` (base: 53/53 suites passed)
+Run what you can. Anything the sandbox blocks: label it `UNINFORMATIVE UNDER SANDBOX`, never pass/fail.
+A gate red for a reason unrelated to your diff is a finding to REPORT, not to work around.
+
+## Your report (final message, markdown)
+Files created/changed with line counts; the allowlist as implemented; the host line verbatim; each
+gate with its rc and pass counts (or UNINFORMATIVE); every test arm and its killing mutation; the
+--mutations results (killed/survived/equivalent with reasons); deviations from this directive or
+the plan, each with a reason; anything you could not finish.

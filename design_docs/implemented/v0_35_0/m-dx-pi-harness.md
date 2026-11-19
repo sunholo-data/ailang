@@ -360,8 +360,8 @@ Five extensions across two streams, each self-contained (≤150 LOC), each wrapp
 - [design_docs/implemented/v0_18_5/m-ext-scaffold-ai-first.md](design_docs/implemented/v0_18_5/m-ext-scaffold-ai-first.md) (0.35) — extension scaffolding precedent
 
 **Planned (check for overlap):**
-- [design_docs/planned/v0_35_0/m-dx-session-gate-sprint-plan.md](design_docs/planned/v0_35_0/m-dx-session-gate-sprint-plan.md) (0.38) — shipped sibling; this doc extends the same pattern
-- [design_docs/planned/v0_35_0/m-dx-session-protocol-gate.md](design_docs/planned/v0_35_0/m-dx-session-protocol-gate.md) (0.35) — the gate this workstream composes with
+- [design_docs/implemented/v0_35_0/m-dx-session-gate-sprint-plan.md](design_docs/implemented/v0_35_0/m-dx-session-gate-sprint-plan.md) (0.38) — shipped sibling; this doc extends the same pattern
+- [design_docs/implemented/v0_35_0/m-dx-session-protocol-gate.md](design_docs/implemented/v0_35_0/m-dx-session-protocol-gate.md) (0.35) — the gate this workstream composes with
 
 ## References
 

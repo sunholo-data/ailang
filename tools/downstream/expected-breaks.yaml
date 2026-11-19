@@ -1,0 +1,99 @@
+# Acknowledged breaks for `make downstream-check` (design §6.5). A breaking PR adds
+# one entry per (corpus, normalised code) bucket it breaks; the gate (exit 2) then
+# fails only on buckets nobody acknowledged or on counts above `max`. Entries that
+# match nothing are reported UNUSED; entries past `expires` are reported stale.
+#
+# - change: "#2184 pure implies empty effect row"
+#   code: EFFECT/pure-with-row     # the bucket name from the report
+#   corpus: motoko-fork
+#   max: 106
+#   fix: "motoko fork#6"           # PR/issue that removes the breaks
+#   republish: []                  # registry packages to re-publish first
+#   expires: v0.58.1               # reported stale once the candidate is newer
+
+# M-V1-MATCH-EXHAUSTIVENESS: a match that misses a case is TC_MATCH_002. Every
+# site is a one-line arm (or catch-all) in the corpus; the patches check on both
+# v0.60.0 and the candidate, so they can land in any order. `expires` is a
+# version (the field takes no date): stale once a candidate is newer than
+# v0.61.0 — remove these entries by 2026-12-02, when the corpus fixes have
+# landed, so slack under `max` cannot hide a later TC_MATCH_002.
+- change: "match exhaustiveness: non-exhaustive match is TC_MATCH_002"
+  code: TC_MATCH_002
+  corpus: daneel
+  max: 3
+  fix: "tools/video/daneel_video.ail:240 — StreamEvent match gains `_ => true`"
+  republish: []
+  expires: v0.61.0
+# motoko-fork: fixed by sunholo-voight-kampff/motoko_agent#9 (merged 2026-11-12), so its
+# entry is removed: left in place it reads UNUSED and the gate exits 2.
+- change: "match exhaustiveness: non-exhaustive match is TC_MATCH_002"
+  code: TC_MATCH_002
+  corpus: ailang-packages
+  max: 2
+  fix: "packages/specstore/qa_test.ail:35 — inner list match gains the [] case"
+  republish: []
+  expires: v0.61.0
+
+# #2210/#2221 record rows: a field the record lacks, read through a lambda, is
+# TC_REC_001 at check. The three newly failing motoko-fork files are the DST
+# ADR-001 probes that pin exactly this hole (scripts/dst/fixtures/adr001_boundary/
+# missingport.ail, missingannot.ail, fs_missing.ail: "accepted by ailang check and
+# fails only at invocation"); run_declared_vs_performed.sh LIMITATION 3/4/5 has a
+# "IS FIXED UPSTREAM" branch for this. The other 3 in the bucket already failed
+# and only gained the code (missingnamed, missingworld, the package dir).
+- change: "#2210/#2221 record rows: missing field through a lambda is TC_REC_001"
+  code: TC_REC_001
+  corpus: motoko-fork
+  max: 6
+  fix: "motoko DST ADR-001 LIMITATION 3/4/5 probes flip to their FIXED UPSTREAM branch; re-read ADR fact 1 / 2(a)"
+  republish: []
+  expires: v0.61.0
+
+# #2238 review: an explicit `! {}` on a function literal is enforced, also for a
+# literal stored in a record. 21 motoko-fork DST fixtures under
+# scripts/dst/fixtures/adr001_boundary/ (and gate/) store a `! {}` lambda that
+# prints and invoke it through a pure slot — run_declared_vs_performed.sh group 3,
+# "COMPILER-ACCEPTED ESCAPES ... the D2 boundary must reject every one". The
+# compiler now rejects them. Count measured by checking every file with a `! {}`
+# literal in a clone of the snapshot ref (f73603e), not by a gate run.
+- change: "#2238 explicit ! {} on a function literal enforced (incl. literals in records)"
+  code: EFFECT/undeclared
+  corpus: motoko-fork
+  max: 21
+  fix: "the group-3 escape fixtures (n_pure_passthru_captured, q_named_partial, q_named_shadow, n_dec_prepare_escape, computed_list, delegate_shadow, v7_delegate_*, gate/fx_* …) move to the compiler-rejected group, as their own 'closed' texts anticipate"
+  republish: []
+  expires: v0.61.0
+
+# #2232 / #2248: contract clauses and test bodies are type-checked
+# (TC_CONTRACT_001, TC_TEST_001). Every site is a real type error the checker
+# used to skip; the fixes are one line each (an import, `deriving (Eq)`, or a
+# corrected row) and check on both the baseline and the candidate. Most rows
+# are importers of one broken library contract, so a republish clears many.
+# Counts MEASURED 2026-11-12 (gate vs origin/dev 9eaf0b65e) for motoko-fork,
+# docparse and daneel; review round 2 (dependency test bodies no longer
+# checked, non-bool test results now are) was DERIVED from that run's
+# rows.jsonl, not re-measured: both TC_TEST_001 rows are root checks, so no
+# count changed. The ailang-packages entry (49) is removed, DERIVED not
+# re-measured: ailang-packages main 349cb99bc fixes every site, and the
+# republished packages are firebase_auth 0.1.3, billing_entitlements 0.4.3,
+# billing_proposals 0.3.3, billing_stripe 0.1.7, billing_store 0.9.5,
+# billing_service_api 0.5.11, agui 0.2.2, discord 0.5.1. docparse and daneel
+# PIN the old versions and break until they re-lock. The motoko-fork
+# TC_CONTRACT_001 (128) and TC_TEST_001 (2) entries are removed, DERIVED not
+# re-measured: motoko_agent PR 10 (2c2f9c8d2) adds `deriving (Eq)` to
+# ToolOffer, PurityBasis, CapabilityKind and DecisionSite and fixes the
+# src/core/prompts_test.ail:51 rows. world is advisory (fix: ailang-world PR 565).
+- change: "#2232/#2248 contracts and test bodies are type-checked"
+  code: TC_CONTRACT_001
+  corpus: docparse
+  max: 30
+  fix: "importers of sunholo/firebase_auth 0.1.2 (firebase_jwt.ail:77), billing_entitlements 0.4.2 (plan.ail:67), billing_store 0.9.3 (usage_repo.ail:19): re-lock onto the republished 0.1.3 / 0.4.3 / 0.9.5"
+  republish: []
+  expires: v0.61.0
+- change: "#2232/#2248 contracts and test bodies are type-checked"
+  code: TC_CONTRACT_001
+  corpus: daneel
+  max: 3
+  fix: "importers of sunholo/discord 0.4.0 (client.ail:230 parseChannels ensures applies the wrong `length`): re-lock onto the republished discord 0.5.1"
+  republish: []
+  expires: v0.61.0

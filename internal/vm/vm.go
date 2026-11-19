@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/sunholo-data/ailang/internal/bytecode"
+	"github.com/sunholo-data/ailang/internal/core"
 	"github.com/sunholo-data/ailang/internal/effects"
 )
 
@@ -41,9 +42,9 @@ func (e *VMError) Error() string {
 		loc = fmt.Sprintf("line %d", e.Line)
 	}
 	if loc != "" {
-		return fmt.Sprintf("vm: %s (in %s at %s, ip %d, op %s)", e.Msg, e.Func, loc, e.IP, e.OpString)
+		return fmt.Sprintf("vm: %s (in %s at %s, ip %d, op %s)", e.Msg, core.DisplayFuncName(e.Func), loc, e.IP, e.OpString)
 	}
-	return fmt.Sprintf("vm: %s (in %s at ip %d, op %s)", e.Msg, e.Func, e.IP, e.OpString)
+	return fmt.Sprintf("vm: %s (in %s at ip %d, op %s)", e.Msg, core.DisplayFuncName(e.Func), e.IP, e.OpString)
 }
 
 // ErrStackOverflow is returned when the call stack exceeds MaxStack frames.
@@ -289,7 +290,7 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			// caller's IP advances past the CALL.
 			if calleeProto.EvalOnly {
 				if vm.Interop == nil {
-					return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("CALL: %s is evaluator-only (%s) but no interop bridge is wired", calleeProto.Name, calleeProto.EvalReason), inst)
+					return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("CALL: %s is evaluator-only (%s) but no interop bridge is wired", core.DisplayFuncName(calleeProto.Name), core.DisplayFuncName(calleeProto.EvalReason)), inst)
 				}
 				args := make([]bytecode.Value, argCount)
 				for i := 0; i < argCount; i++ {
@@ -358,7 +359,7 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			// the function had run inline.
 			if calleeProto.EvalOnly {
 				if vm.Interop == nil {
-					return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("TAIL_CALL: %s is evaluator-only (%s) but no interop bridge is wired", calleeProto.Name, calleeProto.EvalReason), inst)
+					return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("TAIL_CALL: %s is evaluator-only (%s) but no interop bridge is wired", core.DisplayFuncName(calleeProto.Name), core.DisplayFuncName(calleeProto.EvalReason)), inst)
 				}
 				args := make([]bytecode.Value, argCount)
 				for i := 0; i < argCount; i++ {
@@ -638,6 +639,8 @@ func (vm *VM) run(frame *Frame) (bytecode.Value, error) {
 			return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("BUILTIN_TRAP: %s not yet wired (Phase 2E)", name), inst)
 		case bytecode.OpEffectTrap:
 			return bytecode.Value{}, vm.errAt(frame, "EFFECT_TRAP not implemented in Phase 2B", inst)
+		case bytecode.OpMatchFail:
+			return bytecode.Value{}, vm.matchFail(frame, inst)
 
 		default:
 			return bytecode.Value{}, vm.errAt(frame, fmt.Sprintf("unknown opcode %d", op), inst)

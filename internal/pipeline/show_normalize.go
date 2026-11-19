@@ -54,6 +54,12 @@ type ShowNormalizer struct {
 	// in its skip message instead of emitting a bare "unencodable builtin: show"
 	// that sends readers hunting a call the source does not contain.
 	residueByFunc map[string][]core.ShowResidueNote
+
+	// Generic: nodes whose `int` type is a default standing in for a type
+	// variable of a generic body (#2273, CoreTypeChecker.DefaultedNodes). The
+	// body runs at any type there, so show stays in place and renders the
+	// run-time value.
+	Generic map[uint64]bool
 }
 
 // NewShowNormalizer creates the pass. coreTI must be the live type table for the
@@ -343,7 +349,7 @@ func (s *ShowNormalizer) rewriteShow(fnName string, app *core.App, arg core.Core
 		s.Rewritten++
 		return s.boolToString(newArg, app.OrigSpan), nil
 
-	case isPrimType(argType, "int"):
+	case isPrimType(argType, "int") && !s.Generic[arg.ID()]:
 		s.Rewritten++
 		return s.intToString(newArg, argType, app.OrigSpan), nil
 

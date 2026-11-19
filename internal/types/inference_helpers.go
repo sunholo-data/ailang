@@ -192,6 +192,15 @@ func (ctx *InferenceContext) solveLocalEqualities(from int) (Substitution, error
 // Folding a suffix into the result of its prefix equals folding the whole, so
 // callers may extend a cached solve incrementally (#1958 unionEffects).
 func (ctx *InferenceContext) solveEqualitiesInto(sub Substitution, cs []TypeConstraint) (Substitution, error) {
+	sub, _, err := ctx.solveEqualitiesPending(sub, cs)
+	return sub, err
+}
+
+// solveEqualitiesPending is solveEqualitiesInto that also folds every field
+// access (field_access_deferred.go) whose receiver the equalities decide, and
+// returns the accesses still undecided.
+func (ctx *InferenceContext) solveEqualitiesPending(sub Substitution, cs []TypeConstraint) (Substitution, []*fieldAccess, error) {
+	var pending []*fieldAccess
 	for _, c := range cs {
 		switch constraint := c.(type) {
 		case TypeEq:
@@ -202,41 +211,8 @@ func (ctx *InferenceContext) solveEqualitiesInto(sub Substitution, cs []TypeCons
 				sub,
 			)
 			if err != nil {
-				return nil, fmt.Errorf("type unification failed at %v: %w", constraint.Path, err)
+				return nil, nil, ctx.unifyFailure(constraint, sub, err)
 			}
-		case RowEq:
-			var err error
-			sub, err = ctx.unifier.rowUnifier.UnifyRows(
-				constraint.Left,
-				constraint.Right,
-				sub,
-			)
-			if err != nil {
-				return nil, fmt.Errorf("row unification failed at %v: %w", constraint.Path, err)
-			}
-		}
-	}
-	return sub, nil
-}
-
-// SolveConstraints solves all collected constraints
-func (ctx *InferenceContext) SolveConstraints() (Substitution, []ClassConstraint, error) {
-	sub := make(Substitution)
-
-	// Phase 1: Solve all equality constraints first to build up substitution
-	for _, c := range ctx.constraints {
-		switch constraint := c.(type) {
-		case TypeEq:
-			var err error
-			sub, err = ctx.unifier.Unify(
-				ApplySubstitution(sub, constraint.Left),
-				ApplySubstitution(sub, constraint.Right),
-				sub,
-			)
-			if err != nil {
-				return nil, nil, fmt.Errorf("type unification failed at %v: %w", constraint.Path, err)
-			}
-
 		case RowEq:
 			var err error
 			sub, err = ctx.unifier.rowUnifier.UnifyRows(
@@ -247,7 +223,39 @@ func (ctx *InferenceContext) SolveConstraints() (Substitution, []ClassConstraint
 			if err != nil {
 				return nil, nil, fmt.Errorf("row unification failed at %v: %w", constraint.Path, err)
 			}
+		case *fieldAccess:
+			next, decided, err := ctx.solveFieldAccess(constraint, sub)
+			if err != nil {
+				return nil, nil, err
+			}
+			if !decided {
+				pending = append(pending, constraint)
+				continue
+			}
+			sub = next
 		}
+	}
+	// A later equality may have decided a receiver an earlier access met unknown.
+	return ctx.retryFieldAccesses(sub, pending)
+}
+
+// SolveConstraints solves all collected constraints
+func (ctx *InferenceContext) SolveConstraints() (Substitution, []ClassConstraint, error) {
+	sub := make(Substitution)
+
+	// Phase 1: Solve all equality constraints first to build up substitution,
+	// with the field accesses they decide (field_access_deferred.go).
+	sub, pending, err := ctx.solveEqualitiesPending(sub, ctx.constraints)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	// Phase 1b (M-V1-NOMINAL-TYPE-IDENTITY, #2239): resolve the deferred
+	// constructor choices and field accesses the equalities now decide
+	// (ambiguous_ctor.go, field_access_deferred.go).
+	sub, err = ctx.solveDeferred(sub, pending)
+	if err != nil {
+		return nil, nil, err
 	}
 
 	// Phase 2: Apply final substitution to all class constraints
@@ -261,147 +269,6 @@ func (ctx *InferenceContext) SolveConstraints() (Substitution, []ClassConstraint
 	}
 
 	return sub, unsolvedClass, nil
-}
-
-// Helper functions for free variables
-
-func freeTypeVars(t Type) map[string]bool {
-	free := make(map[string]bool)
-	collectFreeTypeVars(t, free)
-	return free
-}
-
-func collectFreeTypeVars(t Type, free map[string]bool) {
-	switch t := t.(type) {
-	case *TVar2:
-		free[t.Name] = true
-	case *TFunc2:
-		for _, p := range t.Params {
-			collectFreeTypeVars(p, free)
-		}
-		collectFreeTypeVars(t.Return, free)
-	case *TList:
-		collectFreeTypeVars(t.Element, free)
-	case *TArray:
-		collectFreeTypeVars(t.Element, free)
-	case *TMap:
-		collectFreeTypeVars(t.Key, free)
-		collectFreeTypeVars(t.Value, free)
-	case *TTuple:
-		for _, e := range t.Elements {
-			collectFreeTypeVars(e, free)
-		}
-	case *TRecord2:
-		if t.Row != nil {
-			for _, v := range t.Row.Labels {
-				collectFreeTypeVars(v, free)
-			}
-		}
-	}
-}
-
-func freeRowVars(r *Row) map[string]bool {
-	free := make(map[string]bool)
-	if r != nil {
-		collectFreeRowVars(r, free)
-	}
-	return free
-}
-
-func collectFreeRowVars(r *Row, free map[string]bool) {
-	if r.Tail != nil {
-		free[r.Tail.Name] = true
-	}
-	// For record rows, check types in labels
-	if r.Kind.Equals(RecordRow) {
-		for _, t := range r.Labels {
-			// Types might contain row variables in nested records
-			if rec, ok := t.(*TRecord2); ok && rec.Row != nil {
-				collectFreeRowVars(rec.Row, free)
-			}
-		}
-	}
-}
-
-// collectFreeEffectRowVarsInType walks a COMPLETE type tree and records the name
-// of every free EffectRow-kinded row variable it finds: outer function effect
-// rows, nested callback function effect rows, and rows nested inside collections,
-// tuples, maps, records, and type applications (ADTs).
-//
-// M-EFFECT-ROW-SHOW-INTERP (#386) Section B: generalizeWithConstraints uses this
-// to quantify a scheme's free effect-row variables so each imported
-// row-polymorphic combinator use (mapE/filterE/foldlE/flatMapE/forEachE) receives
-// FRESH row variables. The existing collectFreeRowVars only inspected a single
-// row's tail and record labels — it never descended into function types, so the
-// combinator callback/outer effect rows were missed.
-func collectFreeEffectRowVarsInType(t Type, free map[string]bool, visited map[Type]bool) {
-	if t == nil || visited[t] {
-		return
-	}
-	visited[t] = true
-
-	switch typ := t.(type) {
-	case *TFunc2:
-		for _, p := range typ.Params {
-			collectFreeEffectRowVarsInType(p, free, visited)
-		}
-		collectFreeEffectRowVarsInType(typ.Return, free, visited)
-		if typ.EffectRow != nil {
-			collectFreeEffectRowVarsInRow(typ.EffectRow, free, visited)
-		}
-	case *TList:
-		collectFreeEffectRowVarsInType(typ.Element, free, visited)
-	case *TArray:
-		collectFreeEffectRowVarsInType(typ.Element, free, visited)
-	case *TMap:
-		collectFreeEffectRowVarsInType(typ.Key, free, visited)
-		collectFreeEffectRowVarsInType(typ.Value, free, visited)
-	case *TTuple:
-		for _, e := range typ.Elements {
-			collectFreeEffectRowVarsInType(e, free, visited)
-		}
-	case *TApp:
-		collectFreeEffectRowVarsInType(typ.Constructor, free, visited)
-		for _, a := range typ.Args {
-			collectFreeEffectRowVarsInType(a, free, visited)
-		}
-	case *TRecord:
-		for _, ft := range typ.Fields {
-			collectFreeEffectRowVarsInType(ft, free, visited)
-		}
-		if typ.Row != nil {
-			collectFreeEffectRowVarsInType(typ.Row, free, visited)
-		}
-	case *TRecord2:
-		if typ.Row != nil {
-			collectFreeEffectRowVarsInRow(typ.Row, free, visited)
-		}
-	case *Row:
-		collectFreeEffectRowVarsInRow(typ, free, visited)
-	}
-}
-
-// collectFreeEffectRowVarsInRow records an EffectRow tail var and recurses into
-// the row's label types (which may themselves contain nested function/effect
-// rows). Record-row tails are intentionally NOT collected as effect vars.
-func collectFreeEffectRowVarsInRow(r *Row, free map[string]bool, visited map[Type]bool) {
-	if r == nil {
-		return
-	}
-	if r.Tail != nil && r.Tail.Kind.Equals(EffectRow) {
-		free[r.Tail.Name] = true
-	}
-	for _, lt := range r.Labels {
-		collectFreeEffectRowVarsInType(lt, free, visited)
-	}
-}
-
-// freeEffectRowVarsInType is the convenience wrapper returning the set of free
-// EffectRow-kinded row-variable names in a complete type.
-func freeEffectRowVarsInType(t Type) map[string]bool {
-	free := make(map[string]bool)
-	collectFreeEffectRowVarsInType(t, free, make(map[Type]bool))
-	return free
 }
 
 // FreeEffectRowVarNames returns the sorted set of free EffectRow-kinded
@@ -511,4 +378,13 @@ func findFreeVarsHelper(expr ast.Expr, freeVars map[string]bool, bound map[strin
 	case *ast.Literal: // no-op
 	default: // conservatively assume no free variables
 	}
+}
+
+// getMapKeys returns the keys of a map for debugging
+func getMapKeys(m map[uint64][]Type) []uint64 {
+	keys := make([]uint64, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return keys
 }

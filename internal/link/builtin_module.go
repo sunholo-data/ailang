@@ -2,6 +2,7 @@ package link
 
 import (
 	"fmt"
+	"slices"
 	"sort"
 
 	"github.com/sunholo-data/ailang/internal/builtins"
@@ -41,8 +42,9 @@ func registerFromSpecRegistry(ml *ModuleLinker) {
 		typ := spec.Type()
 		typeVars := extractTypeVars(typ)
 		typeScheme := &types.Scheme{
-			TypeVars: typeVars,
-			Type:     typ,
+			TypeVars:    typeVars,
+			Constraints: builtinEqConstraints(spec, typeVars),
+			Type:        typ,
 		}
 
 		builtinIface.Exports[name] = &iface.IfaceItem{
@@ -65,52 +67,32 @@ func registerFromSpecRegistry(ml *ModuleLinker) {
 	ml.RegisterIface(builtinIface)
 }
 
-// extractTypeVars extracts all type variables from a type
-// This handles polymorphic types like forall a. (a, List[a]) -> List[a]
-func extractTypeVars(typ types.Type) []string {
-	vars := make(map[string]bool)
-	collectTypeVars(typ, vars)
-
-	// Convert to sorted slice for deterministic output
-	result := make([]string, 0, len(vars))
-	for v := range vars {
-		result = append(result, v)
+// builtinEqConstraints is Eq on each of spec.EqVars (#2291). A name that is
+// not one of the scheme's type variables is a registration bug: it panics at
+// startup rather than leave the comparison unconstrained.
+func builtinEqConstraints(spec *builtins.BuiltinSpec, typeVars []string) []types.Constraint {
+	if len(spec.EqVars) == 0 {
+		return nil
 	}
-	sort.Strings(result)
-	return result
+	out := make([]types.Constraint, 0, len(spec.EqVars))
+	for _, v := range spec.EqVars {
+		if !slices.Contains(typeVars, v) {
+			panic(fmt.Sprintf("builtin %s: EqVars names %q, which is not a type variable of its type", spec.Name, v))
+		}
+		out = append(out, types.Constraint{Class: "Eq", Type: &types.TVar2{Name: v, Kind: types.KStar{}}})
+	}
+	return out
 }
 
-// collectTypeVars recursively collects type variables from a type
-func collectTypeVars(typ types.Type, vars map[string]bool) {
-	if typ == nil {
-		return
-	}
-
-	switch t := typ.(type) {
-	case *types.TVar:
-		vars[t.Name] = true
-	case *types.TVar2:
-		vars[t.Name] = true
-	case *types.TList:
-		collectTypeVars(t.Element, vars)
-	case *types.TFunc2:
-		// Collect from parameters
-		for _, param := range t.Params {
-			collectTypeVars(param, vars)
-		}
-		// Collect from return type
-		collectTypeVars(t.Return, vars)
-	case *types.TTuple:
-		for _, elem := range t.Elements {
-			collectTypeVars(elem, vars)
-		}
-	case *types.TRecord:
-		// Records with row polymorphism
-		for _, fieldType := range t.Fields {
-			collectTypeVars(fieldType, vars)
-		}
-		// For simple types (TInt, TString, etc.), no type vars
-	}
+// extractTypeVars returns every type variable of typ, sorted: the variables a
+// builtin's scheme quantifies. It uses the type checker's one free-variable
+// walk (types.FreeTypeVarNames). The hand-written walk it replaces had no case
+// for type applications, so `_list_length : list[a] -> int` and 27 other
+// builtins left `a` (or `b`, `k`, `v`) free, shared by every use (#2305).
+func extractTypeVars(typ types.Type) []string {
+	result := types.FreeTypeVarNames(typ)
+	sort.Strings(result)
+	return result
 }
 
 // computeBuiltinDigest computes a deterministic digest for the $builtin module

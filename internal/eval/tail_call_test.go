@@ -190,13 +190,13 @@ func (f *fakeEffCtx) RecordFunctionEnter(name string, args []string) {
 func (f *fakeEffCtx) RecordFunctionExit(name string, result string) {
 	f.events = append(f.events, fmt.Sprintf("X %s=%s", name, result))
 }
-func (f *fakeEffCtx) CheckRequires(cond bool, msg, loc string) error {
+func (f *fakeEffCtx) CheckRequires(_ string, cond bool, msg, loc string) error {
 	if !cond {
 		return fmt.Errorf("requires failed: %s", msg)
 	}
 	return nil
 }
-func (f *fakeEffCtx) CheckEnsures(cond bool, msg, loc string) error {
+func (f *fakeEffCtx) CheckEnsures(_ string, cond bool, msg, loc string) error {
 	if !cond {
 		return fmt.Errorf("ensures failed: %s", msg)
 	}

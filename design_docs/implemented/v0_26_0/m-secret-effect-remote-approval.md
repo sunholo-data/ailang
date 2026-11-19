@@ -418,7 +418,7 @@ The following are intentionally open for the implementer:
 
 **Planned (overlap checked — distinct):**
 - [m-permission-model.md](../v0_23_0/m-permission-model.md) (0.36) — **closely related, not overlapping**: that doc defines effect-row → permission *tiers* + HITL gates generally; this doc defines one specific gated effect (`Secret`) and its 1Password resolution. `Secret` should map to a tier in that model. Coordinate, don't duplicate.
-- [m-effect-refinement.md](../v1_0_0/m-effect-refinement.md) (0.35) — future effect refinement; orthogonal.
+- [m-effect-refinement.md](../../planned/v1_1_0/m-effect-refinement.md) (0.35) — future effect refinement; orthogonal.
 
 ## References
 

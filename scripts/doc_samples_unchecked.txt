@@ -1,0 +1,36 @@
+# Documentation code blocks tagged sketch or repl, which tools/docsamples does NOT check.
+# Format: <page> <sha1-12 of the normalised block> <sketch|repl> [# reviewed: <why>]
+#
+# A ratchet like doc_samples_baseline.txt: the set may only shrink against the base
+# commit, except that a NEW line is accepted when it carries "# reviewed: <reason>" —
+# an explicit marker a reviewer sees in the diff (sketch is otherwise an escape hatch:
+# tagging a broken program sketch would turn the gate green). Every sketch/repl block
+# must be listed, and every line must still be a sketch/repl block.
+docs/docs/guides/ai-effect.mdx 457d264c9266 sketch
+docs/docs/guides/ai-routing.md aad5b06a800c sketch
+docs/docs/guides/contracts.mdx e2eb760c2483 sketch
+docs/docs/guides/getting-started.mdx ba7062246b3e repl
+docs/docs/guides/quick-start-examples.mdx ba7062246b3e repl
+docs/docs/guides/serve-api.md 34d242d83f1a sketch
+docs/docs/guides/serve-api.md ef9477efae24 sketch
+docs/docs/guides/testing.md f95885e748f3 sketch
+docs/docs/playground.mdx 2caf3e99ad72 repl
+docs/docs/playground.mdx 6acf4ce829dd repl
+docs/docs/playground.mdx b4d8d16f5d14 repl
+docs/docs/playground.mdx b731f9bbf9e3 repl
+docs/docs/playground.mdx cdf8fbd28ad4 repl
+docs/docs/playground.mdx e9e3acd8d80d repl
+docs/docs/reference/capability-budgets.mdx 37596b4deb69 sketch
+docs/docs/reference/capability-budgets.mdx 3c0541762ef1 sketch
+docs/docs/reference/capability-budgets.mdx 698bcacae2c9 sketch
+docs/docs/reference/capability-budgets.mdx e6398218c6b0 sketch
+docs/docs/reference/effects.md 72137629a9e2 sketch
+docs/docs/reference/modules.md b6538136c146 repl
+docs/docs/reference/no-loops.md 081fd18f2fd8 sketch
+docs/docs/reference/no-loops.md 11ba631ef958 sketch
+docs/docs/reference/no-loops.md 2b74abd5810c sketch
+docs/docs/reference/no-loops.md 4659edc4b82f sketch
+docs/docs/reference/no-loops.md 51bac7c7ce3c sketch
+docs/docs/reference/no-loops.md 891405216bfa sketch
+docs/docs/reference/no-loops.md fed6a6309817 sketch
+docs/docs/reference/repl-commands.md c011c6296dc6 repl

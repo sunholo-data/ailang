@@ -174,3 +174,14 @@ func TestModuleSuggestion_NoLocatorNoAlias(t *testing.T) {
 		t.Errorf("no locator + no alias should give no suggestion, got %q", got)
 	}
 }
+
+func TestEditDistance(t *testing.T) {
+	for _, c := range []struct {
+		a, b string
+		want int
+	}{{"", "", 0}, {"int", "int", 0}, {"strng", "string", 1}, {"point", "int", 2}, {"flaot", "float", 2}, {"", "abc", 3}} {
+		if got := EditDistance(c.a, c.b); got != c.want {
+			t.Errorf("EditDistance(%q, %q) = %d, want %d", c.a, c.b, got, c.want)
+		}
+	}
+}

@@ -1,0 +1,9 @@
+-- Engine parity fixture (engines_test.go): evaluator, --bytecode and --strict-bytecode
+-- must print the same summary(). Recovered from the Go emitter's known_failures (#2389); the issue below was emitter-only.
+-- #2261: string length emits utf8.RuneCountInString without importing
+-- unicode/utf8.
+module harness/kf/string_length
+
+import std/string (length)
+
+export pure func summary() -> string = show(length("héllo"))

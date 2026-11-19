@@ -131,7 +131,7 @@ func ExecuteModuleEntrypoint(rt *runtime.ModuleRuntime, params ModuleExecParams)
 	}
 
 	// Decode arguments
-	args, err := decodeEntrypointArgs(params.ArgsJSON, fnType, entry, params.Iface.GetTypeAlias)
+	args, err := decodeEntrypointArgs(params.ArgsJSON, fnType, entry, params.Iface.TypeAliasFor)
 	if err != nil {
 		return err
 	}
@@ -149,9 +149,9 @@ func ExecuteModuleEntrypoint(rt *runtime.ModuleRuntime, params ModuleExecParams)
 		if params.StrictBytecode {
 			return fmt.Errorf("bytecode execution failed: %w", vmErr)
 		}
-		if !params.Quiet {
-			fmt.Fprintf(os.Stderr, "%s bytecode path unavailable (%v); falling back to evaluator\n", yellow("⚠"), vmErr)
-		}
+		// Not gated on --quiet (run's default): a fallback is a warning, not
+		// a progress line, and a silent one hides lost VM coverage.
+		fmt.Fprintf(os.Stderr, "%s bytecode path unavailable (%v); falling back to evaluator\n", yellow("⚠"), vmErr)
 		// Fall through to evaluator path below.
 	}
 
@@ -164,7 +164,7 @@ func ExecuteModuleEntrypoint(rt *runtime.ModuleRuntime, params ModuleExecParams)
 	// Print result if not Unit and not suppressed
 	if execResult.Type() != "unit" && !params.NoPrint {
 		if params.Print {
-			fmt.Println(execResult.String())
+			fmt.Println(eval.Show(execResult))
 		}
 	}
 
@@ -203,7 +203,7 @@ func decodeEntrypointArgs(argsJSON string, fnType *types.TFunc2, entry string, a
 func PrintNonModuleResult(value eval.Value, print, noprint bool) {
 	if value != nil && value.Type() != "unit" && !noprint {
 		if print {
-			fmt.Println(value.String())
+			fmt.Println(eval.Show(value))
 		}
 	}
 }

@@ -90,6 +90,17 @@ R=$(curl -s "$BASE/.well-known/oauth-protected-resource/mcp/connect/")
 [[ "$R" == *"\"authorization_servers\":[\"$BASE\"]"* ]] && pass "protected-resource metadata names the issuer" || fail "protected-resource metadata" "$R"
 R=$(curl -s "$BASE/.well-known/oauth-authorization-server")
 [[ "$R" == *"\"issuer\":\"$BASE\""* && "$R" == *S256* ]] && pass "authorization-server metadata" || fail "authorization-server metadata" "$R"
+# Client models are OFF unless switched on (M-CONNECTOR-CHANNELS P1): prod runs
+# this image with none set, and must keep 0.1.2's CIMD-only behaviour.
+[[ "$R" != *registration_endpoint* && "$R" != *revocation_endpoint* && "$R" != *client_secret_basic* ]] \
+  && pass "switches off: metadata advertises no DCR, revocation or client secrets" || fail "switches off: metadata" "$R"
+for u in /oauth/register /oauth/revoke; do
+  R=$(curl -s -w ' HTTP%{http_code}' -X POST "$BASE$u" -H 'content-type: application/json' -d '{"redirect_uris":["https://teams.microsoft.com/cb"]}')
+  [[ "$R" == *HTTP404* ]] && pass "switches off: POST $u -> 404" || fail "switches off: POST $u -> 404" "$R"
+done
+R=$(curl -s -w ' HTTP%{http_code}' -X POST "$BASE/api/executor_oauth/oauth/createClientCli" -H 'content-type: application/json' -d '{}')
+L=$(mcp "" tools/list '{}')
+[[ "$R" != *HTTP200* && "$L" != *createClientCli* ]] && pass "operator command not served over HTTP or MCP" || fail "operator command not served" "$R"
 
 R=$(curl -s -w ' HTTP%{http_code}' "$BASE/oauth-login.html")
 [[ "$R" == *HTTP200* && "$R" == *"Connect an app"* ]] && pass "sign-in page served same-origin" || fail "sign-in page served same-origin" "$(tail -c 80 <<<"$R")"
@@ -98,8 +109,28 @@ R=$(curl -s -w ' HTTP%{http_code}' "$BASE/oauth-login.html")
 R=$(curl -s "$BASE/oauth-login.js")
 [[ "$R" == *"'ailang-multivac-dev': {"* && "$R" == *"'ailang-multivac': {"* && "$R" == *"authDomain: 'ailang-multivac.firebaseapp.com'"* ]] \
   && pass "sign-in page knows dev and prod Firebase" || fail "sign-in page knows dev and prod Firebase" "$(grep -c projectId <<<"$R") projectId lines"
+# Directory reviewers sign in with email + password (accounts made in the
+# Firebase console); the page must never create one (no self sign-up).
+[[ "$R" == *signInWithEmailAndPassword* && "$R" != *createUser* && "$R" != *sendPasswordReset* && "$R" != *sendSignInLink* ]] \
+  && pass "sign-in page offers email + password sign-in, no sign-up" || fail "email sign-in, no sign-up" "$(grep -c signInWith <<<"$R") signInWith lines"
+R=$(curl -s "$BASE/oauth-login.html")
+[[ "$R" == *'href="https://ailang.sunholo.com/docs/legal/privacy"'* && "$R" == *'href="https://ailang.sunholo.com/docs/legal/terms"'* && "$R" == *'id="email-form"'* ]] \
+  && pass "consent page links privacy and terms, has the email form" || fail "consent page legal links" "$(grep -c legal <<<"$R") legal lines"
+# OpenAI domain verification: no OPENAI_APPS_CHALLENGE in this run -> 404.
+R=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/.well-known/openai-apps-challenge")
+[[ "$R" == 404 ]] && pass "openai-apps-challenge unset -> 404" || fail "openai-apps-challenge unset -> 404" "$R"
 R=$(curl -s "$BASE/vendor/")
 [[ "$R" != *firebase-app-compat.js* ]] && pass "no directory listing" || fail "no directory listing" "$R"
+
+# Gemini Enterprise's web app sends a 768-character base64 state with "="
+# padding (measured 2026-11-11); mcp_oauth 0.2.0 refused it ("state must be
+# unreserved characters, at most 512"). 0.2.1 accepts any VSCHAR up to 2048.
+GE_STATE="$(printf 'A%.0s' $(seq 1 766))=="
+L=$(loc -G "$BASE/oauth/authorize" --data-urlencode response_type=code --data-urlencode "client_id=$CLIENT" \
+  --data-urlencode "redirect_uri=$CB" --data-urlencode "code_challenge=$CHALLENGE" \
+  --data-urlencode code_challenge_method=S256 --data-urlencode "state=$GE_STATE")
+[[ "$L" == "$BASE/oauth-login.html?handle="* ]] && pass "a Gemini Enterprise-shaped state (768 chars, '=' padding) is accepted" \
+  || fail "a Gemini Enterprise-shaped state is accepted" "location=$L"
 
 # --- Sign in, get a token, use it ---
 L1=$(authorize); HANDLE=$(qparam "$L1" handle)
@@ -116,6 +147,16 @@ REFRESH=$(sed -n 's/.*"refresh_token":"\([^"]*\)".*/\1/p' <<<"$TOK")
 [[ "$ACCESS" == ax_* && ${#ACCESS} -eq 67 && -n "$REFRESH" && "$TOK" == *'"expires_in":3600'* ]] && pass "token issued (ax_, 1h)" || fail "token issued" "$TOK"
 R=$(mcp "$ACCESS" tools/call "$EVAL")
 [[ "$R" == *HTTP200* && "$R" == *42* ]] && pass "token runs ailang_eval" || fail "token runs ailang_eval" "$R"
+# A listed connector must not return server paths or digests (OpenAI app
+# review): the supervisor's policy echo keeps caps/limits/decision only.
+[[ "$R" == *caps* && "$R" == *decision* && "$R" != *executor-policy.toml* && "$R" != *digest* ]] \
+  && pass "run result names no policy path or digest" || fail "run result names no policy path or digest" "$R"
+R=$(mcp "$ACCESS" tools/call '{"name":"ailang_run","arguments":{"code":"module main\nimport std/fs (readFile)\nexport func main() -> () ! {IO, FS} = println(readFile(\"/etc/hostname\"))\n"}}')
+[[ "$R" == *policy_violation* && "$R" != *executor-policy.toml* ]] && pass "a refusal names no policy path" || fail "a refusal names no policy path" "$R"
+R=$(mcp "$ACCESS" tools/call '{"name":"roadmap","arguments":{}}')
+# The snapshot has no roadmap.json, so this is the missing-file error: it names
+# the file relative to the snapshot root, never the server's directory.
+[[ "$R" == *'missing:unscoped/roadmap.json'* && "$R" != *"$ROOT"* && "$R" != *'snapshot/'* ]] && pass "docs tool errors name no server path" || fail "docs tool errors name no server path" "$(tail -c 300 <<<"$R")"
 R=$(mcp "ax_0000000000000000000000000000000000000000000000000000000000000000" tools/call "$EVAL")
 [[ "$R" == *HTTP401* ]] && pass "unknown token -> 401" || fail "unknown token -> 401" "$R"
 # The tool sees the signed-in account (_auth, from the verifier), and a
@@ -170,12 +211,71 @@ L=$(loc -X POST "$BASE/oauth/login/complete" --data-urlencode "handle=$(qparam "
 stop_server
 
 # --- The test seam is shut on Cloud Run ---
-start_server K_SERVICE=executor-mcp-oauth
+start_server K_SERVICE=executor-mcp-oauth "OPENAI_APPS_CHALLENGE=  tok_e2e_challenge_123 "
+# OpenAI domain verification, set: exactly the token (trimmed), as text/plain.
+R=$(curl -s "$BASE/.well-known/openai-apps-challenge")
+CT=$(curl -s -o /dev/null -w '%{http_code} %{content_type}' "$BASE/.well-known/openai-apps-challenge" | cut -d';' -f1)
+[[ "$R" == tok_e2e_challenge_123 && "$CT" == "200 text/plain" ]] && pass "openai-apps-challenge serves the exact token as text/plain" || fail "openai-apps-challenge set" "$R / $CT"
 HANDLE=$(qparam "$(authorize)" handle)
 R=$(curl -s -w ' HTTP%{http_code}' -X POST "$BASE/oauth/login/complete" --data-urlencode "handle=$HANDLE" --data-urlencode "id_token=$TEST_ID_TOKEN")
 # The handle exists (storage works), so the refusal is the sign-in itself:
 # the token went to real Firebase verification and failed there.
 [[ -n "$HANDLE" && "$R" == *HTTP400* && "$R" != *"code="* ]] && pass "test seam shut when K_SERVICE is set" || fail "test seam shut when K_SERVICE is set" "$R"
+stop_server
+
+# --- Client models switched on: DCR (Copilot dynamic, Connected Apps),
+#     operator clients (Gemini Enterprise, Copilot static), revocation ---
+TEAMS_CB="https://teams.microsoft.com/api/platform/v1.0/oAuthRedirect"
+GE_CB="https://vertexaisearch.cloud.google.com/oauth-redirect"
+handle_for() { # client_id redirect_uri -> the sign-in handle from authorize
+  qparam "$(loc -G "$BASE/oauth/authorize" --data-urlencode response_type=code --data-urlencode "client_id=$1" \
+    --data-urlencode "redirect_uri=$2" --data-urlencode "code_challenge=$CHALLENGE" --data-urlencode code_challenge_method=S256 --data-urlencode state=st2)" handle
+}
+code_from() { qparam "$(loc -X POST "$BASE/oauth/login/complete" --data-urlencode "handle=$1" --data-urlencode "id_token=$TEST_ID_TOKEN")" code; }
+start_server OAUTH_CONFIDENTIAL_CLIENTS=1 OAUTH_DCR=1 "OAUTH_DCR_REDIRECT_HOSTS=teams.microsoft.com,vscode.dev" OAUTH_REVOCATION=1
+R=$(curl -s "$BASE/.well-known/oauth-authorization-server")
+[[ "$R" == *"\"registration_endpoint\":\"$BASE/oauth/register\""* && "$R" == *"\"revocation_endpoint\":\"$BASE/oauth/revoke\""* && "$R" == *client_secret_basic* ]] \
+  && pass "switches on: metadata advertises registration, revocation, client secrets" || fail "switches on: metadata" "$R"
+R=$(curl -s -w ' HTTP%{http_code}' -X POST "$BASE/oauth/register" -H 'content-type: application/json' \
+  -d '{"redirect_uris":["https://evil.example/cb"],"token_endpoint_auth_method":"none"}')
+[[ "$R" == *HTTP400* && "$R" == *invalid_redirect_uri* ]] && pass "DCR refuses a redirect host off the allowlist" || fail "DCR host allowlist" "$R"
+R=$(curl -s -w ' HTTP%{http_code}' -X POST "$BASE/oauth/register" -H 'content-type: application/json' \
+  -d "{\"redirect_uris\":[\"$TEAMS_CB\"],\"token_endpoint_auth_method\":\"none\",\"client_name\":\"Copilot\"}")
+DCR_ID=$(sed -n 's/.*"client_id":"\([^"]*\)".*/\1/p' <<<"$R")
+[[ "$R" == *HTTP201* && -n "$DCR_ID" ]] && pass "DCR registers a Copilot-style client" || fail "DCR registers" "$R"
+H=$(handle_for "$DCR_ID" "$TEAMS_CB"); CONSENT=$(curl -s "$BASE/oauth/request?handle=$H"); CODE=$(code_from "$H")
+[[ "$CONSENT" == *'"registered":"dcr"'* && "$CONSENT" == *'"redirect_host":"teams.microsoft.com"'* ]] \
+  && pass "consent marks the client as self-registered (dcr)" || fail "consent marks dcr" "$CONSENT"
+TOK=$(curl -s -X POST "$BASE/oauth/token" --data-urlencode grant_type=authorization_code --data-urlencode "code=$CODE" \
+  --data-urlencode "code_verifier=$VERIFIER" --data-urlencode "client_id=$DCR_ID" --data-urlencode "redirect_uri=$TEAMS_CB")
+DACCESS=$(sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p' <<<"$TOK")
+R=$(mcp "$DACCESS" tools/call "$EVAL")
+[[ "$DACCESS" == ax_* && "$R" == *HTTP200* && "$R" == *42* ]] && pass "DCR client signs in and runs a tool" || fail "DCR client flow" "$TOK / $R"
+R=$(curl -s -w ' HTTP%{http_code}' -X POST "$BASE/oauth/revoke" --data-urlencode "token=$DACCESS" --data-urlencode "client_id=$DCR_ID")
+R2=$(mcp "$DACCESS" tools/call "$EVAL")
+[[ "$R" == *HTTP200* && "$R2" == *HTTP401* ]] && pass "revocation kills the access token" || fail "revocation" "$R / $(tail -c 60 <<<"$R2")"
+# Operator client (Gemini Enterprise): minted by the CLI into the same stub store.
+OUT=$(cd "$ROOT" && env FIRESTORE_STUB=true OAUTH_CONFIDENTIAL_CLIENTS=1 OPERATOR_REDIRECTS="$GE_CB" \
+  "$AILANG" run --caps IO,FS,Env,Net,Clock,Rand,SharedMem --entry createClientCli executor_oauth/oauth.ail 2>&1)
+GE_ID=$(sed -n 's/^Client ID: *//p' <<<"$OUT"); GE_SECRET=$(sed -n 's/^Client secret: *//p' <<<"$OUT")
+[[ "$GE_ID" == mco_* && -n "$GE_SECRET" ]] && pass "operator command mints an mco_ client" || fail "operator command" "$(tail -c 300 <<<"$OUT")"
+H=$(handle_for "$GE_ID" "$GE_CB"); CONSENT=$(curl -s "$BASE/oauth/request?handle=$H"); CODE=$(code_from "$H")
+[[ "$CONSENT" == *'"registered":"operator"'* ]] && pass "consent marks the operator client" || fail "consent marks operator" "$CONSENT"
+R=$(curl -s -w ' HTTP%{http_code}' -X POST "$BASE/oauth/token" -u "$GE_ID:wrong-secret" --data-urlencode grant_type=authorization_code \
+  --data-urlencode "code=$CODE" --data-urlencode "code_verifier=$VERIFIER" --data-urlencode "redirect_uri=$GE_CB")
+[[ "$R" == *HTTP401* ]] && pass "operator client: wrong secret -> 401" || fail "operator client wrong secret" "$R"
+CODE=$(code_from "$(handle_for "$GE_ID" "$GE_CB")")
+TOK=$(curl -s -X POST "$BASE/oauth/token" -u "$GE_ID:$GE_SECRET" --data-urlencode grant_type=authorization_code \
+  --data-urlencode "code=$CODE" --data-urlencode "code_verifier=$VERIFIER" --data-urlencode "redirect_uri=$GE_CB")
+GACCESS=$(sed -n 's/.*"access_token":"\([^"]*\)".*/\1/p' <<<"$TOK")
+R=$(mcp "$GACCESS" tools/call "$EVAL")
+[[ "$GACCESS" == ax_* && "$R" == *HTTP200* ]] && pass "operator client (Basic auth) signs in and runs a tool" || fail "operator client flow" "$TOK / $R"
+if [ -n "$GE_SECRET" ] && grep -qF "$GE_SECRET" "$LOG"; then fail "log never holds a client secret" "leaked"; else pass "log never holds a client secret"; fi
+stop_server
+# DCR fails closed without a redirect-host allowlist (the package reads [] as any host).
+start_server OAUTH_DCR=1
+R=$(curl -s -w ' HTTP%{http_code}' -X POST "$BASE/oauth/register" -H 'content-type: application/json' -d "{\"redirect_uris\":[\"$TEAMS_CB\"]}")
+[[ "$R" == *HTTP404* ]] && pass "OAUTH_DCR=1 without OAUTH_DCR_REDIRECT_HOSTS stays off" || fail "DCR fails closed" "$R"
 stop_server
 
 [ $rc -eq 0 ] && echo "ok: executor oauth e2e"

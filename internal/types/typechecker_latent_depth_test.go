@@ -33,7 +33,7 @@ func TestDataArrows_CyclesRetainReachableCallbacks(t *testing.T) {
 	callback := latentArrow("cycle")
 	cyclic := &TTuple{}
 	cyclic.Elements = []Type{cyclic, callback}
-	if got := arrowTails(dataArrowsWith(cyclic, nil)); len(got) != 1 || got[0] != "cycle" {
+	if got := arrowTails(dataArrowsWith(cyclic, nil, nil)); len(got) != 1 || got[0] != "cycle" {
 		t.Fatalf("cyclic tuple callback: %v", got)
 	}
 	tc := NewCoreTypeChecker()

@@ -62,9 +62,21 @@ func buildAllFunctionsLines(stdlib fs.FS) []string {
 			docByName[exp.Name] = exp.DocLine
 		}
 
+		marks, modTier, err := parseExportMarks(stdlib, mod.FileName)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s: %v\n", red("Error"), err)
+			os.Exit(1)
+		}
+
 		// Exports in file (declaration) order.
 		for _, name := range order {
-			lines = append(lines, formatFunctionLine(mod.Name, name, astSigs[name], docByName[name]))
+			// The marks go in the description, never the signature: the
+			// signature part must re-parse (TestAllFunctions_SignatureFidelity).
+			doc := docByName[name]
+			if tag := marks[name].tag(modTier); tag != "" {
+				doc = strings.TrimSpace(tag + " " + doc)
+			}
+			lines = append(lines, formatFunctionLine(mod.Name, name, astSigs[name], doc))
 		}
 	}
 

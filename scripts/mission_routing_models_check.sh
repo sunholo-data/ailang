@@ -1,7 +1,7 @@
 #!/bin/bash
 # D-FLEET-12: findings are report flags, not a record-commit blocker.
 set -u
-ALLOWED_OPENAI='gpt-6.1-sol gpt-6-luna'
+ALLOWED_OPENAI='gpt-6.2-sol gpt-6.1-sol gpt-6-luna'
 file=''
 entry=''
 usage() { echo "usage: $0 --file <mission-log.md> [--entry N]" >&2; exit 2; }

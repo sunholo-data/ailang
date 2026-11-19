@@ -333,17 +333,27 @@ Default `make test` and CI test lanes set `HTTP_PROXY` and `HTTPS_PROXY` to
 request; it does not mean the developer's machine is misconfigured. Loopback remains available
 for `httptest` and local daemons.
 
-The boundary is deliberately scoped. It governs clients using Go's default transport and `git`
-HTTPS operations. It does not govern raw TCP/SSH or a client that constructs its own
-`http.Transport` without `Proxy: http.ProxyFromEnvironment`. The measured residual is currently
-**seven such transports across four first-party files**: six in `internal/effects`
-(`net.go`, `stream_ndjson.go`, `stream_sse.go` — including AILANG's `Net` effect) and one in
-`internal/executor/managed_agents/client.go`. No first-party file sets
-`Proxy: http.ProxyFromEnvironment`.
-Decision D5 deliberately leaves this route open; AC10(d),
-`effects_nil_proxy_remains_open`, is the tripwire that will turn red when the separate
-`m-net-effect-proxy-boundary` follow-up adopts Option B. Reviewers must flag any new test that
-dials raw TCP/SSH or constructs its own `http.Transport`.
+The boundary covers every first-party production HTTP(S) client: Go's default transport, `git`
+HTTPS operations, and — since `m-net-effect-proxy-boundary` — AILANG's own `Net` effect, the HTTP
+`Stream` operations (SSE GET/POST, NDJSON POST) and the Managed Agents Vertex client. Those route
+per request through `http.ProxyFromEnvironment`:
+
+- **Proxy selected:** the request goes to the proxy. A literal-IP target is still checked against
+  the Net/Stream IP policy with no DNS; a hostname target is resolved by the proxy, so the
+  pinned-target-IP guarantee does **not** hold for it (decision D-1, Mark 2026-08-19).
+- **No proxy, or the host matches `NO_PROXY`:** the direct route resolves the target once,
+  validates every answer, and dials exactly that IP (anti-DNS-rebinding pinning).
+- **Restricted policy mode** (`ailang run --policy`) refuses a configured proxy for Net and Stream
+  with `E_NET_PROXY_REFUSED` / `E_STREAM_PROXY_REFUSED` rather than sending traffic unpinned.
+
+`TestProxyAudit_Repo` (`internal/testutil/gatelint/proxyaudit.go`) fails on any new production
+`http.Transport` literal with a nil `Proxy`; its one exemption is the Net direct route itself. It is
+a per-file source gate — the type-aware analyzer that would also see `new(http.Transport)`,
+post-construction assignment and transport factories is
+[#612](https://github.com/sunholo-data/ailang/issues/612).
+
+Still outside the boundary: raw TCP/SSH, WebSocket dials (`Stream.connect`), and subprocesses that
+ignore proxy variables. Reviewers must flag any new test that dials raw TCP/SSH.
 
 Subprocesses and waits must also be bounded by the test deadline. Use `testutil.RunBounded` for
 commands and `testutil.HangGuard` or `testutil.HangGuardContext` for other waits. Absolute

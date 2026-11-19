@@ -131,7 +131,20 @@ func (c *ContractContext) CurrentFunction() string {
 //
 // Returns error in Panic mode if check fails, nil otherwise.
 func (c *ContractContext) CheckRequires(cond bool, msg, location string) error {
-	return c.check(ast.RequiresKind, cond, msg, location)
+	return c.check(ast.RequiresKind, c.function, cond, msg, location)
+}
+
+// CheckRequiresIn is CheckRequires for a named function. The evaluator calls
+// it with the name of the function whose contract it evaluated, so the
+// violation message and the trace name it without mutating shared state
+// (SetFunction had no production caller, and every message read "failed in  at").
+func (c *ContractContext) CheckRequiresIn(function string, cond bool, msg, location string) error {
+	return c.check(ast.RequiresKind, function, cond, msg, location)
+}
+
+// CheckEnsuresIn is CheckEnsures for a named function; see CheckRequiresIn.
+func (c *ContractContext) CheckEnsuresIn(function string, cond bool, msg, location string) error {
+	return c.check(ast.EnsuresKind, function, cond, msg, location)
 }
 
 // CheckEnsures records a postcondition check result
@@ -139,7 +152,7 @@ func (c *ContractContext) CheckRequires(cond bool, msg, location string) error {
 // This is called by generated code before function return.
 // Behavior follows same pattern as CheckRequires.
 func (c *ContractContext) CheckEnsures(cond bool, msg, location string) error {
-	return c.check(ast.EnsuresKind, cond, msg, location)
+	return c.check(ast.EnsuresKind, c.function, cond, msg, location)
 }
 
 // CheckInvariant records an invariant check result
@@ -147,11 +160,11 @@ func (c *ContractContext) CheckEnsures(cond bool, msg, location string) error {
 // This is called by generated code at module/type boundaries.
 // Behavior follows same pattern as CheckRequires.
 func (c *ContractContext) CheckInvariant(cond bool, msg, location string) error {
-	return c.check(ast.InvariantKind, cond, msg, location)
+	return c.check(ast.InvariantKind, c.function, cond, msg, location)
 }
 
 // check is the internal implementation for all contract checks
-func (c *ContractContext) check(kind ast.ContractKind, cond bool, msg, location string) error {
+func (c *ContractContext) check(kind ast.ContractKind, function string, cond bool, msg, location string) error {
 	// Off mode: skip everything
 	if c.Mode == ContractModeOff {
 		return nil
@@ -162,7 +175,7 @@ func (c *ContractContext) check(kind ast.ContractKind, cond bool, msg, location 
 		Passed:   cond,
 		Message:  msg,
 		Location: location,
-		Function: c.function,
+		Function: function,
 	}
 
 	// Always record in Report mode
@@ -174,7 +187,7 @@ func (c *ContractContext) check(kind ast.ContractKind, cond bool, msg, location 
 	// Panic mode: fail fast on violation
 	if !cond {
 		return fmt.Errorf("contract violation: %s failed in %s at %s: %s",
-			kind.String(), c.function, location, msg)
+			kind.String(), function, location, msg)
 	}
 
 	// Panic mode: record successful checks too (for analysis)

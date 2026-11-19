@@ -7,23 +7,26 @@
 --
 -- The @verify(depth: N) attribute overrides the global --verify-recursive-depth flag
 -- for the annotated function, allowing different recursion unrolling depths per function.
+-- Both commands above verify all three contracts (exit 0). Without the requires
+-- upper bounds a recursive contract is INCONCLUSIVE at any depth, which fails
+-- `ailang verify` (exit 1) unless --allow-inconclusive is given.
 
 module examples/runnable/contracts/per_function_depth_verify
 
--- Fibonacci with deep unrolling (depth 5)
--- This function needs more unrolling depth to verify properties of fibonacci
-@verify(depth: 5)
+-- Fibonacci with deep unrolling (depth 6). The requires bound (n <= 5) is
+-- what lets a bounded depth decide it: unrolling past the bound reaches no
+-- frontier, so the result is VERIFIED, not inconclusive.
+@verify(depth: 6)
 export func fibonacci(n: int) -> int ! {}
-requires { n >= 0 }
+requires { n >= 0, n <= 5 }
 ensures { result >= 0 } {
   if n <= 1 then n else fibonacci(n - 1) + fibonacci(n - 2)
 }
 
--- Factorial with moderate unrolling (depth 2)
--- Factorial grows fast, so depth 2 is usually sufficient
-@verify(depth: 2)
+-- Factorial with a different per-function depth (5), past its bound n <= 4.
+@verify(depth: 5)
 export func factorial(n: int) -> int ! {}
-requires { n >= 0 }
+requires { n >= 0, n <= 4 }
 ensures { result >= 1 } {
   if n <= 0 then 1 else n * factorial(n - 1)
 }

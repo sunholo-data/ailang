@@ -1,0 +1,25 @@
+-- Summarise a word list using three import styles: selective imports, a module
+-- alias with qualified calls, and two modules that both export `map`.
+-- Teaches: import path (names), import path as Alias, Alias.name, avoiding name clashes.
+-- The module name must equal the file path without .ail.
+module examples/runnable/stdlib/lang_imports_alias
+
+-- Selective import: only the listed names come into scope.
+import std/string (toUpper, join, length)
+
+-- Alias import: every export is reached through the prefix, e.g. L.length.
+import std/list as L
+import std/option as Opt
+
+-- Imports are not transitive: import every module you call directly.
+export func main() -> () ! {IO} {
+  let words = ["red", "green", "blue"]
+  -- L.map works on lists, Opt.map on options; bare `length` is the string one
+  let upper = L.map(toUpper, words)
+  let firstLen = Opt.map(length, L.head(words))
+  println("upper: ${join(",", upper)}")
+  println("count: ${show(L.length(words))}")
+  println("reversed: ${join(" ", L.reverse(words))}")
+  println("first word length: ${show(firstLen)}")
+  println("first or none: ${Opt.getOrElse(L.head(L.filter(\w. w == "pink", words)), "none")}")
+}

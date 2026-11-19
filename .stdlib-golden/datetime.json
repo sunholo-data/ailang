@@ -44,7 +44,8 @@
       "name": "addDays",
       "type": "(int,int)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -88,7 +89,8 @@
       "name": "addMonths",
       "type": "(int,int)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -132,7 +134,8 @@
       "name": "addYears",
       "type": "(int,int)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -164,7 +167,8 @@
       "name": "day",
       "type": "(int)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -208,7 +212,8 @@
       "name": "diffDays",
       "type": "(int,int)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -240,7 +245,8 @@
       "name": "formatISODate",
       "type": "(int)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -272,7 +278,8 @@
       "name": "formatMonthShort",
       "type": "(int)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -304,7 +311,8 @@
       "name": "formatRFC3339",
       "type": "(int)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -336,7 +344,8 @@
       "name": "formatWeekdayFull",
       "type": "(int)-\u003estring",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -368,7 +377,8 @@
       "name": "hour",
       "type": "(int)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -424,7 +434,8 @@
       "name": "makeDate",
       "type": "(int,int,int)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -516,7 +527,8 @@
       "name": "makeDateTime",
       "type": "(int,int,int,int,int,int)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -548,7 +560,8 @@
       "name": "minute",
       "type": "(int)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -580,7 +593,8 @@
       "name": "month",
       "type": "(int)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -612,7 +626,8 @@
       "name": "parseISODate",
       "type": "(string)-\u003eOption[int]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -644,7 +659,8 @@
       "name": "parseRFC3339",
       "type": "(string)-\u003eOption[int]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -676,7 +692,8 @@
       "name": "second",
       "type": "(int)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -708,7 +725,8 @@
       "name": "startOfDay",
       "type": "(int)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -740,7 +758,8 @@
       "name": "startOfMonth",
       "type": "(int)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -772,7 +791,8 @@
       "name": "startOfWeek",
       "type": "(int)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -804,7 +824,8 @@
       "name": "weekday",
       "type": "(int)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -836,7 +857,8 @@
       "name": "year",
       "type": "(int)-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     }
   ],
   "schema": "ailang.iface/v2"

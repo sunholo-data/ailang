@@ -1,15 +1,15 @@
 ---
 title: Current Teaching Prompt
 sidebar_position: 1
-description: The active AILANG teaching prompt (v0.16.11) - auto-synced from source
+description: The active AILANG teaching prompt (v0.16.16) - auto-synced from source
 ---
 
-<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.11.md during build -->
+<!-- AUTO-GENERATED: This file is synced from prompts/v0.16.16.md during build -->
 <!-- DO NOT EDIT DIRECTLY - changes will be overwritten -->
-<!-- Source: prompts/v0.16.11.md -->
-<!-- Active Version: v0.16.11 -->
+<!-- Source: prompts/v0.16.16.md -->
+<!-- Active Version: v0.16.16 -->
 
-# AILANG v0.16.11 - AI Teaching Prompt (with IFC Labels + Output Discipline)
+# AILANG v0.16.16 - AI Teaching Prompt (with IFC Labels + Output Discipline)
 
 AILANG is a **pure functional language** with Hindley-Milner type inference and algebraic effects. Write code using **recursion** (no loops), **pattern matching**, and **explicit effect declarations**.
 
@@ -29,7 +29,7 @@ export func main() -> () ! {IO} {
 1. First line MUST be `module path/name` matching the file path
 2. Use `println(show(value))` for numbers, `println(str)` for strings. **Prefer `show` over `intToStr`/`floatToStr`** — `show` works on ALL types
 3. **Pick ONE function-body style per function and stick to it:**
-   - **Block body** `func f() ! {IO} { let x = a; let y = b; finalExpr }` — semicolons between lets, NO `in`
+   - **Block body** `func f() ! {IO} { ... }` — one `let` per line, NO `in`. Statements are separated by newlines (canonical, what `ailang fmt` writes) or by `;` (also accepted)
    - **Expression body** `func f() ! {IO} = let x = a in let y = b in finalExpr` — `in` keyword, NO semicolons
    - **The `= {` trap**: `func f() = { a; b }` mixes both styles. `=` means expression body (no `;`); for multiple statements DROP the `=` → `func f() { a; b }`. (Error: `PAR017: ';' is only valid inside { } block bodies`.)
 4. No loops — use recursion
@@ -62,7 +62,7 @@ import std/io (print, flush)
 print("\r\x1b[92m50%\x1b[0m");  -- \x1b = ESC (ANSI colour); "\x1b[2J" clears the screen
 flush()                          -- force it to the screen NOW (no /dev/tty hack needed)
 ```
-Runs under `--caps IO,Clock` — no `FS`. `printErr`/`eprintln` (std/io) write to stderr (unbuffered).
+Runs under `--caps IO,Clock` — no `FS`. `eprint`/`eprintln` (std/io) write to stderr (unbuffered).
 
 ## Line input and native terminals (supporting runtime required)
 
@@ -244,14 +244,28 @@ export func main() -> () ! {IO, AI} = println(call("What is 2+2?"))
 
 ## Let Bindings: Block Style vs Expression Style
 
-**Rule: Inside `{ }` blocks, use SEMICOLONS. With `=` bodies, use `in`.**
+**Rule: Inside `{ }` blocks, one `let` per line (no `in`). With `=` bodies, use `in`.**
 
 ```ailang
--- Block style: curly braces + semicolons
+-- Block style: curly braces, one statement per line (canonical `ailang fmt` form)
+export func main() -> () ! {IO} {
+  let x = 1
+  let y = 2
+  println(show(x + y))
+}
+
+-- `;` between block statements is also accepted (fmt removes it)
 export func main() -> () ! {IO} {
   let x = 1;
   let y = 2;
   println(show(x + y))
+}
+
+-- ONE place `;` is required: a block whose final expression starts with `{`
+-- (a record update or literal). Without it the parser reads `{` as continuing the let.
+pure func bump(r: {a: int}) -> {a: int} {
+  let x = 1;
+  {r | a: x}
 }
 
 -- Expression style: equals + in
@@ -268,7 +282,7 @@ export func main() -> () ! {IO} {
 }
 ```
 
-**Simple rule: See `{` -> use `;`. See `=` -> use `in`.**
+**Simple rule: See `{` -> one `let` per line, no `in`. See `=` -> use `in`.**
 
 ## Function Calls: Multi-arg vs Curried (CRITICAL)
 
@@ -451,8 +465,23 @@ callback parameter also requires the caller to declare the callback’s effects.
 This includes a function stored in a list, tuple, Option or record argument.
 Constructing a record that stores a callback does not perform those effects.
 
+Callback **function types** distinguish these contracts:
+
+| Callback type | Contract |
+|---|---|
+| `T -> U` | Implicit open row; hand-off charges the caller, including nested callback data |
+| `T -> U ! {}` | Closed pure callback; an effectful value is rejected even if its caller declares that effect |
+| `T -> U ! {IO}` | Concrete IO callback contract; the callee declares IO when it invokes it |
+| `T -> U ! {e}` | Explicit row polymorphism; share `e` with the enclosing caller row |
+
+For a store-only helper taking a mixed record of pure and effectful callbacks,
+write `! {}` on pure callback fields and concrete rows on effectful fields.
+Direct record/list/tuple literals still only store callback values.
+
+
 ```ailang
--- Pure (no effects) - use `pure func` or omit effect annotation
+-- Pure (no effects) - use `pure func` or omit effect annotation.
+-- `pure` means `! {}`: `pure func f() -> () ! {IO}` is a type error (drop `pure` or the row).
 pure func add(x: int, y: int) -> int = x + y
 
 -- IO effect - for print/println/readLine
@@ -548,12 +577,11 @@ export func main() -> () { println("hi") }
 -- CORRECT: declare IO effect
 export func main() -> () ! {IO} { println("hi") }
 ```
-```
 
 | Effect | Functions | Import |
 |--------|-----------|--------|
 | `IO` | `print`, `println`, `readLine`, `writeBytes`, `exit` | `std/io` (print is builtin) |
-| `FS` | `readFile`, `writeFile`, `fileExists`, `listDir`, `walk`, `glob`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, `_zip_*` | `std/fs`, `std/zip` |
+| `FS` | `readFile`, `writeFile`, `fileExists`, `listDir`, `walk`, `walkWithSuffix`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, `_zip_*` | `std/fs`, `std/zip` |
 | `Net` | `httpGet`, `httpPost`, `httpRequest` | `std/net` |
 | `Env` | `getArgs`, `getEnv`, `getEnvOr`, `hasEnv` | `std/env` |
 | `Clock` | `now`, `sleep` | `std/clock` |
@@ -571,16 +599,18 @@ runtime currently treats all modes identically (mode-aware dispatch
 lands later).
 
 ```ailang
+import std/rand (randInt, randSeed)
+
 -- Bare !{Rand} desugars to !{Rand[mode=os]} via the default-mode table.
-func roll_d6() -> int ! {Rand} = rand_int(1, 6)
+func roll_d6() -> int ! {Rand} = randInt(1, 6)
 
 -- Same effect signature as bare !{Rand}; unifies via default-desugar.
-func roll_d20() -> int ! {Rand[mode=os]} = rand_int(1, 20)
+func roll_d20() -> int ! {Rand[mode=os]} = randInt(1, 20)
 
 -- Distinct mode — does NOT unify with mode=os under invariant rules.
 func deterministic() -> int ! {Rand[mode=seeded]} = {
-  rand_seed(42);
-  rand_int(1, 100)
+  randSeed(42);
+  randInt(1, 100)
 }
 ```
 
@@ -659,8 +689,8 @@ func handleRequest(path: string) -> Response ! {Net} {
 ## Standard Library
 
 **Auto-imported (no import needed):**
-- `print` (entry modules only)
-- `show(x)` - convert to string
+- `println` (entry modules only) — `print` (no newline) is NOT auto-imported: `import std/io (print)`
+- `show(x)` - convert to string. Renders the WHOLE value, never elided. A top-level string is unchanged (`show("hi")` is `hi`); strings inside lists, tuples, records, maps and constructors are quoted: `show(["a", "b"])` is `["a", "b"]`, `show(Some("x"))` is `Some("x")`. For a bounded log line use `showPreview(v, 200)` (`import std/string (showPreview)`)
 - Comparison operators: `<`, `>`, `<=`, `>=`, `==`, `!=`
 - **`Option`/`Some`/`None` and `Result`/`Ok`/`Err`** (entry modules only, v0.30.0+) —
   the types AND their constructors resolve without `import std/option` / `import std/result`.
@@ -671,9 +701,9 @@ func handleRequest(path: string) -> Response ! {Net} {
 **Common imports:**
 ```ailang
 import std/io (println, readLine)
-import std/fs (readFile, writeFile, fileExists, listDir, walk, glob, mkdir, mkdirAll, isDir, isFile, removeFile)
+import std/fs (readFile, writeFile, fileExists, listDir, walk, walkWithSuffix, mkdir, mkdirAll, isDir, isFile, removeFile)
 -- walk(root) -> [string] ! {FS}: every file under root, recursively, sorted, paths prefixed with root.
--- glob(root, ".ail") -> [string] ! {FS}: walk filtered by suffix. Never hand-roll a recursive listDir/isDir walker.
+-- walkWithSuffix(root, ".ail") -> [string] ! {FS}: walk filtered by suffix (not a glob pattern). Never hand-roll a recursive listDir/isDir walker.
 import std/env (getArgs, getEnv, getEnvOr)
 import std/net (httpGet, httpPost, httpRequest)
 import std/json (encode, decode, get, getString, getNumber, getInt, getBool, getArray, getObject, asString, asNumber, asArray)
@@ -690,17 +720,19 @@ import std/embedding (dot, cosine, magnitude, normalize, scale, add_vectors, axp
 -- Its dot/axpy/scale clash with std/embedding's: import one module qualified (import std/array as A).
 import std/array (make, fromList, toList, get, getOpt, set, length, dot, axpy, scale, add, sub, mul, sum, argmax, updateMany, scatterAdd, encodeF64LE, decodeF64LE)
 import std/string (split, chars, trim, stringToInt, stringToFloat, contains, find, substring, intToStr, floatToStr, join, startsWith, endsWith, length, toUpper, toLower, compare, repeat)
-import std/math (floatToInt, intToFloat, floor, ceil, round, sqrt, pow, abs_Float, abs_Int)
+import std/math (floatToInt, intToFloat, floor, ceil, round, sqrt, pow, absFloat, absInt)
 import std/ai (call, callJson, callJsonSimple)
 import std/sem (make_frame_at, store_frame, load_frame, update_frame)
 import std/option (Option, Some, None)
 import std/result (Result, Ok, Err)
-import std/bytes (fromString, toString, toBase64, fromBase64, toBase64URL, fromBase64URL, length, slice, fromInts, toInts, byteAt)
+import std/bytes (fromString, toString, toBase64, fromBase64, toBase64URL, fromBase64URL, length, sliceLen, fromInts, toInts, byteAt)
 import std/stream (connect, transmit, transmitBinary, onEvent, runEventLoop, disconnect, sseConnect, ssePost, withSSE, sourceOfConn, asyncReadStdinLines, asyncExecProcess, selectEvents, StreamConn, StreamSource, StreamEvent, Message, Binary, Opened, Closed, StreamError, Ping, SSEData, SourceText, SourceBytes)
 import std/process (exec, spawnProcess, writeProcessStdin, closeProcessStdin, ProcessHandle)
-import std/zip (_zip_listEntries, _zip_readEntry, _zip_readEntryBytes)
-import std/xml (_xml_parse, _xml_findAll, _xml_findFirst, _xml_getText, _xml_getAttr, _xml_getChildren, _xml_getTag)
+import std/zip (listEntries, readEntry, readEntryBytes)
+import std/xml (parse, findAll, findFirst, getText, getAttr, getChildren, getTag)
 ```
+
+**Renamed stdlib functions.** Use the camelCase names above. The old spellings still compile but warn `TC_DEPRECATED_001` and are being removed: `head_or`/`last_or`/`nth_or` → `headOr`/`lastOr`/`nthOr`, `charAt_or` → `charAtOr`, `abs_Int`/`abs_Float` → `absInt`/`absFloat`, `rand_int`/`rand_float`/`rand_bool`/`rand_seed` → `randInt`/`randFloat`/`randBool`/`randSeed`, `fs.readFileBytes` → `readFileBase64`, `fs.glob` → `walkWithSuffix`, `io.printErr` → `eprint`, `bytes.slice` → `sliceLen`, `list.member(x, xs)` → `contains(xs, x)`, `array.unsafeGet` → `get`.
 
 **List functions** (std/list) — all polymorphic, fully stable, **use these instead of hand-rolling recursion**:
 - `map(f, xs)` - Apply function to each element
@@ -782,7 +814,7 @@ let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("fold"); acc +
 - `floatToInt(x) -> int` - Convert float to int (truncates toward zero)
 - `intToFloat(x) -> float` - Convert int to float
 - `floor(x) -> float`, `ceil(x) -> float`, `round(x) -> float` - Rounding
-- `sqrt(x)`, `pow(x, y)`, `abs_Float(x)`, `abs_Int(x)` - Math operations
+- `sqrt(x)`, `pow(x, y)`, `absFloat(x)`, `absInt(x)` - Math operations
 - `sin(x)`, `cos(x)`, `tan(x)` - Trigonometric (radians)
 - `asin(x)`, `acos(x)`, `atan(x)`, `atan2(y, x)` - Inverse trig
 - `exp(x)`, `log(x)`, `log10(x)` - Exponential and logarithm (natural + base-10)
@@ -796,7 +828,7 @@ let total = foldlE(func(acc: int, x: int) -> int ! {IO} { println("fold"); acc +
 - `toBase64URL(b) -> string` - base64url encode (RFC 4648 §5: URL-safe alphabet, NO padding). Required by the Gmail API's `raw` field and by JWT segments. Do NOT hand-roll it from `toBase64` + `replaceMany` — a missed substitution still looks like valid base64 and is rejected at the far end: `toBase64(fromString("a+b/c?"))` is `"YStiL2M/"`, `toBase64URL` of the same bytes is `"YStiL2M_"`
 - `fromBase64URL(s) -> Option[bytes]` - base64url decode (None if invalid; REJECTS padding). Exact inverse of `toBase64URL`
 - `length(b) -> int` - Byte length
-- `slice(b, start, len) -> Option[bytes]` - Extract subsequence (None if out of bounds)
+- `sliceLen(b, start, len) -> Option[bytes]` - Extract `len` bytes from `start` (a LENGTH, not an end index; None if out of bounds)
 - `fromInts(xs: [int]) -> bytes` - Construct bytes from list of integers (0-255)
 - `byteAt(b, i) -> Option[int]` - Get byte value (0-255) at index, or None if out of bounds. Use for ASCII char codes: `byteAt(fromString("A"), 0) == Some(65)`
 - `toInts(b) -> [int]` - All byte values as a list, the inverse of `fromInts`. Use this (not `byteAt` in a loop) to walk bytes with `map`/`filter`/`foldl`. NOTE: to inspect the raw bytes behind a string, go through `fromString` — `toInts(fromString(s))`. `charCode`/string indexing give codepoints and return U+FFFD for bytes that are not valid UTF-8 on their own; `toInts` is the only way to reach those bytes (needed for charset transcoding, e.g. Latin-1 -> UTF-8)
@@ -1096,7 +1128,7 @@ Costs are in "Cost Model" below. `import std/array as A`; `#[10, 20, 30]` is an 
 - `empty() -> Array[a]` - Empty array
 - `make(size: int, default: a) -> Array[a]` - Fixed-size array initialized to `default`
 - `append(arr, val) -> Array[a]` - Return new array with `val` appended
-- `unsafeGet(arr, idx) -> a` - Get; out of bounds is a runtime error — use `getOpt` for safety
+- `get(arr, idx) -> a` - Get; out of bounds is a runtime error — use `getOpt` for safety
 - `get`/`set` out of bounds are errors naming the index and length (`set` never returns the array unchanged)
 
 **Float arrays.** An `Array[float]` is stored unboxed (8 bytes per element; a 10M-element array is ~130 MB,
@@ -1154,8 +1186,9 @@ let html = replaceMany(raw, [("&amp;", "&"), ("&lt;", "<"), ("&gt;", ">")])
 -- Sum line lengths without materializing the list of lines
 let total = foldSlices(text, "\n", 0, \acc line. acc + length(line))
 
--- Uppercase each CSV field
-let upper = mapSlicesJoin(csv, ",", \field. toUpper(field))
+-- Uppercase each CSV field. The pieces are joined with NO separator:
+-- mapSlicesJoin("a,b,c", ",", toUpper) == "ABC". Re-add the delimiter yourself if needed.
+let upper = mapSlicesJoin(csv, ",", \field. "${toUpper(field)},")
 ```
 
 `substring`/`find` have an ASCII fast-path: 24× faster on pure-ASCII input
@@ -1179,13 +1212,13 @@ export func main() -> () ! {IO} {
     Err(e) => println("bad pattern: ${e}"),
     Ok(re) => {
       println(show(R.isMatch(re, "x=1")));  -- true
-      println(show(map(\m. m.text, R.findAll(re, "a=1, bb=22"))));  -- [a=1, bb=22]
+      println(show(map(\m. m.text, R.findAll(re, "a=1, bb=22"))));  -- ["a=1", "bb=22"]
       match R.findFirst(re, "key=42") {
-        Some(m) => println(show(map(\g. g.text, m.groups))),  -- [key=42, key, 42]
+        Some(m) => println(show(map(\g. g.text, m.groups))),  -- ["key=42", "key", "42"]
         None => println("no match")
       };
       println(R.replaceAll(re, "a=1 b=2", "$2:$1"));  -- 1:a 2:b
-      println(show(R.split(re, "x a=1 y")))  -- [x ,  y]
+      println(show(R.split(re, "x a=1 y")))  -- ["x ", " y"]
     }
   }
 }
@@ -1218,7 +1251,7 @@ each call site.
 
 | Type | Operators |
 |------|-----------|
-| Arithmetic | `+`, `-`, `*`, `/`, `%`, `**` |
+| Arithmetic | `+`, `-`, `*`, `/`, `%` (no `**`: use `pow(x, y)` from `std/math`) |
 | Comparison | `<`, `>`, `<=`, `>=`, `==`, `!=` |
 | Logical | `&&`, `\|\|`, `not` |
 | Bitwise | `&` (AND), `^` (XOR), `~` (NOT), `<<` (shift left), `>>` (shift right) |
@@ -1270,14 +1303,21 @@ if !done then retry() else finish()
 evaluated when the LHS determines the result. This makes guarded expressions safe:
 
 ```ailang
--- SAFE: charAt(s, i-1) is only called when i > 0
-if i > 0 && charAt(s, i - 1) == "\\" then "escaped" else "normal"
+import std/string (charAt)
+import std/map (member, lookup)
+import std/option (Some)
 
--- SAFE: lookup never runs when key is missing
-if member(key, m) && lookup(key, m) == target then "match" else "no"
+-- SAFE: charAt(s, i-1) is only called when i > 0
+pure func escaped(s: string, i: int) -> string =
+  if i > 0 && charAt(s, i - 1) == "\\" then "escaped" else "normal"
+
+-- SAFE: lookup never runs when key is missing (std/map: map first, then key)
+pure func matches(m: Map[string, int], key: string, target: int) -> string =
+  if member(m, key) && lookup(m, key) == Some(target) then "match" else "no"
 
 -- || short-circuits: the RHS effect runs only if LHS is false
-if cached || expensiveFetch() then "ok" else "fail"
+func fetchOk(cached: bool, expensiveFetch: () -> bool ! {IO}) -> string ! {IO} =
+  if cached || expensiveFetch() then "ok" else "fail"
 ```
 
 `&&` and `||` desugar to `if`: `a && b` → `if a then b else false`,
@@ -1310,7 +1350,8 @@ println("Use \${var} to interpolate.")
 
 **How it works:** `"Hello, ${x}!"` desugars to `concat_String(concat_String("Hello, ", show(x)), "!")`.
 `show_String` is identity, so string-typed values are spliced without quoting. Any `Show`-able type
-works automatically (int, float, bool, records, ADTs).
+works automatically (int, float, bool, records, ADTs); strings inside them are quoted, as `show`
+quotes them: `"${["a", "b"]}"` is `["a", "b"]`.
 
 ## String and List Concatenation
 
@@ -1390,9 +1431,9 @@ match config {
   {host, port: p} => "${host}:${show(p)}"
 }
 
--- Nested record patterns
+-- Nested record patterns (`...` ignores the other fields at each level)
 match data {
-  {user: {email: e}} => e
+  {user: {email: e, ...}, ...} => e
 }
 ```
 
@@ -1402,6 +1443,36 @@ match data {
 - `{name, age}` - multiple fields
 - `{user: {name}}` - nested records
 - `{name, ...}` - rest pattern (matches some fields, ignores others)
+- **A record pattern must name EVERY field of the record or end with `...`.** `{name}` on a
+  record that also has `age` is a type error ("record field mismatch: expected 2 fields, got 1").
+
+**Every `match` must cover every case.** `ailang check` rejects one that misses a case
+(`TC_MATCH_002: non-exhaustive match on Light — no arm matches: Amber`):
+- cover every constructor of the type, or end with `_ =>`
+- a match on `int`, `string` or `float` always needs a final `_ =>` (or variable) arm
+- an arm with an `if` guard does not count: put an unguarded arm after it
+- a case that cannot happen: `unreachable("why")` fits any type and stops the program (RT010) if reached
+
+```ailang
+type Light = Red | Amber | Green
+
+pure func next(l: Light) -> Light = match l {
+  Red => Green,
+  Green => Amber,
+  Amber => Red
+}
+
+pure func sign(n: int) -> string = match n {
+  k if k < 0 => "negative",
+  0 => "zero",
+  _ => "positive"
+}
+
+pure func head(xs: [int]) -> int = match xs {
+  [] => unreachable("callers pass a non-empty list"),
+  [h, ..._] => h
+}
+```
 
 ## Deriving Eq for ADT Types
 
@@ -1417,12 +1488,12 @@ type Color = Red | Green | Blue deriving (Eq)
 type Shape = Circle(int) | Rectangle(int, int) deriving (Eq)
 
 export func main() -> () ! {IO} {
-  let sameColor = Red == Red;           -- true
-  let diffColor = Red != Blue;          -- true
-  let sameShape = Circle(5) == Circle(5);     -- true
-  let diffShape = Circle(5) != Rectangle(5, 10);  -- true
-  print("Color test: ${show(sameColor)}");
-  print("Shape test: ${show(sameShape)}")
+  let sameColor = Red == Red           -- true
+  let diffColor = Red != Blue          -- true
+  let sameShape = Circle(5) == Circle(5)     -- true
+  let diffShape = Circle(5) != Rectangle(5, 10)  -- true
+  println("Color test: ${show(sameColor)}")
+  println("Shape test: ${show(sameShape)}")
 }
 ```
 
@@ -1513,15 +1584,15 @@ func mapOption(f: int -> int, opt: Option[int]) -> Option[int] =
   }
 
 export func main() -> () ! {IO} {
-  -- Inside { } block: use semicolons, NOT "in"
+  -- Inside { } block: one let per line, NOT "in"
   -- WRONG: let isEven = \n. n % 2 == 0 in
-  -- RIGHT: let isEven = \n. n % 2 == 0;
-  let isEven = \n. n % 2 == 0;
-  let double = \x. x * 2;
-  let nums = [1, 3, 4, 7, 8];
-  let found = findFirst(isEven, nums);
-  let doubled = mapOption(double, found);
-  print(match doubled { Some(v) => "Found: ${show(v)}", None => "Not found" })
+  -- RIGHT: let isEven = \n. n % 2 == 0
+  let isEven = \n. n % 2 == 0
+  let double = \x. x * 2
+  let nums = [1, 3, 4, 7, 8]
+  let found = findFirst(isEven, nums)
+  let doubled = mapOption(double, found)
+  println(match doubled { Some(v) => "Found: ${show(v)}", None => "Not found" })
 }
 ```
 
@@ -1551,11 +1622,11 @@ func showState(s: State) -> string =
 
 export func main() -> () ! {IO} {
   -- WRONG: let s0 = Green(2) in   (don't use "in" in blocks!)
-  -- RIGHT: let s0 = Green(2);
-  let s0 = Green(2);
-  let s1 = transition(s0, Tick);
-  let s2 = transition(s1, Tick);
-  print(showState(s2))
+  -- RIGHT: let s0 = Green(2)
+  let s0 = Green(2)
+  let s1 = transition(s0, Tick)
+  let s2 = transition(s1, Tick)
+  println(showState(s2))
 }
 ```
 
@@ -1577,7 +1648,7 @@ import std/result (Result, Ok, Err)
 import std/json (encode, jo, ja, kv, js, jnum, jb, jn)
 
 -- JSON constructors: js(string), jnum(float), jint(int), jb(bool), jn() for null
--- jint(n) is the integer convenience for jnum(intToFloat(n))
+-- jint(n) builds JInt(n), exact for every int; jnum(x) builds JNumber(x)
 -- jo([kv(k,v)...]) for objects, ja([...]) for arrays
 
 -- Build JSON object with all types
@@ -1603,6 +1674,22 @@ match result {
   Err(msg) => print("Parse error: ${msg}")
 }
 ```
+`decode` takes exactly ONE JSON value (whitespace around it is fine); text after it is `Err`.
+
+**JSON numbers: `JInt(n)` for integers (`42`), `JNumber(x)` for others (`1.5`, `1e3`).**
+A match on `Json` needs BOTH arms, or integers fall to `_`:
+```ailang
+import std/json (Json, JInt, JNumber)
+import std/math (intToFloat)
+
+func toFloat(j: Json) -> float =
+  match j {
+    JInt(n) => intToFloat(n),
+    JNumber(x) => x,
+    _ => 0.0
+  }
+```
+Or use the accessors, which accept both: `getInt`, `getNumber`, `asNumber`.
 
 **Parse JSON array directly (IMPORTANT - use asArray!):**
 ```ailang
@@ -1673,10 +1760,12 @@ match decode("{\"name\":\"Alice\",\"age\":30}") {
 Use these to reduce nested Option matching from 4 levels to 2:
 
 ```ailang
-import std/json (decode, getString, getNumber, getInt, getBool, getArray, getObject)
+module benchmark/solution
+import std/json (Json, decode, getString, getNumber, getInt, getBool, getArray, getObject)
 import std/string (intToStr)
 import std/option (Option, Some, None)
 import std/result (Result, Ok, Err)
+import std/io (print)
 
 -- Extract string field with single match
 func getName(obj: Json) -> string =
@@ -1685,7 +1774,7 @@ func getName(obj: Json) -> string =
     None => "unknown"
   }
 
--- Extract int field (JSON numbers are floats, getInt truncates)
+-- Extract int field (getInt: 30 -> Some(30), 30.0 -> Some(30), 1.5 -> None; never truncates)
 func getAge(obj: Json) -> int =
   match getInt(obj, "age") {
     Some(age) => age,
@@ -1703,7 +1792,7 @@ export func main() -> () ! {IO} =
 **JSON accessor functions:**
 - `getString(obj, key)` -> `Option[string]` - Get string value directly
 - `getNumber(obj, key)` -> `Option[float]` - Get float value directly
-- `getInt(obj, key)` -> `Option[int]` - Get int value (truncates float)
+- `getInt(obj, key)` -> `Option[int]` - Get int value (`None` for a fractional number)
 - `getBool(obj, key)` -> `Option[bool]` - Get boolean value directly
 - `getArray(obj, key)` -> `Option[[Json]]` - Get array value by key
 - `getObject(obj, key)` -> `Option[Json]` - Get nested object directly
@@ -1735,9 +1824,9 @@ match decode("{\"tags\": [\"a\", \"b\"]}") {
     -- getStringArrayOrEmpty: returns [] if missing or invalid
     let tags = getStringArrayOrEmpty(obj, "tags");  -- ["a", "b"]
     let missing = getStringArrayOrEmpty(obj, "nope");  -- []
-    print("Got ${show(length(tags))} tags")
+    println("Got ${show(length(tags))} tags")
   },
-  Err(e) => print("Error: ${e}")
+  Err(e) => println("Error: ${e}")
 }
 ```
 
@@ -1865,22 +1954,14 @@ Read ZIP archives (including .docx, .xlsx, .pptx files). Requires `FS` effect:
 
 ```ailang
 module benchmark/solution
-import std/result (Result, Ok, Err)
+import std/zip (listEntries, readEntry, readEntryBytes)
+import std/list (length)
 
--- List entries in a ZIP archive
-func listEntries(path: string) -> Result[[string], string] ! {FS} =
-  _zip_listEntries(path)
-
--- Read text content (UTF-8) from a ZIP entry
-func readText(path: string, entry: string) -> Result[string, string] ! {FS} =
-  _zip_readEntry(path, entry)
-
--- Read binary content as base64
-func readBinary(path: string, entry: string) -> Result[string, string] ! {FS} =
-  _zip_readEntryBytes(path, entry)
-
+-- listEntries(path)            -> Result[[string], string] ! {FS}
+-- readEntry(path, entry)       -> Result[string, string] ! {FS}   (UTF-8 text)
+-- readEntryBytes(path, entry)  -> Result[string, string] ! {FS}   (base64)
 export func main() -> () ! {IO, FS} {
-  match _zip_listEntries("document.docx") {
+  match listEntries("document.docx") {
     Ok(entries) => println("Found ${show(length(entries))} entries"),
     Err(msg) => println("Error: ${msg}")
   }
@@ -2072,10 +2153,13 @@ Pure JWT parsing and RS256 signature verification (e.g., Firebase ID tokens):
 
 ```ailang
 import std/jwt (decodeJWT, verifyRS256, verifyWithKid, isExpired, checkIssuer)
+import std/json (encode, jo, kv, js)
 
--- Decode without verification (for inspection)
+-- Decode without verification (for inspection). The Ok value is a record
+-- {header: Json, payload: Json, signature: bytes, signed: string}; use field access
+-- (or a pattern that names all four fields / ends with `...`).
 match decodeJWT(token) {
-  Ok({header, payload, signature}) => println(payload),
+  Ok(jwt) => println(encode(jwt.payload)),
   Err(msg) => println("decode failed: ${msg}")
 }
 
@@ -2085,8 +2169,10 @@ match verifyRS256(token, pemPublicKey) {
   Err(msg)   => "invalid: ${msg}"
 }
 
--- Firebase/OAuth pattern: select key by 'kid' header
-verifyWithKid(token, \kid. lookupKey(kid, jwks))
+-- Firebase/OAuth pattern: select the key by the token's 'kid' header.
+-- The second argument is a Json OBJECT mapping kid -> PEM string (not a function).
+let keys = jo([kv("key-2026", js(pemPublicKey))])
+verifyWithKid(token, keys)   -- Result[Json, string]; an unknown kid is Err
 ```
 
 Backed by `rsaVerifyPKCS1v15(message, signature, publicKeyPEM)` in
@@ -2325,7 +2411,7 @@ ailang run --verify-contracts --caps IO --entry main file.ail
 - List ops: `length` (from `std/list`), `_list_head`, `_list_nth`, cons (`::`), concat (`++`), literals
 - Records: field access (`r.field`), construction (`{x: 1, y: 2}`), ensures with `result.x`
 - Cross-function calls: Z3 inlines callees to reason about full call chains
-- Must be pure: `! {}` (no effects), non-recursive, non-higher-order
+- Must be pure (`pure func` or `! {}`) or declare only `! {Declassify}`; non-recursive, non-higher-order
 
 **What gets skipped:** Recursive functions, higher-order functions, effectful functions, float parameters.
 
@@ -2543,7 +2629,12 @@ let data = readFile("other.txt")  -- Works!
 | Using reserved keyword as name | See Reserved Keywords section above |
 | Expecting transitive imports | Each module must import what it uses directly |
 | No output from println | Check: `--caps IO` flag present AND before filename, effect sig is `! {IO}` not `IO[Unit]` |
-| `let x = e` then `println(x)` in `{ }` | Use semicolons: `let x = e; println(x)` — or use `let x = e in println(x)` without braces |
+| `let x = e` then `println(x)` in `{ }` | Put each statement on its own line (or separate with `;`) — or use `let x = e in println(x)` without braces |
+| `x = x + 1` inside a block | No assignment: bind a new name, `let x2 = x + 1` (or shadow with `let x = x + 1`) |
+| `2 ** 10` | No `**` operator: `pow(2.0, 10.0)` (`std/math`, floats) |
+| `import std/math (max)` / `min` | No int `max`/`min` exists anywhere: define `pure func maxInt(a: int, b: int) -> int = if a > b then a else b` |
+| A `match` that leaves out a case | `ailang check` rejects it (`TC_MATCH_002`) and names the missing pattern. Add that arm, or `_ => …`, or `C => unreachable("why")` when the case cannot happen. Arms with `if` guards do not count |
+| `{user: {email: e}}` on a record with more fields | Record patterns must name every field or end with `...`: `{user: {email: e, ...}, ...}` |
 
 ## Running Programs
 
@@ -2571,7 +2662,7 @@ When set, all paths are resolved relative to the sandbox root:
 - `writeFile("out.txt", s)` writes `/tmp/work/out.txt`
 - `_zip_listEntries("archive.zip")` opens `/tmp/work/archive.zip`
 
-Applies to **all FS builtins**: `readFile`, `writeFile`, `readFileBytes`, `writeFileBytes`, `appendFile`, `appendFileBytes`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, and all `std/zip` operations. Also sets the working directory for `std/process` `exec`.
+Applies to **all FS builtins**: `readFile`, `writeFile`, `readFileBase64`, `writeFileBytes`, `appendFile`, `appendFileBytes`, `fileExists`, `listDir`, `mkdir`, `mkdirAll`, `isDir`, `isFile`, `removeFile`, and all `std/zip` operations. Also sets the working directory for `std/process` `exec`.
 
 If unset (default), paths resolve normally from the process working directory.
 
@@ -2600,10 +2691,10 @@ Examples:
 let body: string<email> = fetchMailBody()
 
 -- A function whose body parameter rejects any <email>-tainted input
-pure func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+func sendEmail(to: string, body: string{not email}) -> () ! {Net}
 
 -- A declassifier: input <email>, output <sanitized>, declared via Declassify
-pure func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
+func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
 ensures { result == "[sanitized]" }
 { "[sanitized]" }
 ```
@@ -2627,7 +2718,7 @@ type checker rejects any other transition.
 
 ```ailang
 -- ✅ Allowed: explicit declassifier
-pure func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
+func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify}
 { "[sanitized]" }
 
 -- ❌ Rejected: function changes label without Declassify
@@ -2643,7 +2734,7 @@ provably refuse tainted input. Within one module, sink requirements follow funct
 
 ```ailang
 -- A network sink that refuses anything carrying <email>
-pure func sendEmail(to: string, body: string{not email}) -> () ! {Net}
+func sendEmail(to: string, body: string{not email}) -> () ! {Net}
 
 -- ✅ Caller passes a declassified value
 sendEmail("alice@company.com", sanitize(rawBody))
@@ -2675,12 +2766,12 @@ import std/string (endsWith)
 type SendAction = { to: string, body: string }
 
 -- Declassify: explicit gate from <email> to <sanitized>
-pure func sanitize(rawBody: string<email>) -> string<sanitized> ! {Declassify}
+func sanitize(rawBody: string<email>) -> string<sanitized> ! {Declassify}
 ensures { result == "[sanitized]" }
 { "[sanitized]" }
 
 -- ✅ Verified: declassifies before sending
-pure func safeForward(rawBody: string<email>, recipient: string) -> SendAction ! {Declassify}
+func safeForward(rawBody: string<email>, recipient: string) -> SendAction ! {Declassify}
 requires { endsWith(recipient, "@company.com") }
 ensures  { result.body == "[sanitized]" }
 { { to: recipient, body: sanitize(rawBody) } }

@@ -35,6 +35,48 @@ func (e *Elaborator) normalizeLiteral(lit *ast.Literal) (core.CoreExpr, error) {
 	}, nil
 }
 
+// recordSignatureAnnots hands a function's parameter and return annotations to
+// the type checker (inferLambda reads them by Lambda NodeID). It is the ONE
+// path for every function form — top-level `func`, module/local `func(...)`
+// literals, `func(x: T) => e` lambdas — so an annotation is a constraint
+// wherever it is written (#2238: inline literals used to drop theirs).
+// A nil ast.Type (an unannotated parameter, or no return type) records nothing
+// for that slot; inferLambda then uses a fresh variable.
+//
+// literal marks a function literal: the checker enforces its parameter
+// annotations as equalities (as a let annotation is) instead of seeding the
+// parameter's type. Seeding resolves a callback parameter's annotated effect
+// row inside the literal's own application solves, where the row's open
+// compatibility tail then reads as an undeclared effect of the enclosing
+// function — a pre-existing effect-row defect that top-level `func`s share.
+// Top-level `func`s keep seeding (M-FIX-FLOAT-OP relies on it).
+func (e *Elaborator) recordSignatureAnnots(lam *core.Lambda, params []*ast.Param, ret ast.Type, literal bool) {
+	paramTypes := make([]types.Type, len(params))
+	hasAnnotations := false
+	for i, param := range params {
+		if param.Type != nil {
+			paramTypes[i] = e.astTypeToInternalType(param.Type)
+			hasAnnotations = hasAnnotations || paramTypes[i] != nil
+		}
+	}
+	if hasAnnotations {
+		e.paramTypeAnnots[lam.ID()] = paramTypes
+	}
+	if literal {
+		if e.literalLambdas == nil {
+			e.literalLambdas = make(map[uint64]bool)
+		}
+		e.literalLambdas[lam.ID()] = true
+	} else {
+		delete(e.literalLambdas, lam.ID())
+	}
+	if ret != nil {
+		if returnType := e.astTypeToInternalType(ret); returnType != nil {
+			e.returnTypeAnnots[lam.ID()] = returnType
+		}
+	}
+}
+
 // normalizeLambda handles lambda expressions
 func (e *Elaborator) normalizeLambda(lam *ast.Lambda) (core.CoreExpr, error) {
 	// Extract parameter names
@@ -57,6 +99,8 @@ func (e *Elaborator) normalizeLambda(lam *ast.Lambda) (core.CoreExpr, error) {
 		Params:   params,
 		Body:     body,
 	}
+	// `func(x: int) => e` carries parameter types (no return type).
+	e.recordSignatureAnnots(coreLam, lam.Params, nil, true)
 
 	// Store effect annotations if present
 	if len(lam.Effects) > 0 {
@@ -78,7 +122,6 @@ func (e *Elaborator) normalizeLambda(lam *ast.Lambda) (core.CoreExpr, error) {
 // normalizeFuncLit handles function literal expressions (func(x) -> T { body })
 // Desugars to Lambda: func(x: int) -> int { x + 1 } ≡ \x. x + 1
 func (e *Elaborator) normalizeFuncLit(funcLit *ast.FuncLit) (core.CoreExpr, error) {
-	// Extract parameter names (type annotations are handled by type checker)
 	params := make([]string, len(funcLit.Params))
 	for i, p := range funcLit.Params {
 		params[i] = p.Name
@@ -97,6 +140,15 @@ func (e *Elaborator) normalizeFuncLit(funcLit *ast.FuncLit) (core.CoreExpr, erro
 		CoreNode: e.makeNode(funcLit.Position()),
 		Params:   params,
 		Body:     body,
+	}
+	e.recordSignatureAnnots(coreLam, funcLit.Params, funcLit.ReturnType, true)
+
+	// An explicit `! {}` (non-nil, empty — the parser distinguishes it from no
+	// annotation) is an annotation: the literal is declared pure, and the
+	// checker enforces it like any other declared row (#2238 review). Recorded
+	// as a present, empty entry.
+	if funcLit.Effects != nil && len(funcLit.Effects) == 0 {
+		e.effectAnnotsFull[coreLam.ID()] = []ast.EffectAnnotation{}
 	}
 
 	// Store effect annotations if present

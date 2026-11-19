@@ -13,11 +13,11 @@ there is no GNU `timeout` on the rig):
 Record the full-SHA poll target and its read time from the same shared-ref read. The comparison and
 missing-evidence protocol are explained in [`resources/ref-drift.md`](ref-drift.md).
 
-The Bash foreground ceiling is **600 s**; retain the poll's **1800 s** cap (iteration 13's **4 h** wedge).
+The Bash foreground ceiling is **600 s**; retain the poll's **3600 s** cap (iteration 13's **4 h** wedge).
 Follow [`gate-3-route.md`](gate-3-route.md) codex recipe step 2 and [`SKILL.md`](../SKILL.md) standing rule 7.
 
-Bash poll call: run_in_background: true, timeout: 2000000 (ms).
-These are **Bash tool arguments**, not shell variables or GNU timeout; keep timeout at least 2000000 ms (cap plus margin).
+Bash poll call: run_in_background: true, timeout: 3800000 (ms).
+These are **Bash tool arguments**, not shell variables or GNU timeout; keep timeout at least 3800000 ms (cap plus margin).
 Run the loop foreground inside that background call, with no extra shell `&`, so notification means work completion.
 **Run every poll or gate loop YOU write under `/bin/bash`, never in the Bash tool's own shell.**
 That shell is zsh, and every snippet in this skill assumes bash. Under zsh, an unquoted `$var` does
@@ -44,12 +44,12 @@ fi
 rid=$(gh run list --branch dev --workflow CI --limit 10 --json databaseId,headSha \
       | jq -r --arg t "$target" '[.[] | select(.headSha == $t)][0].databaseId // empty')
 [ -n "$rid" ] || echo "Gate 3b: no CI run for $target yet — re-list a few times, still bounded"
-deadline=$(( $(date +%s) + 1800 ))    # 30-min cap; CI is ~15-20m — never open-ended
+deadline=$(( $(date +%s) + 3600 ))    # 60-min cap; CI median ~15 min, tail past 30 min — never open-ended
 printf 'Gate 3b: target=%s rid=%s verdict=%s\n' "$target" "$rid" "$verdict"
 while :; do
   st=$(gh run view "$rid" --json status,conclusion --jq '.status + " " + (.conclusion // "")')
   case "$st" in "completed "*) echo "CI for $target: $st" > "$verdict"; break ;; esac
-  [ "$(date +%s)" -ge "$deadline" ] && { echo "Gate 3b TIMEOUT for $target after 30m (status=$st) — PARK, do not hang" > "$verdict"; break; }
+  [ "$(date +%s)" -ge "$deadline" ] && { echo "Gate 3b TIMEOUT for $target after 60m (status=$st) — PARK, do not hang" > "$verdict"; break; }
   sleep 30
 done
 ```
@@ -62,10 +62,10 @@ verdict='<recorded absolute verdict path>'
 read_until=$(( $(date +%s) + 45 )); while [ ! -s "$verdict" ] && [ "$(date +%s)" -lt "$read_until" ]; do sleep 5; done; cat "$verdict"
 ```
 Empty means the next bounded read **in the same controller turn**, also observing background completion; never end with work outstanding.
-The poll's 30-minute deadline bounds this chain. Reject a mismatched full SHA; completion without a verdict or tool failure means report/PARK, never green or endless reads.
+The poll's 60-minute deadline bounds this chain. Reject a mismatched full SHA; completion without a verdict or tool failure means report/PARK, never green or endless reads.
 Per standing rule 7, kill a superseded poller and prove it stopped before any reuse; every fresh poll gets a fresh path.
 
-The poll runs background-only because a foreground call cannot hold the 1800 s cap and re-entering the snippet would restart the cap.
+The poll runs background-only because a foreground call cannot hold the 3600 s cap and re-entering the snippet would restart the cap.
 
 **⚠ AND BEFORE YOU POLL AT ALL: YOUR LOCAL GREEN WAS PRODUCED BY A GATE LIST YOU TYPED, AND TWO OF
 THE CHECKS THAT DECIDE THIS GATE CANNOT BE IN IT — ONE IS A WHOLE-REPO LINTER A LOCAL PACKAGE SWEEP

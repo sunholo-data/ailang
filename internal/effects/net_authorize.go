@@ -97,8 +97,14 @@ func netPolicy(ctx *EffContext) destinationPolicy {
 	}
 }
 
-// streamPolicy derives the policy from ctx.Stream. Stream transports never
-// used a proxy (bare http.Transport, Proxy nil); that stays explicit here.
+// streamPolicy derives the policy from ctx.Stream. The HTTP Stream transports
+// (SSE GET, SSE POST, NDJSON POST) route exactly as Net does
+// (m-net-effect-proxy-boundary M2): http.ProxyFromEnvironment picks the route
+// per request, the direct route stays pinned, a proxied literal IP is still
+// validated without DNS, and RefuseProxy (restricted mode) refuses a proxy
+// rather than falling back. They used to hard-code "no proxy", which let a
+// Stream request dial past an operator's — or CI's poisoned — HTTP(S)_PROXY.
+// WebSocket dials (pinnedDialer) still never use a proxy: a design non-goal.
 func streamPolicy(ctx *EffContext) destinationPolicy {
 	s := ctx.Stream
 	if s == nil {
@@ -113,13 +119,13 @@ func streamPolicy(ctx *EffContext) destinationPolicy {
 		allowMetadata:    false,
 		blockPrivate:     s.BlockPrivateIPs,
 		allowedDomains:   s.AllowedDomains,
-		refuseProxy:      false,
+		refuseProxy:      s.RefuseProxy,
 		sensitiveHeaders: append([]string{}, defaultSensitiveHeaders...),
 		connectTimeout:   s.ConnectTimeout,
 		maxRedirects:     5,
 		lookupIP:         s.lookupIP,
 		dialContext:      s.dialContext,
-		proxySelector:    func(*http.Request) (*url.URL, error) { return nil, nil },
+		proxySelector:    s.proxySelector,
 		tlsClientConfig:  s.tlsClientConfig,
 	}
 }

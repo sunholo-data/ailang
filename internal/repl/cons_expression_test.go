@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/sunholo-data/ailang/internal/eval"
-	"github.com/sunholo-data/ailang/runtime"
 )
 
 // TestConsExpression_REPLEval tests that :: expressions evaluate correctly
@@ -78,7 +77,7 @@ export func result(xs: [int]) -> [int] =
 				t.Fatalf("InvokeExport error: %v", err)
 			}
 
-			got := runtime.Show(val)
+			got := val.String()
 			if got != tt.expected {
 				t.Errorf("expected %s, got %s", tt.expected, got)
 			}

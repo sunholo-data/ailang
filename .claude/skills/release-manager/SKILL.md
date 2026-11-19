@@ -374,7 +374,7 @@ prod was frozen at 0.19.1 for ~3 weeks).
 **Test is automatic and gated; prod is a manual promote by version** (unified
 2026-09-03 — full picture in `resources/cloud-release.md`). Pushing the `v*` tag fires
 `ailang-core-release` → `cloudbuild-release.yaml`: CI gate → build **all 16 images**
-(`:vX.Y.Z` + `:latest`) → deploy TEST (4 services + 15 jobs) → smoke gate, and it
+(`:vX.Y.Z` + `:latest`) → deploy TEST (4 services + 10 jobs) → smoke gate, and it
 **stops there**. The smoke gate requires the **test** MCP to serve the released
 version, so **`std/VERSION` must equal the tag** (intentional: it catches tagging
 without bumping `std/VERSION`; `ailang-multivac/scripts/release.sh tag ailang vX.Y.Z`

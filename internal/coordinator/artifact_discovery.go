@@ -26,12 +26,6 @@ func NewArtifactDiscovery(worktreePath string, patterns []string) *ArtifactDisco
 	}
 }
 
-// WithBaseBranch sets the base branch for comparison.
-func (ad *ArtifactDiscovery) WithBaseBranch(branch string) *ArtifactDiscovery {
-	ad.BaseBranch = branch
-	return ad
-}
-
 // WithBaseCommit sets the base commit hash for comparison (stable reference).
 // This is preferred over BaseBranch as the branch may have moved since worktree creation.
 func (ad *ArtifactDiscovery) WithBaseCommit(commit string) *ArtifactDiscovery {

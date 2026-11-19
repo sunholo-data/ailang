@@ -19,7 +19,7 @@ func schemeConstraintsFor(constraints []ClassConstraint, generalized []string) [
 		gen[v] = true
 	}
 	out := []Constraint{}
-	seen := make(map[string]bool)
+	seen := make(map[string]int)
 	for _, c := range constraints {
 		vars := make(map[string]bool)
 		collectFreeVars(c.Type, vars)
@@ -33,12 +33,16 @@ func schemeConstraintsFor(constraints []ClassConstraint, generalized []string) [
 		if !relevant {
 			continue
 		}
+		// #2378: a Num constraint is Literal when any of its occurrences
+		// carries an integer literal (or a callee's literal-carrying variable).
+		literal := c.Class == "Num" && (c.IntLiteral || c.PolyNumeric)
 		key := c.Class + "\x00" + c.Type.String()
-		if seen[key] {
+		if i, ok := seen[key]; ok {
+			out[i].Literal = out[i].Literal || literal
 			continue
 		}
-		seen[key] = true
-		out = append(out, Constraint{Class: c.Class, Type: c.Type})
+		seen[key] = len(out)
+		out = append(out, Constraint{Class: c.Class, Type: c.Type, Literal: literal})
 	}
 	return out
 }

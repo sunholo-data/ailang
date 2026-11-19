@@ -1,6 +1,6 @@
 # M-PACKAGE-PROTOCOL-MANIFESTS: let a repo declare its own agent protocol, without letting it disarm itself
 
-**Status**: Planned — **split out of [m-coordinator-execution-trust.md](m-coordinator-execution-trust.md) 2026-09-02** (Mark, attended) after three quorum rounds established that this is a permission/authority design, not the bug fix it was bundled with.
+**Status**: Planned — **split out of [../implemented/v0_35_0/m-coordinator-execution-trust.md](../implemented/v0_35_0/m-coordinator-execution-trust.md) 2026-09-02** (Mark, attended) after three quorum rounds established that this is a permission/authority design, not the bug fix it was bundled with.
 **Target**: v0.36.0 (after M-COORDINATOR-EXECUTION-TRUST lands)
 **Priority**: P1 — the ecosystem goal is real, but nothing is blocked on it; the execution unblock ships without it.
 **Dependencies**: **M-COORDINATOR-EXECUTION-TRUST M1a** — the trusted `work_tier` boundary and the built-in prerequisite floor are the things a manifest is bounded *by*. This doc cannot be specified before they exist.
@@ -74,8 +74,8 @@ These are the unresolved objections, carried forward verbatim rather than restat
 
 ## Related Documents
 
-- [m-coordinator-execution-trust.md](m-coordinator-execution-trust.md) — the parent; M1a is the dependency.
-- [v0_35_0/m-dx-session-protocol-gate.md](v0_35_0/m-dx-session-protocol-gate.md) — the gate's original design and its A4 claim.
+- [../implemented/v0_35_0/m-coordinator-execution-trust.md](../implemented/v0_35_0/m-coordinator-execution-trust.md) — the parent; M1a is the dependency.
+- [../implemented/v0_35_0/m-dx-session-protocol-gate.md](../implemented/v0_35_0/m-dx-session-protocol-gate.md) — the gate's original design and its A4 claim.
 - [m-message-plane-trust.md](m-message-plane-trust.md) — the delivery layer beneath all of it.
 
 ---

@@ -51,8 +51,13 @@ type Config struct {
 
 // REPL represents the Read-Eval-Print Loop
 type REPL struct {
-	config     *Config
+	config *Config
+	// env is the session environment the evaluator also uses. Each top-level
+	// `let` makes a new child of it (repl_eval.go), so a closure keeps the
+	// bindings it was made with. baseEnv is the evaluator's own environment
+	// (the prelude builtins); :reset starts a fresh child of it.
 	env        *eval.Environment
+	baseEnv    *eval.Environment
 	typeEnv    *types.TypeEnv
 	instEnv    *types.InstanceEnv // Type-level instances and defaults
 	dictReg    *types.DictionaryRegistry
@@ -128,6 +133,12 @@ func NewWithVersion(version, buildTime string) *REPL {
 	// Register dictionaries with the persistent evaluator
 	r.registerDictionariesForEvaluator(r.evaluator)
 
+	// The session's bindings live in a child of the evaluator's environment,
+	// so :reset can drop them and keep the builtins.
+	r.baseEnv = evaluator.Env()
+	r.env = r.baseEnv.NewChildEnvironment()
+	evaluator.SetEnv(r.env)
+
 	return r
 }
 
@@ -198,11 +209,6 @@ func (r *REPL) getPrompt() string {
 
 	// Format as λ[IO,FS]>
 	return fmt.Sprintf("λ[%s]> ", strings.Join(caps, ","))
-}
-
-// Start begins the REPL session (backward compatible wrapper)
-func (r *REPL) Start(in io.Reader, out io.Writer) {
-	r.StartWithContext(context.Background(), in, out)
 }
 
 // StartWithContext begins the REPL session with OpenTelemetry context

@@ -9,7 +9,7 @@
 module examples/url_route_dispatch
 import std/net (parseUrl, parseQuery)
 import std/result (Result, Ok, Err)
-import std/list (nth_or)
+import std/list (nthOr)
 import std/io (println)
 
 -- Read a single query parameter's value by name, or a default if absent.

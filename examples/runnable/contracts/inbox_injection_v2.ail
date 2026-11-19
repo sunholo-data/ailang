@@ -22,7 +22,6 @@
 -- Expect: 5 functions: 3 verified, 2 violations (injectedForward, attemptLaunder)
 
 module examples/runnable/contracts/inbox_injection_v2
-
 import std/string (endsWith, length as strLen)
 
 -- The data shape placed on the wire by the agent.
@@ -36,9 +35,8 @@ type SendAction = { to: string, body: string }
 -- Label typing: input is string<email> (untrusted), output is string<sanitized>.
 -- The Declassify effect flags that this function intentionally changes the label.
 -- Z3 contract pins the output: any call-site can prove the body is [sanitized].
-export pure func sanitizeBody(rawBody: string<email>) -> string<sanitized> ! {Declassify}
-ensures { result == "[sanitized]" }
-{
+export func sanitizeBody(rawBody: string<email>) -> string<sanitized> ! {Declassify}
+ensures { result == "[sanitized]" } {
   "[sanitized]"
 }
 
@@ -48,8 +46,7 @@ ensures { result == "[sanitized]" }
 
 -- isInternal: domain check for allowlisted recipients.
 export pure func isInternal(addr: string) -> bool ! {}
-ensures { result == endsWith(addr, "@company.com") }
-{
+ensures { result == endsWith(addr, "@company.com") } {
   endsWith(addr, "@company.com")
 }
 
@@ -63,10 +60,9 @@ ensures { result == endsWith(addr, "@company.com") }
 --   → body of SendAction       (sink accepts string{not email}: <sanitized> satisfies {not email})
 --
 -- Z3 verifies: result.body == "[sanitized]" — the raw content is provably absent.
-export pure func safeForward(rawEmail: string<email>, recipient: string) -> SendAction ! {Declassify}
+export func safeForward(rawEmail: string<email>, recipient: string) -> SendAction ! {Declassify}
 requires { endsWith(recipient, "@company.com") }
-ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
-{
+ensures { endsWith(result.to, "@company.com"), result.body == "[sanitized]" } {
   { to: recipient, body: sanitizeBody(rawEmail) }
 }
 
@@ -84,11 +80,11 @@ ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
 --   Source: rawEmail (<email>) → Sink: SendAction.body ({not email})
 --
 -- Z3 catches this today: result.body == "[sanitized]" fails when body = rawEmail.
+-- SINK VIOLATION: <email> → {not email}
 export pure func injectedForward(rawEmail: string<email>, recipient: string) -> SendAction ! {}
 requires { endsWith(recipient, "@company.com") }
-ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
-{
-  { to: recipient, body: rawEmail }  -- SINK VIOLATION: <email> → {not email}
+ensures { endsWith(result.to, "@company.com"), result.body == "[sanitized]" } {
+  { to: recipient, body: rawEmail }
 }
 
 -- ---------------------------------------------------------------------------
@@ -105,20 +101,19 @@ ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
 --   → TYPE ERROR: <email> still flows — identity bypass is structurally impossible
 --
 -- Z3 catches this today: laundered == rawEmail, so result.body != "[sanitized]".
+-- SINK VIOLATION: <email> → {not email}
+-- laundered: string<email> — label NOT erased by identity
 export pure func attemptLaunder(rawEmail: string<email>, recipient: string) -> SendAction ! {}
 requires { endsWith(recipient, "@company.com") }
-ensures  { endsWith(result.to, "@company.com"), result.body == "[sanitized]" }
-{
-  let laundered = rawEmail in  -- laundered: string<email> — label NOT erased by identity
-  { to: recipient, body: laundered }  -- SINK VIOLATION: <email> → {not email}
+ensures { endsWith(result.to, "@company.com"), result.body == "[sanitized]" } {
+  let laundered = rawEmail in { to: recipient, body: laundered }
 }
 
 -- ---------------------------------------------------------------------------
 -- Entry point (not verified — no contracts)
 -- ---------------------------------------------------------------------------
 
-export func main() -> int ! {Declassify}
-{
-  let action = safeForward("confidential-body", "alice@company.com");
+export func main() -> int ! {Declassify} {
+  let action = safeForward("confidential-body", "alice@company.com")
   if isInternal(action.to) then strLen(action.body) else 0
 }

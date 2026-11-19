@@ -194,17 +194,6 @@ type AILANGRunner struct {
 	spec       *BenchmarkSpec  // Optional spec for stdin/input_files/cli_args
 }
 
-// NewAILANGRunner creates a new AILANG runner
-func NewAILANGRunner(ailangPath string, caps []string) *AILANGRunner {
-	if ailangPath == "" {
-		ailangPath = "ailang" // Use PATH
-	}
-	return &AILANGRunner{
-		ailangPath: ailangPath,
-		caps:       caps,
-	}
-}
-
 // NewAILANGRunnerWithTask creates a new AILANG runner with task ID and context for telemetry hierarchy.
 // The taskID is propagated via AILANG_PARENT_TASK_ID, and trace context via TRACEPARENT.
 func NewAILANGRunnerWithTask(ctx context.Context, ailangPath string, caps []string, taskID string, spec *BenchmarkSpec) *AILANGRunner {
@@ -521,12 +510,6 @@ func canonDecimal(s string) string {
 // GetRunner returns a LanguageRunner for the specified language
 func GetRunner(lang string, spec *BenchmarkSpec) (LanguageRunner, error) {
 	return GetRunnerWithContext(context.Background(), lang, spec, "")
-}
-
-// GetRunnerWithTask returns a LanguageRunner with task ID for telemetry hierarchy.
-// Deprecated: Use GetRunnerWithContext instead for full trace propagation.
-func GetRunnerWithTask(lang string, spec *BenchmarkSpec, taskID string) (LanguageRunner, error) {
-	return GetRunnerWithContext(context.Background(), lang, spec, taskID)
 }
 
 // GetRunnerWithContext returns a LanguageRunner with full telemetry context.

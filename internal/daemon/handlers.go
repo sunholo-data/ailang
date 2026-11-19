@@ -172,17 +172,15 @@ func messageDedupKey(messageID string) string {
 	return "msg:" + messageID
 }
 
-// dashboardURL returns the dashboard root. Earlier iterations tried to deep-link
-// to /tasks/<id> and /inbox/<name>, but the dashboard is a single-page app
-// without client-side routes for those paths — every deep link 404'd. Until
-// the dashboard ships those routes, click-actions open the root and the user
-// navigates from there.
-const dashboardURL = "https://dashboard.ailang.sunholo.com/"
-
+// taskURL and inboxURL are the click-through link on a notification. They are
+// empty: the dashboard is a headless API with no page to open
+// (m-dashboard-headless-api), and every notifier (macOS, Discord, ntfy) omits
+// the link when URL is "". The task id / inbox is in the notification text;
+// `ailang chains` and `ailang messages` are where to follow it up.
 func taskURL(_ string) string {
-	return dashboardURL
+	return ""
 }
 
 func inboxURL(_ string) string {
-	return dashboardURL
+	return ""
 }

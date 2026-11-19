@@ -1,0 +1,18 @@
+module cmd/ailang/testdata/verify_exit/mixed
+import std/io (println)
+
+-- M-V1-VERIFICATION-HONESTY M1 fixture: one obligation the (fake) solver can
+-- verify and one the verifier must skip (the function has effects). At least
+-- one verified plus at least one skipped is "partial": it passes, the skip is
+-- listed on stderr and by name in the JSON results, and --strict fails it.
+export pure func dbl(x: int) -> int
+requires { x >= 0 }
+ensures { result >= x } {
+  x + x
+}
+
+export func g(x: int) -> int ! {IO}
+ensures { result > 1000 } {
+  println("hi")
+  x
+}

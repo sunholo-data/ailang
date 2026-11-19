@@ -1,0 +1,41 @@
+-- Task: store document embeddings compactly as packed little-endian float32
+-- bytes (as a vector database would), rank the stored documents against a
+-- query directly on the packed bytes, and compare float32 (lossy) with
+-- float64 (exact) round trips.
+-- Demonstrates std/embedding encodeF32LE, decodeF32LE, cosine_encoded,
+-- encodeF64LE, decodeF64LE and cosine.
+module examples/runnable/stdlib/embedding_packed_f32
+import std/embedding (encodeF32LE, decodeF32LE, cosine_encoded, encodeF64LE, decodeF64LE, cosine)
+import std/bytes (length, fromInts)
+import std/list (map, sortBy)
+import std/string (join, formatFixed)
+
+type Stored = { title: string, vec: bytes }
+
+pure func store(title: string, v: [float]) -> Stored = { title: title, vec: encodeF32LE(v) }
+
+pure func byScoreDesc(a: { title: string, score: float }, b: { title: string, score: float }) -> int =
+  if a.score > b.score then -1 else if a.score < b.score then 1 else 0
+
+pure func showHit(h: { title: string, score: float }) -> string = "${h.title} ${formatFixed(h.score, 3)}"
+
+pure func showDecoded(r: Result[[float], string]) -> string = match r {
+  Ok(v) => show(v),
+  Err(e) => "error: ${e}"
+}
+
+export func main() -> () ! {IO} {
+  let docs = [store("pasta recipe", [0.9, 0.1, 0.0, 0.2]), store("bike repair", [0.0, 0.8, 0.6, 0.1]), store("pizza dough", [0.8, 0.2, 0.1, 0.3])]
+  println("bytes per 4-d vector: ${show(length(encodeF32LE([0.9, 0.1, 0.0, 0.2])))}")
+  let query = encodeF32LE([1.0, 0.0, 0.0, 0.3])
+  let hits = sortBy(byScoreDesc, map(\d. { title: d.title, score: cosine_encoded(query, d.vec) }, docs))
+  println("ranking: ${join(", ", map(showHit, hits))}")
+  -- 0.1 has no exact float32 form, so the f32 round trip comes back slightly off.
+  let v = [0.1, 0.5, 2.0]
+  println("f32 round trip: ${showDecoded(decodeF32LE(encodeF32LE(v)))}")
+  println("f64 round trip: ${showDecoded(decodeF64LE(encodeF64LE(v)))}")
+  -- Scores agree with the unpacked cosine to within float32 precision.
+  println("unpacked score: ${formatFixed(cosine([1.0, 0.0, 0.0, 0.3], [0.8, 0.2, 0.1, 0.3]), 3)}")
+  -- A byte count that is not a multiple of 4 cannot be a float32 vector.
+  println("decode 6 bytes: ${showDecoded(decodeF32LE(fromInts([0, 0, 128, 63, 0, 0])))}")
+}

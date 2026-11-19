@@ -11,8 +11,36 @@ PASS=0; FAIL=0
 ok() { PASS=$((PASS+1)); echo "  PASS: $1"; }
 bad() { FAIL=$((FAIL+1)); echo "  FAIL: $1 ($2)"; }
 
+# The synced list, exactly: mission-*/sprint-*/release-manager plus the 16 of D-FLEET-38 A
+# (ruled 2026-11-16). Named one by one; a skill joins only once its .agents copy has no
+# .agents-only content, because the sync is rsync --delete.
+EXPECTED="mission-control mission-brief mission-loop-change sprint-planner sprint-executor sprint-evaluator release-manager
+benchmark-runner builtin-developer cloud-cascade-debug collaboration-hub coordinator-helper eval-analyzer eval-gap-finder gemini-cli-helper
+github-issue-triage local-model-onboarding local-ollama-eval parser-developer pr-monitor prompt-manager trace-debugger use-ailang"
+
 out=$(/bin/bash "$ROOT/tools/launchd/sync-agents-skills.sh" --check 2>&1)
-if [ $? -eq 0 ]; then ok "mission-*/sprint-* .agents copies equal .claude"; else bad "mission-*/sprint-* .agents copies equal .claude" "$out — run tools/launchd/sync-agents-skills.sh"; fi
+if [ $? -eq 0 ]; then ok "synced .agents copies equal .claude"; else bad "synced .agents copies equal .claude" "$out — run tools/launchd/sync-agents-skills.sh"; fi
+
+# The list the script ITERATES (read from its own missing-source errors in an empty tree, so
+# however SKILLS is assembled), compared with EXPECTED as sorted sets.
+tmp=$(mktemp -d); mkdir -p "$tmp/tools/launchd"
+cp "$ROOT/tools/launchd/sync-agents-skills.sh" "$tmp/tools/launchd/"
+got=$(/bin/bash "$tmp/tools/launchd/sync-agents-skills.sh" --check 2>&1 | sed -n 's|^sync-agents-skills: missing source .*/\.claude/skills/||p' | sort)
+want=$(for s in $EXPECTED; do echo "$s"; done | sort)
+rm -rf "$tmp"
+if [ -n "$got" ] && [ "$got" = "$want" ]; then ok "sync list is exactly the $(echo "$want" | wc -l | tr -d ' ') named skills"; else bad "sync list is exactly the named skills" "only in script: $(comm -23 <(echo "$got") <(echo "$want") | tr '\n' ' ')only expected: $(comm -13 <(echo "$got") <(echo "$want") | tr '\n' ' ')"; fi
+
+# D-FLEET-36 A: GNU grep -E reads \d as a literal d (BSD grep, on the rig, reads a digit), so
+# the duplicate-doc searches were silently empty on Linux. Both copies pin [0-9]; the count is
+# the control that the guard still sees the four search sites in each.
+ddc_bad=""
+printf '%s\n' 'grep -E "^\d+\."' | grep -qF '\d' || ddc_bad=" (control: grep -F cannot see a planted \d)"
+for f in .claude/skills/design-doc-creator/scripts/create_planned_doc.sh .agents/skills/design-doc-creator/scripts/create_planned_doc.sh; do
+  n=$(grep -cF 'grep -E "^[0-9]+\."' "$ROOT/$f" 2>/dev/null)
+  [ "${n:-0}" -ge 4 ] || ddc_bad="$ddc_bad $f(sites:${n:-0})"
+  grep -qF '\d' "$ROOT/$f" 2>/dev/null && ddc_bad="$ddc_bad $f:$(grep -nF '\d' "$ROOT/$f" | cut -d: -f1 | tr '\n' ',')"
+done
+if [ -z "$ddc_bad" ]; then ok "design-doc-creator searches use [0-9], not \\d"; else bad "design-doc-creator searches use [0-9], not \\d" "$ddc_bad"; fi
 
 # Check canonical rule 3(c); the equality check above covers the generated mirror.
 # Collect wrapped prose, then inspect only inline commands between (c) and (d).
@@ -69,7 +97,7 @@ fi
 # Negative control: the check must SEE a drifted copy.
 tmp=$(mktemp -d); mkdir -p "$tmp/tools/launchd" "$tmp/.claude/skills" "$tmp/.agents/skills"
 cp "$ROOT/tools/launchd/sync-agents-skills.sh" "$tmp/tools/launchd/"
-for s in mission-control mission-brief mission-loop-change sprint-planner sprint-executor sprint-evaluator; do
+for s in $EXPECTED; do
   mkdir -p "$tmp/.claude/skills/$s" "$tmp/.agents/skills/$s"; echo x > "$tmp/.claude/skills/$s/SKILL.md"; echo x > "$tmp/.agents/skills/$s/SKILL.md"
 done
 echo drifted > "$tmp/.agents/skills/sprint-planner/SKILL.md"

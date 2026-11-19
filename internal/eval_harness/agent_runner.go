@@ -29,10 +29,15 @@ type AgentBenchmarkConfig struct {
 	// cohort manifest records verify_timeout, so the artifact would have documented
 	// a timeout the run never used. Zero resolves to DefaultVerifyTimeout.
 	VerifyTimeout      time.Duration
-	DevtoolsPrompt     string        // Devtools prompt content to append to system prompt (M-CONTRACT-EVAL)
-	AgentPromptContent string        // Agent coding prompt content (replaces teaching prompt when UseAgentPrompt condition is active)
-	Condition          EvalCondition // Experimental condition (overrides Verify/DevtoolsPrompt when set)
-	MicroragMode       MicroragMode  // μRAG subprocess env mode (M-BRAIN-MICRORAG): on/off/auto
+	DevtoolsPrompt     string // Devtools prompt content to append to system prompt (M-CONTRACT-EVAL)
+	AgentPromptContent string // Agent coding prompt content (replaces teaching prompt when UseAgentPrompt condition is active)
+	// PromptVersion selects the AILANG teaching prompt for agent runs, exactly as
+	// --prompt-version already did for standard mode ("" = the active version).
+	// Agent mode used to hard-code "", so fine-tune arms with a slim or no prompt
+	// could not be expressed (m-eval-finetuning-data-pipeline, 2026-11-05).
+	PromptVersion string
+	Condition     EvalCondition // Experimental condition (overrides Verify/DevtoolsPrompt when set)
+	MicroragMode  MicroragMode  // μRAG subprocess env mode (M-BRAIN-MICRORAG): on/off/auto
 	// FmtHook (M-EVAL-FMT-WEAKMODEL-AB): on/off toggle for the LANDED
 	// scripts/hooks/format_ail.sh PostToolUse fmt hook. ON wires it into the
 	// agent workspace via .claude/settings.json + --settings; OFF is
@@ -171,12 +176,15 @@ type AgentBenchmarkResult struct {
 	SessionJSONLPath string `json:"session_jsonl_path,omitempty"`
 
 	// Contract verification results (M-CONTRACT-EVAL)
-	VerifyOk        bool   `json:"verify_ok"`             // All contracts verified
-	VerifyVerified  int    `json:"verify_verified"`       // Count of verified functions
-	VerifyCounterex int    `json:"verify_counterexample"` // Count of counterexamples
-	VerifySkipped   int    `json:"verify_skipped"`        // Count of skipped functions
-	VerifyErrors    int    `json:"verify_errors"`         // Count of Z3 errors
-	VerifyJSON      string `json:"verify_json,omitempty"` // Full ai-check JSON output
+	VerifyOk        bool `json:"verify_ok"`             // All contracts verified
+	VerifyVerified  int  `json:"verify_verified"`       // Count of verified functions
+	VerifyCounterex int  `json:"verify_counterexample"` // Count of counterexamples
+	// VerifyInconclusive counts bounded-unrolling sats: attempted, undecided —
+	// neither a violation nor a proof.
+	VerifyInconclusive int    `json:"verify_inconclusive"`
+	VerifySkipped      int    `json:"verify_skipped"`        // Count of skipped functions
+	VerifyErrors       int    `json:"verify_errors"`         // Count of Z3 errors
+	VerifyJSON         string `json:"verify_json,omitempty"` // Full ai-check JSON output
 
 	// Cost-and-speed budget metrics (M-EVAL-COST-AND-SPEED-BUDGETS, v0.15.1).
 	// Populated from executor.Result. Zero values mean "not measured".

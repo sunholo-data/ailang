@@ -17,6 +17,7 @@ const (
 	EnvMoon                = "AILANG_MOON"
 	EnvMoonHome            = "MOON_HOME"
 	EnvObservatoryEndpoint = "OBSERVATORY_ENDPOINT"
+	EnvEvalRun             = "AILANG_EVAL_RUN"
 )
 
 // DefaultObservatoryEndpoint is the local observatory the eval suite files
@@ -35,6 +36,7 @@ var evalVars = []Var{
 	{EnvMoon, "", AreaEval, "Path of the moon (MoonBit) binary; unset looks on PATH, then $MOON_HOME/bin/moon."},
 	{EnvMoonHome, "", AreaEval, "MoonBit home searched for moon when it is not on PATH; unset means ~/.moon."},
 	{EnvObservatoryEndpoint, DefaultObservatoryEndpoint, AreaEval, "Observatory API the eval suite creates and completes its task in."},
+	{EnvEvalRun, "", AreaEval, "Set to 1 by the eval harness on every agent-eval subprocess (never by an operator). Dev-session guards disarm on it: the pi session-protocol gate does not block an eval's write/edit/bash, because the benchmark, not the attended-session protocol, is the task."},
 }
 
 // AILANGBin returns the trimmed AILANG_BIN, "" when unset.

@@ -564,7 +564,7 @@ func TestRunPolicy_UnterminatedStderr(t *testing.T) {
 	for _, tail := range []string{"tail", "policy", "policy-result: {}"} {
 		dir := t.TempDir()
 		pol := writePolicy(t, dir, "allowed_caps = [\"IO\"]\nentry = \"main\"\ntimeout_ms = 10000\n")
-		source := "module prog\nimport std/io (printErr, exit)\nexport func main() -> () ! {IO} = { printErr(" + strconv.Quote(tail) + "); exit(3) }\n"
+		source := "module prog\nimport std/io (eprint, exit)\nexport func main() -> () ! {IO} = { eprint(" + strconv.Quote(tail) + "); exit(3) }\n"
 		f := writeAil(t, dir, "prog.ail", source)
 		_, checkErr, checkCode := runAilangBin(t, bin, "check", f)
 		if checkCode != 0 {
@@ -586,7 +586,7 @@ func TestRunPolicy_GuardMarkersDoNotConsumeCap(t *testing.T) {
 	dir := t.TempDir()
 	pol := writePolicy(t, dir, "allowed_caps = [\"IO\"]\nentry = \"main\"\ntimeout_ms = 10000\nmax_output_bytes = 80\n")
 	payload := strings.Repeat("policy:\n", 10) // 80 original bytes, plus 80 marker bytes.
-	source := "module prog\nimport std/io (printErr)\nexport func main() -> () ! {IO} = printErr(" + strconv.Quote(payload) + ")\n"
+	source := "module prog\nimport std/io (eprint)\nexport func main() -> () ! {IO} = eprint(" + strconv.Quote(payload) + ")\n"
 	f := writeAil(t, dir, "prog.ail", source)
 	_, checkErr, checkCode := runAilangBin(t, bin, "check", f)
 	if checkCode != 0 {

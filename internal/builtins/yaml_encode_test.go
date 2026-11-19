@@ -35,7 +35,7 @@ func TestYAMLEncodeFixtures(t *testing.T) {
 		{"nested", makeJObject([]eval.Value{makeKV("items", makeJArray([]eval.Value{
 			makeJObject([]eval.Value{makeKV("x", makeJNumberFloat(1)), makeKV("y", makeJArray([]eval.Value{makeJArray([]eval.Value{makeJString("v")}), makeJObject(nil)}))}),
 			makeJArray([]eval.Value{makeJBool(false), makeJNull()}),
-		}))}), "\"items\":\n  - \"x\": 1\n    \"y\":\n      - - \"v\"\n      - {}\n  - - false\n    - null\n"},
+		}))}), "\"items\":\n  - \"x\": 1.0\n    \"y\":\n      - - \"v\"\n      - {}\n  - - false\n    - null\n"},
 		{"map in map", makeJObject([]eval.Value{makeKV("", makeJObject([]eval.Value{makeKV("a: b\n#", makeJArray(nil))}))}), "\"\":\n  \"a: b\\n#\": []\n"},
 	}
 	for _, tc := range cases {
@@ -70,11 +70,18 @@ func TestYAMLEncodeNumbers(t *testing.T) {
 	for _, f := range []float64{0, math.Copysign(0, -1), 42, 42.5, 1e-6, 1e-7, 1e20, 1e21, math.SmallestNonzeroFloat64, math.MaxFloat64, -math.MaxFloat64} {
 		t.Run(strconv.FormatFloat(f, 'g', -1, 64), func(t *testing.T) {
 			text := expectYAMLOk(t, callYAMLEncode(t, makeJNumberFloat(f)))
-			require.Equal(t, eval.FormatJSONNumber(f)+"\n", text)
+			// Float syntax even when whole ("42.0"), so YAML reads a float back.
+			require.Equal(t, eval.FormatFloatSyntax(f)+"\n", text)
 			decoded := expectYAMLOk(t, callYAMLToJSON(t, text))
 			result, err := jsonDecodeImpl(nil, []eval.Value{&eval.StringValue{Value: decoded}})
 			require.NoError(t, err)
-			got := result.(*eval.TaggedValue).Fields[0].(*eval.TaggedValue).Fields[0].(*eval.FloatValue).Value
+			num := result.(*eval.TaggedValue).Fields[0].(*eval.TaggedValue)
+			var got float64
+			if num.CtorName == "JInt" { // integral text such as "42" decodes as JInt
+				got = float64(num.Fields[0].(*eval.IntValue).Value)
+			} else {
+				got = num.Fields[0].(*eval.FloatValue).Value
+			}
 			require.Equal(t, f, got)
 			require.Equal(t, math.Signbit(f), math.Signbit(got))
 		})
@@ -87,6 +94,8 @@ func TestYAMLEncodeNumbers(t *testing.T) {
 		text := expectYAMLOk(t, callYAMLEncode(t, v))
 		require.Equal(t, "9007199254740993\n", text)
 		require.Equal(t, "9007199254740993", expectYAMLOk(t, callYAMLToJSON(t, text)))
+		jint := &eval.TaggedValue{TypeName: "Json", CtorName: "JInt", Fields: []eval.Value{&eval.IntValue{Value: n}}}
+		require.Equal(t, "9007199254740993\n", expectYAMLOk(t, callYAMLEncode(t, jint)))
 	}
 }
 

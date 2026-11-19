@@ -397,7 +397,7 @@ pass-rate claim is made; this doc claims only the first-party table above.
 
 **Planned (check for overlap):**
 - [m-bytecode-nested-pattern-lowering.md](../v0_49_1/m-bytecode-nested-pattern-lowering.md) — SIBLING, same file, disjoint variant class: nested/literal sub-patterns. Its case 7 explicitly preserves today's switch-path default-arm behavior (V26), so this doc does not duplicate it; its case 6 (if-chain constructor conds/bindings, recursive) generalizes this doc's depth-1 if-chain addition — coordinate sprint order.
-- [m-bytecode-pattern-arity-fix.md](../v1_0_0/m-bytecode-pattern-arity-fix.md) — SIBLING: fixed-length list pattern `len == n` (landed logic present at match.go's list cond); same clause-2 residue family.
+- [m-bytecode-pattern-arity-fix.md](../v0_33_1/m-bytecode-pattern-arity-fix.md) — SIBLING: fixed-length list pattern `len == n` (landed logic present at match.go's list cond); same clause-2 residue family.
 - [m-bytecode-vm-parity-bugs.md](../v1_0_0/m-bytecode-vm-parity-bugs.md) — the parent parity-bugs lane this family spun out of.
 
 **Related docs search note:** `ailang docs search` (neural, fallback-simhash mode) surfaced no doc on this topic above 0.45 relevance on the natural-language query; the siblings above were found by targeted `grep -rln "evaluator-only\|strict-bytecode" design_docs/` — the coverage-gate reading was done on the full text, not on search snippets.

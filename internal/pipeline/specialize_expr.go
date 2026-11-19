@@ -51,8 +51,11 @@ func (s *Specializer) specializeExpr(expr core.CoreExpr, env map[string]types.Ty
 				Location: e.OriginalSpan().String(),
 			})
 
-			// Still need to specialize the body, but skip the bindings
-			newBody, err := s.specializeExpr(e.Body, env, bindings)
+			// Still need to specialize the body, but skip the bindings. The
+			// group's names shadow outer ones there.
+			bodyEnv, bodyBindings := copyEnv(env), copyBindings(bindings)
+			shadowNames(bodyEnv, bodyBindings, recNames(e.Bindings))
+			newBody, err := s.specializeExpr(e.Body, bodyEnv, bodyBindings)
 			if err != nil {
 				return nil, err
 			}
@@ -111,6 +114,10 @@ func (s *Specializer) specializeExpr(expr core.CoreExpr, env map[string]types.Ty
 		// Specialize lambda body
 		newEnv := copyEnv(env)
 		newBindings := copyBindings(bindings)
+		// The parameters shadow outer names: a call of parameter f must not
+		// resolve to an enclosing `let f = \x. ...` and be rewritten into a
+		// call of that lambda (silent wrong answer on every engine).
+		shadowNames(newEnv, newBindings, e.Params)
 		// Note: We don't know parameter types here without more context
 		// Lambda specialization happens when applied
 
@@ -248,7 +255,13 @@ func (s *Specializer) specializeExpr(expr core.CoreExpr, env map[string]types.Ty
 
 		newArms := make([]core.MatchArm, len(e.Arms))
 		for i, arm := range e.Arms {
-			newBody, err := s.specializeExpr(arm.Body, env, bindings)
+			// Pattern variables shadow outer names in the arm (see Lambda).
+			armEnv, armBindings := env, bindings
+			if vars := patternBoundVars(arm.Pattern); len(vars) > 0 {
+				armEnv, armBindings = copyEnv(env), copyBindings(bindings)
+				shadowNames(armEnv, armBindings, vars)
+			}
+			newBody, err := s.specializeExpr(arm.Body, armEnv, armBindings)
 			if err != nil {
 				return nil, err
 			}

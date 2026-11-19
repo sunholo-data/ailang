@@ -172,13 +172,10 @@ func (r *Resolver) resolveAdtFactory(ref core.GlobalRef) (eval.Value, error) {
 		return nil, fmt.Errorf("IMP011_UNKNOWN_CTOR: invalid $adt factory name: %s", ref.Name)
 	}
 
-	parts := strings.SplitN(ref.Name[5:], "_", 2) // Remove "make_" prefix
-	if len(parts) != 2 {
+	_, typeName, ctorName, ok := core.ParseADTFactoryName(ref.Name)
+	if !ok {
 		return nil, fmt.Errorf("IMP011_UNKNOWN_CTOR: invalid $adt factory name format: %s", ref.Name)
 	}
-
-	typeName := parts[0]
-	ctorName := parts[1]
 
 	// Look up constructor arity from $adt interface
 	adtIface := r.linker.GetIface("$adt")
@@ -210,7 +207,7 @@ func (r *Resolver) resolveAdtFactory(ref core.GlobalRef) (eval.Value, error) {
 
 	// For constructors with fields, return a function
 	factoryFn := &eval.BuiltinFunction{
-		Name: ref.Name,
+		Name: core.ADTFactoryDisplayName(ref.Name),
 		Fn: func(args []eval.Value) (eval.Value, error) {
 			// Constructor factory: creates TaggedValue with given fields
 			return &eval.TaggedValue{

@@ -1,0 +1,361 @@
+{
+  "basic": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/generate",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "199",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "result": {
+      "text": "Hello \u003c\u0026\u003e é",
+      "model": "ollama:qwen3:8b",
+      "input_tokens": 42,
+      "output_tokens": 7,
+      "total_tokens": 49
+    }
+  },
+  "crlf_framing": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/generate",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "199",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "result": {
+      "text": "Hel",
+      "model": "ollama:qwen3:8b",
+      "input_tokens": 42,
+      "output_tokens": 7,
+      "total_tokens": 49
+    }
+  },
+  "err_401_signin": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/generate",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "199",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "error": "ollama error: 401 Unauthorized",
+    "error_code": "Internal"
+  },
+  "err_404_json": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/generate",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "199",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "error": "ollama error: 404 Not Found: model 'qwen3:8b' not found",
+    "error_code": "Internal"
+  },
+  "err_429_json": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/generate",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "199",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "error": "ollama error: 429 Too Many Requests: too many requests",
+    "error_code": "RateLimit"
+  },
+  "err_500_empty_body": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/generate",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "199",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "error": "ollama error: 500 Internal Server Error: empty response body",
+    "error_code": "Internal"
+  },
+  "err_500_text": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/generate",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "199",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "error": "ollama error: 500 Internal Server Error: boom: runner exploded",
+    "error_code": "Internal"
+  },
+  "err_bad_created_at": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/generate",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "199",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "error": "ollama error: parsing time \"yesterday\" as \"2006-01-02T15:04:05Z07:00\": cannot parse \"yesterday\" as \"2006\"",
+    "error_code": "Internal"
+  },
+  "err_blank_line": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/generate",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "199",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "error": "ollama error: ",
+    "error_code": "Internal"
+  },
+  "err_garbage_line": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/generate",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "199",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "error": "ollama error: this is not json",
+    "error_code": "Internal"
+  },
+  "err_line_over_8MB": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/generate",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "199",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "error": "ollama error: bufio.Scanner: token too long",
+    "error_code": "Internal"
+  },
+  "err_midstream_error_line": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/generate",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "199",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "error": "ollama error: an error was encountered while running the model: unexpected EOF",
+    "error_code": "ConnectionFailed"
+  },
+  "err_refused": {
+    "requests": null,
+    "error": "ollama error: Post \"http://SERVER/api/generate\": dial tcp SERVER: connect: connection refused",
+    "error_code": "ConnectionFailed"
+  },
+  "err_stall_deadline": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/generate",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "199",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "error": "ollama error: context deadline exceeded",
+    "error_code": "Timeout"
+  },
+  "err_wrong_field_type": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/generate",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "199",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "error": "ollama error: json: cannot unmarshal number into Go struct field GenerateResponse.response of type string",
+    "error_code": "Internal"
+  },
+  "json_format_maxtokens_temperature": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/generate",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "232",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"format\":\"json\",\"options\":{\"num_predict\":100,\"seed\":42,\"temperature\":0.3}}"
+      }
+    ],
+    "result": {
+      "text": "Hello \u003c\u0026\u003e é",
+      "model": "ollama:qwen3:8b",
+      "input_tokens": 42,
+      "output_tokens": 7,
+      "total_tokens": 49
+    }
+  },
+  "json_schema_format": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/generate",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "319",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"format\":{\"type\":\"object\",\"properties\":{\"z\":{\"type\":\"string\",\"pattern\":\"\\u003ca\\u0026b\\u003e\"},\"a\":{\"type\":\"integer\"}}},\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "result": {
+      "text": "Hello \u003c\u0026\u003e é",
+      "model": "ollama:qwen3:8b",
+      "input_tokens": 42,
+      "output_tokens": 7,
+      "total_tokens": 49
+    }
+  },
+  "no_trailing_newline": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/generate",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "199",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"options\":{\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "result": {
+      "text": "Hel",
+      "model": "ollama:qwen3:8b",
+      "input_tokens": 42,
+      "output_tokens": 7,
+      "total_tokens": 49
+    }
+  },
+  "num_ctx_env": {
+    "requests": [
+      {
+        "method": "POST",
+        "path": "/api/generate",
+        "header": {
+          "Accept": "application/x-ndjson",
+          "Accept-Encoding": "gzip",
+          "Content-Length": "215",
+          "Content-Type": "application/json",
+          "User-Agent": "ollama/0.0.0 (GOARCH GOOS) Go/GOVERSION"
+        },
+        "body": "{\"model\":\"qwen3:8b\",\"prompt\":\"Say hello \\u2028 \\\"quoted\\\" \\\\ tab\\t\",\"suffix\":\"\",\"system\":\"You are terse. \\u003cb\\u003e\\u0026amp;\\u003c/b\\u003e\",\"template\":\"\",\"options\":{\"num_ctx\":65536,\"num_predict\":4096,\"seed\":42}}"
+      }
+    ],
+    "result": {
+      "text": "Hello \u003c\u0026\u003e é",
+      "model": "ollama:qwen3:8b",
+      "input_tokens": 42,
+      "output_tokens": 7,
+      "total_tokens": 49
+    }
+  }
+}

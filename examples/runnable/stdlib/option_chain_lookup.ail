@@ -1,0 +1,32 @@
+-- Task: look up an employee's manager's email through a directory where the
+-- employee, the manager link and the email may each be missing — chaining the
+-- optional steps instead of nesting matches, and falling back to defaults.
+-- Demonstrates std/option flatMap, map, filter, getOrElse, isSome and isNone.
+module examples/runnable/stdlib/option_chain_lookup
+import std/option (flatMap, map, filter, getOrElse, isSome, isNone)
+import std/list (forEachE)
+import std/list as L
+import std/string (toUpper, endsWith)
+
+type Person = { id: string, manager: Option[string], email: Option[string] }
+
+pure func findPerson(dir: [Person], id: string) -> Option[Person] = L.head(L.filter(\p. p.id == id, dir))
+
+-- Each step runs only if the previous one produced Some; any None short-circuits.
+pure func managerEmail(dir: [Person], id: string) -> Option[string] {
+  let person = findPerson(dir, id)
+  let manager = flatMap(\p. flatMap(\mid. findPerson(dir, mid), p.manager), person)
+  flatMap(\m. m.email, manager)
+}
+
+export func main() -> () ! {IO} {
+  let dir = [{ id: "ann", manager: None, email: Some("ann@corp.example") }, { id: "bob", manager: Some("ann"), email: Some("bob@corp.example") }, { id: "cat", manager: Some("bob"), email: None }, { id: "dan", manager: Some("cat"), email: Some("dan@gmail.example") }, { id: "eve", manager: Some("zed"), email: None }]
+  forEachE(\id. println("${id} -> ${getOrElse(managerEmail(dir, id), "<no manager email>")}"), ["bob", "cat", "dan", "eve", "ann", "nobody"])
+  -- map transforms a present value; filter drops it when the test fails.
+  let shout = map(toUpper, managerEmail(dir, "cat"))
+  println("upper: ${getOrElse(shout, "-")}")
+  let corpOnly = \id. filter(\e. endsWith(e, "@corp.example"), flatMap(\p. p.email, findPerson(dir, id)))
+  println("dan corp email present: ${show(isSome(corpOnly("dan")))}")
+  println("bob corp email present: ${show(isSome(corpOnly("bob")))}")
+  println("\"nobody\" not in directory: ${show(isNone(findPerson(dir, "nobody")))}")
+}

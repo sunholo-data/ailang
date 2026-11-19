@@ -23,7 +23,7 @@ import (
 type VerifyResult struct {
 	ReasonCode   verification.ReasonCode `json:"reason_code,omitempty"`
 	Function     string                  `json:"function"`
-	Status       string                  `json:"status"` // verified, counterexample, skipped, error, unknown, uncontracted
+	Status       string                  `json:"status"` // verified, counterexample, inconclusive, skipped, error, unknown, uncontracted
 	Reason       string                  `json:"reason,omitempty"`
 	Model        []ModelBinding          `json:"model,omitempty"`
 	Rejections   []SMTRejectionReason    `json:"rejections,omitempty"`
@@ -51,15 +51,6 @@ type VerifyOptions struct {
 	RecursiveDepth int
 	// Verbose attaches the generated SMT-LIB to each solved result.
 	Verbose bool
-	// UnsupportedConstructIsError reports a function whose body uses a
-	// construct outside the decidable fragment (ErrUnsupportedConstruct, e.g.
-	// a match on list patterns) as Status "error" — counted in Errors — instead
-	// of the honest "skipped" (#757) that `ailang verify` reports. `ai-check`
-	// sets it: its exit-code contract (cmd/ailang/ai_check_exit_test.go) has
-	// always surfaced that case as a verifier error, and changing what the
-	// eval harness banks as verify_errors is a ruling, not a refactor
-	// (M-V1-SIMPLIFY-S4 M3A). Both modes name the construct in the reason.
-	UnsupportedConstructIsError bool
 }
 
 // VerifyReport is the outcome of Verify over one program.
@@ -68,11 +59,114 @@ type VerifyReport struct {
 	Results        []VerifyResult
 	Verified       int
 	Counterexample int
-	Skipped        int
-	Errors         int
+	// Inconclusive counts obligations attempted but undecided: a sat found
+	// under bounded recursion unrolling (see solverVerifyResult). Not a
+	// violation, not a proof.
+	Inconclusive int
+	Skipped      int
+	Errors       int
 	// Uncontracted counts exported functions that carry no contract at all;
 	// they appear in Results with Status "uncontracted".
 	Uncontracted int
+}
+
+// Obligations is the number of proof obligations the run examined: every
+// result that is neither "uncontracted" nor a requires-only function. It
+// equals CountObligations of the same program (INV: the verify loop reports
+// every obligation CountObligations counts exactly once).
+func (r *VerifyReport) Obligations() int {
+	return TallyResults(r.Results).Obligations
+}
+
+// Tally projects the report onto the shared exit contract.
+func (r *VerifyReport) Tally() verification.Tally {
+	return TallyResults(r.Results)
+}
+
+// IsObligation reports whether a result row is a proof obligation. Two kinds
+// of row are not: an exported function with no contract ("uncontracted"), and
+// a requires-only function (skipped, reason_code missing_postcondition). The
+// verifier assumes a precondition while proving the function's own ensures and
+// does not check it at call sites, so a precondition alone gives it nothing to
+// prove. Such a row stays in the report as evidence and still counts in the
+// legacy `skipped` counter, but never in the exit tally.
+func IsObligation(r VerifyResult) bool {
+	if r.Status == "uncontracted" {
+		return false
+	}
+	return !(r.Status == "skipped" && r.ReasonCode == verification.MissingPostcondition)
+}
+
+// TallyResults is the exit-contract tally of a solver run, computed from the
+// result rows so every command derives it the same way (the CLI JSON report
+// carries the same rows).
+func TallyResults(results []VerifyResult) verification.Tally {
+	t := verification.Tally{CheckPassed: true, SolverAvailable: true}
+	for _, r := range results {
+		if !IsObligation(r) {
+			continue
+		}
+		t.Obligations++
+		switch r.Status {
+		case "verified":
+			t.Verified++
+		case "counterexample":
+			t.Counterexample++
+		case "inconclusive":
+			t.Inconclusive++
+		case "skipped":
+			t.Skipped++
+		default: // "error", "unknown"
+			t.Errors++
+		}
+	}
+	return t
+}
+
+// hasObligation is the ONE predicate for "this function carries a proof
+// obligation": at least one ensures clause. CountObligations uses it; the
+// verify loop reports every such function exactly once.
+func hasObligation(meta *core.DeclMeta) bool {
+	if meta == nil {
+		return false
+	}
+	for _, c := range meta.Contracts {
+		if c != nil && c.Kind == core.EnsuresKind && !isTriviallyTrue(c.Expr) {
+			return true
+		}
+	}
+	return false
+}
+
+// isTriviallyTrue reports a postcondition that is the literal `true`. It
+// proves nothing, so it must not count as a verified obligation: otherwise
+// `ensures { true }` next to a skipped false contract turned "unproved" into
+// "partial", exit 0 (second-round review of #2222). Only the literal is
+// detected; other tautologies are verified like any other clause.
+func isTriviallyTrue(e core.CoreExpr) bool {
+	lit, ok := e.(*core.Lit)
+	if !ok || lit.Kind != core.BoolLit {
+		return false
+	}
+	b, ok := lit.Value.(bool)
+	return ok && b
+}
+
+// CountObligations counts the proof obligations (functions with an ensures
+// clause) of a compiled program without a solver. It is how a verification
+// command knows, with Z3 missing, whether it has dropped anything
+// (M-V1-VERIFICATION-HONESTY M1).
+func CountObligations(coreProg *core.Program) int {
+	if coreProg == nil {
+		return 0
+	}
+	n := 0
+	for _, meta := range coreProg.Meta {
+		if meta != nil && meta.VariantOf == "" && hasObligation(meta) { // a numeric variant's are its binding's
+			n++
+		}
+	}
+	return n
 }
 
 // Verify runs static contract verification over every contracted function of
@@ -143,14 +237,12 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		Timeout: opts.Timeout,
 	}
 
-	// Fixup: functions with ! {} (empty effects) are semantically pure
-	// but the parser only sets IsPure for the explicit `pure` keyword.
-	// For SMT verification, we treat empty-effect functions as pure.
-	for funcName, meta := range coreProg.Meta {
-		if fd, ok := surfaceFuncs[funcName]; ok {
-			if fd.Effects != nil && len(fd.Effects) == 0 && !meta.IsPure {
-				meta.IsPure = true
-			}
+	// Keep SMT admission separate from purity metadata. Key by metadata identity
+	// so imported functions with the same name retain their own declaration.
+	declarations := make(map[*core.DeclMeta]*ast.FuncDecl)
+	for name, fd := range surfaceFuncs {
+		if meta := coreProg.Meta[name]; meta != nil {
+			declarations[meta] = fd
 		}
 	}
 
@@ -169,15 +261,10 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 	for modPath, mod := range modules {
 		if mod.Core != nil {
 			importedPrograms[modPath] = mod.Core
-			// Apply the same IsPure fixup as for same-module functions:
-			// imported functions with ! {} (empty effects) are semantically
-			// pure and must be marked so the callee resolver can inline them.
 			if mod.File != nil {
 				for _, fd := range mod.File.Funcs {
-					if meta, ok := mod.Core.Meta[fd.Name]; ok {
-						if fd.Effects != nil && len(fd.Effects) == 0 && !meta.IsPure {
-							meta.IsPure = true
-						}
+					if meta := mod.Core.Meta[fd.Name]; meta != nil {
+						declarations[meta] = fd
 					}
 				}
 			}
@@ -202,15 +289,16 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		importedTI[path] = mod.CoreTI
 	}
 	encOpts := EncodeFunctionOpts{
-		CoreTI:             opts.CoreTI,
-		ImportedCoreTI:     importedTI,
-		ADTTypeParams:      adtParams,
-		Program:            coreProg,
-		SurfaceParams:      allSurfaceParams,
-		SurfaceReturnSorts: allSurfaceReturnSorts,
-		ExtraDeclarations:  adtRecordDecls,
-		RecordTypeAliases:  recordAliases,
-		ImportedPrograms:   importedPrograms,
+		CoreTI:              opts.CoreTI,
+		ImportedCoreTI:      importedTI,
+		ADTTypeParams:       adtParams,
+		SurfaceDeclarations: declarations,
+		Program:             coreProg,
+		SurfaceParams:       allSurfaceParams,
+		SurfaceReturnSorts:  allSurfaceReturnSorts,
+		ExtraDeclarations:   adtRecordDecls,
+		RecordTypeAliases:   recordAliases,
+		ImportedPrograms:    importedPrograms,
 	}
 
 	// Build the callee-sort gate inputs. The gate rejects a contracted function whose
@@ -247,7 +335,29 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 
 	// Process each function with contracts
 	for funcName, meta := range coreProg.Meta {
-		if len(meta.Contracts) == 0 {
+		if meta == nil || len(meta.Contracts) == 0 || meta.VariantOf != "" { // a numeric variant's are its binding's (#2378)
+			continue
+		}
+
+		// A requires-only function, or one whose only ensures is the literal
+		// `true`, carries no proof obligation (hasObligation): it is reported
+		// as evidence, with the reason code IsObligation keys on, and never
+		// reaches the body or solver steps. Checked before the body lookup so a
+		// missing body cannot turn it into an obligation skip.
+		if !hasObligation(meta) {
+			reason := "no ensures clause (nothing to verify)"
+			for _, c := range meta.Contracts {
+				if c != nil && c.Kind == core.EnsuresKind {
+					reason = "ensures is the literal true (nothing to verify)"
+				}
+			}
+			report.Results = append(report.Results, VerifyResult{
+				Function:   funcName,
+				Status:     "skipped",
+				Reason:     reason,
+				ReasonCode: verification.MissingPostcondition,
+			})
+			report.Skipped++
 			continue
 		}
 
@@ -264,25 +374,6 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			continue
 		}
 
-		// Check if function has ensures clauses (nothing to verify without postconditions)
-		hasEnsures := false
-		for _, c := range meta.Contracts {
-			if c.Kind == core.EnsuresKind {
-				hasEnsures = true
-				break
-			}
-		}
-		if !hasEnsures {
-			report.Results = append(report.Results, VerifyResult{
-				Function:   funcName,
-				Status:     "skipped",
-				Reason:     "no ensures clause (nothing to verify)",
-				ReasonCode: verification.MissingPostcondition,
-			})
-			report.Skipped++
-			continue
-		}
-
 		// M4: Determine effective recursive depth for this function
 		// Per-function @verify(depth: N) overrides global --verify-recursive-depth
 		effectiveDepth := opts.RecursiveDepth
@@ -291,7 +382,7 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 		}
 
 		// Check if function is in the decidable SMT fragment
-		encodable, rejections := IsSMTEncodable(funcName, meta, body)
+		encodable, rejections := IsSMTEncodable(funcName, meta, body, surfaceFuncs[funcName])
 		if opts.CoreTI != nil {
 			filtered := rejections[:0]
 			for _, r := range rejections {
@@ -435,10 +526,11 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			}
 			// #757: an unsupported Core construct (e.g. match on list patterns)
 			// is an honest capability boundary of the decidable fragment — skip
-			// with the reason, never a hard ERROR leaking Go type names. Unless
-			// the caller opted into the error lane (ai-check's contract), in
-			// which case it falls through to the generic encoding error below.
-			if errors.Is(err, ErrUnsupportedConstruct) && !opts.UnsupportedConstructIsError {
+			// with the reason, never a hard ERROR leaking Go type names. Every
+			// command reports it this way: ai-check's former error lane was
+			// retired with the shared exit contract (M-V1-VERIFICATION-HONESTY
+			// M1), under which a skip passes loudly and --strict fails it.
+			if errors.Is(err, ErrUnsupportedConstruct) {
 				report.Results = append(report.Results, VerifyResult{
 					Function:   funcName,
 					Status:     "skipped",
@@ -476,27 +568,17 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 			continue
 		}
 
-		vr := solverVerifyResult(funcName, solveResult)
-		// Mark bounded recursion depth if the function is recursive
+		// The obligation is bounded-unrolled when the function recurses and
+		// unrolling is on: its self-calls bottom out in an uninterpreted stub.
+		boundedDepth := 0
 		if effectiveDepth > 0 && IsRecursiveFunc(innerBody, funcName) {
-			vr.BoundedDepth = effectiveDepth
+			boundedDepth = effectiveDepth
 		}
+		vr := solverVerifyResult(funcName, solveResult, boundedDepth, opts.Verbose)
 		if opts.Verbose {
 			vr.SMTLib = encResult.SMTLib
 		}
-
-		switch solveResult.Status {
-		case StatusVerified:
-			report.Verified++
-		case StatusCounterexample:
-			report.Counterexample++
-		case StatusUnknown:
-			report.Errors++
-		case StatusError:
-			report.Errors++
-		}
-
-		report.Results = append(report.Results, vr)
+		report.tally(vr)
 	}
 
 	// Account for exported functions that carry no contract at all.
@@ -527,12 +609,66 @@ func Verify(coreProg *core.Program, surfaceAST *ast.File, modules map[string]Ver
 	return report
 }
 
-// solverVerifyResult preserves legacy status values and attaches solver-owned
-// reasons. It does not classify a timeout from human diagnostic text.
-func solverVerifyResult(name string, result *SolverResult) VerifyResult {
-	r := VerifyResult{Function: name, Status: result.Status.String(), Duration: result.Duration, ReasonCode: result.ReasonCode}
+// tally appends one result and moves exactly the counter its status names, so
+// the counters partition Results (INV-1). An unrecognised status is a
+// programming error in this file — it panics rather than silently dropping out
+// of every counter (TestSolveOutcomeExhaustive pins the mapping).
+func (r *VerifyReport) tally(vr VerifyResult) {
+	switch vr.Status {
+	case "verified":
+		r.Verified++
+	case "counterexample":
+		r.Counterexample++
+	case "inconclusive":
+		r.Inconclusive++
+	case "skipped":
+		r.Skipped++
+	case "error", "unknown":
+		r.Errors++
+	case "uncontracted":
+		r.Uncontracted++
+	default:
+		panic(fmt.Sprintf("smt: verify status %q has no report counter", vr.Status))
+	}
+	r.Results = append(r.Results, vr)
+}
+
+// solverVerifyResult is the ONE place a solver outcome becomes a verify
+// status; `ailang verify` and `ailang ai-check` both reach it through Verify.
+// It attaches solver-owned reasons and does not classify a timeout from human
+// diagnostic text.
+//
+// boundedDepth > 0 means the obligation was bounded-unrolled: the function's
+// self-calls were expanded boundedDepth levels deep and bottom out in an
+// UNINTERPRETED stub <name>_0 (unroll.go). That encoding is asymmetric:
+//
+//   - unsat is sound — the property holds under every interpretation of the
+//     stub, the real function included — so it stays "verified" (with the
+//     bounded caveat carried in BoundedDepth).
+//   - sat is NOT a violation — Z3 may satisfy the negated postcondition by
+//     inventing a value for the stub, an execution no real run can produce.
+//     It is reported "inconclusive". The decision is structural (no model
+//     inspection: a solver may omit interpretations it deems irrelevant, so
+//     "no frontier symbol in the model" proves nothing). The declared cost is
+//     that a GENUINE bug on a recursive function also reads inconclusive
+//     until witness replay exists — "could not decide", never a false
+//     violation. The model is withheld unless verbose: it is usually a
+//     let-expression over the stub, not an input.
+//
+// M-VERIFY-BOUNDED-UNROLLING-FALSE-COUNTEREXAMPLE.
+func solverVerifyResult(name string, result *SolverResult, boundedDepth int, verbose bool) VerifyResult {
+	r := VerifyResult{Function: name, Status: result.Status.String(), Duration: result.Duration, ReasonCode: result.ReasonCode, BoundedDepth: boundedDepth}
 	switch result.Status {
 	case StatusCounterexample:
+		if boundedDepth > 0 {
+			r.Status = "inconclusive"
+			r.ReasonCode = verification.BoundedInconclusive
+			r.Reason = boundedInconclusiveReason(name, boundedDepth)
+			if verbose {
+				r.Model = result.Model
+			}
+			break
+		}
 		r.Model = result.Model
 		r.ReasonCode = verification.Counterexample
 	case StatusUnknown:
@@ -546,6 +682,21 @@ func solverVerifyResult(name string, result *SolverResult) VerifyResult {
 	}
 	return r
 }
+
+// boundedInconclusiveReason explains an inconclusive outcome. The depth advice
+// is deliberately conditional. When inputs are unbounded (any-length lists)
+// raising the depth cannot decide the obligation: the candidate model just
+// grows with it (measured: length 2 at depth 2, length 4 at depth 4), so
+// unconditional depth-tuning advice is a treadmill. When a requires clause
+// bounds the recursion (recursive_verify.ail: n <= 4) a depth past that bound
+// DOES decide it (all three verify at depth 6), so "never" would be false too.
+func boundedInconclusiveReason(name string, depth int) string {
+	return fmt.Sprintf("bounded unrolling exhausted at depth %d: the solver's candidate model may depend on "+
+		"the unrolling frontier (%s_0), so it is neither a proof nor a confirmed violation; "+
+		"raising --verify-recursive-depth can decide this only if a requires clause bounds the recursion depth "+
+		"of the inputs — for unbounded inputs it cannot", depth, name)
+}
+
 func encodingErrorReason(err error) verification.ReasonCode {
 	if errors.Is(err, ErrUnsupportedConstruct) {
 		return verification.UnsupportedEncoding

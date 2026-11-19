@@ -2,7 +2,7 @@
 
 **Status**: Planned — **SPLIT by Mark's decision, 2026-08-04 (option C, see below).** The #505
 pattern-arity fix (the former Milestones B1-quicksort-half + B2) has been spun out, UNBLOCKED, into
-[m-bytecode-pattern-arity-fix.md](m-bytecode-pattern-arity-fix.md) — route that doc through
+[m-bytecode-pattern-arity-fix.md](../../implemented/v0_33_1/m-bytecode-pattern-arity-fix.md) — route that doc through
 sprint-planner/sprint-executor directly, it does not wait on this doc.
 **This doc's remaining scope (A1, A2, B1-closure-half, B3, B4) is UNPARKED — D-25, Mark attended 2026-08-22: A2 = semantic effect extraction via a new CLI surface that emits a file's resolved effect row (feasibility spike first; compiler packages stay OUT of the harness; stderr sniffer retired).** Routable to the second design round with that question answered. Was: PARKED `needs-human-review` pending it.
 Nothing should be planned from *this* doc's remaining scope until that round happens.
@@ -48,7 +48,7 @@ Net/Clock inventory arithmetic) confirmed first-party and fixed — see Verifica
 >   (B1-quicksort-half + B2) does not depend on it at all**: its root cause is settled, its repro
 >   is minimal, and its acceptance test (AC8/AC8b) is a table-driven pattern test, not a
 >   parity-harness count. B1-quicksort-half + B2 are now spun out into
->   [m-bytecode-pattern-arity-fix.md](m-bytecode-pattern-arity-fix.md), ready to sprint
+>   [m-bytecode-pattern-arity-fix.md](../../implemented/v0_33_1/m-bytecode-pattern-arity-fix.md), ready to sprint
 >   immediately. **A2 (and the A1/A2 harness lane, plus B1-closure-half/B3/B4 which depend on A2's
 >   new harness buckets) still need a second design round** with the semantic-extraction question
 >   answered before anything in *this* doc can be planned.
@@ -58,7 +58,7 @@ Net/Clock inventory arithmetic) confirmed first-party and fixed — see Verifica
 > doc), **#506** (unsafe replay — stays here, part of B4, blocked on A2), and **#1576** (deep-recursion
 > limit divergence + consumed-input unsafe replay — spun out 2026-10-08 to
 > [m-vm-stack-limit-parity.md](../../implemented/v1_0_0/m-vm-stack-limit-parity.md); its B4 evidence is the addendum below).
-**Target**: v1.0.0 (clause-2 soundness residue on the V1 mission queue)
+**Target**: v1.0.0 — **conditional under bar v3 (D-64, 2026-11-09):** this doc gates v1.0 ONLY if a residue is filed as a `priority:P0` issue, which then counts under gate G2 (zero open P0s). Was: clause-2 soundness residue on the V1 mission queue (bar v2).
 **Priority**: **P0 ×2** — (1) `recursion_quicksort.ail` is a **silent wrong result** under
 `--bytecode` (no error, no fallback, wrong list; root cause #505). (2) The VM→evaluator fallback
 **re-executes programs from the beginning after observable effects have already been committed**
@@ -161,7 +161,7 @@ consequences for THIS doc's remaining scope:
 
 The limit-divergence trigger itself is **not this doc's scope**: it is spun out to
 [m-vm-stack-limit-parity.md](../../implemented/v1_0_0/m-vm-stack-limit-parity.md) (the same option-C carve-out as
-#505 → [m-bytecode-pattern-arity-fix.md](m-bytecode-pattern-arity-fix.md) — it does not depend on
+#505 → [m-bytecode-pattern-arity-fix.md](../../implemented/v0_33_1/m-bytecode-pattern-arity-fix.md) — it does not depend on
 the A2 round). Post-fix, B4's trigger window shrinks from "any evaluator-legal depth > 1000" to
 "depths where the interpreter itself refuses (RT_REC_003)" — i.e. from evaluator-LEGAL input to
 illegal, which restores parity without touching B4's policy question.
@@ -446,22 +446,22 @@ are separable: a Lane-B overrun cannot strand Lane A (A1+A2 land and are gate-ef
 ### Milestone B1 — diagnose the VM bug families (#505 + closure-dispatch), NO fix (~1d)
 
 > **The quicksort/#505 half of B1, and all of B2, are SPUN OUT** into
-> [m-bytecode-pattern-arity-fix.md](m-bytecode-pattern-arity-fix.md) (2026-08-04, Mark's option-C
+> [m-bytecode-pattern-arity-fix.md](../../implemented/v0_33_1/m-bytecode-pattern-arity-fix.md) (2026-08-04, Mark's option-C
 > decision) — that doc is unblocked and ready to sprint now. **Only the closure-dispatch-family
 > half of B1 (AC7) remains here**, still parked pending the A2 second design round (B3's fix and
 > AC11's whole-doc gate both need A2's harness buckets).
 
 - ~~**AC6**: minimal failing repro for the quicksort `[3]` collapse...~~ — moved to
-  m-bytecode-pattern-arity-fix.md as AC1–AC3.
+  ../../implemented/v0_33_1/m-bytecode-pattern-arity-fix.md as AC1–AC3.
 - **AC7**: same deliverable for the closure-dispatch family (`array_basic`'s `GET_TAG on
   Closure`, plus an explicit shared-or-distinct verdict covering `array_grid` and
   `module_let_helpers`; may name the same root cause as the pattern-arity bug — must say so
   explicitly if so). **Remains parked here.**
 
-### Milestone B2 — quicksort-class fix (P0, ~0.5–1d) — SPUN OUT, see m-bytecode-pattern-arity-fix.md
+### Milestone B2 — quicksort-class fix (P0, ~0.5–1d) — SPUN OUT, see ../../implemented/v0_33_1/m-bytecode-pattern-arity-fix.md
 
 > Former AC8/AC8b/AC9 now live as AC1/AC2/AC3 in
-> [m-bytecode-pattern-arity-fix.md](m-bytecode-pattern-arity-fix.md), unblocked and ready to sprint.
+> [m-bytecode-pattern-arity-fix.md](../../implemented/v0_33_1/m-bytecode-pattern-arity-fix.md), unblocked and ready to sprint.
 > Content kept below for historical reference only — **do not plan from here**, plan from the
 > spun-out doc.
 

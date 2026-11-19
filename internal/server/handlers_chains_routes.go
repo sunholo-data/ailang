@@ -108,7 +108,7 @@ func (s *Server) handleChainJourney(w http.ResponseWriter, r *http.Request) {
 }
 
 // registerChainRoutes registers all chain-related API routes.
-func (s *Server) registerChainRoutes(mux *http.ServeMux) {
+func (s *Server) registerChainRoutes(mux router) {
 	// List and create chains
 	mux.HandleFunc("/api/chains", func(w http.ResponseWriter, r *http.Request) {
 		switch r.Method {

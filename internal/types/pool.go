@@ -24,6 +24,13 @@ var typePairBoolPool = sync.Pool{
 	},
 }
 
+// maxPooledMapLen: a map that held more entries than this is dropped, not
+// pooled. A Go map keeps its capacity, and clearing (or ranging over) it costs
+// that capacity, so one walk over a record with hundreds of fields used to make
+// every later small walk pay for it (#2210 review, item 6: 15% of `check` on a
+// 200-field record updated 200 times).
+const maxPooledMapLen = 256
+
 // getTypeBoolMap gets a map[Type]bool from the pool.
 func getTypeBoolMap() map[Type]bool {
 	return typeBoolPool.Get().(map[Type]bool)
@@ -31,9 +38,10 @@ func getTypeBoolMap() map[Type]bool {
 
 // putTypeBoolMap returns a map[Type]bool to the pool after clearing it.
 func putTypeBoolMap(m map[Type]bool) {
-	for k := range m {
-		delete(m, k)
+	if len(m) > maxPooledMapLen {
+		return
 	}
+	clear(m)
 	typeBoolPool.Put(m)
 }
 
@@ -44,9 +52,10 @@ func getTypeTypeMap() map[Type]Type {
 
 // putTypeTypeMap returns a map[Type]Type to the pool after clearing it.
 func putTypeTypeMap(m map[Type]Type) {
-	for k := range m {
-		delete(m, k)
+	if len(m) > maxPooledMapLen {
+		return
 	}
+	clear(m)
 	typeTypePool.Put(m)
 }
 
@@ -57,8 +66,9 @@ func getTypePairBoolMap() map[typePair]bool {
 
 // putTypePairBoolMap returns a map[typePair]bool to the pool after clearing it.
 func putTypePairBoolMap(m map[typePair]bool) {
-	for k := range m {
-		delete(m, k)
+	if len(m) > maxPooledMapLen {
+		return
 	}
+	clear(m)
 	typePairBoolPool.Put(m)
 }

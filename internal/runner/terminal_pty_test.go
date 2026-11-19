@@ -1,18 +1,20 @@
 package runner
 
 import (
-	"context"
 	"fmt"
 	"os"
 
 	"github.com/sunholo-data/ailang/internal/effects"
 	"github.com/sunholo-data/ailang/internal/eval"
 	"os/exec"
-	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
 )
+
+// terminalPTYBudget is one PTY probe's own deadline: the harness waits at
+// most 12s for each expected screen and a few seconds for the exit.
+const terminalPTYBudget = 30 * time.Second
 
 // This exercises the actual CLI boundary, not a mock terminal or direct host call.
 // Python's standard-library pty supplies the same harness on macOS and Linux.
@@ -24,18 +26,7 @@ func TestTerminalCLIPTYLifecycle(t *testing.T) {
 	if err != nil {
 		t.Fatalf("python3 required for native terminal lifecycle controls: %v", err)
 	}
-	root, err := filepath.Abs(filepath.Join("..", ".."))
-	if err != nil {
-		t.Fatal(err)
-	}
-	binary := filepath.Join(t.TempDir(), "ailang")
-	ctx, cancel := context.WithTimeout(context.Background(), 120*time.Second)
-	defer cancel()
-	build := exec.CommandContext(ctx, "go", "build", "-o", binary, "./cmd/ailang")
-	build.Dir = root
-	if output, err := build.CombinedOutput(); err != nil {
-		t.Fatalf("build: %v\n%s", err, output)
-	}
+	binary, root := ailangCLIBinary(t)
 	for _, backend := range []string{"eval", "strict", "host"} {
 		for _, scenario := range []string{"normal", "exit", "error", "sigint", "sigterm", "budget", "panic"} {
 			if (backend == "host") != (scenario == "panic") {
@@ -45,10 +36,7 @@ func TestTerminalCLIPTYLifecycle(t *testing.T) {
 				continue
 			} // VM explicitly rejects annotated budget frames.
 			t.Run(backend+"/"+scenario, func(t *testing.T) {
-				testCtx, done := context.WithTimeout(context.Background(), 30*time.Second)
-				defer done()
-				cmd := exec.CommandContext(testCtx, python, "-c", terminalPTYHarness, binary, root, backend, scenario, os.Args[0])
-				if output, err := cmd.CombinedOutput(); err != nil {
+				if output, err := runCLIProbe(t, terminalPTYBudget, nil, python, "-c", terminalPTYHarness, binary, root, backend, scenario, os.Args[0]); err != nil {
 					t.Fatalf("PTY: %v\n%s", err, output)
 				}
 			})

@@ -1,7 +1,7 @@
 # AetherCode hidden tests
 
 The `cp_*` directories hold held-out tests for the `benchmarks/cp_*.yml` benchmarks
-([M-EVAL-HIDDEN-TESTS](../../design_docs/planned/v0_55_0/m-eval-hidden-tests.md)).
+([M-EVAL-HIDDEN-TESTS](../../design_docs/implemented/v0_55_0/m-eval-hidden-tests.md)).
 Each `<n>.in` / `<n>.ans` pair is test `n` of the problem, copied unmodified.
 
 **Source:** AetherCode, `v1_2024` split — https://huggingface.co/datasets/m-a-p/AetherCode

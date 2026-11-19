@@ -86,7 +86,7 @@ The program uses weak models as a **discovery mechanism**: friction they expose 
 
 ## 2026-11-05 Phase 0 results (first pass)
 
-Measured attended on 2026-11-05 at AILANG v0.57.1. Lanes: the `FINE-TUNE PHASE 0` block in `internal/modelreg/models.yml` (commit `74857f3c7`). Raw results are in `eval_results/finetune-phase0/` (gitignored, on the rig). Benchmarks: core (23) + stretch (28). The agent subset is 24 benchmarks, alternating core and stretch.
+Measured attended on 2026-11-05 at AILANG v0.57.1. Lanes: the `FINE-TUNE PHASE 0` block in `internal/modelreg/models.yml` (commit `c39576ef3`). Raw results are in `eval_results/finetune-phase0/` (gitignored, on the rig). Benchmarks: core (23) + stretch (28). The agent subset is 24 benchmarks, alternating core and stretch.
 
 ### Model choice
 
@@ -107,7 +107,7 @@ Gemma 4 is the primary family (Mark's preference). It is dense at E4B / 12B / 31
 
 - **The gap is language knowledge.** For every model below 27B, 71–89% of failures are compile errors. That is the branch of the §Phase 0 reading table that SFT addresses.
 - **Harness confound (12B).** The 7 `api_error`s are `context deadline exceeded` from the Ollama client's **300 s per-call default** (`AILANG_OLLAMA_HTTP_TIMEOUT_SEC` unset), not the lane's 1800 s `generation_timeout`. 12B was still thinking (~46 tok/s × 300 s ≈ 13.8k tokens) on hard stretch benchmarks. Set `AILANG_OLLAMA_HTTP_TIMEOUT_SEC=1800` for any local re-run.
-- **Cloud spend: $12.15 metered** for 918 runs, against $5 approved and an $8 `--budget-usd` cap. The cap did not stop dispatch; that is fixed in `74857f3c7`. qwen3.8-27b alone cost $7.20, because OpenRouter bills its hidden reasoning tokens.
+- **Cloud spend: $12.15 metered** for 918 runs, against $5 approved and an $8 `--budget-usd` cap. The cap did not stop dispatch; that is fixed in `c39576ef3`. qwen3.8-27b alone cost $7.20, because OpenRouter bills its hidden reasoning tokens.
 
 ### Agent mode (pi harness, local, 1 trial)
 
@@ -161,7 +161,17 @@ Script: `~/models/finetune/batchbench.py`; results in `~/models/finetune/batchbe
 1. **Gemma 4 12B dense: primary (speed target).** 54% one-shot. Agent failures are protocol-only. 22 GB, 46 tok/s. The `gemma4_unified` architecture loads in stock mlx-lm **0.32.2** (remapped to `gemma4`), so it needs neither mlx-lm from git main nor `mlx-optiq`.
 2. **Gemma 4 31B dense: quality-ceiling arm.** 58% one-shot, plain `gemma4`, ~20 tok/s.
 3. **Gemma 4 26B-A4B MoE: optional speed arm.** 46%, 4B active, so fastest decode. MLX MoE training is the risk.
-4. **Teacher, not target: qwen3.8-27b.** 94% one-shot, $0 locally. It can generate verified SFT data in bulk with none of the closed-model licensing issues in §R4. That makes the exporter less urgent for a first pilot.
+4. **Training data: frontier-authored data first; the qwen3.8 teacher only fills gaps** (Mark, 2026-11-05: "why create training data with qwen3.8 via the GPU when we have incredible results from opus/astra"). Already on disk, needing no GPU:
+   - **≈ 225k lines of AILANG in ≈ 1,600 files** across our repos, mostly frontier-agent authored: world 100k, ailang-parse 31k, packages 22k, daneel 21k, examples 20k, docparse 13k, email-parse 12k, std 6k. stapledons-godot shows 879k lines but needs a dedupe/generated-code check first.
+   - **Frontier agent trajectories** (Claude Code sessions in AILANG repos, ~1.4k+; motoko/chains runs). These are exactly the "write the file, run it, read the error, fix it" behaviour 12B lacks.
+
+   Conditions:
+   - **(a) Contamination:** frontier *eval* results are solutions to the scored benchmarks. Exclude them, or hold out a benchmark set.
+   - **(b) Licence: D-FT-1 = YES** (Mark, attended, 2026-11-05). Frontier-generated code and trajectories (Anthropic and OpenAI outputs) **may** be used to train the internal AILANG model.
+   - **(c) Re-grade:** everything gets re-checked with today's `ailang check`; keep only what compiles.
+   - **(d) Tool mapping:** Claude Code's tool names (Edit/Write/Bash) are mapped onto pi's schema.
+
+   qwen3.8-27b (94% one-shot, $0 locally) is kept for gap-filling, e.g. native pi-format trajectories or licence-clean extra data.
 5. Ruled out: E4B, qwen3.5-9b, Ministral 8B/14B. Deferred: the Empero Qwen3.8-9B community distill (unverified provenance).
 
 ### Tooling check (2026-11-05): training works; serving through Ollama needs one more fix
@@ -182,6 +192,426 @@ Run with stock **mlx-lm 0.32.2** (PyPI) in an isolated uv env at `~/models/finet
 A real run is a different scale: a pilot on ~2–5k teacher solutions is about 3–7M tokens per epoch, so **~6–13 h per epoch for 12B** (overnight, with the rotation paused) and about 2.5× that for 31B. The toy output loops are the expected signature of a badly undertrained adapter decoded greedily; they say nothing about quality. Still open: the Ollama load failure above (open question 2 is narrowed, not resolved), and importing quantized (q8) rather than at 23 GB.
 
 **Contamination rule:** never train on the eval benchmarks' own solutions. Teacher data must come from held-out tasks, or the before/after A/B is void. The 2026-11-05 tooling-check adapter (`~/models/finetune/adapters-toolcheck/`) was trained on eval solutions on purpose, as plumbing, and **must never be scored**.
+
+## Data spec (2026-11-05)
+
+Supersedes §"Data extraction" and §R4 where they conflict. The binding constraint is **task diversity, not volume**.
+
+### Inventory (measured on the attended machine, 2026-11-05)
+
+| Source | Size | Use |
+|---|---|---|
+| **AILANG corpus in our repos**: sunholo-data/*, motoko checkouts `~/dev/mk-*`, daneel (worktrees included, de-duplicated by content hash) | 80,415 `.ail` files scanned, **3,684 unique files, ~843k lines**. Largest: motoko 861 files / 409k lines; then packages, demos, ailang-parse, docparse, stapledons (402 / 75k), daneel, email-parse | language knowledge; needs task descriptions (see G2) |
+| **Past eval results** (`eval_results/`) | 40,503 files; 24,813 AILANG (9,628 agent); 17,112 passing; **14,373 distinct passing programs, but only 114 distinct tasks** (the eval set); 95 models; **709 clean error-to-fix repairs**; ~7.7k failing runs with category and stderr; 18k without a version stamp | language and repair data from **training-split benchmarks only** |
+| **Agent trajectories** | motoko session JSONL (~3,200 files); opencode.db (1.7 GB); chains/observatory (3,804 chains); Claude Code sessions in AILANG repos (world alone: 861 sessions / 1.1 GB) | agent protocol (write, run, fix) and error recovery |
+| **Cloud executors** (pi, claude and codex fleet tasks on the cloud plane) | **not yet counted**; in the prod observatory and chain store. pi on the rig kept no transcript for rejected runs (filed), so check whether cloud pi sessions are banked in full | real-task trajectories with outcomes; probably the best trajectory source |
+
+### Rules
+
+1. **Held-out split first.** The eval set is frozen before any extraction: the 24-benchmark agent subset in §Phase 0 (12 core + 12 stretch) is the held-out set for both modes. Base-model numbers on it already exist from Phase 0, so the baseline needs no re-run. Nothing from those 24 tasks enters training. That includes other models' solutions, near-duplicate tasks, and repo code that is a copy of a benchmark solution. Check exact and normalised-code hashes and task-text similarity.
+2. **Re-grade everything with the current `ailang check`** (and `ailang run` against expected stdout where one exists). Keep only what compiles today, which strips stale syntax from 18k unversioned results and old repo code.
+3. **Licence: D-FT-1 = YES** (Mark, 2026-11-05). Frontier-generated code and trajectories (Anthropic and OpenAI outputs) are in scope for the internal model, alongside open-weight-generated output and human-written code.
+4. **Negatives: never as targets.**
+   - (a) **Error-to-fix pairs**: input = failing code + the real compiler error; target = the fix.
+   - (b) **Recovery trajectories**: failed attempts kept as context; **loss only on the turns that lead to the verified pass**.
+   - (c) **Preference pairs** (chosen = verified pass, rejected = typical error or chat-answer protocol miss): a stage-2 DPO run. mlx-lm's `lora` has no DPO mode, so this needs another trainer.
+   - (d) **Failure clusters become AILANG fixes** under PROGRAM.md routing (a mistake every model makes is usually a language or error-message fix, not training data).
+   - Training directly on failed outputs is forbidden.
+5. **Tool mapping:** every trajectory is converted to **pi's tool schema** (the harness it will run in). Claude Code Edit/Write/Bash, opencode and motoko tools are mapped to pi equivalents, and unmappable turns are dropped.
+6. **No teaching prompt in training inputs.** The point is a model that does not need it; a slim prompt (G4) may be included as the system turn.
+
+### Held-out amendment (2026-11-11)
+
+**Approved by Mark 2026-11-11, to be recorded as D-FT-17** (made in PR #2229, M-V1-SHOW-TOTAL; no
+pilot data, config or run touched). Reasons: under total `show` the old task's natural solution no
+longer prints its expected output, so it would grade the format change rather than the model; and
+both earlier pilots failed the old task (a compile error and the 1-hour limit), so no existing paired
+comparison is affected. Pilot-4 is compared with earlier pilots on the 23 shared tasks, with
+`run_length_encode_v2` reported separately.
+
+`run_length_encode` was retired to `benchmarks/retired/`: its expected output was the old lossy
+`show` of a `[(int, string)]`. Its replacement `run_length_encode_v2` is the same task with an
+explicit output format. Left alone, that broke the held-out set both ways: the pilot scripts pass
+core + stretch to `--benchmarks`, which loads `benchmarks/<id>.yml`, so the old id no longer loads;
+and the exclusion matched exact ids, so v2 solutions (a near-duplicate of a held-out task) could
+enter training.
+
+Change: `tools/finetune/heldout.json` stretch now names `run_length_encode_v2`; a new key,
+`retired_excluded: ["run_length_encode"]`, keeps the old id's banked solutions out of training.
+Who reads `heldout.json`, and for what:
+- TRAINING exclusion (core + stretch + retired_excluded): `extract_lang.load_heldout` (one added
+  term), used by onpolicy_pairs, stale_fix, probe_after_read, synth_episodes and now
+  `extract_traj.py` (which re-read the file itself before); the inline guard in
+  `collect_onpolicy.sh` (one added term).
+- EVAL list (core + stretch, unchanged): `pilot*_run.sh`, `weekend_pilot.sh`, and
+  `summarize_pilot.py` (core only).
+
+Tests in `internal/eval_harness/finetune_heldout_test.go` run each training reader's real entry
+point against a fixture (network, model and compiler calls stubbed, the held-out filter not) and
+fail if any admits a held-out, retired or successor id; they also fail if a retired id is in the
+eval list or any version (`_vN`) of a held-out task is missing from the exclusion.
+
+### Generation (only where the inventory has gaps)
+
+- **G1, nothing for protocol or repairs.** Existing trajectories and repairs cover them.
+- **G2, task descriptions for repo code (light).** A cheap model writes a one-paragraph task for each unit of repo code (back-translation), e.g. gemma-4-26b at $0.022/$0.065 per M (cents in total).
+- **G3, new-task variety (optional for pilot 1): the Python oracle.** A model writes task + Python reference; the Python output is the expected stdout; an AILANG solution is kept **only if `ailang run` matches exactly**. Solver options for ~5k verified: gemma-4-31b ≈ $75 (58% yield), qwen3.8-27b ≈ $250 (94% yield, cost driven by reasoning tokens), frontier subscription lanes (quota; D-FT-1), or rig qwen3.8 ($0, GPU-days). **Always start with a ~50-run billed test.**
+- **G4, slim prompt.** A 2–4 KB prompt with version deltas and a stdlib signature index, registered as a **non-active** prompt version (never change `active`). Also a `none` variant for the no-prompt arm.
+
+### Pilot-1 mix (target ≈ 5k examples ≈ 5M tokens ≈ one overnight epoch on 12B)
+
+≈ 1k agent trajectories (pi schema, loss-masked) · ≈ 1k error-to-fix pairs · ≈ 3k language examples (repo code with G2 tasks, plus eval passes from training-split benchmarks). These are estimates; the 1k/5k/20k ablation in open question 3 decides the real number.
+
+## Weekend pilot plan (2026-11-06 → 2026-11-08, GPU granted by Mark)
+
+### Friday prep (CPU) — status at 2026-11-05 ~21:15Z: **READY** (serving path verified)
+
+- [x] D-FT-1 = YES (Mark, 2026-11-05).
+- [x] Held-out set `tools/finetune/heldout.json`; arm-A agent baseline in `tools/finetune/baseline_armA.json`.
+- [x] **Language data**: `tools/finetune/extract_lang.py` → 8,241 programs that compile today (repo 1,948 / 510k lines; eval 6,293 from 86 training benchmarks).
+- [x] **Trajectory data**: `tools/finetune/extract_traj.py` → 23,740 samples in pi's tool schema from ~7,860 passing episodes.
+  - By source: Claude Code 616 episodes · motoko 1,300 · opencode 5,907 · pi 41.
+  - 3,303 of the samples are **fix turns** (error → corrected code).
+  - Held-out guard applied; cloud chains (1,115, 397 substantive) **not pulled**: `chains chat --remote` returned no stages for the sampled chain. That is a follow-up.
+- [x] **G2 (task text for repo code)** replaced for pilot 1 by each module's header comment (free; 536 repo samples). Model back-translation is deferred.
+- [x] **Mix** `tools/finetune/build_mix.py` → `~/models/finetune/mix-pilot1`: 2,183 train / 52 valid, **4.79M tokens (1.62M target)**. Contents: 428 fix turns, 610 other trajectory turns, 604 eval programs, 536 repo modules.
+- [x] **Mask bug found and fixed** (`tools/finetune/train.py`). Gemma 4's template adds an empty thinking block to the generation prompt that a finished turn lacks, so stock `--mask-prompt` hid the first 4 target tokens (including `<|tool_call>`) on 1,497 / 2,193 samples. The wrapper trains on exactly the inference-time prompt plus the target. Gate `tools/finetune/check_mix.py` passes with 0 render errors; 5 over-length samples dropped.
+- [x] **Dry run** of `train.py` + `tools/finetune/pilot1.yaml` on the real mix: 4 steps OK, 21.9M trainable params (0.18%), 100–190 tok/s, so **one epoch ≈ 9–11 h**.
+- [x] **Agent mode honours `--prompt-version`** (it hard-coded `""`; fixed + tests, `12fadb210`). Frozen non-active prompts `ft-slim-v1` (2.4 KB traps card) and `ft-none`. Private binary `~/models/finetune/bin/ailang-ft` (v0.57.4-17) embeds both.
+- [x] Lanes `ollama-gemma4-12b-ft1` / `pi-gemma4-12b-ft1` and the pi model id; budget-cap fix live.
+- [x] **Runner** `tools/finetune/weekend_pilot.sh` (resumable stages: preflight → train → serve → B_std, C_std, B_agent, C_agent, A_std → summary) and `tools/finetune/summarize_pilot.py` (kill criterion). Every arm is guarded against the prompt loader's silent fallback to the full prompt.
+- [x] **Ollama serving path verified** (2026-11-05, toy adapter). After `mlx_lm.fuse --dequantize`, **dropping `audio_config` (strip level 1) is enough**: `ollama create -q mxfp8` imports it at 12 GB (`q8_0` is unsupported on this path; the supported types are int4/int8/nvfp4/mxfp4/mxfp8), it loads, and it generates AILANG with no teaching prompt. The runner now uses mxfp8, the same quantization as arm A. **Speed confound:** the imported fine-tune has no MTP draft model (the library `gemma4:12b-mxfp8` does), so it decoded at ~34 tok/s against ~46. Compare speed on **output tokens per pass** (draft-independent) and report wall time with this caveat.
+- [ ] Not in pilot 1 (follow-ups): error→fix pairs from the ~1,400 stale `++` programs; 681 stdlib-skew repo rejects; cloud-chain transcripts; Python-oracle task generation (G3).
+
+### Start procedure (Friday night, attended)
+
+```bash
+# 1. hold the GPU consumers (hold file + bootout; a bootout alone is undone by rig-watchdog in 60 s)
+mkdir -p ~/.ailang/state/launchd-hold
+for j in dev.ailang.os-rotation-filler dev.ailang.nightly-eval; do
+  echo "finetune pilot-1 weekend (Mark 2026-11-05); release Sunday night" > ~/.ailang/state/launchd-hold/$j
+  launchctl bootout gui/$(id -u)/$j 2>/dev/null || true
+done
+# 2. run (resumable; re-run the same command after any interruption)
+tools/finetune/weekend_pilot.sh            # log: ~/models/finetune/pilot1/weekend.log
+# 3. release (Sunday)
+rm ~/.ailang/state/launchd-hold/dev.ailang.{os-rotation-filler,nightly-eval}
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/dev.ailang.os-rotation-filler.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/dev.ailang.nightly-eval.plist
+```
+
+Daneel's intake defers while the lock is held (training does not yield; mail queues).
+
+### Friday night → Saturday (GPU)
+
+- [ ] **Take the GPU with the hold protocol** (hold file + bootout for `dev.ailang.os-rotation-filler` and `dev.ailang.nightly-eval`; a bootout alone is undone by rig-watchdog in 60 s). Training does not pass through eval-suite checkpoints, so **Daneel's intake defers while we hold the lock**; mail queues, and nothing is lost.
+- [ ] **12B LoRA pilot**: ~5k examples, 1 epoch first. LoRA on all linear layers in the top 16 blocks, `--mask-prompt`, checkpoint every ~10% of steps. Estimated ~6–13 h. Watch val loss; stop early on divergence.
+- [ ] Fuse, then `ollama import` (q8), then a smoke generation.
+
+### Saturday → Sunday (GPU): the A/B on the held-out 24
+
+| Arm | Model | Prompt | Modes |
+|---|---|---|---|
+| A | base 12B | full teaching prompt | agent ×1 **exists** (`tools/finetune/baseline_armA.json`: 11/24, 12 protocol misses). **Standard ×3 must be re-run** on the 24: Phase 0 covered only 30 runs on 22 of them, with 4 runs hitting the 300 s client timeout. Same binary and the 1800 s timeout as B/C (~2.5 h GPU) |
+| B | ft1 | `ft-slim-v1` | standard ×3, agent ×1 |
+| C | ft1 | `ft-none` | standard ×3, agent ×1 |
+
+Metrics: pass rate, `first_attempt_pass_rate`, **protocol-miss rate** (no tool call / template-only), **output tokens per pass**, **wall time per verified success**; compared with `ailang eval-paired` and placed with `eval-elo`. Run time ≈ 3–5 h standard + 5–8 h agent.
+
+**Kill criterion (unchanged):** arm B must at least match arm A on pass rate. Stretch goal: halve the protocol-miss rate and output tokens per pass.
+
+### Sunday (optional, if time and the result is positive)
+
+- [ ] 31B pilot on the same data (~2.5× the training time).
+- [ ] Batching re-measure at fine-tuned context length (5–15k instead of 33k).
+- [ ] **Release the holds** (remove the hold files, re-bootstrap the jobs), record results here, and route the failure clusters (rule 4d).
+
+## Pilot-2 direction (2026-11-06, attended with Mark, pilot-1 still running)
+
+**Reframe (Mark).** The model is for **agent mode**. Standard one-shot is a prompt problem, not
+the target. The language was designed so an AI can *discover* it (`check` errors that name the fix,
+`docs`, `examples`, `iface`). So the fine-tune should mainly instill **habits**, and memorise only the
+core syntax. Habits survive language changes; memorised stdlib names go stale.
+
+**Early pilot-1 signal (partial, standard mode only):** B_std 0/15, C_std 1/26.
+- Both arms hit their wall-clock caps. Six of the 15 B runs used the full 32k output tokens on
+  repetition loops.
+- The runs that ended normally mostly failed on invented stdlib names, wrong module names and
+  statement-style `x = …`.
+- `${expr}` interpolation is valid AILANG (verified with `ailang run`). An earlier read that called
+  it invalid was wrong.
+- The fused model in Ollama has **no sampling defaults**; the base ships temperature 1 / top_k 64 /
+  top_p 0.95. Fix that before reading anything into the loops.
+
+### Habits to instill (agent mode)
+
+1. **Write through the tool, never answer in chat.** This was base 12B's main failure: 12 of its
+   13 agent failures were protocol misses.
+2. **Verify every write.** Write → `ailang check` → read the error → apply the fix it names → run
+   → compare stdout with the spec.
+3. **Look up before guessing.** Unsure of a stdlib name or signature: `ailang docs std/X`,
+   `ailang iface`, `ailang builtins`. Unsure of a feature: `ailang examples search <concept>`.
+   Use targeted lookups, not a dump of the whole teaching prompt; every lookup grows the context,
+   and 12B decode drops to ~51 tok/s at 33k.
+4. **Trust the compiler over memory.** When memorised syntax conflicts with an error message,
+   follow the message. This is the habit that makes an older fine-tune survive a newer language.
+5. **Stop when verified.** Don't re-verify in a loop or keep generating after the program passes
+   (see the pilot-1 runaways).
+
+Anti-habits to keep out of the mix: filesystem search loops (`find /`, `ls -R`), grepping the repo
+for syntax, re-reading the full prompt each turn.
+
+### Data changes for pilot-2
+
+| Change | Why | Measured gap |
+|---|---|---|
+| Take `examples/` from the main checkout first, weight ×2–3, drop the ones that fail `check` | Canonical one-feature-per-file syntax; kept current by `verify-examples`; not benchmark solutions | 481 on disk, ~397 pass `check`, **25** reached the repo pool and **1** reached the pilot-1 mix. Cause (corrected 2026-11-06): `extract_lang.py` checked files by **absolute path**, so every path-named module failed MOD010. Fixed (relative paths, main-checkout copy first): 27 → 466 kept on examples alone. The repo corpus as a whole was hit too, so pilot-2 re-extracts. 63 new examples added (D-FT-5), stdlib coverage 400 → 469 of 496 functions. |
+| Up-weight trajectory turns that follow a lookup (`docs`, `examples`, `iface`, `builtins`) or a `check` error | Teaches habits 2–4 | 2,345 of 23,740 trajectory samples contain a lookup call; the mix builder doesn't favour them now |
+| **Staleness pairs:** old code + the current error + the fixed version | Teaches habit 4 directly | Eval rejects are mostly `++` on strings (≈1,400) plus the 681 stdlib-skew repo rejects; the error text already names the fix |
+| All 6,293 eval passes, lower per-benchmark repeat weight | More syntax signal (standard pairs still help agent writes) | Pilot-1 capped them at 10 per benchmark → 585 samples |
+| Give repo programs the `benchmark/solution` module name only where the task requires it | Pilot-1 outputs carried repo-style module names | — |
+
+Recipe: 2 epochs, LoRA on all layers, sampling defaults set at import. Add a **base 12B + slim
+prompt** arm, so "the fine-tune didn't help" can be told apart from "the slim prompt is too thin".
+
+### Examples coverage (feeds back into the language)
+
+The fine-tune only learns what `examples/` shows. Fine-tuning therefore doubles as a check on
+whether the examples cover the language. Measured 2026-11-06:
+- 50 of the 51 `std/` modules are imported by at least one example. `std/trace` has none.
+- 23 modules have only 1–2 examples: `cognition`, `crypto`, `datetime`, `debug`, `deflate`, `dom`,
+  `embedding`, `extension`, `game`, `gzip`, `html`, `iter`, `jwt`, `package`, `sharedindex`,
+  `sharedmem`, `tar`, `web`, `ai/streaming`, `simhash`, `terminal`, `yaml`, `smoke`.
+
+  Treat these as a docs backlog.
+- Coverage is by module import, not by function. A per-function coverage audit
+  (`ailang iface` × example call sites) is the next measurement.
+
+### Cadence: a weekend fine-tune per language release
+
+The pipeline is reproducible end to end: extract → mix → gate → train (~6.5 h for 2,183 samples on
+12B) → serve → held-out A/B. So a fine-tune can be rebuilt each weekend as the language moves.
+
+- **Naming:** `gemma4-12b-ailang-<lang-version>`; the adapter is 87 MB.
+- **Promotion gate:** the new fine-tune must match or beat the previous one on the held-out agent
+  arm, and must beat base + full prompt.
+- **Staleness check:** run the previous fine-tune against the new language. Habits 2–4 should make
+  that decay slow; if it doesn't, the habit mix is wrong.
+
+**D-FT-2 = YES (Mark, attended, 2026-11-06):** fine-tunes are published outside the rig,
+through an artifact bucket linked from the website. The terms-of-use question was raised before
+the decision. Confirm the base model's licence (Apache 2.0) against the model card at publish time.
+
+**Decisions recorded 2026-11-06 (Mark):**
+- **D-FT-3:** agent mode is the target; standard one-shot is a prompt issue.
+- **D-FT-4:** train habits; memorise only the core.
+- **D-FT-5:** expand `examples/` into a representative training set (also needed for the docs).
+- **D-FT-2:** publish (above).
+
+**Website:** a public research section, `docs/docs/finetuning/`, records measurements and
+decisions as content: overview, decision log, baseline, data, pilot-1, costs. Every future
+decision gets a row in `docs/docs/finetuning/decisions.md` when it is made.
+
+### Pilot-1 agent arms void; gate fixed; re-run (2026-11-06, D-FT-6, Mark)
+
+- **Measured:** a wire capture (`tools/finetune/trace_proxy.py` + `fake_upstream.py`, scripted
+  model, no GPU) showed the pi session-protocol gate armed in every eval. It refused
+  write/edit/mutating bash until `session_protocol_ack`.
+- **Effect on base 12B:** every Phase 0 pass acked first.
+- **Effect on the fine-tune:** it never acked, so B_agent and C_agent were 0/24 with every write
+  refused.
+- **Fixed in `5dc3ba42b`:** `Task.EvalRun` → harness-owned `AILANG_EVAL_RUN=1`, which is unset
+  for non-eval children and refused in ExtraEnv. The gate stands down on it.
+- **Re-run:** `tools/finetune/pilot1_rerun.sh` runs A/B/C agent with `~/models/finetune/bin/ailang-ft2`
+  (B first). Arm A pins prompt v0.16.11.
+- **Also found in the capture:**
+  - The teaching prompt rides in the **user** message (pi prepends it to the directive); the
+    system role is pi's own coding-assistant prompt.
+  - Pilot-1's training samples used a custom system prompt instead. Pilot-2 episodes must mirror
+    the captured layout.
+  - Every bash result carries an OpenTelemetry deprecation line; every `read` carries a
+    brain-context block.
+
+**Pilot-2 data progress (CPU, 2026-11-06):**
+- **Re-extraction:** `data-v1` with the relative-path fix. 2,733 repo programs (594k lines,
+  +40%) and 6,299 eval programs.
+- **Trajectory cleaning** (`tools/finetune/ft_clean.py`): 12,991 / 23,740 samples carried a stale
+  absolute workspace; 1,359 had one in the target.
+- **Staleness pairs** (`tools/finetune/stale_fix.py`): 1,828 programs passed when banked but fail
+  `ailang check` today.
+  - Causes: `++` on strings 1,259; `print` without an import 208; MOD010 166; parse errors ~170.
+  - gemma-4-31b fixes are kept only if the output is exact: 23/50 on the billed test, at a
+    median similarity of 0.98 (minimal edits).
+- **Agent-format episodes:** `tools/finetune/agenttask/` renders the exact eval task prompt for
+  synthesized episodes.
+
+### Pilot-2 build (2026-11-06; D-FT-8 thinking format, D-FT-9 lean lane)
+
+- **Lean pi profile** `--tool-policy lean` (`8faeacb73`): read/bash/edit/write, `pi.LeanSystemPrompt`,
+  no skills/extensions/context/templates. The prefix drops from 7,338 to ~910 tokens, verified end
+  to end against a scripted model.
+- **Episodes** (`synth_episodes.py` + `thoughts.py`): 3,011 verified episodes — 1,236 solve, 1,671
+  repair chains, 104 example.
+  - Habit steps: targeted `ailang docs --all-functions` lookups, `ailang examples search`, and a
+    check after each write.
+  - Thoughts are built from facts in the episode, never generated by another model.
+- **Mix** (`build_mix2.py` → `mix-pilot2`): 1,184 train / 50 valid episodes in the lean wire format,
+  thinking on.
+  - 4.6M tokens, of which 1.3M are trained.
+  - Median 3.7k tokens, p95 5.7k; 7 episodes over 12,288 tokens dropped rather than truncated.
+- **Trainer** (`train2.py`): whole-episode samples with the loss on every assistant turn. The masked
+  spans decode to thought → tool call → `<|tool_response>`.
+- **Recipe** (`pilot2.yaml`, provisional): all blocks, rank 32, 2 epochs, 12k sequence length.
+- **Runner** (`pilot2_run.sh`): a dry run gates the full run. Serving gets the base model's
+  sampling defaults.
+- **Arms** on the held-out 24, all on the lean profile:
+
+  | Arm | Model | Prompt |
+  |---|---|---|
+  | A | base | v0.16.12 |
+  | A2 | base | ft-slim-v1 |
+  | B | ft2 | ft-slim-v1 |
+  | C | ft2 | ft-none |
+
+- **Deferred:**
+  - Self-distillation (base 12B's own verified thinking), if fact-based thoughts prove too thin.
+  - The last ~100 Opus staleness repairs (the pass was stopped by a memory-pressure reaper at
+    826 of ~930; 773 fixed).
+
+### Pilot-2 dry run and launch (2026-11-06, weekend handed over by Mark)
+
+- **Dry run** (20 steps, all blocks, rank 32, 12k max sequence):
+  - **37 trained tok/s** (pilot-1: ~70/s at 16 blocks, rank 16), ~28 s per step.
+  - **Peak memory 30.4 GB.**
+  - Measured while other GPU work ran, so the speed is likely pessimistic.
+- **Estimate:** 2 epochs × 1.32M trained tokens ≈ 19.8 h, plus ~2 h of validation. That is within
+  the 20 h rule, so `pilot2.yaml` is unchanged.
+- **Launched 17:48Z,** queued behind pilot-1's C_agent2: train → serve → arms B, C, A, A2 (lean
+  profile, held-out 24).
+- **Fixed:** the pilot runners' prompt-version guard voided A_agent2. `non_agentic` rows bank no
+  `prompt_version`; they are now ignored rather than counted as a fallback (`068fd96e0`).
+  A_agent2 = **17/24** (19 runs on v0.16.11; 5 non_agentic).
+
+### ⚠️ Pilot-2 training: loss spike at step 80 (flagged 2026-11-06 19:47Z)
+
+Training started at 18:22Z.
+
+| Step | 20 | 40 | 60 | 80 | 100 | 120 | 140 |
+|---|---|---|---|---|---|---|---|
+| Train loss | — | 0.361 | 0.309 | **10.177** | 8.286 | 6.981 | 6.260 |
+
+- **The jump came just after warmup reached the peak learning rate** (1e-4 at ~30 optimizer
+  updates ≈ step 120 at grad-accum 4; the spike sits inside the end of warmup). Likely causes:
+  - LR 1e-4 with LoRA scale 20 on ALL blocks at rank 32 (pilot-1: 16 blocks, rank 16) is too hot;
+  - or a single bad, long sample.
+- **Not stopped:** the weekend rules forbid kill.
+- **Next signal:** step-200 validation (dry-run val was 0.592 → 0.386).
+  - If val stays far above 0.39, this run is spent.
+  - The re-run should use LR 2e-5 to 5e-5, or LoRA scale ~8, keeping all blocks.
+- **Pace:** ~1.65 steps/min (≈36 s/step). Training ETA is ~Sat 18:00Z, so the arms still fit
+  before Sunday night.
+
+**Update 21:47Z: DIVERGED.** Validation at step 200 is **6.762** (start 0.592), and train loss is flat
+at ~6.0 through step 360 of 2,368. The run is spent. Continuing means ~18 h of training plus four
+arms on a broken adapter, the rest of the weekend grant.
+- Not stopped (the weekend rules forbid kill; process kills are also blocked in-session). Mark has
+  been notified.
+- **Ready restart:** `tools/finetune/pilot2b.yaml` keeps the same mix, blocks and rank, with
+  lr 2e-5 (was 1e-4), LoRA scale 10 (was 20) and warmup 100.
+- To restart once the diverged process is stopped:
+  `cp tools/finetune/pilot2b.yaml tools/finetune/pilot2.yaml && nohup tools/finetune/pilot2_run.sh train serve eval_B eval_C eval_A eval_A2 summary > ~/models/finetune/pilot2.nohup 2>&1 &`
+
+### Pilot-2b restart (2026-11-07, attended approval from Mark)
+
+Mark approved stopping the diverged trainer and restarting with the cooled config, including
+stopping the replacement if it clearly diverges. Mark subsequently reaffirmed: "please babysit
+it and see it through - and do stop it if it needs to be again, we dont have to wait again like
+this time." **This supersedes the old check-in's no-kill instruction: stop a clearly diverged
+replacement immediately without requesting confirmation again.** At stop, train loss was 5.850 at step 1700;
+latest validation was 6.660 at step 1600, versus 0.592 initially. SIGTERM to trainer PID 94523
+made runner PID 78493 exit and release the lock. The complete old run, original config and
+trainer/runner snapshots are preserved at `~/models/finetune/pilot2-diverged-20261107T092059Z/`.
+
+`pilot2.yaml` now matches `pilot2b.yaml`: LR 2e-5, scale 10, warmup 100, cosine floor 1e-7;
+same data, all layers, rank 32 and 2368 steps. **Warmup is in optimizer updates** (about 400
+training steps with accumulation 4), not training iterations. This is a candidate correction,
+not a validated fix; training starts from the base with an empty adapter/state directory.
+
+A detached, run-specific supervisor (`~/models/finetune/pilot2/supervise.py`, PID 36354)
+started at 09:22Z. It uses the existing runner one stage at a time, initially waiting for
+Daneel's lock rather than interrupting it. Runner PID 36360 acquired the lock and started
+training at **09:23:50Z**; the new log confirms LR 2e-5, all layers and rank 32.
+Initial validation completed at 09:34Z: **0.592**, matching the original base starting point;
+this is a clean-start check, not yet evidence that the replacement has learned successfully.
+Status: `pilot2/supervisor-status.json`; events:
+`pilot2/supervisor.log`; training: `pilot2/train.log` (paths under `~/models/finetune/`).
+**Do not launch a second runner or use the old unconditional restart command while this
+supervisor is alive.** The old Claude check-in is quota-paused; supervision needs no model calls.
+
+- Check losses every 15 seconds. Stop on non-finite loss, validation exceeding both 2x initial
+  and 1.0, or two consecutive validation increases above 10%.
+- Serve only after successful training with final validation present and no worse than initial.
+- Run held-out arms **B, A, C, A2**, prioritizing the decisive B/A comparison; incomplete arms
+  cannot establish the promotion criterion. No cloud/API spend or prompt-version changes.
+- The cutoff remains **Sunday 2026-11-08 22:00 Copenhagen = 21:00Z**. No new stage starts then;
+  training/serving stops if still active; an already-running eval arm may finish.
+- On termination/completion, release only the unchanged weekend `os-rotation-filler` hold and
+  bootstrap that job; retain Mark's separate `nightly-eval` hold. Expected training is roughly
+  21–23 h; all four arms (up to 5 h each) are not guaranteed within the remaining window.
+
+## Pilot-2 results (2026-11-07/08; written up 2026-11-09)
+
+The run was restarted on `pilot2b.yaml` (lr 2e-5, LoRA scale 10, warmup 100) after the first attempt
+diverged; the stages then ran one at a time.
+- **Train:** 2026-11-07 09:23Z → 11-08 06:13Z. Val loss 0.191 (step 200) → **0.175** (step 2368),
+  minimum 0.169 at step 1200.
+- **Serve:** sampling PARAMETERs set.
+- **Arms:** lean profile, agent mode, held-out 24, each under a 5 h wall cap.
+
+| arm | pass | core | stretch | failures | median out-tok/pass | min/success |
+|---|---|---|---|---|---|---|
+| A_lean (base, v0.16.12) | 6/13 | 6/10 | 0/3 | 3 compile, 3 timeout, 1 runtime | 9,869 | 22 |
+| B_lean (ft2, ft-slim-v1) | 4/24 | 3/12 | 1/12 | 16 compile, 3 logic, 1 runtime | 3,097 | 67 |
+| C_lean (ft2, ft-none) | 4/19 | 2/9 | 2/10 | 11 compile, 2 logic, 1 runtime, 1 timeout | 2,185 | 59 |
+| A2_lean (base, ft-slim-v1) | not run (the weekend window closed) | | | | | |
+
+- **Paired** on the 10 benchmarks all three arms reached: A 5, B 1, C 2.
+- **The kill criterion fails** (B 0.17 < A 0.46).
+- **Findings:**
+  1. **Protocol fixed:** zero protocol misses, against pilot-1's 0/24 on format.
+  2. **~3× fewer output tokens per pass than base.**
+  3. **Accuracy limited by language knowledge:** compile errors dominate.
+- **Pilot-3 candidates (undecided):**
+  - ft + full teaching prompt (habits from training, language from the prompt);
+  - repo-program agent episodes for language breadth;
+  - base-12B self-distillation;
+  - complete all arms (lift the 5 h cap, or run A2).
+- **The weekend window closed** after C_lean (Sun 21:17Z). The os-rotation-filler hold was released
+  and the nightly-eval hold (09-27) kept.
+
+## Pilot-1 results (2026-11-06)
+
+Held-out 24 (`eval_results/finetune-pilot1/summary.md`):
+
+| arm | runs | pass | rate | core | stretch | protocol miss | median out-tokens/pass |
+|---|---|---|---|---|---|---|---|
+| A_std (base, full prompt) | 31 | 16 | 0.516 | 15/18 | 1/13 | 0 | 4,681 |
+| B_std (ft1, ft-slim-v1) | 15 | 0 | 0.0 | 0/8 | 0/7 | 0 | — |
+| C_std (ft1, ft-none) | 26 | 1 | 0.038 | 0/13 | 1/13 | 0 | 166 |
+| A_agent (base, gate armed) — VOID | 24 | 11 | 0.458 | 7/12 | 4/12 | 12 | 13,191 |
+| B_agent / C_agent (gate armed) — VOID | 24 / 24 | 0 / 0 | — | — | — | 24 / 24 | — |
+| **A_agent2 (base, gate fixed)** | 24 | **17** | **0.708** | **12/12** | 5/12 | 5 | 8,273 |
+| B_agent2 (ft1, ft-slim-v1) | 24 | 0 | 0.0 | 0/12 | 0/12 | 19 | — |
+| C_agent2 (ft1, ft-none) | 24 | 0 | 0.0 | 0/12 | 0/12 | 20 | — |
+
+**Verdict: the kill criterion fails in both modes.** Pilot-1 is negative, with known causes:
+- **Session gate (void arms):** fixed in `5dc3ba42b`.
+- **Thinking-format mismatch** (D-FT-8): explains the agent 0/24.
+- **Context mismatch** with pi's 7.3k default prefix (D-FT-9).
+- **Too-light training** (1 epoch, 16 blocks): explains standard mode.
+
+**A_agent2 (17/24, 71%) is the fair base-12B agent baseline.** The gate also depressed Phase 0's
+11/24. Pilot-2 (all blocks, served format, habit episodes) is the response.
 
 ## Serving cost reference (2026-11-05)
 
@@ -413,7 +843,7 @@ Does NOT touch parser, typechecker, codegen, runtime, ollama config, opencode co
 3. **Training corpus quality threshold**: what's the minimum number of PASS trajectories we need before fine-tuning makes sense vs improving the prompt? My intuition: ~5k SFT examples (~10 rotations × 500 ex/rotation) for a meaningful first run. Worth confirming with a small ablation (1k vs 5k vs 25k).
 4. **Continuous fine-tuning loop**: once we have a v1 fine-tune, do we re-train monthly with fresh rotation data? Or only when smoke-tier pass rate drops below a threshold? *(2026-11-05: before 1.0.0 the release cadence, 84 tags in 90 days, makes this the main cost. Re-train per minor version, or keep a slim delta prompt, as in R1.)*
 5. **(2026-11-05) Cloud chain store and pi coverage**: does the Firestore chain store (`ailang-multivac`) hold trajectories the local observatory lacks, and are pi sessions captured anywhere? Count both before sizing the extractor.
-6. **(2026-11-05) Licensing ruling**: may examples generated by closed models (Claude Haiku in chains, Claude Code transcripts) enter the training set? Default is no until ruled.
+6. **(2026-11-05) Licensing ruling: RESOLVED, D-FT-1 = yes** (Mark, 2026-11-05). Closed-model outputs may enter the training set for the internal model.
 
 ## What "done" looks like
 

@@ -20,10 +20,6 @@ func (p *pythonLang) FileExt() string     { return ".py" }
 
 func (p *pythonLang) SolutionFilename() string { return "solution.py" }
 
-func (p *pythonLang) PromptTemplatePath() string {
-	return "internal/eval_harness/templates/agent_prompt_python.txt"
-}
-
 func (p *pythonLang) TaskTemplatePath() string {
 	return "internal/eval_harness/templates/agent_task_python.txt"
 }

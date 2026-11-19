@@ -1,0 +1,23 @@
+-- examples/expected_fail/pure_with_effect_row.ail
+--
+-- M-PURE-ROW-AND-IFACE-PURITY (#1443) — `pure` means exactly `! {}`, so a
+-- `pure func` that also declares an effect row is a contradiction the type
+-- checker MUST reject. Before the fix this file passed `ailang check` and
+-- `ailang iface` reported `"pure": true` next to `"effects": ["IO"]`.
+--
+-- Expected error:
+--   Effect checking failed for function 'sneaky'
+--     The pure keyword contradicts the declared effect row ! {IO}.
+--     Suggested fix: remove pure to keep the effect row, or remove the
+--     effects and use ! {} with a pure body.
+--
+-- Repair: `export func sneaky(x: string) -> () ! {IO} { println(x) }`.
+-- The accepted spellings are in examples/runnable/pure_means_empty_row.ail.
+-- Pinned by TestExpectedFail_PureWithEffectRow (internal/pipeline).
+
+module examples/expected_fail/pure_with_effect_row
+import std/io (println)
+
+export pure func sneaky(x: string) -> () ! {IO} {
+  println(x)
+}

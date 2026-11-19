@@ -8,7 +8,8 @@
       ],
       "ctors": [
         "Set(Map[a,()])"
-      ]
+      ],
+      "tier": "stable"
     }
   ],
   "funcs": [
@@ -54,7 +55,8 @@
       "name": "difference",
       "type": "(Set[a],Set[a])-\u003eSet[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -86,7 +88,8 @@
       "name": "empty",
       "type": "(())-\u003eSet[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -118,7 +121,8 @@
       "name": "fromList",
       "type": "(list[a])-\u003eSet[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -162,7 +166,8 @@
       "name": "insert",
       "type": "(Set[a],a)-\u003eSet[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -206,7 +211,8 @@
       "name": "intersect",
       "type": "(Set[a],Set[a])-\u003eSet[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -250,7 +256,8 @@
       "name": "member",
       "type": "(Set[a],a)-\u003ebool",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -294,7 +301,8 @@
       "name": "remove",
       "type": "(Set[a],a)-\u003eSet[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -326,7 +334,8 @@
       "name": "size",
       "type": "(Set[a])-\u003eint",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -358,7 +367,8 @@
       "name": "toList",
       "type": "(Set[a])-\u003elist[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     },
     {
       "ifc": {
@@ -402,7 +412,8 @@
       "name": "union",
       "type": "(Set[a],Set[a])-\u003eSet[a]",
       "effects": [],
-      "pure": true
+      "pure": true,
+      "tier": "stable"
     }
   ],
   "schema": "ailang.iface/v2"

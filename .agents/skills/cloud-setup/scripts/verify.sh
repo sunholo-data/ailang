@@ -21,7 +21,7 @@ have="$(go env GOVERSION 2>/dev/null || echo none)"
 for t in make git gh jq gcloud node; do
   command -v "$t" >/dev/null 2>&1 && ok "$t" || bad "$t missing"
 done
-command -v z3 >/dev/null 2>&1 && ok "z3" || warn "z3 missing — ailang ai-check skips contract verification"
+command -v z3 >/dev/null 2>&1 && ok "z3" || warn "z3 missing — ailang ai-check exits 1 (outcome unavailable) on any file with contracts"
 
 echo "== ailang"
 if command -v ailang >/dev/null 2>&1; then

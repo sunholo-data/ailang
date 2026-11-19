@@ -50,6 +50,51 @@ check v1 scripts/test_mission_pi_run.sh refuse
 check fleet tools/pi-extensions/sandbox/index.ts allow
 check fleet tools/pi-extensions/ailang-exec/index.ts refuse
 check v1 tools/pi-extensions/sandbox/index.ts allow
+# D-FLEET-18: exact support paths; product loops retain access.
+check fleet tools/eval/motoko_connection_probe.sh allow # kills: drop path 1
+check fleet tools/eval/test_motoko_connection_probe.sh allow # kills: drop path 2
+check motoko tools/eval/motoko_connection_probe.sh allow # kills: move path 1 to _scope_is_harness
+check motoko tools/eval/test_motoko_connection_probe.sh allow # kills: move path 2 to _scope_is_harness
+check v1 tools/eval/motoko_connection_probe.sh allow # kills: move path 1 to _scope_is_harness
+check v1 tools/eval/test_motoko_connection_probe.sh allow # kills: move path 2 to _scope_is_harness
+check fleet tools/eval/qwen38-motoko-rerun.sh refuse # kills: widen to tools/eval/*
+check fleet tools/eval/motoko_connection_probe.sh.bak refuse # kills: path 1 suffix glob
+check fleet tools/eval/test_motoko_connection_probe.sh-x refuse # kills: path 2 suffix glob
+check fleet tools/eval/xmotoko_connection_probe.sh refuse # kills: path 1 basename-prefix glob
+check fleet tools/eval/xtest_motoko_connection_probe.sh refuse # kills: path 2 basename-prefix glob
+check fleet scripts/motoko_connection_probe.sh refuse # kills: path 1 directory wildcard
+check fleet scripts/test_motoko_connection_probe.sh refuse # kills: path 2 directory wildcard
+# D-FLEET-36: both mirrors, including nested files.
+for side in .claude .agents; do
+  check fleet "$side/skills/design-doc-creator/scripts/create_planned_doc.sh" allow # kills: delete this side's design-doc-creator pattern
+  check v1 "$side/skills/design-doc-creator/scripts/create_planned_doc.sh" allow # kills: move the pattern into _scope_is_harness
+done
+check fleet .claude/skills/design-doc-creator-x/SKILL.md refuse # kills: design-doc-creator/* -> design-doc-creator*
+check fleet .agents/skills/design-doc-creator-x/SKILL.md refuse # kills: design-doc-creator/* -> design-doc-creator*
+check fleet .claude/skills/use-ailang/SKILL.md refuse # kills: widen to .claude/skills/* (the D-FLEET-36 arm names one skill)
+# D-FLEET-38: every enumerated arm, product loops unaffected, no over-widening.
+D38=' benchmark-runner builtin-developer cloud-cascade-debug collaboration-hub coordinator-helper
+  eval-analyzer eval-gap-finder gemini-cli-helper github-issue-triage local-model-onboarding
+  local-ollama-eval parser-developer pr-monitor prompt-manager trace-debugger use-ailang '
+for skill in $D38; do
+  check fleet ".agents/skills/$skill/SKILL.md" allow # kills: delete this skill's arm
+  check v1 ".agents/skills/$skill/SKILL.md" allow # kills: move this skill's arm into _scope_is_harness
+  check fleet ".agents/skills/$skill-x/SKILL.md" refuse # kills: drop this arm's / boundary (<name>* admits siblings)
+done
+check fleet .agents/skills/model-manager/SKILL.md refuse # kills: replace the arms with .agents/skills/*
+check fleet .agents/skills/use-ailang-extra/SKILL.md refuse # kills: use-ailang/* -> use-ailang*
+check fleet .claude/skills/use-ailang/SKILL.md refuse # kills: also admit .claude/skills/use-ailang/*
+# Exactly 16: every other .agents skill in the tree stays refused (mission-*/sprint-* are
+# harness, design-doc-creator is D-FLEET-36). The count floor keeps the loop from passing empty.
+n=0
+for d in "$HERE"/../../.agents/skills/*/; do
+  skill=$(basename "$d")
+  case "$skill" in mission-*|sprint-*|design-doc-creator) continue ;; esac
+  case "$D38" in *[[:space:]]"$skill"[[:space:]]*) continue ;; esac
+  check fleet ".agents/skills/$skill/SKILL.md" refuse # kills: admit a 17th .agents skill
+  n=$((n+1))
+done
+[ "$n" -ge 10 ] || fail "only $n non-admitted .agents skills enumerated; the exactly-16 rows ran (nearly) empty"
 echo 'PASS scope verdicts: product loops refused on harness paths (incl. the fleet charter), fleet held to its allowlist, attended unaffected'
 
 # End to end: git must actually run the hook when core.hooksPath comes ONLY from env.

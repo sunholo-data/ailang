@@ -127,8 +127,14 @@ func emitYAML(v eval.Value, buf *strings.Builder, indent int) error {
 		return nil
 	}
 	if tagged.CtorName == "JNumber" && len(tagged.Fields) == 1 {
-		if f, ok := tagged.Fields[0].(*eval.FloatValue); ok && (math.IsNaN(f.Value) || math.IsInf(f.Value, 0)) {
-			return fmt.Errorf("non-finite number cannot be represented as JSON-compatible YAML")
+		if f, ok := tagged.Fields[0].(*eval.FloatValue); ok {
+			if math.IsNaN(f.Value) || math.IsInf(f.Value, 0) {
+				return fmt.Errorf("non-finite number cannot be represented as JSON-compatible YAML")
+			}
+			// Float syntax ("1.0", not "1"): YAML would read "1" as !!int,
+			// and the value would come back as JInt rather than JNumber.
+			buf.WriteString(eval.FormatFloatSyntax(f.Value))
+			return nil
 		}
 	}
 	if tagged.CtorName == "JString" && len(tagged.Fields) == 1 {

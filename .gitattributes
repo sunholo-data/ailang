@@ -5,6 +5,12 @@
 *.golden text eol=lf
 *.golden.* text eol=lf
 
+# Force LF for the Ollama wire-parity goldens (internal/testutil/wiregolden
+# compares them byte for byte; CRLF on a Windows checkout fails every one)
+internal/ai/ollama/testdata/wire/*.json text eol=lf
+internal/builtins/testdata/ollama_embed_wire.json text eol=lf
+internal/messaging/testdata/ollama_embedder_wire.json text eol=lf
+
 # Force LF for prompt files (prevents hash mismatches on Windows)
 prompts/*.md text eol=lf
 

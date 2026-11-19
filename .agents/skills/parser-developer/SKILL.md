@@ -65,7 +65,7 @@ Run parser with DEBUG_PARSER=1 to trace token positions.
 
 **Usage:**
 ```bash
-.Codex/skills/parser-developer/scripts/trace_parser.sh test.ail
+.claude/skills/parser-developer/scripts/trace_parser.sh test.ail
 ```
 
 **Output:**
@@ -79,7 +79,7 @@ List all AST node types in the codebase.
 
 **Usage:**
 ```bash
-.Codex/skills/parser-developer/scripts/check_ast_types.sh
+.claude/skills/parser-developer/scripts/check_ast_types.sh
 ```
 
 ### `scripts/find_api.sh <package> <symbol>`
@@ -87,7 +87,7 @@ Quick API discovery using make doc.
 
 **Usage:**
 ```bash
-.Codex/skills/parser-developer/scripts/find_api.sh internal/parser New
+.claude/skills/parser-developer/scripts/find_api.sh internal/parser New
 ```
 
 ## Common AST Types

@@ -37,6 +37,8 @@ func (fc *funcCompiler) compileStmt(s stmt.Stmt) error {
 		return fc.compileIfStmt(s)
 	case stmt.SwitchStmt:
 		return fc.compileSwitch(s)
+	case stmt.MatchFail:
+		return fc.compileMatchFail(s)
 	}
 	return fmt.Errorf("compiler: unsupported statement %T", s)
 }
@@ -55,6 +57,8 @@ func stmtLine(s stmt.Stmt) int {
 	case stmt.IfStmt:
 		return s.Line
 	case stmt.SwitchStmt:
+		return s.Line
+	case stmt.MatchFail:
 		return s.Line
 	}
 	return 0
@@ -103,6 +107,30 @@ func (fc *funcCompiler) compileExprStmt(s stmt.ExprStmt) error {
 	if err != nil {
 		return err
 	}
+	if !fc.isPinned(r) {
+		fc.regs.freeTemp(r)
+	}
+	return nil
+}
+
+// compileMatchFail emits the RT002 no-match trap (OpMatchFail). The scrutinee
+// register is read by the VM for the error's shape text only; Bx indexes the
+// match's "file:line:col", rendered here because a lambda's prototype carries
+// no file and LineInfo carries no column. "" when the position is unknown.
+func (fc *funcCompiler) compileMatchFail(s stmt.MatchFail) error {
+	r, err := fc.compileExpr(s.Scrutinee)
+	if err != nil {
+		return err
+	}
+	pos := ""
+	if s.Line > 0 {
+		pos = fmt.Sprintf("%s:%d:%d", s.File, s.Line, s.Col)
+	}
+	posIdx, err := fc.addLocalConst(bytecode.NewString(pos))
+	if err != nil {
+		return err
+	}
+	fc.emit(bytecode.EncodeABx(bytecode.OpMatchFail, r, posIdx))
 	if !fc.isPinned(r) {
 		fc.regs.freeTemp(r)
 	}

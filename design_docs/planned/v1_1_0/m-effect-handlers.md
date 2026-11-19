@@ -7,7 +7,7 @@
 **Dependencies**:
   - [M-R2 Effect Runtime](../../implemented/v0_2_0/m_r2_effect_system.md) (v0.2.0 ✅) — capability runtime
   - [M-CAPABILITY-BUDGETS](../../implemented/v0_6_2/m-capability-budgets.md) (v0.6.2 ✅) — budget plumbing
-  - [M-EFFECT-REFINEMENT](../v1_0_0/m-effect-refinement.md) — parameterised effects (related, not blocking)
+  - [M-EFFECT-REFINEMENT](m-effect-refinement.md) — parameterised effects (related, not blocking)
 
 **Commissioning context**: Comparison with [Koka](https://koka-lang.github.io/koka/doc/index.html) (May 2026). AILANG's effect system already cites Leijen 2014 (`docs/docs/reference/effects.md:13`), but ships only **built-in** effects (`IO`, `FS`, `Net`, `AI`, `Clock`, etc.). Koka's killer feature — and the one piece we don't have — is **user-definable handlers** that turn effects from "tracked" into "programmable."
 
@@ -476,7 +476,7 @@ Phase 2 (~28h) and Phase 3 (~25h) scheduled when Phase 1 ships green.
 - [design_docs/implemented/v0_6_2/m-bug-effect-checker-sprint-plan.md](../../implemented/v0_6_2/m-bug-effect-checker-sprint-plan.md) — effect-checker fixes (0.39)
 
 **Planned (check for overlap):**
-- [design_docs/planned/v1_0_0/m-effect-refinement.md](../v1_0_0/m-effect-refinement.md) — parameterised effects `!{E[mode=...]}` (0.35). **Coordinate:** handlers + parameterised effects together complete the Leijen 2014 picture.
+- [design_docs/planned/v1_1_0/m-effect-refinement.md](m-effect-refinement.md) — parameterised effects `!{E[mode=...]}` (0.35). **Coordinate:** handlers + parameterised effects together complete the Leijen 2014 picture.
 - [design_docs/planned/v0_13_0/m-exec-hierarchy-refactor.md](../v0_13_0/m-exec-hierarchy-refactor.md) — executor refactor (0.35)
 - [design_docs/planned/v0_13_0/m-dx-expected-fail-fixes.md](../v0_13_0/m-dx-expected-fail-fixes.md) — DX (0.37)
 

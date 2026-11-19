@@ -2,7 +2,7 @@
   "sprint_id": "M-CONTROLLER-CAPACITY-ADMISSION",
   "status": "executed",
   "design_doc": "design_docs/planned/m-controller-capacity-admission.md",
-  "sprint_plan": "design_docs/planned/sprint-plan-controller-capacity-admission.md",
+  "sprint_plan": "design_docs/implemented/v0_52_1/sprint-plan-controller-capacity-admission.md",
   "ticket": "driver:controller-fallback-skips-openrouter-ration-and-402-reads-as-crash",
   "mission": "fleet iteration 15 (P0, blocking=all; D-FLEET-11 = A, attended 2026-10-02)",
   "created": "2026-10-03",

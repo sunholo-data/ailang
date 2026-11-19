@@ -2,8 +2,8 @@
   "sprint_id": "M-TYPECHECK-ENV-SCAN-COST",
   "status": "completed",
   "created": "2026-11-03T08:46:21Z",
-  "design_doc": "design_docs/planned/v0_56_2/m-typecheck-env-scan-cost.md",
-  "sprint_plan": "design_docs/planned/v0_56_2/sprint-plan-m-typecheck-env-scan-cost.md",
+  "design_doc": "design_docs/implemented/v0_57_0/m-typecheck-env-scan-cost.md",
+  "sprint_plan": "design_docs/implemented/v0_57_0/sprint-plan-m-typecheck-env-scan-cost.md",
   "github_issues": [
     1958
   ],

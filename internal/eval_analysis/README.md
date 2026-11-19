@@ -45,7 +45,6 @@ The original `export_docusaurus.go` (980 lines) was split into 4 focused files:
 - **loader_chains.go** (174 lines) - Load results from observatory.db chains
   - `LoadResultsFromChain(chainID)` - Load all benchmark results from a chain
   - `LoadResultsFromLatestEvalChain()` - Find and load most recent eval_suite chain
-  - `LoadBaselineFromChain(chainID)` - Create Baseline for comparisons
   - `stageToResult()` - Convert chain stage + eval assessment to BenchmarkResult
 
 ### Data Types
@@ -101,14 +100,6 @@ os.WriteFile("docs/docs/benchmarks/performance.md", []byte(mdx), 0644)
 ```go
 baseline := LoadBaseline("eval_results/baselines/v0.4.0")
 newResults := LoadResults("eval_results/baselines/v0.4.1")
-report := Compare(baseline, newResults)
-```
-
-### Compare Chain-Based Baselines (v0.8.0+)
-
-```go
-baseline, _ := LoadBaselineFromChain("chain-id-1")
-newResults, _ := LoadResultsFromChain("chain-id-2")
 report := Compare(baseline, newResults)
 ```
 

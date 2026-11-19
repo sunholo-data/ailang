@@ -1,82 +1,34 @@
 /*
-Package server implements the HTTP server for the Collaboration Hub dashboard.
+Package server implements `ailang serve`: the dashboard, a headless HTTP API.
 
-# API Namespace Reference
+There is no UI (design_docs/planned/m-dashboard-headless-api.md). The server
+ingests telemetry, serves the reads the CLI and scripts make, takes secret
+approvals, and serves the docs site's benchmark data. That design doc holds the
+route table — every route, its auth class and the client that calls it — and
+routes.go registers exactly those routes.
 
-The dashboard exposes several API namespaces:
+  - Ingest: OTLP /v1/{traces,logs,metrics}; /api/hooks/claude and
+    /api/observatory/hooks (Claude Code); /api/exec/{sessions,events};
+    /api/coordinator/events; /api/telemetry.
+  - Reads (gated on a non-loopback bind, read_auth.go): /api/observatory/*
+    (internal/observatory/api.go), /api/chains/*, /api/inbox,
+    /api/controlplane/{exec-hierarchy,stats/breakdown},
+    /api/coordinator/tasks/{id}/events, and the /ws event stream.
+  - Secret approvals: /api/approvals, /api/approvals/{id}[/approve|/reject].
+  - Public: /health, /api/version, /benchmarks/*, and "/" (a one-line banner).
 
-## /api/observatory/* (Core Telemetry - 44 endpoints)
-
-Primary telemetry data: spans, traces, tasks, sessions, messages.
-Source: internal/observatory/api.go
-
-Key endpoints:
-  - GET  /api/observatory/spans           - List spans with filters
-  - GET  /api/observatory/spans/enriched  - Spans with display names from session_tools
-  - GET  /api/observatory/traces          - List traces
-  - GET  /api/observatory/sessions        - List Claude Code sessions
-  - GET  /api/observatory/sessions/{id}/tools - Session tool usage
-
-## /api/controlplane/* (Aggregated Analytics - 6 endpoints)
-
-Unified stats combining Observatory + Coordinator data.
-Source: internal/server/handlers_controlplane.go
-
-Key endpoints:
-  - GET  /api/controlplane/stats          - Unified statistics with filters (USE THIS)
-  - GET  /api/controlplane/stats/breakdown - Detailed breakdown by dimension
-  - GET  /api/controlplane/exec-hierarchy - Execution tree (Messages→Execs→Turns→Tools)
-  - GET  /api/controlplane/heatmap        - Activity heatmap
-
-## /api/coordinator/* (Task Execution - ~8 endpoints)
-
-Task management and approval workflow.
-Source: internal/server/handlers_coordinator.go
-
-Key endpoints:
-  - POST /api/coordinator/approve/{id}    - Approve a task
-  - POST /api/coordinator/reject/{id}     - Reject a task
-  - GET  /api/coordinator/events          - SSE stream of task events
-
-## Legacy Endpoints (Deprecated)
-
-  - GET  /api/statistics                  - DEPRECATED: Use /api/controlplane/stats
-  - GET  /api/observatory/metrics/summary - DEPRECATED: Use /api/controlplane/stats
-
-# Data Source Architecture
-
-All endpoints pull from the same underlying data stores:
-
-	┌─────────────────────────────────────────┐
-	│           SQLite Databases              │
-	├─────────────────────────────────────────┤
-	│ ~/.ailang/state/collaboration.db       │
-	│ ├── spans (OTEL telemetry)             │
-	│ ├── traces, tasks, sessions            │
-	│ └── session_tools, messages            │
-	├─────────────────────────────────────────┤
-	│ ~/.ailang/state/coordinator.db         │
-	│ └── tasks, approvals, agent_state      │
-	└─────────────────────────────────────────┘
-	              │
-	              ▼
-	   Same Go store methods used by:
-	   - API handlers (this package)
-	   - CLI commands (cmd/ailang/dashboard.go)
-	   - UI hooks (ui/src/features/controlplane/hooks/)
+Stores: the observatory backend (SQLite observatory.db locally, Firestore in
+the cloud), the messaging store (collaboration.db), and the coordinator store
+(coordinator.db) — the same Go store methods the CLI uses directly.
 */
 package server
 
 import (
 	"context"
-	"embed"
 	"fmt"
-	"io/fs"
 	"log"
 	"net/http"
-	"os/exec"
 	"strings"
-	"sync"
 	"time"
 
 	firebase "firebase.google.com/go/v4"
@@ -92,45 +44,16 @@ import (
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
 )
 
-//go:embed dist
-var uiAssets embed.FS
-
-// AgentProcess tracks a running agent process
-type AgentProcess struct {
-	InstanceID string    `json:"instance_id"`
-	PID        int       `json:"pid"`
-	StartedAt  time.Time `json:"started_at"`
-	cmd        *exec.Cmd
-}
-
-// Server represents the HTTP server for the collaboration hub
+// Server represents the dashboard's HTTP server
 type Server struct {
 	store    messaging.MessageStore
 	wsServer *websocket.Server
 	httpAddr string
 	dbPath   string
-	version  string // AILANG version for display in UI
+	version  string // AILANG version reported by /health and /api/version
 
-	// Process management for spawned agents
-	agentsMu sync.RWMutex
-	agents   map[string]*AgentProcess
-
-	// External telemetry from self-reporting processes (eval suite, etc.)
-	externalTelemetryMu sync.RWMutex
-	externalTelemetry   map[int]*websocket.TelemetryEvent // keyed by PID
-
-	// Process history for recently completed/failed processes
-	processHistoryMu sync.RWMutex
-	processHistory   []ProcessStats // Recent history, oldest first
-
-	// Track previously seen processes for history detection
-	previouslySeenMu sync.RWMutex
-	previouslySeen   map[int]ProcessStats // keyed by PID
-
-	// Coordinator integration for task metrics
-	resourceRegistry *coordinator.ResourceTrackerRegistry
-	coordStore       CoordinatorStore
-	coordStoreRaw    coordinator.Store // Full store interface for Control Plane queries
+	// Coordinator store: task events, exec sessions, chains
+	coordStoreRaw coordinator.Store
 
 	// Coordinator approval store for approval workflow
 	approvalStore CoordinatorApprovalStore
@@ -166,11 +89,18 @@ type Server struct {
 	accessControl    *auth.AccessControlCache
 	workspaceService *auth.WorkspaceService
 
-	// Hook authentication (simple bearer token for cloud deployments)
-	hookToken string
+	// Ingest authentication (ingest_auth.go): hookToken is AILANG_HUB_TOKEN
+	// (hook/exec/telemetry routes), otlpIngestToken AILANG_OTLP_INGEST_TOKEN
+	// (/v1/*), ingestAuthMode AILANG_INGEST_AUTH.
+	hookToken       string
+	otlpIngestToken string
+	ingestAuthMode  string
+	ingestWarnings  *ingestWarnLog
 
-	// WebSocket authentication (reuses COORDINATOR_API_KEY for external clients)
-	wsToken string
+	// apiKey is the dashboard's machine credential (COORDINATOR_API_KEY): the
+	// bearer token that authenticates /api/ reads and the ?token= external
+	// WebSocket clients present. read_auth.go.
+	apiKey string
 
 	// Cross-origin policy (origin.go): --cors-origin allowlist, built in NewServer
 	// and shared by the HTTP middleware and the WebSocket hub.
@@ -188,14 +118,11 @@ type Server struct {
 // If a messaging store was set via WithMessagingStore, dbPath is only used for display.
 func NewServer(dbPath string, httpAddr string, opts ...ServerOption) (*Server, error) {
 	s := &Server{
-		httpAddr:          httpAddr,
-		dbPath:            dbPath,
-		version:           "dev", // Default version
-		agents:            make(map[string]*AgentProcess),
-		externalTelemetry: make(map[int]*websocket.TelemetryEvent),
-		previouslySeen:    make(map[int]ProcessStats),
-		pollingCache:      newResponseCache(30 * time.Second),  // 30s TTL for dashboard polling endpoints (M-COST2: was 5s)
-		breakdownCache:    newResponseCache(300 * time.Second), // 300s TTL for expensive breakdown queries (M-COST2: was 60s)
+		httpAddr:       httpAddr,
+		dbPath:         dbPath,
+		version:        "dev",                               // Default version
+		pollingCache:   newResponseCache(30 * time.Second),  // 30s TTL for dashboard polling endpoints (M-COST2: was 5s)
+		breakdownCache: newResponseCache(300 * time.Second), // 300s TTL for expensive breakdown queries (M-COST2: was 60s)
 	}
 
 	// Apply options (may set s.store and s.obsBackend via WithBackends)
@@ -219,9 +146,9 @@ func NewServer(dbPath string, httpAddr string, opts ...ServerOption) (*Server, e
 
 	s.wsServer = websocket.NewServer(s.store)
 	s.wsServer.SetOriginPolicy(s.origins)
-	if s.wsToken != "" {
-		s.wsServer.SetToken(s.wsToken)
-		log.Printf("WebSocket token authentication enabled for /ws and /ws/observatory")
+	if s.apiKey != "" {
+		s.wsServer.SetToken(s.apiKey)
+		log.Printf("WebSocket token authentication enabled for /ws")
 	}
 
 	// Create Pub/Sub event subscriber if configured (cloud mode).
@@ -274,13 +201,14 @@ func WithHookToken(token string) ServerOption {
 	}
 }
 
-// WithWebSocketToken sets a token for authenticating external WebSocket connections.
-// When set, external clients must connect with ?token=<value> query parameter.
-// Same-origin browser connections (embedded React UI) are exempt.
-// When empty (default), no authentication is required (local mode).
-func WithWebSocketToken(token string) ServerOption {
+// WithAPIKey sets the dashboard's machine credential (COORDINATOR_API_KEY).
+// On a non-loopback bind every /api/ route outside the public allow-list, and
+// the WebSocket, require it as `Authorization: Bearer <key>` (the WebSocket
+// also takes ?token=<key>) unless the caller has a Firebase Viewer/Approver
+// session. With neither configured those routes fail closed (read_auth.go).
+func WithAPIKey(key string) ServerOption {
 	return func(s *Server) {
-		s.wsToken = token
+		s.apiKey = key
 	}
 }
 
@@ -299,20 +227,6 @@ func WithPubSubEvents(subscriber *pubsub.Subscriber, subName string) ServerOptio
 func WithApprovalPublisher(pub ApprovalPublisher) ServerOption {
 	return func(s *Server) {
 		s.approvalPublisher = pub
-	}
-}
-
-// WithResourceRegistry sets the resource tracker registry for coordinator metrics
-func WithResourceRegistry(registry *coordinator.ResourceTrackerRegistry) ServerOption {
-	return func(s *Server) {
-		s.resourceRegistry = registry
-	}
-}
-
-// WithCoordinatorStore sets the coordinator store for task statistics
-func WithCoordinatorStore(store CoordinatorStore) ServerOption {
-	return func(s *Server) {
-		s.coordStore = store
 	}
 }
 
@@ -337,7 +251,9 @@ func WithObservatoryDB(dbPath string) ServerOption {
 // The projectID should match your Firebase/GCP project (e.g., "ailang-dev").
 // Requires GOOGLE_APPLICATION_CREDENTIALS environment variable to be set with service account key.
 //
-// If initialization fails, the server will continue without authentication (all routes public).
+// If initialization fails, the server continues without Firebase sessions: on a
+// non-loopback bind the /api/ reads then accept only the COORDINATOR_API_KEY
+// bearer, and fail closed with neither (read_auth.go).
 // Check logs for "Firebase Auth initialized" to confirm successful setup.
 func WithFirebaseAuth(projectID string) ServerOption {
 	return func(s *Server) {
@@ -349,7 +265,7 @@ func WithFirebaseAuth(projectID string) ServerOption {
 		app, err := firebase.NewApp(ctx, config)
 		if err != nil {
 			log.Printf("Warning: Failed to initialize Firebase app: %v", err)
-			log.Printf("Dashboard will run without authentication (all routes public)")
+			log.Printf("Dashboard will run without Firebase sessions")
 			return
 		}
 
@@ -357,7 +273,7 @@ func WithFirebaseAuth(projectID string) ServerOption {
 		authClient, err := app.Auth(ctx)
 		if err != nil {
 			log.Printf("Warning: Failed to get Firebase Auth client: %v", err)
-			log.Printf("Dashboard will run without authentication (all routes public)")
+			log.Printf("Dashboard will run without Firebase sessions")
 			return
 		}
 
@@ -374,34 +290,14 @@ func WithFirebaseAuth(projectID string) ServerOption {
 		s.tokenVerifier = auth.NewTokenVerifier(authClient)
 		s.accessControl = auth.NewAccessControlCache(fsClient)
 
-		// Initialize workspace service with Firestore and config
-		workspacesConfig := coordinator.LoadWorkspacesConfig()
-		s.workspaceService = auth.NewWorkspaceService(fsClient, workspacesConfig)
+		// Initialize workspace service with Firestore
+		s.workspaceService = auth.NewWorkspaceService(fsClient)
 
 		log.Printf("Firebase Auth initialized for project: %s", projectID)
 		log.Printf("  - Token verification: enabled")
 		log.Printf("  - Firestore access control: enabled")
 		log.Printf("  - Workspace access control: enabled")
 	}
-}
-
-// CoordinatorStore provides coordinator statistics
-type CoordinatorStore interface {
-	GetCoordinatorStats() (*CoordinatorStats, error)
-	GetCostByProvider() (map[string]float64, error)
-}
-
-// CoordinatorStats holds coordinator daemon statistics
-type CoordinatorStats struct {
-	Running      bool
-	PID          int
-	Uptime       string
-	TasksRun     int
-	PendingTasks int
-	RunningTasks int
-	FailedTasks  int
-	TotalCost    float64
-	TotalTokens  int
 }
 
 // requireApprover wraps a handler to require Approver role if auth is enabled.
@@ -432,234 +328,27 @@ func (s *Server) Start() error {
 		log.Printf("Firebase authentication: ENABLED")
 		log.Printf("  - Approval routes require Approver role")
 	} else {
-		log.Printf("Firebase authentication: DISABLED (all routes public)")
+		log.Printf("Firebase authentication: DISABLED (API reads take the COORDINATOR_API_KEY bearer; see read_auth.go)")
 	}
 
-	// Setup HTTP routes
-	mux := http.NewServeMux()
-
-	// WebSocket endpoint. /ws/observatory is the SAME hub: the observatory
-	// hub it used to name (internal/observatory/websocket.go) had no producer
-	// anywhere in the tree — nothing ever called its Broadcast* methods — so
-	// the control-plane UI's socket only ever carried a heartbeat. One hub,
-	// one origin/token check (M-V1-SIMPLIFY-S3 M5).
-	mux.HandleFunc("/ws", s.wsServer.HandleWebSocket)
-	mux.HandleFunc("/ws/observatory", s.wsServer.HandleWebSocket)
-
-	// Public benchmark data (M-EVAL-DATA-HOSTING-DECOUPLE) — read-through from the
-	// private GCS bucket so the docs site fetches it at runtime, no site rebuild.
-	mux.HandleFunc("/benchmarks/", s.handleBenchmarks)
-
-	// REST API endpoints - Threads
-	mux.HandleFunc("/api/threads", s.handleThreads)
-	mux.HandleFunc("/api/threads/", s.handleThread)
-	// Workspaces endpoint uses OptionalAuth to get user role when authenticated
-	mux.Handle("/api/workspaces", s.OptionalAuthMiddleware(http.HandlerFunc(s.handleWorkspaces)))
-	mux.HandleFunc("/api/statistics", s.handleStatistics)
-
-	// REST API endpoints - Messages
-	// Thread messages. Was /api/messages, which the coordinator daemon ALSO
-	// serves — as inbox messages, with a different body and auth. Two
-	// servers, one path, two meanings; the thread one moves because it has
-	// no external callers (the UI never used it, the coordinator's is a
-	// documented REST contract). M-V1-SIMPLIFY-S3 M5.
-	mux.HandleFunc("/api/thread-messages", s.handleMessages)
-
-	// REST API endpoints - Approvals
-	mux.HandleFunc("/api/approvals", s.handleApprovals)
-	mux.HandleFunc("/api/approvals/", s.handleApproval)
-	mux.HandleFunc("/api/approvals/history", s.handleApprovalHistory)
-
-	// REST API endpoints - Agents
-	mux.HandleFunc("/api/agents", s.handleAgents)
-	mux.HandleFunc("/api/agents/", s.handleAgentStop)
-
-	// REST API endpoints - Monitoring & Metrics
-	mux.HandleFunc("/api/monitor", s.handleMonitor)
-	mux.HandleFunc("/api/telemetry", s.handleTelemetryReport)
-	mux.HandleFunc("/api/hierarchy", s.handleHierarchy)
-	mux.HandleFunc("/api/agent-stats/", s.handleAgentStats)
-	mux.HandleFunc("/api/metrics", s.handleMetrics)
-	mux.HandleFunc("/api/metrics/", s.handleMetricsScope)
-	mux.HandleFunc("/api/instances/history", s.handleInstanceHistory)
-	mux.HandleFunc("/api/coordinator/status", s.handleCoordinatorStatus)
-	mux.HandleFunc("/api/coordinator/pending", s.handleCoordinatorPendingApprovals)
-	// Protected routes - require Approver role when auth is enabled
-	mux.Handle("/api/coordinator/approve/", s.requireApprover(s.handleCoordinatorApproval))
-	mux.Handle("/api/coordinator/reject/", s.requireApprover(s.handleCoordinatorApproval))
-	mux.HandleFunc("/api/coordinator/events", s.handleCoordinatorTaskEvents)
-	mux.HandleFunc("/api/coordinator/tasks/", s.handleCoordinatorTaskEvents_)
-	mux.HandleFunc("/api/coordinator/running", s.handleCoordinatorRunningTasks)
-
-	// REST API endpoints - Tasks (cleaner alias)
-	// GET /api/tasks/{id}/events - same as /api/coordinator/tasks/{id}/events
-	mux.HandleFunc("/api/tasks/", s.handleTasksAlias)
-
-	// REST API endpoints - Exec Sessions (for Claude Code hooks and ailang exec)
-	mux.HandleFunc("/api/exec/sessions", s.handleExecSessions)
-	mux.HandleFunc("/api/exec/sessions/", s.handleExecSessionEvents)
-	mux.HandleFunc("/api/exec/events", s.handleExecEvents)
-
-	// REST API endpoints - Inbox Messages (unified messaging)
-	mux.HandleFunc("/api/inbox", s.handleInbox)
-	mux.HandleFunc("/api/inbox/", s.handleInboxMessage)
-	mux.HandleFunc("/api/inbox/ack-all", s.handleAckAll)
-	mux.HandleFunc("/api/inbox/cleanup", s.handleInboxCleanup)
-
-	// REST API endpoints - Utility
-	mux.HandleFunc("/api/select-folder", s.handleSelectFolder)
-	mux.HandleFunc("/api/telemetry/config", s.handleTelemetryConfig)
-
-	// REST API endpoints - Control Plane
-	// Expensive endpoints wrapped with 5s response cache to prevent CPU burn from dashboard polling
-	mux.HandleFunc("/api/controlplane/heatmap", s.pollingCache.withCache(s.handleControlPlaneHeatmap))
-	mux.HandleFunc("/api/controlplane/topology/observed", s.handleControlPlaneTopologyObserved)
-	mux.HandleFunc("/api/controlplane/topology", s.handleControlPlaneTopology)
-	mux.HandleFunc("/api/controlplane/stats", s.pollingCache.withCache(s.handleControlPlaneStats))
-	mux.HandleFunc("/api/controlplane/stats/breakdown", s.breakdownCache.withCache(s.handleControlPlaneStatsBreakdown))
-	mux.HandleFunc("/api/controlplane/exec-hierarchy", s.pollingCache.withCache(s.handleControlPlaneExecHierarchy))
-	mux.HandleFunc("/api/controlplane/span-hierarchy", s.pollingCache.withCache(s.handleSpanHierarchy))
-	mux.HandleFunc("/api/controlplane/task-hierarchy", s.pollingCache.withCache(s.handleTaskHierarchy))
-
-	// REST API endpoints - Analytics (Phase 2+)
-	mux.HandleFunc("/api/controlplane/task-evolution", s.handleTaskEvolution)
-	mux.HandleFunc("/api/controlplane/usage-timeseries", s.handleUsageTimeSeries)
-	mux.HandleFunc("/api/controlplane/token-distribution", s.handleTokenDistribution)
-	mux.HandleFunc("/api/controlplane/outliers", s.handleOutliersAnalysis)
-
-	// REST API endpoints - Budget (AILANG dogfooding)
-	mux.HandleFunc("/api/budget/status", s.handleBudgetStatus)
-	mux.HandleFunc("/api/budget/check", s.handleBudgetCheck)
-
-	// REST API endpoints - Claude Code Conversation History (JSONL-based)
-	mux.HandleFunc("/api/claude-history/projects", s.handleClaudeHistoryProjects)
-	mux.HandleFunc("/api/claude-history/sessions", s.handleClaudeHistorySessions)
-	mux.HandleFunc("/api/claude-history/session/", s.handleClaudeHistorySession)
-	mux.HandleFunc("/api/claude-history/by-span/", s.handleClaudeHistoryBySpan)
-	mux.HandleFunc("/api/claude-history/search", s.handleClaudeHistorySearch)
-
-	// REST API endpoints - Claude Code Conversation History (DB-backed, M-CHAT-HISTORY-DB)
-	mux.HandleFunc("/api/claude-history/sync", s.handleClaudeHistorySync)
-	mux.HandleFunc("/api/claude-history/sync-status", s.handleClaudeHistorySyncStatus)
-	mux.HandleFunc("/api/claude-history/db/session/", s.handleClaudeHistoryDBSession)
-	mux.HandleFunc("/api/claude-history/db/by-span/", s.handleClaudeHistoryDBBySpan)
-
-	// Observatory API endpoints (if configured)
-	if s.obsAPI != nil {
-		s.obsAPI.RegisterRoutes(mux)
-		log.Printf("Observatory API registered at /api/observatory/*")
-	}
-	// Observatory hooks endpoint for Claude Code telemetry
-	if s.obsBackend != nil {
-		mux.HandleFunc("/api/observatory/hooks", s.handleObservatoryHooks)
-		log.Printf("Observatory hooks endpoint registered at /api/observatory/hooks")
-	}
-	// Claude Code HTTP hooks endpoint (native hook protocol, replaces command hooks)
-	if s.obsBackend != nil {
-		mux.HandleFunc("/api/hooks/claude", s.handleClaudeHooks)
-		log.Printf("Claude hooks endpoint registered at /api/hooks/claude")
-	}
-	// Execution chains API endpoints (M-CHAINS-SIMPLIFY)
-	if s.obsBackend != nil {
-		s.registerChainRoutes(mux)
-		log.Printf("Chains API registered at /api/chains/*")
-	}
-	// OTLP receiver for standard trace/log/metrics ingestion
-	if s.obsBackend != nil {
-		otlpReceiver := observatory.NewOTLPReceiver(s.obsBackend)
-		otlpReceiver.RegisterRoutes(mux)
-		log.Printf("OTLP receiver registered at /v1/traces, /v1/logs, /v1/metrics")
-	}
-
-	// Health check and version
-	mux.HandleFunc("/health", s.handleHealth)
-	mux.HandleFunc("/api/version", s.handleVersion)
-
-	// Auth endpoint (returns user info if authenticated)
-	if s.tokenVerifier != nil {
-		mux.Handle("/api/auth/whoami", s.AuthMiddleware(http.HandlerFunc(WhoAmIHandler)))
-	}
-
-	// Serve static UI files from embedded dist folder
-	distFS, err := fs.Sub(uiAssets, "dist")
+	// Routes behind the read-auth gate (read_auth.go) and the origin policy.
+	handler, _, err := s.httpHandler()
 	if err != nil {
-		return fmt.Errorf("failed to load UI assets: %w", err)
+		return err
 	}
-	fileServer := http.FileServer(http.FS(distFS))
-	mux.Handle("/", fileServer)
-
-	// CORS middleware
-	handler := s.corsMiddleware(mux)
 
 	// OpenTelemetry HTTP instrumentation (if enabled via OTEL_EXPORTER_OTLP_ENDPOINT)
 	if telemetry.IsEnabled() {
 		log.Printf("OpenTelemetry instrumentation enabled")
 		handler = otelhttp.NewHandler(handler, "ailang-server",
-			otelhttp.WithFilter(func(r *http.Request) bool {
-				path := r.URL.Path
-				// Skip tracing for:
-				// - Health checks
-				// - WebSocket endpoints
-				// - Static assets (JS, CSS, images, fonts)
-				// - Root path (just serves UI)
-				// - OTLP receiver endpoints (would cause infinite loop)
-				// - High-frequency polling endpoints (create noise)
-				// - Observatory API (tracing our own traces is confusing)
-				if path == "/health" || path == "/" {
-					return false
-				}
-				if path == "/ws" || path == "/ws/observatory" {
-					return false
-				}
-				if strings.HasPrefix(path, "/assets/") {
-					return false
-				}
-				if strings.HasPrefix(path, "/v1/") { // OTLP endpoints
-					return false
-				}
-				// Skip high-frequency polling endpoints (UI polls these constantly)
-				// M-DB-CLEANUP: These endpoints generate 97% of ailang-server span noise
-				if path == "/api/approvals" || path == "/api/hierarchy" ||
-					path == "/api/statistics" || path == "/api/version" ||
-					path == "/api/monitor" || path == "/api/telemetry/config" ||
-					path == "/api/inbox" {
-					return false
-				}
-				// Skip control plane polling endpoints (dashboard polls these every few seconds)
-				// M-DB-CLEANUP: /api/controlplane/* generated 140K+ spans
-				if strings.HasPrefix(path, "/api/controlplane/") {
-					return false
-				}
-				// Skip coordinator events SSE endpoint (long-lived connection, creates noise)
-				if path == "/api/coordinator/events" {
-					return false
-				}
-				// Skip budget status polling
-				if strings.HasPrefix(path, "/api/budget/") {
-					return false
-				}
-				// Skip observatory API (tracing our own traces would be confusing)
-				if strings.HasPrefix(path, "/api/observatory/") {
-					return false
-				}
-				// Skip metrics polling
-				if strings.HasPrefix(path, "/api/metrics") {
-					return false
-				}
-				// Skip common static files
-				if strings.HasSuffix(path, ".png") || strings.HasSuffix(path, ".ico") ||
-					strings.HasSuffix(path, ".svg") || strings.HasSuffix(path, ".woff2") {
-					return false
-				}
-				return true
-			}),
+			otelhttp.WithFilter(func(r *http.Request) bool { return shouldTraceRequest(r.URL.Path) }),
 		)
 	}
 
 	log.Printf("Starting HTTP server on %s", s.httpAddr)
 	log.Printf("WebSocket endpoint: ws://%s/ws", s.httpAddr)
 	log.Printf("REST API: http://%s/api/", s.httpAddr)
-	log.Printf("UI: http://%s/", s.httpAddr)
+	log.Printf("Health: http://%s/health (no UI: headless API)", s.httpAddr)
 
 	return http.ListenAndServe(s.httpAddr, handler)
 }
@@ -676,4 +365,28 @@ func (s *Server) Close() error {
 		}
 	}
 	return s.store.Close()
+}
+
+// shouldTraceRequest decides which requests the server's own OpenTelemetry
+// instrumentation records. Skipped: health and the banner, the WebSocket,
+// OTLP ingest (tracing it would loop), the high-frequency polling paths
+// (M-DB-CLEANUP: these were 97% of ailang-server span noise), the observatory
+// API (tracing our own trace reads is confusing) and static-file probes. The
+// same rules as before the UI was removed, minus the paths of deleted routes.
+func shouldTraceRequest(path string) bool {
+	switch path {
+	case "/", "/health", "/ws", "/api/approvals", "/api/version", "/api/inbox", "/api/coordinator/events":
+		return false
+	}
+	for _, prefix := range []string{"/v1/", "/api/observatory/", "/api/controlplane/"} {
+		if strings.HasPrefix(path, prefix) {
+			return false
+		}
+	}
+	for _, suffix := range []string{".png", ".ico", ".svg", ".woff2"} {
+		if strings.HasSuffix(path, suffix) {
+			return false
+		}
+	}
+	return true
 }

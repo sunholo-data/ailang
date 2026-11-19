@@ -74,6 +74,7 @@ include make/code-health.mk
 include make/claude.mk
 include make/ci.mk
 include make/coord.mk
+include make/downstream.mk
 
 # =============================================================================
 # HELP SYSTEM
@@ -166,7 +167,7 @@ help-health: ## Show code health targets
 	@echo ""
 	@echo "$(BOLD)Code Health & Quality Targets$(RESET)"
 	@echo "$(LINE)"
-	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' make/code-health.mk | \
+	@grep -h -E '^[a-zA-Z_-]+:.*?## .*$$' make/code-health.mk make/downstream.mk | \
 		awk 'BEGIN {FS = ":.*?## "}; {printf "  $(CYAN)%-24s$(RESET) %s\n", $$1, $$2}'
 
 help-claude: ## Show Claude CLI targets
@@ -202,19 +203,6 @@ help-release: ## Show release workflow
 	@echo "  - Use 'release-manager' skill for full release workflow"
 	@echo "  - Use 'post-release' skill to update dashboard"
 	@echo ""
-
-# =============================================================================
-# CODEGEN HARNESS
-# =============================================================================
-
-## test-codegen: Compile multi-module harness to Go and run go build (M-CODEGEN-SUSTAINABILITY)
-test-codegen: build
-	@echo "$(BOLD)Running codegen harness test...$(RESET)"
-	@rm -rf tests/codegen-harness/gen
-	@./bin/ailang compile -emit-go -out tests/codegen-harness/gen -relax-modules tests/codegen-harness/*.ail
-	@cd tests/codegen-harness/gen && go build ./...
-	@echo "$(GREEN)✓ Codegen harness: compile + go build passed$(RESET)"
-	@rm -rf tests/codegen-harness/gen
 
 # =============================================================================
 # MICRO-RAG (μRAG) CORPUS INDEXER
@@ -356,7 +344,7 @@ mcp-local: build snapshot
 	@echo "$(BOLD)Starting MCP server on http://localhost:8080/mcp/ ...$(RESET)"
 	@MCP_SNAPSHOT_DIR=$$(pwd)/build/snapshot AILANG_RELAX_MODULES=1 \
 		./bin/ailang serve-api --mcp-http --routes-only \
-		--caps FS,Env --port 8080 ./mcp_tools/
+		--caps FS,Env,Net --port 8080 ./mcp_tools/
 
 # =============================================================================
 # DEFAULT TARGET

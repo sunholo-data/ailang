@@ -9,15 +9,6 @@ import (
 	"github.com/sunholo-data/ailang/internal/typedast"
 )
 
-// getMapKeys returns the keys of a map for debugging
-func getMapKeys(m map[uint64][]Type) []uint64 {
-	keys := make([]uint64, 0, len(m))
-	for k := range m {
-		keys = append(keys, k)
-	}
-	return keys
-}
-
 // inferLambda infers type of lambda with linear capture analysis
 func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) (*typedast.TypedLambda, *TypeEnv, error) {
 	// Fresh type variables for parameters
@@ -38,7 +29,9 @@ func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) 
 		var paramType Type
 
 		// Use annotation if available, otherwise fresh type variable
-		if annotations != nil && i < len(annotations) && annotations[i] != nil {
+		if annotations != nil && i < len(annotations) && annotations[i] != nil && tc.literalLambdas[lam.ID()] {
+			paramType = tc.literalParamType(ctx, lam, param, annotations[i]) // #2238
+		} else if annotations != nil && i < len(annotations) && annotations[i] != nil {
 			// Use the annotated type directly - this ensures float params stay float
 			paramType = annotations[i]
 			if os.Getenv("DEBUG_PARAM_ANNOTS") != "" {
@@ -106,10 +99,10 @@ func (tc *CoreTypeChecker) inferLambda(ctx *InferenceContext, lam *core.Lambda) 
 
 	// Check for explicit effect annotation from AST
 	// M-CAPABILITY-BUDGETS: First check for full annotations with budgets
-	if effectAnnots := tc.effectAnnotsFull[lam.ID()]; len(effectAnnots) > 0 {
-		// Use full annotations with budgets
+	if effectAnnots, explicit := tc.effectAnnotsFull[lam.ID()]; explicit {
+		// Use full annotations with budgets (an empty entry is a literal's `! {}`)
 		var err error
-		funcEffectRow, err = ElaborateEffectRowWithBudgets(effectAnnots)
+		funcEffectRow, err = declaredEffectRow(effectAnnots)
 		if err != nil {
 			return nil, oldEnv, fmt.Errorf("invalid effect annotation at %s: %w", lam.Span(), err)
 		}
@@ -204,7 +197,7 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 	// silently breaking downstream pattern-match cross-checks. See the
 	// design doc m-scheme-import-preserve-adt-head.md and bug report
 	// msg_20260520_111521_44c38751.
-	sub, unsolvedConstraints, err := ctx.SolveConstraints()
+	sub, unsolvedConstraints, err := ctx.solveConstraintsAt(let) // #2239: settles accesses at the declaration
 	if err != nil {
 		return nil, ctx.env, err
 	}
@@ -212,9 +205,10 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		valueType = ApplySubstitution(sub, valueType)
 		valueNode = tc.applySubstitutionToTyped(sub, valueNode)
 	}
+	guardTypeSize(valueType, letBindingWhat(let.Name), let.Span())
 
 	// Apply defaulting at this generalization boundary
-	defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguities(valueType, unsolvedConstraints)
+	defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguitiesKeeping(valueType, unsolvedConstraints, ctx.envOwnedVars(sub, ctx.env), tc.declResultOnlyVars(ctx, let, sub, unsolvedConstraints, valueType))
 	if err != nil {
 		return nil, ctx.env, fmt.Errorf("defaulting failed for let binding %s: %w", let.Name, err)
 	}
@@ -242,9 +236,13 @@ func (tc *CoreTypeChecker) inferLet(ctx *InferenceContext, let *core.Let) (*type
 		defaultedType = tc.closeDeclaredEffectRowForBinding(let.Value.ID(), defaultedType)
 		defaultedType = ctx.closeOpenedTailsForGeneralization(sub, defaultedType, ctx.env, ctx.baseEnv) // #1958
 
-		binding = tc.generalizeWithConstraints(defaultedType, valueEffects, nonGroundConstraints, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints))
+		scheme := tc.generalizeCarrying(ctx, defaultingSub, defaultedType, valueEffects, nonGroundConstraints, sub, ctx.env, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, let, nonGroundConstraints, defaultedType, sub)) // #2239; rigidScheme: #2273
+		if binding, err = tc.rigidScheme(ctx, let.Value, scheme, nonGroundConstraints, sub, defaultingSub); err != nil {
+			return nil, ctx.env, err
+		}
+		tc.noteNumericDecl(ctx, let, let.Name, binding) // #2378
 	} else {
-		binding = defaultedType
+		binding = tc.singleValue(ctx, let, sub, defaultedType) // #2378: an expansive value is one value
 	}
 
 	// Extend environment
@@ -309,6 +307,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 	}
 	popSelfTypes := ctx.pushSelfTypes(selfTypes)
 	defer popSelfTypes()
+	defer ctx.pushRigidGroup(letrec)() // #2273
 	var allValueNodes []typedast.TypedNode
 	var allValueTypes []Type
 	for _, binding := range letrec.Bindings {
@@ -334,7 +333,7 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 	// substitution to every binding's valueType and typed node before
 	// defaulting + generalization. See sibling fix in inferLet above and
 	// the design doc m-scheme-import-preserve-adt-head.md for context.
-	sub, unsolvedConstraints, err := ctx.SolveConstraints()
+	sub, unsolvedConstraints, err := ctx.solveConstraintsAt(letrec) // #2239: settles accesses at the declaration
 	if err != nil {
 		return nil, oldEnv, err
 	}
@@ -345,18 +344,20 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		}
 	}
 
-	// Apply defaulting to the entire mutual block (once per SCC)
+	// Apply defaulting to the entire mutual block (once per SCC). Each binding's
+	// defaulting also reaches its carried field accesses, as in inferLet (#2239).
+	defaulting := make([]Substitution, len(letrec.Bindings))
 	for i, binding := range letrec.Bindings {
 		valueType := allValueTypes[i]
 		valueNode := allValueNodes[i]
 
 		// Apply defaulting at this generalization boundary
-		defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguities(valueType, unsolvedConstraints)
+		defaultingSub, defaultedType, defaultedConstraints, err := tc.defaultAmbiguitiesKeeping(valueType, unsolvedConstraints, ctx.envOwnedVars(sub, oldEnv), tc.declResultOnlyVars(ctx, letrec, sub, unsolvedConstraints, allValueTypes...))
 		if err != nil {
 			return nil, oldEnv, fmt.Errorf("defaulting failed for letrec binding %s: %w", binding.Name, err)
 		}
 
-		// Apply defaulting substitution everywhere if any defaults were applied
+		defaulting[i] = defaultingSub
 		if len(defaultingSub) > 0 {
 			defaultedType, _, valueNode, _ = tc.ApplySubstEverywhere(
 				defaultingSub, defaultedType, defaultedConstraints, valueNode, nil, binding.Name)
@@ -403,12 +404,14 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 		valueType = tc.closeDeclaredEffectRowForBinding(binding.Value.ID(), valueType)
 		valueType = ctx.closeOpenedTailsForGeneralization(reSub, valueType, oldEnv, ctx.baseEnv) // #1958
 
-		// Generalize for recursion. Use the *outer* env (oldEnv) as currentEnv:
-		// the recursive bindings' own fresh vars live only in newEnv, so they
-		// remain generalizable, while any enclosing lambda params (free in
-		// oldEnv but not in the decl's base env) are correctly withheld.
-		scheme := tc.generalizeWithConstraints(valueType, getEffectRow(valueNode), nonGroundConstraints, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, letrec, nonGroundConstraints))
-
+		// Generalize for recursion with the *outer* env (oldEnv) as currentEnv:
+		// the bindings' own fresh vars live only in newEnv, so they remain
+		// generalizable; enclosing lambda params (free in oldEnv) are withheld.
+		scheme, err := tc.rigidScheme(ctx, binding.Value, tc.generalizeCarrying(ctx, defaulting[i], valueType, getEffectRow(valueNode), nonGroundConstraints, reSub, oldEnv, ctx.baseEnvFreeVars, ctx.baseEnv, tc.literalWithhold(ctx, letrec, nonGroundConstraints, valueType, composeSubstitutions(reSub, sub))), nonGroundConstraints, sub, defaulting[i], reSub) // #2239, #2273
+		if err != nil {
+			return nil, oldEnv, err
+		}
+		tc.noteNumericDecl(ctx, letrec, binding.Name, scheme) // #2378
 		typedBindings[i] = typedast.TypedRecBinding{
 			Name:   binding.Name,
 			Scheme: scheme,
@@ -479,10 +482,13 @@ func (tc *CoreTypeChecker) inferLetRec(ctx *InferenceContext, letrec *core.LetRe
 // in a binding pushed above baseEnv by this declaration. Without it a parameter
 // typed with the declaration's own `a` was generalized whenever a leaked `a`
 // also sat in the base env, re-opening exactly the ANF `[b]` hole above.
-func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, constraints []ClassConstraint, currentEnv *TypeEnv, baseEnvFreeVars map[string]bool, baseEnv *TypeEnv, literalWithhold map[string]bool) *Scheme {
-	// Find free type variables in the type being generalized.
-	typeFreeVars := make(map[string]bool)
-	collectFreeVars(typ, typeFreeVars)
+func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, constraints []ClassConstraint, sub Substitution, currentEnv *TypeEnv, baseEnvFreeVars map[string]bool, baseEnv *TypeEnv, literalWithhold map[string]bool) *Scheme {
+	// Find free type variables in the type being generalized, in first-appearance
+	// order. M-V1-TYVAR-HYGIENE (#2157): this walk descends into open records and
+	// record rows, and its order is deterministic (the old map range fed
+	// Instantiate a different order every run, #2076). The environment side below
+	// is built from the same traversal (free_vars.go).
+	typeFreeVars, typeFreeRecordRows := generalizableVars(typ)
 
 	// Compute the vars introduced by binders inside this declaration:
 	// free in the current env but NOT in the declaration's base env.
@@ -499,20 +505,6 @@ func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, con
 		}
 	}
 
-	generalizedTypeVars := []string{}
-	for v := range typeFreeVars {
-		if literalWithhold[v] {
-			// Constrained by an integer literal (see literalWithhold) —
-			// stays monomorphic so its use sites decide the literal's type.
-			continue
-		}
-		if withhold[v] {
-			// Bound by an enclosing binder in this decl — not generalizable.
-			continue
-		}
-		generalizedTypeVars = append(generalizedTypeVars, v)
-	}
-
 	// M-EFFECT-ROW-SHOW-INTERP (#386) Section B: generalize every free EffectRow
 	// variable of the WHOLE type (outer + nested callback effect rows, rows
 	// nested in collections/tuples/records/ADTs) that is NOT free in the
@@ -521,15 +513,50 @@ func (tc *CoreTypeChecker) generalizeWithConstraints(typ Type, effects *Row, con
 	// mapE-shaped scheme left its callback/outer row var `e` unquantified, so
 	// Scheme.InstantiateWithConstraints could not freshen it and separate
 	// imported uses shared one row identity — the second half of #386.
-	typeFreeRowVars := freeEffectRowVarsInType(typ)
 	var envFreeRowVars map[string]bool
 	if currentEnv != nil {
 		envFreeRowVars = currentEnv.effectRowsAbove(baseEnv)
 	}
+	// Record rows owned by an enclosing binder (the tail of a `{name: a, ...}`
+	// parameter) are withheld like type variables (PR #2209 review).
+	recordRowWithhold := currentEnv.recordRowsToWithhold(baseEnv)
+
+	// The side condition is "not free in the SUBSTITUTED environment". The
+	// environment still holds a lambda parameter as its unsolved variable α
+	// while sub already says α ↦ {name: β | r}; β and r belong to the parameter
+	// just as much as α does. Without this, `\p. let g = \u. {name: p.name} in …`
+	// generalised β and let g's result be used at two field types (PR #2209
+	// review; the closed-record form predates that PR).
+	ownedUnderSub := varsUnderSubstitution(sub, withhold, envFreeRowVars, recordRowWithhold)
+
+	generalizedTypeVars := []string{}
+	for _, v := range typeFreeVars {
+		if literalWithhold[v] {
+			// Constrained by an integer literal (see literalWithhold) —
+			// stays monomorphic so its use sites decide the literal's type.
+			continue
+		}
+		if withhold[v] || ownedUnderSub[v] {
+			// Bound by an enclosing binder in this decl — not generalizable.
+			continue
+		}
+		generalizedTypeVars = append(generalizedTypeVars, v)
+	}
+
 	generalizedRowVars := []string{}
-	for v := range typeFreeRowVars {
-		if envFreeRowVars[v] {
+	for v := range freeEffectRowVarsInType(typ) {
+		if envFreeRowVars[v] || ownedUnderSub[v] {
 			// Free in the environment (owned by an enclosing binder) — withhold.
+			continue
+		}
+		generalizedRowVars = append(generalizedRowVars, v)
+	}
+	// M-V1-TYVAR-HYGIENE (#2157): record rows (field-access shims, `{f: t | r}`
+	// annotations) are generalised by the same side condition. Unquantified, one
+	// declaration's row was shared by every use of its scheme, and across a module
+	// boundary it met the importer's variables of the same name.
+	for _, v := range typeFreeRecordRows {
+		if withhold[v] || envFreeRowVars[v] || recordRowWithhold[v] || ownedUnderSub[v] {
 			continue
 		}
 		generalizedRowVars = append(generalizedRowVars, v)

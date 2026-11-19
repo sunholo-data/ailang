@@ -64,13 +64,19 @@ export pure func length(b: bytes) -> int {
   _bytes_length(b)
 }
 
--- Extract a sub-slice of bytes
--- Returns None if start < 0 or start + len > length(b)
--- Example: slice(fromString("hello"), 1, 3) returns Some(bytes for "ell")
--- Example: slice(fromString("hello"), 5, 1) returns None
-export pure func slice(b: bytes, start: int, len: int) -> Option[bytes] {
+-- sliceLen: Extract a sub-slice of bytes by start and LENGTH (not end index)
+-- Returns None if start < 0, len < 0 or start + len > length(b)
+-- Example: sliceLen(fromString("hello"), 1, 3) returns Some(bytes for "ell")
+-- Example: sliceLen(fromString("hello"), 5, 1) returns None
+export pure func sliceLen(b: bytes, start: int, len: int) -> Option[bytes] {
   _bytes_slice(b, start, len)
 }
+
+-- Deprecated spelling: a length-based `slice` reads like the end-based
+-- string.substring. Warns TC_DEPRECATED_001, removed before the v1.0.0 soak, and
+-- the name stays retired for all of 1.x.
+@deprecated("sliceLen", "the third argument is a length, not an end index")
+export pure func slice(b: bytes, start: int, len: int) -> Option[bytes] = sliceLen(b, start, len)
 
 -- Concatenate two byte slices
 -- Example: concat(fromString("hello"), fromString(" world")) returns bytes for "hello world"

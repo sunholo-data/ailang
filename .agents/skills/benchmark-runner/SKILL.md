@@ -33,17 +33,17 @@ Invoke this skill when:
 **Fork repo**: https://github.com/sunholo-data/ai-coding-lang-bench
 **Local path**: `/Users/mark/dev/sunholo/ai-coding-lang-bench/`
 
-The benchmark has Codex implement "MiniGit" (a minimal git clone) in AILANG. It tests:
+The benchmark has Claude Code implement "MiniGit" (a minimal git clone) in AILANG. It tests:
 - v1: init, add, commit, log (11 tests)
 - v2: extends v1 with status, diff, checkout, reset (30 tests)
 
-Each trial invokes `Codex -p` with a prompt + language-specific `extra_prompt`.
+Each trial invokes `claude -p` with a prompt + language-specific `extra_prompt`.
 
 ## Prompt Strategy Variants
 
 AILANG has 5 variants in `benchmark.rb` to measure information value of different documentation layers:
 
-| Variant | What Codex Gets | Measures |
+| Variant | What Claude Gets | Measures |
 |---------|-----------------|----------|
 | `ailang/zero-shot` | "Use AILANG (.ail files)" | Baseline — hallucination rate |
 | `ailang/cli` | "Run `ailang devtools-prompt`" | CLI self-documentation value |
@@ -74,39 +74,39 @@ Run benchmark trials for a specific AILANG variant.
 
 ```bash
 # Run 5 trials of ailang/spec starting from trial 1
-.Codex/skills/benchmark-runner/scripts/run_trials.sh ailang/spec 5 1
+.claude/skills/benchmark-runner/scripts/run_trials.sh ailang/spec 5 1
 
 # Run 3 trials of ailang (guided) starting from trial 6
-.Codex/skills/benchmark-runner/scripts/run_trials.sh ailang 3 6
+.claude/skills/benchmark-runner/scripts/run_trials.sh ailang 3 6
 ```
 
 ### `scripts/analyze_results.sh`
 Parse results.json and logs to produce a metrics summary table.
 
 ```bash
-.Codex/skills/benchmark-runner/scripts/analyze_results.sh
+.claude/skills/benchmark-runner/scripts/analyze_results.sh
 ```
 
 ### `scripts/compare_strategies.sh`
 Side-by-side comparison of different prompt strategy variants.
 
 ```bash
-.Codex/skills/benchmark-runner/scripts/compare_strategies.sh
+.claude/skills/benchmark-runner/scripts/compare_strategies.sh
 ```
 
 ### `scripts/find_gaps.sh`
-Parse Codex session JSONL files to identify repeated failed searches — these indicate AILANG language gaps.
+Parse Claude session JSONL files to identify repeated failed searches — these indicate AILANG language gaps.
 
 ```bash
-.Codex/skills/benchmark-runner/scripts/find_gaps.sh
+.claude/skills/benchmark-runner/scripts/find_gaps.sh
 ```
 
 ### `scripts/monitor_session.sh`
 Live monitoring of active benchmark sessions (wrapper around monitor.sh in fork repo).
 
 ```bash
-.Codex/skills/benchmark-runner/scripts/monitor_session.sh        # One-shot
-.Codex/skills/benchmark-runner/scripts/monitor_session.sh --watch # Auto-refresh
+.claude/skills/benchmark-runner/scripts/monitor_session.sh        # One-shot
+.claude/skills/benchmark-runner/scripts/monitor_session.sh --watch # Auto-refresh
 ```
 
 ## Workflow
@@ -118,7 +118,7 @@ Live monitoring of active benchmark sessions (wrapper around monitor.sh in fork 
 ruby benchmark.rb --lang ailang/spec --trials 1 --start 1
 
 # Then run batch of 5
-.Codex/skills/benchmark-runner/scripts/run_trials.sh ailang/spec 5
+.claude/skills/benchmark-runner/scripts/run_trials.sh ailang/spec 5
 ```
 
 ### 2. Monitor Progress
@@ -132,13 +132,13 @@ cd /Users/mark/dev/sunholo/ai-coding-lang-bench
 ### 3. Analyze Results
 
 ```bash
-.Codex/skills/benchmark-runner/scripts/analyze_results.sh
+.claude/skills/benchmark-runner/scripts/analyze_results.sh
 ```
 
 ### 4. Identify Gaps
 
 ```bash
-.Codex/skills/benchmark-runner/scripts/find_gaps.sh
+.claude/skills/benchmark-runner/scripts/find_gaps.sh
 ```
 
 Output shows repeated failed searches grouped by topic:
@@ -158,7 +158,7 @@ exit/exitCode (14 searches across 3 trials)
 For each identified gap, create a design doc:
 ```bash
 # Use design-doc-creator skill
-.Codex/skills/design-doc-creator/scripts/create_planned_doc.sh m-gap-name v0_10_0
+.claude/skills/design-doc-creator/scripts/create_planned_doc.sh m-gap-name v0_10_0
 ```
 
 ### 6. Implement Fixes and Re-benchmark
@@ -178,7 +178,7 @@ After implementing a gap fix:
     meta.json            # Environment metadata
     report.md            # Upstream report for other languages
   logs/
-    minigit-*.json       # Codex cost/tokens per trial
+    minigit-*.json       # Claude cost/tokens per trial
     session-*.jsonl      # Full chat history (thinking, tool calls, errors)
   generated/
     minigit-*/           # Generated AILANG source code + shell wrappers
@@ -198,14 +198,14 @@ Key comparisons:
 
 ## Known Issues
 
-1. **Trial isolation**: `generated/` directory from prior trials is visible — Codex may read previous solutions. Clean `generated/` between strategy comparisons.
-2. **Cache warming**: Trial 2+ benefits from Codex prompt caching. First trial of a session is always slower.
+1. **Trial isolation**: `generated/` directory from prior trials is visible — Claude may read previous solutions. Clean `generated/` between strategy comparisons.
+2. **Cache warming**: Trial 2+ benefits from Claude prompt caching. First trial of a session is always slower.
 3. **Exit code gap**: AILANG has no `exit(code)` builtin. Design doc at `design_docs/planned/v0_10_0/m-exit-code.md`.
 4. **Cons expression gap**: `::` only works in patterns, not expressions. Design doc at `design_docs/planned/v0_10_0/m-cons-expression.md`.
 
 ## Notes
 
 - Regenerate `AILANG-SYNTAX.md` after language changes: `ailang prompt > /path/to/fork/AILANG-SYNTAX.md`
-- The benchmark uses `Codex -p --dangerously-skip-permissions --output-format json`
+- The benchmark uses `claude -p --dangerously-skip-permissions --output-format json`
 - Each trial costs ~$0.50-$2.00 depending on discovery overhead
 - v2 is always faster than v1 because it extends existing code from v1

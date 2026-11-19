@@ -1,0 +1,11 @@
+module cmd/ailang/testdata/verify_exit/sumto
+
+-- M-V1-VERIFICATION-HONESTY M1 fixture: a recursive contracted function. Under
+-- bounded unrolling a sat answer is "inconclusive", not a counterexample.
+-- (sumTo(0) = 0 really does violate the ensures: an inconclusive result can be
+-- a real bug, which is why it fails by default.)
+export pure func sumTo(n: int) -> int
+requires { n >= 0 }
+ensures { result >= 100 } {
+  if n == 0 then 0 else n + sumTo(n - 1)
+}

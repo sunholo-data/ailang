@@ -28,6 +28,13 @@ func coreCalleeName(fn core.CoreExpr) (name, from string) {
 	case *core.Var:
 		return v.Name, ""
 	case *core.VarGlobal:
+		if v.Ref.Module == core.ADTModule {
+			// A constructor factory names its defining module
+			// (make_T_C@q/a, M-V1-NOMINAL-TYPE-IDENTITY); diagnostics keep
+			// the familiar make_T_C.
+			base, _ := core.SplitADTFactoryModule(v.Ref.Name)
+			return base, v.Ref.Module
+		}
 		return v.Ref.Name, v.Ref.Module
 	}
 	return "", ""

@@ -1,7 +1,7 @@
 {
   "sprint_id": "M-NAMED-TEST-ASSERT-LOWERING",
   "design_doc": null,
-  "sprint_plan": "design_docs/planned/v0_33_1/m-named-test-assert-lowering-sprint-plan.md",
+  "sprint_plan": "design_docs/implemented/v0_33_1/m-named-test-assert-lowering-sprint-plan.md",
   "status": "completed",
   "created": "2026-08-06T00:00:00+01:00",
   "github_issues": [590],

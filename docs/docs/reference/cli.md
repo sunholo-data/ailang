@@ -28,7 +28,7 @@ and a suggestion on stderr and exits 1 — it does not dump the command list int
 |---|---|---|
 | Machine-readable output | `--json` | The one output-format flag. `ailang test --json`, not `--format json`. |
 | Which model | `--model` | `ailang eval-suite --models` is accepted as an alias of the same target. |
-| Where output goes | `--output` | Six of the eight sites. `ailang compile --out` and `ailang eval-publish --output-dir` are not converged yet. |
+| Where output goes | `--output` | Six of the seven sites. `ailang eval-publish --output-dir` is not converged yet. |
 | Gate a mutation | `--dry-run` | Audited at all 14 sites: the default **acts**, and `--dry-run` is the opt-out everywhere. No command inverts it. |
 
 Superseded spellings keep working — `ailang test --format json` still means `--json` —
@@ -43,6 +43,20 @@ Two commands parse `--format` by hand rather than registering it, so they do **n
 `ailang eval-report --format=markdown|html|docusaurus|json|csv` and
 `ailang doctor managed_agents --format=json`. Both need the `=` form. Converging them is a
 follow-up, not a documentation problem.
+
+## Contract verification flags
+
+`ailang check --verify`, `ailang ai-check` and `ailang verify` share one exit rule
+([contracts guide](/docs/guides/contracts#exit-codes)) and the flags that move it:
+
+| Flag | On | Effect | Tier |
+|---|---|---|---|
+| `--strict` | all three (`check` only with `--verify`) | a skipped or inconclusive obligation fails | as the command (Stable on `check --verify`) |
+| `--allow-inconclusive` | all three | an inconclusive result exits 0, even when it is the only obligation (nothing proved); `outcome` stays `inconclusive` | as the command (Stable on `check --verify`) |
+| `--no-verify` | `ai-check` | type check only: the verifier does not run, `outcome` is `not_requested` (or `no_obligations`) | Experimental |
+
+`--strict` with `--allow-inconclusive`, `--no-verify` with either, and `check --strict` without
+`--verify` are usage errors (exit 2). Each command checks one file; a second file is a usage error.
 
 ## Groups are a drawer, not a rename
 
@@ -85,7 +99,6 @@ Reachable as `ailang dev <command>` and, unchanged, as `ailang <command>`.
 | `ailang dev axioms` | `ailang axioms` | Design axiom compliance scorecard |
 | `ailang dev builtins` | `ailang builtins` | Inspect the builtin registry |
 | `ailang dev cache` | `ailang cache`, `ailang brain` | Project brain / semantic cache operations |
-| `ailang dev compile` | `ailang compile` | Compile AILANG to Go (emit-go; not a speed path, no tail calls) |
 | `ailang dev debug` | `ailang debug` | Debug AST and type information |
 | `ailang dev devtools-prompt` | `ailang devtools-prompt` | Display the AILANG dev tools reference (for AI agents) |
 | `ailang dev disasm` | `ailang disasm` | Disassemble compiled AILANG |
@@ -170,6 +183,15 @@ caller keeps working; new code should use the canonical spelling.
 | `ailang tree` | `ailang pkg tree` | Show the dependency tree |
 | `ailang unpublish` | `ailang pkg unpublish` | Remove a package version from the registry |
 
+## Removed commands
+
+Routes whose feature was removed. They are still accepted only so an old caller
+gets a message naming the replacement (in the summary); every invocation but --help exits 1.
+
+| Route | Use instead | What it does |
+|---|---|---|
+| `ailang compile` | — | Removed: the Go emitter; use `ailang run` (--bytecode for the VM) |
+
 ## Documentation search
 
 `ailang docs search "query"` searches the local `design_docs/` or `docs/` corpus first, and
@@ -194,4 +216,4 @@ behind it (`cmd/ailang/commands_probe_test.go` counts the probes), not a present
 and it holds for a command's group spelling too: `ailang dev builtins` is as quiet as
 `ailang builtins`.
 
-The language commands are `ast-edit`, `builtins`, `check`, `compile`, `debug`, `devtools-prompt`, `disasm`, `docs`, `examples`, `export-training`, `fmt`, `help`, `iface`, `init`, `lsp`, `prompt`, `repl`, `replay`, `run`, `select-best`, `test`, `verify`, `version`, `watch`.
+The language commands are `ast-edit`, `builtins`, `check`, `debug`, `devtools-prompt`, `disasm`, `docs`, `examples`, `export-training`, `fmt`, `help`, `iface`, `init`, `lsp`, `prompt`, `repl`, `replay`, `run`, `select-best`, `test`, `verify`, `version`, `watch`.

@@ -1,0 +1,93 @@
+-- mcp_tools/live.ail — read docs content live from the public repository.
+--
+-- The hosted docs servers always have network access, so content that is
+-- either fixed per release (examples, at the release tag) or moving between
+-- releases (design docs and the roadmap, on dev) is fetched when asked for
+-- instead of being copied into the image. Offline use goes through the CLI
+-- (`ailang docs`, `ailang prompt`), which never loads these tools.
+--
+-- Every URL is the fixed base plus a ref and a path checked by safePath, so a
+-- caller's argument can name a file in the repository and nothing else.
+module mcp_tools/live
+import mcp_tools/lib (readUnscopedJson)
+import std/env (getEnvOr)
+import std/json (Json, getString)
+import std/net (httpRequest, NetError, Transport, DisallowedHost, InvalidHeader, BodyTooLarge)
+import std/option (getOrElse)
+import std/result (Result, Ok, Err)
+import std/string (length, substring, startsWith, endsWith, contains, split, foldChars, charCode, find, trim)
+import std/list (length as listLength, filter)
+
+-- Raw files of the public repository, by git ref. Tests point it at a local
+-- server; nothing else should set it.
+export func sourceBase() -> string ! {Env} =
+  getEnvOr("MCP_SOURCE_BASE", "https://raw.githubusercontent.com/sunholo-data/ailang")
+
+-- The ref for content that moves between releases.
+export pure func movingRef() -> string = "dev"
+
+-- Where a reader can open the same file in a browser.
+export pure func browseUrl(ref: string, path: string) -> string =
+  "https://github.com/sunholo-data/ailang/blob/${ref}/${path}"
+
+-- The version this server was built at (the snapshot's), "" when unreadable.
+export func latestVersion() -> string ! {Env, FS} = match readUnscopedJson("versions_index.json") {
+  Ok(j) => getOrElse(getString(j, "latest"), ""),
+  Err(_) => ""
+}
+
+pure func isDigits(s: string) -> bool =
+  length(s) > 0 && foldChars(\ok c. ok && charCode(c) >= 48 && charCode(c) <= 57, true, s)
+
+-- X.Y.Z with digits only.
+export pure func isSemver(v: string) -> bool =
+  let parts = split(v, ".") in
+  listLength(parts) == 3 && listLength(filter(\p. isDigits(p), parts)) == 3
+
+-- The release a version-scoped call reads: "" and "latest" mean this server's
+-- own version; a leading "v" is accepted.
+export func releaseVersion(forVersion: string) -> Result[string, string] ! {Env, FS} =
+  let asked = trim(forVersion) in
+  let v = if asked == "" || asked == "latest" then latestVersion() else if startsWith(asked, "v") then substring(asked, 1, length(asked)) else asked in
+  if isSemver(v) then Ok(v) else Err("unknown version '${forVersion}': pass X.Y.Z (for example 0.60.4) or leave it empty for the latest")
+
+pure func safeChar(c: string) -> bool =
+  let n = charCode(c) in
+  n >= 48 && n <= 57 || n >= 65 && n <= 90 || n >= 97 && n <= 122 || n == 45 || n == 46 || n == 47 || n == 95
+
+-- A repository-relative path: letters, digits, - _ . / only, no "..", no
+-- leading or doubled slash. This is what keeps a caller inside the repository.
+export pure func safePath(p: string) -> bool =
+  length(p) > 0 && length(p) <= 200 && foldChars(\ok c. ok && safeChar(c), true, p) && !contains(p, "..") && !contains(p, "//") && !startsWith(p, "/")
+
+pure func netReason(e: NetError) -> string = match e {
+  Transport(m) => "network error: ${m}",
+  DisallowedHost(h) => "host not allowed: ${h}",
+  InvalidHeader(h) => "bad header: ${h}",
+  BodyTooLarge(s) => "response too large: ${s}"
+}
+
+-- Fetch one file of the repository at a ref. Err names the file and the ref
+-- (both public), never a server path.
+export func fetchFile(ref: string, path: string) -> Result[string, string] ! {Env, Net} =
+  if !safePath(path) then Err("not a repository path: ${path}") else match httpRequest("GET", "${sourceBase()}/${ref}/${path}", [], "") {
+    Ok(resp) => if resp.ok then Ok(resp.body) else if resp.status == 404 then Err("${path} does not exist at ${ref}") else Err("could not read ${path} at ${ref}: HTTP ${show(resp.status)}"),
+    Err(e) => Err("could not read ${path} at ${ref}: ${netReason(e)}")
+  }
+
+-- Drop a leading YAML front-matter block.
+export pure func stripFrontMatter(md: string) -> string =
+  if !startsWith(md, "---\n") then md else let rest = substring(md, 4, length(md)) in
+  let end = find(rest, "\n---\n") in
+  if end < 0 then md else substring(rest, end + 5, length(rest))
+
+-- The longest markdown a tool returns; longer documents are cut and say so.
+export pure func maxMarkdown() -> int = 30000
+
+export pure func clip(md: string) -> string =
+  if length(md) <= maxMarkdown() then md else substring(md, 0, maxMarkdown())
+
+export pure func clipped(md: string) -> bool = length(md) > maxMarkdown()
+
+-- Whether a path names an example file.
+export pure func isExamplePath(p: string) -> bool = safePath(p) && endsWith(p, ".ail")

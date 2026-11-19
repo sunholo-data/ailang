@@ -21,7 +21,7 @@ can drift out of sync with the language.
 Dumps one deterministic, grep-able line per stdlib export — signature rendered from the
 AST, so effect rows are always complete:
 
-```
+```text
 std/clock.now: (()) -> int ! {Clock} -- Returns epoch time in seconds
 std/list.map: [a, b]((a) -> b, list[a]) -> list[b] -- Apply f to every element
 prelude.println: string -> () ! {IO} -- Available without import in entry modules
@@ -57,15 +57,15 @@ the live module list catches near-misses like `std/lst → std/list`.
 
 ## `ailang docs prelude`
 
-Shows exactly what is callable **without any import** in an entry module (a module with
-an exported `main`): `println`, the `show` builtin, and the implicit `std/option` /
-`std/result` types and constructors — with the scope rules (entry-only, lowest
-precedence, silent shadowing).
+Shows exactly what is callable **without any import**: in an entry module (a module with
+an exported `main`) `println` and the `show` builtin, and in every module outside `std/`
+the implicit `std/option` / `std/result` types and constructors — with the scope rules
+(lowest precedence, silent shadowing).
 
 ```bash
 ailang docs prelude
 ailang docs --list        # footer points at `ailang docs prelude`
 ```
 
-Library modules (no `main`) do **not** get the prelude, so they must import
-`Option`/`Result` explicitly.
+Library modules (no `main`) get the `Option`/`Result` types and constructors too (#2371);
+`println` stays entry-only (`import std/io (println)` elsewhere).

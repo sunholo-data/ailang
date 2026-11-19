@@ -31,7 +31,7 @@ Success is an auditable estimate, including a negative or inconclusive result. N
 
 - [Lifecycle eval pilot](m-lifecycle-eval-pilot.md) already owns staged repair/change/restart protocols, episode accounting, cost-per-success and experimental validity. **Reuse that protocol.** This companion owns real-project sampling, public-history annotation, artifact lineage and semantic cross-language mappings. Its real-source pilot replaces synthetic seed topics for this study; it does not create a second generic lifecycle runner or promote the existing repair-packet intervention without its own decision.
 - [Semantic repair packet](m-semantic-repair-packet.md) is a possible later treatment, not a presumed explanation for observed friction.
-- [Measurement contract](../../docs/docs/guides/evaluation/measurement-contract.md) supplies validity and pairing principles. [Cohort provenance](m-cohort-manifest-build-provenance.md) is related design work, not assumed to be fully implemented.
+- [Measurement contract](../../docs/docs/guides/evaluation/measurement-contract.md) supplies validity and pairing principles. [Cohort provenance](v1_1_0/m-cohort-manifest-build-provenance.md) is related design work, not assumed to be fully implemented.
 - [PROGRAM](../PROGRAM.md) owns routing of reproduced friction. This plan does not edit the mission queue or release bar.
 - [Docparse DX history](../implemented/v0_9_2/m-docparse-dx.md) documents real-project feedback informing language work. Historical assertions there are not fresh measurements or proof of present limitations.
 

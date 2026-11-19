@@ -26,7 +26,7 @@ ailang verify solution.ail                        # Prove contracts with Z3
 
 **`mcp.ailang.sunholo.com`** is the canonical, live, version-locked source of truth for AILANG syntax, stdlib, examples, and limitations. Prefer it over any embedded reference in this file.
 
-**If the user's harness supports remote MCP** (Codex Desktop, Cursor, Cline, Continue, Codex), have them add it once:
+**If the user's harness supports remote MCP** (Claude Desktop, Cursor, Cline, Continue, Claude Code), have them add it once:
 
 ```json
 {
@@ -137,14 +137,14 @@ When the user asks for AILANG code:
 Print the active AILANG prompt version (uses `prompts/versions.json`).
 
 ```bash
-.Codex/skills/use-ailang/scripts/check_version.sh
+.claude/skills/use-ailang/scripts/check_version.sh
 ```
 
 ### `scripts/validate_code.sh <file.ail>`
 Type-check an AILANG file via `ailang check`.
 
 ```bash
-.Codex/skills/use-ailang/scripts/validate_code.sh solution.ail
+.claude/skills/use-ailang/scripts/validate_code.sh solution.ail
 ```
 
 ## Migration Note (M-AGENT-MCP)

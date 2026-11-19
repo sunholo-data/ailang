@@ -1,0 +1,10 @@
+-- examples/expected_fail/match_nonexhaustive_bool.ail
+--
+-- M-V1-MATCH-EXHAUSTIVENESS: a match that misses a case is a compile error.
+-- `ailang check` must reject this with
+--   TC_MATCH_002: non-exhaustive match on bool — no arm matches: false
+-- (It used to pass with a warning and fail at run time.) The accepted twin
+-- is examples/runnable/match_exhaustiveness.ail.
+match true {
+  true => "yes"
+}

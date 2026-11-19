@@ -441,8 +441,8 @@ rewriting — that outcome was live, which is why the check was run rather than 
 ## Related Documents
 
 - [M-EFFECT-REPLAY-CONTRACTS](m-effect-replay-contracts.md) — parent
-- [M-EFFECT-CLOCK-NET-FS-MODES](../../planned/v1_0_0/m-effect-clock-net-fs-modes.md) — downstream shared-gate consumer
-- [M-EFFECT-REFINEMENT](../../planned/v1_0_0/m-effect-refinement.md) — parameterised-effect program
+- [M-EFFECT-CLOCK-NET-FS-MODES](../../planned/v1_1_0/m-effect-clock-net-fs-modes.md) — downstream shared-gate consumer
+- [M-EFFECT-REFINEMENT](../../planned/v1_1_0/m-effect-refinement.md) — parameterised-effect program
 - [Parameterised effects guide](../../../docs/docs/guides/parameterised-effects.md)
 
 ## Verification Log

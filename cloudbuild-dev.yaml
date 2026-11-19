@@ -32,7 +32,7 @@
 # binaryless managed_agents executor, which needs no image of its own.
 #
 # Deploy: the shared library in ailang-multivac (scripts/cloudbuild-lib.sh,
-# cloned at run time) rolls the 4 core services and all 15 executor jobs. The
+# cloned at run time) rolls the 4 core services and every executor job. The
 # job -> image map lives there, mirroring terraform/cloud_run_jobs.tf; this
 # file does not carry a copy.
 #
@@ -453,7 +453,7 @@ steps:
     waitFor: ['build-resident-pi']
     allowFailure: true
 
-  # ── Deploy: 4 core services + all 15 executor jobs, via the shared library ──
+  # ── Deploy: 4 core services + every executor job, via the shared library ──
   # Waits on every image, optional ones included, so each job is rolled after
   # its image's build attempt (a failed optional build leaves :latest as it was).
   - id: deploy-services
@@ -485,6 +485,21 @@ steps:
       - build-agent-opencode
       - build-agent-motoko
       - build-resident-pi
+
+  # ── Verify: the dashboard API answers its contract on dev (m-dashboard-headless-api).
+  # Status codes only, never a response body. Runs after the roll, so a failure
+  # marks the build red without blocking the deploy that already happened. Dev
+  # serves the docs site's benchmark data, so it must answer /benchmarks/.
+  - id: smoke-dashboard
+    name: gcr.io/cloud-builders/gcloud
+    entrypoint: bash
+    args:
+      - -c
+      - |
+        set -e
+        DASH=$$(gcloud run services describe ${_PREFIX}-dashboard --region ${_REGION} --project $_TARGET_PROJECT --format='value(status.url)')
+        bash scripts/dashboard_smoke.sh "$$DASH" --expect-benchmarks
+    waitFor: ['deploy-services']
 
 # The GitHub connection's own OAuth token, already present in the deploy project
 # (every build here runs there as sa-cloudbuild). Used for the multivac clone and

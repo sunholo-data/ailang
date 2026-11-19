@@ -248,6 +248,21 @@ func (a *PubSubInboxAdapter) HandleNotification(data []byte, attrs map[string]st
 	}
 	hydrateFromInbox(msg, fullMsg) // shared with the local adapter: content AND links (parent task, chain, issue)
 
+	// M-CASCADE-ENVELOPE-HYDRATION: a cascade-topic delivery that carries no
+	// envelope (an older publisher, or the legacy notification-only data shape
+	// decoded above) used to proceed with every envelope field blank, and the
+	// package agent could only file a "[bug] cascade routing: EMPTY dispatch"
+	// report. The stored row cannot fill the gap faithfully (cascade_guard.go),
+	// and a redelivery carries the same data, so ack and say so — the same
+	// policy as a notification naming a message that does not exist.
+	if msg.Source == pubsub.SourceCascade {
+		if missing := missingCascadeEnvelope(msg.Source, msg.RootPackage, msg.ToVersion); missing != "" {
+			a.logger.Printf("PubSubInboxAdapter: cascade notification %s (inbox=%s) arrived with no cascade envelope (missing %s) — NOT dispatching; re-trigger from the original publish",
+				notification.MessageID, msg.Inbox, missing)
+			return nil
+		}
+	}
+
 	// Belt and braces: hydration succeeded but produced nothing to act on. A
 	// task whose content is empty or is merely its own id is not work, and the
 	// agent would be asked to invent the request.

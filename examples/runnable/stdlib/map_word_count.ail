@@ -1,0 +1,37 @@
+-- Task: count how often each word occurs in a paragraph (case-insensitive,
+-- punctuation stripped), drop stop words, and print the three most frequent
+-- words plus a few lookups. Demonstrates std/map empty, insert, lookup,
+-- member, remove, size and toList.
+module examples/runnable/stdlib/map_word_count
+import std/map as M
+import std/list (foldl, sortBy, take, forEachE)
+import std/string (words, toLower, compare, replaceMany)
+
+-- Fold every word into the map: a missing word starts at 1, a seen one gets +1.
+-- One M.insert per word is O(n) each: fine for a paragraph, not for a corpus.
+func countWords(ws: [string]) -> Map[string, int] = foldl(\counts w. match M.lookup(counts, w) {
+  Some(n) => M.insert(counts, w, n + 1),
+  None => M.insert(counts, w, 1)
+}, M.empty(), ws)
+
+-- Highest count first; equal counts fall back to alphabetical order.
+func byCountThenWord(a: (string, int), b: (string, int)) -> int = match (a, b) {
+  ((wa, ca), (wb, cb)) => if ca != cb then cb - ca else compare(wa, wb)
+}
+
+export func main() -> () ! {IO} {
+  let text = "The cat sat on the mat. The dog sat on the log! A cat, a dog, and the mat."
+  let cleaned = replaceMany(toLower(text), [(".", ""), (",", ""), ("!", "")])
+  let counts = countWords(words(cleaned))
+  let stop = ["the", "a", "and", "on"]
+  let content = foldl(\m w. M.remove(m, w), counts, stop)
+  println("distinct words: ${show(M.size(counts))}, after stop words: ${show(M.size(content))}")
+  println("top 3:")
+  forEachE(\p. match p {
+    (w, n) => println("  ${w}: ${show(n)}")
+  }, take(3, sortBy(byCountThenWord, M.toList(content))))
+  println("count(cat) = ${show(M.lookup(content, "cat"))}")
+  println("count(bird) = ${show(M.lookup(content, "bird"))}")
+  println("'the' in all counts: ${show(M.member(counts, "the"))}")
+  println("'the' in content counts: ${show(M.member(content, "the"))}")
+}

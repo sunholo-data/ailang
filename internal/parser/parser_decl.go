@@ -3,6 +3,7 @@ package parser
 import (
 	"fmt"
 	"strconv"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/lexer"
@@ -13,7 +14,7 @@ import (
 // Returns the parsed annotation, or nil on error.
 // Supported annotations: @verify(depth: N), @route("METHOD", "/path"),
 // @mcp_name("name"), @optional("param", ...), @allow_empty_ok("why"), @raw,
-// @nowrap, @noexpose, @nomcp
+// @nowrap, @noexpose, @nomcp, @deprecated("replacement"[, "note"]), @experimental
 func (p *Parser) parseAnnotation() *ast.Annotation {
 	pos := p.curPos()
 	// We're at '@', consume it
@@ -95,9 +96,47 @@ func (p *Parser) parseAnnotation() *ast.Annotation {
 	case "mcp_agent_only":
 		// Parameterless: served on /mcp/ but absent from the listed surface.
 		return &ast.Annotation{Name: "mcp_agent_only", Pos: pos}
+	case ast.AnnotationDeprecated:
+		// @deprecated("replacement") or @deprecated("replacement", "note"):
+		// every use of the function from another module warns TC_DEPRECATED_001
+		// naming the replacement (M-V1-STDLIB-SURFACE-POLISH §6.1).
+		if !p.peekTokenIs(lexer.LPAREN) {
+			p.report("PAR_DEPRECATED_ARG", "@deprecated needs the replacement's name: @deprecated(\"newName\")",
+				"Use @deprecated(\"headOr\") or @deprecated(\"contains\", \"arguments swap: contains(xs, x)\")")
+			return nil
+		}
+		ann := p.parseStringListAnnotation(pos, ast.AnnotationDeprecated, 1, 2,
+			"PAR_DEPRECATED_ARG", "@deprecated expects the replacement's name and an optional note, as string literals",
+			"Use @deprecated(\"headOr\") or @deprecated(\"contains\", \"arguments swap: contains(xs, x)\")")
+		if ann != nil {
+			if lit, ok := ann.Args[0].(*ast.Literal); ok && strings.TrimSpace(fmt.Sprint(lit.Value)) == "" {
+				p.report("PAR_DEPRECATED_ARG", "@deprecated needs a non-empty replacement name",
+					"Use @deprecated(\"headOr\")")
+				return nil
+			}
+		}
+		return ann
+	case ast.AnnotationExperimental:
+		// Parameterless: the function is tier Experimental in the interface
+		// (`"tier": "experimental"`), whatever its module's default tier.
+		// It takes no arguments: say so, and skip them so the function after
+		// it still parses (the error used to be "must be followed by a
+		// function").
+		if p.peekTokenIs(lexer.UNIT) || p.peekTokenIs(lexer.LPAREN) {
+			p.report("PAR_EXPERIMENTAL_ARG", "@experimental takes no arguments",
+				"Write @experimental on its own line before the function")
+			if p.peekTokenIs(lexer.UNIT) {
+				p.nextToken()
+			} else {
+				for !p.curTokenIs(lexer.RPAREN) && !p.curTokenIs(lexer.EOF) {
+					p.nextToken()
+				}
+			}
+		}
+		return &ast.Annotation{Name: ast.AnnotationExperimental, Pos: pos}
 	default:
 		p.report("PAR_UNKNOWN_ATTRIBUTE",
-			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route, @mcp_name, @mcp_title, @mcp_hints, @mcp_auth, @mcp_secret, @mcp_file, @mcp_ui_resource, @mcp_ui, @mcp_app_only, @mcp_token_verifier, @mcp_agent_only, @optional, @allow_empty_ok, @raw, @nowrap, @noexpose, @nomcp", name),
+			fmt.Sprintf("unknown attribute '@%s'; supported: @verify, @route, @mcp_name, @mcp_title, @mcp_hints, @mcp_auth, @mcp_secret, @mcp_file, @mcp_ui_resource, @mcp_ui, @mcp_app_only, @mcp_token_verifier, @mcp_agent_only, @optional, @allow_empty_ok, @raw, @nowrap, @noexpose, @nomcp, @deprecated, @experimental", name),
 			"Use @verify(depth: N), @route(\"METHOD\", \"/path\"), @mcp_name(\"name\"), @mcp_title(\"Title\"), @mcp_hints(\"readOnly\", ...), @mcp_auth(\"oauth2\"), @mcp_secret(\"param\"), @mcp_file(\"param\"), @mcp_ui_resource(\"ui://svc/name\", \"self\"), @mcp_ui(\"ui://svc/name\"), @mcp_app_only, @mcp_token_verifier, @mcp_agent_only, @optional(\"param\", ...), @allow_empty_ok(\"rationale\"), @raw, @nowrap, @noexpose, or @nomcp")
 		return nil
 	}
@@ -463,10 +502,19 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 		p.errors = append(p.errors, err)
 		return nil
 	case lexer.EXTERN:
-		// Handle extern function declaration (Go-implemented functions)
+		// `extern [pure] func` parses so the elaborator can reject it with
+		// EXT004 at the declaration (#2390): no engine runs extern functions.
+		externPos := p.curPos() // EXT004 points at the 'extern' keyword
 		if p.peekTokenIs(lexer.FUNC) {
 			p.nextToken() // consume 'extern'
-			return p.parseExternFunctionDeclaration()
+			return p.parseExternFunctionDeclaration(externPos, false)
+		}
+		if p.peekTokenIs(lexer.PURE) {
+			p.nextToken() // consume 'extern'
+			if p.peekTokenIs(lexer.FUNC) {
+				p.nextToken() // consume 'pure'
+				return p.parseExternFunctionDeclaration(externPos, true)
+			}
 		}
 		// Error: extern must be followed by func
 		err := NewParserError(
@@ -475,7 +523,7 @@ func (p *Parser) parseTopLevelDecl() ast.Node {
 			p.curToken,
 			"extern must be followed by 'func'",
 			[]lexer.TokenType{lexer.FUNC},
-			"Use 'extern func name(params) -> ReturnType'",
+			"extern functions are not supported (no engine runs them): write the function in AILANG with 'func', or use a std function or an effect",
 		)
 		p.errors = append(p.errors, err)
 		return nil

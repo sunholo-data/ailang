@@ -29,7 +29,7 @@ pure func store(q: string<sqlsafe>) -> string { q }
 const (
 	fvApply1  = "pure func apply1(f: string -> string, x: string) -> string { f(x) }\n"
 	fvUpper   = "pure func upper(s: string) -> string { s }\n"
-	fvSanitze = "pure func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify} { \"[sanitized]\" }\n"
+	fvSanitze = "func sanitize(raw: string<email>) -> string<sanitized> ! {Declassify} { \"[sanitized]\" }\n"
 )
 
 type fvRow struct {

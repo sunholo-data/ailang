@@ -224,7 +224,7 @@ proofs; typed node context, bounded rejection and negative-control tests are gat
 
 - [Callee-sort gate](../../implemented/v0_30_0/m-smt-callee-sort-gate.md).
 - [Completed audio sprint](../../implemented/v0_54_18/m-audio-release-sprint-plan.md).
-- [Verification coverage addendum](../../planned/m-contract-verification-coverage.md#audio-follow-up-2026-10-23-additive-package-evidence): reporting only, not this encoding fix.
+- [Verification coverage addendum](../../planned/v1_1_0/m-contract-verification-coverage.md#audio-follow-up-2026-10-23-additive-package-evidence): reporting only, not this encoding fix.
 - [Design axioms](../../../docs/docs/references/axioms.mdx).
 
 ## Implementation evidence

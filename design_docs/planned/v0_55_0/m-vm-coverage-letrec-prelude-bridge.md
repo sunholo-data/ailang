@@ -490,7 +490,7 @@ planner's call.
 
 - [m-bytecode-vm-parity-bugs.md](../v1_0_0/m-bytecode-vm-parity-bugs.md): output-divergence soundness bugs; distinct scope (effect replay classification, closures)
 - [m-perf4-bytecode-interpreter.md](../v1_1_0/m-perf4-bytecode-interpreter.md): pre-VM planning doc; its open question "opt-in flag or default" is F1 here
-- [m-vm-determinism.md](../v0_47_2/m-vm-determinism.md): compile-time determinism; orthogonal
+- [m-vm-determinism.md](../../implemented/v0_48_0/m-vm-determinism.md): compile-time determinism; orthogonal
 - [m-interpreter-tail-call-elimination.md](../../implemented/v0_52_0/m-interpreter-tail-call-elimination.md): TCO parity contract that Phase 1 must preserve
 - [m-vm-stack-limit-parity.md](../../implemented/v1_0_0/m-vm-stack-limit-parity.md): stack-limit parity
 - [m-foldl-cons-cost-model.md](../../implemented/v0_52_0/m-foldl-cons-cost-model.md): why the VM is slower on cons building

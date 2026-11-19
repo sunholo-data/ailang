@@ -111,7 +111,7 @@ func (l *Lambda) String() string {
 type Let struct {
 	CoreNode
 	Name  string
-	Value CoreExpr // In ANF: atomic or simple call
+	Value CoreExpr // Any expression with atomic operands, including a nested let (#2388); see elaborate.VerifyANF
 	Body  CoreExpr
 }
 
@@ -142,6 +142,11 @@ type App struct {
 	CoreNode
 	Func CoreExpr
 	Args []CoreExpr // All must be atomic in ANF
+	// TraceRedact names the IFC labels ("secret", "pii,secret") a value
+	// entering or leaving this call carries; "" when none. Set by
+	// MarkTraceRedactions after the static IFC pass. The evaluator records no
+	// trace value for the dynamic extent of a marked call (M-TRACE-LABEL-AWARE).
+	TraceRedact string
 }
 
 func (a *App) coreExpr() {}
@@ -172,7 +177,7 @@ type Match struct {
 
 type MatchArm struct {
 	Pattern CorePattern
-	Guard   CoreExpr // Optional, must be atomic
+	Guard   CoreExpr // Optional; any expression with atomic operands, like a body
 	Body    CoreExpr
 }
 
@@ -365,6 +370,12 @@ type ConstructorPattern struct {
 	// typechecker tell apart same-named constructors of different ADTs, e.g.
 	// `import M (Arrived as TripArrived)` next to a local Arrived (#1478).
 	TypeName string
+	// TypeModule is the defining module of TypeName (M-V1-NOMINAL-TYPE-IDENTITY):
+	// the pattern's ADT is the nominal type (TypeModule, TypeName).
+	TypeModule string
+	// Pos is the pattern's source position, for diagnostics only (the
+	// typechecker's TC_AMBIGUOUS_CTOR_001 points at the pattern).
+	Pos ast.Pos
 }
 
 func (c *ConstructorPattern) patternNode() {}
@@ -422,6 +433,9 @@ func (t *TuplePattern) String() string {
 type ProgramFlags struct {
 	Lowered bool // Set after OpLowering pass
 	Linked  bool // Set after linking
+	// LocalsUnique is set by UniqueProgramLocals. Passes that work on the
+	// type-checked names (numeric variants, #2378) must run before it.
+	LocalsUnique bool
 }
 
 // Program represents a Core program
@@ -429,6 +443,10 @@ type Program struct {
 	Decls []CoreExpr           // Top-level declarations
 	Meta  map[string]*DeclMeta // Metadata for top-level declarations
 	Flags ProgramFlags         // Compilation state flags
+	// NumVariantMissing: an exported binding's numeric variant this module
+	// could not compile, by name, and why (#2378, pipeline/numeric_variants.go),
+	// so an importer that needs it can name the actual cause.
+	NumVariantMissing map[string]string
 }
 
 // DeclMeta contains metadata for top-level declarations
@@ -439,6 +457,11 @@ type DeclMeta struct {
 	SID         string      // Source ID for tracing
 	Contracts   []*Contract // M-VERIFY: Contract clauses (requires/ensures)
 	VerifyDepth int         // Per-function SMT verify depth override (0 = use global default)
+	// VariantOf names the binding this one is a numeric variant of (#2378,
+	// pipeline/numeric_variants.go): the same declaration compiled with some
+	// of its Num type variables at float. Its contracts are that binding's, so
+	// a verifier counts and proves them once, on the binding itself.
+	VariantOf string
 
 	// ShowResidue lists the `show` calls ShowNormalizer deliberately left in
 	// this function because the argument type has no encodable equivalent

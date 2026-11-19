@@ -1,0 +1,7 @@
+claude healthy_rc=0
+claude degraded_rc=2
+codex healthy_rc=0
+codex degraded_rc=0
+pi healthy_rc=0
+pi degraded_rc=0
+secrets.env SAME

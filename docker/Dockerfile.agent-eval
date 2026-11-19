@@ -12,8 +12,8 @@ FROM europe-west1-docker.pkg.dev/${PROJECT}/ailang/agent-base:latest
 # change, not one to fold in silently here.
 ARG PI_PACKAGE=@earendil-works/pi-coding-agent
 ARG PI_VERSION=0.85.1
-# Codex pinned 2026-09-30 — see Dockerfile.agent-codex (gpt-6.1-sol needs >= 0.159.2).
-ARG CODEX_VERSION=0.159.2
+# Codex pinned 2026-09-30, bumped to 0.169.0 2026-11-17 — see Dockerfile.agent-codex (gpt-6.2-sol needs it).
+ARG CODEX_VERSION=0.169.0
 
 # All four executor CLIs — order matters for npm install speed (largest first)
 USER root

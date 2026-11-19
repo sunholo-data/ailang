@@ -1,6 +1,11 @@
 # M-DASHBOARD-MINIMAL-SURFACE: two screens over one work-ledger API, a four-package runtime
 
-**Status**: Planned (amended 2026-10-09: work-ledger API added; D8–D10 need ratification)
+> **SUPERSEDED (2026-11-10).** Mark chose zero screens: the dashboard becomes a headless API
+> with a stability contract — see [m-dashboard-headless-api.md](m-dashboard-headless-api.md).
+> The two-screen plan and its work-ledger API below are not being built; D8–D10 were never
+> ratified. The content is kept as the record of the option that was not taken.
+
+**Status**: Superseded by [m-dashboard-headless-api.md](m-dashboard-headless-api.md) (was: Planned, amended 2026-10-09: work-ledger API added; D8–D10 need ratification)
 **Target**: v0.53.0
 **Priority**: P1 for the work ledger (the operator cannot see what the fleet did with a request without an agent hand-joining four sources); P2 for the UI diet
 **Estimated**: 6–8 days across five phases. Phases 1–3 (UI diet) are unchanged at 3–4 days; Phase 0 (write-time links) and Phase 4 (ledger API, CLI and the screens on top) add 3–4 days
@@ -588,7 +593,7 @@ amended doc is optional.
 
 - [Dashboard recovery plan (2026-09-08)](../dashboard-recovery-plan-2026-09-08.md) — parent plan; deletion sprint A shipped; this doc is a dependency- and surface-focused continuation, ordered before its deletion sprint B
 - [Dashboard live audit (2026-09-08)](../dashboard-live-audit-2026-09-08.md) — F3/F5 justify removing the empty analytics facets
-- [M-DASHBOARD-DELETE-ANALYTICS sprint](m-dashboard-delete-analytics-sprint-plan.md) — removed recharts/d3; 1,265 kB → 720 kB JS
+- [M-DASHBOARD-DELETE-ANALYTICS sprint](../implemented/v0_35_3/m-dashboard-delete-analytics-sprint-plan.md) — removed recharts/d3; 1,265 kB → 720 kB JS
 - [m-dashboard-simplification (archived)](../archive/v0_29_0/m-dashboard-simplification.md) — earlier attempt
 - [M-COST2 dashboard Firestore optimisation](../implemented/v0_9_8/m-cost2-dashboard-firestore-optimization.md)
 

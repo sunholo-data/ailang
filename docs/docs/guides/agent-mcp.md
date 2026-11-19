@@ -57,7 +57,7 @@ All tools return JSON. Version-scoped tools take an optional `for_version` argum
 | Tool | Purpose |
 |---|---|
 | `ailang_versions` | List all versions the server can answer for |
-| `prompt_get` | Fetch the canonical teaching prompt (`kind`: `agent`/`devtools`/`compact`/empty for full) |
+| `prompt_get` | Fetch the canonical teaching prompt (`kind`: `agent`/`devtools`/empty for full) |
 | `stdlib_modules` | All stdlib modules with one-line summaries + export counts |
 | `stdlib_module` | Full exports for one module (signatures + docstrings) |
 | `stdlib_search` | Find stdlib functions by name/signature/keyword |
@@ -68,8 +68,8 @@ All tools return JSON. Version-scoped tools take an optional `for_version` argum
 
 | Tool | Purpose |
 |---|---|
-| `examples_list` | Filter examples passing under `for_version`, by features/status |
-| `example_get` | Full source + metadata for one example by path |
+| `examples_list` | Examples in that release's manifest, by tag (`features`) and `status` (default: working); at most 50, with the total |
+| `example_get` | Full source of one example by path, at that release |
 | `example_for_concept` | Best-fit example for a concept query ("how do I use effects?") |
 
 ### Docs & navigation (version-scoped)
@@ -84,8 +84,8 @@ All tools return JSON. Version-scoped tools take an optional `for_version` argum
 | Tool | Purpose |
 |---|---|
 | `design_docs_list` | List planned/implemented/rejected design docs, optionally by version |
-| `design_doc` | Full design doc by slug |
-| `roadmap` | What's shipping next, what's been rejected and why |
+| `design_doc` | Full design doc by slug, as markdown, read live from `dev` |
+| `roadmap` | The site's roadmap page, as markdown, read live from `dev` |
 | `changelog_for_version` | What changed in a given release |
 
 ### Benchmarks (unscoped)
@@ -93,9 +93,8 @@ All tools return JSON. Version-scoped tools take an optional `for_version` argum
 | Tool | Purpose |
 |---|---|
 | `benchmarks_list` | List benchmark suites and runs, optionally `since_version` |
-| `benchmark_run` | One run's full result (code, compile_ok, runtime_ok, cost, tokens) |
 | `benchmarks_for_model` | Where does a given model pass/fail? |
-| `benchmarks_compare` | Pairwise model comparison (a-only, b-only, both, neither) |
+| `benchmarks_compare` | Two models side by side: passes, runs, pass rate, cost, failures by category |
 
 ### Public feedback (the only write tool)
 
@@ -122,17 +121,18 @@ The limiter is in-process: each Cloud Run instance keeps its own table. Under au
 
 ## Versioning model
 
-Each Cloud Run image bakes in a snapshot of the AILANG corpus pinned to the release that built it. Multi-version is handled inside the tool calls (`for_version`), not at the URL — there's exactly one endpoint, `mcp.ailang.sunholo.com/mcp/`, and the data inside it is version-scoped.
+Each Cloud Run image bakes in a snapshot of the AILANG corpus pinned to the release that built it: the search indexes, the stdlib reference, the prompts and the benchmark summaries. A few tools read the public repository live instead, because the server always has network access and the content is either fixed per release or moves between releases: `example_get` and `examples_list` read `examples/` at the release tag, and `design_doc` and `roadmap` read the `dev` branch, so they are current rather than as of the last release. Offline use does not depend on this: the CLI (`ailang docs`, `ailang prompt`) never loads these tools. Multi-version is handled inside the tool calls (`for_version`), not at the URL — there's exactly one endpoint, `mcp.ailang.sunholo.com/mcp/`, and the data inside it is version-scoped.
 
-If you ask for a version that isn't in the snapshot, you get `{error: "unknown_version", nearest: "..."}` rather than a silent downgrade. The CLI's `ailang prompt --source auto` flow uses this to fall back to its embedded copy without ever surfacing wrong-version content to the user.
+If you ask for a version that isn't in the snapshot, you get an `unknown_version` error rather than a silent downgrade. The CLI's `ailang prompt --source auto` flow uses this to fall back to its embedded copy without ever surfacing wrong-version content to the user.
 
 ## Caps & determinism
 
-- Cloud Run service runs `ailang serve-api --mcp-http --routes-only --caps FS,Env`
+- Cloud Run service runs `ailang serve-api --mcp-http --routes-only --caps FS,Env,Net`
 - `--routes-only` means only `@mcp_name`/`@route` exports register as tools — no helper leakage
 - The public service intentionally keeps the Go-side `submit_feedback` built-in despite `--routes-only`; self-hosted operators who need an exact export-only surface add `--no-feedback-tool`
-- `--caps FS,Env` is the only ambient authority (filesystem reads from the baked snapshot, env reads for snapshot dir config). `Net` is added in v0.15+ when `submit_feedback` publishes to the existing `ailang-messages` Pub/Sub topic
-- Tool replies are deterministic for a given image SHA — replays are byte-identical
+- `--caps FS,Env,Net` is the only ambient authority: filesystem reads from the baked snapshot, env reads for its config, and `Net` for the live reads above. Those build every URL from a fixed base (`raw.githubusercontent.com/sunholo-data/ailang`), a ref (`dev` or the release tag) and a path checked against `[A-Za-z0-9._/-]` with no `..`, so an argument can name a file in the repository and nothing else
+- Replies from the snapshot tools are deterministic for a given image SHA; the live tools return the repository as it is at the ref
+- A tool that refuses a call (an unknown slug, path, version or prompt kind) returns an MCP tool error (`isError: true`), not a successful result with an error inside
 
 ## Source
 

@@ -1,0 +1,184 @@
+  PASS: host extraction: exactly one nonempty physical line
+  PASS: /bin/bash host syntax
+  PASS: /bin/zsh host syntax
+    mutant=source target=secrets-scope.sh
+    MUTATION-DIFF arm=source "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -139,0 +140 @@\n+mc_secrets_scope_apply codex-role\n"
+    worker assertion rc=95
+  PASS: /bin/bash source KILLED
+    worker assertion rc=95
+  PASS: /bin/zsh source KILLED
+    mutant=lane-claude-controller target=secrets-scope.sh
+    MUTATION-DIFF arm=lane-claude-controller "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -11,0 +12 @@\n+  if [ \"${1-}\" = \"claude-controller\" ]; then printf '%s\\n' CLAUDE_CODE_OAUTH_TOKEN OLLAMA_API_KEY OPENROUTER_API_KEY; return 0; fi\n"
+    worker assertion rc=99
+  PASS: /bin/bash lane-claude-controller KILLED
+    worker assertion rc=99
+  PASS: /bin/zsh lane-claude-controller KILLED
+    mutant=lane-codex-controller target=secrets-scope.sh
+    MUTATION-DIFF arm=lane-codex-controller "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -11,0 +12 @@\n+  if [ \"${1-}\" = \"codex-controller\" ]; then printf '%s\\n' CLAUDE_CODE_OAUTH_TOKEN OLLAMA_API_KEY OPENROUTER_API_KEY; return 0; fi\n"
+    worker assertion rc=99
+  PASS: /bin/bash lane-codex-controller KILLED
+    worker assertion rc=99
+  PASS: /bin/zsh lane-codex-controller KILLED
+    mutant=lane-pi-controller target=secrets-scope.sh
+    MUTATION-DIFF arm=lane-pi-controller "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -11,0 +12 @@\n+  if [ \"${1-}\" = \"pi-controller\" ]; then printf '%s\\n' CLAUDE_CODE_OAUTH_TOKEN OLLAMA_API_KEY OPENROUTER_API_KEY; return 0; fi\n"
+    worker assertion rc=99
+  PASS: /bin/bash lane-pi-controller KILLED
+    worker assertion rc=99
+  PASS: /bin/zsh lane-pi-controller KILLED
+    mutant=lane-claude-role target=secrets-scope.sh
+    MUTATION-DIFF arm=lane-claude-role "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -11,0 +12 @@\n+  if [ \"${1-}\" = \"claude-role\" ]; then :; return 0; fi\n"
+    worker assertion rc=99
+  PASS: /bin/bash lane-claude-role KILLED
+    worker assertion rc=99
+  PASS: /bin/zsh lane-claude-role KILLED
+    mutant=lane-codex-role target=secrets-scope.sh
+    MUTATION-DIFF arm=lane-codex-role "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -11,0 +12 @@\n+  if [ \"${1-}\" = \"codex-role\" ]; then printf '%s\\n' OPENAI_API_KEY; return 0; fi\n"
+    worker assertion rc=99
+  PASS: /bin/bash lane-codex-role KILLED
+    worker assertion rc=99
+  PASS: /bin/zsh lane-codex-role KILLED
+    mutant=lane-pi-role target=secrets-scope.sh
+    MUTATION-DIFF arm=lane-pi-role "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -11,0 +12 @@\n+  if [ \"${1-}\" = \"pi-role\" ]; then printf '%s\\n' OLLAMA_API_KEY; return 0; fi\n"
+    worker assertion rc=99
+  PASS: /bin/bash lane-pi-role KILLED
+    worker assertion rc=99
+  PASS: /bin/zsh lane-pi-role KILLED
+    mutant=unknown target=secrets-scope.sh
+    MUTATION-DIFF arm=unknown "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -34 +34 @@\n-    *) return 64 ;;\n+    *) printf \"%s\\n\" OPENAI_API_KEY ;;\n"
+    worker assertion rc=107
+  PASS: /bin/bash unknown KILLED
+    worker assertion rc=107
+  PASS: /bin/zsh unknown KILLED
+    mutant=future target=secrets-scope.sh
+    MUTATION-DIFF arm=future "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -42 +42 @@\n-    if (!seen[n]++) print n\n+    if (n==\"FUTURE_SCOPE_KEY\") next; if (!seen[n]++) print n\n"
+    worker assertion rc=121
+  PASS: /bin/bash future KILLED
+    worker assertion rc=121
+  PASS: /bin/zsh future KILLED
+    mutant=helper-collision target=secrets-scope.sh
+    MUTATION-DIFF arm=helper-collision "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -94 +94 @@\n-  if ! mc_secrets_scope_prepare \"$3\" _mc_scope_lane _mc_scope_file _mc_scope_names _mc_scope_name _mc_scope_allow _mc_scope_rc _mc_scope_kept _mc_scope_stripped _mc_scope_nkept _mc_scope_nstripped; then\n+  if ! :; then\n"
+    worker assertion rc=93
+  PASS: /bin/bash helper-collision KILLED
+    worker assertion rc=93
+  PASS: /bin/zsh helper-collision KILLED
+    mutant=forms target=secrets-scope.sh
+    MUTATION-DIFF arm=forms "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -40 +40 @@\n-  /usr/bin/awk '/^[ \\t]*(export[ \\t]+)?[A-Za-z_][A-Za-z0-9_]*=/ {\n+  /usr/bin/awk '/^[ \\t]*export[ \\t]+[A-Za-z_][A-Za-z0-9_]*=/ {\n"
+    worker assertion rc=111
+  PASS: /bin/bash forms KILLED
+    worker assertion rc=111
+  PASS: /bin/zsh forms KILLED
+    mutant=dedup target=secrets-scope.sh
+    MUTATION-DIFF arm=dedup "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -42 +42 @@\n-    if (!seen[n]++) print n\n+    print n\n"
+    worker assertion rc=111
+  PASS: /bin/bash dedup KILLED
+    worker assertion rc=111
+  PASS: /bin/zsh dedup KILLED
+    mutant=decoy target=secrets-scope.sh
+    MUTATION-DIFF arm=decoy "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -40 +40 @@\n-  /usr/bin/awk '/^[ \\t]*(export[ \\t]+)?[A-Za-z_][A-Za-z0-9_]*=/ {\n+  /usr/bin/awk '/[ \\t]*(export[ \\t]+)?[A-Za-z_][A-Za-z0-9_]*=/ {\n"
+    worker assertion rc=111
+  PASS: /bin/bash decoy KILLED
+    worker assertion rc=111
+  PASS: /bin/zsh decoy KILLED
+    mutant=noeval target=secrets-scope.sh
+    MUTATION-DIFF arm=noeval "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -105,0 +106 @@\n+  (. \"$_mc_scope_file\") >/dev/null 2>&1\n"
+    worker assertion rc=112
+  PASS: /bin/bash noeval KILLED
+    worker assertion rc=112
+  PASS: /bin/zsh noeval KILLED
+    mutant=disclosure target=secrets-scope.sh
+    MUTATION-DIFF arm=disclosure "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -105,0 +106 @@\n+  cat \"$_mc_scope_file\"\n"
+    no-disclosure assertion failed
+  PASS: /bin/bash disclosure KILLED
+    no-disclosure assertion failed
+  PASS: /bin/zsh disclosure KILLED
+    mutant=parent target=secrets-scope.sh
+    MUTATION-DIFF arm=parent "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -122 +122 @@\n-        elif ! mc_secrets_scope_unset \"$_mc_scope_name\"; then\n+        elif ! (mc_secrets_scope_unset \"$_mc_scope_name\"); then\n"
+    worker assertion rc=121
+  PASS: /bin/bash parent KILLED
+    worker assertion rc=121
+  PASS: /bin/zsh parent KILLED
+    mutant=missing target=secrets-scope.sh
+    MUTATION-DIFF arm=missing "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -90 +90 @@\n-    return 78\n+    return 0\n"
+    worker assertion rc=114
+  PASS: /bin/bash missing KILLED
+    worker assertion rc=114
+  PASS: /bin/zsh missing KILLED
+    mutant=unset-failure target=secrets-scope.sh
+    MUTATION-DIFF arm=unset-failure "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -131 +131 @@\n-    mc_secrets_scope_floor\n+    :\n"
+    worker assertion rc=116
+  PASS: /bin/bash unset-failure KILLED
+    worker assertion rc=116
+  PASS: /bin/zsh unset-failure KILLED
+    mutant=bridge-unset target=secrets-scope-zshenv.sh
+    MUTATION-DIFF arm=bridge-unset "--- secrets-scope-zshenv.sh\n+++ secrets-scope-zshenv.sh\n@@ -3 +3 @@\n-[ -n \"${AILANG_SECRETS_LANE-}\" ] || return 0\n+:\n"
+    worker assertion rc=117
+  PASS: /bin/bash bridge-unset KILLED
+    worker assertion rc=117
+  PASS: /bin/zsh bridge-unset KILLED
+    mutant=bridge-empty target=secrets-scope-zshenv.sh
+    MUTATION-DIFF arm=bridge-empty "--- secrets-scope-zshenv.sh\n+++ secrets-scope-zshenv.sh\n@@ -3 +3 @@\n-[ -n \"${AILANG_SECRETS_LANE-}\" ] || return 0\n+:\n"
+    worker assertion rc=117
+  PASS: /bin/bash bridge-empty KILLED
+    worker assertion rc=117
+  PASS: /bin/zsh bridge-empty KILLED
+    mutant=host-good target=secrets-scope-zshenv.sh
+    MUTATION-DIFF arm=host-good "--- secrets-scope-zshenv.sh\n+++ secrets-scope-zshenv.sh\n@@ -8 +8 @@\n-mc_secrets_scope_apply \"$AILANG_SECRETS_LANE\"\n+:\n"
+  PASS: /bin/bash host-good KILLED
+  PASS: /bin/zsh host-good KILLED
+    mutant=host-unset target=host.sh
+    MUTATION-DIFF arm=host-unset "--- host.sh\n+++ host.sh\n@@ -1 +1 @@\n-if [ -n \"${AILANG_SECRETS_LANE-}\" ]; then if [ -n \"${MISSION_DRIVER_ROOT-}\" ] && [ -r \"$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope-zshenv.sh\" ] && . \"$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope-zshenv.sh\" 2>/dev/null; then :; else for _ailang_scope_key in ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN GEMINI_AGENTS_API_KEY GOOGLE_API_KEY OLLAMA_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY; do (unset \"$_ailang_scope_key\") 2>/dev/null && unset \"$_ailang_scope_key\" 2>/dev/null || :; done; while IFS= read -r _ailang_scope_key; do (unset \"$_ailang_scope_key\") 2>/dev/null && unset \"$_ailang_scope_key\" 2>/dev/null || :; done < <(/usr/bin/awk '/^[ \\t]*(export[ \\t]+)?[A-Za-z_][A-Za-z0-9_]*=/ { n=$0; sub(/^[ \\t]*(export[ \\t]+)?/, \"\", n); sub(/=.*/, \"\", n); if (!seen[n]++) print n }' \"$HOME/.config/ailang/secrets.env\" 2>/dev/null); unset _ailang_scope_key; printf '%s\\n' 'secrets-scope: FAIL-CLOSED; scope hook unavailable or failed; mission shell refused' >&2; exit 78; fi; fi\n+if :; then if [ -n \"${MISSION_DRIVER_ROOT-}\" ] && [ -r \"$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope-zshenv.sh\" ] && . \"$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope-zshenv.sh\" 2>/dev/null; then :; else for _ailang_scope_key in ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN GEMINI_AGENTS_API_KEY GOOGLE_API_KEY OLLAMA_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY; do (unset \"$_ailang_scope_key\") 2>/dev/null && unset \"$_ailang_scope_key\" 2>/dev/null || :; done; while IFS= read -r _ailang_scope_key; do (unset \"$_ailang_scope_key\") 2>/dev/null && unset \"$_ailang_scope_key\" 2>/dev/null || :; done < <(/usr/bin/awk '/^[ \\t]*(export[ \\t]+)?[A-Za-z_][A-Za-z0-9_]*=/ { n=$0; sub(/^[ \\t]*(export[ \\t]+)?/, \"\", n); sub(/=.*/, \"\", n); if (!seen[n]++) print n }' \"$HOME/.config/ailang/secrets.env\" 2>/dev/null); unset _ailang_scope_key; printf '%s\\n' 'secrets-scope: FAIL-CLOSED; scope hook unavailable or failed; mission shell refused' >&2; exit 78; fi; fi\n"
+  PASS: /bin/bash host-unset KILLED
+  PASS: /bin/zsh host-unset KILLED
+    mutant=host-empty target=host.sh
+    MUTATION-DIFF arm=host-empty "--- host.sh\n+++ host.sh\n@@ -1 +1 @@\n-if [ -n \"${AILANG_SECRETS_LANE-}\" ]; then if [ -n \"${MISSION_DRIVER_ROOT-}\" ] && [ -r \"$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope-zshenv.sh\" ] && . \"$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope-zshenv.sh\" 2>/dev/null; then :; else for _ailang_scope_key in ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN GEMINI_AGENTS_API_KEY GOOGLE_API_KEY OLLAMA_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY; do (unset \"$_ailang_scope_key\") 2>/dev/null && unset \"$_ailang_scope_key\" 2>/dev/null || :; done; while IFS= read -r _ailang_scope_key; do (unset \"$_ailang_scope_key\") 2>/dev/null && unset \"$_ailang_scope_key\" 2>/dev/null || :; done < <(/usr/bin/awk '/^[ \\t]*(export[ \\t]+)?[A-Za-z_][A-Za-z0-9_]*=/ { n=$0; sub(/^[ \\t]*(export[ \\t]+)?/, \"\", n); sub(/=.*/, \"\", n); if (!seen[n]++) print n }' \"$HOME/.config/ailang/secrets.env\" 2>/dev/null); unset _ailang_scope_key; printf '%s\\n' 'secrets-scope: FAIL-CLOSED; scope hook unavailable or failed; mission shell refused' >&2; exit 78; fi; fi\n+if :; then if [ -n \"${MISSION_DRIVER_ROOT-}\" ] && [ -r \"$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope-zshenv.sh\" ] && . \"$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope-zshenv.sh\" 2>/dev/null; then :; else for _ailang_scope_key in ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN GEMINI_AGENTS_API_KEY GOOGLE_API_KEY OLLAMA_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY; do (unset \"$_ailang_scope_key\") 2>/dev/null && unset \"$_ailang_scope_key\" 2>/dev/null || :; done; while IFS= read -r _ailang_scope_key; do (unset \"$_ailang_scope_key\") 2>/dev/null && unset \"$_ailang_scope_key\" 2>/dev/null || :; done < <(/usr/bin/awk '/^[ \\t]*(export[ \\t]+)?[A-Za-z_][A-Za-z0-9_]*=/ { n=$0; sub(/^[ \\t]*(export[ \\t]+)?/, \"\", n); sub(/=.*/, \"\", n); if (!seen[n]++) print n }' \"$HOME/.config/ailang/secrets.env\" 2>/dev/null); unset _ailang_scope_key; printf '%s\\n' 'secrets-scope: FAIL-CLOSED; scope hook unavailable or failed; mission shell refused' >&2; exit 78; fi; fi\n"
+  PASS: /bin/bash host-empty KILLED
+  PASS: /bin/zsh host-empty KILLED
+    mutant=host-missing-lib target=secrets-scope-zshenv.sh
+    MUTATION-DIFF arm=host-missing-lib "--- secrets-scope-zshenv.sh\n+++ secrets-scope-zshenv.sh\n@@ -5 +5 @@\n-  [ -r \"$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope.sh\" ] || return 78\n+  [ -r \"$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope.sh\" ] || return 0\n"
+  PASS: /bin/bash host-missing-lib KILLED
+  PASS: /bin/zsh host-missing-lib KILLED
+    mutant=host-missing-root target=host.sh
+    MUTATION-DIFF arm=host-missing-root "--- host.sh\n+++ host.sh\n@@ -1 +1 @@\n-if [ -n \"${AILANG_SECRETS_LANE-}\" ]; then if [ -n \"${MISSION_DRIVER_ROOT-}\" ] && [ -r \"$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope-zshenv.sh\" ] && . \"$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope-zshenv.sh\" 2>/dev/null; then :; else for _ailang_scope_key in ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN GEMINI_AGENTS_API_KEY GOOGLE_API_KEY OLLAMA_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY; do (unset \"$_ailang_scope_key\") 2>/dev/null && unset \"$_ailang_scope_key\" 2>/dev/null || :; done; while IFS= read -r _ailang_scope_key; do (unset \"$_ailang_scope_key\") 2>/dev/null && unset \"$_ailang_scope_key\" 2>/dev/null || :; done < <(/usr/bin/awk '/^[ \\t]*(export[ \\t]+)?[A-Za-z_][A-Za-z0-9_]*=/ { n=$0; sub(/^[ \\t]*(export[ \\t]+)?/, \"\", n); sub(/=.*/, \"\", n); if (!seen[n]++) print n }' \"$HOME/.config/ailang/secrets.env\" 2>/dev/null); unset _ailang_scope_key; printf '%s\\n' 'secrets-scope: FAIL-CLOSED; scope hook unavailable or failed; mission shell refused' >&2; exit 78; fi; fi\n+if [ -n \"${AILANG_SECRETS_LANE-}\" ]; then if [ -n \"${MISSION_DRIVER_ROOT-}\" ] && [ -r \"$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope-zshenv.sh\" ] && . \"$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope-zshenv.sh\" 2>/dev/null; then :; else for _ailang_scope_key in ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN GEMINI_AGENTS_API_KEY GOOGLE_API_KEY OLLAMA_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY; do (unset \"$_ailang_scope_key\") 2>/dev/null && unset \"$_ailang_scope_key\" 2>/dev/null || :; done; while IFS= read -r _ailang_scope_key; do (unset \"$_ailang_scope_key\") 2>/dev/null && unset \"$_ailang_scope_key\" 2>/dev/null || :; done < <(/usr/bin/awk '/^[ \\t]*(export[ \\t]+)?[A-Za-z_][A-Za-z0-9_]*=/ { n=$0; sub(/^[ \\t]*(export[ \\t]+)?/, \"\", n); sub(/=.*/, \"\", n); if (!seen[n]++) print n }' \"$HOME/.config/ailang/secrets.env\" 2>/dev/null); unset _ailang_scope_key; printf '%s\\n' 'secrets-scope: FAIL-CLOSED; scope hook unavailable or failed; mission shell refused' >&2; return 0; fi; fi\n"
+  PASS: /bin/bash host-missing-root KILLED
+  PASS: /bin/zsh host-missing-root KILLED
+    mutant=host-missing-bridge target=host.sh
+    MUTATION-DIFF arm=host-missing-bridge "--- host.sh\n+++ host.sh\n@@ -1 +1 @@\n-if [ -n \"${AILANG_SECRETS_LANE-}\" ]; then if [ -n \"${MISSION_DRIVER_ROOT-}\" ] && [ -r \"$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope-zshenv.sh\" ] && . \"$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope-zshenv.sh\" 2>/dev/null; then :; else for _ailang_scope_key in ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN GEMINI_AGENTS_API_KEY GOOGLE_API_KEY OLLAMA_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY; do (unset \"$_ailang_scope_key\") 2>/dev/null && unset \"$_ailang_scope_key\" 2>/dev/null || :; done; while IFS= read -r _ailang_scope_key; do (unset \"$_ailang_scope_key\") 2>/dev/null && unset \"$_ailang_scope_key\" 2>/dev/null || :; done < <(/usr/bin/awk '/^[ \\t]*(export[ \\t]+)?[A-Za-z_][A-Za-z0-9_]*=/ { n=$0; sub(/^[ \\t]*(export[ \\t]+)?/, \"\", n); sub(/=.*/, \"\", n); if (!seen[n]++) print n }' \"$HOME/.config/ailang/secrets.env\" 2>/dev/null); unset _ailang_scope_key; printf '%s\\n' 'secrets-scope: FAIL-CLOSED; scope hook unavailable or failed; mission shell refused' >&2; exit 78; fi; fi\n+if [ -n \"${AILANG_SECRETS_LANE-}\" ]; then if [ -n \"${MISSION_DRIVER_ROOT-}\" ] && [ -r \"$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope-zshenv.sh\" ] && . \"$MISSION_DRIVER_ROOT/tools/launchd/lib/secrets-scope-zshenv.sh\" 2>/dev/null; then :; else for _ailang_scope_key in ANTHROPIC_API_KEY CLAUDE_CODE_OAUTH_TOKEN GEMINI_AGENTS_API_KEY GOOGLE_API_KEY OLLAMA_API_KEY OPENAI_API_KEY OPENROUTER_API_KEY; do (unset \"$_ailang_scope_key\") 2>/dev/null && unset \"$_ailang_scope_key\" 2>/dev/null || :; done; while IFS= read -r _ailang_scope_key; do (unset \"$_ailang_scope_key\") 2>/dev/null && unset \"$_ailang_scope_key\" 2>/dev/null || :; done < <(/usr/bin/awk '/^[ \\t]*(export[ \\t]+)?[A-Za-z_][A-Za-z0-9_]*=/ { n=$0; sub(/^[ \\t]*(export[ \\t]+)?/, \"\", n); sub(/=.*/, \"\", n); if (!seen[n]++) print n }' \"$HOME/.config/ailang/secrets.env\" 2>/dev/null); unset _ailang_scope_key; printf '%s\\n' 'secrets-scope: FAIL-CLOSED; scope hook unavailable or failed; mission shell refused' >&2; return 0; fi; fi\n"
+  PASS: /bin/bash host-missing-bridge KILLED
+  PASS: /bin/zsh host-missing-bridge KILLED
+    mutant=multiple target=secrets-scope.sh
+    MUTATION-DIFF arm=multiple "--- secrets-scope.sh\n+++ secrets-scope.sh\n@@ -108 +108 @@\n-  while IFS= read -r _mc_scope_name; do\n+  for _mc_scope_name in $_mc_scope_names; do\n"
+  EQUIVALENT: /bin/bash multiple (bash splits this fixture; zsh arm is decisive)
+    worker assertion rc=100
+  PASS: /bin/zsh multiple KILLED
+MUTATION-DIFF arm=controller-codex "--- tools/launchd/mission-control.sh\n+++ tools/launchd/mission-control.sh\n@@ -2458 +2458 @@\n-    mc_secrets_scope_apply \"$AILANG_SECRETS_LANE\" 2>>\"$LOG\" || exit $?\n+    : # mutant: omit child scope\n"
+KILLED: mutant=controller-codex arm=controller-codex target=tools/launchd/mission-control.sh assertion=child allowlist
+MUTATION-DIFF arm=controller-pi "--- tools/launchd/mission-control.sh\n+++ tools/launchd/mission-control.sh\n@@ -2517 +2517 @@\n-      mc_secrets_scope_apply \"$AILANG_SECRETS_LANE\" || exit $?\n+    : # mutant: omit child scope\n"
+KILLED: mutant=controller-pi arm=controller-pi target=tools/launchd/mission-control.sh assertion=child allowlist
+MUTATION-DIFF arm=controller-claude "--- tools/launchd/mission-control.sh\n+++ tools/launchd/mission-control.sh\n@@ -2524 +2524 @@\n-    mc_secrets_scope_apply \"$AILANG_SECRETS_LANE\" 2>>\"$LOG\" || exit $?\n+    : # mutant: omit child scope\n"
+KILLED: mutant=controller-claude arm=controller-claude target=tools/launchd/mission-control.sh assertion=child allowlist
+MUTATION-DIFF arm=codex-ordering "--- tools/launchd/mission-control.sh\n+++ tools/launchd/mission-control.sh\n@@ -2457 +2457 @@\n-    export AILANG_SECRETS_LANE=codex-controller MISSION_DRIVER_ROOT=\"$MC_DRIVER_ROOT\"\n+    mc_codex_env_args >/dev/null 2>&1; export AILANG_SECRETS_LANE=codex-controller MISSION_DRIVER_ROOT=\"$MC_DRIVER_ROOT\"\n"
+KILLED: mutant=codex-ordering arm=codex-ordering target=tools/launchd/mission-control.sh assertion=no forwarding before child marker
+MUTATION-DIFF arm=retry-switch "--- tools/launchd/mission-control.sh\n+++ tools/launchd/mission-control.sh\n@@ -2450,0 +2451 @@\n+  mc_secrets_scope_apply codex-role # mutant: parent strip\n"
+KILLED: mutant=retry-switch arm=retry-switch target=tools/launchd/mission-control.sh assertion=spawn and parent isolation
+MUTATION-DIFF arm=codex-marker-root "--- tools/launchd/lib/codex-env-args.sh\n+++ tools/launchd/lib/codex-env-args.sh\n@@ -47 +47 @@\n-      AILANG_SECRETS_LANE|CODEX_HOME|AILANG_CODEX_RUNTIME|MISSION_*|AILANG_DRIVER_*|AILANG_STORAGE_MESSAGING|AILANG_MESSAGES_PROJECT|AILANG_MISSION_REGISTRY|AILANG_STATE_DIR|CONTROLLER_PROVIDER|CONTROLLER_ID) ;;\n+      CODEX_HOME|AILANG_CODEX_RUNTIME|MISSION_*|AILANG_DRIVER_*|AILANG_STORAGE_MESSAGING|AILANG_MESSAGES_PROJECT|AILANG_MISSION_REGISTRY|AILANG_STATE_DIR|CONTROLLER_PROVIDER|CONTROLLER_ID) ;;\n"
+KILLED: mutant=codex-marker-root arm=codex-marker-root target=tools/launchd/lib/codex-env-args.sh assertion=exact marker forwarded
+MUTATION-DIFF arm=deny-isolation "--- tools/launchd/lib/codex-env-args.sh\n+++ tools/launchd/lib/codex-env-args.sh\n@@ -51 +51 @@\n-      AILANG_SECRETS_LANE) : ;; # Validated above; no other name bypasses the deny rule.\n+      AILANG_SECRETS_LANE|*SECRETS*|*SECRET*|*TOKEN*) : ;; # Validated above; no other name bypasses the deny rule.\n"
+KILLED: mutant=deny-isolation arm=deny-isolation target=tools/launchd/lib/codex-env-args.sh assertion=other secret/token names denied
+MUTATION-DIFF arm=scoped-include-only "--- tools/launchd/lib/codex-env-args.sh\n+++ tools/launchd/lib/codex-env-args.sh\n@@ -95 +95 @@\n-    if [ \"${AILANG_SECRETS_LANE+x}\" = x ]; then\n+    if false; then\n"
+KILLED: mutant=scoped-include-only arm=scoped-include-only target=tools/launchd/lib/codex-env-args.sh assertion=marked include_only refuses
+MUTATION-DIFF arm=root-quoting "--- tools/launchd/lib/codex-env-args.sh\n+++ tools/launchd/lib/codex-env-args.sh\n@@ -29 +29 @@\n-  enc=$(mc_toml_basic_string \"$2\") || return 1\n+  enc=$2 # mutant: no TOML encoding\n"
+KILLED: mutant=root-quoting arm=root-quoting target=tools/launchd/lib/codex-env-args.sh assertion=Expecting value: line 1 column 1 (char 0)
+MUTATION-DIFF arm=unknown-marker "--- tools/launchd/lib/codex-env-args.sh\n+++ tools/launchd/lib/codex-env-args.sh\n@@ -41 +41 @@\n-      *) echo 'codex-env: refused invalid scope marker' >&2; return 64 ;;\n+      *) : ;;\n"
+KILLED: mutant=unknown-marker arm=unknown-marker target=tools/launchd/lib/codex-env-args.sh assertion=invalid marker refuses forwarding
+MUTATION-DIFF arm=detector "--- tools/launchd/transcript-secret-scan.sh\n+++ tools/launchd/transcript-secret-scan.sh\n@@ -5 +5 @@\n-secrets_file=\"$HOME/.config/ailang/secrets.env\"\n+secrets_file=/dev/null\n"
+KILLED: mutant=detector arm=detector target=tools/launchd/transcript-secret-scan.sh assertion=detector sees stripped synthetic key from file inventory
+MUTATION-DIFF arm=role-codex "--- scripts/mission_scoped_run.sh\n+++ scripts/mission_scoped_run.sh\n@@ -14 +14 @@\n-export AILANG_SECRETS_LANE=\"$lane\" MISSION_DRIVER_ROOT=\"$RUNNER_ROOT\"\n+export MISSION_DRIVER_ROOT=\"$RUNNER_ROOT\" # mutant: inherited controller marker\n"
+KILLED: mutant=role-codex arm=role-codex target=scripts/mission_scoped_run.sh assertion=child allowlist
+MUTATION-DIFF arm=role-claude "--- scripts/mission_scoped_run.sh\n+++ scripts/mission_scoped_run.sh\n@@ -14 +14 @@\n-export AILANG_SECRETS_LANE=\"$lane\" MISSION_DRIVER_ROOT=\"$RUNNER_ROOT\"\n+export MISSION_DRIVER_ROOT=\"$RUNNER_ROOT\" # mutant: inherited controller marker\n"
+KILLED: mutant=role-claude arm=role-claude target=scripts/mission_scoped_run.sh assertion=child allowlist
+MUTATION-DIFF arm=pi-runner "--- scripts/mission_pi_run.sh\n+++ scripts/mission_pi_run.sh\n@@ -304 +304 @@\n-  mc_secrets_scope_apply \"$AILANG_SECRETS_LANE\" || exit $?\n+  : # mutant: omit role apply\n"
+KILLED: mutant=pi-runner arm=pi-runner target=scripts/mission_pi_run.sh assertion=child allowlist
+MUTATION-DIFF arm=pi-bash-env "--- scripts/mission_pi_run.sh\n+++ scripts/mission_pi_run.sh\n@@ -303 +303 @@\n-  unset BASH_ENV\n+  : # mutant: keep startup exporter\n"
+KILLED: mutant=pi-bash-env arm=pi-bash-env target=scripts/mission_pi_run.sh assertion=child allowlist
+  PASS: M2 actual spawn arms
+57 passed, 0 failed

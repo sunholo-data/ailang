@@ -3,6 +3,7 @@ package pipeline
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/sunholo-data/ailang/internal/ast"
 	"github.com/sunholo-data/ailang/internal/core"
@@ -16,6 +17,8 @@ import (
 // (like None) in pattern matching and not treat them as variable patterns.
 type importedCtorInfo struct {
 	TypeName string
+	// Module is the ADT's defining module (M-V1-NOMINAL-TYPE-IDENTITY).
+	Module string
 	// CanonicalName is the constructor's declared name. It differs from the
 	// ImportedCtorInfos map key only for an aliased import
 	// (`import M (None as Nada)` → key "Nada", CanonicalName "None"); the
@@ -26,32 +29,59 @@ type importedCtorInfo struct {
 }
 
 // moduleImports holds the resolved import data for a module being compiled.
+//
+// M-V1-NOMINAL-TYPE-IDENTITY: every table keyed by a TYPE is keyed by
+// types.NominalKey(defining module, name) — ImportedTypeAliases,
+// ImportedAliasParams, ImportedAliasOrigin, ImportedNewtypes and
+// ImportedADTTypeParams — so two modules' same-named types never share an
+// entry and "first import wins" no longer decides which body a name expands to.
 type moduleImports struct {
 	ExternalTypes         map[string]*types.Scheme
 	GlobalRefs            map[string]core.GlobalRef
 	ImportedTypeAliases   map[string]types.Type
 	ImportedAliasParams   map[string][]string // M-XMOD-ALIAS-POLY: params for imported parameterized aliases
 	ImportedCtorTypes     map[string]string
+	ImportedCtorModules   map[string]string // constructor -> defining module of its ADT
 	ImportedADTTypeParams map[string]int
 	ImportedCtorInfos     map[string]*importedCtorInfo
+	// ImportedNewtypes: alias keys that are single-constructor ADTs wrapping a
+	// record (registered as aliases only for field access).
+	ImportedNewtypes map[string]bool
+	// ExplicitTypes: a type name bound by a selective import (`import M (T)`,
+	// `import M (T as U)` binds U) -> the declaration it names. §4.3 rule 3.
+	ExplicitTypes map[string]types.TypeRef
+	// AmbiguousCtors: auto-imported constructor names two or more modules
+	// offer (and nothing imports by name) -> the candidate ADTs, sorted by
+	// module (import_ambiguity.go).
+	AmbiguousCtors map[string][]types.CtorCandidate
+	// Collisions: MOD015 errors for two explicit imports binding one bare type
+	// or constructor name to different declarations.
+	Collisions []error
+	ns         *importNamespaces
 	// AllCtorTypes is a diagnostic-only Constructor → ADT map covering ALL
 	// transitively-loaded modules (not just direct imports). It feeds error-
 	// message constructor suggestions when the scrutinee's ADT is known only
 	// transitively; it does NOT bring constructors into scope.
 	// M-MATCH-XCHECK-ERROR-QUALITY.
 	AllCtorTypes map[string]string
+	// MatchUniverse is every transitively-loaded ADT's complete constructor
+	// list, keyed by nominal identity, for the exhaustiveness check
+	// (M-V1-MATCH-EXHAUSTIVENESS). Like AllCtorTypes it brings nothing into
+	// scope.
+	MatchUniverse types.MatchUniverse
 	// ImportedAliasOrigin records which module's interface supplied each entry
 	// of ImportedTypeAliases (M-TYPE-NAME-SHADOW), for diagnostics.
 	ImportedAliasOrigin map[string]string
-	// CapturedAliases: imported aliases withheld because their body names a type
-	// this module declares itself; value = the loud error message for using one.
-	CapturedAliases map[string]string
+	// IFC maps every name this module binds to an imported value (selective,
+	// renamed, Alias.qualified) to the exporting module's IFC summary — the
+	// same identities GlobalRefs binds (M-IFC-CROSS-MODULE M3, #1134).
+	IFC types.IFCImports
 }
 
 // resolveModuleImports builds the external type environment and global references
 // by collecting exports, types, and constructors from already-compiled dependencies.
 func resolveModuleImports(
-	fileImports []*ast.ImportDecl,
+	file *ast.File,
 	modID string,
 	modLinker *link.ModuleLinker,
 	cfg Config,
@@ -63,26 +93,51 @@ func resolveModuleImports(
 		ImportedTypeAliases:   make(map[string]types.Type),
 		ImportedAliasParams:   make(map[string][]string),
 		ImportedCtorTypes:     make(map[string]string),
+		ImportedCtorModules:   make(map[string]string),
 		ImportedADTTypeParams: make(map[string]int),
 		ImportedCtorInfos:     make(map[string]*importedCtorInfo),
+		ImportedNewtypes:      make(map[string]bool),
+		ExplicitTypes:         make(map[string]types.TypeRef),
+		AmbiguousCtors:        make(map[string][]types.CtorCandidate),
+		ns:                    newImportNamespaces(),
 		AllCtorTypes:          make(map[string]string),
+		MatchUniverse:         make(types.MatchUniverse),
 		ImportedAliasOrigin:   make(map[string]string),
-		CapturedAliases:       make(map[string]string),
 	}
 
 	// M-MATCH-XCHECK-ERROR-QUALITY: collect a diagnostic-only Constructor → ADT
-	// map from every transitively-loaded interface. Deps compile before their
-	// importers (topo order), so by the time the root module type-checks, every
-	// transitive ADT (e.g. Option, imported by std/json but not by the user) is
-	// registered here. Used ONLY for error-message constructor enumeration —
-	// these constructors are NOT in scope.
+	// map from every interface in this module's transitive import closure
+	// (`reach`). Deps compile before their importers (topo order), so by the
+	// time the module type-checks every transitive ADT (e.g. Option, imported
+	// by std/json but not by the user) is registered here. These constructors
+	// are NOT in scope, but they are the candidates of a constructor matched
+	// by name (#2353), the arity rule and the #1478 foreign-constructor check,
+	// so they come from the import closure only: every module compiled so far
+	// included siblings outside it, which made a library's verdict, and its
+	// error, depend on the root's import order and on what else the program
+	// loads — none of which its compile-cache key covers (#2362 review).
 	for _, loadedIface := range modLinker.GetLoadedModules() {
 		if loadedIface == nil {
 			continue
 		}
+		if reach != nil && !reach[loadedIface.Module] && loadedIface.Module != "$builtin" {
+			continue
+		}
+		addIfaceToMatchUniverse(imports.MatchUniverse, loadedIface)
 		for ctorName, ctorScheme := range loadedIface.Constructors {
 			if ctorScheme == nil {
 				continue
+			}
+			// #2353: a constructor matched by name has its arguments typed
+			// from its factory once the value's type picks it, so every
+			// loaded constructor's factory scheme is known (under its
+			// module-qualified $adt key, which no source name can reach).
+			cname := ctorScheme.CtorName
+			if cname == "" {
+				cname = ctorName
+			}
+			if key := core.ADTFactoryKey(loadedIface.Module, ctorScheme.TypeName, cname); imports.ExternalTypes[key] == nil {
+				imports.ExternalTypes[key] = constructorFactoryScheme(ctorScheme)
 			}
 			// A name two different ADTs define is recorded as "" (ambiguous):
 			// last-wins would let the typechecker's transitive foreign-ADT
@@ -111,9 +166,19 @@ func resolveModuleImports(
 	}
 
 	// Get imports for this module
+	var fileImports []*ast.ImportDecl
+	if file != nil {
+		fileImports = file.Imports
+	}
 	if len(fileImports) == 0 {
 		return imports
 	}
+	defer func() {
+		imports.ns.finishAutoCtors(imports)
+		imports.Collisions = imports.ns.collisions
+		// Report the same one whatever the import order (sorted by text).
+		sort.Slice(imports.Collisions, func(i, j int) bool { return imports.Collisions[i].Error() < imports.Collisions[j].Error() })
+	}()
 
 	for _, imp := range fileImports {
 		// Get the interface of the imported module
@@ -125,7 +190,7 @@ func resolveModuleImports(
 			continue
 		}
 		if len(imp.Symbols) > 0 {
-			resolveSelectiveImports(imp, depIface, imports, cfg)
+			resolveSelectiveImports(file, imp, depIface, imports, cfg)
 		}
 
 		// Handle module alias: import std/list as List
@@ -136,6 +201,7 @@ func resolveModuleImports(
 				key := fmt.Sprintf("%s.%s", item.Ref.Module, item.Ref.Name)
 				imports.ExternalTypes[key] = item.Type
 				imports.GlobalRefs[qualifiedName] = item.Ref
+				imports.IFC.Add(qualifiedName, key, item.IFC)
 				if cfg.TraceDefaulting {
 					fmt.Printf("  Module alias %s.%s -> %s\n", imp.ModuleAlias, name, key)
 				}
@@ -172,16 +238,9 @@ func resolveModuleImports(
 			continue
 		}
 		for aliasName, aliasTarget := range modIface.TypeAliases {
-			if _, exists := imports.ImportedTypeAliases[aliasName]; !exists {
-				imports.ImportedTypeAliases[aliasName] = aliasTarget
-				imports.ImportedAliasOrigin[aliasName] = modPath
-				// M-XMOD-ALIAS-POLY: carry params alongside the alias body.
-				if params, ok := modIface.GetTypeAliasParams(aliasName); ok {
-					imports.ImportedAliasParams[aliasName] = params
-				}
-				if cfg.TraceDefaulting {
-					fmt.Printf("  Transitive type alias %s -> %s (from %s)\n", aliasName, aliasTarget, modPath)
-				}
+			key := importIfaceAlias(imports, modIface, aliasName, aliasTarget)
+			if cfg.TraceDefaulting && key != "" {
+				fmt.Printf("  Transitive type alias %s -> %s (from %s)\n", key, aliasTarget, modPath)
 			}
 		}
 	}
@@ -202,6 +261,7 @@ func sortedIfaceKeys(m map[string]*iface.Iface) []string {
 
 // resolveSelectiveImports resolves selective symbol imports from a dependency interface.
 func resolveSelectiveImports(
+	file *ast.File,
 	imp *ast.ImportDecl,
 	depIface *iface.Iface,
 	imports *moduleImports,
@@ -223,6 +283,7 @@ func resolveSelectiveImports(
 			key := fmt.Sprintf("%s.%s", item.Ref.Module, item.Ref.Name)
 			imports.ExternalTypes[key] = item.Type
 			imports.GlobalRefs[bindName] = item.Ref // Use alias name for binding
+			imports.IFC.Add(bindName, key, item.IFC)
 			if cfg.TraceDefaulting {
 				fmt.Printf("  Import value %s as %s -> %s (%s)\n", sym, bindName, key, item.Type)
 			}
@@ -234,19 +295,25 @@ func resolveSelectiveImports(
 			if cfg.TraceDefaulting {
 				fmt.Printf("  Import type %s (arity %d)\n", typ.Name, typ.Arity)
 			}
-			// M-FIX-RECORD-UPDATE: Also import type alias if present
-			// This enables cross-module record update syntax
-			// Keyed by bindName, the name in scope: `import M (Row as R)` must
-			// expand R, or R stays an opaque constructor that unifies with
-			// nothing and --args-json cannot decode it (stapledons_godot,
+			// M-V1-NOMINAL-TYPE-IDENTITY §4.3 rule 3: the bound name (`U` in
+			// `import M (T as U)`) denotes M's T. The type scope resolves U to
+			// TCon{T, M}, so an alias is found under M's key and a renamed ADT
+			// is still M's ADT (it used to be an opaque `U` that unified with
+			// nothing). --args-json reads the same key (stapledons_godot,
 			// 2026-10-01).
-			if alias, hasAlias := depIface.GetTypeAlias(sym); hasAlias {
-				imports.ImportedTypeAliases[bindName] = alias
-				imports.ImportedAliasOrigin[bindName] = depIface.Module
-				// M-XMOD-ALIAS-POLY: carry params for parameterized aliases.
-				if params, ok := depIface.GetTypeAliasParams(sym); ok {
-					imports.ImportedAliasParams[bindName] = params
+			// An injected prelude import is the prelude step of the type
+			// scope (types.TypeScope), never an explicit import: a user's own
+			// import or declaration of Option/Result wins over it silently.
+			if !imp.Implicit {
+				if _, bound := imports.ExplicitTypes[bindName]; !bound {
+					imports.ExplicitTypes[bindName] = types.TypeRef{Module: depIface.Module, Name: sym}
 				}
+				imports.ns.bindExplicit(imports.ns.explicitTypes, "type", bindName, importSite{depIface.Module, sym, imp}, file)
+			}
+			// M-FIX-RECORD-UPDATE: Also import type alias if present
+			// This enables cross-module record update syntax.
+			if alias, hasAlias := depIface.GetTypeAlias(sym); hasAlias {
+				importIfaceAlias(imports, depIface, sym, alias)
 				if cfg.TraceDefaulting {
 					fmt.Printf("  Import type alias %s -> %s\n", sym, alias)
 				}
@@ -259,7 +326,17 @@ func resolveSelectiveImports(
 			// Bind under the alias when one is given (#1478): the alias used to
 			// be dropped here, so `None as Nada` registered nothing and `Nada`
 			// silently never matched in a pattern.
-			resolveConstructorImport(bindName, ctor, imports, cfg)
+			if imp.Implicit {
+				// Prelude constructor (Some, None, Ok, Err): a user's explicit
+				// import of the name replaces it (user imports come after the
+				// prepended prelude and overwrite), and it beats auto-imported
+				// candidates, as on dev.
+				resolveConstructorImport(bindName, depIface.Module, ctor, imports, cfg)
+				imports.ns.preludeCtors[bindName] = true
+			} else {
+				resolveConstructorImport(bindName, depIface.Module, ctor, imports, cfg)
+				imports.ns.bindExplicit(imports.ns.explicitCtors, "constructor", bindName, importSite{depIface.Module, sym, imp}, file)
+			}
 			found = true
 		}
 		// No else needed - if constructor not found, we continue searching
@@ -275,16 +352,9 @@ func resolveSelectiveImports(
 	// This is needed for cross-package type alias unification: if Package C imports
 	// function applyDelta(Usage, ...) from Package A, it needs the Usage alias for unification.
 	for aliasName, aliasTarget := range depIface.TypeAliases {
-		if _, exists := imports.ImportedTypeAliases[aliasName]; !exists {
-			imports.ImportedTypeAliases[aliasName] = aliasTarget
-			imports.ImportedAliasOrigin[aliasName] = depIface.Module
-			// M-XMOD-ALIAS-POLY: carry params for parameterized aliases.
-			if params, ok := depIface.GetTypeAliasParams(aliasName); ok {
-				imports.ImportedAliasParams[aliasName] = params
-			}
-			if cfg.TraceDefaulting {
-				fmt.Printf("  Import type alias %s -> %s from %s\n", aliasName, aliasTarget, imp.Path)
-			}
+		key := importIfaceAlias(imports, depIface, aliasName, aliasTarget)
+		if cfg.TraceDefaulting && key != "" {
+			fmt.Printf("  Import type alias %s -> %s from %s\n", key, aliasTarget, imp.Path)
 		}
 	}
 
@@ -294,21 +364,92 @@ func resolveSelectiveImports(
 	// Without this, `None` in a match pattern is treated as a variable binding,
 	// silently matching everything. Same pattern as type alias auto-import above.
 	for _, ctor := range depIface.Constructors {
+		imports.ns.addAutoCtor(depIface.Module, ctor)
 		if _, exists := imports.ImportedCtorInfos[ctor.CtorName]; !exists {
-			resolveConstructorImport(ctor.CtorName, ctor, imports, cfg)
+			resolveConstructorImport(ctor.CtorName, depIface.Module, ctor, imports, cfg)
 		}
 	}
 }
 
+// ifaceAliasKey is the NominalKey of an entry of ifc.TypeAliases: the
+// interface's own aliases are stored under their bare name, aliases it embeds
+// from another module (embedTransitiveAliases) under their NominalKey already.
+func ifaceAliasKey(ifc *iface.Iface, name string) string {
+	if strings.Contains(name, "::") {
+		return name
+	}
+	return types.NominalKey(ifc.Module, name)
+}
+
+// isIfaceNewtype reports whether alias `name` of ifc is a single-constructor
+// ADT wrapping a record (M-STREAM-DX/M4): the interface also lists a
+// constructor of a type of that name.
+func isIfaceNewtype(ifc *iface.Iface, name string) bool {
+	if strings.Contains(name, "::") {
+		return false
+	}
+	for _, c := range ifc.Constructors {
+		if c != nil && c.TypeName == name {
+			return true
+		}
+	}
+	return false
+}
+
+// importIfaceAlias records alias `name` of ifc under its NominalKey (first
+// definition of a key wins; a key names one declaration, so every copy is the
+// same body). Returns the key, or "" when it was already present.
+func importIfaceAlias(imports *moduleImports, ifc *iface.Iface, name string, target types.Type) string {
+	key := ifaceAliasKey(ifc, name)
+	if isIfaceNewtype(ifc, name) {
+		imports.ImportedNewtypes[key] = true
+	}
+	if _, exists := imports.ImportedTypeAliases[key]; exists {
+		return ""
+	}
+	imports.ImportedTypeAliases[key] = target
+	imports.ImportedAliasOrigin[key] = ifc.Module
+	// M-XMOD-ALIAS-POLY: carry params alongside the alias body.
+	if params, ok := ifc.GetTypeAliasParams(name); ok {
+		imports.ImportedAliasParams[key] = params
+	}
+	return key
+}
+
+// constructorFactoryScheme is the type scheme of a dependency constructor's
+// factory: its result type when nullary, else fields -> result, generalised
+// over the result type's variables (Option[a] -> ["a"]).
+func constructorFactoryScheme(ctor *iface.ConstructorScheme) *types.Scheme {
+	var factoryType types.Type
+	if ctor.Arity == 0 {
+		factoryType = ctor.ResultType
+	} else {
+		factoryType = &types.TFunc2{
+			Params:    ctor.FieldTypes,
+			EffectRow: nil, // Pure constructor
+			Return:    ctor.ResultType,
+		}
+	}
+	var typeVars []string
+	if ctor.ResultType != nil {
+		typeVars = extractTypeVarsFromType(ctor.ResultType)
+	}
+	return &types.Scheme{TypeVars: typeVars, Type: factoryType}
+}
+
 // resolveConstructorImport adds a single constructor from a dependency to the import set.
+//
+// module is the ADT's defining module (the exporting interface's module; an
+// interface lists only its own constructors).
 func resolveConstructorImport(
 	sym string,
+	module string,
 	ctor *iface.ConstructorScheme,
 	imports *moduleImports,
 	cfg Config,
 ) {
-	factoryName := fmt.Sprintf("make_%s_%s", ctor.TypeName, ctor.CtorName)
-	key := fmt.Sprintf("$adt.%s", factoryName)
+	factoryName := core.ADTFactoryName(module, ctor.TypeName, ctor.CtorName)
+	key := core.ADTModule + "." + factoryName
 
 	imports.GlobalRefs[sym] = core.GlobalRef{
 		Module: "$adt",
@@ -316,31 +457,7 @@ func resolveConstructorImport(
 	}
 
 	// CRITICAL FIX: Also add to externalTypes so type checker knows the signature
-	// Build the factory type scheme from the constructor info
-	var factoryType types.Type
-	if ctor.Arity == 0 {
-		// Nullary constructor: just the result type
-		factoryType = ctor.ResultType
-	} else {
-		// Constructor with fields: FieldTypes -> ResultType
-		factoryType = &types.TFunc2{
-			Params:    ctor.FieldTypes,
-			EffectRow: nil, // Pure constructor
-			Return:    ctor.ResultType,
-		}
-	}
-
-	// Extract type variables from result type for polymorphism
-	var typeVars []string
-	if ctor.ResultType != nil {
-		// Extract type vars from result type (e.g., Option[a] -> ["a"])
-		typeVars = extractTypeVarsFromType(ctor.ResultType)
-	}
-
-	imports.ExternalTypes[key] = &types.Scheme{
-		TypeVars: typeVars,
-		Type:     factoryType,
-	}
+	imports.ExternalTypes[key] = constructorFactoryScheme(ctor)
 
 	// DEBUG: fmt.Printf("DEBUG: Import constructor %s -> %s with type scheme (vars: %v)\n", sym, key, typeVars)
 	if cfg.TraceDefaulting {
@@ -353,6 +470,7 @@ func resolveConstructorImport(
 	// put "Nada" among Option's constructors in diagnostics (#1478).
 	if sym == ctor.CtorName {
 		imports.ImportedCtorTypes[sym] = ctor.TypeName
+		imports.ImportedCtorModules[sym] = module
 	}
 
 	// M-TAPP-FIX: Derive type param count from ResultType
@@ -361,8 +479,10 @@ func resolveConstructorImport(
 	if tapp, ok := ctor.ResultType.(*types.TApp); ok {
 		paramCount = len(tapp.Args)
 	}
-	if _, exists := imports.ImportedADTTypeParams[ctor.TypeName]; !exists {
-		imports.ImportedADTTypeParams[ctor.TypeName] = paramCount
+	if adtKey := types.NominalKey(module, ctor.TypeName); true {
+		if _, exists := imports.ImportedADTTypeParams[adtKey]; !exists {
+			imports.ImportedADTTypeParams[adtKey] = paramCount
+		}
 	}
 
 	// M-RT1-FIX: Track full constructor info for elaborator registration
@@ -370,6 +490,7 @@ func resolveConstructorImport(
 	// (like None) in pattern matching and not treat them as variable patterns
 	imports.ImportedCtorInfos[sym] = &importedCtorInfo{
 		TypeName:       ctor.TypeName,
+		Module:         module,
 		CanonicalName:  ctor.CtorName,
 		Arity:          ctor.Arity,
 		TypeParamCount: paramCount,

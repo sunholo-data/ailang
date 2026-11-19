@@ -14,6 +14,13 @@ var ImportSuggester func(name string) []string
 // error when name is a known stdlib export, else "". The dominant agent slip on multi-file tasks
 // is using a stdlib function without importing it; this turns a bare error into a one-step fix.
 func importHint(name string) string {
+	// The six prelude names (#2371) are in scope without an import in every
+	// module except std/ and a file of top-level expressions (#2372); there,
+	// an expression `Some(1)` is "undefined variable: Some". The index below
+	// covers functions only, so they get the same one-step fix here.
+	if imp, ok := preludeImports[name]; ok {
+		return fmt.Sprintf(" — add `%s`", imp)
+	}
 	if ImportSuggester == nil {
 		return ""
 	}
@@ -27,6 +34,16 @@ func importHint(name string) string {
 	// Multiple exporters (e.g. `length` in list/string/array/bytes): stay neutral, the model
 	// picks by the value's type rather than us guessing a primary.
 	return fmt.Sprintf(" — `%s` is exported by %s; add the matching import", name, strings.Join(mods, ", "))
+}
+
+// preludeImports is the explicit import of each prelude name's module.
+var preludeImports = map[string]string{
+	"Option": "import std/option (Option, Some, None)",
+	"Some":   "import std/option (Option, Some, None)",
+	"None":   "import std/option (Option, Some, None)",
+	"Result": "import std/result (Result, Ok, Err)",
+	"Ok":     "import std/result (Result, Ok, Err)",
+	"Err":    "import std/result (Result, Ok, Err)",
 }
 
 // builtinHint returns a self-discovery clause for undefined variables that follow the

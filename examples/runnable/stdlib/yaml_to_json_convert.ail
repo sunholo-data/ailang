@@ -1,0 +1,37 @@
+-- Task: convert YAML documents to JSON text (a YAML-to-JSON converter), keeping
+-- key order, expanding anchors/merge keys, and reporting malformed input as an
+-- error instead of guessing. Demonstrates std/yaml yamlToJson and decode, with
+-- std/json decode, getString and keys to inspect the converted result.
+module examples/runnable/stdlib/yaml_to_json_convert
+import std/yaml (yamlToJson)
+import std/yaml as Yaml
+import std/json as Json
+import std/list (forEachE)
+import std/string (join)
+
+func convert(src: string) -> () ! {IO} = match yamlToJson(src) {
+  Ok(text) => println("json: ${text}"),
+  Err(e) => println("error: ${e}")
+}
+
+export func main() -> () ! {IO} {
+  -- Scalars, a nested map and a flow list. YAML 1.2: `yes` stays a string, use true/false.
+  convert("name: demo\nversion: 2\nenabled: yes\nowner:\n  team: infra\nports: [80, 443]\n")
+  -- Anchors and merge keys are resolved; explicit keys override merged ones.
+  convert("base: &b\n  retries: 3\n  timeout: 30\nprod:\n  <<: *b\n  timeout: 60\n")
+  -- An unclosed flow sequence is a parse error.
+  convert("ports: [80, 443\n")
+  -- yamlToJson gives text; Yaml.decode gives the Json value directly.
+  let src = "region: eu-west\nzones:\n  - a\n  - b\n"
+  match (yamlToJson(src), Yaml.decode(src)) {
+    (Ok(text), Ok(direct)) => match Json.decode(text) {
+      Ok(viaText) => {
+        println("keys: ${join(", ", Json.keys(direct))}")
+        println("same value: ${show(Json.encode(viaText) == Json.encode(direct))}")
+        println("region: ${show(Json.getString(direct, "region"))}")
+      },
+      Err(e) => println("json error: ${e}")
+    },
+    _ => println("yaml error")
+  }
+}

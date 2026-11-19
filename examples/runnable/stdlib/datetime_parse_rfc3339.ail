@@ -1,0 +1,37 @@
+-- Parse RFC 3339 timestamps from log lines with parseRFC3339 (which returns
+-- Option[int]), reject malformed ones, and report each valid entry's date,
+-- hour and minute. Then compute the elapsed minutes between the first and
+-- last valid entries. Demonstrates parseRFC3339, parseISODate, hour, minute,
+-- formatISODate and formatRFC3339.
+module examples/runnable/stdlib/datetime_parse_rfc3339
+import std/datetime (parseRFC3339, parseISODate, hour, minute, formatISODate, formatRFC3339)
+import std/list (forEachE)
+import std/option (Option, Some, None)
+
+func pad2(n: int) -> string = if n < 10 then "0${show(n)}" else show(n)
+
+func report(s: string) -> () ! {IO} = match parseRFC3339(s) {
+  Some(ts) => println("ok   ${s} -> ${formatISODate(ts)} at ${pad2(hour(ts))}:${pad2(minute(ts))}"),
+  None => println("bad  ${s}")
+}
+
+func elapsedMinutes(a: string, b: string) -> Option[int] = match (parseRFC3339(a), parseRFC3339(b)) {
+  (Some(x), Some(y)) => Some((y - x) / 60000),
+  _ => None
+}
+
+export func main() -> () ! {IO} {
+  let lines = ["2024-06-01T08:15:00Z", "2024-06-01T25:00:00Z", "June 1st", "2024-06-01T11:05:30Z"]
+  forEachE(report, lines)
+  match elapsedMinutes("2024-06-01T08:15:00Z", "2024-06-01T11:05:30Z") {
+    Some(m) => println("elapsed: ${show(m)} minutes"),
+    None => println("elapsed: unknown")
+  }
+  -- A date-only string is not RFC 3339; parse it with parseISODate instead
+  let dateOnly = "2024-06-01"
+  println("parseRFC3339 date-only: ${show(parseRFC3339(dateOnly))}")
+  match parseISODate(dateOnly) {
+    Some(ts) => println("parseISODate: ${formatRFC3339(ts)}"),
+    None => println("parseISODate: None")
+  }
+}

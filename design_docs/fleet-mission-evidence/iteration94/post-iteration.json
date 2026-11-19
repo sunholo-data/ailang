@@ -1,0 +1,50 @@
+{
+  "source": "mission:fleet/iter-94",
+  "stages": [
+    {
+      "role": "designer-screen",
+      "model": "gpt-6.1-sol",
+      "quota_bucket": "codex",
+      "quota_tokens": 217559,
+      "status": "completed"
+    },
+    {
+      "role": "planner-screen",
+      "model": "gpt-6.1-sol",
+      "quota_bucket": "codex",
+      "quota_tokens": 191335,
+      "status": "completed"
+    },
+    {
+      "role": "executor-screen",
+      "model": "gpt-6.1-sol",
+      "quota_bucket": "codex",
+      "quota_tokens": 230751,
+      "status": "completed"
+    },
+    {
+      "role": "evaluator-idle-r1",
+      "provider": "openrouter",
+      "model": "minimax/minimax-m3",
+      "cost_usd": 0.30141024,
+      "tokens_in": 3245788,
+      "tokens_out": 34237,
+      "status": "failed"
+    },
+    {
+      "role": "evaluator-idle-r2",
+      "provider": "openrouter",
+      "model": "minimax/minimax-m3",
+      "cost_usd": 0.56897208,
+      "tokens_in": 6209944,
+      "tokens_out": 78793,
+      "status": "completed"
+    },
+    {
+      "role": "controller",
+      "model": "gpt-6.1-sol",
+      "quota_bucket": "codex",
+      "status": "completed"
+    }
+  ]
+}

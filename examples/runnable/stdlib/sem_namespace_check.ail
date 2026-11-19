@@ -1,0 +1,31 @@
+-- Task: validate user-supplied collection names before using them as
+-- SharedIndex namespaces — accept the clean ones, report why each bad one is
+-- rejected (empty, or containing ':', '/', '\', space, tab or newline), and
+-- summarise how many passed.
+-- Demonstrates std/sem validate_namespace.
+module examples/runnable/stdlib/sem_namespace_check
+import std/sem (validate_namespace)
+import std/option (Some, None, isNone)
+import std/list (forEachE, filter, length)
+import std/string (join, replace)
+
+-- Quote the raw name and make whitespace control characters visible.
+pure func visible(ns: string) -> string = "\"${replace(replace(ns, "\t", "\\t"), "\n", "\\n")}\""
+
+-- The validator already escapes tab and newline; name a bare space in words.
+pure func reason(msg: string) -> string = replace(msg, ":  ", ": space")
+
+pure func verdict(ns: string) -> string = match validate_namespace(ns) {
+  None => "ok",
+  Some(msg) => "rejected (${reason(msg)})"
+}
+
+pure func candidates() -> [string] =
+  ["beliefs", "agent-7.memory", "", "tenant:acme", "docs/archive", "my notes", "tab\tsep", "multi\nline", "back\\slash", "user_42"]
+
+export func main() -> () ! {IO} {
+  let names = candidates()
+  forEachE(\ns. println("${visible(ns)} -> ${verdict(ns)}"), names)
+  let accepted = filter(\ns. isNone(validate_namespace(ns)), names)
+  println("accepted ${show(length(accepted))} of ${show(length(names))}: ${join(", ", accepted)}")
+}

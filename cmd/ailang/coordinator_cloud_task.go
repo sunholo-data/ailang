@@ -347,30 +347,9 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		fmt.Println("execute-job: no uncommitted changes (agent may have committed directly)")
 	}
 
-	// Step 5b: Check for unpushed commits.
-	// If origin/{branchName} doesn't exist yet (new coordinator branch), git log
-	// exits 128 — treat that as "entire branch is unpushed" and proceed to push.
-	logCmd := gitexec.CommandContext(ctx, "-C", workDir, "log", fmt.Sprintf("origin/%s..HEAD", branchName), "--oneline")
-	logOutput, err := logCmd.Output()
-	newBranch := false
-	if err != nil {
-		// Check whether the remote ref simply doesn't exist yet.
-		lsRemote := gitexec.CommandContext(ctx, "-C", workDir, "ls-remote", "--exit-code", "origin", branchName)
-		if lsRemote.Run() != nil {
-			// Remote ref absent — whole branch needs pushing.
-			newBranch = true
-			fmt.Printf("execute-job: branch %s not on remote yet — will push\n", branchName)
-		} else {
-			fmt.Fprintf(os.Stderr, "execute-job: git log origin/%s..HEAD failed: %v\n", branchName, err)
-		}
-	}
-
-	// A NEW branch needs its own emptiness check. `git log origin/BRANCH..HEAD`
-	// exits 128 when the remote ref is absent, so logOutput is empty because the
-	// command FAILED, not because there is nothing to push — which is why the
-	// check below is gated on !newBranch. Without a separate test, a task that
-	// changed nothing pushed an empty branch and then asked GitHub to open a PR
-	// for it:
+	// Step 5b: does this branch CONTAIN work at all? "Nothing left to push" is
+	// not the same answer. Without this test, a task that changed nothing
+	// pushed an empty branch and then asked GitHub to open a PR for it:
 	//
 	//   pr create failed: 422 "No commits between main and coordinator/task-…"
 	//
@@ -405,14 +384,32 @@ func executeCloudTask(ctx context.Context, taskID, agentID, repoURL, baseBranch,
 		return branchName, execResult, collectGitEvidence(ctx, workDir, clonePoint), nil
 	}
 
-	unpushed := branchNeedsPush(newBranch, string(logOutput))
+	// Step 5b': is HEAD already on origin/<branch>? Asked of the remote
+	// (remoteBranchHead), never the tracking ref: see remoteBranchHead for the
+	// single-branch-clone defect that made the old check say "nothing to push"
+	// after an agent's own push (D-FLEET-23).
+	headOut, err := gitexec.CommandContext(ctx, "-C", workDir, "rev-parse", "HEAD").Output()
+	if err != nil {
+		return branchName, execResult, gitEvidence{}, fmt.Errorf("cannot read HEAD before the push: %w", err)
+	}
+	head := strings.TrimSpace(string(headOut))
+	remoteHead, lsErr := remoteBranchHead(ctx, workDir, branchName)
+	switch {
+	case lsErr != nil:
+		// Unknown is not "already published": push, and let the push and its
+		// assertion fail loudly if the remote really is unreachable.
+		fmt.Fprintf(os.Stderr, "execute-job: ls-remote origin refs/heads/%s failed: %v — will push\n", branchName, lsErr)
+	case remoteHead == "":
+		fmt.Printf("execute-job: branch %s not on remote yet — will push\n", branchName)
+	}
+	unpushed := branchNeedsPush(remoteHead, head)
 
 	// Step 5c: Push all commits, if any are still local.
 	// Shallow clones can't push new branches — unshallow first so the remote
 	// has full history context for the new branch ref.
 	if repoURL != "" {
 		if unpushed {
-			fmt.Printf("execute-job: unpushed commits:\n%s", string(logOutput))
+			fmt.Printf("execute-job: origin/%s is at %q, HEAD is %s — pushing\n", branchName, remoteHead, head)
 			unshallowCmd := gitexec.CommandContext(ctx, "-C", workDir, "fetch", "--unshallow")
 			unshallowCmd.Stdout = os.Stdout
 			unshallowCmd.Stderr = os.Stderr

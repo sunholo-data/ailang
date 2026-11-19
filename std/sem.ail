@@ -12,7 +12,7 @@ module std/sem
 
 import std/option (Option, Some, None)
 import std/list (findIndex)
-import std/json (Json, JNull, JString, JNumber, JArray, JObject, encode, decode, kv, jo, js, jnum, jn)
+import std/json (Json, JNull, JString, JNumber, JInt, JArray, JObject, encode, decode, kv, jo, js, jint, jn)
 import std/result (Result, Ok, Err, isOk)
 import std/sharedmem as cache (get, put, cas)
 
@@ -227,11 +227,6 @@ export pure func bump_version(f: sem_frame) -> sem_frame {
 -- JSON Serialization
 -- ============================================================================
 
--- Helper: Convert int to float for JSON encoding
-pure func int_to_float(n: int) -> float {
-  _int_to_float(n)
-}
-
 -- Helper: Encode Option[bytes] as JNull or JString(base64)
 pure func encode_option_bytes(opt: Option[bytes]) -> Json {
   match opt {
@@ -249,12 +244,12 @@ pure func encode_option_bytes(opt: Option[bytes]) -> Json {
 export pure func encode_frame(f: sem_frame) -> string {
   let json_obj = jo([
     kv("id", js(f.id)),
-    kv("ver", jnum(int_to_float(f.ver))),
-    kv("ts", jnum(int_to_float(f.ts))),
+    kv("ver", jint(f.ver)),
+    kv("ts", jint(f.ts)),
     kv("content", js(f.content)),
-    kv("simhash", jnum(int_to_float(f.simhash))),
+    kv("simhash", jint(f.simhash)),
     kv("embedding", encode_option_bytes(f.embedding)),
-    kv("embedding_dim", jnum(int_to_float(f.embedding_dim))),
+    kv("embedding_dim", jint(f.embedding_dim)),
     kv("opaque", js(_bytes_to_base64(f.opaque)))
   ])
   in encode(json_obj)
@@ -268,9 +263,12 @@ pure func json_get_string(j: Json) -> Option[string] {
   }
 }
 
--- Helper: Extract number from JSON as int, return None if not a number
+-- Helper: Extract number from JSON as int, return None if not a number.
+-- JInt is exact (a 64-bit simhash survives); a JNumber from an older frame
+-- is truncated as before.
 pure func json_get_int(j: Json) -> Option[int] {
   match j {
+    JInt(n) => Some(n),
     JNumber(n) => Some(_float_to_int(n)),
     _ => None
   }

@@ -22,6 +22,7 @@ import {
 	bashAllowed,
 	headlessPrerequisitesMet,
 	unattendedFromEnv,
+	evalRunFromEnv,
 	BLOCK_REASON,
 } from "./session-protocol-gate.ts";
 
@@ -368,4 +369,26 @@ test("headlessPrerequisitesMet: requires both CLAUDE.md and ailang messages evid
 	// Both steps (bash cat variant) → met
 	r = headlessPrerequisitesMet([bashCatCall, messagesCall], false);
 	assert.equal(r.met, true);
+});
+
+// Eval runs (AILANG_EVAL_RUN=1, harness-injected) disarm the gate: an eval's task is the
+// benchmark. Measured 2026-11-06: armed, the gate refused every write in a pi eval until the
+// model called session_protocol_ack (m-eval-finetuning-data-pipeline, pilot-1: 0/24).
+test("evalRunFromEnv: exactly \"1\" disarms, anything else stays armed", () => {
+	assert.equal(evalRunFromEnv({ AILANG_EVAL_RUN: "1" }), true);
+	for (const v of [undefined, "", "0", "true", "yes", " 1", "1 "]) {
+		assert.equal(evalRunFromEnv({ AILANG_EVAL_RUN: v }), false, String(v));
+	}
+	assert.equal(evalRunFromEnv({}), false);
+});
+
+test("shouldBlock: an eval run allows write/edit/mutating bash without the ack", () => {
+	const evalGate = { tier: "tier2" as const, prereqsMet: false, evalRun: true };
+	assert.equal(shouldBlock("write", undefined, false, evalGate), null);
+	assert.equal(shouldBlock("edit", undefined, false, evalGate), null);
+	assert.equal(shouldBlock("bash", "ailang run --entry main --caps IO benchmark/solution.ail > out.txt", false, evalGate), null);
+	// The control: the same context without the marker still blocks.
+	const armed = { tier: "tier2" as const, prereqsMet: false, evalRun: false };
+	assert.equal(shouldBlock("write", undefined, false, armed), BLOCK_REASON);
+	assert.equal(shouldBlock("write", undefined, false, { tier: "tier2", prereqsMet: false }), BLOCK_REASON);
 });

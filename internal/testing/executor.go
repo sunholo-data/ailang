@@ -21,7 +21,6 @@ type Executor struct {
 	// ModeEval evaluates Core.Decls[0] through link.Resolver, which only gains a
 	// $builtin lookup when the caller supplies a GlobalResolver.
 	globalResolver eval.GlobalResolver
-	enableDebug    bool
 	modules        map[string]*loader.LoadedModule // Cached modules from last pipeline run
 	rootModule     string                          // Key in modules of the module under test (see cacheModules)
 	lastMeta       map[string]*core.DeclMeta       // Cached Core.Meta from last pipeline run (lowered contracts)
@@ -37,8 +36,9 @@ type Executor struct {
 	batch                  *namedBatch
 	batchResult            pipeline.Result
 	batchFailure           *BatchFailure
-	perBodyCompileFailures int // per-body compiles that failed after a batch failure
-	pipelineRuns           int // runNamedTestPipeline calls, for tests
+	perBodyCompileFailures int    // per-body compiles that failed after a batch failure
+	batchModuleError       string // the batch failed in the module itself (module_compile.go)
+	pipelineRuns           int    // runNamedTestPipeline calls, for tests
 
 	// Inline-test compiles, memoized per file (#1328): every inline test used
 	// to compile the module twice (binding + cluster), so a 41-test file paid
@@ -88,7 +88,6 @@ func NewExecutor(modulePath string) *Executor {
 		modulePath:     modulePath,
 		sourceFile:     nil,
 		globalResolver: runtime.NewBuiltinOnlyResolver(builtins),
-		enableDebug:    false,
 		modules:        make(map[string]*loader.LoadedModule),
 		lastMeta:       nil,
 	}
@@ -110,24 +109,6 @@ func (e *Executor) LastDeclMeta(funcName string) *core.DeclMeta {
 // SetSourceFile sets the source file to provide context for test evaluation.
 func (e *Executor) SetSourceFile(file *ast.File) {
 	e.sourceFile = file
-}
-
-// SetDebug enables debug output for test execution.
-func (e *Executor) SetDebug(debug bool) {
-	e.enableDebug = debug
-}
-
-// EvaluateEnsuresHarness evaluates a single iteration of an ensures-clause property test.
-// Returns a *eval.BoolValue: true if the ensures predicate held for the given inputs, false if violated.
-//
-// This is the M-DX26 Phase 5 entry point: it evaluates Core directly, the
-// same way EvaluateInlineTestsWithHarness does for inline tests blocks.
-func (e *Executor) EvaluateEnsuresHarness(binding core.RecBinding, params []EnsuresParam, predicate ast.Expr) (eval.Value, error) {
-	harness, err := BuildEnsuresPropertyHarness(binding, params, predicate)
-	if err != nil {
-		return nil, err
-	}
-	return e.evaluateEnsuresHarnessCore(harness)
 }
 
 // EvaluateEnsuresHarnessFromCore is the lowered-Core variant — accepts a predicate
@@ -200,11 +181,11 @@ func (e *Executor) EvaluateNamedTestBodyExprs(bodyExprs []ast.Expr) (eval.Value,
 	// which the parser emits as separate ast.Let nodes with Body==nil.  We must
 	// chain them before printing so we produce valid AILANG ("let x = ... in ...").
 	//
-	// FoldTestBody additionally lowers top-level `assert` statements into a
-	// short-circuiting `if` chain over an int sentinel (#590) — `assert` has no
-	// prefix parselet in the general grammar, so it cannot survive the round-trip
-	// verbatim. `checks` is empty for assert-free bodies, which keep the legacy
-	// bool path unchanged.
+	// FoldTestBody additionally lowers top-level checks — `assert` statements
+	// (#590) and bare non-final expressions (#604) — into a short-circuiting
+	// `if` chain over an int sentinel. `checks` is empty for bodies with
+	// neither (one expression, or lets + a final expression), which keep the
+	// legacy bool path unchanged.
 	if ent, ok := e.batchedEntry(bodyExprs); ok {
 		if val, handled, err := e.evaluateBatched(ent); handled {
 			return val, err
@@ -456,12 +437,7 @@ func (e *Executor) ExtractFunctionBinding(functionName string, sourceFile *ast.F
 		}
 		pipelineFilename = tmpFile
 	}
-	cfg := pipeline.Config{
-		SkipTestRowValidation: true,
-		Mode:                  pipeline.ModeEval,
-		RelaxModules:          true,
-		GlobalResolver:        e.globalResolver,
-	}
+	cfg := e.inlineModuleConfig()
 	src := pipeline.Source{
 		Code:     strippedSource,
 		Filename: pipelineFilename,
@@ -526,34 +502,13 @@ func (e *Executor) CompareValues(actual, expected eval.Value) bool {
 	return equalValues(actual, expected)
 }
 
-// EvaluateInlineTestsWithCluster evaluates inline tests for a function with cross-function dependencies.
+// EvaluateInlineTestsWithCluster evaluates inline tests for a function with
+// cross-function dependencies. The cluster must come from
+// ExtractPureClusterForFunction, which is where purity is enforced.
 func (e *Executor) EvaluateInlineTestsWithCluster(
-	functionName string,
+	cluster *PureCluster,
 	tests []TestCase,
-	coreProg *core.Program,
 ) (*eval.TupleValue, error) {
-	g := BuildCallGraph(coreProg)
-	sccs := ComputeSCCs(g)
-	closure := GetDependencyClosure(g, sccs, functionName)
-	if closure == nil {
-		return nil, fmt.Errorf("function '%s' not found in call graph", functionName)
-	}
-
-	bindings := make([]core.RecBinding, 0, len(closure))
-	names := make(map[string]bool)
-	for _, name := range closure {
-		if binding, ok := g.Bindings[name]; ok {
-			bindings = append(bindings, *binding)
-			names[name] = true
-		}
-	}
-
-	cluster := &PureCluster{
-		FuncName: functionName,
-		Bindings: bindings,
-		Names:    names,
-	}
-
 	harnessExpr, err := BuildClusterTestHarness(cluster, tests)
 	if err != nil {
 		return nil, err
@@ -577,14 +532,15 @@ func (e *Executor) EvaluateInlineTestsWithCluster(
 	return tupleResult, nil
 }
 
-// ExtractPureClusterForFunction extracts the pure dependency cluster for a function from source code.
-func (e *Executor) ExtractPureClusterForFunction(
-	functionName string,
-	sourceFile *ast.File,
-) (*PureCluster, *core.Program, error) {
+// ExtractPureClusterForFunction compiles the module and extracts the pure
+// dependency cluster for functionName via ExtractPureCluster, the single
+// implementation of the purity gate. A *PurityError means the function under
+// test is effectful: inline tests run without capabilities, so the caller must
+// report it rather than fall back to another harness.
+func (e *Executor) ExtractPureClusterForFunction(functionName string) (*PureCluster, error) {
 	sourceCode, err := os.ReadFile(e.modulePath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to read source file: %w", err)
+		return nil, fmt.Errorf("failed to read source file: %w", err)
 	}
 
 	cfg := pipeline.Config{
@@ -607,48 +563,22 @@ func (e *Executor) ExtractPureClusterForFunction(
 	// harness).
 	result, err := e.runInlineCompile("cluster", cfg, src)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to elaborate source: %w", err)
+		return nil, fmt.Errorf("failed to elaborate source: %w", err)
 	}
 
 	if result.Artifacts.Core == nil {
-		return nil, nil, fmt.Errorf("pipeline did not produce Core program")
+		return nil, fmt.Errorf("pipeline did not produce Core program")
 	}
 
 	e.cacheModules(&result)
 
+	if result.Artifacts.CoreTI == nil {
+		// Without type info every binding would read as pure (IsPure).
+		return nil, fmt.Errorf("pipeline did not produce Core type info; cannot check purity of '%s'", functionName)
+	}
+
 	coreProg := result.Artifacts.Core
 	g := BuildCallGraph(coreProg)
 	sccs := ComputeSCCs(g)
-	closure := GetDependencyClosure(g, sccs, functionName)
-	if closure == nil {
-		return nil, nil, fmt.Errorf("function '%s' not found in call graph", functionName)
-	}
-
-	bindings := make([]core.RecBinding, 0, len(closure))
-	names := make(map[string]bool)
-	for _, name := range closure {
-		if binding, ok := g.Bindings[name]; ok {
-			bindings = append(bindings, *binding)
-			names[name] = true
-		}
-	}
-
-	cluster := &PureCluster{
-		FuncName: functionName,
-		Bindings: bindings,
-		Names:    names,
-	}
-
-	return cluster, coreProg, nil
-}
-
-// HasCrossFunctionDependencies checks if a function has dependencies on other user-defined functions.
-func (e *Executor) HasCrossFunctionDependencies(
-	functionName string,
-	coreProg *core.Program,
-) bool {
-	g := BuildCallGraph(coreProg)
-	sccs := ComputeSCCs(g)
-	closure := GetDependencyClosure(g, sccs, functionName)
-	return len(closure) > 1
+	return ExtractPureCluster(functionName, g, sccs, result.Artifacts.CoreTI)
 }

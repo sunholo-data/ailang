@@ -34,6 +34,9 @@ func lowerExpr(e core.CoreExpr, cti types.CoreTypeInfo) stmt.Expr {
 		// See M-BYTECODE-MULTIMODULE M3.
 		if e.Ref.Module == "$adt" {
 			if typ, tag, ok := parseADTFactoryName(e.Ref.Name); ok {
+				if ft, isFn := cti[e.ID()].(*types.TFunc2); isFn && len(ft.Params) > 0 {
+					return ctorAsFunction(typ, tag, ft)
+				}
 				return stmt.ADTConstructor{TypeName: typ, Tag: tag}
 			}
 		}
@@ -162,6 +165,26 @@ func lowerLit(e *core.Lit) stmt.Expr {
 	}
 }
 
+// ctorAsFunction lowers a constructor of arity n used as a VALUE (`map(Some,
+// xs)`, `let f = Ok`) to its eta-expansion `\a0 … an-1. Tag(a0, …, an-1)`.
+// It used to lower to a zero-field ADT, so the VM held `Some` (no fields)
+// where the evaluator held a function: `show(Some)` printed `Some` on the VM
+// and `<function>` on the evaluator, and calling it failed with "CallClosure:
+// expected closure, got ADT" (M-V1-SHOW-TOTAL review).
+func ctorAsFunction(typeName, tag string, ft *types.TFunc2) stmt.Expr {
+	params := make([]stmt.Param, len(ft.Params))
+	args := make([]stmt.Expr, len(ft.Params))
+	for i, pt := range ft.Params {
+		name := fmt.Sprintf("ctorArg%d__", i)
+		params[i] = stmt.Param{Name: name, Type: ProjectType(pt)}
+		args[i] = stmt.VarRef{Name: name}
+	}
+	return stmt.Lambda{
+		Params: params,
+		Return: stmt.ADTConstructor{TypeName: typeName, Tag: tag, Args: args},
+	}
+}
+
 func lowerLambda(e *core.Lambda, cti types.CoreTypeInfo) stmt.Expr {
 	// A nested lambda with a frame mode (Rand[mode=crypto], Net[scope=public],
 	// a budget) would run as a VM closure with the mode dropped; send the
@@ -228,8 +251,7 @@ func lowerApp(e *core.App, cti types.CoreTypeInfo) stmt.Expr {
 
 	// Direct builtin calls: a $builtin.<name> reference becomes a BuiltinCall.
 	// This is required for the bytecode VM, which has no notion of stdlib
-	// globals — it dispatches builtins through its own table. The Go emitter
-	// is unaffected because it never inspects BuiltinCall vs Call indirection.
+	// globals — it dispatches builtins through its own table.
 	if vg, ok := e.Func.(*core.VarGlobal); ok && vg.Ref.Module == "$builtin" {
 		args := make([]stmt.Expr, len(e.Args))
 		for i, a := range e.Args {
@@ -322,6 +344,9 @@ func recordTypeName(cti types.CoreTypeInfo, e core.CoreExpr) string {
 // generic GlobalRef path (which will fail loudly in the compiler — the
 // correct behavior, since an unrecognized $adt ref is a bug upstream).
 func parseADTFactoryName(name string) (string, string, bool) {
+	// M-V1-NOMINAL-TYPE-IDENTITY: drop the "@<module>" qualifier; the bytecode
+	// ADT tables are still keyed by bare name (M4).
+	name, _ = core.SplitADTFactoryModule(name)
 	const prefix = "make_"
 	if len(name) <= len(prefix) || name[:len(prefix)] != prefix {
 		return "", "", false

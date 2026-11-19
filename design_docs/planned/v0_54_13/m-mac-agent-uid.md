@@ -11,7 +11,7 @@ behind a flag rides the next security release after v0.54.12.
 "the rig is a single-operator machine" and by no observed exploitation.
 **Estimated**: Phase 0 ~1 day · spawn seam + ingestion ~5–7 days · credentials + rollout
 ~3–4 days · host-ops (account, sudoers, home deny) ~0.5 day. Total ~10–12 engineering days.
-**Dependencies**: [M-EXECUTOR-ENV-HARDENING](../v0_49_1/m-executor-env-hardening.md)
+**Dependencies**: [M-EXECUTOR-ENV-HARDENING](../../implemented/v0_50_0/m-executor-env-hardening.md)
 (H-4, implemented per its status header, still filed under `planned/v0_49_1/` —
 `internal/executor/envpolicy.go` is the env seam this design reuses);
 [M-EXECUTOR-UID-SPLIT](../v0_49_1/m-executor-uid-split.md) (H-6 cloud, D4 git-ingestion design
@@ -531,7 +531,7 @@ asserted). Run `ailang design-quorum` before planning, per the skill's trigger r
 
 - [M-EXECUTOR-UID-SPLIT](../v0_49_1/m-executor-uid-split.md) (planned, cloud track): D6 ruling
   commissions this doc; D4's git-ingestion design is reused verbatim; S6 is the shared evidence
-- [M-EXECUTOR-ENV-HARDENING](../v0_49_1/m-executor-env-hardening.md) (implemented per its
+- [M-EXECUTOR-ENV-HARDENING](../../implemented/v0_50_0/m-executor-env-hardening.md) (implemented per its
   status header, filed under planned/): the env allowlist this design inherits as its only env
   authority
 - [M-RIG-GPU-ADMISSION-GATEWAY](../m-rig-gpu-admission-gateway.md) (Phase 2 cut over): the

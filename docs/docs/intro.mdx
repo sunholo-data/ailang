@@ -17,7 +17,7 @@ import { STABLE_RELEASE, ACTIVE_PROMPT } from '@site/src/constants/version';
 
 Welcome to the official documentation for AILANG, a deterministic, effect-typed programming language designed as a safe target for AI-generated programs.
 
-AILANG {STABLE_RELEASE} ships a stable core — language, effects, modules, codegen — with APIs that may still evolve in pre-1.0 minor releases. The [Stability Promise](/docs/reference/stability) defines which syntax, stdlib, and CLI surface is guaranteed across the 1.x line (Stable / Experimental / Internal tiers).
+AILANG {STABLE_RELEASE} ships a stable core — language, effects, modules — with APIs that may still evolve in pre-1.0 minor releases. The [Stability Promise](/docs/reference/stability) defines which syntax, stdlib, CLI, package (manifest, lockfile, registry) and hosted MCP tool surface is guaranteed across the 1.x line (Stable / Experimental / Internal tiers).
 
 <div className="callout-box">
   <Icon name="zap" inline /> **New to AILANG?** Read our [Vision](/docs/vision) to understand why AILANG exists and what makes it different from other programming languages.
@@ -51,7 +51,7 @@ import FactorialExample from '!!raw-loader!@site/../examples/runnable/recursion_
 
 ### Hello World
 
-<CodeBlock language="typescript" title="examples/runnable/hello.ail">
+<CodeBlock language="ailang" title="examples/runnable/hello.ail">
   {HelloExample}
 </CodeBlock>
 
@@ -59,7 +59,7 @@ Run with: `ailang run --caps IO examples/runnable/hello.ail`
 
 ### Recursive Factorial
 
-<CodeBlock language="typescript" title="examples/runnable/recursion_factorial.ail">
+<CodeBlock language="ailang" title="examples/runnable/recursion_factorial.ail">
   {FactorialExample}
 </CodeBlock>
 
@@ -149,4 +149,4 @@ AILANG is built on several key principles:
 
 ---
 
-<WarningIcon inline size={16} /> *AILANG is pre-1.0. The core language, effects, modules, and codegen are stable; minor-version releases may still adjust public APIs. See the [Roadmap](/docs/roadmap) for what's next.*
+<WarningIcon inline size={16} /> *AILANG is pre-1.0. The core language, effects and modules are stable; minor-version releases may still adjust public APIs. See the [Roadmap](/docs/roadmap) for what's next.*

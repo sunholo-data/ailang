@@ -14,11 +14,17 @@ import (
 // a wire measurement and a decision, as glm-5.3-flash got. This list may only
 // shrink: the test fails when a listed api_name becomes consistent, so the
 // entry is removed in the same change.
+//
+// One deliberate ADDITION: z-ai/glm-5.3 (D-FLEET-35 A, Mark, attended 2026-11-16).
+// Its pi row records the 32000 the rig's installed pi config carries for the driver's
+// designer rung, the same pattern as kimi-k3 and minimax-m3, while or-glm-5-3 declares
+// 65536. It shrinks with the others when that wire decision is made.
 var unequalWireBudgets = map[string]bool{
 	"deepseek/deepseek-v4-flash-0731": true,
 	"deepseek/deepseek-v4.1-flash":    true,
 	"minimax/minimax-m3":              true,
 	"moonshotai/kimi-k3":              true,
+	"z-ai/glm-5.3":                    true,
 }
 
 // TestModels_SameAPINameSameWireBudget: an output cap and a reasoning effort
